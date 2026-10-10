@@ -256,7 +256,9 @@ struct Generator {
                 impure = true;
                 const int k = loops++;
                 const Node total{xpp::format("t{}", temps++), true};
-                out.push_back(xpp::format("lo{0}=(int)({1});hi{0}=(int)({2});{3}=0.0;if(lo{0}<=hi{0}){{for(ix{0}=lo{0};;ix{0}++){{c[{4}]=(double)ix{0};",
+                /* lo, hi and ix are int: the assignments truncate the bounds and
+                   widen the index as the interpreter's casts do */
+                out.push_back(xpp::format("lo{0}={1};hi{0}={2};{3}=0.0;if(lo{0}<=hi{0}){{for(ix{0}=lo{0};;ix{0}++){{c[{4}]=ix{0};",
                                           k, low.text, high.text, total.text, expr::SUM_INDEX));
                 size_t body_pc = body;
                 ++depth;
