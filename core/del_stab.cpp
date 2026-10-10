@@ -34,7 +34,7 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
 
  double colnorm=0,colmax,colsum;
  double old_x[MAXODE],sign;
- double yp[MAXODE],y[MAXODE],dx;
+ double y[MAXODE];
  int kmem=n*(2*n+5)+50,i,j,k,okroot;
 
  std::vector<double> ev(2*n, 0.0);
@@ -74,19 +74,18 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
  /* now the jacobians for the delays */
  for(k=0;k<s.delay.ndelay;k++){
    s.delay.which=k;
+   auto perturb_delay=[&](int i,double xi,double *f){
+     for(int j=0;j<n;j++)
+       s.delay.variable_shift[1][j]=s.delay.variable_shift[0][j];
+     s.delay.variable_shift[1][i]=xi;
+     s.integrator.rhs(0.0,x,f,n);
+     s.delay.variable_shift[1][i]=x[i];
+   };
+   xpp::jacobian(perturb_delay,x,y,n,eps,{xpp::JacobianLayout::RowMajor},coef.data()+n*n*(k+1));
    colmax=0.0;
    for(i=0;i<n;i++){
      colsum=0.0;
-     for(j=0;j<n;j++)
-       s.delay.variable_shift[1][j]=s.delay.variable_shift[0][j];
-     dx=eps*std::max(eps,fabs(x[i]));
-     s.delay.variable_shift[1][i]=x[i]+dx;
-     s.integrator.rhs(0.0,x,yp,n);
-     s.delay.variable_shift[1][i]=x[i];
-     for(j=0;j<n;j++){
-       coef[j*n+i+n*n*(k+1)]=(yp[j]-y[j])/dx;
-       colsum+=fabs(coef[j*n+i+n*n*(k+1)]);
-     }
+     for(j=0;j<n;j++)colsum+=fabs(coef[j*n+i+n*n*(k+1)]);
      if(colsum>colmax)colmax=colsum;
    }
    colnorm+=colmax;
@@ -253,20 +252,14 @@ int find_positive_root(xpp::Session &s, double *coef, double *delay, int n, int 
     yl=lambda.i;
    
     /* compute the Jacobian */
-    if(fabs(xl)>eps)
-      r=eps*fabs(xl);
-    else
-      r=eps*eps;
+    r=xpp::difference_step(eps,xl);
     xlp=xl+r;
     lambdap=rtoc(xlp,yl);
     make_z(z.data(),delay,n,m,coef,lambdap);
     detp=cdeterm(z.data(),n);
    jac[0]=(detp.r-det.r)/r;
    jac[2]=(detp.i-det.i)/r;
-    if(fabs(yl)>eps)
-      r=eps*fabs(yl);
-    else
-      r=eps*eps;
+    r=xpp::difference_step(eps,yl);
     ylp=yl+r;
     lambdap=rtoc(xl,ylp);
     make_z(z.data(),delay,n,m,coef,lambdap);

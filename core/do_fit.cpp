@@ -1,6 +1,7 @@
 #include "data_formats.h"
 
 #include "do_fit.h"
+#include "jacobian.h"
 #include "session.h"
 #include "storage.h"
 #include "form_ode.h"
@@ -104,12 +105,12 @@ evaluate_derived(s);
     ip=ipar[l];
     if(ip<0){
       par=s.parser.constants[-ip];
-      dp=eps*MAX(eps,fabs(par));
+      dp=xpp::difference_step(eps,par);
       s.parser.constants[-ip]=par+dp;
     }
     else {
       par=yold[ip];
-      dp=eps*MAX(eps,fabs(par));
+      dp=xpp::difference_step(eps,par);
       y[ip]=par+dp;
       for(j=0;j<nvars;j++){
 	if(ip==ivar[j])

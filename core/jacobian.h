@@ -1,6 +1,8 @@
 #ifndef _jacobian_h_
 #define _jacobian_h_
 
+#include <functional>
+
 namespace xpp {
 
 struct Session; /* session.h */
@@ -16,6 +18,19 @@ struct JacobianForm {
   int lower = 0, upper = 0;      /* Banded only */
   bool discrete_map = false;     /* the Jacobian of f(x)-x, for a map's fixed point */
 };
+
+/* The one step rule of every forward difference of ours (W263):
+   eps * max(eps, |x|), so a variable near zero still gets a step. */
+double difference_step(double eps, double x);
+
+/* What a Jacobian differences: evaluate(i, xi, f) puts into f the function
+   with component i of the point replaced by xi (the rest as at x). The
+   default is the model's rhs at (t, x); del_stab's delay Jacobians perturb
+   the delay's copy of x instead. */
+using JacobianEvaluate = std::function<void(int i, double xi, double *f)>;
+
+/* The Jacobian of `evaluate` at x by forward differences, f0 = f(x). */
+void jacobian(const JacobianEvaluate &evaluate, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out);
 
 /* The model's Jacobian at (t, x), by forward differences: the one owner
    of the step rule (W255). `f0` is f(t, x) (for a map, already f(x)-x),

@@ -9,6 +9,7 @@
 
 #include "my_rhs.h"
 #include "adj2.h"
+#include "jacobian.h"
 #include "load_eqn.h"
 
 #include "expr.h"
@@ -420,8 +421,7 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
  
  for(j=0;j<ntot;j++){
    for(i=0;i<n;i++) y[i]=y0[i];
-    if(fabs(y0[j])<eps)dev=eps*eps;
-	else dev=eps*fabs(y0[j]);
+    dev=xpp::difference_step(eps,y0[j]);
    
     if(j<n) y[j]=y[j]+dev;
      ytemp=y0[j];

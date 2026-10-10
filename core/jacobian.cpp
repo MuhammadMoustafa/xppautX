@@ -10,24 +10,20 @@
 
 namespace xpp {
 
-void jacobian(Session &s, double t, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out, double *dfdt)
+double difference_step(double eps, double x)
+{
+  return eps * std::max(eps, std::fabs(x));
+}
+
+void jacobian(const JacobianEvaluate &evaluate, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out)
 {
   const bool banded = form.layout == JacobianLayout::Banded;
   const int mt = form.lower + form.upper + 1;
-  std::vector<double> xp(x, x + n), f1(n);
+  std::vector<double> f1(n);
   if (banded) std::fill_n(out, static_cast<size_t>(n) * mt, 0.0);
-  if (dfdt) {
-    const double r = eps * std::max(eps, std::fabs(t));
-    s.integrator.rhs(t + r, xp.data(), f1.data(), n);
-    for (int i = 0; i < n; i++) dfdt[i] = (f1[i] - f0[i]) / r;
-  }
   for (int i = 0; i < n; i++) {
-    const double r = eps * std::max(eps, std::fabs(x[i]));
-    xp[i] = x[i] + r;
-    s.integrator.rhs(t, xp.data(), f1.data(), n);
-    if (form.discrete_map)
-      for (int j = 0; j < n; j++) f1[j] -= xp[j];
-    xp[i] = x[i];
+    const double r = difference_step(eps, x[i]);
+    evaluate(i, x[i] + r, f1.data());
     auto entry = [&](int j) { return (f1[j] - f0[j]) / r; };
     switch (form.layout) {
     case JacobianLayout::RowMajor:
@@ -45,6 +41,25 @@ void jacobian(Session &s, double t, const double *x, const double *f0, int n, do
       break;
     }
   }
+}
+
+void jacobian(Session &s, double t, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out, double *dfdt)
+{
+  std::vector<double> xp(x, x + n);
+  if (dfdt) {
+    std::vector<double> f1(n);
+    const double r = difference_step(eps, t);
+    s.integrator.rhs(t + r, xp.data(), f1.data(), n);
+    for (int i = 0; i < n; i++) dfdt[i] = (f1[i] - f0[i]) / r;
+  }
+  auto evaluate = [&](int i, double xi, double *f) {
+    xp[i] = xi;
+    s.integrator.rhs(t, xp.data(), f, n);
+    if (form.discrete_map)
+      for (int j = 0; j < n; j++) f[j] -= xp[j];
+    xp[i] = x[i];
+  };
+  jacobian(evaluate, x, f0, n, eps, form, out);
 }
 
 } // namespace xpp
