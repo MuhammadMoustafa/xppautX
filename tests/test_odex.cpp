@@ -16,8 +16,10 @@
 #include "session.h"
 #include "storage.h"
 #include "menudrive.h"
+#include "solver.h"
 
 #include <cmath>
+#include <array>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -716,6 +718,36 @@ int main(void)
       CHECK(aux(2) == 1); /* the boundary, |a-b| == tol*max(...): near is <=, so true */
       CHECK(aux(3) == 0);
       CHECK(aux(4) == 1); /* within the default 1e-9 */
+    }
+  }
+
+  /* W261: Backward Euler and Rosenbrock keep a 2-state band with the
+     effective width (a requested width of 99 is still the full matrix). */
+  {
+    auto integrate = [](int method, int width) {
+      CHECK(load_text("x'=-x+y\ny'=-y\ninit x=1,y=2\n@ total=.1 dt=.01\ndone\n","ode"));
+      xpp::Session &s=xpp::client_session();
+      s.numerics.method=method;
+      s.numerics.cv_bandflag=width>0;
+      s.numerics.cv_bandlower=width;
+      s.numerics.cv_bandupper=width;
+      xpp::batch_start(s);
+      run_the_commands(s,M_IG);
+      const xpp::DataStore &d=s.data_store;
+      CHECK(d.rows>0);
+      if(d.rows==0)return std::array<double,2>{};
+      CHECK(std::fabs(static_cast<double>(d.col[0][d.rows-1])-.1)<1e-6);
+      return std::array<double,2>{static_cast<double>(d.col[1][d.rows-1]),
+                                  static_cast<double>(d.col[2][d.rows-1])};
+    };
+    for(int method:{xpp::method::RB23,xpp::method::BACKEUL}){
+      const auto dense=integrate(method,0);
+      const auto band=integrate(method,1);
+      const auto oversized=integrate(method,99);
+      for(int i=0;i<2;i++){
+        CHECK(std::fabs(band[i]-dense[i])<1e-8);
+        CHECK(std::fabs(oversized[i]-dense[i])<1e-8);
+      }
     }
   }
 

@@ -19,6 +19,10 @@ struct JacobianForm {
   bool discrete_map = false;     /* the Jacobian of f(x)-x, for a map's fixed point */
 };
 
+/* A band wider than the matrix is the full matrix. Keep the effective
+   widths here so storage, differencing, factorisation and work sizing agree. */
+JacobianForm banded_jacobian(int n, int lower, int upper);
+
 /* The one step rule of every forward difference of ours (W263):
    eps * max(eps, |x|), so a variable near zero still gets a step. */
 double difference_step(double eps, double x);

@@ -70,6 +70,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [38](#38-a-named-set-item-is-cut-at-its-numeric-prefix-and-the-rest-dropped-silently) | Named sets | a set item's value is read with `atof`: a dot for a comma silently drops the next item | [W229](https://github.com/MuhammadMoustafa/xppautX/issues/283) |
 | [39](#39-autos-collocation-computes-a-jacobian-at-every-point-and-throws-it-away) | AUTO | the residual pass of every collocation step differences a whole Jacobian per point to use only f: about half of the periodic continuation's model evaluations wasted | [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307) |
 | [40](#40-shift-del_shft-and-set-reach-outside-the-variables) | Expressions | `shift` and `del_shft` read, and `set` writes, outside the variables with an index computed at run time | [W265](https://github.com/MuhammadMoustafa/xppautX/issues/322) |
+| [41](#41-rosenbrock-scales-past-or-short-of-its-banded-jacobian) | Numerics | Rosenbrock scales the dense matrix size even when its Jacobian is banded, and wide bands exceed the work array | [W261](https://github.com/MuhammadMoustafa/xppautX/issues/318) |
 
 ## 1. Model options
 
@@ -721,3 +722,22 @@ variable), and does not bound `set`'s write at all.
   both sides; a read outside gives 0 (what XPPAUT's check meant), a write
   outside is not done ([W259](https://github.com/MuhammadMoustafa/xppautX/issues/316) for `set`).
 - **Card:** [W265](https://github.com/MuhammadMoustafa/xppautX/issues/322).
+
+## 41. Rosenbrock scales past or short of its banded Jacobian
+
+With banded Jacobians, Rosenbrock stores `n*(bandlo+bandup+1)` entries but
+scales `n*n`: a band wider than the system leaves entries unscaled, while a
+narrow band scales beyond its matrix. Band widths wider than the system can
+also make the Jacobian write beyond the solver's `n*n` work allocation.
+
+- **XPPAUT 8.0:** `rosen` reads the configured band widths and scales
+  `n*n` entries before factoring the banded matrix
+  ([odesol2.c:539](../reference/xppaut-8.0/odesol2.c#L539)); XPPAUT 8.0
+  has the same code.
+- **Evidence:** a two-variable `rb23` model with `bandlo=bandup=1` fails
+  with "Integration not completed"; a band width of 99 on a two-variable
+  model requests more entries than the solver's work array holds.
+- **xppautX:** widths are clamped to `n-1` at the Jacobian owner and shared
+  by Backward Euler, Rosenbrock and Jacobian construction; work allocations
+  cover `n*max(n,mt)`. CVODE's own `CVBand` call is left to CVODE.
+- **Card:** [W261](https://github.com/MuhammadMoustafa/xppautX/issues/318).

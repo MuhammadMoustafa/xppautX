@@ -5,6 +5,7 @@
    Result<>. */
 #include "solver.h"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include "xpp_io.h"
@@ -15,6 +16,7 @@
 #include "cv2.h"
 #include "dormpri.h"
 #include "gear.h"
+#include "jacobian.h"
 #include "odesol2.h"
 #include "session.h"
 #include "stiff.h"
@@ -27,11 +29,20 @@ namespace xpp {
 namespace {
 
 /* the work memory a solver of n equations steps with */
-int standard_work(int n) { return 30*n; }
-int implicit_work(int n) { return 10*n+n*n+100; } /* backward Euler, Volterra */
+int standard_work(int n, const Session &) { return 30*n; }
+int adaptive_standard_work(int n) { return 30*n; }
+int implicit_work(int n, const Session &s) {
+  const auto band=banded_jacobian(n,s.numerics.cv_bandlower,s.numerics.cv_bandupper);
+  const int mt=band.lower+band.upper+1;
+  return 10*n+n*std::max(n,mt)+100;
+} /* backward Euler, Volterra */
 int gear_work(int n) { return 30*n+n*n+100; }
 int stiff_work(int n) { return 2*n*n+13*n+100; }
-int rosenbrock_work(int n) { return 12*n+100+n*n; }
+int rosenbrock_work(int n, const Session &s) {
+  const auto band=banded_jacobian(n,s.numerics.cv_bandlower,s.numerics.cv_bandupper);
+  const int mt=band.lower+band.upper+1;
+  return 12*n+100+n*std::max(n,mt);
+}
 
 std::vector<double> make_work(int size)
 {
@@ -149,7 +160,7 @@ private:
 /* dormpri.cpp's Dormand-Prince 5 and 8(3) */
 class DormandPrince final : public Solver {
 public:
-  DormandPrince(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(standard_work(n))) {}
+  DormandPrince(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(standard_work(n,s))) {}
   Result<> advance(const SolverStep &s) override
   {
     NumericsSettings &num=session_.numerics;
@@ -172,7 +183,7 @@ private:
 
 class Rosenbrock final : public Solver {
 public:
-  Rosenbrock(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(rosenbrock_work(n))) {}
+  Rosenbrock(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(rosenbrock_work(n,s))) {}
   Result<> advance(const SolverStep &s) override
   {
     int kflag=0;
@@ -184,10 +195,10 @@ private:
   std::vector<double> work_;
 };
 
-template <StepFn F, int (*Work)(int)>
+template <StepFn F, int (*Work)(int, const Session &)>
 std::unique_ptr<Solver> fixed_step(const SolverInfo &info, Session &s, int n)
 {
-  return std::make_unique<FixedStep>(info,s,F,Work(n));
+  return std::make_unique<FixedStep>(info,s,F,Work(n,s));
 }
 
 std::unique_ptr<Solver> start_gear(const SolverInfo &info, Session &s, int n)
@@ -240,7 +251,7 @@ constexpr std::array<SolverInfo,method::COUNT> registry{{
   {method::GEAR,"Gear","Gear",step_tolerance,start_gear},
   {method::VOLTERRA,"Volterra","Volterra",integral_steps,fixed_step<volterra,implicit_work>},
   {method::BACKEUL,"BackEul","BackEul",implicit_steps,fixed_step<bak_euler,implicit_work>},
-  {method::RKQS,"QualRK","Qual RK",step_tolerance,start_adaptive<standard_work>},
+  {method::RKQS,"QualRK","Qual RK",step_tolerance,start_adaptive<adaptive_standard_work>},
   {method::STIFF,"Stiff","Stiff",stiff_tolerance,start_adaptive<stiff_work>},
   {method::CVODE,"CVode","CVode",rel_abs_banded,start_cvode},
   {method::DP5,"DoPri5","DorPrin5",rel_abs,start_dormand_prince},

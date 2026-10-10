@@ -9,6 +9,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Banded Backward Euler and Rosenbrock clamp widths to the system size, scale only the stored Jacobian, and reserve enough work space for the band (W261, [#318](https://github.com/MuhammadMoustafa/xppautX/issues/318)).
 - A `shift` or `del_shft` whose computed index falls outside the variables (or constants) reads 0 instead of memory outside them (W265, [#322](https://github.com/MuhammadMoustafa/xppautX/issues/322)).
 - One finite-difference Jacobian for the whole program (equilibria, AUTO, Backward Euler, Rosenbrock, the stiff integrator, delay stability): `(f(x+r)-f(x))/r`, the implicit solvers scaling afterwards, so Backward Euler and Rosenbrock (banded too) differ from XPPAUT in the last bits (W255, [#312](https://github.com/MuhammadMoustafa/xppautX/issues/312)).
 - Gear's method and the adjoints use that Jacobian too (W264, [#321](https://github.com/MuhammadMoustafa/xppautX/issues/321)): Gear scales by `a0*h` afterwards, the adjoint's step floor is `eps^2` instead of `eps`; last bits differ from XPPAUT.

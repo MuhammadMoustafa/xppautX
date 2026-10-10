@@ -15,6 +15,11 @@ double difference_step(double eps, double x)
   return eps * std::max(eps, std::fabs(x));
 }
 
+JacobianForm banded_jacobian(int n, int lower, int upper)
+{
+  return {JacobianLayout::Banded, std::min(lower, n - 1), std::min(upper, n - 1)};
+}
+
 void jacobian(const JacobianEvaluate &evaluate, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out)
 {
   const bool banded = form.layout == JacobianLayout::Banded;
