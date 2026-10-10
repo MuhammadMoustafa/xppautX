@@ -2805,11 +2805,14 @@ async function autoView(dir) {
    per the card).
 
    tools/models/heavy.odex sidesteps both problems: its right-hand side is
-   deliberately expensive (a long sum), so every AUTO point costs real
-   seconds of native CPU by construction, at the model's own default mesh
-   (NTST 150) -- not a mesh size picked to fit a timing window. Its own
-   Nmax (2000) needs no raising either: at seconds per point it cannot be
-   reached within any test's patience, on any runner, at any speed --
+   deliberately expensive (a 2000-term sum, so every AUTO point costs real
+   CPU even as compiled code), at the model's own default mesh (NTST 150) --
+   not a mesh size picked to fit a timing window. Cost alone is not what
+   keeps the run going, though: the periodic branch of its Hopf normal
+   form never turns and never stops (amplitude sqrt(mu)), and a point moves
+   mu by at most DSMAX = 0.05, so 2000 points (Nmax) reach mu < 100, far
+   below its Par Max (1000), at any speed. The run ends only by Stop (or
+   Nmax, which the cost keeps beyond any test's patience):
    "cannot finish on its own" is true by construction, not by luck. This
    is the same model and technique tools/autocheck.py's section_abort
    already relies on for the raw-protocol Abort check, proven fast there
@@ -2856,7 +2859,7 @@ async function autoStopRace() {
   const nPre = await DS('d.points.x.length');
   await periodicFromHopf('the run');
   const going = await until(`s.busy && !s.ask && dv.points.x.length > ${nPre}`, 'periodic run going', 60000 * SLOW);
-  check('AUTO Stop race: the periodic run from the Hopf point is going (heavy.odex: seconds per point, by construction)', going);
+  check('AUTO Stop race: the periodic run from the Hopf point is going (heavy.odex: cannot end on its own, by construction)', going);
 
   check('T21: while it runs the status strip says "Running: periodic orbits", with branch 2, its point count and a Stop',
     going && await until(`/^Running: periodic orbits · branch 2, point \\d+ · \\d+ points/.test(document.querySelector('[data-testid=auto-status]').textContent)
@@ -3202,7 +3205,7 @@ async function lostF() {
   await until('!s.busy && !s.ask', 'closed');
 }
 
-/* W100, sequence 1 on a run that is still going (heavy.odex: seconds per point): F in the AUTO view
+/* W100, sequence 1 on a run that is still going (heavy.odex, a run that cannot end on its own): F in the AUTO view
    while the periodic run computes reaches AUTO's File menu (a view action: the run goes on, the
    menu is answered at once), not the main window's, and nothing is left hidden in the core. */
 async function lostFRunning() {
@@ -3244,7 +3247,9 @@ async function lostFRunning() {
   const sent = await cdp.eval(`__xpp.sentFrom(${sent0})`);
   check("lostF: F in the AUTO view during the run is AUTO's File key (win auto), never the main window's",
     sent.length === 1 && sent[0].cmd === 'key' && sent[0].win === 'auto' && sent[0].key === 'f', JSON.stringify(sent));
-  check("lostF: ... its menu opens when the run ends (a view action queued in the core), AUTO's File menu, not the main one",
+  /* the run cannot end on its own (heavy.odex): Stop ends it, and the queued key then runs */
+  await cdp.eval(`document.querySelector('.auto-status .auto-stop').click()`);
+  check("lostF: ... its menu opens when the run ends (Stop; a view action queued in the core), AUTO's File menu, not the main one",
     await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'File' && s.ask.items.includes('Save diagram')", 'auto file menu', 120000 * SLOW)
     && (await S('s.pendingKeys.length')) === 0, JSON.stringify(await S('[s.busy, s.ask && s.ask.title, s.core]')));
   await key('Escape');

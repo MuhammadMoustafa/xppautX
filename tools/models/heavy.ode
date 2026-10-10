@@ -1,7 +1,11 @@
 # A deliberately slow model for the abort tests (tools/autocheck.py):
 # a Hopf normal form driving six stiff slaves, with a right-hand side made
-# expensive by a sum, so one AUTO continuation step takes seconds.
-par mu=-1,w=1,n=400
+# expensive by a sum (compiled code runs it too, n = 2000 terms a call, about
+# what 400 cost the interpreter), so a continuation point is costly and the run
+# cannot end on its own: the periodic orbits' amplitude is sqrt(mu) and stable,
+# so the branch has no turning point and no bound, and a point moves mu by at
+# most dsmax = 0.05, so at Nmax = 2000 mu is below 100, never at Par Max.
+par mu=-1,w=1,n=2000
 par k1=10,k2=30,k3=100,k4=300,k5=1000,k6=3000
 s=sum(1,n)of(1/(i'*i'))/sum(1,n)of(1/(i'*i'))
 x'=s*(mu*x-w*y-x*(x^2+y^2))
@@ -15,6 +19,6 @@ z6'=-k6*(z6-z5)
 init x=0,y=0
 @ total=20,dt=0.01,meth=stiff,bound=1000
 @ ntst=150,nmax=2000,npr=2000,ds=0.02,dsmin=0.0001,dsmax=0.05
-@ parmin=-1,parmax=1,autoxmin=-1,autoxmax=1,autoymin=0,autoymax=1.5
+@ parmin=-1,parmax=1000,autoxmin=-1,autoxmax=1,autoymin=0,autoymax=1.5
 @ epsl=1e-10,epsu=1e-10,epss=1e-8
 done
