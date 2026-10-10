@@ -15,9 +15,15 @@ double difference_step(double eps, double x)
   return eps * std::max(eps, std::fabs(x));
 }
 
-JacobianForm banded_jacobian(int n, int lower, int upper)
+JacobianForm model_jacobian_form(const Session &s, int n)
 {
-  return {JacobianLayout::Banded, std::min(lower, n - 1), std::min(upper, n - 1)};
+  if (!s.numerics.cv_bandflag) return {};
+  return {JacobianLayout::Banded, std::min(s.numerics.cv_bandlower, n - 1), std::min(s.numerics.cv_bandupper, n - 1)};
+}
+
+int jacobian_entries(int n, const JacobianForm &form)
+{
+  return form.layout == JacobianLayout::Banded ? n * (form.lower + form.upper + 1) : n * n;
 }
 
 void jacobian(const JacobianEvaluate &evaluate, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out)

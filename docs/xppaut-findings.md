@@ -732,12 +732,11 @@ also make the Jacobian write beyond the solver's `n*n` work allocation.
 
 - **XPPAUT 8.0:** `rosen` reads the configured band widths and scales
   `n*n` entries before factoring the banded matrix
-  ([odesol2.c:539](../reference/xppaut-8.0/odesol2.c#L539)); XPPAUT 8.0
-  has the same code.
+  ([odesol2.c:538](../reference/xppaut-8.0/odesol2.c#L538)).
 - **Evidence:** a two-variable `rb23` model with `bandlo=bandup=1` fails
   with "Integration not completed"; a band width of 99 on a two-variable
   model requests more entries than the solver's work array holds.
-- **xppautX:** widths are clamped to `n-1` at the Jacobian owner and shared
+- **xppautX:** widths are clamped to `n-1` in one place (`model_jacobian_form`, jacobian.h), read
   by Backward Euler, Rosenbrock and Jacobian construction; work allocations
   cover `n*max(n,mt)`. CVODE's own `CVBand` call is left to CVODE.
 - **Card:** [W261](https://github.com/MuhammadMoustafa/xppautX/issues/318).

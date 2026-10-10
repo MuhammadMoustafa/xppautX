@@ -133,8 +133,8 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
   double err=0.0,err1=0.0;
   
   int iter=0,info,ipivot[MAXODE1];
-  const auto band=xpp::banded_jacobian(neq,s.numerics.cv_bandlower,s.numerics.cv_bandupper);
-  int ml=band.lower,mr=band.upper,mt=ml+mr+1;
+  const auto form=xpp::model_jacobian_form(s,neq);
+  int ml=form.lower,mr=form.upper,mt=ml+mr+1;
   set_wieners(s,dt,y,*t);
   *t=*t+dt;
   s.integrator.rhs(*t,y,yp2,neq);
@@ -423,8 +423,8 @@ int *istart,int n,double *work,int *ierr)
  double thresh=atol/rtol,absh,h;
  double d=1/(2.+sqrt(2.)),e32=6.+sqrt(2.),tnew;
  /*double ninf;  Is this needed?*/
- const auto band=xpp::banded_jacobian(n,s.numerics.cv_bandlower,s.numerics.cv_bandupper);
- int i,done=0,info,ml=band.lower,mr=band.upper,mt=ml+mr+1;
+ const auto form=xpp::model_jacobian_form(s,n);
+ int i,done=0,info,ml=form.lower,mr=form.upper,mt=ml+mr+1,entries=xpp::jacobian_entries(n,form);
  int ipivot[MAXODE1],nofailed;
  double temp,err,tdel;
  double *k1,*k2,*k3,*f0,*f1,*f2,*dfdt,*ynew,*dfdy;
@@ -463,7 +463,7 @@ int *istart,int n,double *work,int *ierr)
      for(i=0;i<n;i++)
        dfdt[i]=(f1[i]-f0[i])/tdel;
      while(1){ /* advance a step  */
-     for(i=0;i<(s.numerics.cv_bandflag?n*mt:n*n);i++)
+     for(i=0;i<entries;i++)
 	 dfdy[i]=-h*d*dfdy[i];
        for(i=0;i<n;i++)
 	 k1[i]=f0[i]+(h*d)*dfdt[i];
@@ -549,10 +549,8 @@ int *istart,int n,double *work,int *ierr)
 void get_the_jac(xpp::Session &s, double t,double *y,double *yp,
 	    double *dfdy,int neq,double eps,double scal)
 {
-  xpp::JacobianForm form;
-  if(s.numerics.cv_bandflag)
-    form=xpp::banded_jacobian(neq,s.numerics.cv_bandlower,s.numerics.cv_bandupper);
-  const int entries=s.numerics.cv_bandflag?neq*(form.lower+form.upper+1):neq*neq;
+  const auto form=xpp::model_jacobian_form(s,neq);
+  const int entries=xpp::jacobian_entries(neq,form);
   xpp::jacobian(s,t,y,yp,neq,eps,form,dfdy);
   for(int i=0;i<entries;i++)dfdy[i]*=scal;
 }

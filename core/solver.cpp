@@ -30,19 +30,12 @@ namespace {
 
 /* the work memory a solver of n equations steps with */
 int standard_work(int n, const Session &) { return 30*n; }
-int adaptive_standard_work(int n) { return 30*n; }
-int implicit_work(int n, const Session &s) {
-  const auto band=banded_jacobian(n,s.numerics.cv_bandlower,s.numerics.cv_bandupper);
-  const int mt=band.lower+band.upper+1;
-  return 10*n+n*std::max(n,mt)+100;
-} /* backward Euler, Volterra */
+/* the model's Jacobian, banded or full, never less than n*n */
+int jacobian_work(int n, const Session &s) { return std::max(n*n,jacobian_entries(n,model_jacobian_form(s,n))); }
+int implicit_work(int n, const Session &s) { return 10*n+jacobian_work(n,s)+100; } /* backward Euler, Volterra */
 int gear_work(int n) { return 30*n+n*n+100; }
-int stiff_work(int n) { return 2*n*n+13*n+100; }
-int rosenbrock_work(int n, const Session &s) {
-  const auto band=banded_jacobian(n,s.numerics.cv_bandlower,s.numerics.cv_bandupper);
-  const int mt=band.lower+band.upper+1;
-  return 12*n+100+n*std::max(n,mt);
-}
+int stiff_work(int n, const Session &) { return 2*n*n+13*n+100; }
+int rosenbrock_work(int n, const Session &s) { return 12*n+100+jacobian_work(n,s); }
 
 std::vector<double> make_work(int size)
 {
@@ -206,10 +199,10 @@ std::unique_ptr<Solver> start_gear(const SolverInfo &info, Session &s, int n)
   return std::make_unique<Gear>(info,s,n);
 }
 
-template <int (*Work)(int)>
+template <int (*Work)(int, const Session &)>
 std::unique_ptr<Solver> start_adaptive(const SolverInfo &info, Session &s, int n)
 {
-  return std::make_unique<Adaptive>(info,s,Work(n));
+  return std::make_unique<Adaptive>(info,s,Work(n,s));
 }
 
 std::unique_ptr<Solver> start_cvode(const SolverInfo &info, Session &s, int)
@@ -251,7 +244,7 @@ constexpr std::array<SolverInfo,method::COUNT> registry{{
   {method::GEAR,"Gear","Gear",step_tolerance,start_gear},
   {method::VOLTERRA,"Volterra","Volterra",integral_steps,fixed_step<volterra,implicit_work>},
   {method::BACKEUL,"BackEul","BackEul",implicit_steps,fixed_step<bak_euler,implicit_work>},
-  {method::RKQS,"QualRK","Qual RK",step_tolerance,start_adaptive<adaptive_standard_work>},
+  {method::RKQS,"QualRK","Qual RK",step_tolerance,start_adaptive<standard_work>},
   {method::STIFF,"Stiff","Stiff",stiff_tolerance,start_adaptive<stiff_work>},
   {method::CVODE,"CVode","CVode",rel_abs_banded,start_cvode},
   {method::DP5,"DoPri5","DorPrin5",rel_abs,start_dormand_prince},
