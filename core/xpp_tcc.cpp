@@ -50,15 +50,12 @@ Result<std::unique_ptr<Program>> Program::compile(const std::string &source,
         tcc_set_output_type(compiler, TCC_OUTPUT_MEMORY) < 0)
         return state.failure("cannot configure memory compilation");
     for (const auto &symbol : symbols) {
-        if (!symbol.name || !symbol.address)
-            return fail("TinyCC", "a supplied symbol has no name or address", state.place);
         if (tcc_add_symbol(compiler, symbol.name, symbol.address) < 0)
             return state.failure("cannot add symbol " + std::string(symbol.name));
     }
     if (tcc_compile_string(compiler, source.c_str()) < 0)
         return state.failure("cannot compile source");
-    /* A state is relocated exactly once; TinyCC exits on a second attempt.
-       Failed relocation destroys the state as well as any allocated code. */
+    /* Relocated exactly once, here: TinyCC exits on a second attempt. */
     if (tcc_relocate(compiler) < 0)
         return state.failure("cannot relocate compiled code");
     return program;

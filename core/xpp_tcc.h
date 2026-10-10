@@ -15,8 +15,7 @@ struct Symbol {
 
 /* Only trusted, generated C belongs here: libtcc is not a sandbox. External
    references must be supplied as symbols. The returned addresses live until
-   the Program is destroyed; callers cast them to the generated signature.
-   W254 tests this owner; W255 connects it to model compilation. */
+   the Program is destroyed; callers cast them to the generated signature. */
 class Program {
 public:
     static Result<std::unique_ptr<Program>> compile(const std::string &source,
