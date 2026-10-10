@@ -91,3 +91,20 @@ still read files, C can contain arbitrary operations, and compiler resource
 exhaustion is possible (upstream allocation failure can terminate the process).
 W255 must generate source from validated expressions, never pass user C
 through. This card exposes no command or file reader to the adapter.
+
+## Upstream bugs to report
+
+Found while vendoring; not yet reported to TinyCC (the `tinycc-devel`
+mailing list, https://lists.nongnu.org/mailman/listinfo/tinycc-devel).
+Card: W256.
+
+1. **Windows: generated code's memory is never released.** With
+   `CONFIG_RUNMEM_VIRTUALALLOC` (the Windows default), `tcc_run_free`
+   calls `VirtualFree(ptr, size, MEM_RELEASE)`
+   ([tccrun.c:204](tccrun.c#L204)). `MEM_RELEASE` requires a size of 0;
+   any other size fails with `ERROR_INVALID_PARAMETER` (87, which a native
+   probe here returned), so every `tcc_delete` after `tcc_relocate` leaks
+   the state's code pages. The fix is `VirtualFree(ptr, 0, MEM_RELEASE)`.
+   xppautX avoids it with `CONFIG_RUNMEM_VIRTUALALLOC=0`
+   (tools/tinycc/config.h), upstream's own malloc and `VirtualProtect`
+   path; when an upstream release fixes it, that define can go.
