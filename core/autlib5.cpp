@@ -39,7 +39,7 @@ fnho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Local variables */
 
   integer nfpr;
-  integer i, j;
+
   doublereal ep;
   integer ndm;
 
@@ -74,15 +74,10 @@ fnho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
       [&](const doublereal *uu, doublereal *ff) { ffho(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
       dfdu, dfdu_dim1);
 
-  for (i = 0; i < nfpr; ++i) {
-    par[icp[i]] += ep;
-    ffho(iap, rap, ndim, u, uold, icp, par, s.auto_lib.scratch.ff1, 
-	 ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (s.auto_lib.scratch.ff1[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
-  }
+  xpp::auto_jacobian::forward_parameters(
+      nfpr, ndim, icp, ep, par,
+      [&](doublereal *ff) { ffho(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnho_ */
@@ -150,7 +145,7 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Local variables */
 
   integer nfpr;
-  integer i, j;
+
   doublereal ep;
   integer nbc0;
 
@@ -199,15 +194,10 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       [&](const doublereal *uu, doublereal *ff) { fbho(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu, ff, dfu.data()); },
       dbc + ndim * dbc_dim1, dbc_dim1);
 
-  for (i = 0; i < nfpr; ++i) {
-    par[icp[i]] += ep;
-    fbho(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1
-	 , ff2.data(), dfu.data());
-    for (j = 0; j < nbc; ++j) {
-      ARRAY2D(dbc, j, (ndim * 2) + icp[i]) = (ff2[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
-  }
+  xpp::auto_jacobian::forward_parameters(
+      nfpr, nbc, icp, ep, par,
+      [&](doublereal *ff) { fbho(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1 , ff, dfu.data()); },
+      f, ff2.data(), dbc, dbc_dim1, ndim * 2);
 
   return 0;
 } /* bcho_ */
@@ -506,7 +496,7 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Local variables */
 
   integer nfpr;
-  integer i, j;
+
   doublereal ep;
   integer nnt0;
 
@@ -549,15 +539,10 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       [&](const doublereal *uu, doublereal *ff) { fiho(iap, rap, ndim, par, icp, nint, nnt0, uu, uold , udot, upold, ff, dfu.data()); },
       dint, dint_dim1);
 
-  for (i = 0; i < nfpr; ++i) {
-    par[icp[i]] += ep;
-    fiho(iap, rap, ndim, par, icp, nint, nnt0, u, 
-	 uold, udot, upold, ff1.data(), dfu.data());
-    for (j = 0; j < nint; ++j) {
-      ARRAY2D(dint, j, ndim + icp[i]) = (ff1[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
-  }
+  xpp::auto_jacobian::forward_parameters(
+      nfpr, nint, icp, ep, par,
+      [&](doublereal *ff) { fiho(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dfu.data()); },
+      f, ff1.data(), dint, dint_dim1, ndim);
 
   return 0;
 } /* icho_ */

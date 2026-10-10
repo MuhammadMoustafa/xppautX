@@ -39,4 +39,20 @@ doublereal central(integer n, integer nout, const doublereal *x, doublereal *uu1
   return ep;
 }
 
+// The caller supplies AUTO's step and evaluator; columns follow icp, with
+// col0 accounting for state columns in boundary and integral Jacobians.
+template <class Eval>
+void forward_parameters(integer count, integer nout, const integer *icp, doublereal ep,
+                        doublereal *par, Eval &&eval, const doublereal *f,
+                        doublereal *ff, doublereal *out, integer ld, integer col0) {
+  for (integer i = 0; i < count; ++i) {
+    par[icp[i]] += ep;
+    eval(ff);
+    for (integer j = 0; j < nout; ++j) {
+      out[j + (col0 + icp[i]) * ld] = (ff[j] - f[j]) / ep;
+    }
+    par[icp[i]] -= ep;
+  }
+}
+
 }  // namespace xpp::auto_jacobian

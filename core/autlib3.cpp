@@ -38,7 +38,7 @@ fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer dfdu_dim1, dfdp_dim1;
 
   /* Local variables */
-  integer j;
+
   doublereal ep;
   integer ndm;
 
@@ -68,15 +68,10 @@ fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
       [&](const doublereal *uu, doublereal *ff) { fflp(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
       dfdu, dfdu_dim1);
 
-  par[icp[0]] += ep;
-
-  fflp(iap, rap, ndim, u, uold, icp, par, s.auto_lib.scratch.ff1, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-
-  for (j = 0; j < ndim; ++j) {
-    ARRAY2D(dfdp, j, (icp[0])) = (s.auto_lib.scratch.ff1[j] - f[j]) / ep;
-  }
-
-  par[icp[0]] -= ep;
+  xpp::auto_jacobian::forward_parameters(
+      1, ndim, icp, ep, par,
+      [&](doublereal *ff) { fflp(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnlp_ */
@@ -580,7 +575,7 @@ fnhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Local variables */
 
-  integer j;
+
   doublereal ep;
   integer ndm;
 
@@ -615,16 +610,10 @@ fnhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
       [&](const doublereal *uu, doublereal *ff) { ffhd(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
       dfdu, dfdu_dim1);
 
-  par[icp[0]] += ep;
-
-  ffhd(iap, rap, ndim, u, uold, icp, par, s.auto_lib.scratch.ff1, 
-       ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-
-  for (j = 0; j < ndim; ++j) {
-    ARRAY2D(dfdp, j, icp[0]) = (s.auto_lib.scratch.ff1[j] - f[j]) / ep;
-  }
-
-  par[icp[0]] -= ep;
+  xpp::auto_jacobian::forward_parameters(
+      1, ndim, icp, ep, par,
+      [&](doublereal *ff) { ffhd(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnhd_ */
@@ -789,7 +778,7 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Local variables */
 
-  integer j;
+
   doublereal ep;
   integer ndm;
 
@@ -825,16 +814,10 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
       [&](const doublereal *uu, doublereal *ff) { ffhb(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
       dfdu, dfdu_dim1);
 
-  par[icp[0]] += ep;
-
-  ffhb(iap, rap, ndim, u, uold, icp, par, s.auto_lib.scratch.ff1, 
-       ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-
-  for (j = 0; j < ndim; ++j) {
-    ARRAY2D(dfdp, j, icp[0]) = (s.auto_lib.scratch.ff1[j] - f[j]) / ep;
-  }
-
-  par[icp[0]] -= ep;
+  xpp::auto_jacobian::forward_parameters(
+      1, ndim, icp, ep, par,
+      [&](doublereal *ff) { ffhb(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
   return 0;
 } /* fnhb_ */
 
@@ -987,7 +970,7 @@ fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Local variables */
 
-  integer j;
+
   doublereal ep;
   integer ndm;
 
@@ -1023,16 +1006,10 @@ fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
       [&](const doublereal *uu, doublereal *ff) { ffhw(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
       dfdu, dfdu_dim1);
 
-  par[icp[0]] += ep;
-
-  ffhw(iap, rap, ndim, u, uold, icp, par, s.auto_lib.scratch.ff1, 
-       ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-
-  for (j = 0; j < ndim; ++j) {
-    ARRAY2D(dfdp, j, icp[0]) = (s.auto_lib.scratch.ff1[j] - f[j]) / ep;
-  }
-
-  par[icp[0]] -= ep;
+  xpp::auto_jacobian::forward_parameters(
+      1, ndim, icp, ep, par,
+      [&](doublereal *ff) { ffhw(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnhw_ */
@@ -2079,7 +2056,7 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Local variables */
 
   integer nfpr;
-  integer i, j;
+
   doublereal ep; 
   integer ndm;
 
@@ -2112,15 +2089,10 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
       [&](const doublereal *uu, doublereal *ff) { ffpl(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
       dfdu, dfdu_dim1);
 
-  for (i = 0; i < nfpr; ++i) {
-    par[icp[i]] += ep;
-    ffpl(iap, rap, ndim, u, uold, icp, par, s.auto_lib.scratch.ff1, 
-	 ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (s.auto_lib.scratch.ff1[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
-  }
+  xpp::auto_jacobian::forward_parameters(
+      nfpr, ndim, icp, ep, par,
+      [&](doublereal *ff) { ffpl(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnpl_ */
@@ -2463,7 +2435,7 @@ fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Local variables */
 
   integer nfpr;
-  integer i, j;
+
   doublereal ep;
   integer ndm;
 
@@ -2496,15 +2468,10 @@ fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
       [&](const doublereal *uu, doublereal *ff) { ffpd(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
       dfdu, dfdu_dim1);
 
-  for (i = 0; i < nfpr; ++i) {
-    par[icp[i]] += ep;
-    ffpd(iap, rap, ndim, u, uold, icp, par, s.auto_lib.scratch.ff1, 
-	 ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (s.auto_lib.scratch.ff1[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
-  }
+  xpp::auto_jacobian::forward_parameters(
+      nfpr, ndim, icp, ep, par,
+      [&](doublereal *ff) { ffpd(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnpd_ */
@@ -2819,7 +2786,7 @@ fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Local variables */
 
   integer nfpr;
-  integer i, j;
+
   doublereal ep;
   integer ndm;
 
@@ -2855,15 +2822,10 @@ fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
       [&](const doublereal *uu, doublereal *ff) { fftr(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
       dfdu, dfdu_dim1);
 
-  for (i = 0; i < nfpr; ++i) {
-    par[icp[i]] += ep;
-    fftr(iap, rap, ndim, u, uold, icp, par, s.auto_lib.scratch.ff1, 
-	 ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (s.auto_lib.scratch.ff1[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
-  }
+  xpp::auto_jacobian::forward_parameters(
+      nfpr, ndim, icp, ep, par,
+      [&](doublereal *ff) { fftr(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fntr_ */
@@ -3208,7 +3170,7 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Local variables */
 
   integer nfpr;
-  integer i, j;
+  integer i;
   doublereal ep, period;
   integer ndm;
 
@@ -3250,15 +3212,10 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
       [&](const doublereal *uu, doublereal *ff) { ffpo(iap, rap, ndim, uu, uold, upold.data(), icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
       dfdu, dfdu_dim1);
 
-  for (i = 0; i < nfpr; ++i) {
-    par[icp[i]] += ep;
-    ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, 
-	 s.auto_lib.scratch.ff1, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (s.auto_lib.scratch.ff1[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
-  }
+  xpp::auto_jacobian::forward_parameters(
+      nfpr, ndim, icp, ep, par,
+      [&](doublereal *ff) { ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnpo_ */
@@ -3379,7 +3336,7 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Local variables */
 
   integer nfpr;
-  integer i, j;
+
   doublereal ep;
   integer ndm;
   integer nnt0;
@@ -3416,15 +3373,10 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       [&](const doublereal *uu, doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, uu, uold, udot, upold, ff, dnt.data(), ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
       dint, dint_dim1);
 
-  for (i = 0; i < nfpr; ++i) {
-    par[icp[i]] += ep;
-    fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, f1.data(), dnt.data(), ndm, s.auto_lib.scratch.dfu, 
-	 s.auto_lib.scratch.dfp);
-    for (j = 0; j < nint; ++j) {
-      ARRAY2D(dint, j, ndim + icp[i]) = (f1[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
-  }
+  xpp::auto_jacobian::forward_parameters(
+      nfpr, nint, icp, ep, par,
+      [&](doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dnt.data(), ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      f, f1.data(), dint, dint_dim1, ndim);
 
   return 0;
 } /* icpo_ */
@@ -3692,7 +3644,7 @@ fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Local variables */
 
   integer nfpr;
-  integer i, j;
+
   doublereal ep;
   integer ndm;
 
@@ -3728,15 +3680,10 @@ fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
       [&](const doublereal *uu, doublereal *ff) { ffbl(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
       dfdu, dfdu_dim1);
 
-  for (i = 0; i < nfpr; ++i) {
-    par[icp[i]] += ep;
-    ffbl(iap, rap, ndim, u, uold, icp, par, s.auto_lib.scratch.ff1, 
-	 ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (s.auto_lib.scratch.ff1[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
-  }
+  xpp::auto_jacobian::forward_parameters(
+      nfpr, ndim, icp, ep, par,
+      [&](doublereal *ff) { ffbl(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnbl_ */
@@ -3793,7 +3740,7 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Local variables */
 
   integer nfpr;
-  integer i, j;
+
   doublereal ep;
   integer nbc0;
 
@@ -3840,14 +3787,10 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       [&](const doublereal *uu, doublereal *ff) { fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu, ff, dfu.data()); },
       dbc + ndim * dbc_dim1, dbc_dim1);
 
-  for (i = 0; i < nfpr; ++i) {
-    par[icp[i]] += ep;
-    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1, ff2.data(), dfu.data());
-    for (j = 0; j < nbc; ++j) {
-      ARRAY2D(dbc, j, (ndim * 2) + icp[i]) = (ff2[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
-  }
+  xpp::auto_jacobian::forward_parameters(
+      nfpr, nbc, icp, ep, par,
+      [&](doublereal *ff) { fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1, ff, dfu.data()); },
+      f, ff2.data(), dbc, dbc_dim1, ndim * 2);
 
   return 0;
 } /* bcbl_ */
@@ -3904,7 +3847,7 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Local variables */
 
   integer nfpr;
-  integer i, j;
+
   doublereal ep;
   integer nnt0;
 
@@ -3944,14 +3887,10 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       [&](const doublereal *uu, doublereal *ff) { fibl(iap, rap, ndim, par, icp, nint, nnt0, uu, uold , udot, upold, ff, dfu.data()); },
       dint, dint_dim1);
 
-  for (i = 0; i < nfpr; ++i) {
-    par[icp[i]] += ep;
-    fibl(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff1.data(), dfu.data());
-    for (j = 0; j < nint; ++j) {
-      ARRAY2D(dint, j, ndim + icp[i]) = (ff1[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
-  }
+  xpp::auto_jacobian::forward_parameters(
+      nfpr, nint, icp, ep, par,
+      [&](doublereal *ff) { fibl(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dfu.data()); },
+      f, ff1.data(), dint, dint_dim1, ndim);
 
   return 0;
 } /* icbl_ */
@@ -4155,7 +4094,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   integer nfpr;
   doublereal rtmp;
-  integer i, j;
+  integer i;
   doublereal ep;
   integer jac, ijc;
 
@@ -4204,13 +4143,10 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   for (i = 0; i < nfpr; ++i) {
     rtmp = HMACH;
     ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
-    par[icp[i]] += ep;
-    func(*iap->lib->session, ndim, u, icp, par, 0, f1zz.data(), dfdu, 
-	 dfdp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdp, j, icp[i]) = (f1zz[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
+    xpp::auto_jacobian::forward_parameters(
+        1, ndim, icp + i, ep, par,
+        [&](doublereal *ff) { func(*iap->lib->session, ndim, u, icp, par, 0, ff, dfdu, dfdp); },
+        f, f1zz.data(), dfdp, dfdp_dim1, 0);
   }
 
   return 0;
@@ -4228,7 +4164,7 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   integer nfpr;
   doublereal rtmp;
-  integer i, j;
+  integer i;
   doublereal ep;
   integer jac, ijc;
 
@@ -4282,12 +4218,10 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   for (i = 0; i < nfpr; ++i) {
     rtmp = HMACH;
     ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
-    par[icp[i]] += ep;
-    bcnd(*iap->lib->session, ndim, par, icp, nbc, u0, u1, 0, f1zz.data(), dbc);
-    for (j = 0; j < nbc; ++j) {
-      ARRAY2D(dbc, j, (ndim * 2) + icp[i]) = (f1zz[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
+    xpp::auto_jacobian::forward_parameters(
+        1, nbc, icp + i, ep, par,
+        [&](doublereal *ff) { bcnd(*iap->lib->session, ndim, par, icp, nbc, u0, u1, 0, ff, dbc); },
+        f, f1zz.data(), dbc, dbc_dim1, ndim * 2);
   }
 
   return 0;
@@ -4305,7 +4239,7 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   integer nfpr;
   doublereal rtmp;
-  integer i, j;
+  integer i;
   doublereal ep;
   integer jac, ijc;
 
@@ -4353,12 +4287,10 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   for (i = 0; i < nfpr; ++i) {
     rtmp = HMACH;
     ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
-    par[icp[i]] += ep;
-    icnd(ndim, par, icp, nint, u, uold, udot, upold, 0, f1zz.data(), dint);
-    for (j = 0; j < nint; ++j) {
-      ARRAY2D(dint, j, ndim + icp[i]) = (f1zz[j] - f[j]) / ep;
-    }
-    par[icp[i]] -= ep;
+    xpp::auto_jacobian::forward_parameters(
+        1, nint, icp + i, ep, par,
+        [&](doublereal *ff) { icnd(ndim, par, icp, nint, u, uold, udot, upold, 0, ff, dint); },
+        f, f1zz.data(), dint, dint_dim1, ndim);
   }
 
   return 0;
@@ -4417,10 +4349,10 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   for (i = 0; i < nfpr; ++i) {
     rtmp = HMACH;
     ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
-    par[icp[i]] += ep;
-    fopt(ndim, u, icp, par, 0, &f1, dfdu, dfdp);
-    dfdp[icp[i]] = (f1 - *f) / ep;
-    par[icp[i]] -= ep;
+    xpp::auto_jacobian::forward_parameters(
+        1, 1, icp + i, ep, par,
+        [&](doublereal *ff) { fopt(ndim, u, icp, par, 0, ff, dfdu, dfdp); },
+        f, &f1, dfdp, 1, 0);
   }
 
   return 0;

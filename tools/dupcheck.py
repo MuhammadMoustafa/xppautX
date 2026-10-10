@@ -40,6 +40,7 @@ core/autlib1.cpp fnuzae|vendored/numerical, keep: AUTO (Doedel), translated Fort
 core/autlib1.cpp fnuzbv|vendored/numerical, keep: AUTO (Doedel), translated Fortran user-function stubs
 core/autlib2.cpp mynode|vendored/numerical, keep: AUTO's parallel-stub functions (mynode/numnodes/csend/crecv/...) for the non-MPI build, translated Fortran
 core/autlib2.cpp numnodes|vendored/numerical, keep: see core/autlib2.cpp mynode
+core/autlib3.cpp fnlp|vendored/numerical, keep: AUTO's fold wrapper has the same shape as its other boundary-condition wrappers after W262
 core/autlib3.cpp fnhd|vendored/numerical, keep: AUTO (Doedel), translated Fortran boundary-condition stubs (fnhd/fnhb/fnhw/fnsp/fnpe/fnpl/fnpd/fntr/fnbl/fnho)
 core/autlib3.cpp fnhb|vendored/numerical, keep: see core/autlib3.cpp fnhd
 core/autlib3.cpp fnhw|vendored/numerical, keep: see core/autlib3.cpp fnhd
@@ -50,6 +51,8 @@ core/autlib3.cpp fnpd|vendored/numerical, keep: see core/autlib3.cpp fnhd
 core/autlib3.cpp fntr|vendored/numerical, keep: see core/autlib3.cpp fnhd
 core/autlib3.cpp fnbl|vendored/numerical, keep: see core/autlib3.cpp fnhd
 core/autlib5.cpp fnho|vendored/numerical, keep: see core/autlib3.cpp fnhd
+core/autlib3.cpp icbl|vendored/numerical, keep: AUTO's integral wrapper has the same shape as icho after W262; each calls its own evaluator
+core/autlib5.cpp icho|vendored/numerical, keep: see core/autlib3.cpp icbl
 core/cvband.cpp CVBandSolve|vendored/numerical, keep: CVODE's band and dense linear solvers (cvband.cpp/cvdense.cpp), the same solve and free by the CVODE API's own design, each over its own matrix type (BandBacksolve/DenseBacksolve, BandFreeMat/DenseFreeMat); W33a looked: keep
 core/cvdense.cpp CVDenseSolve|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
 core/cvband.cpp CVBandFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
