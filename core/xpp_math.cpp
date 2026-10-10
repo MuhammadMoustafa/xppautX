@@ -650,13 +650,17 @@ double bessel_i1(double x, bool scaled)
 double bessel_i(double nn, double x, bool scaled)
 {
     constexpr double acc = 40.0, bigno = 1.0e10, bigni = 1.0e-10;
+    constexpr int max_order = 100000; /* Bounds the input-controlled recurrence length and its int arithmetic. */
+    if (!std::isfinite(nn) || !std::isfinite(x) || nn >= max_order + 1.0 || nn < -max_order - 1.0)
+        return std::numeric_limits<double>::quiet_NaN();
     const int n = static_cast<int>(nn);
-    if (n == 0) return bessel_i0(x, scaled);
-    if (n == 1) return bessel_i1(x, scaled);
+    const int order = std::abs(n);
+    if (order == 0) return bessel_i0(x, scaled);
+    if (order == 1) return bessel_i1(x, scaled);
     if (x == 0.0) return 0.0;
     const double tox = 2.0 / std::fabs(x);
     double bip = 0.0, ans = 0.0, bi = 1.0;
-    for (int j = 2 * (n + static_cast<int>(std::sqrt(acc * n))); j > 0; j--) {
+    for (int j = 2 * (order + static_cast<int>(std::sqrt(acc * order))); j > 0; j--) {
         const double bim = bip + j * tox * bi;
         bip = bi;
         bi = bim;
@@ -665,10 +669,10 @@ double bessel_i(double nn, double x, bool scaled)
             bi *= bigni;
             bip *= bigni;
         }
-        if (j == n) ans = bip;
+        if (j == order) ans = bip;
     }
     ans *= bessel_i0(x, scaled) / bi;
-    return x < 0.0 && (n & 1) ? -ans : ans;
+    return x < 0.0 && (order & 1) ? -ans : ans;
 }
 
 } // namespace

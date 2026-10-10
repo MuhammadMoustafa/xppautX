@@ -21,6 +21,13 @@ static bool same(double got, std::uint64_t want_bits)
 
 int main(void)
 {
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    CHECK(std::isnan(xpp::bessel_i(nan, 1.0)));
+    CHECK(std::isnan(xpp::bessel_i(2.0, nan)));
+    CHECK(xpp::bessel_i(-3.0, 1.25) == xpp::bessel_i(3.0, 1.25));
+    CHECK(std::isnan(xpp::bessel_i(100001.0, 1.0)));
+    CHECK(xpp::bessel_i(0.0, 1.0) == xpp::bessel_i(0.9, 1.0)); /* XPPAUT truncates noninteger orders. */
+    CHECK(std::isfinite(xpp::bessel_i(2.0, 1.0)));
     /* exact results and special values (IEEE 754-2019 9.2) */
     CHECK(xpp::math::exp(0.0) == 1.0);
     CHECK(xpp::math::exp(-std::numeric_limits<double>::infinity()) == 0.0);

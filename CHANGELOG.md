@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- `bessel_i` returns NaN for non-finite inputs or orders above 100000, handles negative integer orders by symmetry, and retains XPPAUT's truncation of non-integer orders (W271, [#328](https://github.com/MuhammadMoustafa/xppautX/issues/328)).
+
 - AUTO collocation uses a persistent pool on up to four threads for a compiled pure model; every result is unchanged across thread counts. Interpreted or impure models stay serial (W247, [#303](https://github.com/MuhammadMoustafa/xppautX/issues/303)).
 
 - DAE guesses and residuals, Markov transitions, kernel integrands and convolutions, event conditions and actions, derived parameters and network pair formulas now compile alongside equations and user functions. Unsupported programs and their user-function callers stay interpreted with individual source warnings; independent programs still compile (W266, [#323](https://github.com/MuhammadMoustafa/xppautX/issues/323)).

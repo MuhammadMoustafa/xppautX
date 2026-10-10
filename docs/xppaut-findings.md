@@ -71,6 +71,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [39](#39-autos-collocation-computes-a-jacobian-at-every-point-and-throws-it-away) | AUTO | the residual pass of every collocation step differences a whole Jacobian per point to use only f: about half of the periodic continuation's model evaluations wasted | [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307) |
 | [40](#40-shift-del_shft-and-set-reach-outside-the-variables) | Expressions | `shift` and `del_shft` read, and `set` writes, outside the variables with an index computed at run time | [W265](https://github.com/MuhammadMoustafa/xppautX/issues/322) |
 | [41](#41-rosenbrock-scales-past-or-short-of-its-banded-jacobian) | Numerics | Rosenbrock scales the dense matrix size even when its Jacobian is banded, and wide bands exceed the work array | [W261](https://github.com/MuhammadMoustafa/xppautX/issues/318) |
+| [42](#42-bessel-i-casts-its-order-without-checking-it) | Numerics | `bessel_i` converts unchecked model input to `int` | [W271](https://github.com/MuhammadMoustafa/xppautX/issues/328) |
 
 ## 1. Model options
 
@@ -740,3 +741,12 @@ also make the Jacobian write beyond the solver's `n*n` work allocation.
   by Backward Euler, Rosenbrock and Jacobian construction; work allocations
   cover `n*max(n,mt)`. CVODE's own `CVBand` call is left to CVODE.
 - **Card:** [W261](https://github.com/MuhammadMoustafa/xppautX/issues/318).
+
+## 42. Bessel I casts its order without checking it
+
+XPPAUT converts the order directly to `int`; a NaN or out-of-range model value has undefined conversion behavior. Negative orders also flow into the recurrence's square root and loop length.
+
+- **XPPAUT 8.0:** `bessel_i` uses `n=(int)nn` ([parserslow2.c:1654](../reference/xppaut-8.0/parserslow2.c#L1654)); XPPAUT master has the same cast ([parserslow2.c:1637](../reference/xppaut-master/parserslow2.c#L1637)).
+- **Evidence:** `tests/test_math.cpp` covers NaN order and argument, negative order, and order limits.
+- **xppautX:** NaN and non-finite inputs return NaN, negative integer orders use `I_{-n}(x)=I_n(x)`, and orders above 100000 return NaN to bound the input-controlled recurrence.
+- **Card:** [W271](https://github.com/MuhammadMoustafa/xppautX/issues/328).
