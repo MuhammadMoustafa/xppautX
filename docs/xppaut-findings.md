@@ -68,6 +68,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [36](#36-cvode-reverses-the-documented-tolerance-roles) | Numerics | CVODE receives TOLER as absolute and ATOLER as relative tolerance | [W34](https://github.com/MuhammadMoustafa/xppautX/issues/72), [W183](https://github.com/MuhammadMoustafa/xppautX/issues/235) |
 | [37](#37-delete-column-is-an-unconditional-placeholder) | Data browser | Delete column always reports an error and returns | W197 (local card) |
 | [38](#38-a-named-set-item-is-cut-at-its-numeric-prefix-and-the-rest-dropped-silently) | Named sets | a set item's value is read with `atof`: a dot for a comma silently drops the next item | [W229](https://github.com/MuhammadMoustafa/xppautX/issues/283) |
+| [39](#39-autos-collocation-computes-a-jacobian-at-every-point-and-throws-it-away) | AUTO | the residual pass of every collocation step differences a whole Jacobian per point to use only f: about half of the periodic continuation's model evaluations wasted | [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307) |
 
 ## 1. Model options
 
@@ -658,3 +659,35 @@ is never set (the window keeps its old right edge) and nothing is printed.
   a number is an error at the set's line and nothing of the set is applied
   (W125). The example's comma is fixed.
 - **Card:** [W229](https://github.com/MuhammadMoustafa/xppautX/issues/283).
+
+## 39. AUTO's collocation computes a Jacobian at every point and throws it away
+
+Every Newton step of a boundary-value continuation (periodic orbits, `ips`
+2) builds the collocation system in `setubv`: first the Jacobian blocks,
+calling `funi` at each collocation point with `ijac` 2
+([setubv2.c:150](../reference/xppaut-8.0/setubv2.c#L150), master:
+[150](../reference/xppaut-master/setubv2.c#L150)), then the residual in
+`setubv_make_fa`, which calls `funi` at the same points with the same
+arguments and `ijac` 2 again
+([setubv2.c:435](../reference/xppaut-8.0/setubv2.c#L435), master:
+[435](../reference/xppaut-master/setubv2.c#L435)) but reads only `f`.
+With XPPAUT's `JAC=0`, `ijac` 2 makes `funi` difference the right-hand side:
+one call for `f`, two per state and one per free parameter
+([autlib3.c:4598-4652](../reference/xppaut-8.0/autlib3.c#L4598), master:
+[4599](../reference/xppaut-master/autlib3.c#L4599)). `setubv_make_fa`
+therefore evaluates the model 1 + 2·ndim + nfpr times per point to use one
+of them, an `f` the loop before it has just computed: about half of the
+right-hand-side evaluations of a periodic continuation are wasted. The code
+is AUTO2000's; AUTO-07p computes the residual in the same loop as the
+Jacobian.
+
+- **Evidence:** W246's PY_S1Bf periodic branch (8 states, 2 free
+  parameters: 19 evaluations per point for one), with `funi`'s `ijac` 0 in
+  `setubv_make_fa` and nothing else changed: xppautX's interpreted run
+  takes 18.19 +/- 0.16 s instead of 23.94 +/- 0.12 s (1.32x, warm-up plus
+  five, one pinned CPU), and the whole diagram (every point of the steady
+  and periodic branches) is bit-identical in all runs
+  (paper/benchmarks/auto-parallel, `results/wsl`).
+- **xppautX:** the same waste today; the fix (`f` only, or taken from the
+  Jacobian loop) changes no result and goes with W247.
+- **Card:** [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307).
