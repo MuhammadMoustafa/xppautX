@@ -949,9 +949,9 @@ private:
     Expr e;
     e.kind = Expr::Kind::Call;
     e.text = "volterra";
-    const std::vector<int> formula = k.formula.empty() ? compiled(k.expr) : k.formula;
+    const std::vector<int> formula = k.formula.rpn.empty() ? compiled(k.expr) : k.formula.rpn;
     if (conv) {
-      const std::vector<int> ker = k.kerform.empty() ? compiled(k.kerexpr) : k.kerform;
+      const std::vector<int> ker = k.kerform.rpn.empty() ? compiled(k.kerexpr) : k.kerform.rpn;
       e.args.push_back(expr_of(ker));
       e.arg_names.push_back("");
       e.args.push_back(expr_of(formula));
@@ -1018,18 +1018,18 @@ private:
     case Statement::Kind::Volterra: {
       const int k = nvar_++;
       const std::string x = name(xpp::upper_case(s.name));
-      if (s.kind == Statement::Kind::Volterra) return x + "(t) = " + text(m_.programs[k]) + "\n";
-      return x + "' = " + text(m_.programs[k]) + "\n";
+      if (s.kind == Statement::Kind::Volterra) return x + "(t) = " + text(m_.programs[k].rpn) + "\n";
+      return x + "' = " + text(m_.programs[k].rpn) + "\n";
     }
     case Statement::Kind::Fixed: {
       const int k = nfix_++;
-      return name(xpp::upper_case(s.name)) + " = " + text(m_.programs[node + k]) + "\n";
+      return name(xpp::upper_case(s.name)) + " = " + text(m_.programs[node + k].rpn) + "\n";
     }
     case Statement::Kind::Aux: {
       std::string out;
       for (size_t b = 0; b < s.bindings.size(); b++) {
         const int k = naux_++;
-        out += "aux " + name(m_.uvar_names[node + m_.nmarkov + k]) + " = " + text(m_.programs[node + fix + k]) + "\n";
+        out += "aux " + name(m_.uvar_names[node + m_.nmarkov + k]) + " = " + text(m_.programs[node + fix + k].rpn) + "\n";
       }
       return out;
     }
@@ -1037,7 +1037,7 @@ private:
       const int f = nfun_++;
       std::string out = "fun " + name(m_.ufun_names[f]) + "(";
       for (int i = 0; i < m_.narg_fun[f]; i++) out += (i ? ", " : "") + arg_name(f, i);
-      return out + ") = " + text(m_.ufun_programs[f], f) + "\n";
+      return out + ") = " + text(m_.ufun_programs[f].rpn, f) + "\n";
     }
     case Statement::Kind::Derived: {
       /* d = expr: the .odex's builder finds it reads only parameters,
@@ -1057,10 +1057,10 @@ private:
       }
       return out;
     }
-    case Statement::Kind::Dae: return "0 = " + text(m_.aeqns[ndae_++].form) + "\n";
+    case Statement::Kind::Dae: return "0 = " + text(m_.aeqns[ndae_++].form.rpn) + "\n";
     case Statement::Kind::Solv: {
       const Model::AlgebraicVariable &a = m_.svars[nsol_++];
-      return "solv " + name(xpp::upper_case(std::string(xpp::trim_blanks(a.name)))) + " = " + text(a.form) + "\n";
+      return "solv " + name(xpp::upper_case(std::string(xpp::trim_blanks(a.name)))) + " = " + text(a.form.rpn) + "\n";
     }
     case Statement::Kind::InitNumbers: return s.text.empty() ? items(s) : initial(s);
     case Statement::Kind::History: return history(s);
@@ -1211,12 +1211,12 @@ private:
   std::string event()
   {
     const Model::GlobalFlag &f = m_.flags[nflag_++];
-    std::string out = xpp::format("event {} {}", f.sign, text(f.comcond));
+    std::string out = xpp::format("event {} {}", f.sign, text(f.comcond.rpn));
     for (int e = 0; e < f.nevents; e++) {
       const std::string upper = xpp::upper_case(f.lhsname[e]);
       std::string target = f.type[e] == 2 ? "out_put" : f.type[e] == 3 ? "arret" : name(upper);
       if (f.type[e] == 0 && xpp::equal_ignoring_case(f.lhsname[e], "no_interp")) target = "no_interp";
-      out += ", " + target + " = " + text(f.comrhs[e]);
+      out += ", " + target + " = " + text(f.comrhs[e].rpn);
     }
     return out + "\n";
   }
@@ -1277,7 +1277,7 @@ private:
       for (int c = 0; c < mc.nstates; c++) {
         const int l = r * mc.nstates + c;
         std::string cell;
-        if (mc.type == 0) cell = text(mc.command[l].empty() ? compiled(mc.trans[l]) : mc.command[l]);
+        if (mc.type == 0) cell = text(mc.command[l].rpn.empty() ? compiled(mc.trans[l]) : mc.command[l].rpn);
         else cell = print_number(mc.fixed[l]);
         out += "{" + cell + "} ";
       }
@@ -1544,16 +1544,16 @@ Fingerprint fingerprint(const xpp::Session &s, int guard = -1)
   f.values.push_back(s.numerics.method);
   for (int c : {m.neq, m.node, m.nmarkov, m.fix_var, m.nupar, m.nfun - (guard >= 0 ? 1 : 0), m.nflags, m.naeqn, m.nsvar, m.nkernel, m.nwiener})
     f.values.push_back(c);
-  for (int i = 0; i < m.node + m.fix_var + m.neq - m.node - m.nmarkov; i++) f.programs.push_back(normalized(m.programs[i], guard));
-  for (int i = 0; i < m.nfun; i++) if (i != guard) f.programs.push_back(normalized(m.ufun_programs[i], guard));
+  for (int i = 0; i < m.node + m.fix_var + m.neq - m.node - m.nmarkov; i++) f.programs.push_back(normalized(m.programs[i].rpn, guard));
+  for (int i = 0; i < m.nfun; i++) if (i != guard) f.programs.push_back(normalized(m.ufun_programs[i].rpn, guard));
   for (int j = 0; j < m.nflags; j++) {
-    f.programs.push_back(normalized(m.flags[j].comcond, guard));
-    for (int e = 0; e < m.flags[j].nevents; e++) f.programs.push_back(normalized(m.flags[j].comrhs[e], guard));
+    f.programs.push_back(normalized(m.flags[j].comcond.rpn, guard));
+    for (int e = 0; e < m.flags[j].nevents; e++) f.programs.push_back(normalized(m.flags[j].comrhs[e].rpn, guard));
   }
-  for (int i = 0; i < m.naeqn; i++) f.programs.push_back(normalized(m.aeqns[i].form, guard));
-  for (int i = 0; i < m.nsvar; i++) f.programs.push_back(normalized(m.svars[i].form, guard));
+  for (int i = 0; i < m.naeqn; i++) f.programs.push_back(normalized(m.aeqns[i].form.rpn, guard));
+  for (int i = 0; i < m.nsvar; i++) f.programs.push_back(normalized(m.svars[i].form.rpn, guard));
   for (int i = 0; i < m.nmarkov; i++)
-    for (const std::vector<int> &c : m.markov[i].command) f.programs.push_back(normalized(c, guard));
+    for (const Program &c : m.markov[i].command) f.programs.push_back(normalized(c.rpn, guard));
   for (int i = 0; i < m.nupar; i++) f.values.push_back(m.default_val[i]);
   for (int i = 0; i < m.node + m.nmarkov; i++) f.values.push_back(s.last_ic[i]);
   return f;
@@ -1664,7 +1664,7 @@ Result<std::string> convert_text(const std::string &ode, bool auto_answer, const
       constexpr size_t guard_program_size = 13; /* argument, conditional, number and function terminator */
       bool guard_valid = guard_name.empty() || guard >= 0;
       if (guard >= 0) {
-        const auto program = normalized(s.model().ufun_programs[guard]);
+        const auto program = normalized(s.model().ufun_programs[guard].rpn);
         guard_valid = s.model().ufun_names[guard] == xpp::upper_case(guard_name) && s.model().narg_fun[guard] == 1
             && program.size() == guard_program_size && program[0] == COM(USTACKTYPE, 0) && program[1] == MYIF && program[2] == 3
             && program[3] == COM(USTACKTYPE, 0) && program[4] == MYTHEN && program[5] == 4 && program[6] == NUMSYM

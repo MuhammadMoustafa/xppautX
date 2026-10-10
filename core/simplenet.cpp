@@ -288,9 +288,11 @@ bool next_pair_function(xpp::Session &s, xpp::Tokens &args, const char *net, int
   if(ivar2<0)return false;
   fname=args.text(")");
   int elen;
-  if(add_expr(s,xpp::format("{}({},{})",fname,rootname,root2name),s.model().networks[ind].f.data(),&elen)){
+  s.model().networks[ind].f.rpn.assign(MAXEXPLEN,0);
+  if(add_expr(s,xpp::format("{}({},{})",fname,rootname,root2name),s.model().networks[ind].f.rpn.data(),&elen)){
     model_failed(xpp::format("Bad function {}",fname));
   }
+  s.model().networks[ind].f.rpn.resize(static_cast<size_t>(elen));
   return true;
 }
 } // namespace
@@ -396,8 +398,8 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.networks[ind].values.assign((ntot+1),0.0);
     s.model().networks[ind].weight_table=iwgt;
     s.model().networks[ind].type=ntype;
-    s.model().networks[ind].root=s.model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
-    s.model().networks[ind].root2=s.model().networks[ind].f[1];
+    s.model().networks[ind].root=s.model().networks[ind].f.rpn[0]; /* this is strange - I am adding the compiled names */
+    s.model().networks[ind].root2=s.model().networks[ind].f.rpn[1];
     s.model().networks[ind].n=ntot;
     s.model().networks[ind].ncon=ncon;
     xpp::log(XPP_LOG_INFO, " Added net {} type {:d} len={:d} x {:d} using {} {}(var[{:d}],var[{:d}]) \n",
@@ -424,8 +426,8 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].index_table=iind;
 
     s.model().networks[ind].type=ntype;
-    s.model().networks[ind].root=s.model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
-    s.model().networks[ind].root2=s.model().networks[ind].f[1];
+    s.model().networks[ind].root=s.model().networks[ind].f.rpn[0]; /* this is strange - I am adding the compiled names */
+    s.model().networks[ind].root2=s.model().networks[ind].f.rpn[1];
     s.model().networks[ind].n=ntot;
     s.model().networks[ind].ncon=ncon;
     xpp::log(XPP_LOG_INFO, " Sparse {} len={:d} x {:d} using {} {}(var[{:d}],var[{:d}]) and {}\n",
@@ -516,8 +518,8 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].weight_table=iwgt;
 
     s.model().networks[ind].type=ntype;
-    s.model().networks[ind].root=s.model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
-    s.model().networks[ind].root2=s.model().networks[ind].f[1];
+    s.model().networks[ind].root=s.model().networks[ind].f.rpn[0]; /* this is strange - I am adding the compiled names */
+    s.model().networks[ind].root2=s.model().networks[ind].f.rpn[1];
     s.model().networks[ind].n=ncon;
     s.model().networks[ind].ncon=ntot;
     xpp::log(XPP_LOG_INFO, " Added fmmult {} len={:d} x {:d} using {} {}(var[{:d}],var[{:d}])\n",
@@ -893,7 +895,7 @@ void evaluate_network(xpp::Session &s, int ind)
 
      /*     f stuff  */           
    case FCONVE:
-     f=net.f.data();
+     f=net.f.rpn.data();
 
      for(i=0;i<n;i++){
        sum=0.0;
@@ -904,7 +906,7 @@ void evaluate_network(xpp::Session &s, int ind)
 	   if(k>=n)k=abs(twon-2-k);
            f[0]=root2+k;
 
-	   z=evaluate(s,f);
+	   z=evaluate(s,net.f);
 	   sum+=(w[j+ncon]*z);
 	 }
        }
@@ -912,7 +914,7 @@ void evaluate_network(xpp::Session &s, int ind)
      }
      break;
    case FCONV0:
-     f=net.f.data();
+     f=net.f.rpn.data();
      
      for(i=0;i<n;i++){
        sum=0.0;
@@ -922,7 +924,7 @@ void evaluate_network(xpp::Session &s, int ind)
 	 if(k<n&&k>=0){
 	
 	   f[0]=root2+k;
-	   z=evaluate(s,f);
+	   z=evaluate(s,net.f);
 	   sum+=(w[j+ncon]*z);
 	 }
        }
@@ -930,7 +932,7 @@ void evaluate_network(xpp::Session &s, int ind)
      }
      break;
    case FCONVP:
-     f=net.f.data();
+     f=net.f.rpn.data();
 
      for(i=0;i<n;i++){
        f[1]=root+i;
@@ -938,14 +940,14 @@ void evaluate_network(xpp::Session &s, int ind)
        for(j=-ncon;j<=ncon;j++){
 	 k=((twon+i+j)%n);
 	 f[0]=root2+k;
-	 z=evaluate(s,f);
+	 z=evaluate(s,net.f);
 	 sum+=(w[j+ncon]*z);
        }
        values[i]=sum;
      }
      break;
    case FSPARSE:
-     f=net.f.data();
+     f=net.f.rpn.data();
 
      for(i=0;i<n;i++){
        f[1]=root+i;
@@ -955,7 +957,7 @@ void evaluate_network(xpp::Session &s, int ind)
 	 k=static_cast<int>(cc[ij]);
          if(k>=0){
 	   f[0]=root2+k;
-	   z=evaluate(s,f);
+	   z=evaluate(s,net.f);
 	   sum+=(w[ij]*z);
 	 }
        }
@@ -963,7 +965,7 @@ void evaluate_network(xpp::Session &s, int ind)
      }
      break;
    case FMMULT:
-     f=net.f.data();
+     f=net.f.rpn.data();
 
      for(j=0;j<n;j++){
 
@@ -975,7 +977,7 @@ void evaluate_network(xpp::Session &s, int ind)
 
          f[0]=root2+i;
          
-	 z=evaluate(s,f);
+	 z=evaluate(s,net.f);
 
 	 sum+=(w[ij]*z);
        }

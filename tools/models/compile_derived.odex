@@ -1,0 +1,5 @@
+# W266 (#323): a parameter-only formula stays a compiled derived program.
+par a = 2
+d = a*2
+x' = -d*x
+init x = 1

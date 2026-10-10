@@ -13,7 +13,7 @@
 struct XppProgram {
     int interactive = 0; /* a front end is up (0: --silent, headless) */
     float version_major = 0, version_minor = 0; /* XPPAUT's version, for titles */
-    bool compile = true; /* compile each model's equations (--no-compile: interpret) */
+    bool compile = true; /* compile each model's programs (--no-compile: interpret) */
 };
 extern XppProgram program;
 

@@ -2,6 +2,7 @@
 #define _volterra_h_
 
 #include "xpplim.h"
+#include "expr_program.h"
 
 /* a kernel that is a convolution (KERNEL's flag) */
 #define CONV 2
@@ -17,7 +18,8 @@
    volterra2.cpp's. */
 struct KERNEL {
   double mu=0.0;
-  std::vector<int> formula,kerform; /* expr and kerexpr compiled */
+  xpp::Program formula,kerform; /* expr and kerexpr compiled */
+  xpp::Place where; /* the declaring line, including an anonymous inline kernel */
   int flag=0;
   std::string name,expr,kerexpr;
 };

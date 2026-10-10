@@ -65,13 +65,13 @@ void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations *
        model_failed(xpp::Error{"volterra",xpp::format("Illegal kernel {}={}",kernels[i].name,kernels[i].expr),
                                xpp::model_place(s.model(),kernels[i].name)});
      }
-     kernels[i].formula=program(len);
+     kernels[i].formula.rpn=program(len);
      if(kernels[i].flag==CONV){
        if(add_expr(s,kernels[i].kerexpr,formula.data(),&len)){
 	 model_failed(xpp::Error{"volterra",xpp::format("Illegal convolution {}={}",kernels[i].name,kernels[i].kerexpr),
 	                         xpp::model_place(s.model(),kernels[i].name)});
        }
-       kernels[i].kerform=program(len);
+       kernels[i].kerform.rpn=program(len);
      }
    }
   allocate_volterra(s,s.numerics.max_points,0);
@@ -106,7 +106,7 @@ void re_evaluate_kernels(xpp::Session &s)
     if(kernels[i].flag==CONV){
       for(j=0;j<=n;j++){
 	setvar(s,0,s.numerics.start_time+s.numerics.delta_t*j);
-	s.volterra.kernels[i].cnv[j]=evaluate(s,kernels[i].kerform.data());
+	s.volterra.kernels[i].cnv[j]=evaluate(s,kernels[i].kerform);
       }
     }  
   }
@@ -123,7 +123,7 @@ void alloc_kernels(xpp::Session &s, int flag)
       s.volterra.kernels[i].cnv.assign(n+1,0.0);
       for(j=0;j<=n;j++){
 	setvar(s,0,s.numerics.start_time+s.numerics.delta_t*j);
-	s.volterra.kernels[i].cnv[j]=evaluate(s,kernels[i].kerform.data());
+	s.volterra.kernels[i].cnv[j]=evaluate(s,kernels[i].kerform);
       }
     }
     /* Do the alpha functions here later  */
@@ -163,7 +163,7 @@ void init_sums(xpp::Session &s, double t0, int n, double dt, int i0, int iend, i
      mu=kernels[ker].mu;
      if(mu==0.0)al=.5*dt;
      else al=alpha1n(mu,dt,t,tp);
-     sum[ker]=al*evaluate(s,kernels[ker].formula.data());
+     sum[ker]=al*evaluate(s,kernels[ker].formula);
      if(kernels[ker].flag==CONV)
        sum[ker]=sum[ker]*s.volterra.kernels[ker].cnv[n-i0];
      
@@ -178,9 +178,9 @@ void init_sums(xpp::Session &s, double t0, int n, double dt, int i0, int iend, i
        if(mu==0.0)alpbet=dt;
        else alpbet=s.volterra.kernels[ker].al[n-i0-i];
        if(kernels[ker].flag==CONV)
-	 sum[ker]+=(alpbet*evaluate(s,kernels[ker].formula.data())
+	 sum[ker]+=(alpbet*evaluate(s,kernels[ker].formula)
 		    *s.volterra.kernels[ker].cnv[n-i0-i]);
-       else sum[ker]+=(alpbet*evaluate(s,kernels[ker].formula.data()));
+       else sum[ker]+=(alpbet*evaluate(s,kernels[ker].formula));
      }
    }
    for(ker=0;ker<s.model().nkernel;ker++){
@@ -230,13 +230,13 @@ void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y t
   for(i=0;i<s.model().node;i++)
     setvar(s,i+1,y[i]);
   for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
-    setvar(s,i+1,eval_program(s,i));
+    setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
   for(i=0;i<s.model().nkernel;i++){
     if(kernels[i].flag==CONV)
       s.volterra.kernels[i].k_n=s.volterra.kernels[i].sum+
-	s.volterra.kernels[i].betnn*evaluate(s,kernels[i].formula.data())*s.volterra.kernels[i].cnv[0];
+	s.volterra.kernels[i].betnn*evaluate(s,kernels[i].formula)*s.volterra.kernels[i].cnv[0];
     else 
-      s.volterra.kernels[i].k_n=s.volterra.kernels[i].sum+s.volterra.kernels[i].betnn*evaluate(s,kernels[i].formula.data());
+      s.volterra.kernels[i].k_n=s.volterra.kernels[i].sum+s.volterra.kernels[i].betnn*evaluate(s,kernels[i].formula);
   }
 }
      
@@ -270,15 +270,15 @@ int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, 
     for(i=0;i<s.model().node;i++)
       if(!s.model().eq_type[i])setvar(s,i+1,y[i]);  /* assign initial data             */
     for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
-      setvar(s,i+1,eval_program(s,i)); /* set fixed variables  for pass 1 */
+      setvar(s,i+1,xpp::evaluate(s,s.model().programs[i])); /* set fixed variables  for pass 1 */
     for(i=0;i<s.model().node;i++)
       if(s.model().eq_type[i]){  
-	z=eval_program(s,i);           /* reset IC for integral eqns      */
+	z=xpp::evaluate(s,s.model().programs[i]);           /* reset IC for integral eqns      */
 	setvar(s,i+1,z);
 	y[i]=z;    
       }
     for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)       /* pass 2 for fixed variables      */   
-      setvar(s,i+1,eval_program(s,i));
+      setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
     for(i=0;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)
       s.volterra.memory[i][0]=getvar(s,i+1);        /* save everything                 */
     s.volterra.current_point=1;
@@ -315,18 +315,18 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
    setvar(s,i+1+s.model().fix_var,y[i]);
  setvar(s,0,t-dt);
  for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
-   setvar(s,i+1,eval_program(s,i));
+   setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
  for(i=0;i<s.model().node;i++){
-   if(!s.model().eq_type[i])yp2[i]=y[i]+dt2*eval_program(s,i);
+   if(!s.model().eq_type[i])yp2[i]=y[i]+dt2*xpp::evaluate(s,s.model().programs[i]);
    else yp2[i]=0.0;
  }
  s.volterra.kn_flag=1;
  while(1){
    get_kn(s,yg,t);
     for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
-     setvar(s,i+1,eval_program(s,i)); 
+     setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
    for(i=0;i<s.model().node;i++){
-     yp[i]=eval_program(s,i);
+     yp[i]=xpp::evaluate(s,s.model().programs[i]);
      if(s.model().eq_type[i])errvec[i]=-yg[i]+yp[i];
      else errvec[i]=-yg[i]+dt2*yp[i]+yp2[i];
    }
@@ -338,11 +338,11 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
      delinv=1./del;
      get_kn(s,yg,t);
       for(j=s.model().node;j<s.model().node+s.model().fix_var;j++)
-       setvar(s,j+1,eval_program(s,j));  
+       setvar(s,j+1,xpp::evaluate(s,s.model().programs[j]));
      for(j=0;j<s.model().node;j++){
        fac=delinv;
        if(!s.model().eq_type[j])fac*=dt2;
-       jac[j*s.model().node+i]=(eval_program(s,j)-yp[j])*fac;
+       jac[j*s.model().node+i]=(xpp::evaluate(s,s.model().programs[j])-yp[j])*fac;
      }
      yg[i]=yold;
    }

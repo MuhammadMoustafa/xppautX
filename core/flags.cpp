@@ -172,7 +172,7 @@ int compile_flags(xpp::Session &s)
   if(s.model().nflags==0)return(0);
   s.integrator.flags.assign(s.model().nflags,xpp::FlagState{});
   for(j=0;j<s.model().nflags;j++){
-    if(!compile(s,flags[j].cond,flags[j].comcond)){
+    if(!compile(s,flags[j].cond,flags[j].comcond.rpn)){
       xpp::log(XPP_LOG_WARN, "Illegal global condition:  {}\n",flags[j].cond);
       return(1);
     }
@@ -222,7 +222,7 @@ int compile_flags(xpp::Session &s)
 	flags[j].lhs[i]=index;
 	flags[j].type[i]=0;
       }
-      if(!compile(s,flags[j].rhs[i],flags[j].comrhs[i])){
+      if(!compile(s,flags[j].rhs[i],flags[j].comrhs[i].rpn)){
 	xpp::log(XPP_LOG_WARN, "Illegal event {} for global {}\n",
 	       flags[j].rhs[i],flags[j].cond);
       return(1);
@@ -263,7 +263,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
     for(j=0;j<neq;j++)
       setvar(s,j+1,ynew[j]);
     setvar(s,0,*tnew);
-    f1=xpp::evaluate(s,flags[i].comcond.data());
+    f1=xpp::evaluate(s,flags[i].comcond);
     s.integrator.flags[i].f1=f1;
     tol=fabs(f1-f0);
     switch(sign){
@@ -306,7 +306,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
     setvar(s,i+1,ynew[i]);
   }
   for(i=0;i<s.model().nflags;i++)
-    s.integrator.flags[i].f0=xpp::evaluate(s,flags[i].comcond.data());
+    s.integrator.flags[i].f0=xpp::evaluate(s,flags[i].comcond);
   while(1){ /* run through all possible events  */
     ncycle++;
     newhit=0;
@@ -314,7 +314,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
       nevents=flags[i].nevents;
       if(s.integrator.flags[i].hit==ncycle&&s.integrator.flags[i].tstar<=smin){
 	for(j=0;j<nevents;j++){
-	  s.integrator.flags[i].vrhs[j]=xpp::evaluate(s,flags[i].comrhs[j].data());
+	  s.integrator.flags[i].vrhs[j]=xpp::evaluate(s,flags[i].comrhs[j]);
 	  in=flags[i].lhs[j];
 	  if(flags[i].type[j]==0)
 	        setvar(s,in+1,s.integrator.flags[i].vrhs[j]);
@@ -354,7 +354,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
       ynew[i]=getvar(s,i+1); /* if this screws up */
     }
     for(i=0;i<s.model().nflags;i++){
-      s.integrator.flags[i].f1=xpp::evaluate(s,flags[i].comcond.data());
+      s.integrator.flags[i].f1=xpp::evaluate(s,flags[i].comcond);
       if(s.integrator.flags[i].hit>0)continue; /* already hit so dont do anything */
       f1=s.integrator.flags[i].f1;
       sign=flags[i].sign;

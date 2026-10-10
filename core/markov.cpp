@@ -158,7 +158,7 @@ void create_markov(xpp::Session &s, int nstates, double *st, int type, const cha
   s.model().markov[j].states.assign(st, st+nstates);
   if(type==0){
     s.model().markov[j].trans.assign(n2, std::string());
-    s.model().markov[j].command.assign(n2, std::vector<int>());
+    s.model().markov[j].command.assign(n2, Program());
   }
   else {
     s.model().markov[j].fixed.assign(n2, 0.0);
@@ -213,8 +213,8 @@ int compile_markov(xpp::Session &s, int index, int j, int k)
   if(add_expr(s,expr,com,&leng))
     return -1;
   /* zero-padded by two, like the xpp_malloc block it replaces */
-  s.model().markov[index].command[l0].assign(com, com+leng);
-  s.model().markov[index].command[l0].resize(leng+2, 0);
+  s.model().markov[index].command[l0].rpn.assign(com, com+leng);
+  s.model().markov[index].command[l0].rpn.resize(leng+2, 0);
   
   return 1;
 }
@@ -228,7 +228,7 @@ void update_markov(xpp::Session &s, double *x, double t, double dt)
   for(i=0;i<s.model().node;i++)setvar(s,i+1,x[i]);
   for(i=s.model().node+s.model().fix_var;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)setvar(s,i+1,x[i-s.model().fix_var]);
   for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
-  setvar(s,i+1,eval_program(s,i));
+  setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
   for(i=0;i<s.model().nmarkov;i++)
     yp[i]=new_state(s,x[s.model().node+i],i,dt);
   for(i=0;i<s.model().nmarkov;i++){
@@ -258,7 +258,7 @@ double new_state(xpp::Session &s, double old, int index, double dt)
    if(type==0){
      for(i=0;i<ns;i++){
        if(i!=row){
-	 prob=evaluate(s,chain.command[rns+i].data())*dt;
+	 prob=evaluate(s,chain.command[rns+i])*dt;
 	 sum=sum+prob;
 	 if(coin<=sum){
 	   return(st[i]);

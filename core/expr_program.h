@@ -61,6 +61,16 @@
 
 #include <array>
 #include <bit>
+#include <vector>
+
+namespace xpp {
+/* RPN and the native code made from it travel together. The Model owns the
+   executable unit; R lets a network read its changing operand indices. */
+struct Program {
+    std::vector<int> rpn;
+    double (*native)(double *, double *, Session *, const int *) = nullptr;
+};
+}
 
 #define FUN1TYPE 9
 #define FUN2TYPE 1

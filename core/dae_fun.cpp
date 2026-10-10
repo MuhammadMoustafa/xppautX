@@ -81,15 +81,15 @@ void compile_svars(xpp::Session &s)
       model_failed(xpp::Error{"DAE","Bad right-hand side for the algebraic equation",m.aeqns[i].where});
     /* n+2, zero-padded like the xpp_malloc block this replaces: evaluate(s,)
        may read a couple of entries past the parsed length. */
-    m.aeqns[i].form.assign(f, f+n);
-    m.aeqns[i].form.resize(n+2, 0);
+    m.aeqns[i].form.rpn.assign(f, f+n);
+    m.aeqns[i].form.rpn.resize(n+2, 0);
   }
 
    for(i=0;i<m.nsvar;i++){
     if(add_expr(s,m.svars[i].rhs,f,&n)==1)
       model_failed(xpp::Error{"DAE",xpp::format("Bad initial guess for {}",m.svars[i].name),m.svars[i].where});
-    m.svars[i].form.assign(f, f+n);
-    m.svars[i].form.resize(100, 0);
+    m.svars[i].form.rpn.assign(f, f+n);
+    m.svars[i].form.rpn.resize(100, 0);
    }
      init_dae_work(s);
 }
@@ -117,7 +117,7 @@ void set_init_guess(xpp::Session &s)
   reset_dae(s);
   if(m.nsvar==0)return;
   for(i=0;i<m.nsvar;i++){
-   z=evaluate(s,m.svars[i].form.data());
+   z=evaluate(s,m.svars[i].form);
     setvar(s,m.svars[i].index,z);
     s.dae.svar_last[i]=z;
   }
@@ -170,9 +170,9 @@ void get_dae_fun(xpp::Session &s, double *y, double *f)
   for(i=0;i<m.nsvar;i++)
     setvar(s,m.svars[i].index,y[i]);
   for(i=m.node;i<m.node+m.fix_var;i++)
-    setvar(s,i+1,eval_program(s,i));
+    setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
   for(i=0;i<m.naeqn;i++)
-    f[i]=evaluate(s,m.aeqns[i].form.data());
+    f[i]=evaluate(s,m.aeqns[i].form);
 }
 
 void do_daes(xpp::Session &s)
@@ -298,11 +298,13 @@ void get_new_guesses(xpp::Session &s)
     const std::string name=xpp::format("Initial {}({:g}):",
       m.svars[i].name,z);
     new_string_of(name.c_str(),m.svars[i].rhs,XPP_FIELD_EXPRESSION);
-    if(add_expr(s,m.svars[i].rhs,m.svars[i].form.data(),&n)){
+    /* A guess edited at run time no longer has its load-time native code. */
+    m.svars[i].form.native=nullptr;
+    if(add_expr(s,m.svars[i].rhs,m.svars[i].form.rpn.data(),&n)){
       command_error("initial guess",xpp::format("{}: illegal formula {}",m.svars[i].name,m.svars[i].rhs));
       return;
     }
-    z=evaluate(s,m.svars[i].form.data());
+    z=evaluate(s,m.svars[i].form);
     setvar(s,m.svars[i].index,z);
     s.dae.svar_last[i]=z;
   }

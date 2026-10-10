@@ -26,7 +26,7 @@ void compile_derived(xpp::Session &s)
   for (xpp::Model::DerivedQuantity &d : s.model().derived) {
     if (add_expr(s, d.rhs, f.data(), &n) == 1)
       model_failed(xpp::Error{"derived", xpp::format("Bad right-hand side for a derived parameter: {}", d.rhs), d.where});
-    d.form.assign(f.begin(), f.begin() + n);
+    d.form.rpn.assign(f.begin(), f.begin() + n);
   }
   evaluate_derived(s);
 }
@@ -38,7 +38,7 @@ and after changing parameters and constants
 void evaluate_derived(xpp::Session &s)
 {
   std::array<double, MAXPAR> &constants = s.parser.constants;
-  for (xpp::Model::DerivedQuantity &d : s.model().derived) constants[d.index] = evaluate(s, d.form.data());
+  for (xpp::Model::DerivedQuantity &d : s.model().derived) constants[d.index] = evaluate(s, d.form);
 }
 
 /* this adds a derived quantity  */

@@ -43,7 +43,7 @@ constexpr int MAX_SUM_DEPTH = 16;
    prototypes: the code does the same operations in the same order and
    these do the arithmetic, so the results are the interpreter's, bit for
    bit. The first argument of each is the Session. */
-enum class Helper : size_t { Table, Network, Vector, Kernel, Delay, DelayShift, Shift, IShift, Set, Uniform, Poisson, Normal, Count };
+enum class Helper : size_t { Table, Network, Vector, Kernel, Delay, DelayShift, Shift, IShift, Set, Uniform, Poisson, Normal, Argument, FunctionEnd, Count };
 struct HelperText {
     std::string_view name, prototype;
 };
@@ -60,6 +60,8 @@ constexpr std::array<HelperText, static_cast<size_t>(Helper::Count)> helper_text
     {"h_ru", "double h_ru(void*,double)"},
     {"h_rp", "double h_rp(void*,double)"},
     {"h_rn", "double h_rn(void*,double,double)"},
+    {"h_arg", "double h_arg(void*,int)"},
+    {"h_end", "double h_end(void*,double,int)"},
 }};
 
 /* The helpers with exactly the C prototypes above, so the generated code
@@ -78,6 +80,9 @@ double h_ru(void *S, double x) { return expr::do_random_uniform(session(S), x); 
 double h_rp(void *S, double mean) { return expr::do_random_poisson(session(S), mean); }
 double h_rn(void *S, double mean, double sd) { return expr::do_random_normal(session(S), mean, sd); }
 
+double h_arg(void *S,int i) {const auto &stack=session(S).parser.stack;return stack.args[stack.nargs-1-i];}
+double h_end(void *S,double value,int n) {session(S).parser.stack.nargs-=n;return value;}
+
 const void *helper_address(Helper h)
 {
     switch (h) {
@@ -93,6 +98,8 @@ const void *helper_address(Helper h)
     case Helper::Uniform: return reinterpret_cast<const void *>(&h_ru);
     case Helper::Poisson: return reinterpret_cast<const void *>(&h_rp);
     case Helper::Normal: return reinterpret_cast<const void *>(&h_rn);
+    case Helper::Argument: return reinterpret_cast<const void *>(&h_arg);
+    case Helper::FunctionEnd: return reinterpret_cast<const void *>(&h_end);
     case Helper::Count: break;
     }
     return nullptr;
@@ -114,15 +121,18 @@ struct Generator {
     std::vector<std::string> out;
     int temps = 0, loops = 0, depth = 0;
     bool impure = false;
+    bool dynamic = false; /* a network updates its first two variable operands */
+    std::vector<char> allowed; /* user functions with a fully compiled dependency graph */
 
     std::unexpected<Error> refuse(std::string reason) const
     {
         return fail("compile", "not compiled: " + reason + "; running the interpreter", place);
     }
 
-    std::string signature(int i, bool user) const
+    std::string signature(int i, bool user, std::string_view name={}) const
     {
-        std::string text = xpp::format("double {}{}(double *c,double *v,void *S", user ? "u" : "p", i);
+        std::string text = "double " + (user ? xpp::format("u{}",i) : std::string(name)) + "(double *c,double *v,void *S";
+        if (!user) text+=",const int *R";
         if (user)
             for (int a = 0; a < s.model().narg_fun[i]; ++a) text += xpp::format(",double a{}", a);
         return text + ")";
@@ -303,7 +313,13 @@ struct Generator {
             } else if (type == CONTYPE || type == VARTYPE) {
                 const size_t bound = type == CONTYPE ? s.parser.constants.size() : s.parser.variables.size();
                 if (in < 0 || static_cast<size_t>(in) >= bound) return refuse("an out-of-range operand");
-                stack.push_back({xpp::format("{}[{}]", type == CONTYPE ? "c" : "v", in), true, type == VARTYPE || in == expr::SUM_INDEX});
+                if (dynamic && pc<2) {
+                    if (type!=VARTYPE) return refuse("an invalid network operand");
+                    /* The network changes these tokens during each pair evaluation.
+                       do_shift bounds the selected variable just as the interpreter
+                       does for a computed index; no model name enters C. */
+                    stack.push_back({xpp::format("{}(S,0,R[{}])",helper(Helper::Shift),pc),false,true});
+                } else stack.push_back({xpp::format("{}[{}]", type == CONTYPE ? "c" : "v", in), true, type == VARTYPE || in == expr::SUM_INDEX});
             } else if (type == USTACKTYPE) {
                 if (!user || in < 0 || in >= m.narg_fun[index]) return refuse("an out-of-range argument");
                 stack.push_back({xpp::format("a{}", in), true});
@@ -332,6 +348,7 @@ struct Generator {
                 stack.push_back({std::move(code), false, left.mut || right.mut});
             } else if (type == UFUNTYPE) {
                 if (in < 0 || in >= m.nfun || next >= limit || p[next] != m.narg_fun[in]) return refuse("an invalid user function call");
+                if (!allowed.empty() && !allowed[in]) return refuse("calls a refused user function");
                 const int n = p[next++];
                 if (n < 0 || !need(static_cast<size_t>(n))) return refuse("a function stack underflow");
                 if (user) calls[index].insert(in);
@@ -363,7 +380,7 @@ struct Generator {
     }
 
     /* One C function for a program (an equation's, or user function index's). */
-    Result<> program(const std::vector<int> &p, int index, bool user)
+    Result<> program(const std::vector<int> &p, int index, bool user, std::string_view name={})
     {
         if (p.empty() || p.size() > MAXEXPLEN) return refuse("an invalid program length");
         out.clear();
@@ -377,7 +394,7 @@ struct Generator {
         if (temps) declarations += ";";
         for (int i = 0; i < loops; ++i) declarations += xpp::format("{1}lo{0},hi{0},ix{0}", i, i ? "," : "int ");
         if (loops) declarations += ";";
-        source += signature(index, user) + "{" + declarations;
+        source += signature(index, user, name) + "{" + declarations;
         for (const std::string &statement : out) source += statement;
         source += xpp::format("return {};}}\n", value->text);
         if (user) pure_function[index] = !impure;
@@ -386,53 +403,113 @@ struct Generator {
 };
 }
 
-Result<> compile_model(Session &s)
+std::vector<ModelProgram> model_programs(Model &m)
 {
-    Model &m = s.model();
-    m.native_program.reset();
-    m.native_functions.fill(nullptr);
-    if (!program.compile) return {};
-    Generator g{s};
-    /* The expressions of events, boundary conditions, derived parameters,
-       algebraic equations, Markov chains and kernels run outside
-       Model::programs, through evaluate(): they stay interpreted, each
-       one giving the value the compiled one would. */
-    if (m.nfun < 0 || static_cast<size_t>(m.nfun) > m.ufun_programs.size()) return g.refuse("an out-of-range function count");
-    g.calls.resize(static_cast<size_t>(m.nfun));
-    g.pure_function.assign(static_cast<size_t>(m.nfun), 0);
-    for (int i=0; i<m.nfun; ++i) {
-        g.place=model_place(m,m.ufun_names[i]);
-        if (m.narg_fun[i]<0 || m.narg_fun[i]>EXPR_STACK) return g.refuse("an out-of-range argument count");
-        g.source += g.signature(i,true)+";\n";
-    }
-    auto equation_place=[&](size_t i) {
-        return model_place(m, i < static_cast<size_t>(m.node) ? m.uvar_names[i] : i < static_cast<size_t>(m.node+m.fix_var) ? m.fixinfo[i-m.node].name : m.uvar_names[i-m.fix_var]);
+    std::vector<ModelProgram> entries;
+    auto add=[&](Program &p,std::string symbol,Place place,int user=-1,bool dynamic=false) {
+        if (p.rpn.empty()) return;
+        if (place.source.empty()) place.source=model_source_line(m,place.file,place.line);
+        entries.push_back({&p,std::move(symbol),std::move(place),user,dynamic});
     };
-    Place first;
-    for (size_t i=0; i<m.programs.size() && first.file.empty(); ++i)
-        if (!m.programs[i].empty()) first=equation_place(i);
-    /* the functions first: an equation's call of one is then known to change
-       no state, or to */
-    for (int i=0; i<m.nfun; ++i) {
+    for (size_t i=0;i<m.programs.size();++i) {
+        if (m.programs[i].rpn.empty()) continue;
+        const std::string &name=i<static_cast<size_t>(m.node)?m.uvar_names[i]
+            :i<static_cast<size_t>(m.node+m.fix_var)?m.fixinfo[i-m.node].name:m.uvar_names[i-m.fix_var];
+        add(m.programs[i],xpp::format("p_eq{}",i),model_place(m,name));
+    }
+    for (size_t i=0;i<m.ufun_programs.size();++i)
+        if (!m.ufun_programs[i].rpn.empty()) add(m.ufun_programs[i],xpp::format("p_fun{}",i),model_place(m,m.ufun_names[i]),static_cast<int>(i));
+    for (size_t i=0;i<m.svars.size();++i) add(m.svars[i].form,xpp::format("p_solv{}",i),m.svars[i].where);
+    for (size_t i=0;i<m.aeqns.size();++i) add(m.aeqns[i].form,xpp::format("p_dae{}",i),m.aeqns[i].where);
+    for (size_t i=0;i<m.markov.size();++i)
+        for (size_t j=0;j<m.markov[i].command.size();++j)
+            add(m.markov[i].command[j],xpp::format("p_markov{}_{}",i,j),model_place(m,m.markov[i].name));
+    for (size_t i=0;i<m.kernels.size();++i) {
+        add(m.kernels[i].formula,xpp::format("p_kernel{}",i),m.kernels[i].where);
+        add(m.kernels[i].kerform,xpp::format("p_convolution{}",i),m.kernels[i].where);
+    }
+    for (size_t i=0;i<m.flags.size();++i) {
+        if (m.flags[i].comcond.rpn.empty()) continue;
+        const Place place=model_place(m,odex::Statement::Kind::Event,static_cast<int>(i));
+        add(m.flags[i].comcond,xpp::format("p_condition{}",i),place);
+        for (size_t j=0;j<m.flags[i].comrhs.size();++j) add(m.flags[i].comrhs[j],xpp::format("p_event{}_{}",i,j),place);
+    }
+    for (size_t i=0;i<m.derived.size();++i) add(m.derived[i].form,xpp::format("p_derived{}",i),m.derived[i].where);
+    for (size_t i=0;i<m.networks.size();++i)
+        if (!m.networks[i].f.rpn.empty()) add(m.networks[i].f,xpp::format("p_network{}",i),model_place(m,m.networks[i].name),-1,true);
+    return entries;
+}
+
+Result<std::vector<Error>> compile_model(Session &s)
+{
+    Model &m=s.model();
+    const auto entries=model_programs(m);
+    for (const auto &entry:entries) entry.code->native=nullptr;
+    m.native_program.reset();
+    if (!::program.compile || entries.empty()) return {};
+    Generator g{s};
+    std::vector<Error> warnings;
+    if (m.nfun<0 || static_cast<size_t>(m.nfun)>m.ufun_programs.size()) return g.refuse("an out-of-range function count");
+    g.calls.resize(static_cast<size_t>(m.nfun));
+    g.pure_function.assign(static_cast<size_t>(m.nfun),0);
+    std::vector<std::string> bodies(static_cast<size_t>(m.nfun));
+    std::vector<Error> refusals(static_cast<size_t>(m.nfun));
+    for (int i=0;i<m.nfun;++i) {
         g.place=model_place(m,m.ufun_names[i]);
-        if (auto r=g.program(m.ufun_programs[i],i,true); !r) return r;
+        if (m.narg_fun[i]<0 || m.narg_fun[i]>EXPR_STACK) {
+            refusals[i]=g.refuse("an out-of-range argument count").error();
+            continue;
+        }
+        g.source.clear();
+        if (auto r=g.program(m.ufun_programs[i].rpn,i,true);!r) refusals[i]=r.error();
+        else bodies[i]=std::move(g.source);
     }
-    for (size_t i=0; i<m.programs.size(); ++i) {
-        if (m.programs[i].empty()) continue;
-        g.place=equation_place(i);
-        if (auto r=g.program(m.programs[i],static_cast<int>(i),false); !r) return r;
+    /* Only functions whose entire dependency graph compiled are callable.
+       Iterative topological removal also refuses recursion, without following
+       untrusted input on the host stack. Impurity was conservative during
+       translation, so removing a function cannot change a caller's ordering. */
+    g.allowed.assign(static_cast<size_t>(m.nfun),0);
+    for (int pass=0;pass<m.nfun;++pass)
+        for (int i=0;i<m.nfun;++i)
+            if (!g.allowed[i] && !bodies[i].empty()
+                && std::all_of(g.calls[i].begin(),g.calls[i].end(),[&](int j){return g.allowed[j];})) g.allowed[i]=1;
+    g.source.clear();
+    for (int i=0;i<m.nfun;++i) {
+        if (!g.allowed[i]) {
+            g.place=model_place(m,m.ufun_names[i]);
+            const Error error=bodies[i].empty()?refusals[i]
+                :g.refuse("calls a refused or recursive user function").error();
+            warnings.push_back(error);
+            continue;
+        }
+        g.source+=g.signature(i,true)+";\n";
     }
-    /* Topological removal, with no recursive traversal of user input. */
-    std::set<int> done;
-    for (int pass=0; pass<m.nfun; ++pass)
-        for (int i=0; i<m.nfun; ++i)
-            if (!done.contains(i) && std::all_of(g.calls[i].begin(),g.calls[i].end(),[&](int j){return done.contains(j);})) done.insert(i);
-    if (done.size()!=static_cast<size_t>(m.nfun)) {
-        for (int i=0; i<m.nfun; ++i) if (!done.contains(i)) { g.place=model_place(m,m.ufun_names[i]); break; }
-        return g.refuse("uses recursive user functions");
+    for (int i=0;i<m.nfun;++i) if (g.allowed[i]) g.source+=bodies[i];
+    std::vector<const ModelProgram *> emitted;
+    for (const auto &entry:entries) {
+        g.place=entry.place;
+        if (entry.user_index>=0) {
+            const int i=entry.user_index;
+            if (i>=m.nfun || !g.allowed[i]) continue;
+            /* The interpreter has already pushed arguments in reverse order.
+               This bridge drops them as ENDFUN does; equations call u directly. */
+            std::string call=xpp::format("u{}(c,v,S",i);
+            for (int a=0;a<m.narg_fun[i];++a) call+=xpp::format(",{}(S,{})",g.helper(Helper::Argument),a);
+            call+=")";
+            g.source+=xpp::format("double {}(double*c,double*v,void*S,const int*R){{double z={};return {}(S,z,{});}}\n",
+                             entry.symbol,call,g.helper(Helper::FunctionEnd),m.narg_fun[i]);
+        } else {
+            g.dynamic=entry.dynamic_operands;
+            if (auto r=g.program(entry.code->rpn,0,false,entry.symbol);!r) {
+                warnings.push_back(r.error());
+                continue;
+            }
+        }
+        emitted.push_back(&entry);
     }
-    /* the literals are the host's own doubles, shared bit for bit; dv is the
-       guarded division of a non-trivial divisor */
+    if (emitted.empty()) return warnings;
+    const Place first=emitted.front()->place;
+    /* Literals are host doubles in N[], never model text in generated C. */
     std::string declarations=xpp::format("double N[{}];\nstatic double dv(double a,double b){{if(b==0.0)b=N[0];return a/b;}}\n",g.numbers.size());
     std::vector<tcc::Symbol> symbols;
     std::vector<std::string> names;
@@ -447,30 +524,27 @@ Result<> compile_model(Session &s)
         declarations+=xpp::format("extern double f2_{}(double,double);\n",i);
         addresses.push_back(reinterpret_cast<const void *>(expr::fun2[i]));
     }
-    for (size_t i=0; i<g.used.size(); ++i) {
+    for (size_t i=0;i<g.used.size();++i) {
         if (!g.used[i]) continue;
         names.emplace_back(helper_text[i].name);
         declarations+=xpp::format("extern {};\n",helper_text[i].prototype);
         addresses.push_back(helper_address(static_cast<Helper>(i)));
     }
-    for (size_t i=0; i<names.size(); ++i) symbols.push_back({names[i].c_str(),addresses[i]});
+    for (size_t i=0;i<names.size();++i) symbols.push_back({names[i].c_str(),addresses[i]});
     auto compiled=tcc::Program::compile(declarations+g.source,symbols,first);
-    if (!compiled) { g.place=compiled.error().place; return g.refuse("TinyCC: "+compiled.error().what); }
-    /* fill the literals' table the generated code reads (its data symbol) */
+    if (!compiled) {g.place=compiled.error().place;return g.refuse("TinyCC: "+compiled.error().what);}
     auto table=(*compiled)->function("N");
-    if (!table) { g.place=table.error().place; return g.refuse("TinyCC: "+table.error().what); }
+    if (!table) {g.place=table.error().place;return g.refuse("TinyCC: "+table.error().what);}
     std::copy(g.numbers.begin(),g.numbers.end(),static_cast<double *>(*table));
-    decltype(m.native_functions) functions{};
-    for (size_t i=0; i<m.programs.size(); ++i) {
-        if (m.programs[i].empty()) continue;
-        auto address=(*compiled)->function(xpp::format("p{}",i));
-        if (!address) { g.place=address.error().place; return g.refuse("TinyCC: "+address.error().what); }
-        functions[i]=reinterpret_cast<double (*)(double *,double *,Session *)>(*address);
+    std::vector<decltype(Program::native)> functions;
+    for (const auto *entry:emitted) {
+        auto address=(*compiled)->function(entry->symbol);
+        if (!address) {g.place=address.error().place;return g.refuse("TinyCC: "+address.error().what);}
+        functions.push_back(reinterpret_cast<decltype(Program::native)>(*address));
     }
     m.native_program=std::move(*compiled);
-    m.native_functions=functions;
-    const auto equations=std::count_if(functions.begin(),functions.end(),[](auto f){return f!=nullptr;});
-    log(XPP_LOG_INFO,"Compiled {} equations and {} user functions\n",equations,m.nfun);
-    return {};
+    for (size_t i=0;i<emitted.size();++i) emitted[i]->code->native=functions[i];
+    log(XPP_LOG_INFO,"Compiled {} of {} programs\n",emitted.size(),entries.size());
+    return warnings;
 }
 }

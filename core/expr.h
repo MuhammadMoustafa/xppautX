@@ -75,8 +75,9 @@ int add_expr(Session &s, std::string_view expr, int *command, int *length);
 /* program's value, run on s's stacks: the right-hand side, every step
    (expr_eval.cpp) */
 double evaluate(Session &s, const int *program);
-/* The one dispatch for a Model's equation program (W258). */
-double eval_program(Session &s, int index);
+/* Model-backed programs dispatch to their native function when enabled. */
+struct Program;
+double evaluate(Session &s, const Program &program);
 /* name as the symbol table keeps it: blanks removed, upper case */
 std::string converted(std::string_view name);
 /* name (as converted makes it) is a built-in symbol, the symbol table's

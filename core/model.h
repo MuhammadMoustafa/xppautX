@@ -35,6 +35,7 @@
 #include "odex.h"
 #include "model_files.h"
 #include "xpp_tcc.h"
+#include "expr_program.h"
 
 #include <array>
 #include <memory>
@@ -103,16 +104,15 @@ struct Model {
      placeholders, then the aux quantities; browse_data's added column
      takes the next one. An unused index has "" and no program. */
   std::array<std::string,MAXODE> formulas;
-  std::array<std::vector<int>,MAXODE> programs;
+  std::array<Program,MAXODE> programs;
   /* W258: executable code has exactly this Model's lifetime. */
   std::unique_ptr<tcc::Program> native_program;
-  std::array<double (*)(double *, double *, Session *),MAXODE> native_functions{};
   /* a boundary condition, 0=string: string (at most 255 bytes, the rest
      NUL), com its compiled form (200 commands), name "0=" (10 bytes;
      pp_shoot writes its side into it). C buffers: the shooting code and
      the dialogs write into them. */
   struct BoundaryCondition {
-    std::vector<int> com;
+    Program com;
     std::vector<char> string;
     std::vector<char> name;
   };
@@ -142,9 +142,9 @@ struct Model {
     std::array<int,max_events> lhs{};
     std::array<std::string,max_events> lhsname;
     std::array<std::string,max_events> rhs;
-    std::array<std::vector<int>,max_events> comrhs;
+    std::array<Program,max_events> comrhs;
     std::string cond;
-    std::vector<int> comcond;
+    Program comcond;
     int sign=0,nevents=0;
     std::array<int,max_events> type{};
     int anypars=0;
@@ -159,7 +159,7 @@ struct Model {
   struct DerivedQuantity {
     int index=0;
     std::string rhs;
-    std::vector<int> form;
+    Program form;
     Place where; /* its line, for an error */
   };
   std::vector<DerivedQuantity> derived;
@@ -169,14 +169,14 @@ struct Model {
      guess (rhs, compiled form), its place in the parser's variables */
   struct AlgebraicVariable {
     std::string name,rhs;
-    std::vector<int> form;
+    Program form;
     int index=0;
     Place where; /* its solv line, for an error */
   };
   /* an algebraic condition 0=rhs (compiled form) */
   struct AlgebraicEquation {
     std::string rhs;
-    std::vector<int> form;
+    Program form;
     Place where; /* its 0= line, for an error (a DAE that cannot be solved) */
   };
   int nsvar=0,naeqn=0;
@@ -224,7 +224,7 @@ struct Model {
      (command), or as numbers (fixed) when type is 1 (fixed for all time;
      0 when they depend on the state) */
   struct MarkovChain {
-    std::vector<std::vector<int>> command;
+    std::vector<Program> command;
     std::vector<std::string> trans;
     std::vector<double> fixed;
     int nstates=0;
@@ -264,7 +264,7 @@ struct Model {
   std::array<std::string,MAXUFUN> ufun_defs;
   /* each one compiled: MAXEXPLEN commands, the formula then ENDFUN,
      its argument count and ENDEXP */
-  std::array<std::vector<int>,MAXUFUN> ufun_programs;
+  std::array<Program,MAXUFUN> ufun_programs;
   /* ---- the source ---- */
   /* the model file's lines as read (strip_saveqn makes their control
      characters blanks at the end of the load) */

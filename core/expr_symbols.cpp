@@ -372,6 +372,7 @@ int add_kernel(xpp::Session &s, std::string_view name, double mu, std::string_vi
     k.expr=text;
   }
   k.name=name;
+  k.where=Load::place();
   s.parser.nsym++;
   m.nkernel++;
   return(0);
@@ -514,13 +515,13 @@ int add_ufun_new(xpp::Session &s, int index, std::string_view rhs, std::span<con
     return(1);
   }
   /* add_expr compiles into it in place: MAXEXPLEN commands */
-  m.ufun_programs[index].assign(MAXEXPLEN,0);
+  m.ufun_programs[index].rpn.assign(MAXEXPLEN,0);
   set_ufun_def(m,index,"");
   m.ufun_args[index].assign(args.begin(),args.end());
   set_ufun_arg_names(s,index);
-  if(add_expr(s,rhs,m.ufun_programs[index].data(),&end)==0)
+  if(add_expr(s,rhs,m.ufun_programs[index].rpn.data(),&end)==0)
     {
-      fixup_endfun(m.ufun_programs[index].data(),end,narg);
+      fixup_endfun(m.ufun_programs[index].rpn.data(),end,narg);
       set_ufun_def(m,index,rhs);
       m.narg_fun[index]=narg;
       set_old_arg_names(s.parser,narg);
@@ -546,7 +547,7 @@ int add_ufun(xpp::Session &s, std::string_view junk, std::string_view expr, int 
   if(s.parser.errout)xpp::log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
- std::vector<int> &program=m.ufun_programs[m.nfun];
+ std::vector<int> &program=m.ufun_programs[m.nfun].rpn;
  program.assign(MAXEXPLEN,0);
  set_ufun_def(m,m.nfun,"");
 

@@ -669,11 +669,11 @@ int main(void)
     const double divisor = session.random.uniform();
     const double next = session.random.uniform();
     session.random.seed(1);
-    CHECK(xpp::evaluate(session, session.model().programs[0].data()) == 1/divisor);
+    CHECK(xpp::evaluate(session, session.model().programs[0].rpn.data()) == 1/divisor);
     CHECK(session.random.uniform() == next); /* exactly one draw */
     CHECK(load_text("par a=2\nx'=1/a\ndone\n", "ode") == 1);
     xpp::set_val(xpp::client_session(), "A", 0);
-    CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().model().programs[0].data()) == 1/xpp::expr::ZERO_DIVISOR);
+    CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().model().programs[0].rpn.data()) == 1/xpp::expr::ZERO_DIVISOR);
     CHECK(load_text("par ode_divisor=2\nx'=1/x\ndone\n", "ode") == 1);
     const auto collision = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
     CHECK(collision && collision->find("fun ode_divisor_(value)") != std::string::npos);

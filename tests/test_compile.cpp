@@ -8,6 +8,7 @@
 #include <bit>
 #include <cstdint>
 #include <limits>
+#include <set>
 
 namespace {
 std::vector<int> number(double x)
@@ -47,20 +48,22 @@ template <class A> bool same(const A &a,const A &b)
 /* Program i compiled and interpreted, each from the same state: the same value, and
    the same left behind (the variables SET writes, the sum's I', the generator's next
    draws). */
-void same_both_ways(xpp::Session &s,int i)
+void same_both_ways(xpp::Session &s,const xpp::Program &code)
 {
     const auto variables=s.parser.variables;
     const auto constants=s.parser.constants;
-    s.random.seed(7+i);
+    s.random.seed(7);
     const std::string random=s.random.save();
-    const double native=xpp::eval_program(s,i);
+    const double native=xpp::evaluate(s,code);
     const auto native_variables=s.parser.variables;
     const auto native_constants=s.parser.constants;
     const std::string native_random=s.random.save();
     s.parser.variables=variables;
     s.parser.constants=constants;
     CHECK(s.random.load(random));
-    const double interpreted=xpp::evaluate(s,s.model().programs[i].data());
+    program.compile=false;
+    const double interpreted=xpp::evaluate(s,code);
+    program.compile=true;
     CHECK(bits(native)==bits(interpreted));
     CHECK(same(native_variables,s.parser.variables));
     CHECK(same(native_constants,s.parser.constants));
@@ -81,6 +84,7 @@ int main()
     for (const auto *name:{"z0","z1","z2","z3"}) CHECK(xpp::add_var(s,name,0.0)==0);
     CHECK(xpp::add_con(s,"par",3.0)==0);
     m.this_file="compile.odex";
+    m.files.push_back({m.this_file,"\n\n\n\n\n\nx' = sum(0,0)of(0)\n"});
     m.statement_files={m.this_file};
     xpp::odex::Statement statement;
     statement.kind=xpp::odex::Statement::Kind::Ode;
@@ -90,7 +94,7 @@ int main()
     m.node=1;
     m.uvar_names[0]="x";
     int count=0;
-    auto append=[&](std::vector<int> p) { m.programs[count++]=std::move(p); };
+    auto append=[&](std::vector<int> p) { m.programs[count++].rpn=std::move(p); };
     auto expression=[&](const std::string &text) {
         std::vector<int> p(MAXEXPLEN);
         int length=0;
@@ -148,53 +152,62 @@ int main()
         for (size_t i=0;i<s.parser.variables.size();++i) s.parser.variables[i]=0.5*static_cast<double>(i%7)-1.0;
         s.parser.variables[1]=x;
         s.parser.constants[2]=x+4.0;
-        for (int i=0;i<count;++i) same_both_ways(s,i);
+        for (int i=0;i<count;++i) same_both_ways(s,m.programs[i]);
     }
     for (int i=first_outside;i<first_outside+3;++i) {
-        CHECK(xpp::eval_program(s,i)==0.0);
-        CHECK(xpp::evaluate(s,m.programs[i].data())==0.0);
+        CHECK(xpp::evaluate(s,m.programs[i])==0.0);
+        CHECK(xpp::evaluate(s,m.programs[i].rpn.data())==0.0);
     }
-    /* Unsupported instructions remove all compiled equations. The returned
-       warning is rendered by the loader once, with this equation's place. */
-    m.programs[0]=nested_sums(16,ENDEXP);
+    /* Refusal is local, keeps a source warning, and propagates to callers. */
+    m.programs[0].rpn=nested_sums(16,ENDEXP);
     CHECK(xpp::compile_model(s).has_value());
-    m.programs[0]=nested_sums(17,ENDEXP);
-    auto unsupported=xpp::compile_model(s);
-    CHECK(!unsupported);
-    CHECK(!m.native_program);
-    CHECK(m.native_functions[1]==nullptr);
-    if (!unsupported) {
-        CHECK(unsupported.error().place.file==m.this_file);
-        CHECK(unsupported.error().place.line==7);
+    m.programs[0].rpn=nested_sums(17,ENDEXP);
+    {
         xpp::LogCapture messages;
-        xpp::log(XPP_LOG_WARN,"{}\n",unsupported.error().text());
+        const auto refused=xpp::compile_model(s);
+        CHECK(refused.has_value());
+        CHECK(refused && refused->size()==1);
+        if (refused && !refused->empty()) {
+            CHECK(refused->front().place.file==m.this_file);
+            CHECK(refused->front().place.line==7);
+            CHECK(!refused->front().place.source.empty());
+            xpp::log(XPP_LOG_WARN,"{}\n",refused->front().text());
+        }
+        CHECK(m.native_program!=nullptr);
+        CHECK(m.programs[0].native==nullptr);
+        CHECK(m.programs[1].native!=nullptr);
         CHECK(messages.text().find("compile.odex:7: not compiled: sums nested too deep; running the interpreter")!=std::string::npos);
-        messages.clear();
     }
-    CHECK(xpp::eval_program(s,0)==0.0);
-    m.programs[0]={COM(CONTYPE,MAXPAR),ENDEXP};
-    CHECK(!xpp::compile_model(s));
-    m.programs[0]={COM(VARTYPE,MAXODE1),ENDEXP};
-    CHECK(!xpp::compile_model(s));
-    m.programs[0]={COM(FUN1TYPE,26),ENDEXP};
-    CHECK(!xpp::compile_model(s));
-    m.programs[0]={MYIF,999999,ENDEXP};
-    CHECK(!xpp::compile_model(s));
-    m.programs[0]={NUMSYM,0};
-    CHECK(!xpp::compile_model(s));
+    CHECK(xpp::evaluate(s,m.programs[0])==0.0);
+    for (const auto &invalid:std::vector<std::vector<int>>{{COM(CONTYPE,MAXPAR),ENDEXP},
+         {COM(VARTYPE,MAXODE1),ENDEXP},{COM(FUN1TYPE,26),ENDEXP},{MYIF,999999,ENDEXP},{NUMSYM,0}}) {
+        m.programs[0].rpn=invalid;
+        CHECK(xpp::compile_model(s).has_value());
+        CHECK(m.programs[0].native==nullptr);
+        CHECK(m.programs[1].native!=nullptr);
+    }
+    const auto function=m.ufun_programs[0].rpn;
+    m.ufun_programs[0].rpn={COM(USTACKTYPE,0),COM(USTACKTYPE,1),COM(UFUNTYPE,0),2,ENDFUN,2,ENDEXP};
+    CHECK(xpp::compile_model(s).has_value());
+    CHECK(m.ufun_programs[0].native==nullptr);
+    CHECK(m.ufun_programs[1].native==nullptr); /* g calls f */
+    CHECK(m.ufun_programs[2].native!=nullptr);
+    m.ufun_programs[0].rpn=function;
     program.compile=false;
-    m.programs[0]=number(0.1);
+    m.programs[0].rpn=number(0.1);
     CHECK(xpp::compile_model(s).has_value());
     CHECK(!m.native_program);
-    CHECK(xpp::eval_program(s,0)==0.1);
+    CHECK(xpp::evaluate(s,m.programs[0])==0.1);
     program.compile=true;
     /* Models with lookup tables, networks, vectorizers, kernels, delays, sums and shifts,
        Markov chains, integral equations and draws: every equation of each, as loaded, from
        its own state and a changed one, and the loaded model compiled whole. */
-    for (const auto *path:{"examples/canonical/swindale.odex", "examples/canonical/gb_wnet.odex", "examples/ode/koho.odex",
+    std::set<std::string> kinds;
+    for (const auto *path:{"tools/models/compile_derived.odex", "examples/canonical/swindale.odex", "examples/canonical/gb_wnet.odex", "examples/ode/koho.odex",
          "examples/ode/angela.odex", "examples/ode/gausvolt.odex", "examples/ode/kuramot100.odex",
          "examples/ode/waterwheel.odex", "examples/canonical/mackey.odex", "examples/ode/kohox.odex",
-         "examples/ode/kepler.odex", "examples/ode/lamvolt.odex", "examples/ode/junk2.odex"}) {
+         "examples/ode/dae.odex", "examples/canonical/huygens.odex", "examples/canonical/qif-noise.odex",
+         "examples/ode/amari2.odex", "examples/ode/kepler.odex", "examples/ode/lamvolt.odex", "examples/ode/junk2.odex"}) {
         std::string file=path;
         char name[]="test_compile";
         char *argv[]={name,file.data(),nullptr};
@@ -205,9 +218,33 @@ int main()
         CHECK(t.model().native_program!=nullptr);
         for (int round=0;round<2;++round) {
             for (size_t i=0;i<t.parser.variables.size();++i) t.parser.variables[i]+=0.01*static_cast<double>(round*(i%5));
-            for (size_t i=0;i<t.model().programs.size();++i)
-                if (!t.model().programs[i].empty()) same_both_ways(t,static_cast<int>(i));
+            for (const auto &entry:xpp::model_programs(t.model())) {
+                kinds.insert(entry.symbol.substr(0,entry.symbol.find_first_of("0123456789")));
+                CHECK(entry.code->native!=nullptr);
+                if (entry.user_index<0) same_both_ways(t,*entry.code);
+                else {
+                    /* A raw caller exercises the native function's argument-stack
+                       bridge, then --no-compile exercises the same call interpreted. */
+                    xpp::Program caller;
+                    for (int a=0;a<t.model().narg_fun[entry.user_index];++a) {
+                        const auto arg=number(0.25+static_cast<double>(a));
+                        caller.rpn.insert(caller.rpn.end(),arg.begin(),arg.end()-1);
+                    }
+                    caller.rpn.insert(caller.rpn.end(),{COM(UFUNTYPE,entry.user_index),t.model().narg_fun[entry.user_index],ENDEXP});
+                    same_both_ways(t,caller);
+                }
+                if (entry.dynamic_operands) {
+                    const auto operands=entry.code->rpn;
+                    /* Changing a network operand must change its native read too. */
+                    entry.code->rpn[0]=COM(VARTYPE,0);
+                    entry.code->rpn[1]=COM(VARTYPE,1);
+                    same_both_ways(t,*entry.code);
+                    entry.code->rpn=operands;
+                }
+            }
         }
     }
-    TEST_REPORT("compiled equations");
+    for (const auto *kind:{"p_eq","p_fun","p_solv","p_dae","p_markov","p_kernel","p_convolution","p_condition","p_event","p_derived","p_network"})
+        CHECK(kinds.contains(kind));
+    TEST_REPORT("compiled programs");
 }

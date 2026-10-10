@@ -1,6 +1,7 @@
 #ifndef _simplenet_h_
 #define _simplenet_h_
 
+#include "expr_program.h"
 #include <array>
 #include <string>
 #include <string_view>
@@ -41,7 +42,7 @@ struct Network {
   int type=0,ncon=0,n=0;
   std::string name;
   int root=0,root2=0;
-  std::array<int,20> f{};
+  Program f;
   int iwgt=0;
   std::vector<int> gcom; /* a gillespie chain's commands */
   /* the tables (Session::tables) of its weights, indices and delays, -1

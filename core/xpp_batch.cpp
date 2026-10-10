@@ -175,9 +175,11 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
     }
     m.saved_copies.reset(); /* the load's readers are done with them */
     xpp_session_mark_clean(load.session()); /* what it loaded is not a change */
-    if (auto compiled=compile_model(load.session()); !compiled) {
-        Load::at(compiled.error().place.file,compiled.error().place.line,compiled.error().place.col);
-        xpp::log(XPP_LOG_WARN,"{}\n",compiled.error().what);
+    auto compiled=compile_model(load.session());
+    if (!compiled) compiled=std::vector<Error>{compiled.error()};
+    for (const Error &warning:*compiled) {
+        Load::at(warning.place.file,warning.place.line,warning.place.col);
+        xpp::log(XPP_LOG_WARN,"{}\n",warning.what);
     }
     load.commit();
     return &load.session();
