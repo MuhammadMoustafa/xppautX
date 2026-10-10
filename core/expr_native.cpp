@@ -62,23 +62,37 @@ constexpr std::array<HelperText, static_cast<size_t>(Helper::Count)> helper_text
     {"h_rn", "double h_rn(void*,double,double)"},
 }};
 
-/* A reference parameter is passed as a pointer by every ABI we build for,
-   so the C code calls these with the Session's address. */
+/* The helpers with exactly the C prototypes above, so the generated code
+   calls each through its own type; S is the Session the native function
+   was given. */
+Session &session(void *S) { return *static_cast<Session *>(S); }
+double h_tab(void *S, double x, int i) { return lookup(session(S), x, i); }
+double h_net(void *S, double x, int i) { return network_value(session(S), x, i); }
+double h_vec(void *S, double x, int i) { return vector_value(session(S), x, i); }
+double h_ker(void *S, int i) { return ker_val(session(S), i); }
+double h_del(void *S, double delay, double i) { return expr::do_delay(session(S), delay, i); }
+double h_dsh(void *S, double delay, double shift, double variable) { return expr::do_delay_shift(session(S), delay, shift, variable); }
+double h_sft(void *S, double shift, double variable) { return expr::do_shift(session(S), shift, variable); }
+double h_set(void *S, double shift, double variable, double value) { return expr::do_set(session(S), shift, variable, value); }
+double h_ru(void *S, double x) { return expr::do_random_uniform(session(S), x); }
+double h_rp(void *S, double mean) { return expr::do_random_poisson(session(S), mean); }
+double h_rn(void *S, double mean, double sd) { return expr::do_random_normal(session(S), mean, sd); }
+
 const void *helper_address(Helper h)
 {
     switch (h) {
-    case Helper::Table: return reinterpret_cast<const void *>(&lookup);
-    case Helper::Network: return reinterpret_cast<const void *>(&network_value);
-    case Helper::Vector: return reinterpret_cast<const void *>(&vector_value);
-    case Helper::Kernel: return reinterpret_cast<const void *>(&ker_val);
-    case Helper::Delay: return reinterpret_cast<const void *>(&expr::do_delay);
-    case Helper::DelayShift: return reinterpret_cast<const void *>(&expr::do_delay_shift);
-    case Helper::Shift: return reinterpret_cast<const void *>(&expr::do_shift);
+    case Helper::Table: return reinterpret_cast<const void *>(&h_tab);
+    case Helper::Network: return reinterpret_cast<const void *>(&h_net);
+    case Helper::Vector: return reinterpret_cast<const void *>(&h_vec);
+    case Helper::Kernel: return reinterpret_cast<const void *>(&h_ker);
+    case Helper::Delay: return reinterpret_cast<const void *>(&h_del);
+    case Helper::DelayShift: return reinterpret_cast<const void *>(&h_dsh);
+    case Helper::Shift: return reinterpret_cast<const void *>(&h_sft);
     case Helper::IShift: return reinterpret_cast<const void *>(&expr::do_ishift);
-    case Helper::Set: return reinterpret_cast<const void *>(&expr::do_set);
-    case Helper::Uniform: return reinterpret_cast<const void *>(&expr::do_random_uniform);
-    case Helper::Poisson: return reinterpret_cast<const void *>(&expr::do_random_poisson);
-    case Helper::Normal: return reinterpret_cast<const void *>(&expr::do_random_normal);
+    case Helper::Set: return reinterpret_cast<const void *>(&h_set);
+    case Helper::Uniform: return reinterpret_cast<const void *>(&h_ru);
+    case Helper::Poisson: return reinterpret_cast<const void *>(&h_rp);
+    case Helper::Normal: return reinterpret_cast<const void *>(&h_rn);
     case Helper::Count: break;
     }
     return nullptr;
