@@ -867,18 +867,8 @@ L330:
 	  goto L460;
        }
 /*       JACOBIAN COMPUTED   */
-      for(i=0;i<n;i++)save9[i]=ytable[0][i];
-      for(j=0;j<n;j++)
-      {
-       r=eps*std::max(eps,fabs(save9[j]));
-       ytable[0][j]=ytable[0][j]+r;
-       d=a[0]*h/r;
-       s.integrator.rhs(*t,ytable[0],save12,n);
-       for(i=0;i<n;i++)
-       dermat[n*i+j]=(save12[i]-save11[i])*d;
-       ytable[0][j]=save9[j];
-
-      }
+      xpp::jacobian(s,*t,ytable[0],save11,n,eps,xpp::JacobianForm{},dermat);
+      for(i=0;i<n*n;i++)dermat[i]*=a[0]*h;
       for(i=0;i<n;i++)dermat[n*i+i]+=1.0;
       iweval=-1;
       if(static_cast<int>(s.integrator.gear_pivot.size())<n)s.integrator.gear_pivot.resize(n);
