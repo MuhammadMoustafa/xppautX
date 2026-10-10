@@ -9,6 +9,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- One finite-difference Jacobian for the whole program (equilibria, AUTO, Backward Euler, Rosenbrock, the stiff integrator, delay stability): `(f(x+r)-f(x))/r`, the implicit solvers scaling afterwards, so Backward Euler and Rosenbrock (banded too) differ from XPPAUT in the last bits (W255, [#312](https://github.com/MuhammadMoustafa/xppautX/issues/312)).
 - Compile core equations and user functions with built-in TinyCC at load time; unsupported models run in the interpreter with a source warning. `--no-compile` selects interpreted execution (W258, [#315](https://github.com/MuhammadMoustafa/xppautX/issues/315)).
 
 - AUTO's periodic and boundary-value runs are faster (1.32x on a measured periodic branch): the residual no longer computes a Jacobian it never reads; results are unchanged (W253, [#310](https://github.com/MuhammadMoustafa/xppautX/issues/310)).

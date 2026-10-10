@@ -15,7 +15,6 @@ struct JacobianForm {
   JacobianLayout layout = JacobianLayout::RowMajor;
   int lower = 0, upper = 0;      /* Banded only */
   bool discrete_map = false;     /* the Jacobian of f(x)-x, for a map's fixed point */
-  const double *scale = nullptr; /* Backward Euler's and rb23's factor, folded in */
 };
 
 /* The model's Jacobian at (t, x), by forward differences: the one owner

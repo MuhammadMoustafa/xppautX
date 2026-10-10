@@ -542,15 +542,17 @@ int *istart,int n,double *work,int *ierr)
  return(0);
 }
 
- /* this assumes that yp is already computed */
+ /* this assumes that yp is already computed; scal is the solver's factor
+    (Backward Euler's -dt/2, rb23's 1) */
 void get_the_jac(xpp::Session &s, double t,double *y,double *yp,
 	    double *dfdy,int neq,double eps,double scal)
 {
   xpp::JacobianForm form;
   if(s.numerics.cv_bandflag)
     form={xpp::JacobianLayout::Banded,s.numerics.cv_bandlower,s.numerics.cv_bandupper};
-  form.scale=&scal;
+  const int entries=s.numerics.cv_bandflag?neq*(form.lower+form.upper+1):neq*neq;
   xpp::jacobian(s,t,y,yp,neq,eps,form,dfdy);
+  for(int i=0;i<entries;i++)dfdy[i]*=scal;
 }
 
 } // namespace xpp

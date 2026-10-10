@@ -201,6 +201,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 | Orbit loading | trusts solution dimensions and existing storage ([finding 27](xppaut-findings.md#27-auto-orbit-loading-trusts-file-dimensions-and-storage-capacity)) | shared bounded restart reader; grows the data table before copying an orbit | W155 |
 | Exports | a table | `Write pts` and All info as CSV with names and LF line ends (including Windows, W137); `.auto` never written | W26, W92 |
 | Collocation residual | computes a finite-difference Jacobian that the residual discards | evaluates only `f`; same results, less work | W253 (#310) |
+| Finite-difference Jacobian | five copies, with two step rules and the implicit solvers folding their scale into the difference | one formula, `(f(x+r)-f(x))/r`, `r = eps*max(eps,|x|)`, and Backward Euler and Rosenbrock scale afterwards; on `backeul` and `rb23` the last bits differ from XPPAUT's, the results are the same to the method's precision | W255 (#312) |
 
 ## Batch, the protocol, --server
 

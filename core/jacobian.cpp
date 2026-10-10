@@ -22,14 +22,13 @@ void jacobian(Session &s, double t, const double *x, const double *f0, int n, do
     for (int i = 0; i < n; i++) dfdt[i] = (f1[i] - f0[i]) / r;
   }
   for (int i = 0; i < n; i++) {
-    const double r = banded ? eps * (eps + std::fabs(x[i])) : eps * std::max(eps, std::fabs(x[i]));
+    const double r = eps * std::max(eps, std::fabs(x[i]));
     xp[i] = x[i] + r;
     s.integrator.rhs(t, xp.data(), f1.data(), n);
     if (form.discrete_map)
       for (int j = 0; j < n; j++) f1[j] -= xp[j];
     xp[i] = x[i];
-    const double dsy = form.scale ? *form.scale / r : 0.0;
-    auto entry = [&](int j) { return form.scale ? dsy * (f1[j] - f0[j]) : (f1[j] - f0[j]) / r; };
+    auto entry = [&](int j) { return (f1[j] - f0[j]) / r; };
     switch (form.layout) {
     case JacobianLayout::RowMajor:
       for (int j = 0; j < n; j++) out[static_cast<size_t>(j) * n + i] = entry(j);
