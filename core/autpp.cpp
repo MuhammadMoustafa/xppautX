@@ -9,7 +9,7 @@
 #include "derived.h"
 #include "pp_shoot.h"
 #include "tabular.h"  /* redo_all_fun_tables() */
-#include "gear.h"     /* getjactrans() */
+#include "jacobian.h"
 #include "load_eqn.h"
 #include "expr.h"
 
@@ -21,7 +21,7 @@
 int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, const double *par, integer ijac, double *f, double *dfdu, double *dfdp)
 {
    int i,j;
-   std::array<double,NAUTO> zz,y,yp,xp; /* getjactrans's scratch, and the store_every steps' */
+   std::array<double,NAUTO> zz; /* the store_every steps' scratch */
    /* the right-hand side and the Jacobian only read the point */
    double *x=const_cast<double *>(u);
    for(i=0;i<s.auto_state.npar;i++){
@@ -32,7 +32,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, con
    if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
    s.integrator.rhs(0.0,x,f,ndim);
    if(ijac==1){
-     xpp::getjactrans(s,x,y.data(),yp.data(),xp.data(),s.numerics.singpt_jacobian_epsilon,dfdu,ndim);
+     xpp::jacobian(s,0.0,x,f,ndim,s.numerics.singpt_jacobian_epsilon,{xpp::JacobianLayout::ColumnMajor},dfdu);
    }
    if(!xpp::solver_info(s.numerics.method).traits.discrete||s.numerics.store_every==1)return 0;
    for(i=1;i<s.numerics.store_every;i++){

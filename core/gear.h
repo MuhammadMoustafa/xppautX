@@ -15,8 +15,7 @@ double sqr2(double z);
 
 void do_sing_info(Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 void pr_evec(Session &s, double *x, double *ev, int n, int pr, double eval,int type);
-void getjac(Session &s, double *x, double *y, double *yp, double *xp, double eps, double *dermat, int n);
-void getjactrans(Session &s, double *x,double *y,double *yp,double *xp, double eps, double *d, int n);
+void getjac(Session &s, double *x, double *y, double eps, double *dermat, int n);
 void rooter(Session &s, double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n);
 int gear(Session &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork);
 int ggear(Session &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork);

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "gear.h"
+#include "jacobian.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -33,7 +34,7 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
 
  double colnorm=0,colmax,colsum;
  double old_x[MAXODE],sign;
- double yp[MAXODE],y[MAXODE],xp[MAXODE],dx;
+ double yp[MAXODE],y[MAXODE],dx;
  int kmem=n*(2*n+5)+50,i,j,k,okroot;
 
  std::vector<double> ev(2*n, 0.0);
@@ -62,22 +63,14 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
  s.delay.stab_flag=-1;
  s.delay.which=-1;
  colmax=0.0;
- 
+ xpp::jacobian(s,0.0,x,y,n,eps,{xpp::JacobianLayout::RowMajor},coef.data());
  for(i=0;i<n;i++)
    {
      colsum=0.0;
-     for(j=0;j<n;j++)xp[j]=x[j];
-     dx=eps*std::max(eps,fabs(x[i]));
-     xp[i]=xp[i]+dx;
-     s.integrator.rhs(0.0,xp,yp,n);
-     for(j=0;j<n;j++){
-       coef[j*n+i]=(yp[j]-y[j])/dx;
-       colsum+=fabs(coef[j*n+i]);
-     }
+     for(j=0;j<n;j++)colsum+=fabs(coef[j*n+i]);
      if(colsum>colmax)colmax=colsum;
    }
  colnorm=colmax;
- for(j=0;j<n;j++)xp[j]=x[j];
  /* now the jacobians for the delays */
  for(k=0;k<s.delay.ndelay;k++){
    s.delay.which=k;

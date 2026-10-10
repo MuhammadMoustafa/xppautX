@@ -1,6 +1,7 @@
 #include <stdlib.h> 
 #include <math.h>
 #include "odesol2.h"
+#include "jacobian.h"
 #include "session.h"
 #include "stiff.h"
 #include "flags.h"
@@ -52,33 +53,8 @@ namespace xpp {
 #define ERRCON2 1.89e-4
 void jacobn(xpp::Session &s, double x, double *y, double *dfdx, double *dermat, double eps, double *work, int n)
 {
- int i,j;
- double r;
- double *yval,*ynew,ytemp;
- yval=work;
- ynew=work+n;
- s.integrator.rhs(x,y,yval,n);
-
- r=eps*MAX(eps,fabs(x));
-
- s.integrator.rhs(x+r,y,ynew,n);
- for(i=0;i<n;i++){
-   dfdx[i]=(ynew[i]-yval[i])/r;
-
- }
-  for(i=0;i<n;i++)
-  {
-    ytemp=y[i];
-    r=eps*MAX(eps,fabs(ytemp));
-    y[i]=ytemp+r;
-    s.integrator.rhs(x,y,ynew,n);
-    for(j=0;j<n;j++)
-    {
-    dermat[j*n+i]=(ynew[j]-yval[j])/r;
-    }
-    y[i]=ytemp;
-
-  }
+ s.integrator.rhs(x,y,work,n);
+ xpp::jacobian(s,x,y,work,n,eps,{xpp::JacobianLayout::RowMajor},dermat,dfdx);
 }
 
 int adaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)

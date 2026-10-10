@@ -666,7 +666,7 @@ int one_flag_step_adap(xpp::Session &s, double *y, int neq, double *t, double to
 
 }
 
-int one_flag_step_backeul(xpp::Session &s, double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac, int *istart)
+int one_flag_step_backeul(xpp::Session &s, double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *errvec, double *jac, int *istart)
 {
   double yold[MAXODE],told;
   int i,hit,j;
@@ -677,7 +677,7 @@ int one_flag_step_backeul(xpp::Session &s, double *y, double *t, double dt, int 
     for(i=0;i<neq;i++)
       yold[i]=y[i];
     told=*t;
-    if((j=xpp::one_bak_step(s,y,t,dtt,neq,yg,yp,yp2,ytemp,errvec,jac,istart))!=0)
+    if((j=xpp::one_bak_step(s,y,t,dtt,neq,yg,yp,yp2,errvec,jac,istart))!=0)
       return(j);
     if((hit=one_flag_step(s,yold,y,istart,told,t,neq,&frac))==0)
       break;

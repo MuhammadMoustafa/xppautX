@@ -6,6 +6,7 @@
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "gear.h"
+#include "jacobian.h"
 #include "graphics.h"
 #include "flags.h"
 #include "integrate.h"
@@ -566,49 +567,13 @@ void get_evec(xpp::Random &random, double *a, double *anew, double *b, double *b
      return;
   }
 
-void getjac(xpp::Session &s, double *x, double *y, double *yp, double *xp, double eps, double *dermat, int n)
+void getjac(xpp::Session &s, double *x, double *y, double eps, double *dermat, int n)
 {
- int i,j,k;
- double r;
-   s.integrator.rhs(0.0,x,y,n);
-   if(xpp::solver_info(s.numerics.method).traits.discrete)
-   for(i=0;i<n;i++)y[i]=y[i]-x[i];
-
-  for(i=0;i<n;i++)
-  {
-    for(k=0;k<n;k++) xp[k]=x[k];
-    r=eps*std::max(eps,fabs(x[i]));
-    xp[i]=xp[i]+r;
-    s.integrator.rhs(0.0,xp,yp,n);
-    if(xpp::solver_info(s.numerics.method).traits.discrete){
-     for(j=0;j<n;j++)yp[j]=yp[j]-xp[j];
-    }
-    for(j=0;j<n;j++)
-    {
-    dermat[j*n+i]=(yp[j]-y[j])/r;
-    }
-
-  }
-}
-
-void getjactrans(xpp::Session &s, double *x,double *y,double *yp,double *xp, double eps, double *dermat, int n)
-
-{
- int i,j,k;
- double r;
-   s.integrator.rhs(0.0,x,y,n);
-  for(i=0;i<n;i++)
-  {
-    for(k=0;k<n;k++) xp[k]=x[k];
-    r=eps*std::max(eps,fabs(x[i]));
-    xp[i]=xp[i]+r;
-    s.integrator.rhs(0.0,xp,yp,n);
-    for(j=0;j<n;j++)
-    {
-    dermat[j+n*i]=(yp[j]-y[j])/r;
-    }
-
-  }
+  const bool discrete=xpp::solver_info(s.numerics.method).traits.discrete;
+  s.integrator.rhs(0.0,x,y,n);
+  if(discrete)
+    for(int i=0;i<n;i++)y[i]=y[i]-x[i];
+  xpp::jacobian(s,0.0,x,y,n,eps,{xpp::JacobianLayout::RowMajor,0,0,discrete},dermat);
 }
 
 void rooter(xpp::Session &s, double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n)
@@ -616,13 +581,10 @@ void rooter(xpp::Session &s, double *x, double err, double eps, double big, doub
  xpp::Computation computing; /* what Escape stops (xpp_job.h) */
  int i,iter,ipivot[MAXODE],info;
  char ch;
- double *xp,*yp,*y,*xg,*dermat,*dely;
+ double *y,*dermat,*dely;
  double r;
  dermat=work;
- xg=dermat+n*n;
- yp=xg+n;
- xp=yp+n;
- y=xp+n;
+ y=dermat+n*n;
  dely=y+n;
  iter=0;
  *ierr=0;
@@ -649,7 +611,7 @@ void rooter(xpp::Session &s, double *x, double err, double eps, double big, doub
      }
    }
  
-  getjac(s,x,y,yp,xp,eps,dermat,n);
+  getjac(s,x,y,eps,dermat,n);
   xpp::sgefa(dermat,n,n,ipivot,&info);
   if(info!=-1)
   {
@@ -666,7 +628,7 @@ void rooter(xpp::Session &s, double *x, double err, double eps, double big, doub
   }
   if(r<err)
   {
-     getjac(s,x,y,yp,xp,eps,dermat,n);
+     getjac(s,x,y,eps,dermat,n);
      if(xpp::solver_info(s.numerics.method).traits.discrete)
      for(i=0;i<n;i++)dermat[i*(n+1)]+=1.0;
      return; /* success !! */

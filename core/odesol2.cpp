@@ -1,4 +1,5 @@
 #include "odesol2.h"
+#include "jacobian.h"
 #include "session.h"
 #include <stdlib.h> 
 #include <stdio.h>
@@ -99,18 +100,17 @@ int discrete(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq
 int bak_euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  int i,j;
-  double *jac,*yg,*yp,*yp2,*ytemp,*errvec;
+  double *jac,*yg,*yp,*yp2,*errvec;
   yp=work;
   yg=yp+neq;
-  ytemp=yg+neq;
-  errvec=ytemp+neq;
+  errvec=yg+neq;
   yp2=errvec+neq;
   jac=yp2+neq;
   if(s.model().nflags==0){
     for(i=0;i<nt;i++)
       {
 	
-	if((j=one_bak_step(s,y,tim,dt,neq,yg,yp,yp2,ytemp,errvec,jac,istart))!=0)
+	if((j=one_bak_step(s,y,tim,dt,neq,yg,yp,yp2,errvec,jac,istart))!=0)
 	  return(j);
 	stor_delay(s,y);
       }
@@ -120,14 +120,14 @@ int bak_euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int ne
       {
 	
 	if((j=one_flag_step_backeul(s,y,tim,dt,neq,yg,yp,yp2,
-				    ytemp,errvec,jac,istart))!=0)
+				    errvec,jac,istart))!=0)
 	  return(j);
 	stor_delay(s,y);
       }
     return(0);
 }
 
-int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac, int *istart)
+int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *errvec, double *jac, int *istart)
 {
   int i;
   double err=0.0,err1=0.0;
@@ -146,9 +146,8 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
       for(i=0;i<neq;i++){
 	errvec[i]=yg[i]-.5*dt*(yp[i]+yp2[i])-y[i];
 	err1+=fabs(errvec[i]);
-	ytemp[i]=yg[i];
       }
-      get_the_jac(s,*t,yg,yp,ytemp,jac,neq,s.numerics.singpt_jacobian_epsilon,-.5*dt);
+      get_the_jac(s,*t,yg,yp,jac,neq,s.numerics.singpt_jacobian_epsilon,-.5*dt);
       if(s.numerics.cv_bandflag){
 	for(i=0;i<neq;i++)
 	  jac[i*mt+ml]+=1;
@@ -426,10 +425,9 @@ int *istart,int n,double *work,int *ierr)
  int i,n2=n*n,done=0,info,ml=s.numerics.cv_bandlower,mr=s.numerics.cv_bandupper,mt=ml+mr+1;
  int ipivot[MAXODE1],nofailed;
  double temp,err,tdel;
- double *ypnew,*k1,*k2,*k3,*f0,*f1,*f2,*dfdt,*ynew,*dfdy;
+ double *k1,*k2,*k3,*f0,*f1,*f2,*dfdt,*ynew,*dfdy;
  *ierr=1;
- ypnew=work;
- k1=ypnew+n;
+ k1=work;
  k2=k1+n;
  k3=k2+n;
  f0=k3+n;
@@ -457,7 +455,7 @@ int *istart,int n,double *work,int *ierr)
        absh = fabs(h);
        done = 1;
      }
-     get_the_jac(s,t,y,f0,ypnew,dfdy,n,epsjac,1.0);
+     get_the_jac(s,t,y,f0,dfdy,n,epsjac,1.0);
      tdel = (t + tdir*MIN(sqrteps*MAX(fabs(t),fabs(t+h)),absh)) - t;
      s.integrator.rhs(t+tdel,y,f1,n);
      for(i=0;i<n;i++)
@@ -546,49 +544,13 @@ int *istart,int n,double *work,int *ierr)
 
  /* this assumes that yp is already computed */
 void get_the_jac(xpp::Session &s, double t,double *y,double *yp,
-	    double *ypnew,double *dfdy,int neq,double eps,double scal)
+	    double *dfdy,int neq,double eps,double scal)
 {
-  int i,j;
-  double yold,del,dsy;
+  xpp::JacobianForm form;
   if(s.numerics.cv_bandflag)
-    get_band_jac(s,dfdy,y,t,ypnew,yp,neq,eps,scal);
-  else {
-    for(i=0;i<neq;i++){
-      del=eps*MAX(eps,fabs(y[i]));
-      dsy=scal/del;
-      yold=y[i];
-      y[i]=y[i]+del;
-      s.integrator.rhs(t,y,ypnew,neq);
-      for(j=0;j<neq;j++)
-	dfdy[j*neq+i]=dsy*(ypnew[j]-yp[j]);
-      y[i]=yold;
-    }
-  }
-}
-
-void get_band_jac(xpp::Session &s, double *a, double *y, double t, double *ypnew, double *ypold, int n, double eps, double scal)
-{
-  int ml=s.numerics.cv_bandlower,mr=s.numerics.cv_bandupper;
-  int i,j,k,n1=n-1,mt=ml+mr+1;
-  double yhat;
-  double dy;
-  double dsy;
-  for(i=0;i<(n*mt);i++)
-    a[i]=0.0;
-  for(i=0;i<n;i++){
-    yhat=y[i];
-    dy=eps*(eps+fabs(yhat));
-    dsy=scal/dy;
-    y[i] += dy;
-    s.integrator.rhs(t,y,ypnew,n);
-    for(j=-ml;j<=mr;j++){
-      k=i-j;
-      if(k<0||k>n1)continue;
-      a[k*mt+j+ml]=dsy*(ypnew[k]-ypold[k]);
-    }
-    y[i]=yhat;
-  } 
- 
+    form={xpp::JacobianLayout::Banded,s.numerics.cv_bandlower,s.numerics.cv_bandupper};
+  form.scale=&scal;
+  xpp::jacobian(s,t,y,yp,neq,eps,form,dfdy);
 }
 
 } // namespace xpp
