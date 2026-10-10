@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- AUTO collocation uses a persistent pool on up to four threads for a compiled pure model; every result is unchanged across thread counts. Interpreted or impure models stay serial (W247, [#303](https://github.com/MuhammadMoustafa/xppautX/issues/303)).
+
 - DAE guesses and residuals, Markov transitions, kernel integrands and convolutions, event conditions and actions, derived parameters and network pair formulas now compile alongside equations and user functions. Unsupported programs and their user-function callers stay interpreted with individual source warnings; independent programs still compile (W266, [#323](https://github.com/MuhammadMoustafa/xppautX/issues/323)).
 
 - Banded Backward Euler and Rosenbrock clamp widths to the system size, scale only the stored Jacobian, and reserve enough work space for the band (W261, [#318](https://github.com/MuhammadMoustafa/xppautX/issues/318)).

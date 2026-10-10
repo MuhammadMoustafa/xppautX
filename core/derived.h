@@ -12,6 +12,8 @@ struct Session; /* session.h */
    parameter changed), one added (name = rhs) */
 void compile_derived(Session &s);
 void evaluate_derived(Session &s);
+/* AUTO's pure compiled path, with the worker's arrays. */
+void evaluate_derived(Session &s, double *constants, double *variables, bool native);
 int add_derived(Session &s, std::string_view name, std::string_view rhs);
 
 } // namespace xpp

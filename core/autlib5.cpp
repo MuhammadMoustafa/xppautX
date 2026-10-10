@@ -10,16 +10,9 @@
 #include "auto_jacobian.h"
 #include "xpp_math.h"
 
-/* The memory for these are taken care of in main, and setubv for the
-   mpi parallel case.  These are global since the they are used many times
-   in the wrapper functions in autlib3.c (and autlib5.c) and the cost
-   of allocating and deallocating them is prohibitive. */
-/* global_scratch: auto_c.h */
-
-/* All of these global structures correspond to common
-   blocks in the original code.  They are ONLY used within
-   the Homcont code.
-*/
+/* Finite-difference scratch and HomCont state belong to iap->lib. W247
+   gives each collocation worker its own scratch and a copy of the HomCont
+   settings; boundary-condition updates stay on the calling thread. */
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -32,7 +25,6 @@
 /* Subroutine */ int 
 fnho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
@@ -61,7 +53,7 @@ fnho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Generate the function. */
 
   ffho(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
+       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -70,14 +62,14 @@ fnho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffho(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffho(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       dfdu, dfdu_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffho(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
-      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
+      [&](doublereal *ff) { ffho(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnho_ */
@@ -1715,4 +1707,3 @@ prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer
 
   return 0;
 } /* prjctn_ */
-

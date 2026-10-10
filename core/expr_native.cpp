@@ -121,6 +121,10 @@ struct Generator {
     std::vector<std::string> out;
     int temps = 0, loops = 0, depth = 0;
     bool impure = false;
+    bool array_pure = true;
+    std::vector<char> array_pure_function;
+    std::set<int> variable_reads;
+    std::vector<std::set<int>> function_reads;
     bool dynamic = false; /* a network updates its first two variable operands */
     std::vector<char> allowed; /* user functions with a fully compiled dependency graph */
 
@@ -142,6 +146,7 @@ struct Generator {
     std::string_view helper(Helper h)
     {
         used[static_cast<size_t>(h)] = true;
+        if (h != Helper::Table && h != Helper::IShift) array_pure = false;
         return helper_text[static_cast<size_t>(h)].name;
     }
 
@@ -319,7 +324,11 @@ struct Generator {
                        do_shift bounds the selected variable just as the interpreter
                        does for a computed index; no model name enters C. */
                     stack.push_back({xpp::format("{}(S,0,R[{}])",helper(Helper::Shift),pc),false,true});
-                } else stack.push_back({xpp::format("{}[{}]", type == CONTYPE ? "c" : "v", in), true, type == VARTYPE || in == expr::SUM_INDEX});
+                } else {
+                    if (type == VARTYPE) variable_reads.insert(in);
+                    if (type == CONTYPE && in == expr::SUM_INDEX && depth == 0) array_pure = false;
+                    stack.push_back({xpp::format("{}[{}]", type == CONTYPE ? "c" : "v", in), true, type == VARTYPE || in == expr::SUM_INDEX});
+                }
             } else if (type == USTACKTYPE) {
                 if (!user || in < 0 || in >= m.narg_fun[index]) return refuse("an out-of-range argument");
                 stack.push_back({xpp::format("a{}", in), true});
@@ -357,6 +366,10 @@ struct Generator {
                 for (size_t a = first; a < stack.size(); ++a) code += "," + stack[a].text;
                 stack.resize(first);
                 code += ")";
+                if (!user) {
+                    if (!array_pure_function[in]) array_pure = false;
+                    variable_reads.insert(function_reads[in].begin(),function_reads[in].end());
+                }
                 stack.push_back(pure_function[in] ? Node{std::move(code), false, true} : effect(stack, lower(), std::move(code)));
             } else if (type == TABTYPE || type == NETTYPE || type == VECTYPE || type == KERTYPE) {
                 /* the arrays the helpers index are the interpreter's own: the bound is theirs */
@@ -386,6 +399,8 @@ struct Generator {
         out.clear();
         temps = loops = depth = 0;
         impure = false;
+        array_pure = true;
+        variable_reads.clear();
         size_t pc = 0;
         auto value = sequence(p, pc, p.size(), ENDEXP, user, index);
         if (!value) return std::unexpected(value.error());
@@ -444,7 +459,8 @@ Result<std::vector<Error>> compile_model(Session &s)
 {
     Model &m=s.model();
     const auto entries=model_programs(m);
-    for (const auto &entry:entries) entry.code->native=nullptr;
+    for (const auto &entry:entries) { entry.code->native=nullptr; entry.code->array_pure=false; entry.code->native_reads.clear(); }
+    m.auto_rhs_pure=false;
     m.native_program.reset();
     if (!::program.compile || entries.empty()) return {};
     Generator g{s};
@@ -452,6 +468,8 @@ Result<std::vector<Error>> compile_model(Session &s)
     if (m.nfun<0 || static_cast<size_t>(m.nfun)>m.ufun_programs.size()) return g.refuse("an out-of-range function count");
     g.calls.resize(static_cast<size_t>(m.nfun));
     g.pure_function.assign(static_cast<size_t>(m.nfun),0);
+    g.array_pure_function.assign(static_cast<size_t>(m.nfun),0);
+    g.function_reads.resize(static_cast<size_t>(m.nfun));
     std::vector<std::string> bodies(static_cast<size_t>(m.nfun));
     std::vector<Error> refusals(static_cast<size_t>(m.nfun));
     for (int i=0;i<m.nfun;++i) {
@@ -462,7 +480,7 @@ Result<std::vector<Error>> compile_model(Session &s)
         }
         g.source.clear();
         if (auto r=g.program(m.ufun_programs[i].rpn,i,true);!r) refusals[i]=r.error();
-        else bodies[i]=std::move(g.source);
+        else { bodies[i]=std::move(g.source); g.array_pure_function[i]=g.array_pure; g.function_reads[i]=g.variable_reads; }
     }
     /* Only functions whose entire dependency graph compiled are callable.
        Iterative topological removal also refuses recursion, without following
@@ -473,6 +491,12 @@ Result<std::vector<Error>> compile_model(Session &s)
         for (int i=0;i<m.nfun;++i)
             if (!g.allowed[i] && !bodies[i].empty()
                 && std::all_of(g.calls[i].begin(),g.calls[i].end(),[&](int j){return g.allowed[j];})) g.allowed[i]=1;
+    for (int pass=0;pass<m.nfun;++pass)
+        for (int i=0;i<m.nfun;++i)
+            if (!g.allowed[i] || std::any_of(g.calls[i].begin(),g.calls[i].end(),[&](int j){return !g.array_pure_function[j];})) g.array_pure_function[i]=0;
+    for (int pass=0;pass<m.nfun;++pass)
+        for (int i=0;i<m.nfun;++i)
+            for (int j:g.calls[i]) g.function_reads[i].insert(g.function_reads[j].begin(),g.function_reads[j].end());
     g.source.clear();
     for (int i=0;i<m.nfun;++i) {
         if (!g.allowed[i]) {
@@ -505,6 +529,8 @@ Result<std::vector<Error>> compile_model(Session &s)
                 continue;
             }
         }
+        entry.code->array_pure=entry.user_index<0 && g.array_pure;
+        if (entry.user_index<0) entry.code->native_reads.assign(g.variable_reads.begin(),g.variable_reads.end());
         emitted.push_back(&entry);
     }
     if (emitted.empty()) return warnings;
@@ -544,6 +570,19 @@ Result<std::vector<Error>> compile_model(Session &s)
     }
     m.native_program=std::move(*compiled);
     for (size_t i=0;i<emitted.size();++i) emitted[i]->code->native=functions[i];
+    // Networks and DAEs run between the fixed variables and equations even
+    // when no equation calls their helpers. Function tables can rebuild on
+    // parameter changes (or when autoeval is toggled), so never freeze them.
+    m.auto_rhs_pure=m.nsvar==0 && m.naeqn==0 && m.nnetwork==0 && m.nmarkov==0 && m.nkernel==0;
+    for (int i=0;i<s.ntable;++i) if (s.tables[i].flag==2) m.auto_rhs_pure=false;
+    for (int i=0;i<m.node+m.fix_var;++i) {
+        const auto &p=m.programs[i];
+        const int available=i<m.node?m.node+m.fix_var:i;
+        m.auto_rhs_pure=m.auto_rhs_pure && p.native && p.array_pure
+            && std::all_of(p.native_reads.begin(),p.native_reads.end(),[&](int v){return v<=available;});
+    }
+    for (const auto &d:m.derived)
+        m.auto_rhs_pure=m.auto_rhs_pure && d.form.native && d.form.array_pure && d.form.native_reads.empty();
     log(XPP_LOG_INFO,"Compiled {} of {} programs\n",emitted.size(),entries.size());
     return warnings;
 }

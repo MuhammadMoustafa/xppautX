@@ -173,7 +173,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
     setfcdd(ifst, iap->lib->solvbv.d.data(), fc, &nfpr, &nrc);
   }
 
-  brbd(iap->lib->fp9, iap->lib->solvbv.a.data(), iap->lib->solvbv.b.data(), iap->lib->solvbv.c.data(), iap->lib->solvbv.d.data(), ft.data(), fc, p0, p1, 
+  brbd(*iap->lib, iap->lib->fp9, iap->lib->solvbv.a.data(), iap->lib->solvbv.b.data(), iap->lib->solvbv.c.data(), iap->lib->solvbv.d.data(), ft.data(), fc, p0, p1,
        ifst, &iid, nllv, &det, &ndim, &ntst, &nbc, &nrow, &nclm, &nfpr, &
        nrc, &iam, &kwt, &ipar, iap->lib->solvbv.a1.data(), iap->lib->solvbv.a2.data(), iap->lib->solvbv.bb.data(), 
        iap->lib->solvbv.cc.data(), iap->lib->solvbv.faa.data(), iap->lib->solvbv.ca1.data(), iap->lib->solvbv.s1.data(), iap->lib->solvbv.s2.data(), 
@@ -487,7 +487,7 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
 
 /*     ---------- ---- */
 /* Subroutine */ int 
-brbd(FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc, integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *faa, doublereal *ca1, doublereal *s1, doublereal *s2, integer *icf11, integer *ipr, integer *icf1, integer *icf2, integer *irf, integer *icf)
+brbd(AutoLib &lib, FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc, integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *faa, doublereal *ca1, doublereal *s1, doublereal *s2, integer *icf11, integer *ipr, integer *icf1, integer *icf2, integer *irf, integer *icf)
 {
 
   std::vector<doublereal> e((*nov + *nrc)*(*nov + *nrc));
@@ -528,7 +528,7 @@ brbd(FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doub
     	   fa[0], fc);
   }
   if (*ifst == 1) {
-    conpar(nov, na, nra, nca, a, ncb, b, nbc, nrc, c, d, irf, icf);
+    conpar(lib, nov, na, nra, nca, a, ncb, b, nbc, nrc, c, d, irf, icf);
     copycp(iam, kwt, na, nov, nra, nca, a, ncb, b, nrc, c, 
 	   a1, a2, bb, cc, irf);
   }

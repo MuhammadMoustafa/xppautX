@@ -37,8 +37,13 @@ and after changing parameters and constants
 */
 void evaluate_derived(xpp::Session &s)
 {
-  std::array<double, MAXPAR> &constants = s.parser.constants;
-  for (xpp::Model::DerivedQuantity &d : s.model().derived) constants[d.index] = evaluate(s, d.form);
+  evaluate_derived(s,s.parser.constants.data(),s.parser.variables.data(),false);
+}
+
+void evaluate_derived(Session &s, double *constants, double *variables, bool native)
+{
+  for (const auto &d : s.model().derived)
+    constants[d.index] = native ? d.form.native(constants,variables,&s,d.form.rpn.data()) : evaluate(s,d.form);
 }
 
 /* this adds a derived quantity  */

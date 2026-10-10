@@ -12,14 +12,23 @@
 #include "jacobian.h"
 #include "load_eqn.h"
 #include "expr.h"
+#include "my_rhs.h"
 
 /*    Hooks to xpp RHS     */
 
 
 /* The problem defined functions that run the model (auto_c.h's C++
    section): AUTO calls them with the Session whose run it is. */
-int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, const double *par, integer ijac, double *f, double *dfdu, double *dfdp)
+int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, const double *par, integer ijac, double *f, double *dfdu, double *dfdp, AutoLib *worker)
 {
+   if (worker && worker->pure_rhs) {
+     auto &c=worker->rhs_constants;
+     auto &v=worker->rhs_variables;
+     for (int k=0;k<s.auto_state.npar;++k) c[s.auto_state.par_index[k]]=par[k];
+     xpp::evaluate_derived(s,c.data(),v.data(),true);
+     pure_rhs(s,u,f,c.data(),v.data());
+     return 0;
+   }
    int i,j;
    std::array<double,NAUTO> zz; /* the store_every steps' scratch */
    /* the right-hand side and the Jacobian only read the point */

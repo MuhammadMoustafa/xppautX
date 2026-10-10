@@ -1,4 +1,6 @@
 #include "auto_c.h"
+#include "session.h"
+#include <utility>
 
 namespace {
 /* This structure contains all of the input data for the conpar routine
@@ -14,6 +16,7 @@ struct conpar_parallel_arglist {
   doublereal *d; /*array input and output size: ncb X nrc*/
   integer *irf; /*array input size: na X nra*/
   integer *icf; /*array input: na X nca*/
+  std::vector<std::vector<std::pair<integer,doublereal>>> *dlog=nullptr;
   integer loop_start; /*scalar input*/
   integer loop_end; /*scalar output*/
 };
@@ -151,8 +154,9 @@ void conpar_process(const conpar_parallel_arglist *arg)
 	    for (l = 0; l < *ncb; ++l) {
 	      /* d is summed over all workers in the original AUTO
 		 (a mutex with pthreads, a sum in the master with MPI);
-		 xppautX runs one. */
-	      d[l + d_offset1] -= rm * b[l + b_offset2];
+		 W247 records each subtraction for serial-order replay.  */
+	      if (arg->dlog) (*arg->dlog)[i].emplace_back(l+d_offset1,rm*b[l+b_offset2]);
+      else d[l + d_offset1] -= rm * b[l + b_offset2];
 	    }
 	  }
 	}
@@ -162,7 +166,7 @@ void conpar_process(const conpar_parallel_arglist *arg)
 }
 
 void
-conpar_default_wrapper(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
+conpar_default_wrapper(AutoLib &lib, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
 
 {
     conpar_parallel_arglist data;
@@ -180,13 +184,27 @@ conpar_default_wrapper(integer *nov, integer *na, integer *nra, integer *nca, do
     data.icf = icf;
     data.loop_start = 0;
     data.loop_end = *na;
-    conpar_process(&data);
+    if (!lib.collocation || !xpp::auto_parallel_ready(*lib.session) || lib.collocation->threads()==1) {
+      conpar_process(&data);
+      return;
+    }
+    std::vector<std::vector<std::pair<integer,doublereal>>> dlog(*na);
+    data.dlog=&dlog;
+    lib.collocation->intervals(*na,[&](long begin,long end,AutoLib &) {
+      conpar_parallel_arglist mine=data;
+      mine.loop_start=begin;
+      mine.loop_end=end;
+      conpar_process(&mine);
+    });
+    // Replay every subtraction in interval/elimination/row/column order.
+    for (const auto &interval:dlog)
+      for (const auto &[at,term]:interval) d[at]-=term;
 }
 } // namespace
 
 
 int 
-conpar(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
+conpar(AutoLib &lib, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
 {
   /* Aliases for the dimensions of the arrays */
   integer icf_dim1, irf_dim1;
@@ -215,9 +233,8 @@ conpar(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, int
     }
   }
 
-  /* xppautX runs AUTO without pthreads or MPI: there is only ever the
-     one conpar implementation. */
-  conpar_default_wrapper(nov, na, nra, nca, a,
+  /* The same condensation loop runs serially or over disjoint intervals. */
+  conpar_default_wrapper(lib,nov, na, nra, nca, a,
 			  ncb, b, nbc, nrc, c, d,irf, icf);
   return 0;
 } 

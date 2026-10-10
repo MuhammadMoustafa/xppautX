@@ -236,7 +236,7 @@ int faft(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *
 int partition(integer *n, integer *kwt, integer *m);
 integer mypart(integer *iam, integer *np);
 int setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, integer *iam, integer *kwt, logical *ipar, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1);
-int brbd(FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc, integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *faa, doublereal *ca1, doublereal *s1, doublereal *s2, integer *icf11, integer *ipr, integer *icf1, integer *icf2, integer *irf, integer *icf);
+int brbd(AutoLib &lib, FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc, integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *faa, doublereal *ca1, doublereal *s1, doublereal *s2, integer *icf11, integer *ipr, integer *icf1, integer *icf2, integer *irf, integer *icf);
 int setzero(doublereal *fa, doublereal *fc, integer *na, integer *nra, integer *nrc);
 int conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *nbc, integer *nrc, doublereal *c, doublereal *fa, doublereal *fc, integer *irf, integer *icf, integer *iam);
 int copycp(integer *iam, integer *kwt, integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, integer *irf);
@@ -392,7 +392,7 @@ int fopt(integer ndim, const doublereal *u, const integer *icp,
 	 doublereal *fs, doublereal *dfdu, doublereal *dfdp);
 int pvls(integer ndim, const doublereal *u, doublereal *par);
 /* conpar2.cpp */
-int conpar(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf);
+int conpar(AutoLib &lib, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf);
 /* setubv2.cpp */
 int setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
 	   FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
@@ -410,7 +410,7 @@ struct Session; /* session.h */
    conditions, in the Session s whose run this is (iap->lib->session) */
 int func(xpp::Session &s, integer ndim, const doublereal *u, const integer *icp,
 	 const doublereal *par, integer ijac,
-	 doublereal *f, doublereal *dfdu, doublereal *dfdp);
+	 doublereal *f, doublereal *dfdu, doublereal *dfdp, AutoLib *worker=nullptr);
 int stpnt(xpp::Session &s, integer ndim, doublereal t,
 	  doublereal *u, doublereal *par);
 int bcnd(xpp::Session &s, integer ndim, const doublereal *par, const integer *icp, integer nbc,

@@ -69,6 +69,8 @@ namespace xpp {
    whose first two operands a network rewrites for each pair. */
 struct Program {
     std::vector<int> rpn;
+    std::vector<int> native_reads; /* variables read by this code and its user functions */
+    bool array_pure = false; /* native code only uses c/v and immutable lookup tables */
     double (*native)(double *, double *, Session *, const int *) = nullptr;
 };
 }

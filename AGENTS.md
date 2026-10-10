@@ -672,7 +672,10 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   work area and shrunk to fit it (W13f, `place_window`). It shows the page the HTTP
   server below serves, navigated to the tokened URL itself (browser mode
   prints it; the window shows it nowhere). Threads: the core keeps the
-  main thread and stays single-threaded; the web view runs its own UI
+  main thread; AUTO collocation may use up to four threads including the
+  caller. Workers touch only their own evaluation/scratch arrays, immutable
+  model/table data and their assigned mesh blocks; shared condensation updates
+  are replayed on the caller. The integrators stay serial. The web view runs its own UI
   loop on a thread of its own (WebView2 wants an STA thread with a message
   loop, GTK one thread that initialises and runs it), except on macOS,
   where Cocoa needs the main thread and the session moves to a second

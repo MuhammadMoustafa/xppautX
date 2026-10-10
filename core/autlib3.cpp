@@ -11,17 +11,9 @@
 #include "auto_jacobian.h"
 #include "xpp_math.h"
 
-/* The memory for these are taken care of in main, and setubv for the
-   mpi parallel case.  These are global since the they are used many times
-   in the wrapper functions in autlib3.c (and autlib5.c) and the cost
-   of allocating and deallocating them is prohibitive. */
-/* global_scratch: auto_c.h */
-
-/* The memory for these are taken care of in main, and setubv for the
-   mpi parallel case.  These are global since they only need to be
-   computed once for an entire run, so we do them at the
-   beginning to save the cost later on. */
-/* global_rotations: auto_c.h */
+/* Reused finite-difference scratch belongs to iap->lib: the calling
+   Session's AutoLib, or a collocation worker's private AutoLib (W247).
+   Rotation counts are computed once per run and only read by workers. */
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -33,7 +25,6 @@
 /* Subroutine */ int 
 fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
@@ -55,7 +46,7 @@ fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
   
   fflp(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
+       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
   
   if (ijac == 0) {
     return 0;
@@ -64,14 +55,14 @@ fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
   
   ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { fflp(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { fflp(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       dfdu, dfdu_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       1, ndim, icp, ep, par,
-      [&](doublereal *ff) { fflp(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
-      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
+      [&](doublereal *ff) { fflp(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnlp_ */
@@ -277,7 +268,6 @@ stpnc1(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* Subroutine */ int 
 fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
@@ -304,7 +294,7 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffc2(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
+       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -313,8 +303,8 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   xpp::auto_jacobian::central(
-      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffc2(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffc2(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       dfdu, dfdu_dim1);
 
   for (i = 0; i < ndim; ++i) {
@@ -569,7 +559,6 @@ fnti(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Subroutine */ int 
 fnhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
@@ -597,7 +586,7 @@ fnhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffhd(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
+       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -606,14 +595,14 @@ fnhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffhd(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffhd(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       dfdu, dfdu_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       1, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffhd(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
-      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
+      [&](doublereal *ff) { ffhd(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnhd_ */
@@ -772,7 +761,6 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* Subroutine */ int 
 fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
@@ -801,7 +789,7 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffhb(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
+       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -810,14 +798,14 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffhb(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffhb(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       dfdu, dfdu_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       1, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffhb(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
-      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
+      [&](doublereal *ff) { ffhb(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
   return 0;
 } /* fnhb_ */
 
@@ -964,7 +952,6 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* Subroutine */ int 
 fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
@@ -993,7 +980,7 @@ fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffhw(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
+       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -1002,14 +989,14 @@ fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffhw(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffhw(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       dfdu, dfdu_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       1, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffhw(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
-      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
+      [&](doublereal *ff) { ffhw(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnhw_ */
@@ -2049,7 +2036,6 @@ icpe(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Subroutine */ int 
 fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
@@ -2076,7 +2062,7 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Generate the function. */
 
   ffpl(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
+       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -2085,14 +2071,14 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffpl(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffpl(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       dfdu, dfdu_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffpl(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
-      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
+      [&](doublereal *ff) { ffpl(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnpl_ */
@@ -2428,7 +2414,6 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* Subroutine */ int 
 fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
@@ -2455,7 +2440,7 @@ fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Generate the function. */
 
   ffpd(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
+       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -2464,14 +2449,14 @@ fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffpd(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffpd(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       dfdu, dfdu_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffpd(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
-      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
+      [&](doublereal *ff) { ffpd(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnpd_ */
@@ -2779,7 +2764,6 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* Subroutine */ int 
 fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
@@ -2809,7 +2793,7 @@ fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Generate the function. */
 
   fftr(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
+       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -2818,14 +2802,14 @@ fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { fftr(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { fftr(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       dfdu, dfdu_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { fftr(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
-      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
+      [&](doublereal *ff) { fftr(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fntr_ */
@@ -3163,7 +3147,6 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* Subroutine */ int 
 fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
@@ -3199,7 +3182,7 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, f,
-       ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
+       ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -3208,14 +3191,14 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffpo(iap, rap, ndim, uu, uold, upold.data(), icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffpo(iap, rap, ndim, uu, uold, upold.data(), icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       dfdu, dfdu_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
-      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
+      [&](doublereal *ff) { ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnpo_ */
@@ -3329,7 +3312,6 @@ bcpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Subroutine */ int 
 icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
-  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dint_dim1;
 
@@ -3360,7 +3342,7 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Generate the function. */
 
   fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, 
-       udot, upold, f, dnt.data(), ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
+       udot, upold, f, dnt.data(), ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -3369,13 +3351,13 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Generate the Jacobian. */
 
   ep = xpp::auto_jacobian::central(
-      ndim, nint, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, f1.data(), f2.data(),
-      [&](const doublereal *uu, doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, uu, uold, udot, upold, ff, dnt.data(), ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      ndim, nint, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, f1.data(), f2.data(),
+      [&](const doublereal *uu, doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, uu, uold, udot, upold, ff, dnt.data(), ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       dint, dint_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       nfpr, nint, icp, ep, par,
-      [&](doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dnt.data(), ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      [&](doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dnt.data(), ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       f, f1.data(), dint, dint_dim1, ndim);
 
   return 0;
@@ -3637,7 +3619,6 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* Subroutine */ int 
 fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
@@ -3667,7 +3648,7 @@ fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Generate the function. */
 
   ffbl(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
+       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
 
   if (ijac == 0) {
     return 0;
@@ -3676,14 +3657,14 @@ fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffbl(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffbl(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
       dfdu, dfdu_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffbl(iap, rap, ndim, u, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
-      f, s.auto_lib.scratch.ff1, dfdp, dfdp_dim1, 0);
+      [&](doublereal *ff) { ffbl(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnbl_ */
@@ -4123,7 +4104,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     ijc = ijac;
   }
   func(*iap->lib->session, ndim, u, icp, par, ijc, f, dfdu, 
-       dfdp);
+       dfdp, iap->lib);
 
   if (jac == 1 || ijac == 0) {
     return 0;
@@ -4133,7 +4114,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   ep = xpp::auto_jacobian::central(
       ndim, ndim, u, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(),
-      [&](const doublereal *uu, doublereal *ff) { func(*iap->lib->session, ndim, uu, icp, par, 0, ff, dfdu, dfdp); },
+      [&](const doublereal *uu, doublereal *ff) { func(*iap->lib->session, ndim, uu, icp, par, 0, ff, dfdu, dfdp, iap->lib); },
       dfdu, dfdu_dim1);
 
   if (ijac == 1) {
@@ -4145,7 +4126,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
     xpp::auto_jacobian::forward_parameters(
         1, ndim, icp + i, ep, par,
-        [&](doublereal *ff) { func(*iap->lib->session, ndim, u, icp, par, 0, ff, dfdu, dfdp); },
+        [&](doublereal *ff) { func(*iap->lib->session, ndim, u, icp, par, 0, ff, dfdu, dfdp, iap->lib); },
         f, f1zz.data(), dfdp, dfdp_dim1, 0);
   }
 
@@ -4357,4 +4338,3 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   return 0;
 } /* fopi */
-

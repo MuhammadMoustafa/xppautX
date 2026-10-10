@@ -24,6 +24,14 @@
 #include "model_files.h"
 #include "browse.h"
 #include "many_pops.h"
+#include "auto_parallel.h"
+#include "solver.h"
+#include "xpp_globals.h"
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstdlib>
+#include <stdexcept>
 
 #include <cmath>
 #include <cstring>
@@ -51,7 +59,7 @@ double awk(std::size_t i) { return awkward[i % awkward.size()]; }
 
 bool same_bits(double a, double b) { return std::memcmp(&a, &b, sizeof a) == 0; }
 
-bool same_vector(const std::vector<double> &a, const std::vector<double> &b)
+template <class Values> bool same_vector(const Values &a, const Values &b)
 {
     if (a.size() != b.size()) return false;
     for (std::size_t i = 0; i < a.size(); i++)
@@ -394,10 +402,132 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
 
 }
 
+// W247: a normal form with derived parameters, fixed variables and a user
+// function; compare all stored values, including Floquet eigenvalues.
+std::deque<DiagramPoint> collocation_run(unsigned threads, bool compiled, bool impure=false,
+                                        const std::string &benchmark={})
+{
+    xpp::TempDir tmp;
+    const std::string file=benchmark.empty()?tmp.file("hopf.ode"):benchmark;
+    if (benchmark.empty()) CHECK(write_file(file,
+        "par mu=-0.1,w=1\n!frequency=w\nsquare(q)=q*q\nr=square(x)+square(y)\n"
+        "x'=mu*x-frequency*y-x*r"+std::string(impure?"+0*shift(x,0)":"")+"\n"
+        "y'=frequency*x+mu*y-y*r\ninit x=0,y=0\n"
+        "@ ntst=17,ncol=4,nmax=60,npr=10,ds=0.02,dsmax=0.05,dsmin=0.0001\n"
+        "@ parmin=-1,parmax=1,epsl=1e-8,epsu=1e-8,epss=1e-8\ndone\n"));
+    program.compile=compiled;
+    CHECK(load(file));
+    xpp::Session &s=xpp::client_session();
+    CHECK(s.model().auto_rhs_pure==(compiled && !impure));
+    s.auto_state.dir=tmp.path();
+    xpp::init_auto_win(s);
+    if (compiled && !impure) s.auto_lib.collocation=std::make_unique<xpp::AutoParallel>(threads);
+    xpp::auto_start_diff_ss(s);
+    CHECK(xpp::auto_grab_type_index(s,"HB",1)==1);
+    const auto start=std::chrono::steady_clock::now();
+    xpp::auto_new_per(s);
+    const double seconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
+    std::printf("perf: AUTO %u threads %.6f s, %zu diagram points\n",threads,seconds,s.diagram.points.size());
+    CHECK(std::any_of(s.diagram.points.begin(),s.diagram.points.end(),[](const auto &p){return p.d.ibr<0;}));
+    if (compiled && !impure) CHECK(s.auto_lib.collocation && s.auto_lib.collocation->threads()==threads);
+    else CHECK(!s.auto_lib.collocation && !xpp::auto_parallel_ready(s));
+    return s.diagram.points;
+}
+
+void check_collocation_purity()
+{
+    xpp::TempDir tmp;
+    program.compile=true;
+    struct Case { const char *source; bool pure; };
+    const Case cases[]={
+        {"par a=1\nx'=a*x\ninit x=1\ndone\n",true},
+        {"par a=1\nf(q)=g(q)\ng(q)=shift(x,0)\nx'=f(x)\ninit x=1\ndone\n",false},
+        {"par a=1\nf(q)=f(q)\nx'=f(x)\ninit x=1\ndone\n",false},
+        {"par a=1\nx'=ran(1)\ninit x=1\ndone\n",false},
+        {"par a=1\np=q+1\nq=x\nx'=p\ninit x=1\ndone\n",false},
+        {"par a=1\nx'=sum(1,2)of(i'*x)\ninit x=1\ndone\n",true},
+        {"par a=1\ntable tb % 3 0 1 t*a\nx'=tb(x)\ninit x=1\ndone\n",false},
+    };
+    unsigned index=0;
+    for (const auto &test:cases) {
+        const std::string file=tmp.file(xpp::format("purity{}.ode",index++));
+        CHECK(write_file(file,test.source));
+        CHECK(load(file));
+        CHECK(xpp::client_session().model().auto_rhs_pure==test.pure);
+    }
+    CHECK(load("tools/models/compile_derived.odex"));
+    auto &s=xpp::client_session();
+    CHECK(s.model().auto_rhs_pure && xpp::auto_parallel_ready(s));
+    s.numerics.method=xpp::method::DISCRETE;
+    s.numerics.store_every=2;
+    CHECK(!xpp::auto_parallel_ready(s));
+    s.numerics.store_every=1;
+    CHECK(xpp::auto_parallel_ready(s));
+}
+
+void check_collocation()
+{
+    const auto interpreted=collocation_run(1,false);
+    const auto serial=collocation_run(1,true);
+    CHECK(same_diagram(interpreted,serial));
+    const auto constants=xpp::client_session().parser.constants;
+    const auto variables=xpp::client_session().parser.variables;
+    for (unsigned threads:{2u,4u}) {
+        CHECK(same_diagram(serial,collocation_run(threads,true)));
+        CHECK(same_vector(constants,xpp::client_session().parser.constants));
+        CHECK(same_vector(variables,xpp::client_session().parser.variables));
+    }
+    CHECK(same_diagram(serial,collocation_run(4,true,true)));
+    program.compile=true;
+
+    // Failures are values observed after every worker has finished. A failed
+    // dispatch must leave the persistent pool usable for the next call.
+    auto &s=xpp::client_session();
+    AutoLib lib;
+    lib.session=&s;
+    xpp::AutoParallel pool(4);
+    pool.prepare(lib,2,2);
+    std::atomic<int> visited=0;
+    bool caught=false;
+    try {
+        pool.intervals(17,[&](long begin,long end,AutoLib &){
+            visited+=static_cast<int>(end-begin);
+            if (begin>0) throw std::runtime_error("injected worker failure");
+        });
+    } catch (const xpp::AutoFailed &failure) { caught=failure.what.find("injected worker failure")!=std::string::npos; }
+    CHECK(caught && visited==17);
+    visited=0;
+    pool.intervals(17,[&](long begin,long end,AutoLib &){visited+=static_cast<int>(end-begin);});
+    CHECK(visited==17);
+    // No mesh allocation: even the largest accepted integer partitions exactly.
+    std::array<std::pair<long,long>,xpp::AutoParallel::max_threads> ranges{};
+    std::atomic<unsigned> next=0;
+    pool.intervals(std::numeric_limits<long>::max(),[&](long begin,long end,AutoLib &){ranges[next++]={begin,end};});
+    std::sort(ranges.begin(),ranges.end());
+    CHECK(next==ranges.size() && ranges.front().first==0 && ranges.back().second==std::numeric_limits<long>::max());
+    for (size_t i=1;i<ranges.size();++i) CHECK(ranges[i-1].second==ranges[i].first);
+}
+
 } // namespace
 
-int main(void)
+int main(int argc,char **argv)
 {
+    if (argc==3) {
+        xpp::TokenReader count=xpp::TokenReader::of_text(argv[2]);
+        int requested=0;
+        const bool valid=count.read(requested) && count.at_end() && requested>=1
+            && requested<=static_cast<int>(xpp::AutoParallel::max_threads);
+        CHECK(valid);
+        if (!valid) TEST_REPORT("AUTO benchmark");
+        const unsigned threads=static_cast<unsigned>(requested);
+        const auto points=collocation_run(threads,true,false,argv[1]);
+        const auto &m=xpp::client_session().model();
+        CHECK(write_file("build/w247-diagram-"+std::to_string(threads)+".csv",
+              xpp::snapx::auto_members::diagram_csv(points,{m.uvar_names.data(),static_cast<size_t>(m.node)})));
+        TEST_REPORT("AUTO benchmark");
+    }
+    check_collocation_purity();
+    check_collocation();
     check_settings_text();
     check_views_text();
     check_diagram_csv();

@@ -42,7 +42,7 @@ struct setubv_parallel_arglist {
 
 /* setubv's steps (the original AUTO also ran them on pthreads or MPI
    workers). */
-void setubv_make_fa(const setubv_parallel_arglist &larg);
+void setubv_make_fa(const setubv_parallel_arglist *larg);
 void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, doublereal *rlcur,
 		       doublereal *rlold, doublereal rds);
 void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol,
@@ -56,86 +56,24 @@ void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol,
 					 doublereal *thu, doublereal *thl, doublereal *rldot, BCNI_TYPE((*bcni)),
 					 setubv_parallel_arglist *data);
 
-void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
-{  
-  /* System generated locals */
-  integer aa_dim1, aa_dim2, bb_dim1, bb_dim2, cc_dim1,
-    cc_dim2, ups_dim1, 
-    uoldps_dim1, udotps_dim1, upoldp_dim1,
-    dbc_dim1, dicd_dim1, wploc_dim1, dfdu_dim1, dfdp_dim1, wp_dim1, wt_dim1;
-  
-  /* Local variables */
-  integer i, j, k, l, m;
-  integer k1, l1;
-  integer i1,j1;
-
-  integer ib, ic, jj;
-  doublereal dt;  
-  integer ib1, ic1;
-  integer jp1;
-  doublereal ddt;
-
-
-  
-  doublereal *ups = larg->ups;
-  doublereal *upoldp = larg->upoldp;
-  doublereal *udotps = larg->udotps;
-  doublereal *uoldps = larg->uoldps;
-
-  doublereal *aa = larg->aa;
-  doublereal *bb = larg->bb;
-  doublereal *cc = larg->cc;
-
-  doublereal *wp = larg->wp;
-  doublereal *wt = larg->wt;
-
-
-  std::vector<doublereal> dicd((larg->nint)*(larg->ndim + NPARX));
-  std::vector<doublereal> ficd(larg->nint);
-  std::vector<doublereal> dfdp((larg->ndim)*NPARX);
-  std::vector<doublereal> dfdu((larg->ndim)*(larg->ndim));
-  std::vector<doublereal> uold(larg->ndim);
-  std::vector<doublereal> f(larg->ndim);
-  std::vector<doublereal> u(larg->ndim);
-  std::vector<doublereal> wploc((larg->ncol)*(larg->ncol+1));
-  std::vector<doublereal> dbc((larg->nbc)*(2*larg->ndim + NPARX));
-  std::vector<doublereal> fbc(larg->nbc);
-  std::vector<doublereal> uic(larg->ndim);
-  std::vector<doublereal> uio(larg->ndim);
-  std::vector<doublereal> prm(NPARX);
-  std::vector<doublereal> uid(larg->ndim);
-  std::vector<doublereal> uip(larg->ndim);
-  std::vector<doublereal> ubc0(larg->ndim);
-  std::vector<doublereal> ubc1(larg->ndim);
-
-  upoldp_dim1 = larg->ndxloc;
-  udotps_dim1 = larg->ndxloc;
-  uoldps_dim1 = larg->ndxloc;
-  ups_dim1 = larg->ndxloc;
-  dicd_dim1 = larg->nint;
-  dbc_dim1 = larg->nbc;
-  dfdu_dim1 = larg->ndim;
-  dfdp_dim1 = larg->ndim;
-
-  bb_dim1 = larg->ncb;
-  bb_dim2 = larg->nra;
-  
-  cc_dim1 = larg->nca;
-  cc_dim2 = larg->nrc;
-  
-  aa_dim1 = larg->nca;
-  aa_dim2 = larg->nra;
-
-  wploc_dim1 = larg->ncol + 1;
-  wp_dim1 = larg->ncol + 1;
-  wt_dim1 = larg->ncol + 1;
-
+void setubv_make_aa_bb(const setubv_parallel_arglist *larg)
+{
+  integer i,j,k,l,l1,ib,ic,jj,jp1,ic1,ib1;
+  doublereal dt,ddt;
+  doublereal *ups=larg->ups,*uoldps=larg->uoldps,*aa=larg->aa,*bb=larg->bb,*wp=larg->wp,*wt=larg->wt;
+  const integer ups_dim1=larg->ndxloc,uoldps_dim1=larg->ndxloc;
+  const integer aa_dim1=larg->nca,aa_dim2=larg->nra,bb_dim1=larg->ncb,bb_dim2=larg->nra;
+  const integer dfdu_dim1=larg->ndim,dfdp_dim1=larg->ndim;
+  const integer wploc_dim1=larg->ncol+1,wp_dim1=larg->ncol+1,wt_dim1=larg->ncol+1;
+  std::vector<doublereal> dfdp(larg->ndim*NPARX),dfdu(larg->ndim*larg->ndim);
+  std::vector<doublereal> uold(larg->ndim),f(larg->ndim),u(larg->ndim);
+  std::vector<doublereal> wploc(larg->ncol*(larg->ncol+1)),prm(NPARX);
   /* Generate AA and BB: */
   
   /*      Partition the mesh intervals */
   /*jj will be replaced with loop_start and loop_end*/
   for (jj = larg->loop_start; jj < larg->loop_end; ++jj) {
-    if (larg->iap->lib->setubv_stop && xpp::job::cancelled()) break; /* xppautX: cancel */
+    if (!larg->iap->lib->pure_rhs && larg->iap->lib->setubv_stop && xpp::job::cancelled()) break; /* xppautX: cancel */
     j = jj;
     jp1 = j + 1;
     dt = larg->dtm[j];
@@ -164,17 +102,6 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
       for (i = 0; i < NPARX; ++i) {
 	prm[i] = larg->par[i];
       }
-      /*  
-	  Ok this is a little wierd, so hold tight.  This function
-	  is actually a pointer to a wrapper function, which eventually
-	  calls the user defined func_.  Which wrapper is used
-	  depends on what kind of problem it is.  The need for
-	  the mutex is because some of these wrappers use a common
-	  block for temporary storage 
-	  NOTE!!!:  The icni and bcni wrappers do the same thing,
-	  so if they ever get parallelized they need to be
-	  checked as well.
-      */
       (*(larg->funi))(larg->iap, larg->rap, larg->ndim, u.data(), uold.data(), larg->icp, prm.data(), 2, f.data(), dfdu.data(), dfdp.data());
 
 
@@ -198,6 +125,76 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
     }
   
   }
+
+}
+
+// The caller alone polls cancellation before/after each parallel section.
+void dispatch_mesh(const setubv_parallel_arglist *larg,
+                   void (*work)(const setubv_parallel_arglist *))
+{
+  AutoLib &lib=*larg->iap->lib;
+  if (xpp::auto_parallel_ready(*lib.session)) {
+    if (!lib.collocation) lib.collocation=std::make_unique<xpp::AutoParallel>();
+    lib.collocation->prepare(lib,larg->iap->ndim,larg->iap->nbc);
+    lib.collocation->intervals(larg->loop_end-larg->loop_start,[&](long begin,long end,AutoLib &worker) {
+      iap_type local=*larg->iap;
+      local.lib=&worker;
+      setubv_parallel_arglist mine=*larg;
+      mine.iap=&local;
+      mine.loop_start=larg->loop_start+begin;
+      mine.loop_end=larg->loop_start+end;
+      work(&mine);
+    });
+    lib.collocation->publish_rhs(*lib.session);
+  } else work(larg);
+
+}
+
+void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
+{
+  /* System generated locals */
+  integer cc_dim1,
+    cc_dim2, ups_dim1,
+    uoldps_dim1, udotps_dim1, upoldp_dim1,
+    dbc_dim1, dicd_dim1;
+
+  /* Local variables */
+  integer i, j, k, m;
+  integer k1;
+  integer i1,j1;
+
+  integer jj;
+  integer jp1;
+
+  doublereal *ups = larg->ups;
+  doublereal *upoldp = larg->upoldp;
+  doublereal *udotps = larg->udotps;
+  doublereal *uoldps = larg->uoldps;
+
+  doublereal *cc = larg->cc;
+
+  std::vector<doublereal> dicd((larg->nint)*(larg->ndim + NPARX));
+  std::vector<doublereal> ficd(larg->nint);
+  std::vector<doublereal> dbc((larg->nbc)*(2*larg->ndim + NPARX));
+  std::vector<doublereal> fbc(larg->nbc);
+  std::vector<doublereal> uic(larg->ndim);
+  std::vector<doublereal> uio(larg->ndim);
+  std::vector<doublereal> uid(larg->ndim);
+  std::vector<doublereal> uip(larg->ndim);
+  std::vector<doublereal> ubc0(larg->ndim);
+  std::vector<doublereal> ubc1(larg->ndim);
+
+  upoldp_dim1 = larg->ndxloc;
+  udotps_dim1 = larg->ndxloc;
+  uoldps_dim1 = larg->ndxloc;
+  ups_dim1 = larg->ndxloc;
+  dicd_dim1 = larg->nint;
+  dbc_dim1 = larg->nbc;
+
+  cc_dim1 = larg->nca;
+  cc_dim2 = larg->nrc;
+
+  dispatch_mesh(larg,setubv_make_aa_bb);
 
   /*     Generate CC : */
   
@@ -282,10 +279,6 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 
 }
 
-void setubv_default_wrapper(const setubv_parallel_arglist &data)
-{
-  setubv_make_aa_bb_cc(&data);
-}
 } // namespace
 
 int 
@@ -367,8 +360,11 @@ setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer
 					uoldps, udotps, upoldp, dtm, wp.data(), wt.data(), wi.data(), 
 					thu, thl, rldot, bcni, &arglist);
   
-    setubv_default_wrapper(arglist);
-    setubv_make_fa(arglist);
+    if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0;
+    setubv_make_aa_bb_cc(&arglist);
+    if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0;
+    dispatch_mesh(&arglist,setubv_make_fa);
+    if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0;
     setubv_make_fc_dd(arglist,dups,rlcur,rlold,rds);
   }
 
@@ -376,71 +372,71 @@ setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer
 }
 
 namespace {
-void setubv_make_fa(const setubv_parallel_arglist &larg) {
+void setubv_make_fa(const setubv_parallel_arglist *larg) {
   integer i,j,k,l;
   integer ic,k1,ib;
   integer jj,jp1,l1,ic1;
   doublereal dt,ddt;
 
-  doublereal *ups = larg.ups;
-  integer ups_dim1 = larg.ndxloc;
+  doublereal *ups = larg->ups;
+  integer ups_dim1 = larg->ndxloc;
 
-  doublereal *uoldps = larg.uoldps;
-  integer uoldps_dim1 = larg.ndxloc;
+  doublereal *uoldps = larg->uoldps;
+  integer uoldps_dim1 = larg->ndxloc;
 
-  doublereal *wp = larg.wp;
-  integer wp_dim1 = larg.ncol + 1;
+  doublereal *wp = larg->wp;
+  integer wp_dim1 = larg->ncol + 1;
 
-  doublereal *wt = larg.wt;
-  integer wt_dim1 = larg.ncol + 1;
+  doublereal *wt = larg->wt;
+  integer wt_dim1 = larg->ncol + 1;
   
-  doublereal *fa = larg.fa;
-  integer fa_dim1 = larg.nra;
+  doublereal *fa = larg->fa;
+  integer fa_dim1 = larg->nra;
   
-  std::vector<doublereal> wploc((larg.ncol)*(larg.ncol+1));
-  integer wploc_dim1 = larg.ncol + 1;
+  std::vector<doublereal> wploc((larg->ncol)*(larg->ncol+1));
+  integer wploc_dim1 = larg->ncol + 1;
   
-  std::vector<doublereal> dfdp((larg.ndim)*NPARX);
-  std::vector<doublereal> dfdu((larg.ndim)*(larg.ndim));
-  std::vector<doublereal> u(larg.ndim);
-  std::vector<doublereal> uold(larg.ndim);
-  std::vector<doublereal> f(larg.ndim);
+  std::vector<doublereal> dfdp((larg->ndim)*NPARX);
+  std::vector<doublereal> dfdu((larg->ndim)*(larg->ndim));
+  std::vector<doublereal> u(larg->ndim);
+  std::vector<doublereal> uold(larg->ndim);
+  std::vector<doublereal> f(larg->ndim);
   std::vector<doublereal> prm(NPARX);
 
-  for (jj = 0; jj < larg.na; ++jj) {
-    if (larg.iap->lib->setubv_stop && xpp::job::cancelled()) break; /* xppautX: cancel */
+  for (jj = larg->loop_start; jj < larg->loop_end; ++jj) {
+    if (!larg->iap->lib->pure_rhs && larg->iap->lib->setubv_stop && xpp::job::cancelled()) break; /* xppautX: cancel */
     j = jj;
     jp1 = j + 1;
-    dt = larg.dtm[j];
+    dt = larg->dtm[j];
     ddt = 1. / dt;
-    for (ic = 0; ic < larg.ncol; ++ic) {
-      for (ib = 0; ib < larg.ncol + 1; ++ib) {
+    for (ic = 0; ic < larg->ncol; ++ic) {
+      for (ib = 0; ib < larg->ncol + 1; ++ib) {
 	ARRAY2D(wploc, ib, ic) = ddt * ARRAY2D(wp,ib, ic);
       }
     }
-    for (ic = 0; ic < larg.ncol; ++ic) {
-      for (k = 0; k < larg.ndim; ++k) {
-	u[k] = ARRAY2D(wt, larg.ncol, ic) * ARRAY2D(ups, jp1, k);
-	uold[k] = ARRAY2D(wt, larg.ncol, ic) * ARRAY2D(uoldps, jp1, k);
-	for (l = 0; l < larg.ncol; ++l) {
-	  l1 = l * larg.ndim + k;
-	  u[k] += ARRAY2D(wt, l, ic) * ARRAY2D(ups, j + larg.loop_offset, l1);
-	  uold[k] += ARRAY2D(wt, l, ic) * ARRAY2D(uoldps, j + larg.loop_offset, l1);
+    for (ic = 0; ic < larg->ncol; ++ic) {
+      for (k = 0; k < larg->ndim; ++k) {
+	u[k] = ARRAY2D(wt, larg->ncol, ic) * ARRAY2D(ups, jp1, k);
+	uold[k] = ARRAY2D(wt, larg->ncol, ic) * ARRAY2D(uoldps, jp1, k);
+	for (l = 0; l < larg->ncol; ++l) {
+	  l1 = l * larg->ndim + k;
+	  u[k] += ARRAY2D(wt, l, ic) * ARRAY2D(ups, j + larg->loop_offset, l1);
+	  uold[k] += ARRAY2D(wt, l, ic) * ARRAY2D(uoldps, j + larg->loop_offset, l1);
 	}
       }
 
       for (i = 0; i < NPARX; ++i) {
-	prm[i] = larg.par[i];
+	prm[i] = larg->par[i];
       }
       /* The residual reads only f: no Jacobian (docs/xppaut-findings.md #39). */
-      (*(larg.funi))(larg.iap, larg.rap, larg.ndim, u.data(), uold.data(), larg.icp, prm.data(), 0, f.data(), dfdu.data(), dfdp.data());
+      (*(larg->funi))(larg->iap, larg->rap, larg->ndim, u.data(), uold.data(), larg->icp, prm.data(), 0, f.data(), dfdu.data(), dfdp.data());
 
-      ic1 = ic * (larg.ndim);
-      for (i = 0; i < larg.ndim; ++i) {
-	ARRAY2D(fa,ic1 + i, jj) = f[i] - ARRAY2D(wploc, larg.ncol, ic) * ARRAY2D(ups, jp1 + larg.loop_offset, i);
-	for (k = 0; k < larg.ncol; ++k) {
-	  k1 = k * larg.ndim + i;
-	  ARRAY2D(fa, ic1 + i, jj) -= ARRAY2D(wploc, k, ic) * ARRAY2D(ups, j + larg.loop_offset, k1);
+      ic1 = ic * (larg->ndim);
+      for (i = 0; i < larg->ndim; ++i) {
+	ARRAY2D(fa,ic1 + i, jj) = f[i] - ARRAY2D(wploc, larg->ncol, ic) * ARRAY2D(ups, jp1 + larg->loop_offset, i);
+	for (k = 0; k < larg->ncol; ++k) {
+	  k1 = k * larg->ndim + i;
+	  ARRAY2D(fa, ic1 + i, jj) -= ARRAY2D(wploc, k, ic) * ARRAY2D(ups, j + larg->loop_offset, k1);
 	}
       }
     }

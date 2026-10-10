@@ -123,7 +123,7 @@ SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_record json_play
 # the window's (below): xpp_window, or on Linux the loader of its library;
 # xpp_webview is the web view library's own object (webview.o, below)
 WINDOW_SOURCES_ALL := $(call src,xpp_window xpp_window_loader xpp_webview)
-CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(WINDOW_SOURCES_ALL),$(ALL_SOURCES))
+CORE_SOURCES := $(call src,auto_parallel) $(filter-out $(SERVER_SOURCES) $(WINDOW_SOURCES_ALL),$(ALL_SOURCES))
 # the page xppautX serves, compiled in: web2 (web2/dist, built from
 # web2/src and committed: web2/build.mjs)
 WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/manual.json web2/dist/inter.woff2 \

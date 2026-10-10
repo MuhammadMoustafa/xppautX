@@ -12,6 +12,8 @@
 #include "auto_data.h"
 #include "auto_stop.h"
 #include "auto_stability.h"
+#include "auto_parallel.h"
+#include "xpplim.h"
 #include "display_state.h"
 #include "xAuto.h"
 #include "xpp_io.h"
@@ -178,6 +180,12 @@ struct AutoLib {
   /* fort.8, opened when a run writes its first label (autlib1.cpp) and
      closed by close_auto, or with the Session when a run never got there */
   xpp::UniqueFile fp8;
+  /* W247: the pool persists across collocation calls. Worker AutoLibs own
+     their evaluation arrays and finite-difference scratch, never a Session's. */
+  std::unique_ptr<xpp::AutoParallel> collocation;
+  bool pure_rhs=false;
+  std::array<double,MAXPAR> rhs_constants{};
+  std::array<double,MAXODE1> rhs_variables{};
   AutoGlobalScratch scratch{};
   AutoGlobalRotations rotations{};
   /* 1 while stepbv solves a Newton step (autlib1.cpp). A cancelled job

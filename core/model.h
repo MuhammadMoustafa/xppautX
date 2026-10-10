@@ -107,6 +107,7 @@ struct Model {
   std::array<Program,MAXODE> programs;
   /* W258: executable code has exactly this Model's lifetime. */
   std::unique_ptr<tcc::Program> native_program;
+  bool auto_rhs_pure=false; /* compile_model: every AUTO RHS program is native and Session-independent */
   /* a boundary condition, 0=string: string (at most 255 bytes, the rest
      NUL), com its compiled form (200 commands), name "0=" (10 bytes;
      pp_shoot writes its side into it). C buffers: the shooting code and
