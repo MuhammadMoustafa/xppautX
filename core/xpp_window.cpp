@@ -51,6 +51,7 @@ const char *xpp::window::launch_document() { return nullptr; }
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <type_traits>
 
 #define WEBVIEW_HEADER /* declarations only: the library is webview.o */
 #define WEBVIEW_STATIC
@@ -438,7 +439,13 @@ void show_about(HWND hwnd)
     cfg.pszMainIcon = TD_INFORMATION_ICON;
     cfg.pszContent = content.c_str();
     cfg.pfCallback = about_callback;
-    if (HRESULT r = TaskDialogIndirect(&cfg, nullptr, nullptr, nullptr); FAILED(r))
+    /* About alone needs common controls; load the system DLL when it opens. */
+    const std::unique_ptr<std::remove_pointer_t<HMODULE>, decltype(&FreeLibrary)> library(
+        LoadLibraryExW(L"comctl32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32), &FreeLibrary);
+    const auto show = library ? reinterpret_cast<decltype(&TaskDialogIndirect)>(
+        GetProcAddress(library.get(), "TaskDialogIndirect")) : nullptr;
+    const HRESULT r = show ? show(&cfg, nullptr, nullptr, nullptr) : HRESULT_FROM_WIN32(GetLastError());
+    if (FAILED(r))
         host->log(XPP_LOG_WARN, "xppautX: the About box failed ({:#x})\n", static_cast<unsigned>(r));
 }
 

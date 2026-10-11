@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Windows loads the About dialog's common-controls DLL only when About opens: a one-step `lecar.odex --silent` run takes 34.3 ms instead of 35.3 ms (stripped UCRT build, 21-run medians; W290, [#348](https://github.com/MuhammadMoustafa/xppautX/issues/348)).
+
 - `--auto` is now `-y` / `--yes` (a modifier of any mode: `--silent --yes`, `--convert --yes`), and every answer taken without asking is printed with its question: a rename, a file replaced, a recording's recorded answer in `--silent`. `--silent` no longer takes a conversion's suggested names silently: it asks on the terminal (60 s), and with no answer it stops and names what needs one (W288, [#343](https://github.com/MuhammadMoustafa/xppautX/issues/343)).
 
 - Large models load faster through indexed symbol, source-location and initial-state lookups: Windows one-step `.odex` runs fall from 835 to 274 ms for lecdiff's 4,800 states and from 502 to 168 ms for amari's 2,400 states (five-run medians, stripped UCRT build; lecar stays about 38 ms). Compiled code is still built in memory at each load (W245, [#301](https://github.com/MuhammadMoustafa/xppautX/issues/301)).
