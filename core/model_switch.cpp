@@ -62,7 +62,7 @@ int ic_index(const xpp::Model &m, const std::string &name)
 }
 
 /* the model the user opened is the newest of the recent ones; the open goes
-   on when the list cannot be kept (a bad recent.txt is shown, not changed) */
+   on when the list cannot be kept (a bad preferences.setx is shown, not changed) */
 void remember_opened(const std::string &file)
 {
   if(const auto noted=xpp::recent::note(xpp::files::absolute(file));!noted)xpp::show_error(noted.error());

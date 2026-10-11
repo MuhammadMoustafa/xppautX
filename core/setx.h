@@ -131,6 +131,8 @@ public:
 
     /* the error at member m / at this group */
     [[noreturn]] void fail(const Member &m, std::string what) const { doc_->fail(m, std::move(what)); }
+    /* the error at a value (an entry of a list) */
+    [[noreturn]] void fail(const Value &v, std::string what) const { doc_->fail(v, std::move(what)); }
     [[noreturn]] void fail(std::string what) const { doc_->fail(*group_, std::move(what)); }
 
     /* every member was read: the first that was not is an error ("`k` is

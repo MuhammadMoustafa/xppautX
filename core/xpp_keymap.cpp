@@ -303,10 +303,7 @@ std::string path() { return files::config_path(FILE_NAME); }
 
 Result<Keymap> load_keymap()
 {
-    const Result<std::optional<std::string>> text = read_config_file(WHERE, FILE_NAME, MAX_FILE_BYTES);
-    if (!text) return std::unexpected(text.error());
-    if (!*text) return Keymap{};
-    return parse_keymap(**text, path());
+    return load_config_file<Keymap>(WHERE, FILE_NAME, MAX_FILE_BYTES, parse_keymap);
 }
 
 Result<> save(const Keymap &map) { return write_config_file(WHERE, FILE_NAME, serialize(map)); }

@@ -62,19 +62,20 @@ screen exactly while `hello.start` is there. The core queues the same
 once; answering it with a file loads that model (a new `hello`), and
 cancelling it leaves the start screen: no error, the program keeps running.
 
-`start`: `{"path": the recent.txt file ("" when there is no config folder),
+`start`: `{"path": the preferences.setx file ("" when there is no config folder),
 "limit": how many models are kept, "recent": [{"path": absolute path,
 "missing": the file is no longer there}, ...], "examples": {"folder": ...,
 "names": [...], "reason": ...}}`, newest first. A recent model
 that is missing is listed as missing, never dropped; opening it is an
-ordinary `open` that fails with the file named. When `recent.txt` cannot be
+ordinary `open` that fails with the file named. When `preferences.setx` cannot be
 read (a relative or repeated path, a control character, a path or a file
-longer than the limits, more lines than `limit`, any other bad line), `recent` is `[]` and
+longer than the limits, more entries than `limit`, any other bad value), `recent` is `[]` and
 `start` carries the common error fields (`error`, `file`, `line`, `col`,
 `source`, `field`: "Errors"); nothing of the file is used and the next Open
 model leaves it as it is (it is shown once more, as an error, and the model
 still opens). The file is the program's, in the per-user config folder
-beside `keymap.json`: one absolute path per line, newest first; a model is
+beside `keymap.json`, `preferences.setx` ("Preferences", below): its
+`recent_models`, absolute paths newest first; a model is
 put first when it is opened from Open model (the dialog, a path, a recent
 entry), from the command line or by the OS (a `.ode` is listed by the `.odex`
 it converts to), and not while a recording plays or in `--silent`.
@@ -259,6 +260,23 @@ types the layer's key as the first key of a chord. Every legacy menu item has ex
 (`tools/keycheck.py` fails a key a menu's handler takes with no row, or a row
 no handler takes); the page shows a table that disagrees with itself
 (`navigationProblems`) as an error, once.
+
+## Preferences
+
+`preferences.setx` (W287, [#342](https://github.com/MuhammadMoustafa/xppautX/issues/342),
+core/xpp_prefs.h) is the program's own file for what it keeps for the user
+across runs, in the per-user config folder (`XPP_CONFIG_DIR` overrides it)
+beside `keymap.json`, in the `.setx` syntax (docs/odex.md ".setx"). It is not
+a model's setting: nothing a run computes depends on it. A missing file is the
+defaults; a bad one (a key that is not a preference, a value of the wrong
+kind, a list or path past its limit, a file past 256 KiB) is an error at its
+file, line and value and none of it is used; it is read whole and written
+whole, temp then rename, and never overwritten while it is bad. With no
+config folder (no `HOME` or `APPDATA`, or a relative `XPP_CONFIG_DIR`) the
+error names the variable to set. Its keys: `recent_models` (a list of at most
+ten absolute paths, newest first: "Start screen"). A later group is one
+member of the Preferences struct and one line of the description that reads
+and writes it.
 
 ## Keymap
 

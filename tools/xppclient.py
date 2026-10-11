@@ -11,7 +11,7 @@ reads events on a thread and hands them out with collect().
 import atexit, base64, copy, hashlib, json, os, queue, shutil, struct, subprocess, tempfile, threading, time
 
 # No check touches the user's own per-user settings (keymap.json, W211;
-# recent.txt, W232): every xppautX a check script that imports this starts
+# preferences.setx, W232): every xppautX a check script that imports this starts
 # reads and writes a folder of its own (XPP_CONFIG_DIR, core/xpp_files.h),
 # removed at exit
 CONFIG_ROOT = tempfile.mkdtemp(prefix='xppconfig')

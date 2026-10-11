@@ -6850,7 +6850,7 @@ def check_keymap():
         check('W211: hello gives the reserved keys and the limits the editor keeps to',
               'Ctrl+W' in km['reserved'] and 'F12' in km['reserved'] and km['limits'] == {'keys': 8, 'parts': 2, 'key_bytes': 64},
               str(km['limits']))
-        # W232: the start made the folder for recent.txt (the model it was started with); reading the keymap made no file
+        # W232: the start made the folder for preferences.setx (the model it was started with); reading the keymap made no file
         check('W211: reading the keymap makes no keymap.json', not os.path.exists(path))
         snd(cmd='keymap', op='get')
         evs, _ = col(is_idle)
@@ -6873,7 +6873,7 @@ def check_keymap():
         written = open(path, 'rb').read()
         check('W211: the file holds only the differences, one binding to a line, and no other file is left beside it',
               b'"reload": ["Ctrl+B", "F S"]' in written and b'openmodel' not in written
-              and sorted(os.listdir(folder)) == ['keymap.json', 'recent.txt'], repr(written[:200]))
+              and sorted(os.listdir(folder)) == ['keymap.json', 'preferences.setx'], repr(written[:200]))
 
         for what, bad, line, value in [
                 ('a reserved key', {'bindings': {'reload': ['Ctrl+W']}}, 1, 'Ctrl+W'),
@@ -6948,16 +6948,25 @@ def check_keymap():
 
 check_keymap()
 
+def recent_text(models):
+    """W287: a preferences.setx holding these recent models (a quoted string is JSON's)"""
+    return 'recent_models: [%s],\n' % ', '.join(json.dumps(m) for m in models)
+
+def recent_models(path):
+    """W287: the recent_models of a preferences.setx the program wrote"""
+    m = re.search(r'recent_models: (\[.*?\]),\n', open(path, encoding='utf-8').read(), re.S)
+    return json.loads(m.group(1)) if m else []
+
 def check_start_screen():
     """W232, docs/protocol.md "Start screen": a program started with no file has a session with no model.
     hello carries `start` (the recent models, newest first, a missing file listed as missing) and no
     state; Open model asks at once, the same ask File > Open model makes (the filter takes .ode, .odex,
     .snapx and .recx); Cancel leaves the start screen (no error, no exit); a command that needs a model is
     refused; Open model of a file, from the screen, is a normal open (new hello with no `start`, the model
-    in recent.txt); a bad recent.txt is an error with its file and line, no entries listed, and is not
+    in preferences.setx); a bad preferences.setx is an error with its file and line, no entries listed, and is not
     overwritten by an open; a hostile file is refused whole."""
     folder = os.path.join(CONFIG_ROOT, 'start', 'xppautX')
-    path = os.path.join(folder, 'recent.txt')
+    path = os.path.join(folder, 'preferences.setx')
     env = {'XPP_CONFIG_DIR': folder}
     errors = lambda evs: [e for e in evs if e.get('ev') == 'message' and e.get('error')]
     model = os.path.abspath(args.ode)
@@ -7002,16 +7011,15 @@ def check_start_screen():
         hello = next((e for e in evs if e.get('ev') == 'hello'), {})
         check('W232: Open model of a file loads it: a hello with no start screen, its state, no question, no error',
               hello and 'start' not in hello and last_state(evs) and not [e for e in evs if e.get('ev') == 'ask'] and not errors(evs), str(evs)[-300:])
-        with open(path, encoding='utf-8') as f:
-            check('W232: the opened model is the first line of recent.txt, an absolute path',
-                  same(f.read().split('\n')[0], model), '')
+        check('W232: the opened model is the first of recent_models in preferences.setx, an absolute path',
+              same(recent_models(path)[0], model), '')
     finally:
         stop_server(p, r, snd)
 
     # a second start lists it; a file that was removed is listed as missing, not dropped
     gone = os.path.join(CONFIG_ROOT, 'gone.odex')
-    with open(path, 'a', encoding='utf-8', newline='\n') as f:
-        f.write(gone + '\n')
+    with open(path, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(recent_text([model, gone]))
     p, r, snd, col, evs, ask = start_up()
     try:
         recent = next(e for e in evs if e.get('ev') == 'hello')['start']['recent']
@@ -7025,21 +7033,20 @@ def check_start_screen():
         err = errors(evs)
         check('W232: opening a missing recent model is an ordinary open error naming it, the start screen stays',
               len(err) == 1 and 'gone.odex' in err[0]['error'] + err[0].get('file', '') and p.poll() is None, str(evs)[-300:])
-        with open(path, encoding='utf-8') as f:
-            check('W232: and it is not made the newest', same(f.read().split('\n')[0], model), '')
+        check('W232: and it is not made the newest', same(recent_models(path)[0], model), '')
     finally:
         stop_server(p, r, snd)
 
-    # a bad recent.txt: an error at its line, nothing listed, never overwritten
-    bad = model + '\nrelative.odex\n'
+    # a bad preferences.setx: an error at its line, nothing listed, never overwritten
+    bad = 'recent_models: [%s,\n  "relative.odex"],\n' % json.dumps(model)
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(bad)
     p, r, snd, col, evs, ask = start_up()
     try:
         start = next(e for e in evs if e.get('ev') == 'hello')['start']
-        check('W232: a bad recent.txt is an error with its file, line and value, and nothing is listed',
+        check('W232: a bad preferences.setx is an error with its file, line and value, and nothing is listed',
               start['recent'] == [] and same(start['file'], path) and start['line'] == 2
-              and 'relative.odex' in start['error'] and start['source'] == 'relative.odex', str(start))
+              and 'relative.odex' in start['error'] and 'relative.odex' in start['source'], str(start))
         snd(cmd='answer', id=ask['id'], ok=0)
         col(is_idle)
         snd(cmd='open', file=model)
@@ -7052,7 +7059,7 @@ def check_start_screen():
         stop_server(p, r, snd)
 
     # a hostile file: too long, and too many lines
-    for what, text in (('a file over the limit', 'x' * 100000), ('more lines than are kept', ''.join(model + str(i) + '\n' for i in range(11)))):
+    for what, text in (('a file over the limit', 'x' * 300000), ('more entries than are kept', recent_text([model + str(i) for i in range(11)]))):
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(text)
         p, r, snd, col, evs, ask = start_up()
@@ -7125,7 +7132,7 @@ def check_start_examples():
                 same_bytes = a.read() == b.read()
             check('W233: opening an example copies it into the config folder and opens the copy: a hello with no start, a state, no error, no question',
                   hello and 'start' not in hello and last_state(evs) and not errors(evs) and not [e for e in evs if e.get('ev') == 'ask']
-                  and same_bytes and os.path.normcase(os.path.abspath(open(os.path.join(config, 'recent.txt')).read().split('\n')[0])) == os.path.normcase(os.path.abspath(copied)),
+                  and same_bytes and same(recent_models(os.path.join(config, 'preferences.setx'))[0], copied),
                   str(evs)[-300:])
             check('W233: and says where the copy is', any(same(e['bottom'].split(' is copied to ')[1].split(';')[0], copied) for e in evs if e.get('ev') == 'message' and ' is copied to ' in e.get('bottom', '')), str(evs)[-300:])
             # a changed copy is asked about before it is replaced; No keeps it as it is

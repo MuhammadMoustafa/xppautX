@@ -505,7 +505,7 @@ private:
     std::unique_ptr<State, Free> state_;
 };
 
-/* ---- A per-user settings file (keymap.json, recent.txt) ----------------
+/* ---- A per-user settings file (keymap.json, preferences.setx) ----------------
    The file `name` in the config folder (files::config_dir), the one way
    the settings files are read and written. `where` is the Error's
    `where`. No config folder (no HOME or APPDATA, or an XPP_CONFIG_DIR that
@@ -517,6 +517,16 @@ private:
 Error no_config_folder(std::string_view where, std::string_view name);
 Result<std::optional<std::string>> read_config_file(std::string_view where, std::string_view name, std::size_t limit);
 Result<> write_config_file(std::string_view where, std::string_view name, std::string_view bytes);
+/* The file read and parsed, parse(text, path) giving the Result<T>; T{} (the
+   defaults) when the file is not there. */
+template <class T, class Parse>
+Result<T> load_config_file(std::string_view where, std::string_view name, std::size_t limit, Parse parse)
+{
+    const Result<std::optional<std::string>> text = read_config_file(where, name, limit);
+    if (!text) return std::unexpected(text.error());
+    if (!*text) return T{};
+    return parse(**text, files::config_path(name));
+}
 
 /* ---- A file of ours, loaded: all or nothing, strict (W125) ------------
    Loading one of xppautX's own files is one operation, the same for each

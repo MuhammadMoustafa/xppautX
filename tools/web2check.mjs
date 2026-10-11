@@ -5794,7 +5794,7 @@ async function startScreenCheck() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-start-'));
   const gone = path.join(dir, 'gone.odex');
   fs.mkdirSync(path.join(dir, 'xpp-config'));
-  fs.writeFileSync(path.join(dir, 'xpp-config', 'recent.txt'), [ODE, gone, ''].join('\n'));
+  fs.writeFileSync(path.join(dir, 'xpp-config', 'preferences.setx'), `recent_models: [${[ODE, gone].map(p => JSON.stringify(p)).join(', ')}],\n`);
   const server = await startServer(bin, dir, []);
   try {
     await cdp.eval('window.__left = true').catch(() => {});
