@@ -359,7 +359,7 @@ void print(FILE *fp, std::format_string<Args...> fmt, Args &&...args) noexcept
 
 /* Lines of any length, CR/LF tolerant: next() gives the next line without
    its terminator (a bare \n, a \r\n, or a final line with none at all),
-   nullopt at the real end of the file. By default no size limit: a line longer than
+   nullopt at the real end of the file. No size limit: a line longer than
    any fixed buffer comes back whole. The view is the reader's, valid
    until the next next() or until the reader is closed or destroyed. */
 class LineReader {
@@ -377,8 +377,7 @@ public:
     LineReader(LineReader &&o) noexcept = default;
     LineReader &operator=(LineReader &&o) noexcept = default;
     explicit operator bool() const noexcept { return state_ != nullptr; }
-    // A bounded read invalidates the reader on overflow or I/O error; no truncated line is returned.
-    std::optional<std::string_view> next(size_t limit = std::numeric_limits<size_t>::max());
+    std::optional<std::string_view> next();
     /* the line n lines on (n from 1: the next one), the lines before it
        read; "" when there are fewer (an error's source line, xpp_error.h) */
     std::string line(int n);

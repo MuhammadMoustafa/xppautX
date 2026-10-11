@@ -22,22 +22,6 @@ int main()
     CHECK(xpp::cpu::topology_id("0") == 0);
     for (const char *bad : {"-1", "65536", "", "12x", "1 2", "2147483648"})
         CHECK(!xpp::cpu::topology_id(bad));
-    auto reader = xpp::LineReader::of_text("12345\n");
-    CHECK(!reader.next(4) && !reader);
-    reader = xpp::LineReader::of_text("1234\n");
-    CHECK(reader.next(4) == "1234");
-    CHECK(!reader.next(4) && reader);
-    // Exercise the real file path too: bounded reading must not allocate the oversized line.
-    const std::string path = "build/cpu-count-line.txt";
-    {
-        xpp::Writer writer(path);
-        CHECK(writer);
-        writer.print("12345\n");
-        CHECK(writer.commit());
-    }
-    reader = xpp::LineReader(path);
-    CHECK(!reader.next(4) && !reader);
-    CHECK(xpp::files::remove(path) == 0);
     const auto physical = xpp::cpu::physical_cores();
 #ifdef _WIN32
     CHECK(physical && *physical >= 1);

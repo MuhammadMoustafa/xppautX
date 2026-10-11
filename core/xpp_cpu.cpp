@@ -41,12 +41,13 @@ std::optional<std::vector<unsigned>> cpu_list(std::string_view text)
 
 #ifdef __linux__
 namespace {
+// A sysfs attribute is one line of at most a page, the kernel's own bound.
 std::optional<std::string> system_line(LineReader reader)
 {
-    auto line = reader.next(max_sysfs_line);
+    auto line = reader.next();
     if (!line) return std::nullopt;
     std::string value(*line);
-    if (reader.next(max_sysfs_line) || !reader) return std::nullopt;
+    if (reader.next()) return std::nullopt;
     return value;
 }
 }
