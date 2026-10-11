@@ -61,6 +61,8 @@ int main()
     CHECK(ok(xpp::AUTO_NUM_NCOL, 2) && ok(xpp::AUTO_NUM_NCOL, 7));
     CHECK(!ok(xpp::AUTO_NUM_NCOL, 1) && !ok(xpp::AUTO_NUM_NCOL, 8));
     CHECK(!ok(xpp::AUTO_NUM_NTST, 0) && !ok(xpp::AUTO_NUM_NTST, 2.5) && ok(xpp::AUTO_NUM_NTST, 50));
+    CHECK(!ok(xpp::AUTO_NUM_NTST, xpp::auto_max_mesh_intervals + 1));
+    CHECK(ok(xpp::AUTO_NUM_NTST, xpp::auto_max_mesh_intervals));
     CHECK(!ok(xpp::AUTO_NUM_DS, 0) && ok(xpp::AUTO_NUM_DS, -0.01));
     CHECK(!ok(xpp::AUTO_NUM_EPSL, 0) && ok(xpp::AUTO_NUM_EPSL, 1e-7));
     CHECK(ok(xpp::AUTO_NUM_RL0, -1e6) && !ok(xpp::AUTO_NUM_RL0, HUGE_VAL));

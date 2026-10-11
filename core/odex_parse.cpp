@@ -71,6 +71,10 @@ struct Token {
   size_t begin = 0, end = 0;
 };
 
+/* The token cap budgets objects at 80 bytes each on the supported 64-bit targets. */
+constexpr std::size_t max_token_object_bytes = 80;
+static_assert(sizeof(Token) <= max_token_object_bytes);
+
 /* a number's text to its value, false when the text is not all of one */
 bool read_number(std::string_view text, double &value)
 {
@@ -88,6 +92,8 @@ public:
     std::vector<Token> out;
     for (;;) {
       bool space = skip_blank();
+      if (out.size() >= max_file_tokens)
+        fail(here(), xpp::format("the file has more than {} tokens (including its end)", max_file_tokens));
       Token t;
       t.space_before = space || out.empty();
       t.pos = here();
@@ -174,7 +180,12 @@ private:
     line_start_ = i_;
   }
 
-  [[noreturn]] void fail(Pos p, std::string msg) const { throw error_at(name_, p, std::move(msg)); }
+  [[noreturn]] void fail(Pos p, std::string msg) const
+  {
+    Place place = line_place(name_, s_, p.line);
+    place.col = p.col;
+    throw Error{"model", std::move(msg), std::move(place)};
+  }
 
   /* passes white space and comments; true when there were some */
   bool skip_blank()

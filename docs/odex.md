@@ -226,6 +226,34 @@ grammar:
   closed is an error at the line where it opened.
 - A trailing range makes a statement an array (below, "Arrays").
 
+The allocation-sized whole options have inclusive maxima (W296,
+[#354](https://github.com/MuhammadMoustafa/xppautX/issues/354)):
+
+| Option | Minimum | Maximum | Reason |
+|---|---:|---:|---|
+| `numerics.vmaxpts`, `numerics.storage_rows` | 1 | 10000000 | Large histories and initial storage without int-sized requests |
+| `numerics.nullcline_mesh` | 1 | 4096 | Bounds mesh work to about 16 million cells |
+| `numerics.bandup`, `numerics.bandlo` | 0 | 100000 | Large banded models without int-sized bandwidths |
+| `histogram.histbins`, `histogram.histbins2` | 1 | 4096 | About 16 million cells in two dimensions |
+| `histogram.specwidth` | 1 | 1000000 | Bounds spectral workspaces |
+| `auto.ntst` | 1 | 10000 | Bounds AUTO's mesh-sized matrices |
+| `auto.nmax` | 1 | 1000000 | Bounds a requested continuation diagram |
+| `auto.ncol` | 1 | 7 | AUTO's settings reader requires supported collocation orders 2 through 7 |
+
+These maxima also apply through the corresponding saved numerics and AUTO
+session settings. Iteration counts, output strides, seeds, flags and indices
+remain whole numbers in their existing ranges; they do not size an allocation.
+The JSON schemas publish the maxima from the same option rows. Exceeding one
+is a load error at the file's offending line, before applying anything.
+
+The shared `.odex`/`.setx` lexer accepts at most 262144 tokens per file,
+including the end token: at most 20 MiB of token objects on 64-bit builds,
+plus token text bounded by the input's length. A punctuation-only file
+exceeding that cap is refused at the next token's file, line and column.
+Both `.ode` and `.odex` ranges may expand to at most 100000 elements per
+statement; the length is checked before any copies are made. These caps
+allow large models while bounding compact hostile input's expansion.
+
 ## Settings files (.setx)
 
 A settings file, `name.setx` (W284, [#344](https://github.com/MuhammadMoustafa/xppautX/issues/344);
@@ -266,6 +294,11 @@ numerics setting is written under the key the Numerics menu and `set num`
 use (`total_time`, `dt`, `method`, `jacobian`, `tolerance`, ...), a choice
 by its word (`jacobian: exact`, `poincare_map: section`, `rangereset: no`),
 so a setting added to the table is a key of the file with no other change.
+The `columns` and `rows` of `array_plot` and `transpose` are whole numbers
+from 1 through 4096, limiting their rectangle to about 16 million cells.
+The same checks apply in a session's `model.setx` and `windows.setx` and to
+an imported XPPAUT `.set`, with the offending member's file and line.
+
 The JSON Schema generated from the file's description and the table is
 [setx.schema.json](setx.schema.json) (`xppautX --setx-schema` prints it;
 `tools/optionschema.sh --check` fails when it differs).

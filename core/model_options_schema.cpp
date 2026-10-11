@@ -63,6 +63,7 @@ std::string option_value_schema(const OptionRow &row)
   case OptionRule::method:
   case OptionRule::choice: break;
   }
+  if (row.maximum) out += ", \"maximum\": " + std::to_string(row.maximum);
   if (!row.label.empty()) out += ", \"description\": " + quoted(row.label);
   if (row.repeatable) out += ", \"x-repeatable\": true";
   return out + "}";

@@ -127,6 +127,42 @@ int main(void)
     CHECK(first.find("  total_time: 500,\n") != std::string::npos && first.find("  jacobian: difference,\n") != std::string::npos);
     CHECK(first.find("  poincare_map: period,\n") != std::string::npos && first.find("  iapp: 0.09,\n") != std::string::npos);
 
+    /* Saved dimensions and numerics are refused with their member's place. */
+    for (const char *group : {"array_plot", "transpose"}) {
+        for (const char *key : {"columns", "rows"}) {
+            const std::string text = xpp::format("{}: {{\n  {}: {},\n}}\n", group, key, xpp::settings_dimension_limit + 1);
+            const auto r = xpp::read_settings(s, "sent.setx", text, xpp::SettingsUse::file);
+            CHECK(!r);
+            if (!r) {
+                CHECK(r.error().place.file == "sent.setx" && r.error().place.line == 2);
+                CHECK(r.error().what.find("4097") != std::string::npos);
+            }
+        }
+    }
+    const auto session_text = xpp::setx_text(s, xpp::capture_settings(s, xpp::SettingsUse::session));
+    CHECK(session_text);
+    if (session_text) {
+        const int line = line_with(*session_text, "nullcline_mesh:");
+        const auto mesh = xpp::read_settings(s, "session.snapx/model.setx",
+            with_line(*session_text, line, "  nullcline_mesh: 4097,"), xpp::SettingsUse::session);
+        CHECK(!mesh);
+        if (!mesh) CHECK(mesh.error().place.file == "session.snapx/model.setx" && mesh.error().place.line == line);
+    }
+    const int mesh_line = line_with(set, "nullcline mesh");
+    const std::string bad_mesh = with_line(set, mesh_line, "4097 nullcline mesh");
+    put(xs, bad_mesh);
+    const auto imported_mesh = xpp::import_settings(s, xs, false);
+    CHECK(!imported_mesh);
+    if (!imported_mesh) CHECK(imported_mesh.error().place.file == xs && imported_mesh.error().place.line == mesh_line);
+    for (const char *label : {"n columns", "n rows", "NCols", "NRows"}) {
+        const int line = line_with(set, label);
+        put(xs, with_line(set, line, xpp::format("{} {}", xpp::settings_dimension_limit + 1, label)));
+        const auto r = xpp::import_settings(s, xs, false);
+        CHECK(!r);
+        if (!r) CHECK(r.error().place.file == xs && r.error().place.line == line);
+    }
+    put(xs, set);
+
     /* a file that names little sets only that */
     s.numerics.total_time = 7;
     xpp::set_val(s, "gca", 3);

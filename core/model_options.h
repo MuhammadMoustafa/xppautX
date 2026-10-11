@@ -26,6 +26,17 @@ struct Model;   /* model.h */
 
 struct OptionRow;
 
+namespace option_limit {
+/* Ten million initial rows/history samples allow large recordings without int-sized requests. */
+inline constexpr int storage_rows = 10000000, history_points = 10000000;
+/* A 4096-side mesh or histogram bounds quadratic work/storage to about 16 million cells. */
+inline constexpr int mesh = 4096, histogram_bins = 4096;
+/* A hundred thousand diagonals allow large banded models without int-sized bandwidths. */
+inline constexpr int bandwidth = 100000;
+/* One million spectral samples bound FFT workspaces while permitting long windows. */
+inline constexpr int spectrum_samples = 1000000;
+} // namespace option_limit
+
 /* which options a source has set already (a Session's, session.h): the
    rows with `once` (OptionRow), each kept by its place in the table, so a
    new row needs no flag of its own */
@@ -55,7 +66,8 @@ constexpr auto member(F)
   return Member<T>{[](Session &s) -> T & { return F{}(s); }, [](const Session &s) -> const T & { return F{}(s); }};
 }
 
-/* what the Numerics menu and `set num` accept for a numerics setting */
+/* what the Numerics menu and `set num` accept for a numerics setting;
+   allocation-sized rows also have an inclusive maximum */
 /* (choice: one of the row's choices, by name or number) */
 enum class OptionRule { any, nonzero, positive, nonnegative, whole_positive, method, choice };
 /* which methods use a numerics setting (xpp::SolverTraits), so a front end
@@ -138,6 +150,7 @@ struct OptionRow {
      the menu's label, what it accepts and which methods use it */
   std::string_view key, label;
   OptionRule rule = OptionRule::any;
+  int maximum = 0; /* 0: no allocation-sized upper bound; otherwise inclusive */
   OptionUse use = OptionUse::always;
   /* OptionRule::choice: the names of the values 0, 1, ..., and why a
      model cannot have value i ("" when it can) */
@@ -163,7 +176,7 @@ struct OptionRow {
    nullptr when it is: the one check of a numerics setting's value, for
    an @ line, the Numerics menu, `set num` and a set file alike
    (OptionRule::method's name is checked by numerics_settings.cpp) */
-const char *rule_problem(OptionRule rule, double v);
+const char *rule_problem(OptionRule rule, double v, int maximum = 0);
 
 /* the value text names among choices (its name in any case, or its
    number), -1 when none */

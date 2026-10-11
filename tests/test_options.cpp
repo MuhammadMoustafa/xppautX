@@ -417,6 +417,41 @@ int main(void)
         if (l.error().place.line != 6 || l.error().what.find(value) == std::string::npos)
             printf("  %s: %s\n", bad, l.error().text().c_str());
     }
+    /* Each allocation limit is checked at the original model line, before allocation. */
+    for (const xpp::OptionRow &row : xpp::option_rows()) {
+        if (!row.maximum) continue;
+        CHECK(!xpp::option_problem(*s, row.name, std::to_string(row.maximum), false));
+        const std::string value = std::to_string(row.maximum + 1);
+        for (bool native : {false, true}) {
+            const char *path = native ? bad_odex : bad_ode;
+            const std::string text = native ? "x' = -x\noptions { " + std::string(row.group) + ": { " + xpp::odex_key(row, 0) + ": " + value + " } }\n"
+                                            : "x'=-x\n@ " + std::string(row.name) + "=" + value + "\ndone\n";
+            CHECK(write_file(path, text));
+            char arg0[] = "test_options";
+            std::string file(path);
+            char *argv[] = {arg0, file.data(), nullptr};
+            const xpp::Loaded refused = xpp::load_model(2, argv, 1);
+            CHECK(!refused);
+            if (!refused) {
+                CHECK(refused.error().place.file == path && refused.error().place.line == 2);
+                CHECK(refused.error().what.find(value) != std::string::npos);
+            }
+            CHECK(&xpp::client_session() == s);
+            CHECK(xpp::option_value_schema(row).find("\"maximum\": " + std::to_string(row.maximum)) != std::string::npos);
+        }
+    }
+    for (const char *range : {"x[0..2000000000]'=-x[j]\n", "x[2000000000..0]'=-x[j]\n", "x[0..2000000000](0)=0\n"}) {
+        CHECK(write_file(bad_ode, std::string(range) + "done\n"));
+        char arg0[] = "test_options";
+        char file[] = "build/test_options_bad.ode";
+        char *argv[] = {arg0, file, nullptr};
+        const auto refused = xpp::load_model(2, argv, 1);
+        CHECK(!refused);
+        if (!refused) {
+            CHECK(refused.error().place.file == bad_ode && refused.error().place.line == 1);
+            CHECK(refused.error().what.find("maximum 100000") != std::string::npos);
+        }
+    }
     CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\noptions { plot: { ync: 12 } }\n"));
     {
         char arg0[] = "test_options";

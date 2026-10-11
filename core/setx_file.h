@@ -40,10 +40,9 @@ struct OptionRow; /* model_options.h */
 
 inline constexpr std::string_view setx_extension = ".setx";
 
-/* the most bytes of a settings file read (a file a user may have been
-   sent): far above any model's settings (a few kilobytes), and low because
-   the reader keeps a token, about a hundred bytes, for each byte of a file
-   that is nothing but punctuation */
+/* 4096 sides bound a saved array/transpose rectangle to 16 million cells. */
+inline constexpr int settings_dimension_limit = 4096;
+/* Four MiB is far above ordinary settings; the shared lexer separately caps token storage. */
 inline constexpr std::size_t settings_bytes_limit = 4u * 1024 * 1024;
 
 /* what a settings file holds. It starts as a copy of a session's own

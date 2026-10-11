@@ -7,6 +7,7 @@
    recursion past the bound: the file may be one a user was sent). */
 #include "xpptest.h"
 #include "setx.h"
+#include "odex.h"
 
 #include <cmath>
 #include <string>
@@ -26,6 +27,33 @@ template <class F> std::string error_of(std::string_view text, F read, bool comp
 int main()
 {
     using namespace xpp::setx;
+
+    /* A 4 MiB punctuation-only file is refused before the token vector can grow without bound. */
+    const std::string punctuation(4u * 1024 * 1024, ',');
+    const auto too_many = read_block("test", "punctuation.setx", punctuation, true, [](Block &) { return 0; });
+    CHECK(!too_many);
+    if (!too_many) {
+        CHECK(too_many.error().place.file == "punctuation.setx" && too_many.error().place.line == 1);
+        CHECK(too_many.error().place.col == static_cast<int>(xpp::odex::max_file_tokens) + 1);
+        CHECK(too_many.error().place.source == punctuation);
+        CHECK(too_many.error().what.find("tokens") != std::string::npos);
+    }
+
+    /* The budget still admits both full 10000-segment nullcline coordinate lists. */
+    constexpr std::size_t curve_coordinates = 40000; /* Four coordinates per allowed segment. */
+    std::string curves;
+    for (const char *key : {"x", "y"}) {
+        curves += std::string(key) + ": [";
+        for (std::size_t i = 0; i < curve_coordinates; ++i) curves += i ? ",0" : "0";
+        curves += "],\n";
+    }
+    CHECK(error_of(curves, [=](Block &b) {
+        std::vector<double> x, y;
+        b.reals("x", x, curve_coordinates);
+        b.reals("y", y, curve_coordinates);
+        CHECK(x.size() == curve_coordinates && y.size() == curve_coordinates);
+        return 0;
+    }).empty());
 
     /* written, then read back: every kind of value */
     Out out;
@@ -122,10 +150,10 @@ int main()
     for (int i = 0; i < max_depth + 2; i++) deep += " }";
     deep += ",\n";
     CHECK(error_of(deep, whole_a, false).find("nested at most") != std::string::npos);
-    /* a hostile file: a million groups inside each other is refused at the bound, not by the stack */
+    /* The token cap refuses a million nested groups even before the depth check. */
     std::string many = "a: ";
     for (int i = 0; i < 1000000; i++) many += "{k:";
-    CHECK(error_of(many, whole_a, false).find("nested at most") != std::string::npos);
+    CHECK(error_of(many, whole_a, false).find("tokens") != std::string::npos);
     /* an exact list of numbers wants its count */
     CHECK(error_of("rm: [1, 2, 3],\n", [](Block &b) { std::vector<double> v(9); b.reals("rm", std::span<double>(v)); return 0; }).find("3 numbers: 9 are due") != std::string::npos);
 

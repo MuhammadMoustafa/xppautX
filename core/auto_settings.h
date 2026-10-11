@@ -23,6 +23,11 @@ namespace xpp {
 
 struct Session; /* session.h */
 
+/* 10000 intervals far exceed shipped meshes while bounding AUTO's mesh-sized matrices. */
+inline constexpr int auto_max_mesh_intervals = 10000;
+/* AUTO's collocation coefficients support only orders 2 through 7 (autlib1.cpp cpnts). */
+inline constexpr int auto_max_collocation_points = 7;
+
 /* the Numerics form's fields, in its order (auto_num_par) */
 enum {
     AUTO_NUM_NTST, AUTO_NUM_NMX, AUTO_NUM_NPR, AUTO_NUM_NCOL,

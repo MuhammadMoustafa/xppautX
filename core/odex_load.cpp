@@ -35,6 +35,15 @@
 
 namespace xpp::odex {
 
+std::optional<std::string> range_problem(int first, int last, int step)
+{
+  const long long distance = static_cast<long long>(last) - first;
+  const long long count = (distance < 0 ? -distance : distance) / step + 1;
+  if (count > max_range_length)
+    return xpp::format("the range has {} elements, more than the maximum {}", count, max_range_length);
+  return std::nullopt;
+}
+
 namespace {
 
 
@@ -279,6 +288,7 @@ private:
       if (step <= 0) fail(r.step.pos, xpp::format("the range's step is a whole number above 0, not {}", step));
       if (hi < lo) fail(r.lo.pos, xpp::format("the range {}..{} is empty: a range counts up from its first index to "
                                               "its last", lo, hi));
+      if (const auto why = range_problem(lo, hi, step)) fail(r.pos, *why);
       group++;
       group_ = group, lo_ = lo, hi_ = hi, step_ = step;
       for (int k = lo; k <= hi; k += step) {

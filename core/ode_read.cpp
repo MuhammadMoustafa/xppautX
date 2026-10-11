@@ -14,6 +14,7 @@
    old-style model (the number of equations on its first line) is read
    and built line by line (form_ode.cpp's build_old_style). */
 #include "ode_read.h"
+#include <limits>
 #include "comline.h"
 #include "expr.h"
 #include "flags.h"
@@ -1251,8 +1252,17 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Mo
       }
     }
   }
+  if (Load::running()) {
+    for (const std::string *end : {&num1,&num2}) {
+      double value=0;
+      if (parse_number(*end,value) && (value < std::numeric_limits<int>::min() || value > std::numeric_limits<int>::max()))
+        model_failed(xpp::format("the range endpoint `{}` is outside the whole-number index range",*end));
+    }
+  }
   *i1=atoi(num1.c_str());
   *i2=atoi(num2.c_str());
+  if (Load::running())
+    if (const auto why = odex::range_problem(*i1,*i2,1)) model_failed(*why);
   /* now we have the numbers and will get rid of the junk inbetween */
   newstr.assign(old,old+ileft+1);
   if(iright>0){

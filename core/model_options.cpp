@@ -8,6 +8,8 @@
 #include <string_view>
 
 #include "model_options.h"
+#include "auto_settings.h"
+#include "xpp_session_auto.h"
 #include "browse.h"
 #include "colormap.h"
 #include "expr_native.h"
@@ -153,7 +155,7 @@ constexpr OptionRow rows[] = {
    .whole = member([](auto &s) -> auto & { return s.numerics.nullcline_mesh; }),
    /* a 40 by 40 grid: smooth nullclines, quickly */
    .reset = [](Session &s) { s.numerics.nullcline_mesh = 40; },
-   .key = "nullcline_mesh", .label = "Nullcline mesh", .rule = OptionRule::whole_positive, .saved = true},
+   .key = "nullcline_mesh", .label = "Nullcline mesh", .rule = OptionRule::whole_positive, .maximum = option_limit::mesh, .saved = true},
   {.group = option_group::numerics, .kind = OptionKind::whole, .name = "SINGPT_MAX_ITERATES", .xppaut_names = {"NEWT_ITER"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics.singpt_max_iterates; }),
    /* Newton's method converges in far fewer or not at all */
@@ -260,11 +262,11 @@ constexpr OptionRow rows[] = {
      call near (odex_load.cpp scan_neartol); nothing to set at run time */
   {.group = option_group::numerics, .name = "NEARTOL", .rule = OptionRule::positive},
   {.group = option_group::numerics, .kind = OptionKind::whole, .name = "VMAXPTS", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.numerics.max_points; }), .use = OptionUse::integral_history, .saved = true},
+   .whole = member([](auto &s) -> auto & { return s.numerics.max_points; }), .rule = OptionRule::whole_positive, .maximum = option_limit::history_points, .use = OptionUse::integral_history, .saved = true},
   {.group = option_group::numerics, .kind = OptionKind::whole, .name = "STORAGE_ROWS", .xppaut_names = {"MAXSTOR"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.data_store.max_rows; }),
    /* rows the data store starts with: a run of 5000 steps (it grows) */
-   .reset = [](Session &s) { s.data_store.max_rows = 5000; }},
+   .reset = [](Session &s) { s.data_store.max_rows = 5000; }, .rule = OptionRule::whole_positive, .maximum = option_limit::storage_rows},
   {.group = option_group::numerics, .kind = OptionKind::number, .name = "TORUS_PERIOD", .xppaut_names = {"TOR_PER"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.torus_period; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -288,14 +290,14 @@ constexpr OptionRow rows[] = {
      if (const char *why = whole_into(s.numerics.cv_bandupper, v)) return why;
      if (v.apply) s.numerics.cv_bandflag = 1;
      return nullptr;
-   }},
+   }, .rule = OptionRule::nonnegative, .maximum = option_limit::bandwidth},
   {.group = option_group::numerics, .kind = OptionKind::whole, .name = "BANDLO", .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics.cv_bandlower; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      if (const char *why = whole_into(s.numerics.cv_bandlower, v)) return why;
      if (v.apply) s.numerics.cv_bandflag = 1;
      return nullptr;
-   }},
+   }, .rule = OptionRule::nonnegative, .maximum = option_limit::bandwidth},
   {.group = option_group::numerics, .kind = OptionKind::choice, .name = "POINCARE_MAP", .xppaut_names = {"POIMAP"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics.poincare_map; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -652,13 +654,13 @@ constexpr OptionRow rows[] = {
 
   /* ---- AUTO ---- */
   {.group = option_group::auto_, .kind = OptionKind::whole, .name = "NTST", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.ntst; })},
+   .whole = member([](auto &s) -> auto & { return s.auto_state.options.ntst; }), .rule = OptionRule::whole_positive, .maximum = auto_max_mesh_intervals},
   {.group = option_group::auto_, .kind = OptionKind::whole, .name = "NMAX", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.nmx; })},
+   .whole = member([](auto &s) -> auto & { return s.auto_state.options.nmx; }), .rule = OptionRule::whole_positive, .maximum = static_cast<int>(snapx::auto_members::saved_points_limit)},
   {.group = option_group::auto_, .kind = OptionKind::whole, .name = "NPR", .once = true,
    .whole = member([](auto &s) -> auto & { return s.auto_state.options.npr; })},
   {.group = option_group::auto_, .kind = OptionKind::whole, .name = "NCOL", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.ncol; })},
+   .whole = member([](auto &s) -> auto & { return s.auto_state.options.ncol; }), .rule = OptionRule::whole_positive, .maximum = auto_max_collocation_points},
   {.group = option_group::auto_, .kind = OptionKind::number, .name = "DSMIN", .once = true,
    .real = member([](auto &s) -> auto & { return s.auto_state.options.dsmin; })},
   {.group = option_group::auto_, .kind = OptionKind::number, .name = "DSMAX", .once = true,
@@ -712,7 +714,7 @@ constexpr OptionRow rows[] = {
   {.group = option_group::histogram, .kind = OptionKind::number, .name = "HISTHI", .once = true,
    .real = member([](auto &s) -> auto & { return s.histogram.info.xhi; })},
   {.group = option_group::histogram, .kind = OptionKind::whole, .name = "HISTBINS", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.histogram.info.nbins; })},
+   .whole = member([](auto &s) -> auto & { return s.histogram.info.nbins; }), .rule = OptionRule::whole_positive, .maximum = option_limit::histogram_bins},
   {.group = option_group::histogram, .kind = OptionKind::name, .name = "HISTCOL", .once = true,
    .whole = member([](auto &s) -> auto & { return s.histogram.info.col; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -723,7 +725,7 @@ constexpr OptionRow rows[] = {
   {.group = option_group::histogram, .kind = OptionKind::number, .name = "HISTHI2", .once = true,
    .real = member([](auto &s) -> auto & { return s.histogram.info.yhi; })},
   {.group = option_group::histogram, .kind = OptionKind::whole, .name = "HISTBINS2", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.histogram.info.nbins2; })},
+   .whole = member([](auto &s) -> auto & { return s.histogram.info.nbins2; }), .rule = OptionRule::whole_positive, .maximum = option_limit::histogram_bins},
   {.group = option_group::histogram, .kind = OptionKind::name, .name = "HISTCOL2", .once = true,
    .whole = member([](auto &s) -> auto & { return s.histogram.info.col2; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -740,7 +742,7 @@ constexpr OptionRow rows[] = {
      return variable_into(s, s.histogram.spec_col2, v);
    }},
   {.group = option_group::histogram, .kind = OptionKind::whole, .name = "SPECWIDTH", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.histogram.spec_wid; })},
+   .whole = member([](auto &s) -> auto & { return s.histogram.spec_wid; }), .rule = OptionRule::whole_positive, .maximum = option_limit::spectrum_samples},
   {.group = option_group::histogram, .kind = OptionKind::whole, .name = "SPECWIN", .once = true,
    .whole = member([](auto &s) -> auto & { return s.histogram.spec_win; })},
 
@@ -832,8 +834,9 @@ const OptionRow &once_option(std::string_view name)
   return *std::ranges::find_if(rows, [name](const OptionRow &r) { return r.once && r.name == name; });
 }
 
-const char *rule_problem(OptionRule rule, double v)
+const char *rule_problem(OptionRule rule, double v, int maximum)
 {
+  if (maximum && v > maximum) return "exceeds the allocation maximum";
   switch (rule) {
   case OptionRule::nonzero: return v != 0 ? nullptr : "must be a number other than 0";
   case OptionRule::positive: return v > 0 ? nullptr : "must be a number above 0";
@@ -958,9 +961,9 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   const OptionSource source{force, mask};
   const OptionValue v{text.c_str(), index, source, apply};
   const char *why = nullptr;
-  /* a number the setting's rule refuses (a parser checks its own) */
+  /* Check the row's shared numeric bounds before its parser can apply a value. */
   double x = 0;
-  const char *refused = !row->parse && parse_number(text, x) ? rule_problem(row->rule, x) : nullptr;
+  const char *refused = parse_number(text, x) ? rule_problem(row->rule, x, row->maximum) : nullptr;
   if (row->zero_or_one && text != "0" && text != "1") why = "not 0 or 1";
   else if (row->once && !source.may(s, *row)) return std::nullopt;
   else if (refused) why = refused;

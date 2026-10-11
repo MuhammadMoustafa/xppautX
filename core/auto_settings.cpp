@@ -15,6 +15,7 @@
 #include "model.h"
 #include "session.h"
 #include "auto_settings.h"
+#include "xpp_session_auto.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
 #include <algorithm>
@@ -47,10 +48,10 @@ struct NumField {
 
 /* the Numerics form's fields and what AUTO accepts for each */
 constexpr NumField num_fields[AUTO_NUM_N] = {
-    {"ntst", "Ntst", true, Rule::range, 1, INT_MAX},
-    {"nmx", "Nmax", true, Rule::range, 1, INT_MAX},
+    {"ntst", "Ntst", true, Rule::range, 1, auto_max_mesh_intervals},
+    {"nmx", "Nmax", true, Rule::range, 1, static_cast<int>(snapx::auto_members::saved_points_limit)},
     {"npr", "NPr", true, Rule::range, 1, INT_MAX},
-    {"ncol", "Ncol", true, Rule::range, 2, 7},
+    {"ncol", "Ncol", true, Rule::range, 2, auto_max_collocation_points},
     {"ds", "Ds", false, Rule::nonzero, 0, 0},
     {"dsmin", "Dsmin", false, Rule::positive, 0, 0},
     {"dsmax", "Dsmax", false, Rule::positive, 0, 0},

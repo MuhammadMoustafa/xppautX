@@ -151,7 +151,7 @@ bool check(xpp::Session &s, const OptionRow &f, std::string_view text, double &v
         why = xpp::format("{} must be a number", f.label);
         return false;
     }
-    if (const char *no = rule_problem(f.rule, v)) {
+    if (const char *no = rule_problem(f.rule, v, f.maximum)) {
         why = xpp::format("{} {}", f.label, no);
         return false;
     }
@@ -274,7 +274,7 @@ std::optional<std::string> setting_problem(xpp::Session &s, const OptionRow &row
         /* the rule's words, with the setting's label before them, as the Numerics menu says them */
         double v = 0;
         if (!row.label.empty() && xpp::parse_number(text, v))
-            if (const char *no = rule_problem(row.rule, v)) return xpp::format("{} {}", row.label, no);
+            if (const char *no = rule_problem(row.rule, v, row.maximum)) return xpp::format("{} {}", row.label, no);
         return option_problem(s, row.name, text, false);
     }
     double v = 0;

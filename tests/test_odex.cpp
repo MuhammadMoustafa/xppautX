@@ -570,6 +570,16 @@ int main(void)
   CHECK_STR(lowered("x[j]' = 1 for j in 0..1\ntable w \"w.tab\"\nnetwork k[j] = conv(even, 2, 1, w, x[j]) for j in 0..1\n").c_str(),
             "x0'=1|x1'=1|table w % 0 0 0 0|special k0=conv(even,2,1,w,x0)|special k1=conv(even,2,1,w,x1)");
   /* what an array refuses, at its line and column, naming the copy */
+  /* A native range is checked before copying; a large step counts only its copies. */
+  CHECK(starts(lowered("x[j]' = 1 for j in 0..100000\n"), "error 1:11 the range has 100001 elements, more than the maximum 100000"));
+  CHECK(lowered("x[j]' = 1 for j in 0..1000000000 by 1000000000\n").find("error") == std::string::npos);
+  try {
+    xpp::odex::parse(xpp::client_session().model(), std::string(4u * 1024 * 1024, ','), "punctuation.odex");
+    CHECK(false);
+  } catch (const Error &e) {
+    CHECK(e.place.file == "punctuation.odex" && e.place.line == 1);
+    CHECK(e.what.find("tokens") != std::string::npos);
+  }
   CHECK(starts(lowered("x[j]' = y[j] for j in 1..2\n"), "error 1:9 the name `y1` is not declared (where j = 1)"));
   CHECK(starts(lowered("x[j]' = x[j-1] for j in 0..1\n"), "error 1:11 the index of x `j-1` is -1: an element's index is 0 or more (where j = 0)"));
   CHECK(starts(lowered("par j = 1\nx[j]' = 1 for j in 1..2\n"), "error 2:15 the index `j` is a parameter, declared at 1:5"));

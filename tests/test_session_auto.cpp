@@ -408,6 +408,10 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     cut["auto/settings.txt"] = keyed(settings, "ncol", "9");
     const xpp::Result<xpp::snapx::auto_members::Members> refused = xpp::snapx::auto_members::members_read(xpp::client_session(), cut, "auto/", "lecar.snapx");
     CHECK(!refused && refused.error().place.line == xpp::AUTO_NUM_NCOL + 1 && refused.error().place.source == "ncol 9");
+    cut["auto/settings.txt"] = keyed(settings, "ntst", std::to_string(xpp::auto_max_mesh_intervals + 1));
+    const auto mesh_refused = xpp::snapx::auto_members::members_read(xpp::client_session(), cut, "auto/", "lecar.snapx");
+    CHECK(!mesh_refused);
+    if (!mesh_refused) CHECK(mesh_refused.error().place.file == "lecar.snapx/auto/settings.txt" && mesh_refused.error().place.line == 1);
     CHECK(same_diagram(s.diagram.points, imported));
     CHECK(file_text(xpp::auto_solutions_file(xpp::client_session())) == solutions);
 

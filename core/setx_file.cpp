@@ -81,6 +81,7 @@ public:
     Put(setx::Out &out, const Session *s) : out_(out), s_(s) {}
     void operator()(std::string_view key, double v) { out_.real(key, v); }
     void operator()(std::string_view key, int v) { out_.whole(key, v); }
+    void dimension(std::string_view key, int v) { (*this)(key, v); }
     void flag(std::string_view key, int v) { out_.whole(key, v); }
     /* a name (bare when it can be) / a formula or any other text (quoted) */
     void word(std::string_view key, const std::string &v) { out_.word(key, v); }
@@ -132,6 +133,12 @@ public:
     Take(setx::Block &block, Session *s) : block_(block), s_(s) {}
     void operator()(std::string_view key, double &v) { block_.number(key, v); }
     void operator()(std::string_view key, int &v) { block_.whole(key, v); }
+    void dimension(std::string_view key, int &v)
+    {
+        if (!block_.whole(key, v)) return;
+        if (const char *why = rule_problem(OptionRule::whole_positive, v, settings_dimension_limit))
+            block_.fail(*block_.member(key), xpp::format("`{}={}`: {} (maximum {})", key, v, why, settings_dimension_limit));
+    }
     void flag(std::string_view key, int &v)
     {
         bool on = v != 0;
@@ -328,8 +335,8 @@ template <class IO, class S> void describe(IO &io, S &f, const Names &n)
         });
     io.group(group::transpose, [&](IO &t) {
         t.text("first_column", f.transpose.firstcol);
-        t("columns", f.transpose.ncol);
-        t("rows", f.transpose.nrow);
+        t.dimension("columns", f.transpose.ncol);
+        t.dimension("rows", f.transpose.nrow);
         t("row_skip", f.transpose.rowskip);
         t("col_skip", f.transpose.colskip);
         t("row0", f.transpose.row0);
@@ -337,9 +344,9 @@ template <class IO, class S> void describe(IO &io, S &f, const Names &n)
     io.named(group::coupling, n.equations, f.coupling);
     io.group(group::array_plot, [&](IO &a) {
         a.text("first_column", f.aplot.name);
-        a("columns", f.aplot.nacross);
+        a.dimension("columns", f.aplot.nacross);
         a("first_row", f.aplot.nstart);
-        a("rows", f.aplot.ndown);
+        a.dimension("rows", f.aplot.ndown);
         a("row_skip", f.aplot.nskip);
         a("zmin", f.aplot.zmin);
         a("zmax", f.aplot.zmax);
@@ -380,6 +387,10 @@ class Shape {
 public:
     void operator()(std::string_view key, double) { prop(key, "{\"type\": \"number\"}"); }
     void operator()(std::string_view key, int) { prop(key, "{\"type\": \"integer\"}"); }
+    void dimension(std::string_view key, int)
+    {
+        prop(key, option_value_schema(OptionRow{.kind = OptionKind::whole, .rule = OptionRule::whole_positive, .maximum = settings_dimension_limit}));
+    }
     void flag(std::string_view key, int) { prop(key, "{\"type\": \"integer\", \"enum\": [0, 1]}"); }
     void word(std::string_view key, const std::string &) { prop(key, "{\"type\": \"string\"}"); }
     void text(std::string_view key, const std::string &) { prop(key, "{\"type\": \"string\"}"); }

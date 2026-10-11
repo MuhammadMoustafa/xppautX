@@ -90,7 +90,7 @@ constexpr std::string_view XPPAUT_STORE_EVERY="nout";
 void keep_setting(const xpp::Session &s, Lines &l, Settings &f, int method, std::string_view key, double v)
 {
   const OptionRow *row=saved_setting(key);
-  if(const char *no=rule_problem(row->rule,v))l.fail(xpp::format("{} {}",row->label.empty()?key:row->label,no));
+  if(const char *no=rule_problem(row->rule,v,row->maximum))l.fail(xpp::format("{} {}",row->label.empty()?key:row->label,no));
   if(setting_applies(s,*row,method))f.set_setting(row,xpp::number(v));
 }
 
@@ -124,7 +124,7 @@ void read_numerics(const xpp::Session &s, Lines &l, Settings &f)
   f.set_setting(saved_setting("method"),std::string(xpp::solver_info(method).key));
   const auto early=[&](int line, std::string_view key, int v){
     const OptionRow *row=saved_setting(key);
-    if(const char *no=rule_problem(row->rule,v))l.fail(line,xpp::format("{} {}",row->label,no));
+    if(const char *no=rule_problem(row->rule,v,row->maximum))l.fail(line,xpp::format("{} {}",row->label,no));
     f.set_setting(row,xpp::number(v));
   };
   early(store_every_line,"store_every",store_every);
@@ -264,13 +264,22 @@ void read_graph(const xpp::Session &s, Lines &l, GRAPH &g)
   }
 }
 
+/* Allocation dimensions share the native settings reader's rule and cap. */
+int read_dimension(Lines &l, std::string_view label)
+{
+  const int v=l.whole(label,true);
+  if(const char *why=rule_problem(OptionRule::whole_positive,v,settings_dimension_limit))
+    l.fail(xpp::format("{}={}: {} (maximum {})",label,v,why,settings_dimension_limit));
+  return v;
+}
+
 void read_more(const xpp::Session &s, Lines &l, Settings &f)
 {
   auto &t=f.transpose;
   l.heading("# Transpose variables etc");
   t.firstcol=l.next("Transpose's first column");
-  t.ncol=l.whole("n columns",true);
-  t.nrow=l.whole("n rows",true);
+  t.ncol=read_dimension(l,"n columns");
+  t.nrow=read_dimension(l,"n rows");
   t.rowskip=l.whole("row skip",true);
   t.colskip=l.whole("col skip",true);
   t.row0=l.whole("row 0",true);
@@ -281,9 +290,9 @@ void read_more(const xpp::Session &s, Lines &l, Settings &f)
   APLOT &a=f.aplot;
   l.heading("# Array plot stuff");
   a.name=l.next("the array plot's first column");
-  a.nacross=l.whole("NCols",true);
+  a.nacross=read_dimension(l,"NCols");
   a.nstart=l.whole("Row 1",true);
-  a.ndown=l.whole("NRows",true);
+  a.ndown=read_dimension(l,"NRows");
   a.nskip=l.whole("RowSkip",true);
   a.zmin=l.real("Zmin",true);
   a.zmax=l.real("Zmax",true);

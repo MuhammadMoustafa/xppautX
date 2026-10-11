@@ -10,7 +10,7 @@
       "start_time": {"type": "number", "description": "Start time"},
       "transient_time": {"type": "number", "description": "Transient time"},
       "dt": {"type": "number", "description": "Dt"},
-      "nullcline_mesh": {"type": "integer", "minimum": 1, "description": "Nullcline mesh"},
+      "nullcline_mesh": {"type": "integer", "minimum": 1, "maximum": 4096, "description": "Nullcline mesh"},
       "singpt_max_iterates": {"type": "integer", "minimum": 1, "description": "Sing pt: maximum iterates"},
       "singpt_newton_tolerance": {"type": "number", "exclusiveMinimum": 0, "description": "Sing pt: Newton tolerance"},
       "singpt_jacobian_epsilon": {"type": "number", "exclusiveMinimum": 0, "description": "Sing pt: Jacobian epsilon"},
@@ -28,7 +28,7 @@
       "bvp_max_iterates": {"type": "number", "minimum": 1, "description": "BVP maximum iterates"},
       "bvp_tolerance": {"type": "number", "exclusiveMinimum": 0, "description": "BVP tolerance"},
       "bvp_epsilon": {"type": "number", "exclusiveMinimum": 0, "description": "BVP epsilon"},
-      "vmaxpts": {"type": "integer"},
+      "vmaxpts": {"type": "integer", "minimum": 1, "maximum": 10000000},
       "poincare_map": {"type": "string", "enum": ["none", "section", "max", "period"]},
       "poincare_variable": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
       "poincare_sign": {"type": "integer"},
@@ -87,8 +87,8 @@
     }},
     "transpose": {"type": "object", "additionalProperties": false, "properties": {
       "first_column": {"type": "string"},
-      "columns": {"type": "integer"},
-      "rows": {"type": "integer"},
+      "columns": {"type": "integer", "minimum": 1, "maximum": 4096},
+      "rows": {"type": "integer", "minimum": 1, "maximum": 4096},
       "row_skip": {"type": "integer"},
       "col_skip": {"type": "integer"},
       "row0": {"type": "integer"}
@@ -96,9 +96,9 @@
     "coupling": {"type": "object", "additionalProperties": {"type": "string"}},
     "array_plot": {"type": "object", "additionalProperties": false, "properties": {
       "first_column": {"type": "string"},
-      "columns": {"type": "integer"},
+      "columns": {"type": "integer", "minimum": 1, "maximum": 4096},
       "first_row": {"type": "integer"},
-      "rows": {"type": "integer"},
+      "rows": {"type": "integer", "minimum": 1, "maximum": 4096},
       "row_skip": {"type": "integer"},
       "zmin": {"type": "number"},
       "zmax": {"type": "number"}

@@ -49,6 +49,13 @@ inline constexpr int max_include_depth = 16;
    small files without end (docs/odex.md "Imports"). */
 inline constexpr int max_imports = 256;
 
+/* 262144 tokens allow two full nullcline curves while capping token objects at 20 MiB. */
+inline constexpr std::size_t max_file_tokens = 262144;
+/* 100000 copies allow large arrays while refusing tiny files that expand billions of lines. */
+inline constexpr int max_range_length = 100000;
+/* Shared by the foreign .ode and native .odex readers before making any copies. */
+std::optional<std::string> range_problem(int first, int last, int step);
+
 /* a place in a model: which of Parsed::files, the line and the column
    (both from 1) */
 struct Pos {
