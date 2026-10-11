@@ -39,6 +39,7 @@ The sections below give the details.
 | Rule | Enforced by |
 |---|---|
 | One codebase: every rule here and every cleaning, unification, limit lift or refactor covers all of core/, AUTO's files included (autlib*, auto_*, autevd, autpp, setubv*, gogoauto, diagram); vendored means third_party/ only, and AUTO's translated Fortran is ours: a numerical routine's shape may stay only where changing it would change the numbers, and everything around it (sizes, memory, files, logging, errors, state, helpers) follows every rule; a card that leaves a part of core/ out says so in its row, with the reason and its follow-up card (maintainer, 2026-10-11: W243 lifted every limit but AUTO's; W301, #359) | review (the reviewer greps AUTO's files for every operation the card touched); AUTO's numeric baseline (W299) |
+| One behaviour, three front ends: a decision is made once in the core, and the window, `--server` and `--silent` (and `--convert`, `--check`) differ only in how it is shown (a dialog, an `ask`, the terminal); a bug found in some modes only is fixed where the logic split, never per mode, and its check runs in every mode; only presentation itself (the OS file picker, the window's menu, terminal input) is a front end's own (maintainer, 2026-10-11; W304, #363; W305, #364) | review; servercheck in each mode |
 | Single source: one module owns each kind of operation (memory, logging, text, files, dialogs, numerics); a new helper goes into its owner, two copies are merged (Conventions); no logic is written before the common files and the code are searched for it, and the report says what was searched and reused (maintainer, 2026-10-01; Task agents) | dupcheck (textual copies); review (the same algorithm in other words, and the report's search) |
 | One name per thing: no namespace alias, type alias, using-declaration or renaming #define of our own names (W113) | aliascheck |
 | No global state: what a load makes is the Model's, what a run changes the Session's, passed as `Model&`/`Session&`; the session list is the only global (W47) | globalcheck (external and internal-linkage state, each baseline line with its reason, W120), sessioncheck |
@@ -456,6 +457,26 @@ are the two files that include no core header but small APIs:
 `core/xpp_http.cpp` (sockets) and `core/xpp_window.cpp` (the desktop
 window's menu bar, dialogs and icon, behind `_WIN32`); windows.h never
 reaches a header.
+
+XPPAUT itself (the reference program, for comparisons and benchmarks;
+maintainer, 2026-10-11: W248's agent took Windows XPPAUT for unrunnable
+and skipped it):
+
+- `-silent` (integration only) needs no X server, on either system;
+  neither do any of xppautX's modes. XPPAUT's AUTO has no batch mode, so
+  any AUTO run in XPPAUT needs its window and an X server.
+- WSL: built from reference/xppaut-8.0
+  (paper/benchmarks/five-model-screen/build.py), its window on a private
+  Xvfb, driven with xdotool (paper/benchmarks/auto/hopf_xppaut.py).
+- Windows: the distributed XPPAUT 8.0, `C:\xppall\xppaut.exe` (32-bit
+  cygwin, its X11 DLLs beside it), shows its window through Xming
+  (`C:\Program Files (x86)\Xming`: start `Xming.exe :0 -multiwindow`, or
+  XLaunch, then `DISPLAY=localhost:0`). W244's native UCRT build has its
+  X11 stubbed: it runs `-silent` only, never AUTO. Driving XPPAUT's keys
+  needs an X client that reaches Xming's display, such as WSL's xdotool
+  with `DISPLAY` set to the Windows host's `:0`, after Xming allows it
+  (`X0.hosts`, or `-ac`). That route is untested: a card that needs it
+  tries it, and reports what it found instead of skipping Windows.
 
 ## Cards: names and issues
 
