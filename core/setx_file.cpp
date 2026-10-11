@@ -77,7 +77,6 @@ void read_named(const Model &model, setx::Block &g, std::span<const std::string>
 /* writes what a description names */
 class Put {
 public:
-    static constexpr bool reading = false;
     /* s: the session whose model names the keys; none for a window's settings alone */
     Put(setx::Out &out, const Session *s) : out_(out), s_(s) {}
     void operator()(std::string_view key, double v) { out_.real(key, v); }
@@ -129,7 +128,6 @@ private:
 /* reads what a description names */
 class Take {
 public:
-    static constexpr bool reading = true;
     /* s: the session whose model names the keys; none for a window's settings alone */
     Take(setx::Block &block, Session *s) : block_(block), s_(s) {}
     void operator()(std::string_view key, double &v) { block_.number(key, v); }
@@ -380,7 +378,6 @@ template <class IO, class S> void describe(IO &io, S &f, const Names &n)
    schema of a .setx: setx_schema) */
 class Shape {
 public:
-    static constexpr bool reading = false;
     void operator()(std::string_view key, double) { prop(key, "{\"type\": \"number\"}"); }
     void operator()(std::string_view key, int) { prop(key, "{\"type\": \"integer\"}"); }
     void flag(std::string_view key, int) { prop(key, "{\"type\": \"integer\", \"enum\": [0, 1]}"); }

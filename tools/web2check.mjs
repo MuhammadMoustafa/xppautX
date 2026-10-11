@@ -4253,7 +4253,7 @@ async function keysCheck() {
   await key('f');
   await until('s.pendingKeys.length === 1', 'file chord after unfinished command');
   await key('r');
-  check('keys: after cancelling I, F R opens the intended settings file picker', await until('s.ask && s.ask.kind === "file" && s.ask.wild === "*.set"', 'import settings'));
+  check('keys: after cancelling I, F R opens the intended settings file picker', await until('s.ask && s.ask.kind === "file" && s.ask.wild === "*.setx *.set"', 'import settings'));
   await key('Escape');
   await until('!s.ask && !s.busy', 'cancel settings picker');
   /* a button that kept the focus after a click: letters typed on it are XPP's, Enter stays the button's */
@@ -4275,11 +4275,11 @@ async function keysCheck() {
     await until("s.ask && s.ask.kind === 'string' && /^set[0-9]+$/.test(s.ask.value)", 'name ask'), JSON.stringify(await S('s.ask')));
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: 'mine'})`);
   check('copy set: the line is shown for confirmation before it is copied',
-    await until("s.ask && s.ask.kind === 'choice' && s.ask.question.includes('set mine {') && s.ask.question.includes('iapp=')", 'line ask'),
+    await until("s.ask && s.ask.kind === 'choice' && s.ask.question.includes('set mine {') && s.ask.question.includes('iapp: ')", 'line ask'),
     JSON.stringify(await S('s.ask')));
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'c'})`);
   check('copy set: the page receives the line (a toast holds it)',
-    await until("s.toasts.some(t => /set mine \{iapp=[^}]*,V=[^}]*\}/.test(t.text))", 'copy toast') && await until('!s.busy', 'idle after copy'),
+    await until("s.toasts.some(t => /set mine \{ iapp: [^}]*, v: [^}]*\}/.test(t.text))", 'copy toast') && await until('!s.busy', 'idle after copy'),
     JSON.stringify(await S('s.toasts')));
   /* a letter typed into a field stays there */
   const sent0 = await cdp.eval('__xpp.sentCount()');
@@ -5512,7 +5512,7 @@ async function nativeFiles(dir) {
 
     check('File/Import settings in the window: answered from the native dialog', await fileKey('r', farSet));
     const r = await asked();
-    check('... asked to open, filtered by *.set', r && r.mode === 'read' && JSON.stringify(r.exts) === '[".set"]', JSON.stringify(r));
+    check('... asked to open, filtered by *.setx and *.set', r && r.mode === 'read' && JSON.stringify(r.exts) === '[".setx",".set"]', JSON.stringify(r));
     check('... the core read it where it is (its iapp is in), nothing copied',
       Math.abs(await par('iapp') - 0.09) < 1e-12 && (await lastFileAnswer())?.file === farSet
       && !fs.existsSync(path.join(dir, 'w88 native.set')) && !(await S('s.files.uploads.length')), String(await par('iapp')));

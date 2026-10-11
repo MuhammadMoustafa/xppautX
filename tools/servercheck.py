@@ -7241,7 +7241,8 @@ def check_outside_paths():
     this exact path, Allow once is for this load, Refuse (and --silent with no answer) stops the load at the
     model's line. --yes allows once, printed."""
     binary = os.path.abspath(args.server)
-    root = tempfile.mkdtemp(prefix='xppoutside')
+    # its real path: macOS's temp folder is under /var, a link to /private/var, and a link on the way is refused
+    root = os.path.realpath(tempfile.mkdtemp(prefix='xppoutside'))
     config = os.path.join(root, 'config')
     env = {'XPP_CONFIG_DIR': config}
     prefs = os.path.join(config, 'preferences.setx')
