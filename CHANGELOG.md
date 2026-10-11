@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- A model has no limit on its variables, parameters or symbols: XPPAUT stops at 5000 variables (`MAXODE`), 400 parameters and 10000 parser symbols, and xppautX sizes its tables by what the model declares (an old-style file's first line sizes nothing; the tables grow with the lines read). A model with over 4995 variables now also gets its primed variables, so Averaging and boundary value problems work for it. The data browser's Add column keeps room for 1000 added columns (W243, [#299](https://github.com/MuhammadMoustafa/xppautX/issues/299)).
+
 - `@ output=<file>` (and `output:` in a `.odex`'s `batch` group) names the batch data file as XPPAUT's batchout does: `--silent` writes there, from the model's folder, and a path that leaves the folder (`..`, an absolute one) stops the load with the file and line; a `.ode` used to convert it to the number 0 and write a file named `0` (W273, [#330](https://github.com/MuhammadMoustafa/xppautX/issues/330)).
 
 - Each AUTO branch records the Jacobian it was computed with (difference or exact, the setting at its run): the diagram data's runs and the info strip carry `jac`, the session's `auto/diagram.csv` and File/eXport CSV a `jacobian` column; a session saved before this has no such column and is refused with its file and line (W278, [#335](https://github.com/MuhammadMoustafa/xppautX/issues/335)).

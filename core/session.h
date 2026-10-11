@@ -63,6 +63,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace xpp {
 
@@ -71,6 +72,22 @@ struct Session {
   explicit Session(Model &m) noexcept : model_(&m) {}
   Session(const Session &)=delete;
   Session &operator=(const Session &)=delete;
+
+  /* Room for n variables, fixed variables and aux quantities in the
+     Session's per-variable tables (last_ic, delay_string, itor, bcs) and
+     the Model's (Model::size_variables); the builder calls it as the file
+     declares its variables. The new entries are 0, "0.0" (no history), 0
+     (no torus) and no boundary condition. */
+  void size_variables(int n)
+  {
+    const std::size_t k=static_cast<std::size_t>(n);
+    model_->size_variables(n);
+    if(last_ic.size()>=k)return;
+    last_ic.resize(k);
+    delay_string.resize(k,"0.0");
+    itor.resize(k);
+    bcs.resize(k);
+  }
 
   /* the Model this session runs */
   Model &model() noexcept { return *model_; }
@@ -111,13 +128,13 @@ struct Session {
   SolverWork solver_work;
   /* the initial data the next run starts from (the model's are
      Model::default_ic) */
-  std::array<double,MAXODE> last_ic{};
+  std::vector<double> last_ic;
   /* each variable's initial data as typed (a delay equation's history:
      "0.0" when it has none) */
-  std::array<std::string,MAXODE> delay_string;
+  std::vector<std::string> delay_string;
   /* each variable's torus flag: 1 when it is taken modulo the torus
      period (the nUmerics menu's Torus) */
-  std::array<int,MAXODE> itor{};
+  std::vector<int> itor;
 
   /* AUTO's settings, run parameters and scratch folder (auto_nox.cpp,
      autevd.cpp), the AUTO library's files and work arrays (autlib1.cpp,
@@ -176,7 +193,7 @@ struct Session {
   /* the boundary conditions in use, one per ODE: the Model's, copied at
      the end of a load, then changed by a `set` or a .set
      (set_bc_formula) and compiled when a shooting starts (pp_shoot.cpp) */
-  std::array<xpp::Model::BoundaryCondition,MAXODE> bcs;
+  std::vector<xpp::Model::BoundaryCondition> bcs;
 
   /* "_<name>" of the internal set applied last (use_intern_set), "" when
      none: a batch run's plot files are named after it (batch_plot_name) */

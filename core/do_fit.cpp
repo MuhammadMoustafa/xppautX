@@ -56,7 +56,8 @@ xpp::Result<> get_fit_info(xpp::Session &s, double *y, double *a, double *t0, do
  */
 {
   int i,iv,ip,istart=1,j,k,l,k0;
-  double yold[MAXODE],dp;
+  std::vector<double> yold(s.model().node);
+  double dp;
   double par;
 /* set up all initial data and parameter guesses  */
   for(l=0;l<npars;l++){
@@ -294,7 +295,7 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
   xpp::Result<> ok;
   int niter=0,good_flag=0;
   double tol10=10*tol;
-  double sig[MAXODE];
+  std::vector<double> sig(nvars);
   double chisq=0.0,ochisq=0.0,alambda=0.0;
 
   xpp::Result<xpp::DataTable> read=xpp::read_data_table(filename);
@@ -336,7 +337,7 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
 
   while(good_flag<3){  /* take 3 good steps after convergence  */
 
-    ok=marlevstep(s,t0,y0,y,sig,a,npts,nvars,npars,
+    ok=marlevstep(s,t0,y0,y,sig.data(),a,npts,nvars,npars,
 	       ivar,ipar,covar,alpha,&chisq,&alambda,work,
 	       yderv.data(),yfit,&ochisq,ictrl,eps);
     niter++;
@@ -367,7 +368,7 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
   ictrl=2;
   /* the covariance: a singular matrix here is still the fit's error, as
      it was shown before W63d */
-  if(auto last=marlevstep(s,t0,y0,y,sig,a,npts,nvars,npars,
+  if(auto last=marlevstep(s,t0,y0,y,sig.data(),a,npts,nvars,npars,
 	       ivar,ipar,covar,alpha,&chisq,&alambda,work,
 	       yderv.data(),yfit,&ochisq,ictrl,eps); !last)
     return std::unexpected(last.error());

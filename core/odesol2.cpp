@@ -119,7 +119,8 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
   int i;
   double err=0.0,err1=0.0;
   
-  int iter=0,info,ipivot[MAXODE1];
+  int iter=0,info;
+  int *const ipivot=s.solver_work.size_pivots(neq);
   const auto form=xpp::model_jacobian_form(s,neq);
   int ml=form.lower,mr=form.upper,mt=ml+mr+1;
   set_wieners(s,dt,y,*t);
@@ -409,7 +410,8 @@ int *istart,int n,double *work,int *ierr)
  /*double ninf;  Is this needed?*/
  const auto form=xpp::model_jacobian_form(s,n);
  int i,done=0,info,ml=form.lower,mr=form.upper,mt=ml+mr+1,entries=xpp::jacobian_entries(n,form);
- int ipivot[MAXODE1],nofailed;
+ int nofailed;
+ int *const ipivot=s.solver_work.size_pivots(n);
  double temp,err,tdel;
  double *k1,*k2,*k3,*f0,*f1,*f2,*dfdt,*ynew,*dfdy;
  *ierr=1;

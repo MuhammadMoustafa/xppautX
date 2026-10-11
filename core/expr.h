@@ -28,6 +28,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 #include "xpp_error.h"
 #include "xpp_io.h"
 
@@ -138,12 +139,23 @@ struct ParserState {
   void symbol_name_changed(int index);
   void forget_symbols_from(int index) const;
 
-  std::array<double, MAXPAR> constants{};
-  std::array<double, MAXODE1> variables{};
+  /* The constants (parameters), the variables and the symbols grow as
+     the model adds them (add_con, add_var, set_symbol), so a model has no
+     limit on their number (W243). A pointer into constants or variables
+     (value_slot) is valid until the next add. The symbols always keep
+     two entries past nsym, of which the last is the
+     compiler's temporary symbol. */
+  std::vector<double> constants;
+  std::vector<double> variables;
   int ncon = 0;
   int nsym = STDSYM;
   int errout = 0;
-  std::array<ExprSymbol, MAX_SYMBS> symbols;
+  std::vector<ExprSymbol> symbols;
+  /* room for the symbol nsym and the compiler's temporary one */
+  void room_for_symbol()
+  {
+    if (symbols.size() < static_cast<size_t>(nsym) + 3) symbols.resize(2 * symbols.size());
+  }
   ExprStack stack;
   /* --convert's rewrite of the old-style file being read (form_ode.cpp,
      markov.cpp), open while it is read */
@@ -153,8 +165,8 @@ struct ParserState {
      names (form_ode.cpp) */
   struct {
     int in_vars = 0, naux = 0;
-    std::vector<std::string> aux_names; /* MAXODE (begin_model) */
-    std::vector<std::string> fixname;   /* MAXODE1 (compiler) */
+    std::vector<std::string> aux_names; /* the n-th aux name (naux of them) */
+    std::vector<std::string> fixname;   /* the n-th fixed variable's name (--convert) */
   } build;
 private:
   void sync_symbols() const;

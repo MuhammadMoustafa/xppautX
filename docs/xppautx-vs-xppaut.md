@@ -225,8 +225,9 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 |---|---|---|---|
 | Name length | 10-11 characters; 25 in dialogs | none | W76 |
 | Model line, file name, comment lengths | fixed buffers | none | W29e |
-| Number of variables | `MAXODE` 5000 ([xpplim.h:4](../reference/xppaut-8.0/xpplim.h#L4)) | still 5000: the Model's tables are fixed-size (`core/xpplim.h`); not removed | - |
-| Parameters, flags, functions, tables, kernels, networks | 400, 2000, 50, 50, 50, 50 ([xpplim.h:8](../reference/xppaut-8.0/xpplim.h#L8)) | the same fixed limits, still enforced (`core/xpplim.h`: fixed arrays in model.h and session.h, checked in expr_symbols.cpp, flags.cpp, form_ode.cpp, simplenet.cpp); not removed yet | - |
+| Number of variables | `MAXODE` 5000 ([xpplim.h:4](../reference/xppaut-8.0/xpplim.h#L4)) | no limit: the tables are sized by the model as it loads, and the parser's symbols (`MAX_SYMBS` 10000) are unlimited too; memory is the bound (a generated model of 5200 equations, 450 parameters and 10404 variables loads and runs in tests/test_large_model.cpp). Added browser columns: 1000 (`DataStore::ADDED_COLUMNS`, was `MAXODE` minus the model's variables). A model of over 4995 variables also gets its primed variables, so Averaging and boundary value problems work (XPPAUT drops them there) | W243 |
+| Parameters | 400 ([xpplim.h:8](../reference/xppaut-8.0/xpplim.h#L8)) | none (W243) | W243 |
+| Flags, functions, tables, kernels, networks | 2000, 50, 50, 50, 50 ([xpplim.h:8](../reference/xppaut-8.0/xpplim.h#L8)) | the same fixed limits, still enforced (`core/xpplim.h`: fixed arrays in model.h and session.h, checked in expr_symbols.cpp, flags.cpp, form_ode.cpp, simplenet.cpp); not removed yet | - |
 | Stored lines of the model | 5000, overflowing by one ([findings #19](xppaut-findings.md)) | none | W29e |
 | Dialog field width | 25 characters ([graf_par.h:14](../reference/xppaut-8.0/graf_par.h#L14)) | none | W32c, W76 |
 | Fixed-width displays | names cut | `~` marks a shortened name in AUTO's printed columns only | W76 |

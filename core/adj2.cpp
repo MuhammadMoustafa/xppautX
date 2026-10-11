@@ -453,7 +453,7 @@ xpp::Result<> step_eul(double **jac, int k, int k2, double *yold, double *work, 
 {
 
 int j,i,n2=node*node,info;
-int ipvt[MAXODE];
+std::vector<int> ipvt(static_cast<std::size_t>(node));
 double *mat,*fold;
 fold=work;
 mat=work+node;
@@ -466,12 +466,12 @@ mat=work+node;
   for(j=0;j<node;j++)yold[j]=yold[j]+.5*dt*fold[j];
   for(i=0;i<n2;i++)mat[i]=-jac[i][k2]*dt*.5;
   for(i=0;i<node;i++)mat[i+i*node]=1.+mat[i+i*node];
-  xpp::sgefa(mat,node,node,ipvt,&info);
+  xpp::sgefa(mat,node,node,ipvt.data(),&info);
 if(info!=-1){
   
   return xpp::fail("adjoint","Uninvertible Jacobian",command_place());
 }
-xpp::sgesl(mat,node,node,ipvt,yold);
+xpp::sgesl(mat,node,node,ipvt.data(),yold);
 return {};
 }
 
@@ -539,8 +539,9 @@ void norm_vec(std::span<double> v, double &mu)
 
 xpp::Result<double> hrw_liapunov(xpp::Session &s, double eps)
 {
- double y[MAXODE];
- double yp[MAXODE],nrm,dy[MAXODE];
+ const std::size_t node=static_cast<std::size_t>(s.model().node);
+ std::vector<double> y(node),yp(node),dy(node);
+ double nrm;
  double t0,t1;
  double sum=0.0;
  int istart=1;
@@ -560,10 +561,10 @@ xpp::Result<double> hrw_liapunov(xpp::Session &s, double eps)
      istart=1;
      for(i=0;i<s.model().node;i++)
        y[i]=s.data_store.col[i+1][j]+dy[i];
-     if(auto st=one_step_int(s,y,t0,t1,&istart);!st)return std::unexpected(st.error());
+     if(auto st=one_step_int(s,y.data(),t0,t1,&istart);!st)return std::unexpected(st.error());
      for(i=0;i<s.model().node;i++)
        yp[i]=(y[i]-s.data_store.col[i+1][j+1]);
-     norm_vec(std::span(yp,s.model().node),nrm);
+     norm_vec(yp,nrm);
      nrm=nrm/eps;
      if(nrm==0.0){
        return xpp::fail("Liapunov","Liapunov: -infinity exponent!",command_place()); /* something wrong here */

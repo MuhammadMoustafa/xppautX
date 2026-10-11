@@ -28,6 +28,7 @@ double delay_stab_eval(xpp::Session &s, double delay, int var)  /* this returns 
 	if(delay==s.delay.list[i])
 	  return(getvar(s,var));
       }
+      if(s.delay.list.size()<=static_cast<std::size_t>(s.delay.ndelay))s.delay.list.resize(s.delay.ndelay+1);
       s.delay.list[s.delay.ndelay]=delay;
       s.delay.ndelay++;
       return(getvar(s,var));
@@ -151,7 +152,8 @@ double get_delay(xpp::Session &s, int in, double tau)
 /*  Handling of the initial data  */
 xpp::Result<> do_init_delay(xpp::Session &s, double big)
 {
- double t=s.numerics.start_time,old_t,y[MAXODE];
+ double t=s.numerics.start_time,old_t;
+ std::vector<double> y(s.model().node);
  int i,nt,j;
  int len;
 
@@ -179,7 +181,7 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
 	set_val(s,"t",t);
 	for(j=0;j<(s.model().node );j++)
 		y[j]=evaluate(s,del_form[j].data());
-	stor_delay(s,y);
+	stor_delay(s,y.data());
   }
    s.parser.ncon=s.model().ncon_start;
    s.parser.nsym=s.model().nsym_start;

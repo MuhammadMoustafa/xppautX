@@ -152,7 +152,8 @@ void init_sums(xpp::Session &s, double t0, int n, double dt, int i0, int iend, i
 {
   std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
    double t=t0+n*dt,tp=t0+i0*dt;
-   double sum[MAXODE],al,alpbet,mu;
+   std::array<double,MAXKER> sum;
+   double al,alpbet,mu;
    int nvar=s.model().fix_var+s.model().node+s.model().nmarkov;
    int l,ioff,ker,i;
    setvar(s,0,t);
@@ -298,7 +299,8 @@ int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, 
 
 int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac)
 {
- int i0,iend,ishift,i,iter=0,info,ipivot[MAXODE1],j,ind;
+ int i0,iend,ishift,i,iter=0,info,j,ind;
+ int *const ipivot=s.solver_work.size_pivots(s.model().node);
  int n1=s.model().node+1;
  double dt2=.5*dt,err;
  double del,yold,fac,delinv;

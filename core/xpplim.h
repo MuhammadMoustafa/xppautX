@@ -1,21 +1,25 @@
 #ifndef _xpplim_h_
 #define _xpplim_h_
 
-#define MAXODE 5000
-#define MAXODE1 4999
-#define MAXDELAY 50
-#define MAXPRIMEVAR (MAXODE-10)/2
-#define MAXPAR 400
-#define MAXFLAG 2000
-#define MAXDAE 400
-#define MAX_SYMBS 10000
-#define MAXUFUN 50
-#define MAX_TAB 50
-#define MAXKER 50
-#define MAXNET 50
-#define MAXMARK 200
-#define MAX_INTERN_SET 500
-/* a user function's arguments, and the longest compiled program (expr.h) */
+/* The limits of the parser's fixed tables. A model's variables, parameters
+   (constants) and symbols have none (W243): the tables grow with what the
+   file declares (Session::size_variables, Model::size_parameters,
+   ParserState::room_for_symbol), so MAXODE, MAXODE1, MAXPAR, MAX_SYMBS,
+   MAXPRIMEVAR and MAXDELAY are gone.
+
+   What stays counts something other than variables or parameters, in a
+   fixed array of its owner that no model has outgrown; raising one is its
+   own change. */
+#define MAXFLAG 2000       /* global flags (Model::flags) */
+#define MAXDAE 400         /* algebraic variables and equations (dae_fun.cpp) */
+#define MAXUFUN 50         /* user functions (expr_symbols.cpp) */
+#define MAX_TAB 50         /* lookup tables (Session::tables) */
+#define MAXKER 50          /* Volterra kernels (Model::kernels) */
+#define MAXNET 50          /* networks (simplenet.h) */
+#define MAXMARK 200        /* Markov chains (Model::markov) */
+#define MAX_INTERN_SET 500 /* internal sets (the @-sets a model names) */
+/* a user function's arguments, and the longest compiled program (expr.h):
+   the size of one compiled formula's buffer */
 #define MAXARG 20
 #define MAXEXPLEN 1024
 

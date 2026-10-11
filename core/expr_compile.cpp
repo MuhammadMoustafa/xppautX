@@ -22,7 +22,7 @@ namespace xpp {
 namespace {
 
 /* the symbol table (ParserState::symbols) the compiler reads */
-using Symbols=std::array<ExprSymbol,MAX_SYMBS>;
+using Symbols=std::vector<ExprSymbol>;
 
 int unary_sym(int token);
 int binary_sym(int token);
@@ -240,6 +240,8 @@ return(0);
 int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
 {
   Symbols &my_symb=s.parser.symbols;
+  /* the compiler's temporary symbol: ParserState keeps it past nsym */
+  const int temporary_token=static_cast<int>(my_symb.size())-2;
   xpp::Model &m=s.model();
   int tokstak[500],comptr=0,tokptr=0,lstptr=0,temp;
   int ncomma=0;
@@ -263,11 +265,11 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
    /* !! */   if(is_uvar(temp))
 	   {
 	    /* ram -- is this right? not sure I understand what was happening here */
-	    my_symb[LASTTOK].com=COM(SVARTYPE,temp%MAXTYPE); /* create a temporary sybol */
+	    my_symb[temporary_token].com=COM(SVARTYPE,temp%MAXTYPE); /* create a temporary sybol */
             m.ndelays++;
-           toklist[lstptr+1]=LASTTOK;
+           toklist[lstptr+1]=temporary_token;
 	  	
-	    my_symb[LASTTOK].pri=10;
+	    my_symb[temporary_token].pri=10;
 	 
 	   	    }
 	   else 
@@ -285,11 +287,11 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
    /* !! */   if(is_uvar(temp))
 	   {
 	    /* ram -- same issue */
-	    my_symb[LASTTOK].com=COM(SVARTYPE, temp%MAXTYPE); /* create a temporary sybol */
+	    my_symb[temporary_token].com=COM(SVARTYPE, temp%MAXTYPE); /* create a temporary sybol */
             m.ndelays++;
-           toklist[lstptr+1]=LASTTOK;
+           toklist[lstptr+1]=temporary_token;
 	  	
-	    my_symb[LASTTOK].pri=10;
+	    my_symb[temporary_token].pri=10;
 	 
 	   	    }
 	   else 
@@ -305,10 +307,10 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
              if(is_uvar(temp))
 	   {
 	    /* ram -- same issue */
-	    my_symb[LASTTOK].com=COM(SVARTYPE, temp%MAXTYPE); /* create a temporary sybol */
-           toklist[lstptr+1]=LASTTOK;
+	    my_symb[temporary_token].com=COM(SVARTYPE, temp%MAXTYPE); /* create a temporary sybol */
+           toklist[lstptr+1]=temporary_token;
 	  	
-	    my_symb[LASTTOK].pri=10;
+	    my_symb[temporary_token].pri=10;
 	   }
 	     else
 	       {
@@ -324,13 +326,13 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
 /* !! */	   if(is_uvar(temp) || is_ucon(temp))
 	   {
 	    /* ram -- same issue */
-             if(is_uvar(temp))my_symb[LASTTOK].com=COM(SVARTYPE, temp%MAXTYPE);
-	        if(is_ucon(temp))my_symb[LASTTOK].com=COM(SCONTYPE, temp%MAXTYPE);
+             if(is_uvar(temp))my_symb[temporary_token].com=COM(SVARTYPE, temp%MAXTYPE);
+	        if(is_ucon(temp))my_symb[temporary_token].com=COM(SCONTYPE, temp%MAXTYPE);
 /* create a temporary sybol */
          
-           toklist[lstptr+1]=LASTTOK;
+           toklist[lstptr+1]=temporary_token;
 	  	
-	    my_symb[LASTTOK].pri=10;
+	    my_symb[temporary_token].pri=10;
 	 
 	   	    }
 	   else 

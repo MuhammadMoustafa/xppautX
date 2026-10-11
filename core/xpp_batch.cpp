@@ -110,10 +110,6 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch,
     if (batch) batch_options.enabled = 1; /* headless: always batch, even without --silent */
 
     s.options_applied = 0;
-    for (int i = 0; i < MAXODE; i++) {
-        s.itor[i] = 0;
-        s.delay_string[i] = "0.0";
-    }
     read(s);
     /* the log settings of the model before (@ logfile, @ quiet) go, now
        that this one has parsed; its own options below set them again */

@@ -478,7 +478,7 @@ bool added_column_compiles(xpp::Session &s, std::string_view formula)
   return compiles;
 }
 
-int added_columns_room(const xpp::Model &m) { return MAXODE-m.neq; }
+int added_columns_room(const xpp::Model &) { return xpp::DataStore::ADDED_COLUMNS; }
 
 int add_stor_col(xpp::Session &s, std::string_view name, const std::string &formula, BROWSER *b)
 {

@@ -183,7 +183,7 @@ void add_int(std::string &o, long v) { o += std::to_string(v); }
 void add_name(std::string &o, const xpp::Model &m, int col)
 {
     o += '"';
-    if (col > 0 && col <= MAXODE)
+    if (col > 0 && col <= m.neq)
         for (char c : m.uvar_names[col - 1])
             if (c != '"' && c != '\\' && static_cast<unsigned char>(c) >= 0x20) o += c;
     o += '"';

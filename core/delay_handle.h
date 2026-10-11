@@ -34,8 +34,8 @@ Result<> do_init_delay(Session &s, double big);
 struct DelayState {
   int flag = 0, grid = 1000, stab_flag = 0, which = 0, ndelay = 0;
   double alpha_max = 2, omega_max = 2;
-  std::array<std::array<double, MAXODE>, 2> variable_shift{};
-  std::array<double, MAXDELAY> list{};
+  std::array<std::vector<double>, 2> variable_shift; /* one per variable (do_delay_sing sizes them) */
+  std::vector<double> list; /* the delays found: delay_stab_eval grows it */
   /* the stored history, NODE values per row, `rows` rows (a ring,
      `latest` its newest row) */
   std::vector<double> work;

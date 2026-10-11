@@ -50,6 +50,8 @@ struct NullclineState {
   std::vector<float> x_null,y_null;
   int num_x_n=0,num_y_n=0;
   int null_ix=0,null_iy=0,which_crv=0;
+  /* fnull's state and rates, one per variable, kept between its many calls */
+  std::vector<double> point,rates;
   /* the contour's two rows of the grid, and where new segments go */
   std::vector<float> n_top,n_bot;
   std::vector<float> *saver=nullptr;

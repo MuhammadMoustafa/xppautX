@@ -1,7 +1,6 @@
 #ifndef _storage_h_
 #define _storage_h_
 
-#include "xpplim.h" /* MAXODE */
 #include <array>
 #include <vector>
 #include "xpp_error.h"
@@ -27,6 +26,14 @@ struct SolverWork {
   XPPVEC xpv{};             /* xpv.x points at state */
   std::vector<double> state;
   std::vector<double> flag_yold; /* flags.cpp's flag_loop: the state before a step */
+  std::vector<int> pivot;        /* the implicit steps' LU pivots (odesol2.cpp, volterra2.cpp), sized once by size_pivots */
+  /* the pivots for an n x n factorization: its address, valid until the
+     next call with a different n */
+  int *size_pivots(int n)
+  {
+    pivot.resize(static_cast<std::size_t>(n));
+    return pivot.data();
+  }
 };
 
 /* The data store: the rows a run stores, one float column per quantity
@@ -41,10 +48,16 @@ struct DataStore {
   int rows = 0;          /* rows stored so far */
   int max_rows = 0;      /* rows each column has room for (the model's
                             storage_rows; grows when a run fills it) */
-  double current[MAXODE] = {}; /* the state where the last run ended */
+  std::vector<double> current; /* the state where the last run ended (the model's columns, set by allocate) */
   double current_time = 0;     /* and its time */
 
-  /* ncol columns of nrow rows, empty (rows = 0); nrow becomes max_rows */
+  /* Add column's room: the columns past the model's own that the data
+     browser may add. The table of columns has a fixed address (the
+     browser keeps it as col), so it is made once, with this room. */
+  static constexpr int ADDED_COLUMNS = 1000;
+
+  /* ncol columns of nrow rows, empty (rows = 0); nrow becomes max_rows;
+     the table has room for ADDED_COLUMNS more */
   void allocate(int nrow, int ncol);
   /* the first ncol columns to nrow rows, keeping what they hold (the rows
      added are zero), or the error when there is no memory (the columns
@@ -69,7 +82,7 @@ private:
   /* the columns' memory, and the table of their addresses col points at
      (fixed, so a pointer to it stays valid) */
   std::vector<std::vector<float>> columns_;
-  std::array<float *, MAXODE + 1> table_{};
+  std::vector<float *> table_;
 };
 
 /* A derived data set's columns (a histogram, the Fourier modes, the
@@ -90,7 +103,7 @@ public:
   float **table() noexcept { return table_.data(); }
 private:
   std::vector<std::vector<float>> own_;
-  std::array<float *, MAXODE + 1> table_{};
+  std::vector<float *> table_;
   int last_ = -1; /* the last of the store's columns lent */
 };
 

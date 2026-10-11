@@ -22,11 +22,10 @@
    The name tables hold a model's names as the parser keeps them (blanks
    removed, upper case), each of any length (W76): nothing here cuts a
    name. A display of fixed width shortens one with short_name
-   (xpp_util.h). The tables have
-   the parser's fixed limits as their sizes (xpplim.h): the parser writes
-   an entry by its index (a variable, a Markov variable, an aux quantity
-   each at its own offset), and an index past what the model uses reads
-   an empty name. */
+   (xpp_util.h). The per-variable tables are vectors the builder sizes
+   with size_variables as the file declares its variables (W243: no
+   limit on their number): it writes an entry by its index (a variable, a
+   Markov variable, an aux quantity each at its own offset). */
 #include "xpplim.h"
 #include "xpp_error.h"
 #include "volterra.h"
@@ -67,6 +66,35 @@ struct ArrayIcs {
 
 
 struct Model {
+  /* Room for n parameters in default_val, upar_names and upar_con (it
+     only grows; the parser's constants grow in add_con). */
+  void size_parameters(int n)
+  {
+    const std::size_t k=static_cast<std::size_t>(n);
+    if(upar_names.size()>=k)return;
+    default_val.resize(k);
+    upar_names.resize(k);
+    upar_con.resize(k);
+  }
+
+  /* Room for n variables, fixed variables and aux quantities in the
+     per-variable tables below (eq_type, formulas, programs, bcs, fixinfo,
+     default_ic, uvar_names): the builder calls it with what the file has
+     declared so far, so a table is never larger than the input that made
+     it. It only grows. An index below n reads an empty entry. */
+  void size_variables(int n)
+  {
+    const std::size_t k=static_cast<std::size_t>(n);
+    if(uvar_names.size()>=k)return;
+    eq_type.resize(k);
+    formulas.resize(k);
+    programs.resize(k);
+    bcs.resize(k);
+    fixinfo.resize(k);
+    default_ic.resize(k);
+    uvar_names.resize(k);
+  }
+
   /* ---- counts and kinds (form_ode.cpp's parser sets them) ---- */
   /* the stored columns but time: the ODEs, the Markov variables and the
      aux quantities (browse_data's added column takes one more) */
@@ -96,7 +124,7 @@ struct Model {
   bool ieee_division=false;
   /* each variable's kind: 1 a Volterra integral equation (x(t)=...),
      0 an ODE or a map */
-  std::array<int,MAXODE> eq_type{};
+  std::vector<int> eq_type;
 
   /* ---- the compiled right-hand sides (form_ode.cpp) ---- */
   /* each quantity's formula as typed and as compiled for evaluate(), by
@@ -104,8 +132,8 @@ struct Model {
      fixed variables (fix_var), the Markov variables' transition
      placeholders, then the aux quantities; browse_data's added column
      takes the next one. An unused index has "" and no program. */
-  std::array<std::string,MAXODE> formulas;
-  std::array<Program,MAXODE> programs;
+  std::vector<std::string> formulas;
+  std::vector<Program> programs;
   /* W258: executable code has exactly this Model's lifetime. */
   std::unique_ptr<tcc::Program> native_program;
   bool auto_rhs_pure=false; /* compile_model: every AUTO RHS program is native and Session-independent */
@@ -122,7 +150,7 @@ struct Model {
   };
   /* the boundary conditions, one per ODE, as the model gives them (the
      ones in use are the Session's) */
-  std::array<BoundaryCondition,MAXODE> bcs;
+  std::vector<BoundaryCondition> bcs;
   /* how many of them the model itself wrote (b / bndry / boundary lines); the
      rest are the default 0, and with none the model solves no boundary value
      problem: the state event then sends no bcs */
@@ -133,7 +161,7 @@ struct Model {
   struct FixedVariable {
     std::string name,value;
   };
-  std::array<FixedVariable,MAXODE> fixinfo;
+  std::vector<FixedVariable> fixinfo;
 
   /* ---- the global flags (flags.cpp), nflags of them ---- */
   /* a flag: when the condition's value (cond, compiled comcond) crosses
@@ -191,8 +219,8 @@ struct Model {
   /* the parameters' values and the variables' initial conditions as the
      model gives them (the ones in use are the Session's: constants,
      last_ic) */
-  std::array<double,MAXPAR> default_val{};
-  std::array<double,MAXODE> default_ic{};
+  std::vector<double> default_val;
+  std::vector<double> default_ic;
   /* the initial values a model gives as formulas (an .odex's init): each
      variable (by name) and its formula (the expression engine's text),
      evaluated in order once the model is set up (form_ode.cpp's
@@ -242,17 +270,17 @@ struct Model {
   /* the Markov variables' chains (nmarkov of them) */
   std::array<MarkovChain,MAXMARK> markov;
   /* the Wiener parameters' places in the parser's constants (nwiener) */
-  std::array<int,MAXPAR> wiener{};
+  std::vector<int> wiener;
 
   /* the variables' names by index: the ODEs (NODE), the Markov variables
      (NMarkov), then the aux quantities, NEQ in all; browse_data's added
      column takes the next one */
-  std::array<std::string, MAXODE> uvar_names;
+  std::vector<std::string> uvar_names;
   /* the parameters' names (NUPAR of them) */
-  std::array<std::string, MAXPAR> upar_names;
+  std::vector<std::string> upar_names;
   /* each parameter's place in the parser's constants (what its name finds
      there: the state event reads every parameter, without the lookups) */
-  std::array<int, MAXPAR> upar_con{};
+  std::vector<int> upar_con;
   /* the user functions' names (NFUN of them) */
   std::array<std::string, MAXUFUN> ufun_names;
   /* each user function's argument names (narg_fun[i] of them) */

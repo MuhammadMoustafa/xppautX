@@ -33,8 +33,9 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
       double rr[2];
 
  double colnorm=0,colmax,colsum;
- double old_x[MAXODE],sign;
- double y[MAXODE];
+ double sign;
+ std::vector<double> old_x(n),y(n);
+ for(auto &shift : s.delay.variable_shift)shift.assign(s.model().neq,0.0);
  int kmem=n*(2*n+5)+50,i,j,k,okroot;
 
  std::vector<double> ev(2*n, 0.0);
@@ -51,7 +52,7 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
    }
  /* OKAY -- we have the root */
  s.delay.ndelay=0;
- s.integrator.rhs(0.0,x,y,n); /* one more evaluation to get delays */
+ s.integrator.rhs(0.0,x,y.data(),n); /* one more evaluation to get delays */
  for(i=0;i<n;i++){
    s.delay.variable_shift[0][i]=x[i];  /* unshifted  */
    s.delay.variable_shift[1][i]=x[i];
@@ -63,7 +64,7 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
  s.delay.stab_flag=-1;
  s.delay.which=-1;
  colmax=0.0;
- xpp::jacobian(s,0.0,x,y,n,eps,{xpp::JacobianLayout::RowMajor},coef.data());
+ xpp::jacobian(s,0.0,x,y.data(),n,eps,{xpp::JacobianLayout::RowMajor},coef.data());
  for(i=0;i<n;i++)
    {
      colsum=0.0;
@@ -81,7 +82,7 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
      s.integrator.rhs(0.0,x,f,n);
      s.delay.variable_shift[1][i]=x[i];
    };
-   xpp::jacobian(perturb_delay,x,y,n,eps,{xpp::JacobianLayout::RowMajor},coef.data()+n*n*(k+1));
+   xpp::jacobian(perturb_delay,x,y.data(),n,eps,{xpp::JacobianLayout::RowMajor},coef.data()+n*n*(k+1));
    colmax=0.0;
    for(i=0;i<n;i++){
      colsum=0.0;

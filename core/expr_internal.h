@@ -23,8 +23,6 @@
 #define SETSYM  72
 #define FIRST_ARG 73 /* ARG1, the first of 20 */
 #define NUMTOK 59
-/* the compiler's temporary symbol: a delay's, shift's or set's variable */
-#define LASTTOK (MAX_SYMBS-2)
 
 namespace xpp::expr {
 

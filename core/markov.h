@@ -47,13 +47,13 @@ int build_markov(Session &s, std::span<const std::string> cells, const char *nam
    whether a Compute is running (flag), whether its mean and variance
    exist (here), the number of trials and the length of each run, and the
    mean and variance columns. The browser (new_browse_dat, browse.h) takes
-   the statistics as a plain float ** of MAXODE rows, so mean/variance
+   the statistics as a plain float ** of one row per column, so mean/variance
    are arrays of row pointers, each into the vector of mean_rows/
    variance_rows that owns it. */
 struct StochasticState {
   int flag = 0, here = 0, n_trials = 0, len = 0;
-  std::array<float *, MAXODE> mean{}, variance{};
-  std::array<std::vector<float>, MAXODE> mean_rows, variance_rows;
+  std::vector<float *> mean, variance;
+  std::vector<std::vector<float>> mean_rows, variance_rows;
 };
 
 } // namespace xpp

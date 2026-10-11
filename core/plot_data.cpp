@@ -166,12 +166,12 @@ void add_curves(std::string &o, const xpp::PlotCurves &s)
 std::vector<int> used_columns(const xpp::PlotCurves &s, int maxcol)
 {
     std::vector<int> cols{0}; /* T always: a readout names the time of any point */
-    std::vector<bool> used(MAXODE + 1, false);
+    std::vector<bool> used(std::max(maxcol, 1), false);
     used[0] = true;
     for (int i = 0; i < s.nvars && i < MAXPERPLOT; i++) {
         const int c[3] = {s.xv[i], s.yv[i], s.zv[i]};
         for (int k = 0; k < (s.three ? 3 : 2); k++)
-            if (c[k] >= 0 && c[k] < maxcol && c[k] <= MAXODE && !used[c[k]]) {
+            if (c[k] >= 0 && c[k] < maxcol && !used[c[k]]) {
                 used[c[k]] = true;
                 cols.push_back(c[k]);
             }

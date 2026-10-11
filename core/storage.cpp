@@ -5,6 +5,7 @@
 #include "xpp_mem.h" /* xpp::out_of_memory */
 #include <stdlib.h> 
 #include <stdio.h>
+#include <algorithm>
 #include <array>
 #include <new>
 #include <vector>
@@ -32,8 +33,9 @@ void DataStore::allocate(int nrow, int ncol)
 {
   max_rows=nrow;
   rows=0;
-  columns_.assign(MAXODE+1,{});
-  table_.fill(nullptr);
+  columns_.assign(ncol+ADDED_COLUMNS,{});
+  table_.assign(ncol+ADDED_COLUMNS,nullptr);
+  if(current.size()<static_cast<std::size_t>(ncol))current.resize(ncol);
   for(int c=0;c<ncol;c++){
     columns_[c].assign(nrow,0.0f);
     table_[c]=columns_[c].data();
@@ -93,7 +95,7 @@ float **LentColumns::make(const DataStore &store, int n, int len, int last)
   } catch (const std::bad_alloc &) {
     xpp::out_of_memory("a derived data set's columns");
   }
-  table_.fill(nullptr);
+  table_.assign(std::max(n,last+1),nullptr);
   for(int c=0;c<n;c++)table_[c]=own_[c].data();
   last_=last;
   return view(store);
@@ -108,7 +110,7 @@ float **LentColumns::view(const DataStore &store)
 void LentColumns::release()
 {
   own_.clear();
-  table_.fill(nullptr);
+  table_.clear();
   last_=-1;
 }
 

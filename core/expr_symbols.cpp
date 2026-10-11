@@ -254,6 +254,7 @@ int ParserState::symbol_prefix(const char *source, int &length) const
 
 ParserState::ParserState()
 {
+  symbols.resize(2*STDSYM);
   for(int i=0;i<STDSYM;i++){
     const Builtin &b=builtins[i];
     symbols[i]={b.name,b.len,b.com,b.arg,b.pri};
@@ -353,6 +354,7 @@ int set_symbol(ParserState &p, std::string_view name, int pri, int arg, int com)
     return 1;
   }
   p.forget_symbols_from(p.nsym);
+  p.room_for_symbol();
   ExprSymbol &s=p.symbols[p.nsym];
   s.name=std::move(string);
   s.len=len;
@@ -370,11 +372,6 @@ namespace {
 int add_constant(ParserState &p, std::string_view junk)
 {
  if(duplicate_name(p,junk)==1)return(1);
- if(p.ncon>=MAXPAR)
- {
-  if(p.errout)xpp::log(XPP_LOG_WARN, "too many constants !!\n");
-  return(1);
- }
  if(set_symbol(p,junk,10,0,COM(CONTYPE,p.ncon-1)))return 1;
  p.nsym++;
  return(0);
@@ -401,11 +398,12 @@ int get_var_index(const xpp::Session &s, std::string_view name)
 int add_con(xpp::Session &s, std::string_view name, double value)
 {
  ParserState &p=s.parser;
- if(p.ncon>=MAXPAR)
+ if(p.ncon>=MAXTYPE) /* likewise a constant (COM) */
  {
   if(p.errout)xpp::log(XPP_LOG_WARN, "too many constants !!\n");
   return(1);
  }
+ if(p.constants.size()<=static_cast<size_t>(p.ncon))p.constants.resize(std::max<size_t>(64,2*p.constants.size()));
  p.constants[p.ncon]=value;
  p.ncon++;
  return(add_constant(p,name));
@@ -459,13 +457,14 @@ int add_var(xpp::Session &s, std::string_view junk, double value)
  ParserState &p=s.parser;
  xpp::Model &m=s.model();
  if(duplicate_name(p,junk)==1)return(1);
- if(m.nvar>=MAXODE1)
+ if(m.nvar>=MAXTYPE) /* an operand names its variable below MAXTYPE (COM) */
  {
   if(p.errout)xpp::log(XPP_LOG_WARN, "too many variables !!\n");
   return(1);
  }
  if(set_symbol(p,junk,10,0,COM(VARTYPE,m.nvar)))return 1;
  p.nsym++;
+ if(p.variables.size()<=static_cast<size_t>(m.nvar))p.variables.resize(std::max<size_t>(64,2*p.variables.size()));
  p.variables[m.nvar]=value;
  m.nvar++;
  return(0);

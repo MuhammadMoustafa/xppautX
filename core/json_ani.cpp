@@ -90,7 +90,7 @@ int ani_wait(xpp::Session &s, int ms)
 /* the Go button (aniwin.c ani_flip without the X pixmap) */
 void ani_go(xpp::Session &s)
 {
-    double y[MAXODE];
+    std::vector<double> y(static_cast<std::size_t>(s.model().node + s.model().nmarkov));
     float **ss = s.browser.view.data;
     xpp::Writer gif; /* chosen GIF, when the animation is written as one */
     int i, stop = 0, frame = 0, written = 0, w, h;
@@ -105,7 +105,7 @@ void ani_go(xpp::Session &s)
     while (!stop) {
         int row = s.animation.vcr.pos, ppm = s.animation.mpeg.flag > 0 && frame % (s.animation.mpeg.skip > 0 ? s.animation.mpeg.skip : 1) == 0;
         for (i = 0; i < s.model().node + s.model().nmarkov; i++) y[i] = ss[i + 1][row];
-        set_fix_rhs(s,static_cast<double>(ss[0][row]), y);
+        set_fix_rhs(s,static_cast<double>(ss[0][row]), y.data());
         ui.ani_clear();
         render_ani(s);
         ui.ani_show();

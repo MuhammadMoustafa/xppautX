@@ -57,6 +57,7 @@ struct Fixture {
         par = s.parser.ncon;
         CHECK(xpp::add_con(s, "par", 0.6) == 0);
         model->node = 2;
+        s.size_variables(2);
         model->uvar_names[0] = "x";
         model->uvar_names[1] = "y";
         std::vector<int> zero = number(0);

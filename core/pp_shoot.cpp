@@ -215,8 +215,9 @@ void find_bvp_com(xpp::Session &s, int com)
  int iper=0,ivar=0,ipar=0,pflag;
  double sect=0.0;
  double oldpar;
- double ystart[MAXODE],oldtrans;
- double yend[MAXODE];
+ double oldtrans;
+ std::vector<double> ystart_values(s.model().neq),yend_values(s.model().neq);
+ double *const ystart=ystart_values.data(),*const yend=yend_values.data();
  /*  Window temp=main_win; */
  if(s.model().nmarkov>0||s.model().nkernel>0){
    command_error("bvp", "Can't do BVP with integral or markov eqns");
@@ -352,7 +353,6 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
 
   int ntot=n;
  int i,istart=1,j;
- int ipvt[MAXODE1];
  char esc;
  int info,niter=0;
  double dt=s.numerics.delta_t,t;
@@ -360,6 +360,8 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
  double t1=s.numerics.start_time+s.numerics.total_time*dt/fabs(dt);
 
  if(iper)ntot=n+1;
+ std::vector<int> ipvt_values(ntot);
+ int *const ipvt=ipvt_values.data();
  std::vector<double> jac_v(static_cast<size_t>(ntot)*ntot);
  std::vector<double> f_v(ntot), fdev_v(ntot), y0_v(ntot), y1_v(ntot);
  double *jac=jac_v.data(), *f=f_v.data(), *fdev=fdev_v.data(), *y0=y0_v.data(), *y1=y1_v.data();

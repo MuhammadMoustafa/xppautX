@@ -13,6 +13,8 @@
 
 static void load_model(void)
 {
+    xpp::client_session().size_variables(2);
+    xpp::client_session().model().size_parameters(3);
     xpp::client_session().model().upar_names[0] = "iapp";
     xpp::client_session().model().upar_names[1] = "gca";
     xpp::client_session().model().upar_names[2] = "phi";

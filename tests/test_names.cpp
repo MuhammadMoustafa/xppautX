@@ -66,6 +66,8 @@ int main(void)
 
     /* AUTO's headings stay 14 wide: a long name is shortened with the marker
        and leaves a blank before the next heading */
+    xpp::client_session().size_variables(1);
+    xpp::client_session().model().size_parameters(1);
     xpp::client_session().model().upar_names[0] = "applied_stimulus_current_amplitude";
     xpp::client_session().model().uvar_names[0] = "MEMBRANE_POTENTIAL_FAST_VARIABLE";
     xpp::client_session().model().node = xpp::client_session().model().neq = 1;

@@ -297,7 +297,8 @@ if(!s.numerics.par_fol)
 void save_batch_shoot(xpp::Session &s)
 {
 int i,k,type;
-  double x[MAXODE],olddt;
+  double olddt;
+  std::vector<double> x(s.model().node);
   if(s.manifolds.count<1)return;
   olddt=s.numerics.delta_t;
   s.numerics.storflag=1;
@@ -309,7 +310,7 @@ int i,k,type;
     if(type>0){
 
        s.numerics.delta_t=fabs(s.numerics.delta_t);
-       usual_integrate_stuff(s,x);
+       usual_integrate_stuff(s,x.data());
        {
          xpp::Writer w=xpp::ask_output_writer(s,"Save unstable manifold",".dat",xpp::format("eigen{}-unstable",k));
          if(!w){s.numerics.delta_t=olddt;return;}
@@ -320,7 +321,7 @@ int i,k,type;
     if(type<0){
 
        s.numerics.delta_t=-fabs(s.numerics.delta_t);
-       usual_integrate_stuff(s,x);
+       usual_integrate_stuff(s,x.data());
        {
          xpp::Writer w=xpp::ask_output_writer(s,"Save stable manifold",".dat",xpp::format("eigen{}-stable",k));
          if(!w){s.numerics.delta_t=olddt;return;}
@@ -337,7 +338,8 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
 {
   xpp::FirstError failure;
   int i,k,type,oldcol,dummy;
-  double x[MAXODE],olddt;
+  double olddt;
+  std::vector<double> x(s.model().node);
   if(s.manifolds.count<1)return {};
   olddt=s.numerics.delta_t;
 
@@ -349,13 +351,13 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
     if(type>0){
        change_current_linestyle(s,s.manifolds.unstable_color,&oldcol);
        s.numerics.delta_t=fabs(s.numerics.delta_t);
-       failure.keep(shoot_easy(s,x));
+       failure.keep(shoot_easy(s,x.data()));
        change_current_linestyle(s,oldcol,&dummy);
     }
     if(type<0){
       change_current_linestyle(s,s.manifolds.stable_color,&oldcol);
        s.numerics.delta_t=-fabs(s.numerics.delta_t);
-       failure.keep(shoot_easy(s,x));
+       failure.keep(shoot_easy(s,x.data()));
        change_current_linestyle(s,oldcol,&dummy);
     }
   }
@@ -421,6 +423,9 @@ void pr_evec(xpp::Session &s, double *x, double *ev, int n, int pr, double eval,
  double d=fabs(s.numerics.delta_t)*.1;
  s.manifolds.ic_flag=1;
  if(s.manifolds.count<7){
+   const std::size_t room=static_cast<std::size_t>(std::max(n,s.model().node));
+   s.manifolds.ic[s.manifolds.count].assign(room,0.0);
+   s.manifolds.ic[s.manifolds.count+1].assign(room,0.0);
    for(i=0;i<n;i++){
      s.manifolds.ic[s.manifolds.count][i]=x[i]+d*ev[i];
      s.manifolds.type[s.manifolds.count]=type;
@@ -521,7 +526,8 @@ void getjac(xpp::Session &s, double *x, double *y, double eps, double *dermat, i
 namespace {
 void newton(xpp::Session &s, double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n)
 {
- int i,iter,ipivot[MAXODE],info;
+ int i,iter,info;
+ std::vector<int> ipivot(static_cast<std::size_t>(n));
  char ch;
  double *y,*dermat,*dely;
  double r;
@@ -554,14 +560,14 @@ void newton(xpp::Session &s, double *x, double err, double eps, double big, doub
    }
  
   getjac(s,x,y,eps,dermat,n);
-  xpp::sgefa(dermat,n,n,ipivot,&info);
+  xpp::sgefa(dermat,n,n,ipivot.data(),&info);
   if(info!=-1)
   {
    *ierr=1;
    return;
   }
   for(i=0;i<n;i++)dely[i]=y[i];
-  xpp::sgesl(dermat,n,n,ipivot,dely);
+  xpp::sgesl(dermat,n,n,ipivot.data(),dely);
   r=0.0;
   for(i=0;i<n;i++)
   {

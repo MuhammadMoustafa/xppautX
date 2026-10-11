@@ -206,7 +206,9 @@ void stor_null(xpp::Session &s, float x1, float y1, float x2, float y2)
 
 float fnull(xpp::Session &s, float x, float y)
 {
-  std::array<double,MAXODE> y1,ydot;
+  std::vector<double> &y1=s.nullcline_state.point,&ydot=s.nullcline_state.rates;
+  y1.resize(s.model().node);
+  ydot.resize(s.model().node);
   for(int i=0;i<s.model().node;i++)y1[i]=s.last_ic[i];
   y1[s.nullcline_state.null_ix-1]=static_cast<double>(x);
   y1[s.nullcline_state.null_iy-1]=static_cast<double>(y);
@@ -362,8 +364,8 @@ void get_max_dfield(xpp::Session &s, double *y, double *ydot, double u0, double 
 void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, double dv, double dz,
                  int inx, int iny, xpp::Writer *dump)
 {
-  std::array<double,MAXODE> y,ydot;
-  std::array<float,MAXODE> v1,v2;
+  std::vector<double> y(s.model().neq),ydot(s.model().neq);
+  std::vector<float> v1(s.model().neq+1),v2(s.model().neq+1);
   double mdf,dxp,dyp;
   const bool suppress=dump!=nullptr;
   xpp::get_ic(s,2,y.data());
@@ -630,7 +632,7 @@ void direct_field_com(xpp::Session &s, int c)
 
   s.integrator.suppress_bounds=1;
   phase_data_flow_start(s);
-  std::array<double,MAXODE> y;
+  std::vector<double> y(s.model().neq);
   xpp::FirstError failure; /* a trajectory's, shown once the flow is drawn */
   for(int k=0;k<2;k++){
     for(int i=0;i<=grid;i++)

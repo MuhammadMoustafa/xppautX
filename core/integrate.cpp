@@ -1515,16 +1515,21 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
   xpp::Solver &solver=*s.integrator.solver;
 
  /* an added column (add_stor_col) plotted live has index above neq and no live value: it reads 0 */
- float xv[MAXODE+1]={},xvold[MAXODE+1]={};
+ const std::size_t neq_size=static_cast<std::size_t>(s.model().neq);
+ std::vector<float> xv_values(neq_size+1+xpp::DataStore::ADDED_COLUMNS),xvold_values(neq_size+1+xpp::DataStore::ADDED_COLUMNS);
+ float *const xv=xv_values.data(),*const xvold=xvold_values.data();
  float oldperiod=0.0;
- double xprime[MAXODE],oldxprime[MAXODE],hguess=dt;
+ std::vector<double> xprime_values(neq_size),oldxprime_values(neq_size);
+ double *const xprime=xprime_values.data(),*const oldxprime=oldxprime_values.data(),hguess=dt;
 
- int torcross[MAXODE];
+ std::vector<int> torcross_values(neq_size);
+ int *const torcross=torcross_values.data();
  int nodes=s.solver_work.xpv.node+s.solver_work.xpv.nvec-s.model().nmarkov;
 
  int rval=0;
  std::optional<xpp::Error> failure; /* why the loop stopped, when it failed */
- double oldx[MAXODE],oldt=0,dint,dxp,sect,sect1,tout,tzero=*t;
+ std::vector<double> oldx_values(neq_size);
+ double *const oldx=oldx_values.data(),oldt=0,dint,dxp,sect,sect1,tout,tzero=*t;
  double sss,tnew=*t;
  int iflagstart=1;
  float tscal=tend,tv;
@@ -1867,11 +1872,11 @@ void send_halt(xpp::Session &s)
 }
 void send_output(xpp::Session &s, double *y,double t)
 {
-  double yy[MAXODE];
+  std::vector<double> yy(s.model().neq);
   int i;
   for(i=0;i<s.model().node;i++)
     yy[i]=y[i];
-  extra(s,yy,t,s.model().node,s.model().neq);
+  extra(s,yy.data(),t,s.model().node,s.model().neq);
   if((s.numerics.storflag==1)&&(s.data_store.rows<s.data_store.max_rows)){
     
     for(i=0;i<s.model().neq;i++)
@@ -1953,7 +1958,7 @@ void restore(xpp::Session &s, int i1, int i2)
   int i,j,kxoff,kyoff,kzoff;
   int iiXPLT,iiYPLT,iiZPLT;
   float oldxpl,oldypl,oldzpl,xpl,ypl,zpl;
-  float v1[MAXODE+1],v2[MAXODE+1];
+  std::vector<float> v1(s.model().neq+1),v2(s.model().neq+1);
   float **data;
 
   data=get_browser_data(s);
@@ -1997,7 +2002,7 @@ void restore(xpp::Session &s, int i1, int i2)
 	    v2[j]=data[j][i-1];
 	  }
 
-	  comp_color(s,v1,v2,s.model().node,
+	  comp_color(s,v1.data(),v2.data(),s.model().node,
 		     static_cast<float>(fabs(data[0][i]-data[0][i+1])));
 	}     /* ignored by postscript */
       if(s.plot_windows.current->line[ip]<=0){

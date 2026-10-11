@@ -310,8 +310,8 @@ void browser_update(const xpp::Session &s)
 void plotvars_command(xpp::Session &s, const char *line)
 {
     const xpp::Model &m = s.model();
-    std::array<int, MAXODE> isck{};
     int i, n = m.node + m.nmarkov;
+    std::vector<int> isck(static_cast<std::size_t>(n));
     const char *arr = js_find(line, "names");
     std::string name;
     for (i = 0; arr && js_elem(arr, i); i++) {
@@ -677,7 +677,7 @@ void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, doub
     Buf b;
     int i;
     redraw_ics();
-    s.last_equilibrium.assign(y, y + (n < MAXODE ? n : MAXODE));
+    s.last_equilibrium.assign(y, y + n);
     buf_format(&b, "{{\"ev\":\"equilibrium\",\"type\":\"{}\",\"cplus\":{:d},\"cminus\":{:d},"
                "\"im\":{:d},\"rplus\":{:d},\"rminus\":{:d},\"values\":[",
                eq_stability(cp, rp, im), cp, cm, im, rp, rm);

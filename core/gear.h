@@ -2,6 +2,7 @@
 #define _gear_h_
 
 #include <array>
+#include <vector>
 #include "xpp_error.h"
 #include "xpplim.h"
 
@@ -37,7 +38,7 @@ void save_batch_shoot(Session &s);
    ic, ic_flag once there are any), and the manifolds' colours (@ smc=,
    umc=) */
 struct ManifoldShots {
-  std::array<std::array<double, MAXODE>, 8> ic{};
+  std::array<std::vector<double>, 8> ic; /* each node values (pr_evec sizes it) */
   /* each one's kind: stable or unstable (pr_evec's type) */
   std::array<int, 8> type{};
   int ic_flag = 0, count = 0;

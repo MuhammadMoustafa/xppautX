@@ -31,6 +31,7 @@ xpp::AutoStopAt inside()
 
 int main()
 {
+    xpp::client_session().model().size_parameters(1);
     xpp::client_session().model().upar_names[0] = "iapp";
     xpp::client_session().model().nupar = 1;
     xpp::client_session().auto_state.npar = 1;

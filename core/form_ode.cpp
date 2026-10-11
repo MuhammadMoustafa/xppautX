@@ -248,10 +248,11 @@ void begin_model(xpp::Session &s)
   init_rpn(s);
   s.parser.build.in_vars=0;
   s.parser.build.naux=0;
-  s.parser.build.aux_names.assign(MAXODE,std::string());
+  s.parser.build.aux_names.clear();
   m.node=0;
   s.model().bc_defined=0;
   m.nupar=0;
+  m.size_parameters(1); /* a model with no parameter still has the first one's empty name and value to read */
   m.nwiener=0;
   add_var(s,"t",0.0);
 }
@@ -263,6 +264,7 @@ void add_parameter(xpp::Session &s, const std::string &name, double value)
   xpp::Model &m=s.model();
   if(add_con(s,name,value))
     model_failed(xpp::format("{} is a name already, or one parameter too many",name));
+  m.size_parameters(m.nupar+1);
   m.default_val[m.nupar]=value;
   m.upar_con[m.nupar]=s.parser.ncon-1; /* add_con's */
   m.upar_names[m.nupar++]=name;
@@ -286,8 +288,10 @@ void add_constant(xpp::Session &s, const std::string &name, double value, bool w
   model_failed(xpp::Error{"model",xpp::format("the options file <{}> is not supported: write its settings as @ lines, in the model or in a file it includes (#include opts.inc)",name),xpp::Load::place()});
 }
 
-void add_boundary(xpp::Model &m, std::string_view formula)
+void add_boundary(xpp::Session &s, std::string_view formula)
 {
+  xpp::Model &m=s.model();
+  s.size_variables(m.bc_defined+1);
   set_bc(m,m.bc_defined,formula);
   xpp::log(XPP_LOG_DEBUG, "|{}| |{}| \n",m.bcs[m.bc_defined].name.data(),m.bcs[m.bc_defined].string.data());
   m.bc_defined++;
@@ -310,6 +314,17 @@ void add_only(xpp::Model &m, std::string_view s)
   only.emplace_back(s);
 }
 
+/* Room in the per-variable tables for what an old-style file has
+   declared so far: the tables grow with the lines read, never to a size
+   its first line merely claims (the number of equations is the input's
+   to claim, not to allocate for). */
+void room_for_declared(xpp::Session &s)
+{
+  const xpp::Model &m=s.model();
+  const auto &b=s.parser.build;
+  s.size_variables(m.node+b.in_vars+m.nmarkov+m.fix_var+b.naux+2);
+}
+
 /* One line of an old-style model (a command letter and its arguments),
    built as it is read. 0 at "done". */
 int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
@@ -321,9 +336,9 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
   std::string name,formula,condition;
   /* the fixed variables' names, for a converted file */
   std::vector<std::string> &fixname=s.parser.build.fixname;
-  if(fixname.empty())fixname.resize(MAXODE1);
   int nlin,i;
   done=1;
+  room_for_declared(s);
   if(bob[0]=='@'){
     if(add_model_option(m,bob)<0)
       model_failed(); /* the option said why, at this line */
@@ -435,12 +450,13 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       }
       for(const OdeItem &item : ode_items(values))
 	{
-	  if((s.parser.build.in_vars>m.neq)||(s.parser.build.in_vars==MAXODE))
+	  if(s.parser.build.in_vars>m.neq)
 	    {
 	      model_failed("too many variables");
 	    }
 	  name=item.name;
 	  value=item.value;
+	  room_for_declared(s);
 	  if(add_var(s,name,value))
 	    model_failed(xpp::format("{} is a name already, or one variable too many",name));
 	  if(iflg)
@@ -453,8 +469,10 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 		xpp::print(s.parser.convert.file(),"{}={:g}  ",name,value);
 	    }
 	  else {
-	    if(ConvertStyle)
+	    if(ConvertStyle){
+	      fixname.resize(m.fix_var+1);
 	      fixname[m.fix_var]=name;
+	    }
 	    m.fix_var++;
 
 	  }
@@ -466,7 +484,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	xpp::print(s.parser.convert.file(),"\n");
       break;
     case 'b':
-      add_boundary(m,tokens.text("\n"));
+      add_boundary(s,tokens.text("\n"));
       if(ConvertStyle)
 	xpp::print(s.parser.convert.file(),"bndry {}\n",m.bcs[s.model().bc_defined-1].string.data());
       break;
@@ -610,7 +628,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       for(std::optional<std::string_view> tok;(tok=tokens.next(" ,\n"));)
 	{
 	  std::string aux(*tok);
-	  s.parser.build.aux_names[s.parser.build.naux]=aux;
+	  s.parser.build.aux_names.push_back(aux);
 	  xpp::log(XPP_LOG_DEBUG, "|{}| ",s.parser.build.aux_names[s.parser.build.naux]);
 	  s.parser.build.naux++;
 	};
@@ -672,6 +690,7 @@ void finish_model(xpp::Session &s)
 {
   xpp::Model &m=s.model();
   int i;
+  room_for_declared(s);
  if((m.node+m.nmarkov)==0){
    model_failed("Must have at least one equation: probably not an ODE file");
  }
@@ -696,7 +715,7 @@ void finish_model(xpp::Session &s)
     }
   m.node=s.parser.build.in_vars;
 
-  std::array<std::string,MAXODE> &uvar_names=m.uvar_names;
+  std::vector<std::string> &uvar_names=m.uvar_names;
   for(i=0; i<s.parser.build.naux; i++)
     uvar_names[i+m.node+m.nmarkov]=s.parser.build.aux_names[i];
 
@@ -716,16 +735,9 @@ void finish_model(xpp::Session &s)
   /*
      add primed variables                              */
   m.prime_start=m.nvar;
-  if(m.nvar<MAXPRIMEVAR){
   add_var(s,"t'",0.0);
   for(i=0;i<m.node ;i++)
     add_var(s,xpp::format("{}'",uvar_names[i]),0.0);
-}
-  else {
-    xpp::log(XPP_LOG_WARN, " Warning: primed variables not added must have < {:d} variables\n",
-     MAXPRIMEVAR);
-    xpp::log(XPP_LOG_WARN, " Averaging and boundary value problems cannot be done\n");
-  }
   if(m.nmarkov>0)
     xpp::compile_all_markov(s);
   if(compile_flags(s)==1){
@@ -883,6 +895,11 @@ public:
     m.ieee_division=p_.ieee_division;
     ConvertStyle=0;
     begin_model(s_);
+    /* every name the statements declare is one of their bindings (or the
+       statement's own): the tables are as large as the file */
+    int declared=2;
+    for(const Statement &st : p_.statements)declared+=1+static_cast<int>(st.bindings.size());
+    s_.size_variables(declared);
     find_derived(p_.derived||ode_as_odex>0);
     for(Statement &s : p_.statements){
       at(s);
@@ -1097,7 +1114,7 @@ private:
       break;
     case Statement::Kind::OptionFile: refuse_options_file(s.text);
     case Statement::Kind::Set: add_intern_set(m,s.name,s.text); break;
-    case Statement::Kind::Boundary: add_boundary(m,text(s.expr)); break;
+    case Statement::Kind::Boundary: add_boundary(s_,text(s.expr)); break;
     case Statement::Kind::Event: {
       std::vector<FlagEvent> events;
       for(const Binding &b : s.bindings)events.push_back({b.name,text(b.value)});
@@ -1188,8 +1205,7 @@ private:
       s.last_ic[i+nvar]=0.0;
       m.default_ic[i+nvar]=0.0;
     }
-    for(size_t i=0;i<anames_.size();i++)
-      s_.parser.build.aux_names[i]=anames_[i];
+    s_.parser.build.aux_names=anames_;
     xpp::add_svar_names(s);
     s_.parser.build.in_vars=nvar;
     s_.parser.build.naux=static_cast<int>(anames_.size());

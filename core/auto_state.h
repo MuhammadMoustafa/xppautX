@@ -186,8 +186,8 @@ struct AutoLib {
      their evaluation arrays and finite-difference scratch, never a Session's. */
   std::unique_ptr<xpp::AutoParallel> collocation;
   bool pure_rhs=false;
-  std::array<double,MAXPAR> rhs_constants{};
-  std::array<double,MAXODE1> rhs_variables{};
+  std::vector<double> rhs_constants; /* the parser's constants and variables, copied for a worker */
+  std::vector<double> rhs_variables;
   AutoGlobalScratch scratch{};
   AutoGlobalRotations rotations{};
   /* 1 while stepbv solves a Newton step (autlib1.cpp). A cancelled job

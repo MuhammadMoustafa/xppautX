@@ -33,7 +33,7 @@ namespace xpp {
 
 void add_wiener(xpp::Session &s, int index)
 {
-  s.model().wiener[s.model().nwiener]=index;
+  s.model().wiener.push_back(index);
   s.model().nwiener++;
 }
 
@@ -222,19 +222,19 @@ int compile_markov(xpp::Session &s, int index, int j, int k)
 void update_markov(xpp::Session &s, double *x, double t, double dt)
 {
   int i;
-  double yp[MAXODE];
   if(s.model().nmarkov==0)return;
   setvar(s,0,t);
   for(i=0;i<s.model().node;i++)setvar(s,i+1,x[i]);
   for(i=s.model().node+s.model().fix_var;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)setvar(s,i+1,x[i-s.model().fix_var]);
   for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
   setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
+  /* every chain moves with the others' variables at their old values (the
+     transition formulas read them), so the variables are set after; a
+     chain reads of x only its own state, so x itself holds the new ones */
   for(i=0;i<s.model().nmarkov;i++)
-    yp[i]=new_state(s,x[s.model().node+i],i,dt);
-  for(i=0;i<s.model().nmarkov;i++){
-    x[s.model().node+i]=yp[i];
-    setvar(s,i+s.model().node+s.model().fix_var+1,yp[i]);
-  }
+    x[s.model().node+i]=new_state(s,x[s.model().node+i],i,dt);
+  for(i=0;i<s.model().nmarkov;i++)
+    setvar(s,i+s.model().node+s.model().fix_var+1,x[s.model().node+i]);
 }
 
 double new_state(xpp::Session &s, double old, int index, double dt)
@@ -450,6 +450,11 @@ void init_stoch(xpp::Session &s, int len)
   int i,j;
   s.stochastic.n_trials=0;
   s.stochastic.len=len;
+  const std::size_t columns=static_cast<std::size_t>(s.model().neq)+1;
+  s.stochastic.mean_rows.resize(columns);
+  s.stochastic.variance_rows.resize(columns);
+  s.stochastic.mean.resize(columns);
+  s.stochastic.variance.resize(columns);
   for(i=0;i<(s.model().neq+1);i++){
     s.stochastic.mean_rows[i].assign(s.stochastic.len,0.0f);
     s.stochastic.variance_rows[i].assign(s.stochastic.len,0.0f);

@@ -73,15 +73,14 @@ private:
 
 class Gear final : public Solver {
 public:
-  Gear(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(gear_work(n))) {}
+  Gear(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(gear_work(n))), error_(static_cast<std::size_t>(n)) {}
   /* Gear starts afresh from 0 and continues from its order */
   void begin(int *start) override { if(*start==1)*start=0; }
   Result<> step_by(const SolverStep &s) override
   {
     NumericsSettings &num=session_.numerics;
-    std::array<double,MAXODE> error{};
     int kflag=0;
-    gear(session_,s.neq,s.t,s.tout,s.y,num.min_step,num.max_step,num.tolerance,2,error.data(),&kflag,s.start,
+    gear(session_,s.neq,s.t,s.tout,s.y,num.min_step,num.max_step,num.tolerance,2,error_.data(),&kflag,s.start,
          work_.data(),iwork_.data());
     switch(kflag){
     case -1: return failed("kflag=-1: minimum step too big");
@@ -95,6 +94,7 @@ public:
   }
 private:
   std::vector<double> work_;
+  std::vector<double> error_; /* gear's error estimates, one per variable */
   std::array<int,8> iwork_{}; /* its step's order and counters (ggear) */
 };
 

@@ -94,6 +94,7 @@ int main()
     m.statements.push_back(statement);
     xpp::index_model_places(m);
     m.node=1;
+    s.size_variables(1024); /* the programs below, one each */
     m.uvar_names[0]="x";
     int count=0;
     auto append=[&](std::vector<int> p) { m.programs[count++].rpn=std::move(p); };
@@ -181,8 +182,8 @@ int main()
         CHECK(messages.text().find("compile.odex:7: not compiled: sums nested too deep; running the interpreter")!=std::string::npos);
     }
     CHECK(xpp::evaluate(s,m.programs[0])==0.0);
-    for (const auto &invalid:std::vector<std::vector<int>>{{COM(CONTYPE,MAXPAR),ENDEXP},
-         {COM(VARTYPE,MAXODE1),ENDEXP},{COM(FUN1TYPE,26),ENDEXP},{MYIF,999999,ENDEXP},{NUMSYM,0}}) {
+    for (const auto &invalid:std::vector<std::vector<int>>{{COM(CONTYPE,static_cast<int>(s.parser.constants.size())),ENDEXP},
+         {COM(VARTYPE,static_cast<int>(s.parser.variables.size())),ENDEXP},{COM(FUN1TYPE,26),ENDEXP},{MYIF,999999,ENDEXP},{NUMSYM,0}}) {
         m.programs[0].rpn=invalid;
         CHECK(xpp::compile_model(s).has_value());
         CHECK(m.programs[0].native==nullptr);
