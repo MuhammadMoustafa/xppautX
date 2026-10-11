@@ -231,16 +231,19 @@ namespace {
 /* the writer of open_writer_asking and open_writer_replacing: ask is
    whether the replace decision is still to be had (a command's, a
    dialog's, or the user's answer) */
-xpp::Writer open_writer(std::string_view fil, bool binary, Result<> *opened, bool ask, bool independent)
+xpp::Writer open_writer(std::string_view fil, bool binary, Result<> *opened, bool ask, bool independent, const Place &at)
 {
  if(opened)*opened={};
  const int status=xpp::files::output_status(fil);
  if(status!=XPP_FILES_OK){
+   Error failure=status==XPP_FILES_IO ? xpp::files::write_error("save",fil)
+       : Error{"save",xpp::format("Cannot save {}: {}",fil,xpp::files::status_text(status)),command_place()};
+   if((!at.file.empty() || !at.source.empty()) && !xpp::files::serving_reads())failure.place=at;
+   const Result<> error=std::unexpected(std::move(failure));
    /* A replay's path guard must stop the step before later commands run,
       even when the basename was rejected before Writer could open it. */
    xpp::files::write_path_ok(fil,true);
    ui.save_result(fil,false);
-   const Result<> error=fail("save",xpp::format("Cannot save {}: {}",fil,xpp::files::status_text(status)),command_place());
    if(opened)*opened=error; else show_error(error.error());
    return {};
  }
@@ -259,8 +262,10 @@ xpp::Writer open_writer(std::string_view fil, bool binary, Result<> *opened, boo
  }
  xpp::Writer w=binary?xpp::Writer::binary(fil):xpp::Writer(fil);
  if(!w){
+   Error failure=xpp::files::write_error("save",fil);
+   if((!at.file.empty() || !at.source.empty()) && !xpp::files::serving_reads())failure.place=at;
+   const Result<> error=std::unexpected(std::move(failure));
    ui.save_result(fil,false);
-   const Result<> error=fail("save",xpp::format("Cannot write {}: no temporary file can be made beside it",fil),command_place());
    if(opened)*opened=error;
    else show_error(error.error());
  }
@@ -269,14 +274,14 @@ xpp::Writer open_writer(std::string_view fil, bool binary, Result<> *opened, boo
 
 } // namespace
 
-xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *opened, bool independent)
+xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *opened, bool independent, const Place &at)
 {
- return open_writer(fil,binary,opened,true,independent);
+ return open_writer(fil,binary,opened,true,independent,at);
 }
 
 xpp::Writer open_writer_replacing(std::string_view fil, bool binary, Result<> *opened)
 {
- return open_writer(fil,binary,opened,false,false);
+ return open_writer(fil,binary,opened,false,false,{});
 }
 
 Result<> commit_save(Writer &w)
@@ -810,7 +815,7 @@ void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::s
    if(!file_selector("Save data",fil,xpp::format("*{}",f->extension)))return;
  }
  t.seed=s.numerics.last_seed;
- xpp::Writer w=open_writer_asking(fil,f->binary);
+ xpp::Writer w=open_writer_asking(fil,f->binary,nullptr,false,what=="output" ? s.output_place : Place{});
  if(!w)return;
  if(!f->write(t,w)){
    abort_save(w);

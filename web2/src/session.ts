@@ -17,7 +17,7 @@ import type {AplotHover} from './store/aplot';
 import type {TextPosition, TextValues} from './store/marks';
 import {activeView, autoWindow} from './store/diagram';
 import {
-  answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
+  answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type RunRecord, type Upload,
 } from './store/files';
 import {createStore, type Store} from './store/store';
 import {initialState, LEAVE_ASK, noIdle, reduce, type Action, type AppState} from './store/state';
@@ -95,6 +95,10 @@ export class Session {
   private savedOutputs: {name: string; handle: SaveHandle | null; data: Promise<Blob | null>}[] = [];
   private savingReads = new Set<Promise<Blob | null>>();
   private nativeSave: string | null = null;
+  private nativeRun: RunRecord | null = null;
+  private retrySave: RunRecord | null = null;
+  private retrySaveDir: string | null = null;
+  private nativeSaveDir = '';
   private pendingSave: {name: string; handle: SaveHandle | null; ahead: number; suffix?: string} | null = null;
   /** the answer to the replace confirm, when it is open */
   private replaceChoice: ((c: ReplaceChoice) => void) | null = null;
@@ -219,6 +223,10 @@ export class Session {
       } else if (this.replayAnswers.length) this.continueReplay(ev);
       else if (ev.kind === 'file' && nativeFileDialog()) void this.nativeFile(ev);
       else this.continueKeys(ev);
+    } else if (ev.ev === 'message' && ev.error?.includes('Permission denied:') && this.nativeRun) {
+      this.retrySave = this.nativeRun;
+      this.retrySaveDir = this.nativeSaveDir;
+      this.nativeRun = null;
     } else if (ev.ev === 'progress') {
       /* a computation: the keys typed meanwhile are discarded, like any typed during it (W68) */
       if (!this.keyIdlesAhead) {
@@ -269,6 +277,19 @@ export class Session {
       if (this.displayIdles > 0 && --this.displayIdles === 0) this.displayGuard = new Set(this.displayHeld.keys());
       this.flushDisplay();
       this.flushWindow();
+      const retry = this.retrySave;
+      this.retrySave = null;
+      if (retry) {
+        const keys = menuKeys(this.store.getState().hello, this.store.getState().core?.menu ?? 0, retry.menu);
+        if (keys) {
+          this.replayAnswers = retry.answers.slice();
+          this.replayIdles = keys.length + 1;
+          for (const key of keys) this.key(key);
+          this.send(retry.cmd);
+          return;
+        }
+      }
+      this.nativeRun = null;
       const typed = this.keyWaiting ? undefined : this.typeahead.shift();
       if (typed !== undefined && !next && !this.planIdles) this.key(typed);
       else if (!this.keyWaiting && this.clickedKeys.length) {
@@ -1474,13 +1495,23 @@ export class Session {
   async nativeFile(ask: AskEvent): Promise<void> {
     let path: unknown = null;
     try {
-      path = await nativeFileDialog()!({...nativeFileRequest(ask), ask: ask.id});
+      const request = nativeFileRequest(ask);
+      if (ask.mode === 'write' && this.retrySaveDir !== null) {
+        request.dir = this.retrySaveDir;
+        this.retrySaveDir = null;
+      }
+      path = await nativeFileDialog()!({...request, ask: ask.id});
     } catch (e) {
       this.failed(`The file dialog could not open: ${e instanceof Error ? e.message : String(e)}`);
     }
     if (this.store.getState().ask?.id !== ask.id) return; /* the prompt went meanwhile */
     if (typeof path === 'string' && path) {
-      if (ask.mode === 'write') this.nativeSave = path;
+      if (ask.mode === 'write') {
+        this.nativeSave = path;
+        const run = this.store.getState().files.run;
+        this.nativeRun = run ? {...run, answers: run.answers.slice()} : null;
+        this.nativeSaveDir = ask.save_dir ?? '';
+      }
       this.answer(ask, ask.mode === 'write' ? {file: path, replace: 1} : {file: path});
     } else this.cancel(ask);
   }

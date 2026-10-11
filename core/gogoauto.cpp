@@ -19,11 +19,18 @@ struct RunUnits {
   AutoLib &lib;
   xpp::UniqueFile u3,u7,u9;
   RunUnits(xpp::Session &s, bool restart)
-    : lib(s.auto_lib),
-      u3(xpp::files::open_stream(xpp::auto_fort_path(s,3),restart?"r":"w+")),
-      u7(xpp::files::open_stream(xpp::auto_fort_path(s,7),"w")),
-      u9(xpp::files::open_stream(xpp::auto_fort_path(s,9),"w"))
+    : lib(s.auto_lib)
   {
+    const auto open = [&s](int unit, const char *mode) {
+      const std::string path=xpp::auto_fort_path(s,unit);
+      xpp::UniqueFile file(xpp::files::open_stream(path,mode));
+      if(!file)xpp::auto_fail((mode[0]=='r' ? xpp::files::open_error("AUTO",path)
+                                         : xpp::files::write_error("AUTO",path)).what);
+      return file;
+    };
+    u3=open(3,restart?"r":"w+");
+    u7=open(7,"w");
+    u9=open(9,"w");
     lib.session=&s;
     lib.fp3=u3.get();
     lib.fp7=u7.get();

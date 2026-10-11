@@ -5,6 +5,7 @@
    tools/servercheck.py through the protocol's `file` command. */
 #include "xpptest.h"
 #include "xpp_files.h"
+#include "xpp_io.h"
 #include "json_files.h"
 #include "snapx.h"
 #include "odex.h"
@@ -92,6 +93,7 @@ int main()
         CHECK(xpp::files::make_dirs(deep));
         CHECK(xpp::files::is_dir(deep));
         CHECK(xpp::files::make_dirs(deep)); /* already there */
+        CHECK(std::filesystem::remove_all(t.path()) > 0); /* This test owns every nested folder. */
     }
 
     /* W121b: one basename suffix rule, including the bare-extension edge. */
@@ -236,6 +238,9 @@ int main()
         CHECK(fd < 0 && errno == ELOOP);
         if (fd >= 0) _close(fd);
         CHECK(xpp::files::open("link.txt", fp, size) == XPP_FILES_REFUSED && !fp);
+        CHECK(!xpp::files::make_dirs("link.txt/new-folder") && errno == ELOOP);
+        CHECK(!xpp::files::exists("sub/new-folder"));
+        CHECK(!xpp::files::check_dirs("link.txt/../sub") && errno == ELOOP);
         CHECK(xpp::files::create_new("link.txt", true) == nullptr);
         CHECK(_rmdir("link.txt") == 0);
     }
@@ -249,6 +254,9 @@ int main()
         CHECK(fd < 0 && errno == ELOOP);
         if (fd >= 0) _close(fd);
         CHECK(xpp::files::open("link.txt", fp, size) == XPP_FILES_REFUSED && !fp);
+        CHECK(!xpp::files::make_dirs("link.txt/new-folder") && errno == ELOOP);
+        CHECK(!xpp::files::exists("sub/new-folder"));
+        CHECK(!xpp::files::check_dirs("link.txt/../sub") && errno == ELOOP);
         CHECK(xpp::files::put_begin("link.txt", 100, put) == XPP_FILES_REFUSED);
         CHECK(xpp::files::create_new("link.txt", true) == nullptr);
         CHECK(std::filesystem::remove("link.txt"));
@@ -264,9 +272,19 @@ int main()
 #ifndef _WIN32
     /* a link is neither followed nor replaced */
     CHECK(symlink("/etc/hostname", "link.txt") == 0);
+    CHECK(!xpp::files::make_dirs("link.txt/new-folder") && errno == ELOOP);
     CHECK(xpp::files::open("link.txt", fp, size) == XPP_FILES_REFUSED);
     CHECK(xpp::files::put_begin("link.txt", 100, put) == XPP_FILES_REFUSED);
 #endif
+
+    /* W303: checking a folder never overwrites a file at the old fixed probe name. */
+    {
+        xpp::Writer sentinel(".xppautx_homecheck");
+        CHECK(sentinel && sentinel.write("keep") && sentinel.commit());
+        CHECK(xpp::files::dir_writable("."));
+        CHECK(slurp(".xppautx_homecheck") == "keep");
+        CHECK(std::remove(".xppautx_homecheck") == 0);
+    }
 
     /* where a path a model names lies against its folder (W286): inside, outside (for the user to allow) or
        refused for good; an outside file is read only when its resolved text was approved */
@@ -424,7 +442,9 @@ int main()
         for (const std::string &root : {real_scratch, linked_scratch}) {
             CHECK(xpp::files::write_path_ok(root + "/run1.dat"));
             std::FILE *out = xpp::files::open_stream(root + "/run1.dat", "w");
-            CHECK(out != nullptr);
+            /* W303: the write owner now refuses even a linked ancestor of
+               scratch; use the canonical folder make_temp_dir returns. */
+            CHECK((out != nullptr) == (root == real_scratch));
             if (out) std::fclose(out);
         }
         const std::string escape = real_scratch + "/escape";

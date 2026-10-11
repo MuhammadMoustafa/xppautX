@@ -2614,7 +2614,7 @@ xpp::Result<> make_q_file(const xpp::Session &s, FILE *fp)
   /* written beside the .s and renamed over it once whole */
   xpp::Writer w(string.c_str());
   if(!w){
-    return xpp::fail("AUTO",xpp::format("Cannot write {}",string),command_place());
+    return std::unexpected(xpp::files::write_error("AUTO",string));
   }
 
   /* the rest of fp, the .auto's copy of the .s, without its blank lines */

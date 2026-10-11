@@ -646,7 +646,12 @@ constexpr OptionRow rows[] = {
      /* the batch data file, named from the model's folder */
      std::string path;
      if (const char *why = own_file(s, v, path)) return why;
-     if (v.apply) batch_options.out_file = path;
+     if (v.apply) {
+       batch_options.out_file = path;
+       s.output_place = Load::running() ? Load::place() : command_place();
+       if (s.output_place.source.empty())
+         s.output_place.source = model_source_line(s.model(), s.output_place.file, s.output_place.line);
+     }
      return nullptr;
    }},
   {.group = option_group::batch, .kind = OptionKind::whole, .name = "RUNNOW", .once = true,
@@ -974,7 +979,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   }
   else if (row->parse) {
     why = row->parse(s, v);
-    if (why == log_open_failed) return files::open_error("option", value).what;
+    if (why == log_open_failed) return files::write_error("option", value).what;
   }
   else if (row->real) why = number_into(row->real(s), v);
   else if (row->whole) why = whole_into(row->whole(s), v);

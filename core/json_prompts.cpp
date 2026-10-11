@@ -376,6 +376,8 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
         buf_str(&b, pattern.c_str());
         BUF_LIT(&b, ",\"dir\":");
         buf_str(&b, std::string_view(dir));
+        BUF_LIT(&b, ",\"save_dir\":");
+        buf_str(&b, xpp::files::writable_save_folder(s.file_dialogs.home.empty() ? xpp::files::working_dir() : s.file_dialogs.home));
         if (xpp::files::list_matching(pattern, dir, dirs, files)) {
             BUF_LIT(&b, ",\"dirs\":");
             buf_str_array(&b, dirs);

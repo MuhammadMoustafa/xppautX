@@ -42,7 +42,7 @@ void data_restore(Session &s, BROWSER *b);
    receives the error to show; otherwise it is shown here, once.
    independent resets the command decision for a derived destination. */
 Writer open_writer_asking(std::string_view fil, bool binary = false,
-                          Result<> *opened = nullptr, bool independent = false);
+                          Result<> *opened = nullptr, bool independent = false, const Place &at = {});
 /* The same for a file the user already chose to replace, as the path a
    session was saved to: no question, the status checks and the temp-then-
    rename write of open_writer_asking. */

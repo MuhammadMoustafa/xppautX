@@ -5,6 +5,7 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shlobj.h>
 #include <io.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -187,8 +188,10 @@ bool move_over(const char *from, const char *to)
         if (MoveFileExA(from, to, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) return true;
         const DWORD e = GetLastError();
         if (attempt == MOVE_RETRIES
-            || (e != ERROR_SHARING_VIOLATION && e != ERROR_LOCK_VIOLATION && e != ERROR_ACCESS_DENIED))
+            || (e != ERROR_SHARING_VIOLATION && e != ERROR_LOCK_VIOLATION && e != ERROR_ACCESS_DENIED)) {
+            errno = e == ERROR_ACCESS_DENIED || e == ERROR_SHARING_VIOLATION || e == ERROR_LOCK_VIOLATION ? EACCES : EIO;
             return false;
+        }
         Sleep(MOVE_RETRY_MS);
     }
 }
@@ -208,6 +211,13 @@ std::string app_data_folder()
     const DWORD n = GetEnvironmentVariableA("APPDATA", dir.data(), static_cast<DWORD>(dir.size()));
     if (n == 0 || n >= dir.size()) return std::string();
     return std::string(dir.data(), n);
+}
+
+std::string documents_folder()
+{
+    std::array<char, MAX_PATH> path; /* SHGetFolderPathA's required system buffer. */
+    if (SHGetFolderPathA(nullptr, CSIDL_PERSONAL, nullptr, SHGFP_TYPE_CURRENT, path.data()) != S_OK) return {};
+    return path.data();
 }
 
 std::string program_folder()

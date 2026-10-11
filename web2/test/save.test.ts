@@ -139,3 +139,34 @@ test('W177: same-name exports snapshot distinct bytes before answering the next 
   await delivered;
   assert.deepEqual(captured, ['orbit', 'adjoint']);
 });
+
+
+test('W303: a denied native save retries only after idle, in the writable model folder', async () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const requests: {dir: string}[] = [];
+  Object.defineProperty(globalThis, 'window', {configurable: true, value: {
+    __xppFileDialog: async (request: {dir: string}) => { requests.push(request); return '/protected/data.csv'; },
+  }});
+  try {
+    const {s, sent, emit} = saving();
+    emit({ev: 'idle'});
+    s.writeDataFile('table', 'csv');
+    const ask: AskEvent = {ev: 'ask', kind: 'file', id: 7, mode: 'write', file: '/protected/data.csv',
+      dir: '/protected', save_dir: '/model', wild: '*.csv'};
+    s.store.dispatch({type: 'event', ev: ask});
+    await s.nativeFile(ask);
+    const before = sent.length;
+    emit({ev: 'saved', saved: false, file: '/protected/data.csv'});
+    emit({ev: 'message', error: 'cannot open data.csv: Permission denied: the folder /protected needs administrator rights; choose another place'});
+    assert.equal(sent.length, before);
+    emit({ev: 'idle'});
+    assert.deepEqual(sent.at(-1), {cmd: 'browser', op: 'write', what: 'table', format: 'csv'});
+    const retry = {...ask, id: 8};
+    s.store.dispatch({type: 'event', ev: retry});
+    await s.nativeFile(retry);
+    assert.deepEqual(requests.map(r => r.dir), ['/protected/', '/model']);
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'window', original);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+});

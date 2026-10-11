@@ -1,5 +1,6 @@
 #ifndef XPP_SESSION_H
 #define XPP_SESSION_H
+#include "xpp_files.h"
 /* xpp::Session: everything a run changes (AGENTS.md "No global state";
    docs/roadmap.md W47c). C++ only.
 
@@ -121,6 +122,8 @@ struct Session {
     std::string home;
     std::map<std::string,std::string> last;
   } file_dialogs;
+  files::WriteFolders write_folders; /* Folder answers belong to this session, never to a global. */
+  Place output_place; /* The model option that named a batch output, kept through its run. */
 
   /* the integrator's state (integrate.cpp) */
   IntegratorState integrator;

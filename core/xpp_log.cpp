@@ -59,6 +59,7 @@ LogSettings log_settings = {nullptr, 1, 0, 0};
 bool log_open_file(std::string_view path)
 {
     close_log_file();
+    log_settings.file = nullptr; /* A folder question must not log through the closed stream. */
     log_settings.file = xpp::files::open_stream(path, "w");
     return log_settings.file != nullptr;
 }

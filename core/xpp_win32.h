@@ -41,6 +41,8 @@ std::string app_data_folder();
    rest of the core's paths use), without a trailing backslash; empty when
    it cannot be had (xpp_files_dir.cpp's program_dir) */
 std::string program_folder();
+/* The system Documents folder, including redirected folders; empty when unavailable. */
+std::string documents_folder();
 /* xppautX links -mwindows (a GUI-subsystem exe: no console pops up when
    Explorer or a file association starts it) so a command-line mode
    (--server, --silent, --version, --help, --browser, or any log to

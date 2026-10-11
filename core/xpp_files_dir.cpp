@@ -107,17 +107,31 @@ std::string config_path(std::string_view name)
     return dir.empty() ? std::string() : join(dir, name);
 }
 
-bool make_dirs(std::string_view path)
+namespace {
+bool walk_dirs(std::string_view path, bool create)
 {
     for (std::size_t end = 1; end <= path.size(); end++) {
         if (end != path.size() && path[end] != '/' && path[end] != SEP) continue;
         const std::string part(path.substr(0, end));
         /* a bare drive ("C:") is no folder to make or test: stat fails on it and mkdir is refused (W220) */
         if (part.size() == 2 && part[1] == ':' && std::isalpha(static_cast<unsigned char>(part[0]))) continue;
-        if (!is_dir(part) && make_dir(part.c_str()) != 0 && errno != EEXIST) return false;
+        if (is_link(part.c_str())) { errno = ELOOP; return false; }
+        Stat st;
+        if (stat_follow(part.c_str(), &st) == 0) {
+            if (!S_ISDIR(st.st_mode)) { errno = ENOTDIR; return false; }
+        } else {
+            if (!create || errno != ENOENT) return false;
+            if (make_dir(part.c_str()) != 0 && errno != EEXIST) return false;
+            if (is_link(part.c_str())) { errno = ELOOP; return false; }
+            if (!is_dir(part)) { errno = ENOTDIR; return false; }
+        }
     }
     return true;
 }
+} // namespace
+
+bool make_dirs(std::string_view path) { return walk_dirs(path, true); }
+bool check_dirs(std::string_view path) { return walk_dirs(path, false); }
 
 bool is_dir(std::string_view path)
 {
@@ -127,17 +141,36 @@ bool is_dir(std::string_view path)
 
 bool dir_writable(std::string_view dir)
 {
-    if (dir.empty()) return false;
+    if (dir.empty() || !check_dirs(dir)) return false;
     try {
-        std::string probe = xpp::format("{}/.xppautx_homecheck", dir);
-        xpp::UniqueFile fp(std::fopen(probe.c_str(), "w"));
-        if (!fp) return false;
-        fp.reset();
-        std::remove(probe.c_str());
-        return true;
+        constexpr int probe_attempts = 100; /* Skip exclusive names left by an interrupted probe. */
+        for (int attempt = 0; attempt < probe_attempts; ++attempt) {
+            const std::string probe = xpp::format("{}/.xppautx-homecheck-{}-{}", dir, own_pid(), attempt);
+            xpp::UniqueFile fp(create_plain(probe, true));
+            if (!fp) {
+                if (errno == EEXIST || errno == ELOOP) continue;
+                return false;
+            }
+            fp.reset();
+            std::remove(probe.c_str());
+            return true;
+        }
+        return false;
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("probing a folder");
     }
+}
+
+std::string writable_save_folder(std::string_view model_folder)
+{
+    if (dir_writable(model_folder)) return std::string(model_folder);
+#ifdef _WIN32
+    const std::string documents = xpp::win32::documents_folder();
+#else
+    const char *home = std::getenv("HOME");
+    const std::string documents = home && *home ? join(home, "Documents") : std::string();
+#endif
+    return dir_writable(documents) ? documents : std::string();
 }
 
 /* ---- AUTO's scratch folders ------------------------------------------------------ */

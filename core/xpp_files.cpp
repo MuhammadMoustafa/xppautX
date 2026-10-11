@@ -10,6 +10,8 @@
 #include "xpp_log.h"
 #include "xpp_mem.h"
 #include "xpp_sha256.h"
+#include "xpp_ui.h"
+#include "session.h"
 
 #include <algorithm>
 #include <array>
@@ -453,6 +455,21 @@ Error open_error(std::string where, std::string_view file, std::string_view why)
     return Error{std::move(where), xpp::format("cannot open {}: {}", file, reason), Place{std::string(file)}};
 }
 
+Error write_error(std::string where, std::string_view file)
+{
+    const int failure = errno;
+    const std::string folder = split_path(absolute(file)).first;
+    const std::string reason = failure == EACCES || failure == EPERM
+          ? xpp::format("Permission denied: the folder {} needs administrator rights; choose another place", folder)
+        : failure == ECANCELED ? xpp::format("creation of the folder {} was refused", folder)
+        : xpp::format("{} (folder {})", std::strerror(failure), folder);
+    Place at = Load::running() ? Load::place() : command_place();
+    if (at.file.empty() && at.source.empty()) at.file = file;
+    Error error{std::move(where), xpp::format("cannot open {}: {}", file, reason), std::move(at)};
+    Load::add_source(error);
+    return error;
+}
+
 /* ---- the core's own files ------------------------------------------------------ */
 
 namespace {
@@ -480,7 +497,7 @@ void concat(const char *first, xpp::UniqueFile second, const char *to)
     }
     xpp::Writer w = xpp::Writer::binary(to);
     if (!w) {
-        xpp::log(XPP_LOG_WARN, "{}\n", open_error("copy",to).text());
+        xpp::log(XPP_LOG_ERROR, "{}\n", write_error("copy",to).text());
         return;
     }
     copy_bytes(in.get(), w.file());
@@ -614,10 +631,30 @@ FILE *open_read_within(std::string_view path, std::string_view folder, std::span
     return fp.release();
 }
 
+bool prepare_write_folder(std::string_view file)
+{
+    const std::string folder = split_path(file).first;
+    if (folder.empty()) return true;
+    const PathCheck checked = resolve_path(folder, working_dir());
+    if (checked.kind == PathKind::refused) { errno = ELOOP; return false; }
+    if (check_dirs(folder)) return true;
+    if (errno != ENOENT) return false;
+    WriteFolders *state = xpp::ui.write_folders();
+    std::optional<bool> remembered;
+    if (state) {
+        const auto found = state->answers.find(checked.path);
+        if (found != state->answers.end()) remembered = found->second;
+    }
+    const bool answer = remembered ? *remembered : xpp::confirm(xpp::format("Create the folder {}?", checked.path), true);
+    if (state) state->answers.try_emplace(checked.path, answer);
+    if (!answer) { errno = ECANCELED; return false; }
+    return make_dirs(folder);
+}
+
 FILE *open_stream(std::string_view path, const char *mode)
 {
     const bool reading = mode[0] == 'r' && !std::strchr(mode, '+');
-    if (!reading && !write_path_ok(path, true)) return nullptr;
+    if (!reading && (!write_path_ok(path, true) || !prepare_write_folder(path))) return nullptr;
     std::string name, copy;
     bool served = false;
     try {
@@ -647,7 +684,12 @@ int stream_fd(FILE *f)
 
 FILE *create_new(std::string_view path_view, bool binary)
 {
-    if (!write_path_ok(path_view)) return nullptr;
+    if (!write_path_ok(path_view) || !prepare_write_folder(path_view)) return nullptr;
+    return create_plain(path_view, binary);
+}
+
+FILE *create_plain(std::string_view path_view, bool binary)
+{
     const std::string path(path_view);
 #ifdef _WIN32
     unsigned long long size;
@@ -693,6 +735,10 @@ void prepend(std::string_view from_view, std::string_view to_view)
 void move(std::string_view from_view, std::string_view to_view)
 {
     const std::string from(from_view), to(to_view);
+    if (!write_path_ok(to, true) || !prepare_write_folder(to)) {
+        xpp::log(XPP_LOG_ERROR, "{}\n", write_error("move", to).text());
+        return;
+    }
     /* POSIX rename() replaces an existing destination; on Windows it fails,
        so the old file was silently kept and the source left behind */
     if (std::rename(from.c_str(), to.c_str()) == 0) return;

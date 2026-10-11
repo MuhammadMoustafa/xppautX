@@ -61,7 +61,10 @@ static std::optional<std::string> ask_terminal(const std::string &question, cons
 
 void report_automatic(std::string_view question, std::string_view answer)
 {
-    log(XPP_LOG_WARN, "{} -> {} (answered automatically)\n", question, answer);
+    /* Immediate like the terminal question: a load may reopen --logfile,
+       which must not erase the answer or hide it in captured diagnostics. */
+    print(stderr, "{} -> {} (answered automatically)\n", question, answer);
+    fflush(stderr);
 }
 
 QuestionPolicy answer_policy(bool terminal, bool scripted)
@@ -87,6 +90,7 @@ static Place hl_command_place(void) { return {}; }
 static int hl_save_replace(bool) { return SAVE_ASK; }
 static void hl_save_decision(int, bool) {}
 static void hl_save_result(std::string_view, bool) {}
+static files::WriteFolders *hl_write_folders() { return nullptr; }
 static void hl_void(void) {}
 static void hl_str(std::string_view) {}
 static void hl_int(int) {}
@@ -192,6 +196,7 @@ XppUi ui = {
     .save_replace = hl_save_replace,
     .save_decision = hl_save_decision,
     .save_result = hl_save_result,
+    .write_folders = hl_write_folders,
     .ping = hl_void,
     .bottom_msg = hl_bottom_msg,
     .message_box = hl_str,

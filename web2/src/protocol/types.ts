@@ -430,6 +430,8 @@ export interface AskEvent {
   file?: string;
   wild?: string;
   dir?: string;
+  /** Writable model folder offered for a native save retry. */
+  save_dir?: string;
   dirs?: string[];
   files?: string[];
   /** the window the ask is about (mouse, rubber, drag, grab; a `pixels` ask's window to render) */

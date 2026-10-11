@@ -3555,11 +3555,21 @@ def check_save_owner():
         # replace it: a deterministic commit failure, including on Windows.
         for name in ['blocked.par', 'absent/fail.par']:
             snd(cmd='values', op='write', kind='par', name=name, replace=1)
-            evs, _ = col(is_idle)
+            evs, end = col(lambda e: is_idle(e) or is_ask(e))
+            if name.startswith('absent/'):
+                check('W303: a missing save folder asks independently of replace 1',
+                      end and 'Create the folder' in end.get('question', ''), str(end))
+                if end and is_ask(end):
+                    snd(cmd='answer', id=end['id'], key='n')
+                    evs, _ = col(is_idle)
             check('W129: failed %s reports one error and no successful save' % name,
                   len(errors(evs)) == 1
                   and results(evs) == [{'ev': 'saved', 'saved': False, 'file': name}]
                   and open(marker, 'rb').read() == b'old bytes', str(evs)[-400:])
+        snd(cmd='values', op='write', kind='par', name='absent/fail.par', replace=1)
+        evs, _ = col(is_idle)
+        check('W303: a declined folder is not asked again in the same session',
+              not any(is_ask(e) for e in evs) and len(errors(evs)) == 1 and not os.path.isdir(os.path.join(r, 'absent')), str(evs[-3:]))
         check('W129: failed saves leave no temporary files or duplicate Writer log',
               not glob.glob(os.path.join(r, '*.tmp-*'))
               and not any('writer' in line.lower() for line in log), str(log[-5:]))
@@ -7441,6 +7451,116 @@ def check_outside_paths():
 
 check_auto_threads()
 check_outside_paths()
+
+def check_create_folders():
+    """W303: all writers use the same parent-folder decision and OS denial."""
+    binary = os.path.abspath(args.server)
+    before = check.checks
+    with tempfile.TemporaryDirectory(prefix='xpp-create-') as temporary:
+        root = os.path.realpath(temporary)
+        model = os.path.join(root, 'model.odex')
+        shutil.copy(args.ode, model)
+        env = {'XPP_CONFIG_DIR': os.path.join(root, 'config')}
+        for option in ('--outfile', '--logfile'):
+            for mode, flags, answer in [('yes', ['--yes'], ''), ('terminal', [], 'y\n'), ('eof', [], '')]:
+                folder = os.path.join(root, option[2:] + '-' + mode)
+                destination = os.path.join(folder, 'result.dat')
+                result = subprocess.run([binary, model, '--silent', option, destination, *flags],
+                                        cwd=root, env=dict(os.environ, **env), input=answer,
+                                        capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
+                transcript = result.stderr
+                if option == '--logfile' and os.path.isfile(destination):
+                    with open(destination, encoding='utf-8') as log: transcript += log.read()
+                expected = mode in ('yes', 'terminal')
+                check('W303: %s / %s' % (option, mode),
+                      os.path.isfile(destination) == expected and os.path.isdir(folder) == expected
+                      and (result.returncode == 0 if mode != 'eof' else result.returncode != 0)
+                      and ('Create the folder' not in result.stderr if mode == 'check' else 'Create the folder' in transcript)
+                      and ('administrator rights' not in result.stderr), result.stderr)
+        for mode, flags, answer in [('yes', ['--yes'], ''), ('terminal', [], 'y\n'), ('eof', [], ''), ('check', ['--check', '--yes'], '')]:
+            output = 'model-output-' + mode + '/data.dat'
+            origin = os.path.join(root, 'output.odex')
+            with open(origin, 'w', encoding='utf-8') as f:
+                f.write("x' = -x\noptions { batch: { output: \"%s\" }, numerics: { total_time: 1 } }\n" % output)
+            command = [binary, '--check', origin, '--yes'] if mode == 'check' else [binary, origin, '--silent', *flags]
+            result = subprocess.run(command, cwd=root, env=dict(os.environ, **env),
+                                    input=answer, capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
+            check('W303: model output retains its source / ' + mode,
+                  os.path.isfile(os.path.join(root, output)) == (mode in ('yes', 'terminal'))
+                  and ('output.odex:2' in result.stderr if mode == 'eof' else result.returncode == 0)
+                  and ('Create the folder' not in result.stderr if mode == 'check' else result.stderr.count('Create the folder') == 1), result.stderr)
+        inspection = os.path.join(root, 'inspect-log.odex')
+        with open(inspection, 'w', encoding='utf-8') as f:
+            f.write("x' = -x\noptions { log: { logfile: \"inspect-missing/log.txt\" } }\n")
+        result = subprocess.run([binary, '--check', inspection, '--yes'], cwd=root, env=dict(os.environ, **env),
+                                input='', capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
+        check('W303: inspection neither asks nor creates a logfile folder', result.returncode == 0
+              and 'Create the folder' not in result.stderr and not os.path.exists(os.path.join(root, 'inspect-missing')), result.stderr)
+        shared = os.path.join(root, 'shared.odex')
+        with open(shared, 'w', encoding='utf-8') as f:
+            f.write("x' = -x\noptions { log: { logfile: \"shared/run.log\" }, batch: { output: \"shared/data.dat\" }, numerics: { total_time: 1 } }\n")
+        result = subprocess.run([binary, shared, '--silent', '--yes'], cwd=root, env=dict(os.environ, **env),
+                                input='', capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
+        with open(os.path.join(root, 'shared', 'run.log'), encoding='utf-8') as log: transcript = result.stderr + log.read()
+        check('W303: a folder created for a log is not asked again for data', result.returncode == 0
+              and transcript.count('Create the folder') == 1
+              and os.path.isfile(os.path.join(root, 'shared', 'run.log'))
+              and os.path.isfile(os.path.join(root, 'shared', 'data.dat')), result.stderr)
+        # A model's logfile is prepared at its source line. An outside path
+        # must have its own earlier approval; two independent questions.
+        project = os.path.join(root, 'project')
+        os.mkdir(project)
+        source = os.path.join(project, 'log.odex')
+        for answer in ('y', 'n'):
+            destination = '../outside-' + answer + '/run.log'
+            with open(source, 'w', encoding='utf-8') as f:
+                f.write("x' = -x\noptions { log: { logfile: \"%s\" } }\n" % destination)
+            server = Server(binary, source, env=env, run=project)
+            try:
+                _, outside = server.collect(lambda e: e.get('ev') in ('ask', 'error'))
+                check('W303: outside approval precedes folder creation / ' + answer,
+                      outside and outside.get('keys') == 'aor', str(outside))
+                if outside and outside.get('ev') == 'ask':
+                    server.send(cmd='answer', id=outside['id'], key='o')
+                _, ask = server.collect(lambda e: e.get('ev') in ('ask', 'error'))
+                check('W303: server asks to create the folder / ' + answer,
+                      ask and 'Create the folder' in ask.get('question', '') and ask.get('keys') == 'yn', str(ask))
+                if ask and ask.get('ev') == 'ask':
+                    server.send(cmd='answer', id=ask['id'], key=answer)
+                events, _ = server.collect(lambda e: e.get('ev') in ('idle', 'error'))
+                errors = [e for e in events if e.get('ev') == 'error']
+                check('W303: server creation answer / ' + answer,
+                      os.path.isfile(os.path.join(root, 'outside-' + answer, 'run.log')) == (answer == 'y')
+                      and (not errors if answer == 'y' else any(e.get('line') == 2 and 'folder' in e.get('error', '') for e in errors)), str(events[-3:]))
+            finally:
+                server.close()
+        denied = os.path.join(root, 'denied')
+        os.mkdir(denied)
+        sid = None
+        try:
+            if os.name == 'nt':
+                sid = 'S-1-1-0'  # Everyone: the ACL convention used by the silent output checks.
+                subprocess.run(['icacls', denied, '/deny', '*' + sid + ':(OI)(CI)(W)'], check=True, capture_output=True)
+            else:
+                os.chmod(denied, 0o500)
+            for nested in (False, True):
+                destination = os.path.join(denied, 'child', 'result.dat') if nested else os.path.join(denied, 'result.dat')
+                result = subprocess.run([binary, model, '--silent', '--yes', '--outfile', destination], cwd=root,
+                                        env=dict(os.environ, **env), input='', capture_output=True, text=True,
+                                        encoding='utf-8', timeout=90 * SLOW)
+                check('W303: OS permission denial / ' + ('create' if nested else 'write'),
+                      result.returncode != 0 and 'Permission denied:' in result.stderr
+                      and 'administrator rights' in result.stderr and 'choose another place' in result.stderr
+                      and 'denied' in result.stderr and not os.path.exists(destination), result.stderr)
+        finally:
+            if sid:
+                subprocess.run(['icacls', denied, '/remove:d', '*' + sid], check=True, capture_output=True)
+            else:
+                os.chmod(denied, 0o700)
+    print('W303 folder matrix: %d checks' % (check.checks - before))
+
+
+check_create_folders()
 
 print('server checks: %s' % ('all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

@@ -354,6 +354,7 @@ XppUi make_json_ui(void)
         return session.silent && !session.generated && decision == SAVE_ASK ? SAVE_REPLACE : decision;
     };
     u.save_decision = record_save_decision;
+    u.write_folders = []() { return &client().write_folders; };
     u.save_result = [](std::string_view file, bool saved) {
         Buf b;
         buf_format(&b, "{{\"ev\":\"saved\",\"saved\":{},\"file\":", saved ? "true" : "false");

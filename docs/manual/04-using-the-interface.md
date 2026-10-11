@@ -463,3 +463,5 @@ known. The desktop binding accepts only a release tag page, and reports a
 failed system browser opener (W176, [#228](https://github.com/MuhammadMoustafa/xppautX/issues/228)).
 
 W13c ([#126](https://github.com/MuhammadMoustafa/xppautX/issues/126)).
+
+Writes into a missing folder ask **Create the folder <folder>?**. A model path outside its folder first asks for outside-path approval, then asks separately to create the folder. No answer refuses; `--yes` accepts and prints the answer, and `--check` asks nothing and creates nothing. Existing folders are not asked again. Links on the way are refused and new folders are private (0700 on POSIX). Permission denied names the folder and the requesting source or command, says it needs administrator rights and to choose another place; the program never elevates itself. The desktop save dialog retries in the writable model folder, or Documents, after this error. (W303, [#361](https://github.com/MuhammadMoustafa/xppautX/issues/361)).

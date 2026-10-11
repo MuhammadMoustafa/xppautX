@@ -13,6 +13,8 @@
 #endif
 
 #include <cerrno>
+#include <cstdio>
+#include <string_view>
 #include <cstdlib>
 #include <string>
 #include <sys/stat.h>
@@ -27,6 +29,9 @@
 #endif
 
 namespace xpp::files {
+/* Owner-only exclusive open: create_new guards a user write; dir_writable
+   checks the parent and uses it only for its own unique, hidden probe. */
+FILE *create_plain(std::string_view path, bool binary);
 
 #ifdef _WIN32
 using Stat = struct _stat64;

@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <optional>
+#include <map>
 #include <span>
 #include <string>
 #include <string_view>
@@ -111,6 +112,9 @@ struct CommandResult {
 CommandResult command(std::string_view op, const char *name_json, const char *data_json);
 /* Every failed open names the requested file and the system or explicit reason. */
 Error open_error(std::string where, std::string_view file, std::string_view why = {});
+/* A core write's failure, preserving errno before UI notification, at its
+   load line or command/recording step; permission denial has its own advice. */
+Error write_error(std::string where, std::string_view file);
 
 /* ---- the core's own files, by any path (W32b) -------------------------------
    The one place the core opens, copies, moves, deletes and probes files
@@ -189,6 +193,8 @@ bool is_dir(std::string_view path);
 /* a file can be created in dir: probed by creating one and removing it (a
    folder can exist without being writable); false for "" */
 bool dir_writable(std::string_view dir);
+/* A native save retry: writable model folder, then Documents; empty if neither is available. */
+std::string writable_save_folder(std::string_view model_folder);
 /* the file selector's current folder (core/read_dir.cpp's old cur_dir,
    folded in here, W46b): "" until refreshed */
 std::string cur_dir();
@@ -242,6 +248,13 @@ std::string join(std::string_view dir, std::string_view name);
 /* path and its missing parents as folders, mode 0700 (POSIX); false when
    one cannot be made */
 bool make_dirs(std::string_view path);
+/* Check every component before normalization too: link/../ must not hide a link. */
+bool check_dirs(std::string_view path);
+/* Prepare the parent of a write, after its outside/replay guard. The active
+   front end supplies the Session's WriteFolders, remembering yes and no.
+   A refusal returns ECANCELED; a system failure preserves errno. */
+struct WriteFolders { std::map<std::string, bool> answers; };
+bool prepare_write_folder(std::string_view file);
 /* path is in one of this process's scratch folders (as the path above
    names them): a file the core itself keeps there, never the user's.
    root_only requires the folder itself, excluding nested directories. */

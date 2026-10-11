@@ -193,8 +193,8 @@ Ptr attached_state(std::FILE *fp) noexcept
 template <class Ptr>
 Ptr writer_open(std::string_view path, bool binary)
 {
-    if (path.empty() || !xpp::files::write_path_ok(path, true)) return nullptr;
     try {
+        if (path.empty() || !xpp::files::write_path_ok(path, true) || !xpp::files::prepare_write_folder(path)) return nullptr;
         Ptr w = new_state<Ptr>();
         if (!w) throw std::bad_alloc();
         w->target = path;
@@ -381,7 +381,7 @@ Result<> Writer::commit() noexcept
         return std::unexpected(error);
     }
     if (files::replace_file(w->tmp, w->target) != 0) {
-        const Error error{"writer", "cannot be replaced", Place{w->target}};
+        const Error error = files::write_error("writer", w->target);
         writer_discard(std::move(w));
         return std::unexpected(error);
     }

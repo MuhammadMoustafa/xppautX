@@ -59,7 +59,7 @@ FILE *fort8(AutoLib &lib)
 {
   if(!lib.fp8){
     lib.fp8.reset(xpp::files::open_stream(xpp::auto_fort_path(*lib.session,8),"w"));
-    if(!lib.fp8)xpp::auto_fail(xpp::files::open_error("AUTO", xpp::auto_fort_path(*lib.session,8)).what);
+    if(!lib.fp8)xpp::auto_fail(xpp::files::write_error("AUTO", xpp::auto_fort_path(*lib.session,8)).what);
   }
   return lib.fp8.get();
 }

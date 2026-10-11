@@ -11,6 +11,7 @@
 
 namespace xpp {
 struct Session; /* session.h */
+namespace files { struct WriteFolders; }
 
 /*
  * The seam between the numerics and whatever front end is driving them.
@@ -181,6 +182,7 @@ typedef struct XppUi {
     /* A core decision without a dialog/command answer, for recording. */
     void (*save_decision)(int decision, bool asked);
     void (*save_result)(std::string_view file, bool saved);
+    files::WriteFolders *(*write_folders)(void); /* the active front end supplies its session owner */
     void (*ping)(void);
     void (*bottom_msg)(int line, std::string_view msg, std::string_view chapter, std::string_view anchor);
     void (*message_box)(std::string_view msg);

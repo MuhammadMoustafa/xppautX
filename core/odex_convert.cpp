@@ -1806,11 +1806,13 @@ Result<> write_conversion(const std::string &out, std::string_view text)
   /* Writer's diagnostic is rendered once by the command that opened it. */
   xpp::LogCapture messages;
   xpp::Writer w = xpp::Writer::binary(out);
-  if (!w || !w.write(text) || !w.commit()) {
+  if (!w) {
+    const Error error = xpp::files::write_error("convert", out);
     messages.clear();
-    return xpp::fail_reading("convert", "cannot be written", out);
+    return std::unexpected(error);
   }
-  return {};
+  if (!w.write(text)) return xpp::fail_reading("convert", "cannot be written", out);
+  return w.commit();
 }
 
 } // namespace

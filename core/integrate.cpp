@@ -879,7 +879,7 @@ int write_this_run(xpp::Session &s, const char *file, int i)
   if(!s.integrator.suppress_out){
   std::string outfile=xpp::format("{}.{}",file,i);
   if(!save_ready(s.browser.view.iend>s.browser.view.istart))return -1;
-  xpp::Writer w=xpp::open_writer_asking(outfile.c_str());
+  xpp::Writer w=xpp::open_writer_asking(outfile.c_str(),false,nullptr,false,s.output_place);
   if(!w)return -1;
   write_mybrowser_data(s,w);
   xpp::ok_or_show(xpp::commit_save(w));
