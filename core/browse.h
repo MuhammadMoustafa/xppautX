@@ -112,9 +112,6 @@ bool compute_added_column(Session &s, const std::string &formula, int col_index,
    saved session's added columns' too); the parser's working symbols
    rolled back after, so s is left as it was */
 bool added_column_compiles(Session &s, std::string_view formula);
-/* how many columns Add column may add to the model m's: the data store's
-   table has room for DataStore::ADDED_COLUMNS past the model's own */
-int added_columns_room(const Model &m);
 
 /* an Add column (browse_data.cpp data_add_col): its name and formula, as
    typed, kept to recompute it after every fresh run (below) */

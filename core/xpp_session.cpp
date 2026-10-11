@@ -64,9 +64,6 @@ bool name_or_ask(const xpp::Model &m, const char *title, std::string_view wild, 
 
 /* ---- windows.setx: the plot windows, AUTO's view, the added columns ---- */
 
-/* the most columns a session adds (the room the model has is checked as well) */
-constexpr std::size_t max_added_columns = MAXODE;
-
 void write_range(xpp::setx::Out &out, const xpp::AxisRange &r, std::string_view key)
 {
     out.begin(key);
@@ -152,7 +149,7 @@ WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file)
     WindowsRead r;
     /* the added columns first: a window's curves may name them */
     std::vector<xpp::setx::Block> added;
-    file.groups("added_columns", added, std::min<std::size_t>(max_added_columns, static_cast<std::size_t>(xpp::added_columns_room(s.model()))));
+    file.groups("added_columns", added, xpp::DataStore::ADDED_COLUMNS);
     for (xpp::setx::Block &g : added) {
         xpp::AddedColumn c;
         g.text("name", c.name);

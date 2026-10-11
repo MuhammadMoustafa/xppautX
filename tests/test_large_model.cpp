@@ -1,5 +1,5 @@
 /* A model beyond XPPAUT's limits loads and runs (W243, #299): XPPAUT stops
-   at 5000 variables (MAXODE), 400 parameters (MAXPAR) and 10000 symbols.
+   at 5000 variables, 400 parameters and 10000 symbols (XPPAUT's MAXODE, MAXPAR, MAX_SYMBS).
    The model is generated here, 5200 equations x_i' = -p_k x_i, each with
    one of 450 parameters, and one auxiliary quantity, so it needs 10404
    variables with their primes and 450 parameters; it loads, integrates

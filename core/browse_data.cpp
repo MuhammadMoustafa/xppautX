@@ -478,8 +478,6 @@ bool added_column_compiles(xpp::Session &s, std::string_view formula)
   return compiles;
 }
 
-int added_columns_room(const xpp::Model &) { return xpp::DataStore::ADDED_COLUMNS; }
-
 int add_stor_col(xpp::Session &s, std::string_view name, const std::string &formula, BROWSER *b)
 {
   const xpp::Model &m=s.model();
@@ -489,7 +487,7 @@ int add_stor_col(xpp::Session &s, std::string_view name, const std::string &form
      stays as the load left it -- docs/roadmap.md W77 -- so this count
      never advances neq) */
   const int col_index=m.neq+1+static_cast<int>(s.browser.added_columns.size());
-  if(static_cast<int>(s.browser.added_columns.size())>=added_columns_room(m)){
+  if(static_cast<int>(s.browser.added_columns.size())>=xpp::DataStore::ADDED_COLUMNS){
     command_error("browser", "Too many columns");
     return(0);
   }
