@@ -99,6 +99,11 @@ free_dead() {
 # take one free slot, or (--alone) every slot or none
 take() {
   local k d
+  # --alone takes nothing while any slot is held: taking one and letting
+  # it go again failed inside Codex's sandbox and left it empty (W290)
+  if [ $alone -eq 1 ]; then
+    for k in $(seq 1 $HEAVY_SLOTS); do [ -e "$(slot_dir "$k")" ] && return 1; done
+  fi
   for k in $(seq 1 $HEAVY_SLOTS); do
     d=$(slot_dir "$k")
     if mkdir "$d" 2>/dev/null; then
