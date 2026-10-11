@@ -23,6 +23,8 @@
 #include "xpplim.h"
 
 #include <array>
+#include <map>
+#include <set>
 #include <span>
 #include <string>
 #include <string_view>
@@ -128,6 +130,12 @@ struct ExprStack {
    there: expr_symbols.cpp) and the evaluator's stacks */
 struct ParserState {
   ParserState();
+  /* Indexed in the symbol owner: exact names and longest token prefixes.
+     nsym rollback removes temporary entries before the next lookup. */
+  int symbol_named(std::string_view name) const;
+  int symbol_prefix(const char *source, int &length) const;
+  void symbol_name_changed(int index);
+
   std::array<double, MAXPAR> constants{};
   std::array<double, MAXODE1> variables{};
   int ncon = 0;
@@ -146,6 +154,11 @@ struct ParserState {
     std::vector<std::string> aux_names; /* MAXODE (begin_model) */
     std::vector<std::string> fixname;   /* MAXODE1 (compiler) */
   } build;
+private:
+  void sync_symbols() const;
+  void unindex_symbol(int index) const;
+  mutable std::vector<std::string> indexed_names_;
+  mutable std::map<std::string, std::set<int>, std::less<>> names_;
 };
 
 } // namespace xpp

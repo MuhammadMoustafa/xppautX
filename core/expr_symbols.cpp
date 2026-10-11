@@ -13,6 +13,7 @@
 #include "getvar.h"
 
 #include <cctype>
+#include <algorithm>
 #include <cmath>
 #include <ctime>
 #include <iterator>
@@ -145,6 +146,23 @@ constexpr Builtin builtins[]=
    {"BESSELIS",8,COM(FUN2TYPE,21),2,PRIMARY_PRIORITY},/* Bessel I Scaled  # 95 */
 };
 static_assert(std::size(builtins)==STDSYM,"STDSYM is the number of built-in symbols");
+/* Immutable, sorted once at compile time; a formula no longer rescans
+   every built-in for each name it validates. */
+constexpr auto sorted_builtins=[] {
+  auto sorted=std::to_array(builtins);
+  std::sort(sorted.begin(),sorted.end(),[](const Builtin &a,const Builtin &b) {
+    return std::string_view(a.name)<std::string_view(b.name);
+  });
+  return sorted;
+}();
+
+const Builtin *builtin_named(std::string_view name)
+{
+  const auto b=std::lower_bound(sorted_builtins.begin(),sorted_builtins.end(),name,
+                              [](const Builtin &entry,std::string_view key) {return entry.name<key;});
+  return b!=sorted_builtins.end() && b->name==name ? &*b : nullptr;
+}
+
 
 }
 
@@ -153,21 +171,18 @@ int builtin_arity(std::string_view name)
   if (name != lower_case(std::string(name))) return -1;
   const std::string upper = upper_case(std::string(name));
   if (upper == "VOLTERRA") return -2; /* syntax lowered to the engine's integral */
-  for (const Builtin &b : builtins) {
-    if (upper != b.name) continue;
-    if (b.com == SUMSYM) return -2;
-    if (b.com / MAXTYPE == FUN1TYPE && b.pri == PRIMARY_PRIORITY) return 1;
-    if ((b.com / MAXTYPE == FUN2TYPE && b.pri == PRIMARY_PRIORITY) || b.com == ENDDELAY || b.com == ENDSHIFT || b.com == ENDISHIFT) return 2;
-    if (b.com == ENDDELSHFT || b.com == ENDSET) return 3;
+  if (const Builtin *b=builtin_named(upper)) {
+    if (b->com == SUMSYM) return -2;
+    if (b->com / MAXTYPE == FUN1TYPE && b->pri == PRIMARY_PRIORITY) return 1;
+    if ((b->com / MAXTYPE == FUN2TYPE && b->pri == PRIMARY_PRIORITY) || b->com == ENDDELAY || b->com == ENDSHIFT || b->com == ENDISHIFT) return 2;
+    if (b->com == ENDDELSHFT || b->com == ENDSET) return 3;
   }
   return -1;
 }
 
 bool is_builtin_symbol(std::string_view name)
 {
-  for(const Builtin &b : builtins)
-    if(name==b.name)return true;
-  return false;
+  return builtin_named(name)!=nullptr;
 }
 
 namespace {
@@ -177,6 +192,59 @@ int duplicate_name(const ParserState &p, std::string_view junk);
 /* name's symbol index in *index (-1 when none) */
 void find_name(const ParserState &p, std::string_view string, int *index);
 
+}
+
+void ParserState::unindex_symbol(int index) const
+{
+  auto entry = names_.find(indexed_names_[index]);
+  entry->second.erase(index);
+  if (entry->second.empty()) names_.erase(entry);
+}
+
+void ParserState::sync_symbols() const
+{
+  while (indexed_names_.size() > static_cast<size_t>(nsym)) {
+    unindex_symbol(static_cast<int>(indexed_names_.size() - 1));
+    indexed_names_.pop_back();
+  }
+  while (indexed_names_.size() < static_cast<size_t>(nsym)) {
+    const int i = static_cast<int>(indexed_names_.size());
+    indexed_names_.push_back(symbols[i].name);
+    names_[symbols[i].name].insert(i);
+  }
+}
+
+void ParserState::symbol_name_changed(int index)
+{
+  sync_symbols();
+  if (indexed_names_[index] == symbols[index].name) return;
+  unindex_symbol(index);
+  indexed_names_[index] = symbols[index].name;
+  names_[symbols[index].name].insert(index);
+}
+
+int ParserState::symbol_named(std::string_view name) const
+{
+  sync_symbols();
+  const auto entry = names_.find(name);
+  return entry == names_.end() ? -1 : *entry->second.begin();
+}
+
+int ParserState::symbol_prefix(const char *source, int &length) const
+{
+  sync_symbols();
+  int token = nsym;
+  length = 0;
+  for (size_t n = 1; source[n - 1] != '\0'; ++n) {
+    const std::string_view prefix(source, n);
+    const auto entry = names_.lower_bound(prefix);
+    if (entry == names_.end() || !entry->first.starts_with(prefix)) break;
+    if (entry->first.size() == n) {
+      token = *entry->second.begin(); // the original scan chose the first equal name
+      length = static_cast<int>(n);
+    }
+  }
+  return token;
 }
 
 ParserState::ParserState()
@@ -452,6 +520,7 @@ void set_old_arg_names(ParserState &p, int narg)
     ExprSymbol &s=p.symbols[FIRST_ARG+i];
     s.name=xpp::format("ARG{}",i+1);
     s.len=static_cast<int>(s.name.size());
+    p.symbol_name_changed(FIRST_ARG+i);
   }
 }
 
@@ -464,6 +533,7 @@ void set_ufun_arg_names(xpp::Session &session, int index)
     ExprSymbol &s=session.parser.symbols[FIRST_ARG+i];
     s.name=args[i];
     s.len=static_cast<int>(s.name.size());
+    session.parser.symbol_name_changed(FIRST_ARG+static_cast<int>(i));
  }
 }
 
@@ -588,19 +658,7 @@ namespace {
 
 void find_name(const ParserState &p, std::string_view string, int *index)
 {
-  const std::array<ExprSymbol,MAX_SYMBS> &table=p.symbols;
-  const int nsym=p.nsym;
-  int i;
-  std::string junk=converted(string);
-  int len=static_cast<int>(junk.size());
-  for(i=0;i<nsym;i++)
-  {
-   if(len==table[i].len)
-    if(table[i].name.compare(0,len,junk)==0)break;
-  }
-   if(i<nsym)
-    *index=i;
-   else *index=-1;
+  *index=p.symbol_named(converted(string));
 }
 
 }

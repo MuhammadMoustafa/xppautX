@@ -66,6 +66,9 @@ LineReader model_file_lines(Model &m, const std::string &name);
    as what it is, by its name) nor any other binary file (a NUL byte) */
 bool is_model_text(std::string_view bytes);
 
+/* Index a completed model's definitions for its diagnostic lookups. */
+void index_model_places(Model &m);
+
 /* Where a model line is, for an error it causes at run time (W140): the
    file of a statement's place (odex::Pos, its file one of
    Model::statement_files), its line and column and the line as written. */

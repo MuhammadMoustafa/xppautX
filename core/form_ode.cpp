@@ -911,6 +911,7 @@ public:
 	   nvar_,naux_,nfix_,nmark_,m.neq,m.node);
     m.statements=std::move(p_.statements);
     m.statement_files=p_.files;
+    index_model_places(m);
     finish_model(s_);
   }
 
@@ -1172,6 +1173,7 @@ private:
     for(int i=0;i<nvar;i++){
       if(add_var(s_,vnames_[i].c_str(),0.0))clash(vnames_[i]);
       m.uvar_names[i]=vnames_[i];
+      variable_indices_.emplace(vnames_[i],i);
       s.last_ic[i]=0.0;
       m.default_ic[i]=0.0;
     }
@@ -1180,6 +1182,7 @@ private:
     for(size_t i=0;i<mnames_.size();i++){
       if(add_var(s_,mnames_[i].c_str(),0.0))clash(mnames_[i]);
       m.uvar_names[i+nvar]=mnames_[i];
+      variable_indices_.emplace(mnames_[i],static_cast<int>(i)+nvar);
       s.last_ic[i+nvar]=0.0;
       m.default_ic[i+nvar]=0.0;
     }
@@ -1200,13 +1203,9 @@ private:
      index after the variables'): -1 when it is neither */
   int variable(const std::string &name, bool &markov) const
   {
-    auto v=std::find(vnames_.begin(),vnames_.end(),name);
-    markov=false;
-    if(v!=vnames_.end())return static_cast<int>(v-vnames_.begin());
-    auto k=std::find(mnames_.begin(),mnames_.end(),name);
-    if(k==mnames_.end())return -1;
-    markov=true;
-    return s_.parser.build.in_vars+static_cast<int>(k-mnames_.begin());
+    const auto v=variable_indices_.find(name);
+    markov=v!=variable_indices_.end() && v->second>=s_.parser.build.in_vars;
+    return v==variable_indices_.end() ? -1 : v->second;
   }
 
   void initial_value(const Binding &b)
@@ -1247,8 +1246,12 @@ private:
     case Statement::Kind::Init:
       /* evaluated in order with every parameter set, once the model is
          set up (set_initial_values) */
-      for(const Binding &b : s.bindings)
-	m.initial_values.push_back({b.name,text(b.value),where(b.value.pos)});
+      for(const Binding &b : s.bindings){
+        bool markov;
+        const int in=variable(converted(b.name),markov);
+        if(in<0) model_failed(xpp::format("In initial value statement no variable {}",b.name));
+        m.initial_values.push_back({b.name,text(b.value),where(b.value.pos),in});
+      }
       break;
     case Statement::Kind::History:
       for(const Binding &b : s.bindings)history(b);
@@ -1385,6 +1388,7 @@ private:
      variables and the aux quantities (converted: blanks removed, upper
      case), in order */
   std::vector<std::string> vnames_,mnames_,fnames_,anames_;
+  std::map<std::string,int> variable_indices_;
   /* every name declared so far, by its upper case form, in order */
   struct Origin {
     std::string written;
@@ -1422,7 +1426,7 @@ void set_initial_values(xpp::Session &s)
     if(!ok){
       xpp::model_failed(xpp::Error{"model",xpp::format("the initial value of {} does not evaluate",init.name),init.where});
     }
-    const int i=find_user_name(m,ICBOX,init.name);
+    const int i=init.index;
     s.last_ic[i]=z;
     m.default_ic[i]=z;
     set_val(s,converted(init.name),z);

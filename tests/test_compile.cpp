@@ -2,6 +2,7 @@
 #include "expr_native.h"
 #include "expr_program.h"
 #include "session.h"
+#include "model_files.h"
 #include "xpp_batch.h"
 #include "xpp_log.h"
 #include "xpp_globals.h"
@@ -91,6 +92,7 @@ int main()
     statement.name="x";
     statement.pos.line=7;
     m.statements.push_back(statement);
+    xpp::index_model_places(m);
     m.node=1;
     m.uvar_names[0]="x";
     int count=0;

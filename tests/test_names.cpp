@@ -94,5 +94,25 @@ int main(void)
         CHECK_STR(b.c_str(), "next");
     }
 
+    /* Longest matching prefix, argument shadowing and nsym rollback must
+       retain the token table's ordering when lookups are indexed. */
+    CHECK(xpp::add_con(s, "voltage", 11.0) == 0);
+    CHECK(xpp::add_con(s, "voltage_long", 17.0) == 0);
+    CHECK(calc("voltage_long-voltage", &ok) == 6.0 && ok);
+    CHECK(xpp::add_ufun_name(s, "indexed_function", 0, 1) == 0);
+    s.model().nfun = 1;
+    const std::array<std::string, 1> args{"VOLTAGE"};
+    CHECK(xpp::add_ufun_new(s, 0, "VOLTAGE+1", args) == 0);
+    CHECK(calc("indexed_function(3)", &ok) == 4.0 && ok);
+    CHECK(calc("voltage", &ok) == 11.0 && ok);
+    const int symbols = s.parser.nsym, constants = s.parser.ncon;
+    CHECK(xpp::add_con(s, "temporary_old", 5.0) == 0);
+    CHECK(xpp::get_val(s, "temporary_old", &z) && z == 5.0);
+    s.parser.nsym = symbols;
+    s.parser.ncon = constants;
+    CHECK(xpp::add_con(s, "temporary_new", 9.0) == 0);
+    CHECK(!xpp::get_val(s, "temporary_old", &z));
+    CHECK(xpp::get_val(s, "temporary_new", &z) && z == 9.0);
+
     TEST_REPORT("long names");
 }

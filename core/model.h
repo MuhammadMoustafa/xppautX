@@ -40,6 +40,7 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <map>
 #include <vector>
 
 namespace xpp {
@@ -199,6 +200,7 @@ struct Model {
   struct InitialValue {
     std::string name, formula;
     Place where;
+    int index = -1; /* -1 until the builder resolves the state column */
   };
   std::vector<InitialValue> initial_values;
   /* a statement is a map, x(t+1)=... (disc: the method is discrete) */
@@ -281,6 +283,10 @@ struct Model {
   /* the files a statement's place (odex::Pos::file) indexes: the model's
      own first, then each file it includes (model_place, model_files.h) */
   std::vector<std::string> statement_files;
+  /* The statements' defining places, built once by model_files after parsing. */
+  std::map<std::string, odex::Pos, std::less<>> named_places;
+  /* Source lines indexed by model_files during the load; read-only in a run. */
+  std::map<std::string, Lines, std::less<>> source_lines;
   /* a " comment of the model: its text, and with {name=value,...} an
      action, "$ name=value ..." (aflag 1), run when it is picked */
   struct Comment {

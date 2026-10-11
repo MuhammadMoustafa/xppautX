@@ -751,5 +751,26 @@ int main(void)
     }
   }
 
+  /* Diagnostics keep the defining equation ahead of an aux name and
+     preserve CRLF source lines, including names in binding lists. */
+  {
+    auto model=std::make_unique<xpp::Model>();
+    xpp::Model &m=*model;
+    m.this_file="indexed.odex";
+    const std::string text="par gain = 1\r\nv' = gain\r\naux v = v\n";
+    m.files.push_back({m.this_file,text});
+    Parsed p=xpp::odex::parse(m,text,m.this_file);
+    m.statements=std::move(p.statements);
+    m.statement_files=std::move(p.files);
+    xpp::index_model_places(m);
+    const xpp::Place equation=xpp::model_place(m,"V");
+    CHECK(equation.file==m.this_file && equation.line==2);
+    CHECK(equation.source=="v' = gain");
+    const xpp::Place parameter=xpp::model_place(m,"GAIN");
+    CHECK(parameter.line==1 && parameter.source=="par gain = 1");
+    CHECK(xpp::model_source_line(m,m.this_file,3)=="aux v = v");
+    CHECK(xpp::model_source_line(m,m.this_file,4).empty());
+  }
+
   TEST_REPORT("odex: grammar");
 }

@@ -5,9 +5,9 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_zip.h"
+#include "xpp_util.h"
 
 #include <algorithm>
-#include <cctype>
 #include <memory>
 #include <string>
 
@@ -28,6 +28,12 @@ long file_index(const Model &m, const std::string &name)
 {
     const auto it = std::find_if(m.files.begin(), m.files.end(), [&name](const ModelFile &f) { return f.name == name; });
     return it == m.files.end() ? -1 : it - m.files.begin();
+}
+
+/* Decode a recorded file once, while loading; workers only read the index. */
+void index_source_lines(Model &m, const ModelFile &file)
+{
+    m.source_lines.try_emplace(file.name, "model", file.name, file.bytes);
 }
 
 } // namespace
@@ -74,9 +80,13 @@ LineReader model_file_lines(Model &m, const std::string &name)
 
 std::string model_source_line(const Model &m, const std::string &name, int n)
 {
+    if (n <= 0) return {};
+    const auto lines = m.source_lines.find(name);
+    if (lines != m.source_lines.end()) return std::string(lines->second.text(n));
+    /* Before the builder has indexed a source (a converter diagnostic),
+       use the recorded bytes through the same line reader. No disk read. */
     const long i = file_index(m, name);
-    if (i < 0 || n <= 0) return {};
-    return LineReader::of_text(m.files[static_cast<size_t>(i)].bytes).line(n);
+    return i < 0 ? std::string() : LineReader::of_text(m.files[static_cast<size_t>(i)].bytes).line(n);
 }
 
 Place model_place(const Model &m, const odex::Pos &pos)
@@ -87,19 +97,14 @@ Place model_place(const Model &m, const odex::Pos &pos)
     return p;
 }
 
-namespace {
-
-bool same_name(std::string_view a, std::string_view b)
+void index_model_places(Model &m)
 {
-    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](char x, char y) {
-               return std::toupper(static_cast<unsigned char>(x)) == std::toupper(static_cast<unsigned char>(y));
-           });
-}
-
-} // namespace
-
-Place model_place(const Model &m, std::string_view name)
-{
+    m.named_places.clear();
+    // Data tables need no source index; only files that supplied statements do.
+    for (const std::string &file : m.statement_files) {
+        const long i = file_index(m, file);
+        if (i >= 0) index_source_lines(m, m.files[static_cast<size_t>(i)]);
+    }
     /* a statement that defines name first (an equation, a function, a
        table ...), then the lists that name it (par, aux, wiener ...) */
     for (const odex::Statement &st : m.statements) {
@@ -114,7 +119,7 @@ Place model_place(const Model &m, std::string_view name)
         case odex::Statement::Kind::Network:
         case odex::Statement::Kind::Vector:
         case odex::Statement::Kind::Solv:
-            if (same_name(st.name, name)) return model_place(m, st.pos);
+            m.named_places.try_emplace(upper_case(st.name), st.pos);
             break;
         default:
             break;
@@ -122,12 +127,16 @@ Place model_place(const Model &m, std::string_view name)
     }
     for (const odex::Statement &st : m.statements) {
         for (const odex::Binding &b : st.bindings)
-            if (same_name(b.name, name)) return model_place(m, b.pos.line > 0 ? b.pos : st.pos);
+            m.named_places.try_emplace(upper_case(b.name), b.pos.line > 0 ? b.pos : st.pos);
         for (size_t k = 0; k < st.names.size(); k++)
-            if (same_name(st.names[k], name))
-                return model_place(m, k < st.name_positions.size() && st.name_positions[k].line > 0 ? st.name_positions[k] : st.pos);
+            m.named_places.try_emplace(upper_case(st.names[k]), k < st.name_positions.size() && st.name_positions[k].line > 0 ? st.name_positions[k] : st.pos);
     }
-    return Load::place();
+}
+
+Place model_place(const Model &m, std::string_view name)
+{
+    const auto place = m.named_places.find(upper_case(std::string(name)));
+    return place == m.named_places.end() ? Load::place() : model_place(m, place->second);
 }
 
 Place model_place(const Model &m, odex::Statement::Kind kind, int k)

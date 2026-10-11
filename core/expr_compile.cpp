@@ -165,32 +165,9 @@ void tokeninfo(const Symbols &my_symb, int tok)
 
 void find_tok(const ParserState &p, const char *source, int *index, int *tok)
 {
-  const Symbols &my_symb=p.symbols;
- int i=*index,maxlen=0,symlen;
- int k,j,my_tok,match;
- my_tok=p.nsym;
- for(k=0;k<p.nsym;k++)
- {
-  symlen=my_symb[k].len;
-  if(symlen<=maxlen)continue;
-
-   match=1;
-   for(j=0;j<symlen;j++)
-   {
-    if(source[i+j]!=my_symb[k].name[j])
-     {
-      match=0;
-      break;
-     }
-   }
-   if(match!=0)
-    {
-     my_tok=k;
-     maxlen=symlen;
-    }
- }
-   *index=*index+maxlen;
-   *tok=my_tok;
+  int length;
+  *tok=p.symbol_prefix(source+*index,length);
+  *index+=length;
 }
 
 int make_toks(const ParserState &p, const char *dest, int *my_token)
