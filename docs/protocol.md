@@ -152,7 +152,7 @@ fields, always all of them, and `field`:
 - `file`: the file it is in or about, as the command was given it (a
   name in the model's folder, or a path); "" when none.
 - `line`, `col`: where in it, from 1; 0 when not known. A `file` with
-  `line` 0 is one the command could not read (File/Import XPPAUT set, a parameter
+  `line` 0 is one the command could not read (File/Import settings, a parameter
   or IC file, a table, AUTO's files, a session or recording, W118): web2
   offers to add it to the model's folder under its own name and run the
   command again.
@@ -212,10 +212,10 @@ Loading one of xppautX's own files is one operation (W125, core/xpp_io.h
 into a value and every line and value checked, then the value is applied
 in one step, or, at the first line that is wrong, nothing is applied and
 the error names the file, the line and the line as written. The same for
-an XPPAUT set file (`.set`: File/Import XPPAUT set, `--setfile`), a parameter file (`.par`)
+a settings file (`.setx`: File/Import settings, `--setfile`; an XPPAUT `.set` is converted to one), a parameter file (`.par`)
 and an initial-conditions file (`.ic`: `values` `read`, `--parfile`,
 `--icfile`, Initialconds/File), a session file's members (`.snapx`, "Session
-files"), and a recording (`.recx`, "Playing a recording"); a model's
+files"; the members are settings files too), and a recording (`.recx`, "Playing a recording"); a model's
 internal set (File/Get par set) checks every item before it applies one,
 a bad item an error at the `set` line. Strict: a line that is not one of
 the file's, a key given twice or missing, a number that does not read
@@ -435,7 +435,7 @@ Every action has a kind (W95), defined once in the core and sent in
 | control | `c` | Abort, Quit, an answer | acted on |
 | view | `v` | only changes what is shown: a zoom, a window picked, the data subscription, a menu that shows, Help | kept, and run after the computation |
 | setting | `s` | a value the next computation uses (W106): a parameter, an initial or boundary condition, a delay, the numerics (`set`, `slide`, `default`, `values` `read`/`internset`, the Parameters key, the Numerics menu's items that ask a value, File/Get par set), AUTO's Parameter, Numerics and Mark values (`auto` `set`, the AUTO window's keys `p`, `n`, `u`) | taken at once, applied when the computation ends: the run in progress keeps the values it started with |
-| data | `d` | saves and loads: Save/Load values' files, Import XPPAUT set, every file written, a session, AUTO's diagram files, AUTO's Grab (the curve is still changing) | refused |
+| data | `d` | saves and loads: Save/Load values' files, Import settings, every file written, a session, AUTO's diagram files, AUTO's Grab (the curve is still changing) | refused |
 | computation | `x` | starts one: Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts, Stochastic, a user button | refused |
 
 - Each row of `hello.command_table` has a `kind` (one letter) ("The command
@@ -770,16 +770,18 @@ format is core/recx.h); File/recorD again or `record` `stop` writes it,
 `name.recx`, one plain text file that any editor opens:
 
 ```
-xppautx-recording 1
-program: xppautX 8.1
-model: lecar.ode
-recorded: 2026-09-30T10:14:02Z
+recording: {
+  version: 2,
+  program: "xppautX 8.1",
+  model: "lecar.odex",
+  recorded: "2026-09-30T10:14:02Z",
+},
 
 @snapshot
 UEsDBBQAAAAAA...(the session file, base64)
 @end
 
-@file lecar.ode
+@file lecar.odex
 par iapp=0.1
 ...
 @end
@@ -794,8 +796,13 @@ par iapp=0.1
 fingerprint: 5f0c...(64 hex digits)
 ```
 
-- The header: the format, the program (`--version`'s), the model's file
-  as it names itself, and when the recording began (UTC).
+- The header (W285), everything before the first line that starts with
+  `@`, is the settings syntax (docs/odex.md ".setx"): one `recording` group
+  with its `version` (2; another is refused), the `program` (`--version`'s),
+  the `model`'s file as it names itself and `recorded`, when the recording
+  began (UTC), every key named and in any order. A text that is no such
+  group, a key twice, one missing or one it does not know is refused at its
+  line and column. The steps stay JSON protocol lines.
 - `@snapshot` ... `@end` (W59d): the session as it was when the
   recording began, what Save session writes to a `.snapx` ("Session
   files": the model, the values, the numerics, the windows and what they
@@ -1555,14 +1562,18 @@ core/plot_data.cpp sends at most one append per 1/60 s, so a page that
 draws each on its next animation frame extends the curve at every frame;
 W82).
 
-Import XPPAUT set checks every named value before applying any. A valid
-import is saved through Save session as `<base>.snapx` beside the `.set`;
-`state.session.file` then names that session, and one `message.bottom`
-says it is now open. A save failure produces one placed error saying that
-saving failed and the imported values remain applied; the previous
-session identity remains (W153). This adjacent session now uses the same
-save permission and `saved` result as every other user save; No retains
-the imported values and previous session identity (W129).
+Import settings (File/Import settings, key `r` of the File menu, the
+`importset` command; `--setfile`) takes a `.setx` (docs/odex.md ".setx") or
+an XPPAUT `.set` (W284, replacing "Import XPPAUT set"). A `.setx` is read whole
+and checked, every error at its file, line and column, and only then applied:
+the groups and keys it names are set, the rest left as it was. An XPPAUT `.set`
+(positional lines, a value and its label, ending with its model's equations,
+`RHS etc ...`) is read the same way, every named value checked against the
+model, and converted: its values are written as `<base>.setx` beside it (a
+`.setx` already there with other text is replaced only after the question
+`.ode` to `.odex` asks: `file_replace_choice`, on the terminal under `--silent`
+with `--yes` answering it), and that `.setx` is read and applied. One
+`message.bottom` names the file applied. No session file is written.
 
 ### Undo and redo of value edits
 
@@ -1591,16 +1602,16 @@ is a zip of ordinary files, in this order:
 
 | Member | What it holds |
 |---|---|
-| `session.txt` | the manifest: `xppautX session 1`, then `name` (the model's own file, as the model names it), `anifile` (the animation `--anifile` loaded, one of the model's files; only when there is one), `data` (1 when `data.npz` is there), one `key value` line each |
+| `session.setx` | the manifest (W285): a `session` group of `version` (2), `model` (the model's own file, as the model names it), `anifile` (the animation `--anifile` loaded, one of the model's files; only when there is one) and `data` (1 when `data.npz` is there); the settings syntax |
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `--anifile`'s animation; byte for byte |
-| `model.set` | the set format (values, numerics, delays, boundary conditions, the active window's graphics, W147: no longer a file a user saves or opens), ending at its last value (XPPAUT's set file, which File/Import XPPAUT set and `--setfile` read, has its model's equations after it, `RHS etc ...`, written for a reader; a session's has none, W145): the original XPPAUT reads it |
+| `model.setx` | the session's settings (docs/odex.md ".setx"): the numerics (the Jacobian included) under the option table's keys, the run's position, the initial and ending values, the parameters, the delays, the boundary conditions, Transpose, the coupling, the array plot, the torus and the ranges; every key in it (a session loads nothing it does not hold), without the graphics, which `windows.setx` holds for every window |
 | `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's settings and views; full-precision diagram and restart orbits when a diagram exists (xpp_session_auto.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
-| `windows.set` | every plot window (its variables by name, labels, `# Graphics` block, zoom and earlier-runs toggle), which is active, AUTO's hidden branches (`autoview`'s `earlier` and `show`), the browser's added columns; set-file lines, a value and its name |
-| `marks.set` | the text labels (window, position, size, font, style, colour, text; each value checked, a text 1 to 1000 characters, at most 50), arrows and markers, and the frozen curves' settings, per window. A file from before W227 has no style and colour lines in its labels and is refused at the line that should hold them |
+| `windows.setx` | a `windows` list, every plot window as a group (its `number`, its `curves` by variable name with line and colour, the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`), `active` (which window), an `auto_view` group (AUTO's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
+| `marks.setx` | the `labels` list (window, x, y, size, font, style, color, text; each value checked, a text 1 to 1000 characters, at most 50), the `arrows_and_markers` list, `freeze_each_run` and the `frozen_curves` list (slot, window, type, color, points, key, name), per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
 | `data.npz` | the data table as Save data's NPZ writes it (`T.npy`, `V.npy`, ..., `seed.npy`), unless left out |
-| `sliders.set` | mandatory; a named count (`N sliders`, at least the three model-option slots), then each slot's name on one line (blank clears it), low, high, and step on named numeric lines; all names and ranges are checked before anything applies |
-| `nullclines.set` | mandatory; current pair then frozen pairs: each pair has named x/y variable indices, each curve's segment count and four finite float coordinates per segment, one coordinate per line; a named frozen-pair count separates the current pair from the frozen pairs; axis indices and the existing contour segment limit are checked |
+| `sliders.setx` | mandatory; a `sliders` list (at least the three model-option slots, at most 256), each slot a group of `name` (empty clears it), `low`, `high` and `step`; all names and ranges are checked before anything applies |
+| `nullclines.setx` | mandatory; a `current` group and a `frozen` list of groups (at most 10000): each pair has its `x_axis` and `y_axis` (variable numbers) and its `x_segments` and `y_segments`, lists of four finite float coordinates per segment (at most 10000 segments a curve); axis indices and the segment limit are checked |
 | `random.txt` | the random numbers' state as text: a `seed N` line (the seed the next Go uses), a `wiener` line (the Wiener parameters' current values), then the generator's state on one line, the last (the Mersenne Twister's, and whether it holds a normal deviate over, 0 or 1, and that deviate); opening restores it, so a stochastic model goes on from the same numbers |
 
 The generator line has one portable layout (W169, #221): 312 decimal
@@ -1624,13 +1635,15 @@ save, the diagram exactly (every digit). The earlier runs a window keeps until E
 not saved. A file without its model (`model/<name>` missing, as in every
 session file saved before W103), or without its manifest, is refused (a
 `message` `error` says what is missing) and nothing changes. So is one
-whose manifest has a line it does not write, or a key twice (`s1.snapx/session.txt:5:
-not a session file (.snapx) of this version: not a line it has`), and (W116) one with a member it always
-writes missing (`model.set`, `windows.set`, `marks.set`, `sliders.set`, `nullclines.set`, `random.txt`, which must also load as a generator state; `data.npz` when
+whose manifest has a key it does not write, or a key twice (`s1.snapx/session.setx:5:3:
+not a session file (.snapx) of this version: `later` is not a setting of the file`), and a session of the
+older layout (W285: `session.txt` and XPPAUT's set lines, no `session.setx`): the ordinary error, with no logic to explain
+it; and (W116) one with a member it always
+writes missing (`model.setx`, `windows.setx`, `marks.setx`, `sliders.setx`, `nullclines.setx`, `random.txt`, which must also load as a generator state; `data.npz` when
 `data` is 1, and only then; AUTO's four when one is there; the points of
-every frozen curve `marks.set` lists) or one whose member does not read: a
-line missing or not a number, a value out of range, a line after the
-last it holds, a variable, a window or a slot it does not have, a value
+every frozen curve `marks.setx` lists) or one whose member does not read: a
+key missing or a value that is not a number, a value out of range, a key it
+does not know, a variable, a window or a slot it does not have, a value
 of AUTO's it does not take; and (W145) a numerical setting its rule
 refuses, as `set` `num` and an `@` line refuse it (0 `store_every`, 0 `DeltaT`),
 more added columns than the model has room for or one whose formula does
@@ -1638,10 +1651,10 @@ not compile, an arrow's or marker's type or a colour out of range, a
 manifest line given twice. Every member is read whole and checked
 against the model's load before it is kept, and only then applied (W125):
 the session before stays exactly as it was, its model included; the
-error's place is the member's line, the member named inside its file
-(`file` `s1.snapx/windows.set`, `line` 11, `source` the line as written):
-`s1.snapx/windows.set:11: s1.snapx could not be loaded (the file ends
-here, before # Graphics); lecar.ode is still loaded` (at the start, the
+error's place is the member's line and column, the member named inside its file
+(`file` `s1.snapx/windows.setx`, `line` 11, `col` 7, `source` the line as written):
+`s1.snapx/windows.setx:11:7: s1.snapx could not be loaded (the model has no
+variable "nosuch"); lecar.odex is still loaded` (at the start, the
 command line's file, the `error` event, then exit 1). A member missing
 is named on the file itself (`s1.snapx: its random.txt is missing`). The command
 line opens one too, `xppautX name.snapx` (every mode but `--silent`),
@@ -1831,7 +1844,7 @@ It is the second command of the action an exact Jacobian's failure in an
 AUTO run offers (`error`'s `action`, above).
 
 **The file ask's mode.** `mode` says whether the command opens the file
-(`read`: Import XPPAUT set, Load diagram, the browser's Load, Import, ...) or saves
+(`read`: Import settings, Load diagram, the browser's Load, Import, ...) or saves
 one (`write`: Save session, Save diagram, PostScript, SVG, ...), so a client
 can show an open or a save dialog. The core decides by the selector's title
 (`xpp_files_ask_mode` in core/xpp_files.cpp: a title starting with Load,

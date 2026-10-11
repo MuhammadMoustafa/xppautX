@@ -33,7 +33,7 @@
         "fold": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$", "x-repeatable": true},
         "bandup": {"type": "integer"},
         "bandlo": {"type": "integer"},
-        "poincare_map": {"type": "string", "enum": ["section", "max", "period"]},
+        "poincare_map": {"type": "string", "enum": ["none", "section", "max", "period"]},
         "poincare_variable": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
         "poincare_sign": {"type": "integer"},
         "poincare_stop": {"type": "integer"},
@@ -157,8 +157,8 @@
         "rangestep": {"type": "integer"},
         "rangelow": {"type": "number"},
         "rangehigh": {"type": "number"},
-        "rangereset": {"type": "string", "enum": ["yes", "no"]},
-        "rangeoldic": {"type": "string", "enum": ["yes", "no"]}
+        "rangereset": {"type": "string", "enum": ["no", "yes"]},
+        "rangeoldic": {"type": "string", "enum": ["no", "yes"]}
       }
     },
     "batch": {

@@ -152,6 +152,10 @@ struct OptionRow {
   void (*prepare)(Session &, int) = nullptr;
   /* a .odex block may name it more than once (fold, but: each names one) */
   bool repeatable = false;
+  /* a .setx holds its value (W284): the numerics group, or the range
+     group, by the row's key. A choice row's value is the index of its
+     word in `choices` (or, for the method, the solver's number). */
+  bool saved = false;
 };
 
 /* why the number v is not one rule accepts ("must be a number above 0"),
@@ -199,6 +203,9 @@ std::string option_choice(const OptionRow &row, std::string_view value);
    `xppautX --options-schema` prints and docs/odex-options.schema.json holds
    (tools/optionschema.sh checks they agree) */
 std::string option_schema();
+/* one row's value as a JSON Schema: what its kind and rule say (the options
+   block's and a .setx's, setx_file.h) */
+std::string option_value_schema(const OptionRow &row);
 
 /* the numerics setting with key, nullptr when none */
 const OptionRow *numerics_option(std::string_view key);

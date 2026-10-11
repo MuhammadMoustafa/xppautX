@@ -309,7 +309,7 @@ action is; every button and menu item has one of five kinds:
 | Control | Stop (Escape), Quit, answering a question | works |
 | View | zoom, pan, the legend, switching plot windows, New window, Window/zoom, Viewaxes, Xi vs t, Help, opening or closing a panel, a menu with anything in it that is a view (Nullcline, Dir.field, Kinescope, Graphic stuff) | works; one the program itself carries out (a menu item, New window) runs as soon as the computation ends |
 | Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File/Get par set, AUTO's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
-| Data | Save and Load of values' files, Import XPPAUT set, every file written, Save session, AUTO's Save and Load diagram, AUTO's Grab | disabled |
+| Data | Save and Load of values' files, Import settings, every file written, Save session, AUTO's Save and Load diagram, AUTO's Grab | disabled |
 | Computation | Integrate and Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts (equilibria), Stochastic, a model's own buttons | disabled |
 
 A disabled control says so in its tooltip ("Not while a computation
@@ -355,7 +355,7 @@ Files (PostScript/SVG, GIF, `.dat`, tables, kinescope frames) are
 written next to the ODE file, by the program, exactly as in X11. The
 browser never silently downloads anything on its own.
 
-- **Open** (Import XPPAUT set, Load diagram, the browser's Load, ...): the page
+- **Open** (Import settings, Load diagram, the browser's Load, ...): the page
   shows a prompt whose "Choose file…" opens the browser's own file picker, showing
   the files of the kind the command reads (`*.set`, ...); picked files are uploaded into
   xppautX's working directory (the model's folder) so relative names in

@@ -22,6 +22,7 @@
 
    The expression tree is .odex's own: an operator is the word or symbol
    .odex spells it with ("and", "mod", "!=", ...). */
+#include "setx.h"
 #include "xpp_error.h"
 
 #include <functional>
@@ -278,6 +279,11 @@ std::vector<Statement> import_statements(std::vector<Statement> file, const Impo
    file's folder, as one of m's files (model_files.h). Throws Error. */
 Parsed parse(xpp::Model &m, std::string_view text, const std::string &file);
 
+/* text, a settings file named file (setx.h's syntax), read whole into its
+   top-level group by the tokenizer and block grammar the options block
+   uses; the error, named where, at the token that is wrong */
+Result<setx::Value> read_settings_tree(const std::string &where, const std::string &file, std::string_view text);
+
 /* the words .odex reserves (docs/odex.md "Reserved words"): a name may
    never be one */
 bool is_reserved(std::string_view word);
@@ -337,6 +343,14 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask);
    the user chose it); an error when cancelled or not written. */
 xpp::Result<bool> open_ode(const std::string &ode, bool silent, bool yes, const std::vector<std::string> &includes,
                          std::vector<Diagnostic> &diagnostics);
+/* The conversion text of the foreign file source written as out, beside
+   it: true when written; false when out already holds this text, or the
+   user chose to keep the file that is there (a question before another
+   text replaces it, on the terminal under --silent, --yes answering it
+   yes, else in the interface); an error when cancelled or not written.
+   .ode -> .odex (open_ode) and XPPAUT's .set -> .setx (import) both
+   convert this way. */
+xpp::Result<bool> write_converted(const std::string &source, const std::string &out, std::string_view text, bool silent, bool yes);
 /* model.ode's .odex: its extension made .odex */
 std::string odex_name(const std::string &ode);
 

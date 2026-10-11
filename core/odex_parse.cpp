@@ -11,6 +11,7 @@
 #include "xpp_io.h"
 #include "model_files.h"
 #include "model_options.h"
+#include "setx.h"
 
 #include <algorithm>
 #include <array>
@@ -245,7 +246,7 @@ std::string describe(const Token &t)
 
 class Parser {
 public:
-  Parser(xpp::Model &model, Parsed &out, int file, std::string_view src, int depth)
+  Parser(xpp::Model *model, Parsed &out, int file, std::string_view src, int depth)
       : model_(model), out_(out), file_(file), src_(src), depth_(depth)
   {
     toks_ = Lexer(src, file, out.files[file]).run();
@@ -254,6 +255,24 @@ public:
   void model()
   {
     while (!at_end()) statement();
+  }
+
+  /* a settings file (setx.h): the entries of an unbraced group to the end
+     of the text, read with the block grammar the options use */
+  setx::Value settings_file()
+  {
+    setx::Value root;
+    root.kind = setx::Value::Kind::group;
+    root.line = root.col = 1;
+    std::map<std::string, int> keys;
+    while (!at_end()) {
+      const Token &key = name_token("a key");
+      expect_punct(":", xpp::format("after {}", key.text));
+      setting_entry(root, keys, 0, key);
+      if (at_end()) break;
+      expect_punct(",", "between the settings");
+    }
+    return root;
   }
 
 private:
@@ -535,9 +554,9 @@ private:
   std::string raw_word(Pos &at)
   {
     at = peek().pos;
-    if (at_end() || at_punct(",") || at_punct("}")) return std::string();
+    if (at_end() || at_punct(",") || at_punct("}") || at_punct("]")) return std::string();
     size_t b = peek().begin, e = take().end;
-    while (!at_end() && !peek().space_before && !at_punct(",") && !at_punct("}")) e = take().end;
+    while (!at_end() && !peek().space_before && !at_punct(",") && !at_punct("}") && !at_punct("]")) e = take().end;
     return std::string(src_.substr(b, e - b));
   }
 
@@ -558,6 +577,53 @@ private:
       take();
     }
     expect_punct("}", "to close the block");
+  }
+
+  /* the entry of group whose key and colon were read: its value */
+  void setting_entry(setx::Value &group, std::map<std::string, int> &keys, int depth, const Token &key)
+  {
+    const auto [first, fresh] = keys.emplace(key.text, key.pos.line);
+    if (!fresh) fail(key.pos, xpp::format("`{}` is given twice (the first is at line {})", key.text, first->second));
+    setx::Member m;
+    m.key = key.text;
+    m.line = key.pos.line;
+    m.col = key.pos.col;
+    m.value = setting_value(depth);
+    group.members.push_back(std::move(m));
+  }
+
+  /* a settings value: a string, a { group }, a [ list ] or a bare word;
+     depth the groups and lists around it */
+  setx::Value setting_value(int depth)
+  {
+    setx::Value v;
+    v.line = peek().pos.line;
+    v.col = peek().pos.col;
+    if (depth >= setx::max_depth)
+      fail(peek().pos, xpp::format("groups and lists are nested at most {} deep", setx::max_depth));
+    if (peek().kind == Token::Kind::String) {
+      v.kind = setx::Value::Kind::string;
+      v.text = take().text;
+    } else if (at_punct("{")) {
+      v.kind = setx::Value::Kind::group;
+      std::map<std::string, int> keys;
+      entries("a group", [&](const Token &key) { setting_entry(v, keys, depth + 1, key); });
+    } else if (at_punct("[")) {
+      v.kind = setx::Value::Kind::list;
+      const Pos open = take().pos;
+      while (!at_punct("]")) {
+        if (at_end()) fail(peek().pos, xpp::format("missing `]` for the list opened at {}:{}", open.line, open.col));
+        v.items.push_back(setting_value(depth + 1));
+        if (!at_punct(",")) break;
+        take();
+      }
+      expect_punct("]", "to close the list");
+    } else {
+      Pos at;
+      v.text = raw_word(at);
+      if (v.text.empty()) fail(at, xpp::format("a value is due, found {}", describe(peek())));
+    }
+    return v;
   }
 
   /* options { group: { key: value, ... }, ... } (docs/odex.md "Options") */
@@ -952,7 +1018,7 @@ private:
     if (std::ranges::find(out_.importing, path) != out_.importing.end())
       fail(t.pos, xpp::format("{} imports itself (through {})", imp.file, out_.importing.back()));
     std::string text;
-    if (!xpp::read_model_file(model_, path, text)) fail(t.pos, xpp::format("cannot read the imported file {}", path));
+    if (!xpp::read_model_file(*model_, path, text)) fail(t.pos, xpp::format("cannot read the imported file {}", path));
     out_.files.push_back(path);
     const size_t first = out_.statements.size();
     out_.importing.push_back(path);
@@ -1184,7 +1250,8 @@ private:
     return false;
   }
 
-  xpp::Model &model_;
+  /* the model an import reads its files through; none for a settings file */
+  xpp::Model *model_;
   Parsed &out_;
   int file_;
   std::string_view src_;
@@ -1222,8 +1289,20 @@ Parsed parse(xpp::Model &m, std::string_view text, const std::string &file)
   Parsed out;
   out.files.push_back(file);
   out.importing.push_back(file);
-  Parser(m, out, 0, text, 0).model();
+  Parser(&m, out, 0, text, 0).model();
   return out;
+}
+
+Result<setx::Value> read_settings_tree(const std::string &where, const std::string &file, std::string_view text)
+{
+  try {
+    Parsed out;
+    out.files.push_back(file);
+    return Parser(nullptr, out, 0, text, 0).settings_file();
+  } catch (Error &e) {
+    e.where = where;
+    return std::unexpected(std::move(e));
+  }
 }
 
 }

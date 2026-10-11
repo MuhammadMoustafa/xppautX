@@ -285,7 +285,7 @@ static void do_file_com(xpp::Session &s, int com)
 #endif
     break;
   case M_FC: q_calc(s); break;
-  case M_FR: xpp::import_xppaut_set_command(s); break;
+  case M_FR: xpp::import_settings_command(s); break;
   case M_FQ: xpp_quit(s); break;
   case M_FO: copy_set_line(s); break;
   }
@@ -415,7 +415,7 @@ void commander(xpp::Session &s, int ch)
       flash(3);
       break;
     case 'c': flash(4); q_calc(s); flash(4); break;
-    case 'r': flash(5); xpp::import_xppaut_set_command(s); flash(5); break;
+    case 'r': flash(5); xpp::import_settings_command(s); flash(5); break;
     case 'q':
       flash(7);
       xpp_quit(s);

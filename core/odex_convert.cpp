@@ -1821,6 +1821,26 @@ Result<> write_conversion(const std::string &out, std::string_view text)
 
 } // namespace
 
+Result<bool> write_converted(const std::string &source, const std::string &out, std::string_view text, bool silent, bool yes)
+{
+  if (xpp::files::exists(out)) {
+    std::string existing;
+    if (!xpp::read_bytes(out, existing)) return xpp::fail_reading("convert", "cannot be read", out);
+    if (xpp::split_lines(existing) == xpp::split_lines(text)) return false; /* the same text: used as it is */
+    if (silent) {
+      if (!xpp::confirm_terminal(xpp::format("{} differs from the conversion of {}; replace it", out, source), yes))
+        return xpp::fail_reading("convert", xpp::format("differs from the conversion of {}; neither file was changed (--yes replaces it)", source), out);
+    } else {
+      const int choice = xpp::file_replace_choice(true);
+      if (choice == 'n') return false;
+      if (choice != 'y') return xpp::fail_reading("convert", xpp::format("opening {} cancelled", source), source);
+    }
+  }
+  Result<> written = write_conversion(out, text);
+  if (!written) return std::unexpected(written.error());
+  return true;
+}
+
 Result<bool> open_ode(const std::string &ode, bool silent, bool yes, const std::vector<std::string> &includes,
                       std::vector<Diagnostic> &diagnostics)
 {
@@ -1833,23 +1853,7 @@ Result<bool> open_ode(const std::string &ode, bool silent, bool yes, const std::
   };
   Result<std::string> text = convert_text(ode, silent && yes, ask, includes, &diagnostics);
   if (!text) return std::unexpected(text.error());
-  const std::string out = odex_name(ode);
-  if (xpp::files::exists(out)) {
-    std::string existing;
-    if (!xpp::read_bytes(out, existing)) return xpp::fail_reading("convert", "cannot be read", out);
-    if (xpp::split_lines(existing) == xpp::split_lines(*text)) return false; /* the same text: opened as it is */
-    if (silent) {
-      if (!xpp::confirm_terminal(xpp::format("{} differs from the conversion of {}; replace it", out, ode), yes))
-        return xpp::fail_reading("convert", xpp::format("differs from the conversion of {}; neither file was changed (--yes replaces it)", ode), out);
-    } else {
-      const int choice = xpp::file_replace_choice(true);
-      if (choice == 'n') return false;
-      if (choice != 'y') return xpp::fail_reading("convert", "model open cancelled", ode);
-    }
-  }
-  Result<> written = write_conversion(out, *text);
-  if (!written) return std::unexpected(written.error());
-  return true;
+  return write_converted(ode, odex_name(ode), *text, silent, yes);
 }
 
 int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)

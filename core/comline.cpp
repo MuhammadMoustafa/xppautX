@@ -323,7 +323,7 @@ static int if_needed_load_set(xpp::Session &s)
   {
     return 1;
   }
-  if(const xpp::Result<> r=import_xppaut_set(s,setfilename,true);!r)
+  if(const xpp::Result<> r=import_settings(s,setfilename,true);!r)
   {
     xpp::log(XPP_LOG_ERROR, "{}\n",r.error().text());
     return 0;

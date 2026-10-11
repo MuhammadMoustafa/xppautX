@@ -111,7 +111,7 @@ inline constexpr std::array<CommandRow, 61> COMMANDS = {{
     {FILE_MENU, 'w', "savesessionas", "Save session as…", "Save everything to a session file you choose (.snapx)", XPP_KIND_DATA, CommandCategory::Files, true, true, {"Ctrl+Shift+S"}},
     {FILE_MENU, 'b', "savesessioncopy", "Save a copy of the session…", "Write the session to another .snapx file and go on with this one: its file and unsaved state stay as they were", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
     {FILE_MENU, 'e', "reload", "Reload model", "Read the model's file again, keeping the values", XPP_KIND_DATA, CommandCategory::Files, true, true, {"Ctrl+R"}},
-    {FILE_MENU, 'r', "importset", "Import XPPAUT settings", "Import a set file XPPAUT wrote (values, numerics, the active window)", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
+    {FILE_MENU, 'r', "importset", "Import settings", "Apply a settings file (.setx), or import an XPPAUT set file (converted to a .setx beside it)", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
     {FILE_MENU, 's', "saveinfo", "Export simulation information", "Save info about simulation in human readable format", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
     {FILE_MENU, 'q', "quit", "Quit", "Quit the application, with an option to save this session", XPP_KIND_CONTROL, CommandCategory::Files, false, true, {}},
     {MAIN_MENU, 's', "singpts", "Equilibria and stability", "Find fixed points and stability", XPP_KIND_COMPUTE, CommandCategory::Analysis, true, true, {}},

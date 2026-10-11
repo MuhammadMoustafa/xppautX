@@ -53,6 +53,7 @@
 #include "load_eqn.h"
 #include "recx.h"
 #include "snapx.h"
+#include "setx_file.h"
 #include "menudrive.h"
 #include "xpp_http.h"
 #include "xpp_util.h"
@@ -109,6 +110,7 @@ static std::string usage_tail()
     "                   names .odex reserves (--yes takes the suggested names)\n"
     "  --check          validate a model in memory; JSON diagnostics, no files or window\n"
     "  --options-schema print the JSON Schema of a .odex's options block\n"
+    "  --setx-schema    print the JSON Schema of a .setx settings file\n"
     "  --no-compile     run the equations in the interpreter, not as compiled code\n"
     "  --silent          (an xppaut option) a headless run that writes output.dat\n"
     "A session file (name.snapx, File/Save session or AUTO's Save diagram)\n"
@@ -259,6 +261,11 @@ int main(int argc, char **argv)
         if (strcmp(argv[i], "--options-schema") == 0) {
             /* the JSON Schema of a .odex's options block, from the option table (docs/odex.md) */
             printf("%s", xpp::option_schema().c_str());
+            return 0;
+        }
+        if (strcmp(argv[i], "--setx-schema") == 0) {
+            /* the JSON Schema of a .setx (docs/odex.md), from the description the reader and writer share */
+            printf("%s", xpp::setx_schema().c_str());
             return 0;
         }
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {

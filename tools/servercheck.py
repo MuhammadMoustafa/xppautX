@@ -376,7 +376,7 @@ def check_hello_shared():
     table = hello.get('command_table', [])
     ids = {r['id']: r['key'] for r in table if r['menu'] == 'main'}
     fids = {r['id']: r['key'] for r in table if r['menu'] == 'file'}
-    check('W118: the ids name the keys (Initialconds i, Makewindow m, File f; File/Import XPPAUT set r)',
+    check('W118: the ids name the keys (Initialconds i, Makewindow m, File f; File/Import settings r)',
           hello.get('menu_names') == ['main', 'file', 'num']
           and ids.get('initialconds') == 'i' and ids.get('makewindow') == 'm' and ids.get('file') == 'f'
           and ids.get('numerics') == 'u' and fids.get('importset') == 'r' and 'writeset' not in fids, str(ids))
@@ -407,7 +407,7 @@ if ask is not None and ask.get('kind') == 'file':
 else:
     evs = []
 err = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), None)
-check('W118: File/Import XPPAUT set of a file that is not there: the error names the file',
+check('W118: File/Import settings of a file that is not there: the error names the file',
       err is not None and err.get('file') == 'w118-gone.set', str(err))
 send(cmd='data', events=['series'])
 evs, _ = collect(is_idle)
@@ -717,8 +717,8 @@ if ask:
 send(cmd='key', key='f')
 send(cmd='key', key='r')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('File/Import XPPAUT set asks for a file to read (mode read)', ask is not None and ask['kind'] == 'file'
-      and ask.get('mode') == 'read' and ask.get('wild') == '*.set', str(ask)[:200])
+check('File/Import settings asks for a file to read (mode read)', ask is not None and ask['kind'] == 'file'
+      and ask.get('mode') == 'read' and ask.get('wild') == '*.setx *.set', str(ask)[:200])
 if ask:
     long_wild = '*' * 100000
     send(cmd='answer', id=ask['id'], wild=long_wild)
@@ -737,15 +737,15 @@ collect(is_idle)
 elsewhere = tempfile.mkdtemp(prefix='xppelsewhere')
 far = os.path.join(elsewhere, 'd' * (40 if os.name == 'nt' else 200))
 os.makedirs(far)
-far_set = os.path.join(far, 'w88 far.set')
+far_set = os.path.join(far, 'w88 far.setx')
 send(cmd='set', kind='par', name='iapp', value=0.33)
 collect(is_idle)
 send(cmd='session', op='save', name='w88', data=False)
 collect(is_idle)
-# the .set an XPPAUT writes is the session's model.set and its equations after it
+# the settings file is the session's model.setx
 with zipfile.ZipFile(os.path.join(run, 'w88.snapx')) as z:
     with open(far_set, 'wb') as f:
-        f.write(z.read('model.set').replace(b'store_every', b'nout', 1) + b'RHS etc ...\n')
+        f.write(z.read('model.setx'))
 send(cmd='set', kind='par', name='iapp', value=0.77)
 collect(is_idle)
 send(cmd='key', key='f')
@@ -757,7 +757,7 @@ collect(is_idle)
 send(cmd='state')
 evs, st = collect(is_state)
 collect(is_idle)
-check('File/Import XPPAUT set from a full path elsewhere reads it there, the path whole (the parameter it holds is back)',
+check('File/Import settings from a full path elsewhere reads it there, the path whole (the parameter it holds is back)',
       ask is not None and ask.get('mode') == 'read' and st is not None and dict(st['pars'])['iapp'] == 0.33,
       str(st and dict(st['pars']).get('iapp')))
 shutil.rmtree(elsewhere, ignore_errors=True)
@@ -1971,7 +1971,7 @@ check_error_places_of_each_kind()
 
 def check_load_all_or_nothing():
     """W125: loading one of our files is all or nothing. A set file (File >
-    Import XPPAUT set), a parameter file and an initial-conditions file (`values`
+    Import settings), a parameter file and an initial-conditions file (`values`
     `read`) whose last value is bad, and an internal set (File > Get par
     set) whose last item is, are refused at that line, naming the file and
     the line as written, and the session is exactly as it was (its state,
@@ -2004,16 +2004,15 @@ def check_load_all_or_nothing():
     written = []
 
     def set_file():
-        """the set file the session saves now (its model.set), without
-        its first line (the time); CR LF read as LF, since Windows writes
-        it in text mode"""
+        """the settings the session saves now (its model.setx); CR LF read
+        as LF"""
         written.append('now%d' % len(written))
         answered((), cmd='session', op='save', name=written[-1], data=False)
         with zipfile.ZipFile(os.path.join(r, written[-1] + '.snapx')) as z:
-            return z.read('model.set').decode().replace('\r\n', '\n').split('\n', 1)[1]
+            return z.read('model.setx').decode().replace('\r\n', '\n')
 
     def read_set(name):
-        """File > Import XPPAUT set of name"""
+        """File > Import settings of name"""
         answered((), cmd='key', key='f')
         return answered(({'file': name},), cmd='key', key='r')
 
@@ -2022,12 +2021,10 @@ def check_load_all_or_nothing():
         answered((), cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1.5}, {'kind': 'ic', 'name': 'x', 'value': 0.25}])
         st0, set0 = state(), set_file()
         rows = set0.split('\n')
-        high = max(k for k in range(len(rows)) if rows[k].endswith('BVP range high')) + 2  # its line in the file
-        # XPPAUT's set file names the store-every line nout (ours store_every, W206)
-        xppaut_set = '## Set file\n' + set0.replace('store_every', 'nout', 1) + 'RHS etc ...\n'
-        lines = xppaut_set.split('\n')
-        lines[high - 1] = '1e999  BVP range high'
-        with open(os.path.join(r, 'bad.set'), 'w') as f:
+        high = max(k for k in range(len(rows)) if rows[k].startswith('  high:')) + 1  # its line in the file
+        lines = set0.split('\n')
+        lines[high - 1] = '  high: 1e999,'
+        with open(os.path.join(r, 'bad.setx'), 'w') as f:
             f.write('\n'.join(lines))
         par = '2   Number params\n9  a\noops  b\n'
         with open(os.path.join(r, 'bad.par'), 'w') as f:
@@ -2035,7 +2032,7 @@ def check_load_all_or_nothing():
         with open(os.path.join(r, 'bad.ic'), 'w') as f:
             f.write('9\nnan?\n')
         for what, cmd, answers, file, line, source in (
-                ('an XPPAUT set file', None, 'bad.set', 'bad.set', high, '1e999  BVP range high'),
+                ('a settings file', None, 'bad.setx', 'bad.setx', high, '  high: 1e999,'),
                 ('a parameter file', dict(cmd='values', op='read', kind='par', name='bad.par'), (), 'bad.par', 3, 'oops  b'),
                 ('an initial-conditions file', dict(cmd='values', op='read', kind='ic', name='bad.ic'), (), 'bad.ic', 2, 'nan?'),
                 ('an internal set', dict(cmd='values', op='internset', name='bad'), (), 'w125.odex', 6, None)):
@@ -2046,47 +2043,44 @@ def check_load_all_or_nothing():
                   and (source is None or e.get('source') == source)
                   and (source is not None or 'b=oops: not a number' in e.get('error', '')), str(errs))
             st, set1 = state(), set_file()
-            check('W125: after %s refused, the session is as it was (its state, its set file)' % what,
+            check('W125: after %s refused, the session is as it was (its state, its settings)' % what,
                   st == st0 and set1 == set0, str([(k, st0.get(k), st.get(k)) for k in st0 if st.get(k) != st0.get(k)])[:300])
-        # W153: same counts, another model's names; valid earlier changes
-        # must not apply, and no session may be created for a refused file.
-        own = xppaut_set.split('\n')
-        other = own.copy()
-        named_line = next(k for k, row in enumerate(other) if row.endswith('  b'))
-        other[named_line - 1] = '9  a'
-        other[named_line] = '9  another_models_parameter'
-        with open(os.path.join(r, 'other.set'), 'w') as f:
+        # W153: another model's names; valid earlier changes must not apply.
+        other = set0.split('\n')
+        named_line = next(k for k, row in enumerate(other) if row.startswith('  b:'))
+        other[named_line] = '  another_models_parameter: 9,'
+        with open(os.path.join(r, 'other.setx'), 'w') as f:
             f.write('\n'.join(other))
-        evs = read_set('other.set')
+        evs = read_set('other.setx')
         errs = errors(evs)
         e = errs[0] if len(errs) == 1 else {}
-        check('W153: another model with equal counts refused with file, first wrong line and source',
-              os.path.basename(e.get('file', '')) == 'other.set' and e.get('line') == named_line + 1
+        check('W153: another model refused with file, wrong line and source',
+              os.path.basename(e.get('file', '')) == 'other.setx' and e.get('line') == named_line + 1
               and e.get('source') == other[named_line] and 'another_models_parameter' in e.get('error', ''), str(errs))
-        check('W153: refused names apply nothing and write no session',
-              state() == st0 and set_file() == set0 and not os.path.exists(os.path.join(r, 'other.snapx')))
+        check('W153: refused names apply nothing', state() == st0 and set_file() == set0)
+        # a key the file does not know, and a group written twice, are refused at their line
+        with open(os.path.join(r, 'extra.setx'), 'w') as f:
+            f.write(set0 + 'nosuch_group: { a: 1 },\n')
+        errs = errors(read_set('extra.setx'))
+        e = errs[0] if len(errs) == 1 else {}
+        check('W284: a group the settings do not have is refused at its line',
+              os.path.basename(e.get('file', '')) == 'extra.setx' and e.get('line') == len(set0.split('\n'))
+              and 'nosuch_group' in e.get('error', ''), str(errs))
         answered((), cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 8}, {'kind': 'ic', 'name': 'x', 'value': 7}])
-        with open(os.path.join(r, 'own.set'), 'w') as f:
-            f.write('\n'.join(own))
-        evs = read_set('own.set')
+        with open(os.path.join(r, 'own.setx'), 'w') as f:
+            f.write(set0)
+        evs = read_set('own.setx')
         messages = [e for e in evs if e.get('ev') == 'message']
-        answered_state = last_state(answered((), cmd='state'))
-        check('W153: own set applies and its adjacent session becomes open, with one message',
-              not errors(evs) and state() == st0 and os.path.exists(os.path.join(r, 'own.snapx'))
-              and os.path.basename(answered_state.get('session', {}).get('file', '')) == 'own.snapx'
-              and len(messages) == 1 and 'own.snapx' in messages[0].get('bottom', ''), str(messages))
-        with zipfile.ZipFile(os.path.join(r, 'own.snapx')) as z:
-            check('W153: converted session saves the imported values through the session writer',
-                  z.read('model.set').decode().replace('\r\n', '\n').split('\n', 1)[1] == set0)
-        # Saving failure after a valid import: values stay applied, one error.
-        os.mkdir(os.path.join(r, 'blocked.snapx'))
-        with open(os.path.join(r, 'blocked.set'), 'w') as f:
-            f.write('\n'.join(own))
-        answered((), cmd='set', kind='par', name='a', value=8)
-        errs = errors(read_set('blocked.set'))
-        check('W153: failed conversion save says so once and keeps valid imported values',
-              len(errs) == 1 and 'saving session' in errs[0].get('error', '')
-              and 'remain applied' in errs[0].get('error', '') and state() == st0, str(errs))
+        check('W284: own settings apply, with one message and no session written',
+              not errors(evs) and state() == st0 and not os.path.exists(os.path.join(r, 'own.snapx'))
+              and len(messages) == 1 and 'own.setx' in messages[0].get('bottom', ''), str(messages))
+        # a file that names little sets only that
+        with open(os.path.join(r, 'little.setx'), 'w') as f:
+            f.write('parameters: { a: 2.5 },\n')
+        errs = errors(read_set('little.setx'))
+        st = state()
+        check('W284: a settings file that names only a parameter sets only it',
+              not errs and dict(st['pars'])['a'] == 2.5 and st['ics'] == st0['ics'], str(errs))
         errs = errors(answered((), cmd='values', op='internset', name='good'))
         st = state()
         check('W125: a good internal set still applies whole', not errs and st['pars'] != st0['pars'], str(errs))
@@ -4029,6 +4023,23 @@ def check_jacobian_setting():
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
             check('W260: set num jacobian by number; a name that is no choice is refused, naming them',
                   errs == ['Numerics: Jacobian must be one of difference, exact'] and jac.get('value') == 0, '%s %s' % (errs, jac))
+            # W274 (folded into W285): the setting is saved with the session and restored
+            snd(cmd='set', kind='num', name='jacobian', text='exact')
+            col(is_idle)
+            snd(cmd='session', op='save', name='jac', data=False)
+            col(is_idle)
+            with zipfile.ZipFile(os.path.join(r, 'jac.snapx')) as z:
+                check('W274: model.setx holds the Jacobian setting by its word', b'\n  jacobian: exact,\n' in z.read('model.setx'))
+            snd(cmd='set', kind='num', name='jacobian', text='difference')
+            col(is_idle)
+            snd(cmd='open', file='jac.snapx')
+            while True:
+                _, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=20 * SLOW)
+                if e is None or e['ev'] == 'idle':
+                    break
+                snd(cmd='answer', id=e['id'], key='d')
+            jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
+            check('W274: opening the session restores exact', jac.get('value') == 1, str(jac))
         finally:
             p.stdin.close()
             p.wait(timeout=10 * SLOW)
@@ -5407,14 +5418,14 @@ def check_session_file():
         snap = os.path.join(r, 's1.snapx')
         names = zipfile.ZipFile(snap).namelist() if os.path.exists(snap) else []
         check('session save: s1.snapx is a zip of the files listed, the model in it',
-              sorted(names) == sorted(['session.txt', 'model/lecar.odex', 'model.set', 'auto/settings.txt', 'auto/diagram.csv',
-                        'auto/solutions.s', 'auto/views.txt', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz', 'random.txt', 'sliders.set', 'nullclines.set']),
+              sorted(names) == sorted(['session.setx', 'model/lecar.odex', 'model.setx', 'auto/settings.txt', 'auto/diagram.csv',
+                        'auto/solutions.s', 'auto/views.txt', 'windows.setx', 'marks.setx', 'frozen.npz', 'data.npz', 'random.txt', 'sliders.setx', 'nullclines.setx']),
               str(names))
         if names:
             z = zipfile.ZipFile(snap)
-            check('session save: model.set is a set file of lecar, session.txt names it',
-                  z.read('model.set').startswith(b'## Set file for lecar.odex')
-                  and b'\nname lecar.odex\n' in z.read('session.txt'), str(z.read('session.txt')[:200]))
+            check('session save: model.setx holds the settings of lecar, session.setx names it',
+                  b'\nnumerics: {\n' in z.read('model.setx') and b'\n  total_time: ' in z.read('model.setx')
+                  and b'\n  model: "lecar.odex",\n' in z.read('session.setx'), str(z.read('session.setx')[:200]))
             with open(os.path.join(r, 'lecar.odex'), 'rb') as f:
                 check('session save: model/lecar.odex is the model, byte for byte', z.read('model/lecar.odex') == f.read())
             vt = z.read('auto/views.txt').decode().splitlines()
@@ -5545,83 +5556,120 @@ def check_session_file():
             rows[k - 1] = line
             return '\n'.join(rows).encode()
 
-        win_rows = members['windows.set'].decode().split('\n')
-        set_rows = members['model.set'].decode().split('\n')
+        win_text = members['windows.setx'].decode()
+        win_rows = win_text.split('\n')
+        set_rows = members['model.setx'].decode().split('\n')
         random_rows = members['random.txt'].decode().split('\n')
-        # the line (from 1) of a member's rows that ends with label
-        line_of = lambda rows, label: next(k + 1 for k in reversed(range(len(rows))) if rows[k].rstrip('\r').endswith(label))
-        # the line of model.set's last value (the BVP range's high end)
-        set_high = line_of(set_rows, 'BVP range high')
-        set_store_every, set_dt = line_of(set_rows, ' store_every'), line_of(set_rows, 'DeltaT')
-        # windows.set's added columns: their count, then VW's name and formula
-        win_added = line_of(win_rows, 'added columns')
+        # the line (from 1) of a member's rows that starts with key, the last one with last
+        line_starting = lambda rows, key, last=False: (next(k + 1 for k in reversed(range(len(rows))) if rows[k].lstrip().startswith(key))
+                                                       if last else next(k + 1 for k in range(len(rows)) if rows[k].lstrip().startswith(key)))
+        # the line of model.setx's last value (the BVP range's high end)
+        set_high = line_starting(set_rows, 'high:', True)
+        set_store_every, set_dt = line_starting(set_rows, 'store_every:'), line_starting(set_rows, 'dt:')
+        set_total = line_starting(set_rows, 'total_time:')
+        win_curve_x = line_starting(win_rows, 'x:')
+        # windows.setx ends with its added columns
+        win_added = line_starting(win_rows, 'added_columns:')
         generator = random_rows[-1].split(' ')
-        manifest_lines = len(members['session.txt'].decode().rstrip('\n').split('\n'))
-        damages = [
-            ('badslider', lambda m: m.__setitem__('sliders.set', text_lines('sliders.set', 3, 'nonsense low')),
-             ('badslider.snapx/sliders.set:3:', 'nonsense')),
-            ('badsliderrange', lambda m: m.__setitem__('sliders.set', text_lines('sliders.set', 4, '-2 high')),
-             ('badsliderrange.snapx/sliders.set:4:', 'slider range -1 -2')),
-            ('nannullcline', lambda m: m.__setitem__('nullclines.set', text_lines('nullclines.set', 4, 'nan coordinate')),
-             ('nannullcline.snapx/nullclines.set:4:', 'nan')),
-            ('badnullcline', lambda m: m.__setitem__('nullclines.set', text_lines('nullclines.set', 3, '10001 segments')),
-             ('badnullcline.snapx/nullclines.set:3:', '10001')),
+        manifest_lines = len(members['session.setx'].decode().rstrip('\n').split('\n'))
 
-            ('nowindows', lambda m: m.pop('windows.set'), 'its windows.set is missing'),
-            ('cutwindows', lambda m: m.__setitem__('windows.set', '\n'.join(win_rows[:10]).encode() + b'\n'),
-             ('cutwindows.snapx/windows.set:11:', 'the file ends here')),
-            ('badset', lambda m: m.__setitem__('model.set', text_lines('model.set', 5, 'x' + set_rows[4][1:])),
-             ('badset.snapx/model.set:5:', '"x')),
-            ('badname', lambda m: m.__setitem__('windows.set', text_lines('windows.set', 5, 'nosuch')),
-             ('badname.snapx/windows.set:5:', 'the model has no variable "nosuch"')),
+        def with_line(member, k, line):
+            """member's text with its line k (from 1) set to line"""
+            return text_lines(member, k, line)
+
+        def label_marks(label_line=None, **over):
+            """marks.setx with one label (its fields over the defaults); the label's
+            lines are 3 (window) to 10 (text)"""
+            f = dict(window='0', x='0.5', y='0.5', size='2', font='0', style='0', color='0', text='"hi"')
+            f.update(over)
+            rows = ['labels: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in ('window', 'x', 'y', 'size', 'font', 'style', 'color', 'text')]
+            rows += ['  },', '],', 'arrows_and_markers: [],', 'freeze_each_run: 0,', 'frozen_curves: [],', '']
+            return '\n'.join(rows).encode()
+
+        def mark_marks(**over):
+            """marks.setx with one arrow or marker; its lines are 4 (window) to 11"""
+            f = dict(window='0', type='0', color='0', size='1', x_start='0', y_start='0', x_end='1', y_end='1')
+            f.update(over)
+            rows = ['labels: [],', 'arrows_and_markers: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in
+                                                                       ('window', 'type', 'color', 'size', 'x_start', 'y_start', 'x_end', 'y_end')]
+            rows += ['  },', '],', 'freeze_each_run: 0,', 'frozen_curves: [],', '']
+            return '\n'.join(rows).encode()
+
+        def added_columns(items):
+            """windows.setx with its added columns replaced by items (name, formula)"""
+            rows = ['added_columns: [']
+            for name, formula in items:
+                rows += ['  {', '    name: "%s",' % name, '    formula: "%s",' % formula, '  },']
+            rows += ['],', '']
+            return ('\n'.join(win_rows[:win_added - 1]) + '\n' + '\n'.join(rows)).encode()
+
+        def nullclines(x_segments):
+            return ('current: { x_axis: 1, y_axis: 2, x_segments: [%s], y_segments: [] },\nfrozen: [],\n' % x_segments).encode()
+
+        damages = [
+            ('badslider', lambda m: m.__setitem__('sliders.setx', text_lines('sliders.setx', 3, '    name: nonsense,')),
+             ('badslider.snapx/sliders.setx:3:', 'nonsense')),
+            ('badsliderrange', lambda m: m.__setitem__('sliders.setx', text_lines('sliders.setx', 5, '    high: -2,')),
+             ('badsliderrange.snapx/sliders.setx:5:', 'slider range -1 -2')),
+            ('nannullcline', lambda m: m.__setitem__('nullclines.setx', nullclines('nan, 0, 0, 0')),
+             ('nannullcline.snapx/nullclines.setx:1:', 'nan')),
+            ('badnullcline', lambda m: m.__setitem__('nullclines.setx', nullclines(', '.join(['0'] * 40004))),
+             ('badnullcline.snapx/nullclines.setx:1:', 'at most 40000')),
+
+            ('nowindows', lambda m: m.pop('windows.setx'), 'its windows.setx is missing'),
+            ('cutwindows', lambda m: m.__setitem__('windows.setx', '\n'.join(win_rows[:10]).encode() + b'\n'),
+             ('cutwindows.snapx/windows.setx:', 'missing `}`')),
+            ('badset', lambda m: m.__setitem__('model.setx', text_lines('model.setx', set_total, '  total_time: x,')),
+             ('badset.snapx/model.setx:%d:' % set_total, 'found `x`')),
+            ('badname', lambda m: m.__setitem__('windows.setx', text_lines('windows.setx', win_curve_x, '      x: nosuch,')),
+             ('badname.snapx/windows.setx:%d:' % win_curve_x, 'the model has no variable "nosuch"')),
             # W125: a bad value on a member's last line: refused at it, nothing applied
-            ('lastmarks', lambda m: m.__setitem__('marks.set', m['marks.set'].rstrip(b'\n') + b'\nmore\n'),
-             ('lastmarks.snapx/marks.set:%d:' % (len(members['marks.set'].decode().rstrip('\n').split('\n')) + 1), '"more" after the end')),
-            ('lastset', lambda m: m.__setitem__('model.set', text_lines('model.set', set_high, '1e999  BVP range high')),
-             ('lastset.snapx/model.set:%d:' % set_high, '"1e999  BVP range high" is not a number')),
-            ('latermanifest', lambda m: m.__setitem__('session.txt', m['session.txt'] + b'later 1\n'),
-             ('latermanifest.snapx/session.txt:%d:' % (manifest_lines + 1), 'not a line it has')),
+            ('lastmarks', lambda m: m.__setitem__('marks.setx', m['marks.setx'].rstrip(b'\n') + b'\nmore: 1,\n'),
+             ('lastmarks.snapx/marks.setx:%d:' % (len(members['marks.setx'].decode().rstrip('\n').split('\n')) + 1), '`more` is not a setting')),
+            ('lastset', lambda m: m.__setitem__('model.setx', text_lines('model.setx', set_high, '  high: 1e999,')),
+             ('lastset.snapx/model.setx:%d:' % set_high, '`1e999` is not a number')),
+            ('latermanifest', lambda m: m.__setitem__('session.setx', m['session.setx'] + b'later: 1,\n'),
+             ('latermanifest.snapx/session.setx:%d:' % (manifest_lines + 1), '`later` is not a setting')),
             # W145: every value checked by the rule that checks it anywhere else, before anything is applied
-            ('zerostore_every', lambda m: m.__setitem__('model.set', text_lines('model.set', set_store_every, '0   store_every')),
-             ('zerostore_every.snapx/model.set:%d:' % set_store_every, 'Store every N steps must be a whole number of at least 1')),
-            ('zerodt', lambda m: m.__setitem__('model.set', text_lines('model.set', set_dt, '0  DeltaT')),
-             ('zerodt.snapx/model.set:%d:' % set_dt, 'Dt must be a number other than 0')),
-            ('oldset', lambda m: m.__setitem__('model.set', m['model.set'].rstrip(b'\n') + b'\nRHS etc ...\ndV/dT=0\n'),
-             ('oldset.snapx/model.set:%d:' % (len(members['model.set'].decode().rstrip('\n').split('\n')) + 1),
-              '"RHS etc ..." after the end')),
-            ('manycolumns', lambda m: m.__setitem__('windows.set', text_lines('windows.set', win_added, '5001 added columns')
-                                                    + b''.join(b'X%d\nv*w\n' % k for k in range(5000))),
-             ('manycolumns.snapx/windows.set:%d:' % win_added, '5001 added columns: the model has room for 0 to')),
-            ('badformula', lambda m: m.__setitem__('windows.set', text_lines('windows.set', win_added + 2, 'unknown_symbol+')),
-             ('badformula.snapx/windows.set:%d:' % (win_added + 2), 'the formula of the added column VW does not compile')),
+            ('zerostore_every', lambda m: m.__setitem__('model.setx', text_lines('model.setx', set_store_every, '  store_every: 0,')),
+             ('zerostore_every.snapx/model.setx:%d:' % set_store_every, 'Store every N steps must be a whole number of at least 1')),
+            ('zerodt', lambda m: m.__setitem__('model.setx', text_lines('model.setx', set_dt, '  dt: 0,')),
+             ('zerodt.snapx/model.setx:%d:' % set_dt, 'Dt must be a number other than 0')),
+            # W285: a session of the older layout (XPPAUT's set lines) is refused as any text that is no settings is
+            ('oldset', lambda m: m.__setitem__('model.setx', b'## Set file for lecar.odex\n4   Number of equations and auxiliaries\n'),
+             ('oldset.snapx/model.setx:2:1:', 'expected a key')),
+            ('manycolumns', lambda m: m.__setitem__('windows.setx', added_columns([('X%d' % k, 'v*w') for k in range(5001)])),
+             ('manycolumns.snapx/windows.setx:%d:' % win_added, 'entries: at most')),
+            ('badformula', lambda m: m.__setitem__('windows.setx', added_columns([('VW', 'unknown_symbol+')])),
+             ('badformula.snapx/windows.setx:%d:' % (win_added + 3), 'the formula of the added column VW does not compile')),
             ('spareflag', lambda m: m.__setitem__('random.txt', text_lines('random.txt', len(random_rows),
                                                                            ' '.join(generator[:-2] + ['9', generator[-1]]))),
              ('spareflag.snapx/random.txt:%d:' % len(random_rows), "not a random generator's state")),
             ('aftergenerator', lambda m: m.__setitem__('random.txt', m['random.txt'] + b'\nnot_generator_state\n'),
              ('aftergenerator.snapx/random.txt:%d:' % (len(random_rows) + 1), '"not_generator_state" after the end')),
             # W227: a label's every value is checked at its line (window, x, y, size, font, style, colour, text)
-            ('labelsize', lambda m: m.__setitem__('marks.set', b'1\n0\n0.5\n0.5\n9\n0\n0\n0\nhi\n0\n0\n0\n'),
-             ('labelsize.snapx/marks.set:5:', '9 is not a text size (0 to 4)')),
-            ('labelfont', lambda m: m.__setitem__('marks.set', b'1\n0\n0.5\n0.5\n2\n5\n0\n0\nhi\n0\n0\n0\n'),
-             ('labelfont.snapx/marks.set:6:', '5 is not a text font (0 to 1)')),
-            ('labelstyle', lambda m: m.__setitem__('marks.set', b'1\n0\n0.5\n0.5\n2\n0\n7\n0\nhi\n0\n0\n0\n'),
-             ('labelstyle.snapx/marks.set:7:', '7 is not a text style (0 to 3)')),
-            ('labelcolor', lambda m: m.__setitem__('marks.set', b'1\n0\n0.5\n0.5\n2\n0\n0\n99\nhi\n0\n0\n0\n'),
-             ('labelcolor.snapx/marks.set:8:', '99 is not a colour (0 to 10)')),
-            ('labelempty', lambda m: m.__setitem__('marks.set', b'1\n0\n0.5\n0.5\n2\n0\n0\n0\n\n0\n0\n0\n'),
-             ('labelempty.snapx/marks.set:9:', 'a text is not empty')),
-            ('labellong', lambda m: m.__setitem__('marks.set', b'1\n0\n0.5\n0.5\n2\n0\n0\n0\n' + b'x' * 1001 + b'\n0\n0\n0\n'),
-             ('labellong.snapx/marks.set:9:', 'at most 1000 characters')),
-            ('labelmany', lambda m: m.__setitem__('marks.set', b'51\n'),
-             ('labelmany.snapx/marks.set:1:', '51 labels: there are 0 to 50')),
-            ('labelnan', lambda m: m.__setitem__('marks.set', b'1\n0\nnan\n0.5\n2\n0\n0\n0\nhi\n0\n0\n0\n'),
-             ('labelnan.snapx/marks.set:3:', 'is not')),
-            ('marktype', lambda m: m.__setitem__('marks.set', b'0\n1\n0\n999\n0\n1\n0\n0\n1\n1\n0\n0\n'),
-             ('marktype.snapx/marks.set:4:', "999 is not an object's type (0 to 7)")),
-            ('markcolor', lambda m: m.__setitem__('marks.set', b'0\n1\n0\n2\n999\n1\n0\n0\n1\n1\n0\n0\n'),
-             ('markcolor.snapx/marks.set:5:', '999 is not a colour (0 to 10)')),
-            ('twonames', lambda m: m.__setitem__('session.txt', m['session.txt'] + b'name lecar.odex\n'),
-             ('twonames.snapx/session.txt:%d:' % (manifest_lines + 1), 'name a second time')),
+            ('labelsize', lambda m: m.__setitem__('marks.setx', label_marks(size='9')),
+             ('labelsize.snapx/marks.setx:6:', '9 is not a text size (0 to 4)')),
+            ('labelfont', lambda m: m.__setitem__('marks.setx', label_marks(font='5')),
+             ('labelfont.snapx/marks.setx:7:', '5 is not a text font (0 to 1)')),
+            ('labelstyle', lambda m: m.__setitem__('marks.setx', label_marks(style='7')),
+             ('labelstyle.snapx/marks.setx:8:', '7 is not a text style (0 to 3)')),
+            ('labelcolor', lambda m: m.__setitem__('marks.setx', label_marks(color='99')),
+             ('labelcolor.snapx/marks.setx:9:', '99 is not a colour (0 to 10)')),
+            ('labelempty', lambda m: m.__setitem__('marks.setx', label_marks(text='""')),
+             ('labelempty.snapx/marks.setx:10:', 'a text is not empty')),
+            ('labellong', lambda m: m.__setitem__('marks.setx', label_marks(text='"' + 'x' * 1001 + '"')),
+             ('labellong.snapx/marks.setx:10:', 'at most 1000 characters')),
+            ('labelmany', lambda m: m.__setitem__('marks.setx', ('labels: [' + ', '.join(['{}'] * 51) + '],\n').encode()),
+             ('labelmany.snapx/marks.setx:1:', 'at most 50')),
+            ('labelnan', lambda m: m.__setitem__('marks.setx', label_marks(x='nan')),
+             ('labelnan.snapx/marks.setx:4:', 'is not a finite number')),
+            ('marktype', lambda m: m.__setitem__('marks.setx', mark_marks(type='999')),
+             ('marktype.snapx/marks.setx:5:', "999 is not an object's type (0 to 7)")),
+            ('markcolor', lambda m: m.__setitem__('marks.setx', mark_marks(color='999')),
+             ('markcolor.snapx/marks.setx:6:', '999 is not a colour (0 to 10)')),
+            ('twonames', lambda m: m.__setitem__('session.setx', m['session.setx'].replace(b'session: {', b'session: { model: "lecar.odex",', 1)),
+             ('twonames.snapx/session.setx:3:', 'is given twice')),
         ]
         if 'data.npz' in members:
             damages.append(('nodata', lambda m: m.pop('data.npz'), 'its data.npz is missing'))
@@ -5945,7 +5993,7 @@ def check_quit():
         text = open(rec, encoding='utf-8').read() if os.path.exists(rec) else ''
         _, _, steps, written, got = read_recx(text)
         check('quit: Save session (s) saves the session and the recording, then exits',
-              ok and os.path.exists(snap) and 'session.txt' in zipfile.ZipFile(snap).namelist()
+              ok and os.path.exists(snap) and 'session.setx' in zipfile.ZipFile(snap).namelist()
               and [x.get('keys') for x, _ in steps] == [['i', 'g']] and written == got, str(sorted(os.listdir(r))))
     finally:
         done(p, r, snd)
@@ -6018,7 +6066,7 @@ def check_quit():
         _, ok = ended(p, col)
         snap = os.path.join(r, 'kept.snapx')
         check('quit with save: the session saved, then the exit (bye, status 0)',
-              ok and os.path.exists(snap) and 'session.txt' in zipfile.ZipFile(snap).namelist(), str(sorted(os.listdir(r))))
+              ok and os.path.exists(snap) and 'session.setx' in zipfile.ZipFile(snap).namelist(), str(sorted(os.listdir(r))))
     finally:
         done(p, r, snd)
 
@@ -6110,8 +6158,8 @@ def check_recording():
         header, files, steps, written, got = read_recx(text)
         ode = os.path.basename(args.ode)
         check('record: the header names the format, program, model and date',
-              header[0] == 'xppautx-recording 1' and header[1].startswith('program: xppautX ')
-              and header[2] == 'model: ' + ode and re.match(r'recorded: \d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$', header[3]),
+              header[0] == 'recording: {' and header[1] == '  version: 2,' and header[2].startswith('  program: "xppautX ')
+              and header[3] == '  model: "%s",' % ode and re.match(r'  recorded: "\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ",$', header[4]),
               str(header))
         want = open(os.path.join(r, ode), encoding='utf-8').read().splitlines()
         check('record: the model is embedded whole, and nothing else was read',
@@ -6259,7 +6307,7 @@ def check_player():
               '%d steps, %s' % (len(steps), stopped))
         snap = recx_snapshot(text) or {}
         check('record: the recording begins with the session as it was (@snapshot: a .snapx without the data table)',
-              'session.txt' in snap and 'model/lecar.odex' in snap and 'model.set' in snap and 'data.npz' not in snap,
+              'session.setx' in snap and 'model/lecar.odex' in snap and 'model.setx' in snap and 'data.npz' not in snap,
               str(sorted(snap)))
         # no fallback: a recording without its snapshot is refused
         lines = text.split('\n')

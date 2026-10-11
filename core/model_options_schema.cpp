@@ -31,8 +31,9 @@ bool all_digits(const std::string &w)
   return !w.empty() && std::ranges::all_of(w, [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
 }
 
-/* an option's value as a schema: what its kind and rule say */
-std::string value_schema(const OptionRow &row)
+} // namespace
+
+std::string option_value_schema(const OptionRow &row)
 {
   std::string out = "{";
   switch (row.kind) {
@@ -67,8 +68,6 @@ std::string value_schema(const OptionRow &row)
   return out + "}";
 }
 
-} // namespace
-
 std::string option_schema()
 {
   std::string out =
@@ -89,12 +88,12 @@ std::string option_schema()
       if (row.group != option_groups[g]) continue;
       if (row.first_digit) {
         for (char d = row.first_digit; d <= row.last_digit; ++d) {
-          out += std::string(first ? "" : ",\n") + "        " + quoted(odex_key(row, d - '0')) + ": " + value_schema(row);
+          out += std::string(first ? "" : ",\n") + "        " + quoted(odex_key(row, d - '0')) + ": " + option_value_schema(row);
           first = false;
         }
         continue;
       }
-      out += std::string(first ? "" : ",\n") + "        " + quoted(odex_key(row, 0)) + ": " + value_schema(row);
+      out += std::string(first ? "" : ",\n") + "        " + quoted(odex_key(row, 0)) + ": " + option_value_schema(row);
       first = false;
     }
     out += "\n      }\n    }";

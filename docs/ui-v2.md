@@ -249,7 +249,7 @@ files for the browser's Load, `--anifile`. The page runs on the same machine
 - **The working directory stays the workspace.** XPP keeps reading and
   writing there, so relative references resolve as they always have, and
   scripts, `--silent` and the VS Code extension see the same files.
-- **Open** (a `file` ask for reading: Import XPPAUT set, Load diagram, the browser's
+- **Open** (a `file` ask for reading: Import settings, Load diagram, the browser's
   Load, `session load`): the page shows the browser's picker
   (`showOpenFilePicker` where available, else `<input type=file multiple>`).
   The picked files are uploaded into the working directory; the ask is
@@ -627,7 +627,7 @@ Target: WCAG 2.2 AA. Rules:
   and list, refused names and data. `tests/test_files.cpp`: SHA-256
   vectors, names, the cap, abort and replace, every selector title's mode.
   `tools/web2check.mjs`: Save session lands in the folder and is downloaded
-  (the same bytes); Import XPPAUT set by upload restores the parameters; the same
+  (the same bytes); Import settings by upload restores the parameters; the same
   content is not copied again; the replace confirm (Cancel, Keep both as
   `name-2.set`); "Add file…" after a file the core could not open.
 - **Animation** (T13): `tools/servercheck.py`: with tools/gui_test.ani
@@ -660,7 +660,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T2 (**done**) | Live plotting: `series` `append` during integrations (throttled), store appends in place, binary option for long runs | T1 | yes | a 20 000-row run grows on screen; servercheck: the appended rows equal the final series; a 10^6-row series renders and zooms (draw times printed as `perf:` lines, W58) |
 | T3 (**done**) | Values panel: parameters, ICs, BCs, delays, sliders (`@ s1=`), user buttons, Reset, `%formula`, edits pending until the next computation (GitHub #117), no undo (GitHub #110) | T1 | no | web2check: edit a parameter, see it pending; move a slider, nothing sent; Go sends one set with the latest values, then runs; keyboard and 44 px targets; right column at 80 rem, sheet on a phone |
 | T4 (**done**) | Prompts complete: `*n` selects, checklist, mouse/rubber/drag asks as plot modes; core accepts data coordinates `xd`,`yd` | T1 | small | servercheck: an answer in data coordinates; web2check: Viewaxes form with a variable select; Window/Zoom by a box drawn on the plot, by mouse and by keyboard |
-| T5 (**done**) | Files: `/files` endpoints (list, get, put; streaming bodies), `file` asks through the browser's dialogs, the confirm on replace, "Add file…" for missing companions, `file` commands for `--server` | T4 | yes | webcheck: traversal and dot names refused, 64 MB cap, token required; web2check: Save session lands in the model's folder and is offered to the browser; Import XPPAUT set by upload restores parameters |
+| T5 (**done**) | Files: `/files` endpoints (list, get, put; streaming bodies), `file` asks through the browser's dialogs, the confirm on replace, "Add file…" for missing companions, `file` commands for `--server` | T4 | yes | webcheck: traversal and dot names refused, 64 MB cap, token required; web2check: Save session lands in the model's folder and is offered to the browser; Import settings by upload restores parameters |
 | T6 (**done**) | Plot windows: `plots` event, series per window, tabs, Makewindow create/kill/select | T2 | yes | servercheck: two windows, each with its curves; web2check: switch tabs, each keeps its zoom |
 | T7 (**done**) | Nullclines and direction fields as data (`nullclines`, `dfield`), drawn in uPlot's draw hook | T6 | yes | servercheck: segment counts equal the classic draw ops' lines for lecar; web2check: the store holds them, they toggle in the legend |
 | T8 (**done**) | Marks: Sing pts equilibria, Graphic stuff text/arrows/markers, frozen curves; Greek labels as Unicode | T6 | yes | servercheck: `marks` after Sing pts has the equilibrium's coordinates; web2check: marks listed in the store and the legend |

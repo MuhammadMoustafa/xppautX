@@ -437,7 +437,7 @@ run or the files, not the X11 windows:
 - **--convert**: Converts `.ode` to `.odex` beside the model; terminal name questions read a line from a console or pipe, with a 60-second deadline.
 - **--check**: Validates `.ode` or `.odex` in memory and prints JSON diagnostics; writes nothing, opens no window. Exit 0 clean/info, 1 warnings, 2 error (W75, #123).
 - **-y, --yes**: Answers every terminal question yes and prints each answer taken: accepts suggested conversion names and replaces existing files (silent recording outputs, a different `.odex`).
-- **--setfile *filename***: imports the named `.set` file, one XPPAUT wrote (File > Import XPPAUT set), after loading up the ODE file, checking every named value and saving the imported session as `<name>.snapx` beside the `.set`.
+- **--setfile *filename***: applies the named settings file (`.setx`), or imports a `.set` file one XPPAUT wrote (File > Import settings), after loading up the ODE file: the `.set` is checked value by value and converted to a `<name>.setx` beside it, which is applied.
 - **--newseed**: uses the machine time to re-seed the random number generator.
 - **--runnow**: runs the ODE file immediately on startup (implied by `--silent`).
 - **--parfile *filename***: loads parameters from the named file. The first line gives the number of parameters, then one value per line followed by its name (must match a parameter name in the ODE file), e.g. (`lecar.par`):

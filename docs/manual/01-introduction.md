@@ -181,7 +181,7 @@ whether to save the session open, since it takes its place. A session file witho
 its model (one saved before this version) is refused with an error, and so
 is one with a part missing or damaged (a member cut short, a line that is
 not a number, a variable the model does not have): the error names the
-part and its line (`s1.snapx/windows.set:12: ...`), and the
+part and its line (`s1.snapx/windows.setx:12:7: ...`), and the
 session open stays exactly as it was, nothing of the file taken. Every
 file of xppautX's loads this way, all or nothing: a set, parameter or
 initial-conditions file, an AUTO file or AUTO settings file and a
@@ -193,10 +193,10 @@ not saved (the data table is the last run's), nor are Sing pts'
 equilibrium symbols. A data table above 50 MB makes Save session ask
 whether to leave it out (Go computes it again). A `.snapx` is a zip of
 ordinary files: renamed to `.zip`, its `model/` folder holds the model's
-files, its `model.set` holds the values and numerics (the set format) and its
-`data.npz` reads in NumPy (`numpy.load`). A `.set` file is no longer a
-file xppautX saves or opens: the session holds what it held, and
-File/Import XPPAUT set checks the names in the one XPPAUT wrote and converts it immediately to a `.snapx` session beside it, which is then open. AUTO's File > Save diagram and Load diagram save and open the session too.
+files, its `model.setx` holds the values and numerics (the settings syntax of a model's `options` block) and its
+`data.npz` reads in NumPy (`numpy.load`). XPPAUT's `.set` file is no longer a
+file xppautX saves: the session holds what it held, and
+File/Import settings applies a settings file (`.setx`), or checks the names in a `.set` XPPAUT wrote and converts it to a `.setx` beside it, which is then applied. AUTO's File > Save diagram and Load diagram save and open the session too.
 Import diagram reads a foreign XPPAUT `.auto` into the model open.
 
 The recording player offers speeds from 0.25× to 8×. These bounds come from

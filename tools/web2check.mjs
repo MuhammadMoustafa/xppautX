@@ -35,7 +35,7 @@
    frame pacing and series appends per second (W82), printed as perf:
    lines, never pass/fail (W58: performance is for CI, not the program).
    Files (T5): Save session lands in the model's folder and is downloaded,
-   Import XPPAUT set by upload restores the parameters, a same-content upload is not
+   Import settings by upload restores the parameters, a same-content upload is not
    copied, a same-name one asks Replace / Keep both / Cancel, and "Add
    file…" adds a file the core could not open and runs the command again.
    Animation (T13): tools/gui_test.ani loaded by upload, its frames in the
@@ -3521,7 +3521,7 @@ async function recordCheck(dir) {
   const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split(/\r?\n/) : [];
   const at = lines.indexOf('@steps');
   check('record: web.recx holds the model and the step, its note above it, the button named',
-    lines[0] === 'xppautx-recording 1' && lines.includes('@file lecar.odex') && at > 0
+    lines[0] === 'recording: {' && lines.includes('@file lecar.odex') && at > 0
     && lines[at + 1] === '# First run.' && lines[at + 2] === '# It settles.'
     && (() => { const step = JSON.parse(lines[at + 3]); return step.step === 'Initial conditions → Go' && step.cmd.menu === 'main' && step.cmd.item === 'initialconds' && step.keys.join('') === 'g'; })(), JSON.stringify(lines.slice(at, at + 5)));
   check('record: the recording begins with the session\'s state (a @snapshot section before the files, W59d)',
@@ -4473,8 +4473,8 @@ async function runsCheck(dir) {
      folder, the same `pendingSave`/`deliver` path as Save session (T5,
      above) offers it as a download; Load uploads the picked file with
      the files API (session.ts loadValues, the same PUT any other upload
-     uses) and sends `values` `read` -- applied at once, like File/Import XPPAUT
-     set, so no Go is needed. */
+     uses) and sends `values` `read` -- applied at once, like File/Import settings
+     so no Go is needed. */
   /* W95 (#143): a click while the page is busy with a command of its own (a redraw here, as its
      catch-up after an idle is) goes out and runs in its turn: Save is sent right behind it */
   const sentSave = await cdp.eval('__xpp.sentCount()');
@@ -5298,12 +5298,12 @@ async function files(dir) {
     check('the model\'s iapp is not the set\'s', Math.abs(iapp0 - setIapp) > 1e-3, String(iapp0));
     fs.writeFileSync(path.join(up, 't5up.set'), setBytes);
 
-    /* File/Import XPPAUT set by upload brings in its parameters */
+    /* File/Import settings by upload brings in its parameters */
     check('a new parameter value', await setPar('iapp', 0.2));
-    check('File/Import XPPAUT set opens an open dialog (the ask says it reads)', await fileMenu('r', 'read'),
+    check('File/Import settings opens an open dialog (the ask says it reads)', await fileMenu('r', 'read'),
       JSON.stringify(await S('s.ask')));
     await pickFiles('[data-file-input=open]', [path.join(up, 't5up.set')]);
-    check('Import XPPAUT set by upload brings in the parameters (the next state has the file\'s values)',
+    check('Import settings by upload brings in the parameters (the next state has the file\'s values)',
       await until(`!s.ask && !s.busy && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - ${setIapp}) < 1e-12`, 'import set'),
       String(await par('iapp')));
     const copied = fs.existsSync(path.join(dir, 't5up.set')) && fs.readFileSync(path.join(dir, 't5up.set'));
@@ -5394,7 +5394,7 @@ async function files(dir) {
         && document.activeElement === document.querySelector('.file-ask button.primary')`));
     check('the hidden input filters by the pattern of the ask',
       await cdp.eval(`(() => { const w = __xpp.state().ask.wild, i = document.querySelector('[data-file-input=open]');
-        return !w || w === '*' ? !i.accept : i.accept === w.split('*').join('') })()`), JSON.stringify(await S('s.ask')));
+        return !w || w === '*' ? !i.accept : i.accept === w.split(' ').map(x => x.split('*').join('')).join(',') })()`), JSON.stringify(await S('s.ask')));
     await key('Escape');
     check('Esc cancels the ask', await until('!s.ask', 'esc'));
 
@@ -5482,7 +5482,7 @@ async function nativeFiles(dir) {
     }
 
 
-    check('File/Import XPPAUT set in the window: answered from the native dialog', await fileKey('r', farSet));
+    check('File/Import settings in the window: answered from the native dialog', await fileKey('r', farSet));
     const r = await asked();
     check('... asked to open, filtered by *.set', r && r.mode === 'read' && JSON.stringify(r.exts) === '[".set"]', JSON.stringify(r));
     check('... the core read it where it is (its iapp is in), nothing copied',

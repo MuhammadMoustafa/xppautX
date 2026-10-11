@@ -15,6 +15,7 @@
 #include "numerics_settings.h"
 #include "model_options.h"
 #include "lunch-new.h"
+#include "setx_file.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
 #include "xpp_files.h"
@@ -34,7 +35,7 @@ namespace {
 
 const char plain_ode[] = "build/test_options_plain.ode";
 const char options_ode[] = "build/test_options_set.ode";
-const char set_file[] = "build/test_options.set";
+const char set_file[] = "build/test_options.setx";
 
 /* a model with three variables and no options */
 const char model_text[] = "x'=-x\ny'=x\nz'=y\npar a=1,b=2\n";
@@ -130,17 +131,9 @@ bool left_out(const xpp::OptionRow &r)
     return r.name.empty() || r.name == "LOGFILE" || r.name == "BUT";
 }
 
-/* the options a .set file holds (lunch-new.cpp's set file: its numerics,
-   torus and ranges) */
-const std::set<std::string_view> in_set_file = {
-    "TOTAL_TIME", "START_TIME", "TRANSIENT_TIME", "DT", "NULLCLINE_MESH", "SINGPT_MAX_ITERATES",
-    "SINGPT_NEWTON_TOLERANCE", "SINGPT_JACOBIAN_EPSILON", "STORE_EVERY", "BOUND", "METHOD", "TOLERANCE",
-    "MIN_STEP", "MAX_STEP", "ABS_TOLERANCE", "DELAY", "bvp_max_iterates", "bvp_tolerance", "bvp_epsilon",
-    "POINCARE_MAP", "POINCARE_VARIABLE", "POINCARE_SIGN", "POINCARE_STOP", "POINCARE_PLANE", "TORUS_PERIOD", "RANGEOVER", "RANGESTEP", "RANGELOW",
-    "RANGEHIGH", "RANGERESET", "RANGEOLDIC",
-};
-/* the numerics a .set file does not hold */
-const std::set<std::string_view> not_in_set_file = {"eul_tol", "eul_iter"};
+/* whether a .setx holds the option: the table's rows marked saved, and the
+   torus' period (its torus group) */
+bool in_set_file(const xpp::OptionRow &r) { return r.saved || r.name == "TORUS_PERIOD"; }
 
 std::string_view id(const xpp::OptionRow &r) { return r.name.empty() ? r.key : r.name; }
 
@@ -332,31 +325,15 @@ int main(void)
     for (std::size_t k = 0; k < rows.size(); k++) {
         const xpp::OptionRow &r = rows[k];
         if (r.name.empty() && r.key.empty()) continue;
-        const bool held = in_set_file.contains(id(r));
+        const bool held = in_set_file(r);
         CHECK(!held || in_session(*s, r));
-        if (!r.key.empty() && r.name.empty()) CHECK(held || not_in_set_file.contains(r.key));
+        if (!r.key.empty()) CHECK(held); /* every numerics setting the menu edits is in a .setx */
     }
-    {
-        FILE *fp = fopen(set_file, "w");
-        CHECK(fp != nullptr);
-        if (!fp) TEST_REPORT("options");
-        xpp::write_lunch(*s, fp);
-        fclose(fp);
-    }
-    /* what the session's own reader takes unchanged is read back by it
-       (its label is store_every); XPPAUT's set file differs in that
-       label (nout) and ends with its equations, which the import reads */
-    std::string own;
-    {
-        xpp::LineReader in(set_file); /* closed before the file is written again */
-        CHECK(static_cast<bool>(in));
-        while (const auto line = in.next()) own += std::string(*line) + "\n";
-    }
-    CHECK(xpp::read_session_set(*s, set_file, own).has_value());
-    const std::size_t at = own.find("store_every");
-    CHECK(at != std::string::npos);
-    own.replace(at, std::string_view("store_every").size(), "nout");
-    CHECK(write_file(set_file, own + "RHS etc ...\n"));
+    const xpp::Result<std::string> own = xpp::setx_text(*s, xpp::capture_settings(*s, xpp::SettingsUse::file));
+    CHECK(own.has_value());
+    if (!own) TEST_REPORT("options");
+    CHECK(xpp::read_settings(*s, set_file, *own, xpp::SettingsUse::file).has_value());
+    CHECK(write_file(set_file, *own));
     std::vector<std::string> written;
     for (const xpp::OptionRow &r : rows) {
         written.push_back(value_of(*s, r));
@@ -367,11 +344,12 @@ int main(void)
     }
     std::vector<std::string> changed;
     for (const xpp::OptionRow &r : rows) changed.push_back(value_of(*s, r));
-    CHECK(xpp::import_xppaut_set(*s, set_file, false).has_value());
+    CHECK(xpp::import_settings(*s, set_file, false).has_value());
     for (std::size_t k = 0; k < rows.size(); k++) {
         const xpp::OptionRow &r = rows[k];
         if (!in_session(*s, r)) continue;
-        const std::string want = in_set_file.contains(id(r)) ? written[k] : changed[k];
+        const bool restored = in_set_file(r) && r.flag != xpp::Option::VMAXPTS && r.key != "delay"; /* a model without delays or an integral method has neither setting */
+        const std::string want = restored ? written[k] : changed[k];
         const std::string got = value_of(*s, r);
         CHECK(got == want);
         if (got != want) printf("  .set %s: %s, not %s\n", std::string(id(r)).c_str(), got.c_str(), want.c_str());

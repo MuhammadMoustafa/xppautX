@@ -224,6 +224,61 @@ grammar:
   closed is an error at the line where it opened.
 - A trailing range makes a statement an array (below, "Arrays").
 
+## Settings files (.setx)
+
+A settings file, `name.setx` (W284, [#344](https://github.com/MuhammadMoustafa/xppautX/issues/344);
+design in [Discussion #341](https://github.com/MuhammadMoustafa/xppautX/discussions/341)),
+holds what XPPAUT's `.set` held (the parameters, the initial values, the
+numerics, the delays, the boundary conditions, the active window's graphics),
+in the options block's syntax: `key: value` entries separated by commas,
+groups `{ ... }` nested, a trailing comma allowed, a bare one-token value
+or a value in double quotes (`\"` and `\` the only escapes), `#` and `/* */`
+comments. The one addition is a list, `[ a, b, c ]`, of values or of groups
+(a window's curves). The file is the entries of one unbraced top-level group,
+in any order; it is read by the `.odex` reader's own tokenizer and block
+grammar (core/odex_parse.cpp), not a second parser, and loaded all or
+nothing: every key and value is checked, an error names the file, the line
+and the column with the line as written, and nothing is applied before the
+whole file has read. A key no group has, a key twice, a group nested deeper
+than 8 and a list longer than the reader allows are errors (a `.setx` may be
+a file you were sent).
+
+        numerics: { total_time: 100, dt: 0.05, method: stiff, jacobian: exact, },
+        parameters: { iapp: 0.09, gca: 1, },
+        initial: { v: -0.5, w: 0.1, },
+        graphics: {
+          curves: [ { x: t, y: v, z: t, line: 0, color: 1 } ],
+          xlo: 0, xhi: 100,
+        },
+
+A file names what it sets: `parameters: { iapp: 0.5 }` alone changes that
+parameter and nothing else (a group, or a key in it, that is absent leaves
+the session as it is). The groups are `numerics`, `run` (the integrator's
+position), `initial`, `ending` (the values the last run ended at),
+`parameters`, `delays`, `boundary`, `graphics` (the active window: its
+curves by variable name and its rotation, scales and box), `transpose`,
+`coupling`, `array_plot`, `torus`, `range`, `equilibrium_range` and
+`bvp_range`. The keys of `numerics` and of the table-held part of `range`
+are the option table's (core/model_options.cpp, the rows marked `saved`): a
+numerics setting is written under the key the Numerics menu and `set num`
+use (`total_time`, `dt`, `method`, `jacobian`, `tolerance`, ...), a choice
+by its word (`jacobian: exact`, `poincare_map: section`, `rangereset: no`),
+so a setting added to the table is a key of the file with no other change.
+The JSON Schema generated from the file's description and the table is
+[setx.schema.json](setx.schema.json) (`xppautX --setx-schema` prints it;
+`tools/optionschema.sh --check` fails when it differs).
+
+XPPAUT's `.set` (positional lines, a value and then its label, read by their
+order) is import only: File > Import settings and `--setfile` of one read it,
+write the `.setx` beside it (`lecar.ode.set` gives `lecar.ode.setx`; the
+question before another text replaces a `.setx` that is there is the one
+`.ode` to `.odex` asks), and read and apply that `.setx`. The same command
+and `--setfile` take a `.setx` as it is. Session files (`.snapx`) keep their
+settings in the same syntax, one member each (`model.setx`, `windows.setx`,
+`marks.setx`, `sliders.setx`, `nullclines.setx`, the manifest `session.setx`),
+and a recording's (`.recx`) header is a `recording` group of it: see
+docs/protocol.md "Session files" and "Recordings".
+
 ## Imports
 
 W282 ([#339](https://github.com/MuhammadMoustafa/xppautX/issues/339)),

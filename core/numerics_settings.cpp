@@ -7,11 +7,14 @@
 #include <algorithm>
 #include <cmath>
 #include <climits>
+#include <optional>
+#include <vector>
 #include <ranges>
 #include <string>
 #include <string_view>
 
 #include "numerics_settings.h"
+#include "xpp_util.h"
 #include "data_event.h"
 #include "model.h"
 #include "model_options.h"
@@ -48,6 +51,9 @@ bool used(const xpp::Session &s, const OptionRow &f)
     }
     return true;
 }
+
+/* whether field f is one of s's model's: the delay of a model with no delays is not */
+bool used_or_hidden(const xpp::Session &s, const OptionRow &f) { return f.use != OptionUse::delays || used(s, f); }
 
 /* total's sign says "forever", as the menu's */
 bool is_total(const OptionRow &f) { return f.key == "total_time"; }
@@ -150,6 +156,20 @@ bool check(xpp::Session &s, const OptionRow &f, std::string_view text, double &v
     return true;
 }
 
+/* the checked value v put in field f's member */
+void write_field(xpp::Session &s, const OptionRow &f, double v)
+{
+    NumericsSettings &n = s.numerics;
+    if (is_total(f)) { /* the menu's Total: below 0 for ever */
+        n.forever = v < 0;
+        n.total_time = std::fabs(v);
+    } else if (f.real) {
+        f.real(s) = v;
+    } else {
+        f.whole(s) = static_cast<int>(v);
+    }
+}
+
 } // namespace
 
 int numerics_settings_check(xpp::Session &s, std::string_view key, std::string_view text, std::string &why)
@@ -173,15 +193,7 @@ int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_vie
             return -1;
         }
         if (!check(s, *f, text, v, why, place ? *place : command_place())) return -1;
-        NumericsSettings &n = s.numerics;
-        if (is_total(*f)) { /* the menu's Total: below 0 for ever */
-            n.forever = v < 0;
-            n.total_time = std::fabs(v);
-        } else if (f->real) {
-            f->real(s) = v;
-        } else {
-            f->whole(s) = static_cast<int>(v);
-        }
+        write_field(s, *f, v);
         /* what changing these needs */
         if (key == "dt") dt_changed(s);
         else if (key == "delay") chk_delay(s);
@@ -211,6 +223,74 @@ bool numerics_settings_ask(xpp::Session &s, std::string_view key)
     if (numerics_settings_set(s, key, text, why) == 0) return true;
     command_error("numerics", why);
     return false;
+}
+
+std::vector<const OptionRow *> saved_settings(std::string_view group)
+{
+    std::vector<const OptionRow *> rows;
+    for (const OptionRow &r : option_rows())
+        if (r.saved && (r.group == group || (r.group.empty() && group == option_group::numerics))) rows.push_back(&r);
+    return rows;
+}
+
+const OptionRow *saved_setting(std::string_view key)
+{
+    for (const OptionRow &r : option_rows())
+        if (r.saved && setting_key(r) == key) return &r;
+    return nullptr;
+}
+
+std::string setting_key(const OptionRow &row)
+{
+    return row.key.empty() ? lower_case(std::string(row.name)) : std::string(row.key);
+}
+
+bool setting_applies(const xpp::Session &s, const OptionRow &row, int method)
+{
+    if (!row.key.empty()) return used_or_hidden(s, row);
+    if (row.flag == Option::VMAXPTS) return xpp::solver_info(method).traits.integral_history;
+    return true;
+}
+
+std::string setting_text(const xpp::Session &s, const OptionRow &row)
+{
+    xpp::Session &member_of = const_cast<xpp::Session &>(s); /* the accessors name the member; reading it changes nothing */
+    if (row.rule == OptionRule::method) return std::string(xpp::solver_info(row.whole(member_of)).key);
+    if (row.kind == OptionKind::choice) {
+        /* a number out of the choices (a member set by hand) is written as it is, and refused when read */
+        const int v = row.whole(member_of);
+        return v >= 0 && static_cast<std::size_t>(v) < row.choices.size() ? std::string(row.choices[static_cast<std::size_t>(v)]) : xpp::number(v);
+    }
+    if (row.kind == OptionKind::name && row.whole) return xpp::ind_to_sym(s, row.whole(member_of));
+    if (row.text) return row.text(member_of);
+    return xpp::number(value_of(s, row));
+}
+
+/* whether row is checked and written as an @ line is: it has no numerics key, or a model is loading (the exact
+   Jacobian is checked once the model is compiled: the option's parser defers it, as the @ line does) */
+static bool by_option(const OptionRow &row) { return row.key.empty() || (!row.name.empty() && Load::running()); }
+
+std::optional<std::string> setting_problem(xpp::Session &s, const OptionRow &row, std::string_view text)
+{
+    if (by_option(row)) {
+        /* the rule's words, with the setting's label before them, as the Numerics menu says them */
+        double v = 0;
+        if (!row.label.empty() && xpp::parse_number(text, v))
+            if (const char *no = rule_problem(row.rule, v)) return xpp::format("{} {}", row.label, no);
+        return option_problem(s, row.name, text, false);
+    }
+    double v = 0;
+    std::string why;
+    if (check(s, row, text, v, why, command_place())) return std::nullopt;
+    return why;
+}
+
+void setting_write(xpp::Session &s, const OptionRow &row, std::string_view text)
+{
+    if (by_option(row)) return set_option(s, row.name, text, true, nullptr);
+    double v = 0;
+    std::string why;
+    if (check(s, row, text, v, why, command_place())) write_field(s, row, v);
 }
 
 void numerics_settings_init(NumericsSettingsEmit emit) { event.init(emit); }
