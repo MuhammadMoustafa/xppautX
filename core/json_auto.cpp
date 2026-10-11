@@ -605,6 +605,13 @@ void auto_command(xpp::Session &s, const char *line)
                 j_command_error("auto", xpp::format("Grab: no {} point number {}", type, idx));
         } else j_command_error("auto", "Grab: give a label, or a type and index");
     }
+    else if (o == "restart") {
+        /* goes on from a stored point's label with the settings of the
+           last run (docs/protocol.md "Restarting a run") */
+        const char *jl = js_find(line, "label");
+        if (jl != NULL) auto_restart(s, static_cast<int>(js_num(jl, 0)));
+        else j_command_error("auto", "Restart: give a label");
+    }
     else if (o == "set") auto_set_command(s, line);
     else if (o == "display") {
         /* the zoom shown in a view of the diagram (the active one unless

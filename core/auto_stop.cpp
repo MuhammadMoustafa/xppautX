@@ -15,7 +15,7 @@ namespace {
 
 const char *const keys[AUTO_STOP_N] = {
     "", "parmin", "parmax", "normmin", "normmax", "npts", "user", "mark",
-    "noconv", "noconv-fixed", "noconv-min", "noconv-switch-fixed", "noconv-switch-min",
+    "noconv", "noconv-fixed", "noconv-min", "noconv-switch-fixed", "noconv-switch-min", "jacobian",
 };
 
 /* the continuation parameter as the text names it */
@@ -68,6 +68,8 @@ std::string describe(const xpp::Session &s, const AutoStop &st, int why, const A
         return "no convergence switching branches, even at the smallest step (Dsmin " + num(st.noconv_dsmin) + ")";
     case AUTO_STOP_NOCONV:
         return "no convergence";
+    case AUTO_STOP_JACOBIAN:
+        return "the exact Jacobian is not finite (see the error)";
     default:
         return "";
     }
@@ -119,7 +121,7 @@ void auto_stop_branch_end(Session &s, const AutoStopAt *at)
 {
     AutoStop &st = s.auto_state.stop;
     try {
-        const int why = auto_stop_why(st, at);
+        const int why = s.auto_lib.jacobian_failure ? AUTO_STOP_JACOBIAN : auto_stop_why(st, at);
         double value, limit;
         std::string text = describe(s, st, why, *at, value, limit);
         st.last_why = why;

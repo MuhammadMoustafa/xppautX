@@ -614,6 +614,7 @@ const CommandInfo commands[] = {
     {"browser", nullptr, V, NOT_STEP, browser_command}, /* with from: the block shown */
     {"auto", "set", S, STEP, auto_command},
     {"auto", "grab", D, STEP, auto_command},
+    {"auto", "restart", X, STEP, auto_command},
     {"auto", nullptr, V, STEP, auto_command}, /* display, point, close */
     {"keymap", nullptr, C, NOT_STEP, keymap_command}, /* the user's settings, not the model's: any time */
     {"file", "put", D, NOT_STEP, file_command},

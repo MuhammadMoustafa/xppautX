@@ -351,6 +351,7 @@ next to the end point's label when you hover it, and as `autoinfo`'s
 | the norm reached Norm Min / Norm Max (*value*) | the solution's norm left its range | Norm Min / Norm Max (A0 / A1) |
 | the branch reached Max points (NMX *n*) | the branch has as many points as Max points allows | Max points (NMX), or a larger Largest step (DSMAX) |
 | by the user (Stop) | Stop (or the view's Close) during the run | Run again from the end point |
+| the exact Jacobian is not finite (see the error) | with Numerics' Jacobian set to exact, a derivative was not finite where the right-hand side is (sqrt or log at 0, 1/x at 0); the run stopped as a Stop does, on an end point | the error offers "Switch to differences and continue": it sets the Jacobian to difference and runs again from that end point with the same settings |
 | parameter *p* reached a Mark value set to stop | a user point marked as an end (AUTO's UZR endpoint) | the Mark values |
 | no convergence even at the smallest step (Dsmin *value*) | the solver failed and halving the step reached Smallest step (DSMIN): a sharp turn, a jump, or a singular point (MX) | a smaller DSMIN or DSMAX, a larger NTST, looser tolerances |
 | no convergence with a fixed step size (IADS 0) | the solver failed and Adapt step every (IADS) is 0, so the step is not reduced (MX) | IADS 1 |

@@ -17,9 +17,11 @@
 #include "display_state.h"
 #include "xAuto.h"
 #include "xpp_io.h"
+#include "xpp_error.h"
 
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -201,6 +203,13 @@ struct AutoLib {
   /* 1 while lcspae/lcspbv locate a special point: their solves run to
      the end (autlib1.cpp's Locating) */
   int locating=0;
+  /* the exact Jacobian's failure (W275): a derivative not finite where the
+     right-hand side is, recorded by func (autpp.cpp) on its own AutoLib (a
+     collocation worker's, merged into the Session's by the caller when the
+     workers are done) and ended as a Stop ends a run, so the last
+     converged point is stored as an end point to restart from; do_auto
+     (auto_nox.cpp) shows it with the action that switches to differences */
+  std::optional<xpp::Error> jacobian_failure;
   /* the storage behind scratch's and rotations' pointers
      (allocate_global_memory) */
   struct {

@@ -3262,7 +3262,7 @@ def auto_stop_run(numerics, abort=False):
 
 
 def check_auto_stop():
-    wide = {'rl0': -1, 'rl1': 0.9, 'a0': -1, 'a1': 100, 'nmx': 200}
+    wide = {'rl0': -0.5, 'rl1': 0.9, 'a0': -1, 'a1': 100, 'nmx': 200}
     for numerics, why, text, abort in (
             ({**wide, 'rl1': 0.5}, 'parmax', 'parameter a reached Par Max (0.5)', False),
             ({**wide, 'rl0': -0.3, 'ds': -0.01}, 'parmin', 'parameter a reached Par Min (-0.3)', False),
@@ -3301,7 +3301,7 @@ def check_auto_no_nan_par():
     the run's last "state" must show the continuation parameter 'a'
     finite, not left over from a diverged Newton step (core/auto_nox.cpp's
     auto_restore_finite_pars)."""
-    wide = {'rl0': -1, 'rl1': 0.9, 'a0': -1, 'a1': 100, 'nmx': 200}
+    wide = {'rl0': -0.5, 'rl1': 0.9, 'a0': -1, 'a1': 100, 'nmx': 200}
     p, r, snd, col, evq = launch_server(ode=STOP_ODE)
     try:
         col(is_idle)
@@ -4173,6 +4173,86 @@ def check_jacobian_failure():
 
 
 check_jacobian_failure()
+
+
+def check_auto_jacobian_failure():
+    """W275: an exact derivative that is not finite during an AUTO run (the
+    sqrt term is present below a = 0.5, on the branch x = 0, where its slope
+    is infinite while the right-hand side is 0) stops the run as a Stop does:
+    the last converged point is stored as an end point (EP) with a label.
+    The error carries the action "Switch to differences and continue": the
+    command that sets the Jacobian to difference, then the one that restarts
+    the continuation from that label with the run's own settings; sent as
+    they come they take the branch on past the failure to Par Min, and a
+    recording of it replays to the same diagram."""
+    model_dir = tempfile.mkdtemp(prefix='xppautjacfail')
+    try:
+        model = os.path.join(model_dir, 'rootfail.odex')
+        with open(model, 'w') as f:
+            f.write("par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { numerics: { jacobian: exact, total_time: 1 } }\n")
+        p, r, snd, col, _ = launch_server(ode=model)
+        try:
+            col(is_idle)
+            snd(cmd='data', events=['autoinfo'])
+            col(is_idle)
+            snd(cmd='record', op='start')
+            col(is_idle)
+            snd(cmd='key', key='f')
+            snd(cmd='key', key='a')
+            col(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
+            col(is_idle)
+            snd(cmd='auto', op='set', numerics={'ds': -0.1, 'dsmax': 0.1, 'rl0': -0.5, 'rl1': 2, 'nmx': 100},
+                axes={'plot': 1, 'var': 'x', 'par1': 'a'})
+            col(is_idle)
+            snd(cmd='key', win='auto', key='r')
+            _, ask = col(is_ask)
+            snd(cmd='answer', id=ask['id'], key='s')
+            evs, _ = col(is_idle, timeout=60 * SLOW)
+            errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+            err = errs[-1] if errs else {}
+            action = err.get('action') or {}
+            cmds = action.get('commands') or [{}, {}]
+            labs = [(lab, sym) for e in evs if e.get('ev') == 'diagram' and e.get('op') == 'add'
+                    for run in e['runs'] for _i, lab, sym in run.get('lab', [])]
+            info = [e['stop'] for e in evs if e.get('ev') == 'autoinfo' and e.get('stop')]
+            check('W275: the exact Jacobian not finite in an AUTO run is one error, at the equation, naming it and the point',
+                  len(errs) == 1 and err.get('file') == 'rootfail.odex' and err.get('line') == 2
+                  and err.get('error', '').startswith('AUTO stopped: the exact Jacobian') and '(AUTO at a=' in err.get('error', ''),
+                  str(errs))
+            check('W275: the run stored its last converged point as an end point, with a label, and says why it stopped',
+                  bool(labs) and labs[-1][1] == 'EP' and labs[-1][0] > 0 and info and info[-1].get('why') == 'jacobian',
+                  '%s %s' % (labs, info))
+            check('W275: the error offers Switch to differences and continue: set the Jacobian to difference, then restart from the end point',
+                  action.get('label') == 'Switch to differences and continue' and len(cmds) == 2
+                  and cmds[0] == {'cmd': 'set', 'kind': 'num', 'name': 'jacobian', 'text': 'difference'}
+                  and cmds[1] == {'cmd': 'auto', 'op': 'restart', 'label': labs[-1][0] if labs else None}, str(action))
+            before = sum(len(run['x']) for e in evs if e.get('ev') == 'diagram' and e.get('op') == 'add' for run in e['runs'])
+            went = []
+            for c in cmds:
+                snd(**c)
+                more, _ = col(is_idle, timeout=60 * SLOW)
+                went += more
+            errs = [e for e in went if e.get('ev') == 'message' and 'error' in e]
+            xs = [x for e in went if e.get('ev') == 'diagram' and e.get('op') == 'add' for run in e['runs'] for x in run['x']]
+            info = [e['stop'] for e in went if e.get('ev') == 'autoinfo' and e.get('stop')]
+            check('W275: sending them takes the branch on, past the failure (a below 0.5) to Par Min, with no error',
+                  not errs and xs and min(xs) < 0.4 and info and info[-1].get('why') == 'parmin', '%s %s %s' % (errs, xs[-3:], info))
+            snd(cmd='record', op='stop', name='click.recx')
+            col(is_idle)
+            replay = replay_recording(args.server, model, os.path.join(r, 'click.recx'), r)
+            replayed = [json.loads(l) for l in replay.stdout.splitlines() if l.strip()]
+            points = sum(len(run['x']) for e in replayed if e.get('ev') == 'diagram' and e.get('op') == 'add' for run in e['runs'])
+            check('W275: a recording made with the click replays to the same diagram (the run stopped where it did, the restart from its label)',
+                  points == before + len(xs), '%d %d %s' % (points, before + len(xs), replay.stderr[-300:]))
+        finally:
+            p.stdin.close()
+            p.wait(timeout=10 * SLOW)
+            shutil.rmtree(r, ignore_errors=True)
+    finally:
+        shutil.rmtree(model_dir, ignore_errors=True)
+
+
+check_auto_jacobian_failure()
 
 
 def check_settings_during_run():

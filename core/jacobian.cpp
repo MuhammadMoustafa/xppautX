@@ -38,7 +38,7 @@ std::vector<double> entries(const Session &s, const JacobianProgram &p, const do
     throw JacobianFailed{Error{std::string(JACOBIAN_FAILED),
                                xpp::format("the exact Jacobian's d{}'/d{} is {} at t={} ({}), where {}' is {}: switch the Numerics' "
                                            "Jacobian to difference",
-                                           name, wrt(k), out[k], t, state, name, f[row]),
+                                           name, wrt(k), std::isnan(out[k]) ? std::string("nan") : xpp::format("{}", out[k]), t, state, name, f[row]),
                                model_place(m, name)}};
   }
   return out;
@@ -56,6 +56,13 @@ void column(const Session &s, const JacobianProgram &p, const double *c, double 
 }
 
 } // namespace
+
+ErrorAction switch_to_differences(std::string resume)
+{
+  return ErrorAction{"Switch to differences and continue",
+                     {xpp::format(R"({{"cmd":"set","kind":"num","name":"{}","text":"{}"}})", JACOBIAN_KEY, jacobian_names[JACOBIAN_DIFFERENCE]),
+                      std::move(resume)}};
+}
 
 void exact_jacobian(const Session &s, const double *c, double t, const double *x, const double *f, int n, const JacobianForm &form, double *out)
 {

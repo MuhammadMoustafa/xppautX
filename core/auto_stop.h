@@ -38,6 +38,7 @@ enum AutoStopWhy {
     AUTO_STOP_NOCONV_MIN,          /* ... even at the smallest step (Dsmin) */
     AUTO_STOP_NOCONV_SWITCH_FIXED, /* ... switching branches, fixed step */
     AUTO_STOP_NOCONV_SWITCH_MIN,   /* ... switching branches, smallest step */
+    AUTO_STOP_JACOBIAN,    /* the exact Jacobian was not finite (W275): a cancel the run made itself */
     AUTO_STOP_N
 };
 

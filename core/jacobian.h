@@ -75,6 +75,11 @@ struct JacobianFailed {
 /* its error's `where`, by which a run knows it (integrate.cpp offers to
    go on with differences) */
 inline constexpr std::string_view JACOBIAN_FAILED = "exact jacobian";
+/* what a run the failure stopped offers (W260, W275): the command that
+   sets the Jacobian to difference, then `resume`, the protocol command
+   that goes on from where the run stopped, both as JSON objects a
+   recording replays */
+ErrorAction switch_to_differences(std::string resume);
 
 /* The model's exact Jacobian at (t, x) with the constants c (W260), its
    n = Model::node equations' d f/d x in `form`, from the compiled

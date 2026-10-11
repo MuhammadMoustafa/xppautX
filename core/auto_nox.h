@@ -98,6 +98,10 @@ void open_auto(Session &s, int flag);
    another unit: gogoauto.cpp opens them for a run */
 const char *auto_fort_path(const Session &s, int unit);
 void do_auto(Session &s, int iold, int isave, int itp);
+/* goes on from the point labelled `label` with the settings of the run
+   before (W275: the action of an exact Jacobian's failure); an error, and
+   nothing run, for a label no point has */
+void auto_restart(Session &s, int label);
 void set_auto(Session &s);
 /* AUTO's index of the period among its parameters (PAR(10), named T) */
 #define AUTO_PERIOD_INDEX 10

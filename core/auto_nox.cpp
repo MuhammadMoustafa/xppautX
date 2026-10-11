@@ -20,6 +20,7 @@
 #include <string.h>
 #include "autevd.h"
 #include "auto_stop.h"
+#include "jacobian.h"
 #include "auto_stability.h"
 #include "csv_export.h"
 #include "image_format.h"
@@ -522,6 +523,7 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
  
     open_auto(s, iold); /* this copies the relevant files .s  to fort.3 */
     const AutoDepth depth(s);
+    s.auto_lib.jacobian_failure.reset();
     std::string failed; /* why the run failed (xpp::AutoFailed), empty if it did not */
     {
       const xpp::Job job; /* Abort cancels it (xpp_job.h) */
@@ -554,6 +556,19 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
       xpp::log_auto("AUTO stopped: {}\n",failed); /* the AUTO window's Output */
       command_error("auto", ("AUTO stopped: "+failed));
     }
+    if(s.auto_lib.jacobian_failure){
+      xpp::Error e=std::move(*s.auto_lib.jacobian_failure);
+      s.auto_lib.jacobian_failure.reset();
+      e.what="AUTO stopped: "+e.what;
+      /* the run stored the last converged point as an end point (the
+         cancel it made itself: autpp.cpp): the continuation goes on from
+         its label, with the settings of this run */
+      const DIAGRAM *last=s.auto_state.stop.last_why==xpp::AUTO_STOP_JACOBIAN?last_diagram(s.diagram):NULL;
+      if(last!=NULL&&last->lab>0)
+        e.action=xpp::switch_to_differences(xpp::format(R"({{"cmd":"auto","op":"restart","label":{}}})",last->lab));
+      xpp::log_auto("{}\n",e.what);
+      xpp::show_error(e);
+    }
     
     if(s.auto_state.restart_label!=0){
       xpp::log_auto("RestartLabel={:d} itp={:d} ips={:d} nfpar={:d} ilp={:d} isw={:d} isp={:d} A2p={:d} \n",s.auto_state.restart_label,s.auto_state.bifur.itp, s.auto_state.bifur.ips,s.auto_state.bifur.nfpar,s.auto_state.bifur.ilp,s.auto_state.bifur.isw,s.auto_state.bifur.isp,s.auto_state.two_param);
@@ -564,6 +579,16 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
     }
      ping();
       redraw_params();
+}
+
+void auto_restart(xpp::Session &s, int label)
+{
+  if(!auto_grab_label(s,label)){
+    command_error("auto",xpp::format("Restart: no point labelled {}",label));
+    return;
+  }
+  s.auto_state.bifur.irs=label;
+  do_auto(s,OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
 void set_auto(xpp::Session &s) /* Caution - need to include NICP here */

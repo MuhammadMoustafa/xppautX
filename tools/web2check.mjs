@@ -5902,6 +5902,34 @@ async function jacobianOfferCheck(dir) {
     && JSON.stringify(await S(`__xpp.sentFrom(${sent})`)) === JSON.stringify([
       {cmd: 'set', kind: 'num', name: 'jacobian', text: 'difference'}, {cmd: 'continue', until: 4}]),
     JSON.stringify(await S(`__xpp.sentFrom(${sent})`)));
+
+  /* W275: the same in an AUTO run. The branch x = 0 of x' = (a-1)x + (sqrt(x*x) below a = 0.5) has an
+     infinite slope there: the run stops on an end point, and the button restarts from its label */
+  fs.writeFileSync(path.join(dir, 'w275root.odex'), "par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { numerics: { jacobian: exact, total_time: 1 } }\n");
+  await cdp.eval(`__xpp.send({cmd: 'open', file: 'w275root.odex'})`);
+  await until("s.ask?.kind === 'choice'", 'save before Open');
+  await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
+  await until(`!s.busy && !s.ask && s.hello.file === 'w275root.odex'`, 'the AUTO model opened');
+  await key('f');
+  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
+  await key('a');
+  await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
+  await cdp.eval(`__xpp.send({cmd: 'auto', op: 'set', numerics: {ds: -0.1, dsmax: 0.1, rl0: -0.5, rl1: 2, nmx: 100}, axes: {plot: 1, var: 'x', par1: 'a'}})`);
+  await until('!s.busy', 'AUTO settings');
+  await cdp.eval(`__xpp.send({cmd: 'key', win: 'auto', key: 'r'})`);
+  await until("s.ask && s.ask.kind === 'menu'", 'AUTO start menu');
+  await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 's'})");
+  check('W275: the error of a failed exact Jacobian in an AUTO run offers Switch to differences and continue',
+    await until(`!s.busy && !!${offer}`, 'the offer on the AUTO error', 60000) && await cdp.eval(`${offer}.textContent`) === 'Switch to differences and continue',
+    JSON.stringify(await S('s.toasts')));
+  const autoSent = await S('__xpp.sentCount()');
+  await cdp.eval(`${offer}.click()`);
+  const autoCommands = await S(`__xpp.sentFrom(${autoSent})`);
+  check('W275: the button sends set num jacobian difference, then auto restart from an end point label, and the branch goes on past a = 0.4',
+    await until(`!s.busy && !document.querySelector('[data-error-dialog]') && Math.min(...dv.points.x) < 0.4`, 'the run continued', 60000)
+    && autoCommands.length === 2 && autoCommands[0].cmd === 'set' && autoCommands[1].cmd === 'auto' && autoCommands[1].op === 'restart'
+    && autoCommands[1].label > 0 && await S(`s.numerics.find(f => f.key === 'jacobian')?.value`) === 0,
+    JSON.stringify(autoCommands));
 }
 
 async function errorDialogCheck(dir) {
@@ -6677,7 +6705,8 @@ async function main() {
       'w140bad.par:1: it is for 3 parameters, the model has 12']);
     if (run('errordialog')) await warningFlashCheck();
     if (run('errordialog')) await session(ODE, jacobianOfferCheck,
-      ["w260sqrt.odex:1:1: the exact Jacobian's dX'/dX is inf at t=0 (X=0), where X' is 1: switch the Numerics' Jacobian to difference"]);
+      ["w260sqrt.odex:1:1: the exact Jacobian's dX'/dX is inf at t=0 (X=0), where X' is 1: switch the Numerics' Jacobian to difference",
+       "w275root.odex:2:1: AUTO stopped: the exact Jacobian's dX'/dX is nan at t=0 (X=0), where X' is 0: switch the Numerics' Jacobian to difference (AUTO at a=0.4999998999999997)"]);
     if (run('startscreen')) { await startScreenCheck(); await startScreenExamplesCheck(); }
     if (run('loaderror')) {
       await loadErrorCheck();

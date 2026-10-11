@@ -12,6 +12,7 @@
 #include "pp_shoot.h"
 #include "tabular.h"  /* redo_all_fun_tables() */
 #include "jacobian.h"
+#include "xpp_job.h"
 #include "load_eqn.h"
 #include "expr.h"
 #include "my_rhs.h"
@@ -25,10 +26,17 @@ namespace {
    with the constants c and, for ijac 2, the dfdp columns of the
    continuation parameters icp[0..nfpr): the model's exact Jacobian
    (W260); a parameter of AUTO's own (the period, ...) is no constant of
-   the model, so its column is 0. One that is not finite stops the run
-   (AutoFailed, which a collocation worker's caller rethrows), at AUTO's
-   point: its first continuation parameter's value */
-void exact_derivatives(const xpp::Session &s, const double *c, integer ndim, const double *u, const double *f, const integer *icp, integer nfpr, integer ijac, double *dfdu, double *dfdp)
+   the model, so its column is 0. One that is not finite ends the run as
+   a Stop does (W275): the failure is kept on lib (the error, with AUTO's
+   point: its first continuation parameter's value), the Jacobian is the identity
+   and the parameter columns 0, a system that solves, and the solve in progress
+   is not used (autlib1.cpp), and the job is
+   cancelled, so the next solve returns to the last converged point and
+   the branch ends with an end point to restart from (autlib1.cpp). A
+   collocation worker's lib is merged into the Session's, and the job
+   cancelled, by its caller when the workers are done
+   (auto_parallel.cpp: a job's cancel is read by the main thread). */
+void exact_derivatives(xpp::Session &s, AutoLib &lib, const double *c, integer ndim, const double *u, const double *f, const integer *icp, integer nfpr, integer ijac, double *dfdu, double *dfdp)
 {
   const int n=static_cast<int>(ndim);
   try {
@@ -40,10 +48,15 @@ void exact_derivatives(const xpp::Session &s, const double *c, integer ndim, con
       else std::fill_n(column,n,0.0);
     }
   } catch (const xpp::JacobianFailed &failed) {
-    std::string at;
-    if(icp[0]<s.auto_state.npar)
-      at=xpp::format(" (AUTO at {}={})",s.model().upar_names[s.auto_state.par[icp[0]]],c[s.auto_state.par_index[icp[0]]]);
-    xpp::auto_fail(failed.error.text()+at);
+    if(!lib.jacobian_failure){
+      lib.jacobian_failure=failed.error;
+      if(icp[0]<s.auto_state.npar)
+        lib.jacobian_failure->what+=xpp::format(" (AUTO at {}={})",s.model().upar_names[s.auto_state.par[icp[0]]],c[s.auto_state.par_index[icp[0]]]);
+    }
+    std::fill_n(dfdu,n*n,0.0);
+    for(int i=0;i<n;i++)dfdu[i*n+i]=1;
+    if(ijac>=2)for(integer i=0;i<nfpr;i++)std::fill_n(dfdp+icp[i]*ndim,n,0.0);
+    if(&lib==&s.auto_lib)xpp::job::cancel_current();
   }
 }
 
@@ -72,7 +85,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
      for (int k=0;k<s.auto_state.npar;++k) c[s.auto_state.par_index[k]]=par[k];
      xpp::evaluate_derived(s,c.data(),v.data(),true);
      pure_rhs(s,u,f,c.data(),v.data());
-     if(exact)exact_derivatives(s,c.data(),ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
+     if(exact)exact_derivatives(s,*worker,c.data(),ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
      return 0;
    }
    int i,j;
@@ -87,7 +100,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
    if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
    s.integrator.rhs(0.0,x,f,ndim);
    const double *c=s.parser.constants.data();
-   if(exact)exact_derivatives(s,c,ndim,x,f,icp,nfpr,ijac,dfdu,dfdp);
+   if(exact)exact_derivatives(s,s.auto_lib,c,ndim,x,f,icp,nfpr,ijac,dfdu,dfdp);
    else if(ijac==1){
      xpp::jacobian(s,0.0,x,f,ndim,s.numerics.singpt_jacobian_epsilon,{xpp::JacobianLayout::ColumnMajor},dfdu);
    }
@@ -102,7 +115,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
        zz[j]=f[j];
      s.integrator.rhs(0.0,zz.data(),f,ndim);
      if(!exact)continue;
-     exact_derivatives(s,c,ndim,zz.data(),f,icp,nfpr,ijac,step.data(),step_p.data());
+     exact_derivatives(s,s.auto_lib,c,ndim,zz.data(),f,icp,nfpr,ijac,step.data(),step_p.data());
      const int n=static_cast<int>(ndim);
      for(int k=0;k<n;k++)chain(n,step.data(),dfdu+k*ndim,nullptr,scratch.data());
      if(ijac<2)continue;

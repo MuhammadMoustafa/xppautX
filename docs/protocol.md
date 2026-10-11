@@ -176,9 +176,15 @@ fields, always all of them, and `field`:
   `{"cmd":"continue","until":END}`, END the end the run was going to (a run
   going forward only, Continue's own condition): the run goes on from where
   it stopped, with differences. Nothing switches without them. web2 shows
-  the action as a button on the error. An equilibrium, the adjoint or an
-  AUTO run (`AUTO stopped: ...`) a failed exact Jacobian stopped is the same
-  error, with no action yet.
+  the action as a button on the error. An equilibrium or the adjoint a failed
+  exact Jacobian stopped is the same error, with no action yet. W275: an
+  AUTO run one stopped (`AUTO stopped: ...`, at the equation's line, with
+  the continuation parameter's value) ends as a Stop ends it: the last
+  converged point is stored as an end point (EP) with its label, and
+  `autoinfo`'s `stop.why` is `jacobian`. Its action has the same label and
+  the commands `{"cmd":"set","kind":"num","name":"jacobian","text":"difference"}`,
+  `{"cmd":"auto","op":"restart","label":N}`, N the end point's label (no
+  action when the run stored no point to restart from).
 
 web2 shows `file`, `line` (and `col`) under the error's text in the
 error dialog, with `source` and a caret under `col` when there is one,
@@ -1181,7 +1187,7 @@ core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
 | `stab.periodic` | 1: `circle` holds the Floquet multipliers of a periodic orbit; 0: e^λ of each eigenvalue λ of a steady state (XPP keeps them so: inside the unit circle is stable) |
 | `stab.circle` | `[re,im]` per variable, the values themselves (the X11 circle clamps them to ±1.95). All `[0,0]`: not computed. Always a stored diagram point's own values, while AUTO runs and while grabbing alike (core/auto_stability.h). AUTO computes them from a run's second point on, so a run's first point, and a run that stops there, has none, unless the run restarts from a label of the same kind (a steady state from a steady label, a periodic orbit from a periodic one, one parameter): that first point is the label's solution and carries the label's values. A periodic run from a Hopf point, a two-parameter run and a period doubling's branch switch start with none; a two-parameter curve of periodic orbits (a limit point's, a period doubling's, a torus') has none at all, AUTO computing no multipliers along it. (XPPAUT stores the last values computed with every point, so its first points carry those of another point.) |
 | `stop` | why the run's last branch ended; `null` until one ends, and again when a run starts or AUTO's window is new. AUTO labels the end EP (a limit, Max points, Stop, a Mark value) or MX (no convergence); this says which |
-| `stop.why` | `parmin` / `parmax`: the continuation parameter went below Par Min (RL0) / above Par Max (RL1); `normmin` / `normmax`: the norm AUTO checks went below Norm Min (A0) / above Norm Max (A1); `npts`: the branch has Max points (NMX); `user`: Stop (an `abort`); `mark`: a Mark value set to stop (AUTO's UZR endpoint); `noconv-min`: no convergence even at the smallest step (Dsmin); `noconv-fixed`: no convergence with a fixed step (IADS 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted |
+| `stop.why` | `parmin` / `parmax`: the continuation parameter went below Par Min (RL0) / above Par Max (RL1); `normmin` / `normmax`: the norm AUTO checks went below Norm Min (A0) / above Norm Max (A1); `npts`: the branch has Max points (NMX); `user`: Stop (an `abort`); `mark`: a Mark value set to stop (AUTO's UZR endpoint); `jacobian`: the exact Jacobian was not finite (W275: an error with an action follows); `noconv-min`: no convergence even at the smallest step (Dsmin); `noconv-fixed`: no convergence with a fixed step (IADS 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted |
 | `stop.text` | the reason in words, to follow "Stopped: " (the page's status strip); AUTO's Output gets the line `Branch 1 stopped at point 49: parameter iapp reached Par Max (0.5)` for every branch that ends |
 | `stop.br`, `pt` | the branch and point number of the end (positive, as in `diagram`) |
 | `stop.value`, `limit` | what crossed the limit and the limit: the parameter and Par Min/Max, the norm and Norm Min/Max, the point count and NMX, the step size and Dsmin; `null` where there is none |
@@ -1811,6 +1817,16 @@ the AUTO window's key `g`, `{"cmd":"key","win":"auto","key":"g"}`, which
 asks (`grab`, above). A script that recorded an interactive grab (W59) replays it as the
 keys it was answered with, exactly as it was driven; `grab`/`label` is for
 a script that names the point instead (W56's --silent commands).
+
+**Restarting a run.** `{"cmd":"auto","op":"restart","label":N}` (a
+compute command, W275) grabs the stored point labelled `N` as the grab by
+label does and runs AUTO from it with the settings of the last run (its
+kind of calculation, continuation parameters and direction, and the
+Numerics as they are now): the continuation goes on from the label, in the
+Run menu's "extend" of that run, with no ask. A label no stored point has
+is a `message` `error` ("Restart: no point labelled N") and nothing runs.
+It is the second command of the action an exact Jacobian's failure in an
+AUTO run offers (`error`'s `action`, above).
 
 **The file ask's mode.** `mode` says whether the command opens the file
 (`read`: Import XPPAUT set, Load diagram, the browser's Load, Import, ...) or saves

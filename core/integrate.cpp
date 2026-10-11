@@ -1502,9 +1502,7 @@ namespace {
 xpp::Error stopped(xpp::Error e, double end, double dt)
 {
   if(e.where!=xpp::JACOBIAN_FAILED||dt<=0)return e;
-  e.action=xpp::ErrorAction{"Switch to differences and continue",
-    {xpp::format(R"({{"cmd":"set","kind":"num","name":"{}","text":"{}"}})",xpp::JACOBIAN_KEY,xpp::jacobian_names[xpp::JACOBIAN_DIFFERENCE]),
-     xpp::format(R"({{"cmd":"continue","until":{}}})",xpp::number(end))}};
+  e.action=xpp::switch_to_differences(xpp::format(R"({{"cmd":"continue","until":{}}})",xpp::number(end)));
   return e;
 }
 }

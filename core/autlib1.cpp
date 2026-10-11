@@ -28,6 +28,10 @@
    repeating that point) and a script can replay it exactly. */
 
 namespace {
+/* the exact Jacobian failed in this run (autpp.cpp): the derivatives of
+   the solve in progress are not the model's, so its step is not taken */
+bool jacobian_failed(const iap_type *iap) { return iap->lib->session->auto_lib.jacobian_failure.has_value(); }
+
 /* auto_locating = 1 for a scope: cleared however it ends, a failed solve
    (xpp::AutoFailed) included, so the next run can be cancelled again */
 struct Locating {
@@ -1326,6 +1330,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     iap->nit = nit;
     par[icp[0]] = rlcur[0];
     (*funi)(iap, rap, ndim, u, uold, icp, par, 2, f, dfdu, dfdp);
+    if (jacobian_failed(iap)) goto L5; /* W275: the derivatives are not the model's: back to the last point */
 
     /* Set up the Jacobian matrix and the right hand side : */
 
@@ -5153,7 +5158,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	     udotps, upoldp, dtm, fa, fc, p0, 
 	     p1, thl, thu);
     }
-    if (!iap->lib->locating && xpp::job::cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
+    if ((!iap->lib->locating && xpp::job::cancelled()) || jacobian_failed(iap)) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel, W275 */
     /* Add Newton increments. */
 
     for (i = 0; i < ndim; ++i) {

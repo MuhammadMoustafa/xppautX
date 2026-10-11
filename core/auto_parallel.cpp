@@ -4,6 +4,7 @@
 #include "my_rhs.h"
 #include "solver.h"
 #include "xpp_cpu.h"
+#include "xpp_job.h"
 #include <algorithm>
 #include <condition_variable>
 #include <exception>
@@ -122,6 +123,15 @@ void AutoParallel::intervals(long n, const std::function<void(long, long, AutoLi
         state_->done.wait(lock, [&] { return state_->pending == 0; });
     }
     state_->job = {};
+    // An exact Jacobian a worker found not finite (autpp.cpp): its failure is
+    // the Session's, and the job's cancel, which the main thread alone reads,
+    // ends the run as a Stop does.
+    for (auto &lib : state_->libs) if (lib->jacobian_failure) {
+        AutoLib &main = lib->session->auto_lib;
+        if (!main.jacobian_failure) main.jacobian_failure = std::move(lib->jacobian_failure);
+        lib->jacobian_failure.reset();
+        job::cancel_current();
+    }
     for (const auto &failure : state_->failures) if (failure) {
         try { std::rethrow_exception(failure); }
         catch (const AutoFailed &) { throw; }
