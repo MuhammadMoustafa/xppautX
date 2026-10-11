@@ -554,24 +554,31 @@ bool write_path_ok(std::string_view path, bool opening)
     return false;
 }
 
-FILE *open_read_within(std::string_view path, std::string_view folder)
+std::string path_within(std::string_view path, std::string_view folder)
 {
     const std::filesystem::path base = std::filesystem::path(absolute(folder.empty() ? "." : folder)).lexically_normal();
     const std::filesystem::path target = std::filesystem::path(absolute(path));
     const std::filesystem::path relative = target.lexically_relative(base);
-    if (relative.empty() || relative.is_absolute()) { errno = EACCES; return nullptr; }
+    if (relative.empty() || relative.is_absolute()) return {};
     std::filesystem::path checked = base;
     for (const auto &part : relative) {
-        if (part == "..") { errno = EACCES; return nullptr; }
+        if (part == "..") return {};
         if (part == ".") continue;
-        if (!name_ok(part.string(), true)) { errno = EACCES; return nullptr; }
+        if (!name_ok(part.string(), true)) return {};
         checked /= part;
-        if (is_link(checked.string().c_str())) { errno = EACCES; return nullptr; }
+        if (is_link(checked.string().c_str())) return {};
     }
+    return checked.string();
+}
+
+FILE *open_read_within(std::string_view path, std::string_view folder)
+{
+    const std::string checked = path_within(path, folder);
+    if (checked.empty()) { errno = EACCES; return nullptr; }
     if (served_read(path)) return open_stream(path, "rb");
     xpp::UniqueFile fp;
     unsigned long long size;
-    const int status = open_plain(checked.string().c_str(), fp, size);
+    const int status = open_plain(checked.c_str(), fp, size);
     if (status != XPP_FILES_OK) { errno = status == XPP_FILES_NOT_FOUND ? ENOENT : EACCES; return nullptr; }
     observe_read(path);
     return fp.release();

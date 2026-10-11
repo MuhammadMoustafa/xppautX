@@ -211,7 +211,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
-| Batch (`--silent`) | XPPAUT `-silent` integrates, writes `output.dat` ([main.c:395](../reference/xppaut-8.0/main.c#L395)), then `silent_*` for nullclines, direction fields, equilibria ([main.c:508](../reference/xppaut-8.0/main.c#L508)) | the same files and flags, with `--silent` required (old spelling stops); a built-in script of protocol commands, no interface; exits 1 if an output cannot be written | W56, W133, W156 (#208) |
+| Batch (`--silent`) | XPPAUT `-silent` integrates, writes `output.dat` ([main.c:395](../reference/xppaut-8.0/main.c#L395)), then `silent_*` for nullclines, direction fields, equilibria ([main.c:508](../reference/xppaut-8.0/main.c#L508)) | the same files and flags, with `--silent` required (old spelling stops); a built-in script of protocol commands, no interface; exits 1 if an output cannot be written; `@ output=` names the data file as XPPAUT's batchout does, but only inside the model's folder (a path out of it stops the load at its line) | W56, W133, W156 (#208) |
 | Exit code of a model that does not load | not verified | non-zero in every mode | W35c |
 | JSON protocol | none | line-delimited JSON on stdin/stdout (`--server`) and over HTTP; [protocol.md](protocol.md) | W5, W7a |
 | Other programs drive it | no | the VS Code extension and `tools/*check.py` use the protocol | W5 |

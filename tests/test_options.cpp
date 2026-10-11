@@ -523,6 +523,38 @@ int main(void)
         }
     }
 
+    /* OUTPUT names the batch data file, as XPPAUT's batchout: inside the
+       model's folder (here build/), in an .ode and in an .odex; a path out of
+       it is refused at its line */
+    for (const bool odex : {false, true}) {
+        const char *file_name = odex ? bad_odex : bad_ode;
+        struct Case {
+            const char *value, *written;
+        };
+        for (const Case c : {Case{"out.dat", "build/out.dat"}, Case{"sub/o.dat", "build/sub/o.dat"},
+                             Case{"../simulations/xpp.dat", ""}, Case{"/tmp/x.dat", ""}, Case{"sub/../../x.dat", ""}}) {
+            const std::string text = odex ? xpp::format("x' = -x\noptions {{ batch: {{ output: \"{}\" }} }}\n", c.value)
+                                          : std::string(model_text) + "@ total=5\n@ output=" + c.value + "\ndone\n";
+            CHECK(write_file(file_name, text));
+            char arg0[] = "test_options";
+            char arg1[64];
+            std::snprintf(arg1, sizeof arg1, "%s", file_name);
+            char *argv[] = {arg0, arg1, nullptr};
+            const xpp::Loaded l = xpp::load_model(2, argv, 1);
+            if (*c.written) {
+                CHECK(l.has_value());
+                CHECK(xpp::batch_options.out_file == c.written);
+                continue;
+            }
+            CHECK(!l.has_value());
+            if (l) continue;
+            CHECK(l.error().place.file == file_name);
+            CHECK(l.error().place.line == (odex ? 2 : 6));
+            CHECK(l.error().what.find(c.value) != std::string::npos);
+            if (l.error().place.line != (odex ? 2 : 6)) printf("  output %s: %s\n", c.value, l.error().text().c_str());
+        }
+    }
+
     remove(bad_ode);
     remove(bad_odex);
     remove(plain_ode);

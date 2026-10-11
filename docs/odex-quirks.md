@@ -305,6 +305,8 @@ comparisons beside arithmetic, and `&`/`|` beside arithmetic found:
 
 `@ nout=` and `@ njmp=` (XPPAUT's two names for how often a row is stored) are one option in a .odex, `store_every`; `--convert` writes the new name, and a .odex that says `nout` or `njmp` is refused at its line (W206, [#260](https://github.com/MuhammadMoustafa/xppautX/issues/260)).
 
+`@ OUTPUT=file` (XPPAUT's batch output name, any path as written) is a path inside the model's folder in a .ode and a .odex: `..` or an absolute path is refused at its line (W273, #330; W286 will make an outside path a question).
+
 ## Open items carried from this inventory
 
 None: `e` is not reserved in .odex, and division by zero (hence NaN

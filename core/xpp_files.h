@@ -130,6 +130,10 @@ FILE *open_stream(std::string_view path, const char *mode);
 /* Read a plain file inside folder; refuse traversal and linked descendants.
    The caller owns the returned stream. Replay's saved reads remain isolated. */
 FILE *open_read_within(std::string_view path, std::string_view folder);
+/* path (absolute, or under the working folder) when it names a file inside
+   folder ("" the working folder): no "..", no link on the way, every part a
+   safe name; else "". The file need not exist (a file about to be written). */
+std::string path_within(std::string_view path, std::string_view folder);
 /* While set, observer(path) is called on every file open_stream (so
    xpp_io.h's readers too) has just opened for reading only (a mode "r" or
    "rb"): what a recording embeds (W59a, json_record.cpp). The core

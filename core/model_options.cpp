@@ -15,6 +15,7 @@
 #include "graphics.h"
 #include "jacobian.h"
 #include "model.h"
+#include "model_files.h"
 #include "session.h"
 #include "solver.h"
 #include "tabular.h"
@@ -620,7 +621,15 @@ constexpr OptionRow rows[] = {
   {.group = option_group::batch, .kind = OptionKind::whole, .name = "RANGE", .flag = Option::RANGE,
    .whole = [](Session &) -> int & { return batch_options.range; }},
   {.group = option_group::batch, .kind = OptionKind::path, .name = "OUTPUT", .flag = Option::OUTPUT,
-   .text = [](Session &) -> std::string & { return batch_options.out_file; }},
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     /* the batch data file, named from the model's folder: a name inside it,
+        never a path out of it (an outside path is W286's question) */
+     const std::string path = include_path(s.model().this_file, v.text);
+     if (path.empty() || files::path_within(path, files::split_path(s.model().this_file).first).empty())
+       return "must name a file inside the model's folder";
+     if (v.apply) batch_options.out_file = path;
+     return nullptr;
+   }},
   {.group = option_group::batch, .kind = OptionKind::whole, .name = "RUNNOW", .flag = Option::RUNNOW,
    .whole = [](Session &s) -> int & { return s.run_immediately; }},
 
