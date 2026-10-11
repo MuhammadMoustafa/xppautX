@@ -11,7 +11,7 @@ for f in tools/*.mjs tools/*.py tools/*.sh; do
     /^export async function waitFor\(/ { helper = file == "tools/cdp.mjs" }
     /^def wait_until\(/ { helper = file == "tools/xppclient.py" }
     /^wait_for_output\(\)/ { helper = file == "tools/modecheck.sh" }
-    /^while ! .*mkdir "\$lock"/ { helper = file == "tools/heavy.sh" }
+    /^while ! .*take; }; do$/ { helper = file == "tools/heavy.sh" }
     /^}/ || /^done/ { helper = 0 }
     /^def / && !/^def wait_until\(/ { helper = 0 }
     /^class / { helper = 0 }
