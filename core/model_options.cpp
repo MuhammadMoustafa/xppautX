@@ -10,6 +10,7 @@
 #include "model_options.h"
 #include "browse.h"
 #include "colormap.h"
+#include "expr_native.h"
 #include "command_table.h"
 #include "graphics.h"
 #include "jacobian.h"
@@ -167,7 +168,7 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const int i = choice_index(jacobian_names, v.text);
      if (i < 0) return "not difference or exact";
-     if (i == JACOBIAN_EXACT && !Load::running() && !s.model().jacobian.available()) return s.model().jacobian.unavailable.c_str();
+     if (i == JACOBIAN_EXACT && !Load::running() && !ensure_exact_jacobian(s)) return s.model().jacobian.unavailable.c_str();
      if (!v.apply) return nullptr;
      if (i == JACOBIAN_EXACT && Load::running()) s.model().jacobian.requested = Load::place();
      s.numerics.jacobian = i;
@@ -177,9 +178,12 @@ constexpr OptionRow rows[] = {
    .reset = [](Session &s) { s.numerics.jacobian = JACOBIAN_DIFFERENCE; },
    .key = JACOBIAN_KEY, .label = "Jacobian", .rule = OptionRule::choice,
    .choices = jacobian_names,
+   /* before the Jacobian is tried, exact is offered (the reason comes
+      once it was chosen) */
    .unavailable = [](const Model &m, int i) -> std::string_view {
-     return i == JACOBIAN_EXACT && !m.jacobian.available() ? std::string_view(m.jacobian.unavailable) : std::string_view();
-   }},
+     return i == JACOBIAN_EXACT && m.jacobian.tried && !m.jacobian.available() ? std::string_view(m.jacobian.unavailable) : std::string_view();
+   },
+   .prepare = [](Session &s, int i) { if (i == JACOBIAN_EXACT) ensure_exact_jacobian(s); }},
   {.name = "TOLERANCE", .xppaut_names = {"TOL"}, .flag = Option::TOLERANCE,
    .real = [](Session &s) -> double & { return s.numerics.tolerance; },
    /* XPPAUT's */

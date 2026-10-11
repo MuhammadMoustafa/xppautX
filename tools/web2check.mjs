@@ -4807,7 +4807,12 @@ async function valuesJacobian(dir) {
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
   await until(`!s.busy && !s.ask && s.hello.file === 'w260noise.odex' && !!${select}`, 'the noisy model opened');
   const hint = `document.querySelector('[data-section="num"] [data-num="jacobian"] [data-unavailable="exact"]')`;
-  check('W260: a model with random numbers shows exact disabled, and why, at its line',
+  check('W260: a model with random numbers offers exact until it is chosen',
+    JSON.stringify(await options()) === JSON.stringify([['difference', false], ['exact', false]]) && !await cdp.eval(`!!${hint}`),
+    JSON.stringify(await options()));
+  await cdp.eval(`(() => { const s = ${select}; s.value = '1'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  await until(`!s.busy && !!s.numerics.find(f => f.key === 'jacobian')?.unavailable`, 'the refusal');
+  check('W260: choosing exact there is refused, then shows exact disabled, and why, at its line',
     JSON.stringify(await options()) === JSON.stringify([['difference', false], ['exact', true]])
     && await cdp.eval(`${hint}?.textContent`) === 'No exact Jacobian: w260noise.odex:2:1: uses random numbers',
     JSON.stringify([await options(), await cdp.eval(`${hint}?.textContent`)]));
@@ -6641,7 +6646,7 @@ async function main() {
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (xpp_util.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
-    if (run('values')) await session(ODE, valuesJacobian);
+    if (run('values')) await session(ODE, valuesJacobian, ['Numerics: Jacobian: exact is not available: w260noise.odex:2:1: uses random numbers']);
     if (run('values')) await session(LIVE, valuesLive, ['set par iapp: Illegal formula ..', 'set par gca: Illegal formula ..']);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
     if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), bcSection(2));

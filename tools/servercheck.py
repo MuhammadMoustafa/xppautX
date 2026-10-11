@@ -4037,14 +4037,17 @@ def check_jacobian_setting():
         try:
             col(is_idle)
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
-            why = jac.get('unavailable', {}).get('exact', '')
-            check('W260: a model with random numbers has no exact Jacobian; the field says why, at its line',
-                  jac.get('value') == 0 and why == 'noisy.odex:2:1: uses random numbers', str(jac))
+            check('W260: the exact Jacobian is not made until asked for: exact is offered, with no reason yet',
+                  jac.get('value') == 0 and 'unavailable' not in jac, str(jac))
+            why = 'noisy.odex:2:1: uses random numbers'
             snd(cmd='set', kind='num', name='jacobian', text='exact')
             evs, _ = col(is_idle)
             errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
             check('W260: set num jacobian exact is refused there, with the reason',
                   errs == ['Numerics: Jacobian: exact is not available: ' + why], str(errs))
+            jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
+            check('W260: a model with random numbers has no exact Jacobian; the field then says why, at its line',
+                  jac.get('value') == 0 and jac.get('unavailable', {}).get('exact') == why, str(jac))
         finally:
             p.stdin.close()
             p.wait(timeout=10 * SLOW)
@@ -4056,6 +4059,43 @@ def check_jacobian_setting():
         check('W260: @ jacobian=exact in a model with none fails the load at the @ line, with the reason',
               run.returncode == 1 and 'noisy.odex:3:1: @ jacobian=exact: the model has no exact Jacobian: '
               'noisy.odex:2:1: uses random numbers' in run.stderr, run.stderr[-400:])
+        smooth = os.path.join(model_dir, 'smooth.odex')
+        with open(smooth, 'w') as f:
+            f.write("par a = 1\nx' = -a*x\ninit x = 1\n")
+
+        def load_log():
+            out = subprocess.run([os.path.abspath(args.server), 'smooth.odex', '--silent', '--verbose'], capture_output=True, text=True,
+                                 cwd=model_dir, timeout=60 * SLOW)
+            return out.stderr if out.returncode == 0 else 'exit %d: %s' % (out.returncode, out.stderr[-300:])
+        log = load_log()
+        check('W260: a model loaded with the default setting has not compiled an exact Jacobian',
+              'Compiled ' in log and 'Compiled the exact Jacobian' not in log, log[-300:])
+        with open(smooth, 'a') as f:
+            f.write('@ jacobian=exact\n')
+        check('W260: its own @ jacobian=exact compiles it at load', 'Compiled the exact Jacobian' in load_log())
+        # Reload keeps the setting; a model with no exact Jacobian says so and takes difference
+        lines = []
+        p, r, snd, col, _ = launch_server(ode=smooth, log=lines)
+        try:
+            col(is_idle)
+            snd(cmd='set', kind='num', name='jacobian', text='exact')
+            col(is_idle)
+            with open(os.path.join(r, 'smooth.odex'), 'w') as f:
+                f.write("par a = 1\nx' = -a*x + normal(0, 1)\n")
+            snd(cmd='reload')
+            while True:
+                evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=20 * SLOW)
+                if e is None or e['ev'] == 'idle':
+                    break
+                snd(cmd='answer', id=e['id'], key='d')
+            jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
+            check('W260: Reload keeping exact for a model with none says so, naming the file and why, and sets difference',
+                  jac.get('value') == 0 and any('Jacobian set to difference: smooth.odex has no exact Jacobian: '
+                                                'smooth.odex:2:1: uses random numbers' in l for l in lines), '%s %s' % (jac, lines[-3:]))
+        finally:
+            p.stdin.close()
+            p.wait(timeout=10 * SLOW)
+            shutil.rmtree(r, ignore_errors=True)
     finally:
         shutil.rmtree(model_dir, ignore_errors=True)
 

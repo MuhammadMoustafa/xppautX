@@ -687,7 +687,7 @@ export type XppEvent =
 /** one field of the `numerics` event: `key` names it in `set` kind `num`;
     `value` the choice's number when `choices` (their names: the method's,
     the Jacobian's) are given, `unavailable` why the model cannot have a
-    choice, by its name (W260: no exact Jacobian); `unused` when the current
+    choice, by its name (W260: no exact Jacobian, known once exact was chosen); `unused` when the current
     method does not use it */
 export interface NumericsField {
   key: string;

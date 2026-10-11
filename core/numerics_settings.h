@@ -33,7 +33,7 @@ void numerics_settings_update(const Session &s);
 
 /* whether numerics_settings_set would take `text` for field `key`, changing
    nothing: 0, or -1 with the same why */
-int numerics_settings_check(const Session &s, std::string_view key, std::string_view text, std::string &why);
+int numerics_settings_check(Session &s, std::string_view key, std::string_view text, std::string &why);
 
 /* set s's field `key` (the event's keys: total, dt, method, ...) to `text`
    (a number; for method a name, as the event's choices, or its number),

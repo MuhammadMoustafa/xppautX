@@ -123,6 +123,9 @@ struct OptionRow {
      model cannot have value i ("" when it can) */
   std::span<const std::string_view> choices;
   std::string_view (*unavailable)(const Model &, int) = nullptr;
+  /* makes what choosing value i needs, before `unavailable` is asked
+     (the exact Jacobian, on its first need) */
+  void (*prepare)(Session &, int) = nullptr;
 };
 
 /* why the number v is not one rule accepts ("must be a number above 0"),

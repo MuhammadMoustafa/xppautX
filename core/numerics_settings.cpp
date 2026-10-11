@@ -110,8 +110,9 @@ xpp::ChangedEvent<xpp::Session> event{event_text, "sending the numerics"};
 
 /* the value of text for field f of a model m's numerics, checked; false
    with why */
-bool check(const xpp::Model &m_of, const OptionRow &f, std::string_view text, double &v, std::string &why, const xpp::Place &place)
+bool check(xpp::Session &s, const OptionRow &f, std::string_view text, double &v, std::string &why, const xpp::Place &place)
 {
+    const xpp::Model &m_of = s.model();
     if (f.rule == OptionRule::method) {
         int id = 0;
         const auto picked = xpp::parse_int(text, id) ? xpp::check_method(m_of, id, place)
@@ -130,7 +131,8 @@ bool check(const xpp::Model &m_of, const OptionRow &f, std::string_view text, do
             for (std::size_t k = 0; k < f.choices.size(); ++k) why += xpp::format("{}{}", k ? ", " : " ", f.choices[k]);
             return false;
         }
-        if (const std::string_view no = f.unavailable ? f.unavailable(m_of, i) : std::string_view(); !no.empty()) {
+        if (f.prepare) f.prepare(s, i);
+        if (const std::string_view no = f.unavailable ? f.unavailable(s.model(), i) : std::string_view(); !no.empty()) {
             why = xpp::format("{}: {} is not available: {}", f.label, f.choices[static_cast<std::size_t>(i)], no);
             return false;
         }
@@ -150,7 +152,7 @@ bool check(const xpp::Model &m_of, const OptionRow &f, std::string_view text, do
 
 } // namespace
 
-int numerics_settings_check(const xpp::Session &s, std::string_view key, std::string_view text, std::string &why)
+int numerics_settings_check(xpp::Session &s, std::string_view key, std::string_view text, std::string &why)
 {
     const OptionRow *f = numerics_option(key);
     double v = 0;
@@ -158,7 +160,7 @@ int numerics_settings_check(const xpp::Session &s, std::string_view key, std::st
         why = xpp::format("no numerics setting {}", key);
         return -1;
     }
-    return check(s.model(), *f, text, v, why, command_place()) ? 0 : -1;
+    return check(s, *f, text, v, why, command_place()) ? 0 : -1;
 }
 
 int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_view text, std::string &why, const Place *place)
@@ -170,7 +172,7 @@ int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_vie
             why = xpp::format("no numerics setting {}", key);
             return -1;
         }
-        if (!check(s.model(), *f, text, v, why, place ? *place : command_place())) return -1;
+        if (!check(s, *f, text, v, why, place ? *place : command_place())) return -1;
         NumericsSettings &n = s.numerics;
         if (is_total(*f)) { /* the menu's Total: below 0 for ever */
             n.forever = v < 0;

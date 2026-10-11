@@ -11,10 +11,12 @@
 #include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
+#include "xpp_log.h"
 #include "xpp_session.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "expr.h"
+#include "expr_native.h"
 #include "form_ode.h"
 #include "numerics.h"
 #include "jacobian.h"
@@ -266,8 +268,12 @@ void restore_values(Session &s, const KeptValues &kept)
     n.poincare_stop=loaded.poincare_stop;
   }else n.poincare_variable=poi;
   if(disc(m))n.method=pick_method(m, "Discrete", command_place()).value();
-  /* the exact Jacobian kept for a model that has none: the model's own */
-  if(n.jacobian==JACOBIAN_EXACT&&!m.jacobian.available())n.jacobian=loaded.jacobian;
+  /* the exact Jacobian kept for a model that has none: the model's own, said */
+  if(n.jacobian==JACOBIAN_EXACT&&!ensure_exact_jacobian(s)){
+    n.jacobian=loaded.jacobian;
+    xpp::log(XPP_LOG_WARN,"Jacobian set to {}: {} has no exact Jacobian: {}\n",jacobian_names[static_cast<std::size_t>(n.jacobian)],
+             m.this_file,m.jacobian.unavailable);
+  }
   do_meth(s); /* starts the method's solver too */
   set_delay(s);
 

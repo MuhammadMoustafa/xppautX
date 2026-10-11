@@ -70,7 +70,7 @@ struct Fixture {
         rpn.push_back(ENDEXP);
         model->programs[0].rpn = std::move(rpn);
         CHECK(xpp::compile_model(*session).has_value());
-        return model->jacobian.available();
+        return xpp::ensure_exact_jacobian(*session);
     }
 
     /* x' at (t, x, y) */
@@ -185,7 +185,7 @@ void check_model(const char *path, bool map)
     CHECK(xpp::load_model(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
     const xpp::Model &m = s.model();
-    CHECK(m.jacobian.available());
+    CHECK(xpp::ensure_exact_jacobian(s));
     if (!m.jacobian.available()) return;
     const int n = m.node;
     std::vector<double> x(s.last_ic.begin(), s.last_ic.begin() + n), f(static_cast<std::size_t>(n));
@@ -244,6 +244,7 @@ void check_auto_func(const char *path, double u0, double u1, int store_every = 1
     CHECK(xpp::load_model(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
     xpp::init_auto_win(s);
+    CHECK(xpp::ensure_exact_jacobian(s));
     s.numerics.jacobian = xpp::JACOBIAN_EXACT;
     s.numerics.store_every = store_every;
     constexpr integer n = 2, period = 10;

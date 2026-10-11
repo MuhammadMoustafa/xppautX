@@ -3,6 +3,7 @@
 #include "expr_native.h"
 #include "expr_derivative.h"
 #include "expr_program.h"
+#include "jacobian.h"
 #include "session.h"
 #include "simplenet.h"
 #include "tabular.h"
@@ -744,11 +745,23 @@ ExactJacobian compile_jacobian(Session &s, const std::vector<ModelProgram> &entr
 Result<std::vector<Error>> compile_model(Session &s)
 {
     Model &m=s.model();
-    const auto entries=model_programs(m);
-    auto compiled=compile_programs(s,entries);
+    auto compiled=compile_programs(s,model_programs(m));
     Place requested=std::move(m.jacobian.requested);
-    m.jacobian=compile_jacobian(s,entries);
+    m.jacobian=ExactJacobian{};
     m.jacobian.requested=std::move(requested);
+    if (s.numerics.jacobian==JACOBIAN_EXACT) ensure_exact_jacobian(s);
     return compiled;
+}
+
+bool ensure_exact_jacobian(Session &s)
+{
+    ExactJacobian &j=s.model().jacobian;
+    if (!j.tried) {
+        Place requested=std::move(j.requested);
+        j=compile_jacobian(s,model_programs(s.model()));
+        j.requested=std::move(requested);
+        j.tried=true;
+    }
+    return j.available();
 }
 }
