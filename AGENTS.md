@@ -141,8 +141,9 @@ the machine's two slots:
   holder's Windows PID, its command and folder; a waiting run prints
   "heavy: waiting for <command> (<folder>)" once and polls every 5 s. A
   holder that died (a reset, a killed agent) is noticed by its PID and
-  its lock taken over; a PID that cannot be checked (a sandbox's
-  tasklist failing) counts as alive. A lock taken inside WSL directly
+  its lock taken over, and so is a slot left with no PID for a minute
+  (its holder killed between taking it and writing the PID); a PID that
+  cannot be checked (a sandbox's tasklist failing) counts as alive. A lock taken inside WSL directly
   cannot be checked from Windows: take it from Git Bash, as wslrun.sh
   does. Inside the lock `XPP_HEAVY_HELD=1` is set, so a heavy command
   that runs another does not wait on itself.

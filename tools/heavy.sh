@@ -18,6 +18,9 @@
 set -u
 # Heavy runs at once: two -j4 builds stay within what the laptop holds.
 HEAVY_SLOTS=2
+# A slot with no PID older than this lost its holder between mkdir and
+# writing the PID (microseconds apart), so it is taken over.
+EMPTY_SLOT_MINUTES=1
 alone=0
 if [ "${1:-}" = "--alone" ]; then alone=1; shift; fi
 if [ $# -lt 1 ]; then
@@ -85,6 +88,11 @@ free_dead() {
     if [ -n "$holder" ] && [ "$side" = "$(uname -s)" ] && ! alive "$holder"; then
       echo "heavy: taking over the slot of PID $holder, which has ended" >&2
       rm -rf "$d"
+    elif [ -d "$d" ] && [ -z "$holder" ] && [ -n "$(find "$d" -maxdepth 0 -mmin +$EMPTY_SLOT_MINUTES)" ]; then
+      # its holder writes its PID the moment it takes the slot; one empty
+      # this long was killed in between (2026-10-11: twice, the queue stuck)
+      echo "heavy: taking over an empty slot ($d)" >&2
+      rmdir "$d" 2>/dev/null
     fi
   done
 }
@@ -94,6 +102,7 @@ take() {
   for k in $(seq 1 $HEAVY_SLOTS); do
     d=$(slot_dir "$k")
     if mkdir "$d" 2>/dev/null; then
+      printf '%s' "$me" > "$d/pid"
       taken+=("$d")
       [ $alone -eq 1 ] || return 0
     elif [ $alone -eq 1 ]; then
