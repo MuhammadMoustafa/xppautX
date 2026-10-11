@@ -15,6 +15,7 @@
 #include "model.h"
 #include "session.h"
 #include "auto_settings.h"
+#include "xpp_log.h"
 #include "xpp_ui.h"
 #include <algorithm>
 #include "data_event.h"
@@ -532,9 +533,11 @@ const char *auto_settings_num_label(int i) { return i >= 0 && i < AUTO_NUM_N ? n
 void auto_threads_load(Session &s)
 {
     if (files::serving_reads()) return;
-    /* a bad file is already shown, once, by the recent models' note (and by a `set` of the count,
-       which refuses until it is fixed); the count stays automatic meanwhile */
-    if (const Result<prefs::Preferences> p = prefs::load_prefs()) s.auto_state.threads = p->auto_threads;
+    const Result<prefs::Preferences> p = prefs::load_prefs();
+    if (p) s.auto_state.threads = p->auto_threads;
+    /* the count stays automatic until the file is fixed (a `set` of it refuses until then); said in the
+       log, as --silent shows no recent models' note to carry the file's error */
+    else xpp::log(XPP_LOG_WARN, "{}: AUTO's thread count stays automatic\n", p.error().text());
 }
 
 void auto_settings_init(AutoSettingsEmit emit) { event.init(emit); }
