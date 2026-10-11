@@ -212,7 +212,7 @@ calls (W32b, W33).
 
 verify.sh's checks about the source rather than the build (UTF-8, the
 scripts' executable bit, stdoutcheck, formatcheck, literalcheck, sessioncheck, mathcheck, the LTO
-type check, the dead-code checks, the global state check, the duplication check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
+type check, the dead-code checks, the global state check, the duplication check, optioncheck: an option named outside the option table, W293) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
 `--warnings`: tools/warnings.sh's count, and web2's dist/types/unit
 tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
 platform runs the same behaviour checks against its own build (`<platform>-core`)
