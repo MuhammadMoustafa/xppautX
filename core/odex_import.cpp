@@ -58,9 +58,9 @@ public:
   /* a statement of kind k declares its name (a set's label too: one name each) */
   static bool declares_name(Statement::Kind k)
   {
-    using K = Statement::Kind;
-    return k == K::Ode || k == K::Map || k == K::Volterra || k == K::Fixed || k == K::Solv || k == K::Markov ||
-           k == K::Fun || k == K::Table || k == K::Network || k == K::Set;
+    using enum Statement::Kind;
+    return k == Ode || k == Map || k == Volterra || k == Fixed || k == Solv || k == Markov ||
+           k == Fun || k == Table || k == Network || k == Set;
   }
 
   /* its bindings declare their names */
