@@ -25,6 +25,9 @@ void load_model()
     xpp::client_session().model().uvar_names[1] = "w";
     xpp::client_session().model().node = xpp::client_session().model().neq = 2;
     xpp::client_session().model().nupar = 3;
+    xpp::Model &m=xpp::client_session().model();
+    for(int i=0;i<m.nupar;i++)m.define_name(m.upar_names[i],xpp::Model::NameKind::Param,i,{}).parameter=i;
+    for(int i=0;i<m.neq;i++)m.define_name(m.uvar_names[i],xpp::Model::NameKind::Variable,i,{}).column=i;
     xpp::client_session().auto_state.npar = 3;
     for (int i = 0; i < 3; i++) xpp::client_session().auto_state.par[i] = i;
     xpp::client_session().auto_state.bifur.nmx = 200;

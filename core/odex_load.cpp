@@ -37,39 +37,35 @@ namespace xpp::odex {
 
 namespace {
 
-/* what a declared name is */
-enum class Kind { Variable, Markov, Fixed, Aux, Param, Const, Wiener, Function, Table, Network, Algebraic };
 
-const char *kind_name(Kind k)
+const char *kind_name(Model::NameKind k)
 {
   switch (k) {
-  case Kind::Variable: return "a variable";
-  case Kind::Markov: return "a Markov variable";
-  case Kind::Fixed: return "a fixed variable";
-  case Kind::Aux: return "an aux quantity";
-  case Kind::Param: return "a parameter";
-  case Kind::Const: return "a const";
-  case Kind::Wiener: return "a Wiener parameter";
-  case Kind::Function: return "a function";
-  case Kind::Table: return "a table";
-  case Kind::Network: return "a network";
-  case Kind::Algebraic: return "an algebraic variable";
+  case Model::NameKind::Variable: return "a variable";
+  case Model::NameKind::Markov: return "a Markov variable";
+  case Model::NameKind::Fixed: return "a fixed variable";
+  case Model::NameKind::Aux: return "an aux quantity";
+  case Model::NameKind::Param: return "a parameter";
+  case Model::NameKind::Const: return "a const";
+  case Model::NameKind::Wiener: return "a Wiener parameter";
+  case Model::NameKind::Function: return "a function";
+  case Model::NameKind::Table: return "a table";
+  case Model::NameKind::Network: return "a network";
+  case Model::NameKind::Algebraic: return "an algebraic variable";
+  case Model::NameKind::Vector:
+  case Model::NameKind::Derived:
+  case Model::NameKind::Set:
+  case Model::NameKind::Kernel: break;
   }
   return "a name";
 }
 
 /* a value a formula reads */
-bool is_value(Kind k)
+bool is_value(Model::NameKind k)
 {
-  return k != Kind::Aux && k != Kind::Function && k != Kind::Table && k != Kind::Network;
+  return k != Model::NameKind::Aux && k != Model::NameKind::Function && k != Model::NameKind::Table && k != Model::NameKind::Network;
 }
 
-struct Decl {
-  Kind kind;
-  Pos pos;
-  int arity = 0;
-  std::string array; /* the array this name is a member of (array_text), or "" */
-};
 
 /* where a formula is: what else it may read */
 struct Scope {
@@ -94,7 +90,7 @@ bool takes_range(Statement::Kind k)
 
 class Loader {
 public:
-  explicit Loader(const Parsed &p) : p_(p) {}
+  explicit Loader(Model &m, const Parsed &p) : p_(p), m_(m) { m_.names.clear(); }
 
   Parsed run()
   {
@@ -102,7 +98,7 @@ public:
     for (const Statement &s : statements) in_copy(s.array, [&] { declare(s); });
     for (const Statement &s : p_.statements)
       if (!s.range.index.empty())
-        if (const Decl *d = find(s.range.index))
+        if (const Model::Name *d = find(s.range.index))
           fail(s.range.index_pos, xpp::format("the index `{}` is {}, declared at {}:{}: an index is named like "
                                               "no declared name", s.range.index, kind_name(d->kind),
                                               d->pos.line, d->pos.col));
@@ -140,8 +136,8 @@ private:
     case Expr::Kind::Number: return e.value;
     case Expr::Kind::Name: {
       if (!e.primed && !index.empty() && e.text == index) return value;
-      auto c = consts_.find(e.text);
-      if (!e.primed && c != consts_.end()) return c->second;
+      const Model::Name *c = m_.name(e.text);
+      if (!e.primed && c && c->load_constant && c->load_constant->first == e.text) return c->load_constant->second;
       fail(e.pos, xpp::format("{} reads numbers, the consts before it and the range's index, not `{}{}`", what,
                               e.text, e.primed ? "'" : ""));
     }
@@ -188,7 +184,7 @@ private:
   std::string defined(const std::string &base, const Expr &index, const std::string &ix, int value)
   {
     std::string name = element(base, index, ix, value);
-    if (group_) members_[{group_, name}] = array_text(base, lo_, hi_, step_);
+    if (group_) m_.names[xpp::upper_case(name)].array_members[group_] = {name,array_text(base, lo_, hi_, step_)};
     return name;
   }
 
@@ -257,7 +253,7 @@ private:
         n.value = v;
         n.text = print_number(v);
         b.value = std::move(n);
-        consts_[b.name] = v;
+        m_.names[xpp::upper_case(b.name)].load_constant=std::pair{b.name,v};
       }
     }
     return c;
@@ -295,29 +291,37 @@ private:
   }
 
   /* ---- the names ---- */
-  void add(const std::string &name, Kind kind, Pos declared_at, int arity = 0)
+  void add(const std::string &name, Model::NameKind kind, Pos declared_at, int arity = 0)
   {
     /* a name an import brought is reported at the import */
     const Pos pos = import_.line ? import_ : declared_at;
     const std::string via = import_.line ? xpp::format(" (declared at {}:{} of {})", declared_at.line, declared_at.col,
                                                        p_.files[static_cast<size_t>(declared_at.file)]) : std::string();
-    const auto member = members_.find({declaring_.group, name});
-    const std::string member_of = member == members_.end() ? std::string() : member->second;
-    auto same = decls_.find(name);
-    if (same != decls_.end())
-      fail(pos, name_clash(name, member_of, same->second.array,
-                           xpp::format("{}:{}", same->second.pos.line, same->second.pos.col)) + via);
+    const Model::Name *member_name = m_.name(name);
+    std::string member_of;
+    if(member_name){
+      const auto member=member_name->array_members.find(declaring_.group);
+      if(member!=member_name->array_members.end() && member->second.first==name)member_of=member->second.second;
+    }
     const std::string upper = xpp::upper_case(name);
-    auto folded = folded_.find(upper);
-    if (folded != folded_.end())
+    const Model::Name *same = m_.name(name);
+    if (same && same->declared && same->written == name)
+      fail(pos, name_clash(name, member_of, same->array,
+                           xpp::format("{}:{}", same->pos.line, same->pos.col)) + via);
+    if (same && same->declared)
       fail(pos, xpp::format("`{}` and `{}` ({}:{}) differ only by case: this version of xppautX keeps a model's "
-                            "names without case and cannot hold both", name, folded->second,
-                            decls_[folded->second].pos.line, decls_[folded->second].pos.col) + via);
+                            "names without case and cannot hold both", name, same->written,
+                            same->pos.line, same->pos.col) + via);
     if (reads_as_builtin(upper))
       fail(pos, xpp::format("`{}` would be read as the built-in `{}`: this version of xppautX keeps a model's "
                             "names without case", name, xpp::lower_case(upper)) + via);
-    decls_[name] = Decl{kind, pos, arity, member_of};
-    folded_[upper] = name;
+    Model::Name &entry = m_.names[upper];
+    entry.kind = kind;
+    entry.pos = pos;
+    entry.arity = arity;
+    entry.array = member_of;
+    entry.written = name;
+    entry.declared = true;
   }
 
   /* the expression engine's own names, which the .ode reader matches in
@@ -337,38 +341,38 @@ private:
     import_ = s.imported_at;
     switch (s.kind) {
     case Statement::Kind::Ode:
-    case Statement::Kind::Volterra: add(s.name, Kind::Variable, s.name_pos); break;
-    case Statement::Kind::Markov: add(s.name, Kind::Markov, s.name_pos); break;
-    case Statement::Kind::Fixed: add(s.name, Kind::Fixed, s.name_pos); break;
+    case Statement::Kind::Volterra: add(s.name, Model::NameKind::Variable, s.name_pos); break;
+    case Statement::Kind::Markov: add(s.name, Model::NameKind::Markov, s.name_pos); break;
+    case Statement::Kind::Fixed: add(s.name, Model::NameKind::Fixed, s.name_pos); break;
     case Statement::Kind::Aux:
       /* an aux may record a fixed variable under its own name (aux ica =
          ica, as lecar.ode does): the column takes the name */
       for (const Binding &b : s.bindings) {
-        const Decl *d = find(b.name);
-        if (!(d && d->kind == Kind::Fixed)) add(b.name, Kind::Aux, b.pos);
+        const Model::Name *d = find(b.name);
+        if (!(d && d->kind == Model::NameKind::Fixed)) add(b.name, Model::NameKind::Aux, b.pos);
       }
       break;
     case Statement::Kind::Par:
-      for (const Binding &b : s.bindings) add(b.name, Kind::Param, b.pos);
+      for (const Binding &b : s.bindings) add(b.name, Model::NameKind::Param, b.pos);
       break;
     case Statement::Kind::Const:
-      for (const Binding &b : s.bindings) add(b.name, Kind::Const, b.pos);
+      for (const Binding &b : s.bindings) add(b.name, Model::NameKind::Const, b.pos);
       break;
     case Statement::Kind::Wiener:
-      for (size_t i = 0; i < s.names.size(); i++) add(s.names[i], Kind::Wiener, s.name_positions[i]);
+      for (size_t i = 0; i < s.names.size(); i++) add(s.names[i], Model::NameKind::Wiener, s.name_positions[i]);
       break;
-    case Statement::Kind::Fun: add(s.name, Kind::Function, s.name_pos, static_cast<int>(s.names.size())); break;
-    case Statement::Kind::Table: add(s.name, Kind::Table, s.name_pos, 1); break;
-    case Statement::Kind::Network: add(s.name, Kind::Network, s.name_pos, 1); break;
-    case Statement::Kind::Solv: add(s.name, Kind::Algebraic, s.name_pos); break;
+    case Statement::Kind::Fun: add(s.name, Model::NameKind::Function, s.name_pos, static_cast<int>(s.names.size())); break;
+    case Statement::Kind::Table: add(s.name, Model::NameKind::Table, s.name_pos, 1); break;
+    case Statement::Kind::Network: add(s.name, Model::NameKind::Network, s.name_pos, 1); break;
+    case Statement::Kind::Solv: add(s.name, Model::NameKind::Algebraic, s.name_pos); break;
     default: break;
     }
   }
 
-  const Decl *find(const std::string &name) const
+  const Model::Name *find(const std::string &name) const
   {
-    auto it = decls_.find(name);
-    return it == decls_.end() ? nullptr : &it->second;
+    const Model::Name *entry = m_.name(name);
+    return entry && entry->declared && entry->written == name ? entry : nullptr;
   }
 
   /* the model's own near()'s tol, @ neartol= (default 1e-9, docs/odex.md
@@ -392,9 +396,9 @@ private:
   /* "`X` is not declared", with the name of another case if there is one */
   [[noreturn]] void undeclared(const Expr &e, std::string_view what) const
   {
-    auto folded = folded_.find(xpp::upper_case(e.text));
-    if (folded != folded_.end())
-      fail(e.pos, xpp::format("{} `{}` is not declared (names have case: did you mean `{}`?)", what, e.text, folded->second));
+    const Model::Name *entry = m_.name(e.text);
+    if (entry && entry->declared)
+      fail(e.pos, xpp::format("{} `{}` is not declared (names have case: did you mean `{}`?)", what, e.text, entry->written));
     fail(e.pos, xpp::format("{} `{}` is not declared", what, e.text));
   }
 
@@ -421,8 +425,8 @@ private:
     if (e.primed) {
       if (e.text == "i" && sc.sum_index) return;
       if (e.text == "t" && sc.kernel) return;
-      const Decl *d = find(e.text);
-      if (sc.primed_vars && d && (d->kind == Kind::Variable || d->kind == Kind::Markov)) return;
+      const Model::Name *d = find(e.text);
+      if (sc.primed_vars && d && (d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov)) return;
       fail(e.pos, xpp::format("`{}'` cannot be read here (x' is a variable at a boundary condition's right end, "
                               "i' sum's index, t' volterra's variable of integration)", e.text));
     }
@@ -434,9 +438,9 @@ private:
     }
     if (builtin_arity(e.text) != -1 || e.text == "near")
       fail(e.pos, xpp::format("`{}` is a built-in function: call it", e.text));
-    const Decl *d = find(e.text);
+    const Model::Name *d = find(e.text);
     if (!d) undeclared(e, "the name");
-    if (d->kind == Kind::Aux)
+    if (d->kind == Model::NameKind::Aux)
       fail(e.pos, xpp::format("`{}` is an aux quantity, computed after every formula: a formula cannot read it", e.text));
     if (!is_value(d->kind))
       fail(e.pos, xpp::format("`{}` is {}: call it", e.text, kind_name(d->kind)));
@@ -472,10 +476,10 @@ private:
         const Expr &v = e.args[0];
         /* a variable of the expression engine's (a state, fixed, Markov or
            algebraic variable); shift's may be a constant too */
-        const Decl *d = v.kind == Expr::Kind::Name && !v.primed ? find(v.text) : nullptr;
-        const bool var = d && (d->kind == Kind::Variable || d->kind == Kind::Markov || d->kind == Kind::Fixed ||
-                               d->kind == Kind::Algebraic);
-        const bool con = d && (d->kind == Kind::Param || d->kind == Kind::Const || d->kind == Kind::Wiener);
+        const Model::Name *d = v.kind == Expr::Kind::Name && !v.primed ? find(v.text) : nullptr;
+        const bool var = d && (d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov || d->kind == Model::NameKind::Fixed ||
+                               d->kind == Model::NameKind::Algebraic);
+        const bool con = d && (d->kind == Model::NameKind::Param || d->kind == Model::NameKind::Const || d->kind == Model::NameKind::Wiener);
         const bool ok = var || ((e.text == "shift" || e.text == "ishift") && con);
         if (!ok) fail(v.pos, xpp::format("{}'s first argument is the name of a variable", e.text));
         for (int i = 1; i < n; i++) check(e.args[i], sc);
@@ -484,9 +488,9 @@ private:
       for (const Expr &a : e.args) check(a, sc);
       return;
     }
-    const Decl *d = find(e.text);
+    const Model::Name *d = find(e.text);
     if (!d) undeclared(e, "the function");
-    if (d->kind != Kind::Function && d->kind != Kind::Table && d->kind != Kind::Network)
+    if (d->kind != Model::NameKind::Function && d->kind != Model::NameKind::Table && d->kind != Model::NameKind::Network)
       fail(e.pos, xpp::format("`{}` is {}, not a function", e.text, kind_name(d->kind)));
     no_named(e);
     if (n != d->arity)
@@ -586,7 +590,7 @@ private:
     const BlockStmt &b = body[i];
     switch (b.kind) {
     case BlockStmt::Kind::Let: {
-      if (const Decl *d = find(b.name))
+      if (const Model::Name *d = find(b.name))
         fail(b.pos, xpp::format("fun {} cannot set `{}`, {}: a block function writes no parameter or state variable",
                                 f.name, b.name, kind_name(d->kind)));
       Expr v = substituted(b.value, env);
@@ -645,9 +649,9 @@ private:
   /* a set's key: a variable (its initial value), a parameter, or an option's key */
   void set_key(const Binding &b) const
   {
-    const Decl *d = find(b.name);
+    const Model::Name *d = find(b.name);
     int index = 0;
-    if ((d && (d->kind == Kind::Variable || d->kind == Kind::Markov || d->kind == Kind::Param)) ||
+    if ((d && (d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov || d->kind == Model::NameKind::Param)) ||
         xpp::find_odex_option(b.name, index))
       return;
     fail(b.pos, xpp::format("a set holds variables, parameters and options, and `{}` is none of them", b.name));
@@ -667,8 +671,8 @@ private:
   void variables(const Statement &s, bool markov, std::string_view what) const
   {
     for (const Binding &b : s.bindings) {
-      const Decl *d = find(b.name);
-      if (!d || !(d->kind == Kind::Variable || (markov && d->kind == Kind::Markov)))
+      const Model::Name *d = find(b.name);
+      if (!d || !(d->kind == Model::NameKind::Variable || (markov && d->kind == Model::NameKind::Markov)))
         fail(b.pos, xpp::format("`{}` is not a variable: {}", b.name, what));
     }
   }
@@ -747,11 +751,11 @@ private:
     case Statement::Kind::Event:
       s.expr = formula(s.expr, formula_scope());
       for (Binding &b : s.bindings) {
-        const Decl *d = find(b.name);
+        const Model::Name *d = find(b.name);
         /* what flags.cpp's compile_flags finds: a column (a variable or
            an aux quantity), a parameter, or out_put, arret, no_interp */
-        const bool target = d && (d->kind == Kind::Variable || d->kind == Kind::Markov || d->kind == Kind::Aux ||
-                                  d->kind == Kind::Param);
+        const bool target = d && (d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov || d->kind == Model::NameKind::Aux ||
+                                  d->kind == Model::NameKind::Param);
         if (!target && b.name != "out_put" && b.name != "arret" && b.name != "no_interp")
           fail(b.pos, xpp::format("an event sets a variable, an aux quantity, a parameter, out_put, arret or "
                                   "no_interp, not `{}`", b.name));
@@ -778,19 +782,14 @@ private:
   }
 
   const Parsed &p_;
-  std::map<std::string, Decl> decls_;
+  Model &m_;
   /* the array each declared member name belongs to, by the range statement
      (its group) that made it; the range being expanded; the array
      statement being declared */
-  std::map<std::pair<int, std::string>, std::string> members_;
   int group_ = 0, lo_ = 0, hi_ = 0, step_ = 1;
   ArrayCopy declaring_;
   /* where the import is that brought the statement being declared */
   Pos import_;
-  std::map<std::string, std::string> folded_;
-  /* the consts so far and their values: what a const's value, a range's
-     ends and step and an index read (expanded() fills it in order) */
-  std::map<std::string, double> consts_;
   /* near()'s default tol, @ neartol= (docs/odex.md question 7) */
   double neartol_ = 1e-9;
 };
@@ -815,15 +814,15 @@ std::string name_clash(std::string_view name, std::string_view array, std::strin
   return xpp::format("{} is already a member of the array {}, declared at {}", who, earlier_array, earlier_at);
 }
 
-Parsed ready(const Parsed &p)
+Parsed ready(Model &m, const Parsed &p)
 {
-  return Loader(p).run();
+  return Loader(m, p).run();
 }
 
 int load(xpp::Session &s, const std::string &path, std::string text)
 {
   try {
-    build_model(s, ready(parse(s.model(), text, path)));
+    build_model(s, ready(s.model(), parse(s.model(), text, path)));
   } catch (const Error &e) {
     xpp::model_failed(e);
   }

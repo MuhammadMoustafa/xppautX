@@ -58,13 +58,15 @@ std::size_t bc_room(const Session &s, int i)
 /* the values of the model's names in one group: the ones the file names
    (complete: every one, and none the model does not have) */
 template <class V, class Read>
-void read_named(setx::Block &g, std::span<const std::string> names, std::vector<V> &values, Read read)
+void read_named(const Model &model, setx::Block &g, std::span<const std::string> names, std::vector<V> &values, Read read)
 {
     std::size_t matched = 0;
     for (const setx::Member *m : g.members()) {
-        const auto at = std::ranges::find(names, m->key);
-        if (at == names.end()) g.fail(*m, xpp::format("`{}` is not one of the model's {}", m->key, g.name()));
-        read(static_cast<std::size_t>(at - names.begin()), values[static_cast<std::size_t>(at - names.begin())], *m);
+        const Model::Name *entry = model.name(m->key);
+        const int index = entry ? (g.name() == group::parameters ? entry->parameter : entry->column) : -1;
+        if (index < 0 || static_cast<std::size_t>(index) >= names.size() || names[static_cast<std::size_t>(index)] != m->key)
+            g.fail(*m, xpp::format("`{}` is not one of the model's {}", m->key, g.name()));
+        read(static_cast<std::size_t>(index), values[static_cast<std::size_t>(index)], *m);
         matched++;
     }
     if (g.complete() && matched != names.size())
@@ -174,14 +176,14 @@ public:
     {
         std::optional<setx::Block> g = block_.group(key);
         if (!g) return;
-        read_named(*g, names, values, [&](std::size_t, double &v, const setx::Member &m) { v = g->number_of(m); });
+        read_named(s_->model(), *g, names, values, [&](std::size_t, double &v, const setx::Member &m) { v = g->number_of(m); });
     }
     void named(std::string_view key, std::span<const std::string> names, std::vector<std::string> &values,
                std::span<const std::size_t> longest = {})
     {
         std::optional<setx::Block> g = block_.group(key);
         if (!g) return;
-        read_named(*g, names, values, [&](std::size_t i, std::string &v, const setx::Member &m) {
+        read_named(s_->model(), *g, names, values, [&](std::size_t i, std::string &v, const setx::Member &m) {
             v = g->text_of(m);
             if (!longest.empty() && v.size() > longest[i])
                 g->fail(m, xpp::format("`{}` is {} characters: at most {}", m.key, v.size(), longest[i]));
@@ -194,9 +196,11 @@ public:
         if (!block_.texts(key, on, names.size())) return;
         std::ranges::fill(flags, 0);
         for (const std::string &n : on) {
-            const auto at = std::ranges::find(names, n);
-            if (at == names.end()) block_.fail(*m, xpp::format("`{}` is not one of the model's variables", n));
-            flags[static_cast<std::size_t>(at - names.begin())] = 1;
+            const Model::Name *entry = s_->model().name(n);
+            const int index = entry ? entry->column : -1;
+            if (index < 0 || static_cast<std::size_t>(index) >= names.size() || names[static_cast<std::size_t>(index)] != n)
+                block_.fail(*m, xpp::format("`{}` is not one of the model's variables", n));
+            flags[static_cast<std::size_t>(index)] = 1;
         }
     }
     void curves(GRAPH &g) { read_curves(block_, *s_, g, {}); }

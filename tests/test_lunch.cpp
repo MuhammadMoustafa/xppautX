@@ -154,7 +154,8 @@ int main(void)
                                            std::tuple{"  bound: ", "  bound: -1,", "Bounds must be a number above 0"},
                                            std::tuple{"  method: ", "  method: nosuch,", "nosuch"},
                                            std::tuple{"  iapp: ", "  nosuchpar: 1,", "`nosuchpar` is not one of the model's parameters"},
-                                           std::tuple{"  iapp: ", "  iapp: abc,", "`iapp`: `abc` is not a number"}}) {
+                                           std::tuple{"  iapp: ", "  Iapp: 1,", "`Iapp` is not one of the model's parameters"},
+                                            std::tuple{"  iapp: ", "  iapp: abc,", "`iapp`: `abc` is not a number"}}) {
         const int n = line_with(first, line);
         CHECK(n > 0);
         const std::string e = setx_error(s, own, with_line(first, n, value));

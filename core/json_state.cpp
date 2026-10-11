@@ -316,8 +316,8 @@ void plotvars_command(xpp::Session &s, const char *line)
     std::string name;
     for (i = 0; arr && js_elem(arr, i); i++) {
         if (!js_string(js_elem(arr, i), name)) continue;
-        for (int k = 0; k < n; k++)
-            if (xpp::equal_ignoring_case(m.uvar_names[k], name)) isck[k] = 1;
+        const int k=xpp::find_user_name(m,ICBOX,name);
+        if(k>=0 && k<n)isck[k]=1;
     }
     if (get_int(line, "how", 0) == 2) {
         /* arry: the array of variables from the first to the second checked */
@@ -469,10 +469,13 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
             return refuse(field, xpp::format("set {}: its index is not one of 0 to {}", v.kind, n - 1));
         v.index = static_cast<int>(k);
     }
-    for (int i = 0; v.index < 0 && i < n; i++) {
+    if(v.index<0 && v.type!=4){
+        v.index=xpp::find_user_name(m,v.type==1?PARAMBOX:ICBOX,v.name);
+        if(v.index>=n)v.index=-1;
+    }
+    for (int i = 0; v.type == 4 && v.index < 0 && i < n; i++) {
         const char *bc = v.type == 4 ? s.bcs[i].name.data() : nullptr;
-        if (v.type == 4 ? bc && xpp::equal_ignoring_case(bc, v.name)
-                        : xpp::equal_ignoring_case(v.type == 1 ? m.upar_names[i] : m.uvar_names[i], v.name))
+        if (bc && xpp::equal_ignoring_case(bc, v.name))
             v.index = i;
     }
     if (v.index < 0) return refuse(field, xpp::format("set: the model has no {} {}", v.kind, v.name));
@@ -596,10 +599,10 @@ void values_command(xpp::Session &s, const char *line)
     get_string(line, "kind", kind);
     get_string(line, "name", name);
     if (o == "internset") { /* File/Get par set, the set given by index or name */
-        const std::vector<xpp::Model::InternalSet> &sets = s.model().intern_sets;
         int j = get_int(line, "index", -1);
-        for (std::size_t i = 0; j < 0 && i < sets.size(); i++)
-            if (sets[i].name == name) j = static_cast<int>(i);
+        if (j < 0)
+            if (const auto *entry=s.model().name(name))
+                if (const auto set=entry->set_spellings.find(name); set!=entry->set_spellings.end())j=set->second;
         if (j < 0) j_command_error("values", xpp::format("No internal set {}", name));
         else {
             xpp::push_value_undo(s);

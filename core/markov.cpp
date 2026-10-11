@@ -58,12 +58,15 @@ void add_markov(xpp::Session &s, int nstate, const char *name)
    table's header line when converting. */
 static int markov_named(xpp::Session &s, const char *name)
 {
-  int len=0,index=-1;
-  for(int i=0;i<s.model().nmarkov;i++){
-    int ll=static_cast<int>(s.model().markov[i].name.size());
-    if(strncasecmp(name,s.model().markov[i].name.c_str(),ll)==0&&len<ll){
-      index=i;
-      len=ll;
+  int index=-1;
+  const std::string upper=xpp::upper_case(name);
+  const auto &lengths=s.model().markov_name_lengths;
+  for(auto length=lengths.rbegin();length!=lengths.rend();++length){
+    if(*length>upper.size())continue;
+    const auto it=s.model().names.find(upper.substr(0,*length));
+    if(it!=s.model().names.end() && it->second.markov_declared){
+      index=it->second.index;
+      break;
     }
   }
   if(index==-1){
@@ -163,6 +166,15 @@ void create_markov(xpp::Session &s, int nstates, double *st, int type, const cha
   else {
     s.model().markov[j].fixed.assign(n2, 0.0);
   }
+  auto &entry=s.model().names[xpp::converted(name)];
+  if(!entry.markov_declared){
+    entry.markov_declared=true;
+    entry.kind=xpp::Model::NameKind::Markov;
+    entry.index=j;
+    entry.written=name;
+    entry.pos={0,xpp::Load::place().line,xpp::Load::place().col};
+  }
+  s.model().markov_name_lengths.insert(std::string_view(name).size());
   s.model().markov[j].name = name;
   s.model().nmarkov++;
 

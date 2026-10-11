@@ -40,6 +40,9 @@
 #include <memory>
 #include <string>
 #include <map>
+#include <unordered_map>
+#include <optional>
+#include <set>
 #include <vector>
 
 namespace xpp {
@@ -313,8 +316,41 @@ struct Model {
   /* the files a statement's place (odex::Pos::file) indexes: the model's
      own first, then each file it includes (model_place, model_files.h) */
   std::vector<std::string> statement_files;
-  /* The statements' defining places, built once by model_files after parsing. */
-  std::map<std::string, odex::Pos, std::less<>> named_places;
+  /* W291: the load's single model-name index. The parser separately owns
+     built-ins, argument slots and temporary expression symbols. Indices
+     are -1 until assigned by the builder, or when that namespace excludes
+     the name (a fixed quantity can also have an aux output column). */
+  enum class NameKind { Variable, Markov, Fixed, Aux, Param, Const, Wiener,
+                        Function, Table, Network, Vector, Algebraic, Derived, Set, Kernel };
+  struct NameOrigin {
+    std::string written;
+    odex::Pos pos;
+    std::string array;
+  };
+  struct Name {
+    NameKind kind = NameKind::Variable;
+    odex::Pos pos;
+    std::string written, array;
+    int arity = 0;
+    int index = -1, column = -1, parameter = -1, set = -1;
+    int parser_var = -1, parser_con = -1;
+    std::unordered_map<std::string,int> set_spellings; /* exact .ode set spellings can share a folded name */
+    bool declared = false, variable_declared = false, markov_declared = false;
+    int function_statement = -1;
+    int purity = -1; /* -1 unknown, 0 visiting/impure, 1 pure during load */
+    bool purity_constant = false, purity_table = false, purity_derived = false;
+    std::optional<std::pair<std::string,double>> load_constant;
+    std::unordered_map<int,std::pair<std::string,std::string>> array_members; /* load's range group -> spelling, provenance */
+    std::vector<NameOrigin> origins; /* load-only clash history, cleared on success */
+  };
+  std::unordered_map<std::string, Name> names;
+  /* Foreign Markov headers match prefixes: probe only declared lengths,
+     so a hostile long header does not cause quadratic substring work. */
+  std::set<std::size_t> markov_name_lengths;
+  const Name *name(std::string_view text) const;
+  /* Declaration metadata is written only while loading; indices are the
+     owner's category indices, with parser and output namespaces separate. */
+  Name &define_name(std::string_view text,NameKind kind,int index,const odex::Pos &pos);
   /* Source lines indexed by model_files during the load; read-only in a run. */
   std::map<std::string, Lines, std::less<>> source_lines;
   /* a " comment of the model: its text, and with {name=value,...} an

@@ -226,6 +226,15 @@ void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does)
       continue;
     bob+=c==','?' ':c;
   }
+  auto [it,inserted]=m.names.try_emplace(xpp::converted(name));
+  if(inserted){
+    it->second.kind=xpp::Model::NameKind::Set;
+    it->second.index=static_cast<int>(sets.size());
+    it->second.written=name;
+    it->second.pos={0,xpp::Load::place().line,xpp::Load::place().col};
+  }
+  if(it->second.set<0)it->second.set=static_cast<int>(sets.size());
+  it->second.set_spellings.try_emplace(std::string(name),static_cast<int>(sets.size()));
   sets.push_back({std::string(name),bob,xpp::Load::place()});
  xpp::log(XPP_LOG_INFO, " added {} doing {} \n",
 	 sets.back().name.c_str(),sets.back().does.c_str());
@@ -233,13 +242,10 @@ void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does)
 
 std::string intern_set_default_name(const xpp::Model &m)
 {
-  const std::vector<xpp::Model::InternalSet> &sets=m.intern_sets;
   for(std::size_t n=1;;n++){
     std::string name=xpp::format("set{}",n);
-    bool taken=false;
-    for(const auto &s : sets)
-      if(xpp::equal_ignoring_case(s.name,name))taken=true;
-    if(!taken)return name;
+    const auto *entry=m.name(name);
+    if(!entry || entry->set<0)return name;
   }
 }
 
@@ -247,9 +253,8 @@ std::string intern_set_name_problem(const xpp::Model &m, std::string_view name)
 {
   if(!xpp::odex::is_name(name)||xpp::odex::is_reserved(name))
     return xpp::format("{} is not a valid name for a set",name);
-  for(const auto &set : m.intern_sets)
-    if(xpp::equal_ignoring_case(set.name,name))
-      return xpp::format("{} is already a set of the model",name);
+  if(const auto *entry=m.name(name);entry && entry->set>=0)
+    return xpp::format("{} is already a set of the model",name);
   return "";
 }
 
@@ -258,8 +263,7 @@ namespace {
 /* a variable's name as its equation spells it (the Model keeps them in upper case) */
 std::string declared_spelling(const xpp::Model &m, const std::string &name)
 {
-  for(const xpp::odex::Statement &st : m.statements)
-    if(!st.name.empty()&&xpp::equal_ignoring_case(st.name,name))return st.name;
+  if(const auto *entry=m.name(name);entry && !entry->written.empty())return entry->written;
   return name;
 }
 

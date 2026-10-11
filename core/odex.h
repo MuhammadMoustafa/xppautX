@@ -296,7 +296,7 @@ bool is_name(std::string_view name);
    its returns make, near's tol filled in, wiener's names given their
    value, a set's, a network's and a comment's text the
    Model's own, ieee_division set. Throws Error. */
-Parsed ready(const Parsed &p);
+Parsed ready(Model &m, const Parsed &p);
 
 /* an array as written, base[lo..hi] (base[lo..hi by step] with a step
    above 1) */

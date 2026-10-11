@@ -381,6 +381,7 @@ int add_constant(ParserState &p, std::string_view junk)
 
 int get_var_index(const xpp::Session &s, std::string_view name)
 {
+  if(const auto *entry=s.model().name(name);entry && entry->kind!=Model::NameKind::Set)return entry->parser_var;
 
   int type,com;
   find_name(s.parser,name,&type);
@@ -406,7 +407,10 @@ int add_con(xpp::Session &s, std::string_view name, double value)
  if(p.constants.size()<=static_cast<size_t>(p.ncon))p.constants.resize(std::max<size_t>(64,2*p.constants.size()));
  p.constants[p.ncon]=value;
  p.ncon++;
- return(add_constant(p,name));
+ const int result=add_constant(p,name);
+ if(result==0)
+   if(auto it=s.model().names.find(converted(name));it!=s.model().names.end())it->second.parser_con=p.ncon-1;
+ return result;
 }
 
 int add_kernel(xpp::Session &s, std::string_view name, double mu, std::string_view expr)
@@ -466,6 +470,7 @@ int add_var(xpp::Session &s, std::string_view junk, double value)
  p.nsym++;
  if(p.variables.size()<=static_cast<size_t>(m.nvar))p.variables.resize(std::max<size_t>(64,2*p.variables.size()));
  p.variables[m.nvar]=value;
+ if(auto it=m.names.find(converted(junk));it!=m.names.end())it->second.parser_var=m.nvar;
  m.nvar++;
  return(0);
 }
@@ -649,6 +654,7 @@ int add_ufun(xpp::Session &s, std::string_view junk, std::string_view expr, int 
 
 int find_lookup(const xpp::Session &s, std::string_view name)
 {
+ if(const auto *entry=s.model().name(name);entry && entry->kind!=Model::NameKind::Set)return entry->kind==Model::NameKind::Table?entry->index:-1;
  int index,com;
  find_name(s.parser,name,&index);
   if(index==-1)return(-1);
@@ -670,6 +676,7 @@ void find_name(const ParserState &p, std::string_view string, int *index)
 
 int get_param_index(const xpp::Session &s, std::string_view name)
 {
+ if(const auto *entry=s.model().name(name);entry && entry->kind!=Model::NameKind::Set)return entry->parser_con;
  int type,com;
   find_name(s.parser,name,&type);
   if(type<0)return(-1);
@@ -687,8 +694,13 @@ namespace {
 /* where name's value lives in p, a parameter's or a variable's (nullptr
    when name is neither): const as p is */
 template <class Parser>
-auto slot_in(Parser &p, std::string_view name) -> decltype(&p.constants[0])
+auto slot_in(const Model &m, Parser &p, std::string_view name) -> decltype(&p.constants[0])
 {
+  if(const Model::Name *entry=m.name(name);entry && entry->kind!=Model::NameKind::Set){
+    if(entry->parser_con>=0)return &p.constants[entry->parser_con];
+    if(entry->parser_var>=0)return &p.variables[entry->parser_var];
+    return nullptr;
+  }
   int type;
   find_name(p,name,&type);
   if(type<0)return nullptr;
@@ -700,13 +712,13 @@ auto slot_in(Parser &p, std::string_view name) -> decltype(&p.constants[0])
 
 }
 
-double *value_slot(Session &s, std::string_view name) { return slot_in(s.parser,name); }
+double *value_slot(Session &s, std::string_view name) { return slot_in(s.model(),s.parser,name); }
 
 /* GET_VAL   */
 
 int get_val(const xpp::Session &s, std::string_view name, double *value)
 {
-  const double *v=slot_in(s.parser,name);
+  const double *v=slot_in(s.model(),s.parser,name);
   *value=v?*v:0.0;
   return v!=nullptr;
 }
@@ -715,7 +727,7 @@ int get_val(const xpp::Session &s, std::string_view name, double *value)
 
 int set_val(xpp::Session &s, std::string_view name, double value)
 {
-  double *v=slot_in(s.parser,name);
+  double *v=slot_in(s.model(),s.parser,name);
   if(v)*v=value;
   return v!=nullptr;
 }

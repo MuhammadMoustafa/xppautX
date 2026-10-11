@@ -133,19 +133,10 @@ void de_space(char *s)
 
 int find_user_name(const xpp::Model &m, int type, std::string_view oname)
 {
- std::string name; /* oname without blanks, of any length */
- int i=-1;
- for(char ch : oname)
-   if(!isspace(static_cast<unsigned char>(ch)))name+=ch;
-
- for(i=0;i<m.nupar;i++)
-         if((type==PARAMBOX)&&xpp::equal_ignoring_case(m.upar_names[i],name))break;
- if(i<m.nupar)return(i);
- for(i=0;i<m.neq;i++)
-	 if((type==ICBOX)&&xpp::equal_ignoring_case(m.uvar_names[i],name))break;
-   if(i<m.neq)return(i);
-	return(-1);
- }
+  const auto *entry=m.name(oname);
+  if(!entry)return -1;
+  return type==PARAMBOX ? entry->parameter : type==ICBOX ? entry->column : -1;
+}
 
 int do_calc(xpp::Session &s, std::string_view temp, double *z)
 {

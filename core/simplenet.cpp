@@ -183,15 +183,14 @@ double net_interp(xpp::Session &s, double x, int i)
 
 int add_vectorizer(xpp::Session &s, std::string_view name,char *rhs)
 {
-  int i,ivar,il,ir;
+  int ivar,il,ir;
   int ind;
   int len;
   int flag;
 
-  for(i=0;i<s.model().nvector;i++)
-       if(s.model().vectors[i].name==name)break;
-
-  ind=i;
+  const auto *entry=s.model().name(name);
+  ind=entry && entry->kind==xpp::Model::NameKind::Vector && entry->index>=0 && entry->index<s.model().nvector &&
+      s.model().vectors[entry->index].name==name ? entry->index : s.model().nvector;
   flag=get_vector_info(s,rhs,name,&ivar,&len,&il,&ir);
 
   if(flag==0)return 0;
@@ -302,7 +301,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
   /* the name as the messages below print it */
   const std::string name_copy(name_text);
   const char *name=name_copy.c_str();
-  int i,ind;
+  int ind;
   int type;
   int iwgt,itau,iind,ivar,ivar2;
   int ntype,ntot,ncon,ntab;
@@ -312,9 +311,9 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
   type=is_network(rhs);
     if(type==0)return 0;
   xpp::log(XPP_LOG_DEBUG, "type={:d} \n",type);
-  for(i=0;i<s.model().nnetwork;i++)
-    if(s.model().networks[i].name==name)break;
-  ind=i;
+  const auto *entry=s.model().name(name);
+  ind=entry && entry->kind==xpp::Model::NameKind::Network && entry->index>=0 && entry->index<s.model().nnetwork &&
+      s.model().networks[entry->index].name==name ? entry->index : s.model().nnetwork;
   if(ind>=s.model().nnetwork){
     model_failed(xpp::format("No such name {}",name));
   }

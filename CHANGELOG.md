@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Large models load faster through one Model-owned name index: native UCRT load medians fall from 230.4 to 183.4 ms for lecdiff's 4,800 states (20%), and from 130.3 to 116.0 ms for amari's 2,400 points (11%; five-run medians in one exclusive series, including native compilation). Name errors retain their text and source line (W291, [#349](https://github.com/MuhammadMoustafa/xppautX/issues/349)).
+
 - A model has no limit on its variables, parameters or symbols: XPPAUT stops at 5000 variables (`MAXODE`), 400 parameters and 10000 parser symbols, and xppautX sizes its tables by what the model declares (an old-style file's first line sizes nothing; the tables grow with the lines read). A model with over 4995 variables now also gets its primed variables, so Averaging and boundary value problems work for it. The data browser's Add column keeps room for 1000 added columns (W243, [#299](https://github.com/MuhammadMoustafa/xppautX/issues/299)).
 
 - The program's preferences are one per-user file, `preferences.setx` in the config folder beside `keymap.json`, in the `.setx` syntax and loaded all or nothing; the recent models moved into it (`recent_models`), so `recent.txt` is no longer read and the start screen lists none until models are opened again (delete the old file); `keymap.json` stays its own file. Results never depend on it (W287, [#342](https://github.com/MuhammadMoustafa/xppautX/issues/342))

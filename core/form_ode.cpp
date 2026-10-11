@@ -262,11 +262,13 @@ void begin_model(xpp::Session &s)
 void add_parameter(xpp::Session &s, const std::string &name, double value)
 {
   xpp::Model &m=s.model();
+  auto &entry=m.define_name(name,xpp::Model::NameKind::Param,m.nupar,{0,xpp::Load::place().line,xpp::Load::place().col});
   if(add_con(s,name,value))
     model_failed(xpp::format("{} is a name already, or one parameter too many",name));
   m.size_parameters(m.nupar+1);
   m.default_val[m.nupar]=value;
   m.upar_con[m.nupar]=s.parser.ncon-1; /* add_con's */
+  entry.parameter=m.nupar;
   m.upar_names[m.nupar++]=name;
   xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
 }
@@ -275,6 +277,8 @@ void add_parameter(xpp::Session &s, const std::string &name, double value)
 void add_constant(xpp::Session &s, const std::string &name, double value, bool wiener)
 {
   xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
+  s.model().define_name(name,wiener?xpp::Model::NameKind::Wiener:xpp::Model::NameKind::Const,s.parser.ncon,
+                        {0,xpp::Load::place().line,xpp::Load::place().col});
   if(add_con(s,name,value))
     model_failed(xpp::format("{} is a name already, or one parameter too many",name));
   if(wiener)xpp::add_wiener(s,s.parser.ncon-1);
@@ -422,6 +426,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       name=tokens.text(" ");
       value=atof(tokens.text(" ").c_str());
       nstates=atoi(tokens.text(" \n").c_str());
+      m.define_name(name,xpp::Model::NameKind::Markov,m.nmarkov,{0,xpp::Load::place().line,xpp::Load::place().col});
       if(add_var(s,name,value))
 	model_failed(xpp::format("{} is a name already, or one variable too many",name));
       m.uvar_names[s.parser.build.in_vars+m.nmarkov]=name;
@@ -457,6 +462,8 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	  name=item.name;
 	  value=item.value;
 	  room_for_declared(s);
+          m.define_name(name,iflg?xpp::Model::NameKind::Variable:xpp::Model::NameKind::Fixed,
+                        iflg?s.parser.build.in_vars:m.fix_var,{0,xpp::Load::place().line,xpp::Load::place().col});
 	  if(add_var(s,name,value))
 	    model_failed(xpp::format("{} is a name already, or one variable too many",name));
 	  if(iflg)
@@ -495,6 +502,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       value=atof(tokens.text(" ").c_str());
       formula=tokens.text("$");
       xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",value,name,formula);
+      m.define_name(name,xpp::Model::NameKind::Kernel,m.nkernel,{0,xpp::Load::place().line,xpp::Load::place().col});
       if(add_kernel(s,name,value,formula)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
@@ -508,6 +516,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	}
       name=tokens.text(" ");
       formula=tokens.text(" \n");
+      m.define_name(name,xpp::Model::NameKind::Table,s.ntable,{0,xpp::Load::place().line,xpp::Load::place().col});
       if(formula[0]=='%') {
 	xpp::log(XPP_LOG_INFO, " Function form of table....\n");
 	nn=atoi(tokens.text(" ").c_str());
@@ -563,6 +572,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	}
 	xpp::print(s.parser.convert.file(),")={}",formula);
       }
+      m.define_name(name,xpp::Model::NameKind::Function,m.nfun,{0,xpp::Load::place().line,xpp::Load::place().col});
       if(add_ufun(s,name,formula,narg)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
@@ -628,6 +638,8 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       for(std::optional<std::string_view> tok;(tok=tokens.next(" ,\n"));)
 	{
 	  std::string aux(*tok);
+          m.define_name(aux,xpp::Model::NameKind::Aux,s.parser.build.naux,
+                        {0,xpp::Load::place().line,xpp::Load::place().col});
 	  s.parser.build.aux_names.push_back(aux);
 	  xpp::log(XPP_LOG_DEBUG, "|{}| ",s.parser.build.aux_names[s.parser.build.naux]);
 	  s.parser.build.naux++;
@@ -732,6 +744,26 @@ void finish_model(xpp::Session &s)
 	de_space(formula);
 	set_ode_name(m,i,formula);
       }
+  for(i=0;i<m.neq;i++){
+    auto [it,inserted]=m.names.try_emplace(converted(uvar_names[i]));
+    auto &entry=it->second;
+    if(inserted || entry.kind==xpp::Model::NameKind::Set){
+      if(inserted)entry.written=uvar_names[i];
+      entry.kind=i<m.node?xpp::Model::NameKind::Variable:i<m.node+m.nmarkov?xpp::Model::NameKind::Markov:xpp::Model::NameKind::Aux;
+      entry.index=entry.kind==xpp::Model::NameKind::Variable?i:
+                  entry.kind==xpp::Model::NameKind::Markov?i-m.node:i-m.node-m.nmarkov;
+      const int symbol=s.parser.symbol_named(converted(uvar_names[i]));
+      if(symbol>=0 && s.parser.symbols[symbol].com/MAXTYPE==VARTYPE)entry.parser_var=s.parser.symbols[symbol].com%MAXTYPE;
+    }
+    if(entry.column<0)entry.column=i;
+  }
+  for(i=0;i<m.nupar;i++){
+    auto &entry=m.names[converted(m.upar_names[i])];
+    entry.kind=xpp::Model::NameKind::Param;
+    entry.parameter=i;
+    entry.parser_con=m.upar_con[i];
+    entry.index=i;
+  }
   /*
      add primed variables                              */
   m.prime_start=m.nvar;
@@ -812,8 +844,7 @@ public:
   /* the parameters and consts (their values are set before anything is
      worked out, whatever their order), the derived quantities so far,
      the tables (data), the user functions */
-  std::set<std::string> constants,derived,tables;
-  std::map<std::string,const Statement *> functions;
+  Purity(xpp::Model &m,const Parsed &p):m_(m),p_(p){}
 
   /* text reads only what a quantity worked out when a parameter changes
      may read: the constants, the derived quantities before it (with
@@ -827,10 +858,13 @@ public:
     for(const std::string &w : xpp::words_of(text)){
       const std::string u=xpp::upper_case(w);
       if(std::find(args.begin(),args.end(),u)!=args.end())continue;
-      if(constants.count(u)||tables.count(u)||builtin(u))continue;
-      if(with_derived&&derived.count(u))continue;
-      auto f=functions.find(u);
-      if(f!=functions.end()&&function(u,*f->second))continue;
+      if(builtin(u))continue;
+      auto f=m_.names.find(u);
+      if(f==m_.names.end())return false;
+      auto &entry=f->second;
+      if(entry.purity_constant||entry.purity_table)continue;
+      if(with_derived&&entry.purity_derived)continue;
+      if(entry.function_statement>=0&&function(entry,p_.statements[entry.function_statement]))continue;
       return false;
     }
     return true;
@@ -849,18 +883,18 @@ private:
   /* a user function is pure when its formula reads only its arguments,
      the constants and pure functions (never a derived quantity, which a
      call may read before it is worked out) */
-  bool function(const std::string &u, const Statement &f)
+  bool function(xpp::Model::Name &entry, const Statement &f)
   {
-    auto known=pure_.find(u);
-    if(known!=pure_.end())return known->second;
-    pure_[u]=false; /* a function that calls itself is not pure */
+    if(entry.purity>=0)return entry.purity!=0;
+    entry.purity=0; /* a function that calls itself is not pure */
     std::vector<std::string> args;
     for(const std::string &a : f.names)args.push_back(xpp::upper_case(a));
     const std::string body=f.expr.kind==Expr::Kind::Text?f.expr.text:xpp::odex::engine_text(f.expr);
-    return pure_[u]=reads(body,args,false);
+    return (entry.purity=reads(body,args,false))!=0;
   }
 
-  std::map<std::string,bool> pure_;
+  xpp::Model &m_;
+  const Parsed &p_;
 };
 
 /* the names a formula (the engine's text) needs to be variables: the
@@ -956,7 +990,10 @@ private:
      when it is not) */
   void note(const std::string &name,const xpp::odex::Pos &pos,const Statement &s)
   {
-    origins_[converted(name)].push_back(Origin{s.written.empty()?name:s.written,pos,s.array.written});
+    xpp::Model::Name &entry=m_.names[converted(name)];
+    entry.origins.push_back(xpp::Model::NameOrigin{s.written.empty()?name:s.written,pos,s.array.written});
+    if(entry.written.empty())entry.written=name;
+    if(entry.pos.line==0)entry.pos=pos;
   }
 
   /* the load fails: the name in upper case (as the tables hold it) is
@@ -966,10 +1003,10 @@ private:
      two were written differently. */
   [[noreturn]] void clash(const std::string &upper) const
   {
-    auto it=origins_.find(upper);
-    if(it==origins_.end()||it->second.size()<2)
-      model_failed(xpp::format("Duplicate name {}",it==origins_.end()?upper:it->second.back().written));
-    const Origin &now=it->second.back(),&before=it->second[it->second.size()-2];
+    const xpp::Model::Name *entry=m_.name(upper);
+    if(!entry||entry->origins.size()<2)
+      model_failed(xpp::format("Duplicate name {}",!entry||entry->origins.empty()?upper:entry->origins.back().written));
+    const auto &now=entry->origins.back(),&before=entry->origins[entry->origins.size()-2];
     xpp::Load::at(file(now.pos),now.pos.line,now.pos.col);
     std::string at=xpp::format("line {}",before.pos.line);
     if(file(before.pos)!=file(now.pos))at+=xpp::format(" of {}",file(before.pos));
@@ -1016,16 +1053,16 @@ private:
      one that does not). */
   void find_derived(bool fixed)
   {
-    Purity pure;
+    Purity pure(m_,p_);
     std::set<std::string> keep,prefixes;
     for(const Statement &s : p_.statements){
       switch(s.kind){
       case Statement::Kind::Par:
       case Statement::Kind::Const:
-	for(const Binding &b : s.bindings)pure.constants.insert(xpp::upper_case(b.name));
+	for(const Binding &b : s.bindings)m_.names[converted(b.name)].purity_constant=true;
 	break;
-      case Statement::Kind::Fun: pure.functions[xpp::upper_case(s.name)]=&s; break;
-      case Statement::Kind::Table: pure.tables.insert(xpp::upper_case(s.name)); break;
+      case Statement::Kind::Fun: m_.names[converted(s.name)].function_statement=static_cast<int>(&s-p_.statements.data()); break;
+      case Statement::Kind::Table: m_.names[converted(s.name)].purity_table=true; break;
       case Statement::Kind::Aux:
 	for(const Binding &b : s.bindings)keep.insert(xpp::upper_case(b.name));
 	break;
@@ -1050,7 +1087,7 @@ private:
 	s.parameters_only=true;
 	for(const Binding &b : s.bindings)
 	  s.parameters_only=s.parameters_only&&pure.reads(text(b.value,true),none,true);
-	for(const Binding &b : s.bindings)pure.derived.insert(xpp::upper_case(b.name));
+	for(const Binding &b : s.bindings)m_.names[converted(b.name)].purity_derived=true;
       }
       else if(fixed&&s.kind==Statement::Kind::Fixed&&!kept(s.name)&&
 	      pure.reads(text(s.expr,true),none,true)){
@@ -1062,7 +1099,7 @@ private:
 	s.kind=Statement::Kind::Derived;
 	s.bindings.assign(1,std::move(b));
 	s.parameters_only=true;
-	pure.derived.insert(xpp::upper_case(s.name));
+	m_.names[converted(s.name)].purity_derived=true;
       }
     }
   }
@@ -1089,17 +1126,20 @@ private:
       xpp::add_markov(s_,s.count,s.name.c_str());
       std::vector<std::string> cells;
       for(const Expr &c : s.cells)cells.push_back(text(c));
-      xpp::build_markov(s_,cells,s.name.c_str());
       /* a second chain of the same name has no variable of its own */
       std::string name=converted(s.name);
-      if(std::find(mnames_.begin(),mnames_.end(),name)==mnames_.end())mnames_.push_back(std::move(name));
+      auto &entry=m.names[name];
+      entry.kind=xpp::Model::NameKind::Markov;
+      if(entry.index==m.nmarkov-1)mnames_.push_back(std::move(name));
+      xpp::build_markov(s_,cells,s.name.c_str());
       break;
     }
     case Statement::Kind::Par:
       xpp::log(XPP_LOG_INFO, "Parameters:\n");
       for(const Binding &b : s.bindings){
 	note(b.name,b.pos.line?b.pos:s.pos,s);
-	add_parameter(s_,b.name,b.value.value);
+        m.define_name(b.name,xpp::Model::NameKind::Param,m.nupar,s.pos);
+        add_parameter(s_,b.name,b.value.value);
       }
       xpp::log(XPP_LOG_DEBUG, "\n");
       break;
@@ -1108,7 +1148,8 @@ private:
       xpp::log(XPP_LOG_INFO, "{}", s.kind==Statement::Kind::Wiener?"Wiener constants\n":" Hidden params:\n");
       for(const Binding &b : s.bindings){
 	note(b.name,b.pos.line?b.pos:s.pos,s);
-	add_constant(s_,b.name,b.value.value,s.kind==Statement::Kind::Wiener);
+        m.define_name(b.name,s.kind==Statement::Kind::Wiener?xpp::Model::NameKind::Wiener:xpp::Model::NameKind::Const,s_.parser.ncon,s.pos);
+        add_constant(s_,b.name,b.value.value,s.kind==Statement::Kind::Wiener);
       }
       xpp::log(XPP_LOG_DEBUG, "\n");
       break;
@@ -1126,34 +1167,50 @@ private:
     case Statement::Kind::Volterra: {
       std::string name=converted(s.name);
       note(s.name,s.pos,s);
-      if(std::find(vnames_.begin(),vnames_.end(),name)!=vnames_.end())clash(name);
+      auto &entry=m.names[name];
+      if(entry.variable_declared)clash(name);
+      entry.variable_declared=true;
+      entry.kind=xpp::Model::NameKind::Variable;
+      entry.index=static_cast<int>(vnames_.size());
       vnames_.push_back(std::move(name));
       break;
     }
-    case Statement::Kind::Vector: add_vectorizer_name(s_,s.name,s.text); break;
+    case Statement::Kind::Vector:
+      m.define_name(s.name,xpp::Model::NameKind::Vector,m.nvector,s.pos);
+      add_vectorizer_name(s_,s.name,s.text); break;
     case Statement::Kind::Network:
+      m.define_name(s.name,xpp::Model::NameKind::Network,m.nnetwork,s.pos);
       add_special_name(s_,s.name,s.text.data());
       c_resync(s.text);
       break;
     case Statement::Kind::Solv:
+      m.define_name(s.name,xpp::Model::NameKind::Algebraic,m.nsvar,s.pos);
       xpp::add_svar(s_,s.name.c_str(),text(s.expr).c_str());
       break;
     case Statement::Kind::Aux:
       for(const Binding &b : s.bindings){
-	anames_.push_back(converted(b.name));
+        auto &entry=m.names[converted(b.name)];
+        if(entry.written.empty()){
+          entry.written=b.name;
+          entry.pos=b.pos.line?b.pos:s.pos;
+          entry.kind=xpp::Model::NameKind::Aux;
+        }
+        anames_.push_back(converted(b.name));
 	xpp::log(XPP_LOG_INFO, "{} = {} \n",anames_.back(),text(b.value));
       }
       break;
     case Statement::Kind::Derived:
       for(const Binding &b : s.bindings){
 	note(b.name,b.pos.line?b.pos:s.pos,s);
-	if(add_derived(s_,xpp::upper_case(b.name),text(b.value,true))==1)
+        m.define_name(b.name,xpp::Model::NameKind::Derived,s_.parser.ncon,s.pos);
+        if(add_derived(s_,xpp::upper_case(b.name),text(b.value,true))==1)
 	  clash(converted(b.name));
       }
       break;
     case Statement::Kind::Fixed: {
       const int k=static_cast<int>(fnames_.size());
       note(s.name,s.pos,s);
+      m.define_name(s.name,xpp::Model::NameKind::Fixed,k,s.pos);
       m.fixinfo[k].name=xpp::upper_case(s.name);
       m.fixinfo[k].value=text(s.expr,true);
       fnames_.push_back(converted(s.name));
@@ -1162,6 +1219,7 @@ private:
     }
     case Statement::Kind::Table: {
       const std::string name=converted(s.name);
+      m.define_name(s.name,xpp::Model::NameKind::Table,ntab_,s.pos);
       if(add_table_name(s_,ntab_,name)==1){
 	model_failed(xpp::format("{} is a duplicate name",name));
       }
@@ -1171,6 +1229,7 @@ private:
     }
     case Statement::Kind::Fun: {
       const std::string name=converted(s.name);
+      m.define_name(s.name,xpp::Model::NameKind::Function,nufun_,s.pos);
       if(add_ufun_name(s_,name,nufun_,static_cast<int>(s.names.size()))==1){
 	model_failed(xpp::format("Duplicate name or too many functions for {}",name));
       }
@@ -1192,7 +1251,7 @@ private:
     for(int i=0;i<nvar;i++){
       if(add_var(s_,vnames_[i].c_str(),0.0))clash(vnames_[i]);
       m.uvar_names[i]=vnames_[i];
-      variable_indices_.emplace(vnames_[i],i);
+      m.names[vnames_[i]].column=i;
       s.last_ic[i]=0.0;
       m.default_ic[i]=0.0;
     }
@@ -1201,11 +1260,16 @@ private:
     for(size_t i=0;i<mnames_.size();i++){
       if(add_var(s_,mnames_[i].c_str(),0.0))clash(mnames_[i]);
       m.uvar_names[i+nvar]=mnames_[i];
-      variable_indices_.emplace(mnames_[i],static_cast<int>(i)+nvar);
+      m.names[mnames_[i]].column=static_cast<int>(i)+nvar;
       s.last_ic[i+nvar]=0.0;
       m.default_ic[i+nvar]=0.0;
     }
     s_.parser.build.aux_names=anames_;
+    for(size_t i=0;i<anames_.size();i++){
+      auto &entry=m.names[anames_[i]];
+      if(entry.column<0)entry.column=nvar+m.nmarkov+static_cast<int>(i);
+      if(entry.kind==xpp::Model::NameKind::Aux)entry.index=static_cast<int>(i);
+    }
     xpp::add_svar_names(s);
     s_.parser.build.in_vars=nvar;
     s_.parser.build.naux=static_cast<int>(anames_.size());
@@ -1221,9 +1285,9 @@ private:
      index after the variables'): -1 when it is neither */
   int variable(const std::string &name, bool &markov) const
   {
-    const auto v=variable_indices_.find(name);
-    markov=v!=variable_indices_.end() && v->second>=s_.parser.build.in_vars;
-    return v==variable_indices_.end() ? -1 : v->second;
+    const auto *entry=m_.name(name);
+    markov=entry && entry->markov_declared;
+    return entry && (entry->variable_declared || markov) ? entry->column : -1;
   }
 
   /* the state variable an initial value or a history names (its
@@ -1407,14 +1471,6 @@ private:
      variables and the aux quantities (converted: blanks removed, upper
      case), in order */
   std::vector<std::string> vnames_,mnames_,fnames_,anames_;
-  std::map<std::string,int> variable_indices_;
-  /* every name declared so far, by its upper case form, in order */
-  struct Origin {
-    std::string written;
-    xpp::odex::Pos pos;
-    std::string array;
-  };
-  std::map<std::string,std::vector<Origin>> origins_;
   /* how many of each the compiling has met */
   int nvar_=0,nfix_=0,naux_=0,nmark_=0,ntab_=0,nufun_=0;
 };

@@ -84,6 +84,10 @@ int main(void)
 
     /* find_user_name finds a 200-character parameter, blanks and all */
     xpp::client_session().model().upar_names[0] = p200;
+    const int parser_constant=xpp::get_param_index(s,p200);
+    auto &indexed=s.model().define_name(p200,xpp::Model::NameKind::Param,0,{});
+    indexed.parameter=0;
+    indexed.parser_con=parser_constant;
     CHECK(xpp::find_user_name(xpp::client_session().model(), PARAMBOX, " " + p200.substr(0, 100) + " " + p200.substr(100)) == 0);
     CHECK(xpp::find_user_name(xpp::client_session().model(), PARAMBOX, p200 + "x") == -1);
 
@@ -115,6 +119,18 @@ int main(void)
     CHECK(xpp::add_con(s, "temporary_new", 9.0) == 0);
     CHECK(!xpp::get_val(s, "temporary_old", &z));
     CHECK(xpp::get_val(s, "temporary_new", &z) && z == 9.0);
+
+    /* Internal-set names share the model index but cannot shadow the
+       parser's built-ins or its local symbols (W291). */
+    const int pi_slot=xpp::get_param_index(s,"PI");
+    s.model().define_name("pi",xpp::Model::NameKind::Set,0,{});
+    CHECK(xpp::get_param_index(s,"PI")==pi_slot);
+    CHECK(xpp::get_val(s,"pi",&z) && z==s.parser.constants[pi_slot]);
+    CHECK(xpp::add_var(s,"T",2.25)==0);
+    const int time_slot=xpp::get_var_index(s,"T");
+    s.model().define_name("t",xpp::Model::NameKind::Set,1,{});
+    CHECK(xpp::get_var_index(s,"T")==time_slot);
+    CHECK(xpp::get_val(s,"t",&z) && z==2.25);
 
     TEST_REPORT("long names");
 }

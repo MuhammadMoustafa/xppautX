@@ -16,6 +16,8 @@
 #include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
+#include "expr.h"
+#include "xpp_util.h"
 
 #include <cmath>
 #include <string>
@@ -68,9 +70,21 @@ int main(void)
     CHECK(m.nvar > 2 * EQUATIONS && s.parser.nsym > 10000 && s.parser.ncon > 400);
     CHECK(m.uvar_names[EQUATIONS - 1] == "X5199" && m.uvar_names[EQUATIONS] == "BOTH");
 
+    /* W291: namespaces still resolve past the former fixed table sizes. */
+    int column=-1;
+    find_variable(s,"x5199",&column);
+    CHECK(column==EQUATIONS);
+    find_variable(s,"both",&column);
+    CHECK(column==EQUATIONS+1);
+    CHECK(xpp::get_var_index(s,"x5199")==EQUATIONS);
+    CHECK(xpp::get_param_index(s,"p449")==m.upar_con[PARAMETERS-1]);
+    CHECK(xpp::find_user_name(m,PARAMBOX,"p449")==PARAMETERS-1);
+    const std::size_t indexed=m.names.size();
+
     xpp::get_ic(s, 2, s.data_store.current.data());
     s.numerics.storflag = 1;
     CHECK(xpp::usual_integrate_stuff(s, s.data_store.current.data()) == 0);
+    CHECK(m.names.size()==indexed);
     const int rows = s.data_store.rows;
     CHECK(rows == 11);
     for (int i : {0, 2600, EQUATIONS - 1})

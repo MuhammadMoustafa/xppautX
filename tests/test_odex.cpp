@@ -15,6 +15,7 @@
 #include "xpp_io.h"
 #include "session.h"
 #include "storage.h"
+#include "xpp_util.h"
 #include "menudrive.h"
 #include "solver.h"
 
@@ -106,7 +107,7 @@ std::string lowered(const char *text)
 {
   using xpp::odex::engine_text;
   try {
-    const Parsed p = xpp::odex::ready(xpp::odex::parse(xpp::client_session().model(), text, "m.odex"));
+    const Parsed p = xpp::odex::ready(xpp::client_session().model(), xpp::odex::parse(xpp::client_session().model(), text, "m.odex"));
     std::string out;
     auto add = [&out](const std::string &line) { out += (out.empty() ? "" : "|") + line; };
     for (const Statement &s : p.statements) {
@@ -659,7 +660,7 @@ int main(void)
     /* what the converted text reads back as */
     std::string back;
     try {
-      xpp::odex::ready(xpp::odex::parse(xpp::client_session().model(), text, "odex_quirks.odex"));
+      xpp::odex::ready(xpp::client_session().model(), xpp::odex::parse(xpp::client_session().model(), text, "odex_quirks.odex"));
     } catch (const Error &e) {
       back = e.text();
     }
@@ -823,6 +824,33 @@ int main(void)
     CHECK(parameter.line==1 && parameter.source=="par gain = 1");
     CHECK(xpp::model_source_line(m,m.this_file,3)=="aux v = v");
     CHECK(xpp::model_source_line(m,m.this_file,4).empty());
+  }
+
+  /* W291: model names share one index while function arguments remain
+     parser-local; a fixed quantity can own both a parser slot and an aux
+     column. Reload replaces the whole index, a refused load preserves it. */
+  {
+    CHECK(load_text("par gain=2\nfun f(arg)=arg+gain\nv'=f(v)\nq=v*gain\naux q=q\ninit v=1\n", "odex"));
+    const xpp::Session &s=xpp::client_session();
+    const xpp::Model &m=s.model();
+    CHECK(xpp::find_user_name(m,PARAMBOX," G a i n ")==0);
+    CHECK(xpp::find_user_name(m,ICBOX,"v")==0);
+    CHECK(xpp::find_user_name(m,ICBOX,"q")==1);
+    CHECK(xpp::get_var_index(s,"q")==2);
+    CHECK(xpp::get_param_index(s,"gain")==m.upar_con[0]);
+    CHECK(xpp::get_var_index(s,"arg")==-1);
+    CHECK(m.name("arg")==nullptr);
+    CHECK(m.name("f") && m.name("f")->kind==xpp::Model::NameKind::Function);
+    CHECK(xpp::model_place(m,"q").line==4);
+    const size_t count=m.names.size();
+    double value=0;
+    CHECK(xpp::get_val(s,"gain",&value));
+    CHECK(value==2 && m.names.size()==count);
+    CHECK(!load_text("par gain=2\nv'=missing\n", "odex"));
+    CHECK(xpp::client_session().model().name("q")!=nullptr);
+    CHECK(load_text("z'=0\n", "odex"));
+    CHECK(xpp::client_session().model().name("q")==nullptr);
+    CHECK(xpp::find_user_name(xpp::client_session().model(),ICBOX,"z")==0);
   }
 
   TEST_REPORT("odex: grammar");

@@ -109,15 +109,18 @@ Place model_place(const Model &m, const odex::Pos &pos)
 
 void index_model_places(Model &m)
 {
-    m.named_places.clear();
+
     // Data tables need no source index; only files that supplied statements do.
     for (const std::string &file : m.statement_files) {
         const long i = file_index(m, file);
         if (i >= 0) index_source_lines(m, m.files[static_cast<size_t>(i)]);
     }
     /* a statement that defines name first (an equation, a function, a
-       table ...), then the lists that name it (par, aux, wiener ...) */
-    for (const odex::Statement &st : m.statements) {
+       table ...), then the lists that name it (par, aux, wiener ...).
+       Reverse assignment keeps the first defining statement, including
+       repeated .ode Markov declarations that share one state variable. */
+    for (auto it=m.statements.rbegin();it!=m.statements.rend();++it) {
+        const odex::Statement &st=*it;
         switch (st.kind) {
         case odex::Statement::Kind::Ode:
         case odex::Statement::Kind::Map:
@@ -129,7 +132,11 @@ void index_model_places(Model &m)
         case odex::Statement::Kind::Network:
         case odex::Statement::Kind::Vector:
         case odex::Statement::Kind::Solv:
-            m.named_places.try_emplace(upper_case(st.name), st.pos);
+            m.names.try_emplace(converted(st.name)).first->second.pos = st.pos;
+            break;
+        case odex::Statement::Kind::Set:
+            if (auto entry=m.names.find(converted(st.name));entry!=m.names.end() && entry->second.kind==Model::NameKind::Set)
+                entry->second.pos=st.pos;
             break;
         default:
             break;
@@ -137,16 +144,40 @@ void index_model_places(Model &m)
     }
     for (const odex::Statement &st : m.statements) {
         for (const odex::Binding &b : st.bindings)
-            m.named_places.try_emplace(upper_case(b.name), b.pos.line > 0 ? b.pos : st.pos);
-        for (size_t k = 0; k < st.names.size(); k++)
-            m.named_places.try_emplace(upper_case(st.names[k]), k < st.name_positions.size() && st.name_positions[k].line > 0 ? st.name_positions[k] : st.pos);
+            if (auto [it, inserted] = m.names.try_emplace(converted(b.name)); inserted || it->second.pos.line == 0)
+                it->second.pos = b.pos.line > 0 ? b.pos : st.pos;
+        if(st.kind==odex::Statement::Kind::Wiener)
+            for (size_t k = 0; k < st.names.size(); k++)
+                if (auto [it, inserted] = m.names.try_emplace(converted(st.names[k])); inserted || it->second.pos.line == 0)
+                    it->second.pos = k < st.name_positions.size() && st.name_positions[k].line > 0 ? st.name_positions[k] : st.pos;
     }
+    for (auto &[name, entry] : m.names) {
+        decltype(entry.origins){}.swap(entry.origins);
+        decltype(entry.array_members){}.swap(entry.array_members);
+        entry.load_constant.reset();
+    }
+}
+
+Model::Name &Model::define_name(std::string_view text,NameKind kind,int index,const odex::Pos &pos)
+{
+    Name &entry=names[converted(text)];
+    if(entry.written.empty())entry.written=text;
+    if(entry.pos.line==0)entry.pos=pos;
+    entry.kind=kind;
+    entry.index=index;
+    return entry;
+}
+
+const Model::Name *Model::name(std::string_view text) const
+{
+    const auto it = names.find(converted(text));
+    return it == names.end() ? nullptr : &it->second;
 }
 
 Place model_place(const Model &m, std::string_view name)
 {
-    const auto place = m.named_places.find(upper_case(std::string(name)));
-    return place == m.named_places.end() ? Load::place() : model_place(m, place->second);
+    const Model::Name *entry = m.name(name);
+    return entry ? model_place(m, entry->pos) : Load::place();
 }
 
 Place model_place(const Model &m, odex::Statement::Kind kind, int k)
