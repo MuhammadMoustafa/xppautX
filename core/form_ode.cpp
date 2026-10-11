@@ -1208,14 +1208,20 @@ private:
     return v==variable_indices_.end() ? -1 : v->second;
   }
 
+  /* the state variable an initial value or a history names (its
+     converted name), or the load fails */
+  int initial_variable(const std::string &name, bool &markov) const
+  {
+    const int in=variable(name,markov);
+    if(in<0)model_failed(xpp::format("In initial value statement no variable {}",name));
+    return in;
+  }
+
   void initial_value(const Binding &b)
   {
     const std::string name=converted(b.name);
     bool markov;
-    const int in=variable(name,markov);
-    if(in<0){
-      model_failed(xpp::format("In initial value statement no variable {}",name));
-    }
+    const int in=initial_variable(name,markov);
     const double z=b.value.value;
     s_.last_ic[in]=z;
     m_.default_ic[in]=z;
@@ -1227,10 +1233,7 @@ private:
   {
     const std::string name=converted(b.name);
     bool markov;
-    const int in=variable(name,markov);
-    if(in<0){
-      model_failed(xpp::format("In initial value statement no variable {}",name));
-    }
+    const int in=initial_variable(name,markov);
     if(!markov)s_.delay_string[in]=text(b.value,true);
   }
 
@@ -1248,9 +1251,7 @@ private:
          set up (set_initial_values) */
       for(const Binding &b : s.bindings){
         bool markov;
-        const int in=variable(converted(b.name),markov);
-        if(in<0) model_failed(xpp::format("In initial value statement no variable {}",b.name));
-        m.initial_values.push_back({b.name,text(b.value),where(b.value.pos),in});
+        m.initial_values.push_back({b.name,text(b.value),where(b.value.pos),initial_variable(converted(b.name),markov)});
       }
       break;
     case Statement::Kind::History:

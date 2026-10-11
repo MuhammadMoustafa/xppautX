@@ -201,12 +201,17 @@ void ParserState::unindex_symbol(int index) const
   if (entry->second.empty()) names_.erase(entry);
 }
 
-void ParserState::sync_symbols() const
+void ParserState::forget_symbols_from(int index) const
 {
-  while (indexed_names_.size() > static_cast<size_t>(nsym)) {
+  while (indexed_names_.size() > static_cast<size_t>(index)) {
     unindex_symbol(static_cast<int>(indexed_names_.size() - 1));
     indexed_names_.pop_back();
   }
+}
+
+void ParserState::sync_symbols() const
+{
+  forget_symbols_from(nsym);
   while (indexed_names_.size() < static_cast<size_t>(nsym)) {
     const int i = static_cast<int>(indexed_names_.size());
     indexed_names_.push_back(symbols[i].name);
@@ -347,6 +352,7 @@ int set_symbol(ParserState &p, std::string_view name, int pri, int arg, int com)
     xpp::log(XPP_LOG_WARN, "Empty name - remove spaces\n");
     return 1;
   }
+  p.forget_symbols_from(p.nsym);
   ExprSymbol &s=p.symbols[p.nsym];
   s.name=std::move(string);
   s.len=len;

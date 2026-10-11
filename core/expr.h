@@ -131,10 +131,12 @@ struct ExprStack {
 struct ParserState {
   ParserState();
   /* Indexed in the symbol owner: exact names and longest token prefixes.
-     nsym rollback removes temporary entries before the next lookup. */
+     The index follows nsym; a slot written again (set_symbol after nsym
+     was rolled back) is dropped from it first, a renamed one re-indexed. */
   int symbol_named(std::string_view name) const;
   int symbol_prefix(const char *source, int &length) const;
   void symbol_name_changed(int index);
+  void forget_symbols_from(int index) const;
 
   std::array<double, MAXPAR> constants{};
   std::array<double, MAXODE1> variables{};
