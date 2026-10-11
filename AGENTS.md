@@ -514,12 +514,12 @@ difficulty) implements one card in the worktree its brief names:
   tools/asancheck.sh. Commit before `tools/wslrun.sh` (it checks HEAD
   and refuses uncommitted changes). The machine is a laptop that
   overheats (maintainer, 2026-09-29): build with -j4, and never run two
-  heavy things side by side (a build, servercheck, autocheck, web2check).
-  Across agents too: every build, check or timing run goes through
-  `tools/heavy.sh COMMAND...` (Build: "One heavy run at a time on this
-  machine", W289), which waits for the machine's one heavy lock
-  (`tools/wslrun.sh` takes it itself); code while you wait, never
-  around it.
+  heavy things side by side yourself (a build, servercheck, autocheck,
+  web2check). Across agents: every build, check or timing run goes
+  through `tools/heavy.sh [--alone] COMMAND...` (Build: "At most two
+  heavy runs at a time on this machine", W289), which waits for one of
+  the machine's two slots (`tools/wslrun.sh` takes it itself); code while
+  you wait, never around it.
 - Keep token use low: read the parts of files you need (grep, `sed -n`
   ranges), pipe check output through tail/grep, never paste full logs.
 - Leave no `until`/`while` sleep loops or background runs behind.
