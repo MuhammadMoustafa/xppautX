@@ -512,13 +512,20 @@ bool user_settings(std::string_view path)
     return !relative.empty() && *relative.begin() != "..";
 }
 
+/* the system's description of the machine (Linux's /sys and /proc: W270's core count), not a file the
+   model read (W294: a replay refused AUTO's start for want of /sys/devices/system/cpu/online) */
+bool machine_file(std::string_view path) { return path.starts_with("/sys/") || path.starts_with("/proc/"); }
+
+/* a file a recording neither holds nor serves */
+bool not_the_models(std::string_view path) { return user_settings(path) || machine_file(path); }
+
 /* a read the server has a say in */
-bool served_read(std::string_view path) { return read_server.read && !user_settings(path) && !xpp::files::is_scratch(path); }
+bool served_read(std::string_view path) { return read_server.read && !not_the_models(path) && !xpp::files::is_scratch(path); }
 
 /* a read the observer is told of */
 void observe_read(std::string_view path)
 {
-    if (read_observer && !user_settings(path)) read_observer(std::string(path));
+    if (read_observer && !not_the_models(path)) read_observer(std::string(path));
 }
 
 } // namespace
