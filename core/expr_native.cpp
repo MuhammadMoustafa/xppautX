@@ -1,6 +1,7 @@
 /* The sole owner of translating validated RPN into trusted C. No model text
    enters the translation; every emitted name and subscript is an index. */
 #include "expr_native.h"
+#include "expr_decode.h"
 #include "expr_derivative.h"
 #include "expr_program.h"
 #include "jacobian.h"
@@ -31,12 +32,11 @@ struct Node {
 };
 
 /* A conditional being read: cond is the tested value, base the stack depth
-   under the branches, else_pc the first token of the else branch, mark and
-   then_mark the statements written so far at the MYIF and at the MYTHEN. */
+   under the branches, mark and then_mark the statements written so far at
+   the MYIF and at the MYTHEN. */
 struct Frame {
     Node cond, then_value;
-    size_t base, else_pc, end_pc = 0;
-    bool has_then = false;
+    size_t base;
     size_t mark = 0, then_mark = 0;
 };
 
@@ -204,97 +204,62 @@ struct Generator {
         stack.push_back({result, true});
     }
 
-    /* The value of the instructions from pc up to the terminator (ENDEXP,
-       or a sum's ENDSUM), as one C expression: the interpreter's stack is
-       simulated over trees, so each operation is done on the operands the
-       interpreter pops, in its order, and TinyCC keeps temporaries in
-       registers instead of a stack array. pc ends after the terminator.
+    /* The value of the instructions from k up to the end of the program
+       or of a sum's body (its ENDSUM), as one C expression: the
+       interpreter's stack is simulated over trees, so each operation is
+       done on the operands the interpreter pops, in its order, and TinyCC
+       keeps temporaries in registers instead of a stack array. The
+       instructions are expr_decode.h's, already checked: only what C
+       cannot be written for is refused here. k ends after the terminator.
        Iterative; only a sum's body is a recursion, MAX_SUM_DEPTH deep. */
-    Result<Node> sequence(const std::vector<int> &p, size_t &pc, size_t limit, int terminator, bool user, int index)
+    Result<Node> sequence(const std::vector<expr::Instr> &code, size_t &k, bool user, int index)
     {
-        const Model &m = s.model();
         std::vector<Node> stack;
         std::vector<Frame> frames;
         auto lower = [&] { return frames.empty() ? size_t{0} : frames.back().base; };
         auto pop = [&] { Node n = std::move(stack.back()); stack.pop_back(); return n; };
-        auto need = [&](size_t n) { return stack.size() >= lower() + n; };
-        while (pc < limit) {
-            while (!frames.empty() && frames.back().has_then && frames.back().end_pc == pc) {
+        while (k < code.size()) {
+            const expr::Instr &i = code[k++];
+            const int op = i.op, type = i.type, in = i.in;
+            if (op == expr::JOIN) {
                 const Frame f = std::move(frames.back());
                 frames.pop_back();
-                if (stack.size() != f.base+1) return refuse("inconsistent conditional stacks");
                 const Node other = pop();
                 join(stack, f, other, lower());
-            }
-            if (!frames.empty() && frames.back().has_then && pc > frames.back().end_pc) return refuse("an invalid conditional jump");
-            const int op = p[pc], type = op / MAXTYPE, in = op % MAXTYPE;
-            size_t next = pc + 1;
-            if (op == terminator) {
-                if (stack.size() != 1 || !frames.empty()) return refuse("an invalid result stack");
-                pc = next;
+            } else if (op == ENDSUM) {
                 return pop();
-            } else if (op == ENDEXP || op == ENDSUM) {
-                return refuse("a misplaced end of program");
             } else if (op == NUMSYM) {
-                if (limit - pc < 3) return refuse("a truncated number");
                 stack.push_back({xpp::format("N[{}]", numbers.size()), true});
-                numbers.push_back(expr::number_from_halves(p[pc+2], p[pc+1]));
-                next += 2;
+                numbers.push_back(i.number);
             } else if (op == MYIF) {
-                if (next >= limit || p[next] < 0 || !need(1)) return refuse("an invalid conditional jump");
-                const size_t target = next + 1 + static_cast<size_t>(p[next]);
-                if (target >= limit) return refuse("an out-of-range conditional jump");
                 Node cond = pop();
-                frames.push_back({std::move(cond), {}, stack.size(), target});
+                frames.push_back({std::move(cond), {}, stack.size()});
                 frames.back().mark = out.size();
-                ++next;
             } else if (op == MYTHEN) {
-                if (next >= limit || p[next] < 0 || frames.empty() || frames.back().has_then) return refuse("an invalid conditional jump");
                 Frame &f = frames.back();
-                const size_t end = next + 1 + static_cast<size_t>(p[next]);
-                ++next;
-                if (next != f.else_pc || end >= limit || end < next || stack.size() != f.base+1) return refuse("an invalid conditional jump");
-                if (frames.size() > 1) {
-                    const Frame &outer = frames[frames.size()-2];
-                    if (end > (outer.has_then ? outer.end_pc : outer.else_pc-2)) return refuse("an invalid conditional jump");
-                }
                 f.then_value = pop();
-                f.end_pc = end;
-                f.has_then = true;
                 f.then_mark = out.size();
-            } else if (op == MYELSE) {
-                /* the else branch starts here; nothing to emit */
-            } else if (op == ENDFUN) {
-                if (!user || next >= limit || p[next] != m.narg_fun[index]) return refuse("an invalid function end");
-                ++next;
             } else if (op == INDXCOM) {
                 stack.push_back({xpp::format("N[{}]", numbers.size()), true});
                 numbers.push_back(expr::CURRENT_INDEX);
             } else if (op == SUMSYM) {
-                if (next >= limit || p[next] <= 0 || !need(2)) return refuse("an invalid sum");
-                const size_t body = next + 1, end = body + static_cast<size_t>(p[next]);
-                if (end > limit) return refuse("an out-of-range sum");
                 if (depth >= MAX_SUM_DEPTH) return refuse("sums nested too deep");
                 const Node high = pop(), low = pop();
                 flush(stack, lower());
                 impure = true;
-                const int k = loops++;
+                const int n = loops++;
                 const Node total{xpp::format("t{}", temps++), true};
                 /* lo, hi and ix are int: the assignments truncate the bounds and
                    widen the index as the interpreter's casts do */
                 out.push_back(xpp::format("lo{0}={1};hi{0}={2};{3}=0.0;if(lo{0}<=hi{0}){{for(ix{0}=lo{0};;ix{0}++){{c[{4}]=ix{0};",
-                                          k, low.text, high.text, total.text, expr::SUM_INDEX));
-                size_t body_pc = body;
+                                          n, low.text, high.text, total.text, expr::SUM_INDEX));
                 ++depth;
-                auto value = sequence(p, body_pc, end, ENDSUM, user, index);
+                auto value = sequence(code, k, user, index);
                 --depth;
                 if (!value) return value;
-                if (body_pc != end) return refuse("a sum that does not end where it says");
-                out.push_back(xpp::format("{0}={0}+{1};if(ix{2}==hi{2})break;}}}}", total.text, value->text, k));
+                out.push_back(xpp::format("{0}={0}+{1};if(ix{2}==hi{2})break;}}}}", total.text, value->text, n));
                 stack.push_back(total);
-                next = end;
             } else if (op == ENDDELAY || op == ENDSHIFT || op == ENDISHIFT) {
-                if (!need(2)) return refuse("a delay or shift stack underflow");
                 const Node first = pop(), second = pop();
                 if (op == ENDISHIFT) {
                     stack.push_back({xpp::format("{}({},{})", helper(Helper::IShift), first.text, second.text), false, first.mut || second.mut});
@@ -304,101 +269,75 @@ struct Generator {
                     stack.push_back(effect(stack, lower(), xpp::format("{}(S,{},{})", helper(Helper::Delay), first.text, second.text)));
                 }
             } else if (op == ENDDELSHFT) {
-                if (!need(3)) return refuse("a delay stack underflow");
                 const Node tau = pop(), shift = pop(), variable = pop();
                 stack.push_back(effect(stack, lower(), xpp::format("{}(S,{},{},{})", helper(Helper::DelayShift), tau.text, shift.text, variable.text)));
             } else if (op == ENDSET) {
-                if (!need(3)) return refuse("a set stack underflow");
                 const Node value = pop(), shift = pop(), variable = pop();
                 stack.push_back(effect(stack, lower(), xpp::format("{}(S,{},{},{})", helper(Helper::Set), shift.text, variable.text, value.text)));
             } else if (op == RANDUNI || op == RANDPOI) {
-                if (!need(1)) return refuse("a random stack underflow");
                 const Node x = pop();
                 stack.push_back(effect(stack, lower(), xpp::format("{}(S,{})", helper(op == RANDUNI ? Helper::Uniform : Helper::Poisson), x.text)));
             } else if (op == RANDNORM) {
-                if (!need(2)) return refuse("a random stack underflow");
                 const Node sd = pop(), mean = pop();
                 stack.push_back(effect(stack, lower(), xpp::format("{}(S,{},{})", helper(Helper::Normal), mean.text, sd.text)));
             } else if (type == SVARTYPE || type == SCONTYPE) {
                 /* the variable or constant a delay, shift or set names, as the number the interpreter pushes */
-                const size_t bound = type == SCONTYPE ? s.parser.constants.size() : s.parser.variables.size();
-                if (in < 0 || static_cast<size_t>(in) >= bound) return refuse("an out-of-range operand");
                 stack.push_back({xpp::format("{}.0", type == SCONTYPE ? COM(CONTYPE, in) : COM(VARTYPE, in)), true});
             } else if (type == CONTYPE || type == VARTYPE) {
-                const size_t bound = type == CONTYPE ? s.parser.constants.size() : s.parser.variables.size();
-                if (in < 0 || static_cast<size_t>(in) >= bound) return refuse("an out-of-range operand");
-                if (dynamic && pc<2) {
+                if (dynamic && i.pc<2) {
                     if (type!=VARTYPE) return refuse("an invalid network operand");
                     /* The network changes these tokens during each pair evaluation.
                        do_shift bounds the selected variable just as the interpreter
                        does for a computed index; no model name enters C. */
-                    stack.push_back({xpp::format("{}(S,0,R[{}])",helper(Helper::Shift),pc),false,true});
+                    stack.push_back({xpp::format("{}(S,0,R[{}])",helper(Helper::Shift),i.pc),false,true});
                 } else {
                     if (type == VARTYPE) variable_reads.insert(in);
                     if (type == CONTYPE && in == expr::SUM_INDEX && depth == 0) array_pure = false;
                     stack.push_back({xpp::format("{}[{}]", type == CONTYPE ? "c" : "v", in), true, type == VARTYPE || in == expr::SUM_INDEX});
                 }
             } else if (type == USTACKTYPE) {
-                if (!user || in < 0 || in >= m.narg_fun[index]) return refuse("an out-of-range argument");
                 stack.push_back({xpp::format("a{}", in), true});
             } else if (type == FUN1TYPE) {
-                if (in < 0 || static_cast<size_t>(in) >= expr::fun1.size() || !expr::fun1[in]) return refuse("an invalid unary function");
-                if (!need(1)) return refuse("a unary stack underflow");
                 unary.insert(in);
                 const Node x = pop();
                 stack.push_back({xpp::format("f1_{}({})", in, x.text), false, x.mut});
             } else if (type == FUN2TYPE) {
-                if (in < 0 || static_cast<size_t>(in) >= expr::fun2.size()) return refuse("an out-of-range binary function");
-                if (!need(2)) return refuse("a binary stack underflow");
                 const Node right = pop(), left = pop();
-                std::string code;
-                if (in == expr::ADD || in == expr::MULTIPLY) code = xpp::format("({}{}{})", right.text, in == expr::ADD ? "+" : "*", left.text);
-                else if (in == expr::SUBTRACT || in == expr::IEEE_DIVIDE) code = xpp::format("({}{}{})", left.text, in == expr::SUBTRACT ? "-" : "/", right.text);
+                std::string text;
+                if (in == expr::ADD || in == expr::MULTIPLY) text = xpp::format("({}{}{})", right.text, in == expr::ADD ? "+" : "*", left.text);
+                else if (in == expr::SUBTRACT || in == expr::IEEE_DIVIDE) text = xpp::format("({}{}{})", left.text, in == expr::SUBTRACT ? "-" : "/", right.text);
                 else if (in == expr::DIVIDE) {
                     /* the guarded division: a zero divisor becomes N[0] */
-                    if (right.atom) code = xpp::format("({}/({}==0.0?N[0]:{}))", left.text, right.text, right.text);
-                    else code = xpp::format("dv({},{})", left.text, right.text);
+                    if (right.atom) text = xpp::format("({}/({}==0.0?N[0]:{}))", left.text, right.text, right.text);
+                    else text = xpp::format("dv({},{})", left.text, right.text);
                 } else {
-                    if (!expr::fun2[in]) return refuse("an invalid binary function");
                     binary.insert(in);
-                    code = xpp::format("f2_{}({},{})", in, left.text, right.text);
+                    text = xpp::format("f2_{}({},{})", in, left.text, right.text);
                 }
-                stack.push_back({std::move(code), false, left.mut || right.mut});
+                stack.push_back({std::move(text), false, left.mut || right.mut});
             } else if (type == UFUNTYPE) {
-                if (in < 0 || in >= m.nfun || next >= limit || p[next] != m.narg_fun[in]) return refuse("an invalid user function call");
                 if (!allowed.empty() && !allowed[in]) return refuse("calls a refused user function");
-                const int n = p[next++];
-                if (n < 0 || !need(static_cast<size_t>(n))) return refuse("a function stack underflow");
                 if (user) calls[index].insert(in);
-                std::string code = xpp::format("u{}(c,v,S", in);
-                const size_t first = stack.size() - static_cast<size_t>(n);
-                for (size_t a = first; a < stack.size(); ++a) code += "," + stack[a].text;
+                std::string text = xpp::format("u{}(c,v,S", in);
+                const size_t first = stack.size() - static_cast<size_t>(i.count);
+                for (size_t a = first; a < stack.size(); ++a) text += "," + stack[a].text;
                 stack.resize(first);
-                code += ")";
+                text += ")";
                 if (!user) {
                     if (!array_pure_function[in]) array_pure = false;
                     variable_reads.insert(function_reads[in].begin(),function_reads[in].end());
                 }
-                stack.push_back(pure_function[in] ? Node{std::move(code), false, true} : effect(stack, lower(), std::move(code)));
-            } else if (type == TABTYPE || type == NETTYPE || type == VECTYPE || type == KERTYPE) {
-                /* the arrays the helpers index are the interpreter's own: the bound is theirs */
-                const size_t bound = type == TABTYPE ? s.tables.size() : type == NETTYPE ? m.networks.size() : type == VECTYPE ? m.vectors.size() : m.kernels.size();
-                if (in < 0 || static_cast<size_t>(in) >= bound) return refuse("an out-of-range table, network, vectorizer or kernel");
-                if (type == KERTYPE) {
-                    stack.push_back({xpp::format("{}(S,{})", helper(Helper::Kernel), in), false});
-                } else {
-                    if (!need(1)) return refuse("a lookup stack underflow");
-                    const Node x = pop();
-                    const Helper h = type == TABTYPE ? Helper::Table : type == NETTYPE ? Helper::Network : Helper::Vector;
-                    stack.push_back({xpp::format("{}(S,{},{})", helper(h), x.text, in), false, type != TABTYPE || x.mut});
-                }
+                stack.push_back(pure_function[in] ? Node{std::move(text), false, true} : effect(stack, lower(), std::move(text)));
+            } else if (type == KERTYPE) {
+                stack.push_back({xpp::format("{}(S,{})", helper(Helper::Kernel), in), false});
             } else {
-                return refuse("uses an unsupported instruction");
+                /* a lookup table, network or vectorizer: the arrays the helpers index are the interpreter's own */
+                const Node x = pop();
+                const Helper h = type == TABTYPE ? Helper::Table : type == NETTYPE ? Helper::Network : Helper::Vector;
+                stack.push_back({xpp::format("{}(S,{},{})", helper(h), x.text, in), false, type != TABTYPE || x.mut});
             }
-            if (stack.size() > EXPR_STACK) return refuse("an out-of-range stack");
-            pc = next;
         }
-        return refuse("an unterminated program");
+        return pop();
     }
 
     /* One C function for a program (an equation's, or user function index's). */
@@ -410,8 +349,10 @@ struct Generator {
         impure = false;
         array_pure = true;
         variable_reads.clear();
-        size_t pc = 0;
-        auto value = sequence(p, pc, p.size(), ENDEXP, user, index);
+        const auto code = expr::decode(s, p, user ? s.model().narg_fun[index] : -1);
+        if (!code) return refuse(code.error());
+        size_t k = 0;
+        auto value = sequence(*code, k, user, index);
         if (!value) return std::unexpected(value.error());
         std::string declarations;
         for (int i = 0; i < temps; ++i) declarations += xpp::format("{}t{}", i ? "," : "double ", i);

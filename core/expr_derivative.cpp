@@ -1,6 +1,7 @@
 /* Symbolic differentiation of a model's programs (expr_derivative.h,
    W260): the graph, a program read into it, and the chain rule over it. */
 #include "expr_derivative.h"
+#include "expr_decode.h"
 #include "expr_native.h"
 #include "model.h"
 #include "session.h"
@@ -187,63 +188,41 @@ private:
         places_.push_back(where);
         const std::size_t program = places_.size() - 1;
         made_by(program);
-        struct Frame {
+        auto decoded = decoded_.find(&p);
+        if (decoded == decoded_.end()) {
+            auto code = decode(s_, p.rpn, depth == 0 ? -1 : static_cast<int>(args.size()));
+            if (!code) return refuse(where, "is not a valid program (" + code.error() + ")");
+            decoded = decoded_.emplace(&p, std::move(*code)).first;
+        }
+        struct Conditional {
             Term condition, then;
-            std::size_t base = 0, end = 0;
-            bool has_then = false;
         };
-        const std::vector<int> &r = p.rpn;
         std::vector<Term> stack;
-        std::vector<Frame> frames;
-        const auto invalid = [&] { return refuse(where, "is not a valid program"); };
+        std::vector<Conditional> frames;
         const auto pop = [&] { const Term t = stack.back(); stack.pop_back(); return t; };
-        for (std::size_t pc = 0; pc < r.size();) {
+        for (const Instr &i : decoded->second) {
             if (++read_ > MAX_JACOBIAN_READ) throw Symbolic::TooLarge{};
-            while (!frames.empty() && frames.back().has_then && frames.back().end == pc) {
-                const Frame f = frames.back();
+            const int op = i.op, type = i.type, in = i.in;
+            if (op == JOIN) {
+                const Conditional f = frames.back();
                 frames.pop_back();
-                if (stack.size() != f.base + 1) return invalid();
                 const Term otherwise = pop();
                 stack.push_back(g_.select(f.condition, f.then, otherwise));
-            }
-            const int op = r[pc], type = op / MAXTYPE, in = op % MAXTYPE;
-            std::size_t next = pc + 1;
-            if (op == ENDEXP) {
-                if (stack.size() != 1 || !frames.empty()) return invalid();
-                made_by(program);
-                return stack.back();
             } else if (op == NUMSYM) {
-                if (r.size() - pc < 3) return invalid();
-                stack.push_back(g_.number(number_from_halves(r[pc + 2], r[pc + 1])));
-                next += 2;
+                stack.push_back(g_.number(i.number));
             } else if (op == MYIF) {
-                if (next >= r.size() || stack.empty()) return invalid();
-                const Term condition = pop();
-                frames.push_back({condition, {}, stack.size()});
-                ++next;
+                frames.push_back({pop(), {}});
             } else if (op == MYTHEN) {
-                if (next >= r.size() || r[next] < 0 || frames.empty() || frames.back().has_then || stack.size() != frames.back().base + 1)
-                    return invalid();
-                Frame &f = frames.back();
-                f.then = pop();
-                f.end = next + 1 + static_cast<std::size_t>(r[next]);
-                f.has_then = true;
-                ++next;
-            } else if (op == MYELSE) {
-                /* the else part starts here */
-            } else if (op == ENDFUN) {
-                ++next; /* a user function's end, its argument count after it */
+                frames.back().then = pop();
             } else if (op == INDXCOM) {
                 stack.push_back(g_.number(CURRENT_INDEX));
             } else if (type == CONTYPE) {
-                if (in < 0 || static_cast<std::size_t>(in) >= s_.parser.constants.size()) return invalid();
                 if (in == SUM_INDEX) return refuse(where, no_derivative(SUMSYM));
                 const auto derived = derived_.find(in);
                 if (derived == derived_.end()) stack.push_back(g_.constant(in));
                 else if (derived->second) stack.push_back(*derived->second);
                 else return refuse(where, "reads a derived parameter defined after it");
             } else if (type == VARTYPE) {
-                if (in < 0) return invalid();
                 if (in <= m_.node) stack.push_back(g_.variable(in));
                 else if (in <= m_.node + m_.fix_var) {
                     const std::size_t k = static_cast<std::size_t>(in - m_.node - 1);
@@ -251,21 +230,15 @@ private:
                     stack.push_back(fixed_[k]);
                 } else return refuse(where, "reads a Markov variable");
             } else if (type == USTACKTYPE) {
-                if (in < 0 || static_cast<std::size_t>(in) >= args.size()) return invalid();
                 stack.push_back(args[static_cast<std::size_t>(in)]);
             } else if (type == FUN1TYPE) {
-                if (in < 0 || static_cast<std::size_t>(in) >= FUN1_COUNT || !fun1[static_cast<std::size_t>(in)] || stack.empty()) return invalid();
                 const Term x = pop();
                 stack.push_back(g_.fun1(in, x));
             } else if (type == FUN2TYPE) {
-                if (in < 0 || static_cast<std::size_t>(in) >= FUN2_COUNT || stack.size() < 2) return invalid();
-                if (in > DIVIDE && !fun2[static_cast<std::size_t>(in)]) return invalid();
                 const Term y = pop(), x = pop();
                 stack.push_back(g_.fun2(in, x, y));
             } else if (type == UFUNTYPE) {
-                if (in < 0 || in >= m_.nfun || next >= r.size() || r[next] != m_.narg_fun[in]) return invalid();
-                const std::size_t n = static_cast<std::size_t>(r[next++]);
-                if (stack.size() < n) return invalid();
+                const std::size_t n = static_cast<std::size_t>(i.count);
                 if (depth >= MAX_INLINE_DEPTH) return refuse(where, xpp::format("calls user functions nested more than {} deep", MAX_INLINE_DEPTH));
                 std::vector<Term> call(stack.end() - static_cast<std::ptrdiff_t>(n), stack.end());
                 stack.resize(stack.size() - n);
@@ -279,7 +252,6 @@ private:
                     stack.push_back(*value);
                 }
             } else if (type == TABTYPE) {
-                if (in < 0 || in >= s_.ntable || stack.empty()) return invalid();
                 if (s_.tables[static_cast<std::size_t>(in)].flag == 2)
                     return refuse(where, "uses a function table, whose values the parameters change");
                 const Term x = pop();
@@ -288,15 +260,15 @@ private:
                 return refuse(where, no_derivative(op));
             }
             made_by(program);
-            pc = next;
         }
-        return invalid();
+        return stack.back();
     }
 
     const Session &s_;
     const Model &m_;
     Symbolic &g_;
     std::map<const Program *, const ModelProgram *> entries_;
+    std::map<const Program *, std::vector<Instr>> decoded_; /* each program decoded once */
     std::map<int, std::optional<Term>> derived_; /* by its constant; none until read */
     std::vector<Term> fixed_;
     std::map<std::vector<int>, Term> calls_;
