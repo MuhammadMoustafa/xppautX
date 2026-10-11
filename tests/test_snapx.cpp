@@ -121,7 +121,7 @@ void check_saved_model(const xpp::TempDir &tmp)
     CHECK(xpp::files::change_dir(dir.c_str()) == 0);
     CHECK(write_file("inc.odex", "par a=2\n"));
     CHECK(write_file("w.tab", "3\n0\n2\n0\n10\n40\n"));
-    CHECK(write_file("main.odex", "include \"inc.odex\"\ntable w \"w.tab\"\nx'=-a*x+w(1)\ninit x=1\n"));
+    CHECK(write_file("main.odex", "import \"inc.odex\"\ntable w \"w.tab\"\nx'=-a*x+w(1)\ninit x=1\n"));
     CHECK(load("main.odex"));
     const std::vector<xpp::ModelFile> files = xpp::client_session().model().files;
     CHECK(files.size() >= 3 && files[0].name == "main.odex" && files[1].name == "inc.odex" && files[2].name == "w.tab");

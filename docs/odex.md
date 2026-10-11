@@ -216,13 +216,58 @@ grammar:
 - `markov`, `wiener` kept; `event` (`.ode`'s `global`), `boundary`
   (`bdry`), `network` (`special`) renamed, same meaning, `.odex`-spelled
   arguments; no `volt` (an equation calling `volterra(...)` is a Volterra
-  equation); `include "file.incx"` includes a file.
+  equation); `import` takes the declarations of another file ("Imports", below).
 - No `done`: the end of the file ends the model (an include file too).
 - `#` starts a line comment (as `.ode`). `/* ... */` is a block comment
   (decided, maintainer, 2026-09-27): it may span lines and nest (so a
   region that already holds one can be commented out), and a `/*` never
   closed is an error at the line where it opened.
 - A trailing range makes a statement an array (below, "Arrays").
+
+## Imports
+
+W282 ([#339](https://github.com/MuhammadMoustafa/xppautX/issues/339)),
+replacing `include` (a `.odex` with `include` stops at its line with the
+parser's ordinary error). Three forms, each a statement of its own:
+
+    import "f.odex"                 # everything in the file
+    from "f.odex" import a, b       # a, b and what they depend on
+    import "cell.odex" as c1        # everything, every name prefixed c1.
+
+- The file is read where the statement stands, as part of the model, and
+  its name is relative to the importing file's folder: it stays inside the
+  model's folder (no absolute name, no `..`, no link: the rules of every
+  model file, W175). The extension is the writer's choice but never `.ode`.
+- `import "f.odex"` takes every statement of `f.odex`.
+- `from "f.odex" import a, b` takes the statements that declare `a` and `b`
+  (an element `x3` of an array `x` takes the array's statement) and, again
+  and again, the statements that declare each name the statements taken read
+  (parameters, constants, functions, tables, networks, ...). An `init` or
+  `history` of a variable taken, an `event` that sets a name taken and a
+  `0 = ...` constraint on an algebraic variable taken come with it, since
+  the name does not work without them; a `set`, `only`, `boundary` and a
+  comment do not. A name the file does not declare is an error at the
+  import.
+- `import "cell.odex" as c1` takes everything and writes every name the file
+  declares as `c1.name` (its variables, parameters, functions, tables, the
+  elements of its arrays, its sets) in every place the file reads it. The
+  importing file reads and writes them the same way (`c1.v`; a name is
+  letters, digits and `_` parts joined by dots). The same file imported
+  twice under two prefixes gives two copies, e.g. two coupled cells; a name
+  the file reads and does not declare (a built-in, a name the importer
+  declares) stays as it is. A narration's `{...}` action is text, not
+  renamed.
+- A name that is already declared (by the importing file, or another
+  import) is an error at the import line, naming the declaration.
+- An imported file's options (its `options` block) are not imported:
+  the options belong to the model that runs.
+- No `export`: every name of a file is importable, and `from ... import`
+  lets the importer choose. A file imports files in turn, to a depth of 16
+  files; a file that imports itself, directly or through others, is an
+  error at the import line, and one model makes at most 256 imports (a
+  file imported twice is read twice).
+- `from`, `as` are words only in an import (a parameter may be called
+  `from`); `import` is a reserved word.
 
 ## Arrays
 
@@ -270,7 +315,7 @@ model        = { statement } ;
 statement    = ( ode_decl | par_decl | const_decl | init_decl | aux_decl
              | fixed_decl | fun_decl | option_decl | set_decl | table_decl
              | markov_decl | wiener_decl | event_decl | boundary_decl
-             | network_decl | include_decl ) , [ range ] ;
+             | network_decl | import_decl ) , [ range ] ;
 (* comments, '#' to the end of the line and nested '/* */' blocks, are
    removed by the tokenizer before this grammar *)
 range        = "for" , name , "in" , expr , ".." , expr , [ "by" , expr ] ;
@@ -311,7 +356,8 @@ wiener_decl  = "wiener" , name , { "," , name } ;
 event_decl   = "event" , sign , expr , { "," , event_stmt } ;
 boundary_decl = "boundary" , name , "=" , expr ;
 network_decl = "network" , name , "=" , network_call ;
-include_decl = "include" , filename ;
+import_decl  = "import" , string , [ "as" , name ]
+             | "from" , string , "import" , name , { "," , name } ;
 
 expr         = or_expr ;
 or_expr      = and_expr , { "or" , and_expr } ;
@@ -365,7 +411,7 @@ outrank all arithmetic.
 
 Statement keywords: `par`, `init`, `aux`, `fun`, `let`, `return`, `if`,
 `then`, `else`, `set`, `table`, `markov`, `wiener`, `event`, `boundary`,
-`network`, `include`, `const`, `options`; `by` (a range's step). `for` and `in`
+`network`, `import`, `const`, `options`; `by` (a range's step). `for` and `in`
 are words only where a range starts, after a statement on its line, so
 a parameter may be called `in` (W80). `!` and `number` are not `.odex`
 (W80: `d = expr`, `const`).
@@ -378,8 +424,8 @@ moves what followed a `.ode`'s `done` into a closing comment block). `--convert`
 `.ode`'s statement order, and every comment on a line of its own where it
 stood (a comment after a statement goes on the line above it; W283,
 [#340](https://github.com/MuhammadMoustafa/xppautX/issues/340));
-`#include` is the statement `include "file.incx"`, include files taking
-the `.incx` extension.
+`#include` has no `.odex` form (the converter reads the included text into
+the `.odex`); `import` is the `.odex`'s way to share a file.
 
 Kept from `.ode` (decided, maintainer, 2026-09-28): `aux` stays `aux`, a
 quantity recorded as an output column (saved, shown, plotted), where

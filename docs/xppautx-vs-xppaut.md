@@ -95,7 +95,7 @@ value stops the load with the file, line and value, and nothing is applied.
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
 | `.ode` | the model; read with its quirks | converted on open to a saved `.odex`, quirks explicit and numbers preserved; that file becomes the model | W73, W154 (#206) |
-| `.odex` | none | a cleaner model language, same Model; `xppautX --convert` writes it from an `.ode`, keeping its statement order and comments in place; its options are one `options { group: { key: value } }` block, named sets `set name { key: value }`, one-word values (`runge_kutta`) and quoted paths | W73, W74, W79, W80, W283, W280 |
+| `.odex` | none | a cleaner model language, same Model; `xppautX --convert` writes it from an `.ode`, keeping its statement order and comments in place; its options are one `options { group: { key: value } }` block, named sets `set name { key: value }`, one-word values (`runge_kutta`) and quoted paths; `import "f.odex"` / `from ... import` / `import ... as c1` share a file between models | W73, W74, W79, W80, W283, W280, W282 |
 | `--check` | none | in-memory validation, JSON quirk findings and load errors; opening `.ode` shows the same findings once | W75 ([#123](https://github.com/MuhammadMoustafa/xppautX/issues/123)) |
 | `.snapx` | none | the session: a zip of ordinary files incl. the saved model and AUTO settings, diagram, views and orbits | W57, W103, W155 |
 | `.recx` | none | a recording: one text file, steps and notes | W59 |

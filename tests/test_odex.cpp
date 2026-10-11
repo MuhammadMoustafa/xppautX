@@ -81,6 +81,13 @@ std::string model_error(const char *text)
   return "";
 }
 
+/* text into the file at path (an import's file) */
+void put(const char *path, const char *text)
+{
+  xpp::Writer w(path);
+  CHECK(w && w.write(text) && w.commit());
+}
+
 bool starts(const std::string &s, const char *prefix)
 {
   return s.rfind(prefix, 0) == 0;
@@ -385,7 +392,38 @@ int main(void)
   CHECK(starts(model_error("x(t+1) = 1\n"), "1:2 expected `'`, `=` or `(t) =` after `x`"));
   CHECK(starts(model_error("markov m 1 {0}\n"), "1:8 m needs at least 2 states"));
   CHECK(starts(model_error("event 2 x, x=0\n"), "1:7 the event's direction is 1, -1 or 0"));
-  CHECK(starts(model_error("include \"no/such/file.incx\"\n"), "1:9 cannot read the included file no/such/file.incx"));
+  CHECK(starts(model_error("import \"no/such/file.odex\"\n"), "1:8 cannot read the imported file no/such/file.odex"));
+  CHECK(starts(model_error("include \"f.odex\"\n"), "1:9 expected `'`, `=` or `(t) =` after `include`")); /* no include any more */
+
+  /* imports (W282): everything, parts, prefixed; a clash, a cycle, a missing name */
+  {
+    put("build/test_import_cell.odex",
+        "par k = 2\npar unused = 5\nv' = -k*v + drive\ninit v = 1\nfun f(u) = k*u\ndrive = f(v)\naux z = unused\n"
+        "options { numerics: { dt: .5 } }\n");
+    put("build/test_import_a.odex", "import \"test_import_b.odex\"\npar fa = 1\n");
+    put("build/test_import_b.odex", "import \"test_import_a.odex\"\npar fb = 1\n");
+    CHECK_STR(lowered("import \"build/test_import_cell.odex\"\n").c_str(),
+              "par k=2|par unused=5|v'=(-k)*v+drive|f(u)=k*u|drive=f(v)|aux z=unused");
+    CHECK_STR(lowered("from \"build/test_import_cell.odex\" import f\n").c_str(), "par k=2|f(u)=k*u");
+    CHECK_STR(lowered("from \"build/test_import_cell.odex\" import drive\n").c_str(),
+              "par k=2|v'=(-k)*v+drive|f(u)=k*u|drive=f(v)");
+    CHECK_STR(lowered("import \"build/test_import_cell.odex\" as c1\n").c_str(),
+              "par c1.k=2|par c1.unused=5|c1.v'=(-c1.k)*c1.v+c1.drive|c1.f(u)=c1.k*u|c1.drive=c1.f(c1.v)|aux c1.z=c1.unused");
+    CHECK_STR(lowered("from \"build/test_import_cell.odex\" import f\nx' = f(1)\n").c_str(), "par k=2|f(u)=k*u|x'=f(1)");
+    CHECK_STR(lowered("import \"build/test_import_cell.odex\" as c1\nimport \"build/test_import_cell.odex\" as c2\n"
+                      "g = c1.v - c2.v\n").c_str(),
+              "par c1.k=2|par c1.unused=5|c1.v'=(-c1.k)*c1.v+c1.drive|c1.f(u)=c1.k*u|c1.drive=c1.f(c1.v)|aux c1.z=c1.unused|"
+              "par c2.k=2|par c2.unused=5|c2.v'=(-c2.k)*c2.v+c2.drive|c2.f(u)=c2.k*u|c2.drive=c2.f(c2.v)|aux c2.z=c2.unused|g=c1.v-c2.v");
+    CHECK(starts(lowered("par k = 1\nimport \"build/test_import_cell.odex\"\n"), "error 2:1 `k` is already declared at 1:5"));
+    CHECK(starts(lowered("import \"build/test_import_cell.odex\"\nimport \"build/test_import_cell.odex\"\n"), "error 2:1 `k` is already declared"));
+    CHECK(starts(model_error("from \"build/test_import_cell.odex\" import nosuch\n"), "1:1 build/test_import_cell.odex declares no `nosuch`"));
+    CHECK(starts(model_error("import \"build/test_import_a.odex\"\n"), "1:8 test_import_a.odex imports itself"));
+    CHECK(starts(model_error("import \"build/test_import_cell.odex\" as\n"), "2:1 expected the prefix after as"));
+    CHECK(xpp::odex::is_name("c1.v") && !xpp::odex::is_name("c1.") && !xpp::odex::is_name("c1..v"));
+    remove("build/test_import_cell.odex");
+    remove("build/test_import_a.odex");
+    remove("build/test_import_b.odex");
+  }
   CHECK(xpp::odex::is_reserved("volterra") && !xpp::odex::is_reserved("e") && !xpp::odex::is_reserved("int"));
   CHECK(xpp::odex::is_reserved("near") && !xpp::odex::is_reserved("neartol"));
   CHECK(xpp::odex::is_name("v_1") && !xpp::odex::is_name("1v") && !xpp::odex::is_name("_v"));

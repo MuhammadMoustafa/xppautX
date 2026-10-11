@@ -40,8 +40,14 @@ namespace xpp::odex {
 
 inline constexpr std::string_view extension = ".odex"; /* The native model file suffix. */
 
-/* Bound the readers' recursive include stack for untrusted model files. */
+/* Bound the readers' recursive stack of files inside files (an .ode's
+   #include, an .odex's import) for untrusted model files. */
 inline constexpr int max_include_depth = 16;
+
+/* Bound the imports one model makes in all: a file imported twice is read
+   twice, so imports inside imports could multiply the statements of a few
+   small files without end (docs/odex.md "Imports"). */
+inline constexpr int max_imports = 256;
 
 /* a place in a model: which of Parsed::files, the line and the column
    (both from 1) */
@@ -222,6 +228,10 @@ struct Statement {
   TableKind table_kind = TableKind::File;
   /* a Markov variable's transitions, row by row */
   std::vector<Expr> cells;
+  /* where the import that brought this statement is (an import in an
+     import: the one in the model's own file); line 0 for a statement written
+     here. A name clash in it is reported at the import. */
+  Pos imported_at;
   /* a network's arguments, each as written, and each one's index when it
      is an array's element, name[e] (empty when none is) */
   std::vector<std::string> call_args;
@@ -242,7 +252,27 @@ struct Parsed {
   bool derived = false;
   /* while an .ode is read: the includes it is inside, 0 in its own lines */
   int included = 0;
+  /* while an .odex is read: the files being imported (the model's own
+     first, to refuse a cycle) and the imports made so far */
+  std::vector<std::string> importing;
+  int imports = 0;
 };
+
+/* An import (docs/odex.md "Imports"): the file as written, `as` prefix,
+   the names of `from ... import` (selective), and where it stands */
+struct Import {
+  std::string file, prefix;
+  std::vector<std::string> names;
+  bool selective = false;
+  Pos at;
+};
+
+/* the statements of an imported file as the importing file takes them: its
+   options left out, a selective import's names and what they read kept, every
+   name an `as` import declares prefixed (c1.v), each statement marked as
+   imported at import.at (files: Parsed::files). Throws Error at the import. */
+std::vector<Statement> import_statements(std::vector<Statement> file, const Import &import,
+                                         const std::vector<std::string> &files);
 
 /* text, the contents of file, parsed; an include is read relative to
    file's folder, as one of m's files (model_files.h). Throws Error. */
@@ -251,7 +281,8 @@ Parsed parse(xpp::Model &m, std::string_view text, const std::string &file);
 /* the words .odex reserves (docs/odex.md "Reserved words"): a name may
    never be one */
 bool is_reserved(std::string_view word);
-/* name is an .odex name: a letter, then letters, digits and '_' */
+/* name is an .odex name: a letter, then letters, digits and '_', and
+   dots between such parts (c1.v, a name an `as` import made) */
 bool is_name(std::string_view name);
 
 /* the .odex reader's second half (odex_load.cpp): a parsed model checked

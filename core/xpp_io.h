@@ -204,22 +204,37 @@ inline bool is_word_char(char c)
 {
   return is_word_start(c)||(c>='0'&&c<='9');
 }
-/* the words of text in order, each as written: runs of word characters
-   that start with a letter or '_' (a formula's names and calls; the e of
-   a number's exponent, 1e-3, is none) */
-inline std::vector<std::string> words_of(std::string_view text)
+/* text with each of its words replaced by what f gives for it (a
+   std::string for a std::string_view): runs of word characters that start
+   with a letter or '_' (a formula's names and calls; the e of a number's
+   exponent, 1e-3, is none). dotted: a word goes on through a '.' and a
+   letter after it, a .odex name c1.v. */
+template<class F>
+std::string replace_words(std::string_view text, F f, bool dotted=false)
 {
-  std::vector<std::string> out;
+  std::string out;
   size_t i=0;
   while(i<text.size()){
     if(is_word_start(text[i])&&(i==0||!is_word_char(text[i-1]))){
       size_t b=i;
-      while(i<text.size()&&is_word_char(text[i]))i++;
-      out.emplace_back(text.substr(b,i-b));
+      for(;;){
+        while(i<text.size()&&is_word_char(text[i]))i++;
+        if(!dotted||i+1>=text.size()||text[i]!='.'||!is_word_start(text[i+1]))break;
+        i++;
+      }
+      out+=f(text.substr(b,i-b));
     }
     else
-      i++;
+      out+=text[i++];
   }
+  return out;
+}
+
+/* the words of text in order, each as written (replace_words') */
+inline std::vector<std::string> words_of(std::string_view text, bool dotted=false)
+{
+  std::vector<std::string> out;
+  replace_words(text,[&out](std::string_view w){ out.emplace_back(w); return std::string(w); },dotted);
   return out;
 }
 

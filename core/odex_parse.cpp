@@ -34,7 +34,7 @@ namespace {
    and in are words only where a range starts, after a statement) */
 constexpr auto reserved_words = std::to_array<std::string_view>({
   "par", "init", "aux", "fun", "let", "return", "if", "then", "else", "set",
-  "table", "markov", "wiener", "event", "boundary", "network", "include",
+  "table", "markov", "wiener", "event", "boundary", "network", "import",
   "solv", "only", "history", "const", "by", "options",
   "and", "or", "not", "mod", "volterra", "near", "of",
   "t", "pi", "mouse_x", "mouse_y", "mouse_vx", "mouse_vy",
@@ -100,7 +100,12 @@ public:
       char c = s_[i_];
       if (is_letter(c)) {
         size_t b = i_;
-        while (i_ < s_.size() && is_name_char(s_[i_])) i_++;
+        for (;;) {
+          while (i_ < s_.size() && is_name_char(s_[i_])) i_++;
+          /* c1.v, a name an import made: a letter after the dot (1..n is a range) */
+          if (i_ + 1 >= s_.size() || s_[i_] != '.' || !is_letter(s_[i_ + 1])) break;
+          i_++;
+        }
         t.kind = Token::Kind::Name;
         t.text = std::string(s_.substr(b, i_ - b));
         if (i_ < s_.size() && s_[i_] == '\'') {
@@ -447,9 +452,12 @@ private:
       expect_punct("=", xpp::format("after {} (its first guess)", s.name));
       s.expr = expr();
       push(std::move(s));
-    } else if (word == "include") {
+    } else if (word == "import") {
       take();
-      include();
+      import(s, false);
+    } else if (word == "from" && peek(1).kind == Token::Kind::String) {
+      take();
+      import(s, true);
     } else if (is_reserved(word)) {
       fail(t.pos, xpp::format("`{}` is a reserved word and cannot start a statement", word));
     } else {
@@ -912,18 +920,48 @@ private:
     push(std::move(s));
   }
 
-  void include()
+  /* import "f.odex" [as c1] and from "f.odex" import a, b (docs/odex.md
+     "Imports"): the file read where the import stands, its statements as
+     import_statements takes them */
+  void import(Statement &s, bool selective)
   {
+    Import imp;
+    imp.selective = selective;
+    imp.at = s.pos;
     const Token &t = peek();
-    if (t.kind != Token::Kind::String) fail(t.pos, xpp::format("expected the file's name in quotes, found {}", describe(t)));
-    std::string name = take().text;
-    if (xpp::files::has_extension(name, ".ode")) fail(t.pos, "include reads .odex text, never a .ode model");
-    if (depth_ >= max_include_depth) fail(t.pos, xpp::format("too many includes inside each other at {}", name));
-    const std::string path = xpp::include_path(out_.files[file_], name);
+    if (t.kind != Token::Kind::String)
+      fail(t.pos, xpp::format("expected the file's name in quotes, found {}", describe(t)));
+    imp.file = take().text;
+    if (selective) {
+      expect_word("import", "after the file's name");
+      for (;;) {
+        imp.names.push_back(name_token("a name to import").text);
+        if (!at_punct(",")) break;
+        take();
+      }
+      end_of_list("an import");
+    } else if (at_word("as") && peek().pos.line == last_line_) {
+      take();
+      imp.prefix = declared_name("the prefix after as").text;
+    }
+    if (at_range()) fail(peek().pos, "an import takes no range");
+    if (xpp::files::has_extension(imp.file, ".ode")) fail(t.pos, "import reads .odex text, never a .ode model");
+    if (depth_ >= max_include_depth) fail(t.pos, xpp::format("too many imports inside each other at {}", imp.file));
+    if (++out_.imports > max_imports) fail(t.pos, xpp::format("a model imports at most {} files in all", max_imports));
+    const std::string path = xpp::include_path(out_.files[file_], imp.file);
+    if (std::ranges::find(out_.importing, path) != out_.importing.end())
+      fail(t.pos, xpp::format("{} imports itself (through {})", imp.file, out_.importing.back()));
     std::string text;
-    if (!xpp::read_model_file(model_, path, text)) fail(t.pos, xpp::format("cannot read the included file {}", path));
+    if (!xpp::read_model_file(model_, path, text)) fail(t.pos, xpp::format("cannot read the imported file {}", path));
     out_.files.push_back(path);
+    const size_t first = out_.statements.size();
+    out_.importing.push_back(path);
     Parser(model_, out_, static_cast<int>(out_.files.size()) - 1, text, depth_ + 1).model();
+    out_.importing.pop_back();
+    std::vector<Statement> file(std::make_move_iterator(out_.statements.begin() + first),
+                                std::make_move_iterator(out_.statements.end()));
+    out_.statements.erase(out_.statements.begin() + first, out_.statements.end());
+    for (Statement &x : import_statements(std::move(file), imp, out_.files)) out_.statements.push_back(std::move(x));
   }
 
   /* ---- expressions, low precedence to high (docs/odex.md) ---- */
@@ -1139,7 +1177,7 @@ private:
   {
     static constexpr auto words = std::to_array<std::string_view>({
       "par", "init", "aux", "fun", "let", "return", "if", "then", "else",
-      "table", "markov", "wiener", "event", "boundary", "network", "include",
+      "table", "markov", "wiener", "event", "boundary", "network", "import",
       "solv", "only", "history", "const", "by", "options", "and", "or", "not", "mod", "of"});
     for (std::string_view k : words)
       if (k == w) return true;
@@ -1170,16 +1208,20 @@ bool is_reserved(std::string_view word)
 
 bool is_name(std::string_view name)
 {
-  if (name.empty() || !is_letter(name[0])) return false;
-  for (char c : name)
-    if (!is_name_char(c)) return false;
-  return true;
+  /* parts of name characters, each starting with a letter, between dots */
+  bool start = true;
+  for (char c : name) {
+    if (start ? !is_letter(c) : (!is_name_char(c) && c != '.')) return false;
+    start = c == '.';
+  }
+  return !start;
 }
 
 Parsed parse(xpp::Model &m, std::string_view text, const std::string &file)
 {
   Parsed out;
   out.files.push_back(file);
+  out.importing.push_back(file);
   Parser(m, out, 0, text, 0).model();
   return out;
 }

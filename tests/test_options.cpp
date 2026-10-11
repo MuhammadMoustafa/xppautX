@@ -462,18 +462,17 @@ int main(void)
         if (l.error().place.line != 5) printf("  %s: %s\n", word, l.error().text().c_str());
     }
 
-    /* the settings go in the options block of an include file (an .odex's include),
-       which apply */
+    /* an imported file's options are not imported (W282): the options belong to the model that runs */
     {
-        const char inc_file[] = "build/test_options_inc.incx";
-        CHECK(write_file(inc_file, "options { numerics: { total_time: 7, dt: 0.25 } }\n"));
-        CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\ninclude \"test_options_inc.incx\"\n"));
+        const char inc_file[] = "build/test_options_imp.odex";
+        CHECK(write_file(inc_file, "par b = 2\noptions { numerics: { total_time: 7, dt: 0.25 } }\n"));
+        CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\nimport \"test_options_imp.odex\"\noptions { numerics: { dt: 0.5 } }\n"));
         xpp::Session *t = load(bad_odex);
         CHECK(t != nullptr);
         if (t) {
             int index = 0;
-            CHECK(value_of(*t, *xpp::find_option("TOTAL", index, true)) == xpp::number(7.0));
-            CHECK(value_of(*t, *xpp::find_option("DT", index, true)) == xpp::number(0.25));
+            CHECK(value_of(*t, *xpp::find_option("TOTAL", index, true)) == xpp::number(20.0));
+            CHECK(value_of(*t, *xpp::find_option("DT", index, true)) == xpp::number(0.5));
         }
         remove(inc_file);
     }

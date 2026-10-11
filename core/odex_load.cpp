@@ -295,23 +295,27 @@ private:
   }
 
   /* ---- the names ---- */
-  void add(const std::string &name, Kind kind, Pos pos, int arity = 0)
+  void add(const std::string &name, Kind kind, Pos declared_at, int arity = 0)
   {
+    /* a name an import brought is reported at the import */
+    const Pos pos = import_.line ? import_ : declared_at;
+    const std::string via = import_.line ? xpp::format(" (declared at {}:{} of {})", declared_at.line, declared_at.col,
+                                                       p_.files[static_cast<size_t>(declared_at.file)]) : std::string();
     const auto member = members_.find({declaring_.group, name});
     const std::string member_of = member == members_.end() ? std::string() : member->second;
     auto same = decls_.find(name);
     if (same != decls_.end())
       fail(pos, name_clash(name, member_of, same->second.array,
-                           xpp::format("{}:{}", same->second.pos.line, same->second.pos.col)));
+                           xpp::format("{}:{}", same->second.pos.line, same->second.pos.col)) + via);
     const std::string upper = xpp::upper_case(name);
     auto folded = folded_.find(upper);
     if (folded != folded_.end())
       fail(pos, xpp::format("`{}` and `{}` ({}:{}) differ only by case: this version of xppautX keeps a model's "
                             "names without case and cannot hold both", name, folded->second,
-                            decls_[folded->second].pos.line, decls_[folded->second].pos.col));
+                            decls_[folded->second].pos.line, decls_[folded->second].pos.col) + via);
     if (reads_as_builtin(upper))
       fail(pos, xpp::format("`{}` would be read as the built-in `{}`: this version of xppautX keeps a model's "
-                            "names without case", name, xpp::lower_case(upper)));
+                            "names without case", name, xpp::lower_case(upper)) + via);
     decls_[name] = Decl{kind, pos, arity, member_of};
     folded_[upper] = name;
   }
@@ -330,6 +334,7 @@ private:
   void declare(const Statement &s)
   {
     declaring_ = s.array;
+    import_ = s.imported_at;
     switch (s.kind) {
     case Statement::Kind::Ode:
     case Statement::Kind::Volterra: add(s.name, Kind::Variable, s.name_pos); break;
@@ -780,6 +785,8 @@ private:
   std::map<std::pair<int, std::string>, std::string> members_;
   int group_ = 0, lo_ = 0, hi_ = 0, step_ = 1;
   ArrayCopy declaring_;
+  /* where the import is that brought the statement being declared */
+  Pos import_;
   std::map<std::string, std::string> folded_;
   /* the consts so far and their values: what a const's value, a range's
      ends and step and an index read (expanded() fills it in order) */
