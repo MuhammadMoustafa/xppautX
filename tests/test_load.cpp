@@ -79,6 +79,12 @@ int main(void)
 
     /* a model's @ colormap is its own Session's (W120): the next model
        loaded without one gets the default scale */
+    /* the conversion of an earlier run is used as it stands: this test starts from none
+       for every model it writes (an old one, from before the syntax changed, would no
+       longer load) */
+    for (const char *odex : {"build/test_load_cmap.odex", "build/test_load_map.odex",
+                             "build/test_load_clash.odex"})
+        xpp::files::remove(odex);
     const char cmap[] = "build/test_load_cmap.ode";
     {
         xpp::Writer w(cmap);
@@ -95,9 +101,6 @@ int main(void)
        one (its method is not made discrete) */
     const int method = xpp::client_session().numerics.method;
     CHECK(method != 0);
-    /* the conversion of an earlier run is used as it stands: this test starts from none
-       (an old one, from before an option was renamed, would no longer load) */
-    xpp::files::remove("build/test_load_map.odex");
     const char map[] = "build/test_load_map.ode";
     {
         xpp::Writer w(map);
