@@ -1,5 +1,6 @@
 # rossler-pecora.odex: converted from rossler-pecora.ode by xppautX --convert (docs/odex.md)
 
+# rossler attractor
 init x = 1, y = 1, z = 0.2
 par a = 0.2, b = 0.2, c = 7
 par alpha = 0, c1 = 1, c2 = 0, c3 = 0
@@ -18,7 +19,6 @@ norm' = 0
 acc' = 0
 aux liap = acc/ode_divisor(max(1, t))
 aux mya = alpha
-# rossler attractor
 @ bound=100000000
 @ dt=.025001, total_time=1000, store_every=100, transient_time=999.99
 @ runnow=1

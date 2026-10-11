@@ -1,5 +1,6 @@
 # amarig.odex: converted from amarig.ode by xppautX --convert (docs/odex.md)
 
+# amari bump with gaussian
 fun mh(x) = exp(-x^2)-c*b*exp(-(b*x)^2)
 par c = 1.05, b = 0.25
 table w mh(dx*t)*dx, n=101, lo=-50, hi=50
@@ -8,6 +9,5 @@ fu[j] = heav(u[j]) for j in 0..199
 network z = conv(even, 200, 50, w, fu0)
 u[j]' = -u[j]-h+z(j) for j in 0..199
 par h = 0.15
-init u[j] = 0.8 for j in 90..110
-# amari bump with gaussian
 @ total_time=100, method=Euler
+init u[j] = 0.8 for j in 90..110

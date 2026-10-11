@@ -4,5 +4,5 @@ ss = x^2+y^2
 par a = 1
 x' = x*(a-ss)-y
 y' = y*(a-ss)+x
-init x = 1
 @ total_time=6.28
+init x = 1

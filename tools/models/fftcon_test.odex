@@ -1,5 +1,15 @@
 # fftcon_test.odex: converted from fftcon_test.ode by xppautX --convert (docs/odex.md)
 
+# Known-answer test model for the network "fftcon" special function
+# (W31a: tests/test_stochast_fourier.cpp; W38: fixed the table layout),
+# which will guard W32a's fftn->pocketfft swap. v0..v4 are static
+# (v_i'=0). k is a periodic (5-point) fftcon convolution of v0..v4 with
+# wgt (documented length n=5); kc is the matching direct conv(p,...)
+# network on the same table (ncon=n/2=2): the two must agree. m is a
+# zero-padded (3-point) fftcon convolution of v0..v2 with wz (documented
+# length 2n=6, its first entry 0 so it carries no extra tap beyond the
+# 2n-1 a matching conv(0,...) reads); mc is that matching conv network
+# (ncon=n=3): m and mc must agree too.
 v0' = 0
 v1' = 0
 v2' = 0
@@ -28,14 +38,4 @@ aux m2 = m(2)
 aux mc0 = mc(0)
 aux mc1 = mc(1)
 aux mc2 = mc(2)
-# Known-answer test model for the network "fftcon" special function
-# (W31a: tests/test_stochast_fourier.cpp; W38: fixed the table layout),
-# which will guard W32a's fftn->pocketfft swap. v0..v4 are static
-# (v_i'=0). k is a periodic (5-point) fftcon convolution of v0..v4 with
-# wgt (documented length n=5); kc is the matching direct conv(p,...)
-# network on the same table (ncon=n/2=2): the two must agree. m is a
-# zero-padded (3-point) fftcon convolution of v0..v2 with wz (documented
-# length 2n=6, its first entry 0 so it carries no extra tap beyond the
-# 2n-1 a matching conv(0,...) reads); mc is that matching conv network
-# (ncon=n=3): m and mc must agree too.
 @ total_time=1, dt=1

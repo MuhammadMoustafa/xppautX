@@ -240,6 +240,8 @@ public:
     std::string body;
     const std::vector<Statement> &st = m_.statements;
     for (size_t i = 0; i < st.size();) {
+      const Place at = model_place(m_, st[i].pos);
+      body += comments_through(at.file, at.line);
       /* an array's copies, one statement each, consecutive */
       const ArrayCopy &a = st[i].array;
       size_t e = i + 1;
@@ -255,8 +257,8 @@ public:
       i = e;
     }
     body += array_initials();
-    body += comments();
-    body += options();
+    body += remaining_comments();
+    body += map_option();
     std::string out = header();
     out += body;
     out += after_done();
@@ -1084,6 +1086,8 @@ private:
     }
     case Statement::Kind::Event: return event();
     case Statement::Kind::OptionFile: refuse("the options statement (a file of options) has no .odex form yet");
+    case Statement::Kind::Comment: return narration(m_.comments.at(ncom_++));
+    case Statement::Kind::Options: return nopt_ < m_.options.size() ? option_line(m_.options[nopt_++]) : std::string();
     default: return std::string();
     }
   }
@@ -1286,74 +1290,121 @@ private:
   }
 
   /* ---- what is not a statement: comments, options ---- */
-  std::string comments()
+  /* a model file's lines, read once */
+  const std::vector<std::string> &lines_of(const std::string &file)
   {
-    std::string out;
-    for (const std::string &raw : m_.source) {
-      const size_t comment = ode_comment_start(raw);
-      if (comment != std::string::npos)
-        out += std::string(xpp::trim_blanks(std::string_view(raw).substr(comment))) + "\n";
+    auto it = file_lines_.find(file);
+    if (it == file_lines_.end()) it = file_lines_.emplace(file, model_source_lines(m_, file)).first;
+    return it->second;
+  }
+
+  /* the line of the main file where the .ode's done is (1-based), 0 when
+     there is none: the reader's done is a word starting with d, no = ' / (
+     after it */
+  size_t done_line()
+  {
+    const std::vector<std::string> &lines = lines_of(m_.this_file);
+    for (size_t n = 0; n < lines.size(); n++) {
+      const std::string t = std::string(xpp::trim_blanks(lines[n]));
+      if (t.empty() || !(t[0] == 'd' || t[0] == 'D')) continue;
+      const std::string w = leading_word(t);
+      std::string_view rest = std::string_view(t).substr(w.size());
+      size_t k = 0;
+      while (k < rest.size() && rest[k] == ' ') k++;
+      if (rest.empty() || (rest[0] == ' ' && (k >= rest.size() || rest[k] != '='))) return n + 1;
     }
-    for (const Model::Comment &c : m_.comments) {
-      std::string t = c.text;
-      if (c.aflag) {
-        std::string action;
-        for (const auto &[key, value] : option_items(c.action, true))
-          action += (action.empty() ? "" : ",") + setting_name(key) + "=" + value;
-        t = "{" + action + "} " + std::string(xpp::trim_blanks(t.starts_with("* ") ? t.substr(2) : t));
-      }
-      t = std::string(xpp::trim_blanks(t));
-      if (t.find('"') != std::string::npos) {
-        for (char &ch : t)
-          if (ch == '"') ch = '\'';
-      }
-      out += "\"" + t + "\"\n";
+    return 0;
+  }
+
+  /* the comments of file's lines after the last ones written, up to line
+     (a comment after a statement on its line stands on a line of its
+     own, above it), each on a line of its own: the .odex keeps the .ode's
+     order. The main file's lines from its done on are after_done's. */
+  std::string comments_through(const std::string &file, int line)
+  {
+    const std::vector<std::string> &lines = lines_of(file);
+    size_t end = std::min(lines.size(), static_cast<size_t>(std::max(line, 0)));
+    if (file == m_.this_file) {
+      const size_t done = done_line();
+      if (done) end = std::min(end, done - 1);
+    }
+    std::string out;
+    size_t &next = written_[file];
+    for (; next < end; next++) {
+      const size_t comment = ode_comment_start(lines[next]);
+      if (comment != std::string::npos) out += std::string(xpp::trim_blanks(std::string_view(lines[next]).substr(comment))) + "\n";
     }
     return out;
+  }
+
+  /* the comments no statement came after: every file's last lines */
+  std::string remaining_comments()
+  {
+    std::string out;
+    for (const std::string &file : m_.statement_files) out += comments_through(file, std::numeric_limits<int>::max());
+    out += comments_through(m_.this_file, std::numeric_limits<int>::max());
+    return out;
+  }
+
+  /* a comment the model shows ("text" in the .ode), as a quoted line */
+  std::string narration(const Model::Comment &c)
+  {
+    std::string t = c.text;
+    if (c.aflag) {
+      std::string action;
+      for (const auto &[key, value] : option_items(c.action, true))
+        action += (action.empty() ? "" : ",") + setting_name(key) + "=" + value;
+      t = "{" + action + "} " + std::string(xpp::trim_blanks(t.starts_with("* ") ? t.substr(2) : t));
+    }
+    t = std::string(xpp::trim_blanks(t));
+    if (t.find('"') != std::string::npos) {
+      for (char &ch : t)
+        if (ch == '"') ch = '\'';
+    }
+    return "\"" + t + "\"\n";
   }
 
   /* the @ lines, each option as the .ode applies it: an option with
      spaces around its = is dropped (XPP ignores it), a value cut where a
      number ends written as that number, a method by its name */
-  std::string options()
+  std::string option_line(const xpp::Model::OptionLine &line)
   {
-    std::string out;
     const bool map = disc(m_) != 0;
-    for (const xpp::Model::OptionLine &line : m_.options) {
-      place_ = line.where;
-      std::string items;
-      std::vector<std::string> ignored;
-      for (const auto &[key, value] : option_items(line.text, false, &ignored)) {
-        const bool meth = xpp::equal_ignoring_case(key.substr(0, std::min<size_t>(key.size(), 4)), "meth");
-        if (map && meth) continue;
-        items += (items.empty() ? "" : ", ") + xpp::odex_option_key(key) + "=" + (meth ? method_name(value) : option_value(key, value));
-      }
-      if (!ignored.empty()) {
-        std::string dropped;
-        for (const std::string &token : ignored) dropped += (dropped.empty() ? "" : " ") + token;
-        std::string names;
-        std::set<std::string> seen;
-        for (size_t i = 0; i + 1 < ignored.size(); ++i) {
-          if (ignored[i + 1] != "=") continue;
-          const std::string &name = ignored[i];
-          if (!seen.insert(name).second) continue;
-          names += (names.empty() ? "" : ", ") + name;
-        }
-        option_note(xpp::format("@ {} in the .ode: XPP ignores an option with spaces around its ={}", dropped,
-                                            names.empty() ? "" : ", so " + names + " keep their values"), "option");
-      }
-      if (!items.empty()) out += "@ " + items + "\n";
+    place_ = line.where;
+    std::string items;
+    std::vector<std::string> ignored;
+    for (const auto &[key, value] : option_items(line.text, false, &ignored)) {
+      const bool meth = xpp::equal_ignoring_case(key.substr(0, std::min<size_t>(key.size(), 4)), "meth");
+      if (map && meth) continue;
+      items += (items.empty() ? "" : ", ") + xpp::odex_option_key(key) + "=" + (meth ? method_name(value) : option_value(key, value));
     }
-    /* a map ((t+1)=, or a .dis file) runs with the discrete method */
-    if (map) {
-      for (const Statement &s : m_.statements)
-        if (s.kind == Statement::Kind::Ode || s.kind == Statement::Kind::Map) {
-          place_ = model_place(m_, s.pos);
-          break;
-        }
-      out += noted("the .ode is a map: x' = f with the discrete method is x(t+1) = f", "discrete-map", "info") + "@ method=discrete\n";
+    if (!ignored.empty()) {
+      std::string dropped;
+      for (const std::string &token : ignored) dropped += (dropped.empty() ? "" : " ") + token;
+      std::string names;
+      std::set<std::string> seen;
+      for (size_t i = 0; i + 1 < ignored.size(); ++i) {
+        if (ignored[i + 1] != "=") continue;
+        const std::string &name = ignored[i];
+        if (!seen.insert(name).second) continue;
+        names += (names.empty() ? "" : ", ") + name;
+      }
+      option_note(xpp::format("@ {} in the .ode: XPP ignores an option with spaces around its ={}", dropped,
+                                          names.empty() ? "" : ", so " + names + " keep their values"), "option");
     }
-    return out;
+    return items.empty() ? std::string() : "@ " + items + "\n";
+  }
+
+  /* a map ((t+1)=, or a .dis file) runs with the discrete method */
+  std::string map_option()
+  {
+    if (disc(m_) == 0) return std::string();
+    for (const Statement &s : m_.statements)
+      if (s.kind == Statement::Kind::Ode || s.kind == Statement::Kind::Map) {
+        place_ = model_place(m_, s.pos);
+        break;
+      }
+    return noted("the .ode is a map: x' = f with the discrete method is x(t+1) = f", "discrete-map", "info") + "@ method=discrete\n";
   }
 
   /* Use the same checked names and legacy keys as the option reader. */
@@ -1420,26 +1471,13 @@ private:
   }
 
   /* what followed the .ode's done, kept as comments */
-  std::string after_done() const
+  std::string after_done()
   {
-    xpp::LineReader lr(m_.this_file.c_str());
-    if (!lr) return std::string();
-    bool done = false;
+    const size_t done = done_line();
+    if (!done) return std::string();
+    const std::vector<std::string> &lines = lines_of(m_.this_file);
     std::string out;
-    while (std::optional<std::string_view> line = lr.next()) {
-      if (done) {
-        out += "# " + std::string(*line) + "\n";
-        continue;
-      }
-      std::string t = std::string(xpp::trim_blanks(*line));
-      if (t.empty() || !(t[0] == 'd' || t[0] == 'D')) continue;
-      /* the reader's done: a word starting with d, no = ' / ( after it */
-      const std::string w = leading_word(t);
-      std::string_view rest = std::string_view(t).substr(w.size());
-      size_t k = 0;
-      while (k < rest.size() && rest[k] == ' ') k++;
-      if (rest.empty() || (rest[0] == ' ' && (k >= rest.size() || rest[k] != '='))) done = true;
-    }
+    for (size_t n = done; n < lines.size(); n++) out += "# " + lines[n] + "\n";
     if (out.find_first_not_of("# \n\r\t") == std::string::npos) return std::string();
     return "\n# what followed the .ode's done:\n" + out;
   }
@@ -1465,13 +1503,16 @@ private:
   std::set<int> constants_;
   std::map<std::string, double> constant_values_;
   std::vector<size_t> option_notes_;
+  std::map<std::string, std::vector<std::string>> file_lines_;
+  std::map<std::string, size_t> written_;
   std::vector<Diagnostic> &diagnostics_;
   Place place_;
   std::string number_id_;
   std::set<std::pair<std::string, int>> scanned_;
   std::string pending_;
   int nvar_ = 0, nfix_ = 0, naux_ = 0, nfun_ = 0, ndae_ = 0, nsol_ = 0, nbc_ = 0, nflag_ = 0, nset_ = 0,
-      ntab_ = 0, nmark_ = 0;
+      ntab_ = 0, nmark_ = 0, ncom_ = 0;
+  size_t nopt_ = 0;
 };
 
 } // namespace

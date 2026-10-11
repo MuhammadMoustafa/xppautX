@@ -89,6 +89,16 @@ std::string model_source_line(const Model &m, const std::string &name, int n)
     return i < 0 ? std::string() : LineReader::of_text(m.files[static_cast<size_t>(i)].bytes).line(n);
 }
 
+std::vector<std::string> model_source_lines(const Model &m, const std::string &name)
+{
+    std::vector<std::string> lines;
+    const long i = file_index(m, name);
+    if (i < 0) return lines;
+    LineReader r = LineReader::of_text(m.files[static_cast<size_t>(i)].bytes);
+    while (const std::optional<std::string_view> line = r.next()) lines.emplace_back(*line);
+    return lines;
+}
+
 Place model_place(const Model &m, const odex::Pos &pos)
 {
     const size_t f = static_cast<size_t>(pos.file);

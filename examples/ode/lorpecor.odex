@@ -1,5 +1,6 @@
 # lorpecor.odex: converted from lorpecor.ode by xppautX --convert (docs/odex.md)
 
+# the famous Lorenz equation set up for 3d view
 init x = -7.5, y = -3.6, z = 30
 par r = 27, s = 10, b = 2.66666
 par a = 0, c1 = 1, c2 = 0, c3 = 0
@@ -18,7 +19,6 @@ norm' = 0
 acc' = 0
 aux liap = acc/ode_divisor(max(1, t))
 aux mya = a
-# the famous Lorenz equation set up for 3d view
 @ bound=100000000
 @ dt=.025001, total_time=1000, store_every=100, transient_time=999.99
 @ runnow=1

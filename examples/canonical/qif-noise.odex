@@ -1,5 +1,9 @@
 # qif-noise.odex: converted from qif-noise.ode by xppautX --convert (docs/odex.md)
 
+# qif-noise.ode
+# noisy qif that keeps track of spike times and ISI
+@ method=Euler, bound=100000000
+# noise
 wiener w
 par sig = 0.1
 par i = 0.1
@@ -9,14 +13,10 @@ v' = v^2+i+sig*w
 isi' = 0
 count' = 0
 tlast' = 0
-event 1 v-vhit, v = vreset, isi = t-tlast, tlast = t, count = count+1, out_put = 1
-event 1 count-maxcount, arret = 1
-# qif-noise.ode
-# noisy qif that keeps track of spike times and ISI
-# noise
 # when v spikes, reset, compute isi, update tlast, output
+event 1 v-vhit, v = vreset, isi = t-tlast, tlast = t, count = count+1, out_put = 1
 # when 1000 are computed stop!
-# set plot
-@ method=Euler, bound=100000000
+event 1 count-maxcount, arret = 1
 @ total_time=8000, transient_time=50000
+# set plot
 @ xp=count, yp=isi, xlo=0, xhi=1000, ylo=0, yhi=100

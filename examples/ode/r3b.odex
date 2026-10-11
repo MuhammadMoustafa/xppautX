@@ -1,5 +1,7 @@
 # r3b.odex: converted from r3b.ode by xppautX --convert (docs/odex.md)
 
+# planar restricted 3 body problem
+# the parameter set "period" is an approximate periodic solution
 par m = 0.012277471
 d1 = ((x+m)^2+y^2)^1.5
 d2 = ((x-1+m)^2+y^2)^1.5
@@ -9,8 +11,6 @@ u' = 2*v+x-(1-m)*(x+m)/ode_divisor(d1)-m*(x-1+m)/ode_divisor(d2)
 v' = -2*u+y-(1-m)*y/ode_divisor(d1)-m*y/ode_divisor(d2)
 init x = 0.5, y = 0.87
 set period = total_time = 17.2, dt = 0.05, x = 0.994, y = 0, u = 0, v = -2.001583, method = 8, xlo = -2, ylo = -2, xhi = 2, yhi = 2
-# planar restricted 3 body problem
-# the parameter set "period" is an approximate periodic solution
 @ total_time=200, xp=x, yp=y, xlo=0, ylo=0, xhi=1.2, yhi=1.2
 
 fun ode_divisor(value) = if value then value else 2.23e-15

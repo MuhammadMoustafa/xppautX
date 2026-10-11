@@ -1,5 +1,8 @@
 # lecdiff200.odex: converted from lecdiff200.ode by xppautX --convert (docs/odex.md)
 
+# The Morris-Lecar model as in our chapter in Koch & Segev
+#  A simple membrane oscillator.
+#
 par dif = 5
 par iapp = 0, phi = 0.333
 par va = -0.01, vb = 0.15, vc = 0.1, vd = 0.145, gca = 1
@@ -16,8 +19,5 @@ v[j]' = f(v[j], w[j])+dif*(v[j+1]-2*v[j]+v[j-1]) for j in 1..200
 w[j]' = g(v[j], w[j]) for j in 1..200
 init v[j] = -0.49 for j in 20..200
 init v[j] = 0 for j in 1..19
-# The Morris-Lecar model as in our chapter in Koch & Segev
-#  A simple membrane oscillator.
-#
 
 fun ode_divisor(value) = if value then value else 2.23e-15

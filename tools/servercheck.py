@@ -4928,7 +4928,7 @@ def check_dae_fold():
     code, out, err = run_replay(GO, ode='examples/ode/dae_ex3.odex')
     fold = next((json.loads(l) for l in out.splitlines() if 'No solution of the algebraic' in l), {})
     check('... at the 0= line, the place of every error (W140b)',
-          fold.get('file') == 'dae_ex3.odex' and fold.get('line') == 4 and fold.get('source') == '0 = v_*(1-v_*v_)-w',
+          fold.get('file') == 'dae_ex3.odex' and fold.get('line') == 5 and fold.get('source') == '0 = v_*(1-v_*v_)-w',
           str(fold))
     code, errs, rows, err = run('examples/ode/dae.odex')
     check('dae.odex, a DAE without a fold, runs to its end with no error',

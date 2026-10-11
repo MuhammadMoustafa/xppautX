@@ -6,6 +6,8 @@ par q = 0
 par sigma = 0.5
 par zeta = 2
 pi2 = pi^2
+@ method=QualRK, dt=.01, total_time=85.07
+@ tolerance=1e-10
 p11ss' = p11ss*t02cs+p11ss*mus-p12cs*p01cs
 t02cs' = -(p11ss*p11ss+t02cs)
 p12cs' = (sigma*4*p11ss*p01cs+sigma*4*p12cs*mus-sigma*9*p12cs+p11ss*4*p01cs+p12cs*4*mus)/ode_divisor((sigma+1)*4)
@@ -16,7 +18,5 @@ init t02cs = -0.1638749999491637
 init p12cs = -0.0008869668098317242
 init p01cs = -0.001
 init a01cs = 0
-@ method=QualRK, dt=.01, total_time=85.07
-@ tolerance=1e-10
 
 fun ode_divisor(value) = if value then value else 2.23e-15

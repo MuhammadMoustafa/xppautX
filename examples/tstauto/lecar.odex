@@ -1,5 +1,8 @@
 # lecar.odex: converted from lecar.ode by xppautX --convert (docs/odex.md)
 
+# The Morris-Lecar model as in our chapter in Koch & Segev
+#  A simple membrane oscillator.
+#
 par iapp = 0, phi = 0.333
 par v1 = -0.01, v2 = 0.15, v3 = 0.1, v4 = 0.145, gca = 1
 par vk = -0.7, vl = -0.5, gk = 2, gl = 0.5, om = 1
@@ -13,22 +16,26 @@ aux cur = iapp
 aux ica = ica
 aux ik = gk*w*(v-vk)
 aux rate = phi
+# some options
+@ colormap=5
+@ total_time=30, DT=.05, xlo=-.6, xhi=1.2, ylo=-.25, yhi=1.2
+@ xplot=v, yplot=w
+# AUTO options
+@ dsmin=1e-5, dsmax=.02, parmin=-.2, parmax=.5
+@ npr=500, nmax=2000
+@ autoymax=.4, autoymin=-.5, autoxmin=-.2, autoxmax=.5
+@ dfgrid=16, ncdraw=1, dfdraw=2
+#
+# plot v vs time
 set vvst = xplot = t, yplot = v, xlo = 0, xhi = 100, ylo = -0.6, yhi = 0.5, total_time = 100, iapp = 0.1
+# plot phaseplane
 # xlo=-.6.xhi=1.2 in the .ode: XPP reads the number at its front, -0.6
 set pp = xp = v, yp = w, xlo = -0.6, ylo = -0.25, yhi = 1.2
+# now some nice parameter sets for the homoclinic and the Hopf
 set snic = v3 = 0.1, v4 = 0.145, gca = 1, phi = 0.333
 set hopf = v3 = 0, v4 = 0.3, gca = 1.1, phi = 0.2
 set hom = v3 = 0.1, v4 = 0.145, gca = 1, phi = 1.15
 set cool = v3 = 0.1, v4 = 0.145, gca = 1, phi = 1.15, iapp = 0.080918
-# The Morris-Lecar model as in our chapter in Koch & Segev
-#  A simple membrane oscillator.
-#
-# some options
-# AUTO options
-#
-# plot v vs time
-# plot phaseplane
-# now some nice parameter sets for the homoclinic and the Hopf
 #
 #  set up a little tutorial for channesl
 "Channnels for the ML Eqns"
@@ -42,12 +49,5 @@ set cool = v3 = 0.1, v4 = 0.145, gca = 1, phi = 1.15, iapp = 0.080918
 "{gk=2,gca=0} Now calcium is blocked. Explore this"
 "{gk=2,gca=1.33} Back to normal.  Both currents are required for oscillations!"
 "{gl=0} What happens with no leak???"
-@ colormap=5
-@ total_time=30, DT=.05, xlo=-.6, xhi=1.2, ylo=-.25, yhi=1.2
-@ xplot=v, yplot=w
-@ dsmin=1e-5, dsmax=.02, parmin=-.2, parmax=.5
-@ npr=500, nmax=2000
-@ autoymax=.4, autoymin=-.5, autoxmin=-.2, autoxmax=.5
-@ dfgrid=16, ncdraw=1, dfdraw=2
 
 fun ode_divisor(value) = if value then value else 2.23e-15

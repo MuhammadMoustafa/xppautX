@@ -1,5 +1,9 @@
 # tsthom2.odex: converted from tsthom2.ode by xppautX --convert (docs/odex.md)
 
+# (0,0)
+# 0   1
+# 1  -a
+#
 tr = -a
 det = -1
 r = sqrt(tr^2-4*det)
@@ -14,11 +18,7 @@ y' = p*(x*(1-x)-a*y+b*x*y)
 b' = 0
 p' = 0
 par eps = 0.005
+@ total_time=1, dt=.002
 init x = 0.005, y = 0.005
 init p = 20
 par a = 0
-# (0,0)
-# 0   1
-# 1  -a
-#
-@ total_time=1, dt=.002

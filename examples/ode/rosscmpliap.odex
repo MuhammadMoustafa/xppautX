@@ -1,54 +1,33 @@
 # rosscmpliap.odex: converted from rosscmpliap.ode by xppautX --convert (docs/odex.md)
 
+# This code computes the Pecora-Carroll exponents for a complex eigenvalue
+# You could use a different chaotic system if you wanted
+# rossler attractor
 fun f(x, y, z) = -y-z
 fun g(x, y, z) = x+a*y
 fun h(x, y, z) = b*x-c*z+x*z
 par a = 0.36, b = 0.4, c = 4.5
 init x = 0, y = -4.3, z = -0.054
+# these are parameters for the numerical method
+# eps is to compute the variational equation
+# dt is the numerical dt
 par eps = 0.01, dt = 0.05
+#
+# coupling stuff
+# see below
 par mu = 0, nu = 0, kx = 1, ky = 0, kz = 0
+# evaluate the right-hand sides
 xdot = f(x, y, z)
 ydot = g(x, y, z)
 zdot = h(x, y, z)
+# perturb along the preferred direction
+# v,u are the real and complex vectors of the variational equation
 xx = x+eps*vx
 yy = y+eps*vy
 zz = z+eps*vz
 xp = x+eps*ux
 yp = y+eps*uy
 zp = z+eps*uz
-dx = vx+dt*((f(xx, yy, zz)-xdot)/ode_divisor(eps)+kx*(mu*vx-nu*ux))
-dy = vy+dt*((g(xx, yy, zz)-ydot)/ode_divisor(eps)+ky*(mu*vy-nu*uy))
-dz = vz+dt*((h(xx, yy, zz)-zdot)/ode_divisor(eps)+kz*(mu*vz-nu*uz))
-fx = ux+dt*((f(xp, yp, zp)-xdot)/ode_divisor(eps)+kx*(mu*ux+nu*vx))
-fy = uy+dt*((g(xp, yp, zp)-ydot)/ode_divisor(eps)+ky*(mu*uy+nu*vy))
-fz = uz+dt*((h(xp, yp, zp)-zdot)/ode_divisor(eps)+kz*(mu*uz+nu*vz))
-amp = sqrt(dx^2+dy^2+dz^2+fx^2+fy^2+fz^2)
-x' = x+dt*xdot
-y' = y+dt*ydot
-z' = z+dt*zdot
-vx' = dx/ode_divisor(amp)
-vy' = dy/ode_divisor(amp)
-vz' = dz/ode_divisor(amp)
-ux' = fx/ode_divisor(amp)
-uy' = fy/ode_divisor(amp)
-uz' = fz/ode_divisor(amp)
-ss' = ss+ln(amp)
-aux liap = ss/ode_divisor(max(dt, t*dt))
-aux muu = mu
-aux nuu = nu
-init vx = 1
-# This code computes the Pecora-Carroll exponents for a complex eigenvalue
-# You could use a different chaotic system if you wanted
-# rossler attractor
-# these are parameters for the numerical method
-# eps is to compute the variational equation
-# dt is the numerical dt
-#
-# coupling stuff
-# see below
-# evaluate the right-hand sides
-# perturb along the preferred direction
-# v,u are the real and complex vectors of the variational equation
 # Note that  [F(X + eps V)-F(x)]/eps = A V + O(eps)
 # so we compute  A V without using the actual Jacobian
 # we also add the coupling:
@@ -59,25 +38,46 @@ init vx = 1
 # dx, etc fx, etc are the new values of vx, ..., ux
 # but we will renormalize them to norm 1 and get
 # the accumulation
+dx = vx+dt*((f(xx, yy, zz)-xdot)/ode_divisor(eps)+kx*(mu*vx-nu*ux))
+dy = vy+dt*((g(xx, yy, zz)-ydot)/ode_divisor(eps)+ky*(mu*vy-nu*uy))
+dz = vz+dt*((h(xx, yy, zz)-zdot)/ode_divisor(eps)+kz*(mu*vz-nu*uz))
+fx = ux+dt*((f(xp, yp, zp)-xdot)/ode_divisor(eps)+kx*(mu*ux+nu*vx))
+fy = uy+dt*((g(xp, yp, zp)-ydot)/ode_divisor(eps)+ky*(mu*uy+nu*vy))
+fz = uz+dt*((h(xp, yp, zp)-zdot)/ode_divisor(eps)+kz*(mu*uz+nu*vz))
 # now we figure out the magnitude of the change in length
 # the new norm of them
+amp = sqrt(dx^2+dy^2+dz^2+fx^2+fy^2+fz^2)
 #
 # eulers method for integration of the Rossler equations
+x' = x+dt*xdot
+y' = y+dt*ydot
+z' = z+dt*zdot
 # update the unit vector (vx,vy,vz)
 # renormalized initial variational equations
+vx' = dx/ode_divisor(amp)
+vy' = dy/ode_divisor(amp)
+vz' = dz/ode_divisor(amp)
+ux' = fx/ode_divisor(amp)
+uy' = fy/ode_divisor(amp)
+uz' = fz/ode_divisor(amp)
 # accumulate the log of the expansion/compression
+ss' = ss+ln(amp)
 # we average it (note that time is discrete so multiply t by dt)
 # this yields the liapunov exponent
+aux liap = ss/ode_divisor(max(dt, t*dt))
 # keep track of mu
 # xpp in range integration does not keep track of the parameters
+aux muu = mu
+aux nuu = nu
 # initialize (vx,vy,vz) as a unit vector
+init vx = 1
 #####
 # integrate 80000*dt = 4000 time steps
 # only keep the last one (trans=79999)
-# plot set up
 @ total_time=80000, method=Discrete, store_every=50
 @ transient_time=79999
 @ bound=100000
+# plot set up
 @ xp=muu, yp=nuu, xlo=-4, xhi=0, ylo=0, yhi=2
 
 # what followed the .ode's done:

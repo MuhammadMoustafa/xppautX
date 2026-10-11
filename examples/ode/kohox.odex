@@ -1,5 +1,6 @@
 # kohox.odex: converted from kohox.ode by xppautX --convert (docs/odex.md)
 
+# kohox.ode
 par ntot = 100, k = 1
 z = 2*ran(1)-1
 fun h(u) = (0.5+0.5*cos(2*pi*u*k/ode_divisor(ntot)))^sig
@@ -8,7 +9,6 @@ ihot = flr(ran(1)*100)
 w[j]' = w[j]+eps*(z-w[j])*h(ihot-j) for j in 0..99
 ip' = ihot
 aux zz = z
-# kohox.ode
 @ method=Discrete, total_time=2000
 
 fun ode_divisor(value) = if value then value else 2.23e-15

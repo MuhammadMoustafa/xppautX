@@ -1,5 +1,6 @@
 # lorliap.odex: converted from lorliap.ode by xppautX --convert (docs/odex.md)
 
+# the famous Lorenz equation set up for 3d view
 init x = -7.5, y = -3.6, z = 30
 par r = 27, s = 10, b = 2.66666
 x' = s*(-x+y)
@@ -16,7 +17,6 @@ tt' = 1
 norm' = 0
 acc' = 0
 aux liap = acc/ode_divisor(max(1, t))
-# the famous Lorenz equation set up for 3d view
 @ bound=100000000
 @ dt=.025001, total_time=400, store_every=10
 @ runnow=1

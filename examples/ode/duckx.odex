@@ -1,5 +1,14 @@
 # duckx.odex: converted from duckx.ode by xppautX --convert (docs/odex.md)
 
+# duck.ode
+# the infamous drinking duck
+# modeled as a pendulum with some extra forces
+# M is the total mass of the two parts of the duck
+# m1 is the lower mass and M-m1 the upper
+# mmin is the mass of the two parts when empty
+# thus, M-2*mmin is the mass of the fluid
+# we will call mu the mass of th is fluid in the lower vessel
+# without loss of generality we assume this is 1 so M=1+2*mmin
 mudot = -eps*abs(xdot)*min(beta*mu, 1)
 m1 = mmin+mu
 m2 = mmin+mutot-mu
@@ -10,6 +19,7 @@ par l1 = 2.6, l2 = 2.5, mmin = 2, f = 0.5, k = 0.002, xlo = -0.2, eps = 0.015, x
 par beta = 50, gamma = 0
 event 1 x-xdip, xdot = 0, mu = mutot
 init mu = 0.25, x = 1.5
+# some animation constants
 x1 = 0.5+0.8*(l1/ode_divisor(l1+l2))*sin(x)
 y1 = 0.5-0.8*(l1/ode_divisor(l1+l2))*cos(x)
 x2 = 0.5-0.8*(l2/ode_divisor(l1+l2))*sin(x)
@@ -17,16 +27,6 @@ y2 = 0.5+0.8*(l2/ode_divisor(l1+l2))*cos(x)
 xb = x2-0.15*cos(x)
 yb = y2-0.15*sin(x)
 fun th(x, y) = min(atan2(0.5-x, y-0.5), xdip)
-# duck.ode
-# the infamous drinking duck
-# modeled as a pendulum with some extra forces
-# M is the total mass of the two parts of the duck
-# m1 is the lower mass and M-m1 the upper
-# mmin is the mass of the two parts when empty
-# thus, M-2*mmin is the mass of the fluid
-# we will call mu the mass of th is fluid in the lower vessel
-# without loss of generality we assume this is 1 so M=1+2*mmin
-# some animation constants
 @ method=QualRK, dt=1, total_time=1000
 
 fun ode_divisor(value) = if value then value else 2.23e-15

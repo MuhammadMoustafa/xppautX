@@ -1,15 +1,5 @@
 # gberg.odex: converted from gberg.ode by xppautX --convert (docs/odex.md)
 
-init a = 0.0118, ap = 1.18, k = 0, omeg = -0.19
-par d = 0.177, q = 0.5, sig = 3
-a' = ap
-ap' = a*k*k-ap/ode_divisor(t)+a/ode_divisor(t*t)-a*(1-a*a)/ode_divisor(d)
-k' = -k/ode_divisor(t)-2*k*ap/ode_divisor(a)-(omeg+q*a*a)/ode_divisor(d)
-omeg' = 0
-boundary a-t*ap
-boundary k
-boundary ap'
-boundary k'
 # gberg.ode
 # A <<real>> boundary value problem whose solution represents a
 # rotating spiral wave solution to a two-dimensional partial
@@ -18,10 +8,20 @@ boundary k'
 # Since 4 boundary conditions must be satisfied, there must be 4
 # variables and thus the free parameter is treated
 # dynamically
+init a = 0.0118, ap = 1.18, k = 0, omeg = -0.19
+par d = 0.177, q = 0.5, sig = 3
 # the odes...
+a' = ap
+ap' = a*k*k-ap/ode_divisor(t)+a/ode_divisor(t*t)-a*(1-a*a)/ode_divisor(d)
+k' = -k/ode_divisor(t)-2*k*ap/ode_divisor(a)-(omeg+q*a*a)/ode_divisor(d)
+omeg' = 0
 # the boundary conditions
 # left end - need to be a bit careful since it is singular
+boundary a-t*ap
+boundary k
 # right end - note primes here refer to value at the right end
+boundary ap'
+boundary k'
 # set it up for the user
 @ xhi=1, start_time=.01, dt=.01, total_time=.99
 

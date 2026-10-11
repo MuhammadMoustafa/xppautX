@@ -1,5 +1,6 @@
 # 6x6.odex: converted from 6x6.ode by xppautX --convert (docs/odex.md)
 
+# 6x6 array
 fun h(u) = sin(u)+a*(cos(u)-b)+c*sin(2*u)
 par a = 0, b = 1, c = 0
 init x11 = 0, x12 = 0.3, x13 = 0.6, x14 = 0.9, x15 = 1.2, x16 = 1.57
@@ -45,4 +46,3 @@ x63' = h(x53-x63)+h(x64-x63)+h(x62-x63)-x11p
 x64' = h(x54-x64)+h(x65-x64)+h(x63-x64)-x11p
 x65' = h(x55-x65)+h(x66-x65)+h(x64-x65)-x11p
 x66' = h(x56-x66)+h(x65-x66)-x11p
-# 6x6 array

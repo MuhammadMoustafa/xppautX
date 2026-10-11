@@ -1,5 +1,8 @@
 # lecwave.odex: converted from lecwave.ode by xppautX --convert (docs/odex.md)
 
+# The Morris-Lecar model as in our chapter in Koch & Segev
+#  A simple membrane oscillator.
+#
 par eta = 1
 par iapp = 0.08, phi = 0.1
 par v1 = -0.01, v2 = 0.15, v3 = 0.1, v4 = 0.145, gca = 1
@@ -12,8 +15,5 @@ v' = vp
 vp' = eta*vp-(iapp+gl*(vl-v)+gk*w*(vk-v)-ica)
 w' = lamn(v)*(ninf(v)-w)/ode_divisor(eta)
 init v = -0.28, w = 0.005
-# The Morris-Lecar model as in our chapter in Koch & Segev
-#  A simple membrane oscillator.
-#
 
 fun ode_divisor(value) = if value then value else 2.23e-15

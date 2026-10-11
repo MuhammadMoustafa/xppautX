@@ -1,7 +1,7 @@
 # nochaos.odex: converted from nochaos.ode by xppautX --convert (docs/odex.md)
 
+# this map is fractal but not chaotic
 x1' = 3*tanh(x1)*cos(x2)
 x2' = 2*pi*((x2/(2*pi)+0.6180339887498949) mod 1)
 init x1 = 0.1, x2 = 0.1
-# this map is fractal but not chaotic
 @ total_time=30000, method=Discrete, storage_rows=40000

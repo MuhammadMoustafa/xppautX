@@ -1,5 +1,6 @@
 # lorknead.odex: converted from lorknead.ode by xppautX --convert (docs/odex.md)
 
+# kneading sequences for the Lorenz equation
 init x = -7.5, y = -3.6, z = 30
 par r = 27, s = 10, b = 2.66666
 par q = 0.8
@@ -14,7 +15,6 @@ aux xd = -x+y
 par cmax = 25
 aux rr = r
 aux ss = s
-# kneading sequences for the Lorenz equation
 # 2 PAR RANGE r 20-120, s 10-70
 # color by p
 @ dt=.001, store_every=10, total_time=40, transient_time=1000, bound=100000

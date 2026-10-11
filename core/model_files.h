@@ -84,6 +84,9 @@ Place model_place(const Model &m, odex::Statement::Kind kind, int k);
 /* line n of m's file name as m read it ("" when it has no such line) */
 std::string model_source_line(const Model &m, const std::string &name, int n);
 
+/* every line of m's file name as m read it, in order (empty when m has no such file) */
+std::vector<std::string> model_source_lines(const Model &m, const std::string &name);
+
 /* m as a title names it: its file, and the file it is saved in
    ("lecar.ode (saved in lecar.snapx)") */
 std::string model_title(const Model &m);

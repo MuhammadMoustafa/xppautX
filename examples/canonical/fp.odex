@@ -1,7 +1,11 @@
 # fp.odex: converted from fp.ode by xppautX --convert (docs/odex.md)
 
+# fp.ode
+# fabry-perot cavity
 init tau = 1, x = 1.08
+# needed to fool XPP into using the Volterra solver
 junk = volterra(0, of=x)
+# ode for the delay
 tau' = v/ode_divisor(c+delay(v, tau))
 x0 = -xs+a*sin(th)^2/ode_divisor(1-cos(th)^2-2*cos(th)*cos(xs))
 x' = v
@@ -9,10 +13,6 @@ v' = -v/ode_divisor(q)-x-x0+a*(fr*fr+fi*fi)*sin(th)^2
 fr(t) = 1+cos(th)*(cos(delay(x, tau))*delay(fr, tau)-sin(delay(x, tau))*delay(fi, tau))
 fi(t) = 1+cos(th)*(sin(delay(x, tau))*delay(fr, tau)+cos(delay(x, tau))*delay(fi, tau))
 par q = 0.11, xs = 1.07, a = 11.459, th = 1, r = 1.2221, c = 120, eps = 0.1
-# fp.ode
-# fabry-perot cavity
-# needed to fool XPP into using the Volterra solver
-# ode for the delay
 @ xp=fr, yp=fi, xlo=-.5, xhi=2.5, ylo=-.5, yhi=2.5
 @ dt=.05, total_time=200, transient_time=50, delay=4, vmaxpts=1
 

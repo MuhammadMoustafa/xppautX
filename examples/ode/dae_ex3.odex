@@ -1,8 +1,8 @@
 # dae_ex3.odex: converted from dae_ex3.ode by xppautX --convert (docs/odex.md)
 
+#dae_ex3.ode
 w' = v_
 0 = v_*(1-v_*v_)-w
 solv v_ = 1
 aux v = v_
-#dae_ex3.ode
 @ singpt_max_iterates=1000, singpt_newton_tolerance=1e-3, singpt_jacobian_epsilon=1e-5, method=QualRK

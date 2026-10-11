@@ -326,7 +326,10 @@ Renamed from `.ode` (decided, maintainer, 2026-09-27): `global` is `event`,
 `bdry` is `boundary`, `special` is `network`; `volt` is gone (an equation
 whose right-hand side calls `volterra(...)` is a Volterra equation);
 `done` and `#done` are gone (the end of the file ends it; `--convert`
-moves what followed a `.ode`'s `done` into a closing comment block);
+moves what followed a `.ode`'s `done` into a closing comment block). `--convert` keeps the
+`.ode`'s statement order, and every comment on a line of its own where it
+stood (a comment after a statement goes on the line above it; W283,
+[#340](https://github.com/MuhammadMoustafa/xppautX/issues/340));
 `#include` is the statement `include "file.incx"`, include files taking
 the `.incx` extension.
 

@@ -1,5 +1,7 @@
 # cgl.odex: converted from cgl.ode by xppautX --convert (docs/odex.md)
 
+# coupled Ginsberg-Landau equation
+# cgl.ode
 d = 1/ode_divisor(h*h)
 r[j] = u[j]*u[j]+v[j]*v[j] for j in 0..127
 u0' = u0-(u0-beta*v0)*r0+d*(u1-u0-eps*(v1-v0))
@@ -258,12 +260,10 @@ u126' = u126-(u126-beta*v126)*r126+d*(u127+u125-2*u126-eps*(v127+v125-2*v126))
 v126' = v126-(v126+beta*u126)*r126+d*(v127+v125-2*v126+eps*(u127+u125-2*u126))
 u127' = u127-(u127-beta*v127)*r127+d*(u126-u127-eps*(v126-v127))
 v127' = v127-(v127+beta*u127)*r127+d*(v126-v127+eps*(u126-u127))
+# parameters
 par beta = -1.8, eps = 0.8, h = 1
 aux rr[j] = r[j] for j in 0..127
 init u[j] = 1 for j in 50..55
-# coupled Ginsberg-Landau equation
-# cgl.ode
-# parameters
 @ dt=.25, total_time=300, transient_time=100
 
 # what followed the .ode's done:

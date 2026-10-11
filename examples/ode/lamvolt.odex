@@ -1,22 +1,22 @@
 # lamvolt.odex: converted from lamvolt.ode by xppautX --convert (docs/odex.md)
 
+# lamvolt.ode
+# the four variables:
 init u = 0, v = 0, u1 = 0, v1 = 0
 par lam = 1.5, q = 0.8, d = 1, u0 = 1, u10 = 0.95
+# 1/sqrt(pi)=
 const spi = 0.56419
+# the integral equations; since (0,0,0,0) is a rest point, I
+# add a small quickly decaying transient
 u(t) = u0*exp(-5*t)+spi*(volterra(exp(-t), of=f, mu=0.5)+volterra(exp(-t-d/ode_divisor(t+1e-04)), of=f1, mu=0.5))
 v(t) = spi*(volterra(exp(-t), of=g, mu=0.5)+volterra(exp(-t-d/ode_divisor(t+1e-04)), of=g1, mu=0.5))
 u1(t) = u10*exp(-5*t)+spi*(volterra(exp(-t), of=f1, mu=0.5)+volterra(exp(-t-d/ode_divisor(t+1e-04)), of=f, mu=0.5))
 v1(t) = spi*(volterra(exp(-t), of=g1, mu=0.5)+volterra(exp(-t-d/ode_divisor(t+1e-04)), of=g, mu=0.5))
+# the four functions f,g,f1,g1
 f = lam*u-v-(u*u+v*v)*(u+q*v)
 g = lam*v+u-(u*u+v*v)*(v-q*u)
 f1 = lam*u1-v1-(u1*u1+v1*v1)*(u1+q*v1)
 g1 = lam*v1+u1-(u1*u1+v1*v1)*(v1-q*u1)
-# lamvolt.ode
-# the four variables:
-# 1/sqrt(pi)=
-# the integral equations; since (0,0,0,0) is a rest point, I
-# add a small quickly decaying transient
-# the four functions f,g,f1,g1
 
 # what followed the .ode's done:
 # 

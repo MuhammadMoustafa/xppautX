@@ -1,8 +1,8 @@
 # voltex4.odex: converted from voltex4.ode by xppautX --convert (docs/odex.md)
 
+#  voltex4.ode - no convol
 u(t) = exp(4*t)+(exp(t*(t+4))+exp(-(t+4)))/ode_divisor(t+4)-volterra(exp(t*t')*u)
 aux utrue = exp(4*t)
-#  voltex4.ode - no convol
 @ total_time=1
 @ bound=10000000
 

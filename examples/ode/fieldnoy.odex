@@ -1,5 +1,7 @@
 # fieldnoy.odex: converted from fieldnoy.ode by xppautX --convert (docs/odex.md)
 
+# The Field-Noyes Equations.  A very hard problem for most numerical
+# integrators.  A stiff method is absolutely necessary
 init x = 1, y = 1, z = 1
 par q = 8.375e-06, s = 77.27, f = 1, w = 0.161
 x' = s*(y-x*y+x-q*x*x)
@@ -8,8 +10,6 @@ z' = w*(x-z)
 aux lx = ln(abs(x))
 aux ly = ln(abs(y))
 aux lz = ln(abs(z))
-# The Field-Noyes Equations.  A very hard problem for most numerical
-# integrators.  A stiff method is absolutely necessary
 @ method=CVode, total_time=1000, dt=.5, tolerance=1e-8, abs_tolerance=1e-7
 @ xlo=0, xhi=1000, ylo=0, yhi=12, yp=lz
 @ bound=1e7
