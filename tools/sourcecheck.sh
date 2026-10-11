@@ -80,8 +80,7 @@ fi
 questions=$(grep -nE '(ask_terminal|confirm_terminal)[[:space:]]*[(]' core/*.cpp core/*.h | grep -v '^core/xpp_ui.cpp:' || true)
 policy_reads=$(grep -nE 'batch_options[.](yes|check)' core/*.cpp core/*.h | grep -v '^core/xpp_ui.cpp:' | grep -vE 'batch_options[.](yes|check)[[:space:]]*=[^=]' || true)
 if [ -n "$questions$policy_reads" ]; then
-  printf '%s
-' "$questions" "$policy_reads"
+  printf '%s\n' "$questions" "$policy_reads"
   echo "QUESTION OWNER CHECK FAILED"
   exit 1
 fi
