@@ -179,7 +179,7 @@ void diag_run(Buf *b, const std::vector<XppDiagPoint> &dg, int i, int j)
     if (p->flag2) buf_format(b, ",\"f2\":{:d}", p->flag2);
     if (p->newseg) BUF_LIT(b, ",\"new\":1");
     if (p->from) buf_format(b, ",\"from\":{:d}", p->from);
-    buf_format(b, ",\"jac\":\"{}\"", xpp::jacobian_names[static_cast<std::size_t>(p->jacobian)]);
+    buf_format(b, ",\"jac\":\"{}\"", xpp::jacobian_name(p->jacobian));
     BUF_LIT(b, ",\"x\":[");
     for (k = i; k <= j; k++) {
         if (k > i) BUF_LIT(b, ",");

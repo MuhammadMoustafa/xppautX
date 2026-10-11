@@ -53,7 +53,7 @@ void add_info(std::string &o, const AutoDataShown &info)
     o += xpp::point_is_periodic(v.type) ? ",\"periodic\":true,\"sym\":" : ",\"periodic\":false,\"sym\":";
     xpp::json_append_string(o, info.sym.c_str());
     o += ",\"lab\":" + std::to_string(v.lab);
-    o += ",\"jac\":\"" + std::string(xpp::jacobian_names[static_cast<std::size_t>(v.jacobian)]) + '"';
+    o += ",\"jac\":\"" + std::string(xpp::jacobian_name(v.jacobian)) + '"';
     if (v.flag2) o += ",\"f2\":" + std::to_string(v.flag2);
     o += ",\"par\":[{\"name\":";
     xpp::json_append_string(o, info.p1name.c_str());

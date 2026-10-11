@@ -68,7 +68,7 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
         std::vector<std::string> row = {xpp::format("{}", unsigned_of(d->ibr)), xpp::format("{}", unsigned_of(d->ntot)),
             sym, xpp::format("{}", d->lab), xpp::point_is_stable(type) ? "stable" : "unstable",
             xpp::format("{}", d->flag2), par_name(s, d->icp1), xpp::number(par1), par_name(s, d->icp2),
-            xpp::number(par2), xpp::number(d->per), std::string(xpp::jacobian_names[static_cast<std::size_t>(d->jacobian)])};
+            xpp::number(par2), xpp::number(d->per), std::string(xpp::jacobian_name(d->jacobian))};
         for (int i = 0; i < m.node; i++) row.push_back(xpp::number(d->uhi[i]));
         for (int i = 0; i < m.node; i++) row.push_back(xpp::number(d->ulo[i]));
         for (std::size_t i = 0; i < row.size(); i++) table.fields[i].push_back(std::move(row[i]));

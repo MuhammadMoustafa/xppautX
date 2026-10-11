@@ -271,7 +271,7 @@ void restore_values(Session &s, const KeptValues &kept)
   /* the exact Jacobian kept for a model that has none: the model's own, said */
   if(n.jacobian==JACOBIAN_EXACT&&!ensure_exact_jacobian(s)){
     n.jacobian=loaded.jacobian;
-    xpp::log(XPP_LOG_WARN,"Jacobian set to {}: {} has no exact Jacobian: {}\n",jacobian_names[static_cast<std::size_t>(n.jacobian)],
+    xpp::log(XPP_LOG_WARN,"Jacobian set to {}: {} has no exact Jacobian: {}\n",jacobian_name(n.jacobian),
              m.this_file,m.jacobian.unavailable);
   }
   do_meth(s); /* starts the method's solver too */
