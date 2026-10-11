@@ -468,6 +468,11 @@ difficulty) implements one card in the worktree its brief names:
   and refuses uncommitted changes). The machine is a laptop that
   overheats (maintainer, 2026-09-29): build with -j4, and never run two
   heavy things side by side (a build, servercheck, autocheck, web2check).
+  Across agents too (W289, after two resets with three agents building at
+  once): every build, check or timing run on Windows goes through
+  `tools/heavy.sh COMMAND...`, which waits for the machine's one heavy
+  lock (`tools/wslrun.sh` takes it itself); code while you wait, never
+  around it.
 - Keep token use low: read the parts of files you need (grep, `sed -n`
   ranges), pipe check output through tail/grep, never paste full logs.
 - Leave no `until`/`while` sleep loops or background runs behind.

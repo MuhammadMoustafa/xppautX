@@ -15,6 +15,10 @@ if [ $# -lt 1 ]; then
   echo "usage: tools/wslrun.sh SCRIPT [ARGS...]" >&2
   exit 2
 fi
+# one heavy run at a time on this machine (W289): wait for the lock
+if [ -z "${XPP_HEAVY_HELD:-}" ]; then
+  exec "$(dirname "$0")/heavy.sh" "$0" "$@"
+fi
 src=$(git rev-parse --show-toplevel) || exit 2
 if [ -z "${XPP_WSLRUN_HEAD:-}" ]; then
   if [ -n "$(git -C "$src" status --porcelain --untracked-files=no)" ]; then
@@ -26,7 +30,7 @@ if [ -z "${XPP_WSLRUN_HEAD:-}" ]; then
     MINGW*|MSYS*|CYGWIN*)
       # the rest runs in WSL, from the checkout as WSL sees it
       wsrc=$(wsl -e wslpath -a "$(cygpath -w "$src")" | tr -d '\r') || exit 2
-      exec wsl -e bash -lc "cd $(printf '%q' "$wsrc") && XPP_WSLRUN_HEAD=$XPP_WSLRUN_HEAD bash tools/wslrun.sh $(printf '%q ' "$@")"
+      exec wsl -e bash -lc "cd $(printf '%q' "$wsrc") && XPP_HEAVY_HELD=1 XPP_WSLRUN_HEAD=$XPP_WSLRUN_HEAD bash tools/wslrun.sh $(printf '%q ' "$@")"
       ;;
   esac
 fi
