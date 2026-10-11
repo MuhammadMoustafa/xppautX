@@ -38,6 +38,7 @@ The sections below give the details.
 
 | Rule | Enforced by |
 |---|---|
+| One codebase: every rule here and every cleaning, unification, limit lift or refactor covers all of core/, AUTO's files included (autlib*, auto_*, autevd, autpp, setubv*, gogoauto, diagram); vendored means third_party/ only, and AUTO's translated Fortran is ours: a numerical routine's shape may stay only where changing it would change the numbers, and everything around it (sizes, memory, files, logging, errors, state, helpers) follows every rule; a card that leaves a part of core/ out says so in its row, with the reason and its follow-up card (maintainer, 2026-10-11: W243 lifted every limit but AUTO's; W301, #359) | review (the reviewer greps AUTO's files for every operation the card touched); AUTO's numeric baseline (W299) |
 | Single source: one module owns each kind of operation (memory, logging, text, files, dialogs, numerics); a new helper goes into its owner, two copies are merged (Conventions); no logic is written before the common files and the code are searched for it, and the report says what was searched and reused (maintainer, 2026-10-01; Task agents) | dupcheck (textual copies); review (the same algorithm in other words, and the report's search) |
 | One name per thing: no namespace alias, type alias, using-declaration or renaming #define of our own names (W113) | aliascheck |
 | No global state: what a load makes is the Model's, what a run changes the Session's, passed as `Model&`/`Session&`; the session list is the only global (W47) | globalcheck (external and internal-linkage state, each baseline line with its reason, W120), sessioncheck |
@@ -510,6 +511,12 @@ difficulty) implements one card in the worktree its brief names:
   instead of copying it. The report names what you searched for and what
   you reused or extended; a duplicate the review finds sends the card
   back.
+- A card's change reaches all of core/, AUTO's files included ("One
+  codebase", Code quality): when it lifts a limit, unifies an operation
+  or cleans an idiom, grep AUTO's files (autlib*, auto_*, autevd, autpp,
+  setubv*, gogoauto, diagram) for the same and change them too; a part
+  you leave out is named in the report with the reason, never left
+  silent.
 - Gates: the per-task tier above. Iterate with `web2check --only <your
   sections>`; never run verify.sh, the full web2check or
   tools/asancheck.sh. Commit before `tools/wslrun.sh` (it checks HEAD
