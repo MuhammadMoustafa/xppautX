@@ -154,8 +154,9 @@ def check_models(xppbin, verbose):
                 out_path = os.path.join(tmpdir, "out.txt")
                 with open(model_path, "w", encoding="utf-8", newline="\n") as f:
                     f.write("\n".join(lines) + "\n")
+                # --yes: a snippet's names .odex reserves take the suggested ones (--silent asks, W288)
                 proc = subprocess.run(
-                    [xppbin, model_path, "--silent", "--qics", "--outfile", out_path],
+                    [xppbin, model_path, "--silent", "--qics", "--yes", "--outfile", out_path],
                     cwd=tmpdir,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
@@ -218,7 +219,7 @@ def comline_options():
 def help_options(xppbin):
     proc = subprocess.run([xppbin, "--help"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=10)
     text = proc.stdout.decode("utf-8", "replace")
-    return set(re.findall(r"(?:^|\s)(--[A-Za-z][\w-]*)", text))
+    return set(re.findall(r"(?:^|\s)(--?[A-Za-z][\w-]*)", text))
 
 
 def check_options(xppbin):
@@ -232,7 +233,7 @@ def check_options(xppbin):
                 failures.append(f"{where}: `{opt}` is not in `xppautX --help` or comline.cpp")
         else:
             if opt not in known:
-                failures.append(f"{where}: `{opt}` is not in core/comline.cpp's option table")
+                failures.append(f"{where}: `{opt}` is not in `xppautX --help` or core/comline.cpp's option table")
     return manual, failures
 
 
