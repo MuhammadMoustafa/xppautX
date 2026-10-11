@@ -460,9 +460,10 @@ e^x is written `exp(x)`.
 
 - New in `.odex` (accepted as names in `.ode` today): the statement
   keywords `par`, `init`, `aux`, `table`, `markov`, `wiener`, `event`,
-  `boundary`, `network`, `include`; `fun`, `let`, `return`; `and`, `or`;
+  `boundary`, `network`; `fun`, `let`, `return`; `and`, `or`;
   `volterra`; `const` and `by` (W80; `for` and `in` only where a range
-  starts).
+  starts); `options` (W280) and `import` (W282, replacing `include`;
+  `from` and `as` only in an import).
 - Dropped in `.odex`: `arg1`..`arg9` (a function's arguments are named);
   `global`, `bdry`, `special` (renamed), `volt`, `done`, `number` and
   `!` (gone; W80: `const`, `d = expr`);
