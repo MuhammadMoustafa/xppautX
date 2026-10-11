@@ -198,16 +198,16 @@ Term bessel_neighbours(Symbolic &g, int bessel, Term n, Term x, double sign)
 /* a quotient's derivatives, x/y in x and in y, with the quotient's own
    division (DIVIDE guards a 0 divisor, IEEE_DIVIDE does not) */
 template <int divide>
-Fun2Derivative quotient()
+constexpr Fun2Derivative quotient()
 {
   return {[](Symbolic &g, Term, Term y) { return g.fun2(divide, one(g), y); },
           [](Symbolic &g, Term x, Term y) { return g.fun1(NEG, g.fun2(divide, g.fun2(divide, x, y), y)); }};
 }
 /* a piecewise-constant function of two values */
-Fun2Derivative steps() { return {[](Symbolic &g, Term, Term) { return zero(g); }, [](Symbolic &g, Term, Term) { return zero(g); }}; }
+constexpr Fun2Derivative steps() { return {[](Symbolic &g, Term, Term) { return zero(g); }, [](Symbolic &g, Term, Term) { return zero(g); }}; }
 }
 
-const std::array<Fun1Derivative,FUN1_COUNT> fun1_derivative={
+constexpr std::array<Fun1Derivative,FUN1_COUNT> fun1_derivative={
   [](Symbolic &g, Term x) { return g.fun1(COS, x); },                                       /*  0 sin */
   [](Symbolic &g, Term x) { return g.fun1(NEG, g.fun1(SIN, x)); },                          /* cos */
   [](Symbolic &g, Term x) { const Term c = g.fun1(COS, x); return g.divide(one(g), g.multiply(c, c)); }, /* tan */
@@ -236,7 +236,7 @@ const std::array<Fun1Derivative,FUN1_COUNT> fun1_derivative={
   nullptr,                                                                                   /* 25 lgamma */
 };
 
-const std::array<Fun2Derivative,FUN2_COUNT> fun2_derivative={
+constexpr std::array<Fun2Derivative,FUN2_COUNT> fun2_derivative={
   Fun2Derivative{[](Symbolic &g, Term, Term) { return one(g); }, [](Symbolic &g, Term, Term) { return one(g); }},          /*  0 + */
   Fun2Derivative{[](Symbolic &g, Term, Term) { return one(g); }, [](Symbolic &g, Term, Term) { return g.number(-1); }},   /* - */
   Fun2Derivative{[](Symbolic &, Term, Term y) { return y; }, [](Symbolic &, Term x, Term) { return x; }},                   /* * */
