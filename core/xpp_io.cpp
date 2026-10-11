@@ -72,10 +72,9 @@ namespace {
 /* ---- lines -------------------------------------------------------- */
 
 /* Reads one line via fgetc, growing `line` without limit; strips a
-   trailing \r so \n and \r\n both end a line. Returns false only at a
-   real end of file (nothing at all was read) so an unterminated final
-   line still comes back once, not twice. */
-bool read_line(std::FILE *fp, std::string &line)
+   trailing \r so \n and \r\n both end a line. False at a real end of file,
+   an I/O error or the byte limit; an unterminated final line comes back once. */
+bool read_line(std::FILE *fp, std::string &line, size_t limit)
 {
     line.clear();
     int c;
@@ -83,19 +82,21 @@ bool read_line(std::FILE *fp, std::string &line)
     while ((c = std::fgetc(fp)) != EOF) {
         any = true;
         if (c == '\n') break;
+        if (line.size() == limit) return false;
         line.push_back(static_cast<char>(c));
     }
-    if (!any) return false;
+    if (!any || std::ferror(fp)) return false;
     if (!line.empty() && line.back() == '\r') line.pop_back();
     return true;
 }
 
 /* the next line of r's text, as read_line reads a file's */
-bool text_line(xpp::LineReader::State &r)
+bool text_line(xpp::LineReader::State &r, size_t limit)
 {
     if (r.pos >= r.text.size()) return false;
     size_t nl = r.text.find('\n', r.pos);
     if (nl == std::string::npos) nl = r.text.size();
+    if (nl - r.pos > limit) return false;
     r.line.assign(r.text, r.pos, nl - r.pos);
     r.pos = nl + 1;
     if (!r.line.empty() && r.line.back() == '\r') r.line.pop_back();
@@ -248,11 +249,15 @@ LineReader LineReader::attach(FILE *fp) noexcept
     return l;
 }
 
-std::optional<std::string_view> LineReader::next()
+std::optional<std::string_view> LineReader::next(size_t limit)
 {
     if (!state_) return std::nullopt;
     State &r = *state_;
-    if (!(r.fp() ? read_line(r.fp(), r.line) : text_line(r))) return std::nullopt;
+    if (!(r.fp() ? read_line(r.fp(), r.line, limit) : text_line(r, limit))) {
+        const bool failed = r.fp() ? !std::feof(r.fp()) || std::ferror(r.fp()) : r.pos < r.text.size();
+        if (failed) state_.reset();
+        return std::nullopt;
+    }
     return std::string_view(r.line);
 }
 

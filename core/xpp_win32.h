@@ -10,6 +10,8 @@
 #include <optional>
 
 namespace xpp::win32 {
+// Count processor-core records of the highest EfficiencyClass (performance cores).
+std::optional<unsigned> processor_core_count();
 
 /* up to buf.size() bytes of stdin, blocking; -1 at end of input or on an
    error */
