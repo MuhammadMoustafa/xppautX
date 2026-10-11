@@ -656,12 +656,17 @@ void play_command(xpp::Session &s, const char *line)
         note = text;
         /* the file as it was, but for the note: its fingerprint is kept,
            a mismatch included (recx.h) */
+        const xpp::Result<std::string> file = recx::text(player.rec);
+        if (!xpp::ok_or_show(file)) {
+            note = was;
+            return;
+        }
         xpp::Writer w=xpp::open_writer_asking(player.path);
         if (!w) {
             note = was;
             return;
         }
-        w.write(recx::text(player.rec));
+        w.write(*file);
         if(!xpp::ok_or_show(xpp::commit_save(w))){note=was;return;}
         player.steps[static_cast<size_t>(i)].note = text;
         bottom_msg(0, xpp::format("Saved the note of step {} in {}", i + 1, xpp::files::split_path(player.path).second));
@@ -726,7 +731,7 @@ std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
     /* the model of its snapshot, which the player loads (W59d) */
     std::optional<SavedFile> snapshot = xpp::json::snapshot_of(xpp::files::absolute(path), got->rec);
     if (!snapshot) return std::nullopt; /* the error said why */
-    json::session.reading = xpp::Place{xpp::files::absolute(path), 1, 0, std::string(recx::format_line)};
+    json::session.reading = xpp::Place{xpp::files::absolute(path), 1, 0, std::string(recx::header_group)};
     json::close_player();
     json::player.work = std::make_unique<xpp::TempDir>();
     if (json::player.work->path().empty()) {

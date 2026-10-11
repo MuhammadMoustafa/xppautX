@@ -3,76 +3,42 @@
 #include "xpp_io.h"
 
 #include "xpp_files.h"
-#include <set>
+#include "setx.h"
 
 namespace xpp::snapx {
 
 namespace {
 
-/* "xppautX <kind> " before the version */
-std::string first_line()
-{
-    std::string o(format_prefix);
-    o += session_kind;
-    o += ' ';
-    return o;
-}
-
-void add_line(std::string &o, std::string_view key, std::string_view value)
-{
-    o += key;
-    if (!value.empty()) {
-        o += ' ';
-        o += value;
-    }
-    o += '\n';
-}
+/* the manifest's group, as session.setx names it */
+constexpr std::string_view manifest_group = "session";
 
 } // namespace
 
-std::string manifest_text(const Manifest &m)
+Result<std::string> manifest_text(const Manifest &m)
 {
-    std::string o;
-    o += first_line();
-    o += std::to_string(m.version);
-    o += '\n';
-    add_line(o, "name", m.model_name);
-    if (!m.anifile.empty()) add_line(o, "anifile", m.anifile);
-    add_line(o, "data", m.data ? "1" : "0");
-    return o;
+    setx::Out out;
+    out.begin(manifest_group);
+    out.whole("version", m.version);
+    out.text("model", m.model_name);
+    if (!m.anifile.empty()) out.text("anifile", m.anifile);
+    out.flag("data", m.data);
+    out.end();
+    return out.result("session");
 }
 
 xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text)
 {
-    return xpp::read_lines("session", std::move(file), text, [](xpp::Lines &l) {
+    return setx::read_block("session", std::move(file), text, true, [](setx::Block &file_block) {
         Manifest m;
-        const std::string head = first_line();
-        if (l.at_end()) l.fail("it is empty");
-        const std::string_view first = l.next();
-        if (!first.starts_with(head) || !xpp::parse_int(first.substr(head.size()), m.version) || m.version != format_version)
-            l.fail(xpp::format("it does not begin \"{}{}\"", head, format_version));
-        /* the keys given so far: each at most once */
-        std::set<std::string, std::less<>> given;
-        bool named = false;
-        while (!l.at_end()) {
-            const std::string_view line = l.next();
-            if (line.empty()) continue;
-            const std::size_t sp = line.find(' ');
-            const std::string_view key = line.substr(0, sp);
-            const std::string_view value = sp == std::string_view::npos ? std::string_view() : line.substr(sp + 1);
-            if (!given.emplace(key).second) l.fail(xpp::format("{} a second time", key));
-            if (key == "name") {
-                if (!odex::is_odex(value)) l.fail("a session stores an .odex model only; .ode is refused");
-                m.model_name = value;
-                named = true;
-            } else if (key == "anifile")
-                m.anifile = value;
-            else if (key == "data" && (value == "0" || value == "1"))
-                m.data = value == "1";
-            else
-                l.fail("not a line it has");
-        }
-        if (!named || m.model_name.empty()) l.fail("it names no model");
+        setx::Block g = *file_block.group(manifest_group);
+        g.whole("version", m.version);
+        if (m.version != format_version)
+            g.fail(*g.member("version"), xpp::format("version {}: this program reads session files of version {}", m.version, format_version));
+        g.text("model", m.model_name);
+        if (!odex::is_odex(m.model_name)) g.fail(*g.member("model"), "a session stores an .odex model only; .ode is refused");
+        if (g.has("anifile")) g.text("anifile", m.anifile);
+        g.flag("data", m.data);
+        g.done();
         return m;
     });
 }

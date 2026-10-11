@@ -2,7 +2,8 @@
 #define _nullcline_h_
 
 #include "xpplim.h"
-#include "xpp_io.h"
+#include "setx.h"
+#include "xpp_error.h"
 #include <string>
 #include <string_view>
 #include <vector>
@@ -64,9 +65,13 @@ struct NullclineState {
 
 /* The nullclines and the direction field of the session s's active plot
    window: its commands, and redrawn with it */
-/* Saved segments are parsed whole before the session applies any member. */
-std::string nullclines_text(const Session &s);
-NullclineState read_nullclines(const Model &m, Lines &l);
+/* The current nullclines and the frozen ones as nullclines.setx's text (a
+   session file's member): per pair, the variables on its axes and its x and
+   y segments, four finite coordinates each. Saved segments are read whole
+   (setx.h's Block, every number checked, at most MAX_NULL segments a curve)
+   before the session applies any member. */
+Result<std::string> nullclines_text(const Session &s);
+NullclineState read_nullclines(const Model &m, setx::Block &file);
 void create_new_cline(Session &s);
 void froz_cline_stuff_com(Session &s, int i);
 void redraw_dfield(Session &s);

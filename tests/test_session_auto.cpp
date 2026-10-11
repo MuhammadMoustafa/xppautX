@@ -312,9 +312,9 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     if (!bytes) return;
     const std::optional<std::vector<xpp::zip::Entry>> entries = xpp::zip::read_zip(*bytes);
     const std::string model_member = "model/" + xpp::client_session().model().this_file;
-    CHECK(entries && (*entries)[0].name == "session.txt" && (*entries)[1].name == model_member);
+    CHECK(entries && (*entries)[0].name == "session.setx" && (*entries)[1].name == model_member);
     const xpp::Result<xpp::snapx::Manifest> man =
-        xpp::snapx::parse_manifest("a/session.txt", entries ? (*entries)[0].bytes : std::string());
+        xpp::snapx::parse_manifest("a/session.setx", entries ? (*entries)[0].bytes : std::string());
     CHECK(entries && man && man->model_name == xpp::client_session().model().this_file);
     CHECK(entries && (*entries)[1].bytes == file_text(xpp::client_session().model().this_file));
 

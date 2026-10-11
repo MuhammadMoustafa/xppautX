@@ -372,9 +372,10 @@ def read_recx(text):
     embedded files {name: lines}, the steps [(step, note)], the fingerprint
     written and the one its files and steps give"""
     lines = text.split('\n')
-    header, files, steps, hashed, note = lines[:4], {}, [], [], []
+    n = lines.index('')  # the header, in the settings syntax (W285), ends at the first blank line
+    header, files, steps, hashed, note = lines[:n], {}, [], [], []
     name, body, in_steps, written = None, None, False, None
-    for l in lines[4:]:
+    for l in lines[n:]:
         if body is not None:
             hashed.append(l)
             if l == '@end':

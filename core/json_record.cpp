@@ -216,9 +216,11 @@ bool stop(const xpp::Session &s, const std::string &name, bool from_menu)
         if (!file_selector("Save recording", file, "*" + std::string(recx::extension)) || file.empty()) return false;
     }
     file = xpp::snapx::with_extension(file, recx::extension);
+    const xpp::Result<std::string> text = recx::text(*recorder.rec);
+    if (!xpp::ok_or_show(text)) return false;
     xpp::Writer w = open_writer_asking(file.c_str());
     if (!w) return false;
-    w.write(recx::text(*recorder.rec));
+    w.write(*text);
     if (!xpp::ok_or_show(xpp::commit_save(w))) return false;
     const std::string done = xpp::format("Recorded {} steps in {}", steps.size(), file);
     xpp::log(XPP_LOG_INFO, "{}\n", done);

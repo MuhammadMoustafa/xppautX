@@ -2,13 +2,12 @@
    files that carry a model (.snapx): see xpp_session.h. Their
    pure part (the members' names, the manifest, the model's members) is
    snapx.cpp; this file writes and reads the members, each through the
-   module that owns its format: the set file (lunch-new.cpp), AUTO's
+   module that owns its format: the settings (setx_file.cpp), AUTO's
    members (xpp_session_auto_io.cpp), NPZ (data_formats.cpp), the zip (xpp_zip.cpp).
    Opening one is all or nothing (W125): every member is read whole
-   through xpp_io.h's Lines and checked (read_session), its errors at the
-   member's line ("name.snapx/windows.set:12"), before anything is applied
-   (apply_session). The writers of a set file's lines take a FILE *, so
-   those members are written through a scratch folder (xpp::TempDir). */
+   (the settings syntax, setx.h, or xpp_io.h's Lines) and checked
+   (read_session), its errors at the member's line ("name.snapx/windows.setx:12"),
+   before anything is applied (apply_session). */
 #include "xpp_session.h"
 #include "snapx.h"
 #include "session.h"
@@ -20,7 +19,9 @@
 #include "xpp_files.h"
 #include "xpp_zip.h"
 #include "xpp_util.h"
-#include "lunch-new.h"
+#include "setx_file.h"
+#include "setx.h"
+#include "nullcline.h"
 #include "diagram.h" /* redraw_diagram; pulls in auto_nox.h */
 #include "xpp_session_auto.h"
 #include "data_formats.h"
@@ -61,118 +62,81 @@ bool name_or_ask(const xpp::Model &m, const char *title, std::string_view wild, 
     return true;
 }
 
-/* what fn(FILE *) writes, through the file name in tmp */
-template <class F>
-std::optional<std::string> written(const xpp::TempDir &tmp, const char *name, F fn)
+/* ---- windows.setx: the plot windows, AUTO's view, the added columns ---- */
+
+/* the most columns a session adds (the room the model has is checked as well) */
+constexpr std::size_t max_added_columns = MAXODE;
+
+void write_range(xpp::setx::Out &out, const xpp::AxisRange &r, std::string_view key)
 {
-    const std::string path = tmp.file(name);
-    {
-        xpp::Writer w(path.c_str());
-        if (!w || !fn(w.file()) || !w.commit()) return std::nullopt;
-    }
-    std::string bytes;
-    if (!xpp::read_bytes(path.c_str(), bytes)) return std::nullopt;
-    return bytes;
+    out.begin(key);
+    out.flag("set", r.set);
+    out.real("low", r.lo);
+    out.real("high", r.hi);
+    out.end();
 }
 
-/* ---- the set format's yes/no and ranges ---- */
-
-void write_range(FILE *fp, const xpp::AxisRange &r, const char *name)
-{
-    xpp::write_whole(fp, r.set, name);
-    xpp::write_real(fp, r.lo, " low");
-    xpp::write_real(fp, r.hi, " high");
-}
-
-void write_zoom(FILE *fp, const xpp::Zoom &z)
-{
-    write_range(fp, z.x, "zoom x");
-    write_range(fp, z.y, "zoom y");
-}
-
-bool read_bool(xpp::Lines &l, const char *name)
-{
-    const int i = l.whole(name);
-    if (i != 0 && i != 1) l.fail(xpp::format("{} {}: 0 or 1", name, i));
-    return i != 0;
-}
-
-xpp::AxisRange read_range(xpp::Lines &l, const char *name)
+xpp::AxisRange read_range(xpp::setx::Block &zoom, std::string_view key)
 {
     xpp::AxisRange r;
-    r.set = read_bool(l, name);
-    r.lo = l.real("low");
-    r.hi = l.real("high");
+    std::optional<xpp::setx::Block> g = zoom.group(key);
+    if (!g) return r;
+    g->flag("set", r.set);
+    g->real("low", r.lo);
+    g->real("high", r.hi);
+    g->done();
     return r;
 }
 
-xpp::Zoom read_zoom(xpp::Lines &l)
+xpp::Result<std::string> windows_text(const xpp::Session &s)
 {
-    xpp::Zoom z;
-    z.x = read_range(l, "zoom x");
-    z.y = read_range(l, "zoom y");
-    return z;
-}
-
-/* ---- windows.set: the plot windows, AUTO's view, the added columns ---- */
-
-bool write_windows(xpp::Session &s, FILE *fp)
-{
-    int count = 0;
-    for (int i = 0; i < MAXPOP; i++) count += s.plot_windows.graph[i].Use != 0;
-    xpp::write_whole(fp, count, "windows");
-    xpp::write_whole(fp, s.plot_windows.active, "active");
+    xpp::setx::Out out;
+    out.begin_list("windows");
     for (int i = 0; i < MAXPOP; i++) {
         const GRAPH &g = s.plot_windows.graph[i];
         if (!g.Use) continue;
-        xpp::write_whole(fp, i, "window");
-        xpp::write_whole(fp, g.nvars, "curves");
-        for (int j = 0; j < g.nvars; j++)
-            for (int v : {g.xv[j], g.yv[j], g.zv[j]}) xpp::write_text(fp, xpp::ind_to_sym(s, v));
-        xpp::write_text(fp, g.xlabel);
-        xpp::write_text(fp, g.ylabel);
-        xpp::write_text(fp, g.zlabel);
-        xpp::write_graph(fp, g);
+        out.begin_item();
+        out.whole("number", i);
+        xpp::write_window(out, s, g);
+        out.text("xlabel", g.xlabel);
+        out.text("ylabel", g.ylabel);
+        out.text("zlabel", g.zlabel);
         const xpp::PlotDisplay &d = s.plot_display[i];
-        write_zoom(fp, d.zoom);
-        xpp::write_whole(fp, d.show_runs, "previous runs");
+        out.begin("zoom");
+        write_range(out, d.zoom.x, "x");
+        write_range(out, d.zoom.y, "y");
+        out.end();
+        out.flag("previous_runs", d.show_runs);
+        out.end_item();
     }
+    out.end_list();
+    out.whole("active", s.plot_windows.active);
     const xpp::AutoView &v = s.auto_view;
-    xpp::write_whole(fp, v.earlier, "AUTO: points before Clear");
-    xpp::write_whole(fp, v.show_earlier, "AUTO: show them");
-    xpp::write_whole(fp, static_cast<int>(s.browser.added_columns.size()), "added columns");
+    out.begin("auto_view");
+    out.whole("earlier", v.earlier);
+    out.flag("show_earlier", v.show_earlier);
+    out.end();
+    out.begin_list("added_columns");
     for (const xpp::AddedColumn &c : s.browser.added_columns) {
-        xpp::write_text(fp, c.name);
-        xpp::write_text(fp, c.formula);
+        out.begin_item();
+        out.text("name", c.name);
+        out.text("formula", c.formula);
+        out.end_item();
     }
-    return true;
+    out.end_list();
+    return out.result("session");
 }
 
-/* the column name names: the time, a variable, or one of the columns
-   added (windows.set's own, which the browser has only once it is
-   restored); nothing when the model has none of that name */
-std::optional<int> column_named(const xpp::Session &s, const std::vector<xpp::AddedColumn> &added, std::string_view name)
-{
-    int col;
-    find_variable(s, name, &col);
-    if (col >= 0) return col;
-    for (std::size_t k = 0; k < added.size(); k++)
-        if (xpp::equal_ignoring_case(added[k].name, name)) return s.model().neq + 1 + static_cast<int>(k);
-    return std::nullopt;
-}
-
-/* one window as windows.set holds it */
+/* one window as windows.setx holds it */
 struct SavedWindow {
     int saved = 0; /* its number when it was saved */
-    int nvars = 0;
-    std::vector<std::array<int, 3>> curves; /* each curve's x, y, z columns */
+    GRAPH graph{}; /* its settings and its curves */
     std::string xlabel, ylabel, zlabel;
-    GRAPH graph{}; /* its settings (write_graph's) */
     xpp::Zoom zoom;
     bool show_runs = true;
 };
 
-/* windows.set read */
+/* windows.setx read */
 struct WindowsRead {
     std::vector<SavedWindow> windows;
     int active = 0;
@@ -180,68 +144,55 @@ struct WindowsRead {
     std::vector<xpp::AddedColumn> added;
 };
 
-/* windows.set's lines l read for s (its model's names; an added
-   column's formula compiled in it, nothing of it changed); ReadFailed at
-   a line that does not read or names what the model does not have */
-WindowsRead read_windows(xpp::Session &s, xpp::Lines &l)
+/* windows.setx read for s (its model's names; an added column's formula
+   compiled in it, nothing of it changed); ReadFailed at a key or value
+   that does not read or names what the model does not have */
+WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file)
 {
     WindowsRead r;
-    const int count = l.whole("windows");
-    if (count < 1 || count > MAXPOP) l.fail(xpp::format("{} windows: there are 1 to {}", count, MAXPOP));
-    r.active = l.whole("active");
-    const int active_line = l.line();
-    /* each window's curves' names and their lines, looked up once the
-       added columns are read */
-    std::vector<std::vector<std::pair<std::string, int>>> names;
-    std::set<int> listed;
-    for (int k = 0; k < count; k++) {
-        SavedWindow &w = r.windows.emplace_back();
-        w.saved = l.whole("window");
-        if (w.saved < 0 || w.saved >= MAXPOP || !listed.insert(w.saved).second)
-            l.fail(xpp::format("window {} is not one of 0 to {} listed once", w.saved, MAXPOP - 1));
-        w.nvars = l.whole("curves");
-        if (w.nvars < 1 || w.nvars > MAXPERPLOT) l.fail(xpp::format("{} curves: a window has 1 to {}", w.nvars, MAXPERPLOT));
-        std::vector<std::pair<std::string, int>> &n = names.emplace_back();
-        for (int j = 0; j < 3 * w.nvars; j++) {
-            std::string name(l.next("a curve's variable"));
-            n.emplace_back(std::move(name), l.line());
-        }
-        w.xlabel = l.next("the x label");
-        w.ylabel = l.next("the y label");
-        w.zlabel = l.next("the z label");
-        w.graph = s.plot_windows.graph[0];
-        xpp::read_graph(l, w.graph);
-        w.zoom = read_zoom(l);
-        w.show_runs = read_bool(l, "previous runs");
-    }
-    if (!listed.contains(r.active))
-        l.fail(active_line, xpp::format("the active window {} is not one of those listed", r.active));
-    r.auto_view.earlier = l.whole("AUTO: points before Clear");
-    r.auto_view.show_earlier = read_bool(l, "AUTO: show them");
-    const int added = l.whole("added columns");
-    const int room = xpp::added_columns_room(s.model());
-    if (added < 0 || added > room) l.fail(xpp::format("{} added columns: the model has room for 0 to {}", added, room));
-    for (int k = 0; k < added; k++) {
+    /* the added columns first: a window's curves may name them */
+    std::vector<xpp::setx::Block> added;
+    file.groups("added_columns", added, std::min<std::size_t>(max_added_columns, static_cast<std::size_t>(xpp::added_columns_room(s.model()))));
+    for (xpp::setx::Block &g : added) {
         xpp::AddedColumn c;
-        c.name = l.next("an added column's name");
-        if (c.name.empty()) l.fail("an added column without a name");
-        c.formula = l.next("an added column's formula");
+        g.text("name", c.name);
+        if (c.name.empty()) g.fail(*g.member("name"), "an added column without a name");
+        g.text("formula", c.formula);
         if (!xpp::added_column_compiles(s, c.formula))
-            l.fail(xpp::format("the formula of the added column {} does not compile", c.name));
+            g.fail(*g.member("formula"), xpp::format("the formula of the added column {} does not compile", c.name));
+        g.done();
         r.added.push_back(std::move(c));
     }
-    l.end();
-    for (std::size_t k = 0; k < r.windows.size(); k++)
-        for (std::size_t j = 0; j < names[k].size(); j += 3) {
-            std::array<int, 3> col{};
-            for (std::size_t a = 0; a < 3; a++) {
-                const auto &[name, line] = names[k][j + a];
-                const std::optional<int> c = column_named(s, r.added, name);
-                if (!c) l.fail(line, xpp::format("the model has no variable \"{}\"", name));
-                col[a] = *c;
-            }
-            r.windows[k].curves.push_back(col);
+    std::vector<xpp::setx::Block> windows;
+    file.groups("windows", windows, MAXPOP);
+    if (windows.empty()) file.fail(*file.member("windows"), "a session has at least one window");
+    std::set<int> listed;
+    for (xpp::setx::Block &w : windows) {
+        SavedWindow &sw = r.windows.emplace_back();
+        w.whole("number", sw.saved);
+        if (sw.saved < 0 || sw.saved >= MAXPOP || !listed.insert(sw.saved).second)
+            w.fail(*w.member("number"), xpp::format("window {} is not one of 0 to {} listed once", sw.saved, MAXPOP - 1));
+        sw.graph = s.plot_windows.graph[0];
+        xpp::read_window(w, s, sw.graph, r.added);
+        w.text("xlabel", sw.xlabel);
+        w.text("ylabel", sw.ylabel);
+        w.text("zlabel", sw.zlabel);
+        if (std::optional<xpp::setx::Block> z = w.group("zoom")) {
+            sw.zoom.x = read_range(*z, "x");
+            sw.zoom.y = read_range(*z, "y");
+            z->done();
         }
+        w.flag("previous_runs", sw.show_runs);
+        w.done();
+    }
+    file.whole("active", r.active);
+    if (!listed.contains(r.active))
+        file.fail(*file.member("active"), xpp::format("the active window {} is not one of those listed", r.active));
+    if (std::optional<xpp::setx::Block> v = file.group("auto_view")) {
+        v->whole("earlier", r.auto_view.earlier);
+        v->flag("show_earlier", r.auto_view.show_earlier);
+        v->done();
+    }
     return r;
 }
 
@@ -264,12 +215,7 @@ void apply_windows(xpp::Session &s, const WindowsRead &r, std::map<int, int> &sl
         }
         GRAPH &g = s.plot_windows.graph[i];
         xpp::copy_graph_settings(w.graph, g);
-        g.nvars = w.nvars;
-        for (std::size_t j = 0; j < w.curves.size(); j++) {
-            g.xv[j] = w.curves[j][0];
-            g.yv[j] = w.curves[j][1];
-            g.zv[j] = w.curves[j][2];
-        }
+        xpp::copy_curves(w.graph, g);
         g.xlabel = w.xlabel;
         g.ylabel = w.ylabel;
         g.zlabel = w.zlabel;
@@ -282,54 +228,58 @@ void apply_windows(xpp::Session &s, const WindowsRead &r, std::map<int, int> &sl
     if (const auto a = slot.find(r.active); a != slot.end()) xpp::make_active(s, a->second, 1);
 }
 
-/* ---- marks.set and frozen.npz: labels, arrows and markers, frozen curves ---- */
+/* ---- marks.setx and frozen.npz: labels, arrows and markers, frozen curves ---- */
 
-bool write_marks(xpp::Session &s, FILE *fp)
+xpp::Result<std::string> marks_text(const xpp::Session &s)
 {
-    int n = 0;
-    for (const LABEL &l : s.labels) n += l.use != 0;
-    xpp::write_whole(fp, n, "labels");
+    xpp::setx::Out out;
+    out.begin_list("labels");
     for (const LABEL &l : s.labels) {
         if (!l.use) continue;
-        xpp::write_whole(fp, xpp::graph_of(s, l.w), "window");
-        xpp::write_real(fp, l.x, "x");
-        xpp::write_real(fp, l.y, "y");
-        xpp::write_whole(fp, l.size, "size");
-        xpp::write_whole(fp, l.font, "font");
-        xpp::write_whole(fp, l.style, "style");
-        xpp::write_whole(fp, l.color, "color");
-        xpp::write_text(fp, l.s);
+        out.begin_item();
+        out.whole("window", xpp::graph_of(s, l.w));
+        out.real("x", l.x);
+        out.real("y", l.y);
+        out.whole("size", l.size);
+        out.whole("font", l.font);
+        out.whole("style", l.style);
+        out.whole("color", l.color);
+        out.text("text", l.s);
+        out.end_item();
     }
-    n = 0;
-    for (const xpp::GROB &g : s.grobs) n += g.use != 0;
-    xpp::write_whole(fp, n, "arrows and markers");
+    out.end_list();
+    out.begin_list("arrows_and_markers");
     for (const xpp::GROB &g : s.grobs) {
         if (!g.use) continue;
-        xpp::write_whole(fp, xpp::graph_of(s, g.w), "window");
-        xpp::write_whole(fp, g.type, "type");
-        xpp::write_whole(fp, g.color, "color");
-        xpp::write_real(fp, g.size, "size");
-        xpp::write_real(fp, g.xs, "x start");
-        xpp::write_real(fp, g.ys, "y start");
-        xpp::write_real(fp, g.xe, "x end");
-        xpp::write_real(fp, g.ye, "y end");
+        out.begin_item();
+        out.whole("window", xpp::graph_of(s, g.w));
+        out.whole("type", g.type);
+        out.whole("color", g.color);
+        out.real("size", g.size);
+        out.real("x_start", g.xs);
+        out.real("y_start", g.ys);
+        out.real("x_end", g.xe);
+        out.real("y_end", g.ye);
+        out.end_item();
     }
-    n = 0;
-    for (const CURVE &c : s.frozen_curves.curve) n += c.use != 0;
-    xpp::write_whole(fp, n, "frozen curves");
-    xpp::write_whole(fp, s.frozen_curves.auto_freeze, "freeze each run");
+    out.end_list();
+    out.whole("freeze_each_run", s.frozen_curves.auto_freeze);
+    out.begin_list("frozen_curves");
     for (int i = 0; i < MAXFRZ; i++) {
         const CURVE &c = s.frozen_curves.curve[i];
         if (!c.use) continue;
-        xpp::write_whole(fp, i, "slot");
-        xpp::write_whole(fp, xpp::graph_of(s, c.w), "window");
-        xpp::write_whole(fp, c.type, "type");
-        xpp::write_whole(fp, c.color, "color");
-        xpp::write_whole(fp, c.len, "points");
-        xpp::write_text(fp, c.key);
-        xpp::write_text(fp, c.name);
+        out.begin_item();
+        out.whole("slot", i);
+        out.whole("window", xpp::graph_of(s, c.w));
+        out.whole("type", c.type);
+        out.whole("color", c.color);
+        out.whole("points", c.len);
+        out.text("key", c.key);
+        out.text("name", c.name);
+        out.end_item();
     }
-    return true;
+    out.end_list();
+    return out.result("session");
 }
 
 /* the frozen curves' points, one array per curve ("curve<slot>", rows of
@@ -363,7 +313,7 @@ std::vector<float> points_of(const xpp::DataTable &t, const std::string &name, i
     return {};
 }
 
-/* marks.set read: each mark with the saved window it is in */
+/* marks.setx read: each mark with the saved window it is in */
 struct SavedLabel {
     int window = 0, font = 0;
     double x = 0, y = 0;
@@ -385,93 +335,102 @@ struct MarksRead {
     std::vector<SavedCurve> curves;
 };
 
-/* a count of marks.set just read: 0 to most */
-int count_of(xpp::Lines &l, const char *what, int most)
+/* a window number of marks.setx: one windows.setx lists */
+int window_in(xpp::setx::Block &g, const WindowsRead &w)
 {
-    const int n = l.whole(what);
-    if (n < 0 || n > most) l.fail(xpp::format("{} {}: there are 0 to {}", n, what, most));
-    return n;
-}
-
-/* a window number of marks.set: one windows.set lists */
-int window_in(xpp::Lines &l, const WindowsRead &w)
-{
-    const int saved = l.whole("window");
+    int saved = 0;
+    g.whole("window", saved);
     if (std::none_of(w.windows.begin(), w.windows.end(), [saved](const SavedWindow &x) { return x.saved == saved; }))
-        l.fail(xpp::format("windows.set has no window {}", saved));
+        g.fail(*g.member("window"), xpp::format("windows.setx has no window {}", saved));
     return saved;
 }
 
-/* a colour of marks.set: one a curve or a mark takes (colormap.h) */
-int color_in(xpp::Lines &l)
+/* a colour of marks.setx: one a curve or a mark takes (colormap.h) */
+int color_in(xpp::setx::Block &g)
 {
-    const int color = l.whole("color");
-    if (color < 0 || color > xpp::LAST_PLOT_COLOR) l.fail(xpp::format("{} is not a colour (0 to {})", color, xpp::LAST_PLOT_COLOR));
+    int color = 0;
+    g.whole("color", color);
+    if (color < 0 || color > xpp::LAST_PLOT_COLOR)
+        g.fail(*g.member("color"), xpp::format("{} is not a colour (0 to {})", color, xpp::LAST_PLOT_COLOR));
     return color;
 }
 
-/* marks.set's lines l read, its windows those of windows (windows.set's),
-   its frozen curves' points from frozen (frozen.npz's); ReadFailed at a
-   line that does not read, names a window windows.set does not have or a
+/* a position of a label or a mark: a finite number */
+double position_in(xpp::setx::Block &g, std::string_view key)
+{
+    double v = 0;
+    g.real(key, v);
+    return v;
+}
+
+/* marks.setx read, its windows those of windows (windows.setx's), its
+   frozen curves' points from frozen (frozen.npz's); ReadFailed at a key or
+   value that does not read, names a window windows.setx does not have or a
    frozen curve frozen.npz holds no points of */
-MarksRead read_marks(xpp::Lines &l, const WindowsRead &windows, const xpp::DataTable &frozen)
+MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const xpp::DataTable &frozen)
 {
     MarksRead r;
-    for (int k = count_of(l, "labels", MAXLAB); k > 0; k--) {
+    std::vector<xpp::setx::Block> labels;
+    file.groups("labels", labels, MAXLAB);
+    for (xpp::setx::Block &g : labels) {
         SavedLabel &m = r.labels.emplace_back();
-        m.window = window_in(l, windows);
-        m.x = l.real("x");
-        if (!std::isfinite(m.x)) l.fail(xpp::format("{} is not a position", m.x));
-        m.y = l.real("y");
-        if (!std::isfinite(m.y)) l.fail(xpp::format("{} is not a position", m.y));
-        m.look.size = l.whole("size");
-        if (const std::string p = xpp::label_size_problem(m.look.size); !p.empty()) l.fail(p);
-        m.font = l.whole("font");
-        if (m.font < 0 || m.font >= xpp::LABEL_FONT_COUNT) l.fail(xpp::format("{} is not a text font (0 to {})", m.font, xpp::LABEL_FONT_COUNT - 1));
-        m.look.style = l.whole("style");
-        if (const std::string p = xpp::label_style_problem(m.look.style); !p.empty()) l.fail(p);
-        m.look.color = color_in(l);
-        m.look.text = l.next("the label's text");
-        if (const std::string p = xpp::label_text_problem(m.look.text); !p.empty()) l.fail(p);
+        m.window = window_in(g, windows);
+        m.x = position_in(g, "x");
+        m.y = position_in(g, "y");
+        g.whole("size", m.look.size);
+        if (const std::string p = xpp::label_size_problem(m.look.size); !p.empty()) g.fail(*g.member("size"), p);
+        g.whole("font", m.font);
+        if (m.font < 0 || m.font >= xpp::LABEL_FONT_COUNT)
+            g.fail(*g.member("font"), xpp::format("{} is not a text font (0 to {})", m.font, xpp::LABEL_FONT_COUNT - 1));
+        g.whole("style", m.look.style);
+        if (const std::string p = xpp::label_style_problem(m.look.style); !p.empty()) g.fail(*g.member("style"), p);
+        m.look.color = color_in(g);
+        g.text("text", m.look.text);
+        if (const std::string p = xpp::label_text_problem(m.look.text); !p.empty()) g.fail(*g.member("text"), p);
+        g.done();
     }
-    for (int k = count_of(l, "arrows and markers", MAXGROB); k > 0; k--) {
-        SavedGrob &g = r.grobs.emplace_back();
-        g.window = window_in(l, windows);
-        g.type = l.whole("type");
-        if (g.type < xpp::POINTER || g.type >= xpp::MARKER + xpp::MARKER_SHAPE_COUNT)
-            l.fail(xpp::format("{} is not an object's type (0 to {})", g.type, xpp::MARKER + xpp::MARKER_SHAPE_COUNT - 1));
-        g.color = color_in(l);
-        g.size = l.real("size");
-        g.xs = l.real("x start");
-        g.ys = l.real("y start");
-        g.xe = l.real("x end");
-        g.ye = l.real("y end");
+    std::vector<xpp::setx::Block> grobs;
+    file.groups("arrows_and_markers", grobs, MAXGROB);
+    for (xpp::setx::Block &g : grobs) {
+        SavedGrob &o = r.grobs.emplace_back();
+        o.window = window_in(g, windows);
+        g.whole("type", o.type);
+        if (o.type < xpp::POINTER || o.type >= xpp::MARKER + xpp::MARKER_SHAPE_COUNT)
+            g.fail(*g.member("type"), xpp::format("{} is not an object's type (0 to {})", o.type, xpp::MARKER + xpp::MARKER_SHAPE_COUNT - 1));
+        o.color = color_in(g);
+        g.number("size", o.size);
+        g.number("x_start", o.xs);
+        g.number("y_start", o.ys);
+        g.number("x_end", o.xe);
+        g.number("y_end", o.ye);
+        g.done();
     }
+    file.whole("freeze_each_run", r.auto_freeze);
     std::array<bool, MAXFRZ> listed{};
-    const int n = count_of(l, "frozen curves", MAXFRZ);
-    r.auto_freeze = l.whole("freeze each run");
-    for (int k = 0; k < n; k++) {
+    std::vector<xpp::setx::Block> curves;
+    file.groups("frozen_curves", curves, MAXFRZ);
+    for (xpp::setx::Block &g : curves) {
         SavedCurve &c = r.curves.emplace_back();
-        c.slot = l.whole("slot");
+        g.whole("slot", c.slot);
         if (c.slot < 0 || c.slot >= MAXFRZ || listed[static_cast<std::size_t>(c.slot)])
-            l.fail(xpp::format("frozen curve {} is not one of 0 to {} listed once", c.slot, MAXFRZ - 1));
+            g.fail(*g.member("slot"), xpp::format("frozen curve {} is not one of 0 to {} listed once", c.slot, MAXFRZ - 1));
         listed[static_cast<std::size_t>(c.slot)] = true;
-        c.window = window_in(l, windows);
-        c.type = l.whole("type");
-        c.color = color_in(l);
-        const int len = l.whole("points");
-        const int len_line = l.line();
-        c.key = l.next("the curve's key");
-        c.name = l.next("the curve's name");
+        c.window = window_in(g, windows);
+        g.whole("type", c.type);
+        c.color = color_in(g);
+        int len = 0;
+        g.whole("points", len);
+        g.text("key", c.key);
+        g.text("name", c.name);
         const std::string array = xpp::format("curve{}_", c.slot);
         c.x = points_of(frozen, array + "0", len);
         c.y = points_of(frozen, array + "1", len);
         if (c.type > 0) c.z = points_of(frozen, array + "2", len);
         if (len <= 0 || static_cast<int>(c.x.size()) != len || static_cast<int>(c.y.size()) != len ||
             (c.type > 0 && static_cast<int>(c.z.size()) != len))
-            l.fail(len_line, xpp::format("frozen.npz holds no {} points of frozen curve {}", len, c.slot));
+            g.fail(*g.member("points"), xpp::format("frozen.npz holds no {} points of frozen curve {}", len, c.slot));
+        g.done();
     }
-    l.end();
     return r;
 }
 
@@ -561,38 +520,51 @@ std::optional<std::string> data_wrong(const xpp::Session &s, const xpp::DataTabl
     return std::nullopt;
 }
 
-std::string sliders_text(const xpp::Session &s)
+/* the most sliders a session holds (the model's three and those added: a
+   page offers a handful) */
+constexpr std::size_t max_sliders = 256;
+
+xpp::Result<std::string> sliders_text(const xpp::Session &s)
 {
-    std::string out=xpp::format("{} sliders\n",s.sliders.size());
-    for(const xpp::XppSlider &slider:s.sliders)
-        out+=xpp::format("{}\n{} low\n{} high\n{} step\n",slider.var,xpp::number(slider.lo),xpp::number(slider.hi),xpp::number(slider.step));
-    return out;
+    xpp::setx::Out out;
+    out.begin_list("sliders");
+    for (const xpp::XppSlider &slider : s.sliders) {
+        out.begin_item();
+        out.word("name", slider.var);
+        out.real("low", slider.lo);
+        out.real("high", slider.hi);
+        out.real("step", slider.step);
+        out.end_item();
+    }
+    out.end_list();
+    return out.result("session");
 }
 
-std::vector<xpp::XppSlider> read_sliders(const xpp::Model &m,xpp::Lines &l)
+std::vector<xpp::XppSlider> read_sliders(const xpp::Model &m, xpp::setx::Block &file)
 {
-    const int count=l.whole("sliders",true);
-    if(count<XPP_NSLIDERS)l.fail(xpp::format("sliders {}: at least {} model slots required",count,XPP_NSLIDERS));
+    std::vector<xpp::setx::Block> items;
+    file.groups("sliders", items, max_sliders);
+    if (items.size() < XPP_NSLIDERS)
+        file.fail(*file.member("sliders"), xpp::format("sliders {}: at least {} model slots required", items.size(), XPP_NSLIDERS));
     std::vector<xpp::XppSlider> sliders;
-    // Consume input before allocating a slot; archive limits bound hostile counts.
-    for(int k=0;k<count;++k){
+    for (xpp::setx::Block &g : items) {
         xpp::XppSlider slider;
-        slider.var=l.next("slider name");
-        if(const auto why=xpp::slider_wrong(m,slider))l.fail(*why);
-        slider.lo=l.real("low",true);
-        slider.hi=l.real("high",true);
-        if(const auto why=xpp::slider_wrong(m,slider))l.fail(*why);
-        slider.step=l.real("step",true);
-        if(const auto why=xpp::slider_wrong(m,slider))l.fail(*why);
+        g.text("name", slider.var);
+        if (const auto why = xpp::slider_wrong(m, slider)) g.fail(*g.member("name"), *why);
+        g.number("low", slider.lo);
+        g.number("high", slider.hi);
+        if (const auto why = xpp::slider_wrong(m, slider)) g.fail(*g.member("high"), *why);
+        g.number("step", slider.step);
+        if (const auto why = xpp::slider_wrong(m, slider)) g.fail(*g.member("step"), *why);
+        g.done();
         sliders.push_back(std::move(slider));
     }
-    l.end();
     return sliders;
 }
 
 /* a session file, read whole: every member, before any is applied */
 struct SessionRead {
-    xpp::SetFile set;
+    xpp::Settings set;
     std::optional<xpp::snapx::auto_members::Members> diagram;
     WindowsRead windows;
     std::optional<xpp::DataTable> data;
@@ -618,19 +590,25 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
         if (it == mem.end()) return missing(name);
         return xpp::read_lines("session", xpp::format("{}/{}", f.name, name), it->second, parse);
     };
+    /* the same for a member in the settings syntax: every key it needs there, none it does not know */
+    const auto settings_member = [&](const char *name, auto parse) -> xpp::Result<std::invoke_result_t<decltype(parse) &, xpp::setx::Block &>> {
+        const auto it = mem.find(name);
+        if (it == mem.end()) return missing(name);
+        return xpp::setx::read_block("session", xpp::format("{}/{}", f.name, name), it->second, true, parse);
+    };
     SessionRead r;
-    auto sliders=member(xpp::snapx::sliders_member,[&](xpp::Lines &l){return read_sliders(s.model(),l);});
-    if(!sliders)return std::unexpected(sliders.error());
-    r.sliders=std::move(*sliders);
-    auto nullclines=member(xpp::snapx::nullclines_member,[&](xpp::Lines &l){return xpp::read_nullclines(s.model(),l);});
-    if(!nullclines)return std::unexpected(nullclines.error());
-    r.nullclines=std::move(*nullclines);
+    auto sliders = settings_member(xpp::snapx::sliders_member, [&](xpp::setx::Block &b) { return read_sliders(s.model(), b); });
+    if (!sliders) return std::unexpected(sliders.error());
+    r.sliders = std::move(*sliders);
+    auto nullclines = settings_member(xpp::snapx::nullclines_member, [&](xpp::setx::Block &b) { return xpp::read_nullclines(s.model(), b); });
+    if (!nullclines) return std::unexpected(nullclines.error());
+    r.nullclines = std::move(*nullclines);
 
-    /* the values and numerics (and the active window's graphics) */
-    xpp::Result<xpp::SetFile> set = [&]() -> xpp::Result<xpp::SetFile> {
+    /* the values and numerics */
+    xpp::Result<xpp::Settings> set = [&]() -> xpp::Result<xpp::Settings> {
         const auto it = mem.find(xpp::snapx::set_member);
         if (it == mem.end()) return missing(xpp::snapx::set_member);
-        return xpp::read_session_set(s, xpp::format("{}/{}", f.name, xpp::snapx::set_member), it->second);
+        return xpp::read_settings(s, xpp::format("{}/{}", f.name, xpp::snapx::set_member), it->second, xpp::SettingsUse::session);
     }();
     if (!set) return std::unexpected(set.error());
     r.set = std::move(*set);
@@ -643,7 +621,7 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
     }
 
     /* the windows, then what they show */
-    xpp::Result<WindowsRead> windows = member(xpp::snapx::windows_member, [&s](xpp::Lines &l) { return read_windows(s, l); });
+    xpp::Result<WindowsRead> windows = settings_member(xpp::snapx::windows_member, [&s](xpp::setx::Block &b) { return read_windows(s, b); });
     if (!windows) return std::unexpected(windows.error());
     r.windows = std::move(*windows);
 
@@ -670,7 +648,7 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
     if (const auto fz = mem.find(xpp::snapx::frozen_member); fz != mem.end() && !xpp::npz_table(fz->second, frozen))
         return wrong(xpp::format("its {} is not an NPZ file", xpp::snapx::frozen_member));
     xpp::Result<MarksRead> marks =
-        member(xpp::snapx::marks_member, [&](xpp::Lines &l) { return read_marks(l, r.windows, frozen); });
+        settings_member(xpp::snapx::marks_member, [&](xpp::setx::Block &b) { return read_marks(b, r.windows, frozen); });
     if (!marks) return std::unexpected(marks.error());
     r.marks = std::move(*marks);
     return r;
@@ -688,7 +666,7 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
     if (r.diagram)
         if (xpp::Result<> d = xpp::snapx::auto_members::restore_members(s, std::move(*r.diagram)); !d) return d;
     if (r.data) s.numerics.last_seed = r.data->seed;
-    xpp::apply_set_file(s, r.set, true);
+    xpp::apply_settings(s, r.set, true);
 
     std::map<int, int> slot;
     apply_windows(s, r.windows, slot);
@@ -745,36 +723,30 @@ xpp::Result<std::string> session_bytes(xpp::Session &s, bool data)
     man.data = data;
     xpp::Result<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(s, man);
     if (!entries) return std::unexpected(entries.error());
-    xpp::TempDir tmp;
-    if (tmp.path().empty()) {
-        return xpp::fail("save session", "Save session: no scratch folder", xpp::command_place());
-    }
-    xpp::redraw_params(); /* the values panel up to date, before write_lunch */
-    std::optional<std::string> set = written(tmp, xpp::snapx::set_member, [&s](FILE *fp) {
-        xpp::write_lunch(s, fp);
-        return true;
-    });
-    if (!set) {
-        return xpp::fail("save session", "Save session: cannot write the set file", xpp::command_place());
-    }
-    entries->push_back({xpp::snapx::set_member, std::move(*set)});
+    xpp::redraw_params(); /* the values panel up to date, before the settings are taken */
+    /* a member's text, or the error naming the member it could not be written for */
+    const auto member = [&entries](const char *name, xpp::Result<std::string> text) -> xpp::Result<> {
+        if (!text) {
+            text.error().place.file = name;
+            return std::unexpected(text.error());
+        }
+        entries->push_back({name, std::move(*text)});
+        return {};
+    };
+    if (const xpp::Result<> done = member(xpp::snapx::set_member, xpp::setx_text(s, xpp::capture_settings(s, xpp::SettingsUse::session))); !done)
+        return std::unexpected(done.error());
     /* a diagram exists: without its orbits, the save is refused */
     if (s.model().node <= NAUTO) {
         if (const xpp::Result<> added = xpp::snapx::auto_members::add_members(s, *entries, xpp::snapx::auto_folder); !added)
             return std::unexpected(added.error());
     }
-    std::optional<std::string> windows = written(tmp, xpp::snapx::windows_member, [&s](FILE *fp) { return write_windows(s, fp); });
-    std::optional<std::string> marks = written(tmp, xpp::snapx::marks_member, [&s](FILE *fp) { return write_marks(s, fp); });
-    if (!windows || !marks) {
-        return xpp::fail("save session", "Save session: cannot write the windows", xpp::command_place());
-    }
-    entries->push_back({xpp::snapx::windows_member, std::move(*windows)});
-    entries->push_back({xpp::snapx::marks_member, std::move(*marks)});
+    if (const xpp::Result<> done = member(xpp::snapx::windows_member, windows_text(s)); !done) return std::unexpected(done.error());
+    if (const xpp::Result<> done = member(xpp::snapx::marks_member, marks_text(s)); !done) return std::unexpected(done.error());
     if (std::optional<std::string> frozen = frozen_npz(s)) entries->push_back({xpp::snapx::frozen_member, std::move(*frozen)});
     if (man.data) entries->push_back({xpp::snapx::data_member, xpp::npz_bytes(stored_data_table(s))});
     entries->push_back({xpp::snapx::random_member, random_text(s)});
-    entries->push_back({xpp::snapx::sliders_member, sliders_text(s)});
-    entries->push_back({xpp::snapx::nullclines_member, xpp::nullclines_text(s)});
+    if (const xpp::Result<> done = member(xpp::snapx::sliders_member, sliders_text(s)); !done) return std::unexpected(done.error());
+    if (const xpp::Result<> done = member(xpp::snapx::nullclines_member, xpp::nullclines_text(s)); !done) return std::unexpected(done.error());
     return xpp::zip::make_zip(*entries);
 }
 
@@ -976,7 +948,12 @@ xpp::Result<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &
     man.anifile = s.animation.options.use_file && has(s.animation.options.file) ? s.animation.options.file : std::string();
     std::vector<xpp::zip::Entry> entries;
     const char *manifest = xpp::snapx::manifest_member;
-    entries.push_back({manifest, xpp::snapx::manifest_text(man)});
+    xpp::Result<std::string> manifest_text = xpp::snapx::manifest_text(man);
+    if (!manifest_text) {
+        manifest_text.error().place.file = manifest;
+        return std::unexpected(manifest_text.error());
+    }
+    entries.push_back({manifest, std::move(*manifest_text)});
     xpp::snapx::add_model_members(entries, m.files);
     return entries;
 }

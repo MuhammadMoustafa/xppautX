@@ -4,10 +4,12 @@
    text file, openable and editable in any editor, that holds what a
    session did and nothing it computed (a replay computes it again):
 
-     xppautx-recording 1
-     program: xppautX <version>
-     model: <the model's file, as it names it>
-     recorded: <when the recording began, UTC>
+     recording: {
+       version: 2,
+       program: "xppautX <version>",
+       model: "<the model's file, as it names it>",
+       recorded: "<when the recording began, UTC>",
+     },
 
      @snapshot
      <the session file's bytes (.snapx) in base64, 76 digits a line>
@@ -29,7 +31,9 @@
 
      fingerprint: <SHA-256 of the files and the steps, never the notes>
 
-   A line of a file that is "@end" or starts with "@@" is written with one
+   The header, up to the first line that starts with "@", is the settings
+   syntax (setx.h, W285): one `recording` group, every key named, in any
+   order, comments allowed. A line of a file that is "@end" or starts with "@@" is written with one
    more "@" in front (a reader takes it off). The @snapshot section (W59d)
    is the session as it was when Record was pressed: what Save session
    writes (xpp_session.h), without the data table, which the replay
@@ -55,7 +59,8 @@
 namespace xpp::recx {
 
 inline constexpr std::string_view extension = ".recx";
-inline constexpr std::string_view format_line = "xppautx-recording 1"; /* Signature and version: refuse other recording formats. */
+inline constexpr int format_version = 2; /* refuse other recording formats (2: the header in the settings syntax, W285) */
+inline constexpr std::string_view header_group = "recording"; /* the header's one group */
 
 /* a step: its note (its lines separated by "\n", "" for none) and the
    step itself, one JSON object on one line */
@@ -87,8 +92,9 @@ size_t add_file(Recording &r, ModelFile file);
 
 /* r as its file's text, the fingerprint last: r.fingerprint when it has
    one (a read recording whose notes were edited keeps what it said),
-   else the fingerprint of what r holds */
-std::string text(const Recording &r);
+   else the fingerprint of what r holds; the error when the header cannot
+   be written (a name with a newline in it) */
+Result<std::string> text(const Recording &r);
 
 /* a recording's file read back */
 struct Read {
@@ -99,8 +105,8 @@ struct Read {
 };
 
 /* the text of a .recx file (named file, for its errors), read whole: the
-   error at the line that is wrong when it is not one (its first line, a
-   header line missing, given twice or not one of them, no @snapshot, a
+   error at the line that is wrong when it is not one (its header: a key
+   missing, given twice or not one of them, another version, no @snapshot, a
    section without its @end, no @steps, a @binary or @snapshot section
    that is not base64, no fingerprint line, a line after it) */
 Result<Read> read(std::string_view text, std::string file);

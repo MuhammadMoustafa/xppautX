@@ -664,57 +664,77 @@ void direct_field_com(xpp::Session &s, int c)
    animate - replay all s.nullcline_state.frozen ones (not current set )
    */
 
-std::string nullclines_text(const Session &s)
+/* the most frozen pairs of nullclines a saved session holds (Freeze adds one
+   at a time, a range of them one for each parameter value) */
+constexpr std::size_t max_frozen_clines=10000;
+
+/* the first count segments of v (4 floats each) as numbers */
+static std::vector<double> segment_numbers(const std::vector<float> &v,int count)
 {
-  const NullclineState &n=s.nullcline_state;
-  std::string out;
-  const auto pair=[&](int ix,int iy,const std::vector<float> &x,int nx,const std::vector<float> &y,int ny){
-    out+=xpp::format("{} x axis\n{} y axis\n",ix,iy);
-    const auto segments=[&](const std::vector<float> &v,int count){
-      out+=xpp::format("{} segments\n",count);
-      for(int k=0;k<4*count;++k)out+=xpp::number(v[k])+" coordinate\n";
-    };
-    segments(x,nx);segments(y,ny);
-  };
-  pair(n.null_ix,n.null_iy,n.x_null,n.num_x_n,n.y_null,n.num_y_n);
-  out+=xpp::format("{} frozen pairs\n",n.frozen.size());
-  for(const FrozenCline &f:n.frozen)pair(f.n_ix,f.n_iy,f.xn,f.nmx,f.yn,f.nmy);
-  return out;
+  return std::vector<double>(v.begin(),v.begin()+4*static_cast<std::ptrdiff_t>(count));
 }
 
-NullclineState read_nullclines(const Model &m, Lines &l)
+Result<std::string> nullclines_text(const Session &s)
+{
+  const NullclineState &n=s.nullcline_state;
+  setx::Out out;
+  const auto pair=[&](int ix,int iy,const std::vector<float> &x,int nx,const std::vector<float> &y,int ny){
+    out.whole("x_axis",ix);
+    out.whole("y_axis",iy);
+    out.reals("x_segments",segment_numbers(x,nx));
+    out.reals("y_segments",segment_numbers(y,ny));
+  };
+  out.begin("current");
+  pair(n.null_ix,n.null_iy,n.x_null,n.num_x_n,n.y_null,n.num_y_n);
+  out.end();
+  out.begin_list("frozen");
+  for(const FrozenCline &f:n.frozen){
+    out.begin_item();
+    pair(f.n_ix,f.n_iy,f.xn,f.nmx,f.yn,f.nmy);
+    out.end_item();
+  }
+  out.end_list();
+  return out.result("session");
+}
+
+NullclineState read_nullclines(const Model &m, setx::Block &file)
 {
   NullclineState n;
-  const auto pair=[&](int &ix,int &iy,std::vector<float> &x,int &nx,std::vector<float> &y,int &ny){
-    // Each line retains its axis label, so bad values name the exact source line.
-    ix=l.whole("x axis",true);
-    if(ix<0||ix>m.node)l.fail(xpp::format("x axis {}: 0 to {} required",ix,m.node));
-    iy=l.whole("y axis",true);
-    if(iy<0||iy>m.node)l.fail(xpp::format("y axis {}: 0 to {} required",iy,m.node));
-    const auto segments=[&](std::vector<float> &v,int &count){
-      count=l.whole("segments",true);
-      if(count<0||count>MAX_NULL)l.fail(xpp::format("segments {}: 0 to {} required",count,MAX_NULL));
-      for(int k=0;k<4*count;++k){
-        const double value=l.real("coordinate",true);
-        if(!std::isfinite(value)||value>std::numeric_limits<float>::max()||value<-std::numeric_limits<float>::max())
-          l.fail(xpp::format("coordinate {}: a finite value in float range required",value));
+  const auto pair=[&](setx::Block &g,int &ix,int &iy,std::vector<float> &x,int &nx,std::vector<float> &y,int &ny){
+    const auto axis=[&](std::string_view key,int &v){
+      g.whole(key,v);
+      if(v<0||v>m.node)g.fail(*g.member(key),xpp::format("{} {}: 0 to {} required",key,v,m.node));
+    };
+    axis("x_axis",ix);
+    axis("y_axis",iy);
+    const auto segments=[&](std::string_view key,std::vector<float> &v,int &count){
+      std::vector<double> values;
+      g.reals(key,values,4*static_cast<std::size_t>(MAX_NULL));
+      if(values.size()%4!=0)g.fail(*g.member(key),xpp::format("{} holds {} numbers: four for each segment",key,values.size()));
+      for(const double value:values){
+        if(value>std::numeric_limits<float>::max()||value<-std::numeric_limits<float>::max())
+          g.fail(*g.member(key),xpp::format("coordinate {}: a finite value in float range required",value));
         v.push_back(static_cast<float>(value));
       }
+      count=static_cast<int>(values.size()/4);
     };
-    segments(x,nx);segments(y,ny);
-    if((nx||ny)&&(ix==0||iy==0||ix==iy))l.fail("nonempty nullclines require distinct state variable axes");
+    segments("x_segments",x,nx);
+    segments("y_segments",y,ny);
+    if((nx||ny)&&(ix==0||iy==0||ix==iy))g.fail("nonempty nullclines require distinct state variable axes");
   };
-  pair(n.null_ix,n.null_iy,n.x_null,n.num_x_n,n.y_null,n.num_y_n);
-  const int count=l.whole("frozen pairs",true);
-  if(count<0)l.fail(xpp::format("frozen pairs {}: nonnegative count required",count));
-  // No allocation from the count: every pair must consume lines from the bounded archive.
-  for(int k=0;k<count;++k){
+  if(std::optional<setx::Block> current=file.group("current")){
+    pair(*current,n.null_ix,n.null_iy,n.x_null,n.num_x_n,n.y_null,n.num_y_n);
+    current->done();
+  }
+  std::vector<setx::Block> frozen;
+  file.groups("frozen",frozen,max_frozen_clines);
+  for(setx::Block &g:frozen){
     FrozenCline f;
-    pair(f.n_ix,f.n_iy,f.xn,f.nmx,f.yn,f.nmy);
+    pair(g,f.n_ix,f.n_iy,f.xn,f.nmx,f.yn,f.nmy);
+    g.done();
     n.frozen.push_back(std::move(f));
   }
   n.frozen_started=!n.frozen.empty();
-  l.end();
   return n;
 }
 

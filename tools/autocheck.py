@@ -961,8 +961,8 @@ def section_session():
     check('session save reports the session file', sess == {'file': 's1.snapx'}, str(sess))
     snap_path = os.path.join(s.run, 's1.snapx')
     members = zipfile.ZipFile(snap_path).namelist() if os.path.exists(snap_path) else []
-    check('session save writes s1.snapx with the model, the .set and AUTO\'s files in it',
-          'model/lecar.odex' in members and 'model.set' in members and 'auto/diagram.csv' in members, str(members))
+    check('session save writes s1.snapx with the model, the .setx and AUTO\'s files in it',
+          'model/lecar.odex' in members and 'model.setx' in members and 'auto/diagram.csv' in members, str(members))
     pars1 = dict(saved['pars']) if saved else {}
 
     # a NEW server, in a new directory, with only the session file copied in
@@ -1106,10 +1106,10 @@ def section_sessiondiagram():
     # an old name asked for: the .snapx beside it
     got = save_diagram(s, 'd1', 'd1.snapx')
     check('sessiondiagram: Save diagram writes d1.snapx, a zip of the files listed, the model in it',
-          list(got) == ['session.txt', 'model/lecar.odex', 'model.set', 'auto/settings.txt', 'auto/views.txt', 'auto/diagram.csv', 'auto/solutions.s', 'windows.set', 'marks.set', 'random.txt', 'sliders.set', 'nullclines.set'], str(list(got)))
-    check('sessiondiagram: session.txt is the manifest of lecar.odex, which is in it byte for byte',
-          got.get('session.txt', '') == 'xppautX session 1\nname lecar.odex\ndata 0\n'
-          and got.get('model/lecar.odex') == open(LECAR).read(), got.get('session.txt', '')[:300])
+          list(got) == ['session.setx', 'model/lecar.odex', 'model.setx', 'auto/settings.txt', 'auto/views.txt', 'auto/diagram.csv', 'auto/solutions.s', 'windows.setx', 'marks.setx', 'random.txt', 'sliders.setx', 'nullclines.setx'], str(list(got)))
+    check('sessiondiagram: session.setx is the manifest of lecar.odex, which is in it byte for byte',
+          got.get('session.setx', '') == 'session: {\n  version: 2,\n  model: "lecar.odex",\n  data: 0,\n},\n'
+          and got.get('model/lecar.odex') == open(LECAR).read(), got.get('session.setx', '')[:300])
     check('sessiondiagram: settings.txt has the numerics, the parameters and the axes',
           all(re.search(r'(^|\n)%s ' % k, got.get('auto/settings.txt', '')) for k in ('ntst', 'ds', 'pars', 'plot', 'xmin')),
           got.get('auto/settings.txt', '')[:300])
@@ -1244,8 +1244,8 @@ def section_sessiondiagram():
              'badncol.snapx/auto/settings.txt:4: Ncol must be'),
             ('lastviews.snapx', lambda m: m.__setitem__('auto/views.txt', m['auto/views.txt'].rstrip(b'\n').rsplit(b'\n', 1)[0] + b'\nactive x\n'),
              'lastviews.snapx/auto/views.txt:%d: "x" is not a whole number' % (members['auto/views.txt'].rstrip(b'\n').count(b'\n') + 1)),
-            ('latermanifest.snapx', lambda m: m.__setitem__('session.txt', m['session.txt'] + b'later 1\n'),
-             'latermanifest.snapx/session.txt:%d: ' % (members['session.txt'].count(b'\n') + 1))):
+            ('latermanifest.snapx', lambda m: m.__setitem__('session.setx', m['session.setx'] + b'later: 1,\n'),
+             'latermanifest.snapx/session.setx:%d:1: ' % (members['session.setx'].count(b'\n') + 1))):
         damaged = dict(members)
         change(damaged)
         with zipfile.ZipFile(os.path.join(s.run, name), 'w') as out:
@@ -1283,7 +1283,7 @@ def section_sessiondiagram():
         warnings.simplefilter('ignore', UserWarning)
         with zipfile.ZipFile(os.path.join(s.run, 'duplicate.snapx'), 'w') as out:
             for n, b in members.items(): out.writestr(n, b)
-            out.writestr('session.txt', members['session.txt'])
+            out.writestr('session.setx', members['session.setx'])
     evs = open_file(s, 'duplicate.snapx')
     check('W155: duplicate archive members are refused without replacing the session',
           'archive size and member limits' in messages(evs) and hello_title(evs) is None and s.alive())
@@ -1582,13 +1582,13 @@ def section_names():
     check('names: Save data as CSV heads its columns with the whole names',
           bool(lines) and lines[0].split(',') == cols + [added.upper()], str(lines[:1])[:300])
 
-    # the .set file of a session keeps the values under the long names
+    # the settings of a session keep the values under the long names
     import zipfile
     s.send(cmd='session', op='save', name='ln')
     s.collect(is_idle, timeout=20 * SLOW)
     snap_path = os.path.join(s.run, 'ln.snapx')
-    text = zipfile.ZipFile(snap_path).read('model.set').decode() if os.path.exists(snap_path) else ''
-    check('names: the .set file names the long parameter whole', LONG_B in text)
+    text = zipfile.ZipFile(snap_path).read('model.setx').decode() if os.path.exists(snap_path) else ''
+    check('names: the settings name the long parameter whole', LONG_B in text)
     s2 = Server(args.server, LONG, env={'HOME': home}, verbose=args.v)
     s2.collect(is_idle)
     if os.path.exists(snap_path):
@@ -1651,9 +1651,9 @@ def check_session_names():
     old = []
     for path, z in shipped_session_zips():
         for member in z.namelist():
-            if member.endswith('.set') and any(l.split()[-1:] == ['nout'] for l in z.read(member).decode().splitlines()):
+            if member.endswith('.set') or member == 'session.txt':
                 old.append(path + '/' + member)
-    check('no shipped .snapx or .recx carries a set with an old option name (nout; W206)', not old, str(old))
+    check("no shipped .snapx or .recx carries a member of the older layout (XPPAUT's set lines, session.txt; W285)", not old, str(old))
     # W216: nor a model whose @ line names an option by XPPAUT's word
     xppaut_words = re.compile(r'^@\s.*\b(total|t0|trans|nmesh|newt_iter|newt_tol|jac_eps|meth|tol|dtmin|dtmax|atol|maxstor|tor_per|poimap|poivar|poisgn|poistop|poipln)\s*=', re.I | re.M)
     old = [path + '/' + member for path, z in shipped_session_zips() for member in z.namelist()

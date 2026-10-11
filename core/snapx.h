@@ -4,7 +4,7 @@
    a zip (xpp_zip.h) of ordinary files, what continuing where the user
    stopped needs, the model included (W103: its every file, model/<name>).
    This header is its pure part (snapx.cpp, no I/O, unit tested by
-   tests/test_snapx.cpp): the members' names, the manifest (session.txt:
+   tests/test_snapx.cpp): the members' names, the manifest (session.setx:
    the model's first file, the animation it was loaded with, whether the
    data is in) and the model's members. Reading and writing a whole file
    is xpp_session.cpp's; AUTO's members belong to the session too
@@ -23,30 +23,26 @@
 namespace xpp::snapx {
 
 inline constexpr std::string_view extension = ".snapx";
-inline constexpr int format_version = 1; /* Reject incompatible session manifests. */
-inline constexpr std::string_view format_prefix = "xppautX "; /* Manifest signature before its kind and version. */
+inline constexpr int format_version = 2; /* Reject incompatible session manifests (2: the members in the settings syntax, W285). */
 
 /* the members, in the order a session file holds them: the manifest,
    the model's (model_folder below), then these */
-inline constexpr const char *manifest_member = "session.txt"; /* Manifest below */
-inline constexpr const char *set_member = "model.set";        /* the session's set file */
+inline constexpr const char *manifest_member = "session.setx"; /* Manifest below */
+inline constexpr const char *set_member = "model.setx";       /* the session's settings (setx_file.h), complete, without graphics */
 inline constexpr std::string_view auto_folder = "auto/";       /* AUTO's members, settings, views and optional diagram/orbits (xpp_session_auto.h) */
-inline constexpr const char *windows_member = "windows.set";  /* the plot windows and what they display */
-inline constexpr const char *marks_member = "marks.set";      /* labels, arrows and markers, frozen curves */
+inline constexpr const char *windows_member = "windows.setx"; /* the plot windows and what they display */
+inline constexpr const char *marks_member = "marks.setx";     /* labels, arrows and markers, frozen curves */
 inline constexpr const char *frozen_member = "frozen.npz";    /* the frozen curves' points */
 inline constexpr const char *data_member = "data.npz";        /* the data table */
-inline constexpr const char *sliders_member = "sliders.set"; /* every slider slot, including empty ones */
-inline constexpr const char *nullclines_member = "nullclines.set"; /* current and frozen segments with their axes */
+inline constexpr const char *sliders_member = "sliders.setx"; /* every slider slot, including empty ones */
+inline constexpr const char *nullclines_member = "nullclines.setx"; /* current and frozen segments with their axes */
 inline constexpr const char *random_member = "random.txt";    /* "seed N" (the next Go's), "wiener v..." (their current values), then the generator's state (xpp::Random::save's text) */
-
-/* the kind of file a manifest's first line names, "xppautX session 1" */
-inline constexpr std::string_view session_kind = "session";
 
 /* the folder of the model's members: model/<name> is its file name, as
    the model names it (model_files.h), the model's own first */
 inline constexpr std::string_view model_folder = "model/";
 
-/* session.txt: one "key value" line each, the first naming the format */
+/* session.setx: a `session` group of version, model, anifile and data (setx.h) */
 struct Manifest {
     int version = format_version;
     std::string model_name; /* the model's own file, as it names it: the member model/<model_name> */
@@ -55,12 +51,12 @@ struct Manifest {
     bool operator==(const Manifest &) const = default;
 };
 
-/* The session manifest: "xppautX session 1", model, animation and data. */
-std::string manifest_text(const Manifest &m);
+/* The session manifest: version, model, animation and data. */
+Result<std::string> manifest_text(const Manifest &m);
 /* text, the manifest member file (its errors' place), read whole: not
-   a session manifest (another format's first line, a later version), a key
-   manifest_text does not write or one given twice, a data line other than
-   0 or 1, no name: the error at its line (xpp::read_lines) */
+   a session manifest (another version, an older session's layout), a key
+   manifest_text does not write or one given twice, a data other than
+   0 or 1, no model: the error at its line and column */
 xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text);
 
 /* files as members of the folder model_folder, in their order, after entries' */

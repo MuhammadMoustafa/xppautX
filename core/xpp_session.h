@@ -19,10 +19,10 @@ struct Session; /* session.h */
 /* Save session and Open session (W57, docs/protocol.md "Session files"):
    continuing where the user stopped, from one file, name.snapx -- a zip
    of ordinary files (snapx.h names them): the manifest, the model itself
-   (W103: every file it read, model/<name>), model.set (the set format:
-   values, numerics, the active window's graphics), AUTO's members
-   (auto/: the diagram, AUTO's settings and solutions, xpp_session_auto.h), windows.set
-   (every plot window's axes, variables and zoom, AUTO's view), marks.set
+   (W103: every file it read, model/<name>), model.setx (the
+   settings syntax, setx.h: values, numerics, delays, boundary conditions), AUTO's members
+   (auto/: the diagram, AUTO's settings and solutions, xpp_session_auto.h), windows.setx
+   (every plot window's axes, variables and zoom, AUTO's view), marks.setx
    and frozen.npz (labels, arrows and markers, frozen curves) and data.npz
    (the data table, NPZ as Save data writes it). The earlier runs a window
    keeps until Erase are not saved: the data table is the last run's.
@@ -110,7 +110,7 @@ xpp::Result<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &
    that does not read or holds a value this model refuses fails the open,
    and the session before stays as it was. Nothing when f can be
    restored, otherwise the error at its place: a member's line
-   ("name.snapx/windows.set", line 12, the line as written), or the file
+   ("name.snapx/windows.setx", line 12, the line as written), or the file
    f.name when a member is missing. Nothing is changed (W125: every member
    is read whole and checked before anything is applied). */
 std::optional<xpp::Error> xpp_saved_check(xpp::Session &s, const SavedFile &f);

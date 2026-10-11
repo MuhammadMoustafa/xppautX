@@ -1,6 +1,7 @@
 /* A recording's file, name.recx: see recx.h. */
 #include "recx.h"
 #include "model_files.h"
+#include "setx.h"
 #include "snapx.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
@@ -76,7 +77,7 @@ std::string fingerprint(const std::vector<std::string> &hashed)
     return sha.hex();
 }
 
-std::string text(const Recording &r)
+Result<std::string> text(const Recording &r)
 {
     std::string out;
     std::vector<std::string> hashed;
@@ -84,10 +85,16 @@ std::string text(const Recording &r)
         out += line;
         out += '\n';
     };
-    add(format_line);
-    add("program: " + r.program);
-    add("model: " + r.model);
-    add("recorded: " + r.recorded);
+    setx::Out header;
+    header.begin(header_group);
+    header.whole("version", format_version);
+    header.text("program", r.program);
+    header.text("model", r.model);
+    header.text("recorded", r.recorded);
+    header.end();
+    Result<std::string> head = header.result("recording");
+    if (!head) return std::unexpected(head.error());
+    out += *head;
     add("");
     hashed.emplace_back(snapshot_line);
     base64_lines(r.snapshot, hashed);
@@ -117,28 +124,40 @@ Result<Read> read(std::string_view text, std::string file)
         Read got;
         Recording &r = got.rec;
         std::vector<std::string> hashed;
-        if (l.next("its first line") != format_line) l.fail(xpp::format("not a recording (it does not begin \"{}\")", format_line));
-        /* the header: each of its lines once, up to the first blank one */
-        struct Key {
-            std::string_view start;
-            std::string *value;
-            bool given = false;
-        };
-        std::array<Key, 3> keys = {{{"program: ", &r.program}, {"model: ", &r.model}, {"recorded: ", &r.recorded}}};
-        for (std::string_view h = l.next("its header"); !h.empty(); h = l.next("its header")) {
-            const auto k = std::find_if(keys.begin(), keys.end(), [h](const Key &k) { return h.starts_with(k.start); });
-            if (k == keys.end()) l.fail(xpp::format("\"{}\" is not a header line (program:, model:, recorded:)", h));
-            if (k->given) l.fail(xpp::format("a second \"{}\" line", k->start.substr(0, k->start.size() - 1)));
-            k->given = true;
-            *k->value = h.substr(k->start.size());
-            if (k->value == &r.model && !odex::is_odex(r.model))
-                l.fail("a recording stores an .odex model only; .ode is refused");
+        /* the header: the lines before the first section's, in the settings syntax */
+        std::string header;
+        std::string_view first_section;
+        while (!l.at_end()) {
+            const std::string_view line = l.next();
+            if (line.starts_with('@')) {
+                first_section = line;
+                break;
+            }
+            header += line;
+            header += '\n';
         }
-        for (const Key &k : keys)
-            if (!k.given) l.fail(xpp::format("the header has no \"{}\" line", k.start.substr(0, k.start.size() - 1)));
-        if (r.model.empty()) l.fail("the header names no model");
+        /* text that is no settings at all is not a recording: said so (a header that parses and is wrong is told what is) */
+        if (Result<setx::Value> syntax = setx::read_tree("recording", l.file(), header); !syntax) {
+            syntax.error().what = xpp::format("not a recording: {}", syntax.error().what);
+            throw ReadFailed{syntax.error()};
+        }
+        Result<int> parsed = setx::read_block("recording", l.file(), header, true, [&r](setx::Block &file) {
+            setx::Block g = *file.group(header_group);
+            int version = 0;
+            g.whole("version", version);
+            if (version != format_version)
+                g.fail(*g.member("version"), xpp::format("version {}: this program reads recordings of version {}", version, format_version));
+            g.text("program", r.program);
+            g.text("model", r.model);
+            if (!odex::is_odex(r.model)) g.fail(*g.member("model"), "a recording stores an .odex model only; .ode is refused");
+            g.text("recorded", r.recorded);
+            g.done();
+            return 0;
+        });
+        if (!parsed) throw ReadFailed{parsed.error()};
+        if (first_section.empty()) l.fail("no @snapshot section: a recording begins with the session's state");
         bool snapshot = false;
-        for (std::string_view h = l.next(steps_line); h != steps_line; h = l.next(steps_line)) {
+        for (std::string_view h = first_section; h != steps_line; h = l.next(steps_line)) {
             if (h.empty()) continue;
             const bool is_snapshot = h == snapshot_line && !snapshot;
             const bool binary = is_snapshot || h.starts_with(binary_start);

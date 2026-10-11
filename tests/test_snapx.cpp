@@ -12,6 +12,8 @@
 #include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
+#include "nullcline.h"
+#include "setx.h"
 #include "xpp_session.h"
 #include "xpp_zip.h"
 
@@ -36,51 +38,51 @@ bool load(const std::string &file, const xpp::SavedModel *saved = nullptr)
 void check_manifest()
 {
     using namespace xpp::snapx;
-    const auto foreign = parse_manifest("s/session.txt", "xppautX session 1\nname x.ode\ndata 0\n");
-    CHECK(!foreign && foreign.error().place.line == 2 && foreign.error().what.find(".ode is refused") != std::string::npos);
+    const std::string file = "s/session.setx";
+    const auto foreign = parse_manifest(file, "session: { version: 2, model: \"x.ode\", data: 0 }\n");
+    CHECK(!foreign && foreign.error().place.line == 1 && foreign.error().what.find(".ode is refused") != std::string::npos);
     Manifest m;
     m.model_name = "my models/lecar.odex";
     m.anifile = "lecar.ani";
     m.data = true;
-    const std::string text = manifest_text(m);
-    CHECK(text.starts_with("xppautX session 1\n"));
-    CHECK(text.find("\nname my models/lecar.odex\n") != std::string::npos);
-    const auto back = parse_manifest("s/session.txt", text);
+    const std::string text = *manifest_text(m);
+    CHECK(text.starts_with("session: {\n"));
+    CHECK(text.find("  model: \"my models/lecar.odex\",\n") != std::string::npos);
+    const auto back = parse_manifest(file, text);
     CHECK(back.has_value() && *back == m);
 
     /* no animation, no data; CRLF line ends read the same */
     Manifest e;
     e.model_name = "x.odex";
     std::string crlf;
-    for (char c : manifest_text(e)) {
+    for (char c : *manifest_text(e)) {
         if (c == '\n') crlf += '\r';
         crlf += c;
     }
-    const auto eb = parse_manifest("s/session.txt", crlf);
+    const auto eb = parse_manifest(file, crlf);
     CHECK(eb.has_value() && *eb == e && eb->anifile.empty() && !eb->data);
 
-    /* a key it does not have, another file or a later version is refused,
-       saying what is wrong */
-    const auto later = parse_manifest("s/session.txt", text + "future thing\n");
-    CHECK(!later && later.error().place.file == "s/session.txt" && later.error().place.line == 5 && later.error().place.source == "future thing");
-    CHECK(!parse_manifest("s/session.txt", "xppautX session 1\nname x.odex\ndata 2\n").has_value()); /* data is 0 or 1 */
-    CHECK(!parse_manifest("s/session.txt", "xppautX session 1\ndata 0\n").has_value());           /* no model */
-    CHECK(!parse_manifest("s/session.txt", "xppautX session 1\nname a.odex\nname b.odex\n").has_value()); /* a key twice */
-    CHECK(!parse_manifest("s/session.txt", "# Set file\n").has_value());
-    CHECK(!parse_manifest("s/session.txt", "").has_value());
-    CHECK(!parse_manifest("s/session.txt", "xppautX session 2\n").has_value());
-    CHECK(!parse_manifest("s/session.txt", "xppautX obsolete 1\nname m.odex\n").has_value());
+    /* a key it does not have, another version or an older layout is refused,
+       saying what is wrong and where */
+    const auto later = parse_manifest(file, "session: { version: 2, model: \"a.odex\", data: 0, future: 1 }\n");
+    CHECK(!later && later.error().place.file == file && later.error().place.line == 1 && later.error().what.find("`future` is not a setting") != std::string::npos);
+    CHECK(!parse_manifest(file, "session: { version: 2, model: \"x.odex\", data: 2 }\n").has_value()); /* data is 0 or 1 */
+    CHECK(!parse_manifest(file, "session: { version: 2, data: 0 }\n").has_value());                    /* no model */
+    CHECK(!parse_manifest(file, "session: { version: 2, model: \"a.odex\", model: \"b.odex\", data: 0 }\n").has_value()); /* a key twice */
+    CHECK(!parse_manifest(file, "xppautX session 1\nname x.odex\ndata 0\n").has_value());              /* the older layout */
+    CHECK(!parse_manifest(file, "").has_value());
+    CHECK(!parse_manifest(file, "session: { version: 3, model: \"m.odex\", data: 0 }\n").has_value()); /* another version */
 
     /* the model's members: model/<name>, in order; the model's own needed */
-    std::vector<xpp::zip::Entry> entries{{"session.txt", text}};
+    std::vector<xpp::zip::Entry> entries{{"session.setx", text}};
     const std::vector<xpp::ModelFile> files{{"a.odex", "x'=-x\n"}, {"../t/w.tab", "2 0 1 0 1\n"}};
     add_model_members(entries, files);
-    entries.push_back({"model.set", "#\n"});
+    entries.push_back({"model.setx", "numerics: {},\n"});
     CHECK(entries.size() == 4 && entries[1].name == "model/a.odex" && entries[2].name == "model/../t/w.tab");
     const std::optional<std::vector<xpp::ModelFile>> got = model_members(entries, "a.odex");
     CHECK(got && *got == files);
     CHECK(!model_members(entries, "b.odex"));
-    CHECK(!model_members({{"session.txt", text}}, "a.odex"));
+    CHECK(!model_members({{"session.setx", text}}, "a.odex"));
 
     CHECK(is_session_file("a/b.snapx") && is_session_file("B.SNAPX") && !is_session_file("b.snapx.zip"));
     CHECK_STR(session_file_name("run1").c_str(), "run1.snapx");
@@ -94,25 +96,29 @@ void check_nullclines()
 {
     const auto model = std::make_unique<xpp::Model>();
     model->node = 2;
-    const std::string text = "1 x axis\n2 y axis\n1 segments\n0 coordinate\n1 coordinate\n2 coordinate\n3 coordinate\n0 segments\n1 frozen pairs\n1 x axis\n2 y axis\n0 segments\n1 segments\n-1 coordinate\n-2 coordinate\n-3 coordinate\n-4 coordinate\n";
+    const std::string text =
+        "current: { x_axis: 1, y_axis: 2, x_segments: [0, 1, 2, 3], y_segments: [] },\n"
+        "frozen: [ { x_axis: 1, y_axis: 2, x_segments: [], y_segments: [-1, -2, -3, -4] } ],\n";
     const auto read = [&](std::string_view bytes) {
-        return xpp::read_lines("session", "s.snapx/nullclines.set", bytes,
-            [&](xpp::Lines &lines) { return xpp::read_nullclines(*model, lines); });
+        return xpp::setx::read_block("session", "s.snapx/nullclines.setx", bytes, true,
+            [&](xpp::setx::Block &file) { return xpp::read_nullclines(*model, file); });
     };
     const auto got = read(text);
     CHECK(got && got->num_x_n == 1 && got->num_y_n == 0 && got->null_ix == 1 && got->null_iy == 2);
     CHECK(got && got->x_null == std::vector<float>({0, 1, 2, 3}));
     CHECK(got && got->frozen_started && got->frozen.size() == 1 && got->frozen[0].yn == std::vector<float>({-1, -2, -3, -4}));
-    const auto cut = read(text.substr(0, text.find("-4 coordinate")));
-    CHECK(!cut && cut.error().place.file == "s.snapx/nullclines.set" && cut.error().place.line == 17);
-    const auto extra = read(text + "extra\n");
-    CHECK(!extra && extra.error().place.line == 18);
-    const auto many = read("1 x axis\n2 y axis\n2147483647 segments\n");
-    CHECK(!many && many.error().place.line == 3 && many.error().what.find("2147483647") != std::string::npos);
-    const auto bad = read("1 x axis\n2 y axis\n1 segments\n1e100 coordinate\n");
-    CHECK(!bad && bad.error().place.line == 4 && bad.error().place.source == "1e100 coordinate");
-    const auto nan = read("1 x axis\n2 y axis\n1 segments\nnan coordinate\n");
-    CHECK(!nan && nan.error().place.line == 4 && nan.error().place.source == "nan coordinate");
+    const auto cut = read(text.substr(0, text.find("frozen")));
+    CHECK(!cut && cut.error().place.file == "s.snapx/nullclines.setx" && cut.error().what.find("`frozen`") != std::string::npos);
+    const auto extra = read(text + "extra: 1,\n");
+    CHECK(!extra && extra.error().place.line == 3);
+    const auto short_segment = read("current: { x_axis: 1, y_axis: 2, x_segments: [1, 2, 3], y_segments: [] }, frozen: [],\n");
+    CHECK(!short_segment && short_segment.error().place.line == 1 && short_segment.error().what.find("four for each segment") != std::string::npos);
+    const auto bad = read("current: { x_axis: 1, y_axis: 2, x_segments: [1e100, 0, 0, 0], y_segments: [] }, frozen: [],\n");
+    CHECK(!bad && bad.error().place.line == 1 && bad.error().place.source.find("1e100") != std::string::npos);
+    const auto nan = read("current: { x_axis: 1, y_axis: 2, x_segments: [nan, 0, 0, 0], y_segments: [] }, frozen: [],\n");
+    CHECK(!nan && nan.error().what.find("nan") != std::string::npos);
+    const auto axes = read("current: { x_axis: 1, y_axis: 1, x_segments: [0, 0, 0, 0], y_segments: [] }, frozen: [],\n");
+    CHECK(!axes && axes.error().what.find("distinct") != std::string::npos);
 }
 
 void check_saved_model(const xpp::TempDir &tmp)
