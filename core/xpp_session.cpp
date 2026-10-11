@@ -8,6 +8,8 @@
    (the settings syntax, setx.h, or xpp_io.h's Lines) and checked
    (read_session), its errors at the member's line ("name.snapx/windows.setx:12"),
    before anything is applied (apply_session). */
+#include "numerics_settings.h"
+#include "model_options.h"
 #include "xpp_session.h"
 #include "snapx.h"
 #include "session.h"
@@ -758,10 +760,11 @@ std::uint64_t values_fingerprint(const xpp::Session &s)
     xpp::Fingerprint f;
     for (int i = 0; i < m.nupar; i++) f.value(s.parser.constants[m.upar_con[i]]);
     for (int i = 0; i < m.node + m.nmarkov; i++) f.value(s.last_ic[i]);
-    const xpp::NumericsSettings &n = s.numerics;
-    for (const double d : {n.start_time, n.total_time, n.delta_t, n.transient_time, n.min_step, n.max_step, n.tolerance, n.abs_tolerance, n.bound, n.delay}) f.value(d);
-    f.value(n.method);
-    f.value(n.store_every);
+    /* the numerics the session file keeps, whatever the table holds */
+    for (const xpp::OptionRow *row : xpp::saved_settings(xpp::option_group::numerics)) {
+        if (row->real) f.value(row->real(s));
+        else if (row->whole) f.value(row->whole(s));
+    }
     f.value(s.data_store.rows);
     f.value(s.data_store.current_time);
     return f.result();

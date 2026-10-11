@@ -2,6 +2,7 @@
    whatever else the batch options ask for. This is the XPPBatch branch of
    the historical do_main(), with no front end setup, so it links against
    libxppcore alone. */
+#include "model_options.h"
 #include "xpp_session.h"
 #include "solver.h"
 #include "model.h"
@@ -183,7 +184,7 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
     if (load.session().numerics.jacobian==JACOBIAN_EXACT && !m.jacobian.available()) {
         program = program_before;
         batch_options = batch_before;
-        return std::unexpected(Error{"options",xpp::format("@ jacobian=exact: the model has no exact Jacobian: {}",m.jacobian.unavailable),
+        return std::unexpected(Error{"options",option_error_text("jacobian","exact","the model has no exact Jacobian: "+m.jacobian.unavailable),
                                      m.jacobian.requested});
     }
     load.commit();

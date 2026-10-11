@@ -37,10 +37,10 @@ auto fields()
     return option_rows() | std::views::filter([](const OptionRow &r) { return !r.key.empty(); });
 }
 
-/* whether the session's method (and model) uses field f */
-bool used(const xpp::Session &s, const OptionRow &f)
+/* whether method (and s's model) uses setting f */
+bool uses(const xpp::Session &s, const OptionRow &f, int method)
 {
-    const xpp::SolverTraits &t = xpp::solver_info(s.numerics.method).traits;
+    const xpp::SolverTraits &t = xpp::solver_info(method).traits;
     switch (f.use) {
     case OptionUse::always: return true;
     case OptionUse::step_or_rel: return t.step_tolerance || t.rel_abs_tolerance;
@@ -48,22 +48,24 @@ bool used(const xpp::Session &s, const OptionRow &f)
     case OptionUse::rel: return t.rel_abs_tolerance;
     case OptionUse::newton: return t.newton;
     case OptionUse::delays: return s.model().ndelays > 0;
+    case OptionUse::integral_history: return t.integral_history;
     }
     return true;
 }
+
+/* whether the session's method (and model) uses field f */
+bool used(const xpp::Session &s, const OptionRow &f) { return uses(s, f, s.numerics.method); }
 
 /* whether field f is one of s's model's: the delay of a model with no delays is not */
 bool used_or_hidden(const xpp::Session &s, const OptionRow &f) { return f.use != OptionUse::delays || used(s, f); }
 
 /* total's sign says "forever", as the menu's */
-bool is_total(const OptionRow &f) { return f.key == "total_time"; }
+bool is_total(const OptionRow &f) { return f.signed_forever; }
 
 double value_of(const xpp::Session &s, const OptionRow &f)
 {
     if (is_total(f) && s.numerics.forever) return -s.numerics.total_time;
-    /* the accessors name the member; reading it changes nothing */
-    xpp::Session &member_of = const_cast<xpp::Session &>(s);
-    return f.real ? f.real(member_of) : f.whole(member_of);
+    return f.real ? f.real(s) : f.whole(s);
 }
 
 std::string event_text(const xpp::Session &s)
@@ -195,9 +197,7 @@ int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_vie
         if (!check(s, *f, text, v, why, place ? *place : command_place())) return -1;
         write_field(s, *f, v);
         /* what changing these needs */
-        if (key == "dt") dt_changed(s);
-        else if (key == "delay") chk_delay(s);
-        else if (key.starts_with("bvp_")) reset_bvp(s);
+        if (f->applied) f->applied(s);
         do_meth(s);
         return 0;
     } catch (const std::bad_alloc &) {
@@ -248,21 +248,19 @@ std::string setting_key(const OptionRow &row)
 bool setting_applies(const xpp::Session &s, const OptionRow &row, int method)
 {
     if (!row.key.empty()) return used_or_hidden(s, row);
-    if (row.flag == Option::VMAXPTS) return xpp::solver_info(method).traits.integral_history;
-    return true;
+    return uses(s, row, method);
 }
 
 std::string setting_text(const xpp::Session &s, const OptionRow &row)
 {
-    xpp::Session &member_of = const_cast<xpp::Session &>(s); /* the accessors name the member; reading it changes nothing */
-    if (row.rule == OptionRule::method) return std::string(xpp::solver_info(row.whole(member_of)).key);
+    if (row.rule == OptionRule::method) return std::string(xpp::solver_info(row.whole(s)).key);
     if (row.kind == OptionKind::choice) {
         /* a number out of the choices (a member set by hand) is written as it is, and refused when read */
-        const int v = row.whole(member_of);
+        const int v = row.whole(s);
         return v >= 0 && static_cast<std::size_t>(v) < row.choices.size() ? std::string(row.choices[static_cast<std::size_t>(v)]) : xpp::number(v);
     }
-    if (row.kind == OptionKind::name && row.whole) return xpp::ind_to_sym(s, row.whole(member_of));
-    if (row.text) return row.text(member_of);
+    if (row.kind == OptionKind::name && row.whole) return xpp::ind_to_sym(s, row.whole(s));
+    if (row.text) return row.text(s);
     return xpp::number(value_of(s, row));
 }
 

@@ -10,8 +10,9 @@
    `set num` and the menu's questions). model_options.cpp. */
 
 #include <array>
-#include <bitset>
 #include <cstddef>
+#include <functional>
+#include <type_traits>
 #include <span>
 #include <optional>
 #include <string>
@@ -23,63 +24,53 @@ namespace xpp {
 struct Session; /* session.h */
 struct Model;   /* model.h */
 
-/* An option that a source sets once: the first to set it keeps it
-   (the command line, then the model, then .xpprc; a later @ line of the
-   same source may set it again), and a load gives the default only to
-   one nothing set. An option that may be given any number of times (fold=,
-   but=, xp2=, ...) has none. */
-enum class Option : unsigned char {
-  none,
-  /* the numerics */
-  TOTAL_TIME, START_TIME, TRANSIENT_TIME, DT, NULLCLINE_MESH, SINGPT_MAX_ITERATES,
-  SINGPT_NEWTON_TOLERANCE, SINGPT_JACOBIAN_EPSILON, STORE_EVERY, BOUND,
-  METHOD, TOLERANCE, MIN_STEP, MAX_STEP, ABS_TOLERANCE, DELAY, VMAXPTS, STORAGE_ROWS,
-  TORUS_PERIOD, BANDUP, BANDLO, POINCARE_MAP, POINCARE_VARIABLE, POINCARE_SIGN,
-  POINCARE_STOP, POINCARE_PLANE, SEED, STOCH, AUTOEVAL, JACOBIAN,
-  /* the plot */
-  XP, YP, ZP, NPLOT, AXES, XLO, XHI, YLO, YHI, XMIN, XMAX, YMIN, YMAX,
-  ZMIN, ZMAX, PHI, THETA, LT, YNC, XNC, SMC, UMC, COLORMAP, PLOTFMT,
-  PS_FONT, PS_LW, PS_FSIZE, PS_COLOR, DFGRID, DFDRAW, NCDRAW, COLORVIA,
-  COLORIZE, COLORLO, COLORHI, S1, S2, S3, SLO1, SLO2, SLO3, SHI1, SHI2,
-  SHI3,
-  /* the range integration and a batch run */
-  RANGEOVER, RANGESTEP, RANGELOW, RANGEHIGH, RANGERESET, RANGEOLDIC, RANGE,
-  OUTPUT, RUNNOW,
-  /* AUTO */
-  NTST, NMAX, NPR, NCOL, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN,
-  NORMMAX, EPSL, EPSU, EPSS, AUTOXMAX, AUTOYMAX, AUTOXMIN, AUTOYMIN,
-  AUTOVAR, SEC, UEC, SPC, UPC,
-  /* the histogram and the spectrum a batch run writes */
-  POSTPROCESS, HISTLO, HISTHI, HISTBINS, HISTCOL, HISTLO2, HISTHI2,
-  HISTBINS2, HISTCOL2, SPECCOL, SPECCOL2, SPECWIDTH, SPECWIN,
-  count
-};
+struct OptionRow;
 
-/* which options a source has set already (a Session's, session.h) */
+/* which options a source has set already (a Session's, session.h): the
+   rows with `once` (OptionRow), each kept by its place in the table, so a
+   new row needs no flag of its own */
 class OptionsSet {
 public:
-  bool has(Option o) const { return bits_[static_cast<std::size_t>(o)]; }
-  void mark(Option o) { bits_.set(static_cast<std::size_t>(o)); }
+  bool has(const OptionRow &row) const;
+  void mark(const OptionRow &row);
 private:
-  std::bitset<static_cast<std::size_t>(Option::count)> bits_;
+  std::vector<bool> bits_;
 };
+
+/* a row's member as `member([](auto &s) -> auto & { return s.x.y; })`: one
+   generic lambda gives the read that takes the Session (a Session&, to
+   write) and the one that takes a const Session& */
+template <class T>
+struct Member {
+  T &(*write)(Session &) = nullptr;
+  const T &(*read)(const Session &) = nullptr;
+  explicit operator bool() const { return write != nullptr; }
+  T &operator()(Session &s) const { return write(s); }
+  const T &operator()(const Session &s) const { return read(s); }
+};
+template <class F>
+constexpr auto member(F)
+{
+  using T = std::remove_cvref_t<std::invoke_result_t<F, Session &>>;
+  return Member<T>{[](Session &s) -> T & { return F{}(s); }, [](const Session &s) -> const T & { return F{}(s); }};
+}
 
 /* what the Numerics menu and `set num` accept for a numerics setting */
 /* (choice: one of the row's choices, by name or number) */
 enum class OptionRule { any, nonzero, positive, nonnegative, whole_positive, method, choice };
 /* which methods use a numerics setting (xpp::SolverTraits), so a front end
    can say the others do not */
-enum class OptionUse { always, step_or_rel, step, rel, newton, delays };
+enum class OptionUse { always, step_or_rel, step, rel, newton, delays, integral_history };
 
 /* the source of the value set_option is applying: whether it may set an
    option another source (or an earlier line of its own, mask) set */
 struct OptionSource {
   bool force;                /* an internal set, the command line: always */
   const OptionsSet *mask;    /* the options unset when this source began */
-  /* o may be set from here */
-  bool may(const Session &s, Option o) const;
-  /* o may be set from here; marked set when so */
-  bool claim(Session &s, Option o) const;
+  /* row may be set from here */
+  bool may(const Session &s, const OptionRow &row) const;
+  /* row may be set from here; marked set when so */
+  bool claim(Session &s, const OptionRow &row) const;
 };
 
 /* an option's value as its parser gets it */
@@ -125,11 +116,16 @@ struct OptionRow {
      (foreign formats) and refused in a .odex: "" when XPPAUT's name is the name */
   std::array<std::string_view, 2> xppaut_names;
   char first_digit = 0, last_digit = 0; /* numbered: the digits after name */
-  Option flag = Option::none;
+  /* a source sets it once: the first to set it keeps it (the command line,
+     then the model, then .xpprc; a later @ line of the same source may set
+     it again), and a load gives the default only to one nothing set. A row
+     that may be given any number of times (fold=, but=, xp2=, ...) has no
+     `once`. */
+  bool once = false;
   /* the member: a number (atof), a whole number (atoi) or text */
-  double &(*real)(Session &) = nullptr;
-  int &(*whole)(Session &) = nullptr;
-  std::string &(*text)(Session &) = nullptr;
+  Member<double> real;
+  Member<int> whole;
+  Member<std::string> text;
   /* the value when it is not just the member's: nullptr when taken, else
      why not (logged, the option left unset) */
   const char *(*parse)(Session &, const OptionValue &) = nullptr;
@@ -156,6 +152,11 @@ struct OptionRow {
      group, by the row's key. A choice row's value is the index of its
      word in `choices` (or, for the method, the solver's number). */
   bool saved = false;
+  /* what a change of the numerics setting needs, after its member is
+     written (the dt's steps, the delay's storage, the BVP's arrays) */
+  void (*applied)(Session &) = nullptr;
+  /* the value's sign says "forever" (the total time) */
+  bool signed_forever = false;
 };
 
 /* why the number v is not one rule accepts ("must be a number above 0"),
@@ -207,8 +208,17 @@ std::string option_schema();
    block's and a .setx's, setx_file.h) */
 std::string option_value_schema(const OptionRow &row);
 
+/* the row with `once` named name (upper case): for an option whose parser
+   sets or claims another's */
+const OptionRow &once_option(std::string_view name);
+
 /* the numerics setting with key, nullptr when none */
 const OptionRow *numerics_option(std::string_view key);
+
+/* what an option's error says, in no file's syntax (the option may come
+   from a .ode, a .odex's options block, a .setx or the command line); the
+   error carries the file and line it was read from */
+std::string option_error_text(std::string_view name, std::string_view value, std::string_view why);
 
 /* option name set to value (force: even when another source set it; mask:
    the options this source may set again) */

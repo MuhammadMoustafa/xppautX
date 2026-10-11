@@ -49,7 +49,7 @@ int msc(std::string_view s1, std::string_view s2);
 std::vector<std::string> check_for_xpprc();
 
 /* The parameter sliders the ODE file sets up (@ s1=name, slo1=, shi1=,
-   likewise 2 and 3); options_set has Option::S1.. once slider n was set. */
+   likewise 2 and 3); options_set has the s1.. rows once slider n was set. */
 struct XppSlider {
     std::string var;           /* the parameter it moves */
     double lo = 0.0, hi = 1.0; /* its range */

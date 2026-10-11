@@ -24,6 +24,7 @@ import {HELP} from '../help/links';
 import {EXPRESSION, FORMULA, FORMULA_HINT, NUMBER, fieldMessage, type FieldSpec} from '../store/fieldKinds';
 import {fieldKey, foldKey, inspectNumber, isFolded, sentText, showsBcSection, sixSig, type ValueKind} from '../store/values';
 import type {NumericsField} from '../protocol/types';
+import {NUM_METHOD, numericsField} from '../store/steady';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {CommandButton} from './CommandButton';
 import {Field} from './Field';
@@ -293,7 +294,7 @@ function NumericField({f}: {f: NumericsField}) {
 function NumericsSection() {
   const fields = useStore(s => s.numerics);
   if (!fields?.length) return null;
-  const method = fields.find(f => f.key === 'method');
+  const method = numericsField(fields, NUM_METHOD);
   const methodName = method?.choices?.[Number(method.value)] ?? 'the selected solver';
   const unused = fields.filter(f => f.unused);
   return (

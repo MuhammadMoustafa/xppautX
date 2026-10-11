@@ -252,10 +252,12 @@ int main(void)
             if (r.first_digit) CHECK(index == r.last_digit - '0');
         }
         if (!r.key.empty()) CHECK(xpp::numerics_option(r.key) == &r);
-        /* a numbered row is its name and a digit; a flag is one row's */
-        if (r.flag != xpp::Option::none)
+        /* a numbered row is its name and a digit; a once row is the only one of its name (once_option finds it) */
+        if (r.once) {
+            CHECK(&xpp::once_option(r.name) == &r);
             for (const xpp::OptionRow &o : rows)
-                CHECK(&o == &r || o.flag != r.flag);
+                CHECK(&o == &r || !o.once || o.name != r.name);
+        }
     }
     /* the longest name wins: histlo2 is not histlo, dtmin not dt */
     {
@@ -290,7 +292,7 @@ int main(void)
     std::vector<std::string> defaults;
     for (const xpp::OptionRow &r : rows) defaults.push_back(value_of(*s, r));
     for (const xpp::OptionRow &r : rows)
-        if (r.flag != xpp::Option::none && !r.reset) CHECK(!s->options_set.has(r.flag));
+        if (r.once && !r.reset) CHECK(!s->options_set.has(r));
 
     /* every option set from @ lines, the last row's first (xmin sets the
        2D window's xlo too; xlo's own line after it wins) */
@@ -316,7 +318,7 @@ int main(void)
             CHECK(got == want.value);
             if (got != want.value) printf("  %s: %s, not %s\n", std::string(id(r)).c_str(), got.c_str(), want.value.c_str());
         }
-        if (r.flag != xpp::Option::none) CHECK(s->options_set.has(r.flag));
+        if (r.once) CHECK(s->options_set.has(r));
     }
 
     /* a .set file brings back what it holds */
@@ -348,7 +350,7 @@ int main(void)
     for (std::size_t k = 0; k < rows.size(); k++) {
         const xpp::OptionRow &r = rows[k];
         if (!in_session(*s, r)) continue;
-        const bool restored = in_set_file(r) && r.flag != xpp::Option::VMAXPTS && r.key != "delay"; /* a model without delays or an integral method has neither setting */
+        const bool restored = in_set_file(r) && r.use != xpp::OptionUse::integral_history && r.key != "delay"; /* a model without delays or an integral method has neither setting */
         const std::string want = restored ? written[k] : changed[k];
         const std::string got = value_of(*s, r);
         CHECK(got == want);

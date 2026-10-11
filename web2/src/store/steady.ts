@@ -1,6 +1,7 @@
 import type {HelloEvent, NumericsField, StateEvent} from '../protocol/types';
 
-/** the `key`s of the `numerics` event's fields the run controls read (docs/protocol.md "numerics") */
+/** the `key`s of the `numerics` event's fields the page reads (docs/protocol.md "numerics"): the one place
+    the page spells a key; tools/optioncheck.py fails when the core's option table has none of them */
 export const NUM_TOTAL = 'total_time', NUM_DT = 'dt', NUM_METHOD = 'method', NUM_STORE_EVERY = 'store_every';
 /** the solver the core names for difference equations (core/solver.cpp's method table, the one entry
     listed in the method field's `choices`); a map advances one step per iteration, so its interval is

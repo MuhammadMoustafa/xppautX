@@ -21,6 +21,8 @@
 #     (tools/sessioncheck.sh, W47d6)
 #   - no extern whose type differs from its definition (make ltocheck)
 #   - docs/odex-options.schema.json is the option table's (tools/optionschema.sh, W281)
+#   - an option is one row of the option table: no more option names passed as
+#     literals than tests/option_names.baseline allows (tools/optioncheck.py, W293)
 #   - no function or file-scope datum nothing reaches (tools/deadcode.sh;
 #     Linux: elsewhere it says so and passes)
 #   - no more external mutable data symbols per file than
@@ -149,6 +151,10 @@ if ! sh tools/dupcheck.sh --check > build/dupcheck.out 2>&1; then
   exit 1
 fi
 tail -1 build/dupcheck.out
+if ! sh tools/optioncheck.sh --check; then
+  echo "OPTION NAMES CHECK FAILED"
+  exit 1
+fi
 if ! sh tools/aliascheck.sh --check > build/aliascheck.out 2>&1; then
   tail -40 build/aliascheck.out
   echo "ALIAS CHECK FAILED"

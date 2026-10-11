@@ -182,9 +182,9 @@ def check_load_error():
         e = next((v for v in evs if v.get('ev') == 'error'), {})
         check("load error: an included file's refused option is at its file and line (W140)",
               p.returncode == 1 and e.get('file') == 'opts.inc' and e.get('line') == 1
-              and e.get('source') == '@ total=abc' and e.get('error') == '@ total=abc: not a number', str(e))
+              and e.get('source') == '@ total=abc' and e.get('error') == 'the option `total=abc`: not a number', str(e))
         check('load error: the log names the file and line, once (W140)',
-              p.stderr.count('opts.inc:1: @ total=abc: not a number') == 1
+              p.stderr.count('opts.inc:1: the option `total=abc`: not a number') == 1
               and p.stderr.count('not a number') == 1, repr(p.stderr[-300:]))
 
         with open(os.path.join(bad_dir, 'bad.odex'), 'w') as f:
@@ -4071,7 +4071,7 @@ def check_jacobian_setting():
         run = subprocess.run([os.path.abspath(args.server), 'noisy.odex', '--silent'], capture_output=True, text=True, cwd=model_dir,
                              timeout=60 * SLOW)
         check('W260: @ jacobian=exact in a model with none fails the load at the @ line, with the reason',
-              run.returncode == 1 and 'noisy.odex:3:23: @ jacobian=exact: the model has no exact Jacobian: '
+              run.returncode == 1 and 'noisy.odex:3:23: the option `jacobian=exact`: the model has no exact Jacobian: '
               'noisy.odex:2:1: uses random numbers' in run.stderr, run.stderr[-400:])
         smooth = os.path.join(model_dir, 'smooth.odex')
         with open(smooth, 'w') as f:
