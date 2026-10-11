@@ -38,10 +38,33 @@ case "$(uname -s)" in
     ;;
 esac
 lock="$root/xppautx-heavy.lock"
+# First come, first served: each waiter files a ticket (the time it asked,
+# its side and PID) and only the oldest live ticket may take the lock, so
+# a run that asks again the moment it lets go cannot win every time over
+# runs that poll (W275 waited hours behind W290's back-to-back steps).
+queue="$root/xppautx-heavy.queue"
+mkdir -p "$queue"
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) mark=w ;; *) mark=l ;; esac
+ticket="$(date +%s%N)-$mark-$me"
+: > "$queue/$ticket"
+trap 'rm -f "$queue/$ticket"' EXIT INT TERM
+# the oldest ticket whose run is alive; a dead one of this side is removed
+first_in_line() {
+  local t pid
+  for t in $(ls "$queue" | sort); do
+    pid=${t##*-}
+    if [ "${t#*-}" = "$mark-$pid" ] && [ "$t" != "$ticket" ] && ! alive "$pid"; then
+      rm -f "$queue/$t"
+      continue
+    fi
+    echo "$t"
+    return
+  done
+}
 # Poll interval while another heavy command runs (a wait for a condition).
 POLL_SECONDS=5
 waited=0
-while ! mkdir "$lock" 2>/dev/null; do
+while ! { [ "$(first_in_line)" = "$ticket" ] && mkdir "$lock" 2>/dev/null; }; do
   holder=$(cat "$lock/pid" 2>/dev/null || true)
   side=$(cat "$lock/side" 2>/dev/null || true)
   # A holder on the other side (WSL vs Windows) cannot be checked by its
@@ -52,11 +75,12 @@ while ! mkdir "$lock" 2>/dev/null; do
     continue
   fi
   if [ $waited -eq 0 ]; then
-    echo "heavy: waiting for $(cat "$lock/what" 2>/dev/null || echo 'another heavy run')" >&2
+    echo "heavy: waiting for $(cat "$lock/what" 2>/dev/null || echo 'another heavy run'), $(ls "$queue" | wc -l) in line" >&2
   fi
   waited=1
   sleep "$POLL_SECONDS"
 done
+rm -f "$queue/$ticket"
 printf '%s' "$me" > "$lock/pid"
 uname -s > "$lock/side"
 printf '%s (%s)\n' "$*" "$PWD" > "$lock/what"
