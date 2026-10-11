@@ -42,3 +42,6 @@ qa/
 # upstream XPPAUT sources kept locally for reading and citing (docs/xppaut-findings.md):
 # xppaut-8.0 (the 8.0 source xppautX was forked from) and xppaut-master (XPPAUT's GitHub master)
 /reference/
+
+# upstream bug reports in preparation (reproducers, patches, clones), kept local
+/upstream-reports/
