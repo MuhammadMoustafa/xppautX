@@ -148,7 +148,11 @@ grammar:
   trailing comma allowed. `options` is a reserved word; the keys and values
   are read only inside the block, so none of them is reserved (`stiff`,
   `total_time` can still name a variable). A file has one block. The groups
-  and their keys are the option table's (core/model_options.cpp):
+  and their keys are the option table's (core/model_options.cpp); the JSON
+  Schema generated from it is
+  [odex-options.schema.json](odex-options.schema.json) (`xppautX
+  --options-schema` prints it; `tools/optionschema.sh --check` fails when
+  the file differs, W281):
 
         options {
           numerics: { total_time: 100, method: stiff, jacobian: exact },

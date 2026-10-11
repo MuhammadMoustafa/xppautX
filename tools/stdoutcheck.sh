@@ -17,6 +17,7 @@ ALLOW="core/comline.cpp|XPPAUT Version %g.%g|the --version flag's own text, like
 core/xppautx_main.cpp|printf(\"xppautX %s\\n\", xpp_version_string())|--version text the VS Code extension reads
 core/xpp_http.cpp|printf(\"XPP: %s\\n\", page_url)|the XPP: address line xppautX prints in browser mode
 core/xppautx_main.cpp|printf(\"%s%s%s\", usage_head|the --help text
+core/xppautx_main.cpp|printf(\"%s\", xpp::option_schema().c_str())|W281 --options-schema prints the options' JSON Schema, which tools/optionschema.sh reads
 core/odex_convert.cpp|std::printf(\"%s\", json.c_str())|W75 --check owns stdout and emits one JSON object"
 
 PATTERN='(^|[^a-zA-Z_])(printf|puts|putchar|vprintf)[ \t]*\(|v?f(printf|puts|putc|write)[ \t]*\((stdout|stderr)|std::(cout|cerr)'

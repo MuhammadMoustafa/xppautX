@@ -35,6 +35,7 @@
    on stderr too; xpp::log_parse_arg() also recognizes them
    among xppaut's own options, so they work with --silent as well. */
 #include "model.h"
+#include "model_options.h"
 #include "session.h"
 #include "xpp_batch.h"
 #include "xpp_globals.h"
@@ -107,6 +108,7 @@ static std::string usage_tail()
     "  --convert        write model.odex from model.ode (docs/odex.md); asks about\n"
     "                   names .odex reserves (--yes takes the suggested names)\n"
     "  --check          validate a model in memory; JSON diagnostics, no files or window\n"
+    "  --options-schema print the JSON Schema of a .odex's options block\n"
     "  --no-compile     run the equations in the interpreter, not as compiled code\n"
     "  --silent          (an xppaut option) a headless run that writes output.dat\n"
     "A session file (name.snapx, File/Save session or AUTO's Save diagram)\n"
@@ -252,6 +254,11 @@ int main(int argc, char **argv)
         if (strcmp(argv[i], "--version") == 0) {
             /* the release tag (v1.2.0); the VS Code extension compares it with the latest release */
             printf("xppautX %s\n", xpp_version_string());
+            return 0;
+        }
+        if (strcmp(argv[i], "--options-schema") == 0) {
+            /* the JSON Schema of a .odex's options block, from the option table (docs/odex.md) */
+            printf("%s", xpp::option_schema().c_str());
             return 0;
         }
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {

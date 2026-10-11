@@ -195,6 +195,11 @@ std::vector<std::string> option_choices(const OptionRow &row);
    when it selects none; the method's is solver.h's pick_method */
 std::string option_choice(const OptionRow &row, std::string_view value);
 
+/* the JSON Schema of a .odex's options block, built from the table: what
+   `xppautX --options-schema` prints and docs/odex-options.schema.json holds
+   (tools/optionschema.sh checks they agree) */
+std::string option_schema();
+
 /* the numerics setting with key, nullptr when none */
 const OptionRow *numerics_option(std::string_view key);
 

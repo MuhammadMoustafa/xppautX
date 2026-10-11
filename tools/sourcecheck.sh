@@ -20,6 +20,7 @@
 #   - no current Session or Model read outside the session list's owners
 #     (tools/sessioncheck.sh, W47d6)
 #   - no extern whose type differs from its definition (make ltocheck)
+#   - docs/odex-options.schema.json is the option table's (tools/optionschema.sh, W281)
 #   - no function or file-scope datum nothing reaches (tools/deadcode.sh;
 #     Linux: elsewhere it says so and passes)
 #   - no more external mutable data symbols per file than
@@ -122,6 +123,11 @@ if make -j"$NPROC" ltocheck > build/ltocheck.log 2>&1; then
 else
   tail -30 build/ltocheck.log
   echo "LTO CHECK FAILED"
+  exit 1
+fi
+# the schema of the .odex options block is the option table's (W281)
+if ! sh tools/optionschema.sh --check --bin build/lto/xppautX; then
+  echo "OPTION SCHEMA CHECK FAILED"
   exit 1
 fi
 if ! sh tools/deadcode.sh --check > build/deadcode.out 2>&1; then
