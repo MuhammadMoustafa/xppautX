@@ -293,8 +293,10 @@ int main(int argc, char **argv)
     }
     argc = k;
     argv[argc] = NULL;
-    if (check && !convert && argc == 2 && argv[1][0] != '-')
+    if (check && !convert && argc == 2 && argv[1][0] != '-') {
+        xpp::batch_options.check = true;
         return xpp::odex::check_file(argv[1]);
+    }
     if (check) {
         xpp::log(XPP_LOG_ERROR, "usage: xppautX --check model.ode (or model.odex)\n");
         return 2;

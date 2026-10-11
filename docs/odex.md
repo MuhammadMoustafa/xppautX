@@ -29,7 +29,9 @@ without writing files (W75, [#123](https://github.com/MuhammadMoustafa/xppautX/i
 Run `xppautX --check model.ode` to convert and validate in memory, with
 no window, integration, or written `.odex`. Reserved names take the
 converter's suggested replacements. `--check model.odex` uses the `.odex`
-reader and reports only errors. Inspection does not open `@ logfile`.
+reader and reports only errors. Inspection does not open `@ logfile`,
+and asks nothing: a path outside the model's folder that the preferences
+do not already allow is a load error at its line (a load would ask, W286).
 Stdout is one UTF-8 JSON object followed by a newline:
 
 ```json

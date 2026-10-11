@@ -33,6 +33,7 @@ constexpr size_t TERMINAL_ANSWER_CAP = 4096;
 
 std::optional<std::string> ask_terminal(const std::string &question, const std::string &suggestion)
 {
+    if (batch_options.check) return std::nullopt;
     print(stderr, "{} [{}] ({} s): ", question, suggestion, TERMINAL_QUESTION_SECONDS);
     fflush(stderr);
 #ifdef _WIN32

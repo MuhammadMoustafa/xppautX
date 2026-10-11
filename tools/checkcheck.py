@@ -131,10 +131,10 @@ def main():
             assert 'method: ' + selected in file.with_suffix('.odex').read_text(encoding='utf-8')
             file.with_suffix('.odex').unlink()
             count += 1
-        # Includes retain the diagnostic's own file, line and source in both languages.
+        # Includes (.odex: imports) retain the diagnostic's own file, line and source in both languages.
         bad = root / 'bad.inc'
         bad.write_text('aux z=unknown\n', encoding='utf-8')
-        for extension, include in [('.ode', '#include bad.inc'), ('.odex', 'include "bad.inc"')]:
+        for extension, include in [('.ode', '#include bad.inc'), ('.odex', 'import "bad.inc"')]:
             code, diagnostics = run("x'=0\n" + include + ('\ndone\n' if extension == '.ode' else '\n'), extension)
             assert code == 2, diagnostics
             error = diagnostics[-1]
@@ -142,10 +142,10 @@ def main():
         nested = root / 'nested'
         nested.mkdir()
         (nested / 'good.inc').write_text('aux z=0\n#done\n', encoding='utf-8')
-        for extension, include in [('.ode', '#include nested/good.inc'), ('.odex', 'include "nested/good.inc"')]:
+        for extension, include in [('.ode', '#include nested/good.inc'), ('.odex', 'import "nested/good.inc"')]:
             code, diagnostics = run("x'=0\n" + include + ('\ndone\n' if extension == '.ode' else '\n'), extension)
             assert code == 0 and diagnostics == [], diagnostics
-        # A received file cannot read its neighbour, absolute includes, or a linked subtree.
+        # A received file cannot read its neighbour, absolute includes or imports, or a linked subtree.
         received = root / 'received'
         received.mkdir()
         private = root / 'private.inc'
@@ -153,7 +153,7 @@ def main():
         def refused_include(name, extension):
             nonlocal count
             model = received / ('main' + extension)
-            include = '#include ' + name if extension == '.ode' else 'include ' + json.dumps(name)
+            include = '#include ' + name if extension == '.ode' else 'import ' + json.dumps(name)
             model.write_text("x'=0\n" + include + '\ndone\n', encoding='utf-8')
             result = subprocess.run([binary, '--check', str(model)], cwd=received,
                                     capture_output=True, text=True, timeout=CHECK_TIMEOUT)
