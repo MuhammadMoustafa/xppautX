@@ -47,6 +47,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - `bessel_i` returns NaN for non-finite inputs or orders above 100000, handles negative integer orders by symmetry, and retains XPPAUT's truncation of non-integer orders (W271, [#328](https://github.com/MuhammadMoustafa/xppautX/issues/328)).
 
+- AUTO's thread count is a setting of the program: AUTO's Numerics has a Computer group with Threads, Automatic (physical cores, at most 4) or any count from 1 to the computer's logical processors, kept in `preferences.setx` for every model and run; the results are the same for every count (W267, [#324](https://github.com/MuhammadMoustafa/xppautX/issues/324)).
 - AUTO collocation uses a persistent pool on up to four threads for a compiled pure model; every result is unchanged across thread counts. Interpreted or impure models stay serial (W247, [#303](https://github.com/MuhammadMoustafa/xppautX/issues/303)).
 
 - DAE guesses and residuals, Markov transitions, kernel integrands and convolutions, event conditions and actions, derived parameters and network pair formulas now compile alongside equations and user functions. Unsupported programs and their user-function callers stay interpreted with individual source warnings; independent programs still compile (W266, [#323](https://github.com/MuhammadMoustafa/xppautX/issues/323)).

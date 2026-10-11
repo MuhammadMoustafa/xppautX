@@ -2327,6 +2327,14 @@ async function autoView(dir) {
   check('T23: each of the 22 Numerics fields has a plain name with its short name, e.g. "Max points (NMX)", and a tooltip',
     named.length === 22 && named.every(([n, t]) => /^[A-Z][a-z].* \([A-Z0-9]+[A-Za-z]*\)$/.test(n) && t.length > 40)
       && named.some(([n, , f]) => n === 'Max points (NMX)' && f === 'nmx'), JSON.stringify(named.filter(([n, t]) => t.length <= 40 || !/\(/.test(n))));
+  /* W267: the Computer group's Threads: Automatic or 1 to the logical processors, from the event; OK sends the choice */
+  const threadChoices = await cdp.eval(`[...document.querySelectorAll('.auto-settings-dialog select[data-field=threads] option')].map(o => o.value)`);
+  const threadCore = await S('({threads: s.autoSettings.core.threads, auto: s.autoSettings.core.threads_auto, max: s.autoSettings.core.threads_max})');
+  check('W267: Numerics has a Threads choice: Automatic (showing the count it gives) and every count from 1 to the logical processors, from the event',
+    threadCore.threads === 'auto' && threadCore.max >= 1 && threadCore.auto >= 1 && threadCore.auto <= Math.min(4, threadCore.max)
+    && threadChoices.length === threadCore.max + 1 && threadChoices[0] === 'auto' && threadChoices[threadCore.max] === String(threadCore.max)
+    && (await cdp.eval(`document.querySelector('.auto-settings-dialog select[data-field=threads] option').textContent`)) === `Automatic (${threadCore.auto})`,
+    JSON.stringify([threadCore, threadChoices.length]));
   const typeInto = (field, text) => cdp.eval(`(() => { const i = document.querySelector('.auto-settings-dialog input[data-field=${field}]');
     i.value = ${JSON.stringify(text)}; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   const fieldState = field => cdp.eval(`(() => { const i = document.querySelector('.auto-settings-dialog input[data-field=${field}]');
@@ -2363,6 +2371,26 @@ async function autoView(dir) {
   check('T22: Escape cancels it: nothing sent',
     await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics cancelled')
     && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set')`)));
+  /* W267: choosing a count and OK sends one set with threads alone, the core's event shows it (saved in the
+     config folder of this run), and Automatic puts the word back */
+  const chooseThreads = async value => {
+    await autoButton('N');
+    await until(`!!document.querySelector('.auto-settings-dialog select[data-field=threads]')`, 'threads choice');
+    await cdp.eval(`(() => { const e = document.querySelector('.auto-settings-dialog select[data-field=threads]');
+      e.value = ${JSON.stringify(value)}; e.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+    await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
+    await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics closed');
+  };
+  await chooseThreads(String(threadCore.max));
+  check('W267: Threads set to the most sends one set with the count alone, and the core shows it',
+    await until(`s.autoSettings.core.threads === ${threadCore.max} && !s.autoSettings.inflight.length`, 'threads set')
+    && await cdp.eval(`(() => { const c = __xpp.sent().filter(c => c.cmd === 'auto' && c.op === 'set').pop();
+      return !!c && c.threads === ${threadCore.max} && Object.keys(c).sort().join() === 'cmd,op,threads'; })()`),
+    JSON.stringify(await cdp.eval('__xpp.sent().slice(-2)')));
+  await chooseThreads('auto');
+  check('W267: and Automatic sets "auto" again',
+    await until(`s.autoSettings.core.threads === 'auto' && !s.autoSettings.inflight.length`, 'threads auto'),
+    JSON.stringify(await S('s.autoSettings.core.threads')));
 
   /* Run / Steady state */
   await autoButton('R');

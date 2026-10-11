@@ -11,7 +11,10 @@ public:
     // W251 measured no gain past four workers on PY_S1Bf.
     static constexpr unsigned max_threads = 4;
     static unsigned automatic_threads();
-    explicit AutoParallel(unsigned threads = automatic_threads());
+    // The count a preference gives: 0 is automatic, else the number itself.
+    static unsigned threads_for(unsigned preferred) { return preferred ? preferred : automatic_threads(); }
+    // threads is at least 1; the callers' sources keep it within the logical processors (xpp_prefs.h).
+    explicit AutoParallel(unsigned threads);
     ~AutoParallel();
     AutoParallel(const AutoParallel &) = delete;
     AutoParallel &operator=(const AutoParallel &) = delete;

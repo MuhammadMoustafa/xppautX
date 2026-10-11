@@ -274,7 +274,9 @@ file, line and value and none of it is used; it is read whole and written
 whole, temp then rename, and never overwritten while it is bad. With no
 config folder (no `HOME` or `APPDATA`, or a relative `XPP_CONFIG_DIR`) the
 error names the variable to set. Its keys: `recent_models` (a list of at most
-ten absolute paths, newest first: "Start screen"). A later group is one
+ten absolute paths, newest first: "Start screen");
+`auto_threads` (`auto` or a whole number from 1 to the logical processors:
+AUTO's thread count, "AUTO's settings as data"). A later group is one
 member of the Preferences struct and one line of the description that reads
 and writes it.
 
@@ -427,7 +429,7 @@ steps are not comparison intervals.
 | `text` | `op` (`add`, `edit`, `delete`), `win`, `id` (`edit`, `delete`), `text`, `size` 0-4, `style` 0-3, `color` 0-10, `x`, `y` | The text labels of plot window `win` (W227, #281), which the page's text dialog drives. `add` needs `text`, `x` and `y` (plot coordinates, the position of the text's baseline start); `size` (default 2), `style` (0) and `color` (0) default. `edit` changes the label `id` of that window (the `id` of its `marks` `text`): a key left out stays, and `x`, `y` move it. `delete` removes it. A text starting with `%` is stored as its rest with each `\{expr}` filled in once, as XPPAUT's Text dialog did. A view ("Action kinds"). All or nothing: a window or `id` that does not exist, a text that is empty or longer than `hello.text.max_length`, a `size`, `style` or `color` outside `hello.text`'s range, a value that is not a whole number or a position that is not a finite number is a `message` `error` (`text: 9 is not a text size (0 to 4)`) and nothing changes; so is an `add` when the session already has 50 texts. The label shows in `marks` at the end of the command. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
-| `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`view`, `x`, `y`, `show`), `view` (`new`, `close` or `active`), `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` a view's zoom, `show` whether the branches hidden by Clear are drawn; `view` adds, closes or activates a view of the diagram ("Views of the diagram" below); `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `close` destroys window 101, File/Auto opens it again. |
+| `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`view`, `x`, `y`, `show`), `view` (`new`, `close` or `active`), `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`, `threads`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` a view's zoom, `show` whether the branches hidden by Clear are drawn; `view` adds, closes or activates a view of the diagram ("Views of the diagram" below); `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `close` destroys window 101, File/Auto opens it again. |
 | `session` | `op` (`save`, `load`), `name`, `data` (save) | Save or open a session file, `name.snapx` (`.snapx` added unless `name` ends so; "Session files" below): File/opeN session (key `n` of the File menu) and `save`. Without `name`, `save` asks for one (`ask` kind `file`, wildcard `*.snapx`) and, as every save with no decision, before replacing a file that exists. The File menu's two save commands are the table's `savesession` (key `v`, Ctrl+S: saves to `state.session.file` with no ask and no replace question, and behaves as `savesessionas` when there is none) and `savesessionas` (key `w`, Ctrl+Shift+S: always asks, as `save` with no `name`), W209. A third, `savesessioncopy` (key `b`, no default key, W218), asks as `savesessionas` does and writes the file but leaves `state.session` and `state.changed` as they were. Reload keeps `state.session`'s file. `save`'s `data`: `true` puts the data table in, `false` leaves it out; without it the table goes in unless it is above 50 MB, when a `choice` ask (keys `l` leave it out, `s` save it) decides. `load` of a session file is `open` of it (below: its saved model, then the session). `state.session` (below) names the file the current session was last saved to or opened from. |
 | `open` | `file` | Load another model in place of this one (File > Open model). Without `file`, asks with wildcard `*.ode* *.snapx *.recx`. A missing file, an invalid session or a session without its model fails at once. Then asks `choice`, keys `sd`: Save session (`s`) or Don't save (`d`); a cancel keeps the session. A `.snapx` loads its saved model from its own members, then restores its whole session, even when the same model is open. A `.recx` opens in the player and starts automatically. The opened file's folder becomes the working directory; nothing is extracted beside a session. `hello.title` identifies its saved model, e.g. `lecar.odex (saved in lecar.snapx)`. A binary file or a model that does not load is refused with its place shown and the previous session unchanged. On success, all windows but the main one are destroyed and a new `hello`, main window, `state` and first-start events follow; the client subscribes with `data` again. |
 | `reload` | | Read the model's file again with the command line and in the folder it was loaded with (File/rEload, key `e` of the File menu; the window's File > Reload), as `open` does, asking first as it does (W59d: `choice` `sd`, `Reload NAME? Its values are kept by name; this model's data and diagram go. Save its session first?`): the parameters, initial data (a delay equation's history text too) and numerics keep the session's values by name (the Poincare section's variable by its name), a name the file no longer has is dropped, a new one comes with the file's value; `hello`'s `defaults` are the file's. A file that does not load changes nothing, as for `open`. |
@@ -1247,6 +1249,7 @@ has none, and gets no event). core/auto_settings.cpp keeps it.
  "pars":["iapp","phi","v1","v2","v3","v4","gca","vk"],
  "axes":{"plot":2,"var":"V","par1":"iapp","par2":"phi","xmin":-0.2,"xmax":0.5,"ymin":-0.5,"ymax":0.4},
  "marks":[["iapp",0.25],["T",30]],
+ "threads":"auto","threads_auto":4,"threads_max":16,
  "rules":{"ntst":{"label":"Ntst","integer":true,"min":1,"message":"Ntst must be a whole number of at least 1"},
           "ds":{"label":"Ds","nonzero":true,"message":"Ds must be a number other than 0"}, ...},
  "pairs":[{"lo":"dsmin","hi":"dsmax","strict":false,"message":"Dsmin must be at most Dsmax"}, ...],
@@ -1263,6 +1266,9 @@ has none, and gets no event). core/auto_settings.cpp keeps it.
 | `axes.xmin` .. `ymax` | the diagram's axes |
 | `axes` | all of it the active view's (see "Views of the diagram") |
 | `marks` | Mark values: `[name, value]` per user point, where the parameter `name` (one of `pars`) or the period `T` reaches `value` AUTO labels the point (UZ) |
+| `threads` | AUTO's thread count, a program preference (W267) and not a setting of the model or the session: `"auto"` or a whole number from 1 to `threads_max`; the same for every model, read from `preferences.setx` (`auto_threads`) when a model is loaded |
+| `threads_auto` | the count `"auto"` gives on this computer: its physical cores (the performance cores where the system says which), at most 4 |
+| `threads_max` | the most `threads` may be: the computer's logical processors |
 | `rules` | what each `numerics` value takes, by key (W118): `label` (the form's), `integer`, `positive`, `nonzero`, `min`, `max` (each only when it holds) and `message`, what a `set` of a value it does not take is refused with; the same table `set` checks with (core/auto_settings.cpp num_fields) |
 | `pairs` | the values that must be in order: `lo` below `hi` (`strict`) or at most it, and the refusal's `message` |
 | `step` | the first step `key` must be from `lo` to `hi` in size, whichever its sign, and the refusal's `message` |
@@ -1289,6 +1295,18 @@ names of parameters and variables the model has. A refusal is a `message`
 `rules`, `pairs` or `step` gives it (`AUTO settings: Ncol must be a whole
 number from 2 to 7`), so a client checks a form with the core's rules and
 says what the core would.
+
+`threads` (`"auto"` or a whole number from 1 to `threads_max`) is the thread
+count (W267). It is checked with the rest, and saved by `prefs::update_prefs`
+into the per-user `preferences.setx` (`auto_threads: auto` or
+`auto_threads: 4`; `$XPP_CONFIG_DIR` names the folder) before anything of the
+set is applied: a count outside the range, a word other than `"auto"`, or a
+`preferences.setx` that cannot be read or written (it is never overwritten
+while it is bad) refuses the whole set (`AUTO settings: AUTO's threads must be
+"auto" or a whole number from 1 to 16 (this computer's logical processors)`).
+A pool already running keeps its count until the next run. The results never
+depend on it (W247). It is not in `auto/settings.txt` or a session file, and a
+recording's replay changes the session's count only, never the file.
 
 AUTO's settings are saved in the session's `auto/settings.txt`
 (core/xpp_session_auto.cpp, settings_text); Reload keeps them in memory.

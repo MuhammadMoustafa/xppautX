@@ -147,6 +147,11 @@ export interface AutoSettings {
   pars: (string | null)[];
   axes: AutoAxesSettings;
   marks: [string, number][];
+  /** AUTO's thread count, a program preference (W267): "auto" or the count */
+  threads: 'auto' | number;
+  /** the count "auto" gives now, and the most a count may be (the computer's logical processors) */
+  threads_auto: number;
+  threads_max: number;
   rules: Record<NumKey, NumRule>;
   pairs: NumPair[];
   step: NumStep;
@@ -159,6 +164,7 @@ export interface AutoSettingsPatch {
   /** `view`: the view of the diagram whose axes these are (W50; the active one without it) */
   axes?: Partial<AutoAxesSettings> & {fit?: boolean; view?: number};
   marks?: [string, number][];
+  threads?: 'auto' | number;
 }
 
 /** a set sent, until its own idle: `ahead` other commands' idles come first */
@@ -216,6 +222,7 @@ function apply(base: AutoSettings, p: AutoSettingsPatch | null): AutoSettings {
     pars,
     axes: {...base.axes, ...axes},
     marks: p.marks ?? base.marks,
+    threads: p.threads ?? base.threads,
   };
 }
 
@@ -232,6 +239,7 @@ export function pendingFields(s: AutoSettingsState): Set<string> {
     for (const k of Object.keys(p.axes ?? {})) if (k !== 'fit' && k !== 'view') out.add(`axes.${k}`);
     if (p.pars) out.add('pars');
     if (p.marks) out.add('marks');
+    if (p.threads !== undefined) out.add('threads');
   }
   return out;
 }

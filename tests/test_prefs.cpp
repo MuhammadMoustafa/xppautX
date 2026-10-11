@@ -4,6 +4,7 @@
    error, and every list and the file bounded; in a config folder of its own
    (XPP_CONFIG_DIR: the user's real file is never touched). */
 #include "xpptest.h"
+#include "xpp_cpu.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_prefs.h"
@@ -103,6 +104,51 @@ void check_good_files()
     CHECK(!xpp::prefs::serialize_prefs(bad));
 }
 
+/* AUTO's thread count (W267): "auto" or a whole number from 1 to the logical processors */
+void check_auto_threads()
+{
+    using xpp::prefs::AUTO_THREADS_AUTO;
+    const unsigned most = xpp::cpu::logical_processors();
+    CHECK(xpp::prefs::parse_prefs("", FILE_LABEL).value().auto_threads == AUTO_THREADS_AUTO);
+    CHECK(xpp::prefs::parse_prefs("auto_threads: auto,\n", FILE_LABEL).value().auto_threads == AUTO_THREADS_AUTO);
+    /* every count the computer has round-trips; the list beside it is untouched */
+    for (unsigned n = 1; n <= most; n++) {
+        xpp::prefs::Preferences p;
+        p.recent_models = {abs_path("a.odex")};
+        p.auto_threads = n;
+        const auto text = xpp::prefs::serialize_prefs(p);
+        CHECK(text.has_value());
+        const auto back = xpp::prefs::parse_prefs(*text, FILE_LABEL);
+        CHECK(back && back->auto_threads == n && back->recent_models == p.recent_models);
+    }
+    const auto automatic = xpp::prefs::serialize_prefs({});
+    CHECK(automatic && xpp::prefs::parse_prefs(*automatic, FILE_LABEL).value().auto_threads == AUTO_THREADS_AUTO);
+    /* a bad value is refused at its line, with the value */
+    const std::string beyond = std::to_string(most + 1);
+    const Bad bad[] = {
+        {"zero", "recent_models: [],\nauto_threads: 0,\n", 2, "from 1 to"},
+        {"negative", "auto_threads: -1,\n", 1, "from 1 to"},
+        {"past the processors", "\nauto_threads: " + beyond + ",\n", 2, "from 1 to"},
+        {"a word", "auto_threads: many,\n", 1, "many"},
+        {"a fraction", "auto_threads: 1.5,\n", 1, "1.5"},
+        {"a list", "auto_threads: [2],\n", 1, "auto_threads"},
+    };
+    for (const Bad &t : bad) {
+        const auto r = xpp::prefs::parse_prefs(t.text, FILE_LABEL);
+        CHECK(!r);
+        if (r) continue;
+        if ((r.error().place.file != FILE_LABEL || r.error().place.line != t.line || r.error().what.find(t.value) == std::string::npos)) {
+            printf("bad threads %s: %s\n", t.what, r.error().text().c_str());
+            CHECK(false);
+        }
+    }
+    xpp::prefs::Preferences p;
+    p.auto_threads = most + 1;
+    CHECK(!xpp::prefs::serialize_prefs(p)); /* not written as a file that does not read */
+    CHECK(!xpp::prefs::auto_threads_problem(1) && !xpp::prefs::auto_threads_problem(most));
+    CHECK(xpp::prefs::auto_threads_problem(0) && xpp::prefs::auto_threads_problem(most + 1));
+}
+
 void check_file()
 {
     const std::string file = xpp::prefs::prefs_path();
@@ -135,6 +181,7 @@ int main(void)
 {
     check_bad_files();
     check_good_files();
+    check_auto_threads();
 
     xpp::TempDir temp;
     CHECK(!temp.path().empty());

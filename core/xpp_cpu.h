@@ -4,6 +4,8 @@
 #include <vector>
 
 namespace xpp::cpu {
+// Logical processors the system reports, at least 1 (hardware_concurrency may report 0).
+unsigned logical_processors();
 // Physical cores, restricted to performance cores when the OS identifies them.
 std::optional<unsigned> physical_cores();
 // Bounds on what a sysfs CPU list may name, so a malformed one is refused, not expanded.

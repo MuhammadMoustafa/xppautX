@@ -3,11 +3,14 @@
 #include "xpp_win32.h"
 #include <set>
 #include <algorithm>
+#include <thread>
 #ifdef __APPLE__
 #include <sys/sysctl.h>
 #endif
 
 namespace xpp::cpu {
+unsigned logical_processors() { return std::max(1u, std::thread::hardware_concurrency()); }
+
 std::optional<unsigned> topology_id(std::string_view text)
 {
     int id;

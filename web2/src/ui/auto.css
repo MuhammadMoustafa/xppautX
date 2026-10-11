@@ -240,10 +240,10 @@
 /* T22: AUTO's settings in the page's forms (ui/AutoSettings.tsx) */
 .auto-settings-dialog { width: min(64rem, 100%); }
 .auto-num-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--space-3); }
-.auto-num-group { margin: 0; padding: var(--space-2); border: 1px solid var(--border); border-radius: 0.5rem; min-width: 0; }
-.auto-num-group legend { font-size: var(--text-xs); color: var(--fg-muted); padding: 0 var(--space-1); }
-.auto-num-group label { grid-template-columns: minmax(0, 1fr) 6.5rem; gap: var(--space-2); cursor: help; }
-.auto-num-group label > span { font-size: var(--text-sm); }
+.auto-num-group, .auto-computer-group { margin: 0; padding: var(--space-2); border: 1px solid var(--border); border-radius: 0.5rem; min-width: 0; }
+.auto-num-group legend, .auto-computer-group legend { font-size: var(--text-xs); color: var(--fg-muted); padding: 0 var(--space-1); }
+.auto-num-group label, .auto-computer-group label { grid-template-columns: minmax(0, 1fr) 6.5rem; gap: var(--space-2); cursor: help; }
+.auto-num-group label > span, .auto-computer-group label > span { font-size: var(--text-sm); }
 .auto-settings-dialog label.queued input, .auto-settings-dialog label.queued select,
 .auto-settings-dialog .auto-mark-row.queued input, .auto-settings-dialog .auto-mark-row.queued select,
 .auto-axis-fields label.queued select { border-style: dashed; background: var(--surface-2); }

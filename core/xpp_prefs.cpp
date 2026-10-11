@@ -8,6 +8,7 @@
 
 #include "setx.h"
 #include "xpp_files.h"
+#include "xpp_cpu.h"
 #include "xpp_io.h"
 
 namespace xpp::prefs {
@@ -32,6 +33,8 @@ std::optional<std::string> recent_problem(std::span<const std::string> before, s
     return std::nullopt;
 }
 
+using CountProblem = std::optional<std::string> (*)(long long);
+
 using Problem = std::optional<std::string> (*)(std::span<const std::string>, std::string_view);
 
 /* the reader of a description: each key it is told of is read into its
@@ -49,6 +52,22 @@ public:
         out = std::move(got);
     }
 
+    /* `automatic` (0 in out) or a whole number problem accepts */
+    void count(std::string_view key, unsigned &out, std::string_view automatic, CountProblem problem)
+    {
+        std::string text;
+        if (!block_.text(key, text)) return;
+        if (text == automatic) {
+            out = 0;
+            return;
+        }
+        const setx::Member *m = block_.member(key);
+        int n = 0;
+        if (!xpp::parse_int(text, n)) block_.fail(m->value, xpp::format("`{}`: `{}` is not \"{}\" or a whole number", key, text, automatic));
+        if (const auto why = problem(n)) block_.fail(m->value, *why);
+        out = static_cast<unsigned>(n);
+    }
+
 private:
     setx::Block &block_;
 };
@@ -63,6 +82,15 @@ public:
             if (const auto why = problem(std::span(list).first(i), list[i]); why && !bad_) bad_ = *why;
         out.texts(key, list);
     }
+    void count(std::string_view key, const unsigned &value, std::string_view automatic, CountProblem problem)
+    {
+        if (value == 0) {
+            out.word(key, automatic);
+            return;
+        }
+        if (const auto why = problem(value); why && !bad_) bad_ = *why;
+        out.whole(key, value);
+    }
     setx::Out out;
     std::optional<std::string> bad_;
 };
@@ -72,9 +100,17 @@ public:
 template <class IO, class P> void describe(IO &io, P &p)
 {
     io.paths("recent_models", p.recent_models, MAX_RECENT_MODELS, recent_problem);
+    io.count("auto_threads", p.auto_threads, AUTO_THREADS_WORD, auto_threads_problem);
 }
 
 } // namespace
+
+std::optional<std::string> auto_threads_problem(long long n)
+{
+    const unsigned most = cpu::logical_processors();
+    if (n >= 1 && n <= static_cast<long long>(most)) return std::nullopt;
+    return xpp::format("AUTO's threads must be \"{}\" or a whole number from 1 to {} (this computer's logical processors)", AUTO_THREADS_WORD, most);
+}
 
 Result<Preferences> parse_prefs(std::string_view text, std::string file)
 {

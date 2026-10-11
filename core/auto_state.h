@@ -78,6 +78,9 @@ struct AutoState {
   int nuzr=0;
   std::array<long,20> uzr_par{};
   std::array<double,20> uzr_period{};
+  /* AUTO's thread count, a program preference (xpp_prefs.h, W267) kept
+     here for the run: prefs::AUTO_THREADS_AUTO, or the count */
+  unsigned threads=0;
   /* Numerics' SuppBP */
   int suppress_bp=0;
   /* a homoclinic orbit's left and right equilibria (autpp.cpp's stpnt),

@@ -2,6 +2,7 @@
 #define AUTO_SETTINGS_H
 #include <stddef.h>
 #include <array>
+#include <optional>
 #include <string>
 #include "xpplim.h"
 
@@ -71,7 +72,18 @@ struct AutoSettingsSet {
     int nmarks = -1; /* -1: no "marks"; else how many (0 to 9) */
     std::array<std::string, AUTO_SETTINGS_MARKS> mark_name;
     std::array<double, AUTO_SETTINGS_MARKS> mark_value{};
+    /* AUTO's thread count (W267), a program preference and not a setting of
+       the session: prefs::AUTO_THREADS_AUTO or the count. Set by `auto`
+       `set`'s "threads" and saved in the preferences file; never filled by
+       auto_settings_now, so a session file does not hold it. */
+    std::optional<unsigned> threads;
 };
+
+/* the thread count the preferences file holds into s (a recording's replay
+   keeps the user's preferences out of it, and reads none); a bad file leaves
+   the automatic count (the file's error is shown by the recent models' note,
+   once). Called by the load. */
+void auto_threads_load(Session &s);
 
 /* the settings now, whole: every Numerics field, AUTO's parameters, the
    axes and the Mark values, names empty where there is none (the event's

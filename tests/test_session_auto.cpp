@@ -433,7 +433,7 @@ std::deque<DiagramPoint> collocation_run(unsigned threads, bool compiled, bool i
     CHECK(s.model().auto_rhs_pure==(compiled && !impure));
     s.auto_state.dir=tmp.path();
     xpp::init_auto_win(s);
-    if (compiled && !impure) s.auto_lib.collocation=std::make_unique<xpp::AutoParallel>(threads);
+    s.auto_state.threads=threads; /* the preference's count, which the dispatch makes the pool of */
     xpp::auto_start_diff_ss(s);
     CHECK(xpp::auto_grab_type_index(s,"HB",1)==1);
     const auto start=std::chrono::steady_clock::now();

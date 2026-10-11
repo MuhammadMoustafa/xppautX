@@ -15,7 +15,7 @@ import type {ComponentChildren} from 'preact';
 import {useRef, useState} from 'preact/hooks';
 import {HELP} from '../help/links';
 import {
-  fieldOf, NUM_FIELDS, NUM_GROUPS, numError, numSpec, pairErrors, pendingFields, shownSettings, type AutoSettings, type NumKey,
+  fieldOf, NUM_FIELDS, NUM_GROUPS, numError, numSpec, pairErrors, pendingFields, shownSettings, type AutoSettings, type AutoSettingsPatch, type NumKey,
 } from '../store/autoSettings';
 import {fieldError, NUMBER} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
@@ -26,6 +26,11 @@ import {FOCUSABLE, useDialogFocus} from './dialogFocus';
 /** the manual section each of this file's dialogs is (docs/manual/README.md's map, W12b) */
 const HELP_OF = {numerics: HELP.autoNumerics, pars: HELP.autoPars, marks: HELP.autoMarks} as const;
 
+
+/** the Threads choice's help: a preference of the program, never a result */
+const THREADS_HELP = 'How many threads AUTO uses to compute a periodic orbit. Automatic is the physical cores of the computer, '
+  + 'at most 4 (its performance cores on a hybrid processor). The results are the same for any count. '
+  + 'This is a preference of the program, kept for every model and every run.';
 
 export type AutoSettingsDialogKind = 'numerics' | 'pars' | 'marks';
 
@@ -114,6 +119,7 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
   const pending = pendingFields(useStore(s => s.autoSettings));
   const [texts, setTexts] = useState<Record<string, string>>(() =>
     Object.fromEntries(NUM_FIELDS.map(f => [f.key, shown ? String(shown.numerics[f.key]) : ''])));
+  const [threads, setThreads] = useState<string>(() => String(shown?.threads ?? 'auto'));
   if (!shown) return null;
   const errors = Object.fromEntries(NUM_FIELDS.map(f => [f.key, numError(shown.rules[f.key], texts[f.key] ?? '')]));
   const anyError = NUM_FIELDS.some(f => errors[f.key]);
@@ -124,10 +130,14 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
   const ok = () => {
     if (anyError || pairs) return;
     const changed = NUM_FIELDS.filter(f => values[f.key] !== shown.numerics[f.key]);
-    if (changed.length) session.autoSettings({numerics: Object.fromEntries(changed.map(f => [f.key, values[f.key]]))});
+    const patch: AutoSettingsPatch = {};
+    if (changed.length) patch.numerics = Object.fromEntries(changed.map(f => [f.key, values[f.key]]));
+    if (threads !== String(shown.threads)) patch.threads = threads === 'auto' ? 'auto' : Number(threads);
+    if (patch.numerics || patch.threads !== undefined) session.autoSettings(patch);
     onClose();
   };
-  const anyPending = NUM_FIELDS.some(f => pending.has(`numerics.${f.key}`));
+  const anyPending = NUM_FIELDS.some(f => pending.has(`numerics.${f.key}`)) || pending.has('threads');
+  const threadsQueued = pending.has('threads');
   return (
     <Modal title="AUTO Numerics" id="auto-numerics" kind="numerics" onClose={onClose}>
       <form class="auto-num-groups" onKeyDown={enterSubmits(ok)} onSubmit={e => { e.preventDefault(); ok(); }}>
@@ -149,6 +159,17 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
             })}
           </fieldset>
         ))}
+        <fieldset class="form-grid auto-computer-group">
+          <legend>Computer</legend>
+          <label class={threadsQueued ? 'queued' : undefined} title={THREADS_HELP}>
+            <span>Threads</span>
+            <select value={threads} data-field="threads" id="auto-num-threads" data-queued={threadsQueued ? '1' : undefined}
+              onChange={e => setThreads((e.target as HTMLSelectElement).value)}>
+              <option value="auto">{`Automatic (${shown.threads_auto})`}</option>
+              {Array.from({length: shown.threads_max}, (_, i) => <option key={i} value={String(i + 1)}>{i + 1}</option>)}
+            </select>
+          </label>
+        </fieldset>
       </form>
       <Status pending={anyPending} />
       <Actions onClose={onClose} ok={ok} disabled={anyError || pairs} />

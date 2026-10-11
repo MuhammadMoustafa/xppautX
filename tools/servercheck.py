@@ -7163,5 +7163,79 @@ def check_start_examples():
 
 check_start_examples()
 
+def check_auto_threads():
+    """W267, docs/protocol.md "AUTO's settings as data": the thread count is a program preference: the
+    autosettings event carries it ("auto" or the count, what automatic gives, the most), `auto` `set`
+    `threads` saves it in preferences.setx (in a config folder of its own) and a server started later reads
+    it; a count outside 1 to threads_max, or a word that is not "auto", is refused whole, nothing saved."""
+    root = tempfile.mkdtemp(prefix='xppthreads')
+    config = os.path.join(root, 'config')
+    env = {'XPP_CONFIG_DIR': config}
+    prefs = os.path.join(config, 'preferences.setx')
+    errors = lambda evs: [e['error'] for e in evs if e.get('ev') == 'message' and e.get('error')]
+
+    def threads_of(snd, col):
+        snd(cmd='data', events=['autosettings'])
+        return settings_of(col(is_idle)[0])
+
+    def text():
+        with open(prefs) as f:
+            return f.read()
+    try:
+        p, r, snd, col, _ = launch_server(extra_env=env)
+        try:
+            col(is_idle)
+            st = threads_of(snd, col)
+            most = st['threads_max']
+            check('W267: the event gives threads "auto" at first, what automatic gives (1 to 4) and the most (the logical processors)',
+                  st['threads'] == 'auto' and 1 <= st['threads_auto'] <= min(4, most) and most >= 1, str(st)[-200:])
+            snd(cmd='auto', op='set', threads=most)
+            evs, _ = col(is_idle)
+            st = settings_of(evs)
+            check('W267: set threads (the most) shows in the event and is saved in preferences.setx',
+                  not errors(evs) and st and st['threads'] == most and 'auto_threads: %d' % most in text(), str(evs)[-300:])
+            before = text()
+            for bad in (0, most + 1, -1, 1.5, 'many', 'Auto', [2]):
+                snd(cmd='auto', op='set', threads=bad)
+                evs, _ = col(is_idle)
+                err = errors(evs)
+                check('W267: set threads %r is refused naming the rule, the file is as it was' % (bad,),
+                      len(err) == 1 and err[0].startswith('AUTO settings: ') and 'threads' in err[0] and text() == before, str(evs)[-300:])
+            check('W267: and the shown count is the one before', threads_of(snd, col)['threads'] == most)
+            snd(cmd='auto', op='set', threads=1)
+            check('W267: set threads 1', col(is_idle) and 'auto_threads: 1' in text())
+        finally:
+            stop_server(p, r, snd)
+        # a later start reads it, and "auto" puts the word back
+        p, r, snd, col, _ = launch_server(extra_env=env)
+        try:
+            col(is_idle)
+            check('W267: a later server starts with the saved count', threads_of(snd, col)['threads'] == 1)
+            snd(cmd='auto', op='set', threads='auto')
+            evs, _ = col(is_idle)
+            check('W267: set threads "auto" is saved as the word and shown', not errors(evs) and 'auto_threads: auto' in text()
+                  and settings_of(evs)['threads'] == 'auto', str(evs)[-300:])
+        finally:
+            stop_server(p, r, snd)
+        # a file with a bad count is an error at its line on start and is never overwritten
+        bad_text = 'recent_models: [],\nauto_threads: 0,\n'
+        with open(prefs, 'w') as f:
+            f.write(bad_text)
+        p, r, snd, col, _ = launch_server(extra_env=env)
+        try:
+            evs, _ = col(is_idle)
+            snd(cmd='auto', op='set', threads=2)
+            evs2, _ = col(is_idle)
+            err = errors(evs2)
+            check('W267: a bad count in the file is refused with its file and line, the set is refused with it and the file is left as it is',
+                  len(err) == 1 and 'preferences.setx:2' in err[0] and text() == bad_text, str(err) + str(evs)[-200:])
+        finally:
+            stop_server(p, r, snd)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+check_auto_threads()
+
 print('server checks: %s' % ('all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

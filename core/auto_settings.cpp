@@ -24,6 +24,10 @@
 #include "xpp_util.h"
 #include "form_ode.h"
 #include "xpp_mem.h"
+#include "auto_parallel.h"
+#include "xpp_cpu.h"
+#include "xpp_files.h"
+#include "xpp_prefs.h"
 
 namespace xpp {
 
@@ -231,7 +235,13 @@ std::string event_text(const xpp::Session &s)
     }
     /* what each Numerics value takes and which must be in order, as `auto`
        `set` checks them (num_ok, apply), with the messages it refuses with */
-    o += "],\"rules\":{";
+    /* the thread count (a preference, not a setting): "auto" or the number,
+       what automatic gives now, and the most the preference takes */
+    o += "],\"threads\":";
+    if (s.auto_state.threads == prefs::AUTO_THREADS_AUTO) xpp::json_append_string(o, std::string(prefs::AUTO_THREADS_WORD).c_str());
+    else o += xpp::number(s.auto_state.threads);
+    o += xpp::format(",\"threads_auto\":{},\"threads_max\":{}", AutoParallel::automatic_threads(), cpu::logical_processors());
+    o += ",\"rules\":{";
     for (int i = 0; i < AUTO_NUM_N; i++) {
         const NumField &f = num_fields[i];
         o += xpp::format("{}\"{}\":{{\"label\":", i ? "," : "", f.key);
@@ -493,6 +503,22 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
     Checked c;
     std::string key;
     if (!check(s, set, -1, c, why, key)) return false;
+    if (set->threads) {
+        if (*set->threads != prefs::AUTO_THREADS_AUTO)
+            if (const auto problem = prefs::auto_threads_problem(*set->threads)) {
+                why = *problem;
+                return false;
+            }
+        /* a recording's replay changes the session's count, never the user's preferences */
+        if (!files::serving_reads()) {
+            const auto saved = prefs::update_prefs([&](prefs::Preferences &p) { p.auto_threads = *set->threads; });
+            if (!saved) {
+                why = saved.error().text();
+                return false;
+            }
+        }
+        s.auto_state.threads = *set->threads;
+    }
     commit(s, set, c);
     return true;
 }
@@ -502,6 +528,14 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
 const char *auto_settings_num_key(int i) { return i >= 0 && i < AUTO_NUM_N ? num_fields[i].key : nullptr; }
 
 const char *auto_settings_num_label(int i) { return i >= 0 && i < AUTO_NUM_N ? num_fields[i].label : nullptr; }
+
+void auto_threads_load(Session &s)
+{
+    if (files::serving_reads()) return;
+    /* a bad file is already shown, once, by the recent models' note (and by a `set` of the count,
+       which refuses until it is fixed); the count stays automatic meanwhile */
+    if (const Result<prefs::Preferences> p = prefs::load_prefs()) s.auto_state.threads = p->auto_threads;
+}
 
 void auto_settings_init(AutoSettingsEmit emit) { event.init(emit); }
 

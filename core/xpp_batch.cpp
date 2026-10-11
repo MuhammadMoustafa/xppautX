@@ -27,6 +27,7 @@
 #include "graphics.h"
 #include "browse.h"
 #include "auto_nox.h"
+#include "auto_settings.h"
 #include "my_rhs.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -129,6 +130,7 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch,
     update_all_ffts(s);
 #ifdef AUTO
     init_auto_win(s);
+    auto_threads_load(s);
 #endif
     if (disc(m)) {
         const auto picked = pick_method(m, "Discrete", Load::place());

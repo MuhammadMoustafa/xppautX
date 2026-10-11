@@ -19,6 +19,7 @@
    changes. */
 #include <cstddef>
 #include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -40,9 +41,21 @@ inline constexpr std::size_t MAX_RECENT_MODELS = 10;
    path past it needs the \?\ form no model's folder uses */
 inline constexpr std::size_t MAX_PATH_BYTES = 4096;
 
+/* AUTO's thread count (W267): the file says "auto" or a whole number from 1
+   to the logical processors (xpp::cpu::logical_processors); AUTO_THREADS_AUTO
+   in the Preferences is "auto", the count AutoParallel::automatic_threads
+   gives. Any count gives the same results (W247). */
+inline constexpr unsigned AUTO_THREADS_AUTO = 0;
+inline constexpr std::string_view AUTO_THREADS_WORD = "auto";
+/* why n cannot be AUTO's thread count, or nothing; the one check of the file's
+   reader and writer and of the protocol's `set` */
+std::optional<std::string> auto_threads_problem(long long n);
+
 struct Preferences {
     /* absolute paths of the models opened lately, newest first, none twice */
     std::vector<std::string> recent_models;
+    /* AUTO_THREADS_AUTO, or the number of threads AUTO's collocation uses */
+    unsigned auto_threads = AUTO_THREADS_AUTO;
 };
 
 /* the preferences in `text`, the contents of `file` (the name its errors

@@ -230,6 +230,20 @@ core checks them again when they arrive:
 | Adapt step every (IADS) | adapt the step every IADS steps; 0 keeps it at DS, and a point that does not converge then ends the branch (MX) | whole number, 0 or more (1 is usual) |
 | Skip branch points (SuppBP) | 1: do not look for branch points (and for periodic orbits no Floquet multipliers, period doublings or tori); 0: look for them | 0 or 1 |
 
+Below the three groups the dialog has a fourth, **Computer**, with one choice,
+**Threads**: how many threads AUTO uses to compute a periodic orbit or a
+boundary value problem. *Automatic* (the default; the number it gives is
+shown) is the computer's physical cores, at most 4, and on a processor with
+performance and efficiency cores only the performance cores where the system
+says which. Any count from 1 to the computer's logical processors may be
+chosen. The results are the same to the last bit for every count; only the
+time differs. It is a preference of the program, not of the model or the
+session: it is kept in `preferences.setx` in the per-user configuration
+folder (as `auto_threads: auto` or `auto_threads: 4`), applies to every model
+and every run, and is not in a session file. A model that is interpreted, not
+compiled, or that uses random numbers or delays computes on one thread
+whatever the count.
+
 The session keeps every AUTO setting under `auto/settings.txt`, with
 the protocol keys (`nmx`, `ntst`, ...); Reload keeps them too.
 The original window had the following items:

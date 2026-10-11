@@ -55,7 +55,7 @@ ap.add_argument('--list', action='store_true', help='print the selected sections
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
                                                 'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors', 'jacobian',
-                                                'memory'])
+                                                'memory', 'threads'])
 args = ap.parse_args()
 if args.shard:
     try:
@@ -693,6 +693,33 @@ def section_jacobian():
                   runs == {name} and shown == {name} and column == {code}, '%s %s %s' % (runs, shown, column))
     finally:
         shutil.rmtree(model_dir, ignore_errors=True)
+
+
+def section_threads():
+    """W267: AUTO's thread count (a program preference, set by `auto` `set` `threads`, kept in a
+    config folder of its own) never changes a result: lecar's steady and periodic branches, run with 1
+    thread and with 2 (as many as the computer has, if fewer), save the same diagram.csv to the bit"""
+    config = tempfile.mkdtemp(prefix='xppthreads')
+    try:
+        diagrams = {}
+        for want in (1, 2):
+            s = Server(args.server, LECAR, env={'XPP_CONFIG_DIR': os.path.join(config, str(want))}, verbose=args.v)
+            s.collect(is_idle)
+            s.send(cmd='data', events=['autosettings'])
+            evs, _ = s.collect(is_idle)
+            most = [e for e in evs if e.get('ev') == 'autosettings'][-1]['threads_max']
+            count = min(want, most)
+            s.send(cmd='auto', op='set', threads=count)
+            evs, _ = s.collect(is_idle)
+            errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+            shown = [e for e in evs if e.get('ev') == 'autosettings'][-1]['threads']
+            check('threads: %d thread(s) set and shown' % count, not errors and shown == count, '%s %s' % (errors, shown))
+            diagrams[want] = lecar_diagram(s)
+            s.close()
+        check('threads: both runs save their diagrams', all(diagrams.values()))
+        check('threads: 1 thread and 2 give the same diagram, to the bit', diagrams[1] == diagrams[2])
+    finally:
+        shutil.rmtree(config, ignore_errors=True)
 
 
 # ---- csv: File/eXport CSV (W26, issue #42, core/csv_export.cpp) ----------

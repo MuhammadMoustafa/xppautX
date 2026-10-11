@@ -10,6 +10,7 @@
 #include "jacobian.h"
 #include "auto_data.h"
 #include "auto_settings.h"
+#include "xpp_prefs.h"
 #include "json_number.h"
 #include <array>
 #include <climits>
@@ -517,6 +518,16 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
             return 0;
         }
         s.has_num[i] = 1;
+    }
+    if ((v = js_find(line, "threads")) != NULL) {
+        double z;
+        std::string word;
+        if (js_string(v, word) && word == xpp::prefs::AUTO_THREADS_WORD) s.threads = xpp::prefs::AUTO_THREADS_AUTO;
+        else if (js_number(v, &z) && z >= 1 && z <= INT_MAX && z == std::floor(z)) s.threads = static_cast<unsigned>(z);
+        else {
+            why = xpp::format("AUTO's threads must be \"{}\" or a whole number of at least 1", xpp::prefs::AUTO_THREADS_WORD);
+            return 0;
+        }
     }
     if (pars && *pars == '[') {
         for (i = 0; (v = js_elem(pars, i)) != NULL; i++) {

@@ -57,10 +57,9 @@ struct AutoParallel::State {
 unsigned AutoParallel::automatic_threads() {
     const auto physical = cpu::physical_cores();
     // Logical processors are used only when the system supplies no usable physical topology.
-    const unsigned n = physical ? *physical : std::thread::hardware_concurrency();
-    return n == 0 ? 1 : std::min(n, max_threads);
+    return std::min(physical ? *physical : cpu::logical_processors(), max_threads);
 }
-AutoParallel::AutoParallel(unsigned threads) : threads_(std::clamp(threads, 1u, max_threads)) {}
+AutoParallel::AutoParallel(unsigned threads) : threads_(std::max(threads, 1u)) {}
 AutoParallel::~AutoParallel() = default;
 
 bool auto_parallel_ready(const Session &s) {
