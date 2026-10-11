@@ -55,7 +55,7 @@ while ! mkdir "$lock" 2>/dev/null; do
     echo "heavy: waiting for $(cat "$lock/what" 2>/dev/null || echo 'another heavy run')" >&2
   fi
   waited=1
-  sleep $POLL_SECONDS
+  sleep "$POLL_SECONDS"
 done
 printf '%s' "$me" > "$lock/pid"
 uname -s > "$lock/side"
