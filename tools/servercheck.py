@@ -7231,6 +7231,9 @@ def check_auto_threads():
                   len(err) == 1 and 'preferences.setx:2' in err[0] and text() == bad_text, str(err) + str(evs)[-200:])
         finally:
             stop_server(p, r, snd)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
 
 def check_outside_paths():
     """W286, docs/protocol.md "Paths outside the model's folder": a path a model names outside its folder is
@@ -7338,9 +7341,7 @@ def check_outside_paths():
 
 
 check_auto_threads()
-
 check_outside_paths()
-
 
 print('server checks: %s' % ('all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)
