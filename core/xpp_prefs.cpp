@@ -91,8 +91,7 @@ Result<Preferences> parse_prefs(std::string_view text, std::string file)
 Result<std::string> serialize_prefs(const Preferences &p)
 {
     Put put;
-    Preferences copy = p;
-    describe(put, copy);
+    describe(put, p);
     if (put.bad_) return fail(std::string(WHERE), "cannot be saved: " + *put.bad_, Place{prefs_path()});
     return put.out.result(std::string(WHERE));
 }
