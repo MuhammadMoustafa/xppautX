@@ -809,6 +809,10 @@ int load_ani_file(xpp::Session &s, xpp::LineReader &fp)
    model_files.h), one picked in the animation window a file of the disk */
 xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_file)
 {
+    if (model_file) {
+        const xpp::Result<> allowed = xpp::approve_model_path(s.model(), filename, xpp::Place{});
+        if (!allowed) return std::unexpected(allowed.error());
+    }
     xpp::LineReader fp = model_file ? xpp::model_file_lines(s.model(),filename) : xpp::LineReader(filename);
     if (!fp) {
         return std::unexpected(xpp::files::open_error("animation", filename));

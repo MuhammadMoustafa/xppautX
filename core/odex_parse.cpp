@@ -1018,6 +1018,8 @@ private:
     if (std::ranges::find(out_.importing, path) != out_.importing.end())
       fail(t.pos, xpp::format("{} imports itself (through {})", imp.file, out_.importing.back()));
     std::string text;
+    if (const xpp::Result<> allowed = xpp::approve_model_path(*model_, path, xpp::Place{out_.files[t.pos.file], t.pos.line, t.pos.col, {}}); !allowed)
+      throw allowed.error();
     if (!xpp::read_model_file(*model_, path, text)) fail(t.pos, xpp::format("cannot read the imported file {}", path));
     out_.files.push_back(path);
     const size_t first = out_.statements.size();

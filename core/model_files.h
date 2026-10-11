@@ -43,10 +43,30 @@ struct SavedModel {
 
 /* the path of the file an include line of file `including` names: relative
    to the including file's folder (the model's, or an included file's for a
-   nested include); an absolute include is refused (empty path). The one rule of .ode's
+   nested include); an absolute one as it is. The one rule of .ode's
    #include and .odex's include; the --include flag is typed in the working
    folder and stays as typed. */
 std::string include_path(const std::string &including, const std::string &name);
+
+/* The answers of the question a model's path outside its folder asks
+   (W286), as keys: Allow always (kept in the preferences for this model file
+   and this path), Allow once (this load), Refuse (or no answer). */
+inline constexpr std::string_view OUTSIDE_PATH_KEYS = "aor";
+inline constexpr std::string_view PATH_REFUSED = "path refused"; /* the `where` of the refusal's Error */
+inline constexpr char OUTSIDE_PATH_ALWAYS = 'a', OUTSIDE_PATH_ONCE = 'o';
+
+/* A path a model names (an include, an import, a table, an animation, an
+   output or log file) may be read or written when it lies inside the model's
+   folder, or outside it when the user allowed it: this asks (Choose: the
+   dialog, --server's ask event, the terminal with no interface, where
+   -y / --yes allows it once, printed), unless the pair of the model file and
+   the path was kept before ("Allow always", xpp_prefs.h) or allowed in this
+   load (Model::outside_paths). A link on the way, or a name that is not a
+   plain one, is refused with no question. Call it, with the place that names
+   the path (an empty Place: the command line), before reading name with the
+   functions below, which refuse an outside path not approved; the error is
+   the refusal, at `at`. */
+Result<> approve_model_path(Model &m, const std::string &name, const Place &at);
 
 /* m's file name, whole, into bytes: false (bytes empty) when absent,
    outside the model's folder, linked, or over the archive member byte limit. */

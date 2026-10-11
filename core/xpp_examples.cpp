@@ -69,7 +69,7 @@ Result<std::string> install(std::string_view name)
         return fail(std::string(WHERE), xpp::format("\"{}\" is not one of the bundled examples", name), command_place());
     const std::string source = files::join(l.folder, name);
     std::string bytes;
-    xpp::UniqueFile in(files::open_read_within(source, l.folder));
+    xpp::UniqueFile in(files::open_read_within(source, l.folder, {}));
     if (!in || !read_bytes(in.get(), bytes, MAX_EXAMPLE_BYTES))
         return fail(std::string(WHERE), xpp::format("cannot read the example {} (or it is longer than {} bytes)", source, MAX_EXAMPLE_BYTES), command_place());
     const std::string folder = folder_of(files::config_dir());

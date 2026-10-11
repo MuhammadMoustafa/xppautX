@@ -22,9 +22,7 @@ Result<> note(std::string_view model)
     /* a recording playing is not the user opening models: it keeps no list of theirs */
     if (files::serving_reads()) return {};
     return prefs::update_prefs([&](prefs::Preferences &p) {
-        std::erase(p.recent_models, model);
-        p.recent_models.insert(p.recent_models.begin(), std::string(model));
-        if (p.recent_models.size() > prefs::MAX_RECENT_MODELS) p.recent_models.resize(prefs::MAX_RECENT_MODELS);
+        prefs::remember_newest(p.recent_models, std::string(model), prefs::MAX_RECENT_MODELS);
     });
 }
 

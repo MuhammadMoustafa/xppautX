@@ -4,10 +4,13 @@
 #include "session.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
+#include "xpp_prefs.h"
+#include "xpp_ui.h"
 #include "xpp_zip.h"
 #include "xpp_util.h"
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <string>
 
@@ -16,9 +19,42 @@ namespace xpp {
 std::string include_path(const std::string &including, const std::string &name)
 {
     const size_t slash = including.find_last_of("/\\");
-    const bool absolute = !name.empty() && (name[0] == '/' || name[0] == '\\' || (name.size() > 1 && name[1] == ':'));
-    if (absolute) return {};
-    return slash == std::string::npos ? name : including.substr(0, slash + 1) + name;
+    if (files::is_absolute(name) || slash == std::string::npos) return name;
+    return including.substr(0, slash + 1) + name;
+}
+
+Result<> approve_model_path(Model &m, const std::string &name, const Place &at)
+{
+    /* a saved model reads its own copies; nothing is read from the disk */
+    if (!m.saved_in.empty() || name.empty()) return {};
+    const files::PathCheck found = files::resolve_path(name, files::split_path(m.this_file).first);
+    if (found.kind == files::PathKind::inside) return {};
+    const Place place = at.file.empty() ? Place{m.this_file} : at;
+    if (found.kind == files::PathKind::refused)
+        return fail(std::string(PATH_REFUSED), xpp::format("names {}, a link or a path that is not a plain name: refused", name), place);
+    if (std::ranges::find(m.outside_paths, found.path) != m.outside_paths.end()) return {};
+    /* the model file by its absolute path: the pair is what the user allowed */
+    const std::string model = files::absolute(m.this_file);
+    const Result<bool> remembered = prefs::outside_path_approved(model, found.path);
+    if (!remembered) return std::unexpected(remembered.error());
+    if (!*remembered) {
+        const std::string source = at.source.empty() && at.line > 0 ? model_source_line(m, at.file, at.line) : at.source;
+        const std::string who = at.line > 0 ? xpp::format("line {} of {}", at.line, at.file) : std::string("the command line");
+        const std::string question =
+            xpp::format("{} names \"{}\"{}, outside the folder of {}{}. Allow it?", who, name,
+                        name == found.path ? std::string() : xpp::format(" ({})", found.path), model,
+                        source.empty() ? std::string() : xpp::format(" [{}]", source));
+        const std::array<std::string, 3> choices{"Allow always", "Allow once", "Refuse"};
+        const int key = Choose("Path outside the model's folder", question, choices, OUTSIDE_PATH_KEYS, OUTSIDE_PATH_ONCE);
+        if (key != OUTSIDE_PATH_ONCE && key != OUTSIDE_PATH_ALWAYS)
+            return fail(std::string(PATH_REFUSED), xpp::format("names {}, outside the model's folder: refused", found.path), place);
+        if (key == OUTSIDE_PATH_ALWAYS) {
+            const Result<> kept = prefs::approve_outside_path(model, found.path);
+            if (!kept) return std::unexpected(kept.error());
+        }
+    }
+    m.outside_paths.push_back(found.path);
+    return {};
 }
 
 namespace {
@@ -52,7 +88,7 @@ bool read_model_file(Model &m, const std::string &name, std::string &bytes)
     size_t available = zip::archive_bytes_limit;
     for (const ModelFile &file : m.files)
         if (file.name != name) available -= file.bytes.size();
-    UniqueFile fp(files::open_read_within(name, files::split_path(m.this_file).first));
+    UniqueFile fp(files::open_read_within(name, files::split_path(m.this_file).first, m.outside_paths));
     if (!read_bytes(fp.get(), bytes, available)) return false;
     if (i < 0) m.files.push_back({name, bytes});
     return true;
@@ -62,7 +98,7 @@ UniqueFile open_model_file(Model &m, const std::string &name)
 {
     std::string bytes;
     if (!read_model_file(m, name, bytes)) return UniqueFile();
-    if (m.saved_in.empty()) return UniqueFile(files::open_read_within(name, files::split_path(m.this_file).first));
+    if (m.saved_in.empty()) return UniqueFile(files::open_read_within(name, files::split_path(m.this_file).first, m.outside_paths));
     if (!m.saved_copies) m.saved_copies = std::make_shared<TempDir>();
     if (m.saved_copies->path().empty()) return UniqueFile();
     const std::string copy = m.saved_copies->file(std::to_string(file_index(m, name)));

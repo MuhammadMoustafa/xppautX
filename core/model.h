@@ -384,6 +384,9 @@ struct Model {
      whose saved copies are its files; empty for a model read from the
      disk */
   std::string saved_in;
+  /* the paths outside the model's folder the user allowed while this model
+     loaded, as files::resolve_path gives them (approve_model_path, model_files.h) */
+  std::vector<std::string> outside_paths;
   /* during a load of a saved model, the scratch folder of the copies a
      reader of a FILE * reads (model_files.cpp) */
   std::shared_ptr<TempDir> saved_copies;

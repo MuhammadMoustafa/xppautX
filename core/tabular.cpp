@@ -344,6 +344,10 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
     return xpp::fail("table",xpp::format("{} is not a file table",s.tables[index].name),table_place(s,index));
   }
 
+  if(model_file){
+    const xpp::Result<> allowed=xpp::approve_model_path(s.model(),filename2,table_place(s,index));
+    if(!allowed)return std::unexpected(allowed.error());
+  }
   xpp::LineReader reader=model_file?xpp::model_file_lines(s.model(),filename2):xpp::LineReader(filename2.c_str());
   if(!reader){
     xpp::files::refresh_cur_dir();

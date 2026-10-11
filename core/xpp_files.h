@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -127,13 +128,27 @@ Error open_error(std::string where, std::string_view file, std::string_view why 
    an input script): fopen's modes, NULL on failure. A file opened and
    closed in one scope uses a handle of xpp_io.h instead. */
 FILE *open_stream(std::string_view path, const char *mode);
-/* Read a plain file inside folder; refuse traversal and linked descendants.
+/* Where a path a model names lies, against the folder of the model: inside
+   it, outside it (the user decides, W286), or refused for good (a link on
+   the way below the common ancestor of the two, an unsafe name). path is the
+   path to open or write when not refused: absolute, normalised ("." and ".."
+   resolved in the text, so what is checked, shown, remembered and opened is
+   one text). */
+enum class PathKind { inside, outside, refused };
+struct PathCheck {
+    PathKind kind;
+    std::string path;
+};
+/* path (absolute, or under the working folder) against folder ("" the
+   working folder): no link on the way inside folder, or below the common
+   ancestor of folder and path when outside, every part a safe name. The file
+   need not exist (a file about to be written). */
+PathCheck resolve_path(std::string_view path, std::string_view folder);
+/* Read a plain file inside folder, or an outside one the caller has the
+   user's approval for (allowed_outside: resolve_path's text of each);
+   refuse traversal and linked descendants.
    The caller owns the returned stream. Replay's saved reads remain isolated. */
-FILE *open_read_within(std::string_view path, std::string_view folder);
-/* path (absolute, or under the working folder) when it names a file inside
-   folder ("" the working folder): no "..", no link on the way, every part a
-   safe name; else "". The file need not exist (a file about to be written). */
-std::string path_within(std::string_view path, std::string_view folder);
+FILE *open_read_within(std::string_view path, std::string_view folder, std::span<const std::string> allowed_outside);
 /* While set, observer(path) is called on every file open_stream (so
    xpp_io.h's readers too) has just opened for reading only (a mode "r" or
    "rb"): what a recording embeds (W59a, json_record.cpp). The core

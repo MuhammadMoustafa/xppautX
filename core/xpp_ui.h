@@ -32,7 +32,7 @@ struct Session; /* session.h */
  * Conventions kept from the original code:
  *   new_string / file_selector / string_box return 0 when the user cancels.
  *   yes_no_box returns 1 for yes, 0 for no.
- *   two_choice returns the chosen key character, 0 if none.
+ *   two_choice and choose return the chosen key character, 0 if none.
  *   menu_choose returns the chosen key character, 0 or 27 if none.
  *   check_abort returns a key code, 27 for escape, 64 when nothing happened.
  */
@@ -101,6 +101,13 @@ void title_text(std::string_view s);
 int new_int(std::string_view name, int *value);
 int yes_no_box(void);
 int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key);
+/* A question with several answers, one key each (keys[i] answers
+   choices[i]); the chosen key, 0 when none. The last choice is what no
+   answer means (Cancel, Refuse). With no interface (--silent's load,
+   --convert, a unit test) the terminal asks (ask_terminal) and -y / --yes
+   answers yes_key, printed (report_automatic). */
+int Choose(std::string_view title, std::string_view question, std::span<const std::string> choices,
+           std::string_view keys, char yes_key);
 void respond_box(std::string_view button, std::string_view message);
 /* Terminal questions share the dialog owner; EOF or the deadline is no answer. */
 std::optional<std::string> ask_terminal(const std::string &question, const std::string &suggestion);
@@ -185,6 +192,8 @@ typedef struct XppUi {
     int (*yes_no_box)(void);
     int (*two_choice)(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key,
                       std::string_view title);
+    int (*choose)(std::string_view title, std::string_view question, std::span<const std::string> choices,
+                  std::string_view keys, char yes_key);
     void (*respond_box)(std::string_view button, std::string_view message); /* alert with one button */
     /* toggle a set of flags (1/0) by name; flags are edited in place and
        restored on cancel. Returns 1 for done, 0 for cancel. */

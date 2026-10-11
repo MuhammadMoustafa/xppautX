@@ -268,6 +268,39 @@ int main()
     CHECK(xpp::files::put_begin("link.txt", 100, put) == XPP_FILES_REFUSED);
 #endif
 
+    /* where a path a model names lies against its folder (W286): inside, outside (for the user to allow) or
+       refused for good; an outside file is read only when its resolved text was approved */
+    {
+        using xpp::files::PathKind;
+        using xpp::files::resolve_path;
+        CHECK(resolve_path("a.bin", "").kind == PathKind::inside);
+        CHECK(resolve_path("sub/../a.bin", "").kind == PathKind::inside); /* normalised: no ".." left to follow */
+        CHECK(resolve_path("sub/../a.bin", "").path.ends_with("a.bin") && resolve_path("sub/../a.bin", "").path == resolve_path("a.bin", "").path);
+        CHECK(resolve_path("sub/x.dat", "").kind == PathKind::inside);
+        CHECK(resolve_path("../outside.dat", "").kind == PathKind::outside);
+        CHECK(resolve_path("sub/../../outside.dat", "").kind == PathKind::outside);
+        CHECK(resolve_path(xpp::files::split_path(xpp::files::working_dir()).first + "/elsewhere/x.tab", "").kind == PathKind::outside);
+        CHECK(resolve_path("sub/bad:name.dat", "").kind == PathKind::refused);
+        CHECK(resolve_path("../bad|name.dat", "").kind == PathKind::refused);
+        CHECK(resolve_path("a.bin", "sub").kind == PathKind::outside && resolve_path("sub/x.dat", "sub").kind == PathKind::inside);
+#ifndef _WIN32
+        CHECK(resolve_path("link.txt", "").kind == PathKind::refused);
+        /* a link below the common ancestor of the folder and the path is refused, outside too */
+        CHECK(resolve_path("link.txt", "sub").kind == PathKind::refused);
+#endif
+        const std::string approved = resolve_path("a.bin", "sub").path;
+        CHECK(xpp::files::open_read_within("a.bin", "sub", {}) == nullptr && errno == EACCES);
+        const std::string other[] = {approved + "x"};
+        CHECK(xpp::files::open_read_within("a.bin", "sub", other) == nullptr);
+        const std::string yes[] = {approved};
+        std::FILE *opened = xpp::files::open_read_within("a.bin", "sub", yes);
+        CHECK(opened != nullptr);
+        if (opened) std::fclose(opened);
+        opened = xpp::files::open_read_within("a.bin", "", {});
+        CHECK(opened != nullptr);
+        if (opened) std::fclose(opened);
+    }
+
     const std::string long_name(xpp::files::NAME_MAX_BYTES + 1, 'x');
     CHECK(!xpp::files::name_ok(long_name));
     const auto bad_name = xpp::files::command("get", ("\"" + long_name + "\"").c_str(), nullptr);

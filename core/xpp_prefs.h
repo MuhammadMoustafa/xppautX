@@ -22,6 +22,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "xpp_error.h"
@@ -51,11 +52,27 @@ inline constexpr std::string_view AUTO_THREADS_WORD = "auto";
    reader and writer and of the protocol's `set` */
 std::optional<std::string> auto_threads_problem(long long n);
 
+/* how many of the user's "Allow always" answers about a path outside a
+   model's folder are kept (W286): each is two paths of at most MAX_PATH_BYTES
+   and the file holds MAX_FILE_BYTES, with the recent models and the groups
+   to come; when it is full the oldest answer goes, and asks again */
+inline constexpr std::size_t MAX_OUTSIDE_APPROVALS = 24;
+
+/* the user's answer "Allow always" for one model file and one path it names
+   outside its folder (both absolute; the path as the program resolved it,
+   files::resolve_path): a changed path is another question */
+struct OutsideApproval {
+    std::string model, path;
+    bool operator==(const OutsideApproval &) const = default;
+};
+
 struct Preferences {
     /* absolute paths of the models opened lately, newest first, none twice */
     std::vector<std::string> recent_models;
     /* AUTO_THREADS_AUTO, or the number of threads AUTO's collocation uses */
     unsigned auto_threads = AUTO_THREADS_AUTO;
+    /* newest first, none twice */
+    std::vector<OutsideApproval> outside_paths;
 };
 
 /* the preferences in `text`, the contents of `file` (the name its errors
@@ -75,6 +92,21 @@ std::string prefs_path();
 Result<Preferences> load_prefs();
 /* writes them, making the folder */
 Result<> save_prefs(const Preferences &p);
+/* whether the user answered "Allow always" for model naming path (a bad file
+   is the error) */
+Result<bool> outside_path_approved(std::string_view model, std::string_view path);
+/* the user's "Allow always": remembered first, the oldest answer dropped when
+   MAX_OUTSIDE_APPROVALS are kept, a repeated one moved to the front */
+Result<> approve_outside_path(std::string_view model, std::string_view path);
+/* item first in list: an equal one earlier is removed, and the oldest
+   dropped past max (the one rule of every newest-first list here) */
+template <class T> void remember_newest(std::vector<T> &list, T item, std::size_t max)
+{
+    std::erase(list, item);
+    list.insert(list.begin(), std::move(item));
+    if (list.size() > max) list.erase(list.begin() + static_cast<std::ptrdiff_t>(max), list.end());
+}
+
 /* load, change, save: a bad file is the error, left as it is */
 Result<> update_prefs(const std::function<void(Preferences &)> &change);
 

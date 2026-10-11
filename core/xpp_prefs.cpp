@@ -22,18 +22,37 @@ bool has_control(std::string_view text)
     return std::ranges::any_of(text, [](char c) { return static_cast<unsigned char>(c) < ' ' || c == 0x7f; });
 }
 
-/* why `path` cannot be the next recent model after `before`, or nothing */
-std::optional<std::string> recent_problem(std::span<const std::string> before, std::string_view path)
+/* why `path` cannot be a path the file keeps, or nothing */
+std::optional<std::string> path_problem(std::string_view path)
 {
     if (path.empty()) return "the path is empty";
     if (path.size() > MAX_PATH_BYTES) return xpp::format("the path is longer than {} bytes", MAX_PATH_BYTES);
     if (has_control(path)) return "the path has a control character";
     if (!files::is_absolute(path)) return xpp::format("\"{}\" is not an absolute path", path);
+    return std::nullopt;
+}
+
+/* why `path` cannot be the next recent model after `before`, or nothing */
+std::optional<std::string> recent_problem(std::span<const std::string> before, std::string_view path)
+{
+    if (const auto why = path_problem(path)) return why;
     if (std::ranges::find(before, path) != before.end()) return xpp::format("\"{}\" is listed twice", path);
     return std::nullopt;
 }
 
 using CountProblem = std::optional<std::string> (*)(long long);
+
+/* why `a` cannot be the next approval after `before`, or nothing; which: "model" or "path" */
+std::optional<std::string> approval_problem(std::span<const OutsideApproval> before, const OutsideApproval &a,
+                                            std::string_view &which)
+{
+    which = "model";
+    if (const auto why = path_problem(a.model)) return why;
+    which = "path";
+    if (const auto why = path_problem(a.path)) return why;
+    if (std::ranges::find(before, a) != before.end()) return xpp::format("\"{}\" for \"{}\" is listed twice", a.path, a.model);
+    return std::nullopt;
+}
 
 using Problem = std::optional<std::string> (*)(std::span<const std::string>, std::string_view);
 
@@ -49,6 +68,21 @@ public:
         const setx::Member *m = block_.member(key);
         for (std::size_t i = 0; i < got.size(); i++)
             if (const auto why = problem(std::span(got).first(i), got[i])) block_.fail(m->value.items[i], *why);
+        out = std::move(got);
+    }
+    void approvals(std::string_view key, std::vector<OutsideApproval> &out, std::size_t max)
+    {
+        std::vector<setx::Block> groups;
+        if (!block_.groups(key, groups, max)) return;
+        std::vector<OutsideApproval> got;
+        for (setx::Block &g : groups) {
+            OutsideApproval a;
+            if (!g.text("model", a.model) || !g.text("path", a.path)) g.fail("an entry needs a `model` and a `path`");
+            std::string_view which;
+            if (const auto why = approval_problem(got, a, which)) g.fail(*g.member(which), *why);
+            g.done();
+            got.push_back(std::move(a));
+        }
         out = std::move(got);
     }
 
@@ -91,6 +125,20 @@ public:
         if (const auto why = problem(value); why && !bad_) bad_ = *why;
         out.whole(key, value);
     }
+    void approvals(std::string_view key, const std::vector<OutsideApproval> &list, std::size_t max)
+    {
+        if (list.size() > max && !bad_) bad_ = xpp::format("`{}` has {} entries: at most {}", key, list.size(), max);
+        out.begin_list(key);
+        for (std::size_t i = 0; i < list.size(); i++) {
+            std::string_view which;
+            if (const auto why = approval_problem(std::span(list).first(i), list[i], which); why && !bad_) bad_ = *why;
+            out.begin_item();
+            out.text("model", list[i].model);
+            out.text("path", list[i].path);
+            out.end_item();
+        }
+        out.end_list();
+    }
     setx::Out out;
     std::optional<std::string> bad_;
 };
@@ -101,6 +149,7 @@ template <class IO, class P> void describe(IO &io, P &p)
 {
     io.paths("recent_models", p.recent_models, MAX_RECENT_MODELS, recent_problem);
     io.count("auto_threads", p.auto_threads, AUTO_THREADS_WORD, auto_threads_problem);
+    io.approvals("outside_paths", p.outside_paths, MAX_OUTSIDE_APPROVALS);
 }
 
 } // namespace
@@ -144,6 +193,18 @@ Result<> save_prefs(const Preferences &p)
     const Result<std::string> text = serialize_prefs(p);
     if (!text) return std::unexpected(text.error());
     return write_config_file(WHERE, FILE_NAME, *text);
+}
+
+Result<bool> outside_path_approved(std::string_view model, std::string_view path)
+{
+    const Result<Preferences> p = load_prefs();
+    if (!p) return std::unexpected(p.error());
+    return std::ranges::find(p->outside_paths, OutsideApproval{std::string(model), std::string(path)}) != p->outside_paths.end();
+}
+
+Result<> approve_outside_path(std::string_view model, std::string_view path)
+{
+    return update_prefs([&](Preferences &p) { remember_newest(p.outside_paths, OutsideApproval{std::string(model), std::string(path)}, MAX_OUTSIDE_APPROVALS); });
 }
 
 Result<> update_prefs(const std::function<void(Preferences &)> &change)

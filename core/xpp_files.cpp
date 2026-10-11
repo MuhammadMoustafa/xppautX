@@ -23,6 +23,7 @@
 #include <map>
 #include <mutex>
 #include <new>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -554,27 +555,56 @@ bool write_path_ok(std::string_view path, bool opening)
     return false;
 }
 
-std::string path_within(std::string_view path, std::string_view folder)
+PathCheck resolve_path(std::string_view path, std::string_view folder)
 {
-    const std::filesystem::path base = std::filesystem::path(absolute(folder.empty() ? "." : folder)).lexically_normal();
-    const std::filesystem::path target = std::filesystem::path(absolute(path));
-    const std::filesystem::path relative = target.lexically_relative(base);
-    if (relative.empty() || relative.is_absolute()) return {};
-    std::filesystem::path checked = base;
-    for (const auto &part : relative) {
-        if (part == "..") return {};
-        if (part == ".") continue;
-        if (!name_ok(part.string(), true)) return {};
-        checked /= part;
-        if (is_link(checked.string().c_str())) return {};
+    using Path = std::filesystem::path;
+    const Path base = Path(absolute(folder.empty() ? "." : folder)).lexically_normal();
+    /* normalised first, so what is checked, shown, remembered and opened is
+       one text, with no ".." left for the system to resolve through a link */
+    const Path target = Path(absolute(path)).lexically_normal();
+    const Path relative = target.lexically_relative(base);
+    if (!relative.empty() && !relative.is_absolute() && *relative.begin() != "..") {
+        Path checked = base;
+        for (const auto &part : relative) {
+            if (part == ".") continue;
+            if (!name_ok(part.string(), true)) return {PathKind::refused, {}};
+            checked /= part;
+            if (is_link(checked.string().c_str())) return {PathKind::refused, {}};
+        }
+        return {PathKind::inside, checked.string()};
     }
-    return checked.string();
+    /* outside: the parts below the folder's and the target's common ancestor
+       must be plain names, none of them a link; the ancestor is where the
+       user put the model */
+    const auto parts = [](const Path &p) {
+        std::vector<Path> v;
+        for (const auto &part : p)
+            if (!part.empty()) v.push_back(part);
+        return v;
+    };
+    const std::vector<Path> below = parts(base), down = parts(target);
+    std::size_t common = 0;
+    while (common < below.size() && common < down.size() && below[common] == down[common]) common++;
+    Path checked;
+    for (std::size_t i = 0; i < down.size(); i++) {
+        const Path &part = down[i];
+        if (i >= common && part != target.root_name() && part != target.root_directory()) {
+            if (!name_ok(part.string(), true)) return {PathKind::refused, {}};
+            checked /= part;
+            if (is_link(checked.string().c_str())) return {PathKind::refused, {}};
+        } else
+            checked /= part;
+    }
+    return {PathKind::outside, checked.string()};
 }
 
-FILE *open_read_within(std::string_view path, std::string_view folder)
+FILE *open_read_within(std::string_view path, std::string_view folder, std::span<const std::string> allowed_outside)
 {
-    const std::string checked = path_within(path, folder);
-    if (checked.empty()) { errno = EACCES; return nullptr; }
+    const PathCheck c = resolve_path(path, folder);
+    const bool allowed = c.kind == PathKind::inside ||
+                         (c.kind == PathKind::outside && std::ranges::find(allowed_outside, c.path) != allowed_outside.end());
+    if (!allowed) { errno = EACCES; return nullptr; }
+    const std::string &checked = c.path;
     if (served_read(path)) return open_stream(path, "rb");
     xpp::UniqueFile fp;
     unsigned long long size;

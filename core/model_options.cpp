@@ -104,6 +104,22 @@ const char *yes_no_into(int &member, const OptionValue &v)
   }
 }
 
+/* what the log file's option says of a file that could not be opened */
+constexpr const char *log_open_failed = "log file open failed";
+
+/* the file a path option names, from the model's folder, into path: inside
+   it, or outside it when the user allows (approve_model_path, which asks
+   once); else why not. A stored bad preferences file stops the load. */
+const char *own_file(Session &s, const OptionValue &v, std::string &path)
+{
+  path = include_path(s.model().this_file, v.text);
+  if (path.empty()) return "must name a file";
+  const Result<> allowed = approve_model_path(s.model(), path, Load::running() ? Load::place() : command_place());
+  if (allowed) return nullptr;
+  if (allowed.error().where != PATH_REFUSED) model_failed(allowed.error());
+  return "names a path outside the model's folder that was refused";
+}
+
 /* the words a .odex writes for the choice rows (option_choices); the
    Jacobian's are jacobian.h's, the method's the registry's */
 constexpr std::array<std::string_view, 2> yes_no_names{"no", "yes"};
@@ -625,11 +641,9 @@ constexpr OptionRow rows[] = {
    .whole = [](Session &) -> int & { return batch_options.range; }},
   {.group = option_group::batch, .kind = OptionKind::path, .name = "OUTPUT", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     /* the batch data file, named from the model's folder: a name inside it,
-        never a path out of it (an outside path is W286's question) */
-     const std::string path = include_path(s.model().this_file, v.text);
-     if (path.empty() || files::path_within(path, files::split_path(s.model().this_file).first).empty())
-       return "must name a file inside the model's folder";
+     /* the batch data file, named from the model's folder */
+     std::string path;
+     if (const char *why = own_file(s, v, path)) return why;
      if (v.apply) batch_options.out_file = path;
      return nullptr;
    }},
@@ -738,9 +752,13 @@ constexpr OptionRow rows[] = {
    },
    .zero_or_one = true},
   {.group = option_group::log, .kind = OptionKind::path, .name = "LOGFILE",
-   .parse = [](Session &, const OptionValue &v) -> const char * {
-     if (v.apply && !log_settings.file_from_command_line && !log_open_file(v.text))
-       return "log file open failed";
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     if (log_settings.file_from_command_line) return nullptr;
+     /* named on the command line it is the user's own, as typed */
+     std::string path = v.text;
+     if (!v.source.force)
+       if (const char *why = own_file(s, v, path)) return why;
+     if (v.apply && !log_open_file(path)) return log_open_failed;
      return nullptr;
    }},
   {.group = option_group::buttons, .kind = OptionKind::text, .name = "BUT",
@@ -953,7 +971,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   }
   else if (row->parse) {
     why = row->parse(s, v);
-    if (why && upper == "LOGFILE") return files::open_error("option", value).what;
+    if (why == log_open_failed) return files::open_error("option", value).what;
   }
   else if (row->real) why = number_into(row->real(s), v);
   else if (row->whole) why = whole_into(row->whole(s), v);

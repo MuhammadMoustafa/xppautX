@@ -1069,7 +1069,7 @@ def section_session():
     tab_ode = os.path.join(folder, 'tab.odex')
     with open(tab_ode, 'w') as f:
         f.write(chr(10).join(['table w "' + table + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0', 'options { numerics: { total_time: 4 } }', '']))
-    # run in the model's own folder: a table outside it is refused (W175)
+    # run in the model's own folder: a table outside it would be a question (W175, W286)
     s4 = Server(args.server, tab_ode, verbose=args.v, run=folder)
     s4.collect(is_idle)
     s4.send(cmd='session', op='save', name='tab')

@@ -913,10 +913,12 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 		loadincludefile=0;/*Only do this once*/
 		for (const std::string &inc : include_files)
 		{
-			xpp::UniqueFile fnew=xpp::open_model_file(*src.model,inc);
+			const xpp::Result<> allowed = xpp::approve_model_path(*src.model, inc, xpp::Place{});
+			xpp::UniqueFile fnew = allowed ? xpp::open_model_file(*src.model,inc) : xpp::UniqueFile();
       			if(!fnew){
-			  /* a file that could not be read: no line */
-			  auto error = xpp::files::open_error("model",inc);
+			  /* a file that could not be read or was refused: no line */
+			  auto error = allowed ? xpp::files::open_error("model",inc) : allowed.error();
+			  error.place = xpp::Place{inc};
               error.what += " (named by the --include flag)";
               model_failed(std::move(error));
        			}
@@ -947,6 +949,8 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
     if(if_include_file(old,newfile)){
       /* relative to the folder of the file this line is in */
       newfile=xpp::include_path(src.file,newfile);
+      if (const xpp::Result<> allowed = xpp::approve_model_path(*src.model, newfile, xpp::Place{src.file, src.line, 0, old}); !allowed)
+        model_failed(allowed.error());
       xpp::UniqueFile fnew=xpp::open_model_file(*src.model,newfile);
       if(!fnew){
          auto error = xpp::files::open_error("model",newfile);

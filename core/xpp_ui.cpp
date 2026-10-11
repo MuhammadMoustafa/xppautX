@@ -5,6 +5,7 @@
 #include "session.h"
 #include "xpp_job.h"
 #include "xpp_io.h"
+#include "xpp_batch.h"
 #include "xpp_log.h"
 #include <stdarg.h>
 #include <stdio.h>
@@ -91,6 +92,24 @@ static int hl_new_string(std::string_view, std::string &, int) { return 0; }
 static int hl_no(void) { return 0; }
 static int hl_two_choice(std::string_view, std::string_view, std::string_view, std::string_view, std::string_view)
 {
+    return 0;
+}
+static int hl_choose(std::string_view, std::string_view question, std::span<const std::string> choices,
+                     std::string_view keys, char yes_key)
+{
+    if (batch_options.yes) {
+        const std::size_t at = keys.find(yes_key);
+        report_automatic(question, at < choices.size() ? choices[at] : std::string(1, yes_key));
+        return static_cast<unsigned char>(yes_key);
+    }
+    std::string prompt(question);
+    for (std::size_t i = 0; i < choices.size() && i < keys.size(); i++)
+        prompt += xpp::format("{} {} ({})", i ? "," : " --", choices[i], keys[i]);
+    const std::optional<std::string> answer = ask_terminal(prompt, choices.empty() ? std::string() : choices.back());
+    if (!answer) return 0;
+    for (std::size_t i = 0; i < choices.size() && i < keys.size(); i++)
+        if (equal_ignoring_case(*answer, choices[i]) || (answer->size() == 1 && equal_ignoring_case(*answer, std::string(1, keys[i]))))
+            return static_cast<unsigned char>(keys[i]);
     return 0;
 }
 static int hl_string_box(int, int, std::string_view, const char *const *, std::span<std::string>, const int *)
@@ -183,6 +202,7 @@ XppUi ui = {
     .new_string = hl_new_string,
     .yes_no_box = hl_no,
     .two_choice = hl_two_choice,
+    .choose = hl_choose,
     .respond_box = hl_respond_box,
     .checklist = hl_checklist,
     .string_box = hl_string_box,
@@ -342,6 +362,11 @@ int yes_no_box(void) { return ui.yes_no_box(); }
 int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key)
 {
     return ui.two_choice(c1, c2, q, key, "");
+}
+int Choose(std::string_view title, std::string_view question, std::span<const std::string> choices,
+           std::string_view keys, char yes_key)
+{
+    return ui.choose(title, question, choices, keys, yes_key);
 }
 void respond_box(std::string_view button, std::string_view message) { ui.respond_box(button, message); }
 int do_string_box(int row, int col, std::string_view title, const char *const *names,

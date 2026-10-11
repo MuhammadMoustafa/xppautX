@@ -857,7 +857,7 @@ Result<std::optional<std::string>> read_config_file(std::string_view where, std:
     const std::string file = files::config_path(name);
     if (file.empty()) return std::unexpected(no_config_folder(where, name));
     if (!files::exists(file)) return std::optional<std::string>();
-    UniqueFile f(files::open_read_within(file, files::config_dir()));
+    UniqueFile f(files::open_read_within(file, files::config_dir(), {}));
     std::string text;
     if (!f || !read_bytes(f.get(), text, limit + 1))
         return std::unexpected(files::open_error(std::string(where), file,

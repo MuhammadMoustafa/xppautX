@@ -9,7 +9,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import CONFIG_ROOT, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
+from xppclient import CONFIG_ROOT, Server, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -7231,11 +7231,114 @@ def check_auto_threads():
                   len(err) == 1 and 'preferences.setx:2' in err[0] and text() == bad_text, str(err) + str(evs)[-200:])
         finally:
             stop_server(p, r, snd)
+
+def check_outside_paths():
+    """W286, docs/protocol.md "Paths outside the model's folder": a path a model names outside its folder is
+    a question (`ask` kind `choice`, keys `aor`): Allow always is kept in the preferences for this model file and
+    this exact path, Allow once is for this load, Refuse (and --silent with no answer) stops the load at the
+    model's line. --yes allows once, printed."""
+    binary = os.path.abspath(args.server)
+    root = tempfile.mkdtemp(prefix='xppoutside')
+    config = os.path.join(root, 'config')
+    env = {'XPP_CONFIG_DIR': config}
+    prefs = os.path.join(config, 'preferences.setx')
+    table = os.path.join(root, 'w.tab').replace(os.sep, '/')
+    table2 = os.path.join(root, 'w2.tab').replace(os.sep, '/')
+    for t in (table, table2):
+        with open(t, 'w') as f:
+            f.write(chr(10).join(['5', '0', '4', '0', '1', '4', '9', '16', '']))
+    proj = os.path.join(root, 'proj')
+    os.makedirs(proj)
+    def model_with(path, name):
+        full = os.path.join(proj, name)
+        with open(full, 'w') as f:
+            f.write(chr(10).join(['table w "' + path + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0',
+                                  'options { numerics: { total_time: 4 } }', '']))
+        return full
+    kept = lambda: open(prefs, encoding='utf-8').read() if os.path.exists(prefs) else ''
+    is_hello = lambda e: e.get('ev') == 'hello'
+    try:
+        model = model_with(table, 'tab.odex')
+        def start(path):
+            return Server(args.server, path, env=env, run=proj, verbose=args.v)
+        failed = lambda e: e.get('ev') == 'error' or (e.get('ev') == 'message' and e.get('error'))
+        # no answer: the question, then the load stops at the model's line
+        s = start(model)
+        try:
+            evs, ask = s.collect(lambda e: e.get('ev') == 'ask')
+            check('W286: a table outside the model folder asks one choice: Allow always / Allow once / Refuse, naming the model, its line and the path',
+                  ask and ask.get('kind') == 'choice' and ask.get('choices') == ['Allow always', 'Allow once', 'Refuse']
+                  and ask.get('keys') == 'aor' and table in ask.get('question', '') and 'line 1 of' in ask.get('question', '')
+                  and 'tab.odex' in ask.get('question', ''), str(ask))
+            s.send(cmd='answer', id=ask['id'], key='r')
+            evs, _ = s.collect(failed)
+            errs = [e for e in evs if failed(e)]
+            check('W286: Refuse stops the load with the refusal at the table line, nothing kept',
+                  errs and 'refused' in str(errs[-1]) and 'tab.odex' in str(errs[-1]) and not any(e.get('ev') == 'state' for e in evs)
+                  and table not in kept(), str(evs)[-400:])
+        finally:
+            s.close()
+        # Allow once: loads, keeps nothing, asks again next time
+        s = start(model)
+        try:
+            evs, ask = s.collect(lambda e: e.get('ev') == 'ask')
+            s.send(cmd='answer', id=ask['id'], key='o')
+            evs, _ = s.collect(is_idle)
+            check('W286: Allow once loads the model and keeps nothing', any(e.get('ev') == 'state' for e in evs) and not [e for e in evs if failed(e)]
+                  and table not in kept(), str(evs)[-300:])
+        finally:
+            s.close()
+        # Allow always: loads, kept for this model file and this path
+        s = start(model)
+        try:
+            evs, ask = s.collect(lambda e: e.get('ev') == 'ask')
+            check('W286: Allow once kept nothing, so the same model asks again', ask and ask.get('kind') == 'choice', str(ask))
+            s.send(cmd='answer', id=ask['id'], key='a')
+            evs, _ = s.collect(is_idle)
+            check('W286: Allow always loads the model and keeps the model file and the path in the preferences',
+                  any(e.get('ev') == 'state' for e in evs) and table in kept(), str(evs)[-300:] + kept())
+        finally:
+            s.close()
+        # the remembered pair is not asked again
+        s = start(model)
+        try:
+            evs, _ = s.collect(is_idle)
+            check('W286: a remembered approval is not asked again', not any(e.get('ev') == 'ask' for e in evs) and any(e.get('ev') == 'state' for e in evs), str(evs)[-300:])
+        finally:
+            s.close()
+        # a changed path asks again
+        model2 = model_with(table2, 'tab.odex')
+        s = start(model2)
+        try:
+            evs, ask = s.collect(lambda e: e.get('ev') == 'ask')
+            check('W286: a changed path asks again', ask and ask.get('kind') == 'choice' and table2 in ask.get('question', ''), str(ask))
+            s.send(cmd='answer', id=ask['id'], key='r')
+            s.collect(failed)
+        finally:
+            s.close()
+        # --silent: the terminal's question; no answer refuses at the model's line, --yes allows once and says so
+        def silent(flags, answer=''):
+            return subprocess.run([binary, 'tab.odex', '--silent'] + flags, cwd=proj, input=answer,
+                                  capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW, env=dict(os.environ, **env))
+        with open(prefs, 'w', encoding='utf-8') as f:
+            f.write('')
+        result = silent([])
+        check('W286: --silent with no answer refuses and quits with the error at the model\'s line',
+              result.returncode == 1 and '(60 s)' in result.stderr and 'tab.odex:1' in result.stderr and 'refused' in result.stderr, result.stderr)
+        result = silent([], 'o\n')
+        check('W286: --silent takes the answer from the terminal', result.returncode == 0 and '(60 s)' in result.stderr, result.stderr)
+        result = silent(['--yes'])
+        check('W286: --silent --yes allows once and prints the question and what it took',
+              result.returncode == 0 and '(60 s)' not in result.stderr and ' -> Allow once (answered automatically)' in result.stderr
+              and table2 not in kept(), result.stderr)
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
 
 check_auto_threads()
+
+check_outside_paths()
+
 
 print('server checks: %s' % ('all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

@@ -19,11 +19,13 @@
 #include "xpp_batch.h"
 #include "xpp_io.h"
 #include "xpp_files.h"
+#include "xpp_prefs.h"
 #include "browse.h"
 #include "graphics.h"
 #include "comline.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <map>
 #include <memory>
 #include <set>
@@ -48,6 +50,28 @@ bool write_file(const char *path, const std::string &text)
     if (file.ends_with(".ode")) xpp::files::remove(std::string(file) + "x");
     xpp::Writer w(path);
     return w && w.write(text) && w.commit();
+}
+
+/* the terminal's answers to the next questions: stdin is this text */
+bool answer_with(const std::string &text)
+{
+    const char *answers = "build/test_options_answers.txt";
+#ifdef _WIN32
+    const char *none = "NUL";
+#else
+    const char *none = "/dev/null";
+#endif
+    /* the file being read cannot be replaced on Windows: let go of it first */
+    return std::freopen(none, "r", stdin) != nullptr && write_file(answers, text) && std::freopen(answers, "r", stdin) != nullptr;
+}
+
+bool set_config_dir(const char *dir)
+{
+#ifdef _WIN32
+    return _putenv_s(xpp::files::CONFIG_DIR_ENV, dir ? dir : "") == 0;
+#else
+    return dir ? setenv(xpp::files::CONFIG_DIR_ENV, dir, 1) == 0 : unsetenv(xpp::files::CONFIG_DIR_ENV) == 0;
+#endif
 }
 
 xpp::Session *load(const char *path)
@@ -503,6 +527,12 @@ int main(void)
         }
     }
 
+    /* outside the folder is a question (below): these answer it from a config
+       folder of their own, with nothing typed */
+    xpp::TempDir config;
+    CHECK(!config.path().empty() && set_config_dir((config.path() + "/config").c_str()));
+    CHECK(answer_with(""));
+
     /* OUTPUT names the batch data file, as XPPAUT's batchout: inside the
        model's folder (here build/), in an .ode and in an .odex; a path out of
        it is refused at its line */
@@ -533,6 +563,48 @@ int main(void)
             CHECK(l.error().what.find(c.value) != std::string::npos);
             if (l.error().place.line != (odex ? 2 : 6)) printf("  output %s: %s\n", c.value, l.error().text().c_str());
         }
+    }
+
+    /* a path outside the folder is a question (W286), asked once, in a
+       config folder of its own: no answer refuses at the line; -y allows
+       it once and says so; "o" allows this load; "a" is kept for this model
+       file and this path, so the next load does not ask, and another path asks */
+    {
+        const auto load_output = [&](const char *path) {
+            CHECK(write_file(bad_odex, std::string("x' = -x\noptions { batch: { output: \"") + path + "\" } }\n"));
+            char arg0[] = "test_options";
+            char arg1[64];
+            std::snprintf(arg1, sizeof arg1, "%s", bad_odex);
+            char *argv[] = {arg0, arg1, nullptr};
+            return xpp::load_model(2, argv, 1);
+        };
+        const char outside[] = "../simulations/out.dat", other[] = "../simulations/other.dat";
+        CHECK(answer_with(""));
+        xpp::Loaded l = load_output(outside);
+        CHECK(!l.has_value());
+        if (!l) {
+            CHECK(l.error().place.file == bad_odex && l.error().place.line == 2);
+            CHECK(l.error().what.find("refused") != std::string::npos);
+        }
+        CHECK(answer_with("r\n"));
+        CHECK(!load_output(outside).has_value());
+        CHECK(answer_with("nonsense\n"));
+        CHECK(!load_output(outside).has_value());
+        xpp::batch_options.yes = true;
+        l = load_output(outside);
+        xpp::batch_options.yes = false;
+        CHECK(l.has_value() && xpp::batch_options.out_file == std::string("build/") + outside);
+        CHECK(answer_with("o\n"));
+        CHECK(load_output(outside).has_value());
+        CHECK(answer_with("")); /* "once" kept nothing: asked again, no answer */
+        CHECK(!load_output(outside).has_value());
+        CHECK(answer_with("a\n"));
+        CHECK(load_output(outside).has_value());
+        CHECK(answer_with(""));
+        CHECK(load_output(outside).has_value()); /* kept: no question */
+        CHECK(!load_output(other).has_value());  /* another path asks again */
+        CHECK(xpp::files::exists(xpp::prefs::prefs_path()));
+        set_config_dir(nullptr);
     }
 
     remove(bad_ode);

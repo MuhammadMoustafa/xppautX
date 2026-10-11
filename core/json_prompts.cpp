@@ -255,8 +255,8 @@ int j_yes_no_box(void)
     return k[0] == 'y';
 }
 
-int j_two_choice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key,
-                 std::string_view title)
+int j_choose(std::string_view title, std::string_view q, std::span<const std::string> choices, std::string_view keys,
+             char)
 {
     Buf b;
     std::string k;
@@ -265,15 +265,20 @@ int j_two_choice(std::string_view c1, std::string_view c2, std::string_view q, s
     buf_str(&b, title);
     BUF_LIT(&b, ",\"question\":");
     buf_str(&b, q);
-    BUF_LIT(&b, ",\"choices\":[");
-    buf_str(&b, c1);
-    BUF_LIT(&b, ",");
-    buf_str(&b, c2);
-    BUF_LIT(&b, "],\"keys\":");
-    buf_str(&b, key);
+    BUF_LIT(&b, ",\"choices\":");
+    buf_str_array(&b, choices);
+    BUF_LIT(&b, ",\"keys\":");
+    buf_str(&b, keys);
     if (!ask_wait(&b, id)) return 0;
     get_string(answer.c_str(), "key", k);
     return static_cast<unsigned char>(k[0]);
+}
+
+int j_two_choice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key,
+                 std::string_view title)
+{
+    const std::array<std::string, 2> choices{std::string(c1), std::string(c2)};
+    return j_choose(title, q, choices, key, 0);
 }
 
 void j_respond_box(std::string_view button, std::string_view message)

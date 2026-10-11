@@ -1965,10 +1965,32 @@ against hard links, changes to a regular file's contents, or replacement
 of an ancestor folder by someone with filesystem write access. The server
 listens on 127.0.0.1 only.
 
-Opening or inspecting a model also confines its file reads to the main
-model's folder. Relative plain subfolders are allowed; absolute include
-names, traversal, links, junctions and non-regular files are refused. Path
-components use the same name validation, with hidden files permitted.
+Opening or inspecting a model also confines the files it names (includes,
+imports, file tables, the animation file, `output` and `logfile`) to the
+main model's folder. Relative plain subfolders are allowed; links,
+junctions and non-regular files are refused. Path components use the same
+name validation, with hidden files permitted.
+
+A path that leaves the folder (`..`, or absolute) is the user's question
+(W286, [#346](https://github.com/MuhammadMoustafa/xppautX/issues/346)),
+asked while the model loads, before anything is applied: an `ask` of kind
+`choice` with `title` "Path outside the model's folder", a `question` that
+names the model file, the model's line (and the line as written) and the
+path with the text it resolves to, `choices` `["Allow always","Allow once","Refuse"]`
+and `keys` `aor`. `a` keeps the pair of the model file's absolute path and the
+resolved path in the preferences (`outside_paths` of `preferences.setx`, at
+most 24, newest first, the oldest dropped), so that model and that exact
+path are not asked again; a changed path or another model asks again. `o`
+allows it for this load. `r`, a cancel, an unknown key or no answer refuses:
+the load fails with the model's file and line and nothing is applied. With
+no interface (`--silent`, `--convert`) the question is the terminal's
+(60 s, the same one as every terminal question; an answer is `a`, `o` or
+`r`, or the choice's name), no answer refuses, and `--yes` allows once and
+prints question and answer. A link on the way below the folder's common
+ancestor with the path, or a name that is not a plain one, is refused with no
+question. The path asked about is the normalised one (`.` and `..` resolved in
+the text, never through a link), and that same text is what is opened,
+without following a link at its end.
 Model files share the archive limits (512 MiB, 4096 files), and file and
 formula tables share a 1,000,000-point session budget before allocation or
 evaluation. The ancestor-mutation and hard-link limitations above also

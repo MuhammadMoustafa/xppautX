@@ -182,7 +182,7 @@ grammar:
   quotes, except a **path** or a **text**, which is a double-quoted string
   (`logfile: "out/run 1.log"`, `output: "données.dat"`): `\"` and `\\`
   are its only escapes, a path is written with `/` on every system, and a
-  path stays inside the model's folder as before (W175). Only `output` and
+  path outside the model's folder is a question the user answers (W175, W286). Only `output` and
   `logfile` are paths, and `but` (a button, `but: "quit:fq"`) a text. Every
   writer of options (the converter, the Copy set line) writes them so.
   Values that were more than one word are one now:
