@@ -61,11 +61,6 @@ core/dormpri.cpp hinit|vendored/numerical, keep: Hairer's dop853/dopri5, two int
 core/dormpri.cpp hinit5|vendored/numerical, keep: see core/dormpri.cpp hinit
 core/xpp_http.cpp release|keep: each object's own shutdown signal (lock, set its flag, broadcast its condition) over its own mutex and condition; a shared helper would only take all three
 core/xpp_inbox.cpp close|keep: see core/xpp_http.cpp release
-core/flags.cpp one_flag_step_symp|keep (W33e looked): per-integration-method single-step dispatch (symplectic/euler/discrete/heun/rk4), each calling its own method's step; same shape by design
-core/flags.cpp one_flag_step_euler|keep: see core/flags.cpp one_flag_step_symp
-core/flags.cpp one_flag_step_discrete|keep: see core/flags.cpp one_flag_step_symp
-core/flags.cpp one_flag_step_heun|keep: see core/flags.cpp one_flag_step_symp
-core/flags.cpp one_flag_step_rk4|keep: see core/flags.cpp one_flag_step_symp
 core/graphics.cpp point|keep: each primitive dispatched to its own sink (PS, SVG, the front end) and each _abs form clipped then scaled for its own; the same shape per primitive by design, a merge would only hide which sink call each makes (W33f looked again)
 core/graphics.cpp bead|keep: see core/graphics.cpp point
 core/graphics.cpp line|keep: see core/graphics.cpp point

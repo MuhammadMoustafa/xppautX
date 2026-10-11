@@ -26,6 +26,7 @@ void init_alloc_info(Session &s);
 struct SolverWork {
   XPPVEC xpv{};             /* xpv.x points at state */
   std::vector<double> state;
+  std::vector<double> flag_yold; /* flags.cpp's flag_loop: the state before a step */
 };
 
 /* The data store: the rows a run stores, one float column per quantity

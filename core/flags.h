@@ -1,6 +1,7 @@
 #ifndef _flags_h_
 #define _flags_h_
 /* the global flags (events) of the Session s's Model (flags.cpp), C++ only */
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -12,11 +13,9 @@ struct CvodeRun; /* cv2.h */
 
 int compile_flags(xpp::Session &s);
 int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, double told, double *tnew, int neq, double *frac);
-int one_flag_step_symp(xpp::Session &s, double *y, double dt, double *work, int neq, double *tim, int *istart);
-int one_flag_step_euler(xpp::Session &s, double *y, double dt, double *work, int neq, double *tim, int *istart);
-int one_flag_step_discrete(xpp::Session &s, double *y, double dt, double *work, int neq, double *tim, int *istart);
-int one_flag_step_heun(xpp::Session &s, double *y, double dt, double *yval[2], int neq, double *tim, int *istart);
-int one_flag_step_rk4(xpp::Session &s, double *y, double dt, double *yval[3], int neq, double *tim, int *istart);
+/* a fixed-step method's step of length dt, repeated shorter back to each
+   event the model's flags fire in it; step(dtt) takes one step of dtt */
+void one_flag_steps(xpp::Session &s, double *y, int neq, double *tim, int *istart, double dt, const std::function<void(double)> &step);
 int one_flag_step_gear(xpp::Session &s, int neq, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork);
 int one_flag_step_rosen(xpp::Session &s, double *y, double *tstart, double tfinal, int *istart, int n, double *work, int *ierr);
 int one_flag_step_dp(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work);

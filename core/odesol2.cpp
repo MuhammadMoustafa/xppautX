@@ -1,3 +1,4 @@
+#include <functional>
 #include "odesol2.h"
 #include "jacobian.h"
 #include "session.h"
@@ -44,20 +45,15 @@ constexpr double symp_B[]={2/3.,-2./3.,1.0};
 namespace {
 /* nt steps of a fixed-step method, storing the delays after each: its
    plain step, or, when the model has flags, the step that also checks
-   them (flags.cpp's one_flag_step_*). discrete, euler, mod_euler and
-   rung_kut differ only in these two. */
-template <class Plain, class Flagged>
-int fixed_steps(xpp::Session &s, double *y, int nt, Plain plain, Flagged flagged)
+   them (flags.cpp's one_flag_steps). discrete, euler, mod_euler and
+   rung_kut differ only in step(dtt), one step of length dtt. */
+template <class Step>
+int fixed_steps(xpp::Session &s, double *y, int nt, int neq, double *tim, int *istart, double dt, Step step)
 {
-  if(s.model().nflags==0){
-    for(int i=0;i<nt;i++){
-      plain();
-      stor_delay(s,y);
-    }
-    return(0);
-  }
+  const std::function<void(double)> f=step;
   for(int i=0;i<nt;i++){
-    flagged();
+    if(s.model().nflags==0)step(dt);
+    else one_flag_steps(s,y,neq,tim,istart,dt,f);
     stor_delay(s,y);
   }
   return(0);
@@ -68,31 +64,22 @@ int fixed_steps(xpp::Session &s, double *y, int nt, Plain plain, Flagged flagged
 
 int symplect3(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
- int i;
  if(s.model().nflags==0){ 
-   for(i=0;i<nt;i++)
-     {
-       one_step_symp(s,y,dt,work,neq,tim);
-       
-     }
+   for(int i=0;i<nt;i++)
+     one_step_symp(s,y,dt,work,neq,tim);
    stor_delay(s,y);
-    return(0);
+   return(0);
  }
-  for(i=0;i<nt;i++)
-      {
-	one_flag_step_symp(s,y,dt,work,neq,tim,istart);
-	stor_delay(s,y);
-      }
-    return(0);
+ return fixed_steps(s,y,nt,neq,tim,istart,dt,
+   [&](double dtt){ one_step_symp(s,y,dtt,work,neq,tim); });
 }
 
 /*   DISCRETE    */
 
 int discrete(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
-  return fixed_steps(s,y,nt,
-    [&]{ one_step_discrete(s,y,dt,work,neq,tim); },
-    [&]{ one_flag_step_discrete(s,y,dt,work,neq,tim,istart); });
+  return fixed_steps(s,y,nt,neq,tim,istart,dt,
+    [&](double dtt){ one_step_discrete(s,y,dtt,work,neq,tim); });
 }
 
 /* Backward Euler  */
@@ -260,9 +247,8 @@ void one_step_heun(xpp::Session &s, double *y, double dt, double *yval[2], int n
 
 int euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
-  return fixed_steps(s,y,nt,
-    [&]{ one_step_euler(s,y,dt,work,neq,tim); },
-    [&]{ one_flag_step_euler(s,y,dt,work,neq,tim,istart); });
+  return fixed_steps(s,y,nt,neq,tim,istart,dt,
+    [&](double dtt){ one_step_euler(s,y,dtt,work,neq,tim); });
 }
 
 /* Modified Euler  */
@@ -273,9 +259,8 @@ int mod_euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int ne
 
  yval[0]=work;
  yval[1]=work+neq;
- return fixed_steps(s,y,nt,
-   [&]{ one_step_heun(s,y,dt,yval,neq,tim); },
-   [&]{ one_flag_step_heun(s,y,dt,yval,neq,tim,istart); });
+ return fixed_steps(s,y,nt,neq,tim,istart,dt,
+   [&](double dtt){ one_step_heun(s,y,dtt,yval,neq,tim); });
 }
 
 /*  Runge Kutta    */
@@ -288,9 +273,8 @@ int rung_kut(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq
  yval[1]=work+neq;
  yval[2]=work+neq+neq;
 
- return fixed_steps(s,y,nt,
-   [&]{ one_step_rk4(s,y,dt,yval,neq,tim); },
-   [&]{ one_flag_step_rk4(s,y,dt,yval,neq,tim,istart); });
+ return fixed_steps(s,y,nt,neq,tim,istart,dt,
+   [&](double dtt){ one_step_rk4(s,y,dtt,yval,neq,tim); });
 }
 
 /*   ABM   */

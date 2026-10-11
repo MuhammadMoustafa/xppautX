@@ -354,8 +354,8 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
   xpp::FirstError failure; /* a manifold's */
   int i,j,k,m,n=s.integrator.fixptguess.n;
   int ierr,is_new=1;
-  double x[MAXODE],sum;
-  double er[MAXODE],em[MAXODE];
+  double sum;
+  std::vector<double> x(s.model().node),er(s.model().node),em(s.model().node);
   if(append==0)
     s.integrator.fixptlist.n=0;
 
@@ -374,7 +374,7 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
     for(j=0;j<s.model().node;j++){ 
       x[j]=s.random.uniform()*(s.integrator.fixptguess.xhi[j]-s.integrator.fixptguess.xlo[j])+s.integrator.fixptguess.xlo[j];
     }
-    if(auto r=do_sing_info(s,x,s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,s.model().node,er,em,&ierr);!r)return r;
+    if(auto r=do_sing_info(s,x.data(),s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,s.model().node,er.data(),em.data(),&ierr);!r)return r;
     if(ierr==0){
       m=s.integrator.fixptlist.n;
       if(m==0){ /* first fixed point found */
@@ -798,10 +798,8 @@ int do_range(xpp::Session &s, double *x, int flag)  /* 0 for 1-param 1 for 2 par
 void write_equilibrium(xpp::Session &s, const char *name, int shoot)
 {
   const int n=s.model().node;
-  std::array<double,MAXODE> x,er,em;
+  std::vector<double> x(s.last_ic.begin(),s.last_ic.begin()+n),er(n),em(n);
   int ierr;
-  for(int i=0;i<n;i++)
-    x[i]=s.last_ic[i];
 
   if(!xpp::ok_or_show(do_sing_info(s,x.data(),s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,n,er.data(),em.data(),&ierr)))return;
   if(ierr!=0)return;

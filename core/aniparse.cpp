@@ -842,11 +842,21 @@ void set_to_init_data(xpp::Session &s)
     redraw_ics();
 }
 
+/* the animation's fixed variables at time t from a state: value(i) is the
+   i-th of the node + nmarkov variables */
+namespace {
+template <class Value>
+void set_fix_rhs_from(xpp::Session &s, double t, Value value)
+{
+    std::vector<double> y(s.model().node + s.model().nmarkov);
+    for (size_t i = 0; i < y.size(); i++) y[i] = value(i);
+    set_fix_rhs(s, t, y.data());
+}
+}
+
 void set_from_init_data(xpp::Session &s)
 {
-    std::array<double, MAXODE> y;
-    for (int i = 0; i < s.model().node + s.model().nmarkov; i++) y[i] = s.last_ic[i];
-    set_fix_rhs(s,s.numerics.start_time, y.data());
+    set_fix_rhs_from(s, s.numerics.start_time, [&](size_t i) { return s.last_ic[i]; });
 }
 
 void ani_disk_warn(xpp::Session &s)
@@ -1111,9 +1121,7 @@ void ani_flip1(xpp::Session &s, int n)
     const int row = s.animation.vcr.pos;
 
     const double t = static_cast<double>(ss[0][row]);
-    std::array<double, MAXODE> y;
-    for (int i = 0; i < s.model().node + s.model().nmarkov; i++) y[i] = static_cast<double>(ss[i + 1][row]);
-    set_fix_rhs(s,t, y.data());
+    set_fix_rhs_from(s, t, [&](size_t i) { return static_cast<double>(ss[i + 1][row]); });
 
     render_ani(s);
     ui.ani_show();

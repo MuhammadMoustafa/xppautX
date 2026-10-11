@@ -34,58 +34,142 @@ constexpr double pertst[7][2][3]={{{2,3,1},{2,12,1}},
 			{{17.15,1,.008267},{70.08,87.97,.07407}},
 			{{1,1,1},{87.97,1,.0139}}};
 
+namespace {
+
+/* What the equilibrium search finds from a start: the point (in x), the
+   Jacobian there and its transposed copy, the eigenvalues and how many of
+   them are real or complex, positive or negative. do_sing and
+   do_sing_info both begin with it and differ only in what they report. */
+struct Equilibrium {
+  std::vector<double> buf, old_x;
+  std::vector<int> ipivot;
+  double *work=nullptr, *oldwork=nullptr, *eval=nullptr, *b=nullptr, *bp=nullptr;
+  int rp=0, rn=0, cp=0, cn=0, im=0; /* real/complex, positive/negative; im: imaginary */
+  int pose=0, nege=0;               /* the last real positive, negative eigenvalue */
+  double bigpos=-1e10, bigneg=1e10; /* the largest of each sign */
+  int bpos=0, bneg=0;               /* its index, -1 when it is complex */
+};
+
+enum class SingStatus { found, no_root, no_eigenvalues };
+
+/* Newton from x for the root, then the eigenvalues of the Jacobian there;
+   the counts only when found (*ierr says why not; x is put back when there
+   is no root). Leaves work as the Jacobian transposed for the eigenvalue
+   solver and oldwork as the Jacobian itself, work then back to oldwork
+   transposed (as get_evec wants it). */
+xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double *x, double eps, double err, double big, int maxit, int n, int *ierr)
+{
+ int i,j;
+ double temp;
+ const int kmem=n*(2*n+5)+50;
+ q.buf.assign(kmem,0.0);
+ q.old_x.assign(x,x+n);
+ q.ipivot.assign(n,0);
+ q.work=q.buf.data();
+ q.oldwork=q.work+n*n;
+ q.eval=q.oldwork+n*n;
+ q.b=q.eval+2*n;
+ q.bp=q.b+n;
+ double *ework=q.bp+n;
+ s.manifolds.ic_flag=0;
+ s.manifolds.count=0;
+ if(auto r=rooter(s,x,err,eps,big,q.work,ierr,maxit,n);!r)return std::unexpected(r.error());
+ if(*ierr!=0)
+ {
+  std::copy(q.old_x.begin(),q.old_x.end(),x);
+  return SingStatus::no_root;
+ }
+ std::copy(q.work,q.work+n*n,q.oldwork);
+/* Transpose for Eigen        */
+ for(i=0;i<n;i++)
+  for(j=i+1;j<n;j++)
+  {
+   temp=q.work[i+j*n];
+   q.work[i+j*n]=q.work[i*n+j];
+   q.work[i*n+j]=temp;
+  }
+ xpp::eigenvalues(n,q.work,q.eval,ework,ierr);
+ if(*ierr!=0)return SingStatus::no_eigenvalues;
+ for(i=0;i<n;i++)
+ {
+  double real=q.eval[2*i];
+  double imag=q.eval[2*i+1];
+  if(xpp::solver_info(s.numerics.method).traits.discrete)real=real*real+imag*imag-1.00;
+  if(fabs(imag)<.00000001)imag=0.0;
+  if(real<0.0)
+  {
+    if(imag!=0.0){
+      q.cn++;
+      if(real<q.bigneg){q.bigneg=real;q.bneg=-1;}
+    }
+    else
+    {
+     q.rn++;
+     q.nege=i;
+     if(real<q.bigneg){q.bigneg=real;q.bneg=i;}
+    }
+  }
+  if(real>0.0)
+  {
+    if(imag!=0.0){
+      q.cp++;
+      if(real>q.bigpos){q.bigpos=real;q.bpos=-1;}
+    }
+    else
+    {
+     q.rp++;
+     q.pose=i;
+     if(real>q.bigpos){q.bigpos=real;q.bpos=i;}
+    }
+  }
+  if((real==0.0)&&(imag!=0.0))q.im++;
+ }     /* eigenvalue count */
+ /* Lets change Work back to transposed oldwork */
+ for(i=0;i<n;i++)
+  for(j=i+1;j<n;j++)
+  {
+   temp=q.oldwork[i+j*n];
+   q.work[i+j*n]=q.oldwork[i*n+j];
+   q.work[i*n+j]=temp;
+  }
+ return SingStatus::found;
+}
+
+/* the equilibrium's symbol on the graph: saddle, unstable or stable */
+void mark_equilibrium(xpp::Session &s, const Equilibrium &q, double *x)
+{
+ if(((q.rp+q.cp)!=0)&&((q.rn+q.cn)!=0))eq_symb(s,x,1);
+ else
+ {
+   if((q.rp+q.cp)!=0)eq_symb(s,x,0);
+   else eq_symb(s,x,3);
+ }
+}
+
+}
+
 /* main fixed point finder */ 
 xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
 {
  xpp::FirstError failure; /* an eigenvector or a manifold's */
- int kmem,i,j,ipivot[MAXODE];
+ int i;
  int oldcol,dummy;
- int rp=0,rn=0,cp=0,cn=0,im=0;
- int pose=0,nege=0,pr;
- double *work,*eval,*b,*bp,*oldwork,*ework;
- double temp,oldt=s.numerics.delta_t,old_x[MAXODE];
- 
+ int pr;
+ double oldt=s.numerics.delta_t;
  char ch;
- double real,imag;
- double bigpos=-1e10,bigneg=1e10;
- int bpos=0,bneg=0;
- kmem=n*(2*n+5)+50;
- /* xpp_malloc never returns NULL (it exits on failure); work is RAII now
-    (std::vector) so every return path below frees it automatically. */
- std::vector<double> work_buf(kmem, 0.0);
- work=work_buf.data();
- s.manifolds.ic_flag=0;
- s.manifolds.count=0;
- for(i=0;i<n;i++)old_x[i]=x[i];
- oldwork=work+n*n;
- eval=oldwork+n*n;
- b=eval+2*n;
- bp=b+n;
- ework=bp+n;
- if(auto r=rooter(s,x,err,eps,big,work,ierr,maxit,n);!r)return r;
- if(*ierr!=0)
- {
-  for(i=0;i<n;i++)x[i]=old_x[i];
+ Equilibrium q;
+ auto found=find_equilibrium(s,q,x,eps,err,big,maxit,n,ierr);
+ if(!found)return std::unexpected(found.error());
+ if(*found==SingStatus::no_root)
   return xpp::fail("equilibrium","Could not converge to root",command_place());
- }
  DING;
- 
- for(i=0;i<n*n;i++){
-  oldwork[i]=work[i];
- }
-/* Transpose for Eigen        */
-  for(i=0;i<n;i++)
- {
-  for(j=i+1;j<n;j++)
-  {
-   temp=work[i+j*n];
-   work[i+j*n]=work[i*n+j];
-   work[i*n+j]=temp;
-  }
- }
- xpp::eigenvalues(n,work,eval,ework,ierr);
- if(*ierr!=0)
+ if(*found==SingStatus::no_eigenvalues)
   return xpp::fail("equilibrium","Could not compute eigenvalues",command_place());
+ const int rp=q.rp,rn=q.rn,cp=q.cp,cn=q.cn,im=q.im,pose=q.pose,nege=q.nege;
+ const int bpos=q.bpos,bneg=q.bneg;
+ const double bigpos=q.bigpos,bigneg=q.bigneg;
+ double *work=q.work,*oldwork=q.oldwork,*eval=q.eval,*b=q.b,*bp=q.bp;
+ int *ipivot=q.ipivot.data();
 /* succesfully computed evals now lets work with them */
 ch='n';
 if(!s.numerics.par_fol)
@@ -99,65 +183,13 @@ if(!s.numerics.par_fol)
  {
   xpp::log(XPP_LOG_INFO, "\n Eigenvalues:\n");
   pr=1;
+  for(i=0;i<n;i++)
+   xpp::log(XPP_LOG_INFO, " {:f}  +  i  {:f} \n",eval[2*i],eval[2*i+1]);
 }
- for(i=0;i<n;i++)
- {
-  real=eval[2*i];
-  imag=eval[2*i+1];
-  if(pr==1)
-  {
-   xpp::log(XPP_LOG_INFO, " {:f}  +  i  {:f} \n",real,imag);
-
-  }
-  if(xpp::solver_info(s.numerics.method).traits.discrete)real=real*real+imag*imag-1.00;
-  if(fabs(imag)<.00000001)imag=0.0;
-  if(real<0.0)
-  {
-    if(imag!=0.0){ 
-      cn++;
-      if(real<bigneg){bigneg=real;bneg=-1;}
-    }
-    else
-    {
-     rn++;
-     nege=i;
-     if(real<bigneg){bigneg=real;bneg=i;}
-    }
-  }
-  if(real>0.0)
-  {
-    if(imag!=0.0){
-      cp++;
-       if(real>bigpos){bigpos=real;bpos=-1;}
-    }
-    else
-    {
-     rp++;
-     pose=i;
-      if(real>bigpos){bigpos=real;bpos=i;}
-    }
-  }
-  if((real==0.0)&&(imag!=0.0))im++;
- }     /* eigenvalue count */
- if(((rp+cp)!=0)&&((rn+cn)!=0))eq_symb(s,x,1);
- else
- {
-   if((rp+cp)!=0)eq_symb(s,x,0);
-   else eq_symb(s,x,3);
- }
+ mark_equilibrium(s,q,x);
  
  *stabinfo=static_cast<float>(cp+rp)+static_cast<float>(cn+rn)/1000.0;
  
- /* Lets change Work back to transposed oldwork */
-   for(i=0;i<n;i++)
-     {
-       for(j=i+1;j<n;j++)
-	 {
-	   temp=oldwork[i+j*n];
-	   work[i+j*n]=oldwork[i*n+j];
-	   work[i*n+j]=temp;
-	 }
-     } 
  create_eq_box(s,cp,cn,rp,rn,im,x,eval,n);
  if(((rp==1)||(rn==1))&&(n>1))
  {
@@ -334,110 +366,20 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
 /* fixed point with no requests and store manifolds */ 
 xpp::Result<> do_sing_info(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr)
 {
- int kmem,i,j,ipivot[MAXODE];
-
- int rp=0,rn=0,cp=0,cn=0;
- int pose=0,nege=0,pr=0;
- double *work,*eval,*b,*bp,*oldwork,*ework;
- double temp,old_x[MAXODE];
-
- double real,imag;
- double bigpos=-1e10,bigneg=1e10;
-
- kmem=n*(2*n+5)+50;
- /* xpp_malloc never returns NULL (it exits on failure); work is RAII now
-    (std::vector) so every return path below frees it automatically. */
- std::vector<double> work_buf(kmem, 0.0);
- work=work_buf.data();
-
- s.manifolds.ic_flag=0;
- s.manifolds.count=0;
- for(i=0;i<n;i++){old_x[i]=x[i];}
- oldwork=work+n*n;
- eval=oldwork+n*n;
- b=eval+2*n;
- bp=b+n;
- ework=bp+n;
- if(auto r=rooter(s,x,err,eps,big,work,ierr,maxit,n);!r)return r;
- if(*ierr!=0)
+ Equilibrium q;
+ auto found=find_equilibrium(s,q,x,eps,err,big,maxit,n,ierr);
+ if(!found)return std::unexpected(found.error());
+ if(*found!=SingStatus::found)return {};
+ const int rp=q.rp,rn=q.rn,pose=q.pose,nege=q.nege;
+ double *work=q.work,*oldwork=q.oldwork,*eval=q.eval,*b=q.b,*bp=q.bp;
+ int *ipivot=q.ipivot.data();
+ const int pr=0;
+ for(int i=0;i<n;i++)
  {
-  for(i=0;i<n;i++)x[i]=old_x[i];
-  return {};
+  er[i]=eval[2*i];
+  em[i]=eval[2*i+1];
  }
-
- for(i=0;i<n*n;i++){
-  oldwork[i]=work[i];
- }
-/* Transpose for Eigen        */
-  for(i=0;i<n;i++)
- {
-  for(j=i+1;j<n;j++)
-  {
-   temp=work[i+j*n];
-   work[i+j*n]=work[i*n+j];
-   work[i*n+j]=temp;
-  }
- }
- xpp::eigenvalues(n,work,eval,ework,ierr);
- if(*ierr!=0)
- {
-  return {};
- }
-/* succesfully computed evals now lets work with them */
-
- for(i=0;i<n;i++)
- {
-  real=eval[2*i];
-  imag=eval[2*i+1];
-  er[i]=real;
-  em[i]=imag;
-
-  if(xpp::solver_info(s.numerics.method).traits.discrete)real=real*real+imag*imag-1.00;
-  if(fabs(imag)<.00000001)imag=0.0;
-  if(real<0.0)
-  {
-    if(imag!=0.0){ 
-      cn++;
-      if(real<bigneg){bigneg=real;/*bneg=-1;Not used*/}
-    }
-    else
-    {
-     rn++;
-     nege=i;
-     if(real<bigneg){bigneg=real;/*bneg=i;Not used*/}
-    }
-  }
-  if(real>0.0)
-  {
-    if(imag!=0.0){
-      cp++;
-       if(real>bigpos){bigpos=real;/*bpos=-1;Not used*/}
-    }
-    else
-    {
-     rp++;
-     pose=i;
-      if(real>bigpos){bigpos=real;/*bpos=i;Not used*/}
-    }
-  }
- }     /* eigenvalue count */
- if(((rp+cp)!=0)&&((rn+cn)!=0))eq_symb(s,x,1);
- else
- {
-   if((rp+cp)!=0)eq_symb(s,x,0);
-   else eq_symb(s,x,3);
- }
-
- /* Lets change Work back to transposed oldwork */
-   for(i=0;i<n;i++)
-     {
-       for(j=i+1;j<n;j++)
-	 {
-	   temp=oldwork[i+j*n];
-	   work[i+j*n]=oldwork[i*n+j];
-	   work[i*n+j]=temp;
-	 }
-     } 
+ mark_equilibrium(s,q,x);
 
  if((n>1))
  {

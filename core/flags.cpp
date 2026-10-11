@@ -14,6 +14,9 @@
 #include "integrate.h"
 #include "expr.h"
 
+#include <algorithm>
+#include <functional>
+#include <vector>
 #include <stdlib.h> 
 #include <strings.h>
 #include <string.h>
@@ -390,306 +393,109 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
   return(1);
 }
 
-/*  here are the ODE drivers */
+/*  here are the ODE drivers: every one is flag_loop around its own step  */
 
-int one_flag_step_symp(xpp::Session &s, double *y, double dt, double *work, int neq, double *tim, int *istart)
+namespace {
+
+/* How a flag_loop ended: no event in the last step, a step that failed (the
+   caller holds its code), or events that kept coming. */
+enum class FlagEnd { done, step_failed, too_hard };
+
+struct NoHit {
+  void operator()() const {}
+};
+
+/* Take the method's step; when an event fired inside it, go back to the
+   event (dt shortened by the fraction left) and step again, up to nflags+2
+   times. step(dtt) takes the step of length dtt (a method with no fixed
+   step ignores it) and says whether it can go on; on_hit runs after each
+   crossing (an integrator that must restart). With tend, the loop also ends
+   when the step reaches that time. */
+template <class Step, class Hit = NoHit>
+FlagEnd flag_loop(xpp::Session &s, double *y, int neq, double *t, int *istart,
+                  double dt, Step &&step, const double *tend = nullptr,
+                  Hit &&on_hit = Hit{})
 {
-  double yold[MAXODE],told;
-  int i,hit;
+  std::vector<double> &yold=s.solver_work.flag_yold;
+  yold.resize(neq);
   double frac,dtt=dt;
-  int nstep=0; 
+  int nstep=0;
   while(1){
-    for(i=0;i<neq;i++)
-      yold[i]=y[i];
-    told=*tim;
-    xpp::one_step_symp(s,y,dtt,work,neq,tim);
-    if((hit=one_flag_step(s,yold,y,istart,told,tim,neq,&frac))==0)
-      break;
+    std::copy(y,y+neq,yold.begin());
+    double told=*t;
+    if(!step(dtt))return FlagEnd::step_failed;
+    if(one_flag_step(s,yold.data(),y,istart,told,t,neq,&frac)==0)
+      return FlagEnd::done;
     /* Its a hit !! */
     nstep++;
     dtt=(1-frac)*dt;
+    on_hit();
+    if(tend&&*t==*tend)return FlagEnd::done;
     if(nstep>(s.model().nflags+2)){
-      xpp::log(XPP_LOG_WARN, " Working too hard?? ");
-      xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
-      break;
+      xpp::log(XPP_LOG_WARN, " Working too hard?? smin={:g}\n",frac);
+      return FlagEnd::too_hard;
     }
   }
-  
-  return(1);
 }
- 
-int one_flag_step_euler(xpp::Session &s, double *y, double dt, double *work, int neq, double *tim, int *istart)
-{
-  double yold[MAXODE],told;
-  int i,hit;
-  double frac,dtt=dt;
-  int nstep=0; 
-  while(1){
-    for(i=0;i<neq;i++)
-      yold[i]=y[i];
-    told=*tim;
-    xpp::one_step_euler(s,y,dtt,work,neq,tim);
-    if((hit=one_flag_step(s,yold,y,istart,told,tim,neq,&frac))==0)
-      break;
-    /* Its a hit !! */
-    nstep++;
-    dtt=(1-frac)*dt;
-    if(nstep>(s.model().nflags+2)){
-      xpp::log(XPP_LOG_WARN, " Working too hard?? ");
-      xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
-      break;
-    }
-  }
-  
-  return(1);
+
 }
-    
-int one_flag_step_discrete(xpp::Session &s, double *y, double dt, double *work, int neq, double *tim, int *istart)
+
+void one_flag_steps(xpp::Session &s, double *y, int neq, double *tim, int *istart, double dt, const std::function<void(double)> &step)
 {
-  double yold[MAXODE],told;
-  int i,hit;
-  double frac,dtt=dt;
-  int nstep=0; 
-  while(1){
-    for(i=0;i<neq;i++)
-      yold[i]=y[i];
-    told=*tim;
-    xpp::one_step_discrete(s,y,dtt,work,neq,tim);
-    if((hit=one_flag_step(s,yold,y,istart,told,tim,neq,&frac))==0)
-      break;
-    /* Its a hit !! */
-    nstep++;
-    dtt=(1-frac)*dt;
-    if(nstep>(s.model().nflags+2)){
-      xpp::log(XPP_LOG_WARN, " Working too hard?? ");
-      xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
-      break;
-    }
-  }
-  return(1);
-}
-     
-int one_flag_step_heun(xpp::Session &s, double *y, double dt, double *yval[2], int neq, double *tim, int *istart)
-{
-  double yold[MAXODE],told;
-  int i,hit;
-  double frac,dtt=dt;
-  int nstep=0; 
-  while(1){
-    for(i=0;i<neq;i++)
-      yold[i]=y[i];
-    told=*tim;
-    xpp::one_step_heun(s,y,dtt,yval,neq,tim);
-    if((hit=one_flag_step(s,yold,y,istart,told,tim,neq,&frac))==0)
-      break;
-    /* Its a hit !! */
-    nstep++;
-    dtt=(1-frac)*dt;
-    if(nstep>(s.model().nflags+2)){
-      xpp::log(XPP_LOG_WARN, " Working too hard? ");
-      xpp::log(XPP_LOG_WARN, " smin={:g}\n",frac);
-      break;
-    }
-  }
-  return(1);
-}
-    
-int one_flag_step_rk4(xpp::Session &s, double *y, double dt, double *yval[3], int neq, double *tim, int *istart)
-{
-  double yold[MAXODE],told;
-  int i,hit;
-  double frac,dtt=dt;
-  int nstep=0; 
-  while(1){
-    for(i=0;i<neq;i++)
-      yold[i]=y[i];
-    told=*tim;
-    xpp::one_step_rk4(s,y,dtt,yval,neq,tim);
-    if((hit=one_flag_step(s,yold,y,istart,told,tim,neq,&frac))==0)
-      break;
-    /* Its a hit !! */
-    nstep++;
-    dtt=(1-frac)*dt;
-    if(nstep>(s.model().nflags+2)){
-      xpp::log(XPP_LOG_WARN, " Working too hard?");
-            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
-      break;
-    }
-  }
-  return(1);
+  flag_loop(s,y,neq,tim,istart,dt,[&](double dtt){ step(dtt); return true; });
 }
 
 int one_flag_step_gear(xpp::Session &s, int neq, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
-    double yold[MAXODE],told;
-  int i,hit;
-  double frac;
-  int nstep=0; 
-  while(1){
-    for(i=0;i<neq;i++)
-      yold[i]=y[i];
-    told=*t;
+  flag_loop(s,y,neq,t,jstart,0,[&](double){
     xpp::ggear(s,neq,t,tout,y, hmin,hmax,eps,mf,error,kflag,jstart,work,iwork);
-    if(*kflag<0) break;
-    if((hit=one_flag_step(s,yold,y,jstart,told,t,neq,&frac))==0)
-      break;
-    /* Its a hit !! */
-    nstep++;
-    *jstart=0; /* for gear always reset  */
-    if(*t==tout)break;
-    if(nstep>(s.model().nflags+2)){
-      xpp::log(XPP_LOG_WARN, " Working too hard? ");
-            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
-      break;
-    }
-  }
+    return *kflag>=0; },
+    &tout,[&]{ *jstart=0; /* for gear always reset  */ });
   return 0;
-
 }
+
 int one_flag_step_rosen(xpp::Session &s, double *y,double *tstart,double tfinal,
 int *istart,int n,double *work,int *ierr)
 {
-   double yold[MAXODE],told;
-  int i,ok,hit;
-  double frac;
-  int nstep=0; 
-  while(1){
-    for(i=0;i<n;i++)
-      yold[i]=y[i];
-    told=*tstart;
-    ok=xpp::rosen(s,y,tstart,tfinal,istart,n,work,ierr);
-    if(ok==-1) break;
-    if((hit=one_flag_step(s,yold,y,istart,told,tstart,n,&frac))==0)
-      break;
-    /* Its a hit !! */
-    nstep++;
-    
-    if(*tstart==tfinal)break;
-    if(nstep>(s.model().nflags+2)){
-      xpp::log(XPP_LOG_WARN, " Working too hard? ");
-            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
-      *ierr=-2;
-      return 1;
-      break;
-    }
-  }
-  return 0;
-
+  FlagEnd end=flag_loop(s,y,n,tstart,istart,0,[&](double){
+    return xpp::rosen(s,y,tstart,tfinal,istart,n,work,ierr)!=-1; },&tfinal);
+  if(end!=FlagEnd::too_hard)return 0;
+  *ierr=-2;
+  return 1;
 }
 
 int one_flag_step_dp(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)
 {
-   double yold[MAXODE],told;
-  int i,hit;
-  double frac;
-  int nstep=0; 
-  while(1){
-    for(i=0;i<n;i++)
-      yold[i]=y[i];
-    told=*t;
+  FlagEnd end=flag_loop(s,y,n,t,istart,0,[&](double){
     dormprin(s,istart,y,t,n,tout,tol,atol,flag,kflag,work);
-    if(*kflag!=1) break;
-    if((hit=one_flag_step(s,yold,y,istart,told,t,n,&frac))==0)
-      break;
-    /* Its a hit !! */
-    nstep++;
-    
-    if(*t==tout)break;
-    if(nstep>(s.model().nflags+2)){
-      xpp::log(XPP_LOG_WARN, " Working too hard? ");
-            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
-      return 1;
-      break;
-    }
-  }
-  return 0;
-
+    return *kflag==1; },&tout);
+  return end==FlagEnd::too_hard;
 }
 
 #ifdef CVODE_YES
 int one_flag_step_cvode(xpp::Session &s, xpp::CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
-    double yold[MAXODE],told;
-  int i,hit,neq=n;
-  double frac;
-  int nstep=0; 
-  while(1){
-    for(i=0;i<neq;i++)
-      yold[i]=y[i];
-    told=*t;
+  FlagEnd end=flag_loop(s,y,n,t,command,0,[&](double){
     xpp::ccvode(s,run,command,y,t,n,tout,kflag,atol,rtol);
-    if(*kflag<0) break;
-    if((hit=one_flag_step(s,yold,y,command,told,t,neq,&frac))==0)
-      break;
-    /* Its a hit !! */
-    nstep++;
-   xpp::end_cv(run);
-    *command=1; /* for cvode always reset  */
-    if(*t==tout)break;
-    if(nstep>(s.model().nflags+2)){
-      xpp::log(XPP_LOG_WARN, " Working too hard? ");
-            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
-      return 1;
-    }
-  }
-  return 0;
-
+    return *kflag>=0; },
+    &tout,[&]{ xpp::end_cv(run); *command=1; /* for cvode always reset  */ });
+  return end==FlagEnd::too_hard;
 }
 
 #endif
 int one_flag_step_adap(xpp::Session &s, double *y, int neq, double *t, double tout, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
 {
-    double yold[MAXODE],told;
-  int i,hit;
-  double frac;
-  int nstep=0; 
-  while(1){
-    for(i=0;i<neq;i++)
-      yold[i]=y[i];
-    told=*t;
-    xpp::gadaptive(s,y,neq,t,tout,eps,
-		     hguess,hmin,work,ier,epjac,iflag,jstart);
-    if(*ier) break;
-    if((hit=one_flag_step(s,yold,y,jstart,told,t,neq,&frac))==0)
-      break;
-    /* Its a hit !! */
-    nstep++;
-    
-    if(*t==tout)break;
-    if(nstep>(s.model().nflags+2)){
-      xpp::log(XPP_LOG_WARN, " Working too hard? ");
-            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
-      break;
-    }
-  }
+  flag_loop(s,y,neq,t,jstart,0,[&](double){
+    xpp::gadaptive(s,y,neq,t,tout,eps,hguess,hmin,work,ier,epjac,iflag,jstart);
+    return *ier==0; },&tout);
   return 0;
-
 }
 
 int one_flag_step_backeul(xpp::Session &s, double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *errvec, double *jac, int *istart)
 {
-  double yold[MAXODE],told;
-  int i,hit,j;
-  double frac;
-  double dtt=dt; 
-  int nstep=0; 
-  while(1){
-    for(i=0;i<neq;i++)
-      yold[i]=y[i];
-    told=*t;
-    if((j=xpp::one_bak_step(s,y,t,dtt,neq,yg,yp,yp2,errvec,jac,istart))!=0)
-      return(j);
-    if((hit=one_flag_step(s,yold,y,istart,told,t,neq,&frac))==0)
-      break;
-    /* Its a hit !! */
-    nstep++;
-    dtt=(1-frac)*dt;  
-    if(nstep>(s.model().nflags+2)){
-      xpp::log(XPP_LOG_WARN, " Working too hard?");
-            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
-      break;
-    }
-  }
-  return 0;
+  int j=0;
+  flag_loop(s,y,neq,t,istart,dt,[&](double dtt){
+    j=xpp::one_bak_step(s,y,t,dtt,neq,yg,yp,yp2,errvec,jac,istart);
+    return j==0; });
+  return j;
 }
-
