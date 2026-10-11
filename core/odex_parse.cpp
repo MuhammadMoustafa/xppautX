@@ -1075,11 +1075,4 @@ Parsed parse(xpp::Model &m, std::string_view text, const std::string &file)
   return out;
 }
 
-Parsed parse_file(xpp::Model &m, const std::string &path)
-{
-  std::string text;
-  if (!xpp::read_model_file(m, path, text)) throw error_at(path, Pos{}, "cannot read the file");
-  return parse(m, text, path);
-}
-
 }

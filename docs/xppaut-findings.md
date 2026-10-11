@@ -73,6 +73,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [41](#41-rosenbrock-scales-past-or-short-of-its-banded-jacobian) | Numerics | Rosenbrock scales the dense matrix size even when its Jacobian is banded, and wide bands exceed the work array | [W261](https://github.com/MuhammadMoustafa/xppautX/issues/318) |
 | [42](#42-bessel-i-casts-its-order-without-checking-it) | Numerics | `bessel_i` converts unchecked model input to `int` | [W271](https://github.com/MuhammadMoustafa/xppautX/issues/328) |
 | [43](#43-an-xy-table-extrapolates-past-its-last-point-the-wrong-way) | Tables | a table of x and y values extrapolates past its last x with the last segment's slope reversed | [W260](https://github.com/MuhammadMoustafa/xppautX/issues/317) |
+| [44](#44-every-name-is-found-by-scanning-every-symbol) | Speed | every name in a formula is found by scanning the whole symbol table, so loading grows with the square of the model's size | [W245](https://github.com/MuhammadMoustafa/xppautX/issues/301) |
 
 ## 1. Model options
 
@@ -760,3 +761,12 @@ A lookup table given as x and y values (`xyvals`) extrapolates linearly past eit
 - **Evidence:** a table of the points (0,0), (1,1), (2,2) gives -1 at x=-1, continuing its line, but 1 at x=3, not 3: `2+(1-2)*(3-2)/(2-1)`.
 - **xppautX:** keeps XPPAUT's values (the numerics change only on purpose); the exact Jacobian (W260) differentiates the lookup as XPPAUT computes it, so its slope past the last x is that reversed slope too.
 - **Card:** [W260](https://github.com/MuhammadMoustafa/xppautX/issues/317).
+
+## 44. Every name is found by scanning every symbol
+
+Reading a formula, XPPAUT finds each name by scanning its whole symbol table, the built-in functions and then every variable, parameter and function the model declared, from the top. A model with N names whose formulas hold about N names in all costs about N squared comparisons, so its load grows faster than its size: one reason both programs' load times were superlinear in W241's size study.
+
+- **XPPAUT 8.0:** `find_tok` tries every symbol for the longest one the text starts with ([parserslow2.c:1557-1585](../reference/xppaut-8.0/parserslow2.c#L1557-L1585); master [1541](../reference/xppaut-master/parserslow2.c#L1541)) and `find_name` compares the name with every symbol in turn ([parserslow2.c:892-907](../reference/xppaut-8.0/parserslow2.c#L892-L907); master [891](../reference/xppaut-master/parserslow2.c#L891)).
+- **Evidence:** xppautX had the same scans. With the symbols indexed, the one-step `--silent` run of the 4,800-state lecdiff chain went from 835 to 274 ms (XPPAUT 8.0: 627 ms); putting the linear scan back alone made it 747 ms (W245's five-run medians, under the machine lock).
+- **xppautX:** keeps a sorted index of the names (an exact name is one lookup; the tokenizer's longest match walks the prefixes while some name still starts with one), picking the first of equal names as XPPAUT's scan does, so every formula reads the same symbols.
+- **Card:** [W245](https://github.com/MuhammadMoustafa/xppautX/issues/301).
