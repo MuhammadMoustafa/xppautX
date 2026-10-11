@@ -124,7 +124,7 @@ the machine's two slots:
   grepping, editing and git are not.
 - `tools/wslrun.sh` takes the lock itself before it goes into WSL, so a
   WSL check needs no `heavy.sh` of its own; a Windows-side build or
-  check is wrapped: `tools/heavy.sh env PATH=/c/msys64/ucrt64/bin:$PATH
+  check is wrapped: `tools/heavy.sh env "PATH=/c/msys64/ucrt64/bin:$PATH"
   mingw32-make -j4 xppautx BUILDDIR=build/ucrt WERROR=1`, `tools/heavy.sh
   node tools/web2check.mjs --only files`.
 - Several commands in one turn: `tools/heavy.sh bash -c '...'`. A timing
