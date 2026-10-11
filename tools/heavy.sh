@@ -16,6 +16,9 @@
 # (set inside) lets a heavy command run another without waiting on
 # itself.
 set -u
+# One block, read whole before it runs: a copy of this script updated while
+# it waits (a worktree given the new version) cannot change what runs.
+{
 # Heavy runs at once: two -j4 builds stay within what the laptop holds.
 HEAVY_SLOTS=2
 # A slot with no PID older than this lost its holder between mkdir and
@@ -135,3 +138,5 @@ for d in "${taken[@]}"; do
   printf '%s (%s)\n' "$*" "$PWD" > "$d/what"
 done
 XPP_HEAVY_HELD=1 "$@"
+exit $?
+}
