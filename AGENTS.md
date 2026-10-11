@@ -104,7 +104,48 @@ checks rebuild and relink the whole core and cannot see web2, and CI's
 `source` job runs them on every push); a failure is traced to its
 branch by verifying the branches alone. One verify.sh at a time (W84):
 the script takes a lock (`flock`, $TMPDIR/xppautx-verify.lock) and a
-second run waits for it. The Windows build (UCRT gcc 16, `WERROR=1`)
+second run waits for it.
+
+One heavy run at a time on this machine, across every agent (W289,
+#347). The machine is a laptop: it hard-reset (Kernel-Power 41, an
+unclean power-off, most likely heat) on 2026-09-29 under parallel
+builds and checks, and twice more on 2026-10-10, about 40 minutes after
+three agents (one Codex, two Claude) each built and checked at once,
+each keeping "one heavy run at a time" for itself only. So every heavy
+run, by any agent, Claude or Codex, the reviewer included, takes one
+machine-wide lock:
+
+    tools/heavy.sh COMMAND [ARGS...]
+
+- Heavy means a build (`make`, `mingw32-make`, web2's `npm run
+  build`), a check script (servercheck, autocheck, webcheck,
+  examples_check, odexcheck, goldencheck, sourcecheck, web2check,
+  asancheck, verify.sh) and any timing or profiling run. Reading,
+  grepping, editing and git are not.
+- `tools/wslrun.sh` takes the lock itself before it goes into WSL, so a
+  WSL check needs no `heavy.sh` of its own; a Windows-side build or
+  check is wrapped: `tools/heavy.sh env PATH=/c/msys64/ucrt64/bin:$PATH
+  mingw32-make -j4 xppautx BUILDDIR=build/ucrt WERROR=1`, `tools/heavy.sh
+  node tools/web2check.mjs --only files`.
+- Several commands in one turn: `tools/heavy.sh bash -c '...'`. A timing
+  series holds the lock for all its runs, so no other agent's build
+  skews the numbers.
+- The lock is the folder `%LOCALAPPDATA%\Temp\xppautx-heavy.lock`
+  (mkdir is atomic; Codex's sandbox writes there too), holding the
+  holder's Windows PID, its command and folder; a waiting run prints
+  "heavy: waiting for <command> (<folder>)" once and polls every 5 s. A
+  holder that died (a reset, a killed agent) is noticed by its PID and
+  its lock taken over; a PID that cannot be checked (a sandbox's
+  tasklist failing) counts as alive. A lock taken inside WSL directly
+  cannot be checked from Windows: take it from Git Bash, as wslrun.sh
+  does. Inside the lock `XPP_HEAVY_HELD=1` is set, so a heavy command
+  that runs another does not wait on itself.
+- While waiting, an agent keeps coding; it never works around the lock
+  (no build outside it, no deleting another run's lock folder).
+- Builds still use -j4, and at most three agents work at once (they
+  code side by side; only their heavy runs queue).
+
+The Windows build (UCRT gcc 16, `WERROR=1`)
 also runs on each merged tip: its libstdc++ marks `std::expected`
 `[[nodiscard]]`, which WSL's gcc 15 does not. Pushes go in batches
 (maintainer, 2026-09-30): several merged cards, one push, never one per
@@ -468,10 +509,10 @@ difficulty) implements one card in the worktree its brief names:
   and refuses uncommitted changes). The machine is a laptop that
   overheats (maintainer, 2026-09-29): build with -j4, and never run two
   heavy things side by side (a build, servercheck, autocheck, web2check).
-  Across agents too (W289, after two resets with three agents building at
-  once): every build, check or timing run on Windows goes through
-  `tools/heavy.sh COMMAND...`, which waits for the machine's one heavy
-  lock (`tools/wslrun.sh` takes it itself); code while you wait, never
+  Across agents too: every build, check or timing run goes through
+  `tools/heavy.sh COMMAND...` (Build: "One heavy run at a time on this
+  machine", W289), which waits for the machine's one heavy lock
+  (`tools/wslrun.sh` takes it itself); code while you wait, never
   around it.
 - Keep token use low: read the parts of files you need (grep, `sed -n`
   ranges), pipe check output through tail/grep, never paste full logs.
@@ -544,7 +585,9 @@ differences of its sandbox:
 - it runs its gates from Git Bash in the worktree (the UCRT build
   `mingw32-make -j4 xppautx BUILDDIR=build/ucrt WERROR=1`, its unit tests,
   servercheck/autocheck against that exe, web2's checks and `web2check
-  --only`), as any agent runs them: the reviewer starts Codex with
+  --only`), as any agent runs them, each through `tools/heavy.sh` (W289:
+  the lock folder is in the system temp its sandbox may write): the
+  reviewer starts Codex with
   `XPP_CHECK_NO_BROWSER_SANDBOX=1` in its environment, which its commands
   inherit, since Chrome's own sandbox cannot start inside Codex's (W168);
 - the WSL gates (`tools/wslrun.sh`) are the reviewer's, run on its branch at
