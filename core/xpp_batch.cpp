@@ -238,7 +238,7 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
     Loaded loaded = prepared;
     if (prepared) {
         if (xpp::files::has_extension(file, ".ode")) {
-            Result<bool> opened = odex::open_ode(file, batch != 0, included, diagnostics);
+            Result<bool> opened = odex::open_ode(file, batch != 0, batch_options.yes, included, diagnostics);
             if (!opened) loaded = std::unexpected(opened.error());
             else {
                 converted = odex::odex_name(file);

@@ -103,6 +103,9 @@ int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std:
 void respond_box(std::string_view button, std::string_view message);
 /* Terminal questions share the dialog owner; EOF or the deadline is no answer. */
 std::optional<std::string> ask_terminal(const std::string &question, const std::string &suggestion);
+/* Every answer taken without asking (-y / --yes, a recording's answer in
+   --silent) is printed through this: the question and the answer taken. */
+void report_automatic(std::string_view question, std::string_view answer);
 void flash(int num);
 int menu_choose(const struct XppMenu *m, int def);
 /* A choice among names (named parameter sets, tables, frozen curves): the

@@ -1002,7 +1002,6 @@ void json_ui_install(bool silent)
     if (silent) session.output_folder = xpp::files::working_dir();
     install(silent);
 }
-void json_ui_terminal_auto(bool automatic) { session.terminal_auto = automatic; }
 
 int json_ui_silent(int argc, char **argv)
 {

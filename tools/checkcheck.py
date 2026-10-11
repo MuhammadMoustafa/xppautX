@@ -125,7 +125,7 @@ def main():
         assert code == 0 and diagnostics == [], diagnostics
         for method, selected in [('symplectic', 'Symplectic'), ('s', 'Stiff'), ('rk4', 'Runge-Kutta')]:
             file.write_text("x'=y\ny'=-x\ninit x=1,y=0\n@ meth=" + method + '\ndone\n', encoding='utf-8')
-            converted = subprocess.run([binary, '--convert', '--auto', str(file)], cwd=root,
+            converted = subprocess.run([binary, '--convert', '--yes', str(file)], cwd=root,
                                        capture_output=True, text=True, timeout=CHECK_TIMEOUT)
             assert converted.returncode == 0, converted.stderr + converted.stdout
             assert '@ method=' + selected in file.with_suffix('.odex').read_text(encoding='utf-8')

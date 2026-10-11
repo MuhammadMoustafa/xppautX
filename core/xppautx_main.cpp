@@ -105,7 +105,7 @@ static std::string usage_tail()
     "  --no-open        browser mode, printing the address without opening a browser\n"
     "  --server         the JSON protocol on stdin and stdout (docs/protocol.md)\n"
     "  --convert        write model.odex from model.ode (docs/odex.md); asks about\n"
-    "                   names .odex reserves (--auto takes the suggested names)\n"
+    "                   names .odex reserves (--yes takes the suggested names)\n"
     "  --check          validate a model in memory; JSON diagnostics, no files or window\n"
     "  --no-compile     run the equations in the interpreter, not as compiled code\n"
     "  --silent          (an xppaut option) a headless run that writes output.dat\n"
@@ -239,7 +239,7 @@ static void run_session(void)
 
 int main(int argc, char **argv)
 {
-    int mode = MODE_WINDOW, batch = 0, port = xpp::http::DEFAULT_PORT, open_browser = 1, convert = 0, check = 0, convert_auto = 0, i, k;
+    int mode = MODE_WINDOW, batch = 0, port = xpp::http::DEFAULT_PORT, open_browser = 1, convert = 0, check = 0, yes = 0, i, k;
 #ifdef _WIN32
     /* xppautX links -mwindows (no console from Explorer or a file
        association): reattach to a real console before any output, for
@@ -263,7 +263,7 @@ int main(int argc, char **argv)
         else if (strcmp(argv[i], "--no-open") == 0) open_browser = 0;
         else if (strcmp(argv[i], "--convert") == 0) convert = 1;
         else if (strcmp(argv[i], "--check") == 0) check = 1;
-        else if (strcmp(argv[i], "--auto") == 0) convert_auto = 1;
+        else if (strcmp(argv[i], "--yes") == 0 || strcmp(argv[i], "-y") == 0) yes = 1;
         else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) port = atoi(argv[++i]);
         else if (xpp::log_parse_arg(argv[i])) { /* --verbose / --debug: xpp_log.h */ }
 #ifdef __APPLE__
@@ -289,16 +289,16 @@ int main(int argc, char **argv)
         xpp::log(XPP_LOG_ERROR, "{}\n", r.error().text());
         return 2;
     }
-    /* --convert [--auto] model.ode: model.odex beside it (odex.h) */
+    xpp::batch_options.yes = yes != 0;
+    /* --convert [--yes] model.ode: model.odex beside it (odex.h) */
     if (convert) {
         if (argc != 2) {
-            xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--auto] model.ode\n");
+            xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--yes] model.ode\n");
             return 2;
         }
-        return xpp::odex::convert_file(argv[1], convert_auto != 0, xpp::ask_terminal);
+        return xpp::odex::convert_file(argv[1], yes != 0, xpp::ask_terminal);
     }
     bool recording_batch = false;
-    xpp::json_ui_terminal_auto(convert_auto != 0);
     for (i = 1; i < argc; ++i)
         if (xpp::files::has_extension(argv[i], xpp::recx::extension)) recording_batch = batch != 0;
     if (batch && !recording_batch) {

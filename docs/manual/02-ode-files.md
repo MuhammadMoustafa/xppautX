@@ -54,8 +54,8 @@ For example, a Fitzhugh-Nagumo model in `.odex`:
 
 `xppautX --convert model.ode` writes `model.odex` from what the `.ode`
 reader understood (a quirk made explicit, a comment where XPP reads a
-line otherwise than it looks); `--convert --auto` takes the suggested
-new name of a name `.odex` reserves without asking. `--auto` answers every
+line otherwise than it looks); `--convert --yes` takes the suggested
+new name of a name `.odex` reserves without asking. `--yes` answers every
 terminal question, including replacement of silent recording outputs.
 Without it, terminal questions read a line from a console or pipe, with a
 60-second deadline; EOF or timeout is no answer. Both extensions

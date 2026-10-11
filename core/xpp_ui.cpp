@@ -57,6 +57,11 @@ std::optional<std::string> ask_terminal(const std::string &question, const std::
 #endif
 }
 
+void report_automatic(std::string_view question, std::string_view answer)
+{
+    log(XPP_LOG_WARN, "{} -> {} (answered automatically)\n", question, answer);
+}
+
 /* ---- headless defaults ------------------------------------------------ */
 
 static void hl_err_msg(const Error &e) { log(XPP_LOG_ERROR, "{}\n", e.text()); }

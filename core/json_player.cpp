@@ -37,6 +37,7 @@
 #include "xpp_io.h"
 #include "xpp_job.h"
 #include "xpp_log.h"
+#include "xpp_batch.h"
 #include "xpp_ui.h"
 
 #include <algorithm>
@@ -467,11 +468,15 @@ bool output_write(std::string_view path, bool opening, int kind)
         j_command_error("save", xpp::format("{} is not a plain file name in the launch folder", path));
         quit_session();
     }
-    if (opening && kind == XPP_FILES_OK && !session.terminal_auto) {
-        const auto answer = xpp::ask_terminal(xpp::format("{} exists. Replace it?", path), "y/N");
-        if (!answer || (!xpp::equal_ignoring_case(*answer, "y") && !xpp::equal_ignoring_case(*answer, "yes"))) {
-            j_command_error("save", xpp::format("{} already exists; replace not confirmed (--auto replaces)", path));
-            quit_session();
+    if (opening && kind == XPP_FILES_OK) {
+        const std::string question = xpp::format("{} exists. Replace it?", path);
+        if (xpp::batch_options.yes) xpp::report_automatic(question, "yes");
+        else {
+            const auto answer = xpp::ask_terminal(question, "y/N");
+            if (!answer || (!xpp::equal_ignoring_case(*answer, "y") && !xpp::equal_ignoring_case(*answer, "yes"))) {
+                j_command_error("save", xpp::format("{} already exists; replace not confirmed (--yes replaces)", path));
+                quit_session();
+            }
         }
     }
     return true;
@@ -821,6 +826,7 @@ int player_save_replace(int decision)
         diverged("has an invalid recorded save decision");
         return SAVE_DECLINE;
     }
+    if (session.silent) xpp::report_automatic("the recording's save question", static_cast<int>(saved) == SAVE_REPLACE ? "replace" : "decline");
     ++player.answers_used;
     player.input_last=last_input(st);
     return static_cast<int>(saved);
@@ -842,12 +848,14 @@ void player_asked(const char *kind)
         } else if (k == "menu" || k == "choice") {
             if (player.keys_used == st.keys.size()) return diverged(xpp::format("asks a {} it holds no key for", k));
             const size_t i = player.keys_used++;
+            if (session.silent) xpp::report_automatic(xpp::format("the recording's {}", k), st.keys[i]);
             input_after(answer_line(k, st.keys[i], true), "key", i, KEY_MS);
         } else {
             if (player.answers_used == st.answers.size()) return diverged(xpp::format("asks a {} it holds no answer for", k));
             if (js_find(st.answers[player.answers_used].c_str(), "save_replace"))
                 return diverged(xpp::format("asks a {} before its recorded save decision", k));
             const size_t i = player.answers_used++;
+            if (session.silent) xpp::report_automatic(xpp::format("the recording's {}", k), st.answers[i]);
             input_after(answer_line(k, st.answers[i], false), "answer", i,
                         std::min(ANSWER_MAX_MS, ANSWER_BASE_MS + ANSWER_CHARACTER_MS * static_cast<double>(st.answers[i].size())));
         }

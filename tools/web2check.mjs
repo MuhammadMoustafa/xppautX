@@ -5201,10 +5201,31 @@ function xppautLecarSet() {
   return Buffer.from(text.replace('4   Number of equations', '6   Number of equations'));
 }
 
+/* W288: the page's conversion question (the one mode with a dialog): a name
+   .odex reserves is asked with its suggestion, and the answer is used */
+async function conversionDialog(dir) {
+  fs.writeFileSync(path.join(dir, 'w288.ode'), "par and=1\nx'=and-x\ninit x=0\n@ total=1,dt=.1\ndone\n");
+  await cdp.eval("__xpp.send({cmd: 'open', file: 'w288.ode'})");
+  await until("s.ask?.kind === 'choice'", 'save before Open');
+  await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
+  await until("s.ask?.kind === 'string'", 'the rename question');
+  check('W288: the page asks the new name of a reserved word, with the suggestion',
+    await S("s.ask.kind === 'string' && s.ask.value === 'and_'"), JSON.stringify(await S('s.ask')));
+  await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: 'my_and'})");
+  await until("!s.busy && !s.ask && s.hello.file === 'w288.odex'", 'converted model opened');
+  check('W288: the answer is used in the converted file',
+    fs.readFileSync(path.join(dir, 'w288.odex'), 'utf8').includes('par my_and = 1'));
+  await cdp.eval("__xpp.send({cmd: 'open', file: 'lecar.odex'})");
+  await until("s.ask?.kind === 'choice'", 'save before Open lecar');
+  await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
+  await until("!s.busy && !s.ask && s.hello.file === 'lecar.odex'", 'lecar reopened');
+}
+
 async function files(dir) {
   check('W121b: uploads use the core refusal wording', await S("s.hello.upload_error === 'larger than 64 MB'"));
   await desktopMetrics();
   await until('!s.busy && !s.ask', 'idle');
+  await conversionDialog(dir);
   /* a headless browser shows no picker: the page takes its fallbacks, the
      <input type=file> and the download, which a test can drive */
   await cdp.eval('window.showOpenFilePicker = undefined; window.showSaveFilePicker = undefined; true');

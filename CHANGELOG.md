@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- `--auto` is now `-y` / `--yes` (a modifier of any mode: `--silent --yes`, `--convert --yes`), and every answer taken without asking is printed with its question: a rename, a file replaced, a recording's recorded answer in `--silent`. `--silent` no longer takes a conversion's suggested names silently: it asks on the terminal (60 s), and with no answer it stops and names what needs one (W288, [#343](https://github.com/MuhammadMoustafa/xppautX/issues/343)).
+
 - AUTO defaults to physical cores (performance cores where the system identifies them), at most four workers, reducing the automatic count on machines with SMT; results remain identical (W270, [#327](https://github.com/MuhammadMoustafa/xppautX/issues/327)).
 
 - An exact Jacobian, as a numerics setting: `@ jacobian=exact` (or the Numerics section's Jacobian) differentiates the model's right-hand sides symbolically, through its fixed variables, derived parameters, user functions and tables, and compiles the derivatives with the model; equilibria, Gear, CVODE, Rosenbrock, Backward Euler, Stiff, the adjoints and AUTO (`JAC=1`, its collocation threads included) all use it. `difference`, XPPAUT's finite differences, stays the default, so a model gives XPPAUT's numbers unless it asks. A model with random numbers, Markov variables, delays, sums and the like has none: the setting shows why, and its own `@ jacobian=exact` is a load error at that line. A run that meets a point where an exact derivative is not finite (`sqrt` at 0, ...) stops there with the equation's line, the variable, the time and the state; an integration's error offers **Switch to differences and continue** (W260, [#317](https://github.com/MuhammadMoustafa/xppautX/issues/317)).
@@ -197,7 +199,7 @@ The detailed change log is CHANGELOG.md in the repository; how xppautX differs f
 
 ### Removed
 
-- `--script` and its `.jsonl` replay format: recordings are the one playable format. `xppautX run.recx --silent` loads the snapshot and plays without an interface, exits 0 on clean playback or 1 on failure, and reproduces recorded aborts exactly. Silent playback keeps plain-name outputs in the launch folder; existing files require terminal confirmation within 60 seconds (EOF or timeout stops playback), or `--auto`. The same terminal question helper serves conversion, including piped input (W144, [#196](https://github.com/MuhammadMoustafa/xppautX/issues/196)).
+- `--script` and its `.jsonl` replay format: recordings are the one playable format. `xppautX run.recx --silent` loads the snapshot and plays without an interface, exits 0 on clean playback or 1 on failure, and reproduces recorded aborts exactly. Silent playback keeps plain-name outputs in the launch folder; existing files require terminal confirmation within 60 seconds (EOF or timeout stops playback), or `--yes`. The same terminal question helper serves conversion, including piped input (W144, [#196](https://github.com/MuhammadMoustafa/xppautX/issues/196)).
 
 - X11 command-line options (`-xorfix`, `-iconify`, `-allwin`, `-ee`, `-white`, `-bigfont`, `-smallfont`, `-forecolor`, `-backcolor`, `-backimage`, `-grads`, `-width`, `-height`, `-mwcolor`, `-dwcolor`, `-bell`, `-def`); unknown options stop with ?no such option? (W156, [#208](https://github.com/MuhammadMoustafa/xppautX/issues/208)).
 

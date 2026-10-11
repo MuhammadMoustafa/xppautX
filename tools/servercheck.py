@@ -4700,7 +4700,7 @@ def check_silent_commands():
             before(d)
         r = run_commands(args.server, ode, lines, d)
         path = make_recording(args.server, ode, lines, d)
-        quiet = subprocess.run([os.path.abspath(args.server), path, '--silent', '--auto'], cwd=d,
+        quiet = subprocess.run([os.path.abspath(args.server), path, '--silent', '--yes'], cwd=d,
             capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
         r.returncode = quiet.returncode
         r.stderr = quiet.stderr
@@ -4785,7 +4785,7 @@ def check_outcomes_once():
                 r = run_commands(args.server, os.path.join(d, 'linear.odex'), lines, d, flags)
                 if not any('rgb' in c for c in lines):
                     path = make_recording(args.server, os.path.join(d, 'linear.odex'), lines, d)
-                    quiet = subprocess.run([os.path.abspath(args.server), path, '--silent', '--auto', *flags],
+                    quiet = subprocess.run([os.path.abspath(args.server), path, '--silent', '--yes', *flags],
                         cwd=d, capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
                     r.returncode = quiet.returncode
                     r.quiet_stdout = quiet.stdout
@@ -6486,16 +6486,16 @@ def check_ode_open():
               and any(e.get('ev') == 'state' and ['and_', 2] in e.get('pars', []) for e in reloaded))
         with open(converted, 'rb') as f:
             before = f.read()
-        silent = subprocess.run([os.path.abspath(args.server), 'foreign.ode', '--silent'], cwd=r,
+        silent = subprocess.run([os.path.abspath(args.server), 'foreign.ode', '--silent'], cwd=r, input='and_\n',
                                 capture_output=True, text=True, timeout=30 * SLOW)
         with open(converted, 'rb') as f:
             after = f.read()
-        check('ode open: silent refuses different existing text, names both files and writes nothing',
+        check('ode open: silent with no answer refuses different existing text, names both files and writes nothing',
               silent.returncode == 1 and 'foreign.ode' in silent.stderr and 'foreign.odex' in silent.stderr and before == after)
         os.remove(converted)
-        silent = subprocess.run([os.path.abspath(args.server), 'foreign.ode', '--silent'], cwd=r,
+        silent = subprocess.run([os.path.abspath(args.server), 'foreign.ode', '--silent', '-y'], cwd=r, input='',
                                 capture_output=True, text=True, timeout=30 * SLOW)
-        check('ode open: silent takes suggestions and prints the saved path',
+        check('ode open: silent -y takes suggestions and prints the saved path',
               silent.returncode == 0 and 'Converted foreign.ode and saved as foreign.odex' in silent.stderr and os.path.exists(converted))
         # A directory at the destination exercises a write failure on Windows
         # too, even for a user who can bypass Unix permission bits.
@@ -6566,7 +6566,7 @@ def check_terminal_playback():
                  {'cmd':'file', 'op':'put', 'name':'after.dat', 'data':'YWZ0ZXI='}]
         path = make_recording(binary, args.ode, lines, source)
         def play(answer='', automatic=False):
-            return subprocess.run([binary, path, '--silent'] + (['--auto'] if automatic else []),
+            return subprocess.run([binary, path, '--silent'] + (['--yes'] if automatic else []),
                 cwd=destination, input=answer, capture_output=True, text=True, encoding='utf-8', timeout=30 * SLOW)
         saved = os.path.join(destination, 'saved.dat')
         after = os.path.join(destination, 'after.dat')
@@ -6580,15 +6580,16 @@ def check_terminal_playback():
         check('W144: closed stdin refuses replacement once at the step and plays nothing after it',
               result.returncode == 1 and open(saved, 'rb').read() == b'keep' and not os.path.exists(after)
               and 'saved.dat exists. Replace it? [y/N] (60 s)' in result.stderr
-              and 'saved.dat already exists; replace not confirmed (--auto replaces)' in result.stderr
+              and 'saved.dat already exists; replace not confirmed (--yes replaces)' in result.stderr
               and result.stderr.count(path + ':') == 1, result.stderr)
         result = play('y\n')
         check('W144: a confirmation line on piped stdin replaces the output and resumes playback',
               result.returncode == 0 and open(saved, 'rb').read() == data and os.path.exists(after), result.stderr)
         with open(saved, 'wb') as f: f.write(b'keep again')
         result = play(automatic=True)
-        check('W144: --auto replaces existing outputs without a terminal question',
-              result.returncode == 0 and open(saved, 'rb').read() == data and 'Replace it?' not in result.stderr, result.stderr)
+        check('W144: --yes replaces existing outputs without a terminal question',
+              result.returncode == 0 and open(saved, 'rb').read() == data and '(60 s)' not in result.stderr
+              and 'saved.dat exists. Replace it? -> yes (answered automatically)' in result.stderr, result.stderr)
         with open(path, encoding='utf-8') as f: template = f.read()
         for name in ['../escaped.par', 'sub/escaped.par', os.path.join(destination, 'escaped.par'), 'bad..par']:
             steps = [{'cmd':{'cmd':'values', 'op':'write', 'kind':'par', 'name':name, 'replace':1}},
@@ -6623,8 +6624,61 @@ def check_terminal_playback():
               result.returncode == 0 and os.path.exists(os.path.join(destination, 'next.dat'))
               and open(os.path.join(destination, 'next.dat'), 'rb').read() == data
               and not os.path.exists(model) and not os.path.exists(os.path.join(source, 'next.dat')), result.stderr)
+        check("W288: a recording's recorded answer in --silent is printed with what it answers",
+              "the recording's choice -> " in result.stderr and '(answered automatically)' in result.stderr, result.stderr)
 
 check_terminal_playback()
+
+def check_conversion_modes():
+    """W288: a .ode's conversion in every mode that is not the page (check_ode_open
+    is --server, web2check's files section the page): the answer comes from the
+    terminal, from nobody (refused, naming the file) or from --yes (printed)."""
+    binary = os.path.abspath(args.server)
+    asked = '`and` is a reserved word in .odex; its new name'
+    printed = asked + ' -> and_ (answered automatically)'
+    replaced = 'foreign.odex exists; replace it (yes/no) -> yes (answered automatically)'
+    differs = 'differs from the conversion of foreign.ode; replace it -> yes (answered automatically)'
+    with tempfile.TemporaryDirectory(prefix='xppconvert') as d:
+        ode = os.path.join(d, 'foreign.ode')
+        odex = os.path.join(d, 'foreign.odex')
+        with open(ode, 'w') as f: f.write("par and=1\nx'=and\ninit x=0\n@ total=1,dt=.1\ndone\n")
+        def run(flags, answer=''):
+            return subprocess.run([binary, *flags], cwd=d, input=answer, capture_output=True, text=True,
+                                  encoding='utf-8', timeout=30 * SLOW)
+        def forget():
+            for n in ('foreign.odex', 'output.dat'):
+                if os.path.exists(os.path.join(d, n)): os.remove(os.path.join(d, n))
+        result = run(['foreign.ode', '--silent'], 'my_and\n')
+        check('W288: --silent asks the conversion question on the terminal; the answer is used',
+              result.returncode == 0 and asked in result.stderr and '(60 s)' in result.stderr
+              and 'par my_and = 1' in open(odex).read(), result.stderr)
+        forget()
+        result = run(['foreign.ode', '--silent'])
+        check('W288: --silent with no answer refuses, names the file and the name, writes nothing',
+              result.returncode == 1 and 'foreign.ode' in result.stderr and 'and' in result.stderr
+              and not os.path.exists(odex), result.stderr)
+        result = run(['foreign.ode', '--silent', '--yes'])
+        check('W288: --silent --yes takes the suggestion and prints question and answer',
+              result.returncode == 0 and printed in result.stderr and 'par and_ = 1' in open(odex).read()
+              and '(60 s)' not in result.stderr, result.stderr)
+        with open(odex, 'a') as f: f.write('# changed\n')
+        result = run(['foreign.ode', '--silent', '-y'])
+        check('W288: --silent -y replacing a different .odex prints the replacement',
+              result.returncode == 0 and differs in result.stderr and '# changed' not in open(odex).read(), result.stderr)
+        forget()
+        result = run(['--convert', 'foreign.ode'], 'my_and\n')
+        check('W288: --convert asks on the terminal and uses the answer',
+              result.returncode == 0 and asked in result.stderr and 'par my_and = 1' in open(odex).read(), result.stderr)
+        result = run(['--convert', 'foreign.ode', '--yes'])
+        check('W288: --convert --yes prints the suggestion taken and the replacement of the existing file',
+              result.returncode == 0 and printed in result.stderr and replaced in result.stderr
+              and 'par and_ = 1' in open(odex).read(), result.stderr)
+        forget()
+        result = run(['--convert', 'foreign.ode'])
+        check('W288: --convert with no answer refuses and writes nothing',
+              result.returncode == 1 and not os.path.exists(odex), result.stderr)
+
+check_conversion_modes()
 
 def check_keymap():
     """W211, docs/protocol.md "Keymap": keymap.json is one file in the config folder; hello carries its

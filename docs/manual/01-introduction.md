@@ -211,7 +211,7 @@ at their exact row or AUTO point (docs/protocol.md "Playing a recording
 without an interface"). Its plain-name output files remain in the current
 folder. Existing files ask `NAME exists. Replace it? [y/N] (60 s)`; a line
 on the terminal or piped stdin answers. EOF or timeout refuses replacement
-and stops playback with exit 1. `--auto` replaces them without asking.
+and stops playback with exit 1. `--yes` replaces them without asking.
 
 `--verbose` and `--debug` raise how much xppautX logs (parser stats, the
 startup banner, AUTO's table, solver chatter); by default it logs only
@@ -267,7 +267,7 @@ follow in any order. The options below control the model and its run.
 | `--newseed` | Randomize the random number generator's seed |
 | `--convert` | Convert `.ode` to `.odex`; terminal name questions have a 60-second deadline |
 | `--check` | Validate `.ode` or `.odex` in memory; JSON diagnostics, no window or written files; exit 0 clean/info, 1 warnings, 2 error |
-| `--auto` | Answer every terminal question: accept suggested conversion names and replace silent playback outputs |
+| `-y`, `--yes` | Answer every terminal question yes (suggested conversion names, replacing files) and print each answer taken |
 | `--anifile FILE` | Load an animation script (`.ani`) at startup |
 | `--quiet <0\|1>` | Suppress the model's own console messages (independent of `--verbose`) |
 | `--logfile FILE` | Send console output to FILE |

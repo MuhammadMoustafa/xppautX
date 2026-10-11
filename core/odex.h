@@ -296,7 +296,7 @@ xpp::Result<std::string> convert_text(const std::string &ode, bool auto_answer, 
 int check_file(const std::string &file);
 /* The opening/convert command displays findings once through its existing log route. */
 void show_diagnostics(const std::vector<Diagnostic> &diagnostics);
-/* xppautX --convert [--auto] model.ode: the model loaded, written as
+/* xppautX --convert [--yes] model.ode: the model loaded, written as
    model.odex (odex_name), which is loaded in turn and must compile to
    the same programs (exact by construction, checked); 0 when written, 1
    (said why) when not. ask answers the questions (no terminal: none). */
@@ -304,7 +304,7 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask);
 /* Opening a .ode: its conversion, checked, written as odex_name(ode)
    (true), or the existing .odex opened as it is (false: the same text, or
    the user chose it); an error when cancelled or not written. */
-xpp::Result<bool> open_ode(const std::string &ode, bool silent, const std::vector<std::string> &includes,
+xpp::Result<bool> open_ode(const std::string &ode, bool silent, bool yes, const std::vector<std::string> &includes,
                          std::vector<Diagnostic> &diagnostics);
 /* model.ode's .odex: its extension made .odex */
 std::string odex_name(const std::string &ode);

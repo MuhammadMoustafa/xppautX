@@ -81,6 +81,7 @@ inline bool is_no_model(const Error &e) { return e.where == NO_MODEL_WHERE; }
    @ output=, @ range= options set these. */
 struct XppBatchOptions {
     int enabled = 0;           /* batch mode: no interface, run and write */
+    bool yes = false;          /* -y / --yes: terminal questions answered yes, each answer printed */
     int range = 0;             /* run the range integration in batch mode */
     int equilibria = -1;       /* --equil: <0 none, 1 find and write equilibria */
     int use_intern_sets = 1;   /* run every internal set (1) or the chosen ones */

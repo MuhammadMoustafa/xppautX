@@ -477,8 +477,8 @@ from):
      `return`) must be renamed: `--convert` lists each one and asks for its
      new name, one by one, with a suggestion ready (the name plus `_`, then
      a number if taken); a dialog in the program, a prompt on the command
-     line. `--convert --auto` accepts every suggestion without asking. With
-     no one to answer and no `--auto`, it stops and names what needs a new
+     line. `--convert --yes` accepts every suggestion without asking. With
+     no one to answer and no `--yes`, it stops and names what needs a new
      name. No `--rename` switch.
    - The converted file starts with a comment listing every rename.
 4. **`e`** (decided, maintainer, 2026-09-27): not reserved in `.odex` (see
@@ -588,7 +588,7 @@ variable and the time.
 
 ### What --convert writes
 
-`xppautX --convert [--auto] model.ode` writes model.odex beside it:
+`xppautX --convert [--yes] model.ode` writes model.odex beside it:
 the statements in the order the reader read them (Model::statements),
 each formula read back from the program it compiled to. An array's
 copies (the .ode reader marks each, `Statement::array`) are written back
@@ -620,7 +620,7 @@ with a parameter upper bound remains guarded because it can be empty
 (W165, [#217](https://github.com/MuhammadMoustafa/xppautX/issues/217)). Names are written as their
 declarations spell them (the header lists the `.ode` lines that spelled
 one another way); a name `.odex` reserves is renamed as question 3 says
-(a question on the terminal, `--auto` for the suggestions, none asked
+(a question on the terminal, `--yes` for the suggestions, none asked
 with no terminal: the conversion stops and names them). What followed
 `done` becomes comments at the end. The `.odex` is then loaded and must
 compile to the `.ode`'s own programs (IEEE divisions normalized to

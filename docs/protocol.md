@@ -736,10 +736,15 @@ An existing file asks the terminal `NAME exists. Replace it? [y/N] (60 s)`.
 The shared terminal question helper reads a line from a console or pipe;
 end of input or the 60-second deadline means no answer. Without confirmation,
 playback stops at that step, exits 1, names the file and recording step,
-and leaves the existing file untouched. `--auto` answers every terminal
+and leaves the existing file untouched. `--yes` answers every terminal
 question: it accepts conversion's suggested names and replaces existing
 playback outputs without asking. Recorded save decisions do not authorize
-overwriting the terminal user's files. Interactive Play still writes only
+overwriting the terminal user's files. Every answer taken without asking
+(`--yes`'s replacements and suggested names, a recording's recorded answers
+in `--silent`) is printed on stderr as `QUESTION -> ANSWER (answered
+automatically)`. `--silent` opening a `.ode` asks conversion's questions
+(a name `.odex` reserves, an existing different `.odex`) the same way; no
+answer stops it with exit 1. Interactive Play still writes only
 in its private scratch folder; use `--server` and the `file` command to
 inspect those files before closing. Protocol clients wait for
 `ask` and `idle`; recordings are the only playable file format.
