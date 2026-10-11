@@ -18,8 +18,8 @@ struct Session; /* session.h */
  * Core code keeps calling the historical names (err_msg, new_int, ping,
  * refresh_browser, TwoChoice, set_color, ALINE, ...). Those are thin
  * dispatchers in xpp_ui.cpp that go through the XppUi table below. The
- * default table is headless: messages go to the log, prompts are declined,
- * redraws and drawing do nothing. The browser front end installs its own
+ * default table is headless: messages go to the log, the question policy
+ * supplies terminal answers, and redraws and drawing do nothing. The browser front end installs its own
  * table (ui_json.cpp) before it serves a session.
  *
  * The pixel primitives (draw_*, set_color, auto_line and the rest of the
@@ -103,20 +103,20 @@ int yes_no_box(void);
 int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key);
 /* A question with several answers, one key each (keys[i] answers
    choices[i]); the chosen key, 0 when none. The last choice is what no
-   answer means (Cancel, Refuse). With no interface (--silent's load,
-   --convert, a unit test) the terminal asks (ask_terminal) and -y / --yes
-   answers yes_key, printed (report_automatic). */
+   answer means (Cancel, Refuse). yes_key is the suggested answer. */
 int Choose(std::string_view title, std::string_view question, std::span<const std::string> choices,
            std::string_view keys, char yes_key);
 void respond_box(std::string_view button, std::string_view message);
-/* Terminal questions share the dialog owner; EOF or the deadline is no answer. */
-std::optional<std::string> ask_terminal(const std::string &question, const std::string &suggestion);
+/* A yes/no question; independent guards never take a recorded answer. */
+bool confirm(std::string_view question, bool independent = false);
 /* Every answer taken without asking (-y / --yes, a recording's answer in
    --silent) is printed through this: the question and the answer taken. */
 void report_automatic(std::string_view question, std::string_view answer);
-/* A yes/no terminal question, no unless answered y or yes; with yes
-   (-y / --yes) answered yes without asking, and printed. */
-bool confirm_terminal(const std::string &question, bool yes);
+/* Who supplies a question's answer; kept in the active front end's table. */
+enum class QuestionPolicy { User, Terminal, Suggested, None };
+/* Front ends supply their context; this owner applies the answering policy.
+   Scripted answers belong to the command; independent output guards never use them. */
+QuestionPolicy answer_policy(bool terminal, bool scripted);
 void flash(int num);
 int menu_choose(const struct XppMenu *m, int def);
 /* A choice among names (named parameter sets, tables, frozen curves): the
@@ -188,10 +188,8 @@ typedef struct XppUi {
     void (*title_text)(std::string_view s);
 
     /* prompts */
+    QuestionPolicy (*question_policy)(bool independent);
     int (*new_string)(std::string_view name, std::string &value, int kind);
-    int (*yes_no_box)(void);
-    int (*two_choice)(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key,
-                      std::string_view title);
     int (*choose)(std::string_view title, std::string_view question, std::span<const std::string> choices,
                   std::string_view keys, char yes_key);
     void (*respond_box)(std::string_view button, std::string_view message); /* alert with one button */

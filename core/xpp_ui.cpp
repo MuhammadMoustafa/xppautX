@@ -13,6 +13,7 @@
 #include <string.h>
 #include "xpp_util.h"
 #include "menus.h"
+#include <algorithm>
 #include <span>
 #include <string>
 #include <vector>
@@ -31,9 +32,8 @@ constexpr int TERMINAL_QUESTION_SECONDS = 60;
 /* Dialog answers are short; bound even a continuously supplied pipe line. */
 constexpr size_t TERMINAL_ANSWER_CAP = 4096;
 
-std::optional<std::string> ask_terminal(const std::string &question, const std::string &suggestion)
+static std::optional<std::string> ask_terminal(const std::string &question, const std::string &suggestion)
 {
-    if (batch_options.check) return std::nullopt;
     print(stderr, "{} [{}] ({} s): ", question, suggestion, TERMINAL_QUESTION_SECONDS);
     fflush(stderr);
 #ifdef _WIN32
@@ -64,12 +64,18 @@ void report_automatic(std::string_view question, std::string_view answer)
     log(XPP_LOG_WARN, "{} -> {} (answered automatically)\n", question, answer);
 }
 
-bool confirm_terminal(const std::string &question, bool yes)
+QuestionPolicy answer_policy(bool terminal, bool scripted)
 {
-    if (yes) {
-        report_automatic(question, "yes");
-        return true;
-    }
+    if (batch_options.check) return QuestionPolicy::None;
+    if (scripted) return QuestionPolicy::User;
+    if (batch_options.yes) return QuestionPolicy::Suggested;
+    return terminal ? QuestionPolicy::Terminal : QuestionPolicy::User;
+}
+
+static QuestionPolicy hl_question_policy(bool) { return answer_policy(true, false); }
+
+static bool confirm_terminal(const std::string &question)
+{
     const std::optional<std::string> answer = ask_terminal(question, "no");
     return answer && (equal_ignoring_case(*answer, "y") || equal_ignoring_case(*answer, "yes"));
 }
@@ -91,18 +97,9 @@ static void hl_live_state(Session &, const double *, double) {}
 static void hl_s_str(Session &, std::string_view) {}
 static int hl_new_string(std::string_view, std::string &, int) { return 0; }
 static int hl_no(void) { return 0; }
-static int hl_two_choice(std::string_view, std::string_view, std::string_view, std::string_view, std::string_view)
-{
-    return 0;
-}
 static int hl_choose(std::string_view, std::string_view question, std::span<const std::string> choices,
-                     std::string_view keys, char yes_key)
+                     std::string_view keys, char)
 {
-    if (batch_options.yes) {
-        const std::size_t at = keys.find(yes_key);
-        report_automatic(question, at < choices.size() ? choices[at] : std::string(1, yes_key));
-        return static_cast<unsigned char>(yes_key);
-    }
     std::string prompt(question);
     for (std::size_t i = 0; i < choices.size() && i < keys.size(); i++)
         prompt += xpp::format("{} {} ({})", i ? "," : " --", choices[i], keys[i]);
@@ -200,9 +197,8 @@ XppUi ui = {
     .message_box = hl_str,
     .kill_message_box = hl_void,
     .title_text = hl_str,
+    .question_policy = hl_question_policy,
     .new_string = hl_new_string,
-    .yes_no_box = hl_no,
-    .two_choice = hl_two_choice,
     .choose = hl_choose,
     .respond_box = hl_respond_box,
     .checklist = hl_checklist,
@@ -357,47 +353,100 @@ void bottom_msg(int line, std::string_view msg, std::string_view chapter, std::s
 void MessageBox(std::string_view m) { ui.message_box(m); }
 void KillMessageBox(void) { ui.kill_message_box(); }
 void title_text(std::string_view s) { ui.title_text(s); }
-int new_string(std::string_view name, std::string &value) { return ui.new_string(name, value, XPP_FIELD_TEXT); }
-int new_string_of(std::string_view name, std::string &value, int kind) { return ui.new_string(name, value, kind); }
-int yes_no_box(void) { return ui.yes_no_box(); }
-int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key)
+static int question_string(std::string_view name, std::string &value, int kind)
 {
-    return ui.two_choice(c1, c2, q, key, "");
+    switch (ui.question_policy(false)) {
+    case QuestionPolicy::None: return 0;
+    case QuestionPolicy::Suggested: report_automatic(name, value); return 1;
+    case QuestionPolicy::User: return ui.new_string(name, value, kind);
+    case QuestionPolicy::Terminal: {
+        const auto answer = ask_terminal(std::string(name), value);
+        if (!answer) return 0;
+        if (!answer->empty()) value = *answer;
+        return 1;
+    }
+    }
+    return 0;
 }
+int new_string(std::string_view name, std::string &value) { return question_string(name, value, XPP_FIELD_TEXT); }
+int new_string_of(std::string_view name, std::string &value, int kind) { return question_string(name, value, kind); }
+int yes_no_box(void) { return confirm("Are you sure?"); }
 int Choose(std::string_view title, std::string_view question, std::span<const std::string> choices,
            std::string_view keys, char yes_key)
 {
-    return ui.choose(title, question, choices, keys, yes_key);
+    switch (ui.question_policy(false)) {
+    case QuestionPolicy::None: return 0;
+    case QuestionPolicy::User: return ui.choose(title, question, choices, keys, yes_key);
+    case QuestionPolicy::Terminal: return hl_choose(title, question, choices, keys, yes_key);
+    case QuestionPolicy::Suggested: {
+        const auto at = keys.find(yes_key);
+        report_automatic(question, at < choices.size() ? choices[at] : std::string(1, yes_key));
+        return static_cast<unsigned char>(yes_key);
+    }
+    }
+    return 0;
+}
+int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key)
+{
+    const std::vector<std::string> choices{std::string(c1), std::string(c2)};
+    return Choose("", q, choices, key, key.empty() ? 0 : key.front());
+}
+bool confirm(std::string_view question, bool independent)
+{
+    switch (ui.question_policy(independent)) {
+    case QuestionPolicy::None: return false;
+    case QuestionPolicy::Suggested: report_automatic(question, "yes"); return true;
+    case QuestionPolicy::Terminal: return confirm_terminal(std::string(question));
+    case QuestionPolicy::User: {
+        const std::vector<std::string> choices{"Yes", "No"};
+        return ui.choose("", question, choices, "yn", 'y') == 'y';
+    }
+    }
+    return false;
 }
 void respond_box(std::string_view button, std::string_view message) { ui.respond_box(button, message); }
+/* A form applies no fields when any question is declined. */
+template<class Dialog>
+static int question_fields(const char *const *names, std::span<std::string> values, const int *kinds, Dialog show)
+{
+    if (ui.question_policy(false) == QuestionPolicy::User) return show();
+    std::vector<std::string> answered(values.begin(), values.end());
+    for (std::size_t i = 0; i < answered.size(); i++)
+        if (!question_string(names[i], answered[i], kinds ? kinds[i] : XPP_FIELD_TEXT)) return 0;
+    std::copy(answered.begin(), answered.end(), values.begin());
+    return 1;
+}
 int do_string_box(int row, int col, std::string_view title, const char *const *names,
                   std::span<std::string> values)
 {
-    return ui.string_box(row, col, title, names, values, NULL);
+    return do_string_box_of(row, col, title, names, values, nullptr);
 }
 int do_string_box_of(int row, int col, std::string_view title, const char *const *names,
                      std::span<std::string> values, const int *kinds)
 {
-    return ui.string_box(row, col, title, names, values, kinds);
+    return question_fields(names, values, kinds, [&] { return ui.string_box(row, col, title, names, values, kinds); });
 }
 int do_grid_box_of(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
                    const char *const *names, std::span<std::string> values, const int *kinds)
 {
-    return ui.grid_box(title, columns, rows, names, values, kinds);
+    return question_fields(names, values, kinds, [&] { return ui.grid_box(title, columns, rows, names, values, kinds); });
 }
 int file_selector(std::string_view title, std::string &file, std::string_view wild)
 {
-    return ui.file_selector(title, file, wild);
+    const auto policy = ui.question_policy(false);
+    if (policy == QuestionPolicy::User) return ui.file_selector(title, file, wild);
+    return question_string(title, file, XPP_FIELD_FILE);
 }
 int get_dialog(std::string_view wname, std::string_view name, std::string &value, std::string_view ok,
                std::string_view cancel)
 {
-    return ui.dialog(wname, name, value, ok, cancel, XPP_FIELD_TEXT);
+    return get_dialog_of(wname, name, value, ok, cancel, XPP_FIELD_TEXT);
 }
 int get_dialog_of(std::string_view wname, std::string_view name, std::string &value, std::string_view ok,
                   std::string_view cancel, int kind)
 {
-    return ui.dialog(wname, name, value, ok, cancel, kind);
+    if (ui.question_policy(false) == QuestionPolicy::User) return ui.dialog(wname, name, value, ok, cancel, kind);
+    return question_string(name, value, kind);
 }
 int GetMouseXY(Session &s, int *x, int *y) { return ui.get_mouse_xy(s, x, y); }
 void flash(int num) { ui.menu_flash(num); }

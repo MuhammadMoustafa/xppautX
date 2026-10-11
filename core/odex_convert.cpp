@@ -226,8 +226,8 @@ Expr op_expr(Expr::Kind kind, std::string text, std::vector<Expr> args)
 
 class Converter {
 public:
-  Converter(xpp::Session &s, bool auto_answer, const Ask &ask, std::vector<Diagnostic> &diagnostics)
-      : m_(s.model()), s_(s), spell_(m_.source), sym_(s_.parser), auto_(auto_answer), ask_(ask), diagnostics_(diagnostics)
+  Converter(xpp::Session &s, std::vector<Diagnostic> &diagnostics)
+      : m_(s.model()), s_(s), spell_(m_.source), sym_(s_.parser), diagnostics_(diagnostics)
   {
   }
 
@@ -622,17 +622,13 @@ private:
         suggestion = base + "_" + std::to_string(k);
       std::string chosen = suggestion;
       const std::string question = xpp::format("`{}` is {} in .odex; its new name", n, is_reserved(n) ? "a reserved word" : "not a name");
-      if (auto_) xpp::report_automatic(question, suggestion);
-      else {
-        std::optional<std::string> answer = ask_ ? ask_(question, suggestion) : std::nullopt;
-        if (!answer) {
-          unanswered.push_back(n);
-          continue;
-        }
-        chosen = answer->empty() ? suggestion : *answer;
-        if (!is_name(chosen) || is_reserved(chosen) || taken.count(xpp::upper_case(chosen)))
-          refuse(xpp::format("`{}` cannot be the new name of `{}`: it is taken, reserved or not a name", chosen, n));
+      if (!xpp::new_string(question, chosen)) {
+        unanswered.push_back(n);
+        continue;
       }
+      if (chosen.empty()) chosen = suggestion;
+      if (!is_name(chosen) || is_reserved(chosen) || taken.count(xpp::upper_case(chosen)))
+        refuse(xpp::format("`{}` cannot be the new name of `{}`: it is taken, reserved or not a name", chosen, n));
       taken.insert(xpp::upper_case(chosen));
       taken_.insert(xpp::upper_case(chosen));
       renames_[n] = chosen;
@@ -1577,8 +1573,6 @@ private:
   xpp::Session &s_;
   Spelling spell_;
   Symbols sym_;
-  bool auto_;
-  const Ask &ask_;
   std::map<std::string, std::string> renames_;
   /* every declared name and new name, in upper case (an array's index is
      none of them) */
@@ -1698,7 +1692,7 @@ int check_file(const std::string &file)
     const Result<> loaded = inspect_model(2, argv, load_eqn, {});
     if (!loaded) error = loaded.error();
   } else {
-    const Result<std::string> converted = convert_text(file, true, {}, {}, &diagnostics);
+    const Result<std::string> converted = convert_text(file, {}, &diagnostics);
     if (!converted) error = converted.error();
   }
   capture.clear();
@@ -1737,7 +1731,7 @@ void show_diagnostics(const std::vector<Diagnostic> &diagnostics)
   }
 }
 
-Result<std::string> convert_text(const std::string &ode, bool auto_answer, const Ask &ask,
+Result<std::string> convert_text(const std::string &ode,
                                const std::vector<std::string> &includes, std::vector<Diagnostic> *diagnostics)
 {
   if (is_odex(ode)) return xpp::fail_reading("convert", "is .odex already", ode);
@@ -1765,7 +1759,7 @@ Result<std::string> convert_text(const std::string &ode, bool auto_answer, const
     get_eqn(s, input.get());
   }, [&](Session &s) -> std::optional<Error> {
     try {
-      Converter converter(s, auto_answer, ask, output);
+      Converter converter(s, output);
       text = converter.run();
       guard_name = converter.guard_name();
       before = fingerprint(s);
@@ -1821,51 +1815,39 @@ Result<> write_conversion(const std::string &out, std::string_view text)
 
 } // namespace
 
-Result<bool> write_converted(const std::string &source, const std::string &out, std::string_view text, bool silent, bool yes)
+Result<bool> write_converted(const std::string &source, const std::string &out, std::string_view text)
 {
   if (xpp::files::exists(out)) {
     std::string existing;
     if (!xpp::read_bytes(out, existing)) return xpp::fail_reading("convert", "cannot be read", out);
     if (xpp::split_lines(existing) == xpp::split_lines(text)) return false; /* the same text: used as it is */
-    if (silent) {
-      if (!xpp::confirm_terminal(xpp::format("{} differs from the conversion of {}; replace it", out, source), yes))
-        return xpp::fail_reading("convert", xpp::format("differs from the conversion of {}; neither file was changed (--yes replaces it)", source), out);
-    } else {
-      const int choice = xpp::file_replace_choice(true);
-      if (choice == 'n') return false;
-      if (choice != 'y') return xpp::fail_reading("convert", xpp::format("opening {} cancelled", source), source);
-    }
+    const int choice = xpp::file_replace_choice(true);
+    if (choice == 'n') return false;
+    if (choice != 'y') return xpp::fail_reading("convert", xpp::format("opening {} cancelled; {} was left unchanged", source, out), source);
   }
   Result<> written = write_conversion(out, text);
   if (!written) return std::unexpected(written.error());
   return true;
 }
 
-Result<bool> open_ode(const std::string &ode, bool silent, bool yes, const std::vector<std::string> &includes,
+Result<bool> open_ode(const std::string &ode, const std::vector<std::string> &includes,
                       std::vector<Diagnostic> &diagnostics)
 {
-  /* --silent asks on the terminal, the interface in its dialogs */
-  const Ask ask = [&ode, silent](const std::string &question, const std::string &suggestion) -> std::optional<std::string> {
-    if (silent) return xpp::ask_terminal(question, suggestion);
-    std::string answer = suggestion;
-    if (!xpp::new_string(question, answer)) throw Error{"open", "model open cancelled", Place{ode}};
-    return answer;
-  };
-  Result<std::string> text = convert_text(ode, silent && yes, ask, includes, &diagnostics);
+  Result<std::string> text = convert_text(ode, includes, &diagnostics);
   if (!text) return std::unexpected(text.error());
-  return write_converted(ode, odex_name(ode), *text, silent, yes);
+  return write_converted(ode, odex_name(ode), *text);
 }
 
-int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
+int convert_file(const std::string &ode)
 {
   std::vector<Diagnostic> diagnostics;
-  Result<std::string> text = convert_text(ode, auto_answer, ask, {}, &diagnostics);
+  Result<std::string> text = convert_text(ode, {}, &diagnostics);
   show_diagnostics(diagnostics);
   const std::string out = odex_name(ode);
   Result<> written;
   if (!text) written = std::unexpected(text.error());
   else {
-    if (xpp::files::exists(out) && !xpp::confirm_terminal(out + " exists; replace it", auto_answer))
+    if (xpp::files::exists(out) && !xpp::confirm(out + " exists; replace it"))
       written = xpp::fail_reading("convert", "exists and was left as it is (--yes replaces it)", out);
     if (written) written = write_conversion(out, *text);
   }

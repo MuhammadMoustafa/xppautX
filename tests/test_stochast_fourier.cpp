@@ -11,8 +11,7 @@
    The Fourier/power/correlation/spectral-density checks call the same
    core functions the stocHast menu calls (do_stochast_com in
    markov.cpp), skipping only the interactive prompts: new_int/new_float/
-   new_string_of are no-ops in headless mode (core/xpp_ui.cpp's
-   hl_new_string returns 0 without touching the value), so the plain
+   new_string_of are declined by the UI owner's nobody policy, so the plain
    globals compute_fourier() & co. would have prompted for (spec_col,
    spec_wid, spec_win, ...) are simply set directly first. The signal
    lives in storage[][], filled directly per the harness style of
@@ -46,6 +45,7 @@ int main(void)
     CHECK(xpp::load_model(2, argv, 1).has_value());
     init_browser(xpp::client_session());
     init_all_graph(xpp::client_session());
+    xpp::batch_options.check = true; /* Decline prompts; this numerical fixture supplies its settings. */
 
     const int N = 64;
     xpp::client_session().data_store.rows = N;

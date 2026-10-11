@@ -425,7 +425,7 @@ Result<> import_settings(xpp::Session &s, std::string_view path, bool redraw)
     if(!text)return std::unexpected(text.error());
     const auto [folder,base]=xpp::files::split_path(path);
     file=(folder.empty()?std::string():folder+"/")+base.substr(0,base.find_last_of('.'))+std::string(xpp::setx_extension);
-    const Result<bool> written=xpp::odex::write_converted(std::string(path),file,*text,batch_options.enabled!=0,batch_options.yes);
+    const Result<bool> written=xpp::odex::write_converted(std::string(path),file,*text);
     if(!written)return std::unexpected(written.error());
     if(!xpp::read_bytes(file,bytes,xpp::settings_bytes_limit))return std::unexpected(xpp::files::open_error("settings file",file));
     note=xpp::format("Imported {}: {} {}, which is applied.",path,*written?"converted to":"already converted to",file);

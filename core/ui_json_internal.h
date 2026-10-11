@@ -334,11 +334,9 @@ int j_dialog(std::string_view title, std::string_view name, std::string &value, 
 int j_new_string(std::string_view name, std::string &value, int kind);
 /* the text dialog (ask kind `text`): look is the start and the answer; 0 when cancelled */
 int j_text_dialog(xpp::LabelLook &look);
-int j_yes_no_box(void);
 int j_choose(std::string_view title, std::string_view q, std::span<const std::string> choices, std::string_view keys,
              char yes_key);
-int j_two_choice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key,
-                 std::string_view title);
+
 void j_respond_box(std::string_view button, std::string_view message);
 int j_checklist(std::string_view title, const char *const *names, int *flags, int n);
 int j_string_box(int row, int col, std::string_view title, const char *const *names, std::span<std::string> values,

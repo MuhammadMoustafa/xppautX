@@ -76,6 +76,15 @@ if [ -n "$csrc" ]; then
   echo "C SOURCE CHECK FAILED"
   exit 1
 fi
+# W304 (#363): terminal questions belong only to the dialog owner, including AUTO.
+questions=$(grep -nE '(ask_terminal|confirm_terminal)[[:space:]]*[(]' core/*.cpp core/*.h | grep -v '^core/xpp_ui.cpp:' || true)
+policy_reads=$(grep -nE 'batch_options[.](yes|check)' core/*.cpp core/*.h | grep -v '^core/xpp_ui.cpp:' | grep -vE 'batch_options[.](yes|check)[[:space:]]*=[^=]' || true)
+if [ -n "$questions$policy_reads" ]; then
+  printf '%s
+' "$questions" "$policy_reads"
+  echo "QUESTION OWNER CHECK FAILED"
+  exit 1
+fi
 if ! sh tools/stdoutcheck.sh; then
   echo "STDOUT CHECK FAILED"
   exit 1

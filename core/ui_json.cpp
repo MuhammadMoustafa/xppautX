@@ -337,6 +337,11 @@ void send_computing(void) { send_simple("computing"); }
 
 /* the JSON front end's table: assignments, so C++17 needs no designated
    initializers; fields not set stay null, as in the C initializer */
+static QuestionPolicy j_question_policy(bool independent)
+{
+    return answer_policy(session.silent, !independent && (session.generated || player_place().line > 0));
+}
+
 XppUi make_json_ui(void)
 {
     XppUi u{};
@@ -361,9 +366,8 @@ XppUi make_json_ui(void)
     u.message_box = j_message_box;
     u.kill_message_box = j_kill_message_box;
     u.title_text = j_title_text;
+    u.question_policy = j_question_policy;
     u.new_string = j_new_string;
-    u.yes_no_box = j_yes_no_box;
-    u.two_choice = j_two_choice;
     u.choose = j_choose;
     u.respond_box = j_respond_box;
     u.checklist = j_checklist;

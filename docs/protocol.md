@@ -758,19 +758,11 @@ JSON nesting and snapshot archive expansion retain their reader limits.
 Reads use the recording's embedded files. Silent playback keeps its output
 in the current folder where the command was launched, under plain base
 names only: no paths, subfolders or links, including the initial model load.
-An existing file asks the terminal `NAME exists. Replace it? [no] (60 s)`.
-The shared terminal question helper reads a line from a console or pipe;
-end of input or the 60-second deadline means no answer. Without confirmation,
-playback stops at that step, exits 1, names the file and recording step,
-and leaves the existing file untouched. `--yes` answers every terminal
-question: it accepts conversion's suggested names and replaces existing
-playback outputs without asking. Recorded save decisions do not authorize
-overwriting the terminal user's files. Every answer taken without asking
-(`--yes`'s replacements and suggested names, a recording's recorded answers
-in `--silent`) is printed on stderr as `QUESTION -> ANSWER (answered
-automatically)`. `--silent` opening a `.ode` asks conversion's questions
-(a name `.odex` reserves, an existing different `.odex`) the same way; no
-answer stops it with exit 1. Interactive Play still writes only
+An existing output requires confirmation; without it playback stops at that
+step, exits 1, names the file and recording step, and leaves the file
+untouched. Recorded save decisions do not authorize replacing launch-folder
+outputs. See [Question answering](#question-answering) for the answering policy.
+Interactive Play still writes only
 in its private scratch folder; use `--server` and the `file` command to
 inspect those files before closing. Protocol clients wait for
 `ask` and `idle`; recordings are the only playable file format.
@@ -1607,8 +1599,7 @@ the groups and keys it names are set, the rest left as it was. An XPPAUT `.set`
 `RHS etc ...`) is read the same way, every named value checked against the
 model, and converted: its values are written as `<base>.setx` beside it (a
 `.setx` already there with other text is replaced only after the question
-`.ode` to `.odex` asks: `file_replace_choice`, on the terminal under `--silent`
-with `--yes` answering it), and that `.setx` is read and applied. One
+`.ode` to `.odex` asks: `file_replace_choice`), and that `.setx` is read and applied. One
 `message.bottom` names the file applied. No session file is written.
 
 ### Undo and redo of value edits
@@ -1786,6 +1777,28 @@ per view of the diagram (W50), its `zoom` as above, dropped by other axes
 of that view (closing AUTO drops every view's zoom; the views stay).
 `{"cmd":"auto","op":"display","view":1,"show":true,"x":[...],"y":null}`
 sets `show` and view 1's zoom (the active view's without `view`).
+
+## Question answering
+
+Every core question goes through `xpp_ui`; the active front end's table
+supplies the context and this owner decides who answers (W304,
+[#363](https://github.com/MuhammadMoustafa/xppautX/issues/363)). The window
+and `--server` ask the user. `--silent` and `--convert` ask the terminal,
+reading a console or pipe line with a `TERMINAL_QUESTION_SECONDS` wait
+(60 seconds); EOF or that deadline means no answer. `-y` / `--yes` takes
+the suggested answer and prints `QUESTION -> ANSWER (answered automatically)`
+on stderr. `--check` takes no answer, even with `--yes`, and writes no
+conversion or playback output. A question declined there is a diagnostic.
+A string's empty terminal answer accepts its suggestion; a choice accepts
+its key or its label; confirmation accepts `y` or `yes`. No answer cancels
+an entry or declines confirmation. An outside-path question's suggested
+answer allows once; no answer refuses permission.
+
+A recording or built-in command script supplies the answers held in that
+command, independently of these user questions; recorded answers in
+`--silent` are printed in the same format. A recording's launch-folder
+output replacement is an independent question and uses the answering
+policy above, never a recorded save decision.
 
 ### Asks
 
@@ -1982,11 +1995,9 @@ resolved path in the preferences (`outside_paths` of `preferences.setx`, at
 most 24, newest first, the oldest dropped), so that model and that exact
 path are not asked again; a changed path or another model asks again. `o`
 allows it for this load. `r`, a cancel, an unknown key or no answer refuses:
-the load fails with the model's file and line and nothing is applied. With
-no interface (`--silent`, `--convert`) the question is the terminal's
-(60 s, the same one as every terminal question; an answer is `a`, `o` or
-`r`, or the choice's name), no answer refuses, and `--yes` allows once and
-prints question and answer. A link on the way below the folder's common
+the load fails with the model's file and line and nothing is applied.
+The suggested answer is **Allow once**; the answering policy is in
+[Question answering](#question-answering). A link on the way below the folder's common
 ancestor with the path, or a name that is not a plain one, is refused with no
 question. The path asked about is the normalised one (`.` and `..` resolved in
 the text, never through a link), and that same text is what is opened,
@@ -2088,8 +2099,7 @@ ask: `value` is the suggestion, Cancel ends the open without writing and
 keeps the previous model. If the `.odex` already has different text, the
 existing `choice` question **File Exists! Overwrite?** has `keys` `yn`
 and choices **Replace** (`y`) and **Open existing .odex** (`n`); Cancel
-(`ok:false`) ends the open. Equal text opens unchanged. `--silent` takes
-name suggestions and refuses different existing text. An unwritable
+(`ok:false`) ends the open. Equal text opens unchanged. An unwritable
 folder fails at the `.odex` path. No new ask kind is introduced.
 
 The conversion confirmation uses `message.bottom`, as an imported `.set`

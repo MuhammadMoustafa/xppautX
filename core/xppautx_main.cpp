@@ -314,7 +314,7 @@ int main(int argc, char **argv)
             xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--yes] model.ode\n");
             return 2;
         }
-        return xpp::odex::convert_file(argv[1], yes != 0, xpp::ask_terminal);
+        return xpp::odex::convert_file(argv[1]);
     }
     bool recording_batch = false;
     for (i = 1; i < argc; ++i)

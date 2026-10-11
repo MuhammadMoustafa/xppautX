@@ -25,7 +25,6 @@
 #include "setx.h"
 #include "xpp_error.h"
 
-#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -315,10 +314,6 @@ bool is_odex(std::string_view path);
    (xpp::model_failed, with the problem as its diagnostic) */
 int load(xpp::Session &s, const std::string &path, std::string text);
 
-/* --convert's question about a name .odex reserves: the question and a
-   suggested answer; the answer ("" takes the suggestion), or nullopt
-   when nobody can answer (no terminal) */
-using Ask = std::function<std::optional<std::string>(const std::string &question, const std::string &suggestion)>;
 /* Converter findings are values; comments and clients render this same list. */
 struct Diagnostic {
   Place place;
@@ -326,7 +321,7 @@ struct Diagnostic {
 };
 /* Import and validate the conversion without changing the open model or
    writing a file. Used by both conversion commands and their tests. */
-xpp::Result<std::string> convert_text(const std::string &ode, bool auto_answer, const Ask &ask,
+xpp::Result<std::string> convert_text(const std::string &ode,
                                      const std::vector<std::string> &includes = {},
                                      std::vector<Diagnostic> *diagnostics = nullptr);
 /* Read and validate in memory; one JSON object on stdout, no files or window. */
@@ -336,21 +331,20 @@ void show_diagnostics(const std::vector<Diagnostic> &diagnostics);
 /* xppautX --convert [--yes] model.ode: the model loaded, written as
    model.odex (odex_name), which is loaded in turn and must compile to
    the same programs (exact by construction, checked); 0 when written, 1
-   (said why) when not. ask answers the questions (no terminal: none). */
-int convert_file(const std::string &ode, bool auto_answer, const Ask &ask);
+   (said why) when not. Questions go through xpp_ui. */
+int convert_file(const std::string &ode);
 /* Opening a .ode: its conversion, checked, written as odex_name(ode)
    (true), or the existing .odex opened as it is (false: the same text, or
    the user chose it); an error when cancelled or not written. */
-xpp::Result<bool> open_ode(const std::string &ode, bool silent, bool yes, const std::vector<std::string> &includes,
+xpp::Result<bool> open_ode(const std::string &ode, const std::vector<std::string> &includes,
                          std::vector<Diagnostic> &diagnostics);
 /* The conversion text of the foreign file source written as out, beside
    it: true when written; false when out already holds this text, or the
-   user chose to keep the file that is there (a question before another
-   text replaces it, on the terminal under --silent, --yes answering it
-   yes, else in the interface); an error when cancelled or not written.
+   user chose to keep the file that is there (a question through xpp_ui
+   before another text replaces it); an error when cancelled or not written.
    .ode -> .odex (open_ode) and XPPAUT's .set -> .setx (import) both
    convert this way. */
-xpp::Result<bool> write_converted(const std::string &source, const std::string &out, std::string_view text, bool silent, bool yes);
+xpp::Result<bool> write_converted(const std::string &source, const std::string &out, std::string_view text);
 /* model.ode's .odex: its extension made .odex */
 std::string odex_name(const std::string &ode);
 

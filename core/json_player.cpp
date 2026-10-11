@@ -469,7 +469,7 @@ bool output_write(std::string_view path, bool opening, int kind)
         quit_session();
     }
     if (opening && kind == XPP_FILES_OK
-        && !xpp::confirm_terminal(xpp::format("{} exists. Replace it?", path), xpp::batch_options.yes)) {
+        && !xpp::confirm(xpp::format("{} exists. Replace it?", path), true)) {
         j_command_error("save", xpp::format("{} already exists; replace not confirmed (--yes replaces)", path));
         quit_session();
     }

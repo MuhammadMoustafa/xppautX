@@ -9,7 +9,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import CONFIG_ROOT, Server, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
+from xppclient import CONFIG_ROOT, Server, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, file_bytes, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -6783,7 +6783,7 @@ def check_conversion_modes():
     asked = '`and` is a reserved word in .odex; its new name'
     printed = asked + ' -> and_ (answered automatically)'
     replaced = 'foreign.odex exists; replace it -> yes (answered automatically)'
-    differs = 'differs from the conversion of foreign.ode; replace it -> yes (answered automatically)'
+    differs = 'File Exists! Overwrite? -> Replace (answered automatically)'
     with tempfile.TemporaryDirectory(prefix='xppconvert') as d:
         ode = os.path.join(d, 'foreign.ode')
         odex = os.path.join(d, 'foreign.odex')
@@ -6825,6 +6825,104 @@ def check_conversion_modes():
               result.returncode == 1 and not os.path.exists(odex), result.stderr)
 
 check_conversion_modes()
+
+def check_question_policy():
+    """W304 (#363): compare persisted data across the five answering policies.
+    --check validates only; recording playback and --convert's write never run there.
+    Interactive playback writes its private scratch, so cannot ask about a launch-folder output.
+    """
+    binary = os.path.abspath(args.server)
+    modes = ('server', 'stdin', 'yes', 'eof', 'check', 'server yes')
+    before_checks = check.checks
+    with tempfile.TemporaryDirectory(prefix='xppquestions') as temp:
+        root = os.path.realpath(temp)
+        for case in ('name', 'conversion replacement', 'outside path', 'recording replacement'):
+            for mode in modes:
+                folder = os.path.join(root, case.replace(' ', '_') + '_' + mode)
+                os.makedirs(folder)
+                env = {'XPP_CONFIG_DIR': os.path.join(folder, 'config')}
+                model = os.path.join(folder, 'model.ode')
+                converted = model[:-4] + '.odex'
+                text = "par %s=1\nx'=%s-x\ninit x=0\n@ total=1,dt=.1\ndone\n" % (('and', 'and') if case == 'name' else ('a', 'a'))
+                with open(model, 'w') as f: f.write(text)
+                keep = b"par a = 7\nx' = a-x\n"
+                if case == 'conversion replacement':
+                    with open(converted, 'wb') as f: f.write(keep)
+                target = model
+                if case == 'outside path':
+                    table = os.path.join(root, 'outside.tab').replace(os.sep, '/')
+                    with open(table, 'w') as f: f.write('5\n0\n4\n0\n1\n4\n9\n16\n')
+                    target = os.path.join(folder, 'model.odex')
+                    with open(target, 'w') as f: f.write('table w "' + table + '"\n' + "x'=w(1)-x\noptions { numerics: { total_time: 1 } }\n")
+                saved = os.path.join(folder, 'saved.dat')
+                if case == 'recording replacement':
+                    os.remove(model)  # Recordings accept native model text only; do not embed the foreign fixture.
+                    target = make_recording(binary, args.ode,
+                        [{'cmd':'file', 'op':'put', 'name':'saved.dat', 'data':base64.b64encode(b'new').decode()}], folder)
+                    with open(saved, 'wb') as f: f.write(b'keep')
+                if mode in ('server', 'server yes'):
+                    server = Server(binary, target, run=folder, env=env, extra_args=['--yes'] if mode == 'server yes' else [])
+                    try:
+                        events, event = server.collect(lambda e: e.get('ev') in ('ask', 'idle'))
+                        expected_kind = 'string' if case == 'name' else 'choice'
+                        valid_ask = bool(event) and ((event.get('ev') == 'idle') if mode == 'server yes' or case == 'recording replacement' else (event.get('ev') == 'ask' and event.get('kind') == expected_kind))
+                        if case != 'recording replacement' and mode == 'server' and valid_ask:
+                            server.send(cmd='answer', id=event['id'], **({'value':'and_'} if case == 'name' else {'key':'o' if case == 'outside path' else 'y'}))
+                            later, _ = server.collect(is_idle)
+                            events += later
+                        if case == 'recording replacement':
+                            server.send(cmd='play', op='start')
+                            _, finished = server.collect(lambda e: e.get('ev') == 'state' and e.get('player', {}).get('step') == 1)
+                            valid_ask = bool(finished) and file_bytes(server, 'saved.dat') == b'new'
+                        ok = valid_ask and (open(saved, 'rb').read() == b'keep' if case == 'recording replacement' else any(e.get('ev') == 'state' for e in events))
+                        detail = str(events)[-500:]
+                    finally:
+                        server.close()
+                    if mode == 'server yes' and case != 'recording replacement':
+                        ok = ok and '(answered automatically)' in ''.join(server.log) and not any(e.get('ev') == 'ask' for e in events)
+                else:
+                    flags = ['--check'] if mode == 'check' else ['--silent'] + (['--yes'] if mode == 'yes' else [])
+                    answer = ('and_\n' if case == 'name' else 'o\n' if case == 'outside path' else 'y\n') if mode in ('stdin', 'check') else ''
+                    result = subprocess.run([binary, target, *flags], cwd=folder, env=dict(os.environ, **env), input=answer,
+                                            capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
+                    expected = 0 if mode in ('stdin', 'yes') or (mode == 'check' and case == 'conversion replacement') else 2 if mode == 'check' else 1
+                    ok = result.returncode == expected
+                    if mode == 'check':
+                        ok = ok and '(60 s)' not in result.stderr and '(answered automatically)' not in result.stderr and not os.path.exists(os.path.join(folder, 'output.dat'))
+                        if case != 'recording replacement':
+                            diagnostic = json.loads(result.stdout)
+                            ok = ok and isinstance(diagnostic.get('diagnostics'), list)
+                        if case == 'name': ok = ok and not os.path.exists(converted)
+                    elif mode == 'yes':
+                        ok = ok and '(answered automatically)' in result.stderr and '(60 s)' not in result.stderr
+                    else:
+                        ok = ok and '(60 s)' in result.stderr
+                    detail = result.stderr + result.stdout[:500]
+                if case == 'name' and mode in ('server', 'server yes', 'stdin', 'yes'):
+                    ok = ok and 'par and_ = 1' in open(converted).read()
+                if case == 'conversion replacement':
+                    changed = open(converted, 'rb').read() != keep
+                    ok = ok and changed == (mode in ('server', 'server yes', 'stdin', 'yes'))
+                if case == 'recording replacement':
+                    ok = ok and open(saved, 'rb').read() == (b'new' if mode in ('stdin', 'yes') else b'keep')
+                if case == 'outside path':
+                    prefs = os.path.join(env['XPP_CONFIG_DIR'], 'preferences.setx')
+                    ok = ok and (not os.path.exists(prefs) or table not in open(prefs, encoding='utf-8').read().replace('\\', '/'))
+                check('W304: %s / %s' % (case, mode), ok, detail)
+        # The converter's write-only replacement has terminal policies; there is no server command for it.
+        for mode, flags, answer in [('stdin', [], 'y\n'), ('yes', ['--yes'], ''), ('eof', [], '')]:
+            model = os.path.join(root, 'convert.ode')
+            converted = model[:-4] + '.odex'
+            with open(model, 'w') as f: f.write("x'=-x\ndone\n")
+            with open(converted, 'wb') as f: f.write(b'keep')
+            result = subprocess.run([binary, '--convert', model, *flags], input=answer, capture_output=True,
+                                    text=True, encoding='utf-8', timeout=90 * SLOW)
+            check('W304: converter replacement / ' + mode,
+                  result.returncode == (1 if mode == 'eof' else 0) and (open(converted, 'rb').read() != b'keep') == (mode != 'eof')
+                  and ('(answered automatically)' in result.stderr if mode == 'yes' else '(60 s)' in result.stderr), result.stderr)
+    print('W304 question matrix: %d checks (4 questions x 5 modes + 4 server --yes + 3 converter replacements)' % (check.checks - before_checks))
+
+check_question_policy()
 
 def check_keymap():
     """W211, docs/protocol.md "Keymap": keymap.json is one file in the config folder; hello carries its

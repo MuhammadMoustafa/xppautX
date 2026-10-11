@@ -244,17 +244,6 @@ int j_new_string(std::string_view name, std::string &value, int kind)
     return j_dialog("", name, value, "Ok", "Cancel", kind);
 }
 
-int j_yes_no_box(void)
-{
-    Buf b;
-    int id = ask_begin(&b, "choice");
-    BUF_LIT(&b, ",\"question\":\"Are you sure?\",\"choices\":[\"Yes\",\"No\"],\"keys\":\"yn\"");
-    if (!ask_wait(&b, id)) return 0;
-    std::string k;
-    get_string(answer.c_str(), "key", k);
-    return k[0] == 'y';
-}
-
 int j_choose(std::string_view title, std::string_view q, std::span<const std::string> choices, std::string_view keys,
              char)
 {
@@ -272,13 +261,6 @@ int j_choose(std::string_view title, std::string_view q, std::span<const std::st
     if (!ask_wait(&b, id)) return 0;
     get_string(answer.c_str(), "key", k);
     return static_cast<unsigned char>(k[0]);
-}
-
-int j_two_choice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key,
-                 std::string_view title)
-{
-    const std::array<std::string, 2> choices{std::string(c1), std::string(c2)};
-    return j_choose(title, q, choices, key, 0);
 }
 
 void j_respond_box(std::string_view button, std::string_view message)

@@ -11,6 +11,7 @@
 #include "model.h"
 #include "expr.h"
 #include "xpp_batch.h"
+#include "xpp_ui.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "session.h"
@@ -218,6 +219,19 @@ double constant(const char *name)
 
 int main(void)
 {
+  xpp::batch_options.yes = true; /* Conversion fixtures accept the UI owner's suggested names. */
+  /* --check wins over --yes for every question kind, without changing entries. */
+  xpp::batch_options.check = true;
+  std::string suggestion = "kept";
+  CHECK(xpp::new_string("name", suggestion) == 0);
+  CHECK(suggestion == "kept");
+  CHECK(!xpp::confirm("replace?"));
+  CHECK(xpp::file_selector("file", suggestion, "*") == 0);
+  CHECK(suggestion == "kept");
+  const std::array<std::string, 2> answers{"Allow", "Refuse"};
+  CHECK(xpp::Choose("path", "permission?", answers, "ar", 'a') == 0);
+  xpp::batch_options.check = false;
+
   /* numbers */
   CHECK_STR(parsed(".5").c_str(), ".5");
   CHECK(expression(".5").value == 0.5);
@@ -606,7 +620,7 @@ int main(void)
     CHECK(constant("a") == 1 && constant("b") == 2 && constant("n") == 3);
     CHECK(xpp::client_session().model().nupar == 2);
     CHECK(xpp::client_session().model().files.front().bytes.find("# some words") != std::string::npos);
-    const std::string converted=*xpp::odex::convert_text("build/test_odex_model.ode", true, xpp::odex::Ask());
+    const std::string converted=*xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(converted.find("# some words\\ ignored continuation") != std::string::npos);
     CHECK(converted.find("# another comment") != std::string::npos);
     CHECK(model_error(converted.c_str()).empty());
@@ -631,7 +645,7 @@ int main(void)
 
   /* --convert: what the .ode's reader understood, its quirks explicit */
   {
-    const xpp::Result<std::string> converted = xpp::odex::convert_text("tools/models/odex_quirks.ode", true, {});
+    const xpp::Result<std::string> converted = xpp::odex::convert_text("tools/models/odex_quirks.ode");
     CHECK(converted.has_value());
     const std::string text = converted ? *converted : "";
     auto has = [&text](const char *line) {
@@ -674,7 +688,7 @@ int main(void)
                     "aux g=1/a\naux z=1/0\naux k=1/c\naux q=1/(x*x+1)\n"
                     "aux e=1/exp(x)\naux ep=1/exp(x*x)\naux ss=sum(1,4)of(1/(i'*i'))\n"
                     "aux uu=sum(0,4)of(1/(i'*i'))\ndone\n", "ode") == 1);
-    const auto result = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    const auto result = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
     CHECK(text.find("aux g = 1/ode_divisor(a)") != std::string::npos);
@@ -691,27 +705,27 @@ int main(void)
   /* W175: the .ode and conversion share checked solver names and keys. */
   {
     CHECK(load_text("x'=-x\ny'=x\n@ meth=modeuler, total=1\ndone\n", "ode") == 1);
-    const auto result = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    const auto result = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
     CHECK(text.find("numerics: { method: modified_euler, total_time: 1 }") != std::string::npos);
     CHECK(text.find("first letter") == std::string::npos);
     CHECK(load_text("x'=-x\ny'=x\n@ meth=symplectic\n@ total=2\n@ meth=euler\ndone\n", "ode") == 1);
-    const auto later = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    const auto later = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(later && later->find("numerics: { method: euler, total_time: 2 }") != std::string::npos);
   }
 
   /* W167: keep ignored, spaced @ words visible in the conversion note. */
   {
     CHECK(load_text("x'=0\n@ total=7 dt=.5\n@ parmin = -.2 parmax = .5\ndone\n", "ode") == 1);
-    const auto result = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    const auto result = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
     CHECK(text.find("numerics: { total_time: 7, dt: .5 }") != std::string::npos);
     CHECK(text.find("# @ parmin = -.2 parmax = .5 in the .ode: XPP ignores an option with spaces around its =, so parmin, parmax keep their values") != std::string::npos);
     CHECK(text.find("XPP ignores an option") == text.rfind("XPP ignores an option"));
     CHECK(load_text("x'=0\n@ total=7 dt=.5\ndone\n", "ode") == 1);
-    const auto clean = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    const auto clean = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(clean.has_value());
     CHECK(clean && clean->find("XPP ignores an option") == std::string::npos);
   }
@@ -729,17 +743,17 @@ int main(void)
     xpp::set_val(xpp::client_session(), "A", 0);
     CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().model().programs[0].rpn.data()) == 1/xpp::expr::ZERO_DIVISOR);
     CHECK(load_text("par ode_divisor=2\nx'=1/x\ndone\n", "ode") == 1);
-    const auto collision = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    const auto collision = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(collision && collision->find("fun ode_divisor_(value)") != std::string::npos);
     CHECK(load_text("x'=0\naux nested=sum(1,2)of(sum(0,0)of(i')+1/(i'*i'))\ndone\n", "ode") == 1);
-    const auto nested = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    const auto nested = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(nested && nested->find("+1/ode_divisor(i'*i')") != std::string::npos);
   }
 
   {
     /* Function tables evaluate at load, including forward guard calls. */
     CHECK(load_text("table tab % 3 -1 1 exp(t/a)\npar a=2\nx'=0\n@ dt=.1 total=1\ndone\n", "ode") == 1);
-    const auto table = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    const auto table = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(table && table->find("table tab exp(t/ode_divisor(a))") != std::string::npos);
     CHECK(table && table->find("numerics: { dt: .1, total_time: 1 }") != std::string::npos);
   }
@@ -749,7 +763,7 @@ int main(void)
      parameter changes */
   {
     CHECK(load_text("par a=1\n!d=x*a\nx'=d\n", "ode") == 0);
-    const xpp::Result<std::string> converted = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    const xpp::Result<std::string> converted = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(!converted && starts(converted.error().what, "!d = x*a reads t, a variable, a random function or a derived quantity after it"));
   }
 
