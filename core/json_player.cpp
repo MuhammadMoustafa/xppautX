@@ -468,16 +468,10 @@ bool output_write(std::string_view path, bool opening, int kind)
         j_command_error("save", xpp::format("{} is not a plain file name in the launch folder", path));
         quit_session();
     }
-    if (opening && kind == XPP_FILES_OK) {
-        const std::string question = xpp::format("{} exists. Replace it?", path);
-        if (xpp::batch_options.yes) xpp::report_automatic(question, "yes");
-        else {
-            const auto answer = xpp::ask_terminal(question, "y/N");
-            if (!answer || (!xpp::equal_ignoring_case(*answer, "y") && !xpp::equal_ignoring_case(*answer, "yes"))) {
-                j_command_error("save", xpp::format("{} already exists; replace not confirmed (--yes replaces)", path));
-                quit_session();
-            }
-        }
+    if (opening && kind == XPP_FILES_OK
+        && !xpp::confirm_terminal(xpp::format("{} exists. Replace it?", path), xpp::batch_options.yes)) {
+        j_command_error("save", xpp::format("{} already exists; replace not confirmed (--yes replaces)", path));
+        quit_session();
     }
     return true;
 }

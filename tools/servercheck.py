@@ -6579,7 +6579,7 @@ def check_terminal_playback():
         result = play()
         check('W144: closed stdin refuses replacement once at the step and plays nothing after it',
               result.returncode == 1 and open(saved, 'rb').read() == b'keep' and not os.path.exists(after)
-              and 'saved.dat exists. Replace it? [y/N] (60 s)' in result.stderr
+              and 'saved.dat exists. Replace it? [no] (60 s)' in result.stderr
               and 'saved.dat already exists; replace not confirmed (--yes replaces)' in result.stderr
               and result.stderr.count(path + ':') == 1, result.stderr)
         result = play('y\n')
@@ -6636,7 +6636,7 @@ def check_conversion_modes():
     binary = os.path.abspath(args.server)
     asked = '`and` is a reserved word in .odex; its new name'
     printed = asked + ' -> and_ (answered automatically)'
-    replaced = 'foreign.odex exists; replace it (yes/no) -> yes (answered automatically)'
+    replaced = 'foreign.odex exists; replace it -> yes (answered automatically)'
     differs = 'differs from the conversion of foreign.ode; replace it -> yes (answered automatically)'
     with tempfile.TemporaryDirectory(prefix='xppconvert') as d:
         ode = os.path.join(d, 'foreign.ode')

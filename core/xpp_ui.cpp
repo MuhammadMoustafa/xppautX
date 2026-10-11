@@ -62,6 +62,16 @@ void report_automatic(std::string_view question, std::string_view answer)
     log(XPP_LOG_WARN, "{} -> {} (answered automatically)\n", question, answer);
 }
 
+bool confirm_terminal(const std::string &question, bool yes)
+{
+    if (yes) {
+        report_automatic(question, "yes");
+        return true;
+    }
+    const std::optional<std::string> answer = ask_terminal(question, "no");
+    return answer && (equal_ignoring_case(*answer, "y") || equal_ignoring_case(*answer, "yes"));
+}
+
 /* ---- headless defaults ------------------------------------------------ */
 
 static void hl_err_msg(const Error &e) { log(XPP_LOG_ERROR, "{}\n", e.text()); }

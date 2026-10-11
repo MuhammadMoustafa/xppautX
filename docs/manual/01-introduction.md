@@ -209,7 +209,7 @@ loads the recording's snapshot, plays its steps without an interface,
 and exits 0 when they played cleanly or 1 otherwise. Recorded aborts stop
 at their exact row or AUTO point (docs/protocol.md "Playing a recording
 without an interface"). Its plain-name output files remain in the current
-folder. Existing files ask `NAME exists. Replace it? [y/N] (60 s)`; a line
+folder. Existing files ask `NAME exists. Replace it? [no] (60 s)`; a line
 on the terminal or piped stdin answers. EOF or timeout refuses replacement
 and stops playback with exit 1. `--yes` replaces them without asking.
 

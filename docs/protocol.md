@@ -732,7 +732,7 @@ JSON nesting and snapshot archive expansion retain their reader limits.
 Reads use the recording's embedded files. Silent playback keeps its output
 in the current folder where the command was launched, under plain base
 names only: no paths, subfolders or links, including the initial model load.
-An existing file asks the terminal `NAME exists. Replace it? [y/N] (60 s)`.
+An existing file asks the terminal `NAME exists. Replace it? [no] (60 s)`.
 The shared terminal question helper reads a line from a console or pipe;
 end of input or the 60-second deadline means no answer. Without confirmation,
 playback stops at that step, exits 1, names the file and recording step,

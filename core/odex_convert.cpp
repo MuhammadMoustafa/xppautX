@@ -1712,13 +1712,8 @@ Result<bool> open_ode(const std::string &ode, bool silent, bool yes, const std::
     if (!xpp::read_bytes(out, existing)) return xpp::fail_reading("convert", "cannot be read", out);
     if (xpp::split_lines(existing) == xpp::split_lines(*text)) return false; /* the same text: opened as it is */
     if (silent) {
-      const std::string question = xpp::format("{} differs from the conversion of {}; replace it", out, ode);
-      if (yes) xpp::report_automatic(question, "yes");
-      else {
-        const std::optional<std::string> answer = xpp::ask_terminal(question, "no");
-        if (!answer || (*answer != "yes" && *answer != "y"))
-          return xpp::fail_reading("convert", xpp::format("differs from the conversion of {}; neither file was changed (--yes replaces it)", ode), out);
-      }
+      if (!xpp::confirm_terminal(xpp::format("{} differs from the conversion of {}; replace it", out, ode), yes))
+        return xpp::fail_reading("convert", xpp::format("differs from the conversion of {}; neither file was changed (--yes replaces it)", ode), out);
     } else {
       const int choice = xpp::file_replace_choice(true);
       if (choice == 'n') return false;
@@ -1739,15 +1734,8 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
   Result<> written;
   if (!text) written = std::unexpected(text.error());
   else {
-    if (xpp::files::exists(out)) {
-      const std::string question = out + " exists; replace it (yes/no)";
-      if (auto_answer) xpp::report_automatic(question, "yes");
-      else {
-        const std::optional<std::string> answer = ask ? ask(question, "no") : std::nullopt;
-        if (!answer || (*answer != "yes" && *answer != "y"))
-          written = xpp::fail_reading("convert", "exists and was left as it is (--yes replaces it)", out);
-      }
-    }
+    if (xpp::files::exists(out) && !xpp::confirm_terminal(out + " exists; replace it", auto_answer))
+      written = xpp::fail_reading("convert", "exists and was left as it is (--yes replaces it)", out);
     if (written) written = write_conversion(out, *text);
   }
   if (!written) {

@@ -418,7 +418,7 @@ The recording starts from its saved snapshot and plays without an interface;
 exit 0 means every step played cleanly, exit 1 means a failure. Recorded
 interruptions stop at the exact row or AUTO point (W144, #196). Plain-name
 outputs remain in the current folder. Existing files ask the terminal
-`NAME exists. Replace it? [y/N] (60 s)`; EOF or timeout stops playback with
+`NAME exists. Replace it? [no] (60 s)`; EOF or timeout stops playback with
 exit 1 without replacing the file. Piped input can answer; `--yes`
 replaces existing outputs without asking.
 

@@ -106,6 +106,9 @@ std::optional<std::string> ask_terminal(const std::string &question, const std::
 /* Every answer taken without asking (-y / --yes, a recording's answer in
    --silent) is printed through this: the question and the answer taken. */
 void report_automatic(std::string_view question, std::string_view answer);
+/* A yes/no terminal question, no unless answered y or yes; with yes
+   (-y / --yes) answered yes without asking, and printed. */
+bool confirm_terminal(const std::string &question, bool yes);
 void flash(int num);
 int menu_choose(const struct XppMenu *m, int def);
 /* A choice among names (named parameter sets, tables, frozen curves): the
