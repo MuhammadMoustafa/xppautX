@@ -7255,7 +7255,9 @@ def check_outside_paths():
             f.write(chr(10).join(['table w "' + path + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0',
                                   'options { numerics: { total_time: 4 } }', '']))
         return full
-    kept = lambda: open(prefs, encoding='utf-8').read() if os.path.exists(prefs) else ''
+    # the preferences keep the resolved path, on Windows with backslashes (written \\): read them as / to
+    # compare with the path as the model names it
+    kept = lambda: open(prefs, encoding='utf-8').read().replace('\\\\', '/') if os.path.exists(prefs) else ''
     is_hello = lambda e: e.get('ev') == 'hello'
     try:
         model = model_with(table, 'tab.odex')
