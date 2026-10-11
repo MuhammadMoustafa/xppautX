@@ -81,6 +81,7 @@ typedef struct XppDiagPoint {
     int node;      /* its entry in AUTO's diagram list (DIAGRAM.index) */
     int from;      /* the label the run that computed it started from, on
                       the run's first point only (0 otherwise, or unknown) */
+    int jacobian;  /* the Jacobian of the run that computed it (DIAGRAM.jacobian) */
     double x, y1, y2;
 } XppDiagPoint;
 

@@ -4237,6 +4237,12 @@ def check_auto_jacobian_failure():
             info = [e['stop'] for e in went if e.get('ev') == 'autoinfo' and e.get('stop')]
             check('W275: sending them takes the branch on, past the failure (a below 0.5) to Par Min, with no error',
                   not errs and xs and min(xs) < 0.4 and info and info[-1].get('why') == 'parmin', '%s %s %s' % (errs, xs[-3:], info))
+            branch_jacobians = lambda evs: sorted({(run['br'], run['jac']) for e in evs if e.get('ev') == 'diagram' and e.get('op') == 'add'
+                                                   for run in e['runs']})
+            first = branch_jacobians(evs)
+            second = branch_jacobians(went)
+            check('W278: each run of the diagram says how its Jacobian was formed: the run with the exact Jacobian exact, the restart after the switch difference (one branch, two runs)',
+                  first == [(1, 'exact')] and second == [(1, 'difference')], '%s %s' % (first, second))
             snd(cmd='record', op='stop', name='click.recx')
             col(is_idle)
             replay = replay_recording(args.server, model, os.path.join(r, 'click.recx'), r)
@@ -4244,6 +4250,16 @@ def check_auto_jacobian_failure():
             points = sum(len(run['x']) for e in replayed if e.get('ev') == 'diagram' and e.get('op') == 'add' for run in e['runs'])
             check('W275: a recording made with the click replays to the same diagram (the run stopped where it did, the restart from its label)',
                   points == before + len(xs), '%d %d %s' % (points, before + len(xs), replay.stderr[-300:]))
+            snd(cmd='session', op='save', name='jac')
+            col(is_idle)
+            snd(cmd='open', file='jac.snapx')
+            reopened, ask = col(lambda e: is_idle(e) or is_ask(e), timeout=60 * SLOW)
+            if is_ask(ask or {}):
+                snd(cmd='answer', id=ask['id'], key='d')  # the question to save this session first: don't
+                more, _ = col(is_idle, timeout=60 * SLOW)
+                reopened += more
+            check("W278: a saved and reopened session keeps each run's Jacobian",
+                  branch_jacobians(reopened) == sorted(first + second), '%s %s' % (first + second, branch_jacobians(reopened)))
         finally:
             p.stdin.close()
             p.wait(timeout=10 * SLOW)

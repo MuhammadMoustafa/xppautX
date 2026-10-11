@@ -13,6 +13,7 @@
 #include "session.h"
 #include "model.h"
 #include "diagram.h"
+#include "jacobian.h"
 #include "auto_nox.h"
 #include "auto_c.h"
 #include "auto_settings.h"
@@ -72,7 +73,7 @@ bool same_point(const DiagramPoint &a, const DiagramPoint &b)
 {
     const xpp::DIAGRAM &x = a.d, &y = b.d;
     if (x.calc != y.calc || x.ibr != y.ibr || x.ntot != y.ntot || x.itp != y.itp || x.lab != y.lab || x.nfpar != y.nfpar ||
-        x.icp1 != y.icp1 || x.icp2 != y.icp2 || x.icp3 != y.icp3 || x.icp4 != y.icp4 || x.flag2 != y.flag2 || x.from != y.from)
+        x.icp1 != y.icp1 || x.icp2 != y.icp2 || x.icp3 != y.icp3 || x.icp4 != y.icp4 || x.flag2 != y.flag2 || x.from != y.from || x.jacobian != y.jacobian)
         return false;
     if (!same_bits(x.norm, y.norm) || !same_bits(x.per, y.per) || !same_bits(x.torper, y.torper)) return false;
     for (int i = 0; i < 20; i++)
@@ -112,6 +113,7 @@ std::deque<DiagramPoint> points_of(int k, int n)
         d.icp4 = 3;
         d.flag2 = p % 2;
         d.from = p == 1 ? 7 : 0;
+        d.jacobian = p / 4 == 1 ? xpp::JACOBIAN_EXACT : xpp::JACOBIAN_DIFFERENCE; /* one branch of each kind */
         for (double &x : q.d.par) x = awk(v++);
         for (std::vector<double> *a : {&q.u0, &q.uhi, &q.ulo, &q.ubar, &q.evr, &q.evi}) {
             a->resize(n);
@@ -214,7 +216,7 @@ void check_diagram_csv()
     const std::vector<std::string> vars = {"v", "w", "long_name_of_a_variable"};
     const std::deque<DiagramPoint> pts = points_of(7, 3);
     const std::string csv = xpp::snapx::auto_members::diagram_csv(pts, vars);
-    CHECK(csv.starts_with("calc,ibr,ntot,itp,lab,nfpar,icp1,icp2,icp3,icp4,flag2,from,norm,per,torper,par1,"));
+    CHECK(csv.starts_with("calc,ibr,ntot,itp,lab,nfpar,icp1,icp2,icp3,icp4,flag2,from,jacobian,norm,per,torper,par1,"));
     CHECK(csv.find(",u0.long_name_of_a_variable,") != std::string::npos && csv.find(",evi3\n") != std::string::npos);
     const xpp::Result<std::deque<DiagramPoint>> back = xpp::snapx::auto_members::parse_diagram_csv(csv, 3, "diagram.csv");
     CHECK(back && same_diagram(*back, pts)); /* bit for bit */
@@ -224,6 +226,16 @@ void check_diagram_csv()
     bad.back() = ',';
     const xpp::Result<std::deque<DiagramPoint>> long_row = xpp::snapx::auto_members::parse_diagram_csv(bad + "1\n", 3, "diagram.csv");
     CHECK(!long_row && long_row.error().place.line == static_cast<int>(pts.size()) + 1); /* a row too long, at its line */
+    /* a jacobian that is neither setting, at its line; a diagram without the column (saved before W278) */
+    std::string wrong = csv;
+    std::size_t at = csv.find('\n') + 1; /* the first row: its 13th field is the jacobian */
+    for (int commas = 0; commas < 12; at++) commas += csv[at] == ',';
+    wrong.replace(at, csv.find_first_of(",\n", at) - at, "2");
+    const xpp::Result<std::deque<DiagramPoint>> bad_jacobian = xpp::snapx::auto_members::parse_diagram_csv(wrong, 3, "diagram.csv");
+    CHECK(!bad_jacobian && bad_jacobian.error().place.line == 2 && bad_jacobian.error().text().find("jacobian 2") != std::string::npos);
+    const std::size_t column = csv.find("jacobian,");
+    const xpp::Result<std::deque<DiagramPoint>> old = xpp::snapx::auto_members::parse_diagram_csv(csv.substr(0, column) + csv.substr(column + 9), 3, "diagram.csv");
+    CHECK(!old && old.error().place.line == 1);
 }
 
 bool write_file(const std::string &path, std::string_view bytes)

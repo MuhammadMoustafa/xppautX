@@ -118,6 +118,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   p.icp3=icp3;
   p.icp4=icp4;
   p.flag2=s.auto_state.two_param;
+  p.jacobian=s.numerics.jacobian;
   if(s.auto_state.diag_flag==0){
     edit_start(s,p,n);
     s.auto_state.diag_flag=1;

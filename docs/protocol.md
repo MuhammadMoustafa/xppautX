@@ -1139,6 +1139,7 @@ continues in), and a grab's point by its data.
 | `c`, `lw` | colour (the core's colour index: 0 the foreground, 20..29 red .. purple) and line width |
 | `new` | 1: the run's first point starts a new line (no line back) |
 | `from` | the label the continuation that computed the run's first point started from (Auto.irs: the point Grab took), on the first point of such a continuation only; absent otherwise, and for a diagram loaded from a file or computed before AUTO kept it. A periodic branch's `from` names the Hopf point it bifurcates from |
+| `jac` | how the Jacobian of the AUTO run that computed the run was formed: `difference` (XPPAUT's forward differences) or `exact` (the Numerics' Jacobian at that run, W278); a run never joins one with another setting, so one diagram can hold both |
 | `x`, `y` | the values, one per point (`null` for NaN) |
 | `y2` | the second value (the minimum, for hi and lo), when it differs from `y` anywhere in the run |
 | `lab` | [[index in the run, label, type (`EP`, `LP`, `HB`, `BP`, `PD`, `TR`, `UZ`, `MX`)], ...] for the labelled points (XPP marks them with a cross at y and y2, the number beside it) |
@@ -1180,6 +1181,7 @@ core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
 | `info` | the point the strip shows: the one a grab's cursor is on (the strip changes only while grabbing); `null` before a grab, and in a new AUTO window |
 | `info.point` | its index in the `diagram` data (the points the client holds, the same index in every view), -1 when they do not have it (after Clear, or a load not drawn yet) |
 | `info.br`, `pt`, `type`, `sym`, `lab`, `f2` | branch and point number (positive, as in `diagram`), `type` as a run's `ty` (1 stable steady state .. 4 unstable periodic, with `stable` and `periodic` as a run's), the label's type (`EP`, `LP`, `HB`, ... or empty), the label (0 for none), and for a two-parameter point its curve kind as `f2` |
+| `info.jac` | `difference` or `exact`: the Jacobian setting of the run that computed the point (as a run's `jac`) |
 | `info.par` | the continuation parameter's `name` and `value`, and the second parameter's for a two-parameter point (the strip then shows both; for a one-parameter point it shows a blank name and 0) |
 | `info.norm`, `var`, `u`, `per` | the norm, the variable of the Axes setting and its value, the period (AUTO's value for a steady state too: what the strip prints) |
 | `info.x`, `y`, `y2` | where the active view plots the point, in the quantities of its axes (another view's are its own `diagram` data's point `info.point`) |
@@ -1592,7 +1594,7 @@ is a zip of ordinary files, in this order:
 | `session.txt` | the manifest: `xppautX session 1`, then `name` (the model's own file, as the model names it), `anifile` (the animation `--anifile` loaded, one of the model's files; only when there is one), `data` (1 when `data.npz` is there), one `key value` line each |
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `--anifile`'s animation; byte for byte |
 | `model.set` | the set format (values, numerics, delays, boundary conditions, the active window's graphics, W147: no longer a file a user saves or opens), ending at its last value (XPPAUT's set file, which File/Import XPPAUT set and `--setfile` read, has its model's equations after it, `RHS etc ...`, written for a reader; a session's has none, W145): the original XPPAUT reads it |
-| `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's settings and views; full-precision diagram and restart orbits when a diagram exists (xpp_session_auto.h) |
+| `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's settings and views; full-precision diagram and restart orbits when a diagram exists (xpp_session_auto.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
 | `windows.set` | every plot window (its variables by name, labels, `# Graphics` block, zoom and earlier-runs toggle), which is active, AUTO's hidden branches (`autoview`'s `earlier` and `show`), the browser's added columns; set-file lines, a value and its name |
 | `marks.set` | the text labels (window, position, size, font, style, colour, text; each value checked, a text 1 to 1000 characters, at most 50), arrows and markers, and the frozen curves' settings, per window. A file from before W227 has no style and colour lines in its labels and is refused at the line that should hold them |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |

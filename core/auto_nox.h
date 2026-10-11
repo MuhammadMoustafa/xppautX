@@ -72,6 +72,7 @@ typedef struct diagram {
   int index,nfpar;
   int icp1,icp2,icp3,icp4,flag2;
   int from; /* the label its run started from, on a run's first point (not saved in files) */
+  int jacobian; /* how the run that computed it formed the Jacobian: JACOBIAN_DIFFERENCE or JACOBIAN_EXACT (jacobian.h, W278) */
 } DIAGRAM;
 
 /* a view of the diagram's axes (W50, AutoState::views): what it plots

@@ -34,6 +34,8 @@ back). It has:
   period, or both parameters of a two-parameter diagram), then Norm, the
   plotted variable and the period that were not already shown as an axis,
   then the remaining parameters, a second parameter not on an axis last,
+  and the Jacobian the point's run was computed with (difference or exact:
+  a diagram can hold branches of both),
   and the eigenvalues/multipliers ("not
   computed at this point" for a run's first point: AUTO computes them
   from its second point on. The exception is a run that restarts from a

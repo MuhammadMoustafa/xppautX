@@ -34,6 +34,9 @@ export interface DiagramAxes {
   ylabel: string;
 }
 
+/** the numerics' Jacobian setting (`set num jacobian`) */
+export type Jacobian = 'difference' | 'exact';
+
 /** one run of an `add`: points sharing branch, kind and style */
 export interface DiagramRun {
   br: number;
@@ -49,6 +52,8 @@ export interface DiagramRun {
   new?: number;
   /** the label the run that computed its first point started from */
   from?: number;
+  /** how the run that computed it formed the Jacobian (W278) */
+  jac: Jacobian;
   x: (number | null)[];
   y: (number | null)[];
   y2?: (number | null)[];
@@ -112,6 +117,8 @@ export interface AutoInfo {
   sym: string;
   lab: number;
   f2?: number;
+  /** how the run that computed the point formed the Jacobian */
+  jac: Jacobian;
   /** the continuation parameter, and the second one of a two-parameter point */
   par: {name: string; value: number | null}[];
   norm: number | null;

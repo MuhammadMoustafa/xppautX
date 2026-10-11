@@ -7,6 +7,7 @@
 #include "menus.h"
 #include "mykeydef.h"
 #include "diagram.h"
+#include "jacobian.h"
 #include "auto_data.h"
 #include "auto_settings.h"
 #include "json_number.h"
@@ -88,7 +89,7 @@ int diag_same(const XppDiagPoint *a, const XppDiagPoint *b)
 {
     return a->ibr == b->ibr && a->pt == b->pt && a->itp == b->itp && a->lab == b->lab && a->type == b->type &&
            a->flag2 == b->flag2 && a->draw == b->draw && a->newseg == b->newseg && a->color == b->color &&
-           a->lw == b->lw && a->from == b->from && std::memcmp(&a->x, &b->x, sizeof a->x) == 0 && std::memcmp(&a->y1, &b->y1, sizeof a->y1) == 0 &&
+           a->lw == b->lw && a->from == b->from && a->jacobian == b->jacobian && std::memcmp(&a->x, &b->x, sizeof a->x) == 0 && std::memcmp(&a->y1, &b->y1, sizeof a->y1) == 0 &&
            std::memcmp(&a->y2, &b->y2, sizeof a->y2) == 0;
 }
 
@@ -178,6 +179,7 @@ void diag_run(Buf *b, const std::vector<XppDiagPoint> &dg, int i, int j)
     if (p->flag2) buf_format(b, ",\"f2\":{:d}", p->flag2);
     if (p->newseg) BUF_LIT(b, ",\"new\":1");
     if (p->from) buf_format(b, ",\"from\":{:d}", p->from);
+    buf_format(b, ",\"jac\":\"{}\"", xpp::jacobian_names[static_cast<std::size_t>(p->jacobian)]);
     BUF_LIT(b, ",\"x\":[");
     for (k = i; k <= j; k++) {
         if (k > i) BUF_LIT(b, ",");
@@ -242,7 +244,7 @@ int diag_points_held(const xpp::Session &s) { return active_data(s).n; }
 int diag_joins(const XppDiagPoint *a, const XppDiagPoint *b)
 {
     return !b->newseg && !b->from && std::abs(a->ibr) == std::abs(b->ibr) && std::abs(b->pt) == std::abs(a->pt) + 1 && a->type == b->type &&
-           a->draw == b->draw && a->color == b->color && a->lw == b->lw && a->flag2 == b->flag2;
+           a->draw == b->draw && a->color == b->color && a->lw == b->lw && a->flag2 == b->flag2 && a->jacobian == b->jacobian;
 }
 
 /* what view v's client list lacks */

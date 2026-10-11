@@ -104,13 +104,15 @@ def run_menu(s, key, timeout=60 * SLOW):
 
 
 def grab_hopf(s):
-    """Grab, Tab to the first label, take it"""
+    """Grab, Tab to the first label, take it; the events"""
     s.send(cmd='key', win='auto', key='g')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='Tab')
-    evs, ask = s.collect(is_ask)
+    more, ask = s.collect(is_ask)
+    evs += more
     s.send(cmd='answer', id=ask['id'], key='Return')
-    s.collect(is_idle)
+    more, _ = s.collect(is_idle)
+    return evs + more
 
 
 class Diagram:
@@ -572,14 +574,20 @@ def hello_title(evs):
     return h[-1].get('title', '') if h else None
 
 
-def lecar_diagram(s):
+def lecar_diagram(s, events=None):
     """steady state, grab the first label, a periodic branch, File/Save
-    diagram; returns the .snapx's diagram.csv (None if not written)"""
+    diagram; returns the .snapx's diagram.csv (None if not written); with
+    a list as events, the autoinfo and diagram events are appended to it"""
     s.collect(is_idle)
+    if events is not None:
+        s.send(cmd='data', events=['autoinfo'])
+        s.collect(is_idle)
     open_auto(s)
-    run_menu(s, 's')
-    grab_hopf(s)
-    run_menu(s, 'p', timeout=120 * SLOW)
+    evs = run_menu(s, 's')
+    evs += grab_hopf(s)
+    evs += run_menu(s, 'p', timeout=120 * SLOW)
+    if events is not None:
+        events += evs
     return save_diagram(s, 'diagram.snapx').get('auto/diagram.csv')
 
 
@@ -656,11 +664,12 @@ def section_jacobian():
             text = f.read()
         with open(exact, 'w') as f:
             f.write(text.replace('numerics: {', 'numerics: { jacobian: exact,', 1))
-        diagrams = {}
+        diagrams, events = {}, {}
         for name, ode in (('difference', LECAR), ('exact', exact)):
             s = Server(args.server, ode, verbose=args.v)
             start = time.monotonic()
-            diagrams[name] = lecar_diagram(s)
+            events[name] = []
+            diagrams[name] = lecar_diagram(s, events[name])
             perf('jacobian %s: lecar steady and periodic' % name, '%.2f s' % (time.monotonic() - start))
             s.close()
         check('jacobian: both runs save their diagrams', all(diagrams.values()))
@@ -673,6 +682,15 @@ def section_jacobian():
               same and len(d) > 3, '%s\n%s' % (d, e))
         check('jacobian: and is its own computation (the diagrams are not the same bits)',
               diagrams['difference'] != diagrams['exact'])
+        # W278: every run of a diagram says how its Jacobian was formed: in the diagram data, the info
+        # strip of the grabbed point, and the saved diagram.csv's jacobian column (0 difference, 1 exact)
+        for name, code in (('difference', '0'), ('exact', '1')):
+            runs = {r['jac'] for e in events[name] if is_point(e) for r in e['runs']}
+            shown = {i['info']['jac'] for i in infos(events[name]) if i.get('info')}
+            rows = [l.split(',') for l in diagrams[name].splitlines()]
+            column = {r[rows[0].index('jacobian')] for r in rows[1:]}
+            check('jacobian: a %s diagram says so in its runs, the grabbed info and the saved diagram.csv' % name,
+                  runs == {name} and shown == {name} and column == {code}, '%s %s %s' % (runs, shown, column))
     finally:
         shutil.rmtree(model_dir, ignore_errors=True)
 

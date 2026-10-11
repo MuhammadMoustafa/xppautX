@@ -9,6 +9,7 @@
 #include "data_formats.h"
 #include "xpp_ui.h"
 #include "diagram.h"
+#include "jacobian.h"
 #include "autevd.h"
 #include "form_ode.h"
 #include <string>
@@ -49,7 +50,7 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
     const xpp::Model &m = s.model();
     if (!xpp::save_ready(s.diagram.points.size() >= 2)) return false; /* nothing recorded */
     xpp::DataTable table;
-    table.names = {"branch", "point", "type", "label", "stability", "f2", "param1_name", "param1", "param2_name", "param2", "period"};
+    table.names = {"branch", "point", "type", "label", "stability", "f2", "param1_name", "param1", "param2_name", "param2", "period", "jacobian"};
     for (int i = 0; i < m.node; i++) table.names.push_back(xpp::format("{}_max", m.uvar_names[i]));
     for (int i = 0; i < m.node; i++) table.names.push_back(xpp::format("{}_min", m.uvar_names[i]));
     table.fields.resize(table.names.size());
@@ -67,7 +68,7 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
         std::vector<std::string> row = {xpp::format("{}", unsigned_of(d->ibr)), xpp::format("{}", unsigned_of(d->ntot)),
             sym, xpp::format("{}", d->lab), xpp::point_is_stable(type) ? "stable" : "unstable",
             xpp::format("{}", d->flag2), par_name(s, d->icp1), xpp::number(par1), par_name(s, d->icp2),
-            xpp::number(par2), xpp::number(d->per)};
+            xpp::number(par2), xpp::number(d->per), std::string(xpp::jacobian_names[static_cast<std::size_t>(d->jacobian)])};
         for (int i = 0; i < m.node; i++) row.push_back(xpp::number(d->uhi[i]));
         for (int i = 0; i < m.node; i++) row.push_back(xpp::number(d->ulo[i]));
         for (std::size_t i = 0; i < row.size(); i++) table.fields[i].push_back(std::move(row[i]));

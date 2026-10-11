@@ -1246,6 +1246,7 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
   dp.itp=d.itp;
   dp.node=d.index;
   dp.from=d.from;
+  dp.jacobian=d.jacobian;
   dp.type=type;
   dp.flag2=flag2;
   dp.newseg=(flg==0);
@@ -1441,6 +1442,7 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
       ai.type=get_bif_type(ibr,pt,lab);
       ai.flag2=flag2;
       ai.node=d->index;
+      ai.jacobian=d->jacobian;
       ai.sym=symb;
       ai.p1name=s.model().upar_names[s.auto_state.par[icp1]].c_str();
       ai.p1=par1;

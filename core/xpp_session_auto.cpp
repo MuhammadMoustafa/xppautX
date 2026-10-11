@@ -1,6 +1,7 @@
 /* The session's AUTO-member serializers: see xpp_session_auto.h. */
 #include "xpp_session_auto.h"
 #include "xpp_io.h"
+#include "jacobian.h"
 
 #include <algorithm>
 #include <array>
@@ -37,9 +38,9 @@ bool parse_range(std::string_view text, xpp::AxisRange &r)
 
 /* diagram.csv's columns before the parameters: n_ints whole numbers, then
    three numbers */
-constexpr std::array<const char *, 15> lead_columns = {"calc", "ibr",  "ntot",  "itp",  "lab",  "nfpar", "icp1",  "icp2",
-                                                       "icp3", "icp4", "flag2", "from", "norm", "per",   "torper"};
-constexpr int n_ints = 12;
+constexpr std::array<const char *, 16> lead_columns = {"calc", "ibr",  "ntot",  "itp",  "lab",  "nfpar", "icp1",  "icp2",
+                                                       "icp3", "icp4", "flag2", "from", "jacobian", "norm", "per",   "torper"};
+constexpr int n_ints = 13;
 constexpr int n_pars = 20; /* DIAGRAM's par */
 
 } // namespace
@@ -193,8 +194,8 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const 
     const std::size_t n = vars.size();
     for (const DiagramPoint &p : points) {
         const DIAGRAM &d = p.d;
-        o += xpp::format("{},{},{},{},{},{},{},{},{},{},{},{}", d.calc, d.ibr, d.ntot, d.itp, d.lab, d.nfpar, d.icp1, d.icp2,
-                         d.icp3, d.icp4, d.flag2, d.from);
+        o += xpp::format("{},{},{},{},{},{},{},{},{},{},{},{},{}", d.calc, d.ibr, d.ntot, d.itp, d.lab, d.nfpar, d.icp1, d.icp2,
+                         d.icp3, d.icp4, d.flag2, d.from, d.jacobian);
         for (double v : {d.norm, d.per, d.torper}) o += ',' + xpp::number(v);
         for (int i = 0; i < n_pars; i++) o += ',' + xpp::number(d.par[i]);
         for (std::size_t i = 0; i < n; i++)
@@ -229,7 +230,7 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
                 l.fail("too many AUTO diagram points for the session memory limit");
             DiagramPoint &p = points.emplace_back();
             DIAGRAM &d = p.d;
-            int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &d.itp, &d.lab, &d.nfpar, &d.icp1, &d.icp2, &d.icp3, &d.icp4, &d.flag2, &d.from};
+            int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &d.itp, &d.lab, &d.nfpar, &d.icp1, &d.icp2, &d.icp3, &d.icp4, &d.flag2, &d.from, &d.jacobian};
             std::size_t c = 0;
             const auto bad = [&](std::size_t k, const char *kind) {
                 l.fail(xpp::format("field {} (\"{}\") is not {}", k + 1, f[k], kind));
@@ -247,6 +248,9 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
             for (const int index : {d.icp2, d.icp3, d.icp4})
                 if (index < 0 || index >= n_pars)
                     l.fail(xpp::format("parameter index {} is outside a diagram point's parameters", index));
+            if (d.jacobian < 0 || d.jacobian >= static_cast<int>(jacobian_names.size()))
+                l.fail(xpp::format("jacobian {} is neither {} ({}) nor {} ({})", d.jacobian,
+                                      jacobian_names[JACOBIAN_DIFFERENCE], JACOBIAN_DIFFERENCE, jacobian_names[JACOBIAN_EXACT], JACOBIAN_EXACT));
             if (d.nfpar < 0 || d.nfpar > n_pars)
                 l.fail(xpp::format("nfpar {} is outside AUTO's parameter storage", d.nfpar));
             const auto real = [&](double &v) {

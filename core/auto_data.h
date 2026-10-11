@@ -60,6 +60,7 @@ struct AutoDataInfo {
     int type;        /* 1 stable steady state, 2 unstable, 3 stable periodic, 4 unstable periodic */
     int flag2;       /* two-parameter curve kind, 0 for one parameter */
     int node;        /* DIAGRAM.index of the point */
+    int jacobian;    /* DIAGRAM.jacobian: how its run formed the Jacobian */
     const char *sym; /* auto_bif_sym: EP, LP, HB, ... or blank */
     const char *p1name, *p2name;
     double p1, p2;

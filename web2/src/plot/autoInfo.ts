@@ -42,6 +42,7 @@ export function infoRows(info: AutoInfo, axes: DiagramAxes | null): [string, str
   if (yRow) rows.push(yRow);
   for (const r of [normRow, varRow, periodRow]) if (r && r !== yRow) rows.push(r);
   for (const p of info.par) if (p !== xPar && p !== yPar) rows.push(parRow(p));
+  rows.push(['Jacobian', info.jac]);
   return rows;
 }
 

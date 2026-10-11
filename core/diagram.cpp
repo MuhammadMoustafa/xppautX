@@ -74,6 +74,7 @@ void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p,
     d->evi[i]=p.evi[i];
    }
   d->torper=s.auto_state.blrtn.torper;
+  d->jacobian=p.jacobian;
 }
 } // namespace
 
