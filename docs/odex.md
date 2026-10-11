@@ -246,8 +246,8 @@ remain whole numbers in their existing ranges; they do not size an allocation.
 The JSON schemas publish the maxima from the same option rows. Exceeding one
 is a load error at the file's offending line, before applying anything.
 
-The shared `.odex`/`.setx` lexer accepts at most 262144 tokens per file,
-including the end token: at most 20 MiB of token objects on 64-bit builds,
+The shared `.odex`/`.setx` lexer accepts at most 1,048,576 tokens per file,
+including the end token: at most 80 MiB of token objects on 64-bit builds,
 plus token text bounded by the input's length. A punctuation-only file
 exceeding that cap is refused at the next token's file, line and column.
 Both `.ode` and `.odex` ranges may expand to at most 100000 elements per

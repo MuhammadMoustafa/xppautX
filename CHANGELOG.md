@@ -11,7 +11,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - All question kinds share one answering policy: `--check` declines conversion name questions, and `--silent` offers the same Replace / Open existing .odex choice as the window and server; `--yes` prints the suggested answer in every front end (W304, [#363](https://github.com/MuhammadMoustafa/xppautX/issues/363)).
 
-- File readers refuse allocation-sized options above named maxima, cap the shared `.odex`/`.setx` lexer at 262144 tokens, and reject ranges longer than 100000 elements before expansion; saved array/transpose sizes and AUTO session mesh/continuation sizes are checked too, with the file and line (W296, [#354](https://github.com/MuhammadMoustafa/xppautX/issues/354)).
+- File readers refuse allocation-sized options above named maxima, cap the shared `.odex`/`.setx` lexer at 1,048,576 tokens, and reject ranges longer than 100000 elements before expansion; saved array/transpose sizes and AUTO session mesh/continuation sizes are checked too, with the file and line (W296, [#354](https://github.com/MuhammadMoustafa/xppautX/issues/354)).
 
 - Large models load faster through one Model-owned name index: native UCRT load medians fall from 230.4 to 183.4 ms for lecdiff's 4,800 states (20%), and from 130.3 to 116.0 ms for amari's 2,400 points (11%; five-run medians in one exclusive series, including native compilation). Name errors retain their text and source line (W291, [#349](https://github.com/MuhammadMoustafa/xppautX/issues/349)).
 
