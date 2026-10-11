@@ -239,6 +239,7 @@ public:
     while (taken_.count(xpp::upper_case(guard_name_))) guard_name_ += "_";
     std::string body;
     const std::vector<Statement> &st = m_.statements;
+    options_total_ = static_cast<size_t>(std::ranges::count_if(st, [](const Statement &x) { return x.kind == Statement::Kind::Options; }));
     for (size_t i = 0; i < st.size();) {
       const Place at = model_place(m_, st[i].pos);
       body += comments_through(at.file, at.line);
@@ -258,7 +259,7 @@ public:
     }
     body += array_initials();
     body += remaining_comments();
-    body += map_option();
+    if (!options_total_) body += options_block();
     std::string out = header();
     out += body;
     out += after_done();
@@ -1087,7 +1088,7 @@ private:
     case Statement::Kind::Event: return event();
     case Statement::Kind::OptionFile: refuse("the options statement (a file of options) has no .odex form yet");
     case Statement::Kind::Comment: return narration(m_.comments.at(ncom_++));
-    case Statement::Kind::Options: return nopt_ < m_.options.size() ? option_line(m_.options[nopt_++]) : std::string();
+    case Statement::Kind::Options: return ++options_seen_ == options_total_ ? options_block() : std::string();
     default: return std::string();
     }
   }
@@ -1176,15 +1177,27 @@ private:
     return out + "\n";
   }
 
+  /* set name { key: value, ... }: a variable's or a parameter's value, or an
+     option's, as the .ode applies them (an option no row has is dropped) */
   std::string set_statement()
   {
     const Model::InternalSet &set = m_.intern_sets[nset_++];
-    std::string out = "set " + name(xpp::upper_case(set.name)) + " = ";
-    int n = 0;
+    std::vector<std::string> items;
     for (const auto &[key, value] : option_items(set.does, true)) {
-      out += (n++ ? ", " : "") + setting_name(key) + " = " + setting_value(key, value);
+      const std::string upper = xpp::upper_case(key);
+      if (find_user_name(m_, ICBOX, upper) >= 0 || find_user_name(m_, PARAMBOX, upper) >= 0) {
+        items.push_back(name(upper) + ": " + setting_value(key, value));
+        continue;
+      }
+      int index = 0;
+      const OptionRow *row = xpp::find_option(upper, index, true);
+      if (!row || row->group.empty()) {
+        option_note(xpp::format("{}={} in the .ode's set {}: XPP ignores it, so it is dropped", key, value, set.name), "set-value");
+        continue;
+      }
+      items.push_back(xpp::odex_key(*row, index) + ": " + option_text(*row, key, value, true, "set-value"));
     }
-    return out + "\n";
+    return "set " + name(xpp::upper_case(set.name)) + " " + braced(items, 4 + set.name.size()) + "\n";
   }
 
   /* a set's or a comment's name: a variable's or a parameter's (spelled)
@@ -1234,8 +1247,7 @@ private:
       return xpp::format("table {} {}, n={}, lo={}, hi={}\n", n, text(compiled(t.filename)), t.n,
                          print_number(t.xlo), print_number(t.xhi));
     }
-    if (t.filename.find('"') != std::string::npos) refuse(xpp::format("the table file {} has a quote in its name", t.filename));
-    return "table " + n + " \"" + t.filename + "\"\n";
+    return "table " + n + " " + quote_string(t.filename) + "\n";
   }
 
   /* a network: its kind and arguments as written, each name spelled */
@@ -1352,31 +1364,99 @@ private:
     std::string t = c.text;
     if (c.aflag) {
       std::string action;
-      for (const auto &[key, value] : option_items(c.action, true))
-        action += (action.empty() ? "" : ",") + setting_name(key) + "=" + value;
+      for (const auto &[key, value] : option_items(c.action, true)) {
+        const std::string setting = setting_name(key);
+        if (!setting.empty()) action += (action.empty() ? "" : ",") + setting + "=" + value;
+      }
       t = "{" + action + "} " + std::string(xpp::trim_blanks(t.starts_with("* ") ? t.substr(2) : t));
     }
-    t = std::string(xpp::trim_blanks(t));
-    if (t.find('"') != std::string::npos) {
-      for (char &ch : t)
-        if (ch == '"') ch = '\'';
-    }
-    return "\"" + t + "\"\n";
+    return quote_string(xpp::trim_blanks(t)) + "\n";
   }
 
-  /* the @ lines, each option as the .ode applies it: an option with
-     spaces around its = is dropped (XPP ignores it), a value cut where a
-     number ends written as that number, a method by its name */
-  std::string option_line(const xpp::Model::OptionLine &line)
+  /* the options block: every @ line of the .ode as the entries of one
+     options { group: { key: value, ... } } (docs/odex.md "Options"), at the
+     place of the last @ line. An option the .ode gives twice keeps its last
+     value, as XPP does. */
+  struct OptionEntry {
+    std::string key, value;
+    const OptionRow *row;
+  };
+
+  std::string options_block()
   {
     const bool map = disc(m_) != 0;
+    std::vector<OptionEntry> entries;
+    for (const xpp::Model::OptionLine &line : m_.options) collect_options(line, map, entries);
+    std::string prefix;
+    if (map) {
+      /* a map ((t+1)=, or a .dis file) runs with the discrete method */
+      for (const Statement &s : m_.statements)
+        if (s.kind == Statement::Kind::Ode || s.kind == Statement::Kind::Map) {
+          place_ = model_place(m_, s.pos);
+          break;
+        }
+      prefix = noted("the .ode is a map: x' = f with the discrete method is x(t+1) = f", "discrete-map", "info");
+      int index = 0;
+      entries.push_back({"method", "discrete", xpp::find_odex_option("method", index)});
+    }
+    std::string out;
+    for (std::string_view group : xpp::option_groups) {
+      std::vector<std::string> items;
+      for (const OptionEntry &e : entries)
+        if (e.row->group == group) items.push_back(e.key + ": " + e.value);
+      if (!items.empty()) out += "  " + std::string(group) + ": " + braced(items, 2) + ",\n";
+    }
+    return out.empty() ? std::string() : prefix + "options {\n" + out + "}\n";
+  }
+
+  /* items as { a, b, c }, on lines of their own when they would run past a
+     line (indent: the column the line starts at) */
+  static std::string braced(const std::vector<std::string> &items, size_t indent)
+  {
+    constexpr size_t line_width = 100;
+    std::string line = "{ ";
+    for (size_t i = 0; i < items.size(); i++) line += (i ? ", " : "") + items[i];
+    line += " }";
+    if (indent + line.size() <= line_width) return line;
+    const std::string pad(indent + 2, ' ');
+    std::string out = "{\n", row;
+    for (const std::string &item : items) {
+      if (!row.empty() && pad.size() + row.size() + 2 + item.size() > line_width) {
+        out += pad + row + ",\n";
+        row.clear();
+      }
+      row += (row.empty() ? "" : ", ") + item;
+    }
+    return out + pad + row + ",\n" + std::string(indent, ' ') + "}";
+  }
+
+  /* one @ line's options as the .ode applies them, into entries: an
+     option with spaces around its = is dropped (XPP ignores it), an option
+     no row has, or the X11 window's, is dropped (XPP ignores, or no longer
+     keeps, it), a value cut where a number ends written as that number */
+  void collect_options(const xpp::Model::OptionLine &line, bool map, std::vector<OptionEntry> &entries)
+  {
     place_ = line.where;
-    std::string items;
     std::vector<std::string> ignored;
     for (const auto &[key, value] : option_items(line.text, false, &ignored)) {
-      const bool meth = xpp::equal_ignoring_case(key.substr(0, std::min<size_t>(key.size(), 4)), "meth");
-      if (map && meth) continue;
-      items += (items.empty() ? "" : ", ") + xpp::odex_option_key(key) + "=" + (meth ? method_name(value) : option_value(key, value));
+      int index = 0;
+      const OptionRow *row = xpp::find_option(xpp::upper_case(key), index, true);
+      if (!row || row->group.empty()) {
+        option_note(xpp::format("@ {}={} in the .ode: {}", key, value, row ? "an X11 window setting xppautX does not keep, dropped"
+                                                                           : "XPP does not know this option, so it ignores it"),
+                    "option");
+        continue;
+      }
+      if (map && row->rule == OptionRule::method) continue;
+      const std::string text = option_text(*row, key, value, false, "option-value");
+      const std::string name = xpp::odex_key(*row, index);
+      const auto same = std::ranges::find_if(entries, [&](const OptionEntry &e) { return e.key == name; });
+      if (same != entries.end() && !row->repeatable) {
+        option_note(xpp::format("@ {} is set more than once in the .ode: XPP keeps the last value, {}", name, text), "option");
+        same->value = text;
+      } else {
+        entries.push_back({name, text, row});
+      }
     }
     if (!ignored.empty()) {
       std::string dropped;
@@ -1390,50 +1470,55 @@ private:
         names += (names.empty() ? "" : ", ") + name;
       }
       option_note(xpp::format("@ {} in the .ode: XPP ignores an option with spaces around its ={}", dropped,
-                                          names.empty() ? "" : ", so " + names + " keep their values"), "option");
+                              names.empty() ? "" : ", so " + names + " keep their values"), "option");
     }
-    return items.empty() ? std::string() : "@ " + items + "\n";
   }
 
-  /* a map ((t+1)=, or a .dis file) runs with the discrete method */
-  std::string map_option()
+  /* option row's value, as the .ode applies it, written for the .odex: a
+     path or a text in double quotes (a path with / for \, never in a set),
+     a choice by its word, a name as its declaration spells it, a number
+     alone (id: the note's, when the text was more than a number) */
+  std::string option_text(const OptionRow &row, const std::string &key, const std::string &value, bool in_set, const std::string &id)
   {
-    if (disc(m_) == 0) return std::string();
-    for (const Statement &s : m_.statements)
-      if (s.kind == Statement::Kind::Ode || s.kind == Statement::Kind::Map) {
-        place_ = model_place(m_, s.pos);
-        break;
-      }
-    return noted("the .ode is a map: x' = f with the discrete method is x(t+1) = f", "discrete-map", "info") + "@ method=discrete\n";
+    switch (row.kind) {
+    case OptionKind::path:
+    case OptionKind::text: {
+      if (in_set) refuse(xpp::format("{}={}: a set holds no path or text", key, value));
+      std::string text = value;
+      if (row.kind == OptionKind::path) std::ranges::replace(text, '\\', '/');
+      return quote_string(text);
+    }
+    case OptionKind::choice: {
+      if (row.rule == OptionRule::method) return method_key(value);
+      const std::string word = xpp::option_choice(row, value);
+      if (word.empty()) refuse(xpp::format("{}={} is none of the words of {}", key, value, xpp::odex_key(row, 0)));
+      return word;
+    }
+    case OptionKind::name: {
+      for (char k : value)
+        if (!is_word_char(k) && k != '.' && k != '-' && k != '+')
+          refuse(xpp::format("{}={} is not a word (letters, digits and _ . + -)", key, value));
+      const std::string upper = xpp::upper_case(value);
+      return find_user_name(m_, ICBOX, upper) >= 0 || find_user_name(m_, PARAMBOX, upper) >= 0 ? name(upper) : value;
+    }
+    case OptionKind::number:
+    case OptionKind::whole: break;
+    }
+    char *end = nullptr;
+    std::strtod(value.c_str(), &end);
+    const char c = value.empty() ? ' ' : value[0];
+    if (((c >= '0' && c <= '9') || c == '.' || c == '-' || c == '+') && end && *end == '\0') return value;
+    const std::string cut = print_number(std::atof(value.c_str()));
+    option_note(xpp::format("{}={} in the .ode: XPP reads the number at its front, {}", key, value, cut), id);
+    return cut;
   }
 
   /* Use the same checked names and legacy keys as the option reader. */
-  std::string method_name(const std::string &value)
+  std::string method_key(const std::string &value)
   {
     const auto picked = xpp::pick_method(m_, value, place_);
     if (!picked) refuse(picked.error().what);
-    return xpp::solver_info(*picked).name;
-  }
-
-  std::string option_value(const std::string &key, const std::string &value)
-  {
-    char *end = nullptr;
-    std::strtod(value.c_str(), &end);
-    const char c = value[0];
-    if ((c >= '0' && c <= '9') || c == '.' || c == '-' || c == '+') {
-      if (end && *end == '\0') return value;
-    } else {
-      bool ok = true;
-      for (char k : value)
-        if (!is_word_char(k) && k != '.' && k != '-' && k != '/' && k != '\\' && k != ':') ok = false;
-      if (ok) {
-        const std::string upper = xpp::upper_case(value);
-        return find_user_name(m_, ICBOX, upper) >= 0 || find_user_name(m_, PARAMBOX, upper) >= 0 ? name(upper) : value;
-      }
-    }
-    const std::string cut = print_number(std::atof(value.c_str()));
-    option_note(xpp::format("@ {}={} in the .ode: XPP reads the number at its front, {}", key, value, cut), "option-value");
-    return cut;
+    return xpp::solver_info(*picked).key;
   }
 
   /* ---- around the statements ---- */
@@ -1512,7 +1597,8 @@ private:
   std::string pending_;
   int nvar_ = 0, nfix_ = 0, naux_ = 0, nfun_ = 0, ndae_ = 0, nsol_ = 0, nbc_ = 0, nflag_ = 0, nset_ = 0,
       ntab_ = 0, nmark_ = 0, ncom_ = 0;
-  size_t nopt_ = 0;
+  /* the @ lines read so far, and in all */
+  size_t options_seen_ = 0, options_total_ = 0;
 };
 
 } // namespace

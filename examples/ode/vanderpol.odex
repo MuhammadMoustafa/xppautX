@@ -3,5 +3,7 @@
 x' = xp
 xp' = -x+xp*(1-x^2)
 init x = 1
-@ nplot=2
-@ total_time=40, xp=t, xp2=t, yp=x, yp2=xp, xlo=0, xhi=40, ylo=-3, yhi=3
+options {
+  numerics: { total_time: 40 },
+  plot: { nplot: 2, xp: t, xp2: t, yp: x, yp2: xp, xlo: 0, xhi: 40, ylo: -3, yhi: 3 },
+}

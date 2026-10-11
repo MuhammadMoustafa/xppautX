@@ -15,8 +15,10 @@ aux t_e_ = pe+ke
 #
 par m = 10, mu = 2, g = 9.8, l = 1
 par scale = 0.0083333
-@ xp=x, yp=xp, xlo=-4, xhi=4, ylo=-8, yhi=8
-@ bounds=1000
+options {
+  numerics: { bound: 1000 },
+  plot: { xp: x, yp: xp, xlo: -4, xhi: 4, ylo: -8, yhi: 8 },
+}
 init x = 2
 # click on numerics colorize color via T.e
 # choose min=0, max=400

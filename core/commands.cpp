@@ -137,7 +137,7 @@ void use_intern_set(xpp::Session &s, int j)
 }
 
 /* File/cOpy set line (W67): the current values as a `set` line for the
-   .ode, shown for confirmation, then sent to the page's clipboard */
+   .odex, shown for confirmation, then sent to the page's clipboard */
 static void copy_set_line(xpp::Session &s)
 {
   std::string name = xpp::intern_set_default_name(s.model());
@@ -148,7 +148,7 @@ static void copy_set_line(xpp::Session &s)
     return;
   }
   std::string line = xpp::intern_set_line(s, name);
-  std::string question = xpp::format("Copy this line to paste into the .ode, then reload:\n{}", line);
+  std::string question = xpp::format("Copy this line to paste into the model (.odex), then reload:\n{}", line);
   if (TwoChoice("Copy", "Cancel", question, "cn") != 'c') return;
   copy_text("set", line);
 }

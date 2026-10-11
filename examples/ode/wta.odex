@@ -11,6 +11,9 @@ u' = (-u+f(aei*(x1+x2+x3)-ti))/ode_divisor(tau)
 init x1 = 0.3
 init x2 = 0.2
 init x3 = 0.1
-@ dt=.1, total_time=200, xhi=200, ylo=0, yhi=1
+options {
+  numerics: { dt: .1, total_time: 200 },
+  plot: { xhi: 200, ylo: 0, yhi: 1 },
+}
 
 fun ode_divisor(value) = if value then value else 2.23e-15

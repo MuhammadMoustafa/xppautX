@@ -25,5 +25,7 @@ aux zz = z
 event 0 t-t0, w[j] = 2*ran(1)-1 for j in 0..99
 par t0 = 0
 #
-@ method=Discrete, total_time=16000, store_every=8
-@ colormap=6
+options {
+  numerics: { method: discrete, total_time: 16000, store_every: 8 },
+  plot: { colormap: 6 },
+}

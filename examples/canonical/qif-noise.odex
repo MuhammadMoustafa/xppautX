@@ -2,7 +2,6 @@
 
 # qif-noise.ode
 # noisy qif that keeps track of spike times and ISI
-@ method=Euler, bound=100000000
 # noise
 wiener w
 par sig = 0.1
@@ -17,6 +16,8 @@ tlast' = 0
 event 1 v-vhit, v = vreset, isi = t-tlast, tlast = t, count = count+1, out_put = 1
 # when 1000 are computed stop!
 event 1 count-maxcount, arret = 1
-@ total_time=8000, transient_time=50000
 # set plot
-@ xp=count, yp=isi, xlo=0, xhi=1000, ylo=0, yhi=100
+options {
+  numerics: { method: euler, bound: 100000000, total_time: 8000, transient_time: 50000 },
+  plot: { xp: count, yp: isi, xlo: 0, xhi: 1000, ylo: 0, yhi: 100 },
+}

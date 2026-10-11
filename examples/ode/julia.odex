@@ -7,5 +7,7 @@ th = atan2(y-cy, x-cx)/2
 s = sign(ran(1)-0.5)
 x' = s*r*cos(th)
 y' = s*r*sin(th)
-@ total_time=2000, method=Discrete, transient_time=100, xlo=-2, ylo=-2, xhi=2, yhi=2, xp=x
-@ yp=y
+options {
+  numerics: { total_time: 2000, method: discrete, transient_time: 100 },
+  plot: { xlo: -2, ylo: -2, xhi: 2, yhi: 2, xp: x, yp: y },
+}

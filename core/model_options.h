@@ -16,6 +16,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace xpp {
 
@@ -91,10 +92,33 @@ struct OptionValue {
   bool apply;
 };
 
+/* The groups of a .odex's `options` block (docs/odex.md): each row of the
+   table belongs to one. A row with no group (the X11 window's leftovers,
+   a numerics setting the model cannot set) is no .odex option. */
+namespace option_group {
+inline constexpr std::string_view numerics = "numerics", plot = "plot", sliders = "sliders", range = "range",
+                                  batch = "batch", auto_ = "auto", histogram = "histogram", log = "log",
+                                  buttons = "buttons";
+} // namespace option_group
+/* the groups in the order a .odex writes them */
+inline constexpr std::array<std::string_view, 9> option_groups{
+    option_group::numerics, option_group::plot, option_group::sliders, option_group::range, option_group::batch,
+    option_group::auto_, option_group::histogram, option_group::log, option_group::buttons};
+
+/* what a .odex writes as an option's value: a number, a whole number, a
+   bare word (a variable's, a parameter's, a name), one of the row's
+   choices (option_choices), a path or a text, both in double quotes */
+enum class OptionKind { number, whole, name, choice, path, text };
+
 /* One option. Its names match as prefixes of the name given, upper case,
    the longest winning (so "method" and "methodx" are one, and "dt" is not
    "dtminimum"); a numbered one (xp2..xp8) is its name and one digit. */
 struct OptionRow {
+  /* the .odex options block's group and the kind of value it takes ("" and
+     number for a row that is no .odex option); first, so a row names them
+     before its name */
+  std::string_view group;
+  OptionKind kind = OptionKind::number;
   std::string_view name;          /* "" for a numerics setting the model cannot set */
   std::string_view alias;         /* a second name, or "" */
   /* XPPAUT's names for it, read in a .ode, an .xpprc and the command line
@@ -126,6 +150,8 @@ struct OptionRow {
   /* makes what choosing value i needs, before `unavailable` is asked
      (the exact Jacobian, on its first need) */
   void (*prepare)(Session &, int) = nullptr;
+  /* a .odex block may name it more than once (fold, but: each names one) */
+  bool repeatable = false;
 };
 
 /* why the number v is not one rule accepts ("must be a number above 0"),
@@ -147,9 +173,27 @@ std::span<const OptionRow> option_rows();
    as a .odex does not take them */
 const OptionRow *find_option(std::string_view upper_name, int &index, bool xppaut_names);
 
-/* the option key as a .odex writes it: XPPAUT's name for a row (NOUT,
-   NJMP) is the row's name in lower case, any other key stays as it is */
+/* the option key as a .odex writes it: the key of the row a name matches
+   (XPPAUT's names and the longer spellings a prefix match takes too:
+   NOUT is store_every, xplot is xp), "" when no row of a group does */
 std::string odex_option_key(std::string_view key);
+
+/* the key a .odex writes for a row (its name in lower case, a numbered
+   row's digit index after it) */
+std::string odex_key(const OptionRow &row, int index);
+
+/* the row a .odex key names, exactly (lower case, a numbered row's digit
+   included), and the digit; nullptr when none does */
+const OptionRow *find_odex_option(std::string_view key, int &index);
+
+/* the words a choice row takes, in a .odex (the registry's keys for the
+   method), empty for any other row */
+std::vector<std::string> option_choices(const OptionRow &row);
+
+/* the word of a choice row's value as the .ode, an .xpprc or the menus give
+   it (the Jacobian's by name or number, the others by the first letter), ""
+   when it selects none; the method's is solver.h's pick_method */
+std::string option_choice(const OptionRow &row, std::string_view value);
 
 /* the numerics setting with key, nullptr when none */
 const OptionRow *numerics_option(std::string_view key);

@@ -18,7 +18,9 @@ y' = p*(x*(1-x)-a*y+b*x*y)
 b' = 0
 p' = 0
 par eps = 0.005
-@ total_time=1, dt=.002
+options {
+  numerics: { total_time: 1, dt: .002 },
+}
 init x = 0.005, y = 0.005
 init p = 20
 par a = 0

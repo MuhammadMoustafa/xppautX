@@ -23,9 +23,10 @@ aux ica = icaf
 init v = 0.05
 init w = 0
 # some options
-@ xp=v, yp=w
-@ xlo=-1, xhi=1, ylo=-.1, yhi=1, nullcline_mesh=100
-@ total_time=50
+options {
+  numerics: { nullcline_mesh: 100, total_time: 50 },
+  plot: { xp: v, yp: w, xlo: -1, xhi: 1, ylo: -.1, yhi: 1 },
+}
 # Done!!
 
 fun ode_divisor(value) = if value then value else 2.23e-15

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "xpplim.h"
 #include "model_options.h"
+#include "odex.h"
 #include "xpp_error.h"
 
 #include <array>
@@ -12,6 +13,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 #include <vector>
 
 /*
@@ -145,10 +147,14 @@ void load_eqn(Session &s);
 /* the defaults of the options no source set (set_option_defaults), then
    the storage, the solver and the initial values the model gives */
 void set_all_vals(Session &s);
-/* an @ line of the model (form_ode.cpp's parser) kept in m's options,
+/* an @ line of the model (an .ode's, the .ode reader) kept in m's options,
    which set_internopts applies; -1 (logged, not kept) when it sets
    dll_lib or dll_fun */
 int add_model_option(Model &m, std::string_view s1);
+/* a .odex's options block, its entries kept in m's options, each at its
+   own place (the file names the entries' Pos::file in files); a load error
+   past the limit of options a model may set */
+void add_model_options(Model &m, std::span<const odex::Option> entries, const std::vector<std::string> &files);
 /* the model's options not yet applied (mask: the options unset before
    the model's, which its lines may set again), then .xpprc's and the
    command line's, each through set_option (model_options.h) */

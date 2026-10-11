@@ -4,5 +4,6 @@ x' = a+b*sin(y-x)
 y' = 1+b*sin(x-y)
 z' = -z+sin(x)
 par a = 1, b = 0.2
-@ total_time=6.28
-@ dt=.01
+options {
+  numerics: { total_time: 6.28, dt: .01 },
+}

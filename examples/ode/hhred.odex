@@ -28,6 +28,9 @@ h = h0-n
 aux aux1 = 0
 aux aux2 = 0
 aux aux3 = 0
-@ total_time=40, method=Gear, bound=500, dt=.25, min_step=1e-12, xhi=40, yhi=120, ylo=-10
+options {
+  numerics: { total_time: 40, method: gear, bound: 500, dt: .25, min_step: 1e-12 },
+  plot: { xhi: 40, yhi: 120, ylo: -10 },
+}
 
 fun ode_divisor(value) = if value then value else 2.23e-15

@@ -7,5 +7,7 @@ init x = 1.5, y = 0
 par w1 = 1, w2 = 1, beta = 1
 x' = w1+beta*sin(y-x)
 y' = w2+beta*sin(x-y)
-@ xp=x, yp=y, xlo=0, ylo=0, xhi=6.3, yhi=6.3, torus_period=6.28318531
-@ fold=x, fold=y
+options {
+  numerics: { torus_period: 6.28318531, fold: x, fold: y },
+  plot: { xp: x, yp: y, xlo: 0, ylo: 0, xhi: 6.3, yhi: 6.3 },
+}

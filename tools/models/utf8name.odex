@@ -8,4 +8,6 @@
 par i__pp_ = 0.05
 v' = i__pp_-v
 init v = 0
-@ total_time=1, dt=.1
+options {
+  numerics: { total_time: 1, dt: .1 },
+}

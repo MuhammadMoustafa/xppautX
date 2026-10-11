@@ -13,5 +13,7 @@ history x = 1-t
 init x = 1
 aux si = 0
 # set maxdelay
-@ delay=20
+options {
+  numerics: { delay: 20 },
+}
 # done

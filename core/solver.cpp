@@ -236,21 +236,21 @@ constexpr SolverTraits rel_abs_banded{.rel_abs_tolerance=true,.banded=true};
    solvers that register themselves from static initializers, which a
    --gc-sections link would drop without a word. */
 constexpr std::array<SolverInfo,method::COUNT> registry{{
-  {method::DISCRETE,"Discrete","Discrete",map,fixed_step<discrete,standard_work>},
-  {method::EULER,"Euler","Euler",steps,fixed_step<euler,standard_work>},
-  {method::MOD_EULER,"Mod. Euler","Mod. Euler",steps,fixed_step<mod_euler,standard_work>},
-  {method::RK4,"Runge-Kutta","Runge-Kutta",steps,fixed_step<rung_kut,standard_work>},
-  {method::ADAMS,"Adams","Adams",steps,fixed_step<adams,standard_work>},
-  {method::GEAR,"Gear","Gear",step_tolerance,start_gear},
-  {method::VOLTERRA,"Volterra","Volterra",integral_steps,fixed_step<volterra,implicit_work>},
-  {method::BACKEUL,"BackEul","BackEul",implicit_steps,fixed_step<bak_euler,implicit_work>},
-  {method::RKQS,"QualRK","Qual RK",step_tolerance,start_adaptive<standard_work>},
-  {method::STIFF,"Stiff","Stiff",stiff_tolerance,start_adaptive<stiff_work>},
-  {method::CVODE,"CVode","CVode",rel_abs_banded,start_cvode},
-  {method::DP5,"DoPri5","DorPrin5",rel_abs,start_dormand_prince},
-  {method::DP83,"DoPri8(3)","DorPri8(3)",rel_abs_eighth,start_dormand_prince},
-  {method::RB23,"Rosenbrock","Rosenbrock",rel_abs_banded,start_rosenbrock},
-  {method::SYMPLECT,"Symplectic","Symplectic",paired_steps,fixed_step<symplect3,standard_work>},
+  {method::DISCRETE,"Discrete","Discrete","discrete",map,fixed_step<discrete,standard_work>},
+  {method::EULER,"Euler","Euler","euler",steps,fixed_step<euler,standard_work>},
+  {method::MOD_EULER,"Mod. Euler","Mod. Euler","modified_euler",steps,fixed_step<mod_euler,standard_work>},
+  {method::RK4,"Runge-Kutta","Runge-Kutta","runge_kutta",steps,fixed_step<rung_kut,standard_work>},
+  {method::ADAMS,"Adams","Adams","adams",steps,fixed_step<adams,standard_work>},
+  {method::GEAR,"Gear","Gear","gear",step_tolerance,start_gear},
+  {method::VOLTERRA,"Volterra","Volterra","volterra",integral_steps,fixed_step<volterra,implicit_work>},
+  {method::BACKEUL,"BackEul","BackEul","backward_euler",implicit_steps,fixed_step<bak_euler,implicit_work>},
+  {method::RKQS,"QualRK","Qual RK","qualrk",step_tolerance,start_adaptive<standard_work>},
+  {method::STIFF,"Stiff","Stiff","stiff",stiff_tolerance,start_adaptive<stiff_work>},
+  {method::CVODE,"CVode","CVode","cvode",rel_abs_banded,start_cvode},
+  {method::DP5,"DoPri5","DorPrin5","dopri5",rel_abs,start_dormand_prince},
+  {method::DP83,"DoPri8(3)","DorPri8(3)","dopri8",rel_abs_eighth,start_dormand_prince},
+  {method::RB23,"Rosenbrock","Rosenbrock","rosenbrock",rel_abs_banded,start_rosenbrock},
+  {method::SYMPLECT,"Symplectic","Symplectic","symplectic",paired_steps,fixed_step<symplect3,standard_work>},
 }};
 
 constexpr bool in_method_order()
@@ -310,7 +310,7 @@ Result<method::Id> pick_method(const Model &model, std::string_view text, Place 
   const SolverInfo *chosen = nullptr;
   const std::string name = lower_case(std::string(trim_blanks(text)));
   for (const SolverInfo &info : registry)
-    if (equal_ignoring_case(name, info.name) || equal_ignoring_case(name, info.set_label)) chosen = &info;
+    if (equal_ignoring_case(name, info.name) || equal_ignoring_case(name, info.set_label) || name == info.key) chosen = &info;
   if (!chosen && name.size() == 1) {
     const auto i = keys.find(name[0]);
     if (i != std::string_view::npos) chosen = &registry[i];

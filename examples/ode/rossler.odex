@@ -4,4 +4,6 @@ x' = -y-z
 y' = x+b*y
 z' = b+z*(x-a)
 par b = 0.2, a = 4
-@ total_time=50
+options {
+  numerics: { total_time: 50 },
+}

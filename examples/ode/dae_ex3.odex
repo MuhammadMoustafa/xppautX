@@ -5,4 +5,9 @@ w' = v_
 0 = v_*(1-v_*v_)-w
 solv v_ = 1
 aux v = v_
-@ singpt_max_iterates=1000, singpt_newton_tolerance=1e-3, singpt_jacobian_epsilon=1e-5, method=QualRK
+options {
+  numerics: {
+    singpt_max_iterates: 1000, singpt_newton_tolerance: 1e-3, singpt_jacobian_epsilon: 1e-5,
+    method: qualrk,
+  },
+}

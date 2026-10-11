@@ -52,20 +52,20 @@ M' = mdt(M)
 L' = Lalt
 #Thanks to Newton!
 Lalt' = 1/ode_divisor(mass)*(-g*zMdM(M)/ode_divisor(normM(M))-drag*Lalt)
-set Sun = g = 274.13
-set Mercury = g = 3.59
-set Venus = g = 8.87
-set Earth = g = 9.81
-set Moon = g = 1.62
-set Mars = g = 3.77
-set Jupiter = g = 25.95
-set Saturn = g = 11.08
-set Uranus = g = 10.67
-set Neptune = g = 14.07
-set Pluto = g = 0.42
-@ XP=X, YP=Z, XLO=-6, XHI=4, YLO=0, YHI=6
-@ bounds=100000, method=Runge-Kutta
-@ dt=.01, store_every=5
-@ total_time=50
+set Sun { g: 274.13 }
+set Mercury { g: 3.59 }
+set Venus { g: 8.87 }
+set Earth { g: 9.81 }
+set Moon { g: 1.62 }
+set Mars { g: 3.77 }
+set Jupiter { g: 25.95 }
+set Saturn { g: 11.08 }
+set Uranus { g: 10.67 }
+set Neptune { g: 14.07 }
+set Pluto { g: 0.42 }
+options {
+  numerics: { bound: 100000, method: runge_kutta, dt: .01, store_every: 5, total_time: 50 },
+  plot: { xp: X, yp: Z, xlo: -6, xhi: 4, ylo: 0, yhi: 6 },
+}
 
 fun ode_divisor(value) = if value then value else 2.23e-15

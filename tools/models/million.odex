@@ -7,6 +7,7 @@ par mu = 1
 x' = y
 y' = mu*(1-x^2)*y-x
 init x = 2, y = 0
-@ total_time=10000, dt=.01, method=Euler, storage_rows=1000010, bound=100
-@ xlo=-2.5, xhi=2.5, ylo=-3, yhi=3
-@ xplot=x, yplot=y
+options {
+  numerics: { total_time: 10000, dt: .01, method: euler, storage_rows: 1000010, bound: 100 },
+  plot: { xlo: -2.5, xhi: 2.5, ylo: -3, yhi: 3, xp: x, yp: y },
+}

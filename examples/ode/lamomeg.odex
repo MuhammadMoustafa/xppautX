@@ -10,6 +10,9 @@ y' = (y*(1-x^2-y^2)-q*(x^2+y^2)*x)*om
 # Periodic boundary conditions
 boundary x-x'
 boundary y-y'
-@ dt=.01, total_time=4, xhi=4, ylo=-1.5, yhi=1.5
+options {
+  numerics: { dt: .01, total_time: 4 },
+  plot: { xhi: 4, ylo: -1.5, yhi: 1.5 },
+}
 aux xp = (x*(1-x^2-y^2)+q*(x^2+y^2)*y)*om
 aux yp = (y*(1-x^2-y^2)-q*(x^2+y^2)*x)*om

@@ -12,8 +12,10 @@ x' = z*f(x mod 1)+sig*w
 markov z 2
   {0} {alpha} 
   {beta} {0} 
-@ method=Euler, dt=.1, total_time=2000, store_every=10
-@ xhi=2000, yhi=8, ylo=-8
+options {
+  numerics: { method: euler, dt: .1, total_time: 2000, store_every: 10 },
+  plot: { xhi: 2000, yhi: 8, ylo: -8 },
+}
 aux xm = x mod 1
 
 fun ode_divisor(value) = if value then value else 2.23e-15

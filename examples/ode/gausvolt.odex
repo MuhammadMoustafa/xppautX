@@ -3,4 +3,6 @@
 x' = a*volterra(exp(-(t-t0)^2), of=x*(1-x))
 par a = 2.5, t0 = 1
 init x = 0.2
-@ autoeval=1
+options {
+  auto: { autoeval: 1 },
+}

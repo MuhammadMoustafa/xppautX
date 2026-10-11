@@ -7,4 +7,6 @@
 par a = 0
 init x = 0
 x' = a-x-5*heav(x-1)
-@ total_time=20
+options {
+  numerics: { total_time: 20 },
+}

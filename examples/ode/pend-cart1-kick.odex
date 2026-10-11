@@ -30,6 +30,8 @@ par kick = 0.05, r = 0
 # track accelerations
 aux xpp = xdd
 aux th1pp = th1dd
-@ dt=.02
+options {
+  numerics: { dt: .02 },
+}
 # nice ICs
 init th1 = 1.5

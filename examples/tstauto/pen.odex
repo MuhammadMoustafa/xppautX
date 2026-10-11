@@ -1,7 +1,9 @@
 # pen.odex: converted from pen.ode by xppautX --convert (docs/odex.md)
 
 par gamma = 0.175, eps = 0.1, ri = 0.4
-@ total_time=1.573879, dt=.01
+options {
+  numerics: { total_time: 1.573879, dt: .01 },
+}
 ph1' = ps1
 ph2' = ps2
 ps1' = -eps*ps1-sin(ph1)+ri+gamma*(ph2-ph1)

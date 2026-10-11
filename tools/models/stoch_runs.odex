@@ -8,4 +8,6 @@ wiener n
 par dummy = 0
 x' = dummy*0
 aux nsamp = normal(0, 1)
-@ total_time=10, dt=1, method=Euler, seed=7
+options {
+  numerics: { total_time: 10, dt: 1, method: euler, seed: 7 },
+}

@@ -5,4 +5,6 @@ y' = x
 boundary x-y'
 boundary y-a
 par a = 1
-@ total_time=1
+options {
+  numerics: { total_time: 1 },
+}

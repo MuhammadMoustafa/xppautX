@@ -13,5 +13,7 @@ aux r = x^2+y^2
 aux a = x+y
 aux b = x-y
 init x = 1, y = 0
-@ total_time=6.283185307179586, dt=0.010471975511965976, storage_rows=1000
-@ postprocess=1, histbins=20, histcol=x, histlo=-1, histhi=1
+options {
+  numerics: { total_time: 6.283185307179586, dt: 0.010471975511965976, storage_rows: 1000 },
+  histogram: { postprocess: 1, histbins: 20, histcol: x, histlo: -1, histhi: 1 },
+}

@@ -25,6 +25,9 @@ boundary s-0.01
 boundary ap'
 boundary k'
 # set it up for the user
-@ xhi=1, total_time=1, dt=.001
+options {
+  numerics: { total_time: 1, dt: .001 },
+  plot: { xhi: 1 },
+}
 
 fun ode_divisor(value) = if value then value else 2.23e-15

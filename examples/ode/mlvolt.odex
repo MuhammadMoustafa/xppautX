@@ -13,9 +13,11 @@ w[j]' = b*(v[j]-c-d*w[j]) for j in 1..2
 par a = 0.1, d = 0.5, c = 0.2, b = 0.2, k = 2
 par xhat = 3
 par v10 = 0.5, v20 = 0.2, kk = 5
-@ dt=.05, total_time=100
 init w1 = 0.5, w2 = -0.4
 # change w2=-.2 to get sync
-@ xp=v1, yp=v2, xlo=-.5, xhi=1, ylo=-.5, yhi=1
+options {
+  numerics: { dt: .05, total_time: 100 },
+  plot: { xp: v1, yp: v2, xlo: -.5, xhi: 1, ylo: -.5, yhi: 1 },
+}
 
 fun ode_divisor(value) = if value then value else 2.23e-15

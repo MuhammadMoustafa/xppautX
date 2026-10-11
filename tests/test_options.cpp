@@ -241,7 +241,7 @@ int main(void)
     /* Full registry names survive the .odex grammar and option reader. */
     for (const auto &info : xpp::solvers()) {
         if (info.traits.integral_history) continue; /* needs an integral model */
-        CHECK(write_file("build/test_method_names.odex", xpp::format("x'=-x\ny'=x\n@ method={}, total_time=1\n", info.name)));
+        CHECK(write_file("build/test_method_names.odex", xpp::format("x'=-x\ny'=x\noptions {{ numerics: {{ method: {}, total_time: 1 }} }}\n", info.key)));
         xpp::Session *named = load("build/test_method_names.odex");
         CHECK(named && named->numerics.method == info.id && named->numerics.total_time == 1);
     }
@@ -276,6 +276,10 @@ int main(void)
         CHECK(xpp::find_option("NOUT", index, true)->name == "STORE_EVERY" && xpp::find_option("NJMP", index, true) == xpp::find_option("NOUT", index, true));
         CHECK(xpp::find_option("NOUT", index, false) == nullptr && xpp::odex_option_key("NJMP") == "store_every" && xpp::odex_option_key("dt") == "dt"
                && xpp::odex_option_key("DTMIN") == "min_step" && xpp::odex_option_key("meth") == "method" && xpp::odex_option_key("method") == "method");
+        /* a prefix of a row's name is its key too (xplot, bounds), a name no group has is none */
+        CHECK(xpp::odex_option_key("xplot") == "xp" && xpp::odex_option_key("XP3") == "xp3" && xpp::odex_option_key("bell").empty()
+               && xpp::odex_option_key("nosuch").empty());
+        CHECK(xpp::find_odex_option("xp3", index) && index == 3 && !xpp::find_odex_option("xplot", index) && !xpp::find_odex_option("total", index));
     }
 
     /* the defaults a model with no options gets */
@@ -409,7 +413,7 @@ int main(void)
         if (l.error().place.line != 6 || l.error().what.find(value) == std::string::npos)
             printf("  %s: %s\n", bad, l.error().text().c_str());
     }
-    CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\n@ ync=12\n"));
+    CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\noptions { plot: { ync: 12 } }\n"));
     {
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.odex";
@@ -427,7 +431,7 @@ int main(void)
     /* XPPAUT's names for the renamed options are a .ode's: a .odex refuses them
        at their line */
     for (const char *old_name : {"nout", "njmp", "total", "t0", "trans", "nmesh", "newt_iter", "newt_tol", "jac_eps", "meth", "tol", "dtmin", "dtmax", "atol", "maxstor", "tor_per", "poimap", "poivar", "poisgn", "poistop", "poipln"}) {
-        CHECK(write_file(bad_odex, std::string("par a = 1\nx' = -a*x\n@ ") + old_name + "=2\n"));
+        CHECK(write_file(bad_odex, std::string("par a = 1\nx' = -a*x\noptions { numerics: { ") + old_name + ": 2 } }\n"));
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.odex";
         char *argv[] = {arg0, file, nullptr};
@@ -458,11 +462,11 @@ int main(void)
         if (l.error().place.line != 5) printf("  %s: %s\n", word, l.error().text().c_str());
     }
 
-    /* the settings go in @ lines of an include file (an .odex's include),
+    /* the settings go in the options block of an include file (an .odex's include),
        which apply */
     {
         const char inc_file[] = "build/test_options_inc.incx";
-        CHECK(write_file(inc_file, "@ total_time=7\n@ dt=0.25\n"));
+        CHECK(write_file(inc_file, "options { numerics: { total_time: 7, dt: 0.25 } }\n"));
         CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\ninclude \"test_options_inc.incx\"\n"));
         xpp::Session *t = load(bad_odex);
         CHECK(t != nullptr);

@@ -14,8 +14,9 @@ ica = gca*minf(v)*(v-1)
 v' = iapp+gl*(vl-v)+gk*w*(vk-v)-ica
 w' = lamn(v)*(ninf(v)-w)
 init v = -0.144, w = 0.03
-@ total_time=1000, dt=.001, store_every=50, storage_rows=30000
-@ xlo=-.6, xhi=1.2, ylo=-.25, yhi=1.2
-@ xplot=v, yplot=w
+options {
+  numerics: { total_time: 1000, dt: .001, store_every: 50, storage_rows: 30000 },
+  plot: { xlo: -.6, xhi: 1.2, ylo: -.25, yhi: 1.2, xp: v, yp: w },
+}
 
 fun ode_divisor(value) = if value then value else 2.23e-15

@@ -1,5 +1,4 @@
 # fancylorenz.odex: converted from fancylorenz.ode by xppautX --convert (docs/odex.md)
-# @ axes=3d in the .ode: XPP reads the number at its front, 3
 
 # the lorenz equations
 # with some fancy graphics options
@@ -14,17 +13,16 @@ aux y2 = yplane
 aux z2 = zplane
 par xplane = -35, yplane = 60, zplane = -10
 # set up the numerics
-@ total_time=50, dt=.02
 # set up 3D plot
-@ xplot=x, yplot=y, zplot=z, axes=3
 # tell XPP there are 4 plots altogether
-@ nplot=4
 # here are the 3 projections
-@ xp2=x, yp2=y, zp2=z2
-@ xp3=x, yp3=y2, zp3=z
-@ xp4=x2, yp4=y, zp4=z
 # set up the 3D window
-@ xmin=-40, xmax=18, ymin=-24, ymax=64, zmin=-12, zmax=45
-@ xlo=-1.4, ylo=-1.7, xhi=1.7, yhi=1.7
 # and rotate the plot a bit so it looks nice
-@ theta=35
+options {
+  numerics: { total_time: 50, dt: .02 },
+  plot: {
+    xp: x, yp: y, zp: z, axes: 3, nplot: 4, xp2: x, yp2: y, zp2: z2, xp3: x, yp3: y2, zp3: z,
+    xp4: x2, yp4: y, zp4: z, xmin: -40, xmax: 18, ymin: -24, ymax: 64, zmin: -12, zmax: 45,
+    xlo: -1.4, ylo: -1.7, xhi: 1.7, yhi: 1.7, theta: 35,
+  },
+}

@@ -207,12 +207,14 @@ struct Model {
   int is_a_map=0;
   /* its array initial values, x[j1..j2](0)=formula (extract_ic_data) */
   ArrayIcs array_ics;
-  /* its @ lines, each whole, as read, and where (no cause), for a value
-     an option refuses: load_eqn.cpp's set_internopts sets the numerics
-     and plot settings from them (their current values are the
+  /* its options, each line (an .ode's @ line, whole as read; a .odex's
+     options entry) as the name=value items it makes, and where (no cause),
+     for a value an option refuses: load_eqn.cpp's set_internopts sets the
+     numerics and plot settings from them (their current values are the
      Session's) */
   struct OptionLine {
     std::string text;
+    std::vector<std::pair<std::string,std::string>> items;
     Place where;
   };
   std::vector<OptionLine> options;

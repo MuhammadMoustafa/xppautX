@@ -10,4 +10,6 @@ x' = 0
 aux rsamp = ran(1)
 aux nsamp = normal(2, 3)
 aux wsamp = n
-@ total_time=4000, dt=1, method=Euler, seed=1234
+options {
+  numerics: { total_time: 4000, dt: 1, method: euler, seed: 1234 },
+}

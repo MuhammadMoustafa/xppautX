@@ -271,6 +271,16 @@ std::string print_number(double v)
   return xpp::number(v);
 }
 
+std::string quote_string(std::string_view text)
+{
+  std::string out = "\"";
+  for (char c : text) {
+    if (c == '"' || c == '\\') out += '\\';
+    out += c;
+  }
+  return out + "\"";
+}
+
 std::string print(const Expr &e)
 {
   std::string out;

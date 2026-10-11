@@ -17,4 +17,6 @@ w5_[j]' = f(re*(a0*w5_[j]+a1*(w0_[j]+w4_[j])+a2*(w1_[j]+w3_[j])-0.5))*(1-s[j])-f
 par a0 = 0.33333, a1 = 0.25, a2 = 0.083333
 par b0 = 0.33333, b1 = 0.25, b2 = 0.083333
 par re = 10, ri = 5
-@ total_time=500, dt=1, method=QualRK
+options {
+  numerics: { total_time: 500, dt: 1, method: qualrk },
+}

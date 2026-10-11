@@ -1,5 +1,4 @@
 # lor2.odex: converted from lor2.ode by xppautX --convert (docs/odex.md)
-# @ axes=3d in the .ode: XPP reads the number at its front, 3
 
 # the famous Lorenz equation set up for 3d view
 init x = -7.5, y = -3.6, z = 30
@@ -12,8 +11,10 @@ z' = -b*z+x*y
 xp' = s*(-xp+yp)+c*(x-xp)
 yp' = r*xp-yp-xp*zp
 zp' = -b*zp+xp*yp
-@ dt=.025, total_time=40, xplot=x, yplot=y, zplot=z, axes=3
-@ xmin=-20, xmax=20, ymin=-30, ymax=30, zmin=0, zmax=50
-@ xlo=-1.5, ylo=-2, xhi=1.5, yhi=2
-@ storage_rows=20000
-@ phi=60
+options {
+  numerics: { dt: .025, total_time: 40, storage_rows: 20000 },
+  plot: {
+    xp: x, yp: y, zp: z, axes: 3, xmin: -20, xmax: 20, ymin: -30, ymax: 30, zmin: 0, zmax: 50,
+    xlo: -1.5, ylo: -2, xhi: 1.5, yhi: 2, phi: 60,
+  },
+}

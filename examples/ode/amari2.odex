@@ -9,5 +9,7 @@ par dx = 0.1
 network z = fconv(even, 200, 50, w, u0, u0, f)
 u[j]' = -u[j]-h+z(j) for j in 0..199
 par h = 0.15
-@ total_time=100, method=Euler
+options {
+  numerics: { total_time: 100, method: euler },
+}
 init u[j] = 0.8 for j in 90..110

@@ -2,6 +2,7 @@
 
 x' = a*x*(1-delay(x, tau))
 par tau = 1, a = 2
-@ delay=5
-@ total_time=200
+options {
+  numerics: { delay: 5, total_time: 200 },
+}
 init x = 0.5

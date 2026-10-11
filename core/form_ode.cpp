@@ -1057,7 +1057,9 @@ private:
     xpp::Model &m=m_;
     switch(s.kind){
     case Statement::Kind::Options:
-      if(add_model_option(m,s.text)<0){
+      /* a .odex's block holds its entries, an .ode's @ line its text */
+      if(!s.options.empty())add_model_options(m,s.options,p_.files);
+      else if(add_model_option(m,s.text)<0){
 	model_failed(xpp::format("Error in parsing {}",s.text));
       }
       break;

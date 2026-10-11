@@ -196,27 +196,29 @@ def check_load_error():
               and e.get('source') == "x' = -x + * a" and e.get('error'), str(e))
 
         # a value an option refuses (W119): the load stops at the option's line
-        for name, text, src in (('badopt.ode', "par a=1\nx'=-x\n@ total=5\n@ ync=12\ndone\n", '@ ync=12'),
-                                ('badnum.ode', "par a=1\nx'=-x\n@ total=5\n@ dt=2*3\ndone\n", '@ dt=2*3'),
-                                ('badopt.odex', "par a = 1\nx' = -x\n@ total_time = 5\n@ ync = 12\n", '@ ync = 12'),
-                                # W206: XPPAUT's name for store_every is a .ode's; a .odex refuses it
-                                ('oldname.odex', "par a = 1\nx' = -x\n@ total_time = 5\n@ nout = 2\n", '@ nout = 2')):
+        for name, text, line, src, needle in (
+                ('badopt.ode', "par a=1\nx'=-x\n@ total=5\n@ ync=12\ndone\n", 4, '@ ync=12', 'ync=12'),
+                ('badnum.ode', "par a=1\nx'=-x\n@ total=5\n@ dt=2*3\ndone\n", 4, '@ dt=2*3', 'dt=2*3'),
+                ('badopt.odex', "par a = 1\nx' = -x\noptions {\n  numerics: { total_time: 5 },\n  plot: { ync: 12 },\n}\n",
+                 5, '  plot: { ync: 12 },', 'ync=12'),
+                # W206: XPPAUT's name for store_every is a .ode's; a .odex refuses it
+                ('oldname.odex', "par a = 1\nx' = -x\noptions {\n  numerics: { total_time: 5, nout: 2 },\n}\n",
+                 4, '  numerics: { total_time: 5, nout: 2 },', 'nout')):
             with open(os.path.join(bad_dir, name), 'w') as f:
                 f.write(text)
             p, evs = load(name)
             e = next((v for v in evs if v.get('ev') == 'error'), {})
             check('load error: a value an option refuses stops the load at its line (%s)' % name,
-                  p.returncode == 1 and e.get('file') == name and e.get('line') == 4
-                  and src.replace(' ', '').split('@')[1] in e.get('error', '').replace(' ', '')
-                  and e.get('source') == src, str(e))
-        for method, reason in (('symplectic', 'even dimensions'), ('rubbish', 'Unknown method')):
+                  p.returncode == 1 and e.get('file') == name and e.get('line') == line
+                  and needle in e.get('error', '') and e.get('source') == src, str(e))
+        for method, reason in (('symplectic', 'even dimensions'), ('rubbish', 'is none of')):
             with open(os.path.join(bad_dir, 'badmethod.odex'), 'w') as f:
-                f.write("x' = -x\ny' = x\nz' = y\n@ method=" + method + "\n")
+                f.write("x' = -x\ny' = x\nz' = y\noptions { numerics: { method: " + method + " } }\n")
             p, evs = load('badmethod.odex')
             e = next((v for v in evs if v.get('ev') == 'error'), {})
-            check('W132: @ method=%s fails the whole load at its line' % method,
+            check('W132: method: %s fails the whole load at its line' % method,
                   p.returncode == 1 and e.get('file') == 'badmethod.odex' and e.get('line') == 4
-                  and e.get('source') == '@ method=' + method and reason in e.get('error', '')
+                  and e.get('source') == 'options { numerics: { method: ' + method + ' } }' and reason in e.get('error', '')
                   and not any(v.get('ev') == 'hello' for v in evs), str(e))
     finally:
         shutil.rmtree(bad_dir, ignore_errors=True)
@@ -1976,7 +1978,7 @@ def check_load_all_or_nothing():
     and the set file it writes)."""
     model = os.path.join(tempfile.mkdtemp(prefix='w125m'), 'w125.odex')
     with open(model, 'w') as f:
-        f.write("x'=-a*x+b\ny'=x-y\npar a=1,b=2\ninit x=1,y=0\nset good = a=3,b=4\nset bad = a=5,x=7,b=oops\n")
+        f.write("x'=-a*x+b\ny'=x-y\npar a=1,b=2\ninit x=1,y=0\nset good { a: 3, b: 4 }\nset bad { a: 5, x: 7, b: oops }\n")
     p, r, snd, col, _ = launch_server(ode=model)
 
     def answered(answers, **cmd):
@@ -2726,12 +2728,13 @@ def check_fit_retained_runs():
     """Window/Fit takes the bounds of the live data and of every retained run
     in 2D and in 3D alike: a first run that grows far past the live one is
     inside the fitted box."""
-    zeq = "\nz'=a*z\ninit z=1\n@ xp=x,yp=y,zp=z,axes=3,xlo=0,xhi=10,ylo=0,yhi=10,zmin=0,zmax=10"
-    for dims, extra in ((2, ''), (3, zeq)):
+    zeq = "\nz'=a*z\ninit z=1"
+    for dims, extra, plot in ((2, '', ''), (3, zeq, ', xp: x, yp: y, zp: z, axes: 3, zmin: 0, zmax: 10')):
         d = tempfile.mkdtemp(prefix='xppfit')
         ode = os.path.join(d, 'fit.odex')
         with open(ode, 'w') as f:
-            f.write("par a=2\nx'=a*x\ny'=a*y\ninit x=1,y=1" + extra + "\n@ total_time=1,dt=.1,xlo=0,xhi=1,ylo=0,yhi=1\n")
+            f.write("par a=2\nx'=a*x\ny'=a*y\ninit x=1,y=1" + extra + "\noptions { numerics: { total_time: 1, dt: .1 }, "
+                    "plot: { xlo: 0, xhi: 1, ylo: 0, yhi: 1" + plot + " } }\n")
         proc, run, snd, col, _ = launch_server(ode=ode)
 
         def keys(*replies):
@@ -3960,7 +3963,7 @@ def check_method_refusal():
     model_dir = tempfile.mkdtemp(prefix='xppmethod')
     model = os.path.join(model_dir, 'odd.odex')
     with open(model, 'w') as f:
-        f.write("x'=-x\ny'=x\nz'=y\n@ method=euler\n")
+        f.write("x'=-x\ny'=x\nz'=y\noptions { numerics: { method: euler } }\n")
     p, r, snd, col, _ = launch_server(ode=model)
     try:
         col(is_idle)
@@ -4053,11 +4056,11 @@ def check_jacobian_setting():
             p.wait(timeout=10 * SLOW)
             shutil.rmtree(r, ignore_errors=True)
         with open(noisy, 'a') as f:
-            f.write('@ jacobian=exact\n')
+            f.write('options { numerics: { jacobian: exact } }\n')
         run = subprocess.run([os.path.abspath(args.server), 'noisy.odex', '--silent'], capture_output=True, text=True, cwd=model_dir,
                              timeout=60 * SLOW)
         check('W260: @ jacobian=exact in a model with none fails the load at the @ line, with the reason',
-              run.returncode == 1 and 'noisy.odex:3:1: @ jacobian=exact: the model has no exact Jacobian: '
+              run.returncode == 1 and 'noisy.odex:3:23: @ jacobian=exact: the model has no exact Jacobian: '
               'noisy.odex:2:1: uses random numbers' in run.stderr, run.stderr[-400:])
         smooth = os.path.join(model_dir, 'smooth.odex')
         with open(smooth, 'w') as f:
@@ -4071,7 +4074,7 @@ def check_jacobian_setting():
         check('W260: a model loaded with the default setting has not compiled an exact Jacobian',
               'Compiled ' in log and 'Compiled the exact Jacobian' not in log, log[-300:])
         with open(smooth, 'a') as f:
-            f.write('@ jacobian=exact\n')
+            f.write('options { numerics: { jacobian: exact } }\n')
         check('W260: its own @ jacobian=exact compiles it at load', 'Compiled the exact Jacobian' in load_log())
         # Reload keeps the setting; a model with no exact Jacobian says so and takes difference
         lines = []
@@ -4114,7 +4117,7 @@ def check_jacobian_failure():
     try:
         model = os.path.join(model_dir, 'sqrt.odex')
         with open(model, 'w') as f:
-            f.write("x' = sqrt(x) + 1\ninit x = 0\n@ method=stiff, total_time=4, jacobian=exact\n")
+            f.write("x' = sqrt(x) + 1\ninit x = 0\noptions { numerics: { method: stiff, total_time: 4, jacobian: exact } }\n")
         p, r, snd, col, _ = launch_server(ode=model)
         try:
             col(is_idle)
@@ -4160,7 +4163,7 @@ def check_jacobian_failure():
             p.wait(timeout=10 * SLOW)
             shutil.rmtree(r, ignore_errors=True)
         with open(model, 'w') as f:
-            f.write("x' = sqrt(x) + 1\ninit x = 0\n@ method=stiff, total_time=4\n")
+            f.write("x' = sqrt(x) + 1\ninit x = 0\noptions { numerics: { method: stiff, total_time: 4 } }\n")
         run = subprocess.run([os.path.abspath(args.server), 'sqrt.odex', '--silent'], capture_output=True, text=True,
                              cwd=model_dir, timeout=60 * SLOW)
         check('W260: under differences the same run goes through', run.returncode == 0 and 'Jacobian' not in run.stderr,
@@ -4363,15 +4366,14 @@ def check_copy_set():
         copies = [e for e in evs if e.get('ev') == 'copy']
         line = copies[0]['text'] if copies else ''
         check('cOpy set line: the copy event carries a set line with every parameter and IC',
-              len(copies) == 1 and line.startswith('set set1 {') and line.endswith('}')
-              and line.count('=') == len(st['pars']) + len(st['ics']) and 'iapp=0.1234567891234567' in line, line[:200])
+              len(copies) == 1 and line.startswith('set set1 { ') and line.endswith(' }')
+              and line.count(':') == len(st['pars']) + len(st['ics']) and 'iapp: 0.1234567891234567' in line, line[:200])
         for name in ('bad name', 'set'):
             evs, _ = copy_with(name)
             check('cOpy set line: refuses %r (no copy)' % name, not [e for e in evs if e.get('ev') == 'copy'], '')
         odelines = open(os.path.join(r, os.path.basename(args.ode)), encoding='utf-8').read().splitlines()
-        # The copied foreign-format line is checked above; our model uses
-        # the .odex set statement, without braces or a done terminator.
-        odelines.append(line.replace(' {', ' = ', 1).removesuffix('}'))
+        # The copied line is the .odex set statement
+        odelines.append(line)
         with open(os.path.join(r, 'withset.odex'), 'w', encoding='utf-8') as f:
             f.write('\n'.join(odelines) + '\n')
         p2, r2, snd2, col2, _ = launch_server(ode=os.path.join(r, 'withset.odex'))
@@ -4492,7 +4494,7 @@ def check_open_reload():
         snd(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 3}, {'kind': 'ic', 'name': 'X', 'value': 2}])
         col(is_idle)
         with open(os.path.splitext(other)[0] + '.odex', 'w') as f:
-            f.write('par a=1, b=7\ninit x=0.5\nx\'=-a*x+b*0\n@ total_time=5, dt=0.05\n')
+            f.write('par a=1, b=7\ninit x=0.5\nx\'=-a*x+b*0\noptions { numerics: { total_time: 5, dt: 0.05 } }\n')
         snd(cmd='reload')
         evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
         check('reload asks first, as Open model does (W59d): Save session s, Don\'t save d',
@@ -4749,7 +4751,7 @@ def check_silent_commands():
         dirs.append(tempfile.mkdtemp(prefix='xpppost'))
         post = os.path.join(dirs[-1], 'post.odex')
         with open(post, 'w') as f:
-            f.write("x'=-x+sin(t)\ninit x=0.5\n@ total_time=50,dt=.05,postprocess=1,histcol=x,histlo=-1,histhi=1,histbins=20\n")
+            f.write("x'=-x+sin(t)\ninit x=0.5\noptions { numerics: { total_time: 50, dt: .05 }, histogram: { postprocess: 1, histcol: x, histlo: -1, histhi: 1, histbins: 20 } }\n")
         s, r = silent(post)
         dirs.append(s)
         c, rc = script(post, go + [{'cmd': 'browser', 'op': 'postprocess'},
@@ -4771,7 +4773,7 @@ def check_outcomes_once():
     d = tempfile.mkdtemp(prefix='xppoutcomes')
     try:
         with open(os.path.join(d, 'linear.odex'), 'w') as f:
-            f.write("par a=1\nx'=a\ny'=a\ninit x=0,y=0\naux type=1\naux branch=1\naux f2=0\n@ dt=.1,total_time=1\n")
+            f.write("par a=1\nx'=a\ny'=a\ninit x=0,y=0\naux type=1\naux branch=1\naux f2=0\noptions { numerics: { dt: .1, total_time: 1 } }\n")
         with open(os.path.join(d, 'fit.dat'), 'w') as f:
             f.write(''.join('%d %d\n' % (t, 2*t) for t in range(6)))
         def run(lines, *flags):
@@ -4948,7 +4950,7 @@ def check_dae_fold():
     try:
         short = os.path.join(short_dir, 'dae_ex3.odex')
         with open('examples/ode/dae_ex3.odex') as f:
-            text = f.read() + '\n@ total_time=.3\n'
+            text = f.read().replace('numerics: {', 'numerics: { total_time: .3,', 1)
         with open(short, 'w') as f:
             f.write(text)
         code, errs, rows, err = run(short, GO + SING)
@@ -6321,10 +6323,10 @@ def check_runnow_job():
     with tempfile.TemporaryDirectory(prefix='xpprunnow') as source:
         model = os.path.join(source, 'runnow.odex')
         with open('tools/models/heavy.odex', encoding='utf-8') as f:
-            heavy = f.read().replace('total_time=20', 'total_time=1e7')
+            heavy = f.read().replace('total_time: 20', 'total_time: 1e7')
         for option in ('model', 'cli'):
             with open(model, 'w', encoding='utf-8') as f:
-                f.write(heavy + (chr(10) + '@ runnow=1' + chr(10) if option == 'model' else ''))
+                f.write(heavy.replace('options {', 'options {' + chr(10) + '  batch: { runnow: 1 },', 1) if option == 'model' else heavy)
             p, r, snd, col, _ = launch_server(ode=model, extra_args=['--runnow'] if option == 'cli' else [])
             try:
                 _, comp = col(lambda e: e.get('ev') == 'computing', timeout=30 * SLOW)

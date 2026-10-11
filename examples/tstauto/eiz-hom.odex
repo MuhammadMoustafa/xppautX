@@ -12,7 +12,9 @@ par aze = 12, te = 3.8, aee = 15, aie = 10, taue = 2
 par taui = 5, aei = 25, aii = 8, ti = 8.5
 par tauz = 50, aez = 10, tz = 7
 init u = 0.036, v = 5e-04, z = 0.0013, we = 0.0365
-@ dt=.002
-@ xp=we, yp=ve, xlo=-.05, ylo=-.2, xhi=.5, yhi=.3
+options {
+  numerics: { dt: .002 },
+  plot: { xp: we, yp: ve, xlo: -.05, ylo: -.2, xhi: .5, yhi: .3 },
+}
 
 fun ode_divisor(value) = if value then value else 2.23e-15

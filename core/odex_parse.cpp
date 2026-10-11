@@ -12,7 +12,9 @@
 #include "model_files.h"
 #include "model_options.h"
 
+#include <algorithm>
 #include <array>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -33,7 +35,7 @@ namespace {
 constexpr auto reserved_words = std::to_array<std::string_view>({
   "par", "init", "aux", "fun", "let", "return", "if", "then", "else", "set",
   "table", "markov", "wiener", "event", "boundary", "network", "include",
-  "solv", "only", "history", "const", "by",
+  "solv", "only", "history", "const", "by", "options",
   "and", "or", "not", "mod", "volterra", "near", "of",
   "t", "pi", "mouse_x", "mouse_y", "mouse_vx", "mouse_vy",
 });
@@ -126,11 +128,23 @@ public:
         t.text = std::string(s_.substr(b, i_ - b));
         if (!read_number(t.text, t.value)) fail(t.pos, xpp::format("`{}` is not a number", t.text));
       } else if (c == '"') {
-        size_t b = ++i_;
-        while (i_ < s_.size() && s_[i_] != '"' && s_[i_] != '\n') i_++;
+        /* in a string only \" and \\ are escapes: a path, a narration */
+        i_++;
+        std::string text;
+        while (i_ < s_.size() && s_[i_] != '"' && s_[i_] != '\n') {
+          if (s_[i_] == '\\') {
+            const char escaped = i_ + 1 < s_.size() ? s_[i_ + 1] : '\0';
+            if (escaped != '"' && escaped != '\\')
+              fail(here(), "a backslash in a string is written \\\\ (the only escapes are \\\" and \\\\)");
+            text += escaped;
+            i_ += 2;
+          } else {
+            text += s_[i_++];
+          }
+        }
         if (i_ >= s_.size() || s_[i_] != '"') fail(t.pos, "this string is never closed on its line");
         t.kind = Token::Kind::String;
-        t.text = std::string(s_.substr(b, i_ - b));
+        t.text = std::move(text);
         i_++;
       } else {
         static constexpr std::array<std::string_view, 5> two = {"<=", ">=", "==", "!=", ".."};
@@ -352,11 +366,6 @@ private:
       push(std::move(s));
       return;
     }
-    if (t.kind == Token::Kind::Punct && t.text == "@") {
-      take();
-      options(s);
-      return;
-    }
     if (t.kind == Token::Kind::Punct && t.text == "!")
       fail(t.pos, "`!d = expr` is .ode's: in .odex write `d = expr` (a formula of parameters is worked out "
                   "when they change)");
@@ -392,13 +401,12 @@ private:
     } else if (word == "fun") {
       take();
       function(s);
+    } else if (word == "options") {
+      take();
+      options(s);
     } else if (word == "set") {
       take();
-      s.kind = Statement::Kind::Set;
-      name_of(s, "the set's name");
-      expect_punct("=", "after the set's name");
-      bindings(s, "set");
-      push(std::move(s));
+      set_block(s);
     } else if (word == "table") {
       take();
       table(s);
@@ -515,59 +523,158 @@ private:
   }
 
   /* the text of the tokens from here that touch each other (no white
-     space between), up to a comma: an option's value, a file's name */
-  std::string raw_word(Pos &at, bool spaces = false)
+     space between), up to a comma or a closing brace: a bare value */
+  std::string raw_word(Pos &at)
   {
     at = peek().pos;
-    if (at_end() || at_punct(",")) return std::string();
+    if (at_end() || at_punct(",") || at_punct("}")) return std::string();
     size_t b = peek().begin, e = take().end;
-    while (!at_end() && ((spaces && peek().pos.line == at.line) || !peek().space_before) && !at_punct(",")) e = take().end;
+    while (!at_end() && !peek().space_before && !at_punct(",") && !at_punct("}")) e = take().end;
     return std::string(src_.substr(b, e - b));
   }
 
-  void options(Statement &s)
+  /* { key: value, key: value, ... }: each key is read and its value
+     handed to entry, which reads it; a trailing comma is allowed. The
+     keys are read only here, so none is a reserved word. */
+  template <class F>
+  void entries(std::string_view what, F entry)
   {
-    s.kind = Statement::Kind::Options;
-    for (;;) {
-      Option o;
-      const Token &n = name_token("an option's name");
-      o.name = n.text;
-      o.pos = n.pos;
-      expect_punct("=", xpp::format("after the option {}", o.name));
-      int index = 0;
-      const OptionRow *row = find_option(upper_case(o.name), index, false);
-      const bool method = row && row->rule == OptionRule::method;
-      /* Solver names include spaces and parentheses; the picker checks
-         the whole value after the model's dimension and kernels are known. */
-      o.value = raw_word(o.value_pos, method);
-      /* XPPAUT's name for an option is a .ode's, not this file's */
-      if (find_option(upper_case(o.name), index, true) != row)
-        fail(o.pos, xpp::format("`{}={}` is not an option of a .odex", o.name, o.value));
-      if (!method || o.value.empty()) check_option_value(o);
-      s.options.push_back(std::move(o));
+    const Pos open = peek().pos;
+    expect_punct("{", xpp::format("to open {}", what));
+    while (!at_punct("}")) {
+      if (at_end()) fail(peek().pos, xpp::format("missing `}}` for the block opened at {}:{}", open.line, open.col));
+      const Token &key = name_token("a key");
+      expect_punct(":", xpp::format("after {}", key.text));
+      entry(key);
       if (!at_punct(",")) break;
       take();
     }
-    end_of_list("an @ line");
+    expect_punct("}", "to close the block");
+  }
+
+  /* options { group: { key: value, ... }, ... } (docs/odex.md "Options") */
+  void options(Statement &s)
+  {
+    s.kind = Statement::Kind::Options;
+    if (options_at_) fail(s.pos, xpp::format("options is written once in a file (the first is at line {})", options_at_));
+    options_at_ = s.pos.line;
+    std::vector<std::string> groups;
+    std::map<std::string, int> keys;
+    entries("the options block", [&](const Token &g) {
+      if (std::ranges::find(option_groups, g.text) == option_groups.end()) {
+        std::string all;
+        for (std::string_view name : option_groups) all += (all.empty() ? "" : ", ") + std::string(name);
+        fail(g.pos, xpp::format("`{}` is not a group of options ({})", g.text, all));
+      }
+      if (std::ranges::find(groups, g.text) != groups.end()) fail(g.pos, xpp::format("the group {} is written twice", g.text));
+      groups.push_back(g.text);
+      entries(xpp::format("the group {}", g.text), [&](const Token &key) { s.options.push_back(option(g.text, key, keys)); });
+    });
     push(std::move(s));
   }
 
-  /* an option's value is a number, whole, or a name or a file's name:
-     never an expression cut where a number ends (.ode's atof) */
-  void check_option_value(const Option &o) const
+  /* the entry of group whose key was read: its value, by the kind of the
+     option the key names. XPPAUT's names, prefixes of a key and a key in
+     another group are no keys; a key is given once unless it may repeat. */
+  Option option(const std::string &group, const Token &key, std::map<std::string, int> &keys)
+  {
+    Option o;
+    o.group = group;
+    o.name = key.text;
+    o.pos = key.pos;
+    int index = 0;
+    const OptionRow *row = find_odex_option(o.name, index);
+    if (!row) {
+      const OptionRow *xppaut = find_option(upper_case(o.name), index, true);
+      fail(key.pos, xppaut && !xppaut->group.empty()
+                      ? xpp::format("`{}` is XPPAUT's word: the key is `{}`", o.name, odex_key(*xppaut, index))
+                      : xpp::format("`{}` is not an option", o.name));
+    }
+    if (row->group != group) fail(key.pos, xpp::format("`{}` is in the group {}, not {}", o.name, row->group, group));
+    const auto [first, fresh] = keys.emplace(o.name, key.pos.line);
+    if (!fresh && !row->repeatable)
+      fail(key.pos, xpp::format("`{}` is given twice (the first is at line {})", o.name, first->second));
+    const bool quoted = row->kind == OptionKind::path || row->kind == OptionKind::text;
+    o.value_pos = peek().pos;
+    if (peek().kind == Token::Kind::String) {
+      if (!quoted) fail(o.value_pos, xpp::format("the option {} takes a bare word or number, not a string", o.name));
+      o.value = take().text;
+      if (o.value.empty()) fail(o.value_pos, xpp::format("the option {} has an empty string", o.name));
+      return o;
+    }
+    if (quoted)
+      fail(o.value_pos, xpp::format("the option {} takes {} in double quotes, found {}", o.name,
+                                    row->kind == OptionKind::path ? "a path" : "a text", describe(peek())));
+    o.value = raw_word(o.value_pos);
+    check_bare_value(o, *row);
+    return o;
+  }
+
+  /* a bare value is a number, or a word of letters, digits and _ . + -;
+     a choice row's is one of its words */
+  void check_bare_value(const Option &o, const OptionRow &row) const
   {
     const std::string &v = o.value;
     if (v.empty()) fail(o.value_pos, xpp::format("the option {} has no value", o.name));
-    char c = v[0];
     double z;
-    if (is_digit(c) || c == '.' || c == '-' || c == '+') {
-      if (!read_number(v, z))
-        fail(o.value_pos, xpp::format("the option {}'s value `{}` is not a number", o.name, v));
+    if (row.kind == OptionKind::number || row.kind == OptionKind::whole) {
+      if (!read_number(v, z)) fail(o.value_pos, xpp::format("the option {}'s value `{}` is not a number", o.name, v));
       return;
     }
+    if (row.kind == OptionKind::choice) {
+      const std::vector<std::string> words = option_choices(row);
+      if (std::ranges::find(words, v) != words.end()) return;
+      std::string all;
+      for (const std::string &w : words) all += (all.empty() ? "" : ", ") + w;
+      fail(o.value_pos, xpp::format("the option {}'s value `{}` is none of {}", o.name, v, all));
+    }
     for (char k : v)
-      if (!is_name_char(k) && k != '.' && k != '-' && k != '/' && k != '\\' && k != ':' && k != '~')
-        fail(o.value_pos, xpp::format("the option {}'s value `{}` is neither a number nor a name", o.name, v));
+      if (!is_name_char(k) && k != '.' && k != '-' && k != '+')
+        fail(o.value_pos, xpp::format("the option {}'s value `{}` is not a word (letters, digits and _ . + -)", o.name, v));
+  }
+
+  /* set name { key: value, ... }: a variable's value, a parameter's or an
+     option's, a number or a name each */
+  void set_block(Statement &s)
+  {
+    s.kind = Statement::Kind::Set;
+    name_of(s, "the set's name");
+    std::map<std::string, int> keys;
+    entries(xpp::format("the set {}", s.name), [&](const Token &key) {
+      Binding b;
+      b.name = key.text;
+      b.pos = key.pos;
+      const auto [first, fresh] = keys.emplace(b.name, key.pos.line);
+      if (!fresh) fail(key.pos, xpp::format("`{}` is given twice in the set (the first is at line {})", b.name, first->second));
+      b.value = set_value();
+      s.bindings.push_back(std::move(b));
+    });
+    push(std::move(s));
+  }
+
+  /* a set's value: a number, signed or not, or a name */
+  Expr set_value()
+  {
+    bool negative = false;
+    if (at_punct("-") || at_punct("+")) negative = take().text == "-";
+    const Token &t = peek();
+    Expr v;
+    v.pos = t.pos;
+    if (t.kind == Token::Kind::Number) {
+      v.kind = Expr::Kind::Number;
+      v.text = t.text;
+      v.value = t.value;
+    } else if (t.kind == Token::Kind::Name && !t.primed && !negative) {
+      v.kind = Expr::Kind::Name;
+      v.text = t.text;
+    } else {
+      fail(t.pos, xpp::format("a set's value is a number or a name, found {}", describe(t)));
+    }
+    take();
+    if (!negative) return v;
+    Expr n = node(Expr::Kind::Neg, v.pos);
+    n.args.push_back(std::move(v));
+    return n;
   }
 
   void function(Statement &s)
@@ -1033,7 +1140,7 @@ private:
     static constexpr auto words = std::to_array<std::string_view>({
       "par", "init", "aux", "fun", "let", "return", "if", "then", "else",
       "table", "markov", "wiener", "event", "boundary", "network", "include",
-      "solv", "only", "history", "const", "by", "and", "or", "not", "mod", "of"});
+      "solv", "only", "history", "const", "by", "options", "and", "or", "not", "mod", "of"});
     for (std::string_view k : words)
       if (k == w) return true;
     return false;
@@ -1047,6 +1154,8 @@ private:
   std::vector<Token> toks_;
   size_t i_ = 0;
   int last_line_ = 0;
+  /* the line of this file's options block, 0 before it */
+  int options_at_ = 0;
 };
 
 } // namespace

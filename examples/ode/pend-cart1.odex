@@ -25,6 +25,8 @@ th1p' = th1dd
 # track accelerations
 aux xpp = xdd
 aux th1pp = th1dd
-@ dt=.02
+options {
+  numerics: { dt: .02 },
+}
 # nice ICs
 init th1 = 1.5

@@ -74,11 +74,11 @@ init vx = 1
 #####
 # integrate 80000*dt = 4000 time steps
 # only keep the last one (trans=79999)
-@ total_time=80000, method=Discrete, store_every=50
-@ transient_time=79999
-@ bound=100000
 # plot set up
-@ xp=muu, yp=nuu, xlo=-4, xhi=0, ylo=0, yhi=2
+options {
+  numerics: { total_time: 80000, method: discrete, store_every: 50, transient_time: 79999, bound: 100000 },
+  plot: { xp: muu, yp: nuu, xlo: -4, xhi: 0, ylo: 0, yhi: 2 },
+}
 
 # what followed the .ode's done:
 # # init conditions 2 par range

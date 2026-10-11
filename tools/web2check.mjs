@@ -5881,7 +5881,7 @@ async function startScreenExamplesCheck() {
    and continue" on its error; the button sends the core's commands and the
    run ends where it was going, with differences. */
 async function jacobianOfferCheck(dir) {
-  fs.writeFileSync(path.join(dir, 'w260sqrt.odex'), "x' = sqrt(x) + 1\ninit x = 0\n@ method=stiff, total_time=4, jacobian=exact\n");
+  fs.writeFileSync(path.join(dir, 'w260sqrt.odex'), "x' = sqrt(x) + 1\ninit x = 0\noptions { numerics: { method: stiff, total_time: 4, jacobian: exact } }\n");
   await cdp.eval(`__xpp.send({cmd: 'open', file: 'w260sqrt.odex'})`);
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");

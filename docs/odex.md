@@ -141,30 +141,71 @@ grammar:
 - `fun NAME(ARG, ...) = EXPR` — a one-line function, usual precedence,
   may use the one-line `if`.
 - `fun NAME(ARG, ...) { ... }` — a block function (above).
-- `@ NAME = VALUE, NAME = VALUE, ...` — options (one name each: `store_every`,
-  where a `.ode` says `nout` or `njmp`; W206. Every option has one name: `total_time`, `start_time`,
-  `transient_time`, `nullcline_mesh`, `singpt_max_iterates`, `singpt_newton_tolerance`,
-  `singpt_jacobian_epsilon`, `method`, `tolerance`, `min_step`, `max_step`, `abs_tolerance`,
-  `bvp_max_iterates`, `bvp_tolerance`, `bvp_epsilon`, `storage_rows`, `torus_period`,
-  `poincare_map`, `poincare_variable`, `poincare_sign`, `poincare_stop`, `poincare_plane`, where
-  a `.ode` says `total`, `t0`, `trans`, `nmesh`, `newt_iter`, `newt_tol`, `jac_eps`, `meth`, `tol`,
-  `dtmin`, `dtmax`, `atol`, `bvp_maxit`, `bvp_tol`, `bvp_eps`, `maxstor`, `tor_per`, `poimap`,
-  `poivar`, `poisgn`, `poistop`, `poipln`; a `.odex` refuses XPPAUT's word at its line, in an `@`
-  line, a `set` and a narration action; W216), comma-separated, each
-  parsed independently and never silently dropped; a bad value is an
-  error naming the option and the bad text, not a silent truncation.
-  Filename values include `~`, as in Windows 8.3 paths
-  (`@ logfile=C:/Users/RUNNER~1/out.dat`; W169, #221).
-  `method` also accepts the full solver names, including spaces and
-  parentheses (`@ method=Mod. Euler`, `@ method=DoPri8(3)`); the whole value
-  ends at a comma or the end of its line and must name a suitable solver
-  (W132, [#184](https://github.com/MuhammadMoustafa/xppautX/issues/184)).
-  `jacobian` (xppautX's own: XPPAUT has none) is `difference` (the default)
-  or `exact`; `exact` in a model with no exact Jacobian stops the load at
-  its line, with the reason (W260,
+- `options { group: { key: value, ... }, ... }` — the options, one block
+  (W280, [#337](https://github.com/MuhammadMoustafa/xppautX/issues/337);
+  replaces `@` lines, which a `.ode` keeps and `--convert` writes as this
+  block). Entries are `key: value`, separated by commas, groups nested, a
+  trailing comma allowed. `options` is a reserved word; the keys and values
+  are read only inside the block, so none of them is reserved (`stiff`,
+  `total_time` can still name a variable). A file has one block. The groups
+  and their keys are the option table's (core/model_options.cpp):
+
+        options {
+          numerics: { total_time: 100, method: stiff, jacobian: exact },
+          plot:     { xp: v, yp: w, xlo: -0.6, xhi: 1.2 },
+          auto:     { ntst: 50, parmax: 10 },
+        }
+
+  Groups: `numerics`, `plot`, `sliders`, `range`, `batch`, `auto`,
+  `histogram`, `log`, `buttons`. A key is the option's one name in lower
+  case, spelled exactly (`xp2`..`xp8` for the numbered ones): XPPAUT's word
+  (`total`, `nout`, `meth`, ...), a prefix match (`xplot`, `bounds`), a key
+  of another group and a key twice (but for `fold` and `but`, which name one
+  thing each) are errors at the key, as is anything the old `@` form wrote.
+  The X11 window's settings (`bell`, `bigfont`, ...) are no options: the
+  converter drops them. Every option has one name: `total_time`,
+  `start_time`, `transient_time`, `nullcline_mesh`, `singpt_max_iterates`,
+  `singpt_newton_tolerance`, `singpt_jacobian_epsilon`, `method`,
+  `tolerance`, `min_step`, `max_step`, `abs_tolerance`, `storage_rows`,
+  `torus_period`, `poincare_map`, `poincare_variable`, `poincare_sign`,
+  `poincare_stop`, `poincare_plane`, where a `.ode` says `total`, `t0`,
+  `trans`, `nmesh`, `newt_iter`, `newt_tol`, `jac_eps`, `meth`, `tol`,
+  `dtmin`, `dtmax`, `atol`, `maxstor`, `tor_per`, `poimap`, `poivar`,
+  `poisgn`, `poistop`, `poipln`; `store_every` is `nout`/`njmp`. A bad value
+  is an error naming the option and the bad text, at its line.
+
+  A value is one bare word or number (letters, digits, `_ . + -`), no
+  quotes, except a **path** or a **text**, which is a double-quoted string
+  (`logfile: "out/run 1.log"`, `output: "données.dat"`): `\"` and `\\`
+  are its only escapes, a path is written with `/` on every system, and a
+  path stays inside the model's folder as before (W175). Only `output` and
+  `logfile` are paths, and `but` (a button, `but: "quit:fq"`) a text. Every
+  writer of options (the converter, the Copy set line) writes them so.
+  Values that were more than one word are one now:
+
+  | `.ode` / old `.odex` value | `.odex` value |
+  |---|---|
+  | `method=Runge-Kutta` (`rk`, `rk4`) | `runge_kutta` |
+  | `Mod. Euler` (`modeuler`) | `modified_euler` |
+  | `BackEul` (`Backward Euler`) | `backward_euler` |
+  | `DoPri8(3)` | `dopri8` |
+  | `DoPri5` | `dopri5` |
+  | `QualRK` (`Qual RK`, `qualrk4`) | `qualrk` |
+  | `Discrete`, `Euler`, `Adams`, `Gear`, `Volterra`, `Stiff`, `CVode`, `Rosenbrock`, `Symplectic` | the same in lower case |
+  | `rangereset=y...`, `rangeoldic=n...` | `yes`, `no` |
+  | `poincare_map=s...`, `m...`, `p...` | `section`, `max`, `period` |
+  | `axes=3d` | `3` |
+
+  A choice takes exactly one of its words (`runge_kutta`, not `Runge-Kutta`
+  or `rk4`). `jacobian` (xppautX's own: XPPAUT has none) is `difference`
+  (the default) or `exact`; `exact` in a model with no exact Jacobian stops
+  the load at its line, with the reason (W260,
   [#317](https://github.com/MuhammadMoustafa/xppautX/issues/317); the
-  manual's "Numerical parameters").
-- `set NAME = EXPR, ...` — a named parameter set, as `.ode`.
+  manual's "Numerical parameters"). `neartol` (near's tolerance) is a
+  numerics key too.
+- `set NAME { key: value, ... }` — a named parameter set, in the options'
+  shape: a key is a variable, a parameter or an option's key, a value a
+  number or a bare word (a set holds no path).
 - `table NAME EXPR` / `table NAME FILE` — as `.ode`; a formula table
   may call a `fun` written after it (every function is compiled first,
   W165).
@@ -210,7 +251,7 @@ by STEP`:
   of an `if` too: the ends of a chain are statements of their own
   (`x[1]' = ...`, then `for j in 2..n`).
 - No blocks and no logic: no `for ... { }` and no declaration-time `if`.
-- Every statement takes a range but an `@` line, a comment the model
+- Every statement takes a range but `options`, a comment the model
   shows, `only` and `set`. An element may name what the statement
   declares (`x[j]'`, `x[j] =`, `u[j](t) =`, the names of `par`, `init`,
   `aux`, `history`, `const`, `wiener`, an event's targets, a network and
@@ -252,11 +293,14 @@ if_stmt      = "if" , expr , block ,
                { "else" , "if" , expr , block } ,
                [ "else" , block ] ;
 
-option_decl  = "@" , opt_list ;
-opt_list     = name , "=" , opt_value , { "," , name , "=" , opt_value } ;
-opt_value    = number | name | filename ;
+option_decl  = "options" , "{" , [ group , { "," , group } , [ "," ] ] , "}" ;
+group        = name , ":" , "{" , [ entry , { "," , entry } , [ "," ] ] , "}" ;
+entry        = name , ":" , ( bare_word | string ) ;
+(* a string for a path or a text, a bare word (one token: letters, digits,
+   _ . + -) for any other value; the keys and values are read here only *)
 
-set_decl     = "set" , name , "=" , name_init_list ;
+set_decl     = "set" , name , "{" , [ set_entry , { "," , set_entry } , [ "," ] ] , "}" ;
+set_entry    = name , ":" , [ "-" ] , ( number | name ) ;
 table_decl   = "table" , name , ( expr | filename ) ;
 markov_decl  = "markov" , name , integer , { transition_row } ;
 wiener_decl  = "wiener" , name , { "," , name } ;
@@ -317,7 +361,7 @@ outrank all arithmetic.
 
 Statement keywords: `par`, `init`, `aux`, `fun`, `let`, `return`, `if`,
 `then`, `else`, `set`, `table`, `markov`, `wiener`, `event`, `boundary`,
-`network`, `include`, `const`; `by` (a range's step). `for` and `in`
+`network`, `include`, `const`, `options`; `by` (a range's step). `for` and `in`
 are words only where a range starts, after a statement on its line, so
 a parameter may be called `in` (W80). `!` and `number` are not `.odex`
 (W80: `d = expr`, `const`).

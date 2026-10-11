@@ -1302,7 +1302,7 @@ is the words of its label, and the XPPAUT words (`total`, `nmesh`, `newt_tol`, .
 field; `unused` one the current method does not use; `unavailable` the choices the model
 cannot have, each by its name with why (`{"exact":"noisy.odex:2:1: uses random numbers"}`: a
 model with no exact Jacobian, "Numerics" in docs/manual/06-numerical-parameters.md). The exact
-Jacobian is made only when asked for (the model's own `@ jacobian=exact`, or `set num jacobian exact`),
+Jacobian is made only when asked for (the model's own `jacobian: exact` option, or `set num jacobian exact`),
 so a model's `exact` is offered until it was chosen once: the reason appears after that choice was refused.
 
 **`{"cmd":"set","kind":"num","name":KEY,"value":V}`** (or `"text"`) sets one

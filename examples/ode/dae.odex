@@ -8,4 +8,6 @@ init x = 3
 aux yy = y
 # plot the "error"
 aux zz = x+y+y^3+y^5
-@ singpt_newton_tolerance=1e-8
+options {
+  numerics: { singpt_newton_tolerance: 1e-8 },
+}

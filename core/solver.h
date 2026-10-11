@@ -77,6 +77,7 @@ struct SolverInfo {
   method::Id id;
   const char *name;      /* do_info's and the front end's */
   const char *set_label; /* the label .set files write beside it */
+  const char *key;       /* the one word a .odex writes (docs/odex.md "Options") */
   SolverTraits traits;
   /* the solver of the Session s, with its work memory for n equations */
   std::unique_ptr<Solver> (*start)(const SolverInfo &info, Session &s, int n);

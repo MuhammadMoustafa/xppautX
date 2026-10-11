@@ -131,9 +131,10 @@ struct ArrayCopy {
   std::string written;
 };
 
-/* an @ option: its name and its value's text */
+/* an entry of the options block: its group, its key and its value's
+   text (a path or a text without its quotes) */
 struct Option {
-  std::string name, value;
+  std::string group, name, value;
   Pos pos, value_pos;
 };
 
@@ -159,10 +160,11 @@ struct Statement {
                  Fixed whose formula reads only parameters, consts and pure
                  functions one too (parameters_only) */
     Fun,      /* fun name(names) = expr, or with a body */
-    Options,  /* @ options; text the @ line the Model keeps */
+    Options,  /* an .ode's @ line (text, as the Model keeps it), or a .odex's
+                 options block (options) */
     OptionFile, /* .ode's options file: text, its name */
-    Set,      /* set name = bindings; text its actions as the Model keeps
-                 them, a=1,b=2 */
+    Set,      /* set name { bindings } (.ode's set name {a=1,b=2}); text its
+                 actions as the Model keeps them, a=1,b=2 */
     Table,    /* table name "file" (text), or table name expr, n=, lo=,
                  hi= (table_kind says which) */
     Markov,   /* markov name count {cells}: count*count transitions */
@@ -255,7 +257,7 @@ bool is_name(std::string_view name);
 /* the .odex reader's second half (odex_load.cpp): a parsed model checked
    and readied for the builder: a block function made the one expression
    its returns make, near's tol filled in, wiener's names given their
-   value, an @ line's, a set's, a network's and a comment's text the
+   value, a set's, a network's and a comment's text the
    Model's own, ieee_division set. Throws Error. */
 Parsed ready(const Parsed &p);
 
@@ -313,6 +315,9 @@ std::string odex_name(const std::string &ode);
 std::string print(const Expr &e);
 /* v as an .odex number: the shortest text that reads back as v */
 std::string print_number(double v);
+/* text as an .odex string, in double quotes, a " and a \ escaped: the
+   only escapes a string has (a path, a narration) */
+std::string quote_string(std::string_view text);
 /* e as the expression engine's text (an .ode formula's), with the
    parentheses the engine's precedence needs to keep e's grouping, a sign
    and an if always bracketed; an .ode formula (Text) as it is */

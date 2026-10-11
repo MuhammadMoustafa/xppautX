@@ -16,6 +16,8 @@ init theta = 0.05
 x[j] = 0.3*sin(theta-2*pi*j/ode_divisor(n))+0.4 for j in 0..9
 y[j] = 0.3*cos(theta-2*pi*j/ode_divisor(n))+0.4 for j in 0..9
 yc[j] = 0.3*cos(theta-2*pi*j/ode_divisor(n))+0.4+0.1*c[j]/2 for j in 0..9
-@ total_time=200, dt=.05, method=CVode, tolerance=1e-5, abs_tolerance=1e-4
+options {
+  numerics: { total_time: 200, dt: .05, method: cvode, tolerance: 1e-5, abs_tolerance: 1e-4 },
+}
 
 fun ode_divisor(value) = if value then value else 2.23e-15

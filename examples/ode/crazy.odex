@@ -2,7 +2,9 @@
 
 x' = -y+sin(1/ode_divisor(x))*x^2
 y' = x
-@ xp=x, yp=y, xlo=-2, xhi=2, ylo=-2, yhi=2
-@ nullcline_mesh=101
+options {
+  numerics: { nullcline_mesh: 101 },
+  plot: { xp: x, yp: y, xlo: -2, xhi: 2, ylo: -2, yhi: 2 },
+}
 
 fun ode_divisor(value) = if value then value else 2.23e-15

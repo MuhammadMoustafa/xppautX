@@ -7,5 +7,7 @@ network bob = conv(period, 51, 5, w, v0)
 v[j]' = -v[j]+f(k*bob(j)-thr-c*delay(v[j], tau)) for j in 0..50
 par k = 3, thr = 0.5, beta = 10, c = 2.5, tau = 5
 fun f(u) = 1/(1+exp(-beta*u))
-@ delay=10, total_time=40
+options {
+  numerics: { delay: 10, total_time: 40 },
+}
 init v[j] = 1 for j in 0..4

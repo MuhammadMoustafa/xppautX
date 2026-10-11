@@ -16,6 +16,7 @@
 #include "form_ode.h"
 #include "model.h"
 #include "model_files.h"
+#include "model_options.h"
 #include "session.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
@@ -377,7 +378,7 @@ private:
         if (o.name != "neartol") continue;
         double v = 0;
         if (!xpp::parse_number(o.value, v) || !(v > 0))
-          fail(o.value_pos, xpp::format("@ neartol={} is not a positive number", o.value));
+          fail(o.value_pos, xpp::format("neartol: {} is not a positive number", o.value));
         neartol_ = v;
       }
     }
@@ -636,6 +637,17 @@ private:
     e.arg_names.push_back("tol");
   }
 
+  /* a set's key: a variable (its initial value), a parameter, or an option's key */
+  void set_key(const Binding &b) const
+  {
+    const Decl *d = find(b.name);
+    int index = 0;
+    if ((d && (d->kind == Kind::Variable || d->kind == Kind::Markov || d->kind == Kind::Param)) ||
+        xpp::find_odex_option(b.name, index))
+      return;
+    fail(b.pos, xpp::format("a set holds variables, parameters and options, and `{}` is none of them", b.name));
+  }
+
   /* a set's value: a number (signed) or a name, as .ode's sets hold them */
   std::string set_value(const Binding &b) const
   {
@@ -660,20 +672,9 @@ private:
   {
     Statement s = in;
     switch (s.kind) {
-    case Statement::Kind::Options: {
-      /* neartol is .odex's own (scan_neartol read it): the options the
-         Model keeps would warn "Option neartol not recognized" */
-      std::string line = "@ ";
-      bool first = true;
-      for (const Option &o : s.options) {
-        if (o.name == "neartol") continue;
-        line += (first ? "" : ",") + o.name + "=" + o.value;
-        first = false;
-      }
-      if (first) return;
-      s.text = line;
+    case Statement::Kind::Options:
+      if (s.options.empty()) return;
       break;
-    }
     case Statement::Kind::Par:
       /* numbers only (docs/odex.md question 9): a quantity worked out
          from the parameters is d = expr */
@@ -715,8 +716,10 @@ private:
       break;
     }
     case Statement::Kind::Set:
-      for (size_t i = 0; i < s.bindings.size(); i++)
+      for (size_t i = 0; i < s.bindings.size(); i++) {
+        set_key(s.bindings[i]);
         s.text += (i ? "," : "") + s.bindings[i].name + "=" + set_value(s.bindings[i]);
+      }
       break;
     case Statement::Kind::Table:
       if (s.table_kind == Statement::TableKind::Formula) s.expr = formula(s.expr, formula_scope());

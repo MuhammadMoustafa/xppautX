@@ -1,5 +1,4 @@
 # lorenz2.odex: converted from lorenz2.ode by xppautX --convert (docs/odex.md)
-# @ axes=3d in the .ode: XPP reads the number at its front, 3
 
 # the famous Lorenz equation set up for animated waterwheel and
 # some delayed coordinates as well
@@ -15,6 +14,10 @@ th[j] = theta+2*pi*j/8 for j in 0..7
 # approximate the velocity vector in the butterfly coords
 z1 = z-del*(-b*z+x*y)
 x1 = x-del*(s*(-x+y))
-@ dt=.025, total_time=40, xplot=x, yplot=y, zplot=z, axes=3
-@ xmin=-20, xmax=20, ymin=-30, ymax=30, zmin=0, zmax=50
-@ xlo=-1.5, ylo=-2, xhi=1.5, yhi=2, bound=10000
+options {
+  numerics: { dt: .025, total_time: 40, bound: 10000 },
+  plot: {
+    xp: x, yp: y, zp: z, axes: 3, xmin: -20, xmax: 20, ymin: -30, ymax: 30, zmin: 0, zmax: 50,
+    xlo: -1.5, ylo: -2, xhi: 1.5, yhi: 2,
+  },
+}

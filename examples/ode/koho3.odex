@@ -32,8 +32,10 @@ aux zzc = zc
 event 0 t-t0, wa[j] = 2*ran(1)-1, wb[j] = br*ran(1), wc[j] = bc*ran(1) for j in 0..99
 par t0 = 0
 #
-@ method=Discrete, total_time=20000, store_every=8, transient_time=10000
-@ colormap=6
+options {
+  numerics: { method: discrete, total_time: 20000, store_every: 8, transient_time: 10000 },
+  plot: { colormap: 6 },
+}
 
 # what followed the .ode's done:
 # 

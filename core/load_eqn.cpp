@@ -253,22 +253,34 @@ std::string intern_set_name_problem(const xpp::Model &m, std::string_view name)
   return "";
 }
 
+namespace {
+
+/* a variable's name as its equation spells it (the Model keeps them in upper case) */
+std::string declared_spelling(const xpp::Model &m, const std::string &name)
+{
+  for(const xpp::odex::Statement &st : m.statements)
+    if(!st.name.empty()&&xpp::equal_ignoring_case(st.name,name))return st.name;
+  return name;
+}
+
+} // namespace
+
 std::string intern_set_line(const xpp::Session &s, std::string_view name)
 {
   const xpp::Model &m=s.model();
-  std::string line=xpp::format("set {} {{",name);
+  std::string line=xpp::format("set {} {{ ",name);
   const char *sep="";
   for(int i=0;i<m.nupar;i++){
     double z=0;
     get_val(s,m.upar_names[i],&z);
-    line+=xpp::format("{}{}={}",sep,m.upar_names[i],xpp::number(z));
-    sep=",";
+    line+=xpp::format("{}{}: {}",sep,m.upar_names[i],xpp::number(z));
+    sep=", ";
   }
   for(int i=0;i<m.node+m.nmarkov;i++){
-    line+=xpp::format("{}{}={}",sep,m.uvar_names[i],xpp::number(s.last_ic[i]));
-    sep=",";
+    line+=xpp::format("{}{}: {}",sep,declared_spelling(m,m.uvar_names[i]),xpp::number(s.last_ic[i]));
+    sep=", ";
   }
-  return line+"}";
+  return line+" }";
 }
 
 namespace {
@@ -355,12 +367,8 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
     const xpp::Place &at=options[s.options_applied].where;
     const std::string &file=at.file.empty()?s.model().this_file:at.file;
     xpp::Load::at(file,at.line,at.col);
-    /* a .odex value ends at a comma (`@ meth=Mod. Euler`); a .ode's, as
-       XPPAUT reads it, at a space too (`@ parmin=-.2 parmax=.5`) */
-    const bool odex=xpp::odex::is_odex(file);
-    each_option(options[s.options_applied].text," ,",odex?",\n\r":" ,\n\r",[&s,mask](const std::string &name,const std::string &value){
+    for(const auto &[name,value] : options[s.options_applied].items)
       set_option(s,name,value,0,mask);
-    });
   }
   xpp::Load::at(s.model().this_file);
 }
@@ -418,8 +426,20 @@ int add_model_option(xpp::Model &m, std::string_view s1)
     else if(msc("DLL_FUN",upper))refused="dll_fun";
   });
   if(refused)refuse_compiled_functions(refused);
-  store_option(m.options,xpp::Model::OptionLine{std::string(s1),xpp::Load::place()},s1);
+  /* an .ode's value ends at a space as well as a comma, as XPPAUT reads it
+     (`@ parmin=-.2 parmax=.5`) */
+  store_option(m.options,xpp::Model::OptionLine{std::string(s1),option_items(s1,false),xpp::Load::place()},s1);
   return 0;
+}
+
+void add_model_options(xpp::Model &m, std::span<const xpp::odex::Option> entries, const std::vector<std::string> &files)
+{
+  for(const xpp::odex::Option &o : entries){
+    if(m.options.size()>=MAXOPT)
+      model_failed(xpp::format("A model may set at most {} options",MAXOPT));
+    m.options.push_back(xpp::Model::OptionLine{"",{{o.name,o.value}},
+      xpp::Place{files.at(static_cast<std::size_t>(o.pos.file)),o.pos.line,o.pos.col}});
+  }
 }
 
 } // namespace xpp
