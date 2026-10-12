@@ -1732,7 +1732,8 @@ void show_diagnostics(const std::vector<Diagnostic> &diagnostics)
 }
 
 Result<std::string> convert_text(const std::string &ode,
-                               const std::vector<std::string> &includes, std::vector<Diagnostic> *diagnostics)
+                               const std::vector<std::string> &includes, std::vector<Diagnostic> *diagnostics,
+                               std::vector<std::string> *outside_paths)
 {
   if (is_odex(ode)) return xpp::fail_reading("convert", "is .odex already", ode);
   std::string arg0 = "xppautX", model = ode;
@@ -1764,6 +1765,7 @@ Result<std::string> convert_text(const std::string &ode,
       guard_name = converter.guard_name();
       before = fingerprint(s);
       saved = SavedModel{odex_name(ode), s.model().files};
+      if (outside_paths) *outside_paths = s.model().outside_paths;
     } catch (Error &e) {
       if (e.place.file.empty()) e.place = Place{ode};
       return e;
@@ -1833,9 +1835,9 @@ Result<bool> write_converted(const std::string &source, const std::string &out, 
 }
 
 Result<bool> open_ode(const std::string &ode, const std::vector<std::string> &includes,
-                      std::vector<Diagnostic> &diagnostics)
+                      std::vector<Diagnostic> &diagnostics, std::vector<std::string> &outside_paths)
 {
-  Result<std::string> text = convert_text(ode, includes, &diagnostics);
+  Result<std::string> text = convert_text(ode, includes, &diagnostics, &outside_paths);
   if (!text) return std::unexpected(text.error());
   return write_converted(ode, odex_name(ode), *text);
 }

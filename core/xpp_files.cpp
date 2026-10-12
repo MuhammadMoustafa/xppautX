@@ -92,17 +92,17 @@ int kind_of(const char *name, Stat *st)
     return S_ISREG(st->st_mode) ? XPP_FILES_OK : XPP_FILES_REFUSED;
 }
 
-int open_plain(const char *name, xpp::UniqueFile &fp, unsigned long long &size)
+int open_plain(const char *name, xpp::UniqueFile &fp, unsigned long long &size, bool writing = false)
 {
     Stat st;
     int k = kind_of(name, &st); /* a folder, a link or a device named at once */
-    if (k != XPP_FILES_OK) return k;
+    if (k != XPP_FILES_OK && !(writing && k == XPP_FILES_NOT_FOUND)) return k;
 #ifdef _WIN32
     /* and refused again on the handle opened, so nothing swapped in between is followed (W174) */
-    int fd = xpp::win32::open_plain(name, false, true, size);
+    int fd = xpp::win32::open_plain(name, false, !writing, size, writing);
 #else
     /* O_NOFOLLOW: a link made between the check and the open is not followed */
-    int fd = ::open(name, O_RDONLY | O_BINARY | O_NOFOLLOW | O_NONBLOCK);
+    int fd = ::open(name, (writing ? O_WRONLY | O_CREAT | O_TEXT : O_RDONLY | O_BINARY) | O_NOFOLLOW | O_NONBLOCK, 0666);
 #endif
     if (fd < 0) return errno == ENOENT ? XPP_FILES_NOT_FOUND : errno == ELOOP ? XPP_FILES_REFUSED : XPP_FILES_IO;
 #ifndef _WIN32
@@ -111,16 +111,23 @@ int open_plain(const char *name, xpp::UniqueFile &fp, unsigned long long &size)
         close(fd);
         return XPP_FILES_REFUSED;
     }
+    /* Do not truncate a name before proving its opened object is plain. */
+    if (writing && ftruncate(fd, 0) != 0) {
+        const int error = errno;
+        close(fd);
+        errno = error;
+        return XPP_FILES_IO;
+    }
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
     st.st_size = fst.st_size;
 #endif
-    fp.reset(fdopen(fd, "rb"));
+    fp.reset(fdopen(fd, writing ? "w" : "rb"));
     if (!fp) {
         close(fd);
         return XPP_FILES_IO;
     }
 #ifndef _WIN32
-    size = static_cast<unsigned long long>(st.st_size);
+    size = writing ? 0 : static_cast<unsigned long long>(st.st_size);
 #endif
     return XPP_FILES_OK;
 }
@@ -680,6 +687,19 @@ int stream_fd(FILE *f)
     if (_fileno(f) < 0 && !std::freopen("NUL", "w", f)) return -1;
 #endif
     return fileno(f);
+}
+
+FILE *open_write_plain(std::string_view path_view)
+{
+    if (!write_path_ok(path_view, true) || !prepare_write_folder(path_view)) return nullptr;
+    xpp::UniqueFile fp;
+    unsigned long long size;
+    const int status = open_plain(std::string(path_view).c_str(), fp, size, true);
+    if (status != XPP_FILES_OK) {
+        if (status == XPP_FILES_REFUSED) errno = ELOOP;
+        return nullptr;
+    }
+    return fp.release();
 }
 
 FILE *create_new(std::string_view path_view, bool binary)

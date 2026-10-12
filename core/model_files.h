@@ -50,7 +50,8 @@ std::string include_path(const std::string &including, const std::string &name);
 
 /* The answers of the question a model's path outside its folder asks
    (W286), as keys: Allow always (kept in the preferences for this model file
-   and this path), Allow once (this load), Refuse (or no answer). */
+   and this path; a .ode uses its generated .odex), Allow once (this load),
+   Refuse (or no answer). */
 inline constexpr std::string_view OUTSIDE_PATH_KEYS = "aor";
 inline constexpr std::string_view PATH_REFUSED = "path refused"; /* the `where` of the refusal's Error */
 inline constexpr char OUTSIDE_PATH_ALWAYS = 'a', OUTSIDE_PATH_ONCE = 'o';

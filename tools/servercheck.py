@@ -7474,6 +7474,90 @@ def check_outside_paths():
         check('W286: --silent --yes allows once and prints the question and what it took',
               result.returncode == 0 and '(60 s)' not in result.stderr and ' -> Allow once (answered automatically)' in result.stderr
               and table2 not in kept(), result.stderr)
+
+        # W297: conversion approvals survive into the native load; no second ask.
+        outside = os.path.join(root, 'output.dat').replace(os.sep, '/')
+        ode = os.path.join(proj, 'once.ode')
+        with open(ode, 'w') as f:
+            f.write("@ output=" + outside + "\nx'=-x\ninit x=1\n@ total=1\ndone\n")
+        for key in ('o', 'a'):
+            s = start(ode)
+            try:
+                evs, ask = s.collect(lambda e: e.get('ev') == 'ask')
+                check('W297: .ode outside output asks approval before loading (' + key + ')',
+                      ask and outside in ask.get('question', ''), str(ask))
+                s.send(cmd='answer', id=ask['id'], key=key)
+                evs, end = s.collect(lambda e: is_idle(e) or e.get('ev') == 'ask' or failed(e))
+                check('W297: .ode outside output is asked exactly once (' + key + ')',
+                      end and is_idle(end) and not any(e.get('ev') == 'ask' or failed(e) for e in evs), str(evs)[-400:])
+            finally:
+                s.close()
+        for path in (ode, ode.replace('.ode', '.odex')):
+            s = start(path)
+            try:
+                evs, end = s.collect(lambda e: is_idle(e) or e.get('ev') == 'ask' or failed(e))
+                check('W297: Allow always applies to ' + os.path.basename(path),
+                      end and is_idle(end) and not any(e.get('ev') == 'ask' for e in evs), str(evs)[-400:])
+            finally:
+                s.close()
+        with open(prefs, 'w', encoding='utf-8') as f:
+            f.write('')
+        result = subprocess.run([binary, ode, '--silent', '--yes'], cwd=proj, input='',
+                                capture_output=True, text=True, timeout=60 * SLOW, env=dict(os.environ, **env))
+        check('W297: --silent --yes .ode prints exactly one outside approval',
+              result.returncode == 0 and result.stderr.count(' -> Allow once (answered automatically)') == 1,
+              result.stderr)
+
+        # A table must actually be read by the converter, then read again by the native load.
+        tableode = os.path.join(proj, 'once-table.ode')
+        with open(tableode, 'w') as f:
+            f.write('table w ' + table + "\nx'=w(1)-x\ninit x=0\n@ total=1\ndone\n")
+        s = start(tableode)
+        try:
+            evs, ask = s.collect(lambda e: e.get('ev') == 'ask')
+            check('W297: converter asks before reading an outside table', ask and table in ask.get('question', ''), str(ask))
+            s.send(cmd='answer', id=ask['id'], key='o')
+            evs, end = s.collect(lambda e: is_idle(e) or e.get('ev') == 'ask' or failed(e))
+            check('W297: outside table approval transfers to native load',
+                  end and is_idle(end) and not any(e.get('ev') == 'ask' or failed(e) for e in evs), str(evs)[-400:])
+        finally:
+            s.close()
+
+        # Swap the final log name while its approval is pending, after resolve_path.
+        log = os.path.join(root, 'swapped.log').replace(os.sep, '/')
+        target = os.path.join(root, 'target.txt')
+        with open(target, 'w') as f:
+            f.write('keep target')
+        logmodel = os.path.join(proj, 'log.odex')
+        with open(logmodel, 'w') as f:
+            f.write("x'=-x\ninit x=1\noptions { log: { logfile: \"" + log + "\" } }\n")
+        s = start(logmodel)
+        try:
+            evs, ask = s.collect(lambda e: e.get('ev') == 'ask')
+            check('W297: log approval precedes stream open', ask and log in ask.get('question', ''), str(ask))
+            try:
+                os.symlink(target, log)
+            except OSError as error:
+                if os.name != 'nt':
+                    raise
+                print('SKIP W297 Windows log symlink: ' + str(error))
+                s.send(cmd='answer', id=ask['id'], key='r')
+                s.collect(failed)
+            else:
+                s.send(cmd='answer', id=ask['id'], key='o')
+                evs, error = s.collect(failed)
+                check('W297: swapped log link is refused with file and source line',
+                      error and 'swapped.log' in str(error) and 'log.odex' in str(error)
+                      and error.get('line') == 3 and 'logfile:' in error.get('source', '')
+                      and ('refused' in str(error) or 'symbolic link' in str(error)), str(evs)[-600:])
+                check('W297: swapped log target is untouched', open(target).read() == 'keep target')
+                result = subprocess.run([binary, 'tab.odex', '--silent', '--logfile', log], cwd=proj, input='',
+                                        capture_output=True, text=True, timeout=60 * SLOW, env=dict(os.environ, **env))
+                check('W297: command-line logfile refuses link and names file',
+                      result.returncode != 0 and 'swapped.log' in result.stderr and open(target).read() == 'keep target', result.stderr)
+        finally:
+            s.close()
+
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

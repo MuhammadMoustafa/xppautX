@@ -195,11 +195,13 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
 
 Loaded load_in(int argc, char **argv, int batch, const SavedModel *saved,
                const std::function<std::optional<Error>(Session &)> &check,
-               const std::function<void(Session &)> &read, bool commit)
+               const std::function<void(Session &)> &read, bool commit,
+               const std::vector<std::string> &outside_paths = {})
 {
     return in_model([&](Session &s) {
         Model &m = s.model();
         m.command_line.assign(argv, argv + argc);
+        m.outside_paths = outside_paths;
         if (saved) {
             m.saved_in = saved->in;
             m.files = saved->files;
@@ -221,6 +223,7 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
     int argument = -1;
     std::vector<std::string> included;
     std::vector<odex::Diagnostic> diagnostics;
+    std::vector<std::string> outside_paths;
     Loaded prepared = in_model([&](Session &s) {
         argument = do_comline(s, argc, argv);
         included = include_files;
@@ -237,7 +240,7 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
     Loaded loaded = prepared;
     if (prepared) {
         if (xpp::files::has_extension(file, ".ode")) {
-            Result<bool> opened = odex::open_ode(file, included, diagnostics);
+            Result<bool> opened = odex::open_ode(file, included, diagnostics, outside_paths);
             if (!opened) loaded = std::unexpected(opened.error());
             else {
                 converted = odex::odex_name(file);
@@ -258,7 +261,7 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
             std::vector<char *> ready;
             for (std::string &a : args) ready.push_back(a.data());
             ready.push_back(nullptr);
-            loaded = load_in(static_cast<int>(args.size()), ready.data(), batch, saved, check, load_eqn, true);
+            loaded = load_in(static_cast<int>(args.size()), ready.data(), batch, saved, check, load_eqn, true, outside_paths);
         }
     }
     /* the one place a model that does not load is written to the log */

@@ -186,6 +186,9 @@ int stream_fd(FILE *f);
    included, which is never followed): the temp files of a replace.
    binary false is text mode ("w"), true binary ("wb"). NULL on failure. */
 FILE *create_new(std::string_view path, bool binary);
+/* Streaming text output: create or truncate a plain file, refusing a link
+   on the opened handle before truncation. Keeps write/folder policy. */
+FILE *open_write_plain(std::string_view path);
 /* path names a file or a folder */
 bool exists(std::string_view path);
 /* path names a folder (a link to one included) */

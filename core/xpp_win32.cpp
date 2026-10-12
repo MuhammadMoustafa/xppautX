@@ -125,7 +125,7 @@ bool path_is_link(const char *path)
     return a != INVALID_FILE_ATTRIBUTES && (a & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
 }
 
-int open_plain(const char *path, bool create, bool binary, unsigned long long &size)
+int open_plain(const char *path, bool create, bool binary, unsigned long long &size, bool overwrite)
 {
     /* Match the narrow CRT/GetFileAttributesA paths used by xpp_files;
        the window's UTF-8 converter serves a different encoding boundary. */
@@ -136,9 +136,9 @@ int open_plain(const char *path, bool create, bool binary, unsigned long long &s
         errno = EINVAL;
         return -1;
     }
-    HANDLE h = CreateFileW(wide.c_str(), create ? GENERIC_WRITE : GENERIC_READ,
+    HANDLE h = CreateFileW(wide.c_str(), create || overwrite ? GENERIC_WRITE : GENERIC_READ,
                           FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
-                          create ? CREATE_NEW : OPEN_EXISTING,
+                          create ? CREATE_NEW : overwrite ? OPEN_ALWAYS : OPEN_EXISTING,
                           FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
     /* never FILE_FLAG_BACKUP_SEMANTICS: it opens folders, which are not
        wanted here, and for a process with backup or restore privilege (an
@@ -166,9 +166,15 @@ int open_plain(const char *path, bool create, bool binary, unsigned long long &s
         errno = ELOOP; /* xpp_files maps a refused handle to its plain-file error. */
         return -1;
     }
-    size = (static_cast<unsigned long long>(info.nFileSizeHigh) << 32) | info.nFileSizeLow;
+    /* Truncate only the checked plain handle, never the name before checking it. */
+    if (overwrite && !SetEndOfFile(h)) {
+        CloseHandle(h);
+        errno = EIO;
+        return -1;
+    }
+    size = overwrite ? 0 : (static_cast<unsigned long long>(info.nFileSizeHigh) << 32) | info.nFileSizeLow;
     const int fd = _open_osfhandle(reinterpret_cast<intptr_t>(h),
-                                 (create ? _O_WRONLY : _O_RDONLY) | (binary ? _O_BINARY : _O_TEXT));
+                                 (create || overwrite ? _O_WRONLY : _O_RDONLY) | (binary ? _O_BINARY : _O_TEXT));
     if (fd < 0) CloseHandle(h); /* A successful conversion transfers ownership to the CRT. */
     return fd;
 }

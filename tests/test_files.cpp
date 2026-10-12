@@ -206,6 +206,18 @@ int main()
     CHECK(xpp::files::put_begin("../a.bin", 100, put) == XPP_FILES_BAD_NAME);
     CHECK(put == nullptr);
 
+    /* W297: streaming output creates, truncates and rejects non-plain objects. */
+    {
+        xpp::UniqueFile out(xpp::files::open_write_plain("stream.txt"));
+        CHECK(out && std::fputs("long contents", out.get()) >= 0);
+        out.reset();
+        out.reset(xpp::files::open_write_plain("stream.txt"));
+        CHECK(out && std::fputs("new", out.get()) >= 0);
+        out.reset();
+        CHECK(slurp("stream.txt") == "new");
+        CHECK(std::remove("stream.txt") == 0);
+    }
+
     /* reading */
     std::FILE *fp = nullptr;
     CHECK(xpp::files::open("a.bin", fp, size) == XPP_FILES_OK && size == 3);
@@ -218,6 +230,7 @@ int main()
     CHECK(mkdir("sub", 0755) == 0);
 #endif
     CHECK(xpp::files::open("sub", fp, size) == XPP_FILES_REFUSED);
+    CHECK(xpp::files::open_write_plain("sub") == nullptr);
     CHECK(xpp::files::put_begin("sub", 100, put) == XPP_FILES_REFUSED);
 #ifdef _WIN32
     /* Exercise the handle check directly, without a pathname precheck. */
@@ -242,6 +255,11 @@ int main()
         CHECK(!xpp::files::exists("sub/new-folder"));
         CHECK(!xpp::files::check_dirs("link.txt/../sub") && errno == ELOOP);
         CHECK(xpp::files::create_new("link.txt", true) == nullptr);
+        CHECK(xpp::files::open_write_plain("link.txt") == nullptr);
+        fd = xpp::win32::open_plain("link.txt", false, false, size, true);
+        CHECK(fd < 0 && errno == ELOOP);
+        if (fd >= 0) _close(fd);
+        CHECK(slurp("a.bin") == "new");
         CHECK(_rmdir("link.txt") == 0);
     }
     const intptr_t symlink = _spawnlp(_P_WAIT, "cmd.exe", "cmd.exe", "/c",
@@ -259,6 +277,11 @@ int main()
         CHECK(!xpp::files::check_dirs("link.txt/../sub") && errno == ELOOP);
         CHECK(xpp::files::put_begin("link.txt", 100, put) == XPP_FILES_REFUSED);
         CHECK(xpp::files::create_new("link.txt", true) == nullptr);
+        CHECK(xpp::files::open_write_plain("link.txt") == nullptr);
+        fd = xpp::win32::open_plain("link.txt", false, false, size, true);
+        CHECK(fd < 0 && errno == ELOOP);
+        if (fd >= 0) _close(fd);
+        CHECK(slurp("a.bin") == "new");
         CHECK(std::filesystem::remove("link.txt"));
     }
     CHECK(std::remove("symlink-result.txt") == 0);
@@ -271,7 +294,9 @@ int main()
 #endif
 #ifndef _WIN32
     /* a link is neither followed nor replaced */
-    CHECK(symlink("/etc/hostname", "link.txt") == 0);
+    CHECK(symlink("a.bin", "link.txt") == 0);
+    CHECK(xpp::files::open_write_plain("link.txt") == nullptr);
+    CHECK(slurp("a.bin") == "new");
     CHECK(!xpp::files::make_dirs("link.txt/new-folder") && errno == ELOOP);
     CHECK(xpp::files::open("link.txt", fp, size) == XPP_FILES_REFUSED);
     CHECK(xpp::files::put_begin("link.txt", 100, put) == XPP_FILES_REFUSED);

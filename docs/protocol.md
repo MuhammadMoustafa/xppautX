@@ -1994,14 +1994,19 @@ and `keys` `aor`. `a` keeps the pair of the model file's absolute path and the
 resolved path in the preferences (`outside_paths` of `preferences.setx`, at
 most 24, newest first, the oldest dropped), so that model and that exact
 path are not asked again; a changed path or another model asks again. `o`
-allows it for this load. `r`, a cancel, an unknown key or no answer refuses:
+allows it for this load, including the conversion and native load of a `.ode`.
+Approvals for a `.ode` are kept under its generated `.odex` path, so **Allow
+always** also applies when that native file is opened directly (W297,
+[#355](https://github.com/MuhammadMoustafa/xppautX/issues/355)). `r`, a cancel, an unknown key or no answer refuses:
 the load fails with the model's file and line and nothing is applied.
 The suggested answer is **Allow once**; the answering policy is in
 [Question answering](#question-answering). A link on the way below the folder's common
 ancestor with the path, or a name that is not a plain one, is refused with no
 question. The path asked about is the normalised one (`.` and `..` resolved in
 the text, never through a link), and that same text is what is opened,
-without following a link at its end.
+without following a link at its end. Log streams also check the opened
+file before truncating it: a final-name link swapped in after approval
+fails with the log option's file and source line, leaving the target untouched.
 Model files share the archive limits (512 MiB, 4096 files), and file and
 formula tables share a 1,000,000-point session budget before allocation or
 evaluation. The ancestor-mutation and hard-link limitations above also

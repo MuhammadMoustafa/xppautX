@@ -327,10 +327,12 @@ struct Diagnostic {
   std::string id, severity, message;
 };
 /* Import and validate the conversion without changing the open model or
-   writing a file. Used by both conversion commands and their tests. */
+   writing a file. Used by both conversion commands and their tests.
+   outside_paths receives the imported model's approvals for the native load. */
 xpp::Result<std::string> convert_text(const std::string &ode,
                                      const std::vector<std::string> &includes = {},
-                                     std::vector<Diagnostic> *diagnostics = nullptr);
+                                     std::vector<Diagnostic> *diagnostics = nullptr,
+                                     std::vector<std::string> *outside_paths = nullptr);
 /* Read and validate in memory; one JSON object on stdout, no files or window. */
 int check_file(const std::string &file);
 /* The opening/convert command displays findings once through its existing log route. */
@@ -342,9 +344,10 @@ void show_diagnostics(const std::vector<Diagnostic> &diagnostics);
 int convert_file(const std::string &ode);
 /* Opening a .ode: its conversion, checked, written as odex_name(ode)
    (true), or the existing .odex opened as it is (false: the same text, or
-   the user chose it); an error when cancelled or not written. */
+   the user chose it); an error when cancelled or not written. outside_paths
+   carries only exact approved paths; the native loader rechecks their kinds. */
 xpp::Result<bool> open_ode(const std::string &ode, const std::vector<std::string> &includes,
-                         std::vector<Diagnostic> &diagnostics);
+                         std::vector<Diagnostic> &diagnostics, std::vector<std::string> &outside_paths);
 /* The conversion text of the foreign file source written as out, beside
    it: true when written; false when out already holds this text, or the
    user chose to keep the file that is there (a question through xpp_ui

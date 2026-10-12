@@ -33,8 +33,9 @@ Result<> approve_model_path(Model &m, const std::string &name, const Place &at)
     if (found.kind == files::PathKind::refused)
         return fail(std::string(PATH_REFUSED), xpp::format("names {}, a link or a path that is not a plain name: refused", name), place);
     if (std::ranges::find(m.outside_paths, found.path) != m.outside_paths.end()) return {};
-    /* the model file by its absolute path: the pair is what the user allowed */
-    const std::string model = files::absolute(m.this_file);
+    /* The approval owner is the absolute native-model path, including
+       the .odex a foreign .ode becomes. */
+    const std::string model = files::absolute(files::has_extension(m.this_file, ".ode") ? odex::odex_name(m.this_file) : m.this_file);
     const Result<bool> remembered = prefs::outside_path_approved(model, found.path);
     if (!remembered) return std::unexpected(remembered.error());
     if (!*remembered) {
