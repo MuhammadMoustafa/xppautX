@@ -2,6 +2,7 @@
    settings file (.setx) it is converted to, and the parameter file (.par)
    and initial-conditions file (.ic): read through xpp_io.h's Lines whole,
    checked, then applied in one step (W125). */
+#include <algorithm>
 #include "model.h"
 #include "session.h"
 #include "xpp_ui.h"
@@ -392,12 +393,13 @@ std::vector<double> read_parameters(const xpp::Model &m, Lines &l)
   const int count_line=l.line();
   std::vector<double> z(static_cast<std::size_t>(m.nupar));
   std::vector<bool> seen(z.size());
-  int missing=0;
   for(int i=0;i<m.nupar;i++){
-    while(seen[static_cast<std::size_t>(missing)])missing++;
+    /* the first parameter not given yet: what a short file lacks, and
+       what an unreadable value is named after */
+    const std::string &due=m.upar_names[static_cast<std::size_t>(std::find(seen.begin(),seen.end(),false)-seen.begin())];
     if(l.at_end()||xpp::trim_blanks(l.text(l.line()+1)).empty()||l.text(l.line()+1).starts_with("File:"))
-      l.fail(count_line,xpp::format("missing parameter \"{}\"",m.upar_names[missing]));
-    const double value=l.real(m.upar_names[missing]);
+      l.fail(count_line,xpp::format("missing parameter \"{}\"",due));
+    const double value=l.real(due);
     const std::string_view name=l.value_name();
     const int index=find_user_name(m,PARAMBOX,name);
     if(index<0)l.fail(xpp::format("unknown parameter \"{}\"",name));
