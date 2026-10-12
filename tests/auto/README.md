@@ -22,15 +22,12 @@ within the named run, not across the whole diagram. `switch:true` requests
 branch switching. A model or individual run may instead carry `skip` with
 an explicit reason; invalid descriptions always fail, including skips.
 
-Each `.diagram.txt` has one line per point, in stored order, with every
-diagram run value in a fixed field order. `sym` is the label's type;
-`ty`, `stable` and `periodic` describe the solution. Absent labels, restart
-labels, two-parameter flags and new-line flags are zero; an absent `y2`
-equals `y`. Event/view indices and batching are transport, not points.
-Floating-point tokens are preserved verbatim, including exponents and
-signed zero. The current diagram protocol sends plotted coordinates with
-seven significant digits: this guards exactly that data, not unexposed
-low bits, other state variables or every point's eigenvalues.
+Each `.diagram.csv` is the diagram as a session file keeps it (`auto/diagram.csv`
+in a `.snapx`, written by `session` `save` after the runs): a header, then one row
+per stored point in stored order, with its branch, label, type, stability, every
+parameter, every variable's value, maximum, minimum and mean, and its
+eigenvalues, each number written to round-trip exactly. A change in the last
+bit of any of them is a difference.
 
 Run `python3 tools/autocompare.py --server ./xppautX` (`.exe` on Windows).
 `--only tstauto_lo,ode_lecar` selects descriptions. Both 1 and automatic

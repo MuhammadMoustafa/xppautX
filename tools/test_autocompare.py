@@ -5,60 +5,37 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from autocompare import BASE, Diagram, Number, difference, protocol_integer, read_description, text_value
+from autocompare import BASE, Diagram, difference, read_description
 
 
 class AutoCompare(unittest.TestCase):
-    def test_json_numbers_retain_the_protocol_spelling(self):
-        values = json.loads('[1e-07,1.000000,-0,-0.0,7]', parse_float=Number, parse_int=protocol_integer)
-        self.assertEqual([text_value(v) for v in values], ['1e-07', '1.000000', '-0', '-0.0', '7'])
-        self.assertEqual(values[-1] + 1, 8)
-
-    def point_run(self, pt, xs, new=False):
-        return dict(br=1, pt=pt, ty=1, stable=True, periodic=False, d=1, c=20,
-                    lw=2, jac='difference', x=xs, y=[Number('-0.0')] * len(xs),
-                    **({'new': 1} if new else {}))
+    def point_run(self, pt, n, lab=()):
+        return dict(br=1, pt=pt, x=[0.0] * n, y=[0.0] * n, lab=list(lab))
 
     def add(self, start, runs):
         return dict(ev='diagram', op='add', view=0, **{'from': start}, runs=runs)
 
-    def test_batching_does_not_change_the_baseline(self):
-        xs = [Number('1e-07'), Number('1.000000'), Number('-0.0')]
-        whole = Diagram().apply([self.add(0, [self.point_run(1, xs, True)])])
-        batches = Diagram().apply([self.add(0, [self.point_run(1, xs[:1], True)]),
-                                   self.add(1, [self.point_run(2, xs[1:])])])
-        self.assertEqual(whole.text(), batches.text())
-        self.assertIn(b'x=1e-07', whole.text())
-        self.assertIn(b'x=1.000000', whole.text())
-        self.assertIn(b'x=-0.0', whole.text())
+    def test_batching_does_not_change_the_points(self):
+        whole = Diagram().apply([self.add(0, [self.point_run(1, 3, [[1, 4, 'HB']])])])
+        batches = Diagram().apply([self.add(0, [self.point_run(1, 1)]),
+                                   self.add(1, [self.point_run(2, 2, [[0, 4, 'HB']])])])
+        self.assertEqual(whole.points, batches.points)
+        self.assertEqual(whole.points[1], dict(lab=4, sym='HB'))
+        self.assertEqual(whole.points[0], dict(lab=0, sym=''))
 
-    def test_labels_low_values_and_restart_survive_reset(self):
-        run = self.point_run(1, [Number('1'), Number('2')], True)
-        run.update(y2=[Number('-1'), Number('-2')], lab=[[1, 4, 'HB']], **{'from': 3})
-        dg = Diagram().apply([self.add(0, [run])])
-        self.assertEqual(dg.points[1]['sym'], 'HB')
-        self.assertEqual(dg.points[1]['lab'], 4)
-        self.assertEqual(dg.points[0]['from'], 3)
-        self.assertEqual(dg.points[1]['from'], 0)
-        self.assertEqual(dg.points[1]['y2'], '-2')
-        dg.apply([dict(ev='diagram', op='reset', view=0, keep=1),
-                  self.add(1, [self.point_run(2, [Number('3')])])])
-        self.assertEqual(len(dg.points), 2)
-        self.assertEqual(dg.points[1]['x'], '3')
-
-    def test_new_protocol_data_is_not_silently_dropped(self):
-        run = self.point_run(1, [Number('1')])
-        run['future_numeric_field'] = 0
-        with self.assertRaisesRegex(ValueError, 'unrecorded diagram fields'):
-            Diagram().apply([self.add(0, [run])])
+    def test_reset_keeps_the_points_before(self):
+        dg = Diagram().apply([self.add(0, [self.point_run(1, 2, [[1, 4, 'HB']])])])
+        dg.apply([dict(ev='diagram', op='reset', view=0, keep=1), self.add(1, [self.point_run(2, 1)])])
+        self.assertEqual(dg.points, [dict(lab=0, sym=''), dict(lab=0, sym='')])
         with self.assertRaisesRegex(ValueError, 'noncontiguous'):
-            Diagram().apply([self.add(1, [self.point_run(1, [Number('1')])])])
+            Diagram().apply([self.add(1, [self.point_run(1, 1)])])
 
     def test_difference_names_both_lines_and_missing_endpoint(self):
-        self.assertEqual(difference('model', b'a\nb\n', b'a\nc\n'),
-                         'model: first differing point 2\n  want: b\n  got:  c')
-        self.assertIn('point 3\n  want: (end of diagram)\n  got:  c',
-                      difference('model', b'a\nb\n', b'a\nb\nc\n'))
+        self.assertEqual(difference('model', b'h\nb\n', b'h\nc\n'),
+                         'model: first difference at point 1\n  want: b\n  got:  c')
+        self.assertIn('point 2\n  want: (end of diagram)\n  got:  c',
+                      difference('model', b'h\nb\n', b'h\nb\nc\n'))
+        self.assertIn('the header', difference('model', b'h\n', b'g\n'))
 
     def test_bad_descriptions_fail_before_a_server_starts(self):
         original = json.loads((BASE / 'tstauto_lo.json').read_text())

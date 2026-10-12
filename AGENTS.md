@@ -206,9 +206,9 @@ not a baseline of its own. Bessel `besselj`/`bessely` use the vendored musl impl
 
 `tools/autocompare.py` (W299, #357) runs `tests/auto/`'s descriptions of
 all tstauto models and examples/ode models with AUTO settings through
-`--server`, at 1 and automatic threads. It compares every stored point's
-protocol values, labels, types and stability byte for byte (CRs removed)
-with the shared `.diagram.txt` baseline, naming the first differing point
+`--server`, at 1 and automatic threads. It compares the diagram the session file
+keeps (every point's parameters, states and eigenvalues, exact) byte for
+byte (CRs removed) with the shared `.diagram.csv` baseline, naming the first differing point
 and both lines; skipped models have explicit reasons. `--only MODEL,...`
 selects descriptions. Use `--update` only for an intended numerical change;
 it prints the models changed. verify.sh runs it after examples_check;

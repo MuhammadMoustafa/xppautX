@@ -12,7 +12,9 @@ import os
 from pathlib import Path
 import re
 import sys
+import tempfile
 import time
+import zipfile
 
 from xppclient import Checker, SLOW, Server, is_ask, is_idle, open_auto, placed, run_any
 
@@ -20,33 +22,17 @@ ROOT = Path(__file__).resolve().parent.parent
 BASE = ROOT / 'tests/auto'
 # Plenty of room for slow CI/sanitizers, never a numerical acceptance criterion.
 TIMEOUT = 120 * SLOW
+DIAGRAM_MEMBER = 'auto/diagram.csv'  # the session file's diagram (core/xpp_session_auto.h)
 KINDS = {'equilibrium', 'periodic', 'two_parameter', 'fixed_period', 'bvp',
          'homoclinic', 'heteroclinic'}
 NUMERICS = {'nmax': 'nmx', 'parmin': 'rl0', 'parmax': 'rl1',
             **{k: k for k in ('ds', 'dsmin', 'dsmax', 'npr', 'ntst', 'ncol',
                               'epsl', 'epsu', 'epss', 'mxbf', 'iid')}}
-POINT_FIELDS = ('lab', 'sym', 'br', 'pt', 'ty', 'stable', 'periodic', 'f2',
-                'd', 'c', 'lw', 'new', 'from', 'jac', 'x', 'y', 'y2')
-
-
-class Number(str):
-    """A protocol decimal token, kept verbatim rather than rounded by Python."""
-
-
-def text_value(value):
-    if isinstance(value, Number):
-        return str(value)
-    return json.dumps(value, separators=(',', ':'), ensure_ascii=False)
-
-
-def protocol_integer(token):
-    # %g may send floating-point negative zero as the JSON integer -0.
-    # Structural indices are ordinary ints; preserve that value token too.
-    return Number(token) if token == '-0' else int(token)
 
 
 class Diagram:
-    """Expand diagram runs into points independently of event batching."""
+    """The stored points' labels and types, independently of event batching:
+    what a run's start by type and index needs."""
     def __init__(self):
         self.points = []
 
@@ -61,24 +47,10 @@ class Diagram:
                     raise ValueError('noncontiguous diagram: ' + str(e['from']))
                 del self.points[e['from']:]
                 for r in e['runs']:
-                    unknown = set(r) - set(POINT_FIELDS) - {'lab'}
-                    if unknown:
-                        raise ValueError('unrecorded diagram fields: ' + str(unknown))
                     labs = {i: (lab, sym) for i, lab, sym in r.get('lab', [])}
-                    for i, x in enumerate(r['x']):
-                        p = {k: r[k] for k in POINT_FIELDS if k in r
-                             and k not in ('lab', 'pt', 'new', 'from', 'x', 'y', 'y2')}
-                        p.update(lab=labs.get(i, (0, ''))[0], sym=labs.get(i, (0, ''))[1],
-                                 pt=r['pt'] + i, new=r.get('new', 0) if i == 0 else 0,
-                                 x=x, y=r['y'][i], y2=r.get('y2', r['y'])[i],
-                                 **{'from': r.get('from', 0) if i == 0 else 0})
-                        p.setdefault('f2', 0)
-                        self.points.append(p)
+                    self.points += [dict(zip(('lab', 'sym'), labs.get(i, (0, ''))))
+                                    for i in range(len(r['x']))]
         return self
-
-    def text(self):
-        return ''.join(' '.join(k + '=' + text_value(p[k]) for k in POINT_FIELDS)
-                       + '\n' for p in self.points).encode('utf-8')
 
 
 def members(value, allowed, required=()):
@@ -222,8 +194,20 @@ def execute_run(s, r, diagram, ranges, model_pars, slots):
     ranges[r['name']] = lo, len(diagram.points)
 
 
+def session_diagram(s):
+    """The diagram as the session file keeps it (auto/diagram.csv): every
+    point's parameters, states, extremes and eigenvalues, each number
+    written to round-trip exactly, where the diagram events carry only the
+    plotted coordinates to seven digits."""
+    with tempfile.TemporaryDirectory() as folder:
+        path = os.path.join(folder, 'baseline.snapx')
+        completed(s, dict(cmd='session', op='save', name=path, data=False))
+        with zipfile.ZipFile(path) as z:
+            return z.read(DIAGRAM_MEMBER).replace(b'\r\n', b'\n')
+
+
 def compute(binary, d, threads):
-    s = Server(binary, ROOT / d['model'], parse_float=Number, parse_int=protocol_integer)
+    s = Server(binary, ROOT / d['model'])
     try:
         startup = completed(s)
         model_pars = [p[0] for e in startup if e.get('ev') == 'state' for p in e['pars']]
@@ -241,7 +225,7 @@ def compute(binary, d, threads):
         for r in d['runs']:
             if 'skip' not in r:
                 execute_run(s, r, diagram, ranges, model_pars, len(setting['pars']))
-        return diagram.text(), len(diagram.points), setting['threads_auto']
+        return session_diagram(s), len(diagram.points), setting['threads_auto']
     finally:
         s.close()
         if s.proc.returncode and sys.exc_info()[0] is None:
@@ -251,8 +235,8 @@ def compute(binary, d, threads):
 def difference(name, want, got):
     a, b = want.splitlines(), got.splitlines()
     i = next((i for i, (x, y) in enumerate(zip(a, b)) if x != y), min(len(a), len(b)))
-    return '%s: first differing point %d\n  want: %s\n  got:  %s' % (
-        name, i + 1, a[i].decode() if i < len(a) else '(end of diagram)',
+    return '%s: first difference at %s\n  want: %s\n  got:  %s' % (
+        name, 'the header' if i == 0 else 'point %d' % i, a[i].decode() if i < len(a) else '(end of diagram)',
         b[i].decode() if i < len(b) else '(end of diagram)')
 
 
@@ -297,7 +281,7 @@ def main():
         for r in d['runs']:
             if 'skip' in r:
                 print('SKIP %s/%s: %s' % (name, r['name'], r['skip']))
-        path = BASE / (name + '.diagram.txt')
+        path = BASE / (name + '.diagram.csv')
         computed = {}
         for threads in durations:
             began = time.monotonic()
@@ -322,8 +306,8 @@ def main():
                           same, difference(name, want, data) if not same else '')
                     if not same and args.keep:
                         args.keep.mkdir(parents=True, exist_ok=True)
-                        (args.keep / ('%s.threads-%s.diagram.txt' % (name, threads))).write_bytes(data)
-                        (args.keep / (name + '.expected.diagram.txt')).write_bytes(want)
+                        (args.keep / ('%s.threads-%s.diagram.csv' % (name, threads))).write_bytes(data)
+                        (args.keep / (name + '.expected.diagram.csv')).write_bytes(want)
             except (OSError, ValueError, RuntimeError, StopIteration, KeyError) as e:
                 check('%s threads=%s' % (name, threads), False, str(e))
             finally:
