@@ -1,0 +1,53 @@
+{
+  "model": "examples/ode/lecar.odex",
+  "reason": "Morris-Lecar: use the documented hopf parameters; continue applied current then HB orbits.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current",
+        "settle": 30
+      },
+      "parameter": "iapp",
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 120,
+        "npr": 20,
+        "parmin": -0.2,
+        "parmax": 0.5,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 1
+      },
+      "parameter": "iapp",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.01,
+        "nmax": 30,
+        "npr": 10,
+        "parmin": -0.2,
+        "parmax": 0.5,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ],
+  "parameters": {
+    "v3": 0,
+    "v4": 0.3,
+    "gca": 1.1,
+    "phi": 0.2
+  }
+}

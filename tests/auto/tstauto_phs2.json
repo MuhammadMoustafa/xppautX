@@ -1,0 +1,5 @@
+{
+  "model": "examples/tstauto/phs2.odex",
+  "reason": "Rotating phase oscillator; the phases require a torus identification, not an equilibrium.",
+  "skip": "Equilibrium trial from the supplied zero state stops at point 2 with noconv-min at both 1 and auto threads. Rotating phases require an angular torus orbit start; none is supplied."
+}

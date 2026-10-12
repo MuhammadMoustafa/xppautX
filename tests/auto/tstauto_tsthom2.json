@@ -1,0 +1,31 @@
+{
+  "model": "examples/tstauto/tsthom2.odex",
+  "reason": "Homoclinic BVP setup: start from its integrated approximation.",
+  "runs": [
+    {
+      "name": "boundary",
+      "kind": "bvp",
+      "start": {
+        "state": "current",
+        "settle": 1
+      },
+      "parameter": "a",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.01,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": -1,
+        "parmax": 1,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "x": 0.005,
+    "y": 0.004991659710623979,
+    "p": 14.176816163819215
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "model": "examples/tstauto/san.odex",
+  "reason": "Saddle normal form: continue unfolding par0 at the near-origin state.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "par0",
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": -1,
+        "parmax": 1,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ]
+}

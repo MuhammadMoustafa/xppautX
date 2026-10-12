@@ -1,0 +1,25 @@
+{
+  "model": "examples/tstauto/eiz-hom.odex",
+  "reason": "Neural traveling-wave model: equilibrium speed continuation before homoclinic work.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "c",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.01,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": 0.1,
+        "parmax": 1,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ]
+}

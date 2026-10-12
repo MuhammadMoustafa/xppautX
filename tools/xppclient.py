@@ -222,8 +222,11 @@ def whole_series(evs, win=None):
 
 
 class Server:
-    def __init__(self, binary, ode, env=None, verbose=False, stdin=subprocess.PIPE, run=None, extra_args=()):
+    def __init__(self, binary, ode, env=None, verbose=False, stdin=subprocess.PIPE, run=None, extra_args=(),
+                 parse_float=float, parse_int=int):
         self.verbose = verbose
+        self.parse_float = parse_float
+        self.parse_int = parse_int
         self.owns_run = run is None
         self.run = run or tempfile.mkdtemp(prefix='xppserver')
         if os.path.abspath(ode) != os.path.abspath(os.path.join(self.run, os.path.basename(ode))):
@@ -251,7 +254,8 @@ class Server:
     def _read(self):
         for line in self.proc.stdout:
             try:
-                ev = json.loads(line, parse_constant=_reject_non_finite)
+                ev = json.loads(line, parse_float=self.parse_float, parse_int=self.parse_int,
+                                parse_constant=_reject_non_finite)
             except ValueError:
                 ev = {'ev': 'bad', 'line': line[:300]}
             ev['_t'] = time.monotonic()
@@ -271,9 +275,10 @@ class Server:
         """events up to and including the first for which until(ev) is true;
         (events, None) on timeout or end of output"""
         got = []
+        deadline = time.monotonic() + timeout  # safety bound, including a stream that never finishes
         while True:
             try:
-                ev = self.events.get(timeout=timeout)
+                ev = self.events.get(timeout=max(0, deadline - time.monotonic()))
             except queue.Empty:
                 return got, None
             if self.verbose:
@@ -310,6 +315,28 @@ class Server:
         self.log_thread.join(timeout=5 * SLOW)
         if self.owns_run:
             shutil.rmtree(self.run, ignore_errors=True)
+
+
+def open_auto(s):
+    """File/AUTO, waiting for its window and the command's completion."""
+    s.send(cmd='key', key='f')
+    s.collect(is_idle)
+    s.send(cmd='key', key='a')
+    events, end = s.collect(is_idle)
+    if end is None or not any(e.get('ev') == 'window' and e.get('win') == 101 for e in events):
+        raise RuntimeError('File/AUTO did not open its window: ' + str(events))
+    return events
+
+
+def run_any(s, key, timeout=120 * SLOW):
+    """Auto/Run, answering its menu with key if it asks; the events to idle."""
+    s.send(cmd='key', win='auto', key='r')
+    evs, e = s.collect(lambda e: is_idle(e) or is_ask(e), timeout=timeout)
+    if e is not None and is_ask(e):
+        s.send(cmd='answer', id=e['id'], key=key)
+        more, _ = s.collect(is_idle, timeout=timeout)
+        evs += more
+    return evs
 
 
 def run_commands(binary, ode, lines, run, flags=()):

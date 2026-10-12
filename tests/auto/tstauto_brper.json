@@ -1,0 +1,46 @@
+{
+  "model": "examples/tstauto/brper.odex",
+  "reason": "Radial oscillator: a crosses the origin Hopf bifurcation.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "a",
+      "auto": {
+        "ds": 0.1,
+        "dsmin": 1e-05,
+        "dsmax": 0.1,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": -2,
+        "parmax": 1,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 1
+      },
+      "parameter": "a",
+      "auto": {
+        "ds": 0.05,
+        "dsmin": 1e-05,
+        "dsmax": 0.05,
+        "nmax": 30,
+        "npr": 10,
+        "parmin": -2,
+        "parmax": 1,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ]
+}

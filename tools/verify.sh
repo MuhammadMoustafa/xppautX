@@ -165,6 +165,13 @@ else
   echo "EXAMPLES CHECK FAILED"
   exit 1
 fi
+if python3 tools/autocompare.py --keep build/auto-differ > build/autocompare.log 2>&1; then
+  tail -3 build/autocompare.log
+else
+  cat build/autocompare.log
+  echo "AUTO BASELINE CHECK FAILED"
+  exit 1
+fi
 [ "$golden_failed" -eq 0 ] || exit 1
 # every example converted to .odex and run: the same md5 (W74, docs/odex.md)
 if sh tools/odexcheck.sh > build/odexcheck.log 2>&1; then

@@ -1,0 +1,52 @@
+{
+  "model": "examples/tstauto/frcp.odex",
+  "reason": "Forced excitable oscillator: equilibrium at x=y=0; continue offset b.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "b",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.01,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": 0,
+        "parmax": 1,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 1
+      },
+      "parameter": "b",
+      "auto": {
+        "ds": 0.005,
+        "dsmin": 1e-05,
+        "dsmax": 0.005,
+        "nmax": 30,
+        "npr": 10,
+        "parmin": 0,
+        "parmax": 1,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "v": 0.5,
+    "w": 0,
+    "x": 0,
+    "y": 0
+  }
+}

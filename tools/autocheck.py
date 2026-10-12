@@ -45,7 +45,7 @@ measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, base64, io, json, os, re, shutil, subprocess, sys, tempfile, time, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import Checker, file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, macos_thread_states, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission
+from xppclient import Checker, file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, macos_thread_states, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission, open_auto, run_any
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', '--bin', dest='server', default='./xppautX')
@@ -83,13 +83,6 @@ def perf(name, detail=''):
     program; the pass/fail stays on the result -- a reply arrived, a window
     closed, the process exited -- checked separately)."""
     print('perf: ' + name + ('  ' + detail if detail else ''))
-
-
-def open_auto(s):
-    s.send(cmd='key', key='f')
-    s.send(cmd='key', key='a')
-    s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
-    s.collect(is_idle)
 
 
 def run_menu(s, key, timeout=60 * SLOW):
@@ -810,17 +803,6 @@ def hopf_steady(s):
               {'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}, {'cmd': 'answer', 'key': 'n'},
               {'cmd': 'key', 'win': 'equilibrium', 'key': 'i'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}):
         evs += step(s, **c)[0]
-    return evs
-
-
-def run_any(s, key, timeout=120 * SLOW):
-    """Auto/Run, answering its menu with key if it asks; the events to idle"""
-    s.send(cmd='key', win='auto', key='r')
-    evs, e = s.collect(lambda e: is_idle(e) or is_ask(e), timeout=timeout)
-    if e is not None and is_ask(e):
-        s.send(cmd='answer', id=e['id'], key=key)
-        more, _ = s.collect(is_idle, timeout=timeout)
-        evs += more
     return evs
 
 

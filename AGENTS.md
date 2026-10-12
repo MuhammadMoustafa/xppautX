@@ -204,6 +204,16 @@ not a baseline of its own. Bessel `besselj`/`bessely` use the vendored musl impl
 `xpp::math` (W163, #215), so they also give the same bits on every platform. From Git Bash:
 `tools/examples_check.sh --bin xppautX.exe`.
 
+`tools/autocompare.py` (W299, #357) runs `tests/auto/`'s descriptions of
+all tstauto models and examples/ode models with AUTO settings through
+`--server`, at 1 and automatic threads. It compares every stored point's
+protocol values, labels, types and stability byte for byte (CRs removed)
+with the shared `.diagram.txt` baseline, naming the first differing point
+and both lines; skipped models have explicit reasons. `--only MODEL,...`
+selects descriptions. Use `--update` only for an intended numerical change;
+it prints the models changed. verify.sh runs it after examples_check;
+every platform's core CI job uploads differences as `auto-diagrams-<platform>`.
+
 `tools/goldencheck.py` (W31c, run by verify.sh) drives `xppautX --server`
 through lecar.ode and vanderpol.ode to write PostScript (with a nullcline
 and a direction field), SVG, kinescope GIFs and an array-print PostScript,

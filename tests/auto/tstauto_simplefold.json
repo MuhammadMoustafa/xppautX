@@ -1,0 +1,28 @@
+{
+  "model": "examples/tstauto/simplefold.odex",
+  "reason": "Cubic cusp: continue forcing b backwards across a fold.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "b",
+      "auto": {
+        "ds": -0.05,
+        "dsmin": 1e-05,
+        "dsmax": 0.05,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": -2,
+        "parmax": 2,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "x": 1.324717957244746
+  }
+}

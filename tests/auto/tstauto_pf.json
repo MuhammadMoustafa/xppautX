@@ -1,0 +1,25 @@
+{
+  "model": "examples/tstauto/pf.odex",
+  "reason": "Pitchfork normal form: the model comments request equilibrium continuation in r.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "r",
+      "auto": {
+        "ds": 0.1,
+        "dsmin": 1e-05,
+        "dsmax": 0.1,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": -2,
+        "parmax": 2,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ]
+}

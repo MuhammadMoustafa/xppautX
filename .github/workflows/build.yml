@@ -145,6 +145,13 @@ jobs:
           name: golden-differ-linux
           retention-days: 14
           path: build/golden-differ/
+      - name: Upload the differing AUTO diagrams
+        if: ${{ !cancelled() && hashFiles('build/auto-differ/**') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: auto-diagrams-linux
+          retention-days: 30
+          path: build/auto-differ/
       # strip the CI artifact only (verify.sh above already ran against
       # the -g build; the window's embedded library is already stripped
       # at link time, -Wl,-s, so this does not touch it twice)
@@ -323,6 +330,16 @@ jobs:
             examples.macos.md5
             examples-differ/
           if-no-files-found: ignore
+      - name: AUTO diagrams against the shared numerical baseline (1 and auto threads)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: python3 tools/autocompare.py --server ./xppautX --keep auto-differ
+      - name: Upload the differing AUTO diagrams
+        if: ${{ !cancelled() && hashFiles('auto-differ/**') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: auto-diagrams-macos
+          retention-days: 30
+          path: auto-differ/
       - name: "Strip the CI artifact (-x: macOS keeps a minimal symbol table)"
         run: strip -x xppautX
       - uses: actions/upload-artifact@v7
@@ -429,6 +446,16 @@ jobs:
             examples.windows.md5
             examples-differ/
           if-no-files-found: ignore
+      - name: AUTO diagrams against the shared numerical baseline (1 and auto threads)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: python tools/autocompare.py --server ./xppautX.exe --keep auto-differ
+      - name: Upload the differing AUTO diagrams
+        if: ${{ !cancelled() && hashFiles('auto-differ/**') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: auto-diagrams-windows
+          retention-days: 30
+          path: auto-differ/
       - name: Strip the CI artifact (local/-g builds are untouched)
         run: strip xppautX.exe
       - uses: actions/upload-artifact@v7
@@ -544,6 +571,16 @@ jobs:
             examples.windows-clang.md5
             examples-differ/
           if-no-files-found: ignore
+      - name: AUTO diagrams against the shared numerical baseline (1 and auto threads)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: python tools/autocompare.py --server ./build/clang/xppautX.exe --keep auto-differ
+      - name: Upload the differing AUTO diagrams
+        if: ${{ !cancelled() && hashFiles('auto-differ/**') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: auto-diagrams-windows-clang
+          retention-days: 30
+          path: auto-differ/
 
   # windows-clang's sanitizer run, a job of its own so it runs beside
   # windows-clang's checks instead of after them (W36). W41 first split

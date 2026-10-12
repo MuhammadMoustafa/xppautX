@@ -1,0 +1,31 @@
+{
+  "model": "examples/tstauto/pen.odex",
+  "reason": "Coupled pendula: follow the equal-angle rest equilibrium in drive ri.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "ri",
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": 0,
+        "parmax": 1,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "ph1": 0.411516846067488,
+    "ph2": 0.411516846067488,
+    "ps1": 0,
+    "ps2": 0
+  }
+}

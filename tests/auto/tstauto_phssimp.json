@@ -1,0 +1,5 @@
+{
+  "model": "examples/tstauto/phssimp.odex",
+  "reason": "Rotating coupled phases; periodic continuation needs angular torus setup.",
+  "skip": "Equilibrium trial from the supplied zero state fails with a singular Newton linear system at both 1 and auto threads. Rotating phases require an angular torus orbit start; none is supplied."
+}

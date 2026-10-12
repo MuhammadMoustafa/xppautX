@@ -1,0 +1,29 @@
+{
+  "model": "examples/ode/osc.odex",
+  "reason": "Excitable voltage model: continue Input with sigma=0 (deterministic), then first HB.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "Input",
+      "auto": {
+        "ds": -0.05,
+        "dsmin": 1e-05,
+        "dsmax": 0.05,
+        "nmax": 120,
+        "npr": 20,
+        "parmin": 0,
+        "parmax": 6,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "V": -1.0079690324808905,
+    "X": 1.3521910225132667
+  }
+}

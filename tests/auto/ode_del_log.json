@@ -1,0 +1,29 @@
+{
+  "model": "examples/ode/del_log.odex",
+  "reason": "Delayed logistic map: equilibrium continuation in r with discrete method; its supplied period-seven start is separate.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "r",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.01,
+        "nmax": 120,
+        "npr": 20,
+        "parmin": 2,
+        "parmax": 2.5,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "x": 0.5406522737712449,
+    "y": 0.5406522737712449
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "model": "examples/tstauto/bob.odex",
+  "reason": "Two-population oscillator: continue input a, then periodic from HB if reached.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "a",
+      "auto": {
+        "ds": 0.03,
+        "dsmin": 1e-05,
+        "dsmax": 0.03,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": 0,
+        "parmax": 4,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "X": 0.2327254686339904,
+    "Y": 0.2327254686339904
+  }
+}

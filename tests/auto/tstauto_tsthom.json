@@ -1,0 +1,25 @@
+{
+  "model": "examples/tstauto/tsthom.odex",
+  "reason": "Homoclinic normal form: saddle equilibrium in a, with b as second parameter.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "a",
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": -1,
+        "parmax": 1,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ]
+}

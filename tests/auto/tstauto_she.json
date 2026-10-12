@@ -1,0 +1,32 @@
+{
+  "model": "examples/tstauto/she.odex",
+  "reason": "Convection amplitude model: follow the trivial equilibrium in mus.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "mus",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.01,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": 0,
+        "parmax": 0.5,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "p11ss": 0,
+    "t02cs": 0,
+    "p12cs": 0,
+    "p01cs": 0,
+    "a01cs": 0
+  }
+}

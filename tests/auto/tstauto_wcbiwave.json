@@ -1,0 +1,25 @@
+{
+  "model": "examples/tstauto/wcbiwave.odex",
+  "reason": "Wilson-Cowan traveling wave: continue speed c at its low-activity equilibrium.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "c",
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": 0.1,
+        "parmax": 2,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ]
+}

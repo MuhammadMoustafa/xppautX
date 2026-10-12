@@ -1,0 +1,5 @@
+{
+  "model": "examples/tstauto/tsthom3.ode",
+  "reason": "Unfinished foreign homoclinic draft; retained for parser checks.",
+  "skip": "Cannot load: b is both variable and parameter, hom_bcs(0 is unclosed, and p is undefined (model header)."
+}

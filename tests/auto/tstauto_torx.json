@@ -1,0 +1,52 @@
+{
+  "model": "examples/tstauto/torx.odex",
+  "reason": "Torus oscillator: use its supplied rn range and tolerances, then first HB.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "rn",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.01,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": -0.9,
+        "parmax": -0.4,
+        "ntst": 15,
+        "mxbf": 0,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 1
+      },
+      "parameter": "rn",
+      "auto": {
+        "ds": 0.005,
+        "dsmin": 1e-05,
+        "dsmax": 0.005,
+        "nmax": 30,
+        "npr": 10,
+        "parmin": -0.9,
+        "parmax": -0.4,
+        "ntst": 15,
+        "mxbf": 0,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05
+      }
+    }
+  ]
+}

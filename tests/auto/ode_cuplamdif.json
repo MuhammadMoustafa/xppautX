@@ -1,0 +1,5 @@
+{
+  "model": "examples/ode/cuplamdif.odex",
+  "reason": "Model has AUTO settings (autoeval) for computed tables; not an autonomous ODE continuation fixture.",
+  "skip": "Volterra integral model: AUTO does not continue its history-dependent equations."
+}

@@ -1,0 +1,26 @@
+{
+  "model": "examples/ode/tstheti.odex",
+  "reason": "Heteroclinic projection BVP: supplied left/right equilibria and integrated connection.",
+  "runs": [
+    {
+      "name": "connection",
+      "kind": "bvp",
+      "start": {
+        "state": "current",
+        "settle": 1.01
+      },
+      "parameter": "a",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.01,
+        "nmax": 120,
+        "npr": 20,
+        "parmin": 0,
+        "parmax": 1,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ]
+}

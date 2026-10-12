@@ -1,0 +1,25 @@
+{
+  "model": "examples/tstauto/ab.odex",
+  "reason": "Exothermic reaction: continue the feed p0 from the zero solution.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "p0",
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": 0,
+        "parmax": 1.5,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ]
+}

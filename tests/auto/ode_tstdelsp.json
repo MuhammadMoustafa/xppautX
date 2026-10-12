@@ -1,0 +1,5 @@
+{
+  "model": "examples/ode/tstdelsp.odex",
+  "reason": "Model has AUTO settings (autoeval) for computed tables; not an autonomous ODE continuation fixture.",
+  "skip": "Delay-network model with randomly generated coupling/delay tables; AUTO does not continue delay history and a cross-run deterministic model is not supplied."
+}

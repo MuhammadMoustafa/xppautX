@@ -1,0 +1,26 @@
+{
+  "model": "examples/tstauto/dumbvp.odex",
+  "reason": "Boundary-value fixture y=x prime, y(0)=0, x(1)=a.",
+  "runs": [
+    {
+      "name": "boundary",
+      "kind": "bvp",
+      "start": {
+        "state": "current",
+        "settle": 1
+      },
+      "parameter": "a",
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": -1,
+        "parmax": 1,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "model": "examples/tstauto/dumb.odex",
+  "reason": "Linear 195-variable AUTO dimension fixture: x[j]=p.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "p",
+      "auto": {
+        "ds": 0.1,
+        "dsmin": 1e-05,
+        "dsmax": 0.1,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": -1,
+        "parmax": 2,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ]
+}
