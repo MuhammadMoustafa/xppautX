@@ -75,6 +75,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [43](#43-an-xy-table-extrapolates-past-its-last-point-the-wrong-way) | Tables | a table of x and y values extrapolates past its last x with the last segment's slope reversed | [W260](https://github.com/MuhammadMoustafa/xppautX/issues/317) |
 | [44](#44-every-name-is-found-by-scanning-every-symbol) | Speed | every name in a formula is found by scanning the whole symbol table, so loading grows with the square of the model's size | [W245](https://github.com/MuhammadMoustafa/xppautX/issues/301) |
 | [45](#45-a-model-past-maxode-overflows-the-stack-instead-of-being-refused) | Limits | a model with 4999 or more equations or fixed quantities writes past `compile_em`'s name arrays: an abort ("buffer overflow detected") or a corrupted stack, not an error | [W269](https://github.com/MuhammadMoustafa/xppautX/issues/326) |
+| [46](#46-parameter-files-ignore-names-and-load-by-position) | Parameter files | reordering `.par` lines silently assigns values to the wrong parameters | [W310](https://github.com/MuhammadMoustafa/xppautX/issues/369) |
 
 ## 1. Model options
 
@@ -781,3 +782,26 @@ XPPAUT holds at most `MAXODE` (5000) variables, but the loader does not refuse a
 - **Evidence:** W269's size study (paper/benchmarks/size-scaling, `cases-w269.json`'s `legacy_refusal`), XPPAUT 8.0 built as the paper's WSL build (gcc 15.2, Ubuntu's default `_FORTIFY_SOURCE`), `xppaut MODEL.ode -silent`: XPPAUT's own lecdiff200.ode resized to 3200 and 6400 cells (6400, 12800 states) and amari.ode to 6400 points end with `*** buffer overflow detected ***: terminated`; gdb puts the abort in `compile_em` at form_ode.c:1812 (name `W1800`, the 5000th equation of lecdiff) and form_ode.c:1865 (`FU4999`, amari's 5000th fixed quantity). amari at 3200 points (6400 variables) prints "too many variables !!" and "Duplicate name FU1798" and does not run. A build without fortify checks would write past the arrays unnoticed.
 - **xppautX:** no `MAXODE`: the tables are sized from the loaded model (W243), and the same four models load and integrate (W269 timed them; their outputs agree between the compiled build and the interpreter).
 - **Card:** [W269](https://github.com/MuhammadMoustafa/xppautX/issues/326) (found); [W243](https://github.com/MuhammadMoustafa/xppautX/issues/299) (the limit lifted).
+
+## 46. Parameter files ignore names and load by position
+
+XPPAUT checks only the count in `io_parameter_file`
+([lunch-new.c:405](../reference/xppaut-8.0/lunch-new.c#L405),
+[master](../reference/xppaut-master/lunch-new.c#L405)). Its `io_parameters`
+loops in model order and assigns the next value to `upar_names[i]`
+([lunch-new.c:513](../reference/xppaut-8.0/lunch-new.c#L513),
+[master](../reference/xppaut-master/lunch-new.c#L513)); `io_double` reads
+with `atof` and ignores the name after the number
+([lunch-new.c:679](../reference/xppaut-8.0/lunch-new.c#L679),
+[master](../reference/xppaut-master/lunch-new.c#L679)).
+
+Source-traced reproducer: a model declaring `par a=1,b=2` and a file
+`2   Number params`, `4  b`, `3  a` (one line each) load `a=4,b=3`
+in XPPAUT, silently. xppautX loads `a=3,b=4`, as servercheck verifies,
+and refuses unknown, duplicate or missing names before applying values.
+The `.ic` format stays positional; XPPAUT's `io_ic_file` reads directly
+into `last_ic` before detecting short or long input
+([lunch-new.c:454](../reference/xppaut-8.0/lunch-new.c#L454),
+[master](../reference/xppaut-master/lunch-new.c#L454)); xppautX tests both
+counts without applying anything on failure.
+[W310 / #369](https://github.com/MuhammadMoustafa/xppautX/issues/369).

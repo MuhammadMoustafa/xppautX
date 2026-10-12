@@ -149,6 +149,12 @@ beside the plot (a sheet on a phone):
   `%2*pi`; a boundary condition or delay takes an expression. Anything
   else (letters in a parameter box) is refused, not sent: see "What a box
   accepts", below.
+- **Load** reads a parameter file (`.par`) by name: its count must match
+  the model and every parameter must appear exactly once, in any order.
+  An unknown, duplicate or missing name reports the file, line and name;
+  nothing changes on an error. Initial-condition files (`.ic`) keep one
+  value per differential equation in model order; too few or too many
+  values report the file and line and change nothing (W310, #369).
 - **Reset all** puts back the values from the ODE file, as the X11
   Parameter window's Default button did: it sends the core's `default`
   command, which redoes the tables once, and the values change together.

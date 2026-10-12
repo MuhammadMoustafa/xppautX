@@ -2045,6 +2045,35 @@ def check_load_all_or_nothing():
             st, set1 = state(), set_file()
             check('W125: after %s refused, the session is as it was (its state, its settings)' % what,
                   st == st0 and set1 == set0, str([(k, st0.get(k), st.get(k)) for k in st0 if st.get(k) != st0.get(k)])[:300])
+        # W310: foreign .par names determine the destination; rejection is atomic.
+        with open(os.path.join(r, 'reordered.par'), 'w') as f:
+            f.write('2   Number params\n4  b\n3  a\n\nFile:w125.odex\nWed Jun 30 21:49:08 1993\n')
+        evs = answered((), cmd='values', op='read', kind='par', name='reordered.par')
+        reordered = state()
+        check('W310: reordered parameters load by name, with the XPPAUT trailer accepted',
+              not errors(evs) and dict(reordered['pars']) == {'a': 3, 'b': 4}, str(reordered['pars']))
+        answered((), cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1.5},
+                                       {'kind': 'par', 'name': 'b', 'value': 2}])
+        for file, kind, text, line, name in (
+                ('renamed.par', 'par', '2   Number params\n9  a\n8  renamed\n', 3, 'renamed'),
+                ('duplicate.par', 'par', '2   Number params\n9  a\n8  a\n', 3, 'a'),
+                ('missing.par', 'par', '2   Number params\n9  a\n', 1, 'b'),
+                ('short.ic', 'ic', '9\n', 2, None),
+                ('long.ic', 'ic', '9\n8\n7\n', 3, None),
+                ('oversize.par', 'par', ' ' * (4 * 1024 * 1024 + 1), 0, None),
+                ('oversize.ic', 'ic', ' ' * (4 * 1024 * 1024 + 1), 0, None)):
+            with open(os.path.join(r, file), 'w') as f:
+                f.write(text)
+            errs = errors(answered((), cmd='values', op='read', kind=kind, name=file))
+            e = errs[0] if len(errs) == 1 else {}
+            source = text.splitlines()[line - 1] if 0 < line <= len(text.splitlines()) else ''
+            check('W310: %s refused with its file, line, source and name' % file,
+                  os.path.basename(e.get('file', '')) == file and e.get('line') == line
+                  and e.get('source') == source and (name is None or '"%s"' % name in e.get('error', '')),
+                  str(errs))
+            st, set1 = state(), set_file()
+            check('W310: %s leaves all values and settings unchanged' % file,
+                  st == st0 and set1 == set0, str(st))
         # W153: another model's names; valid earlier changes must not apply.
         other = set0.split('\n')
         named_line = next(k for k, row in enumerate(other) if row.startswith('  b:'))
@@ -7562,5 +7591,5 @@ def check_create_folders():
 
 check_create_folders()
 
-print('server checks: %s' % ('all passed' if check.failures == 0 else '%d failed' % check.failures))
+print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

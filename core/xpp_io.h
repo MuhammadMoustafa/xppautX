@@ -604,6 +604,8 @@ public:
        read unless named); ReadFailed when it is not one, what named */
     int whole(std::string_view what, bool named = false);
     double real(std::string_view what, bool named = false);
+    /* the name after the last line's number (blanks trimmed), empty if absent */
+    std::string_view value_name() const;
     /* the name after the last line's number must equal what (blanks trimmed) */
     void check_name(std::string_view what) const;
     /* the next line starts with "#" (a set file's heading); ReadFailed
@@ -643,11 +645,11 @@ auto read_lines(std::string where, std::string file, std::string_view text, F &&
 /* the same over the file at path, read whole; the error when it cannot
    be read (its place the file, no line) */
 template <class F>
-auto read_file_lines(std::string where, std::string_view path, F &&parse)
+auto read_file_lines(std::string where, std::string_view path, F &&parse, std::size_t limit = std::numeric_limits<std::size_t>::max())
     -> Result<std::invoke_result_t<F &, Lines &>>
 {
     std::string bytes;
-    if (!read_bytes(path, bytes))
+    if (!read_bytes(path, bytes, limit))
         return std::unexpected(files::open_error(std::move(where), path));
     return read_lines(std::move(where), std::string(path), bytes, parse);
 }

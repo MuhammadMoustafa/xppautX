@@ -440,7 +440,7 @@ run or the files, not the X11 windows:
 - **--setfile *filename***: applies the named settings file (`.setx`), or imports a `.set` file one XPPAUT wrote (File > Import settings), after loading up the ODE file: the `.set` is checked value by value and converted to a `<name>.setx` beside it, which is applied.
 - **--newseed**: uses the machine time to re-seed the random number generator.
 - **--runnow**: runs the ODE file immediately on startup (implied by `--silent`).
-- **--parfile *filename***: loads parameters from the named file. The first line gives the number of parameters, then one value per line followed by its name (must match a parameter name in the ODE file), e.g. (`lecar.par`):
+- **--parfile *filename***: loads parameters from the named file. The first line gives the number of parameters, then one value per line followed by its name (each model parameter exactly once, in any order; W310, #369), e.g. (`lecar.par`):
 
   ```
   12 Number params

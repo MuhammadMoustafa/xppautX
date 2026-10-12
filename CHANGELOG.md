@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Parameter files (`.par`) load by name in any order, refusing unknown, duplicate or missing parameters without changing any values; positional `.ic` files still require exactly one value per differential equation. Both imports use the 4 MiB settings bound (W310, [#369](https://github.com/MuhammadMoustafa/xppautX/issues/369)).
+
 - Writes offer to create missing folders through the shared question policy; permission errors name the folder and advise another destination, and the desktop save dialog retries in the model folder. No privilege elevation (W303, [#361](https://github.com/MuhammadMoustafa/xppautX/issues/361)).
 
 - All question kinds share one answering policy: `--check` declines conversion name questions, and `--silent` offers the same Replace / Open existing .odex choice as the window and server; `--yes` prints the suggested answer in every front end (W304, [#363](https://github.com/MuhammadMoustafa/xppautX/issues/363)).

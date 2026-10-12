@@ -389,8 +389,23 @@ std::vector<double> read_parameters(const xpp::Model &m, Lines &l)
 {
   const int np=l.whole("Number params");
   if(np!=m.nupar)l.fail(xpp::format("it is for {} parameters, the model has {}",np,m.nupar));
-  std::vector<double> z;
-  for(int i=0;i<m.nupar;i++)z.push_back(l.real(m.upar_names[i]));
+  const int count_line=l.line();
+  std::vector<double> z(static_cast<std::size_t>(m.nupar));
+  std::vector<bool> seen(z.size());
+  int missing=0;
+  for(int i=0;i<m.nupar;i++){
+    while(seen[static_cast<std::size_t>(missing)])missing++;
+    if(l.at_end()||xpp::trim_blanks(l.text(l.line()+1)).empty()||l.text(l.line()+1).starts_with("File:"))
+      l.fail(count_line,xpp::format("missing parameter \"{}\"",m.upar_names[missing]));
+    const double value=l.real(m.upar_names[missing]);
+    const std::string_view name=l.value_name();
+    const int index=find_user_name(m,PARAMBOX,name);
+    if(index<0)l.fail(xpp::format("unknown parameter \"{}\"",name));
+    const auto at=static_cast<std::size_t>(index);
+    if(seen[at])l.fail(xpp::format("duplicate parameter \"{}\"",name));
+    seen[at]=true;
+    z[at]=value;
+  }
   while(!l.at_end()){
     const std::string_view line=l.next();
     if(line.empty())continue;
@@ -502,12 +517,12 @@ void import_settings_command(xpp::Session &s)
 
 Result<std::vector<double>> read_parameter_file(const xpp::Model &m, std::string_view path)
 {
-  return read_file_lines("parameter file",path,[&m](Lines &l){ return read_parameters(m,l); });
+  return read_file_lines("parameter file",path,[&m](Lines &l){ return read_parameters(m,l); },xpp::settings_bytes_limit);
 }
 
 Result<std::vector<double>> read_ic_file(const xpp::Model &m, std::string_view path)
 {
-  return read_file_lines("initial conditions file",path,[&m](Lines &l){ return read_ics(m,l); });
+  return read_file_lines("initial conditions file",path,[&m](Lines &l){ return read_ics(m,l); },xpp::settings_bytes_limit);
 }
 
 void load_parameter_file_named(xpp::Session &s, std::string_view fn)

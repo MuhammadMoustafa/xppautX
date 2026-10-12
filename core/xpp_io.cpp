@@ -521,11 +521,16 @@ double Lines::real(std::string_view what, bool named)
     return value;
 }
 
-void Lines::check_name(std::string_view what) const
+std::string_view Lines::value_name() const
 {
     const std::string_view value = trim_blanks(text(line()));
     const std::size_t end = value.find_first_of(" \t");
-    const std::string_view name = end == std::string_view::npos ? std::string_view() : trim_blanks(value.substr(end));
+    return end == std::string_view::npos ? std::string_view() : trim_blanks(value.substr(end));
+}
+
+void Lines::check_name(std::string_view what) const
+{
+    const std::string_view name = value_name();
     if (name != trim_blanks(what))
         fail(xpp::format("name \"{}\" differs from \"{}\"", name, trim_blanks(what)));
 }
