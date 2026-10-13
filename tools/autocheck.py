@@ -655,8 +655,10 @@ def section_jacobian():
         exact = os.path.join(model_dir, 'lecar.odex')
         with open(LECAR) as f:
             text = f.read()
+        exact_text = text.replace('integration: {', 'integration: { jacobian: exact,', 1)
+        assert exact_text != text, 'lecar.odex has no integration group to give jacobian: exact'
         with open(exact, 'w') as f:
-            f.write(text.replace('numerics: {', 'numerics: { jacobian: exact,', 1))
+            f.write(exact_text)
         diagrams, events = {}, {}
         for name, ode in (('difference', LECAR), ('exact', exact)):
             s = Server(args.server, ode, verbose=args.v)
@@ -1055,7 +1057,7 @@ def section_session():
         f.write(chr(10).join(['5', '0', '4', '0', '1', '4', '9', '16', '']))
     tab_ode = os.path.join(folder, 'tab.odex')
     with open(tab_ode, 'w') as f:
-        f.write(chr(10).join(['table w "' + table + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0', 'options { numerics: { total_time: 4 } }', '']))
+        f.write(chr(10).join(['table w "' + table + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0', 'options { integration: { total_time: 4 } }', '']))
     # run in the model's own folder: a table outside it would be a question (W175, W286)
     s4 = Server(args.server, tab_ode, verbose=args.v, run=folder)
     s4.collect(is_idle)
@@ -1721,7 +1723,8 @@ def section_recording():
             for name in source.namelist():
                 data = source.read(name)
                 if name == 'model/lecar.odex':
-                    data = data.replace(b'options {', ('options {\n  log: { logfile: "' + marker.replace('\\', '/') + '" },').encode(), 1)
+                    assert b'options {' in data, 'the recorded lecar.odex has no options block'
+                    data = data.replace(b'options {', ('options {\n  output: { logfile: "' + marker.replace('\\', '/') + '" },').encode(), 1)
                 target.writestr(name, data)
         hostile = template.replace(digits, base64.b64encode(encoded.getvalue()).decode(), 1)
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
