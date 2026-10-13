@@ -5,6 +5,6 @@ par a = 1
 x' = x*(a-ss)-y
 y' = y*(a-ss)+x
 options {
-  numerics: { total_time: 6.28 },
+  integration: { total_time: 6.28 },
 }
 init x = 1

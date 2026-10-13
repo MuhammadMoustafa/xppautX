@@ -12,6 +12,6 @@ network k = conv(periodic, 101, 15, wa, n0)
 # ODEs
 n[j]' = n[j]*(1-n[j])*(mu*k(j)-nu) for j in 0..100
 options {
-  numerics: { total_time: 50 },
+  integration: { total_time: 50 },
 }
 init n[j] = ran(1) for j in 0..100

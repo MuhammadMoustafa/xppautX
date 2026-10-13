@@ -661,7 +661,7 @@ XPPAUT's own `lecar.ode` has `set pp {xp=v,yp=w,xlo=-.6.xhi=1.2,ylo=-.25,yhi=1.2
 is never set (the window keeps its old right edge) and nothing is printed.
 
 - **Evidence:** load `examples/ode/lecar.ode` as it was before W229, choose
-  the set `pp` (Named parameter sets, or `--internset`): `xlo` becomes -0.6,
+  the set `pp` (Named sets, or `--internset`): `xlo` becomes -0.6,
   `xhi` stays what it was.
 - **xppautX:** a `.ode` is converted once and the cut is the conversion's
   warning `set-value` (docs/odex-quirks.md), written into the `.odex` as

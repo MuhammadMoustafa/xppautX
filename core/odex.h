@@ -149,6 +149,7 @@ struct ArrayCopy {
 struct Option {
   std::string group, name, value;
   Pos pos, value_pos;
+  std::optional<setx::Value> tree;
 };
 
 /* a statement of the model; its formulas .odex's trees or, from the .ode

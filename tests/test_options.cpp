@@ -115,6 +115,10 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
 {
     /* options whose value is not just a number or a word */
     static const std::map<std::string_view, Sample> special = {
+        {"SLIDERS", {"[]", ""}},
+        {"S1", {"x", ""}}, {"S2", {"y", ""}}, {"S3", {"z", ""}},
+        {"SLO1", {"-1", ""}}, {"SLO2", {"-1", ""}}, {"SLO3", {"-1", ""}},
+        {"SHI1", {"2", ""}}, {"SHI2", {"2", ""}}, {"SHI3", {"2", ""}},
         {"METHOD", {"e", "1"}},            /* the Euler method */
         {"POINCARE_MAP", {"m", "2"}},          /* max */
         {"POINCARE_VARIABLE", {"y", "2"}},
@@ -152,7 +156,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
 /* what the option model leaves out: a log file, a button */
 bool left_out(const xpp::OptionRow &r)
 {
-    return r.name.empty() || r.name == "LOGFILE" || r.name == "BUT";
+    return r.name.empty() || r.name == "LOGFILE" || r.name == "BUT" || r.kind == xpp::OptionKind::sliders;
 }
 
 /* whether a .setx holds the option: the table's rows marked saved, and the
@@ -258,7 +262,7 @@ int main(void)
     /* Full registry names survive the .odex grammar and option reader. */
     for (const auto &info : xpp::solvers()) {
         if (info.traits.integral_history) continue; /* needs an integral model */
-        CHECK(write_file("build/test_method_names.odex", xpp::format("x'=-x\ny'=x\noptions {{ numerics: {{ method: {}, total_time: 1 }} }}\n", info.key)));
+        CHECK(write_file("build/test_method_names.odex", xpp::format("x'=-x\ny'=x\noptions {{ integration: {{ method: {}, total_time: 1 }} }}\n", info.key)));
         xpp::Session *named = load("build/test_method_names.odex");
         CHECK(named && named->numerics.method == info.id && named->numerics.total_time == 1);
     }
@@ -342,8 +346,12 @@ int main(void)
             CHECK(got == want.value);
             if (got != want.value) printf("  %s: %s, not %s\n", std::string(id(r)).c_str(), got.c_str(), want.value.c_str());
         }
-        if (r.once) CHECK(s->options_set.has(r));
+        /* Imported S1-S3 slots become the one native preset-list row. */
+        if (r.once && !(r.group.empty() && r.parse && r.name.starts_with("S"))) CHECK(s->options_set.has(r));
     }
+
+    CHECK(s->sliders.size() == 3 && s->sliders[0].var == "x" && s->sliders[2].var == "z");
+    CHECK(s->sliders[0].lo == -1 && s->sliders[2].hi == 2);
 
     /* a .set file brings back what it holds */
     init_browser(*s);
@@ -470,7 +478,7 @@ int main(void)
     /* XPPAUT's names for the renamed options are a .ode's: a .odex refuses them
        at their line */
     for (const char *old_name : {"nout", "njmp", "total", "t0", "trans", "nmesh", "newt_iter", "newt_tol", "jac_eps", "meth", "tol", "dtmin", "dtmax", "atol", "maxstor", "tor_per", "poimap", "poivar", "poisgn", "poistop", "poipln"}) {
-        CHECK(write_file(bad_odex, std::string("par a = 1\nx' = -a*x\noptions { numerics: { ") + old_name + ": 2 } }\n"));
+        CHECK(write_file(bad_odex, std::string("par a = 1\nx' = -a*x\noptions { integration: { ") + old_name + ": 2 } }\n"));
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.odex";
         char *argv[] = {arg0, file, nullptr};
@@ -504,8 +512,8 @@ int main(void)
     /* an imported file's options are not imported (W282): the options belong to the model that runs */
     {
         const char inc_file[] = "build/test_options_imp.odex";
-        CHECK(write_file(inc_file, "par b = 2\noptions { numerics: { total_time: 7, dt: 0.25 } }\n"));
-        CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\nimport \"test_options_imp.odex\"\noptions { numerics: { dt: 0.5 } }\n"));
+        CHECK(write_file(inc_file, "par b = 2\noptions { integration: { total_time: 7, dt: 0.25 } }\n"));
+        CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\nimport \"test_options_imp.odex\"\noptions { integration: { dt: 0.5 } }\n"));
         xpp::Session *t = load(bad_odex);
         CHECK(t != nullptr);
         if (t) {
@@ -578,7 +586,7 @@ int main(void)
         };
         for (const Case c : {Case{"out.dat", "build/out.dat"}, Case{"sub/o.dat", "build/sub/o.dat"},
                              Case{"../simulations/xpp.dat", ""}, Case{"/tmp/x.dat", ""}, Case{"sub/../../x.dat", ""}}) {
-            const std::string text = odex ? xpp::format("x' = -x\noptions {{ batch: {{ output: \"{}\" }} }}\n", c.value)
+            const std::string text = odex ? xpp::format("x' = -x\noptions {{ output: {{ output: \"{}\" }} }}\n", c.value)
                                           : std::string(model_text) + "@ total=5\n@ output=" + c.value + "\ndone\n";
             CHECK(write_file(file_name, text));
             char arg0[] = "test_options";
@@ -606,7 +614,7 @@ int main(void)
        file and this path, so the next load does not ask, and another path asks */
     {
         const auto load_output = [&](const char *path) {
-            CHECK(write_file(bad_odex, std::string("x' = -x\noptions { batch: { output: \"") + path + "\" } }\n"));
+            CHECK(write_file(bad_odex, std::string("x' = -x\noptions { output: { output: \"") + path + "\" } }\n"));
             char arg0[] = "test_options";
             char arg1[64];
             std::snprintf(arg1, sizeof arg1, "%s", bad_odex);

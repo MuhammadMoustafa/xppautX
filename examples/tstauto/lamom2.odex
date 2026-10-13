@@ -5,5 +5,5 @@ par a = -2, b = 1, q = 1
 x' = x*(a+b*ss-ss^2)-y*(1+q*ss)
 y' = y*(a+b*ss-ss^2)+x*(1+q*ss)
 options {
-  numerics: { total_time: 10 },
+  integration: { total_time: 10 },
 }

@@ -5,8 +5,8 @@ init x = 1
 u(t) = volterra(heav(tau-t)/ode_divisor(tau), of=x)
 par tau = 1
 options {
-  numerics: { total_time: 10 },
-  auto: { autoeval: 1 },
+  integration: { total_time: 10 },
+  diagram: { autoeval: 1 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

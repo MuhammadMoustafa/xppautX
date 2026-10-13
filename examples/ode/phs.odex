@@ -5,5 +5,5 @@ y' = a+sin(x-y)
 par a = 1
 init x = 0, y = 0
 options {
-  numerics: { total_time: 6.28, dt: .01 },
+  integration: { total_time: 6.28, dt: .01 },
 }

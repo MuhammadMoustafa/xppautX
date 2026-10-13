@@ -8,7 +8,7 @@ x4' = x3
 init x1 = 500
 aux sx4 = x4/200
 options {
-  numerics: { bound: 1000, total_time: 450, storage_rows: 10000 },
+  integration: { bound: 1000, total_time: 450, storage_rows: 10000 },
   plot: {
     axes: 3, xp: sx4, yp: x2, zp: x3, xmin: 0, xmax: 1.6, ymax: 3.2, ymin: 0, zmax: 3, zmin: 0,
     xlo: -1.45, xhi: 1.45, ylo: -1.75, yhi: 1.75,

@@ -18,6 +18,6 @@ event 1 v-vhit, v = vreset, isi = t-tlast, tlast = t, count = count+1, out_put =
 event 1 count-maxcount, arret = 1
 # set plot
 options {
-  numerics: { method: euler, bound: 100000000, total_time: 8000, transient_time: 50000 },
+  integration: { method: euler, bound: 100000000, total_time: 8000, transient_time: 50000 },
   plot: { xp: count, yp: isi, xlo: 0, xhi: 1000, ylo: 0, yhi: 100 },
 }

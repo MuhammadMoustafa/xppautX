@@ -638,6 +638,14 @@ async function sliderModelSwitch(dir) {
       await S(`s.values.sliders.length === 1 && s.values.sliders[0].name === ${JSON.stringify(expected)}
         && s.core.sliders.filter(d => d.name).length === 1`), JSON.stringify(await S('s.values.sliders')));
   }
+  const native = 'w317-sliders.odex';
+  fs.writeFileSync(path.join(dir, native), "par a=1\nx'=0\ninit x=0\noptions { interface: { sliders: [" +
+    [2, 3, 4, 5, 6].map(high => `{ name: a, low: 0, high: ${high} }`).join(', ') + " ] } }\n");
+  await cdp.eval(`__xpp.send({cmd: 'open', file: ${JSON.stringify(native)}})`);
+  await until("s.ask?.kind === 'choice'", 'save before native Open');
+  await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
+  await until(`!s.busy && !s.ask && s.hello.file === ${JSON.stringify(native)}`, 'native presets loaded');
+  check('W317: all five native presets reach the page', await S("s.values.sliders.length === 5 && s.core.sliders.length === 5 && s.values.sliders[4].hi === '6'"));
 }
 
 /* the data table (docs/ui-v2.md T10): open it, scroll to row 500 by
@@ -2920,7 +2928,7 @@ async function autoStopRace() {
     going && await S(`s.busy && s.autoSettings.inflight.length === 1 && s.autoSettings.inflight[0].patch.numerics.nmx === 15
       && s.autoSettings.core.numerics.nmx === 2000`)
     && await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)
-    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {nmx: 15}}]),
+    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', integration: {nmx: 15}}]),
     JSON.stringify([going, await S('[s.busy, s.autoSettings]'), await setsSent()]));
 
   /* T25: a connection the browser opened and sent nothing on yet (a
@@ -2948,7 +2956,7 @@ async function autoStopRace() {
   check('W106: once the run ends the set applies: the core\'s Nmax is 15, nothing in flight, no second set',
     await until(`!s.busy && s.autoSettings.core.numerics.nmx === 15 && !s.autoSettings.inflight.length`,
       'applied at idle', 60000 * SLOW)
-    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {nmx: 15}}])
+    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', integration: {nmx: 15}}])
     && !(await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)),
     JSON.stringify([await S('s.autoSettings'), await setsSent()]));
   check('T23: after Stop the status strip says so: "Stopped: by the user (Stop)"',
@@ -3061,7 +3069,7 @@ async function autoViews(dir) {
     `${saved} vs ${await S('JSON.stringify([s.diagram.active, s.diagram.views.map(v => [v.axes && v.axes.plot, v.axes && v.axes.ylabel, v.points.x.length])])')}`);
 }
 
-/* examples/recordings/lecar_auto.recx: the "hopf" parameter set; from the main window
+/* examples/recordings/lecar_auto.recx: the "hopf" named set; from the main window
    to AUTO's view: a fixed point of the model made the initial conditions
    (Sing pts, then Import), then File/Auto */
 async function openAutoAtFixedPoint() {
@@ -5909,7 +5917,7 @@ async function startScreenExamplesCheck() {
    and continue" on its error; the button sends the core's commands and the
    run ends where it was going, with differences. */
 async function jacobianOfferCheck(dir) {
-  fs.writeFileSync(path.join(dir, 'w260sqrt.odex'), "x' = sqrt(x) + 1\ninit x = 0\noptions { numerics: { method: stiff, total_time: 4, jacobian: exact } }\n");
+  fs.writeFileSync(path.join(dir, 'w260sqrt.odex'), "x' = sqrt(x) + 1\ninit x = 0\noptions { integration: { method: stiff, total_time: 4, jacobian: exact } }\n");
   await cdp.eval(`__xpp.send({cmd: 'open', file: 'w260sqrt.odex'})`);
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
@@ -5933,7 +5941,7 @@ async function jacobianOfferCheck(dir) {
 
   /* W275: the same in an AUTO run. The branch x = 0 of x' = (a-1)x + (sqrt(x*x) below a = 0.5) has an
      infinite slope there: the run stops on an end point, and the button restarts from its label */
-  fs.writeFileSync(path.join(dir, 'w275root.odex'), "par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { numerics: { jacobian: exact, total_time: 1 } }\n");
+  fs.writeFileSync(path.join(dir, 'w275root.odex'), "par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { integration: { jacobian: exact, total_time: 1 } }\n");
   await cdp.eval(`__xpp.send({cmd: 'open', file: 'w275root.odex'})`);
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
@@ -5942,7 +5950,7 @@ async function jacobianOfferCheck(dir) {
   await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
   await key('a');
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
-  await cdp.eval(`__xpp.send({cmd: 'auto', op: 'set', numerics: {ds: -0.1, dsmax: 0.1, rl0: -0.5, rl1: 2, nmx: 100}, axes: {plot: 1, var: 'x', par1: 'a'}})`);
+  await cdp.eval(`__xpp.send({cmd: 'auto', op: 'set', integration: {ds: -0.1, dsmax: 0.1, rl0: -0.5, rl1: 2, nmx: 100}, axes: {plot: 1, var: 'x', par1: 'a'}})`);
   await until('!s.busy', 'AUTO settings');
   await cdp.eval(`__xpp.send({cmd: 'key', win: 'auto', key: 'r'})`);
   await until("s.ask && s.ask.kind === 'menu'", 'AUTO start menu');

@@ -12,7 +12,7 @@ init x1 = 0.3
 init x2 = 0.2
 init x3 = 0.1
 options {
-  numerics: { dt: .1, total_time: 200 },
+  integration: { dt: .1, total_time: 200 },
   plot: { xhi: 200, ylo: 0, yhi: 1 },
 }
 

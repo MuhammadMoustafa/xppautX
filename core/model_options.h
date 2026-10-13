@@ -25,6 +25,11 @@ struct Session; /* session.h */
 struct Model;   /* model.h */
 
 struct OptionRow;
+struct XppSlider;
+namespace setx { class Block; }
+/* Shared preset/session reader. Before model compilation, check_names is false;
+   the .odex loader checks names against declarations instead. */
+std::vector<XppSlider> read_sliders(const Model &m, setx::Block &file, bool check_names = true);
 
 namespace option_limit {
 /* Ten million initial rows/history samples allow large recordings without int-sized requests. */
@@ -99,19 +104,26 @@ struct OptionValue {
    table belongs to one. A row with no group (the X11 window's leftovers,
    a numerics setting the model cannot set) is no .odex option. */
 namespace option_group {
-inline constexpr std::string_view numerics = "numerics", plot = "plot", sliders = "sliders", range = "range",
-                                  batch = "batch", auto_ = "auto", histogram = "histogram", log = "log",
-                                  buttons = "buttons";
+inline constexpr std::string_view integration = "integration";
+inline constexpr std::string_view poincare = "poincare";
+inline constexpr std::string_view equilibria = "equilibria";
+inline constexpr std::string_view continuation = "continuation";
+inline constexpr std::string_view diagram = "diagram";
+inline constexpr std::string_view plot = "plot";
+inline constexpr std::string_view export_ = "export";
+inline constexpr std::string_view sweep = "sweep";
+inline constexpr std::string_view analysis = "analysis";
+inline constexpr std::string_view interface = "interface";
+inline constexpr std::string_view output = "output";
 } // namespace option_group
-/* the groups in the order a .odex writes them */
-inline constexpr std::array<std::string_view, 9> option_groups{
-    option_group::numerics, option_group::plot, option_group::sliders, option_group::range, option_group::batch,
-    option_group::auto_, option_group::histogram, option_group::log, option_group::buttons};
+/* Groups follow the work they affect, in converter output order (W317). */
+inline constexpr std::array<std::string_view, 11> option_groups{
+    option_group::integration, option_group::poincare, option_group::equilibria, option_group::continuation, option_group::diagram, option_group::plot, option_group::export_, option_group::sweep, option_group::analysis, option_group::interface, option_group::output};
 
 /* what a .odex writes as an option's value: a number, a whole number, a
    bare word (a variable's, a parameter's, a name), one of the row's
    choices (option_choices), a path or a text, both in double quotes */
-enum class OptionKind { number, whole, name, choice, path, text };
+enum class OptionKind { number, whole, name, choice, path, text, sliders };
 
 /* One option. Its names match as prefixes of the name given, upper case,
    the longest winning (so "method" and "methodx" are one, and "dt" is not

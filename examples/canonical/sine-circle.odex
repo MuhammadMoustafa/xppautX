@@ -8,7 +8,7 @@ x[j]' = 1+k*sum(w(i')*sin(del_shft(x0, (i'+j) mod 100, tau*abs(i'))-x[j]), from=
 par tau = 0.7
 par k = 0.2
 options {
-  numerics: {
+  integration: {
     total_time: 300, delay: 30, method: euler, transient_time: 100, fold: x0, fold: x1, fold: x2,
     fold: x3, fold: x4, fold: x5, fold: x6, fold: x7, fold: x8, fold: x9, fold: x10, fold: x11,
     fold: x12, fold: x13, fold: x14, fold: x15, fold: x16, fold: x17, fold: x18, fold: x19,

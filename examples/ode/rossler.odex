@@ -5,5 +5,5 @@ y' = x+b*y
 z' = b+z*(x-a)
 par b = 0.2, a = 4
 options {
-  numerics: { total_time: 50 },
+  integration: { total_time: 50 },
 }

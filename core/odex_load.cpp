@@ -693,6 +693,16 @@ private:
     switch (s.kind) {
     case Statement::Kind::Options:
       if (s.options.empty()) return;
+      for (const Option &o : s.options) {
+        if (!o.tree) continue;
+        for (const setx::Value &preset : o.tree->items)
+          for (const setx::Member &entry : preset.members) {
+            if (entry.key != "name") continue;
+            const Model::Name *d = find(entry.value.text);
+            if (!d || !(d->kind == Model::NameKind::Param || d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov))
+              fail(Pos{o.pos.file, entry.value.line, entry.value.col}, xpp::format("slider name {}: the model has no parameter or variable", entry.value.text));
+          }
+      }
       break;
     case Statement::Kind::Par:
       /* numbers only (docs/odex.md question 9): a quantity worked out

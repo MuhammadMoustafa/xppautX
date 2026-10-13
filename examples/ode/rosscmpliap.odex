@@ -76,7 +76,7 @@ init vx = 1
 # only keep the last one (trans=79999)
 # plot set up
 options {
-  numerics: { total_time: 80000, method: discrete, store_every: 50, transient_time: 79999, bound: 100000 },
+  integration: { total_time: 80000, method: discrete, store_every: 50, transient_time: 79999, bound: 100000 },
   plot: { xp: muu, yp: nuu, xlo: -4, xhi: 0, ylo: 0, yhi: 2 },
 }
 

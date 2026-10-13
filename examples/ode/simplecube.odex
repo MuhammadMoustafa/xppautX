@@ -5,6 +5,6 @@ w' = b*(v-c-d*w)
 par a = 0.1, d = 0.5, c = 0.2, b = 0.2
 par K = 1
 options {
-  numerics: { total_time: 100 },
+  integration: { total_time: 100 },
 }
 init v = 0.5

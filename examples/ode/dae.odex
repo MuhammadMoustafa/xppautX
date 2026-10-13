@@ -9,5 +9,5 @@ aux yy = y
 # plot the "error"
 aux zz = x+y+y^3+y^5
 options {
-  numerics: { singpt_newton_tolerance: 1e-8 },
+  equilibria: { singpt_newton_tolerance: 1e-8 },
 }

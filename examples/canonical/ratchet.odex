@@ -13,7 +13,7 @@ markov z 2
   {0} {alpha} 
   {beta} {0} 
 options {
-  numerics: { method: euler, dt: .1, total_time: 2000, store_every: 10 },
+  integration: { method: euler, dt: .1, total_time: 2000, store_every: 10 },
   plot: { xhi: 2000, yhi: 8, ylo: -8 },
 }
 aux xm = x mod 1

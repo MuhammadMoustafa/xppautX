@@ -43,6 +43,12 @@ std::string option_value_schema(const OptionRow &row)
   case OptionKind::path:
     out += "\"type\": \"string\", \"x-kind\": \"path\"";
     break;
+  case OptionKind::sliders:
+    out += "\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, "
+           "\"required\": [\"name\", \"low\", \"high\"], \"properties\": {"
+           "\"name\": {\"type\": \"string\"}, \"low\": {\"type\": \"number\"}, \"high\": {\"type\": \"number\"}, "
+           "\"step\": {\"type\": \"number\", \"minimum\": 0}}}";
+    break;
   case OptionKind::text: out += "\"type\": \"string\""; break;
   case OptionKind::choice: {
     const std::vector<std::string> words = option_choices(row);
@@ -78,7 +84,7 @@ std::string option_schema()
       "  \"description\": \"The options block of a .odex model: options { group: { key: value, ... }, ... }. "
       "Generated from core/model_options.cpp by xppautX --options-schema; the JSON form of the block's "
       "dictionary. A key marked x-repeatable may be written more than once; a path or a text is a "
-      "double-quoted string, every other value one bare word.\",\n"
+      "double-quoted string, sliders a list of presets, every other value one bare word.\",\n"
       "  \"type\": \"object\",\n"
       "  \"additionalProperties\": false,\n"
       "  \"properties\": {\n";

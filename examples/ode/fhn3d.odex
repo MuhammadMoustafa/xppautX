@@ -8,6 +8,6 @@ w' = eps*(v-gamma*w)
 fun f(v) = v*(1-v)*(v-a)
 par a = 0.25, eps = 0.05, gamma = 1
 options {
-  numerics: { total_time: 100, dt: .2 },
+  integration: { total_time: 100, dt: .2 },
   plot: { xhi: 100 },
 }

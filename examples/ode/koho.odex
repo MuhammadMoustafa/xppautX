@@ -14,7 +14,7 @@ w[j]' = w[j]+eps*(z-w[j])*h(mx(3)-j) for j in 0..99
 ip' = mx(3)
 aux zz = z
 options {
-  numerics: { method: discrete, total_time: 2000 },
+  integration: { method: discrete, total_time: 2000 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

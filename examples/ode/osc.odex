@@ -9,10 +9,11 @@ wiener z
 V' = 3*V-V^3+2-X+Input+sigma*z
 X' = eps*(gam*(1+tanh(V/ode_divisor(beta)))-X)
 options {
-  numerics: { store_every: 10, storage_rows: 100000, total_time: 400, method: euler },
+  integration: { store_every: 10, storage_rows: 100000, total_time: 400, method: euler },
+  continuation: { parmin: 0, parmax: 6, ds: -0.001, dsmax: .01 },
+  diagram: { autovar: V },
   plot: { xp: V, yp: X, xlo: -3, xhi: 3, ylo: -3, yhi: 6 },
-  auto: { parmin: 0, parmax: 6, ds: -0.001, dsmax: .01, autovar: V },
-  buttons: { but: "AUTO:fa" },
+  interface: { but: "AUTO:fa" },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

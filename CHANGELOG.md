@@ -9,6 +9,10 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Name option groups by their work and accept slider presets as a list of any length; old native group names and S1-S3 keys are refused, while XPPAUT options convert to the new groups (W317, [#377](https://github.com/MuhammadMoustafa/xppautX/issues/377)).
+
+- Call mixed sets "Named sets": they hold parameters, initial values and settings; menu keys are unchanged (W316, [#376](https://github.com/MuhammadMoustafa/xppautX/issues/376)).
+
 - Remove startup `@ runnow` and `--runnow`; conversion drops the option with a comment and note. Animator release actions remain available (W312, [#371](https://github.com/MuhammadMoustafa/xppautX/issues/371)).
 - Warn once per load about states without `init`, naming their equation files and lines; they still start at 0. Conversion writes explicit zero initial values (W313, [#372](https://github.com/MuhammadMoustafa/xppautX/issues/372)).
 - Remove prefixed imports (`import "f.odex" as c1`) and dotted names; whole-file and selective imports remain (W315, [#374](https://github.com/MuhammadMoustafa/xppautX/issues/374)).

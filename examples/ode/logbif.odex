@@ -16,8 +16,8 @@ init x = 0.1
 # change amin and amax to change the window
 par amin = 2, amax = 4
 options {
-  numerics: { storage_rows: 11000, total_time: 400, transient_time: 350, method: discrete },
+  integration: { storage_rows: 11000, total_time: 400, transient_time: 350, method: discrete },
   plot: { xlo: 2, xhi: 4.001, ylo: 0, yhi: 1.001, xp: a, yp: x, lt: 0 },
-  range: { rangeover: ind, rangereset: no, rangelow: 0, rangehigh: 200, rangestep: 200 },
-  batch: { range: 1 },
+  sweep: { rangeover: ind, rangereset: no, rangelow: 0, rangehigh: 200, rangestep: 200 },
+  output: { range: 1 },
 }

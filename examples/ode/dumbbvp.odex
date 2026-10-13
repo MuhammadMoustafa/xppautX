@@ -6,5 +6,5 @@ boundary x-y'
 boundary y-a
 par a = 1
 options {
-  numerics: { total_time: 1 },
+  integration: { total_time: 1 },
 }

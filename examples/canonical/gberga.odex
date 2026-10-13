@@ -26,7 +26,7 @@ boundary ap'
 boundary k'
 # set it up for the user
 options {
-  numerics: { total_time: 1, dt: .001 },
+  integration: { total_time: 1, dt: .001 },
   plot: { xhi: 1 },
 }
 

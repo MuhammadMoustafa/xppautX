@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "xppautX .odex options",
-  "description": "The options block of a .odex model: options { group: { key: value, ... }, ... }. Generated from core/model_options.cpp by xppautX --options-schema; the JSON form of the block's dictionary. A key marked x-repeatable may be written more than once; a path or a text is a double-quoted string, every other value one bare word.",
+  "description": "The options block of a .odex model: options { group: { key: value, ... }, ... }. Generated from core/model_options.cpp by xppautX --options-schema; the JSON form of the block's dictionary. A key marked x-repeatable may be written more than once; a path or a text is a double-quoted string, sliders a list of presets, every other value one bare word.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "numerics": {
+    "integration": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -13,10 +13,6 @@
         "start_time": {"type": "number", "description": "Start time"},
         "transient_time": {"type": "number", "description": "Transient time"},
         "dt": {"type": "number", "description": "Dt"},
-        "nullcline_mesh": {"type": "integer", "minimum": 1, "maximum": 4096, "description": "Nullcline mesh"},
-        "singpt_max_iterates": {"type": "integer", "minimum": 1, "description": "Sing pt: maximum iterates"},
-        "singpt_newton_tolerance": {"type": "number", "exclusiveMinimum": 0, "description": "Sing pt: Newton tolerance"},
-        "singpt_jacobian_epsilon": {"type": "number", "exclusiveMinimum": 0, "description": "Sing pt: Jacobian epsilon"},
         "store_every": {"type": "integer", "minimum": 1, "description": "Store every N steps"},
         "bound": {"type": "number", "exclusiveMinimum": 0, "description": "Bounds"},
         "method": {"type": "string", "enum": ["discrete", "euler", "modified_euler", "runge_kutta", "adams", "gear", "volterra", "backward_euler", "qualrk", "stiff", "cvode", "dopri5", "dopri8", "rosenbrock", "symplectic"], "description": "Method"},
@@ -26,26 +22,78 @@
         "max_step": {"type": "number", "exclusiveMinimum": 0, "description": "Maximum step"},
         "abs_tolerance": {"type": "number", "exclusiveMinimum": 0, "description": "Absolute tolerance"},
         "delay": {"type": "number", "minimum": 0, "description": "Maximal delay"},
-        "neartol": {"type": "number", "exclusiveMinimum": 0},
         "vmaxpts": {"type": "integer", "minimum": 1, "maximum": 10000000},
         "storage_rows": {"type": "integer", "minimum": 1, "maximum": 10000000},
         "torus_period": {"type": "number"},
         "fold": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$", "x-repeatable": true},
         "bandup": {"type": "integer", "minimum": 0, "maximum": 100000},
         "bandlo": {"type": "integer", "minimum": 0, "maximum": 100000},
+        "seed": {"type": "integer"},
+        "stoch": {"type": "integer"}
+      }
+    },
+    "poincare": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
         "poincare_map": {"type": "string", "enum": ["none", "section", "max", "period"]},
         "poincare_variable": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
         "poincare_sign": {"type": "integer"},
         "poincare_stop": {"type": "integer"},
-        "poincare_plane": {"type": "number"},
-        "seed": {"type": "integer"},
-        "stoch": {"type": "integer"}
+        "poincare_plane": {"type": "number"}
+      }
+    },
+    "equilibria": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "singpt_max_iterates": {"type": "integer", "minimum": 1, "description": "Sing pt: maximum iterates"},
+        "singpt_newton_tolerance": {"type": "number", "exclusiveMinimum": 0, "description": "Sing pt: Newton tolerance"},
+        "singpt_jacobian_epsilon": {"type": "number", "exclusiveMinimum": 0, "description": "Sing pt: Jacobian epsilon"},
+        "neartol": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "continuation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ntst": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "nmax": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "npr": {"type": "integer"},
+        "ncol": {"type": "integer", "minimum": 1, "maximum": 7},
+        "dsmin": {"type": "number"},
+        "dsmax": {"type": "number"},
+        "ds": {"type": "number"},
+        "parmin": {"type": "number"},
+        "parmax": {"type": "number"},
+        "normmin": {"type": "number"},
+        "normmax": {"type": "number"},
+        "epsl": {"type": "number"},
+        "epsu": {"type": "number"},
+        "epss": {"type": "number"}
+      }
+    },
+    "diagram": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "autoeval": {"type": "integer"},
+        "autoxmax": {"type": "number"},
+        "autoymax": {"type": "number"},
+        "autoxmin": {"type": "number"},
+        "autoymin": {"type": "number"},
+        "autovar": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
+        "sec": {"type": "integer"},
+        "uec": {"type": "integer"},
+        "spc": {"type": "integer"},
+        "upc": {"type": "integer"}
       }
     },
     "plot": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "nullcline_mesh": {"type": "integer", "minimum": 1, "maximum": 4096, "description": "Nullcline mesh"},
         "xp": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
         "yp": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
         "zp": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
@@ -120,11 +168,6 @@
         "smc": {"type": "integer"},
         "umc": {"type": "integer"},
         "colormap": {"type": "integer"},
-        "plotfmt": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
-        "ps_font": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
-        "ps_lw": {"type": "number"},
-        "ps_fsize": {"type": "integer"},
-        "ps_color": {"type": "integer"},
         "dfgrid": {"type": "integer"},
         "dfdraw": {"type": "integer"},
         "ncdraw": {"type": "integer"},
@@ -134,22 +177,18 @@
         "colorhi": {"type": "number"}
       }
     },
-    "sliders": {
+    "export": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "s1": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
-        "s2": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
-        "s3": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
-        "slo1": {"type": "number"},
-        "slo2": {"type": "number"},
-        "slo3": {"type": "number"},
-        "shi1": {"type": "number"},
-        "shi2": {"type": "number"},
-        "shi3": {"type": "number"}
+        "plotfmt": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
+        "ps_font": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
+        "ps_lw": {"type": "number"},
+        "ps_fsize": {"type": "integer"},
+        "ps_color": {"type": "integer"}
       }
     },
-    "range": {
+    "sweep": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -161,45 +200,7 @@
         "rangeoldic": {"type": "string", "enum": ["no", "yes"]}
       }
     },
-    "batch": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "range": {"type": "integer"},
-        "output": {"type": "string", "x-kind": "path"}
-      }
-    },
-    "auto": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "autoeval": {"type": "integer"},
-        "ntst": {"type": "integer", "minimum": 1, "maximum": 10000},
-        "nmax": {"type": "integer", "minimum": 1, "maximum": 1000000},
-        "npr": {"type": "integer"},
-        "ncol": {"type": "integer", "minimum": 1, "maximum": 7},
-        "dsmin": {"type": "number"},
-        "dsmax": {"type": "number"},
-        "ds": {"type": "number"},
-        "parmin": {"type": "number"},
-        "parmax": {"type": "number"},
-        "normmin": {"type": "number"},
-        "normmax": {"type": "number"},
-        "epsl": {"type": "number"},
-        "epsu": {"type": "number"},
-        "epss": {"type": "number"},
-        "autoxmax": {"type": "number"},
-        "autoymax": {"type": "number"},
-        "autoxmin": {"type": "number"},
-        "autoymin": {"type": "number"},
-        "autovar": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
-        "sec": {"type": "integer"},
-        "uec": {"type": "integer"},
-        "spc": {"type": "integer"},
-        "upc": {"type": "integer"}
-      }
-    },
-    "histogram": {
+    "analysis": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -218,19 +219,22 @@
         "specwin": {"type": "integer"}
       }
     },
-    "log": {
+    "interface": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "quiet": {"type": "integer", "enum": [0, 1]},
-        "logfile": {"type": "string", "x-kind": "path"}
+        "sliders": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["name", "low", "high"], "properties": {"name": {"type": "string"}, "low": {"type": "number"}, "high": {"type": "number"}, "step": {"type": "number", "minimum": 0}}}},
+        "but": {"type": "string", "x-repeatable": true}
       }
     },
-    "buttons": {
+    "output": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "but": {"type": "string", "x-repeatable": true}
+        "range": {"type": "integer"},
+        "output": {"type": "string", "x-kind": "path"},
+        "quiet": {"type": "integer", "enum": [0, 1]},
+        "logfile": {"type": "string", "x-kind": "path"}
       }
     }
   }

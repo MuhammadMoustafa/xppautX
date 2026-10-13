@@ -34,7 +34,6 @@ override the below definition.
 #endif
 #endif
 
-#define XPP_NSLIDERS 3 /* The model option language defines S1, S2 and S3. */
 
 namespace xpp {
 

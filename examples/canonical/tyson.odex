@@ -8,6 +8,6 @@ v' = k1*m-k6*u
 m' = b*m
 event -1 u-0.2, m = 0.5*m
 options {
-  numerics: { total_time: 1000, method: dopri8, dt: .25 },
+  integration: { total_time: 1000, method: dopri8, dt: .25 },
   plot: { xhi: 1000, ylo: 0, yhi: 2, yp: m },
 }

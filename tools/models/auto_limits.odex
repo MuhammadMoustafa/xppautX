@@ -443,5 +443,5 @@ x398' = p38-x398
 x399' = p39-x399
 x400' = p39-x400
 options {
-  numerics: { total_time: 1, dt: .1 },
+  integration: { total_time: 1, dt: .1 },
 }

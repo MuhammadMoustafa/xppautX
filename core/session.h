@@ -157,9 +157,8 @@ struct Session {
   /* the expression engine's constants, variables, counts, symbol table
      and evaluation stacks (expr.h) */
   ParserState parser;
-  /* the parameter sliders the model sets up (@ s1=name, slo1=, shi1=,
-     likewise 2 and 3) */
-  std::vector<XppSlider> sliders = std::vector<XppSlider>(XPP_NSLIDERS);
+  /* The native preset list; foreign @ S1-S3 options populate it on import. */
+  std::vector<XppSlider> sliders;
   /* the options a source has set (model_options.h): the command line
      sets its own first, and the model's may not override them */
   OptionsSet options_set;

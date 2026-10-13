@@ -14,7 +14,7 @@ fr(t) = 1+cos(th)*(cos(delay(x, tau))*delay(fr, tau)-sin(delay(x, tau))*delay(fi
 fi(t) = 1+cos(th)*(sin(delay(x, tau))*delay(fr, tau)+cos(delay(x, tau))*delay(fi, tau))
 par q = 0.11, xs = 1.07, a = 11.459, th = 1, r = 1.2221, c = 120, eps = 0.1
 options {
-  numerics: { dt: .05, total_time: 200, transient_time: 50, delay: 4, vmaxpts: 1 },
+  integration: { dt: .05, total_time: 200, transient_time: 50, delay: 4, vmaxpts: 1 },
   plot: { xp: fr, yp: fi, xlo: -.5, xhi: 2.5, ylo: -.5, yhi: 2.5 },
 }
 

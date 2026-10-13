@@ -8,5 +8,5 @@ par a = 0
 init x = 0
 x' = a-x-5*heav(x-1)
 options {
-  numerics: { total_time: 20 },
+  integration: { total_time: 20 },
 }

@@ -21,6 +21,6 @@ boundary hom_bcs(1)
 par per = 8.1, a = 0
 init x = 0.1, y = 0.1
 options {
-  numerics: { total_time: 1.01, method: dopri8, dt: .001 },
+  integration: { total_time: 1.01, method: dopri8, dt: .001 },
   plot: { xlo: -.2, xhi: 1.6, ylo: -1, yhi: 1, xp: x, yp: y },
 }

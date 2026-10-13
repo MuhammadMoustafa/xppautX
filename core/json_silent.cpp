@@ -13,7 +13,7 @@
    script does not expect stops it (exit 1, silent_fail).
 
    For one run (no internal sets, or each set in turn):
-     select the set          values internset (File/Get par set, the set
+     select the set          values internset (File/Named sets, the set
                              by its index: no menu key limits their number)
      --qsets/--qpars/--qics     values query (-dryrun: nothing is run)
      run                     key i, answer g (Initialconds/Go), or

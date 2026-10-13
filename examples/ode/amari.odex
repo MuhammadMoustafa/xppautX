@@ -10,7 +10,7 @@ network z = conv(even, 200, 50, w, fu0)
 u[j]' = -u[j]-h+z(j) for j in 0..199
 par h = 0.15
 options {
-  numerics: { total_time: 100, method: euler },
+  integration: { total_time: 100, method: euler },
 }
 init u[j] = 0.8 for j in 90..110
 init u0 = 0

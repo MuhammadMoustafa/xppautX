@@ -6,5 +6,5 @@ y1' = y0*delay(y1, 1)-y1
 y2' = y1-delay(y1, 10)
 init y0 = 5, y1 = 0.1, y2 = 1
 options {
-  numerics: { delay: 20, total_time: 50 },
+  integration: { delay: 20, total_time: 50 },
 }

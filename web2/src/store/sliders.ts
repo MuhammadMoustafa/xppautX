@@ -1,6 +1,6 @@
 /* The sliders under the plot (GitHub #18, T20): any number of them, each on
    a parameter or variable with its own low end, high end and step. The
-   model's `@ s1=..` presets start the list; the Add slider dialog
+   model's `interface.sliders` presets start the list; the Add slider dialog
    (SliderDialog.tsx) appends or edits one, picking the parameter or
    variable from a searchable list and setting Min, Max and Step. Pure. */
 import {fieldError, NUMBER} from './fieldKinds';

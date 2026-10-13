@@ -6,7 +6,7 @@ z' = k*(w-u)
 par c = 1, k = 1, a = 15, b = 5
 fun f(x) = 1/(1+exp(-x))
 options {
-  numerics: { dt: .01 },
+  integration: { dt: .01 },
   plot: { xp: u, yp: z, xlo: -.1, ylo: -1, yhi: 1, xhi: 1.2 },
 }
 

@@ -3,7 +3,7 @@
 # -c v' = f(v) + v''
 #
 options {
-  numerics: { total_time: 20 },
+  integration: { total_time: 20 },
 }
 fun f(v) = v*(1-v)*(v-a)+p
 par c = 0.56

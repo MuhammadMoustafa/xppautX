@@ -21,8 +21,8 @@ aux phi = (th1-th2) mod (2*pi)
 aux ui = u10
 aux dd = d
 options {
-  numerics: { total_time: 150 },
-  auto: { autoeval: 1 },
+  integration: { total_time: 150 },
+  diagram: { autoeval: 1 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

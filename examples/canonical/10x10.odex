@@ -27,7 +27,7 @@ x[j]' = 1+h(shift(x0, nr(j))-x[j])+h(shift(x0, so(j))-x[j])+h(shift(x0, we(j))-x
 # make them all periodic
 # set periodic colormap
 options {
-  numerics: {
+  integration: {
     fold: x0, fold: x1, fold: x2, fold: x3, fold: x4, fold: x5, fold: x6, fold: x7, fold: x8,
     fold: x9, fold: x10, fold: x11, fold: x12, fold: x13, fold: x14, fold: x15, fold: x16, fold: x17,
     fold: x18, fold: x19, fold: x20, fold: x21, fold: x22, fold: x23, fold: x24, fold: x25,

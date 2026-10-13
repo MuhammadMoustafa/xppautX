@@ -217,7 +217,7 @@ a settings file (`.setx`: File/Import settings, `--setfile`; an XPPAUT `.set` is
 and an initial-conditions file (`.ic`: `values` `read`, `--parfile`,
 `--icfile`, Initialconds/File), a session file's members (`.snapx`, "Session
 files"; the members are settings files too), and a recording (`.recx`, "Playing a recording"); a model's
-internal set (File/Get par set) checks every item before it applies one,
+internal set (File/Named sets) checks every item before it applies one,
 a bad item an error at the `set` line. Strict: a line that is not one of
 the file's, a key given twice or missing, a number that does not read
 (`1e999` too), a value out of range (a method's or a Poincare map's
@@ -418,7 +418,7 @@ steps are not comparison intervals.
 | `plotvars` | `how` (0 x vs t, 1 phase plane, 2 array plot), `names` | The IC box's xvst/pp/arry buttons for the checked variables. |
 | `browser` | `from`, `count`, `col`, `ncol` | The data browser block the client shows (answered at once with `browser`, even during a prompt); `count` 0 stops the updates. |
 | `browser` | `op` (`write`, `load`, `postprocess`); for `write` `what`, `format`, `name`, `replace`; for `load` `format`, `name` | Save data and Load with their choices given, each skipping its question (see "Saving data" below); the same commands by the keys `w` and `l` of the browser window ask them all. `postprocess` runs the model's `@ postprocess` (a histogram, a Fourier transform, ... of the data, core/histogram.cpp) and shows the result in the browser, as `--silent` does after its run. The other buttons are the window's keys ("Window keys"). |
-| `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `write_parameter_file`/`load_parameter_file_named` and the `ic` ones, W66), a Load all or nothing ("Our files: all or nothing"): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. `op` `internset` (no `kind`) is File/Get par set (keys `f`, `g`) for the internal set `index` (0-based) or `name`, with no ask: its values and options, its plot settings on the current window, all or nothing (an item whose value is not a number, or an option that does not take it, is a `message` `error` at the `set` line, nothing applied, W125); one the model does not have is a `message` `error`. `op` `query` (no `kind`) writes `name` with the model's internal sets (name, whether `--silent` runs it, what it sets), parameters (their values in the file) and initial conditions, each asked for by `sets`, `pars`, `ics` (1), under its `#` heading: `--silent`'s `--qsets`, `--qpars`, `--qics`. `read` and `internset` are settings (they set values), `write` and `query` data (they write a file). |
+| `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `write_parameter_file`/`load_parameter_file_named` and the `ic` ones, W66), a Load all or nothing ("Our files: all or nothing"): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. `op` `internset` (no `kind`) is File/Named sets (keys `f`, `g`) for the internal set `index` (0-based) or `name`, with no ask: its values and options, its plot settings on the current window, all or nothing (an item whose value is not a number, or an option that does not take it, is a `message` `error` at the `set` line, nothing applied, W125); one the model does not have is a `message` `error`. `op` `query` (no `kind`) writes `name` with the model's internal sets (name, whether `--silent` runs it, what it sets), parameters (their values in the file) and initial conditions, each asked for by `sets`, `pars`, `ics` (1), under its `#` heading: `--silent`'s `--qsets`, `--qpars`, `--qics`. `read` and `internset` are settings (they set values), `write` and `query` data (they write a file). |
 | `dfield` | `op` `write`, `name` | Write the direction field the current plot window shows (Dir.field, key `d`) to `name`, one arrow a line (x, y and the arrow's end), its lengths in PostScript's frame whatever the window's size: `--silent`'s `--dfdraw 4`/`5` file, dirfields.dat. A window that shows none is a `message` `error`. |
 | `equilibrium` | `op` `write`, `name`, `shoot` | Find the equilibrium Newton reaches from the initial conditions and write it to `name`, one variable a line (its value, then its eigenvalue's real and imaginary parts); nothing when Newton does not converge. `shoot` 1 also integrates a saddle's invariant manifolds into `UMk.dat`/`SMk.dat`: `--silent`'s `--equil 0`/`1`, equil.dat. |
 | `equations` | | Send `equations`. |
@@ -454,7 +454,7 @@ Every action has a kind (W95), defined once in the core and sent in
 |---|---|---|---|
 | control | `c` | Abort, Quit, an answer | acted on |
 | view | `v` | only changes what is shown: a zoom, a window picked, the data subscription, a menu that shows, Help | kept, and run after the computation |
-| setting | `s` | a value the next computation uses (W106): a parameter, an initial or boundary condition, a delay, the numerics (`set`, `slide`, `default`, `values` `read`/`internset`, the Parameters key, the Numerics menu's items that ask a value, File/Get par set), AUTO's Parameter, Numerics and Mark values (`auto` `set`, the AUTO window's keys `p`, `n`, `u`) | taken at once, applied when the computation ends: the run in progress keeps the values it started with |
+| setting | `s` | a value the next computation uses (W106): a parameter, an initial or boundary condition, a delay, the numerics (`set`, `slide`, `default`, `values` `read`/`internset`, the Parameters key, the Numerics menu's items that ask a value, File/Named sets), AUTO's Parameter, Numerics and Mark values (`auto` `set`, the AUTO window's keys `p`, `n`, `u`) | taken at once, applied when the computation ends: the run in progress keeps the values it started with |
 | data | `d` | saves and loads: Save/Load values' files, Import settings, every file written, a session, AUTO's diagram files, AUTO's Grab (the curve is still changing) | refused |
 | computation | `x` | starts one: Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts, Stochastic, a user button | refused |
 
@@ -763,7 +763,7 @@ inspect those files before closing. Protocol clients wait for
 `ask` and `idle`; recordings are the only playable file format.
 
 `examples/recordings/lecar_auto.recx` records the former AUTO example's
-steps: select Le Car's `hopf` parameter set, find its fixed point, import
+steps: select Le Car's `hopf` named set, find its fixed point, import
 it, continue the steady branch, grab the Hopf point, continue the periodic
 branch, and save the diagram. Run it with:
 
@@ -981,7 +981,7 @@ each set's data then in `<set>.dat` unless `--outfile` is given):
 
 | what | commands |
 |---|---|
-| the internal set | `values` `internset` with its `index` (File/Get par set) |
+| the internal set | `values` `internset` with its `index` (File/Named sets) |
 | `--qsets`/`--qpars`/`--qics`, `-dryrun` | `values` `query` into the output file; nothing is run |
 | the run | `key` `i`, `answer` `g` (Initialconds/Go), or `answer` `r` (Range) for `@ range=1` or `@ stoch=` |
 | `@ postprocess=` | `browser` `postprocess` |
@@ -1799,7 +1799,7 @@ policy above, never a recorded save decision.
 
 | kind | fields | answer fields |
 |---|---|---|
-| `menu` | `name`, `title`, `items`, `keys`, `hints`, `def` | `key` (empty or `ok:0` cancels); for an item past the end of `keys` (a menu with more items than keys: the named parameter sets past the 26th, W229), `index`, the item's place in `items` |
+| `menu` | `name`, `title`, `items`, `keys`, `hints`, `def` | `key` (empty or `ok:0` cancels); for an item past the end of `keys` (a menu with more items than keys: the named sets past the 26th, W229), `index`, the item's place in `items` |
 | `choice` | `title`, `question`, `choices`, `keys` | `key` |
 | `string` | `title`, `name`, `value`, `ok`, `cancel`, `kinds` | `value` (any length: no dialog cuts what is typed, W76) |
 | `form` | `title`, `names`, `values`, `kinds` | `values` (same length, each of any length: W76 dropped `max`). A name starting with `*n` means the field picks from `hello.lists[n]`: a variable (`*0`), a parameter (`*2`), a colour (`*4`), a marker (`*5`), ...; for a list whose items start with a number (`2 Box`) the value is that number. A form may also carry `columns` and `rows` (arrays of text), asking for a grid: its first `columns.length * rows.length` fields are the cells, row by row (field `r * columns.length + c` is column `c`, row `r`), and the others follow as plain fields. Viewaxes' 2D View (`X`, `Y`; `Variable`, `Min`, `Max`, `Label`) and 3D View (`X`, `Y`, `Z`, then `XLo`, `XHi`, `YLo`, `YHi` and the 3D params' ten fields) are the only grids (W225): the core reads every field whole before it sets any, and a variable that is not one, a number that is not one, a Min not below its Max (or XLo/YLo not below XHi/YHi) is a `message` error naming the field, with nothing applied. |

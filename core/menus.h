@@ -80,7 +80,7 @@ enum AplotWindowKey { PK_REDRAW, PK_EDIT, PK_FIT, PK_RANGE, PK_PRINT, PK_GIF };
 enum EquilibriumWindowKey { EK_IMPORT };
 
 /* What menu_choose returns, plus the item's index, for an item of a long list that has no key (the
-   named parameter sets past the 26th): the page answers such a menu with the item's `index` */
+   named sets past the 26th): the page answers such a menu with the item's `index` */
 inline constexpr int MENU_UNKEYED = 0x100;
 
 /* the index of the item of m that key ch picks (a MENU_UNKEYED + index picks that item), -1 for none;

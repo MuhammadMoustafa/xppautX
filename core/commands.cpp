@@ -102,12 +102,12 @@ void do_movie_com(xpp::Session &s, int c)
   }
 }
 
-/* File/Named parameter sets: one of the model's sets, applied */
+/* File/Named sets: one of the model's sets, applied */
 static void get_intern_set(xpp::Session &s)
 {
   const std::vector<xpp::Model::InternalSet> &sets = s.model().intern_sets;
   if (sets.empty()) {
-    bottom_msg(0, "This model has no named parameter sets: a set line in the model defines one");
+    bottom_msg(0, "This model has no named sets: a set line in the model defines one");
     return;
   }
   std::vector<std::string> names;

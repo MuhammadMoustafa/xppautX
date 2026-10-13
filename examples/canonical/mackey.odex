@@ -9,7 +9,7 @@ fun f(u) = u/ode_divisor(1+u^n)
 aux xdel = delay(x, tau)
 par tau = 6, g = 0.1, b = 0.2, n = 10
 options {
-  numerics: { delay: 30, total_time: 600, store_every: 10 },
+  integration: { delay: 30, total_time: 600, store_every: 10 },
   plot: { xhi: 600, yhi: 2 },
 }
 

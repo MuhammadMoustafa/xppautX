@@ -10,5 +10,5 @@ table mm 1/100, n=10000, lo=0, hi=9999
 network mxh = fmmult(100, 100, mm, x0, x0, h)
 x[j]' = w(j)+k*mxh(j) for j in 0..99
 options {
-  numerics: { total_time: 100, bound: 100000 },
+  integration: { total_time: 100, bound: 100000 },
 }

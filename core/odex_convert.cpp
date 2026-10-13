@@ -1189,7 +1189,8 @@ private:
       }
       int index = 0;
       const OptionRow *row = xpp::find_option(upper, index, true);
-      if (!row || row->group.empty()) {
+      const bool slider = row && (row->name.starts_with("SLO") || row->name.starts_with("SHI") || row->name == "S1" || row->name == "S2" || row->name == "S3");
+      if (!row || (row->group.empty() && !slider)) {
         option_note(xpp::format("{}={} in the .ode's set {}: XPP ignores it, so it is dropped", key, value, set.name), "set-value");
         continue;
       }
@@ -1397,6 +1398,19 @@ private:
       int index = 0;
       entries.push_back({"method", "discrete", xpp::find_odex_option("method", index)});
     }
+    std::vector<std::string> presets;
+    for (std::size_t slot = 0; slot < s_.sliders.size(); ++slot) {
+      const XppSlider &slider = s_.sliders[slot];
+      if (slider.var.empty()) continue;
+      presets.push_back("{ name: " + name(xpp::upper_case(slider.var)) + ", low: " + print_number(slider.lo) +
+                        ", high: " + print_number(slider.hi) + " }");
+    }
+    if (!presets.empty()) {
+      std::string list = "[ ";
+      for (std::size_t i = 0; i < presets.size(); ++i) list += (i ? ", " : "") + presets[i];
+      int index = 0;
+      entries.push_back({"sliders", list + " ]", xpp::find_odex_option("sliders", index)});
+    }
     std::string out;
     for (std::string_view group : xpp::option_groups) {
       std::vector<std::string> items;
@@ -1443,7 +1457,8 @@ private:
         option_note(xpp::format("@ {}={} in the .ode: startup running is removed, dropped; use Run or --silent", key, value), "runnow-removed");
         continue;
       }
-      if (!row || row->group.empty()) {
+      const bool slider = row && (row->name.starts_with("SLO") || row->name.starts_with("SHI") || row->name == "S1" || row->name == "S2" || row->name == "S3");
+      if (!row || (row->group.empty() && !slider)) {
         option_note(xpp::format("@ {}={} in the .ode: {}", key, value, row ? "an X11 window setting xppautX does not keep, dropped"
                                                                            : "XPP does not know this option, so it ignores it"),
                     "option");
@@ -1483,6 +1498,7 @@ private:
   std::string option_text(const OptionRow &row, const std::string &key, const std::string &value, bool in_set, const std::string &id)
   {
     switch (row.kind) {
+    case OptionKind::sliders: return value;
     case OptionKind::path:
     case OptionKind::text: {
       if (in_set) refuse(xpp::format("{}={}: a set holds no path or text", key, value));

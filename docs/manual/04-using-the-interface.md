@@ -314,7 +314,7 @@ action is; every button and menu item has one of five kinds:
 |---|---|---|
 | Control | Stop (Escape), Quit, answering a question | works |
 | View | zoom, pan, the legend, switching plot windows, New window, Window/zoom, Viewaxes, Xi vs t, Help, opening or closing a panel, a menu with anything in it that is a view (Nullcline, Dir.field, Kinescope, Graphic stuff) | works; one the program itself carries out (a menu item, New window) runs as soon as the computation ends |
-| Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File/Get par set, AUTO's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
+| Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File/Named sets, AUTO's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
 | Data | Save and Load of values' files, Import settings, every file written, Save session, AUTO's Save and Load diagram, AUTO's Grab | disabled |
 | Computation | Integrate and Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts (equilibria), Stochastic, a model's own buttons | disabled |
 

@@ -11,5 +11,5 @@ aux t_bound = near(0, 0.000001, tol=0.000001)
 aux t_over = near(0, 0.0000011, tol=0.000001)
 aux t_default = near(1, 1.0000000005)
 options {
-  numerics: { total_time: .1, dt: .1 },
+  integration: { total_time: .1, dt: .1 },
 }

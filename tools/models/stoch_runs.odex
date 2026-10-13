@@ -9,5 +9,5 @@ par dummy = 0
 x' = dummy*0
 aux nsamp = normal(0, 1)
 options {
-  numerics: { total_time: 10, dt: 1, method: euler, seed: 7 },
+  integration: { total_time: 10, dt: 1, method: euler, seed: 7 },
 }

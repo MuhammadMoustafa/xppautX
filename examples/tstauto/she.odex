@@ -7,7 +7,7 @@ par sigma = 0.5
 par zeta = 2
 pi2 = pi^2
 options {
-  numerics: { method: qualrk, dt: .01, total_time: 85.07, tolerance: 1e-10 },
+  integration: { method: qualrk, dt: .01, total_time: 85.07, tolerance: 1e-10 },
 }
 p11ss' = p11ss*t02cs+p11ss*mus-p12cs*p01cs
 t02cs' = -(p11ss*p11ss+t02cs)

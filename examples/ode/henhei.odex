@@ -11,5 +11,5 @@ py' = -y-x^2+y^2
 aux e = 0.5*(px^2+py^2+x^2+y^2)+x^2*y-y^3/3
 init x = 0.12, y = 0.12, px = 0.12, py = 0.12
 options {
-  numerics: { total_time: 200, dt: .166666, method: symplectic },
+  integration: { total_time: 200, dt: .166666, method: symplectic },
 }

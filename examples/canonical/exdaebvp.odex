@@ -20,7 +20,8 @@ par k = 1, lamu = 0.25, lamv = 0.25, v = 0.2, u0 = 1
 boundary u-u0
 boundary up'
 options {
-  numerics: { total_time: 5.001, singpt_jacobian_epsilon: 1e-5, singpt_newton_tolerance: 1e-5, dt: .005 },
+  integration: { total_time: 5.001, dt: .005 },
+  equilibria: { singpt_jacobian_epsilon: 1e-5, singpt_newton_tolerance: 1e-5 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

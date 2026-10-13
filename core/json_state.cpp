@@ -598,7 +598,7 @@ void values_command(xpp::Session &s, const char *line)
     get_string(line, "op", o);
     get_string(line, "kind", kind);
     get_string(line, "name", name);
-    if (o == "internset") { /* File/Get par set, the set given by index or name */
+    if (o == "internset") { /* File/Named sets, the set given by index or name */
         int j = get_int(line, "index", -1);
         if (j < 0)
             if (const auto *entry=s.model().name(name))

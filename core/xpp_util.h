@@ -71,7 +71,7 @@ class TypedFields {
 int find_par_or_var(const Model &m, std::string_view name, int *type, int *index);
 /* why slider cannot be one of m's (the slider command and .snapx's
    sliders.set both ask); nullopt when it can, an empty name an empty slot */
-std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider);
+std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider, bool check_names = true);
 /* The session s's plot windows: which are open (set_active_windows), the
    active one (make_active), the plot window (its graph's index) whose
    window is w (graph_of; 0, the main one, when none in use is), and the

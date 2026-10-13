@@ -2,5 +2,5 @@
 
 x' = -x
 options {
-  numerics: { singpt_jacobian_epsilon: 1e-10, singpt_newton_tolerance: 1e-8, singpt_max_iterates: 1000 },
+  equilibria: { singpt_jacobian_epsilon: 1e-10, singpt_newton_tolerance: 1e-8, singpt_max_iterates: 1000 },
 }

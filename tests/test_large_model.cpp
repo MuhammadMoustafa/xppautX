@@ -34,7 +34,7 @@ std::string source()
     for (int k = 0; k < PARAMETERS; k++) text += xpp::format("par p{} = {}\n", k, xpp::number(0.5 + 0.001 * k));
     for (int i = 0; i < EQUATIONS; i++) text += xpp::format("x{}' = -p{}*x{}\ninit x{} = 1\n", i, i % PARAMETERS, i, i);
     text += "aux both = x0 + x" + std::to_string(EQUATIONS - 1) + "\n";
-    text += "options {\n  numerics: { total_time: 1, dt: 0.1, method: runge_kutta },\n}\n";
+    text += "options {\n  integration: { total_time: 1, dt: 0.1, method: runge_kutta },\n}\n";
     return text;
 }
 

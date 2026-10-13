@@ -9,6 +9,6 @@ fun s(t_) = al*sin(omega*t_)
 par a = 0.25, eps = 0.05, gamma = 1, I_0 = 0.25
 par al = 0, omega = 2
 options {
-  numerics: { total_time: 100, dt: .2 },
+  integration: { total_time: 100, dt: .2 },
   plot: { xhi: 100, nplot: 2, xp2: t, yp2: w },
 }

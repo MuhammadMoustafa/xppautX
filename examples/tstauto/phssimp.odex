@@ -5,5 +5,5 @@ x2' = 1-d+k*sin(x1-x2)
 y' = -y+sin(x1)
 par d = 0, k = 0.1
 options {
-  numerics: { dt: .01, total_time: 6.28 },
+  integration: { dt: .01, total_time: 6.28 },
 }

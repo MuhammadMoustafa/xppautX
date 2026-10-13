@@ -12,7 +12,7 @@ xp' = s*(-xp+yp)+c*(x-xp)
 yp' = r*xp-yp-xp*zp
 zp' = -b*zp+xp*yp
 options {
-  numerics: { dt: .025, total_time: 40, storage_rows: 20000 },
+  integration: { dt: .025, total_time: 40, storage_rows: 20000 },
   plot: {
     xp: x, yp: y, zp: z, axes: 3, xmin: -20, xmax: 20, ymin: -30, ymax: 30, zmin: 0, zmax: 50,
     xlo: -1.5, ylo: -2, xhi: 1.5, yhi: 2, phi: 60,

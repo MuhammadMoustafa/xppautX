@@ -558,7 +558,7 @@ Result<T> load_config_file(std::string_view where, std::string_view name, std::s
        parse_views;
      - a recording (.recx: Play recording, Open model of one, the command
        line): recx.cpp's read.
-   (An internal set, File > Get par set, is a model's line, not a file:
+   (An internal set, File > Named sets, is a model's line, not a file:
    load_eqn.cpp's extract_action checks every item before it applies one;
    a model's own files, .ode and .odex, load all or nothing through
    xpp::Load, session.h.) What proves it: tests/test_lunch.cpp,

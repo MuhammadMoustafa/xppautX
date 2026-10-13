@@ -206,7 +206,7 @@ void show_main_menu(Session &s, int which);
 void run_the_commands(Session &s, int com);
 /* the main window's key ch, in the menu it shows (show_main_menu) */
 void commander(Session &s, int ch);
-/* File/Get par set's work on the model's internal set j (0-based): its
+/* File/Named sets's work on the model's internal set j (0-based): its
    values and options, its plot settings on the current window; it
    becomes the set in use (Session::this_internset) */
 void use_intern_set(Session &s, int j);

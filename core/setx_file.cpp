@@ -443,7 +443,7 @@ private:
 
 void Settings::set_setting(const OptionRow *row, std::string text)
 {
-    std::vector<Setting> &rows = row->group == option_group::range ? range : numerics;
+    std::vector<Setting> &rows = row->group == option_group::sweep ? range : numerics;
     const auto at = std::ranges::find_if(rows, [row](const Setting &r) { return r.first == row; });
     if (at != rows.end()) at->second = std::move(text);
     else rows.emplace_back(row, std::move(text));

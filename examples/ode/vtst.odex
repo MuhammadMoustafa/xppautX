@@ -9,5 +9,5 @@ z = volterra(0, of=u)
 u(t) = 1.5*sin(t)+0.5*delay(u, pi)
 aux ut = sin(t)
 options {
-  numerics: { delay: 4, total_time: 80 },
+  integration: { delay: 4, total_time: 80 },
 }

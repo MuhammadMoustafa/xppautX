@@ -16,7 +16,7 @@ par v10 = 0.5, v20 = 0.2, kk = 5
 init w1 = 0.5, w2 = -0.4
 # change w2=-.2 to get sync
 options {
-  numerics: { dt: .05, total_time: 100 },
+  integration: { dt: .05, total_time: 100 },
   plot: { xp: v1, yp: v2, xlo: -.5, xhi: 1, ylo: -.5, yhi: 1 },
 }
 

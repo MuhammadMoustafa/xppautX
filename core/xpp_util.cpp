@@ -532,10 +532,10 @@ void plot_checked_vars(xpp::Session &s,int how,int *isck,int n)
 /* why slider cannot be one of m's: a name that is no parameter or
    variable (an empty one is an empty slot), a range not low < high, a
    step outside it; nullopt when it can */
-std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider)
+std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider, bool check_names)
 {
   int type, index;
-  if(!slider.var.empty()&&!find_par_or_var(m,slider.var,&type,&index))
+  if(check_names&&!slider.var.empty()&&!find_par_or_var(m,slider.var,&type,&index))
     return xpp::format("slider name {}: the model has no parameter or variable",slider.var);
   if(!std::isfinite(slider.lo)||!std::isfinite(slider.hi)||!(slider.lo<slider.hi))
     return xpp::format("slider range {} {}: finite low < high required",slider.lo,slider.hi);

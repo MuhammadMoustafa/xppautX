@@ -21,7 +21,7 @@ namespace xpp {
    Panels and Layer are not groups. Panels (W229, #283) are the commands
    the page opens from a panel or the title bar (the Model panel's Source,
    the Data panel's Transpose and Lookup tables, the Values panel's Named
-   parameter sets and Copy parameter set line, Help's Keyboard shortcuts,
+   named sets and Copy set line, Help's Keyboard shortcuts,
    the title bar's Record and Play): they keep a row for their keys, the
    protocol and recordings, are not listed in the sidebar and cannot be
    pinned. Layer marks the three items that only switch the
@@ -78,7 +78,7 @@ struct CommandRow {
    maintainer's "menus open, only their disabled items greyed": Nullcline, Dir.field, Kinescope and Graphic
    stuff are views, stocHast and Averaging data; Initialconds, Sing pts and Bndryval, whose items all
    compute, computations); nUmerics and File only switch the main menu, Esc switches it back. Parameters,
-   File/Get par set and the Numerics items that ask for a value (Total ... dElay, Poincare map, rUelle plot,
+   File/Named sets and the Numerics items that ask for a value (Total ... dElay, Poincare map, rUelle plot,
    bndVal) are settings (W106): pressed during a computation, their dialog opens when it ends.
 
    Order is the sidebar's: by category, then as listed. Every item of the
@@ -142,8 +142,8 @@ inline constexpr std::array<CommandRow, 61> COMMANDS = {{
     {FILE_MENU, 'p', "source", "Model source", "Display source and active comments", XPP_KIND_VIEW, CommandCategory::Panels, false, true, {}},
     {FILE_MENU, 'c', "calculator", "Calculator", "A little calculator -- press ESC to exit", XPP_KIND_VIEW, CommandCategory::Tools, true, true, {}},
     {FILE_MENU, 't', "transpose", "Transpose data", "Transpose storage", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
-    {FILE_MENU, 'g', "getparset", "Named parameter sets", "Set predefined parameters", XPP_KIND_SETTING, CommandCategory::Panels, false, true, {}},
-    {FILE_MENU, 'o', "copyset", "Copy parameter set line", "Copy the current values as a named set line for the .ode", XPP_KIND_VIEW, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'g', "getparset", "Named sets", "Apply named parameters, initial values and settings", XPP_KIND_SETTING, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'o', "copyset", "Copy set line", "Copy the current values as a named set line for the .ode", XPP_KIND_VIEW, CommandCategory::Panels, false, true, {}},
     {FILE_MENU, 'd', "record", "Record steps", "Record the steps you take to a .recx file; again to stop and save it", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
     {FILE_MENU, 'y', "play", "Play recording…", "Play a recording (.recx): its model, then its steps as they were taken", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
     {MAIN_MENU, PAGE_KEY, "keymapeditor", "Keyboard shortcuts…", "Change the keys of the commands and pin commands to the toolbar", XPP_KIND_VIEW, CommandCategory::Panels, false, true, {}},

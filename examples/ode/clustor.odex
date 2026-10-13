@@ -18,5 +18,5 @@ par a0 = 0.33333, a1 = 0.25, a2 = 0.083333
 par b0 = 0.33333, b1 = 0.25, b2 = 0.083333
 par re = 10, ri = 5
 options {
-  numerics: { total_time: 500, dt: 1, method: qualrk },
+  integration: { total_time: 500, dt: 1, method: qualrk },
 }

@@ -2,7 +2,7 @@
 
 par gamma = 0.175, eps = 0.1, ri = 0.4
 options {
-  numerics: { total_time: 1.573879, dt: .01 },
+  integration: { total_time: 1.573879, dt: .01 },
 }
 ph1' = ps1
 ph2' = ps2

@@ -39,5 +39,5 @@ aux mc0 = mc(0)
 aux mc1 = mc(1)
 aux mc2 = mc(2)
 options {
-  numerics: { total_time: 1, dt: 1 },
+  integration: { total_time: 1, dt: 1 },
 }

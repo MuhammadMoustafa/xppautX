@@ -265,7 +265,7 @@ par beta = -1.8, eps = 0.8, h = 1
 aux rr[j] = r[j] for j in 0..127
 init u[j] = 1 for j in 50..55
 options {
-  numerics: { dt: .25, total_time: 300, transient_time: 100 },
+  integration: { dt: .25, total_time: 300, transient_time: 100 },
 }
 
 # what followed the .ode's done:

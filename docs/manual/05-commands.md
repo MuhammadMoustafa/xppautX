@@ -302,7 +302,7 @@ This brings up a menu with several options. Type `Esc` to abort.
 - and transpose some subset of it. You are prompted for 6 items. They are the name of the first column you want to index, the number of columns (`ncols` and amount you want to skip across columns, ` colskip` (so that `colskip = 2` would be every other column. You must also provide the starting row `j1`, the number of rows, ` nrows` and the row skip, `rowskip.` the The storage array is temporarily replaced by a new array that has `M=ncols` rows and `nrows+1` columns (since the data is transposed, the rows and columns are as well; confusing ain’t it). The form of the array is:
 - 1  x(i1,j1) x(i1,j2) x(i1,j3) ...     2  x(i2,j1) x(i2,j2) x(i2,j3) ...     ...     M  x(iM,j1) x(iM,j2) x(iM,j3) ...
 - where `i2=i1+colskip, i3=i1+2*colskip, ...` and `i1` is the index corresponding to the name of the first column you provide. Similarly, `j2=j1+rowskip, ...`. As a brief example, suppose that you solve a system of equations of the form: ``` math x_j' = f(x_{j-1},x_j,x_{j+1},I_j) ``` where $`j=1,\dots,20.`$ Click on transpose and choose `x1` as the first column, `colskip=1, ncols=20` and say `row1=350, nrows=1,rowskip=1` then a new array will be produced. The first column is the index from 1 to 20 and the second is `xj(350)` where 350 is the index and not the actual value of time. By plotting the second column versus the first you get a “spatial profile.”
-- **(G)et par set** (the Values panel's **Named sets…**): This loads one of the parameter sets that you have defined in the ODE file; a model with none says so. A model may define up to 500 sets: the first 26 have the letters a to z, the rest are picked from the list. Every item is checked first: an item whose value is not a number, or an option that does not take it, is an error at the set's line, and nothing of the set is applied.
+- **Named sets (G)** (the Values panel's **Named sets…**): This loads one of the named sets holding parameters, initial values and settings that you have defined in the ODE file; a model with none says so. A model may define up to 500 sets: the first 26 have the letters a to z, the rest are picked from the list. Every item is checked first: an item whose value is not a number, or an option that does not take it, is an error at the set's line, and nothing of the set is applied.
 - **c(O)py set line** (the Values panel's **Copy set line**): Asks for a name for the set (`set1`, `set2`, ... is
   suggested; the name must be a valid name and not already a set of the
   model), shows the line and, on Copy, puts it on the clipboard:
@@ -310,7 +310,7 @@ This brings up a menu with several options. Type `Esc` to abort.
   condition as they are now, numbers exactly as they read back. Paste it
   into your `.ode` (XPP never writes it for you), reload the model
   (**r(E)load** below), and
-  the regime is a named set in **(G)et par set**, keeping its meaning
+  the regime is a named set in **Named sets (G)**, keeping its meaning
   whatever else you change in the file. If the browser refuses the
   clipboard, the line stays on screen to copy by hand.
 - **open (M)odel**: A `.ode` converts and saves as `.odex` beside it,

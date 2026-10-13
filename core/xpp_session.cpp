@@ -519,9 +519,6 @@ std::optional<std::string> data_wrong(const xpp::Session &s, const xpp::DataTabl
     return std::nullopt;
 }
 
-/* the most sliders a session holds (the model's three and those added: a
-   page offers a handful) */
-constexpr std::size_t max_sliders = 256;
 
 xpp::Result<std::string> sliders_text(const xpp::Session &s)
 {
@@ -537,28 +534,6 @@ xpp::Result<std::string> sliders_text(const xpp::Session &s)
     }
     out.end_list();
     return out.result("session");
-}
-
-std::vector<xpp::XppSlider> read_sliders(const xpp::Model &m, xpp::setx::Block &file)
-{
-    std::vector<xpp::setx::Block> items;
-    file.groups("sliders", items, max_sliders);
-    if (items.size() < XPP_NSLIDERS)
-        file.fail(*file.member("sliders"), xpp::format("sliders {}: at least {} model slots required", items.size(), XPP_NSLIDERS));
-    std::vector<xpp::XppSlider> sliders;
-    for (xpp::setx::Block &g : items) {
-        xpp::XppSlider slider;
-        g.text("name", slider.var);
-        if (const auto why = xpp::slider_wrong(m, slider)) g.fail(*g.member("name"), *why);
-        g.number("low", slider.lo);
-        g.number("high", slider.hi);
-        if (const auto why = xpp::slider_wrong(m, slider)) g.fail(*g.member("high"), *why);
-        g.number("step", slider.step);
-        if (const auto why = xpp::slider_wrong(m, slider)) g.fail(*g.member("step"), *why);
-        g.done();
-        sliders.push_back(std::move(slider));
-    }
-    return sliders;
 }
 
 /* a session file, read whole: every member, before any is applied */
@@ -596,7 +571,7 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
         return xpp::setx::read_block("session", xpp::format("{}/{}", f.name, name), it->second, true, parse);
     };
     SessionRead r;
-    auto sliders = settings_member(xpp::snapx::sliders_member, [&](xpp::setx::Block &b) { return read_sliders(s.model(), b); });
+    auto sliders = settings_member(xpp::snapx::sliders_member, [&](xpp::setx::Block &b) { return xpp::read_sliders(s.model(), b); });
     if (!sliders) return std::unexpected(sliders.error());
     r.sliders = std::move(*sliders);
     auto nullclines = settings_member(xpp::snapx::nullclines_member, [&](xpp::setx::Block &b) { return xpp::read_nullclines(s.model(), b); });
@@ -761,7 +736,7 @@ std::uint64_t values_fingerprint(const xpp::Session &s)
     for (int i = 0; i < m.nupar; i++) f.value(s.parser.constants[m.upar_con[i]]);
     for (int i = 0; i < m.node + m.nmarkov; i++) f.value(s.last_ic[i]);
     /* the numerics the session file keeps, whatever the table holds */
-    for (const xpp::OptionRow *row : xpp::saved_settings(xpp::option_group::numerics)) {
+    for (const xpp::OptionRow *row : xpp::saved_settings("numerics")) {
         if (row->real) f.value(row->real(s));
         else if (row->whole) f.value(row->whole(s));
     }

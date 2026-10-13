@@ -6,6 +6,6 @@ init f1 = 1
 f1(t) = exp(-t)-t^2/2+volterra(exp(-t), of=f1*f1)+volterra(f2)
 f2(t) = t-t^4/24+volterra(t, of=f2*f2/(1+f1*f1))
 options {
-  numerics: { total_time: 5 },
+  integration: { total_time: 5 },
   plot: { yp: f2, xhi: 5, yhi: 5 },
 }

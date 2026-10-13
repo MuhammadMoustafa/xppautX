@@ -15,7 +15,7 @@ set period {
             ylo: -2, xhi: 2, yhi: 2,
           }
 options {
-  numerics: { total_time: 200 },
+  integration: { total_time: 200 },
   plot: { xp: x, yp: y, xlo: 0, ylo: 0, xhi: 1.2, yhi: 1.2 },
 }
 

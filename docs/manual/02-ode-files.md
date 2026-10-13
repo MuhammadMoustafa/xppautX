@@ -716,11 +716,11 @@ The remaining options can be set from within the program. They are
 
 - AUTO-stuff. The following AUTO-specific variables can also be set: `NTST, NMAX, NPR, EPSU, EPSS, EPSL, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within AUTO.
 
-Sometimes, you wnat to prepare a bunch of simulations that use different initial data or parameter values or numerical methods, etc. You can, of course, change these within the program by choosing the desired option and changing it. Or, you can do the simulation and save the results in a “.set” file (see below). Another way to do this is by adding a bunch of parameter sets to the ode file. The format for this is:
+Sometimes, you want to prepare a bunch of simulations that use different initial data or parameter values or numerical methods, etc. You can, of course, change these within the program by choosing the desired option and changing it. Or, you can do the simulation and save the results in a “.set” file (see below). Another way to do this is by adding named sets holding parameters, initial values and settings to the ode file. The format for this is:
 
     set name {item1=value1, item2=value2, ..., }
 
-Then, you tell XPP to use the named set and it will do all of the things inside the brackets. The items are any parameter name, any variable name, or any of the internal options named above. The named sets are accessed through the `Get par set` menu item in the ` File` menu. Here is an example:
+Then, you tell XPP to use the named set and it will do all of the things inside the brackets. The items are any parameter name, any variable name, or any of the internal options named above. The named sets are accessed through the `Named sets` menu item in the ` File` menu. Here is an example:
 
     # test
     x'=-a*x+c
@@ -905,3 +905,14 @@ These are mainly self-explanatory. The nonobvious ones are:
 - **`sum(<ex1>,<ex2>)of(<ex3>)`**: is a way of summing up things. The expressions `,<ex1>` are evaluated and their integer parts are used as the lower and upper limits of the sum. The index of the sum is `i’` so that you cannot have double sums since there is only one index. is the expression to be summed and will generally involve `i’.` For example `sum(1,10)of(i’)` will be evaluated to 55. Another example combines the sum with the shift operator. `sum(0,4)of(shift(u0,i’))` will sum up `u0` and the next four variables that were defined after it. An example below shows how this can be used to solve large systems of equations that are densely coupled.
 
 The parser in this distribution is a great improvement over the old style parser. The parser distinguishes between the old style and the new style by whether or not the first line of the file contains a number. If the first line is a number, then the old style parser is used. Otherwise, the new style is used.
+
+### Settings groups in .odex (W317)
+
+The options block groups settings by their work: `integration`, `poincare`,
+`equilibria`, `continuation`, `diagram`, `plot`, `export`, `sweep`, `analysis`,
+`interface` and `output`. See [the options syntax](../odex.md) for their keys.
+Slider presets are an `interface` list, for example
+`options { interface: { sliders: [ { name: v, low: -1, high: 1 } ] } }`;
+the list has no three-slider limit. The page displays all presets.
+The converter writes these groups from XPPAUT options; old .odex group names
+and numbered slider keys are errors ([#377](https://github.com/MuhammadMoustafa/xppautX/issues/377)).

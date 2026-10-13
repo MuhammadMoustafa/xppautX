@@ -163,13 +163,19 @@ grammar:
   the file differs, W281):
 
         options {
-          numerics: { total_time: 100, method: stiff, jacobian: exact },
+          integration: { total_time: 100, method: stiff, jacobian: exact },
           plot:     { xp: v, yp: w, xlo: -0.6, xhi: 1.2 },
-          auto:     { ntst: 50, parmax: 10 },
+          continuation: { ntst: 50, parmax: 10 },
         }
 
-  Groups: `numerics`, `plot`, `sliders`, `range`, `batch`, `auto`,
-  `histogram`, `log`, `buttons`. A key is the option's one name in lower
+  Groups: `integration`, `poincare`, `equilibria`, `continuation`,
+  `diagram`, `plot`, `export`, `sweep`, `analysis`, `interface`, `output`.
+  Integration holds solver and time settings; poincare holds section settings;
+  equilibria holds `singpt_*` and `neartol`; continuation holds AUTO run settings;
+  diagram holds its axes and colours; plot holds view and grid settings; export
+  holds `ps_*` and `plotfmt`; sweep holds range settings; analysis holds histograms
+  and spectra; interface holds sliders and buttons; output holds files and logging.
+  Older group names are errors. A key is the option's one name in lower
   case, spelled exactly (`xp2`..`xp8` for the numbered ones): XPPAUT's word
   (`total`, `nout`, `meth`, ...), a prefix match (`xplot`, `bounds`), a key
   of another group and a key twice (but for `fold` and `but`, which name one
@@ -193,6 +199,10 @@ grammar:
   path outside the model's folder is a question the user answers (W175, W286). Only `output` and
   `logfile` are paths, and `but` (a button, `but: "quit:fq"`) a text. Every
   writer of options (the converter, the Copy set line) writes them so.
+  Slider presets use `interface: { sliders: [ { name: v, low: -1, high: 1, step: 0.01 }, ... ] }`.
+  The list may have any length, including zero; each name must be a parameter or state,
+  low and high finite with low < high, and step optional (0 chooses an automatic step).
+  XPPAUT's S1-S3 slots convert to this list; they are not native option keys.
   Values that were more than one word are one now:
 
   | `.ode` / old `.odex` value | `.odex` value |
@@ -213,9 +223,9 @@ grammar:
   (the default) or `exact`; `exact` in a model with no exact Jacobian stops
   the load at its line, with the reason (W260,
   [#317](https://github.com/MuhammadMoustafa/xppautX/issues/317); the
-  manual's "Numerical parameters"). `neartol` (near's tolerance) is a
-  numerics key too.
-- `set NAME { key: value, ... }` — a named parameter set, in the options'
+  manual's "Numerical parameters"). `neartol` (near's tolerance) is
+  an equilibria key.
+- `set NAME { key: value, ... }` — a named set holding parameters, initial values and settings, in the options'
   shape: a key is a variable, a parameter or an option's key, a value a
   number or a bare word (a set holds no path).
 - `table NAME EXPR` / `table NAME FILE` — as `.ode`; a formula table

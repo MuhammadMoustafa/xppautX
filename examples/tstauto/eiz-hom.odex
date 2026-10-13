@@ -13,7 +13,7 @@ par taui = 5, aei = 25, aii = 8, ti = 8.5
 par tauz = 50, aez = 10, tz = 7
 init u = 0.036, v = 5e-04, z = 0.0013, we = 0.0365
 options {
-  numerics: { dt: .002 },
+  integration: { dt: .002 },
   plot: { xp: we, yp: ve, xlo: -.05, ylo: -.2, xhi: .5, yhi: .3 },
 }
 

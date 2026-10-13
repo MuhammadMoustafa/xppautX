@@ -29,7 +29,7 @@ AUTO continuation, boundary-value problems, stochastic/Poincare/adjoint
 tools. Plot contains axes, curves/export, phase space, labels, windows,
 redraw, 3D and captured frames. Tools contains the calculator. What lives
 in a panel is there (W229): model source in the Model panel, transpose and
-lookup tables in the Data panel, named parameter sets and the copy of a set
+lookup tables in the Data panel, named sets and the copy of a set
 line beside the parameters, keyboard shortcuts in Help, recording and
 playback in the title bar's Tools menu.
 

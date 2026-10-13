@@ -199,11 +199,11 @@ def check_load_error():
         for name, text, line, src, needle in (
                 ('badopt.ode', "par a=1\nx'=-x\n@ total=5\n@ ync=12\ndone\n", 4, '@ ync=12', 'ync=12'),
                 ('badnum.ode', "par a=1\nx'=-x\n@ total=5\n@ dt=2*3\ndone\n", 4, '@ dt=2*3', 'dt=2*3'),
-                ('badopt.odex', "par a = 1\nx' = -x\noptions {\n  numerics: { total_time: 5 },\n  plot: { ync: 12 },\n}\n",
+                ('badopt.odex', "par a = 1\nx' = -x\noptions {\n  integration: { total_time: 5 },\n  plot: { ync: 12 },\n}\n",
                  5, '  plot: { ync: 12 },', 'ync=12'),
                 # W206: XPPAUT's name for store_every is a .ode's; a .odex refuses it
-                ('oldname.odex', "par a = 1\nx' = -x\noptions {\n  numerics: { total_time: 5, nout: 2 },\n}\n",
-                 4, '  numerics: { total_time: 5, nout: 2 },', 'nout')):
+                ('oldname.odex', "par a = 1\nx' = -x\noptions {\n  integration: { total_time: 5, nout: 2 },\n}\n",
+                 4, '  integration: { total_time: 5, nout: 2 },', 'nout')):
             with open(os.path.join(bad_dir, name), 'w') as f:
                 f.write(text)
             p, evs = load(name)
@@ -213,12 +213,12 @@ def check_load_error():
                   and needle in e.get('error', '') and e.get('source') == src, str(e))
         for method, reason in (('symplectic', 'even dimensions'), ('rubbish', 'is none of')):
             with open(os.path.join(bad_dir, 'badmethod.odex'), 'w') as f:
-                f.write("x' = -x\ny' = x\nz' = y\noptions { numerics: { method: " + method + " } }\n")
+                f.write("x' = -x\ny' = x\nz' = y\noptions { integration: { method: " + method + " } }\n")
             p, evs = load('badmethod.odex')
             e = next((v for v in evs if v.get('ev') == 'error'), {})
             check('W132: method: %s fails the whole load at its line' % method,
                   p.returncode == 1 and e.get('file') == 'badmethod.odex' and e.get('line') == 4
-                  and e.get('source') == 'options { numerics: { method: ' + method + ' } }' and reason in e.get('error', '')
+                  and e.get('source') == 'options { integration: { method: ' + method + ' } }' and reason in e.get('error', '')
                   and not any(v.get('ev') == 'hello' for v in evs), str(e))
     finally:
         shutil.rmtree(bad_dir, ignore_errors=True)
@@ -1638,7 +1638,7 @@ check_param_set_cancel()
 
 
 def check_param_set_list():
-    """W229: the Named parameter sets menu says so when the model has none; with more than 26 sets the
+    """W229: the Named sets menu says so when the model has none; with more than 26 sets the
     first 26 have a letter and the others are answered by their index; the last of 500 is reachable"""
     folder = tempfile.mkdtemp(prefix='w229sets')
     try:
@@ -1671,9 +1671,9 @@ def check_param_set_list():
             col(is_idle)
             snd(cmd='key', key='g')
             evs, _ = col(is_idle)
-            check('W229: Named parameter sets of a model with none says so (a message, no ask, no error)',
+            check('W229: Named sets of a model with none says so (a message, no ask, no error)',
                   not [e for e in evs if e.get('ev') == 'ask' or (e.get('ev') == 'message' and 'error' in e)]
-                  and any('no named parameter sets' in str(e.get('bottom', '')) for e in evs), str(evs)[-300:])
+                  and any('no named sets' in str(e.get('bottom', '')) for e in evs), str(evs)[-300:])
         finally:
             stop_server(p, r, snd)
         ask, evs, a = pick_set(30, {'index': 28})
@@ -2753,7 +2753,7 @@ def check_fit_retained_runs():
         d = tempfile.mkdtemp(prefix='xppfit')
         ode = os.path.join(d, 'fit.odex')
         with open(ode, 'w') as f:
-            f.write("par a=2\nx'=a*x\ny'=a*y\ninit x=1,y=1" + extra + "\noptions { numerics: { total_time: 1, dt: .1 }, "
+            f.write("par a=2\nx'=a*x\ny'=a*y\ninit x=1,y=1" + extra + "\noptions { integration: { total_time: 1, dt: .1 }, "
                     "plot: { xlo: 0, xhi: 1, ylo: 0, yhi: 1" + plot + " } }\n")
         proc, run, snd, col, _ = launch_server(ode=ode)
 
@@ -3993,7 +3993,7 @@ def check_method_refusal():
     model_dir = tempfile.mkdtemp(prefix='xppmethod')
     model = os.path.join(model_dir, 'odd.odex')
     with open(model, 'w') as f:
-        f.write("x'=-x\ny'=x\nz'=y\noptions { numerics: { method: euler } }\n")
+        f.write("x'=-x\ny'=x\nz'=y\noptions { integration: { method: euler } }\n")
     p, r, snd, col, _ = launch_server(ode=model)
     try:
         col(is_idle)
@@ -4103,11 +4103,11 @@ def check_jacobian_setting():
             p.wait(timeout=10 * SLOW)
             shutil.rmtree(r, ignore_errors=True)
         with open(noisy, 'a') as f:
-            f.write('options { numerics: { jacobian: exact } }\n')
+            f.write('options { integration: { jacobian: exact } }\n')
         run = subprocess.run([os.path.abspath(args.server), 'noisy.odex', '--silent'], capture_output=True, text=True, cwd=model_dir,
                              timeout=60 * SLOW)
         check('W260: @ jacobian=exact in a model with none fails the load at the @ line, with the reason',
-              run.returncode == 1 and 'noisy.odex:3:23: the option `jacobian=exact`: the model has no exact Jacobian: '
+              run.returncode == 1 and 'noisy.odex:3:26: the option `jacobian=exact`: the model has no exact Jacobian: '
               'noisy.odex:2:1: uses random numbers' in run.stderr, run.stderr[-400:])
         smooth = os.path.join(model_dir, 'smooth.odex')
         with open(smooth, 'w') as f:
@@ -4121,7 +4121,7 @@ def check_jacobian_setting():
         check('W260: a model loaded with the default setting has not compiled an exact Jacobian',
               'Compiled ' in log and 'Compiled the exact Jacobian' not in log, log[-300:])
         with open(smooth, 'a') as f:
-            f.write('options { numerics: { jacobian: exact } }\n')
+            f.write('options { integration: { jacobian: exact } }\n')
         check('W260: its own @ jacobian=exact compiles it at load', 'Compiled the exact Jacobian' in load_log())
         # Reload keeps the setting; a model with no exact Jacobian says so and takes difference
         lines = []
@@ -4164,7 +4164,7 @@ def check_jacobian_failure():
     try:
         model = os.path.join(model_dir, 'sqrt.odex')
         with open(model, 'w') as f:
-            f.write("x' = sqrt(x) + 1\ninit x = 0\noptions { numerics: { method: stiff, total_time: 4, jacobian: exact } }\n")
+            f.write("x' = sqrt(x) + 1\ninit x = 0\noptions { integration: { method: stiff, total_time: 4, jacobian: exact } }\n")
         p, r, snd, col, _ = launch_server(ode=model)
         try:
             col(is_idle)
@@ -4210,7 +4210,7 @@ def check_jacobian_failure():
             p.wait(timeout=10 * SLOW)
             shutil.rmtree(r, ignore_errors=True)
         with open(model, 'w') as f:
-            f.write("x' = sqrt(x) + 1\ninit x = 0\noptions { numerics: { method: stiff, total_time: 4 } }\n")
+            f.write("x' = sqrt(x) + 1\ninit x = 0\noptions { integration: { method: stiff, total_time: 4 } }\n")
         run = subprocess.run([os.path.abspath(args.server), 'sqrt.odex', '--silent'], capture_output=True, text=True,
                              cwd=model_dir, timeout=60 * SLOW)
         check('W260: under differences the same run goes through', run.returncode == 0 and 'Jacobian' not in run.stderr,
@@ -4236,7 +4236,7 @@ def check_auto_jacobian_failure():
     try:
         model = os.path.join(model_dir, 'rootfail.odex')
         with open(model, 'w') as f:
-            f.write("par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { numerics: { jacobian: exact, total_time: 1 } }\n")
+            f.write("par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { integration: { jacobian: exact, total_time: 1 } }\n")
         p, r, snd, col, _ = launch_server(ode=model)
         try:
             col(is_idle)
@@ -4476,7 +4476,7 @@ check_kept_behind_ask()
 
 def check_copy_set():
     """W67: File/cOpy set line asks the set's name, shows the line, and sends it
-    (the copy event); pasted into the .odex, Get par set reproduces the state"""
+    (the copy event); pasted into the .odex, Named sets reproduces the state"""
     p, r, snd, col, _ = launch_server()
     p2 = r2 = None
     try:
@@ -4522,17 +4522,17 @@ def check_copy_set():
         p2, r2, snd2, col2, _ = launch_server(ode=os.path.join(r, 'withset.odex'))
         evs2, _ = col2(is_idle)
         st0 = last_state(evs2)
-        check('set line loads: values differ before Get par set', st0 and st0['pars'] != st['pars'], '')
+        check('set line loads: values differ before Named sets', st0 and st0['pars'] != st['pars'], '')
         snd2(cmd='key', key='f')
         col2(is_idle)
         snd2(cmd='key', key='g')
         evs2, ask = col2(lambda e: e.get('ev') == 'ask')
-        check('Get par set lists the copied set', ask is not None and ask['kind'] == 'menu', str(ask))
+        check('Named sets lists the copied set', ask is not None and ask['kind'] == 'menu', str(ask))
         if ask:
             snd2(cmd='answer', id=ask['id'], key=next(i[0] for i in ask['items'] if i.endswith(': set1')))
         evs2, _ = col2(is_idle)
         st2 = last_state(evs2)
-        check('Get par set with the copied name reproduces the parameters and ICs exactly',
+        check('Named sets with the copied name reproduces the parameters and ICs exactly',
               st2 and st2['pars'] == st['pars'] and st2['ics'] == st['ics'], str((st2 or {}).get('pars'))[:200])
     finally:
         stop_server(p, r, snd)
@@ -4601,6 +4601,12 @@ def check_open_reload():
             check('W135: Open %s replaces the sliders with its @ presets' % model,
                   switched and [d['name'] for d in switched['sliders'] if d['name']] == [expected],
                   str(switched and switched.get('sliders')))
+        with open(os.path.join(r, 'w317-sliders.odex'), 'w') as f:
+            f.write("par a=1\nx'=0\ninit x=0\noptions { interface: { sliders: [" +
+                    ', '.join('{ name: a, low: 0, high: %d }' % i for i in range(2, 7)) + " ] } }\n")
+        native = last_state(open_model('w317-sliders.odex'))
+        check('W317: a native preset list supplies all five sliders',
+              native and len(native['sliders']) == 5 and [d['hi'] for d in native['sliders']] == list(range(2, 7)), str(native and native['sliders']))
         open_model('lecar.odex')
         integrate()
         first = rows_of('lecar1.csv')
@@ -4637,7 +4643,7 @@ def check_open_reload():
         snd(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 3}, {'kind': 'ic', 'name': 'X', 'value': 2}])
         col(is_idle)
         with open(os.path.splitext(other)[0] + '.odex', 'w') as f:
-            f.write('par a=1, b=7\ninit x=0.5\nx\'=-a*x+b*0\noptions { numerics: { total_time: 5, dt: 0.05 } }\n')
+            f.write('par a=1, b=7\ninit x=0.5\nx\'=-a*x+b*0\noptions { integration: { total_time: 5, dt: 0.05 } }\n')
         snd(cmd='reload')
         evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
         check('reload asks first, as Open model does (W59d): Save session s, Don\'t save d',
@@ -4894,7 +4900,7 @@ def check_silent_commands():
         dirs.append(tempfile.mkdtemp(prefix='xpppost'))
         post = os.path.join(dirs[-1], 'post.odex')
         with open(post, 'w') as f:
-            f.write("x'=-x+sin(t)\ninit x=0.5\noptions { numerics: { total_time: 50, dt: .05 }, histogram: { postprocess: 1, histcol: x, histlo: -1, histhi: 1, histbins: 20 } }\n")
+            f.write("x'=-x+sin(t)\ninit x=0.5\noptions { integration: { total_time: 50, dt: .05 }, analysis: { postprocess: 1, histcol: x, histlo: -1, histhi: 1, histbins: 20 } }\n")
         s, r = silent(post)
         dirs.append(s)
         c, rc = script(post, go + [{'cmd': 'browser', 'op': 'postprocess'},
@@ -4916,7 +4922,7 @@ def check_outcomes_once():
     d = tempfile.mkdtemp(prefix='xppoutcomes')
     try:
         with open(os.path.join(d, 'linear.odex'), 'w') as f:
-            f.write("par a=1\nx'=a\ny'=a\ninit x=0,y=0\naux type=1\naux branch=1\naux f2=0\noptions { numerics: { dt: .1, total_time: 1 } }\n")
+            f.write("par a=1\nx'=a\ny'=a\ninit x=0,y=0\naux type=1\naux branch=1\naux f2=0\noptions { integration: { dt: .1, total_time: 1 } }\n")
         with open(os.path.join(d, 'fit.dat'), 'w') as f:
             f.write(''.join('%d %d\n' % (t, 2*t) for t in range(6)))
         def run(lines, *flags):
@@ -5093,7 +5099,7 @@ def check_dae_fold():
     try:
         short = os.path.join(short_dir, 'dae_ex3.odex')
         with open('examples/ode/dae_ex3.odex') as f:
-            text = f.read().replace('numerics: {', 'numerics: { total_time: .3,', 1)
+            text = f.read().replace('integration: {', 'integration: { total_time: .3,', 1)
         with open(short, 'w') as f:
             f.write(text)
         code, errs, rows, err = run(short, GO + SING)
@@ -6529,7 +6535,23 @@ def check_parser_group():
                           and errs[0].get('error') == empty_message
                           and not any(e.get('ev') == 'hello' for e in evs), str(evs))
 
-        options = 'options { numerics: { total_time: .02, dt: .01 } }\n'
+        # W317: the same strict option reader in check, server and silent modes.
+        presets = ', '.join('{ name: x, low: -1, high: %d }' % i for i in range(1, 6))
+        write('presets.odex', "x'=0\ninit x=0\noptions { integration: { total_time: .02, dt: .01 }, interface: { sliders: [" + presets + " ] } }\n")
+        for mode in ('--check', '--server', '--silent'):
+            p = run('presets.odex', mode)
+            check('W317: %s accepts all five native presets' % mode, p.returncode == 0, p.stderr)
+            for group in ('numerics', 'auto', 'sliders', 'range', 'histogram', 'batch', 'log', 'buttons'):
+                write('oldgroup.odex', "x'=0\ninit x=0\noptions { " + group + ": {} }\n")
+                p = run('oldgroup.odex', mode)
+                if mode == '--check':
+                    diagnostics = json.loads(p.stdout)['diagnostics']
+                    rejected = p.returncode == 2 and any(d['file'] == 'oldgroup.odex' and d['line'] == 3 and d['col'] == 11
+                                                        and group in d['message'] for d in diagnostics)
+                else:
+                    rejected = p.returncode != 0 and 'oldgroup.odex:3:11:' in p.stderr and group in p.stderr
+                check('W317: %s refuses old group %s at its source line' % (mode, group), rejected, p.stderr + p.stdout)
+        options = 'options { integration: { total_time: .02, dt: .01 } }\n'
         write('missing.odex', "x'=0\ny'=0\ninit x=2\n" + options)
         write('array.odex', "x[j]'=0 for j in 1..4\ninit x[2]=1\n" + options)
         write('stepped.odex', "x[j]'=0 for j in 1..5 by 2\n" + options)
@@ -6547,7 +6569,7 @@ def check_parser_group():
             p = run('missing.odex', mode, ['--runnow'])
             check('W312: %s refuses --runnow as an unknown flag' % mode,
                   p.returncode != 0 and '--runnow' in p.stderr and 'no such option --runnow' in p.stderr, p.stderr)
-            write('runnow.odex', "x'=0\noptions { batch: { runnow: 1 } }\n")
+            write('runnow.odex', "x'=0\noptions { output: { runnow: 1 } }\n")
             p = run('runnow.odex', mode)
             check('W312: %s refuses runnow at its file and line' % mode,
                   p.returncode == 1 and 'runnow.odex:2:' in p.stderr and '`runnow` is not an option' in p.stderr, p.stderr)
@@ -6935,7 +6957,7 @@ def check_question_policy():
                     table = os.path.join(root, 'outside.tab').replace(os.sep, '/')
                     with open(table, 'w') as f: f.write('5\n0\n4\n0\n1\n4\n9\n16\n')
                     target = os.path.join(folder, 'model.odex')
-                    with open(target, 'w') as f: f.write('table w "' + table + '"\n' + "x'=w(1)-x\noptions { numerics: { total_time: 1 } }\n")
+                    with open(target, 'w') as f: f.write('table w "' + table + '"\n' + "x'=w(1)-x\noptions { integration: { total_time: 1 } }\n")
                 saved = os.path.join(folder, 'saved.dat')
                 if case == 'recording replacement':
                     os.remove(model)  # Recordings accept native model text only; do not embed the foreign fixture.
@@ -7437,7 +7459,7 @@ def check_outside_paths():
         full = os.path.join(proj, name)
         with open(full, 'w') as f:
             f.write(chr(10).join(['table w "' + path + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0',
-                                  'options { numerics: { total_time: 4 } }', '']))
+                                  'options { integration: { total_time: 4 } }', '']))
         return full
     # the preferences keep the resolved path, on Windows with backslashes (written \\): read them as / to
     # compare with the path as the model names it
@@ -7573,7 +7595,7 @@ def check_outside_paths():
             f.write('keep target')
         logmodel = os.path.join(proj, 'log.odex')
         with open(logmodel, 'w') as f:
-            f.write("x'=-x\ninit x=1\noptions { log: { logfile: \"" + log + "\" } }\n")
+            f.write("x'=-x\ninit x=1\noptions { output: { logfile: \"" + log + "\" } }\n")
         s = start(logmodel)
         try:
             evs, ask = s.collect(lambda e: e.get('ev') == 'ask')
@@ -7637,7 +7659,7 @@ def check_create_folders():
             output = 'model-output-' + mode + '/data.dat'
             origin = os.path.join(root, 'output.odex')
             with open(origin, 'w', encoding='utf-8') as f:
-                f.write("x' = -x\noptions { batch: { output: \"%s\" }, numerics: { total_time: 1 } }\n" % output)
+                f.write("x' = -x\noptions { output: { output: \"%s\" }, integration: { total_time: 1 } }\n" % output)
             command = [binary, '--check', origin, '--yes'] if mode == 'check' else [binary, origin, '--silent', *flags]
             result = subprocess.run(command, cwd=root, env=dict(os.environ, **env),
                                     input=answer, capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
@@ -7647,14 +7669,14 @@ def check_create_folders():
                   and ('Create the folder' not in result.stderr if mode == 'check' else result.stderr.count('Create the folder') == 1), result.stderr)
         inspection = os.path.join(root, 'inspect-log.odex')
         with open(inspection, 'w', encoding='utf-8') as f:
-            f.write("x' = -x\noptions { log: { logfile: \"inspect-missing/log.txt\" } }\n")
+            f.write("x' = -x\noptions { output: { logfile: \"inspect-missing/log.txt\" } }\n")
         result = subprocess.run([binary, '--check', inspection, '--yes'], cwd=root, env=dict(os.environ, **env),
                                 input='', capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
         check('W303: inspection neither asks nor creates a logfile folder', result.returncode == 0
               and 'Create the folder' not in result.stderr and not os.path.exists(os.path.join(root, 'inspect-missing')), result.stderr)
         shared = os.path.join(root, 'shared.odex')
         with open(shared, 'w', encoding='utf-8') as f:
-            f.write("x' = -x\noptions { log: { logfile: \"shared/run.log\" }, batch: { output: \"shared/data.dat\" }, numerics: { total_time: 1 } }\n")
+            f.write("x' = -x\noptions { output: { logfile: \"shared/run.log\", output: \"shared/data.dat\" }, integration: { total_time: 1 } }\n")
         result = subprocess.run([binary, shared, '--silent', '--yes'], cwd=root, env=dict(os.environ, **env),
                                 input='', capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
         with open(os.path.join(root, 'shared', 'run.log'), encoding='utf-8') as log: transcript = result.stderr + log.read()
@@ -7670,7 +7692,7 @@ def check_create_folders():
         for answer in ('y', 'n'):
             destination = '../outside-' + answer + '/run.log'
             with open(source, 'w', encoding='utf-8') as f:
-                f.write("x' = -x\noptions { log: { logfile: \"%s\" } }\n" % destination)
+                f.write("x' = -x\noptions { output: { logfile: \"%s\" } }\n" % destination)
             server = Server(binary, source, env=env, run=project)
             try:
                 _, outside = server.collect(lambda e: e.get('ev') in ('ask', 'error'))

@@ -12,6 +12,6 @@ vv20' = i+f(vv20)-w20+d*(vv19-vv20)
 #
 w[j]' = eps*(vv[j]-gamma*w[j]) for j in 0..20
 options {
-  numerics: { method: qualrk, dt: .25, total_time: 150 },
+  integration: { method: qualrk, dt: .25, total_time: 150 },
   plot: { xhi: 150, colormap: 1 },
 }

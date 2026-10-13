@@ -31,7 +31,7 @@ par kick = 0.05, r = 0
 aux xpp = xdd
 aux th1pp = th1dd
 options {
-  numerics: { dt: .02 },
+  integration: { dt: .02 },
 }
 # nice ICs
 init th1 = 1.5

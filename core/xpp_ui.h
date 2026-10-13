@@ -120,7 +120,7 @@ enum class QuestionPolicy { User, Terminal, Suggested, None };
 QuestionPolicy answer_policy(bool terminal, bool scripted);
 void flash(int num);
 int menu_choose(const struct XppMenu *m, int def);
-/* A choice among names (named parameter sets, tables, frozen curves): the
+/* A choice among names (named sets, tables, frozen curves): the
    first PICK_LETTERS lettered a to z ("a: name"), the rest picked from the
    list by their index; the chosen name's index, -1 for none */
 int pick_from_list(std::string_view id, std::string_view title, std::span<const std::string> names);
