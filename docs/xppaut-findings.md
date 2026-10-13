@@ -78,6 +78,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [46](#46-parameter-files-ignore-names-and-load-by-position) | Parameter files | reordering `.par` lines silently assigns values to the wrong parameters | [W310](https://github.com/MuhammadMoustafa/xppautX/issues/369) |
 | [47](#47-auto-a-special-point-whose-location-does-not-converge-leaves-the-iterate-behind) | AUTO | when the location of a special point does not converge in ITMX steps, AUTO2000 keeps the displaced iterate and goes on from it: the branch turns round (AUTO-07p restores the last converged point) | [W300](https://github.com/MuhammadMoustafa/xppautX/issues/358) |
 | [48](#48-auto-storage-has-fixed-variable-parameter-and-branch-point-limits) | AUTO | 400 variables, 36 numerical parameters, 20 stored branch points and eight selectable model parameters | [W298](https://github.com/MuhammadMoustafa/xppautX/issues/356) |
+| [49](#49-auto-homoclinic-form-overflows-its-value-table-from-50-variables) | AUTO | a 100-field form holds two dimensions and two values per state, overrunning from 50 variables | [W301](https://github.com/MuhammadMoustafa/xppautX/issues/359) |
 
 ## 1. Model options
 
@@ -882,3 +883,19 @@ the first eight model parameters. `tests/test_auto_limits.cpp` and autocheck's
 Sent solution and diagram members are checked against the model and archive
 memory budget before their contents are applied.
 [W298 / #356](https://github.com/MuhammadMoustafa/xppautX/issues/356).
+
+## 49. AUTO homoclinic form overflows its value table from 50 variables
+
+XPPAUT 8.0's `get_homo_info` declares 100 value rows
+([auto_nox.c:2263](../reference/xppaut-8.0/auto_nox.c#L2263)) but builds
+`2 + 2*NODE` fields ([auto_nox.c:2264](../reference/xppaut-8.0/auto_nox.c#L2264)).
+Its right-state loop writes `v[i+2+NODE]`
+([auto_nox.c:2280](../reference/xppaut-8.0/auto_nox.c#L2280)); at NODE=50
+that includes rows 100 and 101, outside the array. This is source-level
+out-of-bounds evidence; XPPAUT's GUI was not dynamically exercised here.
+
+W301 sizes the value vector from the same model-derived field count, using
+the shared form API. `tests/test_auto_limits.cpp` exercises a 401-state form:
+804 fields, final left/right labels and submitted values, and both equilibrium
+vectors updated. The continuation algorithm and its numerical baseline are
+unchanged. [W301 / #359](https://github.com/MuhammadMoustafa/xppautX/issues/359).

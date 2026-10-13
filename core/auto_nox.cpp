@@ -2147,8 +2147,8 @@ void auto_extend_ss(xpp::Session &s)
 
 int get_homo_info(xpp::Session &s, int flg,int *nun,int *nst,double *ul, double *ur)
 {
-  std::array<std::string, 100> v;
   int n=2+2*s.model().node;
+  std::vector<std::string> v(n);
   int i;
   int flag=0;
   /* do_string_box_of's names are read-only (const char *const *): plain

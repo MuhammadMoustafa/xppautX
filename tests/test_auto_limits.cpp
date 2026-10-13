@@ -7,6 +7,7 @@
 #include "auto_nox.h"
 #include "diagram.h"
 #include "xpp_session_auto.h"
+#include "xpp_ui.h"
 #include <cmath>
 #include <string>
 
@@ -23,6 +24,31 @@ int main()
     CHECK(s.model().node==401 && s.model().nupar==40);
     CHECK(s.auto_state.grabpt.u0.size()==401 && s.auto_state.homo_l.size()==401);
     CHECK(s.auto_state.parameter_count()>36);
+    // W301: the homoclinic form has two dimensions and two values per model state.
+    const xpp::XppUi saved_ui=xpp::ui;
+    xpp::XppUi form_ui=saved_ui;
+    form_ui.question_policy=[](bool) { return xpp::QuestionPolicy::User; };
+    form_ui.string_box=[](int row,int col,std::string_view title,const char *const *names,
+                          std::span<std::string> values,const int *kinds) {
+        CHECK(row==402 && col==2 && title=="Homoclinic info");
+        CHECK(values.size()==804);
+        CHECK(std::string_view(names[401])=="X400_L" && std::string_view(names[803])=="X400_R");
+        CHECK(kinds[0]==xpp::XPP_FIELD_INTEGER && kinds[402]==xpp::XPP_FIELD_INTEGER);
+        CHECK(values[401]=="0" && values[803]=="0");
+        values[0]="2";
+        values[402]="399";
+        values[401]="2.75";
+        values[803]="3.25";
+        return 1;
+    };
+    xpp::set_ui(&form_ui);
+    int unstable=1,stable=400;
+    s.auto_state.homo_flag=2;
+    CHECK(xpp::get_homo_info(s,2,&unstable,&stable,s.auto_state.homo_l.data(),s.auto_state.homo_r.data())==1);
+    xpp::set_ui(&saved_ui);
+    CHECK(unstable==2 && stable==399);
+    CHECK(s.auto_state.homo_l[400]==2.75 && s.auto_state.homo_r[400]==3.25);
+    s.auto_state.homo_flag=0;
     xpp::AutoSettingsSet set;
     set.npars=40;
     for(int k=0;k<set.npars;k++)set.pars.push_back(xpp::format("P{}",k));
