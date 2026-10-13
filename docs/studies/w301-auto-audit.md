@@ -57,8 +57,8 @@ tools/heavy.sh python3 tools/errorcheck.py --list
 
 ## Inventory and disposition
 
-Proposal identifiers P1–P11 below are local audit identifiers. The reviewer
-creates the actual cards and issues; none was created or added to a running card.
+Proposals P1–P11 are cards W327–W337 (issues #388–#398), named at each
+proposal below.
 
 | Idiom | Places / measured candidates | Disposition |
 |---|---|---|
@@ -352,7 +352,7 @@ unit tests, relevant autocheck sections and examples. No baseline/allowlist
 increase is an acceptance criterion. Order is priority plus dependencies;
 independent later cards may be staged separately by the reviewer.
 
-### P1 — Make XPPAUT AUTO import bounded and transactional
+### P1: W327 ([#388](https://github.com/MuhammadMoustafa/xppautX/issues/388)) — Make XPPAUT AUTO import bounded and transactional
 
 Places: auto_nox.cpp load_auto_numerics/load_auto_graph/import_auto_file/
 make_q_file, diagram.cpp load_diagram, xpp_session_auto* readers/validators.
@@ -365,7 +365,7 @@ nine, invalid axes/point indices, a truncated second point and a malformed
 solution tail, through window/server/silent import dispatch where available.
 Order: first, before resizing mark scratch or sharing restart readers.
 
-### P2 — Preserve AUTO Error values and centralize stream positions
+### P2: W328 ([#389](https://github.com/MuhammadMoustafa/xppautX/issues/389)) — Preserve AUTO Error values and centralize stream positions
 
 Places: AutoFailed/auto_fail in auto_state.h; 19 call sites; do_auto catch;
 RunUnits .what conversion; autlib1 newlab/findlb stream calls; xpp_io owner.
@@ -376,7 +376,7 @@ fort output and Windows absolute text-stream positioning. Lower error baseline
 only if a counted site actually disappears; do not add ALLOWED entries.
 Order: after P1 or independently before its new error paths land.
 
-### P3 — Give AUTO problem, point and stability codes typed owners
+### P3: W329 ([#390](https://github.com/MuhammadMoustafa/xppautX/issues/390)) — Give AUTO problem, point and stability codes typed owners
 
 Places: auto_c.h iap, XAUTO/BIFUR, gogoauto dispatch, auto_nox start/switch,
 autlib1 init/point logic, diagram.h and auto_stability.h APIs.
@@ -388,7 +388,7 @@ or second enum for a concept already owned. Test every supported problem and
 special point, including signed/composite ITP and maps.
 Order: third; supplies point kinds for P4.
 
-### P4 — Store AUTO axes by kind, separate from numerical slots
+### P4: W330 ([#391](https://github.com/MuhammadMoustafa/xppautX/issues/391)) — Store AUTO axes by kind, separate from numerical slots
 
 Places: AutoState mapping methods, auto_settings_apply's icp2–4 shift,
 DIAGRAM/GRABPT, autevd addbif/init_auto, autpp callbacks, settings names,
@@ -406,7 +406,7 @@ multiple views, grab/restart and snapshot roundtrips. Keep W299 CSV baseline
 through explicit export order if that is the selected current schema.
 Order: fourth, after P3; **proposed only, no mapping change in W301**.
 
-### P5 — Size AUTO marks and name remaining schemas/defaults
+### P5: W331 ([#392](https://github.com/MuhammadMoustafa/xppautX/issues/392)) — Size AUTO marks and name remaining schemas/defaults
 
 Places: MAX_AUT_PER/AUTO_SETTINGS_MARKS, BIFUR/AutoState/XAUTO mark arrays,
 gogoauto iuz/vuz, auto_per_par and settings forms; seven-value restart scratch,
@@ -420,7 +420,7 @@ is a separate numerical decision. Test more than nine marks, atomic rejection,
 all form/set paths and file roundtrips. No shrinking array while nuzr is unchecked.
 Order: fifth, after P1/P4; can split schemas from lifting marks at review.
 
-### P6 — Remove dormant AUTO MPI topology and transport plumbing
+### P6: W332 ([#393](https://github.com/MuhammadMoustafa/xppautX/issues/393)) — Remove dormant AUTO MPI topology and transport plumbing
 
 Places: KREDO, iap mynode/numnodes, gogoauto initialization, autlib2 reduce/
 bcksub/redrhs and mynode/numnodes/csend/crecv/gdsum stubs.
@@ -431,7 +431,7 @@ diagrams and one/automatic worker outputs. Remove now-stale dup/dead allowlist
 entries rather than relaxing them. Do not interpret MPI node count as threads.
 Order: sixth, before P8 models the reduced work-array API.
 
-### P7 — Merge AUTO wrapper and restart copies into their owners
+### P7: W333 ([#394](https://github.com/MuhammadMoustafa/xppautX/issues/394)) — Merge AUTO wrapper and restart copies into their owners
 
 Places: all six function and ten block groups classified above; auto_jacobian,
 shared solution header/restart readers and numerical/output context owners.
@@ -444,7 +444,7 @@ Numerical matrix/reduction differences are retained with specific rationale,
 not a blanket translated-Fortran exception.
 Order: seventh, after P1/P2; before P8 wraps the consolidated interfaces.
 
-### P8 — Express AUTO points and work arrays as owned data and views
+### P8: W334 ([#395](https://github.com/MuhammadMoustafa/xppautX/issues/395)) — Express AUTO points and work arrays as owned data and views
 
 Places: DIAGRAM/DiagramPoint pointer mirrors, AutoGlobalScratch/store,
 AutoStability re/im, solvbv parallel vectors, auto_c numerical signatures,
@@ -457,7 +457,7 @@ algorithm order. Test repeated resize/move/restore, dimensions and sanitizer
 runs; remove obsolete pointer mirrors rather than adding aliases.
 Order: eighth, after P4/P6/P7 reduce the number of interfaces to migrate.
 
-### P9 — Put AUTO protocol subscriptions and caches in their owner
+### P9: W335 ([#396](https://github.com/MuhammadMoustafa/xppautX/issues/396)) — Put AUTO protocol subscriptions and caches in their owner
 
 Places: auto_data's three, auto_settings' one, json_auto's seven baseline
 symbols and the existing JSON client's/session-switch lifecycle.
@@ -468,7 +468,7 @@ subscribe/unsubscribe/reconnect and grabbed-point keys. globalcheck --update
 records a strictly lower count; review reasons and no new globals elsewhere.
 Order: ninth, independent of numerical migration once lifecycle is specified.
 
-### P10 — Make AUTO/EISPACK scratch reentrant and seal worker inputs
+### P10: W336 ([#397](https://github.com/MuhammadMoustafa/xppautX/issues/397)) — Make AUTO/EISPACK scratch reentrant and seal worker inputs
 
 Places: eispack.cpp static locals/by-reference constants; auto_parallel
 prepare/publish/intervals, autpp pure/serial branches, setubv and conpar dispatch,
@@ -482,7 +482,7 @@ EISPACK's mutable baseline with --update; no suppression or widened allowlist.
 Order: tenth; perform before adding eigenvalue work to collocation workers or
 sharing the EISPACK owner across concurrent calls.
 
-### P11 — Consolidate AUTO numerical ownership with exact algorithms
+### P11: W337 ([#398](https://github.com/MuhammadMoustafa/xppautX/issues/398)) — Consolidate AUTO numerical ownership with exact algorithms
 
 Places: autlib1 ge/nlvc/eig, autlib4 flowkm/SVD, autlib5 eigho/projections,
 eispack, xpp_math's dense/band solves and orthes/hqr, gear callers.
