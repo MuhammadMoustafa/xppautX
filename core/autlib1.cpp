@@ -1929,7 +1929,7 @@ fnuzae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /*     ---------- ----- */
 /* Subroutine */ int 
-stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aaloc, doublereal *aa,  doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *udot, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
+stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aaloc, doublereal *aa, doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *udot, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
 {
   /* System generated locals */
   integer aa_dim1;
@@ -2016,7 +2016,7 @@ stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aa
 
 /*     ---------- ----- */
 /* Subroutine */ int 
-swpnt(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds,  doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *udot)
+swpnt(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *udot)
 {
   /* System generated locals */
 
