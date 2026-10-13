@@ -686,7 +686,7 @@ private:
       root.members.push_back({"sliders", key.pos.line, key.pos.col, value});
       const setx::Document doc("options", out_.files[file_], std::string(src_));
       setx::Block block(doc, root, false, "interface");
-      try { (void)read_sliders(*model_, block, false); }
+      try { static_cast<void>(read_sliders(*model_, block, false)); } /* validates the presets */
       catch (ReadFailed &e) { throw std::move(e.error); }
       o.tree = value;
       return o;
