@@ -1423,9 +1423,8 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       u[i] += du[i];
     }
     rlcur[0] += drlm;
-    if (!xpp::all_finite({u, static_cast<size_t>(ndim)}) ||
-        !xpp::all_finite({du, static_cast<size_t>(ndim + 1)}) ||
-        !std::isfinite(rlcur[0])) {
+    /* du's last entry is drlm, already in rlcur */
+    if (!xpp::all_finite({u, static_cast<size_t>(ndim)}) || !std::isfinite(rlcur[0])) {
       nonfinite = true;
       goto L3;
     }
@@ -2293,9 +2292,8 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
       u[i] += du[i];
     }
     rlcur[0] += drlm;
-    if (!xpp::all_finite({u, static_cast<size_t>(ndim)}) ||
-        !xpp::all_finite({du, static_cast<size_t>(ndim + 1)}) ||
-        !std::isfinite(rlcur[0])) {
+    /* du's last entry is drlm, already in rlcur */
+    if (!xpp::all_finite({u, static_cast<size_t>(ndim)}) || !std::isfinite(rlcur[0])) {
       nonfinite = true;
       goto failed_step;
     }
@@ -5221,17 +5219,6 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	     p1, thl, thu);
     }
     if ((!iap->lib->locating && xpp::job::cancelled()) || jacobian_failed(iap)) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel, W275 */
-    nrow = ndim * ncol;
-    if (!xpp::all_finite({fc, static_cast<size_t>(ndim + nfpr)})) {
-      nonfinite = true;
-      goto L3;
-    }
-    for (i = 0; i < nrow; ++i) {
-      if (!xpp::all_finite({fa + i * fa_dim1, static_cast<size_t>(ntst)})) {
-        nonfinite = true;
-        goto L3;
-      }
-    }
     /* Add Newton increments. */
 
     for (i = 0; i < ndim; ++i) {
