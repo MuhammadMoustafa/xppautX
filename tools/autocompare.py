@@ -489,8 +489,9 @@ def main():
                 descriptions[path.stem] = read_description(path)
             except (ValueError, TypeError, KeyError, AttributeError) as e:
                 raise ValueError('%s: %s' % (path.relative_to(ROOT), e)) from e
-        expected = {f.as_posix() for f in Path('examples/tstauto').iterdir() if f.suffix in ('.ode', '.odex')}
-        expected.update(f.as_posix() for f in Path('examples/ode').glob('*.odex')
+        # a model's name is its folder and f.name: MSYS2's Python gives as_posix() a backslash (W344)
+        expected = {'examples/tstauto/' + f.name for f in Path('examples/tstauto').iterdir() if f.suffix in ('.ode', '.odex')}
+        expected.update('examples/ode/' + f.name for f in Path('examples/ode').glob('*.odex')
                         if re.search(r'\b(continuation|diagram)\s*:', re.sub(r'#[^\n]*', '', f.read_text(encoding='utf-8'))))
         models = [d['model'] for d in descriptions.values()]
         if set(models) != expected or len(models) != len(set(models)):
