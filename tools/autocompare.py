@@ -243,9 +243,9 @@ def compute(binary, d, threads):
 
 # --- W300/#358: the special points compared with other programs' -----------------
 # A reference file beside a diagram holds another program's special points for the
-# same problem: tools/auto07p_reference.py writes `.auto07p` (AUTO-07p 0.9.3, run once
-# on a machine that has it) and `.xppaut` is XPPAUT 8.0's (its AUTO window driven by
-# hand). They are compared here, from the committed files alone, matched by type and
+# same problem, written by tools/auto_reference.py on a machine that has the programs:
+# `.auto07p` is AUTO-07p 0.9.3's, `.xppaut` XPPAUT 8.0's (its AUTO window driven with
+# xdotool on Xvfb). They are compared here, from the committed files alone, matched by type and
 # order. A missing or extra special point is a difference.
 REFERENCES = {'.auto07p': 'AUTO-07p', '.xppaut': 'XPPAUT 8.0'}
 # a description with no reference file says why in this field (an explicit reason, never silence)
