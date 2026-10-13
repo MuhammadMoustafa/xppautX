@@ -531,7 +531,7 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
       stability_run_start(s); /* what its first point's stability is (auto_stability.h) */
       {
           xpp::Computation computing; /* what Abort stops (xpp_job.h) */
-          std::array<double, 8> before{}; /* AutoPar's size */
+          std::vector<double> before(s.auto_state.npar);
           for (int i = 0; i < s.auto_state.npar; i++) before[i] = s.parser.constants[s.auto_state.par_index[i]];
           try {
               go_go_auto(s); /* this complets the initialization and calls the
@@ -604,7 +604,7 @@ int auto_name_to_index(const xpp::Session &s, std::string_view name)
   if(in==0)return(10);
   in=xpp::find_user_name(s.model(),PARAM_BOX,name);
   for(i=0;i<s.auto_state.npar;i++)
-    if(s.auto_state.par[i]==in)return(i);
+    if(s.auto_state.par[i]==in)return(s.auto_state.parameter_slot(i));
   return(-1);
 }
 const char *auto_par_name(const xpp::Session &s, int k)
@@ -618,7 +618,8 @@ namespace {
 std::string par_or_period_name(const xpp::Session &s, long index)
 {
   if(index==AUTO_PERIOD_INDEX)return "T";
-  return index>=0&&index<s.auto_state.npar?par_label(s, static_cast<int>(index)):std::string();
+  const int k=s.auto_state.model_parameter(static_cast<int>(index));
+  return k>=0&&k<s.auto_state.npar?par_label(s,k):std::string();
 }
 
 /* fscanf "%ld" at s (blanks, a sign, digits): true with v */
@@ -713,32 +714,25 @@ void auto_per_par(xpp::Session &s)
   
 }
 
-/* auto parameters are 1-8 (0-7) and since there are only 8, need to associate them
-   with real xpp parameters for which there may be many 
-*/
 void auto_params(xpp::Session &s)
 {
-  static const char *const n[]={"*2Par1","*2Par2","*2Par3","*2Par4","*2Par5","*2Par6","*2Par7","*2Par8"};
-  int status,i,in;
-  std::array<std::string, 8> values;
-  for(i=0;i<8;i++){
-    if(i<s.auto_state.npar)  values[i] = s.model().upar_names[s.auto_state.par[i]];
-    else values[i].clear();
+  std::vector<std::string> labels;
+  for(int k=0;k<s.model().nupar;k++)labels.push_back(xpp::format("*2Par{}",k+1));
+  std::vector<const char *> n;
+  for(const auto &label:labels)n.push_back(label.c_str());
+  int status,i;
+  std::vector<std::string> values(s.model().nupar);
+  for(i=0;i<s.model().nupar;i++){
+    values[i] = s.model().upar_names[s.auto_state.par[i]];
   }
-  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),
-                            XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(2)};
-  status=do_string_box_of(8,1,"Parameters",n,values,kinds);
+  std::vector<int> kinds(s.model().nupar,XPP_FIELD_NAME_IN(2));
+  status=do_string_box_of(s.model().nupar,1,"Parameters",n.data(),values,kinds.data());
   if(status!=0){
-    for(i=0;i<8;i++){
-      if(i<s.auto_state.npar){
-	in=xpp::find_user_name(s.model(),PARAM_BOX,values[i].c_str());
-	if(in>=0){
-	  s.auto_state.par[i]=in;
-	  in=xpp::get_param_index(s,values[i].c_str());
-	  s.auto_state.par_index[i]=in;
-	}
-      }
-    }
+    AutoSettingsSet set;
+    set.npars=s.model().nupar;
+    set.pars=std::move(values);
+    std::string why;
+    if(auto_settings_apply(s,set,why)!=0)command_error("auto",why);
   }
 }
 
@@ -1067,7 +1061,7 @@ void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double pa
 
 void add_ps_point(xpp::Session &s, const DIAGRAM &d, int type, int flg)
 {
-  const double *par=d.par;
+  const double *par=d.par.data();
   const double per=d.per,a=d.norm;
   double *uhigh=d.uhi,*ulow=d.ulo,*ubar=d.ubar;
   const int icp1=d.icp1,icp2=d.icp2,flag2=d.flag2;
@@ -1408,7 +1402,7 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
 	return;
   }
   norm=d->norm;
-  par=d->par;
+  par=d->par.data();
 
   per=d->per;
   lab=d->lab;
@@ -1470,10 +1464,6 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
 void do_auto_win(xpp::Session &s)
 {
   if(s.auto_state.bifur.exist==0){
-    if(s.model().node>NAUTO){
-      command_error("auto", xpp::format("Auto restricted to less than {} variables",NAUTO));
-      return;
-    }
     make_auto(s,"It's AUTO man!","AUTO");
     s.auto_state.bifur.exist=1;
     
@@ -1561,18 +1551,25 @@ int auto_activate_view(xpp::Session &s, int k)
 void init_auto_win(xpp::Session &s)
 {
   int i;
-  if(s.model().node>NAUTO)return;
-  start_diagram(s, s.model().node); 
+
   for(i=0;i<10;i++){
     s.auto_state.bifur.period[i]=11.+3.*i;
     s.auto_state.bifur.uzrpar[i]=10;
     s.auto_state.uzr_period[i]=s.auto_state.bifur.period[i];
     s.auto_state.uzr_par[i]=10;
   }
-  s.auto_state.npar=8;
-  if(s.model().nupar<8)s.auto_state.npar=s.model().nupar;
-  for(i=0;i<s.auto_state.npar;i++)s.auto_state.par[i]=i;
-  for(i=0;i<s.auto_state.npar;i++){
+  s.auto_state.npar=std::min(s.model().nupar,AutoState::default_selected_parameters);
+  s.auto_state.par.resize(s.model().nupar);
+  s.auto_state.par_index.resize(s.model().nupar);
+  s.auto_state.parameter_offset=std::max(AutoState::numerical_parameter_slots,
+      AutoState::homoclinic_parameter_start+AutoState::homoclinic_parameter_blocks*s.model().node);
+  s.auto_lib.parameter_count=s.auto_state.parameter_count();
+  for (auto *v : {&s.auto_state.grabpt.uhi, &s.auto_state.grabpt.ulo, &s.auto_state.grabpt.u0,
+                 &s.auto_state.grabpt.ubar, &s.auto_state.homo_l, &s.auto_state.homo_r}) v->resize(s.model().node);
+  s.auto_state.grabpt.par.resize(s.auto_state.diagram_parameters());
+  start_diagram(s, s.model().node);
+  for(i=0;i<s.model().nupar;i++)s.auto_state.par[i]=i;
+  for(i=0;i<s.model().nupar;i++){
     s.auto_state.par_index[i]=xpp::get_param_index(s,s.model().upar_names[s.auto_state.par[i]]);
   }
   s.auto_state.bifur.nper=0;
@@ -2507,7 +2504,8 @@ xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, doubl
 {
   double *x;
   int i,j,nstor;
-  double u[NAUTO],t;
+  std::vector<double> u(s.model().node);
+  double t;
   double period;
   std::string string;
   int nrow,ndim,label,flg;
@@ -2521,12 +2519,12 @@ xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, doubl
   }
   label=lab;
   period=per;
-  flg=move_to_label(label,&nrow,&ndim,fp.get());
+  flg=move_to_label(s,label,&nrow,&ndim,fp.get());
   if(flg==0){
     xpp::log_auto("Could not find label {:d} in file {} \n",label,string.c_str());
     return xpp::fail("AUTO",xpp::format("No point labelled {} in {}",label,string),command_place());
   }
-  if(nrow<1||ndim<1||ndim>NAUTO)
+  if(nrow<1||ndim<1||ndim>s.model().node)
     return xpp::fail_reading("AUTO","invalid orbit dimensions",string);
   nstor=std::min(ndim,s.model().node);
   if(nrow>s.data_store.max_rows){
@@ -2535,7 +2533,7 @@ xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, doubl
   }
   x=&s.data_store.current[0];
   for(i=0;i<nrow;i++){
-    get_a_row(u,&t,ndim,fp.get());
+    get_a_row(u.data(),&t,ndim,fp.get());
     if(s.auto_state.bifur.ips!=4) 
       s.data_store.col[0][i]=t*period;
     else
@@ -2570,9 +2568,11 @@ void load_auto_numerics(xpp::Session &s, FILE *fp)
     skipped; the token reader leaves it in the stream, and every read that
     follows (load_auto_graph, load_diagram) skips it first. */
  xpp::TokenReader tr=xpp::TokenReader::attach(fp);
- if (!tr.read(s.auto_state.npar)) return;
- for(i=0;i<s.auto_state.npar;i++){
+ int imported_parameters;
+ if (!tr.read(imported_parameters) || imported_parameters < 0 || imported_parameters > s.auto_state.npar) return;
+ for(i=0;i<imported_parameters;i++){
    if (!tr.read(s.auto_state.par[i])) return;
+   if(s.auto_state.par[i]<0 || s.auto_state.par[i]>=s.model().nupar)return;
    in=xpp::get_param_index(s,s.model().upar_names[s.auto_state.par[i]]);
    s.auto_state.par_index[i]=in;
  }
@@ -2667,36 +2667,39 @@ int import_auto_file(xpp::Session &s, FILE *fp)
   return 1;
 }
 
-/* Bound a restart mesh at AUTO's largest dimension, within the session
-   byte budget, before native mesh or orbit-table allocation can use it. */
-constexpr std::size_t auto_solution_rows_limit = zip::archive_bytes_limit / ((NAUTO + 1) * sizeof(double));
+/* Bound expanded solution values by the archive memory budget before any
+   restart mesh or orbit-table allocation can use counts from a sent file. */
+constexpr std::size_t auto_solution_values_limit = zip::archive_bytes_limit / sizeof(double);
 
-bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h)
+bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long parameters)
 {
     for (long *v : {&h.ibr, &h.ntot, &h.itp, &h.lab, &h.nfpr, &h.isw, &h.ntpl, &h.nar, &h.nskip, &h.ntst, &h.ncol, &h.npar})
         if (!reader.read(*v) || *v <= std::numeric_limits<int>::min() || *v > std::numeric_limits<int>::max()) return false;
     std::string why;
     const bool collocation = h.ntst == 0 ? h.ncol == 0 : auto_settings_num_ok(AUTO_NUM_NCOL, h.ncol, why);
-    return h.nfpr >= 0 && h.nfpr <= NPARX && h.ntpl >= 1 && static_cast<std::size_t>(h.ntpl) <= auto_solution_rows_limit && h.nar >= 2 && h.nar <= NAUTO + 1
+    return h.nfpr >= 0 && h.nfpr <= parameters && h.ntpl >= 1 && static_cast<std::size_t>(h.ntpl) <= auto_solution_values_limit / static_cast<std::size_t>(h.nar < 2 ? 2 : h.nar) && h.nar >= 2 && static_cast<std::size_t>(h.nar) <= auto_solution_values_limit
         && h.nskip >= h.ntpl && h.ntst >= 0 && h.ntst <= h.nskip
-        && collocation && h.npar >= 0 && h.npar <= NPARX
+        && collocation && h.npar >= 0 && h.npar <= parameters && h.nfpr <= h.npar
         && (h.ntst == 0 || h.ntpl == static_cast<long long>(h.ntst) * h.ncol + 1);
 }
 
-Result<> check_auto_solutions(std::string_view text, std::string file)
+Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters)
 {
-    const auto read = read_lines("AUTO's solutions", std::move(file), text, [](Lines &l) {
+    const auto read = read_lines("AUTO's solutions", std::move(file), text, [variables, parameters](Lines &l) {
         while (!l.at_end()) {
             const std::string_view head = l.next();
             if (head.empty()) continue;
             AutoSolutionHeader h;
             TokenReader header = TokenReader::of_text(head);
-            if (!read_auto_solution_header(header, h) || !header.at_end())
-                l.fail("invalid AUTO solution header or counts");
-            const long rows = h.ntpl, columns = h.nar, payload = h.nskip, parameters = h.npar;
+            if (!read_auto_solution_header(header, h, parameters) || !header.at_end())
+                l.fail(xpp::format("invalid AUTO solution header or counts: {}",head));
+            if (h.nar - 1 > variables || h.npar > parameters || h.nfpr > h.npar)
+                l.fail(xpp::format("AUTO solution counts ({}, {}, {}) exceed this model's storage ({}, {})",h.nar-1,h.npar,h.nfpr,variables,parameters));
+            const long rows = h.ntpl, columns = h.nar, payload = h.nskip, parameter_values = h.npar;
             const std::size_t orbit_values = static_cast<std::size_t>(rows) * static_cast<std::size_t>(columns);
-            const std::size_t expected = orbit_values + parameters
+            const std::size_t expected = orbit_values + parameter_values
                 + (h.ntst ? 2 * h.nfpr + static_cast<std::size_t>(rows) * (columns - 1) : 0);
+            if (expected > auto_solution_values_limit) l.fail("AUTO solution counts exceed the session memory limit");
             std::size_t values = 0;
             for (int row = 0; row < payload; row++) {
                 const auto row_text = l.next("an AUTO solution payload row");
@@ -2707,7 +2710,7 @@ Result<> check_auto_solutions(std::string_view text, std::string file)
                     if (!parse_number(*word, value) || !std::isfinite(value)) l.fail("invalid AUTO solution number");
                     if (h.ntst && values >= orbit_values && values < orbit_values + h.nfpr) {
                         int parameter;
-                        if (!parse_int(*word, parameter) || parameter < 0 || parameter >= NPARX)
+                        if (!parse_int(*word, parameter) || parameter < 0 || parameter >= h.npar)
                             l.fail("AUTO restart parameter index is out of bounds");
                     }
                     values++;
@@ -2722,11 +2725,11 @@ Result<> check_auto_solutions(std::string_view text, std::string file)
     return {};
 }
 
-int move_to_label(int mylab, int *nrow, int *ndim, FILE *fp)
+int move_to_label(const Session &s, int mylab, int *nrow, int *ndim, FILE *fp)
 {
   AutoSolutionHeader h;
   TokenReader tr = TokenReader::attach(fp);
-  while (read_auto_solution_header(tr, h)) {
+  while (read_auto_solution_header(tr, h, s.auto_state.parameter_count())) {
     tr.skip_line();
     if (mylab == h.lab) {
       *nrow = static_cast<int>(h.ntpl);
@@ -2908,7 +2911,7 @@ void find_point(xpp::Session &s, int ibr, int pt)
 	   for(i=0;i<s.model().node;i++)
 	     setvar(s,i+1,d->u0[i]);
 	   xpp::get_ic(s,0,d->u0);
-	   auto_set_pars_from(s, d->par);
+	   auto_set_pars_from(s, d->par.data());
 	   xpp::evaluate_derived(s);
 	   xpp::ok_or_show(xpp::redo_all_fun_tables(s));
 	   redraw_params();
@@ -3209,8 +3212,7 @@ static void grab_diagram_point(xpp::Session &s, const DIAGRAM *d)
   int i;
   s.auto_state.grabpt.ibr=d->ibr;
   s.auto_state.grabpt.lab=d->lab;
-  for(i=0;i<8;i++)
-    s.auto_state.grabpt.par[i]=d->par[i];
+  s.auto_state.grabpt.par=d->par;
   s.auto_state.grabpt.per=d->per;
   s.auto_state.grabpt.torper=d->torper;
   for(i=0;i<s.model().node;i++){
@@ -3220,11 +3222,11 @@ static void grab_diagram_point(xpp::Session &s, const DIAGRAM *d)
     s.auto_state.grabpt.ubar[i]=d->ubar[i];
     setvar(s,i+1,s.auto_state.grabpt.u0[i]);
   }
-  xpp::get_ic(s,0,s.auto_state.grabpt.u0);
+  xpp::get_ic(s,0,s.auto_state.grabpt.u0.data());
   s.auto_state.grabpt.flag=1;
   s.auto_state.grabpt.itp=d->itp;
   s.auto_state.grabpt.nfpar=d->nfpar;
-  auto_set_pars_from(s, s.auto_state.grabpt.par);
+  auto_set_pars_from(s, s.auto_state.grabpt.par.data());
 }
 
 /* what follows a grab: derived values, tables and the shown values */

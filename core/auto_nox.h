@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 #include "xpplim.h"
-#include "autlim.h"
+#include <vector>
 #include "xpp_error.h"
 
 #define MAX_AUT_PER 10
@@ -19,8 +19,8 @@ class TokenReader;
 struct AutoSolutionHeader {
     long ibr{}, ntot{}, itp{}, lab{}, nfpr{}, isw{}, ntpl{}, nar{}, nskip{}, ntst{}, ncol{}, npar{};
 };
-bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h);
-Result<> check_auto_solutions(std::string_view text, std::string file);
+bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long parameters);
+Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters);
 
 typedef struct {
   double torper;
@@ -59,8 +59,8 @@ typedef struct {
 
 typedef struct {
   int ibr,itp,lab;
-  double uhi[NAUTO],ulo[NAUTO],u0[NAUTO],ubar[NAUTO];
-  double par[20],per,torper;
+  std::vector<double> uhi,ulo,u0,ubar,par;
+  double per,torper;
   int nfpar;
   int flag;
 } GRABPT;
@@ -68,7 +68,8 @@ typedef struct {
 typedef struct diagram {
   int ibr,ntot,itp,lab,calc;
   double norm,*uhi,*ulo,*u0,*ubar,*evr,*evi;
-  double par[20],per,torper;
+  std::vector<double> par;
+  double per,torper;
   int index,nfpar;
   int icp1,icp2,icp3,icp4,flag2;
   int from; /* the label its run started from, on a run's first point (not saved in files) */
@@ -200,7 +201,7 @@ void load_auto(Session &s);
 void load_auto_numerics(Session &s, FILE *fp);
 void load_auto_graph(Session &s, FILE *fp);
 int import_auto_file(Session &s, FILE *fp);
-int move_to_label(int mylab, int *nrow, int *ndim, FILE *fp);
+int move_to_label(const Session &s, int mylab, int *nrow, int *ndim, FILE *fp);
 void get_a_row(double *u, double *t, int n, FILE *fp);
 void auto_file(Session &s);
 int check_plot_type(const Session &s, int flag2,int icp1, int icp2);

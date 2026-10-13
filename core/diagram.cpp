@@ -54,9 +54,7 @@ void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p,
   d->lab=p.lab;
   d->nfpar=p.nfpar;
   d->norm=p.norm;
-  for(i=0;i<8;i++){
-    d->par[i]=p.par[i];
-  }
+  d->par=p.par;
 
   d->per=p.per;
  
@@ -127,7 +125,7 @@ void diagram_restore(xpp::Session &s, std::deque<DiagramPoint> points)
 void start_diagram(xpp::Session &s, int n)
 {
   s.diagram.points.clear();
-  new_point(s.diagram,n);
+  new_point(s.diagram,n)->par.resize(s.auto_state.diagram_parameters());
   s.auto_state.diag_flag=0;
 }
 
@@ -180,7 +178,7 @@ void redraw_diagram(xpp::Session &s)
  
     if(d->ntot==1)flag=0;
     else flag=1;
-    add_point(s,*d,d->par,type,flag);
+    add_point(s,*d,d->par.data(),type,flag);
     d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
@@ -252,7 +250,7 @@ void write_info_out(xpp::Session &s)
     
     icp1=d->icp1;
     icp2=d->icp2;
-    par=d->par;
+    par=d->par.data();
     per=d->per;
     uhigh=d->uhi;
     ulow=d->ulo;
@@ -307,7 +305,7 @@ void load_browser_with_branch(xpp::Session &s, int ibr,int pts,int pte)
     pt=abs(d->ntot);
     if((d->ibr==ibr) && (pt>=first) && (pt<=last)){
       icp1=d->icp1;
-      par=d->par;
+      par=d->par.data();
       u0=d->u0;
 
       par1=par[icp1];
@@ -335,7 +333,7 @@ void write_init_data_file(xpp::Session &s)
   d=diagram_first(s.diagram);
  while(1){
     icp1=d->icp1;
-    par=d->par;
+    par=d->par.data();
     u0=d->u0;
 
     par1=par[icp1];
@@ -369,7 +367,7 @@ void write_pts(xpp::Session &s)
     
     icp1=d->icp1;
     icp2=d->icp2;
-    par=d->par;
+    par=d->par.data();
     per=d->per;
     uhigh=d->uhi;
     ulow=d->ulo;
@@ -437,7 +435,7 @@ void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, doubl
 
 int load_diagram(xpp::Session &s, FILE *fp, int node)
 {
-  std::array<double,NAUTO> u0,uhi,ulo,ubar,evr,evi;
+  std::vector<double> u0(node),uhi(node),ulo(node),ubar(node),evr(node),evi(node);
   std::array<double,8> par;
   double norm,per;
   int i,flag=0;
@@ -472,7 +470,8 @@ int load_diagram(xpp::Session &s, FILE *fp, int node)
     p.ubar=ubar.data();
     p.evr=evr.data();
     p.evi=evi.data();
-    std::copy(par.begin(),par.end(),p.par);
+    p.par.resize(s.auto_state.diagram_parameters());
+    std::copy(par.begin(),par.end(),p.par.begin());
     p.per=per;
     p.icp1=icp1;
     p.icp2=icp2;

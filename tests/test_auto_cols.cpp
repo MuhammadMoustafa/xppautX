@@ -23,6 +23,8 @@ static void load_model(void)
     xpp::client_session().model().node = xpp::client_session().model().neq = 2;
     xpp::client_session().model().nupar = 3;
     xpp::client_session().auto_state.npar = 3;
+    xpp::client_session().auto_state.par.resize(3);
+    xpp::client_session().auto_state.par_index.resize(3);
     xpp::client_session().auto_state.par[0] = 0;
     xpp::client_session().auto_state.par[1] = 1;
     xpp::client_session().auto_state.par[2] = 2;

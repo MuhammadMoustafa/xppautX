@@ -29,6 +29,8 @@ void load_model()
     for(int i=0;i<m.nupar;i++)m.define_name(m.upar_names[i],xpp::Model::NameKind::Param,i,{}).parameter=i;
     for(int i=0;i<m.neq;i++)m.define_name(m.uvar_names[i],xpp::Model::NameKind::Variable,i,{}).column=i;
     xpp::client_session().auto_state.npar = 3;
+    xpp::client_session().auto_state.par.resize(3);
+    xpp::client_session().auto_state.par_index.resize(3);
     for (int i = 0; i < 3; i++) xpp::client_session().auto_state.par[i] = i;
     xpp::client_session().auto_state.bifur.nmx = 200;
     xpp::client_session().auto_state.bifur.ncol = 4;

@@ -613,7 +613,7 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
     r.set = std::move(*set);
 
     /* Every AUTO-capable session holds its settings/views, with or without a diagram. */
-    if (s.model().node <= NAUTO || std::any_of(mem.begin(), mem.end(), [](const auto &m) { return m.first.starts_with(xpp::snapx::auto_folder); })) {
+    {
         xpp::Result<xpp::snapx::auto_members::Members> read = xpp::snapx::auto_members::members_read(s, mem, xpp::snapx::auto_folder, f.name);
         if (!read) return std::unexpected(read.error());
         r.diagram = std::move(*read);
@@ -735,7 +735,7 @@ xpp::Result<std::string> session_bytes(xpp::Session &s, bool data)
     if (const xpp::Result<> done = member(xpp::snapx::set_member, xpp::setx_text(s, xpp::capture_settings(s, xpp::SettingsUse::session))); !done)
         return std::unexpected(done.error());
     /* a diagram exists: without its orbits, the save is refused */
-    if (s.model().node <= NAUTO) {
+    {
         if (const xpp::Result<> added = xpp::snapx::auto_members::add_members(s, *entries, xpp::snapx::auto_folder); !added)
             return std::unexpected(added.error());
     }

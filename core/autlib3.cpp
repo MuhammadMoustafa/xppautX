@@ -178,7 +178,7 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     /* Local variables */
 
   integer i, j;
-  std::array<doublereal, NPARX> ddp;
+  std::vector<doublereal> ddp(iap->lib->parameter_count);
   integer ndm;
 
   std::vector<doublereal> ddu(iap->ndim);
@@ -205,7 +205,7 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
       }
     }
 
-    for (j = NPARX - 1; j >= 0; --j) {
+    for (j = iap->lib->parameter_count - 1; j >= 0; --j) {
       for (i = ndm - 1; i >= 0; --i) {
 	ARRAY2D(dfdp, i, j) = dfdp[j * ndm + i];
       }
@@ -329,7 +329,7 @@ ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   integer nfpr, i, j;
   doublereal fop;
-  std::array<doublereal, NPARX> ddp;
+  std::vector<doublereal> ddp(iap->lib->parameter_count);
   integer ndm2;
 
 
@@ -390,7 +390,7 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer i, j;
   logical found;
 
-  std::array<doublereal, NPARX> dp;
+  std::vector<doublereal> dp(iap->lib->parameter_count);
 
   integer ndm;
   doublereal fop;
@@ -1078,7 +1078,7 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   std::vector<doublereal> smat((2*iap->ndim)*(2*iap->ndim));
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> v(iap->ndim);
-  std::vector<doublereal> dfp((iap->ndim)*NPARX);
+  std::vector<doublereal> dfp((iap->ndim)*iap->lib->parameter_count);
   std::vector<doublereal> dfu((iap->ndim)*(iap->ndim));
 
 
@@ -1249,7 +1249,7 @@ bcps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = NPARX;
+  jtmp = iap->lib->parameter_count;
   nn = (ndim * 2) + jtmp;
   for (i = 0; i < nbc; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -1296,7 +1296,7 @@ icps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = NPARX;
+  jtmp = iap->lib->parameter_count;
   nn = ndim + jtmp;
   for (i = 0; i < nn; ++i) {
     ARRAY2D(dint, 0, i) = 0.;
@@ -1724,7 +1724,7 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> u(iap->ndim);
   std::vector<doublereal> rnllv(2*(iap->ndim));
-  std::vector<doublereal> dfp((iap->ndim)*NPARX);
+  std::vector<doublereal> dfp((iap->ndim)*iap->lib->parameter_count);
   std::vector<doublereal> dfu((iap->ndim)*(iap->ndim));
 
 
@@ -2165,7 +2165,7 @@ bcpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = NPARX;
+  jtmp = iap->lib->parameter_count;
   nn = (ndim * 2) + jtmp;
   for (i = 0; i < nbc; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -2221,7 +2221,7 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = NPARX;
+  jtmp = iap->lib->parameter_count;
   nn = ndim + jtmp;
   for (i = 0; i < nint; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -2264,7 +2264,7 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   integer nfpr, nfpr1, nrsp1, i, j, k;
   logical found;
   integer nparr, k1, k2;
-  std::array<integer, NPARX> icprs;
+  std::vector<integer> icprs(iap->lib->parameter_count);
 
   doublereal rd1, rd2;
   integer ibr, ndm, irs;
@@ -2300,7 +2300,7 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   findlb(iap, rap, irs, &nfpr1, &found);
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header)) return 1;
+  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
   ibr = header.ibr;
   nfpr1 = header.nfpr;
   *ntsr = header.ntst;
@@ -2350,11 +2350,6 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read the parameter values. */
 
-  if (nparr > NPARX) {
-    nparr = NPARX;
-    xpp::log_auto("Warning : NPARX too small for restart data\n");
-    xpp::log_auto("PAR(i) set to zero, fot i > {:3d}\n",nparr);
-  }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
   }
@@ -2538,7 +2533,7 @@ bcpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = NPARX;
+  jtmp = iap->lib->parameter_count;
   nn = (ndim * 2) + jtmp;
   for (i = 0; i < nbc; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -2593,7 +2588,7 @@ icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = NPARX;
+  jtmp = iap->lib->parameter_count;
   nn = ndim + jtmp;
   for (i = 0; i < nint; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -2632,7 +2627,7 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   integer nfpr, nfpr1, nrsp1, i, j, k;
   logical found;
   integer nparr, k1, k2;
-  std::array<integer, NPARX> icprs;
+  std::vector<integer> icprs(iap->lib->parameter_count);
 
   integer ibr, ndm, irs;
 
@@ -2667,7 +2662,7 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   findlb(iap, rap, irs, &nfpr1, &found);
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header)) return 1;
+  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
   ibr = header.ibr;
   nfpr1 = header.nfpr;
   *ntsr = header.ntst;
@@ -2716,11 +2711,6 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read the parameter values. */
 
-  if (nparr > NPARX) {
-    nparr = NPARX;
-    xpp::log_auto("Warning : NPARX too small for restart data\n");
-    xpp::log_auto("PAR(i) set to zero, fot i > {:3d}\n",nparr);
-  }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
   }
@@ -2907,7 +2897,7 @@ bctr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = NPARX;
+  jtmp = iap->lib->parameter_count;
   nn = (ndim * 2) + jtmp;
   for (i = 0; i < nbc; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -2969,7 +2959,7 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = NPARX;
+  jtmp = iap->lib->parameter_count;
   nn = ndim + jtmp;
   for (i = 0; i < nint; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -3010,7 +3000,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   integer nfpr, nfpr1, i, j, k;
   logical found;
   integer nparr, k1, k2, k3;
-  std::array<integer, NPARX> icprs;
+  std::vector<integer> icprs(iap->lib->parameter_count);
 
   integer ibr, ndm, k2p1, irs;
 
@@ -3045,7 +3035,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   findlb(iap, rap, irs, &nfpr1, &found);
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header)) return 1;
+  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
   ibr = header.ibr;
   nfpr1 = header.nfpr;
   *ntsr = header.ntst;
@@ -3115,11 +3105,6 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read the parameter values. */
 
-  if (nparr > NPARX) {
-    nparr = NPARX;
-    xpp::log_auto("Warning : NPARX too small for restart data\n");
-    xpp::log_auto("PAR(i) set to zero, fot i > {:3d}\n",nparr);
-  }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
   }
@@ -3214,7 +3199,8 @@ ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     /* Local variables */
 
   integer i, j;
-  doublereal gamma, rkappa, period, dfp[NPARX], fop;
+  doublereal gamma, rkappa, period, fop;
+  std::vector<doublereal> dfp(iap->lib->parameter_count);
 
 
   std::vector<doublereal> dfu(iap->ndim);
@@ -3229,16 +3215,16 @@ ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   gamma = par[13];
 
   for (i = 0; i < ndm; ++i) {
-    for (j = 0; j < NPARX; ++j) {
+    for (j = 0; j < iap->lib->parameter_count; ++j) {
       ARRAY2D(dfdp, i, j) = 0.;
     }
   }
   funi(iap, rap, ndm, u, uold, icp, par, 1, f, 
        dfdu, dfdp);
-  for (i = 0; i < NPARX; ++i) {
+  for (i = 0; i < iap->lib->parameter_count; ++i) {
     dfp[i] = 0.;
   }
-  fopi(iap, rap, ndm, u, icp, par, 1, &fop, dfu.data(), dfp);
+  fopi(iap, rap, ndm, u, icp, par, 1, &fop, dfu.data(), dfp.data());
 
   for (i = 0; i < ndm; ++i) {
     f[ndm + i] = 0.;
@@ -3325,7 +3311,7 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   std::vector<doublereal> f1(iap->nint);
   std::vector<doublereal> f2(iap->nint);
-  std::vector<doublereal> dnt((iap->nint)*(iap->ndim + NPARX));
+  std::vector<doublereal> dnt((iap->nint)*(iap->ndim + iap->lib->parameter_count));
 
 
 /* Generates integral conditions for periodic optimization problems. */
@@ -3375,7 +3361,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   integer nfpr, indx;
   integer i, j, l;
-  std::array<doublereal, NPARX> dfp;
+  std::vector<doublereal> dfp(iap->lib->parameter_count);
   integer ndm;
   doublereal fop;
 
@@ -3397,7 +3383,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
   }
 
-  for (i = 0; i < NPARX; ++i) {
+  for (i = 0; i < iap->lib->parameter_count; ++i) {
     dfp[i] = 0.;
   }
   fopi(iap, rap, ndm, u, icp, par, 2, &fop, dfu.data(), dfp.data());
@@ -3411,7 +3397,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   for (i = 0; i < ndm; ++i) {
-    for (j = 0; j < NPARX; ++j) {
+    for (j = 0; j < iap->lib->parameter_count; ++j) {
       ARRAY2D(dfdp, i, j) = 0.;
     }
   }
@@ -3458,7 +3444,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   integer nfpr1, i, j, k;
   logical found;
   integer nparr;
-  std::array<integer, NPARX> icprs;
+  std::vector<integer> icprs(iap->lib->parameter_count);
 
   integer k1, k2;
   doublereal fs;
@@ -3504,7 +3490,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   findlb(iap, rap, irs, &nfpr1, &found);
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header)) goto read_failed;
+  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) goto read_failed;
   ibr = header.ibr;
   nfpr1 = header.nfpr;
   *ntsr = header.ntst;
@@ -3551,11 +3537,6 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
 
   /* Read the parameter values. */
-  if (nparr > NPARX) {
-    nparr = NPARX;
-    xpp::log_auto("Warning : NPARX too small for restart data\n");
-    xpp::log_auto("PAR(i) set to zero, fot i > {:3d}\n",nparr);
-  }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) goto read_failed;
   }
@@ -3580,7 +3561,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Complement starting data */
 
-  for (i = 11; i < NPARX; ++i) {
+  for (i = 11; i < iap->lib->parameter_count; ++i) {
     par[i] = 0.;
   }
 
@@ -3729,7 +3710,7 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   std::vector<doublereal> ff2(iap->nbc);
   std::vector<doublereal> uu1(iap->ndim);
   std::vector<doublereal> uu2(iap->ndim);
-  std::vector<doublereal> dfu((iap->nbc)*(2*iap->ndim+NPARX));
+  std::vector<doublereal> dfu((iap->nbc)*(2*iap->ndim+iap->lib->parameter_count));
 		     
 
 
@@ -3836,7 +3817,7 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   std::vector<doublereal> ff2(iap->nint);
   std::vector<doublereal> uu1(iap->ndim);
   std::vector<doublereal> uu2(iap->ndim);
-  std::vector<doublereal> dfu((iap->ndim)*(iap->ndim + NPARX));
+  std::vector<doublereal> dfu((iap->ndim)*(iap->ndim + iap->lib->parameter_count));
 
 
 
@@ -3946,7 +3927,7 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   integer nfpr, nfpx, nfpr0, nfpr1, i, j, k;
   logical found;
   integer nparr, k1, k2;
-  std::array<integer, NPARX> icprs;
+  std::vector<integer> icprs(iap->lib->parameter_count);
 
   integer ibr, ndm, irs;
 
@@ -3981,7 +3962,7 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   findlb(iap, rap, irs, &nfpr1, &found);
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header)) return 1;
+  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
   ibr = header.ibr;
   nfpr1 = header.nfpr;
   *ntsr = header.ntst;
@@ -4028,11 +4009,6 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read the parameter values. */
 
-  if (nparr > NPARX) {
-    nparr = NPARX;
-    xpp::log_auto("Warning : NPARX too small for restart data\n");
-    xpp::log_auto("PAR(i) set to zero, for i > {:3d}\n",nparr);
-  }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
   }

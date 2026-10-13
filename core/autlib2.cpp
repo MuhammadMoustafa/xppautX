@@ -65,12 +65,12 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
        M 1AAR =  (((iap->ndim * iap->ncol ) + iap->ndim ) )      
        M 2AA  =	((iap->ndim * iap->ncol ) )                     
        N AX   =	(iap->ntst /NODES+1)                            
-       M 1BB  =	(NPARX)                                         
+       M 1BB  =	(iap->lib->parameter_count)
        M 2BB  =	((iap->ndim * iap->ncol ) )                     
        M 1CC  =	((((iap->ndim * iap->ncol ) + iap->ndim ) ) )   
        M 2CC  =	(((iap->ndim +3) +NINTX+1) )                    
        M 1DD  =	(((iap->ndim +3) +NINTX+1) )                    
-       M 2DD  =	(NPARX)                                         
+       M 2DD  =	(iap->lib->parameter_count)
        N RCX  =	((iap->ndim +3) +NINTX+1)                       
        N CLMX =	((iap->ndim * iap->ncol ) + iap->ndim )         
        N ROWX =	(iap->ndim * iap->ncol )                        
@@ -81,12 +81,12 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 								 ((iap->ndim * iap->ncol ) ) * 
 								 (iap->ntst +1) ), 0.); 
     /*(M 1BB*M 2BB*N AX)*/ 
-    iap->lib->solvbv.b.assign(((NPARX) * ((iap->ndim * iap->ncol ) ) * (iap->ntst +1) ) , 0.);
+    iap->lib->solvbv.b.assign(((iap->lib->parameter_count) * ((iap->ndim * iap->ncol ) ) * (iap->ntst +1) ) , 0.);
     /*(M 1CC*M 2CC*N AX)*/ 
     iap->lib->solvbv.c.assign((((((iap->ndim * iap->ncol ) + iap->ndim ) ) ) * 
 								   ((iap->nbc +iap->nint+1) ) * (iap->ntst +1) ), 0.);
     /*(M 1DD*M 2DD)*/ 
-    iap->lib->solvbv.d.assign((((iap->nbc +iap->nint+1) ) * (NPARX) ) , 0.);
+    iap->lib->solvbv.d.assign((((iap->nbc +iap->nint+1) ) * (iap->lib->parameter_count) ) , 0.);
     /*(iap->ndim * iap->ndim *N AX)*/ 
     iap->lib->solvbv.a1.assign((iap->ndim * iap->ndim * (iap->ntst +1) ) , 0.);
     /*(iap->ndim * iap->ndim *N AX)*/ 
@@ -96,7 +96,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
     /*(iap->ndim * iap->ndim *N AX)*/ 
     iap->lib->solvbv.s2.assign((iap->ndim * iap->ndim * (iap->ntst +1) ), 0.); 
     /*(iap->ndim *N PARX*N AX)*/ 
-    iap->lib->solvbv.bb.assign((iap->ndim *NPARX* (iap->ntst +1) ) , 0.);
+    iap->lib->solvbv.bb.assign((iap->ndim *iap->lib->parameter_count* (iap->ntst +1) ) , 0.);
     /*(N RCX* iap->ndim *N AX+1)*/ 
     iap->lib->solvbv.cc.assign(((iap->nbc + iap->nint + 1) * iap->ndim * (iap->ntst  + 1) + 1), 0.);
 
@@ -311,9 +311,9 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
   integer ncp1;
   doublereal dt,ddt;
 
-  std::vector<doublereal> dicd((iap->nint)*(iap->ndim + NPARX));
+  std::vector<doublereal> dicd((iap->nint)*(iap->ndim + iap->lib->parameter_count));
   std::vector<doublereal> ficd(iap->nint);
-  std::vector<doublereal> dfdp((iap->ndim)*NPARX);
+  std::vector<doublereal> dfdp((iap->ndim)*iap->lib->parameter_count);
   std::vector<doublereal> dfdu((iap->ndim)*(iap->ndim));
   std::vector<doublereal> uold(iap->ndim);
   std::vector<doublereal> f(iap->ndim);
@@ -322,11 +322,11 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
   std::vector<doublereal> wi(iap->ncol+1);
   std::vector<doublereal> wp((iap->ncol)*(iap->ncol+1));
   std::vector<doublereal> wt((iap->ncol)*(iap->ncol+1));
-  std::vector<doublereal> dbc((iap->nbc)*(2*iap->ndim + NPARX));
+  std::vector<doublereal> dbc((iap->nbc)*(2*iap->ndim + iap->lib->parameter_count));
   std::vector<doublereal> fbc(iap->nbc);
   std::vector<doublereal> uic(iap->ndim);
   std::vector<doublereal> uio(iap->ndim);
-  std::vector<doublereal> prm(NPARX);
+  std::vector<doublereal> prm(iap->lib->parameter_count);
   std::vector<doublereal> uid(iap->ndim);
   std::vector<doublereal> uip(iap->ndim);
   std::vector<doublereal> ubc0(iap->ndim);
@@ -403,7 +403,7 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
       if (*ips == 14 || *ips == 16) {
 	rap->tivp = rlold[0];
       }
-      for (i = 0; i < NPARX; ++i) {
+      for (i = 0; i < iap->lib->parameter_count; ++i) {
 	prm[i] = par[i];
       }
       /* The residual reads only f: no Jacobian (docs/xppaut-findings.md #39). */

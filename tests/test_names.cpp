@@ -73,6 +73,8 @@ int main(void)
     xpp::client_session().model().node = xpp::client_session().model().neq = 1;
     xpp::client_session().model().nupar = 1;
     xpp::client_session().auto_state.npar = 1;
+    xpp::client_session().auto_state.par.resize(1);
+    xpp::client_session().auto_state.par_index.resize(1);
     xpp::client_session().auto_state.par[0] = 0;
     out = auto_screen_col(xpp::client_session(), "   PAR(0)     ");
     CHECK_STR(out.c_str(), "applied_stim~ ");

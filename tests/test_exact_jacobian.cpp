@@ -249,30 +249,32 @@ void check_auto_func(const char *path, double u0, double u1, int store_every = 1
     s.numerics.jacobian = xpp::JACOBIAN_EXACT;
     s.numerics.store_every = store_every;
     constexpr integer n = 2, period = 10;
-    std::vector<double> par(NPARX, 0.0);
+    std::vector<double> par(s.auto_lib.parameter_count, 0.0);
     for (int k = 0; k < s.auto_state.npar; ++k) par[static_cast<std::size_t>(k)] = s.parser.constants[static_cast<std::size_t>(s.auto_state.par_index[k])];
     par[period] = 6.3;
     const integer icp[2] = {0, period};
     const double u[n] = {u0, u1};
-    double f[n], dfdu[n * n], dfdp[n * NPARX];
-    std::fill_n(dfdp, n * NPARX, -1.0);
-    func(s, n, u, icp, 2, par.data(), 2, f, dfdu, dfdp);
-    double worst = 0, fp[n], fm[n], unused[n * NPARX];
+    double f[n], dfdu[n * n];
+    std::vector<double> dfdp(n * s.auto_lib.parameter_count);
+    std::fill_n(dfdp.data(), n * s.auto_lib.parameter_count, -1.0);
+    func(s, n, u, icp, 2, par.data(), 2, f, dfdu, dfdp.data());
+    double worst = 0, fp[n], fm[n];
+    std::vector<double> unused(n * s.auto_lib.parameter_count);
     for (integer j = 0; j < n; ++j) {
         double up[n] = {u[0], u[1]}, um[n] = {u[0], u[1]};
         up[j] += 1e-6;
         um[j] -= 1e-6;
-        func(s, n, up, icp, 2, par.data(), 0, fp, unused, unused);
-        func(s, n, um, icp, 2, par.data(), 0, fm, unused, unused);
+        func(s, n, up, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
+        func(s, n, um, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
         for (integer i = 0; i < n; ++i) {
             const double d = (fp[i] - fm[i]) / 2e-6;
             worst = std::max(worst, std::fabs(dfdu[i + j * n] - d) / std::max(1.0, std::fabs(d)));
         }
     }
     par[0] += 1e-6;
-    func(s, n, u, icp, 2, par.data(), 0, fp, unused, unused);
+    func(s, n, u, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
     par[0] -= 2e-6;
-    func(s, n, u, icp, 2, par.data(), 0, fm, unused, unused);
+    func(s, n, u, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
     for (integer i = 0; i < n; ++i) {
         const double d = (fp[i] - fm[i]) / 2e-6;
         worst = std::max(worst, std::fabs(dfdp[i] - d) / std::max(1.0, std::fabs(d)));

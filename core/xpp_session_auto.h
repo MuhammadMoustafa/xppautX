@@ -68,6 +68,7 @@ struct SavedViews {
 
 /* Bound the in-memory objects a sent member can create; these exceed normal
    saved diagrams/views while keeping tiny rows from allocating without limit. */
+inline constexpr std::size_t saved_parameters_limit = zip::archive_bytes_limit / sizeof(std::string);
 inline constexpr std::size_t saved_views_limit = 4096;
 inline constexpr std::size_t saved_points_limit = 1000000;
 
@@ -86,7 +87,7 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file);
 
 /* diagram.csv: a header row of names, then one row per point in the
    order stored, every field of DIAGRAM: calc, ibr, ntot, itp, lab, nfpar,
-   icp1..icp4, flag2, from, norm, per, torper, par1..par20, then for each
+   icp1..icp4, flag2, from, norm, per, torper, the model-sized parameter columns (at least 20), then for each
    variable x of vars (the model's first node) u0.x, uhi.x, ulo.x, ubar.x
    and last evr1, evi1, ... evrN, eviN (its eigenvalues or Floquet
    multipliers, auto_stability.h; zeros: not computed). Numbers as
@@ -94,8 +95,8 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file);
 std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const std::string> vars);
 /* text's points, of n variables each, their arrays filled (the DIAGRAM
    pointers and index are diagram_restore's), the file named file; the
-   error at the line that is not of a diagram of n variables */
-Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n, std::string file);
+   error at the line that is not of a diagram of n variables and n_pars parameters */
+Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n, int n_pars, std::string file);
 
 /* ---- this session's (xpp_session_auto_io.cpp) ---- */
 

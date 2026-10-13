@@ -19,6 +19,7 @@
 #include "xpp_io.h"
 #include "xpp_error.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <optional>
@@ -70,9 +71,34 @@ struct AutoState {
   xpp::ADVAUTO advanced{};
   /* the parameters AUTO continues: the first npar of par, model
      parameter indices, and their constants[] indices (par_index) */
-  int npar=8;
-  std::array<int,8> par{};
-  std::array<int,8> par_index{};
+  int npar=0;
+  std::vector<int> par,par_index;
+  // Preserve AUTO's user prefix while separating later model slots from numerical state.
+  static constexpr int model_parameter_prefix = 8;
+  // Initially select XPPAUT's first eight parameters; settings can select every model parameter.
+  static constexpr int default_selected_parameters = 8;
+  // Numerical test functions use slots through 35 (autlib5's PSI index plus 19).
+  static constexpr int numerical_parameter_slots = 36;
+  // AUTO's augmented formulations allocate up to eight state copies (init's thu).
+  static constexpr int state_copies = 8;
+  // Homotopy starts at 12: two equilibria and two unstable-direction blocks (stpho).
+  static constexpr int homoclinic_parameter_start = 12;
+  static constexpr int homoclinic_parameter_blocks = 4;
+  int parameter_offset = numerical_parameter_slots;
+  int parameter_slot(int k) const { return k < model_parameter_prefix ? k : parameter_offset + k - model_parameter_prefix; }
+  int model_parameter(int slot) const { return slot < model_parameter_prefix ? slot : slot >= parameter_offset ? slot - parameter_offset + model_parameter_prefix : -1; }
+  int parameter_count() const { return parameter_offset + std::max(0, static_cast<int>(par.size()) - model_parameter_prefix); }
+  // Keep the historical diagram columns for the numerical baseline; extra model slots grow them.
+  static constexpr int diagram_parameter_prefix = 20;
+  int diagram_parameters(int selected) const {
+    return selected <= model_parameter_prefix ? diagram_parameter_prefix : std::max(diagram_parameter_prefix, selected) + parameter_offset;
+  }
+  int diagram_parameters() const { return diagram_parameters(npar); }
+  // A period or homotopy slot must never name an added model parameter in a stored point.
+  int diagram_parameter(int slot) const {
+    const int k=model_parameter(slot);
+    return k>=0 ? k : npar<=model_parameter_prefix ? slot : std::max(diagram_parameter_prefix,npar)+slot;
+  }
   /* the Mark values: nuzr of uzr_par (auto_f2c.h's integer) and
      uzr_period */
   int nuzr=0;
@@ -85,7 +111,7 @@ struct AutoState {
   int suppress_bp=0;
   /* a homoclinic orbit's left and right equilibria (autpp.cpp's stpnt),
      and whether a homoclinic run is on */
-  std::array<double,100> homo_l{},homo_r{};
+  std::vector<double> homo_l,homo_r;
   int homo_flag=0;
   /* which of them the equilibrium window's Import saves next: 0 the
      left, 1 the right (xpp_util.cpp eq_import) */
@@ -180,6 +206,7 @@ struct AutoLib {
      iap_type's lib, and the model's callbacks they call (autpp.cpp) reach
      the model and its settings */
   xpp::Session *session=nullptr;
+  long parameter_count=0;
   /* the fort.3/7/9 files open during a run (gogoauto.cpp's RunUnits) */
   FILE *fp3=nullptr,*fp7=nullptr,*fp9=nullptr;
   /* fort.8, opened when a run writes its first label (autlib1.cpp) and

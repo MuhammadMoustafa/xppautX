@@ -43,8 +43,8 @@ void init_auto(AutoState &st, int ndim, bool exact)
   st.run.irs=b.irs;
   st.run.ilp=b.ilp;
   st.run.nicp=b.nfpar;
-  st.run.icp[0]=st.axes().icp1;
-  st.run.icp[1]=st.axes().icp2;
+  st.run.icp[0]=st.parameter_slot(st.axes().icp1);
+  st.run.icp[1]=b.nfpar>1 && st.axes().icp2<st.npar ? st.parameter_slot(st.axes().icp2) : st.axes().icp2;
   st.run.icp[2]=b.icp3;
   st.run.icp[3]=b.icp4;
   st.run.icp[4]=b.icp5;
@@ -111,7 +111,12 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   p.ubar=ubar;
   p.evr=ev.data();
   p.evi=ev.data()+n;
-  std::copy_n(par,8,p.par);
+  p.par.resize(s.auto_state.diagram_parameters());
+  for(int k=0;k<s.auto_state.npar;k++)p.par[k]=par[s.auto_state.parameter_slot(k)];
+  icp1=s.auto_state.diagram_parameter(icp1);
+  icp2=s.auto_state.diagram_parameter(icp2);
+  icp3=s.auto_state.diagram_parameter(icp3);
+  icp4=s.auto_state.diagram_parameter(icp4);
   p.per=per;
   p.icp1=icp1;
   p.icp2=icp2;
@@ -130,7 +135,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   /* plotted, and its stability shown, from the stored point, as a redraw
      or a grab shows it */
   const DIAGRAM *d=last_diagram(s.diagram);
-  add_point(s,*d,par,type,iap->ntot==1?0:1);
+  add_point(s,*d,d->par.data(),type,iap->ntot==1?0:1);
   xpp::job::report_point(static_cast<int>(labs(ibrs)),static_cast<int>(labs(ntots))); /* xppautX: where it got to (xpp_job.h) */
 }
 

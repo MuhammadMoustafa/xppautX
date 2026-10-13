@@ -2,6 +2,7 @@
 #include "xpp_session_auto.h"
 #include "xpp_io.h"
 #include "jacobian.h"
+#include "auto_state.h"
 
 #include <algorithm>
 #include <array>
@@ -41,7 +42,7 @@ bool parse_range(std::string_view text, xpp::AxisRange &r)
 constexpr std::array<const char *, 16> lead_columns = {"calc", "ibr",  "ntot",  "itp",  "lab",  "nfpar", "icp1",  "icp2",
                                                        "icp3", "icp4", "flag2", "from", "jacobian", "norm", "per",   "torper"};
 constexpr int n_ints = 13;
-constexpr int n_pars = 20; /* DIAGRAM's par */
+
 
 } // namespace
 
@@ -79,7 +80,8 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
             const std::string_view key = w[0];
             if (key == "pars") {
                 at("pars");
-                if (w.size() - 1 > AUTO_SETTINGS_PARS) l.fail(xpp::format("{} parameters: AUTO has at most {}", w.size() - 1, AUTO_SETTINGS_PARS));
+                if (w.size() - 1 > saved_parameters_limit) l.fail(xpp::format("{} parameters exceed the session memory limit", w.size() - 1));
+                s.pars.resize(w.size() - 1);
                 s.npars = static_cast<int>(w.size() - 1);
                 for (int k = 0; k < s.npars; k++) s.pars[k] = name_of(w[k + 1]);
                 continue;
@@ -185,6 +187,7 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file)
 
 std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const std::string> vars)
 {
+    const int n_pars=points.empty()?AutoState::diagram_parameter_prefix:static_cast<int>(points.front().d.par.size());
     std::string o;
     for (std::size_t i = 0; i < lead_columns.size(); i++) o += xpp::format("{}{}", i ? "," : "", lead_columns[i]);
     for (int i = 1; i <= n_pars; i++) o += xpp::format(",par{}", i);
@@ -208,10 +211,10 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const 
     return o;
 }
 
-Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n, std::string file)
+Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n, int n_pars, std::string file)
 {
-    return read_lines("AUTO's diagram", std::move(file), text, [n](Lines &l) {
-        if (n < 0) l.fail("negative variable count");
+    return read_lines("AUTO's diagram", std::move(file), text, [n, n_pars](Lines &l) {
+        if (n < 0 || n_pars < 0 || static_cast<std::size_t>(n_pars) > saved_parameters_limit) l.fail("invalid model dimensions for AUTO diagram storage");
         const std::size_t columns = lead_columns.size() + n_pars + 6 * static_cast<std::size_t>(n < 0 ? 0 : n);
         const std::vector<std::string_view> head = split_fields(l.next("the header row"), ',');
         if (head.size() != columns) l.fail(xpp::format("{} columns: a diagram of this model's {} variables has {}", head.size(), n, columns));
@@ -230,6 +233,7 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
                 l.fail("too many AUTO diagram points for the session memory limit");
             DiagramPoint &p = points.emplace_back();
             DIAGRAM &d = p.d;
+            d.par.resize(n_pars);
             int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &d.itp, &d.lab, &d.nfpar, &d.icp1, &d.icp2, &d.icp3, &d.icp4, &d.flag2, &d.from, &d.jacobian};
             std::size_t c = 0;
             const auto bad = [&](std::size_t k, const char *kind) {
@@ -243,7 +247,7 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
                parameter is one of the AutoPar slots (their names are indexed by it), and the
                others may be AUTO's own, such as 10, the period of a periodic run, indexed only in
                the point's own par array, which every use guards against the model's parameters. */
-            if (d.icp1 < 0 || d.icp1 >= AUTO_SETTINGS_PARS)
+            if (d.icp1 < 0 || d.icp1 >= n_pars)
                 l.fail(xpp::format("parameter index {} is outside AUTO's parameters", d.icp1));
             for (const int index : {d.icp2, d.icp3, d.icp4})
                 if (index < 0 || index >= n_pars)

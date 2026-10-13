@@ -44,14 +44,16 @@ void exact_derivatives(xpp::Session &s, AutoLib &lib, const double *c, integer n
     if(ijac<2)return;
     for(integer i=0;i<nfpr;i++){
       double *column=dfdp+icp[i]*ndim;
-      if(icp[i]<s.auto_state.npar)xpp::exact_constant_derivative(s,c,s.auto_state.par_index[icp[i]],0.0,u,f,n,column);
+      const int k=s.auto_state.model_parameter(static_cast<int>(icp[i]));
+      if(k>=0 && k<s.auto_state.npar)xpp::exact_constant_derivative(s,c,s.auto_state.par_index[k],0.0,u,f,n,column);
       else std::fill_n(column,n,0.0);
     }
   } catch (const xpp::JacobianFailed &failed) {
     if(!lib.jacobian_failure){
       lib.jacobian_failure=failed.error;
-      if(icp[0]<s.auto_state.npar)
-        lib.jacobian_failure->what+=xpp::format(" (AUTO at {}={})",s.model().upar_names[s.auto_state.par[icp[0]]],c[s.auto_state.par_index[icp[0]]]);
+      const int k=s.auto_state.model_parameter(static_cast<int>(icp[0]));
+      if(k>=0 && k<s.auto_state.npar)
+        lib.jacobian_failure->what+=xpp::format(" (AUTO at {}={})",s.model().upar_names[s.auto_state.par[k]],c[s.auto_state.par_index[k]]);
     }
     std::fill_n(dfdu,n*n,0.0);
     for(int i=0;i<n;i++)dfdu[i*n+i]=1;
@@ -82,18 +84,18 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
    if (worker && worker->pure_rhs) {
      auto &c=worker->rhs_constants;
      auto &v=worker->rhs_variables;
-     for (int k=0;k<s.auto_state.npar;++k) c[s.auto_state.par_index[k]]=par[k];
+     for (int k=0;k<s.auto_state.npar;++k) c[s.auto_state.par_index[k]]=par[s.auto_state.parameter_slot(k)];
      xpp::evaluate_derived(s,c.data(),v.data(),true);
      pure_rhs(s,u,f,c.data(),v.data());
      if(exact)exact_derivatives(s,*worker,c.data(),ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
      return 0;
    }
    int i,j;
-   std::array<double,NAUTO> zz; /* the store_every steps' scratch */
+   std::vector<double> zz(ndim); /* the store_every steps' scratch */
    /* the right-hand side and the Jacobian only read the point */
    double *x=const_cast<double *>(u);
    for(i=0;i<s.auto_state.npar;i++){
-     s.parser.constants[s.auto_state.par_index[i]]=par[i];
+     s.parser.constants[s.auto_state.par_index[i]]=par[s.auto_state.parameter_slot(i)];
      
    }
    xpp::evaluate_derived(s);
@@ -109,7 +111,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
       of each step's, and each step adds its own dependence on the
       parameters to what the steps before passed on */
    const size_t nn=static_cast<size_t>(ndim);
-   std::vector<double> step(exact?nn*nn:0),step_p(exact?nn*NPARX:0),scratch(exact?nn:0);
+   std::vector<double> step(exact?nn*nn:0),step_p(exact?nn*s.auto_lib.parameter_count:0),scratch(exact?nn:0);
    for(i=1;i<s.numerics.store_every;i++){
      for(j=0;j<ndim;j++)
        zz[j]=f[j];
@@ -133,7 +135,7 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
   double p;
 
   for(i=0;i<s.auto_state.npar;i++)
-    par[i] = s.parser.constants[s.auto_state.par_index[i]];
+    par[s.auto_state.parameter_slot(i)] = s.parser.constants[s.auto_state.par_index[i]];
 
   if(s.auto_state.new_period_flag==0){  
     for(i=0;i<ndim;i++)
@@ -170,7 +172,7 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
 /* Hooks to the XPP bc parser!! */
 
  for(i=0;i<s.auto_state.npar;i++){
-     s.parser.constants[s.auto_state.par_index[i]]=par[i];
+     s.parser.constants[s.auto_state.par_index[i]]=par[s.auto_state.parameter_slot(i)];
  }
 
  xpp::evaluate_derived(s);

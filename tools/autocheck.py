@@ -43,7 +43,7 @@ the same commands and a recorded abort stops them at
 the same point: the same data file, the same saved diagram. --report prints the
 measurements without failing on the latency limits, for comparing builds.
 """
-import argparse, base64, io, json, os, re, shutil, subprocess, sys, tempfile, time, zipfile
+import argparse, base64, csv, io, json, os, re, shutil, subprocess, sys, tempfile, time, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from xppclient import Checker, file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, macos_thread_states, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission, open_auto, run_any
 
@@ -55,7 +55,7 @@ ap.add_argument('--list', action='store_true', help='print the selected sections
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
                                                 'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors', 'jacobian',
-                                                'memory', 'threads'])
+                                                'memory', 'threads', 'limits'])
 args = ap.parse_args()
 if args.shard:
     try:
@@ -2218,6 +2218,44 @@ def section_play():
           '%s steps, %d vs %d points, %s' % (pl and len(pl['steps']), len(orig), len(again), errors))
     s.close()
 
+
+
+def section_limits():
+    """W298: 401 variables, 40 model/AUTO parameters; continue the fortieth."""
+    s = Server(args.server, os.path.join(here, 'models', 'auto_limits.odex'), verbose=args.v)
+    try:
+        startup, _ = s.collect(is_idle)
+        check('limits: 401 variables and 40 parameters load',
+              len((last_state(startup) or {}).get('ics', [])) == 401
+              and len((last_state(startup) or {}).get('pars', [])) == 40)
+        open_auto(s)
+        s.send(cmd='auto', op='set', pars=['P%d' % k for k in range(40)],
+               numerics={'nmx': 4, 'npr': 1, 'suppbp': 1}, axes={'par1': 'P39', 'var': 'X400'})
+        evs, _ = s.collect(is_idle)
+        check('limits: forty AUTO parameters selected without an error', not errors_of(evs), str(errors_of(evs)))
+        dg = Diagram().apply(run_any(s, 's'))
+        check('limits: AUTO computes four points beyond 400 variables', len(dg.pts) == 4, str(len(dg.pts)))
+        check('limits: the fortieth parameter gives x400=p39', len(dg.pts) == 4
+              and dg.pts[-1]['x'] > 0 and all(abs(p['x']-p['y']) < 1e-8 for p in dg.pts))
+        members = save_diagram(s, 'limits.snapx')
+        text = members.get('auto/diagram.csv', '')
+        rows = list(csv.DictReader(io.StringIO(text)))
+        check('limits: snapshot stores all forty parameters and 401 states', len(rows) == 4 and 'par40' in rows[-1]
+              and abs(float(rows[-1]['par40'])-float(rows[-1]['u0.X400'])) < 1e-8)
+        reopened = load_diagram(s, os.path.join(s.run, 'limits.snapx'))
+        check('limits: reopening the snapshot restores the expanded diagram',
+              not errors_of(reopened) and len(Diagram().apply(reopened).pts) == 4, str(errors_of(reopened)))
+        s.send(cmd='auto', op='grab', label=int(rows[-1]['lab']) if rows else -1)
+        evs, _ = s.collect(is_idle)
+        state = last_state(evs) or {}
+        check('limits: grabbing restores the fortieth parameter and final state', rows and not errors_of(evs)
+              and abs({k.upper(): v for k, v in state.get('pars', [])}.get('P39', -1)-float(rows[-1]['par40'])) < 1e-8
+              and abs(dict(state.get('ics', [])).get('X400', -1)-float(rows[-1]['u0.X400'])) < 1e-8)
+        again = Diagram().apply(reopened).apply(run_any(s, 'e'))
+        check('limits: the saved label restarts with the added parameter', len(again.pts) >= 4
+              and all(abs(p['x']-p['y']) < 1e-8 for p in again.pts))
+    finally:
+        s.close()
 
 for name in args.sections:
     globals()['section_' + name]()

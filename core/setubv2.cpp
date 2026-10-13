@@ -15,8 +15,8 @@ struct setubv_parallel_arglist {
   integer ndxloc; /*scalar input*/
   iap_type *iap; /*array input size: NIAP*/
   rap_type *rap; /*array input size: NRAP*/
-  doublereal  *par; /*array input size: NPARX2*/
-  integer *icp; /*array input size:  NPARX2*/
+  doublereal  *par; /* two parameter_count halves */
+  integer *icp; /* two parameter_count halves */
   doublereal *aa; /*array output (but must be initialized to 0) size: *nca X *nra X *na */
   doublereal *bb; /*array output (but must be initialized to 0) size: *ncb X *nra X *na */
   doublereal *cc; /*array output (but must be initialized to 0) size: *nca X *nrc X *na */
@@ -35,8 +35,8 @@ struct setubv_parallel_arglist {
   doublereal *wt; /*array input size: MCL2*MCL1 */
   doublereal *wi; /*array input size: MCL2*MCL1??? Not sure of this one yet */
   doublereal *thu; /*array input size: ndim * 8 */
-  doublereal *thl; /*array input size: NPARX */ 
-  doublereal *rldot; /*array input size: NPARX */ 
+  doublereal *thl; /* parameter_count entries */
+  doublereal *rldot; /* parameter_count entries */
   BCNI_TYPE((*bcni));
 };
 
@@ -65,9 +65,9 @@ void setubv_make_aa_bb(const setubv_parallel_arglist *larg)
   const integer aa_dim1=larg->nca,aa_dim2=larg->nra,bb_dim1=larg->ncb,bb_dim2=larg->nra;
   const integer dfdu_dim1=larg->ndim,dfdp_dim1=larg->ndim;
   const integer wploc_dim1=larg->ncol+1,wp_dim1=larg->ncol+1,wt_dim1=larg->ncol+1;
-  std::vector<doublereal> dfdp(larg->ndim*NPARX),dfdu(larg->ndim*larg->ndim);
+  std::vector<doublereal> dfdp(larg->ndim*larg->iap->lib->parameter_count),dfdu(larg->ndim*larg->ndim);
   std::vector<doublereal> uold(larg->ndim),f(larg->ndim),u(larg->ndim);
-  std::vector<doublereal> wploc(larg->ncol*(larg->ncol+1)),prm(NPARX);
+  std::vector<doublereal> wploc(larg->ncol*(larg->ncol+1)),prm(larg->iap->lib->parameter_count);
   /* Generate AA and BB: */
   
   /*      Partition the mesh intervals */
@@ -99,7 +99,7 @@ void setubv_make_aa_bb(const setubv_parallel_arglist *larg)
 	}
       }
 
-      for (i = 0; i < NPARX; ++i) {
+      for (i = 0; i < larg->iap->lib->parameter_count; ++i) {
 	prm[i] = larg->par[i];
       }
       (*(larg->funi))(larg->iap, larg->rap, larg->ndim, u.data(), uold.data(), larg->icp, prm.data(), 2, f.data(), dfdu.data(), dfdp.data());
@@ -174,9 +174,9 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 
   doublereal *cc = larg->cc;
 
-  std::vector<doublereal> dicd((larg->nint)*(larg->ndim + NPARX));
+  std::vector<doublereal> dicd((larg->nint)*(larg->ndim + larg->iap->lib->parameter_count));
   std::vector<doublereal> ficd(larg->nint);
-  std::vector<doublereal> dbc((larg->nbc)*(2*larg->ndim + NPARX));
+  std::vector<doublereal> dbc((larg->nbc)*(2*larg->ndim + larg->iap->lib->parameter_count));
   std::vector<doublereal> fbc(larg->nbc);
   std::vector<doublereal> uic(larg->ndim);
   std::vector<doublereal> uio(larg->ndim);
@@ -397,12 +397,12 @@ void setubv_make_fa(const setubv_parallel_arglist *larg) {
   std::vector<doublereal> wploc((larg->ncol)*(larg->ncol+1));
   integer wploc_dim1 = larg->ncol + 1;
   
-  std::vector<doublereal> dfdp((larg->ndim)*NPARX);
+  std::vector<doublereal> dfdp((larg->ndim)*larg->iap->lib->parameter_count);
   std::vector<doublereal> dfdu((larg->ndim)*(larg->ndim));
   std::vector<doublereal> u(larg->ndim);
   std::vector<doublereal> uold(larg->ndim);
   std::vector<doublereal> f(larg->ndim);
-  std::vector<doublereal> prm(NPARX);
+  std::vector<doublereal> prm(larg->iap->lib->parameter_count);
 
   for (jj = larg->loop_start; jj < larg->loop_end; ++jj) {
     if (!larg->iap->lib->pure_rhs && larg->iap->lib->setubv_stop && xpp::job::cancelled()) break; /* xppautX: cancel */
@@ -426,7 +426,7 @@ void setubv_make_fa(const setubv_parallel_arglist *larg) {
 	}
       }
 
-      for (i = 0; i < NPARX; ++i) {
+      for (i = 0; i < larg->iap->lib->parameter_count; ++i) {
 	prm[i] = larg->par[i];
       }
       /* The residual reads only f: no Jacobian (docs/xppaut-findings.md #39). */
@@ -470,12 +470,12 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
   integer upoldp_dim1 = larg.ndxloc;
   
   integer dbc_dim1 = larg.nbc;
-  std::vector<doublereal> dbc((larg.nbc)*(2*larg.ndim + NPARX));
+  std::vector<doublereal> dbc((larg.nbc)*(2*larg.ndim + larg.iap->lib->parameter_count));
   std::vector<doublereal> fbc(larg.nbc);
   std::vector<doublereal> ubc0(larg.ndim);
   std::vector<doublereal> ubc1(larg.ndim);
   integer dicd_dim1 = larg.nint;
-  std::vector<doublereal> dicd((larg.nint)*(larg.ndim + NPARX));
+  std::vector<doublereal> dicd((larg.nint)*(larg.ndim + larg.iap->lib->parameter_count));
   std::vector<doublereal> ficd(larg.nint);
   std::vector<doublereal> uic(larg.ndim);
   std::vector<doublereal> uio(larg.ndim);

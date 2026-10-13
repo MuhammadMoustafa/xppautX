@@ -18,6 +18,9 @@ Foreign `.ode` input remains supported through conversion. Both readers
 use the same in-memory `Model` builder (core/model.h); the converter
 checks that its `.odex` compiles to the `.ode`'s programs and values.
 The integrators, AUTO and front end then use the saved `.odex`.
+AUTO's variable and parameter storage is sized by that model, with no fixed
+400-variable or eight-selected-parameter limit; its branch-point storage
+grows with the run (W298, [#356](https://github.com/MuhammadMoustafa/xppautX/issues/356)).
 
 This document specifies the language implemented by the `.odex` parser
 and `--convert`. `--check` reports foreign `.ode` quirks and load errors

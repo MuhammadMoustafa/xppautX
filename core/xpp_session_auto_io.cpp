@@ -97,8 +97,6 @@ void restore_views(xpp::Session &s, const SavedViews &saved)
 Result<Members> members_read(const Session &s, const std::map<std::string, std::string> &members, std::string_view prefix,
                              const std::string &name)
 {
-    if (s.model().node > NAUTO)
-        return xpp::fail("session AUTO", "this model has too many variables for AUTO", Place{name});
     /* a member's file, for its errors: the file it is in and its own name */
     const auto file = [&](const char *member) { return xpp::format("{}/{}", name, named(prefix, member)); };
     for (const char *member : {settings_member, views_member})
@@ -113,15 +111,21 @@ Result<Members> members_read(const Session &s, const std::map<std::string, std::
     }
     Result<SettingsRead> settings = parse_settings(text(settings_member), file(settings_member));
     if (!settings) return std::unexpected(settings.error());
+    std::string why, key;
+    if (!auto_settings_check(s, settings->set, -1, why, key)) {
+        const auto at = settings->lines.find(key);
+        return xpp::fail("AUTO file", why,
+                         line_place(file(settings_member), text(settings_member), at == settings->lines.end() ? 0 : at->second));
+    }
     const bool diagram = members.contains(named(prefix, diagram_member));
     const bool solutions = members.contains(named(prefix, solutions_member));
     if (diagram != solutions)
         return xpp::fail("session AUTO", xpp::format("its {} is missing", named(prefix, diagram ? solutions_member : diagram_member)), Place{name});
     std::deque<DiagramPoint> points;
     if (diagram) {
-        if (const Result<> checked = check_auto_solutions(text(solutions_member), file(solutions_member)); !checked)
+        if (const Result<> checked = check_auto_solutions(text(solutions_member), file(solutions_member), AutoState::state_copies*s.model().node, s.auto_state.parameter_count()); !checked)
             return std::unexpected(checked.error());
-        Result<std::deque<DiagramPoint>> read = parse_diagram_csv(text(diagram_member), s.model().node, file(diagram_member));
+        Result<std::deque<DiagramPoint>> read = parse_diagram_csv(text(diagram_member), s.model().node, s.auto_state.diagram_parameters(settings->set.npars), file(diagram_member));
         if (!read) return std::unexpected(read.error());
         points = std::move(*read);
     }
@@ -134,12 +138,6 @@ Result<Members> members_read(const Session &s, const std::map<std::string, std::
             if (p.d.icp1 >= settings->set.npars)
                 return xpp::fail("session AUTO", "diagram parameter index is not among its saved parameters", Place{file(diagram_member)});
     const int nviews = static_cast<int>(views->views.views.size());
-    std::string why, key;
-    if (!auto_settings_check(s, settings->set, -1, why, key)) {
-        const auto at = settings->lines.find(key);
-        return xpp::fail("AUTO file", why,
-                         line_place(file(settings_member), text(settings_member), at == settings->lines.end() ? 0 : at->second));
-    }
     for (int k = 0; k < nviews; k++) {
         AutoSettingsSet a = view_settings(views->views.views[static_cast<std::size_t>(k)], k);
         a.npars = settings->set.npars;
@@ -161,6 +159,7 @@ Result<> restore_members(Session &s, Members m)
         if (!s.auto_state.bifur.exist) do_auto_win(s);
     }
     std::string why;
+    s.auto_state.npar=m.settings.npars;
     auto_settings_apply(s, m.settings, why); /* members_read checked it */
     auto_data_forget(s); /* the strip described the diagram this one replaces */
     if (!m.points.empty()) diagram_restore(s, std::move(m.points));

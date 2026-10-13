@@ -77,6 +77,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [45](#45-a-model-past-maxode-overflows-the-stack-instead-of-being-refused) | Limits | a model with 4999 or more equations or fixed quantities writes past `compile_em`'s name arrays: an abort ("buffer overflow detected") or a corrupted stack, not an error | [W269](https://github.com/MuhammadMoustafa/xppautX/issues/326) |
 | [46](#46-parameter-files-ignore-names-and-load-by-position) | Parameter files | reordering `.par` lines silently assigns values to the wrong parameters | [W310](https://github.com/MuhammadMoustafa/xppautX/issues/369) |
 | [47](#47-auto-a-special-point-whose-location-does-not-converge-leaves-the-iterate-behind) | AUTO | when the location of a special point does not converge in ITMX steps, AUTO2000 keeps the displaced iterate and goes on from it: the branch turns round (AUTO-07p restores the last converged point) | [W300](https://github.com/MuhammadMoustafa/xppautX/issues/358) |
+| [48](#48-auto-storage-has-fixed-variable-parameter-and-branch-point-limits) | AUTO | 400 variables, 36 numerical parameters, 20 stored branch points and eight selectable model parameters | [W298](https://github.com/MuhammadMoustafa/xppautX/issues/356) |
 
 ## 1. Model options
 
@@ -853,3 +854,31 @@ test function that changes sign by noise costs nothing.
   `tests/auto/tstauto_lecar.json` and `ode_lecar.json` record the missing LP
   as a traced difference, and fail if it ever appears.
 - **Card:** [W300](https://github.com/MuhammadMoustafa/xppautX/issues/358).
+
+## 48. AUTO storage has fixed variable, parameter and branch-point limits
+
+XPPAUT 8.0 defines `NAUTO` as 400 ([autlim.h:2](../reference/xppaut-8.0/autlim.h#L2)),
+`NPARX` as 36, `NPARX2` as twice that and `NBIFX` as 20
+([auto_c.h:17](../reference/xppaut-8.0/auto_c.h#L17),
+[auto_c.h:18](../reference/xppaut-8.0/auto_c.h#L18),
+[auto_c.h:20](../reference/xppaut-8.0/auto_c.h#L20)). Its selectable model-parameter
+count and `AutoPar` array are eight
+([auto_nox.c:191](../reference/xppaut-8.0/auto_nox.c#L191)). Branch-point storage
+stops at `NBIFX`, discarding additional branch points
+([autlib1.c:2116](../reference/xppaut-8.0/autlib1.c#L2116)). These are storage limits,
+not mathematical restrictions on continuation; the 36 slots also hold AUTO's
+own numerical parameters, including the period and homoclinic equilibria.
+The periodic-orbit output also has four 1,000-state scratch arrays
+([autlib1.c:6972](../reference/xppaut-8.0/autlib1.c#L6972)), indexed over every
+model variable ([autlib1.c:7115](../reference/xppaut-8.0/autlib1.c#L7115));
+W298 sizes these from the run dimension too.
+
+W298 sizes variable and parameter storage from the loaded model and grows the
+branch-point vectors as points are found. Reserved numerical slots keep their
+indices; additional model parameters occupy separate slots. The default remains
+the first eight model parameters. `tests/test_auto_limits.cpp` and autocheck's
+`limits` section continue a generated 401-variable, 40-parameter model in its
+40th parameter and check the equilibrium `x400=p39`, plus the saved diagram.
+Sent solution and diagram members are checked against the model and archive
+memory budget before their contents are applied.
+[W298 / #356](https://github.com/MuhammadMoustafa/xppautX/issues/356).

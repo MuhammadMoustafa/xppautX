@@ -152,11 +152,11 @@ void write_num(xpp::Session &s, const double v[AUTO_NUM_N])
 }
 
 /* AUTO's parameter index of a model parameter's name in pars, or -1 */
-int auto_index_of(const xpp::Session &s, const int pars[8], const char *name)
+int auto_index_of(const xpp::Session &s, const std::vector<int> &pars, const char *name)
 {
     int p = xpp::find_user_name(s.model(),PARAM_BOX, name);
     if (p < 0) return -1;
-    for (int k = 0; k < s.auto_state.npar; k++)
+    for (int k = 0; k < static_cast<int>(pars.size()); k++)
         if (pars[k] == p) return k;
     return -1;
 }
@@ -192,12 +192,13 @@ AutoSettingsSet settings_now(const xpp::Session &s)
     AutoSettingsSet set;
     read_num(s, set.num.data());
     set.has_num.fill(1);
-    set.npars = s.auto_state.npar < AUTO_SETTINGS_PARS ? s.auto_state.npar : AUTO_SETTINGS_PARS;
+    set.npars = s.auto_state.npar;
+    set.pars.resize(set.npars);
     for (int k = 0; k < set.npars; k++) set.pars[k] = name_or_empty(auto_par_name(s, k));
     axes_of(s, s.auto_state.axes(), set);
     set.nmarks = s.auto_state.bifur.nper < 0 ? 0 : s.auto_state.bifur.nper < AUTO_SETTINGS_MARKS ? s.auto_state.bifur.nper : AUTO_SETTINGS_MARKS;
     for (int i = 0; i < set.nmarks; i++) {
-        set.mark_name[i] = s.auto_state.bifur.uzrpar[i] == AUTO_PERIOD_INDEX ? std::string("T") : name_or_empty(auto_par_name(s, s.auto_state.bifur.uzrpar[i]));
+        set.mark_name[i] = s.auto_state.bifur.uzrpar[i] == AUTO_PERIOD_INDEX ? std::string("T") : name_or_empty(auto_par_name(s, s.auto_state.model_parameter(s.auto_state.bifur.uzrpar[i])));
         set.mark_value[i] = s.auto_state.bifur.period[i];
     }
     return set;
@@ -271,8 +272,8 @@ std::string event_text(const xpp::Session &s)
     return o;
 }
 
-/* the model has settings: init_auto_win() skipped a model too big for AUTO */
-bool have_settings(const xpp::Session &s) { return s.model().node <= NAUTO; }
+/* A loaded model with variables has AUTO settings. */
+bool have_settings(const xpp::Session &s) { return s.model().node > 0; }
 
 /* the event, none for a model with no settings */
 std::string event_if_any(const xpp::Session &s) { return have_settings(s) ? event_text(s) : std::string(); }
@@ -297,7 +298,7 @@ bool num_ok(int i, double v, std::string &why)
 /* what a set changes, checked (check), for commit to write */
 struct Checked {
     double num[AUTO_NUM_N];
-    int pars[8];
+    std::vector<int> pars;
     int view = 0, plot = 0, var = 0, icp1 = 0, icp2 = 0;
     double range[4];
     int uzr[AUTO_SETTINGS_MARKS];
@@ -311,7 +312,7 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
 {
     key.clear();
     if (!have_settings(s)) {
-        why = xpp::format("AUTO is restricted to less than {} variables", NAUTO);
+        why = "AUTO needs a model with variables";
         return false;
     }
     /* Numerics: each value given, then the pairs that must be in order */
@@ -340,13 +341,14 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
     }
 
     /* the Parameter form: AUTO's parameters by name */
-    int (&pars)[8] = c.pars;
-    std::memcpy(pars, s.auto_state.par.data(), sizeof pars);
-    if (set->npars > s.auto_state.npar) {
-        why = xpp::format("AUTO has {} parameters for this model, not {}", s.auto_state.npar, set->npars);
+    std::vector<int> &pars = c.pars;
+    pars = s.auto_state.par;
+    if (set->npars > static_cast<int>(s.auto_state.par.size()) || (set->npars >= 0 && static_cast<std::size_t>(set->npars) > set->pars.size())) {
+        why = xpp::format("AUTO has {} parameters for this model, not {}", s.auto_state.par.size(), set->npars);
         key = "pars";
         return false;
     }
+    pars.resize(std::max(s.auto_state.npar, set->npars));
     for (int k = 0; k < set->npars; k++) {
         if (set->pars[k].empty()) continue;
         int p = xpp::find_user_name(s.model(),PARAM_BOX, set->pars[k].c_str());
@@ -443,6 +445,7 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
             key = xpp::format("mark{}", i);
             return false;
         }
+        if (strcasecmp(set->mark_name[i].c_str(), "T") != 0) uzr[i]=s.auto_state.parameter_slot(uzr[i]);
         if (!std::isfinite(set->mark_value[i])) {
             why = xpp::format("Mark values: the value of {} must be a number", set->mark_name[i]);
             key = xpp::format("mark{}", i);
@@ -457,12 +460,21 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
 void commit(xpp::Session &s, const AutoSettingsSet *set, const Checked &c)
 {
     const double *num = c.num;
-    const int(&pars)[8] = c.pars;
+    const std::vector<int> &pars = c.pars;
     const int view = c.view, plot = c.plot, var = c.var, icp1 = c.icp1, icp2 = c.icp2;
     const double(&range)[4] = c.range;
     const int(&uzr)[AUTO_SETTINGS_MARKS] = c.uzr;
     write_num(s, num);
-    const bool new_pars = set->npars > 0 && std::memcmp(pars, s.auto_state.par.data(), sizeof pars) != 0;
+    const bool new_pars = set->npars > 0 && (set->npars > s.auto_state.npar || !std::equal(pars.begin(),pars.end(),s.auto_state.par.begin()));
+    const int old_period=s.auto_state.diagram_parameter(AUTO_PERIOD_INDEX);
+    s.auto_state.npar=std::max(s.auto_state.npar,set->npars);
+    const int new_period=s.auto_state.diagram_parameter(AUTO_PERIOD_INDEX);
+    s.auto_state.grabpt.par.resize(s.auto_state.diagram_parameters());
+    for(auto &p:s.diagram.points){
+        for(int *index:{&p.d.icp2,&p.d.icp3,&p.d.icp4})
+            if(*index>=old_period-AUTO_PERIOD_INDEX+AutoState::model_parameter_prefix)*index+=new_period-old_period;
+        p.d.par.resize(s.auto_state.diagram_parameters());
+    }
     for (int k = 0; k < set->npars; k++) {
         if (set->pars[k].empty()) continue;
         s.auto_state.par[k] = pars[k];
@@ -561,10 +573,11 @@ void auto_settings_reload(Session &s, const AutoSettingsSet &kept)
     if (!have_settings(s)) return;
     AutoSettingsSet set = kept;
     const AutoSettingsSet fresh = settings_now(s);
-    set.npars = fresh.npars;
+    set.npars = std::min(static_cast<int>(s.auto_state.par.size()),std::max(fresh.npars,kept.npars));
+    set.pars.resize(set.npars);
     for (int i = 0; i < set.npars; i++)
         if (i >= kept.npars || xpp::find_user_name(s.model(), PARAM_BOX, set.pars[i]) < 0)
-            set.pars[i] = fresh.pars[i];
+            set.pars[i] = s.model().upar_names[s.auto_state.par[i]];
     if (xpp::find_user_name(s.model(), ICBOX, set.var) < 0) set.var = fresh.var;
     const auto has_par = [&](const std::string &name) {
         return std::find(set.pars.begin(), set.pars.begin() + set.npars, name) != set.pars.begin() + set.npars;

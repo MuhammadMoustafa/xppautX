@@ -2,6 +2,7 @@
 #define AUTO_SETTINGS_H
 #include <stddef.h>
 #include <array>
+#include <vector>
 #include <optional>
 #include <string>
 #include "xpplim.h"
@@ -44,11 +45,10 @@ enum {
 const char *auto_settings_num_key(int i);
 const char *auto_settings_num_label(int i);
 
-#define AUTO_SETTINGS_PARS 8  /* AUTO's parameters (AutoPar) */
 #define AUTO_SETTINGS_MARKS 9 /* Mark values (the form's Uzr1..Uzr9) */
 
 /* the event: {"ev":"autosettings",...} with the settings now, whole; an
-   empty string when the model is too big for AUTO (no settings) */
+   empty string when there is no model with variables (no settings) */
 typedef void (*AutoSettingsEmit)(const char *line, size_t len);
 void auto_settings_init(AutoSettingsEmit emit);
 
@@ -66,7 +66,7 @@ struct AutoSettingsSet {
     std::array<int, AUTO_NUM_N> has_num{};
     std::array<double, AUTO_NUM_N> num{};
     int npars = -1; /* -1: no "pars"; else the first npars of AutoPar */
-    std::array<std::string, AUTO_SETTINGS_PARS> pars;
+    std::vector<std::string> pars;
     int has_plot = 0;
     int plot = 0;
     std::string var, par1, par2;

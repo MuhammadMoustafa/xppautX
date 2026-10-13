@@ -506,7 +506,7 @@ namespace {
 
 /* the "numerics", "pars", "axes" and "marks" of {"cmd":"auto","op":"set",...}
    into s; 0 with why when one is not what docs/protocol.md says */
-int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
+int read_auto_set(const char *line, AutoSettingsSet &s, int parameters, std::string &why)
 {
     const char *num = js_find(line, "numerics"), *pars = js_find(line, "pars"), *axes = js_find(line, "axes"),
                *marks = js_find(line, "marks"), *v;
@@ -531,8 +531,13 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
     }
     if (pars && *pars == '[') {
         for (i = 0; (v = js_elem(pars, i)) != NULL; i++) {
-            if (i >= AUTO_SETTINGS_PARS || !js_string(v, s.pars[i])) {
-                why = xpp::format("AUTO's parameters must be a list of at most {} names", AUTO_SETTINGS_PARS);
+            if(i>=parameters){
+                why=xpp::format("AUTO has {} parameters for this model",parameters);
+                return 0;
+            }
+            s.pars.emplace_back();
+            if (!js_string(v, s.pars.back())) {
+                why = "AUTO's parameters must be a list of names";
                 return 0;
             }
         }
@@ -588,7 +593,7 @@ void auto_set_command(xpp::Session &s, const char *line)
 {
     AutoSettingsSet set;
     std::string why;
-    if (!read_auto_set(line, set, why) || auto_settings_apply(s, set, why) != 0)
+    if (!read_auto_set(line, set, s.model().nupar, why) || auto_settings_apply(s, set, why) != 0)
         j_command_error("auto", xpp::format("AUTO settings: {}", why));
 }
 

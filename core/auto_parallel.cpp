@@ -72,6 +72,7 @@ void AutoParallel::prepare(AutoLib &source, long ndim, long nbc) try {
     const Session &s = *source.session;
     for (auto &lib : state_->libs) {
         lib->session = source.session;
+        lib->parameter_count = source.parameter_count;
         iap_type local{};
         local.ndim = ndim;
         local.nbc = nbc;

@@ -85,9 +85,9 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   doublereal det;
   integer ilp, nit, ips, isp, irs, itp, npr, isw, nmx, nbc0, nnt0;
 
-  for (i = 0; i < NPARX; ++i) {
+  for (i = 0; i < iap->lib->parameter_count; ++i) {
     icp[i] = i;
-    jtmp = NPARX;
+    jtmp = iap->lib->parameter_count;
     icp[jtmp + i] = 0;
     par[i] = 0.;
     par[jtmp + i] = 0.;
@@ -99,9 +99,9 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   irs=s.auto_state.run.irs;
   ilp=s.auto_state.run.ilp;
 
-  thu_vec.assign(static_cast<size_t>(ndim)*8, 1.);
+  thu_vec.assign(static_cast<size_t>(ndim)*AutoState::state_copies, 1.);
 
-  jtmp = NPARX;
+  jtmp = iap->lib->parameter_count;
   nicp=s.auto_state.run.nicp;
 
   for (i = 0; i < nicp; ++i) {
@@ -111,12 +111,12 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   
   if (nicp > 0) {
     for (i = 0; i < nicp; ++i) {
-      jtmp = NPARX;
+      jtmp = iap->lib->parameter_count;
       icp[i] = icp[jtmp + i];
     }
   } else {
     nicp = 1;
-    jtmp = NPARX;
+    jtmp = iap->lib->parameter_count;
     icp[jtmp] = icp[0];
   }
       
@@ -341,8 +341,8 @@ chdim(iap_type *iap)
 
   npar = iap->nfpr;
 
-  if (npar > NPARX) {
-    xpp::auto_fail(xpp::format("dimension exceeded: {} free parameters, at most {}", npar, NPARX));
+  if (npar > iap->lib->parameter_count) {
+    xpp::auto_fail(xpp::format("dimension exceeded: {} free parameters, at most {}", npar, iap->lib->parameter_count));
   }
 
   return 0;
@@ -390,8 +390,10 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
   doublereal dsmin, dsmax, fc;
   integer ic, jc;
   doublereal ds;
-  integer nxploc, jac, nbc, ndm, ict[NPARX], ilp, ips, isp, irs, itp,
+  integer nxploc, jac, nbc, ndm, ilp, ips, isp, irs, itp,
     isw, nmx;
+
+  std::vector<integer> ict(iap->lib->parameter_count);
 
   /* General initialization. Redefinition of constants. */
 
@@ -541,7 +543,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     /* Set indices of output parameters */
     nicp = nfpr - 3;
     for (i = 0; i < nicp; ++i) {
-      jtmp = NPARX;
+      jtmp = iap->lib->parameter_count;
       icp[jtmp + i] = icp[i];
     }
 
@@ -749,17 +751,17 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer nbif, iads;
   integer mxbf;
 
-  std::array<doublereal, NBIFX> stla;
-  std::array<doublereal, NBIFX> stld;
+  std::vector<doublereal> stla;
+  std::vector<doublereal> stld;
   integer nins;
   integer ipos;
   integer ntot, iuzr, nuzr;
   integer i, k;
   doublereal dsold;
 
-  std::array<doublereal, NPARX> rlold;
-  std::array<doublereal, NPARX> rldot;
-  std::array<doublereal, NPARX> rlcur;
+  std::vector<doublereal> rlold(iap->lib->parameter_count);
+  std::vector<doublereal> rldot(iap->lib->parameter_count);
+  std::vector<doublereal> rlcur(iap->lib->parameter_count);
   integer istop, itpst;
 
   doublereal ds;
@@ -774,17 +776,17 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   integer aa_first_dimension = iap->ndim + 1;
 
-  std::vector<doublereal> dfdp((iap->ndim)*NPARX);
+  std::vector<doublereal> dfdp((iap->ndim)*iap->lib->parameter_count);
   std::vector<doublereal> dfdu((iap->ndim)*(iap->ndim));
   std::vector<doublereal> uold(iap->ndim);
   std::vector<doublereal> udot(iap->ndim);
-  std::vector<doublereal> stud((iap->ndim)*NBIFX);
+  std::vector<doublereal> stud;
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> u(iap->ndim);
   std::vector<doublereal> aa((iap->ndim+1)*(iap->ndim+1));
   std::vector<doublereal> du(iap->ndim+1);
   std::vector<doublereal> rhs(iap->ndim+1);
-  std::vector<doublereal> stu((iap->ndim)*NBIFX);
+  std::vector<doublereal> stu;
   std::vector<doublereal> uzr(iap->nuzr);
     
   /* Controls the bifurcation analysis of algebraic problems */
@@ -881,7 +883,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* Initialize computation of the next bifurcating branch. */
 
  L2:
-  swpnt(iap, rap, par, icp, &rds, NBIFX, stud.data(), stu.data(), 
+  swpnt(iap, rap, par, icp, &rds, stud.data(), stu.data(),
 	stla.data(), stld.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), udot.data());
 
   ipos = iap->ipos;
@@ -1022,8 +1024,12 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       iap->itp = itp;
       ++nbif;
       iap->nbif = nbif;
+      stla.resize(nbif);
+      stld.resize(nbif);
+      stud.resize(iap->ndim * nbif);
+      stu.resize(iap->ndim * nbif);
       stbif(iap, rap, par, icp, &aa_first_dimension, aa.data(),
-	    NBIFX, stud.data(), stu.data(), stla.data(), stld.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), 
+	    stud.data(), stu.data(), stla.data(), stld.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(),
 	    du.data(), udot.data(), dfdu.data(), dfdp.data(), thl, thu);
       rlp = 0.;
       rbp = 0.;
@@ -1923,18 +1929,17 @@ fnuzae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /*     ---------- ----- */
 /* Subroutine */ int 
-stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aaloc, doublereal *aa, integer m1sbloc, doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *udot, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
+stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aaloc, doublereal *aa,  doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *udot, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
 {
   /* System generated locals */
-  integer aa_dim1, stud_dim1, stu_dim1;
+  integer aa_dim1;
 
   /* Local variables */
   integer nbif, ndim;
 
-  integer ntop, ntot, i, j;
+  integer i, j;
   doublereal sc;
   doublereal ss;
-  integer ibr;
 
   /* Stores branching data in the following arrays : */
   /*        STU    ( the solution vector U ) */
@@ -1964,25 +1969,12 @@ stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aa
   /*--thl;*/
   /*--thu;*/
   aa_dim1 = *m1aaloc;
-  stu_dim1 = m1sbloc;
-  stud_dim1 = m1sbloc;
 
   ndim = iap->ndim;
-  ibr = iap->ibr;
-  ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
   nbif = iap->nbif;
 
   /* Keep track of the number of branch points stored. */
 
-  if (nbif == NBIFX && iap->mynode == 0) {
-    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:No more branch points can be stored\n",ibr,ntop);	
-  }
-  if (nbif > NBIFX) {
-    nbif = NBIFX;
-    iap->nbif = nbif;
-    return 0;
-  }
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
@@ -2014,8 +2006,8 @@ stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aa
   nbif = iap->nbif;
   stld[-1 + nbif] = du[ndim];
   for (i = 0; i < ndim; ++i) {
-    ARRAY2D(stu, -1 + nbif, i) = u[i];
-    ARRAY2D(stud, -1 + nbif, i) = du[i];
+    stu[(nbif - 1) * ndim + i] = u[i];
+    stud[(nbif - 1) * ndim + i] = du[i];
   }
   stla[-1 + nbif] = rlcur[0];
 
@@ -2024,10 +2016,9 @@ stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aa
 
 /*     ---------- ----- */
 /* Subroutine */ int 
-swpnt(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, integer m1sbloc, doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *udot)
+swpnt(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds,  doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *udot)
 {
   /* System generated locals */
-  integer stud_dim1, stu_dim1;
 
     /* Local variables */
   integer nbif, ndim, mxbf, ipos, i, i1;
@@ -2049,8 +2040,6 @@ swpnt(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *r
   /*--rldot;*/
   /*--u;*/
   /*--udot;*/
-  stu_dim1 = m1sbloc;
-  stud_dim1 = m1sbloc;
   
   ndim = iap->ndim;
   isw = iap->isw;
@@ -2068,8 +2057,8 @@ swpnt(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *r
   par[icp[0]] = rlcur[0];
   rldot[0] = stld[0];
   for (i = 0; i < ndim; ++i) {
-    u[i] = ARRAY2D(stu, 0, i);
-    udot[i] = ARRAY2D(stud, 0, i);
+    u[i] = stu[i];
+    udot[i] = stud[i];
   }
   if (f2c::abs(isw) == 2) {
     par[icp[1]] = u[-1 + ndim];
@@ -2083,12 +2072,12 @@ swpnt(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *r
     return 0;
   }
 
-  for (i = 0; i < nbif; ++i) {
+  for (i = 0; i + 1 < nbif; ++i) {
     stla[i] = stla[i + 1];
     stld[i] = stld[i + 1];
     for (i1 = 0; i1 < ndim; ++i1) {
-      ARRAY2D(stu, i, i1) = ARRAY2D(stu, i + 1, i1);
-      ARRAY2D(stud, i, i1) = ARRAY2D(stud, i + 1, i1);
+      stu[i * ndim + i1] = stu[(i + 1) * ndim + i1];
+      stud[i * ndim + i1] = stud[(i + 1) * ndim + i1];
     }
   }
 
@@ -2397,14 +2386,14 @@ sthd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *th
   xpp::print(s.auto_lib.fp7,"   0   ITMX={:4}   ITNW={:4}   NWTN={:4}   JAC={:4}  NUZR={:4}\n",itmx,itnw,nwtn,jac,nuzr);
 
   if (nicp == 1) {
-    jtmp = NPARX;
+    jtmp = iap->lib->parameter_count;
     xpp::print(s.auto_lib.fp7,"   0   User-specified parameter:       ");
     for (i = 0; i < nicp; ++i) {
       xpp::print(s.auto_lib.fp7,"{:4}",icp[jtmp + i]);
     }
     xpp::print(s.auto_lib.fp7,"\n");
   } else {
-    jtmp = NPARX;
+    jtmp = iap->lib->parameter_count;
     xpp::print(s.auto_lib.fp7,"   0   User-specified parameters:      ");
     for (i = 0; i < nicp; ++i) {
       xpp::print(s.auto_lib.fp7,"{:4}",icp[jtmp + i]);
@@ -2695,7 +2684,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     }
   }
   xpp::addbif(iap,rap,ntots,iap->ibr,par,icp,labw,&amp, u, u, u, u);
-  wrline(iap, rap, par, icp, &icp[NPARX], &ibr, &ntots,
+  wrline(iap, rap, par, icp, &icp[iap->lib->parameter_count], &ibr, &ntots,
 	 &labw, &amp, u);
   if (iap->istop != 0) { /* xppautX: why the branch ended (auto_stop.h, T23) */
     stop_at.br = ibr, stop_at.pt = ntot, stop_at.ipar = icp[0], stop_at.par = rlcur[0], stop_at.norm = amp;
@@ -2917,7 +2906,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
 
   ntpl = 1;
   nar = ndim + 1;
-  jtmp = NPARX;
+  jtmp = iap->lib->parameter_count;
   nrowpr = ndim / 7 + 1 + (jtmp - 1) / 7 + 1;
   par[icp[0]] = rlcur[0];
   t = 0.;
@@ -2937,7 +2926,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   xpp::print(fp8,"{:5}",nrowpr);
   xpp::print(fp8,"{:5}",0);
   xpp::print(fp8,"{:5}",0);
-  xpp::print(fp8,"{:5}\n",NPARX);
+  xpp::print(fp8,"{:5}\n",iap->lib->parameter_count);
   xpp::print(fp8,"    {:19.10E}",t);
   for (i = 0; i < ndim; ++i) {
     if((i>0)&&((i+1)%7==0))
@@ -2945,7 +2934,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
     xpp::print(fp8,"{:19.10E}",u[i]);
   }
   xpp::print(fp8,"\n");
-  for (i = 0; i < NPARX; ++i) {
+  for (i = 0; i < iap->lib->parameter_count; ++i) {
     if(i==0)
       xpp::print(fp8,"    ");
     if((i>0)&&(i%7==0))
@@ -4173,7 +4162,7 @@ findlb(iap_type *iap, const rap_type *rap,
     /* where this label line starts: readlb() reads it again from here */
     line_start = ftell(iap->lib->fp3);
     xpp::AutoSolutionHeader header;
-    if (!xpp::read_auto_solution_header(tr, header)) break;
+    if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) break;
     ibr = header.ibr;
     itp = header.itp;
     labrs = header.lab;
@@ -4231,17 +4220,14 @@ readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
 
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header)) return 1;
+  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
   nar = header.nar;
   nparr = header.npar;
   ndim = nar - 1;
+  if (ndim > iap->ndim) return 1;
   if (!tr.read(t)) return 1;
   for (i = 0; i < ndim; ++i) {
     if (!tr.read(u[i])) return 1;
-  }
-  if (nparr > NPARX) {
-    nparr = NPARX;
-    xpp::log_auto("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > {:3d}\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
@@ -4591,9 +4577,9 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer ntot, ntst, iuzr, nuzr, i, j, k;
   doublereal dsold;
   integer nodir = 0;
-  std::array<doublereal, NPARX> rlold;
-  std::array<doublereal, NPARX> rldot;
-  std::array<doublereal, NPARX> rlcur;
+  std::vector<doublereal> rlold(iap->lib->parameter_count);
+  std::vector<doublereal> rldot(iap->lib->parameter_count);
+  std::vector<doublereal> rlcur(iap->lib->parameter_count);
   integer nitps, istop;
   integer itpst;
   doublereal ds;
@@ -4675,7 +4661,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
   }
   
-  for(j = 0; j < NPARX; ++j) {
+  for(j = 0; j < iap->lib->parameter_count; ++j) {
     rldot[j] = 0.0;
     rlcur[j] = 0.0;
     rlold[j] = 0.0;
@@ -4986,7 +4972,7 @@ stupbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer i, j, k;
   integer n1, ips;
 
-  std::vector<doublereal> dfdp((iap->ndim)*NPARX);
+  std::vector<doublereal> dfdp((iap->ndim)*iap->lib->parameter_count);
   std::vector<doublereal> dfdu((iap->ndim)*(iap->ndim));
   std::vector<doublereal> uold(iap->ndim);
   std::vector<doublereal> f(iap->ndim);
@@ -5341,7 +5327,7 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     findlb(iap, rap, iap->irs, &junk, &junk);
     xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
     xpp::AutoSolutionHeader header;
-    if (!xpp::read_auto_solution_header(tr, header)) return 1;
+    if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
     ntst_fort8 = header.ntst;
     ncol_fort8 = header.ncol;
   } else {
@@ -5454,7 +5440,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   logical found;
   integer nparr;
-  std::array<integer, NPARX> icprs;
+  std::vector<integer> icprs(iap->lib->parameter_count);
 
   integer nfprs, k1, k2, itprs, nskip1, nskip2;
 
@@ -5491,7 +5477,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   findlb(iap, rap, irs, &nfprs, &found);
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header)) return 1;
+  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
   ibr = header.ibr;
   itprs = header.itp;
   lab = header.lab;
@@ -5573,10 +5559,6 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read the parameter values. */
 
-  if (nparr > NPARX) {
-    nparr = NPARX;
-    xpp::log_auto("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > {:3d}\n",nparr);
-  }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
   }
@@ -6408,14 +6390,11 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   int iflag=0;
   xpp::AutoStopAt stop_at = {0}; /* xppautX: T23 */
   integer i;
-  std::array<double, 1000> u_high;
-  std::array<double, 1000> u_low;
-  std::array<double, 1000> u_0;
-  std::array<double, 1000> u_bar;
+  std::vector<double> u_high(iap->ndim);
+  std::vector<double> u_low(iap->ndim);
+  std::vector<double> u_0(iap->ndim);
+  std::vector<double> u_bar(iap->ndim);
   doublereal a0, a1;
-   /* used a fixed array here for maximum AUTO size 
-     double u_high[NAUTO], u_low, u0, ubar   */
-
   integer istop, itpst, n2, ntots;
 
   doublereal rl0, rl1;
@@ -6573,7 +6552,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
       ntots = -ntot;
     }
   }
-  jtmp = NPARX;
+  jtmp = iap->lib->parameter_count;
   /* addbif max min  of variables & initial data 
 
   */
@@ -6638,7 +6617,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /*          (Used for quickly skipping a data set when searching). */
 /*  NTST  : The number of time intervals used in the discretization. */
 /*  NCOL  : The number of collocation points used. */
-/*  NPARX : The dimension of the par array (and the number of */
+/*  iap->lib->parameter_count : The dimension of the par array (and the number of */
 /*          number of values in the parameter block).*/
 
 /*  Following the above described identifying line there are NTPL lines */
@@ -6654,7 +6633,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* and following this are NTPL lines each containing */
 /*    U-dot-1(T), U-dot-2(T), ... , U-dot-NDIM(T). */
 
-/* Finally the parameter values PAR(i) , i=1,NPARX, are written. */
+/* Finally the parameter values PAR(i) , i=1,iap->lib->parameter_count, are written. */
 
 /*  Above, RL-dot(.) and U-dot(.) specify the direction of the branch. */
 
@@ -6676,7 +6655,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   ntpl = ncol * ntst + 1;
   nar = ndim + 1;
   nrd = ndim / 7 + 2 + (ndim - 1) / 7;
-  jtmp = NPARX;
+  jtmp = iap->lib->parameter_count;
   nrowpr = nrd * (ncol * ntst + 1) + (nfpr - 1) / 7 + 1 + (jtmp - 1) / 7 + 
     1 + (nfpr - 1) / 20 + 1;
 
@@ -6696,7 +6675,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   xpp::print(fp8,"{:5}",nrowpr);
   xpp::print(fp8,"{:5}",ntst);
   xpp::print(fp8,"{:5}",ncol);
-  xpp::print(fp8,"{:5}\n",NPARX);
+  xpp::print(fp8,"{:5}\n",iap->lib->parameter_count);
 
 /* Write the entire solution on unit 8 : */
 
@@ -6765,7 +6744,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* Write the parameter values. */
 
   xpp::print(fp8,"    ");
-  for (i = 0; i < NPARX; ++i) {
+  for (i = 0; i < iap->lib->parameter_count; ++i) {
     if((i>0)&&(i%7==0))
       xpp::print(fp8,"\n    ");
     xpp::print(fp8,"{:19.10E}",par[i]);
@@ -6889,7 +6868,7 @@ pvlsbv(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 void allocate_global_memory(const iap_type iap) {
     /* assign: zeroed, like the xpp_malloc it replaces */
     iap.lib->store.dfu.assign(iap.ndim * iap.ndim, 0.);
-    iap.lib->store.dfp.assign(iap.ndim * NPARX, 0.);
+    iap.lib->store.dfp.assign(iap.ndim * iap.lib->parameter_count, 0.);
     iap.lib->store.uu1.assign(iap.ndim, 0.);
     iap.lib->store.uu2.assign(iap.ndim, 0.);
     iap.lib->store.ff1.assign(iap.ndim, 0.);

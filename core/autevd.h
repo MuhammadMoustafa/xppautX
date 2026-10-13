@@ -1,7 +1,6 @@
 #ifndef _autevd_h_
 #define _autevd_h_
 
-#include "autlim.h"
 #include "auto_f2c.h"
 #include "auto_c.h"
 #include "xAuto.h"

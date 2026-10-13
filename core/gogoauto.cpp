@@ -44,9 +44,10 @@ struct RunUnits {
 
 int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has been set */
 {
-  std::array<integer,NPARX2> icp;
-  std::array<doublereal,NPARX2> par;
-  std::array<doublereal,NPARX> thl;
+  s.auto_lib.parameter_count = s.auto_state.parameter_count();
+  std::vector<integer> icp(2 * s.auto_lib.parameter_count);
+  std::vector<doublereal> par(2 * s.auto_lib.parameter_count);
+  std::vector<doublereal> thl(s.auto_lib.parameter_count);
   std::vector<doublereal> thu;
   std::array<integer,100> iuz;
   std::array<doublereal,100> vuz;

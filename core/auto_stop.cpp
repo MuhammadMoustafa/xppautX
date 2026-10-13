@@ -22,7 +22,7 @@ const char *const keys[AUTO_STOP_N] = {
 std::string par_name(const xpp::Session &s, long ipar)
 {
     if (ipar == AUTO_PERIOD_INDEX) return "the period T";
-    const char *name = ipar >= 0 && ipar < s.auto_state.npar ? auto_par_name(s, static_cast<int>(ipar)) : nullptr;
+    const char *name = s.auto_state.model_parameter(static_cast<int>(ipar)) >= 0 && s.auto_state.model_parameter(static_cast<int>(ipar)) < s.auto_state.npar ? auto_par_name(s, s.auto_state.model_parameter(static_cast<int>(ipar))) : nullptr;
     return name ? std::string("parameter ") + name : std::string("the parameter");
 }
 

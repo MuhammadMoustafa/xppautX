@@ -145,7 +145,7 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   std::vector<doublereal> ff2(iap->nbc);
   std::vector<doublereal> uu1(iap->ndim);
   std::vector<doublereal> uu2(iap->ndim);
-  std::vector<doublereal> dfu((iap->nbc)*(2*iap->ndim+NPARX));
+  std::vector<doublereal> dfu((iap->nbc)*(2*iap->ndim+iap->lib->parameter_count));
 
 /* Generates the boundary conditions for homoclinic bifurcation analysis 
 */
@@ -496,7 +496,7 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   std::vector<doublereal> ff2(iap->nint);
   std::vector<doublereal> uu1(iap->ndim);
   std::vector<doublereal> uu2(iap->ndim);
-  std::vector<doublereal> dfu((iap->ndim)*(iap->ndim + NPARX));
+  std::vector<doublereal> dfu((iap->ndim)*(iap->ndim + iap->lib->parameter_count));
 
 /* Generates integral conditions for homoclinic bifurcation analysis */
 
@@ -610,8 +610,8 @@ inho(iap_type *iap, integer *icp, doublereal *par)
 
   /* Allocate memory for global structures. */
 
-  iap->lib->homcont.blhmp.ipsi.assign(NPARX, 0);
-  iap->lib->homcont.blhmp.ifixed.assign(NPARX, 0);
+  iap->lib->homcont.blhmp.ipsi.assign(iap->lib->parameter_count, 0);
+  iap->lib->homcont.blhmp.ifixed.assign(iap->lib->parameter_count, 0);
   iap->lib->homcont.blhmp.irev.assign((iap->ndim), 0);
 
   iap->lib->homcont.blhme.ieigc.assign(2, 0);
@@ -1352,7 +1352,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 eighi(const iap_type *iap, integer isign, integer itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm)
 {
 
-  std::vector<doublereal> dfdp((*ndm)*NPARX);
+  std::vector<doublereal> dfdp((*ndm)*iap->lib->parameter_count);
   std::vector<doublereal> dfdu((*ndm)*(*ndm));
   std::vector<doublereal> zz((*ndm)*(*ndm));
 
@@ -1528,7 +1528,7 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
 prjcti(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer imfd, integer is, integer itrans, integer *ndm)
 {
   
-  std::vector<doublereal> dfdp((*ndm)*NPARX);
+  std::vector<doublereal> dfdp((*ndm)*iap->lib->parameter_count);
   std::vector<doublereal> dfdu((*ndm)*(*ndm));
   
   prjctn(iap, bound, xequib, icp, par, &imfd, &is, &itrans, ndm, dfdu.data(), dfdp.data());

@@ -110,7 +110,12 @@ above).
 
 ## Choosing parameters
 
-The first thing you should do is tell AUTO which parameters you might use in the bifurcation analysis. Up to 5 are allowed. Click on “Parameter” and a list of 5 parameters will appear. Type in the names of the parameters you want to use. For `lecar.ode` use ` iapp,phi,gk,vk,gna` The default is the first 5 or fewer parameters in your `ode` file. If you have fewer than 5 parameters, only the available ones will appear.
+Tell AUTO which parameters you might use in the bifurcation analysis. The initial
+selection is the first eight or fewer model parameters. Parameter lets you select
+any of the model's parameters, with no fixed count limit; use the parameter names
+in your model, for example `iapp,phi,gk,vk` in `lecar.ode`. AUTO's state and parameter
+storage grows with the model, and its stored branch points grow with the run.
+Memory bounds their sizes (W298, [#356](https://github.com/MuhammadMoustafa/xppautX/issues/356)).
 
 ## Diagram axes
 
