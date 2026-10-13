@@ -1509,6 +1509,39 @@ std::vector<const odex::Statement *> missing_initial_values(const Model &m)
   return missing;
 }
 
+std::string missing_initial_values_text(const Model &m)
+{
+  const auto missing = missing_initial_values(m);
+  std::string states;
+  for (size_t i = 0; i < missing.size();) {
+    const odex::Statement &state = *missing[i];
+    const Place at = model_place(m, state.pos);
+    std::string name = state.name;
+    size_t end = i + 1;
+    if (state.array.group) {
+      while (end < missing.size() && missing[end]->array.group == state.array.group) end++;
+      name.resize(name.size() - std::to_string(state.array.value).size());
+      name += "[";
+      for (size_t k = i; k < end;) {
+        size_t last = k;
+        while (last + 1 < end && missing[last + 1]->array.value == missing[last]->array.value + state.array.step) last++;
+        if (k > i) name += ", ";
+        if (last == k) name += std::to_string(missing[k]->array.value);
+        else {
+          const std::string range = odex::array_text({}, missing[k]->array.value,
+                                                     missing[last]->array.value, state.array.step);
+          name += range.substr(1, range.size() - 2);
+        }
+        k = last + 1;
+      }
+      name += "]";
+    }
+    states += "\n" + Error{"load", name, at}.text();
+    i = end;
+  }
+  return states;
+}
+
 void set_initial_values(xpp::Session &s)
 {
   xpp::Model &m=s.model();

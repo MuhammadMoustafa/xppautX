@@ -48,6 +48,9 @@ inline constexpr double DEFAULT_INITIAL_VALUE = 0;
 /* State equations without an explicit init (including .ode array ICs),
    in declaration order; shared by load warnings and conversion. */
 std::vector<const odex::Statement *> missing_initial_values(const Model &m);
+/* those states, one line each with its place (an array's members by range):
+   the load's warning; "" when every state has its init */
+std::string missing_initial_values_text(const Model &m);
 /* The Model builder: a model's statements (odex.h), whichever reader made
    them, into the Model and Session s; a statement that does not
    build fails the load (model_failed, at the statement: the load's
