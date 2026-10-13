@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Allow system/user links above the write folder boundary, including macOS temp/config ancestors; continue refusing links below it and rechecking created folders (W342, [#403](https://github.com/MuhammadMoustafa/xppautX/issues/403)).
+
 - Keep AUTO's Parameter form selection unchanged on OK: unselected fields are blank, and the form and protocol select exactly the filled, distinct model parameter names in order (W338, [#399](https://github.com/MuhammadMoustafa/xppautX/issues/399)).
 
 - Name option groups by their work and accept slider presets as a list of any length; old native group names and S1-S3 keys are refused, while XPPAUT options convert to the new groups (W317, [#377](https://github.com/MuhammadMoustafa/xppautX/issues/377)).

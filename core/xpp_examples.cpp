@@ -74,7 +74,7 @@ Result<std::string> install(std::string_view name)
         return fail(std::string(WHERE), xpp::format("cannot read the example {} (or it is longer than {} bytes)", source, MAX_EXAMPLE_BYTES), command_place());
     const std::string folder = folder_of(files::config_dir());
     if (folder.empty()) return std::unexpected(no_config_folder(WHERE, FOLDER));
-    if (!files::make_dirs(folder)) return fail(std::string(WHERE), xpp::format("cannot make the folder {}", folder), command_place());
+    if (!files::make_dirs(folder, files::config_base())) return fail(std::string(WHERE), xpp::format("cannot make the folder {}", folder), command_place());
     const std::string target = files::join(folder, name);
     Result<> opened;
     Writer w = open_writer_asking(target, true, &opened);

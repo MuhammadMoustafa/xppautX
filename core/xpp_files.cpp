@@ -579,27 +579,10 @@ bool write_path_ok(std::string_view path, bool opening)
     return false;
 }
 
-PathCheck resolve_path(std::string_view path, std::string_view folder)
+std::vector<PathPart> path_parts(std::string_view path, std::string_view folder)
 {
     using Path = std::filesystem::path;
-    const Path base = Path(absolute(folder.empty() ? "." : folder)).lexically_normal();
-    /* normalised first, so what is checked, shown, remembered and opened is
-       one text, with no ".." left for the system to resolve through a link */
-    const Path target = Path(absolute(path)).lexically_normal();
-    const Path relative = target.lexically_relative(base);
-    if (!relative.empty() && !relative.is_absolute() && *relative.begin() != "..") {
-        Path checked = base;
-        for (const auto &part : relative) {
-            if (part == ".") continue;
-            if (!name_ok(part.string(), true)) return {PathKind::refused, {}};
-            checked /= part;
-            if (is_link(checked.string().c_str())) return {PathKind::refused, {}};
-        }
-        return {PathKind::inside, checked.string()};
-    }
-    /* outside: the parts below the folder's and the target's common ancestor
-       must be plain names, none of them a link; the ancestor is where the
-       user put the model */
+    const Path target(path), base(folder);
     const auto parts = [](const Path &p) {
         std::vector<Path> v;
         for (const auto &part : p)
@@ -610,16 +593,42 @@ PathCheck resolve_path(std::string_view path, std::string_view folder)
     std::size_t common = 0;
     while (common < below.size() && common < down.size() && below[common] == down[common]) common++;
     Path checked;
+    std::vector<PathPart> out;
     for (std::size_t i = 0; i < down.size(); i++) {
         const Path &part = down[i];
-        if (i >= common && part != target.root_name() && part != target.root_directory()) {
+        checked /= part;
+        out.push_back({checked.string(), part.string(),
+                       i >= common && part != target.root_name() && part != target.root_directory() && part != "."});
+    }
+    return out;
+}
+
+PathCheck resolve_path(std::string_view path, std::string_view folder)
+{
+    using Path = std::filesystem::path;
+    const Path base = Path(absolute(folder.empty() ? "." : folder)).lexically_normal();
+    /* normalised first, so what is checked, shown, remembered and opened is
+       one text, with no ".." left for the system to resolve through a link */
+    const Path target = Path(absolute(path)).lexically_normal();
+    const Path relative = target.lexically_relative(base);
+    const bool inside = !relative.empty() && !relative.is_absolute() && *relative.begin() != "..";
+    const std::vector<PathPart> parts = path_parts(target.string(), base.string());
+    for (const PathPart &part : parts) {
+        if (part.below_anchor && (!name_ok(part.name, true) || is_link(part.path.c_str())))
+            return {PathKind::refused, {}};
+    }
+    /* Keep resolve_path's exact spelling and empty-component refusal inside
+       the folder; the shared walk above owns which parts check for links. */
+    if (inside) {
+        Path checked = base;
+        for (const auto &part : relative) {
+            if (part == ".") continue;
             if (!name_ok(part.string(), true)) return {PathKind::refused, {}};
             checked /= part;
-            if (is_link(checked.string().c_str())) return {PathKind::refused, {}};
-        } else
-            checked /= part;
+        }
+        return {PathKind::inside, checked.string()};
     }
-    return {PathKind::outside, checked.string()};
+    return {PathKind::outside, parts.empty() ? std::string() : parts.back().path};
 }
 
 FILE *open_read_within(std::string_view path, std::string_view folder, std::span<const std::string> allowed_outside)
@@ -644,7 +653,7 @@ bool prepare_write_folder(std::string_view file)
     if (folder.empty()) return true;
     const PathCheck checked = resolve_path(folder, working_dir());
     if (checked.kind == PathKind::refused) { errno = ELOOP; return false; }
-    if (check_dirs(folder)) return true;
+    if (check_dirs(folder, working_dir())) return true;
     if (errno != ENOENT) return false;
     WriteFolders *state = xpp::ui.write_folders();
     std::optional<bool> remembered;
@@ -655,7 +664,7 @@ bool prepare_write_folder(std::string_view file)
     const bool answer = remembered ? *remembered : xpp::confirm(xpp::format("Create the folder {}?", checked.path), true);
     if (state) state->answers.try_emplace(checked.path, answer);
     if (!answer) { errno = ECANCELED; return false; }
-    return make_dirs(folder);
+    return make_dirs(folder, working_dir());
 }
 
 FILE *open_stream(std::string_view path, const char *mode)

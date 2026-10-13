@@ -874,7 +874,7 @@ Result<> write_config_file(std::string_view where, std::string_view name, std::s
 {
     const std::string file = files::config_path(name);
     if (file.empty()) return std::unexpected(no_config_folder(where, name));
-    if (!files::make_dirs(files::config_dir()))
+    if (!files::make_dirs(files::config_dir(), files::config_base()))
         return fail(std::string(where), "cannot be saved: its folder cannot be made", Place{files::config_dir()});
     Writer w = Writer::binary(file);
     if (!w) return fail(std::string(where), "cannot be saved: the file cannot be opened for writing", Place{file});

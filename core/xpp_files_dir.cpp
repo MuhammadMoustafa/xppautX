@@ -50,9 +50,8 @@ std::string temp_base()
 #endif
 }
 
-std::string config_dir()
+std::string config_base()
 {
-    constexpr std::string_view APP = "xppautX"; /* the folder's name under the system's config folder */
     /* an override is a whole path: a relative one would follow the working folder, which opening a model changes */
     if (const char *own = std::getenv(CONFIG_DIR_ENV); own && own[0]) return is_absolute(own) ? own : std::string();
     std::string base;
@@ -70,7 +69,15 @@ std::string config_dir()
     else if (have_home) base = std::string(home) + "/.config";
 #endif
 #endif
+    return base;
+}
+
+std::string config_dir()
+{
+    constexpr std::string_view APP = "xppautX"; /* the folder's name under the system's config folder */
+    const std::string base = config_base();
     if (base.empty()) return {};
+    if (const char *own = std::getenv(CONFIG_DIR_ENV); own && own[0]) return base;
     return join(base, APP);
 }
 
@@ -108,20 +115,21 @@ std::string config_path(std::string_view name)
 }
 
 namespace {
-bool walk_dirs(std::string_view path, bool create)
+bool walk_dirs(std::string_view path, std::string_view anchor, bool create)
 {
-    for (std::size_t end = 1; end <= path.size(); end++) {
-        if (end != path.size() && path[end] != '/' && path[end] != SEP) continue;
-        const std::string part(path.substr(0, end));
-        /* a bare drive ("C:") is no folder to make or test: stat fails on it and mkdir is refused (W220) */
+    const std::string base = absolute(anchor.empty() ? "." : anchor);
+    for (const PathPart &component : path_parts(absolute(path), base)) {
+        const std::string &part = component.path;
+        /* a bare drive ("C:") is no folder to make or test (W220). */
         if (part.size() == 2 && part[1] == ':' && std::isalpha(static_cast<unsigned char>(part[0]))) continue;
-        if (is_link(part.c_str())) { errno = ELOOP; return false; }
+        if (component.below_anchor && is_link(part.c_str())) { errno = ELOOP; return false; }
         Stat st;
         if (stat_follow(part.c_str(), &st) == 0) {
             if (!S_ISDIR(st.st_mode)) { errno = ENOTDIR; return false; }
         } else {
             if (!create || errno != ENOENT) return false;
             if (make_dir(part.c_str()) != 0 && errno != EEXIST) return false;
+            /* Even a newly made ancestor must not have been swapped for a link. */
             if (is_link(part.c_str())) { errno = ELOOP; return false; }
             if (!is_dir(part)) { errno = ENOTDIR; return false; }
         }
@@ -130,8 +138,8 @@ bool walk_dirs(std::string_view path, bool create)
 }
 } // namespace
 
-bool make_dirs(std::string_view path) { return walk_dirs(path, true); }
-bool check_dirs(std::string_view path) { return walk_dirs(path, false); }
+bool make_dirs(std::string_view path, std::string_view anchor) { return walk_dirs(path, anchor, true); }
+bool check_dirs(std::string_view path, std::string_view anchor) { return walk_dirs(path, anchor, false); }
 
 bool is_dir(std::string_view path)
 {

@@ -96,6 +96,46 @@ int main()
         CHECK(std::filesystem::remove_all(t.path()) > 0); /* This test owns every nested folder. */
     }
 
+#ifdef _WIN32
+    std::printf("SKIP W342 linked parent: Windows symlink creation requires privilege; POSIX exercises it\n");
+#else
+    /* W342: a TMPDIR-like parent is user/system supplied. Only descendants
+       of the caller's config base are untrusted; a newly made part is checked. */
+    {
+        xpp::TempDir t;
+        const std::string real = t.path() + "/real";
+        const std::string alias = t.path() + "/alias";
+        CHECK(mkdir(real.c_str(), 0700) == 0);
+        CHECK(symlink("real", alias.c_str()) == 0);
+        const std::string anchor = alias + "/a";
+        const std::string deep = anchor + "/b";
+        CHECK(!xpp::files::check_dirs(deep, anchor) && errno == ENOENT);
+        CHECK(xpp::files::make_dirs(deep, anchor));
+        CHECK(xpp::files::check_dirs(deep, anchor));
+        CHECK(xpp::files::make_dirs(deep, anchor));
+        CHECK(xpp::files::resolve_path(deep, anchor).kind == xpp::files::PathKind::inside);
+        CHECK(symlink("b", (anchor + "/link").c_str()) == 0);
+        CHECK(!xpp::files::make_dirs(anchor + "/link/new", anchor) && errno == ELOOP);
+        CHECK(!xpp::files::check_dirs(anchor + "/link", anchor) && errno == ELOOP);
+        CHECK(!xpp::files::check_dirs(anchor + "/link/../b", anchor) && errno == ELOOP);
+        CHECK(!xpp::files::exists(deep + "/new"));
+        const std::string cwd = xpp::files::working_dir();
+        CHECK(chdir(anchor.c_str()) == 0);
+        CHECK(xpp::files::prepare_write_folder("b/output.dat"));
+        CHECK(!xpp::files::prepare_write_folder("link/output.dat") && errno == ELOOP);
+        /* W311 remains: alias is below the common ancestor with canonical
+           getcwd, so an absolute alias spelling is still refused. */
+        CHECK(xpp::files::resolve_path(deep, xpp::files::working_dir()).kind == xpp::files::PathKind::refused);
+        CHECK(!xpp::files::prepare_write_folder(deep + "/output.dat") && errno == ELOOP);
+        CHECK(chdir(cwd.c_str()) == 0);
+        CHECK(unlink((anchor + "/link").c_str()) == 0);
+        CHECK(rmdir(deep.c_str()) == 0);
+        CHECK(rmdir(anchor.c_str()) == 0);
+        CHECK(unlink(alias.c_str()) == 0);
+        CHECK(rmdir(real.c_str()) == 0);
+    }
+#endif
+
     /* W121b: one basename suffix rule, including the bare-extension edge. */
     CHECK(xpp::files::has_extension("dir/model.ODEX", ".odex"));
     CHECK(!xpp::files::has_extension(".odex", ".odex"));
@@ -467,8 +507,8 @@ int main()
         for (const std::string &root : {real_scratch, linked_scratch}) {
             CHECK(xpp::files::write_path_ok(root + "/run1.dat"));
             std::FILE *out = xpp::files::open_stream(root + "/run1.dat", "w");
-            /* W303: the write owner now refuses even a linked ancestor of
-               scratch; use the canonical folder make_temp_dir returns. */
+            /* W311: this alias is below the common ancestor with getcwd,
+               so the write still needs make_temp_dir's canonical spelling. */
             CHECK((out != nullptr) == (root == real_scratch));
             if (out) std::fclose(out);
         }

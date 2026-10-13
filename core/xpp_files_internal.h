@@ -3,7 +3,8 @@
    listing, the current folder, AUTO's scratch folders): stat-without-
    following-a-link, mkdir/rmdir, the process id and whether it is still
    running, and the scratch-folder base. Each wraps one OS call, so it is
-   inline rather than split into its own translation unit. C++ only,
+   inline rather than split into its own translation unit. The shared path
+   walk is implemented by xpp_files.cpp. C++ only,
    internal to the two xpp_files*.cpp files (never a public header). */
 #ifndef XPP_FILES_INTERNAL_H
 #define XPP_FILES_INTERNAL_H
@@ -15,6 +16,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <string_view>
+#include <vector>
 #include <cstdlib>
 #include <string>
 #include <sys/stat.h>
@@ -32,6 +34,11 @@ namespace xpp::files {
 /* Owner-only exclusive open: create_new guards a user write; dir_writable
    checks the parent and uses it only for its own unique, hidden probe. */
 FILE *create_plain(std::string_view path, bool binary);
+/* One anchor rule for reads and folder walks. The caller supplies absolute
+   paths, normalized for resolve_path, raw for walks that must check ../ too.
+   Only components below their common ancestor cross the trust boundary. */
+struct PathPart { std::string path; std::string name; bool below_anchor; };
+std::vector<PathPart> path_parts(std::string_view path, std::string_view folder);
 
 #ifdef _WIN32
 using Stat = struct _stat64;

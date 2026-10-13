@@ -146,7 +146,9 @@ struct PathCheck {
 /* path (absolute, or under the working folder) against folder ("" the
    working folder): no link on the way inside folder, or below the common
    ancestor of folder and path when outside, every part a safe name. The file
-   need not exist (a file about to be written). */
+   need not exist (a file about to be written). The anchor and its ancestors
+   are supplied by the user/system and are not checked for links; descendants
+   are checked. make_dirs/check_dirs share this anchor selection. */
 PathCheck resolve_path(std::string_view path, std::string_view folder);
 /* Read a plain file inside folder, or an outside one the caller has the
    user's approval for (allowed_outside: resolve_path's text of each);
@@ -233,6 +235,10 @@ std::string temp_base(); /* The platform temp folder, shared by scratch files an
    names none (no HOME), and when $XPP_CONFIG_DIR is not an absolute path.
    The folder may not exist yet: make_dirs. */
 std::string config_dir();
+/* The user/system supplied base config_dir starts from (the whole override
+   path, otherwise APPDATA, Application Support, XDG_CONFIG_HOME or ~/.config).
+   Ancestors of this base belong to the system/user, not to an input file. */
+std::string config_base();
 /* the file `name` in it ("" when there is no config folder), with the
    platform's separator */
 std::string config_path(std::string_view name);
@@ -249,10 +255,14 @@ std::string program_dir();
 /* the file or folder `name` in the folder dir, with the platform's separator */
 std::string join(std::string_view dir, std::string_view name);
 /* path and its missing parents as folders, mode 0700 (POSIX); false when
-   one cannot be made */
-bool make_dirs(std::string_view path);
-/* Check every component before normalization too: link/../ must not hide a link. */
-bool check_dirs(std::string_view path);
+   one cannot be made. Refuse links below anchor (empty: working folder), or
+   below its common ancestor with an outside path, as resolve_path does.
+   Existing ancestors through that boundary are user/system supplied; every
+   created component is checked again after mkdir, including above it. */
+bool make_dirs(std::string_view path, std::string_view anchor = {});
+/* The same boundary without creation. Check raw components too, so link/../
+   cannot hide a link below the anchor. */
+bool check_dirs(std::string_view path, std::string_view anchor = {});
 /* Prepare the parent of a write, after its outside/replay guard. The active
    front end supplies the Session's WriteFolders, remembering yes and no.
    A refusal returns ECANCELED; a system failure preserves errno. */
