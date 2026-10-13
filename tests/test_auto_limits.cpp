@@ -59,6 +59,30 @@ int main()
         set.num[field]=value;
     }
     std::string why;
+    // W338 (#399): blanks omit slots; names select exactly once, in order, atomically.
+    diagram_first(s.diagram)->par[s.auto_state.diagram_parameter(AUTO_PERIOD_INDEX)]=6.3;
+    xpp::AutoSettingsSet selection;
+    selection.npars=40;
+    selection.pars.resize(40);
+    for(int k=0;k<9;k++)selection.pars[k+1]=xpp::format("P{}",8-k);
+    CHECK(xpp::auto_settings_apply(s,selection,why)==0);
+    CHECK(s.auto_state.npar==9 && s.auto_state.par[0]==8 && s.auto_state.par[8]==0);
+    CHECK(diagram_first(s.diagram)->par[s.auto_state.diagram_parameter(AUTO_PERIOD_INDEX)]==6.3);
+    selection.pars[10]="p8";
+    CHECK(xpp::auto_settings_apply(s,selection,why)!=0);
+    CHECK(why.find("more than once")!=std::string::npos && s.auto_state.npar==9);
+    selection.pars[10]="not_a_parameter";
+    CHECK(xpp::auto_settings_apply(s,selection,why)!=0);
+    CHECK(s.auto_state.npar==9 && s.auto_state.par[0]==8);
+    selection.pars.assign(40, "");
+    selection.pars[3]="P2";
+    selection.pars[7]="P0";
+    CHECK(xpp::auto_settings_apply(s,selection,why)==0);
+    CHECK(s.auto_state.npar==2 && s.auto_state.par[0]==2 && s.auto_state.par[1]==0);
+    CHECK(diagram_first(s.diagram)->par[s.auto_state.diagram_parameter(AUTO_PERIOD_INDEX)]==6.3);
+    selection.pars.assign(40, "");
+    CHECK(xpp::auto_settings_apply(s,selection,why)==0 && s.auto_state.npar==0);
+    CHECK(xpp::auto_settings_apply(s,xpp::AutoSettingsSet{},why)==0 && s.auto_state.npar==0);
     // A stored period stays distinct when the model selection grows past its old index.
     diagram_first(s.diagram)->icp2=AUTO_PERIOD_INDEX;
     CHECK(xpp::auto_settings_apply(s,set,why)==0);

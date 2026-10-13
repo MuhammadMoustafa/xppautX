@@ -342,13 +342,13 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
 
     /* the Parameter form: AUTO's parameters by name */
     std::vector<int> &pars = c.pars;
-    pars = s.auto_state.par;
+    pars.assign(s.auto_state.par.begin(), s.auto_state.par.begin() + s.auto_state.npar);
     if (set->npars > static_cast<int>(s.auto_state.par.size()) || (set->npars >= 0 && static_cast<std::size_t>(set->npars) > set->pars.size())) {
         why = xpp::format("AUTO has {} parameters for this model, not {}", s.auto_state.par.size(), set->npars);
         key = "pars";
         return false;
     }
-    pars.resize(std::max(s.auto_state.npar, set->npars));
+    if (set->npars >= 0) pars.clear();
     for (int k = 0; k < set->npars; k++) {
         if (set->pars[k].empty()) continue;
         int p = xpp::find_user_name(s.model(),PARAM_BOX, set->pars[k].c_str());
@@ -357,7 +357,12 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
             key = "pars";
             return false;
         }
-        pars[k] = p;
+        if (std::find(pars.begin(), pars.end(), p) != pars.end()) {
+            why = xpp::format("{} is selected more than once", set->pars[k]);
+            key = "pars";
+            return false;
+        }
+        pars.push_back(p);
     }
 
     /* the Axes: plot type, the variable, the two parameters among AUTO's, the ranges */
@@ -465,18 +470,31 @@ void commit(xpp::Session &s, const AutoSettingsSet *set, const Checked &c)
     const double(&range)[4] = c.range;
     const int(&uzr)[AUTO_SETTINGS_MARKS] = c.uzr;
     write_num(s, num);
-    const bool new_pars = set->npars > 0 && (set->npars > s.auto_state.npar || !std::equal(pars.begin(),pars.end(),s.auto_state.par.begin()));
+    const bool new_pars = set->npars >= 0 && (static_cast<int>(pars.size()) != s.auto_state.npar || !std::equal(pars.begin(),pars.end(),s.auto_state.par.begin()));
     const int old_period=s.auto_state.diagram_parameter(AUTO_PERIOD_INDEX);
-    s.auto_state.npar=std::max(s.auto_state.npar,set->npars);
+    s.auto_state.npar=static_cast<int>(pars.size());
     const int new_period=s.auto_state.diagram_parameter(AUTO_PERIOD_INDEX);
-    s.auto_state.grabpt.par.resize(s.auto_state.diagram_parameters());
+    // Moving the numerical slots keeps the period when a selection grows or shrinks.
+    const auto resize_parameters = [&](std::vector<double> &values) {
+        if (old_period == new_period) {
+            values.resize(s.auto_state.diagram_parameters());
+            return;
+        }
+        const int old_start = old_period - AUTO_PERIOD_INDEX + AutoState::model_parameter_prefix;
+        const int new_start = new_period - AUTO_PERIOD_INDEX + AutoState::model_parameter_prefix;
+        const int count = s.auto_state.diagram_parameters();
+        const auto kept = std::min(values.size() - old_start, static_cast<std::size_t>(count - new_start));
+        const std::vector<double> numerical(values.begin() + old_start, values.begin() + old_start + kept);
+        values.resize(count);
+        std::copy(numerical.begin(), numerical.end(), values.begin() + new_start);
+    };
+    resize_parameters(s.auto_state.grabpt.par);
     for(auto &p:s.diagram.points){
         for(int *index:{&p.d.icp2,&p.d.icp3,&p.d.icp4})
             if(*index>=old_period-AUTO_PERIOD_INDEX+AutoState::model_parameter_prefix)*index+=new_period-old_period;
-        p.d.par.resize(s.auto_state.diagram_parameters());
+        resize_parameters(p.d.par);
     }
-    for (int k = 0; k < set->npars; k++) {
-        if (set->pars[k].empty()) continue;
+    for (int k = 0; k < s.auto_state.npar; k++) {
         s.auto_state.par[k] = pars[k];
         s.auto_state.par_index[k] = xpp::get_param_index(s,s.model().upar_names[pars[k]]);
     }
@@ -573,10 +591,10 @@ void auto_settings_reload(Session &s, const AutoSettingsSet &kept)
     if (!have_settings(s)) return;
     AutoSettingsSet set = kept;
     const AutoSettingsSet fresh = settings_now(s);
-    set.npars = std::min(static_cast<int>(s.auto_state.par.size()),std::max(fresh.npars,kept.npars));
+    set.npars = std::min(static_cast<int>(s.auto_state.par.size()),kept.npars);
     set.pars.resize(set.npars);
     for (int i = 0; i < set.npars; i++)
-        if (i >= kept.npars || xpp::find_user_name(s.model(), PARAM_BOX, set.pars[i]) < 0)
+        if (xpp::find_user_name(s.model(), PARAM_BOX, set.pars[i]) < 0)
             set.pars[i] = s.model().upar_names[s.auto_state.par[i]];
     if (xpp::find_user_name(s.model(), ICBOX, set.var) < 0) set.var = fresh.var;
     const auto has_par = [&](const std::string &name) {

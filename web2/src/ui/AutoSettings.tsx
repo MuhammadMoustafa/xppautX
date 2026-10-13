@@ -182,7 +182,7 @@ export function AutoParsDialog({onClose}: {onClose: () => void}) {
   const shown = useShown();
   const pending = pendingFields(useStore(s => s.autoSettings)).has('pars');
   const model = useStore(s => s.core?.pars) ?? [];
-  const [names, setNames] = useState<string[]>(() => (shown?.pars ?? []).map(n => n ?? ''));
+  const [names, setNames] = useState<string[]>(() => model.map((_, i) => shown?.pars[i] ?? ''));
   if (!shown) return null;
   const ok = () => {
     if (names.some((n, i) => n !== (shown.pars[i] ?? ''))) session.autoSettings({pars: names});
@@ -190,14 +190,15 @@ export function AutoParsDialog({onClose}: {onClose: () => void}) {
   };
   return (
     <Modal title="AUTO's parameters" id="auto-pars" kind="pars" onClose={onClose}>
-      <p class="muted auto-settings-note">The parameters AUTO can continue in; the axes and Mark values name them.</p>
+      <p class="muted auto-settings-note">The parameters AUTO can continue in; (none) leaves a field unselected. The axes and Mark values name the selected parameters.</p>
       <form class="form-grid auto-pars" onKeyDown={enterSubmits(ok)} onSubmit={e => { e.preventDefault(); ok(); }}>
         {names.map((n, i) => (
           <label key={i} class={pending ? 'queued' : undefined}>
             <span>Par{i + 1}</span>
             <select value={n} data-field={`par${i + 1}`} data-autofocus={i === 0 ? '' : undefined}
               onChange={e => { const v = names.slice(); v[i] = (e.target as HTMLSelectElement).value; setNames(v); }}>
-              {!model.some(([m]) => m === n) && <option value={n}>{n || '(none)'}</option>}
+              <option value="">(none)</option>
+              {n && !model.some(([m]) => m === n) && <option value={n}>{n}</option>}
               {model.map(([m]) => <option key={m} value={m}>{m}</option>)}
             </select>
           </label>

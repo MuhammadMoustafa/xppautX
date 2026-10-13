@@ -722,7 +722,7 @@ void auto_params(xpp::Session &s)
   for(const auto &label:labels)n.push_back(label.c_str());
   int status,i;
   std::vector<std::string> values(s.model().nupar);
-  for(i=0;i<s.model().nupar;i++){
+  for(i=0;i<s.auto_state.npar;i++){
     values[i] = s.model().upar_names[s.auto_state.par[i]];
   }
   std::vector<int> kinds(s.model().nupar,XPP_FIELD_NAME_IN(2));

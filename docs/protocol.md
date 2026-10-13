@@ -1246,7 +1246,7 @@ has none, and gets no event). core/auto_settings.cpp keeps it.
 | field | meaning |
 |---|---|
 | `numerics` | the Numerics form's fields by AUTO's names, in the form's order: `ntst` Ntst, `nmx` Nmax, `npr` NPr, `ncol` Ncol, `ds`, `dsmin`, `dsmax`, `rl0` Par Min, `rl1` Par Max, `a0` Norm Min, `a1` Norm Max, `epsl`, `epsu`, `epss`, `iad`, `mxbf`, `iid`, `itmx`, `itnw`, `nwtn`, `iads`, `suppbp` SuppBP |
-| `pars` | AUTO's parameters, the Parameter form's Par1.. (as many as the model has, at most 8): the model parameters AUTO can continue in |
+| `pars` | AUTO's selected model parameters, in order, without duplicates; initially the first eight or fewer. The Parameter form has one field per model parameter, with these names first and the remaining fields blank (not selected). |
 | `axes.plot` | the plot type: 0 hi, 1 norm, 2 hi and lo, 3 period, 4 two parameters, 10 frequency, 11 average |
 | `axes.var` | the variable the y axis plots (Y-axis) |
 | `axes.par1`, `par2` | Main Parm and Secnd Parm, two of `pars` (`null` if none) |
@@ -1265,8 +1265,9 @@ as integers; `null` when not finite.
 
 **`{"cmd":"auto","op":"set", ...}`** writes them without the forms, with
 any of the four members above, each part only when given: `numerics` any
-of its fields, `pars` the first N of AUTO's parameters (an empty name keeps
-one), `axes` any of `plot`, `var`, `par1`, `par2` (names among `pars`,
+of its fields, `pars` the complete selection of AUTO's parameters (blank names
+are omitted; filled names must be distinct model parameters, in order),
+`axes` any of `plot`, `var`, `par1`, `par2` (names among `pars`,
 after this set's own `pars`), the four ranges, and `"fit":true` for
 Axes/Fit afterwards, and `"view":k` for view k's axes (the active one's
 without it; setting a view's axes makes it the active one), `marks` the

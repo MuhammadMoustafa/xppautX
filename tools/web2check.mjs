@@ -2367,7 +2367,7 @@ async function autoView(dir) {
   await rendered();
   const signNmx = await fieldState('nmx');
   check('T31: Enter on a lone "-" in an integer AUTO Numerics field keeps the form open, marked, and sends nothing',
-    signNmx.invalid === 'true' && signNmx.error === 'Nmax must be a whole number of at least 1' && signNmx.ok === true
+    signNmx.invalid === 'true' && signNmx.error === await S('s.autoSettings.core.rules.nmx.message') && signNmx.ok === true
     && await cdp.eval(`!!document.querySelector('.auto-settings-dialog')`)
     && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set')`)), JSON.stringify(signNmx));
   await typeInto('nmx', '200');
@@ -2379,6 +2379,36 @@ async function autoView(dir) {
   check('T22: Escape cancels it: nothing sent',
     await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics cancelled')
     && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set')`)));
+  const initialPars = await S('s.autoSettings.core.pars');
+  await autoButton('P');
+  await until('document.querySelectorAll(".auto-pars select").length === 12', 'Parameter form');
+  check('W338: Parameter shows selected names and accepts blank fields as none',
+    await cdp.eval(`(() => { const d = document.querySelector('.dialog');
+      const values = [...d.querySelectorAll('select')].map(s => s.value);
+      return values.length === 12 && values.slice(8).every(v => v === '')
+        && JSON.stringify(values.slice(0, 8)) === ${JSON.stringify(JSON.stringify(initialPars))}
+        && !d.querySelector('.dialog-actions button.primary').disabled; })()`),
+    JSON.stringify(await cdp.eval(`[...document.querySelectorAll('.auto-pars select')].map(s => s.value)`)));
+  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions button.primary').click()`);
+  await until('!document.querySelector(".auto-pars") && !s.busy', 'Parameter OK');
+  check('W338: unchanged Parameter OK keeps eight selected names',
+    JSON.stringify(await S('s.autoSettings.core.pars')) === JSON.stringify(initialPars));
+  await autoButton('P');
+  await until('document.querySelectorAll(".auto-pars select").length === 12', 'Parameter ninth');
+  await cdp.eval(`(() => { const s = document.querySelectorAll('.dialog select')[8];
+    s.value = 'gk'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions button.primary').click()`);
+  await until('!document.querySelector(".auto-pars") && !s.busy && s.autoSettings.core.pars.length === 9', 'Parameter nine selected');
+  check('W338: the ninth Parameter selector adds exactly its name',
+    JSON.stringify(await S('s.autoSettings.core.pars')) === JSON.stringify([...initialPars, 'gk']));
+  await autoButton('P');
+  await until('document.querySelectorAll(".auto-pars select").length === 12', 'Parameter clear ninth');
+  await cdp.eval(`(() => { const s = document.querySelectorAll('.auto-pars select')[8];
+    s.value = ''; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions button.primary').click()`);
+  await until('!document.querySelector(".auto-pars") && !s.busy && s.autoSettings.core.pars.length === 8', 'Parameter restored');
+  check('W338: choosing none removes the ninth selected name',
+    JSON.stringify(await S('s.autoSettings.core.pars')) === JSON.stringify(initialPars));
   /* W267: choosing a count and OK sends one set with threads alone, the core's event shows it (saved in the
      config folder of this run), and Automatic puts the word back */
   const chooseThreads = async value => {
@@ -2738,7 +2768,7 @@ async function autoView(dir) {
   await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-pars]')`, 'parameter form');
   check("T22: Parameter is the page's form: a select per AUTO parameter, set to the settings' names",
     await S(`(() => { const sel = [...document.querySelectorAll('.auto-settings-dialog select')];
-      return sel.length === s.autoSettings.core.pars.length && sel.every((e, i) => e.value === s.autoSettings.core.pars[i]); })()`),
+      return sel.length === s.core.pars.length && sel.every((e, i) => e.value === (s.autoSettings.core.pars[i] ?? '')); })()`),
     JSON.stringify(await S('s.autoSettings.core.pars')));
   await key('Escape');
   await until(`!document.querySelector('.auto-settings-dialog')`, 'parameter closed');
@@ -2928,7 +2958,7 @@ async function autoStopRace() {
     going && await S(`s.busy && s.autoSettings.inflight.length === 1 && s.autoSettings.inflight[0].patch.numerics.nmx === 15
       && s.autoSettings.core.numerics.nmx === 2000`)
     && await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)
-    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', integration: {nmx: 15}}]),
+    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {nmx: 15}}]),
     JSON.stringify([going, await S('[s.busy, s.autoSettings]'), await setsSent()]));
 
   /* T25: a connection the browser opened and sent nothing on yet (a
@@ -2956,7 +2986,7 @@ async function autoStopRace() {
   check('W106: once the run ends the set applies: the core\'s Nmax is 15, nothing in flight, no second set',
     await until(`!s.busy && s.autoSettings.core.numerics.nmx === 15 && !s.autoSettings.inflight.length`,
       'applied at idle', 60000 * SLOW)
-    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', integration: {nmx: 15}}])
+    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {nmx: 15}}])
     && !(await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)),
     JSON.stringify([await S('s.autoSettings'), await setsSent()]));
   check('T23: after Stop the status strip says so: "Stopped: by the user (Stop)"',

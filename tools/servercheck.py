@@ -2971,6 +2971,12 @@ def check_autoinfo():
         colb(is_idle)
         run_evs = []
         for snd, col, diag in ((snda, cola, diag_a), (sndb, colb, diag_b)):
+            # W338: the long W326 path ends at an unconverged point with no
+            # multipliers; test the circle on a computed periodic endpoint.
+            snd(cmd='auto', op='set', numerics={'nmx': 20})
+            evs, _ = col(is_idle)
+            check('W338: the short periodic circle fixture is configured',
+                  not any(e.get('ev') == 'message' and 'error' in e for e in evs), str(evs)[-300:])
             snd(cmd='key', win='auto', key='r')
             evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=30 * SLOW)
             snd(cmd='answer', id=ask['id'], key='p')
@@ -2979,7 +2985,7 @@ def check_autoinfo():
             run_evs = run_evs or evs
         per = [p for p in diag_a if p[0] == 2]
         check('grab by point, then Run: the periodic branch is the one grabbing by keys gives',
-              len(per) > 10 and diag_a == diag_b, '%d periodic points; %d vs %d points' % (len(per), len(diag_a), len(diag_b)))
+              len(per) == 20 and diag_a == diag_b, '%d periodic points; %d vs %d points' % (len(per), len(diag_a), len(diag_b)))
         check('diagram: the periodic branch says it started from the Hopf label (from)',
               per and per[0][6] == hb['lab'] and all(p[6] == 0 for p in per[1:]), str(per[:2]))
         got = infos(run_evs)
@@ -3146,9 +3152,24 @@ def check_autosettings():
         check("autosettings: the numerics are the Numerics form's values, field for field",
               ask and ask['kind'] == 'form' and ask['values'] == want, '%s vs %s' % (ask and ask['values'], want))
         ask = ask_of(cmd='key', win='auto', key='p')
-        cancel(ask)
-        check("autosettings: pars are the Parameter form's names", ask and ask['values'] == st['pars'],
+        check("autosettings: pars are the Parameter form's filled names, remaining fields blank",
+              ask and len(ask['values']) == 12 and ask['values'][:len(st['pars'])] == st['pars']
+              and ask['values'][len(st['pars']):] == [''] * (12 - len(st['pars'])),
               '%s vs %s' % (ask and ask['values'], st['pars']))
+        snda(cmd='answer', id=ask['id'], ok=1, values=ask['values'])
+        cola(is_idle)
+        snda(cmd='data', events=['autosettings'])
+        unchanged = settings_of(cola(is_idle)[0])
+        check('W338: OK on the unchanged Parameter form keeps the selection',
+              unchanged and unchanged['pars'] == st['pars'], str(unchanged))
+        ask = ask_of(cmd='key', win='auto', key='p')
+        values = ask['values'][:]
+        values[8] = 'gk'
+        snda(cmd='answer', id=ask['id'], ok=1, values=values)
+        grown = settings_of(cola(is_idle)[0])
+        check('W338: filling the ninth Parameter field selects nine names',
+              grown and grown['pars'] == st['pars'] + ['gk'], str(grown))
+        auto_set(pars=st['pars'])
         plot_key = {0: 'h', 1: 'n', 2: 'i', 3: 'p', 4: 't', 10: 'r', 11: 'a'}[st['axes']['plot']]
         menu_ask = ask_of(cmd='key', win='auto', key='a')
         snda(cmd='answer', id=menu_ask['id'], key=plot_key)
@@ -3178,7 +3199,7 @@ def check_autosettings():
         evs, st3, errs = auto_set(numerics={'nmx': 12, 'ds': -0.01}, pars=[p1, p0], axes={'plot': 1, 'var': 'W', 'par1': p1},
                                   marks=[[p0, 0.25], ['T', 30]])
         check('auto set: numerics, pars, axes and marks set, the event says so', not errs and st3
-              and st3['numerics']['nmx'] == 12 and st3['numerics']['ds'] == -0.01 and st3['pars'][:2] == [p1, p0]
+              and st3['numerics']['nmx'] == 12 and st3['numerics']['ds'] == -0.01 and st3['pars'] == [p1, p0]
               and st3['axes']['plot'] == 1 and st3['axes']['var'] == 'W' and st3['axes']['par1'] == p1
               and st3['marks'] == [[p0, 0.25], ['T', 30]], '%s %s' % (errs, st3))
         ask = ask_of(cmd='key', win='auto', key='n')
@@ -3198,6 +3219,7 @@ def check_autosettings():
                          ({'numerics': {'ds': -0.9, 'dsmax': 0.5}}, 'Ds must be from Dsmin to Dsmax'),
                          ({'numerics': {'dsmin': 0.5, 'dsmax': 1, 'ds': 0.1}}, 'Ds must be from Dsmin to Dsmax'),
                          ({'numerics': {'nmx': 'many'}}, 'Nmax'), ({'pars': ['nosuch']}, 'nosuch'),
+                         ({'pars': [p0, p0.upper()]}, 'more than once'),
                          ({'axes': {'var': 'nosuch'}}, 'nosuch'), ({'axes': {'plot': 7}}, 'plot'),
                          ({'axes': {'xmin': 1, 'xmax': 0}}, 'Xmin'), ({'marks': [['W', 1]]}, 'W')):
             evs, st4, errs = auto_set(**bad)

@@ -65,7 +65,7 @@ void auto_settings_update(const Session &s);
 struct AutoSettingsSet {
     std::array<int, AUTO_NUM_N> has_num{};
     std::array<double, AUTO_NUM_N> num{};
-    int npars = -1; /* -1: no "pars"; else the first npars of AutoPar */
+    int npars = -1; /* -1: no "pars"; else select the nonblank names in order */
     std::vector<std::string> pars;
     int has_plot = 0;
     int plot = 0;
