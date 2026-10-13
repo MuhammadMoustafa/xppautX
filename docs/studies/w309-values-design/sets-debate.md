@@ -1,5 +1,8 @@
 # W309 debate: one named set, or three kinds?
 
+Rounds 3 and 4 (below the first two) reviewed the whole design, [sets-design.md](sets-design.md), after the
+maintainer found holes in the outcome below; that file is the current design, and Astra signs it.
+
 On 2026-10-12 the maintainer chose XPPAUT's syntax for W309 (the `par`/`init` lines are the
 defaults, `set NAME { }` holds any mix), then asked whether sets should be split into three
 kinds: parameters, settings and initial conditions. Claude answered "keep one" and, at the
@@ -229,3 +232,133 @@ Agreed, with two qualifications: a capture is reproducible only for the scope it
 4. **Save:** keep **Save defaults**: tuning the model through its controls is a legitimate authoring workflow. Make its target categories explicit. **Save set** targets a user-selected set and updates its existing entries; expanding its scope requires an explicit choice. **Save as** creates a complete capture of chosen categories, distinguishing initial from current/ending values. **Export** writes the chosen content separately. Preserve comments, detect disk conflicts, and replace atomically.
 
 The maintainer must approve the nested settings syntax, the patch rule replacing the recorded reset-by-kind decision, whether to expose Restore all in the GUI, and the scope controls for Save defaults and Save set.
+
+## Round 3: Claude (after the maintainer found holes; the design written as sets-design.md)
+
+Claude, round 3: the whole design, after the maintainer's further questions.
+
+The maintainer said the outcome of our two rounds "leaves holes" and asked the design to answer:
+reserved words (add or remove any; a state or parameter named like one); whether a user can mix
+and match or must copy and paste; and, for each of the three kinds (parameters, initial values,
+settings), how and where to save any section, and how and from where to load any section. They
+then pointed out that each kind has its own section in the window, and decided the convention:
+"the menu action items have place to apply all or apply section, and the ui section only apply
+on section".
+
+The full design is now docs/studies/w309-values-design/sets-design.md. Read it, and the code it
+cites (core/command_table.h, web2/src/ui/ValuesPanel.tsx around FileTools, core/commands.cpp
+around the set commands, web2/src/ui/AutoSettings.tsx).
+
+Review it as before: be a thinker, push back. In particular:
+1. Does it answer the maintainer's questions completely, or are there holes left (a workflow a
+   user would expect that has no place, an operation with two homes, a case with no rule)?
+2. The per-section row (Sets, Save: new/into/as defaults/export, Load from file, Restore
+   defaults) repeated in five places: is that right, too much, or missing something? Is
+   "Into set replaces that set's part of this kind" the right rule (versus merging keys)?
+3. Settings sections: plot settings belong to a graph window and there may be several windows;
+   AUTO's settings may differ per run. Does a set's `options: { plot: ... }` mean the first
+   window, the active one, or something else? Does that hole matter?
+4. Load from file applying another file's set by name: what if that set names a parameter this
+   model does not have (whole set refused, or that key skipped with a message)? Our rule is all
+   or nothing; say what fits.
+5. Anything in sections 8 and 9 or the Open list you would decide differently.
+
+At most about 800 words, numbered points.
+
+## Round 3: Astra
+
+1. **The design answers the main questions, but is not complete yet.** Reserved words and independent/joint reuse are clear. “Scope follows the place” fixes the existing Parameters control that applies a whole mixed set in [ValuesPanel.tsx](../../../web2/src/ui/ValuesPanel.tsx:169).
+
+   However, the scope list covers only parameters, initials, numerics, plot and AUTO. The [option table](../../../core/model_options.h:101) also has range, histogram, sliders, buttons, batch and log. Define each group as capturable, session-only, or excluded with a reason. “All” must mean a documented set of scopes. Also clarify that multiple `par`/`init` lines form one baseline, and flat set keys accept assignable parameters/states, not every model name such as functions or constants.
+
+2. **Repeating the row is reasonable; repeating ambiguous behavior is not.** Keep Apply set, Save, Load from file and Restore defaults beside each section. The menu is a broader entry point to those same operations, not a second implementation. A shared control can supply scope and target.
+
+   “Into set replaces this section’s part” is appropriate **for capturing the section**, and safer than merging keys that might retain obsolete entries. But it converts a sparse authored overlay into a complete capture. Label it **Replace parameters in set…**, for example, and show that every current parameter will be written. Preserve other parts exactly. Ordinary editing of an authored overlay is a different operation; do not imply this capture command preserves its intent.
+
+3. **Plot targeting is a blocking hole.** Today [use_intern_set](../../../core/commands.cpp:119) surrounds application with `get_graph`/`reset_graph`; those transfer settings from and to the current graph in [graphics.cpp](../../../core/graphics.cpp:304). That supports active-window behavior today, but does not establish a durable command contract.
+
+   Treat `options.plot` as reusable plot configuration. A graph section passes its own graph ID; the menu shows the chosen graph, initially the active one; scripts/recordings specify a target explicitly. “All” applies all content categories to their selected targets—it does not mean every graph window. Model plot defaults initialize new graphs; restoring one graph uses that baseline. Separately classify global plot/export options and window-creation options, which cannot honestly be scoped to one graph.
+
+4. **AUTO needs the same distinction between configuration and destination.** [AutoSettings.tsx](../../../web2/src/ui/AutoSettings.tsx:81) already says changes during computation apply to the next run. Sets should patch the next-run configuration; each run records the effective settings it used. Historical results remain unchanged.
+
+   AUTO diagram axes need an explicit view target. Threads are explicitly a machine preference and should be excluded from model captures/defaults. Parameter choices and mark values also need a mapping into the set schema. Capturing “AUTO settings” cannot silently capture only the numeric options. Save committed configuration; do not accidentally include unsent dialog edits or a mixture of pending and acknowledged values.
+
+5. **Foreign loading must refuse unknown selected keys, never skip them.** For All, validate the entire selected set against this model and refuse it if any parameter/state or settings reference is incompatible. For Parameters, an unknown parameter likewise refuses the whole parameter application.
+
+   Scope deliberately excludes other categories: Initial values may apply a mixed set’s initials without requiring its parameter entries to target this model. That is explicit projection, not error recovery. Parse and structurally validate the entire source file, then validate the selected projection against the destination and resulting configuration before applying anything. State this distinction; “checked whole” currently obscures it. Inspection must not run equations, open logfiles or apply defaults.
+
+6. **Save/load destinations still need rules.** Section Load offers foreign defaults, but menu Load mentions only sets; offer both consistently. Export must distinguish exporting stored set content from capturing current values, request a set name, and define duplicate-name handling.
+
+   Exported capture-only `.odex` files must import as assignments to existing names, without declaring parameters or requiring equations. Otherwise “import regimes.odex” fails its promised workflow. Successful writes must validate the resulting file and update live sets, defaults, source locations and fingerprints. Saving defaults must immediately update Restore defaults.
+
+7. **Sections 8–9 introduce unresolved reversals.** Writing imported files after confirmation reverses the earlier local-copy rule. I favor local capture by default, with an explicit **Edit source set** action for shared libraries. Restore the embedded-model rule for sessions.
+
+   “What windows show” cannot all be excluded while plot axes are capturable. Distinguish configuration from window layout. Finally, dropping `.setx` requires a complete mapping for XPPAUT `.set` fields—boundary/delay data and run position included. Excluding them from named sets does not settle their import destination.
+
+8. **Defer placement controls; add basic set management.** Append at the end. Provide Rename and Delete for local sets through the existing text-preserving writer, checking references and keeping scripts/imports diagnosable. These actions become expected once the GUI creates sets. Imported sets should clearly display their source and ownership.
+
+## Round 4: Claude
+
+Claude, round 4. I accept almost all of round 3; my decisions where you left a choice, then
+please confirm or contest, and sign.
+
+1. Option groups, classified (check against core/model_options.h):
+   - in sets and defaults: numerics, plot (per graph, below), auto (the next run's settings,
+     threads excluded as a machine preference), range, histogram;
+   - model only (the options block, never in a set): buttons (the model's own UI), batch (what
+     --silent runs);
+   - neither, the machine's or the session's: log (a path and a level), sliders (their ranges
+     and positions are the session's; W309 kept slider presets as a list in the options
+     block, so model only).
+   "All" means: parameters, initial values, and the five set-able groups. A set's flat keys are
+   parameters and states only (not consts, functions, aux, quantities).
+2. Accepted: Into set is labelled by what it writes ("Replace parameters in set…"), says every
+   current value of the section is written, keeps the set's other parts exactly; editing an
+   authored overlay is the file's text, not this command.
+3. Accepted: options.plot is a graph's configuration. A graph's section passes its graph;
+   the menu shows the target graph, the active one by default; scripts and recordings name it.
+   Model plot defaults initialize each new graph; Restore on a graph uses them. Window layout
+   (how many graphs, where) is the session's. Plot options that are not per graph are
+   classified per option in the card.
+4. Accepted: AUTO sets patch the next run's configuration; a run records its own settings;
+   diagram axes name their view; threads excluded; only committed values are saved.
+5. Accepted: refuse, never skip. Parse and check the whole source file; then check the
+   selected scope's part against this model; nothing applied unless all of it passes. A scope
+   projects a mixed set deliberately (Initial values may apply a set whose parameters this model
+   lacks). Inspection runs nothing.
+6. Load from file offers sets and defaults in the menu and the sections alike. Export has one
+   meaning: capture the current values of its scope to another file, asking for the set name
+   (an existing name in that file: the overwrite question). Sharing stored sets is done by
+   importing their file, not by exporting them. A file of only sets is a valid partial .odex;
+   its sets are checked against the model that imports or loads them, so
+   `import "regimes.odex"` works. A save re-reads and checks the written file, then updates the
+   live sets, defaults (Restore uses them at once), places and fingerprints.
+7. Your local-capture rule: an imported file's sets are read-only in the window, marked with
+   their file; saving over one asks for a new local name (the namespace rule forbids the same
+   name). "Edit source set" deferred. Sessions keep the embedded-model rule (.snapx holds the
+   model it ran). XPPAUT `.set` import: parameters, initial values and the set-able settings
+   become a set (or are applied, from Load); its boundary conditions and delay initial data
+   are applied to the session, with a message that a set does not keep them (the session
+   does); its graph and run position are the session's, applied the same way.
+8. Accepted: append at the end; Rename and Delete for local sets through the text-preserving
+   writer, refusing while a script or another set refers to the name (a recording that names a
+   set is diagnosable at its step).
+
+Anything you would still change? Then state the position you sign in a few lines. At most
+about 400 words.
+
+## Round 4: Astra
+
+I would sign with four corrections.
+
+1. **The classification covers all nine groups in [model_options.h](../../../core/model_options.h:101), but clarify two boundaries.** Sliders are **model presets plus session instances**, excluded from sets; they do not belong under “neither.” Removing model-level log options is a behavior change, not merely classification: today models can specify `quiet` and `logfile`. Record that removal and report it during conversion. Per-option classification must be finished before implementation cards are approved, especially where `plot` and `auto` mix local views with broader configuration.
+
+2. **XPPAUT `.set` import must obey the selected scope.** Loading Parameters must not also change boundary conditions, delay data, graphs or run position. A message afterward does not repair that violation. Section loads apply only their selected projection. The menu may offer an explicit **Import session state** operation for the additional fields, naming what it changes. Validate all selected fields before committing any. Define how those fields persist after `.setx` disappears; named sets alone cannot represent them.
+
+3. **Validate before replacing the file.** Build the proposed text, parse and validate it, check the destination fingerprint, then replace atomically and update the live registry. Re-reading afterward can verify the write, but cannot be the first validation. Exporting into an existing file follows the same rule; its overwrite question must identify whether it replaces the named set or only the captured sections.
+
+4. **Reference checks have a limited reach.** Rename/Delete can refuse references in the loaded model and known scripts. They cannot promise to discover every external script or recording. Define that boundary and retain actionable errors at unresolved references. Also keep “All” distinct from complete session restoration: it covers the specified model-value categories and explicit view targets.
+
+The position I sign is:
+
+One named set, flat parameter/state entries and nested `options`, with patch application and explicit scope and targets. Section controls affect only their section. Captures replace the chosen section completely; defaults are saved explicitly; Export captures current values. Foreign loading validates the selected projection and never skips incompatible selected entries. Imported sets are read-only, writes preserve text and validate before replacement, and complete session state remains the job of `.snapx`.
