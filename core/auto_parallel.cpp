@@ -67,6 +67,21 @@ bool auto_parallel_ready(const Session &s) {
         && (!solver_info(s.numerics.method).traits.discrete || s.numerics.store_every == 1);
 }
 
+void AutoParallel::select_run(AutoLib &source, long ndim, long ntst, long ncol) {
+    const Session &s = *source.session;
+    if (!auto_parallel_ready(s)) {
+        source.collocation.reset();
+        return;
+    }
+    // Matrix work grows quadratically with dimension. Floating multiplication
+    // avoids overflow at accepted input sizes; this only selects workers.
+    const double work = static_cast<double>(ndim) * static_cast<double>(ndim)
+        * static_cast<double>(ntst) * static_cast<double>(ncol);
+    const unsigned threads = work < min_collocation_work ? 1 : threads_for(s.auto_state.threads);
+    if (!source.collocation || source.collocation->threads() != threads)
+        source.collocation = std::make_unique<AutoParallel>(threads);
+}
+
 void AutoParallel::prepare(AutoLib &source, long ndim, long nbc) try {
     if (!state_) state_ = std::make_unique<State>(threads_);
     const Session &s = *source.session;

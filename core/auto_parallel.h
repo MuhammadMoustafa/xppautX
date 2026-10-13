@@ -10,7 +10,11 @@ class AutoParallel {
 public:
     // W251 measured no gain past four workers on PY_S1Bf.
     static constexpr unsigned max_threads = 4;
+    // W325 UCRT: work=512 loses, 1280 pays (ndim^2*NTST*NCOL).
+    static constexpr long min_collocation_work = 1024;
     static unsigned automatic_threads();
+    // Choose once after AUTO has established the run's dimension and mesh.
+    static void select_run(AutoLib &source, long ndim, long ntst, long ncol);
     // The count a preference gives: 0 is automatic, else the number itself.
     static unsigned threads_for(unsigned preferred) { return preferred ? preferred : automatic_threads(); }
     // threads is at least 1; the callers' sources keep it within the logical processors (xpp_prefs.h).

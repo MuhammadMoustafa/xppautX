@@ -82,6 +82,9 @@ int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has b
     set_function_pointers(iap,&list);
     init1(&iap, &rap, icp.data(), par.data());
     chdim(&iap);
+    if (list.type == AUTOBV)
+      xpp::AutoParallel::select_run(s.auto_lib, iap.ndim, iap.ntst, iap.ncol);
+    else s.auto_lib.collocation.reset();
 
     /* Create the allocations for the global structures used in 
        autlib3.c and autlib5.c.  There are purely an efficiency thing.

@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- AUTO selects its collocation workers once per run and keeps small problems on one thread, avoiding worker overhead while preserving the diagram and large-model speedups (W325, [#386](https://github.com/MuhammadMoustafa/xppautX/issues/386)).
+
 - AUTO restores the converged solution, tangent, continuation history and stability data when locating a special point exhausts ITMX. Morris-Lecar continuation at NTST 15 now reaches the fold of cycles instead of turning round after a failed branch-point search (W326, [#387](https://github.com/MuhammadMoustafa/xppautX/issues/387)).
 
 - AUTO's homoclinic form sizes its values from the model, so it works beyond 49 variables (XPPAUT's overruns its 100 fields there: [findings #49](docs/xppaut-findings.md)) (W301, [#359](https://github.com/MuhammadMoustafa/xppautX/issues/359)).

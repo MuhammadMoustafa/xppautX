@@ -184,7 +184,7 @@ conpar_default_wrapper(AutoLib &lib, integer *nov, integer *na, integer *nra, in
     data.icf = icf;
     data.loop_start = 0;
     data.loop_end = *na;
-    if (!lib.collocation || !xpp::auto_parallel_ready(*lib.session) || lib.collocation->threads()==1) {
+    if (!lib.collocation || lib.collocation->threads()==1) {
       conpar_process(&data);
       return;
     }

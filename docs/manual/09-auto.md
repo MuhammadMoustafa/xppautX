@@ -247,7 +247,10 @@ session: it is kept in `preferences.setx` in the per-user configuration
 folder (as `auto_threads: auto` or `auto_threads: 4`), applies to every model
 and every run, and is not in a session file. A model that is interpreted, not
 compiled, or that uses random numbers or delays computes on one thread
-whatever the count.
+whatever the count. Small collocation problems also compute on one thread:
+AUTO uses workers once `dimension * dimension * Ntst * Ncol` reaches 1024. This avoids
+the overhead of workers on a small mesh; the selected preference and the
+results stay the same.
 
 The session keeps every AUTO setting under `auto/settings.txt`, with
 the protocol keys (`nmx`, `ntst`, ...); Reload keeps them too.

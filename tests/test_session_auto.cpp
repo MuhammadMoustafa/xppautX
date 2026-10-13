@@ -421,8 +421,11 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
 
 // W247: a normal form with derived parameters, fixed variables and a user
 // function; compare all stored values, including Floquet eigenvalues.
+// Below/at W325's measured work threshold for this two-state, Ncol=4 fixture.
+constexpr long serial_mesh = 17;
+constexpr long worker_mesh = 64;
 std::deque<DiagramPoint> collocation_run(unsigned threads, bool compiled, bool impure=false,
-                                        const std::string &benchmark={}, bool exact=false)
+                                        const std::string &benchmark={}, bool exact=false, long mesh=serial_mesh)
 {
     xpp::TempDir tmp;
     const std::string file=benchmark.empty()?tmp.file("hopf.ode"):benchmark;
@@ -430,7 +433,7 @@ std::deque<DiagramPoint> collocation_run(unsigned threads, bool compiled, bool i
         "par mu=-0.1,w=1\n!frequency=w\nsquare(q)=q*q\nr=square(x)+square(y)\n"
         "x'=mu*x-frequency*y-x*r"+std::string(impure?"+0*shift(x,0)":"")+"\n"
         "y'=frequency*x+mu*y-y*r\ninit x=0,y=0\n"
-        "@ ntst=17,ncol=4,nmax=60,npr=10,ds=0.02,dsmax=0.05,dsmin=0.0001\n"
+        +xpp::format("@ ntst={},ncol=4,nmax=60,npr=10,ds=0.02,dsmax=0.05,dsmin=0.0001\n",mesh)+
         "@ parmin=-1,parmax=1,epsl=1e-8,epsu=1e-8,epss=1e-8\n"+std::string(exact?"@ jacobian=exact\n":"")+"done\n"));
     program.compile=compiled;
     CHECK(load(file));
@@ -438,7 +441,7 @@ std::deque<DiagramPoint> collocation_run(unsigned threads, bool compiled, bool i
     CHECK(s.model().auto_rhs_pure==(compiled && !impure));
     s.auto_state.dir=tmp.path();
     xpp::init_auto_win(s);
-    s.auto_state.threads=threads; /* the preference's count, which the dispatch makes the pool of */
+    s.auto_state.threads=threads; /* the preference's count, selected once for the run */
     xpp::auto_start_diff_ss(s);
     CHECK(xpp::auto_grab_type_index(s,"HB",1)==1);
     const auto start=std::chrono::steady_clock::now();
@@ -446,7 +449,8 @@ std::deque<DiagramPoint> collocation_run(unsigned threads, bool compiled, bool i
     const double seconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
     std::printf("perf: AUTO %u threads %.6f s, %zu diagram points\n",threads,seconds,s.diagram.points.size());
     CHECK(std::any_of(s.diagram.points.begin(),s.diagram.points.end(),[](const auto &p){return p.d.ibr<0;}));
-    if (compiled && !impure) CHECK(s.auto_lib.collocation && s.auto_lib.collocation->threads()==threads);
+    if (compiled && !impure) CHECK(s.auto_lib.collocation && (!benchmark.empty()
+        || s.auto_lib.collocation->threads()==(mesh==serial_mesh?1:threads)));
     else CHECK(!s.auto_lib.collocation && !xpp::auto_parallel_ready(s));
     return s.diagram.points;
 }
@@ -500,6 +504,14 @@ void check_collocation()
     const auto exact=collocation_run(1,true,false,{},true);
     CHECK(!same_diagram(serial,exact));
     for (unsigned threads:{2u,4u}) CHECK(same_diagram(exact,collocation_run(threads,true,false,{},true)));
+    // The small fixture above stays serial at every requested count; at the
+    // threshold the real setubv/conpar workers must keep the same whole diagram.
+    const auto large=collocation_run(1,true,false,{},false,worker_mesh);
+    for (unsigned threads:{2u,4u})
+        CHECK(same_diagram(large,collocation_run(threads,true,false,{},false,worker_mesh)));
+    const auto large_exact=collocation_run(1,true,false,{},true,worker_mesh);
+    for (unsigned threads:{2u,4u})
+        CHECK(same_diagram(large_exact,collocation_run(threads,true,false,{},true,worker_mesh)));
     program.compile=true;
 
     // Failures are values observed after every worker has finished. A failed

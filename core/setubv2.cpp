@@ -133,9 +133,7 @@ void dispatch_mesh(const setubv_parallel_arglist *larg,
                    void (*work)(const setubv_parallel_arglist *))
 {
   AutoLib &lib=*larg->iap->lib;
-  if (xpp::auto_parallel_ready(*lib.session)) {
-    const unsigned threads=xpp::AutoParallel::threads_for(lib.session->auto_state.threads);
-    if (!lib.collocation || lib.collocation->threads()!=threads) lib.collocation=std::make_unique<xpp::AutoParallel>(threads);
+  if (lib.collocation) {
     lib.collocation->prepare(lib,larg->iap->ndim,larg->iap->nbc);
     lib.collocation->intervals(larg->loop_end-larg->loop_start,[&](long begin,long end,AutoLib &worker) {
       iap_type local=*larg->iap;
