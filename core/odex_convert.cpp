@@ -1189,7 +1189,7 @@ private:
       }
       int index = 0;
       const OptionRow *row = xpp::find_option(upper, index, true);
-      const bool slider = row && (row->name.starts_with("SLO") || row->name.starts_with("SHI") || row->name == "S1" || row->name == "S2" || row->name == "S3");
+      const bool slider = row && xpp::xppaut_slider_option(*row);
       if (!row || (row->group.empty() && !slider)) {
         option_note(xpp::format("{}={} in the .ode's set {}: XPP ignores it, so it is dropped", key, value, set.name), "set-value");
         continue;
@@ -1408,8 +1408,8 @@ private:
     if (!presets.empty()) {
       std::string list = "[ ";
       for (std::size_t i = 0; i < presets.size(); ++i) list += (i ? ", " : "") + presets[i];
-      int index = 0;
-      entries.push_back({"sliders", list + " ]", xpp::find_odex_option("sliders", index)});
+      const OptionRow &row = xpp::slider_presets_option();
+      entries.push_back({xpp::odex_key(row, 0), list + " ]", &row});
     }
     std::string out;
     for (std::string_view group : xpp::option_groups) {
@@ -1457,7 +1457,7 @@ private:
         option_note(xpp::format("@ {}={} in the .ode: startup running is removed, dropped; use Run or --silent", key, value), "runnow-removed");
         continue;
       }
-      const bool slider = row && (row->name.starts_with("SLO") || row->name.starts_with("SHI") || row->name == "S1" || row->name == "S2" || row->name == "S3");
+      const bool slider = row && xpp::xppaut_slider_option(*row);
       if (!row || (row->group.empty() && !slider)) {
         option_note(xpp::format("@ {}={} in the .ode: {}", key, value, row ? "an X11 window setting xppautX does not keep, dropped"
                                                                            : "XPP does not know this option, so it ignores it"),

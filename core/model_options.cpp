@@ -138,6 +138,24 @@ XppSlider &slider_slot(Session &s, std::size_t index)
   return s.sliders[index];
 }
 
+/* @ s1..s3, slo1..3 and shi1..3 (import only): one slot's parameter, low or high */
+template <std::size_t slot> const char *slider_var(Session &s, const OptionValue &v)
+{
+  if (v.apply) slider_slot(s, slot).var = v.text;
+  return nullptr;
+}
+template <std::size_t slot, double XppSlider::*end> const char *slider_end(Session &s, const OptionValue &v)
+{
+  double value = 0;
+  if (const char *why = number_in(v, value)) return why;
+  if (v.apply) slider_slot(s, slot).*end = value;
+  return nullptr;
+}
+constexpr std::array slider_slot_parsers{
+  slider_var<0>, slider_var<1>, slider_var<2>,
+  slider_end<0, &XppSlider::lo>, slider_end<1, &XppSlider::lo>, slider_end<2, &XppSlider::lo>,
+  slider_end<0, &XppSlider::hi>, slider_end<1, &XppSlider::hi>, slider_end<2, &XppSlider::hi>};
+
 constexpr OptionRow rows[] = {
   /* ---- the numerics the Numerics menu and `set num` edit, in the menu's
      order; total's sign there says "forever" ---- */
@@ -600,23 +618,23 @@ constexpr OptionRow rows[] = {
   {.group = option_group::interface, .kind = OptionKind::sliders, .name = "SLIDERS", .once = true},
   /* XPPAUT slider slots are import-only. */
   {.kind = OptionKind::name, .name = "S1", .once = true,
-   .parse = [](Session &s, const OptionValue &v) -> const char * { if (v.apply) slider_slot(s, 0).var = v.text; return nullptr; }},
+   .parse = slider_var<0>},
   {.kind = OptionKind::name, .name = "S2", .once = true,
-   .parse = [](Session &s, const OptionValue &v) -> const char * { if (v.apply) slider_slot(s, 1).var = v.text; return nullptr; }},
+   .parse = slider_var<1>},
   {.kind = OptionKind::name, .name = "S3", .once = true,
-   .parse = [](Session &s, const OptionValue &v) -> const char * { if (v.apply) slider_slot(s, 2).var = v.text; return nullptr; }},
+   .parse = slider_var<2>},
   {.kind = OptionKind::number, .name = "SLO1", .once = true,
-   .parse = [](Session &s, const OptionValue &v) -> const char * { double value = 0; if (const char *why = number_in(v, value)) return why; if (v.apply) slider_slot(s, 0).lo = value; return nullptr; }},
+   .parse = slider_end<0, &XppSlider::lo>},
   {.kind = OptionKind::number, .name = "SLO2", .once = true,
-   .parse = [](Session &s, const OptionValue &v) -> const char * { double value = 0; if (const char *why = number_in(v, value)) return why; if (v.apply) slider_slot(s, 1).lo = value; return nullptr; }},
+   .parse = slider_end<1, &XppSlider::lo>},
   {.kind = OptionKind::number, .name = "SLO3", .once = true,
-   .parse = [](Session &s, const OptionValue &v) -> const char * { double value = 0; if (const char *why = number_in(v, value)) return why; if (v.apply) slider_slot(s, 2).lo = value; return nullptr; }},
+   .parse = slider_end<2, &XppSlider::lo>},
   {.kind = OptionKind::number, .name = "SHI1", .once = true,
-   .parse = [](Session &s, const OptionValue &v) -> const char * { double value = 0; if (const char *why = number_in(v, value)) return why; if (v.apply) slider_slot(s, 0).hi = value; return nullptr; }},
+   .parse = slider_end<0, &XppSlider::hi>},
   {.kind = OptionKind::number, .name = "SHI2", .once = true,
-   .parse = [](Session &s, const OptionValue &v) -> const char * { double value = 0; if (const char *why = number_in(v, value)) return why; if (v.apply) slider_slot(s, 1).hi = value; return nullptr; }},
+   .parse = slider_end<1, &XppSlider::hi>},
   {.kind = OptionKind::number, .name = "SHI3", .once = true,
-   .parse = [](Session &s, const OptionValue &v) -> const char * { double value = 0; if (const char *why = number_in(v, value)) return why; if (v.apply) slider_slot(s, 2).hi = value; return nullptr; }},
+   .parse = slider_end<2, &XppSlider::hi>},
 
   /* ---- the range integration and a batch run ---- */
   {.group = option_group::sweep, .kind = OptionKind::name, .name = "RANGEOVER", .once = true,
@@ -924,6 +942,16 @@ const OptionRow *find_odex_option(std::string_view key, int &index)
     return &row;
   }
   return nullptr;
+}
+
+const OptionRow &slider_presets_option()
+{
+  return *std::ranges::find(rows, OptionKind::sliders, &OptionRow::kind);
+}
+
+bool xppaut_slider_option(const OptionRow &row)
+{
+  return std::ranges::contains(slider_slot_parsers, row.parse);
 }
 
 std::vector<std::string> option_choices(const OptionRow &row)

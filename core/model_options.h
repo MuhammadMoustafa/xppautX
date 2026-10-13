@@ -216,6 +216,12 @@ std::string odex_key(const OptionRow &row, int index);
    included), and the digit; nullptr when none does */
 const OptionRow *find_odex_option(std::string_view key, int &index);
 
+/* the slider presets' row (`sliders`, a list) */
+const OptionRow &slider_presets_option();
+/* row is one of XPPAUT's numbered slider slots (S1-S3, SLO1-3, SHI1-3):
+   no .odex option, but an .ode's, which the converter turns into presets */
+bool xppaut_slider_option(const OptionRow &row);
+
 /* the words a choice row takes, in a .odex (the registry's keys for the
    method), empty for any other row */
 std::vector<std::string> option_choices(const OptionRow &row);
