@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- `tools/autocompare.py` also checks the special points of every AUTO continuation of tests/auto against AUTO-07p 0.9.3 and XPPAUT 8.0 (`tests/auto/*.auto07p`, `*.xppaut`, written by `tools/auto_reference.py`), by type and order, within a tolerance derived per quantity from the location and Newton tolerances; 26 models agree with AUTO-07p and 24 with XPPAUT 8.0 to roundoff and the location tolerance, and three disagreements with AUTO-07p are traced and recorded ([docs/auto-references.md](docs/auto-references.md), [findings #47](docs/xppaut-findings.md): AUTO2000 does not restore the last converged point when the location of a special point fails). (W300, [#358](https://github.com/MuhammadMoustafa/xppautX/issues/358))
+
 - Parameter files (`.par`) load by name in any order, refusing unknown, duplicate or missing parameters without changing any values; positional `.ic` files still require exactly one value per differential equation. Both imports use the 4 MiB settings bound (W310, [#369](https://github.com/MuhammadMoustafa/xppautX/issues/369)).
 - Opening a `.ode` asks each outside path once across conversion and loading;
   Allow always also applies to its generated `.odex`. Log streams refuse a

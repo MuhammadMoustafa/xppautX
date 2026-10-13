@@ -76,6 +76,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [44](#44-every-name-is-found-by-scanning-every-symbol) | Speed | every name in a formula is found by scanning the whole symbol table, so loading grows with the square of the model's size | [W245](https://github.com/MuhammadMoustafa/xppautX/issues/301) |
 | [45](#45-a-model-past-maxode-overflows-the-stack-instead-of-being-refused) | Limits | a model with 4999 or more equations or fixed quantities writes past `compile_em`'s name arrays: an abort ("buffer overflow detected") or a corrupted stack, not an error | [W269](https://github.com/MuhammadMoustafa/xppautX/issues/326) |
 | [46](#46-parameter-files-ignore-names-and-load-by-position) | Parameter files | reordering `.par` lines silently assigns values to the wrong parameters | [W310](https://github.com/MuhammadMoustafa/xppautX/issues/369) |
+| [47](#47-auto-a-special-point-whose-location-does-not-converge-leaves-the-iterate-behind) | AUTO | when the location of a special point does not converge in ITMX steps, AUTO2000 keeps the displaced iterate and goes on from it: the branch turns round (AUTO-07p restores the last converged point) | [W300](https://github.com/MuhammadMoustafa/xppautX/issues/358) |
 
 ## 1. Model options
 
@@ -805,3 +806,50 @@ into `last_ic` before detecting short or long input
 [master](../reference/xppaut-master/lunch-new.c#L454)); xppautX tests both
 counts without applying anything on failure.
 [W310 / #369](https://github.com/MuhammadMoustafa/xppautX/issues/369).
+
+
+## 47. AUTO: a special point whose location does not converge leaves the iterate behind
+
+AUTO locates a bifurcation point, a fold or a user zero by the secant and
+Mueller method: it steps back along the branch by the secant estimate,
+Newton-corrects there, tests the function again, and repeats until the step
+is below EPSS (`lcspae` for equilibria, `lcspbv` for periodic orbits and
+boundary value problems). When the ITMX iterations do not converge it prints
+`NOTE:Possible special point`, sets the test function's value to 0 and
+returns, with the solution, its tangent, the old point and the monodromy
+matrix left at the last displaced iterate, a point behind the one the branch
+had reached
+([autlib1.c:1678-1683](../reference/xppaut-8.0/autlib1.c#L1678) for `lcspae`,
+master: [1677](../reference/xppaut-master/autlib1.c#L1677);
+[autlib1.c:6498-6500](../reference/xppaut-8.0/autlib1.c#L6498) for `lcspbv`,
+master: [6495](../reference/xppaut-master/autlib1.c#L6495)). The
+continuation goes on from that point: its next tangent is the secant from
+the displaced iterate to the next solution, so a step that lands back on the
+branch already traced reverses the direction. AUTO-07p saved the state
+before the first iteration and sets it back (`bvp.f90` `LCSPBV`, 'set back
+to previous (converged) state'; `ae.f90` `LCSPAE` the same), so a
+test function that changes sign by noise costs nothing.
+
+- **Evidence:** the Morris-Lecar model with `v3=0, v4=0.3, gca=1.1, phi=0.2`
+  (`tests/auto/tstauto_lecar.json`, W299), the cycles from the first Hopf
+  point at NTST 15 with the description's constants. Where the cycles'
+  largest multiplier is 3e6 the BP test function changes sign by noise at
+  point 21; the location runs its 9 iterations and ends in the NOTE (XPPAUT
+  8.0's own diagnostics file: `2 21 NOTE:Possible special point`,
+  AUTO-07p's the same at its point 21). AUTO-07p continues down the cycles'
+  fold and labels it at iapp 0.248413876, norm 0.381874, period 25.7582.
+  XPPAUT 8.0 and xppautX turn round at point 21 (iapp rises again from
+  0.248756 to 0.249114 while the norm falls from 0.3578 to 0.3433), zigzag
+  over the visited branch and end the run at point 30 on the first part of
+  it (iapp 0.24913, norm 0.34268, multiplier 5e6): the fold is never
+  reached. The fold is real, not the mesh's: at NTST 60 and EPS 1e-9
+  AUTO-07p and xppautX both find it at iapp 0.24841347, norm 0.381815,
+  period 25.7824, and xppautX at NTST 15 with the missing restore added to
+  `lcspbv` (a scratch build, not committed) labels it at 0.248413878, norm
+  0.381875, period 25.7578, the point AUTO-07p labels.
+- **xppautX:** the same as XPPAUT until W302 (adopting AUTO-07p's newer
+  algorithms) takes it: the restore changes the numbers of every run that
+  meets a failed location, so it comes with a new baseline, on purpose.
+  `tests/auto/tstauto_lecar.json` and `ode_lecar.json` record the missing LP
+  as a traced difference, and fail if it ever appears.
+- **Card:** [W300](https://github.com/MuhammadMoustafa/xppautX/issues/358).

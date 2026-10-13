@@ -44,3 +44,17 @@ homoclinic/heteroclinic equations as BVPs. Nine models are explicitly
 skipped: the unfinished `tsthom3` draft, three rotating-phase models whose
 supplied equilibrium starts fail, three Volterra integral models, and two
 random delay-network models. Their descriptions give the specific reasons.
+
+## Other programs' special points (W300, #358)
+
+Beside a description's diagram, `NAME.auto07p` and `NAME.xppaut` hold the special points (type, parameter,
+norm, period, eigenvalues or multipliers; not the step sequence) that AUTO-07p 0.9.3 and XPPAUT 8.0 find
+for the same problem. `tools/autocompare.py` compares ours with them within a tolerance stated per quantity
+([docs/auto-references.md](../../docs/auto-references.md)) on every run, from the committed files alone.
+Regenerate them only on a machine that has the program, with `python3 tools/auto_reference.py --program
+auto07p|xppaut [--only NAME,...]` (its docstring says what each needs); a changed file is a changed
+reference, to be explained. A description without a file says why in `auto07p_skip` / `xppaut_skip`
+(the two projection boundary-value fixtures for AUTO-07p, and the BVP fixtures for XPPAUT, whose
+boundary-value run starts from its integrated storage); a difference found, traced and kept is an entry
+of the description's `differences` (run, side, type, index among that type, cause), held exact:
+the check fails if the difference goes away.
