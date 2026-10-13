@@ -79,6 +79,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [47](#47-auto-a-special-point-whose-location-does-not-converge-leaves-the-iterate-behind) | AUTO | when the location of a special point does not converge in ITMX steps, AUTO2000 keeps the displaced iterate and goes on from it: the branch turns round (AUTO-07p restores the last converged point) | [W300](https://github.com/MuhammadMoustafa/xppautX/issues/358) |
 | [48](#48-auto-storage-has-fixed-variable-parameter-and-branch-point-limits) | AUTO | 400 variables, 36 numerical parameters, 20 stored branch points and eight selectable model parameters | [W298](https://github.com/MuhammadMoustafa/xppautX/issues/356) |
 | [49](#49-auto-homoclinic-form-overflows-its-value-table-from-50-variables) | AUTO | a 100-field form holds two dimensions and two values per state, overrunning from 50 variables | [W301](https://github.com/MuhammadMoustafa/xppautX/issues/359) |
+| [50](#50-auto-accepts-nan-as-a-converged-bvp-solution) | AUTO | deprecated projection conditions make tstheti singular; NaN increments pass the BVP convergence test | [W343 / #404](https://github.com/MuhammadMoustafa/xppautX/issues/404) |
 
 ## 1. Model options
 
@@ -903,3 +904,40 @@ the shared form API. `tests/test_auto_limits.cpp` exercises a 401-state form:
 804 fields, final left/right labels and submitted values, and both equilibrium
 vectors updated. The continuation algorithm and its numerical baseline are
 unchanged. [W301 / #359](https://github.com/MuhammadMoustafa/xppautX/issues/359).
+
+## 50. AUTO accepts NaN as a converged BVP solution
+
+XPPAUT 8.0's supplied `tstheti` model requests projection conditions
+([tstheti.ode:22](../reference/xppaut-8.0/ode/tstheti.ode#L22),
+[tstheti.ode:23](../reference/xppaut-8.0/ode/tstheti.ode#L23)), but `hom_bcs`
+is deprecated and always returns zero
+([parserslow2.c:1944](../reference/xppaut-8.0/parserslow2.c#L1944)). Thus at least
+two boundary rows and their derivatives are zero. The model has seven states
+but supplies only six boundary expressions; the reader fills the seventh with
+zero ([form_ode.c:465](../reference/xppaut-8.0/form_ode.c#L465)), making three
+boundary rows zero. This BVP is rank deficient regardless of the integrated
+start or the left/right equilibrium values. The
+HomCont constants are used for IPS=9
+([autlib1.c:523](../reference/xppaut-8.0/autlib1.c#L523)); the supplied fixture
+runs as an ordinary IPS=4 BVP, so those settings cannot supply its constraints.
+
+The BVP Newton test ignores NaN increments when taking maxima
+([autlib1.c:5662](../reference/xppaut-8.0/autlib1.c#L5662)); its parameter test
+leaves `done` true when the relative increment is NaN
+([autlib1.c:5686](../reference/xppaut-8.0/autlib1.c#L5686)), and accepts that
+iterate as converged ([autlib1.c:5699](../reference/xppaut-8.0/autlib1.c#L5699)).
+This is upstream source evidence; XPPAUT's GUI AUTO was not executed.
+In xppautX's former baseline the supplied integrated orbit was finite at point
+1, then all 119 continued points (2-120) had NaN states and continuation
+parameter. CI 38421830601 differed between Linux and UCRT only in NaN signs.
+
+W343 checks Newton increments and active solutions before acceptance in all
+AUTO Newton paths, uses the existing failed-step retries down to Dsmin (or
+fixed-step failure), restores the previous solution, and reports the branch
+and attempted point through the run's command error. Final storage also refuses
+nonfinite derived quantities and spectra. The fixture expects the point-2 error;
+its baseline keeps only the unchanged finite supplied start. Session saving
+also uses the existing populated-point flag to preserve this one-point diagram.
+The start is not an independently validated connection. `test_auto_location` checks retry, restoration,
+refusal and unchanged storage; `autocompare` requires the exact placed error and
+finite saved data at both thread counts. [W343 / #404](https://github.com/MuhammadMoustafa/xppautX/issues/404).

@@ -57,7 +57,7 @@ Result<> add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, st
         views.views.push_back({a.plot, a.var, a.par1, a.par2, a.range, s.auto_state.views[k].zoom});
     }
     entries.push_back({named(prefix, views_member), views_text(views)});
-    if (diagram_count(s.diagram) <= 1) return {};
+    if (s.auto_state.diag_flag == 0) return {};
     const std::string solutions_path = auto_solutions_file(s);
     std::string solutions;
     if (!xpp::read_bytes(solutions_path, solutions))

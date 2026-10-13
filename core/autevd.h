@@ -11,6 +11,9 @@ namespace xpp {
 
 /* autevd.cpp */
 
+/* One failure message for a refused AUTO solution, rendered by do_auto. */
+[[noreturn]] void auto_nonfinite(const iap_type &iap, integer point);
+
 int get_bif_type(int ibr, int ntot, int lab);
 void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int labw, double *a, double *uhigh, double *ulow, double *u0, double *ubar);
 

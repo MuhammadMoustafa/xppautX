@@ -5,6 +5,8 @@
 #include "xpp_batch.h"
 #include "xpp_files.h"
 #include <array>
+#include <limits>
+#include "autevd.h"
 
 namespace {
 int line(const iap_type *, const rap_type *, integer, const double *u,
@@ -14,6 +16,24 @@ int line(const iap_type *, const rap_type *, integer, const double *u,
     f[0] = u[0] - par[icp[0]];
     dfdu[0] = 1;
     dfdp[icp[0]] = -1;
+    return 0;
+}
+int nonfinite_line(const iap_type *, const rap_type *, integer, const double *,
+         const double *, const integer *icp, double *, integer,
+         double *f, double *dfdu, double *dfdp)
+{
+    // Finite, nonsingular Jacobian with a nonfinite Newton right-hand side.
+    f[0] = std::numeric_limits<double>::quiet_NaN();
+    dfdu[0] = 1;
+    dfdp[icp[0]] = -1;
+    return 0;
+}
+int initial_boundary(const iap_type *, const rap_type *, integer, double *,
+                     const integer *, integer, const double *u0, const double *,
+                     double *f, integer, double *dbc)
+{
+    f[0] = u0[0];
+    dbc[0] = 1;
     return 0;
 }
 // A noisy test claims a sign change but has no zero on this straight branch.
@@ -75,6 +95,67 @@ int main()
     CHECK(aa == initial_aa && rhs == initial_rhs && du == initial_du);
     CHECK(dfdu == 1 && dfdp[0] == -1 && f == 0);
     CHECK(s.auto_state.stability.computed.re == std::vector<double>{1});
+    // W343 (#404): reject a nonfinite step, retry down to Dsmin, restore
+    // the last solution and report its attempted point; nothing is stored.
+    iap.ibr = 1;
+    iap.ntot = 1;
+    iap.iads = 1;
+    rap.dsmin = 0.2;
+    double ds = 1;
+    const auto count = s.diagram.points.size();
+    std::string error;
+    try {
+        solvae(&iap, &rap, par.data(), &icp, nonfinite_line, &ds, &stride,
+               aa.data(), rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(),
+               &uold, &udot, &f, &dfdu, dfdp.data(), thl.data(), &thu);
+    } catch (const xpp::AutoFailed &e) { error = e.what; }
+    CHECK(error == "Branch 1 point 2: nonfinite AUTO solution");
+    CHECK(ds > 0 && ds < rap.dsmin);
+    CHECK(iap.istop == 1 && u == uold && rlcur == rlold && par[0] == rlold);
+    CHECK(s.diagram.points.size() == count);
+
+    // The same failure in the collocation solver must not pass its
+    // maximum-increment test (NaN comparisons formerly left done=true).
+    iap.istop = 0;
+    iap.ips = 4;
+    iap.ntst = iap.nbc = iap.nwtn = iap.numnodes = 1;
+    iap.ncol = 2;
+    integer mesh_stride = 2;
+    std::array<double, 4> mesh{1, 1, 1, 0}, old{}, tangent{1, 1, 1, 0};
+    std::array<double, 4> dups{}, upold{}, fa{};
+    std::array<double, 2> fc{}, tm{0, 1}, dtm{1, 0};
+    double p0 = 0, p1 = 0;
+    ds = rlcur = 1;
+    rlold = par[0] = 0;
+    error.clear();
+    try {
+        stepbv(&iap, &rap, par.data(), &icp, nonfinite_line, initial_boundary,
+               nullptr, nullptr, &ds, &rlcur, &rlold, &rldot, &mesh_stride,
+               mesh.data(), dups.data(), old.data(), tangent.data(), upold.data(),
+               fa.data(), fc.data(), tm.data(), dtm.data(), &p0, &p1,
+               thl.data(), &thu);
+    } catch (const xpp::AutoFailed &e) { error = e.what; }
+    CHECK(error == "Branch 1 point 2: nonfinite AUTO solution");
+    CHECK(ds > 0 && ds < rap.dsmin);
+    CHECK(iap.istop == 1 && mesh == old && rlcur == rlold && par[0] == rlold);
+    CHECK(s.diagram.points.size() == count);
+
+    // The final storage seam refuses nonfinite state, parameter and norm
+    // independently, before filling even the initial diagram placeholder.
+    std::array<integer, 4> slots{};
+    const double infinity = std::numeric_limits<double>::infinity();
+    for (int field = 0; field < 3; ++field) {
+        double norm = field == 2 ? infinity : 1;
+        double state = field == 0 ? infinity : 1;
+        par[0] = field == 1 ? infinity : 1;
+        error.clear();
+        try {
+            xpp::addbif(&iap, &rap, 2, 1, par.data(), slots.data(), 0,
+                        &norm, &state, &state, &state, &state);
+        } catch (const xpp::AutoFailed &e) { error = e.what; }
+        CHECK(error == "Branch 1 point 2: nonfinite AUTO solution");
+        CHECK(s.diagram.points.size() == count && s.auto_state.diag_flag == 0);
+    }
     lib.fp9 = nullptr;
     TEST_REPORT("AUTO location");
 }

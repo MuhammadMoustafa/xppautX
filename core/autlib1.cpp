@@ -1306,6 +1306,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   doublereal rdrlm, rdumx;
   integer istop;
+  bool nonfinite = false;
 
   doublereal au;
   doublereal delref=0.0, ss, delmax;
@@ -1422,6 +1423,12 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       u[i] += du[i];
     }
     rlcur[0] += drlm;
+    if (!xpp::all_finite({u, static_cast<size_t>(ndim)}) ||
+        !xpp::all_finite({du, static_cast<size_t>(ndim + 1)}) ||
+        !std::isfinite(rlcur[0])) {
+      nonfinite = true;
+      goto L3;
+    }
     dumx = 0.;
     umx = 0.;
     for (i = 0; i < ndim; ++i) {
@@ -1451,6 +1458,10 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     rdumx = dumx / (umx + 1.);
     if (rdrlm <= epsl && rdumx <= epsu) {
       pvlsae(iap, rap, u, par);
+      if (!xpp::all_finite({par, static_cast<size_t>(iap->lib->parameter_count)})) {
+        nonfinite = true;
+        goto L3;
+      }
       if (iid >= 2) {
 	xpp::print(s.auto_lib.fp9,"\n");
       }
@@ -1515,6 +1526,8 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
   istop = 1;
   iap->istop = istop;
+  if (nonfinite && !xpp::job::cancelled() && !jacobian_failed(iap))
+    xpp::auto_nonfinite(*iap, iap->ntot + 1);
   return 0;
 } /* solvae_ */
 
@@ -2153,6 +2166,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
 
   doublereal rdrlm, rdumx;
   integer istop;
+  bool nonfinite = false;
 
   doublereal au;
   doublereal ss;
@@ -2279,6 +2293,12 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
       u[i] += du[i];
     }
     rlcur[0] += drlm;
+    if (!xpp::all_finite({u, static_cast<size_t>(ndim)}) ||
+        !xpp::all_finite({du, static_cast<size_t>(ndim + 1)}) ||
+        !std::isfinite(rlcur[0])) {
+      nonfinite = true;
+      goto failed_step;
+    }
     dumx = 0.;
     umx = 0.;
     for (i = 0; i < ndim; ++i) {
@@ -2312,6 +2332,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
     /* L3: */
   }
 
+failed_step:
   /* Maximum number of iterations reached. Reduce stepsize and try again. */
 
   if (iads == 0 && iap->mynode == 0) {
@@ -2352,6 +2373,8 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   }
   istop = 1;
   iap->istop = istop;
+  if (nonfinite && !xpp::job::cancelled() && !jacobian_failed(iap))
+    xpp::auto_nonfinite(*iap, iap->ntot + 1);
 
   return 0;
 	
@@ -5118,6 +5141,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer nitps;
   doublereal rdumx;
   integer istop;
+  bool nonfinite = false;
   doublereal au;
 
   doublereal delref=0.0, delmax;
@@ -5197,6 +5221,17 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	     p1, thl, thu);
     }
     if ((!iap->lib->locating && xpp::job::cancelled()) || jacobian_failed(iap)) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel, W275 */
+    nrow = ndim * ncol;
+    if (!xpp::all_finite({fc, static_cast<size_t>(ndim + nfpr)})) {
+      nonfinite = true;
+      goto L3;
+    }
+    for (i = 0; i < nrow; ++i) {
+      if (!xpp::all_finite({fa + i * fa_dim1, static_cast<size_t>(ntst)})) {
+        nonfinite = true;
+        goto L3;
+      }
+    }
     /* Add Newton increments. */
 
     for (i = 0; i < ndim; ++i) {
@@ -5223,6 +5258,18 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	ARRAY2D(ups, j, i) += ARRAY2D(fa, j, i);
       }
     }
+    // Check the active mesh entries; endpoint padding is not solution data.
+    for (i = 0; i < nrow; ++i) {
+      const size_t count = static_cast<size_t>(ntst + (i < ndim ? 1 : 0));
+      if (!xpp::all_finite({ups + i * ups_dim1, count})) {
+        nonfinite = true;
+        goto L3;
+      }
+    }
+    if (!xpp::all_finite({par, static_cast<size_t>(iap->lib->parameter_count)})) {
+      nonfinite = true;
+      goto L3;
+    }
     /* I am not sure why this is here, and it requires a wierd
        special case for the parsing of points which are "special"
        (i.e. bifurcations, folds, etc).  I may want to get rid
@@ -5246,6 +5293,10 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     rdumx = dumx / (umx + 1.);
     if (done && rdumx < epsu) {
       (*pvli)(iap, rap, icp, dtm, ndxloc, ups, &ndim, p0, p1, par);
+      if (!xpp::all_finite({par, static_cast<size_t>(iap->lib->parameter_count)})) {
+        nonfinite = true;
+        goto L3;
+      }
       if (iid >= 2) {
 	xpp::print(iap->lib->fp9," \n");	
       }
@@ -5318,6 +5369,8 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
   istop = 1;
   iap->istop = istop;
+  if (nonfinite && !xpp::job::cancelled() && !jacobian_failed(iap))
+    xpp::auto_nonfinite(*iap, iap->ntot + 1);
 
   return 0;
 } /* stepbv_ */

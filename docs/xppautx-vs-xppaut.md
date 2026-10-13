@@ -200,6 +200,7 @@ changes are checked against AUTO-07p and recorded in the baseline. The window: [
 |---|---|---|---|
 | Window | an X11 window with its own menus | the same menus and keys (as data), a view over the page | W96, W6 |
 | Diagram views | one diagram, one set of axes | any number of views of one diagram, each with its axes | W50 |
+| Nonfinite AUTO solutions | NaN increments can pass the BVP convergence test ([finding 50](xppaut-findings.md#50-auto-accepts-nan-as-a-converged-bvp-solution)) | nonfinite Newton solutions fail the step, retry with reduced Ds, and report the attempted point if retries fail; final diagram storage refuses nonfinite quantities | [W343 / #404](https://github.com/MuhammadMoustafa/xppautX/issues/404) |
 | Failed special-point location | leaves the displaced iterate, which can reverse continuation ([finding 47](xppaut-findings.md#47-auto-a-special-point-whose-location-does-not-converge-leaves-the-iterate-behind)) | restores the converged solution, tangent, old point, step history and stability data; the Morris-Lecar cycles reach their fold at NTST 15 | W326 ([#387](https://github.com/MuhammadMoustafa/xppautX/issues/387)) |
 | Saving | `.auto` text file at 6 digits | `.snapx` session: every digit, settings, orbits, views | W92, W155 |
 | Files during a run | `fort.*` in `$HOME`; sessions overwrite each other ([findings #8](xppaut-findings.md)) | per-process scratch folders, stale ones cleaned at start only when their owner is proved exited | W19, W121b ([#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)) |

@@ -687,4 +687,9 @@ double bessel_i_scaled(double n, double x)
     return bessel_i(n, x, true);
 }
 
+bool all_finite(std::span<const double> values)
+{
+    for (double value : values) if (!std::isfinite(value)) return false;
+    return true;
+}
 } // namespace xpp

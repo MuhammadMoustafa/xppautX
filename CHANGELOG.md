@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - Allow system/user links above the write folder boundary, including macOS temp/config ancestors; continue refusing links below it and rechecking created folders (W342, [#403](https://github.com/MuhammadMoustafa/xppautX/issues/403)).
 
+- Refuse nonfinite AUTO solutions: retry failed Newton steps with smaller step sizes and report the attempted branch point when retries fail; never store NaN states, parameters, norms or spectra, and preserve a populated single-point diagram when saving. The singular deprecated `hom_bcs` tstheti fixture now expects an error instead of treating NaN points as a connection (W343, [#404](https://github.com/MuhammadMoustafa/xppautX/issues/404)).
+
 - Keep AUTO's Parameter form selection unchanged on OK: unselected fields are blank, and the form and protocol select exactly the filled, distinct model parameter names in order (W338, [#399](https://github.com/MuhammadMoustafa/xppautX/issues/399)).
 
 - Name option groups by their work and accept slider presets as a list of any length; old native group names and S1-S3 keys are refused, while XPPAUT options convert to the new groups (W317, [#377](https://github.com/MuhammadMoustafa/xppautX/issues/377)).

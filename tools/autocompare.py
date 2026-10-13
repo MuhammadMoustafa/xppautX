@@ -96,10 +96,12 @@ def read_description(path):
         raise ValueError('runs must be a nonempty list')
     names = set()
     for r in d['runs']:
-        members(r, ('name', 'kind', 'start', 'parameter', 'parameters', 'auto', 'switch', 'skip'),
+        members(r, ('name', 'kind', 'start', 'parameter', 'parameters', 'auto', 'switch', 'skip', 'expected_error'),
                 ('name', 'kind', 'start', 'auto'))
         if not isinstance(r['name'], str) or not r['name'] or r['name'] in names or r['kind'] not in KINDS:
             raise ValueError('invalid run name or kind: ' + str(r))
+        if 'expected_error' in r and (not isinstance(r['expected_error'], str) or not r['expected_error'].strip()):
+            raise ValueError('expected_error must name the error')
         st = r['start']
         if not isinstance(st, dict):
             raise ValueError('start must be an object')
@@ -192,13 +194,20 @@ def execute_run(s, r, diagram, ranges, model_pars, slots):
     key = 's' if r.get('switch') else keys[r['kind']]
     lo = len(diagram.points)
     events = run_any(s, key, timeout=TIMEOUT)
-    ensure_completed([e for e in events if e.get('ev') != 'ask'],
-                     events[-1] if events and is_idle(events[-1]) else None)
+    result = [e for e in events if e.get('ev') != 'ask']
+    if 'expected_error' in r:
+        errors = [e for e in result if e.get('error')]
+        if len(errors) != 1 or r['expected_error'] != errors[0]['error']:
+            raise RuntimeError('expected error %r, got %s' % (r['expected_error'], errors))
+        if not errors[0].get('file') or not errors[0].get('line'):
+            raise RuntimeError('expected error has no source location')
+        result.remove(errors[0])
+    ensure_completed(result, events[-1] if events and is_idle(events[-1]) else None)
     diagram.apply(events)
     if len(diagram.points) <= lo:
         raise RuntimeError('AUTO stored no points for ' + r['name'])
     stops = [e['stop'] for e in events if e.get('ev') == 'autoinfo' and e.get('stop')]
-    if not stops or stops[-1]['why'].startswith('noconv'):
+    if 'expected_error' not in r and (not stops or stops[-1]['why'].startswith('noconv')):
         raise RuntimeError('AUTO failed to converge: ' + str(stops[-1:] or events[-3:]))
     ranges[r['name']] = lo, len(diagram.points)
 
@@ -212,7 +221,12 @@ def session_diagram(s):
         path = os.path.join(folder, 'baseline.snapx')
         completed(s, dict(cmd='session', op='save', name=path, data=False))
         with zipfile.ZipFile(path) as z:
-            return z.read(DIAGRAM_MEMBER).replace(b'\r\n', b'\n')
+            data = z.read(DIAGRAM_MEMBER).replace(b'\r\n', b'\n')
+            for point, row in enumerate(csv.reader(io.StringIO(data.decode('utf-8')))):
+                if point:
+                    for value in row:
+                        finite(float(value), 'diagram point %d' % point)
+            return data
 
 
 def compute(binary, d, threads):

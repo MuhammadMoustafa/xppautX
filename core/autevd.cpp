@@ -9,9 +9,15 @@
 #include "diagram.h"
 
 #include "auto_stability.h"
+#include "xpp_math.h"
 #include "xpp_job.h"
 
 namespace xpp {
+
+[[noreturn]] void auto_nonfinite(const iap_type &iap, integer point)
+{
+  auto_fail(xpp::format("Branch {} point {}: nonfinite AUTO solution", iap.ibr, point));
+}
 
 void init_auto(AutoState &st, int ndim, bool exact)
 {
@@ -92,12 +98,21 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   int icp1=icp[0],icp2=icp[1],icp3=icp[2],icp4=icp[3];
   double per=par[10];
   int n=iap->ndim;
-  int from=auto_run_from_take(s); /* the run's first point says which label it started from */
   int type=get_bif_type(ibrs,ntots,lab);
   /* xppautX: the point's stability, or zeros: not computed (auto_stability.h) */
   std::vector<double> ev(2*static_cast<size_t>(n));
   auto_stability_for(s.auto_state.stability,static_cast<int>(ibrs),static_cast<int>(ntots),n,ev.data(),ev.data()+n);
 
+  // Guard the final stored quantities too, including derived norms and spectra.
+  if (!xpp::all_finite({par, static_cast<size_t>(iap->lib->parameter_count)}) ||
+      !xpp::all_finite({a, 1}) || !xpp::all_finite({&per, 1}) ||
+      !xpp::all_finite({uhigh, static_cast<size_t>(n)}) ||
+      !xpp::all_finite({ulow, static_cast<size_t>(n)}) ||
+      !xpp::all_finite({u0, static_cast<size_t>(n)}) ||
+      !xpp::all_finite({ubar, static_cast<size_t>(n)}) || !xpp::all_finite(ev))
+    auto_nonfinite(*iap, labs(ntots));
+
+  int from=auto_run_from_take(s); /* the run's first point says which label it started from */
   xpp::DIAGRAM p{};
   p.ibr=static_cast<int>(ibrs);
   p.ntot=static_cast<int>(ntots);

@@ -141,9 +141,10 @@ there; the two recorded cases are the ones that reach it.
 - **Skipped by W299 (nine models, no AUTO run at all):** three Volterra integral models, two random
   delay-network models, three rotating-phase models whose supplied start fails, and the unfinished `tsthom3`
   draft; each description gives its reason.
-- **AUTO-07p not run** (`auto07p_skip`): `ode/tstheti` and `tstauto_tsthom2`. Their projection boundary
-  conditions (`hom_bcs`) are XPPAUT's own construct and their start is the orbit XPPAUT integrates; AUTO-07p's
-  homoclinic and heteroclinic continuation takes the orbit and its equilibria through its own constants.
+- **AUTO-07p not run** (`auto07p_skip`): `ode/tstheti` and `tstauto_tsthom2`. Their starts use
+  integrated storage. W343 established that `tstheti`'s `hom_bcs` conditions are deprecated zero
+  functions even in XPPAUT 8.0; it is now an expected-error regression, not a validated connection.
+  AUTO-07p's homoclinic continuation needs a separately specified valid problem.
 - **XPPAUT 8.0 not run** (`xppaut_skip`): the four boundary-value fixtures (`exp`, `dumbvp`, `tstheti`,
   `tsthom2`). XPPAUT's boundary-value run starts from the solution in its storage, which an integration in its
   main window fills; the keys of `tools/auto_reference.py` do not drive that. The other 24 models were driven.
@@ -166,14 +167,31 @@ all 28 runnable descriptions remain identical between thread counts. Exactly fou
 | `ode_lecar` | 70 (cycles point 21) | noisy BP; the restored path now reaches the real LP |
 | `tstauto_lecar` | 74 (cycles point 21) | the same Morris-Lecar BP failure |
 | `tstauto_pp2` | 127 (cycles point 27) | fold; the restored path reaches a second underresolved LP |
-| `ode_tstheti` | 2 (connection point 2) | fold and BP tests return NaN and exhaust ITMX repeatedly; restoring prevents their trial states from replacing the converged point |
+| `ode_tstheti` | 2 (connection point 2) | fold and BP tests return NaN and exhaust ITMX; W326 restores the iterate, but W343 establishes that the iterate itself was already nonfinite |
 
 The diagnostics contain `NOTE:Possible special point` at each first changed continuation point.
-`ode_tstheti` has no independent reference for its XPPAUT-specific projection boundary conditions;
-this baseline change proves restoration and thread agreement, not a new external validation of that
-connection. Its nonfinite tests remain a limitation outside W326. None of the other 24 runnable
-diagrams changed. The deterministic `test_auto_location` also forces a false equilibrium sign change
+`ode_tstheti` had no independent reference, and W326's changed NaN baseline did not validate a
+connection. W343 traced the missing constraints to the deprecated zero-valued `hom_bcs` in XPPAUT
+8.0 and corrected the acceptance test (below). None of the other 24 runnable diagrams changed.
+The deterministic `test_auto_location` also forces a false equilibrium sign change
 and checks the restored solution, history, tangent, step size, test value, derivative data and spectrum.
+
+### W343: tstheti is an expected failure
+
+The supplied `hom_bcs(0)` and `hom_bcs(1)` are identically zero in both codes,
+not projection conditions. A seventh boundary is missing and filled with zero,
+so three boundary rows vanish. This makes the ordinary BVP singular; HomCont's
+left/right equilibria, stable/unstable dimensions and IEQUIB are used in IPS=9,
+not this IPS=4 run. The 1.01 integration provides a finite orbit but cannot add
+missing boundary constraints. See [finding 50](xppaut-findings.md#50-auto-accepts-nan-as-a-converged-bvp-solution)
+for the upstream source lines and the NaN convergence-test defect.
+
+The baseline was rewritten once with `autocompare.py --update --only ode_tstheti`:
+point 1 is unchanged; former NaN points 2-120 are removed. Both thread counts
+must report `AUTO stopped: Branch 1 point 2: nonfinite AUTO solution`, with a
+command location, after the failed-step retries. The remaining row is the
+supplied start, not a certified solution. Every saved diagram is checked for
+finite values; no connection reference or successful continuation is claimed.
 
 No previously compared special point becomes a disagreement with AUTO-07p. Predator-prey's extra
 label remains within the previously traced underresolved regime; it does not establish quantitative

@@ -34,6 +34,9 @@
 
 namespace xpp {
 
+/* A numerical result may be accepted only when every component is finite. */
+bool all_finite(std::span<const double> values);
+
 /* ---- the transcendental functions: the same bits on every CPU (W159) ----
 
    xpp::math::exp, log, log10, pow, sin, cos, tan, asin, acos, atan, atan2,
