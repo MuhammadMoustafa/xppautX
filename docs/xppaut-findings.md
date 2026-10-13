@@ -80,6 +80,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [48](#48-auto-storage-has-fixed-variable-parameter-and-branch-point-limits) | AUTO | 400 variables, 36 numerical parameters, 20 stored branch points and eight selectable model parameters | [W298](https://github.com/MuhammadMoustafa/xppautX/issues/356) |
 | [49](#49-auto-homoclinic-form-overflows-its-value-table-from-50-variables) | AUTO | a 100-field form holds two dimensions and two values per state, overrunning from 50 variables | [W301](https://github.com/MuhammadMoustafa/xppautX/issues/359) |
 | [50](#50-auto-accepts-nan-as-a-converged-bvp-solution) | AUTO | deprecated projection conditions make tstheti singular; NaN increments pass the BVP convergence test | [W343 / #404](https://github.com/MuhammadMoustafa/xppautX/issues/404) |
+| [51](#51-auto-failed-step-endpoint-stability) | AUTO | a failed equilibrium branch switch restores an earlier branch point but stores the last branch's spectrum | [W341](https://github.com/MuhammadMoustafa/xppautX/issues/402) |
 
 ## 1. Model options
 
@@ -941,3 +942,58 @@ also uses the existing populated-point flag to preserve this one-point diagram.
 The start is not an independently validated connection. `test_auto_location` checks retry, restoration,
 refusal and unchanged storage; `autocompare` requires the exact placed error and
 finite saved data at both thread counts. [W343 / #404](https://github.com/MuhammadMoustafa/xppautX/issues/404).
+
+
+## 51. AUTO: failed-step endpoint stability
+
+XPPAUT 8.0's ordinary periodic MX endpoint retains the previous spectrum:
+`stepbv` restores `uoldps` at [autlib1.c:5759](../reference/xppaut-8.0/autlib1.c#L5759),
+`cnrlbv` skips the stability test after failure at
+[autlib1.c:5218](../reference/xppaut-8.0/autlib1.c#L5218), and `addbif` stores
+`my_ev` unconditionally at [autevd.c:200](../reference/xppaut-8.0/autevd.c#L200)
+([master](../reference/xppaut-master/autevd.c#L200)). In the ordinary case those
+values belong to the restored solution; xppautX's point-identity check had
+instead made them zero at the new MX point number.
+
+The unconditional store is wrong when switching back to an earlier equilibrium
+branch point. `swpnt` copies that earlier solution from `stu` at
+[autlib1.c:2214](../reference/xppaut-8.0/autlib1.c#L2214)
+([master](../reference/xppaut-master/autlib1.c#L2211)); `swprc` restores it after
+DSMIN failure at [autlib1.c:2455](../reference/xppaut-8.0/autlib1.c#L2455)
+([master](../reference/xppaut-master/autlib1.c#L2452)). The failure jumps directly
+to endpoint storage at [autlib1.c:990](../reference/xppaut-8.0/autlib1.c#L990)
+([master](../reference/xppaut-master/autlib1.c#L990)), skipping `fnhbae` and its
+`send_eigen` at [autlib1.c:1914](../reference/xppaut-8.0/autlib1.c#L1914)
+([master](../reference/xppaut-master/autlib1.c#L1911)). Thus the endpoint gets
+the spectrum of the last solution checked on the previous branch, which can
+have a different Jacobian. A periodic location has the same hazard:
+`lcspbv` advances from an unstored converged solution at
+[autlib1.c:6469](../reference/xppaut-8.0/autlib1.c#L6469)
+([master](../reference/xppaut-master/autlib1.c#L6466)), and returns before its
+next stability test when that step fails at
+[autlib1.c:6475](../reference/xppaut-8.0/autlib1.c#L6475)
+([master](../reference/xppaut-master/autlib1.c#L6472)). The unconditional
+`my_ev` store cannot establish that the spectrum belongs to this solution.
+This is established by the source paths; a native
+XPPAUT reproduction of this branch-switch failure was not run for this card.
+
+[W341 / #402](https://github.com/MuhammadMoustafa/xppautX/issues/402) retains
+stability with each predictor's saved solution in the existing stability owner,
+and restores the pair on failure. If an equilibrium switch returns to a branch
+point absent from that record, it recomputes eigenvalues from the restored
+Jacobian using the existing routine. An uncached periodic solution gets a fresh
+zero-step circuit pencil at the restored solution, without applying Newton
+increments. Its **full** generalized eigenvalues are used: XPPAUT's `flowkm`
+assumes and deflates a multiplier near +1 at
+[autlib4.c:172](../reference/xppaut-8.0/autlib4.c#L172)
+([master](../reference/xppaut-master/autlib4.c#L172)). A restored orbit can
+have collapsed to an equilibrium, for which the spectrum need not contain
++1; forcing that deflation can discard a complex pair. The independent
+rotation-pencil test has exact multipliers +/-0.75i and guards this case.
+`flowkm` also mutates its matrix inputs, so reusing a pencil after its
+stability test would be wrong. Regular continuation's numerical path is
+unchanged. `test_auto_stability` forces DSMIN failures
+in `solvae`, `swprc` and `stepbv`, checks the restored solution and exact retained
+spectrum, checks absent-record equilibrium cases against the known scalar
+Jacobian, and checks an absent-record BVP endpoint against a fresh reference
+pencil at its restored solution (with a state-dependent Jacobian).

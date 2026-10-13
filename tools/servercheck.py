@@ -2971,8 +2971,8 @@ def check_autoinfo():
         colb(is_idle)
         run_evs = []
         for snd, col, diag in ((snda, cola, diag_a), (sndb, colb, diag_b)):
-            # W338: the full branch ends at MX, stored without multipliers
-            # (W341, #402); end it at NMX, a point whose multipliers AUTO computed.
+            # W338: keep the circle fixture short. W341 (#402) also preserves
+            # the restored solution's multipliers at a failed-step MX endpoint.
             snd(cmd='auto', op='set', numerics={'nmx': 20})
             evs, _ = col(is_idle)
             check('W338: the short periodic circle fixture is configured',

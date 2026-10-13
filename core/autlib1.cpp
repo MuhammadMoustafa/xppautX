@@ -9,6 +9,7 @@
 #include "xpp_log.h"
 #include "autevd.h"
 #include "auto_stability.h"
+#include "auto_stability_auto.h"
 #include "xpp_ui.h" /* err_msg(), byeauto_() */
 #include "auto_nox.h" /* auto_screen_col(), RestartLabel */
 #include "xpp_job.h" /* xppautX: cancel */
@@ -1167,6 +1168,9 @@ stpnae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* Subroutine */ int 
 stprae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), doublereal *rds, integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
 {
+  xpp::auto_stability_step_start(iap->lib->session->auto_state.stability,
+      iap->ibr, iap->ntot + (iap->lib->locating ? 1 : 0));
+
   /* System generated locals */
   integer aa_dim1;
 
@@ -1255,6 +1259,9 @@ stprae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* Subroutine */ int 
 contae(iap_type *iap, rap_type *rap, doublereal *rds, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot)
 {
+  xpp::auto_stability_step_start(iap->lib->session->auto_state.stability,
+      iap->ibr, iap->ntot + (iap->lib->locating ? 1 : 0));
+
   /* Local variables */
   integer ndim, i;
   doublereal dsold;
@@ -1523,10 +1530,15 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   for (i = 0; i < ndim; ++i) {
     u[i] = uold[i];
   }
+  const bool retained = xpp::auto_stability_step_failed(iap->lib->session->auto_state.stability,
+      iap->ibr, iap->ntot + 1);
   istop = 1;
   iap->istop = istop;
   if (nonfinite && !xpp::job::cancelled() && !jacobian_failed(iap))
     xpp::auto_nonfinite(*iap, iap->ntot + 1);
+  if (!retained && f2c::abs(iap->ips) == 1 &&
+      !xpp::job::cancelled() && !jacobian_failed(iap))
+    xpp::auto_stability_equilibrium_restored(*iap, *rap, par, icp, funi, u, uold, f, dfdu, dfdp);
   return 0;
 } /* solvae_ */
 
@@ -1624,10 +1636,10 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
     xpp::print(iap->lib->fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",itlcsp,rds);	
   }
 
-  contae(iap, rap, &rds, rlcur, rlold, rldot, u, uold,
-	 udot);
   {
-    Locating locating(*iap->lib); /* xppautX: cancel: runs to the end */
+    Locating locating(*iap->lib); /* predictor and solve belong to the unstored point */
+    contae(iap, rap, &rds, rlcur, rlold, rldot, u, uold,
+	 udot);
     solvae(iap, rap, par, icp, funi, &rds, m1aaloc, aa,
 	   rhs, rlcur, rlold, rldot, u, du, uold, udot, f,
 	   dfdu, dfdp, thl, thu);
@@ -2152,6 +2164,10 @@ swpnt(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *r
 /* Subroutine */ int 
 swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *rds, doublereal *thl, doublereal *thu)
 {
+  // Internal switches can reuse BR/PT for a different branch point. Point
+  // zero means no proven record; on failure refresh the restored Jacobian.
+  xpp::auto_stability_step_start(iap->lib->session->auto_state.stability, iap->ibr, 0);
+
   /* System generated locals */
   integer aa_dim1;
 
@@ -2369,11 +2385,18 @@ failed_step:
   for (i = 0; i < ndim; ++i) {
     u[i] = uold[i];
   }
+  const bool retained = xpp::auto_stability_step_failed(iap->lib->session->auto_state.stability,
+      iap->ibr, iap->ntot + 1);
   istop = 1;
   iap->istop = istop;
   if (nonfinite && !xpp::job::cancelled() && !jacobian_failed(iap))
     xpp::auto_nonfinite(*iap, iap->ntot + 1);
 
+  // swpnt can return to an earlier branch point whose spectrum is no
+  // longer the owner's last record. Recompute at the restored solution.
+  if (!retained && f2c::abs(iap->ips) == 1 && !xpp::job::cancelled() && !jacobian_failed(iap)) {
+    xpp::auto_stability_equilibrium_restored(*iap, *rap, par, icp, funi, u, uold, f, dfdu, dfdp);
+  }
   return 0;
 	
 } /* swprc_ */
@@ -4994,6 +5017,9 @@ contbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* Subroutine */ int 
 extrbv(iap_type *iap, rap_type *rap, FUNI_TYPE((*funi)), doublereal *rds, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps)
 {
+  xpp::auto_stability_step_start(iap->lib->session->auto_state.stability,
+      iap->ibr, iap->ntot + (iap->lib->locating ? 1 : 0));
+
   /* System generated locals */
   integer ups_dim1, udotps_dim1, uoldps_dim1;
 
@@ -5354,11 +5380,25 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       ARRAY2D(ups, j, i) = ARRAY2D(uoldps, j, i);
     }
   }
+  const bool retained = xpp::auto_stability_step_failed(iap->lib->session->auto_state.stability,
+      iap->ibr, iap->ntot + 1);
   istop = 1;
   iap->istop = istop;
   if (nonfinite && !xpp::job::cancelled() && !jacobian_failed(iap))
     xpp::auto_nonfinite(*iap, iap->ntot + 1);
 
+  if (!retained && (iap->ips == 2 || iap->ips == 7 || iap->ips == 12) &&
+      iap->isp != 0 && !xpp::job::cancelled() && !jacobian_failed(iap)) {
+    // A failed location can restore an unstored solution. Rebuild its
+    // circuit pencil at zero step, without applying Newton increments;
+    // the trial's pencil (and flowkm's in-place transforms) is not its own.
+    integer fresh = 1, nullity = 0;
+    double zero_step = 0;
+    solvbv(&fresh, iap, rap, par, icp, funi, bcni, icni, &zero_step, &nullity,
+           rlcur, rlold, rldot, ndxloc, ups, dups, uoldps, udotps, upoldp,
+           dtm, fa, fc, p0, p1, thl, thu);
+    xpp::auto_stability_multipliers_restored(iap->lib->session->auto_state.stability, *iap, p0, p1);
+  }
   return 0;
 } /* stepbv_ */
 
@@ -6022,10 +6062,10 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
     xpp::print(iap->lib->fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",nitsp1,rds);	
   }
 
-  contbv(iap, rap, par, icp, funi, &rds, rlcur, rlold, &
-	 rldot[0], ndxloc, ups, uoldps, udotps, upoldp, dtm, thl, thu);
   {
-    Locating locating(*iap->lib); /* xppautX: cancel: runs to the end */
+    Locating locating(*iap->lib); /* predictor and solve belong to the unstored point */
+    contbv(iap, rap, par, icp, funi, &rds, rlcur, rlold, &
+	 rldot[0], ndxloc, ups, uoldps, udotps, upoldp, dtm, thl, thu);
     stepbv(iap, rap, par, icp, funi, bcni, icni, pvli, &rds, &rlcur[-1 +
 								   1], rlold, rldot, ndxloc, ups, dups, uoldps, udotps,
 	   upoldp, fa, fc, tm, dtm, p0, p1, thl, thu);
@@ -6238,7 +6278,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /*  Compute the Floquet multipliers */
 
-  flowkm(iap->lib->fp9, &ndim, p0, p1, &iid, wrk.data(), ev);
+  flowkm(iap->lib->fp9, &ndim, p0, p1, &iid, wrk.data(), ev, true);
   /* Find the multiplier closest to z=1. */
   /* xppautX: the orbit's Floquet multipliers (auto_stability.h) */
   xpp::auto_stability_computed(iap->lib->session->auto_state.stability,ibr,ntot+1,ndim,&ev[0].r,xpp::AUTO_STABILITY_PERIODIC);

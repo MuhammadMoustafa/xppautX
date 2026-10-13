@@ -196,5 +196,53 @@ finite values; no connection reference or successful continuation is claimed.
 No previously compared special point becomes a disagreement with AUTO-07p. Predator-prey's extra
 label remains within the previously traced underresolved regime; it does not establish quantitative
 agreement for either LP. The stability restart check uses a ten-point periodic run (DS and DSMAX 0.01)
-to ensure a computed endpoint: the former long run now ends after a minimum-step failure, where
-stability is legitimately unavailable. Its equality and nonzero-spectrum assertions are unchanged.
+to keep the fixture short. W341 ([#402](https://github.com/MuhammadMoustafa/xppautX/issues/402))
+preserves the restored solution's spectrum at a minimum-step MX endpoint; that endpoint no longer
+means stability is unavailable. Its equality and nonzero-spectrum assertions are unchanged.
+
+
+### W341: failed-step endpoint stability and lecar's repeated traversal
+
+The 37 committed descriptions (nine skipped) have no changed baseline rows:
+all 82 checks and 3,770 points across one/automatic threads agree exactly.
+No baseline update is needed. The short `ode_lecar` and `tstauto_lecar` cycles
+runs stop at NMX 30, before the repeated traversal is visible.
+
+For the full fixture, reproduce `servercheck.py`'s `lecar_to_auto` (Hopf set,
+Find Equilibrium, steady continuation), grab the first HB, and run periodic
+without the W338 NMX 20 override. The model defaults are DS=DSMAX=0.02,
+DSMIN=1e-5, NTST=15, NCOL=4 and NMX=2000. It stops at MX point 1459.
+There are 13 low-period minima near the second HB, separated by about
+108-115 rows: points 57, 165, 280, 391, 503, 617, 730, 843, 958, 1071,
+1182, 1292 and 1402. Representative rows:
+
+| periodic point | applied current | period |
+|---|---|---|
+| 57 | 0.45685135431228674 | 9.37798976551534 |
+| 165 | 0.4568503941603806 | 9.377767071540763 |
+| 1402 | 0.4568537604185555 | 9.378448462798955 |
+
+Thus it retraces the Hopf-to-Hopf family about 13 times; these are repeated
+visits, not 13 distinct physical orbit families. This observation does not
+certify the coarse collocation solutions independently.
+
+The original fixture's MX is an important distinction from a normal failed
+continuation step: its location search restores an **unstored** solution,
+not diagram point 1458. Row 1458 has current 0.26179561637933446 and period
+14.608617105487582; MX 1459 has current 0.25946721925288646 and period
+14.532605665920137. Its voltage amplitude is only about 7.72e-7, so it must
+not be presented as an independently validated nontrivial periodic orbit.
+W341 recomputes its stability from that restored solution's discrete Jacobian,
+rather than copying row 1458's spectrum. For an uncached endpoint it uses the
+full generalized eigenvalues of the rebuilt circuit pencil: the normal
+`flowkm` calculation deflates an assumed multiplier near +1, which need not
+exist when the orbit collapses. Regular continuation retains its original
+deflated calculation, and cached endpoint spectra are copied exactly.
+The MX spectrum is 0.7933499560998446 +/- 0.0585598149830441i. An independent
+analytical Jacobian of the model at the nearly constant endpoint gives
+`exp(J*T)` = 0.7933736684554719 +/- 0.0585564677729071i (difference about
+2.4e-5); this near-constant comparison is not an independent orbit validation.
+The saved-diagram comparison against
+the pre-fix fixture changes only `evr1`, `evi1`, `evr2`, `evi2` of MX 1459: every other column
+of every row is identical. Regular failed steps with a retained spectrum
+reuse it exactly. [W341 / #402](https://github.com/MuhammadMoustafa/xppautX/issues/402).

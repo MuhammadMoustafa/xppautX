@@ -17,6 +17,9 @@
    parameter both): its first point is exactly the label's solution, and
    takes the label's values (auto_stability_run_start()).
 
+   A failed step restores its predictor's old solution, and the MX endpoint
+   takes that solution's retained stability (W341, #402).
+
    "Not computed" is all zeros, the form sessions keep (as XPPAUT's
    .auto files did); the page says so (web2 autoInfo.ts). XPPAUT itself stores the
    previous point's values there.
@@ -48,9 +51,17 @@ struct AutoStability {
         std::vector<double> re, im;
     };
     Values computed; /* the last point AUTO checked */
+    Values previous; /* the solution saved by the current predictor, before any trials */
     Values first;    /* the running restart's first point (pt 1), when it has one */
     bool has_first = false;
 };
+
+/* Before a predictor copies solution pt into uold/uoldps, retain its spectrum.
+   Trial solutions must compute their own stability. A failed solve restores
+   that old solution and gives its retained spectrum to the endpoint. */
+void auto_stability_step_start(AutoStability &st, int br, int pt);
+/* Returns whether the restored solution had a retained spectrum. */
+bool auto_stability_step_failed(AutoStability &st, int br, int pt);
 
 void auto_stability_computed(AutoStability &st, int br, int pt, int n, const double *values, int kind);
 

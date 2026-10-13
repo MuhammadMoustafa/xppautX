@@ -64,7 +64,7 @@
 /* ----------------------------------------------------------------------- */
 
 /* Subroutine */ int 
-flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *rwork, doublecomplex *ev)
+flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *rwork, doublecomplex *ev, bool deflate)
 {
     
 
@@ -142,6 +142,10 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
       ARRAY2D(c1, i, j) = -ARRAY2D(c1, i, j);
     }
   }
+
+  // A restored endpoint can be a constant solution, without the +1
+  // multiplier of a nontrivial periodic orbit. Use its full pencil.
+  if (!deflate) goto eigenvalues;
 
   /*  Print the undeflated circuit pencil (C0, C1). */
 
@@ -319,18 +323,20 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
   /*  (C0BarDef, C1BarDef) */
   /*  by using the QZ routines from EISPACK. */
 
-  ndimm1 = *ndim - 1;
+eigenvalues:
+  ndimm1 = deflate ? *ndim - 1 : *ndim;
+  const integer offset = deflate ? 1 : 0;
 
   /*  reduce the generalized eigenvalue problem to a simpler form */
   /*   (C0BarDef,C1BarDef) = (upper hessenberg, upper triangular) */
 
 
-  qzhes(*ndim, ndimm1, &c0[1], &c1[1], FALSE_ , qzz.data());
+  qzhes(*ndim, ndimm1, &c0[offset], &c1[offset], FALSE_ , qzz.data());
 
   /*  now reduce to an even simpler form */
   /*   (C0BarDef,C1BarDef) = (quasi-upper triangular, upper triangular) */
 
-  qzit(*ndim, ndimm1, &c0[1], &c1[1], QZEPS1, FALSE_ , 
+  qzit(*ndim, ndimm1, &c0[offset], &c1[offset], QZEPS1, FALSE_ ,
        qzz.data(), &qzierr);
   if (qzierr != 0) {
     xpp::print(fp9," NOTE : Warning from subroutine FLOWKM : QZ routine returned QZIERR = {:4}        Floquet multiplier calculations may be wrong \n",qzierr);	
@@ -339,19 +345,21 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
 
   /*  compute the generalized eigenvalues */
 
-  qzval(*ndim, ndimm1, &c0[1], &c1[1], qzalfr.data(), qzalfi.data(), 
+  qzval(*ndim, ndimm1, &c0[offset], &c1[offset], qzalfr.data(), qzalfi.data(),
 	qzbeta.data(), FALSE_, qzz.data());
 
   /*  Pack the eigenvalues into complex form. */
-  ev[0].r = ARRAY2D(c0, 0, (*ndim - 1)) / ARRAY2D(c1, 0, (*ndim - 1));
-  ev[0].i = 0.;
+  if (deflate) {
+    ev[0].r = ARRAY2D(c0, 0, (*ndim - 1)) / ARRAY2D(c1, 0, (*ndim - 1));
+    ev[0].i = 0.;
+  }
   infev = FALSE_;
   for (j = 0; j < ndimm1; ++j) {
     if (qzbeta[j] != 0.) {
-      ev[j + 1].r = qzalfr[j] / qzbeta[j];
-      ev[j + 1].i = qzalfi[j] / qzbeta[j];
+      ev[j + offset].r = qzalfr[j] / qzbeta[j];
+      ev[j + offset].i = qzalfi[j] / qzbeta[j];
     } else {
-      ev[j + 1].r = 1e30, ev[j + 1].i = 1e30;
+      ev[j + offset].r = 1e30, ev[j + offset].i = 1e30;
       infev = TRUE_;
     }
   }

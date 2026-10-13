@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - Allow POSIX system links along read, write-folder and scratch paths when both the link and its parent belong to root and the parent has no group/other write permission; user-planted links and final file links remain refused, and Windows still refuses every reparse point (W311, [#370](https://github.com/MuhammadMoustafa/xppautX/issues/370)).
 
+- Preserve the restored solution's eigenvalues or Floquet multipliers at AUTO's failed-step MX endpoint, including equilibrium branch switching and special-point searches that restore an unstored solution; uncached endpoints use the full spectrum without assuming a trivial multiplier (W341, [#402](https://github.com/MuhammadMoustafa/xppautX/issues/402)).
+
 - Allow system/user links above the write folder boundary, including macOS temp/config ancestors; continue refusing links below it and rechecking created folders (W342, [#403](https://github.com/MuhammadMoustafa/xppautX/issues/403)).
 
 - Refuse nonfinite AUTO solutions: retry failed Newton steps with smaller step sizes and report the attempted branch point when retries fail; never store NaN states, parameters, norms or spectra, and preserve a populated single-point diagram when saving. The singular deprecated `hom_bcs` tstheti fixture now expects an error instead of treating NaN points as a connection (W343, [#404](https://github.com/MuhammadMoustafa/xppautX/issues/404)).

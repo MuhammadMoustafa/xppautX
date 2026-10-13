@@ -5,7 +5,10 @@
 #include <vector>
 
 #include "auto_stability.h"
+#include "auto_stability_auto.h"
 #include "xpp_math.h"
+#include "auto_nox.h"
+#include "auto_state.h"
 
 namespace xpp {
 
@@ -32,8 +35,60 @@ void forget(AutoStability::Values &v)
 
 /* AUTO's type of a period doubling (itp mod 10) */
 constexpr int ITP_PD = 7;
+/* FUNI request for state and parameter Jacobians. */
+constexpr integer BOTH_JACOBIANS = 2;
 
 } // namespace
+
+void auto_stability_step_start(AutoStability &st, int br, int pt)
+{
+    const bool label_solution = st.has_first && st.first.br == 0;
+    if (st.computed.pt != 0 && st.computed.br == std::abs(br) && st.computed.pt == std::abs(pt))
+        st.previous = st.computed;
+    else if (label_solution && std::abs(pt) == st.first.pt) {
+        st.previous = st.first;
+    } else
+        forget(st.previous);
+    // Consume label eligibility even when computed values won: startup's
+    // unstored seed and an internal switch may reuse the first point's ID.
+    if (label_solution) st.first.br = std::abs(br);
+    // The predictor changes the solution, even within a special-point search.
+    forget(st.computed);
+}
+
+bool auto_stability_step_failed(AutoStability &st, int br, int pt)
+{
+    st.computed = st.previous;
+    if (st.computed.pt != 0) {
+        st.computed.br = std::abs(br);
+        st.computed.pt = std::abs(pt);
+    }
+    return st.computed.pt != 0;
+}
+
+void auto_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *par, integer *icp,
+    FUNI_TYPE((*funi)), double *u, double *uold, double *f, double *dfdu, double *dfdp)
+{
+    (*funi)(&iap, &rap, iap.ndim, u, uold, icp, par, BOTH_JACOBIANS, f, dfdu, dfdp);
+    logical chng;
+    const auto saved_nins = iap.nins;
+    const auto saved_period = par[AUTO_PERIOD_INDEX];
+    // fnhbae's uniform FNCS interface has unused arguments: the eigenvalue
+    // calculation itself consumes only the context, parameters and Jacobian.
+    fnhbae(&iap, &rap, par, nullptr, &chng, nullptr, nullptr, nullptr,
+           nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+           dfdu, nullptr, nullptr, nullptr);
+    iap.nins = saved_nins;
+    par[AUTO_PERIOD_INDEX] = saved_period;
+}
+
+void auto_stability_multipliers_restored(AutoStability &st, const iap_type &iap, double *p0, double *p1)
+{
+    integer ndim = iap.ndim, iid = iap.iid;
+    std::vector<doublecomplex> ev(ndim);
+    flowkm(iap.lib->fp9, &ndim, p0, p1, &iid, nullptr, ev.data(), false);
+    auto_stability_computed(st, iap.ibr, iap.ntot + 1, ndim, &ev[0].r, AUTO_STABILITY_PERIODIC);
+}
 
 void auto_stability_computed(AutoStability &st, int br, int pt, int n, const double *values, int kind)
 {
@@ -65,6 +120,7 @@ int auto_stability_run_start(AutoStability &st, int run, int isw, int label, int
     AutoStability::Values &first = st.first;
     bool &has_first = st.has_first;
     forget(st.computed);
+    forget(st.previous);
     forget(first);
     has_first = false;
     bool same = label != AUTO_STABILITY_NONE && label == run &&
@@ -90,7 +146,7 @@ int auto_stability_for(const AutoStability &st, int br, int pt, int n, double *e
         copy_out(computed, n, evr, evi);
         return 1;
     }
-    if (has_first && std::abs(pt) == first.pt) {
+    if (has_first && std::abs(pt) == first.pt && (first.br == 0 || first.br == std::abs(br))) {
         copy_out(first, n, evr, evi);
         return 1;
     }
