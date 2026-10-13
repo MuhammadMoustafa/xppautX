@@ -491,7 +491,7 @@ def main():
                 raise ValueError('%s: %s' % (path.relative_to(ROOT), e)) from e
         expected = {f.as_posix() for f in Path('examples/tstauto').iterdir() if f.suffix in ('.ode', '.odex')}
         expected.update(f.as_posix() for f in Path('examples/ode').glob('*.odex')
-                        if re.search(r'\bauto\s*:', re.sub(r'#[^\n]*', '', f.read_text(encoding='utf-8'))))
+                        if re.search(r'\b(continuation|diagram)\s*:', re.sub(r'#[^\n]*', '', f.read_text(encoding='utf-8'))))
         models = [d['model'] for d in descriptions.values()]
         if set(models) != expected or len(models) != len(set(models)):
             raise ValueError('description coverage: missing %s, extra %s, or duplicate models' %
