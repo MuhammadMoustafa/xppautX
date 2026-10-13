@@ -5980,7 +5980,7 @@ async function jacobianOfferCheck(dir) {
   await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
   await key('a');
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
-  await cdp.eval(`__xpp.send({cmd: 'auto', op: 'set', integration: {ds: -0.1, dsmax: 0.1, rl0: -0.5, rl1: 2, nmx: 100}, axes: {plot: 1, var: 'x', par1: 'a'}})`);
+  await cdp.eval(`__xpp.send({cmd: 'auto', op: 'set', numerics: {ds: -0.1, dsmax: 0.1, rl0: -0.5, rl1: 2, nmx: 100}, axes: {plot: 1, var: 'x', par1: 'a'}})`);
   await until('!s.busy', 'AUTO settings');
   await cdp.eval(`__xpp.send({cmd: 'key', win: 'auto', key: 'r'})`);
   await until("s.ask && s.ask.kind === 'menu'", 'AUTO start menu');

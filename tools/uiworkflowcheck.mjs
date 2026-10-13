@@ -108,8 +108,9 @@ try {
   await stopServer(server);
   server = await startServer(bin, root, [path.resolve('examples/ode/lorenz.odex')]);
   await navigatePage(cdp, server.url);
-  await until('__xpp.state().hello?.file.endsWith("lorenz.odex") && __xpp.state().core.rows > 0 && !__xpp.state().busy', '3D model');
-  /* run() waits for the window's own series first: it is what the run retains as an earlier run */
+  await until('__xpp.state().hello?.file.endsWith("lorenz.odex") && !__xpp.state().busy', '3D model');
+  /* a model no longer runs on open (W312): the first run is the trajectory the second retains */
+  await run();
   await run();
   await until('__xpp.plot()?.curves.length >= 2 && document.querySelector("[data-trace-key^=run-]")', '3D retained trace and legend');
   const retained = await state('w.history.runs.length');
