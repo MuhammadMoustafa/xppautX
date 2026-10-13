@@ -421,7 +421,7 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
 
 // W247: a normal form with derived parameters, fixed variables and a user
 // function; compare all stored values, including Floquet eigenvalues.
-// Below/at W325's measured work threshold for this two-state, Ncol=4 fixture.
+// Meshes below and above W325's worker threshold for this two-state, Ncol=4 fixture.
 constexpr long serial_mesh = 17;
 constexpr long worker_mesh = 64;
 std::deque<DiagramPoint> collocation_run(unsigned threads, bool compiled, bool impure=false,
@@ -491,25 +491,23 @@ void check_collocation()
     const auto interpreted=collocation_run(1,false);
     const auto serial=collocation_run(1,true);
     CHECK(same_diagram(interpreted,serial));
+    // Below W325's threshold every count stays serial (collocation_run checks the pool).
+    CHECK(same_diagram(serial,collocation_run(4,true)));
+    CHECK(same_diagram(serial,collocation_run(4,true,true)));
+    // Above it, the setubv/conpar workers keep the whole diagram and leave the
+    // parser's state alone.
+    const auto large=collocation_run(1,true,false,{},false,worker_mesh);
     const auto constants=xpp::client_session().parser.constants;
     const auto variables=xpp::client_session().parser.variables;
     for (unsigned threads:{2u,4u}) {
-        CHECK(same_diagram(serial,collocation_run(threads,true)));
+        CHECK(same_diagram(large,collocation_run(threads,true,false,{},false,worker_mesh)));
         CHECK(same_vector(constants,xpp::client_session().parser.constants));
         CHECK(same_vector(variables,xpp::client_session().parser.variables));
     }
-    CHECK(same_diagram(serial,collocation_run(4,true,true)));
     /* W260: the exact Jacobian (AUTO's JAC=1), computed on the workers
        from their own constants: the same bits on every count */
-    const auto exact=collocation_run(1,true,false,{},true);
-    CHECK(!same_diagram(serial,exact));
-    for (unsigned threads:{2u,4u}) CHECK(same_diagram(exact,collocation_run(threads,true,false,{},true)));
-    // The small fixture above stays serial at every requested count; at the
-    // threshold the real setubv/conpar workers must keep the same whole diagram.
-    const auto large=collocation_run(1,true,false,{},false,worker_mesh);
-    for (unsigned threads:{2u,4u})
-        CHECK(same_diagram(large,collocation_run(threads,true,false,{},false,worker_mesh)));
     const auto large_exact=collocation_run(1,true,false,{},true,worker_mesh);
+    CHECK(!same_diagram(large,large_exact));
     for (unsigned threads:{2u,4u})
         CHECK(same_diagram(large_exact,collocation_run(threads,true,false,{},true,worker_mesh)));
     program.compile=true;
