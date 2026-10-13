@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "model": "examples/ode/del_log.odex",
+  "runs": [
+    {"name": "steady", "parameter": "r", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 2.177, "norm": 0.7645977781, "period": 1.0, "spectrum": "eigenvalue", "values": [[0.5, -0.962808], [0.5, 0.962808]]},
+      {"type": "EP", "branch": 1, "label": 3, "point": 34, "par": 2.506058825, "norm": 0.84989577882, "period": 1.0, "spectrum": "eigenvalue", "values": [[0.5, -1.12074], [0.5, 1.12074]]}
+    ]}
+  ]
+}

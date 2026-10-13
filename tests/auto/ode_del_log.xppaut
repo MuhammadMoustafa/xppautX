@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "source": "XPPAUT 8.0 (reference/xppaut-8.0, c021b511) (tools/auto_reference.py)",
+  "model": "examples/ode/del_log.odex",
+  "runs": [
+    {"name": "steady", "parameter": "r", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 2.177, "norm": 0.7645978, "period": null, "spectrum": "", "values": []},
+      {"type": "EP", "branch": 1, "label": 3, "point": 34, "par": 2.506059, "norm": 0.8498958, "period": null, "spectrum": "eigenvalue", "values": [[0.5, -1.12074], [0.5, 1.12074]]}
+    ]}
+  ]
+}

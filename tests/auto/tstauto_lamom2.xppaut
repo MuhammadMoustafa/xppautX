@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "source": "XPPAUT 8.0 (reference/xppaut-8.0, c021b511) (tools/auto_reference.py)",
+  "model": "examples/tstauto/lamom2.odex",
+  "runs": [
+    {"name": "steady", "parameter": "a", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": -2.0, "norm": 0.0, "period": null, "spectrum": "", "values": []},
+      {"type": "HB", "branch": 1, "label": 2, "point": 20, "par": 2e-07, "norm": 0.0, "period": 6.2831853072, "spectrum": "eigenvalue", "values": [[2e-07, -1.0], [2e-07, 1.0]]},
+      {"type": "EP", "branch": 1, "label": 3, "point": 30, "par": 1.0, "norm": 0.0, "period": null, "spectrum": "eigenvalue", "values": [[1.0, -1.0], [1.0, 1.0]]}
+    ]},
+    {"name": "cycles", "parameter": "a", "points": [
+      {"type": "LP", "branch": 2, "label": 5, "point": 17, "par": -0.25, "norm": 0.7071647, "period": 4.1885615898, "spectrum": "multiplier", "values": [[1.0, 0.0], [0.9989578, 0.0]]},
+      {"type": "EP", "branch": 2, "label": 7, "point": 30, "par": 0.2304569, "norm": 1.092314, "period": 2.864913612, "spectrum": "multiplier", "values": [[0.9999939, 0.0], [7.524034e-05, 0.0]]}
+    ]}
+  ]
+}

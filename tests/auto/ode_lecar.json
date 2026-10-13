@@ -49,5 +49,15 @@
     "v4": 0.3,
     "gca": 1.1,
     "phi": 0.2
-  }
+  },
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "cycles",
+      "side": "reference",
+      "type": "LP",
+      "index": 1,
+      "cause": "At NTST 15 the missing-restore difference: the Morris-Lecar cycles pass a region where the monodromy matrix is ill-conditioned (multiplier 3e6), the BP test function changes sign by noise, and the location of that special point does not converge in ITMX iterations. AUTO-07p then restores the last converged point (bvp.f90 lcspbv, 'set back to previous (converged) state'); AUTO2000's lcspbv (XPPAUT's autlib1.c:6498, ours autlib1.cpp) leaves the displaced iterate, so the continuation turns round at point 21 and never reaches the cycles' fold. The fold is real: at NTST 60 and EPS 1e-9 ours and AUTO-07p both find it at iapp 0.24841347, norm 0.381815, period 25.7824, and ours with 07p's restore in lcspbv finds it at NTST 15 (0.248413878, AUTO-07p 0.248413876). XPPAUT 8.0 shows the same NOTE:Possible special point and the same reversal. docs/auto-references.md, findings #47, a W302 stage."
+    }
+  ]
 }

@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "source": "XPPAUT 8.0 (reference/xppaut-8.0, c021b511) (tools/auto_reference.py)",
+  "model": "examples/tstauto/bistable.odex",
+  "runs": [
+    {"name": "steady", "parameter": "c", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.56, "norm": 1.0, "period": null, "spectrum": "", "values": []},
+      {"type": "EP", "branch": 1, "label": 3, "point": 22, "par": 1.0, "norm": 1.0, "period": null, "spectrum": "eigenvalue", "values": [[0.5723805, 0.0], [-1.572381, 0.0]]}
+    ]}
+  ]
+}

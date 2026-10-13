@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "model": "examples/tstauto/frcp.odex",
+  "runs": [
+    {"name": "steady", "parameter": "b", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.5, "norm": 0.5, "period": 0.062831853072, "spectrum": "eigenvalue", "values": [[45.7191, 0.0], [3.2809, 0.0], [1.0, -100.0], [1.0, 100.0]]},
+      {"type": "HB", "branch": 1, "label": 3, "point": 38, "par": 0.73765251446, "norm": 0.7872288462, "period": 0.4454093893, "spectrum": "eigenvalue", "values": [[1.0, -100.0], [1.0, 100.0], [0.00276268, 14.1065], [0.00276268, -14.1065]]},
+      {"type": "EP", "branch": 1, "label": 6, "point": 73, "par": 1.0050005169, "norm": 1.0033240191, "period": 0.062831853072, "spectrum": "eigenvalue", "values": [[1.0, -100.0], [1.0, 100.0], [-3.02062, 0.0], [-99.9796, 0.0]]}
+    ]},
+    {"name": "cycles", "parameter": "b", "points": [
+      {"type": "EP", "branch": 3, "label": 9, "point": 30, "par": 0.73605552888, "norm": 0.78202405529, "period": 0.85007296016, "spectrum": "multiplier", "values": [[1.0, 0.0], [-0.573546, 1.40198], [-0.573546, -1.40198], [0.0256656, 0.0]]}
+    ]}
+  ]
+}

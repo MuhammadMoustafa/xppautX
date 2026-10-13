@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "model": "examples/tstauto/exp.odex",
+  "runs": [
+    {"name": "boundary", "parameter": "p0", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.0, "norm": 0.0, "period": null, "spectrum": "", "values": []},
+      {"type": "EP", "branch": 1, "label": 5, "point": 69, "par": 3.0009247723, "norm": 1.5222638399, "period": null, "spectrum": "", "values": []}
+    ]}
+  ]
+}

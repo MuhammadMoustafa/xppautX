@@ -6,6 +6,9 @@ translates it to today's menus. Each model runs serially at 1 and auto threads.
 No elapsed-time assertion: completion is idle; TIMEOUT is only a hang guard.
 """
 import argparse
+import cmath
+import csv
+import io
 import json
 import math
 import os
@@ -76,7 +79,7 @@ def no_duplicates(pairs):
 
 def read_description(path):
     d = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=no_duplicates)
-    members(d, ('model', 'reason', 'parameters', 'initial_conditions', 'runs', 'skip'), ('model', 'reason'))
+    members(d, ('model', 'reason', 'parameters', 'initial_conditions', 'runs', 'skip', 'differences', *REFERENCE_SKIPS.values()), ('model', 'reason'))
     model = ROOT / d['model']
     if model.resolve().parent not in (ROOT / 'examples/tstauto', ROOT / 'examples/ode') or not model.is_file():
         raise ValueError('model must be a file in examples/tstauto or examples/ode')
@@ -134,6 +137,12 @@ def read_description(path):
             raise ValueError('switch must be boolean')
     if all('skip' in r for r in d['runs']):
         raise ValueError('no runnable continuations; use a model skip with its reason')
+    for k in d.get('differences', ()):
+        members(k, ('reference', 'run', 'side', 'type', 'index', 'cause'), ('reference', 'run', 'side', 'type', 'index', 'cause'))
+        if (k['reference'] not in REFERENCES or k['run'] not in names or k['side'] not in ('ours', 'reference')
+                or k['type'] not in ('EP', *BIFURCATIONS.values()) or not isinstance(k['cause'], str) or not k['cause'].strip()):
+            raise ValueError('invalid traced difference: ' + str(k))
+        finite(k['index'], 'index', integer=True, positive=True)
     return d
 
 
@@ -225,11 +234,232 @@ def compute(binary, d, threads):
         for r in d['runs']:
             if 'skip' not in r:
                 execute_run(s, r, diagram, ranges, model_pars, len(setting['pars']))
-        return session_diagram(s), len(diagram.points), setting['threads_auto']
+        return session_diagram(s), len(diagram.points), setting['threads_auto'], ranges
     finally:
         s.close()
         if s.proc.returncode and sys.exc_info()[0] is None:
             raise RuntimeError('server exited %s: %s' % (s.proc.returncode, ''.join(s.log)[-1500:]))
+
+
+# --- W300/#358: the special points compared with other programs' -----------------
+# A reference file beside a diagram holds another program's special points for the
+# same problem: tools/auto07p_reference.py writes `.auto07p` (AUTO-07p 0.9.3, run once
+# on a machine that has it) and `.xppaut` is XPPAUT 8.0's (its AUTO window driven by
+# hand). They are compared here, from the committed files alone, matched by type and
+# order. A missing or extra special point is a difference.
+REFERENCES = {'.auto07p': 'AUTO-07p', '.xppaut': 'XPPAUT 8.0'}
+# a description with no reference file says why in this field (an explicit reason, never silence)
+REFERENCE_SKIPS = {'.auto07p': 'auto07p_skip', '.xppaut': 'xppaut_skip'}
+REFERENCE_FORMAT = 1
+# the type of a stored point (itp, core/auto_nox.h) that both programs label a special point
+BIFURCATIONS = {1: 'BP', 2: 'LP', 3: 'HB', 5: 'LP', 6: 'BP', 7: 'PD', 8: 'TR'}
+POINT_FIELDS = ('type', 'branch', 'label', 'point', 'par', 'norm', 'period', 'spectrum', 'values')
+# Newton's convergence test of both codes (autlib1.c solvae, ae.f90 stepae) stops on a
+# relative change below EPSL for the parameter and EPSU for the state, so a computed
+# point is that close to the solution of its discretised equations
+NEWTON_TOLERANCE = 2
+# AUTO's Jacobian is a forward difference of the right-hand side with step HMACH*(1+|u|)
+# (HMACH = 1e-7): the eigenvalues of that Jacobian carry its truncation error relative to
+# the Jacobian's own size
+FINITE_DIFFERENCE = 1e-7
+# AUTO-07p's diagnostics file prints an eigenvalue or multiplier with six significant digits
+PRINTED = 5e-6
+
+
+def read_reference(path, d):
+    """A reference file, strictly: its format, the description's model and runs."""
+    ref = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=no_duplicates)
+    members(ref, ('format', 'source', 'model', 'runs'), ('format', 'source', 'model', 'runs'))
+    runs = [r for r in d['runs'] if 'skip' not in r]
+    if ref['format'] != REFERENCE_FORMAT or ref['model'] != d['model'] or not isinstance(ref['source'], str):
+        raise ValueError('format, source or model does not match the description')
+    if [r.get('name') for r in ref['runs']] != [r['name'] for r in runs]:
+        raise ValueError('runs %s, the description has %s' % ([r.get('name') for r in ref['runs']], [r['name'] for r in runs]))
+    for r, dr in zip(ref['runs'], runs):
+        members(r, ('name', 'parameter', 'unavailable', 'points'), ('name', 'parameter', 'points'))
+        if r['parameter'] != dr.get('parameter') or not isinstance(r['points'], list):
+            raise ValueError('run %s: parameter or points' % r['name'])
+        if 'unavailable' in r and not (isinstance(r['unavailable'], str) and r['unavailable'].strip()):
+            raise ValueError('run %s: unavailable needs its reason' % r['name'])
+        for p in r['points']:
+            members(p, POINT_FIELDS, POINT_FIELDS)
+            if p['type'] not in ('EP', 'MX', 'BP', 'LP', 'HB', 'PD', 'TR') or p['spectrum'] not in ('', 'eigenvalue', 'multiplier'):
+                raise ValueError('run %s: point %s' % (r['name'], p))
+            finite(p['par'], 'par')
+            finite(p['norm'], 'norm')
+            if p['period'] is not None:
+                finite(p['period'], 'period')
+            if not isinstance(p['values'], list) or not all(isinstance(v, list) and len(v) == 2 for v in p['values']):
+                raise ValueError('run %s: spectrum of label %s' % (r['name'], p['label']))
+    return ref
+
+
+def read_references(descriptions):
+    """{description: {suffix: reference}}: every reference file read and checked against its
+    description; a description that is not skipped has each program's file or its reason for
+    having none; a file without a description is refused."""
+    found = {suffix: {p.name[:-len(suffix)] for p in BASE.glob('*' + suffix)} for suffix in REFERENCES}
+    refs = {name: {} for name in descriptions}
+    for suffix, names in found.items():
+        for name in sorted(names):
+            d = descriptions.get(name)
+            path = BASE / (name + suffix)
+            if d is None or 'skip' in d:
+                raise ValueError('%s: no runnable description %s.json' % (path.relative_to(ROOT), name))
+            try:
+                refs[name][suffix] = read_reference(path, d)
+            except (ValueError, TypeError, KeyError, AttributeError) as e:
+                raise ValueError('%s: %s' % (path.relative_to(ROOT), e)) from e
+    for name, d in descriptions.items():
+        for suffix, field in REFERENCE_SKIPS.items():
+            if 'skip' in d:
+                continue
+            has_file, reason = name in found[suffix], d.get(field)
+            if has_file == (reason is not None) or (reason is not None and not (isinstance(reason, str) and reason.strip())):
+                raise ValueError('%s: needs either %s%s or a %s reason, not both or neither' % (name, name, suffix, field))
+    return refs
+
+
+def reference_spectrum(p):
+    """A reference point's spectrum as the diagram stores it, sorted, and the size of its
+    eigenvalues: XPPAUT's diagram keeps the multiplier e^lambda of an equilibrium's eigenvalue
+    lambda (so the stability circle is the unit circle; autevd.c send_eigen), a periodic orbit's
+    Floquet multipliers as they are."""
+    values = [complex(*v) for v in p['values']]
+    size = max(abs(v) for v in values)
+    if p['spectrum'] == 'eigenvalue':
+        values = [cmath.exp(v) for v in values]
+    return sorted((v.real, v.imag) for v in values), size
+
+
+def stored_rows(data, ranges):
+    """The diagram csv's rows by run."""
+    rows = list(csv.DictReader(io.StringIO(data.decode('utf-8'))))
+    return {name: rows[lo:hi] for name, (lo, hi) in ranges.items()}
+
+
+def spectrum(row):
+    n = sum(1 for k in row if k.startswith('evr'))
+    return sorted((float(row['evr%d' % i]), float(row['evi%d' % i])) for i in range(1, n + 1))
+
+
+def quantity(row, name):
+    if name == 'spectrum':
+        return spectrum(row)
+    return float(row[{'par': 'par1', 'norm': 'norm', 'period': 'per'}[name]])
+
+
+def spread(a, b):
+    """The distance between two values of a quantity: of two spectra, the largest between
+    eigenvalues paired in order."""
+    if isinstance(a, list):
+        return max(abs(complex(*x) - complex(*y)) for x, y in zip(a, b))
+    return abs(a - b)
+
+
+def slope(rows, i, name):
+    """The largest rate of change of a quantity per unit of the (parameter, norm) path length
+    between the stored point i and its neighbours: a position error along the branch moves a
+    quantity by at most this much per unit."""
+    best = 0.0
+    for j in (i - 1, i + 1):
+        if 0 <= j < len(rows):
+            ds = math.hypot(quantity(rows[i], 'par') - quantity(rows[j], 'par'),
+                            quantity(rows[i], 'norm') - quantity(rows[j], 'norm'))
+            if ds > 0:
+                best = max(best, spread(quantity(rows[i], name), quantity(rows[j], name)) / ds)
+    return best
+
+
+def compare_run(rows, auto, kind, ref_points, who, known=()):
+    """Differences (strings) and measurements (quantity, point, difference, tolerance) of one run
+    against a reference's special points. The tolerance of a quantity q at a special point:
+
+      2 * EPSS*(1+DSMAX) * g  +  2 * EPS * (1+|q|)  [+ 2 * FD * (1+|q|) for an eigenvalue]
+
+    The first term is the position error along the branch: both programs locate a special point
+    by the secant method until the arclength step is below EPSS*(1+sqrt|DS*DSMAX|) (autlib1.c
+    lcspae, ae.f90 lcspae), at most EPSS*(1+DSMAX); the two may differ by twice that, and g is
+    the rate of change of q per unit of the (parameter, norm) path length measured from our own
+    stored points around it (so the formula never allows more than the branch itself moves q).
+    The second is the Newton convergence of each point (EPSL for the parameter, EPSU for the
+    rest), twice. The third is the finite-difference Jacobian's accuracy. The tolerance is never
+    widened to make a point pass: a difference beyond it is traced (docs/auto-references.md)."""
+    epss, epsl, epsu = auto.get('epss', 1e-4), auto.get('epsl', 1e-4), auto.get('epsu', 1e-4)
+    loc = epss * (1 + auto['dsmax'])
+    ours = []
+    for i, r in enumerate(rows):
+        itp = int(r['itp'])
+        if itp in BIFURCATIONS:
+            ours.append((BIFURCATIONS[itp], i))
+        elif i == 0 and itp == 9 and kind in ('equilibrium', 'bvp'):
+            ours.append(('EP', i))
+    theirs = [p for p in ref_points if p['type'] in BIFURCATIONS.values() or (p['type'] == 'EP' and p['point'] == 1)]
+    diffs = []
+    dropped = {'ours': set(), 'reference': set()}
+    for k in known:  # a traced difference: one point the other side has no counterpart of (index: among its type, as listed)
+        kinds = [t for t, _ in ours] if k['side'] == 'ours' else [p['type'] for p in theirs]
+        at = [j for j, t in enumerate(kinds) if t == k['type']]
+        if len(at) < k['index']:
+            diffs.append('%s: traced difference not present any more, remove it: %s' % (who, k))
+        else:
+            dropped[k['side']].add(at[k['index'] - 1])
+    ours = [x for j, x in enumerate(ours) if j not in dropped['ours']]
+    theirs = [x for j, x in enumerate(theirs) if j not in dropped['reference']]
+    want, got = [p['type'] for p in theirs], [t for t, _ in ours]
+    if want != got:
+        return diffs + ['%s: special points %s, ours %s' % (who, want, got)], []
+    measures = []
+    for (t, i), p in zip(ours, theirs):
+        # the first stored point of a run holds no spectrum (zeros: not computed, core/auto_stability.cpp)
+        names = ['par', 'norm'] + (['period'] if (t == 'HB' or kind == 'periodic') and p['period'] is not None else []) \
+            + (['spectrum'] if p['values'] and i else [])
+        for q in names:
+            a = quantity(rows[i], q)
+            b, size = reference_spectrum(p) if q == 'spectrum' else (p[q], 0)
+            if q == 'spectrum' and len(a) != len(b):
+                diffs.append('%s %s spectrum: %d values, ours %d' % (who, t, len(b), len(a)))
+                continue
+            scale = max(abs(complex(*x)) for x in a) if q == 'spectrum' else abs(a)
+            # a spectrum's error: its printed digits and the Jacobian's finite differences, relative to
+            # the size of the eigenvalues, carried through e^lambda when that is what is stored
+            tol = (2 * loc * slope(rows, i, q) + NEWTON_TOLERANCE * (epsl if q == 'par' else epsu) * (1 + scale)
+                   + (NEWTON_TOLERANCE * (FINITE_DIFFERENCE + PRINTED) * (1 + size) * scale if q == 'spectrum' else 0))
+            diff = spread(a, b)
+            measures.append((q, '%s %d' % (t, i + 1), diff, tol))
+            if not diff <= tol:
+                diffs.append('%s %s (stored point %d) %s: ours %s, reference %s, difference %.3g > tolerance %.3g'
+                             % (who, t, i + 1, q, a, b, diff, tol))
+    return diffs, measures
+
+
+def agreement(name, suffix, measures, diffs, traced=0):
+    """One line of docs/auto-references.md's table: a reference's points compared and the largest
+    absolute difference per quantity."""
+    worst = {}
+    for sx, _, q, _, diff, tol in measures:
+        if sx == suffix:
+            worst[q] = max(worst.get(q, 0.0), diff)
+    cells = ', '.join('%s %.2g' % (q, worst[q]) for q in ('par', 'norm', 'period', 'spectrum') if q in worst)
+    return '%s | %s | %d | %s | %s' % (name, REFERENCES[suffix], sum(1 for m in measures if m[0] == suffix and m[2] == 'par'),
+                                    cells or '-', 'differs: %d' % len(diffs) if diffs else
+                                    'agrees, %d traced' % traced if traced else 'agrees')
+
+
+def compare_references(name, d, data, ranges, refs):
+    rows = stored_rows(data, ranges)
+    diffs, measures = [], []
+    for suffix, ref in refs.items():
+        for r in ref['runs']:
+            if 'unavailable' in r:
+                continue
+            dr = next(x for x in d['runs'] if x['name'] == r['name'])
+            known = [k for k in d.get('differences', ()) if k['reference'] == suffix and k['run'] == r['name']]
+            a, m = compare_run(rows[r['name']], dr['auto'], dr['kind'], r['points'],
+                               '%s %s/%s' % (name, REFERENCES[suffix], r['name']), known)
+            diffs += a
+            measures += [(suffix, r['name']) + x for x in m]
+    return diffs, measures
 
 
 def difference(name, want, got):
@@ -245,6 +475,8 @@ def main():
     ap.add_argument('--server', '--bin', default=None)
     ap.add_argument('--only', help='comma-separated description names (without .json)')
     ap.add_argument('--update', action='store_true', help='rewrite only for an intended numerical change')
+    ap.add_argument('--measures', action='store_true', help='print every compared quantity: difference and tolerance')
+    ap.add_argument('--table', action='store_true', help='print the lines of docs/auto-references.md table')
     ap.add_argument('--keep', type=Path, help='save differing diagrams here (CI artifact)')
     args = ap.parse_args()
     os.chdir(ROOT)
@@ -264,6 +496,7 @@ def main():
         if set(models) != expected or len(models) != len(set(models)):
             raise ValueError('description coverage: missing %s, extra %s, or duplicate models' %
                              (sorted(expected - set(models)), sorted(set(models) - expected)))
+        references = read_references(descriptions)
         selected = args.only.split(',') if args.only else list(descriptions)
         if not selected or set(selected) - descriptions.keys():
             raise ValueError('unknown --only models: ' + str(set(selected) - descriptions.keys()))
@@ -286,7 +519,7 @@ def main():
         for threads in durations:
             began = time.monotonic()
             try:
-                data, count, auto_count = compute(binary, d, threads)
+                data, count, auto_count, ranges = compute(binary, d, threads)
                 computed[threads] = data
                 points += count
                 if args.update:
@@ -308,6 +541,15 @@ def main():
                         args.keep.mkdir(parents=True, exist_ok=True)
                         (args.keep / ('%s.threads-%s.diagram.csv' % (name, threads))).write_bytes(data)
                         (args.keep / (name + '.expected.diagram.csv')).write_bytes(want)
+                    if threads == 1 and references[name]:
+                        diffs, measures = compare_references(name, d, data, ranges, references[name])
+                        check('%s against %s (%d quantities)' % (name, ' and '.join(
+                              REFERENCES[x] for x in references[name]), len(measures)), not diffs, '\n'.join(diffs))
+                        for m in measures if args.measures else ():
+                            print('MEASURE %s %s %s %s %s difference %.3g tolerance %.3g' % ((name,) + m))
+                        for suffix in references[name] if args.table else ():
+                            print('TABLE | ' + agreement(name, suffix, measures, [x for x in diffs if REFERENCES[suffix] in x],
+                                                  sum(1 for k in d.get('differences', ()) if k['reference'] == suffix)) + ' |')
             except (OSError, ValueError, RuntimeError, StopIteration, KeyError) as e:
                 check('%s threads=%s' % (name, threads), False, str(e))
             finally:

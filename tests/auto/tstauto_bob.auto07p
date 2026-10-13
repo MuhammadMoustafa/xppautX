@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "model": "examples/tstauto/bob.odex",
+  "runs": [
+    {"name": "steady", "parameter": "a", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 1.0, "norm": 0.32912351405, "period": 13.937758285, "spectrum": "eigenvalue", "values": [[-0.0427676, -0.450803], [-0.0427676, 0.450803]]},
+      {"type": "EP", "branch": 1, "label": 6, "point": 100, "par": 3.9671115541, "norm": 0.76469525248, "period": 27.723927669, "spectrum": "eigenvalue", "values": [[-0.343894, -0.226634], [-0.343894, 0.226634]]}
+    ]}
+  ]
+}

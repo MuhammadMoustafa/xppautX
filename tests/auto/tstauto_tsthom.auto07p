@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "model": "examples/tstauto/tsthom.odex",
+  "runs": [
+    {"name": "steady", "parameter": "a", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.0, "norm": 0.0, "period": 0.0, "spectrum": "eigenvalue", "values": [[1.0, 0.0], [-1.0, 0.0]]},
+      {"type": "EP", "branch": 1, "label": 4, "point": 50, "par": 1.0000001, "norm": 0.0, "period": 0.0, "spectrum": "eigenvalue", "values": [[0.618034, 0.0], [-1.61803, 0.0]]}
+    ]}
+  ]
+}

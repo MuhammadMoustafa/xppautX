@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "model": "examples/tstauto/lo.odex",
+  "runs": [
+    {"name": "steady", "parameter": "a", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": -1.0, "norm": 0.0, "period": 6.2831853072, "spectrum": "eigenvalue", "values": [[-1.0, -1.0], [-1.0, 1.0]]},
+      {"type": "HB", "branch": 1, "label": 2, "point": 10, "par": 1.0000000025e-07, "norm": 0.0, "period": 6.2831853072, "spectrum": "eigenvalue", "values": [[1e-07, -1.0], [1e-07, 1.0]]},
+      {"type": "EP", "branch": 1, "label": 3, "point": 20, "par": 1.0000002, "norm": 0.0, "period": 6.2831853072, "spectrum": "eigenvalue", "values": [[1.0, -1.0], [1.0, 1.0]]}
+    ]},
+    {"name": "cycles", "parameter": "a", "points": [
+      {"type": "EP", "branch": 2, "label": 6, "point": 30, "par": 0.97568069786, "norm": 0.98776549264, "period": 6.2831853075, "spectrum": "multiplier", "values": [[0.999996, 0.0], [4.73383e-06, 0.0]]}
+    ]}
+  ]
+}

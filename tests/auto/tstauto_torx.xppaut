@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "source": "XPPAUT 8.0 (reference/xppaut-8.0, c021b511) (tools/auto_reference.py)",
+  "model": "examples/tstauto/torx.odex",
+  "runs": [
+    {"name": "steady", "parameter": "rn", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": -0.9, "norm": 0.0, "period": null, "spectrum": "", "values": []},
+      {"type": "HB", "branch": 1, "label": 3, "point": 32, "par": -0.5893365, "norm": 0.0, "period": 8.123597687, "spectrum": "eigenvalue", "values": [[0.2488941, 0.0], [1.410644e-10, -0.7734486], [1.410644e-10, 0.7734486]]},
+      {"type": "BP", "branch": 1, "label": 5, "point": 41, "par": -0.5, "norm": 0.0, "period": null, "spectrum": "eigenvalue", "values": [[0.05, -0.7621242], [0.05, 0.7621242], [1.895805e-10, 0.0]]},
+      {"type": "EP", "branch": 1, "label": 6, "point": 51, "par": -0.4, "norm": 0.0, "period": null, "spectrum": "eigenvalue", "values": [[0.1008939, -0.7814461], [0.1008939, 0.7814461], [-0.2684546, 0.0]]}
+    ]},
+    {"name": "cycles", "parameter": "rn", "points": [
+      {"type": "EP", "branch": 3, "label": 9, "point": 30, "par": -0.5843755, "norm": 0.1448237, "period": 8.3967170765, "spectrum": "multiplier", "values": [[1.0, 0.0], [0.9917676, 0.0], [2.985433, 0.0]]}
+    ]}
+  ]
+}

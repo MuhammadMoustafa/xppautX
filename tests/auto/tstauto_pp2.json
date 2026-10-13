@@ -46,5 +46,31 @@
   "initial_conditions": {
     "u0": 0.3333333333333333,
     "u1": 2
-  }
+  },
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "cycles",
+      "side": "ours",
+      "type": "LP",
+      "index": 1,
+      "cause": "The cycles past a period of about 60 are a near-homoclinic orbit that 15 mesh intervals do not resolve, so what both programs print there is the mesh's, not the model's: at NTST 60 and EPS 1e-9 neither ours nor AUTO-07p finds any LP up to period 84.4 (par 0.7080728, norm 0.426543 in both). At NTST 15 ours labels an LP at point 24 where the fold function dips to -7.9e-7 (XPPAUT identical; AUTO-07p's value there is +8.9e-8: no sign change), and AUTO-07p labels two LPs at points 27 and 29. docs/auto-references.md."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "cycles",
+      "side": "reference",
+      "type": "LP",
+      "index": 1,
+      "cause": "The cycles past a period of about 60 are a near-homoclinic orbit that 15 mesh intervals do not resolve, so what both programs print there is the mesh's, not the model's: at NTST 60 and EPS 1e-9 neither ours nor AUTO-07p finds any LP up to period 84.4 (par 0.7080728, norm 0.426543 in both). At NTST 15 ours labels an LP at point 24 where the fold function dips to -7.9e-7 (XPPAUT identical; AUTO-07p's value there is +8.9e-8: no sign change), and AUTO-07p labels two LPs at points 27 and 29. docs/auto-references.md."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "cycles",
+      "side": "reference",
+      "type": "LP",
+      "index": 2,
+      "cause": "The cycles past a period of about 60 are a near-homoclinic orbit that 15 mesh intervals do not resolve, so what both programs print there is the mesh's, not the model's: at NTST 60 and EPS 1e-9 neither ours nor AUTO-07p finds any LP up to period 84.4 (par 0.7080728, norm 0.426543 in both). At NTST 15 ours labels an LP at point 24 where the fold function dips to -7.9e-7 (XPPAUT identical; AUTO-07p's value there is +8.9e-8: no sign change), and AUTO-07p labels two LPs at points 27 and 29. docs/auto-references.md."
+    }
+  ]
 }

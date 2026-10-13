@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "source": "XPPAUT 8.0 (reference/xppaut-8.0, c021b511) (tools/auto_reference.py)",
+  "model": "examples/tstauto/lo.odex",
+  "runs": [
+    {"name": "steady", "parameter": "a", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": -1.0, "norm": 0.0, "period": null, "spectrum": "", "values": []},
+      {"type": "HB", "branch": 1, "label": 2, "point": 10, "par": 1e-07, "norm": 0.0, "period": 6.2831853072, "spectrum": "eigenvalue", "values": [[9.999999e-08, -1.0], [9.999999e-08, 1.0]]},
+      {"type": "EP", "branch": 1, "label": 3, "point": 20, "par": 1.0, "norm": 0.0, "period": null, "spectrum": "eigenvalue", "values": [[1.0, -1.0], [1.0, 1.0]]}
+    ]},
+    {"name": "cycles", "parameter": "a", "points": [
+      {"type": "EP", "branch": 2, "label": 6, "point": 30, "par": 0.9756807, "norm": 0.9877655, "period": 6.2831853075, "spectrum": "multiplier", "values": [[0.9999959, 0.0], [4.73383e-06, 0.0]]}
+    ]}
+  ]
+}

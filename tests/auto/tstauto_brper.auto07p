@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "model": "examples/tstauto/brper.odex",
+  "runs": [
+    {"name": "steady", "parameter": "a", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": -1.0, "norm": 0.0, "period": 6.2831853072, "spectrum": "eigenvalue", "values": [[-1.0, -1.0], [-1.0, 1.0]]},
+      {"type": "EP", "branch": 1, "label": 2, "point": 20, "par": 1.0000002, "norm": 0.0, "period": 6.2831853072, "spectrum": "eigenvalue", "values": [[1.0, -1.0], [1.0, 1.0]]}
+    ]},
+    {"name": "cycles", "parameter": "a", "unavailable": "'Label HB1 not found'", "points": [
+    ]}
+  ]
+}

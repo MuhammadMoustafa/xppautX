@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "source": "XPPAUT 8.0 (reference/xppaut-8.0, c021b511) (tools/auto_reference.py)",
+  "model": "examples/tstauto/pp2.odex",
+  "runs": [
+    {"name": "steady", "parameter": "par0", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.0, "norm": 2.027588, "period": null, "spectrum": "", "values": []},
+      {"type": "HB", "branch": 1, "label": 3, "point": 36, "par": 0.6715938, "norm": 0.4948663, "period": 10.389169941, "spectrum": "eigenvalue", "values": [[-1.016121e-09, -0.6047822], [-1.016121e-09, 0.6047822]]},
+      {"type": "BP", "branch": 1, "label": 5, "point": 44, "par": 0.8219043, "norm": 0.3333333, "period": null, "spectrum": "eigenvalue", "values": [[0.2238116, 0.0], [1.887386e-09, 0.0]]},
+      {"type": "EP", "branch": 1, "label": 8, "point": 100, "par": 1.886204, "norm": 2.611202, "period": null, "spectrum": "eigenvalue", "values": [[2.75023, 0.0], [-0.9416809, 0.0]]}
+    ]},
+    {"name": "cycles", "parameter": "par0", "points": [
+      {"type": "LP", "branch": 3, "label": 11, "point": 24, "par": 0.708072, "norm": 0.4280795, "period": 64.656143027, "spectrum": "multiplier", "values": [[1.003731, 0.0], [0.0001470222, 0.0]]},
+      {"type": "EP", "branch": 3, "label": 12, "point": 30, "par": 0.708073, "norm": 0.4286632, "period": 74.802589009, "spectrum": "multiplier", "values": [[1.045329, 0.0], [3.685947e-05, 0.0]]}
+    ]}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "model": "examples/tstauto/pen.odex",
+  "runs": [
+    {"name": "steady", "parameter": "ri", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.4, "norm": 0.58197270485, "period": 6.5720850313, "spectrum": "eigenvalue", "values": [[-0.05, -0.956041], [-0.05, 0.956041], [-0.05, 1.12428], [-0.05, -1.12428]]},
+      {"type": "EP", "branch": 1, "label": 6, "point": 89, "par": 1.0, "norm": 2.2214418542, "period": 10.658660615, "spectrum": "eigenvalue", "values": [[2.7228e-06, 0.0], [-0.05, 0.589491], [-0.05, -0.589491], [-0.100003, 0.0]]}
+    ]}
+  ]
+}

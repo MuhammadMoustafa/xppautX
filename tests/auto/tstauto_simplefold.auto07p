@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "model": "examples/tstauto/simplefold.odex",
+  "runs": [
+    {"name": "steady", "parameter": "b", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 1.0, "norm": 1.3247179572, "period": 0.0, "spectrum": "eigenvalue", "values": [[-4.26463, 0.0]]},
+      {"type": "LP", "branch": 1, "label": 3, "point": 34, "par": -0.38490017946, "norm": 0.57735061105, "period": 0.0, "spectrum": "eigenvalue", "values": [[-1.18423e-06, 0.0]]},
+      {"type": "LP", "branch": 1, "label": 6, "point": 63, "par": 0.38490017946, "norm": 0.57735229985, "period": 0.0, "spectrum": "eigenvalue", "values": [[-7.03439e-06, 0.0]]},
+      {"type": "EP", "branch": 1, "label": 8, "point": 100, "par": -1.1906982016, "norm": 1.3676944156, "period": 0.0, "spectrum": "eigenvalue", "values": [[-4.61176, 0.0]]}
+    ]}
+  ]
+}

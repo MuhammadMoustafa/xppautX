@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "source": "XPPAUT 8.0 (reference/xppaut-8.0, c021b511) (tools/auto_reference.py)",
+  "model": "examples/tstauto/frcp.odex",
+  "runs": [
+    {"name": "steady", "parameter": "b", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.5, "norm": 0.5, "period": null, "spectrum": "", "values": []},
+      {"type": "HB", "branch": 1, "label": 3, "point": 38, "par": 0.7376577, "norm": 0.7872288, "period": 0.44541146622, "spectrum": "eigenvalue", "values": [[1.0, -100.0], [1.0, 100.0], [0.003687588, 14.10647], [0.003687588, -14.10647]]},
+      {"type": "EP", "branch": 1, "label": 6, "point": 73, "par": 1.005001, "norm": 1.003324, "period": null, "spectrum": "eigenvalue", "values": [[1.0, -100.0], [1.0, 100.0], [-3.020619, 0.0], [-99.97957, 0.0]]}
+    ]},
+    {"name": "cycles", "parameter": "b", "points": [
+      {"type": "EP", "branch": 3, "label": 9, "point": 30, "par": 0.7360555, "norm": 0.7820241, "period": 0.85007296122, "spectrum": "multiplier", "values": [[1.0, 0.0], [-0.5701582, -1.403308], [-0.5701582, 1.403308], [0.02568021, 0.0]]}
+    ]}
+  ]
+}

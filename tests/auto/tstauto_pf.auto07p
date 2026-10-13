@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "model": "examples/tstauto/pf.odex",
+  "runs": [
+    {"name": "steady", "parameter": "r", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": -1.0, "norm": 0.0, "period": 0.0, "spectrum": "eigenvalue", "values": [[-1.0, 0.0]]},
+      {"type": "BP", "branch": 1, "label": 2, "point": 10, "par": 1.0000000025e-07, "norm": 0.0, "period": 0.0, "spectrum": "eigenvalue", "values": [[1e-07, 0.0]]},
+      {"type": "EP", "branch": 1, "label": 4, "point": 30, "par": 2.0000003, "norm": 0.0, "period": 0.0, "spectrum": "eigenvalue", "values": [[2.0, 0.0]]}
+    ]}
+  ]
+}

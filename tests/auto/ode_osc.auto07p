@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "model": "examples/ode/osc.odex",
+  "runs": [
+    {"name": "steady", "parameter": "Input", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 1.352, "norm": 1.6865414705, "period": 16.390156409, "spectrum": "eigenvalue", "values": [[-0.0740024, -0.383351], [-0.0740024, 0.383351]]},
+      {"type": "EP", "branch": 1, "label": 3, "point": 32, "par": -0.040199015113, "norm": 1.6772050911, "period": 75.960583311, "spectrum": "eigenvalue", "values": [[-0.127002, 0.0], [-3.58875, 0.0]]}
+    ]}
+  ]
+}

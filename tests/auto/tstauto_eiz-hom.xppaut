@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "source": "XPPAUT 8.0 (reference/xppaut-8.0, c021b511) (tools/auto_reference.py)",
+  "model": "examples/tstauto/eiz-hom.odex",
+  "runs": [
+    {"name": "steady", "parameter": "c", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.528907, "norm": 0.05128538, "period": null, "spectrum": "", "values": []},
+      {"type": "EP", "branch": 1, "label": 4, "point": 48, "par": 1.008895, "norm": 0.05163519, "period": null, "spectrum": "eigenvalue", "values": [[0.9017827, 0.0], [-0.02007464, 0.0], [-0.2097609, -0.01703508], [-0.2097609, 0.01703508], [-1.176638, 0.0]]}
+    ]}
+  ]
+}

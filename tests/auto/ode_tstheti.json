@@ -22,5 +22,7 @@
         "mxbf": 0
       }
     }
-  ]
+  ],
+  "auto07p_skip": "The projection boundary conditions (hom_bcs) are XPPAUT's own construct and the start is the orbit XPPAUT integrates (settle); AUTO-07p's homoclinic and heteroclinic continuation takes the orbit and its equilibria through its own constants, which this translation does not build.",
+  "xppaut_skip": "XPPAUT's boundary value run starts from the solution in XPPAUT's storage, which the keys of tools/auto_reference.py do not produce (a run of the integrator first); not driven."
 }

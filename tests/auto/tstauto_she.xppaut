@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "source": "XPPAUT 8.0 (reference/xppaut-8.0, c021b511) (tools/auto_reference.py)",
+  "model": "examples/tstauto/she.odex",
+  "runs": [
+    {"name": "steady", "parameter": "mus", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.163875, "norm": 0.0, "period": null, "spectrum": "", "values": []},
+      {"type": "EP", "branch": 1, "label": 3, "point": 34, "par": 0.503875, "norm": 0.0, "period": null, "spectrum": "eigenvalue", "values": [[0.503875, 0.0], [-0.125, 0.0], [-0.246125, 0.0], [-0.5, 0.0], [-1.0, 0.0]]}
+    ]}
+  ]
+}

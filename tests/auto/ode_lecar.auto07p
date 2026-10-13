@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "model": "examples/ode/lecar.odex",
+  "runs": [
+    {"name": "steady", "parameter": "iapp", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.05, "norm": 0.44447930242, "period": 42.020636893, "spectrum": "eigenvalue", "values": [[-0.396816, -0.149526], [-0.396816, 0.149526]]},
+      {"type": "HB", "branch": 1, "label": 2, "point": 19, "par": 0.26245344741, "norm": 0.28910661519, "period": 14.445031319, "spectrum": "eigenvalue", "values": [[1.20057e-08, -0.434972], [1.20057e-08, 0.434972]]},
+      {"type": "HB", "branch": 1, "label": 5, "point": 46, "par": 0.45689452025, "norm": 0.60870003248, "period": 9.3738672692, "spectrum": "eigenvalue", "values": [[-0.000316899, -0.670287], [-0.000316899, 0.670287]]},
+      {"type": "EP", "branch": 1, "label": 6, "point": 49, "par": 0.50483975078, "norm": 0.64116011914, "period": 9.0091071981, "spectrum": "eigenvalue", "values": [[-0.248402, -0.697426], [-0.248402, 0.697426]]}
+    ]},
+    {"name": "cycles", "parameter": "iapp", "points": [
+      {"type": "LP", "branch": 2, "label": 9, "point": 29, "par": 0.24841387618, "norm": 0.3818741929, "period": 25.758219744, "spectrum": "multiplier", "values": [[0.999998, 0.0], [0.855853, 0.0]]},
+      {"type": "EP", "branch": 2, "label": 10, "point": 30, "par": 0.24841588388, "norm": 0.38382382386, "period": 25.021346373, "spectrum": "multiplier", "values": [[0.999992, 0.0], [0.170903, 0.0]]}
+    ]}
+  ]
+}
