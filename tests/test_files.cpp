@@ -5,6 +5,7 @@
    tools/servercheck.py through the protocol's `file` command. */
 #include "xpptest.h"
 #include "xpp_files.h"
+#include "xpp_files_internal.h"
 #include "xpp_io.h"
 #include "json_files.h"
 #include "snapx.h"
@@ -123,8 +124,7 @@ int main()
         CHECK(chdir(anchor.c_str()) == 0);
         CHECK(xpp::files::prepare_write_folder("b/output.dat"));
         CHECK(!xpp::files::prepare_write_folder("link/output.dat") && errno == ELOOP);
-        /* W311 remains: alias is below the common ancestor with canonical
-           getcwd, so an absolute alias spelling is still refused. */
+        /* W311: a user-planted alias remains refused below the boundary. */
         CHECK(xpp::files::resolve_path(deep, xpp::files::working_dir()).kind == xpp::files::PathKind::refused);
         CHECK(!xpp::files::prepare_write_folder(deep + "/output.dat") && errno == ELOOP);
         CHECK(chdir(cwd.c_str()) == 0);
@@ -133,6 +133,46 @@ int main()
         CHECK(rmdir(anchor.c_str()) == 0);
         CHECK(unlink(alias.c_str()) == 0);
         CHECK(rmdir(real.c_str()) == 0);
+    }
+#endif
+
+    /* W311: system links are path components, user-planted links are not. */
+#ifdef _WIN32
+    std::printf("SKIP W311 system links: POSIX ownership rule; Windows refuses every reparse point\n");
+#else
+    {
+        xpp::TempDir t;
+        const std::string planted = t.path() + "/planted";
+        CHECK(symlink("/", planted.c_str()) == 0);
+        CHECK(xpp::files::link_on_way(planted.c_str()));
+        CHECK(xpp::files::resolve_path(planted + "/etc/passwd", t.path()).kind == xpp::files::PathKind::refused);
+        CHECK(unlink(planted.c_str()) == 0);
+        bool found_link = false, found_file = false;
+        for (const char *candidate : {"/bin", "/lib", "/var", "/tmp", "/etc"}) {
+            struct stat link, parent;
+            if (lstat(candidate, &link) != 0 || !S_ISLNK(link.st_mode) || link.st_uid != 0 ||
+                stat("/", &parent) != 0 || parent.st_uid != 0 || (parent.st_mode & (S_IWGRP | S_IWOTH)) != 0) continue;
+            found_link = true;
+            CHECK(xpp::files::is_link(candidate));
+            CHECK(!xpp::files::link_on_way(candidate));
+            CHECK(xpp::files::check_dirs(candidate, t.path()));
+            std::error_code error;
+            std::filesystem::directory_iterator entry(candidate, error), end;
+            while (!error && entry != end) {
+                const std::string file = entry->path().string();
+                struct stat st;
+                if (lstat(file.c_str(), &st) == 0 && S_ISREG(st.st_mode) &&
+                    xpp::files::name_ok(entry->path().filename().string(), true)) {
+                    CHECK(xpp::files::resolve_path(file, t.path()).kind == xpp::files::PathKind::outside);
+                    found_file = true;
+                    break;
+                }
+                entry.increment(error);
+            }
+            if (found_file) break;
+        }
+        if (!found_link) std::printf("SKIP W311 system link: no root-owned link in a root-only folder found\n");
+        else if (!found_file) std::printf("SKIP W311 system-linked file: no plain file found under the system links\n");
     }
 #endif
 
@@ -488,8 +528,8 @@ int main()
 #ifdef _WIN32
     std::printf("SKIP scratch through symlink: Windows symlink creation requires privilege; Linux/macOS exercise it\n");
 #else
-    /* macOS /var -> /private/var: TMPDIR's spelling and getcwd differ.
-       Resolve only ancestors of scratch, never links within it. */
+    /* W311: canonical scratch spelling remains usable, while a user-planted
+       TMPDIR alias is refused even when it points to the same scratch. */
     {
         const char *previous = std::getenv("TMPDIR");
         const std::string saved_tmp = previous ? previous : "";
@@ -502,13 +542,11 @@ int main()
         const std::string linked_scratch = alias + "/" + xpp::files::split_path(real_scratch).second;
         CHECK(real_scratch == std::filesystem::canonical(linked_scratch).string());
         CHECK(xpp::files::is_scratch(real_scratch, true));
-        CHECK(xpp::files::is_scratch(linked_scratch, true));
+        CHECK(!xpp::files::is_scratch(linked_scratch, true));
         xpp::files::serve_reads([](const std::string &, std::string *) { return false; });
         for (const std::string &root : {real_scratch, linked_scratch}) {
-            CHECK(xpp::files::write_path_ok(root + "/run1.dat"));
+            CHECK(xpp::files::write_path_ok(root + "/run1.dat") == (root == real_scratch));
             std::FILE *out = xpp::files::open_stream(root + "/run1.dat", "w");
-            /* W311: this alias is below the common ancestor with getcwd,
-               so the write still needs make_temp_dir's canonical spelling. */
             CHECK((out != nullptr) == (root == real_scratch));
             if (out) std::fclose(out);
         }

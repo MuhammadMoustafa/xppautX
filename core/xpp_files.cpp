@@ -614,7 +614,7 @@ PathCheck resolve_path(std::string_view path, std::string_view folder)
     const bool inside = !relative.empty() && !relative.is_absolute() && *relative.begin() != "..";
     const std::vector<PathPart> parts = path_parts(target.string(), base.string());
     for (const PathPart &part : parts) {
-        if (part.below_anchor && (!name_ok(part.name, true) || is_link(part.path.c_str())))
+        if (part.below_anchor && (!name_ok(part.name, true) || link_on_way(part.path.c_str())))
             return {PathKind::refused, {}};
     }
     /* Keep resolve_path's exact spelling and empty-component refusal inside

@@ -18,6 +18,7 @@
 #include <string_view>
 #include <vector>
 #include <cstdlib>
+#include <filesystem>
 #include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -44,6 +45,7 @@ std::vector<PathPart> path_parts(std::string_view path, std::string_view folder)
 using Stat = struct _stat64;
 inline int stat_follow(const char *path, Stat *st) { return _stat64(path, st); }
 inline bool is_link(const char *name) { return xpp::win32::path_is_link(name); }
+inline bool link_on_way(const char *name) { return is_link(name); }
 inline int make_dir(const char *path) { return _mkdir(path); }
 inline int remove_dir(const char *path) { return _rmdir(path); }
 inline long long own_pid() { return _getpid(); }
@@ -56,6 +58,18 @@ inline bool is_link(const char *name)
 {
     struct stat st;
     return lstat(name, &st) == 0 && S_ISLNK(st.st_mode);
+}
+/* Only root can plant a root-owned link in a root-owned folder with no
+   group/other write permission (OpenSSH StrictModes' ownership rule). */
+inline bool link_on_way(const char *name)
+{
+    struct stat link;
+    if (lstat(name, &link) != 0 || !S_ISLNK(link.st_mode)) return false;
+    if (link.st_uid != 0) return true;
+    const auto parent = std::filesystem::path(name).parent_path();
+    struct stat folder;
+    return stat(parent.empty() ? "." : parent.c_str(), &folder) != 0 ||
+           folder.st_uid != 0 || (folder.st_mode & (S_IWGRP | S_IWOTH)) != 0;
 }
 inline int make_dir(const char *path) { return mkdir(path, 0700); }
 inline int remove_dir(const char *path) { return rmdir(path); }

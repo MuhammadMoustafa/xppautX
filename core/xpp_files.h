@@ -148,7 +148,10 @@ struct PathCheck {
    ancestor of folder and path when outside, every part a safe name. The file
    need not exist (a file about to be written). The anchor and its ancestors
    are supplied by the user/system and are not checked for links; descendants
-   are checked. make_dirs/check_dirs share this anchor selection. */
+   are checked. On POSIX, a root-owned link in a root-owned folder without
+   group/other write permission counts as part of the path; Windows refuses
+   every reparse point. The file itself is still refused if it is a link.
+   make_dirs/check_dirs share this anchor selection and link rule. */
 PathCheck resolve_path(std::string_view path, std::string_view folder);
 /* Read a plain file inside folder, or an outside one the caller has the
    user's approval for (allowed_outside: resolve_path's text of each);
@@ -256,7 +259,8 @@ std::string program_dir();
 std::string join(std::string_view dir, std::string_view name);
 /* path and its missing parents as folders, mode 0700 (POSIX); false when
    one cannot be made. Refuse links below anchor (empty: working folder), or
-   below its common ancestor with an outside path, as resolve_path does.
+   below its common ancestor with an outside path, with resolve_path's POSIX
+   exception for links only root could have made.
    Existing ancestors through that boundary are user/system supplied; every
    created component is checked again after mkdir, including above it. */
 bool make_dirs(std::string_view path, std::string_view anchor = {});

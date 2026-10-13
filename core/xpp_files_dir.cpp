@@ -122,7 +122,7 @@ bool walk_dirs(std::string_view path, std::string_view anchor, bool create)
         const std::string &part = component.path;
         /* a bare drive ("C:") is no folder to make or test (W220). */
         if (part.size() == 2 && part[1] == ':' && std::isalpha(static_cast<unsigned char>(part[0]))) continue;
-        if (component.below_anchor && is_link(part.c_str())) { errno = ELOOP; return false; }
+        if (component.below_anchor && link_on_way(part.c_str())) { errno = ELOOP; return false; }
         Stat st;
         if (stat_follow(part.c_str(), &st) == 0) {
             if (!S_ISDIR(st.st_mode)) { errno = ENOTDIR; return false; }
@@ -236,13 +236,14 @@ bool is_scratch(std::string_view path, bool root_only)
         if (!folder.is_absolute()) return false;
         for (const auto &part : folder)
             if (part == "..") return false;
+        /* Check every ancestor before canonicalizing, including the temp
+           base: a user-planted alias must never gain scratch permission. */
+        for (const PathPart &part : path_parts(folder.string(), folder.root_path().string()))
+            if (link_on_way(part.path.c_str())) return false;
         std::error_code error;
         const auto base = std::filesystem::canonical(temp_base(), error);
         if (error) return false;
         while (!folder.empty()) {
-            /* Check before resolving: a link inside scratch must never
-               gain permission merely because its destination is scratch. */
-            if (is_link(folder.string().c_str())) return false;
             long long pid;
             if (scratch_dir_pid(folder.filename().string(), &pid) && pid == own_pid()) {
                 const auto parent = std::filesystem::canonical(folder.parent_path(), error);
