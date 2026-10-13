@@ -123,22 +123,11 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
     if (req.restore) xpp_saved_restore(s, *req.restore); /* an AUTO or session file */
     redraw_graph(s);
     auto_redraw_for_client(s);
-    xpp::json_ui_queue_runnow(s);
     return s;
 }
 
 } // namespace xpp::json
 
 namespace xpp {
-void json_ui_queue_runnow(xpp::Session &s)
-{
-    if (s.run_immediately != 1) return;
-    s.run_immediately = 0;
-    /* Initial conds > Go, as the keys a user presses: a job like any other */
-    const std::string_view keys = command_keys(M_IG);
-    xpp::inbox::push(xpp::format("{{\"cmd\":\"key\",\"key\":\"{}\"}}", keys.substr(0, 1)));
-    xpp::inbox::push(xpp::format("{{\"cmd\":\"answer\",\"key\":\"{}\"}}", keys.substr(1)));
-}
-
 void json_ui_start_model(Session &s) { json::start_model(s, nullptr); }
 } // namespace xpp

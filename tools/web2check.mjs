@@ -1629,9 +1629,8 @@ const area3d = () => settled(rawArea3d);
 const sentView3d = mark => cdp.eval(`__xpp.sentFrom(${mark}).filter(c => c.cmd === 'key' && c.key === '3' && !c.win).length`);
 
 /* 3D plots (docs/ui-v2.md T14, GitHub issue #18): lorenz.odex sets axes=3d
-   and phi=60 (theta stays the default 45) and runnow=1, which the core
-   runs as its own command cycle after loading (servercheck.py's
-   check_view3d has the same two-cycle wait); the plot never draws with
+   and phi=60 (theta stays the default 45); the check starts a run
+   explicitly after loading. The plot never draws with
    three.js, just a canvas (plot/render3d.ts) from the projection
    (plot/project3d.ts). */
 /* W99: the Values panel's boundary-conditions section is there only for a model that defines
@@ -1653,7 +1652,8 @@ const bcSection = (want) => async () => {
 async function threePlot() {
   check('the store holds the 3D window: three, its box, and its own angles seeded from the core\'s',
     await until("w.info && w.info.three === 1 && w.view3d && w.info.box && w.info.box.xmax === 20", '3D window', 20000));
-  check('runnow=1\'s run finishes: 1601 rows (dt=.025, total=40)',
+  await cdp.eval(`__xpp.send({cmd: 'key', key: 'i'}); __xpp.send({cmd: 'answer', key: 'g'})`);
+  check('the explicit run finishes: 1601 rows (dt=.025, total=40)',
     await until('w.series && w.series.rows === 1601', 'lorenz run', 20000));
 
   const angles0 = await S('w.view3d');

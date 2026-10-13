@@ -166,8 +166,7 @@
       "additionalProperties": false,
       "properties": {
         "range": {"type": "integer"},
-        "output": {"type": "string", "x-kind": "path"},
-        "runnow": {"type": "integer"}
+        "output": {"type": "string", "x-kind": "path"}
       }
     },
     "auto": {

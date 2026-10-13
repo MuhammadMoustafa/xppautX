@@ -43,6 +43,11 @@ void create_plot_list(Session &s);
    set_all_vals (load_eqn.cpp) calls this once the model is set up, where
    an .ode's array initial values are evaluated too */
 void set_initial_values(Session &s);
+/* XPPAUT starts a state without an initial value at zero. */
+inline constexpr double DEFAULT_INITIAL_VALUE = 0;
+/* State equations without an explicit init (including .ode array ICs),
+   in declaration order; shared by load warnings and conversion. */
+std::vector<const odex::Statement *> missing_initial_values(const Model &m);
 /* The Model builder: a model's statements (odex.h), whichever reader made
    them, into the Model and Session s; a statement that does not
    build fails the load (model_failed, at the statement: the load's

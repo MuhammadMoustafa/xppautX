@@ -1,9 +1,8 @@
 /* .odex imports (docs/odex.md "Imports", W282): the statements of an
    imported file as the importing file takes them. `import "f.odex"` takes
    them all; `from "f.odex" import a, b` the statements that declare a and b
-   and, again and again, those that declare what the statements taken read;
-   `import "f.odex" as c1` all of them, every name they declare written
-   c1.name wherever it is read. The parser (odex_parse.cpp) reads the file
+   and, again and again, those that declare what the statements taken read.
+   The parser (odex_parse.cpp) reads the file
    and hands its statements here. */
 #include "odex.h"
 #include "xpp_io.h"
@@ -255,14 +254,6 @@ std::vector<Statement> import_statements(std::vector<Statement> file, const Impo
 {
   std::erase_if(file, [](const Statement &s) { return s.kind == Statement::Kind::Options; });
   if (imp.selective) file = selected(std::move(file), imp, files);
-  if (!imp.prefix.empty()) {
-    Declared declared;
-    for (const Statement &s : file) declared.add(s);
-    for (Statement &s : file)
-      Names([&](std::string &n, bool) {
-        if (declared.has(n)) n = imp.prefix + "." + n;
-      }).statement(s);
-  }
   for (Statement &s : file) s.imported_at = imp.at;
   return file;
 }

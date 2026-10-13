@@ -2338,9 +2338,6 @@ def check_view():
 # default 45).
 def check_view3d():
     proc7, run7, send7, collect7, _ = launch_server(ode='examples/ode/lorenz.odex')
-    # Startup runnow has its own computing/idle cycle. Wait for that
-    # condition, so the load's idle cannot be mistaken for the run's.
-    collect7(lambda e: e.get('ev') == 'computing', timeout=30 * SLOW)
     evs0, _ = collect7(is_idle, timeout=30 * SLOW)
     view0 = last_state(evs0) and last_state(evs0)['view']
     check('lorenz.odex opens a 3D window at its @ phi=60 (theta the default 45)',
@@ -6500,31 +6497,77 @@ def check_ani_grab_job():
 check_ani_grab_job()
 
 
-def check_runnow_job():
-    # A deliberately heavy, effectively unbounded run: Abort follows the
-    # computing condition, never a delay or a race to beat completion.
-    with tempfile.TemporaryDirectory(prefix='xpprunnow') as source:
-        model = os.path.join(source, 'runnow.odex')
-        with open('tools/models/heavy.odex', encoding='utf-8') as f:
-            heavy = f.read().replace('total_time: 20', 'total_time: 1e7')
-        for option in ('model', 'cli'):
-            with open(model, 'w', encoding='utf-8') as f:
-                f.write(heavy.replace('options {', 'options {' + chr(10) + '  batch: { runnow: 1 },', 1) if option == 'model' else heavy)
-            p, r, snd, col, _ = launch_server(ode=model, extra_args=['--runnow'] if option == 'cli' else [])
-            try:
-                _, comp = col(lambda e: e.get('ev') == 'computing', timeout=30 * SLOW)
-                check('W136: server runnow (%s) sends computing' % option, comp is not None)
-                snd(cmd='abort')
-                evs, idle = col(is_idle, timeout=30 * SLOW)
-                stopped = next((e for e in evs if e.get('ev') == 'stopped'), None)
-                check('W136: Abort stops startup runnow (%s) as an integration job' % option,
-                      idle and stopped and stopped['at']['what'] == 'integrate', str(stopped))
-            finally:
-                stop_server(p, r, snd)
 
 
-check_runnow_job()
 
+def check_parser_group():
+    """W312/W313/W315/W324 share the core load in server and silent modes."""
+    with tempfile.TemporaryDirectory(prefix='xppparser') as source:
+        binary = os.path.abspath(args.server)
+
+        def run(file, mode, extra=()):
+            return subprocess.run([binary, file, mode] + list(extra), cwd=source,
+                                  input='{"cmd":"quit"}\n' if mode == '--server' else '',
+                                  capture_output=True, text=True, encoding='utf-8', timeout=30 * SLOW)
+
+        def write(file, text):
+            with open(os.path.join(source, file), 'w', encoding='utf-8') as f:
+                f.write(text)
+
+        empty_message = 'it has no equations: it is a file to import into a model, not a model to run'
+        for text in ('# empty\n', 'par gain=2\n', 'par gain=2\naux z=gain\n'):
+            write('values.odex', text)
+            for mode in ('--server', '--silent'):
+                p = run('values.odex', mode)
+                check('W324: %s refuses a file without equations (%r)' % (mode, text),
+                      p.returncode == 1 and 'values.odex: ' + empty_message in p.stderr, p.stderr)
+                if mode == '--server':
+                    evs = [json.loads(l) for l in p.stdout.splitlines() if l.strip()]
+                    errs = [e for e in evs if e.get('ev') == 'error']
+                    check('W324: one core error, file named, no hello',
+                          len(errs) == 1 and errs[0].get('file') == 'values.odex'
+                          and errs[0].get('error') == empty_message
+                          and not any(e.get('ev') == 'hello' for e in evs), str(evs))
+
+        options = 'options { numerics: { total_time: .02, dt: .01 } }\n'
+        write('missing.odex', "x'=0\ny'=0\ninit x=2\n" + options)
+        write('array.odex', "x[j]'=0 for j in 1..4\ninit x[2]=1\n" + options)
+        write('stepped.odex', "x[j]'=0 for j in 1..5 by 2\n" + options)
+        for mode in ('--server', '--silent'):
+            p = run('missing.odex', mode)
+            check('W313: %s warns once naming only the missing equation' % mode,
+                  p.returncode == 0 and p.stderr.count('states without init') == 1
+                  and 'missing.odex:2:1: y' in p.stderr and 'missing.odex:1:1: x' not in p.stderr, p.stderr)
+            p = run('array.odex', mode)
+            check('W313: %s names a partial array once with its missing ranges' % mode,
+                  p.returncode == 0 and p.stderr.count('array.odex:1:1: x[1, 3..4]') == 1, p.stderr)
+            p = run('stepped.odex', mode)
+            check('W313: %s names a stepped array once' % mode,
+                  p.returncode == 0 and 'stepped.odex:1:1: x[1..5 by 2]' in p.stderr, p.stderr)
+            p = run('missing.odex', mode, ['--runnow'])
+            check('W312: %s refuses --runnow as an unknown flag' % mode,
+                  p.returncode != 0 and '--runnow' in p.stderr and 'no such option --runnow' in p.stderr, p.stderr)
+            write('runnow.odex', "x'=0\noptions { batch: { runnow: 1 } }\n")
+            p = run('runnow.odex', mode)
+            check('W312: %s refuses runnow at its file and line' % mode,
+                  p.returncode == 1 and 'runnow.odex:2:' in p.stderr and '`runnow` is not an option' in p.stderr, p.stderr)
+            write('prefix.odex', 'import "values.odex" as c1\n')
+            p = run('prefix.odex', mode)
+            check('W315: %s rejects the prefix at the import line' % mode,
+                  p.returncode == 1 and 'prefix.odex:1:22:' in p.stderr and '`as`' in p.stderr, p.stderr)
+
+        write('zero.ode', "x'=0\ny'=0\n@ runnow=1,total=.02,dt=.01\ndone\n")
+        p = subprocess.run([binary, 'zero.ode', '--convert'], cwd=source,
+                           capture_output=True, text=True, encoding='utf-8', timeout=30 * SLOW)
+        check('W312: conversion drops runnow with its diagnostic',
+              p.returncode == 0 and '[warning: runnow-removed]' in p.stderr, p.stderr)
+        for mode in ('--server', '--silent'):
+            p = run('zero.odex', mode)
+            check('W313: %s loads the converted zero initial conditions quietly' % mode,
+                  p.returncode == 0 and not p.stderr.strip(), p.stderr)
+
+
+check_parser_group()
 
 def check_player_ani():
     """W59b: Escape during the animation's Go, a key the running job reads

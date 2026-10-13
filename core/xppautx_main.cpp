@@ -125,7 +125,7 @@ static std::string usage_tail()
     "  --outfile FILE   batch output; --noout suppresses rows\n"
     "  --include FILE   include text; --anifile FILE loads animation code\n"
     "  --logfile FILE   console log; --quiet 0|1 controls INFO logging\n"
-    "  --newseed        randomize seed; --runnow runs on startup\n"
+    "  --newseed        randomize seed\n"
     "  --internset 0|1 / --uset NAME / --rset NAME   select internal sets\n"
     "  --qsets / --qpars / --qics   query sets / parameters / initial conditions\n"
     "  --mkplot / --plotfmt svg|ps   batch plot and format\n"
@@ -235,11 +235,8 @@ static void run_session(void)
     json_ui_start_model(loaded_session);
     if (saved) xpp_saved_restore(loaded_session, *saved);
     if (recording) json_ui_play_launched(loaded_session, recording->saved.in); /* loaded by the redraw below */
-    /* the redraw loads a recording's model in the place of this one: the
-       session from here is the one it ends in */
-    xpp::Session &s = xpp::json_ui_handle("{\"cmd\":\"redraw\"}");
-    /* --runnow, after opening the window. */
-    if (s.run_immediately == 1) xpp::json_ui_queue_runnow(s);
+    /* the redraw loads a recording's model in the place of this one */
+    xpp::json_ui_handle("{\"cmd\":\"redraw\"}");
     xpp::json_ui_loop();
 }
 

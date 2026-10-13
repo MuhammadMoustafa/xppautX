@@ -141,7 +141,10 @@ grammar:
 - `init NAME = EXPR, ...` — initial conditions, evaluated once at load
   with every parameter in scope (fixing the `.ode` quirk in
   docs/odex-quirks.md where a parameter read into `init`/`x(0)=` was
-  measured as 0).
+  measured as 0). A state without `init` starts at 0; one warning per load
+  lists those states at their equation files and lines (an array once with
+  its missing range). Conversion writes explicit zero initial values for
+  every state the `.ode` left unspecified (W313, [#372](https://github.com/MuhammadMoustafa/xppautX/issues/372)).
 - `aux NAME = EXPR, ...` — auxiliary (recorded, non-integrated) values.
 - `fun NAME(ARG, ...) = EXPR` — a one-line function, usual precedence,
   may use the one-line `if`.
@@ -317,21 +320,25 @@ settings in the same syntax, one member each (`model.setx`, `windows.setx`,
 and a recording's (`.recx`) header is a `recording` group of it: see
 docs/protocol.md "Session files" and "Recordings".
 
+A `.odex` with no state equations can be imported but cannot be opened as
+a model to run. Opening it alone reports this at its file in every mode
+(W324, [#384](https://github.com/MuhammadMoustafa/xppautX/issues/384)).
+
 ## Imports
 
 W282 ([#339](https://github.com/MuhammadMoustafa/xppautX/issues/339)),
 replacing `include` (a `.odex` with `include` stops at its line with the
-parser's ordinary error). Three forms, each a statement of its own:
+parser's ordinary error). Two forms, each a statement of its own:
 
     import "f.odex"                 # everything in the file
     from "f.odex" import a, b       # a, b and what they depend on
-    import "cell.odex" as c1        # everything, every name prefixed c1.
 
 - The file is read where the statement stands, as part of the model, and
   its name is relative to the importing file's folder: it stays inside the
   model's folder (no absolute name, no `..`, no link: the rules of every
   model file, W175). The extension is the writer's choice but never `.ode`.
 - `import "f.odex"` takes every statement of `f.odex`.
+  A trailing `as` prefix is a parser error (W315, [#374](https://github.com/MuhammadMoustafa/xppautX/issues/374)).
 - `from "f.odex" import a, b` takes the statements that declare `a` and `b`
   (an element `x3` of an array `x` takes the array's statement) and, again
   and again, the statements that declare each name the statements taken read
@@ -341,15 +348,6 @@ parser's ordinary error). Three forms, each a statement of its own:
   the name does not work without them; a `set`, `only`, `boundary` and a
   comment do not. A name the file does not declare is an error at the
   import.
-- `import "cell.odex" as c1` takes everything and writes every name the file
-  declares as `c1.name` (its variables, parameters, functions, tables, the
-  elements of its arrays, its sets) in every place the file reads it. The
-  importing file reads and writes them the same way (`c1.v`; a name is
-  letters, digits and `_` parts joined by dots). The same file imported
-  twice under two prefixes gives two copies, e.g. two coupled cells; a name
-  the file reads and does not declare (a built-in, a name the importer
-  declares) stays as it is. A narration's `{...}` action is text, not
-  renamed.
 - A name that is already declared (by the importing file, or another
   import) is an error at the import line, naming the declaration.
 - An imported file's options (its `options` block) are not imported:
@@ -359,7 +357,7 @@ parser's ordinary error). Three forms, each a statement of its own:
   files; a file that imports itself, directly or through others, is an
   error at the import line, and one model makes at most 256 imports (a
   file imported twice is read twice).
-- `from`, `as` are words only in an import (a parameter may be called
+- `from` is a word only in an import (a parameter may be called
   `from`); `import` is a reserved word.
 
 ## Arrays
@@ -449,7 +447,7 @@ wiener_decl  = "wiener" , name , { "," , name } ;
 event_decl   = "event" , sign , expr , { "," , event_stmt } ;
 boundary_decl = "boundary" , name , "=" , expr ;
 network_decl = "network" , name , "=" , network_call ;
-import_decl  = "import" , string , [ "as" , name ]
+import_decl  = "import" , string
              | "from" , string , "import" , name , { "," , name } ;
 
 expr         = or_expr ;
@@ -556,7 +554,7 @@ e^x is written `exp(x)`.
   `boundary`, `network`; `fun`, `let`, `return`; `and`, `or`;
   `volterra`; `const` and `by` (W80; `for` and `in` only where a range
   starts); `options` (W280) and `import` (W282, replacing `include`;
-  `from` and `as` only in an import).
+  `from` only in an import).
 - Dropped in `.odex`: `arg1`..`arg9` (a function's arguments are named);
   `global`, `bdry`, `special` (renamed), `volt`, `done`, `number` and
   `!` (gone; W80: `const`, `d = expr`);

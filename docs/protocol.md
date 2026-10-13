@@ -631,11 +631,6 @@ storage's rows.
 
 ## Commands during a command
 
-Startup `--runnow` and `@ runnow=1` enqueue Initialconds/Go through the
-same inbox as client commands (W136). They announce `computing`, accept
-Abort, and end with state/idle. Loading a model with `runnow` queues its
-Go as a separate job after the load.
-
 Animator `mouse` releases that integrate are computations:
 `hello.commands` advertises the `mouse` op as computation. Down, move and
 releases that do not integrate remain views. A release that integrates is

@@ -265,18 +265,18 @@ struct Parsed {
   int imports = 0;
 };
 
-/* An import (docs/odex.md "Imports"): the file as written, `as` prefix,
+/* An import (docs/odex.md "Imports"): the file as written,
    the names of `from ... import` (selective), and where it stands */
 struct Import {
-  std::string file, prefix;
+  std::string file;
   std::vector<std::string> names;
   bool selective = false;
   Pos at;
 };
 
 /* the statements of an imported file as the importing file takes them: its
-   options left out, a selective import's names and what they read kept, every
-   name an `as` import declares prefixed (c1.v), each statement marked as
+   options left out, a selective import's names and what they read kept,
+   each statement marked as
    imported at import.at (files: Parsed::files). Throws Error at the import. */
 std::vector<Statement> import_statements(std::vector<Statement> file, const Import &import,
                                          const std::vector<std::string> &files);
@@ -293,8 +293,7 @@ Result<setx::Value> read_settings_tree(const std::string &where, const std::stri
 /* the words .odex reserves (docs/odex.md "Reserved words"): a name may
    never be one */
 bool is_reserved(std::string_view word);
-/* name is an .odex name: a letter, then letters, digits and '_', and
-   dots between such parts (c1.v, a name an `as` import made) */
+/* name is an .odex name: a letter, then letters, digits and '_' */
 bool is_name(std::string_view name);
 
 /* the .odex reader's second half (odex_load.cpp): a parsed model checked

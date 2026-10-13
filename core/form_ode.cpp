@@ -703,9 +703,11 @@ void finish_model(xpp::Session &s)
   xpp::Model &m=s.model();
   int i;
   room_for_declared(s);
- if((m.node+m.nmarkov)==0){
-   model_failed("Must have at least one equation: probably not an ODE file");
- }
+  if (s.parser.build.in_vars + m.nmarkov == 0) {
+    model_failed(Error{"model", odex::is_odex(m.this_file)
+      ? "it has no equations: it is a file to import into a model, not a model to run"
+      : "Must have at least one equation: probably not an ODE file", Place{m.this_file}});
+  }
   if(s.model().bc_defined>s.parser.build.in_vars ){
     model_failed("Too many boundary conditions");
   }
@@ -1252,8 +1254,8 @@ private:
       if(add_var(s_,vnames_[i].c_str(),0.0))clash(vnames_[i]);
       m.uvar_names[i]=vnames_[i];
       m.names[vnames_[i]].column=i;
-      s.last_ic[i]=0.0;
-      m.default_ic[i]=0.0;
+      s.last_ic[i]=DEFAULT_INITIAL_VALUE;
+      m.default_ic[i]=DEFAULT_INITIAL_VALUE;
     }
     for(const std::string &f : fnames_)
       if(add_var(s_,f.c_str(),0.0))clash(f);
@@ -1261,8 +1263,8 @@ private:
       if(add_var(s_,mnames_[i].c_str(),0.0))clash(mnames_[i]);
       m.uvar_names[i+nvar]=mnames_[i];
       m.names[mnames_[i]].column=static_cast<int>(i)+nvar;
-      s.last_ic[i+nvar]=0.0;
-      m.default_ic[i+nvar]=0.0;
+      s.last_ic[i+nvar]=DEFAULT_INITIAL_VALUE;
+      m.default_ic[i+nvar]=DEFAULT_INITIAL_VALUE;
     }
     s_.parser.build.aux_names=anames_;
     for(size_t i=0;i<anames_.size();i++){
@@ -1490,6 +1492,21 @@ OdeAsOdex::OdeAsOdex()
 OdeAsOdex::~OdeAsOdex()
 {
   ode_as_odex--;
+}
+
+std::vector<const odex::Statement *> missing_initial_values(const Model &m)
+{
+  std::set<std::string> initialized;
+  for (const Statement &s : m.statements)
+    if (s.kind == Statement::Kind::Init || s.kind == Statement::Kind::InitNumbers)
+      for (const Binding &b : s.bindings) initialized.insert(converted(b.name));
+  for (const ArrayInitialValue &value : array_initial_values(m)) initialized.insert(converted(value.var));
+  std::vector<const Statement *> missing;
+  for (const Statement &s : m.statements)
+    if ((s.kind == Statement::Kind::Ode || s.kind == Statement::Kind::Map ||
+         s.kind == Statement::Kind::Volterra || s.kind == Statement::Kind::Markov) &&
+        !initialized.contains(converted(s.name))) missing.push_back(&s);
+  return missing;
 }
 
 void set_initial_values(xpp::Session &s)

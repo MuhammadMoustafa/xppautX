@@ -107,12 +107,7 @@ public:
       char c = s_[i_];
       if (is_letter(c)) {
         size_t b = i_;
-        for (;;) {
-          while (i_ < s_.size() && is_name_char(s_[i_])) i_++;
-          /* c1.v, a name an import made: a letter after the dot (1..n is a range) */
-          if (i_ + 1 >= s_.size() || s_[i_] != '.' || !is_letter(s_[i_ + 1])) break;
-          i_++;
-        }
+        while (i_ < s_.size() && is_name_char(s_[i_])) i_++;
         t.kind = Token::Kind::Name;
         t.text = std::string(s_.substr(b, i_ - b));
         if (i_ < s_.size() && s_[i_] == '\'') {
@@ -997,7 +992,7 @@ private:
     push(std::move(s));
   }
 
-  /* import "f.odex" [as c1] and from "f.odex" import a, b (docs/odex.md
+  /* import "f.odex" and from "f.odex" import a, b (docs/odex.md
      "Imports"): the file read where the import stands, its statements as
      import_statements takes them */
   void import(Statement &s, bool selective)
@@ -1016,11 +1011,8 @@ private:
         if (!at_punct(",")) break;
         take();
       }
-      end_of_list("an import");
-    } else if (at_word("as") && peek().pos.line == last_line_) {
-      take();
-      imp.prefix = declared_name("the prefix after as").text;
     }
+    end_of_list("an import");
     if (at_range()) fail(peek().pos, "an import takes no range");
     if (xpp::files::has_extension(imp.file, ".ode")) fail(t.pos, "import reads .odex text, never a .ode model");
     if (depth_ >= max_include_depth) fail(t.pos, xpp::format("too many imports inside each other at {}", imp.file));
@@ -1288,13 +1280,8 @@ bool is_reserved(std::string_view word)
 
 bool is_name(std::string_view name)
 {
-  /* parts of name characters, each starting with a letter, between dots */
-  bool start = true;
-  for (char c : name) {
-    if (start ? !is_letter(c) : (!is_name_char(c) && c != '.')) return false;
-    start = c == '.';
-  }
-  return !start;
+  if (name.empty() || !is_letter(name.front())) return false;
+  return std::ranges::all_of(name, is_name_char);
 }
 
 Parsed parse(xpp::Model &m, std::string_view text, const std::string &file)

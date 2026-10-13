@@ -7,3 +7,4 @@ options {
   numerics: { total_time: 40 },
   plot: { nplot: 2, xp: t, xp2: t, yp: x, yp2: xp, xlo: 0, xhi: 40, ylo: -3, yhi: 3 },
 }
+init xp = 0

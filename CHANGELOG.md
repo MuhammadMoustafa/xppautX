@@ -9,6 +9,11 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Remove startup `@ runnow` and `--runnow`; conversion drops the option with a comment and note. Animator release actions remain available (W312, [#371](https://github.com/MuhammadMoustafa/xppautX/issues/371)).
+- Warn once per load about states without `init`, naming their equation files and lines; they still start at 0. Conversion writes explicit zero initial values (W313, [#372](https://github.com/MuhammadMoustafa/xppautX/issues/372)).
+- Remove prefixed imports (`import "f.odex" as c1`) and dotted names; whole-file and selective imports remain (W315, [#374](https://github.com/MuhammadMoustafa/xppautX/issues/374)).
+- Explain that a `.odex` without state equations is a file to import into a model when opened alone, in every mode (W324, [#384](https://github.com/MuhammadMoustafa/xppautX/issues/384)).
+
 - AUTO selects its collocation workers once per run and keeps small problems on one thread, avoiding worker overhead while preserving the diagram and large-model speedups (W325, [#386](https://github.com/MuhammadMoustafa/xppautX/issues/386)).
 
 - AUTO restores the converged solution, tangent, continuation history and stability data when locating a special point exhausts ITMX. Morris-Lecar continuation at NTST 15 now reaches the fold of cycles instead of turning round after a failed branch-point search (W326, [#387](https://github.com/MuhammadMoustafa/xppautX/issues/387)).

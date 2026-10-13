@@ -258,6 +258,8 @@ public:
       i = e;
     }
     body += array_initials();
+    for (const Statement *state : missing_initial_values(m_))
+      body += "init " + name(xpp::upper_case(state->name)) + " = " + print_number(DEFAULT_INITIAL_VALUE) + "\n";
     body += remaining_comments();
     if (!options_total_) body += options_block();
     std::string out = header();
@@ -1437,6 +1439,10 @@ private:
     for (const auto &[key, value] : option_items(line.text, false, &ignored)) {
       int index = 0;
       const OptionRow *row = xpp::find_option(xpp::upper_case(key), index, true);
+      if (xpp::upper_case(key) == "RUNNOW") {
+        option_note(xpp::format("@ {}={} in the .ode: startup running is removed, dropped; use Run or --silent", key, value), "runnow-removed");
+        continue;
+      }
       if (!row || row->group.empty()) {
         option_note(xpp::format("@ {}={} in the .ode: {}", key, value, row ? "an X11 window setting xppautX does not keep, dropped"
                                                                            : "XPP does not know this option, so it ignores it"),

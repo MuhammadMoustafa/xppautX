@@ -12,5 +12,4 @@ options {
     xp: x, yp: y, zp: z, axes: 3, xmin: -20, xmax: 20, ymin: -30, ymax: 30, zmin: 0, zmax: 50,
     xlo: -1.5, ylo: -2, xhi: 1.5, yhi: 2, phi: 60,
   },
-  batch: { runnow: 1 },
 }

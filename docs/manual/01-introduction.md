@@ -247,7 +247,6 @@ follow in any order. The options below control the model and its run.
 |---|---|
 | `--silent` | Batch run: no interface, integrates and exits |
 | `--no-compile` | Run equations in the interpreter, for comparison with compiled execution |
-| `--runnow` | Runs the model immediately on startup (implied by `--silent`) |
 | `--outfile FILE` | Write batch output to FILE instead of `output.dat` |
 | `--noout` | Suppress writing rows to the output file |
 | `--parfile FILE` | Load parameter values from FILE before starting |

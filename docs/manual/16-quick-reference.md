@@ -233,8 +233,6 @@ where `name` is one of the following and `value` is either an integer, floating 
 
 - HEIGHT=pixels,WIDTH=pixels, sets the height and width of the main window intially
 
-- RUNNOW=1 run the simulation as soon as the windows are up (Don’t wait for Init conds Go, e.g.
-
 - BUT=name:kbs defines button on the top of the main window. You can define up to 20 such buttons. They will appear across the top when you press them, they will execute an XPP keyboard shortcut. For example, **BUT=Fit:wf** will create a button labeled **Fit** and when you press it, it will be as if you had clicked **Window/zoom Fit**. Most of the menu items are available.
 
 The remaining options can be set from within the program. They are
@@ -439,7 +437,6 @@ run or the files, not the X11 windows:
 - **-y, --yes**: Answers every terminal question yes and prints each answer taken: accepts suggested conversion names and replaces existing files (silent recording outputs, a different `.odex`).
 - **--setfile *filename***: applies the named settings file (`.setx`), or imports a `.set` file one XPPAUT wrote (File > Import settings), after loading up the ODE file: the `.set` is checked value by value and converted to a `<name>.setx` beside it, which is applied.
 - **--newseed**: uses the machine time to re-seed the random number generator.
-- **--runnow**: runs the ODE file immediately on startup (implied by `--silent`).
 - **--parfile *filename***: loads parameters from the named file. The first line gives the number of parameters, then one value per line followed by its name (each model parameter exactly once, in any order; W310, #369), e.g. (`lecar.par`):
 
   ```
@@ -489,7 +486,7 @@ run or the files, not the X11 windows:
   ```
 - **--dfdraw *k***: draws direction fields the same way: `k=1,2,3` unscaled, scaled or colorized on the plot; `k=4,5` dumps the scaled/unscaled coordinates to `dirfields.dat`.
 - **--readset *filename***: loads anything an internal set file can hold (options, parameters, initial conditions) from one line (up to 1024 characters), e.g. a file `tst.opt` containing `iapp=0.1;phi=.05;total=500`, run as `xppautX lecar.ode --readset tst.opt` (works with `--silent` and `--mkplot` too).
-- **--with *string***: the same as `--readset`, with the options inline in a quoted string (no spaces), e.g. `xppautX lecar.ode --with "iapp=0.1;phi=0.05;total=1000" --runnow`.
+- **--with *string***: the same as `--readset`, with the options inline in a quoted string (no spaces), e.g. `xppautX lecar.ode --with "iapp=0.1;phi=0.05;total=1000" --silent`.
 
 The only other thing on the command line should be the file name. Thus,
 

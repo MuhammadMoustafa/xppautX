@@ -654,8 +654,6 @@ constexpr OptionRow rows[] = {
      }
      return nullptr;
    }},
-  {.group = option_group::batch, .kind = OptionKind::whole, .name = "RUNNOW", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.run_immediately; })},
 
   /* ---- AUTO ---- */
   {.group = option_group::auto_, .kind = OptionKind::whole, .name = "NTST", .once = true,

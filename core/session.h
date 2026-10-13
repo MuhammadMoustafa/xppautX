@@ -174,8 +174,6 @@ struct Session {
   /* which menu the main window's keys go to: MAIN_MENU, FILE_MENU or
      NUM_MENU (commands.cpp show_main_menu) */
   int help_menu=0;
-  /* --runnow or @ runnow=1: integrate once the front end is up */
-  int run_immediately=0;
   /* the command line named a model file */
   int got_file=0;
   /* the colour scale's type (colormap.h's make_cmaps: @ colormap, the

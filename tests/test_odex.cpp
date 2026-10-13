@@ -21,6 +21,7 @@
 #include "solver.h"
 
 #include <cmath>
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <string>
@@ -410,7 +411,7 @@ int main(void)
   CHECK(starts(model_error("import \"no/such/file.odex\"\n"), "1:8 cannot read the imported file no/such/file.odex"));
   CHECK(starts(model_error("include \"f.odex\"\n"), "1:9 expected `'`, `=` or `(t) =` after `include`")); /* no include any more */
 
-  /* imports (W282): everything, parts, prefixed; a clash, a cycle, a missing name */
+  /* imports (W282): everything, parts; a clash, a cycle, a missing name */
   {
     put("build/test_import_cell.odex",
         "par k = 2\npar unused = 5\nv' = -k*v + drive\ninit v = 1\nfun f(u) = k*u\ndrive = f(v)\naux z = unused\n"
@@ -422,19 +423,13 @@ int main(void)
     CHECK_STR(lowered("from \"build/test_import_cell.odex\" import f\n").c_str(), "par k=2|f(u)=k*u");
     CHECK_STR(lowered("from \"build/test_import_cell.odex\" import drive\n").c_str(),
               "par k=2|v'=(-k)*v+drive|f(u)=k*u|drive=f(v)");
-    CHECK_STR(lowered("import \"build/test_import_cell.odex\" as c1\n").c_str(),
-              "par c1.k=2|par c1.unused=5|c1.v'=(-c1.k)*c1.v+c1.drive|c1.f(u)=c1.k*u|c1.drive=c1.f(c1.v)|aux c1.z=c1.unused");
     CHECK_STR(lowered("from \"build/test_import_cell.odex\" import f\nx' = f(1)\n").c_str(), "par k=2|f(u)=k*u|x'=f(1)");
-    CHECK_STR(lowered("import \"build/test_import_cell.odex\" as c1\nimport \"build/test_import_cell.odex\" as c2\n"
-                      "g = c1.v - c2.v\n").c_str(),
-              "par c1.k=2|par c1.unused=5|c1.v'=(-c1.k)*c1.v+c1.drive|c1.f(u)=c1.k*u|c1.drive=c1.f(c1.v)|aux c1.z=c1.unused|"
-              "par c2.k=2|par c2.unused=5|c2.v'=(-c2.k)*c2.v+c2.drive|c2.f(u)=c2.k*u|c2.drive=c2.f(c2.v)|aux c2.z=c2.unused|g=c1.v-c2.v");
     CHECK(starts(lowered("par k = 1\nimport \"build/test_import_cell.odex\"\n"), "error 2:1 `k` is already declared at 1:5"));
     CHECK(starts(lowered("import \"build/test_import_cell.odex\"\nimport \"build/test_import_cell.odex\"\n"), "error 2:1 `k` is already declared"));
     CHECK(starts(model_error("from \"build/test_import_cell.odex\" import nosuch\n"), "1:1 build/test_import_cell.odex declares no `nosuch`"));
     CHECK(starts(model_error("import \"build/test_import_a.odex\"\n"), "1:8 test_import_a.odex imports itself"));
-    CHECK(starts(model_error("import \"build/test_import_cell.odex\" as\n"), "2:1 expected the prefix after as"));
-    CHECK(xpp::odex::is_name("c1.v") && !xpp::odex::is_name("c1.") && !xpp::odex::is_name("c1..v"));
+    CHECK(starts(model_error("import \"build/test_import_cell.odex\" as c1\n"), "1:38 expected `,` between the items of an import"));
+    CHECK(!xpp::odex::is_name("c1.v") && !xpp::odex::is_name("c1.") && !xpp::odex::is_name("c1..v"));
     remove("build/test_import_cell.odex");
     remove("build/test_import_a.odex");
     remove("build/test_import_b.odex");
@@ -875,6 +870,49 @@ int main(void)
     CHECK(load_text("z'=0\n", "odex"));
     CHECK(xpp::client_session().model().name("q")==nullptr);
     CHECK(xpp::find_user_name(xpp::client_session().model(),ICBOX,"z")==0);
+  }
+
+  /* W313: only states without init are supplied by conversion. */
+  {
+    CHECK(load_text("x'=0\ny'=0\ninit x=2\n", "odex"));
+    const auto missing = xpp::missing_initial_values(xpp::client_session().model());
+    CHECK(missing.size() == 1 && missing[0]->name == "y" && missing[0]->pos.line == 2);
+    CHECK(xpp::client_session().last_ic[1] == 0);
+    put("build/test_odex_model.ode", "x'=0\ny'=0\ninit x=2\ndone\n");
+    const auto converted = xpp::odex::convert_text("build/test_odex_model.ode");
+    CHECK(converted && converted->find("init y = 0\n") != std::string::npos);
+    CHECK(converted && load_text(converted->c_str(), "odex"));
+    CHECK(xpp::missing_initial_values(xpp::client_session().model()).empty());
+    CHECK(load_text("x[j]'=0 for j in 1..4\ninit x[2]=1\n", "odex"));
+    CHECK(xpp::missing_initial_values(xpp::client_session().model()).size() == 3);
+    put("build/test_odex_model.ode", "x[1..3]'=0\nx[1..3](0)=2\ndone\n");
+    const auto array = xpp::odex::convert_text("build/test_odex_model.ode");
+    CHECK(array && load_text(array->c_str(), "odex"));
+    CHECK(xpp::missing_initial_values(xpp::client_session().model()).empty());
+  }
+  /* W312: the removed option is diagnosed and dropped from conversion. */
+  {
+    CHECK(starts(model_error("options { batch: { runnow: 1 } }\nx'=0\n"), "1:20 `runnow` is not an option"));
+    put("build/test_odex_model.ode", "x'=0\n@ runnow=1\ndone\n");
+    std::vector<xpp::odex::Diagnostic> notes;
+    const auto converted = xpp::odex::convert_text("build/test_odex_model.ode", {}, &notes);
+    CHECK(converted && converted->find("batch:") == std::string::npos);
+    CHECK(converted && converted->find("# @ runnow=1") != std::string::npos);
+    CHECK(std::ranges::any_of(notes, [](const auto &n) { return n.id == "runnow-removed" && n.place.line == 2; }));
+  }
+  /* W324: parameter/auxiliary-only files are importable, not runnable. */
+  {
+    for (const char *text : {"# empty\n", "par gain=2\n", "par gain=2\naux z=gain\n"}) {
+      put("build/test_odex_model.odex", text);
+      std::string arg0="test_odex", path="build/test_odex_model.odex";
+      char *argv[]={arg0.data(), path.data(), nullptr};
+      const auto loaded=xpp::load_model(2, argv, 1);
+      CHECK(!loaded && loaded.error().place.file == path);
+      CHECK(!loaded && loaded.error().what == "it has no equations: it is a file to import into a model, not a model to run");
+    }
+    put("build/test_import_values.odex", "par gain=2\n");
+    CHECK(load_text("import \"test_import_values.odex\"\nx'=gain\ninit x=0\n", "odex"));
+    xpp::files::remove("build/test_import_values.odex");
   }
 
   TEST_REPORT("odex: grammar");

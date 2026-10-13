@@ -564,27 +564,6 @@ def post_cmd(pt, tk, obj):
     c.getresponse().read()
 
 
-# W136: startup runnow uses the same job and HTTP events as an explicit Go.
-with open(os.path.join(lrun, 'runnow.odex'), 'w') as f:
-    f.write(heavy.replace('options {', 'options {' + chr(10) + '  batch: { runnow: 1 },', 1))
-sess = leave_session('runnow.odex')
-check('W136: a browser runnow process starts', sess is not None)
-if sess:
-    p, pt, tk, c = sess
-    try:
-        c.resp = c.stream
-        _, comp = read_events(c, lambda e: e['ev'] == 'computing')
-        check('W136: browser startup runnow shows computing', comp is not None)
-        post_cmd(pt, tk, {'cmd': 'abort'})
-        evs, idle = read_events(c, lambda e: e['ev'] == 'idle')
-        stopped = next((e for e in evs if e['ev'] == 'stopped'), None)
-        check('W136: browser Abort stops startup runnow',
-              idle is not None and stopped is not None and stopped['at']['what'] == 'integrate', str(stopped))
-    finally:
-        c.close()
-        p.kill()
-        p.wait()
-
 sess = leave_session('longrun.odex')
 check('W112: a process starts for the quit-during-a-run check', sess is not None)
 if sess:

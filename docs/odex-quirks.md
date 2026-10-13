@@ -22,6 +22,7 @@ findings add no comments; converted programs and files stay unchanged.
 | `division-by-zero` | literal zero divisor uses XPP's guard | warning |
 | `if-trailing-operator` | operator after `else(...)` applies to the whole conditional | info |
 | `option` | ignored option words, including spaces around `=` (extension's id) | warning |
+| `runnow-removed` | startup `@ runnow` removed during conversion (W312, [#371](https://github.com/MuhammadMoustafa/xppautX/issues/371)) | warning |
 | `option-value` | numeric option value cut at its numeric prefix | warning |
 | `init-value` | `init` value cut at its numeric prefix | warning |
 | `initcond-formula` | scalar initial formula kept only as delay history | warning |
