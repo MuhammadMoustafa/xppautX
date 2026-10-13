@@ -57,12 +57,12 @@ For a quantity *q* at a special point the allowed difference is
 
 ## Result
 
-26 models have an AUTO-07p reference (44 special points compared) and 24 an XPPAUT 8.0 reference (44 points); 24 of the 28 runnable descriptions hold both. Every comparison agrees, four descriptions only with a traced difference (below): no tolerance was widened to get there.
+26 models have an AUTO-07p reference (46 special points compared) and 24 an XPPAUT 8.0 reference (44 points); 24 of the 28 runnable descriptions hold both. Every untraced comparison agrees. AUTO-07p has five traced points in two descriptions; XPPAUT 8.0 has three in three descriptions. No tolerance was widened. Before W326 there were 44 compared points and six traced points against AUTO-07p, and 44 compared points with none traced against XPPAUT.
 
-| Model | Special points in the references | AUTO-07p | XPPAUT 8.0 |
+| Model | Special points in xppautX | AUTO-07p | XPPAUT 8.0 |
 |---|---|---|---|
 | ode/del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
-| ode/lecar | steady: EP HB HB; cycles: - | agrees, 1 traced (3 points; par 5.5e-05, norm 1.5e-06, period 0.0017, spectrum 0.00041) | agrees (3 points; par 3.8e-08, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
+| ode/lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 5.5e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 3.8e-08, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
 | ode/osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
 | bigaut | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
@@ -76,11 +76,11 @@ For a quantity *q* at a special point the allowed difference is
 | frcp | steady: EP HB; cycles: - | agrees (2 points; par 5.2e-06, norm 1e-13, period 2.1e-06, spectrum 0.00093) | agrees (2 points; par 3e-08, norm 4.6e-08, period 2.5e-12, spectrum 4.1e-06) |
 | lamom | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-18, norm 0, period 2e-11, spectrum 1e-14) | agrees (2 points; par 2.7e-16, norm 0, period 2e-11, spectrum 1e-14) |
 | lamom2 | steady: EP HB; cycles: LP | agrees (3 points; par 9.1e-13, norm 1.3e-11, period 2e-11, spectrum 3.8e-06) | agrees (3 points; par 6.8e-09, norm 4e-08, period 2e-11, spectrum 2.3e-08) |
-| lecar | steady: EP HB HB; cycles: - | agrees, 1 traced (3 points; par 5.5e-05, norm 1.6e-06, period 0.0017, spectrum 0.00041) | agrees (3 points; par 4.6e-08, norm 4.1e-08, period 1.8e-09, spectrum 4.7e-08) |
+| lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 5.5e-05, norm 1.6e-06, period 0.0017, spectrum 0.0029) | agrees, 1 traced (3 points; par 4.6e-08, norm 4.1e-08, period 1.8e-09, spectrum 4.7e-08) |
 | lo | steady: EP HB; cycles: - | agrees (2 points; par 2.7e-18, norm 0, period 2e-11, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, period 2e-11, spectrum 2.5e-16) |
 | pen | steady: EP | agrees (1 points; par 0, norm 3.6e-12) | agrees (1 points; par 0, norm 4.9e-09) |
 | pf | steady: EP BP | agrees (2 points; par 2.7e-18, norm 0, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, spectrum 2.2e-16) |
-| pp2 | steady: EP HB BP; cycles: LP | agrees, 3 traced (3 points; par 1.8e-12, norm 3.3e-12, period 6.3e-11, spectrum 5e-07) | agrees (4 points; par 4.8e-08, norm 4.9e-07, period 2.2e-10, spectrum 2.9e-07) |
+| pp2 | steady: EP HB BP; cycles: LP LP | agrees, 4 traced (3 points; par 1.8e-12, norm 3.3e-12, period 6.3e-11, spectrum 5e-07) | agrees, 1 traced (4 points; par 4.8e-08, norm 4.9e-07, period 2.2e-10, spectrum 2.9e-07) |
 | san | steady: EP BP | agrees (2 points; par 2.4e-12, norm 2.8e-15, spectrum 1.3e-07) | agrees (2 points; par 1.7e-08, norm 4.1e-11, spectrum 1.3e-07) |
 | she | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | simplefold | steady: EP LP LP | agrees (3 points; par 4.8e-12, norm 4.5e-11, spectrum 8.6e-11) | agrees (3 points; par 2.1e-08, norm 4.3e-08, spectrum 2.7e-13) |
@@ -91,36 +91,40 @@ For a quantity *q* at a special point the allowed difference is
 Cells: `agrees` (every compared quantity inside its tolerance), the number of points compared and the
 largest absolute difference per quantity (`par`, `norm`, `period`, `spectrum`: the eigenvalue or multiplier
 pair furthest apart); `traced` counts the points of that description recorded below. The second column lists
-the special points the references hold, run by run (EP: the run's start). Where the code path is shared the
+the special points xppautX finds, run by run (EP: the run's start). Where the code path is shared the
 differences are roundoff: XPPAUT 8.0 and xppautX agree to 5e-7 or better (XPPAUT's own table and files print
 7 digits). AUTO-07p, which prints 11, agrees with both to 5e-6 or better at starts, folds and branch points (1e-9 in the parameter and norm, the rest being the six digits of its spectra),
-and at Hopf points to 5.5e-5 in the parameter, 1.7e-3 in the period and 9.3e-4 in the spectrum: a located
+and at Hopf points to 5.5e-5 in the parameter, 1.7e-3 in the period and 9.3e-4 in the spectrum.
+The recovered Morris-Lecar cycle folds differ by up to 0.0029 in the multipliers, inside the same
+position and finite-difference tolerance: a located
 point is only as good as the location tolerance (`EPSS` 1e-4), and the two secant iterations stop at
 different places inside it.
 
 ## Disagreements, traced
 
-Three causes in four descriptions, all AUTO-07p against both XPPAUT 8.0 and xppautX; none is a difference of tolerance.
+Three causes in four descriptions; W326 fixes the missing restore and records the resulting differences with XPPAUT.
 
-1. **Morris-Lecar cycles, `ode_lecar` and `tstauto_lecar`: AUTO-07p finds an LP of the cycles, ours
-   and XPPAUT's run do not.** At NTST 15 the cycles pass a region where the largest multiplier is 3e6
-   and the BP test function changes sign by noise at point 21; the location of that special point does not
-   converge in ITMX iterations. AUTO-07p then sets the solution back to the last converged point
-   (`bvp.f90` `LCSPBV`), AUTO2000 leaves the displaced iterate and goes on from it
-   ([autlib1.c:6498](../reference/xppaut-8.0/autlib1.c#L6498), [findings #47](xppaut-findings.md#47-auto-a-special-point-whose-location-does-not-converge-leaves-the-iterate-behind)),
-   so the branch turns round and zigzags over its visited part. **AUTO-07p is right**: the fold is there
-   at NTST 60 and EPS 1e-9 in AUTO-07p and in xppautX alike (iapp 0.24841347, norm 0.381815, period
-   25.7824), and xppautX with the restore added in a scratch build labels it at NTST 15 at 0.248413878
-   (AUTO-07p 0.248413876), period 25.7578 (25.7582). XPPAUT 8.0's diagnostics show the same note at the
-   same point. Not fixed here: the restore changes the numbers of every run that meets a failed location
-   and is a W302 stage.
-2. **Predator-prey `tstauto_pp2` cycles: ours has one LP (point 24), AUTO-07p two (points 27 and 29).**
-   Past a period of about 60 the cycles are a near-homoclinic orbit that 15 mesh intervals do not resolve:
-   at NTST 60 and EPS 1e-9 neither ours nor AUTO-07p finds any LP up to period 84.4, and they agree there
-   (parameter 0.7080728, norm 0.426543, period 84.43). At NTST 15 the fold function dips to -7.9e-7 at
-   point 24 in XPPAUT's own file (ours labels the LP), to +8.9e-8 in AUTO-07p's (no sign change): both are
-   far below Newton's tolerance. What is printed beyond it is the mesh's, so the three points are recorded
-   as traced and not compared.
+1. **Morris-Lecar cycles, `ode_lecar` and `tstauto_lecar`: xppautX and AUTO-07p find the LP; XPPAUT does not.**
+   At NTST 15 the BP test changes sign by noise at point 21 and its location exhausts ITMX.
+   AUTO2000 leaves the displaced iterate ([autlib1.c:6498](../reference/xppaut-8.0/autlib1.c#L6498)),
+   which reverses the path. W326 ([#387](https://github.com/MuhammadMoustafa/xppautX/issues/387)),
+   the first W302 stage, restores the converged solution, tangent, old point, time derivative,
+   parameters, step history, test value and monodromy/eigen data, including the factored system
+   reused by a fold test. This is our own implementation with local owned copies, following
+   AUTO-07p's restoration principle ([finding #47](xppaut-findings.md#47-auto-a-special-point-whose-location-does-not-converge-leaves-the-iterate-behind)).
+   The fold is now labelled at iapp 0.248413877494 (`ode_lecar`) and 0.248413877545 (`tstauto_lecar`),
+   versus AUTO-07p's 0.248413876; periods 25.757802 and 25.757787 versus 25.7582.
+   All quantities pass the existing tolerance. The missing-LP entries against AUTO-07p are removed;
+   each extra LP against XPPAUT is traced to this restore.
+2. **Predator-prey `tstauto_pp2` cycles: xppautX now labels two LPs, as AUTO-07p does; XPPAUT labels one.**
+   The original mesh-dependent LP at point 24 remains. A failed fold location at point 27 previously
+   displaced the path; restoring it now reaches a second LP at point 29 (par 0.708072787613,
+   period 106.551753). At NTST 15 the near-homoclinic cycles beyond period 60 are underresolved:
+   AUTO-07p's LPs at points 27 and 29 have periods 79.893521 and 84.541991, so these labels are
+   still mesh-dependent disagreements, not newly verified physical folds. At NTST 60 and EPS 1e-9
+   neither program finds any LP up to period 84.4 (par 0.7080728, norm 0.426543 in both).
+   Both of ours and both of AUTO-07p's LPs are therefore traced; the new extra point against
+   XPPAUT is traced specifically to W326's restore. The untraced points still agree.
 3. **`tstauto_brper`, the radial oscillator: AUTO-07p labels no HB, ours and XPPAUT 8.0 do.** The
    Hopf point is at a = 0, which the 11th step (DS 0.1 from -1) lands on to roundoff: AUTO-07p's Hopf function
    there is 2.5e-16 and it labels nothing, so its cycles run has no HB to start from (`unavailable`). The
@@ -151,10 +155,28 @@ there; the two recorded cases are the ones that reach it.
   from its window (it runs with the ones in `core/auto_nox.cpp`, which our descriptions share), so those are
   XPPAUT's as they are; the constants that can be set are read back and checked.
 
-## What it chooses for W302
+## W302's first stage: W326
 
-The table needs one stage of AUTO-07p's newer algorithms: restoring the state when the location of a
-special point does not converge (`lcspae`, `lcspbv`; finding #47), which changes the baselines of the
-Morris-Lecar descriptions and of `tstauto_pp2` (its path changes after the spurious LP). Nothing else the 26 models
-compare differs beyond roundoff and the location tolerance; a Hopf point that a step lands on exactly
-(brper) is one program's luck, not an algorithm.
+W326 restores the converged state after ITMX is exhausted, without changing successful location
+iterations or integration. The baseline was intentionally updated at both one and automatic threads;
+all 28 runnable descriptions remain identical between thread counts. Exactly four diagrams changed:
+
+| Description | First changed stored point | Failed location responsible |
+|---|---|---|
+| `ode_lecar` | 70 (cycles point 21) | noisy BP; the restored path now reaches the real LP |
+| `tstauto_lecar` | 74 (cycles point 21) | the same Morris-Lecar BP failure |
+| `tstauto_pp2` | 127 (cycles point 27) | fold; the restored path reaches a second underresolved LP |
+| `ode_tstheti` | 2 (connection point 2) | fold and BP tests return NaN and exhaust ITMX repeatedly; restoring prevents their trial states from replacing the converged point |
+
+The diagnostics contain `NOTE:Possible special point` at each first changed continuation point.
+`ode_tstheti` has no independent reference for its XPPAUT-specific projection boundary conditions;
+this baseline change proves restoration and thread agreement, not a new external validation of that
+connection. Its nonfinite tests remain a limitation outside W326. None of the other 24 runnable
+diagrams changed. The deterministic `test_auto_location` also forces a false equilibrium sign change
+and checks the restored solution, history, tangent, step size, test value, derivative data and spectrum.
+
+No previously compared special point becomes a disagreement with AUTO-07p. Predator-prey's extra
+label remains within the previously traced underresolved regime; it does not establish quantitative
+agreement for either LP. The stability restart check uses a ten-point periodic run (DS and DSMAX 0.01)
+to ensure a computed endpoint: the former long run now ends after a minimum-step failure, where
+stability is legitimately unavailable. Its equality and nonzero-spectrum assertions are unchanged.

@@ -849,12 +849,16 @@ test function that changes sign by noise costs nothing.
   period 25.7824, and xppautX at NTST 15 with the missing restore added to
   `lcspbv` (a scratch build, not committed) labels it at 0.248413878, norm
   0.381875, period 25.7578, the point AUTO-07p labels.
-- **xppautX:** the same as XPPAUT until W302 (adopting AUTO-07p's newer
-  algorithms) takes it: the restore changes the numbers of every run that
-  meets a failed location, so it comes with a new baseline, on purpose.
-  `tests/auto/tstauto_lecar.json` and `ode_lecar.json` record the missing LP
-  as a traced difference, and fail if it ever appears.
-- **Card:** [W300](https://github.com/MuhammadMoustafa/xppautX/issues/358).
+- **xppautX:** fixed by W326, the first W302 stage: `lcspae` and `lcspbv`
+  retain owned copies before the first location iteration and restore them
+  when ITMX is exhausted. This includes the solution, tangent, old point,
+  parameters, time derivative, step history, test value and stability data,
+  plus the factored system reused by the next fold test. Successful
+  locations keep their existing algorithm. The numerical baseline changes
+  intentionally for runs that encounter a failed location; Morris-Lecar
+  now reaches the LP at NTST 15. Its missing-LP differences against
+  AUTO-07p are removed and the extra LP against XPPAUT is recorded instead.
+- **Card:** [W300](https://github.com/MuhammadMoustafa/xppautX/issues/358), [W326](https://github.com/MuhammadMoustafa/xppautX/issues/387).
 
 ## 48. AUTO storage has fixed variable, parameter and branch-point limits
 

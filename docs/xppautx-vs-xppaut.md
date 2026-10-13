@@ -188,13 +188,15 @@ every example, the goldens guard the output files.
 
 ## AUTO
 
-AUTO's own numerics are the AUTO of XPPAUT 8.0, converted to C++ with
-identical diagrams. The window: [manual 9](manual/09-auto.md).
+AUTO's numerics derive from XPPAUT 8.0, converted to C++. W326 restores the
+converged state after a failed special-point location; its intentional diagram
+changes are checked against AUTO-07p and recorded in the baseline. The window: [manual 9](manual/09-auto.md).
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
 | Window | an X11 window with its own menus | the same menus and keys (as data), a view over the page | W96, W6 |
 | Diagram views | one diagram, one set of axes | any number of views of one diagram, each with its axes | W50 |
+| Failed special-point location | leaves the displaced iterate, which can reverse continuation ([finding 47](xppaut-findings.md#47-auto-a-special-point-whose-location-does-not-converge-leaves-the-iterate-behind)) | restores the converged solution, tangent, old point, step history and stability data; the Morris-Lecar cycles reach their fold at NTST 15 | W326 ([#387](https://github.com/MuhammadMoustafa/xppautX/issues/387)) |
 | Saving | `.auto` text file at 6 digits | `.snapx` session: every digit, settings, orbits, views | W92, W155 |
 | Files during a run | `fort.*` in `$HOME`; sessions overwrite each other ([findings #8](xppaut-findings.md)) | per-process scratch folders, stale ones cleaned at start only when their owner is proved exited | W19, W121b ([#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)) |
 | Eigenvalues shown | a run's first point shows the previous run's ([findings #14](xppaut-findings.md)) | one source of a point's eigenvalues and multipliers | W15 |
@@ -203,7 +205,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 | Settings | an X11 form | settings are data (`autosettings`); checked by AUTO's own rules | W92, W118 |
 | Orbit loading | trusts solution dimensions and existing storage ([finding 27](xppaut-findings.md#27-auto-orbit-loading-trusts-file-dimensions-and-storage-capacity)) | shared bounded restart reader; grows the data table before copying an orbit | W155 |
 | Exports | a table | `Write pts` and All info as CSV with names and LF line ends (including Windows, W137); `.auto` never written | W26, W92 |
-| Checked against | nothing outside: the numbers are XPPAUT's AUTO, kept byte for byte by W299 | the special points of every AUTO continuation of tests/auto agree with AUTO-07p 0.9.3 (26 models) and XPPAUT 8.0 (24) within a tolerance stated per quantity; three disagreements with AUTO-07p traced, one of them a missing restore in AUTO2000's special-point location ([findings #47](xppaut-findings.md)); [auto-references.md](auto-references.md) | W300 ([#358](https://github.com/MuhammadMoustafa/xppautX/issues/358)) |
+| Checked against | nothing outside: the numbers are XPPAUT's AUTO | AUTO-07p 0.9.3 (26 models, 46 special points compared) and XPPAUT 8.0 (24 models, 44 points), with traced mesh-dependent or algorithmic differences and no widened tolerance; W326 recovers the Morris-Lecar LP that XPPAUT misses ([findings #47](xppaut-findings.md)); [auto-references.md](auto-references.md) | W300 ([#358](https://github.com/MuhammadMoustafa/xppautX/issues/358)), W326 ([#387](https://github.com/MuhammadMoustafa/xppautX/issues/387)) |
 | Collocation workers | serial | physical cores (performance cores where identified), up to 4 threads for a compiled pure model, with bit-identical results; interpreted and impure models stay serial | W247 ([#303](https://github.com/MuhammadMoustafa/xppautX/issues/303)), W270 ([#327](https://github.com/MuhammadMoustafa/xppautX/issues/327)) |
 | Thread count | none | AUTO's Numerics has Threads: Automatic or any count from 1 to the logical processors, a program preference (`preferences.setx`) for every model; results identical for every count | W267 ([#324](https://github.com/MuhammadMoustafa/xppautX/issues/324)) |
 | Collocation residual | computes a finite-difference Jacobian that the residual discards | evaluates only `f`; same results, less work | W253 (#310) |

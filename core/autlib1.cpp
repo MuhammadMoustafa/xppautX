@@ -1,5 +1,7 @@
 #include "xpp_files.h"
 #include <array>
+#include <span>
+#include <initializer_list>
 #include <string>
 #include <vector>
 #include "xpp_mem.h"
@@ -40,6 +42,47 @@ struct Locating {
   ~Locating() { lib.locating = 0; }
   Locating(const Locating &) = delete;
   Locating &operator=(const Locating &) = delete;
+};
+
+/* A failed location must leave the converged point and the data its next
+   test/step consumes intact. Scratch factorizations matter too: fnlpbv uses
+   solvbv with ifst=0. Only allocate these owned copies after a sign change. */
+struct LocationState {
+  struct Array {
+    std::span<double> target;
+    std::vector<double> values;
+    explicit Array(std::span<double> a) : target(a), values(a.begin(), a.end()) {}
+    void restore() const { std::copy(values.begin(), values.end(), target.begin()); }
+  };
+  std::vector<Array> arrays;
+  double dsold, det, tivp;
+  integer nit, nins, isp;
+  xpp::AutoStability::Values stability;
+  decltype(AutoLib::solvbv) solvbv;
+  decltype(AutoLib::homcont) homcont;
+
+  LocationState(const iap_type &iap, const rap_type &rap,
+                std::initializer_list<std::span<double>> data)
+    : dsold(rap.dsold), det(rap.det), tivp(rap.tivp),
+      nit(iap.nit), nins(iap.nins), isp(iap.isp),
+      stability(iap.lib->session->auto_state.stability.computed),
+      solvbv(iap.lib->solvbv), homcont(iap.lib->homcont)
+  {
+    arrays.reserve(data.size());
+    for (auto a : data) arrays.emplace_back(a);
+  }
+  void restore(iap_type &iap, rap_type &rap) const {
+    for (const auto &a : arrays) a.restore();
+    rap.dsold = dsold;
+    rap.det = det;
+    rap.tivp = tivp;
+    iap.nit = nit;
+    iap.nins = nins;
+    iap.isp = isp;
+    iap.lib->session->auto_state.stability.computed = stability;
+    iap.lib->solvbv = solvbv;
+    iap.lib->homcont = homcont;
+  }
 };
 
 /* AutoLib::setubv_stop set for one solvbv, cleared the same way */
@@ -1532,6 +1575,14 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
     return 0;
   }
 
+  const auto n = static_cast<std::size_t>(iap->ndim);
+  const auto np = static_cast<std::size_t>(iap->lib->parameter_count);
+  const auto na = static_cast<std::size_t>(*m1aaloc) * (n + 1);
+  const double saved_q = q1;
+  LocationState saved(*iap, *rap, {{par, np}, {rlcur, 1}, {rlold, 1}, {rldot, 1},
+      {u, n}, {uold, n}, {udot, n}, {aa, na}, {rhs, n + 1}, {du, n + 1},
+      {f, n}, {dfdu, n * n}, {dfdp, n * np}});
+
   /* Use the secant method for the first step: */
 
   s0 = 0.;
@@ -1587,7 +1638,8 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
     if (iap->mynode == 0) {
       xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Possible special point\n",ibr,(ntot + 1) % 10000);	
     }
-    *q = 0.;
+    saved.restore(*iap, *rap);
+    *q = saved_q;
     return 0;
   }
 
@@ -5889,6 +5941,17 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
     return 0;
   }
 
+  const auto n = static_cast<std::size_t>(iap->ndim);
+  const auto np = static_cast<std::size_t>(iap->lib->parameter_count);
+  const auto nfpr = static_cast<std::size_t>(iap->nfpr);
+  const auto nu = static_cast<std::size_t>(*ndxloc) * n * iap->ncol;
+  const auto nc = static_cast<std::size_t>(iap->nbc + iap->nint + 1);
+  const double saved_q = q1;
+  LocationState saved(*iap, *rap, {{par, np}, {rlcur, nfpr}, {rlold, nfpr},
+      {rldot, nfpr}, {ups, nu}, {uoldps, nu}, {udotps, nu}, {upoldp, nu},
+      {p0, n * n}, {p1, n * n}, {dups, nu}, {fa, nu}, {fc, nc}});
+  const std::vector<doublecomplex> saved_ev(ev, ev + n);
+
   /* Use the secant method for the first step: */
 
   s0 = 0.;
@@ -5947,12 +6010,15 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
     goto L1;
   }
 
+  saved.restore(*iap, *rap);
+  std::copy(saved_ev.begin(), saved_ev.end(), ev);
+  *q = saved_q;
+
   if (iap->mynode > 0) {
     return 0;
   }
 
   xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Possible special point\n",ibr,ntop);	
-  *q = 0.;
 
   return 0;
 } /* lcspbv_ */

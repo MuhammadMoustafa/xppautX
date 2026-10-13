@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- AUTO restores the converged solution, tangent, continuation history and stability data when locating a special point exhausts ITMX. Morris-Lecar continuation at NTST 15 now reaches the fold of cycles instead of turning round after a failed branch-point search (W326, [#387](https://github.com/MuhammadMoustafa/xppautX/issues/387)).
+
 - AUTO's homoclinic form sizes its values from the model, so it works beyond 49 variables (XPPAUT's overruns its 100 fields there: [findings #49](docs/xppaut-findings.md)) (W301, [#359](https://github.com/MuhammadMoustafa/xppautX/issues/359)).
 
 - `tools/autocompare.py` also checks the special points of every AUTO continuation of tests/auto against AUTO-07p 0.9.3 and XPPAUT 8.0 (`tests/auto/*.auto07p`, `*.xppaut`, written by `tools/auto_reference.py`), by type and order, within a tolerance derived per quantity from the location and Newton tolerances; 26 models agree with AUTO-07p and 24 with XPPAUT 8.0 to roundoff and the location tolerance, and three disagreements with AUTO-07p are traced and recorded ([docs/auto-references.md](docs/auto-references.md), [findings #47](docs/xppaut-findings.md): AUTO2000 does not restore the last converged point when the location of a special point fails). (W300, [#358](https://github.com/MuhammadMoustafa/xppautX/issues/358))

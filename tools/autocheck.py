@@ -868,6 +868,11 @@ def section_stability():
         s.close()
         return
     hb_info = grab_point(s, hb, take=True)
+    # Test inheritance from a computed endpoint. A long near-homoclinic run
+    # can disable stability detection (inaccurate unit multiplier), leaving
+    # its endpoint legitimately uncomputed; W326's restore changes that path.
+    evs, _ = step(s, cmd='auto', op='set', numerics={'nmx': 10, 'npr': 5, 'ds': 0.01, 'dsmax': 0.01})
+    check('stability: the short periodic restart fixture is configured', not errors_of(evs), str(errors_of(evs)))
     r2 = run('p')
     end2 = len(dg.pts) - 1
     a, b = grab_point(s, r2), grab_point(s, r2 + 1)
