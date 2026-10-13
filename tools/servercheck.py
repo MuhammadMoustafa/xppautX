@@ -7011,14 +7011,17 @@ def check_question_policy():
                     answer = ('and_\n' if case == 'name' else 'o\n' if case == 'outside path' else 'y\n') if mode in ('stdin', 'check') else ''
                     result = subprocess.run([binary, target, *flags], cwd=folder, env=dict(os.environ, **env), input=answer,
                                             capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
-                    expected = 0 if mode in ('stdin', 'yes') or (mode == 'check' and case == 'conversion replacement') else 2 if mode == 'check' else 1
+                    # --check takes a reserved name's suggestion and warns (docs/odex.md "Checking a .ode")
+                    expected = 0 if mode in ('stdin', 'yes') or (mode == 'check' and case == 'conversion replacement') else 1 if mode == 'check' and case == 'name' else 2 if mode == 'check' else 1
                     ok = result.returncode == expected
                     if mode == 'check':
                         ok = ok and '(60 s)' not in result.stderr and '(answered automatically)' not in result.stderr and not os.path.exists(os.path.join(folder, 'output.dat'))
                         if case != 'recording replacement':
                             diagnostic = json.loads(result.stdout)
                             ok = ok and isinstance(diagnostic.get('diagnostics'), list)
-                        if case == 'name': ok = ok and not os.path.exists(converted)
+                        if case == 'name':
+                            ok = ok and not os.path.exists(converted) and any(
+                                d['id'] == 'reserved-word' and 'and is and_' in d['message'] for d in diagnostic['diagnostics'])
                     elif mode == 'yes':
                         ok = ok and '(answered automatically)' in result.stderr and '(60 s)' not in result.stderr
                     else:

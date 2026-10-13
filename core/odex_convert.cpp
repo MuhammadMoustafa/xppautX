@@ -226,8 +226,8 @@ Expr op_expr(Expr::Kind kind, std::string text, std::vector<Expr> args)
 
 class Converter {
 public:
-  Converter(xpp::Session &s, std::vector<Diagnostic> &diagnostics)
-      : m_(s.model()), s_(s), spell_(m_.source), sym_(s_.parser), diagnostics_(diagnostics)
+  Converter(xpp::Session &s, std::vector<Diagnostic> &diagnostics, DeclinedRename declined)
+      : m_(s.model()), s_(s), spell_(m_.source), sym_(s_.parser), diagnostics_(diagnostics), declined_(declined)
   {
   }
 
@@ -625,8 +625,11 @@ private:
       std::string chosen = suggestion;
       const std::string question = xpp::format("`{}` is {} in .odex; its new name", n, is_reserved(n) ? "a reserved word" : "not a name");
       if (!xpp::new_string(question, chosen)) {
-        unanswered.push_back(n);
-        continue;
+        if (declined_ == DeclinedRename::refuse) {
+          unanswered.push_back(n);
+          continue;
+        }
+        chosen = suggestion;
       }
       if (chosen.empty()) chosen = suggestion;
       if (!is_name(chosen) || is_reserved(chosen) || taken.count(xpp::upper_case(chosen)))
@@ -1607,6 +1610,7 @@ private:
   std::map<std::string, std::vector<std::string>> file_lines_;
   std::map<std::string, size_t> written_;
   std::vector<Diagnostic> &diagnostics_;
+  DeclinedRename declined_;
   Place place_;
   std::string number_id_;
   std::set<std::pair<std::string, int>> scanned_;
@@ -1714,7 +1718,7 @@ int check_file(const std::string &file)
     const Result<> loaded = inspect_model(2, argv, load_eqn, {});
     if (!loaded) error = loaded.error();
   } else {
-    const Result<std::string> converted = convert_text(file, {}, &diagnostics);
+    const Result<std::string> converted = convert_text(file, {}, &diagnostics, nullptr, DeclinedRename::report);
     if (!converted) error = converted.error();
   }
   capture.clear();
@@ -1755,7 +1759,7 @@ void show_diagnostics(const std::vector<Diagnostic> &diagnostics)
 
 Result<std::string> convert_text(const std::string &ode,
                                const std::vector<std::string> &includes, std::vector<Diagnostic> *diagnostics,
-                               std::vector<std::string> *outside_paths)
+                               std::vector<std::string> *outside_paths, DeclinedRename declined)
 {
   if (is_odex(ode)) return xpp::fail_reading("convert", "is .odex already", ode);
   std::string arg0 = "xppautX", model = ode;
@@ -1782,7 +1786,7 @@ Result<std::string> convert_text(const std::string &ode,
     get_eqn(s, input.get());
   }, [&](Session &s) -> std::optional<Error> {
     try {
-      Converter converter(s, output);
+      Converter converter(s, output, declined);
       text = converter.run();
       guard_name = converter.guard_name();
       before = fingerprint(s);

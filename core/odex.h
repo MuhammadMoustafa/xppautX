@@ -329,10 +329,17 @@ struct Diagnostic {
 /* Import and validate the conversion without changing the open model or
    writing a file. Used by both conversion commands and their tests.
    outside_paths receives the imported model's approvals for the native load. */
+/* A rename of a reserved name nobody answered: refused when the text is to
+   be written; under --check, which writes nothing, the suggested name is
+   taken and its keyword-name or reserved-word diagnostic reports it
+   (docs/protocol.md "Question answering": a declined question there is a
+   diagnostic). */
+enum class DeclinedRename { refuse, report };
 xpp::Result<std::string> convert_text(const std::string &ode,
                                      const std::vector<std::string> &includes = {},
                                      std::vector<Diagnostic> *diagnostics = nullptr,
-                                     std::vector<std::string> *outside_paths = nullptr);
+                                     std::vector<std::string> *outside_paths = nullptr,
+                                     DeclinedRename declined = DeclinedRename::refuse);
 /* Read and validate in memory; one JSON object on stdout, no files or window. */
 int check_file(const std::string &file);
 /* The opening/convert command displays findings once through its existing log route. */
