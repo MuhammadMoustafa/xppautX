@@ -7,7 +7,7 @@ tools/autocompare.py compares ours with those files on every push, without eithe
 program. A description whose problem a program cannot run the same way is refused with
 the reason (REFUSED), which the description keeps as auto07p_skip / xppaut_skip.
 
---program auto07p needs AUTO-07p 0.9.3 (never vendored; AUTO_DIR, default ~/auto-07p) and
+--program auto07p needs AUTO-07p 0.9.4 (never vendored; AUTO_DIR, default ~/auto-07p-0.9.4) and
 gfortran. Each model's equations are translated from the .odex (the subset the descriptions
 use: par, init, name' = expr, name = expr, fun, boundary, wiener, x[j] arrays) to a Fortran
 equation file; the constants come from the description (NTST, NCOL, DS, DSMIN, DSMAX, EPSL,
@@ -286,7 +286,8 @@ def constants(r, ndim, kind, discrete, nbc, icp, irs, npar):
 
 def first_point(name):
     with open(BASE / (name + '.diagram.csv'), newline='') as f:
-        row = next(csv.DictReader(f))
+        # the file starts with one `branch,...` line per branch (core/xpp_session_auto.h), then the points
+        row = next(csv.DictReader(line for line in f if not line.startswith('branch,')))
     return [float(row[k]) for k in row if k.startswith('u0.')]
 
 
@@ -331,7 +332,7 @@ def script(runs, eq, names):
 
 
 POINT_TYPES = ('EP', 'MX', 'BP', 'LP', 'HB', 'PD', 'TR')
-SOURCES = {'auto07p': 'AUTO-07p 0.9.3', 'xppaut': 'XPPAUT 8.0 (reference/xppaut-8.0, c021b511)'}
+SOURCES = {'auto07p': 'AUTO-07p 0.9.4', 'xppaut': 'XPPAUT 8.0 (reference/xppaut-8.0, c021b511)'}
 SUFFIX = {'auto07p': '.auto07p', 'xppaut': '.xppaut'}
 
 
@@ -589,7 +590,7 @@ def main():
     ap.add_argument('--program', choices=sorted(SUFFIX), required=True)
     ap.add_argument('--only', help='comma-separated description names (without .json)')
     ap.add_argument('--keep', type=Path, help='keep the program\'s files here')
-    ap.add_argument('--auto-dir', default=os.environ.get('AUTO_DIR', str(Path.home() / 'auto-07p')))
+    ap.add_argument('--auto-dir', default=os.environ.get('AUTO_DIR', str(Path.home() / 'auto-07p-0.9.4')))
     ap.add_argument('--xppaut', default=str(Path.home() / 'w300xpp/xppaut'), help='XPPAUT 8.0 built from reference/xppaut-8.0')
     args = ap.parse_args()
     names = args.only.split(',') if args.only else [p.stem for p in sorted(BASE.glob('*.json'))]

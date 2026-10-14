@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "source": "AUTO-07p 0.9.4 (tools/auto_reference.py)",
   "model": "examples/tstauto/pen.odex",
   "runs": [
     {"name": "steady", "parameter": "ri", "points": [

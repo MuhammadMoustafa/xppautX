@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "source": "AUTO-07p 0.9.3 (tools/auto_reference.py)",
+  "source": "AUTO-07p 0.9.4 (tools/auto_reference.py)",
   "model": "examples/tstauto/pp2.odex",
   "runs": [
     {"name": "steady", "parameter": "par0", "points": [
@@ -10,9 +10,9 @@
       {"type": "EP", "branch": 1, "label": 8, "point": 100, "par": 1.8862043844, "norm": 2.6112024248, "period": 35.003132847, "spectrum": "eigenvalue", "values": [[2.75023, 0.0], [-0.941681, 0.0]]}
     ]},
     {"name": "cycles", "parameter": "par0", "points": [
-      {"type": "LP", "branch": 3, "label": 11, "point": 27, "par": 0.7080732823, "norm": 0.41805532781, "period": 79.893520543, "spectrum": "multiplier", "values": [[1.00125, 0.0], [0.000953354, 0.0]]},
-      {"type": "LP", "branch": 3, "label": 12, "point": 29, "par": 0.70807265073, "norm": 0.41664583192, "period": 84.541991477, "spectrum": "multiplier", "values": [[1.02749, 0.0], [0.0343387, 0.0]]},
-      {"type": "EP", "branch": 3, "label": 13, "point": 30, "par": 0.70807266514, "norm": 0.41615006657, "period": 85.416248679, "spectrum": "multiplier", "values": [[1.03591, 0.0], [0.0414275, 0.0]]}
+      {"type": "LP", "branch": 3, "label": 11, "point": 27, "par": 0.7080732823, "norm": 0.41805535218, "period": 79.89348504, "spectrum": "multiplier", "values": [[1.00125, 0.0], [0.000953362, 0.0]]},
+      {"type": "LP", "branch": 3, "label": 12, "point": 29, "par": 0.70807265073, "norm": 0.41664585756, "period": 84.541967208, "spectrum": "multiplier", "values": [[1.02749, 0.0], [0.034338, 0.0]]},
+      {"type": "EP", "branch": 3, "label": 13, "point": 30, "par": 0.70807266513, "norm": 0.41615009159, "period": 85.416221381, "spectrum": "multiplier", "values": [[1.03591, 0.0], [0.0414268, 0.0]]}
     ]}
   ]
 }

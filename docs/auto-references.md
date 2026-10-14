@@ -3,7 +3,7 @@
 W299 ([#357](https://github.com/MuhammadMoustafa/xppautX/issues/357)) keeps our own AUTO diagrams byte for
 byte, which guards a change but not the numbers. W300
 ([#358](https://github.com/MuhammadMoustafa/xppautX/issues/358)) checks them against two programs that
-were not written by us: **AUTO-07p 0.9.3** (the maintained AUTO, a newer line than XPPAUT's) and **XPPAUT
+were not written by us: **AUTO-07p 0.9.4** (the maintained AUTO, a newer line than XPPAUT's; the one reference since W357 ([#419](https://github.com/MuhammadMoustafa/xppautX/issues/419)), 0.9.3 having been used before) and **XPPAUT
 8.0** itself (reference/xppaut-8.0; its AUTO is AUTO2000's C translation, [autlib5.c:2008](../reference/xppaut-8.0/autlib5.c#L2008)
 names the translator, with XPPAUT's own glue in `auto_nox.c`, `autevd.c` and `autpp.c`). The comparison
 is part of `tools/autocompare.py` and runs on every push from committed files: neither program is
@@ -75,7 +75,7 @@ For a quantity *q* at a special point the allowed difference is
 | exp | boundary: EP | agrees (1 points; par 0, norm 0) | not run |
 | frcp | steady: EP HB; cycles: - | agrees (2 points; par 5.2e-06, norm 1e-13, period 2.1e-06, spectrum 0.00093) | agrees (2 points; par 3e-08, norm 4.6e-08, period 2.5e-12, spectrum 4.1e-06) |
 | lamom | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-18, norm 0, period 2e-11, spectrum 1e-14) | agrees (2 points; par 2.7e-16, norm 0, period 2e-11, spectrum 1e-14) |
-| lamom2 | steady: EP HB; cycles: LP | agrees (3 points; par 9.1e-13, norm 1.3e-11, period 2e-11, spectrum 3.8e-06) | agrees (3 points; par 6.8e-09, norm 4e-08, period 2e-11, spectrum 2.3e-08) |
+| lamom2 | steady: EP HB; cycles: LP | agrees (3 points; par 9.1e-13, norm 2.9e-12, period 2e-11, spectrum 3.8e-06) | agrees (3 points; par 6.8e-09, norm 4e-08, period 2e-11, spectrum 2.3e-08) |
 | lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 5.5e-05, norm 1.6e-06, period 0.0017, spectrum 0.0029) | agrees, 1 traced (3 points; par 4.6e-08, norm 4.1e-08, period 1.8e-09, spectrum 4.7e-08) |
 | lo | steady: EP HB; cycles: - | agrees (2 points; par 2.7e-18, norm 0, period 2e-11, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, period 2e-11, spectrum 2.5e-16) |
 | pen | steady: EP | agrees (1 points; par 0, norm 3.6e-12) | agrees (1 points; par 0, norm 4.9e-09) |
@@ -100,6 +100,8 @@ position and finite-difference tolerance: a located
 point is only as good as the location tolerance (`EPSS` 1e-4), and the two secant iterations stop at
 different places inside it.
 
+Regenerating the files with AUTO-07p 0.9.4 (W357, [#419](https://github.com/MuhammadMoustafa/xppautX/issues/419); built from reference/auto-07p, git 44cc1c4, in WSL) moved only periodic-run quantities, none by more than 4.4e-7 relative: the `cycles` points of `ode_lecar`, `tstauto_lecar`, `tstauto_frcp`, `tstauto_lamom2` and `tstauto_pp2` (norm and period in the 8th to 10th digit, a multiplier in the 6th; the largest, `tstauto_pp2`'s near-homoclinic LPs, 3.5e-5 in a period of 80). Every equilibrium, fold, branch point and boundary-value point is identical to 0.9.3's. The cause is 0.9.4's CHANGELOG entry "mesh: use closest point for linear time interpolation", the only 0.9.4 entry in the numerical path of a periodic run (it is the entry that mentions the ab demo's convergence); the moves are at the size of the discretisation error of the cycles (NTST 15 to 60), and no entry affects equilibria, folds or boundary-value problems, which are identical. The trace is to the changelog and not to a line of source. No tolerance was changed and every comparison still agrees as before, so the table differs from W300's in one cell (`lamom2`'s norm).
+
 ## Disagreements, traced
 
 Three causes in four descriptions; W326 fixes the missing restore and records the resulting differences with XPPAUT.
@@ -120,7 +122,7 @@ Three causes in four descriptions; W326 fixes the missing restore and records th
    The original mesh-dependent LP at point 24 remains. A failed fold location at point 27 previously
    displaced the path; restoring it now reaches a second LP at point 29 (par 0.708072787613,
    period 106.551753). At NTST 15 the near-homoclinic cycles beyond period 60 are underresolved:
-   AUTO-07p's LPs at points 27 and 29 have periods 79.893521 and 84.541991, so these labels are
+   AUTO-07p's LPs at points 27 and 29 have periods 79.893485 and 84.541967, so these labels are
    still mesh-dependent disagreements, not newly verified physical folds. At NTST 60 and EPS 1e-9
    neither program finds any LP up to period 84.4 (par 0.7080728, norm 0.426543 in both).
    Both of ours and both of AUTO-07p's LPs are therefore traced; the new extra point against

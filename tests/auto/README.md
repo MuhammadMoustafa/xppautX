@@ -48,7 +48,7 @@ random delay-network models. Their descriptions give the specific reasons.
 ## Other programs' special points (W300, #358)
 
 Beside a description's diagram, `NAME.auto07p` and `NAME.xppaut` hold the special points (type, parameter,
-norm, period, eigenvalues or multipliers; not the step sequence) that AUTO-07p 0.9.3 and XPPAUT 8.0 find
+norm, period, eigenvalues or multipliers; not the step sequence) that AUTO-07p 0.9.4 and XPPAUT 8.0 find
 for the same problem. `tools/autocompare.py` compares ours with them within a tolerance stated per quantity
 ([docs/auto-references.md](../../docs/auto-references.md)) on every run, from the committed files alone.
 Regenerate them only on a machine that has the program, with `python3 tools/auto_reference.py --program
