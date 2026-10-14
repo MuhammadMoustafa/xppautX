@@ -118,7 +118,7 @@ int main()
     // maximum-increment test (NaN comparisons formerly left done=true).
     iap.istop = 0;
     iap.ips = 4;
-    iap.ntst = iap.nbc = iap.nwtn = iap.numnodes = 1;
+    iap.ntst = iap.nbc = iap.nwtn = 1;
     iap.ncol = 2;
     integer mesh_stride = 2;
     std::array<double, 4> mesh{1, 1, 1, 0}, old{}, tangent{1, 1, 1, 0};

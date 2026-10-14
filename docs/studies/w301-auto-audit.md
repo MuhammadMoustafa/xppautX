@@ -430,6 +430,7 @@ unchanged. Prove numnodes=1 at the current entry point; tests compare matrices,
 diagrams and one/automatic worker outputs. Remove now-stale dup/dead allowlist
 entries rather than relaxing them. Do not interpret MPI node count as threads.
 Order: sixth, before P8 models the reduced work-array API.
+Done in W332 ([#393](https://github.com/MuhammadMoustafa/xppautX/issues/393)): removed dormant MPI topology, KREDO, node fields, stubs, and transport plumbing.
 
 ### P7: W333 ([#394](https://github.com/MuhammadMoustafa/xppautX/issues/394)) — Merge AUTO wrapper and restart copies into their owners
 

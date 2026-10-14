@@ -639,10 +639,8 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       isw = -2;
       isp = 0;
       nmx = 5;
-      if (iap->mynode == 0) {
-	xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
-	iap->lib->restart_flag=1;
-      }
+      xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
+      iap->lib->restart_flag=1;
 
     } else if ((f2c::abs(itp) / 10 == 5 || f2c::abs(itp) / 10 == 6) && ips == 2) {
       /*          ** Fold continuation (Periodic solutions); restart */
@@ -675,10 +673,8 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       isw = -2;
       isp = 0;
       nmx = 5;
-      if (iap->mynode == 0) {
-	xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
-	iap->lib->restart_flag=1;
-      }
+      xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
+      iap->lib->restart_flag=1;
 
     } else if (f2c::abs(itp) / 10 == 7 && ips == 2) {
       /*          ** Continuation of period doubling bifurcations; resta
@@ -705,10 +701,8 @@ rt */
       isp = 0;
       isw = -2;
       nmx = 5;
-      if (iap->mynode == 0) {
-	xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
-	iap->lib->restart_flag=1;
-      }
+      xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
+      iap->lib->restart_flag=1;
 
     } else if (f2c::abs(itp) / 10 == 8 && ips == 2) {
       /*          ** Continuation of torus bifurcations; restart */
@@ -736,10 +730,8 @@ rt */
       isw = -2;
       isp = 0;
       nmx = 5; 
-      if (iap->mynode == 0) {
-	iap->lib->restart_flag=1;
-	xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
-      }
+      iap->lib->restart_flag=1;
+      xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
 
     } else if ((f2c::abs(itp) / 10 == 5 || f2c::abs(itp) / 10 == 5) && ips == 4) {
       /*          ** Continuation of folds (BVP; restart) */
@@ -1359,7 +1351,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (ndmr > 6) {
     ndmr = 6;
   }
-  if (iid >= 2 && iap->mynode == 0) {
+  if (iid >= 2) {
     if(last_ntop != ntop) {
       xpp::print(s.auto_lib.fp9,"========================================");
       xpp::print(s.auto_lib.fp9,"========================================\n");
@@ -1448,16 +1440,13 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       }
     }
 
-    if (iid >= 2 && iap->mynode == 0) {
-      if (iap->mynode == 0) {
-
-	xpp::print(s.auto_lib.fp9,"{:4}{:6}{:4}    {:14.6E}              ",ibr,ntop,
-		nit,rlcur[0]);
-	for (i = 0; i < ndmr; ++i) {
-	  xpp::print(s.auto_lib.fp9,"{:14.6E}",u[i]);
-	}
-	xpp::print(s.auto_lib.fp9,"\n");
+    if (iid >= 2) {
+      xpp::print(s.auto_lib.fp9,"{:4}{:6}{:4}    {:14.6E}              ",ibr,ntop,
+	      nit,rlcur[0]);
+      for (i = 0; i < ndmr; ++i) {
+	xpp::print(s.auto_lib.fp9,"{:14.6E}",u[i]);
       }
+      xpp::print(s.auto_lib.fp9,"\n");
     }
 
     rdrlm = f2c::abs(drlm) / (f2c::abs(rlcur[0]) + 1.);
@@ -1492,7 +1481,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   /* Maximum number of iterations has been reached */
 
  L3:
-  if (iads == 0 && iap->mynode == 0) {
+  if (iads == 0) {
     xpp::print(s.auto_lib.fp9,"{:4}{:6} NOTE:No convergence with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
@@ -1512,7 +1501,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   for (i = 0; i < ndim; ++i) {
     u[i] = uold[i] + *rds * udot[i];
   }
-  if (iid >= 2 && iap->mynode == 0) {
+  if (iid >= 2) {
     xpp::print(s.auto_lib.fp9," NOTE:Retrying step\n");
   }
   goto L1;
@@ -1520,9 +1509,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* Minimum stepsize reached */
 
  L4:
-  if (iap->mynode == 0) {
-    xpp::print(s.auto_lib.fp9,"{:4}{:6} NOTE:No convergence using minimum step size\n",ibr,ntop);
-  }
+  xpp::print(s.auto_lib.fp9,"{:4}{:6} NOTE:No convergence using minimum step size\n",ibr,ntop);
   xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_MIN, *rds, dsmin); /* xppautX: T23 */
  L5:
   rlcur[0] = rlold[0];
@@ -1632,7 +1619,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 
   /* If requested write additional output on unit 9 : */
 
-  if (iid >= 2 && iap->mynode == 0) {
+  if (iid >= 2) {
     xpp::print(iap->lib->fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",itlcsp,rds);	
   }
 
@@ -1659,9 +1646,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
     mueller(&q0, &q1, q, &s0, &s1, &s, &rds);
     goto L1;
   } else {
-    if (iap->mynode == 0) {
-      xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Possible special point\n",ibr,(ntot + 1) % 10000);	
-    }
+    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Possible special point\n",ibr,(ntot + 1) % 10000);	
     saved.restore(*iap, *rap);
     *q = saved_q;
     return 0;
@@ -1731,7 +1716,7 @@ fnbpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   /* If requested write additional output on unit 9 : */
 
-  if (iid >= 2 && iap->mynode == 0) {
+  if (iid >= 2) {
     xpp::print(iap->lib->fp9,"{:4}{:6}        BP   Function {:14.6E}\n",ibr,ntop,ret_val);
   }
 
@@ -1803,7 +1788,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   /* If requested write additional output on unit 9 : */
 
-  if (iid >= 2 && iap->mynode == 0) {
+  if (iid >= 2) {
     xpp::print(iap->lib->fp9,"{:4}{:6}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
   }
   return ret_val;
@@ -1941,25 +1926,23 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   ntot = iap->ntot;
   ntotp1 = ntot + 1;
-  if (iid >= 2 && iap->mynode == 0) {
+  if (iid >= 2) {
     xpp::print(iap->lib->fp9,"{:4}{:6}        Hopf Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);	
   }
   if (nins1 == ndm) {
     ntotp1 = -ntotp1;
   }
 
-  if (iap->mynode == 0) {
-    xpp::print(iap->lib->fp9,"{:4}{:6}        Eigenvalues:                                 Stable:{:3}\n",f2c::abs(ibr),ntop,nins);	
-    if (ips == -1) {
-      for (i = 0; i < ndm; ++i) {
-	doublecomplex tmp;
-	z_exp(&tmp, &ev[i]);
-	xpp::print(iap->lib->fp9,"{:4}{:6}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,tmp.r,tmp.i);	
-      }
-    } else {
-      for (i = 0; i < ndm; ++i) {
-	xpp::print(iap->lib->fp9,"{:4}{:6}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,ev[i].r,ev[i].i);
-      }
+  xpp::print(iap->lib->fp9,"{:4}{:6}        Eigenvalues:                                 Stable:{:3}\n",f2c::abs(ibr),ntop,nins);	
+  if (ips == -1) {
+    for (i = 0; i < ndm; ++i) {
+      doublecomplex tmp;
+      z_exp(&tmp, &ev[i]);
+      xpp::print(iap->lib->fp9,"{:4}{:6}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,tmp.r,tmp.i);	
+    }
+  } else {
+    for (i = 0; i < ndm; ++i) {
+      xpp::print(iap->lib->fp9,"{:4}{:6}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,ev[i].r,ev[i].i);
     }
   }
 
@@ -2253,7 +2236,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   if (ndmr > 6) {
     ndmr = 6;
   }
-  if (iid >= 2 && iap->mynode == 0) {
+  if (iid >= 2) {
     xpp::print(iap->lib->fp9," Branch {:2} N={:5} IT={:2} PAR({:2})={:11.3E} U=",ibr,ntop,
 	    nit,icp[0],rlcur[0]);	
     for (i = 0; i < ndmr; ++i) {
@@ -2326,7 +2309,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
       }
     }
 
-    if (iid >= 2 && iap->mynode == 0) {
+    if (iid >= 2) {
       xpp::print(iap->lib->fp9," Branch {:2} N={:5} IT={:2} PAR({:2})={:11.3E} U=",ibr,ntop,
 	      nit+1,icp[0],rlcur[0]);	
       for (i = 0; i < ndmr; ++i) {
@@ -2349,7 +2332,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
 failed_step:
   /* Maximum number of iterations reached. Reduce stepsize and try again. */
 
-  if (iads == 0 && iap->mynode == 0) {
+  if (iads == 0) {
     xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:No convergence when switching branches with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
@@ -2367,7 +2350,7 @@ failed_step:
   for (i = 0; i < ndim; ++i) {
     u[i] = uold[i] + *rds * udot[i];
   }
-  if (iid >= 2 && iap->mynode == 0) {
+  if (iid >= 2) {
     xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Retrying step\n",ibr,ntop);	
   }
   goto L2;
@@ -2375,9 +2358,7 @@ failed_step:
 /* Minimum stepsize reached. */
 
  L4:
-  if (iap->mynode == 0) {
-    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);
-  }
+  xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);
   xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_SWITCH_MIN, *rds, dsmin); /* xppautX: T23 */
  L5:
   rlcur[0] = rlold[0];
@@ -2467,10 +2448,6 @@ sthd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *th
   epsl = rap->epsl;
   epsu = rap->epsu;
   epss = rap->epss;
-  
-  if (iap->mynode > 0) {
-    return 0;
-  }
 
   xpp::print(s.auto_lib.fp7,"   0 {:12.4E}{:12.4E}{:12.4E}{:12.4E}\n",rl0,rl1,a0,a1);
   xpp::print(s.auto_lib.fp7,"   0   EPSL={:11.4E}  EPSU ={:11.4E}  EPSS ={:11.4E}\n",epsl,epsu,epss);
@@ -2540,16 +2517,14 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
     col[i] = "              ";
   }
 
-  if (iap->mynode == 0) {
-    if (iunit == 6) {
-      xpp::log_auto(" \n");
-    }
-    if (iunit == 7) {
-      xpp::print(iap->lib->fp7,"   0\n");
-    }
-    if (iunit == 9) {
-      xpp::print(iap->lib->fp9," \n");	
-    }
+  if (iunit == 6) {
+    xpp::log_auto(" \n");
+  }
+  if (iunit == 7) {
+    xpp::print(iap->lib->fp7,"   0\n");
+  }
+  if (iunit == 9) {
+    xpp::print(iap->lib->fp9," \n");	
   }
 
   j = 0;
@@ -2609,28 +2584,25 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
     }
   }
 
-  if (iap->mynode == 0) {
-    if (iunit == 6) {
-      xpp::log_auto("  BR    PT  TY LAB ");
-      for (i = 0; i < *n1 + *n2 + 1; ++i) {
-	/* PAR(n)/U(n) as the user named them */
-	xpp::log_auto("{}",auto_screen_col(*iap->lib->session, col[i]).c_str());
-      }
-      xpp::log_auto("\n");
-    } else if (iunit == 7) {
-      xpp::print(iap->lib->fp7,"   0    PT  TY LAB ");
-      for (i = 0; i < *n1 + *n2 + 1; ++i) {
-	xpp::print(iap->lib->fp7,"{}",col[i]);
-      }
-      xpp::print(iap->lib->fp7,"\n");
-    } else if (iunit == 9) {
-      xpp::print(iap->lib->fp9,"  BR    PT  TY LAB ");	
-      for (i = 0; i < *n1 + *n2 + 1; ++i) {
-	xpp::print(iap->lib->fp9,"{}",col[i]);
-      }
-      xpp::print(iap->lib->fp9,"\n");	
-
+  if (iunit == 6) {
+    xpp::log_auto("  BR    PT  TY LAB ");
+    for (i = 0; i < *n1 + *n2 + 1; ++i) {
+      /* PAR(n)/U(n) as the user named them */
+      xpp::log_auto("{}",auto_screen_col(*iap->lib->session, col[i]).c_str());
     }
+    xpp::log_auto("\n");
+  } else if (iunit == 7) {
+    xpp::print(iap->lib->fp7,"   0    PT  TY LAB ");
+    for (i = 0; i < *n1 + *n2 + 1; ++i) {
+      xpp::print(iap->lib->fp7,"{}",col[i]);
+    }
+    xpp::print(iap->lib->fp7,"\n");
+  } else if (iunit == 9) {
+    xpp::print(iap->lib->fp9,"  BR    PT  TY LAB ");	
+    for (i = 0; i < *n1 + *n2 + 1; ++i) {
+      xpp::print(iap->lib->fp9,"{}",col[i]);
+    }
+    xpp::print(iap->lib->fp9,"\n");	
   }
 
   return 0;
@@ -2877,10 +2849,6 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
     atype = "  ";
   }
 
-  if (iap->mynode > 0) {
-    return 0;
-  }
-
   mtot = *ntot % 10000;
   if (n2 == 0) {
     if (itp % 10 != 0) {
@@ -3006,9 +2974,6 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   nrowpr = ndim / 7 + 1 + (jtmp - 1) / 7 + 1;
   par[icp[0]] = rlcur[0];
   t = 0.;
-  if (iap->mynode > 0) {
-    return 0;
-  }
 
   mtot = ntot % 10000;
   xpp::print(fp8,"{:5}",ibr);
@@ -3057,9 +3022,6 @@ wrjac(iap_type *iap, integer *n, integer *m1aaloc, doublereal *aa, doublereal *r
   /*--rhs;*/
   aa_dim1 = *m1aaloc;
     
-  if (iap->mynode > 0) {
-    return 0;
-  }
   xpp::print(iap->lib->fp9," Residual vector :\n");	
 
   for (i = 0; i < *n; ++i) {
@@ -5338,10 +5300,8 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   /* Maximum number of iterations reached. */
 
  L3:
-  if (iads == 0 && iap->mynode == 0) {
-    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:No convergence with fixed step size\n",ibr,ntop);
-  }
   if (iads == 0) {
+    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:No convergence with fixed step size\n",ibr,ntop);
     xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_FIXED, *rds, dsmin); /* xppautX: T23 */
     goto L13;
   }
@@ -5363,7 +5323,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	ARRAY2D(udotps, j, i);
     }
   }
-  if (iid >= 2 && iap->mynode == 0) {
+  if (iid >= 2) {
     xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Retrying step\n",ibr,ntop);	
 
   }
@@ -5372,10 +5332,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* Minimum stepsize reached. */
 
  L12:
-  if (iap->mynode == 0) {
-    xpp::print(iap->lib->fp9,"{:4}{:6}, NOTE:No convergence using minimum step size\n",ibr,ntop);
-
-  }
+  xpp::print(iap->lib->fp9,"{:4}{:6}, NOTE:No convergence using minimum step size\n",ibr,ntop);
   xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_MIN, *rds, dsmin); /* xppautX: T23 */
  L13:
   for (i = 0; i < nfpr; ++i) {
@@ -5943,10 +5900,6 @@ stdrbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
   }
 
-  if (iap->mynode > 0) {
-    return 0;
-  }
-
   if (iid >= 2) {
     xpp::print(iap->lib->fp9,"Starting direction of the free parameter(s) :\n");	
 
@@ -6066,7 +6019,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 
   /* If requested write additional output on unit 9 : */
 
-  if (iid >= 2 && iap->mynode == 0) {
+  if (iid >= 2) {
     xpp::print(iap->lib->fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",nitsp1,rds);	
   }
 
@@ -6101,10 +6054,6 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   saved.restore(*iap, *rap);
   std::copy(saved_ev.begin(), saved_ev.end(), ev);
   *q = saved_q;
-
-  if (iap->mynode > 0) {
-    return 0;
-  }
 
   xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Possible special point\n",ibr,ntop);	
 
@@ -6169,7 +6118,7 @@ fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   scaleb(iap, icp, ndxloc, udotps, rldot, dtm, 
 	 thl, thu);
-  if (iid >= 2 && iap->mynode == 0) {
+  if (iid >= 2) {
     xpp::print(iap->lib->fp9,"{:4}{:6}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,rldot[0]);	
   }
 
@@ -6228,9 +6177,6 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   } else {
     ret_val = 0.;
     *chng = FALSE_;
-  }
-  if (iap->mynode > 0) {
-    return ret_val;
   }
 
   if (iid >= 2) {
@@ -6337,20 +6283,16 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     amin = z_abs(&tmp);
   }
   if (amin > .05 && isp == 2) {
-    if (iap->mynode == 0) {
-      if (iid >= 2) {
-	xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Multiplier inaccurate\n",f2c::abs(ibr),ntop);	
+    if (iid >= 2) {
+      xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Multiplier inaccurate\n",f2c::abs(ibr),ntop);	
 
-      }
-      for (i = 0; i < ndim; ++i) {
-	xpp::print(iap->lib->fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);	
-      }
+    }
+    for (i = 0; i < ndim; ++i) {
+      xpp::print(iap->lib->fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);	
     }
     nins = 0;
     iap->nins = nins;
-    if (iap->mynode == 0) {
-      xpp::print(iap->lib->fp9,"{:4}{:6}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);	
-    }
+    xpp::print(iap->lib->fp9,"{:4}{:6}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);	
     isp = -isp;
     iap->isp = isp;
     return ret_val;
@@ -6361,16 +6303,12 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   if (isp < 0) {
     if (amin < .01) {
-      if (iap->mynode == 0) {
-	xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Multiplier accurate again\n",f2c::abs(ibr),ntop);	
-      }
+      xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Multiplier accurate again\n",f2c::abs(ibr),ntop);	
       isp = -isp;
       iap->isp = isp;
     } else {
-      if (iap->mynode == 0) {
-	for (i = 0; i < ndim; ++i) {
-	  xpp::print(iap->lib->fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);	
-	}
+      for (i = 0; i < ndim; ++i) {
+	xpp::print(iap->lib->fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);	
       }
       return ret_val;
     }
@@ -6410,22 +6348,17 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   nins = nins1;
   iap->nins = nins;
   if (iid >= 2 && (isp == 1 || isp == 2)) {
-    if (iap->mynode == 0) {
-      xpp::print(iap->lib->fp9,"{:4}{:6}        SPB  Function {:14.6E}\n",f2c::abs(ibr),ntop,d);	
-
-    }
+    xpp::print(iap->lib->fp9,"{:4}{:6}        SPB  Function {:14.6E}\n",f2c::abs(ibr),ntop,d);	
   }
 
   /* Print the Floquet multipliers. */
 
   nins = iap->nins;
-  if (iap->mynode == 0) {
-    xpp::print(iap->lib->fp9,"{:4}{:6}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);	
+  xpp::print(iap->lib->fp9,"{:4}{:6}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);	
 
-    for (i = 0; i < ndim; ++i) {
-      xpp::print(iap->lib->fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);	
+  for (i = 0; i < ndim; ++i) {
+    xpp::print(iap->lib->fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);	
 
-    }
   }
 
   return ret_val;
@@ -6813,10 +6746,6 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   nrowpr = nrd * (ncol * ntst + 1) + (nfpr - 1) / 7 + 1 + (jtmp - 1) / 7 + 
     1 + (nfpr - 1) / 20 + 1;
 
-  if (iap->mynode > 0) {
-    return 0;
-  }
-
   mtot = ntot % 10000;
   xpp::print(fp8,"{:5}",ibr);
   xpp::print(fp8,"{:5}",mtot);
@@ -6951,20 +6880,17 @@ wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     amp = rmnups(iap, ndxloc, &iab, ups);
   }
   if (iid >= 2) {
-    if (iap->mynode == 0) {
-      if (nitps == 0 || iid >= 3) {
-	xpp::print(s.auto_lib.fp9,"========================================");
-	xpp::print(s.auto_lib.fp9,"========================================\n");
-	xpp::print(s.auto_lib.fp9,"  BR    PT  IT\n");	
-	
-      }
-      mtot = (ntot + 1) % 10000;
-      xpp::print(s.auto_lib.fp9,"{:4}{:6}{:4}    {:14.6E}{:14.6E}\n",ibr,mtot,nitps,rlcur[0],amp);	
+    if (nitps == 0 || iid >= 3) {
+      xpp::print(s.auto_lib.fp9,"========================================");
+      xpp::print(s.auto_lib.fp9,"========================================\n");
+      xpp::print(s.auto_lib.fp9,"  BR    PT  IT\n");	
       
     }
+    mtot = (ntot + 1) % 10000;
+    xpp::print(s.auto_lib.fp9,"{:4}{:6}{:4}    {:14.6E}{:14.6E}\n",ibr,mtot,nitps,rlcur[0],amp);	
   }
   
-  if (iid >= 5 && iap->mynode == 0) {
+  if (iid >= 5) {
     xpp::print(s.auto_lib.fp9," UPS :\n");	
     for (j = 0; j < ntst; ++j) {
       rn = 1. / ncol;

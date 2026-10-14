@@ -270,7 +270,7 @@ int main()
     iap.istop = 0;
     iap.ntot = 5;
     iap.ips = 4;
-    iap.ntst = iap.nbc = iap.nwtn = iap.numnodes = 1;
+    iap.ntst = iap.nbc = iap.nwtn = 1;
     iap.ncol = 2;
     std::array<double, 4> mesh{2, 2, 2, 0}, old{}, tangent{1, 1, 1, 0};
     const auto solution = mesh;

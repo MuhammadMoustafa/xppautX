@@ -59,8 +59,6 @@ int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has b
   /* Initialization : */
 
   iap.lib = &s.auto_lib;
-  iap.mynode = mynode();
-  iap.numnodes = numnodes();
 
   /* here is the feeder code from xAuto structure */
 
@@ -72,9 +70,7 @@ int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has b
      
       findlb(&iap, &rap, iap.irs, &(iap.nfpr), &found);
       if (! found) {
-	if (iap.mynode == 0) {
-	  xpp::log_auto("\nRestart label {:4d} not found\n",iap.irs);
-	}
+	xpp::log_auto("\nRestart label {:4d} not found\n",iap.irs);
 	return(0);/* bad return: units closes the files */
       }
     }

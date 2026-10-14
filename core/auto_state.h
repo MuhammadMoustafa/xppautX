@@ -242,8 +242,8 @@ struct AutoLib {
      *ifst == 1 sizes (and zeroes) them, later ones reuse what it
      factored (autlib2.cpp) */
   struct {
-    std::vector<double> a,b,c,d,a1,a2,s1,s2,bb,cc,faa,ca1;
-    std::vector<long> icf,irf,ipr,icf11,icf1,icf2,np;
+    std::vector<double> a,b,c,d,a1,a2,s1,s2,bb,cc,faa;
+    std::vector<long> icf,irf,ipr,icf1,icf2;
   } solvbv;
   /* the homoclinic continuation's (HomCont's) common blocks
      (autlib5.cpp): its settings, the projections, the equilibria's

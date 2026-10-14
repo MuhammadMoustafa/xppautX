@@ -38,8 +38,6 @@ ALLOW = """\
 
 core/autlib1.cpp fnuzae|vendored/numerical, keep: AUTO (Doedel), translated Fortran user-function stubs
 core/autlib1.cpp fnuzbv|vendored/numerical, keep: AUTO (Doedel), translated Fortran user-function stubs
-core/autlib2.cpp mynode|vendored/numerical, keep: AUTO's parallel-stub functions (mynode/numnodes/csend/crecv/...) for the non-MPI build, translated Fortran
-core/autlib2.cpp numnodes|vendored/numerical, keep: see core/autlib2.cpp mynode
 core/autlib3.cpp fnlp|vendored/numerical, keep: AUTO's fold wrapper has the same shape as its other boundary-condition wrappers after W262
 core/autlib3.cpp fnhd|vendored/numerical, keep: AUTO (Doedel), translated Fortran boundary-condition stubs (fnhd/fnhb/fnhw/fnsp/fnpe/fnpl/fnpd/fntr/fnbl/fnho)
 core/autlib3.cpp fnhb|vendored/numerical, keep: see core/autlib3.cpp fnhd

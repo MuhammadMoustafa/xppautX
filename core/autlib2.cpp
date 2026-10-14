@@ -3,13 +3,11 @@
 	-lf2c -lm   (in that order)
 */
 
-#include <array>
 #include <vector>
 #include "xpp_log.h"
 #include "session.h"
 #include "auto_c.h"
 #include "xpp_job.h" /* xppautX: cancel */
-#include "xpp_math.h"
 
 
 /* ----------------------------------------------------------------------- */
@@ -26,17 +24,11 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   /* Local variables */
   
   integer ndim;
-  logical ipar;
-  integer ncol, nclm, nfpr, nint, nrow, ntst, ntst0;
+  integer ncol, nclm, nfpr, nint, nrow, ntst;
 
-  integer nbc, iid, iam;
+  integer nbc, iid;
   doublereal det;
   integer ips, nrc;
-  
-  integer kwt;
-
-  /*     N AX is the local N TSTX, which is smaller than the global N TSTX. */
-  /*     NODES is the total number of nodes. */
 
   /* Sets up and solves the linear equations for one Newton/Chord iteration 
    */
@@ -53,7 +45,6 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
      and setubv).
   */
 
-  std::vector<doublereal> ff(iap->ndim * iap->ncol * iap->ntst + 1);
   std::vector<doublereal> ft(iap->ndim * iap->ncol * (iap->ntst + 1));
 
    if (*ifst==1){
@@ -103,33 +94,18 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
     /*(iap->ndim *N AX)*/ 
     iap->lib->solvbv.faa.assign((iap->ndim * (iap->ntst +1) ) , 0.);
 
-    /*(iap->ndim * iap->ndim *K REDO)*/ 
-    iap->lib->solvbv.ca1.assign((iap->ndim * iap->ndim *KREDO) , 0.);
-    
     /*(N CLMX*N AX)*/ 
     iap->lib->solvbv.icf.assign((((iap->ndim * iap->ncol ) + iap->ndim ) * (iap->ntst +1) ) , 0);
     /*(N ROWX*N AX)*/ 
     iap->lib->solvbv.irf.assign(((iap->ndim * iap->ncol ) * (iap->ntst +1) ) , 0);
     /*(iap->ndim *N AX)*/ 
     iap->lib->solvbv.ipr.assign((iap->ndim * (iap->ntst +1) ) , 0);
-    /*(iap->ndim *K REDO)*/ 
-    iap->lib->solvbv.icf11.assign((iap->ndim *KREDO) , 0);
     /*(iap->ndim *N AX)*/ 
     iap->lib->solvbv.icf1.assign((iap->ndim * (iap->ntst +1) ), 0);
     /*(iap->ndim *N AX)*/ 
     iap->lib->solvbv.icf2.assign((iap->ndim * (iap->ntst +1) ), 0); 
-    /*(2)*/ 
-    iap->lib->solvbv.np.assign((2) , 0);
      } 
 
-  iam = iap->mynode;
-  kwt = iap->numnodes;
-  if (kwt > 1) {
-    ipar = TRUE_;
-  } else {
-    ipar = FALSE_;
-  }
-  
   ndim = iap->ndim;
   ips = iap->ips;
   ntst = iap->ntst;
@@ -142,16 +118,9 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   nrow = ndim * ncol;
   nclm = nrow + ndim;
   
-  if (kwt > ntst) {
-    xpp::auto_fail(xpp::format("Ntst is {}, less than the number of nodes ({}); set Ntst (Numerics) to 1 or more", ntst, kwt));
-  } else {
-    partition(&ntst, &kwt, iap->lib->solvbv.np.data());
+  if (ntst < 1) {
+    xpp::auto_fail(xpp::format("Ntst is {}, less than 1; set Ntst (Numerics) to 1 or more", ntst));
   }
-  
-  /*     NTST0 is the global one, NTST is the local one. */
-  /*     The value of NTST may be different in different nodes. */
-  ntst0 = ntst;
-  ntst = iap->lib->solvbv.np[iam];
   
   if (*ifst == 1) {
     setubv(ndim, ips, ntst, ncol, nbc, nint, nfpr, nrc, nrow, nclm,
@@ -160,63 +129,29 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 	   rlold, rldot, ups, uoldps, udotps, upoldp, dups, 
 	   dtm, thl, thu, p0, p1);
   } else {
-    setrhs(&ndim, &ips, &ntst, &ntst0, iap->lib->solvbv.np.data(), &ncol, &nbc, &nint, &
-	   nfpr, &nrc, &nrow, &nclm, &iam, &kwt, &ipar, funi, bcni, icni,
+    setrhs(&ndim, &ips, &ntst, &ncol, &nbc, &nint, &
+	   nfpr, &nrc, &nrow, &nclm, funi, bcni, icni,
 	   ndxloc, iap, rap, par, icp, rds, ft.data(), fc, rlcur, 
 	   rlold, rldot, ups, uoldps, udotps, upoldp, dups, dtm, thl, 
 	   thu, p0, p1);
   }
-  /*     The matrix D and FC are set to zero for all nodes except the first.
-   */
+
   if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0; /* xppautX: cancel */
-  if (iam > 0) {
-    setfcdd(ifst, iap->lib->solvbv.d.data(), fc, &nfpr, &nrc);
-  }
 
   brbd(*iap->lib, iap->lib->fp9, iap->lib->solvbv.a.data(), iap->lib->solvbv.b.data(), iap->lib->solvbv.c.data(), iap->lib->solvbv.d.data(), ft.data(), fc, p0, p1,
        ifst, &iid, nllv, &det, &ndim, &ntst, &nbc, &nrow, &nclm, &nfpr, &
-       nrc, &iam, &kwt, &ipar, iap->lib->solvbv.a1.data(), iap->lib->solvbv.a2.data(), iap->lib->solvbv.bb.data(), 
-       iap->lib->solvbv.cc.data(), iap->lib->solvbv.faa.data(), iap->lib->solvbv.ca1.data(), iap->lib->solvbv.s1.data(), iap->lib->solvbv.s2.data(), 
-       iap->lib->solvbv.icf11.data(), iap->lib->solvbv.ipr.data(), iap->lib->solvbv.icf1.data(), iap->lib->solvbv.icf2.data(), 
+       nrc, iap->lib->solvbv.a1.data(), iap->lib->solvbv.a2.data(), iap->lib->solvbv.bb.data(), 
+       iap->lib->solvbv.cc.data(), iap->lib->solvbv.faa.data(), iap->lib->solvbv.s1.data(), iap->lib->solvbv.s2.data(), 
+       iap->lib->solvbv.ipr.data(), iap->lib->solvbv.icf1.data(), iap->lib->solvbv.icf2.data(), 
        iap->lib->solvbv.irf.data(), iap->lib->solvbv.icf.data());
   
-  if (ipar) {
-    /*        Global concatenation of the solution from each node. */
-    gcol();
-    faft(ff.data(), fa, &ntst0, &nrow, ndxloc);
-  } else {
-    faft(ft.data(), fa, &ntst0, &nrow, ndxloc);
-  }
+  faft(ft.data(), fa, &ntst, &nrow, ndxloc);
 
   rap->det = det;
   return 0;
 } /* solvbv_ */
 
-/*     ---------- ------- */
-/* Subroutine */ int 
-setfcdd(integer *ifst, doublereal *dd, doublereal *fc, integer *ncb, integer *nrc)
-{
-  /* System generated locals */
-  integer dd_dim1;
 
-    /* Local variables */
-  integer i, j;
-
-  /* Parameter adjustments */
-  /*--fc;*/
-  dd_dim1 = *ncb;
-    
-  for (i = 0; i < *nrc; ++i) {
-    if (*ifst == 1) {
-      for (j = 0; j < *ncb; ++j) {
-	ARRAY2D(dd, j, i) = 0.;
-      }
-    }
-    fc[i] = 0.;
-  }
-
-  return 0;
-} /* setfcdd_ */
 
 /*     ---------- ---- */
 /* Subroutine */ int 
@@ -241,59 +176,11 @@ faft(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *ndxl
   return 0;
 } /* faft_ */
 
-/*     ---------- --------- */
-/* Subroutine */ int 
-partition(integer *n, integer *kwt, integer *m)
-{
-    /* Local variables */
-  integer i, s, t;
 
-  /*     Linear distribution of NTST over all nodes */
-
-    /* Parameter adjustments */
-    /*--m;*/
-
-  t = *n / *kwt;
-  s = *n % *kwt;
-
-  for (i = 0; i < *kwt; ++i) {
-    m[i] = t;
-  }
-
-  for (i = 0; i < s; ++i) {
-    ++m[i];
-  }
-
-  return 0;
-} /* partition_ */
-
-/*     ------- -------- ------ */
-integer 
-mypart(integer *iam, integer *np)
-{
-  /* System generated locals */
-  integer ret_val;
-
-    /* Local variables */
-  integer i, k;
-
-  /*     Partition the mesh */
-
-    /* Parameter adjustments */
-    /*--np;*/
-
-  k = 0;
-  for (i = 0; i < *iam; ++i) {
-    k += np[i];
-  }
-  ret_val = k;
-
-  return ret_val;
-} /* mypart_ */
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, integer *iam, integer *kwt, logical *ipar, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
+setrhs(integer *ndim, integer *ips, integer *na, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
 {
   /* System generated locals */
   integer ups_dim1, dups_dim1, uoldps_dim1, 
@@ -301,7 +188,7 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
     fa_dim1, wt_dim1, wp_dim1, wploc_dim1;
 
   integer i, j, k, l, m;
-  integer mpart, i1, j1, k1, l1;
+  integer i1, j1, k1, l1;
 
   doublereal rlsum;
   integer ib, ic, jj;
@@ -333,7 +220,6 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
   std::vector<doublereal> ubc1(iap->ndim);
 
   /* Parameter adjustments */
-  /*--np;*/
   /*--par;*/
   /*--icp;*/
   /*--fc;*/
@@ -352,14 +238,6 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
   wt_dim1 = iap->ncol+1;
   wp_dim1 = iap->ncol+1;
   wploc_dim1 = iap->ncol+1;
-    
-  *iam = iap->mynode;
-  *kwt = iap->numnodes;
-  if (*kwt > 1) {
-    *ipar = TRUE_;
-  } else {
-    *ipar = FALSE_;
-  }
 
   wint(*ncol + 1, wi.data());
   genwts(*ncol, iap->ncol + 1, wt.data(), wp.data());
@@ -376,11 +254,8 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
 
   /* Generate FA : */
 
-/*      Partition the mesh intervals. */
-  mpart = mypart(iam, np);
-
   for (jj = 0; jj < *na; ++jj) {
-    j = jj + mpart;
+    j = jj;
     jp1 = j + 1;
     dt = dtm[j];
     ddt = 1. / dt;
@@ -429,7 +304,7 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
   if (*nbc > 0) {
     for (i = 0; i < *ndim; ++i) {
       ubc0[i] = ARRAY2D(ups, 0, i);
-      ubc1[i] = ARRAY2D(ups, *ntst, i);
+      ubc1[i] = ARRAY2D(ups, *na, i);
     }
     (*bcni)(iap, rap, *ndim, par, icp, *nbc, ubc0.data(), ubc1.data(), 
 	    fbc.data(), 2, dbc.data());
@@ -437,7 +312,7 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
       fc[i] = -fbc[i];
     }
     /*       Save difference : */
-    for (j = 0; j < *ntst + 1; ++j) {
+    for (j = 0; j < *na + 1; ++j) {
       for (i = 0; i < *nra; ++i) {
 	ARRAY2D(dups, j, i) = ARRAY2D(ups, j, i) - ARRAY2D(uoldps, j, i);
       }
@@ -447,7 +322,7 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
   /*     Integral constraints : */
   if (*nint > 0) {
     for (jj = 0; jj < *na; ++jj) {
-      j = jj + mpart;
+      j = jj;
       jp1 = j + 1;
       for (k = 0; k < ncp1; ++k) {
 	for (i = 0; i < *ndim; ++i) {
@@ -487,7 +362,7 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
 
 /*     ---------- ---- */
 /* Subroutine */ int 
-brbd(AutoLib &lib, FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc, integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *faa, doublereal *ca1, doublereal *s1, doublereal *s2, integer *icf11, integer *ipr, integer *icf1, integer *icf2, integer *irf, integer *icf)
+brbd(AutoLib &lib, FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *faa, doublereal *s1, doublereal *s2, integer *ipr, integer *icf1, integer *icf2, integer *irf, integer *icf)
 {
 
   std::vector<doublereal> e((*nov + *nrc)*(*nov + *nrc));
@@ -505,10 +380,8 @@ brbd(AutoLib &lib, FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doubl
   /*--icf2;*/
   /*--icf1;*/
   /*--ipr;*/
-  /*--icf11;*/
   /*--s2;*/
   /*--s1;*/
-  /*--ca1;*/
   /*--faa;*/
   /*--cc;*/
   /*--bb;*/
@@ -523,19 +396,19 @@ brbd(AutoLib &lib, FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doubl
   /*--b;*/
   /*--a;*/
 
-  if (*idb > 4 && *iam == 0) {
+  if (*idb > 4) {
     print1(fp9, nov, na, nra, nca, ncb, nrc, a, b, c, d, &
     	   fa[0], fc);
   }
   if (*ifst == 1) {
     conpar(lib, nov, na, nra, nca, a, ncb, b, nbc, nrc, c, d, irf, icf);
-    copycp(iam, kwt, na, nov, nra, nca, a, ncb, b, nrc, c, 
+    copycp(na, nov, nra, nca, a, ncb, b, nrc, c, 
 	   a1, a2, bb, cc, irf);
   }
 
   if (*nllv == 0) {
     conrhs(nov, na, nra, nca, a, nbc, nrc, c, fa, fc, 
-	   irf, icf, iam);
+	   irf, icf);
     cpyrhs(na, nov, nra, faa, fa, irf);
   } else {
     setzero(fa, fc, na, nra, nrc);
@@ -543,24 +416,24 @@ brbd(AutoLib &lib, FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doubl
   }
 
   if (*ifst == 1) {
-    reduce(iam, kwt, par, a1, a2, bb, cc, d, na, 
-	   nov, ncb, nrc, s1, s2, ca1, icf1, icf2, 
-	   icf11, ipr, nbc);
+    reduce(a1, a2, bb, cc, d, na, 
+	   nov, ncb, nrc, s1, s2, icf1, icf2, 
+	   ipr, nbc);
   }
 
   if (*nllv == 0) {
-    redrhs(iam, kwt, par, a1, a2, cc, faa, fc, na, 
-	   nov, ncb, nrc, ca1, icf1, icf2, icf11, ipr,nbc);
+    redrhs(a1, a2, cc, faa, fc, na, 
+	   nov, ncb, nrc, icf1, icf2, ipr, nbc);
   }
 
-  dimrge(fp9, iam, kwt, par, e.data(), cc, d, fc, ifst, na, 
+  dimrge(fp9, e.data(), cc, d, fc, ifst, na, 
 	 nrc, nov, ncb, idb, nllv, fcc.data(), p0, p1, det, s1, a2,
 	 faa, bb);
 
-  bcksub(iam, kwt, par, s1, s2, a2, bb, faa, fc, 
+  bcksub(s1, s2, a2, bb, faa, fc, 
 	 fcc.data(), sol1.data(), sol2.data(), sol3.data(), na, nov, ncb, icf2);
 
-  infpar(iam, par, a, b, fa, sol1.data(), sol2.data(), fc, na, nov, nra, 
+  infpar(a, b, fa, sol1.data(), sol2.data(), fc, na, nov, nra, 
 	 nca, ncb, irf, icf);
 
   return 0;
@@ -595,7 +468,7 @@ setzero(doublereal *fa, doublereal *fc, integer *na, integer *nra, integer *nrc)
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *nbc, integer *nrc, doublereal *c, doublereal *fa, doublereal *fc, integer *irf, integer *icf, integer *iam)
+conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *nbc, integer *nrc, doublereal *c, doublereal *fa, doublereal *fc, integer *irf, integer *icf)
 {
   /* System generated locals */
   integer icf_dim1, irf_dim1, a_dim1, a_dim2, c_dim1, c_dim2, fa_dim1;
@@ -648,7 +521,7 @@ conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, int
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-copycp(integer *iam, integer *kwt, integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, integer *irf)
+copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, integer *irf)
 {
   /* System generated locals */
   integer irf_dim1, a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, c_dim2, a1_dim1, a1_dim2,
@@ -738,45 +611,28 @@ cpyrhs(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa,
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-reduce(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *dd, integer *na, integer *nov, integer *ncb, integer *nrc, doublereal *s1, doublereal *s2, doublereal *ca1, integer *icf1, integer *icf2, integer *icf11, integer *ipr, integer *nbc)
+reduce(doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *dd, integer *na, integer *nov, integer *ncb, integer *nrc, doublereal *s1, doublereal *s2, integer *icf1, integer *icf2, integer *ipr, integer *nbc)
 {
   /* System generated locals */
-  integer icf1_dim1, icf2_dim1, icf11_dim1, a1_dim1, a1_dim2, a2_dim1, a2_dim2, 
+  integer icf1_dim1, icf2_dim1, a1_dim1, a1_dim2, a2_dim1, a2_dim2, 
     s1_dim1, s1_dim2, s2_dim1, s2_dim2, 
     bb_dim1, bb_dim2, cc_dim1, cc_dim2, 
-    dd_dim1, ca1_dim1, ca1_dim2,
-    ipr_dim1;
+    dd_dim1, ipr_dim1;
 
-    /* Local variables */
-  std::array<logical, KREDO> oddc{};
-  integer niam, info,
-    nlev, itmp;
+  /* Local variables */
   doublereal zero, tpiv;
-  real xkwt;
-  integer nbcp1, ipiv1, jpiv1, ipiv2, jpiv2, i, k, l;
-
-  std::array<logical, KREDO> evenc;
-
-  integer i1, i2, k1, k2, i3, l1, iprow, k3, l2, l3, ic, ir;
+  integer nbcp1, ipiv1, jpiv1, ipiv2, jpiv2, i, l;
+  integer i1, i2, i3, k1, k2, ic, ir;
   doublereal rm;
-  std::array<logical, KREDO> master{};
-  integer ib1, ib2;
-
-  std::array<logical, KREDO> worker{};
-  integer ir1, iprown, iprown2, nrcmnbc;
   doublereal tmp;
-  logical notsend;
-  integer nap1, nam1, icp1;
+  integer nam1, icp1;
   doublereal piv1, piv2;
-  std::vector<doublereal> buf;
+  int itmp;
 
   /* Parameter adjustments */
   ipr_dim1 = *nov;
-  icf11_dim1 = *nov;
   icf2_dim1 = *nov;
   icf1_dim1 = *nov;
-  ca1_dim1 = *nov;
-  ca1_dim2 = *nov;
   s2_dim1 = *nov;
   s2_dim2 = *nov;
   s1_dim1 = *nov;
@@ -793,69 +649,7 @@ reduce(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
     
   zero = 0.;
   nbcp1 = *nbc + 1;
-  nap1 = *na + 1;
   nam1 = *na - 1;
-  nrcmnbc = *nrc - *nbc;
-  xkwt = static_cast<real>(*kwt);
-  {
-    real tmp = r_lg10(xkwt) / r_lg10(2.0);
-    nlev = i_nint(&tmp);
-  }
-  notsend = TRUE_;
-
-/*     FOR EACH REURSIVE LEVEL, CALCULATE THE MASTER(HOLDING THE */
-/*     PIVOT ROW AFTER ROW SWAPPING) NODE WHICH WILL SEND THE */
-/*     PIVOT ROW TO THE CORRESPONDING WORKER NODE WHICH IS DISTANCED */
-/*     2**(K-1) FROM THE MASTER WHERE K IS THE RECURSIVE LEVEL NUMBER. */
-/*     THE CORRESPONDING MESSAGE TYPE IN EACH RECURSIVE LEVEL IS */
-/*     ALSO CALCULATED HERE. */
-
-/* For each level in the recursion, determine the master node */
-/* (holding the pivot row after row swapping), which will send the */
-/* pivot row to the corresponding worker node at distance 2**(K-1) */
-/* from the master. Here K is the level in the recursion. */
-/* The message type at each level in the recursion is also determined. */
-
-  if (*par) {
-
-    for (i = 0; i < nlev; ++i) {
-
-      oddc[i] = FALSE_;
-      evenc[i] = FALSE_;
-      master[i] = FALSE_;
-      worker[i] = FALSE_;
-
-      k1 = pow_ii(2, i);
-      k2 = k1 * 2;
-      niam = *iam / k1;
-
-      if (notsend) {
-
-	if (niam % 2 == 0) {
-
-	  master[i] = TRUE_;
-	  notsend = FALSE_;
-
-	} else {
-
-	  worker[i] = TRUE_;
-
-	}
-
-      }
-
-      k = *iam % k2;
-      if (k == k1) {
-	evenc[i] = TRUE_;
-      }
-
-      if (*iam % k2 == 0) {
-	oddc[i] = TRUE_;
-      }
-
-      /* L1: */
-    }
-  }
 
   /* Initialization */
 
@@ -1055,458 +849,32 @@ reduce(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
     ARRAY2D(icf2, i, (*na - 1)) = i + 1;
   }
 
-  /*     INTER NODES REDUCE IS DONE VIA COMMUNICATION */
-  /*     BETWEEN MASTER NODES AND WORKER NODES. */
-  /*     THE SUMMATION OF THE OVERLAPED PART C IN THE */
-  /*     NEIGHBOR NODES IN THE CONDENSATION OF PARAMETE */
-  /*     ROUTINE IS DELAYED TO HERE TO SUM. */
-
-/* Inter node reduction is done via communication between master node */
-/* and worker nodes. The summation over the overlapped part C of */
-/*neighboring nodes in the condensation of parameters is delayed until her
-e.*/
-  if (*par) {
-
-    /* buf is the message-passing scratch buffer for the master/worker
-       pivot exchange below; it stayed NULL here (never allocated),
-       which is a null-pointer dereference on every buf[...] access
-       once *par is true. It reads as unreachable today because this
-       fork never sets numnodes above 1, so *par is always false, but
-       the function must still hold a real buffer for the size *par
-       is meant to select. */
-    buf.assign(3 * (*nov) + *ncb + (*nrc - *nbc) + 10, 0.);
-
-    for (i = 0; i < nlev; ++i) {
-
-      if (master[i]) {
-	crecv();
-	for (ir = nbcp1; ir <= *nrc; ++ir) {
-	  ir1 = ir - *nbc;
-	  for (ic = 1; ic <= *nov; ++ic) {
-	    l1 = ir1 * *nov + ic;
-	    ARRAY3D(cc, ic, ir, (nap1 - 1)) += buf[l1 + 1];
-	  }
-	}
-	for (ir = 0; ir < *nov; ++ir) {
-	  for (ic = 0; ic < *nov; ++ic) {
-	    ARRAY3D(s2, ir, ic, *na) = 0.;
-	  }
-	}
-      }
-
-      if (evenc[i]) {
-	csend();
-      }
-
-      if (worker[i]) {
-	for (ir = 0; ir < *nov; ++ir) {
-	  for (ic = 0; ic < *nov; ++ic) {
-	    ARRAY3D(ca1, ir, ic, i) = ARRAY3D(s1, ir, ic, (*na - 1));
-	    ARRAY3D(s1, ir, ic, (*na - 1)) = 0.;
-	  }
-	}
-
-	for (l = 0; l < *nov; ++l) {
-	  ARRAY2D(icf11, l, i) = l + 1;
-	}
-      }
-
-      for (ic = 0; ic < *nov; ++ic) {
-
-	icp1 = ic + 1;
-	iprow = *nov - ic + 1;
-	iprown = iprow + *nov;
-	iprown2 = iprown + *nov;
-	ib1 = iprown2 + *ncb + 1;
-	ib2 = ib1 + 1;
-
-	if (master[i]) {
-
-	  /* PIVOTING (COMPLETE PIVOTING) */
-
-	  piv1 = zero;
-	  ipiv1 = ic + 1;
-	  jpiv1 = ic + 1;
-	  for (k1 = ic; k1 < *nov; ++k1) {
-	    for (k2 = ic; k2 < *nov; ++k2) {
-	      k3 = ARRAY2D(icf2, k2, (*na - 1));
-	      tpiv = ARRAY3D(a2, k1, k3, (*na - 1));
-	      if (tpiv < zero) {
-		tpiv = -tpiv;
-	      }
-	      if (piv1 < tpiv) {
-		piv1 = tpiv;
-		ipiv1 = k1 + 1;
-		jpiv1 = k2 + 1;
-	      }
-	    }
-	  }
-
-	  crecv();
-
-	  jpiv2 = i_dnnt(&buf[ib1 + 1]);
-	  ipiv2 = i_dnnt(&buf[ib2 + 1]);
-
-	  piv2 = buf[1];
-	  if (piv2 < 0.) {
-	    piv2 = -piv2;
-	  }
-
-	  if (piv1 >= piv2) {
-
-	    ARRAY2D(ipr, ic, (*na - 1)) = ipiv1;
-	    itmp = ARRAY2D(icf2, ic, (*na - 1));
-	    ARRAY2D(icf2, ic, (*na - 1)) = ARRAY2D(icf2, (jpiv1 - 1), (*na - 1));
-	    ARRAY2D(icf2, (jpiv1 - 1), (*na - 1)) = itmp;
-
-	    /* Send pivot row to worker */
-	    for (l = 0; l < *nov; ++l) {
-	      if (l >= ic) {
-		l1 = l - ic + 2;
-		l2 = ARRAY2D(icf2, l, (*na - 1)) - 1;
-		buf[l1 + 1] = ARRAY3D(a2, (ipiv1 - 1), l2, (*na - 1));
-	      }
-	      l1 = iprow + l;
-	      l2 = iprown + l;
-	      buf[l1 + 1] = ARRAY3D(s1, (ipiv1 - 1), l, (*na - 1));
-	      buf[l2 + 1] = ARRAY3D(s2, (ipiv1 - 1), l, (*na - 1));
-	    }
-
-	    for (l = 0; l < *nbc; ++l) {
-	      l1 = iprown2 + l;
-	      buf[l1 + 1] = ARRAY3D(bb, (ipiv1 - 1), l, (*na - 1));
-	    }
-
-	    buf[ib1 + 1] = static_cast<doublereal>(jpiv1);
-
-	    for (l = nbcp1 - 1; l < *nrc; ++l) {
-	      l1 = l - *nbc;
-	      l2 = ib1 + l1;
-	      l3 = ARRAY2D(icf2, ic, (*na - 1)) - 1;
-	      buf[l2 + 1] = ARRAY3D(cc, l3, l, (nap1 - 1));
-	    }
-
-	    l1 = ib2 + nrcmnbc;
-	    buf[l1 + 1] = 0.;
-	    csend();
-
-	    /* Row swapping */
-	    for (l = 0; l < *nov; ++l) {
-	      tmp = ARRAY3D(s1, ic, l, (*na - 1));
-	      ARRAY3D(s1, ic, l, (*na - 1)) = ARRAY3D(s1, (ipiv1 - 1), l, (*na - 1));
-	      ARRAY3D(s1, (ipiv1 - 1), l, (*na - 1)) = tmp;
-	      if (l >= ic) {
-		l1 = ARRAY2D(icf2, l, (*na - 1)) - 1;
-		tmp = ARRAY3D(a2, ic, l1, (*na - 1));
-		ARRAY3D(a2, ic, l1, (*na - 1)) = ARRAY3D(a2, (ipiv1 - 1), l1, (*na - 1));
-		ARRAY3D(a2, (ipiv1 - 1), l1, (*na - 1)) = tmp;
-	      }
-	      tmp = ARRAY3D(s2, ic, l, (*na - 1));
-	      ARRAY3D(s2, ic, l, (*na - 1)) = ARRAY3D(s2, (ipiv1 - 1), l, (*na - 1));
-	      ARRAY3D(s2, (ipiv1 - 1), l, (*na - 1)) = tmp;
-	    }
-
-	    for (l = 0; l < *ncb; ++l) {
-	      tmp = ARRAY3D(bb, ic, l, (*na - 1));
-	      ARRAY3D(bb, ic, l, (*na - 1)) = ARRAY3D(bb, (ipiv1 - 1), l, (*na - 1));
-	      ARRAY3D(bb, (ipiv1 - 1), l, (*na - 1)) = tmp;
-	    }
-
-	  } else {
-
-	    ARRAY2D(ipr, ic, (*na - 1)) = *nov + ipiv2;
-	    jpiv1 = jpiv2;
-	    itmp = ARRAY2D(icf2, ic, (*na - 1));
-	    ARRAY2D(icf2, ic, (*na - 1)) = ARRAY2D(icf2, (jpiv1 - 1), (*na - 1));
-	    ARRAY2D(icf2, (jpiv1 - 1), (*na - 1)) = itmp;
-
-	    for (l = 0; l < *nov; ++l) {
-	      if (l >= ic) {
-		l1 = l - ic + 2;
-		l2 = ARRAY2D(icf2, l, (*na - 1)) - 1;
-		tmp = buf[l1 + 1];
-		buf[l1 + 1] = ARRAY3D(a2, ic, l2, (*na - 1));
-		ARRAY3D(a2, ic, l2, (*na - 1)) = tmp;
-	      }
-	      l1 = iprow + l;
-	      l2 = iprown + l;
-	      tmp = buf[l1 + 1];
-	      buf[l1 + 1] = ARRAY3D(s1, ic, l, (*na - 1));
-	      ARRAY3D(s1, ic, l, (*na - 1)) = tmp;
-	      tmp = buf[l2 + 1];
-	      buf[l2 + 1] = ARRAY3D(s2, ic, l, (*na - 1));
-	      ARRAY3D(s2, ic, l, (*na - 1)) = tmp;
-	    }
-
-	    for (l = 0; l < *nbc; ++l) {
-	      l1 = iprown2 + l;
-	      tmp = buf[l1 + 1];
-	      buf[l1 + 1] = ARRAY3D(bb, ic, l, (*na - 1));
-	      ARRAY3D(bb, ic, l, (*na - 1)) = tmp;
-	    }
-
-	    buf[ib1 + 1] = static_cast<doublereal>(jpiv2);
-
-	    for (l = nbcp1; l <= *nrc; ++l) {
-	      l1 = l - *nbc;
-	      l2 = ARRAY2D(icf2, ic, (*na - 1)) - 1;
-	      l3 = ib1 + l1  + 1;
-	      buf[l3 + 1] = ARRAY3D(cc, l2, l, (nap1 - 1 ));
-	    }
-	    l1 = ib2 + nrcmnbc;
-	    buf[l1 + 1] = 1.;
-
-	    csend();
-
-	  }
-	  /* End pivoting in master */
-
-	  /* Send data to worker nodes */
-	  for (l = 0; l < *nov; ++l) {
-	    buf[l + 1] = ARRAY3D(s1, ic, l, (*na - 1));
-	  }
-
-	  for (l = nbcp1 - 1; l <*nrc; ++l) {
-	    l1 = l - *nbc;
-	    l2 = ARRAY2D(icf2, ic, (*na -1 )) - 1;
-	    l3 = *nov + l1;
-	    buf[l3 + 1] = ARRAY3D(cc, l2, l, (nap1 - 1));
-	  }
-
-	  l2 = ARRAY2D(icf2, ic, (*na - 1)) - 1;
-	  l1 = *nov + nrcmnbc;
-	  buf[l1 + 1] = ARRAY3D(a2, ic, l2, (*na - 1));
-
-	  csend();
-
-	  /* Elimination */
-	  for (ir = icp1; ir < *nov; ++ir) {
-	    l2 = ARRAY2D(icf2, ic, (*na - 1)) - 1;
-	    rm = ARRAY3D(a2, ir, l2, (*na - 1)) / ARRAY3D(a2, ic, l2, (*na - 1));
-	    ARRAY3D(a2, ir, l2, (*na - 1)) = rm;
-	    if (rm != zero) {
-	      for (l = icp1; l < *nov; ++l) {
-		l1 = ARRAY2D(icf2, l, (*na - 1)) - 1;
-		ARRAY3D(a2, ir, l1, (*na - 1)) -= rm * ARRAY3D(a2, ic, l1, (*na - 1));
-	      }
-	      for (l = 0; l < *nov; ++l) {
-		ARRAY3D(s1, ir, l, (*na - 1)) -= rm *ARRAY3D(s1, ic, l, (*na - 1));
-		ARRAY3D(s2, ir, l, (*na - 1)) -= rm *ARRAY3D(s2, ic, l, (*na - 1));
-	      }
-	      for (l = 0; l < *ncb; ++l) {
-		ARRAY3D(bb, ir, l, (*na - 1)) -= rm *ARRAY3D(bb, ic, l, (*na - 1));
-	      }
-	    }
-	  }
-
-	  for (ir = nbcp1 - 1; ir < *nrc; ++ir) {
-	    l2 = ARRAY2D(icf2, ic, (*na - 1)) - 1;
-	    rm = ARRAY3D(cc, l2, ir, (nap1 - 1)) / ARRAY3D(a2, ic, l2, (*na - 1));
-	    ARRAY3D(cc, l2, ir, (nap1 - 1)) = rm;
-	    if (rm != zero) {
-	      for (l = icp1; l <= *nov; ++l) {
-		l1 = ARRAY2D(icf2, l, (*na - 1)) - 1;
-		ARRAY3D(cc, l1, ir, (nap1 - 1)) -= rm * ARRAY3D(a2, ic, l1, (*na - 1));
-	      }
-	      for (l = 0; l < *nbc; ++l) {
-		ARRAY2D(dd, l, ir) -= rm * ARRAY3D(bb, ic, l, (*na - 1));
-	      }
-	    }
-	  }
-
-	}
-
-	if (worker[i]) {
-
-	  /* Pivoting */
-	  piv2 = zero;
-	  ipiv2 = 1;
-	  jpiv2 = ic + 1;
-	  for (k1 = 0; k1 < *nov; ++k1) {
-	    for (k2 = ic; k2 < *nov; ++k2) {
-	      k3 = ARRAY2D(icf11, k2, i) - 1;
-	      tpiv = ARRAY3D(ca1, k1, k3, i);
-	      if (tpiv < zero) {
-		tpiv = -tpiv;
-	      }
-	      if (piv2 < tpiv) {
-		piv2 = tpiv;
-		ipiv2 = k1 + 1;
-		jpiv2 = k2 + 1;
-	      }
-	    }
-	  }
-
-	  itmp = ARRAY2D(icf11, ic, i);
-	  ARRAY2D(icf11, ic, i) = ARRAY2D(icf11, (jpiv2 - 1), i);
-	  ARRAY2D(icf11, (jpiv2 - 1), i) = itmp;
-
-	  for (l = 0; l < *nov; ++l) {
-	    if (l >= ic) {
-	      l1 = l - ic + 2;
-	      l2 = ARRAY2D(icf11, l, i) - 1;
-	      buf[l1 + 1] = ARRAY3D(ca1, (ipiv2 - 1), l2, (*na - 1));
-	    }
-	    l1 = iprow + l;
-	    l2 = l1 + *nov;
-	    buf[l1 + 1] = ARRAY3D(s1, (ipiv2 - 1), l, i);
-	    buf[l2 + 1] = ARRAY3D(a2, (ipiv2 - 1), l, (*na - 1));
-	  }
-
-	  for (l = 0; l < *ncb; ++l) {
-	    l1 = iprown2 + l;
-	    buf[l1 + 1] = ARRAY3D(bb, (ipiv2 - 1), l, (*na - 1));
-	  }
-
-	  buf[ib1 + 1] = static_cast<doublereal>(jpiv2);
-	  buf[ib2 + 1] = static_cast<doublereal>(ipiv2);
-
-	  csend();
-	  crecv();
-
-	  l1 = ib2 + nrcmnbc;
-	  info = i_dnnt(&buf[l1 + 1]);
-
-	  if (info == 1) {
-	    /* Send pivot row to master */
-	    for (l = 0; l < *nov; ++l) {
-	      if (l >= ic) {
-		l1 = l - ic + 2;
-		l2 = ARRAY2D(icf11, l, i) - 1;
-		tmp = ARRAY3D(ca1, (ipiv2 - 1), l2, i);
-		ARRAY3D(ca1, (ipiv2 - 1), l2, i) = buf[l1 + 1];
-		buf[l1 + 1] = tmp;
-	      }
-	      l1 = iprow + l;
-	      l2 = l1 + *nov;
-	      tmp = ARRAY3D(s1, (ipiv2 - 1), l, (*na - 1));
-	      ARRAY3D(s1, (ipiv2 - 1), l, (*na - 1)) = buf[l1 + 1];
-	      buf[l1 + 1] = tmp;
-	      tmp = ARRAY3D(a2, (ipiv2 - 1), l, (*na - 1));
-	      ARRAY3D(a2, (ipiv2 - 1), l, (*na - 1)) = buf[l2 + 1];
-	      buf[l2 + 1] = tmp;
-	    }
-	    for (l = 0; l < *nbc; ++l) {
-	      l1 = iprown2 + l;
-	      tmp = ARRAY3D(bb, (ipiv2 - 1), l, (*na - 1));
-	      ARRAY3D(bb, (ipiv2 - 1), l, (*na - 1)) = buf[l1 + 1];
-	      buf[l1 + 1] = tmp;
-	    }
-	  } else {
-
-	    itmp = ARRAY2D(icf11, ic, i);
-	    ARRAY2D(icf11, ic, i) = ARRAY2D(icf11, (jpiv2 - 1), i);
-	    ARRAY2D(icf11, (jpiv2 - 1), i) = itmp;
-
-	    jpiv2 = i_dnnt(&buf[ib1 + 1]);
-	    itmp = ARRAY2D(icf11, ic, i);
-	    ARRAY2D(icf11, ic, i) = ARRAY2D(icf11, (jpiv2 - 1), i);
-	    ARRAY2D(icf11, (jpiv2 - 1), i) = itmp;
-	  }
-
-	  /* Elimination */
-	  for (ir = 1; ir <= *nov; ++ir) {
-	    l2 = ARRAY2D(icf11, ic, i) - 1;
-	    rm = ARRAY3D(ca1, ir, l2, i) / buf[1];
-	    ARRAY3D(ca1, ir, l2, i) = rm;
-
-	    if (rm != zero) {
-	      for (l = icp1; l < *nov; ++l) {
-		l1 = l - icp1 + 3;
-		l3 = ARRAY2D(icf11, l, i) - 1;
-		ARRAY3D(ca1, ir, l3, i) -= rm * buf[l1 + 1];
-	      }
-	      for (l = 0; l < *nov; ++l) {
-		l1 = iprow + l;
-		l2 = l1 + *nov;
-		ARRAY3D(s1, ir, l, (*na - 1)) -= rm *buf[l1 + 1];
-		ARRAY3D(a2, ir, l, (*na - 1)) -= rm *buf[l2 + 1];
-	      }
-	      for (l = 0; l < *ncb; ++l) {
-		l1 = iprown2 + l;
-		ARRAY3D(bb, ir, l, (*na - 1)) -= rm *buf[l1 + 1];
-	      }
-	    }
-	  }
-
-	  for (ir = nbcp1 - 1; ir < *nrc; ++ir) {
-	    l1 = ir - *nbc;
-	    l2 = ib1 + l1;
-	    rm = buf[l2 + 1] / buf[1];
-	    if (rm != zero) {
-	      for (l = 0; l < *nov; ++l) {
-		l3 = iprown + l;
-		ARRAY3D(cc, l, ir, (nap1 - 1)) -= rm * buf[l3 + 1];
-	      }
-	    }
-
-	  }
-
-	}
-
-	if (oddc[i]) {
-	  crecv();
-	  for (ir = nbcp1 - 1; ir < *nrc; ++ir) {
-	    ir1 = ir - *nbc;
-	    l1 = *nov + nrcmnbc;
-	    l2 = *nov + ir1;
-	    rm = buf[l2 + 1] / buf[l1 + 1];
-	    if (rm != zero) {
-	      for (l = 0; l < *nov; ++l) {
-		ARRAY3D(cc, l, ir, 0) -= rm * buf[l + 1];
-	      }
-	    }
-	  }
-	}
-
-      }
-
-      /* L4: */
-    }
-
-    /* Global sum for D by recursive doubling */
-    {
-      integer tmp= (*nrc - *nbc) * *ncb;
-      rd0(iam, kwt, &ARRAY2D(dd, 0, (nbcp1 - 1)), &tmp);
-    }
-
-  }
-    
   return 0;
 } /* reduce_ */
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-redrhs(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2, doublereal *cc, doublereal *faa, doublereal *fc, integer *na, integer *nov, integer *ncb, integer *nrc, doublereal *ca1, integer *icf1, integer *icf2, integer *icf11, integer *ipr, integer *nbc)
+redrhs(doublereal *a1, doublereal *a2, doublereal *cc, doublereal *faa, doublereal *fc, integer *na, integer *nov, integer *ncb, integer *nrc, integer *icf1, integer *icf2, integer *ipr, integer *nbc)
 {
   /* System generated locals */
-  integer icf1_dim1, icf2_dim1, icf11_dim1, 
+  integer icf1_dim1, icf2_dim1, 
     a1_dim1, a1_dim2, a2_dim1, a2_dim2, 
     cc_dim1, cc_dim2, faa_dim1, 
-    ca1_dim1, ca1_dim2, ipr_dim1;
+    ipr_dim1;
 
   /* Local variables */
-  integer niam, nlev;
-  real xkwt;
-  integer nbcp1, ipiv1, ipiv2, i;
+  integer nbcp1, ipiv1;
 
-  integer i1, i2, k1, l1, ic, ir;
+  integer i1, i2, l1, ic, ir;
   doublereal rm;
-  std::array<logical, KREDO> master{};
-  std::array<logical, KREDO> worker{};
-  std::array<doublereal, 2> buf;
   doublereal tmp;
-  logical notsend;
-  integer nap1, nam1, icp1;
+  integer nam1, icp1;
 
-    /* Parameter adjustments */
-    /*--fc;*/
+  /* Parameter adjustments */
+  /*--fc;*/
   ipr_dim1 = *nov;
-  icf11_dim1 = *nov;
   icf2_dim1 = *nov;
   icf1_dim1 = *nov;
-  ca1_dim1 = *nov;
-  ca1_dim2 = *nov;
   faa_dim1 = *nov;
   a2_dim1 = *nov;
   a2_dim2 = *nov;
@@ -1516,36 +884,7 @@ redrhs(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
   cc_dim2 = *nrc;
 
   nbcp1 = *nbc + 1;
-  nap1 = *na + 1;
   nam1 = *na - 1;
-  xkwt = static_cast<real>(*kwt);
-  {
-    real tmp = r_lg10(xkwt) / r_lg10(2.0);
-    nlev = i_nint(&tmp);
-  }
-  notsend = TRUE_;
-
-/* At each recursive level determine the master node (holding the pivot */
-/* row after swapping), which will send the pivot row to the worker node 
-*/
-/* at distance 2**(K-1) from the master. Here K is the recursion level. */
-
-  if (*par) {
-    for (i = 0; i < nlev; ++i) {
-      master[i] = FALSE_;
-      worker[i] = FALSE_;
-      k1 = pow_ii(2, i);
-      niam = *iam / k1;
-      if (notsend) {
-	if (niam % 2 == 0) {
-	  master[i] = TRUE_;
-	  notsend = FALSE_;
-	} else {
-	  worker[i] = TRUE_;
-	}
-      }
-    }
-  }
 
   /* Reduce concurrently in each node */
   for (i1 = 0; i1 < nam1; ++i1) {
@@ -1581,72 +920,12 @@ redrhs(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2,
     }
   }
 
-  /* Inter-node reduction needs communication between nodes */
-  if (*par) {
-    for (i = 0; i < nlev; ++i) {
-      for (ic = 0; ic < *nov; ++ic) {
-	icp1 = ic + 1;
-	if (master[i]) {
-	  ipiv1 = ARRAY2D(ipr, ic, (*na - 1));
-	  if (ipiv1 <= *nov) {
-	    buf[0] = ARRAY2D(faa, (ipiv1 - 1), (*na - 1));
-	    ARRAY2D(faa, (ipiv1 - 1), *na) = ARRAY2D(faa, ic, (*na - 1));
-	    ARRAY2D(faa, ic, (*na - 1)) = buf[0];
-	    buf[1] = -1.;
-	    csend();
-	  } else {
-	    buf[0] = ARRAY2D(faa, ic, (*na - 1));
-	    buf[1] = static_cast<doublereal>(ARRAY2D(ipr, ic, (*na - 1)) - *nov);
-	    csend();
-	    crecv();
-	  }
-
-	  for (ir = icp1; ir < *nov; ++ir) {
-	    l1 = ARRAY2D(icf2, ic, (*na - 1)) - 1;
-	    rm = ARRAY3D(a2, ir, l1, (*na - 1));
-	    ARRAY2D(faa, ir, (*na - 1)) -= rm * ARRAY2D(faa, ic, (*na - 1));
-	  }
-	  for (ir = nbcp1 - 1; ir < *nrc; ++ir) {
-	    l1 = ARRAY2D(icf2, ic, (*na - 1)) - 1;
-	    rm = ARRAY3D(cc, l1, ir, (nap1 - 1));
-	    fc[ir] -= rm * ARRAY2D(faa, ic, (*na - 1));
-	  }
-	}
-
-	if (worker[i]) {
-	  crecv();
-	  ipiv2 = i_dnnt(&buf[1]);
-	  if (ipiv2 < 0) {
-	    tmp = buf[0];
-	  } else {
-	    tmp = ARRAY2D(faa, (ipiv2 - 1), (*na - 1));
-	    ARRAY2D(faa, (ipiv2 - 1), (*na - 1)) = buf[0];
-	    csend();
-	  }
-
-	  for (ir = 0; ir < *nov; ++ir) {
-	    l1 = ARRAY2D(icf11, ic, i) - 1;
-	    rm = ARRAY3D(ca1, ir, l1, i);
-	    ARRAY2D(faa, ir, (*na - 1)) -= rm * tmp;
-	  }
-	}
-      }
-      /*           **Synchronization at each recursion level among all n
-		   odes */
-
-    }
-
-    l1 = *nrc - *nbc;
-    gdsum();
-
-  }
-
   return 0;
 } /* redrhs_ */
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-dimrge(FILE *fp9, integer *iam, integer *kwt, logical *par, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *s, doublereal *a2, doublereal *faa, doublereal *bb)
+dimrge(FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *s, doublereal *a2, doublereal *faa, doublereal *bb)
 {
 
   /* System generated locals */
@@ -1686,163 +965,120 @@ dimrge(FILE *fp9, integer *iam, integer *kwt, logical *par, doublereal *e, doubl
   nap1 = *na + 1;
   ncrloc = *nrc + *nov;
 
-  /* Send CC(1:NOV,1:NRC,1) in node 0 to node KWT-1 */
-
-  if (*par) {
-    if (*iam == 0) {
-      csend();
-    }
-    if (*iam == *kwt - 1) {
-      crecv();
-    }
-  }
-
   /* Copy */
-  if (*iam == *kwt - 1) {
-    for (i = 0; i < *nov; ++i) {
-      for (j = 0; j < *nov; ++j) {
-	novpj = *nov + j;
-	ARRAY2D(e, i, j) = ARRAY3D(s, i, j, (*na - 1));
-	ARRAY2D(p0, i, j) = ARRAY3D(s, i, j, (*na - 1));
-	ARRAY2D(e, i, novpj) = ARRAY3D(a2, i, j, (*na - 1));
-	ARRAY2D(p1, i, j) = ARRAY3D(a2, i, j, (*na - 1));
-      }
-      for (j = 0; j < *ncb; ++j) {
-	novpj2 = (*nov * 2) + j;
-	ARRAY2D(e, i, novpj2) = ARRAY3D(bb, i, j, (*na - 1));
-      }
+  for (i = 0; i < *nov; ++i) {
+    for (j = 0; j < *nov; ++j) {
+      novpj = *nov + j;
+      ARRAY2D(e, i, j) = ARRAY3D(s, i, j, (*na - 1));
+      ARRAY2D(p0, i, j) = ARRAY3D(s, i, j, (*na - 1));
+      ARRAY2D(e, i, novpj) = ARRAY3D(a2, i, j, (*na - 1));
+      ARRAY2D(p1, i, j) = ARRAY3D(a2, i, j, (*na - 1));
     }
-
-    for (i = 0; i < *nrc; ++i) {
-      novpi = *nov + i;
-      for (j = 0; j < *nov; ++j) {
-	novpj = *nov + j;
-	ARRAY2D(e, novpi, j) = ARRAY3D(cc, j, i, 0);
-	ARRAY2D(e, novpi, novpj) = ARRAY3D(cc, j, i, (nap1 - 1));
-      }
-      for (j = 0; j < *ncb; ++j) {
-	novpj2 = (*nov * 2) + j;
-	ARRAY2D(e, novpi, novpj2) = ARRAY2D(d, j, i);
-      }
-    }
-
-    for (i = 0; i < *nov; ++i) {
-      xe[i] = ARRAY2D(faa, i, (*na - 1));
-    }
-
-    for (i = 0; i < *nrc; ++i) {
-      novpi = *nov + i;
-      xe[novpi] = fc[i];
-    }
-
-    if (*idb >= 3) {
-      xpp::print(fp9," Residuals of reduced system:\n");	
-	  
-      xpp::print(fp9," ");
-      for (i = 0; i < ncrloc; ++i) {
-	xpp::print(fp9,"{:11.3E}",xe[i]);	
-	if((i+ 1)%10==0)
-	  xpp::print(fp9,"\n ");
-	    
-      }
-      xpp::print(fp9,"\n");	
-    }
-
-    if (*idb >= 4) {
-
-      xpp::print(fp9," Reduced Jacobian matrix:\n");	
-	      
-      for (i = 0; i < ncrloc; ++i) {
-	int total_printed = 0;
-	for (j = 0; j < ncrloc; ++j) {
-	  if((total_printed != 0)&&(total_printed % 10 == 0))
-	    xpp::print(fp9,"\n");	
-	  xpp::print(fp9," {:11.3E}",ARRAY2D(e, i, j));	
-	  total_printed++;
-	}
-	xpp::print(fp9,"\n");	
-      }
-    }
-
-    /* Solve for FCC */
-    if (*nllv == 0) {
-      ge(fp9, ncrloc, ncrloc, e, 1, ncrloc, fcc, 
-	 ncrloc, xe.data(), det);
-    } else if (*nllv > 0) {
-      nlvc(fp9, ncrloc, ncrloc, *nllv, e, fcc);
-    } else {
-      for (i = 0; i < ncrloc - 1; ++i) {
-	xe[i] = 0.;
-      }
-      xe[-1 + ncrloc] = 1.;
-      ge(fp9, ncrloc, ncrloc, e, 1, ncrloc, fcc, 
-	 ncrloc, xe.data(), det);
-    }
-    if (*idb >= 4) {
-      xpp::print(fp9," Solution vector:\n");	
-	  
-      for (i = 0; i < ncrloc; ++i) {
-	if((i!=0)&&(i%7==0))
-	  xpp::print(fp9,"\n");	
-	xpp::print(fp9," {:11.3E}",fcc[i]);	
-      }
-      xpp::print(fp9,"\n");	
-    }
-
-    k1 = ncrloc;
-    /* Computing 2nd power */
-    k2 = k1 + (*nov) * (*nov);
-    for (kr = 0; kr < *nov; ++kr) {
-      for (kc = 0; kc < *nov; ++kc) {
-	k = kr * *nov + kc;
-	fcc[k1 + k] = ARRAY2D(p0, kr, kc);
-	fcc[k2 + k] = ARRAY2D(p1, kr, kc);
-      }
-    }
-    /* Computing 2nd power */
-    fcc[ncrloc + ((*nov) * (*nov) * 2)] = *det;
-
-  }
-
-  /* Broadcast FCC from node KWT-1. The matrices P0 and P1 are */
-  /* buffered in the tail of FCC so all nodes receive them. */
-  if (*par) {
-    if (*iam == *kwt - 1) {
-      csend();
-    } else {
-      crecv();
+    for (j = 0; j < *ncb; ++j) {
+      novpj2 = (*nov * 2) + j;
+      ARRAY2D(e, i, novpj2) = ARRAY3D(bb, i, j, (*na - 1));
     }
   }
 
   for (i = 0; i < *nrc; ++i) {
-    fc[i] = fcc[*nov + i];
+    novpi = *nov + i;
+    for (j = 0; j < *nov; ++j) {
+      novpj = *nov + j;
+      ARRAY2D(e, novpi, j) = ARRAY3D(cc, j, i, 0);
+      ARRAY2D(e, novpi, novpj) = ARRAY3D(cc, j, i, (nap1 - 1));
+    }
+    for (j = 0; j < *ncb; ++j) {
+      novpj2 = (*nov * 2) + j;
+      ARRAY2D(e, novpi, novpj2) = ARRAY2D(d, j, i);
+    }
   }
 
-  if (*iam < *kwt - 1) {
-    k1 = ncrloc;
-    /* Computing 2nd power */
-    k2 = k1 + (*nov) * (*nov);
-    for (kr = 1; kr <= *nov; ++kr) {
-      for (kc = 1; kc <= *nov; ++kc) {
-	k = kr * *nov + kc;
-	ARRAY2D(p0, kr, kc) = fcc[k1 + k];
-	ARRAY2D(p1, kr, kc) = fcc[k2 + k];
-      }
-    }
-    /* Computing 2nd power */
-    *det = fcc[ncrloc + ((*nov) * (*nov) * 2)];
+  for (i = 0; i < *nov; ++i) {
+    xe[i] = ARRAY2D(faa, i, (*na - 1));
   }
-  /* free the memory*/
-  /* Not the we have modified these parameter before, so
-     we undo the modifications here and then free them. */
-  /*xe \+= 1;*/
+
+  for (i = 0; i < *nrc; ++i) {
+    novpi = *nov + i;
+    xe[novpi] = fc[i];
+  }
+
+  if (*idb >= 3) {
+    xpp::print(fp9," Residuals of reduced system:\n");	
+	  
+    xpp::print(fp9," ");
+    for (i = 0; i < ncrloc; ++i) {
+      xpp::print(fp9,"{:11.3E}",xe[i]);	
+      if((i+ 1)%10==0)
+	xpp::print(fp9,"\n ");
+	    
+    }
+    xpp::print(fp9,"\n");	
+  }
+
+  if (*idb >= 4) {
+
+    xpp::print(fp9," Reduced Jacobian matrix:\n");	
+	      
+    for (i = 0; i < ncrloc; ++i) {
+      int total_printed = 0;
+      for (j = 0; j < ncrloc; ++j) {
+	if((total_printed != 0)&&(total_printed % 10 == 0))
+	  xpp::print(fp9,"\n");	
+	xpp::print(fp9," {:11.3E}",ARRAY2D(e, i, j));	
+	total_printed++;
+      }
+      xpp::print(fp9,"\n");	
+    }
+  }
+
+  /* Solve for FCC */
+  if (*nllv == 0) {
+    ge(fp9, ncrloc, ncrloc, e, 1, ncrloc, fcc, 
+       ncrloc, xe.data(), det);
+  } else if (*nllv > 0) {
+    nlvc(fp9, ncrloc, ncrloc, *nllv, e, fcc);
+  } else {
+    for (i = 0; i < ncrloc - 1; ++i) {
+      xe[i] = 0.;
+    }
+    xe[-1 + ncrloc] = 1.;
+    ge(fp9, ncrloc, ncrloc, e, 1, ncrloc, fcc, 
+       ncrloc, xe.data(), det);
+  }
+  if (*idb >= 4) {
+    xpp::print(fp9," Solution vector:\n");	
+	  
+    for (i = 0; i < ncrloc; ++i) {
+      if((i!=0)&&(i%7==0))
+	xpp::print(fp9,"\n");	
+      xpp::print(fp9," {:11.3E}",fcc[i]);	
+    }
+    xpp::print(fp9,"\n");	
+  }
+
+  k1 = ncrloc;
+  /* Computing 2nd power */
+  k2 = k1 + (*nov) * (*nov);
+  for (kr = 0; kr < *nov; ++kr) {
+    for (kc = 0; kc < *nov; ++kc) {
+      k = kr * *nov + kc;
+      fcc[k1 + k] = ARRAY2D(p0, kr, kc);
+      fcc[k2 + k] = ARRAY2D(p1, kr, kc);
+    }
+  }
+  /* Computing 2nd power */
+  fcc[ncrloc + ((*nov) * (*nov) * 2)] = *det;
+
+  for (i = 0; i < *nrc; ++i) {
+    fc[i] = fcc[*nov + i];
+  }
 
   return 0;
 } /* dimrge_ */
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-bcksub(integer *iam, integer *kwt, logical *par, doublereal *s1, doublereal *s2, doublereal *a2, doublereal *bb, doublereal *faa, doublereal *fc, doublereal *fcc, doublereal *sol1, doublereal *sol2, doublereal *sol3, integer *na, integer *nov, integer *ncb, integer *icf2)
+bcksub(doublereal *s1, doublereal *s2, doublereal *a2, doublereal *bb, doublereal *faa, doublereal *fc, doublereal *fcc, doublereal *sol1, doublereal *sol2, doublereal *sol3, integer *na, integer *nov, integer *ncb, integer *icf2)
 {
   /* System generated locals */
   integer icf2_dim1, s1_dim1, s1_dim2, s2_dim1, 
@@ -1850,27 +1086,15 @@ bcksub(integer *iam, integer *kwt, logical *par, doublereal *s1, doublereal *s2,
     sol1_dim1, sol2_dim1, 
     sol3_dim1, faa_dim1;
 
-    /* Local variables */
-  integer niam;
-  logical even = FALSE_;
-  integer nlev;
-  logical hasright;
-  doublereal xkwt;
+  /* Local variables */
   integer i, k, l;
-
-  integer itest, l1, l2;
+  integer l1, l2;
   doublereal sm;
+  integer nam1;
 
-  std::array<logical, KREDO> master{};
-  integer kp1;
-  logical odd = FALSE_;
-  logical hasleft, notsend;
-  integer nam1, nov2, nov3;
-  double *buf=NULL;
-
-    /* Parameter adjustments */
-    /*--fc;*/
-    /*--fcc;*/
+  /* Parameter adjustments */
+  /*--fc;*/
+  /*--fcc;*/
   icf2_dim1 = *nov;
   sol3_dim1 = *nov;
   sol2_dim1 = *nov;
@@ -1884,149 +1108,10 @@ bcksub(integer *iam, integer *kwt, logical *par, doublereal *s1, doublereal *s2,
   s1_dim2 = *nov;
   bb_dim1 = *nov;
   bb_dim2 = *ncb;
-    
-  xkwt = static_cast<doublereal>(*kwt);
-  {
-    doublereal tmp = d_lg10(&xkwt) / r_lg10(2.0);
-    nlev = i_dnnt(&tmp);
-  }
-  nov2 = *nov * 2;
-  nov3 = *nov * 3;
 
-  /* The backsubstitution in the reduction process is recursive. */
-  notsend = TRUE_;
-
-  /*At each recursion level determine the sender nodes (called MASTER here).
-*/
-  if (*par) {
-    for (i = 0; i < nlev; ++i) {
-      master[i] = FALSE_;
-      niam = *iam / pow_ii(2, i);
-      if (notsend) {
-	if (niam % 2 == 0) {
-	  master[i] = TRUE_;
-	  notsend = FALSE_;
-	}
-      }
-    }
-  }
-
-  if (*par) {
-
-    /*Initialization for the master or sender node at the last recursion l
-      evel.*/
-    if (master[nlev - 1]) {
-      for (l = 0; l < *nov; ++l) {
-	ARRAY2D(sol1, l, (*na - 1)) = fcc[l];
-	ARRAY2D(sol3, l, (*na - 1)) = fc[l];
-      }
-    }
-
-    for (i = nlev - 1; i >= 0; --i) {
-      if (master[i]) {
-	k = pow_ii(2, i - 1);
-	/*              **Receive solutions from previous level */
-	if ((i + 1) < nlev) {
-	  crecv();
-	  niam = i_dnnt(&buf[nov3 + 1]);
-	  if (*iam < niam) {
-	    for (l = 0; l < *nov; ++l) {
-	      ARRAY2D(sol1, l, (*na - 1)) = buf[l + 1];
-	      ARRAY2D(sol3, l, (*na - 1)) = buf[*nov + l + 1];
-	    }
-	  } else {
-	    for (l = 0; l < *nov; ++l) {
-	      ARRAY2D(sol1, l, (*na - 1)) = buf[*nov + l + 1];
-	      ARRAY2D(sol3, l, (*na - 1)) = buf[nov2 + l + 1];
-	    }
-	  }
-	}
-	/*              **Backsubstitute */
-	for (k = *nov - 1; k >= 0; --k) {
-	  kp1 = k + 1;
-	  sm = 0.;
-	  for (l = 0; l < *nov; ++l) {
-	    sm += ARRAY3D(s1, k, l, (*na - 1)) * ARRAY2D(sol1, l, (*na - 1));
-	    sm += ARRAY3D(s2, k, l, (*na - 1)) * ARRAY2D(sol3, l, (*na - 1));
-	  }
-	  for (l = 0; l < *ncb; ++l) {
-	    sm += ARRAY3D(bb, k, l, (*na - 1)) * fc[*nov + l];
-	  }
-	  for (l = kp1; l < *nov; ++l) {
-	    l1 = ARRAY2D(icf2, l, (*na - 1)) - 1;
-	    sm += ARRAY2D(sol2, l1, (*na - 1)) * ARRAY3D(a2, k, l1, (*na - 1));
-	  }
-	  l2 = ARRAY2D(icf2, k, (*na - 1)) - 1;
-	  ARRAY2D(sol2, l2, (*na - 1)) = (ARRAY2D(faa, k, (*na - 1)) - sm) / ARRAY3D(a2, k, l2, (*na - 1));
-	}
-	/*              **Send solutions to the next level */
-	if (i + 1 > 1) {
-	  for (l = 0; l < *nov; ++l) {
-	    buf[l + 1] = ARRAY2D(sol1, l, (*na - 1));
-	    buf[*nov + l + 1] = ARRAY2D(sol2, l, (*na - 1));
-	    buf[nov2 + l + 1] = ARRAY2D(sol3, l, (*na - 1));
-	  }
-	  buf[nov3 + 1] = static_cast<doublereal>(*iam);
-	  gsendx();
-	}
-      }
-      /*           **Synchronization at each recursion level */
-
-    }
-
-    /* Define odd and even nodes */
-    if (*iam % 2 == 0) {
-      even = TRUE_;
-    } else {
-      odd = TRUE_;
-    }
-
-    /* Determine whether I have a right neighbor */
-    if (*iam == *kwt - 1) {
-      hasright = FALSE_;
-    } else {
-      hasright = TRUE_;
-    }
-
-    /* Determine whether I have a left neighbor */
-    if (*iam == 0) {
-      hasleft = FALSE_;
-    } else {
-      hasleft = TRUE_;
-    }
-
-    /* May only need odd sends to even */
-    itest = 0;
-    if (itest == 1) {
-      if (odd && hasright) {
-	csend();
-      }
-      if (even && hasleft) {
-	crecv();
-      }
-    }
-
-    /* Even nodes send and odd nodes receive */
-    if (even && hasright) {
-      csend();
-    }
-    if (odd && hasleft) {
-      crecv();
-    }
-
-  } else {
-
-    for (l = 0; l < *nov; ++l) {
-      ARRAY2D(sol1, l, (*na - 1)) = fcc[l];
-      ARRAY2D(sol2, l, (*na - 1)) = fc[l];
-    }
-
-  }
-
-  if (*iam == *kwt - 1) {
-    for (l = 0; l < *nov; ++l) {
-      ARRAY2D(sol2, l, (*na - 1)) = fc[l];
-    }
+  for (l = 0; l < *nov; ++l) {
+    ARRAY2D(sol1, l, (*na - 1)) = fcc[l];
+    ARRAY2D(sol2, l, (*na - 1)) = fc[l];
   }
 
   if (*na > 1) {
@@ -2069,7 +1154,7 @@ bcksub(integer *iam, integer *kwt, logical *par, doublereal *s1, doublereal *s2,
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-infpar(integer *iam, logical *par, doublereal *a, doublereal *b, doublereal *fa, doublereal *sol1, doublereal *sol2, doublereal *fc, integer *na, integer *nov, integer *nra, integer *nca, integer *ncb, integer *irf, integer *icf)
+infpar(doublereal *a, doublereal *b, doublereal *fa, doublereal *sol1, doublereal *sol2, doublereal *fc, integer *na, integer *nov, integer *nra, integer *nca, integer *ncb, integer *irf, integer *icf)
 {
   /* System generated locals */
   integer irf_dim1, icf_dim1, a_dim1, a_dim2, 
@@ -2136,75 +1221,6 @@ infpar(integer *iam, logical *par, doublereal *a, doublereal *b, doublereal *fa,
 
   return 0;
 } /* infpar_ */
-
-/*     ---------- --- */
-/* Subroutine */ int 
-rd0(integer *iam, integer *kwt, doublereal *d, integer *nrc)
-{
-
-  /* Local variables */
-  integer niam;
-  std::array<logical, KREDO> even;
-  doublereal xkwt;
-  integer i, n;
-
-  integer nredo;
-  std::array<logical, KREDO> odd;
-
-  logical notsend;
-
-  std::vector<doublereal> buf(*nrc);
-
-/*     RECURSIVE DOUBLING PROCEDURE TO GET */
-/*     THE GLOBAL SUM OF VECTORS FROM */
-/*     EACH NODE. THE GLOBAL SUM IS ONLY AVAILABLE */
-/*     IN THE LAST NODE */
-
-/* Copying */
-    /* Parameter adjustments */
-    /*--d;*/
-
-  xkwt = static_cast<doublereal>(*kwt);
-
-  /* Determine the recursion level */
-  {
-    doublereal tmp = xpp::math::log(xkwt) / xpp::math::log(2.);
-    nredo = i_dnnt(&tmp);
-  }
-
-/* At each recursion level determine the odd and even nodes */
-  notsend = TRUE_;
-  for (n = 0; n < nredo; ++n) {
-    even[n] = FALSE_;
-    odd[n] = FALSE_;
-    niam = *iam / pow_ii(2, n);
-    if (notsend) {
-      if (niam % 2 == 0) {
-	even[n] = TRUE_;
-	notsend = FALSE_;
-      } else {
-	odd[n] = TRUE_;
-      }
-    }
-  }
-
-  for (n = 0; n < nredo; ++n) {
-    /*        **Even nodes send and odd nodes receive from left to right 
-     */
-    if (even[n]) {
-      csend();
-    }
-    if (odd[n]) {
-      crecv();
-      /*          ** Accumulate the partial sum in the current receiving
-		  node */
-      for (i = 0; i < niam; ++i) {
-	d[i] += buf[i];
-      }
-    }
-  }
-  return 0;
-} /* rd0_ */
 
 /*     ---------- ------ */
 /* Subroutine */ int 
@@ -2285,55 +1301,4 @@ print1(FILE *fp9, integer *nov, integer *na, integer *nra, integer *nca, integer
 
   return 0;
 } /* print1_ */
-
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-/*         Dummy Routines for the Sequential Version */
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-integer 
-mynode(void)
-{
-  integer ret_val;
-  ret_val = 0;
-  return ret_val;
-}
-
-integer 
-numnodes(void)
-{
-  integer ret_val;
-  ret_val = 1;
-  return ret_val;
-}
-
-/* Subroutine */ int 
-csend(void)
-{
-  return 0;
-} /* csend_ */
-
-/* Subroutine */ int 
-crecv(void)
-{
-  return 0;
-} /* crecv_ */
-
-/* Subroutine */ int 
-gdsum(void)
-{
-  return 0;
-} /* gdsum_ */
-
-/* Subroutine */ int 
-gsendx(void)
-{
-  return 0;
-} /* gsendx_ */
-
-/* Subroutine */ int 
-gcol(void)
-{
-  return 0;
-} /* gcol_ */
 
