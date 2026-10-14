@@ -24,14 +24,11 @@ typedef integer logical;
 
 /* f2c's libF77 helpers (f2c_helpers.cpp) */
 double d_imag(const doublecomplex *z);
-double d_lg10(const doublereal *x);
 double d_sign(doublereal a, doublereal b);
 integer i_dnnt(const doublereal *x);
-integer i_nint(const real *x);
 double pow_dd(const doublereal *ap, const doublereal *bp);
 double pow_di(const doublereal *ap, const integer *bp);
 integer pow_ii(integer ap, integer bp);
-double r_lg10(real x);
 double z_abs(const doublecomplex *z);
 void z_exp(doublecomplex *r, const doublecomplex *z);
 void z_log(doublecomplex *r, const doublecomplex *z);
