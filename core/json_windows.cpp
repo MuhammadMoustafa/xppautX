@@ -193,11 +193,6 @@ void j_cput_text(xpp::Session &s)
     if (add_label(s, look, s.plot_windows.draw_win, xd, yd) < 0) j_command_error("text", xpp::format("a session has at most {} texts", MAXLAB));
 }
 
-void j_draw_freeze(xpp::Session &s)
-{
-    draw_freeze(s, s.plot_windows.draw_win);
-}
-
 /* {"cmd":"click","win":w}: the user clicked in plot window w */
 void click_command(xpp::Session &s, const char *line)
 {

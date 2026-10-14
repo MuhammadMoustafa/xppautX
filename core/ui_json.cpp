@@ -411,7 +411,6 @@ XppUi make_json_ui(void)
     u.base_col = j_void;
     u.cput_text = j_cput_text;
     u.get_draw_size = j_get_draw_size;
-    u.draw_freeze = j_draw_freeze;
     u.blank_draw_window = j_blank_draw_window;
     u.small_base = j_void;
     u.small_gr = j_void;

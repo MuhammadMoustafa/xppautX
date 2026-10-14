@@ -244,7 +244,6 @@ XppUi ui = {
     .base_col = hl_void,
     .cput_text = hl_s,
     .get_draw_size = hl_get_draw_size,
-    .draw_freeze = hl_s,
     .blank_draw_window = hl_s,
     .small_base = hl_void,
     .small_gr = hl_void,

@@ -263,7 +263,6 @@ typedef struct XppUi {
        and add_label() it */
     void (*cput_text)(Session &s);
     void (*get_draw_size)(Session &s, unsigned int *w, unsigned int *h);
-    void (*draw_freeze)(Session &s); /* frozen curves */
     void (*blank_draw_window)(Session &s);
     void (*small_base)(void);  /* pen selection for small text */
     void (*small_gr)(void);

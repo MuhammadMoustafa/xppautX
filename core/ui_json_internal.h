@@ -443,7 +443,6 @@ void j_create_plot_window(xpp::Session &s);
 void j_destroy_plot_window(xpp::Session &s);
 void j_kill_plot_windows(xpp::Session &s);
 void j_cput_text(xpp::Session &s);
-void j_draw_freeze(xpp::Session &s);
 void j_scroll_window(xpp::Session &s);
 void j_new_colormap(int type);
 
