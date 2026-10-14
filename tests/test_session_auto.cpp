@@ -27,6 +27,7 @@
 #include "browse.h"
 #include "many_pops.h"
 #include "auto_parallel.h"
+#include "xpp_job.h"
 #include "solver.h"
 #include "xpp_globals.h"
 #include <algorithm>
@@ -640,6 +641,53 @@ void check_collocation()
     for (size_t i=1;i<ranges.size();++i) CHECK(ranges[i-1].second==ranges[i].first);
 }
 
+/* W336: a pool is reused across calls and replaced by one of another size
+   (AutoParallel::select_run does so when the thread count changes): every
+   size covers every interval once; a worker's failed Jacobian is the
+   Session's and ends the job as a Stop does; a worker throwing leaves the
+   pool usable. */
+void check_pool_reuse()
+{
+    auto &s=xpp::client_session();
+    AutoLib lib;
+    lib.session=&s;
+    for (unsigned count:{4u,1u,3u,2u,4u}) {
+        xpp::AutoParallel pool(count);
+        pool.prepare(lib,2,2);
+        for (long n:{17L,1L,5L,64L}) {
+            std::atomic<long> covered=0;
+            std::atomic<int> pieces=0;
+            pool.intervals(n,[&](long begin,long end,AutoLib &){covered+=end-begin;++pieces;});
+            CHECK(covered==n);
+            CHECK(pieces>=1 && static_cast<unsigned>(pieces)<=count);
+        }
+        pool.prepare(lib,3,1); /* the dimension changes: the workers' scratch follows */
+        std::atomic<long> covered=0;
+        pool.intervals(9,[&](long begin,long end,AutoLib &worker){
+            CHECK(worker.store.uu1.size()==3);
+            covered+=end-begin;
+        });
+        CHECK(covered==9);
+        bool failed=false;
+        try { pool.intervals(9,[&](long begin,long,AutoLib &){if(begin>0)throw 1;}); }
+        catch (const xpp::AutoFailed &) { failed=count>1; }
+        CHECK(failed==(count>1));
+        covered=0;
+        pool.intervals(9,[&](long begin,long end,AutoLib &){covered+=end-begin;});
+        CHECK(covered==9);
+    }
+    xpp::AutoParallel pool(3);
+    pool.prepare(lib,2,2);
+    xpp::job::begin(1);
+    CHECK(!xpp::job::cancelled());
+    pool.intervals(9,[&](long begin,long,AutoLib &worker){
+        if(begin>0)worker.jacobian_failure=xpp::Error{"exact jacobian","injected"};
+    });
+    CHECK(s.auto_lib.jacobian_failure.has_value() && xpp::job::cancelled());
+    xpp::job::end();
+    s.auto_lib.jacobian_failure.reset();
+}
+
 } // namespace
 
 int main(int argc,char **argv)
@@ -661,6 +709,7 @@ int main(int argc,char **argv)
     check_collocation_purity();
     check_collocation();
     check_branch_parameters();
+    check_pool_reuse();
     check_settings_text();
     check_views_text();
     check_diagram_csv();

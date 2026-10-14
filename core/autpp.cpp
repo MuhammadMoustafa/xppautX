@@ -36,7 +36,7 @@ namespace {
    collocation worker's lib is merged into the Session's, and the job
    cancelled, by its caller when the workers are done
    (auto_parallel.cpp: a job's cancel is read by the main thread). */
-void exact_derivatives(xpp::Session &s, AutoLib &lib, const double *c, integer ndim, const double *u, const double *f, const integer *icp, integer nfpr, integer ijac, double *dfdu, double *dfdp)
+void exact_derivatives(const xpp::Session &s, AutoLib &lib, const double *c, integer ndim, const double *u, const double *f, const integer *icp, integer nfpr, integer ijac, double *dfdu, double *dfdp)
 {
   const int n=static_cast<int>(ndim);
   try {
@@ -74,9 +74,6 @@ void chain(int n, const double *b, double *column, const double *add, double *t)
   std::copy_n(t,n,column);
 }
 
-}
-
-namespace {
 void continued_constants(const xpp::Session &s, double *constants, const integer *icp, integer count, const double *par)
 {
   for(integer i=0;i<count;i++){
@@ -84,6 +81,20 @@ void continued_constants(const xpp::Session &s, double *constants, const integer
     if(k>=0 && k<s.model().nupar)constants[s.model().upar_con[k]]=par[icp[i]];
   }
 }
+
+/* A collocation worker's right-hand side (auto_parallel.cpp): s is const, so
+   a worker can read the model, the AUTO settings and the immutable tables but
+   write only its own lib (constants, variables, jacobian_failure). */
+void worker_func(const xpp::Session &s, AutoLib &worker, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, integer ijac, double *f, double *dfdu, double *dfdp)
+{
+  auto &c=worker.rhs_constants;
+  auto &v=worker.rhs_variables;
+  continued_constants(s,c.data(),icp,nfpr,par);
+  xpp::evaluate_derived_pure(s,c.data(),v.data());
+  pure_rhs(s,u,f,c.data(),v.data());
+  if(ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT)exact_derivatives(s,worker,c.data(),ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
+}
+
 }
 
 /* The problem defined functions that run the model (auto_c.h's C++
@@ -99,16 +110,11 @@ double auto_parameter_value(const xpp::Session &s, integer slot,
 
 int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, integer ijac, double *f, double *dfdu, double *dfdp, AutoLib *worker)
 {
-   const bool exact=ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT;
    if (worker && worker->pure_rhs) {
-     auto &c=worker->rhs_constants;
-     auto &v=worker->rhs_variables;
-     continued_constants(s,c.data(),icp,nfpr,par);
-     xpp::evaluate_derived(s,c.data(),v.data(),true);
-     pure_rhs(s,u,f,c.data(),v.data());
-     if(exact)exact_derivatives(s,*worker,c.data(),ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
+     worker_func(s,*worker,ndim,u,icp,nfpr,par,ijac,f,dfdu,dfdp);
      return 0;
    }
+   const bool exact=ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT;
    int i,j;
    std::vector<double> zz(ndim); /* the store_every steps' scratch */
    /* the right-hand side and the Jacobian only read the point */

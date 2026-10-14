@@ -81,6 +81,11 @@ double evaluate(Session &s, const int *program);
 /* Model-backed programs dispatch to their native function when enabled. */
 struct Program;
 double evaluate(Session &s, const Program &program);
+/* A native program's value from the caller's own arrays, with s only read:
+   for a program compile_model proved array_pure (it reads c, v and the
+   immutable lookup tables, never s's stacks), so AUTO's collocation workers
+   share s const (expr_eval.cpp). */
+double evaluate_pure(const Session &s, const Program &program, double *constants, double *variables);
 /* name as the symbol table keeps it: blanks removed, upper case */
 std::string converted(std::string_view name);
 /* name (as converted makes it) is a built-in symbol, the symbol table's

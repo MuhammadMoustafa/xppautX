@@ -72,10 +72,10 @@ int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
   return 1;
 }
 
-void pure_rhs(xpp::Session &s, const double *y, double *ydot, double *c, double *v)
+void pure_rhs(const xpp::Session &s, const double *y, double *ydot, double *c, double *v)
 {
   rhs_order(s.model(),0.0,y,ydot,[&](int i,double value){v[i]=value;},
-            [&](const xpp::Program &p){return p.native(c,v,&s,p.rpn.data());},[]{});
+            [&](const xpp::Program &p){return xpp::evaluate_pure(s,p,c,v);},[]{});
 }
 
 void update_based_on_current(xpp::Session &s)

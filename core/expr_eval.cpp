@@ -267,4 +267,11 @@ double evaluate(Session &s, const Program &code)
   return evaluate(s,code.rpn.data());
 }
 
+double evaluate_pure(const Session &s, const Program &code, double *constants, double *variables)
+{
+  /* The native function's signature takes the Session for the general
+     programs; an array_pure one never writes through it. */
+  return code.native(constants,variables,const_cast<Session *>(&s),code.rpn.data());
+}
+
 } // namespace xpp

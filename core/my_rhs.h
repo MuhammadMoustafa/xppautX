@@ -15,7 +15,7 @@ void set_fix_rhs(xpp::Session &s, double t, double *y);
 /* ydot, the right-hand side at t, y (neq values): the solvers' */
 int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq);
 /* AUTO only, after compile_model proved this path uses only its arrays. */
-void pure_rhs(xpp::Session &s, const double *y, double *ydot, double *c, double *v);
+void pure_rhs(const xpp::Session &s, const double *y, double *ydot, double *c, double *v);
 /* the fixed quantities and networks from the variables as they are */
 void update_based_on_current(xpp::Session &s);
 /* the fixed quantities from the variables as they are */
