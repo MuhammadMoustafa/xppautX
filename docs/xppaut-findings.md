@@ -965,8 +965,8 @@ are states, `(a,c)` are parameters, and the vector field has no `per` factor.
 The converter and original `examples/ode/tstheti.odex` stay unchanged:
 conversion preserves the foreign model's meaning, rather than selecting a
 different continuation problem. The original expected-error description and
-one-point baseline are retained byte for byte as `ode_tstheti_singular`.
-`ode_tstheti` now describes the planar companion and its working connection.
+one-point baseline are retained byte for byte as `ode_tstheti`.
+`tstauto_tstheti_homcont` now describes the planar companion and its working connection.
 
 There is no HomCont model option today (`model_options.cpp`). Integrate the
 companion for 20, select AUTO Axes Par1=`a`, Par2=`c`, then Run > Heteroclinic.

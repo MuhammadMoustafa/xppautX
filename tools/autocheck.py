@@ -2459,7 +2459,7 @@ def section_nagumo():
     speed_bound = 5e-6  # T=20, NTST=80, NCOL=4; truncation dominates.
     long_bound = 5e-7  # T=24 reduces the squared endpoint tail by exp(-4/sqrt(2)).
     homcont_calc = '12'  # HO2 in core/auto_nox.cpp: HomCont in two parameters.
-    description = read_description(BASE / 'ode_tstheti.json')
+    description = read_description(BASE / 'tstauto_tstheti_homcont.json')
     maxima = {}
     for name, interval, ntst in (('baseline', 20, 80), ('mesh', 20, 160), ('interval', 24, 160)):
         d = copy.deepcopy(description)

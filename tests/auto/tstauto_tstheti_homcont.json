@@ -1,0 +1,87 @@
+{
+  "model": "examples/tstauto/tstheti_homcont.odex",
+  "reason": "W345 (#406): tstheti's planar Nagumo front through HomCont (IPS=9, IEQUIB=-2), with c free and supplied equilibria (1,0) and (0,0). AUTO supplies projections and phase; the foreign singular BVP remains in ode_tstheti. Both directions are checked against c=(1-2*a)/sqrt(2) in autocheck nagumo.",
+  "auto07p_skip": "No independent AUTO-07p HomCont run was executed. Every stored point is checked against the closed-form Nagumo speed, with mesh and interval refinement (autocheck nagumo).",
+  "xppaut_skip": "No native XPPAUT HomCont run of the planar companion was executed; the original converted BVP and its source-confirmed singularity remain separate.",
+  "runs": [
+    {
+      "name": "increasing",
+      "kind": "heteroclinic",
+      "start": {
+        "state": "current",
+        "settle": 20
+      },
+      "parameters": [
+        "a",
+        "c"
+      ],
+      "connection": {
+        "left": [
+          1,
+          0
+        ],
+        "right": [
+          0,
+          0
+        ],
+        "nunstab": 1,
+        "nstab": 1
+      },
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-06,
+        "dsmax": 0.01,
+        "nmax": 120,
+        "npr": 20,
+        "parmin": 0.1,
+        "parmax": 0.9,
+        "ntst": 80,
+        "ncol": 4,
+        "epsl": 1e-09,
+        "epsu": 1e-09,
+        "epss": 1e-09,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "decreasing",
+      "kind": "heteroclinic",
+      "start": {
+        "run": "increasing",
+        "type": "EP",
+        "index": 1
+      },
+      "parameters": [
+        "a",
+        "c"
+      ],
+      "connection": {
+        "left": [
+          1,
+          0
+        ],
+        "right": [
+          0,
+          0
+        ],
+        "nunstab": 1,
+        "nstab": 1
+      },
+      "auto": {
+        "ds": -0.01,
+        "dsmin": 1e-06,
+        "dsmax": 0.01,
+        "nmax": 120,
+        "npr": 20,
+        "parmin": 0.1,
+        "parmax": 0.9,
+        "ntst": 80,
+        "ncol": 4,
+        "epsl": 1e-09,
+        "epsu": 1e-09,
+        "epss": 1e-09,
+        "mxbf": 0
+      }
+    }
+  ]
+}

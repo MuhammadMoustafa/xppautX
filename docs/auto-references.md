@@ -196,13 +196,13 @@ finite values; no connection reference or successful continuation is claimed.
 ### W345: tstheti's planar HomCont companion
 
 W343's description and one-point baseline are retained unchanged as
-`ode_tstheti_singular`. `ode_tstheti` now runs
+`ode_tstheti`. `tstauto_tstheti_homcont` now runs
 `examples/tstauto/tstheti_homcont.odex` in both directions through IPS=9,
 IEQUIB=-2. Its descriptions use two `parameters` and a `connection` object
 (`left`, `right`, `nunstab`, `nstab`); `execute_run` answers the existing AUTO
 Homoclinic info form through `Server.answer_asks`. No core numerics changed.
-Only `autocompare.py --update --only ode_tstheti` rewrites a baseline: the
-old one-point augmented-state diagram becomes 142 planar connection points
+Only `autocompare.py --update --only tstauto_tstheti_homcont` wrote a baseline, a new
+one of 142 planar connection points
 (71 per direction). All other models keep their baseline bytes.
 
 `autocheck.py nagumo` reuses `read_description`, `compute` and `diagram_rows`
