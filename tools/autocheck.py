@@ -1952,6 +1952,23 @@ def section_errors():
               '%d points vs %d, errors %s' % (len(again), len(good), errors_of(evs)))
     s.close()
 
+    # W340: AUTO continues a model parameter, so a model without one is refused
+    model_dir = tempfile.mkdtemp(prefix='xppnopar')
+    try:
+        nopar = os.path.join(model_dir, 'nopar.ode')
+        with open(nopar, 'w') as f:
+            f.write("x'=-x\ndone\n")
+        s = Server(args.server, nopar, verbose=args.v)
+        s.collect(is_idle)
+        for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}):
+            step(s, **c)
+        errs = errors_of(run_any(s, 's'))
+        check('errors: a model without parameters: AUTO refuses to run, naming why, and the server lives',
+              any('needs a model parameter' in e for e in errs) and s.alive(), str(errs))
+        s.close()
+    finally:
+        shutil.rmtree(model_dir, ignore_errors=True)
+
 
 # ---- memory: borrowed columns, CVODE's memory on a failed run (W117) ----
 
