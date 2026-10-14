@@ -71,7 +71,7 @@ class References(unittest.TestCase):
     AUTO = dict(dsmax=0.1, epsl=1e-4, epsu=1e-4, epss=1e-4)
 
     def row(self, itp, par, norm, per=0.0, ev=(0.0, 0.0)):
-        return dict(itp=str(itp), par1=str(par), norm=str(norm), per=str(per), evr1=str(ev[0]), evi1=str(ev[1]))
+        return dict(itp=str(itp), continued_parameter=str(par), norm=str(norm), per=str(per), evr1=str(ev[0]), evi1=str(ev[1]))
 
     def rows(self):
         """a branch: start, ordinary points, a limit point (2) at 1.0 where the norm is 2.0"""

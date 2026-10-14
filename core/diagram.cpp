@@ -340,7 +340,7 @@ void load_browser_with_branch(xpp::Session &s, int ibr,int pts,int pte)
     if((d->ibr==ibr) && (pt>=first) && (pt<=last)){
       icp1=d->icp1;
       auto parameters=diagram_parameters(*d);
-    par=parameters.data();
+      par=parameters.data();
       u0=d->u0;
 
       par1=par[icp1];

@@ -537,7 +537,7 @@ void j_auto_scroll_window(xpp::Session &s)
 
 namespace {
 
-/* the "numerics", "pars", "axes" and "marks" of {"cmd":"auto","op":"set",...}
+/* the "numerics", "axes" and "marks" of {"cmd":"auto","op":"set",...}
    into s; 0 with why when one is not what docs/protocol.md says */
 int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
 {
