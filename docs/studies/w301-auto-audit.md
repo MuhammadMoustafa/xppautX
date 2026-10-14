@@ -471,6 +471,8 @@ Order: ninth, independent of numerical migration once lifecycle is specified.
 
 ### P10: W336 ([#397](https://github.com/MuhammadMoustafa/xppautX/issues/397)) — Make AUTO/EISPACK scratch reentrant and seal worker inputs
 
+**Done (W336):** EISPACK's 461 static symbols are automatic locals and constexpr constants (baseline line removed); a collocation worker's right-hand side runs over a const Session; concurrent EISPACK, pool-reuse, throwing-callback and worker-failure tests added.
+
 Places: eispack.cpp static locals/by-reference constants; auto_parallel
 prepare/publish/intervals, autpp pure/serial branches, setubv and conpar dispatch,
 homoclinic eigenvalue calls.

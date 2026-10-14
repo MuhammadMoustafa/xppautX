@@ -2,7 +2,6 @@ core/ani_data.cpp 1 the protocol client's (one struct): its subscription, its si
 core/auto_data.cpp 3 the autoinfo subscription and last line (the protocol client's, xpp::ChangedEvent) and its pacing clock
 core/auto_settings.cpp 1 the autosettings subscription (the protocol client's, xpp::ChangedEvent)
 core/comline.cpp 12 the command line's options (process-wide, AGENTS.md)
-core/eispack.cpp 461 vendored EISPACK (f2c): its static locals and by-reference constants are the translated Fortran's, keep
 core/form_ode.cpp 2 ode_as_odex (OdeAsOdex's scope count) and Purity's const table built at first use
 core/json_auto.cpp 7 the JSON front end's AUTO view subscription and its last sent views (the protocol client's, file-local per AGENTS.md)
 core/json_io.cpp 4 the protocol client's: the output's sequence, its protocol version and the input line read last (file-local per AGENTS.md)
