@@ -499,8 +499,7 @@ int get_nullcline_floats(xpp::Session &s, float **v,int *n,int who,int type) /* 
 void do_batch_nclines(xpp::Session &s)
 {
   if(s.nullclines.nc_batch!=1 && s.nullclines.nc_batch!=2)return;
-  if(s.plot_windows.current->ThreeDFlag || s.plot_windows.current->TimeFlag ||
-     s.plot_windows.current->xv[0]==s.plot_windows.current->yv[0])return;
+  if(!phase_plane(*s.plot_windows.current))return;
   new_clines_com(s,0);
   if(s.nullclines.nc_batch==2){
     xpp::Writer fp=xpp::open_writer_asking(NULLCLINES_DUMP_FILE);
@@ -542,8 +541,7 @@ void do_batch_dfield(xpp::Session &s)
   s.nullcline_state.df_iy=s.plot_windows.current->yv[0];
   redraw_dfield(s);
   if((s.nullclines.df_batch==4 || s.nullclines.df_batch==5) &&
-     !s.plot_windows.current->ThreeDFlag && !s.plot_windows.current->TimeFlag &&
-     s.plot_windows.current->xv[0]!=s.plot_windows.current->yv[0] && s.nullclines.df_grid>1)
+     phase_plane(*s.plot_windows.current) && s.nullclines.df_grid>1)
     write_dfield(s,DFIELD_DUMP_FILE);
 }
 
@@ -552,8 +550,7 @@ namespace {
 /* the current window shows the direction field set last */
 bool dfield_shown(xpp::Session &s)
 {
-  return !(s.nullclines.df_flag==0||
-     s.plot_windows.current->TimeFlag||s.plot_windows.current->xv[0]==s.plot_windows.current->yv[0]||s.plot_windows.current->ThreeDFlag
+  return !(s.nullclines.df_flag==0|| !phase_plane(*s.plot_windows.current)
      || s.nullcline_state.df_ix!=s.plot_windows.current->xv[0]||s.nullcline_state.df_iy!=s.plot_windows.current->yv[0]);
 }
 
@@ -605,7 +602,7 @@ void direct_field_com(xpp::Session &s, int c)
   const double oldtrans=s.numerics.transient_time;
   int grid=s.nullclines.df_grid;
 
-  if(s.plot_windows.current->TimeFlag||s.plot_windows.current->xv[0]==s.plot_windows.current->yv[0]||s.plot_windows.current->ThreeDFlag)
+  if(!phase_plane(*s.plot_windows.current))
     return;
 
   if(c==2){
@@ -776,7 +773,7 @@ void new_clines_com(xpp::Session &s, int c)
   const int course=s.numerics.nullcline_mesh;
   const int col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
 
-  if(s.plot_windows.current->ThreeDFlag||s.plot_windows.current->TimeFlag||s.plot_windows.current->xv[0]==s.plot_windows.current->yv[0])return;
+  if(!phase_plane(*s.plot_windows.current))return;
 
   switch(c){
   case 1:

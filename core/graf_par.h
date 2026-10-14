@@ -73,6 +73,9 @@ void change_view_com(Session &s, int com);
 /* The flags a graph's axes and grtype imply (ThreeDFlag, TimeFlag): the one
    rule, for the active window and for each extra window of a model */
 void check_flags(GRAPH &g);
+/* a graph of two different variables, neither time, in 2D: its nullclines
+   and direction field can be computed */
+bool phase_plane(const GRAPH &g);
 /* The axes dialog of the active plot window: its curve ind's variables, limits and labels in
    columns (X, Y, and Z when three, with the 3D view's window and parameters), read whole and
    applied all or nothing; false when cancelled or when a field is refused (shown) */

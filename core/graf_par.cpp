@@ -81,6 +81,11 @@ void change_view_com(xpp::Session &s, int com)
  redraw_the_graph(s);
 }
 
+bool phase_plane(const GRAPH &g)
+{
+  return !(g.ThreeDFlag || g.TimeFlag || g.xv[0]==g.yv[0]);
+}
+
 void check_flags(GRAPH &g)
 {
   if(g.grtype>4)g.ThreeDFlag=1;
