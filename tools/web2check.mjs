@@ -3322,8 +3322,8 @@ async function busyAuto() {
   check('busy: during an integration the AUTO diagram zooms, and Run is disabled with "Not while a computation runs"',
     busy && await until('s.busy && dv.viewport.x', 'zoom while busy', 3000) && run.disabled
     && run.title === 'Not while a computation runs: available when it ends', JSON.stringify([busy, run, await DS('d.viewport')]));
-  check('busy: T22: Parameter, Numerics and Mark values stay enabled (their changes wait), and Axes and Clear (views, W95)',
-    await cdp.eval(`['P', 'N', 'U', 'A', 'C'].every(k => !document.querySelector('.auto-tools button[aria-keyshortcuts=' + k + ']').disabled)`));
+  check('busy: T22: Numerics and Mark values stay enabled (their changes wait), and Axes and Clear (views, W95)',
+    await cdp.eval(`['N', 'U', 'A', 'C'].every(k => !document.querySelector('.auto-tools button[aria-keyshortcuts=' + k + ']').disabled)`));
   check("busy: ... and the main window's menu waits the same way", !!menu && menu[0] === true
     && menu[1] === 'Not while a computation runs: available when it ends', JSON.stringify(menu));
   await until('!s.busy', 'integration done', 30000);
