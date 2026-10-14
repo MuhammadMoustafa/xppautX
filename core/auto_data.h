@@ -35,15 +35,8 @@
 
 namespace xpp {
 
-struct Session; /* session.h */
-
-typedef void (*AutoDataEmit)(const char *line, size_t len);
-
-/* the index in the diagram data the client holds of AUTO's diagram entry
-   `node` (DIAGRAM.index), or -1 when the data do not have it */
-typedef int (*AutoDataPointOf)(int node);
-
-void auto_data_init(AutoDataEmit emit, AutoDataPointOf point_of);
+/* the event's line now; empty: none to send */
+std::string auto_data_event_line(const Session &s);
 
 /* {"cmd":"data"} with or without "autoinfo": the event is sent at the next
    update whatever it holds */

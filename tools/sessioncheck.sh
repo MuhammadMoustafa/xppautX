@@ -26,7 +26,6 @@ core/ui_json.cpp client 3 the folder-answer XppUi seam (W303), the front end'"'"
 core/json_prompts.cpp client 3 an ask (ask_wait), a checkpoint (j_check_abort) and the file selector, which starts in the dialog folder of the Session (W151)
 core/json_io.cpp client 1 the pending AUTO points before any event (flush_pending)
 core/json_state.cpp client 1 the state when it is dirty (send_state_if_dirty)
-core/json_auto.cpp client 1 auto_data.cpp'"'"'s point lookup (diag_point_of_node)
 '
 
 # each file's reads, comments stripped: "R file line text" for a retired

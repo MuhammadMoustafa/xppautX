@@ -49,8 +49,7 @@ const char *auto_settings_num_label(int i);
 
 /* the event: {"ev":"autosettings",...} with the settings now, whole; an
    empty string when there is no model with variables (no settings) */
-typedef void (*AutoSettingsEmit)(const char *line, size_t len);
-void auto_settings_init(AutoSettingsEmit emit);
+std::string auto_settings_event_line(const Session &s);
 
 /* {"cmd":"data"} with or without "autosettings": sent (s's) at once, and
    then at each update, whatever it holds */

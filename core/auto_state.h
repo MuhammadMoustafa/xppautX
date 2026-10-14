@@ -19,10 +19,13 @@
 #include "xAuto.h"
 #include "xpp_io.h"
 #include "xpp_error.h"
+#include "xpp_ui.h"
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <map>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
@@ -40,14 +43,32 @@ struct AutoOptions {
   int var=0;
 };
 
-/* one view of the diagram (W50): its axes, and the part of them the page
-   shows (its zoom, W65; a zoom belongs to the axes it was made at, other
-   ones drop it) */
+/* axes and label data cached for a diagram view */
+struct AutoDiagramAxesData {
+  double xmin=0, xmax=0, ymin=0, ymax=0;
+  int x0=0, y0=0, wid=0, hgt=0, plot=0;
+  std::string xlabel, ylabel;
+};
+
+/* the points, branches and state of one view of the diagram */
+struct AutoDiagramViewData {
+  std::vector<XppDiagPoint> dg; /* n of them in use */
+  std::vector<std::shared_ptr<const DiagramBranch>> branches; /* immutable records behind those points */
+  std::map<std::shared_ptr<const DiagramBranch>,std::map<std::shared_ptr<const DiagramBranch>,bool>> branch_matches;
+  int n = 0, client = 0, dirty = 0;
+  int replay = 0, match = 0, axes = 0;
+  AutoDiagramAxesData ax{};
+};
+
+/* one view of the diagram (W50): its axes, the view's diagram data,
+   and the part of them the page shows (its zoom, W65; a zoom belongs
+   to the axes it was made at, other ones drop it) */
 struct AutoDiagramView {
   xpp::AUTOAX axes{};
   xpp::Zoom zoom;
   bool zoom_seen=false; /* zoom_axes holds the axes the zoom was made at */
   std::array<double,4> zoom_axes{};
+  AutoDiagramViewData data{};
 };
 
 /* the diagram's marked stretch (the S and E keys in the Grab loop): the
@@ -81,6 +102,16 @@ struct AutoState {
   int active_view=0;
   xpp::AUTOAX &axes() { return views[static_cast<std::size_t>(active_view)].axes; }
   const xpp::AUTOAX &axes() const { return views[static_cast<std::size_t>(active_view)].axes; }
+  /* the index in the diagram data the client holds of AUTO's diagram entry
+     `node` (DIAGRAM.index), or -1 when the data do not have it */
+  int point_of_node(int node) const {
+    if (views.empty() || active_view < 0 || static_cast<std::size_t>(active_view) >= views.size()) return -1;
+    const AutoDiagramViewData &d = views[static_cast<std::size_t>(active_view)].data;
+    for (int i = d.client - 1; i >= 0; i--) {
+      if (d.dg[static_cast<std::size_t>(i)].node == node) return i;
+    }
+    return -1;
+  }
   /* the advanced numerics */
   xpp::ADVAUTO advanced{};
   AutoParameterLayout parameter_layout;

@@ -20,7 +20,6 @@
 #include "xpp_log.h"
 #include "xpp_ui.h"
 #include <algorithm>
-#include "data_event.h"
 #include "browse.h"
 #include "diagram.h"
 #include "expr.h"
@@ -259,9 +258,7 @@ std::string event_text(const xpp::Session &s)
 bool have_settings(const xpp::Session &s) { return s.model().node > 0; }
 
 /* the event, none for a model with no settings */
-std::string event_if_any(const xpp::Session &s) { return have_settings(s) ? event_text(s) : std::string(); }
-
-xpp::ChangedEvent<xpp::Session> event{event_if_any, "sending AUTO's settings"};
+std::string auto_settings_event_line(const xpp::Session &s) { return have_settings(s) ? event_text(s) : std::string(); }
 
 bool num_ok(int i, double v, std::string &why)
 {
@@ -498,12 +495,6 @@ void auto_threads_load(Session &s)
        log, as --silent shows no recent models' note to carry the file's error */
     else xpp::log(XPP_LOG_WARN, "{}: AUTO's thread count stays automatic\n", p.error().text());
 }
-
-void auto_settings_init(AutoSettingsEmit emit) { event.init(emit); }
-
-void auto_settings_subscribe(const xpp::Session &s, int on) { event.subscribe(on != 0, s); }
-
-void auto_settings_update(const xpp::Session &s) { event.update(s); }
 
 AutoSettingsSet auto_settings_now(const xpp::Session &s)
 {

@@ -986,8 +986,9 @@ void install(bool silent)
     phase_data_init(data_emit);
     marks_data_init(data_emit);
     ani_data_init(data_emit);
-    xpp::auto_data_init(data_emit, diag_point_of_node);
-    xpp::auto_settings_init(data_emit);
+    session.autoinfo.init(data_emit);
+    session.autosettings.init(data_emit);
+    session.autoview.init(data_emit);
     xpp::numerics_settings_init(data_emit);
     xpp::inbox::set_classifier(classify);
     xpp::job::set_compute_hook(send_computing);

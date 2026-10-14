@@ -34,6 +34,7 @@
 #include "xpp_inbox.h"
 #include "display_state.h"
 #include "grobs.h"
+#include "data_event.h"
 #include <stddef.h>
 #include <atomic>
 #include <climits>
@@ -62,6 +63,8 @@
 namespace xpp {
 struct ModelRequest; /* model_switch.h */
 struct Session;      /* session.h */
+std::string auto_data_event_line(const Session &s);
+std::string auto_settings_event_line(const Session &s);
 }
 
 namespace xpp::json {
@@ -87,6 +90,8 @@ struct DeferredLine {
     bool applied; /* a set applied when it was taken: the command only ends */
 };
 
+std::string auto_view_event_line(const xpp::Session &s);
+
 struct ProtocolSession {
     int save_replace = SAVE_ASK; /* the running command's decision, never the disk's */
     bool generated = false; /* --silent model's internal commands */
@@ -108,6 +113,14 @@ struct ProtocolSession {
     int br_from = 0, br_count = 0, br_col = 1, br_ncol = 1;
     int rows_seen = INT_MAX;
     double live_state_last = 0; /* Display pacing only; solver steps are unchanged. */
+    /* AUTO subscriptions, pacing and client view tracking */
+    xpp::ChangedEvent<xpp::Session> autoinfo{xpp::auto_data_event_line, "sending AUTO's info strip"};
+    double autoinfo_last = 0;
+    xpp::ChangedEvent<xpp::Session> autosettings{xpp::auto_settings_event_line, "sending AUTO's settings"};
+    xpp::ChangedEvent<xpp::Session> autoview{auto_view_event_line, "sending AUTO's view"};
+    int client_views = 1;
+    int grab_key_after = 0;
+    double auto_refresh_last = 0;
 };
 extern ProtocolSession session;
 
@@ -117,8 +130,7 @@ extern ProtocolSession session;
    once per command); this is for what core code reaches through the seam
    with no Session at all, the front end's own: an ask (ask_wait), a
    checkpoint (j_check_abort), the pending AUTO points before an event
-   (flush_pending), the state when it is dirty (send_state_if_dirty), and
-   auto_data.cpp's point lookup (diag_point_of_node). */
+   (flush_pending), and the state when it is dirty (send_state_if_dirty). */
 xpp::Session &client();
 
 [[noreturn]] void quit_session(void); /* exit 1 after any error, else 0 */
@@ -428,9 +440,8 @@ void j_aplot_draw_one(xpp::Session &s, std::string_view tag);
 
 /* ---- json_auto.cpp ---- */
 
-void diag_flush(const xpp::Session &s, int final);
-void diag_forget(void); /* the client has no diagram */
-int diag_point_of_node(int node);
+void diag_flush(xpp::Session &s, int final);
+void diag_forget(xpp::Session &s); /* the client has no diagram */
 void auto_command(xpp::Session &s, const char *line);
 /* the `autoview` event (hidden branches and zoom), for a client that asked for autoinfo */
 void auto_view_subscribe(int on);

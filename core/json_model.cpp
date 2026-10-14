@@ -115,7 +115,7 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
     }
     ani_data_forget(s);
     auto_data_forget(s);
-    diag_forget();
+    diag_forget(s);
     plot_data_changed();
     state_forget();
     renew_auto_dir(s);

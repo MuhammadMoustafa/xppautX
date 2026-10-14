@@ -464,6 +464,8 @@ Order: eighth, after P4/P6/P7 reduce the number of interfaces to migrate.
 
 ### P9: W335 ([#396](https://github.com/MuhammadMoustafa/xppautX/issues/396)) — Put AUTO protocol subscriptions and caches in their owner
 
+**Done (W335):** Client subscriptions, pacing and sent caches moved to ProtocolSession; diagram view data moved to AutoState in Session; session switching preserves subscriptions without sending stale diagram data; 11 baseline globals removed.
+
 Places: auto_data's three, auto_settings' one, json_auto's seven baseline
 symbols and the existing JSON client's/session-switch lifecycle.
 Done: client-owned subscriptions/pacing/sent caches live in its object;
