@@ -438,6 +438,8 @@ Done in W332 ([#393](https://github.com/MuhammadMoustafa/xppautX/issues/393)): r
 
 ### P7: W333 ([#394](https://github.com/MuhammadMoustafa/xppautX/issues/394)) — Merge AUTO wrapper and restart copies into their owners
 
+**Done (W333):** Wrapper, UZR, restart and identical mesh/context preparation share their owners; exact numerical gates and formulation/reference restart regressions pass; dupcheck shrank from 13/19 to 8/11 function/block groups.
+
 Places: all six function and ten block groups classified above; auto_jacobian,
 shared solution header/restart readers and numerical/output context owners.
 Done: common finite-difference orchestration, UZR evaluation, restart parsing

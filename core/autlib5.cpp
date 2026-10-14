@@ -26,53 +26,7 @@
 /* Subroutine */ int 
 fnho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
-
-  /* Local variables */
-
-  integer nfpr;
-
-  doublereal ep;
-  integer ndm;
-
-/* Generates the equations for homoclinic bifurcation analysis */
-
-/* Local */
-
-    /* Parameter adjustments */
-    /*--u;*/
-    /*--icp;*/
-    /*--par;*/
-    /*--f;*/
-  dfdp_dim1 = ndim;
-  dfdu_dim1 = ndim;
-    
-  ndm = iap->ndm;
-  nfpr = iap->nfpr;
-
-/* Generate the function. */
-
-  ffho(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
-
-  if (ijac == 0) {
-    return 0;
-  }
-
-  /* Generate the Jacobian. */
-
-  ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffho(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      dfdu, dfdu_dim1);
-
-  xpp::auto_jacobian::forward_parameters(
-      nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffho(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
-
-  return 0;
+  return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, ffho);
 } /* fnho_ */
 
 /*     ---------- ---- */
@@ -483,61 +437,7 @@ t=1 */
 /* Subroutine */ int 
 icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
-  /* System generated locals */
-  integer dint_dim1;
-
-  /* Local variables */
-
-  integer nfpr;
-
-  doublereal ep;
-  integer nnt0;
-
-  std::vector<doublereal> ff1(iap->nint);
-  std::vector<doublereal> ff2(iap->nint);
-  std::vector<doublereal> uu1(iap->ndim);
-  std::vector<doublereal> uu2(iap->ndim);
-  std::vector<doublereal> dfu((iap->ndim)*(iap->ndim + iap->lib->parameter_count));
-
-/* Generates integral conditions for homoclinic bifurcation analysis */
-
-/* Local */
-
-    /* Parameter adjustments */
-    /*--par;*/
-    /*--icp;*/
-    /*--u;*/
-    /*--uold;*/
-    /*--udot;*/
-    /*--upold;*/
-    /*--f;*/
-  dint_dim1 = nint;
-  
-  nnt0 = iap->nnt0;
-  nfpr = iap->nfpr;
-
-/* Generate the function. */
-
-  fiho(iap, rap, ndim, par, icp, nint, nnt0, u, uold, 
-       udot, upold, f, dfu.data());
-
-  if (ijac == 0) {
-    return 0;
-  }
-
-  /* Generate the Jacobian. */
-
-  ep = xpp::auto_jacobian::central(
-      ndim, nint, u, uu1.data(), uu2.data(), ff1.data(), ff2.data(),
-      [&](const doublereal *uu, doublereal *ff) { fiho(iap, rap, ndim, par, icp, nint, nnt0, uu, uold , udot, upold, ff, dfu.data()); },
-      dint, dint_dim1);
-
-  xpp::auto_jacobian::forward_parameters(
-      nfpr, nint, icp, ep, par,
-      [&](doublereal *ff) { fiho(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dfu.data()); },
-      f, ff1.data(), dint, dint_dim1, ndim);
-
-  return 0;
+  return xpp::auto_jacobian::integral(iap, rap, ndim, par, icp, nint, u, uold, udot, upold, f, ijac, dint, fiho);
 } /* icho_ */
 
 /*     ---------- ---- */
@@ -853,73 +753,8 @@ preho(AutoLib &lib, integer *ndx, integer *ntsr, integer *nar, integer *ndim, in
 /* Subroutine */ int 
 stpnho(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
-  /* System generated locals */
-  integer ups_dim1;
-
-  /* Local variables */
-  integer ndim, ncol, nfpr, ntst, ncol1, i, j, k;
-  doublereal t;
-  integer k1, k2;
-
-  doublereal dt;
-  integer lab, ibr;
-
-  std::vector<doublereal> u(iap->ndim);
-  /* Generates a starting point for the continuation of a branch of */
-  /* of solutions to general boundary value problems by calling the user */
-  /* supplied subroutine STPNT where an analytical solution is given. */
-
-  /* Local */
-
-    /* Parameter adjustments */
-    /*--par;*/
-    /*--icp;*/
-    /*--rlcur;*/
-    /*--rldot;*/
-    /*--tm;*/
-    /*--dtm;*/
-  ups_dim1 = *ndxloc;
-
-  ndim = iap->ndim;
-  ntst = iap->ntst;
-  ncol = iap->ncol;
-  nfpr = iap->nfpr;
-
-/* Generate the (initially uniform) mesh. */
-
-  msh(iap, rap, tm);
-  dt = 1. / (ntst * ncol);
-
-  for (j = 0; j < ntst + 1; ++j) {
-    if (j == ntst) {
-      ncol1 = 1;
-    } else {
-      ncol1 = ncol;
-    }
-    for (i = 0; i < ncol1; ++i) {
-      t = tm[j] + i * dt;
-      k1 = i * ndim;
-      k2 = (i + 1) * ndim - 1;
-      stpho(iap, icp, u.data(), par, &t);
-      for (k = k1; k <= k2; ++k) {
-	ARRAY2D(ups, j, k) = u[k - k1];
-      }
-    }
-  }
-
-  *ntsr = ntst;
-  *ncolrs = ncol;
-  ibr = 1;
-  iap->ibr = ibr;
-  lab = 0;
-  iap->lab = lab;
-
-  for (i = 0; i < nfpr; ++i) {
-    rlcur[i] = par[icp[i]];
-  }
-
-  *nodir = 1;
-  return 0;
+  return auto_uniform_start(iap, rap, par, icp, ntsr, ncolrs, rlcur, *ndxloc, ups, tm, nodir,
+      [&](doublereal *state, doublereal &time) { stpho(iap, icp, state, par, &time); });
 } /* stpnho_ */
 
 /*     ---------- ----- */

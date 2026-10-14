@@ -19,6 +19,28 @@
 #include "model.h"
 #include "xpp_math.h"
 
+namespace {
+struct AutoPointOutputContext {
+  integer ndim, ips, isw, iplt, nmx, npr, ndm, itp, itpst, ibr;
+  doublereal rl0, rl1, a0, a1;
+};
+AutoPointOutputContext point_output_context(const iap_type &iap, const rap_type &rap) {
+  return {iap.ndim, iap.ips, iap.isw, iap.iplt, iap.nmx, iap.npr,
+          iap.ndm, iap.itp, iap.itpst, iap.ibr, rap.rl0, rap.rl1, rap.a0, rap.a1};
+}
+
+struct AutoIntegralContext {
+  integer ndim, ntst, ncol;
+  std::vector<doublereal> weights;
+};
+AutoIntegralContext integral_context(const iap_type &iap) {
+  AutoIntegralContext context{iap.ndim, iap.ntst, iap.ncol,
+                              std::vector<doublereal>(iap.ncol + 1)};
+  wint(context.ncol + 1, context.weights.data());
+  return context;
+}
+} // namespace
+
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*                    Initialization */
@@ -1951,34 +1973,37 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 } /* fnhbae_ */
 
 /*     ------ --------- -------- ------ */
-doublereal 
+namespace {
+// AUTO wraps diagnostic point numbers to four decimal digits.
+constexpr integer user_zero_point_modulus = 10000;
+// IID 3 starts detailed scalar-test diagnostics in AUTO.
+constexpr integer user_zero_diagnostic_level = 3;
+// Preserve the two original diagnostic column widths.
+constexpr int algebraic_user_zero_width = 16;
+constexpr int boundary_user_zero_width = 14;
+
+doublereal user_zero(const iap_type &iap, const doublereal *par,
+                     const integer *icp, logical *chng,
+                     const integer *iuz, const doublereal *vuz, int width) {
+  const integer iuzr = iap.iuzr;
+  const doublereal value = auto_parameter_value(
+      *iap.lib->session, f2c::abs(iuz[iuzr]),
+      {icp, static_cast<std::size_t>(iap.nfpr)},
+      {par, static_cast<std::size_t>(iap.lib->parameter_count)}) - vuz[iuzr];
+  *chng = TRUE_;
+  if (iap.iid >= user_zero_diagnostic_level) {
+    xpp::print(iap.lib->fp9, "{:4}{:6}        User Func. {:3} {:{}.6E}\n",
+               f2c::abs(iap.ibr), (iap.ntot + 1) % user_zero_point_modulus,
+               iuzr, value, width);
+  }
+  return value;
+}
+} // namespace
+
+doublereal
 fnuzae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, integer *iuz, doublereal *vuz)
 {
-  /* System generated locals */
-  doublereal ret_val;
-
-  /* Local variables */
-  integer ntop, ntot, iuzr, iid, ibr;
-
-  /* Parameter adjustments */
-  /*--vuz;*/
-  /*--iuz;*/
-  /*--par;*/
-
-  iid = iap->iid;
-  iuzr = iap->iuzr;
-  ibr = iap->ibr;
-  ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
-
-  ret_val = auto_parameter_value(*iap->lib->session,f2c::abs(iuz[iuzr]),{icp,static_cast<std::size_t>(iap->nfpr)},{par,static_cast<std::size_t>(iap->lib->parameter_count)}) - vuz[iuzr];
-  *chng = TRUE_;
-
-  if (iid >= 3) {
-    xpp::print(iap->lib->fp9,"{:4}{:6}        User Func. {:3} {:16.6E}\n",f2c::abs(ibr),ntop,iuzr,ret_val);	
-  }
-
-  return ret_val;
+  return user_zero(*iap, par, icp, chng, iuz, vuz, algebraic_user_zero_width);
 } /* fnuzae_ */
 
 /* ----------------------------------------------------------------------- */
@@ -2615,15 +2640,14 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 {
 
     /* Local variables */
-  integer labw, ndim, nins, iplt, ntot, i;
-  doublereal a0, a1;
-  integer istop, itpst, ntots;
+  integer labw, nins, ntot, i;
+
+  integer istop, ntots;
   doublereal ss;
 
-  doublereal rl0, rl1;
-  integer iab, lab, ibr, ndm;
+  integer iab, lab;
   doublereal amp;
-  integer ips, itp, npr, isw, nmx;
+
   int iflag=0;
   xpp::AutoStopAt stop_at = {0}; /* xppautX: T23 */
 
@@ -2660,21 +2684,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /*--rlcur;*/
   /*--icp;*/
 
-  ndim = iap->ndim;
-  ips = iap->ips;
-  isw = iap->isw;
-  iplt = iap->iplt;
-  nmx = iap->nmx;
-  npr = iap->npr;
-  ndm = iap->ndm;
-  itp = iap->itp;
-  itpst = iap->itpst;
-  ibr = iap->ibr;
-
-  rl0 = rap->rl0;
-  rl1 = rap->rl1;
-  a0 = rap->a0;
-  a1 = rap->a1;
+  auto context = point_output_context(*iap, *rap);
 
   ntot = iap->ntot;
   ++ntot;
@@ -2685,26 +2695,26 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* ITP is set to 4 every NPR steps along a branch, and the entire */
 /* solution is written on unit 8. */
 
-  if (npr != 0) {
-    if (ntot % npr == 0 && itp % 10 == 0) {
-      itp = itpst * 10 + 4;
+  if (context.npr != 0) {
+    if (ntot % context.npr == 0 && context.itp % 10 == 0) {
+      context.itp = context.itpst * 10 + 4;
     }
-    iap->itp = itp;
+    iap->itp = context.itp;
   }
 
   /* CHECK WHETHER LIMITS OF THE BIFURCATION DIAGRAM HAVE BEEN REACHED : */
 
-  iab = f2c::abs(iplt);
+  iab = f2c::abs(context.iplt);
 
-  if (iab <= ndim && iab > 0) {
+  if (iab <= context.ndim && iab > 0) {
     amp = u[-1 + iab];
-  } else if (iplt > ndim && iplt <= (ndim*2)) {
-    amp = u[-1 + iplt - ndim];
-  } else if (iplt > (ndim*2) && iplt <= ndim * 3) {
-    amp = u[-1 + iplt - (ndim*2)];
+  } else if (context.iplt > context.ndim && context.iplt <= (context.ndim*2)) {
+    amp = u[-1 + context.iplt - context.ndim];
+  } else if (context.iplt > (context.ndim*2) && context.iplt <= context.ndim * 3) {
+    amp = u[-1 + context.iplt - (context.ndim*2)];
   } else {
     ss = 0.;
-    for (i = 0; i < ndm; ++i) {
+    for (i = 0; i < context.ndm; ++i) {
       ss += u[i] * u[i];
     }
     amp = sqrt(ss);
@@ -2718,25 +2728,25 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */
   if (istop == 1 && !xpp::job::cancelled()) { /* xppautX: cancel: EP, not MX */
     /*        Maximum number of iterations reached somewhere. */
-    itp = -9 - itpst * 10;
-    iap->itp = itp;
+    context.itp = -9 - context.itpst * 10;
+    iap->itp = context.itp;
     stop_at.noconv = 1, stop_at.user = 0;
   } else if (istop == -1) {
     /*        ** UZR endpoint */
-    itp = itpst * 10 + 9;
-    iap->itp = itp;
+    context.itp = context.itpst * 10 + 9;
+    iap->itp = context.itp;
   } else {
-    if (rlcur[0] < rl0 || rlcur[0] > rl1 || amp < a0 || amp > a1 || ntot 
-	== nmx|| iflag==1) {
+    if (rlcur[0] < context.rl0 || rlcur[0] > context.rl1 || amp < context.a0 || amp > context.a1 || ntot
+	== context.nmx|| iflag==1) {
       istop = 1;
       iap->istop = istop;
-      itp = itpst * 10 + 9;
-      iap->itp = itp;
+      context.itp = context.itpst * 10 + 9;
+      iap->itp = context.itp;
     }
   }
 
   labw = 0;
-  if (itp % 10 != 0) {
+  if (context.itp % 10 != 0) {
     lab = iap->lab;
     ++lab;
     iap->lab = lab;
@@ -2747,17 +2757,17 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   ntots = ntot;
   nins = iap->nins;
-  if (f2c::abs(ips) == 1 && f2c::abs(isw) != 2 && ntot > 1) {
-    if (nins == ndim) {
+  if (f2c::abs(context.ips) == 1 && f2c::abs(context.isw) != 2 && ntot > 1) {
+    if (nins == context.ndim) {
       ntots = -ntot;
     }
   }
   xpp::addbif(iap,rap,ntots,iap->ibr,par,icp,labw,&amp, u, u, u, u);
-  wrline(iap, rap, par, icp, &icp[iap->lib->parameter_count], &ibr, &ntots,
+  wrline(iap, rap, par, icp, &icp[iap->lib->parameter_count], &context.ibr, &ntots,
 	 &labw, &amp, u);
   if (iap->istop != 0) { /* xppautX: why the branch ended (auto_stop.h, T23) */
-    stop_at.br = ibr, stop_at.pt = ntot, stop_at.ipar = icp[0], stop_at.par = rlcur[0], stop_at.norm = amp;
-    stop_at.rl0 = rl0, stop_at.rl1 = rl1, stop_at.a0 = a0, stop_at.a1 = a1, stop_at.nmx = nmx;
+    stop_at.br = context.ibr, stop_at.pt = ntot, stop_at.ipar = icp[0], stop_at.par = rlcur[0], stop_at.norm = amp;
+    stop_at.rl0 = context.rl0, stop_at.rl1 = context.rl1, stop_at.a0 = context.a0, stop_at.a1 = context.a1, stop_at.nmx = context.nmx;
     stop_at.mark = iap->istop == -1;
     if (stop_at.mark) stop_at.user = 0;
     xpp::auto_stop_branch_end(*iap->lib->session, &stop_at);
@@ -4126,10 +4136,9 @@ newlab(iap_type *iap, rap_type *rap)
 {
 
   /* Local variables */
-  integer mlab, ibrs, nars;
+  integer mlab, ibrs;
 
-  integer labrs, nskip, nfprs, itprs, iswrs, ntplrs, ntotrs, lab, 
-    ibr, mbr, ips, itp, irs, isw;
+  integer labrs, nskip, lab, ibr, mbr, ips, itp, irs, isw;
   logical eof3;
 
   /* Determine a suitable label when restarting. */
@@ -4146,32 +4155,12 @@ newlab(iap_type *iap, rap_type *rap)
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
 
  L1:
-  if (!tr.read(ibrs)) {
-    goto L2;
-  }
-  if (!tr.read(ntotrs)) {
-    goto L2;
-  }
-  if (!tr.read(itprs)) {
-    goto L2;
-  }
-  if (!tr.read(labrs)) {
-    goto L2;
-  }
-  if (!tr.read(nfprs)) {
-    goto L2;
-  }
-  if (!tr.read(iswrs)) {
-    goto L2;
-  }
-  if (!tr.read(ntplrs)) {
-    goto L2;
-  }
-  if (!tr.read(nars)) {
-    goto L2;
-  }
-  if (!tr.read(nskip)) {
-    goto L2;
+  {
+    xpp::AutoSolutionHeader header;
+    if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) goto L2;
+    ibrs = header.ibr;
+    labrs = header.lab;
+    nskip = header.nskip;
   }
   /*go to the end of the line*/
   tr.skip_line();
@@ -4207,6 +4196,20 @@ newlab(iap_type *iap, rap_type *rap)
 
   return 0;
 } /* newlab_ */
+
+bool read_auto_restart_header(iap_type *iap, const rap_type *rap,
+                              xpp::TokenReader &reader, xpp::AutoSolutionHeader &header,
+                              integer *ntst, integer *ncol) {
+  integer free;
+  logical found;
+  findlb(iap, rap, iap->irs, &free, &found);
+  reader = xpp::TokenReader::attach(iap->lib->fp3);
+  if (!xpp::read_auto_solution_header(reader, header, iap->lib->parameter_count)) return false;
+  *ntst = header.ntst;
+  *ncol = header.ncol;
+  iap->ibr = header.ibr;
+  return true;
+}
 
 int 
 findlb(iap_type *iap, const rap_type *rap, 
@@ -4279,9 +4282,9 @@ findlb(iap_type *iap, const rap_type *rap,
 readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
 {
   /* Local variables */
-  integer ndim, i;
-  doublereal t;
-  integer nparr, nar;
+  integer ndim;
+
+  integer nar;
 
   /* Reads the restart data for algebraic problems. findlb() has
      already validated the label line this is reading (it's the same
@@ -4293,17 +4296,12 @@ readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
   xpp::AutoSolutionHeader header;
   if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
   nar = header.nar;
-  nparr = header.npar;
   ndim = nar - 1;
   if (ndim > iap->ndim) return 1;
-  if (!tr.read(t)) return 1;
-  for (i = 0; i < ndim; ++i) {
-    if (!tr.read(u[i])) return 1;
-  }
-  for (i = 0; i < nparr; ++i) {
-    if (!tr.read(par[i])) return 1;
-  }
-  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
+  doublereal time;
+  if (!xpp::read_auto_solution_rows(tr, ndim, 0, 0, 1, 0, ndim,
+                                    u, &time, false, 0, {})) return 1;
+  if (!xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par)) return 1;
 
   return 0;
 } /* readlb_ */
@@ -4340,15 +4338,12 @@ rinpr(iap_type *iap, const integer *ndim1, const integer *ndxloc, doublereal *up
   doublereal ret_val;
 
   /* Local variables */
-  integer ndim, ncol;
 
-  integer ntst, i, j, k;
+  integer i, j, k;
   doublereal s;
   integer k1;
   doublereal sj;
   integer jp1;
-
-  std::vector<doublereal> wi(iap->ncol+1);
 
   /* Computes the L2 inner product of UPS and VPS. */
   /* (Using the first NDIM1 components only.) */
@@ -4361,12 +4356,7 @@ rinpr(iap_type *iap, const integer *ndim1, const integer *ndxloc, doublereal *up
   vps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
     
-  ndim = iap->ndim;
-  ntst = iap->ntst;
-  ncol = iap->ncol;
-
-  /* Weights for the integration formulae : */
-  wint(ncol + 1, wi.data());
+  auto [ndim, ntst, ncol, wi] = integral_context(*iap);
 
   s = 0.;
   for (j = 0; j < ntst; ++j) {
@@ -4415,15 +4405,12 @@ rintg(iap_type *iap, integer *ndxloc, integer ic, doublereal *ups, doublereal *d
   doublereal ret_val;
 
   /* Local variables */
-  integer ndim, ncol;
 
-  integer ntst, j, k;
+  integer j, k;
   doublereal s;
   integer k1;
   doublereal sj;
   integer jp1;
-
-  std::vector<doublereal> wi(iap->ncol+1);
 
   /* Computes the integral of the IC'th component of UPS. */
 
@@ -4433,12 +4420,7 @@ rintg(iap_type *iap, integer *ndxloc, integer ic, doublereal *ups, doublereal *d
   /*--dtm;*/
   ups_dim1 = *ndxloc;
   
-  ndim = iap->ndim;
-  ntst = iap->ntst;
-  ncol = iap->ncol;
-
-  /* Weights for the integration formulae : */
-  wint(ncol + 1, wi.data());
+  auto [ndim, ntst, ncol, wi] = integral_context(*iap);
   s = 0.;
   for (j = 0; j < ntst; ++j) {
     jp1 = j + 1;
@@ -4465,15 +4447,12 @@ rnrm2(iap_type *iap, integer *ndxloc, integer *ic, doublereal *ups, doublereal *
   doublereal ret_val;
 
   /* Local variables */
-  integer ndim, ncol;
 
-  integer ntst, j, k;
+  integer j, k;
   doublereal s;
   integer k1;
   doublereal sj;
   integer jp1;
-
-  std::vector<doublereal> wi(iap->ncol+1);
 
   /* Computes the L2-norm of the IC'th component of UPS. */
 
@@ -4483,12 +4462,7 @@ rnrm2(iap_type *iap, integer *ndxloc, integer *ic, doublereal *ups, doublereal *
   /*--dtm;*/
   ups_dim1 = *ndxloc;
   
-  ndim = iap->ndim;
-  ntst = iap->ntst;
-  ncol = iap->ncol;
-
-  /* Weights for the integration formulae : */
-  wint(ncol + 1, wi.data());
+  auto [ndim, ntst, ncol, wi] = integral_context(*iap);
   s = 0.;
   for (j = 0; j < ntst; ++j) {
     jp1 = j + 1;
@@ -5532,23 +5506,18 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsrs, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
   /* System generated locals */
-  integer ups_dim1, udotps_dim1;
 
     /* Local variables */
   integer ndim, nars;
-  std::array<doublereal, 7> temp;
   integer nfpr;
 
-  integer i, j, k;
+  integer i;
 
-  logical found;
-  integer nparr;
   std::vector<integer> icprs(iap->lib->parameter_count);
 
-  integer nfprs, k1, k2, itprs, nskip1, nskip2;
+  integer nfprs, itprs, nskip1, nskip2;
 
-  integer ndimrd, ndimrs, lab, ibr, ips, irs, isw;
-  logical eof3;
+  integer ndimrd, ndimrs, ips, isw;
 
   /* This subroutine locates and retrieves the information required to */
   /* restart computation at the point with label IRS. */
@@ -5563,34 +5532,19 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /*--icp;*/
   /*--rlcur;*/
   /*--rldot;*/
-  udotps_dim1 = *ndxloc;
-  ups_dim1 = *ndxloc;
     
   ndim = iap->ndim;
   ips = iap->ips;
-  irs = iap->irs;
   isw = iap->isw;
   nfpr = iap->nfpr;
 
-  /* This re-reads the label line findlb() just located and validated
-     (all twelve fields were checked), so these
-     reads are not expected to fail; still bail out before *ntsrs,
-     *ncolrs or nparr can be used as a garbage loop bound or array
-     index below. */
-  findlb(iap, rap, irs, &nfprs, &found);
-  xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
+  xpp::TokenReader tr;
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
-  ibr = header.ibr;
+  if (!read_auto_restart_header(iap, rap, tr, header, ntsrs, ncolrs)) return 1;
   itprs = header.itp;
-  lab = header.lab;
   nfprs = header.nfpr;
   nars = header.nar;
-  *ntsrs = header.ntst;
-  *ncolrs = header.ncol;
-  nparr = header.npar;
-  iap->ibr = ibr;
-  iap->lab = lab;
+  iap->lab = header.lab;
 
   ndimrs = nars - 1;
   nskip1 = (ndimrs + 1) / 8 - ndim / 7;
@@ -5601,32 +5555,8 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     ndimrd = ndimrs;
   }
 
-  for (j = 0; j < *ntsrs; ++j) {
-    for (i = 0; i < *ncolrs; ++i) {
-      k1 = i * ndim;
-      k2 = k1 + ndimrd - 1;
-      if (!tr.read(temp[i])) return 1;
-      for (k = k1; k <= k2; ++k) {
-	if (!tr.read(ARRAY2D(ups, j, k))) return 1;
-      }
-      /*go to the end of the line*/
-      tr.skip_line();
-	    
-      if (nskip1 > 0) {
-	skip3(iap->lib->fp3, &nskip1, &eof3);
-      }
-    }
-    tm[j] = temp[0];
-  }
-  if (!tr.read(tm[*ntsrs])) return 1;
-  for (k = 0; k < ndimrd; ++k) {
-    if (!tr.read(ARRAY2D(ups, *ntsrs, k))) return 1;
-  }
-  /*go to the end of the line*/
-  tr.skip_line();
-  if (nskip1 > 0) {
-    skip3(iap->lib->fp3, &nskip1, &eof3);
-  }
+  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsrs, *ncolrs, *ndxloc,
+                                    0, ndimrd, ups, tm, true, nskip1, {})) return 1;
 
   for (i = 0; i < nfprs; ++i) {
     if (!tr.read(icprs[i])) return 1;
@@ -5637,35 +5567,12 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read U-dot (deriv. with respect to arclength along solution branch). */
 
-  for (j = 0; j < *ntsrs; ++j) {
-    for (i = 0; i < *ncolrs; ++i) {
-      k1 = i * ndim;
-      k2 = k1 + ndimrd - 1;
-      for (k = k1; k <= k2; ++k) {
-	if (!tr.read(ARRAY2D(udotps, j, k))) return 1;
-      }
-      /*go to the end of the line*/
-      tr.skip_line();
-      if (nskip2 > 0) {
-	skip3(iap->lib->fp3, &nskip2, &eof3);
-      }
-    }
-  }
-  for (k = 0; k < ndimrd; ++k) {
-    if (!tr.read(ARRAY2D(udotps, *ntsrs, k))) return 1;
-  }
-  /*go to the end of the line*/
-  tr.skip_line();
-  if (nskip2 > 0) {
-    skip3(iap->lib->fp3, &nskip2, &eof3);
-  }
+  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsrs, *ncolrs, *ndxloc,
+                                    0, ndimrd, udotps, nullptr, true, nskip2, {})) return 1;
 
   /* Read the parameter values. */
 
-  for (i = 0; i < nparr; ++i) {
-    if (!tr.read(par[i])) return 1;
-  }
-  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
+  if (!xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par)) return 1;
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = par[icp[i]];
   }
@@ -5702,79 +5609,74 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   return 0;
 } /* stpnbv_ */
 
-/*     ---------- ------ */
-/* Subroutine */ int 
-stpnub(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsrs, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
-{
-  /* System generated locals */
-  integer ups_dim1;
-
-  /* Local variables */
-  integer ndim, ncol, nfpr, ntst, ncol1, i, j, k;
-  doublereal t;
-  integer k1, k2;
-
-  doublereal dt;
-  integer lab, ibr;
-
-  std::vector<doublereal> u(iap->ndim);
-
-/* Generates a starting point for the continuation of a branch of */
-/* of solutions to general boundary value problems by calling the user */
-/* supplied subroutine STPNT where an analytical solution is given. */
-
-/* Local */
-
-  /* Parameter adjustments */
-  /*--par;*/
-  /*--icp;*/
-  /*--rlcur;*/
-  /*--rldot;*/
-  /*--tm;*/
-  /*--dtm;*/
-  ups_dim1 = *ndxloc;
-
-  ndim = iap->ndim;
-  ntst = iap->ntst;
-  ncol = iap->ncol;
-  nfpr = iap->nfpr;
-
-/* Generate the (initially uniform) mesh. */
-
+int auto_uniform_start(iap_type *iap, rap_type *rap, doublereal *par,
+                       integer *icp, integer *ntsr, integer *ncolrs,
+                       doublereal *rlcur, integer ndxloc, doublereal *ups,
+                       doublereal *tm, integer *nodir,
+                       const std::function<void(doublereal *, doublereal &)> &evaluate) {
+  const integer ndim = iap->ndim, ntst = iap->ntst, ncol = iap->ncol, nfpr = iap->nfpr;
+  std::vector<doublereal> u(ndim);
   msh(iap, rap, tm);
-  dt = 1. / (ntst * ncol);
-
-  for (j = 0; j < ntst + 1; ++j) {
-    if (j == ntst) {
-      ncol1 = 1;
-    } else {
-      ncol1 = ncol;
+  const doublereal dt = 1. / (ntst * ncol);
+  for (integer j = 0; j < ntst + 1; ++j) {
+    const integer ncol1 = j == ntst ? 1 : ncol;
+    for (integer i = 0; i < ncol1; ++i) {
+      doublereal time = tm[j] + i * dt;
+      const integer k1 = i * ndim, k2 = (i + 1) * ndim;
+      evaluate(u.data(), time);
+      for (integer k = k1; k < k2; ++k) ups[j + k * ndxloc] = u[k - k1];
     }
-    for (i = 0; i < ncol1; ++i) {
-      t = tm[j] + i * dt;
-      k1 = i * ndim;
-      k2 = (i + 1) * ndim;
-      stpnt(*iap->lib->session, ndim, t, u.data(), par);
-      for (k = k1; k < k2; ++k) {
-	ARRAY2D(ups, j, k) = u[k - k1];
+  }
+  *ntsr = ntst;
+  *ncolrs = ncol;
+  iap->ibr = 1;
+  iap->lab = 0;
+  for (integer i = 0; i < nfpr; ++i) rlcur[i] = par[icp[i]];
+  *nodir = 1;
+  return 0;
+}
+
+void auto_hopf_mesh(const iap_type *iap, const rap_type *rap, integer ndxloc,
+                    doublereal *ups, doublereal *udotps, doublereal *upoldp,
+                    doublereal *tm, doublereal *dtm, doublereal *rldot,
+                    const doublereal *u, const doublereal *rnllv, doublereal tpi) {
+  const integer ndim = iap->ndim, ntst = iap->ntst, ncol = iap->ncol;
+  msh(iap, rap, tm);
+  const doublereal dt = 1. / ntst;
+  for (integer j = 0; j < ntst + 1; ++j) {
+    const doublereal time = tm[j];
+    const doublereal sine = xpp::math::sin(tpi * time);
+    const doublereal cosine = xpp::math::cos(tpi * time);
+    for (integer k = 0; k < ndim; ++k) {
+      udotps[j + k * ndxloc] = sine * rnllv[k] + cosine * rnllv[ndim + k];
+      upoldp[j + k * ndxloc] = cosine * rnllv[k] - sine * rnllv[ndim + k];
+      ups[j + k * ndxloc] = u[k];
+    }
+  }
+  for (integer i = 0; i < ncol - 1; ++i) {
+    for (integer j = 0; j < ntst; ++j) {
+      const doublereal time = tm[j] + (i + 1) * (tm[j + 1] - tm[j]) / ncol;
+      const doublereal sine = xpp::math::sin(tpi * time);
+      const doublereal cosine = xpp::math::cos(tpi * time);
+      for (integer k = 0; k < ndim; ++k) {
+        const integer k1 = (i + 1) * ndim + k;
+        udotps[j + k1 * ndxloc] = sine * rnllv[k] + cosine * rnllv[ndim + k];
+        upoldp[j + k1 * ndxloc] = cosine * rnllv[k] - sine * rnllv[ndim + k];
+        ups[j + k1 * ndxloc] = u[k];
       }
     }
   }
+  rldot[0] = 0.;
+  rldot[1] = 0.;
+  for (integer i = 0; i < ntst; ++i) dtm[i] = dt;
+}
 
-  *ntsrs = ntst;
-  *ncolrs = ncol;
-  ibr = 1;
-  iap->ibr = ibr;
-  lab = 0;
-  iap->lab = lab;
-
-  for (i = 0; i < nfpr; ++i) {
-    rlcur[i] = par[icp[i]];
-  }
-
-  *nodir = 1;
-
-  return 0;
+/*     ---------- ------ */
+/* Subroutine */ int
+stpnub(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsrs, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
+{
+  return auto_uniform_start(iap, rap, par, icp, ntsrs, ncolrs, rlcur, *ndxloc, ups, tm, nodir,
+      [&](doublereal *state, doublereal &time) { stpnt(*iap->lib->session, iap->ndim, time, state, par); });
 } /* stpnub_ */
 
 /*     ---------- ------ */
@@ -6375,26 +6277,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 doublereal 
 fnuzbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz)
 {
-  /* System generated locals */
-  doublereal ret_val;
-
-    /* Local variables */
-  integer ntop, ntot, iuzr, iid, ibr;
-
-  iid = iap->iid;
-  iuzr = iap->iuzr;
-  ibr = iap->ibr;
-  ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
-
-  ret_val = auto_parameter_value(*iap->lib->session,f2c::abs(iuz[iuzr]),{icp,static_cast<std::size_t>(iap->nfpr)},{par,static_cast<std::size_t>(iap->lib->parameter_count)}) - vuz[iuzr];
-  *chng = TRUE_;
-
-  if (iid >= 3) {
-    xpp::print(iap->lib->fp9,"{:4}{:6}        User Func. {:3} {:14.6E}\n",f2c::abs(ibr),ntop,iuzr,ret_val);	
-  }
-
-  return ret_val;
+  return user_zero(*iap, par, icp, chng, iuz, vuz, boundary_user_zero_width);
 } /* fnuzbv_ */
 
 /*     ---------- ------ */
@@ -6480,7 +6363,7 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
 stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu)
 {
     /* Local variables */
-  integer labw, ndim, ibrs, nins, iplt, itmp, jtmp, ntot;
+  integer labw, ibrs, nins, itmp, jtmp, ntot;
   int iflag=0;
   xpp::AutoStopAt stop_at = {0}; /* xppautX: T23 */
   integer i;
@@ -6488,14 +6371,12 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   std::vector<double> u_low(iap->ndim);
   std::vector<double> u_0(iap->ndim);
   std::vector<double> u_bar(iap->ndim);
-  doublereal a0, a1;
-  integer istop, itpst, n2, ntots;
 
-  doublereal rl0, rl1;
+  integer istop, n2, ntots;
 
-  integer iab, lab, ibr, ndm;
+  integer iab, lab;
   doublereal amp;
-  integer ips, itp, npr, isw, nmx;
+
   std::array<doublereal, 7> umx;
 
   /* Writes the bifurcation diagram on unit 7 (Differential Equations) */
@@ -6529,21 +6410,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
 /* Local */
 
-  ndim = iap->ndim;
-  ips = iap->ips;
-  isw = iap->isw;
-  iplt = iap->iplt;
-  nmx = iap->nmx;
-  npr = iap->npr;
-  ndm = iap->ndm;
-  itp = iap->itp;
-  itpst = iap->itpst;
-  ibr = iap->ibr;
-
-  rl0 = rap->rl0;
-  rl1 = rap->rl1;
-  a0 = rap->a0;
-  a1 = rap->a1;
+  auto context = point_output_context(*iap, *rap);
 
   ntot = iap->ntot;
   ++ntot;
@@ -6553,30 +6420,30 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 */
 /* solution is written on unit 8. */
 
-  if (npr != 0) {
-    if (ntot % npr == 0 && itp % 10 == 0) {
-      itp = itpst * 10 + 4;
+  if (context.npr != 0) {
+    if (ntot % context.npr == 0 && context.itp % 10 == 0) {
+      context.itp = context.itpst * 10 + 4;
     }
-    iap->itp = itp;
+    iap->itp = context.itp;
   }
 
   /* Check whether limits of the bifurcation diagram have been reached : */
 
-  iab = f2c::abs(iplt);
-  if (iab == 0 || iab > ndm * 3) {
-    amp = sqrt(rnrmsq(iap, &ndm, ndxloc, ups, dtm, thu));
+  iab = f2c::abs(context.iplt);
+  if (iab == 0 || iab > context.ndm * 3) {
+    amp = sqrt(rnrmsq(iap, &context.ndm, ndxloc, ups, dtm, thu));
   }
-  if (iplt > 0 && iab <= ndm) {
+  if (context.iplt > 0 && iab <= context.ndm) {
     amp = rmxups(iap, ndxloc, &iab, ups);
   }
-  if (iplt > ndm && iab <= (ndm * 2)) {
-    amp = rintg(iap, ndxloc, iab - ndm, ups, dtm);
+  if (context.iplt > context.ndm && iab <= (context.ndm * 2)) {
+    amp = rintg(iap, ndxloc, iab - context.ndm, ups, dtm);
   }
-  if (iplt > (ndm * 2) && iab <= ndm * 3) {
-    integer tmp = iab - (ndm * 2);
+  if (context.iplt > (context.ndm * 2) && iab <= context.ndm * 3) {
+    integer tmp = iab - (context.ndm * 2);
     amp = rnrm2(iap, ndxloc, &tmp, ups, dtm);
   }
-  if (iplt < 0 && iab <= ndm) {
+  if (context.iplt < 0 && iab <= context.ndm) {
     amp = rmnups(iap, ndxloc, &iab, ups);
   }
 
@@ -6588,27 +6455,27 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */
   if (istop == 1 && !xpp::job::cancelled()) { /* xppautX: cancel: EP, not MX */
     /*        ** Maximum number of iterations reached somewhere. */
-    itp = -9 - itpst * 10;
-    iap->itp = itp;
+    context.itp = -9 - context.itpst * 10;
+    iap->itp = context.itp;
     stop_at.noconv = 1, stop_at.user = 0;
   } else if (istop == -1) {
     /*        ** UZR endpoint */
-    itp = itpst * 10 + 9;
-    iap->itp = itp;
+    context.itp = context.itpst * 10 + 9;
+    iap->itp = context.itp;
   } else {
-    if (par[icp[0]] < rl0 || par[icp[0]] > rl1 || amp < a0 || amp > a1 || 
-	ntot >= nmx || iflag==1 ) { /* more bye auto */
+    if (par[icp[0]] < context.rl0 || par[icp[0]] > context.rl1 || amp < context.a0 || amp > context.a1 ||
+	ntot >= context.nmx || iflag==1 ) { /* more bye auto */
       istop = 1;
       iap->istop = istop;
-      itp = itpst * 10 + 9;
-      iap->itp = itp;
+      context.itp = context.itpst * 10 + 9;
+      iap->itp = context.itp;
     }
   }
 
   /* All special points receive label: */
 
   labw = 0;
-  if (itp % 10 != 0) {
+  if (context.itp % 10 != 0) {
     lab = iap->lab;
     ++lab;
     iap->lab = lab;
@@ -6617,7 +6484,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   /* Compute maxima of solution components. */
 
-  n2 = ndm;
+  n2 = context.ndm;
   if (n2 > 7) {
     n2 = 7;
   }
@@ -6637,12 +6504,12 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     
   /* Determine stability, and write output on units 7 and 8. */
 
-  ibrs = ibr;
+  ibrs = context.ibr;
   ntots = ntot;
-  if (ips == 2 && f2c::abs(isw) != 2) {
-    ibrs = -ibr;
+  if (context.ips == 2 && f2c::abs(context.isw) != 2) {
+    ibrs = -context.ibr;
     nins = iap->nins;
-    if (nins == ndim) {
+    if (nins == context.ndim) {
       ntots = -ntot;
     }
   }
@@ -6655,8 +6522,8 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   wrline(iap, rap, par, icp, &icp[jtmp], &ibrs, &ntots,
 	 &labw, &amp, umx.data());
   if (iap->istop != 0) { /* xppautX: why the branch ended (auto_stop.h, T23) */
-    stop_at.br = ibr, stop_at.pt = ntot, stop_at.ipar = icp[0], stop_at.par = par[icp[0]], stop_at.norm = amp;
-    stop_at.rl0 = rl0, stop_at.rl1 = rl1, stop_at.a0 = a0, stop_at.a1 = a1, stop_at.nmx = nmx;
+    stop_at.br = context.ibr, stop_at.pt = ntot, stop_at.ipar = icp[0], stop_at.par = par[icp[0]], stop_at.norm = amp;
+    stop_at.rl0 = context.rl0, stop_at.rl1 = context.rl1, stop_at.a0 = context.a0, stop_at.a1 = context.a1, stop_at.nmx = context.nmx;
     stop_at.mark = iap->istop == -1;
     if (stop_at.mark) stop_at.user = 0;
     xpp::auto_stop_branch_end(*iap->lib->session, &stop_at);
@@ -6664,7 +6531,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   /* Write plotting and restart data on unit 8. */
 
-  if (itp % 10 != 0) {
+  if (context.itp % 10 != 0) {
     wrtbv8(iap, rap, par, icp, rldot, ndxloc, ups, 
 	   udotps, tm, dtm);
   }

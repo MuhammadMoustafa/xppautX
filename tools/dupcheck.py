@@ -36,21 +36,6 @@ CORE = ROOT / "core"
 # adding an entry for new code.
 ALLOW = """\
 
-core/autlib1.cpp fnuzae|vendored/numerical, keep: AUTO (Doedel), translated Fortran user-function stubs
-core/autlib1.cpp fnuzbv|vendored/numerical, keep: AUTO (Doedel), translated Fortran user-function stubs
-core/autlib3.cpp fnlp|vendored/numerical, keep: AUTO's fold wrapper has the same shape as its other boundary-condition wrappers after W262
-core/autlib3.cpp fnhd|vendored/numerical, keep: AUTO (Doedel), translated Fortran boundary-condition stubs (fnhd/fnhb/fnhw/fnsp/fnpe/fnpl/fnpd/fntr/fnbl/fnho)
-core/autlib3.cpp fnhb|vendored/numerical, keep: see core/autlib3.cpp fnhd
-core/autlib3.cpp fnhw|vendored/numerical, keep: see core/autlib3.cpp fnhd
-core/autlib3.cpp fnsp|vendored/numerical, keep: see core/autlib3.cpp fnhd
-core/autlib3.cpp fnpe|vendored/numerical, keep: see core/autlib3.cpp fnhd
-core/autlib3.cpp fnpl|vendored/numerical, keep: see core/autlib3.cpp fnhd
-core/autlib3.cpp fnpd|vendored/numerical, keep: see core/autlib3.cpp fnhd
-core/autlib3.cpp fntr|vendored/numerical, keep: see core/autlib3.cpp fnhd
-core/autlib3.cpp fnbl|vendored/numerical, keep: see core/autlib3.cpp fnhd
-core/autlib5.cpp fnho|vendored/numerical, keep: see core/autlib3.cpp fnhd
-core/autlib3.cpp icbl|vendored/numerical, keep: AUTO's integral wrapper has the same shape as icho after W262; each calls its own evaluator
-core/autlib5.cpp icho|vendored/numerical, keep: see core/autlib3.cpp icbl
 core/cvband.cpp CVBandSolve|vendored/numerical, keep: CVODE's band and dense linear solvers (cvband.cpp/cvdense.cpp), the same solve and free by the CVODE API's own design, each over its own matrix type (BandBacksolve/DenseBacksolve, BandFreeMat/DenseFreeMat); W33a looked: keep
 core/cvdense.cpp CVDenseSolve|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
 core/cvband.cpp CVBandFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
@@ -68,9 +53,7 @@ core/graphics.cpp bead_abs|keep: see core/graphics.cpp point
 core/odesol2.cpp discrete|merged (W33a): the step loop they shared is odesol2.cpp's fixed_steps; what is left is each method naming its own two step functions
 core/odesol2.cpp euler|keep: see core/odesol2.cpp discrete
 
-core/autlib1.cpp *block*|vendored/numerical, keep: AUTO (Doedel), translated Fortran; its long repeated per-branch-type blocks are the algorithm's own structure
-core/autlib3.cpp *block*|vendored/numerical, keep: see core/autlib1.cpp *block*
-core/autlib5.cpp *block*|vendored/numerical, keep: see core/autlib1.cpp *block*
+core/autlib3.cpp *block*|numerical, keep: Hopf/traveling-wave augmented matrices have different signs and block roles; preserve their construction order until P11 (W337, #398)
 core/cvband.cpp *block*|vendored/numerical, keep: CVODE's band/dense solvers, translated C of parallel structure by the CVODE API's own design
 core/cvdense.cpp *block*|vendored/numerical, keep: see core/cvband.cpp *block*
 core/dormpri.cpp *block*|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure by the original source's own design

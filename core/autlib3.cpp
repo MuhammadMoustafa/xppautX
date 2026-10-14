@@ -12,6 +12,11 @@
 #include "auto_jacobian.h"
 #include "xpp_math.h"
 
+namespace {
+// Original amplitude of the torus restart's added eigenvector states.
+constexpr doublereal torus_initial_amplitude = 1e-4;
+} // namespace
+
 /* Reused finite-difference scratch belongs to iap->lib: the calling
    Session's AutoLib, or a collocation worker's private AutoLib (W247).
    Rotation counts are computed once per run and only read by workers. */
@@ -26,46 +31,7 @@
 /* Subroutine */ int 
 fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
-
-  /* Local variables */
-
-  doublereal ep;
-  integer ndm;
-
-  /* Generates the equations for the 2-par continuation of folds. */
-
-  /* Local */
-  
-  /* Parameter adjustments */
-  dfdp_dim1 = ndim;
-  dfdu_dim1 = ndim;
-  
-  ndm = iap->ndm;
-  
-  /* Generate the function. */
-  
-  fflp(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
-  
-  if (ijac == 0) {
-    return 0;
-  }
-  
-  /* Generate the Jacobian. */
-  
-  ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { fflp(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      dfdu, dfdu_dim1);
-
-  xpp::auto_jacobian::forward_parameters(
-      1, ndim, icp, ep, par,
-      [&](doublereal *ff) { fflp(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
-
-  return 0;
+  return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, xpp::auto_jacobian::principal_parameter_count, fflp);
 } /* fnlp_ */
 
 
@@ -560,52 +526,7 @@ fnti(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Subroutine */ int 
 fnhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
-
-  /* Local variables */
-
-
-  doublereal ep;
-  integer ndm;
-
-
-  
-
-
-  /* Generates the equations for the 2-parameter continuation of Hopf */
-  /* bifurcation points for maps. */
-
-  /* Local */
-
-    /* Parameter adjustments */
-  dfdp_dim1 = ndim;
-  dfdu_dim1 = ndim;
-    
-  ndm = iap->ndm;
-
-  /* Generate the function. */
-
-  ffhd(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
-
-  if (ijac == 0) {
-    return 0;
-  }
-
-  /* Generate the Jacobian. */
-
-  ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffhd(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      dfdu, dfdu_dim1);
-
-  xpp::auto_jacobian::forward_parameters(
-      1, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffhd(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
-
-  return 0;
+  return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, xpp::auto_jacobian::principal_parameter_count, ffhd);
 } /* fnhd_ */
 
 
@@ -762,52 +683,7 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* Subroutine */ int 
 fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
-
-  /* Local variables */
-
-
-  doublereal ep;
-  integer ndm;
-
-
-  
-
-
-  /* Generates the equations for the 2-parameter continuation of Hopf */
-  /* bifurcation points in ODE. */
-
-  /* Local */
-
-    /* Parameter adjustments */
-
-  dfdp_dim1 = ndim;
-  dfdu_dim1 = ndim;
-    
-  ndm = iap->ndm;
-
-  /* Generate the function. */
-
-  ffhb(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
-
-  if (ijac == 0) {
-    return 0;
-  }
-
-  /* Generate the Jacobian. */
-
-  ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffhb(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      dfdu, dfdu_dim1);
-
-  xpp::auto_jacobian::forward_parameters(
-      1, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffhb(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
-  return 0;
+  return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, xpp::auto_jacobian::principal_parameter_count, ffhb);
 } /* fnhb_ */
 
 
@@ -953,53 +829,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* Subroutine */ int 
 fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
-
-  /* Local variables */
-
-
-  doublereal ep;
-  integer ndm;
-
-
-  
-
-
-  /* Generates the equations for the 2-parameter continuation of a */
-  /* bifurcation to a traveling wave. */
-
-  /* Local */
-
-    /* Parameter adjustments */
-
-  dfdp_dim1 = ndim;
-  dfdu_dim1 = ndim;
-    
-  ndm = iap->ndm;
-
-  /* Generate the function. */
-
-  ffhw(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
-
-  if (ijac == 0) {
-    return 0;
-  }
-
-  /* Generate the Jacobian. */
-
-  ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffhw(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      dfdu, dfdu_dim1);
-
-  xpp::auto_jacobian::forward_parameters(
-      1, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffhw(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
-
-  return 0;
+  return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, xpp::auto_jacobian::principal_parameter_count, ffhw);
 } /* fnhw_ */
 
 
@@ -1376,21 +1206,16 @@ pdble(const iap_type *iap, const rap_type *rap, integer *ndim, integer *ntst, in
 stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
   /* System generated locals */
-  integer ups_dim1, udotps_dim1, upoldp_dim1;
 
     /* Local variables */
-  integer ndim, ncol;
+  integer ndim;
 
   doublereal uold = 0.;
-  integer nfpr, ntst, ndim2, nfpr1;
-  doublereal c;
-  integer i, j, k;
-  doublereal s, t, rimhb;
+  integer nfpr, ndim2, nfpr1;
+
+  integer i, j;
+  doublereal rimhb;
   logical found;
-  integer k1;
-
-  doublereal dt;
-
 
   doublereal period;
 
@@ -1406,16 +1231,10 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Local */
 
-
     /* Parameter adjustments */
-  upoldp_dim1 = *ndxloc;
-  udotps_dim1 = *ndxloc;
-  ups_dim1 = *ndxloc;
   
   ndim = iap->ndim;
   irs = iap->irs;
-  ntst = iap->ntst;
-  ncol = iap->ncol;
   nfpr = iap->nfpr;
 
   findlb(iap, rap, irs, &nfpr1, &found);
@@ -1428,8 +1247,8 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   period = par[xpp::auto_unknown::period];
   tpi = pi(2.0);
   rimhb = tpi / period;
-  *ntsr = ntst;
-  *ncolrs = ncol;
+  *ntsr = iap->ntst;
+  *ncolrs = iap->ncol;
 
   ndim2 = ndim * 2;
   for (i = 0; i < ndim2; ++i) {
@@ -1461,40 +1280,8 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
 /* Generate the (initially uniform) mesh. */
 
-  msh(iap, rap, tm);
-  dt = 1. / ntst;
-
-  for (j = 0; j < ntst + 1; ++j) {
-    t = tm[j];
-    s = xpp::math::sin(tpi * t);
-    c = xpp::math::cos(tpi * t);
-    for (k = 0; k < ndim; ++k) {
-      ARRAY2D(udotps, j, k) = s * rnllv[k] + c * rnllv[ndim + k];
-      ARRAY2D(upoldp, j, k) = c * rnllv[k] - s * rnllv[ndim + k];
-      ARRAY2D(ups, j, k) = u[k];
-    }
-  }
-
-  for (i = 0; i < ncol - 1; ++i) {
-    for (j = 0; j < ntst; ++j) {
-      t = tm[j] + (i + 1) * (tm[j + 1] - tm[j]) / ncol;
-      s = xpp::math::sin(tpi * t);
-      c = xpp::math::cos(tpi * t);
-      for (k = 0; k < ndim; ++k) {
-	k1 = (i + 1) * ndim + k;
-	ARRAY2D(udotps, j, k1) = s * rnllv[k ] + c * rnllv[ndim + k];
-	ARRAY2D(upoldp, j, k1) = c * rnllv[k] - s * rnllv[ndim + k];
-	ARRAY2D(ups, j, k1) = u[k];
-      }
-    }
-  }
-
-  rldot[0] = 0.;
-  rldot[1] = 0.;
-
-  for (i = 0; i < ntst; ++i) {
-    dtm[i] = dt;
-  }
+  auto_hopf_mesh(iap, rap, *ndxloc, ups, udotps, upoldp, tm, dtm,
+                 rldot, u.data(), rnllv.data(), tpi);
 
   scaleb(iap, icp, ndxloc, udotps, rldot, dtm, thl, thu);
 
@@ -1698,23 +1485,18 @@ fnwp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
   /* System generated locals */
-  integer ups_dim1, udotps_dim1, upoldp_dim1;
-
 
     /* Local variables */
-  integer ndim, ncol;
+  integer ndim;
 
   doublereal uold = 0.;
   integer nfpr;
 
-  integer ntst, ndim2, nfpr1;
-  doublereal c;
-  integer i, j, k;
-  doublereal s, t, rimhb;
-  logical found;
-  integer k1;
+  integer ndim2, nfpr1;
 
-  doublereal dt;
+  integer i, j;
+  doublereal rimhb;
+  logical found;
 
   doublereal period;
 
@@ -1728,22 +1510,15 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   std::vector<doublereal> dfp((iap->ndim)*iap->lib->parameter_count);
   std::vector<doublereal> dfu((iap->ndim)*(iap->ndim));
 
-
 /* Generates starting data for the continuation of a branch of periodic */
 /* solutions starting from a Hopf bifurcation point (Waves). */
 
 /* Local (Can't use BLLOC here.) */
 
-
     /* Parameter adjustments */
-  upoldp_dim1 = *ndxloc;
-  udotps_dim1 = *ndxloc;
-  ups_dim1 = *ndxloc;
   
   ndim = iap->ndim;
   irs = iap->irs;
-  ntst = iap->ntst;
-  ncol = iap->ncol;
   nfpr = iap->nfpr;
 
   findlb(iap, rap, irs, &nfpr1, &found);
@@ -1756,8 +1531,8 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   period = par[xpp::auto_unknown::period];
   tpi = pi(2.0);
   rimhb = tpi / period;
-  *ntsr = ntst;
-  *ncolrs = ncol;
+  *ntsr = iap->ntst;
+  *ncolrs = iap->ncol;
 
   ndim2 = ndim * 2;
   for (i = 0; i < ndim2; ++i) {
@@ -1785,45 +1560,12 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Generate the (initially uniform) mesh. */
 
-  msh(iap, rap, tm);
-  dt = 1. / ntst;
-
-  for (j = 0; j < ntst + 1; ++j) {
-    t = tm[j];
-    s = xpp::math::sin(tpi * t);
-    c = xpp::math::cos(tpi * t);
-    for (k = 0; k < ndim; ++k) {
-      ARRAY2D(udotps, j, k) = s * rnllv[k] + c * rnllv[ndim + k];
-      ARRAY2D(upoldp, j, k) = c * rnllv[k] - s * rnllv[ndim + k];
-      ARRAY2D(ups, j, k) = u[k];
-    }
-  }
-
-  for (i = 0; i < ncol - 1; ++i) {
-    for (j = 0; j < ntst; ++j) {
-      t = tm[j] + (i + 1) * (tm[j + 1] - tm[j]) / ncol;
-      s = xpp::math::sin(tpi * t);
-      c = xpp::math::cos(tpi * t);
-      for (k = 0; k < ndim; ++k) {
-	k1 = (i + 1) * ndim + k;
-	ARRAY2D(udotps, j, k1) = s * rnllv[k] + c * rnllv[ndim + k];
-	ARRAY2D(upoldp, j, k1) = c * rnllv[k] - s * rnllv[ndim + k];
-	ARRAY2D(ups, j, k1) = u[k];
-      }
-    }
-  }
-
-  rldot[0] = 0.;
-  rldot[1] = 0.;
-
-  for (i = 0; i < ntst; ++i) {
-    dtm[i] = dt;
-  }
+  auto_hopf_mesh(iap, rap, *ndxloc, ups, udotps, upoldp, tm, dtm,
+                 rldot, u.data(), rnllv.data(), tpi);
 
   scaleb(iap, icp, ndxloc, udotps, rldot, dtm, thl, thu);
 
   *nodir = -1;
-
 
   return 0;
 } /* stpnwp_ */
@@ -1839,27 +1581,7 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* Subroutine */ int 
 fnsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-
-    /* Local variables */
-
-  integer ndm;
-
-  /* Generates the equations for taking one time step (Implicit Euler). */
-
-/* Local */
-
-    /* Parameter adjustments */
-    
-  ndm = iap->ndm;
-
-  /* Generate the function and Jacobian. */
-
-  ffsp(iap, rap, ndim, u, uold, icp, par, ijac, f, 
-       dfdu, dfdp, ndm, iap->lib->scratch.dfu, 
-       iap->lib->scratch.dfp);
-
-  return 0;
+  return xpp::auto_jacobian::supplied(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ffsp);
 } /* fnsp_ */
 
 
@@ -1932,26 +1654,7 @@ ffsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Subroutine */ int 
 fnpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-
-    /* Local variables */
-
-  integer ndm;
-
-  /* Generates the equations for taking one time step (Implicit Euler). */
-
-/* Local */
-
-    /* Parameter adjustments */
-    
-  ndm = iap->ndm;
-
-  /* Generate the function and Jacobian. */
-  ffpe(iap, rap, ndim, u, uold, icp, par, ijac, f, 
-       dfdu, dfdp, ndm, iap->lib->scratch.dfu, 
-       iap->lib->scratch.dfp);
-
-  return 0;
+  return xpp::auto_jacobian::supplied(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ffpe);
 } /* fnpe_ */
 
 
@@ -2037,56 +1740,12 @@ icpe(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Subroutine */ int 
 fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
-
-  /* Local variables */
-
-  integer nfpr;
-
-  doublereal ep; 
-  integer ndm;
-
-
-
-
-
-/* Local */
-
-    /* Parameter adjustments */
-  dfdp_dim1 = ndim;
-  dfdu_dim1 = ndim;
-    
-  ndm = iap->ndm;
-  nfpr = iap->nfpr;
-
-/* Generate the function. */
-
-  ffpl(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
-
-  if (ijac == 0) {
-    return 0;
-  }
-
-  /* Generate the Jacobian. */
-
-  ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffpl(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      dfdu, dfdu_dim1);
-
-  xpp::auto_jacobian::forward_parameters(
-      nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffpl(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
-
-  return 0;
+  return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, ffpl);
 } /* fnpl_ */
 
 
 /*     ---------- ---- */
-/* Subroutine */ int 
+/* Subroutine */ int
 ffpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
@@ -2252,81 +1911,40 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Subroutine */ int 
 stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
-  
 
   /* System generated locals */
   integer ups_dim1, udotps_dim1;
 
-
-
   /* Local variables */
   integer ndim;
-  std::array<doublereal, 7> temp;
-  integer nfpr, nfpr1, nrsp1, i, j, k;
-  logical found;
-  integer nparr, k1, k2;
+  integer nfpr, nrsp1, i, j, k;
+
+  integer k1, k2;
   std::vector<integer> icprs(iap->lib->parameter_count);
 
   doublereal rd1, rd2;
-  integer ibr, ndm, irs;
-
-  
-
-
-
-
-
+  integer ndm;
 
   /* Generates starting data for the 2-parameter continuation of folds */
   /* on a branch of periodic solutions. */
 
   /* Local */
 
-
   /* Parameter adjustments */
   udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
 
   ndim = iap->ndim;
-  irs = iap->irs;
   ndm = iap->ndm;
   nfpr = iap->nfpr;
-  ibr = iap->ibr;
 
-  /* This re-reads the label line findlb() just located and validated
-     (all twelve fields were checked), so these
-     reads are not expected to fail; still bail out before *ntsr,
-     *ncolrs or nparr can be used as a garbage loop bound or array
-     index below. */
-  findlb(iap, rap, irs, &nfpr1, &found);
-  xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
+  xpp::TokenReader tr;
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
-  ibr = header.ibr;
-  nfpr1 = header.nfpr;
-  *ntsr = header.ntst;
-  *ncolrs = header.ncol;
-  nparr = header.npar;
-  iap->ibr = ibr;
+  if (!read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs)) return 1;
   nrsp1 = *ntsr + 1;
 
-  for (j = 0; j < *ntsr; ++j) {
-    for (i = 0; i < *ncolrs; ++i) {
-      k1 = i * ndim;
-      k2 = k1 + ndm - 1;
-      if (!tr.read(temp[i])) return 1;
-      for (k = k1; k <= k2; ++k) {
-	if (!tr.read(ARRAY2D(ups, j, k))) return 1;
-      }
-    }
-    tm[j] = temp[0];
-  }
-
-  if (!tr.read(tm[-1 + nrsp1])) return 1;
-  for (k = 0; k < ndm; ++k) {
-    if (!tr.read(ARRAY2D(ups, *ntsr, k))) return 1;
-  }
-
+  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, ups, tm, false, 0, {})) return 1;
   if (!tr.read(icprs[0])) return 1;
   if (!tr.read(icprs[1])) return 1;
   if (!tr.read(rd1)) return 1;
@@ -2334,27 +1952,11 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read U-dot (derivative with respect to arclength). */
 
-  for (j = 0; j < *ntsr; ++j) {
-    for (i = 0; i < *ncolrs; ++i) {
-      k1 = i* ndim;
-      k2 = k1 + ndm - 1;
-      for (k = k1; k <= k2; ++k) {
-	if (!tr.read(ARRAY2D(udotps, j, k))) return 1;
-      }
-    }
-  }
-
-
-  for (k = 0; k < ndm; ++k) {
-    if (!tr.read(ARRAY2D(udotps, *ntsr, k))) return 1;
-  }
-
+  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, udotps, nullptr, false, 0, {})) return 1;
   /* Read the parameter values. */
 
-  for (i = 0; i < nparr; ++i) {
-    if (!tr.read(par[i])) return 1;
-  }
-  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
+  if (!xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par)) return 1;
 
   /* Complement starting data */
   par[xpp::auto_unknown::fold_beta] = 0.;
@@ -2396,7 +1998,6 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   *nodir = 0;
 
-
   return 0;
 } /* stpnpl_ */
 
@@ -2411,51 +2012,7 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* Subroutine */ int 
 fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
-
-  /* Local variables */
-
-  integer nfpr;
-
-  doublereal ep;
-  integer ndm;
-
-
-
-
-
-/* Local */
-
-    /* Parameter adjustments */
-  dfdp_dim1 = ndim;
-  dfdu_dim1 = ndim;
-    
-  ndm = iap->ndm;
-  nfpr = iap->nfpr;
-
-/* Generate the function. */
-
-  ffpd(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
-
-  if (ijac == 0) {
-    return 0;
-  }
-
-  /* Generate the Jacobian. */
-
-  ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffpd(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      dfdu, dfdu_dim1);
-
-  xpp::auto_jacobian::forward_parameters(
-      nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffpd(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
-
-  return 0;
+  return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, ffpd);
 } /* fnpd_ */
 
 
@@ -2617,78 +2174,38 @@ icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Subroutine */ int 
 stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
-  
 
   /* System generated locals */
   integer ups_dim1, udotps_dim1;
 
-
   /* Local variables */
   integer ndim;
-  std::array<doublereal, 7> temp;
-  integer nfpr, nfpr1, nrsp1, i, j, k;
-  logical found;
-  integer nparr, k1, k2;
+  integer nfpr, i, j, k;
+
+  integer k1, k2;
   std::vector<integer> icprs(iap->lib->parameter_count);
 
-  integer ibr, ndm, irs;
-
-    
-
-
-
-
-
+  integer ndm;
 
   /* Generates starting data for the 2-parameter continuation of */
   /* period-doubling bifurcations on a branch of periodic solutions. */
 
   /* Local */
 
-
   /* Parameter adjustments */
   udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
 
   ndim = iap->ndim;
-  irs = iap->irs;
   ndm = iap->ndm;
   nfpr = iap->nfpr;
-  ibr = iap->ibr;
 
-  /* This re-reads the label line findlb() just located and validated
-     (all twelve fields were checked), so these
-     reads are not expected to fail; still bail out before *ntsr,
-     *ncolrs or nparr can be used as a garbage loop bound or array
-     index below. */
-  findlb(iap, rap, irs, &nfpr1, &found);
-  xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
+  xpp::TokenReader tr;
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
-  ibr = header.ibr;
-  nfpr1 = header.nfpr;
-  *ntsr = header.ntst;
-  *ncolrs = header.ncol;
-  nparr = header.npar;
-  iap->ibr = ibr;
-  nrsp1 = *ntsr + 1;
+  if (!read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs)) return 1;
 
-  for (j = 0; j < *ntsr; ++j) {
-    for (i = 0; i < *ncolrs; ++i) {
-      k1 = i * ndim;
-      k2 = k1 + ndm - 1;
-      if (!tr.read(temp[i])) return 1;
-      for (k = k1; k <= k2; ++k) {
-	if (!tr.read(ARRAY2D(ups, j, k))) return 1;
-      }
-    }
-    tm[j] = temp[0];
-  }
-  if (!tr.read(tm[-1 + nrsp1])) return 1;
-  for (k = 0; k < ndm; ++k) {
-    if (!tr.read(ARRAY2D(ups, *ntsr, k))) return 1;
-  }
-
+  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, ups, tm, false, 0, {})) return 1;
   if (!tr.read(icprs[0])) return 1;
   if (!tr.read(icprs[1])) return 1;
   if (!tr.read(rldot[0])) return 1;
@@ -2696,27 +2213,11 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read U-dot (derivative with respect to arclength). */
 
-  for (j = 0; j < *ntsr; ++j) {
-    for (i = 0; i < *ncolrs; ++i) {
-      k1 = i* ndim;
-      k2 = k1 + ndm - 1;
-      for (k = k1; k <= k2; ++k) {
-	if (!tr.read(ARRAY2D(udotps, j, k))) return 1;
-      }
-    }
-  }
-
-
-  for (k = 0; k < ndm; ++k) {
-    if (!tr.read(ARRAY2D(udotps, *ntsr, k))) return 1;
-  }
-
+  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, udotps, nullptr, false, 0, {})) return 1;
   /* Read the parameter values. */
 
-  for (i = 0; i < nparr; ++i) {
-    if (!tr.read(par[i])) return 1;
-  }
-  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
+  if (!xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par)) return 1;
 
   /* Complement starting data */
   par[xpp::auto_unknown::doubling_norm] = 0.;
@@ -2742,7 +2243,6 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   *nodir = 0;
 
-
   return 0;
 } /* stpnpd_ */
 
@@ -2757,54 +2257,7 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* Subroutine */ int 
 fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
-
-  /* Local variables */
-
-  integer nfpr;
-
-  doublereal ep;
-  integer ndm;
-
-
-
-
-
-/* Generates the equations for the 2-parameter continuation of */
-/* torus bifurcations. */
-
-/* Local */
-
-    /* Parameter adjustments */
-  dfdp_dim1 = ndim;
-  dfdu_dim1 = ndim;
-    
-  ndm = iap->ndm;
-  nfpr = iap->nfpr;
-
-/* Generate the function. */
-
-  fftr(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
-
-  if (ijac == 0) {
-    return 0;
-  }
-
-  /* Generate the Jacobian. */
-
-  ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { fftr(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      dfdu, dfdu_dim1);
-
-  xpp::auto_jacobian::forward_parameters(
-      nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { fftr(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
-
-  return 0;
+  return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, fftr);
 } /* fntr_ */
 
 
@@ -2992,82 +2445,43 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Subroutine */ int 
 stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
-  
 
   /* System generated locals */
   integer ups_dim1, udotps_dim1;
 
   /* Local variables */
   integer ndim;
-  std::array<doublereal, 7> temp;
-  integer nfpr, nfpr1, i, j, k;
-  logical found;
-  integer nparr, k1, k2, k3;
+  integer nfpr, i;
+
   std::vector<integer> icprs(iap->lib->parameter_count);
 
-  integer ibr, ndm, k2p1, irs;
-
-    
-
-
-
-
-
+  integer ndm;
 
   /* Generates starting data for the 2-parameter continuation of torus */
   /* bifurcations. */
 
   /* Local */
 
-
   /* Parameter adjustments */
   udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
     
   ndim = iap->ndim;
-  irs = iap->irs;
   ndm = iap->ndm;
   nfpr = iap->nfpr;
-  ibr = iap->ibr;
 
-  /* This re-reads the label line findlb() just located and validated
-     (all twelve fields were checked), so these
-     reads are not expected to fail; still bail out before *ntsr,
-     *ncolrs or nparr can be used as a garbage loop bound or array
-     index below. */
-  findlb(iap, rap, irs, &nfpr1, &found);
-  xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
+  xpp::TokenReader tr;
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
-  ibr = header.ibr;
-  nfpr1 = header.nfpr;
-  *ntsr = header.ntst;
-  *ncolrs = header.ncol;
-  nparr = header.npar;
-  iap->ibr = ibr;
+  if (!read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs)) return 1;
 
-  for (j = 0; j < *ntsr; ++j) {
-    for (i = 0; i < *ncolrs; ++i) {
-      k1 = i * ndim;
-      k2 = k1 + ndm - 1;
-      if (!tr.read(temp[i])) return 1;
-      for (k = k1; k <= k2; ++k) {
-	if (!tr.read(ARRAY2D(ups, j, k))) return 1;
-      }
-      k2p1 = k2 + 1;
-      k3 = k2 + ndm;
-      for (k = k2p1; k <= k3; ++k) {
-	ARRAY2D(ups, j, k) = xpp::math::sin(temp[i]) * 1e-4;
-	ARRAY2D(ups, j, (k + ndm)) = xpp::math::cos(temp[i]) * 1e-4;
-      }
-    }
-    tm[j] = temp[0];
-  }
-
-  if (!tr.read(tm[*ntsr])) return 1;
-  for (k = 0; k < ndm; ++k) {
-    if (!tr.read(ARRAY2D(ups, *ntsr, k))) return 1;
-  }
+  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, ups, tm, false, 0, [&](integer j, integer i, doublereal time) {
+        const integer k1 = i * ndim + ndm;
+        for (integer k = k1; k < k1 + ndm; ++k) {
+          ARRAY2D(ups, j, k) = xpp::math::sin(time) * torus_initial_amplitude;
+          ARRAY2D(ups, j, (k + ndm)) = xpp::math::cos(time) * torus_initial_amplitude;
+        }
+      })) return 1;
   for (i = 0; i < ndm; ++i) {
     ARRAY2D(ups, *ntsr, (ndm + i)) = 0.;
     ARRAY2D(ups, *ntsr, ((ndm * 2) + i)) = 0.;
@@ -3082,25 +2496,10 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read the direction vector and initialize the starting direction. */
 
-  for (j = 0; j < *ntsr; ++j) {
-    for (i = 0; i < *ncolrs; ++i) {
-      k1 = i * ndim;
-      k2 = k1 + ndm - 1;
-      for (k = k1; k <= k2; ++k) {
-	if (!tr.read(ARRAY2D(udotps, j, k))) return 1;
-      }
-      k2p1 = k2 + 1;
-      k3 = k2 + ndm;
-      for (k = k2p1; k <= k2; ++k) {
-	ARRAY2D(udotps, j, k) = 0.;
-	ARRAY2D(udotps, j, (k + ndm)) = 0.;
-      }
-    }
-  }
-
-  for (k = 0; k < ndm; ++k) {
-    if (!tr.read(ARRAY2D(udotps, *ntsr, k))) return 1;
-  }
+  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, udotps, nullptr, false, 0, {})) return 1;
+  // Preserve the original interior direction columns; only the endpoint
+  // initialized the added torus columns (the old interior loop was empty).
   for (i = 0; i < ndm; ++i) {
     ARRAY2D(udotps, *ntsr, (ndm + i)) = 0.;
     ARRAY2D(udotps, *ntsr, ((ndm * 2) + i)) = 0.;
@@ -3108,10 +2507,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read the parameter values. */
 
-  for (i = 0; i < nparr; ++i) {
-    if (!tr.read(par[i])) return 1;
-  }
-  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
+  if (!xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par)) return 1;
 
   par[xpp::auto_unknown::torus_norm] = 0.;
 
@@ -3120,7 +2516,6 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
 
   *nodir = 0;
-
 
   return 0;
 } /* stpntr_ */
@@ -3431,42 +2826,28 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Subroutine */ int 
 stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
-  
 
   /* System generated locals */
-  integer ups_dim1, udotps_dim1;
-
-
+  integer ups_dim1;
 
   /* Local variables */
   integer ndim;
-  std::array<doublereal, 7> temp;
   integer nfpr;
   doublereal dump;
 
   doublereal dumu;
-  integer nfpr1, i, j, k;
-  logical found;
-  integer nparr;
+  integer i, j, k;
+
   std::vector<integer> icprs(iap->lib->parameter_count);
 
   integer k1, k2;
   doublereal fs;
 
-  integer ibr, ndm, irs;
+  integer ndm;
   doublereal rld1, rld2;
 
-
   integer temporary_storage_dim1;
-  /* This is a little funky.  In the older version, upoldp was used for some
-     temporary storage in a loop later on.  I wanted to get rid of that
-     my adding a local varialbe.  Unfortunately, things are never that easy.
-     The size of this has the same problems as computing the sizes in
-     rsptbv.  The are various places the sizes are defined (fort.2 and fort.8)
-     and you have to pick the maximum, multiplied by a constant (something
-     like 4 to take into account the increase in size for certain calculations).
-     So, that is why I use ndxloc here.  Also, iap->ncol MAY BE tool small, 
-     but I am not sure how to get value from the fort.8 file into here. */
+  // Objective samples use the target collocation layout and ndxloc stride.
   std::vector<doublereal> temporary_storage((*ndxloc)*(iap->ndim * iap->ncol));
   std::vector<doublereal> u(iap->ndim);
 
@@ -3474,52 +2855,21 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Local */
 
-
   /* Parameter adjustments */
-  udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
   temporary_storage_dim1 = *ndxloc;
   
   ndim = iap->ndim;
-  irs = iap->irs;
   ndm = iap->ndm;
   nfpr = iap->nfpr;
-  ibr = iap->ibr;
 
-  /* This re-reads the label line findlb() just located and validated
-     (all twelve fields were checked), so these
-     reads are not expected to fail; still bail out (freeing the
-     buffers allocated above) before *ntsr, *ncolrs or nparr can be
-     used as a garbage loop bound or array index below. */
-  findlb(iap, rap, irs, &nfpr1, &found);
-  xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
+  xpp::TokenReader tr;
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) goto read_failed;
-  ibr = header.ibr;
-  nfpr1 = header.nfpr;
-  *ntsr = header.ntst;
-  *ncolrs = header.ncol;
-  nparr = header.npar;
-  iap->ibr = ibr;
+  if (!read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs)) goto read_failed;
 
-  for (j = 0; j < *ntsr; ++j) {
-    for (i = 0; i < *ncolrs; ++i) {
-      k1 = i * ndim;
-      k2 = k1 + ndm - 1;
-      if (!tr.read(temp[i])) goto read_failed;
-      for (k = k1; k <= k2; ++k) {
-	if (!tr.read(ARRAY2D(ups, j, k))) goto read_failed;
-      }
-    }
-    tm[j] = temp[0];
-  }
-  if (!tr.read(tm[*ntsr])) goto read_failed;
-  for (k = 0; k < ndm; ++k) {
-    if (!tr.read(ARRAY2D(ups, *ntsr, k))) goto read_failed;
-  }
-  for (j = 0; j < *ntsr; ++j) {
-    dtm[j] = tm[j + 1] - tm[j];
-  }
+  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, ups, tm, false, 0, {})) goto read_failed;
+  for (j = 0; j < *ntsr; ++j) dtm[j] = tm[j + 1] - tm[j];
 
   if (!tr.read(icprs[0])) goto read_failed;
   if (!tr.read(icprs[1])) goto read_failed;
@@ -3527,24 +2877,10 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   if (!tr.read(rld2)) goto read_failed;
 
   /* Read U-dot (derivative with respect to arclength). */
-  for (j = 0; j < *ntsr; ++j) {
-    for (i = 0; i < *ncolrs; ++i) {
-      k1 = i* ndim;
-      k2 = k1 + ndm - 1;
-      for (k = k1; k <= k2; ++k) {
-	if (!tr.read(ARRAY2D(udotps, j, k))) goto read_failed;
-      }
-    }
-  }
-  for (k = 0; k < ndm; ++k) {
-    if (!tr.read(ARRAY2D(udotps, *ntsr, k))) goto read_failed;
-  }
-
+  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, udotps, nullptr, false, 0, {})) goto read_failed;
   /* Read the parameter values. */
-  for (i = 0; i < nparr; ++i) {
-    if (!tr.read(par[i])) goto read_failed;
-  }
-  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
+  if (!xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par)) goto read_failed;
 
   for (j = 0; j < *ntsr; ++j) {
     for (i = 0; i < *ncolrs; ++i) {
@@ -3566,7 +2902,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Complement starting data */
 
-  for (i = 11; i < iap->lib->parameter_count; ++i) {
+  for (i = xpp::auto_unknown::optimization_norm; i < iap->lib->parameter_count; ++i) {
     par[i] = 0.;
   }
 
@@ -3605,54 +2941,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* Subroutine */ int 
 fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-  integer dfdu_dim1, dfdp_dim1;
-
-  /* Local variables */
-
-  integer nfpr;
-
-  doublereal ep;
-  integer ndm;
-
-
-
-
-
-/* Generates the equations for the 2-parameter continuation */
-/* of folds (BVP). */
-
-/* Local */
-
-    /* Parameter adjustments */
-  dfdp_dim1 = ndim;
-  dfdu_dim1 = ndim;
-    
-  ndm = iap->ndm;
-  nfpr = iap->nfpr;
-
-/* Generate the function. */
-
-  ffbl(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
-
-  if (ijac == 0) {
-    return 0;
-  }
-
-  /* Generate the Jacobian. */
-
-  ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffbl(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      dfdu, dfdu_dim1);
-
-  xpp::auto_jacobian::forward_parameters(
-      nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffbl(iap, rap, ndim, u, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
-
-  return 0;
+  return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, ffbl);
 } /* fnbl_ */
 
 
@@ -3808,58 +3097,7 @@ fbbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Subroutine */ int 
 icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
-  /* System generated locals */
-  integer dint_dim1;
-
-  /* Local variables */
-
-  integer nfpr;
-
-  doublereal ep;
-  integer nnt0;
-
-  std::vector<doublereal> ff1(iap->nint);
-  std::vector<doublereal> ff2(iap->nint);
-  std::vector<doublereal> uu1(iap->ndim);
-  std::vector<doublereal> uu2(iap->ndim);
-  std::vector<doublereal> dfu((iap->ndim)*(iap->ndim + iap->lib->parameter_count));
-
-
-
-    
-/* Generates integral conditions for the 2-parameter continuation of */
-/* folds (BVP). */
-
-/* Local */
-
-    /* Parameter adjustments */
-  dint_dim1 = nint;
-  
-  nnt0 = iap->nnt0;
-  nfpr = iap->nfpr;
-
-  /* Generate the function. */
-
-  fibl(iap, rap, ndim, par, icp, nint, nnt0, u, uold, 
-       udot, upold, f, dfu.data());
-
-  if (ijac == 0) {
-    return 0;
-  }
-
-  /* Generate the Jacobian. */
-
-  ep = xpp::auto_jacobian::central(
-      ndim, nint, u, uu1.data(), uu2.data(), ff1.data(), ff2.data(),
-      [&](const doublereal *uu, doublereal *ff) { fibl(iap, rap, ndim, par, icp, nint, nnt0, uu, uold , udot, upold, ff, dfu.data()); },
-      dint, dint_dim1);
-
-  xpp::auto_jacobian::forward_parameters(
-      nfpr, nint, icp, ep, par,
-      [&](doublereal *ff) { fibl(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dfu.data()); },
-      f, ff1.data(), dint, dint_dim1, ndim);
-
-  return 0;
+  return xpp::auto_jacobian::integral(iap, rap, ndim, par, icp, nint, u, uold, udot, upold, f, ijac, dint, fibl);
 } /* icbl_ */
 
 
@@ -3920,77 +3158,34 @@ fibl(const iap_type *iap, const rap_type *rap, const integer ndim, doublereal *p
 /* Subroutine */ int 
 stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
-  
 
   /* System generated locals */
-  integer ups_dim1;
-
 
   /* Local variables */
   integer ndim;
-  std::array<doublereal, 7> temp;
-  integer nfpr, nfpx, nfpr0, nfpr1, i, j, k;
-  logical found;
-  integer nparr, k1, k2;
+  integer nfpr, nfpx, nfpr0, i;
+
   std::vector<integer> icprs(iap->lib->parameter_count);
 
-  integer ibr, ndm, irs;
-
-    
-
-
-
-
-
+  integer ndm;
 
   /* Generates starting data for the 2-parameter continuation of folds. */
   /* (BVP). */
 
   /* Local */
 
-
   /* Parameter adjustments */
-  ups_dim1 = *ndxloc;
-
 
   ndim = iap->ndim;
-  irs = iap->irs;
   ndm = iap->ndm;
   nfpr = iap->nfpr;
-  ibr = iap->ibr;
 
-  /* This re-reads the label line findlb() just located and validated
-     (all twelve fields were checked), so these
-     reads are not expected to fail; still bail out before *ntsr,
-     *ncolrs or nparr can be used as a garbage loop bound or array
-     index below. */
-  findlb(iap, rap, irs, &nfpr1, &found);
-  xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
+  xpp::TokenReader tr;
   xpp::AutoSolutionHeader header;
-  if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) return 1;
-  ibr = header.ibr;
-  nfpr1 = header.nfpr;
-  *ntsr = header.ntst;
-  *ncolrs = header.ncol;
-  nparr = header.npar;
-  iap->ibr = ibr;
+  if (!read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs)) return 1;
 
-  for (j = 0; j < *ntsr; ++j) {
-    for (i = 0; i < *ncolrs; ++i) {
-      k1 = i * ndim;
-      k2 = k1 + ndm - 1;
-      if (!tr.read(temp[i])) return 1;
-      for (k = k1; k <= k2; ++k) {
-	if (!tr.read(ARRAY2D(ups, j, k))) return 1;
-      }
-    }
-    tm[j] = temp[0];
-  }
-  if (!tr.read(tm[*ntsr])) return 1;
-  for (k = 0; k < ndm; ++k) {
-    if (!tr.read(ARRAY2D(ups, *ntsr, k))) return 1;
-  }
-
+  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, ups, tm, false, 0, {})) return 1;
   nfpr0 = nfpr / 2;
   if (!tr.read(icprs[0])) return 1;
   for (i = 0; i < nfpr0; ++i) {
@@ -3999,25 +3194,11 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read U-dot (Derivative with respect to arclength). */
 
-  for (j = 0; j < *ntsr; ++j) {
-    for (i = 0; i < *ncolrs; ++i) {
-      k1 = i * ndim + ndm;
-      k2 = (i + 1) * ndim - 1;
-      for (k = k1; k <= k2; ++k) {
-	if (!tr.read(ARRAY2D(ups, j, k))) return 1;
-      }
-    }
-  }
-  for (k = ndm; k < ndim; ++k) {
-    if (!tr.read(ARRAY2D(ups, *ntsr, k))) return 1;
-  }
-
+  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    ndm, ndim - ndm, ups, nullptr, false, 0, {})) return 1;
   /* Read the parameter values. */
 
-  for (i = 0; i < nparr; ++i) {
-    if (!tr.read(par[i])) return 1;
-  }
-  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
+  if (!xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par)) return 1;
 
   nfpx = nfpr / 2 - 1;
   if (nfpx > 0) {
@@ -4033,7 +3214,6 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
 
   *nodir = 1;
-
 
   return 0;
 } /* stpnbl_ */

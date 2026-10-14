@@ -1229,6 +1229,39 @@ def section_sessiondiagram():
     dg4.apply(evs)
     check('sessiondiagram: old.snapx loads the diagram the .auto imported', dg3 and dg4.pts == dg3 and 'error' not in messages(evs),
           '%d vs %d points; %s' % (len(dg4.pts), len(dg3), messages(evs)[:200]))
+    # W333: the foreign fixture's solutions are algebraic fold-curve
+    # checkpoints, including labels hidden by the current one-parameter view.
+    # Test storage data, not that view's filtered points. Keep the historical
+    # diagram's 1e-6 print tolerance; the native numerical baseline is exact.
+    foreign_diagram_tolerance = 1e-6
+    reference_rows = diagram_rows(got['auto/diagram.csv'].encode())
+    reference = next((r for r in reference_rows if int(r['lab']) and abs(int(r['itp'])) == 24), None)
+    check('sessiondiagram: the reference has an augmented fold checkpoint', reference is not None)
+    for path in ('old.auto', 'old.snapx'):
+        if path.endswith('.auto'):
+            import_diagram(s, path)
+        else:
+            load_diagram(s, path)
+        if reference is None:
+            continue
+        s.send(cmd='auto', op='set', numerics={'nmx': 4, 'npr': 1})
+        s.collect(is_idle)
+        s.send(cmd='auto', op='grab', label=int(reference['lab']))
+        grabbed, _ = s.collect(is_idle)
+        evs = run_any(s, 'e')
+        saved = save_diagram(s, 'ref-restart.snapx')
+        resumed = diagram_rows(saved.get('auto/diagram.csv', '').encode())
+        added = resumed[len(reference_rows):]
+        state_columns = [k for k in reference if k.startswith('u0.')]
+        check('sessiondiagram: augmented reference restart from %s preserves its starting state and computes new points' % path,
+              len(added) >= 3 and resumed[:len(reference_rows)] == reference_rows
+              and all(abs(float(added[0][k]) - float(reference[k])) <= foreign_diagram_tolerance
+                      for k in ['continued_parameter', *state_columns])
+              and not errors_of(grabbed + evs),
+              '%d new points; first=%s; reference=%s; %s' % (len(added), added[:1], reference,
+                  str(errors_of(grabbed + evs))[:200]))
+    load_diagram(s, 'old.snapx')
+
     # A previously omitted parameter changes branch data even when every plotted coordinate agrees.
     s.send(cmd='set',kind='par',name='om',value=2)
     s.collect(is_idle)

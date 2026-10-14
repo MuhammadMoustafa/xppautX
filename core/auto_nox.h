@@ -8,6 +8,7 @@
 #include <array>
 #include <vector>
 #include <memory>
+#include <functional>
 #include "xpp_error.h"
 
 #define MAX_AUT_PER 10
@@ -22,6 +23,16 @@ struct AutoSolutionHeader {
     long ibr{}, ntot{}, itp{}, lab{}, nfpr{}, isw{}, ntpl{}, nar{}, nskip{}, ntst{}, ncol{}, npar{};
 };
 bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long parameters);
+// Read a collocation payload into the formulation's explicit target columns.
+// tm selects orbit rows (which carry a time); null selects tangent rows.
+// A line-bounded source retains the old wrapped-line skips. The callback
+// initializes formulation-specific columns after each interior node is read.
+bool read_auto_solution_rows(TokenReader &reader, long ndim, long ntst, long ncol,
+                             long stride, long first, long count, double *values,
+                             double *tm, bool line_bounded, long extra_lines,
+                             const std::function<void(long, long, double)> &complete);
+bool read_auto_solution_parameters(TokenReader &reader, const AutoSolutionHeader &header,
+                                   const Session &session, double *parameters);
 Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters, bool foreign);
 
 typedef struct {

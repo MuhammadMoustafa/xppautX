@@ -5,7 +5,10 @@
 #include <stdio.h>
 #include <vector>
 #include <span>
+#include <functional>
 #include "auto_f2c.h"
+
+namespace xpp { class TokenReader; struct AutoSolutionHeader; }
 
 struct AutoLib; /* auto_state.h */
 
@@ -173,6 +176,16 @@ int stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublere
 int wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu, integer *ibr, integer *ntot, integer *lab, doublereal *vaxis, doublereal *u);
 int wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab, doublereal *rlcur, doublereal *u);
 int wrjac(iap_type *iap, integer *n, integer *m1aaloc, doublereal *aa, doublereal *rhs);
+// Identical starting mesh preparation; formulation equations stay in callers.
+int auto_uniform_start(iap_type *iap, rap_type *rap, doublereal *par,
+                       integer *icp, integer *ntsr, integer *ncolrs,
+                       doublereal *rlcur, integer ndxloc, doublereal *ups,
+                       doublereal *tm, integer *nodir,
+                       const std::function<void(doublereal *, doublereal &)> &evaluate);
+void auto_hopf_mesh(const iap_type *iap, const rap_type *rap, integer ndxloc,
+                    doublereal *ups, doublereal *udotps, doublereal *upoldp,
+                    doublereal *tm, doublereal *dtm, doublereal *rldot,
+                    const doublereal *u, const doublereal *rnllv, doublereal tpi);
 int msh(const iap_type *iap, const rap_type *rap, doublereal *tm);
 int genwts(const integer ncol, const integer n1, doublereal *wt, doublereal *wp);
 int cpnts(const integer ncol, doublereal *zm);
@@ -191,6 +204,10 @@ int nrmlz(integer *ndim, doublereal *v);
 doublereal pi(doublereal r__);
 int ge(FILE *fp9, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det);
 int newlab(iap_type *iap, rap_type *rap);
+// Locate and re-read the validated restart header once for all formulations.
+bool read_auto_restart_header(iap_type *iap, const rap_type *rap,
+                              xpp::TokenReader &reader, xpp::AutoSolutionHeader &header,
+                              integer *ntst, integer *ncol);
 int findlb(iap_type *iap, const rap_type *rap, integer irs, integer *nfpr, logical *found);
 int readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par);
 int skip3(FILE *fp3, integer *nskip, logical *eof3);

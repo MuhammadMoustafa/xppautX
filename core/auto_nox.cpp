@@ -2789,6 +2789,48 @@ bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long 
         && (h.ntst == 0 || h.ntpl == static_cast<long long>(h.ntst) * h.ncol + 1);
 }
 
+bool read_auto_solution_rows(TokenReader &reader, long ndim, long ntst, long ncol,
+                             long stride, long first, long count, double *values,
+                             double *tm, bool line_bounded, long extra_lines,
+                             const std::function<void(long, long, double)> &complete)
+{
+    const auto finish_line = [&] {
+        if (line_bounded) {
+            reader.skip_line();
+            for (long line = 0; line < extra_lines; ++line) reader.skip_line();
+        }
+    };
+    for (long j = 0; j < ntst; ++j) {
+        double first_time = 0.;
+        for (long i = 0; i < ncol; ++i) {
+            double time = 0.;
+            if (tm) {
+                if (!reader.read(time)) return false;
+                if (i == 0) first_time = time;
+            }
+            for (long k = first; k < first + count; ++k)
+                if (!reader.read(values[j + (i * ndim + k) * stride])) return false;
+            finish_line();
+            if (complete) complete(j, i, time);
+        }
+        if (tm) tm[j] = first_time;
+    }
+    if (tm && !reader.read(tm[ntst])) return false;
+    for (long k = first; k < first + count; ++k)
+        if (!reader.read(values[ntst + k * stride])) return false;
+    finish_line();
+    return true;
+}
+
+bool read_auto_solution_parameters(TokenReader &reader, const AutoSolutionHeader &header,
+                                   const Session &session, double *parameters)
+{
+    for (long i = 0; i < header.npar; ++i)
+        if (!reader.read(parameters[i])) return false;
+    auto_label_parameters(session, static_cast<int>(header.lab), parameters);
+    return true;
+}
+
 Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters, bool foreign)
 {
     const auto read = read_lines("AUTO's solutions", std::move(file), text, [variables, parameters, foreign](Lines &l) {
@@ -2851,13 +2893,10 @@ int move_to_label(const Session &s, int mylab, int *nrow, int *ndim, FILE *fp)
 }
 
 void get_a_row(double *u, double *t, int n, FILE *fp)
- {
-   int i;
-   xpp::TokenReader tr=xpp::TokenReader::attach(fp);
-   if (!tr.read(*t)) return;
-   for(i=0;i<n;i++)
-     if (!tr.read(u[i])) return;
- }
+{
+  auto reader = TokenReader::attach(fp);
+  read_auto_solution_rows(reader, n, 0, 0, 1, 0, n, u, t, false, 0, {});
+}
 
 /* the diagram and its eigenvalues/multipliers as CSV (csv_export.h),
    pandas.read_csv/MATLAB readtable read with no options; one file dialog
