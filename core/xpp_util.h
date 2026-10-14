@@ -101,8 +101,7 @@ void set_par_or_var(Session &s, std::string_view name, int type, int index, doub
 void eq_import(Session &s, double *y, int n);
 /* the plot of s redrawn into the picture file begun (image_format.h's
    restore), which it then closes */
-void ps_restore(Session &s);
-void svg_restore(Session &s);
+void vector_restore(Session &s);
 /* s's active plot window blanked, its axes drawn again */
 void clr_scrn(Session &s);
 /* the ICs box "xvst" (how 0) and "pp" (how 1) buttons: plot s's checked

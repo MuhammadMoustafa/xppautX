@@ -348,9 +348,9 @@ void user_fun_info(const xpp::Model &m, FILE *fp)
   }
 }
 
-namespace {
-
-void restore_vector_plot(xpp::Session &s)
+/* a PostScript or SVG export: what the session holds for the window, in one
+   order for both formats, then the format's own end */
+void vector_restore(xpp::Session &s)
 {
   const bool postscript = s.plot_file.plt_fmt_flag == PSFMT;
   redraw_dfield(s);
@@ -364,20 +364,8 @@ void restore_vector_plot(xpp::Session &s)
   if (postscript) ps_do_color(s.plot_file,0);
   draw_label(s,s.plot_windows.draw_win);
   draw_freeze(s,s.plot_windows.draw_win);
-}
-
-} // namespace
-
-void ps_restore(xpp::Session &s)
-{
-  restore_vector_plot(s);
-  ps_end(s);
-}
-
-void svg_restore(xpp::Session &s)
-{
-  restore_vector_plot(s);
-  svg_end(s);
+  if (postscript) ps_end(s);
+  else svg_end(s);
 }
 
 void new_parameter(xpp::Session &s)

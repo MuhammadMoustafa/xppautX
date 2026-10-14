@@ -26,7 +26,7 @@ struct ArrayPicture;
    put_text/set_linestyle/fancy_text_abs call while the picture is drawn
    (its former PSFMT/SVGFMT if/else chain); restore finishes the picture
    (redraws the plot into it, closes it via end -- xpp_util.cpp's
-   ps_restore/svg_restore). GIF (the kinescope's and the array plot's,
+   vector_restore). GIF (the kinescope's and the array plot's,
    json_windows.cpp) and PPM use the pixels hook; frame -1 is a still,
    zero starts a movie, and subsequent frame numbers append to it.
    Each draws into the picture of the Session it is given (W47d). */

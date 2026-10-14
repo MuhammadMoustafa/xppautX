@@ -57,10 +57,10 @@ void ppm_pixels(Writer &w, std::span<const unsigned char> rgb, int width, int he
 } // namespace
 
 const ImageFormat image_formats[n_image_formats] = {
-  {"Postscript", "ps",  ps_init,  ps_end,  ps_restore,  ps_ask_params,
+  {"Postscript", "ps",  ps_init,  ps_end,  vector_restore,  ps_ask_params,
    ps_point,  ps_line,  ps_bead,  ps_frect,  ps_text,  ps_linetype,  special_put_text_ps,
    PSFMT, ps_do_color, nullptr, nullptr, -1, nullptr, nullptr, array_print, "Print postscript", ps_filename, "p", ps_parameter_values},
-  {"SVG",        "svg", svg_init, svg_end, svg_restore, nullptr,
+  {"SVG",        "svg", svg_init, svg_end, vector_restore, nullptr,
    svg_point, svg_line, svg_bead, svg_frect, svg_text, svg_linetype, special_put_text_svg,
    SVGFMT, svg_do_color, svg_group, svg_label, 1, nullptr, nullptr, nullptr, "Print svg", svg_filename, "v"},
   {"GIF",        "gif", nullptr,  nullptr, nullptr,     nullptr,
