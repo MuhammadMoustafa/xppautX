@@ -3,8 +3,8 @@
 # is free on this machine (W289): every agent, Claude or Codex, in any
 # worktree, waits here for its turn, since the laptop overheats and reset
 # under builds run side by side (three agents at once, 2026-10-10).
-# HEAVY_SLOTS heavy commands may run at once (maintainer, 2026-10-11:
-# two, each at -j4); --alone takes every slot, for a timing series no
+# HEAVY_SLOTS heavy commands may run at once (maintainer: two from
+# 2026-10-11, three from 2026-10-14, each at -j4); --alone takes every slot, for a timing series no
 # other run may skew.
 # Usage (Git Bash on Windows, or WSL), from anywhere:
 #   tools/heavy.sh [--alone] COMMAND [ARGS...]
@@ -19,8 +19,8 @@ set -u
 # One block, read whole before it runs: a copy of this script updated while
 # it waits (a worktree given the new version) cannot change what runs.
 {
-# Heavy runs at once: two -j4 builds stay within what the laptop holds.
-HEAVY_SLOTS=2
+# Heavy runs at once: three -j4 builds (the maintainer's call, 2026-10-14).
+HEAVY_SLOTS=3
 # A slot with no PID older than this lost its holder between mkdir and
 # writing the PID (microseconds apart), so it is taken over.
 EMPTY_SLOT_MINUTES=1

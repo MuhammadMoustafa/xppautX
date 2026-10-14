@@ -108,14 +108,14 @@ branch by verifying the branches alone. One verify.sh at a time (W84):
 the script takes a lock (`flock`, $TMPDIR/xppautx-verify.lock) and a
 second run waits for it.
 
-At most two heavy runs at a time on this machine, across every agent
-(W289, #347; two since 2026-10-11, the maintainer's call). The machine is a laptop: it hard-reset (Kernel-Power 41, an
+At most three heavy runs at a time on this machine, across every agent
+(W289, #347; two since 2026-10-11, three since 2026-10-14, the maintainer's call). The machine is a laptop: it hard-reset (Kernel-Power 41, an
 unclean power-off, most likely heat) on 2026-09-29 under parallel
 builds and checks, and twice more on 2026-10-10, about 40 minutes after
 three agents (one Codex, two Claude) each built and checked at once,
 each keeping "one heavy run at a time" for itself only. So every heavy
 run, by any agent, Claude or Codex, the reviewer included, takes one of
-the machine's two slots:
+the machine's three slots:
 
     tools/heavy.sh [--alone] COMMAND [ARGS...]
 
@@ -130,7 +130,7 @@ the machine's two slots:
   mingw32-make -j4 xppautx BUILDDIR=build/ucrt WERROR=1`, `tools/heavy.sh
   node tools/web2check.mjs --only files`.
 - Several commands in one turn: `tools/heavy.sh bash -c '...'`. A timing
-  series runs `--alone` (it takes both slots, waiting until both are
+  series runs `--alone` (it takes every slot, waiting until all are
   free) for all its runs, so no other agent's build skews the numbers.
 - Waiters are served first come, first served (a ticket each in
   `xppautx-heavy.queue`), so a run that asks again the moment it lets go
@@ -138,7 +138,7 @@ the machine's two slots:
 - Never keep yourself busy with background `sleep` or `until` polls while
   waiting: a wait is the heavy command's own; check its output once it
   ends (2026-10-11: one agent left about 60 `sleep 1795` tasks behind).
-- A slot is the folder `%LOCALAPPDATA%\Temp\xppautx-heavy.lock` (or `.lock.2`)
+- A slot is the folder `%LOCALAPPDATA%\Temp\xppautx-heavy.lock` (or `.lock.2`, `.lock.3`)
   (mkdir is atomic; Codex's sandbox writes there too), holding the
   holder's Windows PID, its command and folder; a waiting run prints
   "heavy: waiting for <command> (<folder>)" once and polls every 5 s. A
@@ -555,9 +555,9 @@ difficulty) implements one card in the worktree its brief names:
   overheats (maintainer, 2026-09-29): build with -j4, and never run two
   heavy things side by side yourself (a build, servercheck, autocheck,
   web2check). Across agents: every build, check or timing run goes
-  through `tools/heavy.sh [--alone] COMMAND...` (Build: "At most two
+  through `tools/heavy.sh [--alone] COMMAND...` (Build: "At most three
   heavy runs at a time on this machine", W289), which waits for one of
-  the machine's two slots (`tools/wslrun.sh` takes it itself); code while
+  the machine's three slots (`tools/wslrun.sh` takes it itself); code while
   you wait, never around it.
 - Keep token use low: read the parts of files you need (grep, `sed -n`
   ranges), pipe check output through tail/grep, never paste full logs.
