@@ -301,6 +301,7 @@ void set_extra_graphs(xpp::Session &s)
     s.plot_windows.graph[i].xhi=s.plot_settings.x_hi[i+1];
     s.plot_windows.graph[i].ylo=s.plot_settings.y_lo[i+1];
     s.plot_windows.graph[i].yhi=s.plot_settings.y_hi[i+1];
+    check_flags(s.plot_windows.graph[i]); /* its own axes: a window that plots t is a time plot */
   }
   xpp::set_active_windows(s);
   xpp::make_active(s,0,1); 

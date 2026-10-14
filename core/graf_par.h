@@ -70,7 +70,9 @@ struct DataTable; /* data_formats.h */
 /* The plot windows' commands and views, on the session s: its active
    plot window (plot_windows.current) and the window drawn in (draw_win) */
 void change_view_com(Session &s, int com);
-void check_flags(Session &s);
+/* The flags a graph's axes and grtype imply (ThreeDFlag, TimeFlag): the one
+   rule, for the active window and for each extra window of a model */
+void check_flags(GRAPH &g);
 /* The axes dialog of the active plot window: its curve ind's variables, limits and labels in
    columns (X, Y, and Z when three, with the 3D view's window and parameters), read whole and
    applied all or nothing; false when cancelled or when a field is refused (shown) */

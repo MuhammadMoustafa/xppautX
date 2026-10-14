@@ -1124,3 +1124,11 @@ file before replacing session state. `test_session_auto` and autocheck's
 invalid model/point parameters, an invalid axis, a truncated second point and
 a malformed restart tail must each fail with their original file and line,
 leaving every saved AUTO member unchanged.
+
+## 54. An extra plot window keeps the first window's time flag
+
+XPPAUT 8.0's `set_extra_graphs` makes each extra window of a multi-window model with `create_a_pop()`, which copies the active graph, its `TimeFlag` included ([graphics.c:584](../reference/xppaut-8.0/graphics.c#L584); the copy is in `copy_graph`, [graphics.c:756](../reference/xppaut-8.0/graphics.c#L756)), then sets the window's variables, grtype and bounds ([graphics.c:585-592](../reference/xppaut-8.0/graphics.c#L585-L592)). Nothing recomputes `TimeFlag` from the new axes. A window that plots t against a variable therefore keeps the first window's flag. The equilibrium marks (`eq_symb`) skip a window whose flag is set, so a phase plane made from a time-plot first window gets no equilibrium mark, and a time plot made from a phase-plane first window gets one.
+
+- **Evidence:** from the source, not run here (XPPAUT's window needs an X server). A model whose first window plots `t` against `x` and whose second plots `x` against `y` leaves the second window with the time flag that `create_a_pop` copied; the same happens to a third window plotting `t` against `y` after two phase planes.
+- **xppautX:** the flags of a graph come from one function, `check_flags(GRAPH &)`, which `set_extra_graphs` calls on each extra window after its axes are set. `tests/test_headless_graphs.cpp` checks each window's flag and that an equilibrium mark lands only in the phase plane.
+- **Card:** [W351](https://github.com/MuhammadMoustafa/xppautX/issues/412).

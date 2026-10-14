@@ -1,0 +1,9 @@
+# W351: the first plot window plots time (t vs x), the second a phase plane (x vs y).
+x' = -x
+y' = -2*y
+init x = 1, y = 2
+options {
+  integration: { total_time: 1, dt: .1, method: runge_kutta },
+  plot: { multiwin: 1, nplot: 2, xp: t, yp: x, xp2: x, yp2: y,
+          xlo2: -2, xhi2: 3, ylo2: -4, yhi2: 5 },
+}

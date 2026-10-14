@@ -77,17 +77,16 @@ void change_view_com(xpp::Session &s, int com)
    g.ThreeDFlag=oldflag;
    return;
  }
- check_flags(s);
+ check_flags(g);
  redraw_the_graph(s);
-} 
+}
 
-void check_flags(xpp::Session &s)
+void check_flags(GRAPH &g)
 {
-  if(s.plot_windows.current->grtype>4)s.plot_windows.current->ThreeDFlag=1;
-  else s.plot_windows.current->ThreeDFlag=0;
-  if((s.plot_windows.current->xv[0]==0)||(s.plot_windows.current->yv[0]==0)||
-     ((s.plot_windows.current->zv[0]==0)&&(s.plot_windows.current->ThreeDFlag==1)))s.plot_windows.current->TimeFlag=1;
-  else s.plot_windows.current->TimeFlag=0;
+  if(g.grtype>4)g.ThreeDFlag=1;
+  else g.ThreeDFlag=0;
+  if((g.xv[0]==0)||(g.yv[0]==0)||((g.zv[0]==0)&&(g.ThreeDFlag==1)))g.TimeFlag=1;
+  else g.TimeFlag=0;
 }
 
 namespace {
@@ -507,7 +506,7 @@ void xi_vs_t(xpp::Session &s) /*  a short cut   */
     s.plot_windows.current->xhi=s.plot_windows.current->xmax;
     s.plot_windows.current->yhi=s.plot_windows.current->ymax;
     xpp::check_windows(s);
-    check_flags(s);
+    check_flags(*s.plot_windows.current);
    set_normal_scale(s);
     redraw_the_graph(s);
  }
@@ -707,7 +706,7 @@ void graph_all(xpp::Session &s, int *list, int n, int type)
       s.plot_windows.current->ThreeDFlag=1;
     }
   }
-  check_flags(s);
+  check_flags(*s.plot_windows.current);
   fit_window(s);
 
 }
@@ -1241,7 +1240,7 @@ void add_a_curve_com(xpp::Session &s, int c)
  case 8: export_graf_data(s);
    break;
  }
- check_flags(s);
+ check_flags(*s.plot_windows.current);
  redraw_the_graph(s);
    
 }
