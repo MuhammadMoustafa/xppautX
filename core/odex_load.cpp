@@ -656,25 +656,35 @@ private:
     e.arg_names.push_back("tol");
   }
 
-  /* a set's key: a variable (its initial value), a parameter, or an option's key */
+  /* a set's key: a variable (its initial value) or a parameter; a setting
+     is written under `options:` */
   void set_key(const Binding &b) const
   {
     const Model::Name *d = find(b.name);
     int index = 0;
-    if ((d && (d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov || d->kind == Model::NameKind::Param)) ||
-        xpp::find_odex_option(b.name, index))
-      return;
-    fail(b.pos, xpp::format("a set holds variables, parameters and options, and `{}` is none of them", b.name));
+    if (d && (d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov || d->kind == Model::NameKind::Param)) return;
+    if (const OptionRow *row = xpp::find_odex_option(b.name, index))
+      fail(b.pos, xpp::format("`{}` is a setting: a set holds it under `options: {{ {}: {{ {}: ... }} }}`", b.name, row->group, b.name));
+    fail(b.pos, xpp::format("a set's keys are the model's parameters and states, and `{}` is neither", b.name));
   }
 
-  /* a set's value: a number (signed) or a name, as .ode's sets hold them */
+  /* a set's value for a parameter or a state: a number (signed) */
   std::string set_value(const Binding &b) const
   {
     const Expr &v = b.value;
     if (v.kind == Expr::Kind::Number) return print_number(v.value);
     if (v.kind == Expr::Kind::Neg && v.args[0].kind == Expr::Kind::Number) return "-" + print_number(v.args[0].value);
-    if (v.kind == Expr::Kind::Name && !v.primed) return v.text;
-    fail(v.pos, xpp::format("a set's value is a number or a name, not `{}` ({}=)", print(v), b.name));
+    fail(v.pos, xpp::format("a set's value for `{}` is a number, not `{}`", b.name, print(v)));
+  }
+
+  /* a set's name is its own, given once in the load, an imported file's sets included */
+  void set_named(const Statement &s)
+  {
+    const auto [first, fresh] = sets_.emplace(s.name, s.pos);
+    if (fresh) return;
+    const Pos at = s.imported_at.line ? s.imported_at : s.pos;
+    fail(at, xpp::format("the set `{}` is defined twice: at {}:{}:{} and at {}:{}:{}", s.name, p_.files[static_cast<size_t>(first->second.file)],
+                         first->second.line, first->second.col, p_.files[static_cast<size_t>(s.pos.file)], s.pos.line, s.pos.col));
   }
 
   /* each binding's variable: a variable (a Markov one too, with markov) */
@@ -745,6 +755,7 @@ private:
       break;
     }
     case Statement::Kind::Set:
+      set_named(in);
       for (size_t i = 0; i < s.bindings.size(); i++) {
         set_key(s.bindings[i]);
         s.text += (i ? "," : "") + s.bindings[i].name + "=" + set_value(s.bindings[i]);
@@ -812,6 +823,8 @@ private:
   Pos import_;
   /* near()'s default tol, @ neartol= (docs/odex.md question 7) */
   double neartol_ = 1e-9;
+  /* the sets read so far, by name, with where each is */
+  std::map<std::string, Pos> sets_;
 };
 
 } // namespace

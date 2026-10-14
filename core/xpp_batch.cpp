@@ -125,6 +125,8 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch,
     xpp::init_alloc_info(s);
     do_vis_env(s);
     set_all_vals(s);
+    /* a set is checked whole at the load (a bad one stops it) */
+    if (const Result<> sets = check_intern_sets(s); !sets) model_failed(sets.error());
     xpp::init_alloc_info(s);
     xpp::set_init_guess(s);
     update_all_ffts(s);

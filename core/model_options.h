@@ -120,6 +120,14 @@ inline constexpr std::string_view output = "output";
 inline constexpr std::array<std::string_view, 11> option_groups{
     option_group::integration, option_group::poincare, option_group::equilibria, option_group::continuation, option_group::diagram, option_group::plot, option_group::export_, option_group::sweep, option_group::analysis, option_group::interface, option_group::output};
 
+/* The groups a `set`'s `options:` may hold: each is one graph's or one run's
+   own configuration. The rest are the model's or the session's as a whole
+   (diagram's axes name a view, export and output write files, interface holds
+   the buttons and sliders). */
+inline constexpr std::array<std::string_view, 7> set_groups{
+    option_group::integration, option_group::poincare, option_group::equilibria, option_group::continuation,
+    option_group::plot, option_group::sweep, option_group::analysis};
+
 /* what a .odex writes as an option's value: a number, a whole number, a
    bare word (a variable's, a parameter's, a name), one of the row's
    choices (option_choices), a path or a text, both in double quotes */
@@ -182,6 +190,9 @@ struct OptionRow {
   void (*applied)(Session &) = nullptr;
   /* the value's sign says "forever" (the total time) */
   bool signed_forever = false;
+  /* a setting of the session or the window as a whole, not one graph's or one
+     run's own configuration: a set never holds it (sets-design.md section 2) */
+  bool wide = false;
 };
 
 /* why the number v is not one rule accepts ("must be a number above 0"),
@@ -215,6 +226,9 @@ std::string odex_key(const OptionRow &row, int index);
 /* the row a .odex key names, exactly (lower case, a numbered row's digit
    included), and the digit; nullptr when none does */
 const OptionRow *find_odex_option(std::string_view key, int &index);
+
+/* a set may hold the row: its group is one of set_groups and it is no `wide` row */
+bool set_holds(const OptionRow &row);
 
 /* the slider presets' row (`sliders`, a list) */
 const OptionRow &slider_presets_option();

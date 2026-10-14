@@ -225,9 +225,17 @@ grammar:
   [#317](https://github.com/MuhammadMoustafa/xppautX/issues/317); the
   manual's "Numerical parameters"). `neartol` (near's tolerance) is
   an equilibria key.
-- `set NAME { key: value, ... }` — a named set holding parameters, initial values and settings, in the options'
-  shape: a key is a variable, a parameter or an option's key, a value a
-  number or a bare word (a set holds no path).
+- `set NAME { key: value, ..., options: { group: { key: value } } }` — a named set. Its top-level keys are
+  parameters and states only (`g: 9.81`, `v: -0.3`), each a number. Settings go only under `options:`, in the options
+  block's shape and from the groups a set may hold: `integration`, `poincare`, `equilibria`, `continuation`, `plot`,
+  `sweep` and `analysis` (each a graph's or a run's own configuration; `diagram`, `export`, `interface` and `output`
+  are the model's or the session's as a whole, and so are `simplot`, `multiwin` and `colormap`). A setting at the top
+  level, an unknown key or group, or a group or key a set does not hold is an error at its line and column, naming it;
+  the whole set is checked when the model loads (values included), so a bad one stops the load. A parameter named like a
+  setting (`par dt = 2`) is unambiguous: `set a { dt: 0.1, options: { integration: { dt: 0.05 } } }` is one parameter
+  and one setting. A set's name is its own, apart from the model's names; two sets of one name, an imported file's
+  included, are an error naming both places. `--convert` writes XPPAUT's flat set by XPPAUT's precedence (a model name
+  first) and nests the rest under `options:`.
 - `table NAME EXPR` / `table NAME FILE` — as `.ode`; a formula table
   may call a `fun` written after it (every function is compiled first,
   W165).

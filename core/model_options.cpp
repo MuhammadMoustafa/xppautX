@@ -454,12 +454,12 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      if (v.apply) s.plot_windows.simul = 1;
      return nullptr;
-   }},
+   }, .wide = true},
   {.group = option_group::plot, .kind = OptionKind::whole, .name = "MULTIWIN",
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      if (v.apply) s.plot_settings.multi_win = 1;
      return nullptr;
-   }},
+   }, .wide = true},
   {.group = option_group::plot, .kind = OptionKind::choice, .name = "AXES", .once = true,
    .whole = member([](auto &s) -> auto & { return s.plot_settings.axes; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -585,7 +585,7 @@ constexpr OptionRow rows[] = {
      if (whole_in(v, i) || i < 0 || i >= 7) return "not a colour map from 0 to 6";
      if (v.apply) s.colormap = i;
      return nullptr;
-   }},
+   }, .wide = true},
   {.group = option_group::export_, .kind = OptionKind::name, .name = "PLOTFMT", .once = true,
    .text = member([](auto &s) -> auto & { return s.plot_export.format; })},
   {.group = option_group::export_, .kind = OptionKind::name, .name = "PS_FONT", .once = true,
@@ -923,6 +923,11 @@ std::string odex_option_key(std::string_view key)
   int index = 0;
   const OptionRow *row = find_option(upper_case(std::string(key)), index, true);
   return row && !row->group.empty() ? odex_key(*row, index) : std::string();
+}
+
+bool set_holds(const OptionRow &row)
+{
+  return !row.wide && std::ranges::find(set_groups, row.group) != set_groups.end();
 }
 
 const OptionRow *find_odex_option(std::string_view key, int &index)

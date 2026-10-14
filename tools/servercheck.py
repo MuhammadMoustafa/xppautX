@@ -1972,13 +1972,13 @@ check_error_places_of_each_kind()
 def check_load_all_or_nothing():
     """W125: loading one of our files is all or nothing. A set file (File >
     Import settings), a parameter file and an initial-conditions file (`values`
-    `read`) whose last value is bad, and an internal set (File > Get par
-    set) whose last item is, are refused at that line, naming the file and
-    the line as written, and the session is exactly as it was (its state,
-    and the set file it writes)."""
+    `read`) whose last value is bad are refused at that line, naming the file
+    and the line as written, and the session is exactly as it was (its state,
+    and the set file it writes). A model's internal set (File > Get par set)
+    is checked whole when the model loads (W318), so none can fail here."""
     model = os.path.join(tempfile.mkdtemp(prefix='w125m'), 'w125.odex')
     with open(model, 'w') as f:
-        f.write("x'=-a*x+b\ny'=x-y\npar a=1,b=2\ninit x=1,y=0\nset good { a: 3, b: 4 }\nset bad { a: 5, x: 7, b: oops }\n")
+        f.write("x'=-a*x+b\ny'=x-y\npar a=1,b=2\ninit x=1,y=0\nset good { a: 3, b: 4 }\n")
     p, r, snd, col, _ = launch_server(ode=model)
 
     def answered(answers, **cmd):
@@ -2034,14 +2034,12 @@ def check_load_all_or_nothing():
         for what, cmd, answers, file, line, source in (
                 ('a settings file', None, 'bad.setx', 'bad.setx', high, '  high: 1e999,'),
                 ('a parameter file', dict(cmd='values', op='read', kind='par', name='bad.par'), (), 'bad.par', 3, 'oops  b'),
-                ('an initial-conditions file', dict(cmd='values', op='read', kind='ic', name='bad.ic'), (), 'bad.ic', 2, 'nan?'),
-                ('an internal set', dict(cmd='values', op='internset', name='bad'), (), 'w125.odex', 6, None)):
+                ('an initial-conditions file', dict(cmd='values', op='read', kind='ic', name='bad.ic'), (), 'bad.ic', 2, 'nan?')):
             errs = errors(read_set(answers) if cmd is None else answered(answers, **cmd))
             e = errs[0] if len(errs) == 1 else {}
             check('W125: %s whose last value is bad is refused at that line (%s:%d)' % (what, file, line),
                   os.path.basename(e.get('file', '')) == file and e.get('line') == line
-                  and (source is None or e.get('source') == source)
-                  and (source is not None or 'b=oops: not a number' in e.get('error', '')), str(errs))
+                  and e.get('source') == source, str(errs))
             st, set1 = state(), set_file()
             check('W125: after %s refused, the session is as it was (its state, its settings)' % what,
                   st == st0 and set1 == set0, str([(k, st0.get(k), st.get(k)) for k in st0 if st.get(k) != st0.get(k)])[:300])

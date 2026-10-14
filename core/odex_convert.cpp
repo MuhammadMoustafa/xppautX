@@ -1178,12 +1178,16 @@ private:
     return out + "\n";
   }
 
-  /* set name { key: value, ... }: a variable's or a parameter's value, or an
-     option's, as the .ode applies them (an option no row has is dropped) */
+  /* set name { key: value, ..., options: { group: { key: value } } }: a
+     variable's or a parameter's value, or an option's, as the .ode applies
+     them. A key that is a model name is the model's (XPP's precedence,
+     load_eqn.cpp do_intern_set); the others go under options: by their
+     groups. An option no row has is dropped. */
   std::string set_statement()
   {
     const Model::InternalSet &set = m_.intern_sets[nset_++];
     std::vector<std::string> items;
+    std::vector<OptionEntry> settings;
     for (const auto &[key, value] : option_items(set.does, true)) {
       const std::string upper = xpp::upper_case(key);
       if (find_user_name(m_, ICBOX, upper) >= 0 || find_user_name(m_, PARAMBOX, upper) >= 0) {
@@ -1197,8 +1201,14 @@ private:
         option_note(xpp::format("{}={} in the .ode's set {}: XPP ignores it, so it is dropped", key, value, set.name), "set-value");
         continue;
       }
-      items.push_back(xpp::odex_key(*row, index) + ": " + option_text(*row, key, value, true, "set-value"));
+      if (!xpp::set_holds(*row)) refuse(xpp::format("{}={}: a set does not hold this setting", key, value));
+      const std::string option_key = xpp::odex_key(*row, index);
+      const std::string text = option_text(*row, key, value, "set-value");
+      const auto same = std::ranges::find_if(settings, [&](const OptionEntry &e) { return e.key == option_key; });
+      if (same != settings.end()) same->value = text; /* XPP applies the items in order: the last stays */
+      else settings.push_back({option_key, text, row});
     }
+    if (!settings.empty()) items.push_back("options: " + braced(grouped(settings, 8 + set.name.size()), 6 + set.name.size()));
     return "set " + name(xpp::upper_case(set.name)) + " " + braced(items, 4 + set.name.size()) + "\n";
   }
 
@@ -1415,13 +1425,22 @@ private:
       entries.push_back({xpp::odex_key(row, 0), list + " ]", &row});
     }
     std::string out;
+    for (const std::string &group : grouped(entries, 2)) out += "  " + group + ",\n";
+    return out.empty() ? std::string() : prefix + "options {\n" + out + "}\n";
+  }
+
+  /* entries as `group: { key: value, ... }`, one per group that has any, in
+     the groups' order (indent: the column the group starts at) */
+  static std::vector<std::string> grouped(const std::vector<OptionEntry> &entries, size_t indent)
+  {
+    std::vector<std::string> out;
     for (std::string_view group : xpp::option_groups) {
       std::vector<std::string> items;
       for (const OptionEntry &e : entries)
         if (e.row->group == group) items.push_back(e.key + ": " + e.value);
-      if (!items.empty()) out += "  " + std::string(group) + ": " + braced(items, 2) + ",\n";
+      if (!items.empty()) out.push_back(std::string(group) + ": " + braced(items, indent));
     }
-    return out.empty() ? std::string() : prefix + "options {\n" + out + "}\n";
+    return out;
   }
 
   /* items as { a, b, c }, on lines of their own when they would run past a
@@ -1468,7 +1487,7 @@ private:
         continue;
       }
       if (map && row->rule == OptionRule::method) continue;
-      const std::string text = option_text(*row, key, value, false, "option-value");
+      const std::string text = option_text(*row, key, value, "option-value");
       const std::string name = xpp::odex_key(*row, index);
       const auto same = std::ranges::find_if(entries, [&](const OptionEntry &e) { return e.key == name; });
       if (same != entries.end() && !row->repeatable) {
@@ -1495,16 +1514,15 @@ private:
   }
 
   /* option row's value, as the .ode applies it, written for the .odex: a
-     path or a text in double quotes (a path with / for \, never in a set),
+     path or a text in double quotes (a path with / for \),
      a choice by its word, a name as its declaration spells it, a number
      alone (id: the note's, when the text was more than a number) */
-  std::string option_text(const OptionRow &row, const std::string &key, const std::string &value, bool in_set, const std::string &id)
+  std::string option_text(const OptionRow &row, const std::string &key, const std::string &value, const std::string &id)
   {
     switch (row.kind) {
     case OptionKind::sliders: return value;
     case OptionKind::path:
     case OptionKind::text: {
-      if (in_set) refuse(xpp::format("{}={}: a set holds no path or text", key, value));
       std::string text = value;
       if (row.kind == OptionKind::path) std::ranges::replace(text, '\\', '/');
       return quote_string(text);

@@ -30,9 +30,15 @@ options {
 }
 #
 # plot v vs time
-set vvst { xp: t, yp: v, xlo: 0, xhi: 100, ylo: -.6, yhi: .5, total_time: 100, iapp: 0.1 }
+set vvst {
+          iapp: 0.1,
+          options: {
+            integration: { total_time: 100 },
+            plot: { xp: t, yp: v, xlo: 0, xhi: 100, ylo: -.6, yhi: .5 },
+          },
+        }
 # plot phaseplane
-set pp { xp: v, yp: w, xlo: -0.6, ylo: -.25, yhi: 1.2 }
+set pp { options: { plot: { xp: v, yp: w, xlo: -0.6, ylo: -.25, yhi: 1.2 } } }
 # now some nice parameter sets for the homoclinic and the Hopf
 set snic { v3: 0.1, v4: 0.145, gca: 1, phi: 0.333 }
 set hopf { v3: 0, v4: 0.3, gca: 1.1, phi: 0.2 }

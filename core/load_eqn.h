@@ -163,13 +163,20 @@ void set_internopts_xpprc_and_comline(Session &s, std::span<const std::string> i
 /* the model's internal sets: one added (set name {does}), one's
    "name=value ..." settings applied to s (extract_action for any such
    text, a comment's action), one setting */
-void add_intern_set(Model &m, std::string_view name, std::string_view does);
+void add_intern_set(Model &m, std::string_view name, std::string_view does,
+                    std::vector<std::pair<std::string, std::string>> settings = {});
 /* all or nothing: every item is checked first, and the first that cannot
    be applied is the error, at where (the set's line in the model), with
    nothing applied. xppaut_names: XPPAUT's words for the options count too
    (the command line's settings); a model's own set and action do not take them */
 Result<> extract_action(Session &s, std::string_view ptr, const Place &where, bool xppaut_names);
+/* set j of the model, all of it or nothing: its parameters and states, then
+   its settings */
 Result<> extract_internset(Session &s, int j);
+/* every set of the model checked as extract_internset would apply it, none
+   applied: the first that cannot be is the error, at its line (a load, so a
+   bad set stops it) */
+Result<> check_intern_sets(Session &s);
 void do_intern_set(Session &s, std::string_view name1, std::string_view value);
 /* File/cOpy set line (W67): the first of set1, set2, ... not yet a set of
    the model */

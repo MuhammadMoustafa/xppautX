@@ -147,7 +147,12 @@ std::string lowered(const char *text)
         add(line + ")=" + engine_text(s.expr));
         break;
       }
-      case Statement::Kind::Set: add("set " + s.name + " {" + s.text + "}"); break;
+      case Statement::Kind::Set: {
+        std::string line = "set " + s.name + " {" + s.text + "}";
+        for (const xpp::odex::Option &o : s.options) line += " " + o.group + "." + o.name + "=" + o.value;
+        add(line);
+        break;
+      }
       case Statement::Kind::Table:
         add("table " + s.name + " % " + std::to_string(s.count) + " " + xpp::odex::print_number(s.lo) + " " +
             xpp::odex::print_number(s.hi) + " " + engine_text(s.expr));
@@ -426,6 +431,11 @@ int main(void)
     CHECK_STR(lowered("from \"build/test_import_cell.odex\" import f\nx' = f(1)\n").c_str(), "par k=2|f(u)=k*u|x'=f(1)");
     CHECK(starts(lowered("par k = 1\nimport \"build/test_import_cell.odex\"\n"), "error 2:1 `k` is already declared at 1:5"));
     CHECK(starts(lowered("import \"build/test_import_cell.odex\"\nimport \"build/test_import_cell.odex\"\n"), "error 2:1 `k` is already declared"));
+    /* W318: a set's name is its own, an imported file's sets included */
+    put("build/test_import_sets.odex", "par k = 1\nx' = -x\nset s { k: 2 }\n");
+    CHECK(starts(lowered("set s { k: 3 }\nimport \"build/test_import_sets.odex\"\n"),
+                 "error 2:1 the set `s` is defined twice: at m.odex:1:1 and at build/test_import_sets.odex:3:1"));
+    remove("build/test_import_sets.odex");
     CHECK(starts(model_error("from \"build/test_import_cell.odex\" import nosuch\n"), "1:1 build/test_import_cell.odex declares no `nosuch`"));
     CHECK(starts(model_error("import \"build/test_import_a.odex\"\n"), "1:8 test_import_a.odex imports itself"));
     CHECK(starts(model_error("import \"build/test_import_cell.odex\" as c1\n"), "1:38 expected `,` between the items of an import"));
@@ -476,7 +486,22 @@ int main(void)
   CHECK_STR(lowered("x' = 1\nboundary x - x'\n").c_str(), "x'=1|bdry x-x'");
   CHECK_STR(lowered("x' = w\nw = x^2\naux w = w\n").c_str(), "x'=w|w=x^2|aux w=w");
   CHECK_STR(lowered("x' = 1\ntable f exp(-abs(t)), n=51, lo=-25, hi=25\n").c_str(), "x'=1|table f % 51 -25 25 exp((-abs(t)))");
-  CHECK_STR(lowered("x' = 1\nset s { x: -1, method: stiff }\n").c_str(), "x'=1|set s {x=-1,method=stiff}");
+  /* W318: a set's keys are parameters and states, its settings are under options: */
+  CHECK_STR(lowered("x' = 1\nset s { x: -1, options: { integration: { method: stiff, dt: 0.1 } } }\n").c_str(),
+            "x'=1|set s {x=-1} integration.method=stiff integration.dt=0.1");
+  CHECK_STR(lowered("par dt = 2\nx' = 1\nset s { dt: 3, options: { integration: { dt: 0.05 } } }\n").c_str(),
+            "par dt=2|x'=1|set s {dt=3} integration.dt=0.05");
+  CHECK(starts(lowered("x' = 1\nset s { x: -1, method: stiff }\n"),
+               "error 2:16 `method` is a setting: a set holds it under `options: { integration: { method: ... } }`"));
+  CHECK(starts(lowered("x' = 1\nset s { zz: 1 }\n"), "error 2:9 a set's keys are the model's parameters and states, and `zz` is neither"));
+  CHECK(starts(lowered("x' = 1\nset s { options: { nosuch: { dt: 1 } } }\n"), "error 2:20 `nosuch` is not a group of options"));
+  CHECK(starts(lowered("x' = 1\nset s { options: { output: { quiet: 1 } } }\n"), "error 2:20 a set does not hold the group `output`"));
+  CHECK(starts(lowered("x' = 1\nset s { options: { diagram: { autovar: x } } }\n"), "error 2:20 a set does not hold the group `diagram`"));
+  CHECK(starts(lowered("x' = 1\nset s { options: { plot: { colormap: 2 } } }\n"), "error 2:28 a set does not hold `colormap`"));
+  CHECK(starts(lowered("x' = 1\nset s { options: { integration: { nosuch: 1 } } }\n"), "error 2:35 `nosuch` is not an option"));
+  CHECK(starts(lowered("x' = 1\nset s { options: { plot: { dt: 1 } } }\n"), "error 2:28 `dt` is in the group integration, not plot"));
+  CHECK(starts(lowered("x' = 1\nset s { x: 1 }\nset s { x: 2 }\n"), "error 3:1 the set `s` is defined twice: at m.odex:2:1 and at m.odex:3:1"));
+  CHECK(starts(lowered("x' = 1\nset s { x: a }\n"), "error 2:12 a set's value for `x` is a number, not `a`"));
   CHECK_STR(lowered("x' = 1\noptions { integration: { total_time: 20, method: stiff } }\n").c_str(), "x'=1|@ total_time=20,method=stiff");
   CHECK_STR(lowered("markov m 2 {0} {a} {1} {0}\npar a=1\n").c_str(), "markov m 2|{0} {a} |{1} {0} |par a=1");
   CHECK_STR(lowered("x' = 1\n\"{a=1} a comment\"\n").c_str(), "x'=1|\" {a=1} a comment");
@@ -718,6 +743,17 @@ int main(void)
     CHECK(load_text("x'=-x\ny'=x\n@ meth=symplectic\n@ total=2\n@ meth=euler\ndone\n", "ode") == 1);
     const auto later = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(later && later->find("integration: { method: euler, total_time: 2 }") != std::string::npos);
+  }
+
+  /* W318: --convert writes a set's model names flat (XPPAUT's precedence: a parameter named dt
+     takes dt=), the settings nested under options: by group; the result loads. */
+  {
+    CHECK(load_text("par dt=2\nx'=-x\ninit x=1\nset trial {dt=0.1,total=5,xlo=-2,x=3,xlo=-3}\ndone\n", "ode") == 1);
+    const auto result = xpp::odex::convert_text("build/test_odex_model.ode");
+    CHECK(result.has_value());
+    const std::string text = result ? *result : "";
+    CHECK(text.find("set trial { dt: 0.1, x: 3, options: { integration: { total_time: 5 }, plot: { xlo: -3 } } }") != std::string::npos);
+    if (result) CHECK(model_error(text.c_str()).empty());
   }
 
   /* W167: keep ignored, spaced @ words visible in the conversion note. */

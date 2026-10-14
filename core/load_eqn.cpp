@@ -211,7 +211,8 @@ if(s.plot_settings.my_ylo>=s.plot_settings.my_yhi){
    { x=y, z=w, q=p , .... }
 */
 
-void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does)
+void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does,
+                    std::vector<std::pair<std::string,std::string>> settings)
 {
   std::vector<xpp::Model::InternalSet> &sets=m.intern_sets;
   if(sets.size()>=MAX_INTERN_SET){
@@ -235,7 +236,7 @@ void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does)
   }
   if(it->second.set<0)it->second.set=static_cast<int>(sets.size());
   it->second.set_spellings.try_emplace(std::string(name),static_cast<int>(sets.size()));
-  sets.push_back({std::string(name),bob,xpp::Load::place()});
+  sets.push_back({std::string(name),bob,std::move(settings),xpp::Load::place()});
  xpp::log(XPP_LOG_INFO, " added {} doing {} \n",
 	 sets.back().name.c_str(),sets.back().does.c_str());
 }
@@ -304,26 +305,71 @@ std::string intern_item_problem(xpp::Session &s, const std::string &name1, const
 
 } // namespace
 
+namespace {
+
+/* one name=value of a set: a model name's (a parameter's or a state's) or a
+   setting's, which no model name takes the place of */
+struct SetItem {
+  std::string name,value;
+  bool setting;
+};
+
+/* every item checked before one is applied: a bad one leaves s as it was;
+   apply: then they are applied, in order */
+xpp::Result<> apply_set_items(xpp::Session &s, std::span<const SetItem> items, const xpp::Place &where, bool xppaut_names, bool apply)
+{
+  for(const SetItem &item : items){
+    const std::string why=item.setting?option_problem(s,item.name,item.value,xppaut_names).value_or(""):
+                                       intern_item_problem(s,item.name,item.value,xppaut_names);
+    if(!why.empty())return std::unexpected(xpp::Error{"internal set",xpp::format("{}={}: {}",item.name,item.value,why),where});
+  }
+  if(!apply)return {};
+  for(const SetItem &item : items){
+    if(item.setting){
+      set_option(s,item.name,item.value,1,NULL);
+      xpp::do_meth(s);
+    }
+    else do_intern_set(s,item.name,item.value);
+  }
+  return {};
+}
+
+std::vector<SetItem> set_items(std::string_view text)
+{
+  std::vector<SetItem> items;
+  each_option(text," "," ,;\n",[&items](const std::string &name,const std::string &value){
+    items.push_back({name,value,false});
+  });
+  return items;
+}
+
+std::vector<SetItem> set_items(const xpp::Model::InternalSet &set)
+{
+  std::vector<SetItem> items=set_items(set.does);
+  for(const auto &[name,value] : set.settings)items.push_back({name,value,true});
+  return items;
+}
+
+} // namespace
+
 xpp::Result<> extract_action(xpp::Session &s, std::string_view ptr, const xpp::Place &where, bool xppaut_names)
 {
-  /* every item checked before one is applied: a bad one leaves s as it was */
-  std::optional<xpp::Error> bad;
-  each_option(ptr," "," ,;\n",[&](const std::string &name,const std::string &value){
-    if(bad)return;
-    if(const std::string why=intern_item_problem(s,name,value,xppaut_names);!why.empty())
-      bad=xpp::Error{"internal set",xpp::format("{}={}: {}",name,value,why),where};
-  });
-  if(bad)return std::unexpected(std::move(*bad));
-  each_option(ptr," "," ,;\n",[&s](const std::string &name,const std::string &value){
-    do_intern_set(s,name,value);
-  });
-  return {};
+  return apply_set_items(s,set_items(ptr),where,xppaut_names,true);
 }
 
 xpp::Result<> extract_internset(xpp::Session &s, int j)
 {
   const xpp::Model::InternalSet &set=s.model().intern_sets[j];
-  return extract_action(s,set.does,set.place,false);
+  return apply_set_items(s,set_items(set),set.place,false,true);
+}
+
+xpp::Result<> check_intern_sets(xpp::Session &s)
+{
+  /* an .ode's sets are XPPAUT's flat ones, which only the converter reads */
+  if(!xpp::odex::is_odex(s.model().this_file))return {};
+  for(const xpp::Model::InternalSet &set : s.model().intern_sets)
+    if(xpp::Result<> r=apply_set_items(s,set_items(set),set.place,false,false);!r)return r;
+  return {};
 }
 
 void do_intern_set(xpp::Session &s, std::string_view name1, std::string_view value_text)

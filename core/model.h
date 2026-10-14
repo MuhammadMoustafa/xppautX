@@ -366,6 +366,9 @@ struct Model {
      "$ name=value ..." */
   struct InternalSet {
     std::string name,does;
+    /* a .odex set's settings, under its `options:` (name and value as the
+       options block's entries): never a model name, whatever the name is */
+    std::vector<std::pair<std::string,std::string>> settings;
     /* its line in the model, for an item that cannot be applied */
     Place place;
   };

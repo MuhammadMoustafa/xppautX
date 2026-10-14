@@ -1156,7 +1156,12 @@ private:
       xpp::log(XPP_LOG_DEBUG, "\n");
       break;
     case Statement::Kind::OptionFile: refuse_options_file(s.text);
-    case Statement::Kind::Set: add_intern_set(m,s.name,s.text); break;
+    case Statement::Kind::Set: {
+      std::vector<std::pair<std::string,std::string>> settings;
+      for(const odex::Option &o : s.options)settings.emplace_back(o.name,o.value);
+      add_intern_set(m,s.name,s.text,std::move(settings));
+      break;
+    }
     case Statement::Kind::Boundary: add_boundary(s_,text(s.expr)); break;
     case Statement::Kind::Event: {
       std::vector<FlagEvent> events;

@@ -639,25 +639,38 @@ private:
     s.kind = Statement::Kind::Options;
     if (options_at_) fail(s.pos, xpp::format("options is written once in a file (the first is at line {})", options_at_));
     options_at_ = s.pos.line;
+    groups_block(s.options, false);
+    push(std::move(s));
+  }
+
+  /* { group: { key: value, ... }, ... }: the entries of an options block or of a
+     set's `options:`, into out; a set's holds only the groups and keys that sets
+     hold (set_holds) */
+  void groups_block(std::vector<Option> &out, bool in_set)
+  {
     std::vector<std::string> groups;
     std::map<std::string, int> keys;
-    entries("the options block", [&](const Token &g) {
+    entries(in_set ? "the set's options" : "the options block", [&](const Token &g) {
       if (std::ranges::find(option_groups, g.text) == option_groups.end()) {
         std::string all;
         for (std::string_view name : option_groups) all += (all.empty() ? "" : ", ") + std::string(name);
         fail(g.pos, xpp::format("`{}` is not a group of options ({})", g.text, all));
       }
+      if (in_set && std::ranges::find(set_groups, g.text) == set_groups.end()) {
+        std::string all;
+        for (std::string_view name : set_groups) all += (all.empty() ? "" : ", ") + std::string(name);
+        fail(g.pos, xpp::format("a set does not hold the group `{}` (a set holds {})", g.text, all));
+      }
       if (std::ranges::find(groups, g.text) != groups.end()) fail(g.pos, xpp::format("the group {} is written twice", g.text));
       groups.push_back(g.text);
-      entries(xpp::format("the group {}", g.text), [&](const Token &key) { s.options.push_back(option(g.text, key, keys)); });
+      entries(xpp::format("the group {}", g.text), [&](const Token &key) { out.push_back(option(g.text, key, keys, in_set)); });
     });
-    push(std::move(s));
   }
 
   /* the entry of group whose key was read: its value, by the kind of the
      option the key names. XPPAUT's names, prefixes of a key and a key in
      another group are no keys; a key is given once unless it may repeat. */
-  Option option(const std::string &group, const Token &key, std::map<std::string, int> &keys)
+  Option option(const std::string &group, const Token &key, std::map<std::string, int> &keys, bool in_set)
   {
     Option o;
     o.group = group;
@@ -672,6 +685,8 @@ private:
                       : xpp::format("`{}` is not an option", o.name));
     }
     if (row->group != group) fail(key.pos, xpp::format("`{}` is in the group {}, not {}", o.name, row->group, group));
+    if (in_set && !set_holds(*row))
+      fail(key.pos, xpp::format("a set does not hold `{}`: it is a setting of the whole session, not of one graph or run", o.name));
     const auto [first, fresh] = keys.emplace(o.name, key.pos.line);
     if (!fresh && !row->repeatable)
       fail(key.pos, xpp::format("`{}` is given twice (the first is at line {})", o.name, first->second));
@@ -730,19 +745,24 @@ private:
         fail(o.value_pos, xpp::format("the option {}'s value `{}` is not a word (letters, digits and _ . + -)", o.name, v));
   }
 
-  /* set name { key: value, ... }: a variable's value, a parameter's or an
-     option's, a number or a name each */
+  /* set name { key: value, ..., options: { group: { key: value } } }: a
+     variable's or a parameter's value, a number or a name each, and the
+     settings under `options:` */
   void set_block(Statement &s)
   {
     s.kind = Statement::Kind::Set;
     name_of(s, "the set's name");
     std::map<std::string, int> keys;
     entries(xpp::format("the set {}", s.name), [&](const Token &key) {
+      const auto [first, fresh] = keys.emplace(key.text, key.pos.line);
+      if (!fresh) fail(key.pos, xpp::format("`{}` is given twice in the set (the first is at line {})", key.text, first->second));
+      if (key.text == "options") {
+        groups_block(s.options, true);
+        return;
+      }
       Binding b;
       b.name = key.text;
       b.pos = key.pos;
-      const auto [first, fresh] = keys.emplace(b.name, key.pos.line);
-      if (!fresh) fail(key.pos, xpp::format("`{}` is given twice in the set (the first is at line {})", b.name, first->second));
       b.value = set_value();
       s.bindings.push_back(std::move(b));
     });

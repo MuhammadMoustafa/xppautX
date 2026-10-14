@@ -79,8 +79,22 @@ The nine groups of core/model_options.h:
 | sliders | model only | the presets are the options block's list; positions and ranges in use are the session's |
 
 **All** means parameters, initial values and the five groups marked yes, each on its target.
-It is not a session restore. Before the implementation cards, each `plot` and `auto` option is
-classified by the same rule: a graph's or a run's own configuration, or wider.
+It is not a session restore. Each plot and continuation/diagram option is classified by the same
+rule (W318, #378; the groups under W317's names, in core/model_options.h: `set_groups`, and the
+`wide` flag of a row), a graph's or a run's own configuration (a set holds it), or wider (not):
+
+| Option(s) | Group | Class | In a set |
+|---|---|---|---|
+| xp, yp, zp, nplot, xp2..xp8, yp2.., zp2.. | plot | a graph's own axes variables | yes |
+| xlo, xhi, ylo, yhi (and 2..8), xmin..zmax, phi, theta | plot | a graph's own view and 3-D angles | yes |
+| axes, lt, ync, xnc, smc, umc | plot | a graph's own style and nullcline/manifold colours | yes |
+| nullcline_mesh, dfgrid, dfdraw, ncdraw | plot | a graph's own nullcline and direction-field settings | yes |
+| colorvia, colorize, colorlo, colorhi | plot | a graph's own colouring | yes |
+| colormap | plot | the one colour map the whole window uses (`color_table`, process-wide) | no (`wide`) |
+| simplot, multiwin | plot | the window layout (a Simulplot list, several windows): the session's | no (`wide`) |
+| ntst, nmax, npr, ncol, dsmin, dsmax, ds, parmin, parmax, normmin, normmax, epsl, epsu, epss | continuation | the next run's own configuration | yes |
+| autoxmin, autoxmax, autoymin, autoymax, autovar, autoeval, sec, uec, spc, upc | diagram | the diagram's view (axes, and the colours/styles of its curves): a finished run's, not the next run's | no (group) |
+| plotfmt, ps_font, ps_lw, ps_fsize, ps_color | export | how the session writes files | no (group) |
 
 ## 3. Reserved words
 
