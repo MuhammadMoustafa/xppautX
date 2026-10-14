@@ -730,6 +730,8 @@ if(fabs(s.data_store.current_time)>=s.numerics.transient_time&&s.numerics.storfl
    draw_label(s,s.plot_windows.draw_win);
    if(!take_frame()){complete=false;break;}
  }
+ do_batch_nclines(s);
+ do_batch_dfield(s);
  refresh_browser(s,s.data_store.rows);
  if(s.integrator.adj_range==1){
    bob=xpp::format("{}_{:g}",s.integrator.range.item,p);
@@ -1121,6 +1123,8 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
   
   ping();
   s.numerics.inflag=1;
+  do_batch_nclines(s);
+  do_batch_dfield(s);
   refresh_browser(s,s.data_store.rows);
   if(program.interactive){
  auto_freeze_it(s);
@@ -1441,6 +1445,8 @@ Result<> continue_to(Session &s, double until)
   s.integrator.my_start=1;  /*  I know it is wasteful to restart, but lets be safe.... */
   const xpp::Result<int> r=integrate(s,&s.data_store.current_time,&s.data_store.current[0],length,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start);
   ping();
+  do_batch_nclines(s);
+  do_batch_dfield(s);
   refresh_browser(s,s.data_store.rows);
   return r.transform([](int){});
 }

@@ -335,9 +335,9 @@ The remaining options can be set from within the program. They are
 
 - AUTO-stuff. The following AUTO-specific variables can also be set: `NTST, NMAX, NPR, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within AUTO.
 
-- DFDRAW =`1, 2, or 3` will force the drawing of direction fields on batch plots; 1 is unscaled, 2 is scaled, and 3 is colorized.
+- DFDRAW =`1, 2, or 3` computes a direction field after each run in the window, `--server` and `--silent`; 1 is unscaled, 2 is scaled, and 3 is colorized. The session keeps it for display and PS/SVG export. Values 4 and 5 also write `dirfields.dat` (unscaled and scaled respectively).
 
-- NCDRAW=`1` forces the drawing of nullclines in batch plots
+- NCDRAW=`1` computes nullclines after each run in every mode, for display and PS/SVG export. `NCDRAW=2` also writes `nullclines.dat`, X-nullcline first then Y. Automatic data files go to the current working folder, including in the window, through the ordinary overwrite and atomic-writer rules.
 
 0-Foreground color; 1-Red; 2-Red Orange; 3-Orange; 4-Yellow Orange; 5-Yellow; 6-Yellow Green; 7-Green; 8-Blue Green; 9-Blue; 10-Purple.
 
@@ -475,7 +475,7 @@ run or the files, not the X11 windows:
 - **--noout**: does not write an output data file in batch mode; combine with `--mkplot` to suppress the data.
 - **--plotfmt *ps\|svg***: sets the plot format for `--mkplot`.
 - **--version**: prints xpp's version (`xppautX --version` prints this fork's).
-- **--ncdraw *k***: for a figure with nullclines: `k=1` draws them on the plot; `k=2` (with `--silent`) dumps them to `nullclines.dat` instead, X-nullcline first then Y (format for gnuplot). For example, to compute the nullclines, dump them to a file and not save the run's output:
+- **--ncdraw *k***: after a run in any mode: `k=1` computes nullclines for the plot and exports; `k=2` also dumps them to `nullclines.dat`, X-nullcline first then Y (format for gnuplot). For example, to compute the nullclines, dump them to a file and not save the run's output:
 
   ```
   xppautX lecar.ode --noout --silent --ncdraw 2
@@ -484,7 +484,7 @@ run or the files, not the X11 windows:
   ```
   xppautX lecar.ode --noout --silent --ncdraw 1 --dfdraw 1 --mkplot
   ```
-- **--dfdraw *k***: draws direction fields the same way: `k=1,2,3` unscaled, scaled or colorized on the plot; `k=4,5` dumps the scaled/unscaled coordinates to `dirfields.dat`.
+- **--dfdraw *k***: draws direction fields the same way: `k=1,2,3` unscaled, scaled or colorized on the plot; `k=4,5` also dumps the unscaled/scaled coordinates to `dirfields.dat` in every mode.
 - **--readset *filename***: loads anything an internal set file can hold (options, parameters, initial conditions) from one line (up to 1024 characters), e.g. a file `tst.opt` containing `iapp=0.1;phi=.05;total=500`, run as `xppautX lecar.ode --readset tst.opt` (works with `--silent` and `--mkplot` too).
 - **--with *string***: the same as `--readset`, with the options inline in a quoted string (no spaces), e.g. `xppautX lecar.ode --with "iapp=0.1;phi=0.05;total=1000" --silent`.
 

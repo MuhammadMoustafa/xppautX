@@ -30,7 +30,6 @@
 #include <vector>
 #include "graphics.h"
 #include "menudrive.h"
-#include "xpp_batch.h"
 #include "form_ode.h"
 #include "model.h"
 #include "xpp_math.h"
@@ -47,6 +46,10 @@ constexpr int NullStyle=0; /* 1 is with little vertical/horizontal lines */
 /* load_eqn.cpp's @ colorvia= writes it through sizeof: kept an array */
 
 namespace {
+
+/* Historical automatic-output basenames, shared by every front end. */
+constexpr std::string_view NULLCLINES_DUMP_FILE = "nullclines.dat";
+constexpr std::string_view DFIELD_DUMP_FILE = "dirfields.dat";
 
 struct Pt {
   float x,y,z;
@@ -495,11 +498,16 @@ int get_nullcline_floats(xpp::Session &s, float **v,int *n,int who,int type) /* 
 
 void do_batch_nclines(xpp::Session &s)
 {
-  if(!xpp::batch_options.enabled)return;
-  if(!s.nullclines.nc_batch)return;
-  if(s.nullclines.nc_batch==1){
-    new_clines_com(s,0);
-    return;
+  if(s.nullclines.nc_batch!=1 && s.nullclines.nc_batch!=2)return;
+  if(s.plot_windows.current->ThreeDFlag || s.plot_windows.current->TimeFlag ||
+     s.plot_windows.current->xv[0]==s.plot_windows.current->yv[0])return;
+  new_clines_com(s,0);
+  if(s.nullclines.nc_batch==2){
+    xpp::Writer fp=xpp::open_writer_asking(NULLCLINES_DUMP_FILE);
+    if(!fp)return;
+    dump_clines(fp,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,
+                s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n);
+    xpp::ok_or_show(xpp::commit_save(fp));
   }
 }
 
@@ -510,7 +518,6 @@ void set_colorization_stuff(xpp::Session &s)
 
 void do_batch_dfield(xpp::Session &s)
 {
-  if(!xpp::batch_options.enabled)return;
   switch(s.nullclines.df_batch){
   case 0:
     return;
@@ -534,6 +541,10 @@ void do_batch_dfield(xpp::Session &s)
   s.nullcline_state.df_ix=s.plot_windows.current->xv[0];
   s.nullcline_state.df_iy=s.plot_windows.current->yv[0];
   redraw_dfield(s);
+  if((s.nullclines.df_batch==4 || s.nullclines.df_batch==5) &&
+     !s.plot_windows.current->ThreeDFlag && !s.plot_windows.current->TimeFlag &&
+     s.plot_windows.current->xv[0]!=s.plot_windows.current->yv[0] && s.nullclines.df_grid>1)
+    write_dfield(s,DFIELD_DUMP_FILE);
 }
 
 namespace {

@@ -129,7 +129,7 @@ static std::string usage_tail()
     "  --internset 0|1 / --uset NAME / --rset NAME   select internal sets\n"
     "  --qsets / --qpars / --qics   query sets / parameters / initial conditions\n"
     "  --mkplot / --plotfmt svg|ps   batch plot and format\n"
-    "  --dfdraw 1-5 / --ncdraw 1|2   batch fields / nullclines\n"
+    "  --dfdraw 1-5 / --ncdraw 1|2   post-run fields / nullclines\n"
     "  --readset FILE / --with TEXT   internal-set settings\n"
     "  --equil 0|1      batch equilibria (1 also writes manifolds)\n"
     "  --auto           answer terminal questions: suggested names; replace files\n"

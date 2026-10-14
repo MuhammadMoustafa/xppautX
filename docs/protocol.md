@@ -995,10 +995,11 @@ each set's data then in `<set>.dat` unless `--outfile` is given):
 | output.dat (`@ output=`, `--outfile`; not with `--noout`) | `browser` `write`, `what` `output`, `format` `dat`, `replace` 1 |
 | `--mkplot` | `key` `g`, `answer` `p` then the PostScript form answered with its own values (or `answer` `v`, SVG, for `--plotfmt svg`), then `answer` `file` |
 
-and after every run: `@ ncdraw=2` (on a phase plane) `key` `n`, `answer`
-`n`, `key` `n`, `answer` `s`, `answer` `file` nullclines.dat; `@ dfdraw=4`/`5`
-(on a phase plane) `key` `d`, `answer` `d` or `s`, `answer` the grid,
-`dfield` `write` dirfields.dat; `--equil 0`/`1` `equilibrium` `write`
+After a run, the core computes requested `ncdraw`/`dfdraw` phase-plane data
+in every mode, before exports: `ncdraw=2` also writes nullclines.dat and
+`dfdraw=4`/`5` dirfields.dat through the normal writer rules in the current
+working folder (W346). These are no longer extra script commands.
+After every run the script sends `--equil 0`/`1` as `equilibrium` `write`
 equil.dat (`shoot` 1 for `--equil 1`). The files the command line names
 (`--setfile`, `--parfile`, `--icfile`, `--readset`, `--with`) are read by the
 model's start in every mode, before the script.

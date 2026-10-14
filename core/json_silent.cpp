@@ -26,9 +26,8 @@
      output.dat              browser write, what output, replace
      --mkplot                 key g, answer p (the PostScript form
                              answered with its values) or v, the file
-   After every run: @ ncdraw=2 (key n, answer n; key n, answer s, the
-   file nullclines.dat), @ dfdraw=4/5 (key d, answer d or s, the grid;
-   dfield write dirfields.dat), --equil 0/1 (equilibrium write equil.dat). */
+   The core computes requested nullclines and direction fields after a run.
+   After every run: --equil 0/1 (equilibrium write equil.dat). */
 #include "ui_json_internal.h"
 #include "model.h"
 #include "session.h"
@@ -66,14 +65,6 @@ private:
     void command(std::string_view cmd, std::string_view op, std::string_view name, std::string_view more = {});
     void apply_set(std::string_view name);
 };
-
-/* the current window is a phase plane: its nullclines and direction
-   field can be computed */
-bool phase_plane(const xpp::Session &s)
-{
-    const auto &w = *s.plot_windows.current;
-    return !(w.ThreeDFlag || w.TimeFlag || w.xv[0] == w.yv[0]);
-}
 
 /* {"cmd":cmd,"field":value} */
 void SilentScript::line(std::string_view cmd, std::string_view field, std::string_view value)
@@ -180,23 +171,6 @@ SilentScript::SilentScript(xpp::Session &s) : session(s)
     if (sets == 0 || batch_options.intern_sets_used == 0) add_run(-1);
     else
         for (std::size_t i = 0; i < sets; i++) add_run(static_cast<int>(i));
-    steps.push_back([this] {
-        if (session.nullclines.nc_batch != 2 || !phase_plane(session)) return;
-        key("n");
-        answer("key", "n");
-        key("n");
-        answer("key", "s");
-        answer("file", "nullclines.dat");
-    });
-    steps.push_back([this] {
-        const xpp::Session &s = session;
-        const int df = s.nullclines.df_batch;
-        if ((df != 4 && df != 5) || !phase_plane(s) || s.nullclines.df_grid <= 1) return;
-        key("d");
-        answer("key", df == 4 ? "d" : "s"); /* arrows of one length, or scaled */
-        answer("value", xpp::format("{:d}", s.nullclines.df_grid));
-        command("dfield", "write", "dirfields.dat");
-    });
     steps.push_back([this] {
         if (batch_options.equilibria < 0) return;
         command("equilibrium", "write", "equil.dat", batch_options.equilibria == 1 ? ",\"shoot\":1" : "");

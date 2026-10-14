@@ -348,42 +348,36 @@ void user_fun_info(const xpp::Model &m, FILE *fp)
   }
 }
 
+namespace {
+
+void restore_vector_plot(xpp::Session &s)
+{
+  const bool postscript = s.plot_file.plt_fmt_flag == PSFMT;
+  redraw_dfield(s);
+  if (postscript) ps_do_color(s.plot_file,0);
+  if (s.plot_windows.current->Nullrestore) {
+    restore_nullclines(s);
+    if (postscript) ps_stroke(s.plot_file);
+  }
+  xpp::restore(s,0,s.browser.view.maxrow);
+  do_axes(s);
+  if (postscript) ps_do_color(s.plot_file,0);
+  draw_label(s,s.plot_windows.draw_win);
+  draw_freeze(s,s.plot_windows.draw_win);
+}
+
+} // namespace
+
 void ps_restore(xpp::Session &s)
 {
-  if(program.interactive){
- redraw_dfield(s);
- ps_do_color(s.plot_file,0);
- if(s.plot_windows.current->Nullrestore){restore_nullclines(s);ps_stroke(s.plot_file);}
-  }
-
-  xpp::restore(s,0,s.browser.view.maxrow);  
- 
-  do_batch_nclines(s);
-  do_batch_dfield(s); 
- do_axes(s); 
-  
- ps_do_color(s.plot_file,0); 
- if(program.interactive){
- draw_label(s,s.plot_windows.draw_win);
- ui.draw_freeze(s);
- }
- ps_end(s);
+  restore_vector_plot(s);
+  ps_end(s);
 }
 
 void svg_restore(xpp::Session &s)
 {
-
-  redraw_dfield(s);
- if(s.plot_windows.current->Nullrestore){restore_nullclines(s);}
- xpp::restore(s,0,s.browser.view.maxrow);
- do_axes(s);
- if(program.interactive){
- draw_label(s,s.plot_windows.draw_win);
- ui.draw_freeze(s);
- }
-  do_batch_nclines(s);
-  do_batch_dfield(s); 
- svg_end(s);
+  restore_vector_plot(s);
+  svg_end(s);
 }
 
 void new_parameter(xpp::Session &s)

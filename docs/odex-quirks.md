@@ -17,6 +17,16 @@ projections and phase condition. See [finding 50](xppaut-findings.md#50-auto-acc
 for the rank evidence and exact-speed derivation
 ([W345 / #406](https://github.com/MuhammadMoustafa/xppautX/issues/406)).
 
+## Requested phase-plane elements (W346)
+
+Converted models keep their `ncdraw` and `dfdraw` options. Unlike XPPAUT,
+xppautX honours them after a run in the window and `--server` too, so a
+model such as `lecar.ode` now shows its requested nullclines and direction
+field automatically; its PS and SVG exports include them. The file variants
+also write `nullclines.dat` / `dirfields.dat` in the current working folder.
+This is a deliberate behaviour difference, not a conversion rewrite
+([W346 / #407](https://github.com/MuhammadMoustafa/xppautX/issues/407)).
+
 ## Diagnostic ids (W75)
 
 `xppautX --check` owns findings shown by the program and consumed by the

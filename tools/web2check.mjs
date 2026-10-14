@@ -941,6 +941,12 @@ async function phasePlane() {
     .find(b => b.textContent.trim() === ${JSON.stringify(label)}); if (b) b.click(); return b ? b.getAttribute('aria-pressed') : null; })()`);
   const answerValue = v => cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: '${v}'})`);
 
+  await menuKeys('i', 'g');
+  check('W346: after a run the page draws requested nullclines and field without a click',
+    await until(`!s.busy && w.nullclines && w.nullclines.x.length > 0 && w.dfield && w.dfield.grid.length > 0
+      && ['xnull', 'ynull', 'dfield'].every(key => __xpp.plot().layers.some(l => l.key === key && l.drawn > 0))
+      && __xpp.plot().layers.some(l => l.key === 'dfield' && l.drawn === 289)`, 'run phase data'));
+
   await menuKeys('n', 'n'); /* Nullcline/New */
   check('Nullcline/New: the store holds both nullclines of the active window',
     await until('!s.busy && w.nullclines && w.nullclines.x.length > 0 && w.nullclines.y.length > 0', 'nullclines')
@@ -950,7 +956,7 @@ async function phasePlane() {
   let v = await layer('xnull'), wv = await layer('ynull');
   check('... the chart draws every segment of each, named V-nullcline and W-nullcline in the legend',
     v && wv && v.label === 'V-nullcline' && wv.label === 'W-nullcline' && v.drawn === segs[0] && wv.drawn === segs[1]
-    && v.visible && await cdp.eval(`[...document.querySelectorAll('.legend-item.layer')].map(b => b.textContent.trim()).join()`) === 'V-nullcline,W-nullcline',
+    && v.visible && await cdp.eval(`[...document.querySelectorAll('.legend-item.layer')].map(b => b.textContent.trim()).join()`) === 'V-nullcline,W-nullcline,Direction field',
     JSON.stringify({v, wv, segs}));
 
   await menuKeys('d', 's'); /* Dir.field/flow, Scaled Dir.Fld */

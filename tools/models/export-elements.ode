@@ -1,0 +1,7 @@
+# W346: requested phase-plane elements, without an export command.
+x'=y-x
+y'=-x-y
+init x=0.6,y=0.2
+@ total=1,dt=.05,xp=x,yp=y,xlo=-1,xhi=1,ylo=-1,yhi=1
+@ ncdraw=1,dfdraw=1,dfgrid=4
+done

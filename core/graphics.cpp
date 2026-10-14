@@ -259,6 +259,7 @@ void reset_all_line_type(xpp::Session &s)
 
 void init_all_graph(xpp::Session &s)
 {
+ s.drawing.axis_var_labels=1; /* Every plot names its axes, including headless exports. */
  int i;
  for(i=0;i<MAXPOP;i++)
  init_graph(s,i);

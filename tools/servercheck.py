@@ -5250,6 +5250,128 @@ def check_silent_commands():
 
 check_silent_commands()
 
+def check_export_elements():
+    """W346: run requests populate the session before any export, in every mode."""
+    import xml.etree.ElementTree as ET
+    from unittest.mock import patch
+    from collections import Counter
+
+    model = 'tools/models/export-elements.ode'
+    binary = os.path.abspath(args.server)
+    go = [{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'}]
+
+    def elements(data, fmt):
+        text = data.decode('utf-8')
+        if fmt == 'svg':
+            return [(node.tag.rsplit('}', 1)[-1], node.get('class'), (node.text or '').strip())
+                    for node in ET.fromstring(text).iter()
+                    if node.tag.rsplit('}', 1)[-1] in ('line', 'text', 'use')]
+        style, result = '', []
+        for line in text.splitlines():
+            if re.fullmatch(r'LT[0-9abc]', line):
+                style = line[2:]
+            elif re.fullmatch(r'-?\d+ -?\d+ L', line):
+                result.append(('line', style, ''))
+            elif re.search(r'\) (?:[LCR]show|show)', line):
+                result.append(('text', '', line[line.index('('):]))
+        return result
+
+    with tempfile.TemporaryDirectory(prefix='xppexport') as root, patch.dict(os.environ, HOME=root):
+        # SVG may read a user stylesheet; keep it local and captured by recordings.
+        with open(os.path.join(root, 'xppaut-stylesheet.css'), 'w') as f:
+            f.write('/* W346 isolated stylesheet */\n')
+        server = Server(binary, model, run=root)
+        try:
+            server.collect(is_idle)
+            server.send(cmd='data', events=['nullclines', 'dfield'])
+            server.collect(is_idle)
+            server.send(**go[0]); server.collect(is_ask)
+            server.send(**go[1]); events, _ = server.collect(is_idle)
+            nc = next((e for e in events if e.get('ev') == 'nullclines' and e.get('x') and e.get('y')), None)
+            df = next((e for e in events if e.get('ev') == 'dfield' and e.get('grid')), None)
+            check('W346: a run publishes requested nullclines and field without a separate command',
+                  nc is not None and df is not None, str(events[-3:])[:300])
+            expected_files = {}
+            ps_values = []
+            for fmt in ('ps', 'svg'):
+                name = 'server.' + fmt
+                def form(e):
+                    ps_values[:] = e['values']
+                    return {'ok': 1, 'values': e['values']}
+                server.send(cmd='key', key='g')
+                server.answer_asks(is_idle, {
+                    'menu': lambda e: {'key': 'p' if fmt == 'ps' else 'v'},
+                    'form': form, 'file': lambda e: {'file': name}})
+                with open(os.path.join(root, name), 'rb') as f:
+                    expected_files[fmt] = elements(f.read(), fmt)
+        finally:
+            server.close()
+        for fmt in ('ps', 'svg'):
+            expected = expected_files[fmt]
+            result = subprocess.run([binary, os.path.basename(model), '--silent', '--yes', '--mkplot', '--plotfmt', fmt],
+                                    cwd=root, capture_output=True, text=True, timeout=60 * SLOW)
+            # batch_plot_name uses the loaded (converted) model's basename.
+            pictures = glob.glob(os.path.join(root, 'export-elements*.' + fmt))
+            actual = elements(open(pictures[0], 'rb').read(), fmt) if pictures else []
+            check('W346: silent/server ' + fmt + ' element lists agree',
+                  result.returncode == 0 and bool(actual) and actual == expected,
+                  str((len(expected), len(actual), next(((a, b) for a, b in zip(expected, actual) if a != b), None)))
+                  + result.stderr[-300:])
+            counts = Counter((kind, style) for kind, style, _ in actual)
+            xstyle, ystyle = ('2', '7') if fmt == 'ps' else ('xppline2', 'xppline7')
+            check('W346: ' + fmt + ' holds both nullclines and label text',
+                  counts['line', xstyle] > 0 and counts['line', ystyle] > 0
+                  and any(kind == 'text' for kind, _, _ in actual), str(counts))
+            if fmt == 'svg':
+                arrows = counts['line', 'xppdfield']
+            else:
+                # Field first, then the differently styled nullclines.
+                arrows = next((i for i, item in enumerate(actual) if item != ('line', '0', '')), len(actual))
+            check('W346: ' + fmt + ' holds all 25 requested field arrows', arrows == 25, str(counts))
+        annotations = go + [
+            {'cmd': 'text', 'op': 'add', 'win': 1, 'x': 0.2, 'y': 0.4, 'text': 'W346label'},
+            {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'f'},
+            {'cmd': 'answer', 'key': 'f'}, {'cmd': 'answer', 'values': ['4', 'W346frozen', 'frz1']}]
+        for fmt in ('ps', 'svg'):
+            name = 'annotated.' + fmt
+            annotations += [{'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'p' if fmt == 'ps' else 'v'}]
+            if fmt == 'ps':
+                annotations += [{'cmd': 'answer', 'values': ps_values}]
+            annotations += [{'cmd': 'answer', 'file': name}]
+        result = run_commands(binary, model, annotations, root)
+        annotated = {}
+        for fmt in ('ps', 'svg'):
+            with open(os.path.join(root, 'annotated.' + fmt), 'rb') as f:
+                annotated[fmt] = elements(f.read(), fmt)
+        recording = make_recording(binary, model, annotations, root)
+        result = subprocess.run([binary, recording, '--silent', '--yes'], cwd=root,
+                                capture_output=True, text=True, timeout=60 * SLOW)
+        for fmt in ('ps', 'svg'):
+            with open(os.path.join(root, 'annotated.' + fmt), 'rb') as f:
+                replayed = elements(f.read(), fmt)
+            check('W346: silent/server ' + fmt + ' preserve a label and frozen curve',
+                  result.returncode == 0 and replayed == annotated[fmt]
+                  and any('W346label' in text for _, _, text in replayed)
+                  and len(replayed) > len(expected_files[fmt]), result.stderr[-300:])
+        # ncdraw=2 and dfdraw=4 use the ordinary writer in both modes.
+        result = run_commands(binary, model, go, root, flags=('--ncdraw', '2', '--dfdraw', '4'))
+        with open(os.path.join(root, 'nullclines.dat'), 'rb') as f:
+            dump = f.read()
+        with open(os.path.join(root, 'dirfields.dat'), 'rb') as f:
+            field_dump = f.read()
+        result = subprocess.run([binary, os.path.basename(model), '--silent', '--yes', '--ncdraw', '2', '--dfdraw', '4'],
+                                cwd=root, capture_output=True, text=True, timeout=60 * SLOW)
+        check('W346: ncdraw=2 dumps the same nullclines in server and silent',
+              result.returncode == 0 and dump and b'# X-nullcline' in dump
+              and dump == open(os.path.join(root, 'nullclines.dat'), 'rb').read(), result.stderr[-300:])
+        check('W346: dfdraw=4 dumps the same 25 arrows in server and silent',
+              len(field_dump.splitlines()) == 25
+              and field_dump == open(os.path.join(root, 'dirfields.dat'), 'rb').read())
+
+
+check_export_elements()
+
+
 def check_outcomes_once():
     """W133: results, file places, film failures, and every exit route."""
     d = tempfile.mkdtemp(prefix='xppoutcomes')

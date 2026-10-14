@@ -15,7 +15,7 @@ struct Model; /* model.h */
 /* the nullclines (current, or frozen number who) as segments: 4 floats each */
 int get_nullcline_floats(Session &s, float **v, int *n, int who, int type);
 
-/* nullcline.cpp's settings, a Session's (session.h): a batch run's
+/* nullcline.cpp's settings, a Session's (session.h): a run's requested
    nullclines and direction field (@ ncdraw=, dfdraw=), the nullclines'
    colours, the direction field's grid and kind (df_flag), set while it
    is drawn (for the SVG classes), and what colours an orbit
