@@ -24,6 +24,7 @@
 #include <array>
 #include <cstddef>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -64,6 +65,9 @@ struct AutoParameterLayout {
   int solver_index(int k) const { return block+k; }
   int model_index(int index) const { return index>=block && index<size() ? index-block : -1; }
   int size() const { return block+model_parameters; }
+  // The solver's array par in its two parts: AUTO's own block, then the model's parameters.
+  template<class T> std::span<T> unknowns(T *par) const { return {par,static_cast<std::size_t>(block)}; }
+  template<class T> std::span<T> parameters(T *par) const { return {par+block,static_cast<std::size_t>(model_parameters)}; }
 };
 
 struct AutoState {

@@ -76,7 +76,7 @@ void chain(int n, const double *b, double *column, const double *add, double *t)
   std::copy_n(t,n,column);
 }
 
-void continued_constants(const xpp::Session &s, double *constants, const integer *icp, integer count, std::span<const double>, std::span<const double> parameters)
+void continued_constants(const xpp::Session &s, double *constants, const integer *icp, integer count, std::span<const double> parameters)
 {
   for(integer i=0;i<count;i++){
     const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[i]));
@@ -87,11 +87,11 @@ void continued_constants(const xpp::Session &s, double *constants, const integer
 /* A collocation worker's right-hand side (auto_parallel.cpp): s is const, so
    a worker can read the model, the AUTO settings and the immutable tables but
    write only its own lib (constants, variables, jacobian_failure). */
-void worker_func(const xpp::Session &s, AutoLib &worker, integer ndim, const double *u, const integer *icp, integer nfpr, std::span<const double> unknowns, std::span<const double> parameters, integer ijac, double *f, double *dfdu, double *dfdp)
+void worker_func(const xpp::Session &s, AutoLib &worker, integer ndim, const double *u, const integer *icp, integer nfpr, std::span<const double> parameters, integer ijac, double *f, double *dfdu, double *dfdp)
 {
   auto &c=worker.rhs_constants;
   auto &v=worker.rhs_variables;
-  continued_constants(s,c.data(),icp,nfpr,unknowns,parameters);
+  continued_constants(s,c.data(),icp,nfpr,parameters);
   xpp::evaluate_derived_pure(s,c.data(),v.data());
   pure_rhs(s,u,f,c.data(),v.data());
   if(ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT)exact_derivatives(s,worker,c.data(),ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
@@ -107,26 +107,19 @@ bool auto_model_parameter(const xpp::Session &s, integer slot)
 }
 
 double auto_parameter_value(const xpp::Session &s, integer slot,
-                           std::span<const integer> free, std::span<const double> solver_parameters)
+                           std::span<const integer> free, std::span<const double> parameters)
 {
-  const auto &layout=s.auto_state.parameter_layout;
-  const auto unknowns=solver_parameters.first(layout.block);
-  const auto parameters=solver_parameters.subspan(layout.block);
-  const int k=layout.model_index(static_cast<int>(slot));
-  if(k<0)return unknowns[slot];
-  if(std::find(free.begin(),free.end(),slot)==free.end())
+  const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(slot));
+  if(k>=0 && std::find(free.begin(),free.end(),slot)==free.end())
     return s.parser.constants[s.model().upar_con[k]];
-  return parameters[k];
+  return parameters[slot];
 }
 
 int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, integer ijac, double *f, double *dfdu, double *dfdp, AutoLib *worker)
 {
-   const auto &layout=s.auto_state.parameter_layout;
-   const std::span<const double> solver_parameters{par,static_cast<std::size_t>(layout.size())};
-   const auto unknowns=solver_parameters.first(layout.block);
-   const auto parameters=solver_parameters.subspan(layout.block);
+   const auto parameters=s.auto_state.parameter_layout.parameters(par);
    if (worker && worker->pure_rhs) {
-     worker_func(s,*worker,ndim,u,icp,nfpr,unknowns,parameters,ijac,f,dfdu,dfdp);
+     worker_func(s,*worker,ndim,u,icp,nfpr,parameters,ijac,f,dfdu,dfdp);
      return 0;
    }
    const bool exact=ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT;
@@ -134,7 +127,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
    std::vector<double> zz(ndim); /* the store_every steps' scratch */
    /* the right-hand side and the Jacobian only read the point */
    double *x=const_cast<double *>(u);
-   continued_constants(s,s.parser.constants.data(),icp,nfpr,unknowns,parameters);
+   continued_constants(s,s.parser.constants.data(),icp,nfpr,parameters);
    xpp::evaluate_derived(s);
    if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
    s.integrator.rhs(0.0,x,f,ndim);
@@ -172,9 +165,8 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
   double p;
 
   const auto &layout=s.auto_state.parameter_layout;
-  const std::span<double> solver_parameters{par,static_cast<std::size_t>(layout.size())};
-  const auto unknowns=solver_parameters.first(layout.block);
-  const auto parameters=solver_parameters.subspan(layout.block);
+  const auto unknowns=layout.unknowns(par);
+  const auto parameters=layout.parameters(par);
   for(int k=0;k<s.model().nupar;k++)parameters[k]=s.parser.constants[s.model().upar_con[k]];
 
   if(s.auto_state.new_period_flag==0){  
@@ -210,10 +202,8 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
 {
 /* Hooks to the XPP bc parser!! */
 
- const auto &layout=s.auto_state.parameter_layout;
- const std::span<const double> solver_parameters{par,static_cast<std::size_t>(layout.size())};
  continued_constants(s,s.parser.constants.data(),icp,s.auto_state.run.nicp,
-                     solver_parameters.first(layout.block),solver_parameters.subspan(layout.block));
+                     s.auto_state.parameter_layout.parameters(par));
 
  xpp::evaluate_derived(s);
  if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);

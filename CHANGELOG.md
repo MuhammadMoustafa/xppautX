@@ -9,7 +9,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
-- Separate model parameters from AUTO's own unknowns throughout continuation and restart; refuse a run without a model parameter before constructing its continuation indices. Session AUTO solution members require the complete new parameter layout and reject old layouts at their header; XPPAUT `.auto` remains an explicit foreign import (W340, [#401](https://github.com/MuhammadMoustafa/xppautX/issues/401)).
+- AUTO keeps the model's parameters apart from its own unknowns (the period, the homoclinic and test-function values): a model's parameters are numbered in its own order, with no first eight at special places. AUTO needs a model parameter to continue: a model without one is refused with an error. A one-parameter point no longer names a second parameter: the info strip, the diagram's CSV export and Write all info showed the model's second parameter for it (whichever was second, not the Axes' Par2), and now show none, as for a period. A session's AUTO solutions load only in the new layout, an older one refused at its header; XPPAUT's `.auto` files still import (W340, [#401](https://github.com/MuhammadMoustafa/xppautX/issues/401)).
 
 - Remove AUTO's parameter selection and Parameter form: Axes and Run offer every model parameter. Branch records keep all parameter values once for exact grab, label restart, exports and session reopening; the new diagram layout rejects old session files (W339, [#400](https://github.com/MuhammadMoustafa/xppautX/issues/400)).
 
