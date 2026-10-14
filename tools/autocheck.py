@@ -55,7 +55,7 @@ ap.add_argument('--report', action='store_true', help='measure only; latency lim
 ap.add_argument('--list', action='store_true', help='print the selected sections and exit')
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
-                                                'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors', 'jacobian',
+                                                'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors', 'subscriptions', 'jacobian',
                                                 'memory', 'threads', 'limits'])
 args = ap.parse_args()
 if args.shard:
@@ -1937,6 +1937,34 @@ def set_numerics(s, **values):
 
 def errors_of(evs):
     return [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
+
+
+def section_subscriptions():
+    """W335: AUTO's subscriptions are the protocol client's, its diagram the
+    Session's. A reload (a new session) keeps the subscriptions, sends fresh
+    autosettings and no point of the diagram before; after it a grab answered
+    with a point and Return in one answer takes that point (grab_key_after)."""
+    s = Server(args.server, LECAR, verbose=args.v)
+    s.collect(is_idle)
+    s.send(cmd='data', events=['autoinfo', 'autosettings'])
+    s.collect(is_idle)
+    dg = Diagram().apply(hopf_steady(s))
+    dg.apply(run_any(s, 's'))
+    check('subscriptions: the steady branch gives points', len(dg.pts) > 10, '%d points' % len(dg.pts))
+    s.send(cmd='reload')
+    evs, end = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
+    check('subscriptions: a reload keeps the subscriptions: fresh autosettings without asking again',
+          end is not None and any(e.get('ev') == 'autosettings' for e in evs), str([e.get('ev') for e in evs])[:300])
+    check('subscriptions: ... and sends no point of the diagram before',
+          not any(e.get('ev') == 'diagram' and e.get('op') == 'add' for e in evs),
+          str([e for e in evs if e.get('ev') == 'diagram'])[:300])
+    dg = Diagram().apply(hopf_steady(s))
+    dg.apply(run_any(s, 's'))
+    check('subscriptions: after the reload a steady branch computes again', len(dg.pts) > 10, '%d points' % len(dg.pts))
+    info = grab_point(s, 5, take=True)
+    check('subscriptions: after the reload a grab takes point 5 with its key in the same answer',
+          info is not None and info['info']['point'] == 5 and s.alive(), str(info)[:300])
+    s.close()
 
 
 def section_errors():

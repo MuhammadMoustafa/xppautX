@@ -61,8 +61,6 @@ AutoDiagramViewData &view_data(xpp::Session &s, int v)
 
 /* the list the grab and the info strip's point index go by: the active
    view's (every view holds the same points in the same order) */
-AutoDiagramViewData &active_data(xpp::Session &s) { return view_data(s, s.auto_state.active_view); }
-
 const AutoDiagramViewData &active_data(const xpp::Session &s)
 {
     if (s.auto_state.views.empty() || s.auto_state.active_view < 0 ||

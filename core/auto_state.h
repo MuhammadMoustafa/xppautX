@@ -52,9 +52,9 @@ struct AutoDiagramAxesData {
 
 /* the points, branches and state of one view of the diagram */
 struct AutoDiagramViewData {
-  std::vector<XppDiagPoint> dg; /* n of them in use */
-  std::vector<std::shared_ptr<const DiagramBranch>> branches; /* immutable records behind those points */
-  std::map<std::shared_ptr<const DiagramBranch>,std::map<std::shared_ptr<const DiagramBranch>,bool>> branch_matches;
+  std::vector<xpp::XppDiagPoint> dg; /* n of them in use */
+  std::vector<std::shared_ptr<const xpp::DiagramBranch>> branches; /* immutable records behind those points */
+  std::map<std::shared_ptr<const xpp::DiagramBranch>,std::map<std::shared_ptr<const xpp::DiagramBranch>,bool>> branch_matches;
   int n = 0, client = 0, dirty = 0;
   int replay = 0, match = 0, axes = 0;
   AutoDiagramAxesData ax{};

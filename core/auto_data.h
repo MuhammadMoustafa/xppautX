@@ -35,6 +35,8 @@
 
 namespace xpp {
 
+struct Session; /* session.h */
+
 /* the event's line now; empty: none to send */
 std::string auto_data_event_line(const Session &s);
 

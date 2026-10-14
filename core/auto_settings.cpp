@@ -257,9 +257,6 @@ std::string event_text(const xpp::Session &s)
 /* A loaded model with variables has AUTO settings. */
 bool have_settings(const xpp::Session &s) { return s.model().node > 0; }
 
-/* the event, none for a model with no settings */
-std::string auto_settings_event_line(const xpp::Session &s) { return have_settings(s) ? event_text(s) : std::string(); }
-
 bool num_ok(int i, double v, std::string &why)
 {
     if (i < 0 || i >= AUTO_NUM_N) {
@@ -481,6 +478,9 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
 }
 
 } // namespace
+
+/* the event, none for a model with no settings */
+std::string auto_settings_event_line(const xpp::Session &s) { return have_settings(s) ? event_text(s) : std::string(); }
 
 const char *auto_settings_num_key(int i) { return i >= 0 && i < AUTO_NUM_N ? num_fields[i].key : nullptr; }
 

@@ -5848,16 +5848,10 @@ def check_auto_views():
 
 
 def check_auto_subscriptions():
-    """W335: AUTO subscriptions, pacing and client view tracking in ProtocolSession;
-    diagram view data in Session (AutoState).
-    Checks:
-    1. Subscribe, unsubscribe, and subscribe again: events sent/stopped/resent.
-    2. Two sessions one after another (load a model, run AUTO, then reload):
-       the client subscription stays active, fresh autosettings/autoview sent,
-       and no stale diagram points from the old session are sent.
-    3. Grabbed point's key after a reload: grab answered with point and key
-       is dispatched correctly through session.grab_key_after.
-    """
+    """W335: AUTO's subscriptions are the protocol client's: subscribe,
+    unsubscribe and subscribe again send, stop and resend autosettings,
+    autoinfo and autoview (a reload and a grab after it: autocheck's
+    subscriptions section)."""
     p, r, snd, col, _ = launch_server()
     try:
         col(is_idle)
@@ -5884,53 +5878,6 @@ def check_auto_subscriptions():
         av2 = [e for e in evs if e.get('ev') == 'autoview']
         check('auto subscriptions: subscribe again resends events',
               len(st2) > 0 and len(info2) > 0 and len(av2) > 0, str([len(st2), len(info2), len(av2)]))
-
-        # 2. Open AUTO window and run continuation
-        snd(cmd='key', key='f')
-        evs, ask = col(lambda e: e.get('ev') == 'ask')
-        snd(cmd='answer', id=ask['id'], key='a')  # File > Auto
-        col(is_idle)
-        snd(cmd='key', win='auto', key='r')
-        evs, ask = col(lambda e: e.get('ev') == 'ask')
-        snd(cmd='answer', id=ask['id'], key='r')  # Run > Run
-        evs, _ = col(is_idle)
-        dg_points = [e for e in evs if e.get('ev') == 'diagram' and e.get('op') == 'add']
-        check('auto subscriptions: continuation produces diagram points', len(dg_points) > 0)
-
-        # Reload the model: two sessions one after another
-        snd(cmd='reload')
-        evs, ask = col(lambda e: e.get('ev') == 'ask')
-        snd(cmd='answer', id=ask['id'], key='d')  # Don't save
-        reload_evs, _ = col(is_idle)
-
-        # The subscription stays active
-        reloaded_st = [e for e in reload_evs if e.get('ev') == 'autosettings']
-        check('auto subscriptions: reload preserves subscription without re-subscribing',
-              len(reloaded_st) > 0, str(reloaded_st))
-        # No stale diagram data is sent
-        stale_dg = [e for e in reload_evs if e.get('ev') == 'diagram' and e.get('op') == 'add']
-        check('auto subscriptions: reload sends no stale diagram points',
-              len(stale_dg) == 0, str(stale_dg))
-
-        # 3. Open AUTO in reloaded session and run
-        snd(cmd='key', key='f')
-        evs, ask = col(lambda e: e.get('ev') == 'ask')
-        snd(cmd='answer', id=ask['id'], key='a')  # File > Auto
-        col(is_idle)
-        snd(cmd='key', win='auto', key='r')
-        evs, ask = col(lambda e: e.get('ev') == 'ask')
-        snd(cmd='answer', id=ask['id'], key='r')  # Run > Run
-        col(is_idle)
-
-        # Start grab loop and answer with point and key in one reply
-        snd(cmd='key', win='auto', key='g')
-        evs, ask = col(lambda e: e.get('ev') == 'ask')
-        check('auto subscriptions: grab prompt opened after reload', ask and ask.get('prompt') == 'grab')
-        snd(cmd='answer', id=ask['id'], point=1, key='Return')
-        grab_evs, idle_ev = col(is_idle)
-        check('auto subscriptions: grabbed point with key finishes grab loop to idle',
-              idle_ev is not None and not any(e.get('ev') == 'ask' for e in grab_evs),
-              str(grab_evs)[:200])
 
     finally:
         stop_server(p, r, snd)
