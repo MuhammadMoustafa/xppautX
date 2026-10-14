@@ -262,6 +262,13 @@ void init_all_graph(xpp::Session &s)
  int i;
  for(i=0;i<MAXPOP;i++)
  init_graph(s,i);
+ s.plot_windows.graph[0].w=1;
+ s.plot_windows.graph[0].Use=1;
+ s.plot_windows.graph[0].Nullrestore=1;
+ s.plot_windows.open[0]=0;
+ s.plot_windows.count=1;
+ s.plot_windows.active=0;
+ s.plot_windows.draw_win=s.plot_windows.graph[0].w;
  s.plot_windows.current=&s.plot_windows.graph[0];
  set_normal_scale(s);
 
@@ -284,7 +291,6 @@ void set_extra_graphs(xpp::Session &s)
     }
     return;
   }
-  if(program.interactive){
   for(i=1;i<s.plot_settings.npltv;i++){
     create_a_pop(s);
     s.plot_windows.graph[i].xv[0]=s.plot_settings.ix_plt[i+1];
@@ -298,7 +304,6 @@ void set_extra_graphs(xpp::Session &s)
   }
   xpp::set_active_windows(s);
   xpp::make_active(s,0,1); 
-  }
 }
 
 void reset_graph(xpp::Session &s)
@@ -985,7 +990,6 @@ void eq_symb(xpp::Session &s, double *x, int type)
   float dx=6.0*static_cast<float>(s.plot_windows.current->xhi-s.plot_windows.current->xlo)*SYMSIZE;
   float dy=6.0*static_cast<float>(s.plot_windows.current->yhi-s.plot_windows.current->ylo)*SYMSIZE;
  int ix=s.plot_windows.current->xv[0]-1,iy=s.plot_windows.current->yv[0]-1,iz=s.plot_windows.current->zv[0]-1;
- if(!program.interactive)return;
   if(s.plot_windows.current->TimeFlag)return;
   set_color(0); 
   if(s.plot_windows.current->ThreeDFlag)

@@ -51,11 +51,29 @@ namespace xpp {
 
 /* ---- graph bookkeeping (was many_pops.c / main.c) ----------------------- */
 
+void create_a_pop(Session &s)
+{
+    int i;
+    for (i = 1; i < MAXPOP; i++)
+        if (s.plot_windows.graph[i].Use == 0) break;
+    if (i >= MAXPOP) {
+        respond_box("Okay", "Too many windows!");
+        return;
+    }
+    copy_graph(s, i, s.plot_windows.active);
+    s.plot_windows.graph[i].w = i + 1;
+    s.plot_windows.count++;
+    make_active(s, i, 1);
+    ui.create_plot_window(s);
+    get_draw_area(s);
+}
+
 void make_active(xpp::Session &s, int i, int flag)
 {
     s.plot_windows.active = i;
     s.plot_windows.current = &s.plot_windows.graph[s.plot_windows.active];
-    ui.activate_graph(s,i, flag);
+    s.plot_windows.draw_win = s.plot_windows.current->w;
+    get_draw_area_flag(s, flag);
 }
 
 int graph_of(const xpp::Session &s, XppWinId w)

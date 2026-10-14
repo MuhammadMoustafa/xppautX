@@ -403,7 +403,6 @@ XppUi make_json_ui(void)
     u.rows_stored = j_rows_stored;
     u.live_state = j_live_state;
     u.browser_redraw = j_browser_changed;
-    u.activate_graph = j_activate_graph;
     u.create_plot_window = j_create_plot_window;
     u.destroy_plot_window = j_destroy_plot_window;
     u.kill_plot_windows = j_kill_plot_windows;

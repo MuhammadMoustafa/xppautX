@@ -134,7 +134,6 @@ static int hl_menu_choose(const struct XppMenu *, int)
 static int hl_get_mouse_xy(Session &, int *, int *) { return 0; }
 static int hl_check_abort(void) { return KEY_NONE; }
 static void hl_progress(int, int, int) {}
-static void hl_activate_graph(Session &, int, int) {}
 static void hl_get_draw_size(Session &s, unsigned int *w, unsigned int *h)
 {
     /* whatever the graph last had, else a sensible canvas */
@@ -237,7 +236,6 @@ XppUi ui = {
     .rows_stored = hl_s_int,
     .live_state = hl_live_state,
     .browser_redraw = hl_int,
-    .activate_graph = hl_activate_graph,
     .create_plot_window = hl_s,
     .destroy_plot_window = hl_s,
     .kill_plot_windows = hl_s,
@@ -499,7 +497,6 @@ void drw_all_scrns(Session &s) { ui.redraw_screens(s); }
 void clr_all_scrns(Session &s) { ui.clear_screens(s); }
 void clear_draw_window(Session &s) { ui.clear_draw_window(s); }
 void reset_graphics(Session &s) { ui.reset_graphics(s); }
-void create_a_pop(Session &s) { ui.create_plot_window(s); }
 void destroy_a_pop(Session &s) { ui.destroy_plot_window(s); }
 void kill_all_pops(Session &s) { ui.kill_plot_windows(s); }
 void GrCol(void) { ui.gr_col(); }

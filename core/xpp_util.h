@@ -81,6 +81,8 @@ std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider,
    window is w (graph_of; 0, the main one, when none in use is), and the
    active window's bounds made valid (check_windows) */
 void set_active_windows(Session &s);
+/* Create and activate a graph; the UI callback only presents its surface. */
+void create_a_pop(Session &s);
 void make_active(Session &s, int i, int flag);
 int graph_of(const Session &s, XppWinId w);
 void check_windows(Session &s);

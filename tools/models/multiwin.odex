@@ -1,0 +1,10 @@
+# W348: distinct axes and bounds in three model-defined plot windows.
+x' = -x
+y' = -2*y
+init x = 1, y = 2
+options {
+  integration: { total_time: 1, dt: .1, method: runge_kutta },
+  plot: { multiwin: 1, nplot: 3, xp: x, yp: y,
+          xp2: y, yp2: x, xlo2: -2, xhi2: 3, ylo2: -4, yhi2: 5,
+          xp3: t, yp3: y, xlo3: 0, xhi3: 1, ylo3: 0, yhi3: 2 },
+}

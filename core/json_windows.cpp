@@ -133,28 +133,13 @@ void select_graph(xpp::Session &s, int i)
     send_window("select", s.plot_windows.draw_win, win_w[i], win_h[i]);
 }
 
-void j_activate_graph(xpp::Session &s, int i, int flag)
-{
-    s.plot_windows.draw_win = s.plot_windows.graph[i].w;
-    get_draw_area_flag(s,flag);
-}
-
 void j_create_plot_window(xpp::Session &s)
 {
-    int i;
-    for (i = 1; i < MAXPOP; i++)
-        if (s.plot_windows.graph[i].Use == 0) break;
-    if (i >= MAXPOP) {
-        j_respond_box("Okay", "Too many windows!");
-        return;
-    }
-    copy_graph(s,i, s.plot_windows.active);
-    s.plot_windows.graph[i].w = i + 1;
+    const int i = s.plot_windows.active;
     win_w[i] = 450;
     win_h[i] = 350;
-    s.plot_windows.count++;
     send_window("create", s.plot_windows.graph[i].w, win_w[i], win_h[i], "");
-    select_graph(s, i);
+    send_window("select", s.plot_windows.draw_win, win_w[i], win_h[i]);
 }
 
 namespace {

@@ -252,8 +252,7 @@ typedef struct XppUi {
     void (*browser_redraw)(int full); /* my_browser: 1 columns too, 0 data */
 
     /* plot windows */
-    void (*activate_graph)(Session &s, int i, int flag); /* graph i became plot_windows.current */
-    void (*create_plot_window)(Session &s);
+    void (*create_plot_window)(Session &s); /* present the already-created active graph */
     void (*destroy_plot_window)(Session &s); /* the active one; not the main window */
     void (*kill_plot_windows)(Session &s);   /* all but the main window */
     void (*lower_plot_window)(void);   /* put the active one at the bottom */
@@ -392,7 +391,6 @@ void drw_all_scrns(Session &s);
 void clr_all_scrns(Session &s);
 void clear_draw_window(Session &s);
 void reset_graphics(Session &s);
-void create_a_pop(Session &s);
 void destroy_a_pop(Session &s);
 void kill_all_pops(Session &s);
 void cput_text(Session &s);

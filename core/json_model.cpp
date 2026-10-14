@@ -46,15 +46,7 @@ void init_main_graph(xpp::Session &s)
         s.grobs[i].use = 0;
     }
     for (i = 0; i < MAXFRZ; i++) s.frozen_curves.curve[i].use = 0;
-    for (i = 0; i < MAXPOP; i++) s.plot_windows.graph[i].Use = 0;
-    s.plot_windows.open[0] = 0;
     init_all_graph(s);
-    s.plot_windows.graph[0].w = 1;
-    s.plot_windows.graph[0].Use = 1;
-    s.plot_windows.graph[0].Nullrestore = 1;
-    s.plot_windows.count = 1;
-    s.plot_windows.draw_win = s.plot_windows.graph[0].w;
-    s.plot_windows.active = 0;
     get_draw_area(s);
 }
 

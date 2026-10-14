@@ -439,7 +439,6 @@ void j_redraw_graph(xpp::Session &s);
 void j_redraw_screens(xpp::Session &s);
 void j_clear_screens(xpp::Session &s);
 void j_reset_graphics(xpp::Session &s);
-void j_activate_graph(xpp::Session &s, int i, int flag);
 void j_create_plot_window(xpp::Session &s);
 void j_destroy_plot_window(xpp::Session &s);
 void j_kill_plot_windows(xpp::Session &s);

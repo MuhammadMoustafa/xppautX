@@ -1600,6 +1600,53 @@ def check_plot_windows():
 check_plot_windows()
 
 
+def check_model_plot_windows():
+    """W348: model-defined graphs use the same core setup in every mode."""
+    model = os.path.join('tools', 'models', 'multiwin.odex')
+    proc, run, send, collect, _ = launch_server(ode=model)
+    try:
+        collect(is_idle)
+        send(cmd='data', events=['plots', 'series'])
+        events, _ = collect(is_idle)
+        plots = next((e for e in events if e.get('ev') == 'plots'), {})
+        windows = plots.get('windows', [])
+        check('W348: model creates three graphs, with the first active',
+              [w['win'] for w in windows] == [1, 2, 3] and plots.get('active') == 1, str(plots)[:400])
+        check('W348: secondary graphs keep their axes and bounds', len(windows) == 3
+              and windows[1]['curves'][0]['x'] == 2 and windows[1]['curves'][0]['y'] == 1
+              and [windows[1][k] for k in ('xlo', 'xhi', 'ylo', 'yhi')] == [-2, 3, -4, 5]
+              and windows[2]['curves'][0]['x'] == 0 and windows[2]['curves'][0]['y'] == 2
+              and [windows[2][k] for k in ('xlo', 'xhi', 'ylo', 'yhi')] == [0, 1, 0, 2], str(windows)[:400])
+        send(cmd='key', key='i')
+        _, ask = collect(is_ask)
+        if ask:
+            send(cmd='answer', id=ask['id'], key='g')
+        events, _ = collect(is_idle)
+        series = whole_series(events)
+        check('W348: every graph carries the unchanged silent trajectory', len(series) == 3
+              and all(series_matches_output_dat(s, model) is None for s in series), str([s['win'] for s in series]))
+    finally:
+        stop_server(proc, run, send)
+    with tempfile.TemporaryDirectory(prefix='xppmultiwin') as run:
+        with open(model, encoding='utf-8') as source:
+            text = source.read()
+        outputs = []
+        for multi in (True, False):
+            with open(os.path.join(run, 'plot.odex'), 'w', encoding='utf-8') as source:
+                source.write(text if multi else text.replace('multiwin: 1, ', ''))
+            result = subprocess.run([os.path.abspath(args.server), 'plot.odex', '--silent'], cwd=run,
+                                    capture_output=True, text=True, timeout=60 * SLOW)
+            check('W348: silent model runs / ' + ('multi' if multi else 'single'),
+                  result.returncode == 0, result.stderr)
+            with open(os.path.join(run, 'output.dat'), 'rb') as data:
+                outputs.append(data.read())
+        check('W348: multi-window silent output is byte-identical to single-window output',
+              outputs[0] == outputs[1])
+
+
+check_model_plot_windows()
+
+
 # The values panel and the run history of web2 (GitHub #18, #117): hello's
 # defaults, state's now, a batched set (never a run of its own: the `rerun`
 # flag is gone from set/slide/default and ignored if sent), the ICs from

@@ -295,14 +295,14 @@ void marks_data_update(xpp::Session &s)
 
 void marks_data_cleared(xpp::Session &s, int pop)
 {
-    if (!client.emit_line || pop < 0 || pop >= MAXPOP) return;
+    if (pop < 0 || pop >= MAXPOP) return;
     s.marks_shown.windows[pop] = MarksShown::Record();
 }
 
 void marks_data_equilibrium(xpp::Session &s, double x, double y, int symbol)
 {
     const int pop = s.plot_windows.active;
-    if (!client.emit_line || pop < 0 || pop >= MAXPOP) return;
+    if (pop < 0 || pop >= MAXPOP) return;
     MarksShown::Record &r = s.marks_shown.windows[pop];
     const MarksShown::Equilibrium e{x, y, symbol};
     try {
