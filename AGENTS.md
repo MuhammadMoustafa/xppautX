@@ -151,8 +151,8 @@ the machine's three slots:
   that runs another does not wait on itself.
 - While waiting, an agent keeps coding; it never works around the lock
   (no build outside it, no deleting another run's lock folder).
-- Builds still use -j4, and at most three agents work at once (they
-  code side by side; only their heavy runs queue).
+- Builds still use -j4. The number of agents is not capped (maintainer,
+  2026-10-14): they code side by side, and only their heavy runs queue.
 
 The Windows build (UCRT gcc 16, `WERROR=1`)
 also runs on each merged tip: its libstdc++ marks `std::expected`
@@ -668,6 +668,9 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   work in the system temp folder or the session scratchpad, never in the
   repo or beside it. Files meant to be kept are named in the report. Never
   delete what you did not create.
+- Name a card with its title, never its ID alone: write "T12 Rename the
+  loader" (ID and title) in every message, report, commit body and issue
+  comment, so the maintainer can follow without looking the ID up.
 
 ## Architecture of the split (phase 2)
 
