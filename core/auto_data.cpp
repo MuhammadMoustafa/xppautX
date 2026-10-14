@@ -37,11 +37,11 @@ void add_pair(std::string &o, double re, double im)
     o += ']';
 }
 
-void add_info(std::string &o, const AutoDataShown &info, const Session &s)
+void add_info(std::string &o, const AutoDataShown &info, int point)
 {
     const AutoDataInfo &v = info.v;
     o += "{\"point\":";
-    o += std::to_string(s.auto_state.point_of_node(v.node));
+    o += std::to_string(point);
     o += ",\"br\":" + std::to_string(std::abs(v.ibr)) + ",\"pt\":" + std::to_string(std::abs(v.pt));
     o += ",\"type\":" + std::to_string(v.type);
     o += xpp::point_is_stable(v.type) ? ",\"stable\":true" : ",\"stable\":false";
@@ -125,11 +125,11 @@ void add_stop(std::string &o, const AutoStop &stop)
 
 } // namespace
 
-std::string auto_data_event_line(const Session &s)
+std::string auto_data_event_line(const Session &s, const int &point)
 {
     const AutoDataShown &sh = s.auto_state.shown;
     std::string o = "{\"ev\":\"autoinfo\",\"info\":";
-    if (sh.has_info) add_info(o, sh, s);
+    if (sh.has_info) add_info(o, sh, point);
     else o += "null";
     o += ",\"stab\":";
     if (sh.has_stab) add_stab(o, sh);

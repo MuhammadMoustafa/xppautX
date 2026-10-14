@@ -47,36 +47,28 @@ namespace xpp::json {
 
 namespace {
 
-/* view v's data, made when the view is new */
-AutoDiagramViewData &view_data(xpp::Session &s, int v)
+/* view v's list the client holds, made when the view is new */
+ClientDiagramView &view_data(int v)
 {
+    std::vector<ClientDiagramView> &views = session.client_diagram;
     try {
-        if (static_cast<std::size_t>(v) >= s.auto_state.views.size())
-            s.auto_state.views.resize(static_cast<std::size_t>(v) + 1);
+        if (static_cast<std::size_t>(v) >= views.size()) views.resize(static_cast<std::size_t>(v) + 1);
     } catch (...) {
         xpp::out_of_memory("keeping the AUTO diagram");
     }
-    return s.auto_state.views[static_cast<std::size_t>(v)].data;
+    return views[static_cast<std::size_t>(v)];
 }
 
 /* the list the grab and the info strip's point index go by: the active
    view's (every view holds the same points in the same order) */
-const AutoDiagramViewData &active_data(const xpp::Session &s)
-{
-    if (s.auto_state.views.empty() || s.auto_state.active_view < 0 ||
-        static_cast<std::size_t>(s.auto_state.active_view) >= s.auto_state.views.size()) {
-        static const AutoDiagramViewData empty{};
-        return empty;
-    }
-    return s.auto_state.views[static_cast<std::size_t>(s.auto_state.active_view)].data;
-}
+ClientDiagramView &active_data(const xpp::Session &s) { return view_data(s.auto_state.active_view); }
 
 } // namespace
 
 /* the client has nothing: a new window, or one it no longer holds */
-void diag_forget(xpp::Session &s)
+void diag_forget(void)
 {
-    for (auto &v : s.auto_state.views) v.data = AutoDiagramViewData();
+    session.client_diagram.assign(1, ClientDiagramView());
     session.client_views = 1;
     session.grab_key_after = 0;
     session.autoinfo.want(session.autoinfo.subscribed());
@@ -86,7 +78,7 @@ void diag_forget(xpp::Session &s)
 
 namespace {
 
-int diag_same(AutoDiagramViewData &view, const XppDiagPoint *a, const XppDiagPoint *b,
+int diag_same(ClientDiagramView &view, const XppDiagPoint *a, const XppDiagPoint *b,
               const std::shared_ptr<const DiagramBranch> &old_branch,
               const std::shared_ptr<const DiagramBranch> &branch)
 {
@@ -104,7 +96,7 @@ int diag_same(AutoDiagramViewData &view, const XppDiagPoint *a, const XppDiagPoi
 }
 
 /* the replay is over: the list is its first k points */
-void diag_end_replay(AutoDiagramViewData &d, int k)
+void diag_end_replay(ClientDiagramView &d, int k)
 {
     d.branch_matches.clear();
     d.replay = 0;
@@ -116,7 +108,7 @@ void diag_end_replay(AutoDiagramViewData &d, int k)
 
 void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
 {
-    AutoDiagramViewData &d = view_data(s, view);
+    ClientDiagramView &d = view_data(view);
     if (!p) {
         const AUTOAX &a = s.auto_state.views[static_cast<std::size_t>(view)].axes;
         d.ax.xmin = a.xmin;
@@ -156,6 +148,16 @@ void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
     d.dg[static_cast<std::size_t>(d.n++)] = *p;
 }
 
+/* the index in the data the client holds of AUTO's diagram entry `node`
+   (auto_data.h); the latest when a redraw of other axes left two */
+int diag_point_of_node(const xpp::Session &s, int node)
+{
+    const ClientDiagramView &d = active_data(s);
+    for (int i = d.client - 1; i >= 0; i--)
+        if (d.dg[static_cast<std::size_t>(i)].node == node) return i;
+    return -1;
+}
+
 namespace {
 
 /* the AUTO diagram's points, to 7 significant digits (buf_num, 3-arg, is
@@ -165,7 +167,7 @@ void diag_num(Buf *b, double v) { buf_num(b, v, 7); }
 /* an event's start: its op and view */
 void diag_head(Buf *b, const char *op, int v) { buf_format(b, "{{\"ev\":\"diagram\",\"op\":\"{}\",\"view\":{:d}", op, v); }
 
-void diag_axes(Buf *b, const AutoDiagramViewData &d)
+void diag_axes(Buf *b, const ClientDiagramView &d)
 {
     BUF_LIT(b, ",\"xmin\":");
     buf_num(b, d.ax.xmin, 17);
@@ -250,7 +252,7 @@ void diag_run(const xpp::Session &s, Buf *b, const std::vector<XppDiagPoint> &dg
 /* the client's point i of the active view, NULL when it has none */
 const XppDiagPoint *diag_client_point(const xpp::Session &s, int i)
 {
-    const AutoDiagramViewData &d = active_data(s);
+    const ClientDiagramView &d = active_data(s);
     return i >= 0 && i < d.client ? &d.dg[static_cast<std::size_t>(i)] : nullptr;
 }
 
@@ -265,7 +267,7 @@ int diag_joins(const XppDiagPoint *a, const XppDiagPoint *b)
 }
 
 /* what view v's client list lacks */
-void diag_flush_view(const xpp::Session &s, int v, AutoDiagramViewData &d, int final)
+void diag_flush_view(const xpp::Session &s, int v, ClientDiagramView &d, int final)
 {
     Buf b;
     if (d.replay) {
@@ -314,7 +316,7 @@ void diag_flush_view(const xpp::Session &s, int v, AutoDiagramViewData &d, int f
 
 /* send what the client does not have yet. final: the command ends or asks
    something, so a replay that has not been completed never will be */
-void diag_flush(xpp::Session &s, int final)
+void diag_flush(const xpp::Session &s, int final)
 {
     const int n = static_cast<int>(s.auto_state.views.size());
     if (n != session.client_views && s.auto_state.bifur.exist) {
@@ -322,10 +324,15 @@ void diag_flush(xpp::Session &s, int final)
            starts empty on both */
         const std::string e = xpp::format("{{\"ev\":\"diagram\",\"op\":\"views\",\"n\":{:d}}}", n);
         out_line(e.data(), e.size());
+        try {
+            session.client_diagram.resize(static_cast<std::size_t>(n));
+        } catch (...) {
+            xpp::out_of_memory("keeping the AUTO diagram");
+        }
         session.client_views = n;
     }
-    for (int v = 0; v < static_cast<int>(s.auto_state.views.size()) && v < session.client_views; v++)
-        diag_flush_view(s, v, s.auto_state.views[static_cast<std::size_t>(v)].data, final);
+    for (int v = 0; v < static_cast<int>(session.client_diagram.size()) && v < session.client_views; v++)
+        diag_flush_view(s, v, session.client_diagram[static_cast<std::size_t>(v)], final);
 }
 
 /* AUTO's refreshdisplay() after every point: a few frames a second, not a
@@ -408,11 +415,10 @@ void auto_redraw_for_client(xpp::Session &s)
 {
     if (!s.auto_state.bifur.exist) return;
     session.client_views = 1; /* a new client holds one empty view */
-    if (s.auto_state.views.empty()) s.auto_state.views.resize(1);
-    for (auto &w : s.auto_state.views) {
-        w.data.dirty = 0;
-        w.data.client = w.data.n > 0 ? w.data.n : 1;
-    }
+    session.client_diagram.resize(1);
+    ClientDiagramView &d = session.client_diagram.front();
+    d.dirty = 0;
+    d.client = d.n > 0 ? d.n : 1;
     redraw_diagram(s);
 }
 
@@ -429,7 +435,7 @@ void auto_data_update(const Session &s, int final)
 {
     if (!json::session.autoinfo.ready() || !json::session.autoinfo.subscribed()) return;
     if (!final && !xpp::every(json::session.autoinfo_last, xpp::PROGRESS_SECONDS)) return;
-    json::session.autoinfo.update(s);
+    json::session.autoinfo.update(s, json::diag_point_of_node(s, s.auto_state.shown.v.node));
 }
 
 void auto_settings_subscribe(const Session &s, int on)
@@ -455,7 +461,7 @@ void j_auto_make_window(xpp::Session &s, std::string_view wname, std::string_vie
     s.auto_state.bifur.x0 = 10 * text_metrics.small_width;
     s.auto_state.bifur.y0 = 2 * text_metrics.small_height;
     s.auto_state.bifur.hinttxt = "hint";
-    diag_forget(s);      /* a new window has no data */
+    diag_forget();      /* a new window has no data */
     auto_data_forget(s); /* nor an info strip or a stability circle */
     send_window("create", WIN_AUTO, s.auto_state.bifur.wid + 12 * text_metrics.small_width, s.auto_state.bifur.hgt + 4 * text_metrics.small_height, wname);
     draw_bif_axes(s);
@@ -700,7 +706,7 @@ void auto_command(xpp::Session &s, const char *line)
         if (!s.auto_state.bifur.exist) return;
         s.auto_state.bifur.exist = 0; /* auto_x11.c auto_kill; File/Auto opens it again */
         send_window("destroy", WIN_AUTO, 0, 0);
-        diag_forget(s);
+        diag_forget();
         auto_data_forget(s);
         s.auto_view = xpp::AutoView();
         for (AutoDiagramView &w : s.auto_state.views) w.zoom = xpp::Zoom(); /* the views stay, shown whole */

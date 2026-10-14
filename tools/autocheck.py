@@ -1958,6 +1958,9 @@ def section_subscriptions():
     check('subscriptions: ... and sends no point of the diagram before',
           not any(e.get('ev') == 'diagram' and e.get('op') == 'add' for e in evs),
           str([e for e in evs if e.get('ev') == 'diagram'])[:300])
+    # the reload keeps the values by name: iapp is where the first run ended, at AUTO's upper limit
+    s.send(cmd='set', kind='par', name='iapp', value=0.05)
+    s.collect(is_idle)
     dg = Diagram().apply(hopf_steady(s))
     dg.apply(run_any(s, 's'))
     check('subscriptions: after the reload a steady branch computes again', len(dg.pts) > 10, '%d points' % len(dg.pts))

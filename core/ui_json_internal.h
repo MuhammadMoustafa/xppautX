@@ -34,7 +34,10 @@
 #include "xpp_inbox.h"
 #include "display_state.h"
 #include "grobs.h"
+#include "diagram.h"
 #include "data_event.h"
+#include "auto_data.h"
+#include "auto_settings.h"
 #include <stddef.h>
 #include <atomic>
 #include <climits>
@@ -42,6 +45,8 @@
 #include <functional>
 #include <initializer_list>
 #include <iterator>
+#include <map>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
@@ -63,8 +68,6 @@
 namespace xpp {
 struct ModelRequest; /* model_switch.h */
 struct Session;      /* session.h */
-std::string auto_data_event_line(const Session &s);
-std::string auto_settings_event_line(const Session &s);
 }
 
 namespace xpp::json {
@@ -92,6 +95,24 @@ struct DeferredLine {
 
 std::string auto_view_event_line(const xpp::Session &s);
 
+/* what the client holds of one view of AUTO's diagram, and how far it got
+   (json_auto.cpp's comment): the list of points it was sent, its axes and
+   the replay in progress. The client's, so it is positional like the
+   client's own lists, not the view's: a closed view leaves the lists after
+   it to be sent again. */
+struct ClientDiagramView {
+    std::vector<XppDiagPoint> dg; /* n of them in use */
+    std::vector<std::shared_ptr<const xpp::DiagramBranch>> branches; /* immutable records behind those points */
+    std::map<std::shared_ptr<const xpp::DiagramBranch>,std::map<std::shared_ptr<const xpp::DiagramBranch>,bool>> branch_matches;
+    int n = 0, client = 0, dirty = 0;
+    int replay = 0, match = 0, axes = 0;
+    struct {
+        double xmin, xmax, ymin, ymax;
+        int x0, y0, wid, hgt, plot;
+        std::string xlabel, ylabel;
+    } ax{};
+};
+
 struct ProtocolSession {
     int save_replace = SAVE_ASK; /* the running command's decision, never the disk's */
     bool generated = false; /* --silent model's internal commands */
@@ -114,11 +135,12 @@ struct ProtocolSession {
     int rows_seen = INT_MAX;
     double live_state_last = 0; /* Display pacing only; solver steps are unchanged. */
     /* AUTO subscriptions, pacing and client view tracking */
-    xpp::ChangedEvent<xpp::Session> autoinfo{xpp::auto_data_event_line, "sending AUTO's info strip"};
+    xpp::ChangedEvent<xpp::Session, int> autoinfo{xpp::auto_data_event_line, "sending AUTO's info strip"};
     double autoinfo_last = 0;
     xpp::ChangedEvent<xpp::Session> autosettings{xpp::auto_settings_event_line, "sending AUTO's settings"};
     xpp::ChangedEvent<xpp::Session> autoview{auto_view_event_line, "sending AUTO's view"};
-    int client_views = 1;
+    std::vector<ClientDiagramView> client_diagram{1}; /* the lists the client holds, one per view */
+    int client_views = 1; /* how many of them */
     int grab_key_after = 0;
     double auto_refresh_last = 0;
 };
@@ -440,8 +462,9 @@ void j_aplot_draw_one(xpp::Session &s, std::string_view tag);
 
 /* ---- json_auto.cpp ---- */
 
-void diag_flush(xpp::Session &s, int final);
-void diag_forget(xpp::Session &s); /* the client has no diagram */
+void diag_flush(const xpp::Session &s, int final);
+void diag_forget(void); /* the client has no diagram */
+int diag_point_of_node(const xpp::Session &s, int node); /* the index in the diagram data the client holds of AUTO's entry `node`, or -1 */
 void auto_command(xpp::Session &s, const char *line);
 /* the `autoview` event (hidden branches and zoom), for a client that asked for autoinfo */
 void auto_view_subscribe(int on);

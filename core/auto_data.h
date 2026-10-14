@@ -28,8 +28,8 @@
    auto_nox.c reports the strip and the circle as it draws them; the front
    end sends the event at the end of a command, before every prompt and at
    most ten times a second while AUTO runs, and only when it differs from the one it sent
-   last. Nothing is recorded before auto_data_init(), so a program without
-   such a front end (xppaut) pays nothing.
+   last. The client's subscription and pacing are the protocol client's
+   (ui_json_internal.h's ProtocolSession).
 
    auto_data.cpp; nothing escapes it. */
 
@@ -37,8 +37,8 @@ namespace xpp {
 
 struct Session; /* session.h */
 
-/* the event's line now; empty: none to send */
-std::string auto_data_event_line(const Session &s);
+/* the event's line now; point: the index of the shown diagram entry in the data the client holds (-1: none); empty: none to send */
+std::string auto_data_event_line(const Session &s, const int &point);
 
 /* {"cmd":"data"} with or without "autoinfo": the event is sent at the next
    update whatever it holds */
