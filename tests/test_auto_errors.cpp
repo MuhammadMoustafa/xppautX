@@ -22,7 +22,7 @@ template <class F> std::string failure(F f)
     try {
         f();
     } catch (const xpp::AutoFailed &e) {
-        return e.what.empty() ? "(empty)" : e.what;
+        return e.error.what.empty() ? "(empty)" : e.error.what;
     }
     return "";
 }
@@ -33,9 +33,52 @@ bool has(const std::string &s, const char *part) { return s.find(part) != std::s
 
 int main()
 {
+    const xpp::Error file_error=xpp::files::open_error("AUTO", "missing/fort.3");
+    try {
+        xpp::auto_fail(file_error);
+        CHECK(false);
+    } catch (const xpp::AutoFailed &e) {
+        CHECK(e.error.where == file_error.where && e.error.what == file_error.what);
+        CHECK(e.error.place.file == file_error.place.file);
+        CHECK(e.error.place.line == file_error.place.line && e.error.place.col == file_error.place.col);
+        CHECK(e.error.place.source == file_error.place.source);
+    }
+    const xpp::Error located{"tables", "bad expression", {"model.odex", 12, 3, "table f %bad"}};
+    try {
+        xpp::auto_fail(located);
+        CHECK(false);
+    } catch (const xpp::AutoFailed &e) {
+        CHECK(e.error.where == located.where && e.error.what == located.what);
+        CHECK(e.error.place.file == located.place.file && e.error.place.line == 12);
+        CHECK(e.error.place.col == 3 && e.error.place.source == located.place.source);
+    }
     /* ge writes its pivots to fort.9 */
     FILE *fp9 = std::tmpfile();
     xpp::client_session().auto_lib.fp9 = fp9;
+
+    CHECK(fp9 != nullptr);
+    /* Explicit text mode exercises Windows' translated newline positions. */
+    {
+        const std::string path="build/test_auto_positions.txt";
+        xpp::UniqueFile positions(xpp::files::open_stream(path, "w+"));
+        CHECK(positions != nullptr);
+        xpp::print(positions.get(), "first\nsecond\n");
+        const auto end=xpp::tell_stream(positions.get(), path);
+        CHECK(end && *end > 0);
+        CHECK(xpp::rewind_stream(positions.get(), path).has_value());
+        auto reader=xpp::LineReader::attach(positions.get());
+        CHECK(reader.next() == "first");
+        const auto second=xpp::tell_stream(positions.get(), path);
+        CHECK(second && *second > 0);
+        CHECK(reader.next() == "second");
+        CHECK(!reader.next());
+        CHECK(xpp::seek_stream(positions.get(), *second, path).has_value());
+        CHECK(reader.next() == "second");
+        const auto bad_seek=xpp::seek_stream(positions.get(), -1, path);
+        CHECK(!bad_seek && bad_seek.error().place.file == path);
+        CHECK(xpp::rewind_stream(positions.get(), path).has_value() && !std::feof(positions.get()));
+    }
+    CHECK(xpp::files::remove("build/test_auto_positions.txt") == 0);
 
     /* chdim: more free parameters than AUTO's arrays hold */
     iap_type iap{};
@@ -45,6 +88,15 @@ int main()
     CHECK(has(failure([&] { chdim(&iap); }), "free parameters"));
     iap.nfpr = 2;
     CHECK(failure([&] { chdim(&iap); }).empty());
+
+    /* RG rejects a leading dimension smaller than the matrix dimension. */
+    iap.ndim = 2;
+    integer ndim = 2, leading = 1, ier = 0;
+    std::array<double, 4> matrix{};
+    std::array<doublecomplex, 2> spectrum{};
+    CHECK(has(failure([&] { eig(&iap, &ndim, &leading, matrix.data(), spectrum.data(), &ier); }),
+              "EISPACK routine RG"));
+    CHECK(ier == 1);
 
     /* cpnts: collocation weights exist for Ncol up to 7 */
     std::array<doublereal, 8> zm{};

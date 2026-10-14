@@ -712,7 +712,7 @@ void check_collocation()
             visited+=static_cast<int>(end-begin);
             if (begin>0) throw std::runtime_error("injected worker failure");
         });
-    } catch (const xpp::AutoFailed &failure) { caught=failure.what.find("injected worker failure")!=std::string::npos; }
+    } catch (const xpp::AutoFailed &failure) { caught=failure.error.what.find("injected worker failure")!=std::string::npos; }
     CHECK(caught && visited==17);
     visited=0;
     pool.intervals(17,[&](long begin,long end,AutoLib &){visited+=static_cast<int>(end-begin);});

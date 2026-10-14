@@ -108,7 +108,7 @@ int main()
         solvae(&iap, &rap, par.data(), &icp, nonfinite_line, &ds, &stride,
                aa.data(), rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(),
                &uold, &udot, &f, &dfdu, dfdp.data(), thl.data(), &thu);
-    } catch (const xpp::AutoFailed &e) { error = e.what; }
+    } catch (const xpp::AutoFailed &e) { error = e.error.what; }
     CHECK(error == "Branch 1 point 2: nonfinite AUTO solution");
     CHECK(ds > 0 && ds < rap.dsmin);
     CHECK(iap.istop == 1 && u == uold && rlcur == rlold && par[0] == rlold);
@@ -134,7 +134,7 @@ int main()
                mesh.data(), dups.data(), old.data(), tangent.data(), upold.data(),
                fa.data(), fc.data(), tm.data(), dtm.data(), &p0, &p1,
                thl.data(), &thu);
-    } catch (const xpp::AutoFailed &e) { error = e.what; }
+    } catch (const xpp::AutoFailed &e) { error = e.error.what; }
     CHECK(error == "Branch 1 point 2: nonfinite AUTO solution");
     CHECK(ds > 0 && ds < rap.dsmin);
     CHECK(iap.istop == 1 && mesh == old && rlcur == rlold && par[0] == rlold);
@@ -152,7 +152,7 @@ int main()
         try {
             xpp::addbif(&iap, &rap, 2, 1, par.data(), slots.data(), 0,
                         &norm, &state, &state, &state, &state);
-        } catch (const xpp::AutoFailed &e) { error = e.what; }
+        } catch (const xpp::AutoFailed &e) { error = e.error.what; }
         CHECK(error == "Branch 1 point 2: nonfinite AUTO solution");
         CHECK(s.diagram.points.size() == count && s.auto_state.diag_flag == 0);
     }

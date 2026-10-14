@@ -376,7 +376,7 @@ are attached once at dispatch; one renderer/event in all modes and recorded
 steps; stream rewind/tell/seek failures are checked by the I/O owner. Preserve
 fort output and Windows absolute text-stream positioning. Lower error baseline
 only if a counted site actually disappears; do not add ALLOWED entries.
-Order: after P1 or independently before its new error paths land.
+Implemented in W328 (#389): Error values retain their places, stream positions are checked by xpp_io, and EISPACK failures stop through the shared error renderer.
 
 ### P3: W329 ([#390](https://github.com/MuhammadMoustafa/xppautX/issues/390)) — Give AUTO problem, point and stability codes typed owners
 

@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- AUTO file failures keep their file location; numerical failures name the command or recorded step, and failed stream positioning and EISPACK eigenvalue computation stop with an error (W328, [#389](https://github.com/MuhammadMoustafa/xppautX/issues/389)).
+
 - Refuse malformed or oversized XPPAUT `.auto` imports whole, with the file and offending line; preserve the current settings, diagram and restart solutions on failure (W327, [#388](https://github.com/MuhammadMoustafa/xppautX/issues/388)).
 - A `.odex` set's top-level keys are parameters and states only; its settings go under `options: { group: { key: value } }`, from the groups a set may hold (`integration`, `poincare`, `equilibria`, `continuation`, `plot`, `sweep`, `analysis`; not `diagram`, `export`, `interface`, `output`, nor `colormap`, `simplot`, `multiwin`). A setting at the top level, an unknown key or group, or a group a set does not hold is an error at its line and column, and a set is checked whole (its values too) when the model loads. Set names are their own namespace: two sets of one name, an imported file's included, are an error naming both places. `--convert` writes XPPAUT's flat keys by XPPAUT's precedence (a model name first), then nests the settings; the shipped `.odex` examples with sets are rewritten (W318, [#378](https://github.com/MuhammadMoustafa/xppautX/issues/378)).
 

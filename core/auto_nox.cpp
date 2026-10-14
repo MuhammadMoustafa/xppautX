@@ -537,7 +537,7 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
     open_auto(s, iold); /* this copies the relevant files .s  to fort.3 */
     const AutoDepth depth(s);
     s.auto_lib.jacobian_failure.reset();
-    std::string failed; /* why the run failed (xpp::AutoFailed), empty if it did not */
+    std::optional<xpp::Error> failed; /* the run reports its failure after cleanup */
     {
       const xpp::Job job; /* Abort cancels it (xpp_job.h) */
       s.auto_state.run_from=s.auto_state.bifur.irs>0?s.auto_state.bifur.irs:0; /* the diagram's data say where the run started */
@@ -553,21 +553,24 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
           } catch (const xpp::AutoFailed &e) {
               /* W63a: what the numerics used to exit() on ends the run
                  instead, as a cancel does (auto_state.h) */
-              failed = e.what;
+              failed = e.error;
           }
           auto_restore_finite_pars(s, before.data()); /* leave no NaN parameter behind (QA SCI-001) */
       }
       s.auto_state.run_from=0;
-      if(xpp::job::cancelled()||!failed.empty())s.auto_state.restart_label=0; /* xppautX: cancel: no follow-up run */
-      if(!failed.empty())s.auto_lib.restart_flag=0;
+      if(xpp::job::cancelled()||failed.has_value())s.auto_state.restart_label=0; /* xppautX: cancel: no follow-up run */
+      if(failed.has_value())s.auto_lib.restart_flag=0;
     }
     /*     run_aut(Auto.nfpar,itp); THIS WILL CHANGE TO gogoauto stuff */ 
     close_auto(s, isave); /* this copies fort.8 to the .s file and other 
                           irrelevant stuff 
 		       */
-    if(!failed.empty()){
-      xpp::log_auto("AUTO stopped: {}\n",failed); /* the AUTO window's Output */
-      command_error("auto", ("AUTO stopped: "+failed));
+    if(failed.has_value()){
+      failed->what="AUTO stopped: "+failed->what;
+      xpp::log_auto("{}\n",failed->text()); /* the AUTO window's Output */
+      if(failed->place.file.empty() && failed->place.line==0)
+        command_error("auto", failed->what);
+      else xpp::show_error(*failed);
     }
     if(s.auto_lib.jacobian_failure){
       xpp::Error e=std::move(*s.auto_lib.jacobian_failure);

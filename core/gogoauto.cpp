@@ -25,7 +25,7 @@ struct RunUnits {
       const std::string path=xpp::auto_fort_path(s,unit);
       xpp::UniqueFile file(xpp::files::open_stream(path,mode));
       if(!file)xpp::auto_fail((mode[0]=='r' ? xpp::files::open_error("AUTO",path)
-                                         : xpp::files::write_error("AUTO",path)).what);
+                                         : xpp::files::write_error("AUTO",path)));
       return file;
     };
     u3=open(3,restart?"r":"w+");

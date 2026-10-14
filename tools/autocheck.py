@@ -2011,6 +2011,77 @@ def section_errors():
               '%d points vs %d, errors %s' % (len(again), len(good), errors_of(evs)))
     s.close()
 
+    # W328: deny writes in this process's own scratch, after opening AUTO.
+    s = Server(args.server, LECAR, verbose=args.v)
+    denied = False
+    scratch = None
+    try:
+        s.collect(is_idle)
+        hopf_steady(s)
+        folders = s.auto_dirs()
+        assert len(folders) == 1, folders
+        scratch = folders[0]
+        if os.name == 'nt':
+            r = subprocess.run(['icacls', scratch, '/deny', '*S-1-1-0:(W)'], capture_output=True)
+            assert r.returncode == 0, r.stderr
+            denied = True
+        elif os.geteuid() != 0:
+            os.chmod(scratch, 0o555)
+            denied = True
+        else:
+            # Root bypasses mode permissions; a directory refuses fort.3 writes too.
+            os.mkdir(os.path.join(scratch, 'fort.3'))
+        evs = run_any(s, 's')
+        errors = [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+        check('W328: a failed fort write reports its file once, with the original Place',
+              len(errors) == 1 and 'fort.3' in errors[0]['error']
+              and errors[0].get('file') == 'command' and errors[0].get('line') == 1
+              and json.loads(errors[0].get('source', '{}')).get('cmd') in ('key', 'answer')
+              and s.alive(), str(errors))
+    finally:
+        if denied:
+            if os.name == 'nt':
+                subprocess.run(['icacls', scratch, '/remove:d', '*S-1-1-0'], capture_output=True, check=True)
+            else:
+                os.chmod(scratch, 0o755)
+        if scratch and os.path.isdir(os.path.join(scratch, 'fort.3')):
+            os.rmdir(os.path.join(scratch, 'fort.3'))
+        s.close()
+
+    # W328: the shipped recording already has a periodic restart. Inject the
+    # same bad Ncol through its Numerics form before replaying that restart.
+    with open(RECORDING, encoding='utf-8') as f:
+        template = f.read()
+    body = [json.loads(line) for line in template.split('@steps\n', 1)[1].splitlines()
+            if line.startswith('{')]
+    s = Server(args.server, LECAR, verbose=args.v)
+    try:
+        s.collect(is_idle)
+        open_auto(s)
+        s.send(cmd='key', win='auto', key='n')
+        _, ask = s.collect(is_ask)
+        values = list(ask['values'])
+        values[NUMERICS.index('ncol')] = '8'
+    finally:
+        s.close()
+    # Inject immediately before the periodic Auto/Run step.
+    insert = next(i for i, step in enumerate(body) if step.get('keys') == ['r', 'p'])
+    body = body[:insert] + [{'win': 'auto', 'keys': ['n'], 'answers': [values]}] + body[insert:insert + 1]
+    code, out, run = run_recording(steps=body)
+    try:
+        errors = [json.loads(line) for line in out.splitlines() if line.startswith('{')
+                  and json.loads(line).get('ev') == 'message' and json.loads(line).get('error')]
+        place = run_recording.places[insert + 1]
+        check('W328: an AUTO numerical failure names its recorded run step once in server and silent',
+              code == 1 and len(errors) == 1 and 'Ncol' in errors[0]['error']
+              and errors[0].get('file', '').endswith('run.recx')
+              and (errors[0].get('line'), errors[0].get('source')) == place
+              and 'run.recx:%d:' % place[0] in run_recording.stderr
+              and run_recording.stderr.count('AUTO stopped') == 1,
+              str((code, errors, run_recording.stderr[-300:])))
+    finally:
+        shutil.rmtree(run, ignore_errors=True)
+
     # W340: AUTO continues a model parameter, so a model without one is refused
     model_dir = tempfile.mkdtemp(prefix='xppnopar')
     try:

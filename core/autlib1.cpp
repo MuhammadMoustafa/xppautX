@@ -104,7 +104,7 @@ FILE *fort8(AutoLib &lib)
 {
   if(!lib.fp8){
     lib.fp8.reset(xpp::files::open_stream(xpp::auto_fort_path(*lib.session,8),"w"));
-    if(!lib.fp8)xpp::auto_fail(xpp::files::write_error("AUTO", xpp::auto_fort_path(*lib.session,8)).what);
+    if(!lib.fp8)xpp::auto_fail(xpp::files::write_error("AUTO", xpp::auto_fort_path(*lib.session,8)));
   }
   return lib.fp8.get();
 }
@@ -3824,7 +3824,8 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
     *ier = 1;
   }
   if (*ier == 1) {
-    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Error return from EISPACK routine RG\n",ibr,ntop);	
+    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Error return from EISPACK routine RG\n",ibr,ntop);
+    xpp::auto_fail("Error return from EISPACK routine RG");
   }
 
   return 0;
@@ -4140,7 +4141,8 @@ newlab(iap_type *iap, rap_type *rap)
 
   mbr = 0;
   mlab = 0;
-  rewind(iap->lib->fp3);
+  if (auto r=xpp::rewind_stream(iap->lib->fp3, xpp::auto_fort_path(*iap->lib->session,3)); !r)
+    xpp::auto_fail(r.error());
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
 
  L1:
@@ -4219,13 +4221,16 @@ findlb(iap_type *iap, const rap_type *rap,
   /* If the label can not be located on unit 3 then FOUND will be .FALSE. */
 
   *found = FALSE_;
-  rewind(iap->lib->fp3);
+  if (auto r=xpp::rewind_stream(iap->lib->fp3, xpp::auto_fort_path(*iap->lib->session,3)); !r)
+    xpp::auto_fail(r.error());
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
   isw = iap->isw;
 
   while(1) {
     /* where this label line starts: readlb() reads it again from here */
-    line_start = ftell(iap->lib->fp3);
+    const auto position=xpp::tell_stream(iap->lib->fp3, xpp::auto_fort_path(*iap->lib->session,3));
+    if (!position) xpp::auto_fail(position.error());
+    line_start = *position;
     xpp::AutoSolutionHeader header;
     if (!xpp::read_auto_solution_header(tr, header, iap->lib->parameter_count)) break;
     ibr = header.ibr;
@@ -4256,7 +4261,8 @@ findlb(iap_type *iap, const rap_type *rap,
 	 stream in the Windows C runtime (CRLF translation): it left the
 	 stream mid-line, so readlb() parsed garbage for nar and wrote
 	 that many values past the end of u, corrupting the heap. */
-      fseek(iap->lib->fp3,line_start,SEEK_SET);
+      if (auto r=xpp::seek_stream(iap->lib->fp3, line_start, xpp::auto_fort_path(*iap->lib->session,3)); !r)
+        xpp::auto_fail(r.error());
       return 0;
     } else {
       skip3(iap->lib->fp3, &nskip, &eof3);

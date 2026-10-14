@@ -264,14 +264,16 @@ namespace xpp {
    dimension or setting AUTO cannot run with (Ncol above 7, Ntst below
    the number of nodes), a singular solve, a BLAS routine's argument out
    of range. do_auto (auto_nox.cpp), where every run starts, catches it
-   and reports `what`; the run ends as a cancelled one does: gogoauto's
+   and reports its Error; the run ends as a cancelled one does: gogoauto's
    RunUnits closes fort.3/7/9 as the stack unwinds, close_auto saves the
    diagram so far, and the work arrays are std::vectors, so nothing leaks
    and the next run starts clean. */
 struct AutoFailed {
-  std::string what;
+  Error error;
 };
-[[noreturn]] inline void auto_fail(std::string what) { throw AutoFailed{std::move(what)}; }
+[[noreturn]] inline void auto_fail(Error error) { throw AutoFailed{std::move(error)}; }
+/* Numerical failures have no file; do_auto attaches the command's place. */
+[[noreturn]] inline void auto_fail(std::string what) { throw AutoFailed{{"auto", std::move(what)}}; }
 } // namespace xpp
 
 #endif

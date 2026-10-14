@@ -129,7 +129,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
    double *x=const_cast<double *>(u);
    continued_constants(s,s.parser.constants.data(),icp,nfpr,parameters);
    xpp::evaluate_derived(s);
-   if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
+   if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error());
    s.integrator.rhs(0.0,x,f,ndim);
    const double *c=s.parser.constants.data();
    if(exact)exact_derivatives(s,s.auto_lib,c,ndim,x,f,icp,nfpr,ijac,dfdu,dfdp);
@@ -206,7 +206,7 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
                      s.auto_state.parameter_layout.parameters(par));
 
  xpp::evaluate_derived(s);
- if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
+ if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error());
  /* the boundary conditions only read the two ends */
  xpp::do_bc(s,const_cast<double *>(u0),0.0,const_cast<double *>(u1),1.0,fb,nbc);
 

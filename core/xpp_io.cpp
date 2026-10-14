@@ -29,6 +29,28 @@
    The file half: line reader, token reader, writer (issue: W11 step 3,
    W7b). See xpp_io.h for the contract. */
 
+xpp::Result<> xpp::seek_stream(FILE *file, long position, std::string_view path)
+{
+    if (std::fseek(file, position, SEEK_SET) != 0)
+        return fail_reading("I/O", "cannot seek in stream", std::string(path));
+    return {};
+}
+
+xpp::Result<long> xpp::tell_stream(FILE *file, std::string_view path)
+{
+    const long position = std::ftell(file);
+    if (position == -1L)
+        return fail_reading("I/O", "cannot tell stream position", std::string(path));
+    return position;
+}
+
+xpp::Result<> xpp::rewind_stream(FILE *file, std::string_view path)
+{
+    auto result = seek_stream(file, 0, path);
+    if (result) std::clearerr(file);
+    return result;
+}
+
 /* A reader reads the stream of: owned when it opened the file itself
    (closed with the reader), attached when it was handed one; with
    neither, the lines are text's, from pos on (LineReader::of_text) */
