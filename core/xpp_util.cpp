@@ -395,10 +395,10 @@ void new_parameter(xpp::Session &s)
   }
 }
 
-void   set_default_params(xpp::Session &s)
+void   set_default_params(xpp::Session &s, std::optional<int> only)
  {
-
  for(int i=0;i<s.model().nupar;i++){
+   if(only && *only!=i)continue;
    set_val(s,s.model().upar_names[i],s.model().default_val[i]);
    ui.param_box_set(i,xpp::format("{:.16g}",s.model().default_val[i]).c_str());
  }
@@ -411,11 +411,10 @@ void   set_default_params(xpp::Session &s)
 /* ---- the values behind the IC, parameter, BC and delay boxes and the
    parameter sliders (logic from init_conds.c; the widgets stay there) ---- */
 
-void   set_default_ics(xpp::Session &s)
+void   set_default_ics(xpp::Session &s, std::optional<int> only)
 {
-  int i;
-  for(i=0;i<s.model().node+s.model().nmarkov;i++)
-    s.last_ic[i]=s.model().default_ic[i];
+  for(int i=0;i<s.model().node+s.model().nmarkov;i++)
+    if(!only || *only==i)s.last_ic[i]=s.model().default_ic[i];
    redraw_ics();
 }
 

@@ -482,7 +482,7 @@ async function values() {
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).closest('.value-field').querySelector('.value-reset').click()`);
   check('Reset sends the model file\'s value at once, and the core has it',
     await until(`!s.busy && ${iappIs(before)}`, 'reset applied')
-    && (await S(`__xpp.sentFrom(${preReset})`)).filter(c => c.cmd === 'set').length === 1,
+    && (await S(`__xpp.sentFrom(${preReset})`)).filter(c => c.cmd === 'restoredefaults' && c.scope === 'parameters' && c.field).length === 1,
     JSON.stringify(await S(`__xpp.sentFrom(${preReset})`)));
   /* clicking the plot (view-only, no compute) sends nothing */
   const plotCorner = await cdp.eval(`(() => { const r = document.querySelector('.plot-host').getBoundingClientRect();
@@ -3780,14 +3780,14 @@ async function navigationCheck() {
     document.querySelectorAll('.command-group').length === 5 && document.querySelector('.title-bar h1').textContent === 'lecar.odex'`));
   check('navigation: the Tools group holds only the Calculator; the commands that live in a panel are not in the command list (W229)', await cdp.eval(`(() => {
     const tools = [...document.querySelectorAll('.command-group')].find(d => d.querySelector('summary').textContent === 'Tools');
-    const moved = ['source', 'transpose', 'lookup', 'getparset', 'copyset', 'keymapeditor', 'record', 'play', 'help', 'tutorial', 'xpprc', 'clone'];
+    const moved = ['source', 'transpose', 'lookup', 'getparset', 'copyset', 'restoredefaults', 'keymapeditor', 'record', 'play', 'help', 'tutorial', 'xpprc', 'clone'];
     return [...tools.querySelectorAll('.menu-item')].map(b => b.dataset.item).join() === 'calculator'
       && !moved.some(id => document.querySelector('.menu-item[data-item=' + id + ']')); })()`));
   check('navigation: each moved command is beside its work: Named sets and Copy set line in the Values panel, Transpose and Lookup tables in the Data panel (W229)',
-    await cdp.eval(`['#values-panel button[data-item=getparset]', '#values-panel button[data-item=copyset]',
+    await cdp.eval(`['#values-panel button[data-item=getparset]', '#values-panel button[data-item=copyset]', '#values-panel button[data-item=restoredefaults]',
       '#table-panel button[data-item=transpose]', '#table-panel button[data-item=lookup]'].every(s => !!document.querySelector(s))`));
   await cdp.eval(`document.querySelector('#values-panel button[data-item=getparset]').click()`);
-  check('navigation: Named sets… asks which set, in a menu with a letter for each (W229)',
+  check('navigation: Apply set… asks which set, in a menu with a letter for each (W229)',
     await until(`s.ask && s.ask.kind === 'menu' && s.ask.name === 'param_set' && s.ask.items.length === s.ask.keys.length && s.ask.items.length > 1`, 'sets menu'), JSON.stringify(await S('s.ask')));
   await key('Escape');
   await until('!s.ask && !s.busy', 'the sets menu cancelled');
@@ -5002,15 +5002,15 @@ async function valuesLive() {
   await key('Escape');
   await rendered();
 
-  /* Reset all sends the core's default command, once, and no set */
+  /* Reset all sends the core's restoredefaults command, once, and no set */
   await editField('par', 'iapp', '0.3');
   await until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.3) < 1e-12`, 'iapp = 0.3', 60000);
   const preAll = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`[...document.querySelectorAll('[data-section="par"] button')].find(b => b.textContent.trim() === 'Reset all').click()`);
   await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.05) < 1e-12', 'Reset all applied', 60000);
   const allSent = await cdp.eval(`__xpp.sentFrom(${preAll})`);
-  check('W131: Reset all sends one default command for the parameters and no set',
-    allSent.filter(c => c.cmd === 'default' && c.kind === 'par').length === 1 && !allSent.some(c => c.cmd === 'set'),
+  check('W131: Reset all sends one restoredefaults command for the parameters and no set',
+    allSent.filter(c => c.cmd === 'restoredefaults' && c.scope === 'parameters' && !c.field).length === 1 && !allSent.some(c => c.cmd === 'set'),
     JSON.stringify(allSent));
 }
 

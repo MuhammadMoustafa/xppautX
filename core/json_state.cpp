@@ -29,6 +29,7 @@
 #include "lunch-new.h"
 #include "histogram.h"
 #include "menus.h"
+#include <cmath>
 #include <strings.h>
 #include <climits>
 #include <stdio.h>
@@ -527,18 +528,52 @@ void apply_set(xpp::Session &s, const char *line)
         if (loaded[type]) box_values_loaded(s, type);
 }
 
-/* {"cmd":"default","kind":"par|ic"}: the model file's values */
-void default_command(xpp::Session &s, const char *line)
+/* the optional "win" of applyset and restoredefaults, a plot window as the
+   plots event numbers them (1 is the first): absent is the active graph; one
+   that is no whole number is the command's error */
+static bool read_graph(const char *line, const char *command, std::optional<int> &graph)
 {
-    std::string kind;
-    get_string(line, "kind", kind);
-    if (kind != "par" && kind != "ic") {
-        j_command_error("default", xpp::format("default takes kind par or ic, not \"{}\"", kind));
+    const char *value = js_find(line, "win");
+    if (!value) return true;
+    double number;
+    /* a window the page could have: a whole number from 1 to MAXPOP (the cast is safe only then) */
+    if (!js_number(value, &number) || number < 1 || number > MAXPOP || number != std::floor(number)) {
+        j_command_error(command, xpp::format("{}: win is a whole number, a plot window's number", command));
+        return false;
+    }
+    graph = static_cast<int>(number) - 1;
+    return true;
+}
+
+/* {"cmd":"applyset","set":name,"scope":...,"win":n}: xpp::apply_named_set
+   (docs/protocol.md "applyset"), the one path File/Apply set takes too */
+void applyset_command(xpp::Session &s, const char *line)
+{
+    std::string name, scope;
+    std::optional<int> graph;
+    if (!get_string(line, "set", name) || !get_string(line, "scope", scope)) {
+        j_command_error("applyset", "applyset needs a set and a scope");
         return;
     }
-    xpp::push_value_undo(s);
-    if (kind == "par") set_default_params(s);
-    else set_default_ics(s);
+    if (!read_graph(line, "applyset", graph)) return;
+    xpp::ok_or_show(xpp::apply_named_set(s, name, scope, graph));
+    session.state_dirty = 1;
+}
+
+/* {"cmd":"restoredefaults","scope":...,"field":name,"win":n}:
+   xpp::restore_defaults (docs/protocol.md "restoredefaults") */
+void restoredefaults_command(xpp::Session &s, const char *line)
+{
+    std::string scope, field;
+    std::optional<int> graph;
+    if (!get_string(line, "scope", scope)) {
+        j_command_error("restoredefaults", "restoredefaults needs a scope");
+        return;
+    }
+    get_string(line, "field", field);
+    if (!read_graph(line, "restoredefaults", graph)) return;
+    xpp::ok_or_show(xpp::restore_defaults(s, scope, field, graph));
+    session.state_dirty = 1;
 }
 
 /* Set a Session slider definition; the state event acknowledges it. */
@@ -598,19 +633,6 @@ void values_command(xpp::Session &s, const char *line)
     get_string(line, "op", o);
     get_string(line, "kind", kind);
     get_string(line, "name", name);
-    if (o == "internset") { /* File/Named sets, the set given by index or name */
-        int j = get_int(line, "index", -1);
-        if (j < 0)
-            if (const auto *entry=s.model().name(name))
-                if (const auto set=entry->set_spellings.find(name); set!=entry->set_spellings.end())j=set->second;
-        if (j < 0) j_command_error("values", xpp::format("No internal set {}", name));
-        else {
-            xpp::push_value_undo(s);
-            use_intern_set(s, j);
-        }
-        session.state_dirty = 1;
-        return;
-    }
     if (o == "query") {
         if (name.empty()) j_command_error("values", "values query needs a name");
         else write_values_query(s, name, get_int(line, "sets", 0), get_int(line, "pars", 0), get_int(line, "ics", 0));

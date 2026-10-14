@@ -3,6 +3,8 @@
 #include <cctype>
 #include <cstdio>
 #include <functional>
+#include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -24,6 +26,7 @@
 #include "xpp_zip.h"
 #include "model_files.h"
 #include "load_eqn.h"
+#include "value_undo.h"
 #include "form_ode.h"
 #include "odex.h"
 
@@ -290,16 +293,26 @@ std::string intern_set_line(const xpp::Session &s, std::string_view name)
 
 namespace {
 
+/* what a name of a set's entry is in the model: a state, a parameter or neither (a state wins) */
+enum class ModelValue { none, state, parameter };
+
+ModelValue model_value_of(const xpp::Model &m, const std::string &name)
+{
+  const std::string upper=converted(name);
+  if(find_user_name(m,ICBOX,upper)>-1)return ModelValue::state;
+  if(find_user_name(m,PARAMBOX,upper)>-1)return ModelValue::parameter;
+  return ModelValue::none;
+}
+
 /* why name=value cannot be applied (an initial condition or a parameter
    whose value is not a number, an option that does not take it), "" when
    it can */
 std::string intern_item_problem(xpp::Session &s, const std::string &name1, const std::string &value, bool xppaut_names)
 {
-  const std::string name=converted(name1);
   double z=0;
-  if(find_user_name(s.model(),ICBOX,name)>-1||find_user_name(s.model(),PARAMBOX,name)>-1)
+  if(model_value_of(s.model(),name1)!=ModelValue::none)
     return xpp::parse_number(xpp::trim_blanks(value),z)?std::string():"not a number";
-  const auto why=option_problem(s,name,value,xppaut_names);
+  const auto why=option_problem(s,converted(name1),value,xppaut_names);
   return why.value_or("");
 }
 
@@ -314,16 +327,44 @@ struct SetItem {
   bool setting;
 };
 
-/* every item checked before one is applied: a bad one leaves s as it was;
-   apply: then they are applied, in order */
-xpp::Result<> apply_set_items(xpp::Session &s, std::span<const SetItem> items, const xpp::Place &where, bool xppaut_names, bool apply)
+/* the scope an item belongs to: parameters, initial (a state) or its
+   option's group ("" for a name that is none of them: only `all` takes it) */
+std::string_view item_scope(const xpp::Session &s, const SetItem &item, bool xppaut_names)
+{
+  if(!item.setting){
+    const ModelValue kind=model_value_of(s.model(),item.name);
+    if(kind==ModelValue::state)return set_scope::initial;
+    if(kind==ModelValue::parameter)return set_scope::parameters;
+  }
+  int index=0;
+  const OptionRow *row=find_option(xpp::upper_case(item.name),index,xppaut_names);
+  return row?row->group:std::string_view();
+}
+
+/* the items of scope, in order */
+std::vector<SetItem> scoped(const xpp::Session &s, std::span<const SetItem> items, std::string_view scope, bool xppaut_names)
+{
+  std::vector<SetItem> out;
+  for(const SetItem &item : items)
+    if(scope==set_scope::all||item_scope(s,item,xppaut_names)==scope)out.push_back(item);
+  return out;
+}
+
+/* every item checked before one is applied: the first bad one is the error,
+   at where, and s is as it was */
+xpp::Result<> check_set_items(xpp::Session &s, std::span<const SetItem> items, const xpp::Place &where, bool xppaut_names)
 {
   for(const SetItem &item : items){
     const std::string why=item.setting?option_problem(s,item.name,item.value,xppaut_names).value_or(""):
                                        intern_item_problem(s,item.name,item.value,xppaut_names);
     if(!why.empty())return std::unexpected(xpp::Error{"internal set",xpp::format("{}={}: {}",item.name,item.value,why),where});
   }
-  if(!apply)return {};
+  return {};
+}
+
+/* the checked items applied, in order */
+void apply_set_items(xpp::Session &s, std::span<const SetItem> items)
+{
   for(const SetItem &item : items){
     if(item.setting){
       set_option(s,item.name,item.value,1,NULL);
@@ -331,7 +372,6 @@ xpp::Result<> apply_set_items(xpp::Session &s, std::span<const SetItem> items, c
     }
     else do_intern_set(s,item.name,item.value);
   }
-  return {};
 }
 
 std::vector<SetItem> set_items(std::string_view text)
@@ -350,17 +390,200 @@ std::vector<SetItem> set_items(const xpp::Model::InternalSet &set)
   return items;
 }
 
+/* the open graph `graph` names, the active one when none; the error otherwise */
+xpp::Result<int> target_graph(const xpp::Session &s, std::optional<int> graph, std::string_view command)
+{
+  if(!graph)return s.plot_windows.active;
+  if(*graph<0||*graph>=MAXPOP||!s.plot_windows.graph[*graph].Use)
+    return std::unexpected(xpp::Error{std::string(command),xpp::format("{}: window {} is not an open plot window",command,*graph+1),xpp::command_place()});
+  return *graph;
+}
+
+/* a graph is a target of the scopes all and plot; naming one for any other
+   scope is a mistake */
+xpp::Result<> graph_fits_scope(std::optional<int> graph, std::string_view scope, std::string_view command)
+{
+  if(graph&&scope!=set_scope::all&&scope!=option_group::plot)
+    return std::unexpected(xpp::Error{std::string(command),xpp::format("{}: a graph is a target of scope all or plot, not {}",command,scope),xpp::command_place()});
+  return {};
+}
+
+/* the target graph made the active one, with its settings in the plot
+   settings the options write; the destructor puts the graph that was active
+   back, with its own settings in the plot settings again */
+class GraphTarget {
+public:
+  GraphTarget(xpp::Session &s, int graph, bool used) : s_(s), previous_(s.plot_windows.active), used_(used)
+  {
+    if(!used_)return;
+    if(graph!=previous_)xpp::make_active(s_,graph,1);
+    get_graph(s_);
+  }
+  /* the plot settings put in the graph */
+  void store() const { if(used_)reset_graph(s_); }
+  ~GraphTarget()
+  {
+    if(!used_||s_.plot_windows.active==previous_)return;
+    xpp::make_active(s_,previous_,1);
+    get_graph(s_);
+  }
+  GraphTarget(const GraphTarget &)=delete;
+  GraphTarget &operator=(const GraphTarget &)=delete;
+private:
+  xpp::Session &s_;
+  int previous_;
+  bool used_;
+};
+
+/* what the session shows once values of scope changed */
+void values_changed(xpp::Session &s, std::string_view scope)
+{
+  if(scope==set_scope::all||scope==set_scope::parameters)redraw_params();
+  if(scope==set_scope::all||scope==set_scope::initial)redraw_ics();
+  if(scope!=set_scope::parameters&&scope!=set_scope::initial)xpp::chk_delay(s);
+}
+
+/* the model's own option lines over what restoring the rows left, in the
+   file's order: only the lines of those rows */
+void replay_model_options(xpp::Session &s, std::span<const OptionRow *const> restored)
+{
+  for(const xpp::Model::OptionLine &line : s.model().options)
+    for(const auto &[name,value] : line.items){
+      int index=0;
+      const OptionRow *row=find_option(xpp::upper_case(name),index,true);
+      if(row&&std::ranges::find(restored,row)!=restored.end())set_option(s,name,value,1,NULL);
+    }
+}
+
+/* the values a Session starts with, for the option rows that have a member
+   and no reset: their built-in value */
+class BuiltIns {
+public:
+  BuiltIns() : model_(std::make_unique<xpp::Model>()), session_(std::make_unique<xpp::Session>(*model_)) {}
+  const xpp::Session &session() const { return *session_; }
+private:
+  std::unique_ptr<xpp::Model> model_;
+  std::unique_ptr<xpp::Session> session_;
+};
+
+/* the row back to its built-in value */
+void restore_row(xpp::Session &s, const OptionRow &row, const BuiltIns &built_in)
+{
+  if(row.reset)row.reset(s);
+  else if(row.real)row.real(s)=row.real(built_in.session());
+  else if(row.whole)row.whole(s)=row.whole(built_in.session());
+  else if(row.text)row.text(s)=row.text(built_in.session());
+  /* the total time's sign said "forever": the built-in is not */
+  if(row.signed_forever)s.numerics.forever=false;
+  if(row.applied)row.applied(s);
+}
+
+/* a row has a built-in value of its own: a reset, or a member */
+bool has_built_in(const OptionRow &row) { return row.reset||row.real||row.whole||row.text; }
+
 } // namespace
+
+std::vector<std::string> set_scopes()
+{
+  std::vector<std::string> scopes{std::string(set_scope::all),std::string(set_scope::parameters),std::string(set_scope::initial)};
+  for(std::string_view group : set_groups)scopes.emplace_back(group);
+  return scopes;
+}
+
+std::string set_scope_problem(std::string_view scope)
+{
+  const std::vector<std::string> scopes=set_scopes();
+  if(std::ranges::find(scopes,scope)!=scopes.end())return "";
+  std::string all;
+  for(const std::string &name : scopes)all+=(all.empty()?"":", ")+name;
+  return xpp::format("{} is not a scope (one of {})",scope,all);
+}
+
+int intern_set_index(const xpp::Model &m, std::string_view name)
+{
+  if(const auto *entry=m.name(name))
+    if(const auto set=entry->set_spellings.find(std::string(name));set!=entry->set_spellings.end())return set->second;
+  return -1;
+}
 
 xpp::Result<> extract_action(xpp::Session &s, std::string_view ptr, const xpp::Place &where, bool xppaut_names)
 {
-  return apply_set_items(s,set_items(ptr),where,xppaut_names,true);
+  const std::vector<SetItem> items=set_items(ptr);
+  if(xpp::Result<> r=check_set_items(s,items,where,xppaut_names);!r)return r;
+  apply_set_items(s,items);
+  return {};
 }
 
-xpp::Result<> extract_internset(xpp::Session &s, int j)
+xpp::Result<> apply_named_set(xpp::Session &s, std::string_view name, std::string_view scope, std::optional<int> graph)
 {
-  const xpp::Model::InternalSet &set=s.model().intern_sets[j];
-  return apply_set_items(s,set_items(set),set.place,false,true);
+  const xpp::Place at=xpp::command_place();
+  if(const std::string why=set_scope_problem(scope);!why.empty())return std::unexpected(xpp::Error{"apply set",why,at});
+  const int j=intern_set_index(s.model(),name);
+  if(j<0)return std::unexpected(xpp::Error{"apply set",xpp::format("the model has no set {}",name),at});
+  if(xpp::Result<> r=graph_fits_scope(graph,scope,"apply set");!r)return r;
+  const xpp::Result<int> target=target_graph(s,graph,"apply set");
+  if(!target)return std::unexpected(target.error());
+  const xpp::Model::InternalSet &set=s.model().intern_sets[static_cast<std::size_t>(j)];
+  const std::vector<SetItem> items=scoped(s,set_items(set),scope,false);
+  /* all of it or nothing (W125): a bad item is the error, at the set's line */
+  if(xpp::Result<> r=check_set_items(s,items,set.place,false);!r)return r;
+  xpp::push_value_undo(s);
+  {
+    const GraphTarget on(s,*target,scope==set_scope::all||scope==option_group::plot);
+    apply_set_items(s,items);
+    on.store();
+  }
+  values_changed(s,scope);
+  s.this_internset="_"+set.name;
+  return {};
+}
+
+xpp::Result<> restore_defaults(xpp::Session &s, std::string_view scope, std::string_view field, std::optional<int> graph)
+{
+  const xpp::Place at=xpp::command_place();
+  const auto fail=[&at](std::string what){ return std::unexpected(xpp::Error{"restore defaults",std::move(what),at}); };
+  if(const std::string why=set_scope_problem(scope);!why.empty())return fail(why);
+  if(scope==set_scope::all&&!field.empty())return fail("restoring all takes no field");
+  if(xpp::Result<> r=graph_fits_scope(graph,scope,"restore defaults");!r)return r;
+  const xpp::Result<int> target=target_graph(s,graph,"restore defaults");
+  if(!target)return std::unexpected(target.error());
+  const xpp::Model &m=s.model();
+  const bool all=scope==set_scope::all,single=!field.empty();
+  /* what is restored, found before anything changes */
+  std::optional<int> parameter,state;
+  std::vector<const OptionRow *> rows;
+  if(scope==set_scope::parameters&&single){
+    const int i=find_user_name(m,PARAMBOX,converted(field));
+    if(i<0)return fail(xpp::format("the model has no parameter {}",field));
+    parameter=i;
+  }
+  else if(scope==set_scope::initial&&single){
+    const int i=find_user_name(m,ICBOX,converted(field));
+    if(i<0)return fail(xpp::format("the model has no state {}",field));
+    state=i;
+  }
+  else if(single){
+    int index=0;
+    const OptionRow *row=find_odex_option(field,index);
+    if(!row||row->group!=scope||row->wide)return fail(xpp::format("{} is not a setting of {}",field,scope));
+    if(!has_built_in(*row))return fail(xpp::format("{} has no default of its own: restore the {} settings together",field,scope));
+    rows.push_back(row);
+  }
+  else for(const OptionRow &row : option_rows())
+    if(has_built_in(row)&&!row.wide&&std::ranges::find(set_groups,row.group)!=set_groups.end()&&(all||row.group==scope))rows.push_back(&row);
+  xpp::push_value_undo(s);
+  if(all||scope==set_scope::parameters)set_default_params(s,parameter);
+  if(all||scope==set_scope::initial)set_default_ics(s,state);
+  if(!rows.empty()){
+    const BuiltIns built_in;
+    const GraphTarget on(s,*target,all||scope==option_group::plot);
+    for(const OptionRow *row : rows)restore_row(s,*row,built_in);
+    replay_model_options(s,rows);
+    xpp::do_meth(s);
+    on.store();
+  }
+  values_changed(s,scope);
+  return {};
 }
 
 xpp::Result<> check_intern_sets(xpp::Session &s)
@@ -368,7 +591,7 @@ xpp::Result<> check_intern_sets(xpp::Session &s)
   /* an .ode's sets are XPPAUT's flat ones, which only the converter reads */
   if(!xpp::odex::is_odex(s.model().this_file))return {};
   for(const xpp::Model::InternalSet &set : s.model().intern_sets)
-    if(xpp::Result<> r=apply_set_items(s,set_items(set),set.place,false,false);!r)return r;
+    if(xpp::Result<> r=check_set_items(s,set_items(set),set.place,false);!r)return r;
   return {};
 }
 
@@ -376,7 +599,7 @@ void do_intern_set(xpp::Session &s, std::string_view name1, std::string_view val
 {
   const std::string name=converted(name1);
   const std::string value(value_text);
-  /* extract_action checked it: a variable or parameter takes a number,
+  /* the items were checked: a variable or parameter takes a number,
      all of it (parse_number), anything else is an option */
   double number=0.0;
   const int ic=find_user_name(s.model(),ICBOX,name);

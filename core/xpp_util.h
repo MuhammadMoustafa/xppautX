@@ -84,8 +84,9 @@ void check_windows(Session &s);
 void get_max(const Session &s, int index, double *vmin, double *vmax);
 /* the values behind the parameter and IC boxes and the sliders of s */
 void new_parameter(Session &s);
-void set_default_params(Session &s);
-void set_default_ics(Session &s);
+/* every parameter (or only entry `only`) back to the model's value, the tables redone once */
+void set_default_params(Session &s, std::optional<int> only = std::nullopt);
+void set_default_ics(Session &s, std::optional<int> only = std::nullopt);
 /* store the text typed for entry i of the box `type`; the refusal, shown by
    no one, changes nothing (typed_number) */
 Result<void> box_set_value(Session &s, int type, int i, std::string_view text, std::string_view field = {});

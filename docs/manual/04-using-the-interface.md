@@ -156,8 +156,13 @@ beside the plot (a sheet on a phone):
   value per differential equation in model order; too few or too many
   values report the file and line and change nothing (W310, #369).
 - **Reset all** puts back the values from the ODE file, as the X11
-  Parameter window's Default button did: it sends the core's `default`
-  command, which redoes the tables once, and the values change together.
+  Parameter window's Default button did: it sends the core's
+  `restoredefaults` command (scope `parameters` or `initial`), which redoes
+  the tables once, and the values change together. A field's own reset is
+  the same command for that field. **Restore defaults…** in the Parameters
+  section asks for everything or one section (parameters, initial values or
+  a group of settings) and puts the model's own values back; a setting
+  returns to the built-in value with the model's `options` block over it.
 - The core reads a number in a box, a script's answer or a `set` the same
   way everywhere: all of the text must be one number (or a `%formula`),
   so `1O0` (a letter O) or `5x` is refused, with an error naming the
@@ -314,7 +319,7 @@ action is; every button and menu item has one of five kinds:
 |---|---|---|
 | Control | Stop (Escape), Quit, answering a question | works |
 | View | zoom, pan, the legend, switching plot windows, New window, Window/zoom, Viewaxes, Xi vs t, Help, opening or closing a panel, a menu with anything in it that is a view (Nullcline, Dir.field, Kinescope, Graphic stuff) | works; one the program itself carries out (a menu item, New window) runs as soon as the computation ends |
-| Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File/Named sets, AUTO's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
+| Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File/Apply set, File/Restore defaults, AUTO's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
 | Data | Save and Load of values' files, Import settings, every file written, Save session, AUTO's Save and Load diagram, AUTO's Grab | disabled |
 | Computation | Integrate and Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts (equilibria), Stochastic, a model's own buttons | disabled |
 

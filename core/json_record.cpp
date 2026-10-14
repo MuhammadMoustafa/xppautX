@@ -80,7 +80,8 @@ std::string command_label(const char *line)
     }
     if (c == "display") return xpp::format("Zoom window {}", get_int(line, "win", 0));
     if (c == "click") return xpp::format("Window {}", get_int(line, "win", 0));
-    if (c == "default") return get_string(line, "kind", v) && v == "ic" ? "Default initial conditions" : "Default parameters";
+    if (c == "applyset") return xpp::format("Apply set {} ({})", get_string(line, "set", name) ? name : "", get_string(line, "scope", v) ? v : "");
+    if (c == "restoredefaults") return xpp::format("Restore defaults of {}{}", get_string(line, "scope", v) ? v : "", get_string(line, "field", name) ? " " + name : "");
     std::string label = c;
     if (!label.empty()) label[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label[0])));
     return o.empty() ? label : label + " " + o;

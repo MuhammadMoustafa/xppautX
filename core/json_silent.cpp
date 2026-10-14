@@ -13,8 +13,8 @@
    script does not expect stops it (exit 1, silent_fail).
 
    For one run (no internal sets, or each set in turn):
-     select the set          values internset (File/Named sets, the set
-                             by its index: no menu key limits their number)
+     select the set          applyset, scope all (File/Apply set, the set
+                             by its name: no menu key limits their number)
      --qsets/--qpars/--qics     values query (-dryrun: nothing is run)
      run                     key i, answer g (Initialconds/Go), or
                              answer r (Range) for @ range=1 or a
@@ -36,6 +36,7 @@
 #include "graf_par.h"
 #include "image_format.h"
 #include "xpp_batch.h"
+#include "load_eqn.h"
 #include "xpp_log.h"
 #include <deque>
 #include <memory>
@@ -63,6 +64,7 @@ private:
     void answer(std::string_view field, std::string_view value) { line("answer", field, value); }
     void answer_values(std::span<const std::string> values);
     void command(std::string_view cmd, std::string_view op, std::string_view name, std::string_view more = {});
+    void apply_set(std::string_view name);
 };
 
 /* the current window is a phase plane: its nullclines and direction
@@ -105,6 +107,16 @@ void SilentScript::command(std::string_view cmd, std::string_view op, std::strin
     lines.push_back(std::move(b.s));
 }
 
+/* {"cmd":"applyset","set":name,"scope":"all"}: the whole set */
+void SilentScript::apply_set(std::string_view name)
+{
+    Buf b;
+    BUF_LIT(&b, "{\"cmd\":\"applyset\",\"set\":");
+    buf_str(&b, name);
+    buf_format(&b, ",\"scope\":\"{}\"}}", xpp::set_scope::all);
+    lines.push_back(std::move(b.s));
+}
+
 /* the steps of one run: of internal set `set`, or of none (-1) */
 void SilentScript::add_run(int set)
 {
@@ -116,7 +128,7 @@ void SilentScript::add_run(int set)
         const std::string &name = session.model().intern_sets[static_cast<std::size_t>(set)].name;
         batch_options.out_file = batch_options.user_out_file.empty() ? name + ".dat" : batch_options.user_out_file;
         xpp::log(XPP_LOG_INFO, "out={}\n", batch_options.out_file);
-        command("values", "internset", name, xpp::format(",\"index\":{:d}", set));
+        apply_set(name);
     });
     steps.push_back([this] {
         if (!dryrun) return;

@@ -47,6 +47,9 @@ interface DisplayPatch {
 }
 
 /** the display key of view k of the AUTO diagram: 0, -1, -2 ... (the plot windows are 1 up) */
+/** the scope of the core's `restoredefaults` for a values section (docs/protocol.md) */
+const RESTORE_SCOPE = {par: 'parameters', ic: 'initial'} as const;
+
 const autoKey = (view: number): number => -view;
 
 const rangesOf = (v: Viewport): DisplayPatch => ({
@@ -1004,17 +1007,17 @@ export class Session {
     return this.store.getState().values.defaults?.[fieldKey(kind, name)] ?? null;
   }
 
-  /** one field back to the model file's value (GitHub #110: Undo value edit is the other way back) */
+  /** one field back to the model file's value: the core's `restoredefaults` with the field
+      (GitHub #110: Undo value edit is the other way back) */
   resetValue(kind: 'par' | 'ic', name: string): void {
-    const d = this.defaultOf(kind, name);
-    if (d !== null) this.setValue(kind, name, String(d));
+    this.send({cmd: 'restoredefaults', scope: RESTORE_SCOPE[kind], field: name});
   }
 
-  /** Reset all: the core's `default` command, every parameter or IC of `kind` back to the model
+  /** Reset all: the core's `restoredefaults`, every parameter or IC of `kind` back to the model
       file's value (the core redoes the tables once) */
   defaultValues(kind: 'par' | 'ic'): void {
     this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
-    this.send({cmd: 'default', kind});
+    this.send({cmd: 'restoredefaults', scope: RESTORE_SCOPE[kind]});
   }
 
   /** a numerics field (the values panel's Numerics, W106): `key` as the

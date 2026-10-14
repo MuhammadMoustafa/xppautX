@@ -243,7 +243,7 @@ def last_state(evs):
 evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
-check('hello', hello is not None and len(hello["command_table"]) == 61)
+check('hello', hello is not None and len(hello["command_table"]) == 62)
 check('hello says protocol 3, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 3 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
@@ -342,7 +342,7 @@ def check_command_table(table):
           and all(r['legacy_keys'] == [] for r in table if r['id'] in PAGE_COMMANDS),
           str(keys))
     # W229, W228: what the page runs from a panel, a button of the plot or the title bar has a row and no group or pin
-    PANEL_COMMANDS = ['source', 'transpose', 'getparset', 'copyset', 'record', 'play', 'keymapeditor', 'lookup',
+    PANEL_COMMANDS = ['source', 'transpose', 'getparset', 'copyset', 'restoredefaults', 'record', 'play', 'keymapeditor', 'lookup',
                       'window', 'viewaxes', '3dparams']
     layer = [(r['menu'], r['id']) for r in table if r['category'] == 'layer']
     check('W207: the shortcut-layer switches are File, Numerics and Return to main shortcuts, and none can be pinned; '
@@ -496,7 +496,7 @@ send(cmd='set', kind='par', name='iapp', text='%0.1*2')
 evs, _ = collect(is_idle)
 st = last_state(evs)
 check('set parameter by %formula', st is not None and abs(dict(st['pars'])['iapp'] - 0.2) < 1e-12, str(st and st['pars']))
-send(cmd='default', kind='par')
+send(cmd='restoredefaults', scope='parameters')
 evs, _ = collect(is_idle)
 st = last_state(evs)
 check('default parameters', st is not None and dict(st['pars'])['iapp'] == 0.05, str(st and st['pars']))
@@ -788,7 +788,7 @@ long_op = 'list' + 'x' * 40
 long_reply = file_cmd(op=long_op)
 check('W121b: file operation is returned whole, never cut', long_reply.get('op') == long_op and long_reply.get('ok') == 0, str(long_reply))
 long_name = 'missing' + 'n' * 400
-send(cmd='values', op='internset', name=long_name)
+send(cmd='applyset', set=long_name, scope='all')
 long_events, _ = collect(is_idle)
 check('W121b: names over 300 bytes reach the handler whole', any(e.get('ev') == 'message' and long_name in e.get('error', '') for e in long_events), str(long_events)[:500])
 
@@ -1637,6 +1637,18 @@ def check_param_set_cancel():
 check_param_set_cancel()
 
 
+def answer_scope(col, snd):
+    """Apply set asks its scope after the set: the first item, all (docs/protocol.md "Apply set");
+    the events up to the command's idle"""
+    evs, ask = col(lambda e: e.get('ev') == 'ask')
+    check('Apply set asks the scope after the set, all first',
+          ask is not None and ask['kind'] == 'menu' and ask['name'] == 'set_scope' and ask['items'][0].endswith('all'), str(ask))
+    if ask:
+        snd(cmd='answer', id=ask['id'], key='a')
+    more, _ = col(is_idle)
+    return evs + more
+
+
 def check_param_set_list():
     """W229: the Named sets menu says so when the model has none; with more than 26 sets the
     first 26 have a letter and the others are answered by their index; the last of 500 is reachable"""
@@ -1656,9 +1668,10 @@ def check_param_set_list():
                 col(is_idle)
                 snd(cmd='key', key='g')
                 evs, ask = col(lambda e: e.get('ev') == 'ask')
+                evs2 = []
                 if ask:
                     snd(cmd='answer', id=ask['id'], **answer)
-                evs2, _ = col(is_idle)
+                    evs2 = answer_scope(col, snd)
                 st = last_state(evs2)
                 return ask, evs + evs2, dict(st['pars']).get('a') if st else None
             finally:
@@ -1793,7 +1806,7 @@ def check_values_protocol():
         st = last_state(evs)
         check('a good set of two (blanks around a number allowed) applies both, no error', not errs(evs) and st
               and abs(par(st, 'iapp') - 0.31) < 1e-12 and abs(ic(st, 'v') + 0.2) < 1e-12, str(errs(evs)) + str(st and st['pars'][:3]))
-        evs = after(cmd='default', kind='par')
+        evs = after(cmd='restoredefaults', scope='parameters')
         st = last_state(evs)
         check('default par after edits: every parameter back to the model file value, no error',
               not errs(evs) and st and [v for _, v in st['pars']] == d['pars'], str(errs(evs)) + str(st and st['pars'][:3]))
@@ -1813,7 +1826,7 @@ def check_values_protocol():
         check('Initialconds/Last: a state at the start of the run already has the ICs from where the last one ended',
               first and sers and states[0] < sers[-1] and [v for _, v in first['ics']] == prev_now,
               str(first and first['ics']) + ' vs ' + str(prev_now))
-        evs = after(cmd='default', kind='par', rerun=1)
+        evs = after(cmd='restoredefaults', scope='parameters', rerun=1)
         st = last_state(evs)
         check('default with rerun: the model values, no run (rerun is ignored, W69)',
               st and par(st, 'iapp') == d['pars'][[k.lower() for k, _ in st['pars']].index('iapp')] and not full(evs),
@@ -2108,7 +2121,7 @@ def check_load_all_or_nothing():
         st = state()
         check('W284: a settings file that names only a parameter sets only it',
               not errs and dict(st['pars'])['a'] == 2.5 and st['ics'] == st0['ics'], str(errs))
-        errs = errors(answered((), cmd='values', op='internset', name='good'))
+        errs = errors(answered((), cmd='applyset', set='good', scope='all'))
         st = state()
         check('W125: a good internal set still applies whole', not errs and st['pars'] != st0['pars'], str(errs))
     finally:
@@ -2116,6 +2129,123 @@ def check_load_all_or_nothing():
 
 
 check_load_all_or_nothing()
+
+
+def check_apply_restore():
+    """W319: Apply set (`applyset`) and Restore defaults (`restoredefaults`): a patch limited to a
+    scope, a target graph, all or nothing, and a recording replays both"""
+    folder = tempfile.mkdtemp(prefix='w319')
+    model = os.path.join(folder, 'w319.odex')
+    with open(model, 'w') as f:
+        f.write("x'=-a*x+b\ny'=-y+c\npar a=1,b=2,c=0.5\ninit x=0.5,y=2*a\n"
+                "options { integration: { dt: 0.02, total_time: 9 } }\n"
+                "set pa { a: 10, b: 20 }\n"
+                "set mix { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { xlo: -3, xhi: 3 } } }\n")
+    p, r, snd, col, _ = launch_server(ode=model)
+    errs = lambda evs: [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+
+    def run(**cmd):
+        snd(**cmd)
+        return col(is_idle, timeout=60 * SLOW)[0]
+
+    def view():
+        """the parameters, initial values, dt and total time, and each plot window's x axis"""
+        st = last_state(run(cmd='state'))
+        evs = run(cmd='data', events=['numerics', 'plots'])
+        num = next(dict((f['key'], f['value']) for f in e['fields']) for e in reversed(evs) if e.get('ev') == 'numerics')
+        pl = next(e for e in reversed(evs) if e.get('ev') == 'plots')
+        return (dict(st['pars']), {k.lower(): v for k, v in st['ics']}, num['dt'], num['total_time'],
+                {w['win']: (w['xlo'], w['xhi']) for w in pl['windows']}, pl['active'])
+
+    try:
+        col(is_idle)
+        start = view()
+        check('W319: the model gives its defaults (init y = 2*a is 2)',
+              start[0] == {'a': 1, 'b': 2, 'c': 0.5} and start[1] == {'x': 0.5, 'y': 2} and start[2] == 0.02 and start[3] == 9, str(start))
+        evs = run(cmd='applyset', set='pa', scope='parameters')
+        v = view()
+        check('W319: a parameter-only apply changes the parameters and leaves the initial values (y = 2*a stays 2)',
+              not errs(evs) and v[0] == {'a': 10, 'b': 20, 'c': 0.5} and v[1] == start[1] and v[2:] == start[2:], str(v))
+        evs = run(cmd='applyset', set='mix', scope='initial')
+        v = view()
+        check('W319: scope initial applies only the states of the set',
+              not errs(evs) and v[1] == {'x': 0.9, 'y': 2} and v[0]['a'] == 10 and v[2:] == start[2:], str(v))
+        evs = run(cmd='applyset', set='mix', scope='integration')
+        v = view()
+        check('W319: scope integration applies only the numerics of the set',
+              not errs(evs) and v[2] == 0.1 and v[3] == 7 and v[0]['a'] == 10 and v[4] == start[4], str(v))
+        evs = run(cmd='applyset', set='mix', scope='plot')
+        v = view()
+        check('W319: scope plot applies only the plot settings, to the active graph',
+              not errs(evs) and v[4] == {1: (-3, 3)} and v[0]['a'] == 10, str(v))
+        # restore a field, a section, then everything
+        run(cmd='restoredefaults', scope='integration', field='dt')
+        v = view()
+        check('W319: restoring a field gives the model\'s value (the options block over the built-in) and no other',
+              v[2] == 0.02 and v[3] == 7, str(v))
+        run(cmd='restoredefaults', scope='parameters', field='a')
+        v = view()
+        check('W319: restoring one parameter leaves the others', v[0] == {'a': 1, 'b': 20, 'c': 0.5}, str(v))
+        run(cmd='restoredefaults', scope='initial')
+        v = view()
+        check('W319: restoring the initial values gives the model\'s (init y = 2*a as loaded)', v[1] == start[1], str(v))
+        run(cmd='restoredefaults', scope='integration')
+        v = view()
+        check('W319: restoring a section gives the model\'s numerics', v[2:4] == start[2:4], str(v))
+        run(cmd='applyset', set='mix', scope='all')
+        v = view()
+        check('W319: scope all applies parameters, states, numerics and plot',
+              v[0]['a'] == 5 and v[1]['x'] == 0.9 and v[2] == 0.1 and v[4] == {1: (-3, 3)}, str(v))
+        evs = run(cmd='restoredefaults', scope='all')
+        check('W319: restoring all gives every default back', not errs(evs) and view() == start, str(view()))
+        # a failure changes nothing and says why
+        before = view()
+        for bad, text in ((dict(cmd='applyset', set='nosuch', scope='all'), 'the model has no set nosuch'),
+                          (dict(cmd='applyset', set='mix', scope='bogus'), 'bogus is not a scope'),
+                          (dict(cmd='applyset', set='mix', scope='all', win=5), 'window 5 is not an open plot window'),
+                          (dict(cmd='applyset', set='mix', scope='all', win=1e300), 'win is a whole number'),
+                          (dict(cmd='restoredefaults', scope='plot', win=0), 'win is a whole number'),
+                          (dict(cmd='applyset', set='mix', scope='parameters', win=1), 'a graph is a target of scope all or plot'),
+                          (dict(cmd='applyset', set='mix'), 'applyset needs a set and a scope'),
+                          (dict(cmd='restoredefaults', scope='all', field='a'), 'restoring all takes no field'),
+                          (dict(cmd='restoredefaults', scope='parameters', field='nosuch'), 'the model has no parameter nosuch'),
+                          (dict(cmd='restoredefaults', scope='integration', field='xlo'), 'xlo is not a setting of integration')):
+            es = errs(run(**bad))
+            check('W319: %s is refused (%s), nothing changed' % (json.dumps(bad), text),
+                  len(es) == 1 and text in es[0] and view() == before, str(es))
+        # a target graph: window 2 is active, the set goes to window 1
+        snd(cmd='key', key='m')
+        evs, ask = col(lambda e: e.get('ev') == 'ask')
+        snd(cmd='answer', id=ask['id'], key='c')
+        col(is_idle)
+        v = view()
+        check('W319: Makewindow/Create made window 2 active', v[5] == 2 and sorted(v[4]) == [1, 2], str(v))
+        x2 = v[4][2]
+        evs = run(cmd='applyset', set='mix', scope='plot', win=1)
+        v = view()
+        check('W319: win names the target graph: window 1 changes, window 2 and the active graph stay',
+              not errs(evs) and v[4][1] == (-3, 3) and v[4][2] == x2 and v[5] == 2, str(v))
+        evs = run(cmd='restoredefaults', scope='plot', win=1)
+        v = view()
+        check('W319: restore names its target graph too', not errs(evs) and v[4][1] == start[4][1] and v[4][2] == x2 and v[5] == 2, str(v))
+        # a recording of both replays to the same end
+        run(cmd='record', op='start')
+        run(cmd='applyset', set='pa', scope='parameters')
+        run(cmd='applyset', set='mix', scope='integration')
+        run(cmd='restoredefaults', scope='parameters', field='b')
+        end = view()
+        run(cmd='record', op='stop', name='w319.recx')
+        replay = replay_recording(args.server, model, os.path.join(r, 'w319.recx'), r)
+        replayed = [json.loads(l) for l in replay.stdout.splitlines() if l.strip()]
+        last = next((e for e in reversed(replayed) if is_state(e)), {})
+        check('W319: a recording of Apply set and Restore defaults replays to the same values',
+              replay.returncode == 0 and dict(last.get('pars', [])) == end[0] and {k.lower(): v for k, v in last.get('ics', [])} == end[1], '%d %s' % (replay.returncode, replay.stderr[-300:]))
+    finally:
+        stop_server(p, r, snd)
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+check_apply_restore()
 
 
 # Nullclines, direction fields and flows as data (docs/protocol.md "The
@@ -2871,7 +3001,7 @@ def lecar_to_auto(snd, col):
     def step(**c):
         snd(**c)
         return col(lambda e: is_idle(e) or e.get('ev') == 'ask', timeout=30 * SLOW)
-    for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'd'},
+    for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'd'}, {'cmd': 'answer', 'key': 'a'},
               {'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}, {'cmd': 'answer', 'key': 'n'},
               {'cmd': 'key', 'win': 'equilibrium', 'key': 'i'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}, {'cmd': 'key', 'win': 'auto', 'key': 'r'}):
         step(**c)
@@ -4377,7 +4507,7 @@ def check_settings_during_run():
                 (dict(cmd='set', kind='ic', index=7, value=0.2), 'set ic: its index is not one of 0 to 1'),
                 (dict(cmd='slide', name='nosuch', value=0.2), 'slide: the model has no parameter or variable nosuch'),
                 (dict(cmd='slide', name='iapp'), 'slide iapp: its value is not a number'),
-                (dict(cmd='default', kind='pars'), 'default takes kind par or ic, not "pars"')):
+                (dict(cmd='restoredefaults', scope='pars'), 'pars is not a scope (one of all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis)')):
             snd(cmd='set', kind='ic', name='v', value=0.25)
             evs, _ = col(is_idle)
             iapp0 = iapp(evs)
@@ -4539,9 +4669,10 @@ def check_copy_set():
         snd2(cmd='key', key='g')
         evs2, ask = col2(lambda e: e.get('ev') == 'ask')
         check('Named sets lists the copied set', ask is not None and ask['kind'] == 'menu', str(ask))
+        evs2 = []
         if ask:
             snd2(cmd='answer', id=ask['id'], key=next(i[0] for i in ask['items'] if i.endswith(': set1')))
-        evs2, _ = col2(is_idle)
+            evs2 = answer_scope(col2, snd2)
         st2 = last_state(evs2)
         check('Named sets with the copied name reproduces the parameters and ICs exactly',
               st2 and st2['pars'] == st['pars'] and st2['ics'] == st['ics'], str((st2 or {}).get('pars'))[:200])
@@ -5363,7 +5494,7 @@ def check_save_session():
         evs = run(cmd='set', values=[{'kind': 'num', 'name': 'total_time', 'value': 123}, {'kind': 'par', 'name': 'phi', 'value': 0.4}])
         evs = undo()
         check('W210: one set of a parameter and a numerics field is one undo step', pars(evs)['phi'] == 0.3, str(pars(evs)['phi']))
-        evs = run(cmd='default', kind='par')
+        evs = run(cmd='restoredefaults', scope='parameters')
         check('W210: Reset all (default) goes on the stack too', pars(evs)['phi'] != 0.3)
         evs = undo()
         check('W210: ... and Undo brings the edited values back', pars(evs)['phi'] == 0.3)

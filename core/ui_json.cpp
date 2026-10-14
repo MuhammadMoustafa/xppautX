@@ -626,13 +626,14 @@ const CommandInfo commands[] = {
     {"file", "put", D, NOT_STEP, file_command},
     {"file", nullptr, V, NOT_STEP, file_command}, /* list, get */
     {"set", nullptr, S, STEP, apply_set},
-    {"default", nullptr, S, STEP, default_command},
+    {"applyset", nullptr, S, STEP, applyset_command},
+    {"restoredefaults", nullptr, S, STEP, restoredefaults_command},
     {"slide", nullptr, S, STEP, slide_command},
     {"slider", nullptr, S, STEP, slider_command},
     {"action", nullptr, D, STEP, action_command},
     {"values", "write", D, STEP, values_command},
     {"values", "query", D, STEP, values_command},
-    {"values", nullptr, S, STEP, values_command}, /* read, internset: values set */
+    {"values", nullptr, S, STEP, values_command}, /* read: values set */
     {"session", nullptr, D, STEP, session_command},
     {"dfield", nullptr, D, STEP, write_command},
     {"open", nullptr, D, STEP,

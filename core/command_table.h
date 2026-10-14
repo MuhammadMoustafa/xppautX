@@ -89,7 +89,7 @@ struct CommandRow {
    build of GCC refuses to evaluate the table's search as a constant) */
 inline constexpr std::string_view STORE_EVERY_LABEL = "Store every N steps";
 
-inline constexpr std::array<CommandRow, 61> COMMANDS = {{
+inline constexpr std::array<CommandRow, 62> COMMANDS = {{
     {MAIN_MENU, 'i', "initialconds", "Initial conditions", "Integrate the equations", XPP_KIND_COMPUTE, CommandCategory::Run, true, true, {}},
     {MAIN_MENU, PAGE_KEY, "run_initial", "Run from initial", "Start a new trajectory from the Initial values", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Enter"}},
     {MAIN_MENU, PAGE_KEY, "run_last", "Run from last state", "Use the last state as Initial and start a new trajectory", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Shift+Enter"}},
@@ -142,8 +142,9 @@ inline constexpr std::array<CommandRow, 61> COMMANDS = {{
     {FILE_MENU, 'p', "source", "Model source", "Display source and active comments", XPP_KIND_VIEW, CommandCategory::Panels, false, true, {}},
     {FILE_MENU, 'c', "calculator", "Calculator", "A little calculator -- press ESC to exit", XPP_KIND_VIEW, CommandCategory::Tools, true, true, {}},
     {FILE_MENU, 't', "transpose", "Transpose data", "Transpose storage", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
-    {FILE_MENU, 'g', "getparset", "Named sets", "Apply named parameters, initial values and settings", XPP_KIND_SETTING, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'g', "getparset", "Apply set…", "Apply a named set of the model: all of it or only its parameters, initial values or one group of settings", XPP_KIND_SETTING, CommandCategory::Panels, false, true, {}},
     {FILE_MENU, 'o', "copyset", "Copy set line", "Copy the current values as a named set line for the .ode", XPP_KIND_VIEW, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'k', "restoredefaults", "Restore defaults…", "Put the model's own values back: everything, or the parameters, initial values or one group of settings", XPP_KIND_SETTING, CommandCategory::Panels, false, true, {}},
     {FILE_MENU, 'd', "record", "Record steps", "Record the steps you take to a .recx file; again to stop and save it", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
     {FILE_MENU, 'y', "play", "Play recording…", "Play a recording (.recx): its model, then its steps as they were taken", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
     {MAIN_MENU, PAGE_KEY, "keymapeditor", "Keyboard shortcuts…", "Change the keys of the commands and pin commands to the toolbar", XPP_KIND_VIEW, CommandCategory::Panels, false, true, {}},

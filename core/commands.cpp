@@ -102,7 +102,29 @@ void do_movie_com(xpp::Session &s, int c)
   }
 }
 
-/* File/Named sets: one of the model's sets, applied */
+/* a graph for a scope that works on one (all, plot) when more than one is open:
+   the user picks it, as a script names it; false when the pick is cancelled
+   (Esc or a dismissed menu chooses nothing: a cancel is not an error) */
+static bool pick_target_graph(xpp::Session &s, std::string_view scope, std::optional<int> &graph)
+{
+  if (scope != xpp::set_scope::all && scope != xpp::option_group::plot) return true;
+  std::vector<std::string> names;
+  std::vector<int> graphs;
+  for (int i = 0; i < MAXPOP; i++)
+    if (s.plot_windows.graph[i].Use) {
+      graphs.push_back(i);
+      names.push_back(xpp::format("Window {}{}", i + 1, i == s.plot_windows.active ? " (active)" : ""));
+    }
+  if (graphs.size() < 2) return true;
+  const int pick = pick_from_list("set_graph", "Window", names);
+  if (pick < 0) return false;
+  graph = graphs[static_cast<std::size_t>(pick)];
+  return true;
+}
+
+/* File/Apply set (getparset): one of the model's sets, a scope and a graph
+   asked, then applied by xpp::apply_named_set, the one path every front end
+   and `applyset` take */
 static void get_intern_set(xpp::Session &s)
 {
   const std::vector<xpp::Model::InternalSet> &sets = s.model().intern_sets;
@@ -112,28 +134,26 @@ static void get_intern_set(xpp::Session &s)
   }
   std::vector<std::string> names;
   for (const xpp::Model::InternalSet &set : sets) names.push_back(set.name);
-  /* Esc or a dismissed menu chooses nothing: a cancel is not an error */
-  if (const int i = pick_from_list("param_set", "Param set", names); i >= 0) use_intern_set(s, i);
+  const int pick = pick_from_list("param_set", "Param set", names);
+  if (pick < 0) return;
+  const std::vector<std::string> scopes = xpp::set_scopes();
+  const int scope = pick_from_list("set_scope", "Apply", scopes);
+  if (scope < 0) return;
+  std::optional<int> graph;
+  if (!pick_target_graph(s, scopes[static_cast<std::size_t>(scope)], graph)) return;
+  xpp::ok_or_show(xpp::apply_named_set(s, names[static_cast<std::size_t>(pick)], scopes[static_cast<std::size_t>(scope)], graph));
 }
 
-void use_intern_set(xpp::Session &s, int j)
+/* File/Restore defaults (restoredefaults): all, or one section, back to the
+   model's values (xpp::restore_defaults) */
+static void restore_defaults_menu(xpp::Session &s)
 {
-  const std::vector<xpp::Model::InternalSet> &sets = s.model().intern_sets;
-  if (j < 0 || j >= static_cast<int>(sets.size())) {
-    command_error("set", "Not a valid set");
-    return;
-  }
-  get_graph(s);
-  /* all of it or nothing (W125): a bad item is the error, at the set's line */
-  if (const xpp::Result<> r = xpp::extract_internset(s, j); !r) {
-    show_error(r.error());
-    return;
-  }
-  xpp::chk_delay(s);
-  redraw_params();
-  redraw_ics();
-  reset_graph(s);
-  s.this_internset = "_" + sets[static_cast<std::size_t>(j)].name;
+  const std::vector<std::string> scopes = xpp::set_scopes();
+  const int scope = pick_from_list("restore_scope", "Restore defaults of", scopes);
+  if (scope < 0) return;
+  std::optional<int> graph;
+  if (!pick_target_graph(s, scopes[static_cast<std::size_t>(scope)], graph)) return;
+  xpp::ok_or_show(xpp::restore_defaults(s, scopes[static_cast<std::size_t>(scope)], "", graph));
 }
 
 /* File/cOpy set line (W67): the current values as a `set` line for the
@@ -405,6 +425,7 @@ void commander(xpp::Session &s, int ch)
     switch (ch) {
     case 't': xpp::do_transpose(s); break;
     case 'g': get_intern_set(s); break;
+    case 'k': restore_defaults_menu(s); break;
     case 'p': flash(0); make_txtview(s); flash(0); break;
     case 's': flash(2); xpp::file_inf(s); flash(2); break;
     case 'a':

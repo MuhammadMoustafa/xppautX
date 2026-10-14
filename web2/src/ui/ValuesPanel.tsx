@@ -166,10 +166,12 @@ function Parameters() {
     <Section id="par" title="Parameters" hint="Edit for the next run; Enter or leave a field to apply." tools={(
       <>
         <FileTools kind="par" />
-        <CommandButton menu="file" item="getparset" label="Named sets…"
-          title="Set the parameters, and the options the set names, from one of the model's named sets (the set lines of the model)" />
+        <CommandButton menu="file" item="getparset" label="Apply set…"
+          title="Apply one of the model's named sets (the set lines of the model): all of it, or only its parameters, initial values or one group of settings" />
         <CommandButton menu="file" item="copyset" label="Copy set line"
           title="Copy the current values as a named set line to paste into the model" />
+        <CommandButton menu="file" item="restoredefaults" label="Restore defaults…"
+          title="Put the model's own values back: everything, or the parameters, initial values or one group of settings" />
         <button class="small" onClick={() => session.defaultValues('par')} title="Every parameter from the ODE file">
           Reset all
         </button>

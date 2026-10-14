@@ -191,7 +191,7 @@ fun ode_divisor(value) = if value then value else 2.23e-15
 
 @steps
 {"step":"File","keys":["f"],"view":true}
-{"step":"File → Get par set → d: hopf","keys":["g","d"]}
+{"step":"File → Apply set → d: hopf, all","keys":["g","d","a"]}
 {"step":"Sing pts → Go","keys":["s","g","n"]}
 {"step":"Equilibrium → Import","win":"equilibrium","keys":["i"]}
 {"step":"File","keys":["f"],"view":true}

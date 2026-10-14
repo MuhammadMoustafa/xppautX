@@ -720,7 +720,7 @@ Sometimes, you want to prepare a bunch of simulations that use different initial
 
     set name {item1=value1, item2=value2, ..., }
 
-Then, you tell XPP to use the named set and it will do all of the things inside the brackets. The items are any parameter name, any variable name, or any of the internal options named above. The named sets are accessed through the `Named sets` menu item in the ` File` menu. Here is an example:
+Then, you tell XPP to use the named set and it will do all of the things inside the brackets. The items are any parameter name, any variable name, or any of the internal options named above. The named sets are accessed through the `Apply set` menu item in the ` File` menu. Here is an example:
 
     # test
     x'=-a*x+c

@@ -170,10 +170,32 @@ void add_intern_set(Model &m, std::string_view name, std::string_view does,
    nothing applied. xppaut_names: XPPAUT's words for the options count too
    (the command line's settings); a model's own set and action do not take them */
 Result<> extract_action(Session &s, std::string_view ptr, const Place &where, bool xppaut_names);
-/* set j of the model, all of it or nothing: its parameters and states, then
-   its settings */
-Result<> extract_internset(Session &s, int j);
-/* every set of the model checked as extract_internset would apply it, none
+/* The scopes of a set's apply and of restoring defaults: all, the parameters,
+   the initial values (the states), or one of the option groups a set may hold
+   (set_groups, model_options.h) */
+namespace set_scope {
+inline constexpr std::string_view all = "all", parameters = "parameters", initial = "initial";
+}
+std::vector<std::string> set_scopes();
+/* why scope is none of them (naming them), "" when it is */
+std::string set_scope_problem(std::string_view scope);
+/* the index of the model's set called name (the spelling it was written in),
+   -1 when it has none */
+int intern_set_index(const Model &m, std::string_view name);
+/* Apply set: a patch over the current values, the model's set `name` limited
+   to the entries of `scope` (the parameters, the initial values, one group of
+   settings, or all); the plot settings go to graph (the active one when
+   none). All or nothing: a bad entry, a set or a graph that does not exist is
+   the error (at the set's line, or the command's place) and nothing changed.
+   A parameter-only apply does not touch the initial values, whose formulas are
+   not evaluated again. One undo step. */
+Result<> apply_named_set(Session &s, std::string_view name, std::string_view scope, std::optional<int> graph);
+/* Restore defaults: the model's own values back, for scope (as above) and, with
+   a field, only that parameter, state or setting of it. A setting returns to
+   the built-in value with the model's `options` lines over it. All or nothing,
+   one undo step. */
+Result<> restore_defaults(Session &s, std::string_view scope, std::string_view field, std::optional<int> graph);
+/* every set of the model checked as apply_named_set would apply it, none
    applied: the first that cannot be is the error, at its line (a load, so a
    bad set stops it) */
 Result<> check_intern_sets(Session &s);
