@@ -182,6 +182,18 @@ static bool ask_save_choice(xpp::Session &s, std::string_view title, SaveChoice 
   return true;
 }
 
+/* one of the model file's own sets, picked; empty when none or cancelled */
+static std::string pick_own_set(xpp::Session &s, std::string_view title)
+{
+  const std::vector<std::string> own = xpp::own_set_names(s);
+  if (own.empty()) {
+    bottom_msg(0, "This model file has no set of its own");
+    return "";
+  }
+  const int pick = pick_from_list("own_set", title, own);
+  return pick < 0 ? "" : own[static_cast<std::size_t>(pick)];
+}
+
 /* File/Save values (savevalues): the current values, a new set or the part of a set
    of this model file, written by xpp::save_new_set / save_into_set */
 static void save_values_menu(xpp::Session &s)
@@ -194,14 +206,8 @@ static void save_values_menu(xpp::Session &s)
     name = xpp::intern_set_default_name(s.model());
     if (!new_string("Name of the set", name)) return;
   } else {
-    const std::vector<std::string> own = xpp::own_set_names(s);
-    if (own.empty()) {
-      bottom_msg(0, "This model file has no set of its own to replace values in");
-      return;
-    }
-    const int pick = pick_from_list("save_set", "Set", own);
-    if (pick < 0) return;
-    name = own[static_cast<std::size_t>(pick)];
+    name = pick_own_set(s, "Replace in set");
+    if (name.empty()) return;
   }
   SaveChoice choice;
   if (!ask_save_choice(s, mode == 0 ? "Save into the new set" : "Replace in the set", choice)) return;
@@ -228,18 +234,6 @@ static void export_values_menu(xpp::Session &s)
   std::string file = xpp::files::output_name(s.model().this_file, xpp::odex::extension, "values");
   if (!file_selector("Export to", file, xpp::format("*{}", xpp::odex::extension))) return;
   xpp::ok_or_show(xpp::export_values(s, name, choice.scope, file, choice.graph, choice.last_state));
-}
-
-/* one of the model file's own sets, picked; empty when none or cancelled */
-static std::string pick_own_set(xpp::Session &s, std::string_view title)
-{
-  const std::vector<std::string> own = xpp::own_set_names(s);
-  if (own.empty()) {
-    bottom_msg(0, "This model file has no set of its own");
-    return "";
-  }
-  const int pick = pick_from_list("own_set", title, own);
-  return pick < 0 ? "" : own[static_cast<std::size_t>(pick)];
 }
 
 /* File/Rename set (renameset) */

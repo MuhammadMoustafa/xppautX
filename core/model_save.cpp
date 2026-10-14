@@ -29,6 +29,16 @@ struct Adopt {
 
 Error save_error(std::string what, const Place &place = {}) { return Error{"save values", std::move(what), place}; }
 
+/* text written through w (opened by open_writer_*) and put in place */
+Result<> write_text(Writer &w, const std::string &text)
+{
+    if (!w.write(text)) {
+        abort_save(w);
+        return std::unexpected(files::write_error("save values", w.path()));
+    }
+    return commit_save(w);
+}
+
 /* the model file's text as the model loaded it, or why this model has no file to write */
 Result<const ModelFile *> own_file(const Session &s)
 {
@@ -133,11 +143,7 @@ Result<bool> write_model_file(Session &s, const Edit &edit, const Adopt &changed
         Result<> opened;
         Writer w = open_writer_replacing(path, true, &opened);
         if (!w) return std::unexpected(opened ? save_error(xpp::format("{} cannot be written", path), Place{path}) : opened.error());
-        if (!w.write(edited->text)) {
-            abort_save(w);
-            return std::unexpected(files::write_error("save values", path));
-        }
-        if (const Result<> done = commit_save(w); !done) return std::unexpected(done.error());
+        if (const Result<> done = write_text(w, edited->text); !done) return std::unexpected(done.error());
     }
     adopt(s, *edited, now, changed);
     return true;
@@ -236,7 +242,8 @@ Result<bool> export_values(Session &s, std::string_view name, std::string_view s
     const std::string target(file);
     const odex::Classify classify = [&m](std::string_view key) { return value_kind(m, key); };
     Result<odex::Edited> edited = std::unexpected(Error{});
-    if (!files::exists(target)) {
+    const bool exists = files::exists(target);
+    if (!exists) {
         edited = odex::add_set(*scratch, odex::export_header(files::split_path(m.this_file).second, utc_now()), target, name, *values, true);
     } else {
         std::string existing;
@@ -255,16 +262,12 @@ Result<bool> export_values(Session &s, std::string_view name, std::string_view s
     }
     if (!edited) return std::unexpected(edited.error());
     Result<> opened;
-    Writer w = files::exists(target) ? open_writer_replacing(target, true, &opened) : open_writer_asking(target, true, &opened);
+    Writer w = exists ? open_writer_replacing(target, true, &opened) : open_writer_asking(target, true, &opened);
     if (!w) {
         if (opened) return false; /* the replace question was answered no */
         return std::unexpected(opened.error());
     }
-    if (!w.write(edited->text)) {
-        abort_save(w);
-        return std::unexpected(files::write_error("save values", target));
-    }
-    if (const Result<> done = commit_save(w); !done) return std::unexpected(done.error());
+    if (const Result<> done = write_text(w, edited->text); !done) return std::unexpected(done.error());
     return true;
 }
 
