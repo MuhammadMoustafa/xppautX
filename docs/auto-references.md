@@ -62,7 +62,7 @@ For a quantity *q* at a special point the allowed difference is
 | Model | Special points in xppautX | AUTO-07p | XPPAUT 8.0 |
 |---|---|---|---|
 | ode/del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
-| ode/lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 5.5e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 3.8e-08, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
+| ode/lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
 | ode/osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
 | bigaut | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
@@ -73,10 +73,10 @@ For a quantity *q* at a special point the allowed difference is
 | dumbvp | boundary: EP | agrees (1 points; par 0, norm 0) | not run |
 | eiz-hom | steady: EP | agrees (1 points; par 0, norm 1.2e-13) | agrees (1 points; par 0, norm 2e-09) |
 | exp | boundary: EP | agrees (1 points; par 0, norm 0) | not run |
-| frcp | steady: EP HB; cycles: - | agrees (2 points; par 5.2e-06, norm 1e-13, period 2.1e-06, spectrum 0.00093) | agrees (2 points; par 3e-08, norm 4.6e-08, period 2.5e-12, spectrum 4.1e-06) |
+| frcp | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-12, norm 1e-13, period 2.1e-06, spectrum 0.00093) | agrees (2 points; par 5.2e-06, norm 4.6e-08, period 2.5e-12, spectrum 4.1e-06) |
 | lamom | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-18, norm 0, period 2e-11, spectrum 1e-14) | agrees (2 points; par 2.7e-16, norm 0, period 2e-11, spectrum 1e-14) |
 | lamom2 | steady: EP HB; cycles: LP | agrees (3 points; par 9.1e-13, norm 2.9e-12, period 2e-11, spectrum 3.8e-06) | agrees (3 points; par 6.8e-09, norm 4e-08, period 2e-11, spectrum 2.3e-08) |
-| lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 5.5e-05, norm 1.6e-06, period 0.0017, spectrum 0.0029) | agrees, 1 traced (3 points; par 4.6e-08, norm 4.1e-08, period 1.8e-09, spectrum 4.7e-08) |
+| lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.6e-06, period 0.0017, spectrum 0.0029) | agrees, 1 traced (3 points; par 5.5e-05, norm 4e-08, period 3.5e-09, spectrum 4.7e-08) |
 | lo | steady: EP HB; cycles: - | agrees (2 points; par 2.7e-18, norm 0, period 2e-11, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, period 2e-11, spectrum 2.5e-16) |
 | pen | steady: EP | agrees (1 points; par 0, norm 3.6e-12) | agrees (1 points; par 0, norm 4.9e-09) |
 | pf | steady: EP BP | agrees (2 points; par 2.7e-18, norm 0, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, spectrum 2.2e-16) |
@@ -92,15 +92,41 @@ Cells: `agrees` (every compared quantity inside its tolerance), the number of po
 largest absolute difference per quantity (`par`, `norm`, `period`, `spectrum`: the eigenvalue or multiplier
 pair furthest apart); `traced` counts the points of that description recorded below. The second column lists
 the special points xppautX finds, run by run (EP: the run's start). Where the code path is shared the
-differences are roundoff: XPPAUT 8.0 and xppautX agree to 5e-7 or better (XPPAUT's own table and files print
-7 digits). AUTO-07p, which prints 11, agrees with both to 5e-6 or better at starts, folds and branch points (1e-9 in the parameter and norm, the rest being the six digits of its spectra),
-and at Hopf points to 5.5e-5 in the parameter, 1.7e-3 in the period and 9.3e-4 in the spectrum.
-The recovered Morris-Lecar cycle folds differ by up to 0.0029 in the multipliers, inside the same
-position and finite-difference tolerance: a located
-point is only as good as the location tolerance (`EPSS` 1e-4), and the two secant iterations stop at
-different places inside it.
+differences remain within the per-quantity tolerances. W356's refreshed test histories
+move the displayed Morris-Lecar HB parameters away from XPPAUT by up to 5.5e-5 and frcp's by
+5.2e-6; these are traced below, with no tolerance widened. Against AUTO-07p 0.9.4 the largest
+parameter difference falls from 5.45114e-5 to 1.23904e-5. The largest norm difference remains
+1.57141e-6; the period remains 1.66839e-3 and the spectrum 2.90189e-3 (Morris-Lecar's cycle LP).
+The anticipated large drop in period and spectrum did not occur; it is not claimed.
+A point is only as accurate as its location and finite-difference tolerances.
 
-Regenerating the files with AUTO-07p 0.9.4 (W357, [#419](https://github.com/MuhammadMoustafa/xppautX/issues/419); built from reference/auto-07p, git 44cc1c4, in WSL) moved only periodic-run quantities, none by more than 4.4e-7 relative: the `cycles` points of `ode_lecar`, `tstauto_lecar`, `tstauto_frcp`, `tstauto_lamom2` and `tstauto_pp2` (norm and period in the 8th to 10th digit, a multiplier in the 6th; the largest, `tstauto_pp2`'s near-homoclinic LPs, 3.5e-5 in a period of 80). Every equilibrium, fold, branch point and boundary-value point is identical to 0.9.3's. The cause is 0.9.4's CHANGELOG entry "mesh: use closest point for linear time interpolation", the only 0.9.4 entry in the numerical path of a periodic run (it is the entry that mentions the ab demo's convergence); the moves are at the size of the discretisation error of the cycles (NTST 15 to 60), and no entry affects equilibria, folds or boundary-value problems, which are identical. The trace is to the changelog and not to a line of source. No tolerance was changed and every comparison still agrees as before, so the table differs from W300's in one cell (`lamom2`'s norm).
+### W356: location and test history
+
+W356 ([#418](https://github.com/MuhammadMoustafa/xppautX/issues/418)) reimplements AUTO-07p's
+Mueller root formula and retry-corrected abscissae (D1), ordered test bookkeeping and coincidence
+rules (D2), and multiplier/stability-based detection criteria (D3). Both equilibrium and BVP
+controllers use one ordering helper. After a later locator moves the solution, earlier test
+functions are evaluated there before continuation resumes. Coincident tests keep the first label;
+a bifurcation can override a user zero. A correction already inside EPSS needs no new solve.
+
+The maintainer's 2026-10-14 resolution rule for #418 judges an increase at the reference's last
+printed digit, or EPSS for a located point. D1's increases of roughly 1e-10 to 3e-9 are numerical
+noise by that rule. Against the refreshed 0.9.4 references, no table entry grows beyond EPSS,
+at D1, D2 or D3, and every recorded-reference check passes its original scientific tolerance.
+This acceptance rule does not change the comparison tolerances in `autocompare.py`.
+
+Exactly seven baseline diagrams change: `ode_lecar`, `tstauto_lecar`, `tstauto_brper`,
+`tstauto_lamom2`, `tstauto_frcp`, `tstauto_pp2`, `tstauto_simplefold`; both thread counts agree.
+D1 changes the root arithmetic and its subsequent continuation path. D2 additionally refreshes
+`fnlpae` at ode/lecar HB19/HB46, tstauto/lecar HB23/HB50, frcp HB38 and pp2 BP44. That evaluation
+sets `par[icp[0]] = rlcur[0]` after the corrector's final update, so the stored parameter belongs
+to the accepted state. This explains the larger *parameter-only* differences from XPPAUT at
+Lecar and frcp; their states, periods and spectra do not change in D2. The pp2 BP parameter-only
+change remains inside printed resolution. No labels or point counts change; the previously traced
+underresolved pp2 cycle folds remain traced. D3 changes no diagram bytes in this set of fixtures.
+Every changed stored point, per part, and full-precision maxima are in the
+[W356 study](studies/w356-auto-location-07p.md). No negative-discriminant finding is claimed for
+XPPAUT: the unit test exercises ours, without an executed XPPAUT reproduction.
 
 ## Disagreements, traced
 

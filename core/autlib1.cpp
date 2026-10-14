@@ -114,6 +114,58 @@ struct LocationState {
   }
 };
 
+// W356 (#418): AUTO-07p CNRLAE ae.f90:199-214 / CNRLBV
+// bvp.f90:287-305. A later location invalidates earlier tests' samples.
+template<class Function> struct LocationTest {
+  Function function;
+  double &value;
+  xpp::AutoPointKind kind;
+  std::optional<integer> user_index;
+};
+
+template<class Function, class Evaluate, class Locate>
+void locate_tests(iap_type &iap, rap_type &rap,
+                  std::vector<LocationTest<Function>> &tests, const integer *iuz,
+                  Evaluate evaluate, Locate locate) {
+  double dstest = rap.dsold;
+  std::size_t last_stepped = 0;
+  std::optional<std::size_t> found;
+  for (std::size_t i = 0; i < tests.size(); ++i) {
+    auto &test = tests[i];
+    if (test.user_index) iap.iuzr = *test.user_index;
+    bool stepped = false;
+    locate(test, dstest, stepped);
+    if (stepped) last_stepped = i;
+    if (iap.istop == 1) break;
+    if (iap.itp.kind == xpp::AutoPointKind::Pending) {
+      iap.itp = {test.kind, iap.itpst};
+      found = i;
+    }
+  }
+  for (std::size_t i = 0; i < last_stepped; ++i) {
+    auto &test = tests[i];
+    if (test.user_index) iap.iuzr = *test.user_index;
+    test.value = evaluate(test);
+  }
+  if (iap.istop != 1 && found && tests[*found].user_index &&
+      iuz[*tests[*found].user_index] < 0) iap.istop = -1;
+}
+
+// AUTO-07p LCSPAE ae.f90:679-698 / LCSPBV bvp.f90:1309-1329:
+// coincident bifurcations keep the first label, except that they override UZ.
+bool location_sign_change(iap_type &iap, const rap_type &rap,
+                          double q0, double &q1, double dstest,
+                          bool enabled, bool user_zero) {
+  if (iap.itp.kind != xpp::AutoPointKind::Regular &&
+      std::abs(HMACH1 * q1 * dstest) <
+          rap.epss * (1 + std::sqrt(std::abs(rap.ds * rap.dsmax))) * std::abs(q0 - q1)) {
+    if (iap.itp.kind == xpp::AutoPointKind::UserZero && enabled && !user_zero)
+      iap.itp = {xpp::AutoPointKind::Pending};
+    q1 = 0;
+  }
+  return !((q0 >= 0 && q1 >= 0) || (q0 <= 0 && q1 <= 0) || !enabled);
+}
+
 /* AutoLib::setubv_stop set for one solvbv, cleared the same way */
 struct SetubvStop {
   AutoLib &lib;
@@ -825,8 +877,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   std::vector<doublereal> stld;
   integer nins;
   integer ipos;
-  integer ntot, iuzr, nuzr;
-  integer i, k;
+  integer ntot, nuzr;
+  integer i;
   doublereal dsold;
 
   std::vector<doublereal> rlold(iap->lib->parameter_count);
@@ -1033,67 +1085,28 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     goto L5;
   }
 
-  /* Check for user supplied parameter output parameter-values. */
-
-  if (nuzr > 0) {
-    for (iuzr = 0; iuzr < nuzr; ++iuzr) {
-      iap->iuzr = iuzr;
-      lcspae(iap, rap, par, icp, 
-	     fnuzae, funi, &aa_first_dimension, aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(),
-	     f.data(), dfdu.data(), dfdp.data(), &uzr[iuzr], thl, thu, iuz, vuz);
-      istop = iap->istop;
-      if (istop == 1) {
-	goto L5;
-      }
-      itp = iap->itp;
-      if (itp.kind == xpp::AutoPointKind::Pending) {
-	if (iuz[iuzr] >= 0) {
-	  itp = xpp::AutoPointCode{xpp::AutoPointKind::UserZero, itpst};
-	  iap->itp = itp;
-	  for (k = 0; k < nuzr; ++k) {
-	    uzr[k] = 0.;
-	  }
-	} else {
-	  istop = -1
-;
-	  iap->istop = istop;
-	}
-      }
-    }
-  }
-
-  /* Check for fold */
-
-  if (iap->ilp == 1) {
-    lcspae(iap, rap, par, icp, fnlpae, 
-	   funi, &aa_first_dimension, 
-	   aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
-	   dfdp.data(), &rlp, thl, thu, iuz, vuz);
-    itp = iap->itp;
-    if (itp.kind == xpp::AutoPointKind::Pending) {
-      itp = xpp::AutoPointCode{xpp::AutoPointKind::Fold, itpst};
-      iap->itp = itp;
-      rlp = 0.;
-      rbp = 0.;
-      rev = 0.;
-    }
-  }
-
-  /* Check for branch point, and if so store data : */
-
-  if (isp != 0) {
-    lcspae(iap, rap, par, icp, 
-	   fnbpae, funi, &aa_first_dimension, 
-	   aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
-	   dfdp.data(), &rbp, thl, thu, iuz, vuz);
-    istop = iap->istop;
-    if (istop == 1) {
-      goto L5;
-    }
-    itp = iap->itp;
-    if (itp.kind == xpp::AutoPointKind::Pending) {
-      itp = xpp::AutoPointCode{xpp::AutoPointKind::BranchPoint, itpst};
-      iap->itp = itp;
+  {
+    std::vector<LocationTest<decltype(&fnuzae)>> tests;
+    for (integer index = 0; index < nuzr; ++index)
+      tests.push_back({fnuzae, uzr[index], xpp::AutoPointKind::UserZero, index});
+    if (iap->ilp == 1) tests.push_back({fnlpae, rlp, xpp::AutoPointKind::Fold, {}});
+    if (isp != 0) tests.push_back({fnbpae, rbp, xpp::AutoPointKind::BranchPoint, {}});
+    if (xpp::problem_is_steady_or_map(ips))
+      tests.push_back({fnhbae, rev, xpp::AutoPointKind::Hopf, {}});
+    locate_tests(*iap, *rap, tests, iuz,
+      [&](const auto &test) {
+        logical changed;
+        return test.function(iap, rap, par, icp, &changed, funi, &aa_first_dimension,
+            aa.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), uold.data(),
+            udot.data(), rhs.data(), dfdu.data(), dfdp.data(), iuz, vuz);
+      },
+      [&](auto &test, double &dstest, bool &stepped) {
+        lcspae(iap, rap, par, icp, test.function, funi, &aa_first_dimension,
+            aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(),
+            du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(),
+            &test.value, thl, thu, iuz, vuz, dstest, stepped);
+      });
+    if (iap->istop != 1 && iap->itp.kind == xpp::AutoPointKind::BranchPoint) {
       ++nbif;
       iap->nbif = nbif;
       stla.resize(nbif);
@@ -1103,31 +1116,6 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       stbif(iap, rap, par, icp, &aa_first_dimension, aa.data(),
 	    stud.data(), stu.data(), stla.data(), stld.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(),
 	    du.data(), udot.data(), dfdu.data(), dfdp.data(), thl, thu);
-      rlp = 0.;
-      rbp = 0.;
-      rev = 0.;
-    }
-  }
-
-  /* Check for Hopf bifurcation */
-
-  if (xpp::problem_is_steady_or_map(ips)) {
-    lcspae(iap, rap, par, icp, fnhbae, 
-	   funi, &aa_first_dimension, 
-	   aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
-	   dfdp.data(), &rev, thl, thu, iuz, vuz);
-    istop = iap->istop;
-    if (istop == 1) {
-
-      goto L5;
-    }
-    itp = iap->itp;
-    if (itp.kind == xpp::AutoPointKind::Pending) {
-      itp = xpp::AutoPointCode{xpp::AutoPointKind::Hopf, itpst};
-      iap->itp = itp;
-      rev = 0.;
-      /***  HERE IS WHERE Hopf IS FOUND */
-
     }
   }
 
@@ -1573,8 +1561,9 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *q, doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz)
+lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *q, doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz, double &dstest, bool &stepped)
 {
+  stepped = false;
 
   /* Local variables */
   logical chng;
@@ -1582,9 +1571,9 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
   integer itmx;
   doublereal rtmp;
   integer ntot;
-  doublereal s, dsold, dsmax;
+  doublereal s, dsmax;
   integer istop;
-  doublereal q0, q1, s0, s1, dq, ds, pq;
+  doublereal q0, q1, s0, s1, dq, ds;
 
   integer itlcsp, iid, ibr;
   doublereal rds;
@@ -1606,7 +1595,6 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 
   ds = rap->ds;
   dsmax = rap->dsmax;
-  dsold = rap->dsold;
   epss = rap->epss;
 
   /* Check whether FNCS has changed sign (FNCS is EXTERNAL). */
@@ -1615,9 +1603,8 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
   q1 = (*fncs)(iap, rap, par, icp, &chng, funi, m1aaloc, 
 	       aa, rlcur, rlold, rldot, u, uold, udot, 
 	       rhs, dfdu, dfdp, iuz, vuz);
-  pq = q0 * q1;
   ntot = iap->ntot;
-  if (pq >= 0. || ! chng) {
+  if (!location_sign_change(*iap, *rap, q0, q1, dstest, chng, fncs == fnuzae)) {
     *q = q1;
     return 0;
   }
@@ -1626,6 +1613,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
   const auto np = static_cast<std::size_t>(iap->lib->parameter_count);
   const auto na = static_cast<std::size_t>(*m1aaloc) * (n + 1);
   const double saved_q = q1;
+  const double saved_dstest = dstest;
   LocationState saved(*iap, *rap, {{par, np}, {rlcur, 1}, {rlold, 1}, {rldot, 1},
       {u, n}, {uold, n}, {udot, n}, {aa, na}, {rhs, n + 1}, {du, n + 1},
       {f, n}, {dfdu, n * n}, {dfdp, n * np}});
@@ -1633,14 +1621,13 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
   /* Use the secant method for the first step: */
 
   s0 = 0.;
-  s1 = dsold;
+  s1 = dstest;
   itlcsp = 0;
   dq = q0 - q1;
   rds = q1 / dq * (s1 - s0);
   rtmp = HMACH1;
  L1:
   rds = rtmp * rds;
-  s = s1 + rds;
 
   /* Return if relative tolerance has been met : */
 
@@ -1678,12 +1665,19 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 	       rhs, dfdu, dfdp, iuz, vuz);
   ++itlcsp;
   if (itlcsp <= itmx) {
+    // AUTO-07p LCSPAE ae.f90:743 / LCSPBV bvp.f90:1414:
+    // the corrector may have retried with a shorter step.
+    stepped = true;
+    s = s1 + rds;
+    dstest = s;
     /*        Use Mueller's method with bracketing for subsequent steps */
     mueller(&q0, &q1, q, &s0, &s1, &s, &rds);
     goto L1;
   } else {
     xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Possible special point\n",ibr,(ntot + 1) % 10000);	
     saved.restore(*iap, *rap);
+    dstest = saved_dstest;
+    stepped = false;
     *q = saved_q;
     return 0;
   }
@@ -1694,32 +1688,23 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 /* Subroutine */ int 
 mueller(doublereal *q0, doublereal *q1, doublereal *q, doublereal *s0, doublereal *s1, doublereal *s, doublereal *rds)
 {
-    /* Local variables */
-  doublereal a, b, c, d, r, h0, h1, dq;
-
-  /* Mueller's method with bracketing */
-
-  h0 = *s0 - *s;
-  h1 = *s1 - *s;
-  d = h0 * h1 * (h1 - h0);
-  /* Computing 2nd power */
-
-  a = (h1 * h1 * (*q0 - *q) - h0 *  h0 * (*q1 - *q)) / d;
-  b = (-h1 * (*q0 - *q) + h0 * (*q1 - *q)) / d;
-  if (f2c::abs(b) <= RSMALL) {
-    *rds = -(*q) / a;
-  } else {
-    c = a / (b * 2);
-    /* Computing 2nd power */
-    r = sqrt(c * c - *q / b);
-    if (c < 0.) {
-      *rds = -c - r;
-    } else {
-      *rds = -c + r;
-    }
+  // W356 (#418), reimplementation of AUTO-07p MUELLER,
+  // support.f90:31-61: use zero for a nonpositive discriminant and
+  // the root formula whose denominator adds like-signed quantities.
+  const double h0 = *s0 - *s;
+  const double h1 = *s1 - *s;
+  const double d = h0 * h1 * (h1 - h0);
+  const double a = (h1 * h1 * (*q0 - *q) - h0 * h0 * (*q1 - *q)) / d;
+  const double b = (-h1 * (*q0 - *q) + h0 * (*q1 - *q)) / d;
+  const double discriminant = a * a - 4 * b * *q;
+  double root = 0;
+  if (discriminant > 0) {
+    root = std::sqrt(discriminant);
+    if (a < 0) root = -root;
   }
+  *rds = -2 * *q / (a + root);
 
-  dq = *q1 * *q;
+  const double dq = *q1 * *q;
   if (dq < 0.) {
     *q0 = *q1;
     *s0 = *s1;
@@ -1955,7 +1940,9 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     ret_val = rev;
   }
   nins = iap->nins;
-  if (nins1 != nins) {
+  // AUTO-07p FNHBEQ equilibrium.f90:624-629: a plain HB changes a pair.
+  constexpr integer hopf_stability_change = 2; // one complex conjugate pair
+  if (f2c::abs(nins1 - nins) >= hopf_stability_change) {
     *chng = TRUE_;
   }
   nins = nins1;
@@ -4638,7 +4625,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 {
     /* Local variables */
   integer iads, ndim, ncol;
-  integer ntot, ntst, iuzr, nuzr, i, j, k;
+  integer ntot, ntst, nuzr, i, j;
   doublereal dsold;
   integer nodir = 0;
   std::vector<doublereal> rlold(iap->lib->parameter_count);
@@ -4812,96 +4799,31 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     goto L3;
   }
 
-  /* Check for user supplied parameter output parameter-values. */
-
-  if (nuzr > 0) {
-    for (iuzr = 0; iuzr < nuzr; ++iuzr) {
-      iap->iuzr = iuzr;
-      lcspbv(iap, rap, par, icp, fnuzbv, funi, bcni, 
-	     icni, pvli, &uzr[iuzr], rlcur.data(), rlold.data(), rldot.data(), &
-	     ntst_plus_one, ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), 
-	     dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu, iuz, vuz);
-      istop = iap->istop;
-      if (istop == 1) {
-	goto L3;
-      }
-      itp = iap->itp;
-      if (itp.kind == xpp::AutoPointKind::Pending) {
-	if (iuz[iuzr] >= 0) {
-	  itp = xpp::AutoPointCode{xpp::AutoPointKind::UserZero, itpst};
-	  iap->itp = itp;
-	  for (k = 0; k < nuzr; ++k) {
-	    uzr[k] = 0.;
-	  }
-	} else {
-	  istop = -1;
-	  iap->istop = istop;
-	}
-      }
-    }
-  }
-
-  /* Check for fold. */
-
-  if (ilp == 1) {
-    lcspbv(iap, rap, par, icp, fnlpbv, funi, bcni, icni,
-	   pvli, &rlp, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), dups.data(), 
-	   uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu,
-	   iuz, vuz);
-    istop = iap->istop;
-    if (istop == 1) {
-      goto L3;
-    }
-    itp = iap->itp;
-    if (itp.kind == xpp::AutoPointKind::Pending) {
-      itp = xpp::AutoPointCode{xpp::AutoPointKind::PeriodicFold, itpst};
-      iap->itp = itp;
-      rlp = 0.;
-      bp1 = 0.;
-      sp1 = 0.;
-    }
-  }
-
-  /* Check for branch point. */
-
-  if (isp >= 2) {
-    lcspbv(iap, rap, par, icp, fnbpbv, funi, bcni, icni,
-	   pvli, &bp1, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), dups.data(), 
-	   uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu,
-	   iuz, vuz);
-    istop = iap->istop;
-    if (istop == 1) {
-      goto L3;
-    }
-    itp = iap->itp;
-    if (itp.kind == xpp::AutoPointKind::Pending) {
-      itp = xpp::AutoPointCode{xpp::AutoPointKind::PeriodicBranch, itpst};
-      iap->itp = itp;
-      rlp = 0.;
-      bp1 = 0.;
-      sp1 = 0.;
-    }
-  }
-
-  /* Check for period-doubling and torus bifurcation. */
-
-  if ((isp == 1 || isp == 2) && xpp::problem_has_orbit_multipliers(ips)) {
-    lcspbv(iap, rap, par, icp, fnspbv, funi, bcni, icni,
-	   pvli, &sp1, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), dups.data(), 
-	   uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu,
-	   iuz, vuz);
-    istop = iap->istop;
-    if (istop == 1) {
-      goto L3;
-    }
-    itp = iap->itp;
-    if (itp.kind == xpp::AutoPointKind::Pending) {
-      /*          **Secondary periodic bifurcation: determine type */
+  {
+    std::vector<LocationTest<decltype(&fnuzbv)>> tests;
+    for (integer index = 0; index < nuzr; ++index)
+      tests.push_back({fnuzbv, uzr[index], xpp::AutoPointKind::UserZero, index});
+    if (ilp == 1) tests.push_back({fnlpbv, rlp, xpp::AutoPointKind::PeriodicFold, {}});
+    if (isp >= 2) tests.push_back({fnbpbv, bp1, xpp::AutoPointKind::PeriodicBranch, {}});
+    if ((isp == 1 || isp == 2) && xpp::problem_has_orbit_multipliers(ips))
+      tests.push_back({fnspbv, sp1, xpp::AutoPointKind::Pending, {}});
+    locate_tests(*iap, *rap, tests, iuz,
+      [&](const auto &test) {
+        logical changed;
+        return test.function(iap, rap, par, icp, &changed, funi, bcni, icni,
+            p0.data(), p1.data(), ev.data(), rlcur.data(), rlold.data(), rldot.data(),
+            &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(),
+            fa.data(), fc.data(), dups.data(), tm.data(), dtm.data(), thl, thu, iuz, vuz);
+      },
+      [&](auto &test, double &dstest, bool &stepped) {
+        lcspbv(iap, rap, par, icp, test.function, funi, bcni, icni, pvli,
+            &test.value, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one,
+            ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(),
+            fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(),
+            ev.data(), thl, thu, iuz, vuz, dstest, stepped);
+      });
+    if (iap->istop != 1 && iap->itp.kind == xpp::AutoPointKind::Pending)
       tpspbv(iap, rap, par, icp, ev.data());
-      rlp = 0.;
-      bp1 = 0.;
-      sp1 = 0.;
-    }
   }
 
   /* Store plotting data. */
@@ -5851,19 +5773,20 @@ stdrbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), PVLI_TYPE_BVP((*pvli)), doublereal *q, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *tm, doublereal *dtm, doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz)
+lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), PVLI_TYPE_BVP((*pvli)), doublereal *q, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *tm, doublereal *dtm, doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz, double &dstest, bool &stepped)
 {
+  stepped = false;
   /* Local variables */
   logical chng;
   doublereal epss;
   integer ntop, itmx;
   doublereal rtmp, rrds;
   integer ntot;
-  doublereal s, dsold, dsmax;
+  doublereal s, dsmax;
   integer istop;
   doublereal q0, q1, s0, s1;
   integer nitsp1;
-  doublereal dq, ds, pq;
+  doublereal dq, ds;
 
   integer iid, ibr;
   doublereal rds;
@@ -5897,7 +5820,6 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 
   ds = rap->ds;
   dsmax = rap->dsmax;
-  dsold = rap->dsold;
   epss = rap->epss;
 
   /* Check for zero. */
@@ -5908,8 +5830,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 	       udotps, upoldp, fa, fc, dups, tm, dtm, thl, thu, iuz, vuz)
     ;
 
-  pq = q0 * q1;
-  if (pq >= 0. || ! chng) {
+  if (!location_sign_change(*iap, *rap, q0, q1, dstest, chng, fncs == fnuzbv)) {
     *q = q1;
     return 0;
   }
@@ -5920,6 +5841,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   const auto nu = static_cast<std::size_t>(*ndxloc) * n * iap->ncol;
   const auto nc = static_cast<std::size_t>(iap->nbc + iap->nint + 1);
   const double saved_q = q1;
+  const double saved_dstest = dstest;
   LocationState saved(*iap, *rap, {{par, np}, {rlcur, nfpr}, {rlold, nfpr},
       {rldot, nfpr}, {ups, nu}, {uoldps, nu}, {udotps, nu}, {upoldp, nu},
       {p0, n * n}, {p1, n * n}, {dups, nu}, {fa, nu}, {fc, nc}});
@@ -5928,14 +5850,13 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   /* Use the secant method for the first step: */
 
   s0 = 0.;
-  s1 = dsold;
+  s1 = dstest;
   nitsp1 = 0;
   dq = q0 - q1;
   rds = q1 / dq * (s1 - s0);
   rtmp = HMACH1;
  L1:
   rds = rtmp * rds;
-  s = s1 + rds;
 
   /* Return if tolerance has been met : */
 
@@ -5943,7 +5864,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   if (rrds < epss) {
     itp = xpp::AutoPointCode{xpp::AutoPointKind::Pending};
     iap->itp = itp;
-    /* xx???   Q=0.d0 */
+    *q = 0.;
     xpp::print(iap->lib->fp9,"==> Location of special point : Convergence.    Stepsize ={:11.3E}\n",rds);	
 
     return 0;
@@ -5978,12 +5899,19 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 
   ++nitsp1;
   if (nitsp1 <= itmx) {
+    // AUTO-07p LCSPAE ae.f90:743 / LCSPBV bvp.f90:1414:
+    // the corrector may have retried with a shorter step.
+    stepped = true;
+    s = s1 + rds;
+    dstest = s;
     /*        Use Mueller's method with bracketing for subsequent steps */
     mueller(&q0, &q1, q, &s0, &s1, &s, &rds);
     goto L1;
   }
 
   saved.restore(*iap, *rap);
+  dstest = saved_dstest;
+  stepped = false;
   std::copy(saved_ev.begin(), saved_ev.end(), ev);
   *q = saved_q;
 
@@ -6128,7 +6056,6 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /* Local variables */
   doublereal amin;
   integer ndim, nins, ntop, ntot;
-  doublecomplex ztmp;
   integer nins1=0;
   doublereal d;
   integer i, j;
@@ -6178,31 +6105,28 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
       loc = j;
     }
   }
-  if (loc != 0) {
-    ztmp.r = ev[loc].r, ztmp.i = ev[loc].i;
-    ev[loc].r = ev[0].r, ev[loc].i = ev[0].i;
-    ev[0].r = ztmp.r, ev[0].i = ztmp.i;
-  }
+  // Preserve conjugate adjacency when moving the neutral multiplier.
+  if (loc != 0) std::rotate(ev, ev + loc, ev + loc + 1);
 
-  /* Order the remaining Floquet multipliers by distance from |z|=1. */
-
-  if (ndim >= 3) {
-    for (i = 1; i < ndim - 1; ++i) {
-      amin = RLARGE;
-      for (j = i; j < ndim; ++j) {
-	azm1 = z_abs(&ev[j]) - 1.;
-	azm1 = f2c::abs(azm1);
-	if (azm1 <= amin) {
-	  amin = azm1;
-	  loc = j;
-	}
-      }
-      if (loc != i) {
-	ztmp.r = ev[loc].r, ztmp.i = ev[loc].i;
-	ev[loc].r = ev[i].r, ev[loc].i = ev[i].i;
-	ev[i].r = ztmp.r, ev[i].i = ztmp.i;
-      }
+  // W356 (#418): AUTO-07p periodic.f90:1960-1983, insertion by
+  // conjugate blocks. Keep both computed values, including their order.
+  for (i = 2; i < ndim; ++i) {
+    const auto value = ev[i];
+    if (value.i < 0) continue;
+    const integer width = value.i > 0 && i + 1 < ndim ? 2 : 1;
+    const auto partner = width == 2 ? ev[i + 1] : value;
+    const double distance = std::abs(z_abs(&ev[i]) - 1);
+    integer position = i;
+    for (;;) {
+      if (position <= 1) break;
+      integer previous = position - 1;
+      if (ev[previous].i < 0 && previous > 1) --previous;
+      if (std::abs(z_abs(&ev[previous]) - 1) <= distance) break;
+      std::move_backward(ev + previous, ev + position, ev + position + width);
+      position = previous;
     }
+    ev[position] = value;
+    if (width == 2) ev[position + 1] = partner;
   }
 
   /* Print error message if the Floquet multiplier at z=1 is inaccurate. */
@@ -6248,16 +6172,17 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   /* Count the number of Floquet multipliers inside the unit circle. */
 
-  if (ndim == 1) {
+  // AUTO-07p periodic.f90:2031: neutral multipliers have finite numerical error.
+  constexpr double multiplier_stability_tolerance = 1e-5;
+  nins1 = 1;
+  for (i = 1; i < ndim; ++i)
+    if (z_abs(&ev[i]) <= 1 + multiplier_stability_tolerance) ++nins1;
+
+  // TPSPBV periodic.f90:2136-2140: no PD/TR in planar flows.
+  if (iap->ndm <= 2) {
     d = 0.;
     ret_val = d;
   } else {
-    nins1 = 1;
-    for (i = 1; i < ndim; ++i) {
-      if (z_abs(&ev[i]) <= 1.) {
-	++nins1;
-      }
-    }
     if (isp == 2) {
       if (d_imag(&ev[1]) == 0. && ev[1].r > 0.) {
 	/*            *Ignore if second multiplier is real positive */

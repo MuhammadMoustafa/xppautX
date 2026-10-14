@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Locate AUTO special points with AUTO-07p Mueller steps, retry-corrected abscissae, refreshed test histories, coincidence rules and multiplier stability criteria; seven explained diagram changes pass the unchanged reference tolerances (W356, [#418](https://github.com/MuhammadMoustafa/xppautX/issues/418)).
+
 - AUTO's problem, point and stability codes are types (`core/auto_codes.h`); a diagram or AUTO solution file with a point type that is none of AUTO's is refused with its file and line, and numerics, labels and function-table selections are unchanged (W329, [#390](https://github.com/MuhammadMoustafa/xppautX/issues/390)).
 - Compute requested nullclines and direction fields after runs in every mode; PS and SVG exports include the session's fields, nullclines, curves, axes, labels and frozen curves, including in `--silent` (W346, [#407](https://github.com/MuhammadMoustafa/xppautX/issues/407)).
 
