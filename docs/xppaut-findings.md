@@ -82,6 +82,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [50](#50-auto-accepts-nan-as-a-converged-bvp-solution) | AUTO | deprecated projection conditions make tstheti singular; NaN increments pass the BVP convergence test | [W343 / #404](https://github.com/MuhammadMoustafa/xppautX/issues/404) |
 | [51](#51-auto-failed-step-endpoint-stability) | AUTO | a failed equilibrium branch switch restores an earlier branch point but stores the last branch's spectrum | [W341](https://github.com/MuhammadMoustafa/xppautX/issues/402) |
 | [52](#52-auto-omits-unselected-branch-parameters) | AUTO | Unselected constants are absent from a branch; older points use later values | [W339](https://github.com/MuhammadMoustafa/xppautX/issues/400) |
+| [53](#53-auto-import-is-unchecked-and-partial) | AUTO files | sent `.auto` counts and short records are applied unchecked | [W327](https://github.com/MuhammadMoustafa/xppautX/issues/388) |
 
 ## 1. Model options
 
@@ -1037,3 +1038,33 @@ restart. It checks that the older branch restores `b=2` and `a*x=2`,
 before and after saving and reopening the session. Continued values,
 states and spectra are compared against the previous per-model AUTO
 baselines before accepting the storage layout change.
+
+
+## 53. AUTO import is unchecked and partial
+
+XPPAUT 8.0 reads selected parameter indices, the mark count and numeric settings
+straight into live state without checking `fscanf` results
+([auto_nox.c:2787](../reference/xppaut-8.0/auto_nox.c#L2787),
+[master:2758](../reference/xppaut-master/auto_nox.c#L2758)). Its graph reader does
+likewise ([auto_nox.c:2817](../reference/xppaut-8.0/auto_nox.c#L2817),
+[master:2789](../reference/xppaut-master/auto_nox.c#L2789)). Loading resets the
+existing diagram before checking the file
+([auto_nox.c:2882](../reference/xppaut-8.0/auto_nox.c#L2882),
+[master:2853](../reference/xppaut-master/auto_nox.c#L2853)). The diagram reader
+trusts the point indices and every record read, appending immediately
+([diagram.c:625](../reference/xppaut-8.0/diagram.c#L625),
+[master:624](../reference/xppaut-master/diagram.c#L624)); the restart tail is
+copied unchecked ([auto_nox.c:2856](../reference/xppaut-8.0/auto_nox.c#L2856),
+[master:2827](../reference/xppaut-master/auto_nox.c#L2827)). A truncated record can
+therefore reuse earlier values or fail to terminate, while changing settings
+and destroying the prior diagram. This is source evidence, not a dynamic
+exploit claim against XPPAUT.
+
+[W327](https://github.com/MuhammadMoustafa/xppautX/issues/388) reads the foreign
+file into an owned temporary value, bounds its counts and expanded storage,
+uses the shared settings, point and restart validators, then writes the restart
+file before replacing session state. `test_session_auto` and autocheck's
+`sessiondiagram` mutate `tools/models/lecar_diagram.auto`: excessive marks,
+invalid model/point parameters, an invalid axis, a truncated second point and
+a malformed restart tail must each fail with their original file and line,
+leaving every saved AUTO member unchanged.

@@ -497,15 +497,65 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     const std::string path = tmp.file("lecar.auto");
     CHECK(write_file(path, auto_text));
     xpp::UniqueFile fp = xpp::open_read(path);
-    CHECK(fp && xpp::import_auto_file(s, fp.get()) == 1);
+    CHECK(fp && xpp::import_auto_file(s, fp.get(), path).has_value());
     fp.reset();
-    CHECK(diagram_count(xpp::client_session().diagram) > 50);
+    CHECK(diagram_count(xpp::client_session().diagram) == 2042);
     /* its first point, as the file prints it */
     const xpp::DIAGRAM *d = diagram_first(xpp::client_session().diagram);
     CHECK(d && d->ibr == 1 && d->ntot == 1 && d->itp == 9 && d->lab == 1 && diagram_parameter(*d,0) == 0.05 && d->u0[0] == -0.144 &&
           d->u0[1] == 0.03);
     CHECK(s.auto_state.bifur.ntst == 15 && s.auto_state.bifur.nmx == 2000 && s.auto_state.bifur.dsmin == 1e-05);
     CHECK(file_text(xpp::auto_solutions_file(xpp::client_session())).size() > 100); /* the .s part */
+    CHECK(s.auto_state.nuzr == 0 && s.auto_state.uzr_period[0] == 11 && s.auto_state.uzr_period[8] == 35);
+    CHECK(s.auto_state.bifur.period_mark[0] && s.auto_state.uzr_par[0] == xpp::auto_unknown::period);
+    /* Sent foreign files must preserve every AUTO member after any late failure. */
+    const auto before_settings = xpp::snapx::auto_members::settings_text(xpp::auto_settings_now(s));
+    const auto before_diagram = xpp::snapx::auto_members::diagram_csv(s.diagram.points,
+        std::span<const std::string>(s.model().uvar_names.data(), s.model().node));
+    const auto before_solutions = file_text(xpp::auto_solutions_file(s));
+    const auto before_parameters = s.auto_state.imported_parameters;
+    const auto before_marks = s.auto_state.uzr_period;
+    const auto before_mark_parameters = s.auto_state.uzr_par;
+    s.auto_state.from_auto_flag = s.auto_state.grabpt.flag = s.auto_state.diagram_mark.state = 1;
+    const auto rows = xpp::split_lines(auto_text);
+    const auto refuse_import = [&](std::string bad, int line) {
+        CHECK(write_file(path, bad));
+        auto input = xpp::open_read(path);
+        const auto result = xpp::import_auto_file(s, input.get(), path);
+        CHECK(!result);
+        if (!result) {
+            CHECK(result.error().place.file == path && result.error().place.line == line);
+            CHECK(result.error().place.source == std::string(xpp::line_place(path, bad, line).source));
+        }
+        CHECK(xpp::snapx::auto_members::settings_text(xpp::auto_settings_now(s)) == before_settings);
+        CHECK(xpp::snapx::auto_members::diagram_csv(s.diagram.points,
+            std::span<const std::string>(s.model().uvar_names.data(), s.model().node)) == before_diagram);
+        CHECK(file_text(xpp::auto_solutions_file(s)) == before_solutions);
+        CHECK(s.auto_state.imported_parameters == before_parameters);
+        CHECK(same_vector(s.auto_state.uzr_period, before_marks) && s.auto_state.uzr_par == before_mark_parameters);
+        CHECK(s.auto_state.from_auto_flag == 1 && s.auto_state.grabpt.flag == 1 && s.auto_state.diagram_mark.state == 1);
+    };
+    const auto replace_row = [&](int row, std::string value) {
+        std::string bad;
+        for (std::size_t k = 0; k < rows.size(); k++) bad += (k == static_cast<std::size_t>(row) ? value : std::string(rows[k])) + '\n';
+        return bad;
+    };
+    refuse_import(replace_row(0, "8 0 1 2 3 4 5 6 7 21"), 1);
+    refuse_import(replace_row(0, "8 999 1 2 3 4 5 6 7 0"), 1);
+    refuse_import(replace_row(15, "2147483647"), 16);
+    refuse_import(replace_row(10, "10001 2000 500"), 11);
+    refuse_import(replace_row(17, "nan 0.333 -0.01 0.15 0.1 0.145 1 -0.7 0.147092 0"), 18);
+    refuse_import(replace_row(14, "-0.2 -0.5 0.5 0.4 999 2"), 15);
+    refuse_import(replace_row(20, "9 1 2 0 0 1 1 999 1 2 3 0"), 21);
+    refuse_import(replace_row(20, "9 1 2 0 0 1 1 8 1 2 3 0"), 21);
+    std::string truncated;
+    for (int k = 0; k < 21; k++) truncated += std::string(rows[k]) + '\n';
+    refuse_import(truncated, 22);
+    refuse_import(auto_text + "bad solution header\n", static_cast<int>(rows.size()) + 1);
+    CHECK(write_file(path, auto_text));
+    auto valid_again = xpp::open_read(path);
+    CHECK(xpp::import_auto_file(s, valid_again.get(), path));
+    CHECK(s.auto_state.from_auto_flag == 0 && s.auto_state.grabpt.flag == 0 && s.auto_state.diagram_mark.state == 0);
     const std::deque<DiagramPoint> imported = s.diagram.points;
     const std::string solutions = file_text(xpp::auto_solutions_file(xpp::client_session()));
 

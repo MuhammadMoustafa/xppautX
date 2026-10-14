@@ -210,6 +210,34 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const 
     return o;
 }
 
+namespace {
+void check_point_indices(const DIAGRAM &d, int n_pars, Lines &l, int line)
+{
+    /* Drawing and grabbing index AUTO's parameter arrays directly: the first continued
+       parameter is one of the AutoPar slots (their names are indexed by it), and the
+       others may be AUTO's own, such as 10, the period of a periodic run, indexed only in
+       the point's own par array, which every use guards against the model's parameters. */
+    if (d.icp1 < 0 || d.icp1 >= n_pars)
+        l.fail(line, xpp::format("parameter index {} is outside AUTO's parameters", d.icp1));
+    for (const int index : {d.icp2, d.icp3, d.icp4})
+        if (index < 0 || static_cast<std::size_t>(index) >= saved_parameters_limit)
+            l.fail(line, xpp::format("parameter index {} is outside a diagram point's parameters", index));
+    if (d.jacobian < 0 || d.jacobian >= static_cast<int>(jacobian_names.size()))
+        l.fail(line, xpp::format("jacobian {} is neither {} ({}) nor {} ({})", d.jacobian,
+                              jacobian_names[JACOBIAN_DIFFERENCE], JACOBIAN_DIFFERENCE, jacobian_names[JACOBIAN_EXACT], JACOBIAN_EXACT));
+    if (d.nfpar < 0 || static_cast<std::size_t>(d.nfpar) > saved_parameters_limit)
+        l.fail(line, xpp::format("nfpar {} is outside AUTO's parameter storage", d.nfpar));
+}
+void check_point_parameters(const DIAGRAM &d, Lines &l, int line)
+{
+    // Sorting a bounded copy avoids quadratic work on a hostile free-parameter list.
+    auto ordered=d.parameter_indices;
+    std::sort(ordered.begin(),ordered.end());
+    if(std::adjacent_find(ordered.begin(),ordered.end())!=ordered.end())l.fail(line, "continued parameter given twice");
+    if(d.parameter_indices.empty() || d.parameter_indices.front()!=d.icp1)l.fail(line, "first continued parameter differs from icp1");
+}
+} // namespace
+
 Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n, int n_pars, std::string file)
 {
     return read_lines("AUTO's diagram", std::move(file), text, [n, n_pars](Lines &l) {
@@ -261,20 +289,7 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
                 if (!xpp::parse_int(f[c], *v) || *v == std::numeric_limits<int>::min()) bad(c, "a whole number");
                 c++;
             }
-            /* Drawing and grabbing index AUTO's parameter arrays directly: the first continued
-               parameter is one of the AutoPar slots (their names are indexed by it), and the
-               others may be AUTO's own, such as 10, the period of a periodic run, indexed only in
-               the point's own par array, which every use guards against the model's parameters. */
-            if (d.icp1 < 0 || d.icp1 >= n_pars)
-                l.fail(xpp::format("parameter index {} is outside AUTO's parameters", d.icp1));
-            for (const int index : {d.icp2, d.icp3, d.icp4})
-                if (index < 0 || static_cast<std::size_t>(index) >= saved_parameters_limit)
-                    l.fail(xpp::format("parameter index {} is outside a diagram point's parameters", index));
-            if (d.jacobian < 0 || d.jacobian >= static_cast<int>(jacobian_names.size()))
-                l.fail(xpp::format("jacobian {} is neither {} ({}) nor {} ({})", d.jacobian,
-                                      jacobian_names[JACOBIAN_DIFFERENCE], JACOBIAN_DIFFERENCE, jacobian_names[JACOBIAN_EXACT], JACOBIAN_EXACT));
-            if (d.nfpar < 0 || static_cast<std::size_t>(d.nfpar) > saved_parameters_limit)
-                l.fail(xpp::format("nfpar {} is outside AUTO's parameter storage", d.nfpar));
+            check_point_indices(d, n_pars, l, l.line());
             const auto real = [&](double &v) {
                 if (!xpp::parse_number(f[c], v) || !std::isfinite(v)) bad(c, "a number");
                 c++;
@@ -298,11 +313,7 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
                 d.parameter_indices.push_back(index);
                 d.par.push_back(value);
             }
-            // Sorting a bounded copy avoids quadratic work on a hostile free-parameter list.
-            auto ordered=d.parameter_indices;
-            std::sort(ordered.begin(),ordered.end());
-            if(std::adjacent_find(ordered.begin(),ordered.end())!=ordered.end())l.fail("continued parameter given twice");
-            if(d.parameter_indices.empty() || d.parameter_indices.front()!=d.icp1)l.fail("first continued parameter differs from icp1");
+            check_point_parameters(d, l, l.line());
             for (std::vector<double> *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar, &p.evr, &p.evi}) v->assign(static_cast<std::size_t>(n), 0.0);
             for (int i = 0; i < n; i++)
                 for (std::vector<double> *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar}) real((*v)[static_cast<std::size_t>(i)]);
@@ -311,6 +322,66 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
         }
         return points;
     });
+}
+
+std::deque<DiagramPoint> read_foreign_diagram(Lines &lines, int n,
+    std::span<const int> imported, std::span<const double> parameters, int calc, int flag2, double torper)
+{
+    // XPPAUT diagram records have exactly four continuation index columns.
+    constexpr int foreign_continuation_columns = 4;
+    int last;
+    lines.numbers(last);
+    const std::size_t bytes = sizeof(DiagramPoint) + sizeof(DiagramBranch)
+        + (6 * static_cast<std::size_t>(n) + parameters.size()) * sizeof(double)
+        + imported.size() * (sizeof(int) + sizeof(double));
+    if (n <= 0 || last < 1 || static_cast<std::size_t>(last) >= saved_points_limit
+        || bytes > zip::archive_bytes_limit / (static_cast<std::size_t>(last) + 1))
+        lines.fail("foreign diagram counts exceed the session memory limit");
+    std::deque<DiagramPoint> points;
+    std::shared_ptr<const DiagramBranch> branch;
+    for (int index = 0; index <= last; index++) {
+        DiagramPoint p;
+        DIAGRAM &d = p.d;
+        int foreign_index;
+        lines.numbers(d.calc, d.ibr, d.ntot, d.itp, d.lab, foreign_index, d.nfpar,
+                      d.icp1, d.icp2, d.icp3, d.icp4, d.flag2);
+        const int point_line=lines.line();
+        if (foreign_index != index || d.nfpar < 1 || d.nfpar > foreign_continuation_columns)
+            lines.fail("invalid foreign point index or free parameter count");
+        const int slots[] = {d.icp1, d.icp2, d.icp3, d.icp4};
+        for (int slot : slots)
+            if (slot < 0 || slot >= auto_unknown::block_size)
+                lines.fail("foreign parameter index is outside AUTO's slots");
+        // XPPAUT stores eight selected parameter values on each point's numeric row.
+        std::array<double, xppaut_parameter_prefix> values;
+        lines.numbers(values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], d.norm, d.per);
+        if (!branch || std::abs(static_cast<long long>(d.ntot)) == 1 || points.back().d.ibr != d.ibr) {
+            auto held = std::make_shared<DiagramBranch>();
+            held->parameters.assign(parameters.begin(), parameters.end());
+            for (std::size_t k = 0; k < imported.size(); k++) held->parameters[imported[k]] = values[k];
+            branch = std::move(held);
+        }
+        d.branch = branch;
+        const auto mapped = [&](int slot) {
+            return static_cast<std::size_t>(slot) < imported.size() ? imported[slot] : static_cast<int>(parameters.size()) + slot;
+        };
+        d.icp1 = mapped(slots[0]); d.icp2 = mapped(slots[1]);
+        d.icp3 = mapped(slots[2]); d.icp4 = mapped(slots[3]);
+        for (int k = 0; k < d.nfpar; k++)
+            if (static_cast<std::size_t>(slots[k]) < imported.size()) {
+                d.parameter_indices.push_back(imported[slots[k]]);
+                d.par.push_back(values[slots[k]]);
+            }
+        check_point_indices(d, static_cast<int>(parameters.size()), lines, point_line);
+        check_point_parameters(d, lines, point_line);
+        for (auto *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar, &p.evr, &p.evi}) v->resize(n);
+        for (int k = 0; k < n; k++) lines.numbers(p.u0[k], p.uhi[k], p.ulo[k], p.ubar[k], p.evr[k], p.evi[k]);
+        // Preserve the old import's run presentation fields.
+        d.calc = calc; d.torper = torper;
+        if (index == 0) d.flag2 = flag2;
+        points.push_back(std::move(p));
+    }
+    return points;
 }
 
 } // namespace xpp::snapx::auto_members

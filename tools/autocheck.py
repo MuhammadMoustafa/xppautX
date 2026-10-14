@@ -1193,6 +1193,34 @@ def section_sessiondiagram():
     check('sessiondiagram: saving the imported diagram writes old.snapx with every point, and leaves old.auto as it was',
           len(rows) == old_points and open(OLD_AUTO, 'rb').read() == open(os.path.join(s.run, 'old.auto'), 'rb').read(),
           '%d rows for %d points' % (len(rows), old_points))
+    # W327: rejected imports leave every saved AUTO member byte-for-byte intact.
+    with open(OLD_AUTO) as source:
+        foreign = source.read()
+    foreign_rows = foreign.splitlines()
+    def altered(row, value):
+        lines = list(foreign_rows)
+        lines[row] = value
+        return '\n'.join(lines) + '\n'
+    invalid_imports = (
+        ('marks', altered(0, '8 0 1 2 3 4 5 6 7 21'), 1),
+        ('parameter', altered(0, '8 999 1 2 3 4 5 6 7 0'), 1),
+        ('axis', altered(14, '-0.2 -0.5 0.5 0.4 999 2'), 15),
+        ('point', altered(20, '9 1 2 0 0 1 1 999 1 2 3 0'), 21),
+        ('truncated', '\n'.join(foreign_rows[:21]) + '\n', 22),
+        ('solutions', foreign + 'bad solution header\n', len(foreign_rows) + 1),
+    )
+    for name, text, line in invalid_imports:
+        path = 'bad-' + name + '.auto'
+        with open(os.path.join(s.run, path), 'w') as output:
+            output.write(text)
+        events = import_diagram(s, path)
+        errors = [event for event in events if event.get('ev') == 'message' and 'error' in event]
+        after = save_diagram(s, 'after-' + name + '.snapx')
+        check('W327: %s import is refused whole with file and line' % name,
+              len(errors) == 1 and errors[0].get('file', '').endswith(path) and errors[0].get('line') == line
+              and errors[0].get('source', '') == (text.splitlines()[line - 1] if line <= len(text.splitlines()) else '')
+              and {k: v for k, v in after.items() if k.startswith('auto/')} ==
+                  {k: v for k, v in got.items() if k.startswith('auto/')}, str(errors)[:300])
     # the client keeps its points across the reset and redraw: only a
     # difference would be sent (a reset dropping points, and new ones)
     dg4 = Diagram()

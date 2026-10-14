@@ -160,7 +160,8 @@ Result<> restore_members(Session &s, Members m)
     auto_settings_apply(s, m.settings, why); /* members_read checked it */
     auto_data_forget(s); /* the strip described the diagram this one replaces */
     if (!m.points.empty()) diagram_restore(s, std::move(m.points));
-    restore_views(s, m.views);
+    // Foreign XPPAUT imports hold one active axis record, with no saved view list.
+    if (!m.views.views.empty()) restore_views(s, m.views);
     if (s.auto_state.bifur.exist) redraw_diagram(s);
     return {};
 }

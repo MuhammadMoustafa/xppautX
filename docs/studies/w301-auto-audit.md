@@ -354,6 +354,8 @@ independent later cards may be staged separately by the reviewer.
 
 ### P1: W327 ([#388](https://github.com/MuhammadMoustafa/xppautX/issues/388)) — Make XPPAUT AUTO import bounded and transactional
 
+P1 completed by W327 ([#388](https://github.com/MuhammadMoustafa/xppautX/issues/388)): bounded foreign records and the validated solution tail apply together, with file/line errors and unchanged-state regression checks.
+
 Places: auto_nox.cpp load_auto_numerics/load_auto_graph/import_auto_file/
 make_q_file, diagram.cpp load_diagram, xpp_session_auto* readers/validators.
 Done: parse the entire foreign file into owned temporary settings, points and

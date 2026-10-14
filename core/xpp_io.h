@@ -21,6 +21,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <memory>
@@ -608,6 +609,19 @@ public:
     std::string_view value_name() const;
     /* the name after the last line's number must equal what (blanks trimmed) */
     void check_name(std::string_view what) const;
+    /* A foreign numeric record: every field present, finite and no extra token. */
+    template<class... Values> void numbers(Values &...values)
+    {
+        auto reader = TokenReader::of_text(next("a numeric record"));
+        const auto read = [&](auto &value) {
+            if (!reader.read(value) || !std::isfinite(static_cast<double>(value))) return false;
+            // Point branch/step numbers are interpreted by sign, including abs().
+            if constexpr (std::is_integral_v<std::remove_reference_t<decltype(value)>>)
+                if (value == std::numeric_limits<std::remove_reference_t<decltype(value)>>::min()) return false;
+            return true;
+        };
+        if (!(read(values) && ...) || !reader.at_end()) fail("invalid or incomplete numeric record");
+    }
     /* the next line starts with "#" (a set file's heading); ReadFailed
        when not */
     void heading(std::string_view heading);

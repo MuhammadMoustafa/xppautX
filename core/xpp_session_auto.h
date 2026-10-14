@@ -21,6 +21,7 @@
 
 namespace xpp {
 struct Session; /* session.h */
+class Lines;
 }
 
 namespace xpp::snapx::auto_members {
@@ -98,6 +99,11 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const 
    error at the line that is not of a diagram of n variables and n_pars parameters */
 Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n, int n_pars, std::string file);
 
+/* Foreign diagram records, consuming exactly the declared last index + 1 points.
+   The model parameter values seed immutable branch constants. */
+std::deque<DiagramPoint> read_foreign_diagram(Lines &lines, int n,
+    std::span<const int> imported, std::span<const double> parameters, int calc, int flag2, double torper);
+
 /* ---- this session's (xpp_session_auto_io.cpp) ---- */
 
 /* AUTO's members (settings, diagram, solutions, views) of the session s
@@ -123,10 +129,11 @@ struct Members {
 Result<Members> members_read(const Session &s, const std::map<std::string, std::string> &members, std::string_view prefix,
                              const std::string &name);
 
-/* m, as members_read checked it, restored into the session s: AUTO's
+/* m, as members_read or the foreign import checked it, restored into s: AUTO's
    settings, the diagram, its solution file and the views of it, with the
    AUTO window opened and the diagram drawn; the error, nothing restored,
-   when the solution file cannot be written */
+   when the solution file cannot be written. A foreign import gives no saved
+   view list and keeps the existing views around its imported active axes. */
 Result<> restore_members(Session &s, Members m);
 
 } // namespace xpp::snapx::auto_members

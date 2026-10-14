@@ -73,11 +73,6 @@ void load_browser_with_branch(xpp::Session &s, int ibr, int pts, int pte);
    here) */
 void export_auto_picture(xpp::Session &s, int fmt);
 void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, double *yhi);
-/* the diagram of an XPPAUT .auto file, at fp after its settings (AUTO's
-   File/Load diagram imports one: auto_nox.cpp import_auto_file): 1 read,
-   -1 an empty diagram */
-int load_diagram(xpp::Session &s, FILE *fp, int node);
-
 /* points, whole (a .snapx's diagram, xpp_session_auto.h), in place of the session
    s's diagram: each point's DIAGRAM arrays and index set to its own, the
    first point filled in (DiagFlag); none is start_diagram's empty diagram */

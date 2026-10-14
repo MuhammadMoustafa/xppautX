@@ -33,6 +33,8 @@
 
 #include "xpp_files.h"
 #include "xpp_zip.h"
+#include "xpp_session_auto.h"
+#include "auto_settings.h"
 #include "load_eqn.h"
 
 
@@ -1635,16 +1637,23 @@ void init_auto_win(xpp::Session &s)
   s.auto_state.run.nstab=s.model().node-1;
 }
 
+/* Clear selections and obsolete run files when a diagram is replaced. An import
+   has already committed its new solutions, so keeps those bytes. */
+static void forget_auto_diagram(xpp::Session &s, bool remove_solutions)
+{
+  s.auto_state.from_auto_flag=0;
+  s.auto_state.grabpt.flag=0;
+  s.auto_state.diagram_mark.state=0;
+  xpp::files::remove(s.auto_state.file+".b");
+  xpp::files::remove(s.auto_state.file+".d");
+  if(remove_solutions)xpp::files::remove(s.auto_state.file+".s");
+}
+
 int yes_reset_auto(xpp::Session &s)
 {
   if(diagram_count(s.diagram)<=1)return(0);
  kill_diagrams(s);
- s.auto_state.from_auto_flag=0;
-    s.auto_state.grabpt.flag=0;
-    xpp::files::remove((s.auto_state.file+".b").c_str());
-    xpp::files::remove((s.auto_state.file+".d").c_str());
-    xpp::files::remove((s.auto_state.file+".s").c_str());
-    s.auto_state.diagram_mark.state=0;
+ forget_auto_diagram(s,true);
     return 1;
 }
 int reset_auto(xpp::Session &s)
@@ -2561,93 +2570,37 @@ void save_auto(xpp::Session &s)
   xpp_session_save(s, nullptr, -1);
 }
 
-// XPPAUT foreign files store at most eight selected model parameters before AUTO slots.
-constexpr int xppaut_parameter_prefix = 8;
-
 // Foreign PAR numbering is translated here; unselected prefix entries are not model values.
-static int imported_solver_index(const xpp::Session &s, int slot)
+static int imported_solver_index(const xpp::Session &s, std::span<const int> imported, int slot)
 {
-  return slot>=0 && static_cast<std::size_t>(slot)<s.auto_state.imported_parameters.size()
-    ? s.auto_state.parameter_layout.solver_index(s.auto_state.imported_parameters[slot]) : slot;
+  return slot>=0 && static_cast<std::size_t>(slot)<imported.size()
+    ? s.auto_state.parameter_layout.solver_index(imported[slot]) : slot;
 }
 
-void load_auto_numerics(xpp::Session &s, FILE *fp)
+static xpp::Result<std::string> convert_auto_solutions(const xpp::Session &s, std::span<const int> imported,
+    std::string_view text, const std::string &file)
 {
- int i;
- /* The fscanf formats this replaces ended in whitespace, which fscanf
-    skipped; the token reader leaves it in the stream, and every read that
-    follows (load_auto_graph, load_diagram) skips it first. */
- xpp::TokenReader tr=xpp::TokenReader::attach(fp);
- int imported_parameters;
- if (!tr.read(imported_parameters) || imported_parameters < 0 || imported_parameters > std::min(s.model().nupar,xppaut_parameter_prefix)) return;
- s.auto_state.imported_parameters.resize(imported_parameters);
- for(int &parameter:s.auto_state.imported_parameters){
-   if (!tr.read(parameter) || parameter<0 || parameter>=s.model().nupar) return;
- }
- if(!s.auto_state.imported_parameters.empty())s.auto_state.axes().icp1=s.auto_state.imported_parameters.front();
- if(s.auto_state.imported_parameters.size()>1)s.auto_state.axes().icp2=s.auto_state.imported_parameters[1];
- if (!tr.read(s.auto_state.nuzr)) return;
-  for(i=0;i<9;i++){
-    s.auto_state.bifur.nper=s.auto_state.nuzr;
-    if (!tr.read(s.auto_state.uzr_period[i]) || !tr.read(s.auto_state.uzr_par[i])) return;
-    const long slot=s.auto_state.uzr_par[i];
-    const int solver_index=imported_solver_index(s,static_cast<int>(slot));
-    s.auto_state.bifur.period_mark[i]=solver_index==xpp::auto_unknown::period;
-    s.auto_state.uzr_par[i]=s.auto_state.bifur.period_mark[i] ? xpp::auto_unknown::period
-      : s.auto_state.parameter_layout.model_index(solver_index);
-    s.auto_state.bifur.period[i]=s.auto_state.uzr_period[i];
-    s.auto_state.bifur.uzrpar[i]=s.auto_state.uzr_par[i];
-  }
-
- if (!tr.read(s.auto_state.bifur.ntst) || !tr.read(s.auto_state.bifur.nmx) || !tr.read(s.auto_state.bifur.npr)) return;
- if (!tr.read(s.auto_state.bifur.ds) || !tr.read(s.auto_state.bifur.dsmin) || !tr.read(s.auto_state.bifur.dsmax)) return;
- if (!tr.read(s.auto_state.bifur.rl0) || !tr.read(s.auto_state.bifur.rl1) || !tr.read(s.auto_state.bifur.a0) || !tr.read(s.auto_state.bifur.a1)) return;
- if (!tr.read(s.auto_state.advanced.iad) || !tr.read(s.auto_state.advanced.mxbf) || !tr.read(s.auto_state.advanced.iid) || !tr.read(s.auto_state.advanced.itmx)
-     || !tr.read(s.auto_state.advanced.itnw) || !tr.read(s.auto_state.advanced.nwtn) || !tr.read(s.auto_state.advanced.iads)) return;
-}
-
-void load_auto_graph(xpp::Session &s, FILE *fp)
-{
-  xpp::TokenReader tr=xpp::TokenReader::attach(fp);
-  if (!tr.read(s.auto_state.axes().xmin) || !tr.read(s.auto_state.axes().ymin) || !tr.read(s.auto_state.axes().xmax) || !tr.read(s.auto_state.axes().ymax)
-      || !tr.read(s.auto_state.axes().var) || !tr.read(s.auto_state.axes().plot)) return;
-}
-  
-namespace {
-/* a blank line, which make_q_file leaves out */
-bool noinfo(std::string_view s)
-{
-  for(char c:s)
-    if(!isspace(static_cast<unsigned char>(c)))return false;
-  return true;
-}
-} // namespace
-
-xpp::Result<> make_q_file(const xpp::Session &s, FILE *fp)
-{
-  std::string string=s.auto_state.file+".s";
-  /* Validate the foreign restart payload before translating its selected
-     model slots into our separated numerical layout. Keep orbit numbers and
-     their row boundaries verbatim; only indices and parameter rows move. */
-  std::string text;
-  xpp::LineReader lr=xpp::LineReader::attach(fp);
-  while(auto line=lr.next()){
-    if(!noinfo(*line)){
-      text.append(*line);
-      text+='\n';
-    }
-  }
-  const auto checked=xpp::check_auto_solutions(text,string,AutoState::state_copies*s.model().node,s.auto_state.parameter_layout.size(),true);
-  if(!checked)return checked;
-  const auto converted=xpp::read_lines("import AUTO solutions",string,text,[&s](xpp::Lines &lines){
+  /* Validate the foreign restart payload before translating its selected slots. */
+  const auto checked=xpp::check_auto_solutions(text,file,AutoState::state_copies*s.model().node,s.auto_state.parameter_layout.block,true);
+  if(!checked)return std::unexpected(checked.error());
+  const auto converted=xpp::read_lines("import AUTO solutions",file,text,[&s,imported](xpp::Lines &lines){
     std::string out;
 
     while(!lines.at_end()){
       xpp::AutoSolutionHeader h;
-      auto reader=xpp::TokenReader::of_text(lines.next());
-      if(!xpp::read_auto_solution_header(reader,h,s.auto_state.parameter_layout.size()))lines.fail("invalid foreign solution header");
+      const auto header=lines.next();
+      if(xpp::trim_blanks(header).empty())continue;
+      auto reader=xpp::TokenReader::of_text(header);
+      if(!xpp::read_auto_solution_header(reader,h,s.auto_state.parameter_layout.block))lines.fail("invalid foreign solution header");
+      if(h.npar<static_cast<long>(imported.size()))lines.fail("foreign solutions omit selected parameters");
       const std::size_t orbit=static_cast<std::size_t>(h.ntpl)*h.nar;
       const std::size_t prefix=orbit+(h.ntst?2*h.nfpr+static_cast<std::size_t>(h.ntpl)*(h.nar-1):0);
+      // A finite double's shortest round-trip spelling plus separator fits in 32 bytes.
+      constexpr std::size_t imported_number_bytes = 32;
+      // Header integers also fit in that allowance; reserve twelve header fields.
+      constexpr std::size_t imported_header_fields = 12;
+      const std::size_t expanded=(prefix+s.auto_state.parameter_layout.size()+imported_header_fields)*imported_number_bytes;
+      if(expanded>xpp::zip::archive_bytes_limit-out.size())lines.fail("translated AUTO solutions exceed the session memory limit");
       std::vector<double> parameters(s.auto_state.parameter_layout.size());
       std::string body;
       std::size_t count=0;
@@ -2661,13 +2614,14 @@ xpp::Result<> make_q_file(const xpp::Session &s, FILE *fp)
             const int slot=static_cast<int>(count-prefix);
             double value;
             if(!xpp::parse_number(*word,value))lines.fail("invalid foreign parameter");
-            if(slot>=xppaut_parameter_prefix || static_cast<std::size_t>(slot)<s.auto_state.imported_parameters.size())parameters[imported_solver_index(s,slot)]=value;
+            if(slot>=xppaut_parameter_prefix || static_cast<std::size_t>(slot)<imported.size())parameters[imported_solver_index(s,imported,slot)]=value;
           } else {
             std::string value(*word);
             if(h.ntst && count>=orbit && count<orbit+static_cast<std::size_t>(h.nfpr)){
               int slot;
               if(!xpp::parse_int(*word,slot))lines.fail("invalid foreign restart index");
-              value=xpp::number(imported_solver_index(s,slot));
+              if(slot<xppaut_parameter_prefix && static_cast<std::size_t>(slot)>=imported.size())lines.fail("restart names an unselected foreign parameter");
+              value=xpp::number(imported_solver_index(s,imported,slot));
             }
             if(!converted_row.empty())converted_row+=' ';
             converted_row+=value;
@@ -2683,18 +2637,16 @@ xpp::Result<> make_q_file(const xpp::Session &s, FILE *fp)
       constexpr int parameter_columns=7;
       h.npar=static_cast<long>(parameters.size());
       h.nskip=body_rows+(h.npar+parameter_columns-1)/parameter_columns;
-      out+=xpp::format("{} {} {} {} {} {} {} {} {} {} {} {}\n",h.ibr,h.ntot,h.itp,h.lab,h.nfpr,h.isw,h.ntpl,h.nar,h.nskip,h.ntst,h.ncol,h.npar);
+      const std::string header_text=xpp::format("{} {} {} {} {} {} {} {} {} {} {} {}\n",h.ibr,h.ntot,h.itp,h.lab,h.nfpr,h.isw,h.ntpl,h.nar,h.nskip,h.ntst,h.ncol,h.npar);
+      if(header_text.size()+body.size()+parameters.size()*imported_number_bytes>xpp::zip::archive_bytes_limit-out.size())
+        lines.fail("translated AUTO solutions exceed the session memory limit");
+      out+=header_text;
       out+=body;
       for(std::size_t i=0;i<parameters.size();i++)out+=xpp::number(parameters[i])+((i+1)%parameter_columns==0 || i+1==parameters.size()?"\n":" ");
     }
     return out;
   });
-  if(!converted)return std::unexpected(converted.error());
-  xpp::Writer w(string);
-  if(!w || !w.write(*converted)){
-    return std::unexpected(xpp::files::write_error("AUTO",string));
-  }
-  return w.commit();
+  return converted;
 }
 
 void load_auto(xpp::Session &s)
@@ -2709,13 +2661,7 @@ static void import_auto(xpp::Session &s)
   if(!file_selector("Import XPPAUT diagram",filename,"*.auto"))return;
   xpp::UniqueFile fp=xpp::open_read(filename);
   if(!fp){show_error(xpp::files::open_error("AUTO",filename));return;}
-  if(diagram_count(s.diagram)>1&&reset_auto(s)==0)return;
-  if(!s.auto_state.bifur.exist)do_auto_win(s);
-  if(import_auto_file(s,fp.get())!=1){
-    command_error("import AUTO",xpp::format("{} holds no XPPAUT AUTO diagram",filename));
-    return;
-  }
-  redraw_diagram(s);
+  xpp::ok_or_show(import_auto_file(s,fp.get(),filename));
 }
 
 std::string auto_solutions_file(const xpp::Session &s)
@@ -2723,19 +2669,104 @@ std::string auto_solutions_file(const xpp::Session &s)
   return s.auto_state.file+".s";
 }
 
-/* an XPPAUT .auto file, at fp, imported: its settings, diagram and
-   solutions: 1 loaded, -1 an empty
-   diagram */
-int import_auto_file(xpp::Session &s, FILE *fp)
+namespace {
+struct ImportedAuto {
+  xpp::AutoSettingsSet settings;
+  int mark_count=0;
+  std::vector<int> parameters;
+  std::deque<DiagramPoint> points;
+  std::string solutions;
+};
+}
+
+xpp::Result<> import_auto_file(xpp::Session &s, FILE *fp, const std::string &file)
 {
-  int status;
-  load_auto_numerics(s, fp);
-  load_auto_graph(s, fp);
-  auto_data_forget(s); /* the strip described the diagram this one replaces */
-  status=load_diagram(s, fp,s.model().node);
-  if(status!=1)return status;
-  xpp::ok_or_show(make_q_file(s,fp));
-  return 1;
+  std::string text;
+  if(!xpp::read_bytes(fp,text,xpp::zip::archive_bytes_limit))
+    return xpp::fail("import AUTO","cannot read foreign AUTO file within the session memory limit",xpp::Place{file});
+  auto read=xpp::read_lines("import AUTO",file,text,[&](xpp::Lines &lines){
+    ImportedAuto held;
+    auto &settings=held.settings;
+    std::map<std::string,int> locations;
+    auto first=xpp::TokenReader::of_text(lines.next("selected parameters and marks"));
+    int count;
+    if(!first.read(count) || count<1 || count>std::min(s.model().nupar,xppaut_parameter_prefix))
+      lines.fail("invalid foreign selected parameter count");
+    for(int k=0;k<count;k++){
+      int parameter;
+      if(!first.read(parameter) || parameter<0 || parameter>=s.model().nupar
+          || std::find(held.parameters.begin(),held.parameters.end(),parameter)!=held.parameters.end())
+        lines.fail("invalid or repeated foreign model parameter index");
+      held.parameters.push_back(parameter);
+    }
+    if(!first.read(held.mark_count) || held.mark_count<0 || held.mark_count>AUTO_SETTINGS_MARKS || !first.at_end())
+      lines.fail("foreign mark count exceeds the stored mark slots");
+    // All nine encoded rows are retained, including marks not active yet.
+    settings.nmarks=AUTO_SETTINGS_MARKS;
+    settings.par1=s.model().upar_names[held.parameters.front()];
+    if(count>1)settings.par2=s.model().upar_names[held.parameters[1]];
+    for(int k=0;k<AUTO_SETTINGS_MARKS;k++){
+      int slot;
+      double value;
+      lines.numbers(value,slot);
+      const int solver=imported_solver_index(s,held.parameters,slot);
+      const int parameter=s.auto_state.parameter_layout.model_index(solver);
+      if(slot<0 || (solver!=xpp::auto_unknown::period && parameter<0))
+        lines.fail("invalid foreign mark parameter index");
+      settings.mark_value[k]=value;
+      settings.mark_name[k]=solver==xpp::auto_unknown::period ? "T" : s.model().upar_names[parameter];
+      locations[xpp::format("mark{}",k)]=lines.line();
+    }
+    const auto numeric=[&](std::initializer_list<int> fields){
+      auto row=xpp::TokenReader::of_text(lines.next("AUTO numerics"));
+      for(int field:fields){
+        auto &value=settings.num[field];
+        if(!row.read(value))lines.fail("invalid or incomplete AUTO numerics");
+        std::string why;
+        if(!xpp::auto_settings_num_ok(field,value,why))lines.fail(why);
+        settings.has_num[field]=1;
+        locations[xpp::auto_settings_num_key(field)]=lines.line();
+      }
+      if(!row.at_end())lines.fail("extra AUTO numeric fields");
+    };
+    numeric({xpp::AUTO_NUM_NTST,xpp::AUTO_NUM_NMX,xpp::AUTO_NUM_NPR});
+    numeric({xpp::AUTO_NUM_DS,xpp::AUTO_NUM_DSMIN,xpp::AUTO_NUM_DSMAX});
+    numeric({xpp::AUTO_NUM_RL0,xpp::AUTO_NUM_RL1,xpp::AUTO_NUM_A0,xpp::AUTO_NUM_A1});
+    numeric({xpp::AUTO_NUM_IAD,xpp::AUTO_NUM_MXBF,xpp::AUTO_NUM_IID,xpp::AUTO_NUM_ITMX,xpp::AUTO_NUM_ITNW,xpp::AUTO_NUM_NWTN,xpp::AUTO_NUM_IADS});
+    int var;
+    lines.numbers(settings.range[0],settings.range[2],settings.range[1],settings.range[3],var,settings.plot);
+    if(var<0 || var>=s.model().node)lines.fail("foreign axis variable is outside the model");
+    settings.var=s.model().uvar_names[var];
+    settings.has_plot=1;
+    settings.has_range.fill(1);
+    // XPPAUT omits Ncol; the retained collocation order must still be supported.
+    settings.has_num[xpp::AUTO_NUM_NCOL]=1;
+    settings.num[xpp::AUTO_NUM_NCOL]=xpp::auto_settings_now(s).num[xpp::AUTO_NUM_NCOL];
+    std::string why,key;
+    if(!xpp::auto_settings_check(s,settings,-1,why,key))
+      lines.fail(locations.contains(key)?locations.at(key):lines.line(),why);
+    std::vector<double> parameters;
+    for(int k=0;k<s.model().nupar;k++)parameters.push_back(s.parser.constants[s.model().upar_con[k]]);
+    held.points=xpp::snapx::auto_members::read_foreign_diagram(lines,s.model().node,held.parameters,parameters,
+        s.auto_state.type_of_calc,s.auto_state.two_param,s.auto_state.blrtn.torper);
+    const int offset=lines.line();
+    std::string tail;
+    while(!lines.at_end())tail+=std::string(lines.next())+'\n';
+    const auto solutions=convert_auto_solutions(s,held.parameters,tail,file);
+    if(!solutions)lines.fail(offset+solutions.error().place.line,solutions.error().what);
+    held.solutions=*solutions;
+    return held;
+  });
+  if(!read)return std::unexpected(read.error());
+  auto held=std::move(*read);
+  // The session owner commits restart bytes before any held state, as for .snapx.
+  auto restored=xpp::snapx::auto_members::restore_members(s,
+      {held.settings,std::move(held.points),{},held.solutions});
+  if(!restored)return restored;
+  s.auto_state.nuzr=s.auto_state.bifur.nper=held.mark_count;
+  s.auto_state.imported_parameters=std::move(held.parameters);
+  forget_auto_diagram(s,false);
+  return {};
 }
 
 /* Bound expanded solution values by the archive memory budget before any
@@ -2748,9 +2779,10 @@ bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long 
         if (!reader.read(*v) || *v <= std::numeric_limits<int>::min() || *v > std::numeric_limits<int>::max()) return false;
     std::string why;
     const bool collocation = h.ntst == 0 ? h.ncol == 0 : auto_settings_num_ok(AUTO_NUM_NCOL, h.ncol, why);
+    const bool mesh = h.ntst == 0 || auto_settings_num_ok(AUTO_NUM_NTST, h.ntst, why);
     return h.nfpr >= 0 && h.nfpr <= parameters && h.ntpl >= 1 && static_cast<std::size_t>(h.ntpl) <= auto_solution_values_limit / static_cast<std::size_t>(h.nar < 2 ? 2 : h.nar) && h.nar >= 2 && static_cast<std::size_t>(h.nar) <= auto_solution_values_limit
         && h.nskip >= h.ntpl && h.ntst >= 0 && h.ntst <= h.nskip
-        && collocation && h.npar >= 0 && h.npar <= parameters && h.nfpr <= h.npar
+        && mesh && collocation && h.npar >= 0 && h.npar <= parameters && h.nfpr <= h.npar
         && (h.ntst == 0 || h.ntpl == static_cast<long long>(h.ntst) * h.ncol + 1);
 }
 

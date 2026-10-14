@@ -205,11 +205,10 @@ void load_auto_orbit(Session &s);
 /* File/Save diagram and Load diagram save/open the session (.snapx). */
 void save_auto(Session &s);
 void load_auto(Session &s);
-/* the parts of an XPPAUT .auto file, read (import_auto_file reads them
-   all) */
-void load_auto_numerics(Session &s, FILE *fp);
-void load_auto_graph(Session &s, FILE *fp);
-int import_auto_file(Session &s, FILE *fp);
+// XPPAUT stores eight selected parameters before its numerical slots.
+inline constexpr int xppaut_parameter_prefix = 8;
+/* Foreign XPPAUT import: validate whole, then replace; errors belong to the caller. */
+Result<> import_auto_file(Session &s, FILE *fp, const std::string &file);
 int move_to_label(const Session &s, int mylab, int *nrow, int *ndim, FILE *fp);
 void get_a_row(double *u, double *t, int n, FILE *fp);
 void auto_file(Session &s);
@@ -241,8 +240,6 @@ void do_auto_range(Session &s);
    a grab or a diagram point asks for it); what failed otherwise, for the
    command to show */
 Result<> load_auto_orbitx(Session &s, int ibr,int flag, int lab, double per);
-/* the .auto's copy of the solution file, written beside this model's */
-Result<> make_q_file(const Session &s, FILE *fp);
 
 /* the number of points of the marked stretch of the diagram (*n) and its
    first parameter's name (pname); both unchanged when none is marked */
