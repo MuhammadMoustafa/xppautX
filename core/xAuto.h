@@ -1,9 +1,11 @@
 #ifndef _xAuto_h_
 #define _xAuto_h_
 
+#include "auto_codes.h"
+
  typedef struct {
     int ndim;
-    int ips;
+    xpp::AutoProblem ips;
     int irs;
     int ilp;
     int nicp;

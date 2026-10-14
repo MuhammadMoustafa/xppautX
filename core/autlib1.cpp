@@ -21,7 +21,12 @@
 
 namespace {
 struct AutoPointOutputContext {
-  integer ndim, ips, isw, iplt, nmx, npr, ndm, itp, itpst, ibr;
+  integer ndim;
+  xpp::AutoProblem ips;
+  integer isw, iplt, nmx, npr, ndm;
+  xpp::AutoPointCode itp;
+  xpp::AutoPointKind itpst;
+  integer ibr;
   doublereal rl0, rl1, a0, a1;
 };
 AutoPointOutputContext point_output_context(const iap_type &iap, const rap_type &rap) {
@@ -146,11 +151,14 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   integer ntst, iuzr;
   integer nuzr, i;
   doublereal dsold, dsmin, dsmax, a0, a1;
-  integer istop, itpst;
+  integer istop;
+  xpp::AutoPointKind itpst;
   doublereal ds, rl0, rl1;
   integer iad, jac, lab, nbc, iid, ibr, ndm;
   doublereal det;
-  integer ilp, nit, ips, isp, irs, itp, npr, isw, nmx, nbc0, nnt0;
+  integer ilp, nit, isp, irs, npr, isw, nmx, nbc0, nnt0;
+  xpp::AutoProblem ips;
+  xpp::AutoPointCode itp;
 
   for (i = 0; i < iap->lib->parameter_count; ++i) {
     icp[i] = i;
@@ -307,9 +315,9 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
 
   iuzr = 1;
 
-  itp = 0;
+  itp = xpp::AutoPointCode{};
 
-  itpst = 0;
+  itpst = xpp::AutoPointKind::Regular;
 
   nfpr = 1;
 
@@ -457,8 +465,10 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
   doublereal dsmin, dsmax, fc;
   integer ic, jc;
   doublereal ds;
-  integer nxploc, jac, nbc, ndm, ilp, ips, isp, irs, itp,
+  integer nxploc, jac, nbc, ndm, ilp, isp, irs,
     isw, nmx;
+  xpp::AutoProblem ips;
+  xpp::AutoPointCode itp;
 
   std::vector<integer> ict(iap->lib->parameter_count);
 
@@ -503,14 +513,14 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
   dsmax = fc * dsmax;
 
   /* Redefinition for waves */
-  if (ips == 11) {
-    ips = 1;
+  if (ips == xpp::AutoProblem::WaveSteady) {
+    ips = xpp::AutoProblem::SteadyState;
     iap->ips = ips;
     ndim <<= 1;
     ndm = ndim;
     iap->ndm = ndm;
-  } else if (ips == 12) {
-    ips = 2;
+  } else if (ips == xpp::AutoProblem::WavePeriodic) {
+    ips = xpp::AutoProblem::Periodic;
     iap->ips = ips;
     ndim <<= 1;
     ndm = ndim;
@@ -519,24 +529,24 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
 
   /* General Redefinition. */
 
-  if (f2c::abs(ips) <= 1 && isw == 1) {
+  if (xpp::problem_is_algebraic_family(ips) && isw == 1) {
     /*        ** Algebraic Systems */
     nfpr = 1;
 
-  } else if (ips == -2) {
+  } else if (ips == xpp::AutoProblem::TimeIntegration) {
     /*        ** Time integration */
     nfpr = 1;
     isp = 0;
     ilp = 0;
     icp[0] = xpp::auto_unknown::evolution_time;
 
-  } else if (ips == 2 && f2c::abs(isw) == 1) {
+  } else if (ips == xpp::AutoProblem::Periodic && f2c::abs(isw) == 1) {
     /*        ** Periodic Solutions */
     nbc = ndim;
     nint = 1;
     nfpr = nbc + nint - ndim + 1;
     /*        **ISW=1 when starting from a HB */
-    if (itp == 3 || f2c::abs(itp) / 10 == 3) {
+    if (itp.is(xpp::AutoPointKind::Hopf) || itp.started_from(xpp::AutoPointKind::Hopf)) {
       isw = 1;
     }
     if (nicp == 1) {
@@ -544,15 +554,15 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       icp[1] = xpp::auto_unknown::period;
     }
 
-  } else if (ips == 4 && f2c::abs(isw) == 1) {
+  } else if (ips == xpp::AutoProblem::BoundaryValue && f2c::abs(isw) == 1) {
     /*        ** Boundary value problems */
     nfpr = nbc + nint - ndim + 1;
 
-  } else if (ips == 7 && f2c::abs(isw) == 1) {
+  } else if (ips == xpp::AutoProblem::FloquetBoundaryValue && f2c::abs(isw) == 1) {
     /*        ** Boundary value problems */
     nfpr = nbc + nint - ndim + 1;
 
-  } else if (ips == 9 && f2c::abs(isw) == 1) {
+  } else if (ips == xpp::AutoProblem::Homoclinic && f2c::abs(isw) == 1) {
     /*        ** Homoclinic bifurcation analysis */
     /*        Redefine AUTO constants for homoclinic orbits */
     inho(iap, icp, par);
@@ -561,7 +571,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     nint = iap->nint;
     nuzr = iap->nuzr;
     nfpr = nbc + nint - ndim + 1;
-  } else if (ips == 14 || ips == 16) {
+  } else if (xpp::problem_is_parabolic_evolution(ips)) {
     /*        **Evolution calculations for Parabolic Systems */
     ndim <<= 1;
     nbc = ndim;
@@ -571,14 +581,14 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     isp = 0;
     icp[0] = xpp::auto_unknown::evolution_time;
 
-  } else if (ips == 17) {
+  } else if (ips == xpp::AutoProblem::ParabolicUserSteady) {
     /*        **Stationary calculations for Parabolic Systems */
     ndim <<= 1;
     nbc = ndim;
     nint = 0;
     nfpr = 1;
 
-  } else if (ips == 15) {
+  } else if (ips == xpp::AutoProblem::PeriodicOptimization) {
     /*          ** Optimization of periodic solutions */
     for (i = 0; i < nicp; ++i) {
       ict[i] = icp[i];
@@ -614,9 +624,9 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       icp[jtmp + i] = icp[i];
     }
 
-  } else if (ips == 5) {
+  } else if (ips == xpp::AutoProblem::AlgebraicOptimization) {
     /*        ** Algebraic optimization Problems */
-    if (iap->itp % 10 == 2 || iap->irs == 0) {
+    if (iap->itp.kind == xpp::AutoPointKind::Fold || iap->irs == 0) {
       iap->nfpr++;
     }
     nfpr = iap->nfpr;
@@ -631,18 +641,18 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
   } else if (irs > 0 && f2c::abs(isw) == 2) {
     /*        ** Continuation of singular points */
 
-    if ((itp == 1 || f2c::abs(itp) / 10 == 1 || itp == 2 || f2c::abs(itp) / 10 == 2)
-	&& f2c::abs(ips) <= 1) {
+    if ((itp.is(xpp::AutoPointKind::BranchPoint) || itp.started_from(xpp::AutoPointKind::BranchPoint) || itp.is(xpp::AutoPointKind::Fold) || itp.started_from(xpp::AutoPointKind::Fold))
+	&& xpp::problem_is_algebraic_family(ips)) {
       /*          ** Fold continuation (Algebraic Problems) */
       ndim = (ndim << 1) + 1;
       nfpr = 2;
 
-    } else if ((itp == 3 || f2c::abs(itp) / 10 == 3) && f2c::abs(ips) <= 1) {
+    } else if ((itp.is(xpp::AutoPointKind::Hopf) || itp.started_from(xpp::AutoPointKind::Hopf)) && xpp::problem_is_algebraic_family(ips)) {
       /*          ** Hopf bifurcation continuation (Maps, ODE, Waves) */
       ndim = ndim * 3 + 2;
       nfpr = 2;
 
-    } else if ((itp == 5 || itp == 6) && ips == 2) {
+    } else if ((itp.is(xpp::AutoPointKind::PeriodicFold) || itp.is(xpp::AutoPointKind::PeriodicBranch)) && ips == xpp::AutoProblem::Periodic) {
       /*          ** Fold continuation (Periodic solutions); start */
       ndim <<= 1;
       nbc = ndim;
@@ -665,7 +675,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
       iap->lib->restart_flag=1;
 
-    } else if ((f2c::abs(itp) / 10 == 5 || f2c::abs(itp) / 10 == 6) && ips == 2) {
+    } else if ((itp.started_from(xpp::AutoPointKind::PeriodicFold) || itp.started_from(xpp::AutoPointKind::PeriodicBranch)) && ips == xpp::AutoProblem::Periodic) {
       /*          ** Fold continuation (Periodic solutions); restart */
       ndim <<= 1;
       nbc = ndim;
@@ -677,7 +687,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       }
       icp[3] = xpp::auto_unknown::fold_beta;
 
-    } else if (itp == 7 && ips == 2) {
+    } else if (itp.is(xpp::AutoPointKind::PeriodDoubling) && ips == xpp::AutoProblem::Periodic) {
       /*          ** Continuation of period doubling bifurcations; start
  */
       ndim <<= 1;
@@ -699,7 +709,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
       iap->lib->restart_flag=1;
 
-    } else if (f2c::abs(itp) / 10 == 7 && ips == 2) {
+    } else if (itp.started_from(xpp::AutoPointKind::PeriodDoubling) && ips == xpp::AutoProblem::Periodic) {
       /*          ** Continuation of period doubling bifurcations; resta
 rt */
       ndim <<= 1;
@@ -711,7 +721,7 @@ rt */
 	icp[2] = xpp::auto_unknown::period;
       }
 
-    } else if (itp == 8 && ips == 2) {
+    } else if (itp.is(xpp::AutoPointKind::Torus) && ips == xpp::AutoProblem::Periodic) {
       /*          ** Continuation of torus bifurcations; start */
       ndim *= 3;
       nbc = ndim;
@@ -727,7 +737,7 @@ rt */
       xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
       iap->lib->restart_flag=1;
 
-    } else if (f2c::abs(itp) / 10 == 8 && ips == 2) {
+    } else if (itp.started_from(xpp::AutoPointKind::Torus) && ips == xpp::AutoProblem::Periodic) {
       /*          ** Continuation of torus bifurcations; restart */
       ndim *= 3;
       nbc = ndim;
@@ -736,7 +746,7 @@ rt */
       icp[2] = xpp::auto_unknown::period;
       icp[3] = xpp::auto_unknown::torus_angle;
 
-    } else if ((itp == 5 || itp == 6) && ips == 4) {
+    } else if ((itp.is(xpp::AutoPointKind::PeriodicFold) || itp.is(xpp::AutoPointKind::PeriodicBranch)) && ips == xpp::AutoProblem::BoundaryValue) {
       /*          ** Continuation of folds (BVP; start) */
       ndim <<= 1;
       nbc <<= 1;
@@ -756,7 +766,8 @@ rt */
       iap->lib->restart_flag=1;
       xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
 
-    } else if ((f2c::abs(itp) / 10 == 5 || f2c::abs(itp) / 10 == 5) && ips == 4) {
+    } else if (itp.started_from(xpp::AutoPointKind::PeriodicFold) && ips == xpp::AutoProblem::BoundaryValue) {
+      /* AUTO's own test names the fold twice, never the branch point: kept, so the selection is the same */
       /*          ** Continuation of folds (BVP; restart) */
       ndim <<= 1;
       nbc <<= 1;
@@ -821,17 +832,19 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   std::vector<doublereal> rlold(iap->lib->parameter_count);
   std::vector<doublereal> rldot(iap->lib->parameter_count);
   std::vector<doublereal> rlcur(iap->lib->parameter_count);
-  integer istop, itpst;
+  integer istop;
+  xpp::AutoPointKind itpst;
 
   doublereal ds;
 
   integer lab, ibr;
   doublereal rbp, rds;
-  integer ips;
+  xpp::AutoProblem ips;
   integer irs, isp;
   doublereal rev;
   doublereal rlp;
-  integer nit, itp;
+  integer nit;
+  xpp::AutoPointCode itp;
 
   integer aa_first_dimension = iap->ndim + 1;
 
@@ -914,9 +927,9 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   istop = 0;
   iap->istop = istop;
   if (irs == 0) {
-    itp = itpst * 10 + 9;
+    itp = xpp::AutoPointCode{xpp::AutoPointKind::End, itpst};
   } else {
-    itp = 0;
+    itp = xpp::AutoPointCode{};
   }
   iap->itp = itp;
   rlcur[0] = par[icp[0]];
@@ -935,7 +948,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (istop == 1) {
     goto L5;
   }
-  itp = 0;
+  itp = xpp::AutoPointCode{};
   iap->itp = itp;
   goto L3;
 
@@ -969,7 +982,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   iap->ntot = ntot;
   istop = 0;
   iap->istop = istop;
-  itp = 0;
+  itp = xpp::AutoPointCode{};
   iap->itp = itp;
   nit = 0;
   iap->nit = nit;
@@ -1033,9 +1046,9 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	goto L5;
       }
       itp = iap->itp;
-      if (itp == -1) {
+      if (itp.kind == xpp::AutoPointKind::Pending) {
 	if (iuz[iuzr] >= 0) {
-	  itp = -4 - itpst * 10;
+	  itp = xpp::AutoPointCode{xpp::AutoPointKind::UserZero, itpst};
 	  iap->itp = itp;
 	  for (k = 0; k < nuzr; ++k) {
 	    uzr[k] = 0.;
@@ -1057,8 +1070,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	   aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
 	   dfdp.data(), &rlp, thl, thu, iuz, vuz);
     itp = iap->itp;
-    if (itp == -1) {
-      itp = itpst * 10 + 2;
+    if (itp.kind == xpp::AutoPointKind::Pending) {
+      itp = xpp::AutoPointCode{xpp::AutoPointKind::Fold, itpst};
       iap->itp = itp;
       rlp = 0.;
       rbp = 0.;
@@ -1078,8 +1091,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       goto L5;
     }
     itp = iap->itp;
-    if (itp == -1) {
-      itp = itpst * 10 + 1;
+    if (itp.kind == xpp::AutoPointKind::Pending) {
+      itp = xpp::AutoPointCode{xpp::AutoPointKind::BranchPoint, itpst};
       iap->itp = itp;
       ++nbif;
       iap->nbif = nbif;
@@ -1098,7 +1111,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Check for Hopf bifurcation */
 
-  if (f2c::abs(ips) == 1) {
+  if (xpp::problem_is_steady_or_map(ips)) {
     lcspae(iap, rap, par, icp, fnhbae, 
 	   funi, &aa_first_dimension, 
 	   aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), 
@@ -1109,8 +1122,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       goto L5;
     }
     itp = iap->itp;
-    if (itp == -1) {
-      itp = itpst * 10 + 3;
+    if (itp.kind == xpp::AutoPointKind::Pending) {
+      itp = xpp::AutoPointCode{xpp::AutoPointKind::Hopf, itpst};
       iap->itp = itp;
       rev = 0.;
       /***  HERE IS WHERE Hopf IS FOUND */
@@ -1127,12 +1140,12 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   itp = iap->itp;
   ntot = iap->ntot;
-  if (iads != 0 && ntot % iads == 0 && (itp % 10 == 0 || itp % 10 == 4)) {
+  if (iads != 0 && ntot % iads == 0 && (itp.kind == xpp::AutoPointKind::Regular || itp.kind == xpp::AutoPointKind::Output)) {
     adptds(iap, rap, &rds);
   }
 
  L6:
-  itp = 0;
+  itp = xpp::AutoPointCode{};
   iap->itp = itp;
   istop = iap->istop;
   if (istop == 0) {
@@ -1280,7 +1293,7 @@ contae(iap_type *iap, rap_type *rap, doublereal *rds, doublereal *rlcur, doubler
   /* Local variables */
   integer ndim, i;
   doublereal dsold;
-  integer ips;
+  xpp::AutoProblem ips;
 
 /* This subroutine determines an initial approximation to the next */
 /* solution on a branch by extrapolating from the two preceding points. */
@@ -1303,7 +1316,7 @@ contae(iap_type *iap, rap_type *rap, doublereal *rds, doublereal *rlcur, doubler
     u[i] += udot[i] * *rds;
   }
   /*      Save old time for time integration */
-  if (ips == -2) {
+  if (ips == xpp::AutoProblem::TimeIntegration) {
     rap->tivp = rlold[0];
   }
 
@@ -1546,7 +1559,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   iap->istop = istop;
   if (nonfinite && !xpp::job::cancelled() && !jacobian_failed(iap))
     xpp::auto_nonfinite(*iap, iap->ntot + 1);
-  if (!retained && f2c::abs(iap->ips) == 1 &&
+  if (!retained && xpp::problem_is_steady_or_map(iap->ips) &&
       !xpp::job::cancelled() && !jacobian_failed(iap))
     xpp::auto_stability_equilibrium_restored(*iap, *rap, par, icp, funi, u, uold, f, dfdu, dfdp);
   return 0;
@@ -1575,7 +1588,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 
   integer itlcsp, iid, ibr;
   doublereal rds;
-  integer itp;
+  xpp::AutoPointCode itp;
 
   /* This subroutine uses the secant method to accurately locate special */
   /* points (branch points, folds, Hopf bifurcations, user zeroes). */
@@ -1633,7 +1646,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 
   rrds = f2c::abs(rds) / (sqrt(f2c::abs(ds * dsmax)) + 1);
   if (rrds < epss) {
-    itp = -1;
+    itp = xpp::AutoPointCode{xpp::AutoPointKind::Pending};
     iap->itp = itp;
     *q = 0.;
     xpp::print(iap->lib->fp9," ==> Location of special point :  Convergence.    Stepsize ={:11.3E}\n",rds);
@@ -1835,7 +1848,8 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   doublereal rp;
 
-  integer iid, ibr, ndm, ier, loc=0, ips;
+  integer iid, ibr, ndm, ier, loc=0;
+  xpp::AutoProblem ips;
   doublereal rev;
   integer isw;
 
@@ -1867,7 +1881,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /* Compute the eigenvalues of the Jacobian */
 
   eig(iap, &ndm, &ndim, dfdu, ev.data(), &ier);
-  if (ips == -1) {
+  if (ips == xpp::AutoProblem::DiscreteMap) {
     for (i = 0; i < ndm; ++i) {
       if (ev[i].r != -1. || d_imag(&ev[i]) != 0.) {
 	doublecomplex in,out;
@@ -1957,7 +1971,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   }
 
   xpp::print(iap->lib->fp9,"{:4}{:6}        Eigenvalues:                                 Stable:{:3}\n",f2c::abs(ibr),ntop,nins);	
-  if (ips == -1) {
+  if (ips == xpp::AutoProblem::DiscreteMap) {
     for (i = 0; i < ndm; ++i) {
       doublecomplex tmp;
       z_exp(&tmp, &ev[i]);
@@ -2401,7 +2415,7 @@ failed_step:
 
   // swpnt can return to an earlier branch point whose spectrum is no
   // longer the owner's last record. Recompute at the restored solution.
-  if (!retained && f2c::abs(iap->ips) == 1 && !xpp::job::cancelled() && !jacobian_failed(iap)) {
+  if (!retained && xpp::problem_is_steady_or_map(iap->ips) && !xpp::job::cancelled() && !jacobian_failed(iap)) {
     xpp::auto_stability_equilibrium_restored(*iap, *rap, par, icp, funi, u, uold, f, dfdu, dfdp);
   }
   return 0;
@@ -2426,7 +2440,8 @@ sthd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *th
   doublereal epsu, epss;
   integer jtmp, itmx, itnw, nwtn, ntst, nuzr, i;
   doublereal dsmin, dsmax, a0, a1, ds, rl0, rl1;
-  integer iad, jac, nbc, iid, ilp, ips, isp, irs, npr, isw, nmx;
+  integer iad, jac, nbc, iid, ilp, isp, irs, npr, isw, nmx;
+  xpp::AutoProblem ips;
 
   /* Write the values of the user defined parameters on unit 7. */
   /* This identifying information is preceded by a '   0' on each line. */
@@ -2478,7 +2493,7 @@ sthd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *th
   xpp::print(s.auto_lib.fp7,"   0 {:12.4E}{:12.4E}{:12.4E}{:12.4E}\n",rl0,rl1,a0,a1);
   xpp::print(s.auto_lib.fp7,"   0   EPSL={:11.4E}  EPSU ={:11.4E}  EPSS ={:11.4E}\n",epsl,epsu,epss);
   xpp::print(s.auto_lib.fp7,"   0   DS  ={:11.4E}  DSMIN={:11.4E}  DSMAX={:11.4E}\n",ds,dsmin,dsmax);
-  xpp::print(s.auto_lib.fp7,"   0   NDIM={:4}   IPS ={:4}   IRS ={:4}   ILP ={:4}\n",ndim,ips,irs,ilp); 
+  xpp::print(s.auto_lib.fp7,"   0   NDIM={:4}   IPS ={:4}   IRS ={:4}   ILP ={:4}\n",ndim,xpp::auto_problem_code(ips),irs,ilp); 
   xpp::print(s.auto_lib.fp7,"   0   NTST={:4}   NCOL={:4}   IAD ={:4}   ISP ={:4}\n",ntst,ncol,iad,isp);
   xpp::print(s.auto_lib.fp7,"   0   ISW ={:4}   IPLT={:4}   NBC ={:4}   NINT={:4}\n",isw,iplt,nbc,nint);
   xpp::print(s.auto_lib.fp7,"   0   NMX={:5}   NPR ={:4}   MXBF={:4}   IID ={:4}\n",nmx,npr,mxbf,iid);
@@ -2526,7 +2541,8 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
   integer iplt, i, j;
   /* The 14-char fixed-width column headings printed below. */
   std::array<std::string, 9> col;
-  integer ndm, ips;
+  integer ndm;
+  xpp::AutoProblem ips;
 
   /* Prints headings above columns on unit 6 and 7. */
 
@@ -2572,13 +2588,13 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
   } else if (iplt > ndm << 1 && iplt <= ndm * 3) {
     col[1] = xpp::format(" L2-NORM U({}) ",iplt - (ndm * 2));
   } else if (iplt > 0 && iplt <= ndm) {
-    if (f2c::abs(ips) <= 1 || ips == 5) {
+    if (xpp::problem_is_algebraic_family(ips) || ips == xpp::AutoProblem::AlgebraicOptimization) {
       col[1] = xpp::format("     U({})     ",-iplt);
     } else {
       col[1] = xpp::format("   MAX U({})   ",iplt);
     }
   } else if (iplt < 0 && iplt >= -ndm) {
-    if (f2c::abs(ips) <= 1 || ips == 5) {
+    if (xpp::problem_is_algebraic_family(ips) || ips == xpp::AutoProblem::AlgebraicOptimization) {
       col[1] = xpp::format("     U({})     ",-iplt);
     } else {
       col[1] = xpp::format("   MIN U({})   ",-iplt);
@@ -2591,7 +2607,7 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
     for (i = 0; i < *n2; ++i) {
       col[i+2] = xpp::format("     U({})     ",i + 1);
     }
-    if ((ips >= 2 && ips <= 4) || (ips >= 6 && ips <= 9) || (ips >= 12 && ips <= 17)) {
+    if (xpp::problem_has_solution_profile(ips)) {
       for (i = 3; i <= *n2 + 2; ++i) {
 	col[i-1][3]='M';
 	col[i-1][4]='A';
@@ -2601,11 +2617,11 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
   }
 
   for (i = 0; i < *n1 + *n2 + 1; ++i) {
-    if (col[i] == xpp::format("   PAR({})    ",xpp::auto_unknown::period) && ips > 0 && ips != 4) {
+    if (col[i] == xpp::format("   PAR({})    ",xpp::auto_unknown::period) && xpp::problem_heads_period(ips)) {
       col[i] = "    PERIOD    ";
-    } else if (col[i] == xpp::format("   PAR({})    ",xpp::auto_unknown::objective) && (ips == 5 || ips == 15)) {
+    } else if (col[i] == xpp::format("   PAR({})    ",xpp::auto_unknown::objective) && xpp::problem_is_optimization(ips)) {
       col[i] = "     FOPT     ";
-    } else if (col[i] == xpp::format("   PAR({})    ",xpp::auto_unknown::evolution_time) && (ips == 14 || ips == 16)) {
+    } else if (col[i] == xpp::format("   PAR({})    ",xpp::auto_unknown::evolution_time) && xpp::problem_is_parabolic_evolution(ips)) {
       col[i] = "     TIME     ";
     }
   }
@@ -2696,8 +2712,8 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* solution is written on unit 8. */
 
   if (context.npr != 0) {
-    if (ntot % context.npr == 0 && context.itp % 10 == 0) {
-      context.itp = context.itpst * 10 + 4;
+    if (ntot % context.npr == 0 && context.itp.kind == xpp::AutoPointKind::Regular) {
+      context.itp = xpp::AutoPointCode{xpp::AutoPointKind::Output, context.itpst};
     }
     iap->itp = context.itp;
   }
@@ -2728,25 +2744,25 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */
   if (istop == 1 && !xpp::job::cancelled()) { /* xppautX: cancel: EP, not MX */
     /*        Maximum number of iterations reached somewhere. */
-    context.itp = -9 - context.itpst * 10;
+    context.itp = xpp::AutoPointCode{xpp::AutoPointKind::MaxSteps, context.itpst};
     iap->itp = context.itp;
     stop_at.noconv = 1, stop_at.user = 0;
   } else if (istop == -1) {
     /*        ** UZR endpoint */
-    context.itp = context.itpst * 10 + 9;
+    context.itp = xpp::AutoPointCode{xpp::AutoPointKind::End, context.itpst};
     iap->itp = context.itp;
   } else {
     if (rlcur[0] < context.rl0 || rlcur[0] > context.rl1 || amp < context.a0 || amp > context.a1 || ntot
 	== context.nmx|| iflag==1) {
       istop = 1;
       iap->istop = istop;
-      context.itp = context.itpst * 10 + 9;
+      context.itp = xpp::AutoPointCode{xpp::AutoPointKind::End, context.itpst};
       iap->itp = context.itp;
     }
   }
 
   labw = 0;
-  if (context.itp % 10 != 0) {
+  if (context.itp.kind != xpp::AutoPointKind::Regular) {
     lab = iap->lab;
     ++lab;
     iap->lab = lab;
@@ -2757,7 +2773,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   ntots = ntot;
   nins = iap->nins;
-  if (f2c::abs(context.ips) == 1 && f2c::abs(context.isw) != 2 && ntot > 1) {
+  if (xpp::problem_is_steady_or_map(context.ips) && f2c::abs(context.isw) != 2 && ntot > 1) {
     if (nins == context.ndim) {
       ntots = -ntot;
     }
@@ -2793,7 +2809,8 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   const char *atype = "  ";
   integer n1, n2;
 
-  integer nt, ndm, itp, lb;
+  integer nt, ndm, lb;
+  xpp::AutoPointCode itp;
   lb=*lab;
   if((s.auto_lib.restart_flag==1)&&(lb!=0)){
     
@@ -2834,27 +2851,27 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   }
   headng(iap, rap, par, icu, 9, &n1, &n2);
 
-  if (itp % 10 == 1) {
+  if (itp.kind == xpp::AutoPointKind::BranchPoint) {
     atype = "BP";
-  } else if (itp % 10 == 2) {
+  } else if (itp.kind == xpp::AutoPointKind::Fold) {
     atype = "LP";
-  } else if (itp % 10 == 3) {
+  } else if (itp.kind == xpp::AutoPointKind::Hopf) {
     atype = "HB";
-  } else if (itp % 10 == 4) {
+  } else if (itp.kind == xpp::AutoPointKind::Output) {
     atype = "  ";
-  } else if (itp % 10 == -4) {
+  } else if (itp.kind == xpp::AutoPointKind::UserZero) {
     atype = "UZ";
-  } else if (itp % 10 == 5) {
+  } else if (itp.kind == xpp::AutoPointKind::PeriodicFold) {
     atype = "LP";
-  } else if (itp % 10 == 6) {
+  } else if (itp.kind == xpp::AutoPointKind::PeriodicBranch) {
     atype = "BP";
-  } else if (itp % 10 == 7) {
+  } else if (itp.kind == xpp::AutoPointKind::PeriodDoubling) {
     atype = "PD";
-  } else if (itp % 10 == 8) {
+  } else if (itp.kind == xpp::AutoPointKind::Torus) {
     atype = "TR";
-  } else if (itp % 10 == 9) {
+  } else if (itp.kind == xpp::AutoPointKind::End) {
     atype = "EP";
-  } else if (itp % 10 == -9) {
+  } else if (itp.kind == xpp::AutoPointKind::MaxSteps) {
     atype = "MX";
   } else {
     atype = "  ";
@@ -2862,7 +2879,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 
   mtot = *ntot % 10000;
   if (n2 == 0) {
-    if (itp % 10 != 0) {
+    if (itp.kind != xpp::AutoPointKind::Regular) {
       xpp::log_auto("{:4d}{:6d}  {:c}{:c}{:4d}",(*ibr),mtot,atype[0],atype[1],*(lab));
       xpp::log_auto("{:14.6E}",par[icu[0]]);
       xpp::log_auto("{:14.6E}",(*vaxis));
@@ -2871,7 +2888,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
       }
       xpp::log_auto("\n");
     }
-    xpp::print(s.auto_lib.fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,itp,(*lab));
+    xpp::print(s.auto_lib.fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,xpp::auto_point_encode(itp),(*lab));
     xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[0]]);
     xpp::print(s.auto_lib.fp7,"{:14.5E}",(*vaxis));
     for (i = 1; i < n1; ++i) {
@@ -2887,7 +2904,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
     xpp::print(s.auto_lib.fp9,"\n");
   } else {
     if (n1 == 1) {
-      if (itp % 10 != 0) {
+      if (itp.kind != xpp::AutoPointKind::Regular) {
 	xpp::log_auto("{:4d}{:6d}  {:c}{:c}{:4d}",f2c::abs(*ibr),f2c::abs(mtot),atype[0],atype[1],*(lab));
 	xpp::log_auto("{:14.6E}",par[icu[0]]);
 	xpp::log_auto("{:14.6E}",(*vaxis));
@@ -2896,7 +2913,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	}
 	xpp::log_auto("\n");
       }
-      xpp::print(s.auto_lib.fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,itp,(*lab));
+      xpp::print(s.auto_lib.fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,xpp::auto_point_encode(itp),(*lab));
       xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[0]]);
       xpp::print(s.auto_lib.fp7,"{:14.5E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
@@ -2912,7 +2929,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
       xpp::print(s.auto_lib.fp9,"\n");	
 
     } else {
-      if (itp % 10 != 0) {
+      if (itp.kind != xpp::AutoPointKind::Regular) {
 	xpp::log_auto("{:4d}{:6d}  {:c}{:c}{:4d}",f2c::abs(*ibr),f2c::abs(mtot),atype[0],atype[1],*(lab));
 	xpp::log_auto("{:14.6E}",par[icu[0]]);
 	xpp::log_auto("{:14.6E}",(*vaxis));
@@ -2924,7 +2941,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	}
 	xpp::log_auto("\n");
       }
-      xpp::print(s.auto_lib.fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,itp,(*lab));
+      xpp::print(s.auto_lib.fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,xpp::auto_point_encode(itp),(*lab));
       xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[0]]);
       xpp::print(s.auto_lib.fp7,"{:14.5E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
@@ -2959,7 +2976,8 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   integer ndim, nfpr, ntpl, jtmp, mtot, ntot, i;
   doublereal t;
   integer nrowpr, ibr;
-  integer nar, itp, isw;
+  integer nar, isw;
+  xpp::AutoPointCode itp;
 
   FILE *const fp8=fort8(s.auto_lib);
 
@@ -2989,7 +3007,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   mtot = ntot % 10000;
   xpp::print(fp8,"{:5}",ibr);
   xpp::print(fp8,"{:5}",mtot);
-  xpp::print(fp8,"{:5}",itp);
+  xpp::print(fp8,"{:5}",xpp::auto_point_encode(itp));
   xpp::print(fp8,"{:5}",(*lab));
   xpp::print(fp8,"{:5}",nfpr);
   xpp::print(fp8,"{:5}",isw);
@@ -3427,7 +3445,8 @@ adapt(iap_type *iap, rap_type *rap, integer *nold, integer *ncold, integer *nnew
   integer i, j, noldp1, nnewp1;
 
   integer nrwnew;
-  integer ips, isw;
+  integer isw;
+  xpp::AutoProblem ips;
 
   std::vector<doublereal> uint((*ndxloc)*(iap->ndim * iap->ncol));
   std::vector<doublereal> tint(*ndxloc);
@@ -3462,7 +3481,7 @@ adapt(iap_type *iap, rap_type *rap, integer *nold, integer *ncold, integer *nnew
 
   /* For periodic boundary conditions extrapolate by periodicity. */
 
-  if (ips == 2 && f2c::abs(isw) != 2) {
+  if (ips == xpp::AutoProblem::Periodic && f2c::abs(isw) != 2) {
     iper = 1;
   } else {
     iper = 0;
@@ -4138,7 +4157,9 @@ newlab(iap_type *iap, rap_type *rap)
   /* Local variables */
   integer mlab, ibrs;
 
-  integer labrs, nskip, lab, ibr, mbr, ips, itp, irs, isw;
+  integer labrs, nskip, lab, ibr, mbr, irs, isw;
+  xpp::AutoProblem ips;
+  xpp::AutoPointCode itp;
   logical eof3;
 
   /* Determine a suitable label when restarting. */
@@ -4188,8 +4209,8 @@ newlab(iap_type *iap, rap_type *rap)
   if (isw < 0 || irs == 0) {
     ibr = mbr + 1;
     iap->ibr = ibr;
-  } else if ((f2c::abs(itp) < 10 && f2c::abs(isw) == 2) || (ips == 2 && itp == 3) || 
-	     (ips == 4 && isw == 2 && f2c::abs(itp) < 10) || (ips == 5 && itp % 10 == 2)) {
+  } else if ((itp.start == xpp::AutoPointKind::Regular && f2c::abs(isw) == 2) || (ips == xpp::AutoProblem::Periodic && itp.is(xpp::AutoPointKind::Hopf)) || 
+	     (ips == xpp::AutoProblem::BoundaryValue && isw == 2 && itp.start == xpp::AutoPointKind::Regular) || (ips == xpp::AutoProblem::AlgebraicOptimization && itp.kind == xpp::AutoPointKind::Fold)) {
     ibr = irs;
     iap->ibr = ibr;
   }
@@ -4216,7 +4237,9 @@ findlb(iap_type *iap, const rap_type *rap,
        integer irs, integer *nfpr, logical *found)
 {
   /* Local variables */
-  integer labrs, nskip, itpst, ibr, itp, isw;
+  integer labrs, nskip, ibr, isw;
+  xpp::AutoPointKind itpst;
+  xpp::AutoPointCode itp;
   logical eof3;
   long line_start;
 
@@ -4248,15 +4271,10 @@ findlb(iap_type *iap, const rap_type *rap,
     if (labrs == irs) {
       *found = TRUE_;
       if (f2c::abs(isw) == 2) {
-	if (f2c::abs(itp) < 10) {
-	  itpst = f2c::abs(itp);
-	  iap->itpst = itpst;
-	} else {
-	  itpst = f2c::abs(itp / 10);
-	  iap->itpst = itpst;
-	}
+	itpst = xpp::auto_point_start_of(itp);
+	iap->itpst = itpst;
       } else {
-        itpst = 0;
+        itpst = xpp::AutoPointKind::Regular;
 	iap->itpst = itpst;
       }
       /* Back to the start of the line with an absolute seek. The old
@@ -4627,14 +4645,16 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   std::vector<doublereal> rldot(iap->lib->parameter_count);
   std::vector<doublereal> rlcur(iap->lib->parameter_count);
   integer nitps, istop;
-  integer itpst;
+  xpp::AutoPointKind itpst;
   doublereal ds;
   doublereal bp1;
   doublereal sp1;
   integer iad;
-  integer ilp, ips, isp, irs;
+  integer ilp, isp, irs;
+  xpp::AutoProblem ips;
   doublereal rds, rlp;
-  integer isw, itp;
+  integer isw;
+  xpp::AutoPointCode itp;
     
   integer ntst_plus_one=iap->ntst + 1;
 
@@ -4734,9 +4754,9 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   sthd(iap, rap, par, icp, thl, thu);
   if (irs == 0) {
-    itp = itpst * 10 + 9;
+    itp = xpp::AutoPointCode{xpp::AutoPointKind::End, itpst};
   } else {
-    itp = 0;
+    itp = xpp::AutoPointCode{};
   }
   iap->itp = itp;
   istop = 0;
@@ -4752,12 +4772,12 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   extrbv(iap, rap, funi, &rds, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(),
 	 uoldps.data(), udotps.data());
 
-  itp = 0;
+  itp = xpp::AutoPointCode{};
   iap->itp = itp;
   goto L2;
 
  L1:
-  itp = 0;
+  itp = xpp::AutoPointCode{};
   iap->itp = itp;
   ntot = iap->ntot;
 
@@ -4806,9 +4826,9 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	goto L3;
       }
       itp = iap->itp;
-      if (itp == -1) {
+      if (itp.kind == xpp::AutoPointKind::Pending) {
 	if (iuz[iuzr] >= 0) {
-	  itp = -4 - itpst * 10;
+	  itp = xpp::AutoPointCode{xpp::AutoPointKind::UserZero, itpst};
 	  iap->itp = itp;
 	  for (k = 0; k < nuzr; ++k) {
 	    uzr[k] = 0.;
@@ -4833,8 +4853,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       goto L3;
     }
     itp = iap->itp;
-    if (itp == -1) {
-      itp = itpst * 10 + 5;
+    if (itp.kind == xpp::AutoPointKind::Pending) {
+      itp = xpp::AutoPointCode{xpp::AutoPointKind::PeriodicFold, itpst};
       iap->itp = itp;
       rlp = 0.;
       bp1 = 0.;
@@ -4854,8 +4874,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       goto L3;
     }
     itp = iap->itp;
-    if (itp == -1) {
-      itp = itpst * 10 + 6;
+    if (itp.kind == xpp::AutoPointKind::Pending) {
+      itp = xpp::AutoPointCode{xpp::AutoPointKind::PeriodicBranch, itpst};
       iap->itp = itp;
       rlp = 0.;
       bp1 = 0.;
@@ -4865,7 +4885,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Check for period-doubling and torus bifurcation. */
 
-  if ((isp == 1 || isp == 2) && (ips == 2 || ips == 7 || ips == 12)) {
+  if ((isp == 1 || isp == 2) && xpp::problem_has_orbit_multipliers(ips)) {
     lcspbv(iap, rap, par, icp, fnspbv, funi, bcni, icni,
 	   pvli, &sp1, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), dups.data(), 
 	   uoldps.data(), udotps.data(), upoldp.data(), fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(), ev.data(), thl, thu,
@@ -4875,7 +4895,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       goto L3;
     }
     itp = iap->itp;
-    if (itp == -1) {
+    if (itp.kind == xpp::AutoPointKind::Pending) {
       /*          **Secondary periodic bifurcation: determine type */
       tpspbv(iap, rap, par, icp, ev.data());
       rlp = 0.;
@@ -5019,7 +5039,8 @@ stupbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer ndim, ncol;
   integer nfpr, ntst;
   integer i, j, k;
-  integer n1, ips;
+  integer n1;
+  xpp::AutoProblem ips;
 
   std::vector<doublereal> dfdp((iap->ndim)*iap->lib->parameter_count);
   std::vector<doublereal> dfdu((iap->ndim)*(iap->ndim));
@@ -5054,7 +5075,7 @@ stupbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   for (j = 0; j < ntst + 1; ++j) {
     for (i = 0; i < ndim; ++i) {
       u[i] = ARRAY2D(uoldps, j, i);
-      if (ips == 14 || ips == 16) {
+      if (xpp::problem_is_parabolic_evolution(ips)) {
 	uold[i] = ARRAY2D(uoldps, j, i) * 2 - ARRAY2D(ups, j, i);
       } else {
 	uold[i] = ARRAY2D(uoldps, j, i);
@@ -5072,7 +5093,7 @@ stupbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     for (j = 0; j < ntst; ++j) {
       for (i = 0; i < ndim; ++i) {
 	u[i] = ARRAY2D(uoldps, j, (n1 + i));
-	if (ips == 14 || ips == 16) {
+	if (xpp::problem_is_parabolic_evolution(ips)) {
 	  uold[i] = ARRAY2D(uoldps, j, (n1 + i)) * 2 
 	    - ARRAY2D(ups, j, (n1 + i));
 	} else {
@@ -5332,7 +5353,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (nonfinite && !xpp::job::cancelled() && !jacobian_failed(iap))
     xpp::auto_nonfinite(*iap, iap->ntot + 1);
 
-  if (!retained && (iap->ips == 2 || iap->ips == 7 || iap->ips == 12) &&
+  if (!retained && xpp::problem_has_orbit_multipliers(iap->ips) &&
       iap->isp != 0 && !xpp::job::cancelled() && !jacobian_failed(iap)) {
     // A failed location can restore an unstored solution. Rebuild its
     // circuit pencil at zero step, without applying Newton increments;
@@ -5515,9 +5536,11 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   std::vector<integer> icprs(iap->lib->parameter_count);
 
-  integer nfprs, itprs, nskip1, nskip2;
+  integer nfprs, nskip1, nskip2;
+  xpp::AutoPointCode itprs;
 
-  integer ndimrd, ndimrs, ips, isw;
+  integer ndimrd, ndimrs, isw;
+  xpp::AutoProblem ips;
 
   /* This subroutine locates and retrieves the information required to */
   /* restart computation at the point with label IRS. */
@@ -5580,14 +5603,14 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Special case : Preprocess restart data in case of homoclinic */
   /* continuation */
 
-  if (ips == 9) {
+  if (ips == xpp::AutoProblem::Homoclinic) {
     preho(*iap->lib, ndxloc, ntsrs, &ndimrd, &ndim, ncolrs, ups, udotps, tm, par);
 
     /* Special case : Preprocess restart data in case of branch switching 
      */
     /* at a period doubling bifurcation. */
 
-  } else if ((ips == 2 || ips == 6) && isw == -1 && itprs == 7) {
+  } else if (ips == xpp::AutoProblem::Periodic && isw == -1 && itprs.is(xpp::AutoPointKind::PeriodDoubling)) {
     pdble(iap, rap, &ndim, ntsrs, ncolrs, ndxloc, ups, udotps, tm, par);
     return 0;
   }
@@ -5844,7 +5867,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 
   integer iid, ibr;
   doublereal rds;
-  integer itp;
+  xpp::AutoPointCode itp;
 
   /* This subroutine uses the Secant method to accurately locate folds */
   /* branch points, and zero(es) of user parameter values. */
@@ -5918,7 +5941,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 
   rrds = f2c::abs(rds) / (sqrt(f2c::abs(ds * dsmax)) + 1);
   if (rrds < epss) {
-    itp = -1;
+    itp = xpp::AutoPointCode{xpp::AutoPointKind::Pending};
     iap->itp = itp;
     /* xx???   Q=0.d0 */
     xpp::print(iap->lib->fp9,"==> Location of special point : Convergence.    Stepsize ={:11.3E}\n",rds);	
@@ -6289,9 +6312,11 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
   doublereal amin;
   integer ndim;
   doublereal epss, d;
-  integer i, itpst;
+  integer i;
+  xpp::AutoPointKind itpst;
   doublereal ad;
-  integer loc, itp, loc1;
+  integer loc, loc1;
+  xpp::AutoPointCode itp;
   doublereal azm1;
 
   /* Determines type of secondary periodic bifurcation. */
@@ -6333,18 +6358,18 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
 
   if (f2c::abs(d_imag(&ev[loc1])) > sqrt(epss)) {
     /*       ** torus bifurcation */
-    itp = itpst * 10 + 8;
+    itp = xpp::AutoPointCode{xpp::AutoPointKind::Torus, itpst};
     iap->itp = itp;
     par[xpp::auto_unknown::torus_angle] =f2c::abs(xpp::math::atan2(d_imag(&ev[loc1]),ev[loc1].r));
 
   } else { /* a real multiplier */
     if (ev[loc1].r < -.5) {
       /*       ** period doubling */
-      itp = itpst * 10 + 7;
+      itp = xpp::AutoPointCode{xpp::AutoPointKind::PeriodDoubling, itpst};
       iap->itp = itp;
     } else {
       /*       ** something else... */
-      itp = 0;
+      itp = xpp::AutoPointCode{};
       iap->itp = itp;
     }
   }
@@ -6421,8 +6446,8 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* solution is written on unit 8. */
 
   if (context.npr != 0) {
-    if (ntot % context.npr == 0 && context.itp % 10 == 0) {
-      context.itp = context.itpst * 10 + 4;
+    if (ntot % context.npr == 0 && context.itp.kind == xpp::AutoPointKind::Regular) {
+      context.itp = xpp::AutoPointCode{xpp::AutoPointKind::Output, context.itpst};
     }
     iap->itp = context.itp;
   }
@@ -6455,19 +6480,19 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */
   if (istop == 1 && !xpp::job::cancelled()) { /* xppautX: cancel: EP, not MX */
     /*        ** Maximum number of iterations reached somewhere. */
-    context.itp = -9 - context.itpst * 10;
+    context.itp = xpp::AutoPointCode{xpp::AutoPointKind::MaxSteps, context.itpst};
     iap->itp = context.itp;
     stop_at.noconv = 1, stop_at.user = 0;
   } else if (istop == -1) {
     /*        ** UZR endpoint */
-    context.itp = context.itpst * 10 + 9;
+    context.itp = xpp::AutoPointCode{xpp::AutoPointKind::End, context.itpst};
     iap->itp = context.itp;
   } else {
     if (par[icp[0]] < context.rl0 || par[icp[0]] > context.rl1 || amp < context.a0 || amp > context.a1 ||
 	ntot >= context.nmx || iflag==1 ) { /* more bye auto */
       istop = 1;
       iap->istop = istop;
-      context.itp = context.itpst * 10 + 9;
+      context.itp = xpp::AutoPointCode{xpp::AutoPointKind::End, context.itpst};
       iap->itp = context.itp;
     }
   }
@@ -6475,7 +6500,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* All special points receive label: */
 
   labw = 0;
-  if (context.itp % 10 != 0) {
+  if (context.itp.kind != xpp::AutoPointKind::Regular) {
     lab = iap->lab;
     ++lab;
     iap->lab = lab;
@@ -6506,7 +6531,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   ibrs = context.ibr;
   ntots = ntot;
-  if (context.ips == 2 && f2c::abs(context.isw) != 2) {
+  if (context.ips == xpp::AutoProblem::Periodic && f2c::abs(context.isw) != 2) {
     ibrs = -context.ibr;
     nins = iap->nins;
     if (nins == context.ndim) {
@@ -6531,7 +6556,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   /* Write plotting and restart data on unit 8. */
 
-  if (context.itp % 10 != 0) {
+  if (context.itp.kind != xpp::AutoPointKind::Regular) {
     wrtbv8(iap, rap, par, icp, rldot, ndxloc, ups, 
 	   udotps, tm, dtm);
   }
@@ -6552,7 +6577,8 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   doublereal t;
   integer k1, k2;
   doublereal rn;
-  integer nrowpr, lab, ibr, nar, nrd, itp, isw;
+  integer nrowpr, lab, ibr, nar, nrd, isw;
+  xpp::AutoPointCode itp;
 
   FILE *const fp8=fort8(s.auto_lib);
 
@@ -6623,7 +6649,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   mtot = ntot % 10000;
   xpp::print(fp8,"{:5}",ibr);
   xpp::print(fp8,"{:5}",mtot);
-  xpp::print(fp8,"{:5}",itp);
+  xpp::print(fp8,"{:5}",xpp::auto_point_encode(itp));
   xpp::print(fp8,"{:5}",lab);
   xpp::print(fp8,"{:5}",nfpr);
   xpp::print(fp8,"{:5}",isw);

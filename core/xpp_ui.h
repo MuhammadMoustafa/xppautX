@@ -8,6 +8,7 @@
 #include <string_view>
 #include <optional>
 #include "xpp_error.h"
+#include "auto_codes.h"
 
 namespace xpp {
 struct Session; /* session.h */
@@ -70,9 +71,9 @@ enum {
    plot has draw 0 and x, y1 and y2 NaN. */
 typedef struct XppDiagPoint {
     int ibr, pt;   /* AUTO's branch and point number, signed as AUTO has them */
-    int itp;       /* AUTO's point type (auto_bif_sym) */
+    AutoPointCode itp; /* AUTO's point type (auto_point_symbol) */
     int lab;       /* label, 0 when none or when the label mark is not drawn */
-    int type;      /* 1 stable eq, 2 unstable eq, 3 stable periodic, 4 unstable periodic */
+    DiagramPointType type; /* stable eq, unstable eq, stable periodic, unstable periodic */
     int flag2;     /* two-parameter curve kind (LPE2...), 0 for one parameter */
     int draw;      /* 0 not drawn (only the start of the next line), 1 a line
                       back to the previous point, 2 filled circles at y1 and

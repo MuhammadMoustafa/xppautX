@@ -88,7 +88,7 @@ int main()
     CHECK(lcspae(&iap, &rap, par.data(), &icp, noisy, line, &stride, aa.data(),
                  rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(), &uold, &udot,
                  &f, &dfdu, dfdp.data(), &q, thl.data(), &thu, &iuz, &vuz) == 0);
-    CHECK(iap.istop == 0 && iap.itp == 0 && iap.nit == 3 && iap.nins == 1);
+    CHECK(iap.istop == 0 && iap.itp == xpp::AutoPointCode{} && iap.nit == 3 && iap.nins == 1);
     CHECK(rlcur == 1 && rlold == 0 && rldot == 1 && par[0] == 1);
     CHECK(u == 1 && uold == 0 && udot == 1);
     CHECK(rap.dsold == 1 && rap.det == 7 && q == 1);
@@ -117,7 +117,7 @@ int main()
     // The same failure in the collocation solver must not pass its
     // maximum-increment test (NaN comparisons formerly left done=true).
     iap.istop = 0;
-    iap.ips = 4;
+    iap.ips = xpp::AutoProblem::BoundaryValue;
     iap.ntst = iap.nbc = iap.nwtn = 1;
     iap.ncol = 2;
     integer mesh_stride = 2;

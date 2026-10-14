@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include "auto_codes.h"
 
 /* AUTO's info strip and stability circle as data, for a front end that
    draws them itself: the "autoinfo" event (docs/protocol.md "The AUTO
@@ -51,12 +52,13 @@ void auto_data_forget(Session &s);
    NULL for a one-parameter point (the strip shows a blank name and 0) */
 struct AutoDataInfo {
     int ibr, pt;     /* AUTO's branch and point number, signed as AUTO has them */
-    int itp, lab;    /* AUTO's point type and label */
-    int type;        /* 1 stable steady state, 2 unstable, 3 stable periodic, 4 unstable periodic */
+    AutoPointCode itp; /* AUTO's point type */
+    int lab;         /* AUTO's label */
+    DiagramPointType type; /* stable steady state, unstable, stable periodic, unstable periodic */
     int flag2;       /* two-parameter curve kind, 0 for one parameter */
     int node;        /* DIAGRAM.index of the point */
     int jacobian;    /* DIAGRAM.jacobian: how its run formed the Jacobian */
-    const char *sym; /* auto_bif_sym: EP, LP, HB, ... or blank */
+    const char *sym; /* auto_point_symbol: EP, LP, HB, ... or blank */
     const char *p1name, *p2name;
     double p1, p2;
     double norm;

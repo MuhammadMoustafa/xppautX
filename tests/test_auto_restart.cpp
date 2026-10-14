@@ -51,7 +51,7 @@ void formulation(xpp::Session &s, decltype(&stpnpl) restart,
     iap.ntst = 2;
     iap.ncol = 2;
     iap.irs = 7;
-    iap.ips = 2;
+    iap.ips = xpp::AutoProblem::Periodic;
     iap.isw = 2;
     rap_type rap{};
     std::array<integer, 4> icp = {10, 11, 10, 11};

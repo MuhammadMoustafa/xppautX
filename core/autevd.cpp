@@ -40,7 +40,7 @@ void init_auto(AutoState &st, int ndim, bool exact)
   st.run.thl[0]=0.0;
   st.run.nint=0;    
   
-  if(b.ips==4)
+  if(b.ips==AutoProblem::BoundaryValue)
     nnbc=ndim;
   else
     nnbc=0;
@@ -83,9 +83,9 @@ void init_auto(AutoState &st, int ndim, bool exact)
 
 /* Only unit 8,3 or q.prb is important; all others are unnecesary */
 
-int get_bif_type(int ibr, int ntot, int lab)
+DiagramPointType get_bif_type(int ibr, int ntot, int lab)
 {
-  int type=STABLE_EQ;
+  DiagramPointType type=STABLE_EQ;
 
     if(ibr<0&&ntot<0)type=STABLE_PERIODIC;
   if(ibr<0&&ntot>0)type=UNSTABLE_PERIODIC;
@@ -99,7 +99,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   int icp1=icp[0],icp2=icp[1],icp3=icp[2],icp4=icp[3];
   double per=par[xpp::auto_unknown::period];
   int n=iap->ndim;
-  int type=get_bif_type(ibrs,ntots,lab);
+  const DiagramPointType type=get_bif_type(ibrs,ntots,lab);
   /* xppautX: the point's stability, or zeros: not computed (auto_stability.h) */
   std::vector<double> ev(2*static_cast<size_t>(n));
   auto_stability_for(s.auto_state.stability,static_cast<int>(ibrs),static_cast<int>(ntots),n,ev.data(),ev.data()+n);
@@ -117,7 +117,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   xpp::DIAGRAM p{};
   p.ibr=static_cast<int>(ibrs);
   p.ntot=static_cast<int>(ntots);
-  p.itp=static_cast<int>(iap->itp);
+  p.itp=iap->itp;
   p.lab=lab;
   p.nfpar=static_cast<int>(iap->nfpr);
   p.norm=*a;

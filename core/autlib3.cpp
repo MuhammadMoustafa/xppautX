@@ -44,7 +44,8 @@ fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   
   /* Local variables */
   
-  integer i, j, ips;
+  integer i, j;
+  xpp::AutoProblem ips;
   
   
   
@@ -56,7 +57,7 @@ fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   ips = iap->ips;
 
   par[icp[1]] = u[-1 + ndim];
-  if (ips == -1) {
+  if (ips == xpp::AutoProblem::DiscreteMap) {
     fnds(iap, rap, ndm, u, uold, icp, par, 1, f, dfdu, dfdp);
   } else {
     funi(iap, rap, ndm, u, uold, icp, par, 1, f, dfdu, dfdp);
@@ -92,7 +93,8 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   logical found;
 
 
-  integer ndm, ips, irs;
+  integer ndm, irs;
+  xpp::AutoProblem ips;
 
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> v(iap->ndim);
@@ -111,7 +113,7 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   findlb(iap, rap, irs, &nfpr1, &found);
   readlb(iap, rap, u, par);
 
-  if (ips == -1) {
+  if (ips == xpp::AutoProblem::DiscreteMap) {
     fnds(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
 	 iap->lib->scratch.dfu, iap->lib->scratch.dfp);
   } else {

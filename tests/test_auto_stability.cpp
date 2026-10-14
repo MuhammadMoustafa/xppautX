@@ -59,7 +59,7 @@ int main()
     double r[N], i[N];
 
     /* a run from initial data: its first point is not computed */
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, 1, xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr) == 0);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, 1, xpp::AUTO_STABILITY_NONE, xpp::AutoPointCode{}, 0, nullptr, nullptr) == 0);
     r[0] = i[0] = 7;
     CHECK(xpp::auto_stability_for(st, 1, 1, N, r, i) == 0);
     CHECK(all_zero(r, i));
@@ -82,36 +82,36 @@ int main()
     CHECK(r3[0] == 1.0 && i3[0] == 0 && r3[1] == 0.3 && i3[1] == -0.4 && r3[2] == 0 && i3[2] == 0);
 
     /* a new run forgets what the last one computed */
-    xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr);
+    xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_NONE, xpp::AutoPointCode{}, 0, nullptr, nullptr);
     CHECK(xpp::auto_stability_for(st, -2, 5, N, r, i) == 0);
 
     /* a same-kind restart: the first point is the label's solution */
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, 1, xpp::AUTO_STABILITY_STEADY, 3, N, LAB_R, LAB_I) == 1);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, 1, xpp::AUTO_STABILITY_STEADY, xpp::AutoPointCode{xpp::AutoPointKind::Hopf}, N, LAB_R, LAB_I) == 1);
     CHECK(xpp::auto_stability_for(st, 1, 1, N, r, i) == 1);
     CHECK(r[0] == 0.9 && i[0] == 0.4 && r[1] == 0.9 && i[1] == -0.4);
     CHECK(xpp::auto_stability_for(st, 1, 2, N, r, i) == 0); /* only the first point */
     xpp::auto_stability_computed(st, 1, 2, N, EIG, xpp::AUTO_STABILITY_STEADY);
     CHECK(xpp::auto_stability_for(st, 1, 2, N, r, i) == 1 && near(r[1], std::exp(-2.0)));
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_PERIODIC, 9, N, LAB_R, LAB_I) == 1);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_PERIODIC, xpp::AutoPointCode{xpp::AutoPointKind::End}, N, LAB_R, LAB_I) == 1);
     CHECK(xpp::auto_stability_for(st, -3, 1, N, r, i) == 1 && r[0] == 0.9);
     /* a branch switch at a periodic branch point continues the same orbit */
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, 6, N, LAB_R, LAB_I) == 1);
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, -1, xpp::AUTO_STABILITY_STEADY, 1, N, LAB_R, LAB_I) == 1);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, xpp::AutoPointCode{xpp::AutoPointKind::PeriodicBranch}, N, LAB_R, LAB_I) == 1);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, -1, xpp::AUTO_STABILITY_STEADY, xpp::AutoPointCode{xpp::AutoPointKind::BranchPoint}, N, LAB_R, LAB_I) == 1);
 
     /* a change of kind: not computed */
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_STEADY, 3, N, LAB_R, LAB_I) == 0);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_STEADY, xpp::AutoPointCode{xpp::AutoPointKind::Hopf}, N, LAB_R, LAB_I) == 0);
     CHECK(xpp::auto_stability_for(st, -2, 1, N, r, i) == 0 && all_zero(r, i)); /* periodic from a Hopf point */
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_OTHER, 2, xpp::AUTO_STABILITY_STEADY, 2, N, LAB_R, LAB_I) == 0);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_OTHER, 2, xpp::AUTO_STABILITY_STEADY, xpp::AutoPointCode{xpp::AutoPointKind::Fold}, N, LAB_R, LAB_I) == 0);
     CHECK(xpp::auto_stability_for(st, 2, 1, N, r, i) == 0 && all_zero(r, i)); /* two parameters from a limit point */
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, 1, xpp::AUTO_STABILITY_PERIODIC, 9, N, LAB_R, LAB_I) == 0);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, 1, xpp::AUTO_STABILITY_PERIODIC, xpp::AutoPointCode{xpp::AutoPointKind::End}, N, LAB_R, LAB_I) == 0);
     /* two-parameter to two-parameter, and boundary value problems, are not steady or periodic */
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_OTHER, 2, xpp::AUTO_STABILITY_OTHER, 9, N, LAB_R, LAB_I) == 0);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_OTHER, 2, xpp::AUTO_STABILITY_OTHER, xpp::AutoPointCode{xpp::AutoPointKind::End}, N, LAB_R, LAB_I) == 0);
     /* a period doubling's switch: the doubled orbit's multipliers are not the label's */
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, 7, N, LAB_R, LAB_I) == 0);
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, -27, N, LAB_R, LAB_I) == 0);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, xpp::AutoPointCode{xpp::AutoPointKind::PeriodDoubling}, N, LAB_R, LAB_I) == 0);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, xpp::AutoPointCode{xpp::AutoPointKind::PeriodDoubling, xpp::AutoPointKind::Fold}, N, LAB_R, LAB_I) == 0);
     CHECK(xpp::auto_stability_for(st, -4, 1, N, r, i) == 0);
     /* but extending the orbit at a period doubling is the orbit itself */
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_PERIODIC, 7, N, LAB_R, LAB_I) == 1);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_PERIODIC, xpp::AutoPointCode{xpp::AutoPointKind::PeriodDoubling}, N, LAB_R, LAB_I) == 1);
 
     /* what AUTO computes for the first point itself wins over the label's */
     xpp::auto_stability_computed(st, 1, 1, N, MULT, xpp::AUTO_STABILITY_PERIODIC);
@@ -119,8 +119,8 @@ int main()
 
     // W341 (#402): the endpoint repeats the predictor's old solution, not
     // a failed trial. Keep its exact spectrum even if a trial overwrites it.
-    for (int kind : {xpp::AUTO_STABILITY_STEADY, xpp::AUTO_STABILITY_PERIODIC}) {
-        xpp::auto_stability_run_start(st, kind, 1, xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr);
+    for (xpp::AutoStabilityKind kind : {xpp::AUTO_STABILITY_STEADY, xpp::AUTO_STABILITY_PERIODIC}) {
+        xpp::auto_stability_run_start(st, kind, 1, xpp::AUTO_STABILITY_NONE, xpp::AutoPointCode{}, 0, nullptr, nullptr);
         xpp::auto_stability_computed(st, -2, 5, N, MULT, kind);
         double old_r[N], old_i[N];
         CHECK(xpp::auto_stability_for(st, 2, 5, N, old_r, old_i) == 1);
@@ -143,14 +143,14 @@ int main()
         CHECK(xpp::auto_stability_for(st, 3, 7, N, r, i) == 0 && all_zero(r, i));
     }
     CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1,
-          xpp::AUTO_STABILITY_PERIODIC, 9, N, LAB_R, LAB_I) == 1);
+          xpp::AUTO_STABILITY_PERIODIC, xpp::AutoPointCode{xpp::AutoPointKind::End}, N, LAB_R, LAB_I) == 1);
     xpp::auto_stability_step_start(st, 4, 1);
     xpp::auto_stability_step_failed(st, 4, 2);
     CHECK(xpp::auto_stability_for(st, 4, 2, N, r, i) == 1);
     for (int k = 0; k < N; ++k) CHECK(r[k] == LAB_R[k] && i[k] == LAB_I[k]);
     CHECK(xpp::auto_stability_for(st, 5, 1, N, r, i) == 0 && all_zero(r, i));
     xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1,
-          xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr);
+          xpp::AUTO_STABILITY_NONE, xpp::AutoPointCode{}, 0, nullptr, nullptr);
     xpp::auto_stability_step_failed(st, 4, 2);
     CHECK(xpp::auto_stability_for(st, 4, 2, N, r, i) == 0 && all_zero(r, i));
 
@@ -186,13 +186,13 @@ int main()
     auto &actual = session.auto_state.stability;
     for (bool switching : {false, true}) {
         iap.istop = 0;
-        iap.ips = switching ? 1 : 0;
+        iap.ips = switching ? xpp::AutoProblem::SteadyState : xpp::AutoProblem::Algebraic;
         ds = rap.dsold = 1;
         u = rlcur = par[0] = 2;
         uold = rlold = 1;
         udot = rldot = 1;
         xpp::auto_stability_run_start(actual, xpp::AUTO_STABILITY_STEADY, 1,
-            xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr);
+            xpp::AUTO_STABILITY_NONE, xpp::AutoPointCode{}, 0, nullptr, nullptr);
         const double switch_eigenvalue[] = {3, 0};
         xpp::auto_stability_computed(actual, 1, 5, switching ? 1 : N,
             switching ? switch_eigenvalue : EIG, xpp::AUTO_STABILITY_STEADY);
@@ -216,9 +216,9 @@ int main()
     }
     // A failed equilibrium location also returns to an unstored point.
     xpp::auto_stability_run_start(actual, xpp::AUTO_STABILITY_STEADY, 1,
-        xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr);
+        xpp::AUTO_STABILITY_NONE, xpp::AutoPointCode{}, 0, nullptr, nullptr);
     lib.locating = 1;
-    iap.ips = 1;
+    iap.ips = xpp::AutoProblem::SteadyState;
     iap.istop = 0;
     ds = rap.dsold = 1;
     u = rlcur = par[0] = 2;
@@ -235,7 +235,7 @@ int main()
     // stprae's successful seed is unstored: the following contae sees
     // NTOT=1 again, but its u is no longer the restart label's solution.
     xpp::auto_stability_run_start(actual, xpp::AUTO_STABILITY_STEADY, 1,
-        xpp::AUTO_STABILITY_STEADY, 3, N, LAB_R, LAB_I);
+        xpp::AUTO_STABILITY_STEADY, xpp::AutoPointCode{xpp::AutoPointKind::Hopf}, N, LAB_R, LAB_I);
     xpp::auto_stability_step_start(actual, 1, 1); // stprae consumed the label.
     iap.ntot = 1;
     iap.istop = 0;
@@ -253,9 +253,9 @@ int main()
     // A switched branch may return to an earlier BP, absent from the last
     // record. Its restored Jacobian, not a failed trial's, supplies stability.
     xpp::auto_stability_run_start(actual, xpp::AUTO_STABILITY_STEADY, 1,
-        xpp::AUTO_STABILITY_STEADY, 3, N, LAB_R, LAB_I);
+        xpp::AUTO_STABILITY_STEADY, xpp::AutoPointCode{xpp::AutoPointKind::Hopf}, N, LAB_R, LAB_I);
     iap.ntot = 1; // BR/PT matches the old restart label, but the solution differs.
-    iap.ips = 1;
+    iap.ips = xpp::AutoProblem::SteadyState;
     iap.istop = 0;
     ds = 1;
     u = rlcur = par[0] = 2;
@@ -269,7 +269,7 @@ int main()
 
     iap.istop = 0;
     iap.ntot = 5;
-    iap.ips = 4;
+    iap.ips = xpp::AutoProblem::BoundaryValue;
     iap.ntst = iap.nbc = iap.nwtn = 1;
     iap.ncol = 2;
     std::array<double, 4> mesh{2, 2, 2, 0}, old{}, tangent{1, 1, 1, 0};
@@ -280,7 +280,7 @@ int main()
     ds = 1;
     rlcur = par[0] = 2;
     xpp::auto_stability_run_start(actual, xpp::AUTO_STABILITY_PERIODIC, 1,
-        xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr);
+        xpp::AUTO_STABILITY_NONE, xpp::AutoPointCode{}, 0, nullptr, nullptr);
     xpp::auto_stability_computed(actual, 1, 5, N, MULT, xpp::AUTO_STABILITY_PERIODIC);
     extrbv(&iap, &rap, no_convergence, &ds, &rlcur, &rlold, &rldot,
            &stride, mesh.data(), old.data(), tangent.data());
@@ -295,8 +295,8 @@ int main()
     // spectrum yet. Compute a reference pencil at the old solution; the
     // state-dependent Jacobian makes a failed trial's pencil different.
     xpp::auto_stability_run_start(actual, xpp::AUTO_STABILITY_PERIODIC, 1,
-        xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr);
-    iap.ips = iap.isp = 2;
+        xpp::AUTO_STABILITY_NONE, xpp::AutoPointCode{}, 0, nullptr, nullptr);
+    iap.ips = xpp::AutoProblem::Periodic; iap.isp = 2;
     iap.istop = 0;
     ds = 1;
     rlcur = par[0] = 2;
@@ -315,7 +315,7 @@ int main()
     CHECK(std::isfinite(expected) && i[0] == 0);
     // This reference is not retained for the attempted endpoint.
     xpp::auto_stability_run_start(actual, xpp::AUTO_STABILITY_PERIODIC, 1,
-        xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr);
+        xpp::AUTO_STABILITY_NONE, xpp::AutoPointCode{}, 0, nullptr, nullptr);
     extrbv(&iap, &rap, no_convergence, &ds, &rlcur, &rlold, &rldot,
            &stride, mesh.data(), old.data(), tangent.data());
     stepbv(&iap, &rap, par.data(), &icp, no_convergence, boundary, nullptr, nullptr,

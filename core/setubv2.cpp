@@ -281,7 +281,7 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 } // namespace
 
 int 
-setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
+setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
        FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
        doublereal rds, doublereal *aa, doublereal *bb, doublereal *cc, doublereal *dd, doublereal *fa, doublereal *fc, doublereal *rlcur, 
        doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, 
@@ -347,7 +347,7 @@ setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, integer
   }
 
   /*     ** Time evolution computations (parabolic systems) */
-  if (ips == 14 || ips == 16) {
+  if (xpp::problem_is_parabolic_evolution(ips)) {
     rap->tivp = rlold[0];
   } 
  

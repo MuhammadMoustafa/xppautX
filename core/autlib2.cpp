@@ -28,7 +28,8 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 
   integer nbc, iid;
   doublereal det;
-  integer ips, nrc;
+  xpp::AutoProblem ips;
+  integer nrc;
 
   /* Sets up and solves the linear equations for one Newton/Chord iteration 
    */
@@ -180,7 +181,7 @@ faft(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *ndxl
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-setrhs(integer *ndim, integer *ips, integer *na, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
+setrhs(integer *ndim, xpp::AutoProblem *ips, integer *na, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
 {
   /* System generated locals */
   integer ups_dim1, dups_dim1, uoldps_dim1, 
@@ -275,7 +276,7 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ncol, integer *nbc, in
 	}
       }
       /*     ** Time evolution computations (parabolic systems) */
-      if (*ips == 14 || *ips == 16) {
+      if (xpp::problem_is_parabolic_evolution(*ips)) {
 	rap->tivp = rlold[0];
       }
       for (i = 0; i < iap->lib->parameter_count; ++i) {

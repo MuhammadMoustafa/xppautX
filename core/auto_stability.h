@@ -28,6 +28,8 @@
 
 #include <vector>
 
+#include "auto_codes.h"
+
 namespace xpp {
 
 /* what a point or a run continues */
@@ -63,17 +65,17 @@ void auto_stability_step_start(AutoStability &st, int br, int pt);
 /* Returns whether the restored solution had a retained spectrum. */
 bool auto_stability_step_failed(AutoStability &st, int br, int pt);
 
-void auto_stability_computed(AutoStability &st, int br, int pt, int n, const double *values, int kind);
+void auto_stability_computed(AutoStability &st, int br, int pt, int n, const double *values, AutoStabilityKind kind);
 
 /* A run starts; nothing computed before it belongs to its points. run: the
    kind it continues; isw: AUTO's ISW (-1 switches branches); label: the
    kind of the stored label it restarts from (AUTO_STABILITY_NONE: none),
-   label_itp its AUTO type, evr/evi its n stored values. The run's first
+   label_itp its AUTO point type, evr/evi its n stored values. The run's first
    point takes them if the run continues the label's own solution: same
    kind, steady or periodic, and not a period doubling's switch (the
    doubled orbit's multipliers are not the label's). Returns 1 if it does. */
-int auto_stability_run_start(AutoStability &st, int run, int isw, int label, int label_itp, int n, const double *evr,
-                             const double *evi);
+int auto_stability_run_start(AutoStability &st, AutoStabilityKind run, int isw, AutoStabilityKind label, AutoPointCode label_itp, int n,
+                             const double *evr, const double *evi);
 
 /* the n values of point pt of branch br (either sign) into evr/evi:
    1 if they are that point's (computed for it, or the first point of a

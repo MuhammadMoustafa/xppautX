@@ -60,8 +60,8 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
        the same way */
     for (const DiagramPoint &p : s.diagram.points) {
         const xpp::DIAGRAM *d = &p.d;
-        int type = xpp::get_bif_type(d->ibr, d->ntot, d->lab);
-        const char *sym = xpp::auto_bif_sym(d->itp);
+        xpp::DiagramPointType type = xpp::get_bif_type(d->ibr, d->ntot, d->lab);
+        const char *sym = xpp::auto_point_symbol(d->itp);
         while (*sym == ' ') sym++;
         double par1 = diagram_parameter(*d,d->icp1);
         double par2 = d->icp2 < s.model().nupar ? diagram_parameter(*d,d->icp2) : par1;
@@ -86,7 +86,7 @@ xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const ch
     table.fields.resize(table.names.size());
     for (const DiagramPoint &p : s.diagram.points) {
         const xpp::DIAGRAM *d = &p.d;
-        int type = xpp::get_bif_type(d->ibr, d->ntot, d->lab);
+        xpp::DiagramPointType type = xpp::get_bif_type(d->ibr, d->ntot, d->lab);
         const char *kind = xpp::point_is_periodic(type) ? "multiplier" : "eigenvalue";
         for (int i = 0; i < s.model().node; i++) {
             const std::vector<std::string> row = {xpp::format("{}", unsigned_of(d->ibr)), xpp::format("{}", unsigned_of(d->ntot)),

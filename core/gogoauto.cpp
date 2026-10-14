@@ -106,7 +106,7 @@ int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has b
 }
 
 int set_function_pointers(const iap_type iap,function_list *data) {
-  if ((iap.ips == 0 || iap.ips == 1) && abs(iap.isw) != 2) {
+  if ((iap.ips == xpp::AutoProblem::Algebraic || iap.ips == xpp::AutoProblem::SteadyState) && abs(iap.isw) != 2) {
     /*	** Algebraic systems. */
     if (iap.irs == 0) {
       data->type	   = AUTOAE;
@@ -119,7 +119,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->aelist.stpnt   = stpnae;
       data->aelist.pvli    = pvlsae;
     }
-  } else if (iap.ips == 11 && abs(iap.isw) != 2) {
+  } else if (iap.ips == xpp::AutoProblem::WaveSteady && abs(iap.isw) != 2) {
     /*	** Waves : Spatially homogeneous solutions, */
     if (iap.irs == 0) {
       data->type	   = AUTOAE;
@@ -132,7 +132,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->aelist.stpnt   = stpnae;
       data->aelist.pvli    = pvlsae;
     }
-  } else if (iap.ips == -1 && abs(iap.isw) != 2) {
+  } else if (iap.ips == xpp::AutoProblem::DiscreteMap && abs(iap.isw) != 2) {
     /*	** Discrete dynamical systems : fixed points. */
     if (iap.irs == 0) {
       data->type	   = AUTOAE;
@@ -145,7 +145,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->aelist.stpnt   = stpnae;
       data->aelist.pvli    = pvlsae;
     }
-  } else if (iap.ips == -2) {
+  } else if (iap.ips == xpp::AutoProblem::TimeIntegration) {
     /*	** Time integration. */
     if (iap.irs == 0) {
       data->type	   = AUTOAE;
@@ -158,9 +158,9 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->aelist.stpnt   = stpnae;
       data->aelist.pvli    = pvlsae;
     }
-  } else if (iap.ips == 2 && abs(iap.isw) != 2) {
+  } else if (iap.ips == xpp::AutoProblem::Periodic && abs(iap.isw) != 2) {
     /*	** Periodic solutions */
-    if (iap.itp != 3 && abs(iap.itp / 10) != 3) {
+    if (!iap.itp.is(xpp::AutoPointKind::Hopf) && !iap.itp.started_from(xpp::AutoPointKind::Hopf)) {
       if (iap.irs > 0) {
 	data->type	   = AUTOBV;
 	data->bvlist.funi  = fnps;
@@ -184,9 +184,9 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->bvlist.stpnt = stpnps;
       data->bvlist.pvli  = pvlsbv;
     }
-  } else if (iap.ips == 12 && abs(iap.isw) != 2) {
+  } else if (iap.ips == xpp::AutoProblem::WavePeriodic && abs(iap.isw) != 2) {
     /*	** Wave train solutions to parabolic systems. */
-    if (iap.itp != 3) {
+    if (!iap.itp.is(xpp::AutoPointKind::Hopf)) {
       if (iap.irs > 0) {
 	data->type	   = AUTOBV;
 	data->bvlist.funi  = fnwp;
@@ -210,7 +210,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->bvlist.stpnt   = stpnwp;
       data->bvlist.pvli    = pvlsbv;
     }
-  } else if (iap.ips == 4 && abs(iap.isw) != 2) {
+  } else if (iap.ips == xpp::AutoProblem::BoundaryValue && abs(iap.isw) != 2) {
     /*	** Boundary value problems. */
     if (iap.irs > 0) {
       data->type	   = AUTOBV;
@@ -227,7 +227,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->bvlist.stpnt = stpnub;
       data->bvlist.pvli  = pvlsbv;
     }
-  } else if (iap.ips == 7 && abs(iap.isw) != 2) {
+  } else if (iap.ips == xpp::AutoProblem::FloquetBoundaryValue && abs(iap.isw) != 2) {
     /*	** Boundary value problems with Floquet multipliers. */
     if (iap.irs > 0) {
       data->type	   = AUTOBV;
@@ -244,7 +244,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->bvlist.stpnt = stpnub;
       data->bvlist.pvli  = pvlsbv;
     }
-  } else if (iap.ips == 9 && abs(iap.isw) != 2) {
+  } else if (iap.ips == xpp::AutoProblem::Homoclinic && abs(iap.isw) != 2) {
     /*	** Homoclinic bifurcation analysis. */
     if (iap.irs > 0) {
       data->type	   = AUTOBV;
@@ -261,7 +261,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->bvlist.stpnt = stpnho;
       data->bvlist.pvli  = pvlsho;
     }
-  } else if (iap.ips == 14) {
+  } else if (iap.ips == xpp::AutoProblem::ParabolicPeriodicEvolution) {
     /*	** Evolution calculations for parabolic systems. */
     /*	   (Periodic boundary conditions.) */
     if (iap.irs > 0) {
@@ -279,7 +279,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->bvlist.stpnt = stpnub;
       data->bvlist.pvli  = pvlsbv;
     }
-  } else if (iap.ips == 15 && abs(iap.isw) == 1) {
+  } else if (iap.ips == xpp::AutoProblem::PeriodicOptimization && abs(iap.isw) == 1) {
     /*	** Optimization of periodic solutions. */
     if (iap.nfpr < 6) {
       data->type	   = AUTOBV;
@@ -296,7 +296,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->bvlist.stpnt = stpnbv;
       data->bvlist.pvli  = pvlsbv;
     }
-  } else if (iap.ips == 16) {
+  } else if (iap.ips == xpp::AutoProblem::ParabolicUserEvolution) {
     /*	** Evolution calculations for parabolic systems. */
     /*	   (User supplied boundary conditions.) */
     if (iap.irs > 0) {
@@ -314,7 +314,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->bvlist.stpnt = stpnub;
       data->bvlist.pvli  = pvlsbv;
     }
-  } else if (iap.ips == 17) {
+  } else if (iap.ips == xpp::AutoProblem::ParabolicUserSteady) {
     /*	** Continuation of stationary states of parabolic systems.*/
     /*	   (User supplied boundary conditions.) */
     if (iap.irs > 0) {
@@ -332,10 +332,10 @@ int set_function_pointers(const iap_type iap,function_list *data) {
       data->bvlist.stpnt = stpnub;
       data->bvlist.pvli  = pvlsbv;
     }
-  } else if (iap.ips == 5) {
+  } else if (iap.ips == xpp::AutoProblem::AlgebraicOptimization) {
     /*	** Algebraic optimization problems. */
     int nfpr = iap.nfpr;
-    if (iap.itp % 10 == 2 || iap.irs == 0) {
+    if (iap.itp.kind == xpp::AutoPointKind::Fold || iap.irs == 0) {
       nfpr++;
     }
     if (nfpr == 2) {
@@ -351,7 +351,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
 	data->aelist.pvli    = pvlsae;
       }
     } else {
-      if (iap.itp % 10 != 2) {
+      if (iap.itp.kind != xpp::AutoPointKind::Fold) {
 	data->type	   = AUTOAE;
 	data->aelist.funi  = fnc2;
 	data->aelist.stpnt  = stpnae;
@@ -370,55 +370,55 @@ int set_function_pointers(const iap_type iap,function_list *data) {
   /* ---------------------------------------------------*/
   /* ---------------------------------------------------*/
       
-  else if (iap.ips <= 1 && abs(iap.isw) == 2 && (iap.itp == 1 || iap.itp == 2)) {
+  else if (xpp::problem_at_most_steady(iap.ips) && abs(iap.isw) == 2 && (iap.itp.is(xpp::AutoPointKind::BranchPoint) || iap.itp.is(xpp::AutoPointKind::Fold))) {
     /*	** Fold continuation (algebraic problems). */
     data->type	   = AUTOAE;
     data->aelist.funi  = fnlp;
     data->aelist.stpnt  = stpnlp;
     data->aelist.pvli    = pvlsae;
-  } else if (iap.ips <= 1 && abs(iap.isw) == 2 && (abs(iap.itp) / 10 == 1 || abs(iap.itp) / 10 == 2)) {
+  } else if (xpp::problem_at_most_steady(iap.ips) && abs(iap.isw) == 2 && (iap.itp.started_from(xpp::AutoPointKind::BranchPoint) || iap.itp.started_from(xpp::AutoPointKind::Fold))) {
     /*	** Fold continuation (algebraic problems, restart). */
     data->type	   = AUTOAE;
     data->aelist.funi  = fnlp;
     data->aelist.stpnt  = stpnae;
     data->aelist.pvli    = pvlsae;
-  } else if ((iap.ips == 0 || iap.ips == 1) && abs(iap.isw) == 2 && iap.itp == 3) {
+  } else if ((iap.ips == xpp::AutoProblem::Algebraic || iap.ips == xpp::AutoProblem::SteadyState) && abs(iap.isw) == 2 && iap.itp.is(xpp::AutoPointKind::Hopf)) {
     /*	** Hopf bifurcation continuation (ODE). */
     data->type	   = AUTOAE;
     data->aelist.funi  = fnhb;
     data->aelist.stpnt  = stpnhb;
     data->aelist.pvli    = pvlsae;
-  } else if (abs(iap.ips) == 1 && abs(iap.isw) == 2 && abs(iap.itp) / 10 == 3) {
+  } else if (xpp::problem_is_steady_or_map(iap.ips) && abs(iap.isw) == 2 && iap.itp.started_from(xpp::AutoPointKind::Hopf)) {
     /*	** Hopf bifurcation continuation (ODE, restart). */
     data->type	   = AUTOAE;
     data->aelist.funi  = fnhb;
     data->aelist.stpnt  = stpnae;
     data->aelist.pvli    = pvlsae;
-  } else if (iap.ips == 11 && abs(iap.isw) == 2 && iap.itp == 3) {
+  } else if (iap.ips == xpp::AutoProblem::WaveSteady && abs(iap.isw) == 2 && iap.itp.is(xpp::AutoPointKind::Hopf)) {
     /*	** Hopf bifurcation continuation (Waves). */
     data->type	   = AUTOAE;
     data->aelist.funi  = fnhw;
     data->aelist.stpnt  = stpnhw;
     data->aelist.pvli    = pvlsae;
-  } else if (iap.ips == 11 && abs(iap.isw) == 2 && abs(iap.itp) / 10 == 3) {
+  } else if (iap.ips == xpp::AutoProblem::WaveSteady && abs(iap.isw) == 2 && iap.itp.started_from(xpp::AutoPointKind::Hopf)) {
     /*	** Hopf bifurcation continuation (Waves, restart). */
     data->type	   = AUTOAE;
     data->aelist.funi  = fnhw;
     data->aelist.stpnt  = stpnae;
     data->aelist.pvli    = pvlsae;
-  } else if (iap.ips == -1 && abs(iap.isw) == 2 && iap.itp == 3) {
+  } else if (iap.ips == xpp::AutoProblem::DiscreteMap && abs(iap.isw) == 2 && iap.itp.is(xpp::AutoPointKind::Hopf)) {
     /*	** Hopf bifurcation continuation (Maps). */
     data->type	   = AUTOAE;
     data->aelist.funi  = fnhd;
     data->aelist.stpnt  = stpnhd;
     data->aelist.pvli    = pvlsae;
-  } else if (iap.ips == -1 && abs(iap.isw) == 2 && abs(iap.itp) / 10 == 3) {
+  } else if (iap.ips == xpp::AutoProblem::DiscreteMap && abs(iap.isw) == 2 && iap.itp.started_from(xpp::AutoPointKind::Hopf)) {
     /*	** Hopf bifurcation continuation (Maps). */
     data->type	   = AUTOAE;
     data->aelist.funi  = fnhd;
     data->aelist.stpnt  = stpnae;
     data->aelist.pvli    = pvlsae;
-  } else if (iap.ips == 2 && abs(iap.isw) == 2 && (iap.itp == 5 || iap.itp == 6)) {
+  } else if (iap.ips == xpp::AutoProblem::Periodic && abs(iap.isw) == 2 && (iap.itp.is(xpp::AutoPointKind::PeriodicFold) || iap.itp.is(xpp::AutoPointKind::PeriodicBranch))) {
     /*	** Fold continuation (Periodic solutions, start). */
     data->type         = AUTOBV;
     data->bvlist.funi  = fnpl;
@@ -426,7 +426,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
     data->bvlist.icni  = icpl;
     data->bvlist.stpnt = stpnpl;
     data->bvlist.pvli  = pvlsbv;
-  } else if (iap.ips == 2 && abs(iap.isw) == 2 && (abs(iap.itp) / 10 == 5 || abs(iap.itp) / 10 == 6)) {
+  } else if (iap.ips == xpp::AutoProblem::Periodic && abs(iap.isw) == 2 && (iap.itp.started_from(xpp::AutoPointKind::PeriodicFold) || iap.itp.started_from(xpp::AutoPointKind::PeriodicBranch))) {
     /*        ** Fold continuation (Periodic solutions, restart). */
     data->type         = AUTOBV;
     data->bvlist.funi  = fnpl;
@@ -434,7 +434,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
     data->bvlist.icni  = icpl;
     data->bvlist.stpnt = stpnbv;
     data->bvlist.pvli  = pvlsbv;
-  } else if (iap.ips == 2 && abs(iap.isw) == 2 && iap.itp == 7) {
+  } else if (iap.ips == xpp::AutoProblem::Periodic && abs(iap.isw) == 2 && iap.itp.is(xpp::AutoPointKind::PeriodDoubling)) {
     /*        ** Continuation of period doubling bifurcations (start). */
     data->type         = AUTOBV;
     data->bvlist.funi  = fnpd;
@@ -442,7 +442,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
     data->bvlist.icni  = icpd;
     data->bvlist.stpnt = stpnpd;
     data->bvlist.pvli  = pvlsbv;
-  } else if (iap.ips == 2 && abs(iap.isw) == 2 && abs(iap.itp) / 10 == 7) {
+  } else if (iap.ips == xpp::AutoProblem::Periodic && abs(iap.isw) == 2 && iap.itp.started_from(xpp::AutoPointKind::PeriodDoubling)) {
     /*        ** Continuation of period doubling bifurcations (restart).*/
     data->type         = AUTOBV;
     data->bvlist.funi  = fnpd;
@@ -450,7 +450,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
     data->bvlist.icni  = icpd;
     data->bvlist.stpnt = stpnbv;
     data->bvlist.pvli  = pvlsbv;
-  } else if (iap.ips == 2 && abs(iap.isw) == 2 && iap.itp == 8) {
+  } else if (iap.ips == xpp::AutoProblem::Periodic && abs(iap.isw) == 2 && iap.itp.is(xpp::AutoPointKind::Torus)) {
     /*        ** Continuation of torus bifurcations (start). */
     data->type         = AUTOBV;
     data->bvlist.funi  = fntr;
@@ -458,7 +458,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
     data->bvlist.icni  = ictr;
     data->bvlist.stpnt = stpntr;
     data->bvlist.pvli  = pvlsbv;
-  } else if (iap.ips == 2 && abs(iap.isw) == 2 && abs(iap.itp) / 10 == 8) {
+  } else if (iap.ips == xpp::AutoProblem::Periodic && abs(iap.isw) == 2 && iap.itp.started_from(xpp::AutoPointKind::Torus)) {
     /*        ** Continuation of torus bifurcations (restart). */
     data->type         = AUTOBV;
     data->bvlist.funi  = fntr;
@@ -466,7 +466,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
     data->bvlist.icni  = ictr;
     data->bvlist.stpnt = stpnbv;
     data->bvlist.pvli  = pvlsbv;
-  } else if (iap.ips == 4 && abs(iap.isw) == 2 && (iap.itp == 5 || iap.itp == 6)) {
+  } else if (iap.ips == xpp::AutoProblem::BoundaryValue && abs(iap.isw) == 2 && (iap.itp.is(xpp::AutoPointKind::PeriodicFold) || iap.itp.is(xpp::AutoPointKind::PeriodicBranch))) {
     /*        ** Continuation of folds (BVP, start). */
     data->type         = AUTOBV;
     data->bvlist.funi  = fnbl;
@@ -474,8 +474,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
     data->bvlist.icni  = icbl;
     data->bvlist.stpnt = stpnbl;
     data->bvlist.pvli  = pvlsbv;
-  } else if (iap.ips == 4 && abs(iap.isw) == 2 && (abs(iap.itp) / 10 == 5 || abs(iap.itp) / 
-						     10 == 6)) {
+  } else if (iap.ips == xpp::AutoProblem::BoundaryValue && abs(iap.isw) == 2 && (iap.itp.started_from(xpp::AutoPointKind::PeriodicFold) || iap.itp.started_from(xpp::AutoPointKind::PeriodicBranch))) {
     /*        ** Continuation of folds (BVP, restart). */
     data->type         = AUTOBV;
     data->bvlist.funi  = fnbl;
@@ -488,7 +487,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
     
       xpp::log_auto("\nInitialization Error CRASH!!\n");
    
-      xpp::log_auto("itp={:d} ips={:d} isw={:d}\n",iap.itp,iap.ips,iap.isw);
+      xpp::log_auto("itp={:d} ips={:d} isw={:d}\n",xpp::auto_point_encode(iap.itp),xpp::auto_problem_code(iap.ips),iap.isw);
   }
   /* -----------------------------------------------------------------------*/
 

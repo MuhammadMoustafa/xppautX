@@ -193,7 +193,7 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const 
     const std::size_t n = vars.size();
     for (const DiagramPoint &p : points) {
         const DIAGRAM &d = p.d;
-        o += xpp::format("{},{},{},{},{},{},{},{},{},{},{},{},{}", d.calc, d.ibr, d.ntot, d.itp, d.lab, d.nfpar, d.icp1, d.icp2,
+        o += xpp::format("{},{},{},{},{},{},{},{},{},{},{},{},{}", d.calc, d.ibr, d.ntot, auto_point_encode(d.itp), d.lab, d.nfpar, d.icp1, d.icp2,
                          d.icp3, d.icp4, d.flag2, d.from, d.jacobian);
         for (double v : {d.norm, d.per, d.torper}) o += ',' + xpp::number(v);
         o+=','+xpp::number(branches.at(d.branch.get()))+',';
@@ -280,7 +280,8 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
                 l.fail("too many AUTO diagram points for the session memory limit");
             DiagramPoint &p = points.emplace_back();
             DIAGRAM &d = p.d;
-            int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &d.itp, &d.lab, &d.nfpar, &d.icp1, &d.icp2, &d.icp3, &d.icp4, &d.flag2, &d.from, &d.jacobian};
+            int itp_code = 0;
+            int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &itp_code, &d.lab, &d.nfpar, &d.icp1, &d.icp2, &d.icp3, &d.icp4, &d.flag2, &d.from, &d.jacobian};
             std::size_t c = 0;
             const auto bad = [&](std::size_t k, const char *kind) {
                 l.fail(xpp::format("field {} (\"{}\") is not {}", k + 1, f[k], kind));
@@ -289,6 +290,9 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
                 if (!xpp::parse_int(f[c], *v) || *v == std::numeric_limits<int>::min()) bad(c, "a whole number");
                 c++;
             }
+            const auto itp = auto_point_decode(itp_code);
+            if (!itp) l.fail(xpp::format("field 4 (\"{}\"): {}", f[3], auto_point_unknown(itp_code)));
+            d.itp = *itp;
             check_point_indices(d, n_pars, l, l.line());
             const auto real = [&](double &v) {
                 if (!xpp::parse_number(f[c], v) || !std::isfinite(v)) bad(c, "a number");
@@ -343,8 +347,12 @@ std::deque<DiagramPoint> read_foreign_diagram(Lines &lines, int n,
         DiagramPoint p;
         DIAGRAM &d = p.d;
         int foreign_index;
-        lines.numbers(d.calc, d.ibr, d.ntot, d.itp, d.lab, foreign_index, d.nfpar,
+        int itp_code;
+        lines.numbers(d.calc, d.ibr, d.ntot, itp_code, d.lab, foreign_index, d.nfpar,
                       d.icp1, d.icp2, d.icp3, d.icp4, d.flag2);
+        const auto itp = auto_point_decode(itp_code);
+        if (!itp) lines.fail(auto_point_unknown(itp_code));
+        d.itp = *itp;
         const int point_line=lines.line();
         if (foreign_index != index || d.nfpar < 1 || d.nfpar > foreign_continuation_columns)
             lines.fail("invalid foreign point index or free parameter count");

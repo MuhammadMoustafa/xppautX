@@ -1884,7 +1884,7 @@ interactive grab above ending with `Return` on that point (`grabpt`, the
 parameters, the info strip, the stability circle, and what a following
 Run starts from). `{"cmd":"auto","op":"grab","type":"HB","index":k}`
 grabs the `k`-th (1-based, in stored order) labelled point of that AUTO
-type instead (`auto_bif_sym`'s `BP`, `EP`, `HB`, `LP`, `MX`, `PD`, `TR`,
+type instead (`auto_point_symbol`'s `BP`, `EP`, `HB`, `LP`, `MX`, `PD`, `TR`,
 `UZ`: "the 2nd HB"). A label no stored point has, or a `type`/`index` with
 no such point, is a `message` `error` and nothing changes -- the diagram,
 `grabpt` and the info strip stay as they were. `{"cmd":"auto","op":"grab"}`

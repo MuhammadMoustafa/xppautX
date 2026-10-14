@@ -202,7 +202,8 @@ void kill_diagrams(xpp::Session &s)
 void redraw_diagram(xpp::Session &s)
 {
   xpp::DIAGRAM *d;
-  int type,flag=0;
+  xpp::DiagramPointType type;
+  int flag=0;
   draw_bif_axes(s);
   d=diagram_first(s.diagram);
   if(diagram_next(s.diagram,d)==NULL)return;
@@ -240,7 +241,8 @@ void export_diagram(xpp::Session &s, const char *title, const char *name, const 
                     xpp::Result<> (*begin)(xpp::Session &, const char *, int), void (*end)(xpp::Session &))
 {
   xpp::DIAGRAM *d;
-  int type,flag=0;
+  xpp::DiagramPointType type;
+  int flag=0;
   if(!xpp::save_ready(diagram_count(s.diagram)>=2))return;
   std::string filename=name;
   if(!xpp::file_selector(title,filename,wild))return;
@@ -251,10 +253,6 @@ void export_diagram(xpp::Session &s, const char *title, const char *name, const 
   if(diagram_next(s.diagram,d)==NULL)return;
   while(1){
     type=xpp::get_bif_type(d->ibr,d->ntot,d->lab);
-    if (type < 0)
-    {
-    	xpp::log(XPP_LOG_WARN, "Unable to get bifurcation type.\n");
-    }
     if(d->ntot==1)flag=0;
     else flag=1;
     add_ps_point(s,*d,type,flag);
@@ -270,7 +268,8 @@ void export_diagram(xpp::Session &s, const char *title, const char *name, const 
 void write_info_out(xpp::Session &s)
 {
   xpp::DIAGRAM *d;
-  int type,i;
+  xpp::DiagramPointType type;
+  int i;
   /*int flag=0
   */
   int icp1,icp2;
@@ -281,7 +280,6 @@ void write_info_out(xpp::Session &s)
   d=diagram_first(s.diagram);
  while(1){
     type=xpp::get_bif_type(d->ibr,d->ntot,d->lab);
-    
     icp1=d->icp1;
     icp2=d->icp2;
     auto parameters=diagram_parameters(*d);
@@ -300,7 +298,7 @@ void write_info_out(xpp::Session &s)
      
     {
       std::string line=xpp::format("{} {} {} {:g} {:g} {:g} ",
-	      type,d->ibr,d->flag2,par1,par2,per);
+	      xpp::diagram_point_type_code(type),d->ibr,d->flag2,par1,par2,per);
       for(i=0;i<s.model().node;i++)
         line+=xpp::format("{:g} ",uhigh[i]);
       for(i=0;i<s.model().node;i++)
@@ -392,7 +390,7 @@ void write_init_data_file(xpp::Session &s)
 void write_pts(xpp::Session &s)
 {
   xpp::DIAGRAM *d;
-  int type;
+  xpp::DiagramPointType type;
   int icp1,icp2;
   double *par;
   double x,y1,y2,par1,par2=0,a,*uhigh,*ulow,*ubar,per;
@@ -421,7 +419,7 @@ void write_pts(xpp::Session &s)
     if(check_plot_type(s,d->flag2,icp1,icp2)==1){
       auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
       w.print("{:g} {:g} {:g} {} {} {}\n",
-	      x,y1,y2,type,abs(d->ibr),d->flag2);
+	      x,y1,y2,xpp::diagram_point_type_code(type),abs(d->ibr),d->flag2);
     }
       d=diagram_next(s.diagram,d);
       if(d==NULL)break;
@@ -444,7 +442,6 @@ void export_auto_picture(xpp::Session &s, int fmt)
 void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, double *yhi)
 {
   xpp::DIAGRAM *d;
-  int type;
   
   double x,y1,y2,par1,par2=0.0;
   d=diagram_first(s.diagram);
@@ -454,11 +451,6 @@ void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, doubl
   *xhi=-*xlo;
   *yhi=-*ylo;
   while(1){
-    type=xpp::get_bif_type(d->ibr,d->ntot,d->lab);
-    if (type <1)
-    {
-        xpp::log(XPP_LOG_WARN, "Unable to get bifurcation type.\n");
-    }
     par1=diagram_parameter(*d,d->icp1);
     if(d->icp2<s.model().nupar)par2=diagram_parameter(*d,d->icp2);
     auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);

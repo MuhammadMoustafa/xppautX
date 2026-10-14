@@ -34,8 +34,6 @@ void forget(AutoStability::Values &v)
     v.im.clear();
 }
 
-/* AUTO's type of a period doubling (itp mod 10) */
-constexpr int ITP_PD = 7;
 /* FUNI request for state and parameter Jacobians. */
 constexpr integer BOTH_JACOBIANS = 2;
 
@@ -91,7 +89,7 @@ void auto_stability_multipliers_restored(AutoStability &st, const iap_type &iap,
     auto_stability_computed(st, iap.ibr, iap.ntot + 1, ndim, &ev[0].r, AUTO_STABILITY_PERIODIC);
 }
 
-void auto_stability_computed(AutoStability &st, int br, int pt, int n, const double *values, int kind)
+void auto_stability_computed(AutoStability &st, int br, int pt, int n, const double *values, AutoStabilityKind kind)
 {
     AutoStability::Values &computed = st.computed;
     try {
@@ -115,8 +113,8 @@ void auto_stability_computed(AutoStability &st, int br, int pt, int n, const dou
     }
 }
 
-int auto_stability_run_start(AutoStability &st, int run, int isw, int label, int label_itp, int n, const double *evr,
-                                        const double *evi)
+int auto_stability_run_start(AutoStability &st, AutoStabilityKind run, int isw, AutoStabilityKind label, AutoPointCode label_itp, int n,
+                             const double *evr, const double *evi)
 {
     AutoStability::Values &first = st.first;
     bool &has_first = st.has_first;
@@ -126,7 +124,7 @@ int auto_stability_run_start(AutoStability &st, int run, int isw, int label, int
     has_first = false;
     bool same = label != AUTO_STABILITY_NONE && label == run &&
                 (run == AUTO_STABILITY_STEADY || run == AUTO_STABILITY_PERIODIC) &&
-                !(run == AUTO_STABILITY_PERIODIC && isw == -1 && std::abs(label_itp) % 10 == ITP_PD);
+                !(run == AUTO_STABILITY_PERIODIC && isw == -1 && label_itp.kind == AutoPointKind::PeriodDoubling);
     if (!same || !evr || !evi || n <= 0) return 0;
     try {
         first.pt = 1;

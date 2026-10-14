@@ -102,7 +102,7 @@ std::deque<DiagramPoint> points_of(int k, int n)
         xpp::DIAGRAM &d = q.d;
         d.ibr = 1 + p / 4;
         d.ntot = (p % 5) - 2;
-        d.itp = p % 9;
+        d.itp = *xpp::auto_point_decode(p % 9);
         d.lab = p % 2 ? p : 0;
         d.calc = p % 3;
         d.norm = awk(v++);
@@ -247,6 +247,14 @@ void check_diagram_csv()
     wrong.replace(at, csv.find_first_of(",\n", at) - at, "2");
     const xpp::Result<std::deque<DiagramPoint>> bad_jacobian = xpp::snapx::auto_members::parse_diagram_csv(wrong, 3, 3, "diagram.csv");
     CHECK(!bad_jacobian && bad_jacobian.error().place.line == static_cast<int>(pts.size())+2 && bad_jacobian.error().text().find("jacobian 2") != std::string::npos);
+    /* a point type that is none of AUTO's (W329), at the point's line, with its text */
+    std::string bad_type = csv;
+    std::size_t type_at = csv.find('\n', header) + 1; /* the first row: its 4th field is the type */
+    for (int commas = 0; commas < 3; type_at++) commas += csv[type_at] == ',';
+    bad_type.replace(type_at, csv.find(',', type_at) - type_at, "-5");
+    const xpp::Result<std::deque<DiagramPoint>> unknown_type = xpp::snapx::auto_members::parse_diagram_csv(bad_type, 3, 3, "diagram.csv");
+    CHECK(!unknown_type && unknown_type.error().place.line == static_cast<int>(pts.size()) + 2
+          && unknown_type.error().text().find("-5 is not an AUTO point type") != std::string::npos);
     const std::size_t column = csv.find("jacobian,");
     const xpp::Result<std::deque<DiagramPoint>> old = xpp::snapx::auto_members::parse_diagram_csv(csv.substr(0, column) + csv.substr(column + 9), 3, 3, "diagram.csv");
     CHECK(!old && old.error().place.line == static_cast<int>(pts.size())+1);
@@ -502,7 +510,7 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     CHECK(diagram_count(xpp::client_session().diagram) == 2042);
     /* its first point, as the file prints it */
     const xpp::DIAGRAM *d = diagram_first(xpp::client_session().diagram);
-    CHECK(d && d->ibr == 1 && d->ntot == 1 && d->itp == 9 && d->lab == 1 && diagram_parameter(*d,0) == 0.05 && d->u0[0] == -0.144 &&
+    CHECK(d && d->ibr == 1 && d->ntot == 1 && d->itp.is(xpp::AutoPointKind::End) && d->lab == 1 && diagram_parameter(*d,0) == 0.05 && d->u0[0] == -0.144 &&
           d->u0[1] == 0.03);
     CHECK(s.auto_state.bifur.ntst == 15 && s.auto_state.bifur.nmx == 2000 && s.auto_state.bifur.dsmin == 1e-05);
     CHECK(file_text(xpp::auto_solutions_file(xpp::client_session())).size() > 100); /* the .s part */

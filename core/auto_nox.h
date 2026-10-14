@@ -10,6 +10,7 @@
 #include <memory>
 #include <functional>
 #include "xpp_error.h"
+#include "auto_codes.h"
 
 #define MAX_AUT_PER 10
 
@@ -20,7 +21,8 @@ class TokenReader;
 /* The twelve fort.8 header fields, read and bounded once for every AUTO
    restart/orbit reader and the session's untrusted solution member. */
 struct AutoSolutionHeader {
-    long ibr{}, ntot{}, itp{}, lab{}, nfpr{}, isw{}, ntpl{}, nar{}, nskip{}, ntst{}, ncol{}, npar{};
+    long ibr{}, ntot{}, lab{}, nfpr{}, isw{}, ntpl{}, nar{}, nskip{}, ntst{}, ncol{}, npar{};
+    AutoPointCode itp; /* decoded when the header is read: an unknown code is a bad header */
 };
 bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long parameters);
 // Read a collocation payload into the formulation's explicit target columns.
@@ -49,7 +51,9 @@ typedef struct  {
   double lastx,lasty;
   int wid,hgt,x0,y0;
   int nfpar,nbc;
-  int ips,irs,ilp,isp,isw,itp;
+  AutoProblem ips=AutoProblem::Algebraic;
+  int irs,ilp,isp,isw;
+  AutoPointCode itp;
   int icp3,icp4,icp5;
   int nper;
   std::string hinttxt;
@@ -73,7 +77,8 @@ typedef struct {
 } ADVAUTO;
 
 typedef struct {
-  int ibr,itp,lab;
+  int ibr,lab;
+  AutoPointCode itp;
   std::vector<double> uhi,ulo,u0,ubar,par;
   double per,torper;
   int nfpar;
@@ -85,7 +90,8 @@ struct DiagramBranch {
 };
 
 typedef struct diagram {
-  int ibr,ntot,itp,lab,calc;
+  int ibr,ntot,lab,calc;
+  AutoPointCode itp;
   double norm,*uhi,*ulo,*u0,*ubar,*evr,*evi;
   std::shared_ptr<const DiagramBranch> branch;
   std::vector<int> parameter_indices;
@@ -107,7 +113,7 @@ typedef struct {
   double xmin,ymin,xmax,ymax;
 }  AUTOAX;
 
-void colset(Session &s, int type);
+void colset(Session &s, DiagramPointType type);
 void pscolset2(Session &s, int flag2);
 void colset2(int flag2);
 void draw_export_axes(Session &s);
@@ -120,7 +126,7 @@ void open_auto(Session &s, int flag);
 /* the path of AUTO's fort.<unit> (3, 7, 8 or 9) open_auto set, "" for
    another unit: gogoauto.cpp opens them for a run */
 const char *auto_fort_path(const Session &s, int unit);
-void do_auto(Session &s, int iold, int isave, int itp);
+void do_auto(Session &s, int iold, int isave, AutoPointCode itp);
 /* goes on from the point labelled `label` with the settings of the run
    before (W275: the action of an exact Jacobian's failure); an error, and
    nothing run, for a label no point has */
@@ -154,7 +160,7 @@ void auto_zoom_out(Session &s, int i1, int j1, int i2, int j2);
 void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, double *uhigh, double *ulow, double *ubar, double a);
 /* the stored point d into the PostScript or SVG picture being written
    (type its get_bif_type, flag 0 for a branch's first point) */
-void add_ps_point(Session &s, const DIAGRAM &d, int type, int flag);
+void add_ps_point(Session &s, const DIAGRAM &d, DiagramPointType type, int flag);
 void auto_line(Session &s, double x1i, double y1i, double x2i, double y2i);
 /* the label the running continuation started from, once: for its first point */
 int auto_run_from_take(Session &s);
@@ -163,10 +169,7 @@ int auto_run_from_take(Session &s);
    every view: the diagram's data and the active view's drawing, resolving
    parameters from its stored branch. type is its get_bif_type, flag 0 for
    a branch's first point. */
-void add_point(Session &s, const DIAGRAM &d, int type, int flag);
-/* the two-letter symbol of AUTO's point type itp (BP, LP, HB, UZ, PD, TR,
-   EP, MX), two blanks for any other */
-const char *auto_bif_sym(int itp);
+void add_point(Session &s, const DIAGRAM &d, DiagramPointType type, int flag);
 void info_header(Session &s, int flag2, int icp1, int icp2);
 /* the info strip's line for the stored point d */
 void new_info(Session &s, const DIAGRAM &d);
@@ -202,12 +205,12 @@ void auto_extend_bvp(Session &s);
 void auto_switch_per(Session &s);
 void auto_switch_bvp(Session &s);
 void auto_switch_ss(Session &s);
-void auto_2p_limit(Session &s, int ips);
+void auto_2p_limit(Session &s, AutoProblem ips);
 void auto_twopar_double(Session &s);
 void auto_torus(Session &s);
-void auto_2p_branch(Session &s, int ips);
-void auto_branch_choice(Session &s, int ibr, int ips);
-void auto_homo_choice(Session &s, int itp);
+void auto_2p_branch(Session &s, AutoProblem ips);
+void auto_branch_choice(Session &s, int ibr, AutoProblem ips);
+void auto_homo_choice(Session &s, AutoPointCode itp);
 void auto_2p_fixper(Session &s);
 void auto_2p_hopf(Session &s);
 void auto_period_double(Session &s);
@@ -232,7 +235,7 @@ void traverse_diagram(Session &s);
    success, 0 (nothing changed) when there is no such point. */
 int auto_grab_label(Session &s, int lab);
 int auto_grab_type_index(Session &s, const char *type, int index);
-/* asks which kind of special point: its symbol (auto_bif_sym's), or NULL */
+/* asks which kind of special point: its symbol (auto_point_symbol's), or NULL */
 const char *query_special(const char *title);
 void MarkAuto(int x, int y);
 void clear_msg(Session &s);

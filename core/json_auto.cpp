@@ -191,7 +191,7 @@ void diag_run(const xpp::Session &s, Buf *b, const std::vector<XppDiagPoint> &dg
     const auto at = [&dg](int k) -> const XppDiagPoint & { return dg[static_cast<std::size_t>(k)]; };
     const XppDiagPoint *p = &at(i);
     int k, two = 0, nlab = 0;
-    buf_format(b, "{{\"br\":{:d},\"pt\":{:d},\"ty\":{:d},\"d\":{:d},\"c\":{:d},\"lw\":{:d}", std::abs(p->ibr), std::abs(p->pt), p->type,
+    buf_format(b, "{{\"br\":{:d},\"pt\":{:d},\"ty\":{:d},\"d\":{:d},\"c\":{:d},\"lw\":{:d}", std::abs(p->ibr), std::abs(p->pt), xpp::diagram_point_type_code(p->type),
                p->draw, p->color, p->lw);
     buf_format(b, ",\"stable\":{},\"periodic\":{}", xpp::point_is_stable(p->type), xpp::point_is_periodic(p->type));
     if (p->flag2) buf_format(b, ",\"f2\":{:d}", p->flag2);
@@ -238,7 +238,7 @@ void diag_run(const xpp::Session &s, Buf *b, const std::vector<XppDiagPoint> &dg
         BUF_LIT(b, ",\"lab\":[");
         for (k = i, nlab = 0; k <= j; k++) {
             if (!at(k).lab) continue;
-            const char *t = auto_bif_sym(at(k).itp);
+            const char *t = auto_point_symbol(at(k).itp);
             while (*t == ' ') t++;
             buf_format(b, "{}[{:d},{:d},", nlab++ ? "," : "", k - i, at(k).lab);
             buf_str(b, t);
