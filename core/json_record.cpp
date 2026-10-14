@@ -20,6 +20,7 @@
 #include "xpp_about.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
+#include "xpp_util.h"
 #include "xpp_job.h"
 #include "xpp_log.h"
 #include "xpp_session.h"
@@ -82,6 +83,11 @@ std::string command_label(const char *line)
     if (c == "click") return xpp::format("Window {}", get_int(line, "win", 0));
     if (c == "applyset") return xpp::format("Apply set {} ({})", get_string(line, "set", name) ? name : "", get_string(line, "scope", v) ? v : "");
     if (c == "restoredefaults") return xpp::format("Restore defaults of {}{}", get_string(line, "scope", v) ? v : "", get_string(line, "field", name) ? " " + name : "");
+    if (c == "saveset") return xpp::format("Save {} values in set {}", get_string(line, "scope", v) ? v : "", get_string(line, "set", name) ? name : "");
+    if (c == "savedefaults") return xpp::format("Save {} values as defaults", get_string(line, "scope", v) ? v : "");
+    if (c == "exportset") return xpp::format("Export {} values as set {}", get_string(line, "scope", v) ? v : "", get_string(line, "set", name) ? name : "");
+    if (c == "renameset") return xpp::format("Rename set {} to {}", get_string(line, "set", name) ? name : "", get_string(line, "to", v) ? v : "");
+    if (c == "deleteset") return xpp::format("Delete set {}", get_string(line, "set", name) ? name : "");
     std::string label = c;
     if (!label.empty()) label[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label[0])));
     return o.empty() ? label : label + " " + o;
@@ -165,12 +171,6 @@ void file_read(const std::string &path)
     }
 }
 
-/* when a recording begins: 2026-09-30T10:14:02Z */
-std::string now_utc()
-{
-    return xpp::format("{:%Y-%m-%dT%H:%M:%SZ}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()));
-}
-
 void start(xpp::Session &s)
 {
     if (recorder.rec) {
@@ -186,7 +186,7 @@ void start(xpp::Session &s)
     recx::Recording r;
     r.program = xpp::format("xppautX {}", xpp_version_string());
     r.model = s.model().this_file;
-    r.recorded = now_utc();
+    r.recorded = xpp::utc_now();
     r.snapshot = std::move(*snapshot);
     recorder = Recorder{};
     recorder.rec = std::move(r);

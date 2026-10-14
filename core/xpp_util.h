@@ -20,6 +20,10 @@
 
 namespace xpp {
 
+/* now in UTC as 2026-09-30T10:14:02Z: when a recording begins, when a file of
+   values was saved */
+std::string utc_now();
+
 /* s without its white space, in place */
 void de_space(char *s);
 

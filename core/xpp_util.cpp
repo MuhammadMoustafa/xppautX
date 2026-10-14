@@ -31,6 +31,7 @@
 #include <string>
 #include <string_view>
 #include <time.h>
+#include <chrono>
 #include <ctype.h>
 #include <math.h>
 #include <stdio.h>
@@ -73,6 +74,11 @@ void clr_scrn(xpp::Session &s)
 /* ---- moved function bodies follow (appended by tools/move_funcs.py) ---- */
 
 /* new_parameter, set_default_params: from init_conds.c */
+
+std::string utc_now()
+{
+  return xpp::format("{:%Y-%m-%dT%H:%M:%SZ}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()));
+}
 
 std::string ind_to_sym(const xpp::Session &s, int ind)
 {

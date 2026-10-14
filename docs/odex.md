@@ -198,7 +198,7 @@ grammar:
   are its only escapes, a path is written with `/` on every system, and a
   path outside the model's folder is a question the user answers (W175, W286). Only `output` and
   `logfile` are paths, and `but` (a button, `but: "quit:fq"`) a text. Every
-  writer of options (the converter, the Copy set line) writes them so.
+  writer of options (the converter, Save values) writes them so.
   Slider presets use `interface: { sliders: [ { name: v, low: -1, high: 1, step: 0.01 }, ... ] }`.
   The list may have any length, including zero; each name must be a parameter or state,
   low and high finite with low < high, and step optional (0 chooses an automatic step).

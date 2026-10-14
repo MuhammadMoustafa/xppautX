@@ -10,6 +10,7 @@
    its declaration does (.ode keeps names in upper case), to copy the
    model's comments and what follows its done. */
 #include "odex.h"
+#include "odex_write.h"
 #include "expr_internal.h"
 #include "form_ode.h"
 #include "ode_read.h"
@@ -1208,8 +1209,7 @@ private:
       if (same != settings.end()) same->value = text; /* XPP applies the items in order: the last stays */
       else settings.push_back({option_key, text, row});
     }
-    if (!settings.empty()) items.push_back("options: " + braced(grouped(settings, 8 + set.name.size()), 6 + set.name.size()));
-    return "set " + name(xpp::upper_case(set.name)) + " " + braced(items, 4 + set.name.size()) + "\n";
+    return set_block(name(xpp::upper_case(set.name)), items, group_items(settings)) + "\n";
   }
 
   /* a set's or a comment's name: a variable's or a parameter's (spelled)
@@ -1424,44 +1424,15 @@ private:
       const OptionRow &row = xpp::slider_presets_option();
       entries.push_back({xpp::odex_key(row, 0), list + " ]", &row});
     }
-    std::string out;
-    for (const std::string &group : grouped(entries, 2)) out += "  " + group + ",\n";
-    return out.empty() ? std::string() : prefix + "options {\n" + out + "}\n";
+    const std::string block = odex::options_block(group_items(entries));
+    return block.empty() ? std::string() : prefix + block;
   }
 
-  /* entries as `group: { key: value, ... }`, one per group that has any, in
-     the groups' order (indent: the column the group starts at) */
-  static std::vector<std::string> grouped(const std::vector<OptionEntry> &entries, size_t indent)
+  static std::vector<GroupItem> group_items(const std::vector<OptionEntry> &entries)
   {
-    std::vector<std::string> out;
-    for (std::string_view group : xpp::option_groups) {
-      std::vector<std::string> items;
-      for (const OptionEntry &e : entries)
-        if (e.row->group == group) items.push_back(e.key + ": " + e.value);
-      if (!items.empty()) out.push_back(std::string(group) + ": " + braced(items, indent));
-    }
+    std::vector<GroupItem> out;
+    for (const OptionEntry &e : entries) out.push_back({e.row->group, e.key + ": " + e.value});
     return out;
-  }
-
-  /* items as { a, b, c }, on lines of their own when they would run past a
-     line (indent: the column the line starts at) */
-  static std::string braced(const std::vector<std::string> &items, size_t indent)
-  {
-    constexpr size_t line_width = 100;
-    std::string line = "{ ";
-    for (size_t i = 0; i < items.size(); i++) line += (i ? ", " : "") + items[i];
-    line += " }";
-    if (indent + line.size() <= line_width) return line;
-    const std::string pad(indent + 2, ' ');
-    std::string out = "{\n", row;
-    for (const std::string &item : items) {
-      if (!row.empty() && pad.size() + row.size() + 2 + item.size() > line_width) {
-        out += pad + row + ",\n";
-        row.clear();
-      }
-      row += (row.empty() ? "" : ", ") + item;
-    }
-    return out + pad + row + ",\n" + std::string(indent, ' ') + "}";
   }
 
   /* one @ line's options as the .ode applies them, into entries: an

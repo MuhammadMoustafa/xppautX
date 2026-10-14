@@ -860,10 +860,7 @@ int load(xpp::Session &s, const std::string &path, std::string text)
     xpp::model_failed(e);
   }
   /* the model's source: the .odex file's own lines */
-  std::vector<std::string> &source = s.model().source;
-  source.clear();
-  xpp::LineReader lr = xpp::LineReader::of_text(std::move(text));
-  while (std::optional<std::string_view> line = lr.next()) source.push_back(std::string(*line) + "\n");
+  xpp::set_model_source(s.model(), text);
   return 1;
 }
 

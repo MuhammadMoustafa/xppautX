@@ -391,6 +391,7 @@ private:
     const Token &t = peek();
     Statement s;
     s.pos = t.pos;
+    s.begin = t.begin;
     if (t.kind == Token::Kind::String) {
       s.kind = Statement::Kind::Comment;
       s.text = take().text;
@@ -515,8 +516,12 @@ private:
   void push(Statement s)
   {
     if (at_range()) s.range = range();
+    s.end = last_end();
     out_.statements.push_back(std::move(s));
   }
+
+  /* where the last token taken ends in the text */
+  size_t last_end() const { return i_ > 0 ? toks_[i_ - 1].end : 0; }
 
   const Token &name_token(std::string_view what)
   {
@@ -531,6 +536,7 @@ private:
     const Token &n = declared_name(what);
     s.name = n.text;
     s.name_pos = n.pos;
+    s.name_begin = n.begin;
     s.name_index = name_index();
   }
 
@@ -541,8 +547,11 @@ private:
     b.name = n.text;
     b.pos = n.pos;
     b.index = name_index();
+    b.begin = n.begin;
     expect_punct("=", xpp::format("after {}", b.name));
+    b.value_begin = peek().begin;
     b.value = expr();
+    b.end = last_end();
     return b;
   }
 
@@ -672,6 +681,14 @@ private:
      another group are no keys; a key is given once unless it may repeat. */
   Option option(const std::string &group, const Token &key, std::map<std::string, int> &keys, bool in_set)
   {
+    Option o = option_value(group, key, keys, in_set);
+    o.begin = key.begin;
+    o.end = last_end();
+    return o;
+  }
+
+  Option option_value(const std::string &group, const Token &key, std::map<std::string, int> &keys, bool in_set)
+  {
     Option o;
     o.group = group;
     o.name = key.text;
@@ -763,7 +780,10 @@ private:
       Binding b;
       b.name = key.text;
       b.pos = key.pos;
+      b.begin = key.begin;
+      b.value_begin = peek().begin;
       b.value = set_value();
+      b.end = last_end();
       s.bindings.push_back(std::move(b));
     });
     push(std::move(s));

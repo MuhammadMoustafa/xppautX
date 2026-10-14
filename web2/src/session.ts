@@ -124,24 +124,6 @@ export class Session {
   private displayHeld = new Map<number, DisplayPatch>();
   private displayGuard = new Set<number>();
   private displayIdles = 0;
-  /** File/cOpy set line: the text to the clipboard; the toast shows it either
-      way, and stays (an error toast) when the clipboard is refused, so the
-      line can be copied by hand */
-  private async copyText(text: string): Promise<void> {
-    let copied = false;
-    try {
-      await navigator.clipboard.writeText(text);
-      copied = true;
-    } catch {
-      /* refused or absent: shown below */
-    }
-    this.store.dispatch({
-      type: 'toast',
-      kind: copied ? 'info' : 'error',
-      text: copied ? `Copied to the clipboard: ${text}` : `Copy this line by hand: ${text}`,
-    });
-  }
-
   /** the tab last picked while the core was busy, shown and sent at its idle */
   private windowHeld: number | null = null;
   /** key sequences clicked while a key waits for its menu (a second Integrate
@@ -195,8 +177,6 @@ export class Session {
          direction fields and marks; values as base64 float32, which a long
          run needs */
       this.send({cmd: 'data', events: ev.features, enc: 'f32'});
-    } else if (ev.ev === 'copy') {
-      void this.copyText(ev.text);
     } else if (ev.ev === 'film') {
       this.onFilm(ev);
     } else if (ev.ev === 'ask') {

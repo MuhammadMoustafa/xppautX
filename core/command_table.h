@@ -20,8 +20,8 @@ namespace xpp {
 /* what a command is for, the sidebar's groups in the order they are listed;
    Panels and Layer are not groups. Panels (W229, #283) are the commands
    the page opens from a panel or the title bar (the Model panel's Source,
-   the Data panel's Transpose and Lookup tables, the Values panel's Named
-   named sets and Copy set line, Help's Keyboard shortcuts,
+   the Data panel's Transpose and Lookup tables, the Values panel's sets
+   (Apply, Save, Export, Rename, Delete), Help's Keyboard shortcuts,
    the title bar's Record and Play): they keep a row for their keys, the
    protocol and recordings, are not listed in the sidebar and cannot be
    pinned. Layer marks the three items that only switch the
@@ -89,7 +89,7 @@ struct CommandRow {
    build of GCC refuses to evaluate the table's search as a constant) */
 inline constexpr std::string_view STORE_EVERY_LABEL = "Store every N steps";
 
-inline constexpr std::array<CommandRow, 62> COMMANDS = {{
+inline constexpr std::array<CommandRow, 66> COMMANDS = {{
     {MAIN_MENU, 'i', "initialconds", "Initial conditions", "Integrate the equations", XPP_KIND_COMPUTE, CommandCategory::Run, true, true, {}},
     {MAIN_MENU, PAGE_KEY, "run_initial", "Run from initial", "Start a new trajectory from the Initial values", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Enter"}},
     {MAIN_MENU, PAGE_KEY, "run_last", "Run from last state", "Use the last state as Initial and start a new trajectory", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Shift+Enter"}},
@@ -143,7 +143,11 @@ inline constexpr std::array<CommandRow, 62> COMMANDS = {{
     {FILE_MENU, 'c', "calculator", "Calculator", "A little calculator -- press ESC to exit", XPP_KIND_VIEW, CommandCategory::Tools, true, true, {}},
     {FILE_MENU, 't', "transpose", "Transpose data", "Transpose storage", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
     {FILE_MENU, 'g', "getparset", "Apply set…", "Apply a named set of the model: all of it or only its parameters, initial values or one group of settings", XPP_KIND_SETTING, CommandCategory::Panels, false, true, {}},
-    {FILE_MENU, 'o', "copyset", "Copy set line", "Copy the current values as a named set line for the .ode", XPP_KIND_VIEW, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'o', "savevalues", "Save values…", "Write the current values into the model file: a new set, or in place of a set's part", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'j', "savedefaults", "Save as defaults…", "Write the current values as the model's own: its par and init lines, an options group", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'i', "exportvalues", "Export values…", "Write the current values as a set of another .odex file", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'z', "renameset", "Rename set…", "Rename one of the model file's own sets", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'f', "deleteset", "Delete set…", "Delete one of the model file's own sets", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
     {FILE_MENU, 'k', "restoredefaults", "Restore defaults…", "Put the model's own values back: everything, or the parameters, initial values or one group of settings", XPP_KIND_SETTING, CommandCategory::Panels, false, true, {}},
     {FILE_MENU, 'd', "record", "Record steps", "Record the steps you take to a .recx file; again to stop and save it", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
     {FILE_MENU, 'y', "play", "Play recording…", "Play a recording (.recx): its model, then its steps as they were taken", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},

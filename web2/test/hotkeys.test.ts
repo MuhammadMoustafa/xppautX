@@ -89,8 +89,8 @@ test('the XPPAUT preset on: a letter, and F then S as a chord that Esc cancels',
   type(on, keyEvent('d'));
   assert.deepEqual(on.calls, ['main/initialconds', 'file/saveinfo', 'main/dirfield']);
   /* a key that completes no chord is said, never skipped */
-  type(on, keyEvent('f'), keyEvent('z'));
-  assert.equal(on.state().bottom, 'F Z is not a command');
+  type(on, keyEvent('f'), keyEvent('x'));
+  assert.equal(on.state().bottom, 'F X is not a command');
   assert.deepEqual(on.state().pendingKeys, []);
   /* the layers' switches are no commands of the page */
   assert.equal(resolveKeys(HELLO, XPPAUT, ['U', 'Esc']).row, null);

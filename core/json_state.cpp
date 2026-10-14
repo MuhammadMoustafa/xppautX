@@ -7,6 +7,7 @@
 #include "session.h"
 #include "ui_json_internal.h"
 #include "load_eqn.h"
+#include "model_save.h"
 #include "storage.h"
 #include "xpp_util.h"
 #include "xpp_job.h"
@@ -573,6 +574,89 @@ void restoredefaults_command(xpp::Session &s, const char *line)
     get_string(line, "field", field);
     if (!read_graph(line, "restoredefaults", graph)) return;
     xpp::ok_or_show(xpp::restore_defaults(s, scope, field, graph));
+    session.state_dirty = 1;
+}
+
+/* the optional "state" of a save: the initial values saved ("initial", the
+   default) or the last state reached ("last") */
+static bool read_state(const char *line, const char *command, bool &last)
+{
+    std::string state;
+    if (!get_string(line, "state", state) || state == "initial") return true;
+    if (state == "last") {
+        last = true;
+        return true;
+    }
+    j_command_error(command, xpp::format("{}: state is initial or last", command));
+    return false;
+}
+
+/* {"cmd":"saveset","set":name,"mode":"new"|"replace","scope":...,"win":n,"state":...}:
+   xpp::save_new_set or save_into_set (docs/protocol.md "saveset") */
+void saveset_command(xpp::Session &s, const char *line)
+{
+    std::string name, mode, scope;
+    std::optional<int> graph;
+    bool last = false;
+    if (!get_string(line, "set", name) || !get_string(line, "scope", scope) || !get_string(line, "mode", mode) || (mode != "new" && mode != "replace")) {
+        j_command_error("saveset", "saveset needs a set, a mode (new or replace) and a scope");
+        return;
+    }
+    if (!read_graph(line, "saveset", graph) || !read_state(line, "saveset", last)) return;
+    xpp::ok_or_show(mode == "new" ? xpp::save_new_set(s, name, scope, graph, last) : xpp::save_into_set(s, name, scope, graph, last));
+    session.state_dirty = 1;
+}
+
+/* {"cmd":"savedefaults","scope":...,"win":n,"state":...}: xpp::save_defaults */
+void savedefaults_command(xpp::Session &s, const char *line)
+{
+    std::string scope;
+    std::optional<int> graph;
+    bool last = false;
+    if (!get_string(line, "scope", scope)) {
+        j_command_error("savedefaults", "savedefaults needs a scope");
+        return;
+    }
+    if (!read_graph(line, "savedefaults", graph) || !read_state(line, "savedefaults", last)) return;
+    xpp::ok_or_show(xpp::save_defaults(s, scope, graph, last));
+    session.state_dirty = 1;
+}
+
+/* {"cmd":"exportset","set":name,"scope":...,"file":name,"win":n,"state":...}: xpp::export_values */
+void exportset_command(xpp::Session &s, const char *line)
+{
+    std::string name, scope, file;
+    std::optional<int> graph;
+    bool last = false;
+    if (!get_string(line, "set", name) || !get_string(line, "scope", scope) || !get_string(line, "file", file)) {
+        j_command_error("exportset", "exportset needs a set, a scope and a file");
+        return;
+    }
+    if (!read_graph(line, "exportset", graph) || !read_state(line, "exportset", last)) return;
+    xpp::ok_or_show(xpp::export_values(s, name, scope, file, graph, last));
+}
+
+/* {"cmd":"renameset","set":name,"to":name}: xpp::rename_intern_set */
+void renameset_command(xpp::Session &s, const char *line)
+{
+    std::string from, to;
+    if (!get_string(line, "set", from) || !get_string(line, "to", to)) {
+        j_command_error("renameset", "renameset needs a set and the name to give it");
+        return;
+    }
+    xpp::ok_or_show(xpp::rename_intern_set(s, from, to));
+    session.state_dirty = 1;
+}
+
+/* {"cmd":"deleteset","set":name}: xpp::delete_intern_set */
+void deleteset_command(xpp::Session &s, const char *line)
+{
+    std::string name;
+    if (!get_string(line, "set", name)) {
+        j_command_error("deleteset", "deleteset needs a set");
+        return;
+    }
+    xpp::ok_or_show(xpp::delete_intern_set(s, name));
     session.state_dirty = 1;
 }
 

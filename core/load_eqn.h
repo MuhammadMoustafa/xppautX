@@ -5,6 +5,7 @@
 #include "xpplim.h"
 #include "model_options.h"
 #include "odex.h"
+#include "odex_write.h"
 #include "xpp_error.h"
 
 #include <array>
@@ -165,6 +166,15 @@ void set_internopts_xpprc_and_comline(Session &s, std::span<const std::string> i
    text, a comment's action), one setting */
 void add_intern_set(Model &m, std::string_view name, std::string_view does,
                     std::vector<std::pair<std::string, std::string>> settings = {});
+/* the model's sets and options lines again from the statements of its file
+   read anew, once the file was edited (model_save.h): every set of the
+   statements, an import's included, at its own place; the options block's
+   entries (the sets and the options of the model before are dropped) */
+void replace_intern_sets(Model &m, const odex::Parsed &parsed);
+void replace_model_options(Model &m, const odex::Parsed &parsed);
+/* the limits the builder keeps that the parser does not (the options a model
+   sets, its sets): a file past them would not load again */
+Result<> check_model_limits(const odex::Parsed &parsed);
 /* all or nothing: every item is checked first, and the first that cannot
    be applied is the error, at where (the set's line in the model), with
    nothing applied. xppaut_names: XPPAUT's words for the options count too
@@ -200,15 +210,17 @@ Result<> restore_defaults(Session &s, std::string_view scope, std::string_view f
    bad set stops it) */
 Result<> check_intern_sets(Session &s);
 void do_intern_set(Session &s, std::string_view name1, std::string_view value);
-/* File/cOpy set line (W67): the first of set1, set2, ... not yet a set of
-   the model */
+/* Save values' name for a new set: the first of set1, set2, ... not yet a set
+   of the model */
 std::string intern_set_default_name(const Model &m);
-/* why name cannot name a new set (not a name the parser reads, or already
-   a set), "" when it can */
-std::string intern_set_name_problem(const Model &m, std::string_view name);
-/* `set name {p=v,...,x=v,...}`: every parameter and initial condition as
-   it is now, numbers that read back exactly */
-std::string intern_set_line(const Session &s, std::string_view name);
+/* the current values of scope (as apply_named_set's) as a save writes them: every
+   parameter, every state (the last state reached, stored, when last_state), and
+   every setting of the groups a set holds that the scope covers, from graph (the
+   active one when none) for the plot settings. The error when a scope or graph is
+   none, or the last state was asked and nothing was run. */
+Result<odex::Values> captured_values(Session &s, std::string_view scope, std::optional<int> graph, bool last_state);
+/* what a key of a set is in m: a parameter, a state, or neither */
+odex::ValueKind value_kind(const Model &m, std::string_view name);
 
 } // namespace xpp
 #endif

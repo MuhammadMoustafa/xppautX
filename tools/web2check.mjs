@@ -3780,11 +3780,11 @@ async function navigationCheck() {
     document.querySelectorAll('.command-group').length === 5 && document.querySelector('.title-bar h1').textContent === 'lecar.odex'`));
   check('navigation: the Tools group holds only the Calculator; the commands that live in a panel are not in the command list (W229)', await cdp.eval(`(() => {
     const tools = [...document.querySelectorAll('.command-group')].find(d => d.querySelector('summary').textContent === 'Tools');
-    const moved = ['source', 'transpose', 'lookup', 'getparset', 'copyset', 'restoredefaults', 'keymapeditor', 'record', 'play', 'help', 'tutorial', 'xpprc', 'clone'];
+    const moved = ['source', 'transpose', 'lookup', 'getparset', 'savevalues', 'savedefaults', 'exportvalues', 'renameset', 'deleteset', 'restoredefaults', 'keymapeditor', 'record', 'play', 'help', 'tutorial', 'xpprc', 'clone'];
     return [...tools.querySelectorAll('.menu-item')].map(b => b.dataset.item).join() === 'calculator'
       && !moved.some(id => document.querySelector('.menu-item[data-item=' + id + ']')); })()`));
-  check('navigation: each moved command is beside its work: Named sets and Copy set line in the Values panel, Transpose and Lookup tables in the Data panel (W229)',
-    await cdp.eval(`['#values-panel button[data-item=getparset]', '#values-panel button[data-item=copyset]', '#values-panel button[data-item=restoredefaults]',
+  check('navigation: each moved command is beside its work: Apply set and Save values in the Values panel, Transpose and Lookup tables in the Data panel (W229)',
+    await cdp.eval(`['#values-panel button[data-item=getparset]', '#values-panel button[data-item=savevalues]', '#values-panel button[data-item=restoredefaults]',
       '#table-panel button[data-item=transpose]', '#table-panel button[data-item=lookup]'].every(s => !!document.querySelector(s))`));
   await cdp.eval(`document.querySelector('#values-panel button[data-item=getparset]').click()`);
   check('navigation: Apply set… asks which set, in a menu with a letter for each (W229)',
@@ -4268,23 +4268,15 @@ async function keysCheck() {
     && await cdp.eval(`document.activeElement.matches('.run-toolbar button.primary')`), await cdp.eval(`document.activeElement.outerHTML.slice(0, 80)`));
   await key('Escape');
   await until('s.pendingKeys.length === 0 && !s.busy', 'chord cancelled 2');
-  /* W67: File/cOpy set line by its menu button: the core asks the set's name, shows the line,
-     and sends it; the page shows what it copies (the toast holds the line, copied or, when the
-     clipboard is refused, to copy by hand) */
-  const sentCopy0 = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`document.querySelector('#values-panel button[data-menu=file][data-item=copyset]').click()`);
-  check('copy set: its button beside the parameters sends the key o',
-    await cdp.eval(`__xpp.sentFrom(${sentCopy0}).some(c => c.cmd === 'key' && c.menu === 'file' && c.item === 'copyset')`));
-  check('copy set: the core asks the name, pre-filled set1 or the next free one',
-    await until("s.ask && s.ask.kind === 'string' && /^set[0-9]+$/.test(s.ask.value)", 'name ask'), JSON.stringify(await S('s.ask')));
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: 'mine'})`);
-  check('copy set: the line is shown for confirmation before it is copied',
-    await until("s.ask && s.ask.kind === 'choice' && s.ask.question.includes('set mine {') && s.ask.question.includes('iapp: ')", 'line ask'),
-    JSON.stringify(await S('s.ask')));
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'c'})`);
-  check('copy set: the page receives the line (a toast holds it)',
-    await until("s.toasts.some(t => /set mine \{ iapp: [^}]*, v: [^}]*\}/.test(t.text))", 'copy toast') && await until('!s.busy', 'idle after copy'),
-    JSON.stringify(await S('s.toasts')));
+  /* W320: File > Save values by its menu button: the core asks which, a new set or a set's part */
+  const sentSave0 = await cdp.eval('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('#values-panel button[data-menu=file][data-item=savevalues]').click()`);
+  check('save values: its button beside the parameters sends the key o',
+    await cdp.eval(`__xpp.sentFrom(${sentSave0}).some(c => c.cmd === 'key' && c.menu === 'file' && c.item === 'savevalues')`));
+  check('save values: the core asks New set or Replace in set',
+    await until("s.ask && s.ask.kind === 'menu' && s.ask.name === 'save_mode' && s.ask.items.length === 2", 'mode menu'), JSON.stringify(await S('s.ask')));
+  await key('Escape');
+  await until('!s.busy && !s.ask', 'save menu closed');
   /* a letter typed into a field stays there */
   const sent0 = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`(() => { const i = document.querySelector('.messages-search input'); i.closest('details').open = true; i.focus(); })()`);

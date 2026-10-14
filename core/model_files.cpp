@@ -144,6 +144,24 @@ Place model_place(const Model &m, const odex::Pos &pos)
     return p;
 }
 
+void set_model_source(Model &m, std::string_view text)
+{
+    m.source.clear();
+    LineReader lr = LineReader::of_text(std::string(text));
+    while (std::optional<std::string_view> line = lr.next()) m.source.push_back(std::string(*line) + "\n");
+}
+
+void replace_model_text(Model &m, std::string bytes)
+{
+    set_model_source(m, bytes);
+    const long i = file_index(m, m.this_file);
+    if (i < 0) return;
+    ModelFile &file = m.files[static_cast<size_t>(i)];
+    file.bytes = std::move(bytes);
+    m.source_lines.erase(file.name);
+    index_source_lines(m, file);
+}
+
 void index_model_places(Model &m)
 {
 

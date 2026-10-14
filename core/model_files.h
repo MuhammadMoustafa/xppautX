@@ -87,6 +87,13 @@ LineReader model_file_lines(Model &m, const std::string &name);
    as what it is, by its name) nor any other binary file (a NUL byte) */
 bool is_model_text(std::string_view bytes);
 
+/* m's own file (this_file) now holds bytes, a save of the model file having
+   written them (model_save.h): its bytes as the load read them, its source
+   lines and the line index errors quote from. */
+void replace_model_text(Model &m, std::string bytes);
+/* m.source: the model file's lines of text, each with its line end */
+void set_model_source(Model &m, std::string_view text);
+
 /* Finish the load's name index with diagnostic places and source lines. */
 void index_model_places(Model &m);
 

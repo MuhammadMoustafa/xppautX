@@ -445,7 +445,6 @@ XppUi make_json_ui(void)
     u.show_eq_box = j_show_eq_box;
     u.make_txtview = j_make_txtview;
     u.q_calc = j_q_calc;
-    u.copy_text = j_copy_text;
     u.record_toggle = j_record_toggle;
     u.play_recording = j_play_recording;
     u.recording = j_recording;
@@ -628,6 +627,11 @@ const CommandInfo commands[] = {
     {"set", nullptr, S, STEP, apply_set},
     {"applyset", nullptr, S, STEP, applyset_command},
     {"restoredefaults", nullptr, S, STEP, restoredefaults_command},
+    {"saveset", nullptr, D, STEP, saveset_command},
+    {"savedefaults", nullptr, D, STEP, savedefaults_command},
+    {"exportset", nullptr, D, STEP, exportset_command},
+    {"renameset", nullptr, D, STEP, renameset_command},
+    {"deleteset", nullptr, D, STEP, deleteset_command},
     {"slide", nullptr, S, STEP, slide_command},
     {"slider", nullptr, S, STEP, slider_command},
     {"action", nullptr, D, STEP, action_command},
@@ -998,7 +1002,6 @@ void install(bool silent)
         /* NULL keeps the headless entry (set_ui) */
         ui.err_msg = nullptr;
         ui.respond_box = nullptr;
-        ui.copy_text = nullptr;
     }
     set_ui(&ui);
 }

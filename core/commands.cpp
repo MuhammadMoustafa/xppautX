@@ -26,6 +26,7 @@
 #include "grobs.h"
 #include "integrate.h"
 #include "load_eqn.h"
+#include "model_save.h"
 #include "lunch-new.h"
 #include "markov.h"
 #include "nullcline.h"
@@ -156,21 +157,108 @@ static void restore_defaults_menu(xpp::Session &s)
   xpp::ok_or_show(xpp::restore_defaults(s, scopes[static_cast<std::size_t>(scope)], "", graph));
 }
 
-/* File/cOpy set line (W67): the current values as a `set` line for the
-   .odex, shown for confirmation, then sent to the page's clipboard */
-static void copy_set_line(xpp::Session &s)
+/* what a save asks after the kind: the scope (all or one section), the graph for
+   the plot settings, and, when the initial values go in, whether they are the
+   initial values or the last state reached; false when any is cancelled */
+struct SaveChoice {
+  std::string scope;
+  std::optional<int> graph;
+  bool last_state = false;
+};
+
+static bool ask_save_choice(xpp::Session &s, std::string_view title, SaveChoice &choice)
 {
+  const std::vector<std::string> scopes = xpp::set_scopes();
+  const int scope = pick_from_list("save_scope", title, scopes);
+  if (scope < 0) return false;
+  choice.scope = scopes[static_cast<std::size_t>(scope)];
+  if (!pick_target_graph(s, choice.scope, choice.graph)) return false;
+  const bool states = choice.scope == xpp::set_scope::all || choice.scope == xpp::set_scope::initial;
+  if (states && s.data_store.rows > 0) {
+    const int answer = TwoChoice("Initial values", "Last state", "Save the initial values, or the last state reached?", "il");
+    if (answer == 0) return false;
+    choice.last_state = answer == 'l';
+  }
+  return true;
+}
+
+/* File/Save values (savevalues): the current values, a new set or the part of a set
+   of this model file, written by xpp::save_new_set / save_into_set */
+static void save_values_menu(xpp::Session &s)
+{
+  const std::vector<std::string> modes{"New set", "Replace in set"};
+  const int mode = pick_from_list("save_mode", "Save values", modes);
+  if (mode < 0) return;
+  std::string name;
+  if (mode == 0) {
+    name = xpp::intern_set_default_name(s.model());
+    if (!new_string("Name of the set", name)) return;
+  } else {
+    const std::vector<std::string> own = xpp::own_set_names(s);
+    if (own.empty()) {
+      bottom_msg(0, "This model file has no set of its own to replace values in");
+      return;
+    }
+    const int pick = pick_from_list("save_set", "Set", own);
+    if (pick < 0) return;
+    name = own[static_cast<std::size_t>(pick)];
+  }
+  SaveChoice choice;
+  if (!ask_save_choice(s, mode == 0 ? "Save into the new set" : "Replace in the set", choice)) return;
+  if (mode == 1 && !confirm(xpp::format("Replace the {} values of set {} in {}? Its other parts stay as they are.", choice.scope == xpp::set_scope::all ? "all" : choice.scope, name, s.model().this_file))) return;
+  xpp::ok_or_show(mode == 0 ? xpp::save_new_set(s, name, choice.scope, choice.graph, choice.last_state)
+                            : xpp::save_into_set(s, name, choice.scope, choice.graph, choice.last_state));
+}
+
+/* File/Save as defaults (savedefaults): the current values as the model's par and init lines and options groups */
+static void save_defaults_menu(xpp::Session &s)
+{
+  SaveChoice choice;
+  if (!ask_save_choice(s, "Save as defaults", choice)) return;
+  xpp::ok_or_show(xpp::save_defaults(s, choice.scope, choice.graph, choice.last_state));
+}
+
+/* File/Export values (exportvalues): the current values as a set of another .odex file */
+static void export_values_menu(xpp::Session &s)
+{
+  SaveChoice choice;
+  if (!ask_save_choice(s, "Export", choice)) return;
   std::string name = xpp::intern_set_default_name(s.model());
   if (!new_string("Name of the set", name)) return;
-  std::string problem = xpp::intern_set_name_problem(s.model(), name);
-  if (!problem.empty()) {
-    command_error("copy set", problem);
-    return;
+  std::string file = xpp::files::output_name(s.model().this_file, xpp::odex::extension, "values");
+  if (!file_selector("Export to", file, xpp::format("*{}", xpp::odex::extension))) return;
+  xpp::ok_or_show(xpp::export_values(s, name, choice.scope, file, choice.graph, choice.last_state));
+}
+
+/* one of the model file's own sets, picked; empty when none or cancelled */
+static std::string pick_own_set(xpp::Session &s, std::string_view title)
+{
+  const std::vector<std::string> own = xpp::own_set_names(s);
+  if (own.empty()) {
+    bottom_msg(0, "This model file has no set of its own");
+    return "";
   }
-  std::string line = xpp::intern_set_line(s, name);
-  std::string question = xpp::format("Copy this line to paste into the model (.odex), then reload:\n{}", line);
-  if (TwoChoice("Copy", "Cancel", question, "cn") != 'c') return;
-  copy_text("set", line);
+  const int pick = pick_from_list("own_set", title, own);
+  return pick < 0 ? "" : own[static_cast<std::size_t>(pick)];
+}
+
+/* File/Rename set (renameset) */
+static void rename_set_menu(xpp::Session &s)
+{
+  const std::string from = pick_own_set(s, "Rename set");
+  if (from.empty()) return;
+  std::string to = from;
+  if (!new_string("New name", to)) return;
+  xpp::ok_or_show(xpp::rename_intern_set(s, from, to));
+}
+
+/* File/Delete set (deleteset) */
+static void delete_set_menu(xpp::Session &s)
+{
+  const std::string name = pick_own_set(s, "Delete set");
+  if (name.empty()) return;
+  if (!confirm(xpp::format("Delete the set {} from {}?", name, s.model().this_file))) return;
+  xpp::ok_or_show(xpp::delete_intern_set(s, name));
 }
 
 /* ---- the command switch --------------------------------------------- */
@@ -268,7 +356,7 @@ void run_the_commands(xpp::Session &s, int com)
     do_windows_com(s, com - M_MC);
     return;
   }
-  if (com >= M_FP && com <= M_FO) {
+  if (com >= M_FP && com <= M_FG) {
     do_file_com(s, com);
     return;
   }
@@ -307,7 +395,6 @@ static void do_file_com(xpp::Session &s, int com)
   case M_FC: q_calc(s); break;
   case M_FR: xpp::import_settings_command(s); break;
   case M_FQ: xpp_quit(s); break;
-  case M_FO: copy_set_line(s); break;
   }
 }
 
@@ -442,7 +529,11 @@ void commander(xpp::Session &s, int ch)
       xpp_quit(s);
       flash(7);
       break;
-    case 'o': copy_set_line(s); break;
+    case 'o': save_values_menu(s); break;
+    case 'j': save_defaults_menu(s); break;
+    case 'i': export_values_menu(s); break;
+    case 'z': rename_set_menu(s); break;
+    case 'f': delete_set_menu(s); break;
     case 'm': xpp_model_open(s, nullptr); break;
     case 'e': xpp_model_reload(s); break;
     case 'v': xpp_session_save_here(s); break;

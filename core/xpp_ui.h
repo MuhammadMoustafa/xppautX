@@ -153,7 +153,6 @@ void init_txtview(void);
 void bye_bye(void);
 void draw_help(void);
 void NewColormap(int type);
-void copy_text(std::string_view what, std::string_view text);
 
 /* The front end's character cell in pixels, for laying out the AUTO and
    array plot windows and text in plots: a big and a small monospace font.
@@ -361,8 +360,6 @@ typedef struct XppUi {
        Headless: they do nothing. */
     void (*make_txtview)(Session &s); /* File/Prt src: source and active comments */
     void (*q_calc)(Session &s);       /* File/Calculator: evaluate formulas */
-    /* File/cOpy set line: text for the user's clipboard (what: "set") */
-    void (*copy_text)(std::string_view what, std::string_view text);
     /* File/recorD: start recording the session's steps, or stop and save
        the recording (W59a, json_record.cpp) */
     void (*record_toggle)(Session &s);

@@ -243,7 +243,7 @@ def last_state(evs):
 evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
-check('hello', hello is not None and len(hello["command_table"]) == 62)
+check('hello', hello is not None and len(hello["command_table"]) == 66)
 check('hello says protocol 3, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 3 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
@@ -342,7 +342,7 @@ def check_command_table(table):
           and all(r['legacy_keys'] == [] for r in table if r['id'] in PAGE_COMMANDS),
           str(keys))
     # W229, W228: what the page runs from a panel, a button of the plot or the title bar has a row and no group or pin
-    PANEL_COMMANDS = ['source', 'transpose', 'getparset', 'copyset', 'restoredefaults', 'record', 'play', 'keymapeditor', 'lookup',
+    PANEL_COMMANDS = ['source', 'transpose', 'getparset', 'savevalues', 'savedefaults', 'exportvalues', 'renameset', 'deleteset', 'restoredefaults', 'record', 'play', 'keymapeditor', 'lookup',
                       'window', 'viewaxes', '3dparams']
     layer = [(r['menu'], r['id']) for r in table if r['category'] == 'layer']
     check('W207: the shortcut-layer switches are File, Numerics and Return to main shortcuts, and none can be pinned; '
@@ -2246,6 +2246,220 @@ def check_apply_restore():
 
 
 check_apply_restore()
+
+
+def check_save_values():
+    """W320: Save values into the model file (`saveset`, `savedefaults`, `exportset`, `renameset`,
+    `deleteset`): the file's text before and after (the rest byte for byte), the live model following,
+    a refused write changing nothing, and a recording replaying the saves"""
+    folder = tempfile.mkdtemp(prefix='w320')
+    model = os.path.join(folder, 'w320.odex')
+    original = ("# W320 test model\n"
+                "import \"lib.odex\"\n"
+                "x' = -a*x + b   # decay\n"
+                "y' = -y + c\n"
+                "par a = 1, b = 2, c = 0.5\n"
+                "init x = 0.5, y = 2*a\n"
+                "\n"
+                "options {\n"
+                "  integration: { dt: 0.02, total_time: 9 },\n"
+                "}\n"
+                "\n"
+                "# regimes\n"
+                "set pa { a: 10, b: 20 }\n"
+                "set mix { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { xlo: -3, xhi: 3 } } }\n")
+    with open(model, 'w', newline='') as f:
+        f.write(original)
+    with open(os.path.join(folder, 'lib.odex'), 'w', newline='') as f:
+        f.write("set shared { a: 3 }\n")
+    s = Server(args.server, model, run=folder)
+    errs = lambda evs: [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+
+    def run(**cmd):
+        s.send(**cmd)
+        return s.answer_asks(is_idle, {'choice': lambda e: {'key': 'y'}}, timeout=60 * SLOW)[0]
+
+    def text(name='w320.odex'):
+        with open(os.path.join(folder, name), newline='') as f:
+            return f.read()
+
+    def view():
+        st = last_state(run(cmd='state'))
+        evs = run(cmd='data', events=['numerics'])
+        num = next(dict((f['key'], f['value']) for f in e['fields']) for e in reversed(evs) if e.get('ev') == 'numerics')
+        return (dict(st['pars']), {k.lower(): v for k, v in st['ics']}, num['dt'], num['total_time'])
+
+    try:
+        s.collect(is_idle)
+        before = text()
+        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 7}, {'kind': 'par', 'name': 'b', 'value': 2.5}])
+        # a new set goes at the end of the file, the rest as it was
+        evs = run(cmd='saveset', set='s1', mode='new', scope='parameters')
+        after = text()
+        check('W320: a new set is appended; the rest of the file is byte for byte as it was',
+              not errs(evs) and after.startswith(before) and after[len(before):].strip().startswith('set s1 {')
+              and 'a: 7' in after[len(before):] and 'b: 2.5' in after[len(before):] and 'x:' not in after[len(before):], repr(after[len(before):]) + str(errs(evs)))
+        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1}])
+        evs = run(cmd='applyset', set='s1', scope='parameters')
+        check('W320: the live model knows the new set at once', not errs(evs) and view()[0]['a'] == 7, str(errs(evs)))
+        # a part of a set replaced, its other parts as they were
+        run(cmd='set', values=[{'kind': 'ic', 'name': 'x', 'value': 0.1}, {'kind': 'ic', 'name': 'y', 'value': 0.2}])
+        old = text()
+        evs = run(cmd='saveset', set='mix', mode='replace', scope='initial')
+        new = text()
+        mix = [new[new.index('set mix'):]]
+        check('W320: replacing the initial values of mix keeps its parameter and its options as written',
+              not errs(evs) and mix and 'a: 5' in mix[0] and 'x: 0.1' in mix[0] and 'y: 0.2' in mix[0] and 'x: 0.9' not in mix[0]
+              and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: { xlo: -3, xhi: 3 }' in mix[0], str(mix) + str(errs(evs)))
+        check('W320: the rest of the file is byte for byte as it was', new[:old.index('set mix')] == old[:old.index('set mix')], '')
+        run(cmd='set', values=[{'kind': 'ic', 'name': 'x', 'value': 3}])
+        run(cmd='applyset', set='mix', scope='initial')
+        check('W320: the live model uses the replaced part', view()[1]['x'] == 0.1)
+        evs = run(cmd='saveset', set='mix', mode='replace', scope='plot')
+        mix = [text()[text().index('set mix'):]]
+        check('W320: replacing the plot settings leaves the rest of the set', not errs(evs) and mix and 'xlo: -3' not in mix[0]
+              and 'x: 0.1' in mix[0] and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: {' in mix[0], str(mix) + str(errs(evs)))
+        # the defaults: par and init lines in place, an options group
+        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 4}, {'kind': 'num', 'name': 'dt', 'text': '0.05'}])
+        old = text()
+        evs = run(cmd='savedefaults', scope='parameters')
+        new = text()
+        check('W320: Save as defaults rewrites the changed values of the par line where they stand, nothing else',
+              not errs(evs) and 'par a = 4, b = 2.5, c = 0.5' in new and new.replace('par a = 4, b = 2.5, c = 0.5', 'par a = 1, b = 2, c = 0.5') == old, new[:300] + str(errs(evs)))
+        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 9}])
+        run(cmd='restoredefaults', scope='parameters')
+        check('W320: Restore defaults uses the new defaults at once', view()[0]['a'] == 4 and view()[0]['b'] == 2.5, str(view()))
+        evs = run(cmd='savedefaults', scope='integration')
+        new = text()
+        check('W320: an options group is replaced in the options block',
+              not errs(evs) and 'dt: 0.05' in new and 'dt: 0.02' not in new and new.count('options {') == 1, new[new.index('options'):][:200] + str(errs(evs)))
+        run(cmd='set', values=[{'kind': 'num', 'name': 'dt', 'text': '0.5'}])
+        run(cmd='restoredefaults', scope='integration')
+        check('W320: Restore defaults gives the saved options', view()[2] == 0.05, str(view()))
+        evs = run(cmd='savedefaults', scope='initial')
+        new = text()
+        check('W320: the initial values saved as defaults replace the init line where it stands',
+              not errs(evs) and 'init x = ' in new, new[new.index('init'):][:80] + str(errs(evs)))
+        # export to another file, a new one then an existing one with a set of that name
+        evs = run(cmd='exportset', set='e1', scope='parameters', file='out.odex')
+        out = text('out.odex')
+        check('W320: Export writes a new file with the Saved-from header and the set',
+              not errs(evs) and out.startswith('# Saved from w320.odex at ') and 'set e1 {' in out, out + str(errs(evs)))
+        evs = run(cmd='exportset', set='e1', scope='initial', file='out.odex')
+        out2 = text('out.odex')
+        check('W320: Export to an existing set asks and replaces its part of that kind',
+              not errs(evs) and out2.count('set e1') == 1 and out2.startswith(out.split('set e1')[0]), out2 + str(errs(evs)))
+        evs = run(cmd='exportset', set='e2', scope='integration', file='out.odex')
+        out3 = text('out.odex')
+        check('W320: Export to an existing file appends a set of another name', not errs(evs) and 'set e2 {' in out3 and out3.startswith(out2), out3 + str(errs(evs)))
+        # rename and delete
+        evs = run(cmd='renameset', set='pa', to='pb')
+        new = text()
+        check('W320: Rename changes the name in the file and in the model',
+              not errs(evs) and 'set pb { a: 10, b: 20 }' in new and 'set pa' not in new, str(errs(evs)))
+        evs = run(cmd='applyset', set='pb', scope='parameters')
+        check('W320: the renamed set applies, the old name is gone', not errs(evs) and view()[0]['a'] == 10
+              and errs(run(cmd='applyset', set='pa', scope='parameters')), '')
+        old = text()
+        evs = run(cmd='deleteset', set='pb')
+        new = text()
+        check('W320: Delete removes the set and its line only', not errs(evs) and new == old.replace('set pb { a: 10, b: 20 }\n', ''), new[-200:] + str(errs(evs)))
+        # refusals change nothing
+        old = text()
+        for bad, why in ((dict(cmd='saveset', set='s1', mode='new', scope='parameters'), 'already a set'),
+                         (dict(cmd='saveset', set='shared', mode='replace', scope='parameters'), 'read-only'),
+                         (dict(cmd='saveset', set='nosuch', mode='replace', scope='parameters'), 'no set nosuch'),
+                         (dict(cmd='saveset', set='bad name', mode='new', scope='parameters'), 'not a valid name'),
+                         (dict(cmd='saveset', set='s9', mode='new', scope='bogus'), 'bogus is not a scope'),
+                         (dict(cmd='saveset', set='s9', mode='new', scope='plot', win=7), 'not an open plot window'),
+                         (dict(cmd='saveset', set='s9', mode='zzz', scope='parameters'), 'needs a set, a mode'),
+                         (dict(cmd='saveset', set='s9', mode='new', scope='parameters', state='next'), 'state is initial or last'),
+                         (dict(cmd='saveset', set='s9', mode='new', scope='initial', state='last'), 'no run has reached a state'),
+                         (dict(cmd='renameset', set='shared', to='mine'), 'read-only'),
+                         (dict(cmd='renameset', set='s1', to='mix'), 'already a set'),
+                         (dict(cmd='deleteset', set='shared'), 'read-only'),
+                         (dict(cmd='deleteset', set='nosuch'), 'no set nosuch'),
+                         (dict(cmd='exportset', set='x1', scope='parameters', file='w320.odex'), 'is the model file'),
+                         (dict(cmd='exportset', set='x1', scope='parameters', file='notodex.txt'), 'not an .odex file')):
+            es = errs(run(**bad))
+            check('W320: %s is refused (%s), the file is as it was' % (json.dumps(bad), why),
+                  len(es) == 1 and why in es[0] and text() == old, str(es))
+        # the file changed on disk since the load: refused, said so, left alone
+        with open(model, 'a', newline='') as f:
+            f.write('# someone else\n')
+        changed = text()
+        es = errs(run(cmd='saveset', set='s2', mode='new', scope='parameters'))
+        check('W320: a file changed on disk since the load is refused and left as it is',
+              len(es) == 1 and 'changed on disk' in es[0] and text() == changed, str(es))
+        with open(model, 'w', newline='') as f:
+            f.write(old)
+        # File > Save values, Export and Delete by their menus: the same writer through the same commands
+        def menu_flow(key, picks, text='menuset', file='menu_out.odex'):
+            """File menu item `key`: a menu ask is answered by the item named in picks (in order), a string by text"""
+            s.send(cmd='key', key='f')
+            s.collect(is_idle)
+            s.send(cmd='key', key=key)
+            todo = list(picks)
+            got = []
+            while True:
+                evs, e = s.collect(lambda e: is_ask(e) or is_idle(e), timeout=60 * SLOW)
+                got += evs
+                if e is None or not is_ask(e):
+                    return got
+                if e['kind'] == 'menu':
+                    want = todo.pop(0)
+                    s.send(cmd='answer', id=e['id'], key=e['keys'][[i.split(': ', 1)[-1] for i in e['items']].index(want)])
+                elif e['kind'] == 'string':
+                    s.send(cmd='answer', id=e['id'], value=text)
+                elif e['kind'] == 'file':
+                    s.send(cmd='answer', id=e['id'], file=file)
+                else:
+                    s.send(cmd='answer', id=e['id'], key='y')
+        evs = menu_flow('o', ['New set', 'parameters'])
+        check('W320: File > Save values: New set, a name, parameters writes the set', not errs(evs) and 'set menuset {' in text(), str(errs(evs)))
+        evs = menu_flow('i', ['plot'], text='menuex')
+        check('W320: File > Export values writes the set to the file picked', not errs(evs) and 'set menuex {' in text('menu_out.odex'), str(errs(evs)))
+        evs = menu_flow('f', ['menuset'])
+        check('W320: File > Delete set asks, then deletes the set from the file', not errs(evs) and 'set menuset' not in text(), str(errs(evs)))
+        evs = menu_flow('z', ['s1'], text='s1b')
+        check('W320: File > Rename set asks which set and the new name', not errs(evs) and 'set s1b {' in text() and 'set s1 {' not in text(), str(errs(evs)))
+        old = text()
+        # a plot's settings saved and applied again
+        evs = run(cmd='applyset', set='mix', scope='plot')
+        check('W320: the plot settings saved in a set apply again', not errs(evs), str(errs(evs)))
+        # a recording of the saves replays on the model it recorded (a saved model's copy changes, not the disk)
+        run(cmd='record', op='start')
+        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 3}])
+        run(cmd='saveset', set='rec1', mode='new', scope='parameters')
+        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1}])
+        run(cmd='renameset', set='rec1', to='rec2')
+        run(cmd='applyset', set='rec2', scope='parameters')
+        end = view()
+        run(cmd='record', op='stop', name='w320.recx')
+        on_disk = text()
+        replay = replay_recording(args.server, model, os.path.join(folder, 'w320.recx'), folder)
+        replayed = [json.loads(l) for l in replay.stdout.splitlines() if l.strip()]
+        last = next((e for e in reversed(replayed) if is_state(e)), {})
+        check('W320: a recording of Save values, Rename and Apply set replays to the same values',
+              replay.returncode == 0 and dict(last.get('pars', [])) == end[0], '%d %s' % (replay.returncode, replay.stderr[-300:]))
+        check('W320: the replay wrote nothing to the model file on the disk', text() == on_disk)
+        with open(model, 'w', newline='') as f:
+            f.write(old)
+        # the saved file loads again and gives the same values
+        t = Server(args.server, model, run=folder)
+        try:
+            evs, _ = t.collect(is_idle)
+            st = last_state(evs)
+            check('W320: the file as saved loads again, with the saved defaults',
+                  st and dict(st['pars'])['a'] == 4 and dict(st['pars'])['b'] == 2.5, str(st and st['pars']))
+        finally:
+            t.close()
+    finally:
+        s.close()
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+check_save_values()
 
 
 # Nullclines, direction fields and flows as data (docs/protocol.md "The
@@ -4611,78 +4825,8 @@ def check_kept_behind_ask():
               str([x.get('ev') for x in evs2]))
     finally:
         stop_server(p, r, snd)
-
-
 check_kept_behind_ask()
 
-def check_copy_set():
-    """W67: File/cOpy set line asks the set's name, shows the line, and sends it
-    (the copy event); pasted into the .odex, Named sets reproduces the state"""
-    p, r, snd, col, _ = launch_server()
-    p2 = r2 = None
-    try:
-        col(is_idle)
-        snd(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'value': 0.1234567891234567},
-                               {'kind': 'ic', 'name': 'V', 'value': -0.7000000000000001}])
-        evs, _ = col(is_idle)
-        st = last_state(evs)
-
-        def copy_with(name):
-            snd(cmd='key', key='f')
-            col(is_idle)
-            snd(cmd='key', key='o')
-            got, prompt = [], None
-            while True:
-                evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=20 * SLOW)
-                got += evs
-                if e is None or e['ev'] == 'idle':
-                    return got, prompt
-                if e['kind'] == 'string':
-                    prompt = e
-                    snd(cmd='answer', id=e['id'], value=name)
-                else:
-                    prompt = prompt or e
-                    snd(cmd='answer', id=e['id'], key='c')
-
-        evs, first = copy_with('set1')
-        check('cOpy set line: the name is asked, pre-filled with set1',
-              first and first['kind'] == 'string' and first.get('value') == 'set1', str(first))
-        copies = [e for e in evs if e.get('ev') == 'copy']
-        line = copies[0]['text'] if copies else ''
-        check('cOpy set line: the copy event carries a set line with every parameter and IC',
-              len(copies) == 1 and line.startswith('set set1 { ') and line.endswith(' }')
-              and line.count(':') == len(st['pars']) + len(st['ics']) and 'iapp: 0.1234567891234567' in line, line[:200])
-        for name in ('bad name', 'set'):
-            evs, _ = copy_with(name)
-            check('cOpy set line: refuses %r (no copy)' % name, not [e for e in evs if e.get('ev') == 'copy'], '')
-        odelines = open(os.path.join(r, os.path.basename(args.ode)), encoding='utf-8').read().splitlines()
-        # The copied line is the .odex set statement
-        odelines.append(line)
-        with open(os.path.join(r, 'withset.odex'), 'w', encoding='utf-8') as f:
-            f.write('\n'.join(odelines) + '\n')
-        p2, r2, snd2, col2, _ = launch_server(ode=os.path.join(r, 'withset.odex'))
-        evs2, _ = col2(is_idle)
-        st0 = last_state(evs2)
-        check('set line loads: values differ before Named sets', st0 and st0['pars'] != st['pars'], '')
-        snd2(cmd='key', key='f')
-        col2(is_idle)
-        snd2(cmd='key', key='g')
-        evs2, ask = col2(lambda e: e.get('ev') == 'ask')
-        check('Named sets lists the copied set', ask is not None and ask['kind'] == 'menu', str(ask))
-        evs2 = []
-        if ask:
-            snd2(cmd='answer', id=ask['id'], key=next(i[0] for i in ask['items'] if i.endswith(': set1')))
-            evs2 = answer_scope(col2, snd2)
-        st2 = last_state(evs2)
-        check('Named sets with the copied name reproduces the parameters and ICs exactly',
-              st2 and st2['pars'] == st['pars'] and st2['ics'] == st['ics'], str((st2 or {}).get('pars'))[:200])
-    finally:
-        stop_server(p, r, snd)
-        if p2:
-            stop_server(p2, r2, snd2)
-
-
-check_copy_set()
 
 
 def check_open_reload():

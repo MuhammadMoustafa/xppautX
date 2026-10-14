@@ -519,18 +519,6 @@ void j_show_menu(int which)
     send_buf(&b);
 }
 
-/* text for the page's clipboard */
-void j_copy_text(std::string_view what, std::string_view text)
-{
-    Buf b;
-    BUF_LIT(&b, "{\"ev\":\"copy\",\"what\":");
-    buf_str(&b, what);
-    BUF_LIT(&b, ",\"text\":");
-    buf_str(&b, text);
-    BUF_LIT(&b, "}");
-    send_buf(&b);
-}
-
 /* one pointer event of a drag in window win: 1 down, 2 move, 3 up; 0 when
    a key or Cancel ends the drag */
 int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y)

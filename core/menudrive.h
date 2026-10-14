@@ -140,9 +140,6 @@ struct Session; /* session.h */
 #define M_FT 209
 #define M_FG 211
 
-/* File/cOpy set line (W67) */
-#define M_FO 219
-
 /*  some numerics commands */
 
 #define M_UAN 300

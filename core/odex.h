@@ -116,6 +116,9 @@ struct Binding {
   Pos pos;
   Expr value;
   std::optional<Expr> index;
+  /* the binding's text in its file (odex_write.h): from its name to the end
+     of its value, and where the value starts; .odex only */
+  std::size_t begin = 0, value_begin = 0, end = 0;
 };
 
 /* a statement's trailing range (.odex's arrays, W80): for index in
@@ -150,6 +153,9 @@ struct Option {
   std::string group, name, value;
   Pos pos, value_pos;
   std::optional<setx::Value> tree;
+  /* the entry's text in its file (odex_write.h): from its key to the end of
+     its value */
+  std::size_t begin = 0, end = 0;
 };
 
 /* a statement of the model; its formulas .odex's trees or, from the .ode
@@ -196,8 +202,13 @@ struct Statement {
   };
   Kind kind = Kind::Fixed;
   Pos pos;
+  /* the statement's text in its file, from its first token to the end of its
+     range when it has one (odex_write.h): .odex only */
+  std::size_t begin = 0, end = 0;
   std::string name;
   Pos name_pos;
+  /* where the name starts in the text (.odex only) */
+  std::size_t name_begin = 0;
   /* the name as its author wrote it, when the .ode reader kept it in
      upper case (name) ("" for the .odex's, and a statement with none) */
   std::string written;

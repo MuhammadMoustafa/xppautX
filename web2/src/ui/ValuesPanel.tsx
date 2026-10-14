@@ -168,8 +168,16 @@ function Parameters() {
         <FileTools kind="par" />
         <CommandButton menu="file" item="getparset" label="Apply set…"
           title="Apply one of the model's named sets (the set lines of the model): all of it, or only its parameters, initial values or one group of settings" />
-        <CommandButton menu="file" item="copyset" label="Copy set line"
-          title="Copy the current values as a named set line to paste into the model" />
+        <CommandButton menu="file" item="savevalues" label="Save values…"
+          title="Write the current values into the model file: a new set, or in place of a set's part (parameters, initial values or one group of settings)" />
+        <CommandButton menu="file" item="savedefaults" label="Save as defaults…"
+          title="Write the current values as the model's own: its par and init lines, or an options group. Restore defaults then uses them" />
+        <CommandButton menu="file" item="exportvalues" label="Export values…"
+          title="Write the current values as a set of another .odex file" />
+        <CommandButton menu="file" item="renameset" label="Rename set…"
+          title="Rename one of the model file's own sets" />
+        <CommandButton menu="file" item="deleteset" label="Delete set…"
+          title="Delete one of the model file's own sets from the model file" />
         <CommandButton menu="file" item="restoredefaults" label="Restore defaults…"
           title="Put the model's own values back: everything, or the parameters, initial values or one group of settings" />
         <button class="small" onClick={() => session.defaultValues('par')} title="Every parameter from the ODE file">

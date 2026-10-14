@@ -28,6 +28,7 @@
 #include "load_eqn.h"
 #include "value_undo.h"
 #include "form_ode.h"
+#include "numerics_settings.h"
 #include "odex.h"
 
 #include "browse.h"
@@ -214,8 +215,11 @@ if(s.plot_settings.my_ylo>=s.plot_settings.my_yhi){
    { x=y, z=w, q=p , .... }
 */
 
-void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does,
-                    std::vector<std::pair<std::string,std::string>> settings)
+namespace {
+
+/* the set added at where (the line of its statement) */
+void add_set_at(xpp::Model &m, std::string_view name, std::string_view does,
+                std::vector<std::pair<std::string,std::string>> settings, const xpp::Place &where)
 {
   std::vector<xpp::Model::InternalSet> &sets=m.intern_sets;
   if(sets.size()>=MAX_INTERN_SET){
@@ -235,13 +239,56 @@ void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does,
     it->second.kind=xpp::Model::NameKind::Set;
     it->second.index=static_cast<int>(sets.size());
     it->second.written=name;
-    it->second.pos={0,xpp::Load::place().line,xpp::Load::place().col};
+    it->second.pos={0,where.line,where.col};
   }
   if(it->second.set<0)it->second.set=static_cast<int>(sets.size());
   it->second.set_spellings.try_emplace(std::string(name),static_cast<int>(sets.size()));
-  sets.push_back({std::string(name),bob,std::move(settings),xpp::Load::place()});
+  sets.push_back({std::string(name),bob,std::move(settings),where});
  xpp::log(XPP_LOG_INFO, " added {} doing {} \n",
 	 sets.back().name.c_str(),sets.back().does.c_str());
+}
+
+} // namespace
+
+void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does,
+                    std::vector<std::pair<std::string,std::string>> settings)
+{
+  add_set_at(m,name,does,std::move(settings),xpp::Load::place());
+}
+
+void replace_intern_sets(xpp::Model &m, const xpp::odex::Parsed &parsed)
+{
+  for(auto &[key,entry] : m.names){
+    entry.set=-1;
+    entry.set_spellings.clear();
+  }
+  std::erase_if(m.names,[](const auto &entry){ return entry.second.kind==xpp::Model::NameKind::Set; });
+  m.intern_sets.clear();
+  for(const xpp::odex::Statement &st : parsed.statements){
+    if(st.kind!=xpp::odex::Statement::Kind::Set)continue;
+    std::vector<std::pair<std::string,std::string>> settings;
+    for(const xpp::odex::Option &o : st.options)settings.emplace_back(o.name,o.value);
+    add_set_at(m,st.name,st.text,std::move(settings),xpp::Place{parsed.files.at(static_cast<std::size_t>(st.pos.file)),st.pos.line,st.pos.col});
+  }
+}
+
+xpp::Result<> check_model_limits(const xpp::odex::Parsed &parsed)
+{
+  std::size_t options=0,sets=0;
+  for(const xpp::odex::Statement &st : parsed.statements){
+    if(st.kind==xpp::odex::Statement::Kind::Options)options+=st.options.size();
+    if(st.kind==xpp::odex::Statement::Kind::Set)sets++;
+  }
+  if(options>MAXOPT)return xpp::fail("save values",xpp::format("a model may set at most {} options",MAXOPT),xpp::Place{parsed.files.front()});
+  if(sets>MAX_INTERN_SET)return xpp::fail("save values",xpp::format("a model may have at most {} sets",MAX_INTERN_SET),xpp::Place{parsed.files.front()});
+  return {};
+}
+
+void replace_model_options(xpp::Model &m, const xpp::odex::Parsed &parsed)
+{
+  m.options.clear();
+  for(const xpp::odex::Statement &st : parsed.statements)
+    if(st.kind==xpp::odex::Statement::Kind::Options&&!st.options.empty())add_model_options(m,st.options,parsed.files);
 }
 
 std::string intern_set_default_name(const xpp::Model &m)
@@ -251,15 +298,6 @@ std::string intern_set_default_name(const xpp::Model &m)
     const auto *entry=m.name(name);
     if(!entry || entry->set<0)return name;
   }
-}
-
-std::string intern_set_name_problem(const xpp::Model &m, std::string_view name)
-{
-  if(!xpp::odex::is_name(name)||xpp::odex::is_reserved(name))
-    return xpp::format("{} is not a valid name for a set",name);
-  if(const auto *entry=m.name(name);entry && entry->set>=0)
-    return xpp::format("{} is already a set of the model",name);
-  return "";
 }
 
 namespace {
@@ -272,24 +310,6 @@ std::string declared_spelling(const xpp::Model &m, const std::string &name)
 }
 
 } // namespace
-
-std::string intern_set_line(const xpp::Session &s, std::string_view name)
-{
-  const xpp::Model &m=s.model();
-  std::string line=xpp::format("set {} {{ ",name);
-  const char *sep="";
-  for(int i=0;i<m.nupar;i++){
-    double z=0;
-    get_val(s,m.upar_names[i],&z);
-    line+=xpp::format("{}{}: {}",sep,m.upar_names[i],xpp::number(z));
-    sep=", ";
-  }
-  for(int i=0;i<m.node+m.nmarkov;i++){
-    line+=xpp::format("{}{}: {}",sep,declared_spelling(m,m.uvar_names[i]),xpp::number(s.last_ic[i]));
-    sep=", ";
-  }
-  return line+" }";
-}
 
 namespace {
 
@@ -584,6 +604,59 @@ xpp::Result<> restore_defaults(xpp::Session &s, std::string_view scope, std::str
   }
   values_changed(s,scope);
   return {};
+}
+
+odex::ValueKind value_kind(const xpp::Model &m, std::string_view name)
+{
+  switch(model_value_of(m,std::string(name))){
+    case ModelValue::state: return odex::ValueKind::state;
+    case ModelValue::parameter: return odex::ValueKind::parameter;
+    case ModelValue::none: break;
+  }
+  return odex::ValueKind::other;
+}
+
+xpp::Result<odex::Values> captured_values(xpp::Session &s, std::string_view scope, std::optional<int> graph, bool last_state)
+{
+  const xpp::Place at=xpp::command_place();
+  const auto fail=[&at](std::string what){ return std::unexpected(xpp::Error{"save values",std::move(what),at}); };
+  if(const std::string why=set_scope_problem(scope);!why.empty())return fail(why);
+  if(xpp::Result<> r=graph_fits_scope(graph,scope,"save values");!r)return std::unexpected(r.error());
+  const xpp::Result<int> target=target_graph(s,graph,"save values");
+  if(!target)return std::unexpected(target.error());
+  const xpp::Model &m=s.model();
+  const bool all=scope==set_scope::all;
+  odex::Values values;
+  if(all||scope==set_scope::parameters){
+    values.parameters=true;
+    for(int i=0;i<m.nupar;i++){
+      double z=0;
+      get_val(s,m.upar_names[i],&z);
+      values.parameter_values.emplace_back(declared_spelling(m,m.upar_names[i]),odex::print_number(z));
+    }
+  }
+  if(all||scope==set_scope::initial){
+    if(last_state&&s.data_store.rows<=0)return fail("no run has reached a state yet: there is no last state to save");
+    values.states=true;
+    for(int i=0;i<m.node+m.nmarkov;i++){
+      const std::size_t k=static_cast<std::size_t>(i);
+      values.state_values.emplace_back(declared_spelling(m,m.uvar_names[i]),
+                                       odex::print_number(last_state?s.data_store.current[k]:s.last_ic[k]));
+    }
+  }
+  const GraphTarget on(s,*target,all||scope==option_group::plot);
+  for(const std::string_view group : set_groups){
+    if(!all&&scope!=group)continue;
+    values.groups.emplace_back(group);
+    for(const OptionRow &row : option_rows()){
+      /* a row with a member of its own holds a value to read; the others (numbered curves, ...) are set by their text only */
+      if(row.group!=group||!set_holds(row)||!(row.real||row.whole||row.text)||!setting_applies(s,row,s.numerics.method))continue;
+      const std::string text=setting_text(s,row);
+      const bool quoted=row.kind==OptionKind::path||row.kind==OptionKind::text;
+      values.settings.push_back({std::string(group),odex_key(row,0),quoted?odex::quote_string(text):text});
+    }
+  }
+  return values;
 }
 
 xpp::Result<> check_intern_sets(xpp::Session &s)
