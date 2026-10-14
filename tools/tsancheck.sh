@@ -5,7 +5,8 @@
 # only the inbox (core/xpp_inbox.cpp) and xpp_job's atomics; then the AUTO
 # unit test (tests/test_session_auto.cpp), whose periodic runs on 1, 2 and 4
 # collocation workers (core/auto_parallel.cpp, W247) must touch only their own
-# AutoLib and disjoint output blocks.
+# AutoLib and disjoint output blocks; and EISPACK's unit test
+# (tests/test_eispack.cpp), four threads calling it at once (W336).
 #
 # Any ThreadSanitizer report fails the script, whether or not the check that
 # provoked it noticed: every report goes to a file in build/tsan/reports
@@ -36,7 +37,7 @@ mkdir -p build || exit 1
 if [ $skip_build -eq 1 ]; then
   echo "tsan build skipped (--skip-build): using $bdir as-is"
 else
-  if ! "$make" -j4 BUILDDIR="$bdir" TSAN=1 "$@" asan-link "$bdir/tests/test_session_auto" > "$log-build.log" 2>&1; then
+  if ! "$make" -j4 BUILDDIR="$bdir" TSAN=1 "$@" asan-link "$bdir/tests/test_session_auto" "$bdir/tests/test_eispack" > "$log-build.log" 2>&1; then
     grep -E ' error:' "$log-build.log" | head -20
     echo "TSAN BUILD FAILED"
     exit 1
@@ -65,7 +66,8 @@ run_check servercheck "$python" tools/servercheck.py --server "$bin" &
 run_check webcheck "$python" tools/webcheck.py --bin "$bin" &
 wait
 run_check auto_threads "$bdir/tests/test_session_auto"
-for name in servercheck webcheck auto_threads; do
+run_check eispack_threads "$bdir/tests/test_eispack"
+for name in servercheck webcheck auto_threads eispack_threads; do
   cat "$log-$name.verdict"
   grep -q ' FAILED$' "$log-$name.verdict" && fail=1
 done

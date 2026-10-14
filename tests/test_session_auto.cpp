@@ -663,10 +663,12 @@ void check_pool_reuse()
         }
         pool.prepare(lib,3,1); /* the dimension changes: the workers' scratch follows */
         std::atomic<long> covered=0;
+        std::atomic<bool> resized=true; /* CHECK's counters are the caller's, not the workers' */
         pool.intervals(9,[&](long begin,long end,AutoLib &worker){
-            CHECK(worker.store.uu1.size()==3);
+            if(worker.store.uu1.size()!=3)resized=false;
             covered+=end-begin;
         });
+        CHECK(resized);
         CHECK(covered==9);
         bool failed=false;
         try { pool.intervals(9,[&](long begin,long,AutoLib &){if(begin>0)throw 1;}); }
