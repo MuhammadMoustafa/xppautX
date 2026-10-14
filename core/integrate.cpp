@@ -2086,7 +2086,6 @@ void stop_integration(xpp::Session &s, xpp::Error why)
 int stor_full(xpp::Session &s, double t)
 {
 
- char ch;
  int nrow=2*s.data_store.max_rows;
  const xpp::Result<> grown=s.data_store.grow(s.model().neq+1,nrow);
  if(grown){
@@ -2097,19 +2096,14 @@ int stor_full(xpp::Session &s, double t)
 
  if(!program.interactive){
    xpp::log(XPP_LOG_WARN, "Storage limit ({} rows) reached at t = {}; raise Total storage or Store every N steps\n",s.data_store.max_rows,t);
-   return(0);
+   return 0;
  }
- if(s.numerics.forever)goto ov;
- ping();
- ch=static_cast<char>(TwoChoice("YES","NO","Storage full: Overwrite?",
-		     "yn"));
- if(ch=='y')
- {
-ov:
-  s.data_store.rows=0;
-  return(1);
+ if(!s.numerics.forever){
+   ping();
+   if(TwoChoice("YES","NO","Storage full: Overwrite?","yn")!='y')return 0;
  }
-  return(0);
+ s.data_store.rows=0; /* overwrite: the run goes on from the first row */
+ return 1;
 }
 
 } // namespace xpp
