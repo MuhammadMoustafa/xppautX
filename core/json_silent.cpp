@@ -49,11 +49,11 @@ namespace {
 
 class SilentScript {
 public:
-    explicit SilentScript(const xpp::Session &s);
+    explicit SilentScript(xpp::Session &s);
     std::optional<std::string> next();
 
 private:
-    const xpp::Session &session; /* the session --silent runs (no other is ever loaded) */
+    xpp::Session &session; /* the session --silent runs (no other is ever loaded) */
     std::deque<std::string> lines;               /* the step's lines not yet given */
     std::deque<std::function<void()>> steps;     /* the steps still to make */
     bool ran = false;                            /* the current run integrates */
@@ -126,18 +126,18 @@ void SilentScript::add_run(int set)
         /* its data file is named after it without --outfile (its plots
            always are: batch_plot_name) */
         const std::string &name = session.model().intern_sets[static_cast<std::size_t>(set)].name;
-        batch_options.out_file = batch_options.user_out_file.empty() ? name + ".dat" : batch_options.user_out_file;
-        xpp::log(XPP_LOG_INFO, "out={}\n", batch_options.out_file);
+        session.batch_out_file = batch_options.user_out_file.empty() ? name + ".dat" : batch_options.user_out_file;
+        xpp::log(XPP_LOG_INFO, "out={}\n", session.batch_out_file);
         apply_set(name);
     });
     steps.push_back([this] {
         if (!dryrun) return;
-        command("values", "query", batch_options.out_file,
+        command("values", "query", session.batch_out_file,
                 xpp::format(",\"sets\":{},\"pars\":{},\"ics\":{}", querysets, querypars, queryics));
     });
     steps.push_back([this] {
         if (!ran) return;
-        const bool range = batch_options.range == 1 || session.stochastic.flag > 0;
+        const bool range = session.batch_range == 1 || session.stochastic.flag > 0;
         key("i");
         answer("key", range ? "r" : "g");
     });
@@ -149,7 +149,7 @@ void SilentScript::add_run(int set)
         const xpp::Session &s = session;
         /* a range that resets its storage wrote each run's file itself
            (integrate.cpp do_range, write_this_run) */
-        if (!batch_options.range || s.integrator.range.reset == 0) {
+        if (!s.batch_range || s.integrator.range.reset == 0) {
             if (s.stochastic.flag == 1 || s.stochastic.flag == 2) {
                 key("u");
                 key("h");
@@ -157,7 +157,7 @@ void SilentScript::add_run(int set)
                 key("Escape");
             }
             if (!s.integrator.suppress_out)
-                command("browser", "write", batch_options.out_file, ",\"what\":\"output\",\"format\":\"dat\"");
+                command("browser", "write", session.batch_out_file, ",\"what\":\"output\",\"format\":\"dat\"");
             if (s.integrator.make_plot_flag) {
                 const xpp::ImageFormat *format=xpp::find_image_format_by_extension(s.plot_export.format);
                 if (!format || !format->plot_key) {
@@ -174,7 +174,7 @@ void SilentScript::add_run(int set)
     });
 }
 
-SilentScript::SilentScript(const xpp::Session &s) : session(s)
+SilentScript::SilentScript(xpp::Session &s) : session(s)
 {
     const std::size_t sets = s.model().intern_sets.size();
     if (sets == 0 || batch_options.intern_sets_used == 0) add_run(-1);
@@ -218,7 +218,7 @@ std::optional<std::string> SilentScript::next()
 
 } // namespace
 
-std::function<std::optional<std::string>()> silent_script(const xpp::Session &s)
+std::function<std::optional<std::string>()> silent_script(xpp::Session &s)
 {
     auto script = std::make_shared<SilentScript>(s);
     return [script] { return script->next(); };

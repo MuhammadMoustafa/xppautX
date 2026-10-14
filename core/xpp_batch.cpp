@@ -105,7 +105,6 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch,
 {
     xpp::Model &m = s.model();
     program.interactive = 0;
-    batch_options.out_file = "output.dat";
     s.plot_export.format = "ps";
     check_for_quiet(s, argc, argv);
     do_comline(s, argc, argv);
@@ -160,19 +159,16 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
     xpp::Load load;
     /* the process-wide settings a load writes, put back when it fails */
     const XppProgram program_before = program;
-    const XppBatchOptions batch_before = batch_options;
     xpp::Model &m = load.model();
     try {
         m.load_dir = xpp::files::working_dir();
         work(load.session());
     } catch (xpp::LoadFailed &failed) {
         program = program_before;
-        batch_options = batch_before;
         return std::unexpected(std::move(failed.error));
     }
     if (!commit) {
         program = program_before;
-        batch_options = batch_before;
         return nullptr; /* the inspected model is discarded */
     }
     const std::string missing = missing_initial_values_text(m);
@@ -192,7 +188,6 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
        (W260): none is an error at the @ line, not a quiet difference */
     if (load.session().numerics.jacobian==JACOBIAN_EXACT && !m.jacobian.available()) {
         program = program_before;
-        batch_options = batch_before;
         return std::unexpected(Error{"options",option_error_text("jacobian","exact","the model has no exact Jacobian: "+m.jacobian.unavailable),
                                      m.jacobian.requested});
     }

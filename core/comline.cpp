@@ -169,7 +169,7 @@ int do_comline(xpp::Session &s, int argc, char **argv)
    }
    if(k==5){
     xpp::log(XPP_LOG_INFO, "{}",argv[i+1]);
-     batch_options.out_file=argv[i+1];
+     s.batch_out_file=argv[i+1];
      batch_options.user_out_file=argv[i+1];
      s.output_place=Place{"",0,0,xpp::format("{} {}",argv[i],argv[i+1])};
      i++;

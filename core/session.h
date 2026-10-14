@@ -124,6 +124,13 @@ struct Session {
   } file_dialogs;
   files::WriteFolders write_folders; /* Folder answers belong to this session, never to a global. */
   Place output_place; /* The model option that named a batch output, kept through its run. */
+  /* a run without an interface: @ range= (1: its range integration writes a
+     file per run, integrate.cpp do_range), and the data file it writes
+     (--outfile, @ output=, else a set's name: json_silent.cpp changes it per
+     internal set). The Session's, so a load that fails or another model
+     opened later never inherits them. */
+  int batch_range = 0;
+  std::string batch_out_file = "output.dat";
 
   /* the integrator's state (integrate.cpp) */
   IntegratorState integrator;

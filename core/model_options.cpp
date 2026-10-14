@@ -669,14 +669,14 @@ constexpr OptionRow rows[] = {
    .reset = [](Session &s) { s.integrator.range.oldic = 1; },
    .choices = yes_no_names, .saved = true},
   {.group = option_group::output, .kind = OptionKind::whole, .name = "RANGE", .once = true,
-   .whole = [](Session &) -> int & { return batch_options.range; }},
+   .whole = member([](auto &s) -> auto & { return s.batch_range; })},
   {.group = option_group::output, .kind = OptionKind::path, .name = "OUTPUT", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      /* the batch data file, named from the model's folder */
      std::string path;
      if (const char *why = own_file(s, v, path)) return why;
      if (v.apply) {
-       batch_options.out_file = path;
+       s.batch_out_file = path;
        s.output_place = Load::running() ? Load::place() : command_place();
        if (s.output_place.source.empty())
          s.output_place.source = model_source_line(s.model(), s.output_place.file, s.output_place.line);

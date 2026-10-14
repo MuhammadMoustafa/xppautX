@@ -744,9 +744,9 @@ if(fabs(s.data_store.current_time)>=s.numerics.transient_time&&s.numerics.storfl
  
  if(res==1||s.stochastic.flag)
    {
-     if(batch_options.range==1){
+     if(s.batch_range==1){
        post_process_stuff(s);
-       write_this_run(s,batch_options.out_file.c_str(),i);
+       write_this_run(s,s.batch_out_file.c_str(),i);
      }
      s.data_store.rows=0;
    }

@@ -93,8 +93,8 @@ std::string value_of(xpp::Session &s, const xpp::OptionRow &r)
     return "";
 }
 
-/* the member lies in the Session (not a process-wide setting such as
-   batch_options.range, which a load keeps) */
+/* the member lies in the Session (not in a process-wide setting such as
+   the command line's batch_options) */
 bool in_session(xpp::Session &s, const xpp::OptionRow &r)
 {
     const void *p = r.real ? static_cast<void *>(&r.real(s))
@@ -596,7 +596,7 @@ int main(void)
             const xpp::Loaded l = xpp::load_model(2, argv, 1);
             if (*c.written) {
                 CHECK(l.has_value());
-                CHECK(xpp::batch_options.out_file == c.written);
+                CHECK((*l)->batch_out_file == c.written);
                 continue;
             }
             CHECK(!l.has_value());
@@ -636,7 +636,7 @@ int main(void)
         xpp::batch_options.yes = true;
         l = load_output(outside);
         xpp::batch_options.yes = false;
-        CHECK(l.has_value() && xpp::batch_options.out_file == std::string("build/") + outside);
+        CHECK(l.has_value() && (*l)->batch_out_file == std::string("build/") + outside);
         CHECK(answer_with("o\n"));
         CHECK(load_output(outside).has_value());
         CHECK(answer_with("")); /* "once" kept nothing: asked again, no answer */

@@ -76,17 +76,16 @@ inline bool is_no_model(const Error &e) { return e.where == NO_MODEL_WHERE; }
    program exits with status 1 */
 [[noreturn]] void model_failed(Error e);
 
-/* How a run without an interface goes and where its output lands: the
-   command line (--silent, --outfile, --equil, -iset) and the ODE file's
-   @ output=, @ range= options set these. */
+/* How a run without an interface goes: the command line's own flags
+   (--silent, --outfile, --equil, -iset), set by comline.cpp, the program's
+   start and the batch start. The model's @ output= and @ range= are the
+   Session's (session.h batch_out_file, batch_range). */
 struct XppBatchOptions {
     int enabled = 0;           /* batch mode: no interface, run and write */
     bool yes = false;          /* -y / --yes: terminal questions answered yes, each answer printed */
     bool check = false;        /* --check: nothing waits on the terminal; a question is left unanswered */
-    int range = 0;             /* run the range integration in batch mode */
     int equilibria = -1;       /* --equil: <0 none, 1 find and write equilibria */
     int use_intern_sets = 1;   /* run every internal set (1) or the chosen ones */
-    std::string out_file;      /* the data file a batch run writes */
     std::string user_out_file; /* --outfile as given ("": name it after the set) */
     /* whether a batch run uses each of the model's internal sets, as the
        command line picked them (if_needed_select_sets; a set it did not

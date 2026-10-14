@@ -97,6 +97,26 @@ int main(void)
     CHECK(xpp::load_model(2, argv_good, 1).has_value());
     CHECK(xpp::client_session().colormap == 0);
 
+    /* @ range= and @ output= are the Session's (W350): the next model, and
+       a load that fails, neither inherits nor loses them */
+    const char rng[] = "build/test_load_range.ode";
+    xpp::files::remove("build/test_load_range.odex");
+    {
+        xpp::Writer w(rng);
+        CHECK(w && w.write("x'=-x\n@ range=1, output=range_out.dat\ndone\n") && w.commit());
+    }
+    char rng_arg[] = "build/test_load_range.ode";
+    char *argv_rng[] = {arg0, rng_arg, NULL};
+    CHECK(xpp::load_model(2, argv_rng, 1).has_value());
+    CHECK(xpp::client_session().batch_range == 1);
+    CHECK(xpp::client_session().batch_out_file.ends_with("range_out.dat"));
+    CHECK(!xpp::load_model(2, argv_bad, 1).has_value());
+    CHECK(xpp::client_session().batch_range == 1);
+    CHECK(xpp::client_session().batch_out_file.ends_with("range_out.dat"));
+    CHECK(xpp::load_model(2, argv_good, 1).has_value());
+    CHECK(xpp::client_session().batch_range == 0);
+    CHECK(xpp::client_session().batch_out_file == "output.dat");
+
     /* a map is its own Model's: the next model loaded is not taken for
        one (its method is not made discrete) */
     const int method = xpp::client_session().numerics.method;
