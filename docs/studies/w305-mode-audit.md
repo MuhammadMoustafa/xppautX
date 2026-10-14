@@ -257,3 +257,27 @@ The 34 behaviour split sites fall into 7 logical groups. Each group represents a
 - **Status**: **Fixed** in commit `2d2f02dd` (W297 / [#355](https://github.com/MuhammadMoustafa/xppautX/issues/355), 2026-10-11).
 - **Where it was**: When opening a `.ode` file containing an outside path (e.g. `@ output=../data.dat` or an outside table), [core/xpp_batch.cpp](../../core/xpp_batch.cpp) first converted the `.ode` via `odex::open_ode`, prompting the user for approval. Immediately afterward, `load_model` loaded the generated `.odex` file, prompting the user a second time for the same path.
 - **Where it is now**: In [core/odex_convert.cpp:1882](../../core/odex_convert.cpp#L1882) and [core/xpp_batch.cpp:250,271](../../core/xpp_batch.cpp#L250), `odex::open_ode` collects approved `outside_paths` and transfers them directly into `load_in`, populating `Model::outside_paths`. Consequently, the `.odex` load recognizes the prior approval and does not prompt a second time. Verified by `servercheck.py:check_outside_paths` ("W297: .ode outside output is asked exactly once").
+
+## 5. Review (coordinator, 2026-10-14)
+
+Six rows were checked against the code (xpp_util.cpp:329, graphics.cpp:287 and
+:988, integrate.cpp:2098, nullcline.cpp:498, json_player.cpp:748): each quotes
+the right line. The classification of the proposed cards is corrected as follows.
+
+- **Behaviour splits that stand**: cards 1 (a PS or SVG export holds different
+  elements by mode), 2 (a full storage stops in --silent, asks elsewhere), 3
+  (multi-window graphs and equilibrium marks exist only with a front end) and
+  5 (a range run with reset writes each run's file only under `@ range=1`, a
+  setting that is the run's, not the mode's). Each becomes a card.
+- **Card 4 is not a mode split** but a "No global state" finding: `@ range`
+  and `@ output` are a load's values written into the process-wide
+  `batch_options`, with a manual rollback on a failed load. It becomes its own
+  card (the model's options in the Model), not part of W305.
+- **Card 6 is presentation and W304**: where a replay writes (the launch
+  folder in --silent, the player's temp folder with a front end) is where output
+  goes; the replace default for an unrecorded save in --silent is who answers
+  (W304). No card.
+- **Card 7 is the --silent front end's own**: json_silent.cpp is that front
+  end's built-in script, and `--qsets`/`--qpars`/`--qics`/`--equil` are its
+  command-line options. Whether the window should offer the same queries is a
+  feature request, not a split. No card.
