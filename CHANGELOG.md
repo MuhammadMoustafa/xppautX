@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Separate model parameters from AUTO's own unknowns throughout continuation and restart; refuse a run without a model parameter before constructing its continuation indices. Session AUTO solution members require the complete new parameter layout and reject old layouts at their header; XPPAUT `.auto` remains an explicit foreign import (W340, [#401](https://github.com/MuhammadMoustafa/xppautX/issues/401)).
+
 - Remove AUTO's parameter selection and Parameter form: Axes and Run offer every model parameter. Branch records keep all parameter values once for exact grab, label restart, exports and session reopening; the new diagram layout rejects old session files (W339, [#400](https://github.com/MuhammadMoustafa/xppautX/issues/400)).
 
 - Allow POSIX system links along read, write-folder and scratch paths when both the link and its parent belong to root and the parent has no group/other write permission; user-planted links and final file links remain refused, and Windows still refuses every reparse point (W311, [#370](https://github.com/MuhammadMoustafa/xppautX/issues/370)).

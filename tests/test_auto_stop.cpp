@@ -6,6 +6,7 @@
 #include "session.h"
 #include "model.h"
 #include "auto_stop.h"
+#include "auto_unknowns.h"
 #include "xpplim.h"
 
 #include <cmath>
@@ -19,7 +20,7 @@ xpp::AutoStopAt inside()
     xpp::AutoStopAt at{};
     at.br = 1;
     at.pt = 7;
-    at.ipar = 0;
+    at.ipar = xpp::client_session().auto_state.parameter_layout.solver_index(0);
     at.par = 0.5;
     at.norm = 1;
     at.rl0 = 0, at.rl1 = 2, at.a0 = 0, at.a1 = 10;
@@ -34,6 +35,7 @@ int main()
     xpp::client_session().model().size_parameters(1);
     xpp::client_session().model().upar_names[0] = "iapp";
     xpp::client_session().model().nupar = 1;
+    xpp::client_session().auto_state.parameter_layout.model_parameters=1;
     xpp::AutoStop &stop = xpp::client_session().auto_state.stop;
 
     xpp::AutoStopAt at = inside();
@@ -70,7 +72,7 @@ int main()
     CHECK(st.why == xpp::AUTO_STOP_PAR_MAX && st.br == 1 && st.pt == 7 && st.value == 2.25 && st.limit == 2);
     CHECK_STR(st.key, "parmax");
     CHECK_STR(st.text, "parameter iapp reached Par Max (2)");
-    at.ipar = 10;
+    at.ipar = xpp::auto_unknown::period;
     at.par = -0.5;
     xpp::auto_stop_branch_end(xpp::client_session(), &at);
     xpp::auto_stop_last(stop, &st);

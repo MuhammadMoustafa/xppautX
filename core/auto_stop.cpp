@@ -23,7 +23,7 @@ const char *const keys[AUTO_STOP_N] = {
 std::string par_name(const xpp::Session &s, long ipar)
 {
     if (ipar == xpp::auto_unknown::period) return "the period T";
-    const int k = s.auto_state.model_parameter(static_cast<int>(ipar));
+    const int k = s.auto_state.parameter_layout.model_index(static_cast<int>(ipar));
     const char *name = k >= 0 && k < s.model().nupar ? auto_par_name(s, k) : nullptr;
     return name ? std::string("parameter ") + name : std::string("the parameter");
 }

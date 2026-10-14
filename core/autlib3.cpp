@@ -1591,11 +1591,11 @@ ffws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     }
     ARRAY2D(dfdu, i, (i + ndm)) = 1.;
     ARRAY2D(dfdu, i + ndm, (i + ndm)) = -c / par[i + xpp::auto_unknown::diffusion_start];
-    if (icp[0] < xpp::auto_unknown::wave_speed) {
+    if (auto_model_parameter(*iap->lib->session,icp[0])) {
       ARRAY2D(dfdp, i, (icp[0])) = 0.;
       ARRAY2D(dfdp, i + ndm, icp[0]) = -ARRAY2D(dfp, i, icp[0]) / par[i + xpp::auto_unknown::diffusion_start];
     }
-    if (nfpr > 1 && icp[1] < xpp::auto_unknown::wave_speed) {
+    if (nfpr > 1 && auto_model_parameter(*iap->lib->session,icp[1])) {
       ARRAY2D(dfdp, i, (icp[1])) = 0.;
       ARRAY2D(dfdp, i + ndm, icp[1]) = -ARRAY2D(dfp, i, icp[1]) / par[i + xpp::auto_unknown::diffusion_start];
     }

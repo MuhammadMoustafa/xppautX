@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 #include "xpplim.h"
+#include <array>
 #include <vector>
 #include <memory>
 #include "xpp_error.h"
@@ -21,7 +22,7 @@ struct AutoSolutionHeader {
     long ibr{}, ntot{}, itp{}, lab{}, nfpr{}, isw{}, ntpl{}, nar{}, nskip{}, ntst{}, ncol{}, npar{};
 };
 bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long parameters);
-Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters);
+Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters, bool foreign);
 
 typedef struct {
   double torper;
@@ -43,6 +44,8 @@ typedef struct  {
   std::string hinttxt;
   double period[MAX_AUT_PER];
   int uzrpar[MAX_AUT_PER];
+  // Distinguish the period from a model parameter with the same integer index.
+  std::array<bool,MAX_AUT_PER> period_mark;
   double epsl,epsu,epss;
   int ncol;
 }BIFUR;
@@ -249,7 +252,7 @@ void auto_get_info(Session &s, int *n, std::string &pname);
 std::string auto_screen_col(const Session &s, const std::string &col);
 /* AUTO's index of parameter or period name s (10 for the period, T),
    -1 when it is not one of AUTO's parameters */
-int auto_name_to_index(const Session &s, std::string_view name);
+int auto_name_to_index(const Session &s, std::string_view name, bool &period);
 
 /* AUTO's solution file (fort.8 after a run, the orbits of the labelled
    points a grab restarts from): <HOME or the model's folder>/<model>.s */

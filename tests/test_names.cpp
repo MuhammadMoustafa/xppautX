@@ -72,7 +72,8 @@ int main(void)
     xpp::client_session().model().uvar_names[0] = "MEMBRANE_POTENTIAL_FAST_VARIABLE";
     xpp::client_session().model().node = xpp::client_session().model().neq = 1;
     xpp::client_session().model().nupar = 1;
-    out = auto_screen_col(xpp::client_session(), "   PAR(0)     ");
+    xpp::client_session().auto_state.parameter_layout.model_parameters=1;
+    out = auto_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().auto_state.parameter_layout.solver_index(0)));
     CHECK_STR(out.c_str(), "applied_stim~ ");
     out = auto_screen_col(xpp::client_session(), "   MAX U(1)   ");
     CHECK_STR(out.c_str(), "MAX MEMBRANE~ ");

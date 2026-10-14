@@ -24,7 +24,7 @@ installed in CI, nor vendored.
   AUTO window opened on a private Xvfb display and driven by the keys a user presses (Parameters and
   Numerics dialogs, Run, Grab, Run), the constants it used read back from the `.b` header and required to
   be the run's. Its point table is XPPAUT's own stdout, the spectra its diagnostics file, the period its
-  solution file's PAR(11).
+  solution file's PAR(11), named `auto_unknown::period` in our solver. W340 ([#401](https://github.com/MuhammadMoustafa/xppautX/issues/401)) keeps AUTO's block at `max(36, 12 + 4*node)` and stores model parameter `k` at `block + k`; foreign XPPAUT PAR numbering is mapped only at import.
 - `tools/autocompare.py` runs our description as before (the byte-for-byte check unchanged), then compares
   our special points with each file, matched by type and order. **A missing or extra special point is a
   difference.** A description with no file for a program says why (`auto07p_skip`, `xppaut_skip`), never

@@ -515,6 +515,11 @@ struct AutoDepth {
 
 void do_auto(xpp::Session &s, int iold, int isave, int itp)
 {
+    // A model parameter must exist before run setup selects its solver index.
+    if(s.model().nupar==0){
+      command_error("auto", "AUTO continuation needs a model parameter");
+      return;
+    }
       /* Retaining an older branch retains its label solutions too. A fresh
          calculation may request overwrite only after the diagram is reset. */
       if(s.auto_state.diag_flag!=0 && isave==OVERWRITE)isave=APPEND;
@@ -603,7 +608,7 @@ void auto_label_parameters(const xpp::Session &s, int label, double *parameters)
   if(!point)return; /* a library-generated starting solution may have no stored point */
   for(int k=0;k<s.auto_state.run.nicp;k++){
     const int slot=s.auto_state.run.icp[k];
-    const int parameter=s.auto_state.model_parameter(slot);
+    const int parameter=s.auto_state.parameter_layout.model_index(slot);
     if(parameter>=0 && parameter<s.model().nupar &&
        std::find(point->parameter_indices.begin(),point->parameter_indices.end(),parameter)==point->parameter_indices.end())
       parameters[slot]=diagram_parameter(*point,parameter);
@@ -616,13 +621,14 @@ void set_auto(xpp::Session &s) /* Caution - need to include NICP here */
   init_auto(s.auto_state,s.model().node,s.numerics.jacobian==JACOBIAN_EXACT);
   
 }
-int auto_name_to_index(const xpp::Session &s, std::string_view name)
+int auto_name_to_index(const xpp::Session &s, std::string_view name, bool &period)
 {
   int in;
   find_variable(s,name,&in);
-  if(in==0)return(xpp::auto_unknown::period);
+  period=in==0;
+  if(period)return(xpp::auto_unknown::period);
   in=xpp::find_user_name(s.model(),PARAM_BOX,name);
-  if(in>=0)return s.auto_state.parameter_slot(in);
+  if(in>=0)return in;
   return(-1);
 }
 const char *auto_par_name(const xpp::Session &s, int k)
@@ -633,10 +639,10 @@ const char *auto_par_name(const xpp::Session &s, int k)
 namespace {
 /* AUTO's parameter index's name, T for the period; empty for no such
    parameter */
-std::string par_or_period_name(const xpp::Session &s, long index)
+std::string par_or_period_name(const xpp::Session &s, long index, bool period)
 {
-  if(index==xpp::auto_unknown::period)return "T";
-  const int k=s.auto_state.model_parameter(static_cast<int>(index));
+  if(period)return "T";
+  const int k=static_cast<int>(index);
   return k>=0&&k<s.model().nupar?par_label(s,k):std::string();
 }
 
@@ -671,7 +677,7 @@ std::string screen_col(const xpp::Session &s, const char *col)
   const char *c=col;
   while(isspace(static_cast<unsigned char>(*c)))c++;
   if(strncmp(c,"PAR(",4)==0&&read_long(c+4,p)){
-    const std::string name=par_or_period_name(s, p);
+    const std::string name=par_or_period_name(s, s.auto_state.parameter_layout.model_index(static_cast<int>(p)), p==xpp::auto_unknown::period);
     if(!name.empty())return col_centre(name);
   }
   /* U(n), and the MAX(n) / MIN(n) a periodic branch prints, where AUTO has
@@ -712,15 +718,17 @@ void auto_per_par(xpp::Session &s)
   s.auto_state.nuzr=s.auto_state.bifur.nper;
   if(s.auto_state.bifur.nper>0){
     for(i=0;i<9;i++){
-      values[i] = xpp::format("{}={:g}", par_or_period_name(s, s.auto_state.bifur.uzrpar[i]), s.auto_state.bifur.period[i]);
+      values[i] = xpp::format("{}={:g}", par_or_period_name(s, s.auto_state.bifur.uzrpar[i], s.auto_state.bifur.period_mark[i]), s.auto_state.bifur.period[i]);
     }
     status=do_string_box(5,2,"Mark values (UZ): parameter=value or per=value",n,values);
     if(status!=0)
       for(i=0;i<9;i++){
 	xpp::Tokens tokens(values[i]);
-	in=auto_name_to_index(s, tokens.next("=").value_or(std::string_view()));
+	bool period;
+	in=auto_name_to_index(s, tokens.next("=").value_or(std::string_view()), period);
 	if(in>=0){
 	  s.auto_state.bifur.uzrpar[i]=in;
+	  s.auto_state.bifur.period_mark[i]=period;
 	  s.auto_state.bifur.period[i]=atof(tokens.text("@").c_str());
 	}
       }
@@ -1553,13 +1561,14 @@ void init_auto_win(xpp::Session &s)
   for(i=0;i<10;i++){
     s.auto_state.bifur.period[i]=11.+3.*i;
     s.auto_state.bifur.uzrpar[i]=xpp::auto_unknown::period;
+    s.auto_state.bifur.period_mark[i]=true;
     s.auto_state.uzr_period[i]=s.auto_state.bifur.period[i];
     s.auto_state.uzr_par[i]=xpp::auto_unknown::period;
   }
-  s.auto_state.model_parameters=s.model().nupar;
-  s.auto_state.parameter_offset=std::max(xpp::auto_unknown::block_size,
+  s.auto_state.parameter_layout.model_parameters=s.model().nupar;
+  s.auto_state.parameter_layout.block=std::max(xpp::auto_unknown::block_size,
       xpp::auto_unknown::homoclinic_start+xpp::auto_unknown::homoclinic_blocks*s.model().node);
-  s.auto_lib.parameter_count=s.auto_state.parameter_count();
+  s.auto_lib.parameter_count=s.auto_state.parameter_layout.size();
   for (auto *v : {&s.auto_state.grabpt.uhi, &s.auto_state.grabpt.ulo, &s.auto_state.grabpt.u0,
                  &s.auto_state.grabpt.ubar, &s.auto_state.homo_l, &s.auto_state.homo_r}) v->resize(s.model().node);
   start_diagram(s, s.model().node);
@@ -2552,6 +2561,16 @@ void save_auto(xpp::Session &s)
   xpp_session_save(s, nullptr, -1);
 }
 
+// XPPAUT foreign files store at most eight selected model parameters before AUTO slots.
+constexpr int xppaut_parameter_prefix = 8;
+
+// Foreign PAR numbering is translated here; unselected prefix entries are not model values.
+static int imported_solver_index(const xpp::Session &s, int slot)
+{
+  return slot>=0 && static_cast<std::size_t>(slot)<s.auto_state.imported_parameters.size()
+    ? s.auto_state.parameter_layout.solver_index(s.auto_state.imported_parameters[slot]) : slot;
+}
+
 void load_auto_numerics(xpp::Session &s, FILE *fp)
 {
  int i;
@@ -2560,7 +2579,7 @@ void load_auto_numerics(xpp::Session &s, FILE *fp)
     follows (load_auto_graph, load_diagram) skips it first. */
  xpp::TokenReader tr=xpp::TokenReader::attach(fp);
  int imported_parameters;
- if (!tr.read(imported_parameters) || imported_parameters < 0 || imported_parameters > std::min(s.model().nupar,AutoState::model_parameter_prefix)) return;
+ if (!tr.read(imported_parameters) || imported_parameters < 0 || imported_parameters > std::min(s.model().nupar,xppaut_parameter_prefix)) return;
  s.auto_state.imported_parameters.resize(imported_parameters);
  for(int &parameter:s.auto_state.imported_parameters){
    if (!tr.read(parameter) || parameter<0 || parameter>=s.model().nupar) return;
@@ -2572,8 +2591,10 @@ void load_auto_numerics(xpp::Session &s, FILE *fp)
     s.auto_state.bifur.nper=s.auto_state.nuzr;
     if (!tr.read(s.auto_state.uzr_period[i]) || !tr.read(s.auto_state.uzr_par[i])) return;
     const long slot=s.auto_state.uzr_par[i];
-    if(slot>=0 && static_cast<std::size_t>(slot)<s.auto_state.imported_parameters.size())
-      s.auto_state.uzr_par[i]=s.auto_state.parameter_slot(s.auto_state.imported_parameters[slot]);
+    const int solver_index=imported_solver_index(s,static_cast<int>(slot));
+    s.auto_state.bifur.period_mark[i]=solver_index==xpp::auto_unknown::period;
+    s.auto_state.uzr_par[i]=s.auto_state.bifur.period_mark[i] ? xpp::auto_unknown::period
+      : s.auto_state.parameter_layout.model_index(solver_index);
     s.auto_state.bifur.period[i]=s.auto_state.uzr_period[i];
     s.auto_state.bifur.uzrpar[i]=s.auto_state.uzr_par[i];
   }
@@ -2606,7 +2627,7 @@ xpp::Result<> make_q_file(const xpp::Session &s, FILE *fp)
 {
   std::string string=s.auto_state.file+".s";
   /* Validate the foreign restart payload before translating its selected
-     model slots into our unchanged numerical layout. Keep orbit numbers and
+     model slots into our separated numerical layout. Keep orbit numbers and
      their row boundaries verbatim; only indices and parameter rows move. */
   std::string text;
   xpp::LineReader lr=xpp::LineReader::attach(fp);
@@ -2616,21 +2637,18 @@ xpp::Result<> make_q_file(const xpp::Session &s, FILE *fp)
       text+='\n';
     }
   }
-  const auto checked=xpp::check_auto_solutions(text,string,AutoState::state_copies*s.model().node,s.auto_state.parameter_count());
+  const auto checked=xpp::check_auto_solutions(text,string,AutoState::state_copies*s.model().node,s.auto_state.parameter_layout.size(),true);
   if(!checked)return checked;
   const auto converted=xpp::read_lines("import AUTO solutions",string,text,[&s](xpp::Lines &lines){
     std::string out;
-    const auto mapped=[&s](int slot){
-      return slot>=0 && static_cast<std::size_t>(slot)<s.auto_state.imported_parameters.size()
-        ? s.auto_state.parameter_slot(s.auto_state.imported_parameters[slot]) : slot;
-    };
+
     while(!lines.at_end()){
       xpp::AutoSolutionHeader h;
       auto reader=xpp::TokenReader::of_text(lines.next());
-      if(!xpp::read_auto_solution_header(reader,h,s.auto_state.parameter_count()))lines.fail("invalid foreign solution header");
+      if(!xpp::read_auto_solution_header(reader,h,s.auto_state.parameter_layout.size()))lines.fail("invalid foreign solution header");
       const std::size_t orbit=static_cast<std::size_t>(h.ntpl)*h.nar;
       const std::size_t prefix=orbit+(h.ntst?2*h.nfpr+static_cast<std::size_t>(h.ntpl)*(h.nar-1):0);
-      std::vector<double> parameters(s.auto_state.parameter_count());
+      std::vector<double> parameters(s.auto_state.parameter_layout.size());
       std::string body;
       std::size_t count=0;
       int body_rows=0;
@@ -2643,13 +2661,13 @@ xpp::Result<> make_q_file(const xpp::Session &s, FILE *fp)
             const int slot=static_cast<int>(count-prefix);
             double value;
             if(!xpp::parse_number(*word,value))lines.fail("invalid foreign parameter");
-            if(slot>=AutoState::model_parameter_prefix || static_cast<std::size_t>(slot)<s.auto_state.imported_parameters.size())parameters[mapped(slot)]=value;
+            if(slot>=xppaut_parameter_prefix || static_cast<std::size_t>(slot)<s.auto_state.imported_parameters.size())parameters[imported_solver_index(s,slot)]=value;
           } else {
             std::string value(*word);
             if(h.ntst && count>=orbit && count<orbit+static_cast<std::size_t>(h.nfpr)){
               int slot;
               if(!xpp::parse_int(*word,slot))lines.fail("invalid foreign restart index");
-              value=xpp::number(mapped(slot));
+              value=xpp::number(imported_solver_index(s,slot));
             }
             if(!converted_row.empty())converted_row+=' ';
             converted_row+=value;
@@ -2736,9 +2754,9 @@ bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long 
         && (h.ntst == 0 || h.ntpl == static_cast<long long>(h.ntst) * h.ncol + 1);
 }
 
-Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters)
+Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters, bool foreign)
 {
-    const auto read = read_lines("AUTO's solutions", std::move(file), text, [variables, parameters](Lines &l) {
+    const auto read = read_lines("AUTO's solutions", std::move(file), text, [variables, parameters, foreign](Lines &l) {
         while (!l.at_end()) {
             const std::string_view head = l.next();
             if (head.empty()) continue;
@@ -2746,6 +2764,8 @@ Result<> check_auto_solutions(std::string_view text, std::string file, int varia
             TokenReader header = TokenReader::of_text(head);
             if (!read_auto_solution_header(header, h, parameters) || !header.at_end())
                 l.fail(xpp::format("invalid AUTO solution header or counts: {}",head));
+            if (!foreign && h.npar != parameters)
+                l.fail(xpp::format("AUTO solution parameter layout has {} slots; expected {}: {}",h.npar,parameters,head));
             if (h.nar - 1 > variables || h.npar > parameters || h.nfpr > h.npar)
                 l.fail(xpp::format("AUTO solution counts ({}, {}, {}) exceed this model's storage ({}, {})",h.nar-1,h.npar,h.nfpr,variables,parameters));
             const long rows = h.ntpl, columns = h.nar, payload = h.nskip, parameter_values = h.npar;
@@ -2782,7 +2802,7 @@ int move_to_label(const Session &s, int mylab, int *nrow, int *ndim, FILE *fp)
 {
   AutoSolutionHeader h;
   TokenReader tr = TokenReader::attach(fp);
-  while (read_auto_solution_header(tr, h, s.auto_state.parameter_count())) {
+  while (read_auto_solution_header(tr, h, s.auto_state.parameter_layout.size())) {
     tr.skip_line();
     if (mylab == h.lab) {
       *nrow = static_cast<int>(h.ntpl);

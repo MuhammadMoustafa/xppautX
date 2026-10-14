@@ -2,6 +2,7 @@
 #include "solver.h"
 #include <algorithm>
 #include <array>
+#include <span>
 #include <vector>
 #include <stdlib.h>
 #include "auto_f2c.h"
@@ -45,14 +46,14 @@ void exact_derivatives(const xpp::Session &s, AutoLib &lib, const double *c, int
     if(ijac<2)return;
     for(integer i=0;i<nfpr;i++){
       double *column=dfdp+icp[i]*ndim;
-      const int k=s.auto_state.model_parameter(static_cast<int>(icp[i]));
+      const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[i]));
       if(k>=0 && k<s.model().nupar)xpp::exact_constant_derivative(s,c,s.model().upar_con[k],0.0,u,f,n,column);
       else std::fill_n(column,n,0.0);
     }
   } catch (const xpp::JacobianFailed &failed) {
     if(!lib.jacobian_failure){
       lib.jacobian_failure=failed.error;
-      const int k=s.auto_state.model_parameter(static_cast<int>(icp[0]));
+      const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[0]));
       if(k>=0 && k<s.model().nupar)
         lib.jacobian_failure->what+=xpp::format(" (AUTO at {}={})",s.model().upar_names[k],c[s.model().upar_con[k]]);
     }
@@ -75,22 +76,22 @@ void chain(int n, const double *b, double *column, const double *add, double *t)
   std::copy_n(t,n,column);
 }
 
-void continued_constants(const xpp::Session &s, double *constants, const integer *icp, integer count, const double *par)
+void continued_constants(const xpp::Session &s, double *constants, const integer *icp, integer count, std::span<const double>, std::span<const double> parameters)
 {
   for(integer i=0;i<count;i++){
-    const int k=s.auto_state.model_parameter(static_cast<int>(icp[i]));
-    if(k>=0 && k<s.model().nupar)constants[s.model().upar_con[k]]=par[icp[i]];
+    const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[i]));
+    if(k>=0 && k<s.model().nupar)constants[s.model().upar_con[k]]=parameters[k];
   }
 }
 
 /* A collocation worker's right-hand side (auto_parallel.cpp): s is const, so
    a worker can read the model, the AUTO settings and the immutable tables but
    write only its own lib (constants, variables, jacobian_failure). */
-void worker_func(const xpp::Session &s, AutoLib &worker, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, integer ijac, double *f, double *dfdu, double *dfdp)
+void worker_func(const xpp::Session &s, AutoLib &worker, integer ndim, const double *u, const integer *icp, integer nfpr, std::span<const double> unknowns, std::span<const double> parameters, integer ijac, double *f, double *dfdu, double *dfdp)
 {
   auto &c=worker.rhs_constants;
   auto &v=worker.rhs_variables;
-  continued_constants(s,c.data(),icp,nfpr,par);
+  continued_constants(s,c.data(),icp,nfpr,unknowns,parameters);
   xpp::evaluate_derived_pure(s,c.data(),v.data());
   pure_rhs(s,u,f,c.data(),v.data());
   if(ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT)exact_derivatives(s,worker,c.data(),ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
@@ -100,19 +101,32 @@ void worker_func(const xpp::Session &s, AutoLib &worker, integer ndim, const dou
 
 /* The problem defined functions that run the model (auto_c.h's C++
    section): AUTO calls them with the Session whose run it is. */
-double auto_parameter_value(const xpp::Session &s, integer slot,
-                           std::span<const integer> free, std::span<const double> parameters)
+bool auto_model_parameter(const xpp::Session &s, integer slot)
 {
-  const int parameter=s.auto_state.model_parameter(static_cast<int>(slot));
-  if(parameter>=0 && parameter<s.model().nupar && std::find(free.begin(),free.end(),slot)==free.end())
-    return s.parser.constants[s.model().upar_con[parameter]];
-  return parameters[slot];
+  return s.auto_state.parameter_layout.model_index(static_cast<int>(slot))>=0;
+}
+
+double auto_parameter_value(const xpp::Session &s, integer slot,
+                           std::span<const integer> free, std::span<const double> solver_parameters)
+{
+  const auto &layout=s.auto_state.parameter_layout;
+  const auto unknowns=solver_parameters.first(layout.block);
+  const auto parameters=solver_parameters.subspan(layout.block);
+  const int k=layout.model_index(static_cast<int>(slot));
+  if(k<0)return unknowns[slot];
+  if(std::find(free.begin(),free.end(),slot)==free.end())
+    return s.parser.constants[s.model().upar_con[k]];
+  return parameters[k];
 }
 
 int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, integer ijac, double *f, double *dfdu, double *dfdp, AutoLib *worker)
 {
+   const auto &layout=s.auto_state.parameter_layout;
+   const std::span<const double> solver_parameters{par,static_cast<std::size_t>(layout.size())};
+   const auto unknowns=solver_parameters.first(layout.block);
+   const auto parameters=solver_parameters.subspan(layout.block);
    if (worker && worker->pure_rhs) {
-     worker_func(s,*worker,ndim,u,icp,nfpr,par,ijac,f,dfdu,dfdp);
+     worker_func(s,*worker,ndim,u,icp,nfpr,unknowns,parameters,ijac,f,dfdu,dfdp);
      return 0;
    }
    const bool exact=ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT;
@@ -120,7 +134,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
    std::vector<double> zz(ndim); /* the store_every steps' scratch */
    /* the right-hand side and the Jacobian only read the point */
    double *x=const_cast<double *>(u);
-   continued_constants(s,s.parser.constants.data(),icp,nfpr,par);
+   continued_constants(s,s.parser.constants.data(),icp,nfpr,unknowns,parameters);
    xpp::evaluate_derived(s);
    if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
    s.integrator.rhs(0.0,x,f,ndim);
@@ -157,11 +171,11 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
 
   double p;
 
-  for(int index=0;index<s.auto_state.run.nicp;index++){
-    const int slot=s.auto_state.run.icp[index];
-    const int parameter=s.auto_state.model_parameter(slot);
-    if(parameter>=0 && parameter<s.model().nupar)par[slot]=s.parser.constants[s.model().upar_con[parameter]];
-  }
+  const auto &layout=s.auto_state.parameter_layout;
+  const std::span<double> solver_parameters{par,static_cast<std::size_t>(layout.size())};
+  const auto unknowns=solver_parameters.first(layout.block);
+  const auto parameters=solver_parameters.subspan(layout.block);
+  for(int k=0;k<s.model().nupar;k++)parameters[k]=s.parser.constants[s.model().upar_con[k]];
 
   if(s.auto_state.new_period_flag==0){  
     for(i=0;i<ndim;i++)
@@ -170,20 +184,20 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
   }
 
   get_start_period(s,&p);
-  par[xpp::auto_unknown::period]=p;
+  unknowns[xpp::auto_unknown::period]=p;
   if(s.auto_state.homo_flag!=1)get_start_orbit(s,u,t,p,ndim);
   if(s.auto_state.homo_flag==1){
 
     get_shifted_orbit(s,u,t,p,ndim);
     for(i=0;i<ndim;i++){
-      par[xpp::auto_unknown::homoclinic_equilibrium_start+i]=s.auto_state.homo_l[i];
+      unknowns[xpp::auto_unknown::homoclinic_equilibrium_start+i]=s.auto_state.homo_l[i];
 
     }
   }
   if(s.auto_state.homo_flag==2){ /* heteroclinic */
     for(i=0;i<ndim;i++){
-      par[xpp::auto_unknown::homoclinic_equilibrium_start+i]=s.auto_state.homo_l[i];
-      par[xpp::auto_unknown::homoclinic_equilibrium_start+i+ndim]=s.auto_state.homo_r[i];
+      unknowns[xpp::auto_unknown::homoclinic_equilibrium_start+i]=s.auto_state.homo_l[i];
+      unknowns[xpp::auto_unknown::homoclinic_equilibrium_start+i+ndim]=s.auto_state.homo_r[i];
 
     }
 
@@ -196,7 +210,10 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
 {
 /* Hooks to the XPP bc parser!! */
 
- continued_constants(s,s.parser.constants.data(),icp,s.auto_state.run.nicp,par);
+ const auto &layout=s.auto_state.parameter_layout;
+ const std::span<const double> solver_parameters{par,static_cast<std::size_t>(layout.size())};
+ continued_constants(s,s.parser.constants.data(),icp,s.auto_state.run.nicp,
+                     solver_parameters.first(layout.block),solver_parameters.subspan(layout.block));
 
  xpp::evaluate_derived(s);
  if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);

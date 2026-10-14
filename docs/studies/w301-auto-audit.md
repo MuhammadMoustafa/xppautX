@@ -390,7 +390,9 @@ Order: third; supplies point kinds for P4.
 
 ### P4: W330 ([#391](https://github.com/MuhammadMoustafa/xppautX/issues/391)) — Store AUTO axes by kind, separate from numerical slots
 
-Places: AutoState mapping methods, auto_settings_apply's icp2–4 shift,
+W340 ([#401](https://github.com/MuhammadMoustafa/xppautX/issues/401)) names AUTO's unknown slots and places every model parameter after AUTO's block. `AutoParameterLayout` owns the solver-boundary mapping, and callbacks receive separate model and AUTO spans. Settings and diagram parameter lists use Model indices; period marks carry a distinct internal flag. Own solution members require the complete new layout. The existing diagram encoding is retained; tagged axes remain this proposal's separate work.
+
+Places: AutoParameterLayout and run/callback/solution boundaries, auto_settings_apply's icp2–4 shift,
 DIAGRAM/GRABPT, autevd addbif/init_auto, autpp callbacks, settings names,
 diagram export and snapx serialization.
 Done: a stored axis is a tagged value (model parameter identity, period,

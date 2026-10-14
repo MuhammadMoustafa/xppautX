@@ -196,19 +196,27 @@ void check_views_text()
 
 void check_solutions()
 {
-    const std::string algebraic = "1 1 4 1 2 0 1 3 2 0 0 2\n0 1 2\n0 0\n";
-    CHECK(xpp::check_auto_solutions(algebraic, "sent.snapx/auto/solutions.s", 24, xpp::auto_unknown::block_size));
-    CHECK(!xpp::check_auto_solutions("1 1 4 1 2 0 1 9999 2 0 0 2\n0 1 2\n0 0\n", "solutions.s", 24, xpp::auto_unknown::block_size));
-    CHECK(!xpp::check_auto_solutions("1 1 4 1 2 0 1 3 2 0 0 2 junk\n0 1 2\n0 0\n", "solutions.s", 24, xpp::auto_unknown::block_size));
-    CHECK(!xpp::check_auto_solutions("1 1 4 1 2 0 1 3 2 0 0 2\n0 1 2\n0 nan\n", "solutions.s", 24, xpp::auto_unknown::block_size));
-    const auto cut = xpp::check_auto_solutions("1 1 4 1 2 0 1 3 2 0 0 2\n0 1 2\n0\n", "sent.snapx/auto/solutions.s", 24, xpp::auto_unknown::block_size);
-    CHECK(!cut && cut.error().place.file == "sent.snapx/auto/solutions.s" && cut.error().place.line == 3);
-    const std::string periodic = "1 1 2 1 1 1 3 2 5 1 2 1\n0 1 0.5 2 1 3\n0\n1\n1 1 1\n0\n";
-    CHECK(xpp::check_auto_solutions(periodic, "solutions.s", 24, xpp::auto_unknown::block_size));
-    CHECK(!xpp::check_auto_solutions("1 1 2 1 1 1 3 2 5 1 2 1\n0 1 0.5 2 1 3\n9999\n1\n1 1 1\n0\n", "solutions.s", 24, xpp::auto_unknown::block_size));
-    xpp::TokenReader header = xpp::TokenReader::of_text("    2-1234  ");
-    long a, b;
-    CHECK(!header.at_end() && header.read(a) && a == 2 && header.read(b) && b == -1234 && header.at_end());
+    const int count=xpp::auto_unknown::block_size+2;
+    std::string values;
+    for(int k=0;k<count;k++)values+=(k?" 0":"0");
+    const std::string algebraic=xpp::format("1 1 4 1 2 0 1 3 2 0 0 {}\n0 1 2\n{}\n",count,values);
+    CHECK(xpp::check_auto_solutions(algebraic, "sent.snapx/auto/solutions.s", 24, count,false));
+    const std::string old="1 1 4 1 2 0 1 3 2 0 0 2\n0 1 2\n0 0\n";
+    const auto layout=xpp::check_auto_solutions(old,"sent.snapx/auto/solutions.s",24,count,false);
+    CHECK(!layout && layout.error().place.line==1 && layout.error().place.source.starts_with("1 1 4")
+          && layout.error().place.file=="sent.snapx/auto/solutions.s");
+    CHECK(xpp::check_auto_solutions(old,"foreign.auto",24,count,true));
+    CHECK(!xpp::check_auto_solutions(xpp::format("1 1 4 1 2 0 1 9999 2 0 0 {}\n0 1 2\n{}\n",count,values), "solutions.s", 24, count,false));
+    CHECK(!xpp::check_auto_solutions(xpp::format("1 1 4 1 2 0 1 3 2 0 0 {} junk\n0 1 2\n{}\n",count,values), "solutions.s", 24, count,false));
+    CHECK(!xpp::check_auto_solutions(xpp::format("1 1 4 1 2 0 1 3 2 0 0 {}\n0 1 2\n{} nan\n",count,values), "solutions.s", 24, count,false));
+    const auto cut=xpp::check_auto_solutions(xpp::format("1 1 4 1 2 0 1 3 2 0 0 {}\n0 1 2\n0\n",count), "sent.snapx/auto/solutions.s", 24, count,false);
+    CHECK(!cut && cut.error().place.file=="sent.snapx/auto/solutions.s" && cut.error().place.line==3);
+    const std::string periodic=xpp::format("1 1 2 1 1 1 3 2 5 1 2 {}\n0 1 0.5 2 1 3\n{}\n1\n1 1 1\n{}\n",count,xpp::auto_unknown::block_size,values);
+    CHECK(xpp::check_auto_solutions(periodic, "solutions.s", 24, count,false));
+    CHECK(!xpp::check_auto_solutions(xpp::format("1 1 2 1 1 1 3 2 5 1 2 {}\n0 1 0.5 2 1 3\n9999\n1\n1 1 1\n{}\n",count,values), "solutions.s", 24, count,false));
+    xpp::TokenReader header=xpp::TokenReader::of_text("    2-1234  ");
+    long a,b;
+    CHECK(!header.at_end() && header.read(a) && a==2 && header.read(b) && b==-1234 && header.at_end());
 }
 
 void check_untrusted_zoom()
@@ -282,6 +290,23 @@ bool load(const std::string &ode, const xpp::SavedModel *saved = nullptr)
     return true;
 }
 
+// W340/#401: a model without parameters cannot select index zero in an empty model span.
+void check_parameterless_model()
+{
+    xpp::TempDir tmp;
+    const std::string model=tmp.file("no-parameters.ode");
+    CHECK(write_file(model,"x'=-x\ninit x=0\ndone\n"));
+    CHECK(load(model));
+    auto &s=xpp::client_session();
+    s.auto_state.dir=tmp.path();
+    CHECK(s.model().nupar==0);
+    const int points=diagram_count(s.diagram);
+    xpp::auto_start_diff_ss(s);
+    CHECK(s.auto_state.diag_flag==0 && diagram_count(s.diagram)==points);
+    CHECK(!xpp::files::exists(xpp::auto_solutions_file(s))
+          && !xpp::files::exists(s.auto_state.fort3) && !xpp::files::exists(s.auto_state.fort8));
+}
+
 /* W339/#400: a constant changed between branches must come from the older
    branch on grab and restart, including after reopening the entire session. */
 void check_branch_parameters()
@@ -296,13 +321,13 @@ void check_branch_parameters()
     // Mark functions must read a held model constant even though AUTO never received it.
     AutoLib mark_lib;
     mark_lib.session=&s;
-    mark_lib.parameter_count=s.auto_state.parameter_count();
+    mark_lib.parameter_count=s.auto_state.parameter_layout.size();
     iap_type mark_iap{};
     mark_iap.lib=&mark_lib;
     mark_iap.nfpr=1;
     rap_type mark_rap{};
     std::vector<double> parameters(mark_lib.parameter_count);
-    std::array<integer,1> free={s.auto_state.parameter_slot(0)},mark={s.auto_state.parameter_slot(1)};
+    std::array<integer,1> free={s.auto_state.parameter_layout.solver_index(0)},mark={s.auto_state.parameter_layout.solver_index(1)};
     std::array<double,1> target={0.5};
     logical changed=FALSE_;
     const auto mark_value=[&]{
@@ -365,8 +390,10 @@ void check_branch_parameters()
 void check_orbit_growth(const xpp::TempDir &tmp)
 {
     xpp::Session &s = xpp::client_session();
-    const std::string orbit = "1 1 2 1 1 1 3 3 9 1 2 2\n0 1 2\n0.5 3 4\n1 5 6\n0\n1\n0 0\n0 0\n0 0\n0 0\n";
-    CHECK(xpp::check_auto_solutions(orbit, "orbit.s", 24, xpp::auto_unknown::block_size));
+    std::string parameters;
+    for(int k=0;k<s.auto_state.parameter_layout.size();k++)parameters+=(k?" 0":"0");
+    const std::string orbit=xpp::format("1 1 2 1 1 1 3 3 9 1 2 {}\n0 1 2\n0.5 3 4\n1 5 6\n{}\n1\n0 0\n0 0\n0 0\n{}\n",s.auto_state.parameter_layout.size(),s.auto_state.parameter_layout.solver_index(0),parameters);
+    CHECK(xpp::check_auto_solutions(orbit, "orbit.s", 24, s.auto_state.parameter_layout.size(),false));
     s.auto_state.file = tmp.file("orbit");
     CHECK(write_file(xpp::auto_solutions_file(s), orbit));
     s.data_store.allocate(2, s.model().neq + 1);
@@ -395,9 +422,11 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     diagram_restore(s, pts);
     CHECK(diagram_count(xpp::client_session().diagram) == 9 && diagram_point(xpp::client_session().diagram, 3)->uhi[1] == pts[3].uhi[1]);
     std::string solutions;
-    for (int value : {1, 1, 4, 1, 2, 0, 1, 3, 7, 0, 0, xpp::auto_unknown::block_size}) solutions += xpp::format("{:5}", value);
-    solutions += "\n0.0 1 2\n";
-    for (int row = 0; row < 6; row++) solutions += "0 0 0 0 0 0\n";
+    const int parameter_rows=(s.auto_state.parameter_layout.size()+6)/7;
+    // One orbit row, then seven-column parameter rows, matching AUTO's writer.
+    for (int value : {1,1,4,1,2,0,1,3,1+parameter_rows,0,0,s.auto_state.parameter_layout.size()})solutions+=xpp::format("{:5}",value);
+    solutions+="\n0.0 1 2\n";
+    for(int k=0;k<s.auto_state.parameter_layout.size();k++)solutions+="0"+std::string((k+1)%7==0 || k+1==s.auto_state.parameter_layout.size()?"\n":" ");
     CHECK(write_file(xpp::auto_solutions_file(xpp::client_session()), solutions));
     s.auto_state.bifur.ds = 0.1 + 0.2;
     s.auto_state.bifur.dsmax = 0.5;
@@ -548,6 +577,11 @@ std::deque<DiagramPoint> collocation_run(unsigned threads, bool compiled, bool i
     CHECK(xpp::auto_grab_type_index(s,"HB",1)==1);
     const auto start=std::chrono::steady_clock::now();
     xpp::auto_new_per(s);
+    // W340/#401: periodic continuation frees AUTO's period independently of the model.
+    CHECK(std::any_of(s.diagram.points.begin(),s.diagram.points.end(),[&s](const DiagramPoint &p){
+        return p.d.nfpar==2 && p.d.icp2==s.model().nupar+xpp::auto_unknown::period
+            && p.d.parameter_indices==std::vector<int>{0};
+    }));
     const double seconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
     std::printf("perf: AUTO %u threads %.6f s, %zu diagram points\n",threads,seconds,s.diagram.points.size());
     CHECK(std::any_of(s.diagram.points.begin(),s.diagram.points.end(),[](const auto &p){return p.d.ibr<0;}));
@@ -712,6 +746,7 @@ int main(int argc,char **argv)
     check_collocation_purity();
     check_collocation();
     check_branch_parameters();
+    check_parameterless_model();
     check_pool_reuse();
     check_settings_text();
     check_views_text();

@@ -40,7 +40,7 @@ int main()
     /* chdim: more free parameters than AUTO's arrays hold */
     iap_type iap{};
     iap.lib = &xpp::client_session().auto_lib;
-    iap.lib->parameter_count = xpp::client_session().auto_state.parameter_count();
+    iap.lib->parameter_count = xpp::client_session().auto_state.parameter_layout.size();
     iap.nfpr = iap.lib->parameter_count + 1;
     CHECK(has(failure([&] { chdim(&iap); }), "free parameters"));
     iap.nfpr = 2;

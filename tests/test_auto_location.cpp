@@ -58,7 +58,7 @@ int main()
     xpp::UniqueFile diagnostics(xpp::files::open_stream(temp.path() + "/location.log", "w"));
     auto &lib = s.auto_lib;
     lib.session = &s;
-    lib.parameter_count = s.auto_state.parameter_count();
+    lib.parameter_count = s.auto_state.parameter_layout.size();
     lib.fp9 = diagnostics.get();
     iap_type iap{};
     iap.lib = &lib;

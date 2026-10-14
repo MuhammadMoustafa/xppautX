@@ -57,6 +57,15 @@ struct AutoDiagramMark {
   int start_point=0,end_point=0;
 };
 
+// Only solver boundaries translate indices; all other parameter lists use Model indices.
+struct AutoParameterLayout {
+  int block=xpp::auto_unknown::block_size;
+  int model_parameters=0;
+  int solver_index(int k) const { return block+k; }
+  int model_index(int index) const { return index>=block && index<size() ? index-block : -1; }
+  int size() const { return block+model_parameters; }
+};
+
 struct AutoState {
   /* the AUTO window and its settings */
   xpp::BIFUR bifur{};
@@ -70,19 +79,9 @@ struct AutoState {
   const xpp::AUTOAX &axes() const { return views[static_cast<std::size_t>(active_view)].axes; }
   /* the advanced numerics */
   xpp::ADVAUTO advanced{};
-  /* Model dimensions only; AUTO's slots keep their W301 layout until W340. */
-  int model_parameters=0;
-  static constexpr int model_parameter_prefix = 8;
+  AutoParameterLayout parameter_layout;
   // AUTO's augmented formulations allocate up to eight state copies (init's thu).
   static constexpr int state_copies = 8;
-  int parameter_offset = xpp::auto_unknown::block_size;
-  int parameter_slot(int k) const { return k < model_parameter_prefix ? k : parameter_offset + k - model_parameter_prefix; }
-  int model_parameter(int slot) const { return slot < model_parameter_prefix ? slot : slot >= parameter_offset ? slot - parameter_offset + model_parameter_prefix : -1; }
-  int parameter_count() const { return parameter_offset + std::max(0, model_parameters - model_parameter_prefix); }
-  int diagram_parameter(int slot) const {
-    const int k=model_parameter(slot);
-    return k>=0 ? k : model_parameters+slot;
-  }
   // A foreign XPPAUT .auto alone carries its old selected-parameter mapping.
   std::vector<int> imported_parameters;
   /* the Mark values: nuzr of uzr_par (auto_f2c.h's integer) and

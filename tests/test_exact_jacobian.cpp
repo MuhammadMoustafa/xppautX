@@ -17,6 +17,7 @@
 #include "xpp_globals.h"
 #include "derived.h"
 #include "auto_c.h"
+#include "auto_unknowns.h"
 #include "auto_nox.h"
 
 #include <algorithm>
@@ -248,11 +249,12 @@ void check_auto_func(const char *path, double u0, double u1, int store_every = 1
     CHECK(xpp::ensure_exact_jacobian(s));
     s.numerics.jacobian = xpp::JACOBIAN_EXACT;
     s.numerics.store_every = store_every;
-    constexpr integer n = 2, period = 10;
+    constexpr integer n = 2;
+    const integer continued=s.auto_state.parameter_layout.solver_index(0);
     std::vector<double> par(s.auto_lib.parameter_count, 0.0);
-    for (int k = 0; k < s.model().nupar; ++k) par[static_cast<std::size_t>(k)] = s.parser.constants[static_cast<std::size_t>(s.model().upar_con[k])];
-    par[period] = 6.3;
-    const integer icp[2] = {0, period};
+    for (int k = 0; k < s.model().nupar; ++k) par[s.auto_state.parameter_layout.solver_index(k)] = s.parser.constants[static_cast<std::size_t>(s.model().upar_con[k])];
+    par[xpp::auto_unknown::period] = 6.3;
+    const integer icp[2] = {continued, xpp::auto_unknown::period};
     const double u[n] = {u0, u1};
     double f[n], dfdu[n * n];
     std::vector<double> dfdp(n * s.auto_lib.parameter_count);
@@ -271,17 +273,17 @@ void check_auto_func(const char *path, double u0, double u1, int store_every = 1
             worst = std::max(worst, std::fabs(dfdu[i + j * n] - d) / std::max(1.0, std::fabs(d)));
         }
     }
-    par[0] += 1e-6;
+    par[continued] += 1e-6;
     func(s, n, u, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
-    par[0] -= 2e-6;
+    par[continued] -= 2e-6;
     func(s, n, u, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
     for (integer i = 0; i < n; ++i) {
         const double d = (fp[i] - fm[i]) / 2e-6;
-        worst = std::max(worst, std::fabs(dfdp[i] - d) / std::max(1.0, std::fabs(d)));
+        worst = std::max(worst, std::fabs(dfdp[continued*n+i] - d) / std::max(1.0, std::fabs(d)));
     }
     std::printf("%s: AUTO's func, exact against central differences, largest difference %.3g\n", path, worst);
     CHECK(worst < 1e-7);
-    CHECK(dfdp[period * n] == 0 && dfdp[period * n + 1] == 0);
+    CHECK(dfdp[xpp::auto_unknown::period * n] == 0 && dfdp[xpp::auto_unknown::period * n + 1] == 0);
 }
 
 } // namespace

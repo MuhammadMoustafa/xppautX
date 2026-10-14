@@ -50,11 +50,11 @@ void init_auto(AutoState &st, int ndim, bool exact)
   st.run.irs=b.irs;
   st.run.ilp=b.ilp;
   st.run.nicp=b.nfpar;
-  st.run.icp[0]=st.parameter_slot(st.axes().icp1);
-  st.run.icp[1]=b.nfpar>1 && st.axes().icp2<st.model_parameters ? st.parameter_slot(st.axes().icp2) : st.axes().icp2;
-  st.run.icp[2]=b.icp3;
-  st.run.icp[3]=b.icp4;
-  st.run.icp[4]=b.icp5;
+  st.run.icp[0]=st.parameter_layout.solver_index(st.axes().icp1);
+  st.run.icp[1]=st.axes().icp2<st.parameter_layout.model_parameters ? st.parameter_layout.solver_index(st.axes().icp2) : xpp::auto_unknown::period;
+  st.run.icp[2]=st.parameter_layout.solver_index(b.icp3);
+  st.run.icp[3]=st.parameter_layout.solver_index(b.icp4);
+  st.run.icp[4]=st.parameter_layout.solver_index(b.icp5);
   st.run.ntst=b.ntst;
   st.run.ncol=b.ncol;
   st.run.isp=b.isp;
@@ -75,7 +75,7 @@ void init_auto(AutoState &st, int ndim, bool exact)
 
   st.run.nuzr=st.nuzr;
   for(i=0;i<st.nuzr;i++){
-    st.run.iuz[i]=st.uzr_par[i];
+    st.run.iuz[i]=b.period_mark[i] ? xpp::auto_unknown::period : st.parameter_layout.solver_index(static_cast<int>(st.uzr_par[i]));
      st.run.vuz[i]=st.uzr_period[i];
   }
  
@@ -128,16 +128,21 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   p.evr=ev.data();
   p.evi=ev.data()+n;
   for(int k=0;k<iap->nfpr;k++){
-    const int parameter=s.auto_state.model_parameter(static_cast<int>(icp[k]));
+    const int parameter=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[k]));
     if(parameter>=0 && parameter<s.model().nupar){
       p.parameter_indices.push_back(parameter);
       p.par.push_back(par[icp[k]]);
     }
   }
-  icp1=s.auto_state.diagram_parameter(icp1);
-  icp2=s.auto_state.diagram_parameter(icp2);
-  icp3=s.auto_state.diagram_parameter(icp3);
-  icp4=s.auto_state.diagram_parameter(icp4);
+  // Preserve the diagram's existing encoding of AUTO unknowns after model indices.
+  const auto diagram_index=[&s](int slot){
+    const int k=s.auto_state.parameter_layout.model_index(slot);
+    return k>=0 ? k : s.model().nupar+slot;
+  };
+  icp1=diagram_index(icp1);
+  icp2=diagram_index(icp2);
+  icp3=diagram_index(icp3);
+  icp4=diagram_index(icp4);
   p.per=per;
   p.icp1=icp1;
   p.icp2=icp2;

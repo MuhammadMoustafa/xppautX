@@ -22,6 +22,7 @@ static void load_model(void)
     xpp::client_session().model().uvar_names[1] = "w";
     xpp::client_session().model().node = xpp::client_session().model().neq = 2;
     xpp::client_session().model().nupar = 3;
+    xpp::client_session().auto_state.parameter_layout.model_parameters=3;
 }
 
 int main(void)
@@ -30,11 +31,11 @@ int main(void)
     load_model();
 
     /* a parameter column becomes the parameter's name */
-    out = auto_screen_col(xpp::client_session(), "   PAR(1)     ");
+    out = auto_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().auto_state.parameter_layout.solver_index(1)));
     CHECK(out.size() == AUTO_COL_W);
     CHECK(out.find("gca") != std::string::npos);
 
-    out = auto_screen_col(xpp::client_session(), "   PAR(0)     ");
+    out = auto_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().auto_state.parameter_layout.solver_index(0)));
     CHECK_STR(out.c_str(), "     iapp     ");
 
     /* a variable column, with and without the prefix AUTO puts in front */

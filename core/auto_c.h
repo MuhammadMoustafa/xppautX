@@ -390,6 +390,8 @@ struct Session; /* session.h */
 
 /* autpp.cpp: a Mark value reads a free parameter from AUTO, a constant
    model parameter from the Session, or an AUTO unknown from its own slots. */
+// AUTO's wave Jacobian classifies its free columns at the model boundary.
+bool auto_model_parameter(const xpp::Session &s, integer slot);
 double auto_parameter_value(const xpp::Session &s, integer slot,
                            std::span<const integer> free, std::span<const double> parameters);
 /* the problem defined functions that run the model (autpp.cpp): its

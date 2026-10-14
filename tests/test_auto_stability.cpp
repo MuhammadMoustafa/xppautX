@@ -164,7 +164,7 @@ int main()
     xpp::UniqueFile diagnostics(xpp::files::open_stream(temp.path() + "/stability.log", "w"));
     auto &lib = session.auto_lib;
     lib.session = &session;
-    lib.parameter_count = session.auto_state.parameter_count();
+    lib.parameter_count = session.auto_state.parameter_layout.size();
     lib.fp9 = diagnostics.get();
     iap_type iap{};
     iap.lib = &lib;

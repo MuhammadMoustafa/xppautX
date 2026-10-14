@@ -186,7 +186,7 @@ AutoSettingsSet settings_now(const xpp::Session &s)
     axes_of(s, s.auto_state.axes(), set);
     set.nmarks = s.auto_state.bifur.nper < 0 ? 0 : s.auto_state.bifur.nper < AUTO_SETTINGS_MARKS ? s.auto_state.bifur.nper : AUTO_SETTINGS_MARKS;
     for (int i = 0; i < set.nmarks; i++) {
-        set.mark_name[i] = s.auto_state.bifur.uzrpar[i] == xpp::auto_unknown::period ? std::string("T") : name_or_empty(auto_par_name(s, s.auto_state.model_parameter(s.auto_state.bifur.uzrpar[i])));
+        set.mark_name[i] = s.auto_state.bifur.period_mark[i] ? std::string("T") : name_or_empty(auto_par_name(s, s.auto_state.bifur.uzrpar[i]));
         set.mark_value[i] = s.auto_state.bifur.period[i];
     }
     return set;
@@ -407,7 +407,6 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
             key = xpp::format("mark{}", i);
             return false;
         }
-        if (strcasecmp(set->mark_name[i].c_str(), "T") != 0) uzr[i]=s.auto_state.parameter_slot(uzr[i]);
         if (!std::isfinite(set->mark_value[i])) {
             why = xpp::format("Mark values: the value of {} must be a number", set->mark_name[i]);
             key = xpp::format("mark{}", i);
@@ -446,6 +445,7 @@ void commit(xpp::Session &s, const AutoSettingsSet *set, const Checked &c)
         s.auto_state.bifur.nper = set->nmarks;
         for (int i = 0; i < set->nmarks; i++) {
             s.auto_state.bifur.uzrpar[i] = uzr[i];
+            s.auto_state.bifur.period_mark[i] = strcasecmp(set->mark_name[i].c_str(), "T") == 0;
             s.auto_state.bifur.period[i] = set->mark_value[i];
         }
         s.auto_state.nuzr = s.auto_state.bifur.nper;
