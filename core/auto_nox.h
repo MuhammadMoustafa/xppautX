@@ -41,7 +41,7 @@ typedef struct {
   double torper;
 } ROTCHK;
 
-typedef struct  {
+struct BIFUR {
 
   int exist;
   int ntst,nmx,npr;
@@ -63,7 +63,7 @@ typedef struct  {
   std::array<bool,MAX_AUT_PER> period_mark;
   double epsl,epsu,epss;
   int ncol;
-}BIFUR;
+};
 
 typedef struct {
   int iad;
