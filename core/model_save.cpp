@@ -86,6 +86,10 @@ void remap_places(Model &m, const odex::LineMap &lines)
         for (odex::Binding &b : st.bindings) shift(b.pos);
     }
     for (Model::InitialValue &v : m.initial_values) remap(v.where, m.this_file, lines);
+    for (Model::DerivedQuantity &d : m.derived) remap(d.where, m.this_file, lines);
+    for (int i = 0; i < m.nsvar; i++) remap(m.svars[static_cast<std::size_t>(i)].where, m.this_file, lines);
+    for (int i = 0; i < m.naeqn; i++) remap(m.aeqns[static_cast<std::size_t>(i)].where, m.this_file, lines);
+    remap(m.jacobian.requested, m.this_file, lines);
 }
 
 /* the live model made to be what the file now says */
