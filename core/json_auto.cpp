@@ -1,6 +1,7 @@
 /* The AUTO window: its prompts and mouse, the diagram's points as data
    ("diagram" events), and AUTO's settings as data ({"cmd":"auto","op":"set"},
    auto_settings.h). */
+#include <map>
 #include "ui_json_internal.h"
 #include "session.h"
 #include "xpp_job.h"
@@ -48,6 +49,8 @@ namespace {
 
 struct ViewData {
     std::vector<XppDiagPoint> dg; /* n of them in use */
+    std::vector<std::shared_ptr<const DiagramBranch>> branches; /* immutable records behind those points */
+    std::map<std::shared_ptr<const DiagramBranch>,std::map<std::shared_ptr<const DiagramBranch>,bool>> branch_matches;
     int n = 0, client = 0, dirty = 0;
     int replay = 0, match = 0, axes = 0;
     struct {
@@ -86,8 +89,17 @@ void diag_forget(void)
 
 namespace {
 
-int diag_same(const XppDiagPoint *a, const XppDiagPoint *b)
+int diag_same(ViewData &view, const XppDiagPoint *a, const XppDiagPoint *b,
+              const std::shared_ptr<const DiagramBranch> &old_branch,
+              const std::shared_ptr<const DiagramBranch> &branch)
 {
+    if(old_branch!=branch){
+        if(!old_branch || !branch || old_branch->parameters.size()!=branch->parameters.size())return 0;
+        // A replay compares complete constants once per branch pair, never once per point.
+        auto [match,added]=view.branch_matches[old_branch].try_emplace(branch,false);
+        if(added)match->second=branch->parameters.empty() || std::memcmp(old_branch->parameters.data(),branch->parameters.data(),branch->parameters.size()*sizeof(double))==0;
+        if(!match->second)return 0;
+    }
     return a->ibr == b->ibr && a->pt == b->pt && a->itp == b->itp && a->lab == b->lab && a->type == b->type &&
            a->flag2 == b->flag2 && a->draw == b->draw && a->newseg == b->newseg && a->color == b->color &&
            a->lw == b->lw && a->from == b->from && a->jacobian == b->jacobian && std::memcmp(&a->x, &b->x, sizeof a->x) == 0 && std::memcmp(&a->y1, &b->y1, sizeof a->y1) == 0 &&
@@ -97,6 +109,7 @@ int diag_same(const XppDiagPoint *a, const XppDiagPoint *b)
 /* the replay is over: the list is its first k points */
 void diag_end_replay(ViewData &d, int k)
 {
+    d.branch_matches.clear();
     d.replay = 0;
     d.n = k;
     if (k < d.dirty) d.dirty = k;
@@ -124,8 +137,11 @@ void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
         d.match = 0;
         return;
     }
+    const auto branch=p->node>=0 && static_cast<std::size_t>(p->node)<s.diagram.points.size()
+        ? s.diagram.points[p->node].d.branch : std::shared_ptr<const DiagramBranch>();
     if (d.replay) {
-        if (d.match < d.n && diag_same(&d.dg[static_cast<std::size_t>(d.match)], p)) {
+        if (d.match < d.n && diag_same(d,&d.dg[static_cast<std::size_t>(d.match)], p,d.branches[d.match],branch)) {
+            d.branches[d.match]=branch;
             d.dg[static_cast<std::size_t>(d.match++)].node = p->node; /* not in the data: the entry a grab by point goes to */
             return;
         }
@@ -134,10 +150,12 @@ void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
     if (static_cast<size_t>(d.n) == d.dg.size()) {
         try {
             d.dg.resize(d.dg.empty() ? 1024 : 2 * d.dg.size());
+            d.branches.resize(d.dg.size());
         } catch (...) {
             xpp::out_of_memory("keeping the AUTO diagram");
         }
     }
+    d.branches[d.n]=branch;
     d.dg[static_cast<std::size_t>(d.n++)] = *p;
 }
 
@@ -169,7 +187,7 @@ void diag_axes(Buf *b, const ViewData &d)
 
 /* points i..j of dg as one run: they share branch, kind and style, and
    their point numbers count up by one */
-void diag_run(Buf *b, const std::vector<XppDiagPoint> &dg, int i, int j)
+void diag_run(const xpp::Session &s, Buf *b, const std::vector<XppDiagPoint> &dg, int i, int j)
 {
     const auto at = [&dg](int k) -> const XppDiagPoint & { return dg[static_cast<std::size_t>(k)]; };
     const XppDiagPoint *p = &at(i);
@@ -181,6 +199,21 @@ void diag_run(Buf *b, const std::vector<XppDiagPoint> &dg, int i, int j)
     if (p->newseg) BUF_LIT(b, ",\"new\":1");
     if (p->from) buf_format(b, ",\"from\":{:d}", p->from);
     buf_format(b, ",\"jac\":\"{}\"", xpp::jacobian_name(p->jacobian));
+    /* A branch's complete constants, once at its first point, in model order.
+       Continued point coordinates are resolved from this same stored branch. */
+    if (p->newseg && p->node >= 0 && static_cast<std::size_t>(p->node) < s.diagram.points.size()) {
+        const DIAGRAM &point=s.diagram.points[p->node].d;
+        BUF_LIT(b, ",\"parameters\":[");
+        for (std::size_t index=0;index<point.branch->parameters.size();index++) {
+            if(index)BUF_LIT(b,",");
+            BUF_LIT(b,"[");
+            buf_str(b,s.model().upar_names[index].c_str());
+            BUF_LIT(b,",");
+            buf_num(b,point.branch->parameters[index],17);
+            BUF_LIT(b,"]");
+        }
+        BUF_LIT(b,"]");
+    }
     BUF_LIT(b, ",\"x\":[");
     for (k = i; k <= j; k++) {
         if (k > i) BUF_LIT(b, ",");
@@ -249,7 +282,7 @@ int diag_joins(const XppDiagPoint *a, const XppDiagPoint *b)
 }
 
 /* what view v's client list lacks */
-void diag_flush_view(int v, ViewData &d, int final)
+void diag_flush_view(const xpp::Session &s, int v, ViewData &d, int final)
 {
     Buf b;
     if (d.replay) {
@@ -283,7 +316,7 @@ void diag_flush_view(int v, ViewData &d, int final)
             for (j = i; j + 1 < d.n && j - i < 2000 && diag_joins(&d.dg[static_cast<std::size_t>(j)], &d.dg[static_cast<std::size_t>(j + 1)]); j++) {
             }
             if (i > d.client) BUF_LIT(&b, ",");
-            diag_run(&b, d.dg, i, j);
+            diag_run(s, &b, d.dg, i, j);
             i = j + 1;
         }
         BUF_LIT(&b, "]}");
@@ -314,7 +347,7 @@ void diag_flush(const xpp::Session &s, int final)
         client_views = n;
     }
     for (int v = 0; v < static_cast<int>(views.size()) && v < client_views; v++)
-        diag_flush_view(v, views[static_cast<std::size_t>(v)], final);
+        diag_flush_view(s, v, views[static_cast<std::size_t>(v)], final);
 }
 
 /* AUTO's refreshdisplay() after every point: a few frames a second, not a
@@ -506,9 +539,9 @@ namespace {
 
 /* the "numerics", "pars", "axes" and "marks" of {"cmd":"auto","op":"set",...}
    into s; 0 with why when one is not what docs/protocol.md says */
-int read_auto_set(const char *line, AutoSettingsSet &s, int parameters, std::string &why)
+int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
 {
-    const char *num = js_find(line, "numerics"), *pars = js_find(line, "pars"), *axes = js_find(line, "axes"),
+    const char *num = js_find(line, "numerics"), *axes = js_find(line, "axes"),
                *marks = js_find(line, "marks"), *v;
     int i;
     for (i = 0; num && *num == '{' && i < AUTO_NUM_N; i++) {
@@ -529,19 +562,9 @@ int read_auto_set(const char *line, AutoSettingsSet &s, int parameters, std::str
             return 0;
         }
     }
-    if (pars && *pars == '[') {
-        for (i = 0; (v = js_elem(pars, i)) != NULL; i++) {
-            if(i>=parameters){
-                why=xpp::format("AUTO has {} parameters for this model",parameters);
-                return 0;
-            }
-            s.pars.emplace_back();
-            if (!js_string(v, s.pars.back())) {
-                why = "AUTO's parameters must be a list of names";
-                return 0;
-            }
-        }
-        s.npars = i;
+    if (js_find(line, "pars")) {
+        why = "AUTO set has no pars field; choose the continued parameters in Axes";
+        return 0;
     }
     if (axes && *axes == '{') {
         static const char *const range[4] = {"xmin", "xmax", "ymin", "ymax"};
@@ -593,7 +616,7 @@ void auto_set_command(xpp::Session &s, const char *line)
 {
     AutoSettingsSet set;
     std::string why;
-    if (!read_auto_set(line, set, s.model().nupar, why) || auto_settings_apply(s, set, why) != 0)
+    if (!read_auto_set(line, set, why) || auto_settings_apply(s, set, why) != 0)
         j_command_error("auto", xpp::format("AUTO settings: {}", why));
 }
 
@@ -686,7 +709,6 @@ void auto_command(xpp::Session &s, const char *line)
 void auto_key(xpp::Session &s, int ch)
 {
     switch (menu_index(&menu_auto_window, ch)) {
-    case AK_PARAM: auto_params(s); break;
     case AK_AXES: auto_plot_par(s); break;
     case AK_NUMERICS: auto_num_par(s); break;
     case AK_RUN: auto_run(s); break;

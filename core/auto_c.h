@@ -4,6 +4,7 @@
    setubv2) and the AUTO front end (gogoauto, auto_nox, autevd). */
 #include <stdio.h>
 #include <vector>
+#include <span>
 #include "auto_f2c.h"
 
 struct AutoLib; /* auto_state.h */
@@ -402,6 +403,11 @@ int set_function_pointers(const iap_type,function_list *);
 namespace xpp {
 struct Session; /* session.h */
 }
+
+/* autpp.cpp: a Mark value reads a free parameter from AUTO, a constant
+   model parameter from the Session, or an AUTO unknown from its own slots. */
+double auto_parameter_value(const xpp::Session &s, integer slot,
+                           std::span<const integer> free, std::span<const double> parameters);
 /* the problem defined functions that run the model (autpp.cpp): its
    right-hand side and Jacobian, the starting point and the boundary
    conditions, in the Session s whose run this is (iap->lib->session).

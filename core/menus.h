@@ -72,7 +72,7 @@ typedef struct XppMenu {
 /* The windows' own key layers (protocol: {"cmd":"key","win":...}), one XppMenu
    each, the keys defined here and nowhere else; the enums number the items in
    the menus' order (menu_index gives the item a key picks). */
-enum AutoWindowKey { AK_PARAM, AK_AXES, AK_NUMERICS, AK_RUN, AK_GRAB, AK_USR, AK_CLEAR, AK_REDRAW, AK_FILE };
+enum AutoWindowKey { AK_AXES, AK_NUMERICS, AK_RUN, AK_GRAB, AK_USR, AK_CLEAR, AK_REDRAW, AK_FILE };
 enum BrowserWindowKey { BK_FIND, BK_GET, BK_REPLACE, BK_UNREPLACE, BK_TABLE, BK_FIRST, BK_LAST, BK_RESTORE,
   BK_ADDCOL, BK_DELCOL, BK_LOAD, BK_WRITE };
 enum AniWindowKey { NK_FILE, NK_GO, NK_RESET, NK_SKIP, NK_MPEG, NK_FLY, NK_GRAB };

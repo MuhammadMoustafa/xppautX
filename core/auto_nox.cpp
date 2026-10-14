@@ -140,12 +140,12 @@ constexpr int FP_color=25;
    it and keep the model's previous value instead, once per parameter. */
 static void auto_set_pars_from(xpp::Session &s, const double *par)
 {
-    for (int i = 0; i < s.auto_state.npar; i++) {
-        const int idx = s.auto_state.par_index[i];
+    for (int i = 0; i < s.model().nupar; i++) {
+        const int idx = s.model().upar_con[i];
         if (std::isfinite(par[i])) s.parser.constants[idx] = par[i];
         else
             xpp::log(XPP_LOG_WARN, "AUTO: {} from the diagram is not finite; keeping {:.16g}",
-                     s.model().upar_names[s.auto_state.par[i]], s.parser.constants[idx]);
+                     s.model().upar_names[i], s.parser.constants[idx]);
     }
 }
 
@@ -155,11 +155,11 @@ static void auto_set_pars_from(xpp::Session &s, const double *par)
    run started from instead of leaving -nan in the model (QA SCI-001). */
 static void auto_restore_finite_pars(xpp::Session &s, const double *before)
 {
-    for (int i = 0; i < s.auto_state.npar; i++) {
-        const int idx = s.auto_state.par_index[i];
+    for (int i = 0; i < s.model().nupar; i++) {
+        const int idx = s.model().upar_con[i];
         if (!std::isfinite(s.parser.constants[idx])) {
             xpp::log(XPP_LOG_WARN, "AUTO: the run left {} not finite; keeping {:.16g}",
-                     s.model().upar_names[s.auto_state.par[i]], before[i]);
+                     s.model().upar_names[i], before[i]);
             s.parser.constants[idx] = before[i];
         }
     }
@@ -262,8 +262,8 @@ void setautopoint(xpp::Session &s)
   if(s.auto_state.from_auto_flag)
     {
       s.auto_state.from_auto_flag=0;
-      xpp::set_val(s,s.model().upar_names[s.auto_state.par[s.auto_state.axes().icp1]],s.auto_state.from_auto_x);
-      xpp::set_val(s,s.model().upar_names[s.auto_state.par[s.auto_state.axes().icp2]],s.auto_state.from_auto_y);
+      xpp::set_val(s,s.model().upar_names[s.auto_state.axes().icp1],s.auto_state.from_auto_x);
+      xpp::set_val(s,s.model().upar_names[s.auto_state.axes().icp2],s.auto_state.from_auto_y);
       xpp::evaluate_derived(s);
       xpp::ok_or_show(xpp::redo_all_fun_tables(s));
       redraw_params();
@@ -514,6 +514,11 @@ struct AutoDepth {
 
 void do_auto(xpp::Session &s, int iold, int isave, int itp)
 {
+      /* Retaining an older branch retains its label solutions too. A fresh
+         calculation may request overwrite only after the diagram is reset. */
+      if(s.auto_state.diag_flag!=0 && isave==OVERWRITE)isave=APPEND;
+      if(const DIAGRAM *point=diagram_of_label(s,s.auto_state.bifur.irs))
+        auto_set_pars_from(s,diagram_parameters(*point).data());
       redraw_auto_menus();
       
     set_auto(s); /* this sets up all the continuation initialization 
@@ -531,8 +536,8 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
       stability_run_start(s); /* what its first point's stability is (auto_stability.h) */
       {
           xpp::Computation computing; /* what Abort stops (xpp_job.h) */
-          std::vector<double> before(s.auto_state.npar);
-          for (int i = 0; i < s.auto_state.npar; i++) before[i] = s.parser.constants[s.auto_state.par_index[i]];
+          std::vector<double> before(s.model().nupar);
+          for (int i = 0; i < s.model().nupar; i++) before[i] = s.parser.constants[s.model().upar_con[i]];
           try {
               go_go_auto(s); /* this complets the initialization and calls the
                                 main routines
@@ -591,6 +596,19 @@ void auto_restart(xpp::Session &s, int label)
   do_auto(s,OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
+void auto_label_parameters(const xpp::Session &s, int label, double *parameters)
+{
+  const DIAGRAM *point=diagram_of_label(s,label);
+  if(!point)return; /* a library-generated starting solution may have no stored point */
+  for(int k=0;k<s.auto_state.run.nicp;k++){
+    const int slot=s.auto_state.run.icp[k];
+    const int parameter=s.auto_state.model_parameter(slot);
+    if(parameter>=0 && parameter<s.model().nupar &&
+       std::find(point->parameter_indices.begin(),point->parameter_indices.end(),parameter)==point->parameter_indices.end())
+      parameters[slot]=diagram_parameter(*point,parameter);
+  }
+}
+
 void set_auto(xpp::Session &s) /* Caution - need to include NICP here */
 {
   s.auto_state.nuzr=s.auto_state.bifur.nper;
@@ -599,17 +617,16 @@ void set_auto(xpp::Session &s) /* Caution - need to include NICP here */
 }
 int auto_name_to_index(const xpp::Session &s, std::string_view name)
 {
-  int i,in;
+  int in;
   find_variable(s,name,&in);
   if(in==0)return(10);
   in=xpp::find_user_name(s.model(),PARAM_BOX,name);
-  for(i=0;i<s.auto_state.npar;i++)
-    if(s.auto_state.par[i]==in)return(s.auto_state.parameter_slot(i));
+  if(in>=0)return s.auto_state.parameter_slot(in);
   return(-1);
 }
 const char *auto_par_name(const xpp::Session &s, int k)
 {
-  return k>=0&&k<s.auto_state.npar&&s.auto_state.par[k]>=0&&s.auto_state.par[k]<s.model().nupar?s.model().upar_names[s.auto_state.par[k]].c_str():NULL;
+  return k>=0&&k<s.model().nupar?s.model().upar_names[k].c_str():NULL;
 }
 
 namespace {
@@ -619,7 +636,7 @@ std::string par_or_period_name(const xpp::Session &s, long index)
 {
   if(index==AUTO_PERIOD_INDEX)return "T";
   const int k=s.auto_state.model_parameter(static_cast<int>(index));
-  return k>=0&&k<s.auto_state.npar?par_label(s,k):std::string();
+  return k>=0&&k<s.model().nupar?par_label(s,k):std::string();
 }
 
 /* fscanf "%ld" at s (blanks, a sign, digits): true with v */
@@ -712,28 +729,6 @@ void auto_per_par(xpp::Session &s)
     s.auto_state.uzr_par[i]=s.auto_state.bifur.uzrpar[i];
   }
   
-}
-
-void auto_params(xpp::Session &s)
-{
-  std::vector<std::string> labels;
-  for(int k=0;k<s.model().nupar;k++)labels.push_back(xpp::format("*2Par{}",k+1));
-  std::vector<const char *> n;
-  for(const auto &label:labels)n.push_back(label.c_str());
-  int status,i;
-  std::vector<std::string> values(s.model().nupar);
-  for(i=0;i<s.auto_state.npar;i++){
-    values[i] = s.model().upar_names[s.auto_state.par[i]];
-  }
-  std::vector<int> kinds(s.model().nupar,XPP_FIELD_NAME_IN(2));
-  status=do_string_box_of(s.model().nupar,1,"Parameters",n.data(),values,kinds.data());
-  if(status!=0){
-    AutoSettingsSet set;
-    set.npars=s.model().nupar;
-    set.pars=std::move(values);
-    std::string why;
-    if(auto_settings_apply(s,set,why)!=0)command_error("auto",why);
-  }
 }
 
 void auto_num_par(xpp::Session &s)
@@ -872,8 +867,8 @@ void auto_plot_par(xpp::Session &s)
     return;
   }
   values[0] = xpp::ind_to_sym(s,i1);
-  values[1] = s.model().upar_names[s.auto_state.par[s.auto_state.axes().icp1]];
-  values[2] = s.model().upar_names[s.auto_state.par[s.auto_state.axes().icp2]];
+  values[1] = s.model().upar_names[s.auto_state.axes().icp1];
+  values[2] = s.model().upar_names[s.auto_state.axes().icp2];
   values[3] = xpp::format("{:g}", s.auto_state.axes().xmin);
   values[4] = xpp::format("{:g}", s.auto_state.axes().ymin);
   values[5] = xpp::format("{:g}", s.auto_state.axes().xmax);
@@ -888,8 +883,8 @@ void auto_plot_par(xpp::Session &s)
     /*  Now check the parameters  */
     i1=xpp::find_user_name(s.model(),PARAM_BOX,values[1].c_str());
     if(i1>=0){
-      for(i=0;i<s.auto_state.npar;i++){
-	if(i1==s.auto_state.par[i]){
+      for(i=0;i<s.model().nupar;i++){
+	if(i1==i){
 	  s.auto_state.axes().icp1=i;
 
 	}
@@ -897,8 +892,8 @@ void auto_plot_par(xpp::Session &s)
     }
      i1=xpp::find_user_name(s.model(),PARAM_BOX,values[2].c_str());
     if(i1>=0){
-      for(i=0;i<s.auto_state.npar;i++){
-	if(i1==s.auto_state.par[i]){
+      for(i=0;i<s.model().nupar;i++){
+	if(i1==i){
 	  s.auto_state.axes().icp2=i;
 	}
       }
@@ -1061,14 +1056,15 @@ void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double pa
 
 void add_ps_point(xpp::Session &s, const DIAGRAM &d, int type, int flg)
 {
-  const double *par=d.par.data();
+  const auto parameters=diagram_parameters(d);
+  const double *par=parameters.data();
   const double per=d.per,a=d.norm;
   double *uhigh=d.uhi,*ulow=d.ulo,*ubar=d.ubar;
   const int icp1=d.icp1,icp2=d.icp2,flag2=d.flag2;
   double x,y1,y2,par1,par2=0;
   int type1=type;
   par1=par[icp1];
-  if(icp2<s.auto_state.npar)par2=par[icp2];
+  if(icp2<s.model().nupar)par2=par[icp2];
   auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
   if(flg==0){
     s.auto_state.bifur.lastx=x;
@@ -1224,15 +1220,15 @@ namespace {
    coordinates, so every view holds one entry per point of the diagram in
    the same order: a point's index is the same in every view (the grab,
    Clear's earlier branches). */
-void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIAGRAM &d, const double *par, int type,
+void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIAGRAM &d, int type,
                 int flg)
 {
   const int lab=d.lab,icp1=d.icp1,icp2=d.icp2,flag2=d.flag2;
   double x,y1,y2,par1,par2=0;
   int ix=0,iy1=0,iy2=0,type1=type;
   XppDiagPoint dp;
-  par1=par[icp1];
-  if(icp2<s.auto_state.npar)par2=par[icp2];
+  par1=diagram_parameter(d,icp1);
+  if(icp2<s.model().nupar)par2=diagram_parameter(d,icp2);
   auto_xy_plot(&ax,&x,&y1,&y2,par1,par2,d.per,d.uhi,d.ulo,d.ubar,d.norm); /* figure out who sits on axes */
   memset(&dp,0,sizeof dp);
   dp.ibr=d.ibr;
@@ -1328,10 +1324,10 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
 } // namespace
 
 /* main plotting code: the point in every view */
-void add_point(xpp::Session &s, const DIAGRAM &d, const double *par, int type, int flg)
+void add_point(xpp::Session &s, const DIAGRAM &d, int type, int flg)
 {
   for(int v=0;v<static_cast<int>(s.auto_state.views.size());v++)
-    view_point(s, v,s.auto_state.views[static_cast<std::size_t>(v)].axes,v==s.auto_state.active_view,d,par,type,flg);
+    view_point(s, v,s.auto_state.views[static_cast<std::size_t>(v)].axes,v==s.auto_state.active_view,d,type,flg);
   show_stab(s, d.evr,d.evi,s.model().node,type==STABLE_PERIODIC||type==UNSTABLE_PERIODIC);
   refreshdisplay(s);
 }
@@ -1366,8 +1362,8 @@ void info_header(xpp::Session &s, int flag2, int icp1, int icp2)
 {
   /* the names head 10-wide columns of new_info's numbers */
   auto short10=[](std::string_view name){ return xpp::short_name(name,10); };
-  const std::string p1name=short10(s.model().upar_names[s.auto_state.par[icp1]]);
-  const std::string p2name=icp2<s.auto_state.npar?short10(s.model().upar_names[s.auto_state.par[icp2]]):std::string("   ");
+  const std::string p1name=short10(s.model().upar_names[icp1]);
+  const std::string p2name=icp2<s.model().nupar?short10(s.model().upar_names[icp2]):std::string("   ");
   const std::string vname=short10(s.model().uvar_names[s.auto_state.axes().var]);
   SmallBase();
   std::string bob=xpp::format("  Br  Pt Ty  Lab {:>10} {:>10}       norm {:>10}     period",
@@ -1383,8 +1379,8 @@ void new_info(xpp::Session &s, const DIAGRAM &d)
   double p1,p2=0.0;
   clear_auto_info();
   info_header(s, d.flag2,d.icp1,d.icp2);
-  p1=d.par[d.icp1];
-  if(d.icp2<s.auto_state.npar)p2=d.par[d.icp2];
+  p1=diagram_parameter(d,d.icp1);
+  if(d.icp2<s.model().nupar)p2=diagram_parameter(d,d.icp2);
   std::string bob=xpp::format("{:4} {:4} {:>2} {:4} {:10.4g} {:10.4g} {:10.4g} {:10.4g} {:10.4g}",
 	  d.ibr,d.ntot,auto_bif_sym(d.itp),d.lab,p1,p2,d.norm,d.u0[s.auto_state.axes().var],d.per);
   draw_auto_info(bob,10,2*text_metrics.small_height+2);
@@ -1402,7 +1398,8 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
 	return;
   }
   norm=d->norm;
-  par=d->par.data();
+  auto parameters=diagram_parameters(*d);
+  par=parameters.data();
 
   per=d->per;
   lab=d->lab;
@@ -1418,7 +1415,7 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
  
   symb=auto_bif_sym(itp);
  par1=par[icp1];
-  if(icp2<s.auto_state.npar)par2=par[icp2];  
+  if(icp2<s.model().nupar)par2=par[icp2];
     auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,per,d->uhi,d->ulo,d->ubar,norm);
   
     *ix=IXVal(s, x);
@@ -1438,9 +1435,9 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
       ai.node=d->index;
       ai.jacobian=d->jacobian;
       ai.sym=symb;
-      ai.p1name=s.model().upar_names[s.auto_state.par[icp1]].c_str();
+      ai.p1name=s.model().upar_names[icp1].c_str();
       ai.p1=par1;
-      ai.p2name=icp2<s.auto_state.npar?s.model().upar_names[s.auto_state.par[icp2]].c_str():NULL;
+      ai.p2name=icp2<s.model().nupar?s.model().upar_names[icp2].c_str():NULL;
       ai.p2=par2;
       ai.norm=norm;
       ai.vname=s.model().uvar_names[s.auto_state.axes().var].c_str();
@@ -1558,20 +1555,13 @@ void init_auto_win(xpp::Session &s)
     s.auto_state.uzr_period[i]=s.auto_state.bifur.period[i];
     s.auto_state.uzr_par[i]=10;
   }
-  s.auto_state.npar=std::min(s.model().nupar,AutoState::default_selected_parameters);
-  s.auto_state.par.resize(s.model().nupar);
-  s.auto_state.par_index.resize(s.model().nupar);
+  s.auto_state.model_parameters=s.model().nupar;
   s.auto_state.parameter_offset=std::max(AutoState::numerical_parameter_slots,
       AutoState::homoclinic_parameter_start+AutoState::homoclinic_parameter_blocks*s.model().node);
   s.auto_lib.parameter_count=s.auto_state.parameter_count();
   for (auto *v : {&s.auto_state.grabpt.uhi, &s.auto_state.grabpt.ulo, &s.auto_state.grabpt.u0,
                  &s.auto_state.grabpt.ubar, &s.auto_state.homo_l, &s.auto_state.homo_r}) v->resize(s.model().node);
-  s.auto_state.grabpt.par.resize(s.auto_state.diagram_parameters());
   start_diagram(s, s.model().node);
-  for(i=0;i<s.model().nupar;i++)s.auto_state.par[i]=i;
-  for(i=0;i<s.model().nupar;i++){
-    s.auto_state.par_index[i]=xpp::get_param_index(s,s.model().upar_names[s.auto_state.par[i]]);
-  }
   s.auto_state.bifur.nper=0;
   s.auto_state.grabpt.flag=0;  /*  no point in buffer  */
   s.auto_state.bifur.exist=0;
@@ -2563,23 +2553,26 @@ void save_auto(xpp::Session &s)
 
 void load_auto_numerics(xpp::Session &s, FILE *fp)
 {
- int i,in;
+ int i;
  /* The fscanf formats this replaces ended in whitespace, which fscanf
     skipped; the token reader leaves it in the stream, and every read that
     follows (load_auto_graph, load_diagram) skips it first. */
  xpp::TokenReader tr=xpp::TokenReader::attach(fp);
  int imported_parameters;
- if (!tr.read(imported_parameters) || imported_parameters < 0 || imported_parameters > s.auto_state.npar) return;
- for(i=0;i<imported_parameters;i++){
-   if (!tr.read(s.auto_state.par[i])) return;
-   if(s.auto_state.par[i]<0 || s.auto_state.par[i]>=s.model().nupar)return;
-   in=xpp::get_param_index(s,s.model().upar_names[s.auto_state.par[i]]);
-   s.auto_state.par_index[i]=in;
+ if (!tr.read(imported_parameters) || imported_parameters < 0 || imported_parameters > std::min(s.model().nupar,AutoState::model_parameter_prefix)) return;
+ s.auto_state.imported_parameters.resize(imported_parameters);
+ for(int &parameter:s.auto_state.imported_parameters){
+   if (!tr.read(parameter) || parameter<0 || parameter>=s.model().nupar) return;
  }
+ if(!s.auto_state.imported_parameters.empty())s.auto_state.axes().icp1=s.auto_state.imported_parameters.front();
+ if(s.auto_state.imported_parameters.size()>1)s.auto_state.axes().icp2=s.auto_state.imported_parameters[1];
  if (!tr.read(s.auto_state.nuzr)) return;
   for(i=0;i<9;i++){
     s.auto_state.bifur.nper=s.auto_state.nuzr;
     if (!tr.read(s.auto_state.uzr_period[i]) || !tr.read(s.auto_state.uzr_par[i])) return;
+    const long slot=s.auto_state.uzr_par[i];
+    if(slot>=0 && static_cast<std::size_t>(slot)<s.auto_state.imported_parameters.size())
+      s.auto_state.uzr_par[i]=s.auto_state.parameter_slot(s.auto_state.imported_parameters[slot]);
     s.auto_state.bifur.period[i]=s.auto_state.uzr_period[i];
     s.auto_state.bifur.uzrpar[i]=s.auto_state.uzr_par[i];
   }
@@ -2611,17 +2604,76 @@ bool noinfo(std::string_view s)
 xpp::Result<> make_q_file(const xpp::Session &s, FILE *fp)
 {
   std::string string=s.auto_state.file+".s";
-  /* written beside the .s and renamed over it once whole */
-  xpp::Writer w(string.c_str());
-  if(!w){
-    return std::unexpected(xpp::files::write_error("AUTO",string));
-  }
-
-  /* the rest of fp, the .auto's copy of the .s, without its blank lines */
+  /* Validate the foreign restart payload before translating its selected
+     model slots into our unchanged numerical layout. Keep orbit numbers and
+     their row boundaries verbatim; only indices and parameter rows move. */
+  std::string text;
   xpp::LineReader lr=xpp::LineReader::attach(fp);
   while(auto line=lr.next()){
-    if(!noinfo(*line))
-      w.print("{}\n",*line);
+    if(!noinfo(*line)){
+      text.append(*line);
+      text+='\n';
+    }
+  }
+  const auto checked=xpp::check_auto_solutions(text,string,AutoState::state_copies*s.model().node,s.auto_state.parameter_count());
+  if(!checked)return checked;
+  const auto converted=xpp::read_lines("import AUTO solutions",string,text,[&s](xpp::Lines &lines){
+    std::string out;
+    const auto mapped=[&s](int slot){
+      return slot>=0 && static_cast<std::size_t>(slot)<s.auto_state.imported_parameters.size()
+        ? s.auto_state.parameter_slot(s.auto_state.imported_parameters[slot]) : slot;
+    };
+    while(!lines.at_end()){
+      xpp::AutoSolutionHeader h;
+      auto reader=xpp::TokenReader::of_text(lines.next());
+      if(!xpp::read_auto_solution_header(reader,h,s.auto_state.parameter_count()))lines.fail("invalid foreign solution header");
+      const std::size_t orbit=static_cast<std::size_t>(h.ntpl)*h.nar;
+      const std::size_t prefix=orbit+(h.ntst?2*h.nfpr+static_cast<std::size_t>(h.ntpl)*(h.nar-1):0);
+      std::vector<double> parameters(s.auto_state.parameter_count());
+      std::string body;
+      std::size_t count=0;
+      int body_rows=0;
+      for(int row=0;row<h.nskip;row++){
+        const auto text_row=lines.next();
+        xpp::Tokens tokens(text_row);
+        std::string converted_row;
+        while(const auto word=tokens.next(" \t\r\n")){
+          if(count>=prefix){
+            const int slot=static_cast<int>(count-prefix);
+            double value;
+            if(!xpp::parse_number(*word,value))lines.fail("invalid foreign parameter");
+            if(slot>=AutoState::model_parameter_prefix || static_cast<std::size_t>(slot)<s.auto_state.imported_parameters.size())parameters[mapped(slot)]=value;
+          } else {
+            std::string value(*word);
+            if(h.ntst && count>=orbit && count<orbit+static_cast<std::size_t>(h.nfpr)){
+              int slot;
+              if(!xpp::parse_int(*word,slot))lines.fail("invalid foreign restart index");
+              value=xpp::number(mapped(slot));
+            }
+            if(!converted_row.empty())converted_row+=' ';
+            converted_row+=value;
+          }
+          count++;
+        }
+        if(!converted_row.empty()){
+          body+=converted_row+'\n';
+          body_rows++;
+        }
+      }
+      // AUTO writes at most seven parameter values on a restart row.
+      constexpr int parameter_columns=7;
+      h.npar=static_cast<long>(parameters.size());
+      h.nskip=body_rows+(h.npar+parameter_columns-1)/parameter_columns;
+      out+=xpp::format("{} {} {} {} {} {} {} {} {} {} {} {}\n",h.ibr,h.ntot,h.itp,h.lab,h.nfpr,h.isw,h.ntpl,h.nar,h.nskip,h.ntst,h.ncol,h.npar);
+      out+=body;
+      for(std::size_t i=0;i<parameters.size();i++)out+=xpp::number(parameters[i])+((i+1)%parameter_columns==0 || i+1==parameters.size()?"\n":" ");
+    }
+    return out;
+  });
+  if(!converted)return std::unexpected(converted.error());
+  xpp::Writer w(string);
+  if(!w || !w.write(*converted)){
+    return std::unexpected(xpp::files::write_error("AUTO",string));
   }
   return w.commit();
 }
@@ -2870,7 +2922,7 @@ void auto_get_info(xpp::Session &s, int *n, std::string &pname)
     while(1){
       if(d->ibr==ibr && ((d->ntot==i1)||(d->ntot==(-i1))))
 	{
-	  pname=s.model().upar_names[s.auto_state.par[d->icp1]];
+	  pname=s.model().upar_names[d->icp1];
 	  break;
 	}
        dnew=diagram_next(s.diagram,d);
@@ -2911,7 +2963,7 @@ void find_point(xpp::Session &s, int ibr, int pt)
 	   for(i=0;i<s.model().node;i++)
 	     setvar(s,i+1,d->u0[i]);
 	   xpp::get_ic(s,0,d->u0);
-	   auto_set_pars_from(s, d->par.data());
+	   auto_set_pars_from(s, diagram_parameters(*d).data());
 	   xpp::evaluate_derived(s);
 	   xpp::ok_or_show(xpp::redo_all_fun_tables(s));
 	   redraw_params();
@@ -3212,7 +3264,7 @@ static void grab_diagram_point(xpp::Session &s, const DIAGRAM *d)
   int i;
   s.auto_state.grabpt.ibr=d->ibr;
   s.auto_state.grabpt.lab=d->lab;
-  s.auto_state.grabpt.par=d->par;
+  s.auto_state.grabpt.par=diagram_parameters(*d);
   s.auto_state.grabpt.per=d->per;
   s.auto_state.grabpt.torper=d->torper;
   for(i=0;i<s.model().node;i++){

@@ -20,7 +20,7 @@
    entry shows them. A click on an axis name opens its dialog
    (ui/AutoAxes.tsx).
 
-   T22: Parameter, Numerics and Mark values are the page's own forms on the
+   T22: Numerics and Mark values are the page's own forms on the
    `autosettings` data (ui/AutoSettings.tsx), and so is what the axis dialog
    plots: they work during a run too, their changes pending until it ends.
    Only Run, Grab, Axes (its menu: zoom, fit, scroll ...) and File wait.
@@ -30,7 +30,7 @@
    or the keyboard's stepping ([ ] PageUp PageDown Home End along a curve,
    { } between curves, < > from label to label) is named in the readout:
    branch, point, kind, label and values. AUTO's own hotkeys (A, N, G, R, D,
-   C, U, P, F, as on its X11 window) work while the focus is in the view.
+   C, U, F, as on its X11 window) work while the focus is in the view.
 
    W50: the one diagram has any number of views (store/diagram.ts), side by
    side and wrapping to a new row when narrow, each with its own axes, zoom,
@@ -80,21 +80,20 @@ import './auto.css';
 /** label and op (its key is the core's: hello.windows.auto), in the X11 window's order; no
     reDraw (T21): the diagram is always the current one */
 const BUTTONS: [string, AutoOp][] = [
-  ['Parameter', 'param'], ['Axes', 'axes'], ['Numerics', 'numerics'], ['Run', 'run'],
+  ['Axes', 'axes'], ['Numerics', 'numerics'], ['Run', 'run'],
   ['Grab', 'grab'], ['Mark values…', 'usr'], ['Clear', 'clear'], ['File', 'file'],
 ];
 /** the view's own words for a button, over the core's hint */
 const TITLES: Partial<Record<AutoOp, string>> = {
   axes: "The active view's axes: what they plot, zoom, Fit, and New view (another view of the diagram)",
   clear: 'Hide the branches computed so far: new runs draw alone (the key shows them again)',
-  param: 'The parameters AUTO can continue in',
   numerics: "AUTO's numerical settings: mesh, steps, limits, tolerances",
   usr: "Label the points where a parameter or the period reaches a value (AUTO's user points, UZ)",
 };
 /** the buttons that open the page's own forms on AUTO's settings (T22), and the pending edits each shows */
-const SETTINGS_DIALOG: Partial<Record<AutoOp, AutoSettingsDialogKind>> = {param: 'pars', numerics: 'numerics', usr: 'marks'};
+const SETTINGS_DIALOG: Partial<Record<AutoOp, AutoSettingsDialogKind>> = {numerics: 'numerics', usr: 'marks'};
 const PENDING_OF: Record<AutoSettingsDialogKind, (field: string) => boolean> = {
-  pars: f => f === 'pars', numerics: f => f.startsWith('numerics.'), marks: f => f === 'marks',
+  numerics: f => f.startsWith('numerics.'), marks: f => f === 'marks',
 };
 
 const KEYS_HELP = 'Arrow keys pan, plus and minus zoom, 0 resets, Control Z undoes a zoom, square brackets and Page Up '

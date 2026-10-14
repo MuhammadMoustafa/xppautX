@@ -246,7 +246,6 @@ const char *const tab_hint[]={"Edit the lookup tables","View a table in the data
 
 
 const char *const auto_hint[]={
-"Tell AUTO the parameters you may vary",
 "What will be plotted on the axes and what parameter(s)",
 "Tell AUTO range, direction, and tolerance",
 "Run the continuation",
@@ -436,9 +435,9 @@ char menu_kind(const XppMenu *m, int ch)
 
 /* (F)ile opens AUTO's File menu: a view, as a menu opener takes its items'
    least restrictive kind (its Toggle redraw), so it opens once a run ends */
-static const char *const auto_window_items[]={"(P)arameter","(A)xes","(N)umerics","(R)un","(G)rab",
+static const char *const auto_window_items[]={"(A)xes","(N)umerics","(R)un","(G)rab",
   "(U)sr period","(C)lear","re(D)raw","(F)ile"};
-const XppMenu menu_auto_window = XPP_MENU("auto_window", "AUTO", auto_window_items, "panrgucdf", "svsxdsvvv", auto_hint, -1);
+const XppMenu menu_auto_window = XPP_MENU("auto_window", "AUTO", auto_window_items, "anrgucdf", "vsxdsvvv", auto_hint, -1);
 
 static const char *const browser_window_items[]={"(F)ind","(G)et","(R)eplace","(U)nreplace","(T)able","(H)ome: first",
   "(E)nd: last","re(S)tore","(A)dd column","(D)elete column","(L)oad","(W)rite"};
@@ -464,7 +463,7 @@ static const char *const equilibrium_window_hint[]={"Make the equilibrium the in
 const XppMenu menu_equilibrium_window = XPP_MENU("equilibrium_window", "Equilibrium", equilibrium_window_items, "i", "d", equilibrium_window_hint, -1);
 
 /* the page's name for each item of a window's layer (hello.windows) */
-static const char *const auto_window_ids[]={"param","axes","numerics","run","grab","usr","clear","redraw","file"};
+static const char *const auto_window_ids[]={"axes","numerics","run","grab","usr","clear","redraw","file"};
 static const char *const browser_window_ids[]={"find","get","replace","unreplace","table","first","last","restore",
   "addcol","delcol","load","write"};
 static const char *const ani_window_ids[]={"file","go","reset","skip","mpeg","fly","grab"};

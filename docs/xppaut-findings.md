@@ -81,6 +81,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [49](#49-auto-homoclinic-form-overflows-its-value-table-from-50-variables) | AUTO | a 100-field form holds two dimensions and two values per state, overrunning from 50 variables | [W301](https://github.com/MuhammadMoustafa/xppautX/issues/359) |
 | [50](#50-auto-accepts-nan-as-a-converged-bvp-solution) | AUTO | deprecated projection conditions make tstheti singular; NaN increments pass the BVP convergence test | [W343 / #404](https://github.com/MuhammadMoustafa/xppautX/issues/404) |
 | [51](#51-auto-failed-step-endpoint-stability) | AUTO | a failed equilibrium branch switch restores an earlier branch point but stores the last branch's spectrum | [W341](https://github.com/MuhammadMoustafa/xppautX/issues/402) |
+| [52](#52-auto-omits-unselected-branch-parameters) | AUTO | Unselected constants are absent from a branch; older points use later values | [W339](https://github.com/MuhammadMoustafa/xppautX/issues/400) |
 
 ## 1. Model options
 
@@ -997,3 +998,42 @@ in `solvae`, `swprc` and `stepbv`, checks the restored solution and exact retain
 spectrum, checks absent-record equilibrium cases against the known scalar
 Jacobian, and checks an absent-record BVP endpoint against a fresh reference
 pencil at its restored solution (with a state-dependent Jacobian).
+
+## 52. AUTO omits unselected branch parameters
+
+XPPAUT 8.0's fixed eight-entry mapping is declared at
+[auto_nox.c:191-192](../reference/xppaut-8.0/auto_nox.c#L191)
+([master](../reference/xppaut-master/auto_nox.c#L186)) and populated
+by the Parameter form at
+[auto_nox.c:740-766](../reference/xppaut-8.0/auto_nox.c#L740)
+([master](../reference/xppaut-master/auto_nox.c#L736)).
+A diagram point stores only these eight values at
+[diagram.c:119-121](../reference/xppaut-8.0/diagram.c#L119)
+([master](../reference/xppaut-master/diagram.c#L119)).
+No branch record carries the other model parameters. Thus changing an
+unselected constant between two computations loses the older branch's
+constant: its recorded states and continued values cannot determine the
+omitted value. A later grab/restart or save/reopen necessarily uses the
+current constant. Fresh runs also open an empty restart stream at
+[gogoauto.c:35-40](../reference/xppaut-8.0/gogoauto.c#L35)
+([master](../reference/xppaut-master/gogoauto.c#L35)), while `newlab`
+finds the next label and branch number from that stream at
+[autlib1.c:4384-4457](../reference/xppaut-8.0/autlib1.c#L4384)
+([master](../reference/xppaut-master/autlib1.c#L4381)).
+Retaining two fresh branches can therefore duplicate label numbers and
+make an older label read the newer solution. W339 includes the retained
+diagram when allocating new labels. In addition, declining the reset in
+[auto_nox.c:2164-2193](../reference/xppaut-8.0/auto_nox.c#L2164) leaves
+the old diagram while still requesting overwrite of its solution files
+([master](../reference/xppaut-master/auto_nox.c#L2146)). W339 appends the
+new solutions whenever older branches are retained. This is source-confirmed; a native XPPAUT reproduction
+was not run for this card.
+
+[W339 / #400](https://github.com/MuhammadMoustafa/xppautX/issues/400)
+removes the selection and records every model parameter once per branch.
+The regression uses `x'=b-a*x`: it continues `a` with `b=2`, computes a
+second branch with `b=7`, then changes `b` again before grab and label
+restart. It checks that the older branch restores `b=2` and `a*x=2`,
+before and after saving and reopening the session. Continued values,
+states and spectra are compared against the previous per-model AUTO
+baselines before accepting the storage layout change.

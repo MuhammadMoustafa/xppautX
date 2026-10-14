@@ -144,7 +144,6 @@ export interface AutoAxesSettings {
 /** the `autosettings` event's settings, with what the Numerics take */
 export interface AutoSettings {
   numerics: Record<NumKey, number>;
-  pars: (string | null)[];
   axes: AutoAxesSettings;
   marks: [string, number][];
   /** AUTO's thread count, a program preference (W267): "auto" or the count */
@@ -160,7 +159,6 @@ export interface AutoSettings {
 /** what an `auto` `set` changes (docs/protocol.md), each part only when given */
 export interface AutoSettingsPatch {
   numerics?: Partial<Record<NumKey, number>>;
-  pars?: string[];
   /** `view`: the view of the diagram whose axes these are (W50; the active one without it) */
   axes?: Partial<AutoAxesSettings> & {fit?: boolean; view?: number};
   marks?: [string, number][];
@@ -214,12 +212,10 @@ export function reduceAutoSettings(s: AutoSettingsState, a: AutoSettingsAction):
 
 function apply(base: AutoSettings, p: AutoSettingsPatch | null): AutoSettings {
   if (!p) return base;
-  const pars = p.pars ? base.pars.map((n, i) => (p.pars![i] ? p.pars![i] : n)) : base.pars;
   const {fit: _fit, view: _view, ...axes} = p.axes ?? {};
   return {
     ...base,
     numerics: {...base.numerics, ...p.numerics},
-    pars,
     axes: {...base.axes, ...axes},
     marks: p.marks ?? base.marks,
     threads: p.threads ?? base.threads,
@@ -231,13 +227,12 @@ export function shownSettings(s: AutoSettingsState): AutoSettings | null {
   return s.core ? s.inflight.reduce((base, f) => apply(base, f.patch), s.core) : null;
 }
 
-/** the fields an edit sent is not yet applied to ("numerics.nmx", "axes.plot", "pars", "marks") */
+/** the fields an edit sent is not yet applied to ("numerics.nmx", "axes.plot", "marks") */
 export function pendingFields(s: AutoSettingsState): Set<string> {
   const out = new Set<string>();
   for (const {patch: p} of s.inflight) {
     for (const k of Object.keys(p.numerics ?? {})) out.add(`numerics.${k}`);
     for (const k of Object.keys(p.axes ?? {})) if (k !== 'fit' && k !== 'view') out.add(`axes.${k}`);
-    if (p.pars) out.add('pars');
     if (p.marks) out.add('marks');
     if (p.threads !== undefined) out.add('threads');
   }

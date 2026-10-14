@@ -50,7 +50,7 @@ void init_auto(AutoState &st, int ndim, bool exact)
   st.run.ilp=b.ilp;
   st.run.nicp=b.nfpar;
   st.run.icp[0]=st.parameter_slot(st.axes().icp1);
-  st.run.icp[1]=b.nfpar>1 && st.axes().icp2<st.npar ? st.parameter_slot(st.axes().icp2) : st.axes().icp2;
+  st.run.icp[1]=b.nfpar>1 && st.axes().icp2<st.model_parameters ? st.parameter_slot(st.axes().icp2) : st.axes().icp2;
   st.run.icp[2]=b.icp3;
   st.run.icp[3]=b.icp4;
   st.run.icp[4]=b.icp5;
@@ -126,8 +126,13 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   p.ubar=ubar;
   p.evr=ev.data();
   p.evi=ev.data()+n;
-  p.par.resize(s.auto_state.diagram_parameters());
-  for(int k=0;k<s.auto_state.npar;k++)p.par[k]=par[s.auto_state.parameter_slot(k)];
+  for(int k=0;k<iap->nfpr;k++){
+    const int parameter=s.auto_state.model_parameter(static_cast<int>(icp[k]));
+    if(parameter>=0 && parameter<s.model().nupar){
+      p.parameter_indices.push_back(parameter);
+      p.par.push_back(par[icp[k]]);
+    }
+  }
   icp1=s.auto_state.diagram_parameter(icp1);
   icp2=s.auto_state.diagram_parameter(icp2);
   icp3=s.auto_state.diagram_parameter(icp3);
@@ -139,6 +144,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   p.icp4=icp4;
   p.flag2=s.auto_state.two_param;
   p.jacobian=s.numerics.jacobian;
+  diagram_record_branch(s,p);
   if(s.auto_state.diag_flag==0){
     edit_start(s,p,n);
     s.auto_state.diag_flag=1;
@@ -150,7 +156,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   /* plotted, and its stability shown, from the stored point, as a redraw
      or a grab shows it */
   const DIAGRAM *d=last_diagram(s.diagram);
-  add_point(s,*d,d->par.data(),type,iap->ntot==1?0:1);
+  add_point(s,*d,type,iap->ntot==1?0:1);
   xpp::job::report_point(static_cast<int>(labs(ibrs)),static_cast<int>(labs(ntots))); /* xppautX: where it got to (xpp_job.h) */
 }
 

@@ -45,6 +45,7 @@ measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, base64, csv, io, json, os, re, shutil, subprocess, sys, tempfile, time, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from autocompare import diagram_rows
 from xppclient import Checker, file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, macos_thread_states, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission, open_auto, run_any
 
 ap = argparse.ArgumentParser()
@@ -585,9 +586,8 @@ def lecar_diagram(s, events=None):
 
 
 def lines_close(a, b, rtol=1e-6, atol=1e-9):
-    """the same tokens, numbers equal to 1e-6: glibc and mingw-w64 libm
-    differ by a few ULPs, which a continuation grows into the last digits"""
-    ta, tb = a.split(), b.split()
+    """Keep the historical default lecar fixture's numerical acceptance."""
+    ta, tb = a.replace(';',' ').split(), b.replace(';',' ').split()
     if len(ta) != len(tb):
         return False
     for x, y in zip(ta, tb):
@@ -608,9 +608,7 @@ def section_files():
     got = lecar_diagram(s)
     s.close()
     shutil.rmtree(home, ignore_errors=True)
-    # every digit is there now: numbers within 1e-6 (glibc and mingw-w64
-    # libm differ by a few ULPs, which a continuation grows), as the 6
-    # digits of the .auto this reference replaced were
+    # Convert the historical fixture's storage only; keep its original tolerance.
     lines = [l.replace(',', ' ') for l in got.splitlines()] if got else []
     check('File/Save diagram writes the diagram', len(lines) > 50, '%d lines' % len(lines))
     if got is None:
@@ -622,7 +620,7 @@ def section_files():
         return
     with open(DIAGRAM, newline='') as f:
         want = [l.replace(',', ' ') for l in f.read().splitlines()]
-    diff = next((i for i, (a, b) in enumerate(zip(lines, want)) if not lines_close(a, b, atol=1e-6)), None)
+    diff = next((i for i, (a, b) in enumerate(zip(lines, want)) if not lines_close(a,b,atol=1e-6)), None)
     check('the saved diagram of lecar is unchanged',
           len(lines) == len(want) and diff is None,
           'first difference at line %s; %d vs %d lines' % (diff, len(lines), len(want)))
@@ -633,14 +631,10 @@ def section_files():
 def labelled_points(csv_text):
     """a saved diagram.csv's labelled points: (branch, type, label, the
     continuation parameter, the period), in order"""
-    lines = csv_text.splitlines()
-    head = lines[0].split(',')
-    col = {name: i for i, name in enumerate(head)}
     points = []
-    for line in lines[1:]:
-        v = line.split(',')
-        if int(v[col['lab']]) != 0:
-            points.append((int(v[col['ibr']]), int(v[col['itp']]), int(v[col['lab']]), float(v[col['par1']]), float(v[col['per']])))
+    for row in diagram_rows(csv_text.encode('utf-8')):
+        if int(row['lab']) != 0:
+            points.append((int(row['ibr']), int(row['itp']), int(row['lab']), float(row['continued_parameter']), float(row['per'])))
     return points
 
 
@@ -682,8 +676,8 @@ def section_jacobian():
         for name, code in (('difference', '0'), ('exact', '1')):
             runs = {r['jac'] for e in events[name] if is_point(e) for r in e['runs']}
             shown = {i['info']['jac'] for i in infos(events[name]) if i.get('info')}
-            rows = [l.split(',') for l in diagrams[name].splitlines()]
-            column = {r[rows[0].index('jacobian')] for r in rows[1:]}
+            rows = diagram_rows(diagrams[name].encode('utf-8'))
+            column = {r['jacobian'] for r in rows}
             check('jacobian: a %s diagram says so in its runs, the grabbed info and the saved diagram.csv' % name,
                   runs == {name} and shown == {name} and column == {code}, '%s %s %s' % (runs, shown, column))
     finally:
@@ -763,6 +757,9 @@ def section_csv():
     check('the diagram CSV has a header of names',
           bool(drows) and {'branch', 'point', 'type', 'label', 'stability', 'period'} <= set(drows[0].keys()),
           str(list(drows[0].keys()) if drows else []))
+    check('W339: diagram CSV exports every model parameter from its branch',
+          bool(drows) and 'parameter.iapp' in drows[0] and 'parameter.phi' in drows[0]
+          and all(r['parameter.iapp']==r['param1'] for r in drows))
     # the steady branch against the diagram data the page gets (the periodic
     # run's points may repeat, which the page's data draws once): the same
     # points, each row's param1 (lecar's AUTO x axis) its point's x
@@ -1127,10 +1124,11 @@ def section_sessiondiagram():
           got.get('session.setx', '') == 'session: {\n  version: 2,\n  model: "lecar.odex",\n  data: 0,\n},\n'
           and got.get('model/lecar.odex') == open(LECAR).read(), got.get('session.setx', '')[:300])
     check('sessiondiagram: settings.txt has the numerics, the parameters and the axes',
-          all(re.search(r'(^|\n)%s ' % k, got.get('auto/settings.txt', '')) for k in ('ntst', 'ds', 'pars', 'plot', 'xmin')),
+          all(re.search(r'(^|\n)%s ' % k, got.get('auto/settings.txt', '')) for k in ('ntst', 'ds', 'plot', 'xmin')),
           got.get('auto/settings.txt', '')[:300])
-    rows = got.get('auto/diagram.csv', '').splitlines()
-    check("sessiondiagram: diagram.csv has a header and the diagram's points", len(rows) > 50 and rows[0].startswith('calc,ibr,'),
+    rows = diagram_rows(got.get('auto/diagram.csv', '').encode('utf-8'))
+    check("sessiondiagram: diagram.csv has branch records and the diagram's points", len(rows) == len(dg1) > 50
+          and got['auto/diagram.csv'].startswith('branch,0,'),
           '%d rows' % len(rows))
     check('sessiondiagram: solutions.s holds the orbits', len(got.get('auto/solutions.s', '')) > 1000, str(len(got.get('auto/solutions.s', ''))))
     check('sessiondiagram: views.txt holds the two views of the diagram, the first active',
@@ -1191,9 +1189,9 @@ def section_sessiondiagram():
     dg3 = Diagram().apply(import_diagram(s, 'old.auto')).pts
     check('sessiondiagram: Load diagram imports an XPPAUT .auto', len(dg3) > 10, '%d points' % len(dg3))
     got = save_diagram(s, 'old.snapx')
-    rows = got.get('auto/diagram.csv', '').splitlines()
+    rows = diagram_rows(got.get('auto/diagram.csv', '').encode('utf-8'))
     check('sessiondiagram: saving the imported diagram writes old.snapx with every point, and leaves old.auto as it was',
-          len(rows) == old_points + 1 and open(OLD_AUTO, 'rb').read() == open(os.path.join(s.run, 'old.auto'), 'rb').read(),
+          len(rows) == old_points and open(OLD_AUTO, 'rb').read() == open(os.path.join(s.run, 'old.auto'), 'rb').read(),
           '%d rows for %d points' % (len(rows), old_points))
     # the client keeps its points across the reset and redraw: only a
     # difference would be sent (a reset dropping points, and new ones)
@@ -1203,6 +1201,13 @@ def section_sessiondiagram():
     dg4.apply(evs)
     check('sessiondiagram: old.snapx loads the diagram the .auto imported', dg3 and dg4.pts == dg3 and 'error' not in messages(evs),
           '%d vs %d points; %s' % (len(dg4.pts), len(dg3), messages(evs)[:200]))
+    # A previously omitted parameter changes branch data even when every plotted coordinate agrees.
+    s.send(cmd='set',kind='par',name='om',value=2)
+    s.collect(is_idle)
+    refreshed=import_diagram(s,'old.auto')
+    parameters=[r['parameters'] for event in refreshed if is_point(event) for r in event['runs'] if 'parameters' in r]
+    check('W339: diagram replay refreshes changed branch constants with identical coordinates',
+          bool(parameters) and all(dict(values).get('om')==2 for values in parameters),str(parameters)[:200])
     s.close()
 
     # the .ode edited (the same names, or phi renamed) and loaded: the
@@ -1291,7 +1296,7 @@ def section_sessiondiagram():
     check('W155: bad last AUTO settings line refuses the entire session, keeping the previous settings',
           errs and errs[0].get('line') == len(lines) and errs[0].get('source') == lines[-1]
           and hello_title(evs) is None
-          and all(before_settings[k] == after_settings[k] for k in ('numerics', 'pars', 'axes', 'marks')), str(errs)[:300])
+          and all(before_settings[k] == after_settings[k] for k in ('numerics', 'axes', 'marks')), str(errs)[:300])
 
     # Reject duplicate members and oversized declared output before decompression.
     import struct, warnings
@@ -1545,23 +1550,20 @@ def section_names():
     evs, _ = s.collect(is_idle)
     au = autosettings(evs)
     check("names: AUTO's parameters are the long names", au is not None
-          and up(au['pars'][:1]) == up([LONG_PAR]) and LONG_B.upper() in up(au['pars']), str(au)[:300])
-    s.send(cmd='auto', op='set', pars=[LONG_B, LONG_PAR], axes={'plot': 1, 'var': LONG_V, 'par1': LONG_B})
+          and 'pars' not in au and au['axes']['par1'].upper()==LONG_PAR.upper(), str(au)[:300])
+    s.send(cmd='auto', op='set', axes={'plot': 1, 'var': LONG_V, 'par1': LONG_B})
     evs, _ = s.collect(is_idle)
     au = autosettings(evs)
     errs = [e for e in evs if e.get('ev') == 'message']
     check('names: auto set takes 200-character names for the parameters and the axes', not errs and au is not None
-          and up(au['pars'][:2]) == up([LONG_B, LONG_PAR])
           and au['axes']['par1'].upper() == LONG_B.upper() and au['axes']['var'].upper() == LONG_V,
           '%s %s' % (errs, str(au)[:300]))
-    s.send(cmd='key', win='auto', key='p')
-    evs, ask = s.collect(lambda e: e.get('ev') == 'ask' or is_idle(e))
-    if ask is not None and ask.get('ev') == 'ask':
-        s.send(cmd='answer', id=ask['id'], ok=0)
-        s.collect(is_idle)
-    check('names: the Parameter form shows them whole', ask is not None and ask.get('kind') == 'form'
-          and up(ask['values'][:2]) == up([LONG_B, LONG_PAR]), str(ask)[:300])
-    s.send(cmd='auto', op='set', pars=[LONG_PAR, LONG_B], axes={'plot': 1, 'var': LONG_V, 'par1': LONG_PAR})
+    s.send(cmd='auto',op='set',axes={'par2':LONG_PAR})
+    evs,_=s.collect(is_idle)
+    au=autosettings(evs)
+    check('W339: both axes accept complete long model parameter names', au is not None
+          and au['axes']['par1'].upper()==LONG_B.upper() and au['axes']['par2'].upper()==LONG_PAR.upper())
+    s.send(cmd='auto', op='set', axes={'plot': 1, 'var': LONG_V, 'par1': LONG_PAR})
     s.collect(is_idle)
 
     s.send(cmd='key', key='i')
@@ -2237,17 +2239,17 @@ def section_limits():
               len((last_state(startup) or {}).get('ics', [])) == 401
               and len((last_state(startup) or {}).get('pars', [])) == 40)
         open_auto(s)
-        s.send(cmd='auto', op='set', pars=['P%d' % k for k in range(40)],
+        s.send(cmd='auto', op='set',
                numerics={'nmx': 4, 'npr': 1, 'suppbp': 1}, axes={'par1': 'P39', 'var': 'X400'})
         evs, _ = s.collect(is_idle)
-        check('limits: forty AUTO parameters selected without an error', not errors_of(evs), str(errors_of(evs)))
+        check('limits: the fortieth model parameter is available without selection', not errors_of(evs), str(errors_of(evs)))
         dg = Diagram().apply(run_any(s, 's'))
         check('limits: AUTO computes four points beyond 400 variables', len(dg.pts) == 4, str(len(dg.pts)))
         check('limits: the fortieth parameter gives x400=p39', len(dg.pts) == 4
               and dg.pts[-1]['x'] > 0 and all(abs(p['x']-p['y']) < 1e-8 for p in dg.pts))
         members = save_diagram(s, 'limits.snapx')
         text = members.get('auto/diagram.csv', '')
-        rows = list(csv.DictReader(io.StringIO(text)))
+        rows = diagram_rows(text.encode('utf-8'))
         check('limits: snapshot stores all forty parameters and 401 states', len(rows) == 4 and 'par40' in rows[-1]
               and abs(float(rows[-1]['par40'])-float(rows[-1]['u0.X400'])) < 1e-8)
         reopened = load_diagram(s, os.path.join(s.run, 'limits.snapx'))

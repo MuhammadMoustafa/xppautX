@@ -20,6 +20,7 @@
 #include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
+#include "xpp_ui.h"
 #include "xpp_zip.h"
 #include "xpp_session.h"
 #include "model_files.h"
@@ -76,8 +77,7 @@ bool same_point(const DiagramPoint &a, const DiagramPoint &b)
         x.icp1 != y.icp1 || x.icp2 != y.icp2 || x.icp3 != y.icp3 || x.icp4 != y.icp4 || x.flag2 != y.flag2 || x.from != y.from || x.jacobian != y.jacobian)
         return false;
     if (!same_bits(x.norm, y.norm) || !same_bits(x.per, y.per) || !same_bits(x.torper, y.torper)) return false;
-    for (int i = 0; i < 20; i++)
-        if (!same_bits(x.par[i], y.par[i])) return false;
+    if(x.parameter_indices!=y.parameter_indices || !same_vector(x.par,y.par) || !same_vector(x.branch->parameters,y.branch->parameters))return false;
     return same_vector(a.u0, b.u0) && same_vector(a.uhi, b.uhi) && same_vector(a.ulo, b.ulo) && same_vector(a.ubar, b.ubar) &&
            same_vector(a.evr, b.evr) && same_vector(a.evi, b.evi);
 }
@@ -114,7 +114,12 @@ std::deque<DiagramPoint> points_of(int k, int n)
         d.flag2 = p % 2;
         d.from = p == 1 ? 7 : 0;
         d.jacobian = p / 4 == 1 ? xpp::JACOBIAN_EXACT : xpp::JACOBIAN_DIFFERENCE; /* one branch of each kind */
-        q.d.par.resize(AutoState::diagram_parameter_prefix);
+        auto branch=std::make_shared<xpp::DiagramBranch>();
+        branch->parameters.resize(3);
+        for(double &value:branch->parameters)value=awk(v++);
+        d.branch=std::move(branch);
+        d.parameter_indices={0,1};
+        q.d.par.resize(2);
         for (double &x : q.d.par) x = awk(v++);
         for (std::vector<double> *a : {&q.u0, &q.uhi, &q.ulo, &q.ubar, &q.evr, &q.evi}) {
             a->resize(n);
@@ -128,8 +133,6 @@ void check_settings_text()
 {
     xpp::AutoSettingsSet s;
     for (int i = 0; i < xpp::AUTO_NUM_N; i++) s.num[i] = awk(i) / (i + 1);
-    s.npars = 3;
-    s.pars = {"iapp", "", "phi"};
     s.plot = 11;
     s.var = "v";
     s.par1 = "iapp";
@@ -145,7 +148,6 @@ void check_settings_text()
     bool num = true;
     for (int i = 0; i < xpp::AUTO_NUM_N; i++) num = num && r->has_num[i] && same_bits(r->num[i], s.num[i]);
     CHECK(num);
-    CHECK(r->npars == 3 && r->pars[0] == "iapp" && r->pars[1].empty() && r->pars[2] == "phi");
     CHECK(r->has_plot && r->plot == 11 && r->var == "v" && r->par1 == "iapp" && r->par2.empty());
     bool range = true;
     for (int i = 0; i < 4; i++) range = range && r->has_range[i] && same_bits(r->range[i], s.range[i]);
@@ -217,26 +219,41 @@ void check_diagram_csv()
     const std::vector<std::string> vars = {"v", "w", "long_name_of_a_variable"};
     const std::deque<DiagramPoint> pts = points_of(7, 3);
     const std::string csv = xpp::snapx::auto_members::diagram_csv(pts, vars);
-    CHECK(csv.starts_with("calc,ibr,ntot,itp,lab,nfpar,icp1,icp2,icp3,icp4,flag2,from,jacobian,norm,per,torper,par1,"));
+    CHECK(csv.starts_with("branch,0,") && csv.find("calc,ibr,ntot,itp,lab,nfpar,icp1,icp2,icp3,icp4,flag2,from,jacobian,norm,per,torper,branch,continued,values,")!=std::string::npos);
     CHECK(csv.find(",u0.long_name_of_a_variable,") != std::string::npos && csv.find(",evi3\n") != std::string::npos);
-    const xpp::Result<std::deque<DiagramPoint>> back = xpp::snapx::auto_members::parse_diagram_csv(csv, 3, AutoState::diagram_parameter_prefix, "diagram.csv");
+    const xpp::Result<std::deque<DiagramPoint>> back = xpp::snapx::auto_members::parse_diagram_csv(csv, 3, 3, "diagram.csv");
     CHECK(back && same_diagram(*back, pts)); /* bit for bit */
-    CHECK(!xpp::snapx::auto_members::parse_diagram_csv(csv, 2, AutoState::diagram_parameter_prefix, "diagram.csv")); /* of another model */
-    CHECK(!xpp::snapx::auto_members::parse_diagram_csv("", 3, AutoState::diagram_parameter_prefix, "diagram.csv"));
+    CHECK(!xpp::snapx::auto_members::parse_diagram_csv(csv, 2, 3, "diagram.csv")); /* of another model */
+    CHECK(!xpp::snapx::auto_members::parse_diagram_csv("", 3, 3, "diagram.csv"));
     std::string bad = csv;
     bad.back() = ',';
-    const xpp::Result<std::deque<DiagramPoint>> long_row = xpp::snapx::auto_members::parse_diagram_csv(bad + "1\n", 3, AutoState::diagram_parameter_prefix, "diagram.csv");
-    CHECK(!long_row && long_row.error().place.line == static_cast<int>(pts.size()) + 1); /* a row too long, at its line */
+    const xpp::Result<std::deque<DiagramPoint>> long_row = xpp::snapx::auto_members::parse_diagram_csv(bad + "1\n", 3, 3, "diagram.csv");
+    CHECK(!long_row && long_row.error().place.line == static_cast<int>(pts.size()) * 2 + 1); /* a row too long, at its line */
     /* a jacobian that is neither setting, at its line; a diagram without the column (saved before W278) */
     std::string wrong = csv;
-    std::size_t at = csv.find('\n') + 1; /* the first row: its 13th field is the jacobian */
+    const std::size_t header=csv.find("calc,ibr");
+    std::size_t at = csv.find('\n',header) + 1; /* the first row: its 13th field is the jacobian */
     for (int commas = 0; commas < 12; at++) commas += csv[at] == ',';
     wrong.replace(at, csv.find_first_of(",\n", at) - at, "2");
-    const xpp::Result<std::deque<DiagramPoint>> bad_jacobian = xpp::snapx::auto_members::parse_diagram_csv(wrong, 3, AutoState::diagram_parameter_prefix, "diagram.csv");
-    CHECK(!bad_jacobian && bad_jacobian.error().place.line == 2 && bad_jacobian.error().text().find("jacobian 2") != std::string::npos);
+    const xpp::Result<std::deque<DiagramPoint>> bad_jacobian = xpp::snapx::auto_members::parse_diagram_csv(wrong, 3, 3, "diagram.csv");
+    CHECK(!bad_jacobian && bad_jacobian.error().place.line == static_cast<int>(pts.size())+2 && bad_jacobian.error().text().find("jacobian 2") != std::string::npos);
     const std::size_t column = csv.find("jacobian,");
-    const xpp::Result<std::deque<DiagramPoint>> old = xpp::snapx::auto_members::parse_diagram_csv(csv.substr(0, column) + csv.substr(column + 9), 3, AutoState::diagram_parameter_prefix, "diagram.csv");
-    CHECK(!old && old.error().place.line == 1);
+    const xpp::Result<std::deque<DiagramPoint>> old = xpp::snapx::auto_members::parse_diagram_csv(csv.substr(0, column) + csv.substr(column + 9), 3, 3, "diagram.csv");
+    CHECK(!old && old.error().place.line == static_cast<int>(pts.size())+1);
+    std::string bad_branch=csv;
+    const auto value=bad_branch.find(',',bad_branch.find(',')+1)+1;
+    bad_branch.replace(value,bad_branch.find(',',value)-value,"nan");
+    const auto nonfinite=xpp::snapx::auto_members::parse_diagram_csv(bad_branch,3,3,"sent.snapx/auto/diagram.csv");
+    CHECK(!nonfinite && nonfinite.error().place.line==1 && nonfinite.error().place.source.starts_with("branch,0,nan,"));
+    bad_branch=csv;
+    bad_branch.replace(bad_branch.find("branch,1,"),9,"branch,0,");
+    const auto duplicate=xpp::snapx::auto_members::parse_diagram_csv(bad_branch,3,3,"sent.snapx/auto/diagram.csv");
+    CHECK(!duplicate && duplicate.error().place.line==2);
+    std::string bad_indices=csv;
+    bad_indices.replace(bad_indices.find(",0;1,"),5,",0;0,");
+    const auto repeated=xpp::snapx::auto_members::parse_diagram_csv(bad_indices,3,3,"sent.snapx/auto/diagram.csv");
+    CHECK(!repeated && repeated.error().place.line==static_cast<int>(pts.size())+2
+          && repeated.error().what=="continued parameter given twice");
 }
 
 bool write_file(const std::string &path, std::string_view bytes)
@@ -261,6 +278,84 @@ bool load(const std::string &ode, const xpp::SavedModel *saved = nullptr)
     init_all_graph(xpp::client_session());
     xpp::client_session().plot_windows.graph[0].Use = 1;
     return true;
+}
+
+/* W339/#400: a constant changed between branches must come from the older
+   branch on grab and restart, including after reopening the entire session. */
+void check_branch_parameters()
+{
+    xpp::TempDir tmp;
+    const std::string model=tmp.file("branch-parameters.ode");
+    CHECK(write_file(model,"par a=1,b=2\nx'=b-a*x\ninit x=2\n@ nmax=4,npr=1,ds=0.02,dsmin=0.001,dsmax=0.1,parmin=0.5,parmax=3,epsl=1e-10,epsu=1e-10,epss=1e-10\ndone\n"));
+    CHECK(load(model));
+    auto &s=xpp::client_session();
+    s.auto_state.dir=tmp.path();
+    xpp::init_auto_win(s);
+    // Mark functions must read a held model constant even though AUTO never received it.
+    AutoLib mark_lib;
+    mark_lib.session=&s;
+    mark_lib.parameter_count=s.auto_state.parameter_count();
+    iap_type mark_iap{};
+    mark_iap.lib=&mark_lib;
+    mark_iap.nfpr=1;
+    rap_type mark_rap{};
+    std::vector<double> parameters(mark_lib.parameter_count);
+    std::array<integer,1> free={s.auto_state.parameter_slot(0)},mark={s.auto_state.parameter_slot(1)};
+    std::array<double,1> target={0.5};
+    logical changed=FALSE_;
+    const auto mark_value=[&]{
+        return fnuzae(&mark_iap,&mark_rap,parameters.data(),free.data(),&changed,nullptr,nullptr,
+                      nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,mark.data(),target.data());
+    };
+    CHECK(mark_value()==1.5 && changed==TRUE_);
+    mark[0]=free[0];
+    parameters[free[0]]=0.75;
+    CHECK(mark_value()==0.25);
+    mark[0]=AUTO_PERIOD_INDEX;
+    parameters[AUTO_PERIOD_INDEX]=7.5;
+    CHECK(mark_value()==7);
+    xpp::auto_start_diff_ss(s);
+    CHECK(s.diagram.points.size()==4);
+    const int label=s.diagram.points.front().d.lab;
+    CHECK(label>0);
+    const auto older=s.diagram.points.front().d.branch;
+    CHECK(older->parameters.size()==2 && older->parameters[1]==2);
+    CHECK(s.diagram.points.back().d.branch==older && s.diagram.points.back().d.par.size()==1);
+    s.parser.constants[s.model().upar_con[1]]=7;
+    s.last_ic[0]=7/s.parser.constants[s.model().upar_con[0]];
+    const xpp::XppUi saved_ui=xpp::ui;
+    xpp::XppUi retain_ui=saved_ui;
+    retain_ui.question_policy=[](bool){return xpp::QuestionPolicy::User;};
+    retain_ui.choose=[](std::string_view,std::string_view question,std::span<const std::string>,std::string_view keys,char)->int{
+        CHECK(question=="Destroy AUTO diagram & files" && keys=="yn");
+        return 'n';
+    };
+    xpp::set_ui(&retain_ui);
+    xpp::auto_new_ss(s);
+    xpp::set_ui(&saved_ui);
+    CHECK(s.diagram.points.size()==8 && s.diagram.points.back().d.branch!=older);
+    CHECK(s.diagram.points.back().d.branch->parameters[1]==7 && older->parameters[1]==2);
+    CHECK(xpp::auto_grab_label(s,label)==1 && s.parser.constants[s.model().upar_con[1]]==2);
+    s.parser.constants[s.model().upar_con[1]]=9;
+    xpp::auto_restart(s,label);
+    CHECK(s.parser.constants[s.model().upar_con[1]]==2 && s.diagram.points.back().d.branch->parameters[1]==2);
+    CHECK(std::abs(diagram_parameter(s.diagram.points.back().d,0)*s.diagram.points.back().u0[0]-2)<1e-8);
+    const auto bytes=xpp_session_snapshot(s);
+    CHECK(bytes.has_value());
+    const auto saved=bytes?xpp_saved_parse(tmp.file("branches.snapx"),"branches.snapx",*bytes,SavedKind::snapshot):std::nullopt;
+    s.parser.constants[s.model().upar_con[1]]=11;
+    start_diagram(s,1);
+    CHECK(saved && xpp_saved_restore(s,*saved));
+    CHECK(xpp::auto_grab_label(s,label)==1 && s.parser.constants[s.model().upar_con[1]]==2);
+    s.parser.constants[s.model().upar_con[1]]=13;
+    xpp::auto_restart(s,label);
+    CHECK(s.parser.constants[s.model().upar_con[1]]==2 && s.diagram.points.back().d.branch->parameters[1]==2);
+    CHECK(std::abs(diagram_parameter(s.diagram.points.back().d,0)*s.diagram.points.back().u0[0]-2)<1e-8);
+    s.auto_state.axes().icp1=1;
+    s.parser.constants[s.model().upar_con[0]]=19;
+    xpp::auto_restart(s,label);
+    CHECK(s.parser.constants[s.model().upar_con[0]]==1 && s.diagram.points.back().d.icp1==1);
+    CHECK(std::abs(s.diagram.points.back().u0[0]-diagram_parameter(s.diagram.points.back().d,1))<1e-8);
 }
 
 /* the whole file for this session: written with its model, the state
@@ -288,8 +383,13 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     for (DiagramPoint &p : pts) { /* parameters this model's AUTO has */
         p.d.icp1 = 0;
         p.d.icp2 = 1;
+        auto branch=std::make_shared<xpp::DiagramBranch>(*p.d.branch);
+        branch->parameters.resize(s.model().nupar,0.0);
+        p.d.branch=std::move(branch);
     }
-    pts.back().d.icp2 = 10; /* a periodic run's second parameter is PAR(11), the period: past the model's parameters */
+    pts.back().d.icp2 = s.model().nupar+AUTO_PERIOD_INDEX;
+    pts.back().d.parameter_indices.pop_back();
+    pts.back().d.par.pop_back(); /* the period is kept separately from model parameters */
     diagram_restore(s, pts);
     CHECK(diagram_count(xpp::client_session().diagram) == 9 && diagram_point(xpp::client_session().diagram, 3)->uhi[1] == pts[3].uhi[1]);
     std::string solutions;
@@ -371,7 +471,7 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     CHECK(diagram_count(xpp::client_session().diagram) > 50);
     /* its first point, as the file prints it */
     const xpp::DIAGRAM *d = diagram_first(xpp::client_session().diagram);
-    CHECK(d && d->ibr == 1 && d->ntot == 1 && d->itp == 9 && d->lab == 1 && d->par[0] == 0.05 && d->u0[0] == -0.144 &&
+    CHECK(d && d->ibr == 1 && d->ntot == 1 && d->itp == 9 && d->lab == 1 && diagram_parameter(*d,0) == 0.05 && d->u0[0] == -0.144 &&
           d->u0[1] == 0.03);
     CHECK(s.auto_state.bifur.ntst == 15 && s.auto_state.bifur.nmx == 2000 && s.auto_state.bifur.dsmin == 1e-05);
     CHECK(file_text(xpp::auto_solutions_file(xpp::client_session())).size() > 100); /* the .s part */
@@ -560,6 +660,7 @@ int main(int argc,char **argv)
     }
     check_collocation_purity();
     check_collocation();
+    check_branch_parameters();
     check_settings_text();
     check_views_text();
     check_diagram_csv();

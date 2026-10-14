@@ -33,7 +33,7 @@ export function AutoAxisDialog({axis, view, onClose}: {axis: AxisName; view: num
   const ics = useStore(s => s.core?.ics);
   const vars = (ics ?? []).map(([n]) => n);
   /* the axes name two of AUTO's parameters (Parameter sets which) */
-  const pars = settings ? settings.pars.filter((n): n is string => !!n) : [];
+  const pars = useStore(s => s.core?.pars.map(([name]) => name)) ?? [];
   const box = useRef<HTMLDivElement>(null);
   const shown = (): Range | null => viewport[axis]
     ?? (axes ? (axis === 'x' ? {min: axes.xmin, max: axes.xmax} : {min: axes.ymin, max: axes.ymax}) : null);

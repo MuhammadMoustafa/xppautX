@@ -250,7 +250,7 @@ void check_auto_func(const char *path, double u0, double u1, int store_every = 1
     s.numerics.store_every = store_every;
     constexpr integer n = 2, period = 10;
     std::vector<double> par(s.auto_lib.parameter_count, 0.0);
-    for (int k = 0; k < s.auto_state.npar; ++k) par[static_cast<std::size_t>(k)] = s.parser.constants[static_cast<std::size_t>(s.auto_state.par_index[k])];
+    for (int k = 0; k < s.model().nupar; ++k) par[static_cast<std::size_t>(k)] = s.parser.constants[static_cast<std::size_t>(s.model().upar_con[k])];
     par[period] = 6.3;
     const integer icp[2] = {0, period};
     const double u[n] = {u0, u1};

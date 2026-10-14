@@ -162,7 +162,7 @@ def ensure_completed(events, end):
         raise RuntimeError('; '.join(errors) or 'command did not complete (safety timeout)')
 
 
-def execute_run(s, r, diagram, ranges, model_pars, slots):
+def execute_run(s, r, diagram, ranges):
     """The replaceable adapter to pre-W306 AUTO keys and asks."""
     start = r['start']
     if start.get('state') == 'current':
@@ -181,12 +181,9 @@ def execute_run(s, r, diagram, ranges, model_pars, slots):
             raise ValueError('start point not found: ' + str(start))
         completed(s, dict(cmd='auto', op='grab', label=points[start['index'] - 1]['lab']))
     pars = r.get('parameters', [r.get('parameter')])
-    # Replace the whole slot list: a partial overwrite can put the same
-    # parameter in two slots; AUTO's later slot then overwrites its value.
-    auto_pars = (pars + [p for p in model_pars if p not in pars])[:slots]
     numerics = {NUMERICS[k]: v for k, v in r['auto'].items()}
     diagram.apply(completed(s, dict(cmd='auto', op='set', numerics=numerics,
-                                   pars=auto_pars, marks=[], axes={'par1': pars[0],
+                                   marks=[], axes={'par1': pars[0],
                                    **({'par2': pars[1], 'plot': 4} if len(pars) == 2 else {})})))
     keys = {'equilibrium': 's' if start.get('state') == 'current' else 'e',
             'periodic': 'p', 'two_parameter': 't', 'fixed_period': 'f',
@@ -222,10 +219,10 @@ def session_diagram(s):
         completed(s, dict(cmd='session', op='save', name=path, data=False))
         with zipfile.ZipFile(path) as z:
             data = z.read(DIAGRAM_MEMBER).replace(b'\r\n', b'\n')
-            for point, row in enumerate(csv.reader(io.StringIO(data.decode('utf-8')))):
-                if point:
-                    for value in row:
-                        finite(float(value), 'diagram point %d' % point)
+            for point, row in enumerate(diagram_rows(data)):
+                for key,value in row.items():
+                    for item in value.split(';') if key in ('continued','values') else [value]:
+                        finite(float(item), 'diagram point %d %s' % (point,key))
             return data
 
 
@@ -233,7 +230,6 @@ def compute(binary, d, threads):
     s = Server(binary, ROOT / d['model'])
     try:
         startup = completed(s)
-        model_pars = [p[0] for e in startup if e.get('ev') == 'state' for p in e['pars']]
         completed(s, dict(cmd='data', events=['autoinfo', 'autosettings']))
         events = completed(s, dict(cmd='auto', op='set', threads=threads))
         setting = next(e for e in reversed(events) if e.get('ev') == 'autosettings')
@@ -247,7 +243,7 @@ def compute(binary, d, threads):
         ranges = {}
         for r in d['runs']:
             if 'skip' not in r:
-                execute_run(s, r, diagram, ranges, model_pars, len(setting['pars']))
+                execute_run(s, r, diagram, ranges)
         return session_diagram(s), len(diagram.points), setting['threads_auto'], ranges
     finally:
         s.close()
@@ -346,9 +342,25 @@ def reference_spectrum(p):
     return sorted((v.real, v.imag) for v in values), size
 
 
+def diagram_rows(data):
+    """Resolve branch constants and sparse continued values from the current diagram layout."""
+    lines=data.decode('utf-8').splitlines()
+    branches={}
+    while lines and lines[0].startswith('branch,'):
+        record=next(csv.reader([lines.pop(0)]))
+        branches[record[1]]=record[2:]
+    rows = list(csv.DictReader(lines))
+    for row in rows:
+        parameters=list(branches[row['branch']])
+        for index,value in zip(row['continued'].split(';'),row['values'].split(';')):
+            if int(index)<len(parameters): parameters[int(index)]=value
+        for index,value in enumerate(parameters): row['par%d'%(index+1)]=value
+        row['continued_parameter']=row['values'].split(';')[0]
+    return rows
+
+
 def stored_rows(data, ranges):
-    """The diagram csv's rows by run."""
-    rows = list(csv.DictReader(io.StringIO(data.decode('utf-8'))))
+    rows=diagram_rows(data)
     return {name: rows[lo:hi] for name, (lo, hi) in ranges.items()}
 
 
@@ -360,7 +372,7 @@ def spectrum(row):
 def quantity(row, name):
     if name == 'spectrum':
         return spectrum(row)
-    return float(row[{'par': 'par1', 'norm': 'norm', 'period': 'per'}[name]])
+    return float(row[{'par': 'continued_parameter', 'norm': 'norm', 'period': 'per'}[name]])
 
 
 def spread(a, b):

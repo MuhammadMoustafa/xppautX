@@ -3,7 +3,7 @@
    settings as data").
 
    The same fields the AUTO window's forms write (auto_nox.cpp auto_num_par,
-   auto_params, auto_plot_par, auto_per_par), with every value checked
+   auto_plot_par, auto_per_par), with every value checked
    first: AUTO takes some values badly (Ncol above 7 exits the program,
    autlib1.c cpnts), and a form typed into by hand could always send them. */
 #include <cmath>
@@ -151,16 +151,6 @@ void write_num(xpp::Session &s, const double v[AUTO_NUM_N])
     s.auto_state.suppress_bp = i(AUTO_NUM_SUPPBP);
 }
 
-/* AUTO's parameter index of a model parameter's name in pars, or -1 */
-int auto_index_of(const xpp::Session &s, const std::vector<int> &pars, const char *name)
-{
-    int p = xpp::find_user_name(s.model(),PARAM_BOX, name);
-    if (p < 0) return -1;
-    for (int k = 0; k < static_cast<int>(pars.size()); k++)
-        if (pars[k] == p) return k;
-    return -1;
-}
-
 /* ---- the event ---- */
 
 /* a JSON string, or null for no name */
@@ -192,9 +182,6 @@ AutoSettingsSet settings_now(const xpp::Session &s)
     AutoSettingsSet set;
     read_num(s, set.num.data());
     set.has_num.fill(1);
-    set.npars = s.auto_state.npar;
-    set.pars.resize(set.npars);
-    for (int k = 0; k < set.npars; k++) set.pars[k] = name_or_empty(auto_par_name(s, k));
     axes_of(s, s.auto_state.axes(), set);
     set.nmarks = s.auto_state.bifur.nper < 0 ? 0 : s.auto_state.bifur.nper < AUTO_SETTINGS_MARKS ? s.auto_state.bifur.nper : AUTO_SETTINGS_MARKS;
     for (int i = 0; i < set.nmarks; i++) {
@@ -212,12 +199,7 @@ std::string event_text(const xpp::Session &s)
         o += xpp::format("{}\"{}\":", i ? "," : "", num_fields[i].key);
         add_num(o, set.num[i]);
     }
-    o += "},\"pars\":[";
-    for (int k = 0; k < set.npars; k++) {
-        if (k) o += ',';
-        add_str_or_null(o, set.pars[k]);
-    }
-    o += xpp::format("],\"axes\":{{\"plot\":{},\"var\":", set.plot);
+    o += xpp::format("}},\"axes\":{{\"plot\":{},\"var\":", set.plot);
     add_str_or_null(o, set.var);
     o += ",\"par1\":";
     add_str_or_null(o, set.par1);
@@ -298,7 +280,6 @@ bool num_ok(int i, double v, std::string &why)
 /* what a set changes, checked (check), for commit to write */
 struct Checked {
     double num[AUTO_NUM_N];
-    std::vector<int> pars;
     int view = 0, plot = 0, var = 0, icp1 = 0, icp2 = 0;
     double range[4];
     int uzr[AUTO_SETTINGS_MARKS];
@@ -306,7 +287,7 @@ struct Checked {
 
 /* set checked against s, as it will be when views views of the diagram
    are there (-1: the views s has), into c: false, with why and the key
-   of the value that is wrong ("ntst", "pars", "var", "mark2", ...; "" for
+   of the value that is wrong ("ntst", "var", "mark2", ...; "" for
    the whole set) when one is */
 bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked &c, std::string &why, std::string &key)
 {
@@ -338,31 +319,6 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
         why = step_rule;
         key = num_fields[AUTO_NUM_DS].key;
         return false;
-    }
-
-    /* the Parameter form: AUTO's parameters by name */
-    std::vector<int> &pars = c.pars;
-    pars.assign(s.auto_state.par.begin(), s.auto_state.par.begin() + s.auto_state.npar);
-    if (set->npars > static_cast<int>(s.auto_state.par.size()) || (set->npars >= 0 && static_cast<std::size_t>(set->npars) > set->pars.size())) {
-        why = xpp::format("AUTO has {} parameters for this model, not {}", s.auto_state.par.size(), set->npars);
-        key = "pars";
-        return false;
-    }
-    if (set->npars >= 0) pars.clear();
-    for (int k = 0; k < set->npars; k++) {
-        if (set->pars[k].empty()) continue;
-        int p = xpp::find_user_name(s.model(),PARAM_BOX, set->pars[k].c_str());
-        if (p < 0) {
-            why = xpp::format("{} is not a parameter", set->pars[k]);
-            key = "pars";
-            return false;
-        }
-        if (std::find(pars.begin(), pars.end(), p) != pars.end()) {
-            why = xpp::format("{} is selected more than once", set->pars[k]);
-            key = "pars";
-            return false;
-        }
-        pars.push_back(p);
     }
 
     /* the Axes: plot type, the variable, the two parameters among AUTO's, the ranges */
@@ -408,9 +364,9 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
     const struct { const char *name; int *icp; const char *key; } axis_pars[] = {{set->par1.c_str(), &icp1, "par1"}, {set->par2.c_str(), &icp2, "par2"}};
     for (const auto &a : axis_pars) {
         if (!a.name[0]) continue;
-        int k = auto_index_of(s, pars, a.name);
+        int k = xpp::find_user_name(s.model(), PARAM_BOX, a.name);
         if (k < 0) {
-            why = xpp::format("{} is not one of AUTO's parameters (see Parameter)", a.name);
+            why = xpp::format("{} is not a model parameter", a.name);
             key = a.key;
             return false;
         }
@@ -443,9 +399,9 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
         return false;
     }
     for (int i = 0; i < set->nmarks; i++) {
-        uzr[i] = strcasecmp(set->mark_name[i].c_str(), "T") == 0 ? AUTO_PERIOD_INDEX : auto_index_of(s, pars, set->mark_name[i].c_str());
+        uzr[i] = strcasecmp(set->mark_name[i].c_str(), "T") == 0 ? AUTO_PERIOD_INDEX : xpp::find_user_name(s.model(), PARAM_BOX, set->mark_name[i]);
         if (uzr[i] < 0) {
-            why = xpp::format("Mark values: {} is not one of AUTO's parameters (see Parameter) or T",
+            why = xpp::format("Mark values: {} is not a model parameter or T",
                                     set->mark_name[i]);
             key = xpp::format("mark{}", i);
             return false;
@@ -465,39 +421,10 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
 void commit(xpp::Session &s, const AutoSettingsSet *set, const Checked &c)
 {
     const double *num = c.num;
-    const std::vector<int> &pars = c.pars;
     const int view = c.view, plot = c.plot, var = c.var, icp1 = c.icp1, icp2 = c.icp2;
     const double(&range)[4] = c.range;
     const int(&uzr)[AUTO_SETTINGS_MARKS] = c.uzr;
     write_num(s, num);
-    const bool new_pars = set->npars >= 0 && (static_cast<int>(pars.size()) != s.auto_state.npar || !std::equal(pars.begin(),pars.end(),s.auto_state.par.begin()));
-    const int old_period=s.auto_state.diagram_parameter(AUTO_PERIOD_INDEX);
-    s.auto_state.npar=static_cast<int>(pars.size());
-    const int new_period=s.auto_state.diagram_parameter(AUTO_PERIOD_INDEX);
-    // Moving the numerical slots keeps the period when a selection grows or shrinks.
-    const auto resize_parameters = [&](std::vector<double> &values) {
-        if (old_period == new_period) {
-            values.resize(s.auto_state.diagram_parameters());
-            return;
-        }
-        const int old_start = old_period - AUTO_PERIOD_INDEX + AutoState::model_parameter_prefix;
-        const int new_start = new_period - AUTO_PERIOD_INDEX + AutoState::model_parameter_prefix;
-        const int count = s.auto_state.diagram_parameters();
-        const auto kept = std::min(values.size() - old_start, static_cast<std::size_t>(count - new_start));
-        const std::vector<double> numerical(values.begin() + old_start, values.begin() + old_start + kept);
-        values.resize(count);
-        std::copy(numerical.begin(), numerical.end(), values.begin() + new_start);
-    };
-    resize_parameters(s.auto_state.grabpt.par);
-    for(auto &p:s.diagram.points){
-        for(int *index:{&p.d.icp2,&p.d.icp3,&p.d.icp4})
-            if(*index>=old_period-AUTO_PERIOD_INDEX+AutoState::model_parameter_prefix)*index+=new_period-old_period;
-        resize_parameters(p.d.par);
-    }
-    for (int k = 0; k < s.auto_state.npar; k++) {
-        s.auto_state.par[k] = pars[k];
-        s.auto_state.par_index[k] = xpp::get_param_index(s,s.model().upar_names[pars[k]]);
-    }
     bool axes = set->has_plot || !set->var.empty() || !set->par1.empty() || !set->par2.empty() || set->fit;
     for (int i = 0; i < 4; i++) axes = axes || set->has_range[i];
     if (axes) {
@@ -527,7 +454,7 @@ void commit(xpp::Session &s, const AutoSettingsSet *set, const Checked &c)
         }
     }
     /* the diagram in its new quantities (and a new parameter's name on its axis) */
-    if ((axes || new_pars) && s.auto_state.bifur.exist) redraw_diagram(s);
+    if (axes && s.auto_state.bifur.exist) redraw_diagram(s);
 }
 
 bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
@@ -591,14 +518,9 @@ void auto_settings_reload(Session &s, const AutoSettingsSet &kept)
     if (!have_settings(s)) return;
     AutoSettingsSet set = kept;
     const AutoSettingsSet fresh = settings_now(s);
-    set.npars = std::min(static_cast<int>(s.auto_state.par.size()),kept.npars);
-    set.pars.resize(set.npars);
-    for (int i = 0; i < set.npars; i++)
-        if (xpp::find_user_name(s.model(), PARAM_BOX, set.pars[i]) < 0)
-            set.pars[i] = s.model().upar_names[s.auto_state.par[i]];
     if (xpp::find_user_name(s.model(), ICBOX, set.var) < 0) set.var = fresh.var;
     const auto has_par = [&](const std::string &name) {
-        return std::find(set.pars.begin(), set.pars.begin() + set.npars, name) != set.pars.begin() + set.npars;
+        return xpp::find_user_name(s.model(), PARAM_BOX, name) >= 0;
     };
     if (!has_par(set.par1)) set.par1 = fresh.par1;
     if (!has_par(set.par2)) set.par2 = fresh.par2;

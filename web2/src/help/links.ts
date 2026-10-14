@@ -29,7 +29,6 @@ export const HELP = {
   autoView: {chapter: '09-auto', anchor: 'the-auto-view'} as HelpTarget,
   autoAxes: {chapter: '09-auto', anchor: 'diagram-axes'} as HelpTarget,
   autoNumerics: {chapter: '09-auto', anchor: 'numerical-parameters'} as HelpTarget,
-  autoPars: {chapter: '09-auto', anchor: 'choosing-parameters'} as HelpTarget,
   autoMarks: {chapter: '09-auto', anchor: 'user-functions'} as HelpTarget,
   autoSaving: {chapter: '09-auto', anchor: 'saving-diagrams'} as HelpTarget,
 } as const;

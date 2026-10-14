@@ -110,16 +110,18 @@ above).
 
 ## Choosing parameters
 
-Tell AUTO which parameters you might use in the bifurcation analysis. The initial
-selection is the first eight or fewer model parameters. Parameter lets you select
-any of the model's parameters, with no fixed count limit. The form has one field
-per model parameter: the selected names come first, followed by blank fields.
-A blank means not selected; OK selects exactly the filled names in order, with
-no duplicates. Opening the form and pressing OK keeps the selection unchanged
-(W338, [#399](https://github.com/MuhammadMoustafa/xppautX/issues/399)). Use the parameter names
-in your model, for example `iapp,phi,gk,vk` in `lecar.ode`. AUTO's state and parameter
-storage grows with the model, and its stored branch points grow with the run.
-Memory bounds their sizes (W298, [#356](https://github.com/MuhammadMoustafa/xppautX/issues/356)).
+Axes and Run offer every model parameter. Choose the main parameter for a
+one-parameter continuation, or the main and secondary parameters for a
+two-parameter continuation; there is no preliminary selection or Parameter
+form. AUTO receives the parameters the calculation continues.
+
+Each computed branch keeps every model parameter's value once. Its points
+keep the continued values and period. Grab and restart from a label restore
+the complete branch values, including parameters held constant during that
+branch, even if you changed them for a later run. Save session and its
+diagram exports keep these values too ([W339, #400](https://github.com/MuhammadMoustafa/xppautX/issues/400)).
+An imported XPPAUT diagram can only supply the parameters its foreign file
+recorded; parameters absent from it take the importing model's values.
 
 ## Diagram axes
 

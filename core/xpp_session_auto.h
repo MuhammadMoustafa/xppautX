@@ -32,13 +32,13 @@ inline constexpr const char *views_member = "views.txt";       /* views_text bel
 
 /* settings.txt: one "key value" line each, the keys of the `auto` `set`
    command (docs/protocol.md "AUTO's settings as data"): each Numerics key
-   and its number, "pars" and AUTO's parameters' names, "plot", "var",
+   and its number, "plot", "var",
    "par1", "par2", "xmin", "xmax", "ymin", "ymax", then one "mark NAME
    VALUE" per Mark value. A name there is none of is "-". Numbers are the
    shortest text that reads back as the same double. */
 std::string settings_text(const AutoSettingsSet &s);
 /* settings.txt read: the settings, and the line each key is on ("ntst",
-   "pars", "var", "xmax", "mark0", ...), for a check against a session
+   "var", "xmax", "mark0", ...), for a check against a session
    (auto_settings_check) to name the line of the value it refuses */
 struct SettingsRead {
     AutoSettingsSet set;
@@ -85,9 +85,9 @@ struct ViewsRead {
    one, or when there is no view or the active one is not one of them */
 Result<ViewsRead> parse_views(std::string_view text, std::string file);
 
-/* diagram.csv: a header row of names, then one row per point in the
+/* diagram.csv: branch records of all model parameters once, a header row, then one row per point in the
    order stored, every field of DIAGRAM: calc, ibr, ntot, itp, lab, nfpar,
-   icp1..icp4, flag2, from, norm, per, torper, the model-sized parameter columns (at least 20), then for each
+   icp1..icp4, flag2, from, norm, per, torper, branch id and semicolon-separated continued indices/values, then for each
    variable x of vars (the model's first node) u0.x, uhi.x, ulo.x, ubar.x
    and last evr1, evi1, ... evrN, eviN (its eigenvalues or Floquet
    multipliers, auto_stability.h; zeros: not computed). Numbers as

@@ -3135,8 +3135,8 @@ def check_autosettings():
         evs, _ = cola(is_idle)
         st = settings_of(evs)
         check('autosettings: sent at once after data, before AUTO is open', st is not None
-              and sorted(st['numerics']) == sorted(NUM_KEYS) and len(st['pars']) == 8
-              and st['axes']['par1'] == st['pars'][0], str(st)[:300])
+              and sorted(st['numerics']) == sorted(NUM_KEYS) and 'pars' not in st
+              and st['axes']['par1'] == 'iapp', str(st)[:300])
         rules = st.get('rules', {}) if st else {}
         check('W118: autosettings carries each Numerics rule with the message its refusal says, the pairs and the step',
               sorted(rules) == sorted(NUM_KEYS) and rules['ncol'].get('min') == 2 and rules['ncol'].get('max') == 7
@@ -3151,25 +3151,16 @@ def check_autosettings():
         want = [form_text(st['numerics'][k]) for k in NUM_KEYS]
         check("autosettings: the numerics are the Numerics form's values, field for field",
               ask and ask['kind'] == 'form' and ask['values'] == want, '%s vs %s' % (ask and ask['values'], want))
-        ask = ask_of(cmd='key', win='auto', key='p')
-        check("autosettings: pars are the Parameter form's filled names, remaining fields blank",
-              ask and len(ask['values']) == 12 and ask['values'][:len(st['pars'])] == st['pars']
-              and ask['values'][len(st['pars']):] == [''] * (12 - len(st['pars'])),
-              '%s vs %s' % (ask and ask['values'], st['pars']))
-        snda(cmd='answer', id=ask['id'], ok=1, values=ask['values'])
-        cola(is_idle)
-        snda(cmd='data', events=['autosettings'])
-        unchanged = settings_of(cola(is_idle)[0])
-        check('W338: OK on the unchanged Parameter form keeps the selection',
-              unchanged and unchanged['pars'] == st['pars'], str(unchanged))
-        ask = ask_of(cmd='key', win='auto', key='p')
-        values = ask['values'][:]
-        values[8] = 'gk'
-        snda(cmd='answer', id=ask['id'], ok=1, values=values)
-        grown = settings_of(cola(is_idle)[0])
-        check('W338: filling the ninth Parameter field selects nine names',
-              grown and grown['pars'] == st['pars'] + ['gk'], str(grown))
-        auto_set(pars=st['pars'])
+        snda(cmd='data', events=['hello', 'autosettings'])
+        window_events, _ = cola(is_idle)
+        window_hello = next((e for e in window_events if e.get('ev') == 'hello'), {})
+        check('W339: AUTO has no Parameter form or pars field', 'pars' not in st
+              and 'param' not in str(window_hello.get('windows', {}).get('auto', {})))
+        evs, unchanged, errs = auto_set(pars=['iapp'])
+        check('W339: removed pars command is rejected atomically', len(errs)==1 and 'no pars field' in errs[0] and unchanged is None)
+        evs, all_axes, errs = auto_set(axes={'par1':'gk'})
+        check('W339: Axes accepts a parameter beyond the old eight', not errs and all_axes and all_axes['axes']['par1']=='gk')
+        auto_set(axes={'par1':'iapp'})
         plot_key = {0: 'h', 1: 'n', 2: 'i', 3: 'p', 4: 't', 10: 'r', 11: 'a'}[st['axes']['plot']]
         menu_ask = ask_of(cmd='key', win='auto', key='a')
         snda(cmd='answer', id=menu_ask['id'], key=plot_key)
@@ -3195,11 +3186,11 @@ def check_autosettings():
               str(st2)[:200])
 
         # the set: every part, then read back through the forms
-        p0, p1 = st['pars'][0], st['pars'][1]
-        evs, st3, errs = auto_set(numerics={'nmx': 12, 'ds': -0.01}, pars=[p1, p0], axes={'plot': 1, 'var': 'W', 'par1': p1},
+        p0, p1 = 'iapp', 'gca'
+        evs, st3, errs = auto_set(numerics={'nmx': 12, 'ds': -0.01}, axes={'plot': 1, 'var': 'W', 'par1': p1},
                                   marks=[[p0, 0.25], ['T', 30]])
         check('auto set: numerics, pars, axes and marks set, the event says so', not errs and st3
-              and st3['numerics']['nmx'] == 12 and st3['numerics']['ds'] == -0.01 and st3['pars'] == [p1, p0]
+              and st3['numerics']['nmx'] == 12 and st3['numerics']['ds'] == -0.01
               and st3['axes']['plot'] == 1 and st3['axes']['var'] == 'W' and st3['axes']['par1'] == p1
               and st3['marks'] == [[p0, 0.25], ['T', 30]], '%s %s' % (errs, st3))
         ask = ask_of(cmd='key', win='auto', key='n')
@@ -3218,8 +3209,8 @@ def check_autosettings():
                          ({'numerics': {'nmx': 30, 'dsmin': 0}}, 'Dsmin'), ({'numerics': {'rl0': 5, 'rl1': 1}}, 'Par Min'),
                          ({'numerics': {'ds': -0.9, 'dsmax': 0.5}}, 'Ds must be from Dsmin to Dsmax'),
                          ({'numerics': {'dsmin': 0.5, 'dsmax': 1, 'ds': 0.1}}, 'Ds must be from Dsmin to Dsmax'),
-                         ({'numerics': {'nmx': 'many'}}, 'Nmax'), ({'pars': ['nosuch']}, 'nosuch'),
-                         ({'pars': [p0, p0.upper()]}, 'more than once'),
+                         ({'numerics': {'nmx': 'many'}}, 'Nmax'), ({'pars': ['nosuch']}, 'no pars field'),
+                         ({'axes': {'par1': 'nosuch'}}, 'nosuch'),
                          ({'axes': {'var': 'nosuch'}}, 'nosuch'), ({'axes': {'plot': 7}}, 'plot'),
                          ({'axes': {'xmin': 1, 'xmax': 0}}, 'Xmin'), ({'marks': [['W', 1]]}, 'W')):
             evs, st4, errs = auto_set(**bad)
@@ -3240,7 +3231,7 @@ def check_autosettings():
               st5a is None and st5 and st5['numerics']['nmx'] == 77, str(st5)[:200])
 
         # a set changes the next run: Nmax 12 against the default on the other server
-        evs, st6, errs = auto_set(numerics={'nmx': 12}, pars=[p0, p1], axes={'plot': 2, 'var': 'V', 'par1': p0}, marks=[])
+        evs, st6, errs = auto_set(numerics={'nmx': 12}, axes={'plot': 2, 'var': 'V', 'par1': p0}, marks=[])
         evs_a = lecar_to_auto(snda, cola)
         evs_b = lecar_to_auto(sndb, colb)
         na, nb = len(rebuild_diagram(evs_a, [])), len(rebuild_diagram(evs_b, []))
@@ -3256,7 +3247,7 @@ def check_autosettings():
         after_reload = settings_of(cola(is_idle)[0])
         check('W155: Reload keeps AUTO numerics, parameters, axes and marks without a settings file',
               before_reload is not None and after_reload is not None
-              and all(before_reload[k] == after_reload[k] for k in ('numerics', 'pars', 'axes', 'marks')),
+              and all(before_reload[k] == after_reload[k] for k in ('numerics', 'axes', 'marks')),
               str(after_reload))
 
     finally:

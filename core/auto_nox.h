@@ -6,6 +6,7 @@
 #include <string_view>
 #include "xpplim.h"
 #include <vector>
+#include <memory>
 #include "xpp_error.h"
 
 #define MAX_AUT_PER 10
@@ -65,10 +66,16 @@ typedef struct {
   int flag;
 } GRABPT;
 
+struct DiagramBranch {
+  std::vector<double> parameters; /* every model parameter, once per computed branch */
+};
+
 typedef struct diagram {
   int ibr,ntot,itp,lab,calc;
   double norm,*uhi,*ulo,*u0,*ubar,*evr,*evi;
-  std::vector<double> par;
+  std::shared_ptr<const DiagramBranch> branch;
+  std::vector<int> parameter_indices;
+  std::vector<double> par; /* only the continued parameters */
   double per,torper;
   int index,nfpar;
   int icp1,icp2,icp3,icp4,flag2;
@@ -79,7 +86,7 @@ typedef struct diagram {
 /* a view of the diagram's axes (W50, AutoState::views): what it plots
    (Auto.plot: HI_P ... AV_P; the variable var; icp1 the x axis' parameter
    and, in a two-parameter view, icp2 the y axis', both indices into
-   AutoState::par) and the ranges. The active view's icp1 and icp2 are also
+   Model::upar_names) and the ranges. The active view's icp1 and icp2 are also
    the parameters a run continues in. */
 typedef struct {
   int plot,var,icp1,icp2;
@@ -104,16 +111,17 @@ void do_auto(Session &s, int iold, int isave, int itp);
    before (W275: the action of an exact Jacobian's failure); an error, and
    nothing run, for a label no point has */
 void auto_restart(Session &s, int label);
+/* Restore model slots from the label's branch before a restart solver uses
+   them. Non-continued constants were deliberately absent from AUTO's PAR. */
+void auto_label_parameters(const Session &s, int label, double *parameters);
 void set_auto(Session &s);
 /* AUTO's index of the period among its parameters (PAR(10), named T) */
 #define AUTO_PERIOD_INDEX 10
-/* the model's name of AUTO's parameter index k (AutoPar[k]), NULL when k
-   is not one of AUTO's NAutoPar parameters: the one lookup the forms,
+/* the model parameter k's name, NULL when k is outside the model: the one lookup the forms,
    the settings event, the CSV export and the branch-end text share */
 const char *auto_par_name(const Session &s, int k);
 #define AUTO_COL_W 14
 void auto_per_par(Session &s);
-void auto_params(Session &s);
 void auto_num_par(Session &s);
 void auto_plot_par(Session &s);
 void auto_fit(Session &s);
@@ -140,10 +148,10 @@ void auto_line(Session &s, double x1i, double y1i, double x2i, double y2i);
 int auto_run_from_take(Session &s);
 /* the stored point d (its branch, point and type, its entry in the
    diagram list, the label its run started from, its stability) plotted in
-   every view: the diagram's data and the active view's drawing. par the
-   parameters it was computed at (AUTO's own during a run, d's stored ones
-   in a redraw), type its get_bif_type, flag 0 for a branch's first point */
-void add_point(Session &s, const DIAGRAM &d, const double *par, int type, int flag);
+   every view: the diagram's data and the active view's drawing, resolving
+   parameters from its stored branch. type is its get_bif_type, flag 0 for
+   a branch's first point. */
+void add_point(Session &s, const DIAGRAM &d, int type, int flag);
 /* the two-letter symbol of AUTO's point type itp (BP, LP, HB, UZ, PD, TR,
    EP, MX), two blanks for any other */
 const char *auto_bif_sym(int itp);

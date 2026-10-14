@@ -60,7 +60,7 @@ export const HELLO: HelloEvent = {
     commands: CORE.rows.filter(r => r.category !== 'layer').map(r => ({id: r.id, keys: r.default_keys, source: 'default' as const})),
   },
   windows: {
-    auto: layer('panrgucdf', 'svsxdsvvv', ['param', 'axes', 'numerics', 'run', 'grab', 'usr', 'clear', 'redraw', 'file']),
+    auto: layer('anrgucdf', 'vsxdsvvv', ['axes', 'numerics', 'run', 'grab', 'usr', 'clear', 'redraw', 'file']),
     ani: layer('fgrsmoa', 'vvvvdvd', ['file', 'go', 'reset', 'skip', 'mpeg', 'fly', 'grab']),
     browser: layer('fgru', 'vvdd', ['find', 'get', 'replace', 'unreplace']),
     aplot: layer('refrpg', 'vvvvdd', ['redraw', 'edit', 'fit', 'range', 'print', 'gif']),

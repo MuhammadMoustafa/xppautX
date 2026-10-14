@@ -2268,8 +2268,8 @@ async function autoView(dir) {
   check("the diagram has the focus, so AUTO's keys work", await until(`document.activeElement.closest('.auto-host')`, 'auto focus'));
   const words = await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].map(b => b.textContent.trim())`);
   check('the view has the AUTO buttons, no reDraw (the diagram is always current) and no Stop while idle (A10, T21)',
-    ['Parameter', 'Axes', 'Numerics', 'Run', 'Grab', 'Mark values…', 'Clear', 'File', 'Close']
-      .every(w => words.includes(w)) && !words.some(w => /abort|stop|redraw/i.test(w)), JSON.stringify(words));
+    ['Axes', 'Numerics', 'Run', 'Grab', 'Mark values…', 'Clear', 'File', 'Close']
+      .every(w => words.includes(w)) && !words.includes('Parameter') && !words.some(w => /abort|stop|redraw/i.test(w)), JSON.stringify(words));
   check('the status strip says AUTO is idle', /^Idle/.test(await autoStatus()), await autoStatus());
   check("T24: the status strip is the AUTO window's bottom line, as the main window's status bar",
     await cdp.eval(`(() => { const p = document.querySelector('.auto-panel').getBoundingClientRect(),
@@ -2306,7 +2306,7 @@ async function autoView(dir) {
 
   /* a dialog the view opens is on top of it, not behind (Numerics' form, T22: the page's own on the autosettings data) */
   check("T22: the store holds AUTO's settings (autosettings) before a run",
-    await until('s.autoSettings.core && s.autoSettings.core.numerics.nmx > 0 && s.autoSettings.core.pars.length > 1', 'settings'),
+    await until('s.autoSettings.core && s.autoSettings.core.numerics.nmx > 0 && s.core.pars.length > 1', 'settings'),
     JSON.stringify(await S('s.autoSettings.core')).slice(0, 300));
   const sentNum = await cdp.eval('__xpp.sentCount()');
   await autoButton('N');
@@ -2379,36 +2379,8 @@ async function autoView(dir) {
   check('T22: Escape cancels it: nothing sent',
     await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics cancelled')
     && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set')`)));
-  const initialPars = await S('s.autoSettings.core.pars');
-  await autoButton('P');
-  await until('document.querySelectorAll(".auto-pars select").length === 12', 'Parameter form');
-  check('W338: Parameter shows selected names and accepts blank fields as none',
-    await cdp.eval(`(() => { const d = document.querySelector('.dialog');
-      const values = [...d.querySelectorAll('select')].map(s => s.value);
-      return values.length === 12 && values.slice(8).every(v => v === '')
-        && JSON.stringify(values.slice(0, 8)) === ${JSON.stringify(JSON.stringify(initialPars))}
-        && !d.querySelector('.dialog-actions button.primary').disabled; })()`),
-    JSON.stringify(await cdp.eval(`[...document.querySelectorAll('.auto-pars select')].map(s => s.value)`)));
-  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions button.primary').click()`);
-  await until('!document.querySelector(".auto-pars") && !s.busy', 'Parameter OK');
-  check('W338: unchanged Parameter OK keeps eight selected names',
-    JSON.stringify(await S('s.autoSettings.core.pars')) === JSON.stringify(initialPars));
-  await autoButton('P');
-  await until('document.querySelectorAll(".auto-pars select").length === 12', 'Parameter ninth');
-  await cdp.eval(`(() => { const s = document.querySelectorAll('.dialog select')[8];
-    s.value = 'gk'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions button.primary').click()`);
-  await until('!document.querySelector(".auto-pars") && !s.busy && s.autoSettings.core.pars.length === 9', 'Parameter nine selected');
-  check('W338: the ninth Parameter selector adds exactly its name',
-    JSON.stringify(await S('s.autoSettings.core.pars')) === JSON.stringify([...initialPars, 'gk']));
-  await autoButton('P');
-  await until('document.querySelectorAll(".auto-pars select").length === 12', 'Parameter clear ninth');
-  await cdp.eval(`(() => { const s = document.querySelectorAll('.auto-pars select')[8];
-    s.value = ''; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions button.primary').click()`);
-  await until('!document.querySelector(".auto-pars") && !s.busy && s.autoSettings.core.pars.length === 8', 'Parameter restored');
-  check('W338: choosing none removes the ninth selected name',
-    JSON.stringify(await S('s.autoSettings.core.pars')) === JSON.stringify(initialPars));
+  check('W339: AUTO removes the Parameter form and autosettings pars',
+    await S("!('pars' in s.autoSettings.core)") && await cdp.eval("![...document.querySelectorAll('.auto-panel button')].some(b => b.textContent === 'Parameter')"));
   /* W267: choosing a count and OK sends one set with threads alone, the core's event shows it (saved in the
      config folder of this run), and Automatic puts the word back */
   const chooseThreads = async value => {
@@ -2763,15 +2735,7 @@ async function autoView(dir) {
 
   check('W155: AUTO has no standalone settings-file control',
     await cdp.eval(`document.querySelector('#auto-settings-load') === null`));
-  /* T22: Parameter lists AUTO's parameters; Mark values adds a user point and takes it away again */
-  await autoButton('P');
-  await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-pars]')`, 'parameter form');
-  check("T22: Parameter is the page's form: a select per AUTO parameter, set to the settings' names",
-    await S(`(() => { const sel = [...document.querySelectorAll('.auto-settings-dialog select')];
-      return sel.length === s.core.pars.length && sel.every((e, i) => e.value === (s.autoSettings.core.pars[i] ?? '')); })()`),
-    JSON.stringify(await S('s.autoSettings.core.pars')));
-  await key('Escape');
-  await until(`!document.querySelector('.auto-settings-dialog')`, 'parameter closed');
+  /* W339: Mark values offers all model parameters and the period. */
   await autoButton('U');
   await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-marks]')`, 'marks form');
   await cdp.eval(`document.querySelector('.auto-mark-add').click()`);
@@ -2785,6 +2749,8 @@ async function autoView(dir) {
       && s.autoSettings.core.marks[0][1] === 0.125`, 'mark set'), JSON.stringify(await S('s.autoSettings.core.marks')));
   await autoButton('U');
   await until(`!!document.querySelector('.auto-settings-dialog input[data-field=mark1-value]')`, 'marks form again');
+  check('W339: Mark values offers every model parameter without selection',
+    await S("s.core.pars.every(([name]) => [...document.querySelectorAll('select[data-field=mark1-name] option')].some(o => o.value === name))"));
   await cdp.eval(`document.querySelector('.auto-settings-dialog .auto-mark-row button').click()`);
   await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
   check('T22: ... and removed again', await until('!s.busy && s.autoSettings.core.marks.length === 0', 'mark removed'),

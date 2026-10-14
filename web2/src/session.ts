@@ -35,7 +35,7 @@ export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'lo
   | 'restore' | 'addcol' | 'delcol';
 
 /** the AUTO window's buttons (their names in hello.windows.auto.ids); Close is session.closeAuto */
-export type AutoOp = 'param' | 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw' | 'file';
+export type AutoOp = 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw' | 'file';
 
 /** a change of what a window displays, as the `display` command carries it: the zoom of each axis
     ([low, high] or null), the earlier runs' toggle (`runs`), AUTO's earlier branches' toggle (`show`) */

@@ -1,5 +1,5 @@
 /* AUTO's settings in the page's own forms (docs/ui-v2.md T22): Numerics,
-   AUTO's parameters (Parameter) and Mark values, from the `autosettings`
+   and Mark values, from the `autosettings`
    data (store/autoSettings.ts). They open at any time, during a run too:
    they are settings (W106), and what OK changes goes to the core at once;
    during a run the core applies it when the run ends, to the next one (a
@@ -24,7 +24,7 @@ import {HelpButton} from './HelpButton';
 import {FOCUSABLE, useDialogFocus} from './dialogFocus';
 
 /** the manual section each of this file's dialogs is (docs/manual/README.md's map, W12b) */
-const HELP_OF = {numerics: HELP.autoNumerics, pars: HELP.autoPars, marks: HELP.autoMarks} as const;
+const HELP_OF = {numerics: HELP.autoNumerics, marks: HELP.autoMarks} as const;
 
 
 /** the Threads choice's help: a preference of the program, never a result */
@@ -32,7 +32,7 @@ const THREADS_HELP = 'How many threads AUTO uses to compute a periodic orbit. Au
   + 'at most 4 (its performance cores on a hybrid processor). The results are the same for any count. '
   + 'This is a preference of the program, kept for every model and every run.';
 
-export type AutoSettingsDialogKind = 'numerics' | 'pars' | 'marks';
+export type AutoSettingsDialogKind = 'numerics' | 'marks';
 
 /** the settings the forms show (the core's, with the edits not yet applied) */
 function useShown(): AutoSettings | null {
@@ -177,48 +177,16 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
   );
 }
 
-export function AutoParsDialog({onClose}: {onClose: () => void}) {
-  const session = useSession();
-  const shown = useShown();
-  const pending = pendingFields(useStore(s => s.autoSettings)).has('pars');
-  const model = useStore(s => s.core?.pars) ?? [];
-  const [names, setNames] = useState<string[]>(() => model.map((_, i) => shown?.pars[i] ?? ''));
-  if (!shown) return null;
-  const ok = () => {
-    if (names.some((n, i) => n !== (shown.pars[i] ?? ''))) session.autoSettings({pars: names});
-    onClose();
-  };
-  return (
-    <Modal title="AUTO's parameters" id="auto-pars" kind="pars" onClose={onClose}>
-      <p class="muted auto-settings-note">The parameters AUTO can continue in; (none) leaves a field unselected. The axes and Mark values name the selected parameters.</p>
-      <form class="form-grid auto-pars" onKeyDown={enterSubmits(ok)} onSubmit={e => { e.preventDefault(); ok(); }}>
-        {names.map((n, i) => (
-          <label key={i} class={pending ? 'queued' : undefined}>
-            <span>Par{i + 1}</span>
-            <select value={n} data-field={`par${i + 1}`} data-autofocus={i === 0 ? '' : undefined}
-              onChange={e => { const v = names.slice(); v[i] = (e.target as HTMLSelectElement).value; setNames(v); }}>
-              <option value="">(none)</option>
-              {n && !model.some(([m]) => m === n) && <option value={n}>{n}</option>}
-              {model.map(([m]) => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </label>
-        ))}
-      </form>
-      <Status pending={pending} />
-      <Actions onClose={onClose} ok={ok} />
-    </Modal>
-  );
-}
-
 const MARKS_MAX = 9;
 
 export function AutoMarksDialog({onClose}: {onClose: () => void}) {
   const session = useSession();
   const shown = useShown();
   const pending = pendingFields(useStore(s => s.autoSettings)).has('marks');
+  const modelNames = useStore(s => s.core?.pars.map(([name]) => name)) ?? [];
   const [rows, setRows] = useState<[string, string][]>(() => (shown?.marks ?? []).map(([n, v]) => [n, String(v)]));
   if (!shown) return null;
-  const names = [...shown.pars.filter((n): n is string => !!n), 'T'];
+  const names = [...modelNames, 'T'];
   const bad = rows.map(([, v]) => fieldError(NUMBER, v) !== null);
   const ok = () => {
     if (bad.some(b => b)) return;
@@ -260,6 +228,5 @@ export function AutoMarksDialog({onClose}: {onClose: () => void}) {
 
 export function AutoSettingsDialog({kind, onClose}: {kind: AutoSettingsDialogKind; onClose: () => void}) {
   return kind === 'numerics' ? <AutoNumericsDialog onClose={onClose} />
-    : kind === 'pars' ? <AutoParsDialog onClose={onClose} />
       : <AutoMarksDialog onClose={onClose} />;
 }

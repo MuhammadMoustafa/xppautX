@@ -50,6 +50,8 @@ export interface DiagramRun {
   lw: number;
   f2?: number;
   new?: number;
+  /** The branch's complete model parameters, at its first point (W339). */
+  parameters?: [string, number][];
   /** the label the run that computed its first point started from */
   from?: number;
   /** how the run that computed it formed the Jacobian (W278) */

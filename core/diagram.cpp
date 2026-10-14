@@ -55,6 +55,8 @@ void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p,
   d->nfpar=p.nfpar;
   d->norm=p.norm;
   d->par=p.par;
+  d->parameter_indices=p.parameter_indices;
+  d->branch=p.branch;
 
   d->per=p.per;
  
@@ -75,6 +77,37 @@ void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p,
   d->jacobian=p.jacobian;
 }
 } // namespace
+
+double diagram_parameter(const xpp::DIAGRAM &point, int parameter)
+{
+  if(point.branch && parameter==static_cast<int>(point.branch->parameters.size())+AUTO_PERIOD_INDEX)return point.per;
+  for(std::size_t i=0;i<point.parameter_indices.size();i++)
+    if(point.parameter_indices[i]==parameter)return point.par[i];
+  if(point.branch && parameter>=0 && static_cast<std::size_t>(parameter)<point.branch->parameters.size())
+    return point.branch->parameters[parameter];
+  return 0.0; /* unused numerical slots have no model value */
+}
+
+std::vector<double> diagram_parameters(const xpp::DIAGRAM &point)
+{
+  std::vector<double> values=point.branch->parameters;
+  for(std::size_t i=0;i<point.parameter_indices.size();i++)values[point.parameter_indices[i]]=point.par[i];
+  return values;
+}
+
+void diagram_record_branch(xpp::Session &s, xpp::DIAGRAM &point)
+{
+  const xpp::DIAGRAM *last=last_diagram(s.diagram);
+  if(std::abs(point.ntot)!=1 && last && last->branch && last->ibr==point.ibr){
+    point.branch=last->branch;
+    return;
+  }
+  auto branch=std::make_shared<xpp::DiagramBranch>();
+  for(int i=0;i<s.model().nupar;i++)branch->parameters.push_back(s.parser.constants[s.model().upar_con[i]]);
+  for(std::size_t i=0;i<point.parameter_indices.size();i++)
+    if(point.parameter_indices[i]<s.model().nupar)branch->parameters[point.parameter_indices[i]]=point.par[i];
+  point.branch=std::move(branch);
+}
 
 int diagram_count(const AutoDiagram &diagram)
 {
@@ -125,7 +158,7 @@ void diagram_restore(xpp::Session &s, std::deque<DiagramPoint> points)
 void start_diagram(xpp::Session &s, int n)
 {
   s.diagram.points.clear();
-  new_point(s.diagram,n)->par.resize(s.auto_state.diagram_parameters());
+  new_point(s.diagram,n);
   s.auto_state.diag_flag=0;
 }
 
@@ -178,7 +211,7 @@ void redraw_diagram(xpp::Session &s)
  
     if(d->ntot==1)flag=0;
     else flag=1;
-    add_point(s,*d,d->par.data(),type,flag);
+    add_point(s,*d,type,flag);
     d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
@@ -250,7 +283,8 @@ void write_info_out(xpp::Session &s)
     
     icp1=d->icp1;
     icp2=d->icp2;
-    par=d->par.data();
+    auto parameters=diagram_parameters(*d);
+    par=parameters.data();
     per=d->per;
     uhigh=d->uhi;
     ulow=d->ulo;
@@ -258,7 +292,7 @@ void write_info_out(xpp::Session &s)
    /* u0=d->u0; Not used*/
     /* a=d->norm; Not used*/
     par1=par[icp1];
-    if(icp2<s.auto_state.npar)
+    if(icp2<s.model().nupar)
       par2=par[icp2];
     else 
       par2=par1;
@@ -305,7 +339,8 @@ void load_browser_with_branch(xpp::Session &s, int ibr,int pts,int pte)
     pt=abs(d->ntot);
     if((d->ibr==ibr) && (pt>=first) && (pt<=last)){
       icp1=d->icp1;
-      par=d->par.data();
+      auto parameters=diagram_parameters(*d);
+    par=parameters.data();
       u0=d->u0;
 
       par1=par[icp1];
@@ -333,7 +368,8 @@ void write_init_data_file(xpp::Session &s)
   d=diagram_first(s.diagram);
  while(1){
     icp1=d->icp1;
-    par=d->par.data();
+    auto parameters=diagram_parameters(*d);
+    par=parameters.data();
     u0=d->u0;
 
     par1=par[icp1];
@@ -367,14 +403,15 @@ void write_pts(xpp::Session &s)
     
     icp1=d->icp1;
     icp2=d->icp2;
-    par=d->par.data();
+    auto parameters=diagram_parameters(*d);
+    par=parameters.data();
     per=d->per;
     uhigh=d->uhi;
     ulow=d->ulo;
     ubar=d->ubar;
     a=d->norm;
     par1=par[icp1];
-    if(icp2<s.auto_state.npar)
+    if(icp2<s.model().nupar)
       par2=par[icp2];
 
     /* now we have to check is the diagram parameters correspond to the 
@@ -421,8 +458,8 @@ void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, doubl
     {
         xpp::log(XPP_LOG_WARN, "Unable to get bifurcation type.\n");
     }
-    par1=d->par[d->icp1];
-    if(d->icp2<s.auto_state.npar)par2=d->par[d->icp2];
+    par1=diagram_parameter(*d,d->icp1);
+    if(d->icp2<s.model().nupar)par2=diagram_parameter(*d,d->icp2);
     auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
     if(x<*xlo)*xlo=x;
     if(x>*xhi)*xhi=x;
@@ -470,14 +507,31 @@ int load_diagram(xpp::Session &s, FILE *fp, int node)
     p.ubar=ubar.data();
     p.evr=evr.data();
     p.evi=evi.data();
-    p.par.resize(s.auto_state.diagram_parameters());
-    std::copy(par.begin(),par.end(),p.par.begin());
+    const auto mapped=[&](int slot){
+      return slot>=0 && static_cast<std::size_t>(slot)<s.auto_state.imported_parameters.size()
+        ? s.auto_state.imported_parameters[slot] : s.model().nupar+slot;
+    };
     p.per=per;
-    p.icp1=icp1;
-    p.icp2=icp2;
-    p.icp3=icp3;
-    p.icp4=icp4;
+    p.icp1=mapped(icp1);
+    p.icp2=mapped(icp2);
+    p.icp3=mapped(icp3);
+    p.icp4=mapped(icp4);
     p.flag2=flag2;
+    const int free_slots[]={icp1,icp2,icp3,icp4};
+    if(nfpar<1 || nfpar>4)return -1; /* XPPAUT's diagram has four ICP columns. */
+    for(int k=0;k<nfpar;k++){
+      const int slot=free_slots[k];
+      if(slot>=0 && static_cast<std::size_t>(slot)<s.auto_state.imported_parameters.size()){
+        p.parameter_indices.push_back(mapped(slot));
+        p.par.push_back(par[slot]);
+      }
+    }
+    diagram_record_branch(s,p);
+    if(std::abs(ntot)==1 || flag==0){
+      auto branch=std::make_shared<xpp::DiagramBranch>(*p.branch);
+      for(std::size_t k=0;k<s.auto_state.imported_parameters.size();k++)branch->parameters[s.auto_state.imported_parameters[k]]=par[k];
+      p.branch=std::move(branch);
+    }
     if(flag==0){
       edit_start(s,p,node);
       flag=1;
@@ -489,4 +543,3 @@ int load_diagram(xpp::Session &s, FILE *fp, int node)
   }
   return(1);
 }
-

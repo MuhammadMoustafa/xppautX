@@ -50,8 +50,6 @@ int main()
     CHECK(s.auto_state.homo_l[400]==2.75 && s.auto_state.homo_r[400]==3.25);
     s.auto_state.homo_flag=0;
     xpp::AutoSettingsSet set;
-    set.npars=40;
-    for(int k=0;k<set.npars;k++)set.pars.push_back(xpp::format("P{}",k));
     set.par1="P39";
     set.var="X400";
     for(const auto &[field,value]: {std::pair{xpp::AUTO_NUM_NMX,4.0},std::pair{xpp::AUTO_NUM_NPR,1.0},std::pair{xpp::AUTO_NUM_SUPPBP,1.0}}){
@@ -59,35 +57,16 @@ int main()
         set.num[field]=value;
     }
     std::string why;
-    // W338 (#399): blanks omit slots; names select exactly once, in order, atomically.
-    diagram_first(s.diagram)->par[s.auto_state.diagram_parameter(AUTO_PERIOD_INDEX)]=6.3;
+    // W339: every model parameter is available directly; a bad name changes nothing.
     xpp::AutoSettingsSet selection;
-    selection.npars=40;
-    selection.pars.resize(40);
-    for(int k=0;k<9;k++)selection.pars[k+1]=xpp::format("P{}",8-k);
-    CHECK(xpp::auto_settings_apply(s,selection,why)==0);
-    CHECK(s.auto_state.npar==9 && s.auto_state.par[0]==8 && s.auto_state.par[8]==0);
-    CHECK(diagram_first(s.diagram)->par[s.auto_state.diagram_parameter(AUTO_PERIOD_INDEX)]==6.3);
-    selection.pars[10]="p8";
+    selection.par1="not_a_parameter";
+    selection.has_num[xpp::AUTO_NUM_NMX]=1;
+    selection.num[xpp::AUTO_NUM_NMX]=99;
+    const int old_max=s.auto_state.bifur.nmx;
     CHECK(xpp::auto_settings_apply(s,selection,why)!=0);
-    CHECK(why.find("more than once")!=std::string::npos && s.auto_state.npar==9);
-    selection.pars[10]="not_a_parameter";
-    CHECK(xpp::auto_settings_apply(s,selection,why)!=0);
-    CHECK(s.auto_state.npar==9 && s.auto_state.par[0]==8);
-    selection.pars.assign(40, "");
-    selection.pars[3]="P2";
-    selection.pars[7]="P0";
-    CHECK(xpp::auto_settings_apply(s,selection,why)==0);
-    CHECK(s.auto_state.npar==2 && s.auto_state.par[0]==2 && s.auto_state.par[1]==0);
-    CHECK(diagram_first(s.diagram)->par[s.auto_state.diagram_parameter(AUTO_PERIOD_INDEX)]==6.3);
-    selection.pars.assign(40, "");
-    CHECK(xpp::auto_settings_apply(s,selection,why)==0 && s.auto_state.npar==0);
-    CHECK(xpp::auto_settings_apply(s,xpp::AutoSettingsSet{},why)==0 && s.auto_state.npar==0);
-    // A stored period stays distinct when the model selection grows past its old index.
-    diagram_first(s.diagram)->icp2=AUTO_PERIOD_INDEX;
+    CHECK(s.auto_state.bifur.nmx==old_max && s.auto_state.axes().icp1==0);
     CHECK(xpp::auto_settings_apply(s,set,why)==0);
-    CHECK(diagram_first(s.diagram)->icp2>=s.auto_state.npar);
-    CHECK(s.auto_state.npar==40 && s.auto_state.axes().icp1==39);
+    CHECK(s.auto_state.axes().icp1==39 && s.auto_state.model_parameters==40);
     CHECK(s.auto_state.parameter_slot(39)>36);
     set.nmarks=2;
     set.mark_name[0]="P10";
@@ -103,11 +82,11 @@ int main()
     xpp::auto_start_diff_ss(s);
     CHECK(diagram_count(s.diagram)==4);
     const xpp::DIAGRAM *last=last_diagram(s.diagram);
-    CHECK(last && last->icp1==39 && last->par.size()==static_cast<std::size_t>(s.auto_state.diagram_parameters()));
-    CHECK(last && last->par[39]>0 && std::fabs(last->u0[400]-last->par[39])<1e-8);
-    CHECK(last && std::fabs(last->u0[399]-last->par[39])<1e-8 && std::fabs(last->u0[0])<1e-8);
+    CHECK(last && last->icp1==39 && last->par.size()==1 && last->branch->parameters.size()==40);
+    CHECK(last && diagram_parameter(*last,39)>0 && std::fabs(last->u0[400]-diagram_parameter(*last,39))<1e-8);
+    CHECK(last && std::fabs(last->u0[399]-diagram_parameter(*last,39))<1e-8 && std::fabs(last->u0[0])<1e-8);
     const auto csv=xpp::snapx::auto_members::diagram_csv(s.diagram.points,{s.model().uvar_names.data(),401});
-    const auto read=xpp::snapx::auto_members::parse_diagram_csv(csv,401,s.auto_state.diagram_parameters(),"limits.snapx/auto/diagram.csv");
+    const auto read=xpp::snapx::auto_members::parse_diagram_csv(csv,401,s.model().nupar,"limits.snapx/auto/diagram.csv");
     CHECK(read && read->size()==4 && read->back().d.par==last->par);
     const auto hostile=xpp::check_auto_solutions("1 1 4 1 2 0 1 402 2 0 0 999999\n", "sent.snapx/auto/solutions.s",401,s.auto_state.parameter_count());
     CHECK(!hostile && hostile.error().place.line==1 && hostile.error().place.file=="sent.snapx/auto/solutions.s");

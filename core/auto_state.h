@@ -69,14 +69,9 @@ struct AutoState {
   const xpp::AUTOAX &axes() const { return views[static_cast<std::size_t>(active_view)].axes; }
   /* the advanced numerics */
   xpp::ADVAUTO advanced{};
-  /* the parameters AUTO continues: the first npar of par, model
-     parameter indices, and their constants[] indices (par_index) */
-  int npar=0;
-  std::vector<int> par,par_index;
-  // Preserve AUTO's user prefix while separating later model slots from numerical state.
+  /* Model dimensions only; AUTO's slots keep their W301 layout until W340. */
+  int model_parameters=0;
   static constexpr int model_parameter_prefix = 8;
-  // Initially select XPPAUT's first eight parameters; settings can select every model parameter.
-  static constexpr int default_selected_parameters = 8;
   // Numerical test functions use slots through 35 (autlib5's PSI index plus 19).
   static constexpr int numerical_parameter_slots = 36;
   // AUTO's augmented formulations allocate up to eight state copies (init's thu).
@@ -87,18 +82,13 @@ struct AutoState {
   int parameter_offset = numerical_parameter_slots;
   int parameter_slot(int k) const { return k < model_parameter_prefix ? k : parameter_offset + k - model_parameter_prefix; }
   int model_parameter(int slot) const { return slot < model_parameter_prefix ? slot : slot >= parameter_offset ? slot - parameter_offset + model_parameter_prefix : -1; }
-  int parameter_count() const { return parameter_offset + std::max(0, static_cast<int>(par.size()) - model_parameter_prefix); }
-  // Keep the historical diagram columns for the numerical baseline; extra model slots grow them.
-  static constexpr int diagram_parameter_prefix = 20;
-  int diagram_parameters(int selected) const {
-    return selected <= model_parameter_prefix ? diagram_parameter_prefix : std::max(diagram_parameter_prefix, selected) + parameter_offset;
-  }
-  int diagram_parameters() const { return diagram_parameters(npar); }
-  // A period or homotopy slot must never name an added model parameter in a stored point.
+  int parameter_count() const { return parameter_offset + std::max(0, model_parameters - model_parameter_prefix); }
   int diagram_parameter(int slot) const {
     const int k=model_parameter(slot);
-    return k>=0 ? k : npar<=model_parameter_prefix ? slot : std::max(diagram_parameter_prefix,npar)+slot;
+    return k>=0 ? k : model_parameters+slot;
   }
+  // A foreign XPPAUT .auto alone carries its old selected-parameter mapping.
+  std::vector<int> imported_parameters;
   /* the Mark values: nuzr of uzr_par (auto_f2c.h's integer) and
      uzr_period */
   int nuzr=0;

@@ -2353,6 +2353,7 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
   }
+  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
 
   /* Complement starting data */
   par[11] = 0.;
@@ -2714,6 +2715,7 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
   }
+  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
 
   /* Complement starting data */
   par[12] = 0.;
@@ -3108,6 +3110,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
   }
+  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
 
   par[12] = 0.;
 
@@ -3540,6 +3543,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) goto read_failed;
   }
+  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
 
   for (j = 0; j < *ntsr; ++j) {
     for (i = 0; i < *ncolrs; ++i) {
@@ -4012,6 +4016,7 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
   }
+  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
 
   nfpx = nfpr / 2 - 1;
   if (nfpx > 0) {

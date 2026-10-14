@@ -8,13 +8,13 @@
 #include "xpplim.h"
 
 /* AUTO's settings as data (docs/ui-v2.md T22, docs/protocol.md "AUTO's
-   settings as data"): what the AUTO window's Numerics, Parameter, Axes
+   settings as data"): what the AUTO window's Numerics, Axes
    (its AutoPlot form) and Mark values forms edit, sent as the
    "autosettings" event and set by the `auto` `set` command, so a front end
    edits them in forms of its own, at any time.
 
    The forms in auto_nox.cpp stay (scripts replay them); this is a second
-   path that writes the same fields (Auto, aauto, SuppressBP, AutoPar and
+   path that writes the same fields (Auto, aauto, SuppressBP and
    the user points' copies), after checking every value: a set with one
    bad value changes nothing.
 
@@ -65,8 +65,6 @@ void auto_settings_update(const Session &s);
 struct AutoSettingsSet {
     std::array<int, AUTO_NUM_N> has_num{};
     std::array<double, AUTO_NUM_N> num{};
-    int npars = -1; /* -1: no "pars"; else select the nonblank names in order */
-    std::vector<std::string> pars;
     int has_plot = 0;
     int plot = 0;
     std::string var, par1, par2;
@@ -90,7 +88,7 @@ struct AutoSettingsSet {
    once). Called by the load. */
 void auto_threads_load(Session &s);
 
-/* the settings now, whole: every Numerics field, AUTO's parameters, the
+/* the settings now, whole: every Numerics field, the
    axes and the Mark values, names empty where there is none (the event's
    null). What the event sends and a .snapx's settings.txt saves (xpp_session_auto.h);
    applied with auto_settings_apply, it gives the settings back. */
@@ -114,7 +112,7 @@ int auto_settings_num_ok(int i, double v, std::string &why);
 int auto_settings_apply(Session &s, const AutoSettingsSet &set, std::string &why);
 /* the same checks, nothing applied, as the diagram will be when it has
    views views (-1: the views s has; a file's views.txt restores them):
-   false with why and the key of the value that is wrong ("ntst", "pars",
+   false with why and the key of the value that is wrong ("ntst",
    "var", "par1", "xmax", "mark2", ...; "view"; "" for the whole set), for
    a file of AUTO's settings to name its line (xpp_session_auto_io.cpp) */
 bool auto_settings_check(const Session &s, const AutoSettingsSet &set, int views, std::string &why, std::string &key);

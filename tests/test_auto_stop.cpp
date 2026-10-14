@@ -34,10 +34,6 @@ int main()
     xpp::client_session().model().size_parameters(1);
     xpp::client_session().model().upar_names[0] = "iapp";
     xpp::client_session().model().nupar = 1;
-    xpp::client_session().auto_state.npar = 1;
-    xpp::client_session().auto_state.par.resize(1);
-    xpp::client_session().auto_state.par_index.resize(1);
-    xpp::client_session().auto_state.par[0] = 0;
     xpp::AutoStop &stop = xpp::client_session().auto_state.stop;
 
     xpp::AutoStopAt at = inside();

@@ -9,6 +9,7 @@
 #include <limits>
 #include <cmath>
 #include <vector>
+#include <map>
 
 namespace xpp::snapx::auto_members {
 
@@ -50,9 +51,6 @@ std::string settings_text(const AutoSettingsSet &s)
 {
     std::string o;
     for (int i = 0; i < AUTO_NUM_N; i++) o += xpp::format("{} {}\n", auto_settings_num_key(i), xpp::number(s.num[i]));
-    o += "pars";
-    for (int k = 0; k < s.npars; k++) o += ' ' + name_text(s.pars[k]);
-    o += '\n';
     o += xpp::format("plot {}\nvar {}\npar1 {}\npar2 {}\n", s.plot, name_text(s.var), name_text(s.par1), name_text(s.par2));
     for (std::size_t i = 0; i < range_keys.size(); i++) o += xpp::format("{} {}\n", range_keys[i], xpp::number(s.range[i]));
     for (int i = 0; i < s.nmarks; i++) o += xpp::format("mark {} {}\n", name_text(s.mark_name[i]), xpp::number(s.mark_value[i]));
@@ -64,7 +62,6 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
     return read_lines("AUTO's settings", std::move(file), text, [](Lines &l) {
         SettingsRead r;
         AutoSettingsSet &s = r.set;
-        s.npars = 0;
         s.nmarks = 0;
         /* key's line, once */
         const auto at = [&](std::string key) {
@@ -78,14 +75,6 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
             if (line.empty()) continue;
             const std::vector<std::string_view> w = split_fields(line, ' ');
             const std::string_view key = w[0];
-            if (key == "pars") {
-                at("pars");
-                if (w.size() - 1 > saved_parameters_limit) l.fail(xpp::format("{} parameters exceed the session memory limit", w.size() - 1));
-                s.pars.resize(w.size() - 1);
-                s.npars = static_cast<int>(w.size() - 1);
-                for (int k = 0; k < s.npars; k++) s.pars[k] = name_of(w[k + 1]);
-                continue;
-            }
             if (key == "mark") {
                 if (s.nmarks >= AUTO_SETTINGS_MARKS) l.fail(xpp::format("more than {} Mark values", AUTO_SETTINGS_MARKS));
                 if (w.size() != 3) l.fail("not \"mark NAME VALUE\"");
@@ -126,7 +115,7 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
         /* every key but the marks, which may be none, in settings_text's order */
         std::vector<std::string> keys;
         for (int i = 0; i < AUTO_NUM_N; i++) keys.emplace_back(auto_settings_num_key(i));
-        keys.insert(keys.end(), {"pars", "plot", "var", "par1", "par2"});
+        keys.insert(keys.end(), {"plot", "var", "par1", "par2"});
         for (const char *k : range_keys) keys.emplace_back(k);
         for (const std::string &k : keys)
             if (!r.lines.contains(k)) l.fail(l.line() + 1, xpp::format("the file ends here, without its {} line", k));
@@ -187,10 +176,17 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file)
 
 std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const std::string> vars)
 {
-    const int n_pars=points.empty()?AutoState::diagram_parameter_prefix:static_cast<int>(points.front().d.par.size());
     std::string o;
+    std::map<const DiagramBranch *,std::size_t> branches;
+    for(const DiagramPoint &p:points){
+        const auto [entry,added]=branches.try_emplace(p.d.branch.get(),branches.size());
+        if(!added)continue;
+        o+=xpp::format("branch,{}",entry->second);
+        for(double value:p.d.branch->parameters)o+=','+xpp::number(value);
+        o+='\n';
+    }
     for (std::size_t i = 0; i < lead_columns.size(); i++) o += xpp::format("{}{}", i ? "," : "", lead_columns[i]);
-    for (int i = 1; i <= n_pars; i++) o += xpp::format(",par{}", i);
+    o+=",branch,continued,values";
     for (const std::string &x : vars) o += xpp::format(",u0.{0},uhi.{0},ulo.{0},ubar.{0}", x);
     for (std::size_t i = 1; i <= vars.size(); i++) o += xpp::format(",evr{0},evi{0}", i);
     o += '\n';
@@ -200,7 +196,10 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const 
         o += xpp::format("{},{},{},{},{},{},{},{},{},{},{},{},{}", d.calc, d.ibr, d.ntot, d.itp, d.lab, d.nfpar, d.icp1, d.icp2,
                          d.icp3, d.icp4, d.flag2, d.from, d.jacobian);
         for (double v : {d.norm, d.per, d.torper}) o += ',' + xpp::number(v);
-        for (int i = 0; i < n_pars; i++) o += ',' + xpp::number(d.par[i]);
+        o+=','+xpp::number(branches.at(d.branch.get()))+',';
+        for(std::size_t i=0;i<d.parameter_indices.size();i++)o+=(i?";":"")+xpp::number(d.parameter_indices[i]);
+        o+=',';
+        for(std::size_t i=0;i<d.par.size();i++)o+=(i?";":"")+xpp::number(d.par[i]);
         for (std::size_t i = 0; i < n; i++)
             for (const std::vector<double> *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar})
                 o += ',' + xpp::number(i < v->size() ? (*v)[i] : 0.0);
@@ -215,11 +214,32 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
 {
     return read_lines("AUTO's diagram", std::move(file), text, [n, n_pars](Lines &l) {
         if (n < 0 || n_pars < 0 || static_cast<std::size_t>(n_pars) > saved_parameters_limit) l.fail("invalid model dimensions for AUTO diagram storage");
-        const std::size_t columns = lead_columns.size() + n_pars + 6 * static_cast<std::size_t>(n < 0 ? 0 : n);
-        const std::vector<std::string_view> head = split_fields(l.next("the header row"), ',');
+        std::vector<std::shared_ptr<const DiagramBranch>> branches;
+        std::size_t expanded_bytes=0;
+        std::string_view header=l.next("the branch records and point header");
+        while(header.starts_with("branch,")){
+            const auto fields=split_fields(header,',');
+            if(fields.size()!=static_cast<std::size_t>(n_pars)+2)l.fail("branch parameter count does not match the model");
+            int id;
+            if(!parse_int(fields[1],id) || id!=static_cast<int>(branches.size()))l.fail("branch ids must be contiguous from zero");
+            const std::size_t bytes=sizeof(DiagramBranch)+static_cast<std::size_t>(n_pars)*sizeof(double);
+            if(branches.size()>=saved_points_limit || bytes>zip::archive_bytes_limit-expanded_bytes)l.fail("too many AUTO branches for the session memory limit");
+            expanded_bytes+=bytes;
+            auto branch=std::make_shared<DiagramBranch>();
+            for(std::size_t i=2;i<fields.size();i++){
+                double value;
+                if(!parse_number(fields[i],value) || !std::isfinite(value))l.fail(xpp::format("branch value \"{}\" is not a number",fields[i]));
+                branch->parameters.push_back(value);
+            }
+            branches.push_back(std::move(branch));
+            header=l.next("the point header");
+        }
+        const std::size_t columns = lead_columns.size() + 3 + 6 * static_cast<std::size_t>(n);
+        const std::vector<std::string_view> head = split_fields(header, ',');
         if (head.size() != columns) l.fail(xpp::format("{} columns: a diagram of this model's {} variables has {}", head.size(), n, columns));
         for (std::size_t i = 0; i < lead_columns.size(); i++)
             if (head[i] != lead_columns[i]) l.fail(xpp::format("column {} is \"{}\", not \"{}\"", i + 1, head[i], lead_columns[i]));
+        if(head[lead_columns.size()]!="branch" || head[lead_columns.size()+1]!="continued" || head[lead_columns.size()+2]!="values")l.fail("missing branch and continued-parameter columns");
         std::deque<DiagramPoint> points;
         while (!l.at_end()) {
             const std::string_view line = l.next();
@@ -228,12 +248,10 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
             if (f.size() != columns) l.fail(xpp::format("{} fields, not {}", f.size(), columns));
             /* Bound the expanded vectors too: short textual numbers can occupy
                several times their archive bytes once stored as doubles. */
-            const std::size_t point_bytes = sizeof(DiagramPoint) + (columns - n_ints) * sizeof(double);
-            if (points.size() >= saved_points_limit || points.size() >= zip::archive_bytes_limit / point_bytes)
+            if (points.size() >= saved_points_limit)
                 l.fail("too many AUTO diagram points for the session memory limit");
             DiagramPoint &p = points.emplace_back();
             DIAGRAM &d = p.d;
-            d.par.resize(n_pars);
             int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &d.itp, &d.lab, &d.nfpar, &d.icp1, &d.icp2, &d.icp3, &d.icp4, &d.flag2, &d.from, &d.jacobian};
             std::size_t c = 0;
             const auto bad = [&](std::size_t k, const char *kind) {
@@ -250,19 +268,41 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
             if (d.icp1 < 0 || d.icp1 >= n_pars)
                 l.fail(xpp::format("parameter index {} is outside AUTO's parameters", d.icp1));
             for (const int index : {d.icp2, d.icp3, d.icp4})
-                if (index < 0 || index >= n_pars)
+                if (index < 0 || static_cast<std::size_t>(index) >= saved_parameters_limit)
                     l.fail(xpp::format("parameter index {} is outside a diagram point's parameters", index));
             if (d.jacobian < 0 || d.jacobian >= static_cast<int>(jacobian_names.size()))
                 l.fail(xpp::format("jacobian {} is neither {} ({}) nor {} ({})", d.jacobian,
                                       jacobian_names[JACOBIAN_DIFFERENCE], JACOBIAN_DIFFERENCE, jacobian_names[JACOBIAN_EXACT], JACOBIAN_EXACT));
-            if (d.nfpar < 0 || d.nfpar > n_pars)
+            if (d.nfpar < 0 || static_cast<std::size_t>(d.nfpar) > saved_parameters_limit)
                 l.fail(xpp::format("nfpar {} is outside AUTO's parameter storage", d.nfpar));
             const auto real = [&](double &v) {
                 if (!xpp::parse_number(f[c], v) || !std::isfinite(v)) bad(c, "a number");
                 c++;
             };
             for (double *v : {&d.norm, &d.per, &d.torper}) real(*v);
-            for (int i = 0; i < n_pars; i++) real(d.par[i]);
+            int branch;
+            if(!parse_int(f[c++],branch) || branch<0 || static_cast<std::size_t>(branch)>=branches.size())l.fail("unknown branch id");
+            d.branch=branches[branch];
+            const auto indices=split_fields(f[c++],';');
+            const auto values=split_fields(f[c++],';');
+            if(indices.empty() || indices.size()>static_cast<std::size_t>(d.nfpar) || values.size()!=indices.size())l.fail("continued model parameter count differs from nfpar");
+            const std::size_t point_bytes=sizeof(DiagramPoint)+6*static_cast<std::size_t>(n)*sizeof(double)
+                +indices.size()*(sizeof(int)+sizeof(double));
+            if(point_bytes>zip::archive_bytes_limit-expanded_bytes)l.fail("too many AUTO diagram points for the session memory limit");
+            expanded_bytes+=point_bytes;
+            for(std::size_t i=0;i<indices.size();i++){
+                int index;
+                double value;
+                if(!parse_int(indices[i],index) || index<0 || index>=n_pars)l.fail("invalid continued model parameter index");
+                if(!parse_number(values[i],value) || !std::isfinite(value))l.fail(xpp::format("continued value \"{}\" is not a number",values[i]));
+                d.parameter_indices.push_back(index);
+                d.par.push_back(value);
+            }
+            // Sorting a bounded copy avoids quadratic work on a hostile free-parameter list.
+            auto ordered=d.parameter_indices;
+            std::sort(ordered.begin(),ordered.end());
+            if(std::adjacent_find(ordered.begin(),ordered.end())!=ordered.end())l.fail("continued parameter given twice");
+            if(d.parameter_indices.empty() || d.parameter_indices.front()!=d.icp1)l.fail("first continued parameter differs from icp1");
             for (std::vector<double> *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar, &p.evr, &p.evi}) v->assign(static_cast<std::size_t>(n), 0.0);
             for (int i = 0; i < n; i++)
                 for (std::vector<double> *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar}) real((*v)[static_cast<std::size_t>(i)]);

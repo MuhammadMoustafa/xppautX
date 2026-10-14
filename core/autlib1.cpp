@@ -1987,7 +1987,7 @@ fnuzae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ntot = iap->ntot;
   ntop = (ntot + 1) % 10000;
 
-  ret_val = par[f2c::abs(iuz[iuzr])] - vuz[iuzr];
+  ret_val = auto_parameter_value(*iap->lib->session,f2c::abs(iuz[iuzr]),{icp,static_cast<std::size_t>(iap->nfpr)},{par,static_cast<std::size_t>(iap->lib->parameter_count)}) - vuz[iuzr];
   *chng = TRUE_;
 
   if (iid >= 3) {
@@ -4223,6 +4223,12 @@ newlab(iap_type *iap, rap_type *rap)
   }
 
  L2:
+  /* A fresh run has an empty fort.3, but the diagram may retain older
+     branches. Their labels must still identify their own restart solution. */
+  for(const auto &point:iap->lib->session->diagram.points){
+    mbr=std::max(mbr,static_cast<integer>(f2c::abs(point.d.ibr)));
+    mlab=std::max(mlab,static_cast<integer>(point.d.lab));
+  }
   lab = mlab;
   iap->lab = lab;
   if (isw < 0 || irs == 0) {
@@ -4328,6 +4334,7 @@ readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
   }
+  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
 
   return 0;
 } /* readlb_ */
@@ -5694,6 +5701,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
   }
+  xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = par[icp[i]];
   }
@@ -6439,7 +6447,7 @@ fnuzbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ntot = iap->ntot;
   ntop = (ntot + 1) % 10000;
 
-  ret_val = par[f2c::abs(iuz[iuzr])] - vuz[iuzr];
+  ret_val = auto_parameter_value(*iap->lib->session,f2c::abs(iuz[iuzr]),{icp,static_cast<std::size_t>(iap->nfpr)},{par,static_cast<std::size_t>(iap->lib->parameter_count)}) - vuz[iuzr];
   *chng = TRUE_;
 
   if (iid >= 3) {
@@ -7029,4 +7037,3 @@ void allocate_global_memory(const iap_type iap) {
     iap.lib->store.nrtn.assign(iap.nbc, 0);
     iap.lib->rotations.nrtn = iap.lib->store.nrtn.data();
 }
-
