@@ -134,20 +134,11 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
       p.par.push_back(par[icp[k]]);
     }
   }
-  // Preserve the diagram's existing encoding of AUTO unknowns after model indices.
-  const auto diagram_index=[&s](int slot){
-    const int k=s.auto_state.parameter_layout.model_index(slot);
-    return k>=0 ? k : s.model().nupar+slot;
-  };
-  icp1=diagram_index(icp1);
-  icp2=diagram_index(icp2);
-  icp3=diagram_index(icp3);
-  icp4=diagram_index(icp4);
   p.per=per;
-  p.icp1=icp1;
-  p.icp2=icp2;
-  p.icp3=icp3;
-  p.icp4=icp4;
+  p.icp1=s.auto_state.parameter_layout.axis(icp1);
+  p.icp2=s.auto_state.parameter_layout.axis(icp2);
+  p.icp3=s.auto_state.parameter_layout.axis(icp3);
+  p.icp4=s.auto_state.parameter_layout.axis(icp4);
   p.flag2=s.auto_state.two_param;
   p.jacobian=s.numerics.jacobian;
   diagram_record_branch(s,p);

@@ -89,10 +89,10 @@ int main()
     xpp::auto_start_diff_ss(s);
     CHECK(diagram_count(s.diagram)==4);
     const xpp::DIAGRAM *last=last_diagram(s.diagram);
-    CHECK(last && last->icp1==39 && last->par.size()==1 && last->branch->parameters.size()==40);
+    CHECK(last && last->icp1.is_parameter(39) && last->par.size()==1 && last->branch->parameters.size()==40);
     CHECK(last && diagram_parameter(*last,39)>0 && std::fabs(last->u0[400]-diagram_parameter(*last,39))<1e-8);
     CHECK(last && std::fabs(last->u0[399]-diagram_parameter(*last,39))<1e-8 && std::fabs(last->u0[0])<1e-8);
-    const auto csv=xpp::snapx::auto_members::diagram_csv(s.diagram.points,{s.model().uvar_names.data(),401});
+    const auto csv=xpp::snapx::auto_members::diagram_csv(s.diagram.points,s.model().nupar,{s.model().uvar_names.data(),401});
     const auto read=xpp::snapx::auto_members::parse_diagram_csv(csv,401,s.model().nupar,"limits.snapx/auto/diagram.csv");
     CHECK(read && read->size()==4 && read->back().d.par==last->par);
     // Continue the tenth parameter as a model parameter, independently of AUTO's block.
@@ -102,8 +102,8 @@ int main()
     CHECK(xpp::auto_settings_apply(s,set,why)==0);
     xpp::auto_start_diff_ss(s);
     last=last_diagram(s.diagram);
-    CHECK(last && last->icp1==9 && last->parameter_indices==std::vector<int>{9});
-    CHECK(last && std::string_view(xpp::auto_par_name(s,last->icp1))==s.model().upar_names[9]);
+    CHECK(last && last->icp1.is_parameter(9) && last->parameter_indices==std::vector<int>{9});
+    CHECK(last && std::string_view(xpp::auto_par_name(s,last->icp1.index))==s.model().upar_names[9]);
     CHECK(s.diagram.points.size()==8);
     CHECK(last && diagram_parameter(*last,9)!=0 && std::abs(last->u0[9]-diagram_parameter(*last,9))<1e-8);
     const auto hostile=xpp::check_auto_solutions("1 1 4 1 2 0 1 402 2 0 0 999999\n", "sent.snapx/auto/solutions.s",401,s.auto_state.parameter_layout.size(),false);

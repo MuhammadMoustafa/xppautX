@@ -81,12 +81,17 @@ void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p,
 
 double diagram_parameter(const xpp::DIAGRAM &point, int parameter)
 {
-  if(point.branch && parameter==static_cast<int>(point.branch->parameters.size())+xpp::auto_unknown::period)return point.per;
   for(std::size_t i=0;i<point.parameter_indices.size();i++)
     if(point.parameter_indices[i]==parameter)return point.par[i];
   if(point.branch && parameter>=0 && static_cast<std::size_t>(parameter)<point.branch->parameters.size())
     return point.branch->parameters[parameter];
-  return 0.0; /* unused numerical slots have no model value */
+  return 0.0;
+}
+
+double diagram_axis_value(const xpp::DIAGRAM &point, xpp::AutoAxis axis)
+{
+  if(axis.is_period())return point.per;
+  return axis.is_parameter()?diagram_parameter(point,axis.index):0.0; /* unused numerical slots have no model value */
 }
 
 std::vector<double> diagram_parameters(const xpp::DIAGRAM &point)
@@ -272,7 +277,7 @@ void write_info_out(xpp::Session &s)
   int i;
   /*int flag=0
   */
-  int icp1,icp2;
+  xpp::AutoAxis icp1,icp2;
   double *par;
   double par1,par2=0,*uhigh,*ulow,per;
   xpp::Writer w=diagram_file(s,"Write all info","allinfo");
@@ -290,9 +295,9 @@ void write_info_out(xpp::Session &s)
     /*ubar=d->ubar; Not used*/
    /* u0=d->u0; Not used*/
     /* a=d->norm; Not used*/
-    par1=par[icp1];
-    if(icp2<s.model().nupar)
-      par2=par[icp2];
+    par1=par[icp1.index];
+    if(icp2.is_parameter())
+      par2=par[icp2.index];
     else 
       par2=par1;
      
@@ -319,7 +324,7 @@ void load_browser_with_branch(xpp::Session &s, int ibr,int pts,int pte)
 {
    xpp::DIAGRAM *d;
    int i,j,pt;
-  int icp1;
+  xpp::AutoAxis icp1;
   double *par;
   double par1,*u0;
   int first,last,nrows;
@@ -342,7 +347,7 @@ void load_browser_with_branch(xpp::Session &s, int ibr,int pts,int pte)
       par=parameters.data();
       u0=d->u0;
 
-      par1=par[icp1];
+      par1=par[icp1.index];
       s.data_store.col[0][j]=par1;
       for(i=0;i<s.model().node;i++)
 	s.data_store.col[i+1][j]=u0[i];
@@ -359,7 +364,7 @@ void write_init_data_file(xpp::Session &s)
 {
   xpp::DIAGRAM *d;
   int i;
-  int icp1;
+  xpp::AutoAxis icp1;
   double *par;
   double par1,*u0;
   xpp::Writer w=diagram_file(s,"Write init data file","initdata");
@@ -371,7 +376,7 @@ void write_init_data_file(xpp::Session &s)
     par=parameters.data();
     u0=d->u0;
 
-    par1=par[icp1];
+    par1=par[icp1.index];
 
     {
       std::string line=xpp::format("{:g} ",par1);
@@ -391,7 +396,7 @@ void write_pts(xpp::Session &s)
 {
   xpp::DIAGRAM *d;
   xpp::DiagramPointType type;
-  int icp1,icp2;
+  xpp::AutoAxis icp1,icp2;
   double *par;
   double x,y1,y2,par1,par2=0,a,*uhigh,*ulow,*ubar,per;
   xpp::Writer w=diagram_file(s,"Write points","diagram");
@@ -409,9 +414,9 @@ void write_pts(xpp::Session &s)
     ulow=d->ulo;
     ubar=d->ubar;
     a=d->norm;
-    par1=par[icp1];
-    if(icp2<s.model().nupar)
-      par2=par[icp2];
+    par1=par[icp1.index];
+    if(icp2.is_parameter())
+      par2=par[icp2.index];
 
     /* now we have to check is the diagram parameters correspond to the 
        current view 
@@ -451,8 +456,8 @@ void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, doubl
   *xhi=-*xlo;
   *yhi=-*ylo;
   while(1){
-    par1=diagram_parameter(*d,d->icp1);
-    if(d->icp2<s.model().nupar)par2=diagram_parameter(*d,d->icp2);
+    par1=diagram_axis_value(*d,d->icp1);
+    if(d->icp2.is_parameter())par2=diagram_axis_value(*d,d->icp2);
     auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
     if(x<*xlo)*xlo=x;
     if(x>*xhi)*xhi=x;

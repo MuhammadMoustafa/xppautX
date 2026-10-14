@@ -1074,11 +1074,12 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
   const double *par=parameters.data();
   const double per=d.per,a=d.norm;
   double *uhigh=d.uhi,*ulow=d.ulo,*ubar=d.ubar;
-  const int icp1=d.icp1,icp2=d.icp2,flag2=d.flag2;
+  const xpp::AutoAxis icp1=d.icp1,icp2=d.icp2;
+  const int flag2=d.flag2;
   double x,y1,y2,par1,par2=0;
   DiagramPointType type1=type;
-  par1=par[icp1];
-  if(icp2<s.model().nupar)par2=par[icp2];
+  par1=par[icp1.index];
+  if(icp2.is_parameter())par2=par[icp2.index];
   auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
   if(flg==0){
     s.auto_state.bifur.lastx=x;
@@ -1100,8 +1101,8 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
  
   case STABLE_EQ:
     if(s.auto_state.axes().plot==PE_P||s.auto_state.axes().plot==FR_P)break;
-    if(icp1!=s.auto_state.axes().icp1)break;
-    if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
+    if(!icp1.is_parameter(s.auto_state.axes().icp1))break;
+    if(flag2>0&&!icp2.is_parameter(s.auto_state.axes().icp2))break;
 
     if(s.plot_export.color){
       set_linestyle(s,1);
@@ -1113,8 +1114,8 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
     break;
   case UNSTABLE_EQ:
     if(s.auto_state.axes().plot==PE_P||s.auto_state.axes().plot==FR_P)break;
-    if(icp1!=s.auto_state.axes().icp1)break;
-    if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
+    if(!icp1.is_parameter(s.auto_state.axes().icp1))break;
+    if(flag2>0&&!icp2.is_parameter(s.auto_state.axes().icp2))break;
     if(s.auto_state.axes().plot!=P_P)
       {if(s.plot_export.color) set_linestyle(s,0);else set_linestyle(s,4);}
     else
@@ -1129,8 +1130,8 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
       set_linestyle(s,9); 
     else 
       set_linestyle(s,0);
-    if(icp1!=s.auto_state.axes().icp1)break;
-    if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
+    if(!icp1.is_parameter(s.auto_state.axes().icp1))break;
+    if(flag2>0&&!icp2.is_parameter(s.auto_state.axes().icp2))break;
     s.drawing.point_type=UPT;
     point_abs(s,static_cast<float>(x),static_cast<float>(y1));
     point_abs(s,static_cast<float>(x),static_cast<float>(y2));
@@ -1140,8 +1141,8 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
       set_linestyle(s,7);
     else
       set_linestyle(s,0);
-    if(icp1!=s.auto_state.axes().icp1)break;
-    if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
+    if(!icp1.is_parameter(s.auto_state.axes().icp1))break;
+    if(flag2>0&&!icp2.is_parameter(s.auto_state.axes().icp2))break;
     s.drawing.point_type=SPT;
     point_abs(s,static_cast<float>(x),static_cast<float>(y1));
     point_abs(s,static_cast<float>(x),static_cast<float>(y2)); 
@@ -1212,15 +1213,15 @@ static int auto_point_color(xpp::Session &s, DiagramPointType type,int flag2)
    in the current view
 
 */
-int check_plot_type(const xpp::Session &s, int flag2,int icp1, int icp2)
+int check_plot_type(const xpp::Session &s, int flag2, xpp::AutoAxis icp1, xpp::AutoAxis icp2)
 {
   if(flag2==0 && s.auto_state.axes().plot==P_P)
     return 0;
   if(flag2>0  && s.auto_state.axes().plot!=P_P)
     return 0; 
-  if(icp1!=s.auto_state.axes().icp1)
+  if(!icp1.is_parameter(s.auto_state.axes().icp1))
     return 0;
-  if(flag2>0 && icp2!=s.auto_state.axes().icp2)
+  if(flag2>0 && !icp2.is_parameter(s.auto_state.axes().icp2))
     return 0;
   return 1;
 
@@ -1237,13 +1238,14 @@ namespace {
 void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIAGRAM &d, DiagramPointType type,
                 int flg)
 {
-  const int lab=d.lab,icp1=d.icp1,icp2=d.icp2,flag2=d.flag2;
+  const int lab=d.lab,flag2=d.flag2;
+  const xpp::AutoAxis icp1=d.icp1,icp2=d.icp2;
   double x,y1,y2,par1,par2=0;
   int ix=0,iy1=0,iy2=0;
   DiagramPointType type1=type;
   XppDiagPoint dp;
-  par1=diagram_parameter(d,icp1);
-  if(icp2<s.model().nupar)par2=diagram_parameter(d,icp2);
+  par1=diagram_axis_value(d,icp1);
+  if(icp2.is_parameter())par2=diagram_axis_value(d,icp2);
   auto_xy_plot(&ax,&x,&y1,&y2,par1,par2,d.per,d.uhi,d.ulo,d.ubar,d.norm); /* figure out who sits on axes */
   dp=XppDiagPoint{};
   dp.ibr=d.ibr;
@@ -1281,8 +1283,8 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
   case STABLE_EQ:
   case UNSTABLE_EQ:
     if(ax.plot==PE_P||ax.plot==FR_P)break;
-    if(icp1!=ax.icp1)break;
-    if(flag2>0&&ax.icp2!=icp2)break;
+    if(!icp1.is_parameter(ax.icp1))break;
+    if(flag2>0&&!icp2.is_parameter(ax.icp2))break;
     dp.draw=1;
     if(active){
       LineWidth(type1==STABLE_EQ?2:1);
@@ -1294,8 +1296,8 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
     break;
   case UNSTABLE_PERIODIC:
   case STABLE_PERIODIC:
-    if(icp1!=ax.icp1)break;
-    if(flag2>0&&ax.icp2!=icp2)break;
+    if(!icp1.is_parameter(ax.icp1))break;
+    if(flag2>0&&!icp2.is_parameter(ax.icp2))break;
     dp.draw=type1==STABLE_PERIODIC?2:3;
     if(active){
       LineWidth(1);
@@ -1313,7 +1315,7 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
     }
     break;
   }
-  if(lab!=0&&icp1==ax.icp1&&(flag2==0||ax.icp2==icp2)){
+  if(lab!=0&&icp1.is_parameter(ax.icp1)&&(flag2==0||icp2.is_parameter(ax.icp2))){
     dp.lab=lab;
     if(active){
       const std::string bob=xpp::format("{}",lab);
@@ -1347,12 +1349,12 @@ void add_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int flg
   refreshdisplay(s);
 }
 
-void info_header(xpp::Session &s, int flag2, int icp1, int icp2)
+void info_header(xpp::Session &s, int flag2, xpp::AutoAxis icp1, xpp::AutoAxis icp2)
 {
   /* the names head 10-wide columns of new_info's numbers */
   auto short10=[](std::string_view name){ return xpp::short_name(name,10); };
-  const std::string p1name=short10(s.model().upar_names[icp1]);
-  const std::string p2name=icp2<s.model().nupar?short10(s.model().upar_names[icp2]):std::string("   ");
+  const std::string p1name=short10(s.model().upar_names[icp1.index]);
+  const std::string p2name=icp2.is_parameter()?short10(s.model().upar_names[icp2.index]):std::string("   ");
   const std::string vname=short10(s.model().uvar_names[s.auto_state.axes().var]);
   SmallBase();
   std::string bob=xpp::format("  Br  Pt Ty  Lab {:>10} {:>10}       norm {:>10}     period",
@@ -1368,8 +1370,8 @@ void new_info(xpp::Session &s, const DIAGRAM &d)
   double p1,p2=0.0;
   clear_auto_info();
   info_header(s, d.flag2,d.icp1,d.icp2);
-  p1=diagram_parameter(d,d.icp1);
-  if(d.icp2<s.model().nupar)p2=diagram_parameter(d,d.icp2);
+  p1=diagram_axis_value(d,d.icp1);
+  if(d.icp2.is_parameter())p2=diagram_axis_value(d,d.icp2);
   std::string bob=xpp::format("{:4} {:4} {:>2} {:4} {:10.4g} {:10.4g} {:10.4g} {:10.4g} {:10.4g}",
 	  d.ibr,d.ntot,auto_point_symbol(d.itp),d.lab,p1,p2,d.norm,d.u0[s.auto_state.axes().var],d.per);
   draw_auto_info(bob,10,2*text_metrics.small_height+2);
@@ -1379,7 +1381,8 @@ void new_info(xpp::Session &s, const DIAGRAM &d)
 void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
 {
   double norm,per,*par,par1,par2=0,*evr,*evi;
-  int pt,ibr,lab,icp1,icp2,flag2;
+  int pt,ibr,lab,flag2;
+  xpp::AutoAxis icp1,icp2;
   AutoPointCode itp;
   double x,y1,y2;
   const char *symb;
@@ -1404,8 +1407,8 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
   evi=d->evi;
  
   symb=auto_point_symbol(itp);
- par1=par[icp1];
-  if(icp2<s.model().nupar)par2=par[icp2];
+ par1=par[icp1.index];
+  if(icp2.is_parameter())par2=par[icp2.index];
     auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,per,d->uhi,d->ulo,d->ubar,norm);
   
     *ix=IXVal(s, x);
@@ -1425,9 +1428,9 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
       ai.node=d->index;
       ai.jacobian=d->jacobian;
       ai.sym=symb;
-      ai.p1name=s.model().upar_names[icp1].c_str();
+      ai.p1name=s.model().upar_names[icp1.index].c_str();
       ai.p1=par1;
-      ai.p2name=icp2<s.model().nupar?s.model().upar_names[icp2].c_str():NULL;
+      ai.p2name=icp2.is_parameter()?s.model().upar_names[icp2.index].c_str():NULL;
       ai.p2=par2;
       ai.norm=norm;
       ai.vname=s.model().uvar_names[s.auto_state.axes().var].c_str();
@@ -2995,7 +2998,7 @@ void auto_get_info(xpp::Session &s, int *n, std::string &pname)
     while(1){
       if(d->ibr==ibr && ((d->ntot==i1)||(d->ntot==(-i1))))
 	{
-	  pname=s.model().upar_names[d->icp1];
+	  pname=s.model().upar_names[d->icp1.index];
 	  break;
 	}
        dnew=diagram_next(s.diagram,d);

@@ -11,6 +11,7 @@
 #include <functional>
 #include "xpp_error.h"
 #include "auto_codes.h"
+#include "auto_axis.h"
 
 #define MAX_AUT_PER 10
 
@@ -98,7 +99,8 @@ typedef struct diagram {
   std::vector<double> par; /* only the continued parameters */
   double per,torper;
   int index,nfpar;
-  int icp1,icp2,icp3,icp4,flag2;
+  AutoAxis icp1,icp2,icp3,icp4; /* what the point continued in (auto_axis.h) */
+  int flag2;
   int from; /* the label its run started from, on a run's first point (not saved in files) */
   int jacobian; /* how the run that computed it formed the Jacobian: JACOBIAN_DIFFERENCE or JACOBIAN_EXACT (jacobian.h, W278) */
 } DIAGRAM;
@@ -170,7 +172,7 @@ int auto_run_from_take(Session &s);
    parameters from its stored branch. type is its get_bif_type, flag 0 for
    a branch's first point. */
 void add_point(Session &s, const DIAGRAM &d, DiagramPointType type, int flag);
-void info_header(Session &s, int flag2, int icp1, int icp2);
+void info_header(Session &s, int flag2, AutoAxis icp1, AutoAxis icp2);
 /* the info strip's line for the stored point d */
 void new_info(Session &s, const DIAGRAM &d);
 void traverse_out(Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw);
@@ -226,7 +228,7 @@ Result<> import_auto_file(Session &s, FILE *fp, const std::string &file);
 int move_to_label(const Session &s, int mylab, int *nrow, int *ndim, FILE *fp);
 void get_a_row(double *u, double *t, int n, FILE *fp);
 void auto_file(Session &s);
-int check_plot_type(const Session &s, int flag2,int icp1, int icp2);
+int check_plot_type(const Session &s, int flag2, AutoAxis icp1, AutoAxis icp2);
 
 /* grabbing and marking points on the diagram (from auto_x11.c) */
 void traverse_diagram(Session &s);

@@ -67,8 +67,11 @@ void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, doubl
    s's diagram: each point's DIAGRAM arrays and index set to its own, the
    first point filled in (DiagFlag); none is start_diagram's empty diagram */
 void diagram_restore(xpp::Session &s, std::deque<DiagramPoint> points);
-/* Resolve a point from its immutable branch constants and continued values. */
+/* Resolve a model parameter (its Model index) of a point from its immutable branch constants and continued values. */
 double diagram_parameter(const xpp::DIAGRAM &point, int parameter);
+/* What a point's axis is worth: the model parameter's value, the point's period for the period, 0 for another
+   AUTO unknown (no model value) */
+double diagram_axis_value(const xpp::DIAGRAM &point, xpp::AutoAxis axis);
 std::vector<double> diagram_parameters(const xpp::DIAGRAM &point);
 /* Attach the current computed branch, capturing all model parameters once. */
 void diagram_record_branch(xpp::Session &s, xpp::DIAGRAM &point);

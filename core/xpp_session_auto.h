@@ -93,7 +93,8 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file);
    and last evr1, evi1, ... evrN, eviN (its eigenvalues or Floquet
    multipliers, auto_stability.h; zeros: not computed). Numbers as
    settings_text's, so a point reads back bit for bit. */
-std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const std::string> vars);
+/* model_parameters: the model's parameter count, which an AUTO unknown's file integer follows (auto_axis.h) */
+std::string diagram_csv(const std::deque<DiagramPoint> &points, int model_parameters, std::span<const std::string> vars);
 /* text's points, of n variables each, their arrays filled (the DIAGRAM
    pointers and index are diagram_restore's), the file named file; the
    error at the line that is not of a diagram of n variables and n_pars parameters */

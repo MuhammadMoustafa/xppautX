@@ -63,7 +63,7 @@ Result<> add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, st
     if (!xpp::read_bytes(solutions_path, solutions))
         return xpp::fail("save session", "AUTO's restart solutions cannot be read", xpp::Place{solutions_path});
     const std::vector<std::string> vars(m.uvar_names.begin(), m.uvar_names.begin() + m.node);
-    entries.push_back({named(prefix, diagram_member), diagram_csv(s.diagram.points, vars)});
+    entries.push_back({named(prefix, diagram_member), diagram_csv(s.diagram.points, m.nupar, vars)});
     entries.push_back({named(prefix, solutions_member), std::move(solutions)});
     return {};
 }
@@ -135,7 +135,7 @@ Result<Members> members_read(const Session &s, const std::map<std::string, std::
        axes with the settings' parameters */
     if (points.size() > 1)
         for (const DiagramPoint &p : points)
-            if (p.d.icp1 >= s.model().nupar)
+            if (!p.d.icp1.is_parameter())
                 return xpp::fail("session AUTO", "diagram parameter index is not among its saved parameters", Place{file(diagram_member)});
     const int nviews = static_cast<int>(views->views.views.size());
     for (int k = 0; k < nviews; k++) {

@@ -16,11 +16,10 @@
 
 namespace {
 
-/* the model parameter name of the diagram point's active parameter icp
-   (AUTO's own parameter index, d->icp1/icp2), or "" */
-const char *par_name(const xpp::Session &s, int icp)
+/* the model parameter name of the diagram point's axis (d->icp1/icp2), or "" */
+const char *par_name(const xpp::Session &s, xpp::AutoAxis icp)
 {
-    const char *p = auto_par_name(s, icp);
+    const char *p = icp.is_parameter() ? auto_par_name(s, icp.index) : nullptr;
     return p ? p : "";
 }
 
@@ -63,8 +62,8 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
         xpp::DiagramPointType type = xpp::get_bif_type(d->ibr, d->ntot, d->lab);
         const char *sym = xpp::auto_point_symbol(d->itp);
         while (*sym == ' ') sym++;
-        double par1 = diagram_parameter(*d,d->icp1);
-        double par2 = d->icp2 < s.model().nupar ? diagram_parameter(*d,d->icp2) : par1;
+        double par1 = diagram_axis_value(*d,d->icp1);
+        double par2 = d->icp2.is_parameter() ? diagram_axis_value(*d,d->icp2) : par1;
         /* AUTO signs ibr and ntot by stability, which has its own column */
         std::vector<std::string> row = {xpp::format("{}", unsigned_of(d->ibr)), xpp::format("{}", unsigned_of(d->ntot)),
             sym, xpp::format("{}", d->lab), xpp::point_is_stable(type) ? "stable" : "unstable",

@@ -174,7 +174,7 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file)
     });
 }
 
-std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const std::string> vars)
+std::string diagram_csv(const std::deque<DiagramPoint> &points, int model_parameters, std::span<const std::string> vars)
 {
     std::string o;
     std::map<const DiagramBranch *,std::size_t> branches;
@@ -193,8 +193,10 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const 
     const std::size_t n = vars.size();
     for (const DiagramPoint &p : points) {
         const DIAGRAM &d = p.d;
-        o += xpp::format("{},{},{},{},{},{},{},{},{},{},{},{},{}", d.calc, d.ibr, d.ntot, auto_point_encode(d.itp), d.lab, d.nfpar, d.icp1, d.icp2,
-                         d.icp3, d.icp4, d.flag2, d.from, d.jacobian);
+        /* an axis is written as the file's integer (auto_axis.h) */
+        const auto axis_code = [model_parameters](AutoAxis a) { return auto_axis_encode(a, model_parameters); };
+        o += xpp::format("{},{},{},{},{},{},{},{},{},{},{},{},{}", d.calc, d.ibr, d.ntot, auto_point_encode(d.itp), d.lab, d.nfpar, axis_code(d.icp1), axis_code(d.icp2),
+                         axis_code(d.icp3), axis_code(d.icp4), d.flag2, d.from, d.jacobian);
         for (double v : {d.norm, d.per, d.torper}) o += ',' + xpp::number(v);
         o+=','+xpp::number(branches.at(d.branch.get()))+',';
         for(std::size_t i=0;i<d.parameter_indices.size();i++)o+=(i?";":"")+xpp::number(d.parameter_indices[i]);
@@ -213,15 +215,12 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const 
 namespace {
 void check_point_indices(const DIAGRAM &d, int n_pars, Lines &l, int line)
 {
-    /* Drawing and grabbing index AUTO's parameter arrays directly: the first continued
-       parameter is one of the AutoPar slots (their names are indexed by it), and the
-       others may be AUTO's own, such as 10, the period of a periodic run, indexed only in
-       the point's own par array, which every use guards against the model's parameters. */
-    if (d.icp1 < 0 || d.icp1 >= n_pars)
-        l.fail(line, xpp::format("parameter index {} is outside AUTO's parameters", d.icp1));
-    for (const int index : {d.icp2, d.icp3, d.icp4})
-        if (index < 0 || static_cast<std::size_t>(index) >= saved_parameters_limit)
-            l.fail(line, xpp::format("parameter index {} is outside a diagram point's parameters", index));
+    /* Drawing and grabbing index the model's parameters directly: the first continued
+       parameter is one (its name is indexed by it); the others may be AUTO's own
+       unknowns, such as the period of a periodic run (the axes were decoded, so each is
+       a model parameter or one of AUTO's slots). */
+    if (!d.icp1.is_parameter())
+        l.fail(line, xpp::format("axis icp1 is AUTO's slot {}, not one of the model's {} parameters", d.icp1.index, n_pars));
     if (d.jacobian < 0 || d.jacobian >= static_cast<int>(jacobian_names.size()))
         l.fail(line, xpp::format("jacobian {} is neither {} ({}) nor {} ({})", d.jacobian,
                               jacobian_names[JACOBIAN_DIFFERENCE], JACOBIAN_DIFFERENCE, jacobian_names[JACOBIAN_EXACT], JACOBIAN_EXACT));
@@ -234,7 +233,7 @@ void check_point_parameters(const DIAGRAM &d, Lines &l, int line)
     auto ordered=d.parameter_indices;
     std::sort(ordered.begin(),ordered.end());
     if(std::adjacent_find(ordered.begin(),ordered.end())!=ordered.end())l.fail(line, "continued parameter given twice");
-    if(d.parameter_indices.empty() || d.parameter_indices.front()!=d.icp1)l.fail(line, "first continued parameter differs from icp1");
+    if(d.parameter_indices.empty() || d.parameter_indices.front()!=d.icp1.index)l.fail(line, "first continued parameter differs from icp1");
 }
 } // namespace
 
@@ -281,7 +280,8 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
             DiagramPoint &p = points.emplace_back();
             DIAGRAM &d = p.d;
             int itp_code = 0;
-            int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &itp_code, &d.lab, &d.nfpar, &d.icp1, &d.icp2, &d.icp3, &d.icp4, &d.flag2, &d.from, &d.jacobian};
+            int axis_codes[4] = {};
+            int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &itp_code, &d.lab, &d.nfpar, &axis_codes[0], &axis_codes[1], &axis_codes[2], &axis_codes[3], &d.flag2, &d.from, &d.jacobian};
             std::size_t c = 0;
             const auto bad = [&](std::size_t k, const char *kind) {
                 l.fail(xpp::format("field {} (\"{}\") is not {}", k + 1, f[k], kind));
@@ -293,6 +293,12 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
             const auto itp = auto_point_decode(itp_code);
             if (!itp) l.fail(xpp::format("field 4 (\"{}\"): {}", f[3], auto_point_unknown(itp_code)));
             d.itp = *itp;
+            const std::array<AutoAxis *, 4> axes = {&d.icp1, &d.icp2, &d.icp3, &d.icp4};
+            for (std::size_t k = 0; k < axes.size(); k++) {
+                const auto decoded = auto_axis_decode(axis_codes[k], n_pars);
+                if (!decoded) l.fail(xpp::format("axis {} is neither one of the model's {} parameters nor one of AUTO's slots", axis_codes[k], n_pars));
+                *axes[k] = *decoded;
+            }
             check_point_indices(d, n_pars, l, l.line());
             const auto real = [&](double &v) {
                 if (!xpp::parse_number(f[c], v) || !std::isfinite(v)) bad(c, "a number");
@@ -348,15 +354,15 @@ std::deque<DiagramPoint> read_foreign_diagram(Lines &lines, int n,
         DIAGRAM &d = p.d;
         int foreign_index;
         int itp_code;
+        int slots[4];
         lines.numbers(d.calc, d.ibr, d.ntot, itp_code, d.lab, foreign_index, d.nfpar,
-                      d.icp1, d.icp2, d.icp3, d.icp4, d.flag2);
+                      slots[0], slots[1], slots[2], slots[3], d.flag2);
         const auto itp = auto_point_decode(itp_code);
         if (!itp) lines.fail(auto_point_unknown(itp_code));
         d.itp = *itp;
         const int point_line=lines.line();
         if (foreign_index != index || d.nfpar < 1 || d.nfpar > foreign_continuation_columns)
             lines.fail("invalid foreign point index or free parameter count");
-        const int slots[] = {d.icp1, d.icp2, d.icp3, d.icp4};
         for (int slot : slots)
             if (slot < 0 || slot >= auto_unknown::block_size)
                 lines.fail("foreign parameter index is outside AUTO's slots");
@@ -373,8 +379,8 @@ std::deque<DiagramPoint> read_foreign_diagram(Lines &lines, int n,
         const auto mapped = [&](int slot) {
             return static_cast<std::size_t>(slot) < imported.size() ? imported[slot] : static_cast<int>(parameters.size()) + slot;
         };
-        d.icp1 = mapped(slots[0]); d.icp2 = mapped(slots[1]);
-        d.icp3 = mapped(slots[2]); d.icp4 = mapped(slots[3]);
+        AutoAxis *const axes[] = {&d.icp1, &d.icp2, &d.icp3, &d.icp4};
+        for (int k = 0; k < 4; k++) *axes[k] = *auto_axis_decode(mapped(slots[k]), static_cast<int>(parameters.size())); /* the slots were checked above */
         for (int k = 0; k < d.nfpar; k++)
             if (static_cast<std::size_t>(slots[k]) < imported.size()) {
                 d.parameter_indices.push_back(imported[slots[k]]);

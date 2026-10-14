@@ -63,6 +63,8 @@ struct AutoParameterLayout {
   int block=xpp::auto_unknown::block_size;
   int model_parameters=0;
   int solver_index(int k) const { return block+k; }
+  // What a solver slot is: a model parameter, or one of AUTO's unknowns (the stored form of an axis).
+  xpp::AutoAxis axis(int slot) const { const int k=model_index(slot); return k>=0 ? xpp::AutoAxis::parameter(k) : xpp::AutoAxis::unknown(slot); }
   int model_index(int index) const { return index>=block && index<size() ? index-block : -1; }
   int size() const { return block+model_parameters; }
   // The solver's array par in its two parts: AUTO's own block, then the model's parameters.
