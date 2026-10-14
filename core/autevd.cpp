@@ -1,3 +1,4 @@
+#include "auto_unknowns.h"
 #include <algorithm>
 #include <vector> /* first: auto_f2c.h's min/max macros (pulled in below) break libstdc++ headers if not included first */
 #include "autevd.h"
@@ -35,7 +36,7 @@ void init_auto(AutoState &st, int ndim, bool exact)
   st.run.jac=exact?1:0;
   st.run.iads=st.advanced.iads;
   st.run.nthl=1;
-  st.run.ithl[0]=10;
+  st.run.ithl[0]=xpp::auto_unknown::period;
   st.run.thl[0]=0.0;
   st.run.nint=0;    
   
@@ -96,7 +97,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
 {
   xpp::Session &s=*iap->lib->session;
   int icp1=icp[0],icp2=icp[1],icp3=icp[2],icp4=icp[3];
-  double per=par[10];
+  double per=par[xpp::auto_unknown::period];
   int n=iap->ndim;
   int type=get_bif_type(ibrs,ntots,lab);
   /* xppautX: the point's stability, or zeros: not computed (auto_stability.h) */

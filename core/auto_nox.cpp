@@ -1,3 +1,4 @@
+#include "auto_unknowns.h"
 #include "model.h"
 #include "session.h"
 #include "snapx.h"
@@ -619,7 +620,7 @@ int auto_name_to_index(const xpp::Session &s, std::string_view name)
 {
   int in;
   find_variable(s,name,&in);
-  if(in==0)return(10);
+  if(in==0)return(xpp::auto_unknown::period);
   in=xpp::find_user_name(s.model(),PARAM_BOX,name);
   if(in>=0)return s.auto_state.parameter_slot(in);
   return(-1);
@@ -634,7 +635,7 @@ namespace {
    parameter */
 std::string par_or_period_name(const xpp::Session &s, long index)
 {
-  if(index==AUTO_PERIOD_INDEX)return "T";
+  if(index==xpp::auto_unknown::period)return "T";
   const int k=s.auto_state.model_parameter(static_cast<int>(index));
   return k>=0&&k<s.model().nupar?par_label(s,k):std::string();
 }
@@ -1551,13 +1552,13 @@ void init_auto_win(xpp::Session &s)
 
   for(i=0;i<10;i++){
     s.auto_state.bifur.period[i]=11.+3.*i;
-    s.auto_state.bifur.uzrpar[i]=10;
+    s.auto_state.bifur.uzrpar[i]=xpp::auto_unknown::period;
     s.auto_state.uzr_period[i]=s.auto_state.bifur.period[i];
-    s.auto_state.uzr_par[i]=10;
+    s.auto_state.uzr_par[i]=xpp::auto_unknown::period;
   }
   s.auto_state.model_parameters=s.model().nupar;
-  s.auto_state.parameter_offset=std::max(AutoState::numerical_parameter_slots,
-      AutoState::homoclinic_parameter_start+AutoState::homoclinic_parameter_blocks*s.model().node);
+  s.auto_state.parameter_offset=std::max(xpp::auto_unknown::block_size,
+      xpp::auto_unknown::homoclinic_start+xpp::auto_unknown::homoclinic_blocks*s.model().node);
   s.auto_lib.parameter_count=s.auto_state.parameter_count();
   for (auto *v : {&s.auto_state.grabpt.uhi, &s.auto_state.grabpt.ulo, &s.auto_state.grabpt.u0,
                  &s.auto_state.grabpt.ubar, &s.auto_state.homo_l, &s.auto_state.homo_r}) v->resize(s.model().node);

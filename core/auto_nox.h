@@ -115,8 +115,6 @@ void auto_restart(Session &s, int label);
    them. Non-continued constants were deliberately absent from AUTO's PAR. */
 void auto_label_parameters(const Session &s, int label, double *parameters);
 void set_auto(Session &s);
-/* AUTO's index of the period among its parameters (PAR(10), named T) */
-#define AUTO_PERIOD_INDEX 10
 /* the model parameter k's name, NULL when k is outside the model: the one lookup the forms,
    the settings event, the CSV export and the branch-end text share */
 const char *auto_par_name(const Session &s, int k);

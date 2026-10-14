@@ -1,3 +1,4 @@
+#include "auto_unknowns.h"
 /* The session's AUTO members (xpp_session_auto.h, W92, W103): its settings, diagram and
    views (W50) read back bit for bit, a file of another shape is refused,
    and in a session the whole file (the model, settings, diagram,
@@ -196,15 +197,15 @@ void check_views_text()
 void check_solutions()
 {
     const std::string algebraic = "1 1 4 1 2 0 1 3 2 0 0 2\n0 1 2\n0 0\n";
-    CHECK(xpp::check_auto_solutions(algebraic, "sent.snapx/auto/solutions.s", 24, AutoState::numerical_parameter_slots));
-    CHECK(!xpp::check_auto_solutions("1 1 4 1 2 0 1 9999 2 0 0 2\n0 1 2\n0 0\n", "solutions.s", 24, AutoState::numerical_parameter_slots));
-    CHECK(!xpp::check_auto_solutions("1 1 4 1 2 0 1 3 2 0 0 2 junk\n0 1 2\n0 0\n", "solutions.s", 24, AutoState::numerical_parameter_slots));
-    CHECK(!xpp::check_auto_solutions("1 1 4 1 2 0 1 3 2 0 0 2\n0 1 2\n0 nan\n", "solutions.s", 24, AutoState::numerical_parameter_slots));
-    const auto cut = xpp::check_auto_solutions("1 1 4 1 2 0 1 3 2 0 0 2\n0 1 2\n0\n", "sent.snapx/auto/solutions.s", 24, AutoState::numerical_parameter_slots);
+    CHECK(xpp::check_auto_solutions(algebraic, "sent.snapx/auto/solutions.s", 24, xpp::auto_unknown::block_size));
+    CHECK(!xpp::check_auto_solutions("1 1 4 1 2 0 1 9999 2 0 0 2\n0 1 2\n0 0\n", "solutions.s", 24, xpp::auto_unknown::block_size));
+    CHECK(!xpp::check_auto_solutions("1 1 4 1 2 0 1 3 2 0 0 2 junk\n0 1 2\n0 0\n", "solutions.s", 24, xpp::auto_unknown::block_size));
+    CHECK(!xpp::check_auto_solutions("1 1 4 1 2 0 1 3 2 0 0 2\n0 1 2\n0 nan\n", "solutions.s", 24, xpp::auto_unknown::block_size));
+    const auto cut = xpp::check_auto_solutions("1 1 4 1 2 0 1 3 2 0 0 2\n0 1 2\n0\n", "sent.snapx/auto/solutions.s", 24, xpp::auto_unknown::block_size);
     CHECK(!cut && cut.error().place.file == "sent.snapx/auto/solutions.s" && cut.error().place.line == 3);
     const std::string periodic = "1 1 2 1 1 1 3 2 5 1 2 1\n0 1 0.5 2 1 3\n0\n1\n1 1 1\n0\n";
-    CHECK(xpp::check_auto_solutions(periodic, "solutions.s", 24, AutoState::numerical_parameter_slots));
-    CHECK(!xpp::check_auto_solutions("1 1 2 1 1 1 3 2 5 1 2 1\n0 1 0.5 2 1 3\n9999\n1\n1 1 1\n0\n", "solutions.s", 24, AutoState::numerical_parameter_slots));
+    CHECK(xpp::check_auto_solutions(periodic, "solutions.s", 24, xpp::auto_unknown::block_size));
+    CHECK(!xpp::check_auto_solutions("1 1 2 1 1 1 3 2 5 1 2 1\n0 1 0.5 2 1 3\n9999\n1\n1 1 1\n0\n", "solutions.s", 24, xpp::auto_unknown::block_size));
     xpp::TokenReader header = xpp::TokenReader::of_text("    2-1234  ");
     long a, b;
     CHECK(!header.at_end() && header.read(a) && a == 2 && header.read(b) && b == -1234 && header.at_end());
@@ -312,8 +313,8 @@ void check_branch_parameters()
     mark[0]=free[0];
     parameters[free[0]]=0.75;
     CHECK(mark_value()==0.25);
-    mark[0]=AUTO_PERIOD_INDEX;
-    parameters[AUTO_PERIOD_INDEX]=7.5;
+    mark[0]=xpp::auto_unknown::period;
+    parameters[xpp::auto_unknown::period]=7.5;
     CHECK(mark_value()==7);
     xpp::auto_start_diff_ss(s);
     CHECK(s.diagram.points.size()==4);
@@ -365,7 +366,7 @@ void check_orbit_growth(const xpp::TempDir &tmp)
 {
     xpp::Session &s = xpp::client_session();
     const std::string orbit = "1 1 2 1 1 1 3 3 9 1 2 2\n0 1 2\n0.5 3 4\n1 5 6\n0\n1\n0 0\n0 0\n0 0\n0 0\n";
-    CHECK(xpp::check_auto_solutions(orbit, "orbit.s", 24, AutoState::numerical_parameter_slots));
+    CHECK(xpp::check_auto_solutions(orbit, "orbit.s", 24, xpp::auto_unknown::block_size));
     s.auto_state.file = tmp.file("orbit");
     CHECK(write_file(xpp::auto_solutions_file(s), orbit));
     s.data_store.allocate(2, s.model().neq + 1);
@@ -388,13 +389,13 @@ void check_session_round_trip(const xpp::TempDir &tmp)
         branch->parameters.resize(s.model().nupar,0.0);
         p.d.branch=std::move(branch);
     }
-    pts.back().d.icp2 = s.model().nupar+AUTO_PERIOD_INDEX;
+    pts.back().d.icp2 = s.model().nupar+xpp::auto_unknown::period;
     pts.back().d.parameter_indices.pop_back();
     pts.back().d.par.pop_back(); /* the period is kept separately from model parameters */
     diagram_restore(s, pts);
     CHECK(diagram_count(xpp::client_session().diagram) == 9 && diagram_point(xpp::client_session().diagram, 3)->uhi[1] == pts[3].uhi[1]);
     std::string solutions;
-    for (int value : {1, 1, 4, 1, 2, 0, 1, 3, 7, 0, 0, AutoState::numerical_parameter_slots}) solutions += xpp::format("{:5}", value);
+    for (int value : {1, 1, 4, 1, 2, 0, 1, 3, 7, 0, 0, xpp::auto_unknown::block_size}) solutions += xpp::format("{:5}", value);
     solutions += "\n0.0 1 2\n";
     for (int row = 0; row < 6; row++) solutions += "0 0 0 0 0 0\n";
     CHECK(write_file(xpp::auto_solutions_file(xpp::client_session()), solutions));

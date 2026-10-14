@@ -8,6 +8,7 @@
    AutoLib is the AUTO library's own (autlib1-5, gogoauto, setubv2: the
    fort files open during a run and its work arrays). */
 #include <stdio.h>
+#include "auto_unknowns.h"
 #include "auto_nox.h"
 #include "auto_data.h"
 #include "auto_stop.h"
@@ -72,14 +73,9 @@ struct AutoState {
   /* Model dimensions only; AUTO's slots keep their W301 layout until W340. */
   int model_parameters=0;
   static constexpr int model_parameter_prefix = 8;
-  // Numerical test functions use slots through 35 (autlib5's PSI index plus 19).
-  static constexpr int numerical_parameter_slots = 36;
   // AUTO's augmented formulations allocate up to eight state copies (init's thu).
   static constexpr int state_copies = 8;
-  // Homotopy starts at 12: two equilibria and two unstable-direction blocks (stpho).
-  static constexpr int homoclinic_parameter_start = 12;
-  static constexpr int homoclinic_parameter_blocks = 4;
-  int parameter_offset = numerical_parameter_slots;
+  int parameter_offset = xpp::auto_unknown::block_size;
   int parameter_slot(int k) const { return k < model_parameter_prefix ? k : parameter_offset + k - model_parameter_prefix; }
   int model_parameter(int slot) const { return slot < model_parameter_prefix ? slot : slot >= parameter_offset ? slot - parameter_offset + model_parameter_prefix : -1; }
   int parameter_count() const { return parameter_offset + std::max(0, model_parameters - model_parameter_prefix); }

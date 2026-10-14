@@ -1,3 +1,4 @@
+#include "auto_unknowns.h"
 /* autlib3.f -- translated by f2c (version 19970805).
    You must link the resulting object file with the libraries:
 	-lf2c -lm   (in that order)
@@ -705,7 +706,7 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   findlb(iap, rap, irs, &nfpr1, &found);
   readlb(iap, rap, u, par);
 
-  thta = pi(2.0) / par[10];
+  thta = pi(2.0) / par[xpp::auto_unknown::period];
   s1 = xpp::math::sin(thta);
   c1 = xpp::math::cos(thta);
   funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
@@ -835,7 +836,7 @@ ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   ndm2 = ndm * 2;
 
   rom = u[ndim - 2];
-  par[10] = rom * pi(2.0);
+  par[xpp::auto_unknown::period] = rom * pi(2.0);
   par[icp[1]] = u[-1 + ndim];
   funi(iap, rap, ndm, u, uold, icp, par, 1, f, dfdu, dfdp);
 
@@ -900,7 +901,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   findlb(iap, rap, irs, &nfpr1, &found);
   readlb(iap, rap, u, par);
 
-  period = par[10];
+  period = par[xpp::auto_unknown::period];
   rom = period / pi(2.0);
   funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
        iap->lib->scratch.dfu, iap->lib->scratch.dfp);
@@ -1096,7 +1097,7 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   readlb(iap, rap, u, par);
 
   ijac = 1;
-  period = par[10];
+  period = par[xpp::auto_unknown::period];
   rom = period / pi(2.0);
   fnws(iap, rap, ndm, u, &uold, icp, par, ijac, f.data(), dfu.data(), 
        dfp.data());
@@ -1170,13 +1171,13 @@ fnps(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
     
-  if (icp[1] == 10) {
+  if (icp[1] == xpp::auto_unknown::period) {
     /*          **Variable period continuation */
     funi(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp);
-    period = par[10];
+    period = par[xpp::auto_unknown::period];
     for (i = 0; i < ndim; ++i) {
-      ARRAY2D(dfdp, i, 10) = f[i];
-      f[i] = period * ARRAY2D(dfdp, i, 10);
+      ARRAY2D(dfdp, i, xpp::auto_unknown::period) = f[i];
+      f[i] = period * ARRAY2D(dfdp, i, xpp::auto_unknown::period);
     }
     if (ijac == 0) {
       return 0;
@@ -1190,7 +1191,7 @@ fnps(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     }
   } else {
     /*          **Fixed period continuation */
-    period = par[10];
+    period = par[xpp::auto_unknown::period];
     funi(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp);
     for (i = 0; i < ndim; ++i) {
       f[i] = period * f[i];
@@ -1240,7 +1241,7 @@ bcps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   if (iap->lib->rotations.irtn != 0) {
     for (i = 0; i < ndim; ++i) {
       if (iap->lib->rotations.nrtn[i] != 0) {
-	f[i] += par[18] * iap->lib->rotations.nrtn[i];
+	f[i] += par[xpp::auto_unknown::rotation_period] * iap->lib->rotations.nrtn[i];
       }
     }
   }
@@ -1336,9 +1337,9 @@ pdble(const iap_type *iap, const rap_type *rap, integer *ndim, integer *ntst, in
   udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
     
-  par[10] *= 2.;
+  par[xpp::auto_unknown::period] *= 2.;
   if (iap->lib->rotations.irtn != 0) {
-    par[18] *= 2.;
+    par[xpp::auto_unknown::rotation_period] *= 2.;
   }
 
   for (i = 0; i < *ntst; ++i) {
@@ -1424,7 +1425,7 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     rlcur[i] = par[icp[i]];
   }
 
-  period = par[10];
+  period = par[xpp::auto_unknown::period];
   tpi = pi(2.0);
   rimhb = tpi / period;
   *ntsr = ntst;
@@ -1569,11 +1570,11 @@ ffws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     
   nfpr = iap->nfpr;
 
-  c = par[9];
+  c = par[xpp::auto_unknown::wave_speed];
   funi(iap, rap, ndm, u, uold, icp, par, ijac, f, dfu, dfp);
 
   for (i = 0; i < ndm; ++i) {
-    f[ndm + i] = -(c * u[ndm + i] + f[i]) / par[i + 14];
+    f[ndm + i] = -(c * u[ndm + i] + f[i]) / par[i + xpp::auto_unknown::diffusion_start];
     f[i] = u[ndm + i];
   }
 
@@ -1585,36 +1586,36 @@ ffws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     for (j = 0; j < ndm; ++j) {
       ARRAY2D(dfdu, i, j) = 0.;
       ARRAY2D(dfdu, i, (j + ndm)) = 0.;
-      ARRAY2D(dfdu, i + ndm, j) = -ARRAY2D(dfu, i, j) / par[i + 14];
+      ARRAY2D(dfdu, i + ndm, j) = -ARRAY2D(dfu, i, j) / par[i + xpp::auto_unknown::diffusion_start];
       ARRAY2D(dfdu, i + ndm, (j + ndm)) = 0.;
     }
     ARRAY2D(dfdu, i, (i + ndm)) = 1.;
-    ARRAY2D(dfdu, i + ndm, (i + ndm)) = -c / par[i + 14];
-    if (icp[0] < 9) {
+    ARRAY2D(dfdu, i + ndm, (i + ndm)) = -c / par[i + xpp::auto_unknown::diffusion_start];
+    if (icp[0] < xpp::auto_unknown::wave_speed) {
       ARRAY2D(dfdp, i, (icp[0])) = 0.;
-      ARRAY2D(dfdp, i + ndm, icp[0]) = -ARRAY2D(dfp, i, icp[0]) / par[i + 14];
+      ARRAY2D(dfdp, i + ndm, icp[0]) = -ARRAY2D(dfp, i, icp[0]) / par[i + xpp::auto_unknown::diffusion_start];
     }
-    if (nfpr > 1 && icp[1] < 9) {
+    if (nfpr > 1 && icp[1] < xpp::auto_unknown::wave_speed) {
       ARRAY2D(dfdp, i, (icp[1])) = 0.;
-      ARRAY2D(dfdp, i + ndm, icp[1]) = -ARRAY2D(dfp, i, icp[1]) / par[i + 14];
+      ARRAY2D(dfdp, i + ndm, icp[1]) = -ARRAY2D(dfp, i, icp[1]) / par[i + xpp::auto_unknown::diffusion_start];
     }
   }
 
   /* Derivative with respect to the wave speed. */
 
   for (i = 0; i < ndm; ++i) {
-    ARRAY2D(dfdp, i, 9) = 0.;
-    ARRAY2D(dfdp, i + ndm, 9) = -u[ndm + i] / par[i + 14];
+    ARRAY2D(dfdp, i, xpp::auto_unknown::wave_speed) = 0.;
+    ARRAY2D(dfdp, i + ndm, xpp::auto_unknown::wave_speed) = -u[ndm + i] / par[i + xpp::auto_unknown::diffusion_start];
   }
 
   /* Derivatives with respect to the diffusion coefficients. */
 
   for (j = 0; j < ndm; ++j) {
     for (i = 0; i < ndm; ++i) {
-      ARRAY2D(dfdp, i, (j + 14)) = 0.;
-      ARRAY2D(dfdp, i + ndm, (j + 14)) = 0.;
+      ARRAY2D(dfdp, i, (j + xpp::auto_unknown::diffusion_start)) = 0.;
+      ARRAY2D(dfdp, i + ndm, (j + xpp::auto_unknown::diffusion_start)) = 0.;
     }
-    ARRAY2D(dfdp, j + ndm, (j + 14)) = -f[j + ndm] / par[j + 14];
+    ARRAY2D(dfdp, j + ndm, (j + xpp::auto_unknown::diffusion_start)) = -f[j + ndm] / par[j + xpp::auto_unknown::diffusion_start];
   }
 
   return 0;
@@ -1645,13 +1646,13 @@ fnwp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
     
-  if (icp[1] == 10) {
+  if (icp[1] == xpp::auto_unknown::period) {
     /*          **Variable wave length */
     fnws(iap, rap, ndim, u, uold, icp, par, ijac, f, 
 	 dfdu, dfdp);
-    period = par[10];
+    period = par[xpp::auto_unknown::period];
     for (i = 0; i < ndim; ++i) {
-      ARRAY2D(dfdp, i, 10) = f[i];
+      ARRAY2D(dfdp, i, xpp::auto_unknown::period) = f[i];
       f[i] = period * f[i];
     }
     if (ijac == 0) {
@@ -1669,7 +1670,7 @@ fnwp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     /*          **Fixed wave length */
     fnws(iap, rap, ndim, u, uold, icp, par, ijac, f, 
 	 dfdu, dfdp);
-    period = par[10];
+    period = par[xpp::auto_unknown::period];
     for (i = 0; i < ndim; ++i) {
       f[i] = period * f[i];
     }
@@ -1752,7 +1753,7 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     rlcur[i] = par[icp[i]];
   }
 
-  period = par[10];
+  period = par[xpp::auto_unknown::period];
   tpi = pi(2.0);
   rimhb = tpi / period;
   *ntsr = ntst;
@@ -1887,10 +1888,10 @@ ffsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     
   funi(iap, rap, ndm, u, uold, icp, par, ijac, &f[ndm], dfu, dfp);
 
-  period = par[10];
+  period = par[xpp::auto_unknown::period];
   for (i = 0; i < ndm; ++i) {
     f[i] = period * u[ndm + i];
-    f[ndm + i] = -period * f[ndm + i] / par[i + 14];
+    f[ndm + i] = -period * f[ndm + i] / par[i + xpp::auto_unknown::diffusion_start];
   }
 
   if (ijac == 0) {
@@ -1901,19 +1902,19 @@ ffsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     for (j = 0; j < ndm; ++j) {
       ARRAY2D(dfdu, i, j) = 0.;
       ARRAY2D(dfdu, i, (j + ndm)) = 0.;
-      ARRAY2D(dfdu, i + ndm, j) = -period * ARRAY2D(dfu, i, j) / par[i + 14];
+      ARRAY2D(dfdu, i + ndm, j) = -period * ARRAY2D(dfu, i, j) / par[i + xpp::auto_unknown::diffusion_start];
       ARRAY2D(dfdu, i + ndm, (j + ndm)) = 0.;
     }
     ARRAY2D(dfdu, i, (i + ndm)) = period;
-    if (icp[0] == 10) {
+    if (icp[0] == xpp::auto_unknown::period) {
       ARRAY2D(dfdp, i, (icp[0])) = f[i] / period;
       ARRAY2D(dfdp, ndm + i, icp[0]) = f[ndm + i] / period;
-    } else if (icp[0] == i + 13) {
+    } else if (icp[0] == i + xpp::auto_unknown::diffusion_start - 1) {
       ARRAY2D(dfdp, i, (icp[0])) = 0.;
-      ARRAY2D(dfdp, ndm + i, icp[0]) = -f[ndm + i] / par[i + 14];
-    } else if (icp[0] != 10 && ! (icp[0] > 13 && icp[0] <= ndm + 13)) {
+      ARRAY2D(dfdp, ndm + i, icp[0]) = -f[ndm + i] / par[i + xpp::auto_unknown::diffusion_start];
+    } else if (icp[0] != xpp::auto_unknown::period && ! (icp[0] > xpp::auto_unknown::diffusion_start - 1 && icp[0] <= ndm + xpp::auto_unknown::diffusion_start - 1)) {
       ARRAY2D(dfdp, i, (icp[0])) = 0.;
-      ARRAY2D(dfdp, i + ndm, icp[0]) = -period * ARRAY2D(dfp, i, icp[0]) / par[i + 14];
+      ARRAY2D(dfdp, i + ndm, icp[0]) = -period * ARRAY2D(dfp, i, icp[0]) / par[i + xpp::auto_unknown::diffusion_start];
     }
   }
 
@@ -1978,7 +1979,7 @@ ffpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   ds = rap->ds;
   dsmin = rap->dsmin;
 
-  period = par[10];
+  period = par[xpp::auto_unknown::period];
   t = par[icp[0]];
   rlold = rap->tivp;
   dt = t - rlold;
@@ -1990,7 +1991,7 @@ ffpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   for (i = 0; i < ndm; ++i) {
     f[i] = period * u[ndm + i];
-    f[ndm + i] = period * ((u[i] - uold[i]) / dt - f[ndm + i]) /par[i + 14];
+    f[ndm + i] = period * ((u[i] - uold[i]) / dt - f[ndm + i]) /par[i + xpp::auto_unknown::diffusion_start];
   }
 
   if (ijac == 0) {
@@ -2001,14 +2002,14 @@ ffpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     for (j = 0; j < ndm; ++j) {
       ARRAY2D(dfdu, i, j) = 0.;
       ARRAY2D(dfdu, i, (j + ndm)) = 0.;
-      ARRAY2D(dfdu, i + ndm, j) = -period * ARRAY2D(dfu, i, j) / par[i + 14];
+      ARRAY2D(dfdu, i + ndm, j) = -period * ARRAY2D(dfu, i, j) / par[i + xpp::auto_unknown::diffusion_start];
       ARRAY2D(dfdu, i + ndm, (j + ndm)) = 0.;
     }
     ARRAY2D(dfdu, i, (i + ndm)) = period;
-    ARRAY2D(dfdu, i + ndm, i) += period / (dt * par[i + 14]);
+    ARRAY2D(dfdu, i + ndm, i) += period / (dt * par[i + xpp::auto_unknown::diffusion_start]);
     ARRAY2D(dfdp, i, (icp[0])) = 0.;
     /* Computing 2nd power */
-    ARRAY2D(dfdp, i + ndm, icp[0]) = -period * (u[i] - uold[i])/ (dt * dt * par[i + 14]);
+    ARRAY2D(dfdp, i + ndm, icp[0]) = -period * (u[i] - uold[i])/ (dt * dt * par[i + xpp::auto_unknown::diffusion_start]);
   }
 
   return 0;
@@ -2104,8 +2105,8 @@ ffpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
     
-  period = par[10];
-  beta = par[11];
+  period = par[xpp::auto_unknown::period];
+  beta = par[xpp::auto_unknown::fold_beta];
   funi(iap, rap, ndm, u, uold, icp, par, 2, f, 
        dfdu, dfdp);
 
@@ -2114,7 +2115,7 @@ ffpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     for (j = 0; j < ndm; ++j) {
       f[ndm + i] += ARRAY2D(dfdu, i, j) * u[ndm + j];
     }
-    if (icp[2] == 10) {
+    if (icp[2] == xpp::auto_unknown::period) {
       /*            ** Variable period */
       f[ndm + i] = period * f[ndm + i] + beta * f[i];
     } else {
@@ -2156,7 +2157,7 @@ bcpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     ndm = iap->ndm;
     for (i = 0; i < ndm; ++i) {
       if (iap->lib->rotations.nrtn[i] != 0) {
-	f[i] += par[18] * iap->lib->rotations.nrtn[i];
+	f[i] += par[xpp::auto_unknown::rotation_period] * iap->lib->rotations.nrtn[i];
       }
     }
   }
@@ -2207,7 +2208,7 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   f[0] = 0.;
   f[1] = 0.;
   /* Computing 2nd power */
-  f[2] = par[11] * par[11] - par[12];
+  f[2] = par[xpp::auto_unknown::fold_beta] * par[xpp::auto_unknown::fold_beta] - par[xpp::auto_unknown::fold_norm];
 
   for (i = 0; i < ndm; ++i) {
     if (iap->lib->rotations.nrtn[i] == 0) {
@@ -2240,8 +2241,8 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     ARRAY2D(dint, 2, ndm + i) = u[ndm + i] * 2.;
   }
 
-  ARRAY2D(dint, 2, ndim + 11) = par[11] * 2.;
-  ARRAY2D(dint, 2, ndim + 12) = -1.;
+  ARRAY2D(dint, 2, ndim + xpp::auto_unknown::fold_beta) = par[xpp::auto_unknown::fold_beta] * 2.;
+  ARRAY2D(dint, 2, ndim + xpp::auto_unknown::fold_norm) = -1.;
 
   return 0;
 } /* icpl_ */
@@ -2356,9 +2357,9 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
 
   /* Complement starting data */
-  par[11] = 0.;
-  par[12] = 0.;
-  if (icp[2] == 10) {
+  par[xpp::auto_unknown::fold_beta] = 0.;
+  par[xpp::auto_unknown::fold_norm] = 0.;
+  if (icp[2] == xpp::auto_unknown::period) {
     /*          Variable period */
     rldot[0] = rd1;
     rldot[1] = 0.;
@@ -2477,7 +2478,7 @@ ffpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     /* Parameter adjustments */
   dfdu_dim1 = ndm;
     
-  period = par[10];
+  period = par[xpp::auto_unknown::period];
   funi(iap, rap, ndm, u, uold, icp, par, 1, f, dfdu, dfdp);
 
   for (i = 0; i < ndm; ++i) {
@@ -2525,7 +2526,7 @@ bcpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   if (iap->lib->rotations.irtn != 0) {
     for (i = 0; i < ndm; ++i) {
       if (iap->lib->rotations.nrtn[i] != 0) {
-	f[i] += par[18] * iap->lib->rotations.nrtn[i];
+	f[i] += par[xpp::auto_unknown::rotation_period] * iap->lib->rotations.nrtn[i];
       }
     }
   }
@@ -2576,7 +2577,7 @@ icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   ndm = iap->ndm;
 
   f[0] = 0.;
-  f[1] = -par[12];
+  f[1] = -par[xpp::auto_unknown::doubling_norm];
 
   for (i = 0; i < ndm; ++i) {
     if (iap->lib->rotations.nrtn[i] == 0) {
@@ -2606,7 +2607,7 @@ icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     ARRAY2D(dint, 1, ndm + i) = u[ndm + i] * 2.;
   }
 
-  ARRAY2D(dint, 1, ndim + 12) = -1.;
+  ARRAY2D(dint, 1, ndim + xpp::auto_unknown::doubling_norm) = -1.;
 
   return 0;
 } /* icpd_ */
@@ -2718,7 +2719,7 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
 
   /* Complement starting data */
-  par[12] = 0.;
+  par[xpp::auto_unknown::doubling_norm] = 0.;
   rldot[2] = 0.;
   for (j = 0; j < *ntsr; ++j) {
     for (i = 0; i < *ncolrs; ++i) {
@@ -2827,7 +2828,7 @@ fftr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Parameter adjustments */
   dfdu_dim1 = ndm;
     
-  period = par[10];
+  period = par[xpp::auto_unknown::period];
   funi(iap, rap, ndm, u, uold, icp, par, 1, f, dfdu, dfdp);
 
   ndm2 = ndm * 2;
@@ -2875,7 +2876,7 @@ bctr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   ndm = iap->ndm;
 
   ndm2 = ndm << 1;
-  theta = par[11];
+  theta = par[xpp::auto_unknown::torus_angle];
 
   ss = xpp::math::sin(theta);
   cs = xpp::math::cos(theta);
@@ -2890,7 +2891,7 @@ bctr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   if (iap->lib->rotations.irtn != 0) {
     for (i = 0; i < ndm; ++i) {
       if (iap->lib->rotations.nrtn[i] != 0) {
-	f[i] += par[18] * iap->lib->rotations.nrtn[i];
+	f[i] += par[xpp::auto_unknown::rotation_period] * iap->lib->rotations.nrtn[i];
       }
     }
   }
@@ -2913,11 +2914,11 @@ bctr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     ARRAY2D(dbc, ndm + i, (ndm + i)) = -cs;
     ARRAY2D(dbc, ndm + i, (ndm2 + i)) = ss;
     ARRAY2D(dbc, ndm + i, (ndim + ndm + i)) = 1.;
-    ARRAY2D(dbc, ndm + i, ((ndim * 2) + 11)) = cs * u0[ndm2 + i] + ss * u0[ndm + i];
+    ARRAY2D(dbc, ndm + i, ((ndim * 2) + xpp::auto_unknown::torus_angle)) = cs * u0[ndm2 + i] + ss * u0[ndm + i];
     ARRAY2D(dbc, ndm2 + i, (ndm + i)) = -ss;
     ARRAY2D(dbc, ndm2 + i, (ndm2 + i)) = -cs;
     ARRAY2D(dbc, ndm2 + i, (ndim + ndm2 + i)) = 1.;
-    ARRAY2D(dbc, ndm2 + i, ((ndim * 2) + 11)) = ss * u0[ndm2 + i] - cs * u0[ndm + i];
+    ARRAY2D(dbc, ndm2 + i, ((ndim * 2) + xpp::auto_unknown::torus_angle)) = ss * u0[ndm2 + i] - cs * u0[ndm + i];
   }
 
   return 0;
@@ -2947,7 +2948,7 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   f[0] = 0.;
   f[1] = 0.;
-  f[2] = -par[12];
+  f[2] = -par[xpp::auto_unknown::torus_norm];
 
   for (i = 0; i < ndm; ++i) {
     if (iap->lib->rotations.nrtn[i] == 0) {
@@ -2981,7 +2982,7 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     ARRAY2D(dint, 2, ndm2 + i) = u[ndm2 + i] * 2;
   }
 
-  ARRAY2D(dint, 2, ndim + 12) = -1.;
+  ARRAY2D(dint, 2, ndim + xpp::auto_unknown::torus_norm) = -1.;
 
   return 0;
 } /* ictr_ */
@@ -3112,7 +3113,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
   xpp::auto_label_parameters(*iap->lib->session,static_cast<int>(header.lab),par);
 
-  par[12] = 0.;
+  par[xpp::auto_unknown::torus_norm] = 0.;
 
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = par[icp[i]];
@@ -3162,7 +3163,7 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   funi(iap, rap, ndm, uold, uold, icp, par, 0, 
        upold.data(), dfdu, dfdp);
-  period = par[10];
+  period = par[xpp::auto_unknown::period];
   for (i = 0; i < ndm; ++i) {
     upold[i] = period * upold[i];
   }
@@ -3213,9 +3214,9 @@ ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
     
-  period = par[10];
-  rkappa = par[12];
-  gamma = par[13];
+  period = par[xpp::auto_unknown::period];
+  rkappa = par[xpp::auto_unknown::optimization_kappa];
+  gamma = par[xpp::auto_unknown::optimization_gamma];
 
   for (i = 0; i < ndm; ++i) {
     for (j = 0; j < iap->lib->parameter_count; ++j) {
@@ -3274,7 +3275,7 @@ bcpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     nbc0 = iap->nbc0;
     for (i = 0; i < nbc0; ++i) {
       if (iap->lib->rotations.nrtn[i] != 0) {
-	f[i] += par[18] * iap->lib->rotations.nrtn[i];
+	f[i] += par[xpp::auto_unknown::rotation_period] * iap->lib->rotations.nrtn[i];
       }
     }
   }
@@ -3390,10 +3391,10 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     dfp[i] = 0.;
   }
   fopi(iap, rap, ndm, u, icp, par, 2, &fop, dfu.data(), dfp.data());
-  fi[1] = par[9] - fop;
+  fi[1] = par[xpp::auto_unknown::objective] - fop;
 
   /* Computing 2nd power */
-  fi[2] = par[12] * par[12] + par[13] * par[13] - par[11];
+  fi[2] = par[xpp::auto_unknown::optimization_kappa] * par[xpp::auto_unknown::optimization_kappa] + par[xpp::auto_unknown::optimization_gamma] * par[xpp::auto_unknown::optimization_gamma] - par[xpp::auto_unknown::optimization_norm];
   for (i = 0; i < ndm; ++i) {
     /* Computing 2nd power */
     fi[2] +=  u[ndm + i] * u[ndm + i];
@@ -3408,15 +3409,15 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   for (l = 3; l < nint; ++l) {
     indx = icp[nfpr + l - 3];
-    if (indx == 10) {
-      fi[l] = -par[13] * dfp[indx] - par[indx + 20];
+    if (indx == xpp::auto_unknown::period) {
+      fi[l] = -par[xpp::auto_unknown::optimization_gamma] * dfp[indx] - par[indx + xpp::auto_unknown::test_function_start];
       for (i = 0; i < ndm; ++i) {
 	fi[l] += f[i] * u[ndm + i];
       }
     } else {
-      fi[l] = -par[13] * dfp[indx] - par[indx + 20];
+      fi[l] = -par[xpp::auto_unknown::optimization_gamma] * dfp[indx] - par[indx + xpp::auto_unknown::test_function_start];
       for (i = 0; i < ndm; ++i) {
-	fi[l] += par[10] * ARRAY2D(dfdp, i, (indx)) * u[ndm + i]
+	fi[l] += par[xpp::auto_unknown::period] * ARRAY2D(dfdp, i, (indx)) * u[ndm + i]
           ;
       }
     }
@@ -3561,7 +3562,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
   fopt(ndm, u.data(), icp, par, 0, &fs, &dumu, &dump);
   temporary_storage[*ntsr] = fs;
-  par[9] = rintg(iap, ndxloc, 1, temporary_storage.data(), dtm);
+  par[xpp::auto_unknown::objective] = rintg(iap, ndxloc, 1, temporary_storage.data(), dtm);
 
   /* Complement starting data */
 
@@ -3900,7 +3901,7 @@ fibl(const iap_type *iap, const rap_type *rap, const integer ndim, doublereal *p
   }
 
   /* Note that PAR(11+NFPR/2) is used to keep the norm of the null vector */
-  f[-1 + nint] = -par[-1 + nfpr / 2 + 11];
+  f[-1 + nint] = -par[-1 + nfpr / 2 + xpp::auto_unknown::bvp_fold_start + 1];
   for (i = 0; i < ndm; ++i) {
     f[-1 + nint] += u[ndm + i] * u[ndm + i];
   }
@@ -4025,7 +4026,7 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     }
   }
   /* Initialize the norm of the null vector */
-  par[-1 + nfpr / 2 + 11] = 0.;
+  par[-1 + nfpr / 2 + xpp::auto_unknown::bvp_fold_start + 1] = 0.;
 
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = par[icp[i]];

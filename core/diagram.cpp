@@ -1,3 +1,4 @@
+#include "auto_unknowns.h"
 /* xpp_io.h first: it pulls in <optional>/<string_view>/<format>, which
    auto_f2c.h's own min/max macros (included transitively below, through
    auto_nox.h) break if they are already defined first. */
@@ -80,7 +81,7 @@ void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p,
 
 double diagram_parameter(const xpp::DIAGRAM &point, int parameter)
 {
-  if(point.branch && parameter==static_cast<int>(point.branch->parameters.size())+AUTO_PERIOD_INDEX)return point.per;
+  if(point.branch && parameter==static_cast<int>(point.branch->parameters.size())+xpp::auto_unknown::period)return point.per;
   for(std::size_t i=0;i<point.parameter_indices.size();i++)
     if(point.parameter_indices[i]==parameter)return point.par[i];
   if(point.branch && parameter>=0 && static_cast<std::size_t>(parameter)<point.branch->parameters.size())

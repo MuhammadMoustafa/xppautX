@@ -1,3 +1,4 @@
+#include "auto_unknowns.h"
 #include "solver.h"
 #include <algorithm>
 #include <array>
@@ -169,20 +170,20 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
   }
 
   get_start_period(s,&p);
-  par[10]=p;
+  par[xpp::auto_unknown::period]=p;
   if(s.auto_state.homo_flag!=1)get_start_orbit(s,u,t,p,ndim);
   if(s.auto_state.homo_flag==1){
 
     get_shifted_orbit(s,u,t,p,ndim);
     for(i=0;i<ndim;i++){
-      par[11+i]=s.auto_state.homo_l[i];
+      par[xpp::auto_unknown::homoclinic_equilibrium_start+i]=s.auto_state.homo_l[i];
 
     }
   }
   if(s.auto_state.homo_flag==2){ /* heteroclinic */
     for(i=0;i<ndim;i++){
-      par[11+i]=s.auto_state.homo_l[i];
-      par[11+i+ndim]=s.auto_state.homo_r[i];
+      par[xpp::auto_unknown::homoclinic_equilibrium_start+i]=s.auto_state.homo_l[i];
+      par[xpp::auto_unknown::homoclinic_equilibrium_start+i+ndim]=s.auto_state.homo_r[i];
 
     }
 

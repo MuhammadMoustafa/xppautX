@@ -1,3 +1,4 @@
+#include "auto_unknowns.h"
 /* The stability values of AUTO's points: what AUTO computed, for which
    point, and what a run's first point takes (auto_stability.h). */
 #include <cmath>
@@ -72,14 +73,14 @@ void auto_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *p
     (*funi)(&iap, &rap, iap.ndim, u, uold, icp, par, BOTH_JACOBIANS, f, dfdu, dfdp);
     logical chng;
     const auto saved_nins = iap.nins;
-    const auto saved_period = par[AUTO_PERIOD_INDEX];
+    const auto saved_period = par[xpp::auto_unknown::period];
     // fnhbae's uniform FNCS interface has unused arguments: the eigenvalue
     // calculation itself consumes only the context, parameters and Jacobian.
     fnhbae(&iap, &rap, par, nullptr, &chng, nullptr, nullptr, nullptr,
            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
            dfdu, nullptr, nullptr, nullptr);
     iap.nins = saved_nins;
-    par[AUTO_PERIOD_INDEX] = saved_period;
+    par[xpp::auto_unknown::period] = saved_period;
 }
 
 void auto_stability_multipliers_restored(AutoStability &st, const iap_type &iap, double *p0, double *p1)

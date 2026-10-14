@@ -1,3 +1,4 @@
+#include "auto_unknowns.h"
 #include "xpp_files.h"
 #include <array>
 #include <span>
@@ -505,7 +506,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     nfpr = 1;
     isp = 0;
     ilp = 0;
-    icp[0] = 13;
+    icp[0] = xpp::auto_unknown::evolution_time;
 
   } else if (ips == 2 && f2c::abs(isw) == 1) {
     /*        ** Periodic Solutions */
@@ -518,7 +519,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     }
     if (nicp == 1) {
       /*          **Variable period */
-      icp[1] = 10;
+      icp[1] = xpp::auto_unknown::period;
     }
 
   } else if (ips == 4 && f2c::abs(isw) == 1) {
@@ -546,7 +547,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     nfpr = 1;
     ilp = 0;
     isp = 0;
-    icp[0] = 13;
+    icp[0] = xpp::auto_unknown::evolution_time;
 
   } else if (ips == 17) {
     /*        **Stationary calculations for Parabolic Systems */
@@ -567,9 +568,9 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
 	++nfpr;
       }
     }
-    icp[nfpr] = 9;
-    icp[nfpr + 1] = 12;
-    icp[nfpr + 2] = 13;
+    icp[nfpr] = xpp::auto_unknown::objective;
+    icp[nfpr + 1] = xpp::auto_unknown::optimization_kappa;
+    icp[nfpr + 2] = xpp::auto_unknown::optimization_gamma;
     nfpr += 3;
     ndim <<= 1;
     nbc = ndim;
@@ -578,7 +579,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     nneg = 0;
     for (i = 0; i < nicp; ++i) {
       ic = ict[i];
-      jc = f2c::abs(ic) - 20;
+      jc = f2c::abs(ic) - xpp::auto_unknown::test_function_start;
       if (ic < 0 && jc > 0 && jc <= 11) {
 	++nneg;
 	icp[nfpr + nneg - 1] = jc;
@@ -599,10 +600,10 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     nfpr = iap->nfpr;
     if (nfpr == 2) {
       ++ndim;
-      icp[0] = 9;
+      icp[0] = xpp::auto_unknown::objective;
     } else {
       ndim = (ndim << 1) + nfpr;
-      icp[0] = 9;
+      icp[0] = xpp::auto_unknown::objective;
     }
 
   } else if (irs > 0 && f2c::abs(isw) == 2) {
@@ -625,15 +626,15 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       nbc = ndim;
       nint = 3;
       nfpr = nbc + nint - ndim + 1;
-      if (icp[2] == 10 || nicp == 2) {
+      if (icp[2] == xpp::auto_unknown::period || nicp == 2) {
 	/*            ** Variable period */
-	icp[1] = 12;
-	icp[2] = 10;
-	icp[3] = 11;
+	icp[1] = xpp::auto_unknown::fold_norm;
+	icp[2] = xpp::auto_unknown::period;
+	icp[3] = xpp::auto_unknown::fold_beta;
       } else {
 	/*            ** Fixed period */
-	icp[2] = 12;
-	icp[3] = 11;
+	icp[2] = xpp::auto_unknown::fold_norm;
+	icp[3] = xpp::auto_unknown::fold_beta;
       }
       ilp = 0;
       isw = -2;
@@ -650,9 +651,9 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       nfpr = nbc + nint - ndim + 1;
       if (nicp == 2) {
 	/*            ** Variable period */
-	icp[2] = 10;
+	icp[2] = xpp::auto_unknown::period;
       }
-      icp[3] = 11;
+      icp[3] = xpp::auto_unknown::fold_beta;
 
     } else if (itp == 7 && ips == 2) {
       /*          ** Continuation of period doubling bifurcations; start
@@ -661,13 +662,13 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       nbc = ndim;
       nint = 2;
       nfpr = nbc + nint - ndim + 1;
-      if (icp[2] == 10 || nicp == 2) {
+      if (icp[2] == xpp::auto_unknown::period || nicp == 2) {
 	/*            ** Variable period */
-	icp[1] = 10;
-	icp[2] = 12;
+	icp[1] = xpp::auto_unknown::period;
+	icp[2] = xpp::auto_unknown::doubling_norm;
       } else {
 	/*            ** Fixed period */
-	icp[2] = 12;
+	icp[2] = xpp::auto_unknown::doubling_norm;
       }
       ilp = 0;
       isw = -2;
@@ -683,9 +684,9 @@ rt */
       nbc = ndim;
       nint = 2;
       nfpr = nbc + nint - ndim + 1;
-      if (icp[2] == 10 || nicp == 2) {
+      if (icp[2] == xpp::auto_unknown::period || nicp == 2) {
 	/*            ** Variable period */
-	icp[2] = 10;
+	icp[2] = xpp::auto_unknown::period;
       }
 
     } else if (itp == 8 && ips == 2) {
@@ -694,9 +695,9 @@ rt */
       nbc = ndim;
       nint = 3;
       nfpr = nbc + nint - ndim + 1;
-      icp[1] = 10;
-      icp[2] = 11;
-      icp[3] = 12;
+      icp[1] = xpp::auto_unknown::period;
+      icp[2] = xpp::auto_unknown::torus_angle;
+      icp[3] = xpp::auto_unknown::torus_norm;
       ilp = 0;
       isp = 0;
       isw = -2;
@@ -710,8 +711,8 @@ rt */
       nbc = ndim;
       nint = 3;
       nfpr = nbc + nint - ndim + 1;
-      icp[2] = 10;
-      icp[3] = 11;
+      icp[2] = xpp::auto_unknown::period;
+      icp[3] = xpp::auto_unknown::torus_angle;
 
     } else if ((itp == 5 || itp == 6) && ips == 4) {
       /*          ** Continuation of folds (BVP; start) */
@@ -722,10 +723,10 @@ rt */
       nxploc = nfpr / 2 - 1;
       if (nxploc > 0) {
 	for (i = 0; i < nxploc; ++i) {
-	  icp[nfpr / 2 + i] = i + 10;
+	  icp[nfpr / 2 + i] = i + xpp::auto_unknown::bvp_fold_start;
 	}
       }
-      icp[nfpr / 2] = nfpr / 2 + 10;
+      icp[nfpr / 2] = nfpr / 2 + xpp::auto_unknown::bvp_fold_start;
       ilp = 0;
       isw = -2;
       isp = 0;
@@ -742,7 +743,7 @@ rt */
       nxploc = nfpr / 2 - 1;
       if (nxploc > 0) {
 	for (i = 0; i < nxploc; ++i) {
-	  icp[nfpr / 2 + i] = i + 10;
+	  icp[nfpr / 2 + i] = i + xpp::auto_unknown::bvp_fold_start;
 	}
       }
 
@@ -1889,7 +1890,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 	rev = ev[i].r;
 	rimhb = f2c::abs(d_imag(&ev[i]));
 	if (rimhb != 0.) {
-	  par[10] = pi(2.0) / rimhb;
+	  par[xpp::auto_unknown::period] = pi(2.0) / rimhb;
 	}
       }
     }
@@ -2533,7 +2534,7 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
     if (static_cast<double>(j) == 2.) {
       j = j + 1 + *n2;
     }   
-    if (icp[i] > 9) {
+    if (icp[i] >= xpp::auto_unknown::period) {
       col[j-1] = xpp::format("   PAR({})    ",icp[i]);
     } else {
       col[j-1] = xpp::format("   PAR({})     ",icp[i]);
@@ -2575,11 +2576,11 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
   }
 
   for (i = 0; i < *n1 + *n2 + 1; ++i) {
-    if (col[i] == "   PAR(10)    " && ips > 0 && ips != 4) {
+    if (col[i] == xpp::format("   PAR({})    ",xpp::auto_unknown::period) && ips > 0 && ips != 4) {
       col[i] = "    PERIOD    ";
-    } else if (col[i] == "   PAR(9)    " && (ips == 5 || ips == 15)) {
+    } else if (col[i] == xpp::format("   PAR({})    ",xpp::auto_unknown::objective) && (ips == 5 || ips == 15)) {
       col[i] = "     FOPT     ";
-    } else if (col[i] == "   PAR(13)    " && (ips == 14 || ips == 16)) {
+    } else if (col[i] == xpp::format("   PAR({})    ",xpp::auto_unknown::evolution_time) && (ips == 14 || ips == 16)) {
       col[i] = "     TIME     ";
     }
   }
@@ -5788,7 +5789,7 @@ setrtn(iap_type *iap, integer *ntst, integer *ndxloc, doublereal *ups, doublerea
   /*--par;*/
   ups_dim1 = *ndxloc;
   
-  par[18] = pi(2.0);
+  par[xpp::auto_unknown::rotation_period] = pi(2.0);
   nbc = iap->nbc;
 
   iap->lib->rotations.irtn = 0;
@@ -6445,7 +6446,7 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
     /*       ** torus bifurcation */
     itp = itpst * 10 + 8;
     iap->itp = itp;
-    par[11] =f2c::abs(xpp::math::atan2(d_imag(&ev[loc1]),ev[loc1].r));
+    par[xpp::auto_unknown::torus_angle] =f2c::abs(xpp::math::atan2(d_imag(&ev[loc1]),ev[loc1].r));
 
   } else { /* a real multiplier */
     if (ev[loc1].r < -.5) {

@@ -1,3 +1,4 @@
+#include "auto_unknowns.h"
 /* AUTO's settings as data: the "autosettings" event and the `auto` `set`
    command's checks and writes (auto_settings.h, docs/protocol.md "AUTO's
    settings as data").
@@ -185,7 +186,7 @@ AutoSettingsSet settings_now(const xpp::Session &s)
     axes_of(s, s.auto_state.axes(), set);
     set.nmarks = s.auto_state.bifur.nper < 0 ? 0 : s.auto_state.bifur.nper < AUTO_SETTINGS_MARKS ? s.auto_state.bifur.nper : AUTO_SETTINGS_MARKS;
     for (int i = 0; i < set.nmarks; i++) {
-        set.mark_name[i] = s.auto_state.bifur.uzrpar[i] == AUTO_PERIOD_INDEX ? std::string("T") : name_or_empty(auto_par_name(s, s.auto_state.model_parameter(s.auto_state.bifur.uzrpar[i])));
+        set.mark_name[i] = s.auto_state.bifur.uzrpar[i] == xpp::auto_unknown::period ? std::string("T") : name_or_empty(auto_par_name(s, s.auto_state.model_parameter(s.auto_state.bifur.uzrpar[i])));
         set.mark_value[i] = s.auto_state.bifur.period[i];
     }
     return set;
@@ -399,7 +400,7 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
         return false;
     }
     for (int i = 0; i < set->nmarks; i++) {
-        uzr[i] = strcasecmp(set->mark_name[i].c_str(), "T") == 0 ? AUTO_PERIOD_INDEX : xpp::find_user_name(s.model(), PARAM_BOX, set->mark_name[i]);
+        uzr[i] = strcasecmp(set->mark_name[i].c_str(), "T") == 0 ? xpp::auto_unknown::period : xpp::find_user_name(s.model(), PARAM_BOX, set->mark_name[i]);
         if (uzr[i] < 0) {
             why = xpp::format("Mark values: {} is not a model parameter or T",
                                     set->mark_name[i]);
