@@ -1,0 +1,13 @@
+# W345 (#406): tstheti's planar system for AUTO/HomCont, IPS=9.
+# AUTO supplies interval scaling, equilibrium equations, projections and phase.
+# Keep examples/ode/tstheti.odex as the unchanged foreign conversion.
+u' = up
+up' = -c*up-u*(1-u)*(u-a)
+par a = 0.5, c = 0
+# Exact front at x=-10: u=1/(1+exp(x/sqrt(2))), up=-u*(1-u)/sqrt(2).
+init u = 0.9991513950372889, up = -0.0005995451146046094
+options {
+  integration: { total_time: 20, dt: .01 },
+  continuation: { epsl: 1e-9, epsu: 1e-9, epss: 1e-9, ntst: 80, ncol: 4 },
+  plot: { xp: u, yp: up, xlo: 0, xhi: 1, ylo: -.2, yhi: 0 },
+}

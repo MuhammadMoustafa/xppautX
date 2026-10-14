@@ -4,6 +4,19 @@ Since W154 (#206), opening `.ode` always converts and saves `.odex`
 beside it. These quirks belong to the converter's foreign input reader;
 loading, Reload, sessions and recordings use the resulting `.odex`.
 
+## `tstheti`'s deprecated projections (W345)
+
+XPPAUT's file asks for two `hom_bcs` projections, but the intrinsic returns
+zero, and the seventh boundary is absent. Its augmented seven-state IPS=4
+BVP is singular. Conversion intentionally preserves that file unchanged;
+choosing a continuation formulation is a scientific model change, not a
+syntax conversion. The separate
+[`tstheti_homcont.odex`](../examples/tstauto/tstheti_homcont.odex) uses the
+two-state vector field, parameters `(a,c)`, and AUTO's IPS=9 heteroclinic
+projections and phase condition. See [finding 50](xppaut-findings.md#50-auto-accepts-nan-as-a-converged-bvp-solution)
+for the rank evidence and exact-speed derivation
+([W345 / #406](https://github.com/MuhammadMoustafa/xppautX/issues/406)).
+
 ## Diagnostic ids (W75)
 
 `xppautX --check` owns findings shown by the program and consumed by the

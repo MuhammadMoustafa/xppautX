@@ -1,29 +1,87 @@
 {
-  "model": "examples/ode/tstheti.odex",
-  "reason": "Expected failure: hom_bcs is deprecated and returns zero in XPPAUT 8.0 and xppautX, so the supplied projection BVP has three zero boundary rows (two deprecated projection conditions and the missing seventh boundary filled with zero) and is singular. HomCont (IPS=9) settings cannot repair this IPS=4 formulation; settle=1.01 supplies the finite orbit, not the missing constraints. No continued connection is validated.",
+  "model": "examples/tstauto/tstheti_homcont.odex",
+  "reason": "W345 (#406): tstheti's planar Nagumo front through HomCont (IPS=9, IEQUIB=-2), with c free and supplied equilibria (1,0) and (0,0). AUTO supplies projections and phase; the foreign singular BVP remains in ode_tstheti_singular. Both directions are checked against c=(1-2*a)/sqrt(2) in autocheck nagumo.",
+  "auto07p_skip": "No independent AUTO-07p HomCont run was executed. Every stored point is checked against the closed-form Nagumo speed, with mesh and interval refinement (autocheck nagumo).",
+  "xppaut_skip": "No native XPPAUT HomCont run of the planar companion was executed; the original converted BVP and its source-confirmed singularity remain separate.",
   "runs": [
     {
-      "name": "connection",
-      "kind": "bvp",
+      "name": "increasing",
+      "kind": "heteroclinic",
       "start": {
         "state": "current",
-        "settle": 1.01
+        "settle": 20
       },
-      "parameter": "a",
+      "parameters": [
+        "a",
+        "c"
+      ],
+      "connection": {
+        "left": [
+          1,
+          0
+        ],
+        "right": [
+          0,
+          0
+        ],
+        "nunstab": 1,
+        "nstab": 1
+      },
       "auto": {
         "ds": 0.01,
-        "dsmin": 1e-05,
+        "dsmin": 1e-06,
         "dsmax": 0.01,
         "nmax": 120,
         "npr": 20,
-        "parmin": 0,
-        "parmax": 1,
-        "ntst": 15,
+        "parmin": 0.1,
+        "parmax": 0.9,
+        "ntst": 80,
+        "ncol": 4,
+        "epsl": 1e-09,
+        "epsu": 1e-09,
+        "epss": 1e-09,
         "mxbf": 0
+      }
+    },
+    {
+      "name": "decreasing",
+      "kind": "heteroclinic",
+      "start": {
+        "run": "increasing",
+        "type": "EP",
+        "index": 1
       },
-      "expected_error": "AUTO stopped: Branch 1 point 2: nonfinite AUTO solution"
+      "parameters": [
+        "a",
+        "c"
+      ],
+      "connection": {
+        "left": [
+          1,
+          0
+        ],
+        "right": [
+          0,
+          0
+        ],
+        "nunstab": 1,
+        "nstab": 1
+      },
+      "auto": {
+        "ds": -0.01,
+        "dsmin": 1e-06,
+        "dsmax": 0.01,
+        "nmax": 120,
+        "npr": 20,
+        "parmin": 0.1,
+        "parmax": 0.9,
+        "ntst": 80,
+        "ncol": 4,
+        "epsl": 1e-09,
+        "epsu": 1e-09,
+        "epss": 1e-09,
+        "mxbf": 0
+      }
     }
-  ],
-  "auto07p_skip": "The supplied BVP uses deprecated hom_bcs conditions that are identically zero; no valid connection is specified for an independent continuation reference.",
-  "xppaut_skip": "Source inspection shows hom_bcs returns zero in XPPAUT 8.0 (parserslow2.c:1944-1947); the singular BVP cannot provide a valid connection reference. Its GUI AUTO was not run."
+  ]
 }

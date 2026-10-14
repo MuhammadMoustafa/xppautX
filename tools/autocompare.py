@@ -96,7 +96,7 @@ def read_description(path):
         raise ValueError('runs must be a nonempty list')
     names = set()
     for r in d['runs']:
-        members(r, ('name', 'kind', 'start', 'parameter', 'parameters', 'auto', 'switch', 'skip', 'expected_error'),
+        members(r, ('name', 'kind', 'start', 'parameter', 'parameters', 'auto', 'switch', 'skip', 'expected_error', 'connection'),
                 ('name', 'kind', 'start', 'auto'))
         if not isinstance(r['name'], str) or not r['name'] or r['name'] in names or r['kind'] not in KINDS:
             raise ValueError('invalid run name or kind: ' + str(r))
@@ -115,7 +115,23 @@ def read_description(path):
                 raise ValueError('start must name an earlier run and point type')
             finite(st['index'], 'index', integer=True, positive=True)
         names.add(r['name'])
-        if r['kind'] in ('two_parameter', 'fixed_period'):
+        if r['kind'] in ('homoclinic', 'heteroclinic'):
+            connection = r.get('connection')
+            members(connection, ('left', 'right', 'nunstab', 'nstab'), ('left', 'right', 'nunstab', 'nstab'))
+            for side in ('left', 'right'):
+                if not isinstance(connection[side], list) or not connection[side]:
+                    raise ValueError('connection equilibria must be nonempty lists')
+                for v in connection[side]:
+                    finite(v, side)
+            if len(connection['left']) != len(connection['right']):
+                raise ValueError('connection equilibria must have equal dimensions')
+            for key in ('nunstab', 'nstab'):
+                finite(connection[key], key, integer=True, positive=True)
+            if connection['nunstab'] + connection['nstab'] != len(connection['left']):
+                raise ValueError('connection dimensions must span the phase space')
+        elif 'connection' in r:
+            raise ValueError('connection settings require HomCont')
+        if r['kind'] in ('two_parameter', 'fixed_period', 'homoclinic', 'heteroclinic'):
             if not isinstance(r.get('parameters'), list) or len(r['parameters']) != 2 or len(set(r['parameters'])) != 2:
                 raise ValueError('two-parameter run needs two distinct parameters')
         elif not isinstance(r.get('parameter'), str) or not r['parameter']:
@@ -190,7 +206,19 @@ def execute_run(s, r, diagram, ranges):
             'bvp': 'b', 'homoclinic': 'h', 'heteroclinic': 'e'}
     key = 's' if r.get('switch') else keys[r['kind']]
     lo = len(diagram.points)
-    events = run_any(s, key, timeout=TIMEOUT)
+    if 'connection' in r:
+        c = r['connection']
+        values = [c['nunstab'], *c['left'], c['nstab'], *c['right']]
+        def connection_form(e):
+            if e.get('title') != 'Homoclinic info' or len(e['values']) != len(values):
+                raise ValueError('unexpected HomCont form: ' + str(e))
+            return dict(ok=1, values=[str(v) for v in values])
+        s.send(cmd='key', win='auto', key='r')
+        events, end = s.answer_asks(is_idle, {'menu': lambda e: dict(key=key), 'form': connection_form}, timeout=TIMEOUT)
+        if end is None:
+            raise RuntimeError('HomCont did not complete (safety timeout)')
+    else:
+        events = run_any(s, key, timeout=TIMEOUT)
     result = [e for e in events if e.get('ev') != 'ask']
     if 'expected_error' in r:
         errors = [e for e in result if e.get('error')]
@@ -229,9 +257,11 @@ def session_diagram(s):
 def compute(binary, d, threads):
     s = Server(binary, ROOT / d['model'])
     try:
-        startup = completed(s)
-        completed(s, dict(cmd='data', events=['autoinfo', 'autosettings']))
-        events = completed(s, dict(cmd='auto', op='set', threads=threads))
+        completed(s)
+        completed(s, dict(cmd='auto', op='set', threads=threads))
+        # Subscription returns the current settings even when a repeated
+        # threads=1 assignment changed nothing and emitted no change event.
+        events = completed(s, dict(cmd='data', events=['autoinfo', 'autosettings']))
         setting = next(e for e in reversed(events) if e.get('ev') == 'autosettings')
         if setting['threads'] != threads:
             raise RuntimeError('thread setting was not applied')

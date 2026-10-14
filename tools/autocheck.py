@@ -42,10 +42,12 @@ integration and an AUTO run over --server and checks that a .recx made of
 the same commands and a recorded abort stops them at
 the same point: the same data file, the same saved diagram. --report prints the
 measurements without failing on the latency limits, for comparing builds.
+nagumo (W345) checks tstheti's planar HomCont branch against the exact
+front speed in both directions, then refines the mesh and interval.
 """
-import argparse, base64, csv, io, json, os, re, shutil, subprocess, sys, tempfile, time, zipfile
+import argparse, base64, copy, csv, io, json, math, os, re, shutil, subprocess, sys, tempfile, time, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from autocompare import diagram_rows
+from autocompare import BASE, compute, diagram_rows, read_description
 from xppclient import Checker, file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, macos_thread_states, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission, open_auto, run_any
 
 ap = argparse.ArgumentParser()
@@ -56,7 +58,7 @@ ap.add_argument('--list', action='store_true', help='print the selected sections
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
                                                 'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors', 'subscriptions', 'jacobian',
-                                                'memory', 'threads', 'limits'])
+                                                'memory', 'threads', 'limits', 'nagumo'])
 args = ap.parse_args()
 if args.shard:
     try:
@@ -2446,6 +2448,53 @@ def section_limits():
               and all(abs(p['x']-p['y']) < 1e-8 for p in again.pts))
     finally:
         s.close()
+
+def section_nagumo():
+    """W345/#406: every finite HomCont point against the exact front speed.
+
+    Linear projections have O(exp(-T/sqrt(2))) truncation error; see finding
+    50 for the derivation and the mesh/interval refinement behind these bounds.
+    These are scientific error bounds, independent of machine speed.
+    """
+    speed_bound = 5e-6  # T=20, NTST=80, NCOL=4; truncation dominates.
+    long_bound = 5e-7  # T=24 reduces the squared endpoint tail by exp(-4/sqrt(2)).
+    homcont_calc = '12'  # HO2 in core/auto_nox.cpp: HomCont in two parameters.
+    description = read_description(BASE / 'ode_tstheti.json')
+    maxima = {}
+    for name, interval, ntst in (('baseline', 20, 80), ('mesh', 20, 160), ('interval', 24, 160)):
+        d = copy.deepcopy(description)
+        d['runs'][0]['start']['settle'] = interval
+        # Seed the same centred front; the starting profile is integrated,
+        # never fitted to or substituted for AUTO's continued speeds.
+        u = 1 / (1 + math.exp(-interval / (2 * math.sqrt(2))))
+        d['initial_conditions'] = dict(u=u, up=-u * (1-u) / math.sqrt(2))
+        for r in d['runs']:
+            r['auto']['ntst'] = ntst
+        data, count, _, ranges = compute(args.server, d, 1)
+        rows = diagram_rows(data)
+        parameters = [float(r['par1']) for r in rows]
+        errors = [abs(float(r['par2']) - (1-2*float(r['par1']))/math.sqrt(2)) for r in rows]
+        maxima[name] = max(errors)
+        check('nagumo %s: both directions span a=0.1..0.9 through HomCont' % name,
+              len(ranges) == 2 and count > 100 and min(parameters) < .1 and max(parameters) > .9
+              and all(r['calc'] == homcont_calc and float(r['per']) == interval for r in rows),
+              '%d points, a=%g..%g' % (count, min(parameters), max(parameters)))
+        check('nagumo %s: each orbit connects near u=1 to near u=0' % name,
+              all(.99 < float(r['u0.U']) < 1 and 0 < float(r['ulo.U']) < .01
+                  and float(r['u0.UP']) < 0 and float(r['ulo.UP']) < -.1 for r in rows))
+        bound = long_bound if name == 'interval' else speed_bound
+        check('nagumo %s: every c(a) agrees with (1-2*a)/sqrt(2)' % name,
+              all(math.isfinite(e) and e <= bound for e in errors),
+              'max error %.9g, bound %.9g' % (maxima[name], bound))
+        print('nagumo: %s T=%d NTST=%d NCOL=4 points=%d max speed error=%.9g' %
+              (name, interval, ntst, count, maxima[name]))
+    check('nagumo: doubling the mesh leaves the truncation error unchanged',
+          abs(maxima['mesh'] - maxima['baseline']) < 1e-8,
+          'NTST80 %.9g, NTST160 %.9g' % (maxima['baseline'], maxima['mesh']))
+    check('nagumo: extending the interval reduces the maximum speed error',
+          maxima['interval'] < maxima['mesh'] / 5,
+          'T20 %.9g, T24 %.9g' % (maxima['mesh'], maxima['interval']))
+
 
 for name in args.sections:
     globals()['section_' + name]()

@@ -9,6 +9,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Add `examples/tstauto/tstheti_homcont.odex`, a planar HomCont heteroclinic example checked against the exact Nagumo front speed in both directions, with mesh and interval refinement; keep the original singular XPPAUT conversion unchanged (W345, [#406](https://github.com/MuhammadMoustafa/xppautX/issues/406)).
 - Apply set and Restore defaults are two core commands (`applyset`, `restoredefaults`) for the window, `--server`, `--silent` and recordings: Apply set takes a scope (all, the parameters, the initial values or one group of settings) and, for the plot settings, a target window, and applies only the set's entries of that scope over the current values (a parameter-only apply leaves the initial values alone), all or nothing; Restore defaults puts the model's own values back for a field, a section or everything. File > Named sets is now Apply set… (it asks the scope after the set), File > Restore defaults… is new, the `default` and `values` `internset` commands are gone, and `examples/recordings/lecar_auto.recx` answers the scope (W319, [#379](https://github.com/MuhammadMoustafa/xppautX/issues/379))
 - AUTO file failures keep their file location; numerical failures name the command or recorded step, and failed stream positioning and EISPACK eigenvalue computation stop with an error (W328, [#389](https://github.com/MuhammadMoustafa/xppautX/issues/389)).
 

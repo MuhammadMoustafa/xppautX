@@ -946,6 +946,62 @@ refusal and unchanged storage; `autocompare` requires the exact placed error and
 finite saved data at both thread counts. [W343 / #404](https://github.com/MuhammadMoustafa/xppautX/issues/404).
 
 
+### W345: a finite Nagumo connection through HomCont
+
+The underlying planar system **can** be continued. The supplied augmented
+model cannot simply be switched to IPS=9: its Jacobian at either equilibrium
+has the block `per*[[0,1],[q,-c]]` (`q=1-a` on the left, `q=a` on the right)
+and five zero rows/columns, hence rank 2 and five zero eigenvalues. Its IPS=4
+boundary matrix has rank 4 of 7 at `a=0.5`: the four equilibrium constraints
+are independent, and the other three rows vanish. HomCont would instead add
+fourteen equilibrium conditions, ten identically zero, from the five dummy
+equations at each end
+([autlib5.c:497](../reference/xppaut-8.0/autlib5.c#L497)). Those dummy states
+and the slaved `c'=0` must be removed for the hyperbolic planar formulation.
+
+[W345 / #406](https://github.com/MuhammadMoustafa/xppautX/issues/406) supplies
+[`tstheti_homcont.odex`](../examples/tstauto/tstheti_homcont.odex): only `(u,up)`
+are states, `(a,c)` are parameters, and the vector field has no `per` factor.
+The converter and original `examples/ode/tstheti.odex` stay unchanged:
+conversion preserves the foreign model's meaning, rather than selecting a
+different continuation problem. The original expected-error description and
+one-point baseline are retained byte for byte as `ode_tstheti_singular`.
+`ode_tstheti` now describes the planar companion and its working connection.
+
+There is no HomCont model option today (`model_options.cpp`). Integrate the
+companion for 20, select AUTO Axes Par1=`a`, Par2=`c`, then Run > Heteroclinic.
+In Homoclinic info enter dim unstable=dim stable=1, left `(1,0)`, right `(0,0)`.
+This chooses IPS=9, IEQUIB=-2
+([auto_nox.c:2378](../reference/xppaut-8.0/auto_nox.c#L2378),
+[auto_nox.c:2391](../reference/xppaut-8.0/auto_nox.c#L2391)). HomCont supplies
+the two projections ([autlib5.c:442](../reference/xppaut-8.0/autlib5.c#L442)),
+four equilibrium equations, and integral phase condition
+([autlib5.c:795](../reference/xppaut-8.0/autlib5.c#L795)). Both planar saddles
+are hyperbolic for `0<a<1` since the two determinants are `-(1-a)` and `-a`.
+Continue both `a` and `c` with fixed interval `T=20`; grab the first EP and
+reverse DS for the other direction. No replacement `hom_bcs` is needed.
+
+For `u=1/(1+exp(k*x))`, `u'=-k*u*(1-u)` and
+`u''=k*k*u*(1-u)*(1-2*u)`. Dividing the stated equation by `u*(1-u)` gives
+`(1-2*k*k)*u + k*k-c*k-a=0`, so `k=1/sqrt(2)` (decreasing front) and
+**`c(a)=(1-2*a)/sqrt(2)`**, including this model's minus sign in `g`.
+
+`autocheck nagumo` compares every stored point with that exact speed, in both
+directions, at NTST=80 and 160 (NCOL=4, EPSL=EPSU=EPSS=1e-9), then lengthens
+the interval to 24 at NTST=160. The speed acceptance bounds are 5e-6 at T=20
+and 5e-7 at T=24. The centred exact front's endpoint tail is 8.486e-4 at T=20;
+linear eigendirection projections neglect quadratic tail terms, of order
+`exp(-T/sqrt(2))` (7.21e-7), rather than satisfying the infinite-interval
+front exactly. Extending T by 4 reduces that scale by 16.9; the check requires
+at least a fivefold reduction of maximum speed error. The 142-point branch
+has maximum errors 1.59722093e-6 (NTST=80), 1.59722094e-6 (NTST=160), and
+2.26004569e-7 (T=24, NTST=160): doubling the mesh changes the maximum by less
+than 1e-13, and extending the interval reduces it 7.07-fold. Mesh refinement
+tests that this is truncation error, not unresolved collocation. These are verified
+accuracy bounds on this branch, not rigorous interval-arithmetic enclosures
+or an assertion of infinite-interval equality. No native XPPAUT or independent
+AUTO-07p HomCont execution is claimed.
+
 ## 51. AUTO: failed-step endpoint stability
 
 XPPAUT 8.0's ordinary periodic MX endpoint retains the previous spectrum:

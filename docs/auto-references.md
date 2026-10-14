@@ -176,7 +176,7 @@ connection. W343 traced the missing constraints to the deprecated zero-valued `h
 The deterministic `test_auto_location` also forces a false equilibrium sign change
 and checks the restored solution, history, tangent, step size, test value, derivative data and spectrum.
 
-### W343: tstheti is an expected failure
+### W343: the original tstheti is an expected failure
 
 The supplied `hom_bcs(0)` and `hom_bcs(1)` are identically zero in both codes,
 not projection conditions. A seventh boundary is missing and filled with zero,
@@ -192,6 +192,25 @@ must report `AUTO stopped: Branch 1 point 2: nonfinite AUTO solution`, with a
 command location, after the failed-step retries. The remaining row is the
 supplied start, not a certified solution. Every saved diagram is checked for
 finite values; no connection reference or successful continuation is claimed.
+
+### W345: tstheti's planar HomCont companion
+
+W343's description and one-point baseline are retained unchanged as
+`ode_tstheti_singular`. `ode_tstheti` now runs
+`examples/tstauto/tstheti_homcont.odex` in both directions through IPS=9,
+IEQUIB=-2. Its descriptions use two `parameters` and a `connection` object
+(`left`, `right`, `nunstab`, `nstab`); `execute_run` answers the existing AUTO
+Homoclinic info form through `Server.answer_asks`. No core numerics changed.
+Only `autocompare.py --update --only ode_tstheti` rewrites a baseline: the
+old one-point augmented-state diagram becomes 142 planar connection points
+(71 per direction). All other models keep their baseline bytes.
+
+`autocheck.py nagumo` reuses `read_description`, `compute` and `diagram_rows`
+to compare every full-precision speed against `(1-2*a)/sqrt(2)`, rather than
+comparing rounded plot coordinates. It also doubles NTST and lengthens the
+interval. [Finding 50](xppaut-findings.md#50-auto-accepts-nan-as-a-converged-bvp-solution)
+documents the derivation and truncation bounds. Neither independent program
+was run for the companion; the description records that explicitly.
 
 No previously compared special point becomes a disagreement with AUTO-07p. Predator-prey's extra
 label remains within the previously traced underresolved regime; it does not establish quantitative
