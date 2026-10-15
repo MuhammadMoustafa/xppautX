@@ -278,7 +278,8 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int index, int n, double xlo, doub
   
   double dx;
   double oldt;
-  int command[200],ncold=s.parser.ncon,nsym=s.parser.nsym;
+  std::vector<int> command;
+  int ncold=s.parser.ncon,nsym=s.parser.nsym;
   if(add_expr(s,formula,command,&i)){
     s.parser.ncon=ncold;
     s.parser.nsym=nsym;
@@ -288,7 +289,7 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int index, int n, double xlo, doub
   dx=(xhi-xlo)/(static_cast<double>(n-1));
   for(i=0;i<n;i++){
     setvar(s,0,dx*i+xlo);
-    y[i]=evaluate(s,command);
+    y[i]=evaluate(s,command.data());
   }
   setvar(s,0,oldt);
   s.parser.ncon=ncold;

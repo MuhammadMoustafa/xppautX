@@ -47,6 +47,7 @@ void init_auto(AutoState &st, int ndim, bool exact)
   st.run.irs=b.irs;
   st.run.ilp=b.ilp;
   st.run.nicp=b.nfpar;
+  st.run.icp.resize(std::max(5, b.nfpar));
   st.run.icp[0]=st.parameter_layout.solver_index(st.axes().icp1);
   st.run.icp[1]=st.axes().icp2<st.parameter_layout.model_parameters ? st.parameter_layout.solver_index(st.axes().icp2) : xpp::auto_unknown::period;
   st.run.icp[2]=st.parameter_layout.solver_index(b.icp3);

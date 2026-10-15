@@ -200,7 +200,7 @@ if(s.histogram.info.nbins2<2){
 xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int col, int col2, const char *condition, int which)
 {
   int i,j,index;
-  int command[256];
+  std::vector<int> command;
   int cond=0,flag=1;
   xpp::Result<> condition_error; /* a condition that does not compile is ignored */
   double z,y;
@@ -239,7 +239,7 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
 	  for(j=0;j<s.model().node+1;j++)setvar(s,j,static_cast<double>(s.data_store.col[j][i]));
 	  for(j=0;j<s.model().nmarkov;j++)
 	    setvar(s,j+s.model().node+1+s.model().fix_var,static_cast<double>(s.data_store.col[j+s.model().node+1][i]));
-	  z=evaluate(s,command);
+	  z=evaluate(s,command.data());
 	  if(fabs(z)>0.0)flag=1;
 	  else flag=0;
 	}

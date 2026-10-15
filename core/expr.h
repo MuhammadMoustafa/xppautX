@@ -71,10 +71,10 @@ Result<> add_file_table(Session &s, int index, std::string_view file);
 Result<> add_form_table(Session &s, int index, int nn, double xlo, double xhi, std::string_view formula);
 /* user function index with the arguments args and the formula rhs */
 int add_ufun_new(Session &s, int index, std::string_view rhs, std::span<const std::string> args);
-/* compiles expr into command, at most MAXEXPLEN ints ending in ENDEXP;
+/* compiles expr into command, ending in ENDEXP;
    *length is the program's length, ENDEXP included; 0 when it compiled,
    1 (said why) when it did not (expr_compile.cpp) */
-int add_expr(Session &s, std::string_view expr, int *command, int *length);
+int add_expr(Session &s, std::string_view expr, std::vector<int> &command, int *length = nullptr);
 /* program's value, run on s's stacks: the right-hand side, every step
    (expr_eval.cpp) */
 double evaluate(Session &s, const int *program);

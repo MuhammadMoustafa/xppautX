@@ -70,26 +70,24 @@ void add_aeqn(xpp::Session &s, const char *rhs)
 void compile_svars(xpp::Session &s)
 {
   xpp::Model &m=s.model();
-  int i,f[256],n;
+  int i,n;
   if(m.nsvar!=m.naeqn)
     model_failed(xpp::Error{"DAE",xpp::format("The model has {} algebraic variables (solv) and {} algebraic equations (0=): "
                                               "they must be as many",m.nsvar,m.naeqn),
                             m.naeqn>0?m.aeqns[0].where:m.svars[0].where});
   
   for(i=0;i<m.naeqn;i++){
-    if(add_expr(s,m.aeqns[i].rhs,f,&n)==1)
+    if(add_expr(s,m.aeqns[i].rhs,m.aeqns[i].form.rpn,&n)==1)
       model_failed(xpp::Error{"DAE","Bad right-hand side for the algebraic equation",m.aeqns[i].where});
     /* n+2, zero-padded like the xpp_malloc block this replaces: evaluate(s,)
        may read a couple of entries past the parsed length. */
-    m.aeqns[i].form.rpn.assign(f, f+n);
     m.aeqns[i].form.rpn.resize(n+2, 0);
   }
 
    for(i=0;i<m.nsvar;i++){
-    if(add_expr(s,m.svars[i].rhs,f,&n)==1)
+    if(add_expr(s,m.svars[i].rhs,m.svars[i].form.rpn,&n)==1)
       model_failed(xpp::Error{"DAE",xpp::format("Bad initial guess for {}",m.svars[i].name),m.svars[i].where});
-    m.svars[i].form.rpn.assign(f, f+n);
-    m.svars[i].form.rpn.resize(100, 0);
+    m.svars[i].form.rpn.resize(std::max(100, n+2), 0);
    }
      init_dae_work(s);
 }
@@ -300,10 +298,11 @@ void get_new_guesses(xpp::Session &s)
     new_string_of(name.c_str(),m.svars[i].rhs,XPP_FIELD_EXPRESSION);
     /* A guess edited at run time no longer has its load-time native code. */
     m.svars[i].form.native=nullptr;
-    if(add_expr(s,m.svars[i].rhs,m.svars[i].form.rpn.data(),&n)){
+    if(add_expr(s,m.svars[i].rhs,m.svars[i].form.rpn,&n)){
       command_error("initial guess",xpp::format("{}: illegal formula {}",m.svars[i].name,m.svars[i].rhs));
       return;
     }
+    m.svars[i].form.rpn.resize(std::max(100, n+2), 0);
     z=evaluate(s,m.svars[i].form);
     setvar(s,m.svars[i].index,z);
     s.dae.svar_last[i]=z;

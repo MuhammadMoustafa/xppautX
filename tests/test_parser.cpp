@@ -4,17 +4,20 @@
    evaluate() runs, which is what the right-hand sides do at each step. */
 #include "xpptest.h"
 #include <math.h>
+#include <string>
+#include <vector>
 #include "expr.h"
+#include "markov.h"
 #include "session.h"
+#include "tabular.h"
 
-static double calc(const char *expr, int *ok)
+static double calc(std::string_view expr, int *ok)
 {
-    int command[256], length = 0;
-    char buf[256];
-    sprintf(buf, "%s", expr); /* add_expr writes into what it is given */
-    *ok = (xpp::add_expr(xpp::client_session(), buf, command, &length) == 0);
+    std::vector<int> command;
+    int length = 0;
+    *ok = (xpp::add_expr(xpp::client_session(), expr, command, &length) == 0);
     if (!*ok) return 0.0;
-    return xpp::evaluate(xpp::client_session(), command);
+    return xpp::evaluate(xpp::client_session(), command.data());
 }
 
 static int close_to(double a, double b)
@@ -68,6 +71,31 @@ int main(void)
     CHECK(!ok);
     calc("2+", &ok);
     CHECK(!ok);
+
+    /* Long formula (> 2000 terms): previously overflowed tokstak[500], loopstk[100], and MAXEXPLEN */
+    std::string long_expr = "1";
+    for (int i = 0; i < 2000; ++i) long_expr += "+1";
+    CHECK(close_to(calc(long_expr, &ok), 2001.0) && ok);
+
+    /* Table formula with 300 terms: previously overflowed tabular.cpp command[200] */
+    xpp::add_var(xpp::client_session(), "t", 0.0);
+    std::string table_expr = "t";
+    for (int i = 0; i < 300; ++i) table_expr += "+0.01";
+    std::vector<double> table_y(10);
+    auto table_res = xpp::eval_fun_table(xpp::client_session(), 0, 10, 0.0, 1.0, table_expr, table_y.data());
+    CHECK(table_res.has_value());
+    CHECK(close_to(table_y[0], 3.0));
+
+    /* Markov chain with > 50 states: previously overflowed markov.cpp st[50] */
+    xpp::add_markov(xpp::client_session(), 60, "m60");
+    const int m_idx = xpp::client_session().model().nmarkov - 1;
+    CHECK(xpp::client_session().model().markov[m_idx].nstates == 60);
+    CHECK(xpp::client_session().model().markov[m_idx].states.size() == 60);
+    CHECK(close_to(xpp::client_session().model().markov[m_idx].states[59], 59.0));
+
+    /* Stiff solver pivots with > 700 variables: previously overflowed indx[700] */
+    int *pivots = xpp::client_session().solver_work.size_pivots(750);
+    CHECK(pivots != nullptr);
 
     TEST_REPORT("parser");
 }

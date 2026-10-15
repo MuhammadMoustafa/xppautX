@@ -15,9 +15,10 @@
 
 static double calc(const std::string &expr, int *ok)
 {
-    int command[256], length = 0;
+    std::vector<int> command;
+    int length = 0;
     *ok = (xpp::add_expr(xpp::client_session(), expr, command, &length) == 0);
-    return *ok ? xpp::evaluate(xpp::client_session(), command) : 0.0;
+    return *ok ? xpp::evaluate(xpp::client_session(), command.data()) : 0.0;
 }
 
 int main(void)

@@ -195,36 +195,33 @@ void print_fit_info(const xpp::Session &s)
 
 void test_fit(xpp::Session &s)
 {
- std::array<double, 1000> a{}, y0{};
- int nvars,npars,i;
+ int i;
  s.fit.nvars=0;
  s.fit.npars=0;
  if(get_fit_params(s)==0)return;
- parse_collist(s.fit.collist,s.fit.icols.data(),&nvars);
+ parse_collist(s.fit.collist,s.fit.icols);
  
- if(nvars<=0){
+ if(s.fit.icols.empty()){
    command_error("fit", "No columns given");
    return;
  }
- s.fit.nvars=nvars;
- nvars=0;
- parse_varlist(s,s.fit.varlist, s.fit.ivar.data(), &nvars);
+ s.fit.nvars=static_cast<int>(s.fit.icols.size());
+ parse_varlist(s,s.fit.varlist, s.fit.ivar);
 
- if(s.fit.nvars!=nvars){
+ if(s.fit.nvars!=static_cast<int>(s.fit.ivar.size())){
    command_error("fit", "The number of columns is not the number of fitted variables");
    return;
  }
- npars=0;
- parse_parlist(s,s.fit.parlist1,s.fit.ipar.data(),&npars);
+ s.fit.ipar.clear();
+ parse_parlist(s,s.fit.parlist1,s.fit.ipar);
+ parse_parlist(s,s.fit.parlist2,s.fit.ipar);
 
- parse_parlist(s,s.fit.parlist2,s.fit.ipar.data(),&npars);
-
- if(npars<=0){
+ if(s.fit.ipar.empty()){
    command_error("fit", "No parameters to vary");
    return;
  }
- s.fit.npars=npars;
- for(i=0;i<npars;i++)
+ s.fit.npars=static_cast<int>(s.fit.ipar.size());
+ for(i=0;i<s.fit.npars;i++)
    if(s.fit.ipar[i]>=0)
      {
        if(s.fit.ipar[i]>=s.model().node){
@@ -232,7 +229,7 @@ void test_fit(xpp::Session &s)
 	 return;
        }
      }
- for(i=0;i<nvars;i++){
+ for(i=0;i<s.fit.nvars;i++){
    if(s.fit.icols[i]<2){
      command_error("fit", "A column of the data is 2 or more");
      return;
@@ -244,6 +241,8 @@ void test_fit(xpp::Session &s)
  }
  std::vector<double> yfit_v(static_cast<size_t>(s.fit.npts)*s.fit.nvars);
   double *yfit=yfit_v.data();
+  std::vector<double> y0(s.model().node);
+  std::vector<double> a(s.fit.npars);
   for(i=0;i<s.model().node;i++)
     y0[i]=s.last_ic[i];
   for(i=0;i<s.fit.npars;i++){
@@ -269,7 +268,7 @@ void test_fit(xpp::Session &s)
 
  /* get the latest par values ...  */
  
- for(i=0;i<npars;i++){
+ for(i=0;i<s.fit.npars;i++){
    if(s.fit.ipar[i]<0)
      s.parser.constants[-s.fit.ipar[i]]=a[i];
    else
@@ -409,7 +408,8 @@ eps   control numerical derivative
 sigma  weights on nvars
 */
 {
-  int i,j,k,ierr,ipivot[1000];
+  int i,j,k,ierr;
+  int *ipivot = s.solver_work.size_pivots(npars);
 
   double *da,*atry,*beta,*oneda;
   da=work;
@@ -544,45 +544,41 @@ int get_fit_params(xpp::Session &s)
 
 /* gets a list of the data columns to use ... */
 
-void parse_collist(std::string_view collist, int *icols, int *n)
+void parse_collist(std::string_view collist, std::vector<int> &icols)
 {
+  icols.clear();
   xpp::Tokens tokens(collist);
-  int i=0;
   for(std::optional<std::string_view> item;(item=tokens.next(" ,"));)
-    icols[i++]=atoi(std::string(*item).c_str());
-  *n=i;
+    icols.push_back(atoi(std::string(*item).c_str()));
 }
 
-void parse_varlist(const xpp::Session &s, std::string_view varlist, int *ivars, int *n)
+void parse_varlist(const xpp::Session &s, std::string_view varlist, std::vector<int> &ivars)
 {
+  ivars.clear();
   xpp::Tokens tokens(varlist);
-  int v,i=0;
+  int v;
   for(std::optional<std::string_view> item;(item=tokens.next(" ,"));){
     find_variable(s,*item,&v);
     if(v<=0)return;
-    ivars[i++]=v-1;
+    ivars.push_back(v-1);
   }
-  *n=i;
 }
 
-void parse_parlist(const xpp::Session &s, std::string_view parlist, int *ipars, int *n)
+void parse_parlist(const xpp::Session &s, std::string_view parlist, std::vector<int> &ipars)
 {
   xpp::Tokens tokens(parlist);
-  int v,i=0;
+  int v;
   for(std::optional<std::string_view> item;(item=tokens.next(" ,"));){
     find_variable(s,*item,&v);
     if(v>0){
-      ipars[i+*n]=v-1;
-      i++;
+      ipars.push_back(v-1);
     }
     else {
       v=get_param_index(s,*item);
       if(v<=0)return;
-      ipars[i+*n]=-v;
-      i++;
+      ipars.push_back(-v);
     }
   }
-  *n=*n+i;
 }
 
 } // namespace xpp

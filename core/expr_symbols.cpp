@@ -569,12 +569,14 @@ int add_ufun_name(xpp::Session &s, std::string_view name, int index, int narg)
 namespace {
 
 /* ends a compiled user function of narg arguments whose formula add_expr
-   wrote in l commands */
-void fixup_endfun(int *u, int l, int narg)
+   wrote */
+void fixup_endfun(std::vector<int> &program, int narg)
 {
- u[l-1]=ENDFUN;
- u[l]=narg;
- u[l+1]=ENDEXP;
+ if(!program.empty() && program.back() == ENDEXP)
+   program.pop_back();
+ program.push_back(ENDFUN);
+ program.push_back(narg);
+ program.push_back(ENDEXP);
 }
 
 /* user function index's definition becomes def (Model::ufun_defs) */
@@ -594,14 +596,13 @@ int add_ufun_new(xpp::Session &s, int index, std::string_view rhs, std::span<con
     xpp::log(XPP_LOG_WARN, "Maximal arguments exceeded \n");
     return(1);
   }
-  /* add_expr compiles into it in place: MAXEXPLEN commands */
-  m.ufun_programs[index].rpn.assign(MAXEXPLEN,0);
+  m.ufun_programs[index].rpn.clear();
   set_ufun_def(m,index,"");
   m.ufun_args[index].assign(args.begin(),args.end());
   set_ufun_arg_names(s,index);
-  if(add_expr(s,rhs,m.ufun_programs[index].rpn.data(),&end)==0)
+  if(add_expr(s,rhs,m.ufun_programs[index].rpn,&end)==0)
     {
-      fixup_endfun(m.ufun_programs[index].rpn.data(),end,narg);
+      fixup_endfun(m.ufun_programs[index].rpn,narg);
       set_ufun_def(m,index,rhs);
       m.narg_fun[index]=narg;
       set_old_arg_names(s.parser,narg);
@@ -628,14 +629,14 @@ int add_ufun(xpp::Session &s, std::string_view junk, std::string_view expr, int 
   return(1);
  }
  std::vector<int> &program=m.ufun_programs[m.nfun].rpn;
- program.assign(MAXEXPLEN,0);
+ program.clear();
  set_ufun_def(m,m.nfun,"");
 
- if(add_expr(s,expr,program.data(),&end)==0)
+ if(add_expr(s,expr,program,&end)==0)
  {
   set_symbol(s.parser,junk,10,narg,COM(UFUNTYPE, m.nfun));
   s.parser.nsym++;
-  fixup_endfun(program.data(),end,narg);
+  fixup_endfun(program,narg);
   /* the definition without its last character */
   std::string_view def=expr;
   if(!def.empty())def.remove_suffix(1);

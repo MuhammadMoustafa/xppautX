@@ -343,7 +343,7 @@ struct Generator {
     /* One C function for a program (an equation's, or user function index's). */
     Result<> program(const std::vector<int> &p, int index, bool user, std::string_view name={})
     {
-        if (p.empty() || p.size() > MAXEXPLEN) return refuse("an invalid program length");
+        if (p.empty()) return refuse("an invalid program length");
         out.clear();
         temps = loops = depth = 0;
         impure = false;

@@ -120,7 +120,8 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
 int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double htry, double eps, double yscal[], double *hdid, double *hnext, double *work, double epjac, int *ier)
 {
 
-	int i,j,jtry,indx[700];
+	int i,j,jtry;
+	int *const indx = s.solver_work.size_pivots(n);
         int info;
       	double errmax,h,xsav,*a,*dfdx,*dfdy,*dysav,*err;
 	double *g1,*g2,*g3,*g4,*ysav,*work2;
@@ -145,9 +146,9 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 	jacobn(s,xsav,ysav,dfdx,dfdy,epjac,work2,n);
 	h=htry;
 	for (jtry=1;jtry<=MAXTRY;jtry++) {
-		for (i=0;i<n;i++) {
-			for (j=0;j<n;j++) a[i+n*j] = -dfdy[i+n*j];
-			a[i+n*i] += 1.0/(GAM*h);
+		for (j=0;j<n;j++) {
+			for (i=0;i<n;i++) a[i+n*j] = -dfdy[i+n*j];
+			a[j+n*j] += 1.0/(GAM*h);
 		}
 		xpp::sgefa(a,n,n,indx,&info);
 		if(info!=-1){

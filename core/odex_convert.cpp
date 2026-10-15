@@ -424,10 +424,9 @@ private:
      condition's, a function table's) */
   std::vector<int> compiled(const std::string &text) const
   {
-    std::vector<int> prog(MAXEXPLEN, 0);
+    std::vector<int> prog;
     int len = 0;
-    if (add_expr(s_, text, prog.data(), &len)) refuse(xpp::format("the formula {} does not compile", text));
-    prog.resize(len);
+    if (add_expr(s_, text, prog, &len)) refuse(xpp::format("the formula {} does not compile", text));
     s_.parser.ncon = m_.ncon_start;
     s_.parser.nsym = m_.nsym_start;
     return prog;

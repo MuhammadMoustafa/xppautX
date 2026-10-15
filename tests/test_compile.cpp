@@ -99,10 +99,9 @@ int main()
     int count=0;
     auto append=[&](std::vector<int> p) { m.programs[count++].rpn=std::move(p); };
     auto expression=[&](const std::string &text) {
-        std::vector<int> p(MAXEXPLEN);
+        std::vector<int> p;
         int length=0;
-        CHECK(xpp::add_expr(s,text,p.data(),&length)==0);
-        p.resize(length);
+        CHECK(xpp::add_expr(s,text,p,&length)==0);
         append(std::move(p));
     };
     for (double x:{0.1,1e-300,std::numeric_limits<double>::denorm_min(),-0.0}) append(number(x));

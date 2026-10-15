@@ -170,12 +170,14 @@ void find_tok(const ParserState &p, const char *source, int *index, int *tok)
   *index+=length;
 }
 
-int make_toks(const ParserState &p, const char *dest, int *my_token)
+int make_toks(const ParserState &p, const char *dest, std::vector<int> &my_token)
 {
  std::array<char,40> num{}; /* do_num writes the number's start */
  double value;
-  int old_tok=STARTTOK,tok_in=0;
+  int old_tok=STARTTOK;
  int index=0,token,nparen=0,lastindex=0;
+
+ my_token.clear();
 
  while(dest[index]!='\0')
   {
@@ -195,9 +197,9 @@ int make_toks(const ParserState &p, const char *dest, int *my_token)
       }
 /*    new code        3/95      */
       const std::array<int,2> halves=xpp::expr::number_halves(value);
-      my_token[tok_in++]=NUMTOK;
-      my_token[tok_in++]=halves[0];
-      my_token[tok_in++]=halves[1];
+      my_token.push_back(NUMTOK);
+      my_token.push_back(halves[0]);
+      my_token.push_back(halves[1]);
       if(check_syntax(p.symbols,old_tok,NUMTOK)==1){
 	 xpp::log(XPP_LOG_WARN, "Illegal syntax \n");
 	 show_where(dest,lastindex);
@@ -209,7 +211,7 @@ int make_toks(const ParserState &p, const char *dest, int *my_token)
    
    else
      {
-       my_token[tok_in++]=token;
+       my_token.push_back(token);
        if(check_syntax(p.symbols,old_tok,token)==1){
 	 xpp::log(XPP_LOG_WARN, "Illegal syntax (Ref:{:d} {:d}) \n",old_tok,token);
 	 show_where(dest,lastindex);
@@ -222,7 +224,7 @@ int make_toks(const ParserState &p, const char *dest, int *my_token)
      }
  }
 
-my_token[tok_in++]=ENDTOK;
+my_token.push_back(ENDTOK);
 if(check_syntax(p.symbols,old_tok,ENDTOK)==1){
   xpp::log(XPP_LOG_WARN, "Premature end of expression \n");
   show_where(dest,lastindex);
@@ -237,22 +239,45 @@ return(0);
 
 }
 
-int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
+int alg_to_rpn(xpp::Session &s, int *toklist, std::vector<int> &command)
 {
   Symbols &my_symb=s.parser.symbols;
   /* the compiler's temporary symbol: ParserState keeps it past nsym */
   const int temporary_token=static_cast<int>(my_symb.size())-2;
   xpp::Model &m=s.model();
-  int tokstak[500],comptr=0,tokptr=0,lstptr=0,temp;
+  std::vector<int> tokstak(256);
+  int comptr=0,tokptr=0,lstptr=0,temp;
   int ncomma=0;
-  int loopstk[100];
+  std::vector<int> loopstk(32);
   int lptr=0;
   int nif=0,nthen=0,nelse=0;
   int newtok,oldtok;
   int my_com,my_arg,jmp;
 
-  tokstak[0]=STARTTOK;
-  tokptr=1;
+  command.clear();
+
+  auto write_com = [&](int val) {
+    if (comptr >= static_cast<int>(command.size())) {
+      command.resize(std::max(comptr + 1, static_cast<int>(command.size()) * 2 + 16));
+    }
+    command[comptr++] = val;
+  };
+
+  auto push_tok = [&](int val) {
+    if (tokptr >= static_cast<int>(tokstak.size())) {
+      tokstak.resize(std::max(tokptr + 1, static_cast<int>(tokstak.size()) * 2));
+    }
+    tokstak[tokptr++] = val;
+  };
+
+  auto push_loop = [&](int val) {
+    if (lptr >= static_cast<int>(loopstk.size())) {
+      loopstk.resize(std::max(lptr + 1, static_cast<int>(loopstk.size()) * 2));
+    }
+    loopstk[lptr++] = val;
+  };
+
+  push_tok(STARTTOK);
   oldtok=STARTTOK;
   while(1)
          {
@@ -348,8 +373,7 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
          
           if(newtok==LPAREN)
            {
-             tokstak[tokptr]=LPAREN;
-             tokptr++;
+             push_tok(LPAREN);
              oldtok=LPAREN;
              goto getnew;
             }
@@ -370,39 +394,35 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
            }
            if((newtok==COMMA)&&(oldtok==COMMA))
            {
-            tokstak[tokptr]=COMMA;
-            tokptr++;
+            push_tok(COMMA);
             goto getnew;
            }
            /* ram -- the THOUS problem */
 
      if(my_symb[oldtok].pri>=my_symb[newtok].pri)
            {
-            command[comptr]=my_symb[oldtok].com;
+            int ins = my_symb[oldtok].com;
 	    /* an .odex model divides as IEEE does (docs/odex.md) */
-	    if(command[comptr]==COM(FUN2TYPE,3)&&m.ieee_division)
-	      command[comptr]=COM(FUN2TYPE,xpp::expr::IEEE_DIVIDE);
+	    if(ins==COM(FUN2TYPE,3)&&m.ieee_division)
+	      ins=COM(FUN2TYPE,xpp::expr::IEEE_DIVIDE);
 	    /* ran, poisson and normal: instructions of their own */
-	    command[comptr]=xpp::expr::random_instruction(command[comptr]);
+	    ins=xpp::expr::random_instruction(ins);
+	    write_com(ins);
 	    if((my_symb[oldtok].arg==2)&&
 	       (my_symb[oldtok].com/MAXTYPE==FUN2TYPE))
 	      ncomma--;
-            my_com=command[comptr];
-	                comptr++;
+            my_com=ins;
  /*   New code   3/95      */
 	   if(my_com==NUMSYM){
 	     tokptr--;
-	     command[comptr]=tokstak[tokptr-1];
-	     comptr++;
+	     write_com(tokstak[tokptr-1]);
 	     tokptr--;
-	     command[comptr]=tokstak[tokptr-1];
-	     comptr++;
+	     write_com(tokstak[tokptr-1]);
 	   }
  /*   end new code    3/95    */
            if(my_com==SUMSYM){
-	     loopstk[lptr]=comptr;
-             comptr++;
-             lptr++;
+	     push_loop(comptr);
+             write_com(0);
              ncomma-=1;
 	   }
            if(my_com==ENDSUM){
@@ -411,9 +431,8 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
              command[loopstk[lptr]]=jmp;
 	   }
 	   if(my_com==MYIF){
-         	     loopstk[lptr]=comptr; /* add some space for jump */
-                     comptr++;
-		     lptr++;
+          	     push_loop(comptr); /* add some space for jump */
+                     write_com(0);
 		     nif++;
                 }    
 	   if(my_com==MYTHEN){ 
@@ -422,9 +441,8 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
 			jmp=comptr-loopstk[lptr];  /* -1 is old */
 			command[loopstk[lptr]]=jmp;
 			   /* Then set up for the then jump */
-			loopstk[lptr]=comptr;
-			lptr++;
-			comptr++;
+			push_loop(comptr);
+			write_com(0);
 			nthen++;
 			}
 	   if(my_com==MYELSE){
@@ -445,8 +463,7 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
             if(is_ufun(my_com))
             {
              my_arg=my_symb[oldtok].arg;
-                         command[comptr]=my_arg;
-             comptr++;
+             write_com(my_arg);
              ncomma=ncomma+1-my_arg;
             }
            /*      USER FUNCTION OKAY          */
@@ -456,13 +473,12 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
           }
   /*    NEW code       3/95     */
 	  if(newtok==NUMTOK){
-	    tokstak[tokptr++]=toklist[lstptr++];
-	    tokstak[tokptr++]=toklist[lstptr++];
+	    push_tok(toklist[lstptr++]);
+	    push_tok(toklist[lstptr++]);
 	  }
  /*  end  3/95     */
-          tokstak[tokptr]=newtok;
+          push_tok(newtok);
           oldtok=newtok;
-          tokptr++;
           goto getnew;
        }
         if(ncomma!=0){
@@ -473,30 +489,28 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
 	  xpp::log(XPP_LOG_WARN, "If statement missing ELSE or THEN \n");
 	  return(1);
 	    }
-        command[comptr]=my_symb[ENDTOK].com;
+        write_com(my_symb[ENDTOK].com);
+        command.resize(comptr);
 
         return(0);
-    }
+}
 
 }
 
 /* ADD_EXPR   */
 
-int add_expr(xpp::Session &s, std::string_view expr, int *command, int *length)
+int add_expr(xpp::Session &s, std::string_view expr, std::vector<int> &command, int *length)
 {
- int err,i;
+ int err;
  std::string dest=converted(expr);
- /* make_toks writes a token per character at most, three for a number
-    (its token and the double's two ints), the end, and slack */
- std::vector<int> my_token(3*dest.size()+8);
- err=make_toks(s.parser,dest.c_str(),my_token.data());
+ std::vector<int> my_token;
+ my_token.reserve(3*dest.size()+8);
+ err=make_toks(s.parser,dest.c_str(),my_token);
  if(err!=0)return(1);
  err = alg_to_rpn(s,my_token.data(),command);
  if(err!=0)return(1);
-  i=0;
-   while(command[i]!=ENDEXP)i++;
-   *length=i+1;
-   return(0);
+ if(length)*length=static_cast<int>(command.size());
+ return(0);
 }
 
 

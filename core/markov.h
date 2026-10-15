@@ -14,7 +14,7 @@ namespace xpp {
 struct Session; /* session.h */
 
 void  make_gill_nu(Session &s, double *nu, int n, int m, double *v);
-void  one_gill_step(Session &s, int meth, int nrxn, int *rxn, double *v);
+void  one_gill_step(Session &s, int meth, int nrxn, int *rxn, double *v, double *r);
 
 /* the Markov variables, the Wiener parameters and stocHast (markov.cpp),
    in the Session s: a load's, or the run's */

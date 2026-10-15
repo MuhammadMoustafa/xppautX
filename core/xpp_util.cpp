@@ -217,10 +217,11 @@ int has_eq(std::string_view z, std::string &name, int *where)
 
 Result<double> evaluate_formula(xpp::Session &s, std::string_view expr)
 {
-  int com[400],i;
+  std::vector<int> com;
+  int i;
   double z=0.0;
   const bool bad=add_expr(s,expr,com,&i)!=0;
-  if(!bad)z=evaluate(s,com);
+  if(!bad)z=evaluate(s,com.data());
   s.parser.ncon=s.model().ncon_start;
   s.parser.nsym=s.model().nsym_start;
   if(bad)return std::unexpected(Error{"formula","Illegal formula ..",command_place(),""});

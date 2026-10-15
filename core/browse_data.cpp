@@ -458,9 +458,9 @@ void forget_formula_symbols(xpp::Session &s)
 
 bool compute_added_column(xpp::Session &s, const std::string &formula, int col_index, int nrows)
 {
-  std::array<int,MAXEXPLEN> com;
+  std::vector<int> com;
   int length=0;
-  if(xpp::add_expr(s,formula,com.data(),&length)){
+  if(xpp::add_expr(s,formula,com,&length)){
     forget_formula_symbols(s);
     command_error("browser", "Bad Formula .... ");
     return false;
@@ -476,9 +476,9 @@ bool compute_added_column(xpp::Session &s, const std::string &formula, int col_i
 
 bool added_column_compiles(xpp::Session &s, std::string_view formula)
 {
-  std::array<int,MAXEXPLEN> com;
+  std::vector<int> com;
   int length=0;
-  const bool compiles=xpp::add_expr(s,formula,com.data(),&length)==0;
+  const bool compiles=xpp::add_expr(s,formula,com,&length)==0;
   forget_formula_symbols(s);
   return compiles;
 }
@@ -521,7 +521,8 @@ void chk_seq(std::string_view s,int *seq, double *a1, double *a2)
 
 void replace_column(xpp::Session &s, const char *var, char *form, float **dat, int n)
 {
- int com[200],i;
+ std::vector<int> com;
+ int i;
  int intflag=0;
  int dif_var=-1;
  int seq=0;
@@ -600,11 +601,11 @@ if(dif_var<0)
 	   row.set(dat,i);
 	   if(intflag)
 	     {
-	       sum+=static_cast<float>(xpp::evaluate(s,com));
+	       sum+=static_cast<float>(xpp::evaluate(s,com.data()));
 	       dat[s.browser.replaced_col][i]=sum*dt;
 	     }
 	   else 
-	     dat[s.browser.replaced_col][i]=static_cast<float>(xpp::evaluate(s,com));
+	     dat[s.browser.replaced_col][i]=static_cast<float>(xpp::evaluate(s,com.data()));
 	 }
        else 
 	 {

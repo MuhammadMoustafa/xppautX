@@ -7,6 +7,7 @@
 
 #include <array>
 #include <string>
+#include <vector>
 
 namespace xpp {
 
@@ -20,7 +21,7 @@ struct FitInfo {
   std::string varlist, collist;
   std::string parlist1, parlist2;
   int dim = 0, npars = 0, nvars = 0, npts = 0, maxiter = 20;
-  std::array<int, 50> icols{}, ipar{}, ivar{};
+  std::vector<int> icols, ipar, ivar;
   double tol = .001, eps = 1e-5;
 };
 
@@ -41,10 +42,10 @@ Result<> marlevstep(Session &s, double *t0, double *y0, double *y, double *sig, 
 Result<> mrqcof(Session &s, double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *alpha, double *chisq, double *beta, double **yderv, double *yfit, double eps);
 
 /* the fit's lists, blank- or comma-separated: the data columns, the
-   fitted variables and (appended at ipars[*n]) the parameters */
-void parse_collist(std::string_view collist, int *icols, int *n);
-void parse_varlist(const Session &s, std::string_view varlist, int *ivars, int *n);
-void parse_parlist(const Session &s, std::string_view parlist, int *ipars, int *n);
+   fitted variables and (appended at ipars) the parameters */
+void parse_collist(std::string_view collist, std::vector<int> &icols);
+void parse_varlist(const Session &s, std::string_view varlist, std::vector<int> &ivars);
+void parse_parlist(const Session &s, std::string_view parlist, std::vector<int> &ipars);
 
 } // namespace xpp
 #endif

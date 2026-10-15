@@ -243,7 +243,7 @@ int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double 
    for(i=0;i<s.model().node ;i++){
      std::string name=xpp::format("Coupling for {} eqn:",s.model().uvar_names[i]);
      new_string_of(name,s.adjoint.coup_string[i],XPP_FIELD_EXPRESSION);
-     if(add_expr(s,s.adjoint.coup_string[i],s.adjoint.coup_fun[i].data(),&j)){
+     if(add_expr(s,s.adjoint.coup_string[i],s.adjoint.coup_fun[i],&j)){
        command_error("adjoint", xpp::format("Illegal formula {}",s.adjoint.coup_string[i]));
        goto bye;
      }

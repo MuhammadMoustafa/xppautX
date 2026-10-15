@@ -47,10 +47,9 @@ void set_wieners(xpp::Session &s, double dt, double *x, double t)
 
 void add_markov(xpp::Session &s, int nstate, const char *name)
 {
-  double st[50];
-  int i;
-  for(i=0;i<50;i++)st[i]=static_cast<double>(i);
-  create_markov(s,nstate,st,0,name);
+  std::vector<double> st(nstate);
+  for(int i=0;i<nstate;i++)st[i]=static_cast<double>(i);
+  create_markov(s,nstate,st.data(),0,name);
 }
 
 /* the Markov variable a transition table names (the longest name that
@@ -219,13 +218,11 @@ int compile_markov(xpp::Session &s, int index, int j, int k)
 {
   const char *expr;
   int l0=s.model().markov[index].nstates*j+k,leng;
-  int com[256];
   expr=s.model().markov[index].trans[l0].c_str();
 
-  if(add_expr(s,expr,com,&leng))
+  if(add_expr(s,expr,s.model().markov[index].command[l0].rpn,&leng))
     return -1;
   /* zero-padded by two, like the xpp_malloc block it replaces */
-  s.model().markov[index].command[l0].rpn.assign(com, com+leng);
   s.model().markov[index].command[l0].rpn.resize(leng+2, 0);
   
   return 1;
@@ -317,12 +314,9 @@ void make_gill_nu(xpp::Session &s, double *nu,int n,int m,double *v)
   }
 }
 
-void one_gill_step(xpp::Session &s, int meth,int nrxn,int *rxn,double *v)
+void one_gill_step(xpp::Session &s, int meth,int nrxn,int *rxn,double *v,double *r)
 {
   double rate=0,test;
-  double r[1000];
-  /*double rold[1000]; Not used*/
- 
   int i;
   switch(meth){
   case 0: /* std gillespie method */
@@ -331,6 +325,7 @@ void one_gill_step(xpp::Session &s, int meth,int nrxn,int *rxn,double *v)
       r[i]=getvar(s,rxn[i]);
       rate+=r[i];
     }
+    r[nrxn]=0.0;
     if(rate<=0.0)return;
     v[0]=-xpp::math::log(s.random.uniform())/rate; /* next step */
     test=rate*s.random.uniform();

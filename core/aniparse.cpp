@@ -310,10 +310,8 @@ std::string read_ani_line(xpp::LineReader &fp, bool &eof)
 /* an expression compiled for evaluate(); false when it does not parse */
 bool compile_expr(xpp::Session &s, const char *x, std::vector<int> &c)
 {
-    std::array<int, 300> com;
     int n;
-    if (xpp::add_expr(s,x, com.data(), &n) == 1) return false;
-    c.assign(com.begin(), com.begin() + n);
+    if (xpp::add_expr(s,x, c, &n) == 1) return false;
     return true;
 }
 

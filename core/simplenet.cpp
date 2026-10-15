@@ -287,11 +287,9 @@ bool next_pair_function(xpp::Session &s, xpp::Tokens &args, const char *net, int
   if(ivar2<0)return false;
   fname=args.text(")");
   int elen;
-  s.model().networks[ind].f.rpn.assign(MAXEXPLEN,0);
-  if(add_expr(s,xpp::format("{}({},{})",fname,rootname,root2name),s.model().networks[ind].f.rpn.data(),&elen)){
+  if(add_expr(s,xpp::format("{}({},{})",fname,rootname,root2name),s.model().networks[ind].f.rpn,&elen)){
     model_failed(xpp::format("Bad function {}",fname));
   }
-  s.model().networks[ind].f.rpn.resize(static_cast<size_t>(elen));
   return true;
 }
 } // namespace
@@ -674,6 +672,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].ncon=-1;
     /* zeroed: the first output row reads them before the first step */
     s.networks[ind].values.assign(ivar2+2,0.0);
+    s.networks[ind].gill_rates.assign(ivar2+1,0.0);
     xpp::log(XPP_LOG_INFO, "Added gillespie chain with {:d} reactions \n",ivar2);
     return 1;
 
@@ -790,7 +789,9 @@ void evaluate_network(xpp::Session &s, int ind)
        xpp::make_gill_nu(s,nv.gill_nu.data(),s.model().node,net.root,nv.values.data());
        nv.gill_ready=true;
      }
-     xpp::one_gill_step(s,net.iwgt,net.root,net.gcom.data(),nv.values.data());
+     if(nv.gill_rates.size() < static_cast<size_t>(net.root + 1))
+       nv.gill_rates.resize(static_cast<size_t>(net.root + 1), 0.0);
+     xpp::one_gill_step(s,net.iwgt,net.root,net.gcom.data(),nv.values.data(),nv.gill_rates.data());
      break;
    case CONVE:
      y=&variables[root];
@@ -1116,8 +1117,6 @@ bool g_namelist(std::string_view s, std::string &root, int &flag, int &i1, int &
    indices into ind */
 bool gilparse(const xpp::Session &s, std::string_view list, std::vector<int> &ind)
 {
-  /* markov.cpp's one_gill_step holds a rate per reaction in r[1000] */
-  const size_t max_reactions = 1000;
   xpp::log(XPP_LOG_DEBUG, "s=|{}|", list);
   ind.clear();
   size_t start = 0;
@@ -1143,9 +1142,6 @@ bool gilparse(const xpp::Session &s, std::string_view list, std::vector<int> &in
       int iv = get_var_index(s,bn);
       if (iv < 0) {
         model_failed(xpp::format("No such name {}", bn));
-      }
-      if (ind.size() >= max_reactions) {
-        model_failed(xpp::format("Too many reactions in {} (at most {})", list, max_reactions));
       }
       ind.push_back(iv);
     }

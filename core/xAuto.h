@@ -23,7 +23,7 @@ struct AutoRunWeight {
     int irs;
     int ilp;
     int nicp;
-    int icp[100];
+    std::vector<int> icp;
     int ntst;
     int ncol;
     int iad;

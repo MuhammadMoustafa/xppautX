@@ -72,7 +72,7 @@ void compile_bvp(xpp::Session &s)
  s.numerics.bvp_flag=0;
  for(i=0;i<s.model().node;i++){
 
-   if(add_expr(s,s.bcs[i].string.data(),s.bcs[i].com.data(),&len)){
+   if(add_expr(s,s.bcs[i].string.data(),s.bcs[i].com,&len)){
      show_error(xpp::Error{"boundary",xpp::format("Bad syntax in boundary condition {}: {}",i+1,s.bcs[i].string.data()),
                            xpp::model_place(s.model(),xpp::odex::Statement::Kind::Boundary,i),xpp::format("bc:{}",i)});
      return;

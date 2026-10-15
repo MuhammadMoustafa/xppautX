@@ -10,6 +10,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 ## [Unreleased]
 
 - Continue ODE Hopf curves with the reduced 2n+2 system through zero frequency to a labelled neutral-saddle curve; use structured Hopf/fold Jacobians and reject obsolete Hopf restart layouts (W363, [#425](https://github.com/MuhammadMoustafa/xppautX/issues/425)).
+- Lift fixed array limits for formula lengths, tabular expressions, stiff and Marquardt-Levenberg solver pivots, and Markov states and reaction rates; formulas compile directly into dynamically growing vectors and numerical algorithms size work buffers from input rather than hardcoded limits (W372, [#434](https://github.com/MuhammadMoustafa/xppautX/issues/434)).
 
 - Speed up AUTO condensation with cached row maxima and physical pivot swaps, preserving numerical results and interval threading (W360, [#422](https://github.com/MuhammadMoustafa/xppautX/issues/422)).
 

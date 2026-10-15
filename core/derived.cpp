@@ -21,12 +21,10 @@ It is called only once during the session
 */
 void compile_derived(xpp::Session &s)
 {
-  std::array<int, 256> f;
   int n;
   for (xpp::Model::DerivedQuantity &d : s.model().derived) {
-    if (add_expr(s, d.rhs, f.data(), &n) == 1)
+    if (add_expr(s, d.rhs, d.form.rpn, &n) == 1)
       model_failed(xpp::Error{"derived", xpp::format("Bad right-hand side for a derived parameter: {}", d.rhs), d.where});
-    d.form.rpn.assign(f.begin(), f.begin() + n);
   }
   evaluate_derived(s);
 }

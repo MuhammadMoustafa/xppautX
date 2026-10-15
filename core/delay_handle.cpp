@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <array>
 #include <vector>
 #include "getvar.h"
 #include "form_ode.h"
@@ -83,7 +84,9 @@ void polint(std::span<const double> xa, std::span<const double> ya, double x, do
   const int n=static_cast<int>(xa.size());
   int i,m,ns=1;
   double den,dif,dift,h0,hp,w;
-  double c[10],d[10];
+  static constexpr int POLINT_POINTS = 4;
+  if(xa.size() != ya.size() || xa.empty() || xa.size() > POLINT_POINTS) return;
+  std::array<double, POLINT_POINTS> c{}, d{};
   dif=fabs(x-xa[0]);
   for(i=1;i<=n;i++){
     if( (dift=fabs(x-xa[i-1]))<dif){
@@ -113,7 +116,8 @@ double get_delay(xpp::Session &s, int in, double tau)
 {
  double x=tau/fabs(s.numerics.delta_t);
  double dd=fabs(s.numerics.delta_t);
- double y,ya[4],xa[4],dy;
+ double y,dy;
+ std::array<double, 4> ya{}, xa{};
  int n1=static_cast<int>(x);
  int n2=n1+1;
  int nodes=s.model().node;
@@ -160,12 +164,12 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
  /* del_form's per-node formula buffers are RAII now (std::vector), so
     every return path below frees them automatically -- no more manual
     xpp_free loops paired to each early-exit. */
- std::vector<std::vector<int>> del_form(s.model().node, std::vector<int>(200, 0));
+ std::vector<std::vector<int>> del_form(s.model().node);
  nt=static_cast<int>(big/fabs(s.numerics.delta_t));
  s.parser.ncon=s.model().ncon_start;
  s.parser.nsym=s.model().nsym_start;
  for(i=0;i<(s.model().node );i++){
-	 if(add_expr(s,s.delay_string[i],del_form[i].data(),&len)){
+	 if(add_expr(s,s.delay_string[i],del_form[i],&len)){
 		 s.parser.ncon=s.model().ncon_start;
 		s.parser.nsym=s.model().nsym_start;
 		return xpp::fail("delay",xpp::format("Illegal delay expression {} for {}",s.delay_string[i],s.model().uvar_names[i]),

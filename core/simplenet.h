@@ -58,6 +58,7 @@ struct NetworkValues {
   std::vector<double> values;
   std::vector<double> fftr,ffti,dr,di;
   std::vector<double> gill_nu;
+  std::vector<double> gill_rates;
   bool gill_ready=false;
 };
 

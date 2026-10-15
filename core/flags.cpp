@@ -160,10 +160,8 @@ int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<Fl
    parse */
 static bool compile(xpp::Session &s, const std::string &expr, std::vector<int> &out)
 {
-  int command[256];
   int nc;
-  if(xpp::add_expr(s,expr,command,&nc))return false;
-  out.assign(command,command+nc+1);
+  if(xpp::add_expr(s,expr,out,&nc))return false;
   return true;
 }
 

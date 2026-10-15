@@ -79,12 +79,11 @@ namespace {
 
 namespace {
 
-/* program i: MAXEXPLEN commands, zeroed */
-int *new_program(xpp::Model &m, int i)
+/* program i: cleared */
+void new_program(xpp::Model &m, int i)
 {
   std::vector<int> &program=m.programs[i].rpn;
-  program.assign(MAXEXPLEN,0);
-  return program.data();
+  program.clear();
 }
 
 /* a boundary condition's text becomes string, cut to its buffer */
@@ -102,7 +101,7 @@ void put_bc_text(std::vector<char> &text, std::string_view string)
 void set_bc(xpp::Model &m, int i, std::string_view string)
 {
   xpp::Model::BoundaryCondition &b=m.bcs[i];
-  b.com.assign(200,0);
+  b.com.clear();
   b.string.assign(256,'\0');
   b.name.assign(10,'\0');
   put_bc_text(b.string,string);
@@ -626,7 +625,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	  }
 	}
       xpp::log(XPP_LOG_INFO, "RHS({})={}\n",m.node,formula);
-      if(add_expr(s,formula,m.programs[m.node].rpn.data(),&len)){
+      if(add_expr(s,formula,m.programs[m.node].rpn,&len)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
       }
@@ -1354,7 +1353,7 @@ private:
       set_ode_name(m,nvar_,rhs);
       new_program(m,nvar_);
       find_ker(s_,rhs,&alt);
-      if(add_expr(s_,rhs,m.programs[nvar_].rpn.data(),&len)){
+      if(add_expr(s_,rhs,m.programs[nvar_].rpn,&len)){
 	model_failed(xpp::format("ERROR compiling {}'",s.name));
       }
       if(s.kind==Statement::Kind::Map){
@@ -1372,7 +1371,7 @@ private:
       std::string rhs=text(s.expr,true);
       find_ker(s_,rhs,&alt);
       new_program(m,nfix_+s_.parser.build.in_vars);
-      if(add_expr(s_,rhs,m.programs[nfix_+s_.parser.build.in_vars].rpn.data(),&len)!=0){
+      if(add_expr(s_,rhs,m.programs[nfix_+s_.parser.build.in_vars].rpn,&len)!=0){
 	model_failed(xpp::format("Error allocating or compiling {}",s.name));
       }
       nfix_++;
@@ -1391,7 +1390,7 @@ private:
 	const int in1=s_.parser.build.in_vars+m.nmarkov+naux_,in2=s_.parser.build.in_vars+m.fix_var+naux_;
 	set_ode_name(m,in1,rhs);
 	new_program(m,in2);
-	if(add_expr(s_,rhs,m.programs[in2].rpn.data(),&len)){
+	if(add_expr(s_,rhs,m.programs[in2].rpn,&len)){
 	  model_failed(xpp::format("ERROR compiling {}",b.name));
 	}
 	naux_++;

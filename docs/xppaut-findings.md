@@ -87,6 +87,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [54](#54-an-extra-plot-window-keeps-the-first-windows-time-flag) | Graphs | an extra window of a multi-window model keeps the first window's time flag | [W351](https://github.com/MuhammadMoustafa/xppautX/issues/412) |
 | [55](#55-auto-marks-have-a-nine-value-form-limit) | AUTO | User marks stop at nine; count changes before the value form succeeds | [W331](https://github.com/MuhammadMoustafa/xppautX/issues/392) |
 | [56](#56-auto-equilibrium-period-depends-on-spectrum-order) | AUTO | the stored period comes from whichever tied complex pair the eigenvalue routine returns last | [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431) |
+| [57](#57-fixed-c-arrays-sized-by-input) | Expressions, Numerics | formulas, table expressions, Markov states/rates, solver pivots and fit parameters overflow fixed C arrays | [W372 / #434](https://github.com/MuhammadMoustafa/xppautX/issues/434) |
 
 ## 1. Model options
 
@@ -1174,3 +1175,22 @@ the eigenvalue routine returned them in, so the stored period does too.
   slow mode's period at every point (it matches the analytic period to
   7e-10 relative); unit tests permute every order of two pairs.
 - **Card:** [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431).
+
+## 57. Fixed C arrays sized by input
+
+Formula compilation and multiple numerical methods relied on fixed-size stack or struct
+arrays without bounds checking, overflowing memory when user input exceeded hardcoded limits:
+- `add_expr` compiled into an unbounds-checked integer array ([parserslow2.c:995](../reference/xppaut-8.0/parserslow2.c#L995),
+  [master 994](../reference/xppaut-master/parserslow2.c#L994) `tokstak[500]`, `loopstk[100]`), and callers passed arrays much smaller than `MAXEXPLEN` ([tabular.c:321](../reference/xppaut-8.0/tabular.c#L321), [master 321](../reference/xppaut-master/tabular.c#L321) `command[200]`,
+  [histogram.c:203](../reference/xppaut-8.0/histogram.c#L203) and [flags.c:163](../reference/xppaut-8.0/flags.c#L163) `command[256]`, [markov.c:341](../reference/xppaut-8.0/markov.c#L341), [master 341](../reference/xppaut-master/markov.c#L341) `com[256]`, `dae_fun.c:73` `f[256]`,
+  `browse_data.c:524` `com[200]`, `xpp_util.c:220` `com[400]`). A 120-term table formula segfaulted;
+  a 1500-term ODE RHS exited abruptly.
+- [stiff.c:161](../reference/xppaut-8.0/stiff.c#L161) ([master 161](../reference/xppaut-master/stiff.c#L161)) fixed pivot array `indx[700]` overflowed when integrating a stiff ODE system with more than 700 variables.
+- [do_fit.c:601](../reference/xppaut-8.0/do_fit.c#L601) ([master 601](../reference/xppaut-master/do_fit.c#L601)) Marquardt-Levenberg parameter fitting used `ipivot[1000]`, overflowing on >1000 fitted parameters.
+- [markov.c:109](../reference/xppaut-8.0/markov.c#L109) ([master 109](../reference/xppaut-master/markov.c#L109)) allocated `st[50]`, overflowing on Markov chains with >50 states; [markov.c:461](../reference/xppaut-8.0/markov.c#L461) ([master 461](../reference/xppaut-master/markov.c#L461)) and `simplenet.c` used `r[1000]` for Gillespie reaction rates; [xAuto.h:7](../reference/xppaut-8.0/xAuto.h#L7) ([master 7](../reference/xppaut-master/xAuto.h#L7)) used `icp[100]`.
+- [delay_handle.c:134](../reference/xppaut-8.0/delay_handle.c#L134) ([master 134](../reference/xppaut-master/delay_handle.c#L134)) `polint` evaluated interpolation with fixed `c[10]`, `d[10]` without verifying point count.
+
+- **XPPAUT 8.0:** cited above in `reference/xppaut-8.0` and `reference/xppaut-master`.
+- **Evidence:** `table w % 11 0 10 0.001+0.001+...` with 120 terms segfaults in XPPAUT; an ODE equation with 1500 terms crashes or silently truncates.
+- **xppautX:** `add_expr` compiles directly into `std::vector<int>&` with dynamically expanding token and loop stacks. Callers pass dynamic vectors or their destination structs directly. Pivot arrays in `stiff` and `do_fit` use `s.solver_work.size_pivots(n)`. Markov states, reaction rates and AUTO continuation parameters use `std::vector`. Method-fixed arrays (`polint`'s 4 polynomial interpolation points) use `std::array` with explicit bounds checking.
+- **Card:** [W372 / #434](https://github.com/MuhammadMoustafa/xppautX/issues/434).
