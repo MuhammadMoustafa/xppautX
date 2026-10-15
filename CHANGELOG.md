@@ -9,7 +9,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
-- Long computations check for cancellation, so Stop (the protocol's abort or Escape) ends sweeps, nullclines, direction field flow, parameter fitting, pairwise histograms, and fixed-step chunk loops, preserving whatever results were computed; non-interactive integration checks cancellation and recorded stop checkpoints on every step (W388, [#450](https://github.com/MuhammadMoustafa/xppautX/issues/450)).
+- Stop ends what used to run to the end once started: an equilibrium or shooting sweep (Stop no longer skips only the current point), nullclines and a range of them, the flow, fitting, a histogram of pairwise differences, a fixed-step method's steps between output points and the delay history; what was computed is kept (W388, [#450](https://github.com/MuhammadMoustafa/xppautX/issues/450)).
 
 - The server's input queue is bounded: while the core computes, at most 1024 normal lines (64 MB) wait for it, and the next is refused with a `Busy` error naming its command and id (HTTP: 503 with the same event) so a client can send it again; Abort and the other control lines always get through, so a Stop sent after a flood still stops the run. The longest input line is now 64 MB (was 256 MB) (W389, [#451](https://github.com/MuhammadMoustafa/xppautX/issues/451)).
 

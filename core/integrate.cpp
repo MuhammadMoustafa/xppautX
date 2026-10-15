@@ -1613,7 +1613,6 @@ if(program.interactive) cwidth=get_command_width();
 
  while(1)
  {
-	if(xpp::job::cancelled())break;
 	
 	   if(!solver.traits().fixed_step){
 	     /* on to the next output time, in steps of the method's own */

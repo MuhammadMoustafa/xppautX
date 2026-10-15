@@ -8553,6 +8553,13 @@ def check_stop_checks():
     """W388: long computations (fixed-step chunks, flow, range nullclines,
     range equilibria, pairwise histograms, and fitting) reach cancellation
     checkpoints, stopping cleanly on abort, and silent replays honour armed stops."""
+    # Each run below would take hours without its Stop check, so only the
+    # check can end it within the wait's safety limit (no race on speed).
+    W388_GRID = 400        # flow: 2 x 401^2 trajectories
+    W388_STEPS = 1000000   # range of nullclines / equilibria: points
+    W388_ROWS = 400000     # stored rows (at dt 0.05) for the pairwise histogram
+    def stopped_in(evs):
+        return any(e.get('ev') == 'stopped' for e in evs)
     p, r, snd, col, _ = launch_server()
     try:
         col(is_idle)
@@ -8583,10 +8590,10 @@ def check_stop_checks():
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='f')
         _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], value='30')
+        snd(cmd='answer', id=ask['id'], value=str(W388_GRID))
         snd(cmd='abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
-        check('W388: direction field flow loop stops on abort', p.poll() is None, 'exit %s' % p.poll())
+        check('W388: direction field flow loop stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
 
         # 3. Range nullclines cancellation (core/nullcline.cpp)
         snd(cmd='key', key='n')
@@ -8595,22 +8602,25 @@ def check_stop_checks():
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='r')
         _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], ok=1, values=['iapp', '100', '0', '1'])
+        snd(cmd='answer', id=ask['id'], ok=1, values=['iapp', str(W388_STEPS), '0', '1'])
         snd(cmd='abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
-        check('W388: range nullclines sweep stops on abort', p.poll() is None, 'exit %s' % p.poll())
+        check('W388: range nullclines sweep stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
 
         # 4. Range equilibria sweep cancellation (core/integrate.cpp)
         snd(cmd='key', key='s')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='r')
         _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], ok=1, values=['iapp', '100', '-0.5', '0.5', 'N', '-1', 'N', 'N'])
+        snd(cmd='answer', id=ask['id'], ok=1, values=['iapp', str(W388_STEPS), '-0.5', '0.5', 'N', '-1', 'N', 'N'])
         snd(cmd='abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
-        check('W388: range equilibria sweep stops on abort', p.poll() is None, 'exit %s' % p.poll())
+        check('W388: range equilibria sweep stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
 
-        # 5. Pairwise differences histogram cancellation (core/histogram.cpp)
+        # 5. Pairwise differences histogram cancellation (core/histogram.cpp):
+        #    W388_ROWS^2 differences
+        snd(cmd='set', kind='num', name='total_time', value=W388_ROWS * 0.05)
+        col(is_idle)
         snd(cmd='key', key='i')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='g')
@@ -8628,7 +8638,9 @@ def check_stop_checks():
             else:
                 snd(cmd='answer', id=ask['id'], ok=1, value='10')
         evs, _ = col(is_idle, timeout=30 * SLOW)
-        check('W388: pairwise histogram O(N^2) loop stops on abort', p.poll() is None, 'exit %s' % p.poll())
+        check('W388: pairwise histogram O(N^2) loop stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
+        snd(cmd='set', kind='num', name='total_time', value=20)
+        col(is_idle)
 
         # Return to main menu
         snd(cmd='key', key='Escape')

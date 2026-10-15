@@ -1,6 +1,5 @@
 #include "xpp_files.h"
 #include "image_format.h"
-#include "xpp_job.h"
 #include "mykeydef.h"
 /* Nullclines and direction fields (Nullcline, Dir.field/flow): the current
    pair of nullclines, the frozen ones, and the direction field's grid, drawn
@@ -264,7 +263,7 @@ void do_cline(xpp::Session &s, int ngrid, float x1, float y1, float x2, float y2
   }
 
   for(int j=1;j<ny;j++){
-    if(xpp::job::cancelled()||my_abort()==ESC)return;
+    if(my_abort()==ESC)return;
     y=y2-j*dy;
     s.nullcline_state.n_top[0]=s.nullcline_state.n_bot[0];
     s.nullcline_state.n_bot[0]=fnull(s,x1,y);
@@ -329,7 +328,7 @@ void do_range_clines(xpp::Session &s)
   s.nullcline_state.null_iy=s.plot_windows.current->yv[0];
 
   for(int i=0;i<=s.nullcline_state.range.nstep;i++){
-    if(xpp::job::cancelled()||my_abort()==ESC)break;
+    if(my_abort()==ESC)break;
     const double z=static_cast<double>(i)*dz+s.nullcline_state.range.xlo;
     xpp::set_val(s,s.nullcline_state.range.rv.c_str(),z);
     null_storage(s,course);
@@ -337,13 +336,11 @@ void do_range_clines(xpp::Session &s)
     s.nullcline_state.which_crv=s.nullcline_state.null_ix;
     set_linestyle(s,col1);
     new_nullcline(s,course,xmin,y_bot,xmax,y_tp,s.nullcline_state.x_null,&s.nullcline_state.num_x_n);
-    if(xpp::job::cancelled())break;
 
     s.nullcline_state.which_crv=s.nullcline_state.null_iy;
     set_linestyle(s,col2);
     new_nullcline(s,course,xmin,y_bot,xmax,y_tp,s.nullcline_state.y_null,&s.nullcline_state.num_y_n);
     add_froz_cline(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.null_ix,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_iy);
-    if(xpp::job::cancelled())break;
   }
   xpp::set_val(s,s.nullcline_state.range.rv.c_str(),zold);
   phase_data_nullclines(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_ix,s.nullcline_state.null_iy,col1,col2);
@@ -355,7 +352,7 @@ void get_max_dfield(xpp::Session &s, double *y, double *ydot, double u0, double 
   double dxp,dyp;
   *mdf=0.0;
   for(int i=0;i<=n;i++){
-    if(xpp::job::cancelled()||my_abort()==ESC)break;
+    if(my_abort()==ESC)break;
     y[inx]=u0+du*i;
     for(int j=0;j<=n;j++){
       y[iny]=v0+dv*j;
@@ -384,7 +381,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
     phase_data_dfield_begin(s,grid+1,du,dv,s.nullcline_state.dfield_type==0,s.plot_windows.current->color[0]);
   xpp::image_group(s, true, true);
   for(int i=0;i<=grid;i++){
-    if(xpp::job::cancelled()||my_abort()==ESC)break;
+    if(my_abort()==ESC)break;
     y[inx]=u0+du*i;
     for(int j=0;j<=grid;j++){
       y[iny]=v0+dv*j;
@@ -653,7 +650,7 @@ void direct_field_com(xpp::Session &s, int c)
   for(int k=0;k<2;k++){
     for(int i=0;i<=grid;i++)
       for(int j=0;j<=grid;j++){
-        if(xpp::job::cancelled()||my_abort()==ESC)goto flow_done;
+        if(my_abort()==ESC)goto flow_done;
         xpp::get_ic(s,2,y.data());
         y[inx]=u0+du*i;
         y[iny]=v0+dv*j;
@@ -661,7 +658,6 @@ void direct_field_com(xpp::Session &s, int c)
         int start=1;
         phase_data_flow_next(s);
         failure.keep(xpp::integrate(s,&t,y.data(),s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&start));
-        if(xpp::job::cancelled())goto flow_done;
       }
     s.numerics.delta_t=-s.numerics.delta_t;
   }

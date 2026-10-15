@@ -8,8 +8,6 @@
 #include "flags.h"
 #include "markov.h"
 #include "delay_handle.h"
-#include "xpp_ui.h"
-#include "mykeydef.h"
 #include "xpp_job.h"
 #include "load_eqn.h"
 #include "numerics.h"
@@ -58,7 +56,7 @@ int fixed_steps(xpp::Session &s, double *y, int nt, int neq, double *tim, int *i
     if(s.model().nflags==0)step(dt);
     else one_flag_steps(s,y,neq,tim,istart,dt,f);
     stor_delay(s,y);
-    if(my_abort()==ESC)break;
+    if(xpp::job::cancelled())break;
   }
   return(0);
 }
@@ -71,7 +69,7 @@ int symplect3(xpp::Session &s, double *y, double *tim, double dt, int nt, int ne
  if(s.model().nflags==0){ 
    for(int i=0;i<nt;i++){
      one_step_symp(s,y,dt,work,neq,tim);
-     if(my_abort()==ESC)break;
+     if(xpp::job::cancelled())break;
    }
    stor_delay(s,y);
    return(0);
@@ -106,7 +104,7 @@ int bak_euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int ne
 	if((j=one_bak_step(s,y,tim,dt,neq,yg,yp,yp2,errvec,jac,istart))!=0)
 	  return(j);
 	stor_delay(s,y);
-	if(my_abort()==ESC)break;
+	if(xpp::job::cancelled())break;
       }
     return(0);
   }
@@ -117,7 +115,7 @@ int bak_euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int ne
 				    errvec,jac,istart))!=0)
 	  return(j);
 	stor_delay(s,y);
-	if(my_abort()==ESC)break;
+	if(xpp::job::cancelled())break;
       }
     return(0);
 }
@@ -343,7 +341,7 @@ n400:
     set_wieners(s,dt,y,x0);
    abmpc(s,y,&x0,dt,neq,w);
    stor_delay(s,y);
-   if(my_abort()==ESC)break;
+   if(xpp::job::cancelled())break;
  }
 
 n450:

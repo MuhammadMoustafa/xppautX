@@ -82,7 +82,7 @@ evaluate_derived(s);
     yfit[i]=y[iv];
   }
   for(k=1;k<npts;k++){
-    if(xpp::job::cancelled()||my_abort()==ESC)return {};
+    if(my_abort()==ESC)return {};
     k0=k*nvars;
     auto ok=one_step_int(s,y,t0[k-1],t0[k],&istart);
     if(!ok){
@@ -129,7 +129,7 @@ evaluate_derived(s);
     s.integrator.solver->begin(&istart);
    /* now loop through all the points */
     for(k=1;k<npts;k++){
-      if(xpp::job::cancelled()||my_abort()==ESC)return {};
+      if(my_abort()==ESC)return {};
       k0=k*nvars;
       auto ok=one_step_int(s,y,t0[k-1],t0[k],&istart);
       if(!ok){
@@ -339,7 +339,7 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
   double *covar=covar_v.data(), *alpha=alpha_v.data();
 
   while(good_flag<3){  /* take 3 good steps after convergence  */
-    if(xpp::job::cancelled()||my_abort()==ESC)return FitEnd::Stopped;
+    if(my_abort()==ESC)return FitEnd::Stopped;
 
     ok=marlevstep(s,t0,y0,y,sig.data(),a,npts,nvars,npars,
 	       ivar,ipar,covar,alpha,&chisq,&alambda,work,
