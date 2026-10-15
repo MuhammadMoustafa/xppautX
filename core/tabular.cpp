@@ -14,7 +14,9 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <optional>
 #include <string>
 #include <vector>
@@ -128,7 +130,7 @@ void view_table(xpp::Session &s, int index)
   len=n;
   if(len>=s.data_store.max_rows)len=s.data_store.max_rows-1;
   for(i=0;i<len;i++){
-    s.data_store.col[0][i]=xlo+i*dx;
+    s.data_store.col[0][i]=s.tables[index].xyvals==1?s.tables[index].x[i]:xlo+i*dx;
     s.data_store.col[1][i]=y[i];
   }
   refresh_browser(s,len);
@@ -190,16 +192,11 @@ Interpolated lookupxy(double x, int n, const double *xv, const double *yv)
   }
   if(x>=xv[n-1])
     return {yv[n-1]+(yv[n-2]-yv[n-1])*(x-xv[n-1])/(xv[n-1]-xv[n-2]),(yv[n-2]-yv[n-1])/(xv[n-1]-xv[n-2])};
-  double x1=xv[0],y1=yv[0];
-  for(int i=1;i<n;i++){
-    if(x<=xv[i]){
-      const double dx=xv[i]-x1,dy=yv[i]-y1;
-      return {y1+dy*(x-x1)/dx,dy/dx};
-    }
-    x1=xv[i];
-    y1=yv[i];
-  }
-  return {yv[n-1],0.0};
+  const double *it = std::lower_bound(xv + 1, xv + n, x);
+  const int i = static_cast<int>(it - xv);
+  const double x1 = xv[i - 1], y1 = yv[i - 1];
+  const double dx = xv[i] - x1, dy = yv[i] - y1;
+  return {y1 + dy * (x - x1) / dx, dy / dx};
 }
 
 /* the cubic through y[i-1..i+2] (from xlo, step h) at x */
@@ -256,6 +253,11 @@ void init_table(xpp::Session &s)
     s.tables[i].flag=0;
     s.tables[i].autoeval=1;
     s.tables[i].interp=0;
+    s.tables[i].xyvals=0;
+    s.tables[i].x=nullptr;
+    s.tables[i].y=nullptr;
+    s.tables[i].x_storage.clear();
+    s.tables[i].y_storage.clear();
   }
 }
 
@@ -313,6 +315,9 @@ xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi
   if (!table_count_ok(s,index,npts))
     return xpp::fail("table",xpp::format("{} points exceeds the session table budget of {} points",npts,table_points_limit),table_place(s,index));
   resize_values(s.tables[index],length);
+  s.tables[index].x_storage.clear();
+  s.tables[index].x=nullptr;
+  s.tables[index].xyvals=0;
   s.tables[index].flag=2;
   auto ev=eval_fun_table(s,index,npts,xlo,xhi,std::string(formula),s.tables[index].y);
   if(!ev)return ev;
@@ -372,10 +377,57 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
     return problem(xpp::format("The table file ends after {} lines: it is too short",at));
   };
 
- s.tables[index].interp=0;
+  s.tables[index].interp=0;
   auto line0=next_line();
   if(!line0){
     return too_short();
+  }
+  if (trim_blanks(*line0) == "xyvals") {
+    auto line_pts = next_line();
+    if (!line_pts) return too_short();
+    if (!xpp::parse_int(trim_blanks(*line_pts), length))
+      return problem(xpp::format("Invalid table point count {}", *line_pts));
+    if (length < 2)
+      return problem(xpp::format("A table has at least 2 values, not {}", length));
+    if (!table_count_ok(s, index, length))
+      return problem(xpp::format("{} points exceeds the session table budget of {} points", length, table_points_limit));
+    std::vector<double> xs;
+    std::vector<double> ys;
+    xs.reserve(length);
+    ys.reserve(length);
+    for (i = 0; i < length; i++) {
+      auto line = next_line();
+      if (!line) return too_short();
+      Tokens tok(*line);
+      auto tx = tok.next(" \t\r\n\v\f");
+      auto ty = tok.next(" \t\r\n\v\f");
+      if (!tx || !ty)
+        return problem(xpp::format("Expected x and y values on line {}", at));
+      double x_val = 0.0, y_val = 0.0;
+      if (!xpp::parse_number(*tx, x_val))
+        return problem(xpp::format("Invalid x value \"{}\"", *tx));
+      if (!xpp::parse_number(*ty, y_val))
+        return problem(xpp::format("Invalid y value \"{}\"", *ty));
+      if (!std::isfinite(x_val) || !std::isfinite(y_val))
+        return problem("x and y values must be finite numbers");
+      if (i > 0 && !(x_val > xs.back()))
+        return problem(xpp::format("x values must strictly increase: {:g} is not greater than {:g}", x_val, xs.back()));
+      xs.push_back(x_val);
+      ys.push_back(y_val);
+    }
+    bool fresh = (s.tables[index].flag == 0);
+    s.tables[index].x_storage = std::move(xs);
+    s.tables[index].y_storage = std::move(ys);
+    s.tables[index].x = s.tables[index].x_storage.data();
+    s.tables[index].y = s.tables[index].y_storage.data();
+    s.tables[index].xlo = s.tables[index].x_storage.front();
+    s.tables[index].xhi = s.tables[index].x_storage.back();
+    s.tables[index].n = length;
+    s.tables[index].dx = (s.tables[index].xhi - s.tables[index].xlo) / (length - 1);
+    s.tables[index].xyvals = 1;
+    s.tables[index].flag = 1;
+    if (fresh) s.tables[index].filename = filename2;
+    return {};
   }
   {
     const char *bob=line0->c_str();
@@ -411,17 +463,20 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
     return problem(xpp::format("Its high end {:g} is not above its low end {:g}",xhi,xlo));
   }
   bool fresh=(s.tables[index].flag==0);
-  resize_values(s.tables[index],length);
+  std::vector<double> ys;
+  ys.reserve(length);
   for(i=0;i<length;i++){
     auto line=next_line();
     if(!line){
-       s.tables[index].y_storage=std::vector<double>();
-       s.tables[index].y=NULL;
-       s.tables[index].flag=0;
        return too_short();
      }
-     s.tables[index].y[i]=atof(line->c_str());
+     ys.push_back(atof(line->c_str()));
    }
+  s.tables[index].x_storage.clear();
+  s.tables[index].x = nullptr;
+  s.tables[index].xyvals = 0;
+  s.tables[index].y_storage = std::move(ys);
+  s.tables[index].y = s.tables[index].y_storage.data();
   s.tables[index].xlo=xlo;
   s.tables[index].xhi=xhi;
   s.tables[index].n=length;

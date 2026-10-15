@@ -6767,8 +6767,8 @@ async function main() {
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (xpp_util.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
-    if (run('values')) await session(ODE, valuesJacobian, ['Numerics: Jacobian: exact is not available: w260noise.odex:2:1: uses random numbers']);
-    if (run('values')) await session(LIVE, valuesLive, ['set par iapp: Illegal formula ..', 'set par gca: Illegal formula ..']);
+    if (run('values')) await session(ODE, valuesJacobian, ['command:1: Numerics: Jacobian: exact is not available: w260noise.odex:2:1: uses random numbers']);
+    if (run('values')) await session(LIVE, valuesLive, ['command:1: set par iapp: Illegal formula ..', 'command:1: set par gca: Illegal formula ..']);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
     if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), bcSection(2));
     if (run('help')) await session(ODE, helpCheck);

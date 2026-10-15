@@ -25,6 +25,7 @@ struct TABULAR {
   double xlo=0.0,xhi=0.0,dx=0.0;
   double *y=nullptr,*x=nullptr;
   std::vector<double> y_storage;
+  std::vector<double> x_storage;
   int n=0,flag=0,interp=0,autoeval=0;
   int xyvals=0;
 /* flag=0 if virgin array, flag=1 if already allocated; flag=2 for function
