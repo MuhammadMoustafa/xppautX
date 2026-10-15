@@ -106,6 +106,10 @@ for (let i = 2; i < process.argv.length; i++) {
 const bin = path.resolve(top, opt.bin);
 const ODE = path.join(top, 'examples/ode/lecar.odex');
 const LIVE = path.join(top, 'tools/models/live.odex');
+/* a live command's error as the page shows it (errorText), its place first: a protocol line
+   is the one-line source `command:1` (ui_json.cpp handle_line), and a refused `set` carries it (W347) */
+const commandError = what => `command:1: ${what}`;
+const BAD_IAPP = commandError('set par iapp: Illegal formula ..');
 const MILLION = path.join(top, 'tools/models/million.odex');
 const APLOT_ODE = path.join(top, 'examples/ode/wcring.odex');
 const LORENZ_ODE = path.join(top, 'examples/ode/lorenz.odex');
@@ -2337,9 +2341,9 @@ async function autoView(dir) {
      `auto` command, so it does not disturb the `sent()` checks below) fails in
      json_state.cpp read_value: "set par iapp: Illegal formula .." */
   await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
-  await until(`s.bottom === 'set par iapp: Illegal formula ..'`, 'bottom message');
+  await until(`s.bottom === ${JSON.stringify(BAD_IAPP)}`, 'bottom message');
   check("T26: the core's last message shows in the AUTO strip",
-    (await cdp.eval(`document.querySelector('.auto-message')?.textContent`)) === 'set par iapp: Illegal formula ..');
+    (await cdp.eval(`document.querySelector('.auto-message')?.textContent`)) === BAD_IAPP);
   /* an error opens the error dialog (ErrorDialog.tsx) until OK: close it so it does not sit over a
      later control (it is above the AUTO view too, T26's dialog-backdrop note) */
   await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
@@ -6027,7 +6031,7 @@ async function errorDialogCheck(dir) {
     JSON.stringify(await dialog()));
   check('error dialog: focus is on OK', await cdp.eval(`document.activeElement && document.activeElement.hasAttribute('data-error-ok')`));
   await bad();
-  await until(`__xpp.log().filter(l => l.kind === 'error' && l.text === 'set par iapp: Illegal formula ..').length >= 2`, 'second error');
+  await until(`__xpp.log().filter(l => l.kind === 'error' && l.text === ${JSON.stringify(BAD_IAPP)}).length >= 2`, 'second error');
   const two = await dialog();
   check('error dialog: two errors before OK are one dialog listing both',
     two.count === 1 && two.n >= 2 && (two.text.match(/set par iapp: Illegal formula ../g) || []).length >= 2, JSON.stringify(two));
@@ -6035,7 +6039,7 @@ async function errorDialogCheck(dir) {
   check('error dialog: Enter closes it, nothing left',
     await until(`!document.querySelector('.error-dialog') && !s.toasts.some(t => t.kind === 'error')`, 'closed'));
   check('error dialog: the errors stay in the Messages list',
-    (await S(`__xpp.log().filter(l => l.kind === 'error' && l.text === 'set par iapp: Illegal formula ..').length`)) >= 2);
+    (await S(`__xpp.log().filter(l => l.kind === 'error' && l.text === ${JSON.stringify(BAD_IAPP)}).length`)) >= 2);
   await bad();
   await until(`document.querySelector('.error-dialog')`, 'dialog again');
   await key('Escape');
@@ -6466,7 +6470,7 @@ async function layoutCheck(dir) {
   await desktopMetrics();
   await rendered();
   await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
-  await until(`s.bottom === 'set par iapp: Illegal formula ..'`, 'bottom message');
+  await until(`s.bottom === ${JSON.stringify(BAD_IAPP)}`, 'bottom message');
   await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
   await until(`!s.toasts.length`, 'toasts dismissed');
   check('layout: the message strip is the topmost element at its left end (nothing over it)',
@@ -6733,7 +6737,7 @@ async function main() {
     });
     if (run('desktop')) await session(ODE, sliderModelSwitch);
     if (run('desktop')) await session(ODE, reopenedSessionPlot);
-    if (run('layout')) await session(ODE, layoutCheck, ['set par iapp: Illegal formula ..']);
+    if (run('layout')) await session(ODE, layoutCheck, [BAD_IAPP]);
     if (run('phase')) await session(ODE, phasePlane);
     if (run('automarks')) await session(ODE, autoMarks);
     if (run('auto')) await session(ODE, autoView);
@@ -6767,13 +6771,13 @@ async function main() {
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (xpp_util.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
-    if (run('values')) await session(ODE, valuesJacobian, ['Numerics: Jacobian: exact is not available: w260noise.odex:2:1: uses random numbers']);
-    if (run('values')) await session(LIVE, valuesLive, ['set par iapp: Illegal formula ..', 'set par gca: Illegal formula ..']);
+    if (run('values')) await session(ODE, valuesJacobian, [commandError('Numerics: Jacobian: exact is not available: w260noise.odex:2:1: uses random numbers')]);
+    if (run('values')) await session(LIVE, valuesLive, [BAD_IAPP, commandError('set par gca: Illegal formula ..')]);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
     if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), bcSection(2));
     if (run('help')) await session(ODE, helpCheck);
     if (run('updates')) await session(ODE, updatesCheck);
-    if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'set par iapp: Illegal formula ..',
+    if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', BAD_IAPP,
       'w140bad.par:1: it is for 3 parameters, the model has 12']);
     if (run('errordialog')) await warningFlashCheck();
     if (run('errordialog')) await session(ODE, jacobianOfferCheck,
