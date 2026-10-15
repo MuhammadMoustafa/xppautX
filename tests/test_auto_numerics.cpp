@@ -1,25 +1,70 @@
-/* W337 (#398): compare the numerical owner with frozen pre-move algorithms,
-   including overwritten workspaces, determinants, diagnostics and continuity.
-   The oracle is confined to this test, not an alternative production path. */
+/* W337 (#398): bytewise FNV-1a digests of every compared numerical output,
+   workspace, determinant, status, diagnostic and continuity state.
+   Constants were recorded from the pre-W337 code (e03d41d0).
+   A deliberate numerical change must regenerate them and say so in its commit. */
 #include "xpptest.h"
-#include "auto_numerics_reference.h"
+#include "xpp_math.h"
+#include "session.h"
+#include "auto_c.h"
+#include "xpp_io.h"
 #include "xpp_batch.h"
 #include "xpp_files.h"
 #include "jacobian.h"
 #include "expr_native.h"
-#include <bit>
+#include <array>
+#include <cstddef>
+#include <span>
+#include <vector>
+#include <type_traits>
 #include <cmath>
 #include <cstdint>
 #include <string>
 
 namespace {
+constexpr std::array expected{
+    0x7f0016dd13d0138bULL, // GE pivot, two RHS: error, matrix, RHS, solution, determinant, fort.9
+    0x3e642bfd43cbcd9eULL, // GE pivot, determinant only: error, matrix, RHS, solution, determinant, fort.9
+    0xe73d79a470585b03ULL, // GE singular, determinant only: error, matrix, RHS, solution, determinant, fort.9
+    0xc69e4e9650dff6c7ULL, // GE singular solve: error, matrix, RHS, solution, determinant, fort.9
+    0x44024f41db685dd8ULL, // NLVC nullity two: status, matrix, null vector, fort.9
+    0xf81615fb6d07755dULL, // NLVC tiny pivot: status, matrix, null vector, fort.9
+    0x7f661e0e57524baaULL, // RG pivot, values only: status, padded matrix, roots, vectors, work, pivots
+    0x349c19e0f66f3064ULL, // RG singular, values only: status, padded matrix, roots, vectors, work, pivots
+    0x0bbde7244b2fc9f8ULL, // RG conjugate, values only: status, padded matrix, roots, vectors, work, pivots
+    0x9cd341a44aa97cf5ULL, // RG dense, values only: status, padded matrix, roots, vectors, work, pivots
+    0x0f4ce6ca9a50b4f9ULL, // RG pivot, eigenvectors: status, padded matrix, roots, vectors, work, pivots
+    0x67a5b946706c2655ULL, // RG singular, eigenvectors: status, padded matrix, roots, vectors, work, pivots
+    0x709dfb16ffaddb58ULL, // RG conjugate, eigenvectors: status, padded matrix, roots, vectors, work, pivots
+    0x1168e9a8a711f240ULL, // RG dense, eigenvectors: status, padded matrix, roots, vectors, work, pivots
+    0xe30e08c5a86e21a5ULL, // SVD pivot: status, matrix, singular values, off-diagonal, U, V, work
+    0x0b08be3354f11dbfULL, // SVD singular: status, matrix, singular values, off-diagonal, U, V, work
+    0x175dbf80968a3629ULL, // SVD dense: status, matrix, singular values, off-diagonal, U, V, work
+    0x2e86b7c46c18ce9cULL, // Floquet conjugate pair: status, pencil, work, multipliers, fort.9
+    0x796d55cf896e1128ULL, // Floquet deflation: status, pencil, work, multipliers, fort.9
+    0x9b121411143fd27eULL, // Floquet infinite multiplier: status, pencil, work, multipliers, fort.9
+    0x75d8add69a35b7ecULL, // QZ stages: statuses, error, pencil, vectors, alpha real/imaginary, beta
+    0x60e747649c920116ULL, // SVD rotations, sig22/sigmin, epslon, complex division: statuses and outputs
+    0x656ad85266cca367ULL, // BLAS strides/transposes: norms, dot, pivot, statuses, vectors, matrices
+    0xe93b1d3f1a696b09ULL, // Schur conjugate, stable: work, status, vectors, roots, types
+    0xdd349a10d75201e4ULL, // Schur dense, stable: work, status, vectors, roots, types
+    0x0e63480b71848686ULL, // Schur conjugate, unstable: work, status, vectors, roots, types
+    0xa13b817f19765a9eULL, // Schur dense, unstable: work, status, vectors, roots, types
+    0xe2a7aa2b579f4635ULL, // HomCont eigho/prjctn: statuses, arrays, continuity vectors/flags; eig errors, roots, fort.9
+};
+
 constexpr integer n = 3; // Small matrices allow every overwritten element to be compared.
 
-void same(std::span<const double> a, std::span<const double> b)
+constexpr std::uint64_t fnv_offset_basis = 14695981039346656037ULL; // FNV-1a's specified 64-bit seed.
+constexpr std::uint64_t fnv_prime = 1099511628211ULL; // FNV-1a's specified 64-bit prime.
+
+template <class T> void fold(std::uint64_t &digest, const T &value)
 {
-    CHECK(a.size() == b.size());
-    for (size_t i = 0; i < a.size() && i < b.size(); ++i)
-        CHECK(std::bit_cast<std::uint64_t>(a[i]) == std::bit_cast<std::uint64_t>(b[i]));
+    if constexpr (std::is_arithmetic_v<T>) {
+        for (const auto byte : std::as_bytes(std::span{&value, 1}))
+            digest = (digest ^ std::to_integer<unsigned char>(byte)) * fnv_prime;
+    } else {
+        for (const auto &element : value) fold(digest, element);
+    }
 }
 
 std::string contents(FILE *file)
@@ -37,51 +82,51 @@ template <class F> std::string failure(F call)
     return {};
 }
 
-void solve(std::vector<double> input, integer rhs, bool expect_failure = false)
+std::uint64_t solve(std::vector<double> input, integer rhs, bool expect_failure = false)
 {
-    auto a = input, b = input;
-    std::array<double, 6> f{.3, -2., 4., 1., 0., -3.}, g = f, u{}, v{};
-    double det = 0., old_det = 0.;
-    xpp::UniqueFile log(std::tmpfile()), old_log(std::tmpfile());
-    CHECK(log && old_log);
-    if (!log || !old_log) return;
+    std::uint64_t digest = fnv_offset_basis;
+    auto a = input;
+    std::array<double, 6> f{.3, -2., 4., 1., 0., -3.}, u{};
+    double det = 0.;
+    xpp::UniqueFile log(std::tmpfile());
+    CHECK(log);
+    if (!log) return digest;
     const auto error = failure([&] { xpp::ge(log.get(), n, n, a.data(), rhs, n, u.data(), n, f.data(), &det); });
-    const auto old_error = failure([&] { auto_numerics_reference::ge(old_log.get(), n, n, b.data(), rhs, n, v.data(), n, g.data(), &old_det); });
-    CHECK(error == old_error);
+    fold(digest, error);
     CHECK(!error.empty() == expect_failure);
-    same(a, b); same(f, g); same(u, v); same({&det, 1}, {&old_det, 1});
-    CHECK(contents(log.get()) == contents(old_log.get()));
+    fold(digest, a); fold(digest, f); fold(digest, u); fold(digest, det);
+    fold(digest, contents(log.get()));
+    return digest;
 }
 
-void null_vector(std::vector<double> a, integer nullity)
+std::uint64_t null_vector(std::vector<double> a, integer nullity)
 {
-    auto b = a;
-    std::array<double, n> u{}, v{};
-    xpp::UniqueFile log(std::tmpfile()), old_log(std::tmpfile());
-    CHECK(log && old_log);
-    if (!log || !old_log) return;
-    CHECK(xpp::nlvc(log.get(), n, n, nullity, a.data(), u.data()) ==
-          auto_numerics_reference::nlvc(old_log.get(), n, n, nullity, b.data(), v.data()));
-    same(a, b); same(u, v);
-    CHECK(contents(log.get()) == contents(old_log.get()));
+    std::uint64_t digest = fnv_offset_basis;
+    std::array<double, n> u{};
+    xpp::UniqueFile log(std::tmpfile());
+    CHECK(log);
+    if (!log) return digest;
+    fold(digest, xpp::nlvc(log.get(), n, n, nullity, a.data(), u.data()));
+    fold(digest, a); fold(digest, u);
+    fold(digest, contents(log.get()));
+    return digest;
 }
 
-void roots(std::vector<double> input, integer vectors)
+std::uint64_t roots(std::vector<double> input, integer vectors)
 {
+    std::uint64_t digest = fnv_offset_basis;
     /* Padded leading dimension exercises the interface gear's solver lacks. */
     constexpr integer ld = n + 1;
-    std::array<double, ld*n> a{}, b{}, z{}, old_z{};
+    std::array<double, ld*n> a{}, z{};
     for (integer j = 0; j < n; ++j)
         for (integer i = 0; i < n; ++i) a[i+j*ld] = input[i+j*n];
-    b = a;
-    std::array<double, n> wr{}, wi{}, old_wr{}, old_wi{}, work{}, old_work{};
-    std::array<integer, n> piv{}, old_piv{};
-    integer status = -1, old_status = -1;
+    std::array<double, n> wr{}, wi{}, work{};
+    std::array<integer, n> piv{};
+    integer status = -1;
     xpp::rg(ld, n, a.data(), wr.data(), wi.data(), vectors, z.data(), piv.data(), work.data(), &status);
-    auto_numerics_reference::rg(ld, n, b.data(), old_wr.data(), old_wi.data(), vectors, old_z.data(), old_piv.data(), old_work.data(), &old_status);
-    CHECK(status == 0 && status == old_status);
-    same(a, b); same(wr, old_wr); same(wi, old_wi); same(z, old_z); same(work, old_work);
-    CHECK(piv == old_piv);
+    CHECK(status == 0); fold(digest, status);
+    fold(digest, a); fold(digest, wr); fold(digest, wi); fold(digest, z); fold(digest, work);
+    fold(digest, piv);
     if (vectors) {
         /* EISPACK packs a conjugate pair as consecutive real/imaginary columns. */
         for (integer j = 0; j < n; ++j) {
@@ -98,152 +143,149 @@ void roots(std::vector<double> input, integer vectors)
             }
         }
     }
+    return digest;
 }
 
-void svd(std::vector<double> a)
+std::uint64_t svd(std::vector<double> a)
 {
-    auto b = a;
-    std::array<double, n+1> s{}, e{}, work{}, old_s{}, old_e{}, old_work{};
-    std::array<double, n*n> u{}, v{}, old_u{}, old_v{};
-    integer ld = n, rows = n, cols = n, job = 11, status = -1, old_status = -1;
+    std::uint64_t digest = fnv_offset_basis;
+    std::array<double, n+1> s{}, e{}, work{};
+    std::array<double, n*n> u{}, v{};
+    integer ld = n, rows = n, cols = n, job = 11, status = -1;
     double tol = 1e-14; // SVD's documented relative tolerance above machine precision.
     xpp::ezsvd(a.data(), &ld, &rows, &cols, s.data(), e.data(), u.data(), &ld, v.data(), &ld, work.data(), &job, &status, &tol);
-    auto_numerics_reference::ezsvd(b.data(), &ld, &rows, &cols, old_s.data(), old_e.data(), old_u.data(), &ld, old_v.data(), &ld, old_work.data(), &job, &old_status, &tol);
-    CHECK(status == 0 && status == old_status);
-    same(a, b); same(s, old_s); same(e, old_e); same(u, old_u); same(v, old_v); same(work, old_work);
+    CHECK(status == 0); fold(digest, status);
+    fold(digest, a); fold(digest, s); fold(digest, e); fold(digest, u); fold(digest, v); fold(digest, work);
+    return digest;
 }
 
-void floquet(bool deflate, bool infinite)
+std::uint64_t floquet(bool deflate, bool infinite)
 {
+    std::uint64_t digest = fnv_offset_basis;
     /* A real multiplier plus a conjugate pair; first multiplier is exactly 1
        when deflated, as for a periodic orbit. A singular pencil also checks
        the infinite-multiplier representation and its diagnostic. */
     std::array<double, n*n> a{1.,0.,0., 0.,.5,-.25, 0.,.25,.5};
     std::array<double, n*n> b{-1.,0.,0., 0.,-1.,0., 0.,0.,-1.};
     if (infinite) b[0] = 0.;
-    auto old_a = a, old_b = b;
-    std::array<double, n*n> work{}, old_work{};
-    std::array<doublecomplex, n> ev{}, old_ev{};
+    std::array<double, n*n> work{};
+    std::array<doublecomplex, n> ev{};
     integer dim = n, diagnostic = 4;
-    xpp::UniqueFile log(std::tmpfile()), old_log(std::tmpfile());
-    CHECK(log && old_log);
-    if (!log || !old_log) return;
-    CHECK(xpp::flowkm(log.get(), &dim, a.data(), b.data(), &diagnostic, work.data(), ev.data(), deflate) ==
-          auto_numerics_reference::flowkm(old_log.get(), &dim, old_a.data(), old_b.data(), &diagnostic, old_work.data(), old_ev.data(), deflate));
-    same(a, old_a); same(b, old_b); same(work, old_work);
+    xpp::UniqueFile log(std::tmpfile());
+    CHECK(log);
+    if (!log) return digest;
+    fold(digest, xpp::flowkm(log.get(), &dim, a.data(), b.data(), &diagnostic, work.data(), ev.data(), deflate));
+    fold(digest, a); fold(digest, b); fold(digest, work);
     for (integer i = 0; i < n; ++i) {
-        same({&ev[i].r, 1}, {&old_ev[i].r, 1}); same({&ev[i].i, 1}, {&old_ev[i].i, 1});
+        fold(digest, ev[i].r); fold(digest, ev[i].i);
     }
-    CHECK(contents(log.get()) == contents(old_log.get()));
+    fold(digest, contents(log.get()));
+    return digest;
 }
 
-void schur(std::vector<double> a, integer manifold)
+std::uint64_t schur(std::vector<double> a, integer manifold)
 {
-    auto b = a;
-    std::array<double, n> ort{}, old_ort{}, er{}, ei{}, old_er{}, old_ei{};
-    std::array<double, n*n> v{}, old_v{};
-    std::array<integer, n> type{}, old_type{};
+    std::uint64_t digest = fnv_offset_basis;
+    std::array<double, n> ort{}, er{}, ei{};
+    std::array<double, n*n> v{};
+    std::array<integer, n> type{};
     integer dim = n, low = 1;
     double eps = 1e-13; // HomCont's component-zero tolerance.
     xpp::orthes(&dim, &dim, &low, &dim, a.data(), ort.data());
-    auto_numerics_reference::orthes(&dim, &dim, &low, &dim, b.data(), old_ort.data());
-    same(a,b); same(ort,old_ort);
+    fold(digest, a); fold(digest, ort);
     xpp::ortran(&dim, &dim, &low, &dim, a.data(), ort.data(), v.data());
-    auto_numerics_reference::ortran(&dim, &dim, &low, &dim, b.data(), old_ort.data(), old_v.data());
-    same(v,old_v);
+    fold(digest, v);
     for (integer i = 2; i < n; ++i)
-        for (integer j = 0; j < i-1; ++j) a[i+j*n] = b[i+j*n] = 0.;
-    CHECK(xpp::hqr3lc(a.data(), v.data(), &dim, &low, &dim, &eps, er.data(), ei.data(), type.data(), &dim, &dim, &manifold) ==
-          auto_numerics_reference::hqr3lc(b.data(), old_v.data(), &dim, &low, &dim, &eps, old_er.data(), old_ei.data(), old_type.data(), &dim, &dim, &manifold));
-    same(a,b); same(v,old_v); same(er,old_er); same(ei,old_ei); CHECK(type == old_type);
+        for (integer j = 0; j < i-1; ++j) a[i+j*n] = 0.;
+    fold(digest, xpp::hqr3lc(a.data(), v.data(), &dim, &low, &dim, &eps, er.data(), ei.data(), type.data(), &dim, &dim, &manifold));
+    fold(digest, a); fold(digest, v); fold(digest, er); fold(digest, ei); fold(digest, type);
+    return digest;
 }
 
-void qz_vectors()
+std::uint64_t qz_vectors()
 {
+    std::uint64_t digest = fnv_offset_basis;
     std::array<double,n*n> a{.25,-2.,3., 4.,.5,-1., -3.,2.,.75};
     std::array<double,n*n> b{3.,0.,0., .25,2.,0., -.5,.75,1.};
-    auto old_a=a, old_b=b;
-    std::array<double,n*n> z{}, old_z{};
-    std::array<double,n> ar{}, ai{}, beta{}, old_ar{}, old_ai{}, old_beta{};
-    integer error=-1, old_error=-1;
-    CHECK(xpp::qzhes(n,n,a.data(),b.data(),1,z.data()) ==
-          auto_numerics_reference::qzhes(n,n,old_a.data(),old_b.data(),1,old_z.data()));
-    same(a,old_a); same(b,old_b); same(z,old_z);
-    CHECK(xpp::qzit(n,n,a.data(),b.data(),0.,1,z.data(),&error) ==
-          auto_numerics_reference::qzit(n,n,old_a.data(),old_b.data(),0.,1,old_z.data(),&old_error));
-    CHECK(error == 0 && error == old_error);
-    same(a,old_a); same(b,old_b); same(z,old_z);
-    CHECK(xpp::qzval(n,n,a.data(),b.data(),ar.data(),ai.data(),beta.data(),1,z.data()) ==
-          auto_numerics_reference::qzval(n,n,old_a.data(),old_b.data(),old_ar.data(),old_ai.data(),old_beta.data(),1,old_z.data()));
-    same(a,old_a); same(b,old_b); same(z,old_z);
-    same(ar,old_ar); same(ai,old_ai); same(beta,old_beta);
+    std::array<double,n*n> z{};
+    std::array<double,n> ar{}, ai{}, beta{};
+    integer error=-1;
+    fold(digest, xpp::qzhes(n,n,a.data(),b.data(),1,z.data()));
+    fold(digest, a); fold(digest, b); fold(digest, z);
+    fold(digest, xpp::qzit(n,n,a.data(),b.data(),0.,1,z.data(),&error));
+    CHECK(error == 0); fold(digest, error);
+    fold(digest, a); fold(digest, b); fold(digest, z);
+    fold(digest, xpp::qzval(n,n,a.data(),b.data(),ar.data(),ai.data(),beta.data(),1,z.data()));
+    fold(digest, a); fold(digest, b); fold(digest, z);
+    fold(digest, ar); fold(digest, ai); fold(digest, beta);
+    return digest;
 }
 
-void scalar_helpers()
+std::uint64_t scalar_helpers()
 {
+    std::uint64_t digest = fnv_offset_basis;
     /* Cover the SVD rotations independently, including zero and disparate
        scales, so a shortcut cannot hide behind composite eigenvalue tests. */
     for (double f : {0.,-0.,1e-100,-3.,1e100}) for (double g : {0.,2.,-1e-100,1e100}) {
-        double old_f=f, old_g=g, c=0., s=0., old_c=0., old_s=0.;
-        CHECK(xpp::ndrotg(&f,&g,&c,&s) == auto_numerics_reference::ndrotg(&old_f,&old_g,&old_c,&old_s));
-        same({&f,1},{&old_f,1}); same({&g,1},{&old_g,1}); same({&c,1},{&old_c,1}); same({&s,1},{&old_s,1});
-        CHECK(xpp::sndrtg(&f,&g,&c,&s) == auto_numerics_reference::sndrtg(&old_f,&old_g,&old_c,&old_s));
-        same({&c,1},{&old_c,1}); same({&s,1},{&old_s,1});
-        double h=.75, old_h=h;
-        std::array<double,6> out{}, old_out{};
-        CHECK(xpp::sig22(&f,&g,&h,&out[0],&out[1],&out[2],&out[3],&out[4],&out[5]) ==
-              auto_numerics_reference::sig22(&old_f,&old_g,&old_h,&old_out[0],&old_out[1],&old_out[2],&old_out[3],&old_out[4],&old_out[5]));
-        same(out,old_out);
-        const double small=xpp::sigmin(&f,&g,&h), old_small=auto_numerics_reference::sigmin(&old_f,&old_g,&old_h);
-        same({&small,1},{&old_small,1});
-        const double eps=xpp::epslon(f), old_eps=auto_numerics_reference::epslon(old_f);
-        same({&eps,1},{&old_eps,1});
+        double c=0., s=0.;
+        fold(digest, xpp::ndrotg(&f,&g,&c,&s));
+        fold(digest, f); fold(digest, g); fold(digest, c); fold(digest, s);
+        fold(digest, xpp::sndrtg(&f,&g,&c,&s));
+        fold(digest, c); fold(digest, s);
+        double h=.75;
+        std::array<double,6> out{};
+        fold(digest, xpp::sig22(&f,&g,&h,&out[0],&out[1],&out[2],&out[3],&out[4],&out[5]));
+        fold(digest, out);
+        const double small=xpp::sigmin(&f,&g,&h);
+        fold(digest, small);
+        const double eps=xpp::epslon(f);
+        fold(digest, eps);
     }
-    double ar=1e200, ai=-3e199, br=2e200, bi=7e199, cr=0., ci=0., old_cr=0., old_ci=0.;
+    double ar=1e200, ai=-3e199, br=2e200, bi=7e199, cr=0., ci=0.;
     xpp::cdiv(&ar,&ai,&br,&bi,&cr,&ci);
-    auto_numerics_reference::cdiv(&ar,&ai,&br,&bi,&old_cr,&old_ci);
-    same({&cr,1},{&old_cr,1}); same({&ci,1},{&old_ci,1});
+    fold(digest, cr); fold(digest, ci);
+    return digest;
 }
 
-void blas_helpers()
+std::uint64_t blas_helpers()
 {
+    std::uint64_t digest = fnv_offset_basis;
     for (integer stride : {1,2}) { // Legacy dnrm2/dscal require positive increments.
         integer count=n;
         std::array<double,9> x{1.,-4.,.5,2.,-3.,.25,7.,1.,-2.}, y=x;
-        std::array<double,9> old_x=x, old_y=y;
-        const double norm=xpp::dnrm2(&count,x.data(),&stride), old_norm=auto_numerics_reference::dnrm2(&count,old_x.data(),&stride);
-        same({&norm,1},{&old_norm,1});
-        const double dot=xpp::ddot(&count,x.data(),&stride,y.data(),&stride), old_dot=auto_numerics_reference::ddot(&count,old_x.data(),&stride,old_y.data(),&stride);
-        same({&dot,1},{&old_dot,1});
-        CHECK(xpp::idamax(&count,x.data(),&stride) == auto_numerics_reference::idamax(&count,old_x.data(),&stride));
+        const double norm=xpp::dnrm2(&count,x.data(),&stride);
+        fold(digest, norm);
+        const double dot=xpp::ddot(&count,x.data(),&stride,y.data(),&stride);
+        fold(digest, dot);
+        fold(digest, xpp::idamax(&count,x.data(),&stride));
         double scale=-.3, c=.6, s=.8;
-        CHECK(xpp::dscal(&count,&scale,x.data(),&stride) == auto_numerics_reference::dscal(&count,&scale,old_x.data(),&stride));
-        same(x,old_x);
-        CHECK(xpp::daxpy(&count,&scale,x.data(),&stride,y.data(),&stride) == auto_numerics_reference::daxpy(&count,&scale,old_x.data(),&stride,old_y.data(),&stride));
-        same(y,old_y);
-        CHECK(xpp::drot(&count,x.data(),&stride,y.data(),&stride,&c,&s) == auto_numerics_reference::drot(&count,old_x.data(),&stride,old_y.data(),&stride,&c,&s));
-        same(x,old_x); same(y,old_y);
-        CHECK(xpp::dswap(&count,x.data(),&stride,y.data(),&stride) == auto_numerics_reference::dswap(&count,old_x.data(),&stride,old_y.data(),&stride));
-        same(x,old_x); same(y,old_y);
+        fold(digest, xpp::dscal(&count,&scale,x.data(),&stride));
+        fold(digest, x);
+        fold(digest, xpp::daxpy(&count,&scale,x.data(),&stride,y.data(),&stride));
+        fold(digest, y);
+        fold(digest, xpp::drot(&count,x.data(),&stride,y.data(),&stride,&c,&s));
+        fold(digest, x); fold(digest, y);
+        fold(digest, xpp::dswap(&count,x.data(),&stride,y.data(),&stride));
+        fold(digest, x); fold(digest, y);
     }
     for (const char *ta : {"n","T"}) for (const char *tb : {"N","t"}) {
         integer dim=n;
-        std::array<double,n*n> a{1.,-4.,.5,2.,-3.,.25,7.,1.,-2.}, b=a, c=a, old_c=a;
+        std::array<double,n*n> a{1.,-4.,.5,2.,-3.,.25,7.,1.,-2.}, b=a, c=a;
         double alpha=.3, beta=-.7;
-        CHECK(xpp::dgemm(ta,tb,&dim,&dim,&dim,&alpha,a.data(),&dim,b.data(),&dim,&beta,c.data(),&dim,1,1) ==
-              auto_numerics_reference::dgemm(ta,tb,&dim,&dim,&dim,&alpha,a.data(),&dim,b.data(),&dim,&beta,old_c.data(),&dim,1,1));
-        same(c,old_c);
+        fold(digest, xpp::dgemm(ta,tb,&dim,&dim,&dim,&alpha,a.data(),&dim,b.data(),&dim,&beta,c.data(),&dim,1,1));
+        fold(digest, c);
         for (logical transpose : {0,1}) {
-            CHECK(xpp::dgemc(&dim,&dim,a.data(),&dim,c.data(),&dim,&transpose) ==
-                  auto_numerics_reference::dgemc(&dim,&dim,a.data(),&dim,old_c.data(),&dim,&transpose));
-            same(c,old_c);
+            fold(digest, xpp::dgemc(&dim,&dim,a.data(),&dim,c.data(),&dim,&transpose));
+            fold(digest, c);
         }
-        CHECK(xpp::lsame(ta,tb,1,1) == auto_numerics_reference::lsame(ta,tb,1,1));
+        fold(digest, xpp::lsame(ta,tb,1,1));
     }
+    return digest;
 }
 
-void homcont()
+std::uint64_t homcont()
 {
+    std::uint64_t digest = fnv_offset_basis;
     xpp::TempDir temp;
     std::string path = temp.path() + "/numerics.odex";
     auto writer = xpp::Writer::binary(path);
@@ -254,7 +296,7 @@ void homcont()
     char *argv[] = {name, path.data(), nullptr};
     const auto loaded = xpp::load_model(2, argv, 1);
     CHECK(loaded.has_value());
-    if (!loaded) return;
+    if (!loaded) return digest;
     auto &session = xpp::client_session();
     CHECK(xpp::ensure_exact_jacobian(session));
     session.numerics.jacobian = xpp::JACOBIAN_EXACT;
@@ -268,85 +310,94 @@ void homcont()
     lib.homcont.blhom.nstab = 2;
     lib.homcont.blhom.nunstab = 1;
     lib.homcont.blhma.compzero = auto_hmachho;
-    auto new_state = lib.homcont, old_state = lib.homcont;
+    auto new_state = lib.homcont;
     std::array projection_new{lib.homcont,lib.homcont};
-    auto projection_old = projection_new;
     iap_type iap{};
     iap.lib = &lib; iap.ndim = n; iap.ndm = n; iap.nfpr = 1;
     std::array<integer, 1> icp{session.auto_state.parameter_layout.solver_index(0)};
-    std::vector<double> par(lib.parameter_count), dfdp(n*lib.parameter_count), old_dfdp = dfdp;
-    std::array<double,n> equilibrium{}, rr{}, ri{}, old_rr{}, old_ri{};
-    std::array<double,n*n> a{}, old_a{}, zz{}, old_zz{}, vectors{}, old_vectors{}, bound{}, old_bound{};
-    xpp::UniqueFile log(std::tmpfile()), old_log(std::tmpfile());
-    CHECK(log && old_log);
-    if (!log || !old_log) return;
+    std::vector<double> par(lib.parameter_count), dfdp(n*lib.parameter_count);
+    std::array<double,n> equilibrium{}, rr{}, ri{};
+    std::array<double,n*n> a{}, zz{}, vectors{}, bound{};
+    xpp::UniqueFile log(std::tmpfile());
+    CHECK(log);
+    if (!log) return digest;
     integer dim = n;
     for (integer transpose : {1,2}) for (integer endpoint : {1,2}) for (double p : {.2,.3}) {
         par[icp[0]] = p;
         lib.homcont = new_state;
         lib.fp9 = log.get();
-        CHECK(xpp::eigho(&iap, &endpoint, &transpose, rr.data(), ri.data(), vectors.data(), equilibrium.data(), icp.data(), par.data(), &dim, a.data(), dfdp.data(), zz.data()) == 0);
+        const auto eigho_status = xpp::eigho(&iap, &endpoint, &transpose, rr.data(), ri.data(), vectors.data(), equilibrium.data(), icp.data(), par.data(), &dim, a.data(), dfdp.data(), zz.data());
+        CHECK(eigho_status == 0);
         new_state = lib.homcont;
-        lib.homcont = old_state;
-        lib.fp9 = old_log.get();
-        CHECK(auto_numerics_reference::eigho(&iap, &endpoint, &transpose, old_rr.data(), old_ri.data(), old_vectors.data(), equilibrium.data(), icp.data(), par.data(), &dim, old_a.data(), old_dfdp.data(), old_zz.data()) == 0);
-        old_state = lib.homcont;
-        same(rr,old_rr); same(ri,old_ri); same(vectors,old_vectors); same(a,old_a); same(zz,old_zz); same(dfdp,old_dfdp);
-        same(new_state.blhme.vrprev,old_state.blhme.vrprev);
-        CHECK(new_state.blhme.ieigc == old_state.blhme.ieigc);
+        fold(digest, eigho_status);
+        fold(digest, rr); fold(digest, ri); fold(digest, vectors); fold(digest, a); fold(digest, zz); fold(digest, dfdp);
+        fold(digest, new_state.blhme.vrprev);
+        fold(digest, new_state.blhme.ieigc);
         for (integer manifold : {-1,1}) {
             const size_t side = manifold == -1 ? 0 : 1;
             lib.homcont = projection_new[side];
             lib.fp9 = log.get();
-            CHECK(xpp::prjctn(&iap, bound.data(), equilibrium.data(), icp.data(), par.data(), &manifold, &endpoint, &transpose, &dim, a.data(), dfdp.data()) == 0);
+            const auto projection_status = xpp::prjctn(&iap, bound.data(), equilibrium.data(), icp.data(), par.data(), &manifold, &endpoint, &transpose, &dim, a.data(), dfdp.data());
+            CHECK(projection_status == 0);
             projection_new[side] = lib.homcont;
-            lib.homcont = projection_old[side];
-            lib.fp9 = old_log.get();
-            CHECK(auto_numerics_reference::prjctn(&iap, old_bound.data(), equilibrium.data(), icp.data(), par.data(), &manifold, &endpoint, &transpose, &dim, old_a.data(), old_dfdp.data()) == 0);
-            projection_old[side] = lib.homcont;
-            same(bound,old_bound); same(a,old_a); same(dfdp,old_dfdp);
-            same(projection_new[side].beyn.cprev,projection_old[side].beyn.cprev);
-            CHECK(projection_new[side].beyn.iflag == projection_old[side].beyn.iflag);
+            fold(digest, projection_status);
+            fold(digest, bound); fold(digest, a); fold(digest, dfdp);
+            fold(digest, projection_new[side].beyn.cprev);
+            fold(digest, projection_new[side].beyn.iflag);
         }
     }
     /* AUTO's root adapter and its failed-dimension diagnostic are independent
        of the HomCont vector interface above. */
     for (integer leading : {n, n-1}) {
-        a = {2.,0.,0., 0.,-1.,2., 0.,-2.,-1.}; old_a = a;
-        std::array<doublecomplex,n> ev{}, old_ev{};
-        integer error = -1, old_error = -1;
+        a = {2.,0.,0., 0.,-1.,2., 0.,-2.,-1.};
+        std::array<doublecomplex,n> ev{};
+        integer error = -1;
         lib.fp9 = log.get();
         const auto message = failure([&] { xpp::eig(&iap,&dim,&leading,a.data(),ev.data(),&error); });
-        lib.fp9 = old_log.get();
-        const auto old_message = failure([&] { auto_numerics_reference::eig(&iap,&dim,&leading,old_a.data(),old_ev.data(),&old_error); });
-        CHECK(message == old_message && error == old_error);
-        same(a,old_a);
+        fold(digest, message); fold(digest, error);
+        fold(digest, a);
         for (integer i=0; i<n; ++i) {
-            same({&ev[i].r,1},{&old_ev[i].r,1}); same({&ev[i].i,1},{&old_ev[i].i,1});
+            fold(digest, ev[i].r); fold(digest, ev[i].i);
         }
     }
-    CHECK(contents(log.get()) == contents(old_log.get()));
+    fold(digest, contents(log.get()));
     lib.fp9 = nullptr;
+    return digest;
 }
 } // namespace
 
 int main()
 {
+    size_t case_index = 0;
     /* Large off-diagonal and tied candidates distinguish complete from partial
        pivoting and pin AUTO's row/column tie order. */
     const std::vector<double> pivot{1e-20,2.,-2., 100.,3.,1., -100.,1.,4.};
     const std::vector<double> singular{1.,2.,3., 2.,4.,6., 0.,0.,0.};
     const std::vector<double> conjugate{2.,0.,0., 0.,-1.,2., 0.,-2.,-1.};
     const std::vector<double> dense{.25,-2.,3., 4.,.5,-1., -3.,2.,.75};
-    solve(pivot,2); solve(pivot,0); solve(singular,0);
-    solve({1.,2.,3., 2.,4.,6., 0.,1.,1.},1,true);
-    null_vector(singular,2);
-    null_vector({1.,0.,0., 0.,1e-32,0., 0.,0.,0.},1); // NLVC's tiny-pivot diagnostic.
-    for (integer vectors : {0,1}) for (const auto &matrix : {pivot,singular,conjugate,dense}) roots(matrix,vectors);
-    svd(pivot); svd(singular); svd(dense);
-    floquet(false,false); floquet(true,false); floquet(false,true);
-    qz_vectors(); scalar_helpers(); blas_helpers();
-    for (integer manifold : {-1,1}) { schur(conjugate,manifold); schur(dense,manifold); }
-    homcont();
+    CHECK(solve(pivot,2) == expected[case_index++]);
+    CHECK(solve(pivot,0) == expected[case_index++]);
+    CHECK(solve(singular,0) == expected[case_index++]);
+    CHECK(solve({1.,2.,3., 2.,4.,6., 0.,1.,1.},1,true) == expected[case_index++]);
+    CHECK(null_vector(singular,2) == expected[case_index++]);
+    CHECK(null_vector({1.,0.,0., 0.,1e-32,0., 0.,0.,0.},1) == expected[case_index++]); // NLVC's tiny-pivot diagnostic.
+    for (integer vectors : {0,1})
+        for (const auto &matrix : {pivot,singular,conjugate,dense})
+            CHECK(roots(matrix,vectors) == expected[case_index++]);
+    CHECK(svd(pivot) == expected[case_index++]);
+    CHECK(svd(singular) == expected[case_index++]);
+    CHECK(svd(dense) == expected[case_index++]);
+    CHECK(floquet(false,false) == expected[case_index++]);
+    CHECK(floquet(true,false) == expected[case_index++]);
+    CHECK(floquet(false,true) == expected[case_index++]);
+    CHECK(qz_vectors() == expected[case_index++]);
+    CHECK(scalar_helpers() == expected[case_index++]);
+    CHECK(blas_helpers() == expected[case_index++]);
+    for (integer manifold : {-1,1}) {
+        CHECK(schur(conjugate,manifold) == expected[case_index++]);
+        CHECK(schur(dense,manifold) == expected[case_index++]);
+    }
+    CHECK(homcont() == expected[case_index++]);
+    CHECK(case_index == expected.size());
     TEST_REPORT("auto_numerics");
 }
