@@ -87,6 +87,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [54](#54-an-extra-plot-window-keeps-the-first-windows-time-flag) | Graphs | an extra window of a multi-window model keeps the first window's time flag | [W351](https://github.com/MuhammadMoustafa/xppautX/issues/412) |
 | [55](#55-auto-marks-have-a-nine-value-form-limit) | AUTO | User marks stop at nine; count changes before the value form succeeds | [W331](https://github.com/MuhammadMoustafa/xppautX/issues/392) |
 | [56](#56-auto-equilibrium-period-depends-on-spectrum-order) | AUTO | the stored period comes from whichever tied complex pair the eigenvalue routine returns last | [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431) |
+| [58](#58-negative-total-help-and-storage-full-overwrite) | Integration | Negative Total still stores data and silently overwrites on failed growth | [W347](https://github.com/MuhammadMoustafa/xppautX/issues/408) |
 | [57](#57-fixed-c-arrays-sized-by-input) | Expressions, Numerics | formulas, table expressions, Markov states/rates, solver pivots and fit parameters overflow fixed C arrays | [W372 / #434](https://github.com/MuhammadMoustafa/xppautX/issues/434) |
 
 ## 1. Model options
@@ -1199,3 +1200,25 @@ writes or reads past its end:
 - **Evidence:** xppautX's build of 2026-10-15, before W372, still had these arrays: `table w % 11 0 10 0.001+...` with 120 terms ended in a segmentation fault, a right-hand side of 1500 terms exited with no output, and 20 terms ran. XPPAUT itself was not run; its source above has the same arrays.
 - **xppautX:** `add_expr` compiles into a `std::vector<int>` and its stacks grow with the formula; the stiff solver's and the fit's pivots come from `size_pivots(n)`; Markov states, Gillespie rates and AUTO's free parameters are vectors sized from the model; `polint` takes exactly four points by type (`std::span<const double, polint_points>`). tests/test_parser.cpp compiles a 2000-term formula, a 300-term table formula and a 60-state chain; the stiff solver of more than 700 variables is not run by a test.
 - **Card:** [W372 / #434](https://github.com/MuhammadMoustafa/xppautX/issues/434).
+
+## 58. Negative Total: help and storage-full overwrite
+
+XPPAUT's [numerics help:41](../reference/xppaut-master/help/xppnumerics.html#L41)
+says a negative Total "will be made positive and no data will be stored".
+The code stores data regardless, and the run still ends at the absolute Total:
+[integrate.c:2401](../reference/xppaut-8.0/integrate.c#L2401) tests `icount>=nit`.
+FOREVER is read only by [stor_full:2725-2751](../reference/xppaut-8.0/integrate.c#L2725):
+when allocation fails, [2740](../reference/xppaut-8.0/integrate.c#L2740) bypasses
+the overwrite question and [2747](../reference/xppaut-8.0/integrate.c#L2747)
+resets the row index to zero. New samples overwrite the first rows, leaving
+newest samples before older surviving samples, out of time order. In silent
+mode, [2736-2738](../reference/xppaut-8.0/integrate.c#L2736) instead stops on a
+full store and ignores FOREVER. [master:2696](../reference/xppaut-master/integrate.c#L2696)
+has the same storage-full branches.
+
+xppautX requires a positive Total in its files and commands; XPPAUT `.ode` and
+`.set` import maps a negative Total to its absolute value. Failed storage growth
+stops every mode with one placed error and preserves the existing rows, with
+no overwrite question. servercheck covers failed growth and preserved rows,
+negative Total refusal with its line, and finite absolute-duration import.
+[W347 / #408](https://github.com/MuhammadMoustafa/xppautX/issues/408).

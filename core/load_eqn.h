@@ -108,11 +108,11 @@ struct NumericsSettings {
      (Numerics' AutoEval, @ autoeval=) */
   int auto_evaluate = 0;
   /* a run's state: data were stored (inflag), storing is on (storflag),
-     integrate without end (forever), a range stops (endsing), pauses
+     a range stops (endsing), pauses
      between runs (pauser), shoots (shoot) or follows its parameter
      (par_fol); the browser shows a Fourier transform (fft) or a
      histogram (hist); nullclines were computed (null_here) */
-  int inflag = 0, storflag = 0, forever = 0, endsing = 0, pauser = 0;
+  int inflag = 0, storflag = 0, endsing = 0, pauser = 0;
   int shoot = 0, par_fol = 0, fft = 0, hist = 0, null_here = 0;
 };
 

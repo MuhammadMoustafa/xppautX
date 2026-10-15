@@ -158,12 +158,12 @@ constexpr std::array slider_slot_parsers{
 
 constexpr OptionRow rows[] = {
   /* ---- the numerics the Numerics menu and `set num` edit, in the menu's
-     order; total's sign there says "forever" ---- */
+     order ---- */
   {.group = option_group::integration, .kind = OptionKind::number, .name = "TOTAL_TIME", .xppaut_names = {"TOTAL"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.total_time; }),
    /* twenty time units, XPPAUT's */
    .reset = [](Session &s) { s.numerics.total_time = 20; },
-   .key = "total_time", .label = "Total time", .saved = true, .signed_forever = true},
+   .key = "total_time", .label = "Total time", .rule = OptionRule::positive, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "START_TIME", .xppaut_names = {"T0"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.start_time; }),
    /* time starts at 0 */
@@ -1003,7 +1003,11 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
 {
   const std::string upper = upper_case(std::string(name));
   /* the value as a NUL-ended text */
-  const std::string text(value);
+  /* A negative Total is XPPAUT's import spelling, not a run mode. */
+  double total = 0;
+  const bool imported_total = Load::running() && files::has_extension(Load::place().file, ".ode")
+    && (upper == "TOTAL" || upper == "TOTAL_TIME") && parse_number(value, total) && total < 0;
+  const std::string text = imported_total ? number(-total) : std::string(value);
   int index = 0;
   const OptionRow *row = find_option(upper, index, xppaut_names);
   if (!row) return unknown_option;

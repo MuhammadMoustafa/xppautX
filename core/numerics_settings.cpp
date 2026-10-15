@@ -59,12 +59,8 @@ bool used(const xpp::Session &s, const OptionRow &f) { return uses(s, f, s.numer
 /* whether field f is one of s's model's: the delay of a model with no delays is not */
 bool used_or_hidden(const xpp::Session &s, const OptionRow &f) { return f.use != OptionUse::delays || used(s, f); }
 
-/* total's sign says "forever", as the menu's */
-bool is_total(const OptionRow &f) { return f.signed_forever; }
-
 double value_of(const xpp::Session &s, const OptionRow &f)
 {
-    if (is_total(f) && s.numerics.forever) return -s.numerics.total_time;
     return f.real ? f.real(s) : f.whole(s);
 }
 
@@ -161,11 +157,7 @@ bool check(xpp::Session &s, const OptionRow &f, std::string_view text, double &v
 /* the checked value v put in field f's member */
 void write_field(xpp::Session &s, const OptionRow &f, double v)
 {
-    NumericsSettings &n = s.numerics;
-    if (is_total(f)) { /* the menu's Total: below 0 for ever */
-        n.forever = v < 0;
-        n.total_time = std::fabs(v);
-    } else if (f.real) {
+    if (f.real) {
         f.real(s) = v;
     } else {
         f.whole(s) = static_cast<int>(v);

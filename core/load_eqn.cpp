@@ -494,8 +494,6 @@ void restore_row(xpp::Session &s, const OptionRow &row, const BuiltIns &built_in
   else if(row.whole)row.whole(s)=row.whole(built_in.session());
   else if(row.boolean)row.boolean(s)=row.boolean(built_in.session());
   else if(row.text)row.text(s)=row.text(built_in.session());
-  /* the total time's sign said "forever": the built-in is not */
-  if(row.signed_forever)s.numerics.forever=false;
   if(row.applied)row.applied(s);
 }
 

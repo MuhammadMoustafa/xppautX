@@ -117,6 +117,12 @@ int main(void)
     CHECK(s.numerics.poincare_map == 3); /* Period */
     CHECK(s.numerics.jacobian == 0);
 
+    /* W347: XPPAUT's negative Total remains a finite absolute duration. */
+    put(xs,with_line(set,line_with(set,"  total"),"-500  total"));
+    remove(xsx);
+    CHECK(xpp::import_settings(s,xs,false).has_value());
+    CHECK(s.numerics.total_time==500);
+
     /* the .setx written again, read, applied and written once more: the same */
     const std::string first = snapshot(s);
     CHECK(first.size() > 500);
@@ -126,6 +132,14 @@ int main(void)
     /* every part the file names is there, by name */
     CHECK(first.find("  total_time: 500,\n") != std::string::npos && first.find("  jacobian: difference,\n") != std::string::npos);
     CHECK(first.find("  poincare_map: period,\n") != std::string::npos && first.find("  iapp: 0.09,\n") != std::string::npos);
+
+    /* Our settings refuse negative/zero Total without applying any values. */
+    for(const char *total : {"-5","0"}){
+        const int line=line_with(first,"  total_time:");
+        const std::string bad=with_line(first,line,"  total_time: "+std::string(total)+",");
+        CHECK(setx_error(s,own,bad).starts_with(xpp::format("{}:{}:",own,line)));
+        CHECK(snapshot(s)==first);
+    }
 
     /* Saved dimensions and numerics are refused with their member's place. */
     for (const char *group : {"array_plot", "transpose"}) {

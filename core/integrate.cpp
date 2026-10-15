@@ -1578,7 +1578,7 @@ if(program.interactive) cwidth=get_command_width();
  nit=tend;
  dt=dt/fabs(dt);
  }
- else nit=(tend+fabs(dt)*.1)/fabs(dt); 
+ else nit=(tend+fabs(dt)*.1)/fabs(dt);
  /* else nit=tend/fabs(dt); */
  nit=(nit+store_every-1)/store_every;
  if(nit==0)return(rval);
@@ -1717,7 +1717,7 @@ if(program.interactive) cwidth=get_command_width();
            }
 	                
         /*   This is where the progresser goes   */
-	   if(program.interactive){ plot_command(nit,icount,cwidth); 
+	   if(program.interactive){ plot_command(nit,icount,cwidth);
 	   esc=my_abort();
 
            {
@@ -1860,7 +1860,10 @@ poi:    for(i=0;i<s.model().neq;i++)oldx[i]=x[i];
               steady_stride*=2;
               steady_seen=0;
             }
-            else if(stor_full(s,xv[0])==0)break;
+            else {
+              const auto grown=stor_full(s);
+              if(!grown){stop_integration(s,grown.error());failure=take_step_error(s).error();break;}
+            }
             }
 	    if((pflag==1)&&(s.numerics.poincare_stop==1))break;
 	   }
@@ -2103,27 +2106,15 @@ void stop_integration(xpp::Session &s, xpp::Error why)
   if(!e)e=std::move(why);
 }
 
-int stor_full(xpp::Session &s, double t)
+xpp::Result<> stor_full(xpp::Session &s)
 {
-
- int nrow=2*s.data_store.max_rows;
- const xpp::Result<> grown=s.data_store.grow(s.model().neq+1,nrow);
- if(grown){
-   s.data_store.max_rows=nrow;
-   return 1;
- }
- xpp::show_error(grown.error()); /* before asking what to do instead */
-
- if(!program.interactive){
-   xpp::log(XPP_LOG_WARN, "Storage limit ({} rows) reached at t = {}; raise Total storage or Store every N steps\n",s.data_store.max_rows,t);
-   return 0;
- }
- if(!s.numerics.forever){
-   ping();
-   if(TwoChoice("YES","NO","Storage full: Overwrite?","yn")!='y')return 0;
- }
- s.data_store.rows=0; /* overwrite: the run goes on from the first row */
- return 1;
+ if(s.data_store.max_rows>INT_MAX/2)
+   return xpp::fail("storage","Cannot allocate sufficient storage",command_place());
+ const int nrow=2*s.data_store.max_rows;
+ const auto grown=s.data_store.grow(s.model().neq+1,nrow);
+ if(!grown)return grown;
+ s.data_store.max_rows=nrow;
+ return {};
 }
 
 } // namespace xpp

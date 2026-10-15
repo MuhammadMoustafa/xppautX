@@ -412,7 +412,7 @@ struct SetValue {
    it (kind:name lower-cased, or kind:index) */
 std::unexpected<xpp::Error> refuse(const std::string &field, std::string what)
 {
-    xpp::Error e{"set", std::move(what), {}, field};
+    xpp::Error e{"set", std::move(what), j_command_place(), field};
     return std::unexpected<xpp::Error>(std::move(e));
 }
 

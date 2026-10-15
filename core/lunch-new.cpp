@@ -3,6 +3,7 @@
    and initial-conditions file (.ic): read through xpp_io.h's Lines whole,
    checked, then applied in one step (W125). */
 #include <algorithm>
+#include <cmath>
 #include "model.h"
 #include "session.h"
 #include "integrate.h"
@@ -131,7 +132,7 @@ void read_numerics(const xpp::Session &s, Lines &l, Settings &f)
   };
   early(store_every_line,"store_every",store_every);
   early(mesh_line,"nullcline_mesh",mesh);
-  keep_real(s,l,f,method,"total_time","total");
+  keep_setting(s,l,f,method,"total_time",std::abs(l.real("total",true)));
   keep_real(s,l,f,method,"dt","DeltaT");
   keep_real(s,l,f,method,"start_time","T0");
   keep_real(s,l,f,method,"transient_time","Transient");

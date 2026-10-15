@@ -46,6 +46,9 @@ void DataStore::allocate(int nrow, int ncol)
 xpp::Result<> DataStore::grow(int ncol, int nrow)
 {
   try {
+    /* The general allocator hook was retired at W48 (xpp_mem.h).
+       Exercise the recoverable storage-full path deterministically. */
+    if(std::getenv("XPP_STORAGE_FAIL_GROW"))throw std::bad_alloc();
     for(int c=0;c<ncol;c++){
       columns_[c].resize(nrow,0.0f);
       table_[c]=columns_[c].data();

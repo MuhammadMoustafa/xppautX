@@ -8377,5 +8377,76 @@ def check_range_files():
 
 check_range_files()
 
+def check_storage_full():
+    with tempfile.TemporaryDirectory(prefix='w347') as folder:
+        model = os.path.join(folder, 'full.odex')
+        with open(model, 'w') as f:
+            f.write("x'=1\noptions { integration: { total_time: 1, dt: .1, storage_rows: 4 } }\n")
+        # W48 removed XPP_MEM_FAIL_AT. The storage owner's narrow hook tests
+        # this recoverable failure without failing unrelated allocations.
+        s = Server(args.server, model, env={'XPP_STORAGE_FAIL_GROW': '1'})
+        try:
+            s.collect(is_idle)
+            s.send(cmd='data', events=['series'])
+            s.collect(is_idle)
+            s.send(cmd='key', key='i')
+            evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'g'}})
+            errors = [e for e in evs if e.get('error')]
+            state = next((e for e in reversed(evs) if e.get('ev') == 'state'), {})
+            series = whole_series(evs)
+            cols = {c['col']: c['data'] for c in series[-1]['columns']} if series else {}
+            check('W347: failed storage growth stops with one placed error and no overwrite question',
+                  len(errors) == 1 and errors[0].get('line', 0) > 0
+                  and 'Cannot allocate sufficient storage' in errors[0].get('error', '')
+                  and not any(e.get('kind') == 'choice' for e in evs), str(errors))
+            check('W347: failed growth preserves every stored row in time order',
+                  state.get('rows') == 4 and len(cols.get(0, [])) == 4
+                  and all(abs(t - i * .1) < 1e-6 for i, t in enumerate(cols.get(0, [])))
+                  and all(abs(x - i * .1) < 1e-6 for i, x in enumerate(cols.get(1, []))), str(cols))
+            s.send(cmd='set', kind='num', name='total_time', value=-2)
+            evs, _ = s.collect(is_idle)
+            check('W347: protocol rejects negative Total with its command place',
+                  any(e.get('error') and e.get('line', 0) > 0 for e in evs), str(evs[-3:]))
+            s.send(cmd='key', key='u')
+            s.collect(is_idle)
+            s.send(cmd='key', key='t')
+            evs, _ = s.answer_asks(is_idle, {'string': lambda e: {'value': '-2'}})
+            check('W347: Total form rejects a negative duration with its place',
+                  any(e.get('error') and e.get('line', 0) > 0 for e in evs), str(evs[-3:]))
+        finally:
+            s.close()
+        env = dict(os.environ, XPP_STORAGE_FAIL_GROW='1')
+        result = subprocess.run([os.path.abspath(args.server), model, '--silent'], env=env,
+                                cwd=folder, capture_output=True, text=True, timeout=30 * SLOW)
+        check('W347: silent failed growth reports the same error once',
+              result.stderr.count('Cannot allocate sufficient storage') == 1, result.stderr)
+        foreign = os.path.join(folder, 'negative.ode')
+        with open(foreign, 'w') as f:
+            f.write("x'=1\n@ total=-.2,dt=.1\ndone\n")
+        result = subprocess.run([os.path.abspath(args.server), '--convert', foreign], cwd=folder,
+                                capture_output=True, text=True, timeout=30 * SLOW)
+        converted = os.path.join(folder, 'negative.odex')
+        text = open(converted).read() if os.path.isfile(converted) else ''
+        check('W347: negative .ode Total converts to its absolute finite duration',
+              result.returncode == 0 and 'total_time: 0.2' in text, result.stderr + text)
+        result = subprocess.run([os.path.abspath(args.server), converted, '--silent'], cwd=folder,
+                                capture_output=True, text=True, timeout=30 * SLOW)
+        output = os.path.join(folder, 'output.dat')
+        rows = [list(map(float, line.split())) for line in open(output)] if os.path.isfile(output) else []
+        check('W347: imported negative Total stores data and ends at its absolute duration',
+              result.returncode == 0 and len(rows) == 3 and abs(rows[-1][0] - .2) < 1e-6
+              and abs(rows[-1][1] - .2) < 1e-6, result.stderr + str(rows))
+        for total in (-2, 0):
+            bad = os.path.join(folder, 'bad.odex')
+            with open(bad, 'w') as f:
+                f.write("x'=1\noptions { integration: { total_time: %s } }\n" % total)
+            result = subprocess.run([os.path.abspath(args.server), bad, '--silent'], cwd=folder,
+                                    capture_output=True, text=True, timeout=30 * SLOW)
+            check('W347: own .odex rejects Total=%s at its line' % total,
+                  result.returncode != 0 and 'bad.odex:2' in result.stderr, result.stderr)
+
+
+check_storage_full()
+
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

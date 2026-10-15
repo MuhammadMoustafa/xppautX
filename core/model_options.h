@@ -189,8 +189,6 @@ struct OptionRow {
   /* what a change of the numerics setting needs, after its member is
      written (the dt's steps, the delay's storage, the BVP's arrays) */
   void (*applied)(Session &) = nullptr;
-  /* the value's sign says "forever" (the total time) */
-  bool signed_forever = false;
   /* a setting of the session or the window as a whole, not one graph's or one
      run's own configuration: a set never holds it (sets-design.md section 2) */
   bool wide = false;
