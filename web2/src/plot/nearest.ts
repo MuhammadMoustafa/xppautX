@@ -46,3 +46,18 @@ export function nearestPoint(curves: CurveData[], visible: boolean[], frame: Fra
   if (best) (best as Nearest).dist = Math.sqrt(bestD2);
   return best;
 }
+
+/** The trace nearest to (px, py): the current curves (run -1), then each
+    older run, which wins only when strictly nearer: an older run identical to
+    the current trace never takes its name, though the distance squared again
+    from its square root can round the bound up (W383). */
+export function nearestTrace(current: CurveData[], visible: boolean[], runs: CurveData[][], frame: Frame,
+  px: number, py: number, maxDist: number): (Nearest & {run: number}) | null {
+  const hit = nearestPoint(current, visible, frame, px, py, maxDist, true);
+  let best = hit ? {...hit, run: -1} : null;
+  runs.forEach((curves, run) => {
+    const h = nearestPoint(curves, curves.map(c => c.visible !== false), frame, px, py, best?.dist ?? maxDist, true);
+    if (h && (!best || h.dist < best.dist)) best = {...h, run};
+  });
+  return best;
+}

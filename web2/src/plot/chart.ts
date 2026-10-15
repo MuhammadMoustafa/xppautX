@@ -13,7 +13,7 @@ import {canvasPixels} from './canvasPixels';
 import {curveColor} from './colors';
 import {ColumnTrace, LineTrace, sameFrame, tracePoints, type CurveTrace, type PixelFrame} from './decimate';
 import type {PlotModel} from './model';
-import {nearestPoint, type Nearest} from './nearest';
+import {nearestTrace, type Nearest} from './nearest';
 import {
   arrowPath, equilibriumPath, MARKER_PX, markerPath, markLayers, TEXT_STYLES, textPx, traceFrozen, type MarkKey, type MarkLayer,
 } from './marks';
@@ -634,12 +634,8 @@ export class Chart {
     const {x, y} = this.ranges();
     const frame = {xmin: x.min, xmax: x.max, ymin: y.min, ymax: y.max,
       width: u.over.clientWidth, height: u.over.clientHeight};
-    const current = nearestPoint(m.curves, this.visible, frame, px, py, maxDist, true);
-    let best = current ? {...current, run: -1} : null;
-    if (this.showRuns) this.runs.forEach((r, run) => {
-      const h = nearestPoint(r.curves, r.curves.map(c => c.visible !== false), frame, px, py, best?.dist ?? maxDist, true);
-      if (h && (!best || h.dist < best.dist)) best = {...h, run};
-    });
+    const best = nearestTrace(m.curves, this.visible, this.showRuns ? this.runs.map(r => r.curves) : [],
+      frame, px, py, maxDist);
     this.highlight(best);
     this.cb.onTrace?.(best);
     return best;

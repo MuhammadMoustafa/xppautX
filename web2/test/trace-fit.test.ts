@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {visibleRanges, type PlotModel, type CurveData} from '../src/plot/model';
 import {nearest3d} from '../src/plot/render3d';
-import {nearestPoint} from '../src/plot/nearest';
+import {nearestPoint, nearestTrace} from '../src/plot/nearest';
 
 test('Fit includes visible historical trajectories and ignores hidden and nonfinite points', () => {
   const curve = (xs: number[], ys: number[], visible = true): CurveData => ({label:'trace', xName:'T', yName:'X',
@@ -31,17 +31,15 @@ test('trace hover finds a sparse line between samples, without crossing nonfinit
   assert.equal(nearestPoint([curve], [true], frame, 50, 50, 5, true), null);
 });
 
-test('trace hover tie-break retains the current trace when an older run is at the same distance', () => {
+test('hover over a trace and an identical older run names the current trace', () => {
   const curve: CurveData = {label:'line', xName:'X', yName:'Y', color:0, line:true, radius:0, row0:0,
-    xs:new Float32Array([0.21305718, 0.2082114]), ys:new Float32Array([0.29251039, 0.30188286])};
-  const frame = {xmin:-0.46355, xmax:0.26121, ymin:-0.01851, ymax:0.41492, width:429, height:223};
-  const px = 400.4987, py = 62.9806;
+    xs:new Float32Array([0, 1, 2]), ys:new Float32Array([0, 0.7, 0.3])};
+  const frame = {xmin:0, xmax:2, ymin:0, ymax:1, width:400, height:200};
+  const px = 36.1, py = 177.1;
   const current = nearestPoint([curve], [true], frame, px, py, 24, true);
   assert.ok(current);
-  const run = nearestPoint([curve], [true], frame, px, py, current.dist, true);
-  // Due to float sqrt re-squaring, run may find a candidate with d2 < maxDist*maxDist,
-  // but its distance is identical, so it is not strictly nearer.
-  const isStrictlyNearer = !!run && run.dist < current.dist;
-  assert.equal(isStrictlyNearer, false);
+  // the case W383 found: the current distance, squared again as the run's bound, lets the run through
+  assert.ok(nearestPoint([curve], [true], frame, px, py, current.dist, true));
+  assert.equal(nearestTrace([curve], [true], [[curve]], frame, px, py, 24)?.run, -1);
 });
 
