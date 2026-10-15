@@ -34,6 +34,8 @@
 #     out code, a header nothing includes (tools/deadcheck.py)
 #   - one letter, one command, every key in a menu: no key handled that no
 #     menu lists, no two keys for one command (tools/keycheck.py, W60)
+#   - each findings doc numbers its entries once, in order, index and
+#     headings agreeing (tools/findingscheck.py, W393)
 # Usage: tools/sourcecheck.sh [--warnings]
 #   --warnings  also count a clean build's warnings by flag and file
 #               (tools/warnings.sh; a count, it fails only if the build does)
@@ -63,6 +65,16 @@ if ! python3 tools/test_autocompare.py; then
   echo "AUTO BASELINE UNIT TESTS FAILED"
   exit 1
 fi
+if ! python3 tools/test_findingscheck.py; then
+  echo "FINDINGS CHECK UNIT TESTS FAILED"
+  exit 1
+fi
+if ! python3 tools/findingscheck.py > build/findingscheck.out 2>&1; then
+  cat build/findingscheck.out
+  echo "FINDINGS NUMBERING CHECK FAILED"
+  exit 1
+fi
+tail -1 build/findingscheck.out
 # a script committed from Windows loses its executable bit: CI's checkout
 # then cannot run it ("Permission denied"), which a Windows or WSL run on
 # /mnt/c never shows
