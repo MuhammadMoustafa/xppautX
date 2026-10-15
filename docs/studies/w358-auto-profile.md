@@ -86,7 +86,7 @@ small ones. The same counts for AUTO-07p are still to take (W355 H1a, H5 in both
 
 ## 2. LIBM=system: the price of correctly rounded math
 
-`make LIBM=system BUILDDIR=build/libm xppautx` builds xppautX with `tools/libm-system/libm_system.cpp` in
+`make LIBM=system BUILDDIR=build/libm xppautx` builds build/libm/xppautX (never ./xppautX) with `tools/libm-system/libm_system.cpp` in
 place of the CORE-MATH objects: it defines the `cr_*` symbols (`core/xpp_math.h` calls them) by forwarding
 to glibc's `exp`, `pow`, `sin`, ... . Only under the switch, only with a `BUILDDIR` of its own (the Makefile
 refuses `build/obj`), never released; the default build is byte-identical (gates below).
@@ -130,7 +130,7 @@ tolerances (EPS 1e-4), is 3 to 10% fewer instructions, and gives different last 
 
 ## 3. LINALG=lapack: LAPACK against EISPACK
 
-`make LINALG=lapack BUILDDIR=build/lapack xppautx` (needs gfortran): Reference-LAPACK 3.12.1 vendored
+`make LINALG=lapack BUILDDIR=build/lapack xppautx` (needs gfortran; it links build/lapack/xppautX): Reference-LAPACK 3.12.1 vendored
 verbatim in `third_party/lapack` (80 routines: `DGEEV`, `DGGEV` and what they call, reference BLAS,
 `dlamch`; `tools/lapack/extract.py` makes the folder from the tarball and checks its SHA-256). Its adapter
 `tools/lapack-adapter/lapack_adapter.cpp` gives `rg`, `qzhes`, `qzit`, `qzval` their old signatures:
@@ -196,10 +196,10 @@ switches' code present; each switch builds with `WERROR=1` in its own folder.
 ## Rerunning it
 
 ```
-tools/wslrun.sh sh -c 'make -j4 xppautx BUILDDIR=build/prof && cp xppautX build/prof/xppautX'
+tools/wslrun.sh sh -c 'make -j4 BUILDDIR=build/prof build/prof/xppautX'
 tools/wslrun.sh tools/auto-profile/run_all.sh build/prof/xppautX build/pr      # ~10 min + ModelDB ~16
 python3 tools/auto-profile/tables.py build/pr --summary                         # or no flag: the full tables
-make LIBM=system BUILDDIR=build/libm xppautx && cp xppautX build/libm/xppautX   # then run_all.sh on it, tables.py --compare
+make LIBM=system BUILDDIR=build/libm xppautx      # links build/libm/xppautX; then run_all.sh on it, tables.py --compare
 python3 tools/auto-profile/diagram_diff.py $PWD/build/libm/xppautX              # diagrams against the baselines and AUTO-07p
 make LINALG=lapack BUILDDIR=build/lapack xppautx build/lapack/eigcompare
 python3 tools/auto-profile/profile.py build/prof/xppautX build/mat tstauto_lecar --tool gdb   # the matrices

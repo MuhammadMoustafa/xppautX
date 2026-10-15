@@ -413,10 +413,16 @@ endif
 vg:
 	@$(MAKE) BUILDDIR=build/vg VALGRIND=1 asan-link
 $(BUILDDIR)/xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(LINK_X) $(SANITIZE) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
+	$(LINK_X) $(SANITIZE) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)
 
-# the one X11-free program: browser front end, --server protocol and --silent batch
+# the one X11-free program: browser front end, --server protocol and --silent batch;
+# a comparison build (LIBM, LINALG) links it in its own BUILDDIR, never over ./xppautX,
+# which a later default build would then take for up to date
+ifeq ($(LIBM)$(LINALG),correcteispack)
 xppautx: xppautX$(EXE)
+else
+xppautx: $(BUILDDIR)/xppautX$(EXE)
+endif
 
 # rebuilt whole, and when the list of objects changes too: ar only adds
 # and replaces members, so a removed source's object stayed in the
