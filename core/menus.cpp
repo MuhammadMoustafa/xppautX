@@ -494,9 +494,6 @@ static const char *const auto_plot_items[]={"Hi","Norm","hI-lo","Period","Two pa
   "last 1 par", "last 2 par","Fit","fRequency","Average","Default","Scroll","new (V)iew"};
 const XppMenu menu_auto_plot_type = XPP_MENU("auto", "Plot Type", auto_plot_items, "hniptzo12fradsv", "vvvvvvvvvvvvvvv", aaxes_hint, -1);
 
-static const char *const auto_mark_items[]={"0","1","2","3","4","5","6","7","8","9"};
-const XppMenu menu_auto_mark = XPP_MENU("auto", "Mark values: how many?", auto_mark_items, "0123456789", "ssssssssss", no_hint, -1);
-
 static const char *const auto_start_items[]={"Steady state","Periodic","Bdry Value","Homoclinic","hEteroclinic"};
 const XppMenu menu_auto_start = XPP_MENU("auto", "Start", auto_start_items, "spbhe", "xxxxx", arun_hint, -1);
 

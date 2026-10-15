@@ -91,11 +91,6 @@ struct AutoState {
   static constexpr int state_copies = 8;
   // A foreign XPPAUT .auto alone carries its old selected-parameter mapping.
   std::vector<int> imported_parameters;
-  /* the Mark values: nuzr of uzr_par (auto_f2c.h's integer) and
-     uzr_period */
-  int nuzr=0;
-  std::array<long,20> uzr_par{};
-  std::array<double,20> uzr_period{};
   /* AUTO's thread count, a program preference (xpp_prefs.h, W267) kept
      here for the run: prefs::AUTO_THREADS_AUTO, or the count */
   unsigned threads=0;

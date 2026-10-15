@@ -8,6 +8,7 @@
 #include "diagram.h"
 #include "xpp_session_auto.h"
 #include "xpp_ui.h"
+#include "xpp_log.h"
 #include <cmath>
 #include <string>
 
@@ -76,18 +77,72 @@ int main()
     CHECK(s.auto_state.axes().icp1==39 && s.auto_state.parameter_layout.model_parameters==40);
     CHECK(s.auto_state.parameter_layout.solver_index(39)>36);
     set.nmarks=2;
-    set.mark_name[0]="P10";
-    set.mark_name[1]="T";
-    set.mark_value[0]=0.2;
-    set.mark_value[1]=6.3;
+    set.mark_name={"P10","T"};
+    set.mark_value={0.2,6.3};
     CHECK(xpp::auto_settings_apply(s,set,why)==0);
     const auto marked=xpp::auto_settings_now(s);
     CHECK(marked.mark_name[0]==s.model().upar_names[10] && marked.mark_name[1]=="T");
-    CHECK(!s.auto_state.bifur.period_mark[0] && s.auto_state.bifur.period_mark[1]);
+    CHECK(!s.auto_state.bifur.marks[0].period && s.auto_state.bifur.marks[1].period);
     set.nmarks=0;
+    set.mark_name.clear();
+    set.mark_value.clear();
     CHECK(xpp::auto_settings_apply(s,set,why)==0);
+    // W331/#392: a form can create more marks than any old storage layer held.
+    form_ui.new_string=[](std::string_view title,std::string &value,int kind) {
+        CHECK(title=="Mark values: how many?" && kind==xpp::XPP_FIELD_INTEGER);
+        value="128";
+        return 1;
+    };
+    form_ui.string_box=[](int,int,std::string_view,const char *const *names,
+                          std::span<std::string> values,const int *) {
+        CHECK(values.size()==128 && std::string_view(names[127])=="Uzr128");
+        CHECK(values[0]=="T=11" && values[8]=="T=35" && values[127]=="T=392");
+        for(std::size_t i=0;i<values.size();i++)values[i]=xpp::format("T={}",100+i);
+        return 1;
+    };
+    xpp::set_ui(&form_ui);
+    xpp::auto_per_par(s);
+    xpp::set_ui(&saved_ui);
+    const auto marks=s.auto_state.bifur.marks;
+    CHECK(marks.size()==128 && marks.back().value==227);
+    const auto marks_text=xpp::snapx::auto_members::settings_text(xpp::auto_settings_now(s));
+    const auto marks_read=xpp::snapx::auto_members::parse_settings(marks_text,"marks.snapx/auto/settings.txt");
+    CHECK(marks_read && marks_read->set.nmarks==128);
+    s.auto_state.bifur.marks.clear();
+    CHECK(marks_read && xpp::auto_settings_apply(s,marks_read->set,why)==0);
+    CHECK(s.auto_state.bifur.marks==marks);
+    auto invalid=xpp::auto_settings_now(s);
+    invalid.num[xpp::AUTO_NUM_NMX]=99;
+    invalid.mark_name.back()="unknown";
+    CHECK(xpp::auto_settings_apply(s,invalid,why)!=0);
+    CHECK(s.auto_state.bifur.marks==marks && s.auto_state.bifur.nmx==4);
+    form_ui.string_box=[](int,int,std::string_view,const char *const *,std::span<std::string> values,const int *) {
+        values.front()="T=5";
+        values.back()="T=not_a_number";
+        return 1;
+    };
+    xpp::set_ui(&form_ui);
+    xpp::auto_per_par(s);
+    xpp::set_ui(&saved_ui);
+    CHECK(s.auto_state.bifur.marks==marks);
+    form_ui.new_string=[](std::string_view,std::string &value,int) { value="1"; return 1; };
+    form_ui.string_box=[](int,int,std::string_view,const char *const *,std::span<std::string>,const int *) { return 0; };
+    xpp::set_ui(&form_ui);
+    xpp::auto_per_par(s);
+    xpp::set_ui(&saved_ui);
+    CHECK(s.auto_state.bifur.marks==marks);
+    invalid=xpp::auto_settings_now(s);
+    invalid.nmarks=129;
+    CHECK(xpp::auto_settings_apply(s,invalid,why)!=0 && s.auto_state.bifur.marks==marks);
+    // A count from a recording must be checked before sizing a form.
+    form_ui.new_string=[](std::string_view,std::string &value,int) { value="2147483647"; return 1; };
+    xpp::set_ui(&form_ui);
+    xpp::auto_per_par(s);
+    xpp::set_ui(&saved_ui);
+    CHECK(s.auto_state.bifur.marks==marks);
     xpp::auto_start_diff_ss(s);
     CHECK(diagram_count(s.diagram)==4);
+    CHECK(s.auto_state.run.marks.size()==128 && s.auto_state.run.marks.back().value==227);
     const xpp::DIAGRAM *last=last_diagram(s.diagram);
     CHECK(last && last->icp1.is_parameter(39) && last->par.size()==1 && last->branch->parameters.size()==40);
     CHECK(last && diagram_parameter(*last,39)>0 && std::fabs(last->u0[400]-diagram_parameter(*last,39))<1e-8);

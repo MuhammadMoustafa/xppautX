@@ -27,6 +27,8 @@ std::string js_object_without(const char *obj, std::initializer_list<std::string
 /* The JSON string at v into out, whole; false (out empty) when v is not a string. */
 bool js_string(const char *v, std::string &out);
 const char *js_elem(const char *arr, int i);
+/* Next array value, moving cursor past it; start at the array, null at its end. */
+const char *js_element(const char *&cursor);
 /* The members of the object at `cursor`, in order: each call gives the next
    one's key (decoded) and where its value is, and moves the cursor past the
    value; false at the object's end. Start with the cursor at the object. */

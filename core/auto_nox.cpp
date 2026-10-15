@@ -622,19 +622,8 @@ void auto_label_parameters(const xpp::Session &s, int label, double *parameters)
 
 void set_auto(xpp::Session &s) /* Caution - need to include NICP here */
 {
-  s.auto_state.nuzr=s.auto_state.bifur.nper;
   init_auto(s.auto_state,s.model().node,s.numerics.jacobian==JACOBIAN_EXACT);
   
-}
-int auto_name_to_index(const xpp::Session &s, std::string_view name, bool &period)
-{
-  int in;
-  find_variable(s,name,&in);
-  period=in==0;
-  if(period)return(xpp::auto_unknown::period);
-  in=xpp::find_user_name(s.model(),PARAM_BOX,name);
-  if(in>=0)return in;
-  return(-1);
 }
 const char *auto_par_name(const xpp::Session &s, int k)
 {
@@ -708,41 +697,37 @@ std::string auto_screen_col(const xpp::Session &s, const std::string &col)
 
 void auto_per_par(xpp::Session &s)
 {
-  
-  const char *const key=menu_auto_mark.keys;
-  std::array<std::string, 9> values;
-  static const char *const n[]={"Uzr1","Uzr2","Uzr3","Uzr4","Uzr5",
-		      "Uzr6","Uzr7","Uzr8","Uzr9"};
-  int status,i,in;
-  char ch;
-  /* "Mark values" (T21): AUTO labels (UZ) the points where a parameter or
-     the period reaches one of these values */
-  ch=static_cast<char>(menu_choose(&menu_auto_mark,s.auto_state.bifur.nper));
-  for(i=0;i<10;i++)
-    if(ch==key[i])s.auto_state.bifur.nper=i;
-  s.auto_state.nuzr=s.auto_state.bifur.nper;
-  if(s.auto_state.bifur.nper>0){
-    for(i=0;i<9;i++){
-      values[i] = xpp::format("{}={:g}", par_or_period_name(s, s.auto_state.bifur.uzrpar[i], s.auto_state.bifur.period_mark[i]), s.auto_state.bifur.period[i]);
-    }
-    status=do_string_box(5,2,"Mark values (UZ): parameter=value or per=value",n,values);
-    if(status!=0)
-      for(i=0;i<9;i++){
-	xpp::Tokens tokens(values[i]);
-	bool period;
-	in=auto_name_to_index(s, tokens.next("=").value_or(std::string_view()), period);
-	if(in>=0){
-	  s.auto_state.bifur.uzrpar[i]=in;
-	  s.auto_state.bifur.period_mark[i]=period;
-	  s.auto_state.bifur.period[i]=atof(tokens.text("@").c_str());
-	}
-      }
+  std::string count=xpp::number(s.auto_state.bifur.marks.size());
+  if(!new_string_of("Mark values: how many?",count,XPP_FIELD_INTEGER))return;
+  xpp::TypedFields fields(s);
+  const int n=fields.integer("Mark count",count);
+  if(n<0 || n>xpp::auto_file_marks_limit)fields.fail("Mark count",xpp::format("must be from 0 to {}",xpp::auto_file_marks_limit));
+  if(fields.error()) { command_error("auto",*fields.error()); return; }
+  xpp::AutoSettingsSet set;
+  set.nmarks=n;
+  set.mark_name.resize(n,"T");
+  set.mark_value.resize(n);
+  std::vector<std::string> labels(n),values(n);
+  std::vector<const char *> names(n);
+  for(int i=0;i<n;i++){
+    labels[i]=xpp::format("Uzr{}",i+1);
+    names[i]=labels[i].c_str();
+    const auto &marks=s.auto_state.bifur.marks;
+    values[i]=i<static_cast<int>(marks.size()) ?
+      xpp::format("{}={}",par_or_period_name(s,marks[i].parameter,marks[i].period),xpp::number(marks[i].value)) : xpp::format("T={}",xpp::number(xpp::auto_initial_mark_period+xpp::auto_mark_period_spacing*i));
   }
-  for(i=0;i<9;i++){
-    s.auto_state.uzr_period[i]=s.auto_state.bifur.period[i];
-    s.auto_state.uzr_par[i]=s.auto_state.bifur.uzrpar[i];
+  if(n && !do_string_box(5,2,"Mark values (UZ): parameter=value or T=value",names.data(),values))return;
+  for(int i=0;i<n;i++){
+    const auto equal=values[i].find('=');
+    if(equal==std::string::npos){ fields.fail(labels[i],"expected parameter=value or T=value"); break; }
+    set.mark_name[i]=xpp::trim_blanks(std::string_view(values[i]).substr(0,equal));
+    // The historical form also accepts per for the period.
+    if(strcasecmp(set.mark_name[i].c_str(),"per")==0)set.mark_name[i]="T";
+    set.mark_value[i]=fields.number(labels[i],values[i].substr(equal+1));
   }
-  
+  std::string why;
+  if(fields.error())command_error("auto",*fields.error());
+  else if(xpp::auto_settings_apply(s,set,why)!=0)command_error("auto",why);
 }
 
 void auto_num_par(xpp::Session &s)
@@ -1537,15 +1522,7 @@ int auto_activate_view(xpp::Session &s, int k)
 
 void init_auto_win(xpp::Session &s)
 {
-  int i;
-
-  for(i=0;i<10;i++){
-    s.auto_state.bifur.period[i]=11.+3.*i;
-    s.auto_state.bifur.uzrpar[i]=xpp::auto_unknown::period;
-    s.auto_state.bifur.period_mark[i]=true;
-    s.auto_state.uzr_period[i]=s.auto_state.bifur.period[i];
-    s.auto_state.uzr_par[i]=xpp::auto_unknown::period;
-  }
+  s.auto_state.bifur.marks.clear();
   s.auto_state.parameter_layout.model_parameters=s.model().nupar;
   s.auto_state.parameter_layout.block=std::max(xpp::auto_unknown::block_size,
       xpp::auto_unknown::homoclinic_start+xpp::auto_unknown::homoclinic_blocks*s.model().node);
@@ -1553,7 +1530,6 @@ void init_auto_win(xpp::Session &s)
   for (auto *v : {&s.auto_state.grabpt.uhi, &s.auto_state.grabpt.ulo, &s.auto_state.grabpt.u0,
                  &s.auto_state.grabpt.ubar, &s.auto_state.homo_l, &s.auto_state.homo_r}) v->resize(s.model().node);
   start_diagram(s, s.model().node);
-  s.auto_state.bifur.nper=0;
   s.auto_state.grabpt.flag=0;  /*  no point in buffer  */
   s.auto_state.bifur.exist=0;
  s.auto_state.blrtn.torper=s.numerics.torus_period;
@@ -2675,13 +2651,15 @@ xpp::Result<> import_auto_file(xpp::Session &s, FILE *fp, const std::string &fil
         lines.fail("invalid or repeated foreign model parameter index");
       held.parameters.push_back(parameter);
     }
-    if(!first.read(held.mark_count) || held.mark_count<0 || held.mark_count>AUTO_SETTINGS_MARKS || !first.at_end())
+    if(!first.read(held.mark_count) || held.mark_count<0 || held.mark_count>xpp::auto_foreign_mark_rows || !first.at_end())
       lines.fail("foreign mark count exceeds the stored mark slots");
-    // All nine encoded rows are retained, including marks not active yet.
-    settings.nmarks=AUTO_SETTINGS_MARKS;
+    // Validate every encoded row, including inactive foreign marks.
+    settings.nmarks=xpp::auto_foreign_mark_rows;
+    settings.mark_name.resize(settings.nmarks);
+    settings.mark_value.resize(settings.nmarks);
     settings.par1=s.model().upar_names[held.parameters.front()];
     if(count>1)settings.par2=s.model().upar_names[held.parameters[1]];
-    for(int k=0;k<AUTO_SETTINGS_MARKS;k++){
+    for(int k=0;k<xpp::auto_foreign_mark_rows;k++){
       int slot;
       double value;
       lines.numbers(value,slot);
@@ -2735,11 +2713,13 @@ xpp::Result<> import_auto_file(xpp::Session &s, FILE *fp, const std::string &fil
   });
   if(!read)return std::unexpected(read.error());
   auto held=std::move(*read);
+  held.settings.nmarks=held.mark_count;
+  held.settings.mark_name.resize(held.mark_count);
+  held.settings.mark_value.resize(held.mark_count);
   // The session owner commits restart bytes before any held state, as for .snapx.
   auto restored=xpp::snapx::auto_members::restore_members(s,
       {held.settings,std::move(held.points),{},held.solutions});
   if(!restored)return restored;
-  s.auto_state.nuzr=s.auto_state.bifur.nper=held.mark_count;
   s.auto_state.imported_parameters=std::move(held.parameters);
   forget_auto_diagram(s,false);
   return {};

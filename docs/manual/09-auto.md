@@ -306,7 +306,13 @@ For the present model, you should set `Dsmax` to be 0.05, `Par Min` to -0.45 and
 
 ## User functions
 
-Suppose you want to get plots at specific values of parameters or at fixed periods of a limit cycle. Then you can click on “User” which produces a menu 0-9 asking you how many points you want to keep. Click on 0 for none or some other number. A new window will appear with slots for 9 items. You can type in anything of the form:
+To label points at specific parameter values or periods, open **Mark values**
+and use **Add a value** and **Remove** to edit the list. There is no nine-mark
+storage limit. The legacy **User** action asks how many marks you want, then
+shows exactly that many fields; enter zero for none. Sent commands, recordings
+and session files share a 65,536-mark input allocation budget. A bad value or
+Cancel leaves all marks unchanged. Sessions save and restore the complete list
+(W331, [#392](https://github.com/MuhammadMoustafa/xppautX/issues/392)). Each legacy field takes the form:
 
         <parameter>=<value>
 

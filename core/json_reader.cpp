@@ -225,17 +225,25 @@ bool js_string(const char *v, std::string &out)
     }
 }
 
+const char *js_element(const char *&cursor)
+{
+    if (!cursor) return nullptr;
+    const char *p = skip_ws(cursor);
+    if (*p != '[' && *p != ',') return nullptr;
+    p = skip_ws(p + 1);
+    if (!*p || *p == ']') return nullptr;
+    cursor = skip_value(p);
+    return p;
+}
+
 const char *js_elem(const char *arr, int i)
 {
     if (!arr || *arr != '[') return nullptr;
-    const char *p = skip_ws(arr + 1);
-    if (*p == ']') return nullptr;
-    while (i-- > 0) {
-        p = skip_ws(skip_value(p));
-        if (*p != ',') return nullptr;
-        p = skip_ws(p + 1);
-    }
-    return p;
+    const char *value = nullptr;
+    do {
+        value = js_element(arr);
+    } while (value && i-- > 0);
+    return value;
 }
 
 bool js_member(const char *&cursor, std::string &key, const char *&value)

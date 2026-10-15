@@ -85,6 +85,8 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [52](#52-auto-omits-unselected-branch-parameters) | AUTO | Unselected constants are absent from a branch; older points use later values | [W339](https://github.com/MuhammadMoustafa/xppautX/issues/400) |
 | [53](#53-auto-import-is-unchecked-and-partial) | AUTO files | sent `.auto` counts and short records are applied unchecked | [W327](https://github.com/MuhammadMoustafa/xppautX/issues/388) |
 
+| [55](#55-auto-marks-have-a-nine-value-form-limit) | AUTO | User marks stop at nine; count changes before the value form succeeds | [W331](https://github.com/MuhammadMoustafa/xppautX/issues/392) |
+
 ## 1. Model options
 
 `@ newt_iter`, `@ newt_tol`, `@ jac_eps` and `@ poistop` in a model never
@@ -1133,3 +1135,16 @@ XPPAUT 8.0's `set_extra_graphs` makes each extra window of a multi-window model 
 - **Evidence:** from the source, not run here (XPPAUT's window needs an X server). A model whose first window plots `t` against `x` and whose second plots `x` against `y` leaves the second window with the time flag that `create_a_pop` copied; the same happens to a third window plotting `t` against `y` after two phase planes.
 - **xppautX:** the flags of a graph come from one function, `check_flags(GRAPH &)`, which `set_extra_graphs` calls on each extra window after its axes are set. `tests/test_headless_graphs.cpp` checks each window's flag and that an equilibrium mark lands only in the phase plane.
 - **Card:** [W351](https://github.com/MuhammadMoustafa/xppautX/issues/412).
+
+## 55. AUTO marks have a nine-value form limit
+
+XPPAUT 8.0's User form offers only counts zero through nine
+([auto_nox.c:702](../reference/xppaut-8.0/auto_nox.c#L702)), with nine
+named rows ([auto_nox.c:706](../reference/xppaut-8.0/auto_nox.c#L706)).
+It writes the count before the value dialog succeeds
+([auto_nox.c:713](../reference/xppaut-8.0/auto_nox.c#L713)), then parses
+values with `atof` ([auto_nox.c:730](../reference/xppaut-8.0/auto_nox.c#L730)).
+W331 ([#392](https://github.com/MuhammadMoustafa/xppautX/issues/392)) replaces
+fixed mark storage with a Session-owned vector and validates the whole edit
+before applying it. Tests exercise 128 marks through form, protocol, solver
+workspaces and session roundtrip, and reject a bad last value atomically.

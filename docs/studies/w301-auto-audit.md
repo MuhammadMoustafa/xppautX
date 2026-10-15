@@ -424,6 +424,25 @@ is a separate numerical decision. Test more than nine marks, atomic rejection,
 all form/set paths and file roundtrips. No shrinking array while nuzr is unchecked.
 Order: fifth, after P1/P4; can split schemas from lifting marks at review.
 
+W331 (#392) implements the marks half: Session-owned vectors, dynamically sized
+run workspaces, one settings validator for forms/protocol/session restore, and
+one input allocation budget. The remaining schema/default naming (seven-value
+restart scratch, non-mark XAUTO slots, NumField bounds, AutoOptions, auto_c thresholds and output
+schemas across autlib*, auto_*, autevd, autpp, setubv*, gogoauto and diagram)
+is deliberately deferred to W331's schema follow-up; no collocation formula or
+method limit changes here. The reviewer must card that remainder before closing
+#392 as complete.
+
+W331 native validation: 0 compiler warnings; 42,876 unit checks; 360 web unit
+tests plus build/dist/typecheck; 84 exact AUTO comparisons (4,054 points,
+38 models, nine documented skips); 247 autocheck and 1,144 server checks;
+184 unchanged example outputs among 185 models (ml-range has no output).
+The focused `web2check --only automarks` passes six checks, including twelve
+rows and the twelfth value after reopening. The broader `--only auto` fails
+before marks in its unchanged Sing pts setup while waiting for the eigenvalue
+prompt (diagnostic: ask=null, busy=false, no dialog); its automatic retry fails
+too. No production focus/setup change is included in this card.
+
 ### P6: W332 ([#393](https://github.com/MuhammadMoustafa/xppautX/issues/393)) — Remove dormant AUTO MPI topology and transport plumbing
 
 Places: KREDO, iap mynode/numnodes, gogoauto initialization, autlib2 reduce/

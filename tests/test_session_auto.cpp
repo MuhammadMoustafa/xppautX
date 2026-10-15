@@ -154,6 +154,11 @@ void check_settings_text()
     CHECK(range);
     CHECK(r->nmarks == 2 && r->mark_name[0] == "T" && r->mark_name[1] == "phi" && same_bits(r->mark_value[0], s.mark_value[0]) &&
           same_bits(r->mark_value[1], s.mark_value[1]));
+    std::string excessive;
+    for(int i=0;i<=xpp::auto_file_marks_limit;i++)excessive+="mark T 1\n";
+    const auto bounded=xpp::snapx::auto_members::parse_settings(excessive,"sent.snapx/auto/settings.txt");
+    CHECK(!bounded && bounded.error().place.line==xpp::auto_file_marks_limit+1);
+    CHECK(!bounded && bounded.error().place.source=="mark T 1");
     /* each refusal at its line, the line as written (W125) */
     const auto error = [](const std::string &text) {
         const xpp::Result<xpp::snapx::auto_members::SettingsRead> e = xpp::snapx::auto_members::parse_settings(text, "a.snapx/auto/settings.txt");
@@ -447,6 +452,12 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     s.auto_state.bifur.ds = 0.1 + 0.2;
     s.auto_state.bifur.dsmax = 0.5;
     s.auto_state.bifur.rl1 = 1.0 / 3.0;
+    xpp::AutoSettingsSet mark_set;
+    mark_set.nmarks=128;
+    mark_set.mark_name.resize(128,"T");
+    for(int i=0;i<128;i++)mark_set.mark_value.push_back(awk(i));
+    std::string why;
+    CHECK(xpp::auto_settings_apply(s,mark_set,why)==0);
     const xpp::AutoSettingsSet before = xpp::auto_settings_now(xpp::client_session());
     /* a second view (W50), the norm, a zoom of its own; the first active */
     xpp::auto_new_view(xpp::client_session());
@@ -467,6 +478,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     CHECK(entries && (*entries)[1].bytes == file_text(xpp::client_session().model().this_file));
 
     /* everything changed, then the file restored */
+    s.auto_state.bifur.marks.clear();
     start_diagram(xpp::client_session(), n);
     CHECK(write_file(xpp::auto_solutions_file(xpp::client_session()), "other"));
     s.auto_state.bifur.ds = 0.05;
@@ -522,16 +534,14 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
           d->u0[1] == 0.03);
     CHECK(s.auto_state.bifur.ntst == 15 && s.auto_state.bifur.nmx == 2000 && s.auto_state.bifur.dsmin == 1e-05);
     CHECK(file_text(xpp::auto_solutions_file(xpp::client_session())).size() > 100); /* the .s part */
-    CHECK(s.auto_state.nuzr == 0 && s.auto_state.uzr_period[0] == 11 && s.auto_state.uzr_period[8] == 35);
-    CHECK(s.auto_state.bifur.period_mark[0] && s.auto_state.uzr_par[0] == xpp::auto_unknown::period);
+    CHECK(s.auto_state.bifur.marks.empty());
     /* Sent foreign files must preserve every AUTO member after any late failure. */
     const auto before_settings = xpp::snapx::auto_members::settings_text(xpp::auto_settings_now(s));
     const auto before_diagram = xpp::snapx::auto_members::diagram_csv(s.diagram.points, s.model().nupar,
         std::span<const std::string>(s.model().uvar_names.data(), s.model().node));
     const auto before_solutions = file_text(xpp::auto_solutions_file(s));
     const auto before_parameters = s.auto_state.imported_parameters;
-    const auto before_marks = s.auto_state.uzr_period;
-    const auto before_mark_parameters = s.auto_state.uzr_par;
+    const auto before_marks = s.auto_state.bifur.marks;
     s.auto_state.from_auto_flag = s.auto_state.grabpt.flag = s.auto_state.diagram_mark.state = 1;
     const auto rows = xpp::split_lines(auto_text);
     const auto refuse_import = [&](std::string bad, int line) {
@@ -548,7 +558,7 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
             std::span<const std::string>(s.model().uvar_names.data(), s.model().node)) == before_diagram);
         CHECK(file_text(xpp::auto_solutions_file(s)) == before_solutions);
         CHECK(s.auto_state.imported_parameters == before_parameters);
-        CHECK(same_vector(s.auto_state.uzr_period, before_marks) && s.auto_state.uzr_par == before_mark_parameters);
+        CHECK(s.auto_state.bifur.marks == before_marks);
         CHECK(s.auto_state.from_auto_flag == 1 && s.auto_state.grabpt.flag == 1 && s.auto_state.diagram_mark.state == 1);
     };
     const auto replace_row = [&](int row, std::string value) {

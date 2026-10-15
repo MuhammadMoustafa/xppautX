@@ -177,8 +177,6 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
   );
 }
 
-const MARKS_MAX = 9;
-
 export function AutoMarksDialog({onClose}: {onClose: () => void}) {
   const session = useSession();
   const shown = useShown();
@@ -216,7 +214,7 @@ export function AutoMarksDialog({onClose}: {onClose: () => void}) {
               onClick={() => setRows(r => r.filter((_, k) => k !== i))}>Remove</button>
           </div>
         ))}
-        <button type="button" class="auto-mark-add" disabled={rows.length >= MARKS_MAX}
+        <button type="button" class="auto-mark-add"
           data-autofocus={rows.length === 0 ? '' : undefined}
           onClick={() => setRows(r => [...r, [names[0] ?? 'T', '0']])}>Add a value</button>
       </form>

@@ -124,14 +124,12 @@ int main()
     /* Mark values: a parameter of AUTO's or T, into AUTO's user points */
     s = xpp::AutoSettingsSet{};
     s.nmarks = 2;
-    s.mark_name[0] = "phi";
-    s.mark_value[0] = 0.5;
-    s.mark_name[1] = "t";
-    s.mark_value[1] = 20;
-    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.bifur.nper == 2 && xpp::client_session().auto_state.nuzr == 2);
-    CHECK(xpp::client_session().auto_state.uzr_par[0] == 2 && xpp::client_session().auto_state.uzr_period[0] == 0.5 && xpp::client_session().auto_state.uzr_par[1] == 10 && xpp::client_session().auto_state.uzr_period[1] == 20);
+    s.mark_name = {"phi","t"};
+    s.mark_value = {0.5,20};
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.bifur.marks.size() == 2);
+    CHECK(xpp::client_session().auto_state.bifur.marks[0].parameter == 2 && xpp::client_session().auto_state.bifur.marks[0].value == 0.5 && xpp::client_session().auto_state.bifur.marks[1].parameter == 10 && xpp::client_session().auto_state.bifur.marks[1].value == 20);
     s.mark_name[1] = "v"; /* a variable is no user point */
-    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.uzr_par[1] == 10);
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.marks[1].parameter == 10);
 
     TEST_REPORT("auto_settings");
 }

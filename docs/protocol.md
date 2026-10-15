@@ -1274,7 +1274,10 @@ any of the members above, each part only when given: `numerics` any
 of its fields, `axes` any of `plot`, `var`, `par1`, `par2` (model parameter names), the four ranges, and `"fit":true` for
 Axes/Fit afterwards, and `"view":k` for view k's axes (the active one's
 without it; setting a view's axes makes it the active one), `marks` the
-whole list (0 to 9 pairs; `[]` for none).
+whole list (`[]` for none); mark storage grows with the session. Sent commands and
+  session files have a 65,536-mark input allocation budget (W331, [#392](https://github.com/MuhammadMoustafa/xppautX/issues/392)).
+  The legacy User action asks for a count, then a form with exactly that many values;
+  cancel or one invalid value leaves the entire list unchanged.
 The core checks every value first and sets all or nothing: a whole number
 where the form's field is one; Ntst, Nmax, NPr, ITMX, ITNW, NWTN at least
 1; Ncol 2 to 7; IID 0 to 5; IAD and IADS at least 0; SuppBP 0 or 1; Ds not

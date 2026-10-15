@@ -112,7 +112,7 @@ extern const XppMenu menu_integrate, menu_nullclines, menu_freeze_cline,
   menu_color_code, menu_adjoint, menu_lookup, menu_method, menu_save_what;
 
 /* AUTO's pop-up menus; menu_auto_special has no title (its caller's) */
-extern const XppMenu menu_auto_plot_type, menu_auto_mark, menu_auto_start, menu_auto_torus,
+extern const XppMenu menu_auto_plot_type, menu_auto_start, menu_auto_torus,
   menu_auto_per_doub, menu_auto_periodic, menu_auto_hopf, menu_auto_branch, menu_auto_file,
   menu_auto_special;
 

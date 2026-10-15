@@ -606,11 +606,22 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
             s.view = static_cast<int>(z);
         }
     }
-    if (marks && *marks == '[') {
-        for (i = 0; (v = js_elem(marks, i)) != NULL; i++) {
-            if (i >= AUTO_SETTINGS_MARKS || *v != '[' || !js_string(js_elem(v, 0), s.mark_name[i])
+    if (marks && *marks != '[') {
+        why = "Mark values must be a list of pairs [name, number]";
+        return 0;
+    }
+    if (marks) {
+        const char *cursor = marks;
+        for (i = 0; (v = js_element(cursor)) != NULL; i++) {
+            if (i >= auto_file_marks_limit) {
+                why = xpp::format("Mark values exceed the input budget of {}", auto_file_marks_limit);
+                return 0;
+            }
+            s.mark_name.emplace_back();
+            s.mark_value.emplace_back();
+            if (js_elem(v, 2) != NULL || *v != '[' || !js_string(js_elem(v, 0), s.mark_name[i])
                 || !js_number(js_elem(v, 1), &s.mark_value[i])) {
-                why = xpp::format("Mark values must be a list of at most {} pairs [name, number]", AUTO_SETTINGS_MARKS);
+                why = xpp::format("Mark values must be a list of at most {} pairs [name, number]", auto_file_marks_limit);
                 return 0;
             }
         }

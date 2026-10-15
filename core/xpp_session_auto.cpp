@@ -76,11 +76,12 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
             const std::vector<std::string_view> w = split_fields(line, ' ');
             const std::string_view key = w[0];
             if (key == "mark") {
-                if (s.nmarks >= AUTO_SETTINGS_MARKS) l.fail(xpp::format("more than {} Mark values", AUTO_SETTINGS_MARKS));
+                if (s.nmarks >= auto_file_marks_limit) l.fail(xpp::format("more than {} Mark values", auto_file_marks_limit));
                 if (w.size() != 3) l.fail("not \"mark NAME VALUE\"");
                 at(xpp::format("mark{}", s.nmarks));
-                s.mark_name[s.nmarks] = name_of(w[1]);
-                number(w[2], s.mark_value[s.nmarks]);
+                s.mark_name.push_back(name_of(w[1]));
+                s.mark_value.emplace_back();
+                number(w[2], s.mark_value.back());
                 s.nmarks++;
                 continue;
             }

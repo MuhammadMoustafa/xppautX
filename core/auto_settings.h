@@ -13,10 +13,9 @@
    "autosettings" event and set by the `auto` `set` command, so a front end
    edits them in forms of its own, at any time.
 
-   The forms in auto_nox.cpp stay (scripts replay them); this is a second
-   path that writes the same fields (Auto, aauto, SuppressBP and
-   the user points' copies), after checking every value: a set with one
-   bad value changes nothing.
+   The forms in auto_nox.cpp stay (scripts replay them); marks use this
+   same validator and Session-owned list. A set with one bad value changes
+   nothing.
 
    auto_settings.cpp; nothing escapes it. */
 
@@ -45,7 +44,14 @@ enum {
 const char *auto_settings_num_key(int i);
 const char *auto_settings_num_label(int i);
 
-#define AUTO_SETTINGS_MARKS 9 /* Mark values (the form's Uzr1..Uzr9) */
+// Bound expanded mark storage from sent files or commands before allocation.
+inline constexpr int auto_file_marks_limit = 65536;
+// XPPAUT's legacy User form starts its first suggested period at 11.
+inline constexpr double auto_initial_mark_period = 11;
+// Its subsequent suggested periods are spaced by 3; extending rows preserves that sequence.
+inline constexpr double auto_mark_period_spacing = 3;
+// XPPAUT's foreign .auto schema always encodes nine rows, even when inactive.
+inline constexpr int auto_foreign_mark_rows = 9;
 
 /* the event: {"ev":"autosettings",...} with the settings now, whole; an
    empty string when there is no model with variables (no settings) */
@@ -71,9 +77,9 @@ struct AutoSettingsSet {
     std::array<double, 4> range{};
     int fit = 0; /* Axes/Fit after the axes are set */
     int view = -1; /* the view whose axes these are (W50), made the active one; -1: the active one */
-    int nmarks = -1; /* -1: no "marks"; else how many (0 to 9) */
-    std::array<std::string, AUTO_SETTINGS_MARKS> mark_name;
-    std::array<double, AUTO_SETTINGS_MARKS> mark_value{};
+    int nmarks = -1; /* -1: no "marks"; else the whole list's length */
+    std::vector<std::string> mark_name;
+    std::vector<double> mark_value;
     /* AUTO's thread count (W267), a program preference and not a setting of
        the session: prefs::AUTO_THREADS_AUTO or the count. Set by `auto`
        `set`'s "threads" and saved in the preferences file; never filled by

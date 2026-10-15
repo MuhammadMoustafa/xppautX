@@ -1122,7 +1122,6 @@ AUTO_MENUS = {
     'Start': (['Steady state', 'Periodic', 'Bdry Value', 'Homoclinic', 'hEteroclinic'], 'spbhe'),
     'Plot Type': (['Hi', 'Norm', 'hI-lo', 'Period', 'Two par', '(Z)oom in', 'Zoom (O)ut', 'last 1 par',
                    'last 2 par', 'Fit', 'fRequency', 'Average', 'Default', 'Scroll', 'new (V)iew'], 'hniptzo12fradsv'),
-    'Mark values: how many?': (list('0123456789'), '0123456789'),
     'File': (['Import orbit', 'Save diagram', 'Load diagram', 'Postscript', 'SVG', 'Reset diagram', 'Clear grab',
               'Write pts', 'All info', 'init Data', 'Toggle redraw', 'auto raNge', 'sElect 2par pt', 'draw laBled',
               'lOad branch', 'eXport CSV', 'Import diagram'], 'islpvrcwadtneboxf'),
@@ -1211,7 +1210,7 @@ if ask:
           resets and dg[resets[-1]]['plot'] == 1 and dg[resets[-1]]['keep'] == 0 and added > 0,
           str([(e['op'], e.get('keep'), e.get('from'), added) for e in dg])[:300])
     evs, ask = auto_dialog('usr', lambda ask: {'ok': 0})
-    titles = [e.get('title') for e in evs if e.get('ev') == 'ask']
+    titles = [e.get('name') for e in evs if e.get('ev') == 'ask']
     check('Usr period asks "Mark values: how many?"', titles == ['Mark values: how many?'], str(titles))
     evs, _ = auto_dialog('file', {'key': 'r'}, {'key': 'y'})
     dg = [e for e in evs if e.get('ev') == 'diagram']
@@ -1220,8 +1219,8 @@ if ask:
           str([(e['op'], e.get('keep')) for e in dg]))
 
     titles_seen = {m['title'] for m in auto_menus_seen}
-    check('W96: AUTO menus seen: Start, Plot Type, Mark values, File and the grabbed one',
-          {'Start', 'Plot Type', 'Mark values: how many?', 'File'} <= titles_seen, str(sorted(titles_seen)))
+    check('W96: AUTO menus seen: Start, Plot Type, File and the grabbed one',
+          {'Start', 'Plot Type', 'File'} <= titles_seen, str(sorted(titles_seen)))
     for m in auto_menus_seen:
         want = AUTO_MENUS.get(m['title'])
         check('W96: AUTO menu %r is as menus.cpp defines it' % m['title'],
@@ -3560,7 +3559,7 @@ def check_autosettings():
         check("autosettings: axes are the Axes menu's plot type and the AutoPlot form's values",
               ask and ask['kind'] == 'form' and ask['values'] == want, '%s vs %s' % (ask and ask['values'], want))
         ask = ask_of(cmd='key', win='auto', key='u')
-        snda(cmd='answer', id=ask['id'], key='0')
+        snda(cmd='answer', id=ask['id'], ok=1, value='0')
         cola(is_idle)
         check('autosettings: no Mark values at first, as the form says', st['marks'] == [], str(st['marks']))
 
@@ -3587,11 +3586,34 @@ def check_autosettings():
         check('auto set: the Numerics form shows it', ask and ask['values'][1] == '12' and ask['values'][4] == '-0.01',
               str(ask and ask['values']))
         ask = ask_of(cmd='key', win='auto', key='u')
-        snda(cmd='answer', id=ask['id'], key='2')
+        snda(cmd='answer', id=ask['id'], ok=1, value='2')
         ask2 = cola(lambda e: e.get('ev') == 'ask')[1]
         cancel(ask2)
         check('auto set: the Mark values form shows it', ask2 and ask2['values'][:2] == ['%s=0.25' % p0, 'T=30'],
               str(ask2 and ask2['values']))
+
+        # W331: protocol and legacy forms agree beyond all previous mark capacities.
+        many_marks = [['T', 100 + i] for i in range(128)]
+        evs, many, errs = auto_set(marks=many_marks)
+        check('W331: protocol sets 128 marks', not errs and many and many['marks'] == many_marks)
+        ask = ask_of(cmd='key', win='auto', key='u')
+        snda(cmd='answer', id=ask['id'], ok=1, value='128')
+        form = cola(lambda e: e.get('ev') == 'ask')[1]
+        check('W331: form displays all 128 marks', form and form['values'] == ['T=%d' % (100+i) for i in range(128)])
+        vals = list(form['values'])
+        vals[0], vals[-1] = 'T=2', 'T=bad'
+        snda(cmd='answer', id=form['id'], ok=1, values=vals)
+        rejected, _ = cola(is_idle)
+        check('W331: late bad form value rejects all edits',
+              len([e for e in rejected if e.get('ev') == 'message' and 'error' in e]) == 1 and settings_of(rejected) is None)
+        for bad_marks in (many_marks[:-1] + [['unknown', 0]], 'bad', [['T', 1, 2]]):
+            evs, changed, errs = auto_set(numerics={'nmx': 99}, marks=bad_marks)
+            check('W331: bad mark command rejects its numerics too', len(errs) == 1 and changed is None)
+        snda(cmd='data', events=['autosettings'])
+        unchanged = settings_of(cola(is_idle)[0])
+        check('W331: settings stayed intact after bad forms and sets',
+              unchanged and unchanged['marks'] == many_marks and unchanged['numerics']['nmx'] == 12)
+        auto_set(marks=st3['marks'])
 
         # refused: bad values change nothing, and say why
         for bad, why in (({'numerics': {'ncol': 9}}, 'Ncol'), ({'numerics': {'ntst': 1.5}}, 'Ntst'),
@@ -3627,7 +3649,7 @@ def check_autosettings():
         check('auto set: Nmax 12 makes the next run stop at 12 points (the default goes on to %d)' % nb,
               not errs and na == 12 and nb > 12, '%s: %d vs %d points' % (errs, na, nb))
         # W155: Reload keeps AUTO's settings without a settings file.
-        before_reload = settings_of(auto_set(numerics={'nmx': 41})[0])
+        before_reload = settings_of(auto_set(numerics={'nmx': 41}, marks=many_marks)[0])
         snda(cmd='reload')
         reload_ask = cola(lambda e: e.get('ev') == 'ask')[1]
         snda(cmd='answer', id=reload_ask['id'], key='d')

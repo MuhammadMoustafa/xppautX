@@ -192,12 +192,14 @@ every example, the goldens guard the output files.
 
 ## AUTO
 
+
 AUTO's numerics derive from XPPAUT 8.0, converted to C++. W326 restores the
 converged state after a failed special-point location; its intentional diagram
 changes are checked against AUTO-07p and recorded in the baseline. The window: [manual 9](manual/09-auto.md).
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
+| Mark values | User form has nine slots ([finding 55](xppaut-findings.md#55-auto-marks-have-a-nine-value-form-limit)) | Session-owned list; forms, protocol and session files preserve every mark, validated atomically; sent input has one 65,536-mark allocation budget | [W331](https://github.com/MuhammadMoustafa/xppautX/issues/392) |
 | Window | an X11 window with its own menus | the same menus and keys (as data), a view over the page | W96, W6 |
 | Diagram views | one diagram, one set of axes | any number of views of one diagram, each with its axes | W50 |
 | Failed-step endpoint stability | unconditionally stores the last spectrum, which can be another solution's after a failed branch switch ([finding 51](xppaut-findings.md#51-auto-failed-step-endpoint-stability)) | retains the spectrum when the predictor saves its old solution and restores it with that solution at MX; recomputes absent spectra from the restored Jacobian/full circuit pencil | [W341 / #402](https://github.com/MuhammadMoustafa/xppautX/issues/402) |

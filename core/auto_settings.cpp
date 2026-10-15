@@ -183,10 +183,10 @@ AutoSettingsSet settings_now(const xpp::Session &s)
     read_num(s, set.num.data());
     set.has_num.fill(1);
     axes_of(s, s.auto_state.axes(), set);
-    set.nmarks = s.auto_state.bifur.nper < 0 ? 0 : s.auto_state.bifur.nper < AUTO_SETTINGS_MARKS ? s.auto_state.bifur.nper : AUTO_SETTINGS_MARKS;
-    for (int i = 0; i < set.nmarks; i++) {
-        set.mark_name[i] = s.auto_state.bifur.period_mark[i] ? std::string("T") : name_or_empty(auto_par_name(s, s.auto_state.bifur.uzrpar[i]));
-        set.mark_value[i] = s.auto_state.bifur.period[i];
+    set.nmarks = static_cast<int>(s.auto_state.bifur.marks.size());
+    for (const auto &mark : s.auto_state.bifur.marks) {
+        set.mark_name.push_back(mark.period ? std::string("T") : name_or_empty(auto_par_name(s, mark.parameter)));
+        set.mark_value.push_back(mark.value);
     }
     return set;
 }
@@ -277,7 +277,7 @@ struct Checked {
     double num[AUTO_NUM_N];
     int view = 0, plot = 0, var = 0, icp1 = 0, icp2 = 0;
     double range[4];
-    int uzr[AUTO_SETTINGS_MARKS];
+    std::vector<AutoMark> marks;
 };
 
 /* set checked against s, as it will be when views views of the diagram
@@ -387,17 +387,18 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
     }
 
     /* Mark values: parameter (or T, the period) = value */
-    int (&uzr)[AUTO_SETTINGS_MARKS] = c.uzr;
-    if (set->nmarks > AUTO_SETTINGS_MARKS) {
-        why = xpp::format("at most {} Mark values", AUTO_SETTINGS_MARKS);
+    if (set->nmarks < -1 || (set->nmarks >= 0 &&
+        (set->mark_name.size() != static_cast<std::size_t>(set->nmarks) ||
+         set->mark_value.size() != static_cast<std::size_t>(set->nmarks)))) {
+        why = "Mark values: count does not match the list";
         key = "mark";
         return false;
     }
     for (int i = 0; i < set->nmarks; i++) {
-        uzr[i] = strcasecmp(set->mark_name[i].c_str(), "T") == 0 ? xpp::auto_unknown::period : xpp::find_user_name(s.model(), PARAM_BOX, set->mark_name[i]);
-        if (uzr[i] < 0) {
-            why = xpp::format("Mark values: {} is not a model parameter or T",
-                                    set->mark_name[i]);
+        const bool period = strcasecmp(set->mark_name[i].c_str(), "T") == 0;
+        const int parameter = period ? xpp::auto_unknown::period : xpp::find_user_name(s.model(), PARAM_BOX, set->mark_name[i]);
+        if (parameter < 0) {
+            why = xpp::format("Mark values: {} is not a model parameter or T", set->mark_name[i]);
             key = xpp::format("mark{}", i);
             return false;
         }
@@ -406,18 +407,18 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
             key = xpp::format("mark{}", i);
             return false;
         }
+        c.marks.push_back({parameter, period, set->mark_value[i]});
     }
 
     return true;
 }
 
 /* set, checked into c, written as the forms do */
-void commit(xpp::Session &s, const AutoSettingsSet *set, const Checked &c)
+void commit(xpp::Session &s, const AutoSettingsSet *set, Checked &c)
 {
     const double *num = c.num;
     const int view = c.view, plot = c.plot, var = c.var, icp1 = c.icp1, icp2 = c.icp2;
     const double(&range)[4] = c.range;
-    const int(&uzr)[AUTO_SETTINGS_MARKS] = c.uzr;
     write_num(s, num);
     bool axes = set->has_plot || !set->var.empty() || !set->par1.empty() || !set->par2.empty() || set->fit;
     for (int i = 0; i < 4; i++) axes = axes || set->has_range[i];
@@ -435,19 +436,7 @@ void commit(xpp::Session &s, const AutoSettingsSet *set, const Checked &c)
         if (s.auto_state.axes().plot == 4) keep_last_plot(s, 2);
         if (set->fit) auto_fit(s);
     }
-    if (set->nmarks >= 0) {
-        s.auto_state.bifur.nper = set->nmarks;
-        for (int i = 0; i < set->nmarks; i++) {
-            s.auto_state.bifur.uzrpar[i] = uzr[i];
-            s.auto_state.bifur.period_mark[i] = strcasecmp(set->mark_name[i].c_str(), "T") == 0;
-            s.auto_state.bifur.period[i] = set->mark_value[i];
-        }
-        s.auto_state.nuzr = s.auto_state.bifur.nper;
-        for (int i = 0; i < AUTO_SETTINGS_MARKS; i++) {
-            s.auto_state.uzr_period[i] = s.auto_state.bifur.period[i];
-            s.auto_state.uzr_par[i] = s.auto_state.bifur.uzrpar[i];
-        }
-    }
+    if (set->nmarks >= 0) s.auto_state.bifur.marks.swap(c.marks);
     /* the diagram in its new quantities (and a new parameter's name on its axis) */
     if (axes && s.auto_state.bifur.exist) redraw_diagram(s);
 }
@@ -522,6 +511,8 @@ void auto_settings_reload(Session &s, const AutoSettingsSet &kept)
         set.mark_name[set.nmarks] = kept.mark_name[i];
         set.mark_value[set.nmarks++] = kept.mark_value[i];
     }
+    set.mark_name.resize(set.nmarks);
+    set.mark_value.resize(set.nmarks);
     /* The form can hold values that a run refuses (and a Fit can leave a
        flat range). Check the names through the normal settings owner,
        then commit the numbers and ranges already held in memory. */
@@ -576,7 +567,7 @@ int auto_settings_apply(xpp::Session &s, const AutoSettingsSet &set, std::string
     try {
         if (apply(s, &set, why)) return 0;
     } catch (...) {
-        /* only the messages allocate, all before anything is written */
+        /* Validation builds held marks before any setting is written. */
         why.clear();
         try {
             why = "out of memory";

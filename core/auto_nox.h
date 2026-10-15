@@ -14,7 +14,6 @@
 #include "auto_codes.h"
 #include "auto_axis.h"
 
-#define MAX_AUT_PER 10
 
 namespace xpp {
 
@@ -43,6 +42,13 @@ typedef struct {
   double torper;
 } ROTCHK;
 
+struct AutoMark {
+  int parameter;
+  bool period;
+  double value;
+  bool operator==(const AutoMark &) const = default;
+};
+
 struct BIFUR {
 
   int exist;
@@ -57,12 +63,9 @@ struct BIFUR {
   int irs,ilp,isp,isw;
   AutoPointCode itp;
   int icp3,icp4,icp5;
-  int nper;
   std::string hinttxt;
-  double period[MAX_AUT_PER];
-  int uzrpar[MAX_AUT_PER];
-  // Distinguish the period from a model parameter with the same integer index.
-  std::array<bool,MAX_AUT_PER> period_mark;
+  // User marks belong to the session, independently of the model dimension.
+  std::vector<AutoMark> marks;
   double epsl,epsu,epss;
   int ncol;
 };
@@ -273,7 +276,6 @@ void auto_get_info(Session &s, int *n, std::string &pname);
 std::string auto_screen_col(const Session &s, const std::string &col);
 /* AUTO's index of parameter or period name s (10 for the period, T),
    -1 when it is not one of AUTO's parameters */
-int auto_name_to_index(const Session &s, std::string_view name, bool &period);
 
 /* AUTO's solution file (fort.8 after a run, the orbits of the labelled
    points a grab restarts from): <HOME or the model's folder>/<model>.s */

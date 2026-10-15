@@ -25,7 +25,6 @@ void init_auto(AutoState &st, int ndim, bool exact)
   const xpp::BIFUR &b=st.bifur;
   /* here are the constants that we do not allow the user to change */
   int nnbc;
-  int i;
   st.run.iad=st.advanced.iad;   
   st.run.iplt=0;
   st.run.mxbf=st.advanced.mxbf;
@@ -72,9 +71,9 @@ void init_auto(AutoState &st, int ndim, bool exact)
   st.run.dsmin=b.dsmin;
 
   st.run.marks.clear();
-  for(i=0;i<st.nuzr;i++)
-    st.run.marks.push_back({b.period_mark[i] ? xpp::auto_unknown::period : st.parameter_layout.solver_index(static_cast<int>(st.uzr_par[i])),
-                            st.uzr_period[i]});
+  for(const auto &mark:b.marks)
+    st.run.marks.push_back({mark.period ? xpp::auto_unknown::period : st.parameter_layout.solver_index(mark.parameter),
+                            mark.value});
  
 }
 

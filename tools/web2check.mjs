@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen] [-v]
+     [--only desktop,layout,phase,marks,auto,automarks,autoviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -2263,6 +2263,40 @@ async function setAxisRange(lo, hi) {
       i.value = String(v); i.dispatchEvent(new Event('input', {bubbles: true})); } })()`);
 }
 
+async function openAutoPanel() {
+  await key('f');
+  if (!await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu for AUTO'))
+    throw new Error('file menu did not open for AUTO');
+  await key('a');
+  if (!await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'AUTO panel'))
+    throw new Error('AUTO panel did not open');
+}
+
+async function autoMarks() {
+  check('W331: marks page connects', await until('s.hello && !s.busy', 'marks hello'));
+  await focusPlot();
+  await openAutoPanel();
+  // W331: Add remains usable past the legacy nine-row limit.
+  await autoButton('U');
+  await until(`!!document.querySelector('.auto-mark-add')`, 'mark editor');
+  for (let i = 0; i < 12; i++) {
+    await cdp.eval(`document.querySelector('.auto-mark-add').click()`);
+    await until(`document.querySelectorAll('.auto-mark-row').length === ${i + 1}`, 'added mark row');
+  }
+  await cdp.eval(`(() => { const i = document.querySelector('input[data-field=mark12-value]'); i.value = '12.5'; i.dispatchEvent(new Event('input', {bubbles:true})); })()`);
+  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
+  check('W331: page sets twelve marks including the last value', await until('!s.busy && s.autoSettings.core.marks.length === 12 && s.autoSettings.core.marks[11][1] === 12.5', 'twelve marks'));
+  await autoButton('U');
+  await until(`document.querySelectorAll('.auto-mark-row').length === 12`, 'twelve mark editor');
+  check('W331: reopening preserves the twelfth value', await cdp.eval(`document.querySelector('input[data-field=mark12-value]').value === '12.5'`));
+  for (let i = 0; i < 12; i++) {
+    await cdp.eval(`document.querySelector('.auto-mark-row button').click()`);
+    await until(`document.querySelectorAll('.auto-mark-row').length === ${11 - i}`, 'removed mark row');
+  }
+  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
+  check('W331: page clears the whole mark list', await until('!s.busy && s.autoSettings.core.marks.length === 0', 'marks cleared'));
+}
+
 async function autoView(dir) {
   await desktopMetrics();
   check('AUTO: the page connects', await until('s.hello && !s.busy', 'hello'));
@@ -3095,12 +3129,7 @@ async function openAutoAtFixedPoint() {
   await cdp.eval(`__xpp.send({cmd: 'key', win: 'equilibrium', key: 'i'})`);
   if (!await until('!s.busy', 'import'))
     throw new Error('import equilibrium did not complete');
-  await key('f');
-  if (!await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu 2'))
-    throw new Error('file menu did not open for auto');
-  await key('a');
-  if (!await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open'))
-    throw new Error('auto view did not open');
+  await openAutoPanel();
 }
 
 /* W102 (GitHub #151, the desktop window): a session saved with an AUTO diagram (a steady run, a
@@ -6690,6 +6719,7 @@ async function main() {
     if (run('desktop')) await session(ODE, reopenedSessionPlot);
     if (run('layout')) await session(ODE, layoutCheck, ['set par iapp: Illegal formula ..']);
     if (run('phase')) await session(ODE, phasePlane);
+    if (run('automarks')) await session(ODE, autoMarks);
     if (run('auto')) await session(ODE, autoView);
     if (run('auto')) await session(HEAVY_ODE, autoStopRace);
     if (run('autoviews')) await session(ODE, autoViews);
