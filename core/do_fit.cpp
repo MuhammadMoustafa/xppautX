@@ -241,10 +241,10 @@ void test_fit(xpp::Session &s)
  }
  std::vector<double> yfit_v(static_cast<size_t>(s.fit.npts)*s.fit.nvars);
   double *yfit=yfit_v.data();
-  std::vector<double> y0(s.model().node);
+  std::vector<double> initial(s.model().node);
   std::vector<double> a(s.fit.npars);
   for(i=0;i<s.model().node;i++)
-    y0[i]=s.last_ic[i];
+    initial[i]=s.last_ic[i];
   for(i=0;i<s.fit.npars;i++){
     if(s.fit.ipar[i]<0)
       a[i]=s.parser.constants[-s.fit.ipar[i]];
@@ -257,7 +257,7 @@ void test_fit(xpp::Session &s)
  auto ok=run_fit(s,s.fit.file.c_str(), s.fit.npts,s.fit.npars,s.fit.nvars,s.fit.maxiter,s.fit.dim,
          s.fit.eps,s.fit.tol,
 	 s.fit.ipar.data(),s.fit.ivar.data(),s.fit.icols.data(),
-	 y0.data(),a.data(),yfit);
+	 initial.data(),a.data(),yfit);
 
    if(!ok){
      ping();
