@@ -759,7 +759,7 @@ if(fabs(s.data_store.current_time)>=s.numerics.transient_time&&s.numerics.storfl
    close_aplot_files(s, complete && !failure && ierr == 0 && !xpp::job::cancelled());
  }
  if(oldic==1)get_ic(s,1,x);
- else get_ic(s,0,x);
+ else set_initial_data(s,{x,static_cast<size_t>(s.model().node+s.model().nmarkov)});
  if(s.integrator.range.type==PARAM)set_val(s,s.integrator.range.item,temp);
  if(s.integrator.range.rtype>0)
    if(s.integrator.range.type2==PARAM)set_val(s,s.integrator.range.item2,temp2);
@@ -893,7 +893,7 @@ int write_this_run(xpp::Session &s, const char *file, int i)
 void do_init_data(xpp::Session &s, int com)
 {
   char ch;
-  int i,si;
+  int si;
   double *x;
   double old_dt=s.numerics.delta_t;
   std::string icfile;
@@ -938,7 +938,7 @@ void do_init_data(xpp::Session &s, int com)
       return;
     }
     xpp::push_value_undo(s); /* Run from last state overwrites the initial conditions */
-    get_ic(s,0,x);
+    set_initial_data(s,{x,static_cast<size_t>(s.model().node+s.model().nmarkov)});
     if(com==M_IS){
       s.numerics.start_time=s.integrator.last_time;
       s.data_store.current_time=s.numerics.start_time;
@@ -1035,8 +1035,7 @@ void do_init_data(xpp::Session &s, int com)
     new_int(xpp::format("Which? (1-{})",s.manifolds.count),&si);
     si--;
     if(si<s.manifolds.count&&si>=0){
-      for(i=0;i<s.model().node;i++)
-	s.last_ic[i]=s.manifolds.ic[si][i];
+      set_initial_data(s,std::span(s.manifolds.ic[si]).first(s.model().node));
       get_ic(s,2,x);
     }
     else
@@ -1321,13 +1320,19 @@ int form_ic(xpp::Session &s)
   return 1;
 }
 
+void set_initial_data(xpp::Session &s, std::span<const double> state)
+{
+  const auto nodes=static_cast<size_t>(s.model().node);
+  const auto states=nodes+static_cast<size_t>(s.model().nmarkov);
+  if((state.size()!=nodes && state.size()!=states) || s.last_ic.size()<states)
+    throw std::length_error("initial data does not match the model state");
+  std::copy(state.begin(),state.end(),s.last_ic.begin());
+}
+
 void get_ic(xpp::Session &s, int it, double *x)
 {
   int i;
   switch(it){
-  case 0:
-    for(i=0;i<s.model().node+s.model().nmarkov;i++)s.last_ic[i]=x[i];
-    break;
   case 1:
   case 2:
     for(i=0;i<s.model().node+s.model().nmarkov;i++)x[i]=s.last_ic[i];

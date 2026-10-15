@@ -5,6 +5,7 @@
 #include <algorithm>
 #include "model.h"
 #include "session.h"
+#include "integrate.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
@@ -566,7 +567,7 @@ void load_ic_file_named(xpp::Session &s, std::string_view fn)
     show_error(z.error());
     return;
   }
-  for(int i=0;i<m.node;i++)s.last_ic[i]=(*z)[static_cast<std::size_t>(i)];
+  set_initial_data(s,*z);
 }
 
 void write_ic_file(const xpp::Session &s, std::string_view fn)

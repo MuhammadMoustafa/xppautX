@@ -579,8 +579,7 @@ void set_par_or_var(xpp::Session &s, std::string_view name,int type,int index,do
 void eq_import(xpp::Session &s, double *y,int n)
 {
   int i;
-  for(i=0;i<n;i++)
-    s.last_ic[i]=y[i];
+  set_initial_data(s,{y,static_cast<size_t>(n)});
 
   if(n<20){
     if(s.auto_state.homo_side==0){

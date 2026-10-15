@@ -209,7 +209,7 @@ changes are checked against AUTO-07p and recorded in the baseline. The window: [
 | Saving | `.auto` text file at 6 digits | `.snapx` session: every digit, settings, orbits, views | W92, W155 |
 | Files during a run | `fort.*` in `$HOME`; sessions overwrite each other ([findings #8](xppaut-findings.md)) | per-process scratch folders, stale ones cleaned at start only when their owner is proved exited | W19, W121b ([#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)) |
 | Eigenvalues shown | a run's first point shows the previous run's ([findings #14](xppaut-findings.md)) | one source of a point's eigenvalues and multipliers | W15 |
-| Grab a label | by keys in the window | also `auto grab <label>` for scripts and recordings | W64 |
+| Grab a label | by keys in the window | also `auto grab <label>` for scripts and recordings; node initial data copied through a length-checked span, preserving Markov initial states | W64, [W366 / #428](https://github.com/MuhammadMoustafa/xppautX/issues/428) |
 | Errors | numerics call `exit()` ([findings #17](xppaut-findings.md)) | returned as errors; the program stays | W63a |
 | Settings | an X11 form | settings are data (`autosettings`); checked by AUTO's own rules | W92, W118 |
 | `tstheti` heteroclinic example | augmented BVP with deprecated zero-valued `hom_bcs`, hence singular ([finding 50](xppaut-findings.md#50-auto-accepts-nan-as-a-converged-bvp-solution)) | preserve the original conversion and add a two-state HomCont companion with free `(a,c)` and explicit equilibria; check every speed against `(1-2*a)/sqrt(2)` with mesh and interval refinement | W345 ([#406](https://github.com/MuhammadMoustafa/xppautX/issues/406)) |

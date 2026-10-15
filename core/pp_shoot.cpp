@@ -161,7 +161,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
      else for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=yend[j];
      s.data_store.rows++;
      set_cycle(s,cycle,&icol);
-     get_ic(s,0,ystart);
+     set_initial_data(s,{ystart,static_cast<size_t>(s.model().node)});
      if(const xpp::Result<> r=last_shot(s,0);!r)xpp::show_error(r.error());
      if(s.shoot_range.movie==1 && film)film=ui.film_clip(s);
      ping();
@@ -262,7 +262,7 @@ void find_bvp_com(xpp::Session &s, int com)
  if(!shot)xpp::show_error(shot.error());
  bad_shoot(iret);
  if(iret==1||iret==2) {
- get_ic(s,0,ystart);  
+ set_initial_data(s,{ystart,static_cast<size_t>(s.model().node)});
  redraw_ics();
  if(ishow){
    reset_graphics(s);

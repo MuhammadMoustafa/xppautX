@@ -10,6 +10,9 @@
 #include "auto_c.h"
 #include "diagram.h"
 #include "xpp_batch.h"
+#include "xpp_files.h"
+#include "xpp_io.h"
+#include "integrate.h"
 
 #include <deque>
 #include <numeric>
@@ -201,5 +204,45 @@ int main()
     check_solvbv_work();
     check_diagram_points(s);
     check_library_arrays(s);
+    // W366: load a real Markov model; both grab paths see node-only storage.
+    xpp::TempDir temp;
+    std::string model = temp.path() + "/grab.odex";
+    xpp::Writer writer(model);
+    CHECK(static_cast<bool>(writer));
+    writer.print("x'=0\nmarkov z 2\n{{0}} {{1}}\n{{1}} {{0}}\ninit x=1,z=1\n");
+    CHECK(writer.commit());
+    char *markov_argv[] = {name, model.data(), nullptr};
+    const auto loaded = xpp::load_model(2, markov_argv, 1);
+    CHECK(loaded.has_value());
+    if (!loaded) return 1;
+    auto &markov = xpp::client_session();
+    CHECK(markov.model().node == 1 && markov.model().nmarkov == 1);
+    markov.auto_state.dir = temp.path();
+    xpp::init_auto_win(markov);
+    auto point = point_of(1, 3);
+    point.ibr = 1;
+    point.ntot = 2;
+    point.lab = 7;
+    point.branch = std::make_shared<xpp::DiagramBranch>();
+    edit_start(markov, point);
+    point.ntot = 3;
+    point.lab = 8;
+    add_diagram(markov, point);
+    markov.auto_state.diag_flag = 1;
+    const double saved_markov = markov.last_ic[1];
+    CHECK(auto_grab_label(markov, 7) == 1);
+    CHECK(markov.last_ic[0] == 6 && markov.last_ic[1] == saved_markov);
+    markov.last_ic[0] = -1;
+    find_point(markov, 1, 2);
+    CHECK(markov.last_ic[0] == 6 && markov.last_ic[1] == saved_markov);
+    // The shared owner refuses an invalid length before changing any values.
+    const auto before = markov.last_ic;
+    bool refused = false;
+    try { xpp::set_initial_data(markov, {}); }
+    catch (const std::length_error &) { refused = true; }
+    CHECK(refused && markov.last_ic == before);
+    const std::array<double, 2> full = {4, 0};
+    xpp::set_initial_data(markov, full);
+    CHECK(markov.last_ic[0] == 4 && markov.last_ic[1] == 0);
     TEST_REPORT("AUTO views");
 }

@@ -109,6 +109,9 @@ void evaluate_ar_ic(Session &s, const char *v, const char *f, int j1, int j2);
 void arr_ic_start(Session &s);
 int set_array_ic(Session &s);
 int form_ic(Session &s);
+/* Node-only states preserve Markov initial data; full states replace both.
+   Any other length is a programming error, rejected before writing. */
+void set_initial_data(Session &s, std::span<const double> state);
 void get_ic(Session &s, int it, double *x);
 void send_output(Session &s, double *y, double t);
 void do_plot(Session &s, float *oldxpl, float *oldypl, float *oldzpl, float *xpl, float *ypl, float *zpl);

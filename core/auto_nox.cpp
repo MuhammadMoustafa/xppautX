@@ -3015,7 +3015,7 @@ void find_point(xpp::Session &s, int ibr, int pt)
 	   /* now we use this info to set parameters and init data */
 	   for(i=0;i<s.model().node;i++)
 	     setvar(s,i+1,d->u0[i]);
-	   xpp::get_ic(s,0,d->u0.data());
+	   xpp::set_initial_data(s,d->u0);
 	   auto_set_pars_from(s, diagram_parameters(*d).data());
 	   xpp::evaluate_derived(s);
 	   xpp::ok_or_show(xpp::redo_all_fun_tables(s));
@@ -3327,7 +3327,7 @@ static void grab_diagram_point(xpp::Session &s, const DIAGRAM *d)
     s.auto_state.grabpt.ubar[i]=d->ubar[i];
     setvar(s,i+1,s.auto_state.grabpt.u0[i]);
   }
-  xpp::get_ic(s,0,s.auto_state.grabpt.u0.data());
+  xpp::set_initial_data(s,s.auto_state.grabpt.u0);
   s.auto_state.grabpt.flag=1;
   s.auto_state.grabpt.itp=d->itp;
   s.auto_state.grabpt.nfpar=d->nfpar;
