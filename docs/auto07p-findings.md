@@ -11,10 +11,9 @@ reproducible.
 How this file differs from related documents:
 - Bugs found in XPPAUT's AUTO (AUTO2000, as XPPAUT ships it) stay in
   [xppaut-findings.md](xppaut-findings.md).
-- Deliberate differences in method or choices (such as tolerance formulas,
-  alternative algorithms, or unverified codim-2 detection differences) stay in
+- Where xppautX deliberately differs from AUTO-07p (a method or a tolerance
+  chosen differently, not a defect) stays in
   [auto-references.md](auto-references.md).
-- Real defects of AUTO-07p's own belong here.
 
 Each finding cites the lines in AUTO-07p's own source, never our refactored
 files, so it is clear the behaviour is AUTO-07p's and not ours. A citation is a
@@ -27,15 +26,12 @@ The index gives one line each; its number links to the entry's section, and
 every card (to its GitHub issue) and commit (to its GitHub commit) is a link,
 in the index and the entries alike.
 
-As of card W367 ([#429](https://github.com/MuhammadMoustafa/xppautX/issues/429)),
-no defects of AUTO-07p's own have been identified in the comparison studies
-([w355](studies/w355-auto07p-differences.md),
-[w356](studies/w356-auto-location-07p.md),
-[w358](studies/w358-auto-profile.md), and
-[auto-references.md](auto-references.md)): the differences documented there
-are improvements, optimizations, alternative methods, or traced reference
-comparisons, with no crashes, memory faults, or wrong results in AUTO-07p itself.
-The index below is therefore empty.
+When the file was made (W367, 2026-10-14), the AUTO studies
+([W355](studies/w355-auto07p-differences.md),
+[W356](studies/w356-auto-location-07p.md),
+[W358](studies/w358-auto-profile.md)) and
+[auto-references.md](auto-references.md) noted no defect of AUTO-07p's own,
+so the index starts empty.
 
 | # | Area | Finding | Card |
 |---|---|---|---|
