@@ -28,7 +28,7 @@ Hopf phase condition. This follows
 [toolboxae.f90:171-265](../reference/auto-07p/src/toolboxae.f90#L171).
 The principal parameter uses forward differences, as in AUTO-07p.
 
-The reduced equations continue through `kappa=0` (Bogdanov?Takens). Negative
+The reduced equations continue through `kappa=0` (Bogdanov-Takens). Negative
 kappa describes a neutral saddle: the diagram and readout use curve code 13,
 "neutral saddle", rather than code 3, "Hopf". Special-point detection at BT
 remains W364. AUTO-07p updates `PAR(11)=2*pi/sqrt(kappa)` only for positive

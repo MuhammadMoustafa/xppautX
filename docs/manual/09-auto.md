@@ -692,7 +692,7 @@ I have added a few AUTO numerical settings so that I don’t have to set them la
 ### Hopf curves at zero frequency (W363, #425)
 
 Two-parameter ODE Hopf continuation uses the reduced `2n+2` system and can
-continue through zero frequency (a Bogdanov?Takens point) onto a neutral-saddle
+continue through zero frequency (a Bogdanov-Takens point) onto a neutral-saddle
 curve. The point readout names that segment "neutral saddle curve". Its
 period field retains the last period computed on the Hopf segment; it does
 not represent an oscillation period there. Run from a grabbed labelled
