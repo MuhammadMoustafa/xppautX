@@ -137,10 +137,7 @@ void send_error(const char *ev, const xpp::Error &e)
     }
     /* Every error affects the process result, whatever UI is installed. */
     xpp::log_note_error();
-    std::string event = xpp::format("{{\"ev\":\"{}\"", ev);
-    append_error(event, e);
-    event += '}';
-    data_emit(event);
+    data_emit(error_event(ev, e));
 }
 
 void j_err_msg(const xpp::Error &e) { send_error("message", e); }

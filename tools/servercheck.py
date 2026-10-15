@@ -4404,6 +4404,63 @@ def check_refused_during_run():
 check_refused_during_run()
 
 
+# W389 (GitHub #451, docs/protocol.md "Commands during a command"): the
+# input's queue is bounded. While a computation runs, normal lines wait for
+# it; past MAX_PENDING_LINES the next is refused with a Busy `message`
+# error naming its command and id, never queued, the reader never blocks, so an
+# Abort sent after the flood is read and stops the run (stopped); the lines
+# that were queued then each run (state and idle), and the session works.
+MAX_PENDING_LINES = 1024  # core/xpp_inbox.h
+def check_busy_flood():
+    flood = MAX_PENDING_LINES + 50
+    p, r, snd, col, _ = launch_server()
+    try:
+        col(is_idle)
+        snd(cmd='key', key='u')
+        col(is_idle)
+        snd(cmd='key', key='t')
+        evs, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], ok=1, value='1e7')
+        col(is_idle)
+        snd(cmd='key', key='Escape')
+        col(is_idle)
+        snd(cmd='key', key='i')
+        evs, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='g')
+        col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
+        for i in range(flood):  # a view command: kept for after the run
+            snd(cmd='display', win=1, x=[0, 50], id=i)
+        evs, last = col(lambda e: e.get('ev') == 'message' and ('(id %d)' % (flood - 1)) in e.get('error', ''))
+        busy = [e for e in evs if e.get('ev') == 'message' and e.get('error', '').startswith('Busy:')]
+        ids = [int(re.search(r'\(id (\d+)\)', e['error']).group(1)) for e in busy]
+        check('W389: past the bound each line is refused with a Busy error naming its command and id, none before',
+              last is not None and ids == list(range(MAX_PENDING_LINES, flood))
+              and all('display' in e['error'] and e.get('source', '').startswith('{') for e in busy),
+              str(ids[:3]) + ' ... %d refused' % len(ids))
+        snd(cmd='abort')
+        evs, e = col(is_idle, timeout=30 * SLOW)
+        check('W389: an Abort sent after the flood is read and stops the run (stopped)',
+              any(x.get('ev') == 'stopped' for x in evs), str([x.get('ev') for x in evs])[-200:])
+        done = 0
+        while done < MAX_PENDING_LINES:  # the queued lines each run: state and idle
+            evs, e = col(is_idle, timeout=30 * SLOW)
+            if e is None:
+                break
+            done += 1
+        check('W389: the queue drains: every line it held ran with its own idle', done == MAX_PENDING_LINES, str(done))
+        snd(cmd='state')
+        evs, e = col(lambda x: x.get('ev') == 'state')
+        snd(cmd='display', win=1, x=[0, 40], id=flood)
+        evs, e = col(is_idle)
+        check('W389: afterwards the session takes commands again (no Busy)',
+              e is not None and not any(str(x.get('error', '')).startswith('Busy:') for x in evs), str(evs)[-200:])
+    finally:
+        stop_server(p, r, snd)
+
+
+check_busy_flood()
+
+
 # W106 (GitHub #155, docs/protocol.md "Commands during a command"): a setting
 # sent during a computation (a parameter, a numerics field) is taken at once
 # and kept for after it: the run in progress keeps the values it started

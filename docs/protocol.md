@@ -725,6 +725,26 @@ in the input.
   unexpected ask stops the player.
 - `abort` never has an `idle` of its own, so a client can send it at any
   time without upsetting its count of commands and idles.
+- The queue of waiting lines is bounded (W389, #451). The normal lines
+  waiting for the core, those in the input queue and those the command
+  loop keeps for after the command that runs, are at most 1024 and 64 MB
+  together (core/xpp_inbox.h `MAX_PENDING_LINES`, `MAX_PENDING_BYTES`: far
+  more than a client that waits for each `idle` ever has waiting). A normal
+  line that arrives at the full queue is refused, never queued and never
+  waited for: the reader goes on, so nothing behind it is held up. The
+  client gets one `message` `error` whose text begins `Busy:` and names the
+  command (`cmd`, and its `id` when it has one), with the line, cut to 200
+  bytes, as `source` (the line itself is the place; the refused command has
+  no `idle` of its own and ran nothing). The client sends the line again
+  later, or a message queue in front of the server redelivers it. Control
+  lines (`abort`, `quit`, the stop keys and the rest this list calls acted
+  on at once) are never refused, so an `abort` sent after a flood is read and stops the run. Over
+  HTTP the refusal is `503 Service Unavailable` with that same event as the
+  body (`application/json`), the command's `n=` number is not used up, so
+  sending it again with that number is taken; web2 shows the error text. A
+  body of several lines is taken line by line up to the refused one.
+  The longest input line is the byte bound, 64 MB (a `--server` line over it
+  is discarded and answered by one `input` error); an HTTP body is capped at 1 MB.
 - A command whose job was cancelled (by `abort`, Escape, `quit`) sends
   `stopped` before its `state` and `idle`: where the computation got to,
   which is what the recording player uses to replay the interruption (below).
@@ -961,7 +981,7 @@ extension: `model.ODEX` is an .odex file; `.odex` and `dir/.odex` are not.
 Input strings are decoded whole: command and operation names, model names,
 values, file paths and wildcard patterns have no per-field character caps.
 An HTTP command body over 1 MB is refused with HTTP 413; a `--server` input
-line over 256 MB is discarded through its newline and produces one `message`
+line over 64 MB (the queue's byte bound, W389) is discarded through its newline and produces one `message`
 `error` naming the input limit. Neither executes a truncated command. A
 workspace basename over 255 bytes is refused as `not a plain file name in the model's folder`, never shortened.
 An unreadable workspace listing is a failed `file` event (HTTP `/files`: 500),

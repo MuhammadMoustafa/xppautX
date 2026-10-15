@@ -22,6 +22,7 @@
 #include "integrate.h"
 #include "nullcline.h"
 #include "ui_json_internal.h"
+#include "json_error.h"
 #include "xpp_log.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
@@ -183,6 +184,14 @@ xpp::inbox::Verdict during_run(const char *line)
     return xpp::inbox::Verdict::refuse;
 }
 
+/* the lines the command loop keeps count against the inbox's bound (xpp_inbox.h) */
+void count_deferred()
+{
+    size_t bytes = 0;
+    for (const DeferredLine &d : session.deferred) bytes += d.line.size();
+    xpp::inbox::set_kept(session.deferred.size(), bytes);
+}
+
 void defer_line(const char *line, bool refused, bool applied)
 {
     try {
@@ -190,6 +199,7 @@ void defer_line(const char *line, bool refused, bool applied)
     } catch (...) {
         xpp::out_of_memory("keeping a command");
     }
+    count_deferred();
 }
 
 namespace {
@@ -218,6 +228,33 @@ namespace {
 
    Everything else is normal: a command sent while a job runs, outside a
    computation, waits for it and runs after the job's idle. */
+/* The inbox's busy hook (xpp_inbox.h), on the pushing thread: the error
+   event for a normal line the full queue refused, naming the command (its
+   `cmd`, and its `id` when it has one) and carrying it, cut short, as the
+   error's source. It touches no core state: the command's place is the
+   line itself, not command_place(), which belongs to the core's thread.
+   The client sends it again later (docs/protocol.md "Commands during a
+   command"). With a reply the caller wants it (HTTP's 503 body), else it
+   goes out as any event. */
+void busy(const char *line, std::string *reply)
+{
+    constexpr size_t SOURCE_SHOWN = 200; /* the refused line is echoed cut short, not all of its megabytes */
+    std::string c;
+    get_string(line, "cmd", c);
+    std::string what = xpp::format("{}: {}{} was refused, the server already holds {} waiting commands; send it again later",
+                                   xpp::inbox::BUSY, c.empty() ? "a command" : c,
+                                   js_find(line, "id") ? xpp::format(" (id {})", get_int(line, "id", 0)) : "",
+                                   xpp::inbox::MAX_PENDING_LINES);
+    xpp::Place place;
+    place.source.assign(line, std::min(std::strlen(line), SOURCE_SHOWN));
+    std::string event = error_event("message", xpp::Error{"command", std::move(what), std::move(place)});
+    if (reply) *reply = std::move(event);
+    else {
+        out_line(event.data(), event.size());
+        out_flush();
+    }
+}
+
 xpp::inbox::Verdict classify(const char *line, unsigned long seq)
 {
     std::string c, o; /* Whole words: a longer input must not impersonate a known command. */
@@ -931,6 +968,7 @@ void json_ui_loop(void)
         if (!session.deferred.empty()) {
             next = std::move(session.deferred.front());
             session.deferred.pop_front();
+            count_deferred();
         } else {
             /* a recording playing acts when its time comes (json_player.cpp) */
             char *line = read_line(xpp::inbox::From::arrival, player_wait_ms());
@@ -994,6 +1032,7 @@ void install(bool silent)
     session.autoview.init(data_emit);
     xpp::numerics_settings_init(data_emit);
     xpp::inbox::set_classifier(classify);
+    xpp::inbox::set_busy(busy);
     xpp::job::set_compute_hook(send_computing);
     XppUi ui = json_ui;
     if (silent) {

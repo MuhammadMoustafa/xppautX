@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- The server's input queue is bounded: while the core computes, at most 1024 normal lines (64 MB) wait for it, and the next is refused with a `Busy` error naming its command and id (HTTP: 503 with the same event) so a client can send it again; Abort and the other control lines always get through, so a Stop sent after a flood still stops the run. The longest input line is now 64 MB (was 256 MB) (W389, [#451](https://github.com/MuhammadMoustafa/xppautX/issues/451)).
+
 - Require a positive Total duration in our files and commands, importing XPPAUT negative Total as its absolute value. A full store that cannot grow stops every mode with one error and preserves stored rows (W347, [#408](https://github.com/MuhammadMoustafa/xppautX/issues/408)).
 
 - Range integration can write each reset run to its own file in the window, --server and --silent; `sweep.rangefiles: yes/no` is saved with range settings, and importing `.ode` `@ range=1` enables it (W349, [#410](https://github.com/MuhammadMoustafa/xppautX/issues/410)).

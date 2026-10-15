@@ -21,6 +21,17 @@ function pageId(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** a full queue answers 503 with the error event for the command (docs/protocol.md
+    "Commands during a command"): its text, which names the command; null for any other reply */
+function busyError(body: string): string | null {
+  try {
+    const ev = JSON.parse(body) as {ev?: unknown; error?: unknown};
+    return ev.ev === 'message' && typeof ev.error === 'string' ? ev.error : null;
+  } catch {
+    return null;
+  }
+}
+
 const wait = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 export class HttpTransport implements Transport {
@@ -47,7 +58,7 @@ export class HttpTransport implements Transport {
       the same number (p= this page, n= its place), which the server takes
       only once (core/xpp_http.cpp serve_cmd). A command still failing after
       RESEND_MS, or one the server refused (403 a bad token, 413 too long,
-      400 cut short), is said (onFailed) and does not hold up the next. */
+      400 cut short, 503 busy: its queue is full, the user may send it again), is said (onFailed) and does not hold up the next. */
   send(cmd: Command): void {
     const body = JSON.stringify(cmd);
     const url = `${this.base}cmd${this.token}${this.token.includes('?') ? '&' : '?'}p=${this.page}&n=${++this.sent}`;
@@ -57,8 +68,10 @@ export class HttpTransport implements Transport {
         try {
           const r = await fetch(url, {method: 'POST', body});
           if (!r.ok) {
-            const reason = (await r.text().catch((e: unknown) => String(e))).trim() || r.statusText;
-            refused = `The command ${cmd.cmd} was refused (${r.status}${reason ? ': ' + reason : ''})`;
+            const body = (await r.text().catch((e: unknown) => String(e))).trim();
+            const busy = busyError(body);
+            const reason = body || r.statusText;
+            refused = busy ?? `The command ${cmd.cmd} was refused (${r.status}${reason ? ': ' + reason : ''})`;
           }
           break;
         } catch (e) {

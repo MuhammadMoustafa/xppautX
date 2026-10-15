@@ -381,18 +381,21 @@ void emit_event(std::string_view line)
 /* a command from the page, into the inbox. Trailing blanks go and an empty
    body is ignored; a body of several lines gives several lines (a CR before
    a newline dropped), as when the core split this text itself. Called with
-   the lock held: the inbox's locks nest inside it, never the other way. */
-void push_command(std::string_view s)
+   the lock held: the inbox's locks nest inside it, never the other way.
+   False when the inbox refused a line as busy (it stops there; *reply is
+   the error event for it). */
+bool push_command(std::string_view s, std::string &reply)
 {
     while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' ')) s.remove_suffix(1);
     while (!s.empty()) {
         size_t nl = s.find('\n');
         std::string_view one = s.substr(0, nl);
         if (!one.empty() && one.back() == '\r') one.remove_suffix(1);
-        xpp::inbox::push(one);
+        if (!xpp::inbox::push(one, &reply)) return false;
         if (nl == std::string_view::npos) break;
         s.remove_prefix(nl + 1);
     }
+    return true;
 }
 
 /* ---- what xppaut prints ----------------------------------------------------------- */
@@ -511,8 +514,10 @@ void open_events(sock_t s)
         leave_at = 0; /* a page is back: a reload, not a close */
         srv.clients[srv.nclients++] = s;
         /* the page draws from scratch; a redraw would wait behind an open prompt */
-        if (!srv.sticky_hello.empty() && srv.sticky_ask.empty() && srv.exit_event.empty())
-            push_command("{\"cmd\":\"redraw\"}");
+        if (!srv.sticky_hello.empty() && srv.sticky_ask.empty() && srv.exit_event.empty()) {
+            std::string unsent; /* a redraw the full queue refuses is not worth telling: the page has all it needs */
+            push_command("{\"cmd\":\"redraw\"}", unsent);
+        }
     } else close_sock(s);
     pthread_mutex_unlock(&lock);
 }
@@ -698,7 +703,16 @@ bool first_arrival(std::string_view page, unsigned long long n)
     return true;
 }
 
-/* POST /cmd: the whole body, then into the inbox */
+/* a numbered command the inbox refused did not arrive: the page's resend of it
+   (same number) must be taken (the lock is held) */
+void forget_arrival(std::string_view page, unsigned long long n)
+{
+    for (PageCommands &p : srv.pages)
+        if (p.page == page && p.last == n) p.last = n - 1;
+}
+
+/* POST /cmd: the whole body, then into the inbox; 503 with the error event
+   when the inbox is full (docs/protocol.md "Commands during a command") */
 void serve_cmd(Request &q)
 {
     unsigned long long n = q.has_length ? q.length : q.have;
@@ -727,13 +741,17 @@ void serve_cmd(Request &q)
         return;
     }
     std::string_view cmd(body.c_str()); /* up to a NUL, as the C string it was */
+    std::string busy;
     pthread_mutex_lock(&lock);
     if (numbered == Numbered::no || first_arrival(page, number)) {
-        if (cmd.find("\"cmd\":\"answer\"") != std::string_view::npos) srv.sticky_ask.clear();
-        if (srv.exit_event.empty()) push_command(cmd);
+        const bool taken = !srv.exit_event.empty() || push_command(cmd, busy);
+        if (!taken && numbered == Numbered::yes) forget_arrival(page, number);
+        /* an answer the inbox refused leaves its ask open */
+        if (taken && cmd.find("\"cmd\":\"answer\"") != std::string_view::npos) srv.sticky_ask.clear();
     }
     pthread_mutex_unlock(&lock);
-    reply(q.s, "204 No Content", "text/plain", {});
+    if (!busy.empty()) reply(q.s, "503 Service Unavailable", "application/json", busy);
+    else reply(q.s, "204 No Content", "text/plain", {});
 }
 
 /* POST /leave?t=TOKEN: the page is going away (a beacon from pagehide).

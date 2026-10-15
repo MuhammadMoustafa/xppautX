@@ -20,4 +20,12 @@ void append_error(std::string &out, const xpp::Error &error)
     for (std::size_t i = 0; i < error.action->commands.size(); ++i) out += (i ? "," : "") + error.action->commands[i];
     out += "]}";
 }
+
+std::string error_event(const char *ev, const xpp::Error &error)
+{
+    std::string event = xpp::format("{{\"ev\":\"{}\"", ev);
+    append_error(event, error);
+    event += '}';
+    return event;
+}
 } // namespace xpp::json

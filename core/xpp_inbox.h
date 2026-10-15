@@ -1,6 +1,7 @@
 #ifndef XPP_INBOX_H
 #define XPP_INBOX_H
 
+#include <cstddef>
 #include <functional>
 #include <optional>
 #include <string>
@@ -23,6 +24,18 @@
 
 namespace xpp::inbox {
 
+/* How many normal lines wait for the core, in the queue and kept by the
+   command loop (set_kept) together, and their bytes (W389): a client that
+   floods the input while the core computes is refused with busy at the
+   bound, never queued without end. The count (1024) is far more than a
+   client that waits for each command's idle sends at once; the bytes
+   (64 MB) hold the largest ordinary line, a pixel answer of a 4K picture
+   (about 33 MB as base64), and are also the longest line any input takes. */
+constexpr size_t MAX_PENDING_LINES = 1024;
+constexpr size_t MAX_PENDING_BYTES = size_t(64) << 20;
+/* what the busy error begins with; web2 and clients tell the refusal by it */
+constexpr const char *BUSY = "Busy";
+
 /* what the classifier makes of a line */
 enum class Verdict {
     normal,  /* the normal queue */
@@ -39,10 +52,24 @@ enum class From {
     arrival  /* both queues, the older line first (sequence order) */
 };
 
+/* What a push answers when the normal queue is full: the client's error
+   for `line` (NUL-terminated), as one event line. It stores the event in
+   *reply when the caller wants it (HTTP's 503 body), else sends it to the
+   client itself. It runs on the pushing thread with no inbox lock held,
+   and must not touch core state. */
+void set_busy(void (*busy)(const char *line, std::string *reply));
+/* The core's command loop tells how many lines (and bytes) it keeps for
+   after the command that runs, since they count against the bound. */
+void set_kept(size_t lines, size_t bytes);
+
 /* One line, without its newline (it must contain none), stored as given:
    the caller strips line ends. Empty lines are kept. Thread-safe; pushes
-   from several threads are serialised, so sequence order is queue order. */
-void push(std::string_view line);
+   from several threads are serialised, so sequence order is queue order.
+   False when the line was refused: a normal line while MAX_PENDING_* lines
+   wait. Control lines (the classifier's) are never refused, and nothing
+   here blocks, so a Stop sent after a flood is still read. A refused line
+   is answered by the busy hook, into *reply if given. */
+bool push(std::string_view line, std::string *reply = nullptr);
 /* Native UI only: a single-use grant for the path actually selected by the
    OS save picker, bound to the prompt id. JSON replies cannot mint it. */
 void authorize_save(std::string_view prompt, std::string_view path);

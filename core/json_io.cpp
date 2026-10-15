@@ -19,6 +19,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 #include <string_view>
 #include <unistd.h>
 
@@ -82,9 +83,13 @@ void buf_num(Buf *b, double v, int sig)
     }
 }
 
-/* one event line to the client: stdout, or the page xppautX serves */
+/* one event line to the client: stdout, or the page xppautX serves. Whole
+   under a lock: the inbox's busy reply comes from a reader thread while
+   the core writes (W389). */
 void out_line(const char *s, size_t n)
 {
+    static std::mutex out_lock;
+    std::lock_guard<std::mutex> whole(out_lock);
     if (xpp::http::active()) {
         xpp::http::emit({s, n});
         return;

@@ -57,11 +57,21 @@ pthread_cond_t ready = PTHREAD_COND_INITIALIZER;
 struct Queues : std::array<std::deque<Item>, 2> {
     int save_ask = 0;
     std::string save_path; /* one native choice, consumed by its exact prompt */
+    size_t normal_bytes = 0; /* the bytes of the normal queue's lines */
+    size_t kept_lines = 0, kept_bytes = 0; /* the command loop's own (set_kept) */
 };
 Queues &queues = *new Queues;
 bool closed;
 unsigned long next_seq = 1;
 xpp::inbox::Verdict (*classify)(const char *line, unsigned long seq);
+void (*busy_hook)(const char *line, std::string *reply);
+
+/* whether a normal line of n bytes would pass the bound; call with the lock held */
+bool room_for(size_t n)
+{
+    return queues[0].size() + queues.kept_lines < xpp::inbox::MAX_PENDING_LINES
+           && queues.normal_bytes + queues.kept_bytes + n <= xpp::inbox::MAX_PENDING_BYTES;
+}
 
 /* the queues' indices */
 constexpr int NORMAL = 0, CONTROL = 1;
@@ -90,7 +100,22 @@ void set_classifier(Verdict (*cls)(const char *line, unsigned long seq))
     pthread_mutex_unlock(&push_lock);
 }
 
-void push(std::string_view line)
+void set_busy(void (*busy)(const char *line, std::string *reply))
+{
+    pthread_mutex_lock(&push_lock);
+    busy_hook = busy;
+    pthread_mutex_unlock(&push_lock);
+}
+
+void set_kept(size_t lines, size_t bytes)
+{
+    pthread_mutex_lock(&lock);
+    queues.kept_lines = lines;
+    queues.kept_bytes = bytes;
+    pthread_mutex_unlock(&lock);
+}
+
+bool push(std::string_view line, std::string *reply)
 {
     Item it;
     int q = NORMAL;
@@ -104,11 +129,20 @@ void push(std::string_view line)
     const Verdict c = classify ? classify(it.line.c_str(), it.seq) : Verdict::normal;
     if (c == Verdict::drop) {
         pthread_mutex_unlock(&push_lock);
-        return;
+        return true;
     }
     if (c == Verdict::control) q = CONTROL;
     it.refused = c == Verdict::refuse;
     pthread_mutex_lock(&lock);
+    if (q == NORMAL && !room_for(it.line.size())) {
+        pthread_mutex_unlock(&lock);
+        void (*busy)(const char *, std::string *) = busy_hook;
+        pthread_mutex_unlock(&push_lock); /* a client slow to read its reply holds up no other reader */
+        /* answered here, not queued: the reader goes on, and a Stop behind this line is read */
+        busy(it.line.c_str(), reply);
+        return false;
+    }
+    if (q == NORMAL) queues.normal_bytes += it.line.size();
     try {
         queues[q].push_back(std::move(it));
     } catch (...) {
@@ -118,6 +152,7 @@ void push(std::string_view line)
     pthread_cond_broadcast(&ready);
     pthread_mutex_unlock(&lock);
     pthread_mutex_unlock(&push_lock);
+    return true;
 }
 
 void authorize_save(std::string_view prompt, std::string_view path)
@@ -175,6 +210,7 @@ Took next(From which, int wait_ms, std::string &line, unsigned long &seq, bool &
         line = std::move(it.line); /* no allocation: it takes the item's block */
         seq = it.seq;
         refused = it.refused;
+        if (q == NORMAL) queues.normal_bytes -= line.size();
         queues[q].pop_front();
         r = Took::line;
     } else if (closed && queues[NORMAL].empty() && queues[CONTROL].empty()) {
@@ -191,8 +227,9 @@ Took next(From which, int wait_ms, std::string &line, unsigned long &seq, bool &
 namespace {
 
 /* Bound allocation for command input; discard an oversized line through its newline
-   and enqueue one error. Pixel answers need several MB. */
-constexpr size_t MAX_LINE = size_t(256) << 20;
+   and enqueue one error. The longest line the queue could ever hold (W389: a longer
+   one would be refused as busy whatever the queue held), enough for a pixel answer. */
+constexpr size_t MAX_LINE = xpp::inbox::MAX_PENDING_BYTES;
 constexpr size_t CHUNK = 65536; /* Read stdin in bounded chunks rather than one syscall per byte. */
 
 void input_too_large()
