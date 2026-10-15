@@ -93,10 +93,8 @@ fi
 # build/vg-<name>.log; then each one's exit status
 python3 tools/servercheck.py --server "$wrap" > build/vg-servercheck.log 2>&1 &
 jobs="servercheck:$!"
-# --report: memcheck slows everything down, so the latency limits (which
-# verify.sh checks) only measure here
 for sec in $(python3 tools/autocheck.py --list); do
-  python3 tools/autocheck.py --server "$wrap" --report "$sec" > "build/vg-auto-$sec.log" 2>&1 &
+  python3 tools/autocheck.py --server "$wrap" "$sec" > "build/vg-auto-$sec.log" 2>&1 &
   jobs="$jobs auto-$sec:$!"
 done
 passes=0

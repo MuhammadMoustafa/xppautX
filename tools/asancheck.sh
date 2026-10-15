@@ -200,9 +200,7 @@ if [ -n "$want" ]; then
     case $name in
       servercheck) run_check servercheck "$python" tools/servercheck.py --server "$bin" & ;;
       webcheck) run_check webcheck "$python" tools/webcheck.py --bin "$bin" & ;;
-      # --report: the sanitizers slow everything down, so the latency
-      # limits (which verify.sh checks) only measure here
-      autocheck) run_check autocheck "$python" tools/autocheck.py --server "$bin" --report $autosections & ;;
+      autocheck) run_check autocheck "$python" tools/autocheck.py --server "$bin" $autosections & ;;
     esac
   done
   wait

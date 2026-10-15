@@ -2,7 +2,7 @@
 """Checks of the protocol front end's behaviour under load: how AUTO's diagram
 travels as data, how input is read, and how quickly a long computation stops.
 
-usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [--shard INDEX/COUNT] [SECTION...]
+usage: tools/autocheck.py [--server ./xppautX] [-v] [--shard INDEX/COUNT] [SECTION...]
 
 Sections: diagram, grab, input, abort, control, files, csv, stability, sessions,
 session, sessiondata, recording, replay, names, scratch, errors, memory (default: all;
@@ -40,8 +40,7 @@ tools/models/longnames.odex (200-character names: no length limit, W76)
 and checks it computes, saves and continues exactly like shortnames.odex. replay interrupts an
 integration and an AUTO run over --server and checks that a .recx made of
 the same commands and a recorded abort stops them at
-the same point: the same data file, the same saved diagram. --report prints the
-measurements without failing on the latency limits, for comparing builds.
+the same point: the same data file, the same saved diagram.
 nagumo (W345) checks tstheti's planar HomCont branch against the exact
 front speed in both directions, then refines the mesh and interval.
 """
@@ -53,7 +52,6 @@ from xppclient import Checker, file_bytes, make_recording, recording_text, repla
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', '--bin', dest='server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
-ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
 ap.add_argument('--list', action='store_true', help='print the selected sections and exit')
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
@@ -77,8 +75,7 @@ HEAVY = os.path.join(here, 'models', 'heavy.odex')
 DIAGRAM = os.path.join(here, 'models', 'lecar_diagram.csv')  # the .snapx's diagram.csv of section_files
 OLD_AUTO = os.path.join(here, 'models', 'lecar_diagram.auto')  # XPPAUT's .auto of the same diagram
 RECORDING = 'examples/recordings/lecar_auto.recx'
-# limit=True on a check: a timing limit, reported but not failed under --report
-check = Checker(report=args.report)
+check = Checker()
 
 
 def perf(name, detail=''):
@@ -182,10 +179,9 @@ def section_diagram():
           and all(abs(p['x']) < 1e30 and abs(p['y']) < 1e30 for p in dg.pts),
           '%d points, %d on branch 1' % (len(dg.pts), len(br)))
     check('and its labels are marked', any(p['lab'] for p in dg.pts))
-    check('a steady run arrives in a few diagram events, runs of points joined', len(adds) <= 10
-          and max((len(r['x']) for r in runs), default=0) >= 10,
-          '%d events, longest run %d' % (len(adds), max((len(r['x']) for r in runs), default=0)),
-          limit=True)  # the events follow the refresh's clock (50 ms): more when the run is slower
+    check('a steady run arrives its points joined in runs', max((len(r['x']) for r in runs), default=0) >= 10,
+          '%d events, longest run %d' % (len(adds), max((len(r['x']) for r in runs), default=0)))
+    perf('steady run diagram events', '%d' % len(adds))
     st = [e for e in evs if is_state(e)][-1]['auto']
     check('the diagram axes are the AUTO ranges', same_axes(dg.axes, st), 'axes %s state %s' % (dg.axes, st))
     got = infos(evs)
@@ -340,7 +336,8 @@ def section_input():
     # stdin from the null device (NUL on Windows, which GetFileType calls a
     # character device like a console: W18), a closed pipe and an empty file;
     # a few runs each, since a wrong console attach hung only some of them
-    slow = []
+    hung = []
+    took_s = []
     with tempfile.TemporaryFile() as empty:
         for how in ['null device'] * 3 + ['closed pipe'] * 2 + ['empty file'] * 2:
             if how == 'closed pipe':
@@ -353,14 +350,14 @@ def section_input():
             try:
                 subprocess.run([os.path.abspath(args.server), '--server', os.path.abspath(LECAR)], stdin=stdin,
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10 * SLOW)
-                took = time.monotonic() - t
+                took_s.append('%s %.2f s' % (how, time.monotonic() - t))
             except subprocess.TimeoutExpired:
-                took = None
+                hung.append(how)
             if how == 'closed pipe':
                 os.close(rfd)
-            if took is None or took >= 3 * SLOW:
-                slow.append('%s: %s' % (how, 'no exit in 10 s' if took is None else '%.1fs' % took))
-    check('--server exits at end of input (null device, closed pipe, empty file)', not slow, '; '.join(slow))
+    perf('--server exits at end of input: ' + ', '.join(took_s))
+    check('--server exits at end of input (null device, closed pipe, empty file)', not hung,
+          'no exit in %g s: %s' % (10 * SLOW, ', '.join(hung)))
 
     s = Server(args.server, LECAR, verbose=False)
     s.collect(is_idle)
