@@ -4537,7 +4537,7 @@ def check_method_refusal():
         f.write("wiener w\nx'=w\noptions { integration: { method: dopri5 } }\n")
     run_silent = subprocess.run([os.path.abspath(args.server), bad_wiener, '--silent'], capture_output=True, text=True, cwd=model_dir, timeout=60 * SLOW)
     check('W379: --silent refuses DoPri5 with Wiener noise at the line',
-          run_silent.returncode == 1 and 'bad_w.odex:3:27: the option `method=dopri5`: ' + reason in run_silent.stderr, run_silent.stderr)
+          run_silent.returncode == 1 and 'bad_w.odex:3:26: the option `method=dopri5`: ' + reason in run_silent.stderr, run_silent.stderr)
 
     bad_ode = os.path.join(model_dir, 'bad_w.ode')
     with open(bad_ode, 'w') as f:
