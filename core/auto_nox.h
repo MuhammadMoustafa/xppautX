@@ -73,7 +73,7 @@ struct BIFUR {
   int ncol;
 };
 
-typedef struct {
+struct ADVAUTO {
   int iad = 3;
   int mxbf = 5;
   int iid = 2;
@@ -81,7 +81,7 @@ typedef struct {
   int itnw = 7;
   int nwtn = 3;
   int iads = 1;
-} ADVAUTO;
+};
 
 struct GRABPT {
   int ibr,lab;
