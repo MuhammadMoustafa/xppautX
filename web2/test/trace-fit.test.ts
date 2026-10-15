@@ -30,3 +30,18 @@ test('trace hover finds a sparse line between samples, without crossing nonfinit
   curve.xs = new Float32Array([0, NaN, 100]); curve.ys = new Float32Array([0, NaN, 100]);
   assert.equal(nearestPoint([curve], [true], frame, 50, 50, 5, true), null);
 });
+
+test('trace hover tie-break retains the current trace when an older run is at the same distance', () => {
+  const curve: CurveData = {label:'line', xName:'X', yName:'Y', color:0, line:true, radius:0, row0:0,
+    xs:new Float32Array([0.21305718, 0.2082114]), ys:new Float32Array([0.29251039, 0.30188286])};
+  const frame = {xmin:-0.46355, xmax:0.26121, ymin:-0.01851, ymax:0.41492, width:429, height:223};
+  const px = 400.4987, py = 62.9806;
+  const current = nearestPoint([curve], [true], frame, px, py, 24, true);
+  assert.ok(current);
+  const run = nearestPoint([curve], [true], frame, px, py, current.dist, true);
+  // Due to float sqrt re-squaring, run may find a candidate with d2 < maxDist*maxDist,
+  // but its distance is identical, so it is not strictly nearer.
+  const isStrictlyNearer = !!run && run.dist < current.dist;
+  assert.equal(isStrictlyNearer, false);
+});
+

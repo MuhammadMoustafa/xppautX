@@ -638,7 +638,7 @@ export class Chart {
     let best = current ? {...current, run: -1} : null;
     if (this.showRuns) this.runs.forEach((r, run) => {
       const h = nearestPoint(r.curves, r.curves.map(c => c.visible !== false), frame, px, py, best?.dist ?? maxDist, true);
-      if (h) best = {...h, run};
+      if (h && (!best || h.dist < best.dist)) best = {...h, run};
     });
     this.highlight(best);
     this.cb.onTrace?.(best);

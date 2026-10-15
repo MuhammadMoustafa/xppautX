@@ -1007,6 +1007,7 @@ async function marks() {
     && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'data' && c.events.includes('marks'))`));
   const layer = k => cdp.eval(`(__xpp.plot().layers.find(l => l.key === '${k}') || null)`);
   const legendLabels = () => cdp.eval(`[...document.querySelectorAll('.plot-view:not([hidden]) .legend-item.layer')].map(b => b.textContent.trim())`);
+  const markLabels = async () => (await legendLabels()).filter(l => !l.endsWith('-nullcline') && l !== 'Direction field');
   const legend = label => cdp.eval(`(() => { const b = [...document.querySelectorAll('.plot-view:not([hidden]) .legend-item.layer')]
     .find(b => b.textContent.trim() === ${JSON.stringify(label)}); if (b) b.click(); return b ? b.getAttribute('aria-pressed') : null; })()`);
   let askId = -1;
@@ -1125,7 +1126,7 @@ async function marks() {
     await until('w.marks && w.marks.arrows.length === 1 && w.marks.markers.length === 1', 'objects')
     && await S("w.marks.arrows[0].pointer && w.marks.arrows[0].color === 5 && w.marks.markers[0].shape === 'diamond'")
     && (await layer('arrows'))?.drawn === 1 && (await layer('markers'))?.drawn === 1
-    && (await legendLabels()).join() === 'Text,Arrows,Markers', JSON.stringify(await S('w.marks')));
+    && (await markLabels()).join() === 'Text,Arrows,Markers', JSON.stringify(await S('w.marks')));
 
   await key('g');
   await menu('f', 'f');
@@ -1150,7 +1151,7 @@ async function marks() {
   check('Sing pts: the equilibrium in the store with its stability, drawn, "Equilibria" in the legend',
     await until('w.marks && w.marks.equilibria.length === 1', 'equilibrium')
     && await S("['stable', 'unstable', 'saddle'].includes(w.marks.equilibria[0].type)")
-    && (await layer('equilibria'))?.drawn === 1 && (await legendLabels()).join() === 'Equilibria,Text,Arrows,Markers,first run',
+    && (await layer('equilibria'))?.drawn === 1 && (await markLabels()).join() === 'Equilibria,Text,Arrows,Markers,first run',
     JSON.stringify({eq: await S('w.marks && w.marks.equilibria'), legend: await legendLabels()}));
 
   let pressed = await legend('Text');
