@@ -19,6 +19,7 @@
 #include "load_eqn.h"
 #include "expr.h"
 #include "my_rhs.h"
+#include "integrate.h"
 
 /*    Hooks to xpp RHS     */
 
@@ -132,6 +133,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
    xpp::evaluate_derived(s);
    if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error());
    s.integrator.rhs(0.0,x,f,ndim);
+   if(s.integrator.step_error)xpp::auto_fail(take_step_error(s).error());
    const double *c=s.parser.constants.data();
    if(exact)exact_derivatives(s,s.auto_lib,c,ndim,x,f,icp,nfpr,ijac,dfdu,dfdp);
    else if(ijac==1){
@@ -148,6 +150,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
      for(j=0;j<ndim;j++)
        zz[j]=f[j];
      s.integrator.rhs(0.0,zz.data(),f,ndim);
+     if(s.integrator.step_error)xpp::auto_fail(take_step_error(s).error());
      if(!exact)continue;
      exact_derivatives(s,s.auto_lib,c,ndim,zz.data(),f,icp,nfpr,ijac,step.data(),step_p.data());
      const int n=static_cast<int>(ndim);

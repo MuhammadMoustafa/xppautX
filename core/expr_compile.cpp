@@ -494,13 +494,13 @@ void size_expr_stack(Session &s, std::span<const int> code, int arguments)
  /* Before all function metadata is installed, the instruction count
     bounds even a program the decoder cannot yet validate. */
  std::size_t values=decoded?depth:code.size();
- /* Along a nonrecursive call chain each function can be active once.
+ /* Along a recursive call chain functions can be active up to MAX_UFUN_DEPTH times.
     Cover its value program and its argument frame (even unused args).
     This conservative bound also covers SUM bodies sharing the stack. */
  const Model &m=s.model();
  for(std::size_t i=0;i<m.ufun_programs.size();++i)
-   values=xpp::size_sum(values,std::max(m.ufun_programs[i].rpn.size(),
-       xpp::size_product(m.narg_fun[i])));
+   values=xpp::size_sum(values,xpp::size_product(MAX_UFUN_DEPTH,
+       std::max(m.ufun_programs[i].rpn.size(),xpp::size_product(m.narg_fun[i]))));
  auto &stack=s.parser.stack;
  if(stack.values.size()<values)stack.values.resize(values);
  if(stack.args.size()<values)stack.args.resize(values);

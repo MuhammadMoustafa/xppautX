@@ -6,6 +6,8 @@
 #include "expr_internal.h"
 #include "xpp_globals.h"
 #include "model.h"
+#include "model_files.h"
+#include "integrate.h"
 #include "simplenet.h"
 #include "tabular.h"
 #include "volterra2.h"
@@ -233,10 +235,27 @@ double eval_rpn(const int *equat, xpp::Session &s)
 	    st.nargs++;
             }
             save();
+            if(s.integrator.step_error){
+              st.nargs-=i;
+              restore();
+              push(0.0);
+              break;
+            }
+            if(st.ufun_depth>=MAX_UFUN_DEPTH){
+              stop_integration(s,Error{"evaluation",
+                  xpp::format("user function '{}' is recursive",s.model().ufun_names[in]),
+                  model_place(s.model(),s.model().ufun_names[in])});
+              st.nargs-=i;
+              restore();
+              push(0.0);
+              break;
+            }
+            st.ufun_depth++;
             const Program &function=s.model().ufun_programs[in];
             temx=program.compile && function.native
                 ? function.native(p.constants.data(),p.variables.data(),&s,function.rpn.data())
                 : eval_rpn(function.rpn.data(),s);
+            st.ufun_depth--;
             restore();
             push(temx);
 break;
@@ -257,6 +276,7 @@ double evaluate(xpp::Session &s, const int *program)
   ParserState &p=s.parser;
   p.stack.nargs=0;
   p.stack.top=0;
+  p.stack.ufun_depth=0;
   return(eval_rpn(program,s));
 }
 

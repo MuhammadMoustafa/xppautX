@@ -260,17 +260,20 @@ void do_cline(xpp::Session &s, int ngrid, float x1, float y1, float x2, float y2
   for(int i=0;i<nx;i++){
     const float x=x1+i*dx;
     s.nullcline_state.n_bot[i]=fnull(s,x,y);
+    if(s.integrator.step_error)return;
   }
 
   for(int j=1;j<ny;j++){
-    if(my_abort()==ESC)return;
+    if(s.integrator.step_error||my_abort()==ESC)return;
     y=y2-j*dy;
     s.nullcline_state.n_top[0]=s.nullcline_state.n_bot[0];
     s.nullcline_state.n_bot[0]=fnull(s,x1,y);
+    if(s.integrator.step_error)return;
     for(int i=1;i<nx;i++){
       const float x=x1+i*dx;
       s.nullcline_state.n_top[i]=s.nullcline_state.n_bot[i];
       s.nullcline_state.n_bot[i]=fnull(s,x,y);
+      if(s.integrator.step_error)return;
       p[0].x=x-dx;
       p[0].y=y+dy;
       p[0].z=s.nullcline_state.n_top[i-1];
@@ -294,6 +297,7 @@ void new_nullcline(xpp::Session &s, int course, float xlo, float ylo, float xhi,
   s.nullcline_state.saver=&stor;
   do_cline(s,course,xlo,ylo,xhi,yhi);
   *npts=s.nullcline_state.num_index;
+  if(s.integrator.step_error)xpp::show_error(take_step_error(s).error());
 }
 
 void do_range_clines(xpp::Session &s)
@@ -357,6 +361,7 @@ void get_max_dfield(xpp::Session &s, double *y, double *ydot, double u0, double 
     for(int j=0;j<=n;j++){
       y[iny]=v0+dv*j;
       s.integrator.rhs(0.0,y,ydot,s.model().node);
+      if(s.integrator.step_error)break;
       extra(s,y,0.0,s.model().node,s.model().neq);
       scale_dxdy(s,ydot[inx],ydot[iny],&dxp,&dyp);
       const double amp=xpp::math::hypot(dxp,dyp);

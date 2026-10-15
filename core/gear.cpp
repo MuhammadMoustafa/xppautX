@@ -560,6 +560,11 @@ void newton(xpp::Session &s, double *x, double err, double eps, double big, doub
    }
  
   getjac(s,x,y,eps,dermat,n);
+  if(s.integrator.step_error)
+  {
+   *ierr=1;
+   return;
+  }
   xpp::sgefa(dermat,n,n,ipivot.data(),&info);
   if(info!=-1)
   {
@@ -606,6 +611,11 @@ xpp::Result<> rooter(xpp::Session &s, double *x, double err, double eps, double 
    *ierr=1;
    std::copy(start.begin(),start.end(),x);
    return std::unexpected(failed.error);
+ }
+ if(s.integrator.step_error){
+   *ierr=1;
+   std::copy(start.begin(),start.end(),x);
+   return std::unexpected(take_step_error(s).error());
  }
  return {};
 }

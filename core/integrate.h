@@ -250,6 +250,7 @@ Result<> ode_int(Session &s, double *y, double *t, int *istart, int ishow);
 /* a delay out of range in a step: records why (the first), and the
    integration ends after the step and returns it */
 void stop_integration(Session &s, Error why);
+std::unexpected<Error> take_step_error(Session &s);
 /* the curve from x (shoot: from xg along evec, the side sgn), bounds
    unchecked, or the error it failed with */
 Result<> shoot(Session &s, double *x, double *xg, double *evec, int sgn);

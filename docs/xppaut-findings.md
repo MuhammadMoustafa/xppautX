@@ -93,6 +93,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [60](#60-input-sized-writes-and-size-arithmetic) | Sweeps, expressions, delay, AUTO | unchecked row writes, fixed evaluation stacks and overflowing history/work sizes | [W386 / #448](https://github.com/MuhammadMoustafa/xppautX/issues/448) |
 | [61](#61-wiener-noise-is-silently-zero-or-has-wrong-variance-in-adaptive-methods) | Numerics | set_wieners is never called by DoPri5, CVODE, Gear or Rosenbrock, and called once per output interval with step guess by Stiff and QualRK | [W379 / #441](https://github.com/MuhammadMoustafa/xppautX/issues/441) |
 | [62](#62-some-long-computations-cannot-be-stopped) | Cancellation | Nullclines, the flow, fitting, a pairwise histogram and delay history run to the end once started | [W388 / #450](https://github.com/MuhammadMoustafa/xppautX/issues/450) |
+| [63](#63-recursive-user-functions-segfault-at-runtime) | Expressions | Indefinite user function recursion overflows C stack and segfaults | [W387 / #449](https://github.com/MuhammadMoustafa/xppautX/issues/449) |
 
 ## 1. Model options
 
@@ -1345,3 +1346,10 @@ xppautX checks Stop in each of these, keeping what was computed
 ([W388 / #450](https://github.com/MuhammadMoustafa/xppautX/issues/450)). Esc skipping a single point of an equilibrium or
 shooting sweep, which XPPAUT does by design, is not counted here: in xppautX
 Stop ends the sweep.
+
+## 63. Recursive user functions segfault at runtime
+
+XPPAUT registers a user function symbol before compiling its formula ([parserslow2.c:677, 774](../reference/xppaut-8.0/parserslow2.c#L677), [master 677, 774](../reference/xppaut-master/parserslow2.c#L677)), so self-referential (`f(x)=f(x)+1`) and mutually recursive (`f(x)=g(x)`, `g(x)=f(x)`) functions parse and load without error or warning. During evaluation, `eval_rpn` case `UFUNTYPE` ([parserslow2.c:2264-2273](../reference/xppaut-8.0/parserslow2.c#L2264), [master 2163-2172](../reference/xppaut-master/parserslow2.c#L2163)) evaluates user functions by recursively calling `eval_rpn(ufun[in])` on the C call stack with no recursion depth tracking or cycle guard. Evaluating a recursive user function without termination overflows the C call stack and crashes with a segmentation fault (SIGSEGV / exit 139).
+
+xppautX permits recursion (such as `test.odex`'s factorial), but bounds the evaluator's call depth (`MAX_UFUN_DEPTH`). When a recursive user function exceeds the bound, evaluation stops with an `xpp::Error` naming the function's model file and line and the line as written (`model_place`), and the run preserves rows stored up to that point.
+- **Card:** [W387 / #449](https://github.com/MuhammadMoustafa/xppautX/issues/449).

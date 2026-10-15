@@ -11,6 +11,7 @@
 #include "simplenet.h"
 
 #include "expr.h"
+#include "integrate.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -257,6 +258,12 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int index, int n, double xlo, doub
   for(i=0;i<n;i++){
     setvar(s,0,dx*i+xlo);
     y[i]=evaluate(s,command.data());
+    if (s.integrator.step_error) {
+      setvar(s,0,oldt);
+      s.parser.ncon=ncold;
+      s.parser.nsym=nsym;
+      return std::unexpected(xpp::take_step_error(s).error());
+    }
   }
   setvar(s,0,oldt);
   s.parser.ncon=ncold;

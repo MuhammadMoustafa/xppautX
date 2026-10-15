@@ -8680,6 +8680,102 @@ def check_stop_checks():
 
 check_stop_checks()
 
+
+def check_recursive_user_functions():
+    """W387: a user function that recurses without end stops the run with its file and line,
+    preserving already-stored rows, while terminating recursion (e.g. test.odex) runs cleanly."""
+    with tempfile.TemporaryDirectory(prefix='w387') as folder:
+        # 1. Direct recursion probe: f(x)=f(x)+1, x1'=-f(x1)
+        probe = os.path.join(folder, 'probe.ode')
+        with open(probe, 'w') as f:
+            f.write("f(x)=f(x)+1\nx1'=-f(x1)\ndone\n")
+        s = Server(args.server, probe)
+        try:
+            s.collect(is_idle)
+            s.send(cmd='key', key='i')
+            evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'g'}})
+            errors = [e for e in evs if e.get('error')]
+            check('W387: direct recursion in server mode stops with one placed error',
+                  len(errors) == 1 and errors[0].get('line') == 3
+                  and 'probe' in errors[0].get('file', '')
+                  and errors[0].get('source') == 'fun f(x) = f(x)+1'
+                  and "user function 'f' is recursive" in errors[0].get('error', '').lower(),
+                  str(errors))
+        finally:
+            s.close()
+
+        res_silent = subprocess.run([os.path.abspath(args.server), probe, '--silent'],
+                                    cwd=folder, capture_output=True, text=True, timeout=30 * SLOW)
+        check('W387: direct recursion in --silent mode exits 1 with placed error and no segfault',
+              res_silent.returncode == 1 and 'probe.odex:3' in res_silent.stderr
+              and "user function 'f' is recursive" in res_silent.stderr.lower(),
+              f'rc={res_silent.returncode}, stderr={res_silent.stderr}')
+
+        # 2. Mutual recursion: f(x)=g(x), g(x)=f(x), x1'=-f(x1)
+        mutual = os.path.join(folder, 'mutual.ode')
+        with open(mutual, 'w') as f:
+            f.write("f(x)=g(x)\ng(x)=f(x)\nx1'=-f(x1)\ndone\n")
+        s = Server(args.server, mutual)
+        try:
+            s.collect(is_idle)
+            s.send(cmd='key', key='i')
+            evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'g'}})
+            errors = [e for e in evs if e.get('error')]
+            check('W387: mutual recursion in server mode stops with one placed error',
+                  len(errors) == 1 and 'mutual' in errors[0].get('file', '')
+                  and errors[0].get('line') in (3, 4)
+                  and "is recursive" in errors[0].get('error', '').lower(),
+                  str(errors))
+        finally:
+            s.close()
+
+        res_mutual = subprocess.run([os.path.abspath(args.server), mutual, '--silent'],
+                                    cwd=folder, capture_output=True, text=True, timeout=30 * SLOW)
+        check('W387: mutual recursion in --silent mode exits 1 with placed error',
+              res_mutual.returncode == 1 and 'mutual.odex:' in res_mutual.stderr
+              and "is recursive" in res_mutual.stderr.lower(),
+              f'rc={res_mutual.returncode}, stderr={res_mutual.stderr}')
+
+        # 3. Preserves stored rows before recursion error:
+        # f(x, s) recurses only when s > 0.5
+        partial = os.path.join(folder, 'partial.odex')
+        with open(partial, 'w') as f:
+            f.write("fun f(x, s) = if s>0.5 then f(x, s)+1 else x\nx' = -f(x, t)\noptions { integration: { total_time: 2, dt: 0.1 } }\n")
+        s = Server(args.server, partial)
+        try:
+            s.collect(is_idle)
+            s.send(cmd='key', key='i')
+            evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'g'}})
+            errors = [e for e in evs if e.get('error')]
+            state = next((e for e in reversed(evs) if e.get('ev') == 'state'), {})
+            check('W387: recursion stops run and preserves stored rows',
+                  len(errors) == 1 and 'recursive' in errors[0].get('error', '').lower()
+                  and state.get('rows', 0) >= 5, f'errors={errors}, rows={state.get("rows")}')
+        finally:
+            s.close()
+
+        # 4. Terminating recursion: examples/ode/test.odex (factorial) loads and runs
+        test_odex = os.path.abspath('examples/ode/test.odex')
+        s = Server(args.server, test_odex)
+        try:
+            s.collect(is_idle)
+            s.send(cmd='key', key='i')
+            evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'g'}})
+            errors = [e for e in evs if e.get('error')]
+            state = next((e for e in reversed(evs) if e.get('ev') == 'state'), {})
+            check('W387: test.odex terminating recursion runs without error',
+                  len(errors) == 0 and state.get('rows', 0) > 0, f'errors={errors}, rows={state.get("rows")}')
+        finally:
+            s.close()
+
+        res_test = subprocess.run([os.path.abspath(args.server), test_odex, '--silent'],
+                                  cwd=folder, capture_output=True, text=True, timeout=30 * SLOW)
+        check('W387: test.odex runs cleanly in --silent',
+              res_test.returncode == 0, f'rc={res_test.returncode}, stderr={res_test.stderr}')
+
+
+check_recursive_user_functions()
+
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)
 

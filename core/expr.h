@@ -117,6 +117,10 @@ struct ExprSymbol {
   int pri = 0;
 };
 
+/* User functions nest this deep at most in the interpreter: sized so the thread's
+   stack (1 MB default on Windows) and the evaluation stack cannot overflow before it. */
+constexpr int MAX_UFUN_DEPTH = 256;
+
 /* the evaluator's two stacks (expr_eval.cpp): the values it computes, and
    the arguments of the user functions it is inside */
 struct ExprStack {
@@ -124,6 +128,7 @@ struct ExprStack {
   int top = 0;
   std::vector<double> args;
   int nargs = 0;
+  int ufun_depth = 0;
 };
 
 /* Reserve a compiled expression and the functions it can enter before

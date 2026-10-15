@@ -1132,6 +1132,11 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
       for(i=0;i<s.model().neq;i++)s.data_store.col[1+i][0]=static_cast<float>(x[i]);
       s.data_store.rows=1;
     }
+  if(s.integrator.step_error){
+    refresh_browser(s,s.data_store.rows);
+    xpp::show_error(take_step_error(s).error());
+    return 1;
+  }
  
   const xpp::Result<int> r=[&]{
     const xpp::Job job; /* Abort cancels it (xpp_job.h) */
@@ -1510,17 +1515,15 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings)
   return {};
 }
 
-namespace {
 /* the failure a step's delay or DAE solve recorded (step_error), which
    ends the integration; the next one starts clean, the DAE solve
    afresh */
 std::unexpected<xpp::Error> take_step_error(xpp::Session &s)
 {
-  xpp::Error e=std::move(*s.integrator.step_error);
+  xpp::Error e = s.integrator.step_error ? std::move(*s.integrator.step_error) : xpp::Error{};
   s.integrator.step_error.reset();
   reset_dae(s);
   return std::unexpected(std::move(e));
-}
 }
 
 namespace {
@@ -1581,6 +1584,7 @@ if(program.interactive) cwidth=get_command_width();
 
  s.integrator.last_time=*t;
  evaluate_derived(s);
+ if(s.integrator.step_error)return take_step_error(s);
 
  solver.begin(start);
  if(solver.traits().discrete){
@@ -1594,6 +1598,7 @@ if(program.interactive) cwidth=get_command_width();
  one_flag_step(s,s.solver_work.xpv.x,s.solver_work.xpv.x,&iflagstart,*t,&tnew,nodes,&sss);
  mswtch(s,x,s.solver_work.xpv.x);
  extra(s,x,*t,s.model().node,s.model().neq); /* Note this takes care of initializing Markov variables */
+ if(s.integrator.step_error)return take_step_error(s);
   mswtch(s,s.solver_work.xpv.x,x);
  if(s.integrator.steady)s.integrator.steady->begin(std::span(x,static_cast<std::size_t>(s.model().node+s.model().nmarkov)),*t);
  xv[0]=static_cast<float>(*t);
