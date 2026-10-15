@@ -36,7 +36,7 @@ bool read_auto_solution_rows(TokenReader &reader, long ndim, long ntst, long nco
                              const std::function<void(long, long, double)> &complete);
 bool read_auto_solution_parameters(TokenReader &reader, const AutoSolutionHeader &header,
                                    const Session &session, double *parameters);
-Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters, bool foreign);
+Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters, bool foreign, int hopf_dimension = 0);
 
 typedef struct {
   double torper;
@@ -83,14 +83,15 @@ typedef struct {
   int iads = 1;
 } ADVAUTO;
 
-typedef struct {
+struct GRABPT {
   int ibr,lab;
   AutoPointCode itp;
   std::vector<double> uhi,ulo,u0,ubar,par;
   double per,torper;
   int nfpar;
   int flag;
-} GRABPT;
+  int curve=0; // diagram curve kind, including the neutral-saddle extension
+};
 
 struct DiagramBranch {
   std::vector<double> parameters; /* every model parameter, once per computed branch */

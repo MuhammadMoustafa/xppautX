@@ -4,6 +4,7 @@
    model), the zip xpp_zip.cpp's; this file gathers AUTO's state into
    them and puts it back. */
 #include "xpp_session_auto.h"
+#include "solver.h"
 #include "snapx.h"
 #include "session.h"
 #include "model.h"
@@ -123,7 +124,8 @@ Result<Members> members_read(const Session &s, const std::map<std::string, std::
         return xpp::fail("session AUTO", xpp::format("its {} is missing", named(prefix, diagram ? solutions_member : diagram_member)), Place{name});
     std::deque<DIAGRAM> points;
     if (diagram) {
-        if (const Result<> checked = check_auto_solutions(text(solutions_member), file(solutions_member), AutoState::state_copies*s.model().node, s.auto_state.parameter_layout.size(),false); !checked)
+        if (const Result<> checked = check_auto_solutions(text(solutions_member), file(solutions_member), AutoState::state_copies*s.model().node, s.auto_state.parameter_layout.size(),false,
+            (xpp::solver_info(s.numerics.method).traits.discrete ? 3 : 2)*s.model().node+2); !checked)
             return std::unexpected(checked.error());
         Result<std::deque<DIAGRAM>> read = parse_diagram_csv(text(diagram_member), s.model().node, s.model().nupar, file(diagram_member));
         if (!read) return std::unexpected(read.error());

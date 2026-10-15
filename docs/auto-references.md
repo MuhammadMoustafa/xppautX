@@ -9,6 +9,41 @@ names the translator, with XPPAUT's own glue in `auto_nox.c`, `autevd.c` and `au
 is part of `tools/autocompare.py` and runs on every push from committed files: neither program is
 installed in CI, nor vendored.
 
+## Reduced equilibrium Hopf and structured fold curves (W363, [#425](https://github.com/MuhammadMoustafa/xppautX/issues/425))
+
+The ODE Hopf curve now uses Kuznetsov (10.80), reimplemented in C++ from
+AUTO-07p 0.9.4's [equilibrium.f90:84-258](../reference/auto-07p/src/equilibrium.f90#L84):
+`F(u)=0`, `(A*A+kappa*I)v=0`, `dot(v,v)=1`, and
+`dot((transpose(A)-A)*v_old,v)=0`, with `A=dF/du` and `kappa=omega^2`.
+The unknowns are `[u(n), v(n), kappa, p2]`, `2n+2` in all. The start takes
+a unit null vector of `A*A+kappa*I`, following
+[equilibrium.f90:278-323](../reference/auto-07p/src/equilibrium.f90#L278).
+Map and wave curves retain their separate eigenvector formulations; they are outside this ODE card.
+
+The Hopf and algebraic fold Jacobians copy the model Jacobian and parameter
+blocks, fill the vector and normalization derivatives directly, and centrally
+difference only the state/parameter columns of the variational equations and
+Hopf phase condition. This follows
+[equilibrium.f90:84-187](../reference/auto-07p/src/equilibrium.f90#L84) and
+[toolboxae.f90:171-265](../reference/auto-07p/src/toolboxae.f90#L171).
+The principal parameter uses forward differences, as in AUTO-07p.
+
+The reduced equations continue through `kappa=0` (Bogdanov?Takens). Negative
+kappa describes a neutral saddle: the diagram and readout use curve code 13,
+"neutral saddle", rather than code 3, "Hopf". Special-point detection at BT
+remains W364. AUTO-07p updates `PAR(11)=2*pi/sqrt(kappa)` only for positive
+kappa ([equilibrium.f90:365-367](../reference/auto-07p/src/equilibrium.f90#L365));
+for nonpositive kappa it retains the last period. We do the same, never taking
+a square root of negative kappa or deriving a period from it. Starting a
+periodic orbit from a grabbed neutral saddle is not offered; Run extends its curve.
+
+Own session solutions use the new layout and reject the old 3n+2 Hopf
+layout on the solution header line before restoring any state. No old-layout
+restart reader is provided. `test_auto_hopf` checks closed-form residuals,
+the structured Jacobian against full finite differences, the start and period
+handling; `autocheck hopf_reduced` continues the BT normal form
+`x'=y, y'=a+b*y+x*x` along `a=-x*x, b=0` across `x=0`.
+
 ## What is compared, and how
 
 - `tests/auto/<description>.auto07p` and `.xppaut` hold the **special points** each program finds
@@ -91,9 +126,33 @@ A model has more than one description now (`autocompare.py` still requires every
 
 Result: both curves agree with AUTO-07p's. The fold (218 points of ours, 221 of the reference's) to 3.9e-5 in
 `p0`, 1.8e-3 in `p1` and 6.3e-4 in the norm, the largest at the cusp (the norm at 0.65 of its tolerance, `p1` at
-0.31). The Hopf curve in both directions (228 points of ours, 501 of the reference's: AUTO-07p's steps along it
-are about half of ours) to 8.7e-6 in `p0`, 2.7e-4 in `p1` and 9e-5 in the norm. Nothing was widened. The only
+0.31). After W363 the Hopf curve in both directions (501 points of ours, 501 of the reference's) agrees to
+2.05e-6 in `p0`, 6.40e-5 in `p1` and 5.22e-5 in the norm (previously 8.7e-6, 2.7e-4 and 9e-5). Nothing was widened. The only
 differences are the codim-2 labels of AUTO-07p (traced 4 and 5 below).
+
+### W363 baseline changes ([#425](https://github.com/MuhammadMoustafa/xppautX/issues/425))
+
+Only `tstauto_ab_hopf` and `tstauto_ab_fold` were updated. At one and automatic
+threads the resulting diagrams are byte-identical. The full 40-description
+comparison passes, including the other 29 runnable baselines (nine descriptions
+remain explicitly skipped). Tolerances and AUTO-07p reference files are unchanged.
+
+- `tstauto_ab_hopf`: 350 to 623 total points (122 steady, 501 on the two Hopf
+  runs). Replacing the reciprocal-frequency/complex-vector arclength coordinates
+  by a unit real vector and squared frequency changes the sampling and step count.
+  Among matched branch/step numbers the largest p1 change is 10.53224, norm
+  3.64543, period 0.962963; these are different positions on the same curve,
+  not same-solution errors. Comparison by geometric projection improves all three
+  curve quantities at the reference's resolution, as above. Period is computed
+  from the new positive kappa, and the exact normal-form tests check that formula.
+- `tstauto_ab_fold`: 318 points before and after. The largest matched-step
+  changes are p0 9.58e-7, p1 4.04e-5, norm 2.76e-6 and the auxiliary period
+  0.59353 (570.31126 to 570.90479). A fold has no oscillation period: this
+  field comes from intermediate complex eigenvalues near the double-zero point,
+  and is sensitive to the Newton residual. The physical curve is unchanged at
+  the reference's resolution: maximum errors remain p0 3.90e-5, p1 1.80e-3,
+  norm 6.27e-4. The structured Jacobian now uses the model's Jacobian directly
+  instead of differentiating that first derivative again in every column.
 
 ## Result
 
@@ -106,7 +165,7 @@ differences are the codim-2 labels of AUTO-07p (traced 4 and 5 below).
 | ode/osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
 | ab, fold curve | steady: EP LP; fold: - | agrees, 6 traced (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08; curve par 3.9e-05, par2 0.0018, norm 0.00063) | not run |
-| ab, Hopf curves | steady: EP LP LP HB; hopf_up: -; hopf_down: - | agrees, 3 traced (4 points; par 6.2e-06, norm 9.7e-07, period 3e-05, spectrum 0.00012; curve par 8.7e-06, par2 0.00027, norm 9e-05) | not run |
+| ab, Hopf curves | steady: EP LP LP HB; hopf_up: -; hopf_down: - | agrees, 3 traced (4 points; par 1.6e-07, norm 9.7e-07, period 3e-05, spectrum 0.00012; curve par 2e-06, par2 6.4e-05, norm 5.2e-05) | not run |
 | bigaut | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | bistable | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | bob | steady: EP | agrees (1 points; par 0, norm 1.8e-12) | agrees (1 points; par 0, norm 1.4e-08) |
@@ -216,8 +275,7 @@ Five causes in six descriptions; W326 fixes the missing restore and records the 
    0.2316, p1 11.31 to 11.23); ours labels none.** The same missing detection, W364's. Three labels within four
    steps are signs of AUTO-07p's GH function changing three times at one place; whether one of them is a true
    generalised Hopf point is not decided here (no independent calculation was made). `hopf_down` has no codim-2 point. The
-   Hopf curve's own agreement matters for W363, whose 2n+2 system replaces ours (3n+2): the curve is
-   the number it must reproduce, to the tolerance above.
+   Hopf curve's reduced 2n+2 system (W363) improves agreement with this curve; the codim-2 labels remain W364's.
 
 Past the first fold of cycles whose multipliers reach 1e6 none of the three programs' numbers are the model's
 (the near-homoclinic orbits of the cases above), so a description's short run is only as good as its mesh

@@ -80,7 +80,6 @@
 
 #define LPE2 1
 #define LPP2 2
-#define HB2 3
 #define TR2 4
 #define BR2 5
 #define PD2 6
@@ -195,7 +194,8 @@ void pscolset2(xpp::Session &s, int flag2)
   case LPP2:
     set_linestyle(s,LPP_color);
     break;
-  case HB2:
+  case auto_neutral_saddle_curve:
+  case auto_hopf_curve:
     set_linestyle(s,HB_color-19);
     break;
   case TR2:
@@ -225,7 +225,8 @@ void colset2(int flag2)
   case LPP2:
     autocol(LPP_color);
     break;
-  case HB2:
+  case auto_neutral_saddle_curve:
+  case auto_hopf_curve:
     autocol(HB_color);
     break;
   case TR2:
@@ -1172,7 +1173,8 @@ static int auto_point_color(xpp::Session &s, DiagramPointType type,int flag2)
   case 0: break;
   case LPE2: return LPE_color;
   case LPP2: return LPP_color;
-  case HB2: return HB_color;
+  case auto_neutral_saddle_curve:
+  case auto_hopf_curve: return HB_color;
   case TR2: return TR_color;
   case BR2: return BR_color;
   case PD2: return PD_color;
@@ -1827,6 +1829,10 @@ void auto_run(xpp::Session &s)
      are negative, so a negative code names none of the points below */
   const bool plain=itp.kind>=xpp::AutoPointKind::Regular;
   const auto involves=[&](xpp::AutoPointKind k){ return plain && (itp.kind==k || itp.start==k); };
+  if(s.auto_state.grabpt.curve==auto_neutral_saddle_curve){
+    auto_2p_hopf(s);
+    ping();return;
+  }
   if(involves(xpp::AutoPointKind::Hopf)){  /* its a HOPF Point  */
     hopf_choice(s);
     ping();return;
@@ -2419,8 +2425,8 @@ void auto_2p_hopf(xpp::Session &s)
   s.auto_state.bifur.ips=xpp::AutoProblem::SteadyState;
   if(xpp::solver_info(s.numerics.method).traits.discrete)
     s.auto_state.bifur.ips=xpp::AutoProblem::DiscreteMap;
-  s.auto_state.two_param=HB2;
-    s.auto_state.type_of_calc=HB2;
+  s.auto_state.two_param=auto_hopf_curve;
+    s.auto_state.type_of_calc=auto_hopf_curve;
   do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
@@ -2774,9 +2780,9 @@ bool read_auto_solution_parameters(TokenReader &reader, const AutoSolutionHeader
     return true;
 }
 
-Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters, bool foreign)
+Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters, bool foreign, int hopf_dimension)
 {
-    const auto read = read_lines("AUTO's solutions", std::move(file), text, [variables, parameters, foreign](Lines &l) {
+    const auto read = read_lines("AUTO's solutions", std::move(file), text, [variables, parameters, foreign, hopf_dimension](Lines &l) {
         while (!l.at_end()) {
             const std::string_view head = l.next();
             if (head.empty()) continue;
@@ -2788,6 +2794,9 @@ Result<> check_auto_solutions(std::string_view text, std::string file, int varia
                 l.fail(xpp::format("AUTO solution parameter layout has {} slots; expected {}: {}",h.npar,parameters,head));
             if (h.nar - 1 > variables || h.npar > parameters || h.nfpr > h.npar)
                 l.fail(xpp::format("AUTO solution counts ({}, {}, {}) exceed this model's storage ({}, {})",h.nar-1,h.npar,h.nfpr,variables,parameters));
+            if (!foreign && hopf_dimension && h.ntst == 0 && h.itp.started_from(AutoPointKind::Hopf)
+                && h.nar != hopf_dimension + 1)
+                l.fail(xpp::format("AUTO Hopf solution has {} states; expected {} (the current layout): {}", h.nar - 1, hopf_dimension, head));
             const long rows = h.ntpl, columns = h.nar, payload = h.nskip, parameter_values = h.npar;
             const std::size_t orbit_values = static_cast<std::size_t>(rows) * static_cast<std::size_t>(columns);
             const std::size_t expected = orbit_values + parameter_values
@@ -3315,6 +3324,7 @@ static void grab_diagram_point(xpp::Session &s, const DIAGRAM *d)
   xpp::set_initial_data(s,s.auto_state.grabpt.u0);
   s.auto_state.grabpt.flag=1;
   s.auto_state.grabpt.itp=d->itp;
+  s.auto_state.grabpt.curve=d->flag2;
   s.auto_state.grabpt.nfpar=d->nfpar;
   auto_set_pars_from(s, s.auto_state.grabpt.par.data());
 }

@@ -58,7 +58,7 @@ ap.add_argument('--list', action='store_true', help='print the selected sections
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
                                                 'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors', 'subscriptions', 'jacobian',
-                                                'memory', 'threads', 'limits', 'nagumo'])
+                                                'memory', 'threads', 'limits', 'nagumo', 'hopf_reduced'])
 args = ap.parse_args()
 if args.shard:
     try:
@@ -2495,6 +2495,37 @@ def section_nagumo():
           maxima['interval'] < maxima['mesh'] / 5,
           'T20 %.9g, T24 %.9g' % (maxima['mesh'], maxima['interval']))
 
+
+
+def section_hopf_reduced():
+    """W363: the BT normal form continues from imaginary to real eigenvalues."""
+    with tempfile.TemporaryDirectory() as folder:
+        model = os.path.join(folder, 'bt.odex')
+        with open(model, 'w') as f:
+            f.write("x'=y\ny'=a+b*y+x*x\npar a=-0.25,b=-0.1\ninit x=-0.5,y=0\n")
+        constants = dict(ds=.02, dsmin=1e-6, dsmax=.05, nmax=40, npr=5,
+                         parmin=-.2, parmax=.2, ntst=15, mxbf=0, epsl=1e-9, epsu=1e-9, epss=1e-8)
+        d = dict(model=model, runs=[
+            dict(name='steady', kind='equilibrium', start=dict(state='current'),
+                 parameter='b', auto=constants),
+            dict(name='hopf', kind='two_parameter', start=dict(run='steady', type='HB', index=1),
+                 parameters=['a', 'b'], auto=dict(constants, ds=.03, dsmax=.1, nmax=70, parmin=-2, parmax=1))])
+        data, _, _, ranges = compute(args.server, d, 1)
+        rows = diagram_rows(data)[slice(*ranges['hopf'])]
+        x = [float(r['u0.X']) for r in rows]
+        check('reduced Hopf: continuation crosses BT onto the neutral saddle',
+              min(x) < -.4 and max(x) > .4 and any(r['flag2'] == '13' for r in rows), str((min(x), max(x))))
+        check('reduced Hopf: every point solves a=-x^2, b=0, y=0',
+              all(abs(float(r['par1']) + xx*xx) < 1e-5 and abs(float(r['par2'])) < 1e-5
+                  and abs(float(r['u0.Y'])) < 1e-5 for r, xx in zip(rows, x)),
+              str([max(abs(float(r['par1']) + xx*xx) for r, xx in zip(rows, x)),
+                   max(abs(float(r['par2'])) for r in rows), max(abs(float(r['u0.Y'])) for r in rows)]))
+        check('reduced Hopf: negative kappa is labelled neutral saddle, never Hopf',
+              all(int(r['flag2']) == (13 if xx > 0 else 3) for r, xx in zip(rows, x)))
+        first_saddle = next(i for i, xx in enumerate(x) if xx > 0)
+        period = float(rows[first_saddle-1]['per'])
+        check('reduced Hopf: neutral saddle retains the last positive-kappa period',
+              all(float(r['per']) == period for r in rows[first_saddle:]))
 
 for name in args.sections:
     globals()['section_' + name]()

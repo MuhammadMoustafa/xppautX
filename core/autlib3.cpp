@@ -31,7 +31,7 @@ constexpr doublereal torus_initial_amplitude = 1e-4;
 /* Subroutine */ int 
 fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, xpp::auto_jacobian::principal_parameter_count, fflp);
+  return xpp::auto_jacobian::curve(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, false, fflp);
 } /* fnlp_ */
 
 
@@ -58,9 +58,9 @@ fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   par[icp[1]] = u[-1 + ndim];
   if (ips == xpp::AutoProblem::DiscreteMap) {
-    fnds(iap, rap, ndm, u, uold, icp, par, 1, f, dfdu, dfdp);
+    fnds(iap, rap, ndm, u, uold, icp, par, 2, f, dfdu, dfdp);
   } else {
-    funi(iap, rap, ndm, u, uold, icp, par, 1, f, dfdu, dfdp);
+    funi(iap, rap, ndm, u, uold, icp, par, 2, f, dfdu, dfdp);
   }
 
   for (i = 0; i < ndm; ++i) {
@@ -685,7 +685,7 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* Subroutine */ int 
 fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, xpp::auto_jacobian::principal_parameter_count, ffhb);
+  return xpp::auto_jacobian::curve(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, true, ffhb);
 } /* fnhb_ */
 
 
@@ -693,53 +693,31 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Subroutine */ int 
 ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-  integer dfdu_dim1;
-
-    /* Local variables */
-
-  integer i, j;
-
-  doublereal rom;
-  integer ndm2;
-
-
-  
-
-
-  /* Parameter adjustments */
-
-  dfdu_dim1 = ndm;
-    
-  ndm2 = ndm * 2;
-
-  rom = u[ndim - 2];
-  par[xpp::auto_unknown::period] = rom * pi(2.0);
-  par[icp[1]] = u[-1 + ndim];
-  funi(iap, rap, ndm, u, uold, icp, par, 1, f, dfdu, dfdp);
-
-  for (i = 0; i < ndm; ++i) {
-    f[ndm + i] = u[ndm2 + i];
-    f[ndm2 + i] = -u[ndm + i];
-    for (j = 0; j < ndm; ++j) {
-      f[ndm + i] += rom * ARRAY2D(dfdu, i, j) * u[ndm + j];
-      f[ndm2 + i] += rom * ARRAY2D(dfdu, i, j) * u[ndm2 + j];
+  // AUTO-07p equilibrium.f90:190-258, Kuznetsov (10.80), reimplemented:
+  // state = [equilibrium, real vector, omega^2, second parameter].
+  par[icp[1]] = u[ndim - 1];
+  funi(iap, rap, ndm, u, uold, icp, par, 2, f, dfdu, dfdp);
+  const xpp::Matrix<double> blocks({dfdu, static_cast<size_t>(ndm * ndim)}, ndm, ndim);
+  const double kappa = u[2 * ndm];
+  for (integer i = 0; i < ndm; ++i) {
+    for (integer j = 0; j < ndm; ++j) {
+      double square = i == j ? kappa : 0.;
+      for (integer k = 0; k < ndm; ++k) square += blocks(i, k) * blocks(k, j);
+      blocks(i, ndm + j) = square;
     }
+    blocks(i, 2 * ndm) = u[ndm + i];
+    blocks(i, ndim - 1) = 0.;
+    for (integer j = 0; j < ndm; ++j)
+      blocks(i, ndim - 1) += (blocks(j, i) - blocks(i, j)) * uold[ndm + j];
   }
-
-  f[ndim - 2] = -1.;
-
-  for (i = 0; i < ndm; ++i) {
-    f[ndim - 2] = f[ndim - 2] + u[ndm + i] * u[ndm + i] + u[ndm2 + i] * u[ndm2 + i];
+  f[2 * ndm] = -1.;
+  f[ndim - 1] = 0.;
+  for (integer i = 0; i < ndm; ++i) {
+    f[ndm + i] = 0.;
+    for (integer j = 0; j < ndm; ++j) f[ndm + i] += blocks(i, ndm + j) * u[ndm + j];
+    f[2 * ndm] += u[ndm + i] * u[ndm + i];
+    f[ndim - 1] += blocks(i, ndim - 1) * u[ndm + i];
   }
-
-  f[-1 + ndim] = 0.;
-
-  for (i = 0; i < ndm; ++i) {
-    f[-1 + ndim] = f[-1 + ndim] + uold[ndm2 + i] * (u[ndm + i] - uold[ndm + i]) - uold[ndm + i] * (u[ndm2 + i] - uold[ndm2 + i]);
-  }
-
-
   return 0;
 } /* ffhb_ */
 
@@ -748,75 +726,23 @@ ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Subroutine */ int 
 stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
 {
-
-  /* Local variables */
-  integer ndim;
-
-  doublereal uold = 0.;
-  integer nfpr1;
-  integer i, j;
-  logical found;
-
-
-  doublereal period;
-  integer ndm, irs;
-  doublereal rom;
-  integer ndm2;
-  std::vector<doublereal> smat((iap->ndim * 2)*(iap->ndim * 2));
-  std::vector<doublereal> f(iap->ndim);
-  std::vector<doublereal> v(iap->ndim);
-  /* Generates starting data for the 2-parameter continuation of */
-  /* Hopf bifurcation point (ODE). */
-
-  /* Local */
-
-  /* Parameter adjustments */
-    
-  ndim = iap->ndim;
-  irs = iap->irs;
-  ndm = iap->ndm;
-
-  findlb(iap, rap, irs, &nfpr1, &found);
-  readlb(iap, rap, u, par);
-
-  period = par[xpp::auto_unknown::period];
-  rom = period / pi(2.0);
-  funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
-       iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
-
-  ndm2 = ndm * 2;
-  for (i = 0; i < ndm2; ++i) {
-    for (j = 0; j < ndm2; ++j) {
-      smat[i + j * (ndim*2)] = 0.;
-    }
-  }
-
-  for (i = 0; i < ndm; ++i) {
-    smat[i + (ndm + i) * (ndim*2)] = 1.;
-  }
-
-  for (i = 0; i < ndm; ++i) {
-    smat[ndm + i + i * (ndim*2)] = -1.;
-  }
-
-  for (i = 0; i < ndm; ++i) {
-    for (j = 0; j < ndm; ++j) {
-      smat[i + j * (ndim*2)] = rom * iap->lib->scratch.dfu[j * ndm + i];
-      smat[ndm + i + (ndm + j) * (ndim*2)] = rom * iap->lib->scratch.dfu[j * ndm + i];
-    }
-  }
-  {
-    integer tmp=(ndim*2);
-    nlvc(iap->lib->fp9, ndm2, tmp, 2, smat.data(), v.data());
-  }
-  nrmlz(&ndm2, v.data());
-
-  for (i = 0; i < ndm2; ++i) {
-    u[ndm + i] = v[i];
-  }
-
-  u[ndim - 2] = rom;
-  u[-1 + ndim] = par[icp[1]];
+  // AUTO-07p equilibrium.f90:278-323: a unit null vector of A^2+kappa I.
+  integer free = 0;
+  logical found = FALSE_;
+  findlb(iap, rap, iap->irs, &free, &found);
+  if (!found || readlb(iap, rap, u, par) != 0) return 1;
+  const integer n = iap->ndm;
+  const double omega = pi(2.) / par[xpp::auto_unknown::period];
+  u[2 * n] = omega * omega;
+  u[iap->ndim - 1] = par[icp[1]];
+  std::vector<double> old(iap->ndim), residual(iap->ndim);
+  std::vector<double> blocks(n * iap->ndim), parameters(n * iap->lib->parameter_count);
+  ffhb(iap, rap, iap->ndim, u, old.data(), icp, par, residual.data(), n, blocks.data(), parameters.data());
+  integer size = n;
+  // The Hopf pair gives a two-dimensional kernel. NLVC chooses its phase;
+  // subsequent correctors use the previous vector's symmetric condition.
+  nlvc(iap->lib->fp9, n, n, 2, blocks.data() + n * n, u + n);
+  nrmlz(&size, u + n);
   return 0;
 } /* stpnhb_ */
 

@@ -1156,7 +1156,7 @@ continues in), and a grab's point by its data.
 | `br`, `pt` | branch, and the number of the run's first point (absolute values) |
 | `ty` | 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic (core/diagram.h DiagramPointType) |
 | `stable`, `periodic` | what `ty` is (W118): stable or not, a periodic orbit or a steady state; what a client reads |
-| `f2` | two-parameter curve (1 limit point, 2 limit point of periodics, 3 Hopf, 4 torus, 5 branch point, 6 period doubling, 7 fixed period); absent for one parameter |
+| `f2` | two-parameter curve (1 limit point, 2 limit point of periodics, 3 Hopf, 4 torus, 5 branch point, 6 period doubling, 7 fixed period, 13 neutral saddle); absent for one parameter |
 | `d` | how it is drawn: 0 not at all (the next line starts from it), 1 a line back to the point before it, 2 filled circles of radius 3 at y and y2, 3 open circles |
 | `c`, `lw` | colour (the core's colour index: 0 the foreground, 20..29 red .. purple) and line width |
 | `new` | 1: the run's first point starts a new line (no line back) |
@@ -2205,3 +2205,19 @@ to the player metadata, so the initial run is visible. Server/silent playback
 starts directly. Pause cancels a pending initial start.
 
 Writes into a missing folder ask **Create the folder <folder>?**. A model path outside its folder first asks for outside-path approval, then asks separately to create the folder. No answer refuses; `--yes` accepts and prints the answer, and `--check` asks nothing and creates nothing. Existing folders are not asked again. Links on the way are refused and new folders are private (0700 on POSIX). Permission denied names the folder and the requesting source or command, says it needs administrator rights and to choose another place; the program never elevates itself. The desktop save dialog retries in the writable model folder, or Documents, after this error. (W303, [#361](https://github.com/MuhammadMoustafa/xppautX/issues/361)).
+
+### Reduced ODE Hopf curves (W363, #425)
+
+The `diagram` and `autoinfo` curve field `f2` is 3 for an ODE Hopf curve
+with nonnegative squared frequency and 13 for its neutral-saddle extension
+with negative squared frequency. These points retain their Hopf start type
+in `itp` for restarting the same formulation; this does not label the
+negative-frequency segment as a Hopf bifurcation. The readout calls code 13
+"neutral saddle curve". Run from a grabbed neutral-saddle label extends it.
+
+An ODE Hopf restart solution in a `.snapx` holds `[u(n), v(n), kappa, p2]`
+(`2n+2` states). The solution member rejects older `3n+2` Hopf layouts with
+the member's file name, header line and source text, before applying the load.
+For positive kappa, period is `2*pi/sqrt(kappa)`; at and beyond zero kappa,
+`per` retains the last positive-kappa period, as in AUTO-07p, and is not a
+period of the neutral saddle.

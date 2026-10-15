@@ -688,3 +688,16 @@ is constant along solutions when $`a=0.5,c=0.`$) We will use this as a starting 
     done
 
 I have added a few AUTO numerical settings so that I don’t have to set them later. Run XPP with this ODE file and integrate the equations. We will now continue this approximate heteroclinic in the parameter `per`. Fire up AUTO (File Auto) and click on Axes Hi. Put `c` on the y-axis and make ` Xmin=0,Xmax=60,Ymin=-2,Ymax=2`. Then click OK. As above, we will also keep solutions at particular values of `per` by clicking on ` Usr period` `3`, choosing `per=20,per=40,per=60`, and then OK. Now we are ready to run. Click on Run Homoclinic. When the dialog box comes up set the following: `Left Eq: ULEFT, Right Eq: URIGHT, NUnstable:1, NStable:1` and then click OK. You should see a nice straight line go across the screen. Grab the point labeled ` per=40` and then click on File Import Orbit. Look at it in the XPP main window and freeze it. Now in the Auto window, click on Axes Hi and change the Main Parm to `a` and `Xmax=1`. Click OK and then click on Numerics to get the Auto Numerics dialog. Change ` Dsmax=0.1, Par Max=1` and click OK. Now click on Usr Period 4 and make the four user functions `a=.75,a=.9,a=.25,a=.1` and click OK. Now click on Run and watch a line drawn across the screen. This is the velocity, $`c`$ as a function of the threshold, $`a`$. Click on Grab and looking at the bottom of the screen, wait until you see `per=40` and then click on Enter. Now, open the Numerics dialog box and change `Ds=-.02` to go the other direction. Click on Run and you should see the rest of the line drawn across the screen. Click on Grab and move to the point labeled `a=0.25` Click on File Import Orbit and plot this in the main XPP window.
+
+### Hopf curves at zero frequency (W363, #425)
+
+Two-parameter ODE Hopf continuation uses the reduced `2n+2` system and can
+continue through zero frequency (a Bogdanov?Takens point) onto a neutral-saddle
+curve. The point readout names that segment "neutral saddle curve". Its
+period field retains the last period computed on the Hopf segment; it does
+not represent an oscillation period there. Run from a grabbed labelled
+neutral saddle extends this curve. Detection of a special BT label is separate.
+
+Saved sessions carry the reduced Hopf restart layout. An older session with
+the previous `3n+2` Hopf solution layout is refused with the solution member's
+file name and line; recompute that curve before saving it in the new format.

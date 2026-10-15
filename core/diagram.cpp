@@ -152,7 +152,7 @@ void start_diagram(xpp::Session &s, int n)
 
 void edit_start(xpp::Session &s, const xpp::DIAGRAM &p)
 {
-  edit_diagram(s,diagram_first(s.diagram),p,s.auto_state.two_param);
+  edit_diagram(s,diagram_first(s.diagram),p,p.flag2);
 }
 
 void add_diagram(xpp::Session &s, const xpp::DIAGRAM &p)

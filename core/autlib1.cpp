@@ -555,6 +555,8 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
   dsmin /= fc;
   dsmax = fc * dsmax;
 
+  const bool reduced_hopf = ips == xpp::AutoProblem::Algebraic || ips == xpp::AutoProblem::SteadyState;
+
   /* Redefinition for waves */
   if (ips == xpp::AutoProblem::WaveSteady) {
     ips = xpp::AutoProblem::SteadyState;
@@ -692,7 +694,8 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
 
     } else if ((itp.is(xpp::AutoPointKind::Hopf) || itp.started_from(xpp::AutoPointKind::Hopf)) && xpp::problem_is_algebraic_family(ips)) {
       /*          ** Hopf bifurcation continuation (Maps, ODE, Waves) */
-      ndim = ndim * 3 + 2;
+      // The ODE Hopf curve uses the reduced system; maps and waves keep their own formulations.
+      ndim = reduced_hopf ? ndim * 2 + 2 : ndim * 3 + 2;
       nfpr = 2;
 
     } else if ((itp.is(xpp::AutoPointKind::PeriodicFold) || itp.is(xpp::AutoPointKind::PeriodicBranch)) && ips == xpp::AutoProblem::Periodic) {
@@ -6730,6 +6733,11 @@ pvlsae(iap_type *iap, rap_type *rap, doublereal *u, doublereal *par)
   integer ndm;
 
   ndm = iap->ndm;
+  if (iap->itpst == xpp::AutoPointKind::Hopf && iap->ndim == 2 * ndm + 2) {
+    // AUTO-07p equilibrium.f90:365-367 retains PAR(11) for kappa <= 0.
+    const double kappa = u[2 * ndm];
+    if (kappa > 0.) par[xpp::auto_unknown::period] = pi(2.) / sqrt(kappa);
+  }
   pvls(ndm, u, par);
 
   return 0;

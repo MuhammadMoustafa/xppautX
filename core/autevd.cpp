@@ -132,6 +132,8 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   p.icp3=s.auto_state.parameter_layout.axis(icp3);
   p.icp4=s.auto_state.parameter_layout.axis(icp4);
   p.flag2=s.auto_state.two_param;
+  if (iap->itpst == AutoPointKind::Hopf && iap->ndim == 2 * iap->ndm + 2)
+    p.flag2=auto_hopf_curve_kind(u0[2 * iap->ndm]);
   p.jacobian=s.numerics.jacobian;
   diagram_record_branch(s,p);
   if(s.auto_state.diag_flag==0){

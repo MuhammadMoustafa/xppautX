@@ -303,7 +303,7 @@ export function grabStep(key: string, shift: boolean, from: number, n: number, l
 /* ---- the readout ---- */
 
 const CURVES = ['', 'limit point', 'limit point of periodic orbits', 'Hopf', 'torus', 'branch point', 'period doubling',
-  'fixed period'];
+  'fixed period', '', '', '', '', '', 'neutral saddle'];
 /** AUTO's label types in words (T23), in the key's order */
 const SYMBOLS: Record<string, string> = {
   EP: 'End point', MX: 'No convergence', LP: 'Fold (limit point)', HB: 'Hopf', BP: 'Branch point',

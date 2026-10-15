@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Continue ODE Hopf curves with the reduced 2n+2 system through zero frequency to a labelled neutral-saddle curve; use structured Hopf/fold Jacobians and reject obsolete Hopf restart layouts (W363, [#425](https://github.com/MuhammadMoustafa/xppautX/issues/425)).
+
 - Speed up AUTO condensation with cached row maxima and physical pivot swaps, preserving numerical results and interval threading (W360, [#422](https://github.com/MuhammadMoustafa/xppautX/issues/422)).
 
 - AUTO equilibrium periods select the complex pair independently of spectrum order, choosing the lowest frequency for equal damping within roundoff and conservative near-axis ties (W369, [#431](https://github.com/MuhammadMoustafa/xppautX/issues/431)).

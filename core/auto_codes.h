@@ -94,6 +94,14 @@ constexpr bool problem_has_solution_profile(AutoProblem p) {
 /* PAR(11) is headed PERIOD: every problem but IPS <= 0 and the BVP (IPS 4) */
 constexpr bool problem_heads_period(AutoProblem p) { return auto_problem_code(p) > 0 && p != AutoProblem::BoundaryValue; }
 
+// Diagram curve codes: retain the Hopf code and distinguish its real-pair
+// extension across kappa=0 without changing the restart's Hopf formulation.
+constexpr int auto_hopf_curve = 3;
+constexpr int auto_neutral_saddle_curve = 13;
+constexpr int auto_hopf_curve_kind(double kappa) {
+    return kappa < 0. ? auto_neutral_saddle_curve : auto_hopf_curve;
+}
+
 /* The kind of a special point (AUTO's ITP mod 10, with its sign). */
 enum class AutoPointKind : int {
     Pending = -1,         /* a special point AUTO is locating (in a run only, never stored) */

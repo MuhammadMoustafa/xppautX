@@ -2,7 +2,9 @@
 // (W333) for autlib3.cpp and autlib5.cpp, preserving evaluator arithmetic.
 #pragma once
 
+#include <algorithm>
 #include <vector>
+#include "xpp_math.h"
 #include "auto_c.h"
 #include "auto_state.h"
 #include "auto_f2c.h"
@@ -20,7 +22,8 @@ constexpr integer principal_parameter_count = 1;
 // forward differences for the parameters then reuse.
 template <class Eval>
 doublereal central(integer n, integer nout, const doublereal *x, doublereal *uu1, doublereal *uu2,
-                   doublereal *ff1, doublereal *ff2, Eval &&eval, doublereal *out, integer ld) {
+                   doublereal *ff1, doublereal *ff2, Eval &&eval, doublereal *out, integer ld,
+                   std::span<const integer> columns = {}) {
   doublereal umx = 0.;
   for (integer i = 0; i < n; ++i) {
     if (f2c::abs(x[i]) > umx) {
@@ -28,7 +31,9 @@ doublereal central(integer n, integer nout, const doublereal *x, doublereal *uu1
     }
   }
   const doublereal ep = auto_hmach * (umx + 1);
-  for (integer i = 0; i < n; ++i) {
+  const integer count = columns.empty() ? n : static_cast<integer>(columns.size());
+  for (integer column = 0; column < count; ++column) {
+    const integer i = columns.empty() ? column : columns[column];
     for (integer j = 0; j < n; ++j) {
       uu1[j] = x[j];
       uu2[j] = x[j];
@@ -92,6 +97,67 @@ int problem(const iap_type *iap, const rap_type *rap, integer ndim,
   return differentiate(ndim, ndim, u, icp, par, ijac, f, dfdu, dfdp,
                        count, 0, iap->lib->scratch.uu1.data(), iap->lib->scratch.uu2.data(),
                        iap->lib->scratch.ff1.data(), iap->lib->scratch.ff2.data(), evaluate);
+}
+
+// Structured equilibrium fold/Hopf Jacobian, reimplemented from AUTO-07p
+// toolboxae.f90:171-265 and equilibrium.f90:84-187. Only derivatives of
+// A*v (or (A*A+kappa*I)*v and phase) need numerical second derivatives.
+// eval supplies A and, for Hopf, the extra vector/phase blocks after A.
+template <class Eval>
+int curve(const iap_type *iap, const rap_type *rap, integer ndim,
+          const doublereal *u, const doublereal *uold, const integer *icp,
+          doublereal *par, integer ijac, doublereal *f, doublereal *dfdu,
+          doublereal *dfdp, bool hopf, Eval eval) {
+  const integer n = iap->ndm;
+  std::vector<double> base(n * ndim), parameters(n * iap->lib->parameter_count);
+  const auto evaluate = [&](const double *state, double *value) {
+    eval(iap, rap, ndim, state, uold, icp, par, value, n,
+         base.data(), parameters.data());
+  };
+  evaluate(u, f);
+  if (ijac == 0) return 0;
+  const Matrix<const double> a(base, n, ndim);
+  const Matrix<const double> p(parameters, n, iap->lib->parameter_count);
+  const Matrix<double> jac({dfdu, static_cast<size_t>(ndim * ndim)}, ndim, ndim);
+  const Matrix<double> dp({dfdp, static_cast<size_t>(ndim * iap->lib->parameter_count)}, ndim, iap->lib->parameter_count);
+  std::fill_n(dfdu, ndim * ndim, 0.);
+  for (integer i = 0; i < n; ++i) {
+    for (integer j = 0; j < n; ++j) {
+      jac(i, j) = a(i, j);
+      jac(n + i, n + j) = hopf ? a(i, n + j) : a(i, j);
+    }
+    jac(i, ndim - 1) = p(i, icp[1]);
+    jac(2 * n, n + i) = 2 * u[n + i];
+    if (hopf) {
+      jac(n + i, 2 * n) = u[n + i];
+      jac(ndim - 1, n + i) = a(i, ndim - 1);
+    }
+    dp(i, icp[0]) = p(i, icp[0]);
+  }
+  std::vector<integer> columns(n + 1);
+  for (integer i = 0; i < n; ++i) columns[i] = i;
+  columns[n] = ndim - 1; // p2 is the last augmented state
+  std::vector<double> low(ndim), high(ndim), minus(ndim), plus(ndim), numeric(ndim * ndim);
+  const double step = central(ndim, ndim, u, low.data(), high.data(), minus.data(), plus.data(),
+                              evaluate, numeric.data(), ndim, columns);
+  const Matrix<const double> difference(numeric, ndim, ndim);
+  for (const integer column : columns)
+    for (integer row = n; row < ndim; ++row)
+      if (row != 2 * n) jac(row, column) = difference(row, column);
+  // AUTO-07p uses a forward difference for the principal parameter's
+  // variational equations; preserve the model's own parameter block above.
+  const double saved = par[icp[0]];
+  forward_parameters(principal_parameter_count, ndim, icp, step, par,
+                     [&](double *value) { evaluate(u, value); },
+                     f, plus.data(), dfdp, ndim, 0);
+  par[icp[0]] = saved;
+  par[icp[1]] = u[ndim - 1];
+  // The parameter difference also visited F; its supplied derivatives win.
+  // Re-evaluate the model blocks after perturbations before restoring them.
+  evaluate(u, plus.data());
+  for (integer i = 0; i < n; ++i) dp(i, icp[0]) = p(i, icp[0]);
+  dp(2 * n, icp[0]) = 0.;
+  return 0;
 }
 
 // These formulations already supply their Jacobian.

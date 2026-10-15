@@ -387,7 +387,7 @@ int set_function_pointers(const iap_type iap,function_list *data) {
     data->aelist.funi  = fnhb;
     data->aelist.stpnt  = stpnhb;
     data->aelist.pvli    = pvlsae;
-  } else if (xpp::problem_is_steady_or_map(iap.ips) && abs(iap.isw) == 2 && iap.itp.started_from(xpp::AutoPointKind::Hopf)) {
+  } else if ((iap.ips == xpp::AutoProblem::Algebraic || iap.ips == xpp::AutoProblem::SteadyState) && abs(iap.isw) == 2 && iap.itp.started_from(xpp::AutoPointKind::Hopf)) {
     /*	** Hopf bifurcation continuation (ODE, restart). */
     data->type	   = AUTOAE;
     data->aelist.funi  = fnhb;
