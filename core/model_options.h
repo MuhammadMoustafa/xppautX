@@ -277,5 +277,10 @@ std::optional<std::string> option_problem(Session &s, std::string_view name, std
 /* each option no source set gets its default, in the table's order */
 void set_option_defaults(Session &s);
 
+/* XPPAUT's negative Total, read on import only: the run's length |Total|
+   (XPPAUT runs that long; its sign only let a full store overwrite itself,
+   W347); nothing for any other row or value */
+std::optional<double> imported_total(const OptionRow &row, std::string_view value);
+
 } // namespace xpp
 #endif

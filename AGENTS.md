@@ -957,7 +957,9 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   final exit (an ERROR naming what was being built, then exit 1) the
   allocator itself always took; `--debug` no longer prints allocation
   counts. `XPP_WINDOW_FAIL_LOAD=1` (xpp_window_loader.cpp) is the Linux
-  window's own like hook. The exceptions (memory a library allocates or
+  window's own like hook, and `XPP_STORAGE_FAIL_GROW` (storage.cpp) makes
+  the data store's growth fail, for servercheck's out-of-memory check
+  (W347: the run stops with an error, its rows kept). The exceptions (memory a library allocates or
   frees) are listed in xpp_mem.h's comment; add any new one there and in
   `tools/alloccheck.sh` (sourcecheck.sh), which fails any other direct
   call to the C library's malloc/calloc/realloc/strdup/free.

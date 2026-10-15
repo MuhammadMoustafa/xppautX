@@ -1489,8 +1489,7 @@ private:
      alone (id: the note's, when the text was more than a number) */
   std::string option_text(const OptionRow &row, const std::string &key, const std::string &value, const std::string &id)
   {
-    double total = 0;
-    if (row.key == "total_time" && parse_number(value, total) && total < 0) return print_number(-total);
+    if (const std::optional<double> total = imported_total(row, value)) return print_number(*total);
     switch (row.kind) {
     case OptionKind::sliders: return value;
     case OptionKind::path:

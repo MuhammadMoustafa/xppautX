@@ -991,6 +991,13 @@ const OptionRow *numerics_option(std::string_view key)
   return it == std::ranges::end(rows) ? nullptr : &*it;
 }
 
+std::optional<double> imported_total(const OptionRow &row, std::string_view value)
+{
+  double total = 0;
+  if (row.key != "total_time" || !parse_number(value, total) || total >= 0) return std::nullopt;
+  return -total;
+}
+
 namespace {
 
 /* what option_value says of a name no option has */
@@ -1002,15 +1009,13 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
                                         bool xppaut_names)
 {
   const std::string upper = upper_case(std::string(name));
-  /* the value as a NUL-ended text */
-  /* A negative Total is XPPAUT's import spelling, not a run mode. */
-  double total = 0;
-  const bool imported_total = Load::running() && files::has_extension(Load::place().file, ".ode")
-    && (upper == "TOTAL" || upper == "TOTAL_TIME") && parse_number(value, total) && total < 0;
-  const std::string text = imported_total ? number(-total) : std::string(value);
   int index = 0;
   const OptionRow *row = find_option(upper, index, xppaut_names);
   if (!row) return unknown_option;
+  const bool importing = Load::running() && files::has_extension(Load::place().file, ".ode");
+  const std::optional<double> total = importing ? imported_total(*row, value) : std::nullopt;
+  /* the value as a NUL-ended text */
+  const std::string text = total ? number(*total) : std::string(value);
   const OptionSource source{force, mask};
   const OptionValue v{text.c_str(), index, source, apply};
   const char *why = nullptr;
@@ -1037,8 +1042,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   }
   else if (row->boolean) {
     /* Numeric choices belong to a foreign .ode import, never our own files. */
-    const std::string named = Load::running() && files::has_extension(Load::place().file, ".ode")
-      ? option_choice(*row, text) : lower_case(text);
+    const std::string named = importing ? option_choice(*row, text) : lower_case(text);
     const auto picked = std::ranges::find(row->choices, named);
     if (picked == row->choices.end()) why = "not yes or no";
     else if (apply) row->boolean(s) = picked != row->choices.begin();
