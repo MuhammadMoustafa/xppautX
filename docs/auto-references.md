@@ -191,10 +191,8 @@ Only three diagrams were written by the single `--update`:
   parameter and spectrum with the corrected state. The extra GH labels
   of the reference are residual artifacts, traced below.
 - `zero_hopf` (`tools/models/zero_hopf.odex`, outside the examples MD5 set): new, 71 points, including ZH at b=-5.1e-9 on the fold a=0.
-  Its AUTO-07p reference is explicitly pending review; the coordinator runs
-  `tools/auto_reference.py --program auto07p --only zero_hopf` in WSL.
-  Remove `auto07p_skip` after generating it, then rerun the comparison;
-  the ZH must match without a traced difference.
+  AUTO-07p 0.9.4 labels the same ZH (its reference generated at W364's
+  review); the two agree to 2.1e-09 in the parameter, with no traced difference.
 
 The older `tools/models/lecar_diagram.csv` fixture also contains a
 2,000-point fold continuation: that part is refreshed for the same current
@@ -205,7 +203,7 @@ boolean settings and a recomputed fingerprint; its recorded steps stay the same.
 
 Both thread settings produce identical diagrams. All other diagrams,
 including every one-parameter diagram, are unchanged. The full comparison
-is 41 descriptions, nine skipped, 6,082 points, 92 checks, zero failures.
+is 41 descriptions, nine skipped, 6,082 points, 93 checks, zero failures.
 The table below uses the post-change `--table` output; the seven traced
 reference labels are retained without widening any tolerance. Before W364,
 the two reaction descriptions had six and three traced labels; afterwards
@@ -213,7 +211,7 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-28 descriptions have an AUTO-07p reference (54 special points compared, and the two-parameter curves below) and 24 an XPPAUT 8.0 reference (44 points); 24 of the 32 runnable descriptions hold both. Every untraced comparison agrees. AUTO-07p has twelve traced points in four descriptions (seven residual-contaminated codim-2 labels; finding 2 in docs/auto07p-findings.md); XPPAUT 8.0 has three in three descriptions. No tolerance was widened. Before W326 there were 44 compared points and six traced points against AUTO-07p, and 44 compared points with none traced against XPPAUT.
+29 descriptions have an AUTO-07p reference (57 special points compared, and the two-parameter curves below) and 24 an XPPAUT 8.0 reference (44 points); 24 of the 32 runnable descriptions hold both. Every untraced comparison agrees. AUTO-07p has twelve traced points in four descriptions (seven residual-contaminated codim-2 labels; finding 2 in docs/auto07p-findings.md); XPPAUT 8.0 has three in three descriptions. No tolerance was widened. Before W326 there were 44 compared points and six traced points against AUTO-07p, and 44 compared points with none traced against XPPAUT.
 
 | Model | Special points in xppautX | AUTO-07p | XPPAUT 8.0 |
 |---|---|---|---|
@@ -223,7 +221,7 @@ four and three, with two additional real special points now compared.
 | ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
 | ab, fold curve | steady: EP LP; fold: BT CP | agrees, 4 traced (4 points; par 1.3e-06, norm 8.1e-05, spectrum 0.0006; curve par 1.6e-05, par2 0.00052, norm 0.00045) | not run |
 | ab, Hopf curves | steady: EP LP LP HB; hopf_up: -; hopf_down: - | agrees, 3 traced (4 points; par 1.6e-07, norm 9.7e-07, period 3e-05, spectrum 0.00012; curve par 4.2e-06, par2 0.00012, norm 4.2e-05) | not run |
-| zero_hopf | steady: EP LP; fold: ZH | reference pending W364 review | not run |
+| zero_hopf | steady: EP LP; fold: ZH | agrees (3 points; par 2.1e-09, norm 5.8e-17, spectrum 2.1e-09; curve par 1.7e-09, par2 3.5e-19, norm 3.2e-15) | not run |
 | bigaut | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | bistable | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | bob | steady: EP | agrees (1 points; par 0, norm 1.8e-12) | agrees (1 points; par 0, norm 1.4e-08) |

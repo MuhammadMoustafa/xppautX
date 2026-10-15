@@ -103,7 +103,7 @@ constexpr int auto_hopf_curve_kind(double kappa) {
     return kappa < 0. ? auto_neutral_saddle_curve : auto_hopf_curve;
 }
 
-/* A special point's kind. Legacy kinds use ITP mod 10; equilibrium
+/* A special point's kind. Most use ITP mod 10; equilibrium
    codimension-two kinds have explicit composite encodings below. */
 enum class AutoPointKind : int {
     Pending = -1,         /* a special point AUTO is locating (in a run only, never stored) */
