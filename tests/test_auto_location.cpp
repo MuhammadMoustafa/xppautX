@@ -61,7 +61,7 @@ int initial_boundary(const iap_type *, const rap_type *, integer, double *,
 // A noisy test claims a sign change but has no zero on this straight branch.
 double noisy(iap_type *iap, rap_type *, double *, integer *, logical *chng,
              FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
-             double *u, double *, double *, double *, double *, double *, integer *, double *)
+             double *u, double *, double *, double *, double *, double *, std::span<const AutoMark>)
 {
     *chng = TRUE_;
     iap->lib->session->auto_state.stability.computed.re = {u[0]};
@@ -106,10 +106,11 @@ int main()
     rap.epsl = rap.epsu = 1e-8;
     rap.epss = 1e-6;
     rap.det = 7;
-    integer icp = 0, stride = 2, iuz = 0;
+    integer icp = 0, stride = 2;
+    const AutoMark mark{0, 0};
     double rlcur = 1, rlold = 0, rldot = 1;
     double u = 1, uold = 0, udot = 1, f = 0, dfdu = 1;
-    double q = -1, vuz = 0, thu = 1;
+    double q = -1, thu = 1;
     double dstest = rap.dsold;
     bool stepped = false;
     std::array<double, 4> aa{1, 2, 3, 4};
@@ -122,7 +123,7 @@ int main()
     const auto initial_du = du;
     CHECK(lcspae(&iap, &rap, par.data(), &icp, noisy, line, &stride, aa.data(),
                  rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(), &uold, &udot,
-                 &f, &dfdu, dfdp.data(), &q, thl.data(), &thu, &iuz, &vuz, dstest, stepped) == 0);
+                 &f, &dfdu, dfdp.data(), &q, thl.data(), &thu, std::span(&mark, 1), dstest, stepped) == 0);
     CHECK(iap.istop == 0 && iap.itp == xpp::AutoPointCode{} && iap.nit == 3 && iap.nins == 1);
     CHECK(rlcur == 1 && rlold == 0 && rldot == 1 && par[0] == 1);
     CHECK(u == 1 && uold == 0 && udot == 1);
@@ -140,7 +141,7 @@ int main()
     dstest = rap.dsold;
     CHECK(lcspae(&iap, &rap, par.data(), &icp, target, retry_line, &stride, aa.data(),
                  rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(), &uold, &udot,
-                 &f, &dfdu, dfdp.data(), &q, thl.data(), &thu, &iuz, &vuz, dstest, stepped) == 0);
+                 &f, &dfdu, dfdp.data(), &q, thl.data(), &thu, std::span(&mark, 1), dstest, stepped) == 0);
     CHECK(iap.istop == 0 && iap.itp.kind == xpp::AutoPointKind::Pending);
     CHECK(std::abs(u - 0.4) < rap.epss && std::abs(rlcur - 0.4) < rap.epss);
     CHECK(q == 0 && std::abs(rap.dsold) <= 0.4);

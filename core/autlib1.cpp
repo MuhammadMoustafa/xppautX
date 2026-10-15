@@ -125,7 +125,7 @@ template<class Function> struct LocationTest {
 
 template<class Function, class Evaluate, class Locate>
 void locate_tests(iap_type &iap, rap_type &rap,
-                  std::vector<LocationTest<Function>> &tests, const integer *iuz,
+                  std::vector<LocationTest<Function>> &tests, std::span<const AutoMark> marks,
                   Evaluate evaluate, Locate locate) {
   double dstest = rap.dsold;
   std::size_t last_stepped = 0;
@@ -148,7 +148,7 @@ void locate_tests(iap_type &iap, rap_type &rap,
     test.value = evaluate(test);
   }
   if (iap.istop != 1 && found && tests[*found].user_index &&
-      iuz[*tests[*found].user_index] < 0) iap.istop = -1;
+      marks[*tests[*found].user_index].parameter < 0) iap.istop = -1;
 }
 
 // AUTO-07p LCSPAE ae.f90:679-698 / LCSPBV bvp.f90:1309-1329:
@@ -189,14 +189,14 @@ FILE *fort8(AutoLib &lib)
 }
 } // namespace
 
-int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, integer *iuz, doublereal *vuz)
+int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, std::span<AutoMark> marks)
 {
   xpp::Session &s=*iap->lib->session;
   /* Local variables */
   integer nbif;
   integer iads, ndim, nicp, ncol, mxbf;
   doublereal epsl;
-  integer nthl, nfpr, nins, iplt, nint, jtmp;
+  integer nfpr, nins, iplt, nint, jtmp;
   doublereal epsu, epss;
   integer itmx, itnw, ntot, ipos, nwtn;
   doublereal tivp;
@@ -284,20 +284,11 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
     xpp::log_auto("Warning : DSMAX less then 0.0, will use absolute value instead.");
     dsmax = f2c::abs(dsmax);
   }
-  nthl=s.auto_state.run.nthl;
-  
-  if (nthl > 0) {
-    for (i = 0; i < nthl; ++i) 
-      thl[s.auto_state.run.ithl[i]]=s.auto_state.run.thl[i];
+  for (const AutoRunWeight &weight : s.auto_state.run.weights)
+    thl[weight.index]=weight.value;
     
-  }
-    
-  nuzr=s.auto_state.run.nuzr;
-  for(i=0;i<nuzr;i++)
-    {    
-      iuz[i]=s.auto_state.run.iuz[i];
-      vuz[i]=s.auto_state.run.vuz[i];
-    }
+  nuzr=static_cast<integer>(s.auto_state.run.marks.size());
+  std::copy(s.auto_state.run.marks.begin(),s.auto_state.run.marks.end(),marks.begin());
 
   iap->ndim = ndim;
 
@@ -486,22 +477,22 @@ int autoae(iap_type *iap, rap_type *rap, doublereal *par,
 	   FUNI_TYPE((*funi)),
 	   STPNT_TYPE_AE((*stpnt)),
 	   PVLI_TYPE_AE((*pvli)),
-	   doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz)
+	   doublereal *thl, doublereal *thu, std::span<const AutoMark> marks)
 
 {
   /* This is the entry subroutine for algebraic systems. */
 
-  cnrlae(iap, rap, par, icp, funi, stpnt, pvli, thl, thu, iuz, vuz);
+  cnrlae(iap, rap, par, icp, funi, stpnt, pvli, thl, thu, marks);
   return 0;
 } 
 
 int 
-autobv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), STPNT_TYPE_BVP((*stpnt)), PVLI_TYPE_BVP((*pvli)), doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz)
+autobv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), STPNT_TYPE_BVP((*stpnt)), PVLI_TYPE_BVP((*pvli)), doublereal *thl, doublereal *thu, std::span<const AutoMark> marks)
 {
 
   /* THIS IS THE ENTRY ROUTINE FOR GENERAL BOUNDARY VALUE PROBLEMS. */
 
-  cnrlbv(iap, rap, par, icp, funi, bcni, icni, stpnt, pvli, thl, thu, iuz, vuz);
+  cnrlbv(iap, rap, par, icp, funi, bcni, icni, stpnt, pvli, thl, thu, marks);
   return 0;
 } 
 
@@ -865,7 +856,7 @@ rt */
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), STPNT_TYPE_AE((*stpnt)), PVLI_TYPE_AE((*pvli)), doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz)
+cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), STPNT_TYPE_AE((*stpnt)), PVLI_TYPE_AE((*pvli)), doublereal *thl, doublereal *thu, std::span<const AutoMark> marks)
 {
 
     /* Local variables */
@@ -1093,18 +1084,18 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     if (isp != 0) tests.push_back({fnbpae, rbp, xpp::AutoPointKind::BranchPoint, {}});
     if (xpp::problem_is_steady_or_map(ips))
       tests.push_back({fnhbae, rev, xpp::AutoPointKind::Hopf, {}});
-    locate_tests(*iap, *rap, tests, iuz,
+    locate_tests(*iap, *rap, tests, marks,
       [&](const auto &test) {
         logical changed;
         return test.function(iap, rap, par, icp, &changed, funi, &aa_first_dimension,
             aa.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), uold.data(),
-            udot.data(), rhs.data(), dfdu.data(), dfdp.data(), iuz, vuz);
+            udot.data(), rhs.data(), dfdu.data(), dfdp.data(), marks);
       },
       [&](auto &test, double &dstest, bool &stepped) {
         lcspae(iap, rap, par, icp, test.function, funi, &aa_first_dimension,
             aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(),
             du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(),
-            &test.value, thl, thu, iuz, vuz, dstest, stepped);
+            &test.value, thl, thu, marks, dstest, stepped);
       });
     if (iap->istop != 1 && iap->itp.kind == xpp::AutoPointKind::BranchPoint) {
       ++nbif;
@@ -1561,7 +1552,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *q, doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz, double &dstest, bool &stepped)
+lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *q, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks, double &dstest, bool &stepped)
 {
   stepped = false;
 
@@ -1602,7 +1593,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
   q0 = *q;
   q1 = (*fncs)(iap, rap, par, icp, &chng, funi, m1aaloc, 
 	       aa, rlcur, rlold, rldot, u, uold, udot, 
-	       rhs, dfdu, dfdp, iuz, vuz);
+	       rhs, dfdu, dfdp, marks);
   ntot = iap->ntot;
   if (!location_sign_change(*iap, *rap, q0, q1, dstest, chng, fncs == fnuzae)) {
     *q = q1;
@@ -1662,7 +1653,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 
   *q = (*fncs)(iap, rap, par, icp, &chng, funi, m1aaloc, 
 	       aa, rlcur, rlold, rldot, u, uold, udot,
-	       rhs, dfdu, dfdp, iuz, vuz);
+	       rhs, dfdu, dfdp, marks);
   ++itlcsp;
   if (itlcsp <= itmx) {
     // AUTO-07p LCSPAE ae.f90:743 / LCSPBV bvp.f90:1414:
@@ -1716,7 +1707,7 @@ mueller(doublereal *q0, doublereal *q1, doublereal *q, doublereal *s0, doublerea
 
 /*     ------ --------- -------- ------ */
 doublereal 
-fnbpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, integer *iuz, doublereal *vuz)
+fnbpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, std::span<const AutoMark> marks)
 {
   /* System generated locals */
   doublereal ret_val;
@@ -1745,7 +1736,7 @@ fnbpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /*     ------ --------- -------- ------ */
 doublereal 
-fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, integer *iuz, doublereal *vuz)
+fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, std::span<const AutoMark> marks)
 {
   /* System generated locals */
   integer aa_dim1;
@@ -1816,7 +1807,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /*     ------ --------- -------- ------ */
 doublereal 
-fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, integer *iuz, doublereal *vuz)
+fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, std::span<const AutoMark> marks)
 {
   /* System generated locals */
   doublereal ret_val;
@@ -1984,12 +1975,12 @@ constexpr int boundary_user_zero_width = 14;
 
 doublereal user_zero(const iap_type &iap, const doublereal *par,
                      const integer *icp, logical *chng,
-                     const integer *iuz, const doublereal *vuz, int width) {
+                     std::span<const AutoMark> marks, int width) {
   const integer iuzr = iap.iuzr;
   const doublereal value = auto_parameter_value(
-      *iap.lib->session, f2c::abs(iuz[iuzr]),
+      *iap.lib->session, f2c::abs(marks[iuzr].parameter),
       {icp, static_cast<std::size_t>(iap.nfpr)},
-      {par, static_cast<std::size_t>(iap.lib->parameter_count)}) - vuz[iuzr];
+      {par, static_cast<std::size_t>(iap.lib->parameter_count)}) - marks[iuzr].value;
   *chng = TRUE_;
   if (iap.iid >= user_zero_diagnostic_level) {
     xpp::print(iap.lib->fp9, "{:4}{:6}        User Func. {:3} {:{}.6E}\n",
@@ -2001,9 +1992,9 @@ doublereal user_zero(const iap_type &iap, const doublereal *par,
 } // namespace
 
 doublereal
-fnuzae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, integer *iuz, doublereal *vuz)
+fnuzae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, std::span<const AutoMark> marks)
 {
-  return user_zero(*iap, par, icp, chng, iuz, vuz, algebraic_user_zero_width);
+  return user_zero(*iap, par, icp, chng, marks, algebraic_user_zero_width);
 } /* fnuzae_ */
 
 /* ----------------------------------------------------------------------- */
@@ -4620,7 +4611,7 @@ scaleb(iap_type *iap, integer *icp, integer *ndxloc, doublereal *dvps, doublerea
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), STPNT_TYPE_BVP((*stpnt)), PVLI_TYPE_BVP((*pvli)), doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz)
+cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), STPNT_TYPE_BVP((*stpnt)), PVLI_TYPE_BVP((*pvli)), doublereal *thl, doublereal *thu, std::span<const AutoMark> marks)
 {
     /* Local variables */
   integer iads, ndim, ncol;
@@ -4661,7 +4652,6 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   /* INITIALIZE COMPUTATION OF BRANCH */
 
   /* Parameter adjustments */
-  /*--iuz;*/
   /*--icp;*/
   /*--par;*/
 
@@ -4806,20 +4796,20 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     if (isp >= 2) tests.push_back({fnbpbv, bp1, xpp::AutoPointKind::PeriodicBranch, {}});
     if ((isp == 1 || isp == 2) && xpp::problem_has_orbit_multipliers(ips))
       tests.push_back({fnspbv, sp1, xpp::AutoPointKind::Pending, {}});
-    locate_tests(*iap, *rap, tests, iuz,
+    locate_tests(*iap, *rap, tests, marks,
       [&](const auto &test) {
         logical changed;
         return test.function(iap, rap, par, icp, &changed, funi, bcni, icni,
             p0.data(), p1.data(), ev.data(), rlcur.data(), rlold.data(), rldot.data(),
             &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(),
-            fa.data(), fc.data(), dups.data(), tm.data(), dtm.data(), thl, thu, iuz, vuz);
+            fa.data(), fc.data(), dups.data(), tm.data(), dtm.data(), thl, thu, marks);
       },
       [&](auto &test, double &dstest, bool &stepped) {
         lcspbv(iap, rap, par, icp, test.function, funi, bcni, icni, pvli,
             &test.value, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one,
             ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(),
             fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(),
-            ev.data(), thl, thu, iuz, vuz, dstest, stepped);
+            ev.data(), thl, thu, marks, dstest, stepped);
       });
     if (iap->istop != 1 && iap->itp.kind == xpp::AutoPointKind::Pending)
       tpspbv(iap, rap, par, icp, ev.data());
@@ -5772,7 +5762,7 @@ stdrbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), PVLI_TYPE_BVP((*pvli)), doublereal *q, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *tm, doublereal *dtm, doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz, double &dstest, bool &stepped)
+lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), PVLI_TYPE_BVP((*pvli)), doublereal *q, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *tm, doublereal *dtm, doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks, double &dstest, bool &stepped)
 {
   stepped = false;
   /* Local variables */
@@ -5826,7 +5816,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   q0 = *q;
   q1 = (*fncs)(iap, rap, par, icp, &chng, funi, bcni, icni, p0, p1, 
 	       ev, rlcur, rlold, rldot, ndxloc, ups, uoldps, 
-	       udotps, upoldp, fa, fc, dups, tm, dtm, thl, thu, iuz, vuz)
+	       udotps, upoldp, fa, fc, dups, tm, dtm, thl, thu, marks)
     ;
 
   if (!location_sign_change(*iap, *rap, q0, q1, dstest, chng, fncs == fnuzbv)) {
@@ -5893,7 +5883,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 
   *q = (*fncs)(iap, rap, par, icp, &chng, funi, bcni, icni, p0, p1, 
 	       ev, rlcur, rlold, rldot, ndxloc, ups, uoldps, 
-	       udotps, upoldp, fa, fc, dups, tm, dtm, thl, thu, iuz, vuz)
+	       udotps, upoldp, fa, fc, dups, tm, dtm, thl, thu, marks)
     ;
 
   ++nitsp1;
@@ -5921,7 +5911,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 
 /*     ------ --------- -------- ------ */
 doublereal 
-fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz)
+fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks)
 {
   /* System generated locals */
   integer udotps_dim1, fa_dim1;
@@ -5990,7 +5980,7 @@ fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /*     ------ --------- -------- ------ */
 doublereal 
-fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz)
+fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks)
 {
   /* System generated locals */
   doublereal ret_val;
@@ -6047,7 +6037,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /*     ------ --------- -------- ------ */
 doublereal 
-fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz)
+fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks)
 {
   /* System generated locals */
   doublereal ret_val;
@@ -6222,9 +6212,9 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /*     ------ --------- -------- ------ */
 doublereal 
-fnuzbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, integer *iuz, doublereal *vuz)
+fnuzbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks)
 {
-  return user_zero(*iap, par, icp, chng, iuz, vuz, boundary_user_zero_width);
+  return user_zero(*iap, par, icp, chng, marks, boundary_user_zero_width);
 } /* fnuzbv_ */
 
 /*     ---------- ------ */

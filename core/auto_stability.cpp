@@ -77,7 +77,7 @@ void auto_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *p
     // calculation itself consumes only the context, parameters and Jacobian.
     fnhbae(&iap, &rap, par, nullptr, &chng, nullptr, nullptr, nullptr,
            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-           dfdu, nullptr, nullptr, nullptr);
+           dfdu, nullptr, {});
     iap.nins = saved_nins;
     par[xpp::auto_unknown::period] = saved_period;
 }

@@ -341,18 +341,18 @@ void check_branch_parameters()
     mark_iap.nfpr=1;
     rap_type mark_rap{};
     std::vector<double> parameters(mark_lib.parameter_count);
-    std::array<integer,1> free={s.auto_state.parameter_layout.solver_index(0)},mark={s.auto_state.parameter_layout.solver_index(1)};
-    std::array<double,1> target={0.5};
+    std::array<integer,1> free={s.auto_state.parameter_layout.solver_index(0)};
+    std::array<AutoMark,1> mark={AutoMark{static_cast<int>(s.auto_state.parameter_layout.solver_index(1)),0.5}};
     logical changed=FALSE_;
     const auto mark_value=[&]{
         return fnuzae(&mark_iap,&mark_rap,parameters.data(),free.data(),&changed,nullptr,nullptr,
-                      nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,mark.data(),target.data());
+                      nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,mark);
     };
     CHECK(mark_value()==1.5 && changed==TRUE_);
-    mark[0]=free[0];
+    mark[0].parameter=static_cast<int>(free[0]);
     parameters[free[0]]=0.75;
     CHECK(mark_value()==0.25);
-    mark[0]=xpp::auto_unknown::period;
+    mark[0].parameter=xpp::auto_unknown::period;
     parameters[xpp::auto_unknown::period]=7.5;
     CHECK(mark_value()==7);
     xpp::auto_start_diff_ss(s);

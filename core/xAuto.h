@@ -3,6 +3,20 @@
 
 #include "auto_codes.h"
 
+#include <vector>
+
+/* a user-defined output (a Mark of the AUTO window): the parameter it is at
+   (AUTO's slot; the period for T) and the value that parameter has there */
+struct AutoMark {
+  int parameter;
+  double value;
+};
+/* a weight of a parameter in the pseudo-arclength norm (AUTO's THL) */
+struct AutoRunWeight {
+  int index;
+  double value;
+};
+
  typedef struct {
     int ndim;
     xpp::AutoProblem ips;
@@ -37,12 +51,8 @@
     double dsmax;
     double dsmin;
     int iads;
-    int nthl;
-    int ithl[100];
-    double thl[100];
-    int nuzr;
-    int iuz[20];
-    double vuz[20];
+    std::vector<AutoRunWeight> weights;
+    std::vector<AutoMark> marks;
    /*  these are for the homoclinic stuff */
     int nunstab;
    int nstab;

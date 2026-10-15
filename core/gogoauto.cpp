@@ -49,8 +49,7 @@ int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has b
   std::vector<doublereal> par(2 * s.auto_lib.parameter_count);
   std::vector<doublereal> thl(s.auto_lib.parameter_count);
   std::vector<doublereal> thu;
-  std::array<integer,100> iuz;
-  std::array<doublereal,100> vuz;
+  std::vector<AutoMark> marks(s.auto_state.run.marks.size());
   iap_type iap;
   rap_type rap;
   function_list list;
@@ -62,7 +61,7 @@ int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has b
 
   /* here is the feeder code from xAuto structure */
 
-  init(&iap, &rap, par.data(), icp.data(), thl.data(), thu, iuz.data(), vuz.data());
+  init(&iap, &rap, par.data(), icp.data(), thl.data(), thu, marks);
 
     /* Find restart label and determine type of restart point. */
     if (iap.irs > 0) {
@@ -97,10 +96,10 @@ int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has b
 
     if(list.type==AUTOAE)
       autoae(&iap, &rap, par.data(), icp.data(), list.aelist.funi, list.aelist.stpnt, list.aelist.pvli, thl.data(), thu.data(),
-             iuz.data(), vuz.data());
+             marks);
     if(list.type==AUTOBV)
       autobv(&iap, &rap, par.data(), icp.data(), list.bvlist.funi, list.bvlist.bcni,
-	     list.bvlist.icni, list.bvlist.stpnt, list.bvlist.pvli, thl.data(), thu.data(), iuz.data(), vuz.data());
+	     list.bvlist.icni, list.bvlist.stpnt, list.bvlist.pvli, thl.data(), thu.data(), marks);
 
   return 1;  /* normal return */
 }

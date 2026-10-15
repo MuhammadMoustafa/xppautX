@@ -145,22 +145,21 @@ void user_zero_text(xpp::Session &s) {
     iap.nfpr = 1;
     rap_type rap{};
     integer icp[] = {xpp::auto_unknown::period};
-    integer iuz[] = {-xpp::auto_unknown::period};
-    double vuz[] = {.125};
+    const AutoMark marks[] = {{-xpp::auto_unknown::period, .125}};
     std::vector<double> par(lib.parameter_count);
     par[xpp::auto_unknown::period] = .875;
     logical changed = 0;
     CHECK(fnuzae(&iap, &rap, par.data(), icp, &changed,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                 iuz, vuz) == .75);
+                 marks) == .75);
     CHECK(changed == TRUE_);
     changed = 0;
     CHECK(fnuzbv(&iap, &rap, par.data(), icp, &changed,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                 nullptr, nullptr, nullptr, iuz, vuz) == .75);
+                 nullptr, nullptr, nullptr, marks) == .75);
     CHECK(changed == TRUE_);
     CHECK(xpp::rewind_stream(file.get(), path).has_value());
     auto reader = xpp::LineReader::attach(file.get());

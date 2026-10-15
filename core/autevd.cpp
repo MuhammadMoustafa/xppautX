@@ -35,9 +35,7 @@ void init_auto(AutoState &st, int ndim, bool exact)
   st.run.nwtn=st.advanced.nwtn;
   st.run.jac=exact?1:0;
   st.run.iads=st.advanced.iads;
-  st.run.nthl=1;
-  st.run.ithl[0]=xpp::auto_unknown::period;
-  st.run.thl[0]=0.0;
+  st.run.weights={{xpp::auto_unknown::period,0.0}};
   st.run.nint=0;    
   
   if(b.ips==AutoProblem::BoundaryValue)
@@ -73,11 +71,10 @@ void init_auto(AutoState &st, int ndim, bool exact)
   st.run.dsmax=b.dsmax;
   st.run.dsmin=b.dsmin;
 
-  st.run.nuzr=st.nuzr;
-  for(i=0;i<st.nuzr;i++){
-    st.run.iuz[i]=b.period_mark[i] ? xpp::auto_unknown::period : st.parameter_layout.solver_index(static_cast<int>(st.uzr_par[i]));
-     st.run.vuz[i]=st.uzr_period[i];
-  }
+  st.run.marks.clear();
+  for(i=0;i<st.nuzr;i++)
+    st.run.marks.push_back({b.period_mark[i] ? xpp::auto_unknown::period : st.parameter_layout.solver_index(static_cast<int>(st.uzr_par[i])),
+                            st.uzr_period[i]});
  
 }
 
