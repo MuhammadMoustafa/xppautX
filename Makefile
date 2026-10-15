@@ -277,7 +277,24 @@ CORE_MATH_OBJECTS := $(foreach f,$(CORE_MATH_FUNCS),$(BUILDDIR)/core_math_$(f).o
 ifneq ($(CORE_MATH_X86),)
 CORE_MATH_OBJECTS += $(foreach f,$(CORE_MATH_FUNCS),$(BUILDDIR)/core_math_$(f)_fma.o)
 endif
+# LIBM=system (W358, a comparison build, never shipped): xpp::math's functions
+# forward to the C library's (tools/libm-system/libm_system.cpp) instead of
+# CORE-MATH's, to measure what correct rounding costs and changes. Its numbers
+# differ from the baselines', so it needs a BUILDDIR of its own; the default,
+# LIBM=correct, is the only build released.
+LIBM ?= correct
+ifeq ($(LIBM),system)
+ifeq ($(BUILDDIR),build/obj)
+$(error LIBM=system needs a BUILDDIR of its own, e.g. BUILDDIR=build/libm-system)
+endif
+CORE_OBJECTS += $(BUILDDIR)/libm_system.o
+$(BUILDDIR)/libm_system.o: tools/libm-system/libm_system.cpp $(CORE_MATH_DIR)/core_math.h $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
+	$(CXX) $(call NOLTO,$(CXXFLAGS)) -I$(CORE_MATH_DIR) -c $< -o $@
+else ifeq ($(LIBM),correct)
 CORE_OBJECTS += $(CORE_MATH_OBJECTS)
+else
+$(error LIBM must be correct or system)
+endif
 # Unmodified musl Bessel: libm.h routes maths to xpp_math's bridge.
 # Like CORE-MATH: third-party C, no LTO, no contraction or project warnings.
 MUSL_BESSEL_DIR = third_party/musl-bessel
@@ -300,6 +317,42 @@ ifeq ($(OS),Windows_NT)
 CORE_OBJECTS += $(BUILDDIR)/core_math_roundeven.o
 $(BUILDDIR)/core_math_roundeven.o: $(CORE_MATH_DIR)/roundeven.c $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
 	$(CC) $(call NOLTO,$(OPT)) $(FPFLAGS) -fno-builtin -w -c $< -o $@
+endif
+# LINALG=lapack (W358, a comparison build, never shipped): AUTO's eigenvalues come from
+# Reference-LAPACK (third_party/lapack, Fortran, verbatim; DGEEV and DGGEV) through
+# tools/lapack-adapter/lapack_adapter.cpp instead of EISPACK's RG and QZ, to compare speed and
+# accuracy. core/eispack.cpp is compiled with those four names renamed, so the callers find the
+# adapter's. Needs gfortran and a BUILDDIR of its own; the default, LINALG=eispack, is the only
+# build released.
+LINALG ?= eispack
+LINALG_LIBS =
+ifeq ($(LINALG),lapack)
+ifeq ($(BUILDDIR),build/obj)
+$(error LINALG=lapack needs a BUILDDIR of its own, e.g. BUILDDIR=build/lapack)
+endif
+FC ?= gfortran
+LAPACK_DIR = third_party/lapack
+LAPACK_SOURCES := $(wildcard $(LAPACK_DIR)/*.f $(LAPACK_DIR)/*.f90 $(LAPACK_DIR)/*.F90)
+LAPACK_OBJECTS := $(patsubst $(LAPACK_DIR)/%,$(BUILDDIR)/lapack/%.o,$(LAPACK_SOURCES))
+# no contraction of a*b+c, like every other object of ours
+LAPACK_FFLAGS = $(OPT) $(FPFLAGS) -w -fallow-argument-mismatch -J $(BUILDDIR)/lapack
+# the Fortran 90 modules first: the routines that USE them need their .mod files
+LAPACK_MODULES = $(BUILDDIR)/lapack/la_constants.f90.o $(BUILDDIR)/lapack/la_xisnan.F90.o
+$(filter-out $(LAPACK_MODULES),$(LAPACK_OBJECTS)): $(LAPACK_MODULES)
+$(BUILDDIR)/lapack/la_xisnan.F90.o: $(BUILDDIR)/lapack/la_constants.f90.o
+$(BUILDDIR)/lapack/%.o: $(LAPACK_DIR)/% $(BUILDDIR)/toolchain.stamp
+	@mkdir -p $(BUILDDIR)/lapack
+	$(FC) $(LAPACK_FFLAGS) -c $< -o $@
+CORE_OBJECTS += $(LAPACK_OBJECTS) $(BUILDDIR)/lapack_adapter.o
+$(BUILDDIR)/lapack_adapter.o: tools/lapack-adapter/lapack_adapter.cpp $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
+	$(CXX) $(call NOLTO,$(CXXFLAGS)) -c $< -o $@
+$(BUILDDIR)/eispack.o: CXXFLAGS += -Drg=eispack_rg -Dqzhes=eispack_qzhes -Dqzit=eispack_qzit -Dqzval=eispack_qzval
+LINALG_LIBS = -lgfortran
+# the measuring tool of the comparison (tools/auto-profile/eig_accuracy.py): both libraries on dumped matrices
+$(BUILDDIR)/eigcompare$(EXE): tools/lapack-adapter/eigcompare.cpp $(BUILDDIR)/libxppcore.a
+	$(CXX) $(call NOLTO,$(CXXFLAGS)) $< $(BUILDDIR)/libxppcore.a -o $@ -lgfortran -lm $(DLLIB) $(NETLIBS)
+else ifneq ($(LINALG),eispack)
+$(error LINALG must be eispack or lapack)
 endif
 # the linker of xppautX
 LINK_X := $(call link,$(SERVER_SOURCES) $(CORE_SOURCES))
@@ -376,7 +429,7 @@ $(BUILDDIR)/corelib.stamp: FORCE | $(BUILDDIR)
 	@echo '$(CORE_OBJECTS)' > $@.tmp; if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
 
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(LINK_X) $(LDSTATIC) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
+	$(LINK_X) $(LDSTATIC) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)
 
 # macOS: xppautX.app, a bundle Finder and LaunchServices know as the .ode
 # opener (tools/associate/Info.plist.in's CFBundleDocumentTypes), from the
