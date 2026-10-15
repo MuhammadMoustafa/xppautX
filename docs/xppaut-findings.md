@@ -87,8 +87,9 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [54](#54-an-extra-plot-window-keeps-the-first-windows-time-flag) | Graphs | an extra window of a multi-window model keeps the first window's time flag | [W351](https://github.com/MuhammadMoustafa/xppautX/issues/412) |
 | [55](#55-auto-marks-have-a-nine-value-form-limit) | AUTO | User marks stop at nine; count changes before the value form succeeds | [W331](https://github.com/MuhammadMoustafa/xppautX/issues/392) |
 | [56](#56-auto-equilibrium-period-depends-on-spectrum-order) | AUTO | the stored period comes from whichever tied complex pair the eigenvalue routine returns last | [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431) |
-| [58](#58-negative-total-help-and-storage-full-overwrite) | Integration | Negative Total still stores data and silently overwrites on failed growth | [W347](https://github.com/MuhammadMoustafa/xppautX/issues/408) |
 | [57](#57-fixed-c-arrays-sized-by-input) | Expressions, Numerics | formulas, table expressions, Markov states/rates, solver pivots and fit parameters overflow fixed C arrays | [W372 / #434](https://github.com/MuhammadMoustafa/xppautX/issues/434) |
+| [58](#58-negative-total-help-and-storage-full-overwrite) | Integration | Negative Total still stores data and silently overwrites on failed growth | [W347](https://github.com/MuhammadMoustafa/xppautX/issues/408) |
+| [59](#59-dormand-prince-restarted-at-every-output-point) | Integration | DoPri5 and DoPri8(3) restart at every output point: no step longer than dt, so the adaptive methods run as fixed-step ones and the tolerance does not set the accuracy | [W377 / #439](https://github.com/MuhammadMoustafa/xppautX/issues/439) |
 
 ## 1. Model options
 
@@ -1222,3 +1223,30 @@ stops every mode with one placed error and preserves the existing rows, with
 no overwrite question. servercheck covers failed growth and preserved rows,
 negative Total refusal with its line, and finite absolute-duration import.
 [W347 / #408](https://github.com/MuhammadMoustafa/xppautX/issues/408).
+
+## 59. Dormand-Prince restarted at every output point
+
+XPPAUT calls `dopri5`/`dop853` once per stored point, from `t` to `tout = t + dt`
+([dormpri.c:62-82](../reference/xppaut-8.0/dormpri.c#L62),
+[master 62](../reference/xppaut-master/dormpri.c#L62)), from the integration
+loop's `solver(..., dt, ...)` ([integrate.c:1770](../reference/xppaut-8.0/integrate.c#L1770)).
+Each call ends exactly on the output time, evaluates the right-hand side
+again at its start, and keeps only the next step guess (`hout`); the dense
+output both routines compute is never used. So no step is longer than `dt`:
+the adaptive methods do a fixed-step method's work plus one evaluation per
+point, and the accuracy a run gets comes from `dt`, not from `tol` (at
+`tol=1e-6` lecar's error is about 1e-9, because its steps are ten times
+smaller than the tolerance needs). The step limit is per call, so it renews
+at every output point.
+
+- **XPPAUT 8.0:** cited above.
+- **Evidence:** [docs/studies/w377-dense-output.md](studies/w377-dense-output.md):
+  nine models, DoPri5 and DoPri8 as now against one continuous run sampled
+  from the dense output: 18.3-99.7% fewer right-hand-side calls at equal
+  tolerance (lecar 4,201 to 326, PY_S1Bf 1.4 million to 154 thousand),
+  with the error the tolerance asks for instead of the error `dt` forces.
+- **xppautX:** to be one continuous run with the output and the events
+  taken from the dense output, the tolerance meaning what it says
+  (maintainer, 2026-10-15: "this makes dopri fixed step method not an
+  adaptive one"); W377's stage 2.
+- **Card:** [W377 / #439](https://github.com/MuhammadMoustafa/xppautX/issues/439).
