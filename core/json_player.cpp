@@ -410,7 +410,7 @@ void push_input()
     const PlayStep &st = player.steps[static_cast<size_t>(player.running)];
     if (player.input_last) arm_step(st);
     if (!player.in_command) player.pushed = player.input; /* the step's command, for player_begin */
-    xpp::inbox::push(player.input);
+    xpp::inbox::push_own(player.input);
 }
 
 /* the recording's answer to an ask of kind: a menu's or a choice's key,

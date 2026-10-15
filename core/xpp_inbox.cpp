@@ -115,7 +115,10 @@ void set_kept(size_t lines, size_t bytes)
     pthread_mutex_unlock(&lock);
 }
 
-bool push(std::string_view line, std::string *reply)
+namespace {
+
+/* own: the program's line, never refused (xpp_inbox.h push_own) */
+bool push_line(std::string_view line, std::string *reply, bool own)
 {
     Item it;
     int q = NORMAL;
@@ -134,7 +137,7 @@ bool push(std::string_view line, std::string *reply)
     if (c == Verdict::control) q = CONTROL;
     it.refused = c == Verdict::refuse;
     pthread_mutex_lock(&lock);
-    if (q == NORMAL && !room_for(it.line.size())) {
+    if (!own && q == NORMAL && !room_for(it.line.size())) {
         pthread_mutex_unlock(&lock);
         void (*busy)(const char *, std::string *) = busy_hook;
         pthread_mutex_unlock(&push_lock); /* a client slow to read its reply holds up no other reader */
@@ -154,6 +157,12 @@ bool push(std::string_view line, std::string *reply)
     pthread_mutex_unlock(&push_lock);
     return true;
 }
+
+} // namespace
+
+bool push(std::string_view line, std::string *reply) { return push_line(line, reply, false); }
+
+void push_own(std::string_view line) { push_line(line, nullptr, true); }
 
 void authorize_save(std::string_view prompt, std::string_view path)
 {

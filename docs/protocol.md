@@ -743,6 +743,8 @@ in the input.
   body (`application/json`), the command's `n=` number is not used up, so
   sending it again with that number is taken; web2 shows the error text. A
   body of several lines is taken line by line up to the refused one.
+  The program's own lines (a recording's next step, a model the system asks
+  to open) are never refused.
   The longest input line is the byte bound, 64 MB (a `--server` line over it
   is discarded and answered by one `input` error); an HTTP body is capped at 1 MB.
 - A command whose job was cancelled (by `abort`, Escape, `quit`) sends

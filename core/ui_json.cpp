@@ -1001,7 +1001,7 @@ void json_ui_push_open(const char *path)
         BUF_LIT(&b, "{\"cmd\":\"open\",\"file\":");
         buf_str(&b, path);
         BUF_LIT(&b, "}");
-        xpp::inbox::push(b.s);
+        xpp::inbox::push_own(b.s);
     } catch (...) {
         xpp::out_of_memory("opening a model");
     }

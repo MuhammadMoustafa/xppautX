@@ -33,7 +33,7 @@ namespace xpp::inbox {
    (about 33 MB as base64), and are also the longest line any input takes. */
 constexpr size_t MAX_PENDING_LINES = 1024;
 constexpr size_t MAX_PENDING_BYTES = size_t(64) << 20;
-/* what the busy error begins with; web2 and clients tell the refusal by it */
+/* what the busy error begins with: a --server client tells a refusal by it (HTTP by its 503) */
 constexpr const char *BUSY = "Busy";
 
 /* what the classifier makes of a line */
@@ -70,6 +70,10 @@ void set_kept(size_t lines, size_t bytes);
    here blocks, so a Stop sent after a flood is still read. A refused line
    is answered by the busy hook, into *reply if given. */
 bool push(std::string_view line, std::string *reply = nullptr);
+/* A line the program itself sends (a recording's step, a model the OS
+   asks to open): as push, but never refused, since it is one at a time
+   and a refusal would lose it. */
+void push_own(std::string_view line);
 /* Native UI only: a single-use grant for the path actually selected by the
    OS save picker, bound to the prompt id. JSON replies cannot mint it. */
 void authorize_save(std::string_view prompt, std::string_view path);
