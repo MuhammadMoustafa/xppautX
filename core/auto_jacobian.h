@@ -27,7 +27,7 @@ doublereal central(integer n, integer nout, const doublereal *x, doublereal *uu1
       umx = f2c::abs(x[i]);
     }
   }
-  const doublereal ep = HMACH * (umx + 1);
+  const doublereal ep = auto_hmach * (umx + 1);
   for (integer i = 0; i < n; ++i) {
     for (integer j = 0; j < n; ++j) {
       uu1[j] = x[j];

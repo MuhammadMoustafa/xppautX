@@ -52,7 +52,7 @@ double auto_hopf_axis_tolerance(Matrix<const double> jacobian, size_t n)
     }
     // AUTO-07p equilibrium.f90:437-453: even dimension, negligible trace.
     constexpr double conservative_axis_tolerance = 1e-5;
-    return n % 2 == 0 && std::abs(trace) < HMACH * scale
+    return n % 2 == 0 && std::abs(trace) < auto_hmach * scale
         ? conservative_axis_tolerance : 0;
 }
 

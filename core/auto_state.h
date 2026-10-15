@@ -9,6 +9,7 @@
    fort files open during a run and its work arrays). */
 #include <stdio.h>
 #include "auto_unknowns.h"
+#include "auto_settings.h"
 #include "auto_nox.h"
 #include "auto_data.h"
 #include "auto_stop.h"
@@ -33,12 +34,12 @@
 /* the AUTO settings the model's @ options give (auto_ntst=, ...), which
    init_auto_win copies into AutoState::bifur */
 struct AutoOptions {
-  int ntst=15,nmx=200,npr=50,ncol=4;
-  double ds=.02,dsmax=.5,dsmin=.001;
-  double rl0=0.0,rl1=2,a0=0.0,a1=1000.;
-  double xmax=2.5,xmin=-.5,ymax=3.0,ymin=-3.0;
-  double epsl=1e-4,epsu=1e-4,epss=1e-4;
-  int var=0;
+  int ntst=auto_default_ntst,nmx=auto_default_nmx,npr=auto_default_npr,ncol=auto_default_ncol;
+  double ds=auto_default_ds,dsmax=auto_default_dsmax,dsmin=auto_default_dsmin;
+  double rl0=auto_default_rl0,rl1=auto_default_rl1,a0=auto_default_a0,a1=auto_default_a1;
+  double xmax=auto_default_xmax,xmin=auto_default_xmin,ymax=auto_default_ymax,ymin=auto_default_ymin;
+  double epsl=auto_default_epsl,epsu=auto_default_epsu,epss=auto_default_epss;
+  int var=auto_default_var;
 };
 
 /* one view of the diagram (W50): its axes, and the part of them the page

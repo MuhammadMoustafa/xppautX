@@ -157,7 +157,7 @@ bool location_sign_change(iap_type &iap, const rap_type &rap,
                           double q0, double &q1, double dstest,
                           bool enabled, bool user_zero) {
   if (iap.itp.kind != xpp::AutoPointKind::Regular &&
-      std::abs(HMACH1 * q1 * dstest) <
+      std::abs(auto_hmach1 * q1 * dstest) <
           rap.epss * (1 + std::sqrt(std::abs(rap.ds * rap.dsmax))) * std::abs(q0 - q1)) {
     if (iap.itp.kind == xpp::AutoPointKind::UserZero && enabled && !user_zero)
       iap.itp = {xpp::AutoPointKind::Pending};
@@ -550,7 +550,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
   if (dsmin == 0.) {
     dsmin = f2c::abs(ds) * 1e-4;
   }
-  fc = HMACH1;
+  fc = auto_hmach1;
   ds = fc * ds;
   dsmin /= fc;
   dsmax = fc * dsmax;
@@ -1361,7 +1361,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   nit = 0;
   iap->nit = nit;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
+  ntop = (ntot + 1) % auto_point_label_modulo;
   ndmr = ndim;
   if (ndmr > 6) {
     ndmr = 6;
@@ -1616,7 +1616,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
   itlcsp = 0;
   dq = q0 - q1;
   rds = q1 / dq * (s1 - s0);
-  rtmp = HMACH1;
+  rtmp = auto_hmach1;
  L1:
   rds = rtmp * rds;
 
@@ -1665,7 +1665,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
     mueller(&q0, &q1, q, &s0, &s1, &s, &rds);
     goto L1;
   } else {
-    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Possible special point\n",ibr,(ntot + 1) % 10000);	
+    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Possible special point\n",ibr,(ntot + 1) % auto_point_label_modulo);	
     saved.restore(*iap, *rap);
     dstest = saved_dstest;
     stepped = false;
@@ -1719,7 +1719,7 @@ fnbpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   iid = iap->iid;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
+  ntop = (ntot + 1) % auto_point_label_modulo;
 
   det = rap->det;
   ret_val = det;
@@ -1770,7 +1770,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   iid = iap->iid;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
+  ntop = (ntot + 1) % auto_point_label_modulo;
 
   par[icp[0]] = rlcur[0];
   (*funi)(iap, rap, ndim, u, uold, icp, par, 2,
@@ -1846,7 +1846,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   iid = iap->iid;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
+  ntop = (ntot + 1) % auto_point_label_modulo;
 
 /* INITIALIZE */
 
@@ -1866,7 +1866,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 	z_log(&out, &in);
 	ev[i].r = out.r, ev[i].i = out.i;
       } else {
-	ev[i].r = -RLARGE, ev[i].i = 0.;
+	ev[i].r = -auto_rlarge, ev[i].i = 0.;
       }
     }
   }
@@ -1875,7 +1875,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /* Order the eigenvalues by real part. */
 
   for (i = 0; i < ndm - 1; ++i) {
-    rmax = -RLARGE;
+    rmax = -auto_rlarge;
     for (j = i; j < ndm; ++j) {
       rp = ev[j].r;
       if (rp >= rmax) {
@@ -1909,7 +1909,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     }
   } else {
     for (i = 0; i < ndm; ++i) {
-      if (ev[i].r <= HMACH) {
+      if (ev[i].r <= auto_hmach) {
 	++nins1;
       }
     }
@@ -1956,8 +1956,6 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /*     ------ --------- -------- ------ */
 namespace {
-// AUTO wraps diagnostic point numbers to four decimal digits.
-constexpr integer user_zero_point_modulus = 10000;
 // IID 3 starts detailed scalar-test diagnostics in AUTO.
 constexpr integer user_zero_diagnostic_level = 3;
 // Preserve the two original diagnostic column widths.
@@ -1975,7 +1973,7 @@ doublereal user_zero(const iap_type &iap, const doublereal *par,
   *chng = TRUE_;
   if (iap.iid >= user_zero_diagnostic_level) {
     xpp::print(iap.lib->fp9, "{:4}{:6}        User Func. {:3} {:{}.6E}\n",
-               f2c::abs(iap.ibr), (iap.ntot + 1) % user_zero_point_modulus,
+               f2c::abs(iap.ibr), (iap.ntot + 1) % auto_point_label_modulo,
                iuzr, value, width);
   }
   return value;
@@ -2217,7 +2215,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   itnw = iap->itnw;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
+  ntop = (ntot + 1) % auto_point_label_modulo;
 
   dsmin = rap->dsmin;
   epsl = rap->epsl;
@@ -2507,8 +2505,8 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 {
   /* Local variables */
   integer iplt, i, j;
-  /* The 14-char fixed-width column headings printed below. */
-  std::array<std::string, 9> col;
+  /* The fixed-width column headings printed below. */
+  std::array<std::string, auto_heading_columns> col;
   integer ndm;
   xpp::AutoProblem ips;
 
@@ -2523,8 +2521,8 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
   ndm = iap->ndm;
 
   /*initialize strings*/
-  for (i = 0; i < 9; ++i) {
-    col[i] = "              ";
+  for (i = 0; i < auto_heading_columns; ++i) {
+    col[i].assign(auto_column_width, ' ');
   }
 
   if (iunit == 6) {
@@ -2802,11 +2800,11 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   n2 = ndm;
   nt = n1 + n2;
 
-  if (n1 > 7) {
-    n1 = 7;
+  if (n1 > auto_diagram_columns) {
+    n1 = auto_diagram_columns;
     n2 = 0;
-  } else if (nt > 7) {
-    n2 = 7 - n1;
+  } else if (nt > auto_diagram_columns) {
+    n2 = auto_diagram_columns - n1;
   }
 
   /* Write a heading above the first line. */
@@ -2845,7 +2843,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
     atype = "  ";
   }
 
-  mtot = *ntot % 10000;
+  mtot = *ntot % auto_point_label_modulo;
   if (n2 == 0) {
     if (itp.kind != xpp::AutoPointKind::Regular) {
       xpp::log_auto("{:4d}{:6d}  {:c}{:c}{:4d}",(*ibr),mtot,atype[0],atype[1],*(lab));
@@ -2968,11 +2966,11 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   ntpl = 1;
   nar = ndim + 1;
   jtmp = iap->lib->parameter_count;
-  nrowpr = ndim / 7 + 1 + (jtmp - 1) / 7 + 1;
+  nrowpr = ndim / auto_solution_columns + 1 + (jtmp - 1) / auto_solution_columns + 1;
   par[icp[0]] = rlcur[0];
   t = 0.;
 
-  mtot = ntot % 10000;
+  mtot = ntot % auto_point_label_modulo;
   xpp::print(fp8,"{:5}",ibr);
   xpp::print(fp8,"{:5}",mtot);
   xpp::print(fp8,"{:5}",xpp::auto_point_encode(itp));
@@ -2987,7 +2985,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   xpp::print(fp8,"{:5}\n",iap->lib->parameter_count);
   xpp::print(fp8,"    {:19.10E}",t);
   for (i = 0; i < ndim; ++i) {
-    if((i>0)&&((i+1)%7==0))
+    if((i>0)&&((i+1)%auto_solution_columns==0))
       xpp::print(fp8,"\n    ");
     xpp::print(fp8,"{:19.10E}",u[i]);
   }
@@ -2995,7 +2993,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   for (i = 0; i < iap->lib->parameter_count; ++i) {
     if(i==0)
       xpp::print(fp8,"    ");
-    if((i>0)&&(i%7==0))
+    if((i>0)&&(i%auto_solution_columns==0))
       xpp::print(fp8,"\n    ");
     xpp::print(fp8,"{:19.10E}",par[i]);
   }
@@ -3371,7 +3369,7 @@ adptds(iap_type *iap, rap_type *rap, doublereal *rds)
   ibr = iap->ibr;
   nit = iap->nit;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
+  ntop = (ntot + 1) % auto_point_label_modulo;
 
   if (itnw <= 3) {
     itnw = 3;
@@ -3717,7 +3715,7 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
 	hd[j + i * (*ntst + 1)] += wh[k] * ARRAY2D(ups, j, k1);
       }
       hd[j + i * (*ntst + 1)] = sc * hd[j + i * (*ntst + 1)];
-      if (f2c::abs(hd[j + i * (*ntst + 1)]) > HMACH) {
+      if (f2c::abs(hd[j + i * (*ntst + 1)]) > auto_hmach) {
 	small = FALSE_;
       }
     }
@@ -3806,7 +3804,7 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
 
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
+  ntop = (ntot + 1) % auto_point_label_modulo;
 
   *ier = 0;
   matz = 0;
@@ -3888,8 +3886,8 @@ nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
 	}
       }
     }
-    if (piv < RSMALL) {
-      xpp::print(fp9,"        NOTE:Pivot {:3} < {:10.3E}  in NLVC : A null space may be multi-dimensional\n",jj,RSMALL);	
+    if (piv < auto_rsmall) {
+      xpp::print(fp9,"        NOTE:Pivot {:3} < {:10.3E}  in NLVC : A null space may be multi-dimensional\n",jj,auto_rsmall);	
 
     }
 
@@ -4051,8 +4049,8 @@ ge(FILE *fp9, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxlo
       *det = -(*det);
     }
 
-    if (piv < RSMALL) {
-      xpp::print(fp9,"         NOTE:Pivot {:3} < {:10.3E}, in GE\n",jj,RSMALL);	
+    if (piv < auto_rsmall) {
+      xpp::print(fp9,"         NOTE:Pivot {:3} < {:10.3E}, in GE\n",jj,auto_rsmall);	
     }
 
     k = ir[jj];
@@ -5077,7 +5075,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   nfpr = iap->nfpr;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
+  ntop = (ntot + 1) % auto_point_label_modulo;
 
   dsmin = rap->dsmin;
   epsl = rap->epsl;
@@ -5472,8 +5470,8 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   iap->lab = header.lab;
 
   ndimrs = nars - 1;
-  nskip1 = (ndimrs + 1) / 8 - ndim / 7;
-  nskip2 = (ndimrs + 1) / 9 - ndim / 8;
+  nskip1 = (ndimrs + 1) / (auto_solution_columns + 1) - ndim / auto_solution_columns;
+  nskip2 = (ndimrs + 1) / (auto_solution_columns + 2) - ndim / (auto_solution_columns + 1);
   if (ndim <= ndimrs) {
     ndimrd = ndim;
   } else {
@@ -5796,7 +5794,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   itmx = iap->itmx;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
+  ntop = (ntot + 1) % auto_point_label_modulo;
 
   ds = rap->ds;
   dsmax = rap->dsmax;
@@ -5834,7 +5832,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   nitsp1 = 0;
   dq = q0 - q1;
   rds = q1 / dq * (s1 - s0);
-  rtmp = HMACH1;
+  rtmp = auto_hmach1;
  L1:
   rds = rtmp * rds;
 
@@ -5927,7 +5925,7 @@ fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   nfpr = iap->nfpr;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
+  ntop = (ntot + 1) % auto_point_label_modulo;
 
   /* Find the direction vector. */
 
@@ -5998,7 +5996,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   det0 = det;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
+  ntop = (ntot + 1) % auto_point_label_modulo;
 
   /* Compute the determinant of P1. */
 
@@ -6061,7 +6059,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   iid = iap->iid;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % 10000;
+  ntop = (ntot + 1) % auto_point_label_modulo;
 
   /* Initialize. */
 
@@ -6075,7 +6073,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /* Find the multiplier closest to z=1. */
   /* xppautX: the orbit's Floquet multipliers (auto_stability.h) */
   xpp::auto_stability_computed(iap->lib->session->auto_state.stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndim)},xpp::AUTO_STABILITY_PERIODIC);
-  amin = RLARGE;
+  amin = auto_rlarge;
   for (j = 0; j < ndim; ++j) {
     doublecomplex tmp;
     tmp.r = ev[j].r - 1., tmp.i = ev[j].i;
@@ -6234,7 +6232,7 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
   /* Find the eigenvalue closest to z=1. */
 
   loc = 1;
-  amin = RLARGE;
+  amin = auto_rlarge;
   for (i = 0; i < ndim; ++i) {
     doublecomplex tmp;
     tmp.r = ev[i].r - 1., tmp.i = ev[i].i;
@@ -6249,7 +6247,7 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
   /* (excluding the eigenvalue at z=1). */
 
   loc1 = 1;
-  amin = RLARGE;
+  amin = auto_rlarge;
   for (i = 0; i < ndim; ++i) {
     if (i != loc) {
       d = z_abs(&ev[i]) - 1.;
@@ -6307,7 +6305,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer iab, lab;
   doublereal amp;
 
-  std::array<doublereal, 7> umx;
+  std::array<doublereal, auto_diagram_columns> umx;
 
   /* Writes the bifurcation diagram on unit 7 (Differential Equations) */
   /* (Also controls the writing of complete solutions on unit 8). */
@@ -6415,8 +6413,8 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* Compute maxima of solution components. */
 
   n2 = context.ndm;
-  if (n2 > 7) {
-    n2 = 7;
+  if (n2 > auto_diagram_columns) {
+    n2 = auto_diagram_columns;
   }
   for (i = 0; i < n2; ++i) {
     itmp = i + 1;
@@ -6546,12 +6544,12 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   ntpl = ncol * ntst + 1;
   nar = ndim + 1;
-  nrd = ndim / 7 + 2 + (ndim - 1) / 7;
+  nrd = ndim / auto_solution_columns + 2 + (ndim - 1) / auto_solution_columns;
   jtmp = iap->lib->parameter_count;
-  nrowpr = nrd * (ncol * ntst + 1) + (nfpr - 1) / 7 + 1 + (jtmp - 1) / 7 + 
-    1 + (nfpr - 1) / 20 + 1;
+  nrowpr = nrd * (ncol * ntst + 1) + (nfpr - 1) / auto_solution_columns + 1 + (jtmp - 1) / auto_solution_columns + 
+    1 + (nfpr - 1) / auto_solution_parameter_indices_per_line + 1;
 
-  mtot = ntot % 10000;
+  mtot = ntot % auto_point_label_modulo;
   xpp::print(fp8,"{:5}",ibr);
   xpp::print(fp8,"{:5}",mtot);
   xpp::print(fp8,"{:5}",xpp::auto_point_encode(itp));
@@ -6575,7 +6573,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
       t = tm[j] + i * rn * dtm[j];
       xpp::print(fp8,"    {:19.10E}",t);
       for (k = k1; k < k2; ++k) {
-	if((k+1-k1)%7==0)
+	if((k+1-k1)%auto_solution_columns==0)
 	  xpp::print(fp8,"\n    ");
 	xpp::print(fp8,"{:19.10E}",ARRAY2D(ups, j, k));
       }
@@ -6585,7 +6583,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
   xpp::print(fp8,"    {:19.10E}",tm[ntst]);
   for (i = 0; i < ndim; ++i) {
-    if((i+1)%7==0)
+    if((i+1)%auto_solution_columns==0)
       xpp::print(fp8,"\n    ");
     xpp::print(fp8,"{:19.10E}",ARRAY2D(ups, ntst, i));
   }
@@ -6600,7 +6598,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* Write the direction of the branch: */
   xpp::print(fp8,"    ");
   for (i = 0; i < nfpr; ++i) {
-    if((i>0)&&((i)%7==0))
+    if((i>0)&&((i)%auto_solution_columns==0))
       xpp::print(fp8,"\n    ");
     xpp::print(fp8,"{:19.10E}",rldot[i]);
   }
@@ -6613,7 +6611,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
       xpp::print(fp8,"    ");
       for (k = k1; k < k2; ++k) {
-	if((k!=k1)&&((k-k1)%7==0))
+	if((k!=k1)&&((k-k1)%auto_solution_columns==0))
 	  xpp::print(fp8,"\n    ");
 	xpp::print(fp8,"{:19.10E}",ARRAY2D(udotps, j, k));
       }
@@ -6623,7 +6621,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   xpp::print(fp8,"    ");
 
   for (k = 0; k < ndim; ++k) {
-    if((k!=0)&&(k%7==0))
+    if((k!=0)&&(k%auto_solution_columns==0))
       xpp::print(fp8,"\n    ");
     xpp::print(fp8,"{:19.10E}",ARRAY2D(udotps, ntst, k));
   }
@@ -6633,7 +6631,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   xpp::print(fp8,"    ");
   for (i = 0; i < iap->lib->parameter_count; ++i) {
-    if((i>0)&&(i%7==0))
+    if((i>0)&&(i%auto_solution_columns==0))
       xpp::print(fp8,"\n    ");
     xpp::print(fp8,"{:19.10E}",par[i]);
   }
@@ -6691,7 +6689,7 @@ wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
       xpp::print(s.auto_lib.fp9,"  BR    PT  IT\n");	
       
     }
-    mtot = (ntot + 1) % 10000;
+    mtot = (ntot + 1) % auto_point_label_modulo;
     xpp::print(s.auto_lib.fp9,"{:4}{:6}{:4}    {:14.6E}{:14.6E}\n",ibr,mtot,nitps,rlcur[0],amp);	
   }
   

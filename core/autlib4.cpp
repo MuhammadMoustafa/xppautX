@@ -259,7 +259,7 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
     /* This is here since I don't want to change the calling sequence of the
        BLAS routines. */
     integer tmp = 1;
-    integer tmp_left = LEFT; 
+    integer tmp_left = auto_householder_left; 
     dhhpr(&tmp, ndim, ndim, x.data(), &tmp, &beta, v.data());
     dhhap(&tmp, ndim, ndim, ndim, &beta, v.data(), &tmp_left, c0, ndim);
     dhhap(&tmp, ndim, ndim, ndim, &beta, v.data(), &tmp_left, c1, ndim);
@@ -336,7 +336,7 @@ eigenvalues:
   /*  now reduce to an even simpler form */
   /*   (C0BarDef,C1BarDef) = (quasi-upper triangular, upper triangular) */
 
-  qzit(*ndim, ndimm1, &c0[offset], &c1[offset], QZEPS1, FALSE_ ,
+  qzit(*ndim, ndimm1, &c0[offset], &c1[offset], auto_qzeps1, FALSE_ ,
        qzz.data(), &qzierr);
   if (qzierr != 0) {
     xpp::print(fp9," NOTE : Warning from subroutine FLOWKM : QZ routine returned QZIERR = {:4}        Floquet multiplier calculations may be wrong \n",qzierr);	

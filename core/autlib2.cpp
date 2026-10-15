@@ -1023,7 +1023,7 @@ dimrge(FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, 
     xpp::print(fp9," Solution vector:\n");	
 	  
     for (i = 0; i < ncrloc; ++i) {
-      if((i!=0)&&(i%7==0))
+      if((i!=0)&&(i%auto_solution_columns==0))
 	xpp::print(fp9,"\n");	
       xpp::print(fp9," {:11.3E}",fcc[i]);	
     }

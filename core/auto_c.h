@@ -15,14 +15,24 @@ namespace xpp { class TokenReader; struct AutoSolutionHeader; }
 
 struct AutoLib; /* auto_state.h */
 
-#define HMACH (1.0e-7)
-#define RSMALL (1.0e-30)
-#define RLARGE (1.0e+30)
-#define HMACH1 (HMACH+1.0e0)
-#define LEFT (1)
-#define RIGHT (2)
-#define QZEPS1 (0.0E0)
-#define HMACHHO (1.0e-13)
+/* AUTO's numerical thresholds and tolerances (autlib1-5, auto_jacobian). */
+inline constexpr doublereal auto_hmach = 1.0e-7;            // Relative finite-difference step and convergence tolerance
+inline constexpr doublereal auto_rsmall = 1.0e-30;          // Zero pivot threshold for Gaussian elimination and null space
+inline constexpr doublereal auto_rlarge = 1.0e+30;          // Practical infinity for uncomputed bounds and eigenvalues
+inline constexpr doublereal auto_hmach1 = auto_hmach + 1.0; // 1 + HMACH for multiplier unit circle comparisons
+inline constexpr doublereal auto_qzeps1 = 0.0;              // QZ eigenvalue zero tolerance
+inline constexpr doublereal auto_hmachho = 1.0e-13;         // HomCont component zero threshold (compzero)
+inline constexpr integer auto_householder_left = 1;         // Householder plane rotation applied from the left (dhhap)
+inline constexpr integer auto_householder_right = 2;        // Householder plane rotation applied from the right (dhhap)
+
+/* AUTO's file schemas and output record layouts (autlib1-2, auto_nox). */
+inline constexpr int auto_solution_columns = 7;             // Floating-point values per line in AUTO solution files (fort.8 / .s / fort.3)
+inline constexpr int auto_solution_header_fields = 12;      // Number of fields in AUTO solution file header records
+inline constexpr int auto_solution_parameter_indices_per_line = 20; // Free parameter indices per line in fort.8 (5 characters each)
+inline constexpr int auto_diagram_columns = 7;              // Maximum parameter and state component columns on a bifurcation diagram row (fort.7/fort.9)
+inline constexpr int auto_heading_columns = auto_diagram_columns + 2; // Column heading slots in headng (1-based index with vaxis and 7 components)
+inline constexpr int auto_column_width = 14;                // Fixed character width for bifurcation diagram columns in fort.7/fort.9 and window
+inline constexpr integer auto_point_label_modulo = 10000;   // Wraps diagnostic and output point numbers to four decimal digits (Fortran fixed-width PT column)
 
 
 typedef struct {

@@ -542,7 +542,7 @@ inho(iap_type *iap, integer *icp, doublereal *par)
   nint = iap->nint;
   nuzr = iap->nuzr;
   ndm = ndim;
-  iap->lib->homcont.blhma.compzero = HMACHHO;
+  iap->lib->homcont.blhma.compzero = auto_hmachho;
   iap->lib->homcont.blhom.nunstab=iap->lib->session->auto_state.run.nunstab;
   iap->lib->homcont.blhom.nstab=iap->lib->session->auto_state.run.nstab;
   iap->lib->homcont.blhom.iequib=iap->lib->session->auto_state.run.iequib;

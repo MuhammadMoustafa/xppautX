@@ -3286,7 +3286,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   }
 
   for (i = 0; i < nfpr; ++i) {
-    rtmp = HMACH;
+    rtmp = auto_hmach;
     ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
     xpp::auto_jacobian::forward_parameters(
         1, ndim, icp + i, ep, par,
@@ -3356,7 +3356,7 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   for (i = 0; i < nfpr; ++i) {
-    rtmp = HMACH;
+    rtmp = auto_hmach;
     ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
     xpp::auto_jacobian::forward_parameters(
         1, nbc, icp + i, ep, par,
@@ -3420,7 +3420,7 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   for (i = 0; i < nfpr; ++i) {
-    rtmp = HMACH;
+    rtmp = auto_hmach;
     ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
     xpp::auto_jacobian::forward_parameters(
         1, nint, icp + i, ep, par,
@@ -3477,7 +3477,7 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   }
 
   for (i = 0; i < nfpr; ++i) {
-    rtmp = HMACH;
+    rtmp = auto_hmach;
     ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
     xpp::auto_jacobian::forward_parameters(
         1, 1, icp + i, ep, par,

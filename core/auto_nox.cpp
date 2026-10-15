@@ -100,12 +100,6 @@
 #define FR_P 10  /* freq vs par   */
 #define AV_P 11 /* ubar vs par */
 
-/* auto_c.h's LEFT/RIGHT (1/2, unused below) are for AUTO's own
-   continuation direction; undef them so mykeydef.h's key codes (6/2,
-   used by the switch below) don't warn about redefining a different
-   value. */
-#undef LEFT
-#undef RIGHT
 #include "mykeydef.h"
 namespace xpp {
 
@@ -659,10 +653,10 @@ bool read_long(const char *s,long &v)
    14 wide so the numbers below stay under it. */
 std::string col_centre(const std::string &s)
 {
-  const std::string t=xpp::short_name(s,AUTO_COL_W-1);
+  const std::string t=xpp::short_name(s,auto_column_width-1);
   const int n=static_cast<int>(t.size());
-  const int l=(AUTO_COL_W-n)/2;
-  return std::string(static_cast<size_t>(l),' ')+t+std::string(static_cast<size_t>(AUTO_COL_W-n-l),' ');
+  const int l=(auto_column_width-n)/2;
+  return std::string(static_cast<size_t>(l),' ')+t+std::string(static_cast<size_t>(auto_column_width-n-l),' ');
 }
 
 std::string screen_col(const xpp::Session &s, const char *col)
@@ -681,12 +675,12 @@ std::string screen_col(const xpp::Session &s, const char *col)
     size_t n=static_cast<size_t>(q-col);
     if(n>0&&col[n-1]=='U')n--; /* the name replaces the U */
     /* keep what stands in front of it: MAX, MIN, L2-NORM, INTEGRAL */
-    std::string pre(col,std::min<size_t>(n,AUTO_COL_W));
+    std::string pre(col,std::min<size_t>(n,auto_column_width));
     const size_t a=pre.find_first_not_of(' '),b=pre.find_last_not_of(' ');
     pre=a==std::string::npos?std::string():pre.substr(a,b-a+1);
     return col_centre(pre+(pre.empty()?"":" ")+s.model().uvar_names[p-1]);
   }
-  return std::string(std::string_view(col).substr(0,AUTO_COL_W));
+  return std::string(std::string_view(col).substr(0,auto_column_width));
 }
 } // namespace
 
@@ -1581,13 +1575,13 @@ void init_auto_win(xpp::Session &s)
   s.auto_state.bifur.icp5=1;
   keep_last_plot(s, 1);
   keep_last_plot(s, 2);
-  s.auto_state.advanced.iad=3;
-  s.auto_state.advanced.mxbf=5;
-  s.auto_state.advanced.iid=2;
-  s.auto_state.advanced.itmx=8;
-  s.auto_state.advanced.itnw=7;
-  s.auto_state.advanced.nwtn=3;
-  s.auto_state.advanced.iads=1;
+  s.auto_state.advanced.iad=auto_default_iad;
+  s.auto_state.advanced.mxbf=auto_default_mxbf;
+  s.auto_state.advanced.iid=auto_default_iid;
+  s.auto_state.advanced.itmx=auto_default_itmx;
+  s.auto_state.advanced.itnw=auto_default_itnw;
+  s.auto_state.advanced.nwtn=auto_default_nwtn;
+  s.auto_state.advanced.iads=auto_default_iads;
   s.auto_state.run.nunstab=1;
   s.auto_state.run.nstab=s.model().node-1;
 }
@@ -2550,8 +2544,7 @@ static xpp::Result<std::string> convert_auto_solutions(const xpp::Session &s, st
       // A finite double's shortest round-trip spelling plus separator fits in 32 bytes.
       constexpr std::size_t imported_number_bytes = 32;
       // Header integers also fit in that allowance; reserve twelve header fields.
-      constexpr std::size_t imported_header_fields = 12;
-      const std::size_t expanded=(prefix+s.auto_state.parameter_layout.size()+imported_header_fields)*imported_number_bytes;
+      const std::size_t expanded=(prefix+s.auto_state.parameter_layout.size()+auto_solution_header_fields)*imported_number_bytes;
       if(expanded>xpp::zip::archive_bytes_limit-out.size())lines.fail("translated AUTO solutions exceed the session memory limit");
       std::vector<double> parameters(s.auto_state.parameter_layout.size());
       std::string body;
@@ -2585,16 +2578,14 @@ static xpp::Result<std::string> convert_auto_solutions(const xpp::Session &s, st
           body_rows++;
         }
       }
-      // AUTO writes at most seven parameter values on a restart row.
-      constexpr int parameter_columns=7;
       h.npar=static_cast<long>(parameters.size());
-      h.nskip=body_rows+(h.npar+parameter_columns-1)/parameter_columns;
+      h.nskip=body_rows+(h.npar+auto_solution_columns-1)/auto_solution_columns;
       const std::string header_text=xpp::format("{} {} {} {} {} {} {} {} {} {} {} {}\n",h.ibr,h.ntot,xpp::auto_point_encode(h.itp),h.lab,h.nfpr,h.isw,h.ntpl,h.nar,h.nskip,h.ntst,h.ncol,h.npar);
       if(header_text.size()+body.size()+parameters.size()*imported_number_bytes>xpp::zip::archive_bytes_limit-out.size())
         lines.fail("translated AUTO solutions exceed the session memory limit");
       out+=header_text;
       out+=body;
-      for(std::size_t i=0;i<parameters.size();i++)out+=xpp::number(parameters[i])+((i+1)%parameter_columns==0 || i+1==parameters.size()?"\n":" ");
+      for(std::size_t i=0;i<parameters.size();i++)out+=xpp::number(parameters[i])+((i+1)%auto_solution_columns==0 || i+1==parameters.size()?"\n":" ");
     }
     return out;
   });

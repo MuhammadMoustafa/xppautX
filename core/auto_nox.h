@@ -13,6 +13,8 @@
 #include "xpp_error.h"
 #include "auto_codes.h"
 #include "auto_axis.h"
+#include "auto_settings.h"
+#include "auto_c.h"
 
 
 namespace xpp {
@@ -74,14 +76,13 @@ struct BIFUR {
 };
 
 typedef struct {
-  int iad;
-  int mxbf;
-  int iid;
-  int itmx;
-  int itnw;
-  int nwtn;
-  int iads;
-
+  int iad = auto_default_iad;
+  int mxbf = auto_default_mxbf;
+  int iid = auto_default_iid;
+  int itmx = auto_default_itmx;
+  int itnw = auto_default_itnw;
+  int nwtn = auto_default_nwtn;
+  int iads = auto_default_iads;
 } ADVAUTO;
 
 typedef struct {
@@ -154,7 +155,6 @@ void set_auto(Session &s);
 /* the model parameter k's name, NULL when k is outside the model: the one lookup the forms,
    the settings event, the CSV export and the branch-end text share */
 const char *auto_par_name(const Session &s, int k);
-#define AUTO_COL_W 14
 void auto_per_par(Session &s);
 void auto_num_par(Session &s);
 void auto_plot_par(Session &s);

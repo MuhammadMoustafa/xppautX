@@ -48,10 +48,10 @@ struct NumField {
 
 /* the Numerics form's fields and what AUTO accepts for each */
 constexpr NumField num_fields[AUTO_NUM_N] = {
-    {"ntst", "Ntst", true, Rule::range, 1, auto_max_mesh_intervals},
+    {"ntst", "Ntst", true, Rule::range, auto_min_mesh_intervals, auto_max_mesh_intervals},
     {"nmx", "Nmax", true, Rule::range, 1, static_cast<int>(snapx::auto_members::saved_points_limit)},
     {"npr", "NPr", true, Rule::range, 1, INT_MAX},
-    {"ncol", "Ncol", true, Rule::range, 2, auto_max_collocation_points},
+    {"ncol", "Ncol", true, Rule::range, auto_min_collocation_points, auto_max_collocation_points},
     {"ds", "Ds", false, Rule::nonzero, 0, 0},
     {"dsmin", "Dsmin", false, Rule::positive, 0, 0},
     {"dsmax", "Dsmax", false, Rule::positive, 0, 0},
@@ -64,7 +64,7 @@ constexpr NumField num_fields[AUTO_NUM_N] = {
     {"epss", "EPSS", false, Rule::positive, 0, 0},
     {"iad", "IAD", true, Rule::range, 0, INT_MAX},
     {"mxbf", "MXBF", true, Rule::range, INT_MIN, INT_MAX},
-    {"iid", "IID", true, Rule::range, 0, 5},
+    {"iid", "IID", true, Rule::range, auto_min_diagnostic_level, auto_max_diagnostic_level},
     {"itmx", "ITMX", true, Rule::range, 1, INT_MAX},
     {"itnw", "ITNW", true, Rule::range, 1, INT_MAX},
     {"nwtn", "NWTN", true, Rule::range, 1, INT_MAX},
