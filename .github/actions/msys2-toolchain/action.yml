@@ -24,12 +24,19 @@ inputs:
 runs:
   using: composite
   steps:
+    # the month is in the key: the release installs MSYS2's newest packages
+    # each time (release.yml), so the cached toolchain is refreshed monthly
+    # and CI builds with the release's compiler within a month of it (W382)
+    - name: This month, for the cache key
+      id: month
+      shell: pwsh
+      run: '"value=$(Get-Date -Format yyyy-MM)" >> $env:GITHUB_OUTPUT'
     - name: Restore cached MSYS2 ${{ inputs.msystem }} toolchain (single 7z archive)
       id: cache
       uses: actions/cache@v6
       with:
         path: ${{ runner.temp }}\msys2-${{ inputs.msystem }}.7z
-        key: msys2-${{ inputs.msystem }}-toolchain-${{ hashFiles(inputs.packages-file) }}
+        key: msys2-${{ inputs.msystem }}-toolchain-${{ steps.month.outputs.value }}-${{ hashFiles(inputs.packages-file) }}
     # release: false in both: the runner's preinstalled MSYS2 at C:\msys64
     # is the tree clang64 / ucrt64 sits under either way (the default installs a
     # fresh MSYS2 under the runner's temp folder instead). cache: false in

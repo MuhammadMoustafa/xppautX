@@ -473,11 +473,17 @@ jobs:
         # update check compares (v0.1.0-N-gHASH), not a bare commit hash
         with:
           fetch-depth: 0
-      - name: Use the runner's own MinGW-w64 (C:\mingw64); no toolchain install
-        run: echo 'C:\mingw64\bin' >> "$GITHUB_PATH"
+      # the release's UCRT64 gcc, as windows-core; this job's shell stays Git
+      # Bash (node from setup-node below), with the toolchain on its PATH
+      - uses: ./.github/actions/msys2-toolchain
+        with:
+          msystem: UCRT64
+          packages-file: .github/msys2-ucrt64-packages.txt
+      - name: Put the UCRT64 toolchain on the PATH
+        run: echo 'C:\msys64\ucrt64\bin' >> "$GITHUB_PATH"
       - name: Build xppautX.exe
         id: build
-        run: make -j4 xppautx
+        run: mingw32-make -j4 xppautx
       - uses: actions/setup-node@v7
         with:
           node-version: 24

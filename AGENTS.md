@@ -458,16 +458,20 @@ not be mixed in):
 
 MSYS2's CLANG64 toolchain (C:\msys64\clang64\bin: clang, libc++, lld,
 compiler-rt; W23) is a second Windows compiler, never the default: CI's
-`windows-clang` job. CI installs it through `.github/actions/msys2-toolchain`
-(W41), a composite action every windows-clang job uses: it caches the
-installed clang64 tree keyed on `.github/msys2-clang64-packages.txt`, as a
-single 7z archive (`%RUNNER_TEMP%\msys2-clang64.7z`) restored and extracted
+`windows-clang` job. CI installs it, and windows-core's and windows-ui's
+UCRT64 gcc (W382), through `.github/actions/msys2-toolchain` (W41), a
+composite action given the environment: it caches the installed tree
+keyed on the month and the environment's packages file
+(`.github/msys2-clang64-packages.txt`, `.github/msys2-ucrt64-packages.txt`),
+as a single 7z archive (`%RUNNER_TEMP%\msys2-<ENV>.7z`) restored and extracted
 with 7-Zip rather than through actions/cache's own directory caching --
 that always tars a path before the runner's tar.exe extracts it file by
 file, and on this tree (tens of thousands of small files) that alone took
 over two minutes even on a cache hit; a single 7z file plus 7-Zip's own
-(non-tar) extraction is seconds. Bump the packages file's version line to
-force a fresh install (a package bump, say).
+(non-tar) extraction is seconds. The month in the key refreshes the
+toolchain monthly, so CI's gcc follows the release's (release.yml installs
+the newest each time); bump the packages file's version line to force a
+fresh install sooner (a package bump, say).
 The Makefile knows clang (`CLANG`: gcc-only
 `-Werror=` names dropped, webview in C++17 for libc++). Build it into its
 own directory, the binary at build/clang/xppautX.exe (dynamically linked:
