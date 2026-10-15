@@ -7,23 +7,18 @@
    A new routine of one of these kinds goes here, never into the file that
    needs it (AGENTS.md "Single source").
 
-   Left where they are, each for a reason:
-   - AUTO's own Gaussian elimination, ge() in autlib1.cpp: complete
-     pivoting, a determinant and a pivot log in fort.9; LINPACK's partial
-     pivoting below would change AUTO's results.
-   - EISPACK (eispack.cpp): AUTO's eigenvalues and Floquet multipliers.
-     xpp_eigenvalues below is the same orthes/hqr pair written with a
-     fixed 1e-10 convergence test, where EISPACK's hqr iterates to machine
-     precision: the two give eigenvalues that differ in the last digits
-     (up to ~1e-10), so the equilibria keep their own.
-   - del_stab.cpp's and EISPACK's complex divisions: the same quotient
-     rounded differently (std::complex's differs again between C++
-     libraries).
+   AUTO's exact algorithms live in xpp_math_auto.cpp and
+   xpp_math_eispack.cpp (API: xpp_math_auto.h). Complete-pivot solves,
+   EISPACK machine-precision eigenvalues/eigenvectors, QZ/SVD Floquet multipliers and
+   HomCont Schur projections retain their own operation order. They are
+   not substitutions for LINPACK partial pivoting or gear's fixed-tolerance
+   Householder/QR eigenvalues; the declarations state each contract.
+   del_stab.cpp's complex division still rounds differently from EISPACK's.
 
    Everything below is C++ in namespace xpp (W109a; the parser's function
-   table holds some of these as plain function pointers). None of them
-   throws, but a view's constructor (Matrix, Matrix3) when its span is too
-   short. */
+   table holds some of these as plain function pointers). Matrix/Matrix3
+   reject short spans; AUTO's numerical failures retain their AutoFailed
+   error values for the command dispatcher. */
 
 #include "../third_party/core-math/core_math.h"
 

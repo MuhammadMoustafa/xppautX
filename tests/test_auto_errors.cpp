@@ -94,7 +94,7 @@ int main()
     integer ndim = 2, leading = 1, ier = 0;
     std::array<double, 4> matrix{};
     std::array<doublecomplex, 2> spectrum{};
-    CHECK(has(failure([&] { eig(&iap, &ndim, &leading, matrix.data(), spectrum.data(), &ier); }),
+    CHECK(has(failure([&] { xpp::eig(&iap, &ndim, &leading, matrix.data(), spectrum.data(), &ier); }),
               "EISPACK routine RG"));
     CHECK(ier == 1);
 
@@ -107,36 +107,36 @@ int main()
     std::array<doublereal, 4> a{1, 2, 2, 4};
     std::array<doublereal, 2> u{}, f{1, 1};
     doublereal det = 0;
-    CHECK(has(failure([&] { ge(nullptr, 2, 2, a.data(), 1, 2, u.data(), 2, f.data(), &det); }), "division by zero"));
+    CHECK(has(failure([&] { xpp::ge(nullptr, 2, 2, a.data(), 1, 2, u.data(), 2, f.data(), &det); }), "division by zero"));
     std::array<doublereal, 4> b{2, 0, 0, 4};
     f = {2, 4};
-    CHECK(failure([&] { ge(nullptr, 2, 2, b.data(), 1, 2, u.data(), 2, f.data(), &det); }).empty());
+    CHECK(failure([&] { xpp::ge(nullptr, 2, 2, b.data(), 1, 2, u.data(), 2, f.data(), &det); }).empty());
     CHECK(u[0] == 1 && u[1] == 1);
 
     /* dhhpr, dhhap: Householder arguments out of range */
     std::array<doublereal, 4> x{1, 2, 3, 4}, v{};
     doublereal beta = 0;
     integer k = 0, j = 2, n = 2, q = 2, incx = 1, job = 1, lda = 2;
-    CHECK(has(failure([&] { dhhpr(&k, &j, &n, x.data(), &incx, &beta, v.data()); }), "K in DHHPR"));
+    CHECK(has(failure([&] { xpp::dhhpr(&k, &j, &n, x.data(), &incx, &beta, v.data()); }), "K in DHHPR"));
     k = 1, j = 3;
-    CHECK(has(failure([&] { dhhpr(&k, &j, &n, x.data(), &incx, &beta, v.data()); }), "J in DHHPR"));
+    CHECK(has(failure([&] { xpp::dhhpr(&k, &j, &n, x.data(), &incx, &beta, v.data()); }), "J in DHHPR"));
     j = 2, incx = 0;
-    CHECK(has(failure([&] { dhhpr(&k, &j, &n, x.data(), &incx, &beta, v.data()); }), "INCX in DHHPR"));
+    CHECK(has(failure([&] { xpp::dhhpr(&k, &j, &n, x.data(), &incx, &beta, v.data()); }), "INCX in DHHPR"));
     incx = 1, job = 3;
-    CHECK(has(failure([&] { dhhap(&k, &j, &n, &q, &beta, v.data(), &job, x.data(), &lda); }), "JOB in DHHAP"));
+    CHECK(has(failure([&] { xpp::dhhap(&k, &j, &n, &q, &beta, v.data(), &job, x.data(), &lda); }), "JOB in DHHAP"));
     job = 1, k = 0;
-    CHECK(has(failure([&] { dhhap(&k, &j, &n, &q, &beta, v.data(), &job, x.data(), &lda); }), "K in DHHAP"));
+    CHECK(has(failure([&] { xpp::dhhap(&k, &j, &n, &q, &beta, v.data(), &job, x.data(), &lda); }), "K in DHHAP"));
     k = 1, j = 3;
-    CHECK(has(failure([&] { dhhap(&k, &j, &n, &q, &beta, v.data(), &job, x.data(), &lda); }), "J in DHHAP"));
+    CHECK(has(failure([&] { xpp::dhhap(&k, &j, &n, &q, &beta, v.data(), &job, x.data(), &lda); }), "J in DHHAP"));
     job = 2;
-    CHECK(has(failure([&] { dhhap(&k, &j, &n, &q, &beta, v.data(), &job, x.data(), &lda); }), "J in DHHAP"));
+    CHECK(has(failure([&] { xpp::dhhap(&k, &j, &n, &q, &beta, v.data(), &job, x.data(), &lda); }), "J in DHHAP"));
 
     /* dgemm's argument check (xerbla): a negative row count */
     integer m = -1, nn = 2, kk = 2, ld = 2;
     doublereal one = 1, zero = 0;
     std::array<doublereal, 4> c{};
     const std::string blas =
-        failure([&] { dgemm("N", "N", &m, &nn, &kk, &one, a.data(), &ld, b.data(), &ld, &zero, c.data(), &ld, 1, 1); });
+        failure([&] { xpp::dgemm("N", "N", &m, &nn, &kk, &one, a.data(), &ld, b.data(), &ld, &zero, c.data(), &ld, 1, 1); });
     CHECK(has(blas, "DGEMM") && has(blas, "parameter number 3"));
 
     xpp::client_session().auto_lib.fp9 = nullptr;

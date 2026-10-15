@@ -1,4 +1,4 @@
-/* W336: EISPACK (eispack.cpp, AUTO's eigenvalue, SVD and QZ routines) keeps no
+/* W336: EISPACK (xpp_math_eispack.cpp, AUTO's eigenvalue, SVD and QZ routines) keeps no
    state between or across calls, so the same input gives the same bits at any
    time and when several threads call it at once (a collocation worker reaching
    an eigenvalue unit must not race the caller's own call). Each routine is run
@@ -44,7 +44,7 @@ std::vector<doublereal> run_rg(std::uint64_t seed, integer matz)
     std::vector<doublereal> wr(order), wi(order), z(order * order), fv(order);
     std::vector<integer> iv(order);
     integer ierr = -1;
-    rg(order, order, a.data(), wr.data(), wi.data(), matz, z.data(), iv.data(), fv.data(), &ierr);
+    xpp::rg(order, order, a.data(), wr.data(), wi.data(), matz, z.data(), iv.data(), fv.data(), &ierr);
     std::vector<doublereal> out{static_cast<doublereal>(ierr)};
     keep(out, wr); keep(out, wi); keep(out, z);
     return out;
@@ -59,11 +59,11 @@ std::vector<doublereal> run_schur(std::uint64_t seed, integer imfd)
     std::vector<integer> type(order);
     integer n = order, one = 1, nm = order, na = order, nv = order, mfd = imfd;
     doublereal eps = 1e-8;
-    orthes(&nm, &n, &one, &n, a.data(), ort.data());
-    ortran(&nm, &n, &one, &n, a.data(), ort.data(), v.data());
+    xpp::orthes(&nm, &n, &one, &n, a.data(), ort.data());
+    xpp::ortran(&nm, &n, &one, &n, a.data(), ort.data(), v.data());
     for (integer i = 2; i < order; ++i)
         for (integer j = 0; j < i - 1; ++j) a[static_cast<size_t>(i + j * order)] = 0.;
-    const int status = hqr3lc(a.data(), v.data(), &n, &one, &n, &eps, er.data(), ei.data(), type.data(), &na, &nv, &mfd);
+    const int status = xpp::hqr3lc(a.data(), v.data(), &n, &one, &n, &eps, er.data(), ei.data(), type.data(), &na, &nv, &mfd);
     std::vector<doublereal> out{static_cast<doublereal>(status)};
     keep(out, a); keep(out, v); keep(out, er); keep(out, ei);
     for (integer t : type) out.push_back(static_cast<doublereal>(t));
@@ -76,7 +76,7 @@ std::vector<doublereal> run_svd(std::uint64_t seed)
     std::vector<doublereal> s(order + 1), e(order + 1), u(order * order), v(order * order), work(order + 1);
     integer ldx = order, n = order, p = order, ldu = 1, ldv = order, job = 1, info = -1;
     doublereal tol = 1e-16;
-    ezsvd(x.data(), &ldx, &n, &p, s.data(), e.data(), u.data(), &ldu, v.data(), &ldv, work.data(), &job, &info, &tol);
+    xpp::ezsvd(x.data(), &ldx, &n, &p, s.data(), e.data(), u.data(), &ldu, v.data(), &ldv, work.data(), &job, &info, &tol);
     std::vector<doublereal> out{static_cast<doublereal>(info)};
     keep(out, s); keep(out, e); keep(out, v);
     return out;
@@ -87,9 +87,9 @@ std::vector<doublereal> run_qz(std::uint64_t seed)
     auto a = matrix(seed), b = matrix(seed + 1, true);
     std::vector<doublereal> z(order * order), ar(order), ai(order), beta(order);
     integer ierr = -1;
-    qzhes(order, order, a.data(), b.data(), 0, z.data());
-    qzit(order, order, a.data(), b.data(), 1e-10, 0, z.data(), &ierr);
-    qzval(order, order, a.data(), b.data(), ar.data(), ai.data(), beta.data(), 0, z.data());
+    xpp::qzhes(order, order, a.data(), b.data(), 0, z.data());
+    xpp::qzit(order, order, a.data(), b.data(), 1e-10, 0, z.data(), &ierr);
+    xpp::qzval(order, order, a.data(), b.data(), ar.data(), ai.data(), beta.data(), 0, z.data());
     std::vector<doublereal> out{static_cast<doublereal>(ierr)};
     keep(out, a); keep(out, b); keep(out, ar); keep(out, ai); keep(out, beta);
     return out;

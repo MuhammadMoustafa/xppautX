@@ -1,10 +1,10 @@
 // W358 (#420): the comparison build LINALG=lapack. Gives AUTO's eigenvalue code (autlib1's eig,
 // autlib5's eigenvectors for HomCont, autlib4's flowkm) LAPACK in place of EISPACK, through
-// the four EISPACK entry points it calls, with their signatures (core/auto_c.h):
+// the four EISPACK entry points it calls, with their signatures (core/xpp_math.h):
 //   rg                    -> DGEEV   (eigenvalues, and eigenvectors when matz)
 //   qzhes, qzit           -> nothing (DGGEV reduces the pencil itself; qzit reports no error)
 //   qzval                 -> DGGEV   (generalized eigenvalues: alfr, alfi, beta)
-// The Makefile compiles core/eispack.cpp with these four names renamed (eispack_rg, ...), so the
+// The Makefile compiles core/xpp_math_eispack.cpp with these four names renamed (eispack_rg, ...), so the
 // rest of that file (the SVD and BLAS copies other code calls) stays, and links third_party/lapack
 // (Fortran, verbatim). Compiled only by `make LINALG=lapack BUILDDIR=<its own>`; the default
 // build and every release use EISPACK. Neither throws: a failure is a return code, as EISPACK's.
@@ -42,6 +42,8 @@ int with_workspace(Call call)
 }
 
 } // namespace
+
+namespace xpp {
 
 int rg(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__,
        integer * /*iv1*/, doublereal * /*fv1*/, integer *ierr)
@@ -82,3 +84,5 @@ int qzval(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr,
     }
     return 0;
 }
+
+} // namespace xpp

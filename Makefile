@@ -321,7 +321,7 @@ endif
 # LINALG=lapack (W358, a comparison build, never shipped): AUTO's eigenvalues come from
 # Reference-LAPACK (third_party/lapack, Fortran, verbatim; DGEEV and DGGEV) through
 # tools/lapack-adapter/lapack_adapter.cpp instead of EISPACK's RG and QZ, to compare speed and
-# accuracy. core/eispack.cpp is compiled with those four names renamed, so the callers find the
+# accuracy. core/xpp_math_eispack.cpp is compiled with those four names renamed, so the callers find the
 # adapter's. Needs gfortran and a BUILDDIR of its own; the default, LINALG=eispack, is the only
 # build released.
 LINALG ?= eispack
@@ -346,7 +346,7 @@ $(BUILDDIR)/lapack/%.o: $(LAPACK_DIR)/% $(BUILDDIR)/toolchain.stamp
 CORE_OBJECTS += $(LAPACK_OBJECTS) $(BUILDDIR)/lapack_adapter.o
 $(BUILDDIR)/lapack_adapter.o: tools/lapack-adapter/lapack_adapter.cpp $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
 	$(CXX) $(call NOLTO,$(CXXFLAGS)) -c $< -o $@
-$(BUILDDIR)/eispack.o: CXXFLAGS += -Drg=eispack_rg -Dqzhes=eispack_qzhes -Dqzit=eispack_qzit -Dqzval=eispack_qzval
+$(BUILDDIR)/xpp_math_eispack.o: CXXFLAGS += -Drg=eispack_rg -Dqzhes=eispack_qzhes -Dqzit=eispack_qzit -Dqzval=eispack_qzval
 LINALG_LIBS = -lgfortran
 # the measuring tool of the comparison (tools/auto-profile/eig_accuracy.py): both libraries on dumped matrices
 $(BUILDDIR)/eigcompare$(EXE): tools/lapack-adapter/eigcompare.cpp $(BUILDDIR)/libxppcore.a

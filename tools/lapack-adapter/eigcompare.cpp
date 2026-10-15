@@ -6,7 +6,7 @@
 // RESULTS, per matrix, an "eispack" and a "lapack" line: the routine's error code, then for rg the
 // eigenvalues' real and imaginary parts, for qz the generalized eigenvalues' alfr, alfi and beta.
 // Built by `make LINALG=lapack BUILDDIR=<its own> BUILDDIR/eigcompare`; it is a measuring tool and
-// is not part of xppautX. EISPACK's entry points are the ones core/eispack.cpp keeps under the
+// is not part of xppautX. EISPACK's entry points are the ones core/xpp_math_eispack.cpp keeps under the
 // names the Makefile gave it for this build; the unprefixed names are the adapter's (LAPACK).
 #include "auto_c.h"
 
@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+namespace xpp {
 int eispack_rg(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__,
                integer *iv1, doublereal *fv1, integer *ierr);
 int eispack_qzhes(integer nm, integer n, doublereal *a, doublereal *b, logical matz, doublereal *z__);
@@ -25,6 +26,7 @@ int eispack_qzit(integer nm, integer n, doublereal *a, doublereal *b, doublereal
                  integer *ierr);
 int eispack_qzval(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr, doublereal *alfi,
                   doublereal *beta, logical matz, doublereal *z__);
+}
 
 namespace {
 
@@ -74,7 +76,7 @@ int main(int argc, char **argv)
             for (int library = 0; library < 2; ++library) {
                 std::vector<doublereal> m = a, wr(static_cast<std::size_t>(n)), wi(static_cast<std::size_t>(n));
                 integer ierr = 0;
-                (library ? rg : eispack_rg)(n, n, m.data(), wr.data(), wi.data(), 0, z.data(), iv.data(), fv.data(), &ierr);
+                (library ? xpp::rg : xpp::eispack_rg)(n, n, m.data(), wr.data(), wi.data(), 0, z.data(), iv.data(), fv.data(), &ierr);
                 print(library ? "lapack" : "eispack", ierr, {wr, wi});
             }
         } else {
@@ -83,9 +85,9 @@ int main(int argc, char **argv)
                 std::vector<doublereal> ma = a, mb = b, ar(static_cast<std::size_t>(n)), ai(static_cast<std::size_t>(n)),
                     be(static_cast<std::size_t>(n));
                 integer ierr = 0;
-                (library ? qzhes : eispack_qzhes)(n, n, ma.data(), mb.data(), FALSE_, z.data());
-                (library ? qzit : eispack_qzit)(n, n, ma.data(), mb.data(), QZ_EPS1, FALSE_, z.data(), &ierr);
-                (library ? qzval : eispack_qzval)(n, n, ma.data(), mb.data(), ar.data(), ai.data(), be.data(), FALSE_,
+                (library ? xpp::qzhes : xpp::eispack_qzhes)(n, n, ma.data(), mb.data(), FALSE_, z.data());
+                (library ? xpp::qzit : xpp::eispack_qzit)(n, n, ma.data(), mb.data(), QZ_EPS1, FALSE_, z.data(), &ierr);
+                (library ? xpp::qzval : xpp::eispack_qzval)(n, n, ma.data(), mb.data(), ar.data(), ai.data(), be.data(), FALSE_,
                                                    z.data());
                 print(library ? "lapack" : "eispack", ierr, {ar, ai, be});
             }

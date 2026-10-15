@@ -1009,16 +1009,16 @@ dimrge(FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, 
 
   /* Solve for FCC */
   if (*nllv == 0) {
-    ge(fp9, ncrloc, ncrloc, e, 1, ncrloc, fcc, 
+    xpp::ge(fp9, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   } else if (*nllv > 0) {
-    nlvc(fp9, ncrloc, ncrloc, *nllv, e, fcc);
+    xpp::nlvc(fp9, ncrloc, ncrloc, *nllv, e, fcc);
   } else {
     for (i = 0; i < ncrloc - 1; ++i) {
       xe[i] = 0.;
     }
     xe[-1 + ncrloc] = 1.;
-    ge(fp9, ncrloc, ncrloc, e, 1, ncrloc, fcc, 
+    xpp::ge(fp9, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   }
   if (*idb >= 4) {

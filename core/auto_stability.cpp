@@ -129,7 +129,7 @@ void auto_stability_multipliers_restored(AutoStability &st, const iap_type &iap,
 {
     integer ndim = iap.ndim, iid = iap.iid;
     std::vector<doublecomplex> ev(ndim);
-    flowkm(iap.lib->fp9, &ndim, p0, p1, &iid, nullptr, ev.data(), false);
+    xpp::flowkm(iap.lib->fp9, &ndim, p0, p1, &iid, nullptr, ev.data(), false);
     auto_stability_computed(st, iap.ibr, iap.ntot + 1, {&ev[0].r, 2 * ev.size()}, AUTO_STABILITY_PERIODIC);
 }
 

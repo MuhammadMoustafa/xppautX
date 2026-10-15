@@ -1,3 +1,16 @@
+#include "xpp_math.h"
+#include "session.h"
+#include "auto_c.h"
+#include "xpp_log.h"
+#include "xpp_io.h"
+#include <array>
+#include <vector>
+
+/* W337: EISPACK/BLAS and Demmel-Kahan SVD belong to xpp_math.
+   Preserve each reduction, QR/QZ shift, rotation and accumulation order.
+   The individual algorithm contracts below retain their convergence limits,
+   eigenvector choices and failure diagnostics. */
+namespace xpp {
 /* eispack.f -- translated by f2c (version 19970805).
    You must link the resulting object file with the libraries:
 	-lf2c -lm   (in that order)
@@ -6,9 +19,6 @@
 /*   this also has the code for finding the Hopf normal form
  */
 
-#include "xpp_log.h"
-#include "auto_state.h" /* xpp::auto_fail */
-#include "auto_c.h"
 /* Table of constant values */
 
 constexpr doublereal c_b81 = 0.;
@@ -22,6 +32,9 @@ constexpr doublereal c_b367 = -1.;
 /*          Eigenvalue solver from EISPACK */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+/* W337: Balanced general eigenproblem: balanc -> elmhes -> hqr (roots only),
+   or eltran -> hqr2 -> balbak (vectors). Elementary pivoted reduction
+   differs from gear's Householder reduction; preserve root and vector order. */
 /* Subroutine */ int 
 rg(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__, integer *iv1, doublereal *fv1, integer *ierr)
 {
@@ -123,6 +136,10 @@ L50:
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+/* W337: Eigenvalues only: floating-addition convergence test tst1+t == tst1,
+   30*n shared iteration budget, exceptional shifts at iterations 10 and 20.
+   Gear uses abs(subdiagonal) <= 1e-10*scale and 30 iterations per root;
+   merging these QR paths would change converged roots and failure status. */
 /* Subroutine */ int 
 hqr(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doublereal *wr, doublereal *wi, integer *ierr)
 {
@@ -472,6 +489,12 @@ L1001:
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+/* W337: Eigenvalues and packed real/conjugate vectors: machine-precision QR,
+   30*n shared iterations, accumulated transformations and back substitution.
+   Unlike roots-only hqr, this writes shifted diagonals and rotates real
+   two-root blocks for vector back substitution, interleaving Z accumulation
+   with the QR steps. Preserve that order and workspace as well as the roots;
+   gear's fixed-tolerance hqr does not supply these transformations. */
 /* Subroutine */ int 
 hqr2(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doublereal *wr, doublereal *wi, doublereal *z__, integer *ierr)
 {
@@ -1162,6 +1185,9 @@ L1001:
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+/* W337: Scaled complex division in EISPACK operation order: scale both parts
+   before products and sums. del_stab and std::complex use different orders
+   (and thus rounding); sharing those quotients would change eigenvectors. */
 /* Subroutine */ int 
 cdiv(const doublereal *ar, const doublereal *ai, const doublereal *br, const doublereal *bi, doublereal *cr, doublereal *ci)
 {
@@ -4353,6 +4379,8 @@ dgemm(const char *transa, const char *transb, integer *m, integer *n, integer *k
 /* Demmel-Kahan SVD routines needed for computing the Floquet multipliers */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+/* W337: Demmel-Kahan SVD adapter: job selects left/right vectors, positive tol
+   is relative and negative tol absolute; preserve ndsvd's rotations and order. */
 /* Subroutine */ int 
 ezsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, doublereal *e, doublereal *u, integer *ldu, doublereal *v, integer *ldv, doublereal *work, integer *job, integer *info, doublereal *tol)
 {
@@ -6071,6 +6099,9 @@ sndrtg(doublereal *f, doublereal *g, doublereal *cs, doublereal *sn)
 
 /*  hqr3_loc.f orthes.f ortran.f   for computing triangular matrix */
 
+/* W337: Ordered real Schur form and basis, caller eps controls block splitting,
+   preserving split/exchng/qrstep order and stable/unstable block selection.
+   This basis and convergence policy are not rg's eigenvector calculation. */
 /* Subroutine */ int 
 hqr3lc(doublereal *a, doublereal *v, integer *n, integer *nlow, integer *nup, doublereal *eps, doublereal *er, doublereal *ei, integer *type__, integer *na, integer *nv, integer *imfd)
 {
@@ -6939,6 +6970,10 @@ L130:
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+/* W337: Householder Hessenberg reduction with caller leading dimension and
+   f2c abs/SIGN semantics. Gear's overload uses fabs/sign (which clear -0
+   and treat NaNs differently). Retain these scalar operations and reversed
+   inner sums rather than silently imposing gear's IEEE special-value policy. */
 /* Subroutine */ int 
 orthes(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doublereal *ort)
 {
@@ -7223,3 +7258,5 @@ L200:
     return 0;
 } /* ortran_ */
 
+
+} // namespace xpp

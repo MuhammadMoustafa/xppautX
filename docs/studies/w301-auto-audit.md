@@ -526,6 +526,40 @@ under the owner and record precisely why. Never replace a variant on the
 strength of matching mathematical names alone.
 Order: last, after P7/P8/P10 make interfaces and scratch safe to share.
 
+W337 ([#398](https://github.com/MuhammadMoustafa/xppautX/issues/398)) moves
+ge/nlvc/eig, flowkm and its Householder helpers, eigho/prjctn and EISPACK/
+BLAS/SVD into `xpp_math_auto.cpp` and `xpp_math_eispack.cpp`, in namespace
+`xpp`. `xpp_math_auto.h` owns their declarations without exposing f2c's
+scalar typedefs to CVODE clients of `xpp_math.h`. Complete versus partial pivots,
+elementary versus Householder reduction, floating-addition versus fixed
+1e-10 QR convergence, eigenvector accumulation and ordered Schur/Beyn bases
+remain distinct; comments identify the exact operation-order reasons.
+The exact complete-pivot search and trailing-row update kernels are shared
+by ge/nlvc; their determinant, RHS/null-vector and diagnostic logic stays
+separate. No partial-pivot or eigenvalue algorithm was substituted. Frozen pre-move code
+exists only in `tests/auto_numerics_reference.h`, used by
+`tests/test_auto_numerics.cpp` for bitwise comparisons of outputs, workspaces,
+determinants, diagnostics and HomCont continuity. The existing W336 tests
+still exercise concurrent owner calls. Gear's callers remain unchanged.
+Native gates run sequentially through heavy.sh; results are recorded in the
+card report. Baselines and allowlist counts have not increased.
+
+W337 native validation (UCRT gcc 16, `WERROR=1`, sequential heavy.sh gates):
+
+| Gate | Result |
+|---|---|
+| Build and unit tests | 54 programs, 49,283 checks, 0 failures; 0 compiler diagnostics; new auto_numerics: 6,106 checks |
+| examples_check | 185 models, 184 unchanged output checksums; ml-range intentionally has no output |
+| autocompare | 40 models, 9 documented skips, 5,936 points, 90 checks, 0 failures |
+| Full autocheck | 251 checks, 0 failures |
+| servercheck | 1,173 checks, 0 failures |
+
+The coordinator runs the WSL source/sanitizer review gates. The optional
+LAPACK comparison adapter follows the owner namespace; that optional build
+was not run. No background commands or agents were started by W337.
+
+
+
 ## Validation and limits of this audit
 
 The storage fix and full audit are uncommitted as requested. Native gates run

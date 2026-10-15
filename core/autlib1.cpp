@@ -1225,7 +1225,7 @@ stprae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     integer tmp = ndim + 1;
     wrjac(iap, &tmp, m1aaloc, aa, rhs);
   }
-  nlvc(iap->lib->fp9, ndim + 1, *m1aaloc, 1, aa, du);
+  xpp::nlvc(iap->lib->fp9, ndim + 1, *m1aaloc, 1, aa, du);
 
   /* Scale and make sure that the PAR(ICP(1))-dot is positive. */
 
@@ -1429,7 +1429,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       wrjac(iap, &tmp, m1aaloc, aa, rhs);
     }
 
-    ge(iap->lib->fp9, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du, 
+    xpp::ge(iap->lib->fp9, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
        ndim + 1, rhs, &det);
     rap->det = det;
     drlm = du[ndim];
@@ -1791,7 +1791,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ARRAY2D(aa, ndim, ndim) = rldot[0];
   rhs[ndim] = 1.;
 
-  ge(iap->lib->fp9, ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
+  xpp::ge(iap->lib->fp9, ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
   rap->det = det;
   {
     integer tmp = ndim + 1;
@@ -1860,7 +1860,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   // EISPACK overwrites dfdu: inspect the original Jacobian first.
   const double axis_tolerance = xpp::auto_hopf_axis_tolerance(
       xpp::Matrix<const double>({dfdu,static_cast<size_t>(ndim*ndm)},ndim,ndm),ndm);
-  eig(iap, &ndm, &ndim, dfdu, ev.data(), &ier);
+  xpp::eig(iap, &ndm, &ndim, dfdu, ev.data(), &ier);
   if (ips == xpp::AutoProblem::DiscreteMap) {
     for (i = 0; i < ndm; ++i) {
       if (ev[i].r != -1. || d_imag(&ev[i]) != 0.) {
@@ -2056,7 +2056,7 @@ stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aa
   }
   ARRAY2D(aa, ndim, ndim) = rldot[0];
 
-  nlvc(iap->lib->fp9, ndim + 1, *m1aaloc, 1, aa, du);
+  xpp::nlvc(iap->lib->fp9, ndim + 1, *m1aaloc, 1, aa, du);
 
   ss = 0.;
   for (i = 0; i < ndim; ++i) {
@@ -2289,7 +2289,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
       integer tmp = ndim + 1;
       wrjac(iap, &tmp, m1aaloc, aa, rhs);
     }
-    ge(iap->lib->fp9, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du, 
+    xpp::ge(iap->lib->fp9, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
        ndim + 1, rhs, &det);
     rap->det = det;
     drlm = du[ndim];
@@ -3780,161 +3780,10 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
 /* ----------------------------------------------------------------------- */
 
 /*     ---------- --- */
-/* Subroutine */ int 
-eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev, integer *ier)
-{
-    /* Local variables */
-  integer matz, ntop, ntot, i;
 
-  integer ibr;
-
-  std::vector<doublereal> z__(xpp::size_product(iap->ndim, iap->ndim));
-  std::vector<doublereal> wi(iap->ndim);
-  std::vector<doublereal> wr(iap->ndim);
-  std::vector<doublereal> fv1(iap->ndim);
-  std::vector<integer> iv1(iap->ndim);
-
-  /* This subroutine uses the EISPACK subroutine RG to compute the */
-  /* eigenvalues of the general real matrix A. */
-  /* NDIM is the dimension of A. */
-  /* M1A is the first dimension of A as in the DIMENSION statement. */
-  /* The eigenvalues are to be returned in the complex vector EV. */
-
-/* Local */
-
-  /* Parameter adjustments */
-  /*--ev;*/
-
-  ibr = iap->ibr;
-  ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
-
-  *ier = 0;
-  matz = 0;
-
-  rg(*m1a, *ndim, a, wr.data(), wi.data(), matz, z__.data(), iv1.data(), fv1.data(), ier);
-
-  for (i = 0; i < *ndim; ++i) {
-    ev[i].r = wr[i], ev[i].i = wi[i];
-  }
-
-  if (*ier != 0) {
-    *ier = 1;
-  }
-  if (*ier == 1) {
-    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Error return from EISPACK routine RG\n",ibr,ntop);
-    xpp::auto_fail("Error return from EISPACK routine RG");
-  }
-
-  return 0;
-} /* eig_ */
 
 /*     ---------- ---- */
-/* Subroutine */ int 
-nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
-{
-  /* System generated locals */
-  integer a_dim1;
 
-    /* Local variables */
-  integer ipiv, jpiv, i, j, l;
-  doublereal p;
-  integer i1, jj, kk;
-  doublereal rm, sm;
-  integer ip1, nmk;
-  doublereal piv;
-  integer jjp1;
-
-  std::vector<integer> ir(n);
-  std::vector<integer> ic(n);
-
-/* Finds a null-vector of a singular matrix A. */
-/* The null space of A is assumed to be K-dimensional. */
-
-/* Parameters : */
-
-/*     N : number of equations, */
-/*     M : first dimension of A from DIMENSION statement, */
-/*     K : dimension of nullspace, */
-/*     A : N * N matrix of coefficients, */
-/*     U : on exit U contains the null vector, */
-/* IR,IC : integer arrays of dimension at least N. */
-
-  /* Parameter adjustments */
-  /*--u;*/
-  /*--ir;*/
-  /*--ic;*/
-  a_dim1 = m;
-  
-  for (i = 0; i < n; ++i) {
-    ic[i] = i;
-    ir[i] = i;
-  }
-
-  /*   Elimination. */
-
-  nmk = n - k;
-
-  for (jj = 0; jj < nmk; ++jj) {
-    ipiv = jj;
-    jpiv = jj;
-    piv = 0.;
-    for (i = jj; i < n; ++i) {
-      for (j = jj; j < n; ++j) {
-	p = f2c::abs(ARRAY2D(a, ir[i], ic[j]));
-	if (p > piv) {
-	  piv = p;
-	  ipiv = i;
-	  jpiv = j;
-	}
-      }
-    }
-    if (piv < auto_rsmall) {
-      xpp::print(fp9,"        NOTE:Pivot {:3} < {:10.3E}  in NLVC : A null space may be multi-dimensional\n",jj,auto_rsmall);	
-
-    }
-
-    kk = ir[jj];
-    ir[jj] = ir[ipiv];
-    ir[ipiv] = kk;
-
-    kk = ic[jj];
-    ic[jj] = ic[jpiv];
-    ic[jpiv] = kk;
-
-    jjp1 = jj + 1;
-    for (l = jjp1; l < n; ++l) {
-      rm = ARRAY2D(a, ir[l], ic[jj]) / ARRAY2D(a, ir[jj], ic[jj]);
-      if (rm != 0.) {
-	for (i = jjp1; i < n; ++i) {
-	  ARRAY2D(a, ir[l], ic[i]) -= rm * ARRAY2D(a, ir[jj], ic[i]);
-	}
-      }
-    }
-  }
-
-  /*   Backsubstitution : */
-
-  for (i = 0; i < k; ++i) {
-    u[ic[-1 + n - i]] = 1.;
-  }
-
-  for (i1 = 0 ; i1 < nmk; ++i1) {
-    i = nmk - i1 - 1;
-    sm = 0.;
-    ip1 = i + 1;
-    for (j = ip1; j <  n; ++j) {
-      sm += ARRAY2D(a, ir[i], ic[j]) * u[ic[j]];
-    }
-    u[ic[i]] = -sm / ARRAY2D(a, ir[i], ic[i]);
-  }
-
-  /* Since the pointers for ir and ic were adjusted we need to put the
-       back here. */
-  /*ir \+= 1;*/
-  /*ic \+= 1;*/
-  return 0;
-} /* nlvc_ */
 
 /*     ---------- ----- */
 /* Subroutine */ int 
@@ -3975,148 +3824,7 @@ pi(doublereal r)
 } /* pi */
 
 /*     ---------- -- */
-/* Subroutine */ int 
-ge(FILE *fp9, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det)
-{
-  /* System generated locals */
-  integer a_dim1, u_dim1, f_dim1;
 
-  /* Local variables */
-  integer ipiv, jpiv, i, j, k, l;
-  doublereal p;
-  integer i1, jj;
-  doublereal rm, sm;
-  integer ip1, irh;
-  doublereal piv;
-  integer jjp1;
-
-  std::vector<integer> ic(n);
-  std::vector<integer> ir(n);
-
-/* Solves the linear system  A U = F by Gauss elimination */
-/* with complete pivoting. */
-
-/* Parameters : */
-
-/*   N   : number of equations, */
-/*   M1A : first dimension of A from DIMENSION statement, */
-/*   A   : N * N matrix of coefficients, */
-/*   NRHS: 0   if no right hand sides (determinant only), */
-/*         >0   if there are NRHS right hand sides, */
-/*   ndxloc : first dimension of U from DIMENSION statement, */
-/*   U   : on exit U contains the solution vector(s), */
-/*   M1F : first dimension of F from DIMENSION statement, */
-/*   F   : right hand side vector(s), */
-/*  IR,IC: integer vectors of dimension at least N. */
-
-/* The input matrix A is overwritten. */
-
-  /* Parameter adjustments */
-  /*--ir;*/
-  /*--ic;*/
-  a_dim1 = m1a;
-  u_dim1 = ndxloc;
-  f_dim1 = m1f;
-  
-  for (i = 0; i < n; ++i) {
-    ic[i] = i;
-    ir[i] = i;
-  }
-
-  /*   Elimination. */
-
-  *det = 1.;
-
-  for (jj = 0; jj < n - 1; ++jj) {
-    ipiv = jj;
-    jpiv = jj;
-    piv = 0.;
-    for (i = jj; i < n; ++i) {
-      for (j = jj; j < n; ++j) {
-	p = f2c::abs(ARRAY2D(a, ir[i], ic[j]));
-	if (p > piv) {
-	  piv = p;
-	  ipiv = i;
-	  jpiv = j;
-	}
-      }
-    }
-    *det *= ARRAY2D(a, ir[ipiv], ic[jpiv]);
-    if(jj==0)  xpp::print(fp9,"\n Pivots in GE");
-    if((jj%6)==0) xpp::print(fp9,"\n");
-    xpp::print(fp9," {:4} {:12.3e} ",jj,f2c::abs(ARRAY2D(a, ir[ipiv], ic[jpiv])));
-    if (ipiv != jj) {
-      *det = -(*det);
-    }
-    if (jpiv != jj) {
-      *det = -(*det);
-    }
-
-    if (piv < auto_rsmall) {
-      xpp::print(fp9,"         NOTE:Pivot {:3} < {:10.3E}, in GE\n",jj,auto_rsmall);	
-    }
-
-    k = ir[jj];
-    ir[jj] = ir[ipiv];
-    ir[ipiv] = k;
-
-    k = ic[jj];
-    ic[jj] = ic[jpiv];
-    ic[jpiv] = k;
-
-    jjp1 = jj + 1;
-    for (l = jjp1; l < n; ++l) {
-      
-      rm = ARRAY2D(a, ir[l], ic[jj]) / ARRAY2D(a, ir[jj], ic[jj]);
-      if (rm != 0.) {
-	for (i = jjp1; i < n; ++i) {
-	  ARRAY2D(a, ir[l], ic[i]) -= rm * ARRAY2D(a, ir[jj], ic[i]);
-	}
-	if (nrhs != 0) {
-	  for (irh = 0; irh < nrhs; ++irh) {
-	    ARRAY2D(f, ir[l], irh) -= rm * ARRAY2D(f, ir[jj], irh);
-	  }
-	}
-      }
-    }
-  }
-  *det *= ARRAY2D(a, ir[n - 1], ic[n - 1]);
-     if((jj%6)==0) xpp::print(fp9,"\n");
-     xpp::print(fp9," {:4} {:12.3e} \n",n-1,ARRAY2D(a, ir[n - 1], ic[n - 1]));
-
-  if (nrhs == 0) {
-    /* Since the pointers for ir and ic were adjusted we need to put the
-       back here. */
-    /*ir \+= 1;*/
-    /*ic \+= 1;*/
-    return 0;
-  }
-
-  /*   Backsubstitution : */
-
-  for (irh = 0; irh < nrhs; ++irh) {
-    if(ARRAY2D(a, ir[n - 1], ic[n - 1]) == 0) {
-      xpp::auto_fail("division by zero: the linear system of a Newton step is singular");
-    }
-    ARRAY2D(u, ic[n - 1], irh) = ARRAY2D(f, ir[n - 1], irh) / ARRAY2D(a, ir[n - 1], ic[n - 1]);
-    for (i1 = 0; i1 < n - 1; ++i1) {
-      i = n - (i1 + 1) - 1;
-      sm = 0.;
-      ip1 = i + 1;
-      for (j = ip1; j < n; ++j) {
-	sm += ARRAY2D(a, ir[i], ic[j]) * ARRAY2D(u, ic[j], irh);
-      }
-      ARRAY2D(u, ic[i], irh) = (ARRAY2D(f, ir[i], irh) - sm) / ARRAY2D(a, ir[i], ic[i]);
-    }
-  }
-
-  /* Since the pointers for ir and ic were adjusted we need to put the
-       back here. */
-  /*ir \+= 1;*/
-  /*ic \+= 1;*/
-
-  return 0;
-} /* ge_ */
 
 /*     ---------- ------ */
 /* Subroutine */ int 
@@ -6007,7 +5715,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   for (i = 0; i < ndim * ndim; ++i) {
     pp[i] = p1[i];
   }
-  ge(iap->lib->fp9, ndim, ndim, pp.data(), 0, 1, &u, 1, &f, &det);
+  xpp::ge(iap->lib->fp9, ndim, ndim, pp.data(), 0, 1, &u, 1, &f, &det);
   rap->det = det;
 
   /* Set the determinant of the normalized reduced system. */
@@ -6072,7 +5780,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /*  Compute the Floquet multipliers */
 
-  flowkm(iap->lib->fp9, &ndim, p0, p1, &iid, wrk.data(), ev, true);
+  xpp::flowkm(iap->lib->fp9, &ndim, p0, p1, &iid, wrk.data(), ev, true);
   /* Find the multiplier closest to z=1. */
   /* xppautX: the orbit's Floquet multipliers (auto_stability.h) */
   xpp::auto_stability_computed(iap->lib->session->auto_state.stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndim)},xpp::AUTO_STABILITY_PERIODIC);

@@ -121,7 +121,7 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
 	 iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
   }
-  nlvc(iap->lib->fp9, ndm, ndm, 1, iap->lib->scratch.dfu.data(), v.data());
+  xpp::nlvc(iap->lib->fp9, ndm, ndm, 1, iap->lib->scratch.dfu.data(), v.data());
   nrmlz(&ndm, v.data());
   for (i = 0; i < ndm; ++i) {
     u[ndm + i] = v[i];
@@ -401,7 +401,7 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
       dd[ndm + i * ndim] = iap->lib->scratch.dfp[(icp[1]) * ndm + i];
     }
     dd[ndm + ndm * ndim] = dp[icp[1]];
-    nlvc(iap->lib->fp9, ndm + 1, ndim, 1, dd.data(), v.data());
+    xpp::nlvc(iap->lib->fp9, ndm + 1, ndim, 1, dd.data(), v.data());
     {
       integer tmp = ndm + 1;
       nrmlz(&tmp, v.data());
@@ -661,7 +661,7 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
   {
     integer tmp=(ndim*2);
-    nlvc(iap->lib->fp9, ndm2, tmp, 2, smat.data(), v.data());
+    xpp::nlvc(iap->lib->fp9, ndm2, tmp, 2, smat.data(), v.data());
   }
   nrmlz(&ndm2, v.data());
 
@@ -742,7 +742,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer size = n;
   // The Hopf pair gives a two-dimensional kernel. NLVC chooses its phase;
   // subsequent correctors use the previous vector's symmetric condition.
-  nlvc(iap->lib->fp9, n, n, 2, blocks.data() + n * n, u + n);
+  xpp::nlvc(iap->lib->fp9, n, n, 2, blocks.data() + n * n, u + n);
   nrmlz(&size, u + n);
   return 0;
 } /* stpnhb_ */
@@ -884,7 +884,7 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
   {
     integer tmp=(ndim*2);
-    nlvc(iap->lib->fp9, ndm2, tmp, 2, smat.data(), v.data());
+    xpp::nlvc(iap->lib->fp9, ndm2, tmp, 2, smat.data(), v.data());
   }
   nrmlz(&ndm2, v.data());
 
@@ -1203,7 +1203,7 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   {
     integer tmp=(ndim*2);
-    nlvc(iap->lib->fp9, ndim2, tmp, 2, smat.data(), rnllv.data());
+    xpp::nlvc(iap->lib->fp9, ndim2, tmp, 2, smat.data(), rnllv.data());
   }
   nrmlz(&ndim2, rnllv.data());
 
@@ -1484,7 +1484,7 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     }
   }
 
-  nlvc(iap->lib->fp9, ndim2, ndim*2, 2, smat.data(), rnllv.data());
+  xpp::nlvc(iap->lib->fp9, ndim2, ndim*2, 2, smat.data(), rnllv.data());
   nrmlz(&ndim2, rnllv.data());
 
   /* Generate the (initially uniform) mesh. */

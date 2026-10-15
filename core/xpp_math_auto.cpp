@@ -1,14 +1,330 @@
-#include "xpp_mem.h"
+#include "xpp_math.h"
+#include "session.h"
+#include "auto_c.h"
+#include "xpp_log.h"
+#include "xpp_io.h"
+#include <array>
+#include <vector>
+
+namespace xpp {
+namespace {
+/* Complete-pivot search shared by ge and nlvc. Retain row-then-column scan,
+   strict > ties and the zero initial magnitude, including all-zero/NaN input. */
+void complete_pivot(integer n, integer leading, const double *a,
+                    const std::vector<integer> &ir, const std::vector<integer> &ic,
+                    integer first, integer &ipiv, integer &jpiv, double &piv)
+{
+    ipiv = first;
+    jpiv = first;
+    piv = 0.;
+    for (integer i = first; i < n; ++i) {
+        for (integer j = first; j < n; ++j) {
+            const double p = f2c::abs(a[ir[i] + ic[j] * leading]);
+            if (p > piv) {
+                piv = p;
+                ipiv = i;
+                jpiv = j;
+            }
+        }
+    }
+}
+
+/* One trailing row, shared without reordering ge's subsequent RHS updates.
+   The ratio is computed once, columns updated in permutation order, and zero
+   multipliers skip every update exactly as in both pre-W337 routines. */
+double complete_eliminate_row(integer n, integer leading, double *a,
+                              const std::vector<integer> &ir, const std::vector<integer> &ic,
+                              integer first, integer row)
+{
+    const double rm = a[ir[row] + ic[first] * leading] / a[ir[first] + ic[first] * leading];
+    if (rm != 0.) {
+        for (integer i = first + 1; i < n; ++i)
+            a[ir[row] + ic[i] * leading] -= rm * a[ir[first] + ic[i] * leading];
+    }
+    return rm;
+}
+} // namespace
+
+/* W337: AUTO eigenvalues: balanced EISPACK rg (elementary Hessenberg reduction,
+   machine-precision QR), no eigenvectors; preserve branch diagnostics.
+   Gear uses unbalanced Householder reduction and fixed 1e-10 QR instead. */
+/* Subroutine */ int 
+eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev, integer *ier)
+{
+    /* Local variables */
+  integer matz, ntop, ntot, i;
+
+  integer ibr;
+
+  std::vector<doublereal> z__(xpp::size_product(iap->ndim, iap->ndim));
+  std::vector<doublereal> wi(iap->ndim);
+  std::vector<doublereal> wr(iap->ndim);
+  std::vector<doublereal> fv1(iap->ndim);
+  std::vector<integer> iv1(iap->ndim);
+
+  /* This subroutine uses the EISPACK subroutine RG to compute the */
+  /* eigenvalues of the general real matrix A. */
+  /* NDIM is the dimension of A. */
+  /* M1A is the first dimension of A as in the DIMENSION statement. */
+  /* The eigenvalues are to be returned in the complex vector EV. */
+
+/* Local */
+
+  /* Parameter adjustments */
+  /*--ev;*/
+
+  ibr = iap->ibr;
+  ntot = iap->ntot;
+  ntop = (ntot + 1) % auto_point_label_modulo;
+
+  *ier = 0;
+  matz = 0;
+
+  rg(*m1a, *ndim, a, wr.data(), wi.data(), matz, z__.data(), iv1.data(), fv1.data(), ier);
+
+  for (i = 0; i < *ndim; ++i) {
+    ev[i].r = wr[i], ev[i].i = wi[i];
+  }
+
+  if (*ier != 0) {
+    *ier = 1;
+  }
+  if (*ier == 1) {
+    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Error return from EISPACK routine RG\n",ibr,ntop);
+    xpp::auto_fail("Error return from EISPACK routine RG");
+  }
+
+  return 0;
+} /* eig_ */
+
+/* W337: Complete-pivot null vector: the same strict > search as ge, but only n-k
+   elimination stages and its own free-component/backsubstitution order.
+   Share only the exact pivot search and trailing-row updates with ge; retain
+   NLVC's free components, singular divisions and diagnostics separately. */
+/* Subroutine */ int 
+nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
+{
+  /* System generated locals */
+  integer a_dim1;
+
+    /* Local variables */
+  integer ipiv, jpiv, i, j, l;
+  integer i1, jj, kk;
+  doublereal sm;
+  integer ip1, nmk;
+  doublereal piv;
+  integer jjp1;
+
+  std::vector<integer> ir(n);
+  std::vector<integer> ic(n);
+
+/* Finds a null-vector of a singular matrix A. */
+/* The null space of A is assumed to be K-dimensional. */
+
+/* Parameters : */
+
+/*     N : number of equations, */
+/*     M : first dimension of A from DIMENSION statement, */
+/*     K : dimension of nullspace, */
+/*     A : N * N matrix of coefficients, */
+/*     U : on exit U contains the null vector, */
+/* IR,IC : integer arrays of dimension at least N. */
+
+  /* Parameter adjustments */
+  /*--u;*/
+  /*--ir;*/
+  /*--ic;*/
+  a_dim1 = m;
+  
+  for (i = 0; i < n; ++i) {
+    ic[i] = i;
+    ir[i] = i;
+  }
+
+  /*   Elimination. */
+
+  nmk = n - k;
+
+  for (jj = 0; jj < nmk; ++jj) {
+    complete_pivot(n, a_dim1, a, ir, ic, jj, ipiv, jpiv, piv);
+    if (piv < auto_rsmall) {
+      xpp::print(fp9,"        NOTE:Pivot {:3} < {:10.3E}  in NLVC : A null space may be multi-dimensional\n",jj,auto_rsmall);	
+
+    }
+
+    kk = ir[jj];
+    ir[jj] = ir[ipiv];
+    ir[ipiv] = kk;
+
+    kk = ic[jj];
+    ic[jj] = ic[jpiv];
+    ic[jpiv] = kk;
+
+    jjp1 = jj + 1;
+    for (l = jjp1; l < n; ++l) {
+      (void)complete_eliminate_row(n, a_dim1, a, ir, ic, jj, l);
+    }
+  }
+
+  /*   Backsubstitution : */
+
+  for (i = 0; i < k; ++i) {
+    u[ic[-1 + n - i]] = 1.;
+  }
+
+  for (i1 = 0 ; i1 < nmk; ++i1) {
+    i = nmk - i1 - 1;
+    sm = 0.;
+    ip1 = i + 1;
+    for (j = ip1; j <  n; ++j) {
+      sm += ARRAY2D(a, ir[i], ic[j]) * u[ic[j]];
+    }
+    u[ic[i]] = -sm / ARRAY2D(a, ir[i], ic[i]);
+  }
+
+  /* Since the pointers for ir and ic were adjusted we need to put the
+       back here. */
+  /*ir \+= 1;*/
+  /*ic \+= 1;*/
+  return 0;
+} /* nlvc_ */
+
+/* W337: Complete pivoting: row-major search over permutation indices, strict > ties,
+   unchanged determinant product/sign order and fort.9 pivot diagnostics.
+   LINPACK sgefa uses partial pivoting and updates stored multipliers instead;
+   substituting it changes both rounding and AUTO diagnostics. */
+/* Subroutine */ int 
+ge(FILE *fp9, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det)
+{
+  /* System generated locals */
+  integer a_dim1, u_dim1, f_dim1;
+
+  /* Local variables */
+  integer ipiv, jpiv, i, j, k, l;
+  integer i1, jj;
+  doublereal rm, sm;
+  integer ip1, irh;
+  doublereal piv;
+  integer jjp1;
+
+  std::vector<integer> ic(n);
+  std::vector<integer> ir(n);
+
+/* Solves the linear system  A U = F by Gauss elimination */
+/* with complete pivoting. */
+
+/* Parameters : */
+
+/*   N   : number of equations, */
+/*   M1A : first dimension of A from DIMENSION statement, */
+/*   A   : N * N matrix of coefficients, */
+/*   NRHS: 0   if no right hand sides (determinant only), */
+/*         >0   if there are NRHS right hand sides, */
+/*   ndxloc : first dimension of U from DIMENSION statement, */
+/*   U   : on exit U contains the solution vector(s), */
+/*   M1F : first dimension of F from DIMENSION statement, */
+/*   F   : right hand side vector(s), */
+/*  IR,IC: integer vectors of dimension at least N. */
+
+/* The input matrix A is overwritten. */
+
+  /* Parameter adjustments */
+  /*--ir;*/
+  /*--ic;*/
+  a_dim1 = m1a;
+  u_dim1 = ndxloc;
+  f_dim1 = m1f;
+  
+  for (i = 0; i < n; ++i) {
+    ic[i] = i;
+    ir[i] = i;
+  }
+
+  /*   Elimination. */
+
+  *det = 1.;
+
+  for (jj = 0; jj < n - 1; ++jj) {
+    complete_pivot(n, a_dim1, a, ir, ic, jj, ipiv, jpiv, piv);
+    *det *= ARRAY2D(a, ir[ipiv], ic[jpiv]);
+    if(jj==0)  xpp::print(fp9,"\n Pivots in GE");
+    if((jj%6)==0) xpp::print(fp9,"\n");
+    xpp::print(fp9," {:4} {:12.3e} ",jj,f2c::abs(ARRAY2D(a, ir[ipiv], ic[jpiv])));
+    if (ipiv != jj) {
+      *det = -(*det);
+    }
+    if (jpiv != jj) {
+      *det = -(*det);
+    }
+
+    if (piv < auto_rsmall) {
+      xpp::print(fp9,"         NOTE:Pivot {:3} < {:10.3E}, in GE\n",jj,auto_rsmall);	
+    }
+
+    k = ir[jj];
+    ir[jj] = ir[ipiv];
+    ir[ipiv] = k;
+
+    k = ic[jj];
+    ic[jj] = ic[jpiv];
+    ic[jpiv] = k;
+
+    jjp1 = jj + 1;
+    for (l = jjp1; l < n; ++l) {
+      
+      rm = complete_eliminate_row(n, a_dim1, a, ir, ic, jj, l);
+      if (rm != 0.) {
+	if (nrhs != 0) {
+	  for (irh = 0; irh < nrhs; ++irh) {
+	    ARRAY2D(f, ir[l], irh) -= rm * ARRAY2D(f, ir[jj], irh);
+	  }
+	}
+      }
+    }
+  }
+  *det *= ARRAY2D(a, ir[n - 1], ic[n - 1]);
+     if((jj%6)==0) xpp::print(fp9,"\n");
+     xpp::print(fp9," {:4} {:12.3e} \n",n-1,ARRAY2D(a, ir[n - 1], ic[n - 1]));
+
+  if (nrhs == 0) {
+    /* Since the pointers for ir and ic were adjusted we need to put the
+       back here. */
+    /*ir \+= 1;*/
+    /*ic \+= 1;*/
+    return 0;
+  }
+
+  /*   Backsubstitution : */
+
+  for (irh = 0; irh < nrhs; ++irh) {
+    if(ARRAY2D(a, ir[n - 1], ic[n - 1]) == 0) {
+      xpp::auto_fail("division by zero: the linear system of a Newton step is singular");
+    }
+    ARRAY2D(u, ic[n - 1], irh) = ARRAY2D(f, ir[n - 1], irh) / ARRAY2D(a, ir[n - 1], ic[n - 1]);
+    for (i1 = 0; i1 < n - 1; ++i1) {
+      i = n - (i1 + 1) - 1;
+      sm = 0.;
+      ip1 = i + 1;
+      for (j = ip1; j < n; ++j) {
+	sm += ARRAY2D(a, ir[i], ic[j]) * ARRAY2D(u, ic[j], irh);
+      }
+      ARRAY2D(u, ic[i], irh) = (ARRAY2D(f, ir[i], irh) - sm) / ARRAY2D(a, ir[i], ic[i]);
+    }
+  }
+
+  /* Since the pointers for ir and ic were adjusted we need to put the
+       back here. */
+  /*ir \+= 1;*/
+  /*ic \+= 1;*/
+
+  return 0;
+} /* ge_ */
+
 /* autlib4.f -- translated by f2c (version 19970805).
    You must link the resulting object file with the libraries:
 	-lf2c -lm   (in that order)
 */
 
-#include <array>
-#include <vector>
-#include "xpp_io.h"
-#include "session.h"
-#include "auto_c.h"
 
 
 /* ----------------------------------------------------------------------- */
@@ -27,7 +343,7 @@
 /*  University of Toronto, Toronto, Ontario, CANADA  M5S 1A4C */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
-/*  Routines included in this file: */
+/*  Floquet helper routines retained from autlib4: */
 
 /*  subroutine flowkm : new routine to compute floquet multipliers */
 /*  subroutine dhhpr  : compute a Householder matrix */
@@ -64,6 +380,9 @@
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* W337: Floquet multipliers: Fairgrieve SVD deflation followed by generalized QZ,
+   retaining reflector/rotation order, multiplier ratios and diagnostics.
+   Ordinary rg or a matrix inverse followed by QR changes these operations. */
 /* Subroutine */ int 
 flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *rwork, doublecomplex *ev, bool deflate)
 {
@@ -713,3 +1032,343 @@ on.*/
 
 
 
+
+
+/* W337: HomCont eigenvectors: rg with vectors, optional transpose, ascending real
+   roots, conjugate-column unpacking and previous-vector sign continuity.
+   Gear computes no vectors; its fixed-tolerance QR cannot replace this path. */
+/* Subroutine */ int 
+eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm, doublereal *dfdu, doublereal *dfdp, doublereal *zz)
+{
+  /* System generated locals */
+  integer dfdu_dim1, zz_dim1;
+
+  /* Local variables */
+
+  integer i, j, k, ifail;
+  doublereal vdot;
+
+  std::vector<doublereal> f(*ndm);
+  std::vector<doublereal> ridum(*ndm);
+  std::vector<doublereal> vidum(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> rrdum(*ndm);
+  std::vector<doublereal> vrdum(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> vi(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> vr(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> fv1(*ndm);
+  std::vector<integer> iv1(*ndm);
+
+  /* Uses EISPACK routine RG to calculate the eigenvalues/eigenvectors */
+  /* of the linearization matrix a (obtained from DFHO) and orders them */
+  /* according to their real parts. Simple continuity with respect */
+  /* previous call with same value of ITRANS. */
+
+  /* 	input variables */
+  /* 		ISIGN  = 1 => left-hand endpoint */
+  /*       	       = 2 => right-hand endpoint */
+  /*               ITRANS = 1 use transpose of A */
+  /*                      = 2 otherwise */
+
+/*       output variables */
+/* 		RR,RI real and imaginary parts of eigenvalues, ordered w.r.t */
+/* 	           real parts (largest first) */
+/* 	        VRET the rows of which are real parts of corresponding */
+/*                  eigenvectors */
+
+/* Local */
+
+    /* Parameter adjustments */
+    /*--rr;*/
+    /*--ri;*/
+    /*--xequib;*/
+    /*--icp;*/
+    /*--par;*/
+  vret -= ((*ndm)+1);
+  zz_dim1 = *ndm;
+  dfdu_dim1 = *ndm;
+    
+  ifail = 0;
+
+  func(*iap->lib->session, *ndm, xequib, icp, iap->nfpr, par, 1, f.data(), dfdu, 
+       dfdp);
+
+  if (*itrans == 1) {
+    for (i = 0; i < *ndm; ++i) {
+      for (j = 0; j < *ndm; ++j) {
+	vrdum[i + j * (*ndm)] = ARRAY2D(dfdu, j, i);
+      }
+    }
+    for (i = 0; i < *ndm; ++i) {
+      for (j = 0; j < *ndm; ++j) {
+	ARRAY2D(dfdu, i, j) = vrdum[i + j * (*ndm)];
+      }
+    }
+  }
+
+  /* EISPACK call for eigenvalues and eigenvectors */
+  rg(*ndm, *ndm, dfdu, rr, ri, 1, zz, 
+     iv1.data(), fv1.data(), &ifail);
+
+  if (ifail != 0) {
+    xpp::print(iap->lib->fp9,"EISPACK EIGENVALUE ROUTINE FAILED !\n");	
+  }
+
+  for (j = 0; j < *ndm; ++j) {
+    if (ri[j] > 0.) {
+      for (i = 0; i < *ndm; ++i) {
+	vr[i + j * (*ndm)] = ARRAY2D(zz, i, j);
+	vi[i + j * (*ndm)] = ARRAY2D(zz, i, (j + 1));
+      }
+    } else if (ri[j] < 0.) {
+      for (i = 0; i < *ndm; ++i) {
+	vr[i + j * (*ndm)] = ARRAY2D(zz, i, (j - 1));
+	vi[i + j * (*ndm)] = -ARRAY2D(zz, i, j);
+      }
+    } else {
+      for (i = 0; i < *ndm; ++i) {
+	vr[i + j * (*ndm)] = ARRAY2D(zz, i, j);
+	vi[i + j * (*ndm)] = 0.;
+      }
+    }
+  }
+  /*Order the eigenvectors/values according size of real part of eigenvalue.
+*/
+/*     (smallest first) */
+
+  for (i = 0; i < *ndm - 1; ++i) {
+    for (j = i + 1; j < *ndm; ++j) {
+      if (rr[i] > rr[j]) {
+	rrdum[i] = rr[i];
+	ridum[i] = ri[i];
+	rr[i] = rr[j];
+	rr[j] = rrdum[i];
+	ri[i] = ri[j];
+	ri[j] = ridum[i];
+	for (k = 0; k < *ndm; ++k) {
+	  vrdum[k + i * (*ndm)] = vr[k + i * (*ndm)];
+	  vr[k + i * (*ndm)] = vr[k + j * (*ndm)];
+	  vr[k + j * (*ndm)] = vrdum[k + i * (*ndm)];
+	  vidum[k + i * (*ndm)] = vi[k + i * (*ndm)];
+	  vi[k + i * (*ndm)] = vi[k + j * (*ndm)];
+	  vi[k + j * (*ndm)] = vidum[k + i * (*ndm)];
+	}
+      }
+    }
+  }
+
+  /* Choose sign of real part of eigenvectors to be */
+  /* commensurate with that of the corresponding eigenvector */
+  /* from the previous call with the same value of ISIGN */
+
+  if (iap->lib->homcont.blhme.ieigc[*itrans - 1] == 0) {
+    for (j = 0; j < *ndm; ++j) {
+      for (i = 0; i < *ndm; ++i) {
+	iap->lib->homcont.blhme.vrprev[*itrans + (i * 2 + j * (*ndm) * 2) - 1] = vr[i + j * (*ndm)];
+      }
+    }
+    iap->lib->homcont.blhme.ieigc[*itrans - 1] = 1;
+  }
+  for (i = 0; i < *ndm; ++i) {
+    vdot = 0.;
+    {
+      integer tmp;
+      tmp = *ndm;
+      for (j = 0; j < tmp; ++j) {
+	vdot += vr[j + i * tmp] * iap->lib->homcont.blhme.vrprev[*itrans + (j * 2 + i * tmp * 2) - 1];
+      }
+    }
+    if (vdot < 0.) {
+      for (j = 0; j < *ndm; ++j) {
+	vr[j + i * (*ndm)] = -vr[j + i * (*ndm)];
+	/*               VI(J,I)=-VI(J,I) */
+      }
+    }
+    for (j = 0; j < *ndm; ++j) {
+      iap->lib->homcont.blhme.vrprev[*itrans + (j * 2 + i * (*ndm) * 2) - 1] = vr[j + i * (*ndm)];
+    }
+  }
+
+  /* Send back the transpose of the matrix of real parts of eigenvectors */
+  for (i = 0; i < *ndm; ++i) {
+    for (j = 0; j < *ndm; ++j) {
+      vret[(i + 1) + (j + 1) * (*ndm)] = vr[j + i * (*ndm)];
+    }
+  }
+
+  return 0;
+} /* eigho_ */
+
+/* W337: HomCont projections: Householder basis then ordered real Schur hqr3lc,
+   caller compzero tolerance and Beyn continuity via complete-pivot ge.
+   Keep basis, dot-product and solve order: rg eigenvectors are not this basis. */
+/* Subroutine */ int 
+prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer *imfd, integer *is, integer *itrans, integer *ndm, doublereal *dfdu, doublereal *dfdp)
+{
+  /* System generated locals */
+  integer dfdu_dim1;
+
+    /* Local variables */
+  integer i, j, k;
+  integer mcond, k1, k2, m0;
+
+  doublereal det, eps;
+
+  std::vector<doublereal> fdum(*ndm);
+  std::vector<doublereal> cnow(xpp::size_product(*ndm, *ndm));
+  std::vector<integer> type__(*ndm);
+  std::vector<doublereal> a(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> d(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> v(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> ei(*ndm);
+  std::vector<doublereal> er(*ndm);
+  std::vector<doublereal> ort(*ndm);
+  std::vector<doublereal> dum1(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> dum2(xpp::size_product(*ndm, *ndm));
+
+  /* Compute NUNSTAB (or NSTAB) projection boundary condition functions */
+  /*onto to the UNSTABLE (or STABLE) manifold of the appropriate equilibrium
+   */
+
+/*    IMFD   = -1 stable eigenspace */
+/*           =  1 unstable eigenspace */
+/*    ITRANS =  1 use transpose of A */
+/*           =  2 otherwise */
+/*    IS     =  I (1 or 2) implies use the ith equilibrium in XEQUIB */
+
+/* Use the normalization in Beyn 1990 (4.4) to ensure continuity */
+/* w.r.t parameters. */
+/* For the purposes of this routine the "previous point on the */
+/* branch" is at the values of PAR at which the routine was last */
+/* called with the same values of IS and ITRANS. */
+
+/* Local */
+
+    /* Parameter adjustments */
+    /*--xequib;*/
+    /*--icp;*/
+    /*--par;*/
+  bound -= ((*ndm)+1);
+  dfdu_dim1 = *ndm;
+  
+  func(*iap->lib->session, *ndm, xequib, icp, iap->nfpr, par, 1, fdum.data(), dfdu, dfdp);
+
+  /* Compute transpose of A if ITRANS=1 */
+  if (*itrans == 1) {
+    for (i = 0; i < *ndm; ++i) {
+      for (j = 0; j < *ndm; ++j) {
+	a[i + j * (*ndm)] = ARRAY2D(dfdu, j, i);
+      }
+    }
+  } else {
+    for (i = 0; i < *ndm; ++i) {
+      for (j = 0; j < *ndm; ++j) {
+	a[i + j * (*ndm)] = ARRAY2D(dfdu, i, j);
+      }
+    }
+  }
+
+  /* Compute basis V to put A in upper Hessenberg form */
+  {
+    /* This is here since I don't want to change the calling sequence of the
+       BLAS routines. */
+    integer tmp = 1;
+    orthes((ndm), ndm, &tmp, ndm, a.data(), ort.data());
+    ortran((ndm), ndm, &tmp, ndm, a.data(), ort.data(), v.data());
+  }
+
+  /* Force A to be upper Hessenberg */
+  if (*ndm > 2) {
+    for (i = 2; i < *ndm; ++i) {
+      for (j = 0; j < i - 1; ++j) {
+	a[i + j * (*ndm)] = 0.;
+      }
+    }
+  }
+
+  /* Computes basis to put A in "Quasi Upper-Triangular form" */
+  /* with the positive (negative) eigenvalues first if IMFD =-1 (=1) */
+  eps = iap->lib->homcont.blhma.compzero;
+  {
+    /* This is here since I don't want to change the calling sequence of the
+       BLAS routines. */
+    integer tmp = 1;
+    hqr3lc(a.data(), v.data(), ndm, &tmp, ndm, &eps, er.data(), ei.data(), type__.data(), (ndm), (ndm),
+	   imfd);
+  }
+  /* Put the basis in the appropriate part of the matrix CNOW */
+  if (*imfd == 1) {
+    k1 = *ndm - iap->lib->homcont.blhom.nunstab + 1;
+    k2 = *ndm;
+  } else {
+    k1 = 1;
+    k2 = iap->lib->homcont.blhom.nstab;
+  }
+  mcond = k2 - k1 + 1;
+  m0 = k1 - 1;
+
+  for (i = k1 - 1; i < k2; ++i) {
+    for (j = 0; j < *ndm; ++j) {
+      cnow[i + j * (*ndm)] = v[j + (i - k1 + 1) * (*ndm)];
+    }
+  }
+
+  /* Set previous matrix to be the present one if this is the first call */
+
+    /* Note by Randy Paffenroth:  There is a slight problem here
+       in that this array is used before it is assigned to,
+       hence its value is, in general, undefined.  It has
+       worked because the just happened to be filled
+       with zeros, even though this is not guaranteed.*/
+  if (iap->lib->homcont.beyn.iflag[*is + (*itrans *2 ) - 3] == 0) {
+    for (i = k1 - 1; i < k2; ++i) {
+      for (j = 0; j < *ndm; ++j) {
+	iap->lib->homcont.beyn.cprev[i + (j + ((*is - 1) + ((*itrans - 1) * 2)) * (*ndm)) * (*ndm)] = cnow[i + j * (*ndm)];
+	bound[(i + 1) + (j + 1) * (*ndm)] = cnow[i + j * (*ndm)];
+      }
+    }
+    iap->lib->homcont.beyn.iflag[*is + (*itrans * 2) - 3] = 1;
+    return 0;
+  }
+
+  /* Calculate the (transpose of the) BEYN matrix D and hence BOUND */
+  for (i = 0; i < mcond; ++i) {
+    for (j = 0; j < mcond; ++j) {
+      dum1[i + j * (*ndm)] = 0.;
+      dum2[i + j * (*ndm)] = 0.;
+      {
+	integer tmp;
+	tmp = *ndm;
+	for (k = 0; k < tmp; ++k) {
+	  dum1[i + j * (tmp)] += iap->lib->homcont.beyn.cprev[i + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)] 
+	    * cnow[j + m0 + k * (tmp)];
+	  dum2[i + j * (tmp)] += iap->lib->homcont.beyn.cprev[i + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)] 
+	    * iap->lib->homcont.beyn.cprev[j + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)];
+	}
+      }
+    }
+  }
+
+  if (mcond > 0) {
+    ge(iap->lib->fp9, mcond, *ndm, dum1.data(), mcond, *ndm, d.data(), *ndm,
+       dum2.data(), &det);
+  }
+
+  for (i = 0; i < mcond; ++i) {
+    for (j = 0; j < *ndm; ++j) {
+      bound[(i + 1) + m0 + (j + 1) * (*ndm)] = 0.;
+      for (k = 0; k < mcond; ++k) {
+	bound[(i + 1) + m0 + (j + 1) * (*ndm)] += d[k + i * (*ndm)] * 
+	  cnow[k + m0 + j * (*ndm)];
+      }
+    }
+  }
+
+  for (i = k1 - 1; i < k2; ++i) {
+    for (j = 0; j < *ndm; ++j) {
+      iap->lib->homcont.beyn.cprev[i + (j + ((*is - 1) + ((*itrans - 1) * 2)) * (*ndm)) * (*ndm)] = bound[(i + 1) + (j + 1) * (*ndm)];
+    }
+  }
+
+  return 0;
+} /* prjctn_ */
+} // namespace xpp

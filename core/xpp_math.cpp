@@ -279,6 +279,9 @@ void sscal(int n, double sa, double *sx, int incx)
 
 } // namespace
 
+/* LINPACK partial pivoting, first maximum in each column; negative stored
+   multipliers and row updates in the original order. AUTO ge instead searches
+   the complete trailing matrix and accumulates a determinant and pivot log. */
 void sgefa(double *a, int lda, int n, int *ipvt, int *info)
 {
     *info = -1;
@@ -310,6 +313,8 @@ void sgefa(double *a, int lda, int n, int *ipvt, int *info)
     if (a[(n - 1) * lda + n - 1] == 0.0) *info = n - 1;
 }
 
+/* Solve from sgefa's partial-pivot LU, retaining pivot application and dot
+   accumulation order; AUTO ge performs its own complete-pivot substitution. */
 void sgesl(double *a, int lda, int n, int *ipvt, double *b)
 {
     for (int k = 1; k <= n - 1; k++) {
@@ -345,6 +350,8 @@ int sgefa_det_sign(const double *a, int lda, int n, const int *ipvt)
 /* ------------------------------------------------------------------ */
 /* Banded LU, no pivoting                                              */
 
+/* Band LU without pivoting, in-place row updates; a zero diagonal returns
+   -1-row. Neither dense pivot policy preserves this factorization's order. */
 int bandfac(double *a, int ml, int mr, int n)
 {
     const int n1 = n - 1, mt = ml + mr + 1;
@@ -369,6 +376,8 @@ int bandfac(double *a, int ml, int mr, int n)
     return 0;
 }
 
+/* Forward/back substitution for the unpivoted band factors, preserving each
+   band-limited sum's direction. */
 void bandsol(double *a, double *b, int ml, int mr, int n)
 {
     const int mt = ml + mr + 1, n1 = n - 1;
@@ -397,6 +406,9 @@ double sign(double a, double b)
 
 namespace {
 
+/* Gear Householder variant: fabs/sign scalar semantics, reversed inner sums,
+   no eigenvector accumulation; AUTO's leading-dimension overload retains
+   f2c abs/SIGN semantics (notably -0 and NaN) in xpp_math_eispack.cpp. */
 void orthes(int n, int low, int igh, double *a, double *ort)
 {
     const int la = igh - 1;
@@ -443,6 +455,9 @@ void orthes(int n, int low, int igh, double *a, double *ort)
 /* EISPACK's hqr, labels kept from the Fortran (l60: next eigenvalue,
    l70: next iteration, l270: one root found, l280: two, l1000: no
    convergence) */
+/* Gear QR variant: fixed 1e-10 relative convergence, 30 iterations per root,
+   eigenvalues only. EISPACK's floating-addition convergence and shared 30*n
+   budget cannot replace this without changing roots and failure status. */
 void hqr(int n, int low, int igh, double *h, double *ev, int *ierr)
 {
     int i, j, k, l = 0, m = 0, en, ll, mm, na, its, mp2, enm2;
