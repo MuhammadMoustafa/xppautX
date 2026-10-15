@@ -16,22 +16,19 @@ struct Session; /* session.h */
 /* Bound both allocation and formula evaluation from hostile table counts to 8 MB per session. */
 inline constexpr int table_points_limit = 1000000;
 
-/* a model's table (xpp::Model's tables, model.h): file or function values y on [xlo,xhi] step dx (x too
-   when xyvals); y stays a raw double* because simplenet.cpp's networks
+/* a model's table (xpp::Model's tables, model.h): file or function values y on [xlo,xhi]
+   step dx; y stays a raw double* because simplenet.cpp's networks
    keep pointers into it (weights, indices, delays); y_storage owns that
    block (tabular.cpp's resize_values), a std::vector instead of a
    hand-paired xpp_realloc/xpp_free */
 struct TABULAR {
   double xlo=0.0,xhi=0.0,dx=0.0;
-  double *y=nullptr,*x=nullptr;
+  double *y=nullptr;
   std::vector<double> y_storage;
   int n=0,flag=0,interp=0,autoeval=0;
-  int xyvals=0;
 /* flag=0 if virgin array, flag=1 if already allocated; flag=2 for function
    interp=0 for normal interpolation, interp=1 for 'step'
-   interp=2 for cubic spline
-   and finally, xyvals=1 if both x and y vals are needed (xyvals=0
-   is faster lookup) */
+   interp=2 for cubic spline */
   std::string filename; /* the file, or a function table's formula */
   std::string name;
 };

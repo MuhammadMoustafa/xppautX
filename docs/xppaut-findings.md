@@ -73,7 +73,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [40](#40-shift-del_shft-and-set-reach-outside-the-variables) | Expressions | `shift` and `del_shft` read, and `set` writes, outside the variables with an index computed at run time | [W265](https://github.com/MuhammadMoustafa/xppautX/issues/322) |
 | [41](#41-rosenbrock-scales-past-or-short-of-its-banded-jacobian) | Numerics | Rosenbrock scales the dense matrix size even when its Jacobian is banded, and wide bands exceed the work array | [W261](https://github.com/MuhammadMoustafa/xppautX/issues/318) |
 | [42](#42-bessel-i-casts-its-order-without-checking-it) | Numerics | `bessel_i` converts unchecked model input to `int` | [W271](https://github.com/MuhammadMoustafa/xppautX/issues/328) |
-| [43](#43-an-xy-table-extrapolates-past-its-last-point-the-wrong-way) | Tables | a table of x and y values extrapolates past its last x with the last segment's slope reversed | [W260](https://github.com/MuhammadMoustafa/xppautX/issues/317) |
+| [43](#43-an-xy-table-extrapolates-past-its-last-point-the-wrong-way-in-code-nothing-reaches) | Tables | a table of x and y values extrapolates past its last x with the last segment's slope reversed, in a lookup no reader reaches | [W260](https://github.com/MuhammadMoustafa/xppautX/issues/317), [W373](https://github.com/MuhammadMoustafa/xppautX/issues/435) |
 | [44](#44-every-name-is-found-by-scanning-every-symbol) | Speed | every name in a formula is found by scanning the whole symbol table, so loading grows with the square of the model's size | [W245](https://github.com/MuhammadMoustafa/xppautX/issues/301) |
 | [45](#45-a-model-past-maxode-overflows-the-stack-instead-of-being-refused) | Limits | a model with 4999 or more equations or fixed quantities writes past `compile_em`'s name arrays: an abort ("buffer overflow detected") or a corrupted stack, not an error | [W269](https://github.com/MuhammadMoustafa/xppautX/issues/326) |
 | [46](#46-parameter-files-ignore-names-and-load-by-position) | Parameter files | reordering `.par` lines silently assigns values to the wrong parameters | [W310](https://github.com/MuhammadMoustafa/xppautX/issues/369) |
@@ -772,14 +772,15 @@ XPPAUT converts the order directly to `int`; a NaN or out-of-range model value h
 - **xppautX:** NaN and non-finite inputs return NaN, negative integer orders use `I_{-n}(x)=I_n(x)`, and orders above 100000 return NaN to bound the input-controlled recurrence.
 - **Card:** [W271](https://github.com/MuhammadMoustafa/xppautX/issues/328).
 
-## 43. An xy table extrapolates past its last point the wrong way
+## 43. An xy table extrapolates past its last point the wrong way, in code nothing reaches
 
 A lookup table given as x and y values (`xyvals`) extrapolates linearly past either end. Before the first x it continues the first segment, as it should; past the last x it uses the last segment's slope with its sign reversed, so the table's value turns back at its last point instead of continuing.
 
 - **XPPAUT 8.0:** `lookupxy` returns `yv[n-1]+(yv[n-2]-yv[n-1])*(x-xv[n-1])/(xv[n-1]-xv[n-2])` for `x>=xv[n-1]` ([tabular.c:215-216](../reference/xppaut-8.0/tabular.c#L215)); master has the same ([tabular.c:215-216](../reference/xppaut-master/tabular.c#L215)). The other end uses `(yv[1]-yv[0])`, the slope's right sign ([tabular.c:213-214](../reference/xppaut-8.0/tabular.c#L213)), and an evenly spaced table past its last point `(y[n-1]-y[n-2])` ([tabular.c:284](../reference/xppaut-8.0/tabular.c#L284)).
 - **Evidence:** a table of the points (0,0), (1,1), (2,2) gives -1 at x=-1, continuing its line, but 1 at x=3, not 3: `2+(1-2)*(3-2)/(2-1)`.
-- **xppautX:** keeps XPPAUT's values (the numerics change only on purpose); the exact Jacobian (W260) differentiates the lookup as XPPAUT computes it, so its slope past the last x is that reversed slope too.
-- **Card:** [W260](https://github.com/MuhammadMoustafa/xppautX/issues/317).
+- **Never reached:** no reader sets `xyvals`. The format is described in tabular.c's comment ([tabular.c:34-40](../reference/xppaut-8.0/tabular.c#L34)) but `load_table` reads only the evenly spaced form, so `lookupxy` ([tabular.c:207](../reference/xppaut-8.0/tabular.c#L207), called at [263](../reference/xppaut-8.0/tabular.c#L263)) is dead code in XPPAUT; the wrong slope above is in code no model can run.
+- **xppautX:** W260 kept the lookup as XPPAUT computed it; W373 found it unreachable and removed it with the `xyvals` field (maintainer, 2026-10-15: no model or user needs tables of uneven x). An implementation of the format (x checked increasing at load, lookups by halves) is kept unmerged on the branch `task/W373-xyvals-tables`.
+- **Card:** [W260](https://github.com/MuhammadMoustafa/xppautX/issues/317), [W373](https://github.com/MuhammadMoustafa/xppautX/issues/435).
 
 ## 44. Every name is found by scanning every symbol
 

@@ -38,14 +38,6 @@
 
      Thus   dx = (xhi-xlo)/(npts-1)
 
-    If the first line of the file says "xyvals" then the table is of the
-    form: x1 < x2 < .... < xn
-    npts
-    x1 y1
-    x2 y2 
-     ...
-    xn yn
-
   In the creation of the file, one can instead use the following:
   
  table <name> % numpts xlo xhi formula
@@ -179,29 +171,6 @@ struct Interpolated {
   double value, slope;
 };
 
-/* the table of n points (xv, yv), linearly interpolated, extrapolated
-   past its ends; past the last x with that end's slope reversed, as
-   XPPAUT does (docs/xppaut-findings.md) */
-Interpolated lookupxy(double x, int n, const double *xv, const double *yv)
-{
-  if(x<=xv[0]){
-    const double slope=(yv[1]-yv[0])/(xv[1]-xv[0]);
-    return {yv[0]+(yv[1]-yv[0])*(x-xv[0])/(xv[1]-xv[0]),slope};
-  }
-  if(x>=xv[n-1])
-    return {yv[n-1]+(yv[n-2]-yv[n-1])*(x-xv[n-1])/(xv[n-1]-xv[n-2]),(yv[n-2]-yv[n-1])/(xv[n-1]-xv[n-2])};
-  double x1=xv[0],y1=yv[0];
-  for(int i=1;i<n;i++){
-    if(x<=xv[i]){
-      const double dx=xv[i]-x1,dy=yv[i]-y1;
-      return {y1+dy*(x-x1)/dx,dy/dx};
-    }
-    x1=xv[i];
-    y1=yv[i];
-  }
-  return {yv[n-1],0.0};
-}
-
 /* the cubic through y[i-1..i+2] (from xlo, step h) at x */
 Interpolated tab_interp(double xlo, double h, double x, const double *y, int i)
 {
@@ -220,8 +189,6 @@ Interpolated interpolate(const xpp::TABULAR &t, double x)
   const double *y=t.y;
   const int n=t.n;
   if(t.flag==0)return {0.0,0.0}; /* Not defined   */
-  if(t.xyvals==1)
-    return lookupxy(x,n,t.x,y);
   const int i1=static_cast<int>((x-xlo)/dx);   /* (int)floor(x) instead of (int)x ??? */
   if(t.interp==2&&i1>0&&i1<(n-2))
     return tab_interp(xlo,dx,x,y,i1); /* if it is on the edge - use linear */
