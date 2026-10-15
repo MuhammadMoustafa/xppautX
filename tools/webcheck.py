@@ -389,8 +389,14 @@ try:
     _, ask = collect(lambda e: e['ev'] == 'ask', 10)
 except OSError:  # the POST timed out
     ask = None
-check('an idle connection (a preconnect) and a stalled upload hold up no command: its menu arrives while both stay open',
-      ask is not None, 'no ask within the safety wait')
+stall.setblocking(False)
+try:  # a reply or a close would mean the server stopped waiting for the upload
+    stall.recv(1, socket.MSG_PEEK)
+    upload_waiting = False
+except BlockingIOError:
+    upload_waiting = True
+check('an idle connection (a preconnect) and a stalled upload hold up no command: its menu arrives while the upload still waits',
+      ask is not None and upload_waiting, 'ask %s, upload still waiting %s' % (ask is not None, upload_waiting))
 if ask:
     post({'cmd': 'answer', 'id': ask['id'], 'key': 'Escape'})
     collect(lambda e: e['ev'] == 'idle')

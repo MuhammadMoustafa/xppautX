@@ -337,7 +337,7 @@ def section_input():
     # character device like a console: W18), a closed pipe and an empty file;
     # a few runs each, since a wrong console attach hung only some of them
     hung = []
-    took_s = []
+    times = []
     with tempfile.TemporaryFile() as empty:
         for how in ['null device'] * 3 + ['closed pipe'] * 2 + ['empty file'] * 2:
             if how == 'closed pipe':
@@ -350,12 +350,12 @@ def section_input():
             try:
                 subprocess.run([os.path.abspath(args.server), '--server', os.path.abspath(LECAR)], stdin=stdin,
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10 * SLOW)
-                took_s.append('%s %.2f s' % (how, time.monotonic() - t))
+                times.append('%s %.2f s' % (how, time.monotonic() - t))
             except subprocess.TimeoutExpired:
                 hung.append(how)
             if how == 'closed pipe':
                 os.close(rfd)
-    perf('--server exits at end of input: ' + ', '.join(took_s))
+    perf('--server exits at end of input', ', '.join(times))
     check('--server exits at end of input (null device, closed pipe, empty file)', not hung,
           'no exit in %g s: %s' % (10 * SLOW, ', '.join(hung)))
 
