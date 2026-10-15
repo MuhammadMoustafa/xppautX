@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Speed up AUTO condensation with cached row maxima and physical pivot swaps, preserving numerical results and interval threading (W360, [#422](https://github.com/MuhammadMoustafa/xppautX/issues/422)).
+
 - Locate AUTO special points with AUTO-07p Mueller steps, retry-corrected abscissae, refreshed test histories, coincidence rules and multiplier stability criteria; seven explained diagram changes pass the unchanged reference tolerances (W356, [#418](https://github.com/MuhammadMoustafa/xppautX/issues/418)).
 - W331 ([#392](https://github.com/MuhammadMoustafa/xppautX/issues/392)): AUTO marks grow with the session; forms, protocol and session files preserve more than nine marks and reject invalid edits atomically.
 
