@@ -3,7 +3,7 @@
 #include <vector> /* first: auto_f2c.h's min/max macros (pulled in below) break libstdc++ headers if not included first */
 #include "autevd.h"
 #include "session.h"
-#include <stdlib.h>
+#include <cstdlib>
 #include <math.h>
 #include <stdio.h>
 
@@ -107,7 +107,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
       !xpp::all_finite({a, 1}) || !xpp::all_finite({&per, 1}) ||
       !xpp::all_finite(uhigh) || !xpp::all_finite(ulow) || !xpp::all_finite(u0) || !xpp::all_finite(ubar) ||
       !xpp::all_finite(p.evr) || !xpp::all_finite(p.evi))
-    auto_nonfinite(*iap, labs(ntots));
+    auto_nonfinite(*iap, std::abs(ntots));
 
   int from=auto_run_from_take(s); /* the run's first point says which label it started from */
   p.ibr=static_cast<int>(ibrs);
@@ -149,7 +149,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
      or a grab shows it */
   const DIAGRAM *d=last_diagram(s.diagram);
   add_point(s,*d,type,iap->ntot==1?0:1);
-  xpp::job::report_point(static_cast<int>(labs(ibrs)),static_cast<int>(labs(ntots))); /* xppautX: where it got to (xpp_job.h) */
+  xpp::job::report_point(static_cast<int>(std::abs(ibrs)),static_cast<int>(std::abs(ntots))); /* xppautX: where it got to (xpp_job.h) */
 }
 
 
