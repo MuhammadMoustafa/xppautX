@@ -308,6 +308,7 @@ const CURVES = ['', 'limit point', 'limit point of periodic orbits', 'Hopf', 'to
 const SYMBOLS: Record<string, string> = {
   EP: 'End point', MX: 'No convergence', LP: 'Fold (limit point)', HB: 'Hopf', BP: 'Branch point',
   PD: 'Period doubling', TR: 'Torus', UZ: 'Marked value',
+  BT: 'Bogdanov-Takens', CP: 'Cusp', ZH: 'Zero-Hopf', GH: 'Generalised Hopf',
 };
 
 /** what each label type means, for the key's tooltips (docs/manual/09-auto.md) */
@@ -321,6 +322,10 @@ const SYMBOL_HELP: Record<string, string> = {
   PD: 'Period doubling: a Floquet multiplier crosses -1; orbits of twice the period start here',
   TR: 'Torus bifurcation: a pair of Floquet multipliers crosses the unit circle; an invariant torus starts here',
   UZ: 'Marked value: a parameter, or the period T, reached one of the Mark values',
+  BT: 'Bogdanov-Takens: two zero eigenvalues on a fold or Hopf curve',
+  CP: 'Cusp: the quadratic coefficient of the fold vanishes',
+  ZH: 'Zero-Hopf: a zero eigenvalue and an imaginary pair meet',
+  GH: 'Generalised Hopf (Bautin): the first Lyapunov coefficient vanishes',
 };
 
 export function fmt(v: number): string {
@@ -352,6 +357,7 @@ export type LabelShape = 'circle' | 'triangle' | 'diamond' | 'square' | 'star' |
 
 const LABEL_SHAPES: Record<string, LabelShape> = {
   HB: 'circle', LP: 'triangle', BP: 'diamond', PD: 'square', TR: 'star', UZ: 'invTriangle', MX: 'cross', EP: 'bar',
+  BT: 'diamond', CP: 'triangle', ZH: 'star', GH: 'circle',
 };
 
 export function labelShape(sym: string): LabelShape {

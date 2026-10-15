@@ -87,6 +87,7 @@ struct LocationState {
   double dsold, det, tivp;
   integer nit, nins, isp;
   xpp::AutoStability::Values stability;
+  std::vector<double> codim_left;
   decltype(AutoLib::solvbv) solvbv;
   decltype(AutoLib::homcont) homcont;
 
@@ -95,6 +96,7 @@ struct LocationState {
     : dsold(rap.dsold), det(rap.det), tivp(rap.tivp),
       nit(iap.nit), nins(iap.nins), isp(iap.isp),
       stability(iap.lib->session->auto_state.stability.computed),
+      codim_left(iap.lib->codim.previous_left),
       solvbv(iap.lib->solvbv), homcont(iap.lib->homcont)
   {
     arrays.reserve(data.size());
@@ -109,6 +111,7 @@ struct LocationState {
     iap.nins = nins;
     iap.isp = isp;
     iap.lib->session->auto_state.stability.computed = stability;
+    iap.lib->codim.previous_left = codim_left;
     iap.lib->solvbv = solvbv;
     iap.lib->homcont = homcont;
   }
@@ -957,6 +960,9 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Generate the starting point */
 
+  iap->lib->codim.prepare(iap->ndm);
+  double rbt=0, rcp=0, rgh=0;
+  const auto special_points=iap->lib->session->auto_state.special_points;
   (*stpnt)(iap, rap, par, icp, u.data());
   (*pvli)(iap, rap, u.data(), par);
 
@@ -1084,9 +1090,18 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     for (integer index = 0; index < nuzr; ++index)
       tests.push_back({fnuzae, uzr[index], xpp::AutoPointKind::UserZero, index});
     if (iap->ilp == 1) tests.push_back({fnlpae, rlp, xpp::AutoPointKind::Fold, {}});
-    if (isp != 0) tests.push_back({fnbpae, rbp, xpp::AutoPointKind::BranchPoint, {}});
+    if (isp != 0 && iap->isw!=2) tests.push_back({fnbpae, rbp, xpp::AutoPointKind::BranchPoint, {}});
+    const bool fold_curve=iap->isw==2 && iap->itpst==xpp::AutoPointKind::Fold;
+    const bool hopf_curve=iap->isw==2 && iap->itpst==xpp::AutoPointKind::Hopf && iap->ndim==2*iap->ndm+2;
+    const bool codim=ips==xpp::AutoProblem::SteadyState && (fold_curve || hopf_curve);
+    if (codim && isp!=0 && isp!=3 && xpp::auto_codim_enabled(special_points,xpp::AutoPointKind::BogdanovTakens))
+      tests.push_back({fnbtae,rbt,xpp::AutoPointKind::BogdanovTakens,{}});
+    if (codim && isp!=0 && isp!=3 && fold_curve && xpp::auto_codim_enabled(special_points,xpp::AutoPointKind::Cusp))
+      tests.push_back({fncpae,rcp,xpp::AutoPointKind::Cusp,{}});
     if (xpp::problem_is_steady_or_map(ips))
-      tests.push_back({fnhbae, rev, xpp::AutoPointKind::Hopf, {}});
+      tests.push_back({fnhbae, rev, codim ? xpp::AutoPointKind::ZeroHopf : xpp::AutoPointKind::Hopf, {}});
+    if (codim && isp!=0 && isp!=3 && hopf_curve && xpp::auto_codim_enabled(special_points,xpp::AutoPointKind::GeneralizedHopf))
+      tests.push_back({fnghae,rgh,xpp::AutoPointKind::GeneralizedHopf,{}});
     locate_tests(*iap, *rap, tests, marks,
       [&](const auto &test) {
         logical changed;
@@ -1857,6 +1872,9 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   /* Compute the eigenvalues of the Jacobian */
 
+  const bool codim_curve=ips==xpp::AutoProblem::SteadyState && isw==2 &&
+      (iap->itpst==xpp::AutoPointKind::Fold ||
+       (iap->itpst==xpp::AutoPointKind::Hopf && ndim==2*ndm+2));
   // EISPACK overwrites dfdu: inspect the original Jacobian first.
   const double axis_tolerance = xpp::auto_hopf_axis_tolerance(
       xpp::Matrix<const double>({dfdu,static_cast<size_t>(ndim*ndm)},ndim,ndm),ndm);
@@ -1898,7 +1916,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   const auto pair = xpp::auto_hopf_pair({ev.data(),static_cast<size_t>(ndm)},axis_tolerance);
   if (pair) {
     rev = pair->r;
-    par[xpp::auto_unknown::period] = pi(2.0) / std::abs(pair->i);
+    if (!codim_curve) par[xpp::auto_unknown::period] = pi(2.0) / std::abs(pair->i);
   }
 
   /* Compute the number of eigenvalues with negative real part. */
@@ -1918,17 +1936,27 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     }
   }
 
-  if (isw == 2) {
-    ret_val = 0.;
+  if (codim_curve) {
+    // STABEQ (AUTO-07p equilibrium.f90): ignore one prescribed zero
+    // on LP, or the prescribed imaginary pair on HB, in the stability count.
+    const integer forced=iap->itpst==xpp::AutoPointKind::Hopf ? 2 : 1;
+    std::stable_sort(ev.begin(),ev.begin()+ndm,[](const auto &a,const auto &b) { return std::abs(a.r)<std::abs(b.r); });
+    nins1=forced;
+    for (i=forced;i<ndm;++i) if (ev[i].r<=axis_tolerance) ++nins1;
+    ret_val=ndm>forced ? ev[forced].r : 0.;
   } else {
-    ret_val = rev;
+    ret_val = isw==2 ? 0. : rev;
   }
   nins = iap->nins;
   // AUTO-07p FNHBEQ equilibrium.f90:624-629: a plain HB changes a pair.
   constexpr integer hopf_stability_change = 2; // one complex conjugate pair
-  if (f2c::abs(nins1 - nins) >= hopf_stability_change) {
+  const integer required_change=isw==2 && iap->itpst==xpp::AutoPointKind::Hopf ? 1 : hopf_stability_change;
+  if (f2c::abs(nins1 - nins) >= required_change) {
     *chng = TRUE_;
   }
+  if (isw==2 && (iap->isp==0 || iap->isp==3 ||
+      !xpp::auto_codim_enabled(iap->lib->session->auto_state.special_points,xpp::AutoPointKind::ZeroHopf) ||
+      iap->itp.kind==xpp::AutoPointKind::BogdanovTakens)) { *chng=FALSE_; ret_val=0.; }
   nins = nins1;
   iap->nins = nins;
 

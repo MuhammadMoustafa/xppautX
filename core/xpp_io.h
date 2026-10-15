@@ -143,6 +143,8 @@ bool parse_number(std::string_view text, double &value);
 /* text, all of it, as a whole number in int's range (an optional '-',
    then digits); false otherwise, value untouched */
 bool parse_int(std::string_view text, int &value);
+/* A named boolean, exactly true or false; no numeric choices. */
+bool parse_bool(std::string_view text, bool &value);
 /* A whole unsigned 64-bit decimal word, for portable generator states. */
 bool parse_uint64(std::string_view text, std::uint64_t &value);
 

@@ -734,11 +734,11 @@ void auto_num_par(xpp::Session &s)
   /* grouped by what they do, which upstream's order was not: the box is 7
      rows by 4 columns, so a column is a group. Mesh and step size, then the
      ranges and tolerances, then the solver's integer knobs. */
-  static const char *const n[]={"Ntst","Nmax","NPr","Ncol","Ds","Dsmin","Dsmax",
-		    "Par Min","Par Max","Norm Min","Norm Max","EPSL","EPSU","EPSS",
-                    "IAD","MXBF","IID","ITMX","ITNW","NWTN","IADS","SuppBP"};
+  std::array<const char *,xpp::AUTO_NUM_N+xpp::auto_codim_kinds.size()> n;
+  for(int i=0;i<xpp::AUTO_NUM_N;++i) n[i]=xpp::auto_settings_num_label(i);
+  for(std::size_t i=0;i<xpp::auto_codim_kinds.size();++i) n[xpp::AUTO_NUM_N+i]=xpp::auto_codim_keys[i];
   int status;
-  std::array<std::string, 22> values;
+  std::array<std::string, xpp::AUTO_NUM_N+xpp::auto_codim_kinds.size()> values;
   values[0] = xpp::format("{:d}", s.auto_state.bifur.ntst);
   values[1] = xpp::format("{:d}", s.auto_state.bifur.nmx);
   values[2] = xpp::format("{:d}", s.auto_state.bifur.npr);
@@ -762,11 +762,20 @@ void auto_num_par(xpp::Session &s)
   values[20] = xpp::format("{:d}", s.auto_state.advanced.iads);
   values[21] = xpp::format("{:d}", s.auto_state.suppress_bp); 
 
+  for (std::size_t i=0;i<xpp::auto_codim_kinds.size();++i)
+    values[xpp::AUTO_NUM_N+i]=s.auto_state.special_points[i] ? "true" : "false";
   static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
-                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
-  status=do_string_box_of(7,4,"AutoNum",n,values,kinds);
+                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
+                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
+  status=do_string_box_of(7,4,"AutoNum",n.data(),values,kinds);
   if(status!=0){
+    auto enabled=s.auto_state.special_points;
+    for (std::size_t i=0;i<xpp::auto_codim_kinds.size();++i) {
+      if (!xpp::parse_bool(values[xpp::AUTO_NUM_N+i],enabled[i])) {
+        command_error("auto",xpp::format("{} must be true or false",xpp::auto_codim_keys[i])); return;
+      }
+    }
     s.auto_state.bifur.ntst=atoi(values[0].c_str());
     s.auto_state.bifur.nmx=atoi(values[1].c_str());
     s.auto_state.bifur.npr=atoi(values[2].c_str());
@@ -790,6 +799,10 @@ void auto_num_par(xpp::Session &s)
     s.auto_state.advanced.iads=atoi(values[20].c_str());
     s.auto_state.suppress_bp=atoi(values[21].c_str());
 
+    xpp::AutoSettingsSet points;
+    for(std::size_t i=0;i<enabled.size();++i) points.special_points[i]=enabled[i];
+    std::string why;
+    if(xpp::auto_settings_apply(s,points,why)!=0) command_error("auto",why);
   }
 
 }    
@@ -2309,7 +2322,7 @@ void auto_2p_limit(xpp::Session &s, xpp::AutoProblem ips)
   s.auto_state.bifur.nfpar=2;
   s.auto_state.bifur.ilp=0; /* was 1 */
   s.auto_state.bifur.isw=2;
-  s.auto_state.bifur.isp=0; /* was 2 */
+  s.auto_state.bifur.isp=1; /* was 2 */
   /* fix ips now */
   if(ips==xpp::AutoProblem::BoundaryValue)
     ipsuse=xpp::AutoProblem::BoundaryValue;
@@ -2318,6 +2331,7 @@ void auto_2p_limit(xpp::Session &s, xpp::AutoProblem ips)
       ipsuse=xpp::AutoProblem::Periodic;
   }
 
+  if(ipsuse!=xpp::AutoProblem::SteadyState) s.auto_state.bifur.isp=0;
   s.auto_state.bifur.ips=ipsuse;
   s.auto_state.two_param=LPP2;
   if(ipsuse==xpp::AutoProblem::SteadyState){
@@ -2425,10 +2439,11 @@ void auto_2p_hopf(xpp::Session &s)
   s.auto_state.bifur.nfpar=2;
   s.auto_state.bifur.ilp=0; /* was 1 */
   s.auto_state.bifur.isw=2;
-  s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.isp=1;
   s.auto_state.bifur.ips=xpp::AutoProblem::SteadyState;
   if(xpp::solver_info(s.numerics.method).traits.discrete)
     s.auto_state.bifur.ips=xpp::AutoProblem::DiscreteMap;
+  if(s.auto_state.bifur.ips!=xpp::AutoProblem::SteadyState) s.auto_state.bifur.isp=0;
   s.auto_state.two_param=auto_hopf_curve;
     s.auto_state.type_of_calc=auto_hopf_curve;
   do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);

@@ -14,8 +14,9 @@
 import type {ComponentChildren} from 'preact';
 import {useRef, useState} from 'preact/hooks';
 import {HELP} from '../help/links';
+import {symbolHelp, symbolName} from '../plot/diagramModel';
 import {
-  fieldOf, NUM_FIELDS, NUM_GROUPS, numError, numSpec, pairErrors, pendingFields, shownSettings, type AutoSettings, type AutoSettingsPatch, type NumKey,
+  CODIM_KINDS, fieldOf, NUM_FIELDS, NUM_GROUPS, numError, numSpec, pairErrors, pendingFields, shownSettings, type AutoSettings, type AutoSettingsPatch, type NumKey,
 } from '../store/autoSettings';
 import {fieldError, NUMBER} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
@@ -119,6 +120,7 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
   const pending = pendingFields(useStore(s => s.autoSettings));
   const [texts, setTexts] = useState<Record<string, string>>(() =>
     Object.fromEntries(NUM_FIELDS.map(f => [f.key, shown ? String(shown.numerics[f.key]) : ''])));
+  const [specialPoints, setSpecialPoints] = useState(() => shown?.special_points ?? {BT: true, CP: true, ZH: true, GH: true});
   const [threads, setThreads] = useState<string>(() => String(shown?.threads ?? 'auto'));
   if (!shown) return null;
   const errors = Object.fromEntries(NUM_FIELDS.map(f => [f.key, numError(shown.rules[f.key], texts[f.key] ?? '')]));
@@ -133,10 +135,12 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
     const patch: AutoSettingsPatch = {};
     if (changed.length) patch.numerics = Object.fromEntries(changed.map(f => [f.key, values[f.key]]));
     if (threads !== String(shown.threads)) patch.threads = threads === 'auto' ? 'auto' : Number(threads);
-    if (patch.numerics || patch.threads !== undefined) session.autoSettings(patch);
+    if (CODIM_KINDS.some(k => specialPoints[k] !== shown.special_points[k])) patch.special_points = specialPoints;
+    if (patch.numerics || patch.threads !== undefined || patch.special_points) session.autoSettings(patch);
     onClose();
   };
-  const anyPending = NUM_FIELDS.some(f => pending.has(`numerics.${f.key}`)) || pending.has('threads');
+  const anyPending = NUM_FIELDS.some(f => pending.has(`numerics.${f.key}`)) || pending.has('threads')
+    || CODIM_KINDS.some(k => pending.has(`special_points.${k}`));
   const threadsQueued = pending.has('threads');
   return (
     <Modal title="AUTO Numerics" id="auto-numerics" kind="numerics" onClose={onClose}>
@@ -159,6 +163,15 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
             })}
           </fieldset>
         ))}
+        <fieldset class="form-grid">
+          <legend>Equilibrium curve special points</legend>
+          <label><span>Detect all</span><input type="checkbox" checked={CODIM_KINDS.every(k => specialPoints[k])}
+            onChange={e => { const on=e.currentTarget.checked; setSpecialPoints({BT:on,CP:on,ZH:on,GH:on}); }} /></label>
+          {CODIM_KINDS.map(k => <label key={k} title={symbolHelp(k)} class={pending.has(`special_points.${k}`) ? 'queued' : undefined}>
+            <span>{k} {symbolName(k)}</span><input type="checkbox" data-field={k} checked={specialPoints[k]}
+              onChange={e => { const enabled=e.currentTarget.checked; setSpecialPoints(v => ({...v, [k]: enabled})); }} />
+          </label>)}
+        </fieldset>
         <fieldset class="form-grid auto-computer-group">
           <legend>Computer</legend>
           <label class={threadsQueued ? 'queued' : undefined} title={THREADS_HELP}>

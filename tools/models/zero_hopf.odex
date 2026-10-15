@@ -1,0 +1,7 @@
+# W364: fold x=0,a=0 intersects the imaginary y,z pair at b=0.
+# At that intersection the spectrum is 0,+i,-i: a zero-Hopf point.
+x'=a+x*x
+y'=b*y-z-y*(y*y+z*z)
+z'=y+b*z-z*(y*y+z*z)
+par a=-1,b=-0.1
+init x=-1,y=0,z=0

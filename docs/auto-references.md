@@ -49,8 +49,7 @@ The principal parameter uses forward differences, as in AUTO-07p.
 
 The reduced equations continue through `kappa=0` (Bogdanov-Takens). Negative
 kappa describes a neutral saddle: the diagram and readout use curve code 13,
-"neutral saddle", rather than code 3, "Hopf". Special-point detection at BT
-remains W364. AUTO-07p updates `PAR(11)=2*pi/sqrt(kappa)` only for positive
+"neutral saddle", rather than code 3, "Hopf". W364 labels BT at the zero of kappa. AUTO-07p updates `PAR(11)=2*pi/sqrt(kappa)` only for positive
 kappa ([equilibrium.f90:365-367](../reference/auto-07p/src/equilibrium.f90#L365));
 for nonpositive kappa it retains the last period. We do the same, never taking
 a square root of negative kappa or deriving a period from it. Starting a
@@ -141,13 +140,12 @@ A model has more than one description now (`autocompare.py` still requires every
   differ (ours reached p1 16.67 where AUTO-07p, 150 steps in, reached 16.56). A run that stops at its bound
   has the other curve around every sample inside it; one that stops short does not, and is a difference.
 - **Special points**: a codim-2 point AUTO-07p labels and ours does not is a difference like any other, held in
-  the description's `differences` until W364 detects them.
+  the description's `differences` until checked against independent derivatives (W364).
 
 Result: both curves agree with AUTO-07p's. The fold (218 points of ours, 221 of the reference's) to 3.9e-5 in
 `p0`, 1.8e-3 in `p1` and 6.3e-4 in the norm, the largest at the cusp (the norm at 0.65 of its tolerance, `p1` at
 0.31). After W363 the Hopf curve in both directions (501 points of ours, 501 of the reference's) agrees to
-2.05e-6 in `p0`, 6.40e-5 in `p1` and 5.22e-5 in the norm (previously 8.7e-6, 2.7e-4 and 9e-5). Nothing was widened. The only
-differences are the codim-2 labels of AUTO-07p (traced 4 and 5 below).
+2.05e-6 in `p0`, 6.40e-5 in `p1` and 5.22e-5 in the norm (previously 8.7e-6, 2.7e-4 and 9e-5). Nothing was widened. W364's updated comparisons and traced residual-contaminated labels are below.
 
 ### W363 baseline changes ([#425](https://github.com/MuhammadMoustafa/xppautX/issues/425))
 
@@ -173,9 +171,49 @@ remain explicitly skipped). Tolerances and AUTO-07p reference files are unchange
   norm 6.27e-4. The structured Jacobian now uses the model's Jacobian directly
   instead of differentiating that first derivative again in every column.
 
+### W364: equilibrium codimension-two points ([#426](https://github.com/MuhammadMoustafa/xppautX/issues/426))
+
+BT uses the left/right null-vector product on folds and kappa on Hopf curves;
+CP uses the fold quadratic coefficient; ZH uses the next unconstrained
+Jacobian eigenvalue and stability count; GH uses the first Lyapunov
+coefficient from directional second/third derivatives. These are our own
+implementations of the AUTO-07p 0.9.4 methods, located through W356's pipeline.
+The diagonal second differences subtract the remaining Newton residual;
+this deliberate numerical correction is explained in AUTO-07p finding 2.
+
+Only three diagrams were written by the single `--update`:
+
+- `tstauto_ab_fold`: 318 to 320 points; BT and CP location adds steps, and
+  PAR(11) stays at the starting LP's 54.271663657 instead of being replaced
+  by a near-axis pair's auxiliary period (formerly 570.90479 near BT).
+- `tstauto_ab_hopf`: 623 points before and after; refreshing the current
+  augmented Jacobian for test functions also synchronises its secondary
+  parameter and spectrum with the corrected state. The extra GH labels
+  of the reference are residual artifacts, traced below.
+- `zero_hopf` (`tools/models/zero_hopf.odex`, outside the examples MD5 set): new, 71 points, including ZH at b=-5.1e-9 on the fold a=0.
+  Its AUTO-07p reference is explicitly pending review; the coordinator runs
+  `tools/auto_reference.py --program auto07p --only zero_hopf` in WSL.
+  Remove `auto07p_skip` after generating it, then rerun the comparison;
+  the ZH must match without a traced difference.
+
+The older `tools/models/lecar_diagram.csv` fixture also contains a
+2,000-point fold continuation: that part is refreshed for the same current
+Jacobian/secondary-parameter/spectrum correction. Its 45-line header and
+one-parameter prefix are kept literally unchanged. The checked-in
+`lecar_auto.recx` starting snapshot is rewritten with the four required
+boolean settings and a recomputed fingerprint; its recorded steps stay the same.
+
+Both thread settings produce identical diagrams. All other diagrams,
+including every one-parameter diagram, are unchanged. The full comparison
+is 41 descriptions, nine skipped, 6,082 points, 92 checks, zero failures.
+The table below uses the post-change `--table` output; the seven traced
+reference labels are retained without widening any tolerance. Before W364,
+the two reaction descriptions had six and three traced labels; afterwards
+four and three, with two additional real special points now compared.
+
 ## Result
 
-28 descriptions have an AUTO-07p reference (52 special points compared, and the two-parameter curves below) and 24 an XPPAUT 8.0 reference (44 points); 24 of the 30 runnable descriptions hold both. Every untraced comparison agrees. AUTO-07p has fourteen traced points in four descriptions (nine of them the codim-2 labels of W362's curves); XPPAUT 8.0 has three in three descriptions. No tolerance was widened. Before W326 there were 44 compared points and six traced points against AUTO-07p, and 44 compared points with none traced against XPPAUT.
+28 descriptions have an AUTO-07p reference (54 special points compared, and the two-parameter curves below) and 24 an XPPAUT 8.0 reference (44 points); 24 of the 32 runnable descriptions hold both. Every untraced comparison agrees. AUTO-07p has twelve traced points in four descriptions (seven residual-contaminated codim-2 labels; finding 2 in docs/auto07p-findings.md); XPPAUT 8.0 has three in three descriptions. No tolerance was widened. Before W326 there were 44 compared points and six traced points against AUTO-07p, and 44 compared points with none traced against XPPAUT.
 
 | Model | Special points in xppautX | AUTO-07p | XPPAUT 8.0 |
 |---|---|---|---|
@@ -183,8 +221,9 @@ remain explicitly skipped). Tolerances and AUTO-07p reference files are unchange
 | ode/lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
 | ode/osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
-| ab, fold curve | steady: EP LP; fold: - | agrees, 6 traced (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08; curve par 3.9e-05, par2 0.0018, norm 0.00063) | not run |
-| ab, Hopf curves | steady: EP LP LP HB; hopf_up: -; hopf_down: - | agrees, 3 traced (4 points; par 1.6e-07, norm 9.7e-07, period 3e-05, spectrum 0.00012; curve par 2e-06, par2 6.4e-05, norm 5.2e-05) | not run |
+| ab, fold curve | steady: EP LP; fold: BT CP | agrees, 4 traced (4 points; par 1.3e-06, norm 8.1e-05, spectrum 0.0006; curve par 1.6e-05, par2 0.00052, norm 0.00045) | not run |
+| ab, Hopf curves | steady: EP LP LP HB; hopf_up: -; hopf_down: - | agrees, 3 traced (4 points; par 1.6e-07, norm 9.7e-07, period 3e-05, spectrum 0.00012; curve par 4.2e-06, par2 0.00012, norm 4.2e-05) | not run |
+| zero_hopf | steady: EP LP; fold: ZH | reference pending W364 review | not run |
 | bigaut | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | bistable | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | bob | steady: EP | agrees (1 points; par 0, norm 1.8e-12) | agrees (1 points; par 0, norm 1.4e-08) |
@@ -280,21 +319,18 @@ Five causes in six descriptions; W326 fixes the missing restore and records the 
    start at a = -1.05 (at a = 9.5e-8), with cycles ending at a = 1.00003, norm 1.0000298, period 5.71196, as
    ours (1.00002979, 5.711955). Ours and XPPAUT 8.0 agree to 2.5e-16 on the HB and its cycles.
 
-4. **`tstauto_ab_fold`: AUTO-07p labels a Bogdanov-Takens point and five cusps; ours labels nothing.**
-   xppautX continues a fold with `ISP=0` ([core/auto_nox.cpp `auto_2p_limit`](../core/auto_nox.cpp)) and detects no codim-2
-   point yet, W364's. AUTO-07p's BT is at point 12 (p0 0.11156, p1 13.5001). Of its five CP labels only
-   the third (point 46, p0 0.13533528504, p1 11.99999992) is the cusp: u = (0.5, 2), p0 = e^-2, p1 = 12 satisfy the equilibrium
-   and fold conditions, with null vectors v = (1, 4) and w = (6, -1) of the Jacobian [[-2, 0.5], [-12, 3]], and
-   the fold's quadratic coefficient w.F''(v,v) is 0 there (F''(v,v) = (0, 0) by hand). The others (points 38, 40,
-   48, 51; p1 12.23, 12.15, 12.007, 12.08) are sign changes of AUTO-07p's cusp function (finite-difference
-   derivatives, `JAC=0`) on the stretch around the cusp, within 0.23 of it in p1. The curve itself agrees (above).
-   W364 is judged against the BT and the third CP; whether ours must also reproduce the other four is for W364
-   to settle, they are held here as traced differences until then.
-5. **`tstauto_ab_hopf`, `hopf_up`: AUTO-07p labels three generalised-Hopf points (points 132, 134, 136; p0 0.2284 to
-   0.2316, p1 11.31 to 11.23); ours labels none.** The same missing detection, W364's. Three labels within four
-   steps are signs of AUTO-07p's GH function changing three times at one place; whether one of them is a true
-   generalised Hopf point is not decided here (no independent calculation was made). `hopf_down` has no codim-2 point. The
-   Hopf curve's reduced 2n+2 system (W363) improves agreement with this curve; the codim-2 labels remain W364's.
+4. **`tstauto_ab_fold`: the four extra CP labels of AUTO-07p are not cusps.**
+   W364 locates BT and the analytic cusp, agreeing with the reference's BT and third CP
+   within the unchanged tolerances. The other four CP remain traced: their diagonal
+   second-difference stencil retains `2*F(u)/h^2` from the finite Newton residual.
+   xppautX subtracts that constant term. See [AUTO-07p finding 2](auto07p-findings.md#2-a-newton-residual-contaminates-cp-and-gh-test-functions).
+5. **`tstauto_ab_hopf`, `hopf_up`: the three GH labels of AUTO-07p are not generalised Hopf points.**
+   The same residual term contaminates its diagonal second derivatives. An independent
+   calculation with exact analytic tensors gives a negative first Lyapunov coefficient
+   throughout their neighbourhood near `t=p0*exp(u2)=5.5`; the planar formula has sign
+   `24-10*t-8*t^2-t^3`. xppautX labels none there; its GH detection is checked on the
+   Bautin normal form `l1=2*b`, including continuation through `b=0`.
+   See [AUTO-07p finding 2](auto07p-findings.md#2-a-newton-residual-contaminates-cp-and-gh-test-functions).
 
 Past the first fold of cycles whose multipliers reach 1e6 none of the three programs' numbers are the model's
 (the near-homoclinic orbits of the cases above), so a description's short run is only as good as its mesh

@@ -113,6 +113,14 @@ int main()
     CHECK(!xpp::auto_point_decode(-1));
     CHECK(xpp::auto_point_decode(-1, true) && xpp::auto_point_decode(-1, true)->kind == xpp::AutoPointKind::Pending);
 
+    for (int value : {-21,-22,-23,-31,-32,-33}) {
+        const auto point=xpp::auto_point_decode(value);
+        CHECK(point && xpp::auto_point_encode(*point)==value);
+        CHECK(std::string(xpp::auto_point_symbol(*point)).size()==2);
+    }
+    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-32)),"GH");
+    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-22)),"CP");
+
     /* an unknown code is refused: out of range, a negative kind AUTO has no
        such point for, a negative composite of a plain kind */
     for (long bad : {100L, -100L, 1000L, -5L, -3L, -2L, -11L, -10L, -20L, -27L, -99L - 1, -55L})
@@ -122,7 +130,7 @@ int main()
     /* decoding gives what AUTO's integer expressions gave, on every legal code */
     for (long itp = -99; itp <= 99; itp++) {
         const auto code = xpp::auto_point_decode(itp);
-        if (!code) continue;
+        if (!code || static_cast<int>(code->kind)>9) continue;
         CHECK(static_cast<int>(code->kind) == plain_kind(itp));              /* itp % 10 */
         const long magnitude = itp < 0 ? -itp : itp;
         CHECK(static_cast<int>(code->start) == magnitude / 10);              /* abs(itp) / 10 */

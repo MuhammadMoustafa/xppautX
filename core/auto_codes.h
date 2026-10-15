@@ -10,6 +10,7 @@
    stable/periodic classification is DiagramPointType below and the
    stability values' kind auto_stability.h's AutoStabilityKind. */
 
+#include <array>
 #include <optional>
 #include <string>
 
@@ -102,7 +103,8 @@ constexpr int auto_hopf_curve_kind(double kappa) {
     return kappa < 0. ? auto_neutral_saddle_curve : auto_hopf_curve;
 }
 
-/* The kind of a special point (AUTO's ITP mod 10, with its sign). */
+/* A special point's kind. Legacy kinds use ITP mod 10; equilibrium
+   codimension-two kinds have explicit composite encodings below. */
 enum class AutoPointKind : int {
     Pending = -1,         /* a special point AUTO is locating (in a run only, never stored) */
     Regular = 0,          /* an ordinary point */
@@ -116,6 +118,10 @@ enum class AutoPointKind : int {
     Torus = 8,            /* TR */
     End = 9,              /* EP: the end of the branch */
     UserZero = -4,        /* UZ: a user-requested output value */
+    BogdanovTakens = 10,  /* BT: a double zero eigenvalue */
+    Cusp = 11,           /* CP: vanishing fold quadratic coefficient */
+    ZeroHopf = 12,       /* ZH: a zero eigenvalue and imaginary pair */
+    GeneralizedHopf = 13,/* GH: vanishing first Lyapunov coefficient */
     MaxSteps = -9         /* MX: no convergence, or the step limit */
 };
 
@@ -143,6 +149,11 @@ constexpr bool auto_point_kind_valid(int v)
 /* ITP's integer, the file and protocol form */
 constexpr int auto_point_encode(AutoPointCode c)
 {
+    // AUTO-07p equilibrium-curve encodings; -32 denotes GH on Hopf.
+    if (c.kind == AutoPointKind::BogdanovTakens) return c.start == AutoPointKind::Fold ? -21 : -31;
+    if (c.kind == AutoPointKind::Cusp) return -22;
+    if (c.kind == AutoPointKind::ZeroHopf) return c.start == AutoPointKind::Fold ? -23 : -33;
+    if (c.kind == AutoPointKind::GeneralizedHopf) return -32;
     const int kind = static_cast<int>(c.kind), start = static_cast<int>(c.start);
     return kind < 0 ? kind - 10 * start : 10 * start + kind;
 }
@@ -153,6 +164,15 @@ constexpr int auto_point_encode(AutoPointCode c)
    round-trip with auto_point_encode. */
 constexpr std::optional<AutoPointCode> auto_point_decode(long itp, bool allow_pending = false)
 {
+    switch (itp) {
+    case -21: return AutoPointCode{AutoPointKind::BogdanovTakens, AutoPointKind::Fold};
+    case -22: return AutoPointCode{AutoPointKind::Cusp, AutoPointKind::Fold};
+    case -23: return AutoPointCode{AutoPointKind::ZeroHopf, AutoPointKind::Fold};
+    case -31: return AutoPointCode{AutoPointKind::BogdanovTakens, AutoPointKind::Hopf};
+    case -32: return AutoPointCode{AutoPointKind::GeneralizedHopf, AutoPointKind::Hopf};
+    case -33: return AutoPointCode{AutoPointKind::ZeroHopf, AutoPointKind::Hopf};
+    default: break;
+    }
     if (itp < -99 || itp > 99) return std::nullopt;
     const int kind = static_cast<int>(itp % 10); /* C's: it has the sign of ITP */
     const int start = static_cast<int>((itp < 0 ? -itp : itp) / 10);
@@ -182,6 +202,10 @@ constexpr const char *auto_point_symbol(AutoPointCode c)
     case AutoPointKind::Fold:
     case AutoPointKind::PeriodicFold: return "LP";
     case AutoPointKind::Hopf: return "HB";
+    case AutoPointKind::BogdanovTakens: return "BT";
+    case AutoPointKind::Cusp: return "CP";
+    case AutoPointKind::ZeroHopf: return "ZH";
+    case AutoPointKind::GeneralizedHopf: return "GH";
     case AutoPointKind::UserZero: return "UZ";
     case AutoPointKind::PeriodDoubling: return "PD";
     case AutoPointKind::Torus: return "TR";
@@ -189,6 +213,18 @@ constexpr const char *auto_point_symbol(AutoPointCode c)
     case AutoPointKind::MaxSteps: return "MX";
     default: return "  ";
     }
+}
+
+// Settings and protocol names for equilibrium codimension-two detection (W364).
+inline constexpr std::array<AutoPointKind, 4> auto_codim_kinds = {
+    AutoPointKind::BogdanovTakens, AutoPointKind::Cusp, AutoPointKind::ZeroHopf, AutoPointKind::GeneralizedHopf};
+inline constexpr std::array<const char *, 4> auto_codim_keys = {"BT", "CP", "ZH", "GH"};
+
+constexpr bool auto_codim_enabled(const std::array<bool, auto_codim_kinds.size()> &enabled, AutoPointKind kind)
+{
+    for (std::size_t i=0;i<auto_codim_kinds.size();++i)
+        if (auto_codim_kinds[i]==kind) return enabled[i];
+    return false;
 }
 
 /* what a reader says of a code it refuses, for its error's text */

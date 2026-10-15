@@ -132,6 +132,7 @@ std::deque<xpp::DIAGRAM> points_of(int k, int n)
 void check_settings_text()
 {
     xpp::AutoSettingsSet s;
+    s.special_points={true,false,true,false};
     for (int i = 0; i < xpp::AUTO_NUM_N; i++) s.num[i] = awk(i) / (i + 1);
     s.plot = 11;
     s.var = "v";
@@ -148,6 +149,7 @@ void check_settings_text()
     bool num = true;
     for (int i = 0; i < xpp::AUTO_NUM_N; i++) num = num && r->has_num[i] && same_bits(r->num[i], s.num[i]);
     CHECK(num);
+    CHECK(r->special_points==s.special_points);
     CHECK(r->has_plot && r->plot == 11 && r->var == "v" && r->par1 == "iapp" && r->par2.empty());
     bool range = true;
     for (int i = 0; i < 4; i++) range = range && r->has_range[i] && same_bits(r->range[i], s.range[i]);
@@ -169,6 +171,10 @@ void check_settings_text()
     /* every key there once, none it does not have */
     const std::string text = xpp::snapx::auto_members::settings_text(s);
     const int lines = static_cast<int>(xpp::split_lines(text).size());
+    CHECK(error("BT 1\n")=="a.snapx/auto/settings.txt:1: BT must be true or false, got 1 [BT 1]");
+    CHECK(!xpp::snapx::auto_members::parse_settings(text+"BT true\n","duplicate.txt"));
+    auto missing=text; missing.erase(missing.find("BT true\n"),8);
+    CHECK(!xpp::snapx::auto_members::parse_settings(missing,"missing.txt"));
     CHECK(error(text + "later 1\n") == xpp::format("a.snapx/auto/settings.txt:{}: later is not one of AUTO's settings [later 1]", lines + 1));
     CHECK(error(text + "ntst 3\n") == xpp::format("a.snapx/auto/settings.txt:{}: ntst given twice [ntst 3]", lines + 1));
     CHECK(error(text.substr(text.find('\n') + 1)) == xpp::format("a.snapx/auto/settings.txt:{}: the file ends here, without its ntst line []", lines));

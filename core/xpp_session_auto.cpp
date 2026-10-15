@@ -51,6 +51,8 @@ std::string settings_text(const AutoSettingsSet &s)
 {
     std::string o;
     for (int i = 0; i < AUTO_NUM_N; i++) o += xpp::format("{} {}\n", auto_settings_num_key(i), xpp::number(s.num[i]));
+    for (std::size_t i=0;i<auto_codim_kinds.size();++i)
+        o += xpp::format("{} {}\n",auto_codim_keys[i],*s.special_points[i] ? "true" : "false");
     o += xpp::format("plot {}\nvar {}\npar1 {}\npar2 {}\n", s.plot, name_text(s.var), name_text(s.par1), name_text(s.par2));
     for (std::size_t i = 0; i < range_keys.size(); i++) o += xpp::format("{} {}\n", range_keys[i], xpp::number(s.range[i]));
     for (int i = 0; i < s.nmarks; i++) o += xpp::format("mark {} {}\n", name_text(s.mark_name[i]), xpp::number(s.mark_value[i]));
@@ -110,12 +112,20 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
                         s.has_num[i] = 1;
                         known = true;
                     }
+                for (std::size_t i=0;i<auto_codim_kinds.size();++i)
+                    if (key==auto_codim_keys[i]) {
+                        at(auto_codim_keys[i]);
+                        bool enabled;
+                        if (!parse_bool(value,enabled)) l.fail(xpp::format("{} must be true or false, got {}",key,value));
+                        s.special_points[i]=enabled; known=true;
+                    }
                 if (!known) l.fail(xpp::format("{} is not one of AUTO's settings", key));
             }
         }
         /* every key but the marks, which may be none, in settings_text's order */
         std::vector<std::string> keys;
         for (int i = 0; i < AUTO_NUM_N; i++) keys.emplace_back(auto_settings_num_key(i));
+        for (const auto *key:auto_codim_keys) keys.emplace_back(key);
         keys.insert(keys.end(), {"plot", "var", "par1", "par2"});
         for (const char *k : range_keys) keys.emplace_back(k);
         for (const std::string &k : keys)

@@ -13,6 +13,7 @@
 #include "auto_data.h"
 #include "auto_stop.h"
 #include "auto_stability.h"
+#include "auto_codim.h"
 #include "auto_parallel.h"
 #include "xpplim.h"
 #include "display_state.h"
@@ -96,6 +97,8 @@ struct AutoState {
   unsigned threads=0;
   /* Numerics' SuppBP */
   int suppress_bp=0;
+  // AUTO-07p enables equilibrium codimension-two detection by default.
+  std::array<bool, xpp::auto_codim_kinds.size()> special_points{true,true,true,true};
   /* a homoclinic orbit's left and right equilibria (autpp.cpp's stpnt),
      and whether a homoclinic run is on */
   std::vector<double> homo_l,homo_r;
@@ -225,6 +228,7 @@ struct AutoLib {
      their evaluation arrays and finite-difference scratch, never a Session's. */
   std::unique_ptr<xpp::AutoParallel> collocation;
   bool pure_rhs=false;
+  xpp::AutoCodim codim;
   std::vector<double> rhs_constants; /* the parser's constants and variables, copied for a worker */
   std::vector<double> rhs_variables;
   AutoGlobalScratch scratch{};

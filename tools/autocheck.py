@@ -46,7 +46,8 @@ front speed in both directions, then refines the mesh and interval.
 """
 import argparse, base64, copy, csv, io, json, math, os, re, shutil, subprocess, sys, tempfile, time, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from autocompare import BASE, compute, diagram_rows, read_description
+import autocompare
+from autocompare import BASE, completed, compute, diagram_rows, execute_run, read_description, session_diagram
 from xppclient import Checker, file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, macos_thread_states, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission, open_auto, run_any
 
 ap = argparse.ArgumentParser()
@@ -56,7 +57,7 @@ ap.add_argument('--list', action='store_true', help='print the selected sections
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
                                                 'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors', 'subscriptions', 'jacobian',
-                                                'memory', 'threads', 'limits', 'nagumo', 'hopf_reduced'])
+                                                'memory', 'threads', 'limits', 'nagumo', 'hopf_reduced', 'codim'])
 args = ap.parse_args()
 if args.shard:
     try:
@@ -2510,6 +2511,7 @@ def section_hopf_reduced():
         data, _, _, ranges = compute(args.server, d, 1)
         rows = diagram_rows(data)[slice(*ranges['hopf'])]
         x = [float(r['u0.X']) for r in rows]
+        check('codim: BT is a typed label on the Hopf curve', sum(r['itp']=='-31' for r in rows)==1)
         check('reduced Hopf: continuation crosses BT onto the neutral saddle',
               min(x) < -.4 and max(x) > .4 and any(r['flag2'] == '13' for r in rows), str((min(x), max(x))))
         check('reduced Hopf: every point solves a=-x^2, b=0, y=0',
@@ -2523,6 +2525,71 @@ def section_hopf_reduced():
         period = float(rows[first_saddle-1]['per'])
         check('reduced Hopf: neutral saddle retains the last positive-kappa period',
               all(float(r['per']) == period for r in rows[first_saddle:]))
+
+def section_codim():
+    """W364: the transverse pair crosses zero on the fold; named booleans gate detection."""
+    d = read_description(BASE / 'zero_hopf.json')
+    s = Server(args.server, d['model'])
+    try:
+        completed(s)
+        diagram = autocompare.Diagram().apply(open_auto(s))
+        ranges = {}
+        settings = completed(s, dict(cmd='data', events=['autoinfo','autosettings']))
+        flags = next(e['special_points'] for e in settings if e.get('ev') == 'autosettings')
+        check('codim: BT CP ZH GH enabled by default', flags == dict(BT=True, CP=True, ZH=True, GH=True))
+        for mode, changes in (('default', {}), ('ZH disabled', {'ZH': False}),
+                              ('all disabled', dict.fromkeys(flags, False)), ('restored', dict.fromkeys(flags, True))):
+            s.close()
+            s = Server(args.server, d['model'])
+            completed(s)
+            completed(s, dict(cmd='data', events=['autoinfo','autosettings']))
+            diagram = autocompare.Diagram().apply(open_auto(s))
+            ranges = {}
+            execute_run(s, d['runs'][0], diagram, ranges)
+            if changes: completed(s, dict(cmd='auto', op='set', special_points=changes))
+            execute_run(s, d['runs'][1], diagram, ranges)
+            lo, hi = ranges['fold']
+            rows = diagram_rows(session_diagram(s))[lo:hi]
+            zh = [r for r in rows if r['itp'] == '-23']
+            expected = mode in ('default', 'restored')
+            check('codim: ' + mode, len(zh) == (1 if expected else 0)
+                  and (not zh or abs(float(zh[0]['continued_parameter'])) < 1e-4))
+        for bad in ({'ZH': 0}, {'ZH': 'false'}, {'unknown': False}):
+            s.send(cmd='auto', op='set', special_points=bad, numerics={'nmx': 7})
+            events, _ = s.collect(is_idle)
+            check('codim: invalid named boolean refuses transaction ' + str(bad), len(errors_of(events)) == 1)
+            after = completed(s, dict(cmd='data', events=['autosettings']))
+            current = next(e for e in after if e.get('ev') == 'autosettings')
+            check('codim: refusal applies nothing', current['numerics']['nmx'] == 50 and current['special_points'] == flags)
+    finally:
+        s.close()
+
+
+    # The same zero-Hopf point reached along the Hopf curve.
+    hopf = copy.deepcopy(d)
+    hopf['runs'][0]['parameter'] = 'b'
+    hopf['runs'][0]['auto'].update(parmin=-.2, parmax=.2)
+    hopf['runs'][1].update(name='hopf', start=dict(run='steady', type='HB', index=1), parameters=['a','b'])
+    hopf['runs'][1]['auto'].update(nmax=200, parmin=-2, parmax=.1)
+    data, _, _, intervals = compute(args.server, hopf, 1)
+    rows = diagram_rows(data)[slice(*intervals['hopf'])]
+    zh = [r for r in rows if r['itp']=='-33']
+    check('codim: ZH located on the Hopf curve', len(zh)==1 and abs(float(zh[0]['u0.X']))<1e-4)
+    with tempfile.TemporaryDirectory() as folder:
+        model = os.path.join(folder, 'bautin.odex')
+        with open(model, 'w') as f:
+            f.write("x'=-y+a*x+b*x*(x*x+y*y)\ny'=x+a*y+b*y*(x*x+y*y)\npar a=-0.1,b=-0.1\ninit x=0,y=0\n")
+        constants = dict(ds=.02, dsmin=1e-6, dsmax=.05, nmax=30, npr=10,
+                         parmin=-.2, parmax=.2, ntst=15, mxbf=0, epsl=1e-9, epsu=1e-9, epss=1e-8)
+        normal = dict(model=model, runs=[
+            dict(name='steady',kind='equilibrium',start=dict(state='current'),parameter='a',auto=constants),
+            dict(name='hopf',kind='two_parameter',start=dict(run='steady',type='HB',index=1),parameters=['b','a'],auto=constants)])
+        data, _, _, intervals = compute(args.server, normal, 1)
+        rows = diagram_rows(data)[slice(*intervals['hopf'])]
+        gh = [r for r in rows if r['itp']=='-32']
+        check('codim: GH located where the Bautin normal form has l1=2*b=0', len(gh)==1
+              and abs(float(gh[0]['continued_parameter']))<1e-6)
+
 
 for name in args.sections:
     globals()['section_' + name]()

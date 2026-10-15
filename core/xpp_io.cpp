@@ -591,6 +591,13 @@ bool parse_whole(std::string_view text, Integer &value)
 }
 } // namespace
 
+bool parse_bool(std::string_view text, bool &value)
+{
+    if (text != "true" && text != "false") return false;
+    value = text == "true";
+    return true;
+}
+
 bool parse_int(std::string_view text, int &value) { return parse_whole(text, value); }
 bool parse_uint64(std::string_view text, std::uint64_t &value) { return parse_whole(text, value); }
 

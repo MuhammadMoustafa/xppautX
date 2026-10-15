@@ -3514,10 +3514,13 @@ def check_autosettings():
             snda(cmd='answer', id=ask['id'], ok=0)
             return cola(is_idle)[0]
 
+        def auto_errors(events):
+            return [e['error'] for e in events if e.get('ev') == 'message' and 'error' in e]
+
         def auto_set(**c):
             snda(cmd='auto', op='set', **c)
             evs, _ = cola(is_idle)
-            return evs, settings_of(evs), [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
+            return evs, settings_of(evs), auto_errors(evs)
 
         snda(cmd='data', events=['autosettings'])
         evs, _ = cola(is_idle)
@@ -3536,9 +3539,34 @@ def check_autosettings():
               and st.get('step', {}).get('key') == 'ds', str(st and (st.get('pairs'), st.get('step')))[:300])
         ask = ask_of(cmd='key', win='auto', key='n')
         cancel(ask)
+        point_keys = ('BT', 'CP', 'ZH', 'GH')
+        check('W364: autosettings carries named detection booleans enabled by default',
+              st.get('special_points') == dict.fromkeys(point_keys, True))
         want = [form_text(st['numerics'][k]) for k in NUM_KEYS]
+        want += [str(st['special_points'][k]).lower() for k in point_keys]
         check("autosettings: the numerics are the Numerics form's values, field for field",
               ask and ask['kind'] == 'form' and ask['values'] == want, '%s vs %s' % (ask and ask['values'], want))
+        for value, expected in (('false', False), ('true', True)):
+            form = ask_of(cmd='key', win='auto', key='n')
+            edited = list(form['values'])
+            edited[-1] = value
+            snda(cmd='answer', id=form['id'], ok=1, values=edited)
+            events, _ = cola(is_idle)
+            current = settings_of(events)
+            check('W364: Numerics form applies named GH ' + value,
+                  current is not None and current['special_points']['GH'] is expected)
+        form = ask_of(cmd='key', win='auto', key='n')
+        edited = list(form['values'])
+        edited[1], edited[-1] = '7', '0'
+        snda(cmd='answer', id=form['id'], ok=1, values=edited)
+        events, _ = cola(is_idle)
+        snda(cmd='data', events=['autosettings'])
+        fresh, _ = cola(is_idle)
+        current = settings_of(fresh)
+        check('W364: malformed form boolean leaves numerics and detection unchanged',
+              len(auto_errors(events)) == 1 and current is not None
+              and current['numerics']['nmx'] == st['numerics']['nmx']
+              and current['special_points'] == st['special_points'])
         snda(cmd='data', events=['hello', 'autosettings'])
         window_events, _ = cola(is_idle)
         window_hello = next((e for e in window_events if e.get('ev') == 'hello'), {})
@@ -8798,4 +8826,3 @@ check_recursive_user_functions()
 
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)
-

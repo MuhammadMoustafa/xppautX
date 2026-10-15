@@ -1,6 +1,7 @@
 /* The AUTO window: its prompts and mouse, the diagram's points as data
    ("diagram" events), and AUTO's settings as data ({"cmd":"auto","op":"set"},
    auto_settings.h). */
+#include <algorithm>
 #include <map>
 #include "ui_json_internal.h"
 #include "session.h"
@@ -552,6 +553,19 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
 {
     const char *num = js_find(line, "numerics"), *axes = js_find(line, "axes"),
                *marks = js_find(line, "marks"), *v;
+    if (const char *points=js_find(line,"special_points")) {
+        if (*points!='{') { why="special_points must be an object of named booleans"; return 0; }
+        const char *cursor=points, *value;
+        std::string key;
+        while (js_member(cursor,key,value)) {
+            const auto at=std::find(xpp::auto_codim_keys.begin(),xpp::auto_codim_keys.end(),key);
+            bool enabled;
+            if (at==xpp::auto_codim_keys.end() || !xpp::parse_bool(js_raw(value),enabled)) {
+                why=xpp::format("special_points {} must be BT, CP, ZH or GH with true or false",key); return 0;
+            }
+            s.special_points[at-xpp::auto_codim_keys.begin()]=enabled;
+        }
+    }
     int i;
     for (i = 0; num && *num == '{' && i < AUTO_NUM_N; i++) {
         if (!(v = js_find(num, auto_settings_num_key(i)))) continue;

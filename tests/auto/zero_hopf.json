@@ -1,0 +1,16 @@
+{
+  "model": "tools/models/zero_hopf.odex",
+  "reason": "W364 (#426): x'=a+x^2 has a fold at x=a=0; the transverse pair b +/- i crosses the imaginary axis at b=0. Continuing the fold in b and a therefore passes a zero-Hopf point with spectrum 0,+i,-i. AUTO-07p confirmation is pending review.",
+  "auto07p_skip": "Reference pending W364's review: coordinator runs tools/auto_reference.py --program auto07p --only zero_hopf in WSL and confirms ZH.",
+  "xppaut_skip": "XPPAUT detects no zero-Hopf labels; the reference adapter does not continue two-parameter curves in its window.",
+  "runs": [
+    {
+      "name": "steady", "kind": "equilibrium", "start": {"state": "current"}, "parameter": "a",
+      "auto": {"ds": 0.02, "dsmin": 0.00001, "dsmax": 0.05, "nmax": 100, "npr": 25, "parmin": -1.1, "parmax": 0.1, "ntst": 15, "mxbf": 0}
+    },
+    {
+      "name": "fold", "kind": "two_parameter", "start": {"run": "steady", "type": "LP", "index": 1}, "parameters": ["b", "a"],
+      "auto": {"ds": 0.02, "dsmin": 0.00001, "dsmax": 0.05, "nmax": 50, "npr": 25, "parmin": -0.2, "parmax": 0.2, "ntst": 15, "mxbf": 0}
+    }
+  ]
+}

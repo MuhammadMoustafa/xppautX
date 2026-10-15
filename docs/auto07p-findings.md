@@ -36,6 +36,7 @@ so the index started empty.
 | # | Area | Finding | Card |
 |---|---|---|---|
 | [1](#1-an-equilibriums-period-depends-on-the-spectrums-order-outside-the-conservative-band) | Equilibria | equally damped complex pairs give a period that depends on the eigenvalue routine's order | [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431) |
+| [2](#2-a-newton-residual-contaminates-cp-and-gh-test-functions) | Equilibrium curves | a second difference that retains the equilibrium residual produces spurious CP/GH labels | [W364](https://github.com/MuhammadMoustafa/xppautX/issues/426) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -62,3 +63,44 @@ problem.
   scale as tied, as well as AUTO-07p's band, and takes the lowest
   frequency among tied pairs, extending AUTO-07p's own rule inside the band.
 - **Card:** [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431).
+
+## 2. A Newton residual contaminates CP and GH test functions
+
+The cusp test adds `F(u+h*v)+F(u-h*v)` and divides by `h^2`, assuming
+`F(u)=0` ([toolboxae.f90:838-845](../reference/auto-07p/src/toolboxae.f90#L838)).
+The GH test's diagonal second derivative does the same
+([equilibrium.f90:832-844](../reference/auto-07p/src/equilibrium.f90#L832));
+its step is approximately `epsilon^(1/3)*(1+max|u|)`
+([equilibrium.f90:708-712](../reference/auto-07p/src/equilibrium.f90#L708)).
+A finite Newton residual contributes `2*F(u)/h^2`, which is not a second
+derivative and can dominate the test. The mixed and cubic stencils cancel
+the constant term already.
+
+**Evidence:** the checked-in AUTO-07p 0.9.4 references
+`tests/auto/tstauto_ab_fold.auto07p` and `tstauto_ab_hopf.auto07p` (generated
+by W362, not rerun in W364's sandbox). On the fold AUTO-07p labels five CP,
+but the model's analytic cusp is uniquely `(u1,u2)=(0.5,2)`,
+`p0=exp(-2),p1=12`. Only its third CP is there. On the Hopf curve it labels
+three GH at `p0=0.2284..0.2316,p1=11.31..11.23`.
+
+For an independent check, parameterise the reaction's Hopf curve by
+`t=p0*exp(u2)`: `u1=t/(1+t)`, `u2=(4+t)/3`,
+`p1=(4+t)*(1+t)/t`, `omega^2=2*t-1`. Transform the linear part to
+`xi'=-omega*eta, eta'=omega*xi`. The planar Lyapunov formula has the sign
+of `24-10*t-8*t^2-t^3`, with positive prefactor
+`t/(16*(2*t-1)*u1^2)`. This polynomial is strictly decreasing for `t>0`
+and is negative throughout the reference cluster near `t=5.5`; those
+labels are not generalised Hopf points.
+[codim_coefficients.py](../tests/auto/codim_coefficients.py) independently
+contracts the exact analytic tensors with complex left/right eigenvectors;
+for unit complex eigenvector norm it gives `l1=-0.3606957776` at `t=5.5`.
+The C++ coefficient is checked against this and two other analytic points,
+and against the Bautin normal form's `l1=2*b`.
+
+**xppautX:** subtracts `2*F(u)` in the diagonal second difference. This
+retains the same multilinear test function while cancelling its constant
+Newton residual. It locates the true CP and BT within the unchanged
+reference tolerances and emits none of the spurious CP/GH labels above.
+The four extra CP and three GH remain explicit traced differences.
+
+**Card:** [W364](https://github.com/MuhammadMoustafa/xppautX/issues/426).

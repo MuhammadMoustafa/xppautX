@@ -29,6 +29,7 @@ const rules: Record<NumKey, NumRule> = {
 };
 
 const settings: AutoSettings = {
+  special_points: {BT:true,CP:true,ZH:true,GH:true},
   numerics: {ntst: 15, nmx: 200, npr: 50, ncol: 4, ds: 0.02, dsmin: 0.001, dsmax: 0.5, rl0: 0, rl1: 2, a0: 0, a1: 1000,
     epsl: 1e-4, epsu: 1e-4, epss: 1e-4, iad: 3, mxbf: 5, iid: 2, itmx: 8, itnw: 7, nwtn: 3, iads: 1, suppbp: 0},
   axes: {plot: 2, var: 'V', par1: 'iapp', par2: 'phi', xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4},
@@ -42,6 +43,14 @@ const settings: AutoSettings = {
     {lo: 'a0', hi: 'a1', strict: true, message: 'Norm Min must be below Norm Max'}],
   step: {key: 'ds', lo: 'dsmin', hi: 'dsmax', message: 'Ds must be from Dsmin to Dsmax in size (its sign is the direction)'},
 };
+
+test('codim-2 detection booleans stay named while queued', () => {
+  const core = ev(READY, {ev: 'autosettings', ...settings});
+  const sent = act(core, {type: 'sent', patch: {special_points: {GH: false}}, ahead: 0});
+  assert.equal(shownSettings(sent.autoSettings)!.special_points.GH, false);
+  assert.equal(shownSettings(sent.autoSettings)!.special_points.BT, true);
+  assert.ok(pendingFields(sent.autoSettings).has('special_points.GH'));
+});
 
 test('the event is the store; an edit sent during a run shows until its own idle', () => {
   let s = ev(READY, {ev: 'autosettings', ...settings});

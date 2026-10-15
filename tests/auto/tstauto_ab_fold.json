@@ -1,21 +1,50 @@
 {
   "model": "examples/tstauto/ab.odex",
-  "reason": "W362 (#424): the fold of the exothermic reaction (the LP of the feed p0 at the model's p1 = 14) continued in p0 and the heat parameter p1 as a user does (Grab the LP, two-parameter), down to p0 = 0.02, through the Bogdanov-Takens point and the cusp. Compared with AUTO-07p's fold curve; the codim-2 labels it prints are traced differences until W364.",
+  "reason": "W362 (#424): the fold of the exothermic reaction (the LP of the feed p0 at the model's p1 = 14) continued in p0 and the heat parameter p1 as a user does (Grab the LP, two-parameter), down to p0 = 0.02, through the Bogdanov-Takens point and the cusp. Compared with AUTO-07p's fold curve; W364 detects BT/CP and traces the residual-contaminated reference labels.",
   "xppaut_skip": "The keys of tools/auto_reference.py do not continue a two-parameter curve in XPPAUT.",
   "runs": [
     {
       "name": "steady",
       "kind": "equilibrium",
-      "start": {"state": "current"},
+      "start": {
+        "state": "current"
+      },
       "parameter": "p0",
-      "auto": {"ds": 0.02, "dsmin": 1e-05, "dsmax": 0.02, "nmax": 100, "npr": 20, "parmin": 0, "parmax": 1.5, "ntst": 15, "mxbf": 0}
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 20,
+        "parmin": 0,
+        "parmax": 1.5,
+        "ntst": 15,
+        "mxbf": 0
+      }
     },
     {
       "name": "fold",
       "kind": "two_parameter",
-      "start": {"run": "steady", "type": "LP", "index": 1},
-      "parameters": ["p0", "p1"],
-      "auto": {"ds": 0.02, "dsmin": 1e-05, "dsmax": 0.05, "nmax": 400, "npr": 25, "parmin": 0.02, "parmax": 0.2, "ntst": 15, "mxbf": 0}
+      "start": {
+        "run": "steady",
+        "type": "LP",
+        "index": 1
+      },
+      "parameters": [
+        "p0",
+        "p1"
+      ],
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 1e-05,
+        "dsmax": 0.05,
+        "nmax": 400,
+        "npr": 25,
+        "parmin": 0.02,
+        "parmax": 0.2,
+        "ntst": 15,
+        "mxbf": 0
+      }
     }
   ],
   "differences": [
@@ -23,17 +52,9 @@
       "reference": ".auto07p",
       "run": "fold",
       "side": "reference",
-      "type": "BT",
-      "index": 1,
-      "cause": "AUTO-07p labels the Bogdanov-Takens point (point 12, p0 0.11156, p1 13.5001) where the fold meets the Hopf curve. xppautX continues a fold with ISP 0 (core/auto_nox.cpp auto_2p_limit) and detects no codim-2 point yet: W364. docs/auto-references.md."
-    },
-    {
-      "reference": ".auto07p",
-      "run": "fold",
-      "side": "reference",
       "type": "CP",
       "index": 1,
-      "cause": "AUTO-07p's cusp function changes sign five times between points 38 and 51 (its derivatives are finite differences, JAC 0); this label (point 38, p1 12.234) is 0.23 from the cusp and not one. Ours detects no codim-2 point yet: W364. docs/auto-references.md."
+      "cause": "AUTO-07p labels a zero of its residual-contaminated cusp stencil away from the analytic cusp (u1=0.5,u2=2,p0=exp(-2),p1=12). Its FNCPAE adds F(u+h*v)+F(u-h*v) without subtracting 2*F(u), toolboxae.f90:838-845. W364 removes the finite Newton residual before division by h^2; ours finds the true cusp, reference CP index 3. See docs/auto07p-findings.md, finding 2."
     },
     {
       "reference": ".auto07p",
@@ -41,15 +62,7 @@
       "side": "reference",
       "type": "CP",
       "index": 2,
-      "cause": "A sign change of AUTO-07p's cusp function that is not the cusp (point 40, p1 12.146); see the first CP. W364."
-    },
-    {
-      "reference": ".auto07p",
-      "run": "fold",
-      "side": "reference",
-      "type": "CP",
-      "index": 3,
-      "cause": "The cusp (point 46, p0 0.135335285 = e^-2, p1 11.99999992): u = (0.5, 2) is exactly the model's cusp, where the fold's quadratic coefficient w.F''(v,v) vanishes with null vectors v = (1, 4) and w = (6, -1). Ours detects no codim-2 point yet: W364. docs/auto-references.md."
+      "cause": "AUTO-07p labels a zero of its residual-contaminated cusp stencil away from the analytic cusp (u1=0.5,u2=2,p0=exp(-2),p1=12). Its FNCPAE adds F(u+h*v)+F(u-h*v) without subtracting 2*F(u), toolboxae.f90:838-845. W364 removes the finite Newton residual before division by h^2; ours finds the true cusp, reference CP index 3. See docs/auto07p-findings.md, finding 2."
     },
     {
       "reference": ".auto07p",
@@ -57,7 +70,7 @@
       "side": "reference",
       "type": "CP",
       "index": 4,
-      "cause": "A sign change of AUTO-07p's cusp function after the cusp that is not a cusp (point 48, p1 12.0067); see the first CP. W364."
+      "cause": "AUTO-07p labels a zero of its residual-contaminated cusp stencil away from the analytic cusp (u1=0.5,u2=2,p0=exp(-2),p1=12). Its FNCPAE adds F(u+h*v)+F(u-h*v) without subtracting 2*F(u), toolboxae.f90:838-845. W364 removes the finite Newton residual before division by h^2; ours finds the true cusp, reference CP index 3. See docs/auto07p-findings.md, finding 2."
     },
     {
       "reference": ".auto07p",
@@ -65,7 +78,7 @@
       "side": "reference",
       "type": "CP",
       "index": 5,
-      "cause": "A sign change of AUTO-07p's cusp function after the cusp that is not a cusp (point 51, p1 12.076); see the first CP. W364."
+      "cause": "AUTO-07p labels a zero of its residual-contaminated cusp stencil away from the analytic cusp (u1=0.5,u2=2,p0=exp(-2),p1=12). Its FNCPAE adds F(u+h*v)+F(u-h*v) without subtracting 2*F(u), toolboxae.f90:838-845. W364 removes the finite Newton residual before division by h^2; ours finds the true cusp, reference CP index 3. See docs/auto07p-findings.md, finding 2."
     }
   ]
 }

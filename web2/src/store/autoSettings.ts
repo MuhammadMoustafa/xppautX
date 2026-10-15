@@ -142,7 +142,11 @@ export interface AutoAxesSettings {
 }
 
 /** the `autosettings` event's settings, with what the Numerics take */
+export const CODIM_KINDS = ['BT', 'CP', 'ZH', 'GH'] as const;
+export type CodimKind = typeof CODIM_KINDS[number];
+
 export interface AutoSettings {
+  special_points: Record<CodimKind, boolean>;
   numerics: Record<NumKey, number>;
   axes: AutoAxesSettings;
   marks: [string, number][];
@@ -158,6 +162,7 @@ export interface AutoSettings {
 
 /** what an `auto` `set` changes (docs/protocol.md), each part only when given */
 export interface AutoSettingsPatch {
+  special_points?: Partial<Record<CodimKind, boolean>>;
   numerics?: Partial<Record<NumKey, number>>;
   /** `view`: the view of the diagram whose axes these are (W50; the active one without it) */
   axes?: Partial<AutoAxesSettings> & {fit?: boolean; view?: number};
@@ -215,6 +220,7 @@ function apply(base: AutoSettings, p: AutoSettingsPatch | null): AutoSettings {
   const {fit: _fit, view: _view, ...axes} = p.axes ?? {};
   return {
     ...base,
+    special_points: {...base.special_points, ...p.special_points},
     numerics: {...base.numerics, ...p.numerics},
     axes: {...base.axes, ...axes},
     marks: p.marks ?? base.marks,
@@ -233,6 +239,7 @@ export function pendingFields(s: AutoSettingsState): Set<string> {
   for (const {patch: p} of s.inflight) {
     for (const k of Object.keys(p.numerics ?? {})) out.add(`numerics.${k}`);
     for (const k of Object.keys(p.axes ?? {})) if (k !== 'fit' && k !== 'view') out.add(`axes.${k}`);
+    if (p.special_points) for (const k of Object.keys(p.special_points)) out.add(`special_points.${k}`);
     if (p.marks) out.add('marks');
     if (p.threads !== undefined) out.add('threads');
   }

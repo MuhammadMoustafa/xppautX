@@ -84,8 +84,8 @@ def read_description(path):
     d = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=no_duplicates)
     members(d, ('model', 'reason', 'parameters', 'initial_conditions', 'runs', 'skip', 'differences', *REFERENCE_SKIPS.values()), ('model', 'reason'))
     model = ROOT / d['model']
-    if model.resolve().parent not in (ROOT / 'examples/tstauto', ROOT / 'examples/ode') or not model.is_file():
-        raise ValueError('model must be a file in examples/tstauto or examples/ode')
+    if model.resolve().parent not in (ROOT / 'examples/tstauto', ROOT / 'examples/ode', ROOT / 'tools/models') or not model.is_file():
+        raise ValueError('model must be a file in examples/tstauto, examples/ode or tools/models')
     if not isinstance(d['reason'], str) or not d['reason'].strip():
         raise ValueError('reason must explain the runs')
     for kind in ('parameters', 'initial_conditions'):
@@ -300,7 +300,8 @@ REFERENCE_FORMAT = 1
 SPECIAL_TYPES = ('EP', 'MX', 'BP', 'LP', 'HB', 'PD', 'TR')
 CODIM_TWO = ('BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4', 'LPD', 'LTR', 'PTR', 'TTR')
 # the type of a stored point (itp, core/auto_nox.h) that both programs label a special point
-BIFURCATIONS = {1: 'BP', 2: 'LP', 3: 'HB', 5: 'LP', 6: 'BP', 7: 'PD', 8: 'TR'}
+BIFURCATIONS = {1: 'BP', 2: 'LP', 3: 'HB', 5: 'LP', 6: 'BP', 7: 'PD', 8: 'TR',
+                -21: 'BT', -22: 'CP', -23: 'ZH', -31: 'BT', -32: 'GH', -33: 'ZH'}
 POINT_FIELDS = ('type', 'branch', 'label', 'point', 'par', 'norm', 'period', 'spectrum', 'values')
 # Newton's convergence test of both codes (autlib1.c solvae, ae.f90 stepae) stops on a
 # relative change below EPSL for the parameter and EPSU for the state, so a computed
@@ -650,6 +651,8 @@ def main():
         expected.update('examples/ode/' + f.name for f in Path('examples/ode').glob('*.odex')
                         if re.search(r'\b(continuation|diagram)\s*:', re.sub(r'#[^\n]*', '', f.read_text(encoding='utf-8'))))
         models = [d['model'] for d in descriptions.values()]
+        # tools/models also holds non-AUTO checks; only described models join this set.
+        expected.update(model for model in models if (ROOT / model).resolve().parent == ROOT / 'tools/models')
         if set(models) != expected:
             raise ValueError('description coverage: missing %s, extra %s' %
                              (sorted(expected - set(models)), sorted(set(models) - expected)))
@@ -668,6 +671,10 @@ def main():
             skipped += 1
             print('SKIP %s: %s' % (name, d['skip']))
             continue
+        for suffix, field in REFERENCE_SKIPS.items():
+            if field in d:
+                status = 'PENDING' if 'pending' in d[field].lower() else 'SKIP'
+                print('%s %s %s: %s' % (status, name, REFERENCES[suffix], d[field]))
         for r in d['runs']:
             if 'skip' in r:
                 print('SKIP %s/%s: %s' % (name, r['name'], r['skip']))

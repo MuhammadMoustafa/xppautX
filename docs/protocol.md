@@ -1176,7 +1176,7 @@ continues in), and a grab's point by its data.
 | run field | meaning |
 |---|---|
 | `br`, `pt` | branch, and the number of the run's first point (absolute values) |
-| `ty` | 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic (core/diagram.h DiagramPointType) |
+| `ty` | 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic (core/auto_codes.h DiagramPointType) |
 | `stable`, `periodic` | what `ty` is (W118): stable or not, a periodic orbit or a steady state; what a client reads |
 | `f2` | two-parameter curve (1 limit point, 2 limit point of periodics, 3 Hopf, 4 torus, 5 branch point, 6 period doubling, 7 fixed period, 13 neutral saddle); absent for one parameter |
 | `d` | how it is drawn: 0 not at all (the next line starts from it), 1 a line back to the point before it, 2 filled circles of radius 3 at y and y2, 3 open circles |
@@ -1186,7 +1186,14 @@ continues in), and a grab's point by its data.
 | `jac` | how the Jacobian of the AUTO run that computed the run was formed: `difference` (XPPAUT's forward differences) or `exact` (the Numerics' Jacobian at that run, W278); a run never joins one with another setting, so one diagram can hold both |
 | `x`, `y` | the values, one per point (`null` for NaN) |
 | `y2` | the second value (the minimum, for hi and lo), when it differs from `y` anywhere in the run |
-| `lab` | [[index in the run, label, type (`EP`, `LP`, `HB`, `BP`, `PD`, `TR`, `UZ`, `MX`)], ...] for the labelled points (XPP marks them with a cross at y and y2, the number beside it) |
+| `lab` | [[index in the run, label, type (`EP`, `LP`, `HB`, `BP`, `PD`, `TR`, `UZ`, `MX`, `BT`, `CP`, `ZH`, `GH`)], ...] for the labelled points |
+
+On equilibrium fold curves, BT means Bogdanov-Takens (stored ITP -21), CP cusp
+(-22), ZH zero-Hopf (-23). On Hopf curves the encodings are BT -31, GH
+generalised Hopf -32, and ZH -33. GH uses the first Lyapunov coefficient.
+These are typed `AutoPointKind` values in `core/auto_codes.h`; `ty` remains
+the stability classification. Their location uses the same pipeline as the
+other special points (W364, #426).
 
 A run of AUTO sends `add` events as the points come, at most a few a
 second. A redraw that plots the same points at other axes
@@ -1211,7 +1218,7 @@ core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
 
 ```
 {"ev":"autoinfo",
- "info":{"point":18,"br":1,"pt":19,"type":2,"sym":"HB","lab":2,
+  "info":{"point":18,"br":1,"pt":19,"type":2,"sym":"HB","lab":2,
          "par":[{"name":"iapp","value":0.2624638},{"name":"phi","value":0.2}],
          "norm":0.2891081,"var":"V","u":-0.1989438,"per":14.44537,"x":0.2624638,"y":-0.1989438,"y2":-0.1989438},
  "stab":{"periodic":0,"circle":[[0.9069413,0.4214016],[0.9069413,-0.4214016]],
@@ -1248,6 +1255,13 @@ Max, Max points, no convergence with a fixed and at the smallest step, and
 Stop).
 
 ### AUTO's settings as data
+
+`autosettings.special_points` is an object of named booleans `BT`, `CP`,
+`ZH`, `GH`, all true by default. `auto` `set` accepts a partial object, e.g.
+`{"cmd":"auto","op":"set","special_points":{"GH":false}}`. Set all four
+false to disable all equilibrium codimension-two detection. Invalid names or
+non-booleans refuse the whole transaction. Session settings require all four
+lines (`BT true` or `BT false`, etc.); validation precedes application.
 
 What the AUTO window's Numerics, Axes (the AutoPlot form and
 the plot type) and Mark values forms edit, as data, for a client with
@@ -1917,7 +1931,7 @@ parameters, the info strip, the stability circle, and what a following
 Run starts from). `{"cmd":"auto","op":"grab","type":"HB","index":k}`
 grabs the `k`-th (1-based, in stored order) labelled point of that AUTO
 type instead (`auto_point_symbol`'s `BP`, `EP`, `HB`, `LP`, `MX`, `PD`, `TR`,
-`UZ`: "the 2nd HB"). A label no stored point has, or a `type`/`index` with
+`UZ`, `BT`, `CP`, `ZH`, `GH`: "the 2nd HB"). A label no stored point has, or a `type`/`index` with
 no such point, is a `message` `error` and nothing changes -- the diagram,
 `grabpt` and the info strip stay as they were. `{"cmd":"auto","op":"grab"}`
 with neither field is refused (`message` `error`): the interactive grab is

@@ -180,6 +180,7 @@ void axes_of(const xpp::Session &s, const AUTOAX &a, AutoSettingsSet &set)
 AutoSettingsSet settings_now(const xpp::Session &s)
 {
     AutoSettingsSet set;
+    for (std::size_t i=0;i<auto_codim_kinds.size();++i) set.special_points[i]=s.auto_state.special_points[i];
     read_num(s, set.num.data());
     set.has_num.fill(1);
     axes_of(s, s.auto_state.axes(), set);
@@ -222,7 +223,10 @@ std::string event_text(const xpp::Session &s)
        `set` checks them (num_ok, apply), with the messages it refuses with */
     /* the thread count (a preference, not a setting): "auto" or the number,
        what automatic gives now, and the most the preference takes */
-    o += "],\"threads\":";
+    o += "],\"special_points\":{";
+    for (std::size_t i=0;i<auto_codim_kinds.size();++i)
+        o += xpp::format("{}\"{}\":{}",i ? "," : "",auto_codim_keys[i],*set.special_points[i] ? "true" : "false");
+    o += "},\"threads\":";
     if (s.auto_state.threads == prefs::AUTO_THREADS_AUTO) xpp::json_append_string(o, std::string(prefs::AUTO_THREADS_WORD).c_str());
     else o += xpp::number(s.auto_state.threads);
     o += xpp::format(",\"threads_auto\":{},\"threads_max\":{}", AutoParallel::automatic_threads(), cpu::logical_processors());
@@ -420,6 +424,8 @@ void commit(xpp::Session &s, const AutoSettingsSet *set, Checked &c)
     const int view = c.view, plot = c.plot, var = c.var, icp1 = c.icp1, icp2 = c.icp2;
     const double(&range)[4] = c.range;
     write_num(s, num);
+    for (std::size_t i=0;i<auto_codim_kinds.size();++i)
+        if (set->special_points[i]) s.auto_state.special_points[i]=*set->special_points[i];
     bool axes = set->has_plot || !set->var.empty() || !set->par1.empty() || !set->par2.empty() || set->fit;
     for (int i = 0; i < 4; i++) axes = axes || set->has_range[i];
     if (axes) {

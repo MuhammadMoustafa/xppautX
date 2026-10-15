@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include "xpplim.h"
+#include "auto_codes.h"
 
 /* AUTO's settings as data (docs/ui-v2.md T22, docs/protocol.md "AUTO's
    settings as data"): what the AUTO window's Numerics, Axes
@@ -69,6 +70,7 @@ void auto_settings_update(const Session &s);
    default-constructed set gives nothing). A name left empty keeps what is
    there. Filled by json_auto.cpp, read by auto_settings.cpp. */
 struct AutoSettingsSet {
+    std::array<std::optional<bool>, auto_codim_kinds.size()> special_points{};
     std::array<int, AUTO_NUM_N> has_num{};
     std::array<double, AUTO_NUM_N> num{};
     int has_plot = 0;

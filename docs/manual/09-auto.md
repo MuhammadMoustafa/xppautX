@@ -351,6 +351,23 @@ disappear.
 Hopf bifurcation: a pair of eigenvalues crosses the imaginary axis, and a
 branch of periodic orbits starts here.
 
+### BT, CP, ZH and GH on equilibrium curves
+
+Two-parameter fold curves can carry **BT** (Bogdanov-Takens: a double zero
+eigenvalue), **CP** (cusp: a vanishing quadratic fold coefficient), and **ZH**
+(zero-Hopf: a zero eigenvalue and an imaginary pair). Hopf curves can carry
+**BT**, **ZH**, and **GH** (generalised Hopf or Bautin: the first Lyapunov
+coefficient changes sign). Their test functions and location follow AUTO-07p
+0.9.4; diagnostic output records the GH coefficient. A labelled zero of a
+finite-difference test still needs numerical convergence checks.
+
+In **Numerics**, **Equilibrium curve special points** enables each type, or
+**Detect all** changes all four together. All start enabled; these booleans
+are saved in the session. Turning detection off keeps continuation running.
+On a fold curve the auxiliary period is the starting PAR(11), as in AUTO-07p;
+it is not an oscillation period of the fold. Cycle-curve codimension-two labels
+are separate work (W400). (W364, [#426](https://github.com/MuhammadMoustafa/xppautX/issues/426))
+
 ### BP Branch point
 
 Bifurcation or branch point: another branch crosses this one.

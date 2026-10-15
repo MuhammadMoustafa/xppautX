@@ -176,6 +176,9 @@ int mueller(doublereal *q0, doublereal *q1, doublereal *q, doublereal *s0, doubl
 FNCS_TYPE_AE(fnbpae);
 FNCS_TYPE_AE(fnlpae);
 FNCS_TYPE_AE(fnhbae);
+FNCS_TYPE_AE(fnbtae);
+FNCS_TYPE_AE(fncpae);
+FNCS_TYPE_AE(fnghae);
 FNCS_TYPE_AE(fnuzae);
 int stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aaloc, doublereal *aa, doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *udot, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu);
 int swpnt(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *udot);

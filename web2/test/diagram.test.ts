@@ -6,10 +6,19 @@ import {test} from 'node:test';
 import {circlePoints, complexText, infoRows, stabComputed, stabilitySummary} from '../src/plot/autoInfo';
 import {
   buildDiagramModel, describePoint, fitRanges, grabStep, hopfOf, nearestVertex, stepLabel, vertexOf,
+  labelShape, labelTypes, symbolHelp, symbolName,
 } from '../src/plot/diagramModel';
 import {activeView, initialDiagram, pointCount, type DiagramRun} from '../src/store/diagram';
 import {initialState, reduce, type AppState} from '../src/store/state';
 import {READY} from './hello';
+
+test('equilibrium codim-2 labels have names, legend entries and marks', () => {
+  const kinds = ['BT', 'CP', 'ZH', 'GH'];
+  assert.deepEqual(labelTypes(kinds.map(sym => ({sym}))), kinds);
+  assert.deepEqual(kinds.map(symbolName), ['Bogdanov-Takens', 'Cusp', 'Zero-Hopf', 'Generalised Hopf']);
+  assert.deepEqual(kinds.map(labelShape), ['diamond', 'triangle', 'star', 'circle']);
+  assert.match(symbolHelp('GH'), /Lyapunov coefficient/);
+});
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const axes = {xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4, x0: 70, y0: 26, wid: 603, hgt: 300, plot: 2,
