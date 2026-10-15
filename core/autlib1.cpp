@@ -1696,10 +1696,9 @@ mueller(doublereal *q0, doublereal *q1, doublereal *q, doublereal *s0, doublerea
   const double d = h0 * h1 * (h1 - h0);
   const double a = (h1 * h1 * (*q0 - *q) - h0 * h0 * (*q1 - *q)) / d;
   const double b = (-h1 * (*q0 - *q) + h0 * (*q1 - *q)) / d;
-  const double discriminant = a * a - 4 * b * *q;
   double root = 0;
-  if (discriminant > 0) {
-    root = std::sqrt(discriminant);
+  if (a * a > 4 * b * *q) {
+    root = std::sqrt(a * a - 4 * b * *q);
     if (a < 0) root = -root;
   }
   *rds = -2 * *q / (a + root);
