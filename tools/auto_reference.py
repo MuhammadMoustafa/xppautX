@@ -14,7 +14,9 @@ equation file; the constants come from the description (NTST, NCOL, DS, DSMIN, D
 EPSU, EPSS, NMX, NPR, MXBF as the description gives them, ITMX, ITNW, NWTN, IAD, IID, IADS as
 xppautX's run fixes them, core/auto_nox.cpp); the starting point is the first point of our
 diagram (the Newton-corrected start); a run from a Hopf point continues from the first HB of
-the named run.
+the named run. A two_parameter run continues an LP or HB of an equilibrium run with ISW=2 (ICP the
+two parameters; ILP=0 as xppautX, ISP=1 so that AUTO-07p labels BT, CP, ZH, GH) and records, besides
+the labelled points, every step of the curve from AUTO-07p's b file: [parameter, second parameter, norm].
 
 --program xppaut needs XPPAUT 8.0 built from reference/xppaut-8.0 (--xppaut), Xvfb and
 xdotool. The same model is written as an .ode, XPPAUT's AUTO window is opened on a private
@@ -36,6 +38,7 @@ import subprocess
 import sys
 import tempfile
 
+from autocompare import CODIM_TWO, SPECIAL_TYPES
 from xppclient import wait_until
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,6 +51,11 @@ FIXED = dict(IAD=3, IID=2, ITMX=8, ITNW=7, NWTN=3, IADS=1, ILP=1, ISW=1, A0=0, A
 DEFAULTS = dict(ncol=4, epsl=1e-4, epsu=1e-4, epss=1e-4, mxbf=5)
 ISP = {'equilibrium': 1, 'periodic': 2, 'bvp': 2}
 IPS = {'equilibrium': 1, 'periodic': 2, 'bvp': 4}
+# A two-parameter curve of an LP or HB of equilibria is the equilibrium problem with ISW=2. xppautX runs it
+# with ILP=0 and ISP=0 and detects no codim-2 point yet (core/auto_nox.cpp auto_2p_limit); the reference
+# keeps ILP=0 and the equilibria's ISP=1, which makes AUTO-07p label BT, CP, ZH and GH: those labels are what
+# W363 and W364 are judged against.
+CURVE_ISW = 2
 INTRINSICS = {'exp', 'sin', 'cos', 'tan', 'tanh', 'cosh', 'sinh', 'sqrt', 'max', 'min', 'abs', 'log', 'atan'}
 TOKEN = re.compile(r"\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|[A-Za-z_][A-Za-z_0-9]*'?|\^|[()+\-*/,]")
 LINE = 96  # characters of an expression per Fortran line (free form allows 132)
@@ -268,13 +276,20 @@ class Equations:
         return '\n'.join(f)
 
 
-def constants(r, ndim, kind, discrete, nbc, icp, irs, npar):
+def problem(r, discrete):
+    """The run's AUTO-07p problem: ips, isp, isw, ilp."""
+    curve = r['kind'] == 'two_parameter'
+    kind = 'equilibrium' if curve else r['kind']
+    return dict(ips=-1 if discrete else IPS[kind], isp=1 if discrete else ISP[kind],
+                isw=CURVE_ISW if curve else FIXED['ISW'], ilp=0 if curve else FIXED['ILP'])
+
+
+def constants(r, ndim, pr, nbc, icp, irs, npar):
     a = {**DEFAULTS, **r['auto']}
-    ips = -1 if discrete else IPS[kind]
-    lines = ['NDIM=%d, IPS=%d, IRS=%d, ILP=%d' % (ndim, ips, irs, FIXED['ILP']),
+    lines = ['NDIM=%d, IPS=%d, IRS=%d, ILP=%d' % (ndim, pr['ips'], irs, pr['ilp']),
              'ICP=%s' % icp,
              'NTST=%d, NCOL=%d, IAD=%d, ISP=%d, ISW=%d, IPLT=0, NBC=%d, NINT=0' %
-             (a['ntst'], a['ncol'], FIXED['IAD'], ISP[kind] if not discrete else 1, FIXED['ISW'], nbc),
+             (a['ntst'], a['ncol'], FIXED['IAD'], pr['isp'], pr['isw'], nbc),
              'NMX=%d, NPR=%d, MXBF=%d, IID=%d, ITMX=%d, ITNW=%d, NWTN=%d, JAC=0' %
              (a['nmax'], a['npr'], a['mxbf'], FIXED['IID'], FIXED['ITMX'], FIXED['ITNW'], FIXED['NWTN']),
              'EPSL=%r, EPSU=%r, EPSS=%r' % (a['epsl'], a['epsu'], a['epss']),
@@ -311,6 +326,18 @@ def stability(text):
     return out
 
 
+def curve_points(text, first, second):
+    """[[PAR(first), PAR(second), L2-NORM]] of every step of a two-parameter run, from its bifurcation
+    diagram file (b.*: a header line naming the columns, then one line per step, whatever NPR is)."""
+    lines = text.splitlines()
+    head = next(i for i, l in enumerate(lines) if 'L2-NORM' in l and 'PAR(' in l)
+    # the header starts with a 0 where the lines have their branch number
+    columns = {name: i + 1 for i, name in enumerate(lines[head].split()[1:])}
+    wanted = [columns['PAR(%d)' % first], columns['PAR(%d)' % second], columns['L2-NORM']]
+    rows = [l.split() for l in lines[head + 1:]]
+    return [[float(f[k]) for k in wanted] for f in rows if len(f) == len(columns) + 1 and int(f[0]) != 0]
+
+
 def script(runs, eq, names):
     """The .auto script: runs in order, every labelled solution printed as a JSON line."""
     lines = ['import json', 'results = {}', 'def period(s):', '    try:', "        return s['PAR(%d)']" % PERIOD,
@@ -321,17 +348,20 @@ def script(runs, eq, names):
             src = "run(e='eq', c='%s')" % c
         else:
             src = "run(results[%r]('%s%d'), c='%s')" % (start['run'], start['type'], start['index'], c)
+        second = ", 'par2': s['PAR(%d)']" % eq['icp2'][r['name']] if r['name'] in eq['icp2'] else ''
         lines += ['print("RUN %s")' % r['name'], 'try:', '    results[%r] = %s' % (r['name'], src),
                   "    save(results[%r], %r)" % (r['name'], c),
                   "    for s in results[%r]():" % r['name'],
                   "        print('POINT ' + json.dumps({'run': %r, 'type': s['TY name'], 'branch': s['BR'], 'label': s['LAB'],"
-                  " 'point': s['PT'], 'par': s['PAR(%d)'], 'norm': s['L2-NORM'], 'period': period(s)}))"
-                  % (r['name'], eq['icp1'][r['name']]),
+                  " 'point': s['PT'], 'par': s['PAR(%d)']%s, 'norm': s['L2-NORM'], 'period': period(s)}))"
+                  % (r['name'], eq['icp1'][r['name']], second),
                   'except Exception as e:', "    print('FAILED %s ' + str(e).replace(chr(10), ' '))" % r['name']]
     return '\n'.join(lines) + '\n'
 
 
-POINT_TYPES = ('EP', 'MX', 'BP', 'LP', 'HB', 'PD', 'TR')
+# the points of an equilibrium run a two-parameter curve can start from
+CURVE_START = ('LP', 'HB')
+POINT_TYPES = SPECIAL_TYPES + CODIM_TWO
 SOURCES = {'auto07p': 'AUTO-07p 0.9.4', 'xppaut': 'XPPAUT 8.0 (reference/xppaut-8.0, c021b511)'}
 SUFFIX = {'auto07p': '.auto07p', 'xppaut': '.xppaut'}
 
@@ -349,8 +379,16 @@ def check_description(name, d, program):
     if bvp and len(d['runs']) != 1:
         raise Refused('BVP with several runs')
     kinds = {r['kind'] for r in d['runs']}
-    if kinds - set(IPS):
-        raise Refused('run kind %s needs constants not mapped here' % sorted(kinds - set(IPS)))
+    if kinds - set(IPS) - {'two_parameter'}:
+        raise Refused('run kind %s needs constants not mapped here' % sorted(kinds - set(IPS) - {'two_parameter'}))
+    kind_of = {r['name']: r['kind'] for r in d['runs']}
+    for r in d['runs']:
+        if r['kind'] == 'two_parameter':
+            if program == 'xppaut':
+                raise Refused('the keys of this driver do not continue a two-parameter curve in XPPAUT')
+            if kind_of.get(r['start'].get('run')) != 'equilibrium' or r['start'].get('type') not in CURVE_START:
+                raise Refused('two-parameter run %s: only an %s of an equilibrium run is continued' %
+                              (r['name'], ' or '.join(CURVE_START)))
     start = first_point(name)
     if bvp:
         if program == 'xppaut':
@@ -368,16 +406,20 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name):
     work = Path(tempfile.mkdtemp(prefix='w300-a07-'))
     try:
         (work / 'eq.f90').write_text(eqs.source(start, bvp), encoding='utf-8')
-        names, icp1 = [], {}
+        names, icp1, icp2 = [], {}, {}
         for i, r in enumerate(d['runs']):
             c = 'r%d' % i
             names.append(c)
-            p = eqs.slot[r['parameter']]
-            icp1[r['name']] = p
-            icp = [p] if r['kind'] in ('equilibrium', 'bvp') else [p, PERIOD]
-            (work / ('c.' + c)).write_text(constants(r, len(odex.states), r['kind'], odex.discrete,
-                                                     len(odex.bcs) if bvp else 0, icp, 0, eqs.npar))
-        (work / 'run.auto').write_text(script(d['runs'], {'icp1': icp1}, names))
+            pr = problem(r, odex.discrete)
+            if r['kind'] == 'two_parameter':
+                icp1[r['name']], icp2[r['name']] = (eqs.slot[n] for n in r['parameters'])
+                icp = [icp1[r['name']], icp2[r['name']]]
+            else:
+                p = icp1[r['name']] = eqs.slot[r['parameter']]
+                icp = [p] if r['kind'] in ('equilibrium', 'bvp') else [p, PERIOD]
+            (work / ('c.' + c)).write_text(constants(r, len(odex.states), pr, len(odex.bcs) if bvp else 0,
+                                                     icp, 0, eqs.npar))
+        (work / 'run.auto').write_text(script(d['runs'], {'icp1': icp1, 'icp2': icp2}, names))
         env = {**os.environ, 'AUTO_DIR': auto_dir, 'PYTHONWARNINGS': 'ignore'}
         env['PATH'] = '%s/cmds:%s/bin:%s' % (auto_dir, auto_dir, env['PATH'])
         p = subprocess.run(['auto', 'run.auto'], cwd=work, env=env, capture_output=True, text=True)
@@ -387,13 +429,15 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name):
             shutil.copytree(work, keep / name, dirs_exist_ok=True)
         stab = {r['name']: (stability((work / ('d.' + c)).read_text(errors='replace'))
                             if (work / ('d.' + c)).exists() else {}) for c, r in zip(names, d['runs'])}
+        curves = {r['name']: curve_points((work / ('b.' + c)).read_text(errors='replace'), icp1[r['name']], icp2[r['name']])
+                  for c, r in zip(names, d['runs']) if r['name'] in icp2 and (work / ('b.' + c)).exists()}
         failed = {l.split()[1]: l.split(None, 2)[2] for l in p.stdout.splitlines() if l.startswith('FAILED ')}
         points = {r['name']: [] for r in d['runs']}
         for line in p.stdout.splitlines():
             if line.startswith('POINT '):
                 pt = json.loads(line[6:])
                 points[pt.pop('run')].append(pt)
-        return points, stab, failed
+        return points, stab, failed, curves
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -545,7 +589,7 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
                                                   point=int(m.group(2)), par=float(m.group(5)), norm=float(m.group(6)), period=period))
         if keep:
             shutil.copytree(work, keep / name, dirs_exist_ok=True)
-        return points, stab, failed
+        return points, stab, failed, {}
     finally:
         for p in (xpp, xvfb):
             if p is not None and p.poll() is None:
@@ -557,9 +601,9 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
 def reference(name, d, program, args):
     odex, eqs, start, bvp = check_description(name, d, program)
     if program == 'auto07p':
-        points, stab, failed = execute_auto07p(d, odex, eqs, start, bvp, args.auto_dir, args.keep, name)
+        points, stab, failed, curves = execute_auto07p(d, odex, eqs, start, bvp, args.auto_dir, args.keep, name)
     else:
-        points, stab, failed = execute_xppaut(d, odex, eqs, start, args.xppaut, args.keep, name)
+        points, stab, failed, curves = execute_xppaut(d, odex, eqs, start, args.xppaut, args.keep, name)
     runs = []
     for r in d['runs']:
         kept = []
@@ -567,7 +611,9 @@ def reference(name, d, program, args):
             if pt['type'] in POINT_TYPES:
                 kind, vals = stab[r['name']].get((abs(pt['branch']), abs(pt['point'])), ('', []))
                 kept.append({**pt, 'spectrum': kind.lower(), 'values': vals})
-        runs.append({'name': r['name'], 'parameter': r['parameter'], 'points': kept,
+        names = {'parameters': r['parameters']} if r['kind'] == 'two_parameter' else {'parameter': r['parameter']}
+        runs.append({'name': r['name'], **names, 'points': kept,
+                     **({'curve': curves[r['name']]} if r['name'] in curves else {}),
                      **({'unavailable': failed[r['name']]} if r['name'] in failed else {})})
     return {'format': FORMAT, 'source': SOURCES[program] + ' (tools/auto_reference.py)', 'model': d['model'], 'runs': runs}
 
@@ -576,10 +622,14 @@ def write(path, ref):
     lines = ['{', '  "format": %d,' % ref['format'], '  "source": %s,' % json.dumps(ref['source']),
              '  "model": %s,' % json.dumps(ref['model']), '  "runs": [']
     for i, r in enumerate(ref['runs']):
-        lines += ['    {"name": %s, "parameter": %s,%s "points": [' % (
-            json.dumps(r['name']), json.dumps(r['parameter']),
+        axes = '"parameters": %s' % json.dumps(r['parameters']) if 'parameters' in r else '"parameter": %s' % json.dumps(r['parameter'])
+        lines += ['    {"name": %s, %s,%s "points": [' % (
+            json.dumps(r['name']), axes,
             (' "unavailable": %s,' % json.dumps(r['unavailable'])) if 'unavailable' in r else '')]
         lines += ['      ' + json.dumps(p) + (',' if j + 1 < len(r['points']) else '') for j, p in enumerate(r['points'])]
+        if 'curve' in r:
+            lines.append('    ], "curve": [')
+            lines += ['      ' + json.dumps(p) + (',' if j + 1 < len(r['curve']) else '') for j, p in enumerate(r['curve'])]
         lines.append('    ]}' + (',' if i + 1 < len(ref['runs']) else ''))
     lines += ['  ]', '}', '']
     path.write_text('\n'.join(lines), encoding='utf-8')

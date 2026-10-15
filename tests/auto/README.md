@@ -3,7 +3,9 @@
 One description per model in `examples/tstauto/`, plus each `examples/ode/`
 model with an `auto` options group. Names include the example folder to
 distinguish the two Morris–Lecar models. The driver verifies this inventory
-before starting any server, including when `--only` selects a subset.
+before starting any server, including when `--only` selects a subset. A model
+may have more descriptions than that one (W362: `tstauto_ab_fold`,
+`tstauto_ab_hopf`, whose names say what they continue).
 
 `model` is relative to the repository. `reason` explains the continuation;
 optional `parameters` and `initial_conditions` set the starting state.
@@ -58,3 +60,9 @@ reference, to be explained. A description without a file says why in `auto07p_sk
 boundary-value run starts from its integrated storage); a difference found, traced and kept is an entry
 of the description's `differences` (run, side, type, index among that type, cause), held exact:
 the check fails if the difference goes away.
+
+A `two_parameter` run (W362, #424) continues a labelled point of an earlier run (`start`: its run, type
+LP or HB, index) in its two `parameters`. Its reference run holds `parameters`, the special points with
+`par2` (AUTO-07p labels BT, CP, ZH and GH there; ours labels none until W364, so each is a `differences`
+entry) and `curve`, every step of the other program as `[parameter, second parameter, norm]`; the curves
+are matched by where they lie, not by step (docs/auto-references.md "Two-parameter curves").

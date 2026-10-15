@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from autocompare import BASE, Diagram, compare_run, difference, read_description, read_reference, reference_spectrum
+from autocompare import BASE, Diagram, compare_curve, compare_run, difference, read_description, read_reference, reference_spectrum
 
 
 class AutoCompare(unittest.TestCase):
@@ -134,6 +134,90 @@ class References(unittest.TestCase):
                     read_reference(path, d)
             path.write_text(json.dumps(good), encoding='utf-8')
             self.assertEqual(read_reference(path, d)['model'], d['model'])
+
+
+class Curves(unittest.TestCase):
+    AUTO = dict(dsmax=0.1, epsl=1e-4, epsu=1e-4, epss=1e-4, parmin=0.05, parmax=1.4)
+    WIDE = dict(AUTO, parmin=0.0, parmax=3.0)
+
+    @staticmethod
+    def rows(vertices):
+        return [dict(continued_parameter=str(a), continued_parameter2=str(b), norm=str(n), itp='0') for a, b, n in vertices]
+
+    @staticmethod
+    def parabola(steps, shift=0.0):
+        """a smooth curve: the second parameter a + a^2, the norm 2a, a every 0.05 from `shift`"""
+        return [(a, a + a * a, 2 * a) for a in (shift + 0.05 * i for i in range(steps))]
+
+    def test_a_curve_matches_at_other_steps_and_differs_beyond_the_tolerance(self):
+        ours = self.parabola(40)
+        ref = [list(v) for v in self.parabola(30, 0.013)]  # other step positions on the same curve
+        diffs, measures = compare_curve(self.rows(ours), self.AUTO, ref, 'm')
+        self.assertEqual(diffs, [])
+        self.assertEqual([m[0] for m in measures], ['curve par', 'curve par2', 'curve norm'])
+        ref[10][1] += 0.05
+        diffs, _ = compare_curve(self.rows(ours), self.AUTO, ref, 'm')
+        self.assertTrue(any('curve par2: 1 of 30 reference samples' in d and 'the first, sample 11' in d for d in diffs), diffs)
+
+    def test_a_curve_that_stops_short_or_runs_on_is_a_difference(self):
+        ours = self.parabola(40)
+        for ref in (self.parabola(10), self.parabola(60)):
+            diffs, _ = compare_curve(self.rows(ours), self.WIDE, [list(v) for v in ref], 'm')
+            self.assertTrue(diffs, len(ref))
+
+    def test_only_samples_inside_the_first_parameters_bounds_are_compared(self):
+        ours = self.parabola(40)
+        ref = [list(v) for v in self.parabola(60)]
+        self.assertTrue(compare_curve(self.rows(ours), self.WIDE, ref, 'm')[0])
+        diffs, _ = compare_curve(self.rows(ours), dict(self.WIDE, parmax=1.9), ref, 'm')
+        self.assertEqual(diffs, [])
+
+    def test_the_two_arcs_of_a_cusp_are_told_apart_by_their_norm(self):
+        upper = [(0.1 * i, 0.1 * i, 1.0 + 0.01 * i) for i in range(20)]
+        lower = [(0.1 * i, 0.1 * i, 0.0 + 0.01 * i) for i in range(20)]
+        diffs, _ = compare_curve(self.rows(upper + lower[::-1]), self.WIDE, [list(v) for v in upper + lower[::-1]], 'm')
+        self.assertEqual(diffs, [])
+        diffs, _ = compare_curve(self.rows(upper), self.WIDE, [list(v) for v in lower], 'm')
+        self.assertTrue(diffs)
+
+    def test_a_codim_two_point_of_the_reference_is_a_difference_until_traced(self):
+        rows = [dict(itp='0', continued_parameter=str(a), norm=str(a), per='0.0', evr1='0', evi1='0') for a in range(5)]
+        ref = [dict(type='BT', branch=1, label=2, point=2, par=1.0, par2=1.0, norm=1.0, period=None, spectrum='', values=[])]
+        diffs, _ = compare_run(rows, self.AUTO, 'two_parameter', ref, 'm')
+        self.assertIn("special points ['BT'], ours []", diffs[0])
+        known = [dict(side='reference', type='BT', index=1, cause='traced')]
+        self.assertEqual(compare_run(rows, self.AUTO, 'two_parameter', ref, 'm', known)[0], [])
+
+    def test_a_curve_reference_is_read_strictly(self):
+        d = json.loads((BASE / 'tstauto_ab_fold.json').read_text())
+        sample = [[0.1, 14.0, 1.5], [0.2, 13.0, 1.6]]
+        good = dict(format=1, source='x', model=d['model'], runs=[
+            dict(name='steady', parameter='p0', points=[]),
+            dict(name='fold', parameters=['p0', 'p1'], points=[], curve=sample)])
+        with tempfile.TemporaryDirectory(prefix='xppautocompare-test-') as tmp:
+            path = Path(tmp) / 'ab.auto07p'
+            for edit in (lambda r: r['runs'][1].pop('curve'), lambda r: r['runs'][1].update(parameters=['p0', 'p2']),
+                         lambda r: r['runs'][1].update(curve=[[0.1, 14.0]] * 2), lambda r: r['runs'][1].update(curve=sample[:1]),
+                         lambda r: r['runs'][0].update(curve=sample), lambda r: r['runs'][1]['points'].append(dict(type='XX')),
+                         lambda r: r['runs'][1].update(parameter='p0')):
+                bad = copy.deepcopy(good)
+                edit(bad)
+                path.write_text(json.dumps(bad), encoding='utf-8')
+                with self.assertRaises(ValueError):
+                    read_reference(path, d)
+            path.write_text(json.dumps(good), encoding='utf-8')
+            self.assertEqual(read_reference(path, d)['runs'][1]['curve'], sample)
+
+    def test_a_start_is_grabbed_from_the_points_its_run_left(self):
+        dg = Diagram()
+        dg.apply([dict(ev='diagram', op='add', view=0, **{'from': 0},
+                       runs=[dict(br=1, pt=1, x=[0.0] * 3, y=[0.0] * 3, lab=[[1, 4, 'HB']])])])
+        dg.runs['steady'] = [dict(p) for p in dg.points]
+        # a curve on other axes redraws the diagram and labels only what it plots
+        dg.apply([dict(ev='diagram', op='add', view=0, **{'from': 0},
+                       runs=[dict(br=1, pt=1, x=[0.0] * 3, y=[0.0] * 3, lab=[])])])
+        self.assertEqual([p['sym'] for p in dg.points], ['', '', ''])
+        self.assertEqual([p['sym'] for p in dg.runs['steady']], ['', 'HB', ''])
 
 
 if __name__ == '__main__':

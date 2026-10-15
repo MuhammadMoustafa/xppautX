@@ -20,7 +20,7 @@ installed in CI, nor vendored.
   Fortran translation of the `.odex` (`par`, `init`, formulas, `fun`, `boundary`) with the description's
   constants (NTST, NCOL, DS, DSMIN, DSMAX, EPSL, EPSU, EPSS, NMX, NPR, MXBF, and the ITMX, ITNW, NWTN,
   IAD, IID, IADS xppautX fixes), the Newton-corrected first point of our diagram as the start, and a
-  periodic run from the first HB of the named run; XPPAUT 8.0 built from reference/xppaut-8.0 with its
+  periodic run from the first HB of the named run, or a two-parameter curve from an LP or HB (below); XPPAUT 8.0 built from reference/xppaut-8.0 with its
   AUTO window opened on a private Xvfb display and driven by the keys a user presses (Parameters and
   Numerics dialogs, Run, Grab, Run), the constants it used read back from the `.b` header and required to
   be the run's. Its point table is XPPAUT's own stdout, the spectra its diagnostics file, the period its
@@ -55,9 +55,49 @@ For a quantity *q* at a special point the allowed difference is
 - The tolerance is **never widened to make a point pass**: a difference beyond it is traced to a cause
   (below) and recorded, or it is a bug.
 
+## Two-parameter curves (W362, [#424](https://github.com/MuhammadMoustafa/xppautX/issues/424))
+
+`tstauto_ab_fold` and `tstauto_ab_hopf` continue the exothermic reaction's fold (the LP of the feed `p0`
+at the model's `p1` = 14) and Hopf point (the same `p1`, `p0` = 0.1309) in `p0` and `p1`, as a user does:
+Grab the point, two-parameter. The Hopf description runs both directions of the curve (`hopf_up`, `hopf_down`).
+A model has more than one description now (`autocompare.py` still requires every model to have one).
+
+- **AUTO-07p's run** (`tools/auto_reference.py`): the equilibrium problem restarted from the label of the earlier
+  run's LP or HB, `ISW=2`, `ICP=[p0, p1]`, the description's constants, `ILP=0` as ours. `ISP=1`, which ours
+  does not have (`ISP=0`, core/auto_nox.cpp `auto_2p_limit`): it makes AUTO-07p label BT, CP, ZH and GH
+  (`CHECKSP`, support.f90), and those labels are what W363 and W364 are judged against. Detection moves
+  the steps around a label a little and nothing else, so the curves stay comparable. A curve of cycles (a PD)
+  is not driven: no model of `tests/auto` has a PD point (AUTO-07p, 300 steps of the cycles of torx, frcp, pp2,
+  ode/lecar, lo, lamom and lamom2: folds, branch points, none a PD), so it would be code nothing exercises.
+- **What the file holds** (`tstauto_ab_fold.auto07p`): per run the special points as before, now with
+  `par2` and the codim-2 types (BT, CP, ZH, GH, R1-R4, LPD, LTR, PTR, TTR) for a two-parameter run, and its
+  `curve`: every step AUTO-07p took, `[parameter, second parameter, norm]` from its `b` file (NPR only decides
+  which are labelled).
+- **The comparison** (`compare_curve`): the programs' steps differ, so points are matched by where they lie. Every
+  sample of the reference is put on our curve as a polyline, the nearest place being found in the three
+  coordinates (each over its range along the curve: with the parameters alone, the two arcs of the cusp lie
+  together and are mixed up); then the other way round, so a curve that stops short or runs on is a difference.
+  At that place the parameter, the second parameter and the norm must agree within
+  `2 * EPS * (1 + |q|)` plus the polyline's chord error, a quarter of the largest second difference at the
+  segment's ends. `EPS` is Newton's tolerance on every continued point (`EPSL`, `EPSU`), twice for two programs; no
+  location term, the samples being converged points, not located ones. The chord of a smooth curve through points a
+  step apart misses it by h^2|q''|/8 and the second difference estimates h^2|q''|; the steps vary by up to a factor
+  two, hence a quarter. Only samples inside the run's bounds on the first parameter are compared:
+  a run ends at the first point beyond a bound, which depends on the last step, and two programs' step sequences
+  differ (ours reached p1 16.67 where AUTO-07p, 150 steps in, reached 16.56). A run that stops at its bound
+  has the other curve around every sample inside it; one that stops short does not, and is a difference.
+- **Special points**: a codim-2 point AUTO-07p labels and ours does not is a difference like any other, held in
+  the description's `differences` until W364 detects them.
+
+Result: both curves agree with AUTO-07p's. The fold (218 points of ours, 221 of the reference's) to 3.9e-5 in
+`p0`, 1.8e-3 in `p1` and 6.3e-4 in the norm, the largest at the cusp (the norm at 0.65 of its tolerance, `p1` at
+0.31). The Hopf curve in both directions (228 points of ours, 501 of the reference's: AUTO-07p's steps along it
+are about half of ours) to 8.7e-6 in `p0`, 2.7e-4 in `p1` and 9e-5 in the norm. Nothing was widened. The only
+differences are the codim-2 labels of AUTO-07p (traced 4 and 5 below).
+
 ## Result
 
-26 models have an AUTO-07p reference (46 special points compared) and 24 an XPPAUT 8.0 reference (44 points); 24 of the 28 runnable descriptions hold both. Every untraced comparison agrees. AUTO-07p has five traced points in two descriptions; XPPAUT 8.0 has three in three descriptions. No tolerance was widened. Before W326 there were 44 compared points and six traced points against AUTO-07p, and 44 compared points with none traced against XPPAUT.
+28 descriptions have an AUTO-07p reference (52 special points compared, and the two-parameter curves below) and 24 an XPPAUT 8.0 reference (44 points); 24 of the 30 runnable descriptions hold both. Every untraced comparison agrees. AUTO-07p has fourteen traced points in four descriptions (nine of them the codim-2 labels of W362's curves); XPPAUT 8.0 has three in three descriptions. No tolerance was widened. Before W326 there were 44 compared points and six traced points against AUTO-07p, and 44 compared points with none traced against XPPAUT.
 
 | Model | Special points in xppautX | AUTO-07p | XPPAUT 8.0 |
 |---|---|---|---|
@@ -65,6 +105,8 @@ For a quantity *q* at a special point the allowed difference is
 | ode/lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
 | ode/osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
+| ab, fold curve | steady: EP LP; fold: - | agrees, 6 traced (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08; curve par 3.9e-05, par2 0.0018, norm 0.00063) | not run |
+| ab, Hopf curves | steady: EP LP LP HB; hopf_up: -; hopf_down: - | agrees, 3 traced (4 points; par 6.2e-06, norm 9.7e-07, period 3e-05, spectrum 0.00012; curve par 8.7e-06, par2 0.00027, norm 9e-05) | not run |
 | bigaut | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | bistable | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | bob | steady: EP | agrees (1 points; par 0, norm 1.8e-12) | agrees (1 points; par 0, norm 1.4e-08) |
@@ -130,7 +172,7 @@ XPPAUT: the unit test exercises ours, without an executed XPPAUT reproduction.
 
 ## Disagreements, traced
 
-Three causes in four descriptions; W326 fixes the missing restore and records the resulting differences with XPPAUT.
+Five causes in six descriptions; W326 fixes the missing restore and records the resulting differences with XPPAUT.
 
 1. **Morris-Lecar cycles, `ode_lecar` and `tstauto_lecar`: xppautX and AUTO-07p find the LP; XPPAUT does not.**
    At NTST 15 the BP test changes sign by noise at point 21 and its location exhausts ITMX.
@@ -160,6 +202,23 @@ Three causes in four descriptions; W326 fixes the missing restore and records th
    start at a = -1.05 (at a = 9.5e-8), with cycles ending at a = 1.00003, norm 1.0000298, period 5.71196, as
    ours (1.00002979, 5.711955). Ours and XPPAUT 8.0 agree to 2.5e-16 on the HB and its cycles.
 
+4. **`tstauto_ab_fold`: AUTO-07p labels a Bogdanov-Takens point and five cusps; ours labels nothing.**
+   xppautX continues a fold with `ISP=0` ([core/auto_nox.cpp `auto_2p_limit`](../core/auto_nox.cpp)) and detects no codim-2
+   point yet, W364's. AUTO-07p's BT is at point 12 (p0 0.11156, p1 13.5001). Of its five CP labels only
+   the third (point 46, p0 0.13533528504, p1 11.99999992) is the cusp: u = (0.5, 2), p0 = e^-2, p1 = 12 satisfy the equilibrium
+   and fold conditions, with null vectors v = (1, 4) and w = (6, -1) of the Jacobian [[-2, 0.5], [-12, 3]], and
+   the fold's quadratic coefficient w.F''(v,v) is 0 there (F''(v,v) = (0, 0) by hand). The others (points 38, 40,
+   48, 51; p1 12.23, 12.15, 12.007, 12.08) are sign changes of AUTO-07p's cusp function (finite-difference
+   derivatives, `JAC=0`) on the stretch around the cusp, within 0.23 of it in p1. The curve itself agrees (above).
+   W364 is judged against the BT and the third CP; whether ours must also reproduce the other four is for W364
+   to settle, they are held here as traced differences until then.
+5. **`tstauto_ab_hopf`, `hopf_up`: AUTO-07p labels three generalised-Hopf points (points 132, 134, 136; p0 0.2284 to
+   0.2316, p1 11.31 to 11.23); ours labels none.** The same missing detection, W364's. Three labels within four
+   steps are signs of AUTO-07p's GH function changing three times at one place; whether one of them is a true
+   generalised Hopf point is not decided here (no independent calculation was made). `hopf_down` has no codim-2 point. The
+   Hopf curve's own agreement matters for W363, whose 2n+2 system replaces ours (3n+2): the curve is
+   the number it must reproduce, to the tolerance above.
+
 Past the first fold of cycles whose multipliers reach 1e6 none of the three programs' numbers are the model's
 (the near-homoclinic orbits of the cases above), so a description's short run is only as good as its mesh
 there; the two recorded cases are the ones that reach it.
@@ -177,6 +236,10 @@ there; the two recorded cases are the ones that reach it.
   `tsthom2`). XPPAUT's boundary-value run starts from the solution in its storage, which an integration in its
   main window fills; the keys of `tools/auto_reference.py` do not drive that. The other 24 models were driven.
   XPPAUT's AUTO has no batch mode, so any run needs its window and an X server.
+- **Two-parameter curves, XPPAUT 8.0 and the cycles' curves** (W362): `tstauto_ab_fold` and `tstauto_ab_hopf` carry an
+  `xppaut_skip`: the keys of `tools/auto_reference.py` do not continue a curve in XPPAUT's window. A period-doubling
+  curve has no description: no model of `tests/auto` has a PD point (section "Two-parameter curves"). ZH and the
+  cycles' R1-R4, LPD, LTR, PTR, TTR have no reference either: no model here reaches them.
 - **Compared at the start only:** `bigaut` (350 variables) and `dumb` (195) are linear dimension fixtures
   with no special point, and the models whose run meets none before it ends on the step count or a bound
   compare the start alone. A run's last point is not compared.

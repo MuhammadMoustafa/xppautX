@@ -1,0 +1,54 @@
+{
+  "model": "examples/tstauto/ab.odex",
+  "reason": "W362 (#424): the Hopf point of the exothermic reaction (p1 = 14, p0 = 0.1309) continued in p0 and the heat parameter p1 as a user does (Grab the HB, two-parameter), in both directions of the curve. Compared with AUTO-07p's Hopf curve; the codim-2 labels it prints are traced differences until W364, and the curve is the reference W363's reduced Hopf system is judged against.",
+  "xppaut_skip": "The keys of tools/auto_reference.py do not continue a two-parameter curve in XPPAUT.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {"state": "current"},
+      "parameter": "p0",
+      "auto": {"ds": 0.02, "dsmin": 1e-05, "dsmax": 0.05, "nmax": 300, "npr": 20, "parmin": 0, "parmax": 1.5, "ntst": 15, "mxbf": 0}
+    },
+    {
+      "name": "hopf_up",
+      "kind": "two_parameter",
+      "start": {"run": "steady", "type": "HB", "index": 1},
+      "parameters": ["p0", "p1"],
+      "auto": {"ds": 0.02, "dsmin": 1e-05, "dsmax": 0.05, "nmax": 400, "npr": 25, "parmin": 0.02, "parmax": 0.25, "ntst": 15, "mxbf": 0}
+    },
+    {
+      "name": "hopf_down",
+      "kind": "two_parameter",
+      "start": {"run": "steady", "type": "HB", "index": 1},
+      "parameters": ["p0", "p1"],
+      "auto": {"ds": -0.02, "dsmin": 1e-05, "dsmax": 0.05, "nmax": 400, "npr": 25, "parmin": 0.02, "parmax": 0.25, "ntst": 15, "mxbf": 0}
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "hopf_up",
+      "side": "reference",
+      "type": "GH",
+      "index": 1,
+      "cause": "AUTO-07p's generalised-Hopf function changes sign three times within four steps (points 132, 134, 136, p0 0.2284 to 0.2316, p1 11.31 to 11.23), so it labels three GH at one place; its derivatives are finite differences (JAC 0). Whether one of them is a true generalised Hopf point is not decided here. Ours detects no codim-2 point yet: W364. docs/auto-references.md."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hopf_up",
+      "side": "reference",
+      "type": "GH",
+      "index": 2,
+      "cause": "The second of the three GH labels at one place (point 134); see the first GH. W364."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hopf_up",
+      "side": "reference",
+      "type": "GH",
+      "index": 3,
+      "cause": "The third of the three GH labels at one place (point 136); see the first GH. W364."
+    }
+  ]
+}

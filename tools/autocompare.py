@@ -35,9 +35,12 @@ NUMERICS = {'nmax': 'nmx', 'parmin': 'rl0', 'parmax': 'rl1',
 
 class Diagram:
     """The stored points' labels and types, independently of event batching:
-    what a run's start by type and index needs."""
+    what a run's start by type and index needs. `runs` keeps each finished run's own points as that run
+    left them: a later run on other axes (a two-parameter curve) redraws the diagram and its events label
+    only what it plots, but a start grabs a point by its label from the run that found it."""
     def __init__(self):
         self.points = []
+        self.runs = {}
 
     def apply(self, events):
         for e in events:
@@ -158,7 +161,7 @@ def read_description(path):
     for k in d.get('differences', ()):
         members(k, ('reference', 'run', 'side', 'type', 'index', 'cause'), ('reference', 'run', 'side', 'type', 'index', 'cause'))
         if (k['reference'] not in REFERENCES or k['run'] not in names or k['side'] not in ('ours', 'reference')
-                or k['type'] not in ('EP', *BIFURCATIONS.values()) or not isinstance(k['cause'], str) or not k['cause'].strip()):
+                or k['type'] not in ('EP', *BIFURCATIONS.values(), *CODIM_TWO) or not isinstance(k['cause'], str) or not k['cause'].strip()):
             raise ValueError('invalid traced difference: ' + str(k))
         finite(k['index'], 'index', integer=True, positive=True)
     return d
@@ -191,8 +194,7 @@ def execute_run(s, r, diagram, ranges):
             completed(s, dict(cmd='set', values=[dict(kind='ic', name=p[0], value=float(v))
                        for p, v in zip(state['ics'], state['now'])]))
     else:
-        lo, hi = ranges[start['run']]
-        points = [p for p in diagram.points[lo:hi] if p['sym'] == start['type']]
+        points = [p for p in diagram.runs[start['run']] if p['sym'] == start['type']]
         if len(points) < start['index']:
             raise ValueError('start point not found: ' + str(start))
         completed(s, dict(cmd='auto', op='grab', label=points[start['index'] - 1]['lab']))
@@ -235,6 +237,7 @@ def execute_run(s, r, diagram, ranges):
     if 'expected_error' not in r and (not stops or stops[-1]['why'].startswith('noconv')):
         raise RuntimeError('AUTO failed to converge: ' + str(stops[-1:] or events[-3:]))
     ranges[r['name']] = lo, len(diagram.points)
+    diagram.runs[r['name']] = [dict(p) for p in diagram.points[lo:]]
 
 
 def session_diagram(s):
@@ -291,6 +294,11 @@ REFERENCES = {'.auto07p': 'AUTO-07p', '.xppaut': 'XPPAUT 8.0'}
 # a description with no reference file says why in this field (an explicit reason, never silence)
 REFERENCE_SKIPS = {'.auto07p': 'auto07p_skip', '.xppaut': 'xppaut_skip'}
 REFERENCE_FORMAT = 1
+# the types a reference point can have: the problem's own special points, then the codim-2
+# points of a two-parameter curve (AUTO-07p's TY names: Bogdanov-Takens, cusp, zero-Hopf,
+# generalised Hopf; the cycles' strong resonances R1-R4, fold-flip, fold-torus, ...)
+SPECIAL_TYPES = ('EP', 'MX', 'BP', 'LP', 'HB', 'PD', 'TR')
+CODIM_TWO = ('BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4', 'LPD', 'LTR', 'PTR', 'TTR')
 # the type of a stored point (itp, core/auto_nox.h) that both programs label a special point
 BIFURCATIONS = {1: 'BP', 2: 'LP', 3: 'HB', 5: 'LP', 6: 'BP', 7: 'PD', 8: 'TR'}
 POINT_FIELDS = ('type', 'branch', 'label', 'point', 'par', 'norm', 'period', 'spectrum', 'values')
@@ -316,16 +324,28 @@ def read_reference(path, d):
     if [r.get('name') for r in ref['runs']] != [r['name'] for r in runs]:
         raise ValueError('runs %s, the description has %s' % ([r.get('name') for r in ref['runs']], [r['name'] for r in runs]))
     for r, dr in zip(ref['runs'], runs):
-        members(r, ('name', 'parameter', 'unavailable', 'points'), ('name', 'parameter', 'points'))
-        if r['parameter'] != dr.get('parameter') or not isinstance(r['points'], list):
-            raise ValueError('run %s: parameter or points' % r['name'])
+        curve = dr['kind'] == 'two_parameter'  # a curve's file holds its parameters, its samples and its second value
+        axes = 'parameters' if curve else 'parameter'
+        members(r, ('name', axes, 'unavailable', 'points', *(('curve',) if curve else ())), ('name', axes, 'points'))
+        if r[axes] != dr.get(axes) or not isinstance(r['points'], list):
+            raise ValueError('run %s: %s or points' % (r['name'], axes))
         if 'unavailable' in r and not (isinstance(r['unavailable'], str) and r['unavailable'].strip()):
             raise ValueError('run %s: unavailable needs its reason' % r['name'])
+        if curve and 'unavailable' not in r:
+            if not isinstance(r.get('curve'), list) or len(r['curve']) < 2:
+                raise ValueError('run %s: a curve of at least two samples' % r['name'])
+            for sample in r['curve']:
+                if not isinstance(sample, list) or len(sample) != 3:
+                    raise ValueError('run %s: curve sample %s is not [parameter, second parameter, norm]' % (r['name'], sample))
+                for v in sample:
+                    finite(v, 'curve sample')
         for p in r['points']:
-            members(p, POINT_FIELDS, POINT_FIELDS)
-            if p['type'] not in ('EP', 'MX', 'BP', 'LP', 'HB', 'PD', 'TR') or p['spectrum'] not in ('', 'eigenvalue', 'multiplier'):
+            members(p, POINT_FIELDS + (('par2',) if curve else ()), POINT_FIELDS + (('par2',) if curve else ()))
+            if p['type'] not in SPECIAL_TYPES + CODIM_TWO or p['spectrum'] not in ('', 'eigenvalue', 'multiplier'):
                 raise ValueError('run %s: point %s' % (r['name'], p))
             finite(p['par'], 'par')
+            if curve:
+                finite(p['par2'], 'par2')
             finite(p['norm'], 'norm')
             if p['period'] is not None:
                 finite(p['period'], 'period')
@@ -386,6 +406,8 @@ def diagram_rows(data):
             if int(index)<len(parameters): parameters[int(index)]=value
         for index,value in enumerate(parameters): row['par%d'%(index+1)]=value
         row['continued_parameter']=row['values'].split(';')[0]
+        if ';' in row['values']:  # a two-parameter run continues two: the second, in the order of the run's parameters
+            row['continued_parameter2']=row['values'].split(';')[1]
     return rows
 
 
@@ -450,7 +472,8 @@ def compare_run(rows, auto, kind, ref_points, who, known=()):
             ours.append((BIFURCATIONS[itp], i))
         elif i == 0 and itp == 9 and kind in ('equilibrium', 'bvp'):
             ours.append(('EP', i))
-    theirs = [p for p in ref_points if p['type'] in BIFURCATIONS.values() or (p['type'] == 'EP' and p['point'] == 1)]
+    detected = (*BIFURCATIONS.values(), *(CODIM_TWO if kind == 'two_parameter' else ()))
+    theirs = [p for p in ref_points if p['type'] in detected or (p['type'] == 'EP' and p['point'] == 1)]
     diffs = []
     dropped = {'ours': set(), 'reference': set()}
     for k in known:  # a traced difference: one point the other side has no counterpart of (index: among its type, as listed)
@@ -489,6 +512,80 @@ def compare_run(rows, auto, kind, ref_points, who, known=()):
     return diffs, measures
 
 
+def project(point, polyline, scale):
+    """The place on a polyline of (parameter, second parameter, norm) vertices nearest to `point`, each
+    coordinate divided by its range along the curve (`scale`; the norm too, or the two arcs of a cusp,
+    which lie together in the plane of the parameters, could not be told apart): the index of the
+    segment's first vertex, and the point's difference from the place in the three coordinates."""
+    best = None
+    for i in range(len(polyline) - 1):
+        a, b = polyline[i], polyline[i + 1]
+        along = [(b[k] - a[k]) / scale[k] for k in range(3)]
+        length = sum(x * x for x in along)
+        t = 0.0 if length == 0 else min(1.0, max(0.0, sum((point[k] - a[k]) / scale[k] * along[k] for k in range(3)) / length))
+        residual = [point[k] - (a[k] + t * (b[k] - a[k])) for k in range(3)]
+        distance = math.sqrt(sum((residual[k] / scale[k]) ** 2 for k in range(3)))
+        if best is None or distance < best[0]:
+            best = distance, i, residual
+    return best[1], best[2]
+
+
+def chord_error(polyline, i):
+    """What replacing the curve between vertices i and i+1 by the straight line costs in each coordinate: a
+    quarter of the largest second difference at either end. The chord of a smooth curve through points a
+    step h apart misses it by at most h^2|q''|/8, which the second difference estimates as h^2|q''|; the
+    steps vary by at most a factor two (their adaptation), hence a quarter and not an eighth."""
+    worst = [0.0, 0.0, 0.0]
+    for j in (i, i + 1):
+        if 0 < j < len(polyline) - 1:
+            for k in range(3):
+                worst[k] = max(worst[k], abs(polyline[j - 1][k] - 2 * polyline[j][k] + polyline[j + 1][k]) / 4)
+    return worst
+
+
+CURVE_QUANTITIES = ('curve par', 'curve par2', 'curve norm')
+
+
+def compare_curve(rows, auto, ref_curve, who):
+    """Differences (strings) and measurements of a two-parameter run's curve against a reference's
+    samples. The programs' steps differ, so points are matched by where they lie: every sample of one
+    curve against the other as a polyline, in the plane of the two parameters; the three coordinates
+    there (the nearest place's parameter, second parameter and norm) must agree within
+
+      2 * EPS * (1+|q|)  +  the chord error of the other curve's polyline (chord_error)
+
+    EPS is Newton's convergence tolerance of every continued point (EPSL for a parameter, EPSU for the norm),
+    twice for two programs; no location term, a curve's samples being converged points and not located
+    ones. Both directions are checked, so a curve that stops short or runs on is a difference too.
+    Only samples inside the run's bounds on its first parameter (RL0, RL1) are compared: a run ends at
+    the first point beyond a bound, which depends on the step before it, and two programs' step
+    sequences differ; samples inside the bounds have the other curve's polyline around them."""
+    epsl, epsu = auto.get('epsl', 1e-4), auto.get('epsu', 1e-4)
+    ours = [(float(r['continued_parameter']), float(r['continued_parameter2']), float(r['norm'])) for r in rows]
+    ref = [tuple(v) for v in ref_curve]
+    diffs, worst = [], {}
+    for source, target, side in ((ref, ours, 'reference'), (ours, ref, 'ours')):
+        scale = [(max(v[k] for v in target) - min(v[k] for v in target)) or 1.0 for k in range(3)]
+        failed = {}
+        for n, point in enumerate(source):
+            if not auto['parmin'] <= point[0] <= auto['parmax']:
+                continue
+            i, residual = project(point, target, scale)
+            allowed = chord_error(target, i)
+            for k, q in enumerate(CURVE_QUANTITIES):
+                tol = NEWTON_TOLERANCE * (epsu if k == 2 else epsl) * (1 + abs(point[k])) + allowed[k]
+                diff = abs(residual[k])
+                if q not in worst or diff / tol > worst[q][0] / worst[q][1]:
+                    worst[q] = diff, tol, '%s sample %d' % (side, n + 1)
+                if diff > tol:
+                    failed.setdefault(q, []).append((n + 1, point, diff, tol))
+        for q, bad in failed.items():
+            n, point, diff, tol = bad[0]
+            diffs.append('%s %s: %d of %d %s samples are off the other curve; the first, sample %d %s, is %.3g away in the %s > tolerance %.3g'
+                         % (who, q, len(bad), len(source), side, n, list(point), diff, q[6:], tol))
+    return diffs, [(q, w[2], w[0], w[1]) for q, w in worst.items()]
+
+
 def agreement(name, suffix, measures, diffs, traced=0):
     """One line of docs/auto-references.md's table: a reference's points compared and the largest
     absolute difference per quantity."""
@@ -496,7 +593,7 @@ def agreement(name, suffix, measures, diffs, traced=0):
     for sx, _, q, _, diff, tol in measures:
         if sx == suffix:
             worst[q] = max(worst.get(q, 0.0), diff)
-    cells = ', '.join('%s %.2g' % (q, worst[q]) for q in ('par', 'norm', 'period', 'spectrum') if q in worst)
+    cells = ', '.join('%s %.2g' % (q, worst[q]) for q in ('par', 'norm', 'period', 'spectrum', *CURVE_QUANTITIES) if q in worst)
     return '%s | %s | %d | %s | %s' % (name, REFERENCES[suffix], sum(1 for m in measures if m[0] == suffix and m[2] == 'par'),
                                     cells or '-', 'differs: %d' % len(diffs) if diffs else
                                     'agrees, %d traced' % traced if traced else 'agrees')
@@ -513,6 +610,9 @@ def compare_references(name, d, data, ranges, refs):
             known = [k for k in d.get('differences', ()) if k['reference'] == suffix and k['run'] == r['name']]
             a, m = compare_run(rows[r['name']], dr['auto'], dr['kind'], r['points'],
                                '%s %s/%s' % (name, REFERENCES[suffix], r['name']), known)
+            if 'curve' in r:
+                c, cm = compare_curve(rows[r['name']], dr['auto'], r['curve'], '%s %s/%s' % (name, REFERENCES[suffix], r['name']))
+                a, m = a + c, m + cm
             diffs += a
             measures += [(suffix, r['name']) + x for x in m]
     return diffs, measures
@@ -550,8 +650,8 @@ def main():
         expected.update('examples/ode/' + f.name for f in Path('examples/ode').glob('*.odex')
                         if re.search(r'\b(continuation|diagram)\s*:', re.sub(r'#[^\n]*', '', f.read_text(encoding='utf-8'))))
         models = [d['model'] for d in descriptions.values()]
-        if set(models) != expected or len(models) != len(set(models)):
-            raise ValueError('description coverage: missing %s, extra %s, or duplicate models' %
+        if set(models) != expected:
+            raise ValueError('description coverage: missing %s, extra %s' %
                              (sorted(expected - set(models)), sorted(set(models) - expected)))
         references = read_references(descriptions)
         selected = args.only.split(',') if args.only else list(descriptions)
