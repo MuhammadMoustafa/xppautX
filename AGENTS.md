@@ -513,6 +513,10 @@ A worktree and its branch are named from the card, `task/W<number>-<slug>`.
 A fix that review sends back belongs to its card; follow-up work found by a
 review is a new card with the next number, not a suffix. A card kept only
 locally (no issue) is a defect: the review creates its issue.
+A commit on a `task/W<n>-*` branch names its card by title and issue, `W<n>
+<title> (#<issue>)` (or `Review: <what>` for the reviewer's): tools/git-hooks/commit-msg
+refuses any other subject. The coordinator enables it once per checkout with
+`git config core.hooksPath tools/git-hooks` (W394, #456).
 
 ## Task agents
 

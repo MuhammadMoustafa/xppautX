@@ -1,0 +1,30 @@
+#!/bin/sh
+# W394 (#456): a card's commit names its card with its title and issue, as
+# AGENTS.md "Name a card with its title, never its ID alone" asks. Enabled
+# once by the coordinator: git config core.hooksPath tools/git-hooks
+# On a branch task/W<n>-* the subject must be "W<m> <title> (#<issue>)" (any
+# card: a packed branch holds several) or "Review: <what>". Any other branch,
+# a detached HEAD and a merge commit are not checked.
+branch=$(git symbolic-ref --short -q HEAD) || exit 0
+case "$branch" in
+  task/W*) ;;
+  *) exit 0 ;;
+esac
+if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+  exit 0
+fi
+subject=$(awk '!/^#/ && NF { print; exit }' "$1")
+if printf '%s\n' "$subject" | grep -Eq '^W[0-9]+ .+ \(#[0-9]+\)$'; then
+  exit 0
+fi
+if printf '%s\n' "$subject" | grep -Eq '^Review: .+'; then
+  exit 0
+fi
+cat >&2 <<MSG
+commit-msg: the subject of a commit on $branch does not name its card.
+  got:      $subject
+  accepted: W<number> <title> (#<issue>)     e.g. W394 A card's commit names its card: a commit-msg hook (#456)
+            Review: <what>                   for the reviewer's own commits
+  Name the card with its title, never its ID alone (AGENTS.md, Hygiene).
+MSG
+exit 1
