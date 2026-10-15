@@ -92,6 +92,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [59](#59-dormand-prince-restarted-at-every-output-point) | Integration | DoPri5 and DoPri8(3) restart at every output point: no step longer than dt, so the adaptive methods run as fixed-step ones and the tolerance does not set the accuracy | [W377 / #439](https://github.com/MuhammadMoustafa/xppautX/issues/439) |
 | [60](#60-input-sized-writes-and-size-arithmetic) | Sweeps, expressions, delay, AUTO | unchecked row writes, fixed evaluation stacks and overflowing history/work sizes | [W386 / #448](https://github.com/MuhammadMoustafa/xppautX/issues/448) |
 | [61](#61-wiener-noise-is-silently-zero-or-has-wrong-variance-in-adaptive-methods) | Numerics | set_wieners is never called by DoPri5, CVODE, Gear or Rosenbrock, and called once per output interval with step guess by Stiff and QualRK | [W379 / #441](https://github.com/MuhammadMoustafa/xppautX/issues/441) |
+| [61](#61-long-computations-lack-cancellation-checkpoints) | Cancellation | Sweeps, nullclines, flow, fitting, histograms and silent integration ignore abort | [W388 / #450](https://github.com/MuhammadMoustafa/xppautX/issues/450) |
 
 ## 1. Model options
 
@@ -1311,3 +1312,48 @@ In adaptive methods DoPri5, DoPri8(3), CVODE, Rosenbrock and Gear, `set_wieners`
 - **Evidence:** `wiener w; x'=w`, total 10: Euler and RK4 end around -1.30 (noise present); DoPri5, CVODE and Gear end at 0.0 (noise silently zero); Stiff ends around -1.05 and QualRK around -0.55 (one draw per output interval scaled by step guess).
 - **xppautX:** a method that does not draw the noise once per step is refused in the core (`pick_method`/`check_method`, governed by trait `wiener` in `SolverTraits`); the window's numerics menu shows incompatible methods disabled with the reason, and `--server`, `--silent`, `--convert`, `.set` import or `@ meth=` show the error at its place.
 - **Card:** [W379 / #441](https://github.com/MuhammadMoustafa/xppautX/issues/441).
+
+## 61. Long computations lack cancellation checkpoints
+
+In XPPAUT 8.0, long-running computations whose duration is set by user input
+or model options lack cancellation checkpoints, continuing to run or ignoring
+aborts:
+- Equilibrium sweeps continue after Escape fails a single point
+  ([integrate.c:751](../reference/xppaut-8.0/integrate.c#L751)); only '/'
+  sets `ENDSING=1` ([gear.c:560](../reference/xppaut-8.0/gear.c#L560)).
+- Shooting sweeps continue to the next parameter step when `bvshoot` returns
+  `ierr = -5` (Escape / stop) ([pp_shoot.c:249](../reference/xppaut-8.0/pp_shoot.c#L249)).
+- Nullcline grid evaluation (`do_cline`) and range nullclines
+  ([nullcline.c:165](../reference/xppaut-8.0/nullcline.c#L165),
+  [nullcline.c:1048](../reference/xppaut-8.0/nullcline.c#L1048)) have no abort
+  check, evaluating $(ngrid+1)^2$ mesh points per cline.
+- Flow direction fields comment out trajectory cancellation checks and continue
+  integrating all remaining grid points ([nullcline.c:686-692](../reference/xppaut-8.0/nullcline.c#L686)).
+- Levenberg-Marquardt fitting executes its outer optimization loop with no abort
+  check ([do_fit.c:487](../reference/xppaut-8.0/do_fit.c#L487)).
+- Pairwise-difference histograms evaluate an uncheckable $O(N^2)$ loop over all
+  stored trajectory rows ([histogram.c:365](../reference/xppaut-8.0/histogram.c#L365)).
+- Fixed-step solver chunks run `store_every` steps without cancellation checks
+  ([odesol2.c:284](../reference/xppaut-8.0/odesol2.c#L284)).
+- Volterra kernel tables ([volterra2.c:141](../reference/xppaut-8.0/volterra2.c#L141),
+  [volterra2.c:158](../reference/xppaut-8.0/volterra2.c#L158)) and delay history
+  initialization ([delay_handle.c:238](../reference/xppaut-8.0/delay_handle.c#L238))
+  loop through all mesh points without checks.
+- Non-interactive / batch integration (`X11_FLAG == 0`) bypasses `my_abort()`
+  polling entirely ([integrate.c:1664](../reference/xppaut-8.0/integrate.c#L1664)).
+
+The master snapshot retains the same code:
+[equilibrium sweep:745](../reference/xppaut-master/integrate.c#L745),
+[shooting sweep:249](../reference/xppaut-master/pp_shoot.c#L249),
+[nullclines:165, 1048](../reference/xppaut-master/nullcline.c#L1048),
+[flow:686](../reference/xppaut-master/nullcline.c#L686),
+[fitting:487](../reference/xppaut-master/do_fit.c#L487),
+[pairwise histogram:365](../reference/xppaut-master/histogram.c#L365),
+[fixed steps:284](../reference/xppaut-master/odesol2.c#L284),
+[delay history:238](../reference/xppaut-master/delay_handle.c#L238), and
+[batch integration:1664](../reference/xppaut-master/integrate.c#L1664).
+
+xppautX checks `my_abort()` and `xpp::job::cancelled()` across sweeps,
+nullclines, flow, fitting, pairwise histograms, solver chunks, Volterra,
+delay history init, and non-interactive/silent integration.
+[W388 / #450](https://github.com/MuhammadMoustafa/xppautX/issues/450).

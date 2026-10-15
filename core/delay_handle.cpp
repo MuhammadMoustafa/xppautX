@@ -2,6 +2,7 @@
 #include "session.h"
 #include "load_eqn.h"
 #include "xpp_ui.h"
+#include "mykeydef.h"
 #include "expr.h"
 #include "integrate.h"
 
@@ -187,6 +188,7 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
   get_val(s,"t",&old_t);
 
   for(std::size_t row=nt+1;row-->0;){
+	if(my_abort()==ESC)break;
 	t=s.numerics.start_time-fabs(s.numerics.delta_t)*row;
 	set_val(s,"t",t);
 	for(j=0;j<(s.model().node );j++)

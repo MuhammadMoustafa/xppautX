@@ -21,6 +21,8 @@
 #include "delay_handle.h"
 #include "browse.h"
 #include "xpp_ui.h"
+#include "mykeydef.h"
+#include "xpp_job.h"
 
 #include "load_eqn.h"
 #include "model.h"
@@ -80,6 +82,7 @@ evaluate_derived(s);
     yfit[i]=y[iv];
   }
   for(k=1;k<npts;k++){
+    if(xpp::job::cancelled()||my_abort()==ESC)return {};
     k0=k*nvars;
     auto ok=one_step_int(s,y,t0[k-1],t0[k],&istart);
     if(!ok){
@@ -126,6 +129,7 @@ evaluate_derived(s);
     s.integrator.solver->begin(&istart);
    /* now loop through all the points */
     for(k=1;k<npts;k++){
+      if(xpp::job::cancelled()||my_abort()==ESC)return {};
       k0=k*nvars;
       auto ok=one_step_int(s,y,t0[k-1],t0[k],&istart);
       if(!ok){
@@ -264,7 +268,7 @@ void test_fit(xpp::Session &s)
      xpp::show_error(ok.error());
      return;
    }
-   bottom_msg(0,*ok==FitEnd::Converged ? " Success! " : "Max iterations exceeded...");
+   bottom_msg(0,*ok==FitEnd::Converged ? " Success! " : (*ok==FitEnd::Stopped ? " Stopped " : "Max iterations exceeded..."));
 
  /* get the latest par values ...  */
  
@@ -335,10 +339,12 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
   double *covar=covar_v.data(), *alpha=alpha_v.data();
 
   while(good_flag<3){  /* take 3 good steps after convergence  */
+    if(xpp::job::cancelled()||my_abort()==ESC)return FitEnd::Stopped;
 
     ok=marlevstep(s,t0,y0,y,sig.data(),a,npts,nvars,npars,
 	       ivar,ipar,covar,alpha,&chisq,&alambda,work,
 	       yderv.data(),yfit,&ochisq,ictrl,eps);
+    if(xpp::job::cancelled())return FitEnd::Stopped;
     niter++;
     xpp::log(XPP_LOG_INFO, " step {} is {}  -- lambda= {:g}  chisq= {:g} oldchi= {:g}\n",
 	   niter,ok.has_value()?1:0,alambda,chisq,ochisq);

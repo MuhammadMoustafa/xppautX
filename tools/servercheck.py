@@ -8548,5 +8548,126 @@ def check_storage_full():
 
 check_storage_full()
 
+
+def check_stop_checks():
+    """W388: long computations (fixed-step chunks, flow, range nullclines,
+    range equilibria, pairwise histograms, and fitting) reach cancellation
+    checkpoints, stopping cleanly on abort, and silent replays honour armed stops."""
+    p, r, snd, col, _ = launch_server()
+    try:
+        col(is_idle)
+        # 1. Fixed-step chunk with large store_every (core/odesol2.cpp)
+        snd(cmd='set', kind='num', name='store_every', value=50000000)
+        col(is_idle)
+        snd(cmd='set', kind='num', name='total_time', value=10000000)
+        col(is_idle)
+        snd(cmd='set', kind='num', name='method', value=1)  # Euler
+        col(is_idle)
+        snd(cmd='key', key='i')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='g')
+        col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
+        snd(cmd='abort')
+        evs, _ = col(is_idle, timeout=30 * SLOW)
+        stopped = any(e.get('ev') == 'stopped' for e in evs)
+        check('W388: fixed-step chunk with large store_every stops on abort', stopped, str([e.get('ev') for e in evs]))
+
+        # Restore standard settings
+        snd(cmd='set', kind='num', name='store_every', value=1)
+        col(is_idle)
+        snd(cmd='set', kind='num', name='total_time', value=20)
+        col(is_idle)
+
+        # 2. Flow grid cancellation (core/nullcline.cpp)
+        snd(cmd='key', key='d')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='f')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], value='30')
+        snd(cmd='abort')
+        evs, _ = col(is_idle, timeout=30 * SLOW)
+        check('W388: direction field flow loop stops on abort', p.poll() is None, 'exit %s' % p.poll())
+
+        # 3. Range nullclines cancellation (core/nullcline.cpp)
+        snd(cmd='key', key='n')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='f')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='r')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], ok=1, values=['iapp', '100', '0', '1'])
+        snd(cmd='abort')
+        evs, _ = col(is_idle, timeout=30 * SLOW)
+        check('W388: range nullclines sweep stops on abort', p.poll() is None, 'exit %s' % p.poll())
+
+        # 4. Range equilibria sweep cancellation (core/integrate.cpp)
+        snd(cmd='key', key='s')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='r')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], ok=1, values=['iapp', '100', '-0.5', '0.5', 'N', '-1', 'N', 'N'])
+        snd(cmd='abort')
+        evs, _ = col(is_idle, timeout=30 * SLOW)
+        check('W388: range equilibria sweep stops on abort', p.poll() is None, 'exit %s' % p.poll())
+
+        # 5. Pairwise differences histogram cancellation (core/histogram.cpp)
+        snd(cmd='key', key='i')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='g')
+        col(is_idle)
+        snd(cmd='key', key='u')
+        col(is_idle)
+        snd(cmd='key', key='h')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='a')
+        for _ in range(4):
+            _, ask = col(is_ask)
+            if 'Variable' in ask.get('prompt', '') or 'Variable' in ask.get('name', ''):
+                snd(cmd='answer', id=ask['id'], ok=1, value='V')
+                snd(cmd='abort')
+            else:
+                snd(cmd='answer', id=ask['id'], ok=1, value='10')
+        evs, _ = col(is_idle, timeout=30 * SLOW)
+        check('W388: pairwise histogram O(N^2) loop stops on abort', p.poll() is None, 'exit %s' % p.poll())
+
+        # Return to main menu
+        snd(cmd='key', key='Escape')
+        col(is_idle)
+
+        # 6. Fitting cancellation (core/do_fit.cpp)
+        fit_path = os.path.join(r, 'fit_data.dat')
+        with open(fit_path, 'w') as f:
+            for i in range(20):
+                f.write(f'{i * 0.5} {-0.5 + i * 0.05}\n')
+        snd(cmd='key', key='u')
+        col(is_idle)
+        snd(cmd='key', key='h')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='i')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], ok=1, values=['V', 'iapp', '1e-9', '20', '2', '2', '', '1e-4', '1000'])
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], ok=1, file=fit_path)
+        snd(cmd='abort')
+        evs, _ = col(is_idle, timeout=30 * SLOW)
+        msgs = [e.get('bottom') for e in evs if e.get('ev') == 'message' and 'bottom' in e]
+        check('W388: fitting Levenberg-Marquardt loop stops on abort', ' Stopped ' in msgs, str(msgs))
+    finally:
+        stop_server(p, r, snd)
+
+    # 7. --silent: recx replay with armed abort on large store_every
+    code, out, err = run_replay([
+        {'cmd': 'set', 'kind': 'num', 'name': 'store_every', 'value': 1000000},
+        {'cmd': 'set', 'kind': 'num', 'name': 'method', 'value': 1},
+        {'cmd': 'set', 'kind': 'num', 'name': 'total_time', 'value': 10000000},
+        {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+        {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': 2, 't': 0}},
+    ])
+    check('W388: --silent plays armed stop on fixed-step integration', code == 0, 'exit %d, %s' % (code, err[-300:]))
+
+
+check_stop_checks()
+
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)
+

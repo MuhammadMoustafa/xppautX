@@ -502,6 +502,7 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
  if(s.integrator.eq_range.movie)reset_film(s);
  for(i=0;i<=npar;i++)
    {
+     if(xpp::job::cancelled())break;
      if(s.integrator.eq_range.movie)
        clear_draw_window(s);
       temp=parlo+dpar*static_cast<double>(i);
@@ -539,7 +540,7 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
 
       s.data_store.rows++;
       row_stored(s);}
-      if(s.numerics.endsing==1)break;
+      if(s.numerics.endsing==1||xpp::job::cancelled())break;
     }
     refresh_browser(s,s.data_store.rows);
  s.numerics.par_fol=0;
@@ -1612,6 +1613,7 @@ if(program.interactive) cwidth=get_command_width();
 
  while(1)
  {
+	if(xpp::job::cancelled())break;
 	
 	   if(!solver.traits().fixed_step){
 	     /* on to the next output time, in steps of the method's own */
@@ -1725,7 +1727,7 @@ if(program.interactive) cwidth=get_command_width();
            }
 	                
         /*   This is where the progresser goes   */
-	   if(program.interactive){ plot_command(nit,icount,cwidth);
+	   if(program.interactive) plot_command(nit,icount,cwidth);
 	   esc=my_abort();
 
            {
@@ -1734,7 +1736,6 @@ if(program.interactive) cwidth=get_command_width();
 	     if(esc=='/'){rval=1;s.numerics.endsing=1;if(s.integrator.steady)s.integrator.steady_result->status="stopped";break;}
 	    
            }
-	}        
 	if(s.integrator.stop_flag==1){s.integrator.stop_flag=0;if(s.integrator.steady)s.integrator.steady_result->status="stopped";break;}
            if(s.integrator.step_error){
              s.numerics.endsing=1;

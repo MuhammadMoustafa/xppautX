@@ -1,5 +1,7 @@
 #include "histogram.h"
 #include "session.h"
+#include "mykeydef.h"
+#include "xpp_job.h"
 #include "getvar.h"
 #include "model.h"
 #include "storage.h"
@@ -234,6 +236,7 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
       }
     for(i=0;i<s.data_store.rows;i++)
       {
+	if(my_abort() == ESC) break;
 	flag=1;
 	if(cond){
 	  for(j=0;j<s.model().node+1;j++)setvar(s,j,static_cast<double>(s.data_store.col[j][i]));
@@ -257,6 +260,7 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
   }
   if(which==1){
     for(i=0;i<s.data_store.rows;i++){
+      if(my_abort() == ESC) break;
       for(j=0;j<s.data_store.rows;j++){
 	y=s.data_store.col[col][i]-s.data_store.col[col][j];
 	z=(y-zlo)/dz;

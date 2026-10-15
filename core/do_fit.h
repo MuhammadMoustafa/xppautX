@@ -30,8 +30,8 @@ int get_fit_params(Session &s);
 
 void test_fit(Session &s);
 
-/* a fit that ran: it converged, or stopped at its iteration limit */
-enum class FitEnd { Converged, MaxIterations };
+/* a fit that ran: it converged, stopped at its iteration limit, or was cancelled */
+enum class FitEnd { Converged, MaxIterations, Stopped };
 
 /* the fit's pieces return why they failed (a data file, a singular
    matrix, an integration), for the command, test_fit, to show */

@@ -140,6 +140,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
    reset_film(s);
  for(i=0;i<=npar;i++)
    {
+     if(xpp::job::cancelled())break;
      temp=parlo+dpar*static_cast<double>(i);
      set_val(s,s.shoot_range.item,temp);
      bottom_msg(2,xpp::format("{}={:.16g}",s.shoot_range.item,temp));
@@ -148,13 +149,10 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
      
      xpp::ok_or_show(bvshoot(s,ystart,yend,s.numerics.bvp_tolerance,s.numerics.bvp_epsilon,s.numerics.bvp_max_iterates,&ierr,s.model().node,0,
 	     0,0,0,0.0));
-     if(ierr==-5)continue;
+     if(xpp::job::cancelled()||ierr==-5||ierr==-6)break;
      if(ierr<0){ 
        bad_shoot(ierr);
-
-       refresh_browser(s,s.data_store.rows);
-       swap_color(s,&color,1);
-       return;
+       break;
      }
      if(s.data_store.rows==s.data_store.max_rows){
        const auto grown=stor_full(s);

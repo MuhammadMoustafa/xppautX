@@ -6,6 +6,9 @@
 #include "xpp_log.h"
 #include "delay_handle.h"
 #include "markov.h"
+#include "xpp_ui.h"
+#include "mykeydef.h"
+#include "xpp_job.h"
 
 #include <stdlib.h> 
 #include "getvar.h"
@@ -105,6 +108,7 @@ void re_evaluate_kernels(xpp::Session &s)
   for(i=0;i<s.model().nkernel;i++){
     if(kernels[i].flag==CONV){
       for(j=0;j<=n;j++){
+	if(my_abort()==ESC)return;
 	setvar(s,0,s.numerics.start_time+s.numerics.delta_t*j);
 	s.volterra.kernels[i].cnv[j]=evaluate(s,kernels[i].kerform);
       }
@@ -122,6 +126,7 @@ void alloc_kernels(xpp::Session &s, int flag)
     if(kernels[i].flag==CONV){
       s.volterra.kernels[i].cnv.assign(n+1,0.0);
       for(j=0;j<=n;j++){
+	if(my_abort()==ESC)return;
 	setvar(s,0,s.numerics.start_time+s.numerics.delta_t*j);
 	s.volterra.kernels[i].cnv[j]=evaluate(s,kernels[i].kerform);
       }
@@ -130,7 +135,10 @@ void alloc_kernels(xpp::Session &s, int flag)
    if(kernels[i].mu>0.0){
      mu=kernels[i].mu;
      s.volterra.kernels[i].al.assign(n+1,0.0);
-     for(j=0;j<=n;j++)s.volterra.kernels[i].al[j]=alpbetjn(mu,s.numerics.delta_t,j);
+     for(j=0;j<=n;j++){
+       if(my_abort()==ESC)return;
+       s.volterra.kernels[i].al[j]=alpbetjn(mu,s.numerics.delta_t,j);
+     }
    }
   }
 }
