@@ -71,7 +71,8 @@ def check(path):
         m = re.match(r"namespace\s+(\w+)\s*=\s*([\w:]+);", s)
         if m: flag(m.group(1), f"namespace alias of {m.group(2)}")
         m = re.match(r"typedef\s+(.+?)\s+(\w+)\s*;$", s)
-        if m and "(*" not in m.group(1) and not re.match(r"(struct|enum|union)\b[^{]*\{?$", m.group(1)) \
+        if m and "(*" not in m.group(1) and "std::" not in m.group(1) \
+           and not re.match(r"(struct|enum|union)\b[^{]*\{?$", m.group(1)) \
            and not BUILTIN.match(m.group(1)):
             flag(m.group(2), f"typedef of {m.group(1)}")
         m = re.match(r"#\s*define\s+(\w+)\s+([A-Za-z_][\w:]*)\s*$", s)
