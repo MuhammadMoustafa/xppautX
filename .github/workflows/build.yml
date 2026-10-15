@@ -380,21 +380,13 @@ jobs:
     runs-on: windows-latest
     defaults:
       run:
-        shell: bash
+        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v7
-      # windows-2025 (windows-latest, since 2026) already carries a
-      # MinGW-w64 UCRT gcc at C:\mingw64 (niXman/mingw-builds-binaries,
-      # runner-images' Install-Mingw64.ps1, which also copies
-      # mingw32-make.exe to make.exe and adds the dir to the machine
-      # PATH; toolsets/toolset-2025.json pins gcc "15.*" / runtime
-      # "ucrt", the same ABI AGENTS.md's local native build targets, if
-      # not quite the same gcc release), so no per-run package install
-      # is needed; this only extends PATH in case a future image moves
-      # or does not machine-wide it. https://github.com/actions/runner-images/blob/main/images/windows/scripts/build/Install-Mingw64.ps1
-      # https://github.com/actions/runner-images/blob/main/images/windows/toolsets/toolset-2025.json
-      - name: Use the runner's own MinGW-w64 (C:\mingw64); no toolchain install
-        run: echo 'C:\mingw64\bin' >> "$GITHUB_PATH"
+      - uses: ./.github/actions/msys2-toolchain
+        with:
+          msystem: UCRT64
+          packages-file: .github/msys2-ucrt64-packages.txt
       - name: Build the X11-free binaries natively
         id: build
         run: make -j4 xppautx
@@ -403,8 +395,7 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make -j4 test
       # a test that crashed (exit above 1: a check that fails exits 1) is run
-      # again under gdb for its backtrace (this MinGW's C runtime is MSVCRT,
-      # which no local build uses)
+      # again under gdb for its backtrace
       - name: Backtrace of a crashed unit test
         if: ${{ !cancelled() && steps.unittests.outcome == 'failure' }}
         run: |
@@ -417,7 +408,8 @@ jobs:
       - name: Headless run matches Linux (ignoring line ends)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
-          cd /tmp && "$GITHUB_WORKSPACE/xppautX.exe" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" --silent
+          top=$PWD
+          cd "$(mktemp -d)" && "$top/xppautX.exe" "$top/examples/ode/lecar.ode" --silent
           test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
       - name: Server protocol and web front end
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -497,8 +489,8 @@ jobs:
         run: node tools/uiworkflowcheck.mjs ./xppautX.exe && node tools/startupcheck.mjs ./xppautX.exe
 
   # MSYS2's CLANG64 toolchain (W23: clang, libc++, lld, compiler-rt), a
-  # third compiler on Windows beside windows-core's MinGW gcc, which stays
-  # the default build: windows-core's checks against a clang build (into
+  # second compiler on Windows beside windows-core's UCRT64 gcc (gcc 16), which
+  # stays the default build: windows-core's checks against a clang build (into
   # build/clang, dynamically linked: the shell's PATH has libc++'s DLLs),
   # then asancheck.sh with AddressSanitizer + UBSan (--no-leaks: no
   # LeakSanitizer on Windows)
@@ -511,7 +503,10 @@ jobs:
         shell: msys2 {0}
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/msys2-clang64
+      - uses: ./.github/actions/msys2-toolchain
+        with:
+          msystem: CLANG64
+          packages-file: .github/msys2-clang64-packages.txt
       - name: "Build xppautX with clang (WERROR=1)"
         id: build
         run: |
@@ -618,7 +613,10 @@ jobs:
             only: build,autocheck-shard=3/3
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/msys2-clang64
+      - uses: ./.github/actions/msys2-toolchain
+        with:
+          msystem: CLANG64
+          packages-file: .github/msys2-clang64-packages.txt
       - name: "Sanitizers (ASan + UBSan, no leaks): ${{ matrix.shard }}"
         id: asan
         run: MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan --only ${{ matrix.only }} CC=clang CXX=clang++

@@ -439,16 +439,16 @@ on any machine instead of only on a slow one (servercheck's autoinfo
 checks run under it).
 
 Metrics: verify.sh's `C++: N / M sources` (core/*.cpp over all core
-sources). The tree builds with 0 warnings (WSL gcc 15, MSYS2 UCRT64 gcc 16,
-CI's MinGW gcc 15 and MSYS2 clang 22):
+sources). The tree builds with 0 warnings (WSL gcc 15, MSYS2 UCRT64 gcc 16
+and MSYS2 clang 22):
 verify.sh builds with `make WERROR=1`, which makes every category ever
 reported an error; `tools/warnings.sh` counts a clean build's warnings by
 flag and file.
 
 `sudo` inside WSL needs the user's password; apt installs must be run by the user.
 The Windows-side gcc is MSYS2's UCRT64 (C:\msys64\ucrt64\bin, gcc 16: the
-toolchain the release is built with, on the same UCRT runtime as CI's
-windows-core; its binary needs no MSYS2 DLL). Use it for the native
+toolchain the release and CI's windows-core are built with; its binary
+needs no MSYS2 DLL). Use it for the native
 build, from Git Bash, into build/ucrt (objects of another toolchain must
 not be mixed in):
 
@@ -458,7 +458,7 @@ not be mixed in):
 
 MSYS2's CLANG64 toolchain (C:\msys64\clang64\bin: clang, libc++, lld,
 compiler-rt; W23) is a second Windows compiler, never the default: CI's
-`windows-clang` job. CI installs it through `.github/actions/msys2-clang64`
+`windows-clang` job. CI installs it through `.github/actions/msys2-toolchain`
 (W41), a composite action every windows-clang job uses: it caches the
 installed clang64 tree keyed on `.github/msys2-clang64-packages.txt`, as a
 single 7z archive (`%RUNNER_TEMP%\msys2-clang64.7z`) restored and extracted
@@ -986,9 +986,9 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   `XPP_SPRINTF`/`XPP_STRCPY`/`XPP_STRCAT`, `XPP_FORMAT_TO_BUF`) was
   retired at W48, once every core file was C++ and nothing called it any
   more; the build is `-std=c++23`/`gnu++23` for `xpp::format`'s
-  `std::format` (present and warning-clean on WSL gcc 15, CI's MinGW
-  gcc 15 and MSYS2 UCRT64 gcc 16; avoid library parts newer than the
-  oldest of these, gcc 15, or than clang's libc++ ships).
+  `std::format` (present and warning-clean on WSL gcc 15 and MSYS2
+  UCRT64 gcc 16; avoid library parts newer than the oldest of these,
+  gcc 15, or than clang's libc++ ships).
 - New code that reads or writes a file (`core/xpp_io.h`, W11 step 3) uses
   its move-only handles over `fopen`/`fgets`/`fscanf`/`feof`:
   `xpp::LineReader` for a whole line of any length (`next()`; no

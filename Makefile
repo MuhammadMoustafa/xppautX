@@ -79,16 +79,20 @@ endif
 # clang, libc++, lld, compiler-rt): the -Werror names below it does not
 # know are gcc's alone, and libc++ wants webview in C++17 (below)
 CLANG := $(if $(findstring clang,$(shell $(CC) --version 2>/dev/null)),1)
+GCC16 := $(if $(filter 16% 17% 18%,$(shell $(CC) -dumpversion 2>/dev/null)),1)
 GCC_ONLY_WERROR := -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict   -Werror=stringop-overflow -Werror=aggressive-loop-optimizations -Werror=use-after-free
+GCC_PRE16_UNKNOWN_WERROR := -Werror=non-c-typedef-for-linkage
 
 # Every warning category gcc 13 ever reported here is fixed; WERROR=1 (what
 # tools/verify.sh builds with) makes them errors so none comes back. Not the
 # default: another compiler (clang on macOS, a newer gcc) may not know these
 # names or may warn where gcc 13 does not, and must still build.
 ifeq ($(WERROR),1)
-WERROR_FLAGS = -Werror=unused-result -Werror=format-overflow -Werror=unused-variable   -Werror=misleading-indentation -Werror=unused-but-set-variable -Werror=format-security   -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict -Werror=format   -Werror=tautological-compare -Werror=stringop-overflow   -Werror=aggressive-loop-optimizations -Werror=use-after-free -Werror=array-bounds   -Werror=format-truncation   -Werror=unused-macros -Werror=unused-but-set-parameter
+WERROR_FLAGS = -Werror=unused-result -Werror=format-overflow -Werror=unused-variable   -Werror=misleading-indentation -Werror=unused-but-set-variable -Werror=format-security   -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict -Werror=format   -Werror=tautological-compare -Werror=stringop-overflow   -Werror=aggressive-loop-optimizations -Werror=use-after-free -Werror=array-bounds   -Werror=format-truncation   -Werror=unused-macros -Werror=unused-but-set-parameter   -Werror=non-c-typedef-for-linkage
 ifeq ($(CLANG),1)
 WERROR_FLAGS := $(filter-out $(GCC_ONLY_WERROR),$(WERROR_FLAGS))
+else ifneq ($(GCC16),1)
+WERROR_FLAGS := $(filter-out $(GCC_PRE16_UNKNOWN_WERROR),$(WERROR_FLAGS))
 endif
 STRICT += $(WERROR_FLAGS)
 CXXSTRICT += $(WERROR_FLAGS)
