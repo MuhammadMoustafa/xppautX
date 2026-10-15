@@ -169,3 +169,17 @@ The proposed cards are organized into four cohesive groups suitable for individu
 ### Group D: Disk & Input Queue Limits
 - **W385k**: Range file export count cap (`core/integrate.cpp`: cap `range.write_files` count to 1,000 files and error on overflow; test with range file export).
 - **W385l**: Server inbox and deferred command queue caps (`core/xpp_inbox.cpp`, `core/ui_json.cpp`: cap `queues[q]` and `session.deferred` to 1,024 items; test with rapid command flood).
+
+## 7. Review (coordinator, 2026-10-15)
+
+Checked against the code and by probe before any card is written:
+
+- **Confirmed, a crash**: a user function that calls itself (`f(x)=f(x)+1`, `x1'=-f(x1)`) segfaults `xppautX --silent` (exit 139): expr_native refuses it ("calls a refused or recursive user function; running the interpreter"), and the interpreter's `UFUNTYPE` case recurses with no limit (core/expr_eval.cpp). Since the native compiler already detects the recursion, the simplest fix is to refuse such a function at load, with its file and line, rather than a depth counter (W385i's proposal).
+- **Confirmed by reading**: `eq_range_sweep` writes one stored row per step (core/integrate.cpp ~527-533) with no check against `max_rows`: a step count above the store's capacity writes past it. `shoot_range` (pp_shoot.cpp) is reported the same: check at the card.
+- **Partly**: the integration's Stop check is `program.interactive` only (integrate.cpp ~1720); `--server` and the window are interactive, so Stop works there; `--silent` has no Stop to press, but a `.recx` with a recorded stop must still end the run: the card checks that path, not the poll alone.
+- **Not taken**: W385k's cap of 1000 per-run files is an arbitrary limit (AGENTS.md: limits are lifted, not added); a range writing files is stoppable like any run. The proposed names W385a-l break the one naming scheme (AGENTS.md "Cards: names and issues"): stage 2's cards get the next W numbers, grouped as:
+  1. memory safety: the store's writes in the sweeps, the expression stack's push, the delay buffer's size, AUTO's work sizes in 64 bits (Group B);
+  2. a recursive user function refused at load (Group C's first half; AUTO's restart recursion checked in the same card);
+  3. cancellation checkpoints in the sweeps, nullclines, flow, fitting, histograms and fixed-step chunks (Group A);
+  4. the server's queues (Group D's second half), after the maintainer decides between back-pressure and refusal.
+- XPPAUT itself is checked for each confirmed bug at its card; one that XPPAUT shares goes to docs/xppaut-findings.md.
