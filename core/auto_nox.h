@@ -92,21 +92,21 @@ struct DiagramBranch {
 };
 
 typedef struct diagram {
-  int ibr,ntot,lab,calc;
+  int ibr=0,ntot=0,lab=0,calc=0;
   AutoPointCode itp;
-  double norm;
+  double norm=0;
   /* the point's n variables' extremes, solution, norm and stability values
      (auto_stability.h), all n long (size_variables) */
   std::vector<double> uhi,ulo,u0,ubar,evr,evi;
   std::shared_ptr<const DiagramBranch> branch;
   std::vector<int> parameter_indices;
   std::vector<double> par; /* only the continued parameters */
-  double per,torper;
-  int index,nfpar;
+  double per=0,torper=0;
+  int index=0,nfpar=0;
   AutoAxis icp1,icp2,icp3,icp4; /* what the point continued in (auto_axis.h) */
-  int flag2;
-  int from; /* the label its run started from, on a run's first point (not saved in files) */
-  int jacobian; /* how the run that computed it formed the Jacobian: JACOBIAN_DIFFERENCE or JACOBIAN_EXACT (jacobian.h, W278) */
+  int flag2=0;
+  int from=0; /* the label its run started from, on a run's first point (not saved in files) */
+  int jacobian=0; /* how the run that computed it formed the Jacobian: JACOBIAN_DIFFERENCE or JACOBIAN_EXACT (jacobian.h, W278) */
   /* the six arrays n long, zeroed: the one place a point's dimension is set */
   void size_variables(std::size_t n){
     for(std::vector<double> *v:{&uhi,&ulo,&u0,&ubar,&evr,&evi})v->assign(n,0.0);

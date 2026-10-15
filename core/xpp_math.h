@@ -194,14 +194,14 @@ template <class T> class Matrix {
 public:
     Matrix() = default;
     Matrix(std::span<T> storage, std::ptrdiff_t dim1, std::ptrdiff_t dim2)
-        : data_(storage.data()), dim1_(dim1), dim2_(dim2) {
+        : data_(storage.data()), dim1_(dim1) {
         if (dim1 < 0 || dim2 < 0 || static_cast<std::size_t>(dim1) * static_cast<std::size_t>(dim2) > storage.size())
             throw std::length_error("a matrix view larger than its storage");
     }
     T &operator()(std::ptrdiff_t i, std::ptrdiff_t j) const { return data_[i + j * dim1_]; }
 private:
     T *data_ = nullptr;
-    std::ptrdiff_t dim1_ = 0, dim2_ = 0;
+    std::ptrdiff_t dim1_ = 0;
 };
 
 template <class T> class Matrix3 {
