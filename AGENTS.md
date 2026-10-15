@@ -18,6 +18,12 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
   grows. (skill: task-board)
 - Before starting a batch: propose it and wait for a yes. Pick each card's
   model by the ladder and the pools' limits. (skills: task-board, task-ladder)
+- Pack cards when it saves time (maintainer, 2026-10-14): ready cards that
+  suit one agent (small, the same files or area, the same gates) go to one
+  agent in one worktree, one card after another: one build, one gate run,
+  one review. Each card keeps its own issue, its own commit (named with its
+  title) and its own roadmap row; a packed card that falls short does not
+  hold back the others. The batch proposal names the packs.
 - A card agent reports done: review it, simplify the diff, then merge. Never
   merge an unreviewed branch. (skill: task-review)
 - A push is asked for, or a batch of cards is finished: run the push tier,
