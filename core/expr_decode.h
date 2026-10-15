@@ -41,8 +41,10 @@ struct Instr {
 
 /* The instructions of program p, or why it is not one. arguments is the
    argument count of the user function p is, or -1 for an equation (which
-   has no ENDFUN and no arguments to read). */
-std::expected<std::vector<Instr>, std::string> decode(const Session &s, std::span<const int> p, int arguments);
+   has no ENDFUN and no arguments to read). maximum_depth, when supplied,
+   receives the largest value-stack depth, including nested SUM bodies. */
+std::expected<std::vector<Instr>, std::string> decode(const Session &s, std::span<const int> p, int arguments,
+                                                   std::size_t *maximum_depth = nullptr);
 
 }
 

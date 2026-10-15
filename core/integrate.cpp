@@ -425,6 +425,10 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
     s.data_store.rows=0;
     m=s.integrator.fixptlist.n;
     for(i=0;i<m;i++){
+      if(s.data_store.rows==s.data_store.max_rows){
+        const auto grown=stor_full(s);
+        if(!grown){failure.keep(grown);break;}
+      }
       s.data_store.col[0][s.data_store.rows]=static_cast<float>(i);
       for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=static_cast<float>(s.integrator.fixptlist.x[i][j]);
       s.data_store.rows++;
@@ -524,6 +528,10 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
         }
       }
       if(mc==0){
+      if(s.data_store.rows==s.data_store.max_rows){
+        const auto grown=stor_full(s);
+        if(!grown){failure.keep(grown);break;}
+      }
       s.data_store.col[0][s.data_store.rows]=temp;
       for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=static_cast<float>(x[j]);
       for(j=s.model().node;j<s.model().node+s.model().nmarkov;j++)s.data_store.col[j+1][s.data_store.rows]=0.0;

@@ -173,15 +173,15 @@ struct AutoState {
 /* AUTO's work arrays, owned here (autlib1's allocate_global_memory sizes
    them once per run: dfu ndim*ndim, dfp ndim*parameter_count, the others
    ndim; autlib3 and autlib5 read them). auto_f2c.h's doublereal and
-   integer spelt out (double, long): the header is not included here, as
+   integer spelt out (double, std::ptrdiff_t): the header is not included here, as
    its typedefs clash with CVODE's (llnltyps.h) in a file that includes
    both through session.h. */
 struct AutoGlobalScratch {
   std::vector<double> dfu, dfp, uu1, uu2, ff1, ff2;
 };
 struct AutoGlobalRotations {
-  long irtn = 0;
-  std::vector<long> nrtn; /* per boundary condition (nbc), sized with the scratch */
+  std::ptrdiff_t irtn = 0;
+  std::vector<std::ptrdiff_t> nrtn; /* per boundary condition (nbc), sized with the scratch */
 };
 
 namespace xpp {
@@ -196,17 +196,17 @@ struct Session; /* session.h */
    call, so none outlives a resize or a copy of the work. */
 struct SolvbvWork {
   std::vector<double> a,b,c,d,a1,a2,s1,s2,bb,cc,faa;
-  std::vector<long> icf,irf,ipr,icf1,icf2;
+  std::vector<std::ptrdiff_t> icf,irf,ipr,icf1,icf2;
   /* for ndim variables, ncol collocation points, ntst intervals, nbc
      boundary conditions, nint integral constraints and up to parameters
      continuation parameters */
-  void resize(long ndim, long ncol, long ntst, long nbc, long nint, long parameters);
+  void resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t ntst, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t parameters);
   /* the Fortran A (nca x nra x ntst), B (ncb x nra x ntst), C (nca x nrc x
      ntst) and D (ncb x nrc), whose leading dimensions are those of the call */
-  xpp::Matrix3<double> a_matrix(long nca, long nra, long ntst) { return {a, nca, nra, ntst}; }
-  xpp::Matrix3<double> b_matrix(long ncb, long nra, long ntst) { return {b, ncb, nra, ntst}; }
-  xpp::Matrix3<double> c_matrix(long nca, long nrc, long ntst) { return {c, nca, nrc, ntst}; }
-  xpp::Matrix<double> d_matrix(long ncb, long nrc) { return {d, ncb, nrc}; }
+  xpp::Matrix3<double> a_matrix(std::ptrdiff_t nca, std::ptrdiff_t nra, std::ptrdiff_t ntst) { return {a, nca, nra, ntst}; }
+  xpp::Matrix3<double> b_matrix(std::ptrdiff_t ncb, std::ptrdiff_t nra, std::ptrdiff_t ntst) { return {b, ncb, nra, ntst}; }
+  xpp::Matrix3<double> c_matrix(std::ptrdiff_t nca, std::ptrdiff_t nrc, std::ptrdiff_t ntst) { return {c, nca, nrc, ntst}; }
+  xpp::Matrix<double> d_matrix(std::ptrdiff_t ncb, std::ptrdiff_t nrc) { return {d, ncb, nrc}; }
 };
 
 struct AutoLib {
@@ -215,7 +215,7 @@ struct AutoLib {
      iap_type's lib, and the model's callbacks they call (autpp.cpp) reach
      the model and its settings */
   xpp::Session *session=nullptr;
-  long parameter_count=0;
+  std::ptrdiff_t parameter_count=0;
   /* the fort.3/7/9 files open during a run (gogoauto.cpp's RunUnits) */
   FILE *fp3=nullptr,*fp7=nullptr,*fp9=nullptr;
   /* fort.8, opened when a run writes its first label (autlib1.cpp) and
@@ -250,7 +250,7 @@ struct AutoLib {
      (auto_nox.cpp) shows it with the action that switches to differences */
   std::optional<xpp::Error> jacobian_failure;
   /* solvae's last ntop (its output's paging) */
-  long solvae_ntop=0;
+  std::ptrdiff_t solvae_ntop=0;
   /* solvbv's matrices, kept from one call to the next: a call with
      *ifst == 1 sizes (and zeroes) them, later ones reuse what it
      factored (autlib2.cpp) */
@@ -259,14 +259,14 @@ struct AutoLib {
      (autlib5.cpp): its settings, the projections, the equilibria's
      eigenvalues and vectors, and their previous values */
   struct {
-    struct { long itwist,istart,iequib,nfixed,npsi,nunstab,nstab,nrev; } blhom{};
-    struct { std::vector<long> ipsi,ifixed,irev; } blhmp;
+    struct { std::ptrdiff_t itwist,istart,iequib,nfixed,npsi,nunstab,nstab,nrev; } blhom{};
+    struct { std::vector<std::ptrdiff_t> ipsi,ifixed,irev; } blhmp;
     struct { std::vector<double> pu0,pu1; } blhmu;
-    struct { long nbcn; } bcnn{};
+    struct { std::ptrdiff_t nbcn; } bcnn{};
     struct { double compzero; } blhma{};
-    struct { std::vector<double> rr,ri,v,vt,xequib; long ineig=0; } bleig;
-    struct { std::vector<double> vrprev; std::vector<long> ieigc; } blhme;
-    struct { std::vector<double> cprev; std::vector<long> iflag; } beyn;
+    struct { std::vector<double> rr,ri,v,vt,xequib; std::ptrdiff_t ineig=0; } bleig;
+    struct { std::vector<double> vrprev; std::vector<std::ptrdiff_t> ieigc; } blhme;
+    struct { std::vector<double> cprev; std::vector<std::ptrdiff_t> iflag; } beyn;
   } homcont;
 };
 

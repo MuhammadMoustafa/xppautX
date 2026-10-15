@@ -33,6 +33,7 @@
 #include <span>
 #include <stdexcept>
 #include <string>
+#include "xpp_mem.h"
 
 namespace xpp {
 
@@ -195,7 +196,7 @@ public:
     Matrix() = default;
     Matrix(std::span<T> storage, std::ptrdiff_t dim1, std::ptrdiff_t dim2)
         : data_(storage.data()), dim1_(dim1) {
-        if (dim1 < 0 || dim2 < 0 || static_cast<std::size_t>(dim1) * static_cast<std::size_t>(dim2) > storage.size())
+        if (size_product(dim1,dim2) > storage.size())
             throw std::length_error("a matrix view larger than its storage");
     }
     T &operator()(std::ptrdiff_t i, std::ptrdiff_t j) const { return data_[i + j * dim1_]; }
@@ -209,8 +210,7 @@ public:
     Matrix3() = default;
     Matrix3(std::span<T> storage, std::ptrdiff_t dim1, std::ptrdiff_t dim2, std::ptrdiff_t dim3)
         : data_(storage.data()), dim1_(dim1), dim2_(dim2) {
-        if (dim1 < 0 || dim2 < 0 || dim3 < 0 ||
-            static_cast<std::size_t>(dim1) * static_cast<std::size_t>(dim2) * static_cast<std::size_t>(dim3) > storage.size())
+        if (size_product(dim1,dim2,dim3) > storage.size())
             throw std::length_error("a matrix view larger than its storage");
     }
     T &operator()(std::ptrdiff_t i, std::ptrdiff_t j, std::ptrdiff_t k) const { return data_[i + (j + k * dim2_) * dim1_]; }

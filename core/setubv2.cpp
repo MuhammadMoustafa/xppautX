@@ -1,3 +1,4 @@
+#include "xpp_mem.h"
 #include <vector>
 #include "auto_c.h"
 #include "session.h"
@@ -65,9 +66,9 @@ void setubv_make_aa_bb(const setubv_parallel_arglist *larg)
   const integer ups_dim1=larg->ndxloc,uoldps_dim1=larg->ndxloc;
   const integer dfdu_dim1=larg->ndim,dfdp_dim1=larg->ndim;
   const integer wploc_dim1=larg->ncol+1,wp_dim1=larg->ncol+1,wt_dim1=larg->ncol+1;
-  std::vector<doublereal> dfdp(larg->ndim*larg->iap->lib->parameter_count),dfdu(larg->ndim*larg->ndim);
+  std::vector<doublereal> dfdp(xpp::size_product(larg->ndim, larg->iap->lib->parameter_count)),dfdu(xpp::size_product(larg->ndim,larg->ndim));
   std::vector<doublereal> uold(larg->ndim),f(larg->ndim),u(larg->ndim);
-  std::vector<doublereal> wploc(larg->ncol*(larg->ncol+1)),prm(larg->iap->lib->parameter_count);
+  std::vector<doublereal> wploc(xpp::size_product(larg->ncol, xpp::size_sum(larg->ncol, 1))),prm(larg->iap->lib->parameter_count);
   /* Generate AA and BB: */
   
   /*      Partition the mesh intervals */
@@ -135,7 +136,7 @@ void dispatch_mesh(const setubv_parallel_arglist *larg,
   AutoLib &lib=*larg->iap->lib;
   if (lib.collocation) {
     lib.collocation->prepare(lib,larg->iap->ndim,larg->iap->nbc);
-    lib.collocation->intervals(larg->loop_end-larg->loop_start,[&](long begin,long end,AutoLib &worker) {
+    lib.collocation->intervals(larg->loop_end-larg->loop_start,[&](std::ptrdiff_t begin,std::ptrdiff_t end,AutoLib &worker) {
       iap_type local=*larg->iap;
       local.lib=&worker;
       setubv_parallel_arglist mine=*larg;
@@ -171,9 +172,9 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 
   const xpp::Matrix3<doublereal> cc = larg->cc;
 
-  std::vector<doublereal> dicd((larg->nint)*(larg->ndim + larg->iap->lib->parameter_count));
+  std::vector<doublereal> dicd(xpp::size_product(larg->nint, xpp::size_sum(larg->ndim, larg->iap->lib->parameter_count)));
   std::vector<doublereal> ficd(larg->nint);
-  std::vector<doublereal> dbc((larg->nbc)*(2*larg->ndim + larg->iap->lib->parameter_count));
+  std::vector<doublereal> dbc(xpp::size_product(larg->nbc, xpp::size_sum(xpp::size_product(2, larg->ndim), larg->iap->lib->parameter_count)));
   std::vector<doublereal> fbc(larg->nbc);
   std::vector<doublereal> uic(larg->ndim);
   std::vector<doublereal> uio(larg->ndim);
@@ -288,9 +289,9 @@ setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc
   integer i, j, k;
 
   
-  std::vector<doublereal> wi(ncol+1);
-  std::vector<doublereal> wp((ncol)*(ncol+1));
-  std::vector<doublereal> wt((ncol)*(ncol+1));
+  std::vector<doublereal> wi(xpp::size_sum(ncol, 1));
+  std::vector<doublereal> wp(xpp::size_product(ncol, xpp::size_sum(ncol, 1)));
+  std::vector<doublereal> wt(xpp::size_product(ncol, xpp::size_sum(ncol, 1)));
 
   wint(ncol + 1, wi.data());
   genwts(ncol, ncol + 1, wt.data(), wp.data());
@@ -374,11 +375,11 @@ void setubv_make_fa(const setubv_parallel_arglist *larg) {
   doublereal *fa = larg->fa;
   integer fa_dim1 = larg->nra;
   
-  std::vector<doublereal> wploc((larg->ncol)*(larg->ncol+1));
+  std::vector<doublereal> wploc(xpp::size_product(larg->ncol, xpp::size_sum(larg->ncol, 1)));
   integer wploc_dim1 = larg->ncol + 1;
   
-  std::vector<doublereal> dfdp((larg->ndim)*larg->iap->lib->parameter_count);
-  std::vector<doublereal> dfdu((larg->ndim)*(larg->ndim));
+  std::vector<doublereal> dfdp(xpp::size_product(larg->ndim, larg->iap->lib->parameter_count));
+  std::vector<doublereal> dfdu(xpp::size_product(larg->ndim, larg->ndim));
   std::vector<doublereal> u(larg->ndim);
   std::vector<doublereal> uold(larg->ndim);
   std::vector<doublereal> f(larg->ndim);
@@ -449,12 +450,12 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
   integer upoldp_dim1 = larg.ndxloc;
   
   integer dbc_dim1 = larg.nbc;
-  std::vector<doublereal> dbc((larg.nbc)*(2*larg.ndim + larg.iap->lib->parameter_count));
+  std::vector<doublereal> dbc(xpp::size_product(larg.nbc, xpp::size_sum(xpp::size_product(2, larg.ndim), larg.iap->lib->parameter_count)));
   std::vector<doublereal> fbc(larg.nbc);
   std::vector<doublereal> ubc0(larg.ndim);
   std::vector<doublereal> ubc1(larg.ndim);
   integer dicd_dim1 = larg.nint;
-  std::vector<doublereal> dicd((larg.nint)*(larg.ndim + larg.iap->lib->parameter_count));
+  std::vector<doublereal> dicd(xpp::size_product(larg.nint, xpp::size_sum(larg.ndim, larg.iap->lib->parameter_count)));
   std::vector<doublereal> ficd(larg.nint);
   std::vector<doublereal> uic(larg.ndim);
   std::vector<doublereal> uio(larg.ndim);

@@ -156,6 +156,10 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
        swap_color(s,&color,1);
        return;
      }
+     if(s.data_store.rows==s.data_store.max_rows){
+       const auto grown=stor_full(s);
+       if(!grown){show_error(grown.error());break;}
+     }
      s.data_store.col[0][s.data_store.rows]=temp;
      if(side==0)for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=ystart[j];
      else for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=yend[j];

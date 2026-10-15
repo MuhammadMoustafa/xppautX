@@ -19,13 +19,15 @@ struct Frame {
 
 }
 
-std::expected<std::vector<Instr>, std::string> decode(const Session &s, std::span<const int> p, int arguments)
+std::expected<std::vector<Instr>, std::string> decode(const Session &s, std::span<const int> p, int arguments,
+                                                   std::size_t *maximum_depth)
 {
     const Model &m = s.model();
     std::vector<Instr> out;
     out.reserve(p.size());
     std::vector<Frame> frames{{Frame::Kind::Program, 0, p.size()}};
     std::size_t depth = 0;
+    if(maximum_depth)*maximum_depth=0;
     const auto refuse = [](const char *why) { return std::unexpected(std::string(why)); };
     const auto need = [&](std::size_t n) { return depth >= frames.back().base + n; };
     const auto in_range = [](int in, std::size_t bound) { return in >= 0 && static_cast<std::size_t>(in) < bound; };
@@ -136,7 +138,7 @@ std::expected<std::vector<Instr>, std::string> decode(const Session &s, std::spa
         } else {
             return refuse("an unsupported instruction");
         }
-        if (depth > EXPR_STACK) return refuse("an out-of-range stack");
+        if(maximum_depth && depth>*maximum_depth)*maximum_depth=depth;
         out.push_back(i);
         pc = next;
     }

@@ -6,8 +6,11 @@
 #include "model.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
+#include "xpp_mem.h"
+#include "expr_decode.h"
 
 #include <array>
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <string>
@@ -484,6 +487,25 @@ int alg_to_rpn(xpp::Session &s, int *toklist, std::vector<int> &command)
 
 /* ADD_EXPR   */
 
+void size_expr_stack(Session &s, std::span<const int> code, int arguments)
+{
+ std::size_t depth=0;
+ const auto decoded=xpp::expr::decode(s,code,arguments,&depth);
+ /* Before all function metadata is installed, the instruction count
+    bounds even a program the decoder cannot yet validate. */
+ std::size_t values=decoded?depth:code.size();
+ /* Along a nonrecursive call chain each function can be active once.
+    Cover its value program and its argument frame (even unused args).
+    This conservative bound also covers SUM bodies sharing the stack. */
+ const Model &m=s.model();
+ for(std::size_t i=0;i<m.ufun_programs.size();++i)
+   values=xpp::size_sum(values,std::max(m.ufun_programs[i].rpn.size(),
+       xpp::size_product(m.narg_fun[i])));
+ auto &stack=s.parser.stack;
+ if(stack.values.size()<values)stack.values.resize(values);
+ if(stack.args.size()<values)stack.args.resize(values);
+}
+
 int add_expr(xpp::Session &s, std::string_view expr, std::vector<int> &command, int *length)
 {
  int err;
@@ -494,6 +516,9 @@ int add_expr(xpp::Session &s, std::string_view expr, std::vector<int> &command, 
  if(err!=0)return(1);
  err = alg_to_rpn(s,my_token.data(),command);
  if(err!=0)return(1);
+ /* Function bodies are compiled before ENDFUN and their argument count
+    are installed. MAXARG admits the compiler's temporary argument names. */
+ size_expr_stack(s,command,MAXARG);
  if(length)*length=static_cast<int>(command.size());
  return(0);
 }

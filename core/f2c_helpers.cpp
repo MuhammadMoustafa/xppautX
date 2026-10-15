@@ -49,7 +49,7 @@ double pow_dd(const doublereal *ap, const doublereal *bp) { return (xpp::math::p
 double pow_di(const doublereal *ap, const integer *bp) {
   double pow_, x;
   integer n;
-  unsigned long u;
+  std::size_t u;
 
   pow_ = 1;
   x = *ap;
@@ -74,7 +74,7 @@ double pow_di(const doublereal *ap, const integer *bp) {
 
 integer pow_ii(integer ap, integer bp) {
   integer pow_, x, n;
-  unsigned long u;
+  std::size_t u;
 
   x = ap;
   n = bp;

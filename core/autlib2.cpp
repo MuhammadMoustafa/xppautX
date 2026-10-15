@@ -1,3 +1,4 @@
+#include "xpp_mem.h"
 /* Autlib2.f -- translated by f2c (version 19970805).
    You must link the resulting object file with the libraries:
 	-lf2c -lm   (in that order)
@@ -12,25 +13,26 @@
 /* The sizes follow the Fortran's macros: nrow = ndim*ncol (rows of A),
    nclm = nrow + ndim (its columns), nrc = nbc + nint + 1 (rows of C and D),
    and each array holds ntst + 1 mesh intervals (the last is a spare). */
-void SolvbvWork::resize(long ndim, long ncol, long ntst, long nbc, long nint, long parameters)
+void SolvbvWork::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t ntst, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t parameters)
 {
-  const long nrow = ndim * ncol, nclm = nrow + ndim, nrc = nbc + nint + 1, nodes = ntst + 1;
-  a.assign(nclm * nrow * nodes, 0.);
-  b.assign(parameters * nrow * nodes, 0.);
-  c.assign(nclm * nrc * nodes, 0.);
-  d.assign(nrc * parameters, 0.);
-  a1.assign(ndim * ndim * nodes, 0.);
-  a2.assign(ndim * ndim * nodes, 0.);
-  s1.assign(ndim * ndim * nodes, 0.);
-  s2.assign(ndim * ndim * nodes, 0.);
-  bb.assign(ndim * parameters * nodes, 0.);
-  cc.assign(nrc * ndim * nodes + 1, 0.);
-  faa.assign(ndim * nodes, 0.);
-  icf.assign(nclm * nodes, 0);
-  irf.assign(nrow * nodes, 0);
-  ipr.assign(ndim * nodes, 0);
-  icf1.assign(ndim * nodes, 0);
-  icf2.assign(ndim * nodes, 0);
+  const std::size_t nrow = xpp::size_product(ndim,ncol);
+  const std::size_t nclm = xpp::size_sum(nrow,ndim), nrc = xpp::size_sum(nbc,nint,1), nodes = xpp::size_sum(ntst,1);
+  a.assign(xpp::size_product(nclm, nrow, nodes), 0.);
+  b.assign(xpp::size_product(parameters, nrow, nodes), 0.);
+  c.assign(xpp::size_product(nclm, nrc, nodes), 0.);
+  d.assign(xpp::size_product(nrc, parameters), 0.);
+  a1.assign(xpp::size_product(ndim, ndim, nodes), 0.);
+  a2.assign(xpp::size_product(ndim, ndim, nodes), 0.);
+  s1.assign(xpp::size_product(ndim, ndim, nodes), 0.);
+  s2.assign(xpp::size_product(ndim, ndim, nodes), 0.);
+  bb.assign(xpp::size_product(ndim, parameters, nodes), 0.);
+  cc.assign(xpp::size_sum(xpp::size_product(nrc, ndim, nodes), 1), 0.);
+  faa.assign(xpp::size_product(ndim, nodes), 0.);
+  icf.assign(xpp::size_product(nclm, nodes), 0);
+  irf.assign(xpp::size_product(nrow, nodes), 0);
+  ipr.assign(xpp::size_product(ndim, nodes), 0);
+  icf1.assign(xpp::size_product(ndim, nodes), 0);
+  icf2.assign(xpp::size_product(ndim, nodes), 0);
 }
 
 
@@ -70,7 +72,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
      and setubv).
   */
 
-  std::vector<doublereal> ft(iap->ndim * iap->ncol * (iap->ntst + 1));
+  std::vector<doublereal> ft(xpp::size_product(iap->ndim, iap->ncol, xpp::size_sum(iap->ntst, 1)));
 
    if (*ifst==1){
     /* the arrays are sized (and zeroed) in one place, SolvbvWork::resize */
@@ -165,18 +167,18 @@ setrhs(integer *ndim, xpp::AutoProblem *ips, integer *na, integer *ncol, integer
   integer ncp1;
   doublereal dt,ddt;
 
-  std::vector<doublereal> dicd((iap->nint)*(iap->ndim + iap->lib->parameter_count));
+  std::vector<doublereal> dicd(xpp::size_product(iap->nint, xpp::size_sum(iap->ndim, iap->lib->parameter_count)));
   std::vector<doublereal> ficd(iap->nint);
-  std::vector<doublereal> dfdp((iap->ndim)*iap->lib->parameter_count);
-  std::vector<doublereal> dfdu((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> dfdp(xpp::size_product(iap->ndim, iap->lib->parameter_count));
+  std::vector<doublereal> dfdu(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublereal> uold(iap->ndim);
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> u(iap->ndim);
-  std::vector<doublereal> wploc((iap->ncol)*(iap->ncol+1));
-  std::vector<doublereal> wi(iap->ncol+1);
-  std::vector<doublereal> wp((iap->ncol)*(iap->ncol+1));
-  std::vector<doublereal> wt((iap->ncol)*(iap->ncol+1));
-  std::vector<doublereal> dbc((iap->nbc)*(2*iap->ndim + iap->lib->parameter_count));
+  std::vector<doublereal> wploc(xpp::size_product(iap->ncol, xpp::size_sum(iap->ncol, 1)));
+  std::vector<doublereal> wi(xpp::size_sum(iap->ncol, 1));
+  std::vector<doublereal> wp(xpp::size_product(iap->ncol, xpp::size_sum(iap->ncol, 1)));
+  std::vector<doublereal> wt(xpp::size_product(iap->ncol, xpp::size_sum(iap->ncol, 1)));
+  std::vector<doublereal> dbc(xpp::size_product(iap->nbc, xpp::size_sum(xpp::size_product(2, iap->ndim), iap->lib->parameter_count)));
   std::vector<doublereal> fbc(iap->nbc);
   std::vector<doublereal> uic(iap->ndim);
   std::vector<doublereal> uio(iap->ndim);
@@ -339,12 +341,12 @@ brbd(AutoLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, do
   integer *ipr = work.ipr.data(), *icf1 = work.icf1.data(), *icf2 = work.icf2.data();
   integer *irf = work.irf.data(), *icf = work.icf.data();
 
-  std::vector<doublereal> e((*nov + *nrc)*(*nov + *nrc));
-  std::vector<doublereal> fcc((*nov + *nrc) + (2*(*nov)*(*nov))+1);
+  std::vector<doublereal> e(xpp::size_product(xpp::size_sum(*nov, *nrc), xpp::size_sum(*nov, *nrc)));
+  std::vector<doublereal> fcc(xpp::size_sum(xpp::size_sum(*nov, *nrc), xpp::size_product(2, *nov, *nov), 1));
 
-  std::vector<doublereal> sol1((*nov)*(*na + 1));
-  std::vector<doublereal> sol2((*nov)*(*na + 1));
-  std::vector<doublereal> sol3((*nov)*(*na + 1));
+  std::vector<doublereal> sol1(xpp::size_product(*nov, xpp::size_sum(*na, 1)));
+  std::vector<doublereal> sol2(xpp::size_product(*nov, xpp::size_sum(*na, 1)));
+  std::vector<doublereal> sol3(xpp::size_product(*nov, xpp::size_sum(*na, 1)));
   
   /* Local */
 
@@ -916,7 +918,7 @@ dimrge(FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, 
 
   integer novpj2, kc, kr, ncrloc, nap1;
 
-  std::vector<double> xe(*nov + *nrc);
+  std::vector<double> xe(xpp::size_sum(*nov, *nrc));
 
   /* Parameter adjustments */
   /*--fc;*/

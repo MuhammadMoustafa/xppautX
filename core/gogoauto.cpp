@@ -1,3 +1,4 @@
+#include "xpp_mem.h"
 
 #include <array>
 #include <memory>
@@ -45,8 +46,8 @@ struct RunUnits {
 int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has been set */
 {
   s.auto_lib.parameter_count = s.auto_state.parameter_layout.size();
-  std::vector<integer> icp(2 * s.auto_lib.parameter_count);
-  std::vector<doublereal> par(2 * s.auto_lib.parameter_count);
+  std::vector<integer> icp(xpp::size_product(2, s.auto_lib.parameter_count));
+  std::vector<doublereal> par(xpp::size_product(2, s.auto_lib.parameter_count));
   std::vector<doublereal> thl(s.auto_lib.parameter_count);
   std::vector<doublereal> thu;
   std::vector<AutoMark> marks(s.auto_state.run.marks.size());

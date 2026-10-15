@@ -8,6 +8,7 @@
 #include "xpp_ui.h"
 #include "xpp_zip.h"
 #include "xpp_util.h"
+#include "model_options.h"
 
 #include <algorithm>
 #include <array>
@@ -232,7 +233,12 @@ const Model::Name *Model::name(std::string_view text) const
 Place model_place(const Model &m, std::string_view name)
 {
     const Model::Name *entry = m.name(name);
-    return entry ? model_place(m, entry->pos) : Load::place();
+    if(entry)return model_place(m, entry->pos);
+    const std::string option=odex_option_key(name);
+    for(auto line=m.options.rbegin();line!=m.options.rend();++line)
+        for(const auto &[key,value]:line->items)
+            if(!option.empty() && odex_option_key(key)==option)return line->where;
+    return Load::place();
 }
 
 Place model_place(const Model &m, odex::Statement::Kind kind, int k)

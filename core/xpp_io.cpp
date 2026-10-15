@@ -326,7 +326,7 @@ bool TokenReader::read(int &x) noexcept
 /* fscanf "%ld"'s own grammar, one character of lookahead pushed back as
    fscanf pushes it back, so a field that follows with no space between
    (AUTO's "%5ld" columns) is the next read's. */
-bool TokenReader::read(long &x) noexcept
+bool TokenReader::read(long long &x) noexcept
 {
     if (!state_ || !state_->has_input()) return false;
     State &in = *state_;
@@ -350,8 +350,18 @@ bool TokenReader::read(long &x) noexcept
     in.unget(c);
     if (num.empty() || !std::isdigit(static_cast<unsigned char>(num.back()))) return false;
     errno = 0;
-    x = std::strtol(num.c_str(), nullptr, 10);
-    return errno != ERANGE;
+    const long long value = std::strtoll(num.c_str(), nullptr, 10);
+    if(errno == ERANGE)return false;
+    x = value;
+    return true;
+}
+
+bool TokenReader::read(long &x) noexcept
+{
+    long long value;
+    if(!read(value) || !std::in_range<long>(value))return false;
+    x=static_cast<long>(value);
+    return true;
 }
 
 bool TokenReader::skip_line() noexcept

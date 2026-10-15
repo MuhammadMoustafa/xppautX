@@ -226,7 +226,7 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   irs=s.auto_state.run.irs;
   ilp=s.auto_state.run.ilp;
 
-  thu_vec.assign(static_cast<size_t>(ndim)*AutoState::state_copies, 1.);
+  thu_vec.assign(xpp::size_product(static_cast<size_t>(ndim), AutoState::state_copies), 1.);
 
   jtmp = iap->lib->parameter_count;
   nicp=s.auto_state.run.nicp;
@@ -894,16 +894,16 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   integer aa_first_dimension = iap->ndim + 1;
 
-  std::vector<doublereal> dfdp((iap->ndim)*iap->lib->parameter_count);
-  std::vector<doublereal> dfdu((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> dfdp(xpp::size_product(iap->ndim, iap->lib->parameter_count));
+  std::vector<doublereal> dfdu(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublereal> uold(iap->ndim);
   std::vector<doublereal> udot(iap->ndim);
   std::vector<doublereal> stud;
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> u(iap->ndim);
-  std::vector<doublereal> aa((iap->ndim+1)*(iap->ndim+1));
-  std::vector<doublereal> du(iap->ndim+1);
-  std::vector<doublereal> rhs(iap->ndim+1);
+  std::vector<doublereal> aa(xpp::size_product(xpp::size_sum(iap->ndim, 1), xpp::size_sum(iap->ndim, 1)));
+  std::vector<doublereal> du(xpp::size_sum(iap->ndim, 1));
+  std::vector<doublereal> rhs(xpp::size_sum(iap->ndim, 1));
   std::vector<doublereal> stu;
   std::vector<doublereal> uzr(iap->nuzr);
     
@@ -1105,8 +1105,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       iap->nbif = nbif;
       stla.resize(nbif);
       stld.resize(nbif);
-      stud.resize(iap->ndim * nbif);
-      stu.resize(iap->ndim * nbif);
+      stud.resize(xpp::size_product(iap->ndim, nbif));
+      stu.resize(xpp::size_product(iap->ndim, nbif));
       stbif(iap, rap, par, icp, &aa_first_dimension, aa.data(),
 	    stud.data(), stu.data(), stla.data(), stld.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(),
 	    du.data(), udot.data(), dfdu.data(), dfdp.data(), thl, thu);
@@ -1751,7 +1751,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   integer iid, ibr;
   doublereal det;
 
-  std::vector<doublereal> ud(iap->ndim + 1);
+  std::vector<doublereal> ud(xpp::size_sum(iap->ndim, 1));
 
   /* Local */
 
@@ -2185,7 +2185,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   integer nit, mxt;
   doublereal umx, rlm1;
 
-  std::vector<doublereal> u1(iap->ndim + 1);
+  std::vector<doublereal> u1(xpp::size_sum(iap->ndim, 1));
 
   /* Controls the computation of the second point on a bifurcating branch. */
 /* This point is required to lie in a hyper-plane at distance DS from the */
@@ -3085,7 +3085,7 @@ genwts(const integer ncol, const integer n1, doublereal *wt, doublereal *wp)
   doublereal sum;
   integer ncp1;
 
-  std::vector<doublereal> xm(ncol + 1);
+  std::vector<doublereal> xm(xpp::size_sum(ncol, 1));
   std::vector<doublereal> zm(ncol);
 
 /* Generates weights of the collocation method. The user selected */
@@ -3417,7 +3417,7 @@ adapt(iap_type *iap, rap_type *rap, integer *nold, integer *ncold, integer *nnew
   integer isw;
   xpp::AutoProblem ips;
 
-  std::vector<doublereal> uint((*ndxloc)*(iap->ndim * iap->ncol));
+  std::vector<doublereal> uint(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, iap->ncol)));
   std::vector<doublereal> tint(*ndxloc);
   std::vector<doublereal> tm2(*ndxloc);
   std::vector<integer> itm(*ndxloc);
@@ -3508,8 +3508,8 @@ interp(iap_type *iap, rap_type *rap, integer *ndim, integer *n, integer *nc, dou
 
   integer n1m1, ncp1;
 
-  std::vector<doublereal> w(*nc+1);
-  std::vector<doublereal> x(*nc+1);
+  std::vector<doublereal> w(xpp::size_sum(*nc, 1));
+  std::vector<doublereal> x(xpp::size_sum(*nc, 1));
 
 /* Finds interpolant (TM(.) , UPS(.) ) on new mesh TM1. */
 
@@ -3572,9 +3572,9 @@ newmsh(iap_type *iap, rap_type *rap, integer *ndxloc, doublereal *ups, integer *
   integer j1, noldp1, nnewp1;
   doublereal dal;
 
-  std::vector<doublereal> uneq(*nnew + 1);
-  std::vector<doublereal> eqf(*nold + 1);
-  std::vector<integer> ial(*nnew + 1);
+  std::vector<doublereal> uneq(xpp::size_sum(*nnew, 1));
+  std::vector<doublereal> eqf(xpp::size_sum(*nold, 1));
+  std::vector<integer> ial(xpp::size_sum(*nnew, 1));
 
   /* Redistributes the mesh according to the function EQDF. */
 
@@ -3696,8 +3696,8 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
   integer jp1;
   doublereal pwr;
 
-  std::vector<doublereal> hd((*ntst + 1)*(*ndim * *ncol));
-  std::vector<doublereal> wh(*ncol + 1);
+  std::vector<doublereal> hd(xpp::size_product(xpp::size_sum(*ntst, 1), xpp::size_product(*ndim, *ncol)));
+  std::vector<doublereal> wh(xpp::size_sum(*ncol, 1));
 
   /* Compute approximation to NCOL-th derivative : */
   /* Parameter adjustments */
@@ -3788,7 +3788,7 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
 
   integer ibr;
 
-  std::vector<doublereal> z__((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> z__(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublereal> wi(iap->ndim);
   std::vector<doublereal> wr(iap->ndim);
   std::vector<doublereal> fv1(iap->ndim);
@@ -4627,17 +4627,17 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     
   integer ntst_plus_one=iap->ntst + 1;
 
-  std::vector<doublereal> ups((iap->ntst + 1)*(iap->ndim * iap->ncol));
-  std::vector<doublereal> upoldp((iap->ntst + 1)*(iap->ndim * iap->ncol));
-  std::vector<doublereal> uoldps((iap->ntst + 1)*(iap->ndim * iap->ncol));
-  std::vector<doublereal> udotps((iap->ntst + 1)*(iap->ndim * iap->ncol));
-  std::vector<doublereal> dups((iap->ntst + 1)*(iap->ndim * iap->ncol));
-  std::vector<doublereal> fa((iap->ntst + 1)*(iap->ndim * iap->ncol));
-  std::vector<doublereal> dtm(iap->ntst + 1);
-  std::vector<doublereal> tm(iap->ntst + 1);
-  std::vector<doublereal> fc(iap->nbc+iap->nint+1);
-  std::vector<doublereal> p0((iap->ndim)*(iap->ndim));
-  std::vector<doublereal> p1((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> ups(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<doublereal> upoldp(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<doublereal> uoldps(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<doublereal> udotps(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<doublereal> dups(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<doublereal> fa(xpp::size_product(xpp::size_sum(iap->ntst, 1), xpp::size_product(iap->ndim, iap->ncol)));
+  std::vector<doublereal> dtm(xpp::size_sum(iap->ntst, 1));
+  std::vector<doublereal> tm(xpp::size_sum(iap->ntst, 1));
+  std::vector<doublereal> fc(xpp::size_sum(iap->nbc, iap->nint, 1));
+  std::vector<doublereal> p0(xpp::size_product(iap->ndim, iap->ndim));
+  std::vector<doublereal> p1(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublecomplex> ev(iap->ndim);
   std::vector<doublereal> uzr(iap->nuzr);
 
@@ -4945,8 +4945,8 @@ stupbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer n1;
   xpp::AutoProblem ips;
 
-  std::vector<doublereal> dfdp((iap->ndim)*iap->lib->parameter_count);
-  std::vector<doublereal> dfdu((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> dfdp(xpp::size_product(iap->ndim, iap->lib->parameter_count));
+  std::vector<doublereal> dfdu(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublereal> uold(iap->ndim);
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> u(iap->ndim);
@@ -5352,9 +5352,9 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       ncol_used=ncol;
       
     *ndxloc=(ntst_used + 1)*4;
-    std::vector<doublereal> ups_new((*ndxloc)*(iap->ndim * ncol_used));
-    std::vector<doublereal> upoldp_new((*ndxloc)*(iap->ndim * ncol_used));
-    std::vector<doublereal> udotps_new((*ndxloc)*(iap->ndim * ncol_used));
+    std::vector<doublereal> ups_new(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, ncol_used)));
+    std::vector<doublereal> upoldp_new(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, ncol_used)));
+    std::vector<doublereal> udotps_new(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, ncol_used)));
     std::vector<doublereal> tm_new(*ndxloc);
     std::vector<doublereal> dtm_new(*ndxloc);
 
@@ -5988,7 +5988,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   integer ibr;
   doublereal det0;
 
-  std::vector<doublereal> pp((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> pp(xpp::size_product(iap->ndim, iap->ndim));
 
   ndim = iap->ndim;
   iid = iap->iid;
@@ -6044,7 +6044,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   integer iid,ibr,loc=0,isp,isw;
   doublereal azm1;
 
-  std::vector<doublereal> wrk((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> wrk(xpp::size_product(iap->ndim, iap->ndim));
 
   /* This function returns a quantity that changes sign when a complex */
   /* pair of eigenvalues of the linearized Poincare map moves in or out */
@@ -6758,8 +6758,8 @@ pvlsbv(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 
 void allocate_global_memory(const iap_type iap) {
     /* assign: zeroed, like the xpp_malloc it replaces */
-    iap.lib->scratch.dfu.assign(iap.ndim * iap.ndim, 0.);
-    iap.lib->scratch.dfp.assign(iap.ndim * iap.lib->parameter_count, 0.);
+    iap.lib->scratch.dfu.assign(xpp::size_product(iap.ndim, iap.ndim), 0.);
+    iap.lib->scratch.dfp.assign(xpp::size_product(iap.ndim, iap.lib->parameter_count), 0.);
     iap.lib->scratch.uu1.assign(iap.ndim, 0.);
     iap.lib->scratch.uu2.assign(iap.ndim, 0.);
     iap.lib->scratch.ff1.assign(iap.ndim, 0.);

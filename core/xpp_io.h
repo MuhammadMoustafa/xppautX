@@ -450,6 +450,7 @@ public:
     bool read(double &x) noexcept;
     bool read(int &x) noexcept;
     bool read(long &x) noexcept;
+    bool read(long long &x) noexcept;
     bool skip_line() noexcept;
     void close() noexcept { state_.reset(); }
     struct State;

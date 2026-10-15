@@ -6,8 +6,8 @@
    (xpp_malloc/xpp_calloc/xpp_realloc/xpp_strdup/xpp_free, the
    XPP_MEM_FAIL_AT test hook, XPP_MEM_INIT, xpp_mem_stats()) was retired
    at W48, once tabular.cpp -- its last caller -- moved to a std::vector.
-   What is left is the one thing nothing else replaces: the loud, final
-   exit a failed allocation always took.
+   This owner checks allocation extent arithmetic and provides the loud,
+   final exit for allocation failures that cannot be recovered.
 
    C++ code whose std::string or std::vector could not allocate (it caught
    std::bad_alloc where no exception may pass: a callback a C library or
@@ -38,8 +38,38 @@
    check that nothing leaks. */
 
 #include <string_view>
+#include <cstddef>
+#include <limits>
+#include <stdexcept>
+#include <utility>
 
 namespace xpp {
+/* Allocation extents: reject an unrepresentable factor, sum or product
+   before arithmetic wraps. Callers supply their computation's diagnostic. */
+template<class... T> std::size_t size_product(T... factors)
+{
+  std::size_t size = 1;
+  const auto multiply = [&](auto factor) {
+    if (!std::in_range<std::size_t>(factor) ||
+        (factor != 0 && size > std::numeric_limits<std::size_t>::max() / static_cast<std::size_t>(factor)))
+      throw std::length_error("allocation size overflow");
+    size *= static_cast<std::size_t>(factor);
+  };
+  (multiply(factors), ...);
+  return size;
+}
+template<class... T> std::size_t size_sum(T... terms)
+{
+  std::size_t size = 0;
+  const auto add = [&](auto term) {
+    if (!std::in_range<std::size_t>(term) ||
+        size > std::numeric_limits<std::size_t>::max() - static_cast<std::size_t>(term))
+      throw std::length_error("allocation size overflow");
+    size += static_cast<std::size_t>(term);
+  };
+  (add(terms), ...);
+  return size;
+}
 /* what says what was being built ("reading a command"): the ERROR is
    "out of memory <what>". It allocates nothing itself. */
 [[noreturn]] void out_of_memory(std::string_view what) noexcept;

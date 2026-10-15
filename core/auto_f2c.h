@@ -9,8 +9,11 @@
 
 #include <stdlib.h>
 #include <math.h>
+#include <cstddef>
 
-typedef long int integer;
+/* AUTO's dimensions and linear indices must have pointer width on Windows
+   too, where long remains 32 bits. Allocation extents use checked size_t. */
+typedef std::ptrdiff_t integer;
 typedef float real;
 typedef double doublereal;
 typedef struct { doublereal r, i; } doublecomplex;

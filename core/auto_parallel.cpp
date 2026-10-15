@@ -67,7 +67,7 @@ bool auto_parallel_ready(const Session &s) {
         && (!solver_info(s.numerics.method).traits.discrete || s.numerics.store_every == 1);
 }
 
-void AutoParallel::select_run(AutoLib &source, long ndim, long ntst, long ncol) {
+void AutoParallel::select_run(AutoLib &source, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol) {
     const Session &s = *source.session;
     if (!auto_parallel_ready(s)) {
         source.collocation.reset();
@@ -82,7 +82,7 @@ void AutoParallel::select_run(AutoLib &source, long ndim, long ntst, long ncol) 
         source.collocation = std::make_unique<AutoParallel>(threads);
 }
 
-void AutoParallel::prepare(AutoLib &source, long ndim, long nbc) try {
+void AutoParallel::prepare(AutoLib &source, std::ptrdiff_t ndim, std::ptrdiff_t nbc) try {
     if (!state_) state_ = std::make_unique<State>(threads_);
     const Session &s = *source.session;
     for (auto &lib : state_->libs) {
@@ -110,16 +110,16 @@ void AutoParallel::publish_rhs(Session &s) {
     s.parser.variables = last.rhs_variables;
 }
 
-void AutoParallel::intervals(long n, const std::function<void(long, long, AutoLib &)> &work) try {
+void AutoParallel::intervals(std::ptrdiff_t n, const std::function<void(std::ptrdiff_t, std::ptrdiff_t, AutoLib &)> &work) try {
     // All publication and completion uses the same mutex. No calling-thread
     // write to job, libs or failures overlaps a worker's access.
     std::fill(state_->failures.begin(), state_->failures.end(), nullptr);
-    const unsigned count = n < static_cast<long>(threads_) ? 1 : threads_;
+    const unsigned count = n < static_cast<std::ptrdiff_t>(threads_) ? 1 : threads_;
     state_->last = count - 1;
     // floor(n*k/count), without multiplying a potentially maximal mesh count.
-    const long pieces = static_cast<long>(count);
+    const std::ptrdiff_t pieces = static_cast<std::ptrdiff_t>(count);
     const auto at = [&](unsigned k) {
-        const long part = static_cast<long>(k);
+        const std::ptrdiff_t part = static_cast<std::ptrdiff_t>(k);
         return (n / pieces) * part + (n % pieces) * part / pieces;
     };
     state_->job = [&](unsigned k) {

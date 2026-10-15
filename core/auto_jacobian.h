@@ -1,3 +1,4 @@
+#include "xpp_mem.h"
 // AUTO's finite-difference Jacobians: common loops (W257) and orchestration
 // (W333) for autlib3.cpp and autlib5.cpp, preserving evaluator arithmetic.
 #pragma once
@@ -109,7 +110,7 @@ int curve(const iap_type *iap, const rap_type *rap, integer ndim,
           doublereal *par, integer ijac, doublereal *f, doublereal *dfdu,
           doublereal *dfdp, bool hopf, Eval eval) {
   const integer n = iap->ndm;
-  std::vector<double> base(n * ndim), parameters(n * iap->lib->parameter_count);
+  std::vector<double> base(xpp::size_product(n, ndim)), parameters(xpp::size_product(n, iap->lib->parameter_count));
   const auto evaluate = [&](const double *state, double *value) {
     eval(iap, rap, ndim, state, uold, icp, par, value, n,
          base.data(), parameters.data());
@@ -134,10 +135,10 @@ int curve(const iap_type *iap, const rap_type *rap, integer ndim,
     }
     dp(i, icp[0]) = p(i, icp[0]);
   }
-  std::vector<integer> columns(n + 1);
+  std::vector<integer> columns(xpp::size_sum(n, 1));
   for (integer i = 0; i < n; ++i) columns[i] = i;
   columns[n] = ndim - 1; // p2 is the last augmented state
-  std::vector<double> low(ndim), high(ndim), minus(ndim), plus(ndim), numeric(ndim * ndim);
+  std::vector<double> low(ndim), high(ndim), minus(ndim), plus(ndim), numeric(xpp::size_product(ndim, ndim));
   const double step = central(ndim, ndim, u, low.data(), high.data(), minus.data(), plus.data(),
                               evaluate, numeric.data(), ndim, columns);
   const Matrix<const double> difference(numeric, ndim, ndim);
@@ -181,7 +182,7 @@ int integral(const iap_type *iap, const rap_type *rap, integer ndim,
              doublereal *dint, Eval eval) {
   std::vector<doublereal> ff1(iap->nint), ff2(iap->nint);
   std::vector<doublereal> uu1(iap->ndim), uu2(iap->ndim);
-  std::vector<doublereal> dfu(iap->ndim * (iap->ndim + iap->lib->parameter_count));
+  std::vector<doublereal> dfu(xpp::size_product(iap->ndim, xpp::size_sum(iap->ndim, iap->lib->parameter_count)));
   const auto evaluate = [&](const doublereal *state, doublereal *value) {
     eval(iap, rap, ndim, par, icp, nint, iap->nnt0, state, uold, udot,
          upold, value, dfu.data());

@@ -1,3 +1,4 @@
+#include "xpp_mem.h"
 #include "auto_unknowns.h"
 #include "solver.h"
 #include <algorithm>
@@ -141,7 +142,8 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
       of each step's, and each step adds its own dependence on the
       parameters to what the steps before passed on */
    const size_t nn=static_cast<size_t>(ndim);
-   std::vector<double> step(exact?nn*nn:0),step_p(exact?nn*s.auto_lib.parameter_count:0),scratch(exact?nn:0);
+   std::vector<double> step(exact?xpp::size_product(nn,nn):0);
+   std::vector<double> step_p(exact?xpp::size_product(nn,s.auto_lib.parameter_count):0),scratch(exact?nn:0);
    for(i=1;i<s.numerics.store_every;i++){
      for(j=0;j<ndim;j++)
        zz[j]=f[j];

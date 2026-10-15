@@ -28,6 +28,7 @@
 #include "solver.h"
 #include "numerics_settings.h"
 #include "xpp_io.h"
+#include "xpp_batch.h"
 
 namespace xpp {
 
@@ -205,25 +206,17 @@ void  get_num_par(xpp::Session &s, char ch)
 
 void chk_delay(xpp::Session &s)
 {
-  if(s.numerics.delay>0.0) {
-			  free_delay(s);
-			  if(alloc_delay(s,s.numerics.delay)){
-			    s.numerics.inflag=0; /*  Make sure no last ics allowed */
-			  }
-			}
-			  else 
-			    free_delay(s);
+  free_delay(s);
+  if(s.numerics.delay<=0.0)return;
+  const auto allocated=alloc_delay(s,s.numerics.delay);
+  if(allocated)s.numerics.inflag=0; /* No last ICs with a fresh history. */
+  else if(Load::running())model_failed(allocated.error());
+  else show_error(allocated.error());
 }
 
 void set_delay(xpp::Session &s)
 {
- if(s.model().ndelays==0)return;
- if(s.numerics.delay>0.0){
-   free_delay(s);
-   if(alloc_delay(s,s.numerics.delay)){
-     s.numerics.inflag=0;
-   }
- }
+  if(s.model().ndelays>0 && s.numerics.delay>0.0)chk_delay(s);
 }
 
 void ruelle(xpp::Session &s)

@@ -30,10 +30,10 @@ bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long 
 // tm selects orbit rows (which carry a time); null selects tangent rows.
 // A line-bounded source retains the old wrapped-line skips. The callback
 // initializes formulation-specific columns after each interior node is read.
-bool read_auto_solution_rows(TokenReader &reader, long ndim, long ntst, long ncol,
-                             long stride, long first, long count, double *values,
-                             double *tm, bool line_bounded, long extra_lines,
-                             const std::function<void(long, long, double)> &complete);
+bool read_auto_solution_rows(TokenReader &reader, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol,
+                             std::ptrdiff_t stride, std::ptrdiff_t first, std::ptrdiff_t count, double *values,
+                             double *tm, bool line_bounded, std::ptrdiff_t extra_lines,
+                             const std::function<void(std::ptrdiff_t, std::ptrdiff_t, double)> &complete);
 bool read_auto_solution_parameters(TokenReader &reader, const AutoSolutionHeader &header,
                                    const Session &session, double *parameters);
 Result<> check_auto_solutions(std::string_view text, std::string file, int variables, int parameters, bool foreign, int hopf_dimension = 0);

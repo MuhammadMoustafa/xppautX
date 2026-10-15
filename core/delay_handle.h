@@ -19,7 +19,7 @@ inline constexpr std::size_t polint_points = 4;
 void polint(std::span<const double, polint_points> xa, std::span<const double, polint_points> ya, double x, double &y, double &dy);
 
 double delay_stab_eval(Session &s, double delay, int var);
-int alloc_delay(Session &s, double big);
+Result<> alloc_delay(Session &s, double big);
 void free_delay(Session &s);
 void stor_delay(Session &s, double *y);
 double get_delay(Session &s, int in, double tau);
@@ -41,7 +41,7 @@ struct DelayState {
   /* the stored history, NODE values per row, `rows` rows (a ring,
      `latest` its newest row) */
   std::vector<double> work;
-  int latest = 0, rows = 0;
+  std::size_t latest = 0, rows = 0;
 };
 
 } // namespace xpp

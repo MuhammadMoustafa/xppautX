@@ -1,3 +1,4 @@
+#include "xpp_mem.h"
 #include "auto_unknowns.h"
 /* autlib5.f -- translated by f2c (version 19970805).
    You must link the resulting object file with the libraries:
@@ -100,7 +101,7 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   std::vector<doublereal> ff2(iap->nbc);
   std::vector<doublereal> uu1(iap->ndim);
   std::vector<doublereal> uu2(iap->ndim);
-  std::vector<doublereal> dfu((iap->nbc)*(2*iap->ndim+iap->lib->parameter_count));
+  std::vector<doublereal> dfu(xpp::size_product(iap->nbc, xpp::size_sum(xpp::size_product(2, iap->ndim), iap->lib->parameter_count)));
 
 /* Generates the boundary conditions for homoclinic bifurcation analysis 
 */
@@ -179,12 +180,12 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
        having N X.  So, they all need to be changed at once.
     */
   std::vector<doublereal> f(iap->ndm);
-  std::vector<doublereal> bound((iap->ndm)*(iap->ndm));
+  std::vector<doublereal> bound(xpp::size_product(iap->ndm, iap->ndm));
   std::vector<doublereal> fj(iap->ndm);
   std::vector<doublereal> ri(iap->ndm);
   std::vector<doublereal> rr(iap->ndm);
-  std::vector<doublereal> vr((iap->ndm)*(iap->ndm));
-  std::vector<doublereal> vt((iap->ndm)*(iap->ndm));
+  std::vector<doublereal> vr(xpp::size_product(iap->ndm, iap->ndm));
+  std::vector<doublereal> vt(xpp::size_product(iap->ndm, iap->ndm));
   std::vector<doublereal> xequib1(iap->ndm);
   std::vector<doublereal> xequib2(iap->ndm);
 
@@ -563,13 +564,13 @@ inho(iap_type *iap, integer *icp, doublereal *par)
 
   iap->lib->homcont.bleig.rr.assign((ndim), 0.);
   iap->lib->homcont.bleig.ri.assign((ndim), 0.);
-  iap->lib->homcont.bleig.v.assign((ndim)*(ndim), 0.);
-  iap->lib->homcont.bleig.vt.assign((ndim)*(ndim), 0.);
+  iap->lib->homcont.bleig.v.assign(xpp::size_product(ndim, ndim), 0.);
+  iap->lib->homcont.bleig.vt.assign(xpp::size_product(ndim, ndim), 0.);
   iap->lib->homcont.bleig.xequib.assign((ndim), 0.);
 
-  iap->lib->homcont.blhme.vrprev.assign(2*(ndim)*(ndim), 0.);
+  iap->lib->homcont.blhme.vrprev.assign(xpp::size_product(2, ndim, ndim), 0.);
 
-  iap->lib->homcont.beyn.cprev.assign(2*2*(ndim)*(ndim), 0.);
+  iap->lib->homcont.beyn.cprev.assign(xpp::size_product(2, 2, ndim, ndim), 0.);
 
   nfree = iap->lib->homcont.blhom.nfixed + 2 - iap->lib->homcont.blhom.nrev + nint + nbc;
   iap->lib->homcont.bcnn.nbcn = nbc;
@@ -771,8 +772,8 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
 
   std::vector<doublereal> ri(iap->ndm);
   std::vector<doublereal> rr(iap->ndm);
-  std::vector<doublereal> vr((iap->ndm)*(iap->ndm));
-  std::vector<doublereal> vt((iap->ndm)*(iap->ndm));
+  std::vector<doublereal> vr(xpp::size_product(iap->ndm, iap->ndm));
+  std::vector<doublereal> vt(xpp::size_product(iap->ndm, iap->ndm));
   std::vector<doublereal> xequib(iap->ndm);
 
   /* Generates a starting point for homoclinic continuation */
@@ -1188,9 +1189,9 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 eighi(const iap_type *iap, integer isign, integer itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm)
 {
 
-  std::vector<doublereal> dfdp((*ndm)*iap->lib->parameter_count);
-  std::vector<doublereal> dfdu((*ndm)*(*ndm));
-  std::vector<doublereal> zz((*ndm)*(*ndm));
+  std::vector<doublereal> dfdp(xpp::size_product(*ndm, iap->lib->parameter_count));
+  std::vector<doublereal> dfdu(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> zz(xpp::size_product(*ndm, *ndm));
 
   eigho(iap, &isign, &itrans, rr, ri, vret, xequib, icp, par, ndm, dfdu.data(), dfdp.data(), zz.data());
 
@@ -1211,11 +1212,11 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
 
   std::vector<doublereal> f(*ndm);
   std::vector<doublereal> ridum(*ndm);
-  std::vector<doublereal> vidum((*ndm)*(*ndm));
+  std::vector<doublereal> vidum(xpp::size_product(*ndm, *ndm));
   std::vector<doublereal> rrdum(*ndm);
-  std::vector<doublereal> vrdum((*ndm)*(*ndm));
-  std::vector<doublereal> vi((*ndm)*(*ndm));
-  std::vector<doublereal> vr((*ndm)*(*ndm));
+  std::vector<doublereal> vrdum(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> vi(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> vr(xpp::size_product(*ndm, *ndm));
   std::vector<doublereal> fv1(*ndm);
   std::vector<integer> iv1(*ndm);
 
@@ -1364,8 +1365,8 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
 prjcti(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer imfd, integer is, integer itrans, integer *ndm)
 {
   
-  std::vector<doublereal> dfdp((*ndm)*iap->lib->parameter_count);
-  std::vector<doublereal> dfdu((*ndm)*(*ndm));
+  std::vector<doublereal> dfdp(xpp::size_product(*ndm, iap->lib->parameter_count));
+  std::vector<doublereal> dfdu(xpp::size_product(*ndm, *ndm));
   
   prjctn(iap, bound, xequib, icp, par, &imfd, &is, &itrans, ndm, dfdu.data(), dfdp.data());
   
@@ -1386,16 +1387,16 @@ prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer
   doublereal det, eps;
 
   std::vector<doublereal> fdum(*ndm);
-  std::vector<doublereal> cnow((*ndm)*(*ndm));
+  std::vector<doublereal> cnow(xpp::size_product(*ndm, *ndm));
   std::vector<integer> type__(*ndm);
-  std::vector<doublereal> a((*ndm)*(*ndm));
-  std::vector<doublereal> d((*ndm)*(*ndm));
-  std::vector<doublereal> v((*ndm)*(*ndm));
+  std::vector<doublereal> a(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> d(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> v(xpp::size_product(*ndm, *ndm));
   std::vector<doublereal> ei(*ndm);
   std::vector<doublereal> er(*ndm);
   std::vector<doublereal> ort(*ndm);
-  std::vector<doublereal> dum1((*ndm)*(*ndm));
-  std::vector<doublereal> dum2((*ndm)*(*ndm));
+  std::vector<doublereal> dum1(xpp::size_product(*ndm, *ndm));
+  std::vector<doublereal> dum2(xpp::size_product(*ndm, *ndm));
 
   /* Compute NUNSTAB (or NSTAB) projection boundary condition functions */
   /*onto to the UNSTABLE (or STABLE) manifold of the appropriate equilibrium

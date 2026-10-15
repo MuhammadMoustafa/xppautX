@@ -1,3 +1,4 @@
+#include "xpp_mem.h"
 /* autlib4.f -- translated by f2c (version 19970805).
    You must link the resulting object file with the libraries:
 	-lf2c -lm   (in that order)
@@ -90,8 +91,8 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
   std::array<doublereal, 1> qzz;
 
   std::vector<doublereal> svde(*ndim);
-  std::vector<doublereal> svds(*ndim+1);
-  std::vector<doublereal> svdv((*ndim)*(*ndim));
+  std::vector<doublereal> svds(xpp::size_sum(*ndim, 1));
+  std::vector<doublereal> svdv(xpp::size_product(*ndim, *ndim));
   std::vector<doublereal> v(*ndim);
   std::vector<doublereal> x(*ndim);
   std::vector<doublereal> qzalfi(*ndim);

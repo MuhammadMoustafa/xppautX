@@ -1,3 +1,4 @@
+#include "xpp_mem.h"
 #include "auto_unknowns.h"
 /* autlib3.f -- translated by f2c (version 19970805).
    You must link the resulting object file with the libraries:
@@ -367,7 +368,7 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> v(iap->ndim);
-  std::vector<doublereal> dd((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> dd(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublereal> du(iap->ndim);
   /* Generates starting data for the continuation equations for */
   /* optimization of algebraic systems (More than one parameter). */
@@ -614,7 +615,7 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> v(iap->ndim);
-  std::vector<doublereal> smat((iap->ndim * 2)*(iap->ndim * 2));
+  std::vector<doublereal> smat(xpp::size_product(xpp::size_product(iap->ndim, 2), xpp::size_product(iap->ndim, 2)));
   /* Generates starting data for the continuation of Hopf bifurcation */
   /* points for maps. */
 
@@ -736,7 +737,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   u[2 * n] = omega * omega;
   u[iap->ndim - 1] = par[icp[1]];
   std::vector<double> old(iap->ndim), residual(iap->ndim);
-  std::vector<double> blocks(n * iap->ndim), parameters(n * iap->lib->parameter_count);
+  std::vector<double> blocks(xpp::size_product(n, iap->ndim)), parameters(xpp::size_product(n, iap->lib->parameter_count));
   ffhb(iap, rap, iap->ndim, u, old.data(), icp, par, residual.data(), n, blocks.data(), parameters.data());
   integer size = n;
   // The Hopf pair gives a two-dimensional kernel. NLVC chooses its phase;
@@ -834,11 +835,11 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   doublereal rom;
   integer ndm2;
 
-  std::vector<doublereal> smat((2*iap->ndim)*(2*iap->ndim));
+  std::vector<doublereal> smat(xpp::size_product(xpp::size_product(2, iap->ndim), xpp::size_product(2, iap->ndim)));
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> v(iap->ndim);
-  std::vector<doublereal> dfp((iap->ndim)*iap->lib->parameter_count);
-  std::vector<doublereal> dfu((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> dfp(xpp::size_product(iap->ndim, iap->lib->parameter_count));
+  std::vector<doublereal> dfu(xpp::size_product(iap->ndim, iap->ndim));
 
 
   /* Generates starting data for the continuation of a bifurcation to a */
@@ -1150,8 +1151,8 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   doublereal tpi;
   integer irs;
 
-  std::vector<doublereal> smat((iap->ndim * 2)*(iap->ndim * 2));
-  std::vector<doublereal> rnllv((iap->ndim * 2)*(iap->ndim * 2));
+  std::vector<doublereal> smat(xpp::size_product(xpp::size_product(iap->ndim, 2), xpp::size_product(iap->ndim, 2)));
+  std::vector<doublereal> rnllv(xpp::size_product(xpp::size_product(iap->ndim, 2), xpp::size_product(iap->ndim, 2)));
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> u(iap->ndim);
   /* Generates starting data for the continuation of a branch of periodic */
@@ -1431,12 +1432,12 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   doublereal tpi;
   integer irs;
 
-  std::vector<doublereal> smat((2*iap->ndim)*(2*iap->ndim));
+  std::vector<doublereal> smat(xpp::size_product(xpp::size_product(2, iap->ndim), xpp::size_product(2, iap->ndim)));
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> u(iap->ndim);
-  std::vector<doublereal> rnllv(2*(iap->ndim));
-  std::vector<doublereal> dfp((iap->ndim)*iap->lib->parameter_count);
-  std::vector<doublereal> dfu((iap->ndim)*(iap->ndim));
+  std::vector<doublereal> rnllv(xpp::size_product(2, iap->ndim));
+  std::vector<doublereal> dfp(xpp::size_product(iap->ndim, iap->lib->parameter_count));
+  std::vector<doublereal> dfu(xpp::size_product(iap->ndim, iap->ndim));
 
 /* Generates starting data for the continuation of a branch of periodic */
 /* solutions starting from a Hopf bifurcation point (Waves). */
@@ -2638,7 +2639,7 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   std::vector<doublereal> f1(iap->nint);
   std::vector<doublereal> f2(iap->nint);
-  std::vector<doublereal> dnt((iap->nint)*(iap->ndim + iap->lib->parameter_count));
+  std::vector<doublereal> dnt(xpp::size_product(iap->nint, xpp::size_sum(iap->ndim, iap->lib->parameter_count)));
 
 
 /* Generates integral conditions for periodic optimization problems. */
@@ -2776,7 +2777,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   integer temporary_storage_dim1;
   // Objective samples use the target collocation layout and ndxloc stride.
-  std::vector<doublereal> temporary_storage((*ndxloc)*(iap->ndim * iap->ncol));
+  std::vector<doublereal> temporary_storage(xpp::size_product(*ndxloc, xpp::size_product(iap->ndim, iap->ncol)));
   std::vector<doublereal> u(iap->ndim);
 
   /* Generates starting data for optimization of periodic solutions. */
@@ -2932,7 +2933,7 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   std::vector<doublereal> ff2(iap->nbc);
   std::vector<doublereal> uu1(iap->ndim);
   std::vector<doublereal> uu2(iap->ndim);
-  std::vector<doublereal> dfu((iap->nbc)*(2*iap->ndim+iap->lib->parameter_count));
+  std::vector<doublereal> dfu(xpp::size_product(iap->nbc, xpp::size_sum(xpp::size_product(2, iap->ndim), iap->lib->parameter_count)));
 		     
 
 

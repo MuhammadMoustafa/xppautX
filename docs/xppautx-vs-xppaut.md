@@ -256,6 +256,7 @@ changes are checked against AUTO-07p and recorded in the baseline. The window: [
 | Dialog field width | 25 characters ([graf_par.h:14](../reference/xppaut-8.0/graf_par.h#L14)) | none | W32c, W76 |
 | Fixed-width displays | names cut | `~` marks a shortened name in AUTO's printed columns only | W76 |
 | Memory | `malloc` that could fail silently | std containers; a failed allocation exits loudly | W4, W48 |
+| Sweep rows, expression stacks, delay history and AUTO work sizes | unchecked sweep writes; 200-value expression stacks; delay counts cast to int; AUTO size products and indices in long ([finding 60](xppaut-findings.md#60-input-sized-writes-and-size-arithmetic)) | sweeps reuse the store's growth and keep rows on failure; expression stacks sized before evaluation; delay allocation uses checked size_t arithmetic and placed errors; AUTO work sizes checked in size_t, with pointer-width integer indices on Windows | W386 ([#448](https://github.com/MuhammadMoustafa/xppautX/issues/448)) |
 
 ## Removed features
 

@@ -1,0 +1,5 @@
+x'=delay(x,1)
+init x=1
+options {
+  integration: { delay: 1e20, dt: 1e-20 }
+}

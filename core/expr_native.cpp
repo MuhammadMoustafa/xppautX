@@ -534,7 +534,7 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     std::vector<Error> refusals(static_cast<size_t>(m.nfun));
     for (int i=0;i<m.nfun;++i) {
         g.place=model_place(m,m.ufun_names[i]);
-        if (m.narg_fun[i]<0 || m.narg_fun[i]>EXPR_STACK) {
+        if (m.narg_fun[i]<0) {
             refusals[i]=g.refuse("an out-of-range argument count").error();
             continue;
         }
@@ -686,7 +686,10 @@ ExactJacobian compile_jacobian(Session &s, const std::vector<ModelProgram> &entr
 Result<std::vector<Error>> compile_model(Session &s)
 {
     Model &m=s.model();
-    auto compiled=compile_programs(s,model_programs(m));
+    const auto entries=model_programs(m);
+    for(const auto &entry:entries)
+        size_expr_stack(s,entry.code->rpn,entry.user_index<0?-1:m.narg_fun[entry.user_index]);
+    auto compiled=compile_programs(s,entries);
     Place requested=std::move(m.jacobian.requested);
     m.jacobian=ExactJacobian{};
     m.jacobian.requested=std::move(requested);

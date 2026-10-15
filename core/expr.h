@@ -119,13 +119,16 @@ struct ExprSymbol {
 
 /* the evaluator's two stacks (expr_eval.cpp): the values it computes, and
    the arguments of the user functions it is inside */
-constexpr int EXPR_STACK = 200;
 struct ExprStack {
-  std::array<double, EXPR_STACK> values{};
+  std::vector<double> values;
   int top = 0;
-  std::array<double, EXPR_STACK> args{};
+  std::vector<double> args;
   int nargs = 0;
 };
+
+/* Reserve a compiled expression and the functions it can enter before
+   evaluation starts; never allocate on the evaluator's push path. */
+void size_expr_stack(Session &s, std::span<const int> code, int arguments);
 
 /* The expression engine's state, a Session's (session.h): the constants
    (parameters and numbers) and variables as the programs read them, how

@@ -549,6 +549,10 @@ void do_auto(xpp::Session &s, int iold, int isave, xpp::AutoPointCode itp)
               /* W63a: what the numerics used to exit() on ends the run
                  instead, as a cancel does (auto_state.h) */
               failed = e.error;
+          } catch (const std::length_error &e) {
+              failed = xpp::Error{"AUTO",e.what(),xpp::command_place()};
+          } catch (const std::bad_alloc &) {
+              failed = xpp::Error{"AUTO","Cannot allocate AUTO workspace",xpp::command_place()};
           }
           auto_restore_finite_pars(s, before.data()); /* leave no NaN parameter behind (QA SCI-001) */
       }
@@ -2738,26 +2742,26 @@ bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long 
         && (h.ntst == 0 || h.ntpl == static_cast<long long>(h.ntst) * h.ncol + 1);
 }
 
-bool read_auto_solution_rows(TokenReader &reader, long ndim, long ntst, long ncol,
-                             long stride, long first, long count, double *values,
-                             double *tm, bool line_bounded, long extra_lines,
-                             const std::function<void(long, long, double)> &complete)
+bool read_auto_solution_rows(TokenReader &reader, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol,
+                             std::ptrdiff_t stride, std::ptrdiff_t first, std::ptrdiff_t count, double *values,
+                             double *tm, bool line_bounded, std::ptrdiff_t extra_lines,
+                             const std::function<void(std::ptrdiff_t, std::ptrdiff_t, double)> &complete)
 {
     const auto finish_line = [&] {
         if (line_bounded) {
             reader.skip_line();
-            for (long line = 0; line < extra_lines; ++line) reader.skip_line();
+            for (std::ptrdiff_t line = 0; line < extra_lines; ++line) reader.skip_line();
         }
     };
-    for (long j = 0; j < ntst; ++j) {
+    for (std::ptrdiff_t j = 0; j < ntst; ++j) {
         double first_time = 0.;
-        for (long i = 0; i < ncol; ++i) {
+        for (std::ptrdiff_t i = 0; i < ncol; ++i) {
             double time = 0.;
             if (tm) {
                 if (!reader.read(time)) return false;
                 if (i == 0) first_time = time;
             }
-            for (long k = first; k < first + count; ++k)
+            for (std::ptrdiff_t k = first; k < first + count; ++k)
                 if (!reader.read(values[j + (i * ndim + k) * stride])) return false;
             finish_line();
             if (complete) complete(j, i, time);
@@ -2765,7 +2769,7 @@ bool read_auto_solution_rows(TokenReader &reader, long ndim, long ntst, long nco
         if (tm) tm[j] = first_time;
     }
     if (tm && !reader.read(tm[ntst])) return false;
-    for (long k = first; k < first + count; ++k)
+    for (std::ptrdiff_t k = first; k < first + count; ++k)
         if (!reader.read(values[ntst + k * stride])) return false;
     finish_line();
     return true;

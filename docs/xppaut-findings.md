@@ -90,6 +90,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [57](#57-fixed-c-arrays-sized-by-input) | Expressions, Numerics | formulas, table expressions, Markov states/rates, solver pivots and fit parameters overflow fixed C arrays | [W372 / #434](https://github.com/MuhammadMoustafa/xppautX/issues/434) |
 | [58](#58-negative-total-help-and-storage-full-overwrite) | Integration | Negative Total still stores data and silently overwrites on failed growth | [W347](https://github.com/MuhammadMoustafa/xppautX/issues/408) |
 | [59](#59-dormand-prince-restarted-at-every-output-point) | Integration | DoPri5 and DoPri8(3) restart at every output point: no step longer than dt, so the adaptive methods run as fixed-step ones and the tolerance does not set the accuracy | [W377 / #439](https://github.com/MuhammadMoustafa/xppautX/issues/439) |
+| [60](#60-input-sized-writes-and-size-arithmetic) | Sweeps, expressions, delay, AUTO | unchecked row writes, fixed evaluation stacks and overflowing history/work sizes | [W386 / #448](https://github.com/MuhammadMoustafa/xppautX/issues/448) |
 
 ## 1. Model options
 
@@ -1255,3 +1256,45 @@ never reaches DoPri: `dormprin` passes `hmax` as 0, no limit.
   (maintainer, 2026-10-15: "this makes dopri fixed step method not an
   adaptive one"); W377's stage 2.
 - **Card:** [W377 / #439](https://github.com/MuhammadMoustafa/xppautX/issues/439).
+
+## 60. Input-sized writes and size arithmetic
+
+Source inspection of XPPAUT 8.0 confirms all four patterns; XPPAUT itself
+was not executed for these probes:
+
+- Equilibrium sweeps write `storage[0][storind]` and increment without
+  testing capacity ([integrate.c:745](../reference/xppaut-8.0/integrate.c#L745));
+  shooting sweeps do the same ([pp_shoot.c:257](../reference/xppaut-8.0/pp_shoot.c#L257)).
+  The Monte Carlo equilibrium browser copy also writes unchecked rows
+  ([integrate.c:675](../reference/xppaut-8.0/integrate.c#L675)).
+- `PUSH` writes without checking the stack pointer
+  ([parserslow2.c:29](../reference/xppaut-8.0/parserslow2.c#L29)), into the
+  200-double value and argument arrays
+  ([parserslow2.c:87](../reference/xppaut-8.0/parserslow2.c#L87)); argument
+  writes are unchecked too ([parserslow2.c:2268](../reference/xppaut-8.0/parserslow2.c#L2268)).
+- History allocation casts `big/fabs(DELTA_T)` to int before adding one
+  ([delay_handle.c:69](../reference/xppaut-8.0/delay_handle.c#L69)); history
+  initialization repeats the cast ([delay_handle.c:213](../reference/xppaut-8.0/delay_handle.c#L213)).
+- AUTO's work allocations multiply dimensions inside parentheses before
+  multiplying by `sizeof(double)`
+  ([autlib2.c:239](../reference/xppaut-8.0/autlib2.c#L239),
+  [autlib2.c:250](../reference/xppaut-8.0/autlib2.c#L250)). Its `integer`
+  is long ([auto_f2c.h:13](../reference/xppaut-8.0/auto_f2c.h#L13)), 32 bits
+  on Windows even in a 64-bit process; linear index products use that type
+  ([auto_f2c.h:39](../reference/xppaut-8.0/auto_f2c.h#L39)).
+
+The master snapshot retains the same patterns:
+[equilibrium rows:739](../reference/xppaut-master/integrate.c#L739),
+[shooting rows:257](../reference/xppaut-master/pp_shoot.c#L257),
+[unchecked push:29](../reference/xppaut-master/parserslow2.c#L29),
+[200-double stacks:87](../reference/xppaut-master/parserslow2.c#L87),
+[delay count:69](../reference/xppaut-master/delay_handle.c#L69), and
+[AUTO allocation products:239](../reference/xppaut-master/autlib2.c#L239).
+
+xppautX reuses `stor_full` for both sweeps, sizes evaluator stacks before
+evaluation, checks history sizes and allocation failures with a model
+place, and checks AUTO allocation extents in size_t with pointer-width
+indices. `tests/test_input_bounds.cpp` exercises growth and forced failure
+for both sweeps, a 301-deep expression, an unrepresentable delay/dt ratio,
+and AUTO arithmetic beyond 2^31 without a multi-gigabyte allocation.
+[W386 / #448](https://github.com/MuhammadMoustafa/xppautX/issues/448).

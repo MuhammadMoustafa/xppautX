@@ -15,6 +15,10 @@
 #include "getvar.h"
 #include "form_ode.h"
 #include "model.h"
+#include "model_files.h"
+#include "xpp_mem.h"
+#include <limits>
+#include <cmath>
 
 namespace xpp {
 
@@ -44,21 +48,28 @@ double delay_stab_eval(xpp::Session &s, double delay, int var)  /* this returns 
    return s.delay.variable_shift[0][var-1];
 }
 
-int alloc_delay(xpp::Session &s, double big)
+Result<> alloc_delay(xpp::Session &s, double big)
 {
- int n;
-
- n=static_cast<int>(big/fabs(s.numerics.delta_t))+1;
-
+ const double ratio=big/fabs(s.numerics.delta_t);
+ const auto failed=[&]{return xpp::fail("delay",
+   xpp::format("Cannot allocate delay history for delay={} and dt={}",big,s.numerics.delta_t),
+   model_place(s.model(),"delay"));};
+ if(!std::isfinite(ratio)||ratio<0 ||
+    ratio>=static_cast<double>(std::numeric_limits<std::size_t>::max()))return failed();
+ std::size_t n;
+ try {
+   n=xpp::size_sum(static_cast<std::size_t>(ratio),1);
+   std::vector<double> work(xpp::size_product(n,s.model().node),0.0);
+   s.delay.work.swap(work);
+ } catch(const std::length_error &){return failed();}
+   catch(const std::bad_alloc &){return failed();}
  s.delay.rows=n;
  s.delay.latest=1;
- s.delay.flag=0;
- s.delay.work.assign(n*(s.model().node ),0.0);
  s.delay.flag=1;
  s.delay.ndelay=0;
  s.delay.which=-1;
  s.delay.stab_flag=1;
- return(1);
+ return {};
 }
 
 void free_delay(xpp::Session &s)
@@ -69,12 +80,12 @@ void free_delay(xpp::Session &s)
 
 void stor_delay(xpp::Session &s, double *y)
 {
- int i,in;
+ int i;
  int nodes=s.model().node;
  if(s.delay.flag==0)return;
+ if(s.delay.latest==0)s.delay.latest=s.delay.rows;
  --s.delay.latest;
- if(s.delay.latest<0)s.delay.latest+=s.delay.rows;
- in=s.delay.latest*(nodes );
+ const std::size_t in=s.delay.latest*static_cast<std::size_t>(nodes);
  for(i=0;i<(nodes );i++)s.delay.work[i+in]=y[i];
 
 }
@@ -116,12 +127,7 @@ double get_delay(xpp::Session &s, int in, double tau)
  double dd=fabs(s.numerics.delta_t);
  double y,dy;
  std::array<double, polint_points> ya{}, xa{};
- int n1=static_cast<int>(x);
- int n2=n1+1;
- int nodes=s.model().node;
- int n0=n1;
- int n3=n2+1;
- int i0,i1,i2,i3;
+ const std::size_t nodes=s.model().node;
 
  if(tau<0.0||tau>s.numerics.delay){
 			stop_integration(s,{"delay","Delay negative or too large"});
@@ -129,18 +135,15 @@ double get_delay(xpp::Session &s, int in, double tau)
   			}
  if(tau==0.0) /* check fro zero delay and ignore the rest */
    return s.delay.work[in+nodes*(s.delay.latest%s.delay.rows)];
+  const std::size_t n1=static_cast<std::size_t>(x),n2=n1+1,n0=n1,n3=n2+1;
   xa[1]=n1*dd;
   xa[0]=xa[1]-dd;
   xa[2]=xa[1]+dd;
   xa[3]=xa[2]+dd;
-  i1=(n1+s.delay.latest)%s.delay.rows;
-  i2=(n2+s.delay.latest)%s.delay.rows;
-  i0=(n0+s.delay.latest)%s.delay.rows;
-  i3=(n3+s.delay.latest)%s.delay.rows;
-  if(i1<0)i1+=s.delay.rows;
-  if(i2<0)i2+=s.delay.rows;
-  if(i3<0)i3+=s.delay.rows;
-  if(i0<0)i0+=s.delay.rows;
+  const std::size_t i1=(n1+s.delay.latest)%s.delay.rows;
+  const std::size_t i2=(n2+s.delay.latest)%s.delay.rows;
+  const std::size_t i0=(n0+s.delay.latest)%s.delay.rows;
+  const std::size_t i3=(n3+s.delay.latest)%s.delay.rows;
 
   ya[1]=s.delay.work[in+(nodes )*i1];
   ya[2]=s.delay.work[in+(nodes )*i2];
@@ -156,14 +159,19 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
 {
  double t=s.numerics.start_time,old_t;
  std::vector<double> y(s.model().node);
- int i,nt,j;
+ int i,j;
  int len;
 
  /* del_form's per-node formula buffers are RAII now (std::vector), so
     every return path below frees them automatically -- no more manual
     xpp_free loops paired to each early-exit. */
  std::vector<std::vector<int>> del_form(s.model().node);
- nt=static_cast<int>(big/fabs(s.numerics.delta_t));
+ /* Allocation proves the ratio and all history indices representable. */
+ if(!s.delay.flag)return xpp::fail("delay","Delay history is not allocated",model_place(s.model(),"delay"));
+ const double ratio=big/fabs(s.numerics.delta_t);
+ if(!std::isfinite(ratio)||ratio<0||ratio>=static_cast<double>(s.delay.rows))
+   return xpp::fail("delay","Delay history does not fit its allocation",model_place(s.model(),"delay"));
+ const std::size_t nt=static_cast<std::size_t>(ratio);
  s.parser.ncon=s.model().ncon_start;
  s.parser.nsym=s.model().nsym_start;
  for(i=0;i<(s.model().node );i++){
@@ -178,8 +186,8 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
 
   get_val(s,"t",&old_t);
 
-  for(i=nt;i>=0;i--){
-	t=s.numerics.start_time-fabs(s.numerics.delta_t)*i;
+  for(std::size_t row=nt+1;row-->0;){
+	t=s.numerics.start_time-fabs(s.numerics.delta_t)*row;
 	set_val(s,"t",t);
 	for(j=0;j<(s.model().node );j++)
 		y[j]=evaluate(s,del_form[j].data());
