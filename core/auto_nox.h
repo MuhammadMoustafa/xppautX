@@ -42,11 +42,14 @@ typedef struct {
   double torper;
 } ROTCHK;
 
-struct AutoMark {
+/* a Mark the user set (the AUTO window's Usr period): a model parameter's
+   index, or the period, and the value AUTO labels (UZ) a point at; a run
+   turns each into AUTO's slot, ::AutoMark (xAuto.h) */
+struct UserMark {
   int parameter;
   bool period;
   double value;
-  bool operator==(const AutoMark &) const = default;
+  bool operator==(const UserMark &) const = default;
 };
 
 struct BIFUR {
@@ -65,7 +68,7 @@ struct BIFUR {
   int icp3,icp4,icp5;
   std::string hinttxt;
   // User marks belong to the session, independently of the model dimension.
-  std::vector<AutoMark> marks;
+  std::vector<UserMark> marks;
   double epsl,epsu,epss;
   int ncol;
 };
@@ -274,8 +277,6 @@ void auto_get_info(Session &s, int *n, std::string &pname);
 /* AUTO's printed column heading col in the user's own names (screen
    only), AUTO_COL_W wide */
 std::string auto_screen_col(const Session &s, const std::string &col);
-/* AUTO's index of parameter or period name s (10 for the period, T),
-   -1 when it is not one of AUTO's parameters */
 
 /* AUTO's solution file (fort.8 after a run, the orbits of the labelled
    points a grab restarts from): <HOME or the model's folder>/<model>.s */

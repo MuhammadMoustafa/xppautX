@@ -277,7 +277,7 @@ struct Checked {
     double num[AUTO_NUM_N];
     int view = 0, plot = 0, var = 0, icp1 = 0, icp2 = 0;
     double range[4];
-    std::vector<AutoMark> marks;
+    std::vector<UserMark> marks;
 };
 
 /* set checked against s, as it will be when views views of the diagram
