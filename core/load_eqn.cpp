@@ -492,6 +492,7 @@ void restore_row(xpp::Session &s, const OptionRow &row, const BuiltIns &built_in
   if(row.reset)row.reset(s);
   else if(row.real)row.real(s)=row.real(built_in.session());
   else if(row.whole)row.whole(s)=row.whole(built_in.session());
+  else if(row.boolean)row.boolean(s)=row.boolean(built_in.session());
   else if(row.text)row.text(s)=row.text(built_in.session());
   /* the total time's sign said "forever": the built-in is not */
   if(row.signed_forever)s.numerics.forever=false;
@@ -499,7 +500,7 @@ void restore_row(xpp::Session &s, const OptionRow &row, const BuiltIns &built_in
 }
 
 /* a row has a built-in value of its own: a reset, or a member */
-bool has_built_in(const OptionRow &row) { return row.reset||row.real||row.whole||row.text; }
+bool has_built_in(const OptionRow &row) { return row.reset||row.real||row.whole||row.boolean||row.text; }
 
 } // namespace
 
@@ -650,7 +651,7 @@ xpp::Result<odex::Values> captured_values(xpp::Session &s, std::string_view scop
     values.groups.emplace_back(group);
     for(const OptionRow &row : option_rows()){
       /* a row with a member of its own holds a value to read; the others (numbered curves, ...) are set by their text only */
-      if(row.group!=group||!set_holds(row)||!(row.real||row.whole||row.text)||!setting_applies(s,row,s.numerics.method))continue;
+      if(row.group!=group||!set_holds(row)||!(row.real||row.whole||row.boolean||row.text)||!setting_applies(s,row,s.numerics.method))continue;
       const std::string text=setting_text(s,row);
       const bool quoted=row.kind==OptionKind::path||row.kind==OptionKind::text;
       values.settings.push_back({std::string(group),odex_key(row,0),quoted?odex::quote_string(text):text});

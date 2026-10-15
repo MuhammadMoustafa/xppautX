@@ -79,7 +79,7 @@ inline bool is_no_model(const Error &e) { return e.where == NO_MODEL_WHERE; }
 /* How a run without an interface goes: the command line's own flags
    (--silent, --outfile, --equil, -iset), set by comline.cpp, the program's
    start and the batch start. The model's @ output= and @ range= are the
-   Session's (session.h batch_out_file, batch_range). */
+   Session's (session.h batch_out_file, integrator.range.write_files). */
 struct XppBatchOptions {
     int enabled = 0;           /* batch mode: no interface, run and write */
     bool yes = false;          /* -y / --yes: terminal questions answered yes, each answer printed */

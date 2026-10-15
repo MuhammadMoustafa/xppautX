@@ -89,6 +89,7 @@ std::string value_of(xpp::Session &s, const xpp::OptionRow &r)
 {
     if (r.real) return xpp::number(r.real(s));
     if (r.whole) return xpp::format("{}", r.whole(s));
+    if (r.boolean) return r.boolean(s) ? "yes" : "no";
     if (r.text) return r.text(s);
     return "";
 }
@@ -99,6 +100,7 @@ bool in_session(xpp::Session &s, const xpp::OptionRow &r)
 {
     const void *p = r.real ? static_cast<void *>(&r.real(s))
                   : r.whole ? static_cast<void *>(&r.whole(s))
+                  : r.boolean ? static_cast<void *>(&r.boolean(s))
                   : r.text ? static_cast<void *>(&r.text(s)) : nullptr;
     const char *b = reinterpret_cast<const char *>(&s);
     const char *q = static_cast<const char *>(p);
@@ -149,6 +151,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         return {xpp::number(v), xpp::number(v)};
     }
     if (r.whole) return {"2", "2"};
+    if (r.boolean) return {"yes", "yes"};
     if (r.text) return {"abc", "abc"};
     return {"1", ""};
 }
@@ -374,6 +377,7 @@ int main(void)
         if (!in_session(*s, r)) continue;
         if (r.real) r.real(*s) += 1;
         else if (r.whole) r.whole(*s) += 1;
+        else if (r.boolean) r.boolean(*s) = !r.boolean(*s);
         else if (r.text) r.text(*s) = "xyz";
     }
     std::vector<std::string> changed;

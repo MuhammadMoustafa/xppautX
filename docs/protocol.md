@@ -1834,6 +1834,12 @@ policy above, never a recorded save decision.
 | `drag` | `win` | `what` (`down`, `move`, `up`), `x`, `y` (or `xd`, `yd`) for each pointer event; cancel or a key ends. Window/Scroll and AUTO Axes/Scroll ask it again after every event. |
 | `pixels` | `win`, or `film` (a kinescope frame index) | `w`, `h`, `rgb` (base64 of w*h*3 bytes). Frame, GIF and kinescope writers use it: only the client has the picture, which web2 renders from the data it holds (the window's chart, or a kinescope frame's snapshot). |
 
+Range Integrate and Double Range Integrate append a text field named
+`Write each run to its own file (Y/N)`, with value `Y` or `N` (W349,
+[#410](https://github.com/MuhammadMoustafa/xppautX/issues/410)). It controls
+`sweep.rangefiles` and matters only with Reset storage on. The existing
+`form` ask and `values` answer carry it; no new command is needed.
+
 **Field kinds.** A `string` or `form` ask says what each of its fields
 takes, in `kinds`: one entry per field (a `string` ask has one), from the
 call site that knows it (core/xpp_ui.h `XPP_FIELD_*`: `new_int`,

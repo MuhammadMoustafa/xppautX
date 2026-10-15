@@ -12,6 +12,8 @@
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_globals.h"
+#include "xpp_files.h"
+#include "model_files.h"
 #include "integrate.h"
 #include "jacobian.h"
 
@@ -203,8 +205,8 @@ int set_up_range(xpp::Session &s)
 {
  static const char *const n[]={"*3Range over","Steps","Start","End",
 		     "Reset storage (Y/N)",
-		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)"};
- std::array<std::string, 8> values;
+		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)","Write each run to its own file (Y/N)"};
+ std::array<std::string, std::size(n)> values;
  int status;
  static const char *const yn[]={"N","Y"};
  if(!program.interactive){ /* no dialog: the range the options set */
@@ -221,9 +223,10 @@ int set_up_range(xpp::Session &s)
  values[5] = yn[s.integrator.range.oldic];
  values[6] = yn[s.integrator.range.cycle];
  values[7] = yn[s.integrator.range.movie];
+ values[8] = yn[s.integrator.range.write_files];
  
- static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(8,1,"Range Integrate",n,values,kinds);
+ static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
+ status=do_string_box_of(static_cast<int>(values.size()),1,"Range Integrate",n,values,kinds);
  if(status!=0){
    s.integrator.range.item=values[0];
    if(range_item(s)==0)return 0;
@@ -239,6 +242,7 @@ int set_up_range(xpp::Session &s)
    else s.integrator.range.cycle=0;
     if(values[7][0]=='Y'||values[7][0]=='y')s.integrator.range.movie=1;
    else s.integrator.range.movie=0;
+   s.integrator.range.write_files = values[8][0]=='Y'||values[8][0]=='y';
  s.integrator.range_flag=1;
  return(1);
  }
@@ -251,8 +255,8 @@ int set_up_range2(xpp::Session &s)
                    "*3Vary2","Start2","End2","Steps",
 		     "Reset storage (Y/N)",
 		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)",
-                      "Crv(1) Array(2)","Steps2"};
- std::array<std::string, 13> values;
+                      "Crv(1) Array(2)","Steps2","Write each run to its own file (Y/N)"};
+ std::array<std::string, std::size(n)> values;
  int status;
  static const char *const yn[]={"N","Y"};
  if(!program.interactive){
@@ -274,10 +278,11 @@ values[6] = xpp::format("{}", s.integrator.range.steps);
  else
    values[11] = "1";
  values[12] = xpp::format("{}", s.integrator.range.steps2);
+ values[13] = yn[s.integrator.range.write_files];
  static const int kinds[]={XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
-                           XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
+                           XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
  status=do_string_box_of(7,2,"Double Range Integrate",n,values,kinds);
  if(status!=0){
    s.integrator.range.item=values[0];
@@ -304,6 +309,7 @@ values[6] = xpp::format("{}", s.integrator.range.steps);
     if(values[10][0]=='Y'||values[10][0]=='y')s.integrator.range.movie=1;
    else s.integrator.range.movie=0;
    s.integrator.range.rtype=atoi(values[11].c_str());
+   s.integrator.range.write_files = values[13][0]=='Y'||values[13][0]=='y';
 
  s.integrator.range_flag=1;
  return(1);
@@ -746,9 +752,12 @@ if(fabs(s.data_store.current_time)>=s.numerics.transient_time&&s.numerics.storfl
  
  if(res==1||s.stochastic.flag)
    {
-     if(s.batch_range==1){
+     if(s.integrator.range.write_files){
        post_process_stuff(s);
-       write_this_run(s,s.batch_out_file.c_str(),i);
+       const std::string file = program.interactive
+         ? xpp::include_path(s.model().this_file,xpp::files::output_name(s.model().this_file,".dat"))
+         : s.batch_out_file;
+       write_this_run(s,file.c_str(),j*(nit+1)+i);
      }
      s.data_store.rows=0;
    }

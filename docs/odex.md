@@ -173,7 +173,7 @@ grammar:
   Integration holds solver and time settings; poincare holds section settings;
   equilibria holds `singpt_*` and `neartol`; continuation holds AUTO run settings;
   diagram holds its axes and colours; plot holds view and grid settings; export
-  holds `ps_*` and `plotfmt`; sweep holds range settings; analysis holds histograms
+  holds `ps_*` and `plotfmt`; sweep holds range settings (including `rangefiles: yes` or `no`, default `no`, which writes each reset run separately in every mode); analysis holds histograms
   and spectra; interface holds sliders and buttons; output holds files and logging.
   Older group names are errors. A key is the option's one name in lower
   case, spelled exactly (`xp2`..`xp8` for the numbered ones): XPPAUT's word
@@ -214,6 +214,7 @@ grammar:
   | `DoPri5` | `dopri5` |
   | `QualRK` (`Qual RK`, `qualrk4`) | `qualrk` |
   | `Discrete`, `Euler`, `Adams`, `Gear`, `Volterra`, `Stiff`, `CVode`, `Rosenbrock`, `Symplectic` | the same in lower case |
+  | `range=0/1` | `sweep: { rangefiles: no/yes }` (W349, [#410](https://github.com/MuhammadMoustafa/xppautX/issues/410)) |
   | `rangereset=y...`, `rangeoldic=n...` | `yes`, `no` |
   | `poincare_map=s...`, `m...`, `p...` | `section`, `max`, `period` |
   | `axes=3d` | `3` |

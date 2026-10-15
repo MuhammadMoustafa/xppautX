@@ -668,8 +668,10 @@ constexpr OptionRow rows[] = {
    /* the same initial data for each run */
    .reset = [](Session &s) { s.integrator.range.oldic = 1; },
    .choices = yes_no_names, .saved = true},
-  {.group = option_group::output, .kind = OptionKind::whole, .name = "RANGE", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.batch_range; })},
+  {.group = option_group::sweep, .kind = OptionKind::choice, .name = "RANGEFILES",
+   .xppaut_names = {"RANGE"}, .once = true,
+   .boolean = member([](auto &s) -> auto & { return s.integrator.range.write_files; }),
+   .rule = OptionRule::choice, .choices = yes_no_names, .saved = true},
   {.group = option_group::output, .kind = OptionKind::path, .name = "OUTPUT", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      /* the batch data file, named from the model's folder */
@@ -1028,6 +1030,14 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   else if (row->parse) {
     why = row->parse(s, v);
     if (why == log_open_failed) return files::write_error("option", value).what;
+  }
+  else if (row->boolean) {
+    /* Numeric choices belong to a foreign .ode import, never our own files. */
+    const std::string named = Load::running() && files::has_extension(Load::place().file, ".ode")
+      ? option_choice(*row, text) : lower_case(text);
+    const auto picked = std::ranges::find(row->choices, named);
+    if (picked == row->choices.end()) why = "not yes or no";
+    else if (apply) row->boolean(s) = picked != row->choices.begin();
   }
   else if (row->real) why = number_into(row->real(s), v);
   else if (row->whole) why = whole_into(row->whole(s), v);

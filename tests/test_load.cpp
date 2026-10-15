@@ -108,13 +108,13 @@ int main(void)
     char rng_arg[] = "build/test_load_range.ode";
     char *argv_rng[] = {arg0, rng_arg, NULL};
     CHECK(xpp::load_model(2, argv_rng, 1).has_value());
-    CHECK(xpp::client_session().batch_range == 1);
+    CHECK(xpp::client_session().integrator.range.write_files);
     CHECK(xpp::client_session().batch_out_file.ends_with("range_out.dat"));
     CHECK(!xpp::load_model(2, argv_bad, 1).has_value());
-    CHECK(xpp::client_session().batch_range == 1);
+    CHECK(xpp::client_session().integrator.range.write_files);
     CHECK(xpp::client_session().batch_out_file.ends_with("range_out.dat"));
     CHECK(xpp::load_model(2, argv_good, 1).has_value());
-    CHECK(xpp::client_session().batch_range == 0);
+    CHECK(!xpp::client_session().integrator.range.write_files);
     CHECK(xpp::client_session().batch_out_file == "output.dat");
 
     /* a map is its own Model's: the next model loaded is not taken for

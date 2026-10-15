@@ -157,6 +157,7 @@ struct OptionRow {
   /* the member: a number (atof), a whole number (atoi) or text */
   Member<double> real;
   Member<int> whole;
+  Member<bool> boolean;
   Member<std::string> text;
   /* the value when it is not just the member's: nullptr when taken, else
      why not (logged, the option left unset) */

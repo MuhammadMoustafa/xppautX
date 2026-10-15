@@ -136,6 +136,7 @@ std::vector<ArrayInitialValue> array_initial_values(const Model &m);
    options): the one range over item (and item2 for the double range) */
 struct RangeVars {
   std::string item, item2;
+  bool write_files = false; // Opt in: reset runs otherwise keep no separate files.
   int steps, steps2, reset, oldic, index, index2, cycle, type, type2, movie;
   double plow, phigh, plow2, phigh2;
   int rtype;

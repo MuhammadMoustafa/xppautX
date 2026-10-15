@@ -115,6 +115,7 @@
       "rangehigh": {"type": "number"},
       "rangereset": {"type": "string", "enum": ["no", "yes"]},
       "rangeoldic": {"type": "string", "enum": ["no", "yes"]},
+      "rangefiles": {"type": "string", "enum": ["no", "yes"]},
       "rangeover2": {"type": "string"},
       "rangelow2": {"type": "number"},
       "rangehigh2": {"type": "number"},

@@ -18,6 +18,5 @@ par amin = 2, amax = 4
 options {
   integration: { storage_rows: 11000, total_time: 400, transient_time: 350, method: discrete },
   plot: { xlo: 2, xhi: 4.001, ylo: 0, yhi: 1.001, xp: a, yp: x, lt: 0 },
-  sweep: { rangeover: ind, rangereset: no, rangelow: 0, rangehigh: 200, rangestep: 200 },
-  output: { range: 1 },
+  sweep: { rangefiles: yes, rangeover: ind, rangereset: no, rangelow: 0, rangehigh: 200, rangestep: 200 },
 }

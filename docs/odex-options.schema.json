@@ -197,7 +197,8 @@
         "rangelow": {"type": "number"},
         "rangehigh": {"type": "number"},
         "rangereset": {"type": "string", "enum": ["no", "yes"]},
-        "rangeoldic": {"type": "string", "enum": ["no", "yes"]}
+        "rangeoldic": {"type": "string", "enum": ["no", "yes"]},
+        "rangefiles": {"type": "string", "enum": ["no", "yes"]}
       }
     },
     "analysis": {
@@ -231,7 +232,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "range": {"type": "integer"},
         "output": {"type": "string", "x-kind": "path"},
         "quiet": {"type": "integer", "enum": [0, 1]},
         "logfile": {"type": "string", "x-kind": "path"}

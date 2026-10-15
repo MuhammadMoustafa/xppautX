@@ -8259,5 +8259,123 @@ def check_create_folders():
 
 check_create_folders()
 
+def check_range_files():
+    """W349: range-owned files, persisted settings and foreign option import."""
+    with tempfile.TemporaryDirectory(prefix='w349') as folder:
+        model = os.path.join(folder, 'range.odex')
+        with open(model, 'w') as f:
+            f.write("par a=1\nx'=a\ninit x=0\noptions { integration: { dt: 0.1, total_time: 0.2 }, "
+                    "sweep: { rangeover: a, rangestep: 2, rangelow: 1, rangehigh: 3, "
+                    "rangereset: yes, rangeoldic: yes, rangefiles: yes } }\n")
+        with tempfile.TemporaryDirectory(prefix='w349run') as run:
+            s = Server(args.server, model, run=run)
+            try:
+                s.collect(is_idle)
+                s.send(cmd='session', op='save', name='before', data=False)
+                s.collect(is_idle)
+                with zipfile.ZipFile(os.path.join(run, 'before.snapx')) as z:
+                    settings = z.read('model.setx').decode()
+                check('W349: session saves rangefiles by name', 'rangefiles: yes' in settings, settings[-600:])
+                for enabled, reset, expected in (('Y', 'Y', 3), ('N', 'Y', 0), ('Y', 'N', 0)):
+                    s.send(cmd='key', key='i')
+                    s.answer_asks(is_idle, {'menu': lambda e: {'key': 'r'},
+                        'form': lambda e: {'values': ['a', '2', '1', '3', reset, 'Y', 'N', 'N', enabled]}})
+                    paths = sorted(glob.glob(os.path.join(run, 'range.dat.*')))
+                    rows = [[list(map(float, line.split())) for line in open(path)] for path in paths]
+                    check('W349: server reset=%s files=%s writes %d runs' % (reset, enabled, expected),
+                          len(paths) == expected and (not expected or all(len(r) == 3 and
+                          abs(r[-1][0] - .2) < 1e-6 and abs(r[-1][1] - .2 * (i + 1)) < 1e-6
+                          for i, r in enumerate(rows))), str(rows))
+                    for path in paths:
+                        os.remove(path)
+                s.send(cmd='key', key='i')
+                s.answer_asks(is_idle, {'menu': lambda e: {'key': '2'},
+                    'form': lambda e: {'values': ['a', '1', '3', 'x', '0', '2', '1', 'Y', 'Y', 'N', 'N', '2', '1', 'Y']}})
+                paths = sorted(glob.glob(os.path.join(run, 'range.dat.*')))
+                rows = [[list(map(float, line.split())) for line in open(path)] for path in paths]
+                check('W349: double range gives every run a separate file', len(rows) == 4
+                      and all(len(r) == 3 and abs(r[-1][1] - expected) < 1e-6
+                              for r, expected in zip(rows, [.2, .6, 2.2, 2.6])), str(rows))
+                for path in paths:
+                    os.remove(path)
+                s.send(cmd='open', file='before.snapx')
+                s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
+                s.send(cmd='key', key='i')
+                _, ask = s.collect(is_ask)
+                s.send(cmd='answer', id=ask['id'], key='r')
+                _, ask = s.collect(is_ask)
+                check('W349: session load restores rangefiles', ask is not None and ask['values'][-1] == 'Y', str(ask))
+                s.send(cmd='answer', id=ask['id'], ok=0)
+                s.collect(is_idle)
+                s.send(cmd='savedefaults', scope='all')
+                s.answer_asks(is_idle, {'choice': lambda e: {'key': 'y'}})
+                saved = open(os.path.join(run, 'range.odex')).read()
+                check('W349: saving .odex writes the named range setting', 'rangefiles: yes' in saved, saved)
+                s.send(cmd='open', file='range.odex')
+                s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
+                s.send(cmd='session', op='save', name='odex-roundtrip', data=False)
+                s.collect(is_idle)
+                with zipfile.ZipFile(os.path.join(run, 'odex-roundtrip.snapx')) as z:
+                    text = z.read('model.setx').decode()
+                check('W349: saved .odex reloads rangefiles', 'rangefiles: yes' in text, text[-600:])
+            finally:
+                s.close()
+        for enabled in ('Y', 'N'):
+            with tempfile.TemporaryDirectory(prefix='w349rec') as run:
+                lines = [dict(cmd='key', key='i'), dict(cmd='answer', key='r'),
+                         dict(cmd='answer', values=['a', '2', '1', '3', 'Y', 'Y', 'N', 'N', enabled])]
+                rec = make_recording(args.server, model, lines, run)
+                result = subprocess.run([os.path.abspath(args.server), rec, '--silent', '--yes'],
+                                        cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
+                paths = sorted(glob.glob(os.path.join(run, 'range.dat.*')))
+                rows = [[list(map(float, line.split())) for line in open(path)] for path in paths]
+                check('W349: silent recording files=' + enabled,
+                      result.returncode == 0 and len(paths) == (3 if enabled == 'Y' else 0)
+                      and all(len(r) == 3 and abs(r[-1][0] - .2) < 1e-6
+                              and abs(r[-1][1] - .2 * (i + 1)) < 1e-6 for i, r in enumerate(rows)),
+                      result.stderr + str(rows))
+        foreign = os.path.join(folder, 'legacy.ode')
+        with open(foreign, 'w') as f:
+            f.write("par a=1\nx'=a\n@ range=1,rangeover=a,rangestep=2,rangelow=1,rangehigh=3,total=.2,dt=.1\ndone\n")
+        imported = subprocess.run([os.path.abspath(args.server), '--convert', foreign], cwd=folder,
+                                  capture_output=True, text=True, timeout=60 * SLOW)
+        converted = os.path.join(folder, 'legacy.odex')
+        text = open(converted).read() if os.path.isfile(converted) else ''
+        check('W349: .ode range=1 imports as sweep rangefiles: yes',
+              imported.returncode == 0 and 'rangefiles: yes' in text and 'range: 1' not in text, imported.stderr + text)
+        result = subprocess.run([os.path.abspath(args.server), converted, '--silent', '--outfile', 'out.dat'],
+                                cwd=folder, capture_output=True, text=True, timeout=60 * SLOW)
+        paths = sorted(glob.glob(os.path.join(folder, 'out.dat.*')))
+        rows = [[list(map(float, line.split())) for line in open(path)] for path in paths]
+        check('W349: built-in silent range honours its output filename and each run',
+              result.returncode == 0 and len(rows) == 3 and all(len(r) == 3
+              and abs(r[-1][1] - .2 * (i + 1)) < 1e-6 for i, r in enumerate(rows)), result.stderr + str(rows))
+        for group, key, value in (('sweep', 'rangefiles', '1'), ('sweep', 'rangefiles', 'maybe'), ('output', 'range', '1')):
+            bad = os.path.join(folder, 'bad.odex')
+            with open(bad, 'w') as f:
+                f.write("x'=1\noptions { %s: { %s: %s } }\n" % (group, key, value))
+            result = subprocess.run([os.path.abspath(args.server), bad, '--silent'], cwd=folder,
+                                    capture_output=True, text=True, timeout=60 * SLOW)
+            check('W349: own .odex refuses %s: %s' % (key, value),
+                  result.returncode != 0 and 'bad.odex:2' in result.stderr, result.stderr)
+        # Reading and saving the converted model exercises the named option round trip.
+        with tempfile.TemporaryDirectory(prefix='w349load') as run:
+            s = Server(args.server, converted, run=run)
+            try:
+                s.collect(is_idle)
+                s.send(cmd='key', key='i')
+                s.answer_asks(is_idle, {'menu': lambda e: {'key': 'r'},
+                    'form': lambda e: {'ok': 0}})
+                s.send(cmd='session', op='save', name='roundtrip', data=False)
+                s.collect(is_idle)
+                with zipfile.ZipFile(os.path.join(run, 'roundtrip.snapx')) as z:
+                    text = z.read('model.setx').decode()
+                check('W349: converted .odex loads the named setting', 'rangefiles: yes' in text, text[-600:])
+            finally:
+                s.close()
+
+
+check_range_files()
+
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

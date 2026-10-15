@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Range integration can write each reset run to its own file in the window, --server and --silent; `sweep.rangefiles: yes/no` is saved with range settings, and importing `.ode` `@ range=1` enables it (W349, [#410](https://github.com/MuhammadMoustafa/xppautX/issues/410)).
+
 - Continue ODE Hopf curves with the reduced 2n+2 system through zero frequency to a labelled neutral-saddle curve; use structured Hopf/fold Jacobians and reject obsolete Hopf restart layouts (W363, [#425](https://github.com/MuhammadMoustafa/xppautX/issues/425)).
 - Lift fixed array limits for formula lengths, tabular expressions, stiff and Marquardt-Levenberg solver pivots, and Markov states and reaction rates; formulas compile directly into dynamically growing vectors and numerical algorithms size work buffers from input rather than hardcoded limits (W372, [#434](https://github.com/MuhammadMoustafa/xppautX/issues/434)).
 

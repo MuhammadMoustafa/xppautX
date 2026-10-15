@@ -256,7 +256,7 @@ std::string setting_text(const xpp::Session &s, const OptionRow &row)
     if (row.rule == OptionRule::method) return std::string(xpp::solver_info(row.whole(s)).key);
     if (row.kind == OptionKind::choice) {
         /* a number out of the choices (a member set by hand) is written as it is, and refused when read */
-        const int v = row.whole(s);
+        const int v = row.boolean ? static_cast<int>(row.boolean(s)) : row.whole(s);
         return v >= 0 && static_cast<std::size_t>(v) < row.choices.size() ? std::string(row.choices[static_cast<std::size_t>(v)]) : xpp::number(v);
     }
     if (row.kind == OptionKind::name && row.whole) return xpp::ind_to_sym(s, row.whole(s));

@@ -26,8 +26,7 @@ init w = 0
 options {
   integration: { total_time: 100, transient_time: 50 },
   plot: { xp: v, yp: w, xlo: -.4, xhi: .6, ylo: -.1, yhi: .6, dfgrid: 16, ncdraw: 1, dfdraw: 2 },
-  sweep: { rangeover: i, rangestep: 50, rangelow: -.2, rangehigh: .5, rangereset: yes },
-  output: { range: 1 },
+  sweep: { rangefiles: yes, rangeover: i, rangestep: 50, rangelow: -.2, rangehigh: .5, rangereset: yes },
 }
 # Done!!
 

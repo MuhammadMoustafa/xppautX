@@ -128,7 +128,7 @@ void SilentScript::add_run(int set)
     });
     steps.push_back([this] {
         if (!ran) return;
-        const bool range = session.batch_range == 1 || session.stochastic.flag > 0;
+        const bool range = session.integrator.range.write_files || session.stochastic.flag > 0;
         key("i");
         answer("key", range ? "r" : "g");
     });
@@ -140,7 +140,7 @@ void SilentScript::add_run(int set)
         const xpp::Session &s = session;
         /* a range that resets its storage wrote each run's file itself
            (integrate.cpp do_range, write_this_run) */
-        if (!s.batch_range || s.integrator.range.reset == 0) {
+        if (!s.integrator.range.write_files || s.integrator.range.reset == 0) {
             if (s.stochastic.flag == 1 || s.stochastic.flag == 2) {
                 key("u");
                 key("h");
