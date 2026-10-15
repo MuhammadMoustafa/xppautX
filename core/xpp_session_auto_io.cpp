@@ -121,11 +121,11 @@ Result<Members> members_read(const Session &s, const std::map<std::string, std::
     const bool solutions = members.contains(named(prefix, solutions_member));
     if (diagram != solutions)
         return xpp::fail("session AUTO", xpp::format("its {} is missing", named(prefix, diagram ? solutions_member : diagram_member)), Place{name});
-    std::deque<DiagramPoint> points;
+    std::deque<DIAGRAM> points;
     if (diagram) {
         if (const Result<> checked = check_auto_solutions(text(solutions_member), file(solutions_member), AutoState::state_copies*s.model().node, s.auto_state.parameter_layout.size(),false); !checked)
             return std::unexpected(checked.error());
-        Result<std::deque<DiagramPoint>> read = parse_diagram_csv(text(diagram_member), s.model().node, s.model().nupar, file(diagram_member));
+        Result<std::deque<DIAGRAM>> read = parse_diagram_csv(text(diagram_member), s.model().node, s.model().nupar, file(diagram_member));
         if (!read) return std::unexpected(read.error());
         points = std::move(*read);
     }
@@ -134,8 +134,8 @@ Result<Members> members_read(const Session &s, const std::map<std::string, std::
     /* what AUTO accepts for this model: the settings, then each view's
        axes with the settings' parameters */
     if (points.size() > 1)
-        for (const DiagramPoint &p : points)
-            if (!p.d.icp1.is_parameter())
+        for (const DIAGRAM &p : points)
+            if (!p.icp1.is_parameter())
                 return xpp::fail("session AUTO", "diagram parameter index is not among its saved parameters", Place{file(diagram_member)});
     const int nviews = static_cast<int>(views->views.views.size());
     for (int k = 0; k < nviews; k++) {

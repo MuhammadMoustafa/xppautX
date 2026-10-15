@@ -174,18 +174,19 @@ struct AutoState {
   xpp::AutoDataShown shown;
 };
 
-/* AUTO's work arrays (autlib1's allocate_global_memory owns their
-   storage; autlib3 and autlib5 read them). auto_f2c.h's doublereal and
+/* AUTO's work arrays, owned here (autlib1's allocate_global_memory sizes
+   them once per run: dfu ndim*ndim, dfp ndim*parameter_count, the others
+   ndim; autlib3 and autlib5 read them). auto_f2c.h's doublereal and
    integer spelt out (double, long): the header is not included here, as
    its typedefs clash with CVODE's (llnltyps.h) in a file that includes
    both through session.h. */
-typedef struct {
-  double *dfu, *dfp, *uu1, *uu2, *ff1, *ff2;
-} AutoGlobalScratch;
-typedef struct {
-  long irtn;
-  long *nrtn;
-} AutoGlobalRotations;
+struct AutoGlobalScratch {
+  std::vector<double> dfu, dfp, uu1, uu2, ff1, ff2;
+};
+struct AutoGlobalRotations {
+  long irtn = 0;
+  std::vector<long> nrtn; /* per boundary condition (nbc), sized with the scratch */
+};
 
 namespace xpp {
 struct Session; /* session.h */
@@ -231,12 +232,6 @@ struct AutoLib {
      converged point is stored as an end point to restart from; do_auto
      (auto_nox.cpp) shows it with the action that switches to differences */
   std::optional<xpp::Error> jacobian_failure;
-  /* the storage behind scratch's and rotations' pointers
-     (allocate_global_memory) */
-  struct {
-    std::vector<double> dfu,dfp,uu1,uu2,ff1,ff2;
-    std::vector<long> nrtn;
-  } store;
   /* solvae's last ntop (its output's paging) */
   long solvae_ntop=0;
   /* solvbv's matrices, kept from one call to the next: a call with

@@ -174,15 +174,15 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file)
     });
 }
 
-std::string diagram_csv(const std::deque<DiagramPoint> &points, int model_parameters, std::span<const std::string> vars)
+std::string diagram_csv(const std::deque<DIAGRAM> &points, int model_parameters, std::span<const std::string> vars)
 {
     std::string o;
     std::map<const DiagramBranch *,std::size_t> branches;
-    for(const DiagramPoint &p:points){
-        const auto [entry,added]=branches.try_emplace(p.d.branch.get(),branches.size());
+    for(const DIAGRAM &p:points){
+        const auto [entry,added]=branches.try_emplace(p.branch.get(),branches.size());
         if(!added)continue;
         o+=xpp::format("branch,{}",entry->second);
-        for(double value:p.d.branch->parameters)o+=','+xpp::number(value);
+        for(double value:p.branch->parameters)o+=','+xpp::number(value);
         o+='\n';
     }
     for (std::size_t i = 0; i < lead_columns.size(); i++) o += xpp::format("{}{}", i ? "," : "", lead_columns[i]);
@@ -191,8 +191,8 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, int model_parame
     for (std::size_t i = 1; i <= vars.size(); i++) o += xpp::format(",evr{0},evi{0}", i);
     o += '\n';
     const std::size_t n = vars.size();
-    for (const DiagramPoint &p : points) {
-        const DIAGRAM &d = p.d;
+    for (const DIAGRAM &p : points) {
+        const DIAGRAM &d = p;
         /* an axis is written as the file's integer (auto_axis.h) */
         const auto axis_code = [model_parameters](AutoAxis a) { return auto_axis_encode(a, model_parameters); };
         o += xpp::format("{},{},{},{},{},{},{},{},{},{},{},{},{}", d.calc, d.ibr, d.ntot, auto_point_encode(d.itp), d.lab, d.nfpar, axis_code(d.icp1), axis_code(d.icp2),
@@ -204,9 +204,9 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, int model_parame
         for(std::size_t i=0;i<d.par.size();i++)o+=(i?";":"")+xpp::number(d.par[i]);
         for (std::size_t i = 0; i < n; i++)
             for (const std::vector<double> *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar})
-                o += ',' + xpp::number(i < v->size() ? (*v)[i] : 0.0);
+                o += ',' + xpp::number((*v)[i]);
         for (std::size_t i = 0; i < n; i++)
-            for (const std::vector<double> *v : {&p.evr, &p.evi}) o += ',' + xpp::number(i < v->size() ? (*v)[i] : 0.0);
+            for (const std::vector<double> *v : {&p.evr, &p.evi}) o += ',' + xpp::number((*v)[i]);
         o += '\n';
     }
     return o;
@@ -237,7 +237,7 @@ void check_point_parameters(const DIAGRAM &d, Lines &l, int line)
 }
 } // namespace
 
-Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n, int n_pars, std::string file)
+Result<std::deque<DIAGRAM>> parse_diagram_csv(std::string_view text, int n, int n_pars, std::string file)
 {
     return read_lines("AUTO's diagram", std::move(file), text, [n, n_pars](Lines &l) {
         if (n < 0 || n_pars < 0 || static_cast<std::size_t>(n_pars) > saved_parameters_limit) l.fail("invalid model dimensions for AUTO diagram storage");
@@ -267,7 +267,7 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
         for (std::size_t i = 0; i < lead_columns.size(); i++)
             if (head[i] != lead_columns[i]) l.fail(xpp::format("column {} is \"{}\", not \"{}\"", i + 1, head[i], lead_columns[i]));
         if(head[lead_columns.size()]!="branch" || head[lead_columns.size()+1]!="continued" || head[lead_columns.size()+2]!="values")l.fail("missing branch and continued-parameter columns");
-        std::deque<DiagramPoint> points;
+        std::deque<DIAGRAM> points;
         while (!l.at_end()) {
             const std::string_view line = l.next();
             if (line.empty()) continue;
@@ -277,8 +277,8 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
                several times their archive bytes once stored as doubles. */
             if (points.size() >= saved_points_limit)
                 l.fail("too many AUTO diagram points for the session memory limit");
-            DiagramPoint &p = points.emplace_back();
-            DIAGRAM &d = p.d;
+            DIAGRAM &p = points.emplace_back();
+            DIAGRAM &d = p;
             int itp_code = 0;
             int axis_codes[4] = {};
             int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &itp_code, &d.lab, &d.nfpar, &axis_codes[0], &axis_codes[1], &axis_codes[2], &axis_codes[3], &d.flag2, &d.from, &d.jacobian};
@@ -311,7 +311,7 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
             const auto indices=split_fields(f[c++],';');
             const auto values=split_fields(f[c++],';');
             if(indices.empty() || indices.size()>static_cast<std::size_t>(d.nfpar) || values.size()!=indices.size())l.fail("continued model parameter count differs from nfpar");
-            const std::size_t point_bytes=sizeof(DiagramPoint)+6*static_cast<std::size_t>(n)*sizeof(double)
+            const std::size_t point_bytes=sizeof(DIAGRAM)+6*static_cast<std::size_t>(n)*sizeof(double)
                 +indices.size()*(sizeof(int)+sizeof(double));
             if(point_bytes>zip::archive_bytes_limit-expanded_bytes)l.fail("too many AUTO diagram points for the session memory limit");
             expanded_bytes+=point_bytes;
@@ -324,7 +324,7 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
                 d.par.push_back(value);
             }
             check_point_parameters(d, l, l.line());
-            for (std::vector<double> *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar, &p.evr, &p.evi}) v->assign(static_cast<std::size_t>(n), 0.0);
+            p.size_variables(static_cast<std::size_t>(n));
             for (int i = 0; i < n; i++)
                 for (std::vector<double> *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar}) real((*v)[static_cast<std::size_t>(i)]);
             for (int i = 0; i < n; i++)
@@ -334,24 +334,24 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
     });
 }
 
-std::deque<DiagramPoint> read_foreign_diagram(Lines &lines, int n,
+std::deque<DIAGRAM> read_foreign_diagram(Lines &lines, int n,
     std::span<const int> imported, std::span<const double> parameters, int calc, int flag2, double torper)
 {
     // XPPAUT diagram records have exactly four continuation index columns.
     constexpr int foreign_continuation_columns = 4;
     int last;
     lines.numbers(last);
-    const std::size_t bytes = sizeof(DiagramPoint) + sizeof(DiagramBranch)
+    const std::size_t bytes = sizeof(DIAGRAM) + sizeof(DiagramBranch)
         + (6 * static_cast<std::size_t>(n) + parameters.size()) * sizeof(double)
         + imported.size() * (sizeof(int) + sizeof(double));
     if (n <= 0 || last < 1 || static_cast<std::size_t>(last) >= saved_points_limit
         || bytes > zip::archive_bytes_limit / (static_cast<std::size_t>(last) + 1))
         lines.fail("foreign diagram counts exceed the session memory limit");
-    std::deque<DiagramPoint> points;
+    std::deque<DIAGRAM> points;
     std::shared_ptr<const DiagramBranch> branch;
     for (int index = 0; index <= last; index++) {
-        DiagramPoint p;
-        DIAGRAM &d = p.d;
+        DIAGRAM p;
+        DIAGRAM &d = p;
         int foreign_index;
         int itp_code;
         int slots[4];
@@ -369,7 +369,7 @@ std::deque<DiagramPoint> read_foreign_diagram(Lines &lines, int n,
         // XPPAUT stores eight selected parameter values on each point's numeric row.
         std::array<double, xppaut_parameter_prefix> values;
         lines.numbers(values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], d.norm, d.per);
-        if (!branch || std::abs(static_cast<long long>(d.ntot)) == 1 || points.back().d.ibr != d.ibr) {
+        if (!branch || std::abs(static_cast<long long>(d.ntot)) == 1 || points.back().ibr != d.ibr) {
             auto held = std::make_shared<DiagramBranch>();
             held->parameters.assign(parameters.begin(), parameters.end());
             for (std::size_t k = 0; k < imported.size(); k++) held->parameters[imported[k]] = values[k];
@@ -388,7 +388,7 @@ std::deque<DiagramPoint> read_foreign_diagram(Lines &lines, int n,
             }
         check_point_indices(d, static_cast<int>(parameters.size()), lines, point_line);
         check_point_parameters(d, lines, point_line);
-        for (auto *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar, &p.evr, &p.evi}) v->resize(n);
+        p.size_variables(static_cast<std::size_t>(n));
         for (int k = 0; k < n; k++) lines.numbers(p.u0[k], p.uhi[k], p.ulo[k], p.ubar[k], p.evr[k], p.evi[k]);
         // Preserve the old import's run presentation fields.
         d.calc = calc; d.torper = torper;

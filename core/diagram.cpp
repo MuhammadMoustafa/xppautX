@@ -28,26 +28,18 @@
 
 namespace {
 /* a new last point of n variables, zeroed */
-xpp::DIAGRAM *new_point(AutoDiagram &dg, int n)
+xpp::DIAGRAM *new_point(AutoDiagram &dg, std::size_t n)
 {
-  DiagramPoint &p=dg.points.emplace_back();
-  for(std::vector<double> *v:{&p.uhi,&p.ulo,&p.u0,&p.ubar,&p.evr,&p.evi})
-    v->assign(n,0.0);
-  p.d.uhi=p.uhi.data();
-  p.d.ulo=p.ulo.data();
-  p.d.u0=p.u0.data();
-  p.d.ubar=p.ubar.data();
-  p.d.evr=p.evr.data();
-  p.d.evi=p.evi.data();
-  p.d.index=static_cast<int>(dg.points.size())-1;
-  return &p.d;
+  xpp::DIAGRAM &p=dg.points.emplace_back();
+  p.size_variables(n);
+  p.index=static_cast<int>(dg.points.size())-1;
+  return &p;
 }
 
 /* point d set to p, a point of AUTO's run, with flag2 (s: the run's
    kind of calculation and torus period) */
-void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p, int n, int flag2)
+void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p, int flag2)
 {
-  int i;
   d->calc=s.auto_state.type_of_calc;
   d->ibr=p.ibr;
   d->ntot=p.ntot;
@@ -66,14 +58,12 @@ void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p,
   d->icp3=p.icp3;
   d->icp4=p.icp4;
   d->flag2=flag2;
-  for(i=0;i<n;i++){
-    d->ulo[i]=p.ulo[i];
-    d->uhi[i]=p.uhi[i];
-    d->ubar[i]=p.ubar[i];
-    d->u0[i]=p.u0[i];
-    d->evr[i]=p.evr[i];
-    d->evi[i]=p.evi[i];
-   }
+  d->ulo=p.ulo;
+  d->uhi=p.uhi;
+  d->ubar=p.ubar;
+  d->u0=p.u0;
+  d->evr=p.evr;
+  d->evi=p.evi;
   d->torper=s.auto_state.blrtn.torper;
   d->jacobian=p.jacobian;
 }
@@ -123,7 +113,7 @@ int diagram_count(const AutoDiagram &diagram)
 xpp::DIAGRAM *diagram_point(AutoDiagram &diagram, int index)
 {
   if(index<0||index>=diagram_count(diagram))return NULL;
-  return &diagram.points[index].d;
+  return &diagram.points[index];
 }
 
 xpp::DIAGRAM *diagram_first(AutoDiagram &diagram)
@@ -141,7 +131,7 @@ xpp::DIAGRAM *diagram_prev(AutoDiagram &diagram, const xpp::DIAGRAM *d)
   return diagram_point(diagram,d->index-1);
 }
 
-void diagram_restore(xpp::Session &s, std::deque<DiagramPoint> points)
+void diagram_restore(xpp::Session &s, std::deque<xpp::DIAGRAM> points)
 {
   if(points.empty()){
     start_diagram(s,s.model().node);
@@ -149,34 +139,26 @@ void diagram_restore(xpp::Session &s, std::deque<DiagramPoint> points)
   }
   s.diagram.points=std::move(points);
   int index=0;
-  for(DiagramPoint &p:s.diagram.points){
-    p.d.uhi=p.uhi.data();
-    p.d.ulo=p.ulo.data();
-    p.d.u0=p.u0.data();
-    p.d.ubar=p.ubar.data();
-    p.d.evr=p.evr.data();
-    p.d.evi=p.evi.data();
-    p.d.index=index++;
-  }
+  for(xpp::DIAGRAM &p:s.diagram.points)p.index=index++;
   s.auto_state.diag_flag=1;
 }
 
 void start_diagram(xpp::Session &s, int n)
 {
   s.diagram.points.clear();
-  new_point(s.diagram,n);
+  new_point(s.diagram,static_cast<std::size_t>(n));
   s.auto_state.diag_flag=0;
 }
 
-void edit_start(xpp::Session &s, const xpp::DIAGRAM &p, int n)
+void edit_start(xpp::Session &s, const xpp::DIAGRAM &p)
 {
-  edit_diagram(s,diagram_first(s.diagram),p,n,s.auto_state.two_param);
+  edit_diagram(s,diagram_first(s.diagram),p,s.auto_state.two_param);
 }
 
-void add_diagram(xpp::Session &s, const xpp::DIAGRAM &p, int n)
+void add_diagram(xpp::Session &s, const xpp::DIAGRAM &p)
 {
-  xpp::DIAGRAM *dnew=new_point(s.diagram,n);
-  edit_diagram(s,dnew,p,n,p.flag2);
+  xpp::DIAGRAM *dnew=new_point(s.diagram,p.u0.size());
+  edit_diagram(s,dnew,p,p.flag2);
 }
 
 xpp::DIAGRAM *last_diagram(AutoDiagram &diagram)
@@ -187,15 +169,15 @@ xpp::DIAGRAM *last_diagram(AutoDiagram &diagram)
 const xpp::DIAGRAM *diagram_of_label(const xpp::Session &s, int lab)
 {
   if(lab<=0||s.auto_state.diag_flag==0)return NULL; /* DiagFlag 0: the first point is not filled in yet */
-  for(const DiagramPoint &p:s.diagram.points)
-    if(p.d.lab==lab)return &p.d;
+  for(const xpp::DIAGRAM &p:s.diagram.points)
+    if(p.lab==lab)return &p;
   return NULL;
 }
 
 int diagram_has(const AutoDiagram &diagram, int index,int ibr,int ntot)
 {
   if(index<0||index>=diagram_count(diagram))return 0;
-  const xpp::DIAGRAM *d=&diagram.points[index].d;
+  const xpp::DIAGRAM *d=&diagram.points[index];
   return d!=NULL&&d->ibr==ibr&&abs(d->ntot)==abs(ntot);
 }
 
@@ -279,7 +261,7 @@ void write_info_out(xpp::Session &s)
   */
   xpp::AutoAxis icp1,icp2;
   double *par;
-  double par1,par2=0,*uhigh,*ulow,per;
+  double par1,par2=0,per;
   xpp::Writer w=diagram_file(s,"Write all info","allinfo");
   if(!w)return;
   d=diagram_first(s.diagram);
@@ -290,8 +272,7 @@ void write_info_out(xpp::Session &s)
     auto parameters=diagram_parameters(*d);
     par=parameters.data();
     per=d->per;
-    uhigh=d->uhi;
-    ulow=d->ulo;
+    const std::vector<double> &uhigh=d->uhi,&ulow=d->ulo;
     /*ubar=d->ubar; Not used*/
    /* u0=d->u0; Not used*/
     /* a=d->norm; Not used*/
@@ -345,7 +326,7 @@ void load_browser_with_branch(xpp::Session &s, int ibr,int pts,int pte)
       icp1=d->icp1;
       auto parameters=diagram_parameters(*d);
       par=parameters.data();
-      u0=d->u0;
+      u0=d->u0.data();
 
       par1=par[icp1.index];
       s.data_store.col[0][j]=par1;
@@ -374,7 +355,7 @@ void write_init_data_file(xpp::Session &s)
     icp1=d->icp1;
     auto parameters=diagram_parameters(*d);
     par=parameters.data();
-    u0=d->u0;
+    u0=d->u0.data();
 
     par1=par[icp1.index];
 
@@ -398,7 +379,7 @@ void write_pts(xpp::Session &s)
   xpp::DiagramPointType type;
   xpp::AutoAxis icp1,icp2;
   double *par;
-  double x,y1,y2,par1,par2=0,a,*uhigh,*ulow,*ubar,per;
+  double x,y1,y2,par1,par2=0,a,per;
   xpp::Writer w=diagram_file(s,"Write points","diagram");
   if(!w)return;
   d=diagram_first(s.diagram);
@@ -410,9 +391,7 @@ void write_pts(xpp::Session &s)
     auto parameters=diagram_parameters(*d);
     par=parameters.data();
     per=d->per;
-    uhigh=d->uhi;
-    ulow=d->ulo;
-    ubar=d->ubar;
+    const std::vector<double> &uhigh=d->uhi,&ulow=d->ulo,&ubar=d->ubar;
     a=d->norm;
     par1=par[icp1.index];
     if(icp2.is_parameter())

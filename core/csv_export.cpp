@@ -57,8 +57,8 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
     /* the first point is a stored point itself (edit_start fills it in
        place), not a sentinel before one: write_info_out/write_pts start
        the same way */
-    for (const DiagramPoint &p : s.diagram.points) {
-        const xpp::DIAGRAM *d = &p.d;
+    for (const xpp::DIAGRAM &p : s.diagram.points) {
+        const xpp::DIAGRAM *d = &p;
         xpp::DiagramPointType type = xpp::get_bif_type(d->ibr, d->ntot, d->lab);
         const char *sym = xpp::auto_point_symbol(d->itp);
         while (*sym == ' ') sym++;
@@ -83,8 +83,8 @@ xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const ch
     xpp::DataTable table;
     table.names = {"branch", "point", "index", "re", "im", "kind"};
     table.fields.resize(table.names.size());
-    for (const DiagramPoint &p : s.diagram.points) {
-        const xpp::DIAGRAM *d = &p.d;
+    for (const xpp::DIAGRAM &p : s.diagram.points) {
+        const xpp::DIAGRAM *d = &p;
         xpp::DiagramPointType type = xpp::get_bif_type(d->ibr, d->ntot, d->lab);
         const char *kind = xpp::point_is_periodic(type) ? "multiplier" : "eigenvalue";
         for (int i = 0; i < s.model().node; i++) {

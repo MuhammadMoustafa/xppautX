@@ -1878,7 +1878,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     }
   }
   /* xppautX: the point's eigenvalues (auto_stability.h; eig computed ndm) */
-  xpp::auto_stability_computed(iap->lib->session->auto_state.stability,ibr,ntot+1,ndm,&ev[0].r,xpp::AUTO_STABILITY_STEADY);
+  xpp::auto_stability_computed(iap->lib->session->auto_state.stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndm)},xpp::AUTO_STABILITY_STEADY);
   /* Order the eigenvalues by real part. */
 
   for (i = 0; i < ndm - 1; ++i) {
@@ -2764,7 +2764,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
       ntots = -ntot;
     }
   }
-  xpp::addbif(iap,rap,ntots,iap->ibr,par,icp,labw,&amp, u, u, u, u);
+  xpp::addbif(iap,rap,ntots,iap->ibr,par,icp,labw,&amp, {u,static_cast<size_t>(iap->ndim)}, {u,static_cast<size_t>(iap->ndim)}, {u,static_cast<size_t>(iap->ndim)}, {u,static_cast<size_t>(iap->ndim)});
   wrline(iap, rap, par, icp, &icp[iap->lib->parameter_count], &context.ibr, &ntots,
 	 &labw, &amp, u);
   if (iap->istop != 0) { /* xppautX: why the branch ended (auto_stop.h, T23) */
@@ -4187,8 +4187,8 @@ newlab(iap_type *iap, rap_type *rap)
   /* A fresh run has an empty fort.3, but the diagram may retain older
      branches. Their labels must still identify their own restart solution. */
   for(const auto &point:iap->lib->session->diagram.points){
-    mbr=std::max(mbr,static_cast<integer>(f2c::abs(point.d.ibr)));
-    mlab=std::max(mlab,static_cast<integer>(point.d.lab));
+    mbr=std::max(mbr,static_cast<integer>(f2c::abs(point.ibr)));
+    mlab=std::max(mlab,static_cast<integer>(point.lab));
   }
   lab = mlab;
   iap->lab = lab;
@@ -6093,7 +6093,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   flowkm(iap->lib->fp9, &ndim, p0, p1, &iid, wrk.data(), ev, true);
   /* Find the multiplier closest to z=1. */
   /* xppautX: the orbit's Floquet multipliers (auto_stability.h) */
-  xpp::auto_stability_computed(iap->lib->session->auto_state.stability,ibr,ntot+1,ndim,&ev[0].r,xpp::AUTO_STABILITY_PERIODIC);
+  xpp::auto_stability_computed(iap->lib->session->auto_state.stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndim)},xpp::AUTO_STABILITY_PERIODIC);
   amin = RLARGE;
   for (j = 0; j < ndim; ++j) {
     doublecomplex tmp;
@@ -6466,7 +6466,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* addbif max min  of variables & initial data 
 
   */
-  xpp::addbif(iap,rap, ntots, ibrs, par,icp,labw,&amp, u_high.data(), u_low.data(), u_0.data(), u_bar.data());  
+  xpp::addbif(iap,rap, ntots, ibrs, par,icp,labw,&amp, u_high, u_low, u_0, u_bar);  
 
   wrline(iap, rap, par, icp, &icp[jtmp], &ibrs, &ntots,
 	 &labw, &amp, umx.data());
@@ -6771,19 +6771,11 @@ pvlsbv(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 
 void allocate_global_memory(const iap_type iap) {
     /* assign: zeroed, like the xpp_malloc it replaces */
-    iap.lib->store.dfu.assign(iap.ndim * iap.ndim, 0.);
-    iap.lib->store.dfp.assign(iap.ndim * iap.lib->parameter_count, 0.);
-    iap.lib->store.uu1.assign(iap.ndim, 0.);
-    iap.lib->store.uu2.assign(iap.ndim, 0.);
-    iap.lib->store.ff1.assign(iap.ndim, 0.);
-    iap.lib->store.ff2.assign(iap.ndim, 0.);
-    iap.lib->scratch.dfu = iap.lib->store.dfu.data();
-    iap.lib->scratch.dfp = iap.lib->store.dfp.data();
-    iap.lib->scratch.uu1 = iap.lib->store.uu1.data();
-    iap.lib->scratch.uu2 = iap.lib->store.uu2.data();
-    iap.lib->scratch.ff1 = iap.lib->store.ff1.data();
-    iap.lib->scratch.ff2 = iap.lib->store.ff2.data();
-
-    iap.lib->store.nrtn.assign(iap.nbc, 0);
-    iap.lib->rotations.nrtn = iap.lib->store.nrtn.data();
+    iap.lib->scratch.dfu.assign(iap.ndim * iap.ndim, 0.);
+    iap.lib->scratch.dfp.assign(iap.ndim * iap.lib->parameter_count, 0.);
+    iap.lib->scratch.uu1.assign(iap.ndim, 0.);
+    iap.lib->scratch.uu2.assign(iap.ndim, 0.);
+    iap.lib->scratch.ff1.assign(iap.ndim, 0.);
+    iap.lib->scratch.ff2.assign(iap.ndim, 0.);
+    iap.lib->rotations.nrtn.assign(iap.nbc, 0);
 }

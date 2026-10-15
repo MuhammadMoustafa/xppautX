@@ -93,7 +93,7 @@ DiagramPointType get_bif_type(int ibr, int ntot, int lab)
   if(ibr>0&&ntot<0)type=STABLE_EQ;
   return(type);
 }
-void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int lab, double *a, double *uhigh, double *ulow, double *u0, double *ubar)
+void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int lab, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar)
 {
   xpp::Session &s=*iap->lib->session;
   int icp1=icp[0],icp2=icp[1],icp3=icp[2],icp4=icp[3];
@@ -101,32 +101,28 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   int n=iap->ndim;
   const DiagramPointType type=get_bif_type(ibrs,ntots,lab);
   /* xppautX: the point's stability, or zeros: not computed (auto_stability.h) */
-  std::vector<double> ev(2*static_cast<size_t>(n));
-  auto_stability_for(s.auto_state.stability,static_cast<int>(ibrs),static_cast<int>(ntots),n,ev.data(),ev.data()+n);
+  xpp::DIAGRAM p{};
+  p.size_variables(static_cast<size_t>(n));
+  auto_stability_for(s.auto_state.stability,static_cast<int>(ibrs),static_cast<int>(ntots),p.evr,p.evi);
 
   // Guard the final stored quantities too, including derived norms and spectra.
   if (!xpp::all_finite({par, static_cast<size_t>(iap->lib->parameter_count)}) ||
       !xpp::all_finite({a, 1}) || !xpp::all_finite({&per, 1}) ||
-      !xpp::all_finite({uhigh, static_cast<size_t>(n)}) ||
-      !xpp::all_finite({ulow, static_cast<size_t>(n)}) ||
-      !xpp::all_finite({u0, static_cast<size_t>(n)}) ||
-      !xpp::all_finite({ubar, static_cast<size_t>(n)}) || !xpp::all_finite(ev))
+      !xpp::all_finite(uhigh) || !xpp::all_finite(ulow) || !xpp::all_finite(u0) || !xpp::all_finite(ubar) ||
+      !xpp::all_finite(p.evr) || !xpp::all_finite(p.evi))
     auto_nonfinite(*iap, labs(ntots));
 
   int from=auto_run_from_take(s); /* the run's first point says which label it started from */
-  xpp::DIAGRAM p{};
   p.ibr=static_cast<int>(ibrs);
   p.ntot=static_cast<int>(ntots);
   p.itp=iap->itp;
   p.lab=lab;
   p.nfpar=static_cast<int>(iap->nfpr);
   p.norm=*a;
-  p.uhi=uhigh;
-  p.ulo=ulow;
-  p.u0=u0;
-  p.ubar=ubar;
-  p.evr=ev.data();
-  p.evi=ev.data()+n;
+  p.uhi.assign(uhigh.begin(),uhigh.end());
+  p.ulo.assign(ulow.begin(),ulow.end());
+  p.u0.assign(u0.begin(),u0.end());
+  p.ubar.assign(ubar.begin(),ubar.end());
   for(int k=0;k<iap->nfpr;k++){
     const int parameter=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[k]));
     if(parameter>=0 && parameter<s.model().nupar){
@@ -143,10 +139,10 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   p.jacobian=s.numerics.jacobian;
   diagram_record_branch(s,p);
   if(s.auto_state.diag_flag==0){
-    edit_start(s,p,n);
+    edit_start(s,p);
     s.auto_state.diag_flag=1;
   } else {
-    add_diagram(s,p,n);
+    add_diagram(s,p);
   }
   if(from)last_diagram(s.diagram)->from=from;
 

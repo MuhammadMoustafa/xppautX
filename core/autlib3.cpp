@@ -115,12 +115,12 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   if (ips == xpp::AutoProblem::DiscreteMap) {
     fnds(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
-	 iap->lib->scratch.dfu, iap->lib->scratch.dfp);
+	 iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
   } else {
     funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
-	 iap->lib->scratch.dfu, iap->lib->scratch.dfp);
+	 iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
   }
-  nlvc(iap->lib->fp9, ndm, ndm, 1, iap->lib->scratch.dfu, v.data());
+  nlvc(iap->lib->fp9, ndm, ndm, 1, iap->lib->scratch.dfu.data(), v.data());
   nrmlz(&ndm, v.data());
   for (i = 0; i < ndm; ++i) {
     u[ndm + i] = v[i];
@@ -263,7 +263,7 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffc2(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
+       iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
 
   if (ijac == 0) {
     return 0;
@@ -272,8 +272,8 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   xpp::auto_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffc2(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1.data(), iap->lib->scratch.uu2.data(), iap->lib->scratch.ff1.data(), iap->lib->scratch.ff2.data(),
+      [&](const doublereal *uu, doublereal *ff) { ffc2(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data()); },
       dfdu, dfdu_dim1);
 
   for (i = 0; i < ndim; ++i) {
@@ -386,7 +386,7 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   if (nfpr == 3) {
     funi(iap, rap, ndm, u, &uold, icp, par, 2, f.data(), 
-	 iap->lib->scratch.dfu, iap->lib->scratch.dfp);
+	 iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
     fopi(iap, rap, ndm, u, icp, par, 2, &fop, du.data(), 
 	 dp.data());
     /*       TRANSPOSE */
@@ -633,7 +633,7 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   s1 = xpp::math::sin(thta);
   c1 = xpp::math::cos(thta);
   funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
+       iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
 
   ndm2 = ndm * 2;
   for (i = 0; i < ndm2; ++i) {
@@ -782,7 +782,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   period = par[xpp::auto_unknown::period];
   rom = period / pi(2.0);
   funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
+       iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
 
   ndm2 = ndm * 2;
   for (i = 0; i < ndm2; ++i) {
@@ -1265,7 +1265,7 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
 
   funi(iap, rap, ndim, u.data(), &uold, icp, par, 1, f.data(), 
-       iap->lib->scratch.dfu, iap->lib->scratch.dfp);
+       iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
@@ -1326,8 +1326,8 @@ fnws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ndm2 = ndm / 2;
-  ffws(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ndm2, iap->lib->scratch.dfu, 
-       iap->lib->scratch.dfp);
+  ffws(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ndm2, iap->lib->scratch.dfu.data(), 
+       iap->lib->scratch.dfp.data());
 
   return 0;
 } /* fnws_ */
@@ -2568,7 +2568,7 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, f,
-       ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp);
+       ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
 
   if (ijac == 0) {
     return 0;
@@ -2577,14 +2577,14 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, iap->lib->scratch.ff1, iap->lib->scratch.ff2,
-      [&](const doublereal *uu, doublereal *ff) { ffpo(iap, rap, ndim, uu, uold, upold.data(), icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      ndim, ndim, u, iap->lib->scratch.uu1.data(), iap->lib->scratch.uu2.data(), iap->lib->scratch.ff1.data(), iap->lib->scratch.ff2.data(),
+      [&](const doublereal *uu, doublereal *ff) { ffpo(iap, rap, ndim, uu, uold, upold.data(), icp, par, ff, ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data()); },
       dfdu, dfdu_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, ff, ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
-      f, iap->lib->scratch.ff1, dfdp, dfdp_dim1, 0);
+      [&](doublereal *ff) { ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, ff, ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data()); },
+      f, iap->lib->scratch.ff1.data(), dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnpo_ */
@@ -2729,7 +2729,7 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Generate the function. */
 
   fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, 
-       udot, upold, f, dnt.data(), ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp);
+       udot, upold, f, dnt.data(), ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
 
   if (ijac == 0) {
     return 0;
@@ -2738,13 +2738,13 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Generate the Jacobian. */
 
   ep = xpp::auto_jacobian::central(
-      ndim, nint, u, iap->lib->scratch.uu1, iap->lib->scratch.uu2, f1.data(), f2.data(),
-      [&](const doublereal *uu, doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, uu, uold, udot, upold, ff, dnt.data(), ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      ndim, nint, u, iap->lib->scratch.uu1.data(), iap->lib->scratch.uu2.data(), f1.data(), f2.data(),
+      [&](const doublereal *uu, doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, uu, uold, udot, upold, ff, dnt.data(), ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data()); },
       dint, dint_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       nfpr, nint, icp, ep, par,
-      [&](doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dnt.data(), ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp); },
+      [&](doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dnt.data(), ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data()); },
       f, f1.data(), dint, dint_dim1, ndim);
 
   return 0;

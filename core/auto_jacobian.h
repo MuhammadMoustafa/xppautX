@@ -87,11 +87,11 @@ int problem(const iap_type *iap, const rap_type *rap, integer ndim,
             doublereal *dfdp, integer count, Eval eval) {
   const auto evaluate = [&](const doublereal *state, doublereal *value) {
     eval(iap, rap, ndim, state, uold, icp, par, value, iap->ndm,
-         iap->lib->scratch.dfu, iap->lib->scratch.dfp);
+         iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
   };
   return differentiate(ndim, ndim, u, icp, par, ijac, f, dfdu, dfdp,
-                       count, 0, iap->lib->scratch.uu1, iap->lib->scratch.uu2,
-                       iap->lib->scratch.ff1, iap->lib->scratch.ff2, evaluate);
+                       count, 0, iap->lib->scratch.uu1.data(), iap->lib->scratch.uu2.data(),
+                       iap->lib->scratch.ff1.data(), iap->lib->scratch.ff2.data(), evaluate);
 }
 
 // These formulations already supply their Jacobian.
@@ -101,7 +101,7 @@ int supplied(const iap_type *iap, const rap_type *rap, integer ndim,
              doublereal *par, integer ijac, doublereal *f, doublereal *dfdu,
              doublereal *dfdp, Eval eval) {
   eval(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp,
-       iap->ndm, iap->lib->scratch.dfu, iap->lib->scratch.dfp);
+       iap->ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
   return 0;
 }
 

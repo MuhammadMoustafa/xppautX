@@ -26,6 +26,7 @@
 
    auto_stability.cpp; nothing escapes it. */
 
+#include <span>
 #include <vector>
 
 #include "auto_codes.h"
@@ -41,7 +42,7 @@ enum AutoStabilityKind {
 };
 
 /* AUTO computed the stability of point pt of branch br (either sign):
-   n values, values[2k] + i values[2k+1] (AUTO's doublecomplex array).
+   values.size()/2 values, values[2k] + i values[2k+1] (AUTO's doublecomplex array).
    kind AUTO_STABILITY_STEADY: eigenvalues lambda, kept as e^lambda (inside
    the unit circle is stable, as for multipliers); AUTO_STABILITY_PERIODIC:
    Floquet multipliers, kept as they are. */
@@ -65,22 +66,22 @@ void auto_stability_step_start(AutoStability &st, int br, int pt);
 /* Returns whether the restored solution had a retained spectrum. */
 bool auto_stability_step_failed(AutoStability &st, int br, int pt);
 
-void auto_stability_computed(AutoStability &st, int br, int pt, int n, const double *values, AutoStabilityKind kind);
+void auto_stability_computed(AutoStability &st, int br, int pt, std::span<const double> values, AutoStabilityKind kind);
 
 /* A run starts; nothing computed before it belongs to its points. run: the
    kind it continues; isw: AUTO's ISW (-1 switches branches); label: the
    kind of the stored label it restarts from (AUTO_STABILITY_NONE: none),
-   label_itp its AUTO point type, evr/evi its n stored values. The run's first
+   label_itp its AUTO point type, evr/evi its stored values (equally many; none: no first point). The run's first
    point takes them if the run continues the label's own solution: same
    kind, steady or periodic, and not a period doubling's switch (the
    doubled orbit's multipliers are not the label's). Returns 1 if it does. */
-int auto_stability_run_start(AutoStability &st, AutoStabilityKind run, int isw, AutoStabilityKind label, AutoPointCode label_itp, int n,
-                             const double *evr, const double *evi);
+int auto_stability_run_start(AutoStability &st, AutoStabilityKind run, int isw, AutoStabilityKind label, AutoPointCode label_itp,
+                             std::span<const double> evr, std::span<const double> evi);
 
-/* the n values of point pt of branch br (either sign) into evr/evi:
+/* the values of point pt of branch br (either sign) into evr/evi (equally long, filling n = their size):
    1 if they are that point's (computed for it, or the first point of a
    same-kind restart), else 0 and zeros: not computed */
-int auto_stability_for(const AutoStability &st, int br, int pt, int n, double *evr, double *evi);
+int auto_stability_for(const AutoStability &st, int br, int pt, std::span<double> evr, std::span<double> evi);
 
 } // namespace xpp
 #endif

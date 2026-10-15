@@ -94,15 +94,15 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file);
    multipliers, auto_stability.h; zeros: not computed). Numbers as
    settings_text's, so a point reads back bit for bit. */
 /* model_parameters: the model's parameter count, which an AUTO unknown's file integer follows (auto_axis.h) */
-std::string diagram_csv(const std::deque<DiagramPoint> &points, int model_parameters, std::span<const std::string> vars);
+std::string diagram_csv(const std::deque<DIAGRAM> &points, int model_parameters, std::span<const std::string> vars);
 /* text's points, of n variables each, their arrays filled (the DIAGRAM
    pointers and index are diagram_restore's), the file named file; the
    error at the line that is not of a diagram of n variables and n_pars parameters */
-Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n, int n_pars, std::string file);
+Result<std::deque<DIAGRAM>> parse_diagram_csv(std::string_view text, int n, int n_pars, std::string file);
 
 /* Foreign diagram records, consuming exactly the declared last index + 1 points.
    The model parameter values seed immutable branch constants. */
-std::deque<DiagramPoint> read_foreign_diagram(Lines &lines, int n,
+std::deque<DIAGRAM> read_foreign_diagram(Lines &lines, int n,
     std::span<const int> imported, std::span<const double> parameters, int calc, int flag2, double torper);
 
 /* ---- this session's (xpp_session_auto_io.cpp) ---- */
@@ -117,7 +117,7 @@ Result<> add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, st
    restore_members: the solution file's bytes are the members' own */
 struct Members {
     AutoSettingsSet settings;
-    std::deque<DiagramPoint> points;
+    std::deque<DIAGRAM> points;
     SavedViews views;
     std::string_view solutions;
 };

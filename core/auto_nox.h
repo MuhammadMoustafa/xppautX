@@ -6,6 +6,7 @@
 #include <string_view>
 #include "xpplim.h"
 #include <array>
+#include <span>
 #include <vector>
 #include <memory>
 #include <functional>
@@ -93,7 +94,10 @@ struct DiagramBranch {
 typedef struct diagram {
   int ibr,ntot,lab,calc;
   AutoPointCode itp;
-  double norm,*uhi,*ulo,*u0,*ubar,*evr,*evi;
+  double norm;
+  /* the point's n variables' extremes, solution, norm and stability values
+     (auto_stability.h), all n long (size_variables) */
+  std::vector<double> uhi,ulo,u0,ubar,evr,evi;
   std::shared_ptr<const DiagramBranch> branch;
   std::vector<int> parameter_indices;
   std::vector<double> par; /* only the continued parameters */
@@ -103,6 +107,10 @@ typedef struct diagram {
   int flag2;
   int from; /* the label its run started from, on a run's first point (not saved in files) */
   int jacobian; /* how the run that computed it formed the Jacobian: JACOBIAN_DIFFERENCE or JACOBIAN_EXACT (jacobian.h, W278) */
+  /* the six arrays n long, zeroed: the one place a point's dimension is set */
+  void size_variables(std::size_t n){
+    for(std::vector<double> *v:{&uhi,&ulo,&u0,&ubar,&evr,&evi})v->assign(n,0.0);
+  }
 } DIAGRAM;
 
 /* a view of the diagram's axes (W50, AutoState::views): what it plots
@@ -159,7 +167,7 @@ void auto_zoom_in(Session &s, int i1, int j1, int i2, int j2);
 void auto_zoom_out(Session &s, int i1, int j1, int i2, int j2);
 /* where view ax plots a point: x, and y1 and y2 (the maximum and minimum,
    or y1 twice) */
-void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, double *uhigh, double *ulow, double *ubar, double a);
+void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> ubar, double a);
 /* the stored point d into the PostScript or SVG picture being written
    (type its get_bif_type, flag 0 for a branch's first point) */
 void add_ps_point(Session &s, const DIAGRAM &d, DiagramPointType type, int flag);

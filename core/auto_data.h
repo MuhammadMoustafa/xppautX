@@ -82,7 +82,7 @@ void auto_data_info(Session &s, const AutoDataInfo *info);
 
 /* the stability circle now shows these n values (evr + i evi); periodic:
    Floquet multipliers, else e^lambda of a steady state's eigenvalues */
-void auto_data_stab(Session &s, const double *evr, const double *evi, int n, int periodic);
+void auto_data_stab(Session &s, std::span<const double> evr, std::span<const double> evi, int periodic);
 
 /* send the event if it changed since the last one sent; final 0 (during a
    run) sends at most ten a second */

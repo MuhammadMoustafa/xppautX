@@ -127,7 +127,7 @@ void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
         return;
     }
     const auto branch=p->node>=0 && static_cast<std::size_t>(p->node)<s.diagram.points.size()
-        ? s.diagram.points[p->node].d.branch : std::shared_ptr<const DiagramBranch>();
+        ? s.diagram.points[p->node].branch : std::shared_ptr<const DiagramBranch>();
     if (d.replay) {
         if (d.match < d.n && diag_same(d,&d.dg[static_cast<std::size_t>(d.match)], p,d.branches[d.match],branch)) {
             d.branches[d.match]=branch;
@@ -201,7 +201,7 @@ void diag_run(const xpp::Session &s, Buf *b, const std::vector<XppDiagPoint> &dg
     /* A branch's complete constants, once at its first point, in model order.
        Continued point coordinates are resolved from this same stored branch. */
     if (p->newseg && p->node >= 0 && static_cast<std::size_t>(p->node) < s.diagram.points.size()) {
-        const DIAGRAM &point=s.diagram.points[p->node].d;
+        const DIAGRAM &point=s.diagram.points[p->node];
         BUF_LIT(b, ",\"parameters\":[");
         for (std::size_t index=0;index<point.branch->parameters.size();index++) {
             if(index)BUF_LIT(b,",");

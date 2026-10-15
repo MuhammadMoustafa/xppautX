@@ -164,13 +164,13 @@ void auto_data_info(Session &s, const AutoDataInfo *v)
     }
 }
 
-void auto_data_stab(Session &s, const double *evr, const double *evi, int n, int periodic)
+void auto_data_stab(Session &s, std::span<const double> evr, std::span<const double> evi, int periodic)
 {
     AutoDataShown &sh = s.auto_state.shown;
     if (sh.held > 0) return;
     try {
-        sh.stab_re.assign(evr, evr + (n > 0 ? n : 0));
-        sh.stab_im.assign(evi, evi + (n > 0 ? n : 0));
+        sh.stab_re.assign(evr.begin(), evr.end());
+        sh.stab_im.assign(evi.begin(), evi.end());
         sh.stab_periodic = periodic != 0;
         sh.has_stab = true;
     } catch (const std::bad_alloc &) {

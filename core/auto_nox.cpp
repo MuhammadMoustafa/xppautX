@@ -497,10 +497,10 @@ static void stability_run_start(xpp::Session &s)
 {
   const DIAGRAM *d=s.auto_state.bifur.irs>0?diagram_of_label(s,s.auto_state.bifur.irs):NULL;
   if(d==NULL){
-    auto_stability_run_start(s.auto_state.stability,run_stability_kind(s),s.auto_state.bifur.isw,AUTO_STABILITY_NONE,AutoPointCode{},0,NULL,NULL);
+    auto_stability_run_start(s.auto_state.stability,run_stability_kind(s),s.auto_state.bifur.isw,AUTO_STABILITY_NONE,AutoPointCode{},{},{});
     return;
   }
-  auto_stability_run_start(s.auto_state.stability,run_stability_kind(s),s.auto_state.bifur.isw,point_stability_kind(d),d->itp,s.model().node,d->evr,d->evi);
+  auto_stability_run_start(s.auto_state.stability,run_stability_kind(s),s.auto_state.bifur.isw,point_stability_kind(d),d->itp,d->evr,d->evi);
 }
 
 /* MAIN Running routine  Assumes that Auto structure is set up */
@@ -1023,7 +1023,7 @@ void auto_zoom_out(xpp::Session &s, int i1, int j1, int i2, int j2)
 
 } 
 
-void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, double *uhigh, double *ulow, double *ubar, double a)
+void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> ubar, double a)
 {
  /* a plot type none of the cases know leaves the point at (par1, 0) */
  *x=par1;
@@ -1073,7 +1073,7 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
   const auto parameters=diagram_parameters(d);
   const double *par=parameters.data();
   const double per=d.per,a=d.norm;
-  double *uhigh=d.uhi,*ulow=d.ulo,*ubar=d.ubar;
+  const std::span<const double> uhigh=d.uhi,ulow=d.ulo,ubar=d.ubar;
   const xpp::AutoAxis icp1=d.icp1,icp2=d.icp2;
   const int flag2=d.flag2;
   double x,y1,y2,par1,par2=0;
@@ -1181,9 +1181,9 @@ int auto_run_from_take(xpp::Session &s)
 
 /* the stability circle as data (auto_data.h): a stored point's values
    (auto_stability.h), whether AUTO is computing it or a grab is on it */
-static void show_stab(xpp::Session &s, const double *evr,const double *evi,int n,int periodic)
+static void show_stab(xpp::Session &s, std::span<const double> evr,std::span<const double> evi,int periodic)
 {
-  auto_data_stab(s,evr,evi,n,periodic);
+  auto_data_stab(s,evr,evi,periodic);
 }
 
 /* the colour colset() and colset2() give a point */
@@ -1345,7 +1345,7 @@ void add_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int flg
 {
   for(int v=0;v<static_cast<int>(s.auto_state.views.size());v++)
     view_point(s, v,s.auto_state.views[static_cast<std::size_t>(v)].axes,v==s.auto_state.active_view,d,type,flg);
-  show_stab(s, d.evr,d.evi,s.model().node,type==STABLE_PERIODIC||type==UNSTABLE_PERIODIC);
+  show_stab(s, d.evr,d.evi,type==STABLE_PERIODIC||type==UNSTABLE_PERIODIC);
   refreshdisplay(s);
 }
 
@@ -1380,7 +1380,7 @@ void new_info(xpp::Session &s, const DIAGRAM &d)
 
 void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
 {
-  double norm,per,*par,par1,par2=0,*evr,*evi;
+  double norm,per,*par,par1,par2=0;
   int pt,ibr,lab,flag2;
   xpp::AutoAxis icp1,icp2;
   AutoPointCode itp;
@@ -1402,10 +1402,7 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
   icp2=d->icp2;
   flag2=d->flag2;
   pt=d->ntot;
-  
-  evr=d->evr;
-  evi=d->evi;
- 
+
   symb=auto_point_symbol(itp);
  par1=par[icp1.index];
   if(icp2.is_parameter())par2=par[icp2.index];
@@ -1444,7 +1441,7 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
          circle with the old point when a step took over 0.1 s (autocheck
          under valgrind, W21) */
       auto_data_info(s,&ai);
-      show_stab(s, evr,evi,s.model().node,ibr<0);
+      show_stab(s, d->evr,d->evi,ibr<0);
     }
     if(lab>0 && s.auto_state.load_all_labeled_orbits>0)
       xpp::ok_or_show(load_auto_orbitx(s,ibr,1,lab,per));
@@ -2653,7 +2650,7 @@ struct ImportedAuto {
   xpp::AutoSettingsSet settings;
   int mark_count=0;
   std::vector<int> parameters;
-  std::deque<DiagramPoint> points;
+  std::deque<DIAGRAM> points;
   std::string solutions;
 };
 }
@@ -3038,7 +3035,7 @@ void find_point(xpp::Session &s, int ibr, int pt)
 	   /* now we use this info to set parameters and init data */
 	   for(i=0;i<s.model().node;i++)
 	     setvar(s,i+1,d->u0[i]);
-	   xpp::get_ic(s,0,d->u0);
+	   xpp::get_ic(s,0,d->u0.data());
 	   auto_set_pars_from(s, diagram_parameters(*d).data());
 	   xpp::evaluate_derived(s);
 	   xpp::ok_or_show(xpp::redo_all_fun_tables(s));

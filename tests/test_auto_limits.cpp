@@ -94,10 +94,10 @@ int main()
     CHECK(last && std::fabs(last->u0[399]-diagram_parameter(*last,39))<1e-8 && std::fabs(last->u0[0])<1e-8);
     const auto csv=xpp::snapx::auto_members::diagram_csv(s.diagram.points,s.model().nupar,{s.model().uvar_names.data(),401});
     const auto read=xpp::snapx::auto_members::parse_diagram_csv(csv,401,s.model().nupar,"limits.snapx/auto/diagram.csv");
-    CHECK(read && read->size()==4 && read->back().d.par==last->par);
+    CHECK(read && read->size()==4 && read->back().par==last->par);
     // Continue the tenth parameter as a model parameter, independently of AUTO's block.
     // Start from the equilibrium just computed, including the held fortieth parameter.
-    std::copy_n(last->u0,s.model().node,s.last_ic.begin());
+    std::copy_n(last->u0.begin(),s.model().node,s.last_ic.begin());
     set.par1="P9";
     CHECK(xpp::auto_settings_apply(s,set,why)==0);
     xpp::auto_start_diff_ss(s);

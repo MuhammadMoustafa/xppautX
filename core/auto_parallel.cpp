@@ -92,9 +92,9 @@ void AutoParallel::prepare(AutoLib &source, long ndim, long nbc) try {
         local.ndim = ndim;
         local.nbc = nbc;
         local.lib = lib.get();
-        if (lib->store.uu1.size() != static_cast<size_t>(ndim)) allocate_global_memory(local);
+        if (lib->scratch.uu1.size() != static_cast<size_t>(ndim)) allocate_global_memory(local);
         lib->homcont = source.homcont; // RHS wrappers read these; boundary updates stay serial.
-        lib->rotations = source.rotations; // RHS wrappers only read the rotation counts.
+        lib->rotations = source.rotations; // RHS wrappers only read the rotation counts (a copy of the vector, not a borrow of the source's).
         lib->pure_rhs = true;
         lib->rhs_constants = s.parser.constants;
         lib->rhs_variables = s.parser.variables;

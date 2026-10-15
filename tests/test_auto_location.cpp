@@ -202,7 +202,7 @@ int main()
         error.clear();
         try {
             xpp::addbif(&iap, &rap, 2, 1, par.data(), slots.data(), 0,
-                        &norm, &state, &state, &state, &state);
+                        &norm, std::span(&state, 1), std::span(&state, 1), std::span(&state, 1), std::span(&state, 1));
         } catch (const xpp::AutoFailed &e) { error = e.error.what; }
         CHECK(error == "Branch 1 point 2: nonfinite AUTO solution");
         CHECK(s.diagram.points.size() == count && s.auto_state.diag_flag == 0);

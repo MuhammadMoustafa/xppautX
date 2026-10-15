@@ -9,18 +9,12 @@
 #include <deque>
 #include <vector>
 
-/* a diagram point and the arrays its DIAGRAM entry points at */
-struct DiagramPoint {
-  xpp::DIAGRAM d{};
-  std::vector<double> uhi,ulo,u0,ubar,evr,evi;
-};
-
 /* AUTO's bifurcation diagram, a Session's (session.h): its points in the
    order they were stored, point i with index i (so next/prev are index
    +/- 1). A deque, so a point's address stays valid while points are
    added. */
 struct AutoDiagram {
-  std::deque<DiagramPoint> points;
+  std::deque<xpp::DIAGRAM> points;
 };
 
 namespace xpp { struct Session; /* session.h */ }
@@ -43,8 +37,8 @@ xpp::DIAGRAM *diagram_prev(AutoDiagram &diagram, const xpp::DIAGRAM *d);
    into the diagram: edit_start fills the first point in place with the
    run's flag2 (two_param), add_diagram appends it with p's; the kind of
    calculation and the torus period are the run's (s) */
-void edit_start(xpp::Session &s, const xpp::DIAGRAM &p, int n);
-void add_diagram(xpp::Session &s, const xpp::DIAGRAM &p, int n);
+void edit_start(xpp::Session &s, const xpp::DIAGRAM &p);
+void add_diagram(xpp::Session &s, const xpp::DIAGRAM &p);
 void kill_diagrams(xpp::Session &s);
 /* the entry add_diagram or edit_start made last */
 xpp::DIAGRAM *last_diagram(AutoDiagram &diagram);
@@ -64,9 +58,9 @@ void load_browser_with_branch(xpp::Session &s, int ibr, int pts, int pte);
 void export_auto_picture(xpp::Session &s, int fmt);
 void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, double *yhi);
 /* points, whole (a .snapx's diagram, xpp_session_auto.h), in place of the session
-   s's diagram: each point's DIAGRAM arrays and index set to its own, the
+   s's diagram: each point's index set, the
    first point filled in (DiagFlag); none is start_diagram's empty diagram */
-void diagram_restore(xpp::Session &s, std::deque<DiagramPoint> points);
+void diagram_restore(xpp::Session &s, std::deque<xpp::DIAGRAM> points);
 /* Resolve a model parameter (its Model index) of a point from its immutable branch constants and continued values. */
 double diagram_parameter(const xpp::DIAGRAM &point, int parameter);
 /* What a point's axis is worth: the model parameter's value, the point's period for the period, 0 for another
