@@ -235,9 +235,8 @@ u'=p-u
         settings.num[field] = number;
     }
     settings.nmarks = 2;
-    settings.mark_name[0] = settings.mark_name[1] = "p";
-    settings.mark_value[0] = 0.35;
-    settings.mark_value[1] = 0.3;
+    settings.mark_name = {"p", "p"};
+    settings.mark_value = {0.35, 0.3};
     std::string why;
     CHECK(xpp::auto_settings_apply(events_session, settings, why) == 0);
     xpp::auto_start_diff_ss(events_session);
