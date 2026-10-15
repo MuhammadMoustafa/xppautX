@@ -5,7 +5,6 @@
 #include "session.h"
 #include "stiff.h"
 #include "flags.h"
-#include "markov.h"
 #include "model.h"
 #include "solver.h"
 #include "xpp_math.h"
@@ -79,7 +78,6 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
   work2=dydx+nvar;
   x=x1;
   h=SIGN(h1,x2-x1);
-  set_wieners(s,*hguess,ystart,x1);
   *ier=0;
   for (i=0;i<nvar;i++) y[i]=ystart[i];
   for(nstp=1;nstp<=MAXSTP;nstp++){

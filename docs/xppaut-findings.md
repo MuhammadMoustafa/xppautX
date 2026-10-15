@@ -91,6 +91,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [58](#58-negative-total-help-and-storage-full-overwrite) | Integration | Negative Total still stores data and silently overwrites on failed growth | [W347](https://github.com/MuhammadMoustafa/xppautX/issues/408) |
 | [59](#59-dormand-prince-restarted-at-every-output-point) | Integration | DoPri5 and DoPri8(3) restart at every output point: no step longer than dt, so the adaptive methods run as fixed-step ones and the tolerance does not set the accuracy | [W377 / #439](https://github.com/MuhammadMoustafa/xppautX/issues/439) |
 | [60](#60-input-sized-writes-and-size-arithmetic) | Sweeps, expressions, delay, AUTO | unchecked row writes, fixed evaluation stacks and overflowing history/work sizes | [W386 / #448](https://github.com/MuhammadMoustafa/xppautX/issues/448) |
+| [61](#61-wiener-noise-is-silently-zero-or-has-wrong-variance-in-adaptive-methods) | Numerics | set_wieners is never called by DoPri5, CVODE, Gear or Rosenbrock, and called once per output interval with step guess by Stiff and QualRK | [W379 / #441](https://github.com/MuhammadMoustafa/xppautX/issues/441) |
 
 ## 1. Model options
 
@@ -1298,3 +1299,14 @@ indices. `tests/test_input_bounds.cpp` exercises growth and forced failure
 for both sweeps, a 301-deep expression, an unrepresentable delay/dt ratio,
 and AUTO arithmetic beyond 2^31 without a multi-gigabyte allocation.
 [W386 / #448](https://github.com/MuhammadMoustafa/xppautX/issues/448).
+
+## 61. Wiener noise is silently zero or has wrong variance in adaptive methods
+
+XPPAUT calls `set_wieners` ([markov.c:94](../reference/xppaut-8.0/markov.c#L94), [master 94](../reference/xppaut-master/markov.c#L94)) only in the fixed-step methods (Euler, Mod. Euler, Runge-Kutta, Adams, Backward Euler, Symplectic: [odesol2.c:130, 181, 222, 234, 266, 421](../reference/xppaut-8.0/odesol2.c#L130), [master 130, 181, 222, 234, 266, 421](../reference/xppaut-master/odesol2.c#L130); Volterra: [volterra2.c:342](../reference/xppaut-8.0/volterra2.c#L342), [master 342](../reference/xppaut-master/volterra2.c#L342)) and in `adaptive_step` ([stiff.c:115](../reference/xppaut-8.0/stiff.c#L115), [master 115](../reference/xppaut-master/stiff.c#L115)).
+
+In adaptive methods DoPri5, DoPri8(3), CVODE, Rosenbrock and Gear, `set_wieners` is never called at all: the Wiener parameters remain at their initial value (0) throughout the run, so noise is silently zero. In Stiff and QualRK, `set_wieners` is called once per output interval at `stiff.c:115` scaled by `*hguess` (the step size guess rather than the actual step), failing to draw noise for each of the intermediate adaptive steps and producing incorrect noise variance.
+
+- **XPPAUT 8.0:** cited above.
+- **Evidence:** `wiener w; x'=w`, total 10: Euler and RK4 end around -1.30 (noise present); DoPri5, CVODE and Gear end at 0.0 (noise silently zero); Stiff ends around -1.05 and QualRK around -0.55 (one draw per output interval scaled by step guess).
+- **xppautX:** a method that does not draw the noise once per step is refused in the core (`pick_method`/`check_method`, governed by trait `wiener` in `SolverTraits`); the window's numerics menu shows incompatible methods disabled with the reason, and `--server`, `--silent`, `--convert`, `.set` import or `@ meth=` show the error at its place.
+- **Card:** [W379 / #441](https://github.com/MuhammadMoustafa/xppautX/issues/441).

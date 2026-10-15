@@ -1380,7 +1380,7 @@ whole number of at least 1`): a number; `dt` not 0; the tolerances,
 fields at least 1; `jacobian` a name of `choices` (any case) or its number, one the
 model can have (`Numerics: Jacobian: exact is not available: WHY`); `method` a name of `choices` (any case) or its number, one
 the model can use (Volterra only for integral equations, and only it then;
-Symplectic only for an even dimension). W132 ([#184](https://github.com/MuhammadMoustafa/xppautX/issues/184))
+Symplectic only for an even dimension; methods that draw Wiener noise once per step for a model with Wiener noise, W379 [#441](https://github.com/MuhammadMoustafa/xppautX/issues/441); `unavailable` on `method` lists incompatible methods with the reason). W132 ([#184](https://github.com/MuhammadMoustafa/xppautX/issues/184))
 uses the same solver picker for the menu, values panel, model options and
 set import. A method refusal keeps the previous method; `@ method` rejects
 unknown or unsuitable methods at its file and line. Protocol numeric IDs

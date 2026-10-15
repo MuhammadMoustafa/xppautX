@@ -4498,11 +4498,54 @@ def check_method_refusal():
         check('W132: values panel refuses odd Symplectic and keeps Euler',
               any('even dimensions' in e.get('error', '') for e in evs)
               and next((f['value'] for f in fields if f['key'] == 'method'), None) == 1, str(evs))
+        m_field = next((f for f in fields if f['key'] == 'method'), {})
+        unav = m_field.get('unavailable', {})
+        check('W379: odd model has Symplectic and Volterra unavailable in numerics',
+              unav.get('Symplectic') == 'Symplectic is only for even dimensions'
+              and unav.get('Volterra') == 'Volterra only for integral eqns', str(unav))
     finally:
         p.stdin.close()
         p.wait(timeout=10 * SLOW)
         shutil.rmtree(r, ignore_errors=True)
-        shutil.rmtree(model_dir, ignore_errors=True)
+
+    wiener_model = os.path.join(model_dir, 'w.odex')
+    with open(wiener_model, 'w') as f:
+        f.write("wiener w\nx'=w\noptions { integration: { method: euler } }\n")
+    p, r, snd, col, _ = launch_server(ode=wiener_model)
+    try:
+        col(is_idle)
+        snd(cmd='data', events=['numerics'])
+        fields = next((e['fields'] for e in col(is_idle)[0] if e.get('ev') == 'numerics'), [])
+        mfield = next((f for f in fields if f['key'] == 'method'), {})
+        unav = mfield.get('unavailable', {})
+        reason = 'a model with Wiener noise requires a method that draws it each step'
+        check('W379: Wiener model marks adaptive methods unavailable with reason',
+              all(unav.get(m) == reason for m in ['Gear', 'QualRK', 'Stiff', 'CVode', 'DoPri5', 'DoPri8(3)', 'Rosenbrock'])
+              and 'Euler' not in unav and 'Runge-Kutta' not in unav, str(unav))
+        snd(cmd='set', kind='num', name='method', text='dopri5')
+        evs, _ = col(is_idle)
+        errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+        check('W379: set num method refuses DoPri5 on Wiener model',
+              len(errs) == 1 and ('Method: ' + reason) in errs[0], str(errs))
+    finally:
+        p.stdin.close()
+        p.wait(timeout=10 * SLOW)
+        shutil.rmtree(r, ignore_errors=True)
+
+    bad_wiener = os.path.join(model_dir, 'bad_w.odex')
+    with open(bad_wiener, 'w') as f:
+        f.write("wiener w\nx'=w\noptions { integration: { method: dopri5 } }\n")
+    run_silent = subprocess.run([os.path.abspath(args.server), bad_wiener, '--silent'], capture_output=True, text=True, cwd=model_dir, timeout=60 * SLOW)
+    check('W379: --silent refuses DoPri5 with Wiener noise at the line',
+          run_silent.returncode == 1 and 'bad_w.odex:3:27: the option `method=dopri5`: ' + reason in run_silent.stderr, run_silent.stderr)
+
+    bad_ode = os.path.join(model_dir, 'bad_w.ode')
+    with open(bad_ode, 'w') as f:
+        f.write("wiener w\nx'=w\n@ meth=dopri5\ndone\n")
+    run_conv = subprocess.run([os.path.abspath(args.server), bad_ode, '--convert'], capture_output=True, text=True, cwd=model_dir, timeout=60 * SLOW)
+    check('W379: --convert refuses DoPri5 with Wiener noise at the @ line',
+          run_conv.returncode == 1 and 'bad_w.ode:3: the option `meth=dopri5`: ' + reason in run_conv.stderr, run_conv.stderr)
+    shutil.rmtree(model_dir, ignore_errors=True)
 
 
 check_method_refusal()
