@@ -3076,21 +3076,31 @@ async function autoViews(dir) {
    (Sing pts, then Import), then File/Auto */
 async function openAutoAtFixedPoint() {
   await key('f');
-  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
+  if (!await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu'))
+    throw new Error('file menu did not open');
   await key('g');
   await menuKey('d');
-  await until('!s.busy', 'hopf set');
+  if (!await until("s.ask && s.ask.name === 'set_scope'", 'scope ask'))
+    throw new Error('set_scope ask did not appear');
+  await menuKey('a');
+  if (!await until('!s.busy', 'hopf set'))
+    throw new Error('hopf set did not finish');
   await key('s');
   await menuKey('g');
-  await until("s.ask && s.ask.kind === 'choice'", 'eigenvalues?');
+  if (!await until("s.ask && s.ask.kind === 'choice'", 'eigenvalues?'))
+    throw new Error('Print eigenvalues? choice did not appear');
   await menuKey('n');
-  await until('!s.busy', 'fixed point', 30000);
+  if (!await until('!s.busy', 'fixed point', 30000))
+    throw new Error('fixed point calculation did not complete');
   await cdp.eval(`__xpp.send({cmd: 'key', win: 'equilibrium', key: 'i'})`);
-  await until('!s.busy', 'import');
+  if (!await until('!s.busy', 'import'))
+    throw new Error('import equilibrium did not complete');
   await key('f');
-  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu 2');
+  if (!await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu 2'))
+    throw new Error('file menu did not open for auto');
   await key('a');
-  await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
+  if (!await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open'))
+    throw new Error('auto view did not open');
 }
 
 /* W102 (GitHub #151, the desktop window): a session saved with an AUTO diagram (a steady run, a
@@ -6377,21 +6387,7 @@ async function layoutCheck(dir) {
   await rendered();
 
   /* AUTO open, Back: Show AUTO in the flow, off the plot, the messages and the status bar */
-  await key('f');
-  await until('!s.busy', 'file menu');
-  await key('g');
-  await menuKey('d');
-  await until('!s.busy', 'hopf set');
-  await key('s');
-  await menuKey('g');
-  await until("s.ask && s.ask.kind === 'choice'", 'eigenvalues?');
-  await menuKey('n');
-  await until('!s.busy', 'fixed point', 30000);
-  await cdp.eval(`__xpp.send({cmd: 'key', win: 'equilibrium', key: 'i'})`);
-  await until('!s.busy', 'import');
-  await key('f');
-  await until('!s.busy', 'file menu');
-  await key('a');
+  await openAutoAtFixedPoint();
   check('layout: File/Auto opens the AUTO view', await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open'));
   await autoButton('R');
   await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu');
