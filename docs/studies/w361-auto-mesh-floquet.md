@@ -68,8 +68,6 @@ The final Floquet code is unchanged. Its shared SVD-deflated circuit-pencil
 method already agrees at the resolution of these references. This does not
 establish accuracy for arbitrary badly scaled pencils or a new infinite
 multiplier case. W369's eigenvalue-order-dependent stored period is untouched.
-The experiment scripts, per-candidate builds, diagrams and raw measures
-are in `build/w361/` for coordinator review (local, ignored).
 
 ## Attribution of the intentional diagram changes
 
@@ -132,32 +130,11 @@ every description; this card claims no measurable Floquet improvement.
 
 ## Validation
 
-All runs were sequential through `tools/heavy.sh`, in Git Bash with `python`:
+The intended change was written once with `tools/autocompare.py --update` (13 diagrams; one and
+automatic threads byte-identical); tests/examples.md5 is unchanged. `tests/test_auto_mesh.cpp`
+checks exact endpoints, increasing times, the density of a constant solution on a nonuniform mesh,
+the cancellation the density avoids, and that IPS 2 and IPS 12 adapt onto the same mesh.
 
-- UCRT GCC 16, `mingw32-make -j4 xppautx test BUILDDIR=build/ucrt WERROR=1`:
-  55 unit programs, 43,372 checks, zero failures and zero compiler warnings;
-  the new mesh test contributes 31 checks (`final-unit.log`).
-- `python tools/autocompare.py --bin ./xppautX.exe --update`: run exactly once;
-  13 diagrams updated, 31 checks passed, one/automatic threads byte-identical.
-- Full `--measures --table` before and after: 90 checks passed each, 40
-  descriptions, nine explicit skips, 5,936 points. Final measures and table
-  are identical to mesh-only (`before.log`, `mesh.log`, `after.log`).
-- `python tools/autocheck.py --server ./xppautX.exe`: 250 passed, one failed
-  on its existing 3-second stdin-EOF assertion (null device exited in 3.6 s).
-  Unchanged `input` section rerun: both checks passed. This is recorded as
-  **one flaky check**, not a clean first full pass. No timeouts or tests
-  were relaxed (`autocheck.log`, `autocheck-input-rerun.log`).
-- `tools/examples_check.sh --bin xppautX.exe`: 185 models, all 184 expected
-  outputs match the unchanged checksum file; ml-range has no output by design.
-- `python tools/findingscheck.py`: both findings files pass numbering checks.
-- `git diff --check`: clean. No background runs were started.
-
-Local raw evidence and experiment scripts are in `build/w361/`. The unit
-snapshot briefly caught a stale experimental object after source restoration
-preserved its old timestamp; rebuilding that object restored the original
-Floquet snapshot, without changing any expected digest.
-The coordinator runs the WSL source checks, WSL autocompare and ASan gates.
-No trust-boundary reader or input limit
-was changed. XPPAUT's IPS 12 endpoint-monitor omission is recorded as
-[finding 63](../xppaut-findings.md#63-wave-trains-use-nonperiodic-mesh-extrapolation);
-no AUTO-07p bug was found.
+XPPAUT never sets IPS 12 (its AUTO uses IPS 1, 2, 4, 9 and -1,
+[auto_nox.c](../../reference/xppaut-8.0/auto_nox.c)), so the IPS 12 change is not an XPPAUT
+finding; no AUTO-07p bug was found.
