@@ -9,6 +9,25 @@ names the translator, with XPPAUT's own glue in `auto_nox.c`, `autevd.c` and `au
 is part of `tools/autocompare.py` and runs on every push from committed files: neither program is
 installed in CI, nor vendored.
 
+## Mesh adaptation and measured Floquet candidates (W361, [#423](https://github.com/MuhammadMoustafa/xppautX/issues/423))
+
+Mesh redistribution now retains the EQDF monitor density and interpolates
+from the nearer time endpoint, preserving both endpoints exactly; IPS 12
+uses periodic derivative extension like IPS 2. This reimplements AUTO-07p
+0.9.4's method. The [W361 study](studies/w361-auto-mesh-floquet.md) gives
+before/after reference measures and attributes all 13 changed diagrams
+(nine periodic and four BVP/HomCont) to mesh, including the numerical deltas.
+All steady-state-only diagrams are unchanged.
+
+Three independent Floquet experiments measured permutation-only pencil
+balancing, the null-vector tolerance and the infinite-multiplier marker.
+None improved any reported reference measure; all were omitted. EISPACK
+and the existing SVD-deflated circuit-pencil path remain. All 151
+AUTO-07p quantities pass before and after, and the worst tolerance fraction
+is unchanged at 0.654 across all descriptions (0.296 over the nine periodic
+descriptions). Raw last-digit errors need not decrease monotonically; the
+study records the small increases too. W369 remains separate.
+
 ## Reduced equilibrium Hopf and structured fold curves (W363, [#425](https://github.com/MuhammadMoustafa/xppautX/issues/425))
 
 The ODE Hopf curve now uses Kuznetsov (10.80), reimplemented in C++ from
@@ -176,12 +195,12 @@ remain explicitly skipped). Tolerances and AUTO-07p reference files are unchange
 | exp | boundary: EP | agrees (1 points; par 0, norm 0) | not run |
 | frcp | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-12, norm 1e-13, period 2.1e-06, spectrum 0.00093) | agrees (2 points; par 5.2e-06, norm 4.6e-08, period 2.5e-12, spectrum 4.1e-06) |
 | lamom | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-18, norm 0, period 2e-11, spectrum 1e-14) | agrees (2 points; par 2.7e-16, norm 0, period 2e-11, spectrum 1e-14) |
-| lamom2 | steady: EP HB; cycles: LP | agrees (3 points; par 9.1e-13, norm 2.9e-12, period 2e-11, spectrum 3.8e-06) | agrees (3 points; par 6.8e-09, norm 4e-08, period 2e-11, spectrum 2.3e-08) |
+| lamom2 | steady: EP HB; cycles: LP | agrees (3 points; par 9.2e-13, norm 5.9e-12, period 2.6e-11, spectrum 3.8e-06) | agrees (3 points; par 6.8e-09, norm 4e-08, period 2.6e-11, spectrum 2.4e-08) |
 | lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.6e-06, period 0.0017, spectrum 0.0029) | agrees, 1 traced (3 points; par 5.5e-05, norm 4e-08, period 3.5e-09, spectrum 4.7e-08) |
 | lo | steady: EP HB; cycles: - | agrees (2 points; par 2.7e-18, norm 0, period 2e-11, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, period 2e-11, spectrum 2.5e-16) |
 | pen | steady: EP | agrees (1 points; par 0, norm 3.6e-12) | agrees (1 points; par 0, norm 4.9e-09) |
 | pf | steady: EP BP | agrees (2 points; par 2.7e-18, norm 0, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, spectrum 2.2e-16) |
-| pp2 | steady: EP HB BP; cycles: LP LP | agrees, 4 traced (3 points; par 1.8e-12, norm 3.3e-12, period 6.3e-11, spectrum 5e-07) | agrees, 1 traced (4 points; par 4.8e-08, norm 4.9e-07, period 2.2e-10, spectrum 2.9e-07) |
+| pp2 | steady: EP HB BP; cycles: LP LP | agrees, 4 traced (3 points; par 1.8e-12, norm 3.3e-12, period 6.3e-11, spectrum 5e-07) | agrees, 1 traced (4 points; par 4.8e-08, norm 4.9e-07, period 2.3e-10, spectrum 2.9e-07) |
 | san | steady: EP BP | agrees (2 points; par 2.4e-12, norm 2.8e-15, spectrum 1.3e-07) | agrees (2 points; par 1.7e-08, norm 4.1e-11, spectrum 1.3e-07) |
 | she | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | simplefold | steady: EP LP LP | agrees (3 points; par 4.8e-12, norm 4.5e-11, spectrum 8.6e-11) | agrees (3 points; par 2.1e-08, norm 4.3e-08, spectrum 2.7e-13) |

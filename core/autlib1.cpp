@@ -3450,7 +3450,8 @@ adapt(iap_type *iap, rap_type *rap, integer *nold, integer *ncold, integer *nnew
 
   /* For periodic boundary conditions extrapolate by periodicity. */
 
-  if (ips == xpp::AutoProblem::Periodic && f2c::abs(isw) != 2) {
+  if ((ips == xpp::AutoProblem::Periodic || ips == xpp::AutoProblem::WavePeriodic)
+      && f2c::abs(isw) != 2) {
     iper = 1;
   } else {
     iper = 0;
@@ -3568,12 +3569,12 @@ newmsh(iap_type *iap, rap_type *rap, integer *ndxloc, doublereal *ups, integer *
   integer ndim;
 
   integer j;
-  doublereal x;
   integer j1, noldp1, nnewp1;
   doublereal dal;
 
   std::vector<doublereal> uneq(xpp::size_sum(*nnew, 1));
   std::vector<doublereal> eqf(xpp::size_sum(*nold, 1));
+  std::vector<doublereal> density(*nold);
   std::vector<integer> ial(xpp::size_sum(*nnew, 1));
 
   /* Redistributes the mesh according to the function EQDF. */
@@ -3589,7 +3590,7 @@ newmsh(iap_type *iap, rap_type *rap, integer *ndxloc, doublereal *ups, integer *
 
   /* Put the values of the monotonely increasing function EQDF in EQF. */
 
-  eqdf(iap, rap, nold, &ndim, ncold, dtmold, ndxloc, ups, eqf.data(), 
+  eqdf(iap, rap, nold, &ndim, ncold, dtmold, ndxloc, ups, eqf.data(), density,
        iper);
 
   /* Uniformly divide the range of EQDF : */
@@ -3605,11 +3606,17 @@ newmsh(iap_type *iap, rap_type *rap, integer *ndxloc, doublereal *ups, integer *
 
 /* Generate the new mesh in TMNEW : */
 
-  for (j1 = 0; j1 < nnewp1; ++j1) {
+  // Keep the endpoints exact; recover distance from the nearer endpoint
+  // using EQDF's density, without subtracting accumulated monitor values.
+  tmnew[0] = tmold[0];
+  for (j1 = 1; j1 < *nnew; ++j1) {
     j = ial[j1];
-    x = (uneq[j1] - eqf[j - 1]) / (eqf[j] - eqf[j - 1]);
-    tmnew[j1] = (1. - x) * tmold[-1 + j] + x * tmold[j];
+    const doublereal left = uneq[j1] - eqf[j - 1];
+    const doublereal right = eqf[j] - uneq[j1];
+    tmnew[j1] = left <= right ? tmold[j - 1] + left / density[j - 1]
+                             : tmold[j] - right / density[j - 1];
   }
+  tmnew[*nnew] = tmold[*nold];
 
   return 0;
 } /* newmsh_ */
@@ -3681,7 +3688,7 @@ intwts(iap_type *iap, rap_type *rap, integer *n, doublereal *z__, doublereal *x,
 
 /*     ---------- ---- */
 /* Subroutine */ int 
-eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, doublereal *dtm, integer *ndxloc, doublereal *ups, doublereal *eqf, integer *iper)
+eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, doublereal *dtm, integer *ndxloc, doublereal *ups, doublereal *eqf, std::span<doublereal> density, integer *iper)
 {
   /* System generated locals */
   integer ups_dim1;
@@ -3730,6 +3737,7 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
     for (i = 0; i < *ntst + 1; ++i) {
       eqf[i] = static_cast<doublereal>(i);
     }
+    for (j = 0; j < *ntst; ++j) density[j] = 1. / dtm[j];
     return 0;
   }
 
@@ -3768,6 +3776,7 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
       doublereal tmp = f2c::abs(hd[j + i * (*ntst + 1)]);
       e += pow_dd(&tmp, &pwr);
     }
+    density[j] = e;
     eqf[j + 1] = eqf[j] + dtm[j] * e;
   }
   return 0;
