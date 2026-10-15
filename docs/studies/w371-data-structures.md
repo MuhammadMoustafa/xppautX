@@ -208,3 +208,72 @@ git grep -n -E "(lookup|find_|search)" core/
 
 ### Pack E: Diagram Point Memory Footprint (auto_nox, diagram)
 - **Card 11 (compact diagram point representation)**: `core/auto_nox.h`, `core/diagram.h`, `core/diagram.cpp`. Group or flatten 8 separate vectors per `DIAGRAM` point, reducing diagram heap allocations by 8x.
+
+---
+
+## 5. Review (coordinator, 2026-10-15)
+
+Each finding was checked against the code at ba6ba38d. What changed:
+
+**Missed: fixed C arrays that a long formula overflows (now card W372, the most valuable result).**
+`add_expr` (core/expr_compile.cpp:485) writes its program into a caller's
+`int *` without a size: core/expr.h:74 promises "at most MAXEXPLEN ints",
+but `alg_to_rpn` (expr_compile.cpp:240) checks neither that nor its own
+`tokstak[500]` and `loopstk[100]`. Several callers pass stack arrays smaller
+than MAXEXPLEN: tabular.cpp:281 `command[200]` (a table's formula, read
+from the .ode), histogram.cpp:203 and flags.cpp:163 `command[256]`,
+markov.cpp:222 `com[256]`, dae_fun.cpp:73 `f[256]`, browse_data.cpp:524
+`com[200]`, xpp_util.cpp:220 `com[400]`. Tried on the master build
+(xppautX.exe of 2026-10-14, --silent): a table formula of 120 terms
+(`table w % 11 0 10 0.001+...`) ends in a segmentation fault, a right-hand
+side of 1500 terms ends with exit 127 and no output, and 20 terms run
+normally. The other fixed arrays left from XPPAUT: stiff.cpp:123
+`indx[700]` (finding 3 below), do_fit.cpp:412 `ipivot[1000]`,
+markov.cpp:50 `st[50]` (a chain of more than 50 states reads past it),
+markov.cpp:323 `r[1000]` (more than 1000 reactions), xAuto.h:26 `icp[100]`,
+xpp_util.cpp:521 `plot_list[10]` (bounded by its `max`: fine). W243 lifted
+the named limits but not these; they are XPPAUT's own (the same arrays in
+reference/xppaut-8.0, e.g. stiff.c:161), so W372 also records them in
+docs/xppaut-findings.md.
+
+**Associative and linked structures: fine.** Every `std::map`/`set`/
+`unordered_map` in core/ is built at load or conversion (expr_derivative,
+expr_native, form_ode, odex_convert, odex_import, auto_nox.cpp:2642's
+labels): none is read per step. There are no hand-written linked lists:
+the `.next(...)` calls are tokenizers' (simplenet, lunch-new, ode_read).
+A run reads the model through indices (the compiled programs), never by
+name.
+
+**Verdicts on the findings above.**
+- 1 (`lookupxy`, linear search): real, `std::lower_bound` gives the same
+  interval only if the x column is increasing, which tabular.cpp:41 states
+  but nothing checks: the card checks it at load (all or nothing, an error
+  with the file and line) before searching by halves (W373). Measure a
+  1000-point xyvals table first.
+- 2 (`sgefa`, stride lda): real; each entry gets the same single update
+  per pivot in either loop order, so the bits stay (no FMA, -ffp-contract=
+  off). Gain only for large n (a 100-variable stiff model); most models
+  have n < 20. Measure with callgrind's cache simulation before changing
+  (W374, with `sgesl`).
+- 3 (stiff `indx[700]`): real, a stack overflow for n > 700; part of W372.
+- 4 (stiff's setup loop): real but a copy of n*n per try; folded into W372
+  since it touches the same lines.
+- 5, 6-pivot, 8, 9 (per-call allocations in `entries()`, `step_eul`, the
+  threaded `conpar` log, `solvbv`/`brbd`): real, but `entries()` runs only
+  with the exact Jacobian (autpp.cpp:45, cv2.cpp:42), not AUTO's default,
+  and the others are a few allocations per Newton step against conpar's
+  O(NTST*NDIM^3). One card measures malloc's share per workload (W358
+  measured 4.6% in py_s1bf, cause not traced) and hoists only what shows
+  (W375).
+- 6-`jac_store`, 7 (Volterra `memory`), 10 (diagram points), 11
+  (`yderv_store`), 12 (`FixedPointList`): no card. They are built once per
+  run, or their loop is dominated by evaluating a formula per entry
+  (volterra2.cpp:176-185); flattening them makes the code longer for no
+  measured gain (YAGNI).
+- Not in the study: `fnhbae`'s selection sort by real part (autlib1.cpp) is
+  O(n^2) beside `eig`'s O(n^3) and fixes the order of tied eigenvalues the
+  stored spectrum depends on: fine.
+
+**Cards:** W372 (fixed arrays, a long formula; trust boundary: a .ode a user
+was sent), W373 (xyvals), W374 (sgefa/sgesl), W375 (per-step allocations).
+W374 and W375 measure first and stop with a note if the gain is under 1%.
