@@ -52,12 +52,6 @@ enum class From {
     arrival  /* both queues, the older line first (sequence order) */
 };
 
-/* What a push answers when the normal queue is full: the client's error
-   for `line` (NUL-terminated), as one event line. It stores the event in
-   *reply when the caller wants it (HTTP's 503 body), else sends it to the
-   client itself. It runs on the pushing thread with no inbox lock held,
-   and must not touch core state. */
-void set_busy(void (*busy)(const char *line, std::string *reply));
 /* The core's command loop tells how many lines (and bytes) it keeps for
    after the command that runs, since they count against the bound. */
 void set_kept(size_t lines, size_t bytes);
@@ -85,8 +79,13 @@ bool consume_save(int ask, std::string_view path);
    must not touch core state or call back into the inbox. The pushing
    thread may hold its own locks (xpp_http.cpp's) while it runs. The line
    is NUL-terminated (the protocol's JSON reader takes a C string).
-   nullptr restores the default: everything normal. */
-void set_classifier(Verdict (*cls)(const char *line, unsigned long seq));
+   nullptr restores the default: everything normal.
+   busy(line, reply) is what a push answers when the normal queue is full:
+   the client's error for `line`, as one event line, stored in *reply when
+   the caller wants it (HTTP's 503 body), else sent to the client. It runs
+   on the pushing thread with no inbox lock held, and must not touch core
+   state. */
+void set_hooks(Verdict (*cls)(const char *line, unsigned long seq), void (*busy)(const char *line, std::string *reply));
 
 /* End of input: once both queues are drained, next() says Took::end. */
 void close();

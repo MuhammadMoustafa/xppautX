@@ -93,16 +93,10 @@ int pick(xpp::inbox::From which)
 
 namespace xpp::inbox {
 
-void set_classifier(Verdict (*cls)(const char *line, unsigned long seq))
+void set_hooks(Verdict (*cls)(const char *line, unsigned long seq), void (*busy)(const char *line, std::string *reply))
 {
     pthread_mutex_lock(&push_lock);
     classify = cls;
-    pthread_mutex_unlock(&push_lock);
-}
-
-void set_busy(void (*busy)(const char *line, std::string *reply))
-{
-    pthread_mutex_lock(&push_lock);
     busy_hook = busy;
     pthread_mutex_unlock(&push_lock);
 }

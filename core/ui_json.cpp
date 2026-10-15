@@ -1031,8 +1031,7 @@ void install(bool silent)
     session.autosettings.init(data_emit);
     session.autoview.init(data_emit);
     xpp::numerics_settings_init(data_emit);
-    xpp::inbox::set_classifier(classify);
-    xpp::inbox::set_busy(busy);
+    xpp::inbox::set_hooks(classify, busy);
     xpp::job::set_compute_hook(send_computing);
     XppUi ui = json_ui;
     if (silent) {
