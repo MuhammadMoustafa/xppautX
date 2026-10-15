@@ -8699,7 +8699,7 @@ def check_recursive_user_functions():
                   len(errors) == 1 and errors[0].get('line') == 3
                   and 'probe' in errors[0].get('file', '')
                   and errors[0].get('source') == 'fun f(x) = f(x)+1'
-                  and "user function 'f' is recursive" in errors[0].get('error', '').lower(),
+                  and "user function 'f' nests deeper than" in errors[0].get('error', '').lower(),
                   str(errors))
         finally:
             s.close()
@@ -8708,7 +8708,7 @@ def check_recursive_user_functions():
                                     cwd=folder, capture_output=True, text=True, timeout=30 * SLOW)
         check('W387: direct recursion in --silent mode exits 1 with placed error and no segfault',
               res_silent.returncode == 1 and 'probe.odex:3' in res_silent.stderr
-              and "user function 'f' is recursive" in res_silent.stderr.lower(),
+              and "user function 'f' nests deeper than" in res_silent.stderr.lower(),
               f'rc={res_silent.returncode}, stderr={res_silent.stderr}')
 
         # 2. Mutual recursion: f(x)=g(x), g(x)=f(x), x1'=-f(x1)
@@ -8724,7 +8724,7 @@ def check_recursive_user_functions():
             check('W387: mutual recursion in server mode stops with one placed error',
                   len(errors) == 1 and 'mutual' in errors[0].get('file', '')
                   and errors[0].get('line') in (3, 4)
-                  and "is recursive" in errors[0].get('error', '').lower(),
+                  and "nests deeper than" in errors[0].get('error', '').lower(),
                   str(errors))
         finally:
             s.close()
@@ -8733,7 +8733,7 @@ def check_recursive_user_functions():
                                     cwd=folder, capture_output=True, text=True, timeout=30 * SLOW)
         check('W387: mutual recursion in --silent mode exits 1 with placed error',
               res_mutual.returncode == 1 and 'mutual.odex:' in res_mutual.stderr
-              and "is recursive" in res_mutual.stderr.lower(),
+              and "nests deeper than" in res_mutual.stderr.lower(),
               f'rc={res_mutual.returncode}, stderr={res_mutual.stderr}')
 
         # 3. Preserves stored rows before recursion error:
@@ -8749,12 +8749,32 @@ def check_recursive_user_functions():
             errors = [e for e in evs if e.get('error')]
             state = next((e for e in reversed(evs) if e.get('ev') == 'state'), {})
             check('W387: recursion stops run and preserves stored rows',
-                  len(errors) == 1 and 'recursive' in errors[0].get('error', '').lower()
+                  len(errors) == 1 and 'nests deeper than' in errors[0].get('error', '').lower()
                   and state.get('rows', 0) >= 5, f'errors={errors}, rows={state.get("rows")}')
         finally:
             s.close()
 
-        # 4. Terminating recursion: examples/ode/test.odex (factorial) loads and runs
+        # 4. What no caller takes is shown when the command ends (ui_json.cpp):
+        # the direction field's grid stops at the first call nested too deep
+        field = os.path.join(folder, 'field.odex')
+        with open(field, 'w') as f:
+            f.write("fun f(x) = f(x)+1\nx' = -f(x)\ny' = x\n"
+                    "options { plot: { xp: x, yp: y, xlo: -1, xhi: 1, ylo: -1, yhi: 1 } }\n")
+        s = Server(args.server, field)
+        try:
+            s.collect(is_idle)
+            s.send(cmd='key', key='d')
+            evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'd'},
+                                             'string': lambda e: {'value': '10'},
+                                             'number': lambda e: {'value': '10'}})
+            errors = [e for e in evs if e.get('error')]
+            check('W387: a direction field nested too deep shows one placed error when the command ends',
+                  len(errors) == 1 and errors[0].get('line') == 1
+                  and 'nests deeper than' in errors[0].get('error', ''), str(errors))
+        finally:
+            s.close()
+
+        # 5. Terminating recursion: examples/ode/test.odex (factorial) loads and runs
         test_odex = os.path.abspath('examples/ode/test.odex')
         s = Server(args.server, test_odex)
         try:

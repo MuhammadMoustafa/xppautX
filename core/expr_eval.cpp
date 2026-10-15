@@ -243,7 +243,8 @@ double eval_rpn(const int *equat, xpp::Session &s)
             }
             if(st.ufun_depth>=MAX_UFUN_DEPTH){
               stop_integration(s,Error{"evaluation",
-                  xpp::format("user function '{}' is recursive",s.model().ufun_names[in]),
+                  xpp::format("user function '{}' nests deeper than {} calls",
+                              s.model().ufun_names[in],MAX_UFUN_DEPTH),
                   model_place(s.model(),s.model().ufun_names[in])});
               st.nargs-=i;
               restore();

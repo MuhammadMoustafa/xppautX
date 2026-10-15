@@ -898,6 +898,10 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     } else if (const CommandInfo *e = command_of(line)) {
         record_begin(line);
         e->run(*s, line);
+        /* an evaluation's failure no caller took (W387: user functions
+           nested too deep in the flow, a plot, a formula) is shown once,
+           and the next command starts clean */
+        if (s->integrator.step_error) xpp::show_error(xpp::take_step_error(*s).error());
     } else {
         std::string c;
         if (get_string(line, "cmd", c)) j_command_error("command", xpp::format("Unknown command {}", c));

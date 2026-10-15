@@ -9,7 +9,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
-- A user function that recurses without end stops the run with its file and line, keeping already-stored rows (W387, [#449](https://github.com/MuhammadMoustafa/xppautX/issues/449)).
+- A user function that recurses without end stops the run past 256 nested calls with its file and line, keeping the rows already stored; recursion that ends (XPPAUT's ode/test.ode factorial) still runs (W387, [#449](https://github.com/MuhammadMoustafa/xppautX/issues/449)).
 
 - Stop ends what used to run to the end once started: an equilibrium or shooting sweep (Stop no longer skips only the current point), nullclines and a range of them, the flow, fitting, a histogram of pairwise differences, a fixed-step method's steps between output points and the delay history; what was computed is kept (W388, [#450](https://github.com/MuhammadMoustafa/xppautX/issues/450)).
 

@@ -297,7 +297,6 @@ void new_nullcline(xpp::Session &s, int course, float xlo, float ylo, float xhi,
   s.nullcline_state.saver=&stor;
   do_cline(s,course,xlo,ylo,xhi,yhi);
   *npts=s.nullcline_state.num_index;
-  if(s.integrator.step_error)xpp::show_error(take_step_error(s).error());
 }
 
 void do_range_clines(xpp::Session &s)
@@ -382,6 +381,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
   const bool suppress=dump!=nullptr;
   xpp::get_ic(s,2,y.data());
   get_max_dfield(s,y.data(),ydot.data(),u0,v0,du,dv,grid,inx,iny,&mdf);
+  if(s.integrator.step_error)return;
   if(!suppress&&(s.nullclines.df_flag==1||s.nullclines.df_flag==4))
     phase_data_dfield_begin(s,grid+1,du,dv,s.nullcline_state.dfield_type==0,s.plot_windows.current->color[0]);
   xpp::image_group(s, true, true);

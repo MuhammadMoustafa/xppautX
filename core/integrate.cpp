@@ -1515,12 +1515,9 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings)
   return {};
 }
 
-/* the failure a step's delay or DAE solve recorded (step_error), which
-   ends the integration; the next one starts clean, the DAE solve
-   afresh */
 std::unexpected<xpp::Error> take_step_error(xpp::Session &s)
 {
-  xpp::Error e = s.integrator.step_error ? std::move(*s.integrator.step_error) : xpp::Error{};
+  xpp::Error e=std::move(*s.integrator.step_error);
   s.integrator.step_error.reset();
   reset_dae(s);
   return std::unexpected(std::move(e));

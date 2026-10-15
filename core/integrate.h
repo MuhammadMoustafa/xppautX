@@ -247,9 +247,13 @@ Result<int> integrate(Session &s, double *t, double *x, double tend, double dt, 
 /* shooting's integration over the whole interval (drawn as it runs when
    ishow, where a failure only ends the curve), or the method's failure */
 Result<> ode_int(Session &s, double *y, double *t, int *istart, int ishow);
-/* a delay out of range in a step: records why (the first), and the
-   integration ends after the step and returns it */
+/* a step or an evaluation that cannot go on (a delay out of range, a DAE
+   solve, user functions nested past MAX_UFUN_DEPTH): records why (the
+   first); the integration ends after the step and returns it, and what
+   no caller takes the command shows when it ends (ui_json.cpp) */
 void stop_integration(Session &s, Error why);
+/* the recorded failure, cleared, so the next run starts clean (and the
+   DAE solve afresh) */
 std::unexpected<Error> take_step_error(Session &s);
 /* the curve from x (shoot: from xg along evec, the side sgn), bounds
    unchecked, or the error it failed with */
