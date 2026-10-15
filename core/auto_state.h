@@ -19,6 +19,7 @@
 #include "xAuto.h"
 #include "xpp_io.h"
 #include "xpp_error.h"
+#include "xpp_math.h"
 
 #include <algorithm>
 #include <array>
@@ -192,6 +193,27 @@ namespace xpp {
 struct Session; /* session.h */
 }
 
+/* solvbv's matrices and index arrays, kept from one call to the next: a
+   call with *ifst == 1 sizes (and zeroes) them with resize, later ones reuse
+   what it factored (autlib2.cpp). resize states every dimension once
+   (autlib2.cpp, where the Fortran's NAX, M1AA ... macros were); the four
+   matrices setubv fills are handed out as bounded views, made again for each
+   call, so none outlives a resize or a copy of the work. */
+struct SolvbvWork {
+  std::vector<double> a,b,c,d,a1,a2,s1,s2,bb,cc,faa;
+  std::vector<long> icf,irf,ipr,icf1,icf2;
+  /* for ndim variables, ncol collocation points, ntst intervals, nbc
+     boundary conditions, nint integral constraints and up to parameters
+     continuation parameters */
+  void resize(long ndim, long ncol, long ntst, long nbc, long nint, long parameters);
+  /* the Fortran A (nca x nra x ntst), B (ncb x nra x ntst), C (nca x nrc x
+     ntst) and D (ncb x nrc), whose leading dimensions are those of the call */
+  xpp::Matrix3<double> a_matrix(long nca, long nra, long ntst) { return {a, nca, nra, ntst}; }
+  xpp::Matrix3<double> b_matrix(long ncb, long nra, long ntst) { return {b, ncb, nra, ntst}; }
+  xpp::Matrix3<double> c_matrix(long nca, long nrc, long ntst) { return {c, nca, nrc, ntst}; }
+  xpp::Matrix<double> d_matrix(long ncb, long nrc) { return {d, ncb, nrc}; }
+};
+
 struct AutoLib {
   /* the Session whose run this is, from go_go_auto until the run ends:
      how the translated routines, which reach this through their
@@ -237,10 +259,7 @@ struct AutoLib {
   /* solvbv's matrices, kept from one call to the next: a call with
      *ifst == 1 sizes (and zeroes) them, later ones reuse what it
      factored (autlib2.cpp) */
-  struct {
-    std::vector<double> a,b,c,d,a1,a2,s1,s2,bb,cc,faa;
-    std::vector<long> icf,irf,ipr,icf1,icf2;
-  } solvbv;
+  SolvbvWork solvbv;
   /* the homoclinic continuation's (HomCont's) common blocks
      (autlib5.cpp): its settings, the projections, the equilibria's
      eigenvalues and vectors, and their previous values */

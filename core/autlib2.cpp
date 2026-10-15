@@ -9,6 +9,30 @@
 #include "auto_c.h"
 #include "xpp_job.h" /* xppautX: cancel */
 
+/* The sizes follow the Fortran's macros: nrow = ndim*ncol (rows of A),
+   nclm = nrow + ndim (its columns), nrc = nbc + nint + 1 (rows of C and D),
+   and each array holds ntst + 1 mesh intervals (the last is a spare). */
+void SolvbvWork::resize(long ndim, long ncol, long ntst, long nbc, long nint, long parameters)
+{
+  const long nrow = ndim * ncol, nclm = nrow + ndim, nrc = nbc + nint + 1, nodes = ntst + 1;
+  a.assign(nclm * nrow * nodes, 0.);
+  b.assign(parameters * nrow * nodes, 0.);
+  c.assign(nclm * nrc * nodes, 0.);
+  d.assign(nrc * parameters, 0.);
+  a1.assign(ndim * ndim * nodes, 0.);
+  a2.assign(ndim * ndim * nodes, 0.);
+  s1.assign(ndim * ndim * nodes, 0.);
+  s2.assign(ndim * ndim * nodes, 0.);
+  bb.assign(ndim * parameters * nodes, 0.);
+  cc.assign(nrc * ndim * nodes + 1, 0.);
+  faa.assign(ndim * nodes, 0.);
+  icf.assign(nclm * nodes, 0);
+  irf.assign(nrow * nodes, 0);
+  ipr.assign(ndim * nodes, 0);
+  icf1.assign(ndim * nodes, 0);
+  icf2.assign(ndim * nodes, 0);
+}
+
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -49,63 +73,9 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   std::vector<doublereal> ft(iap->ndim * iap->ncol * (iap->ntst + 1));
 
    if (*ifst==1){
-    /* The formulas used for the allocation are somewhat complex, but they
-       are based on following macros (the space after the first letter is 
-       for the scripts which detect these things automatically, the original
-       name does not have the space:
-       
-       M 1AAR =  (((iap->ndim * iap->ncol ) + iap->ndim ) )      
-       M 2AA  =	((iap->ndim * iap->ncol ) )                     
-       N AX   =	(iap->ntst /NODES+1)                            
-       M 1BB  =	(iap->lib->parameter_count)
-       M 2BB  =	((iap->ndim * iap->ncol ) )                     
-       M 1CC  =	((((iap->ndim * iap->ncol ) + iap->ndim ) ) )   
-       M 2CC  =	(((iap->ndim +3) +NINTX+1) )                    
-       M 1DD  =	(((iap->ndim +3) +NINTX+1) )                    
-       M 2DD  =	(iap->lib->parameter_count)
-       N RCX  =	((iap->ndim +3) +NINTX+1)                       
-       N CLMX =	((iap->ndim * iap->ncol ) + iap->ndim )         
-       N ROWX =	(iap->ndim * iap->ncol )                        
-    */
-
-    /*(M 1AAR*M 2AA*N AX) */
-    iap->lib->solvbv.a.assign(((((iap->ndim * iap->ncol ) + iap->ndim ) ) * 
-								 ((iap->ndim * iap->ncol ) ) * 
-								 (iap->ntst +1) ), 0.); 
-    /*(M 1BB*M 2BB*N AX)*/ 
-    iap->lib->solvbv.b.assign(((iap->lib->parameter_count) * ((iap->ndim * iap->ncol ) ) * (iap->ntst +1) ) , 0.);
-    /*(M 1CC*M 2CC*N AX)*/ 
-    iap->lib->solvbv.c.assign((((((iap->ndim * iap->ncol ) + iap->ndim ) ) ) * 
-								   ((iap->nbc +iap->nint+1) ) * (iap->ntst +1) ), 0.);
-    /*(M 1DD*M 2DD)*/ 
-    iap->lib->solvbv.d.assign((((iap->nbc +iap->nint+1) ) * (iap->lib->parameter_count) ) , 0.);
-    /*(iap->ndim * iap->ndim *N AX)*/ 
-    iap->lib->solvbv.a1.assign((iap->ndim * iap->ndim * (iap->ntst +1) ) , 0.);
-    /*(iap->ndim * iap->ndim *N AX)*/ 
-    iap->lib->solvbv.a2.assign((iap->ndim * iap->ndim * (iap->ntst +1) ), 0.); 
-    /*(iap->ndim * iap->ndim *N AX)*/ 
-    iap->lib->solvbv.s1.assign((iap->ndim * iap->ndim * (iap->ntst +1) ), 0.); 
-    /*(iap->ndim * iap->ndim *N AX)*/ 
-    iap->lib->solvbv.s2.assign((iap->ndim * iap->ndim * (iap->ntst +1) ), 0.); 
-    /*(iap->ndim *N PARX*N AX)*/ 
-    iap->lib->solvbv.bb.assign((iap->ndim *iap->lib->parameter_count* (iap->ntst +1) ) , 0.);
-    /*(N RCX* iap->ndim *N AX+1)*/ 
-    iap->lib->solvbv.cc.assign(((iap->nbc + iap->nint + 1) * iap->ndim * (iap->ntst  + 1) + 1), 0.);
-
-    /*(iap->ndim *N AX)*/ 
-    iap->lib->solvbv.faa.assign((iap->ndim * (iap->ntst +1) ) , 0.);
-
-    /*(N CLMX*N AX)*/ 
-    iap->lib->solvbv.icf.assign((((iap->ndim * iap->ncol ) + iap->ndim ) * (iap->ntst +1) ) , 0);
-    /*(N ROWX*N AX)*/ 
-    iap->lib->solvbv.irf.assign(((iap->ndim * iap->ncol ) * (iap->ntst +1) ) , 0);
-    /*(iap->ndim *N AX)*/ 
-    iap->lib->solvbv.ipr.assign((iap->ndim * (iap->ntst +1) ) , 0);
-    /*(iap->ndim *N AX)*/ 
-    iap->lib->solvbv.icf1.assign((iap->ndim * (iap->ntst +1) ), 0);
-    /*(iap->ndim *N AX)*/ 
-    iap->lib->solvbv.icf2.assign((iap->ndim * (iap->ntst +1) ), 0); 
-     } 
+    /* the arrays are sized (and zeroed) in one place, SolvbvWork::resize */
+    iap->lib->solvbv.resize(iap->ndim, iap->ncol, iap->ntst, iap->nbc, iap->nint, iap->lib->parameter_count);
+  }
 
   ndim = iap->ndim;
   ips = iap->ips;
@@ -126,7 +96,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   if (*ifst == 1) {
     setubv(ndim, ips, ntst, ncol, nbc, nint, nfpr, nrc, nrow, nclm,
 	   funi, bcni, icni, *ndxloc, iap, rap, par, icp, 
-	   *rds, iap->lib->solvbv.a.data(), iap->lib->solvbv.b.data(), iap->lib->solvbv.c.data(), iap->lib->solvbv.d.data(), ft.data(), fc, rlcur, 
+	   *rds, iap->lib->solvbv.a_matrix(nclm, nrow, ntst), iap->lib->solvbv.b_matrix(nfpr, nrow, ntst), iap->lib->solvbv.c_matrix(nclm, nrc, ntst), iap->lib->solvbv.d_matrix(nfpr, nrc), ft.data(), fc, rlcur, 
 	   rlold, rldot, ups, uoldps, udotps, upoldp, dups, 
 	   dtm, thl, thu, p0, p1);
   } else {
@@ -139,12 +109,8 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 
   if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0; /* xppautX: cancel */
 
-  brbd(*iap->lib, iap->lib->fp9, iap->lib->solvbv.a.data(), iap->lib->solvbv.b.data(), iap->lib->solvbv.c.data(), iap->lib->solvbv.d.data(), ft.data(), fc, p0, p1,
-       ifst, &iid, nllv, &det, &ndim, &ntst, &nbc, &nrow, &nclm, &nfpr, &
-       nrc, iap->lib->solvbv.a1.data(), iap->lib->solvbv.a2.data(), iap->lib->solvbv.bb.data(), 
-       iap->lib->solvbv.cc.data(), iap->lib->solvbv.faa.data(), iap->lib->solvbv.s1.data(), iap->lib->solvbv.s2.data(), 
-       iap->lib->solvbv.ipr.data(), iap->lib->solvbv.icf1.data(), iap->lib->solvbv.icf2.data(), 
-       iap->lib->solvbv.irf.data(), iap->lib->solvbv.icf.data());
+  brbd(*iap->lib, iap->lib->fp9, ft.data(), fc, p0, p1,
+       ifst, &iid, nllv, &det, &ndim, &ntst, &nbc, &nrow, &nclm, &nfpr, &nrc);
   
   faft(ft.data(), fa, &ntst, &nrow, ndxloc);
 
@@ -363,8 +329,15 @@ setrhs(integer *ndim, xpp::AutoProblem *ips, integer *na, integer *ncol, integer
 
 /*     ---------- ---- */
 /* Subroutine */ int 
-brbd(AutoLib &lib, FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *faa, doublereal *s1, doublereal *s2, integer *ipr, integer *icf1, integer *icf2, integer *irf, integer *icf)
+brbd(AutoLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc)
 {
+  /* the matrices and index arrays solvbv sized and kept in lib.solvbv */
+  SolvbvWork &work = lib.solvbv;
+  doublereal *a = work.a.data(), *b = work.b.data(), *c = work.c.data(), *d = work.d.data();
+  doublereal *a1 = work.a1.data(), *a2 = work.a2.data(), *bb = work.bb.data(), *cc = work.cc.data();
+  doublereal *faa = work.faa.data(), *s1 = work.s1.data(), *s2 = work.s2.data();
+  integer *ipr = work.ipr.data(), *icf1 = work.icf1.data(), *icf2 = work.icf2.data();
+  integer *irf = work.irf.data(), *icf = work.icf.data();
 
   std::vector<doublereal> e((*nov + *nrc)*(*nov + *nrc));
   std::vector<doublereal> fcc((*nov + *nrc) + (2*(*nov)*(*nov))+1);

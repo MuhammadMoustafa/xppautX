@@ -22,7 +22,8 @@
 
    Everything below is C++ in namespace xpp (W109a; the parser's function
    table holds some of these as plain function pointers). None of them
-   throws. */
+   throws, but a view's constructor (Matrix, Matrix3) when its span is too
+   short. */
 
 #include "../third_party/core-math/core_math.h"
 
@@ -30,6 +31,7 @@
 #include <array>
 #include <cstdint>
 #include <span>
+#include <stdexcept>
 #include <string>
 
 namespace xpp {
@@ -177,6 +179,50 @@ int sgefa_det_sign(const double *a, int lda, int n, const int *ipvt);
 int bandfac(double *a, int ml, int mr, int n);
 void bandsol(double *a, double *b, int ml, int mr, int n);
 void eigenvalues(int n, double *a, double *ev, double *work, int *ierr);
+
+/* ---- column-major views (W334): the layout of AUTO's Fortran arrays ----
+   Matrix(i,j) is data[i + j*dim1] and Matrix3(i,j,k) data[i + (j + k*dim2)*dim1],
+   the index ARRAY2D and ARRAY3D (auto_f2c.h) compute, so a loop keeps its
+   order and a sum its operation order. The dimensions are stated once, where
+   the view is made, from the span that must hold them (std::length_error
+   when it is shorter: the owner's allocation is checked against the
+   caller's dimensions there); an index stays inside them, as a Fortran
+   array's did, unchecked in the hot loops. A view borrows its span: it
+   dies with the storage and is made again after the storage is resized,
+   moved or restored. T may be const (an input). */
+template <class T> class Matrix {
+public:
+    Matrix() = default;
+    Matrix(std::span<T> storage, std::ptrdiff_t dim1, std::ptrdiff_t dim2)
+        : data_(storage.data()), dim1_(dim1), dim2_(dim2) {
+        if (dim1 < 0 || dim2 < 0 || static_cast<std::size_t>(dim1) * static_cast<std::size_t>(dim2) > storage.size())
+            throw std::length_error("a matrix view larger than its storage");
+    }
+    T &operator()(std::ptrdiff_t i, std::ptrdiff_t j) const { return data_[i + j * dim1_]; }
+    std::ptrdiff_t dim1() const { return dim1_; }
+    std::ptrdiff_t dim2() const { return dim2_; }
+private:
+    T *data_ = nullptr;
+    std::ptrdiff_t dim1_ = 0, dim2_ = 0;
+};
+
+template <class T> class Matrix3 {
+public:
+    Matrix3() = default;
+    Matrix3(std::span<T> storage, std::ptrdiff_t dim1, std::ptrdiff_t dim2, std::ptrdiff_t dim3)
+        : data_(storage.data()), dim1_(dim1), dim2_(dim2), dim3_(dim3) {
+        if (dim1 < 0 || dim2 < 0 || dim3 < 0 ||
+            static_cast<std::size_t>(dim1) * static_cast<std::size_t>(dim2) * static_cast<std::size_t>(dim3) > storage.size())
+            throw std::length_error("a matrix view larger than its storage");
+    }
+    T &operator()(std::ptrdiff_t i, std::ptrdiff_t j, std::ptrdiff_t k) const { return data_[i + (j + k * dim2_) * dim1_]; }
+    std::ptrdiff_t dim1() const { return dim1_; }
+    std::ptrdiff_t dim2() const { return dim2_; }
+    std::ptrdiff_t dim3() const { return dim3_; }
+private:
+    T *data_ = nullptr;
+    std::ptrdiff_t dim1_ = 0, dim2_ = 0, dim3_ = 0;
+};
 
 /* ---- small helpers ----
    sign: Fortran's SIGN, |a| with the sign of b (b >= 0: +|a|). */

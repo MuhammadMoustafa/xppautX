@@ -17,10 +17,10 @@ struct setubv_parallel_arglist {
   rap_type *rap; /*array input size: NRAP*/
   doublereal  *par; /* two parameter_count halves */
   integer *icp; /* two parameter_count halves */
-  doublereal *aa; /*array output (but must be initialized to 0) size: *nca X *nra X *na */
-  doublereal *bb; /*array output (but must be initialized to 0) size: *ncb X *nra X *na */
-  doublereal *cc; /*array output (but must be initialized to 0) size: *nca X *nrc X *na */
-  doublereal *dd; /*array output (but must be initialized to 0) size: *ncb X *nrc */
+  xpp::Matrix3<doublereal> aa; /*output (but must be initialized to 0) nca X nra X na */
+  xpp::Matrix3<doublereal> bb; /*output (but must be initialized to 0) ncb X nra X na */
+  xpp::Matrix3<doublereal> cc; /*output (but must be initialized to 0) nca X nrc X na */
+  xpp::Matrix<doublereal> dd; /*output (but must be initialized to 0) ncb X nrc */
   doublereal *fa; /*array output (but must be initialized to 0) size: *nra X *na */
   doublereal *fc; /*array output (but must be initialized to 0) size: *nrc */
   doublereal *ups; /*array input size: *ndxloc X (*ndim X *ncol) */
@@ -48,8 +48,8 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
 void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol,
 					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca,
 					 FUNI_TYPE((*funi)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par,
-					 integer *icp, doublereal *aa, doublereal *bb,
-					 doublereal *cc, doublereal *dd, doublereal *fa, doublereal *fc, doublereal *ups,
+					 integer *icp, xpp::Matrix3<doublereal> aa, xpp::Matrix3<doublereal> bb,
+					 xpp::Matrix3<doublereal> cc, xpp::Matrix<doublereal> dd, doublereal *fa, doublereal *fc, doublereal *ups,
 					 doublereal *uoldps, doublereal *udotps,
 					 doublereal *upoldp, doublereal *dtm,
 					 doublereal *wp, doublereal *wt, doublereal *wi,
@@ -60,9 +60,9 @@ void setubv_make_aa_bb(const setubv_parallel_arglist *larg)
 {
   integer i,j,k,l,l1,ib,ic,jj,jp1,ic1,ib1;
   doublereal dt,ddt;
-  doublereal *ups=larg->ups,*uoldps=larg->uoldps,*aa=larg->aa,*bb=larg->bb,*wp=larg->wp,*wt=larg->wt;
+  doublereal *ups=larg->ups,*uoldps=larg->uoldps,*wp=larg->wp,*wt=larg->wt;
+  const xpp::Matrix3<doublereal> aa=larg->aa,bb=larg->bb;
   const integer ups_dim1=larg->ndxloc,uoldps_dim1=larg->ndxloc;
-  const integer aa_dim1=larg->nca,aa_dim2=larg->nra,bb_dim1=larg->ncb,bb_dim2=larg->nra;
   const integer dfdu_dim1=larg->ndim,dfdp_dim1=larg->ndim;
   const integer wploc_dim1=larg->ncol+1,wp_dim1=larg->ncol+1,wt_dim1=larg->ncol+1;
   std::vector<doublereal> dfdp(larg->ndim*larg->iap->lib->parameter_count),dfdu(larg->ndim*larg->ndim);
@@ -111,15 +111,15 @@ void setubv_make_aa_bb(const setubv_parallel_arglist *larg)
 	double wploc_tmp=ARRAY2D(wploc, ib, ic);
 	ib1 = ib * larg->ndim;
 	for (i = 0; i < larg->ndim; ++i) {
-	  ARRAY3D(aa, ib1 + i, ic1 + i, jj) = wploc_tmp;
+	  aa(ib1 + i, ic1 + i, jj) = wploc_tmp;
 	  for (k = 0; k < larg->ndim; ++k) {
-	    ARRAY3D(aa, ib1 + k, ic1 + i, jj) -= wt_tmp * ARRAY2D(dfdu, i, k);
+	    aa(ib1 + k, ic1 + i, jj) -= wt_tmp * ARRAY2D(dfdu, i, k);
 	  }
 	}
       }
       for (i = 0; i < larg->ndim; ++i) {
 	for (k = 0; k < larg->ncb; ++k) {
-	  ARRAY3D(bb, k, ic1 + i,  jj) = -ARRAY2D(dfdp, i, larg->icp[k]);
+	  bb(k, ic1 + i,  jj) = -ARRAY2D(dfdp, i, larg->icp[k]);
 	}
       }
     }
@@ -152,8 +152,7 @@ void dispatch_mesh(const setubv_parallel_arglist *larg,
 void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 {
   /* System generated locals */
-  integer cc_dim1,
-    cc_dim2, ups_dim1,
+  integer ups_dim1,
     uoldps_dim1, udotps_dim1, upoldp_dim1,
     dbc_dim1, dicd_dim1;
 
@@ -170,7 +169,7 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
   doublereal *udotps = larg->udotps;
   doublereal *uoldps = larg->uoldps;
 
-  doublereal *cc = larg->cc;
+  const xpp::Matrix3<doublereal> cc = larg->cc;
 
   std::vector<doublereal> dicd((larg->nint)*(larg->ndim + larg->iap->lib->parameter_count));
   std::vector<doublereal> ficd(larg->nint);
@@ -189,9 +188,6 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
   ups_dim1 = larg->ndxloc;
   dicd_dim1 = larg->nint;
   dbc_dim1 = larg->nbc;
-
-  cc_dim1 = larg->nca;
-  cc_dim2 = larg->nrc;
 
   dispatch_mesh(larg,setubv_make_aa_bb);
 
@@ -213,10 +209,10 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 	  This needs to split up.  Only the first processor does the first part
 	  and only the last processors does the last part.*/
 	if(larg->loop_offset + larg->loop_start == 0) {
-	  ARRAY3D(cc, k, i, 0) = ARRAY2D(dbc, i, k);
+	  cc(k, i, 0) = ARRAY2D(dbc, i, k);
 	}
 	if(larg->loop_offset + larg->loop_end == larg->na) {
-	  ARRAY3D(cc, larg->nra + k, i, larg->na-1 - larg->loop_offset) = 
+	  cc(larg->nra + k, i, larg->na-1 - larg->loop_offset) = 
 	    ARRAY2D(dbc ,i , larg->ndim + k);
 	}
       }
@@ -253,7 +249,7 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 	for (m = 0; m < larg->nint; ++m) {
 	  for (i = 0; i < larg->ndim; ++i) {
 	    k1 = k * larg->ndim + i;
-	    ARRAY3D(cc, k1, larg->nbc + m, jj) = 
+	    cc(k1, larg->nbc + m, jj) = 
 	      larg->dtm[j] * larg->wi[k ] * ARRAY2D(dicd, m, i);
 	  }
 	}
@@ -265,11 +261,11 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
     for (i = 0; i < larg->ndim; ++i) {
       for (k = 0; k < larg->ncol; ++k) {
 	k1 = k * larg->ndim + i;
-	ARRAY3D(cc, k1 , larg->nrc - 1, jj) = 
+	cc(k1 , larg->nrc - 1, jj) = 
 	  larg->dtm[jj] * larg->thu[i] * larg->wi[k] * 
 	  ARRAY2D(udotps, jj + larg->loop_offset, k1);
       }
-      ARRAY3D(cc, larg->nra + i, larg->nrc -1, jj) = 
+      cc(larg->nra + i, larg->nrc -1, jj) = 
 	larg->dtm[jj] * larg->thu[i] * larg->wi[larg->ncol] * 
 	ARRAY2D(udotps, jj + 1 + larg->loop_offset, i);
     }
@@ -283,14 +279,11 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 int 
 setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
        FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
-       doublereal rds, doublereal *aa, doublereal *bb, doublereal *cc, doublereal *dd, doublereal *fa, doublereal *fc, doublereal *rlcur, 
+       doublereal rds, xpp::Matrix3<doublereal> aa, xpp::Matrix3<doublereal> bb, xpp::Matrix3<doublereal> cc, xpp::Matrix<doublereal> dd, doublereal *fa, doublereal *fc, doublereal *rlcur, 
        doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, 
        doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
 {
   /* System generated locals */
-  integer aa_dim1, aa_dim2, bb_dim1, bb_dim2, cc_dim1,
-    cc_dim2, dd_dim1;
-
   /* Local variables */
   integer i, j, k;
 
@@ -299,17 +292,6 @@ setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc
   std::vector<doublereal> wp((ncol)*(ncol+1));
   std::vector<doublereal> wt((ncol)*(ncol+1));
 
-  dd_dim1 = ncb;
-  
-  bb_dim1 = ncb;
-  bb_dim2 = nra;
-  
-  cc_dim1 = nca;
-  cc_dim2 = nrc;
-  
-  aa_dim1 = nca;
-  aa_dim2 = nra;
-
   wint(ncol + 1, wi.data());
   genwts(ncol, ncol + 1, wt.data(), wp.data());
   
@@ -317,7 +299,7 @@ setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc
   for (i = 0; i < nrc; ++i) {
     fc[i] = 0.;
     for (k = 0; k < ncb; ++k) {
-      ARRAY2D(dd, k, i) = 0.;
+      dd(k, i) = 0.;
     }
   }
 
@@ -331,17 +313,17 @@ setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc
   for (i = 0; i < na; ++i) {
     for (j = 0; j < nra; ++j) {
       for (k = 0; k < nca; ++k) {
-	ARRAY3D(aa, k, j, i) = 0.;
+	aa(k, j, i) = 0.;
       }
     }
     for (j = 0; j < nra; ++j) {
       for (k = 0; k < ncb; ++k) {
-	ARRAY3D(bb, k, j, i) = 0.;
+	bb(k, j, i) = 0.;
       }
     }
     for (j = 0; j < nca; ++j) {
       for (k = 0; k < nrc; ++k) {
-	ARRAY3D(cc, j, k, i) = 0.;
+	cc(j, k, i) = 0.;
       }
     }
   }
@@ -452,8 +434,7 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
 
   integer dups_dim1 = larg.ndxloc;
   
-  doublereal *dd = larg.dd;
-  integer dd_dim1 = larg.ncb;
+  const xpp::Matrix<doublereal> dd = larg.dd;
 
   doublereal *ups = larg.ups;
   integer ups_dim1 = larg.ndxloc;
@@ -492,7 +473,7 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
     for (i = 0; i < larg.nbc; ++i) {
       larg.fc[i] = -fbc[i];
       for (k = 0; k < larg.ncb; ++k) {
-	ARRAY2D(dd, k, i) = 
+	dd(k, i) = 
 	  ARRAY2D(dbc, i, (larg.ndim *2) + larg.icp[k]);
       }
     }
@@ -532,7 +513,7 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
 	for (m = 0; m < larg.nint; ++m) {
 	  larg.fc[larg.nbc + m] -= larg.dtm[j] * larg.wi[k] * ficd[m];
 	  for (i = 0; i < larg.ncb; ++i) {
-	    ARRAY2D(dd, i, larg.nbc + m) += 
+	    dd(i, larg.nbc + m) += 
 	      larg.dtm[j] * larg.wi[k] * ARRAY2D(dicd, m, larg.ndim + larg.icp[i]);
 	  }
 	}
@@ -541,7 +522,7 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
   }
 
   for (i = 0; i < larg.ncb; ++i) {
-    ARRAY2D(dd, i, (larg.nrc-1)) = larg.thl[larg.icp[i]] * larg.rldot[i];
+    dd(i, (larg.nrc-1)) = larg.thl[larg.icp[i]] * larg.rldot[i];
   }
 
   rlsum = 0.;
@@ -559,8 +540,8 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
 void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol, 
 					 integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
 					 FUNI_TYPE((*funi)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, 
-					 integer *icp, doublereal *aa, doublereal *bb, 
-					 doublereal *cc, doublereal *dd, doublereal *fa, doublereal *fc, doublereal *ups, 
+					 integer *icp, xpp::Matrix3<doublereal> aa, xpp::Matrix3<doublereal> bb, 
+					 xpp::Matrix3<doublereal> cc, xpp::Matrix<doublereal> dd, doublereal *fa, doublereal *fc, doublereal *ups, 
 					 doublereal *uoldps, doublereal *udotps, 
 					 doublereal *upoldp, doublereal *dtm, 
 					 doublereal *wp, doublereal *wt, doublereal *wi,

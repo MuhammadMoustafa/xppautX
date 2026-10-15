@@ -8,6 +8,7 @@
 #include <functional>
 #include "auto_f2c.h"
 #include "auto_codes.h"
+#include "xpp_math.h" /* xpp::Matrix, Matrix3 */
 
 namespace xpp { class TokenReader; struct AutoSolutionHeader; }
 
@@ -244,7 +245,7 @@ PVLI_TYPE_BVP(pvlsbv);
 int solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *rds, integer *nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu);
 int faft(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *ndxloc);
 int setrhs(integer *ndim, xpp::AutoProblem *ips, integer *na, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1);
-int brbd(AutoLib &lib, FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *faa, doublereal *s1, doublereal *s2, integer *ipr, integer *icf1, integer *icf2, integer *irf, integer *icf);
+int brbd(AutoLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc);
 int setzero(doublereal *fa, doublereal *fc, integer *na, integer *nra, integer *nrc);
 int conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *nbc, integer *nrc, doublereal *c, doublereal *fa, doublereal *fc, integer *irf, integer *icf);
 int copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, integer *irf);
@@ -396,7 +397,7 @@ int conpar(AutoLib &lib, integer *nov, integer *na, integer *nra, integer *nca, 
 /* setubv2.cpp */
 int setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
 	   FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
-	   doublereal rds, doublereal *aa, doublereal *bb, doublereal *cc, doublereal *dd, doublereal *fa, doublereal *fc, doublereal *rlcur, 
+	   doublereal rds, xpp::Matrix3<doublereal> aa, xpp::Matrix3<doublereal> bb, xpp::Matrix3<doublereal> cc, xpp::Matrix<doublereal> dd, doublereal *fa, doublereal *fc, doublereal *rlcur, 
 	   doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, 
 	   doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1);
 /* gogoauto.cpp */
