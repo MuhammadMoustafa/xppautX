@@ -513,14 +513,14 @@ jobs:
         with:
           msystem: CLANG64
           packages-file: .github/msys2-clang64-packages.txt
-      - name: "Build xppautX with clang (WERROR=1)"
+      - name: "Build xppautX with clang (WERROR default)"
         id: build
         run: |
           clang --version | head -1
-          mingw32-make -j4 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
+          mingw32-make -j4 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++
       - name: "Unit tests (linked with clang++ and libc++, test binaries linked in parallel)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: mingw32-make -j4 test BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
+        run: mingw32-make -j4 test BUILDDIR=build/clang CC=clang CXX=clang++
       - name: Headless run matches Linux (ignoring line ends)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |

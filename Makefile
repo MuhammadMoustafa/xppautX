@@ -76,28 +76,17 @@ NETLIBS  = -lpthread
 endif
 
 # clang (Apple's on macOS; MSYS2's CLANG64 toolchain on Windows, W23:
-# clang, libc++, lld, compiler-rt): the -Werror names below it does not
-# know are gcc's alone, and libc++ wants webview in C++17 (below)
+# clang, libc++, lld, compiler-rt): libc++ wants webview in C++17 (below)
 CLANG := $(if $(findstring clang,$(shell $(CC) --version 2>/dev/null)),1)
-GCC_ONLY_WERROR := -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict   -Werror=stringop-overflow -Werror=aggressive-loop-optimizations -Werror=use-after-free
-
-# Every warning category gcc 13 ever reported here is fixed; WERROR=1 (what
-# tools/verify.sh builds with) makes them errors so none comes back. Not the
-# default: another compiler (clang on macOS, a newer gcc) may not know these
-# names or may warn where gcc 13 does not, and must still build.
+# WERROR=1 (the default, W401): every warning the build enables is an error,
+# so none comes back (W386's labs truncation reached master as a clang
+# warning no gate failed on). WERROR=0 turns it off, for a compiler we do not
+# test, and is what tools/warnings.sh builds with to count warnings. A
+# vendored object that warns is silenced per object, never here.
+WERROR ?= 1
 ifeq ($(WERROR),1)
-WERROR_FLAGS = -Werror=unused-result -Werror=format-overflow -Werror=unused-variable   -Werror=misleading-indentation -Werror=unused-but-set-variable -Werror=format-security   -Werror=maybe-uninitialized -Werror=stringop-truncation -Werror=restrict -Werror=format   -Werror=tautological-compare -Werror=stringop-overflow   -Werror=aggressive-loop-optimizations -Werror=use-after-free -Werror=array-bounds   -Werror=format-truncation   -Werror=unused-macros -Werror=unused-but-set-parameter
-ifeq ($(CLANG),1)
-WERROR_FLAGS := $(filter-out $(GCC_ONLY_WERROR),$(WERROR_FLAGS))
-endif
-STRICT += $(WERROR_FLAGS)
-CXXSTRICT += $(WERROR_FLAGS)
-# C++ only: a string literal given as char * (W27's conversions)
-CXXSTRICT += -Werror=write-strings
-# C++ only: an unnamed struct a typedef names for linkage (W382: a867ade3's
-# case, which only the release's gcc 16 saw); gcc 16 and clang know the
-# warning, gcc 15 refuses its name, so the compiler is asked first
-CXXSTRICT += $(shell echo | $(CXX) -x c++ -fsyntax-only -Werror=non-c-typedef-for-linkage - >/dev/null 2>&1 && echo -Werror=non-c-typedef-for-linkage)
+STRICT += -Werror
+CXXSTRICT += -Werror
 endif
 
 # tools/deadcode.sh: every global in a section of its own, so a C tentative

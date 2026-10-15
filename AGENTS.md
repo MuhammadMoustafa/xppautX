@@ -63,7 +63,7 @@ The sections below give the details.
 | An array's size has one source: a size the input can exceed (a formula's length, a model's variables, states, reactions or parameters, the curves or windows a user adds) is a `std::vector` sized once from the input, outside the hot loop, never per step; a size the method fixes (256 colours, 4 interpolation points, 3 axes) is a `std::array` of a named constant; a function that writes into a fixed array checks its own bound, never trusting its caller's count (maintainer, 2026-10-15; W371 found a .ode whose 120-term table formula overflowed `command[200]`, W372, #434) | review; asancheck |
 | C++ API: `extern "C"` only where C really calls in (W109) | externcheck |
 | A memory or thread error is fixed, never suppressed | asancheck (with UBSan), tsancheck |
-| Builds with 0 warnings on WSL gcc 15, UCRT gcc 16 and clang | `WERROR=1` builds (UCRT and clang64 on each merged tip: gcc 16 alone flags a discarded `std::expected`, clang alone a namespace self-alias) |
+| Builds with 0 warnings on WSL gcc 15, UCRT gcc 16 and clang | `WERROR` is on by default: every build passes `-Werror`, so any warning of any compiler fails it (W401; `WERROR=0` is for a compiler we do not test and for `tools/warnings.sh`'s count; a vendored object that warns is silenced per object in the Makefile, with its reason); the merged tip is built with UCRT and clang64 too (gcc 16 alone flags a discarded `std::expected`, clang alone a namespace self-alias) |
 | Numerics change only on purpose, and are the same on every CPU, system and compiler: `xpp::math`'s correctly rounded functions, never the C library's, and no FMA contraction (W159) | examples md5s (one baseline, every platform), goldencheck, odexcheck, mathcheck |
 | What is ours and what is XPPAUT's is recorded as it changes, so it never needs a review from the beginning (maintainer, 2026-10-01): a card that changes what a user meets adds its line under Unreleased in CHANGELOG.md (W149), one that changes what an XPPAUT user meets (new, changed, removed, a limit lifted) updates its row in docs/xppautx-vs-xppaut.md (W148), one that fixes a bug of XPPAUT's own adds its entry to docs/xppaut-findings.md (below); each with its card | review (at merge) |
 | Tests check data, never pixels, and never pass or fail on machine speed (W58); a check waits for a condition, never for a time (maintainer, 2026-10-02: a sleep is not a synchronisation): a sleep in a check is only the poll interval inside a wait for a condition, or a lower bound proving something does not happen, its reason beside it | review; sleepcheck (W166) |
@@ -79,7 +79,7 @@ side by side there stalled. Commit, then run the build and every check
 from WSL's own copy with `tools/wslrun.sh`, from Git Bash in the
 checkout (the main one or a worktree):
 
-    tools/wslrun.sh make -j4 WERROR=1 xppautx test
+    tools/wslrun.sh make -j4 xppautx test
     tools/wslrun.sh tools/odexcheck.sh
     tools/wslrun.sh python3 tools/servercheck.py
 
@@ -102,7 +102,7 @@ only HEAD would be checked. A check run in place over /mnt/c
 (`wsl -e bash -lc "cd /mnt/c/..."`) still works but is not used.
 
 Gates come in two tiers. Every task (the agent, in its worktree): a
-clean build with 0 warnings (`make WERROR=1`), the unit tests, web2's
+clean build with 0 warnings (`make`: -Werror is the default), the unit tests, web2's
 typecheck, and only the checks the task touches, run directly (the
 examples md5s, goldencheck, servercheck, autocheck, odexcheck, `node
 tools/web2check.mjs --only <the task's sections>` when web2 changed).
@@ -141,7 +141,7 @@ the machine's three slots:
 - `tools/wslrun.sh` takes the lock itself before it goes into WSL, so a
   WSL check needs no `heavy.sh` of its own; a Windows-side build or
   check is wrapped: `tools/heavy.sh env "PATH=/c/msys64/ucrt64/bin:$PATH"
-  mingw32-make -j4 xppautx BUILDDIR=build/ucrt WERROR=1`, `tools/heavy.sh
+  mingw32-make -j4 xppautx BUILDDIR=build/ucrt`, `tools/heavy.sh
   node tools/web2check.mjs --only files`.
 - Several commands in one turn: `tools/heavy.sh bash -c '...'`. A timing
   series runs `--alone` (it takes every slot, waiting until all are
@@ -168,7 +168,7 @@ the machine's three slots:
 - Builds still use -j4. The number of agents is not capped (maintainer,
   2026-10-14): they code side by side, and only their heavy runs queue.
 
-The Windows build (UCRT gcc 16, `WERROR=1`)
+The Windows build (UCRT gcc 16)
 also runs on each merged tip: its libstdc++ marks `std::expected`
 `[[nodiscard]]`, which WSL's gcc 15 does not. Pushes go in batches
 (maintainer, 2026-09-30): several merged cards, one push, never one per
@@ -332,7 +332,7 @@ xpp_mem/xpp_io/xpp_files/xpp_log/xpp_math): delete dead code rather than
 add an entry. Heuristic and line-based like dupcheck (a name that is also
 a common word elsewhere reads as used). A .cpp's own unused macro and a
 parameter set but never read are the compiler's (`-Wunused-macros`,
-`-Wunused-but-set-parameter` in WARN, errors under WERROR=1, like
+`-Wunused-but-set-parameter` in WARN, errors by default (-Werror), like
 `-Wunused-but-set-variable`).
 
 `tools/dupcheck.sh` (W30; sourcecheck runs it with `--check`, a few
@@ -441,8 +441,8 @@ checks run under it).
 Metrics: verify.sh's `C++: N / M sources` (core/*.cpp over all core
 sources). The tree builds with 0 warnings (WSL gcc 15, MSYS2 UCRT64 gcc 16
 and MSYS2 clang 22):
-verify.sh builds with `make WERROR=1`, which makes every category ever
-reported an error; `tools/warnings.sh` counts a clean build's warnings by
+verify.sh builds with plain `make`, whose default `-Werror` makes every warning
+an error; `tools/warnings.sh` (WERROR=0) counts the warnings of a build by
 flag and file.
 
 `sudo` inside WSL needs the user's password; apt installs must be run by the user.
@@ -477,7 +477,7 @@ The Makefile knows clang (`CLANG`: gcc-only
 own directory, the binary at build/clang/xppautX.exe (dynamically linked:
 run it with clang64/bin on PATH):
 
-    PATH=/c/msys64/clang64/bin:$PATH mingw32-make -j4 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
+    PATH=/c/msys64/clang64/bin:$PATH mingw32-make -j4 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++
 
 Windows API code lives only in `core/xpp_win32.cpp` (windows.h macros clash
 with core names like `max`, `MessageBox`, `VARTYPE`). The exceptions
@@ -650,7 +650,7 @@ differences of its sandbox:
   message, which the reviewer commits with the Codex trailer before the
   review;
 - it runs its gates from Git Bash in the worktree (the UCRT build
-  `mingw32-make -j4 xppautx BUILDDIR=build/ucrt WERROR=1`, its unit tests,
+  `mingw32-make -j4 xppautx BUILDDIR=build/ucrt`, its unit tests,
   servercheck/autocheck against that exe, web2's checks and `web2check
   --only`), as any agent runs them, each through `tools/heavy.sh` (W289:
   the lock folder is in the system temp its sandbox may write): the

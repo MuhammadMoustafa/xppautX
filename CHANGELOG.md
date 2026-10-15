@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - AUTO labels BT, CP, ZH and GH on equilibrium fold/Hopf curves using AUTO-07p 0.9.4 test functions (GH uses the first Lyapunov coefficient), enabled by default with individual detection controls; fold curves preserve their starting auxiliary period (W364, [#426](https://github.com/MuhammadMoustafa/xppautX/issues/426)).
 
+- Building from source stops on any compiler warning (`-Werror` is on by default, on gcc and clang alike); `make WERROR=0` builds with warnings as warnings, for a compiler not tested here (W401, [#463](https://github.com/MuhammadMoustafa/xppautX/issues/463)).
+
 - A user function that recurses without end stops the run past 256 nested calls with its file and line, keeping the rows already stored; recursion that ends (XPPAUT's ode/test.ode factorial) still runs (W387, [#449](https://github.com/MuhammadMoustafa/xppautX/issues/449)).
 
 - AUTO's mesh adaptation follows AUTO-07p 0.9.4: a new mesh point is placed from the nearer old point by the monitor's own density, the mesh's ends are kept exact, and wave trains (IPS 12) adapt as periodic; 13 stored diagrams change in their last digits, agreement with AUTO-07p unchanged (W361, [#423](https://github.com/MuhammadMoustafa/xppautX/issues/423)).

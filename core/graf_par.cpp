@@ -1075,7 +1075,7 @@ void add_bd_crv(xpp::Session &s, const float *x, const float *y, int len, int ty
    for periodic orbits) */
 void read_bd(xpp::Session &s, const xpp::DataTable &table)
 {
-  int oldtype,type,oldbr,br,ncrv=0,len;
+  int oldtype=0,type,oldbr=0,br,ncrv=0,len;
   std::vector<float> x(1),ylo(1),yhi(1);
   len=0;
   if (table.rows() == 0) return;

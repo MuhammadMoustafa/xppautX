@@ -48,7 +48,7 @@ else
   NPROC=4
 fi
 mkdir -p build || exit 1
-make -j8 WERROR=1 xppautx > build/last-build.log 2>&1
+make -j8 xppautx > build/last-build.log 2>&1
 st=$?
 tr -d '\r' < build/last-build.log > build/last-build.tmp && mv build/last-build.tmp build/last-build.log
 if [ $st -ne 0 ] || grep -q ' error:' build/last-build.log; then
@@ -68,7 +68,7 @@ fi
 # include (their .d files, which a Makefile slip once stopped loading for
 # every core source, so incremental builds mixed old and new struct
 # layouts); read from make's rule database, nothing is built or touched
-if make -pn WERROR=1 xppautx 2>/dev/null | grep -E '^build/obj/xpp_session\.o:' | grep -q 'core/xpp_ui\.h'; then
+if make -pn xppautx 2>/dev/null | grep -E '^build/obj/xpp_session\.o:' | grep -q 'core/xpp_ui\.h'; then
   echo "header dependencies ok: core objects rebuild when a header they include changes"
 else
   echo "HEADER DEPENDENCIES FAILED: build/obj/xpp_session.o does not depend on core/xpp_ui.h"

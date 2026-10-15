@@ -6,7 +6,7 @@
 cd "$(dirname "$0")/.." || exit 1
 out=build/warn
 rm -rf "$out" && mkdir -p "$out" || exit 1
-make -j"$(nproc 2>/dev/null || echo 4)" BUILDDIR="$out" objects > "$out/build.log" 2>&1 || {
+make -j"$(nproc 2>/dev/null || echo 4)" WERROR=0 BUILDDIR="$out" objects > "$out/build.log" 2>&1 || {
   grep ' error:' "$out/build.log" | head; echo "warnings.sh: the build failed"; exit 1; }
 grep 'warning:' "$out/build.log" | sort -u > "$out/warnings.txt"
 echo "clean-build warnings: $(wc -l < "$out/warnings.txt")"

@@ -660,7 +660,7 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
     const auto start=std::chrono::steady_clock::now();
     xpp::auto_new_per(s);
     // W340/#401: periodic continuation frees AUTO's period independently of the model.
-    CHECK(std::any_of(s.diagram.points.begin(),s.diagram.points.end(),[&s](const xpp::DIAGRAM &p){
+    CHECK(std::any_of(s.diagram.points.begin(),s.diagram.points.end(),[](const xpp::DIAGRAM &p){
         return p.nfpar==2 && p.icp2.is_period()
             && p.parameter_indices==std::vector<int>{0};
     }));

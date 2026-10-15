@@ -38,7 +38,7 @@ its own behavioural regression test (`tools/web2check.mjs`).
 ## Plan
 
 1. **Modern build.** One Makefile, C++23 (every core source since W27),
-   CI on Linux, Windows and macOS. *(done: 0 warnings, built with `WERROR=1`)*
+   CI on Linux, Windows and macOS. *(done: 0 warnings, every build `-Werror`)*
 2. **Split numerics from UI.** *(done)* Every call from the numerics into the
    front end goes through the `XppUi` callback table in `core/xpp_ui.h`.
    The historical function names (`err_msg`, `new_int`, `redraw_params`,
@@ -240,6 +240,10 @@ If you want to build from source, you need gcc (or clang) and make.
 make -j8 xppautx
 ./xppautX examples/ode/lecar.ode
 ```
+
+Every warning is an error in every build (`-Werror`, W401). With a compiler
+we do not test (a newer gcc or clang may warn where ours do not), build with
+`WERROR=0`.
 
 The window needs WebKitGTK to build (`sudo apt install
 libwebkit2gtk-4.1-dev` on Debian and Ubuntu); the Makefile uses it when

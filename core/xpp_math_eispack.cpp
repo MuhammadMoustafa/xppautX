@@ -149,8 +149,8 @@ hqr(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, double
 
     /* Local variables */
     doublereal norm;
-    integer i__, j, k, l = 0, m;
-    doublereal p, q, r__, s, t, w, x, y;
+    integer i__, j, k, l = 0, m = 0;
+    doublereal p = 0, q = 0, r__ = 0, s, t, w, x, y;
     integer na, en, ll, mm;
     doublereal zz;
     logical notlas;
@@ -505,8 +505,8 @@ hqr2(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doubl
     /* Local variables */
 
     doublereal norm;
-    integer i__, j, k, l = 0, m;
-    doublereal p, q, r__ = 0, s = 0, t, w, x, y;
+    integer i__, j, k, l = 0, m = 0;
+    doublereal p = 0, q, r__ = 0, s = 0, t, w, x, y;
     integer na, ii, en, jj;
     doublereal ra, sa;
     integer ll, mm, nn;
