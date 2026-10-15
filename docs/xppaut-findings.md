@@ -84,8 +84,9 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [51](#51-auto-failed-step-endpoint-stability) | AUTO | a failed equilibrium branch switch restores an earlier branch point but stores the last branch's spectrum | [W341](https://github.com/MuhammadMoustafa/xppautX/issues/402) |
 | [52](#52-auto-omits-unselected-branch-parameters) | AUTO | Unselected constants are absent from a branch; older points use later values | [W339](https://github.com/MuhammadMoustafa/xppautX/issues/400) |
 | [53](#53-auto-import-is-unchecked-and-partial) | AUTO files | sent `.auto` counts and short records are applied unchecked | [W327](https://github.com/MuhammadMoustafa/xppautX/issues/388) |
-
+| [54](#54-an-extra-plot-window-keeps-the-first-windows-time-flag) | Graphs | an extra window of a multi-window model keeps the first window's time flag | [W351](https://github.com/MuhammadMoustafa/xppautX/issues/412) |
 | [55](#55-auto-marks-have-a-nine-value-form-limit) | AUTO | User marks stop at nine; count changes before the value form succeeds | [W331](https://github.com/MuhammadMoustafa/xppautX/issues/392) |
+| [56](#56-auto-equilibrium-period-depends-on-spectrum-order) | AUTO | the stored period comes from whichever tied complex pair the eigenvalue routine returns last | [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431) |
 
 ## 1. Model options
 
@@ -1148,3 +1149,28 @@ W331 ([#392](https://github.com/MuhammadMoustafa/xppautX/issues/392)) replaces
 fixed mark storage with a Session-owned vector and validates the whole edit
 before applying it. Tests exercise 128 marks through form, protocol, solver
 workspaces and session roundtrip, and reject a bad last value atomically.
+## 56. AUTO equilibrium period depends on spectrum order
+
+XPPAUT 8.0's AUTO2000 sorts the Jacobian's eigenvalues by descending real
+part, then keeps the last complex eigenvalue whose real part is nearest
+zero (`ar <= arev`) and stores `par[10] = 2*pi/|imag|` from it
+([autlib1.c:1917-1949](../reference/xppaut-8.0/autlib1.c#L1917)). When two
+pairs are equally near the axis (equally damped modes, or a conservative
+system's purely imaginary pairs), which one is last depends on the order
+the eigenvalue routine returned them in, so the stored period does too.
+
+- **Evidence:** from the source; no XPPAUT run (its AUTO needs an X
+  server). W358's EISPACK and LAPACK builds of xppautX, which had the same
+  selection, stored periods up to 3.06 relative apart on `tstauto_pen`,
+  with identical parameters and norms
+  ([study](studies/w358-auto-profile.md#3-linalglapack-lapack-against-eispack)).
+  Its two oscillatory modes both have real part `-eps/2`.
+- **xppautX:** one owner, `auto_hopf_pair` (core/auto_stability.cpp),
+  picks the pair whatever the order: AUTO-07p's conservative test and
+  near-axis band (equilibrium.f90:437-453, 1e-5), real parts equal within
+  `n*eps` of the spectrum's scale treated as tied, and a tie resolved by
+  the lowest frequency, as AUTO-07p's sort does inside its band. The same
+  pair gives the Hopf test and the period. `tstauto_pen` now stores the
+  slow mode's period at every point (it matches the analytic period to
+  7e-10 relative); unit tests permute every order of two pairs.
+- **Card:** [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431).

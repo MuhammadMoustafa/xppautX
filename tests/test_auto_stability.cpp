@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <array>
+#include <algorithm>
 #include "session.h"
 #include "auto_c.h"
 #include "autevd.h"
@@ -55,6 +56,30 @@ bool near(double a, double b) { return std::fabs(a - b) < 1e-12; }
 
 int main()
 {
+    // W369: all 24 orders, conjugate signs, and small real-part noise in
+    // a conservative system must select the same physical frequency.
+    const std::array<double, 16> conservative = {0, -1, 0, 0, 1, 0, 0, 0,
+                                               0, 0, 0, -4, 0, 0, 4, 0};
+    const xpp::Matrix<const double> jacobian(conservative, 4, 4);
+    const std::array<doublecomplex, 4> spectrum = {{{1e-16, 1}, {1e-16, -1},
+                                                 {-1e-17, 4}, {-1e-17, -4}}};
+    std::array<int, 4> order = {0, 1, 2, 3};
+    do {
+        std::array<doublecomplex, 4> shuffled;
+        for (size_t k = 0; k < order.size(); ++k) shuffled[k] = spectrum[order[k]];
+        const auto pair = xpp::auto_hopf_pair(shuffled, xpp::auto_hopf_axis_tolerance(jacobian, 4));
+        CHECK(pair && pair->r == 1e-16 && pair->i == 1);
+        for (auto &value : shuffled) value.r -= .05;
+        const auto damped = xpp::auto_hopf_pair(shuffled, 0);
+        CHECK(damped && damped->i == 1);
+    } while (std::next_permutation(order.begin(), order.end()));
+    const std::array<double, 16> dissipative = {1, 0, 0, 0, 0, 1, 0, 0,
+                                              0, 0, 1, 0, 0, 0, 0, 1};
+    const std::array<doublecomplex, 4> separated = {{{-.3, 1}, {-.3, -1}, {-.1, 4}, {-.1, -4}}};
+    const auto closest = xpp::auto_hopf_pair(separated, xpp::auto_hopf_axis_tolerance(xpp::Matrix<const double>(dissipative, 4, 4), 4));
+    CHECK(closest && closest->r == -.1 && closest->i == 4);
+    const std::array<doublecomplex, 2> real_only = {{{-1, 0}, {2, 0}}};
+    CHECK(!xpp::auto_hopf_pair(real_only, 0));
     xpp::AutoStability st;
     double r[N], i[N];
 

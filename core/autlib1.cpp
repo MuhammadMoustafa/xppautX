@@ -1814,11 +1814,10 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   /* Local variables */
   integer ndim;
-  doublereal arev, rmax;
+  doublereal rmax;
   integer nins, ntop, ntot;
   doublecomplex ztmp;
   integer nins1, i, j;
-  doublereal rimhb, ar;
   integer ntotp1;
 
   doublereal rp;
@@ -1855,6 +1854,9 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   /* Compute the eigenvalues of the Jacobian */
 
+  // EISPACK overwrites dfdu: inspect the original Jacobian first.
+  const double axis_tolerance = xpp::auto_hopf_axis_tolerance(
+      xpp::Matrix<const double>({dfdu,static_cast<size_t>(ndim*ndm)},ndim,ndm),ndm);
   eig(iap, &ndm, &ndim, dfdu, ev.data(), &ier);
   if (ips == xpp::AutoProblem::DiscreteMap) {
     for (i = 0; i < ndm; ++i) {
@@ -1888,23 +1890,12 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     }
   }
 
-  /* Compute the smallest real part. */
-
-  rimhb = 0.;
-  arev = RLARGE;
+  // One order-independent choice supplies both the Hopf test and period.
   rev = 0.;
-  for (i = 0; i < ndm; ++i) {
-    if (d_imag(&ev[i]) != 0.) {
-      ar = f2c::abs(ev[i].r);
-      if (ar <= arev) {
-	arev = ar;
-	rev = ev[i].r;
-	rimhb = f2c::abs(d_imag(&ev[i]));
-	if (rimhb != 0.) {
-	  par[xpp::auto_unknown::period] = pi(2.0) / rimhb;
-	}
-      }
-    }
+  const auto pair = xpp::auto_hopf_pair({ev.data(),static_cast<size_t>(ndm)},axis_tolerance);
+  if (pair) {
+    rev = pair->r;
+    par[xpp::auto_unknown::period] = pi(2.0) / std::abs(pair->i);
   }
 
   /* Compute the number of eigenvalues with negative real part. */

@@ -31,7 +31,34 @@ When the file was made (W367, 2026-10-14), the AUTO studies
 [W356](studies/w356-auto-location-07p.md),
 [W358](studies/w358-auto-profile.md)) and
 [auto-references.md](auto-references.md) noted no defect of AUTO-07p's own,
-so the index starts empty.
+so the index started empty.
 
 | # | Area | Finding | Card |
 |---|---|---|---|
+| [1](#1-an-equilibriums-period-depends-on-the-spectrums-order-outside-the-conservative-band) | Equilibria | equally damped complex pairs give a period that depends on the eigenvalue routine's order | [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431) |
+
+## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
+
+AUTO-07p's `FNHBAE` stores `PAR(11) = 2*pi/|imag|` from the complex
+eigenvalue nearest the imaginary axis
+([equilibrium.f90:565-570](../reference/auto-07p/src/equilibrium.f90#L565)).
+Inside its conservative band (even dimension, trace below `HMACH` times
+the largest entry, real parts within 1e-5 of zero) its sort orders tied
+pairs by frequency, so the lowest frequency is chosen
+([equilibrium.f90:437-475](../reference/auto-07p/src/equilibrium.f90#L437)).
+Outside it, the sort compares real parts alone with `>=`, and the search
+keeps the last eigenvalue with the smallest `|real|` (`AR.LE.AREV`,
+[equilibrium.f90:477-499](../reference/auto-07p/src/equilibrium.f90#L477)).
+Two pairs with equal real parts, such as two equally damped modes, are
+then picked by the order LAPACK returned them in, and their real parts
+differ by roundoff, so which period is stored is not defined by the
+problem.
+
+- **Evidence:** from the source; not run in AUTO-07p. The same selection
+  in xppautX (XPPAUT's AUTO2000, [finding 56](xppaut-findings.md#56-auto-equilibrium-period-depends-on-spectrum-order))
+  stored periods up to 3.06 relative apart on `tstauto_pen` between an
+  EISPACK and a LAPACK build, whose two modes both have real part `-eps/2`.
+- **xppautX:** treats real parts equal within `n*eps` of the spectrum's
+  scale as tied, as well as AUTO-07p's band, and takes the lowest
+  frequency among tied pairs, extending AUTO-07p's own rule inside the band.
+- **Card:** [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431).

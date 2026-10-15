@@ -5,6 +5,8 @@
 #include <cstdlib>
 #include <span>
 #include <vector>
+#include <tuple>
+#include <limits>
 
 #include "auto_stability.h"
 #include "auto_stability_auto.h"
@@ -39,6 +41,47 @@ void forget(AutoStability::Values &v)
 constexpr integer BOTH_JACOBIANS = 2;
 
 } // namespace
+
+double auto_hopf_axis_tolerance(Matrix<const double> jacobian, size_t n)
+{
+    double trace = 0, scale = 0;
+    for (size_t i = 0; i < n; ++i) {
+        trace += jacobian(i, i);
+        for (size_t j = 0; j < n; ++j)
+            scale = std::max(scale, std::abs(jacobian(i, j)));
+    }
+    // AUTO-07p equilibrium.f90:437-453: even dimension, negligible trace.
+    constexpr double conservative_axis_tolerance = 1e-5;
+    return n % 2 == 0 && std::abs(trace) < HMACH * scale
+        ? conservative_axis_tolerance : 0;
+}
+
+std::optional<doublecomplex> auto_hopf_pair(std::span<const doublecomplex> spectrum,
+                                          double tolerance)
+{
+    const auto distance = [tolerance](const doublecomplex &value) {
+        return std::abs(value.r) < tolerance ? 0 : std::abs(value.r);
+    };
+    double nearest = std::numeric_limits<double>::infinity(), scale = 0;
+    for (const auto &value : spectrum) {
+        scale = std::max(scale, std::abs(value.r) + std::abs(value.i));
+        if (value.i != 0) nearest = std::min(nearest, distance(value));
+    }
+    // Equal real parts (e.g. equally damped modes) differ by roundoff between
+    // eigensolvers. Use n machine epsilons at the spectrum's scale as a tie,
+    // in addition to AUTO-07p's conservative near-axis band.
+    const double real_part_roundoff = spectrum.size() * std::numeric_limits<double>::epsilon() * scale;
+    const auto rank = [](const doublecomplex &value) {
+        return std::tuple{std::abs(value.i), value.r, -value.i};
+    };
+    std::optional<doublecomplex> selected;
+    for (const auto &value : spectrum) {
+        if (value.i != 0 && distance(value) <= nearest + real_part_roundoff &&
+            (!selected || rank(value) < rank(*selected)))
+            selected = value;
+    }
+    return selected;
+}
 
 void auto_stability_step_start(AutoStability &st, int br, int pt)
 {

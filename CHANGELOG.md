@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - Speed up AUTO condensation with cached row maxima and physical pivot swaps, preserving numerical results and interval threading (W360, [#422](https://github.com/MuhammadMoustafa/xppautX/issues/422)).
 
+- AUTO equilibrium periods select the complex pair independently of spectrum order, choosing the lowest frequency for equal damping within roundoff and conservative near-axis ties (W369, [#431](https://github.com/MuhammadMoustafa/xppautX/issues/431)).
+
 - Grabbing an AUTO point sets only its node initial values and preserves Markov initial states; initial-data copies check the state length (W366, [#428](https://github.com/MuhammadMoustafa/xppautX/issues/428)).
 
 - Locate AUTO special points with AUTO-07p Mueller steps, retry-corrected abscissae, refreshed test histories, coincidence rules and multiplier stability criteria; seven explained diagram changes pass the unchanged reference tolerances (W356, [#418](https://github.com/MuhammadMoustafa/xppautX/issues/418)).
