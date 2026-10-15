@@ -6,6 +6,7 @@
 #include "xpptest.h"
 #include "session.h"
 #include "auto_nox.h"
+#include "auto_c.h"
 #include "model.h"
 #include <string>
 
@@ -32,7 +33,7 @@ int main(void)
 
     /* a parameter column becomes the parameter's name */
     out = auto_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().auto_state.parameter_layout.solver_index(1)));
-    CHECK(out.size() == AUTO_COL_W);
+    CHECK(out.size() == auto_column_width);
     CHECK(out.find("gca") != std::string::npos);
 
     out = auto_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().auto_state.parameter_layout.solver_index(0)));
@@ -43,7 +44,7 @@ int main(void)
     out = auto_screen_col(xpp::client_session(), "     U(1)     ");
     CHECK_STR(out.c_str(), "      v       ");
     out = auto_screen_col(xpp::client_session(), "   MAX U(2)   ");
-    CHECK(out.size() == AUTO_COL_W);
+    CHECK(out.size() == auto_column_width);
     CHECK(out.find("MAX w") != std::string::npos);
 
     /* AUTO's own quantities are not the user's parameters: leave them */
@@ -58,7 +59,7 @@ int main(void)
     /* a periodic branch prints MAX(n)/MIN(n): AUTO has overwritten the U */
     xpp::client_session().model().uvar_names[1] = "w";
     out = auto_screen_col(xpp::client_session(), "   MAX(2)     ");
-    CHECK(out.size() == AUTO_COL_W);
+    CHECK(out.size() == auto_column_width);
     CHECK(out.find("MAX w") != std::string::npos);
     out = auto_screen_col(xpp::client_session(), "   MIN(1)     ");
     CHECK(out.find("MIN v") != std::string::npos);
@@ -70,7 +71,7 @@ int main(void)
     /* a name as long as XPP allows must still not widen the column */
     xpp::client_session().model().uvar_names[0] = "abcdefghijk";
     out = auto_screen_col(xpp::client_session(), "   MAX U(1)   ");
-    CHECK(out.size() == AUTO_COL_W);
+    CHECK(out.size() == auto_column_width);
 
     TEST_REPORT("auto columns");
 }

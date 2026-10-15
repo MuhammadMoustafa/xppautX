@@ -273,7 +273,7 @@ Result<> load_auto_orbitx(Session &s, int ibr,int flag, int lab, double per);
    first parameter's name (pname); both unchanged when none is marked */
 void auto_get_info(Session &s, int *n, std::string &pname);
 /* AUTO's printed column heading col in the user's own names (screen
-   only), AUTO_COL_W wide */
+   only), auto_column_width (auto_c.h) wide */
 std::string auto_screen_col(const Session &s, const std::string &col);
 
 /* AUTO's solution file (fort.8 after a run, the orbits of the labelled
