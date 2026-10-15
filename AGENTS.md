@@ -113,7 +113,11 @@ another (rebuilding web2/dist on a conflict there, with web2's checks
 and the task's web2check sections) and runs verify.sh once on the
 merged tip (`--no-source-checks` when only `web2/` changed: the source
 checks rebuild and relink the whole core and cannot see web2, and CI's
-`source` job runs them on every push); a failure is traced to its
+`source` job runs them on every push), and on the same tip the full
+`node tools/web2check.mjs` from Git Bash against the UCRT build, through
+tools/heavy.sh: verify.sh runs no web2check, and a core change can break
+a section no card's review ran (W397, #459: W347's error place broke
+four sections, found two cards later); a failure is traced to its
 branch by verifying the branches alone. One verify.sh at a time (W84):
 the script takes a lock (`flock`, $TMPDIR/xppautx-verify.lock) and a
 second run waits for it.
