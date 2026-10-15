@@ -56,46 +56,11 @@ int main()
     std::string why;
     load_model();
 
-    CHECK(xpp::auto_min_mesh_intervals == 1 && xpp::auto_max_mesh_intervals == 10000);
-    CHECK(xpp::auto_min_collocation_points == 2 && xpp::auto_max_collocation_points == 7);
-    CHECK(xpp::auto_min_diagnostic_level == 0 && xpp::auto_max_diagnostic_level == 5);
-    CHECK(ok(xpp::AUTO_NUM_NCOL, xpp::auto_min_collocation_points) && ok(xpp::AUTO_NUM_NCOL, xpp::auto_max_collocation_points));
-    CHECK(!ok(xpp::AUTO_NUM_NCOL, xpp::auto_min_collocation_points - 1) && !ok(xpp::AUTO_NUM_NCOL, xpp::auto_max_collocation_points + 1));
-    CHECK(!ok(xpp::AUTO_NUM_NTST, xpp::auto_min_mesh_intervals - 1) && !ok(xpp::AUTO_NUM_NTST, 2.5) && ok(xpp::AUTO_NUM_NTST, 50));
+    CHECK(ok(xpp::AUTO_NUM_NCOL, 2) && ok(xpp::AUTO_NUM_NCOL, 7));
+    CHECK(!ok(xpp::AUTO_NUM_NCOL, 1) && !ok(xpp::AUTO_NUM_NCOL, 8));
+    CHECK(!ok(xpp::AUTO_NUM_NTST, 0) && !ok(xpp::AUTO_NUM_NTST, 2.5) && ok(xpp::AUTO_NUM_NTST, 50));
     CHECK(!ok(xpp::AUTO_NUM_NTST, xpp::auto_max_mesh_intervals + 1));
     CHECK(ok(xpp::AUTO_NUM_NTST, xpp::auto_max_mesh_intervals));
-
-    const AutoOptions def_bifur{};
-    CHECK(def_bifur.ntst == xpp::auto_default_ntst);
-    CHECK(def_bifur.nmx == xpp::auto_default_nmx);
-    CHECK(def_bifur.npr == xpp::auto_default_npr);
-    CHECK(def_bifur.ncol == xpp::auto_default_ncol);
-    CHECK(def_bifur.ds == xpp::auto_default_ds);
-    CHECK(def_bifur.dsmax == xpp::auto_default_dsmax);
-    CHECK(def_bifur.dsmin == xpp::auto_default_dsmin);
-    CHECK(def_bifur.rl0 == xpp::auto_default_rl0);
-    CHECK(def_bifur.rl1 == xpp::auto_default_rl1);
-    CHECK(def_bifur.a0 == xpp::auto_default_a0);
-    CHECK(def_bifur.a1 == xpp::auto_default_a1);
-
-    const AutoAxes def_axes{};
-    CHECK(def_axes.xmax == xpp::auto_default_xmax);
-    CHECK(def_axes.xmin == xpp::auto_default_xmin);
-    CHECK(def_axes.ymax == xpp::auto_default_ymax);
-    CHECK(def_axes.ymin == xpp::auto_default_ymin);
-    CHECK(def_axes.var == xpp::auto_default_var);
-
-    const ADVAUTO def_adv{};
-    CHECK(def_adv.epsl == xpp::auto_default_epsl);
-    CHECK(def_adv.epsu == xpp::auto_default_epsu);
-    CHECK(def_adv.epss == xpp::auto_default_epss);
-    CHECK(def_adv.iad == xpp::auto_default_iad);
-    CHECK(def_adv.mxbf == xpp::auto_default_mxbf);
-    CHECK(def_adv.iid == xpp::auto_default_iid);
-    CHECK(def_adv.itmx == xpp::auto_default_itmx);
-    CHECK(def_adv.itnw == xpp::auto_default_itnw);
-    CHECK(def_adv.nwtn == xpp::auto_default_nwtn);
-    CHECK(def_adv.iads == xpp::auto_default_iads);
     CHECK(!ok(xpp::AUTO_NUM_DS, 0) && ok(xpp::AUTO_NUM_DS, -0.01));
     CHECK(!ok(xpp::AUTO_NUM_EPSL, 0) && ok(xpp::AUTO_NUM_EPSL, 1e-7));
     CHECK(ok(xpp::AUTO_NUM_RL0, -1e6) && !ok(xpp::AUTO_NUM_RL0, HUGE_VAL));

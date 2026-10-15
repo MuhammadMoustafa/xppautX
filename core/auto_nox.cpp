@@ -1575,13 +1575,7 @@ void init_auto_win(xpp::Session &s)
   s.auto_state.bifur.icp5=1;
   keep_last_plot(s, 1);
   keep_last_plot(s, 2);
-  s.auto_state.advanced.iad=auto_default_iad;
-  s.auto_state.advanced.mxbf=auto_default_mxbf;
-  s.auto_state.advanced.iid=auto_default_iid;
-  s.auto_state.advanced.itmx=auto_default_itmx;
-  s.auto_state.advanced.itnw=auto_default_itnw;
-  s.auto_state.advanced.nwtn=auto_default_nwtn;
-  s.auto_state.advanced.iads=auto_default_iads;
+  s.auto_state.advanced={};
   s.auto_state.run.nunstab=1;
   s.auto_state.run.nstab=s.model().node-1;
 }

@@ -23,46 +23,11 @@ namespace xpp {
 
 struct Session; /* session.h */
 
-/* Mesh intervals must be at least 1 for subdivision. */
-inline constexpr int auto_min_mesh_intervals = 1;
 /* 10000 intervals far exceed shipped meshes while bounding AUTO's mesh-sized matrices. */
 inline constexpr int auto_max_mesh_intervals = 10000;
 /* AUTO's collocation coefficients support only orders 2 through 7 (autlib1.cpp cpnts). */
 inline constexpr int auto_min_collocation_points = 2;
 inline constexpr int auto_max_collocation_points = 7;
-/* AUTO diagnostic output detail levels (IID): 0 none to 5 maximum debug. */
-inline constexpr int auto_min_diagnostic_level = 0;
-inline constexpr int auto_max_diagnostic_level = 5;
-
-/* Defaults for AUTO continuation and diagram settings (AutoOptions). */
-inline constexpr int auto_default_ntst = 15;        // Default mesh intervals for periodic orbit / BVP discretisation
-inline constexpr int auto_default_nmx = 200;        // Default maximum points along a continuation branch
-inline constexpr int auto_default_npr = 50;         // Default interval to label and save full solution profiles
-inline constexpr int auto_default_ncol = 4;         // Default collocation points per mesh interval
-inline constexpr double auto_default_ds = 0.02;     // Default initial continuation step size
-inline constexpr double auto_default_dsmax = 0.5;   // Default maximum continuation step size
-inline constexpr double auto_default_dsmin = 0.001; // Default minimum continuation step size before failure
-inline constexpr double auto_default_rl0 = 0.0;     // Default lower bound for principal continuation parameter
-inline constexpr double auto_default_rl1 = 2.0;     // Default upper bound for principal continuation parameter
-inline constexpr double auto_default_a0 = 0.0;      // Default lower bound for solution L2 norm
-inline constexpr double auto_default_a1 = 1000.0;   // Default upper bound for solution L2 norm
-inline constexpr double auto_default_epsl = 1e-4;   // Default relative convergence tolerance for equation parameters
-inline constexpr double auto_default_epsu = 1e-4;   // Default relative convergence tolerance for solution state vector
-inline constexpr double auto_default_epss = 1e-4;   // Default relative convergence tolerance for locating special points
-inline constexpr double auto_default_xmax = 2.5;    // Default diagram view x-axis upper bound
-inline constexpr double auto_default_xmin = -0.5;   // Default diagram view x-axis lower bound
-inline constexpr double auto_default_ymax = 3.0;    // Default diagram view y-axis upper bound
-inline constexpr double auto_default_ymin = -3.0;   // Default diagram view y-axis lower bound
-inline constexpr int auto_default_var = 0;          // Default diagram view variable index (first model variable)
-
-/* Defaults for AUTO advanced solver controls (ADVAUTO). */
-inline constexpr int auto_default_iad = 3;   // Adapt mesh every 3 steps (0 = fixed mesh)
-inline constexpr int auto_default_mxbf = 5;  // Follow up to 5 branch switches in both directions for algebraic problems
-inline constexpr int auto_default_iid = 2;   // Normal diagnostic output level (unit 9 / .d file)
-inline constexpr int auto_default_itmx = 8;  // Maximum special point location iterations
-inline constexpr int auto_default_itnw = 7;  // Maximum Newton chord iterations per continuation step
-inline constexpr int auto_default_nwtn = 3;  // Full Newton steps before switching to chord method
-inline constexpr int auto_default_iads = 1;  // Adapt continuation step size every step
 
 /* the Numerics form's fields, in its order (auto_num_par) */
 enum {

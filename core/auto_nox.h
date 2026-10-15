@@ -13,8 +13,6 @@
 #include "xpp_error.h"
 #include "auto_codes.h"
 #include "auto_axis.h"
-#include "auto_settings.h"
-#include "auto_c.h"
 
 
 namespace xpp {
@@ -76,13 +74,13 @@ struct BIFUR {
 };
 
 typedef struct {
-  int iad = auto_default_iad;
-  int mxbf = auto_default_mxbf;
-  int iid = auto_default_iid;
-  int itmx = auto_default_itmx;
-  int itnw = auto_default_itnw;
-  int nwtn = auto_default_nwtn;
-  int iads = auto_default_iads;
+  int iad = 3;
+  int mxbf = 5;
+  int iid = 2;
+  int itmx = 8;
+  int itnw = 7;
+  int nwtn = 3;
+  int iads = 1;
 } ADVAUTO;
 
 typedef struct {
