@@ -79,14 +79,12 @@ void stor_delay(xpp::Session &s, double *y)
 
 }
 
-void polint(std::span<const double> xa, std::span<const double> ya, double x, double &y, double &dy)
+void polint(std::span<const double, polint_points> xa, std::span<const double, polint_points> ya, double x, double &y, double &dy)
 {
   const int n=static_cast<int>(xa.size());
   int i,m,ns=1;
   double den,dif,dift,h0,hp,w;
-  static constexpr int POLINT_POINTS = 4;
-  if(xa.size() != ya.size() || xa.empty() || xa.size() > POLINT_POINTS) return;
-  std::array<double, POLINT_POINTS> c{}, d{};
+  std::array<double, polint_points> c{}, d{};
   dif=fabs(x-xa[0]);
   for(i=1;i<=n;i++){
     if( (dift=fabs(x-xa[i-1]))<dif){
@@ -117,7 +115,7 @@ double get_delay(xpp::Session &s, int in, double tau)
  double x=tau/fabs(s.numerics.delta_t);
  double dd=fabs(s.numerics.delta_t);
  double y,dy;
- std::array<double, 4> ya{}, xa{};
+ std::array<double, polint_points> ya{}, xa{};
  int n1=static_cast<int>(x);
  int n2=n1+1;
  int nodes=s.model().node;

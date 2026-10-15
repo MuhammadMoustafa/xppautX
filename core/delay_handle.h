@@ -12,9 +12,11 @@ namespace xpp {
 
 struct Session; /* session.h */
 
-/* Neville's interpolation through the points (xa[i], ya[i]) (at most 10,
-   ya as long as xa) at x: the value y and its error estimate dy */
-void polint(std::span<const double> xa, std::span<const double> ya, double x, double &y, double &dy);
+/* a delay's value is interpolated by the cubic through four stored points */
+inline constexpr std::size_t polint_points = 4;
+/* Neville's interpolation through the points (xa[i], ya[i]) at x: the
+   value y and its error estimate dy */
+void polint(std::span<const double, polint_points> xa, std::span<const double, polint_points> ya, double x, double &y, double &dy);
 
 double delay_stab_eval(Session &s, double delay, int var);
 int alloc_delay(Session &s, double big);

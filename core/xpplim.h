@@ -18,10 +18,8 @@
 #define MAXNET 50          /* networks (simplenet.h) */
 #define MAXMARK 200        /* Markov chains (Model::markov) */
 #define MAX_INTERN_SET 500 /* internal sets (the @-sets a model names) */
-/* a user function's arguments, and the longest compiled program (expr.h):
-   the size of one compiled formula's buffer */
+/* a user function's arguments */
 #define MAXARG 20
-#define MAXEXPLEN 1024
 
 /* A model's names (variables, parameters, auxiliary quantities,
    functions and their arguments, tables, fixed quantities) have no length

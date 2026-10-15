@@ -300,8 +300,8 @@ struct Model {
   std::array<int,MAXUFUN> narg_fun{};
   /* each one's formula as typed */
   std::array<std::string,MAXUFUN> ufun_defs;
-  /* each one compiled: MAXEXPLEN commands, the formula then ENDFUN,
-     its argument count and ENDEXP */
+  /* each one compiled: the formula then ENDFUN, its argument count and
+     ENDEXP */
   std::array<Program,MAXUFUN> ufun_programs;
   /* ---- the source ---- */
   /* the model file's lines as read (strip_saveqn makes their control
