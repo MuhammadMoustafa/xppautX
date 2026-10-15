@@ -45,7 +45,7 @@ int retry_line(const iap_type *iap, const rap_type *rap, integer ndim, const dou
 }
 double target(iap_type *, rap_type *, double *, integer *, logical *chng,
              FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
-             double *u, double *, double *, double *, double *, double *, integer *, double *)
+             double *u, double *, double *, double *, double *, double *, std::span<const AutoMark>)
 {
     *chng = TRUE_;
     return u[0] - 0.4; // special point on the straight branch
@@ -243,8 +243,8 @@ u'=p-u
     xpp::auto_start_diff_ss(events_session);
     std::vector<double> marks;
     for (const auto &point : events_session.diagram.points) {
-        if (point.d.itp.kind == xpp::AutoPointKind::UserZero) {
-            marks.push_back(diagram_parameter(point.d, 0));
+        if (point.itp.kind == xpp::AutoPointKind::UserZero) {
+            marks.push_back(diagram_parameter(point, 0));
             CHECK(std::abs(point.u0[0] - marks.back()) < 1e-7);
         }
     }
