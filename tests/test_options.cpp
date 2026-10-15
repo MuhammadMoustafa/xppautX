@@ -209,6 +209,21 @@ int main(void)
     CHECK(!refused && refused.error().what.find("even dimensions") != std::string::npos);
     model.nkernel = 1;
     CHECK(!xpp::pick_method(model, "euler", place));
+    model.nkernel = 0;
+    model.node = 2;
+    model.nwiener = 1;
+    for (const auto &info : xpp::solvers()) {
+        model.nkernel = info.traits.integral_history ? 1 : 0;
+        const auto wiener_picked = xpp::pick_method(model, info.name, place);
+        if (info.traits.wiener) {
+            CHECK(wiener_picked && *wiener_picked == info.id);
+        } else {
+            CHECK(!wiener_picked);
+            if (!wiener_picked) CHECK(wiener_picked.error().what.find("Wiener") != std::string::npos);
+        }
+    }
+    model.nkernel = 0;
+    model.nwiener = 0;
 
     const std::span<const xpp::OptionRow> rows = xpp::option_rows();
 

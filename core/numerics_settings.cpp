@@ -81,12 +81,21 @@ std::string event_text(const xpp::Session &s)
         if (f.rule == OptionRule::method) {
             o += ",\"choices\":[";
             bool c1 = true;
+            std::string unavailable;
             for (const xpp::SolverInfo &m : xpp::solvers()) {
                 if (!c1) o += ',';
                 c1 = false;
                 xpp::json_append_string(o, m.name);
+                const auto res = xpp::check_method(s.model(), m.id, {});
+                if (!res) {
+                    unavailable += unavailable.empty() ? "{" : ",";
+                    xpp::json_append_string(unavailable, m.name);
+                    unavailable += ':';
+                    xpp::json_append_string(unavailable, res.error().what);
+                }
             }
             o += ']';
+            if (!unavailable.empty()) o += ",\"unavailable\":" + unavailable + "}";
         }
         if (f.rule == OptionRule::choice) {
             o += ",\"choices\":[";

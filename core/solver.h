@@ -50,6 +50,8 @@ struct SolverTraits {
   bool eighth_order = false;
   /* uses the stiff adaptive step rather than adaptive Runge-Kutta */
   bool stiff_step = false;
+  /* draws Wiener noise once per step */
+  bool wiener = false;
 };
 
 /* one advance: from *t, either `steps` steps of `dt` (a fixed-step method)

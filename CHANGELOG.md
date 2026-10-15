@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- A model declaring Wiener noise runs only on numerical methods that draw it each step (Euler, Mod. Euler, Runge-Kutta, Adams, Backward Euler, Volterra, Symplectic, Discrete); incompatible methods appear disabled in the window's numerics menu with the reason, and --server, --silent, --convert, .set or @ meth= report the error (W379, [#441](https://github.com/MuhammadMoustafa/xppautX/issues/441)).
+
 - Require a positive Total duration in our files and commands, importing XPPAUT negative Total as its absolute value. A full store that cannot grow stops every mode with one error and preserves stored rows (W347, [#408](https://github.com/MuhammadMoustafa/xppautX/issues/408)).
 
 - Range integration can write each reset run to its own file in the window, --server and --silent; `sweep.rangefiles: yes/no` is saved with range settings, and importing `.ode` `@ range=1` enables it (W349, [#410](https://github.com/MuhammadMoustafa/xppautX/issues/410)).

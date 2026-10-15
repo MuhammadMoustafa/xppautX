@@ -221,11 +221,11 @@ std::unique_ptr<Solver> start_rosenbrock(const SolverInfo &info, Session &s, int
 }
 
 /* traits */
-constexpr SolverTraits map{.discrete=true,.fixed_step=true};
-constexpr SolverTraits steps{.fixed_step=true};
-constexpr SolverTraits implicit_steps{.fixed_step=true,.newton=true};
-constexpr SolverTraits integral_steps{.fixed_step=true,.newton=true,.integral_history=true};
-constexpr SolverTraits paired_steps{.fixed_step=true,.paired_dimension=true};
+constexpr SolverTraits map{.discrete=true,.fixed_step=true,.wiener=true};
+constexpr SolverTraits steps{.fixed_step=true,.wiener=true};
+constexpr SolverTraits implicit_steps{.fixed_step=true,.newton=true,.wiener=true};
+constexpr SolverTraits integral_steps{.fixed_step=true,.newton=true,.integral_history=true,.wiener=true};
+constexpr SolverTraits paired_steps{.fixed_step=true,.paired_dimension=true,.wiener=true};
 constexpr SolverTraits stiff_tolerance{.step_tolerance=true,.stiff_step=true};
 constexpr SolverTraits rel_abs_eighth{.rel_abs_tolerance=true,.eighth_order=true};
 constexpr SolverTraits step_tolerance{.step_tolerance=true};
@@ -299,6 +299,8 @@ Result<method::Id> check_method(const Model &model, int id, Place place)
     return fail("method", "Symplectic is only for even dimensions", std::move(place));
   if (model.nkernel > 0 && !traits.integral_history)
     return fail("method", "a model with integral equations is integrated by Volterra", std::move(place));
+  if (model.nwiener > 0 && !traits.wiener)
+    return fail("method", "a model with Wiener noise requires a method that draws it each step", std::move(place));
   return static_cast<method::Id>(id);
 }
 

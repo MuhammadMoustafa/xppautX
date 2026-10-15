@@ -4886,6 +4886,21 @@ async function valuesJacobian(dir) {
     JSON.stringify(await options()) === JSON.stringify([['difference', false], ['exact', true]])
     && await cdp.eval(`${hint}?.textContent`) === 'No exact Jacobian: w260noise.odex:2:1: uses random numbers',
     JSON.stringify([await options(), await cdp.eval(`${hint}?.textContent`)]));
+  fs.writeFileSync(path.join(dir, 'w379wiener.odex'), "wiener w\nx' = w\n");
+  await cdp.eval(`__xpp.send({cmd: 'open', file: 'w379wiener.odex'})`);
+  await until("s.ask?.kind === 'choice'", 'save before Open');
+  await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
+  await until(`!s.busy && !s.ask && s.hello.file === 'w379wiener.odex'`, 'the Wiener model opened');
+  const methSelect = `document.querySelector('[data-section="num"] [data-num="method"] select')`;
+  const methHint = `document.querySelector('[data-section="num"] [data-num="method"] [data-unavailable="DoPri5"]')`;
+  await until(`!!${methSelect} && !!${methHint}`, 'method field updated');
+  const methOptions = await cdp.eval(`(() => { const s = ${methSelect}; return s ? [...s.options].map(o => [o.textContent, o.disabled]) : null; })()`);
+  const dopriEntry = methOptions.find(o => o[0] === 'DoPri5');
+  const eulerEntry = methOptions.find(o => o[0] === 'Euler');
+  check('W379: Wiener model disables adaptive methods in numerics menu with reason',
+    dopriEntry && dopriEntry[1] === true && eulerEntry && eulerEntry[1] === false
+    && (await cdp.eval(`${methHint}?.textContent`)) === 'No DoPri5 Method: a model with Wiener noise requires a method that draws it each step',
+    JSON.stringify([dopriEntry, eulerEntry, await cdp.eval(`${methHint}?.textContent`)]));
 }
 
 /* live.odex: the IC fields do not move during a run, Now does. */
