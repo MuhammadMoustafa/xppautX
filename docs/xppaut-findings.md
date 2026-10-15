@@ -1237,7 +1237,11 @@ the adaptive methods do a fixed-step method's work plus one evaluation per
 point, and the accuracy a run gets comes from `dt`, not from `tol` (at
 `tol=1e-6` lecar's error is about 1e-9, because its steps are ten times
 smaller than the tolerance needs). The step limit is per call, so it renews
-at every output point.
+at every output point. XPPAUT's own help calls Dt "the output step for the
+adaptivve algorithms" ([xppnumerics.html:52](../reference/xppaut-8.0/help/xppnumerics.html#L52)),
+and its maximum step, DtMax ([numerics.c:253](../reference/xppaut-8.0/numerics.c#L253)),
+which Gear gets ([integrate.c:1791](../reference/xppaut-8.0/integrate.c#L1791)),
+never reaches DoPri: `dormprin` passes `hmax` as 0, no limit.
 
 - **XPPAUT 8.0:** cited above.
 - **Evidence:** [docs/studies/w377-dense-output.md](studies/w377-dense-output.md):
@@ -1246,7 +1250,8 @@ at every output point.
   tolerance (lecar 4,201 to 326, PY_S1Bf 1.4 million to 154 thousand),
   with the error the tolerance asks for instead of the error `dt` forces.
 - **xppautX:** to be one continuous run with the output and the events
-  taken from the dense output, the tolerance meaning what it says
+  taken from the dense output, the tolerance meaning what it says, Dt the
+  output interval and DtMax DoPri's maximum step
   (maintainer, 2026-10-15: "this makes dopri fixed step method not an
   adaptive one"); W377's stage 2.
 - **Card:** [W377 / #439](https://github.com/MuhammadMoustafa/xppautX/issues/439).
