@@ -1178,19 +1178,24 @@ the eigenvalue routine returned them in, so the stored period does too.
 
 ## 57. Fixed C arrays sized by input
 
-Formula compilation and multiple numerical methods relied on fixed-size stack or struct
-arrays without bounds checking, overflowing memory when user input exceeded hardcoded limits:
-- `add_expr` compiled into an unbounds-checked integer array ([parserslow2.c:995](../reference/xppaut-8.0/parserslow2.c#L995),
-  [master 994](../reference/xppaut-master/parserslow2.c#L994) `tokstak[500]`, `loopstk[100]`), and callers passed arrays much smaller than `MAXEXPLEN` ([tabular.c:321](../reference/xppaut-8.0/tabular.c#L321), [master 321](../reference/xppaut-master/tabular.c#L321) `command[200]`,
-  [histogram.c:203](../reference/xppaut-8.0/histogram.c#L203) and [flags.c:163](../reference/xppaut-8.0/flags.c#L163) `command[256]`, [markov.c:341](../reference/xppaut-8.0/markov.c#L341), [master 341](../reference/xppaut-master/markov.c#L341) `com[256]`, `dae_fun.c:73` `f[256]`,
-  `browse_data.c:524` `com[200]`, `xpp_util.c:220` `com[400]`). A 120-term table formula segfaulted;
-  a 1500-term ODE RHS exited abruptly.
+Formula compilation and several numerical methods write into fixed-size arrays with no bound
+check, so input larger than the array (a long formula, many variables, states or reactions)
+writes or reads past its end:
+- `add_expr` compiles into its caller's `int *` with no size, and its own stacks are fixed
+  (`tokstak[500]`, `loopstk[100]`: [parserslow2.c:995](../reference/xppaut-8.0/parserslow2.c#L995),
+  [master 994](../reference/xppaut-master/parserslow2.c#L994)); callers pass arrays far smaller than
+  `MAXEXPLEN`: `command[200]` for a table's formula ([tabular.c:321](../reference/xppaut-8.0/tabular.c#L321),
+  [master 321](../reference/xppaut-master/tabular.c#L321)), `command[256]`
+  ([histogram.c:295](../reference/xppaut-8.0/histogram.c#L295), [flags.c:197](../reference/xppaut-8.0/flags.c#L197)),
+  `com[256]` ([markov.c:341](../reference/xppaut-8.0/markov.c#L341), [master 341](../reference/xppaut-master/markov.c#L341)),
+  `f[256]` ([dae_fun.c:107](../reference/xppaut-8.0/dae_fun.c#L107)), `com[200]`
+  ([browse.c:381](../reference/xppaut-8.0/browse.c#L381)), `com[400]` ([calc.c:234](../reference/xppaut-8.0/calc.c#L234)).
 - [stiff.c:161](../reference/xppaut-8.0/stiff.c#L161) ([master 161](../reference/xppaut-master/stiff.c#L161)) fixed pivot array `indx[700]` overflowed when integrating a stiff ODE system with more than 700 variables.
 - [do_fit.c:601](../reference/xppaut-8.0/do_fit.c#L601) ([master 601](../reference/xppaut-master/do_fit.c#L601)) Marquardt-Levenberg parameter fitting used `ipivot[1000]`, overflowing on >1000 fitted parameters.
-- [markov.c:109](../reference/xppaut-8.0/markov.c#L109) ([master 109](../reference/xppaut-master/markov.c#L109)) allocated `st[50]`, overflowing on Markov chains with >50 states; [markov.c:461](../reference/xppaut-8.0/markov.c#L461) ([master 461](../reference/xppaut-master/markov.c#L461)) and `simplenet.c` used `r[1000]` for Gillespie reaction rates; [xAuto.h:7](../reference/xppaut-8.0/xAuto.h#L7) ([master 7](../reference/xppaut-master/xAuto.h#L7)) used `icp[100]`.
-- [delay_handle.c:134](../reference/xppaut-8.0/delay_handle.c#L134) ([master 134](../reference/xppaut-master/delay_handle.c#L134)) `polint` evaluated interpolation with fixed `c[10]`, `d[10]` without verifying point count.
+- [markov.c:109](../reference/xppaut-8.0/markov.c#L109) ([master 109](../reference/xppaut-master/markov.c#L109)) fills `st[50]`, read past its end for a Markov chain of more than 50 states; [markov.c:461](../reference/xppaut-8.0/markov.c#L461) ([master 461](../reference/xppaut-master/markov.c#L461)) holds a Gillespie step's rates in `r[1000]`, and its loop reads `r[nrxn]`, one past the last rate it set; [xAuto.h:7](../reference/xppaut-8.0/xAuto.h#L7) ([master 7](../reference/xppaut-master/xAuto.h#L7)) used `icp[100]`.
+- [delay_handle.c:134](../reference/xppaut-8.0/delay_handle.c#L134) ([master 134](../reference/xppaut-master/delay_handle.c#L134)) `polint` uses `c[10]`, `d[10]` for any point count it is given; its one caller passes four points, so this one is latent.
 
 - **XPPAUT 8.0:** cited above in `reference/xppaut-8.0` and `reference/xppaut-master`.
-- **Evidence:** `table w % 11 0 10 0.001+0.001+...` with 120 terms segfaults in XPPAUT; an ODE equation with 1500 terms crashes or silently truncates.
-- **xppautX:** `add_expr` compiles directly into `std::vector<int>&` with dynamically expanding token and loop stacks. Callers pass dynamic vectors or their destination structs directly. Pivot arrays in `stiff` and `do_fit` use `s.solver_work.size_pivots(n)`. Markov states, reaction rates and AUTO continuation parameters use `std::vector`. Method-fixed arrays (`polint`'s 4 polynomial interpolation points) use `std::array` with explicit bounds checking.
+- **Evidence:** xppautX's build of 2026-10-15, before W372, still had these arrays: `table w % 11 0 10 0.001+...` with 120 terms ended in a segmentation fault, a right-hand side of 1500 terms exited with no output, and 20 terms ran. XPPAUT itself was not run; its source above has the same arrays.
+- **xppautX:** `add_expr` compiles into a `std::vector<int>` and its stacks grow with the formula; the stiff solver's and the fit's pivots come from `size_pivots(n)`; Markov states, Gillespie rates and AUTO's free parameters are vectors sized from the model; `polint` takes exactly four points by type (`std::span<const double, polint_points>`). tests/test_parser.cpp compiles a 2000-term formula, a 300-term table formula and a 60-state chain; the stiff solver of more than 700 variables is not run by a test.
 - **Card:** [W372 / #434](https://github.com/MuhammadMoustafa/xppautX/issues/434).
