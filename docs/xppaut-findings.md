@@ -20,7 +20,8 @@ there is not a finding and is not listed. Line numbers were checked against
 the files when each entry was written ([W143](https://github.com/MuhammadMoustafa/xppautX/issues/195)).
 
 What else differs from XPPAUT, beyond bugs, is
-[xppautx-vs-xppaut.md](xppautx-vs-xppaut.md).
+[xppautx-vs-xppaut.md](xppautx-vs-xppaut.md). Bugs found in AUTO-07p itself are
+recorded in [auto07p-findings.md](auto07p-findings.md).
 
 The entries are sections, not table rows: most need a paragraph of
 evidence. The index gives one line each; its number links to the entry's
