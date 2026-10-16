@@ -93,10 +93,10 @@ xpp::Result<std::string> windows_text(const xpp::Session &s)
     out.begin_list("windows");
     for (int i = 0; i < static_cast<int>(s.plot_windows.graph.size()); i++) {
         const GRAPH &g = s.plot_windows.graph[i];
+        if (!g.Use) continue;
         out.begin_item();
         out.whole("number", i);
         out.flag("open",g.Use!=0);
-        if(!g.Use){out.end_item();continue;}
         xpp::write_window(out, s, g);
         out.text("xlabel", g.xlabel);
         out.text("ylabel", g.ylabel);
@@ -148,7 +148,7 @@ struct WindowsRead {
 /* windows.setx read for s (its model's names; an added column's formula
    compiled in it, nothing of it changed); ReadFailed at a key or value
    that does not read or names what the model does not have */
-WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file)
+WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file, std::size_t &expanded_bytes)
 {
     WindowsRead r;
     /* the added columns first: a window's curves may name them */
@@ -165,22 +165,34 @@ WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file)
         r.added.push_back(std::move(c));
     }
     std::vector<xpp::setx::Block> windows;
-    file.groups("windows", windows);
+    xpp::snapx::memory_groups(file, "windows", windows, sizeof(SavedWindow) + sizeof(xpp::setx::Block), expanded_bytes);
     if (windows.empty()) file.fail(*file.member("windows"), "a session has at least one window");
+    r.windows.reserve(windows.size());
     std::set<int> listed;
+    std::size_t slots = 0;
     for (xpp::setx::Block &w : windows) {
         SavedWindow &sw = r.windows.emplace_back();
         w.whole("number", sw.saved);
-        if(sw.saved!=static_cast<int>(r.windows.size())-1)
-            w.fail(*w.member("number"),"window slots must be listed once in index order");
+        if (sw.saved < 0 || static_cast<std::size_t>(sw.saved) < slots || (slots == 0 && sw.saved != 0))
+            w.fail(*w.member("number"), "window slots must start at zero and be listed once in index order");
+        /* Gaps still occupy runtime slots. create_a_pop copies the main
+           graph's curves into them, so include that storage as well. */
+        const int main_curves = s.plot_windows.graph[0].nvars;
+        const std::size_t slot_bytes = sizeof(GRAPH) + sizeof(xpp::PlotDisplay) + sizeof(xpp::MarksShown::Record)
+            + sizeof(xpp::PhaseShown::Window) + sizeof(int)
+            + static_cast<std::size_t>(main_curves) * (5 * sizeof(int) + 2 * plot_axes * sizeof(float));
+        const std::size_t next = static_cast<std::size_t>(sw.saved) + 1;
+        if (!xpp::snapx::account_memory(expanded_bytes, next - slots, slot_bytes))
+            file.fail(*file.member("windows"), "too many windows for the session memory limit");
+        slots = next;
         w.flag("open",sw.open);
         if(!sw.open){
             if(sw.saved==0)w.fail(*w.member("open"),"the main window must be open");
             w.done();continue;
         }
         listed.insert(sw.saved);
-        sw.graph = s.plot_windows.graph[0];
-        xpp::read_window(w, s, sw.graph, r.added);
+        xpp::copy_graph_settings(s.plot_windows.graph[0], sw.graph);
+        xpp::read_window(w, s, sw.graph, r.added, expanded_bytes);
         w.text("xlabel", sw.xlabel);
         w.text("ylabel", sw.ylabel);
         w.text("zlabel", sw.zlabel);
@@ -208,15 +220,23 @@ WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file)
    active; slot says which window each saved one became */
 void apply_windows(xpp::Session &s, const WindowsRead &r, std::map<int, int> &slot)
 {
+    /* The checked input gives the final slot count; allocate once before
+       create_a_pop fills it. Keep gaps occupied until all later IDs exist. */
+    const std::size_t slots = static_cast<std::size_t>(r.windows.back().saved) + 1;
+    s.plot_windows.graph.reserve(slots);
+    s.plot_windows.current = &s.plot_windows.graph[s.plot_windows.active];
+    s.plot_display.reserve(slots);
+    s.marks_shown.windows.reserve(slots);
+    s.phase_shown.windows.reserve(slots);
+    s.plot_windows.open.reserve(slots);
+    for (int i = 1; i <= r.windows.back().saved; ++i) {
+        xpp::make_active(s, 0, 1);
+        create_a_pop(s);
+    }
     for (const SavedWindow &w : r.windows) {
-        int i = 0;
-        if (w.saved != 0) {
-            xpp::make_active(s, 0, 1);
-            create_a_pop(s);
-            i = s.plot_windows.active;
-        }
-        slot[w.saved]=i;
+        const int i = w.saved;
         if(!w.open)continue;
+        slot[w.saved] = i;
         GRAPH &g = s.plot_windows.graph[i];
         xpp::copy_graph_settings(w.graph, g);
         xpp::copy_curves(w.graph, g);
@@ -228,9 +248,9 @@ void apply_windows(xpp::Session &s, const WindowsRead &r, std::map<int, int> &sl
         d.show_runs = w.show_runs;
         d.axes_seen = false; /* the zoom is for the axes just read */
     }
-    for(const SavedWindow &w:r.windows){
-        if(!w.open){
-            xpp::make_active(s,slot.at(w.saved),1);
+    for (int i = 1; i <= r.windows.back().saved; ++i) {
+        if (!slot.contains(i)) {
+            xpp::make_active(s, i, 1);
             xpp::destroy_a_pop(s);
         }
     }
@@ -277,10 +297,10 @@ xpp::Result<std::string> marks_text(const xpp::Session &s)
     out.begin_list("frozen_curves");
     for (int i = 0; i < static_cast<int>(s.frozen_curves.curve.size()); i++) {
         const CURVE &c = s.frozen_curves.curve[i];
+        if (!c.use) continue;
         out.begin_item();
         out.whole("slot", i);
         out.flag("used",c.use!=0);
-        if(!c.use){out.end_item();continue;}
         out.whole("window", xpp::graph_of(s, c.w));
         out.whole("type", c.type);
         out.whole("color", c.color);
@@ -379,7 +399,7 @@ double position_in(xpp::setx::Block &g, std::string_view key)
    frozen curves' points from frozen (frozen.npz's); ReadFailed at a key or
    value that does not read, names a window windows.setx does not have or a
    frozen curve frozen.npz holds no points of */
-MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const xpp::DataTable &frozen)
+MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const xpp::DataTable &frozen, std::size_t &expanded_bytes)
 {
     MarksRead r;
     std::vector<xpp::setx::Block> labels;
@@ -419,12 +439,19 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
     }
     file.whole("freeze_each_run", r.auto_freeze);
     std::vector<xpp::setx::Block> curves;
-    file.groups("frozen_curves", curves);
+    xpp::snapx::memory_groups(file, "frozen_curves", curves, sizeof(SavedCurve) + sizeof(xpp::setx::Block), expanded_bytes);
+    r.curves.reserve(curves.size());
+    std::size_t slots = 0;
     for (xpp::setx::Block &g : curves) {
         SavedCurve &c = r.curves.emplace_back();
         g.whole("slot", c.slot);
-        if(c.slot!=static_cast<int>(r.curves.size())-1)
-            g.fail(*g.member("slot"),"frozen slots must be listed once in index order");
+        if (c.slot < 0 || static_cast<std::size_t>(c.slot) < slots)
+            g.fail(*g.member("slot"), "frozen slots must be listed once in index order");
+        const std::size_t next = static_cast<std::size_t>(c.slot) + 1;
+        constexpr std::size_t slot_bytes = sizeof(CURVE) + sizeof(std::array<std::vector<float>, plot_axes>) + sizeof(unsigned long);
+        if (!xpp::snapx::account_memory(expanded_bytes, next - slots, slot_bytes))
+            file.fail(*file.member("frozen_curves"), "too many frozen_curves for the session memory limit");
+        slots = next;
         g.flag("used",c.used);
         if(!c.used){g.done();continue;}
         c.window = window_in(g, windows);
@@ -434,6 +461,8 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
         g.whole("points", len);
         g.text("key", c.key);
         g.text("name", c.name);
+        if (len > 0 && !xpp::snapx::account_memory(expanded_bytes, static_cast<std::size_t>(len), plot_axes * sizeof(float)))
+            g.fail(*g.member("points"), "too many frozen curve points for the session memory limit");
         const std::string array = xpp::format("curve{}_", c.slot);
         c.x = points_of(frozen, array + "0", len);
         c.y = points_of(frozen, array + "1", len);
@@ -470,9 +499,10 @@ void apply_marks(xpp::Session &s, MarksRead r, const std::map<int, int> &slot)
                                g.size, 1, w(g.window), g.type, g.color};
     }
     s.frozen_curves.auto_freeze = r.auto_freeze;
-    s.frozen_curves.curve.resize(r.curves.size());
-    s.frozen_curves.points.resize(r.curves.size());
-    s.marks_shown.generation.resize(r.curves.size());
+    const std::size_t slots = r.curves.empty() ? 0 : static_cast<std::size_t>(r.curves.back().slot) + 1;
+    s.frozen_curves.curve.resize(slots);
+    s.frozen_curves.points.resize(slots);
+    s.marks_shown.generation.resize(slots);
     for (SavedCurve &c : r.curves)
         if(c.used)restore_frozen_curve(s, c.slot, w(c.window), c.type, c.color, std::move(c.key), std::move(c.name), std::move(c.x),
                              std::move(c.y), std::move(c.z));
@@ -610,8 +640,9 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
         r.diagram = std::move(*read);
     }
 
-    /* the windows, then what they show */
-    xpp::Result<WindowsRead> windows = settings_member(xpp::snapx::windows_member, [&s](xpp::setx::Block &b) { return read_windows(s, b); });
+    /* One expansion budget for all plot lists, including sparse runtime slots. */
+    std::size_t expanded_bytes = 0;
+    xpp::Result<WindowsRead> windows = settings_member(xpp::snapx::windows_member, [&](xpp::setx::Block &b) { return read_windows(s, b, expanded_bytes); });
     if (!windows) return std::unexpected(windows.error());
     r.windows = std::move(*windows);
 
@@ -638,7 +669,7 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
     if (const auto fz = mem.find(xpp::snapx::frozen_member); fz != mem.end() && !xpp::npz_table(fz->second, frozen))
         return wrong(xpp::format("its {} is not an NPZ file", xpp::snapx::frozen_member));
     xpp::Result<MarksRead> marks =
-        settings_member(xpp::snapx::marks_member, [&](xpp::setx::Block &b) { return read_marks(b, r.windows, frozen); });
+        settings_member(xpp::snapx::marks_member, [&](xpp::setx::Block &b) { return read_marks(b, r.windows, frozen, expanded_bytes); });
     if (!marks) return std::unexpected(marks.error());
     r.marks = std::move(*marks);
     return r;

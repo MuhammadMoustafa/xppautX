@@ -20,10 +20,20 @@
 #include "xpp_error.h"
 #include "xpp_zip.h"
 
+namespace xpp::setx { class Block; }
+
 namespace xpp::snapx {
 
 inline constexpr std::string_view extension = ".snapx";
 inline constexpr int format_version = 2; /* Reject incompatible session manifests (2: the members in the settings syntax, W285). */
+
+/* Account for expanded objects, not their compressed text. No multiplication
+   overflows and a refused claim leaves the running byte estimate unchanged. */
+bool account_memory(std::size_t &used, std::size_t count, std::size_t bytes_each);
+/* A settings list's staged records, checked before making its Blocks. Runtime
+   slots and point storage are charged separately to the same byte estimate. */
+bool memory_groups(setx::Block &block, std::string_view key, std::vector<setx::Block> &out,
+                   std::size_t bytes_each, std::size_t &used);
 
 /* the members, in the order a session file holds them: the manifest,
    the model's (model_folder below), then these */

@@ -14,6 +14,22 @@ constexpr std::string_view manifest_group = "session";
 
 } // namespace
 
+bool account_memory(std::size_t &used, std::size_t count, std::size_t bytes_each)
+{
+    if (used > zip::archive_bytes_limit || (bytes_each && count > (zip::archive_bytes_limit - used) / bytes_each)) return false;
+    used += count * bytes_each;
+    return true;
+}
+
+bool memory_groups(setx::Block &block, std::string_view key, std::vector<setx::Block> &out,
+                   std::size_t bytes_each, std::size_t &used)
+{
+    const setx::Member *m = block.member(key);
+    if (m && m->value.kind == setx::Value::Kind::list && !account_memory(used, m->value.items.size(), bytes_each))
+        block.fail(*m, xpp::format("too many {} for the session memory limit", key));
+    return block.groups(key, out, zip::archive_bytes_limit / bytes_each);
+}
+
 Result<std::string> manifest_text(const Manifest &m)
 {
     setx::Out out;

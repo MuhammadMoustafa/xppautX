@@ -24,7 +24,6 @@
    tokenizer's file budget and max_depth bound allocation and recursion. C++ only. */
 #include <cstddef>
 #include <optional>
-#include <limits>
 #include <span>
 #include <string>
 #include <string_view>
@@ -108,7 +107,7 @@ public:
     /* a nested group */
     std::optional<Block> group(std::string_view key);
     /* a list of groups, at most max of them */
-    bool groups(std::string_view key, std::vector<Block> &out, std::size_t max = std::numeric_limits<std::size_t>::max());
+    bool groups(std::string_view key, std::vector<Block> &out, std::size_t max);
     /* a list of numbers (finite) / words or strings, at most max of them */
     bool reals(std::string_view key, std::vector<double> &out, std::size_t max);
     /* exactly out.size() finite numbers */

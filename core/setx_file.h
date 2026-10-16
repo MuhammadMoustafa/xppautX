@@ -113,12 +113,12 @@ void write_curves(setx::Out &out, const Session &s, const GRAPH &g);
 /* the window's curves into g (nvars, xv, yv, zv, line, color); the
    variables are looked up as find_variable does, then in added (the
    columns a session's windows.setx adds, not yet in s) */
-void read_curves(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added);
+void read_curves(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes);
 /* a plot window as a group holds it (windows.setx, the graphics of a .setx):
    its curves, then its other settings (the rotation, the scales, the box, ...);
    added: as read_curves' */
 void write_window(setx::Out &out, const Session &s, const GRAPH &g);
-void read_window(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added);
+void read_window(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes);
 /* from's curves (their number, variables, lines and colours) given to to */
 void copy_curves(const GRAPH &from, GRAPH &to);
 /* those settings of from given to to, its other fields kept (a restored

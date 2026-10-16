@@ -1677,22 +1677,26 @@ is a zip of ordinary files, in this order:
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `--anifile`'s animation; byte for byte |
 | `model.setx` | the session's settings (docs/odex.md ".setx"): the numerics (the Jacobian included) under the option table's keys, the run's position, the initial and ending values, the parameters, the delays, the boundary conditions, Transpose, the coupling, the array plot, the torus and the ranges; every key in it (a session loads nothing it does not hold), without the graphics, which `windows.setx` holds for every window |
 | `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's settings and views; full-precision diagram and restart orbits when a diagram exists (xpp_session_auto.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
-| `windows.setx` | a `windows` list, every plot slot as a group in index order (its zero-based `number` and boolean `open`; a closed slot has just these keys; an open one also has its `curves` by variable name with line and colour, the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`), `active` (which window), an `auto_view` group (AUTO's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
-| `marks.setx` | the `labels` list (window, x, y, size, font, style, color, text; each value checked, a text 1 to 1000 characters, at most 50), the `arrows_and_markers` list, `freeze_each_run` and the `frozen_curves` list in slot order (zero-based slot and boolean used; unused slots have just these keys; used slots also have window, type, color, points, key, name), per window |
+| `windows.setx` | a `windows` list, every open plot slot as a group in index order (its zero-based `number`, boolean `open` and its `curves` by variable name with line and colour, the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`), `active` (which window), an `auto_view` group (AUTO's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
+| `marks.setx` | the `labels` list (window, x, y, size, font, style, color, text; each value checked, a text 1 to 1000 characters, at most 50), the `arrows_and_markers` list, `freeze_each_run` and the `frozen_curves` list of used slots in slot order (zero-based slot, boolean used, window, type, color, points, key, name), per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
 | `data.npz` | the data table as Save data's NPZ writes it (`T.npy`, `V.npy`, ..., `seed.npy`), unless left out |
 | `sliders.setx` | mandatory; a `sliders` list (at least the three model-option slots, at most 256), each slot a group of `name` (empty clears it), `low`, `high` and `step`; all names and ranges are checked before anything applies |
 | `nullclines.setx` | mandatory; a `current` group and a `frozen` list of groups (at most 10000): each pair has its `x_axis` and `y_axis` (variable numbers) and its `x_segments` and `y_segments`, lists of four finite float coordinates per segment (at most 10000 segments a curve); axis indices and the segment limit are checked |
 | `random.txt` | the random numbers' state as text: a `seed N` line (the seed the next Go uses), a `wiener` line (the Wiener parameters' current values), then the generator's state on one line, the last (the Mersenne Twister's, and whether it holds a normal deviate over, 0 or 1, and that deviate); opening restores it, so a stochastic model goes on from the same numbers |
 
-W376 (#438): plot/frozen slot lists include deleted positions explicitly.
-Their storage is sized from parsed entries, never from a declared index or
-point count. Slot numbers must match the list order; active windows and
-mark references must name open windows. A frozen curve's `points` must
-match its actual NPZ arrays exactly. The settings tokenizer and archive/NPZ
-readers retain their file-size and recursion protections. Every member is
-validated before applying any of it; this is also the snapshot pipeline
-for recordings. Older layouts missing `open` or `used` are refused.
+W376 (#438): saves omit closed windows and unused frozen slots. The saved
+numbers preserve gaps and recording IDs; they must increase, with window
+zero first and open. Before allocation, parsed entries, runtime slots
+(including gaps), curves and frozen points share a 512 MiB estimated
+expansion budget, the archive's byte limit, rather than a fixed count.
+An excess fails at its member's line with `too many ... for the session
+memory limit`. Active windows and mark references must name open windows.
+A frozen curve's `points` must match its actual NPZ arrays exactly. The
+settings tokenizer and archive/NPZ readers retain their file-size and
+recursion protections. Every member is validated before applying any of
+it; this is also the snapshot pipeline for recordings. Layouts missing
+`open` or `used` are refused.
 
 The generator line has one portable layout (W169, #221): 312 decimal
 unsigned 64-bit MT19937-64 state words in array order, the next-word index

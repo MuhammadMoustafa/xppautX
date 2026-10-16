@@ -23,6 +23,7 @@
 #include "data_formats.h"
 #include "setx_file.h"
 #include <array>
+#include <limits>
 
 #include <string>
 #include <vector>
@@ -183,6 +184,34 @@ void check_saved_model(const xpp::TempDir &tmp)
 }
 
 
+/* Each list refuses expansion at its own line before staging or applying
+   anything. Seed the budget with earlier allocations to exercise its boundary
+   using tiny files instead of allocating half a gigabyte in a unit test. */
+void check_list_memory()
+{
+    constexpr std::size_t record_bytes = sizeof(GRAPH);
+    for (const char *key : {"windows", "frozen_curves", "curves"}) {
+        const std::string text = "\n" + std::string(key) + ": [{}, {}]\n";
+        std::size_t used = xpp::zip::archive_bytes_limit - record_bytes;
+        const std::size_t before = used;
+        std::vector<xpp::setx::Block> staged;
+        bool applied = false;
+        const auto read = xpp::setx::read_block("session", "memory.setx", text, true, [&](xpp::setx::Block &b) {
+            xpp::snapx::memory_groups(b, key, staged, record_bytes, used);
+            return true;
+        });
+        if (read) applied = *read;
+        CHECK(!read && read.error().what == "too many " + std::string(key) + " for the session memory limit");
+        CHECK(!read && read.error().place.file == "memory.setx" && read.error().place.line == 2);
+        CHECK(!read && read.error().place.source == std::string(key) + ": [{}, {}]");
+        CHECK(!applied && staged.empty() && used == before);
+    }
+    std::size_t used = 0;
+    CHECK(!xpp::snapx::account_memory(used, std::numeric_limits<std::size_t>::max(), sizeof(GRAPH)) && used == 0);
+    CHECK(xpp::snapx::account_memory(used, 1, xpp::zip::archive_bytes_limit));
+    CHECK(!xpp::snapx::account_memory(used, 1, 1) && used == xpp::zip::archive_bytes_limit);
+}
+
 /* W376 (#438): all three input-sized dimensions, holes, and the protocol's
    auxiliary ID range survive a recording snapshot and a session reload. */
 void check_plot_limits(const xpp::TempDir &tmp)
@@ -228,6 +257,8 @@ void check_plot_limits(const xpp::TempDir &tmp)
     CHECK(file.has_value());
     if(!file)return;
     CHECK(!xpp_saved_check(s,*file));
+    CHECK(file->members.at("windows.setx").find("number: 7,") == std::string::npos);
+    CHECK(file->members.at("marks.setx").find("slot: 5,") == std::string::npos);
     /* A scalar posing as a list, sparse hostile indices, and dishonest point
        counts fail at their member line, without changing any current state. */
     const auto bad=[&](const char *member,const char *old,const char *replacement){
@@ -253,6 +284,19 @@ void check_plot_limits(const xpp::TempDir &tmp)
     bad("marks.setx","points: 3","points: -1");
     bad("marks.setx","points: 3","points: 2147483647");
     bad("marks.setx","points: 3","points: 2");
+    /* The real curve reader shares the budget with preceding window lists.
+       A rejected oversized list leaves both the graph and live session intact. */
+    GRAPH graph = *s.plot_windows.current;
+    const auto old_y = graph.yv;
+    std::size_t used = xpp::zip::archive_bytes_limit - 1;
+    const auto rejected = xpp::setx::read_block("session", "limits.snapx/windows.setx", "\ncurves: [{}, {}]", true,
+        [&](xpp::setx::Block &b) {
+            xpp::read_curves(b, s, graph, {}, used);
+            return true;
+        });
+    CHECK(!rejected && rejected.error().what == "too many curves for the session memory limit");
+    CHECK(!rejected && rejected.error().place.line == 2 && rejected.error().place.file == "limits.snapx/windows.setx");
+    CHECK(graph.yv == old_y && graph.nvars == curves && s.plot_windows.current->nvars == curves);
     /* .setx uses the same curve reader, independently of the archive. */
     const auto settings=xpp::setx_text(s,xpp::capture_settings(s,xpp::SettingsUse::file));
     CHECK(settings.has_value());
@@ -286,6 +330,7 @@ void check_plot_limits(const xpp::TempDir &tmp)
 int main(void)
 {
     check_manifest();
+    check_list_memory();
     check_nullclines();
     const std::string here = xpp::files::working_dir();
     {

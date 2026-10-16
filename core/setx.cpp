@@ -125,6 +125,7 @@ bool Block::groups(std::string_view key, std::vector<Block> &out, std::size_t ma
     if (m->value.items.size() > max)
         doc_->fail(m->value, xpp::format("`{}` has {} entries: at most {}", key, m->value.items.size(), max));
     out.clear();
+    out.reserve(m->value.items.size());
     std::size_t k = 0;
     for (const Value &item : m->value.items) {
         if (item.kind != Value::Kind::group) doc_->fail(item, xpp::format("entry {} of `{}` is not a {{ group }}", k + 1, key));

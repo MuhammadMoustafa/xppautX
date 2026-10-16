@@ -3,6 +3,7 @@
    writer (Put) or a reader (Take) and says "this key, this member"; the
    same description writes and reads, so a key is never named twice. */
 #include "setx_file.h"
+#include "snapx.h"
 
 #include <algorithm>
 #include <cmath>
@@ -206,7 +207,10 @@ public:
             flags[static_cast<std::size_t>(index)] = 1;
         }
     }
-    void curves(GRAPH &g) { read_curves(block_, *s_, g, {}); }
+    void curves(GRAPH &g) {
+        std::size_t expanded_bytes = 0;
+        read_curves(block_, *s_, g, {}, expanded_bytes);
+    }
 
 private:
     setx::Block &block_;
@@ -479,9 +483,9 @@ void write_window(setx::Out &out, const Session &s, const GRAPH &g)
     graph_fields(io, g);
 }
 
-void read_window(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added)
+void read_window(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes)
 {
-    read_curves(window, s, g, added);
+    read_curves(window, s, g, added, expanded_bytes);
     Take io(window, nullptr);
     graph_fields(io, g);
 }
@@ -502,10 +506,14 @@ void write_curves(setx::Out &out, const Session &s, const GRAPH &g)
     out.end_list();
 }
 
-void read_curves(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added)
+void read_curves(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes)
 {
     std::vector<setx::Block> curves;
-    if (!window.groups("curves", curves)) return;
+    /* Five integer columns in the staged/runtime graphs and two display
+       identities; six float scratch columns in both graphs, plus phase flow. */
+    constexpr std::size_t curve_bytes = sizeof(setx::Block) + 4 * 5 * sizeof(int)
+        + 2 * 2 * plot_axes * sizeof(float) + sizeof(PhaseShown::FlowCurve);
+    if (!snapx::memory_groups(window, "curves", curves, curve_bytes, expanded_bytes)) return;
     if (curves.empty()) window.fail(*window.member("curves"), "a window has at least one curve");
     g.resize_curves(static_cast<int>(curves.size()));
     for (std::size_t j = 0; j < curves.size(); j++) {
