@@ -10,6 +10,8 @@ struct iap_type; // The adapter borrows the run's AutoLib and diagnostics.
 
 namespace xpp {
 
+inline constexpr integer auto_ge_pivot_iid = 4; // Full pivot listing accompanies reduced-Jacobian diagnostics.
+inline constexpr integer auto_ge_note_iid = 1; // IID zero suppresses tiny-pivot notes, as AUTO-07p does.
 inline constexpr doublereal auto_rsmall = 1.0e-30;          // Zero pivot threshold for Gaussian elimination and null space
 inline constexpr doublereal auto_qzeps1 = 0.0;              // QZ eigenvalue zero tolerance
 inline constexpr integer auto_householder_left = 1;         // Householder plane rotation applied from the left (dhhap)
@@ -33,7 +35,7 @@ inline constexpr integer auto_householder_left = 1;         // Householder plane
    BLAS/rotation helpers retain stride, scaling and summation order. */
 int eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev, integer *ier);
 int nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u);
-int ge(FILE *fp9, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det);
+int ge(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det);
 int flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *rwork, doublecomplex *ev, bool deflate);
 int dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublereal *beta, doublereal *v);
 int dhhap(integer *k, integer *j, integer *n, integer *q, doublereal *beta, doublereal *v, integer *job, doublereal *a, integer *lda);

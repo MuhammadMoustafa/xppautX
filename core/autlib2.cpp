@@ -13,26 +13,56 @@
 /* The sizes follow the Fortran's macros: nrow = ndim*ncol (rows of A),
    nclm = nrow + ndim (its columns), nrc = nbc + nint + 1 (rows of C and D),
    and each array holds ntst + 1 mesh intervals (the last is a spare). */
+void AutoAssemblyScratch::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t nbc,
+                                 std::ptrdiff_t nint, std::ptrdiff_t parameters)
+{
+  dfdp.resize(xpp::size_product(ndim, parameters));
+  dfdu.resize(xpp::size_product(ndim, ndim));
+  uold.resize(ndim);
+  f.resize(ndim);
+  u.resize(ndim);
+  wploc.resize(xpp::size_product(ncol, xpp::size_sum(ncol, 1)));
+  prm.resize(parameters);
+  residual_parameters.resize(parameters);
+  if (wi.size() != xpp::size_sum(ncol, 1)) {
+    wi.resize(xpp::size_sum(ncol, 1));
+    wp.resize(xpp::size_product(ncol, xpp::size_sum(ncol, 1)));
+    wt.resize(xpp::size_product(ncol, xpp::size_sum(ncol, 1)));
+    wint(ncol + 1, wi.data());
+    genwts(ncol, ncol + 1, wt.data(), wp.data());
+  }
+  dicd.resize(xpp::size_product(nint, xpp::size_sum(ndim, parameters)));
+  ficd.resize(nint);
+  dbc.resize(xpp::size_product(nbc, xpp::size_sum(xpp::size_product(2, ndim), parameters)));
+  fbc.resize(nbc);
+  uic.resize(ndim);
+  uio.resize(ndim);
+  uid.resize(ndim);
+  uip.resize(ndim);
+  ubc0.resize(ndim);
+  ubc1.resize(ndim);
+}
+
 void SolvbvWork::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t ntst, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t parameters)
 {
   const std::size_t nrow = xpp::size_product(ndim,ncol);
   const std::size_t nclm = xpp::size_sum(nrow,ndim), nrc = xpp::size_sum(nbc,nint,1), nodes = xpp::size_sum(ntst,1);
-  a.assign(xpp::size_product(nclm, nrow, nodes), 0.);
-  b.assign(xpp::size_product(parameters, nrow, nodes), 0.);
-  c.assign(xpp::size_product(nclm, nrc, nodes), 0.);
-  d.assign(xpp::size_product(nrc, parameters), 0.);
-  a1.assign(xpp::size_product(ndim, ndim, nodes), 0.);
-  a2.assign(xpp::size_product(ndim, ndim, nodes), 0.);
-  s1.assign(xpp::size_product(ndim, ndim, nodes), 0.);
-  s2.assign(xpp::size_product(ndim, ndim, nodes), 0.);
-  bb.assign(xpp::size_product(ndim, parameters, nodes), 0.);
-  cc.assign(xpp::size_sum(xpp::size_product(nrc, ndim, nodes), 1), 0.);
-  faa.assign(xpp::size_product(ndim, nodes), 0.);
-  icf.assign(xpp::size_product(nclm, nodes), 0);
-  irf.assign(xpp::size_product(nrow, nodes), 0);
-  ipr.assign(xpp::size_product(ndim, nodes), 0);
-  icf1.assign(xpp::size_product(ndim, nodes), 0);
-  icf2.assign(xpp::size_product(ndim, nodes), 0);
+  a.resize(xpp::size_product(nclm, nrow, nodes));
+  b.resize(xpp::size_product(parameters, nrow, nodes));
+  c.resize(xpp::size_product(nclm, nrc, nodes));
+  d.resize(xpp::size_product(nrc, parameters));
+  a1.resize(xpp::size_product(ndim, ndim, nodes));
+  a2.resize(xpp::size_product(ndim, ndim, nodes));
+  s1.resize(xpp::size_product(ndim, ndim, nodes));
+  s2.resize(xpp::size_product(ndim, ndim, nodes));
+  bb.resize(xpp::size_product(ndim, parameters, nodes));
+  cc.resize(xpp::size_sum(xpp::size_product(nrc, ndim, nodes), 1));
+  faa.resize(xpp::size_product(ndim, nodes));
+  icf.resize(xpp::size_product(nclm, nodes));
+  irf.resize(xpp::size_product(nrow, nodes));
+  ipr.resize(xpp::size_product(ndim, nodes));
+  icf1.resize(xpp::size_product(ndim, nodes));
+  icf2.resize(xpp::size_product(ndim, nodes));
 }
 
 
@@ -74,8 +104,8 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 
   std::vector<doublereal> ft(xpp::size_product(iap->ndim, iap->ncol, xpp::size_sum(iap->ntst, 1)));
 
-   if (*ifst==1){
-    /* the arrays are sized (and zeroed) in one place, SolvbvWork::resize */
+  if (*ifst == 1) {
+    /* the arrays are sized in one place, SolvbvWork::resize */
     iap->lib->solvbv.resize(iap->ndim, iap->ncol, iap->ntst, iap->nbc, iap->nint, iap->lib->parameter_count);
   }
 
@@ -101,7 +131,9 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 	   *rds, iap->lib->solvbv.a_matrix(nclm, nrow, ntst), iap->lib->solvbv.b_matrix(nfpr, nrow, ntst), iap->lib->solvbv.c_matrix(nclm, nrc, ntst), iap->lib->solvbv.d_matrix(nfpr, nrc), ft.data(), fc, rlcur, 
 	   rlold, rldot, ups, uoldps, udotps, upoldp, dups, 
 	   dtm, thl, thu, p0, p1);
-  } else {
+  } else if (*nllv >= 0 || ips == xpp::AutoProblem::Homoclinic) {
+    // A cycle fold uses a fixed RHS. HomCont still needs the boundary
+    // evaluations that advance its projection continuity state.
     setrhs(&ndim, &ips, &ntst, &ncol, &nbc, &nint, &
 	   nfpr, &nrc, &nrow, &nclm, funi, bcni, icni,
 	   ndxloc, iap, rap, par, icp, rds, ft.data(), fc, rlcur, 
@@ -167,26 +199,27 @@ setrhs(integer *ndim, xpp::AutoProblem *ips, integer *na, integer *ncol, integer
   integer ncp1;
   doublereal dt,ddt;
 
-  std::vector<doublereal> dicd(xpp::size_product(iap->nint, xpp::size_sum(iap->ndim, iap->lib->parameter_count)));
-  std::vector<doublereal> ficd(iap->nint);
-  std::vector<doublereal> dfdp(xpp::size_product(iap->ndim, iap->lib->parameter_count));
-  std::vector<doublereal> dfdu(xpp::size_product(iap->ndim, iap->ndim));
-  std::vector<doublereal> uold(iap->ndim);
-  std::vector<doublereal> f(iap->ndim);
-  std::vector<doublereal> u(iap->ndim);
-  std::vector<doublereal> wploc(xpp::size_product(iap->ncol, xpp::size_sum(iap->ncol, 1)));
-  std::vector<doublereal> wi(xpp::size_sum(iap->ncol, 1));
-  std::vector<doublereal> wp(xpp::size_product(iap->ncol, xpp::size_sum(iap->ncol, 1)));
-  std::vector<doublereal> wt(xpp::size_product(iap->ncol, xpp::size_sum(iap->ncol, 1)));
-  std::vector<doublereal> dbc(xpp::size_product(iap->nbc, xpp::size_sum(xpp::size_product(2, iap->ndim), iap->lib->parameter_count)));
-  std::vector<doublereal> fbc(iap->nbc);
-  std::vector<doublereal> uic(iap->ndim);
-  std::vector<doublereal> uio(iap->ndim);
-  std::vector<doublereal> prm(iap->lib->parameter_count);
-  std::vector<doublereal> uid(iap->ndim);
-  std::vector<doublereal> uip(iap->ndim);
-  std::vector<doublereal> ubc0(iap->ndim);
-  std::vector<doublereal> ubc1(iap->ndim);
+  iap->lib->assembly.resize(iap->ndim, iap->ncol, iap->nbc, iap->nint, iap->lib->parameter_count);
+  auto &dicd = iap->lib->assembly.dicd;
+  auto &ficd = iap->lib->assembly.ficd;
+  auto &dfdp = iap->lib->assembly.dfdp;
+  auto &dfdu = iap->lib->assembly.dfdu;
+  auto &uold = iap->lib->assembly.uold;
+  auto &f = iap->lib->assembly.f;
+  auto &u = iap->lib->assembly.u;
+  auto &wploc = iap->lib->assembly.wploc;
+  auto &wi = iap->lib->assembly.wi;
+  auto &wp = iap->lib->assembly.wp;
+  auto &wt = iap->lib->assembly.wt;
+  auto &dbc = iap->lib->assembly.dbc;
+  auto &fbc = iap->lib->assembly.fbc;
+  auto &uic = iap->lib->assembly.uic;
+  auto &uio = iap->lib->assembly.uio;
+  auto &prm = iap->lib->assembly.prm;
+  auto &uid = iap->lib->assembly.uid;
+  auto &uip = iap->lib->assembly.uip;
+  auto &ubc0 = iap->lib->assembly.ubc0;
+  auto &ubc1 = iap->lib->assembly.ubc1;
 
   /* Parameter adjustments */
   /*--par;*/
@@ -208,8 +241,6 @@ setrhs(integer *ndim, xpp::AutoProblem *ips, integer *na, integer *ncol, integer
   wp_dim1 = iap->ncol+1;
   wploc_dim1 = iap->ncol+1;
 
-  wint(*ncol + 1, wi.data());
-  genwts(*ncol, iap->ncol + 1, wt.data(), wp.data());
   /* Initialize to zero. */
   for (i = 0; i < *nrc; ++i) {
     fc[i] = 0.;
@@ -1009,7 +1040,7 @@ dimrge(FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, 
 
   /* Solve for FCC */
   if (*nllv == 0) {
-    xpp::ge(fp9, ncrloc, ncrloc, e, 1, ncrloc, fcc,
+    xpp::ge(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   } else if (*nllv > 0) {
     xpp::nlvc(fp9, ncrloc, ncrloc, *nllv, e, fcc);
@@ -1018,7 +1049,7 @@ dimrge(FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, 
       xe[i] = 0.;
     }
     xe[-1 + ncrloc] = 1.;
-    xpp::ge(fp9, ncrloc, ncrloc, e, 1, ncrloc, fcc,
+    xpp::ge(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   }
   if (*idb >= 4) {

@@ -1444,7 +1444,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       wrjac(iap, &tmp, m1aaloc, aa, rhs);
     }
 
-    xpp::ge(iap->lib->fp9, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
+    xpp::ge(iap->lib->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
        ndim + 1, rhs, &det);
     rap->det = det;
     drlm = du[ndim];
@@ -1806,7 +1806,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ARRAY2D(aa, ndim, ndim) = rldot[0];
   rhs[ndim] = 1.;
 
-  xpp::ge(iap->lib->fp9, ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
+  xpp::ge(iap->lib->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
   rap->det = det;
   {
     integer tmp = ndim + 1;
@@ -2317,7 +2317,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
       integer tmp = ndim + 1;
       wrjac(iap, &tmp, m1aaloc, aa, rhs);
     }
-    xpp::ge(iap->lib->fp9, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
+    xpp::ge(iap->lib->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
        ndim + 1, rhs, &det);
     rap->det = det;
     drlm = du[ndim];
@@ -5752,7 +5752,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   for (i = 0; i < ndim * ndim; ++i) {
     pp[i] = p1[i];
   }
-  xpp::ge(iap->lib->fp9, ndim, ndim, pp.data(), 0, 1, &u, 1, &f, &det);
+  xpp::ge(iap->lib->fp9, iap->iid, ndim, ndim, pp.data(), 0, 1, &u, 1, &f, &det);
   rap->det = det;
 
   /* Set the determinant of the normalized reduced system. */
@@ -6509,5 +6509,9 @@ void allocate_global_memory(const iap_type iap) {
     iap.lib->scratch.uu2.assign(iap.ndim, 0.);
     iap.lib->scratch.ff1.assign(iap.ndim, 0.);
     iap.lib->scratch.ff2.assign(iap.ndim, 0.);
+    iap.lib->scratch.funi_u1.resize(iap.ndim);
+    iap.lib->scratch.funi_u2.resize(iap.ndim);
+    iap.lib->scratch.funi_f1.resize(iap.ndim);
+    iap.lib->scratch.funi_f2.resize(iap.ndim);
     iap.lib->rotations.nrtn.assign(iap.nbc, 0);
 }

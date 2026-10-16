@@ -173,14 +173,21 @@ struct AutoState {
   xpp::AutoDataShown shown;
 };
 
-/* AUTO's work arrays, owned here (autlib1's allocate_global_memory sizes
-   them once per run: dfu ndim*ndim, dfp ndim*parameter_count, the others
-   ndim; autlib3 and autlib5 read them). auto_f2c.h's doublereal and
-   integer spelt out (double, std::ptrdiff_t): the header is not included here, as
-   its typedefs clash with CVODE's (llnltyps.h) in a file that includes
-   both through session.h. */
+// Collocation assembly scratch; each worker AutoLib owns its own buffers.
+struct AutoAssemblyScratch {
+  std::vector<double> dfdp, dfdu, uold, f, u, wploc, prm, residual_parameters, wi, wp, wt;
+  std::vector<double> dicd, ficd, dbc, fbc, uic, uio, uid, uip, ubc0, ubc1;
+  void resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t nbc,
+              std::ptrdiff_t nint, std::ptrdiff_t parameters);
+};
+
+/* Evaluator scratch: allocate_global_memory sizes augmented-system and
+   FUNI differences once per run. Condensation, quadrature and map storage
+   are sized by their owners on first use. Each worker owns its copy.
+   Spell auto_f2c.h's types out here: its typedefs clash with CVODE's. */
 struct AutoGlobalScratch {
   std::vector<double> dfu, dfp, uu1, uu2, ff1, ff2;
+  std::vector<double> funi_u1, funi_u2, funi_f1, funi_f2;
 };
 struct AutoGlobalRotations {
   std::ptrdiff_t irtn = 0;
@@ -192,7 +199,7 @@ struct Session; /* session.h */
 }
 
 /* solvbv's matrices and index arrays, kept from one call to the next: a
-   call with *ifst == 1 sizes (and zeroes) them with resize, later ones reuse
+   call with *ifst == 1 sizes them with resize, later ones reuse
    what it factored (autlib2.cpp). resize states every dimension once
    (autlib2.cpp, where the Fortran's NAX, M1AA ... macros were); the four
    matrices setubv fills are handed out as bounded views, made again for each
@@ -232,6 +239,7 @@ struct AutoLib {
   std::vector<double> rhs_constants; /* the parser's constants and variables, copied for a worker */
   std::vector<double> rhs_variables;
   AutoGlobalScratch scratch{};
+  AutoAssemblyScratch assembly;
   AutoGlobalRotations rotations{};
   /* 1 while stepbv solves a Newton step (autlib1.cpp). A cancelled job
      then stops the collocation setup early (setubv2.cpp), solvbv skips
@@ -256,7 +264,7 @@ struct AutoLib {
   /* solvae's last ntop (its output's paging) */
   std::ptrdiff_t solvae_ntop=0;
   /* solvbv's matrices, kept from one call to the next: a call with
-     *ifst == 1 sizes (and zeroes) them, later ones reuse what it
+     *ifst == 1 sizes them, later ones reuse what it
      factored (autlib2.cpp) */
   SolvbvWork solvbv;
   /* the homoclinic continuation's (HomCont's) common blocks

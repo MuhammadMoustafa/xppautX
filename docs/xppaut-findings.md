@@ -717,10 +717,18 @@ factored Jacobian (`ifst` 0), does the same: `ijac` 2, only `f` read
   five, one pinned CPU), and the whole diagram (every point of the steady
   and periodic branches) is bit-identical in all runs
   (paper/benchmarks/auto-parallel, `results/wsl`).
-- **xppautX:** since W253 both residual passes (`setubv_make_fa`, `setrhs`)
-  ask for `f` only (`ijac` 0): the same values, computed the same way, so no
-  result changes.
-- **Card:** [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307), [W253](https://github.com/MuhammadMoustafa/xppautX/issues/310).
+- **xppautX:** W253 made both residual passes ask for `f` only (`ijac` 0).
+  W359 removes `setubv_make_fa` altogether: the Jacobian visit already
+  supplies `f`, so the same residual arithmetic runs there. If boundary
+  differencing changes the parameter bits, that residual is invalidated
+  and recomputed using the same collocation loop. A chord
+  iteration still uses `setrhs`; a cycle-fold direction skips it because
+  the subsequent solve discards that RHS. HomCont retains that visit:
+  boundary evaluation also advances projection continuity, so omitting it
+  moves Nagumo's stored states in the last bits. `test_auto_views` counts the
+  callbacks and checks the corrections; `autocompare` checks stored diagrams
+  at one and automatic threads, without updating the baseline.
+- **Card:** [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307), [W253](https://github.com/MuhammadMoustafa/xppautX/issues/310), [W359](https://github.com/MuhammadMoustafa/xppautX/issues/421).
 
 ## 40. `shift`, `del_shft` and `set` reach outside the variables
 

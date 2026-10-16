@@ -147,7 +147,7 @@ double lyapunov(iap_type &iap, rap_type &rap, double *par, integer *icp,
     for (integer j=0; j<n; ++j) for (integer i=0; i<n; ++i) w.matrix[i+n*j]=aa[i+stride*j];
     for (integer i=0; i<n; ++i) w.rhs[i]=w.a[i]+w.b[i];
     double determinant;
-    xpp::ge(iap.lib->fp9,n,n,w.matrix.data(),1,n,w.r.data(),n,w.rhs.data(),&determinant);
+    xpp::ge(iap.lib->fp9,iap.iid,n,n,w.matrix.data(),1,n,w.r.data(),n,w.rhs.data(),&determinant);
     std::fill(w.matrix.begin(),w.matrix.end(),0.);
     for (integer j=0; j<n; ++j) for (integer i=0; i<n; ++i) {
         w.matrix[i+m*j]=-aa[i+stride*j];
@@ -158,7 +158,7 @@ double lyapunov(iap_type &iap, rap_type &rap, double *par, integer *icp,
         w.matrix[n+i+m*i]=2*omega;
         w.rhs[i]=w.a[i]-w.b[i]; w.rhs[n+i]=2*w.c[i];
     }
-    xpp::ge(iap.lib->fp9,m,m,w.matrix.data(),1,m,w.solution.data(),m,w.rhs.data(),&determinant);
+    xpp::ge(iap.lib->fp9,iap.iid,m,m,w.matrix.data(),1,m,w.solution.data(),m,w.rhs.data(),&determinant);
     for (integer i=0; i<n; ++i) { w.sr[i]=w.solution[i]; w.si[i]=w.solution[n+i]; }
     const double sigma=derivatives.mixed(w.pr,w.qr,w.r)+derivatives.mixed(w.pi,w.qi,w.r);
     const double delta=derivatives.mixed(w.pr,w.qr,w.sr)+derivatives.mixed(w.pr,w.qi,w.si)

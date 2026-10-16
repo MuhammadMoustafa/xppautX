@@ -3171,10 +3171,10 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer jac, ijc;
 
 
-  std::vector<doublereal> u1zz(iap->ndim);
-  std::vector<doublereal> u2zz(iap->ndim);
-  std::vector<doublereal> f1zz(iap->ndim);
-  std::vector<doublereal> f2zz(iap->ndim);
+  auto &u1zz = iap->lib->scratch.funi_u1;
+  auto &u2zz = iap->lib->scratch.funi_u2;
+  auto &f1zz = iap->lib->scratch.funi_f1;
+  auto &f2zz = iap->lib->scratch.funi_f2;
 
   /* Interface subroutine to user supplied FUNC. */
 
@@ -3201,7 +3201,12 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     return 0;
   }
 
-  /* Generate the Jacobian by differencing. */
+  /* Generate the Jacobian by differencing. The run preallocates these;
+     direct evaluator calls also establish their own required extent. */
+  u1zz.resize(ndim);
+  u2zz.resize(ndim);
+  f1zz.resize(ndim);
+  f2zz.resize(ndim);
 
   ep = xpp::auto_jacobian::central(
       ndim, ndim, u, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(),

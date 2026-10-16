@@ -1,5 +1,6 @@
 #include "xpp_mem.h"
 #include <vector>
+#include <cstring>
 #include "auto_c.h"
 #include "session.h"
 #include "xpp_job.h" /* xppautX: cancel */
@@ -39,11 +40,11 @@ struct setubv_parallel_arglist {
   doublereal *thl; /* parameter_count entries */
   doublereal *rldot; /* parameter_count entries */
   BCNI_TYPE((*bcni));
+  bool jacobian = true;
 };
 
 /* setubv's steps (the original AUTO also ran them on pthreads or MPI
    workers). */
-void setubv_make_fa(const setubv_parallel_arglist *larg);
 void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, doublereal *rlcur,
 		       doublereal *rlold, doublereal rds);
 void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol,
@@ -57,7 +58,7 @@ void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol,
 					 doublereal *thu, doublereal *thl, doublereal *rldot, BCNI_TYPE((*bcni)),
 					 setubv_parallel_arglist *data);
 
-void setubv_make_aa_bb(const setubv_parallel_arglist *larg)
+void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
 {
   integer i,j,k,l,l1,ib,ic,jj,jp1,ic1,ib1;
   doublereal dt,ddt;
@@ -66,9 +67,13 @@ void setubv_make_aa_bb(const setubv_parallel_arglist *larg)
   const integer ups_dim1=larg->ndxloc,uoldps_dim1=larg->ndxloc;
   const integer dfdu_dim1=larg->ndim,dfdp_dim1=larg->ndim;
   const integer wploc_dim1=larg->ncol+1,wp_dim1=larg->ncol+1,wt_dim1=larg->ncol+1;
-  std::vector<doublereal> dfdp(xpp::size_product(larg->ndim, larg->iap->lib->parameter_count)),dfdu(xpp::size_product(larg->ndim,larg->ndim));
-  std::vector<doublereal> uold(larg->ndim),f(larg->ndim),u(larg->ndim);
-  std::vector<doublereal> wploc(xpp::size_product(larg->ncol, xpp::size_sum(larg->ncol, 1))),prm(larg->iap->lib->parameter_count);
+  auto &dfdp = larg->iap->lib->assembly.dfdp;
+  auto &dfdu = larg->iap->lib->assembly.dfdu;
+  auto &uold = larg->iap->lib->assembly.uold;
+  auto &f = larg->iap->lib->assembly.f;
+  auto &u = larg->iap->lib->assembly.u;
+  auto &wploc = larg->iap->lib->assembly.wploc;
+  auto &prm = larg->iap->lib->assembly.prm;
   /* Generate AA and BB: */
   
   /*      Partition the mesh intervals */
@@ -103,25 +108,38 @@ void setubv_make_aa_bb(const setubv_parallel_arglist *larg)
       for (i = 0; i < larg->iap->lib->parameter_count; ++i) {
 	prm[i] = larg->par[i];
       }
-      (*(larg->funi))(larg->iap, larg->rap, larg->ndim, u.data(), uold.data(), larg->icp, prm.data(), 2, f.data(), dfdu.data(), dfdp.data());
+      (*(larg->funi))(larg->iap, larg->rap, larg->ndim, u.data(), uold.data(), larg->icp, prm.data(), larg->jacobian ? 2 : 0, f.data(), dfdu.data(), dfdp.data());
 
 
       ic1 = ic * (larg->ndim);
-      for (ib = 0; ib < larg->ncol + 1; ++ib) {
-	double wt_tmp=ARRAY2D(wt, ib, ic);
-	double wploc_tmp=ARRAY2D(wploc, ib, ic);
-	ib1 = ib * larg->ndim;
-	for (i = 0; i < larg->ndim; ++i) {
-	  aa(ib1 + i, ic1 + i, jj) = wploc_tmp;
-	  for (k = 0; k < larg->ndim; ++k) {
-	    aa(ib1 + k, ic1 + i, jj) -= wt_tmp * ARRAY2D(dfdu, i, k);
-	  }
-	}
-      }
+      // FUNI already supplied the residual before differentiating.
+      const integer fa_dim1 = larg->nra;
+      doublereal *fa = larg->fa;
       for (i = 0; i < larg->ndim; ++i) {
-	for (k = 0; k < larg->ncb; ++k) {
-	  bb(k, ic1 + i,  jj) = -ARRAY2D(dfdp, i, larg->icp[k]);
-	}
+        ARRAY2D(fa, ic1 + i, jj) = f[i] - ARRAY2D(wploc, larg->ncol, ic) * ARRAY2D(ups, jp1 + larg->loop_offset, i);
+        for (k = 0; k < larg->ncol; ++k) {
+          const integer k1 = k * larg->ndim + i;
+          ARRAY2D(fa, ic1 + i, jj) -= ARRAY2D(wploc, k, ic) * ARRAY2D(ups, j + larg->loop_offset, k1);
+        }
+      }
+
+      if (larg->jacobian) {
+        for (ib = 0; ib < larg->ncol + 1; ++ib) {
+          double wt_tmp=ARRAY2D(wt, ib, ic);
+          double wploc_tmp=ARRAY2D(wploc, ib, ic);
+          ib1 = ib * larg->ndim;
+          for (i = 0; i < larg->ndim; ++i) {
+            aa(ib1 + i, ic1 + i, jj) = wploc_tmp;
+            for (k = 0; k < larg->ndim; ++k) {
+              aa(ib1 + k, ic1 + i, jj) -= wt_tmp * ARRAY2D(dfdu, i, k);
+            }
+          }
+        }
+        for (i = 0; i < larg->ndim; ++i) {
+          for (k = 0; k < larg->ncb; ++k) {
+            bb(k, ic1 + i, jj) = -ARRAY2D(dfdp, i, larg->icp[k]);
+          }
+        }
       }
     }
   
@@ -141,6 +159,7 @@ void dispatch_mesh(const setubv_parallel_arglist *larg,
       local.lib=&worker;
       setubv_parallel_arglist mine=*larg;
       mine.iap=&local;
+      worker.assembly.resize(larg->ndim, larg->ncol, larg->nbc, larg->nint, worker.parameter_count);
       mine.loop_start=larg->loop_start+begin;
       mine.loop_end=larg->loop_start+end;
       work(&mine);
@@ -172,16 +191,16 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 
   const xpp::Matrix3<doublereal> cc = larg->cc;
 
-  std::vector<doublereal> dicd(xpp::size_product(larg->nint, xpp::size_sum(larg->ndim, larg->iap->lib->parameter_count)));
-  std::vector<doublereal> ficd(larg->nint);
-  std::vector<doublereal> dbc(xpp::size_product(larg->nbc, xpp::size_sum(xpp::size_product(2, larg->ndim), larg->iap->lib->parameter_count)));
-  std::vector<doublereal> fbc(larg->nbc);
-  std::vector<doublereal> uic(larg->ndim);
-  std::vector<doublereal> uio(larg->ndim);
-  std::vector<doublereal> uid(larg->ndim);
-  std::vector<doublereal> uip(larg->ndim);
-  std::vector<doublereal> ubc0(larg->ndim);
-  std::vector<doublereal> ubc1(larg->ndim);
+  auto &dicd = larg->iap->lib->assembly.dicd;
+  auto &ficd = larg->iap->lib->assembly.ficd;
+  auto &dbc = larg->iap->lib->assembly.dbc;
+  auto &fbc = larg->iap->lib->assembly.fbc;
+  auto &uic = larg->iap->lib->assembly.uic;
+  auto &uio = larg->iap->lib->assembly.uio;
+  auto &uid = larg->iap->lib->assembly.uid;
+  auto &uip = larg->iap->lib->assembly.uip;
+  auto &ubc0 = larg->iap->lib->assembly.ubc0;
+  auto &ubc1 = larg->iap->lib->assembly.ubc1;
 
   upoldp_dim1 = larg->ndxloc;
   udotps_dim1 = larg->ndxloc;
@@ -190,7 +209,7 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
   dicd_dim1 = larg->nint;
   dbc_dim1 = larg->nbc;
 
-  dispatch_mesh(larg,setubv_make_aa_bb);
+  dispatch_mesh(larg,setubv_make_fa_aa_bb);
 
   /*     Generate CC : */
   
@@ -284,17 +303,15 @@ setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc
        doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, 
        doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
 {
-  /* System generated locals */
+  iap->lib->assembly.resize(ndim, ncol, nbc, nint, iap->lib->parameter_count);
   /* Local variables */
   integer i, j, k;
 
   
-  std::vector<doublereal> wi(xpp::size_sum(ncol, 1));
-  std::vector<doublereal> wp(xpp::size_product(ncol, xpp::size_sum(ncol, 1)));
-  std::vector<doublereal> wt(xpp::size_product(ncol, xpp::size_sum(ncol, 1)));
+  auto &wi = iap->lib->assembly.wi;
+  auto &wp = iap->lib->assembly.wp;
+  auto &wt = iap->lib->assembly.wt;
 
-  wint(ncol + 1, wi.data());
-  genwts(ncol, ncol + 1, wt.data(), wp.data());
   
   /* Initialize to zero. */
   for (i = 0; i < nrc; ++i) {
@@ -342,11 +359,18 @@ setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc
 					uoldps, udotps, upoldp, dtm, wp.data(), wt.data(), wi.data(), 
 					thu, thl, rldot, bcni, &arglist);
   
+    auto &residual_parameters = iap->lib->assembly.residual_parameters;
+    std::copy_n(par, iap->lib->parameter_count, residual_parameters.begin());
     if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0;
     setubv_make_aa_bb_cc(&arglist);
     if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0;
-    dispatch_mesh(&arglist,setubv_make_fa);
-    if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0;
+    // Boundary differencing can change PAR's last bits (notably HomCont).
+    // Only then is the residual from the Jacobian visit no longer reusable.
+    if (std::memcmp(par, residual_parameters.data(), xpp::size_product(iap->lib->parameter_count, sizeof(double))) != 0) {
+      arglist.jacobian = false;
+      dispatch_mesh(&arglist, setubv_make_fa_aa_bb);
+      if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0;
+    }
     setubv_make_fc_dd(arglist,dups,rlcur,rlold,rds);
   }
 
@@ -354,78 +378,6 @@ setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc
 }
 
 namespace {
-void setubv_make_fa(const setubv_parallel_arglist *larg) {
-  integer i,j,k,l;
-  integer ic,k1,ib;
-  integer jj,jp1,l1,ic1;
-  doublereal dt,ddt;
-
-  doublereal *ups = larg->ups;
-  integer ups_dim1 = larg->ndxloc;
-
-  doublereal *uoldps = larg->uoldps;
-  integer uoldps_dim1 = larg->ndxloc;
-
-  doublereal *wp = larg->wp;
-  integer wp_dim1 = larg->ncol + 1;
-
-  doublereal *wt = larg->wt;
-  integer wt_dim1 = larg->ncol + 1;
-  
-  doublereal *fa = larg->fa;
-  integer fa_dim1 = larg->nra;
-  
-  std::vector<doublereal> wploc(xpp::size_product(larg->ncol, xpp::size_sum(larg->ncol, 1)));
-  integer wploc_dim1 = larg->ncol + 1;
-  
-  std::vector<doublereal> dfdp(xpp::size_product(larg->ndim, larg->iap->lib->parameter_count));
-  std::vector<doublereal> dfdu(xpp::size_product(larg->ndim, larg->ndim));
-  std::vector<doublereal> u(larg->ndim);
-  std::vector<doublereal> uold(larg->ndim);
-  std::vector<doublereal> f(larg->ndim);
-  std::vector<doublereal> prm(larg->iap->lib->parameter_count);
-
-  for (jj = larg->loop_start; jj < larg->loop_end; ++jj) {
-    if (!larg->iap->lib->pure_rhs && larg->iap->lib->setubv_stop && xpp::job::cancelled()) break; /* xppautX: cancel */
-    j = jj;
-    jp1 = j + 1;
-    dt = larg->dtm[j];
-    ddt = 1. / dt;
-    for (ic = 0; ic < larg->ncol; ++ic) {
-      for (ib = 0; ib < larg->ncol + 1; ++ib) {
-	ARRAY2D(wploc, ib, ic) = ddt * ARRAY2D(wp,ib, ic);
-      }
-    }
-    for (ic = 0; ic < larg->ncol; ++ic) {
-      for (k = 0; k < larg->ndim; ++k) {
-	u[k] = ARRAY2D(wt, larg->ncol, ic) * ARRAY2D(ups, jp1, k);
-	uold[k] = ARRAY2D(wt, larg->ncol, ic) * ARRAY2D(uoldps, jp1, k);
-	for (l = 0; l < larg->ncol; ++l) {
-	  l1 = l * larg->ndim + k;
-	  u[k] += ARRAY2D(wt, l, ic) * ARRAY2D(ups, j + larg->loop_offset, l1);
-	  uold[k] += ARRAY2D(wt, l, ic) * ARRAY2D(uoldps, j + larg->loop_offset, l1);
-	}
-      }
-
-      for (i = 0; i < larg->iap->lib->parameter_count; ++i) {
-	prm[i] = larg->par[i];
-      }
-      /* The residual reads only f: no Jacobian (docs/xppaut-findings.md #39). */
-      (*(larg->funi))(larg->iap, larg->rap, larg->ndim, u.data(), uold.data(), larg->icp, prm.data(), 0, f.data(), dfdu.data(), dfdp.data());
-
-      ic1 = ic * (larg->ndim);
-      for (i = 0; i < larg->ndim; ++i) {
-	ARRAY2D(fa,ic1 + i, jj) = f[i] - ARRAY2D(wploc, larg->ncol, ic) * ARRAY2D(ups, jp1 + larg->loop_offset, i);
-	for (k = 0; k < larg->ncol; ++k) {
-	  k1 = k * larg->ndim + i;
-	  ARRAY2D(fa, ic1 + i, jj) -= ARRAY2D(wploc, k, ic) * ARRAY2D(ups, j + larg->loop_offset, k1);
-	}
-      }
-    }
-  
-  }
-  
-}
 
 
 void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, doublereal *rlcur, 
@@ -450,17 +402,17 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
   integer upoldp_dim1 = larg.ndxloc;
   
   integer dbc_dim1 = larg.nbc;
-  std::vector<doublereal> dbc(xpp::size_product(larg.nbc, xpp::size_sum(xpp::size_product(2, larg.ndim), larg.iap->lib->parameter_count)));
-  std::vector<doublereal> fbc(larg.nbc);
-  std::vector<doublereal> ubc0(larg.ndim);
-  std::vector<doublereal> ubc1(larg.ndim);
+  auto &dbc = larg.iap->lib->assembly.dbc;
+  auto &fbc = larg.iap->lib->assembly.fbc;
+  auto &ubc0 = larg.iap->lib->assembly.ubc0;
+  auto &ubc1 = larg.iap->lib->assembly.ubc1;
   integer dicd_dim1 = larg.nint;
-  std::vector<doublereal> dicd(xpp::size_product(larg.nint, xpp::size_sum(larg.ndim, larg.iap->lib->parameter_count)));
-  std::vector<doublereal> ficd(larg.nint);
-  std::vector<doublereal> uic(larg.ndim);
-  std::vector<doublereal> uio(larg.ndim);
-  std::vector<doublereal> uid(larg.ndim);
-  std::vector<doublereal> uip(larg.ndim);
+  auto &dicd = larg.iap->lib->assembly.dicd;
+  auto &ficd = larg.iap->lib->assembly.ficd;
+  auto &uic = larg.iap->lib->assembly.uic;
+  auto &uio = larg.iap->lib->assembly.uio;
+  auto &uid = larg.iap->lib->assembly.uid;
+  auto &uip = larg.iap->lib->assembly.uip;
 
   /* Boundary condition part of FC */
   if (larg.nbc > 0) {

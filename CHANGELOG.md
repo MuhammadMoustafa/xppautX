@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- AUTO reuses the Newton Jacobian's residual and skips the discarded residual for a cycle-fold direction; pivot diagnostics follow IID (W359, [#421](https://github.com/MuhammadMoustafa/xppautX/issues/421)).
+
 - AUTO labels BT, CP, ZH and GH on equilibrium fold/Hopf curves using AUTO-07p 0.9.4 test functions (GH uses the first Lyapunov coefficient), enabled by default with individual detection controls; fold curves preserve their starting auxiliary period (W364, [#426](https://github.com/MuhammadMoustafa/xppautX/issues/426)).
 
 - Building from source stops on any compiler warning (`-Werror` is on by default, on gcc and clang alike); `make WERROR=0` builds with warnings as warnings, for a compiler not tested here (W401, [#463](https://github.com/MuhammadMoustafa/xppautX/issues/463)).

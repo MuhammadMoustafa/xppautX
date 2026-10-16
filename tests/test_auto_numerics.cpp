@@ -91,7 +91,7 @@ std::uint64_t solve(std::vector<double> input, integer rhs, bool expect_failure 
     xpp::UniqueFile log(std::tmpfile());
     CHECK(log);
     if (!log) return digest;
-    const auto error = failure([&] { xpp::ge(log.get(), n, n, a.data(), rhs, n, u.data(), n, f.data(), &det); });
+    const auto error = failure([&] { xpp::ge(log.get(), xpp::auto_ge_pivot_iid, n, n, a.data(), rhs, n, u.data(), n, f.data(), &det); });
     fold(digest, error);
     CHECK(!error.empty() == expect_failure);
     fold(digest, a); fold(digest, f); fold(digest, u); fold(digest, det);
@@ -314,6 +314,7 @@ std::uint64_t homcont()
     std::array projection_new{lib.homcont,lib.homcont};
     iap_type iap{};
     iap.lib = &lib; iap.ndim = n; iap.ndm = n; iap.nfpr = 1;
+    iap.iid = xpp::auto_ge_pivot_iid; // Keep the pre-W359 diagnostic digest at full verbosity.
     std::array<integer, 1> icp{session.auto_state.parameter_layout.solver_index(0)};
     std::vector<double> par(lib.parameter_count), dfdp(n*lib.parameter_count);
     std::array<double,n> equilibrium{}, rr{}, ri{};
@@ -366,8 +367,31 @@ std::uint64_t homcont()
 }
 } // namespace
 
+void check_ge_verbosity()
+{
+    // IID changes only diagnostics, including a pivot smaller than RSMALL.
+    std::array<double, 4> quiet_matrix{}, quiet_rhs{}, quiet_solution{};
+    double quiet_det = 0;
+    for (integer iid : {0, 1, 3, 4}) {
+        std::array<double, 4> matrix{2e-32, 0, 0, 1e-32}, rhs{1, 2}, solution{};
+        double det = 0;
+        xpp::UniqueFile log(std::tmpfile());
+        CHECK(log);
+        if (!log) continue;
+        xpp::ge(log.get(), iid, 2, 2, matrix.data(), 1, 2, solution.data(), 2, rhs.data(), &det);
+        const auto text = contents(log.get());
+        CHECK((text.find("Pivots in GE") != std::string::npos) == (iid >= xpp::auto_ge_pivot_iid));
+        CHECK((text.find("NOTE:Pivot") != std::string::npos) == (iid >= xpp::auto_ge_note_iid));
+        if (iid == 0) {
+            CHECK(text.empty());
+            quiet_matrix = matrix; quiet_rhs = rhs; quiet_solution = solution; quiet_det = det;
+        } else CHECK(matrix == quiet_matrix && rhs == quiet_rhs && solution == quiet_solution && det == quiet_det);
+    }
+}
+
 int main()
 {
+    check_ge_verbosity();
     size_t case_index = 0;
     /* Large off-diagonal and tied candidates distinguish complete from partial
        pivoting and pin AUTO's row/column tie order. */

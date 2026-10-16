@@ -194,7 +194,7 @@ nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
    LINPACK sgefa uses partial pivoting and updates stored multipliers instead;
    substituting it changes both rounding and AUTO diagnostics. */
 /* Subroutine */ int 
-ge(FILE *fp9, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det)
+ge(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det)
 {
   /* System generated locals */
   integer a_dim1, u_dim1, f_dim1;
@@ -247,9 +247,11 @@ ge(FILE *fp9, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxlo
   for (jj = 0; jj < n - 1; ++jj) {
     complete_pivot(n, a_dim1, a, ir, ic, jj, ipiv, jpiv, piv);
     *det *= ARRAY2D(a, ir[ipiv], ic[jpiv]);
-    if(jj==0)  xpp::print(fp9,"\n Pivots in GE");
-    if((jj%6)==0) xpp::print(fp9,"\n");
-    xpp::print(fp9," {:4} {:12.3e} ",jj,f2c::abs(ARRAY2D(a, ir[ipiv], ic[jpiv])));
+    if (iid >= auto_ge_pivot_iid) {
+      if(jj==0) xpp::print(fp9,"\n Pivots in GE");
+      if((jj%6)==0) xpp::print(fp9,"\n");
+      xpp::print(fp9," {:4} {:12.3e} ",jj,f2c::abs(ARRAY2D(a, ir[ipiv], ic[jpiv])));
+    }
     if (ipiv != jj) {
       *det = -(*det);
     }
@@ -257,7 +259,7 @@ ge(FILE *fp9, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxlo
       *det = -(*det);
     }
 
-    if (piv < auto_rsmall) {
+    if (iid >= auto_ge_note_iid && piv < auto_rsmall) {
       xpp::print(fp9,"         NOTE:Pivot {:3} < {:10.3E}, in GE\n",jj,auto_rsmall);	
     }
 
@@ -283,8 +285,10 @@ ge(FILE *fp9, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxlo
     }
   }
   *det *= ARRAY2D(a, ir[n - 1], ic[n - 1]);
-     if((jj%6)==0) xpp::print(fp9,"\n");
-     xpp::print(fp9," {:4} {:12.3e} \n",n-1,ARRAY2D(a, ir[n - 1], ic[n - 1]));
+  if (iid >= auto_ge_pivot_iid) {
+    if((jj%6)==0) xpp::print(fp9,"\n");
+    xpp::print(fp9," {:4} {:12.3e} \n",n-1,ARRAY2D(a, ir[n - 1], ic[n - 1]));
+  }
 
   if (nrhs == 0) {
     /* Since the pointers for ir and ic were adjusted we need to put the
@@ -1349,7 +1353,7 @@ prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer
   }
 
   if (mcond > 0) {
-    ge(iap->lib->fp9, mcond, *ndm, dum1.data(), mcond, *ndm, d.data(), *ndm,
+    ge(iap->lib->fp9, iap->iid, mcond, *ndm, dum1.data(), mcond, *ndm, d.data(), *ndm,
        dum2.data(), &det);
   }
 

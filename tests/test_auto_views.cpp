@@ -15,6 +15,7 @@
 #include "integrate.h"
 
 #include <deque>
+#include <cmath>
 #include <numeric>
 #include <utility>
 #include <vector>
@@ -70,9 +71,12 @@ void check_solvbv_work()
         CHECK(w.a.size() == static_cast<size_t>(nclm * nrow * (ntst + 1)));
         CHECK(w.cc.size() == static_cast<size_t>(nrc * ndim * (ntst + 1) + 1));
         CHECK(w.icf.size() == static_cast<size_t>(nclm * (ntst + 1)) && w.ipr.size() == static_cast<size_t>(ndim * (ntst + 1)));
-        bool zero = true;
-        for (double x : w.a) zero = zero && x == 0;
-        CHECK(zero);
+        // A fresh factorization overwrites its active entries; sizing must
+        // preserve existing storage rather than clearing the whole workspace.
+        w.a.front() = 17;
+        const double *storage = w.a.data();
+        w.resize(ndim, ncol, ntst, nbc, nint, parameters);
+        CHECK(w.a.data() == storage && w.a.front() == 17);
         /* the call's own dimensions (nfpr <= parameters, na = ntst) fit */
         auto a = w.a_matrix(nclm, nrow, ntst);
         auto b = w.b_matrix(nfpr, nrow, ntst);
@@ -168,6 +172,100 @@ void check_diagram_points(xpp::Session &s)
 
 /* the work arrays of a library: sized once, a worker's copy of the rotation
    counts owns them */
+// W359: count calls, independent of machine speed. The callbacks implement
+// u' = p with periodic ends; the arclength row fixes the constant direction.
+struct AssemblyProbe : AutoLib {
+    int evaluations = 0, residuals = 0, boundaries = 0;
+    bool change_parameters = false;
+};
+
+int probe_function(const iap_type *iap, const rap_type *, integer,
+                   const double *, const double *, const integer *, double *par,
+                   integer ijac, double *f, double *dfdu, double *dfdp)
+{
+    auto &probe = static_cast<AssemblyProbe &>(*iap->lib);
+    ++probe.evaluations;
+    if (ijac == 0) ++probe.residuals;
+    f[0] = par[0];
+    if (ijac != 0) { dfdu[0] = 0; dfdp[0] = 1; }
+    return 0;
+}
+
+int probe_boundary(const iap_type *iap, const rap_type *, integer, double *par,
+                   const integer *, integer, const double *u0, const double *u1,
+                   double *f, integer, double *dbc)
+{
+    auto &probe = static_cast<AssemblyProbe &>(*iap->lib);
+    ++probe.boundaries;
+    if (probe.change_parameters) par[0] = std::nextafter(par[0], 1.0);
+    f[0] = u0[0] - u1[0];
+    dbc[0] = 1; dbc[1] = -1; dbc[2] = 0;
+    return 0;
+}
+
+void check_assembly_passes(xpp::Session &s)
+{
+    AssemblyProbe lib;
+    lib.session = &s;
+    lib.parameter_count = 1;
+    iap_type iap{};
+    iap.lib = &lib;
+    iap.ndim = iap.nbc = iap.nfpr = 1;
+    iap.ncol = 2; // AUTO supports two through seven collocation points.
+    iap.ntst = 2;
+    iap.ips = xpp::AutoProblem::Periodic;
+    rap_type rap{};
+    integer fresh = 1, nullity = 0, stride = 3, icp = 0;
+    double par = .25, current = par, old = par, tangent = 0, ds = .1, p0 = 0, p1 = 0;
+    std::array<double, 6> ups{.5, .5, .5, .5, .5, .5}, previous = ups, udot{1, 1, 1, 1, 1, 1}, upold{}, dups{}, fa{};
+    std::array<double, 2> dtm{.5, .5}, fc{};
+    double thl = 1, thu = 1;
+    const auto solve = [&] {
+        solvbv(&fresh, &iap, &rap, &par, &icp, probe_function, probe_boundary,
+               nullptr, &ds, &nullity, &current, &old, &tangent, &stride,
+               ups.data(), dups.data(), previous.data(), udot.data(), upold.data(),
+               dtm.data(), fa.data(), fc.data(), &p0, &p1, &thl, &thu);
+    };
+    solve();
+    CHECK(lib.evaluations == iap.ntst * iap.ncol && lib.residuals == 0);
+    const auto first_fa = fa;
+    const auto first_fc = fc;
+    const double determinant = rap.det;
+    fresh = 0;
+    solve();
+    CHECK(lib.evaluations == 2 * iap.ntst * iap.ncol && lib.residuals == iap.ntst * iap.ncol);
+    CHECK(fa == first_fa && fc == first_fc && rap.det == determinant);
+    const int evaluations = lib.evaluations, boundaries = lib.boundaries;
+    nullity = -1;
+    solve();
+    CHECK(lib.evaluations == evaluations && lib.boundaries == boundaries);
+    // Quadrature and elimination round the analytically constant direction.
+    constexpr double direction_tolerance = 1e-12;
+    CHECK(std::abs(fc[0] - 1) < direction_tolerance && std::abs(fc[1]) < direction_tolerance);
+    for (int j = 0; j < iap.ncol; ++j)
+        for (int i = 0; i < iap.ntst; ++i)
+            CHECK(std::abs(fa[i + stride * j] - 1) < direction_tolerance);
+    // Boundary assembly can change parameter bits; reuse is then invalid.
+    const int residuals = lib.residuals;
+    lib.change_parameters = true;
+    fresh = 1;
+    nullity = 0;
+    solve();
+    CHECK(lib.evaluations == evaluations + 2 * iap.ntst * iap.ncol);
+    CHECK(lib.residuals == residuals + iap.ntst * iap.ncol);
+    CHECK(par == std::nextafter(std::nextafter(current, 1.0), 1.0));
+    // HomCont's boundary visits advance projection continuity even though
+    // the direction solve discards their residual values.
+    lib.change_parameters = false;
+    const int hom_evaluations = lib.evaluations, hom_boundaries = lib.boundaries;
+    iap.ips = xpp::AutoProblem::Homoclinic;
+    fresh = 0;
+    nullity = -1;
+    solve();
+    CHECK(lib.evaluations == hom_evaluations + iap.ntst * iap.ncol);
+    CHECK(lib.boundaries == hom_boundaries + 1);
+}
+
 void check_library_arrays(xpp::Session &s)
 {
     AutoLib &lib = s.auto_lib;
@@ -204,6 +302,7 @@ int main()
     check_solvbv_work();
     check_diagram_points(s);
     check_library_arrays(s);
+    check_assembly_passes(s);
     // W366: load a real Markov model; both grab paths see node-only storage.
     xpp::TempDir temp;
     std::string model = temp.path() + "/grab.odex";
