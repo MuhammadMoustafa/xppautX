@@ -63,7 +63,7 @@
         "epss": 0.0001,
         "mxbf": 0
       },
-      "skip": "W402 (#464): xppautX runs the torus curve of the map but labels none of R1-R4, TTR on it; the AUTO-07p reference is tests/auto/henon_rot_tr.auto07p.pending, for W400 to rename into place when it does"
+      "skip": "PENDING W400 (#462): xppautX runs the torus curve of the map but labels none of R1-R4, TTR on it"
     },
     {
       "name": "down",
@@ -92,7 +92,7 @@
         "epss": 0.0001,
         "mxbf": 0
       },
-      "skip": "W402 (#464): xppautX runs the torus curve of the map but labels none of R1-R4, TTR on it; the AUTO-07p reference is tests/auto/henon_rot_tr.auto07p.pending, for W400 to rename into place when it does"
+      "skip": "PENDING W400 (#462): xppautX runs the torus curve of the map but labels none of R1-R4, TTR on it"
     }
   ],
   "differences": [

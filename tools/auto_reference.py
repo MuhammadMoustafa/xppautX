@@ -717,17 +717,7 @@ def main():
     for name in names:
         d = json.loads((BASE / (name + '.json')).read_text(encoding='utf-8'))
         try:
-            ref = reference(name, d, args.program, args)
-            # a run xppautX cannot run (or whose curve it does not follow yet) is skipped in the description, which
-            # tools/autocompare.py does not compare; its reference is kept as NAME.auto07p.pending beside the others,
-            # for the card that makes xppautX run it to rename into place
-            held = {r['name'] for r in d['runs'] if 'skip' in r}
-            path = BASE / (name + SUFFIX[args.program])
-            kept = [r for r in ref['runs'] if r['name'] not in held]
-            if kept:
-                write(path, {**ref, 'runs': kept})
-            if held:
-                write(path.with_name(path.name + '.pending'), {**ref, 'runs': [r for r in ref['runs'] if r['name'] in held]})
+            write(BASE / (name + SUFFIX[args.program]), reference(name, d, args.program, args))
             print('WROTE', name)
         except Refused as e:
             print('REFUSED %s: %s' % (name, e))

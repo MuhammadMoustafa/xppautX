@@ -63,7 +63,7 @@
         "epss": 0.0001,
         "mxbf": 0
       },
-      "skip": "W402 (#464): xppautX finds no flip bifurcation of a map to start the curve from (it labels the torus ones HB only); the AUTO-07p reference is tests/auto/henon_rot_pd.auto07p.pending, for W400 to rename into place when it does"
+      "skip": "PENDING W400 (#462): xppautX finds no flip bifurcation of a map to start the curve from (it labels the torus ones HB only)"
     },
     {
       "name": "down",
@@ -92,7 +92,7 @@
         "epss": 0.0001,
         "mxbf": 0
       },
-      "skip": "W402 (#464): xppautX finds no flip bifurcation of a map to start the curve from (it labels the torus ones HB only); the AUTO-07p reference is tests/auto/henon_rot_pd.auto07p.pending, for W400 to rename into place when it does"
+      "skip": "PENDING W400 (#462): xppautX finds no flip bifurcation of a map to start the curve from (it labels the torus ones HB only)"
     }
   ],
   "differences": [

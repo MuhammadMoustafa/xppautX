@@ -316,10 +316,11 @@ PRINTED = 5e-6
 
 
 def read_reference(path, d):
-    """A reference file, strictly: its format, the description's model and runs."""
+    """A reference file, strictly: its format, the description's model and runs. It holds every run, a skipped
+    one too (kept for the card its reason names), and gives back the runs that are compared."""
     ref = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=no_duplicates)
     members(ref, ('format', 'source', 'model', 'runs'), ('format', 'source', 'model', 'runs'))
-    runs = [r for r in d['runs'] if 'skip' not in r]
+    runs = d['runs']
     if ref['format'] != REFERENCE_FORMAT or ref['model'] != d['model'] or not isinstance(ref['source'], str):
         raise ValueError('format, source or model does not match the description')
     if [r.get('name') for r in ref['runs']] != [r['name'] for r in runs]:
@@ -352,7 +353,7 @@ def read_reference(path, d):
                 finite(p['period'], 'period')
             if not isinstance(p['values'], list) or not all(isinstance(v, list) and len(v) == 2 for v in p['values']):
                 raise ValueError('run %s: spectrum of label %s' % (r['name'], p['label']))
-    return ref
+    return {**ref, 'runs': [r for r, dr in zip(ref['runs'], runs) if 'skip' not in dr]}
 
 
 def read_references(descriptions):

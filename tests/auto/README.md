@@ -69,6 +69,6 @@ are matched by where they lie, not by step (docs/auto-references.md "Two-paramet
 
 ## References xppautX cannot run yet (W402, #464)
 
-A run skipped in a description (its reason names the card that fixes it) has its AUTO-07p reference in
-`NAME.auto07p.pending`, which `tools/autocompare.py` does not read; the card that makes xppautX run it moves the run's entry
-into `NAME.auto07p` and drops the skip (docs/auto-references.md, "W402").
+A reference file holds every run of its description. A run skipped in the description (its reason names the card
+that fixes it) is read with the file but not compared; the card that makes xppautX run it drops the skip
+(docs/auto-references.md, "W402").

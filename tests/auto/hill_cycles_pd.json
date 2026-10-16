@@ -82,7 +82,7 @@
         "epss": 1e-05,
         "mxbf": 0
       },
-      "skip": "W402 (#464): xppautX runs the period-doubling curve but labels no R2 and its lens differs from AUTO-07p's by more than the curve tolerance; the AUTO-07p reference is tests/auto/hill_cycles_pd.auto07p.pending, for W400 to rename into place when it follows"
+      "skip": "PENDING W400 (#462): xppautX runs the period-doubling curve but labels no R2 and its lens differs from AUTO-07p's by more than the curve tolerance"
     }
   ]
 }

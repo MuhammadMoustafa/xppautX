@@ -78,7 +78,7 @@
         "epss": 1e-05,
         "mxbf": 0
       },
-      "skip": "W402 (#464): xppautX runs the curve but labels no R3 or R4 on it, and the line c = -mu leaves the curve comparison (a straight line in the plane of the parameters, constant in c) ill-conditioned; the AUTO-07p reference is tests/auto/hill_cycles_torus.auto07p.pending, for W400 to rename into place when it follows"
+      "skip": "PENDING W400 (#462): xppautX runs the curve but labels no R3 or R4 on it, and the line c = -mu leaves the curve comparison (a straight line in the plane of the parameters, constant in c) ill-conditioned"
     },
     {
       "name": "torus_down",
@@ -107,7 +107,7 @@
         "epss": 1e-05,
         "mxbf": 0
       },
-      "skip": "W402 (#464): xppautX runs the curve but labels no R3 or R4 on it, and the line c = -mu leaves the curve comparison (a straight line in the plane of the parameters, constant in c) ill-conditioned; the AUTO-07p reference is tests/auto/hill_cycles_torus.auto07p.pending, for W400 to rename into place when it follows"
+      "skip": "PENDING W400 (#462): xppautX runs the curve but labels no R3 or R4 on it, and the line c = -mu leaves the curve comparison (a straight line in the plane of the parameters, constant in c) ill-conditioned"
     }
   ]
 }
