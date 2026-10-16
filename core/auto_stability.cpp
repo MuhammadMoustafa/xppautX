@@ -125,12 +125,39 @@ void auto_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *p
     par[xpp::auto_unknown::period] = saved_period;
 }
 
+void auto_cycle_multipliers(const iap_type &iap, const double *p0, const double *p1, doublecomplex *ev, bool deflate)
+{
+    auto &w=iap.lib->codim;
+    const int dimension=static_cast<int>(iap.ndim), n=static_cast<int>(iap.ndm);
+    const int offset=dimension-n;
+    // The last variational block obeys the original orbit's equation.
+    // Condensation mixes its rows with the other blocks. Select n independent
+    // rows of P1's last n columns, using the numerical owner's existing LU.
+    std::fill(w.cycle_matrix.begin(),w.cycle_matrix.end(),0.);
+    for (int i=0;i<dimension;++i) {
+        w.cycle_rows[i]=i;
+        for (int j=0;j<n;++j) w.cycle_matrix[i*dimension+j]=p1[i+dimension*(offset+j)];
+    }
+    int info;
+    sgefa(w.cycle_matrix.data(),dimension,dimension,w.cycle_pivots.data(),&info);
+    for (int i=0;i<n;++i) std::swap(w.cycle_rows[i],w.cycle_rows[w.cycle_pivots[i]]);
+    for (int j=0;j<n;++j) for (int i=0;i<n;++i) {
+        w.cycle_p0[i+n*j]=p0[w.cycle_rows[i]+dimension*(offset+j)];
+        w.cycle_p1[i+n*j]=p1[w.cycle_rows[i]+dimension*(offset+j)];
+    }
+    integer original=iap.ndm, iid=iap.iid;
+    flowkm(iap.lib->fp9,&original,w.cycle_p0.data(),w.cycle_p1.data(),&iid,w.cycle_matrix.data(),ev,deflate);
+}
+
 void auto_stability_multipliers_restored(AutoStability &st, const iap_type &iap, double *p0, double *p1)
 {
     integer ndim = iap.ndim, iid = iap.iid;
     std::vector<doublecomplex> ev(ndim);
-    xpp::flowkm(iap.lib->fp9, &ndim, p0, p1, &iid, nullptr, ev.data(), false);
-    auto_stability_computed(st, iap.ibr, iap.ntot + 1, {&ev[0].r, 2 * ev.size()}, AUTO_STABILITY_PERIODIC);
+    if (iap.isw==2) {
+        auto_cycle_multipliers(iap,p0,p1,ev.data(),false);
+        ndim=iap.ndm;
+    } else xpp::flowkm(iap.lib->fp9, &ndim, p0, p1, &iid, nullptr, ev.data(), false);
+    auto_stability_computed(st, iap.ibr, iap.ntot + 1, {&ev[0].r, 2 * static_cast<std::size_t>(ndim)}, AUTO_STABILITY_PERIODIC);
 }
 
 void auto_stability_computed(AutoStability &st, int br, int pt, std::span<const double> values, AutoStabilityKind kind)

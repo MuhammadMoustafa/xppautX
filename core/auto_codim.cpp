@@ -1,11 +1,19 @@
 #include "auto_codim.h"
 #include "auto_c.h"
+#include "auto_unknowns.h"
 #include "session.h"
 #include "xpp_math.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <numeric>
+
+namespace {
+// Strong resonances in increasing continued angle, in units of pi.
+constexpr std::array<double,4> resonance_angles={0.,.5,2./3,1.};
+constexpr std::array<xpp::AutoPointKind,4> resonance_kinds={xpp::AutoPointKind::Resonance1,
+    xpp::AutoPointKind::Resonance4,xpp::AutoPointKind::Resonance3,xpp::AutoPointKind::Resonance2};
+}
 
 namespace xpp {
 void AutoCodim::prepare(std::size_t n)
@@ -15,6 +23,25 @@ void AutoCodim::prepare(std::size_t n)
                     &r, &sr, &si, &x, &plus, &minus, &work}) v->assign(n, 0.);
     rhs.resize(2*n);
     solution.resize(2*n);
+}
+void AutoCodim::prepare_cycle(std::size_t dimension, std::size_t original)
+{
+    cycle_matrix.resize(size_product(dimension,dimension));
+    cycle_p0.resize(size_product(original,original));
+    cycle_p1.resize(cycle_p0.size());
+    cycle_rows.resize(dimension);
+    cycle_pivots.resize(dimension);
+}
+
+AutoPointKind auto_cycle_resonance_kind(AutoPointKind start, double angle)
+{
+    if (start==AutoPointKind::PeriodicFold) return AutoPointKind::Resonance1;
+    if (start==AutoPointKind::PeriodDoubling) return AutoPointKind::Resonance2;
+    // The torus formulation continues theta, rather than atan2's folded angle.
+    std::size_t nearest=0;
+    for (std::size_t i=1;i<resonance_angles.size();++i)
+        if (std::abs(angle-pi(resonance_angles[i]))<std::abs(angle-pi(resonance_angles[nearest]))) nearest=i;
+    return resonance_kinds[nearest];
 }
 }
 
@@ -170,6 +197,39 @@ double lyapunov(iap_type &iap, rap_type &rap, double *par, integer *icp,
     gamma+=derivatives.cubic(w.a,w.b)/6;
     return (gamma-2*sigma+delta)/(2*omega);
 }
+}
+
+double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *par,
+                       std::span<const doublecomplex> spectrum, logical *changed)
+{
+    const auto start=iap.itpst;
+    const double angle=par[xpp::auto_unknown::torus_angle];
+    const auto kind=xpp::auto_cycle_resonance_kind(start,angle);
+    const auto &enabled=iap.lib->session->auto_state.special_points;
+    if (start==xpp::AutoPointKind::Torus) {
+        double test=1;
+        *changed=FALSE_;
+        for (std::size_t i=0;i<resonance_angles.size();++i)
+            if (xpp::auto_codim_enabled(enabled,resonance_kinds[i])) {
+                test*=angle-pi(resonance_angles[i]);
+                *changed=TRUE_;
+            }
+        return *changed ? test : 0;
+    }
+    *changed=xpp::auto_codim_enabled(enabled,kind);
+    if (!*changed) return 0;
+    if (start!=xpp::AutoPointKind::PeriodicFold && start!=xpp::AutoPointKind::PeriodDoubling) {
+        *changed=FALSE_;
+        return 0;
+    }
+    // spectrum[0] is the neutral multiplier; [1] is the curve's imposed
+    // +1/-1. Test the next one, as AUTO-07p's periodic.f90 PVSPBV does.
+    constexpr double imposed_multiplier_tolerance=.05; // AUTO-07p's accuracy band.
+    const double imposed=start==xpp::AutoPointKind::PeriodicFold ? 1. : -1.;
+    const auto &fixed=spectrum[1], &remaining=spectrum[2];
+    *changed=*changed && std::abs(remaining.i)<std::sqrt(std::sqrt(rap.epss)) &&
+        imposed*remaining.r>0 && xpp::math::hypot(fixed.r-imposed,fixed.i)<imposed_multiplier_tolerance;
+    return *changed ? xpp::math::hypot(remaining.r,remaining.i)-1 : 0;
 }
 
 FNCS_TYPE_AE(fnbtae)

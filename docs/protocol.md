@@ -1193,7 +1193,7 @@ continues in), and a grab's point by its data.
 | `jac` | how the Jacobian of the AUTO run that computed the run was formed: `difference` (XPPAUT's forward differences) or `exact` (the Numerics' Jacobian at that run, W278); a run never joins one with another setting, so one diagram can hold both |
 | `x`, `y` | the values, one per point (`null` for NaN) |
 | `y2` | the second value (the minimum, for hi and lo), when it differs from `y` anywhere in the run |
-| `lab` | [[index in the run, label, type (`EP`, `LP`, `HB`, `BP`, `PD`, `TR`, `UZ`, `MX`, `BT`, `CP`, `ZH`, `GH`)], ...] for the labelled points |
+| `lab` | [[index in the run, label, type (`EP`, `LP`, `HB`, `BP`, `PD`, `TR`, `UZ`, `MX`, `BT`, `CP`, `ZH`, `GH`, `R1`, `R2`, `R3`, `R4`)], ...] for the labelled points |
 
 On equilibrium fold curves, BT means Bogdanov-Takens (stored ITP -21), CP cusp
 (-22), ZH zero-Hopf (-23). On Hopf curves the encodings are BT -31, GH
@@ -1253,6 +1253,11 @@ core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
 | `stop.value`, `limit` | what crossed the limit and the limit: the parameter and Par Min/Max, the norm and Norm Min/Max, the point count and NMX, the step size and Dsmin; `null` where there is none |
 | `stab.eig` | steady states only: the eigenvalues λ = log z of the `circle` values, `[null,null]` where z is 0 (Re λ below about -745); the imaginary part is only known modulo 2π, its principal value |
 
+Cycle-curve resonances use AUTO-07p's signed point codes: `-55` for R1 on
+a fold curve, `-76` for R2 on a flip curve, and `-85`, `-86`, `-87`, `-88`
+for R1, R2, R3, R4 on torus curves. Session diagrams preserve these typed
+kinds and the curve's starting kind (W400, #462).
+
 Numbers are doubles in the shortest of 15 or 17 digits that reads back
 exactly, `null` when not finite. `tools/servercheck.py` checks that the
 point is the `diagram` data's point it names and that the circle holds
@@ -1264,10 +1269,10 @@ Stop).
 ### AUTO's settings as data
 
 `autosettings.special_points` is an object of named booleans `BT`, `CP`,
-`ZH`, `GH`, all true by default. `auto` `set` accepts a partial object, e.g.
-`{"cmd":"auto","op":"set","special_points":{"GH":false}}`. Set all four
-false to disable all equilibrium codimension-two detection. Invalid names or
-non-booleans refuse the whole transaction. Session settings require all four
+`ZH`, `GH`, `R1`, `R2`, `R3`, `R4`, all true by default. `auto` `set` accepts a partial object, e.g.
+`{"cmd":"auto","op":"set","special_points":{"GH":false}}`. Set all eight
+false to disable all equilibrium and cycle codimension-two detection. Invalid names or
+non-booleans refuse the whole transaction. Session settings require all eight
 lines (`BT true` or `BT false`, etc.); validation precedes application.
 
 What the AUTO window's Numerics, Axes (the AutoPlot form and
@@ -1951,7 +1956,7 @@ parameters, the info strip, the stability circle, and what a following
 Run starts from). `{"cmd":"auto","op":"grab","type":"HB","index":k}`
 grabs the `k`-th (1-based, in stored order) labelled point of that AUTO
 type instead (`auto_point_symbol`'s `BP`, `EP`, `HB`, `LP`, `MX`, `PD`, `TR`,
-`UZ`, `BT`, `CP`, `ZH`, `GH`: "the 2nd HB"). A label no stored point has, or a `type`/`index` with
+`UZ`, `BT`, `CP`, `ZH`, `GH`, `R1`, `R2`, `R3`, `R4`: "the 2nd HB"). A label no stored point has, or a `type`/`index` with
 no such point, is a `message` `error` and nothing changes -- the diagram,
 `grabpt` and the info strip stay as they were. `{"cmd":"auto","op":"grab"}`
 with neither field is refused (`message` `error`): the interactive grab is

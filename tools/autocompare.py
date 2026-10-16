@@ -301,7 +301,9 @@ SPECIAL_TYPES = ('EP', 'MX', 'BP', 'LP', 'HB', 'PD', 'TR')
 CODIM_TWO = ('BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4', 'LPD', 'LTR', 'PTR', 'TTR')
 # the type of a stored point (itp, core/auto_nox.h) that both programs label a special point
 BIFURCATIONS = {1: 'BP', 2: 'LP', 3: 'HB', 5: 'LP', 6: 'BP', 7: 'PD', 8: 'TR',
-                -21: 'BT', -22: 'CP', -23: 'ZH', -31: 'BT', -32: 'GH', -33: 'ZH'}
+                -21: 'BT', -22: 'CP', -23: 'ZH', -31: 'BT', -32: 'GH', -33: 'ZH',
+                **{-10 * start - 5 - i: kind for start in (5, 7, 8)
+                   for i, kind in enumerate(('R1', 'R2', 'R3', 'R4'))}}
 POINT_FIELDS = ('type', 'branch', 'label', 'point', 'par', 'norm', 'period', 'spectrum', 'values')
 # Newton's convergence test of both codes (autlib1.c solvae, ae.f90 stepae) stops on a
 # relative change below EPSL for the parameter and EPSU for the state, so a computed
@@ -432,7 +434,7 @@ def spectrum(row):
 def quantity(row, name):
     if name == 'spectrum':
         return spectrum(row)
-    return float(row[{'par': 'continued_parameter', 'norm': 'norm', 'period': 'per'}[name]])
+    return float(row[{'par': 'continued_parameter', 'par2': 'continued_parameter2', 'norm': 'norm', 'period': 'per'}[name]])
 
 
 def spread(a, b):
@@ -443,15 +445,15 @@ def spread(a, b):
     return abs(a - b)
 
 
-def slope(rows, i, name):
+def slope(rows, i, name, cycle=False):
     """The largest rate of change of a quantity per unit of the (parameter, norm) path length
     between the stored point i and its neighbours: a position error along the branch moves a
     quantity by at most this much per unit."""
     best = 0.0
     for j in (i - 1, i + 1):
         if 0 <= j < len(rows):
-            ds = math.hypot(quantity(rows[i], 'par') - quantity(rows[j], 'par'),
-                            quantity(rows[i], 'norm') - quantity(rows[j], 'norm'))
+            coordinates = ('par', 'par2', 'norm') if cycle and 'continued_parameter2' in rows[i] and 'continued_parameter2' in rows[j] else ('par', 'norm')
+            ds = math.hypot(*(quantity(rows[i], q) - quantity(rows[j], q) for q in coordinates))
             if ds > 0:
                 best = max(best, spread(quantity(rows[i], name), quantity(rows[j], name)) / ds)
     return best
@@ -476,8 +478,11 @@ def compare_run(rows, auto, kind, ref_points, who, known=()):
     ours = []
     for i, r in enumerate(rows):
         itp = int(r['itp'])
-        if itp in BIFURCATIONS:
-            ours.append((BIFURCATIONS[itp], i))
+        symbol = BIFURCATIONS.get(itp)
+        if symbol is None and itp > 9:
+            symbol = BIFURCATIONS.get(itp % 10)  # the ordinary kind on a two-parameter curve
+        if symbol:
+            ours.append((symbol, i))
         elif i == 0 and itp == 9 and kind in ('equilibrium', 'bvp'):
             ours.append(('EP', i))
     detected = (*BIFURCATIONS.values(), *(CODIM_TWO if kind == 'two_parameter' else ()))
@@ -499,7 +504,7 @@ def compare_run(rows, auto, kind, ref_points, who, known=()):
     measures = []
     for (t, i), p in zip(ours, theirs):
         # the first stored point of a run holds no spectrum (zeros: not computed, core/auto_stability.cpp)
-        names = ['par', 'norm'] + (['period'] if (t == 'HB' or kind == 'periodic') and p['period'] is not None else []) \
+        names = ['par', 'norm'] + (['par2'] if kind == 'two_parameter' and 'par2' in p else []) + (['period'] if (t == 'HB' or kind == 'periodic') and p['period'] is not None else []) \
             + (['spectrum'] if p['values'] and i else [])
         for q in names:
             a = quantity(rows[i], q)
@@ -510,7 +515,7 @@ def compare_run(rows, auto, kind, ref_points, who, known=()):
             scale = max(abs(complex(*x)) for x in a) if q == 'spectrum' else abs(a)
             # a spectrum's error: its printed digits and the Jacobian's finite differences, relative to
             # the size of the eigenvalues, carried through e^lambda when that is what is stored
-            tol = (2 * loc * slope(rows, i, q) + NEWTON_TOLERANCE * (epsl if q == 'par' else epsu) * (1 + scale)
+            tol = (2 * loc * slope(rows, i, q, kind == 'two_parameter' and p.get('spectrum') == 'multiplier') + NEWTON_TOLERANCE * (epsl if q in ('par', 'par2') else epsu) * (1 + scale)
                    + (NEWTON_TOLERANCE * (FINITE_DIFFERENCE + PRINTED) * (1 + size) * scale if q == 'spectrum' else 0))
             diff = spread(a, b)
             measures.append((q, '%s %d' % (t, i + 1), diff, tol))
@@ -520,19 +525,30 @@ def compare_run(rows, auto, kind, ref_points, who, known=()):
     return diffs, measures
 
 
-def project(point, polyline, scale):
-    """The place on a polyline of (parameter, second parameter, norm) vertices nearest to `point`, each
-    coordinate divided by its range along the curve (`scale`; the norm too, or the two arcs of a cusp,
-    which lie together in the plane of the parameters, could not be told apart): the index of the
-    segment's first vertex, and the point's difference from the place in the three coordinates."""
+def project(point, polyline, tolerances):
+    """Match a sample to the polyline's coordinate-wise uncertainty tubes.
+    Each segment has Newton plus chord-error bounds. A geometrically nearest
+    vertex can be a worse match than a coarser chord on another lap of a closed
+    curve. Rank by the largest fraction of a bound consumed, without changing
+    any bound. The feasible interval preserves all three coordinates together."""
     best = None
-    for i in range(len(polyline) - 1):
+    for i, bounds in enumerate(tolerances):
         a, b = polyline[i], polyline[i + 1]
-        along = [(b[k] - a[k]) / scale[k] for k in range(3)]
+        along = [(b[k] - a[k]) / bounds[k] for k in range(3)]
         length = sum(x * x for x in along)
-        t = 0.0 if length == 0 else min(1.0, max(0.0, sum((point[k] - a[k]) / scale[k] * along[k] for k in range(3)) / length))
+        t = 0.0 if length == 0 else min(1.0, max(0.0, sum((point[k] - a[k]) / bounds[k] * along[k] for k in range(3)) / length))
+        lo, hi = 0.0, 1.0
+        for k in range(3):
+            delta = b[k] - a[k]
+            if delta:
+                ends = [(point[k] - a[k] + sign * bounds[k]) / delta for sign in (-1, 1)]
+                lo, hi = max(lo, min(ends)), min(hi, max(ends))
+            elif abs(point[k] - a[k]) > bounds[k]:
+                lo, hi = 1.0, 0.0
+        if lo <= hi:
+            t = min(hi, max(lo, t))
         residual = [point[k] - (a[k] + t * (b[k] - a[k])) for k in range(3)]
-        distance = math.sqrt(sum((residual[k] / scale[k]) ** 2 for k in range(3)))
+        distance = max(abs(residual[k]) / bounds[k] for k in range(3))
         if best is None or distance < best[0]:
             best = distance, i, residual
     return best[1], best[2]
@@ -557,8 +573,8 @@ CURVE_QUANTITIES = ('curve par', 'curve par2', 'curve norm')
 def compare_curve(rows, auto, ref_curve, who):
     """Differences (strings) and measurements of a two-parameter run's curve against a reference's
     samples. The programs' steps differ, so points are matched by where they lie: every sample of one
-    curve against the other as a polyline, in the plane of the two parameters; the three coordinates
-    there (the nearest place's parameter, second parameter and norm) must agree within
+    curve against the other as a polyline. Match all three coordinates against each segment's
+    uncertainty tube: parameter, second parameter and norm must agree within
 
       2 * EPS * (1+|q|)  +  the chord error of the other curve's polyline (chord_error)
 
@@ -576,15 +592,16 @@ def compare_curve(rows, auto, ref_curve, who):
     ref = [tuple(v) for v in ref_curve]
     diffs, worst = [], {}
     for source, target, side in ((ref, ours, 'reference'), (ours, ref, 'ours')):
-        scale = [(max(v[k] for v in target) - min(v[k] for v in target)) or 1.0 for k in range(3)]
+        chords = [chord_error(target, i) for i in range(len(target) - 1)]
         failed = {}
         for n, point in enumerate(source):
             if not auto['parmin'] <= point[0] <= auto['parmax']:
                 continue
-            i, residual = project(point, target, scale)
-            allowed = chord_error(target, i)
+            tolerances = [[NEWTON_TOLERANCE * (epsu if k == 2 else epsl) * (1 + abs(point[k])) + chord[k]
+                           for k in range(3)] for chord in chords]
+            i, residual = project(point, target, tolerances)
             for k, q in enumerate(CURVE_QUANTITIES):
-                tol = NEWTON_TOLERANCE * (epsu if k == 2 else epsl) * (1 + abs(point[k])) + allowed[k]
+                tol = tolerances[i][k]
                 diff = abs(residual[k])
                 if q not in worst or diff / tol > worst[q][0] / worst[q][1]:
                     worst[q] = diff, tol, '%s sample %d' % (side, n + 1)
@@ -604,7 +621,7 @@ def agreement(name, suffix, measures, diffs, traced=0):
     for sx, _, q, _, diff, tol in measures:
         if sx == suffix:
             worst[q] = max(worst.get(q, 0.0), diff)
-    cells = ', '.join('%s %.2g' % (q, worst[q]) for q in ('par', 'norm', 'period', 'spectrum', *CURVE_QUANTITIES) if q in worst)
+    cells = ', '.join('%s %.2g' % (q, worst[q]) for q in ('par', 'par2', 'norm', 'period', 'spectrum', *CURVE_QUANTITIES) if q in worst)
     return '%s | %s | %d | %s | %s' % (name, REFERENCES[suffix], sum(1 for m in measures if m[0] == suffix and m[2] == 'par'),
                                     cells or '-', 'differs: %d' % len(diffs) if diffs else
                                     'agrees, %d traced' % traced if traced else 'agrees')

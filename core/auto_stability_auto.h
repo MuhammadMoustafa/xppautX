@@ -22,6 +22,10 @@ std::optional<doublecomplex> auto_hopf_pair(std::span<const doublecomplex> spect
 void auto_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *par, integer *icp,
     FUNI_TYPE((*funi)), double *u, double *uold, double *f, double *dfdu, double *dfdp);
 
+/* Original orbit pencil extracted from an augmented cycle-curve system.
+   Uses the existing partial-pivot LU to choose independent equation rows. */
+void auto_cycle_multipliers(const iap_type &iap, const double *p0, const double *p1, doublecomplex *ev, bool deflate);
+
 /* The full generalized spectrum of a restored solution's circuit pencil;
    no assumption of a trivial +1 multiplier (the orbit can have collapsed). */
 void auto_stability_multipliers_restored(AutoStability &st, const iap_type &iap, double *p0, double *p1);

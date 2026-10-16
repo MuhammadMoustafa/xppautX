@@ -243,6 +243,9 @@ int lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYP
 FNCS_TYPE_BVP(fnlpbv);
 FNCS_TYPE_BVP(fnbpbv);
 FNCS_TYPE_BVP(fnspbv);
+// Cycle-curve part of fnspbv, using its ordered original Floquet spectrum.
+double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *par,
+                       std::span<const doublecomplex> spectrum, logical *changed);
 FNCS_TYPE_BVP(fnuzbv);
 int tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomplex *ev);
 int stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu);

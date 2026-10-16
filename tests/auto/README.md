@@ -63,8 +63,8 @@ the check fails if the difference goes away.
 
 A `two_parameter` run (W362, #424) continues a labelled point of an earlier run (`start`: its run, type
 LP or HB, index) in its two `parameters`. Its reference run holds `parameters`, the special points with
-`par2` (AUTO-07p labels BT, CP, ZH and GH there; ours labels none until W364, so each is a `differences`
-entry) and `curve`, every step of the other program as `[parameter, second parameter, norm]`; the curves
+`par2` (BT, CP, ZH and GH on equilibrium curves; R1-R4 on cycle curves,
+W364/W400) and `curve`, every step of the other program as `[parameter, second parameter, norm]`; the curves
 are matched by where they lie, not by step (docs/auto-references.md "Two-parameter curves").
 
 ## References xppautX cannot run yet (W402, #464)

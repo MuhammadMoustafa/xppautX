@@ -351,6 +351,16 @@ disappear.
 Hopf bifurcation: a pair of eigenvalues crosses the imaginary axis, and a
 branch of periodic orbits starts here.
 
+### R1-R4 on cycle curves
+
+Two-parameter curves of periodic orbits detect **R1** (1:1 resonance on a fold
+or torus curve), **R2** (1:2 on a flip or torus curve), **R3** (1:3) and **R4**
+(1:4, both on torus curves). Their test functions follow AUTO-07p 0.9.4:
+the remaining multiplier crosses +1/-1 on fold/flip curves; the continued
+Floquet angle crosses 0, pi, 2 pi/3 or pi/2 on torus curves. Each zero is
+located and saved with its label. Detection is enabled by default; Numerics'
+named special-point booleans disable individual types (W400, #462).
+
 ### BT, CP, ZH and GH on equilibrium curves
 
 Two-parameter fold curves can carry **BT** (Bogdanov-Takens: a double zero
@@ -361,12 +371,11 @@ coefficient changes sign). Their test functions and location follow AUTO-07p
 0.9.4; diagnostic output records the GH coefficient. A labelled zero of a
 finite-difference test still needs numerical convergence checks.
 
-In **Numerics**, **Equilibrium curve special points** enables each type, or
-**Detect all** changes all four together. All start enabled; these booleans
+In **Numerics**, **Curve special points** enables each type, or
+**Detect all** changes all eight equilibrium and cycle types together. All start enabled; these booleans
 are saved in the session. Turning detection off keeps continuation running.
 On a fold curve the auxiliary period is the starting PAR(11), as in AUTO-07p;
-it is not an oscillation period of the fold. Cycle-curve codimension-two labels
-are separate work (W400). (W364, [#426](https://github.com/MuhammadMoustafa/xppautX/issues/426))
+it is not an oscillation period of the fold. (W364, [#426](https://github.com/MuhammadMoustafa/xppautX/issues/426))
 
 ### BP Branch point
 

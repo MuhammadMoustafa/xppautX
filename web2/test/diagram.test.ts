@@ -12,11 +12,11 @@ import {activeView, initialDiagram, pointCount, type DiagramRun} from '../src/st
 import {initialState, reduce, type AppState} from '../src/store/state';
 import {READY} from './hello';
 
-test('equilibrium codim-2 labels have names, legend entries and marks', () => {
-  const kinds = ['BT', 'CP', 'ZH', 'GH'];
+test('equilibrium and cycle codim-2 labels have names, legend entries and marks', () => {
+  const kinds = ['BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4'];
   assert.deepEqual(labelTypes(kinds.map(sym => ({sym}))), kinds);
-  assert.deepEqual(kinds.map(symbolName), ['Bogdanov-Takens', 'Cusp', 'Zero-Hopf', 'Generalised Hopf']);
-  assert.deepEqual(kinds.map(labelShape), ['diamond', 'triangle', 'star', 'circle']);
+  assert.deepEqual(kinds.map(symbolName), ['Bogdanov-Takens', 'Cusp', 'Zero-Hopf', 'Generalised Hopf', '1:1 resonance', '1:2 resonance', '1:3 resonance', '1:4 resonance']);
+  assert.deepEqual(kinds.map(labelShape), ['diamond', 'triangle', 'star', 'circle', 'diamond', 'triangle', 'star', 'circle']);
   assert.match(symbolHelp('GH'), /Lyapunov coefficient/);
 });
 

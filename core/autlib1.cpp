@@ -4384,6 +4384,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   std::vector<doublereal> p0(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublereal> p1(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublecomplex> ev(iap->ndim);
+  if (iap->isw==2 && xpp::problem_has_orbit_multipliers(iap->ips)) iap->lib->codim.prepare_cycle(iap->ndim,iap->ndm);
   std::vector<doublereal> uzr(iap->nuzr);
 
   /* INITIALIZE COMPUTATION OF BRANCH */
@@ -5464,9 +5465,17 @@ stdrbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   scaleb(iap, icp, &ndxloc, udotps, rldot, dtm, thl, thu);
 
-  /* Make sure that RLDOT(1) is positive (unless zero). */
-
-  if (rldot[0] < 0.) {
+  // AUTO-07p STDRBV: a constant first parameter carries only roundoff.
+  // On cycle curves orient by the first significant free parameter instead.
+  integer direction=0;
+  if (iap->isw==2 && xpp::problem_has_orbit_multipliers(iap->ips)) {
+    for (integer k=0;k<nfpr;++k)
+      if (std::abs(rldot[k])/(1+std::abs(rlcur[k]))>rap->epsl) {
+        direction=k;
+        break;
+      }
+  }
+  if (rldot[direction] < 0.) {
     for (i = 0; i < nfpr; ++i) {
       rldot[i] = -rldot[i];
     }
@@ -5817,7 +5826,10 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /*  Compute the Floquet multipliers */
 
-  xpp::flowkm(iap->lib->fp9, &ndim, p0, p1, &iid, wrk.data(), ev, true);
+  if (isw==2) {
+    xpp::auto_cycle_multipliers(*iap,p0,p1,ev,true);
+    ndim=iap->ndm;
+  } else xpp::flowkm(iap->lib->fp9, &ndim, p0, p1, &iid, wrk.data(), ev, true);
   /* Find the multiplier closest to z=1. */
   /* xppautX: the orbit's Floquet multipliers (auto_stability.h) */
   xpp::auto_stability_computed(iap->lib->session->auto_state.stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndim)},xpp::AUTO_STABILITY_PERIODIC);
@@ -5834,9 +5846,23 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   // Preserve conjugate adjacency when moving the neutral multiplier.
   if (loc != 0) std::rotate(ev, ev + loc, ev + loc + 1);
 
+  integer first=1;
+  if (isw==2 && (iap->itpst==xpp::AutoPointKind::PeriodicFold ||
+                 iap->itpst==xpp::AutoPointKind::PeriodDoubling)) {
+    // Keep the curve's imposed real multiplier beside the neutral one.
+    const double imposed=iap->itpst==xpp::AutoPointKind::PeriodicFold ? 1. : -1.;
+    integer nearest=1;
+    double distance=auto_rlarge;
+    for (integer k=1;k<ndim;++k) if (ev[k].i==0 && std::abs(ev[k].r-imposed)<distance) {
+      distance=std::abs(ev[k].r-imposed);
+      nearest=k;
+    }
+    std::rotate(ev+1,ev+nearest,ev+nearest+1);
+    first=2;
+  }
   // W356 (#418): AUTO-07p periodic.f90:1960-1983, insertion by
   // conjugate blocks. Keep both computed values, including their order.
-  for (i = 2; i < ndim; ++i) {
+  for (i = first+1; i < ndim; ++i) {
     const auto value = ev[i];
     if (value.i < 0) continue;
     const integer width = value.i > 0 && i + 1 < ndim ? 2 : 1;
@@ -5844,9 +5870,9 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     const double distance = std::abs(z_abs(&ev[i]) - 1);
     integer position = i;
     for (;;) {
-      if (position <= 1) break;
+      if (position <= first) break;
       integer previous = position - 1;
-      if (ev[previous].i < 0 && previous > 1) --previous;
+      if (ev[previous].i < 0 && previous > first) --previous;
       if (std::abs(z_abs(&ev[previous]) - 1) <= distance) break;
       std::move_backward(ev + previous, ev + position, ev + position + width);
       position = previous;
@@ -5917,12 +5943,13 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 	d = z_abs(&ev[1]) - 1.;
       }
       if (isw == 2) {
-	ret_val = 0.;
+        d=auto_cycle_test(*iap,*rap,par,{ev,static_cast<std::size_t>(ndim)},chng);
+        ret_val=d;
       } else {
 	ret_val = d;
       }
       nins = iap->nins;
-      if (nins1 != nins) {
+      if (isw!=2 && nins1 != nins) {
 	*chng = TRUE_;
       }
     }
@@ -5973,6 +6000,10 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
   /* Determines type of secondary periodic bifurcation. */
 
   ndim = iap->ndim;
+  if (iap->isw==2) {
+    iap->itp={xpp::auto_cycle_resonance_kind(iap->itpst,par[xpp::auto_unknown::torus_angle]),iap->itpst};
+    return 0;
+  }
 
   epss = rap->epss;
   itpst = iap->itpst;

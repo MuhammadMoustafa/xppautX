@@ -3,9 +3,12 @@
 #include "session.h"
 #include "auto_c.h"
 #include "auto_settings.h"
+#include "auto_stability_auto.h"
+#include "auto_unknowns.h"
 #include "xpp_batch.h"
 #include "xpp_files.h"
 #include <array>
+#include <algorithm>
 #include <cmath>
 
 int main()
@@ -73,5 +76,49 @@ int main()
             nullptr,nullptr,nullptr,u.data(),old.data(),nullptr,rhs.data(),jac.data(),dp.data(),{});
         CHECK(std::abs(got-item[1])<1e-3 && enabled);
     }
+    // Independent spectra: fixed neutral/imposed multipliers and a real
+    // remaining multiplier crossing +1 (fold) or -1 (flip).
+    iap.ndm=3; iap.ndim=6; rap.epss=1e-5;
+    reaction_session.auto_state.special_points.fill(true);
+    std::array<doublecomplex,3> multipliers={{{1,0},{1,0},{.9,0}}};
+    iap.itpst=xpp::AutoPointKind::PeriodicFold;
+    CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)<0 && enabled);
+    multipliers[2].r=1.1;
+    CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)>0 && enabled);
+    iap.itpst=xpp::AutoPointKind::PeriodDoubling;
+    multipliers[1].r=-1; multipliers[2].r=-1.1;
+    CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)>0 && enabled);
+    multipliers[2].r=-.9;
+    CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)<0 && enabled);
+    multipliers[2].i=.5;
+    CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)==0 && !enabled);
+    iap.itpst=xpp::AutoPointKind::Torus;
+    for (double root:{0.,.5,2./3,1.}) {
+        par[xpp::auto_unknown::torus_angle]=pi(root)-1e-4;
+        const double before=auto_cycle_test(iap,rap,par.data(),multipliers,&enabled);
+        par[xpp::auto_unknown::torus_angle]=pi(root)+1e-4;
+        CHECK(before*auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)<0 && enabled);
+    }
+    // A disabled root is removed, so it cannot hide a later enabled root.
+    const auto r4=std::find(xpp::auto_codim_kinds.begin(),xpp::auto_codim_kinds.end(),xpp::AutoPointKind::Resonance4);
+    reaction_session.auto_state.special_points[static_cast<std::size_t>(r4-xpp::auto_codim_kinds.begin())]=false;
+    par[xpp::auto_unknown::torus_angle]=pi(.5);
+    CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)!=0 && enabled);
+    reaction_session.auto_state.special_points.fill(false);
+    CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)==0 && !enabled);
+    // A mixed augmented pencil with exact original multipliers {1,-1,-2}.
+    // P1's last columns have full rank only after selecting different rows.
+    reaction_lib.codim.prepare_cycle(6,3);
+    std::array<double,36> p0{},p1{};
+    const std::array<double,3> exact={1.,-1.,-2.};
+    for (int row=0;row<6;++row) for (int col=0;col<3;++col) {
+        const double value=(row%3==col ? 1. : 0.)+(row==5 ? .2 : 0.);
+        p1[row+6*(3+col)]=value;
+        p0[row+6*(3+col)]=-value*exact[col];
+    }
+    xpp::auto_cycle_multipliers(iap,p0.data(),p1.data(),multipliers.data(),true);
+    std::array<double,3> real={multipliers[0].r,multipliers[1].r,multipliers[2].r};
+    std::sort(real.begin(),real.end());
+    CHECK(std::abs(real[0]+2)<1e-10 && std::abs(real[1]+1)<1e-10 && std::abs(real[2]-1)<1e-10);
     TEST_REPORT("AUTO codim-2");
 }

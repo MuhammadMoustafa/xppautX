@@ -81,8 +81,7 @@
         "epsu": 1e-07,
         "epss": 1e-05,
         "mxbf": 0
-      },
-      "skip": "PENDING W400 (#462): xppautX runs the period-doubling curve but labels no R2 and its lens differs from AUTO-07p's by more than the curve tolerance"
+      }
     }
   ]
 }

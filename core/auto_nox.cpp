@@ -731,7 +731,7 @@ void auto_per_par(xpp::Session &s)
 
 void auto_num_par(xpp::Session &s)
 {
-  /* grouped by what they do, which upstream's order was not: the box is 7
+  /* grouped by what they do, which upstream's order was not: the box is 8
      rows by 4 columns, so a column is a group. Mesh and step size, then the
      ranges and tolerances, then the solver's integer knobs. */
   std::array<const char *,xpp::AUTO_NUM_N+xpp::auto_codim_kinds.size()> n;
@@ -767,8 +767,9 @@ void auto_num_par(xpp::Session &s)
   static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
+                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
                             XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
-  status=do_string_box_of(7,4,"AutoNum",n.data(),values,kinds);
+  status=do_string_box_of(8,4,"AutoNum",n.data(),values,kinds);
   if(status!=0){
     auto enabled=s.auto_state.special_points;
     for (std::size_t i=0;i<xpp::auto_codim_kinds.size();++i) {
@@ -2331,7 +2332,8 @@ void auto_2p_limit(xpp::Session &s, xpp::AutoProblem ips)
       ipsuse=xpp::AutoProblem::Periodic;
   }
 
-  if(ipsuse!=xpp::AutoProblem::SteadyState) s.auto_state.bifur.isp=0;
+  if(ipsuse!=xpp::AutoProblem::SteadyState)
+    s.auto_state.bifur.isp=ipsuse==xpp::AutoProblem::Periodic && !s.auto_state.suppress_bp ? 2 : 0;
   s.auto_state.bifur.ips=ipsuse;
   s.auto_state.two_param=LPP2;
   if(ipsuse==xpp::AutoProblem::SteadyState){
@@ -2359,7 +2361,7 @@ void auto_2p_periodic(xpp::Session &s, int kind)
   s.auto_state.bifur.ips=xpp::AutoProblem::Periodic;
   s.auto_state.bifur.ilp=0;
   s.auto_state.bifur.isw=2;
-  s.auto_state.bifur.isp=0;
+  s.auto_state.bifur.isp=s.auto_state.suppress_bp ? 0 : 2;
   do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 } // namespace

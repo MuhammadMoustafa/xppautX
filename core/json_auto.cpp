@@ -561,7 +561,7 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
             const auto at=std::find(xpp::auto_codim_keys.begin(),xpp::auto_codim_keys.end(),key);
             bool enabled;
             if (at==xpp::auto_codim_keys.end() || !xpp::parse_bool(js_raw(value),enabled)) {
-                why=xpp::format("special_points {} must be BT, CP, ZH or GH with true or false",key); return 0;
+                why=xpp::format("special_points {} must be BT, CP, ZH, GH, R1, R2, R3 or R4 with true or false",key); return 0;
             }
             s.special_points[at-xpp::auto_codim_keys.begin()]=enabled;
         }

@@ -142,7 +142,7 @@ export interface AutoAxesSettings {
 }
 
 /** the `autosettings` event's settings, with what the Numerics take */
-export const CODIM_KINDS = ['BT', 'CP', 'ZH', 'GH'] as const;
+export const CODIM_KINDS = ['BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4'] as const;
 export type CodimKind = typeof CODIM_KINDS[number];
 
 export interface AutoSettings {

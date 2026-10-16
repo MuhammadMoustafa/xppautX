@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Detect and locate R1-R4 resonances on two-parameter cycle curves, with named detection controls and diagram/session labels (W400, [#462](https://github.com/MuhammadMoustafa/xppautX/issues/462)).
+
 - Plot windows, curves per graph (including ICs xvst), and frozen curves grow with what is added; sessions and recordings preserve all slots and reject invalid indices before applying (W376, [#438](https://github.com/MuhammadMoustafa/xppautX/issues/438)).
 
 - AUTO prints and saves the full point count beyond 9999, with whitespace separating numbers that outgrow fort.7/8/9 columns (W384, [#446](https://github.com/MuhammadMoustafa/xppautX/issues/446)).

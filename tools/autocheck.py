@@ -2536,7 +2536,7 @@ def section_codim():
         ranges = {}
         settings = completed(s, dict(cmd='data', events=['autoinfo','autosettings']))
         flags = next(e['special_points'] for e in settings if e.get('ev') == 'autosettings')
-        check('codim: BT CP ZH GH enabled by default', flags == dict(BT=True, CP=True, ZH=True, GH=True))
+        check('codim: BT CP ZH GH enabled by default', flags == dict(BT=True, CP=True, ZH=True, GH=True, R1=True, R2=True, R3=True, R4=True))
         for mode, changes in (('default', {}), ('ZH disabled', {'ZH': False}),
                               ('all disabled', dict.fromkeys(flags, False)), ('restored', dict.fromkeys(flags, True))):
             s.close()
@@ -2589,6 +2589,33 @@ def section_codim():
         gh = [r for r in rows if r['itp']=='-32']
         check('codim: GH located where the Bautin normal form has l1=2*b=0', len(gh)==1
               and abs(float(gh[0]['continued_parameter']))<1e-6)
+
+    # W400: independent closed forms for the uncoupled Hill equation.
+    cycles = read_description(BASE / 'hill_cycles_torus.json')
+    cycles['parameters'] = {'q': 0.0}
+    cycles['runs'][3]['auto']['nmax'] = 15  # reaches R3 before the degenerate 1:2 endpoint
+    data, _, _, intervals = compute(args.server, cycles, 1)
+    rows = autocompare.stored_rows(data, intervals)
+    for run, kind, exact in (('torus_up', '-88', 9/16), ('torus_down', '-87', 4/9)):
+        labels = [r for r in rows[run] if r['itp'] == kind]
+        constants = next(r['auto'] for r in cycles['runs'] if r['name'] == run)
+        location_tolerance = 2 * constants['epss'] * (1 + constants['dsmax'])
+        check('cycle codim: q=0 ' + kind + ' at closed-form d=' + str(exact),
+              len(labels) == 1 and abs(float(labels[0]['continued_parameter2']) - exact) < location_tolerance)
+    cycles = read_description(BASE / 'hill_cycles_torus.json')
+    s = Server(args.server, cycles['model'])
+    try:
+        completed(s)
+        completed(s, dict(cmd='data', events=['autoinfo', 'autosettings']))
+        diagram = autocompare.Diagram().apply(open_auto(s)); intervals = {}
+        for run in cycles['runs'][:2]: execute_run(s, run, diagram, intervals)
+        completed(s, dict(cmd='auto', op='set', special_points={'R4': False}))
+        execute_run(s, cycles['runs'][2], diagram, intervals)
+        rows = autocompare.stored_rows(session_diagram(s), intervals)['torus_up']
+        check('cycle codim: disabling R4 keeps the curve running without its label',
+              any('continued_parameter2' in r for r in rows) and not any(r['itp'] == '-88' for r in rows))
+    finally:
+        s.close()
 
 
 for name in args.sections:

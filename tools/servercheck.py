@@ -3539,7 +3539,7 @@ def check_autosettings():
               and st.get('step', {}).get('key') == 'ds', str(st and (st.get('pairs'), st.get('step')))[:300])
         ask = ask_of(cmd='key', win='auto', key='n')
         cancel(ask)
-        point_keys = ('BT', 'CP', 'ZH', 'GH')
+        point_keys = ('BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4')
         check('W364: autosettings carries named detection booleans enabled by default',
               st.get('special_points') == dict.fromkeys(point_keys, True))
         want = [form_text(st['numerics'][k]) for k in NUM_KEYS]
@@ -3549,7 +3549,7 @@ def check_autosettings():
         for value, expected in (('false', False), ('true', True)):
             form = ask_of(cmd='key', win='auto', key='n')
             edited = list(form['values'])
-            edited[-1] = value
+            edited[len(NUM_KEYS) + point_keys.index('GH')] = value
             snda(cmd='answer', id=form['id'], ok=1, values=edited)
             events, _ = cola(is_idle)
             current = settings_of(events)

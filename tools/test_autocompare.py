@@ -159,6 +159,23 @@ class Curves(unittest.TestCase):
         diffs, _ = compare_curve(self.rows(ours), self.AUTO, ref, 'm')
         self.assertTrue(any('curve par2: 1 of 30 reference samples' in d and 'the first, sample 11' in d for d in diffs), diffs)
 
+    def test_straight_curve_does_not_project_on_newton_roundoff(self):
+        ours = [(0.3 + (i % 2) * 1e-8, 0.05 * i, 0.5 + (i % 3) * 1e-8) for i in range(41)]
+        ref = [(0.3 - (i % 2) * 1e-8, 0.1 * i, 0.5) for i in range(21)]
+        self.assertEqual(compare_curve(self.rows(ours), self.WIDE, ref, 'line')[0], [])
+        ref[10] = (0.31, 1., 0.5)
+        self.assertTrue(compare_curve(self.rows(ours), self.WIDE, ref, 'line')[0])
+
+    def test_closed_curve_matches_both_arcs_with_different_steps(self):
+        import math
+        def circle(count):
+            return [(1 + 0.1 * math.cos(2 * math.pi * i / count),
+                     1 + 0.1 * math.sin(2 * math.pi * i / count), 0.5 + (i % 2) * 1e-9)
+                    for i in range(count + 1)]
+        self.assertEqual(compare_curve(self.rows(circle(120)), self.WIDE, circle(160), 'lens')[0], [])
+        wrong = [(a, b + 0.01, n) for a, b, n in circle(160)]
+        self.assertTrue(compare_curve(self.rows(circle(120)), self.WIDE, wrong, 'lens')[0])
+
     def test_a_curve_that_stops_short_or_runs_on_is_a_difference(self):
         ours = self.parabola(40)
         for ref in (self.parabola(10), self.parabola(60)):
@@ -179,6 +196,20 @@ class Curves(unittest.TestCase):
         self.assertEqual(diffs, [])
         diffs, _ = compare_curve(self.rows(upper), self.WIDE, [list(v) for v in lower], 'm')
         self.assertTrue(diffs)
+
+    def test_start_vertex_does_not_hide_a_valid_coarse_chord_on_a_later_lap(self):
+        # A closed lens revisits its left tip with a coarser step. The sample
+        # near the starting vertex is inside the later chord's curvature bounds.
+        ref = [(0., 0., 1.), (.02, .1, 1.), (.2, .2, 1.), (.3, 0., 1.),
+               (.2, -.2, 1.), (.02, -.1, 1.), (.02, .1, 1.), (.2, .2, 1.)]
+        ours = [(0., -.01, 1.), *ref]
+        self.assertEqual(compare_curve(self.rows(ours), self.WIDE, ref, 'closed lens')[0], [])
+
+    def test_cycle_branch_point_retains_its_composite_start(self):
+        rows = self.rows([(0., 0., 0.), (1., 1., 1.)])
+        rows[0]['itp'] = '86'  # BP on a torus curve
+        ref = [dict(type='BP', point=1, par=0., par2=0., norm=0., period=None, values=[])]
+        self.assertEqual(compare_run(rows, self.AUTO, 'two_parameter', ref, 'cycle')[0], [])
 
     def test_a_codim_two_point_of_the_reference_is_a_difference_until_traced(self):
         rows = [dict(itp='0', continued_parameter=str(a), norm=str(a), per='0.0', evr1='0', evi1='0') for a in range(5)]

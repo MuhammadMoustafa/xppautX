@@ -122,6 +122,10 @@ enum class AutoPointKind : int {
     Cusp = 11,           /* CP: vanishing fold quadratic coefficient */
     ZeroHopf = 12,       /* ZH: a zero eigenvalue and imaginary pair */
     GeneralizedHopf = 13,/* GH: vanishing first Lyapunov coefficient */
+    Resonance1 = 14,     /* R1: 1:1 resonance of a cycle */
+    Resonance2 = 15,     /* R2: 1:2 resonance of a cycle */
+    Resonance3 = 16,     /* R3: 1:3 resonance of a cycle */
+    Resonance4 = 17,     /* R4: 1:4 resonance of a cycle */
     MaxSteps = -9         /* MX: no convergence, or the step limit */
 };
 
@@ -154,6 +158,9 @@ constexpr int auto_point_encode(AutoPointCode c)
     if (c.kind == AutoPointKind::Cusp) return -22;
     if (c.kind == AutoPointKind::ZeroHopf) return c.start == AutoPointKind::Fold ? -23 : -33;
     if (c.kind == AutoPointKind::GeneralizedHopf) return -32;
+    if (c.kind >= AutoPointKind::Resonance1 && c.kind <= AutoPointKind::Resonance4)
+        return -10 * static_cast<int>(c.start) - 5 -
+            (static_cast<int>(c.kind) - static_cast<int>(AutoPointKind::Resonance1));
     const int kind = static_cast<int>(c.kind), start = static_cast<int>(c.start);
     return kind < 0 ? kind - 10 * start : 10 * start + kind;
 }
@@ -173,6 +180,10 @@ constexpr std::optional<AutoPointCode> auto_point_decode(long itp, bool allow_pe
     case -33: return AutoPointCode{AutoPointKind::ZeroHopf, AutoPointKind::Hopf};
     default: break;
     }
+    for (auto start : {AutoPointKind::PeriodicFold, AutoPointKind::PeriodDoubling, AutoPointKind::Torus})
+        for (auto kind : {AutoPointKind::Resonance1, AutoPointKind::Resonance2,
+                          AutoPointKind::Resonance3, AutoPointKind::Resonance4})
+            if (auto_point_encode({kind,start})==itp) return AutoPointCode{kind,start};
     if (itp < -99 || itp > 99) return std::nullopt;
     const int kind = static_cast<int>(itp % 10); /* C's: it has the sign of ITP */
     const int start = static_cast<int>((itp < 0 ? -itp : itp) / 10);
@@ -206,6 +217,10 @@ constexpr const char *auto_point_symbol(AutoPointCode c)
     case AutoPointKind::Cusp: return "CP";
     case AutoPointKind::ZeroHopf: return "ZH";
     case AutoPointKind::GeneralizedHopf: return "GH";
+    case AutoPointKind::Resonance1: return "R1";
+    case AutoPointKind::Resonance2: return "R2";
+    case AutoPointKind::Resonance3: return "R3";
+    case AutoPointKind::Resonance4: return "R4";
     case AutoPointKind::UserZero: return "UZ";
     case AutoPointKind::PeriodDoubling: return "PD";
     case AutoPointKind::Torus: return "TR";
@@ -215,10 +230,11 @@ constexpr const char *auto_point_symbol(AutoPointCode c)
     }
 }
 
-// Settings and protocol names for equilibrium codimension-two detection (W364).
-inline constexpr std::array<AutoPointKind, 4> auto_codim_kinds = {
-    AutoPointKind::BogdanovTakens, AutoPointKind::Cusp, AutoPointKind::ZeroHopf, AutoPointKind::GeneralizedHopf};
-inline constexpr std::array<const char *, 4> auto_codim_keys = {"BT", "CP", "ZH", "GH"};
+// Settings and protocol names for codimension-two detection (W364, W400).
+inline constexpr std::array<AutoPointKind, 8> auto_codim_kinds = {
+    AutoPointKind::BogdanovTakens, AutoPointKind::Cusp, AutoPointKind::ZeroHopf, AutoPointKind::GeneralizedHopf,
+    AutoPointKind::Resonance1, AutoPointKind::Resonance2, AutoPointKind::Resonance3, AutoPointKind::Resonance4};
+inline constexpr std::array<const char *, 8> auto_codim_keys = {"BT", "CP", "ZH", "GH", "R1", "R2", "R3", "R4"};
 
 constexpr bool auto_codim_enabled(const std::array<bool, auto_codim_kinds.size()> &enabled, AutoPointKind kind)
 {

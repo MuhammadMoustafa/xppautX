@@ -113,17 +113,21 @@ int main()
     CHECK(!xpp::auto_point_decode(-1));
     CHECK(xpp::auto_point_decode(-1, true) && xpp::auto_point_decode(-1, true)->kind == xpp::AutoPointKind::Pending);
 
-    for (int value : {-21,-22,-23,-31,-32,-33}) {
+    for (int value : {-21,-22,-23,-31,-32,-33,-55,-56,-57,-58,-75,-76,-77,-78,-85,-86,-87,-88}) {
         const auto point=xpp::auto_point_decode(value);
         CHECK(point && xpp::auto_point_encode(*point)==value);
         CHECK(std::string(xpp::auto_point_symbol(*point)).size()==2);
     }
     CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-32)),"GH");
     CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-22)),"CP");
+    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-55)),"R1");
+    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-76)),"R2");
+    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-87)),"R3");
+    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-88)),"R4");
 
     /* an unknown code is refused: out of range, a negative kind AUTO has no
        such point for, a negative composite of a plain kind */
-    for (long bad : {100L, -100L, 1000L, -5L, -3L, -2L, -11L, -10L, -20L, -27L, -99L - 1, -55L})
+    for (long bad : {100L, -100L, 1000L, -5L, -3L, -2L, -11L, -10L, -20L, -27L, -99L - 1, -65L})
         CHECK(!xpp::auto_point_decode(bad));
     CHECK_STR(xpp::auto_point_unknown(55 + 100).c_str(), "155 is not an AUTO point type");
 

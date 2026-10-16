@@ -120,7 +120,7 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
   const pending = pendingFields(useStore(s => s.autoSettings));
   const [texts, setTexts] = useState<Record<string, string>>(() =>
     Object.fromEntries(NUM_FIELDS.map(f => [f.key, shown ? String(shown.numerics[f.key]) : ''])));
-  const [specialPoints, setSpecialPoints] = useState(() => shown?.special_points ?? {BT: true, CP: true, ZH: true, GH: true});
+  const [specialPoints, setSpecialPoints] = useState(() => shown?.special_points ?? {BT: true, CP: true, ZH: true, GH: true, R1: true, R2: true, R3: true, R4: true});
   const [threads, setThreads] = useState<string>(() => String(shown?.threads ?? 'auto'));
   if (!shown) return null;
   const errors = Object.fromEntries(NUM_FIELDS.map(f => [f.key, numError(shown.rules[f.key], texts[f.key] ?? '')]));
@@ -164,9 +164,9 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
           </fieldset>
         ))}
         <fieldset class="form-grid">
-          <legend>Equilibrium curve special points</legend>
+          <legend>Curve special points</legend>
           <label><span>Detect all</span><input type="checkbox" checked={CODIM_KINDS.every(k => specialPoints[k])}
-            onChange={e => { const on=e.currentTarget.checked; setSpecialPoints({BT:on,CP:on,ZH:on,GH:on}); }} /></label>
+            onChange={e => { const on=e.currentTarget.checked; setSpecialPoints({BT:on,CP:on,ZH:on,GH:on,R1:on,R2:on,R3:on,R4:on}); }} /></label>
           {CODIM_KINDS.map(k => <label key={k} title={symbolHelp(k)} class={pending.has(`special_points.${k}`) ? 'queued' : undefined}>
             <span>{k} {symbolName(k)}</span><input type="checkbox" data-field={k} checked={specialPoints[k]}
               onChange={e => { const enabled=e.currentTarget.checked; setSpecialPoints(v => ({...v, [k]: enabled})); }} />
