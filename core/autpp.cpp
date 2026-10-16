@@ -44,12 +44,12 @@ void exact_derivatives(const xpp::Session &s, AutoLib &lib, const double *c, int
 {
   const int n=static_cast<int>(ndim);
   try {
-    xpp::exact_jacobian(s,c,0.0,u,f,n,{xpp::JacobianLayout::ColumnMajor},dfdu);
+    xpp::exact_jacobian(s,lib.jacobian_scratch,c,0.0,u,f,n,{xpp::JacobianLayout::ColumnMajor},dfdu);
     if(ijac<2)return;
     for(integer i=0;i<nfpr;i++){
       double *column=dfdp+icp[i]*ndim;
       const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[i]));
-      if(k>=0 && k<s.model().nupar)xpp::exact_constant_derivative(s,c,s.model().upar_con[k],0.0,u,f,n,column);
+      if(k>=0 && k<s.model().nupar)xpp::exact_constant_derivative(s,lib.jacobian_scratch,c,s.model().upar_con[k],0.0,u,f,n,column);
       else std::fill_n(column,n,0.0);
     }
   } catch (const xpp::JacobianFailed &failed) {
@@ -126,7 +126,6 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
    }
    const bool exact=ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT;
    int i,j;
-   std::vector<double> zz(ndim); /* the store_every steps' scratch */
    /* the right-hand side and the Jacobian only read the point */
    double *x=const_cast<double *>(u);
    continued_constants(s,s.parser.constants.data(),icp,nfpr,parameters);
@@ -144,8 +143,16 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
       of each step's, and each step adds its own dependence on the
       parameters to what the steps before passed on */
    const size_t nn=static_cast<size_t>(ndim);
-   std::vector<double> step(exact?xpp::size_product(nn,nn):0);
-   std::vector<double> step_p(exact?xpp::size_product(nn,s.auto_lib.parameter_count):0),scratch(exact?nn:0);
+   auto &zz = s.auto_lib.scratch.map_state;
+   auto &step = s.auto_lib.scratch.map_jacobian;
+   auto &step_p = s.auto_lib.scratch.map_parameters;
+   auto &scratch = s.auto_lib.scratch.map_chain;
+   zz.resize(nn);
+   if (exact) {
+     step.resize(xpp::size_product(nn,nn));
+     step_p.resize(xpp::size_product(nn,s.auto_lib.parameter_count));
+     scratch.resize(nn);
+   }
    for(i=1;i<s.numerics.store_every;i++){
      for(j=0;j<ndim;j++)
        zz[j]=f[j];

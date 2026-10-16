@@ -1,6 +1,7 @@
 #ifndef XPP_SESSION_H
 #define XPP_SESSION_H
 #include "xpp_files.h"
+#include "jacobian.h"
 /* xpp::Session: everything a run changes (AGENTS.md "No global state";
    docs/roadmap.md W47c). C++ only.
 
@@ -134,6 +135,7 @@ struct Session {
   IntegratorState integrator;
   /* its state vector and the solvers' scratch space (storage.cpp) */
   SolverWork solver_work;
+  JacobianScratch jacobian_scratch;
   /* the initial data the next run starts from (the model's are
      Model::default_ic) */
   std::vector<double> last_ic;

@@ -205,6 +205,7 @@ changes are checked against AUTO-07p and recorded in the baseline. The window: [
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
 | Newton assembly and pivot diagnostics | Separate residual passes; unconditional GE pivot listing ([autlib1.c:4295](../reference/xppaut-8.0/autlib1.c#L4295)) | Reuses the Jacobian residual unless boundary assembly changes its parameter bits; skips the discarded cycle-fold residual; GE pivots at IID >= 4, tiny-pivot notes at IID > 0 | W359 ([#421](https://github.com/MuhammadMoustafa/xppautX/issues/421)) |
+| Repeated AUTO work storage | Temporary work allocations | Retains per-run and per-worker scratch, including exact derivative evaluation; automatic worker count computed once per process | W375 ([#437](https://github.com/MuhammadMoustafa/xppautX/issues/437)) |
 | Mark values | User form has nine slots ([finding 55](xppaut-findings.md#55-auto-marks-have-a-nine-value-form-limit)) | Session-owned list; forms, protocol and session files preserve every mark, validated atomically; sent input has one 65,536-mark allocation budget | [W331](https://github.com/MuhammadMoustafa/xppautX/issues/392) |
 | Window | an X11 window with its own menus | the same menus and keys (as data), a view over the page | W96, W6 |
 | Diagram views | one diagram, one set of axes | any number of views of one diagram, each with its axes | W50 |

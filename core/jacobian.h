@@ -2,6 +2,8 @@
 #define _jacobian_h_
 
 #include <array>
+#include <vector>
+#include <span>
 #include <functional>
 #include <string_view>
 #include "xpp_error.h"
@@ -9,6 +11,11 @@
 namespace xpp {
 
 struct Session; /* session.h */
+
+// Compiled derivative evaluation storage; AUTO workers each own one.
+struct JacobianScratch {
+  std::vector<double> point, workspace, values;
+};
 
 /* How the model's Jacobian is formed, the numerics' `jacobian` (W260):
    by forward differences, XPPAUT's (the default: a model gives XPPAUT's
@@ -89,11 +96,11 @@ ErrorAction switch_to_differences(std::string resume);
    the caller's thread. f is the right-hand side there (for a map's form,
    f(x)-x): an entry not finite where f is throws JacobianFailed. The
    model must have one (Model::jacobian). */
-void exact_jacobian(const Session &s, const double *c, double t, const double *x, const double *f, int n, const JacobianForm &form, double *out);
+void exact_jacobian(const Session &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, const JacobianForm &form, double *out);
 /* d f/d c[k] at (t, x) with the constants c into out[0..n), 0 where no
    equation depends on constant k; d f/dt for the time; checked as above */
-void exact_constant_derivative(const Session &s, const double *c, int k, double t, const double *x, const double *f, int n, double *out);
-void exact_time_derivative(const Session &s, const double *c, double t, const double *x, const double *f, int n, double *out);
+void exact_constant_derivative(const Session &s, JacobianScratch &scratch, const double *c, int k, double t, const double *x, const double *f, int n, double *out);
+void exact_time_derivative(const Session &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, double *out);
 
 } // namespace xpp
 #endif

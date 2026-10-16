@@ -36,13 +36,15 @@ AutoPointOutputContext point_output_context(const iap_type &iap, const rap_type 
 
 struct AutoIntegralContext {
   integer ndim, ntst, ncol;
-  std::vector<doublereal> weights;
+  std::span<const doublereal> weights;
 };
 AutoIntegralContext integral_context(const iap_type &iap) {
-  AutoIntegralContext context{iap.ndim, iap.ntst, iap.ncol,
-                              std::vector<doublereal>(iap.ncol + 1)};
-  wint(context.ncol + 1, context.weights.data());
-  return context;
+  auto &weights = iap.lib->scratch.integral_weights;
+  if (weights.size() != xpp::size_sum(iap.ncol, 1)) {
+    weights.resize(xpp::size_sum(iap.ncol, 1));
+    wint(iap.ncol + 1, weights.data());
+  }
+  return {iap.ndim, iap.ntst, iap.ncol, weights};
 }
 } // namespace
 

@@ -36,21 +36,21 @@ void cvf(int n, double t, N_Vector y, N_Vector ydot, void *fdata)
 void cv_dense_jacobian(integer N, DenseMat J, RhsFn, void *, real t, N_Vector y, N_Vector fy, N_Vector, real, real,
                        void *jac_data, int *, N_Vector, N_Vector, N_Vector)
 {
-  const xpp::Session &s=*static_cast<const xpp::Session *>(jac_data);
+  xpp::Session &s=*static_cast<xpp::Session *>(jac_data);
   const int n=static_cast<int>(N);
   std::vector<double> out(static_cast<size_t>(n)*n);
-  exact_jacobian(s,s.parser.constants.data(),t,y->data,fy->data,n,{JacobianLayout::ColumnMajor},out.data());
+  exact_jacobian(s,s.jacobian_scratch,s.parser.constants.data(),t,y->data,fy->data,n,{JacobianLayout::ColumnMajor},out.data());
   for(int j=0;j<n;j++)std::copy_n(out.data()+static_cast<size_t>(j)*n,n,DENSE_COL(J,j));
 }
 
 void cv_band_jacobian(integer N, integer mupper, integer mlower, BandMat J, RhsFn, void *, real t, N_Vector y, N_Vector fy,
                       N_Vector, real, real, void *jac_data, int *, N_Vector, N_Vector, N_Vector)
 {
-  const xpp::Session &s=*static_cast<const xpp::Session *>(jac_data);
+  xpp::Session &s=*static_cast<xpp::Session *>(jac_data);
   const int n=static_cast<int>(N);
   const JacobianForm form{JacobianLayout::Banded,static_cast<int>(mlower),static_cast<int>(mupper)};
   std::vector<double> out(static_cast<size_t>(jacobian_entries(n,form)));
-  exact_jacobian(s,s.parser.constants.data(),t,y->data,fy->data,n,form,out.data());
+  exact_jacobian(s,s.jacobian_scratch,s.parser.constants.data(),t,y->data,fy->data,n,form,out.data());
   const int mt=form.lower+form.upper+1;
   for(int i=0;i<n;i++)
     for(int d=-form.lower;d<=form.upper;d++){

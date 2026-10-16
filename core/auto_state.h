@@ -9,6 +9,7 @@
    fort files open during a run and its work arrays). */
 #include <stdio.h>
 #include "auto_unknowns.h"
+#include "jacobian.h"
 #include "auto_nox.h"
 #include "auto_data.h"
 #include "auto_stop.h"
@@ -188,6 +189,9 @@ struct AutoAssemblyScratch {
 struct AutoGlobalScratch {
   std::vector<double> dfu, dfp, uu1, uu2, ff1, ff2;
   std::vector<double> funi_u1, funi_u2, funi_f1, funi_f2;
+  std::vector<std::ptrdiff_t> maximum_column;
+  std::vector<std::pair<std::ptrdiff_t,std::ptrdiff_t>> conpar_swaps;
+  std::vector<double> integral_weights, map_state, map_jacobian, map_parameters, map_chain;
 };
 struct AutoGlobalRotations {
   std::ptrdiff_t irtn = 0;
@@ -206,6 +210,8 @@ struct Session; /* session.h */
    call, so none outlives a resize or a copy of the work. */
 struct SolvbvWork {
   std::vector<double> a,b,c,d,a1,a2,s1,s2,bb,cc,faa;
+  std::vector<double> ft,e,fcc,sol1,sol2,sol3,xe;
+  std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> dlog;
   std::vector<std::ptrdiff_t> icf,irf,ipr,icf1,icf2;
   /* for ndim variables, ncol collocation points, ntst intervals, nbc
      boundary conditions, nint integral constraints and up to parameters
@@ -240,6 +246,7 @@ struct AutoLib {
   std::vector<double> rhs_variables;
   AutoGlobalScratch scratch{};
   AutoAssemblyScratch assembly;
+  xpp::JacobianScratch jacobian_scratch;
   AutoGlobalRotations rotations{};
   /* 1 while stepbv solves a Newton step (autlib1.cpp). A cancelled job
      then stops the collocation setup early (setubv2.cpp), solvbv skips

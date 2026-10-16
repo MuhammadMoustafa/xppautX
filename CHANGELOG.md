@@ -10,6 +10,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 ## [Unreleased]
 
 - AUTO reuses the Newton Jacobian's residual and skips the discarded residual for a cycle-fold direction; pivot diagnostics follow IID (W359, [#421](https://github.com/MuhammadMoustafa/xppautX/issues/421)).
+- AUTO retains repeated evaluation and linear-solve scratch, and caches the automatic worker count for the process (W375, [#437](https://github.com/MuhammadMoustafa/xppautX/issues/437)).
 
 - AUTO labels BT, CP, ZH and GH on equilibrium fold/Hopf curves using AUTO-07p 0.9.4 test functions (GH uses the first Lyapunov coefficient), enabled by default with individual detection controls; fold curves preserve their starting auxiliary period (W364, [#426](https://github.com/MuhammadMoustafa/xppautX/issues/426)).
 

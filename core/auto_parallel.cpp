@@ -55,9 +55,13 @@ struct AutoParallel::State {
 };
 
 unsigned AutoParallel::automatic_threads() {
-    const auto physical = cpu::physical_cores();
-    // Logical processors are used only when the system supplies no usable physical topology.
-    return std::min(physical ? *physical : cpu::logical_processors(), max_threads);
+    // Topology is process-wide and settings events ask for this repeatedly.
+    static const unsigned count = [] {
+        const auto physical = cpu::physical_cores();
+        // Logical processors are used only when there is no usable physical topology.
+        return std::min(physical ? *physical : cpu::logical_processors(), max_threads);
+    }();
+    return count;
 }
 AutoParallel::AutoParallel(unsigned threads) : threads_(std::max(threads, 1u)) {}
 AutoParallel::~AutoParallel() = default;

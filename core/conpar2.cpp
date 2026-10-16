@@ -18,6 +18,7 @@ struct conpar_parallel_arglist {
   integer *irf; /*array input size: na X nra*/
   integer *icf; /*array input: na X nca*/
   std::vector<std::vector<std::pair<integer,doublereal>>> *dlog=nullptr;
+  AutoGlobalScratch *scratch;
   integer loop_start; /*scalar input*/
   integer loop_end; /*scalar output*/
 };
@@ -30,8 +31,10 @@ void conpar_process(const conpar_parallel_arglist *arg)
   const integer parameters = *arg->ncb, constraints = *arg->nrc;
   const integer left = *arg->nov, end = cols - left;
   // Per-worker scratch, reused for every interval in this worker's range.
-  std::vector<integer> maximum_column(rows);
-  std::vector<std::pair<integer, integer>> swaps(end - left);
+  auto &maximum_column = arg->scratch->maximum_column;
+  auto &swaps = arg->scratch->conpar_swaps;
+  maximum_column.resize(rows);
+  swaps.resize(end - left);
   for (integer interval = arg->loop_start; interval < arg->loop_end; ++interval) {
     xpp::Matrix<double> a({arg->a + interval * rows * cols,
                           static_cast<size_t>(rows * cols)}, cols, rows);
@@ -137,6 +140,7 @@ conpar_default_wrapper(AutoLib &lib, integer *nov, integer *na, integer *nra, in
 
 {
     conpar_parallel_arglist data;
+    data.scratch = &lib.scratch;
     data.nov = nov;
     data.nra = nra;
     data.nca = nca;
@@ -155,10 +159,17 @@ conpar_default_wrapper(AutoLib &lib, integer *nov, integer *na, integer *nra, in
       conpar_process(&data);
       return;
     }
-    std::vector<std::vector<std::pair<integer,doublereal>>> dlog(*na);
+    auto &dlog = lib.solvbv.dlog;
+    dlog.resize(*na);
+    const auto terms = xpp::size_product(*nra - *nov, *nrc - *nbc, *ncb);
+    for (auto &interval : dlog) {
+      interval.clear();
+      interval.reserve(terms);
+    }
     data.dlog=&dlog;
-    lib.collocation->intervals(*na,[&](long begin,long end,AutoLib &) {
+    lib.collocation->intervals(*na,[&](long begin,long end,AutoLib &worker) {
       conpar_parallel_arglist mine=data;
+      mine.scratch=&worker.scratch;
       mine.loop_start=begin;
       mine.loop_end=end;
       conpar_process(&mine);

@@ -1,4 +1,5 @@
 core/ani_data.cpp 1 the protocol client's (one struct): its subscription, its sink and whether and when it got the last frame, which outlive a load (the frames are the Session's ani_shown)
+core/auto_parallel.cpp 1 the const automatic worker count built once per process from CPU topology (W375); the guard is excluded by globalcheck
 core/comline.cpp 12 the command line's options (process-wide, AGENTS.md)
 core/form_ode.cpp 2 ode_as_odex (OdeAsOdex's scope count) and Purity's const table built at first use
 core/json_io.cpp 5 the protocol client's: the output's sequence, its protocol version and the input line read last, and the lock that keeps an event line whole between the core and the reader thread's busy reply (file-local per AGENTS.md)

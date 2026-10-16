@@ -70,7 +70,7 @@ void do_this_liaprun(Session &s, int i, double p);
 /* adjoints and the maximal Liapunov exponent return why they failed; the
    command (new_adjoint, do_liapunov) shows it */
 Result<> adjoint(Session &s, float **orbit, float **adjnt, int nt, double dt, double eps, double minerr, int maxit, int node);
-Result<> step_eul(double **jac, int k, int k2, double *yold, double *work, int node, double dt);
+Result<> step_eul(double **jac, int k, int k2, double *yold, double *work, int node, double dt, std::span<int> ipvt);
 Result<double> hrw_liapunov(Session &s, double eps);
 
 } // namespace xpp

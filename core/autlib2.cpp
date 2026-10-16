@@ -63,6 +63,14 @@ void SolvbvWork::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t
   ipr.resize(xpp::size_product(ndim, nodes));
   icf1.resize(xpp::size_product(ndim, nodes));
   icf2.resize(xpp::size_product(ndim, nodes));
+  ft.resize(xpp::size_product(nrow, nodes));
+  const auto reduced = xpp::size_sum(ndim, nrc);
+  e.resize(xpp::size_product(reduced, reduced));
+  fcc.resize(xpp::size_sum(reduced, xpp::size_product(2, ndim, ndim), 1));
+  sol1.resize(xpp::size_product(ndim, nodes));
+  sol2.resize(xpp::size_product(ndim, nodes));
+  sol3.resize(xpp::size_product(ndim, nodes));
+  xe.resize(reduced);
 }
 
 
@@ -102,12 +110,12 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
      and setubv).
   */
 
-  std::vector<doublereal> ft(xpp::size_product(iap->ndim, iap->ncol, xpp::size_sum(iap->ntst, 1)));
-
   if (*ifst == 1) {
     /* the arrays are sized in one place, SolvbvWork::resize */
     iap->lib->solvbv.resize(iap->ndim, iap->ncol, iap->ntst, iap->nbc, iap->nint, iap->lib->parameter_count);
   }
+
+  auto &ft = iap->lib->solvbv.ft;
 
   ndim = iap->ndim;
   ips = iap->ips;
@@ -372,12 +380,12 @@ brbd(AutoLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, do
   integer *ipr = work.ipr.data(), *icf1 = work.icf1.data(), *icf2 = work.icf2.data();
   integer *irf = work.irf.data(), *icf = work.icf.data();
 
-  std::vector<doublereal> e(xpp::size_product(xpp::size_sum(*nov, *nrc), xpp::size_sum(*nov, *nrc)));
-  std::vector<doublereal> fcc(xpp::size_sum(xpp::size_sum(*nov, *nrc), xpp::size_product(2, *nov, *nov), 1));
+  auto &e = work.e;
+  auto &fcc = work.fcc;
 
-  std::vector<doublereal> sol1(xpp::size_product(*nov, xpp::size_sum(*na, 1)));
-  std::vector<doublereal> sol2(xpp::size_product(*nov, xpp::size_sum(*na, 1)));
-  std::vector<doublereal> sol3(xpp::size_product(*nov, xpp::size_sum(*na, 1)));
+  auto &sol1 = work.sol1;
+  auto &sol2 = work.sol2;
+  auto &sol3 = work.sol3;
   
   /* Local */
 
@@ -433,7 +441,7 @@ brbd(AutoLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, do
 	   nov, ncb, nrc, icf1, icf2, ipr, nbc);
   }
 
-  dimrge(fp9, e.data(), cc, d, fc, ifst, na, 
+  dimrge(lib, fp9, e.data(), cc, d, fc, ifst, na,
 	 nrc, nov, ncb, idb, nllv, fcc.data(), p0, p1, det, s1, a2,
 	 faa, bb);
 
@@ -932,7 +940,7 @@ redrhs(doublereal *a1, doublereal *a2, doublereal *cc, doublereal *faa, doublere
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-dimrge(FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *s, doublereal *a2, doublereal *faa, doublereal *bb)
+dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *s, doublereal *a2, doublereal *faa, doublereal *bb)
 {
 
   /* System generated locals */
@@ -949,7 +957,7 @@ dimrge(FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, 
 
   integer novpj2, kc, kr, ncrloc, nap1;
 
-  std::vector<double> xe(xpp::size_sum(*nov, *nrc));
+  auto &xe = lib.solvbv.xe;
 
   /* Parameter adjustments */
   /*--fc;*/
