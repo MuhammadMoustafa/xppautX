@@ -208,3 +208,320 @@ python tools/auto-profile/eig_accuracy.py DIR                                   
 
 `tools/auto-profile/` also holds the wrappers (`callgrind_wrap.sh`, `gdb_wrap.sh`) and the gdb script; a
 run beyond ten minutes (ModelDB's) is moved to the background by the tool, not by these scripts.
+
+## W370: the rerun after the AUTO cards (2026-10-16)
+
+[W370, #432](https://github.com/MuhammadMoustafa/xppautX/issues/432), core at `6f8609f9`;
+all W358 tables above remain the record at W358. The same one-thread, compiled-RHS workflows
+were rerun with `WERROR=1`, `-g -O2 -ffp-contract=off`, in WSL's own clone of this worktree.
+Toolchain: GCC/GFortran 15.2.0 (Ubuntu 15.2.0-16ubuntu1), Valgrind 3.26.0, gdb 17.1,
+WSL2 kernel 6.6.87.2 on x86_64.
+Each build has its own folder: `build/prof`, `build/libm`, `build/lapack`. Counts are instructions,
+not timings. Each callgrind workload ran once per build, sequentially through `tools/wslrun.sh`.
+PY_S1Bf uses 100 periodic points and ModelDB uses run_all.sh's default cut of **20 in every build**.
+W358's main profile also used 20, but its library comparisons used eight: those old 8-point costs
+are not a matched comparison with this rerun's 20-point costs.
+
+### Instructions per stored point: W358 against W370
+
+W358 did not tabulate an old total for three of the nine descriptions; a dash means unpublished,
+not zero. The description totals include their steady and periodic phases, as in W358.
+
+| workload, phase | W370 points | W358 M/point | W370 default M/point |
+|---|---:|---:|---:|
+| py_s1bf, periodic | 100 | 126.44 | 107.314 |
+| py_s1bf, steady | 403 | 0.432 | 0.378 |
+| modeldb, periodic | 20 | 4653 | 8945.477 |
+| modeldb, steady | 1081 | 3.974 | 3.844 |
+| ode_lecar | 79 | - | 1.996 |
+| tstauto_brper | 49 | 2.388 | 1.883 |
+| tstauto_frcp | 103 | 1.79 | 1.459 |
+| tstauto_lamom | 70 | - | 1.322 |
+| tstauto_lamom2 | 60 | 2.336 | 1.858 |
+| tstauto_lecar | 83 | 2.411 | 1.908 |
+| tstauto_lo | 50 | 2.267 | 1.782 |
+| tstauto_pp2 | 130 | 1.34 | 1.037 |
+| tstauto_torx | 81 | - | 1.429 |
+
+PY_S1Bf costs **15.1% fewer instructions** per periodic point. Its conpar cost falls from 47.8 to
+40.465 M/point, allocation/zeroing from 4.6% to 0.4%, and counted `funi` calls from about 2149 to
+1077/point, while Newton iterations stay about 2.7. These changes fit
+[W360 `556979ef`](https://github.com/MuhammadMoustafa/xppautX/commit/556979efafc6ce27da5918750f1a38782f8dfd6d)'s
+physical swaps/cached row maxima and
+[W359 `2a146b61`](https://github.com/MuhammadMoustafa/xppautX/commit/2a146b61472bab210fd1f28fca4fd2ab6f1a78f4)'s
+removed residual visits, combined Jacobian/residual evaluation and reused work arrays, followed by
+[W375 `e3ac7b75`](https://github.com/MuhammadMoustafa/xppautX/commit/e3ac7b759275bb541de2d6d7e6f9f92da4c3e8e3)'s
+additional scratch reuse. These are measurements of the combined revision, not an isolated percentage
+credited to each card. A zero counted `setrhs` call is not evidence of zero residual work: current
+assembly helpers share that work, and optimized call counts need not preserve old wrapper calls.
+
+**ModelDB goes the other way:** its 20-point periodic cost rises **92.3%**, with Newton calls/point
+5.0 -> 11.55, Jacobian builds 3.1 -> 7.05 and model evaluations 68805 -> 151748. Conpar's share falls
+53.0% -> 46.3%, but its absolute work rises 2461 -> 4142.885 M/point because there are more solves.
+[W361 `9c7e8c29`](https://github.com/MuhammadMoustafa/xppautX/commit/9c7e8c29cd844a45811bacb355acc30093da4aab)
+changed the mesh and the periodic numerical paths on purpose; this rerun establishes the extra work,
+but does not isolate the card responsible. It would be wrong to describe the entire AUTO wave as a
+speedup. Proposed follow-up: trace ModelDB's extra Newton/Jacobian work on the same 20-point cut,
+across the post-W358 revisions, including W361; distinguish mesh accuracy and branch progress from work per
+point before changing an algorithm. No numerical change is made here.
+
+### Current comparison builds
+
+The next two tables come from `tables.py --compare`; default is "this", the named comparison build
+is "other". All cuts and stored-point counts match, but a fixed count does not force the same
+parameter locations or Newton history. Ratios are work per stored point, not isolated library costs.
+
+**LIBM=system**
+
+| workload, phase | points this / other | M instr per point, this | other | other / this | math functions, M per point: this | other |
+|---|---|---:|---:|---:|---:|---:|
+| modeldb, periodic | 20 / 20 | 8945.477 | 3812.934 | 0.426 | 1484.555 | 405.773 |
+| modeldb, steady | 1081 / 1081 | 3.844 | 3.461 | 0.900 | 1.034 | 0.623 |
+| ode_lecar, all | 79 / 79 | 1.996 | 1.963 | 0.984 | 0.230 | 0.198 |
+| py_s1bf, periodic | 100 / 100 | 107.314 | 102.481 | 0.955 | 19.774 | 14.260 |
+| py_s1bf, steady | 403 / 403 | 0.378 | 0.365 | 0.967 | 0.055 | 0.040 |
+| tstauto_brper, all | 49 / 49 | 1.883 | 1.766 | 0.938 | 0.279 | 0.159 |
+| tstauto_frcp, all | 103 / 103 | 1.459 | 1.459 | 1.000 | 0.002 | 0.001 |
+| tstauto_lamom, all | 70 / 70 | 1.322 | 1.242 | 0.940 | 0.192 | 0.109 |
+| tstauto_lamom2, all | 60 / 60 | 1.858 | 1.660 | 0.893 | 0.456 | 0.250 |
+| tstauto_lecar, all | 83 / 83 | 1.908 | 1.879 | 0.985 | 0.219 | 0.188 |
+| tstauto_lo, all | 50 / 50 | 1.782 | 1.666 | 0.935 | 0.268 | 0.151 |
+| tstauto_pp2, all | 130 / 130 | 1.037 | 1.039 | 1.001 | 0.025 | 0.023 |
+| tstauto_torx, all | 81 / 81 | 1.429 | 1.431 | 1.002 | 0.002 | 0.001 |
+
+PY_S1Bf's periodic system/default ratio is **0.955**, almost W358's 0.956; its math functions cost
+19.774/14.260 M per point. ModelDB's steady ratio is 0.900 (W358: 0.903).
+
+**ModelDB's periodic ratio, 0.426, includes changed continuation work and cannot isolate the cost of
+correct rounding.** The system build makes about 5.2 Newton calls and 3.2 Jacobian builds per point, against
+11.55 and 7.05 in the default, and evaluates the model about 68945 rather than 151748 times.
+Over 20 index-paired points, the continued parameter differs by up to 3.89e-4 and the plotted
+ordinate by 1.91e-2, using `|a-b|/(1+|default|)`. These are different continuation locations;
+this does not measure an error at a matched solution point. W358's eight-point library comparison
+(0.946) neither used this cut nor this current trajectory. The follow-up must locate the first
+Newton/step-history divergence and compare a common parameter interval and mesh accuracy before
+claiming a library speedup. This rerun cannot assign the new behaviour to one intervening card.
+PY_S1Bf keeps its parameter values exactly, with a largest ordinate change of 7.70e-7.
+
+**LINALG=lapack**
+
+| workload, phase | points this / other | M instr per point, this | other | other / this | math functions, M per point: this | other |
+|---|---|---:|---:|---:|---:|---:|
+| modeldb, periodic | 20 / 20 | 8945.477 | 5584.183 | 0.624 | 1484.555 | 926.588 |
+| modeldb, steady | 1081 / 1081 | 3.844 | 4.236 | 1.102 | 1.034 | 1.034 |
+| ode_lecar, all | 79 / 79 | 1.996 | 1.997 | 1.001 | 0.230 | 0.230 |
+| py_s1bf, periodic | 100 / 100 | 107.314 | 107.324 | 1.000 | 19.774 | 19.777 |
+| py_s1bf, steady | 403 / 403 | 0.378 | 0.404 | 1.068 | 0.055 | 0.055 |
+| tstauto_brper, all | 49 / 49 | 1.883 | 1.887 | 1.002 | 0.279 | 0.279 |
+| tstauto_frcp, all | 103 / 103 | 1.459 | 1.465 | 1.004 | 0.002 | 0.002 |
+| tstauto_lamom, all | 70 / 70 | 1.322 | 1.326 | 1.003 | 0.192 | 0.192 |
+| tstauto_lamom2, all | 60 / 60 | 1.858 | 1.862 | 1.002 | 0.456 | 0.456 |
+| tstauto_lecar, all | 83 / 83 | 1.908 | 1.911 | 1.001 | 0.219 | 0.219 |
+| tstauto_lo, all | 50 / 50 | 1.782 | 1.786 | 1.002 | 0.268 | 0.268 |
+| tstauto_pp2, all | 130 / 130 | 1.037 | 1.044 | 1.006 | 0.025 | 0.025 |
+| tstauto_torx, all | 81 / 81 | 1.429 | 1.440 | 1.008 | 0.002 | 0.002 |
+
+LAPACK now costs 6.8% more instructions in PY_S1Bf's steady phase and 10.2% more in ModelDB's
+(W358: about 6% and 10%); PY_S1Bf's periodic cost is unchanged to the displayed ratio, and the nine
+small descriptions cost 0.1-0.8% more. **ModelDB's periodic run is the exception: 5584.183 M/point,
+37.6% less than EISPACK**, with Newton calls 7.10 rather than 11.55, Jacobian builds 4.40 rather than
+7.05 and model evaluations about 94706 rather than 151748. Its math-function cost also falls in
+proportion to those model calls (926.588/1484.555 M/point). This is a change in continuation work,
+not evidence that the small Floquet eigenvalue calculation accounts for a third of the run.
+
+The large-model comparison uses the existing profile JSON's plotted coordinates, not a saved
+full-precision session diagram. PY_S1Bf's periodic parameter values remain identical across builds;
+LAPACK's largest ordinate difference is 1.00e-5. On the steady branches the largest parameter drifts
+are 0/7.05e-8 for system libm (PY_S1Bf/ModelDB) and 1.04e-7/5.24e-8 for LAPACK, with identical plotted
+ordinates. ModelDB's LAPACK periodic parameter/ordinate maxima are 2.16e-4/1.28e-2, again at different
+continuation locations. Their twenty-point parameter spans
+make the changed step histories concrete (endpoints as printed by the diagram protocol):
+
+| ModelDB periodic build | first parameter | last parameter | stored points | Newton/point | Jacobian/point |
+|---|---:|---:|---:|---:|---:|
+| default EISPACK | 0.5727871 | 0.5728517 | 20 | 11.55 | 7.05 |
+| LIBM=system | 0.5727871 | 0.5734632 | 20 | about 5.2 | about 3.2 |
+| LINALG=lapack | 0.5727871 | 0.5731918 | 20 | 7.10 | 4.40 |
+
+LAPACK and system libm both advance farther for fewer instructions in this particular run. W358's
+blanket statement that LAPACK brings no instruction gain to AUTO cannot be carried forward without
+this exception. A common parameter interval, mesh convergence and the first differing Newton/step
+history are needed to decide why, and to turn this into a fair timing comparison.
+
+### Eigenvalue accuracy on the current matrices
+
+The existing gdb dumper and `build/lapack/eigcompare` were used on PY_S1Bf, ModelDB and all 43 runnable
+AUTO descriptions, a superset of W358's 14 workloads. They captured **6679 matrices**. The default gdb and callgrind diagram coordinates match exactly in
+both phases of both large models (403/100 and 1081/20 points). The four BVP
+workflows `ode_tstheti`, `tstauto_dumbvp`, `tstauto_exp` and `tstauto_tsthom2` call neither sampled
+entry point and have empty dumps. Windows Python with mpmath 1.4.1, at 50 digits, ran
+`eig_accuracy.py DIR --per-file 12`: **684 samples, 57 workload/kind rows, twelve in every row**;
+zero library failures and zero infinite pencils in the samples.
+As in W358, eigcompare requests eigenvalues only (`matz=0`), even for a matrix captured at a
+HomCont eigenvector call; this calculation does not assess eigenvectors or projection bases.
+
+The following errors are maxima of the worst matched eigenvalue in each sampled matrix. The existing
+script's scale for a pencil is `sqrt(||A||_F^2 + ||B||_F^2)` (the combined Frobenius norm), not the sum
+of norms described in its older docstring; the implementation and W358's calculation use this same
+scale. Relative errors retain the script's cutoff `|lambda| > 1e-6 * scale`.
+
+| workload, kind (n) | EISPACK abs/norm max | rel max | LAPACK abs/norm max | rel max |
+|---|---:|---:|---:|---:|
+| explicit_homoclinic, rg (3) | 6.19e-17 | 1.42e-16 | 7.78e-17 | 1.78e-16 |
+| forced_pp_ns, rg (4) | 2.11e-17 | 6.49e-17 | 8.01e-17 | 1.72e-16 |
+| forced_pp_ns, qz (3) | 5.25e-16 | 7.77e-16 | 3.84e-16 | 7.65e-16 |
+| forced_pp_pd, rg (4) | 2.01e-17 | 6.48e-17 | 8.02e-17 | 1.41e-16 |
+| forced_pp_pd, qz (3) | 6.94e-15 | 2.70e-15 | 2.03e-15 | 1.40e-15 |
+| henon_rot_lp, rg (4) | 8.34e-17 | 3.70e-15 | 5.72e-16 | 3.87e-14 |
+| henon_rot_pd, rg (4) | 4.06e-16 | 8.86e-16 | 1.03e-16 | 6.77e-16 |
+| henon_rot_tr, rg (4) | 6.09e-17 | 7.64e-17 | 1.23e-16 | 2.40e-16 |
+| hill_cycles_pd, rg (4) | 2.11e-17 | 7.56e-17 | 4.37e-17 | 1.66e-16 |
+| hill_cycles_pd, qz (3) | 1.10e-15 | 1.42e-15 | 5.90e-16 | 5.30e-16 |
+| hill_cycles_torus, rg (4) | 3.07e-17 | 8.69e-17 | 5.23e-17 | 1.35e-16 |
+| hill_cycles_torus, qz (3) | 4.52e-16 | 3.85e-16 | 2.76e-16 | 2.85e-16 |
+| lorenz_homoclinic, rg (3) | 1.35e-16 | 2.81e-16 | 1.07e-16 | 2.17e-16 |
+| modeldb, rg (25) | 4.90e-18 | 8.43e-14 | 2.93e-18 | 1.12e-14 |
+| modeldb, qz (24) | 4.05e-17 | 8.50e-12 | 1.25e-17 | 1.78e-12 |
+| ode_del_log, rg (2) | 7.85e-17 | 1.35e-16 | 1.44e-16 | 2.46e-16 |
+| ode_lecar, rg (2) | 1.69e-16 | 8.30e-16 | 1.04e-16 | 7.08e-16 |
+| ode_lecar, qz (1) | 1.00e-12 | 9.65e-17 | 1.00e-12 | 9.65e-17 |
+| ode_osc, rg (2) | 1.19e-16 | 3.35e-16 | 1.25e-16 | 3.50e-16 |
+| py_s1bf, rg (8) | 7.45e-18 | 2.27e-15 | 6.29e-18 | 4.03e-14 |
+| py_s1bf, qz (7) | 1.96e-17 | 2.17e-14 | 2.44e-17 | 2.32e-14 |
+| res_cycles, rg (4) | 2.33e-17 | 5.65e-17 | 9.51e-17 | 2.43e-16 |
+| res_cycles, qz (3) | 9.44e-16 | 6.84e-16 | 1.39e-15 | 7.31e-16 |
+| tstauto_ab, rg (2) | 1.25e-16 | 2.65e-15 | 2.73e-16 | 1.37e-14 |
+| tstauto_ab_fold, rg (2) | 3.80e-16 | 4.00e-11 | 1.23e-16 | 5.54e-11 |
+| tstauto_ab_hopf, rg (2) | 7.10e-17 | 2.43e-15 | 7.10e-17 | 2.43e-15 |
+| tstauto_bigaut, rg (350) | 0.00e+00 | 0.00e+00 | 0.00e+00 | 0.00e+00 |
+| tstauto_bistable, rg (2) | 9.01e-17 | 2.10e-16 | 9.01e-17 | 2.10e-16 |
+| tstauto_bob, rg (2) | 4.79e-17 | 1.09e-16 | 6.48e-17 | 1.70e-16 |
+| tstauto_brper, rg (2) | 1.91e-51 | 2.70e-51 | 1.57e-16 | 2.22e-16 |
+| tstauto_brper, qz (1) | 3.33e-17 | 8.07e-17 | 3.33e-17 | 8.07e-17 |
+| tstauto_dumb, rg (195) | 0.00e+00 | 0.00e+00 | 0.00e+00 | 0.00e+00 |
+| tstauto_eiz-hom, rg (5) | 8.81e-16 | 1.33e-15 | 8.75e-16 | 5.53e-15 |
+| tstauto_frcp, rg (4) | 1.68e-17 | 2.61e-16 | 5.79e-17 | 4.38e-16 |
+| tstauto_frcp, qz (3) | 1.08e-16 | 3.73e-16 | 1.29e-16 | 4.59e-16 |
+| tstauto_lamom, rg (2) | 1.93e-51 | 2.73e-51 | 1.93e-51 | 2.73e-51 |
+| tstauto_lamom, qz (1) | 3.86e-17 | 6.36e-17 | 3.86e-17 | 6.36e-17 |
+| tstauto_lamom2, rg (2) | 2.05e-51 | 2.90e-51 | 1.57e-16 | 2.22e-16 |
+| tstauto_lamom2, qz (1) | 1.21e-16 | 9.98e-17 | 1.21e-16 | 9.98e-17 |
+| tstauto_lecar, rg (2) | 2.08e-16 | 1.25e-15 | 2.64e-16 | 1.01e-15 |
+| tstauto_lecar, qz (1) | 9.36e-13 | 5.37e-17 | 9.36e-13 | 5.37e-17 |
+| tstauto_lo, rg (2) | 1.90e-51 | 2.68e-51 | 1.90e-51 | 2.68e-51 |
+| tstauto_lo, qz (1) | 1.58e-17 | 8.90e-17 | 1.58e-17 | 8.90e-17 |
+| tstauto_pen, rg (4) | 4.02e-16 | 7.55e-16 | 5.40e-16 | 1.01e-15 |
+| tstauto_pf, rg (1) | 0.00e+00 | 0.00e+00 | 0.00e+00 | 0.00e+00 |
+| tstauto_pp2, rg (2) | 7.47e-17 | 1.92e-16 | 5.71e-17 | 1.73e-16 |
+| tstauto_pp2, qz (1) | 2.96e-17 | 7.24e-17 | 2.96e-17 | 7.24e-17 |
+| tstauto_san, rg (3) | 4.15e-17 | 8.67e-17 | 4.15e-17 | 8.67e-17 |
+| tstauto_she, rg (5) | 1.25e-51 | 1.34e-50 | 1.25e-51 | 1.34e-50 |
+| tstauto_simplefold, rg (1) | 0.00e+00 | 0.00e+00 | 0.00e+00 | 0.00e+00 |
+| tstauto_torx, rg (3) | 3.37e-16 | 7.94e-16 | 4.06e-16 | 1.69e-15 |
+| tstauto_torx, qz (2) | 4.25e-15 | 1.67e-15 | 2.03e-15 | 1.07e-15 |
+| tstauto_torx_homcont, rg (3) | 5.74e-16 | 2.02e-15 | 4.17e-16 | 1.47e-15 |
+| tstauto_tstheti_homcont, rg (2) | 7.37e-17 | 1.93e-16 | 8.13e-17 | 2.48e-16 |
+| tstauto_tsthom, rg (2) | 1.42e-16 | 2.68e-16 | 1.42e-16 | 2.68e-16 |
+| tstauto_wcbiwave, rg (3) | 1.15e-15 | 2.30e-15 | 6.28e-16 | 1.15e-15 |
+| zero_hopf, rg (3) | 1.89e-51 | 2.74e-51 | 1.89e-51 | 2.74e-51 |
+
+ModelDB's 24x24 pencil remains the case where LAPACK helps: W358 EISPACK/LAPACK abs/norm
+9.9e-17/1.6e-17, relative 1.2e-11/1.1e-12; now **4.05e-17/1.25e-17** and
+**8.50e-12/1.78e-12**, about 3.2x and 4.8x closer. The matrices and samples changed with the
+numerical paths, so this is not an accuracy regression test on identical old inputs. PY_S1Bf's pencil
+remains at rounding scale (EISPACK/LAPACK abs/norm 1.96e-17/2.44e-17).
+
+Across the expanded sample the largest relative error is **5.54e-11** (`tstauto_ab_fold`, LAPACK),
+still over six orders below 1e-4; the largest abs/norm is **1.00e-12**, the same in both libraries on
+`ode_lecar`'s 1x1 pencil (W358's small-model maximum was 6.3e-13). Neither supports changing libraries.
+The diagonal 350- and 195-variable fixtures are exact in both libraries; those are not evidence
+about large dense matrices. These are sampled input-matrix errors, not a proof about all AUTO runs.
+
+### Diagrams and the coordinator's wave checks
+
+`diagram_diff.py` ran every current runnable description, **43 per build**, at one thread, using the
+committed EISPACK baseline and the existing AUTO-07p references/tolerances. Value differences are
+`|a-b|/(1+|baseline|)`, with spectra compared as sets; descriptions and runs with
+explicit reference skips retain them. Both comparison builds report **zero AUTO-07p differences**.
+W358 checked 29 descriptions with a largest tolerance fraction of 0.298; now both builds' maximum is
+**0.788** (`tstauto_torx_homcont`), inside the unchanged tolerance.
+
+| checkpoint | coordinator after wave 1, `5337db7c` | W370 LAPACK | W370 LIBM=system |
+|---|---:|---:|---:|
+| forced_pp_ns, points this/default | 264/263 | 264/263 | 266/263 |
+| forced_pp_ns, largest fraction of tolerance | 0.554 | 0.554 | 0.400 |
+| forced_pp_pd, points | 463 | 463 | 463 |
+| forced_pp_pd, largest fraction of tolerance | 0.618 | 0.618 | 0.049 |
+| tstauto_torx_homcont, points | 88 | 88 | 88 |
+| tstauto_torx_homcont, largest fraction of tolerance | 0.788 | 0.788 | 0.788 |
+
+These reproduce the LAPACK checkpoints in #432's saved coordinator comments. Before that wave,
+forced_pp_ns stored 267/268 points; the wave containing W406's step reduction changed its termination
+counts. It still ends near the double -1 resonance, where last-bit changes can change a step.
+With different point counts, diagram_diff.py's index-paired parameter/spectrum maxima after the first
+divergence compare different steps, not the same solution point. The independent special-point/curve
+comparison still passes. No tolerance or baseline was changed to obtain these results.
+
+For LAPACK, the familiar spectrum differences remain: ode_lecar 3.11e-6, ab_hopf 1.16e-6,
+forced_pp_pd 6.68e-6 (relative to 1+|value|). LIBM=system gives ode_lecar 3.89e-6,
+tstauto_lecar 1.65e-6, forced_pp_pd 4.22e-5 and ab_fold 6.75e-5. The 0.788 HomCont fraction also
+belongs to the default, following
+[W365 `0557526e`](https://github.com/MuhammadMoustafa/xppautX/commit/0557526e8c13c78b6567ac9f2aad1c2221df0db0)'s
+projection change; it is not a loss caused by LAPACK.
+
+**The period-order finding no longer holds.**
+[W369 `29a87725`](https://github.com/MuhammadMoustafa/xppautX/commit/29a87725a8b9e1c5d659e075a9c4a839be15de68)
+already selected the pair by an order-free rule, with lowest frequency resolving ties. On tstauto_pen,
+LAPACK and EISPACK now differ by **9.74e-16** in stored period (W358: 3.06), with identical parameter,
+norm and state values; LIBM=system's period is identical. No further period-order card is proposed.
+
+### Tool maintenance and gates
+
+Searched the existing `tools/auto-profile/` classifier/call-prefix functions and the numerical owners
+`core/xpp_math_auto.cpp`, `core/xpp_math_eispack.cpp`, conpar and autlib before changing the tool.
+[W337 `efe265e8`](https://github.com/MuhammadMoustafa/xppautX/commit/efe265e8ec574c6ea9b772b554b540e874da7e28)
+moved numerical functions into `xpp::`; the old matchers lost their eigenvalue/linear-solve categories
+and counts. W370's
+[b03bcfbf](https://github.com/MuhammadMoustafa/xppautX/commit/b03bcfbf0394df7504f8540ede600c3c5490b7f8)
+makes five existing expressions ignore that owner prefix. It reuses the
+classifier and counters, changes no instruction total, reader, file/process operation or core source,
+and adds no helper. The simpler total-only report was rejected because it would lose the attribution
+this card requests. This is the only measuring-tool change.
+
+- Three WSL benchmark builds succeed with `-j4 WERROR=1`; build logs contain no compiler warnings.
+- Default `make -j4 WERROR=1 xppautx test`: **57 unit programs pass**, with 69517 printed checks.
+- Examples: **185 models, 184/184 expected outputs** match the unchanged md5 baseline; ml-range has no
+  output by design.
+- AUTO: **52 descriptions, 9 documented model skips, 9972 points, 126 checks, 0 failures**, both thread
+  counts, against unchanged diagram baselines and references. Explicit run/reference skips remain.
+- `tools/sourcecheck.sh`: **pass**, including LTO, dead-code, global, duplication, names and schema
+  checks; `OMP_NUM_THREADS=4 OMP_THREAD_LIMIT=4` makes its `nproc` four, keeping its builds at four jobs.
+- web2 typecheck: **pass** on this worktree's src/test, using TypeScript 7.0.2 and existing dependencies
+  in the main checkout. Both package-lock hashes are identical; installed preact 10.29.8, uplot 1.6.32,
+  marked 18.0.14 and @types/node 22.20.4 match. A temporary config only redirects dependency resolution;
+  nothing is installed and no filesystem link is created.
+- Comparison diagrams: **43 descriptions per build, zero AUTO-07p differences**; matrix accuracy:
+  **684 samples, zero failures**. verify.sh, the full web2check and asancheck were not run, as instructed.
+
+### Decision and the maintainer's next choice
+
+**Keep EISPACK as the default and LAPACK as the documented benchmark build, with a qualification to
+the old performance rationale.** The accuracy results do not require a split; all current reference
+comparisons pass, and LAPACK still costs more in the steady and small-model runs. The new ModelDB
+periodic exception is real in instructions and branch progress, so "LAPACK is never faster" is not
+supported by this rerun. These are instruction counts on different adaptive trajectories, not
+matched-interval wall-time measurements or a reason to choose a default for favourable last bits.
+Correctly rounded math remains the project default; the system-libm outlier likewise is not an
+isolated price for correct rounding.
+
+The maintainer should decide on a focused follow-up card before using the ModelDB result in a speed
+claim: **trace ModelDB's Newton/step-history sensitivity after the AUTO cards**, reproduce the first
+divergence among the three builds, compare the same parameter interval and independently check mesh
+accuracy. It must account for the default's 92.3% increase since W358 and the comparison builds'
+fewer iterations and farther progress. This card measures and reports that finding; it makes no
+core, tolerance or baseline change. The 0.788 HomCont reference fraction remains a checkpoint for
+later waves, and W369's period-order issue needs no new card.
+
+Raw callgrind profiles, phase JSONs, matrix dumps/results and temporary run reports were removed
+after recording these tables: **none left**. Ordinary compiler build caches stay in the WSL clone,
+as tools/wslrun.sh normally keeps them. No background run was started by this card.
