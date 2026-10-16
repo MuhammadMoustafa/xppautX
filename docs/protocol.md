@@ -1370,8 +1370,8 @@ core/numerics_settings.cpp keeps it.
   {"key":"tolerance","label":"Tolerance","value":0.001,"unused":true}, ...]}
 ```
 
-The fields, in the menu's order: `total_time` (a positive run duration;
-negative and zero values are refused with their place), `start_time`, `transient_time`, `dt`, `nullcline_mesh` (nullcline mesh),
+The fields, in the menu's order: `total_time` (the run duration, 0 or more;
+a negative value is refused with its place), `start_time`, `transient_time`, `dt`, `nullcline_mesh` (nullcline mesh),
 `singpt_max_iterates`, `singpt_newton_tolerance`, `singpt_jacobian_epsilon` (sIng pt ctrl),
 `store_every`, `bound`, `method` (its number, `choices` its names by number), `jacobian` (W260:
 how every Jacobian of the model is formed, `difference` by XPPAUT's forward differences or `exact`

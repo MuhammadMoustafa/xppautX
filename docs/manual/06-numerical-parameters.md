@@ -13,7 +13,7 @@ The items on this menu are:
 
 ### (T)otal
 
-Total is the positive duration of the run (`TEND`). Stop ends the run early and keeps its stored rows. Our models, session files, forms and commands refuse a negative or zero Total with its file and line. Importing XPPAUT's `.ode` or `.set` maps a negative Total to its absolute value; it remains a finite run that stores data.
+Total is the duration of the run (`TEND`), 0 or more: 0 stores only the starting point. Stop ends the run early and keeps its stored rows. Our models, session files, forms and commands refuse a negative Total with its file and line. Importing XPPAUT's `.ode` or `.set` maps a negative Total to its absolute value; it remains a finite run that stores data.
 
 Storage grows as needed. If growth fails, one error stops the run in every mode and the rows already stored are kept. There is no overwrite question and no warning-only silent path (W347, [#408](https://github.com/MuhammadMoustafa/xppautX/issues/408)).
 

@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "properties": {
     "numerics": {"type": "object", "additionalProperties": false, "properties": {
-      "total_time": {"type": "number", "exclusiveMinimum": 0, "description": "Total time"},
+      "total_time": {"type": "number", "minimum": 0, "description": "Total time"},
       "start_time": {"type": "number", "description": "Start time"},
       "transient_time": {"type": "number", "description": "Transient time"},
       "dt": {"type": "number", "description": "Dt"},

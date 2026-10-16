@@ -133,8 +133,8 @@ int main(void)
     CHECK(first.find("  total_time: 500,\n") != std::string::npos && first.find("  jacobian: difference,\n") != std::string::npos);
     CHECK(first.find("  poincare_map: period,\n") != std::string::npos && first.find("  iapp: 0.09,\n") != std::string::npos);
 
-    /* Our settings refuse negative/zero Total without applying any values. */
-    for(const char *total : {"-5","0"}){
+    /* Our settings refuse a negative Total without applying any values. */
+    for(const char *total : {"-5","-0.5"}){
         const int line=line_with(first,"  total_time:");
         const std::string bad=with_line(first,line,"  total_time: "+std::string(total)+",");
         CHECK(setx_error(s,own,bad).starts_with(xpp::format("{}:{}:",own,line)));

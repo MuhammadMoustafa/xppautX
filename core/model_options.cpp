@@ -163,7 +163,7 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.numerics.total_time; }),
    /* twenty time units, XPPAUT's */
    .reset = [](Session &s) { s.numerics.total_time = 20; },
-   .key = "total_time", .label = "Total time", .rule = OptionRule::positive, .saved = true},
+   .key = "total_time", .label = "Total time", .rule = OptionRule::nonnegative, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "START_TIME", .xppaut_names = {"T0"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.start_time; }),
    /* time starts at 0 */

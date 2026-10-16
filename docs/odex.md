@@ -155,8 +155,8 @@ grammar:
   block). Entries are `key: value`, separated by commas, groups nested, a
   trailing comma allowed. `options` is a reserved word; the keys and values
   are read only inside the block, so none of them is reserved (`stiff`,
-  `total_time` can still name a variable). `integration.total_time` is a positive
-  run duration. Negative Total is accepted only on XPPAUT `.ode` / `.set`
+  `total_time` can still name a variable). `integration.total_time` is the run's
+  duration, 0 or more. Negative Total is accepted only on XPPAUT `.ode` / `.set`
   import and becomes its absolute value; our files and commands reject it
   with its file and line (W347, [#408](https://github.com/MuhammadMoustafa/xppautX/issues/408)).
   A file has one block. The groups
