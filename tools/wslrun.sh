@@ -30,7 +30,7 @@ if [ -z "${XPP_WSLRUN_HEAD:-}" ]; then
     MINGW*|MSYS*|CYGWIN*)
       # the rest runs in WSL, from the checkout as WSL sees it
       wsrc=$(wsl -e wslpath -a "$(cygpath -w "$src")" | tr -d '\r') || exit 2
-      exec wsl -e bash -lc "cd $(printf '%q' "$wsrc") && XPP_HEAVY_HELD=1 XPP_WSLRUN_HEAD=$XPP_WSLRUN_HEAD bash tools/wslrun.sh $(printf '%q ' "$@")"
+      exec wsl -e bash -lc "cd $(printf '%q' "$wsrc") && XPP_HEAVY_HELD=1 ${CCACHE_DISABLE:+CCACHE_DISABLE=$CCACHE_DISABLE} XPP_WSLRUN_HEAD=$XPP_WSLRUN_HEAD bash tools/wslrun.sh $(printf '%q ' "$@")"
       ;;
   esac
 fi

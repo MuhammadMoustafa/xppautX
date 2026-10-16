@@ -78,6 +78,25 @@ endif
 # clang (Apple's on macOS; MSYS2's CLANG64 toolchain on Windows, W23:
 # clang, libc++, lld, compiler-rt): libc++ wants webview in C++17 (below)
 CLANG := $(if $(findstring clang,$(shell $(CC) --version 2>/dev/null)),1)
+
+# W411: a compiler cache shared by every worktree and clone of this user,
+# used when ccache is found; CCACHE= turns it off (CI and release builds
+# have none). Prefixing CC and CXX here covers every compile and link at
+# once; the guard keeps a sub-make, which inherits the prefixed value, from
+# adding it twice. A hit across paths needs no more than this: sources are
+# named relative to the checkout, CCACHE_BASEDIR maps the few absolute
+# paths, and CCACHE_NOHASHDIR leaves the build folder out of the key (the
+# only difference: -g's comp_dir names the first builder's folder). The cap
+# travels with the Makefile, not in a per-user ccache.conf.
+# Timing runs (tools/heavy.sh --alone) set CCACHE_DISABLE=1.
+CCACHE ?= $(if $(shell command -v ccache 2>/dev/null),ccache)
+ifneq ($(strip $(CCACHE)),)
+export CCACHE_BASEDIR := $(CURDIR)
+export CCACHE_NOHASHDIR := 1
+export CCACHE_MAXSIZE := 15G
+override CC := $(if $(findstring $(CCACHE),$(CC)),$(CC),$(CCACHE) $(CC))
+override CXX := $(if $(findstring $(CCACHE),$(CXX)),$(CXX),$(CCACHE) $(CXX))
+endif
 # WERROR=1 (the default, W401): every warning the build enables is an error,
 # so none comes back (W386's labs truncation reached master as a clang
 # warning no gate failed on). WERROR=0 turns it off, for a compiler we do not

@@ -137,6 +137,8 @@ for d in "${taken[@]}"; do
   uname -s > "$d/side"
   printf '%s (%s)\n' "$*" "$PWD" > "$d/what"
 done
+# a timing series must not be skewed by a compiler-cache hit (W411)
+[ $alone -eq 1 ] && export CCACHE_DISABLE=1
 XPP_HEAVY_HELD=1 "$@"
 exit $?
 }

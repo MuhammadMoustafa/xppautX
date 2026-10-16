@@ -167,6 +167,20 @@ the machine's three slots:
   (no build outside it, no deleting another run's lock folder).
 - Builds still use -j4. The number of agents is not capped (maintainer,
   2026-10-14): they code side by side, and only their heavy runs queue.
+- One compiler cache (W411, #473): the Makefile puts `ccache` in front of
+  CC and CXX when `command -v ccache` finds it, so a worktree's or WSL
+  clone's first build compiles only what no earlier build of any
+  worktree already did. There is one cache per side, the user's own
+  (WSL's `~/.cache/ccache`, and Windows', shared by UCRT and clang64);
+  its cap (15 GB) travels with the Makefile
+  (`CCACHE_MAXSIZE`), so nobody writes a ccache.conf.
+  Paths do not matter (sources are relative, `CCACHE_BASEDIR`,
+  `CCACHE_NOHASHDIR`), at the price that -g's recorded build folder is the
+  first builder's. `make CCACHE=` builds without it (CI and release have
+  no ccache, so they do); `tools/heavy.sh --alone` sets
+  `CCACHE_DISABLE=1` (wslrun.sh forwards it), so a timing or profiling
+  series never meets a hit. `ccache -s` shows the hit rate, `ccache -C`
+  clears the cache (the maintainer's call: it is every agent's).
 
 The Windows build (UCRT gcc 16)
 also runs on each merged tip: its libstdc++ marks `std::expected`
