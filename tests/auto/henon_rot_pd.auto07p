@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.4 (tools/auto_reference.py)",
+  "model": "tools/models/henon_rot.odex",
+  "runs": [
+    {"name": "steady", "parameter": "alpha", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.0, "norm": 0.0, "period": 1.0, "spectrum": "multiplier", "values": [[0.675378, -1.05184], [0.675378, 1.05184], [0.83666, 0.0], [-0.83666, 1.02461e-16]]},
+      {"type": "PD", "branch": 1, "label": 2, "point": 9, "par": 0.06753147084, "norm": 0.21220620535, "period": 1.0, "spectrum": "multiplier", "values": [[0.63889, -0.995013], [0.63889, 0.995013], [-1.00006, 1.22472e-16], [0.699957, 0.0]]},
+      {"type": "TR", "branch": 1, "label": 3, "point": 15, "par": 0.24999980171, "norm": 0.52610885005, "period": 1.0, "spectrum": "multiplier", "values": [[-1.28765, 1.57692e-16], [0.540302, -0.841471], [0.540302, 0.841471], [0.543624, 0.0]]},
+      {"type": "TR", "branch": 1, "label": 4, "point": 40, "par": 2.2500002647, "norm": 1.9197686504, "period": 1.0, "spectrum": "multiplier", "values": [[-2.95208, 3.61526e-16], [-0.540302, -0.841471], [-0.540302, 0.841471], [0.237121, 0.0]]},
+      {"type": "EP", "branch": 1, "label": 5, "point": 59, "par": 4.0120398095, "norm": 2.6284805086, "period": 1.0, "spectrum": "multiplier", "values": [[-3.89686, 4.77228e-16], [-1.49234, -2.32418], [-1.49234, 2.32418], [0.179632, 0.0]]}
+    ]}
+  ]
+}

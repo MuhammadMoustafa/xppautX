@@ -17,6 +17,12 @@ diagram (the Newton-corrected start); a run from a Hopf point continues from the
 the named run. A two_parameter run continues an LP or HB of an equilibrium run with ISW=2 (ICP the
 two parameters; ILP=0 as xppautX, ISP=1 so that AUTO-07p labels BT, CP, ZH, GH) and records, besides
 the labelled points, every step of the curve from AUTO-07p's b file: [parameter, second parameter, norm].
+W402 (#464): a two_parameter run also continues an LP, PD or TR of a periodic run (IPS=2, ICP the two
+parameters and the period, ISW=2, ISP=2: AUTO-07p labels R1 on a fold or torus curve, R2 on a PD or torus
+curve, R3 and R4 on a torus curve), or of a map's fixed points (IPS=-1, ISP=1: also LPD, LTR, PTR, TTR, which
+AUTO-07p detects for maps only, src/support.f90 CHECKSP and src/maps.f90). AUTO-07p first writes the curve's
+starting data (an EP) from a PD, TR or LP of cycles, and the curve is the run restarted from that. A
+run with `switch` is a branch switch (ISW=-1).
 
 --program xppaut needs XPPAUT 8.0 built from reference/xppaut-8.0 (--xppaut), Xvfb and
 xdotool. The same model is written as an .ode, XPPAUT's AUTO window is opened on a private
@@ -46,16 +52,31 @@ BASE = ROOT / 'tests/auto'
 FORMAT = 1
 # AUTO's index of the period among the parameters (PAR(11); core/auto_nox.h AUTO_PERIOD_INDEX is 0-based 10)
 PERIOD = 11
+
+
+def fnum(v):
+    """A Fortran double literal."""
+    t = repr(float(v)).replace('e', 'd')
+    return t if 'd' in t else t + 'd0'
 # the constants xppautX fixes (core/auto_nox.cpp: advanced numerics and the run's own ISP, ILP, ISW)
 FIXED = dict(IAD=3, IID=2, ITMX=8, ITNW=7, NWTN=3, IADS=1, ILP=1, ISW=1, A0=0, A1=1000)
 DEFAULTS = dict(ncol=4, epsl=1e-4, epsu=1e-4, epss=1e-4, mxbf=5)
-ISP = {'equilibrium': 1, 'periodic': 2, 'bvp': 2}
-IPS = {'equilibrium': 1, 'periodic': 2, 'bvp': 4}
+ISP = {'equilibrium': 1, 'periodic': 2, 'bvp': 2, 'homoclinic': 0, 'heteroclinic': 0}
+IPS = {'equilibrium': 1, 'periodic': 2, 'bvp': 4, 'homoclinic': 9, 'heteroclinic': 9}
+# HomCont's integration steps (RK4, in STPNT) along the orbit that starts the run: far below its own mesh, so the
+# orbit is the model's to the accuracy of the Newton correction that follows
+HOM_STEP = 1e-3
+# PAR(11) is HomCont's truncated time interval, PAR(12...) the equilibrium (equilibria)
+HOM_EQUILIBRIUM = 12
+HOMCONT = ('homoclinic', 'heteroclinic')
 # A two-parameter curve of an LP or HB of equilibria is the equilibrium problem with ISW=2. xppautX runs it
 # with ILP=0 and ISP=0 and detects no codim-2 point yet (core/auto_nox.cpp auto_2p_limit); the reference
 # keeps ILP=0 and the equilibria's ISP=1, which makes AUTO-07p label BT, CP, ZH and GH: those labels are what
 # W363 and W364 are judged against.
 CURVE_ISW = 2
+# A curve of cycles (an LP, PD or TR of a periodic run) is IPS=2 with ISW=2 and the cycle's detection
+# (ISP=2: R1-R4 on the fold, PD and torus curves); ICP the two parameters and the period.
+CYCLE_ISP = 2
 INTRINSICS = {'exp', 'sin', 'cos', 'tan', 'tanh', 'cosh', 'sinh', 'sqrt', 'max', 'min', 'abs', 'log', 'atan'}
 TOKEN = re.compile(r"\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|[A-Za-z_][A-Za-z_0-9]*'?|\^|[()+\-*/,]")
 LINE = 96  # characters of an expression per Fortran line (free form allows 132)
@@ -230,6 +251,23 @@ class Equations:
                 raise Refused('unknown name in the equations: ' + t)
         return out
 
+    def orbit(self, hom):
+        """STPNT's lines that set HomCont's parameters and call ORBIT, and ORBIT: RK4 from the initial state over T*interval."""
+        body = ['  PAR(11) = ' + fnum(hom['interval'])]
+        body += ['  PAR(%d) = %s' % (HOM_EQUILIBRIUM + i, fnum(v)) for i, v in enumerate(hom['equilibria'])]
+        body.append('  CALL ORBIT(NDIM, PAR, T*PAR(11), U)')
+        f = ['SUBROUTINE ORBIT(NDIM,PAR,TAU,U)', '  IMPLICIT NONE', '  INTEGER, INTENT(IN) :: NDIM',
+              '  DOUBLE PRECISION, INTENT(IN) :: PAR(*), TAU', '  DOUBLE PRECISION, INTENT(OUT) :: U(NDIM)',
+              '  DOUBLE PRECISION :: K1(NDIM), K2(NDIM), K3(NDIM), K4(NDIM), W(NDIM), DFDU(NDIM,NDIM), DFDP(NDIM,50), H',
+              '  INTEGER :: I, STEPS, ICP(1)', '  ICP(1) = 1']
+        f += ['  U(%d) = %s' % (i + 1, fnum(v)) for i, v in enumerate(hom['ic'])]
+        f += ['  STEPS = MAX(1, NINT(TAU/%s))' % fnum(HOM_STEP), '  H = TAU/STEPS', '  DO I = 1, STEPS',
+              '    CALL FUNC(NDIM,U,ICP,PAR,0,K1,DFDU,DFDP)', '    W = U + 0.5d0*H*K1',
+              '    CALL FUNC(NDIM,W,ICP,PAR,0,K2,DFDU,DFDP)', '    W = U + 0.5d0*H*K2',
+              '    CALL FUNC(NDIM,W,ICP,PAR,0,K3,DFDU,DFDP)', '    W = U + H*K3',
+              '    CALL FUNC(NDIM,W,ICP,PAR,0,K4,DFDU,DFDP)', '    U = U + H*(K1 + 2d0*K2 + 2d0*K3 + K4)/6d0', '  END DO']
+        return body, f + ['END SUBROUTINE ORBIT', '']
+
     @staticmethod
     def wrap(head, toks):
         lines, cur = [], head
@@ -240,7 +278,8 @@ class Equations:
             cur += t
         return '\n'.join(lines + [cur])
 
-    def source(self, start, bvp):
+    def source(self, start, bvp, hom=None):
+        """`hom`: the HomCont run's {'interval', 'equilibria', 'ic'}: STPNT integrates the orbit from ic over the interval."""
         o, n = self.o, len(self.o.states)
         f = ['SUBROUTINE FUNC(NDIM,U,ICP,PAR,IJAC,F,DFDU,DFDP)', '  IMPLICIT NONE',
              '  INTEGER, INTENT(IN) :: NDIM, IJAC, ICP(*)',
@@ -258,9 +297,12 @@ class Equations:
               '  DOUBLE PRECISION, INTENT(IN) :: T']
         for name, k in self.slot.items():
             f.append('  PAR(%d) = %s' % (k, repr(float(self.values[name])).replace('e', 'd') + ('d0' if 'e' not in repr(float(self.values[name])) else '')))
-        for i, v in enumerate(start):
-            f.append('  U(%d) = %s' % (i + 1, repr(float(v)).replace('e', 'd') + ('d0' if 'e' not in repr(float(v)) else '')))
-        f += ['END SUBROUTINE STPNT', '']
+        if hom:
+            body, routine = self.orbit(hom)
+            f += body + ['END SUBROUTINE STPNT', ''] + routine
+        else:
+            f += ['  U(%d) = %s' % (i + 1, fnum(v)) for i, v in enumerate(start)] + ['END SUBROUTINE STPNT']
+        f.append('') if not hom else ['END SUBROUTINE STPNT_END', '']
         if bvp:
             f += ['SUBROUTINE BCND(NDIM,PAR,ICP,NBC,UL,UR,FB,IJAC,DBC)', '  IMPLICIT NONE',
                   '  INTEGER, INTENT(IN) :: NDIM, ICP(*), NBC, IJAC',
@@ -276,12 +318,12 @@ class Equations:
         return '\n'.join(f)
 
 
-def problem(r, discrete):
-    """The run's AUTO-07p problem: ips, isp, isw, ilp."""
+def problem(r, discrete, cycle=False):
+    """The run's AUTO-07p problem: ips, isp, isw, ilp. `cycle`: a two-parameter curve of a periodic run's points."""
     curve = r['kind'] == 'two_parameter'
-    kind = 'equilibrium' if curve else r['kind']
-    return dict(ips=-1 if discrete else IPS[kind], isp=1 if discrete else ISP[kind],
-                isw=CURVE_ISW if curve else FIXED['ISW'], ilp=0 if curve else FIXED['ILP'])
+    kind = 'periodic' if cycle else 'equilibrium' if curve else r['kind']
+    return dict(ips=-1 if discrete else IPS[kind], isp=1 if discrete else CYCLE_ISP if cycle else ISP[kind],
+                isw=CURVE_ISW if curve else -1 if r.get('switch') else FIXED['ISW'], ilp=0 if curve else FIXED['ILP'])
 
 
 def constants(r, ndim, pr, nbc, icp, irs, npar):
@@ -296,6 +338,9 @@ def constants(r, ndim, pr, nbc, icp, irs, npar):
              'DS=%r, DSMIN=%r, DSMAX=%r, IADS=%d' % (a['ds'], a['dsmin'], a['dsmax'], FIXED['IADS']),
              'RL0=%r, RL1=%r, A0=%r, A1=%r' % (a['parmin'], a['parmax'], FIXED['A0'], FIXED['A1']),
              'NPAR=%d, THL={%d:0.0}, THU={}' % (npar, PERIOD)]
+    if 'connection' in r:  # HomCont: the equilibrium (equilibria) is solved for, IEQUIB=1 (homoclinic) or -2
+        c = r['connection']
+        lines.append('NUNSTAB=%d, NSTAB=%d, IEQUIB=%d, ITWIST=0, ISTART=5' % (c['nunstab'], c['nstab'], 1 if r['kind'] == 'homoclinic' else -2))
     return '\n'.join(lines) + '\n'
 
 
@@ -332,7 +377,8 @@ def curve_points(text, first, second):
     lines = text.splitlines()
     head = next(i for i, l in enumerate(lines) if 'L2-NORM' in l and 'PAR(' in l)
     # the header starts with a 0 where the lines have their branch number
-    columns = {name: i + 1 for i, name in enumerate(lines[head].split()[1:])}
+    # a periodic solution's file names a column "MAX U(1)": one column, two words
+    columns = {name: i + 1 for i, name in enumerate(re.sub(r'(MAX|MIN) ', r'\1', lines[head]).split()[1:])}
     wanted = [columns['PAR(%d)' % first], columns['PAR(%d)' % second], columns['L2-NORM']]
     rows = [l.split() for l in lines[head + 1:]]
     return [[float(f[k]) for k in wanted] for f in rows if len(f) == len(columns) + 1 and int(f[0]) != 0]
@@ -347,7 +393,15 @@ def script(runs, eq, names):
         if start.get('state') == 'current':
             src = "run(e='eq', c='%s')" % c
         else:
-            src = "run(results[%r]('%s%d'), c='%s')" % (start['run'], start['type'], start['index'], c)
+            at = "results[%r]('%s%d')" % (start['run'], start['type'], start['index'])
+            if eq['discrete'] and start['type'] == 'HB':
+                # xppautX labels a map's torus bifurcations HB (and finds no flip bifurcation of a map)
+                at = "results[%r]('TR%d')" % (start['run'], start['index'])
+            src = "run(%s, c='%s')" % (at, c)
+            if r['name'] in eq['cycles']:
+                # the starting data (an EP) of the curve; the curve is the run restarted from it, in the direction
+                # AUTO-07p takes for the description's DS (not necessarily the way xppautX's curve goes)
+                src = "run(run(%s, c='%s'))" % (at, c)
         second = ", 'par2': s['PAR(%d)']" % eq['icp2'][r['name']] if r['name'] in eq['icp2'] else ''
         lines += ['print("RUN %s")' % r['name'], 'try:', '    results[%r] = %s' % (r['name'], src),
                   "    save(results[%r], %r)" % (r['name'], c),
@@ -359,8 +413,8 @@ def script(runs, eq, names):
     return '\n'.join(lines) + '\n'
 
 
-# the points of an equilibrium run a two-parameter curve can start from
-CURVE_START = ('LP', 'HB')
+# the points a two-parameter curve can start from, by what the run it starts from continues
+CURVE_START = {'equilibrium': ('LP', 'HB'), 'map': ('LP', 'HB', 'PD'), 'periodic': ('LP', 'PD', 'TR')}
 POINT_TYPES = SPECIAL_TYPES + CODIM_TWO
 SOURCES = {'auto07p': 'AUTO-07p 0.9.4', 'xppaut': 'XPPAUT 8.0 (reference/xppaut-8.0, c021b511)'}
 SUFFIX = {'auto07p': '.auto07p', 'xppaut': '.xppaut'}
@@ -372,7 +426,7 @@ def check_description(name, d, program):
     if 'skip' in d:
         raise Refused('our description skips it: ' + d['skip'])
     odex = Odex(ROOT / d['model'])
-    if odex.discrete and len(d['runs']) != 1:
+    if program == 'xppaut' and odex.discrete and len(d['runs']) != 1:
         raise Refused('discrete model with several runs')
     eqs = Equations(odex, d.get('parameters', {}))
     bvp = any(r['kind'] == 'bvp' for r in d['runs'])
@@ -382,13 +436,18 @@ def check_description(name, d, program):
     if kinds - set(IPS) - {'two_parameter'}:
         raise Refused('run kind %s needs constants not mapped here' % sorted(kinds - set(IPS) - {'two_parameter'}))
     kind_of = {r['name']: r['kind'] for r in d['runs']}
+    homs = [r for r in d['runs'] if r['kind'] in HOMCONT]
+    if homs and (program == 'xppaut' or len(homs) != 1 or homs[0]['start'].get('state') != 'current' or 'settle' not in homs[0]['start']):
+        raise Refused('HomCont: only AUTO-07p, one run, from the integrated orbit (start current, settle)')
     for r in d['runs']:
         if r['kind'] == 'two_parameter':
             if program == 'xppaut':
                 raise Refused('the keys of this driver do not continue a two-parameter curve in XPPAUT')
-            if kind_of.get(r['start'].get('run')) != 'equilibrium' or r['start'].get('type') not in CURVE_START:
-                raise Refused('two-parameter run %s: only an %s of an equilibrium run is continued' %
-                              (r['name'], ' or '.join(CURVE_START)))
+            base = kind_of.get(r['start'].get('run'))
+            base = 'map' if base == 'equilibrium' and odex.discrete else base
+            if r['start'].get('type') not in CURVE_START.get(base, ()):
+                raise Refused('two-parameter run %s: only a point of %s of %s run is continued' %
+                              (r['name'], ' or '.join(CURVE_START.get(base, ('nothing',))), base))
     start = first_point(name)
     if bvp:
         if program == 'xppaut':
@@ -405,32 +464,42 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name):
     """{run: [point]}, {run: {(branch, point): spectrum}}, {run: reason} from AUTO-07p."""
     work = Path(tempfile.mkdtemp(prefix='w300-a07-'))
     try:
-        (work / 'eq.f90').write_text(eqs.source(start, bvp), encoding='utf-8')
-        names, icp1, icp2 = [], {}, {}
+        hom = None
+        if any(r['kind'] in HOMCONT for r in d['runs']):
+            run, = (r for r in d['runs'] if r['kind'] in HOMCONT)
+            known = {**odex.inits, **{k.lower(): v for k, v in d.get('initial_conditions', {}).items()}}
+            hom = dict(interval=run['start']['settle'], ic=[known.get(x, 0.0) for x in odex.states],
+                       equilibria=run['connection']['left'] + (run['connection']['right'] if run['kind'] == 'heteroclinic' else []))
+        (work / 'eq.f90').write_text(eqs.source(start, bvp, hom), encoding='utf-8')
+        names, icp1, icp2, cycles = [], {}, {}, set()
+        kind_of = {r['name']: r['kind'] for r in d['runs']}
         for i, r in enumerate(d['runs']):
             c = 'r%d' % i
             names.append(c)
-            pr = problem(r, odex.discrete)
-            if r['kind'] == 'two_parameter':
+            cycle = r['kind'] == 'two_parameter' and kind_of[r['start']['run']] == 'periodic'
+            if cycle:
+                cycles.add(r['name'])
+            pr = problem(r, odex.discrete, cycle)
+            if r['kind'] == 'two_parameter' or r['kind'] in HOMCONT:
                 icp1[r['name']], icp2[r['name']] = (eqs.slot[n] for n in r['parameters'])
-                icp = [icp1[r['name']], icp2[r['name']]]
+                icp = [icp1[r['name']], icp2[r['name']]] + ([PERIOD] if cycle else [])
             else:
                 p = icp1[r['name']] = eqs.slot[r['parameter']]
                 icp = [p] if r['kind'] in ('equilibrium', 'bvp') else [p, PERIOD]
             (work / ('c.' + c)).write_text(constants(r, len(odex.states), pr, len(odex.bcs) if bvp else 0,
-                                                     icp, 0, eqs.npar))
-        (work / 'run.auto').write_text(script(d['runs'], {'icp1': icp1, 'icp2': icp2}, names))
+                                                     icp, 0, max(eqs.npar, HOM_EQUILIBRIUM - 1 + (2 if r['kind'] == 'heteroclinic' else 1) * len(odex.states))))
         env = {**os.environ, 'AUTO_DIR': auto_dir, 'PYTHONWARNINGS': 'ignore'}
         env['PATH'] = '%s/cmds:%s/bin:%s' % (auto_dir, auto_dir, env['PATH'])
+        (work / 'run.auto').write_text(script(d['runs'], {'icp1': icp1, 'icp2': icp2, 'cycles': cycles, 'discrete': odex.discrete}, names))
         p = subprocess.run(['auto', 'run.auto'], cwd=work, env=env, capture_output=True, text=True)
         if p.returncode or 'POINT ' not in p.stdout:
             raise Refused('AUTO-07p failed: ' + (p.stderr or p.stdout)[-600:])
+        curves = {r['name']: curve_points((work / ('b.' + c)).read_text(errors='replace'), icp1[r['name']], icp2[r['name']])
+                  for c, r in zip(names, d['runs']) if r['name'] in icp2 and (work / ('b.' + c)).exists()}
         if keep:
             shutil.copytree(work, keep / name, dirs_exist_ok=True)
         stab = {r['name']: (stability((work / ('d.' + c)).read_text(errors='replace'))
                             if (work / ('d.' + c)).exists() else {}) for c, r in zip(names, d['runs'])}
-        curves = {r['name']: curve_points((work / ('b.' + c)).read_text(errors='replace'), icp1[r['name']], icp2[r['name']])
-                  for c, r in zip(names, d['runs']) if r['name'] in icp2 and (work / ('b.' + c)).exists()}
         failed = {l.split()[1]: l.split(None, 2)[2] for l in p.stdout.splitlines() if l.startswith('FAILED ')}
         points = {r['name']: [] for r in d['runs']}
         for line in p.stdout.splitlines():
@@ -610,8 +679,9 @@ def reference(name, d, program, args):
         for pt in points.get(r['name'], []):
             if pt['type'] in POINT_TYPES:
                 kind, vals = stab[r['name']].get((abs(pt['branch']), abs(pt['point'])), ('', []))
-                kept.append({**pt, 'spectrum': kind.lower(), 'values': vals})
-        names = {'parameters': r['parameters']} if r['kind'] == 'two_parameter' else {'parameter': r['parameter']}
+                # AUTO-07p prints a map's fixed point's Jacobian eigenvalues, which are its multipliers
+                kept.append({**pt, 'spectrum': 'multiplier' if odex.discrete and kind else kind.lower(), 'values': vals})
+        names = {'parameters': r['parameters']} if 'parameters' in r else {'parameter': r['parameter']}
         runs.append({'name': r['name'], **names, 'points': kept,
                      **({'curve': curves[r['name']]} if r['name'] in curves else {}),
                      **({'unavailable': failed[r['name']]} if r['name'] in failed else {})})
@@ -647,7 +717,17 @@ def main():
     for name in names:
         d = json.loads((BASE / (name + '.json')).read_text(encoding='utf-8'))
         try:
-            write(BASE / (name + SUFFIX[args.program]), reference(name, d, args.program, args))
+            ref = reference(name, d, args.program, args)
+            # a run xppautX cannot run (or whose curve it does not follow yet) is skipped in the description, which
+            # tools/autocompare.py does not compare; its reference is kept as NAME.auto07p.pending beside the others,
+            # for the card that makes xppautX run it to rename into place
+            held = {r['name'] for r in d['runs'] if 'skip' in r}
+            path = BASE / (name + SUFFIX[args.program])
+            kept = [r for r in ref['runs'] if r['name'] not in held]
+            if kept:
+                write(path, {**ref, 'runs': kept})
+            if held:
+                write(path.with_name(path.name + '.pending'), {**ref, 'runs': [r for r in ref['runs'] if r['name'] in held]})
             print('WROTE', name)
         except Refused as e:
             print('REFUSED %s: %s' % (name, e))

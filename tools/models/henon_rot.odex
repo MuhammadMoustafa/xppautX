@@ -1,0 +1,16 @@
+# W402 (#464): the Henon map of AUTO-07p's hen demo, (x,y) -> (y, alpha - beta*x - y^2), with a
+# rotation (u,v) -> rho*R(th)(u,v) beside it whose radius rho = 1 + e*(beta - 2*alpha + 1.2) passes
+# through 1 on the line beta = 2*alpha - 1.2. The fixed point (x,x,0,0) has the Henon multipliers
+# (fold at alpha = -(1+beta)^2/4, flip at alpha = 3*(1+beta)^2/4, torus at beta = 1) and the pair
+# rho*e^(+-i*th). The line crosses the fold, flip and torus curves, so AUTO-07p labels there the
+# fold-torus (LTR), flip-torus (PTR) and torus-torus (TTR) points of maps; the Henon map itself
+# gives 1:1 to 1:4 resonances (R1-R4) and the fold-flip point (LPD), as the hen demo does.
+x' = y
+y' = alpha-beta*x-y*y
+u' = (1+e*(beta-2*alpha+1.2))*(cos(th)*u-sin(th)*v)
+v' = (1+e*(beta-2*alpha+1.2))*(sin(th)*u+cos(th)*v)
+par alpha = 1.5, beta = 0, th = 1, e = 0.5
+init x = 0.8228756555322953, y = 0.8228756555322953, u = 0, v = 0
+options {
+  integration: { method: discrete, total_time: 100 },
+}

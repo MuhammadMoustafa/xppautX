@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.4 (tools/auto_reference.py)",
+  "model": "examples/tstauto/torx.odex",
+  "runs": [
+    {"name": "steady", "parameter": "rn", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": -0.721309, "norm": 0.00099999999994, "period": 9.8038146279, "spectrum": "eigenvalue", "values": [[0.363789, 0.0], [-0.380806, -0.640892], [-0.380806, 0.640892]]},
+      {"type": "BP", "branch": 1, "label": 2, "point": 8, "par": -0.60000000096, "norm": 2.7812623298e-56, "period": 11.284933935, "spectrum": "eigenvalue", "values": [[4.01704e-09, 0.0], [-0.3, -0.556776], [-0.3, 0.556776]]},
+      {"type": "EP", "branch": 1, "label": 3, "point": 38, "par": 5.9035898739e-08, "norm": 0.0, "period": 7.4796679818, "spectrum": "eigenvalue", "values": [[-0.101673, -0.840035], [-0.101673, 0.840035], [-1.39665, 0.0]]}
+    ]}
+  ]
+}

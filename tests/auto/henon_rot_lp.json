@@ -1,0 +1,124 @@
+{
+  "model": "tools/models/henon_rot.odex",
+  "reason": "W402 (#464): the fold curve of the Henon-with-rotation map from alpha = -0.5625, beta = -2.5: AUTO-07p labels LTR (fold-torus), LPD (fold-flip at the vertex) and R1 (-1, 1) going up, and LTR going down.",
+  "parameters": {
+    "alpha": 0.0,
+    "beta": -2.5
+  },
+  "initial_conditions": {
+    "x": 1.5,
+    "y": 1.5,
+    "u": 0.0,
+    "v": 0.0
+  },
+  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves by tools/auto_reference.py.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "alpha",
+      "auto": {
+        "ds": -0.02,
+        "dsmin": 0.0005,
+        "dsmax": 0.1,
+        "nmax": 60,
+        "npr": 100,
+        "parmin": -4,
+        "parmax": 4,
+        "ntst": 10,
+        "ncol": 4,
+        "epsl": 1e-06,
+        "epsu": 1e-06,
+        "epss": 0.0001,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "up",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "LP",
+        "index": 1
+      },
+      "parameters": [
+        "alpha",
+        "beta"
+      ],
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 0.0005,
+        "dsmax": 0.1,
+        "nmax": 60,
+        "npr": 100,
+        "parmin": -4,
+        "parmax": 4,
+        "ntst": 10,
+        "ncol": 4,
+        "epsl": 1e-06,
+        "epsu": 1e-06,
+        "epss": 0.0001,
+        "mxbf": 0
+      },
+      "skip": "W402 (#464): xppautX continues a map's fold curve as the equilibrium of a flow and stops at its second point (nonfinite AUTO solution); the AUTO-07p reference is tests/auto/henon_rot_lp.auto07p.pending, for W400 to rename into place when it follows maps"
+    },
+    {
+      "name": "down",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "LP",
+        "index": 1
+      },
+      "parameters": [
+        "alpha",
+        "beta"
+      ],
+      "auto": {
+        "ds": -0.02,
+        "dsmin": 0.0005,
+        "dsmax": 0.1,
+        "nmax": 30,
+        "npr": 100,
+        "parmin": -4,
+        "parmax": 4,
+        "ntst": 10,
+        "ncol": 4,
+        "epsl": 1e-06,
+        "epsu": 1e-06,
+        "epss": 0.0001,
+        "mxbf": 0
+      },
+      "skip": "W402 (#464): xppautX continues a map's fold curve as the equilibrium of a flow and stops at its second point (nonfinite AUTO solution); the AUTO-07p reference is tests/auto/henon_rot_lp.auto07p.pending, for W400 to rename into place when it follows maps"
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "steady",
+      "side": "reference",
+      "type": "PD",
+      "index": 1,
+      "cause": "xppautX detects no flip (period-doubling) bifurcation of a map's fixed points; AUTO-07p's PD is the Henon map's flip curve crossing (W400)"
+    },
+    {
+      "reference": ".auto07p",
+      "run": "steady",
+      "side": "reference",
+      "type": "TR",
+      "index": 1,
+      "cause": "AUTO-07p names a map's torus bifurcation TR; xppautX names it HB: the two are the same point (compare the HB below), not compared by type"
+    },
+    {
+      "reference": ".auto07p",
+      "run": "steady",
+      "side": "ours",
+      "type": "HB",
+      "index": 1,
+      "cause": "xppautX names a map's torus bifurcation HB, AUTO-07p TR (the matching reference point is dropped above)"
+    }
+  ]
+}

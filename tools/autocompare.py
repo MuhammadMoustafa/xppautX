@@ -325,7 +325,7 @@ def read_reference(path, d):
     if [r.get('name') for r in ref['runs']] != [r['name'] for r in runs]:
         raise ValueError('runs %s, the description has %s' % ([r.get('name') for r in ref['runs']], [r['name'] for r in runs]))
     for r, dr in zip(ref['runs'], runs):
-        curve = dr['kind'] == 'two_parameter'  # a curve's file holds its parameters, its samples and its second value
+        curve = dr['kind'] in ('two_parameter', 'homoclinic', 'heteroclinic')  # a curve's file holds its parameters, its samples and its second value
         axes = 'parameters' if curve else 'parameter'
         members(r, ('name', axes, 'unavailable', 'points', *(('curve',) if curve else ())), ('name', axes, 'points'))
         if r[axes] != dr.get(axes) or not isinstance(r['points'], list):
@@ -390,7 +390,7 @@ def reference_spectrum(p):
     size = max(abs(v) for v in values)
     if p['spectrum'] == 'eigenvalue':
         values = [cmath.exp(v) for v in values]
-    return sorted((v.real, v.imag) for v in values), size
+    return by_value((v.real, v.imag) for v in values), size
 
 
 def diagram_rows(data):
@@ -417,9 +417,15 @@ def stored_rows(data, ranges):
     return {name: rows[lo:hi] for name, (lo, hi) in ranges.items()}
 
 
+def by_value(values):
+    """A spectrum in order of value. A conjugate pair's real parts agree only to rounding, so they are
+    ordered by the real part rounded, then the imaginary part: the same order for both programs' pair."""
+    return sorted(values, key=lambda v: (round(v[0], 9), v[1]))
+
+
 def spectrum(row):
     n = sum(1 for k in row if k.startswith('evr'))
-    return sorted((float(row['evr%d' % i]), float(row['evi%d' % i])) for i in range(1, n + 1))
+    return by_value((float(row['evr%d' % i]), float(row['evi%d' % i])) for i in range(1, n + 1))
 
 
 def quantity(row, name):
@@ -562,7 +568,10 @@ def compare_curve(rows, auto, ref_curve, who):
     the first point beyond a bound, which depends on the step before it, and two programs' step
     sequences differ; samples inside the bounds have the other curve's polyline around them."""
     epsl, epsu = auto.get('epsl', 1e-4), auto.get('epsu', 1e-4)
-    ours = [(float(r['continued_parameter']), float(r['continued_parameter2']), float(r['norm'])) for r in rows]
+    # a curve of cycles first stores the starting data of the curve (the run xppautX does before it) as a branch of
+    # one continued parameter: those rows are not on the curve
+    ours = [(float(r['continued_parameter']), float(r['continued_parameter2']), float(r['norm']))
+            for r in rows if 'continued_parameter2' in r]
     ref = [tuple(v) for v in ref_curve]
     diffs, worst = [], {}
     for source, target, side in ((ref, ours, 'reference'), (ours, ref, 'ours')):

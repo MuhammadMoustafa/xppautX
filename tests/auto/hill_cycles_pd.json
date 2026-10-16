@@ -1,0 +1,88 @@
+{
+  "model": "tools/models/hill_cycles.odex",
+  "reason": "W402 (#464): with d=1/4 and q=0.3 the Hopf cycle of tools/models/hill_cycles.odex crosses the Mathieu tongue of the 1:2 resonance: period doublings at mu=0.175 and 0.513. The period-doubling curve in c and d is a closed lens that AUTO-07p labels with a 1:2 resonance (R2) at each end, where c+mu=0 and both multipliers are -1.",
+  "parameters": {
+    "d": 0.25,
+    "q": 0.3
+  },
+  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves of cycles by tools/auto_reference.py.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "mu",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 50,
+        "parmin": -0.2,
+        "parmax": 0.8,
+        "ntst": 25,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 1
+      },
+      "parameter": "mu",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 60,
+        "npr": 50,
+        "parmin": -0.2,
+        "parmax": 0.8,
+        "ntst": 25,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "doubling",
+      "kind": "two_parameter",
+      "start": {
+        "run": "cycles",
+        "type": "PD",
+        "index": 1
+      },
+      "parameters": [
+        "c",
+        "d"
+      ],
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 1e-05,
+        "dsmax": 0.05,
+        "nmax": 40,
+        "npr": 50,
+        "parmin": -3,
+        "parmax": 3,
+        "ntst": 25,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      },
+      "skip": "W402 (#464): xppautX runs the period-doubling curve but labels no R2 and its lens differs from AUTO-07p's by more than the curve tolerance; the AUTO-07p reference is tests/auto/hill_cycles_pd.auto07p.pending, for W400 to rename into place when it follows"
+    }
+  ]
+}

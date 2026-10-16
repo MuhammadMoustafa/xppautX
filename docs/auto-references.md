@@ -467,3 +467,54 @@ The saved-diagram comparison against
 the pre-fix fixture changes only `evr1`, `evi1`, `evr2`, `evi2` of MX 1459: every other column
 of every row is identical. Regular failed steps with a retained spectrum
 reuse it exactly. [W341 / #402](https://github.com/MuhammadMoustafa/xppautX/issues/402).
+
+## W402: references for cycle curves, maps and HomCont ([#464](https://github.com/MuhammadMoustafa/xppautX/issues/464))
+
+`tools/auto_reference.py` now writes AUTO-07p 0.9.4's references for three kinds of run that W400 (codimension-two
+points on cycle curves, [#462](https://github.com/MuhammadMoustafa/xppautX/issues/462)) and W365 (HomCont's
+projection, [#427](https://github.com/MuhammadMoustafa/xppautX/issues/427)) need, and fixes nothing in xppautX.
+
+- **A two-parameter curve of cycles** (an LP, PD or TR of a periodic run): IPS=2, ISW=2, ISP=2, ICP the two
+  parameters and the period. From a PD, TR or LP AUTO-07p first writes the curve's starting data (an EP) and the
+  curve is the run restarted from that; xppautX does both in one run. The direction the restart takes is not fixed by
+  the sign of DS, and the two programs' DS differ: the pending references follow AUTO-07p's.
+- **A two-parameter curve of a map's fixed points** (an LP, PD or TR): IPS=-1, ISP=1. xppautX labels a map's torus
+  bifurcation HB and finds no flip bifurcation of a map; the description's `HB` start is AUTO-07p's `TR`.
+  AUTO-07p's printed eigenvalues of a map's fixed point are its multipliers.
+- **A HomCont run** (`homoclinic`, IEQUIB=1, `heteroclinic`, -2): one run from the orbit the description integrates
+  (`settle`); STPNT integrates the same orbit with RK4 over `T*PAR(11)`.
+
+AUTO-07p labels the 1:1, 1:2, 1:3 and 1:4 resonances (R1-R4) on torus, flip and fold curves of cycles and maps, but the
+fold-flip, fold-torus, flip-torus and torus-torus points (LPD, LTR, PTR, TTR) **only for maps**
+(`src/support.f90` CHECKSP, `src/maps.f90`; the table of its manual says "maps" for each). A flow's cycle curve never
+carries them, so W400's cycle-curve work covers R1-R4 and the map work the rest. The demos' flows do not reach
+the labels robustly: `tor`'s fold curve of cycles reaches R1 near rn = -0.5973 with AUTO-07p's own constants (analytic
+Jacobian, the demo's step) but not with the constants xppautX fixes (ITNW=7, numerical Jacobian, NMX, DSMAX)
+-- the curve passes within 7e-4 of the Hopf point, where either of two curves is followed by a small change of step.
+It is not a reference. The demo's torus branch (R1 at the same place, label -85) starts from a torus bifurcation on
+the branch from the first branch point, which xppautX's switched branch does not have.
+
+| Description | Model | Reaches in AUTO-07p | xppautX today |
+|---|---|---|---|
+| `hill_cycles_torus` (`.pending`) | `tools/models/hill_cycles.odex` | torus curve of cycles: R4 (d = 0.5637; 9/16 = 0.5625 for q = 0), R3 (d = 0.4464; 4/9 = 0.4444), a BP of the curve near d = 0.277 | runs the curve, no R3 or R4; the curve is a straight line (c = -mu), which the curve comparison cannot project |
+| `hill_cycles_pd` (`.pending`) | the same | period-doubling curve of cycles: a closed lens, R2 at (c, d) = (-0.17495, 0.3107) and (-0.17494, 0.1854), where c + mu = 0 exactly (mu = 0.1749 at PD1) | runs 45 points, no R2; its lens differs from AUTO-07p's beyond the curve tolerance |
+| `henon_rot_tr` (`.pending`) | `tools/models/henon_rot.odex` (the hen demo's Henon map beside a rotation) | torus curve of the map: R2 (alpha = 3), R3 (1.25), TTR (1.1), R4 (0), R1 (-1), the exact places of x = -cos(theta) | runs, labels none of them |
+| `henon_rot_pd` (`.pending`) | the same | flip curve: PTR (0.5139, 3.1198), R2 (3), LPD (0, -1), PTR (0.0195, 1.4136) | finds no flip point to start from |
+| `henon_rot_lp` (`.pending`) | the same | fold curve: LTR (-0.0127, -0.7873), LPD (0, -1), R1 (-1, 1) | stops at the second point (nonfinite) |
+| `tstauto_torx_homcont` (`.pending`) | `examples/tstauto/torx.odex` at the cir demo's parameters | HomCont, three dimensions (one real unstable eigenvalue, a stable pair): the curve in (rn, be) from (-0.721309, 0.6), an LP at (-0.71809, 0.54238) | runs; the same LP, but the orbit's norm differs at the first point (0.214167 against 0.214053), W365 |
+
+`hill_cycles` has closed forms: its torus bifurcation is at mu = -c = 0.3 (AUTO-07p 0.3), the resonances of the torus curve
+at sqrt(d) = 1/4, 1/3, 1/2, 2/3, 3/4 for q = 0 (the places above move by about 1e-3 for q = 0.1, the Hill equation's
+coupling), the lens of the period-doubling curve ends where both multipliers are -1, c = -mu. `henon_rot` has them too:
+the torus curve is beta = 1 with cos(theta) = -x, x = -1 + sqrt(1 + alpha); the fold curve alpha = -(1+beta)^2/4, the flip
+curve alpha = 3(1+beta)^2/4, and the rotation's radius is 1 on beta = 2 alpha - 1.2, which crosses them at alpha = 1.1,
+(-0.0127, -0.7873) and (0.0196, 0.5137): AUTO-07p's TTR, LTR and PTR are exactly there (to 1e-4).
+
+How a reference reaches the repository when xppautX cannot run it yet: a run skipped in the description (with its
+reason, which names W400 or W365) is not compared, and `tools/auto_reference.py` writes its reference to
+`NAME.auto07p.pending` beside the `NAME.auto07p` that holds the runs xppautX does run (the base runs, whose
+points all agree, and a map's, with the five traced name differences HB/TR and the undetected PD that the `differences`
+list records). The card that makes xppautX run the curve renames the pending reference's runs into `.auto07p` and drops the skip.
+The `tools/autocompare.py` changes that came with it: a curve of cycles' first rows (the starting data, one continued parameter)
+are not on the curve; a spectrum's order of a conjugate pair no longer depends on the last bit of its real parts; a
+HomCont run's reference is read like a two-parameter run's.

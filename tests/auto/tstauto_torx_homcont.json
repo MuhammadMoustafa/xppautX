@@ -1,0 +1,82 @@
+{
+  "model": "examples/tstauto/torx.odex",
+  "reason": "W402 (#464): AUTO-07p's cir demo (HomCont, IPS=9): the electronic oscillator tor at nu=rn=-0.721309, beta=be=0.6, gamma=ga=0 has a Shilnikov homoclinic orbit to the saddle-focus at the origin (one unstable real eigenvalue 0.364, a stable pair -0.381 +- 0.641i): three dimensions, where HomCont's projection onto the stable and unstable manifolds matters. The orbit starts from the unstable manifold's integration over the demo's truncated time interval 36.13.",
+  "parameters": {
+    "rn": -0.721309,
+    "be": 0.6,
+    "ga": 0.0
+  },
+  "initial_conditions": {
+    "x": 0.00090407259,
+    "y": 0.00014610608,
+    "z": 0.00040162889
+  },
+  "xppaut_skip": "No native XPPAUT HomCont run of this orbit was executed.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "rn",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 0.0001,
+        "dsmax": 0.02,
+        "nmax": 60,
+        "npr": 100,
+        "parmin": -1,
+        "parmax": 0,
+        "ntst": 15,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "homoclinic",
+      "kind": "homoclinic",
+      "start": {
+        "state": "current",
+        "settle": 36.13
+      },
+      "parameters": [
+        "rn",
+        "be"
+      ],
+      "connection": {
+        "left": [
+          0,
+          0,
+          0
+        ],
+        "right": [
+          0,
+          0,
+          0
+        ],
+        "nunstab": 1,
+        "nstab": 2
+      },
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 0.0001,
+        "dsmax": 0.01,
+        "nmax": 50,
+        "npr": 100,
+        "parmin": -1,
+        "parmax": 0,
+        "ntst": 35,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      },
+      "skip": "PENDING W365 (#427): xppautX's HomCont run of this orbit converges (its LP at point 9, rn -0.71809, be 0.54238, is AUTO-07p's) but its orbit differs at the very first point, where both hold rn and be at -0.721309 and 0.6: the L2 norm is 0.214167 in xppautX and 0.214053 in AUTO-07p 0.9.4 (tests/auto/tstauto_torx_homcont.auto07p.pending), so the projection or interval conditions differ; W365 makes them AUTO-07p's, then renames the reference, drops this skip and rewrites the baseline"
+    }
+  ]
+}

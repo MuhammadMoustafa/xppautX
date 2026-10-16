@@ -66,3 +66,9 @@ LP or HB, index) in its two `parameters`. Its reference run holds `parameters`, 
 `par2` (AUTO-07p labels BT, CP, ZH and GH there; ours labels none until W364, so each is a `differences`
 entry) and `curve`, every step of the other program as `[parameter, second parameter, norm]`; the curves
 are matched by where they lie, not by step (docs/auto-references.md "Two-parameter curves").
+
+## References xppautX cannot run yet (W402, #464)
+
+A run skipped in a description (its reason names the card that fixes it) has its AUTO-07p reference in
+`NAME.auto07p.pending`, which `tools/autocompare.py` does not read; the card that makes xppautX run it moves the run's entry
+into `NAME.auto07p` and drops the skip (docs/auto-references.md, "W402").

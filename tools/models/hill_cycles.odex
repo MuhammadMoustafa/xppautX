@@ -1,0 +1,18 @@
+# W402 (#464): a Hopf normal form with a damped Hill equation riding on its cycle.
+# The cycle (x,y) = sqrt(mu)*(cos t, sin t) has period 2*pi, with w = v = 0. Its two other Floquet
+# multipliers are those of w'' + (c+mu)*w' + (d + q*x)*w = 0 over one period: their product is
+# exp(-2*pi*(c+mu)), and for q = 0 they are exp(2*pi*lambda), lambda^2 + (c+mu)*lambda + d = 0.
+# Closed forms for q = 0 (q small moves them a little):
+#   torus bifurcation at c + mu = 0 (the pair on the unit circle), with the angle theta = 2*pi*sqrt(d):
+#   1:4 resonance (R4) at sqrt(d) = 1/4 or 3/4 (d = 1/16, 9/16), 1:3 (R3) at sqrt(d) = 1/3 or 2/3
+#   (d = 1/9, 4/9), 1:2 (R2) at sqrt(d) = 1/2 (d = 1/4).
+#   period doubling (a multiplier -1) inside the Mathieu tongue about d = 1/4 for q != 0, whose curve in
+#   (c, d) is a closed lens |c+mu| = s(d)/pi ending in two R2 at c = -mu, d about 1/4 -+ q*sqrt(mu)/2.
+# tests/auto/hill_cycles_torus.json and hill_cycles_pd.json run them; docs/auto-references.md compares
+# AUTO-07p 0.9.4's labelled points with these places. xppautX's detection on cycle curves is W400's.
+x' = mu*x-y-x*(x*x+y*y)
+y' = x+mu*y-y*(x*x+y*y)
+w' = v
+v' = -(d+q*x)*w-(c+mu)*v
+par mu = -0.1, c = -0.3, d = 0.5, q = 0.1
+init x = 0, y = 0, w = 0, v = 0

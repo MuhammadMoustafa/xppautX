@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.4 (tools/auto_reference.py)",
+  "model": "tools/models/hill_cycles.odex",
+  "runs": [
+    {"name": "steady", "parameter": "mu", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": -0.1, "norm": 0.0, "period": 6.2831853072, "spectrum": "eigenvalue", "values": [[0.2, -0.458258], [0.2, 0.458258], [-0.1, 1.0], [-0.1, -1.0]]},
+      {"type": "HB", "branch": 1, "label": 2, "point": 6, "par": 1.0000000022e-08, "norm": 0.0, "period": 6.2831853072, "spectrum": "eigenvalue", "values": [[0.15, -0.47697], [0.15, 0.47697], [9.99999e-09, 1.0], [9.99999e-09, -1.0]]},
+      {"type": "HB", "branch": 1, "label": 3, "point": 21, "par": 0.30000004, "norm": 0.0, "period": 12.566370614, "spectrum": "eigenvalue", "values": [[0.3, -1.0], [0.3, 1.0], [-2e-08, -0.5], [-2e-08, 0.5]]},
+      {"type": "EP", "branch": 1, "label": 4, "point": 46, "par": 0.80000009, "norm": 0.0, "period": 14.510395784, "spectrum": "eigenvalue", "values": [[0.8, -1.0], [0.8, 1.0], [-0.25, -0.433013], [-0.25, 0.433013]]}
+    ]},
+    {"name": "cycles", "parameter": "mu", "points": [
+      {"type": "PD", "branch": 2, "label": 5, "point": 25, "par": 0.17494699717, "norm": 0.41826665767, "period": 6.2831853072, "spectrum": "multiplier", "values": [[1.0, 0.0], [-1.0, 0.0], [0.110975, 0.0], [-2.19401, 0.0]]},
+      {"type": "PD", "branch": 2, "label": 6, "point": 48, "par": 0.51271882408, "norm": 0.71604386967, "period": 6.2831853072, "spectrum": "multiplier", "values": [[0.999999, 0.0], [-1.0, 0.0], [-0.26275, 0.0], [0.0015916, 0.0]]},
+      {"type": "EP", "branch": 2, "label": 8, "point": 60, "par": 0.71478240628, "norm": 0.84544804996, "period": 6.2831853072, "spectrum": "multiplier", "values": [[1.0, 0.0], [-0.591502, 0.0], [-0.124797, 0.0], [0.000125624, 0.0]]}
+    ]}
+  ]
+}

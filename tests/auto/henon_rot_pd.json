@@ -1,0 +1,140 @@
+{
+  "model": "tools/models/henon_rot.odex",
+  "reason": "W402 (#464): the flip curve of the Henon-with-rotation map from alpha = 0.0675, beta = -0.7: AUTO-07p labels PTR (flip-torus) and R2 (3) going up, LPD (the fold-flip vertex, 0, -1) and PTR going down.",
+  "parameters": {
+    "alpha": 0.0,
+    "beta": -0.7
+  },
+  "initial_conditions": {
+    "x": 0.0,
+    "y": 0.0,
+    "u": 0.0,
+    "v": 0.0
+  },
+  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves by tools/auto_reference.py.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "alpha",
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 0.0005,
+        "dsmax": 0.1,
+        "nmax": 60,
+        "npr": 100,
+        "parmin": -4,
+        "parmax": 4,
+        "ntst": 10,
+        "ncol": 4,
+        "epsl": 1e-06,
+        "epsu": 1e-06,
+        "epss": 0.0001,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "up",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "PD",
+        "index": 1
+      },
+      "parameters": [
+        "alpha",
+        "beta"
+      ],
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 0.0005,
+        "dsmax": 0.1,
+        "nmax": 66,
+        "npr": 100,
+        "parmin": -4,
+        "parmax": 4,
+        "ntst": 10,
+        "ncol": 4,
+        "epsl": 1e-06,
+        "epsu": 1e-06,
+        "epss": 0.0001,
+        "mxbf": 0
+      },
+      "skip": "W402 (#464): xppautX finds no flip bifurcation of a map to start the curve from (it labels the torus ones HB only); the AUTO-07p reference is tests/auto/henon_rot_pd.auto07p.pending, for W400 to rename into place when it does"
+    },
+    {
+      "name": "down",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "PD",
+        "index": 1
+      },
+      "parameters": [
+        "alpha",
+        "beta"
+      ],
+      "auto": {
+        "ds": -0.02,
+        "dsmin": 0.0005,
+        "dsmax": 0.1,
+        "nmax": 70,
+        "npr": 100,
+        "parmin": -4,
+        "parmax": 4,
+        "ntst": 10,
+        "ncol": 4,
+        "epsl": 1e-06,
+        "epsu": 1e-06,
+        "epss": 0.0001,
+        "mxbf": 0
+      },
+      "skip": "W402 (#464): xppautX finds no flip bifurcation of a map to start the curve from (it labels the torus ones HB only); the AUTO-07p reference is tests/auto/henon_rot_pd.auto07p.pending, for W400 to rename into place when it does"
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "steady",
+      "side": "reference",
+      "type": "PD",
+      "index": 1,
+      "cause": "xppautX detects no flip (period-doubling) bifurcation of a map's fixed points; AUTO-07p's PD is the Henon map's flip curve crossing (W400)"
+    },
+    {
+      "reference": ".auto07p",
+      "run": "steady",
+      "side": "reference",
+      "type": "TR",
+      "index": 1,
+      "cause": "AUTO-07p names a map's torus bifurcation TR; xppautX names it HB: the two are the same point (compare the HB below), not compared by type"
+    },
+    {
+      "reference": ".auto07p",
+      "run": "steady",
+      "side": "reference",
+      "type": "TR",
+      "index": 2,
+      "cause": "AUTO-07p names a map's torus bifurcation TR; xppautX names it HB: the two are the same point (compare the HB below), not compared by type"
+    },
+    {
+      "reference": ".auto07p",
+      "run": "steady",
+      "side": "ours",
+      "type": "HB",
+      "index": 1,
+      "cause": "xppautX names a map's torus bifurcation HB, AUTO-07p TR (the matching reference point is dropped above)"
+    },
+    {
+      "reference": ".auto07p",
+      "run": "steady",
+      "side": "ours",
+      "type": "HB",
+      "index": 2,
+      "cause": "xppautX names a map's torus bifurcation HB, AUTO-07p TR (the matching reference point is dropped above)"
+    }
+  ]
+}
