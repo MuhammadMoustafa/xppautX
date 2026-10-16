@@ -25,7 +25,7 @@ namespace {
 constexpr std::array expected{
     0x7f0016dd13d0138bULL, // GE pivot, two RHS: error, matrix, RHS, solution, determinant, fort.9
     0x3e642bfd43cbcd9eULL, // GE pivot, determinant only: error, matrix, RHS, solution, determinant, fort.9
-    0xa22b8436e049b280ULL, // GE singular, determinant only (its NaN folded as one value): error, matrix, RHS, solution, determinant, fort.9
+    0x53b0f029f52be3e2ULL, // GE singular, determinant only (its NaN folded as one value): error, matrix, RHS, solution, determinant, fort.9
     0xc69e4e9650dff6c7ULL, // GE singular solve: error, matrix, RHS, solution, determinant, fort.9
     0x44024f41db685dd8ULL, // NLVC nullity two: status, matrix, null vector, fort.9
     0xf81615fb6d07755dULL, // NLVC tiny pivot: status, matrix, null vector, fort.9
@@ -60,7 +60,8 @@ constexpr std::uint64_t fnv_prime = 1099511628211ULL; // FNV-1a's specified 64-b
 
 // IEEE 754 leaves a NaN's sign unspecified: 0/0 is -nan on x86 and nan on
 // ARM. Every NaN folds, and prints, as one value so the digests are the
-// same on every CPU (macOS CI on ARM failed GE singular otherwise).
+// same on every CPU (macOS CI on ARM failed GE singular otherwise). A printed
+// "-nan" becomes " nan", keeping a padded field's width (GE's {:12.3e}).
 template <class T> void fold(std::uint64_t &digest, const T &value)
 {
     if constexpr (std::is_floating_point_v<T>) {
@@ -80,7 +81,7 @@ std::string contents(FILE *file)
     std::rewind(file);
     std::string text;
     for (int c; (c = std::fgetc(file)) != EOF;) text += static_cast<char>(c);
-    for (std::size_t at; (at = text.find("-nan")) != std::string::npos;) text.erase(at, 1);
+    for (std::size_t at; (at = text.find("-nan")) != std::string::npos;) text[at] = ' ';
     return text;
 }
 
