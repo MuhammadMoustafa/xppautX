@@ -44,7 +44,7 @@ std::span<const double> entries(const Session &s, JacobianScratch &scratch, cons
     throw JacobianFailed{Error{std::string(JACOBIAN_FAILED),
                                xpp::format("the exact Jacobian's d{}'/d{} is {} at t={} ({}), where {}' is {}: switch the Numerics' "
                                            "Jacobian to difference",
-                                           name, wrt(k), std::isnan(out[k]) ? std::string("nan") : xpp::format("{}", out[k]), t, state, name, f[row]),
+                                           name, wrt(k), out[k], t, state, name, f[row]),
                                model_place(m, name)}};
   }
   return out;

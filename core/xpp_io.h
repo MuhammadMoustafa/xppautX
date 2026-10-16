@@ -63,6 +63,7 @@ template <class T> constexpr T canonical_nan(T v) noexcept
     return std::isnan(v) ? std::numeric_limits<T>::quiet_NaN() : v;
 }
 
+#ifdef XPP_IO_HAVE_STD_FORMAT
 /* the format arguments of a call: a floating value is canonical_nan'd
    (a copy, kept by with_format_args for the call), any other argument is
    passed by reference as std::make_format_args does */
@@ -82,6 +83,7 @@ template <class F, class... Args> decltype(auto) with_format_args(F &&f, Args &&
     std::tuple<canonical_arg_t<Args>...> values(canonical_arg(std::forward<Args>(args))...);
     return std::apply([&f](auto &...v) { return f(std::make_format_args(v...)); }, values);
 }
+#endif
 
 #ifdef XPP_IO_HAVE_STD_FORMAT
 /* The formatting itself, compiled once, here (xpp_io.cpp): the templates
