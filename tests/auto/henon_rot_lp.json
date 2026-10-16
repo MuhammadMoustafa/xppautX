@@ -63,7 +63,7 @@
         "epss": 0.0001,
         "mxbf": 0
       },
-      "skip": "PENDING W400 (#462): xppautX continues a map's fold curve as the equilibrium of a flow and stops at its second point (nonfinite AUTO solution)"
+      "skip": "PENDING W404 (#466): xppautX continues a map's fold curve as the equilibrium of a flow and stops at its second point (nonfinite AUTO solution)"
     },
     {
       "name": "down",
@@ -92,7 +92,7 @@
         "epss": 0.0001,
         "mxbf": 0
       },
-      "skip": "PENDING W400 (#462): xppautX continues a map's fold curve as the equilibrium of a flow and stops at its second point (nonfinite AUTO solution)"
+      "skip": "PENDING W404 (#466): xppautX continues a map's fold curve as the equilibrium of a flow and stops at its second point (nonfinite AUTO solution)"
     }
   ],
   "differences": [

@@ -63,7 +63,7 @@
         "epss": 0.0001,
         "mxbf": 0
       },
-      "skip": "PENDING W400 (#462): xppautX runs the torus curve of the map but labels none of R1-R4, TTR on it"
+      "skip": "PENDING W404 (#466): xppautX runs the torus curve of the map but labels none of R1-R4, TTR on it"
     },
     {
       "name": "down",
@@ -92,7 +92,7 @@
         "epss": 0.0001,
         "mxbf": 0
       },
-      "skip": "PENDING W400 (#462): xppautX runs the torus curve of the map but labels none of R1-R4, TTR on it"
+      "skip": "PENDING W404 (#466): xppautX runs the torus curve of the map but labels none of R1-R4, TTR on it"
     }
   ],
   "differences": [

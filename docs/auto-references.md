@@ -511,7 +511,7 @@ curve alpha = 3(1+beta)^2/4, and the rotation's radius is 1 on beta = 2 alpha - 
 (-0.0127, -0.7873) and (0.0196, 0.5137): AUTO-07p's TTR, LTR and PTR are exactly there (to 1e-4).
 
 How a reference reaches the repository when xppautX cannot run it yet: `NAME.auto07p` holds every run, and a run
-skipped in the description (its reason names W400 or W365) is read but not compared; the runs xppautX does run are compared
+skipped in the description (its reason names W400, W404 or W365) is read but not compared; the runs xppautX does run are compared
 (the base runs, whose points all agree, and a map's, with the five traced name differences HB/TR and the undetected PD
 that the `differences` list records). The card that makes xppautX run the curve drops the skip.
 The `tools/autocompare.py` changes that came with it: a curve of cycles' first rows (the starting data, one continued parameter)

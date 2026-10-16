@@ -63,7 +63,7 @@
         "epss": 0.0001,
         "mxbf": 0
       },
-      "skip": "PENDING W400 (#462): xppautX finds no flip bifurcation of a map to start the curve from (it labels the torus ones HB only)"
+      "skip": "PENDING W404 (#466): xppautX finds no flip bifurcation of a map to start the curve from (it labels the torus ones HB only)"
     },
     {
       "name": "down",
@@ -92,7 +92,7 @@
         "epss": 0.0001,
         "mxbf": 0
       },
-      "skip": "PENDING W400 (#462): xppautX finds no flip bifurcation of a map to start the curve from (it labels the torus ones HB only)"
+      "skip": "PENDING W404 (#466): xppautX finds no flip bifurcation of a map to start the curve from (it labels the torus ones HB only)"
     }
   ],
   "differences": [
