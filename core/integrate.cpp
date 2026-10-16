@@ -1495,7 +1495,7 @@ namespace {
 SteadyDigits steady_digits(double value, int decimals)
 {
   SteadyDigits d;
-  const auto r=std::to_chars(d.text.data(),d.text.data()+d.text.size(),value,std::chars_format::fixed,decimals);
+  const auto r=std::to_chars(d.text.data(),d.text.data()+d.text.size(),xpp::canonical_nan(value),std::chars_format::fixed,decimals);
   d.size=static_cast<unsigned short>(r.ptr-d.text.data());
   const std::string_view text(d.text.data(),d.size);
   if(text.starts_with('-')&&text.find_first_not_of("0.",1)==std::string_view::npos){

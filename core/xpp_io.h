@@ -24,10 +24,12 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -51,6 +53,36 @@ namespace xpp {
    and final like xpp_mem's: an ERROR naming the call site, exit 1 */
 [[noreturn]] void format_failed(const char *file, int line) noexcept;
 
+/* One spelling for a NaN (W408, #470). IEEE 754 leaves a NaN's sign
+   unspecified (0/0 is -nan on x86, nan on ARM) and std::format and
+   std::to_chars print the sign, so every owner below passes a NaN as the
+   positive quiet NaN: it prints as "nan" on every CPU, width and
+   alignment kept. Anything else (a sign of 0, an infinity) is unchanged. */
+template <class T> constexpr T canonical_nan(T v) noexcept
+{
+    return std::isnan(v) ? std::numeric_limits<T>::quiet_NaN() : v;
+}
+
+/* the format arguments of a call: a floating value is canonical_nan'd
+   (a copy, kept by with_format_args for the call), any other argument is
+   passed by reference as std::make_format_args does */
+template <class T> using canonical_arg_t =
+    std::conditional_t<std::is_floating_point_v<std::remove_cvref_t<T>>, std::remove_cvref_t<T>, T &&>;
+template <class T> constexpr decltype(auto) canonical_arg(T &&v) noexcept
+{
+    if constexpr (std::is_floating_point_v<std::remove_cvref_t<T>>)
+        return canonical_nan<std::remove_cvref_t<T>>(v);
+    else
+        return std::forward<T>(v);
+}
+/* calls f with the packed format arguments of args (canonical, see above);
+   the copies live until f returns */
+template <class F, class... Args> decltype(auto) with_format_args(F &&f, Args &&...args)
+{
+    std::tuple<canonical_arg_t<Args>...> values(canonical_arg(std::forward<Args>(args))...);
+    return std::apply([&f](auto &...v) { return f(std::make_format_args(v...)); }, values);
+}
+
 #ifdef XPP_IO_HAVE_STD_FORMAT
 /* The formatting itself, compiled once, here (xpp_io.cpp): the templates
    below (and xpp::log) only check the format string against the
@@ -67,14 +99,16 @@ void vformat_append(std::string &out, std::string_view fmt, std::format_args arg
 template <class... Args>
 std::string format(std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    return xpp::vformat(fmt.get(), std::make_format_args(args...));
+    return xpp::with_format_args([&fmt](std::format_args a) { return xpp::vformat(fmt.get(), a); },
+                                 std::forward<Args>(args)...);
 }
 
 /* the same, appended to out (a file's text built up before it is written) */
 template <class... Args>
 void format_append(std::string &out, std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    xpp::vformat_append(out, fmt.get(), std::make_format_args(args...));
+    xpp::with_format_args([&](std::format_args a) { xpp::vformat_append(out, fmt.get(), a); },
+                          std::forward<Args>(args)...);
 }
 #endif
 
@@ -85,7 +119,7 @@ void format_append(std::string &out, std::format_string<Args...> fmt, Args &&...
 inline std::string number(double v)
 {
     std::array<char, 32> buf;
-    std::to_chars_result r = std::to_chars(buf.data(), buf.data() + buf.size(), v);
+    std::to_chars_result r = std::to_chars(buf.data(), buf.data() + buf.size(), canonical_nan(v));
     if (r.ec == std::errc())
         return std::string(buf.data(), r.ptr);
     return std::to_string(v); /* unreachable for a finite double in 32 bytes */
@@ -365,7 +399,8 @@ inline bool read_bytes(std::string_view path, std::string &out, std::size_t limi
 template <class... Args>
 void print(FILE *fp, std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    const std::string s = xpp::vformat(fmt.get(), std::make_format_args(args...));
+    const std::string s = xpp::with_format_args([&fmt](std::format_args a) { return xpp::vformat(fmt.get(), a); },
+                                               std::forward<Args>(args)...);
     if (fp) std::fwrite(s.data(), 1, s.size(), fp);
 }
 #endif

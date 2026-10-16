@@ -32,7 +32,8 @@ typedef struct XppWindowHost {
     template <class... Args>
     void log(XppLogLevel level, std::format_string<Args...> fmt, Args &&...args) const noexcept
     {
-        log_message(level, fmt.get(), std::make_format_args(args...));
+        xpp::with_format_args([&](std::format_args a) { log_message(level, fmt.get(), a); },
+                              std::forward<Args>(args)...);
     }
 } XppWindowHost;
 

@@ -59,9 +59,8 @@ constexpr std::uint64_t fnv_offset_basis = 14695981039346656037ULL; // FNV-1a's 
 constexpr std::uint64_t fnv_prime = 1099511628211ULL; // FNV-1a's specified 64-bit prime.
 
 // IEEE 754 leaves a NaN's sign unspecified: 0/0 is -nan on x86 and nan on
-// ARM. Every NaN folds, and prints, as one value so the digests are the
-// same on every CPU (macOS CI on ARM failed GE singular otherwise). A printed
-// "-nan" becomes " nan", keeping a padded field's width (GE's {:12.3e}).
+// ARM. Every NaN folds as one value so the digests are the same on every CPU
+// (macOS CI on ARM failed GE singular otherwise).
 template <class T> void fold(std::uint64_t &digest, const T &value)
 {
     if constexpr (std::is_floating_point_v<T>) {
@@ -81,7 +80,6 @@ std::string contents(FILE *file)
     std::rewind(file);
     std::string text;
     for (int c; (c = std::fgetc(file)) != EOF;) text += static_cast<char>(c);
-    for (std::size_t at; (at = text.find("-nan")) != std::string::npos;) text[at] = ' ';
     return text;
 }
 

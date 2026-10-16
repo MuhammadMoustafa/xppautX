@@ -134,14 +134,16 @@ void log_auto_message(std::string_view fmt, std::format_args args) noexcept;
 template <class... Args>
 void log(XppLogLevel level, std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    log_message(level, fmt.get(), std::make_format_args(args...));
+    xpp::with_format_args([&fmt, level](std::format_args a) { log_message(level, fmt.get(), a); },
+                          std::forward<Args>(args)...);
 }
 
 /* the same checked call for AUTO's table and notes */
 template <class... Args>
 void log_auto(std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    log_auto_message(fmt.get(), std::make_format_args(args...));
+    xpp::with_format_args([&fmt](std::format_args a) { log_auto_message(fmt.get(), a); },
+                          std::forward<Args>(args)...);
 }
 #endif
 } // namespace xpp

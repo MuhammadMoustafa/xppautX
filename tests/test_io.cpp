@@ -13,9 +13,11 @@
 #include "xpp_log.h"
 #include "xpp_util.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -104,11 +106,27 @@ int main(void)
     /* xpp::format: unbounded, std::format syntax, compile-time checked */
     CHECK_STR(xpp::format("{} and {}", 1, "two").c_str(), "1 and two");
     CHECK_STR(xpp::format("{:.2f}", 3.14159).c_str(), "3.14");
+    /* a NaN prints the same whatever its sign: plain, a width, e, g, f */
+    {
+        const double pos = std::numeric_limits<double>::quiet_NaN();
+        const double neg = -pos;
+        CHECK_STR(xpp::format("{}", neg).c_str(), "nan");
+        CHECK_STR(xpp::format("{}", pos).c_str(), "nan");
+        CHECK_STR(xpp::format("[{:12.3e}]", neg).c_str(), "[         nan]");
+        CHECK_STR(xpp::format("[{:12.3e}]", pos).c_str(), "[         nan]");
+        CHECK_STR(xpp::format("{:g}|{:f}", neg, neg).c_str(), "nan|nan");
+        CHECK_STR(xpp::format("{:g}|{:f}", pos, pos).c_str(), "nan|nan");
+        CHECK_STR(xpp::format("{}", std::copysign(std::numeric_limits<float>::quiet_NaN(), -1.0f)).c_str(), "nan");
+        CHECK_STR(xpp::format("{}", neg).c_str(), xpp::format("{}", pos).c_str());
+    }
 #endif
 #ifdef XPP_IO_HAVE_TO_CHARS
     /* xpp::number: shortest round-trip text, no trailing garbage digits */
     CHECK_STR(xpp::number(3.5).c_str(), "3.5");
     CHECK_STR(xpp::number(100.0).c_str(), "100");
+    /* a NaN is "nan" whatever its sign bit (W408, #470) */
+    CHECK_STR(xpp::number(-std::numeric_limits<double>::quiet_NaN()).c_str(), "nan");
+    CHECK_STR(xpp::number(std::copysign(std::numeric_limits<double>::quiet_NaN(), -1.0)).c_str(), "nan");
 #endif
 
     /* W172: compare the retired printf formats with the actual logging
