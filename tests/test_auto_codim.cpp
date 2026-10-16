@@ -173,10 +173,10 @@ int main()
     // W407 (#469): the torus phase condition compares the eigenfunction with the previous point's.
     // XPPAUT's u.v - v.u was identically zero, so a rotated eigenfunction satisfied it.
     iap_type ti{};
-    ti.lib=&lib; ti.ndm=2; ti.ndim=6;
-    lib.rotations.nrtn.assign(2,0);
-    CHECK(lib.parameter_count>xpp::auto_unknown::torus_norm);
-    std::vector<double> tpar(lib.parameter_count);
+    ti.lib=&map_lib; ti.ndm=2; ti.ndim=6;
+    map_lib.rotations.nrtn.assign(2,0);
+    CHECK(map_lib.parameter_count>xpp::auto_unknown::torus_norm);
+    std::vector<double> tpar(map_lib.parameter_count);
     const std::array<double,6> tuold{0,0,1,0.5,0,1}, tupold{};
     const std::array<double,6> tu{0,0,0.5,0.25,0.75,-0.5};
     const auto condition=[&](const std::array<double,6> &at,std::array<double,3> &fv,std::vector<double> *dint) {
@@ -187,7 +187,7 @@ int main()
     CHECK(condition(tu,tf,nullptr)==0);
     const double expected=tu[2]*tuold[4]-tu[4]*tuold[2]+tu[3]*tuold[5]-tu[5]*tuold[3];
     CHECK(std::abs(tf[1]-expected)<1e-14 && std::abs(expected)>0.1);
-    const std::size_t columns=6+lib.parameter_count;
+    const std::size_t columns=6+map_lib.parameter_count;
     std::vector<double> tdint(3*columns);
     CHECK(condition(tu,tf,&tdint)==0);
     for (std::size_t column=2;column<6;++column) {
