@@ -479,8 +479,14 @@ test: $(TEST_BINS)
 # test never runs against another libstdc++-6.dll found on PATH (W159's push:
 # windows-core's test_lunch, the one test calling std::filesystem's
 # create_directory, met an older DLL and died at startup, 0xc0000139)
+# W409: a test program links the whole core's -g information, ~270 MB each
+# on Windows, 57 times. The linker drops the DWARF but keeps the symbol
+# table, so a crash or a failing test still shows function names; `make
+# TEST_LDDEBUG= test` links them whole for a debugger. A sanitizer or
+# valgrind build keeps it: their reports name source lines.
+TEST_LDDEBUG ?= $(if $(or $(SANITIZE),$(VALGRIND)),,-Wl,-S)
 $(TEST_BINS): %$(EXE): %.o $(CORELIB)
-	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) -o $@ $< $(CORELIB) -lm $(DLLIB)
+	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) $(TEST_LDDEBUG) -o $@ $< $(CORELIB) -lm $(DLLIB)
 
 # Code nothing reaches (tools/deadcode.sh reads what this leaves; Linux):
 # every function and datum in a section of its own, at -O0 (no inlining),
