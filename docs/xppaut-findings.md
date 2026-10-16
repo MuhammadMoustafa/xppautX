@@ -97,6 +97,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [64](#64-auto-point-numbers-wrap-to-zero) | AUTO output | point 10000 is printed as 0; later points repeat earlier numbers | [W384 / #446](https://github.com/MuhammadMoustafa/xppautX/issues/446) |
 
 | [65](#65-plot-curves-frozen-curves-and-windows-have-fixed-limits) | Plots | 10 curves per graph, 26 frozen curves, 21 plot windows | [W376 / #438](https://github.com/MuhammadMoustafa/xppautX/issues/438) |
+| [66](#66-auto-map-fold-continuation-loses-the-map-problem) | AUTO | a map fold restart changes IPS=-1 to flow IPS=1 | [W404 / #466](https://github.com/MuhammadMoustafa/xppautX/issues/466) |
 
 ## 1. Model options
 
@@ -1420,3 +1421,17 @@ exercise the corresponding data paths. Execution results are reported with
 the card review.
 
 **Card:** [W376 / #438](https://github.com/MuhammadMoustafa/xppautX/issues/438).
+
+## 66. AUTO map fold continuation loses the map problem
+
+XPPAUT 8.0's Run handling sets `Auto.ips=1` before continuing any algebraic fold
+([auto_nox.c:1966](../reference/xppaut-8.0/auto_nox.c#L1966)).
+`auto_2p_limit` initializes `ipsuse=1` and only distinguishes BVP and periodic folds
+([auto_nox.c:2498](../reference/xppaut-8.0/auto_nox.c#L2498)), so a discrete model's
+fixed-point equation `f(x)-x=0` becomes the flow equation `f(x)=0`.
+This is a change of equations, not just a label. The Henon-with-rotation fold
+`alpha=-(1+beta)^2/4` is a concrete check: xppautX inherited the path and stopped
+at its second point with a nonfinite solution. W404 preserves the map problem
+through the common core run setup, for all front ends.
+
+**Card:** [W404 / #466](https://github.com/MuhammadMoustafa/xppautX/issues/466).

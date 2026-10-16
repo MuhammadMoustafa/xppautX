@@ -125,12 +125,12 @@ int curve(const iap_type *iap, const rap_type *rap, integer ndim,
   for (integer i = 0; i < n; ++i) {
     for (integer j = 0; j < n; ++j) {
       jac(i, j) = a(i, j);
-      jac(n + i, n + j) = hopf ? a(i, n + j) : a(i, j);
+      jac(n + i, n + j) = hopf ? a(i, n + j) : a(i, j) + (i==j && iap->ips==AutoProblem::DiscreteMap && iap->itpst==AutoPointKind::PeriodDoubling ? 2. : 0.);
     }
     jac(i, ndim - 1) = p(i, icp[1]);
     jac(2 * n, n + i) = 2 * u[n + i];
     if (hopf) {
-      jac(n + i, 2 * n) = u[n + i];
+      jac(n + i, 2 * n) = a(i, 2 * n);
       jac(ndim - 1, n + i) = a(i, ndim - 1);
     }
     dp(i, icp[0]) = p(i, icp[0]);

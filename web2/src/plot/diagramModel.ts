@@ -310,6 +310,7 @@ const SYMBOLS: Record<string, string> = {
   PD: 'Period doubling', TR: 'Torus', UZ: 'Marked value',
   BT: 'Bogdanov-Takens', CP: 'Cusp', ZH: 'Zero-Hopf', GH: 'Generalised Hopf',
   R1: '1:1 resonance', R2: '1:2 resonance', R3: '1:3 resonance', R4: '1:4 resonance',
+  LPD: 'Fold-flip', LTR: 'Fold-torus', PTR: 'Flip-torus', TTR: 'Torus-torus',
 };
 
 /** what each label type means, for the key's tooltips (docs/manual/09-auto.md) */
@@ -327,8 +328,12 @@ const SYMBOL_HELP: Record<string, string> = {
   CP: 'Cusp: the quadratic coefficient of the fold vanishes',
   ZH: 'Zero-Hopf: a zero eigenvalue and an imaginary pair meet',
   GH: 'Generalised Hopf (Bautin): the first Lyapunov coefficient vanishes',
-  R1: '1:1 resonance: two cycle multipliers meet at +1',
-  R2: '1:2 resonance: two cycle multipliers meet at -1',
+  LPD: 'Fold-flip: a map has multipliers +1 and -1',
+  LTR: 'Fold-torus: a map has a multiplier +1 and a pair on the unit circle',
+  PTR: 'Flip-torus: a map has a multiplier -1 and a pair on the unit circle',
+  TTR: 'Torus-torus: a map has two pairs on the unit circle',
+  R1: '1:1 resonance: two map or cycle multipliers meet at +1',
+  R2: '1:2 resonance: two map or cycle multipliers meet at -1',
   R3: '1:3 resonance: the Floquet angle is 2 pi / 3',
   R4: '1:4 resonance: the Floquet angle is pi / 2',
 };
@@ -363,6 +368,7 @@ export type LabelShape = 'circle' | 'triangle' | 'diamond' | 'square' | 'star' |
 const LABEL_SHAPES: Record<string, LabelShape> = {
   HB: 'circle', LP: 'triangle', BP: 'diamond', PD: 'square', TR: 'star', UZ: 'invTriangle', MX: 'cross', EP: 'bar',
   BT: 'diamond', CP: 'triangle', ZH: 'star', GH: 'circle',
+  LPD: 'square', LTR: 'triangle', PTR: 'star', TTR: 'diamond',
   R1: 'diamond', R2: 'triangle', R3: 'star', R4: 'circle',
 };
 

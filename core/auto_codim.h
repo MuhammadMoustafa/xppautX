@@ -10,9 +10,11 @@ struct AutoCodim {
         a, b, c, r, sr, si, x, plus, minus, work, rhs, solution;
     std::vector<double> cycle_matrix, cycle_p0, cycle_p1;
     std::vector<int> cycle_rows, cycle_pivots;
+    AutoPointKind map_kind=AutoPointKind::Regular;
     void prepare(std::size_t n);
     void prepare_cycle(std::size_t dimension, std::size_t original);
 };
+AutoPointKind auto_map_secondary_kind(AutoPointKind start, double angle, double tolerance);
 // The nearest strong resonance of the continued (unwrapped) Floquet angle.
 AutoPointKind auto_cycle_resonance_kind(AutoPointKind start, double angle);
 

@@ -64,7 +64,7 @@ the check fails if the difference goes away.
 A `two_parameter` run (W362, #424) continues a labelled point of an earlier run (`start`: its run, type
 LP or HB, index) in its two `parameters`. Its reference run holds `parameters`, the special points with
 `par2` (BT, CP, ZH and GH on equilibrium curves; R1-R4 on cycle curves,
-W364/W400) and `curve`, every step of the other program as `[parameter, second parameter, norm]`; the curves
+W364/W400; W404 adds map R1-R4 and LPD/LTR/PTR/TTR) and `curve`, every step of the other program as `[parameter, second parameter, norm]`; the curves
 are matched by where they lie, not by step (docs/auto-references.md "Two-parameter curves").
 
 ## References xppautX cannot run yet (W402, #464)
@@ -76,3 +76,10 @@ that fixes it) is read with the file but not compared; the card that makes xppau
 W403 (#465) adds references from published models and models of our own (`res_cycles`, `forced_pp_pd`, `forced_pp_ns`,
 `lorenz_homoclinic`, `explicit_homoclinic`; docs/auto-references.md, "W403"): the curves xppautX runs but does not label, and the
 HomCont runs it cannot follow, are skipped with PENDING W405 / W365.
+
+W404 (#466) runs the Henon-with-rotation map descriptions against AUTO-07p:
+fixed-point PD/TR labels and both map fold/flip directions, plus the torus up direction.
+The torus down run retains a traced skip at its singular R1 endpoint: model Jacobian
+roundoff displaces that label, and AUTO-07p's subsequent BP is missing even with exact
+derivatives. `autocheck codim` independently checks the closed-form curves and torus
+labels before that endpoint, named controls, and session round trips. No tolerance is widened.

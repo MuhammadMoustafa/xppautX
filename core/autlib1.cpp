@@ -691,16 +691,16 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
   } else if (irs > 0 && f2c::abs(isw) == 2) {
     /*        ** Continuation of singular points */
 
-    if ((itp.is(xpp::AutoPointKind::BranchPoint) || itp.started_from(xpp::AutoPointKind::BranchPoint) || itp.is(xpp::AutoPointKind::Fold) || itp.started_from(xpp::AutoPointKind::Fold))
+    if ((itp.is(xpp::AutoPointKind::BranchPoint) || itp.started_from(xpp::AutoPointKind::BranchPoint) || itp.is(xpp::AutoPointKind::Fold) || itp.started_from(xpp::AutoPointKind::Fold) || (ips==xpp::AutoProblem::DiscreteMap && (itp.is(xpp::AutoPointKind::PeriodDoubling) || itp.started_from(xpp::AutoPointKind::PeriodDoubling))))
 	&& xpp::problem_is_algebraic_family(ips)) {
       /*          ** Fold continuation (Algebraic Problems) */
       ndim = (ndim << 1) + 1;
       nfpr = 2;
 
-    } else if ((itp.is(xpp::AutoPointKind::Hopf) || itp.started_from(xpp::AutoPointKind::Hopf)) && xpp::problem_is_algebraic_family(ips)) {
+    } else if ((itp.is(xpp::AutoPointKind::Hopf) || itp.started_from(xpp::AutoPointKind::Hopf) || (ips==xpp::AutoProblem::DiscreteMap && (itp.is(xpp::AutoPointKind::Torus) || itp.started_from(xpp::AutoPointKind::Torus)))) && xpp::problem_is_algebraic_family(ips)) {
       /*          ** Hopf bifurcation continuation (Maps, ODE, Waves) */
-      // The ODE Hopf curve uses the reduced system; maps and waves keep their own formulations.
-      ndim = reduced_hopf ? ndim * 2 + 2 : ndim * 3 + 2;
+      // Equilibria and maps use the reduced real-vector system; waves keep their own formulation.
+      ndim = reduced_hopf || ips==xpp::AutoProblem::DiscreteMap ? ndim * 2 + 2 : ndim * 3 + 2;
       nfpr = 2;
 
     } else if ((itp.is(xpp::AutoPointKind::PeriodicFold) || itp.is(xpp::AutoPointKind::PeriodicBranch)) && ips == xpp::AutoProblem::Periodic) {
@@ -1092,7 +1092,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     for (integer index = 0; index < nuzr; ++index)
       tests.push_back({fnuzae, uzr[index], xpp::AutoPointKind::UserZero, index});
     if (iap->ilp == 1) tests.push_back({fnlpae, rlp, xpp::AutoPointKind::Fold, {}});
-    if (isp != 0 && iap->isw!=2) tests.push_back({fnbpae, rbp, xpp::AutoPointKind::BranchPoint, {}});
+    if (isp != 0 && (iap->isw!=2 || ips==xpp::AutoProblem::DiscreteMap)) tests.push_back({fnbpae, rbp, xpp::AutoPointKind::BranchPoint, {}});
     const bool fold_curve=iap->isw==2 && iap->itpst==xpp::AutoPointKind::Fold;
     const bool hopf_curve=iap->isw==2 && iap->itpst==xpp::AutoPointKind::Hopf && iap->ndim==2*iap->ndm+2;
     const bool codim=ips==xpp::AutoProblem::SteadyState && (fold_curve || hopf_curve);
@@ -1100,6 +1100,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       tests.push_back({fnbtae,rbt,xpp::AutoPointKind::BogdanovTakens,{}});
     if (codim && isp!=0 && isp!=3 && fold_curve && xpp::auto_codim_enabled(special_points,xpp::AutoPointKind::Cusp))
       tests.push_back({fncpae,rcp,xpp::AutoPointKind::Cusp,{}});
+    if (ips==xpp::AutoProblem::DiscreteMap && iap->isw==2 && isp!=0)
+      tests.push_back({fnrnae,rbt,xpp::AutoPointKind::Pending,{}});
     if (xpp::problem_is_steady_or_map(ips))
       tests.push_back({fnhbae, rev, codim ? xpp::AutoPointKind::ZeroHopf : xpp::AutoPointKind::Hopf, {}});
     if (codim && isp!=0 && isp!=3 && hopf_curve && xpp::auto_codim_enabled(special_points,xpp::AutoPointKind::GeneralizedHopf))
@@ -1116,6 +1118,8 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
             aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(),
             du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(),
             &test.value, thl, thu, marks, dstest, stepped);
+        if (ips==xpp::AutoProblem::DiscreteMap && (test.function==fnhbae || test.function==fnrnae))
+          test.kind=iap->lib->codim.map_kind;
       });
     if (iap->istop != 1 && iap->itp.kind == xpp::AutoPointKind::BranchPoint) {
       ++nbif;
@@ -1918,7 +1922,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   const auto pair = xpp::auto_hopf_pair({ev.data(),static_cast<size_t>(ndm)},axis_tolerance);
   if (pair) {
     rev = pair->r;
-    if (!codim_curve) par[xpp::auto_unknown::period] = pi(2.0) / std::abs(pair->i);
+    if (!codim_curve && ips!=xpp::AutoProblem::DiscreteMap) par[xpp::auto_unknown::period] = pi(2.0) / std::abs(pair->i);
   }
 
   /* Compute the number of eigenvalues with negative real part. */
@@ -1938,27 +1942,40 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     }
   }
 
-  if (codim_curve) {
-    // STABEQ (AUTO-07p equilibrium.f90): ignore one prescribed zero
-    // on LP, or the prescribed imaginary pair on HB, in the stability count.
-    const integer forced=iap->itpst==xpp::AutoPointKind::Hopf ? 2 : 1;
+  const bool map=ips==xpp::AutoProblem::DiscreteMap;
+  if (map || codim_curve) {
+    // AUTO-07p STABEQ: omit the imposed zero/+1/-1, or the imposed pair.
+    const integer forced=isw!=2 ? 0 :
+        (iap->itpst==xpp::AutoPointKind::Hopf || iap->itpst==xpp::AutoPointKind::Torus ? 2 : 1);
     std::stable_sort(ev.begin(),ev.begin()+ndm,[](const auto &a,const auto &b) { return std::abs(a.r)<std::abs(b.r); });
     nins1=forced;
     for (i=forced;i<ndm;++i) if (ev[i].r<=axis_tolerance) ++nins1;
     ret_val=ndm>forced ? ev[forced].r : 0.;
+    if (map) {
+      std::optional<doublecomplex> selected;
+      for (i=forced;i<ndm;++i)
+        if ((forced || ev[i].i!=0.) && (!selected || std::abs(ev[i].r)<std::abs(selected->r))) selected=ev[i];
+      auto &kind=iap->lib->codim.map_kind;
+      kind=selected ? xpp::auto_map_secondary_kind(isw==2 ? iap->itpst : xpp::AutoPointKind::Regular,std::abs(selected->i),rap->epss) : xpp::AutoPointKind::Regular;
+      ret_val=selected ? selected->r : 0.;
+      *chng=nins1!=iap->nins && kind!=xpp::AutoPointKind::Regular && iap->isp!=0 &&
+          (isw!=2 || xpp::auto_codim_enabled(iap->lib->session->auto_state.special_points,kind));
+      if (isw!=2 && selected && kind==xpp::AutoPointKind::Torus)
+        par[xpp::auto_unknown::period]=pi(2.)/std::abs(selected->i);
+    }
   } else {
     ret_val = isw==2 ? 0. : rev;
   }
-  nins = iap->nins;
-  // AUTO-07p FNHBEQ equilibrium.f90:624-629: a plain HB changes a pair.
-  constexpr integer hopf_stability_change = 2; // one complex conjugate pair
-  const integer required_change=isw==2 && iap->itpst==xpp::AutoPointKind::Hopf ? 1 : hopf_stability_change;
-  if (f2c::abs(nins1 - nins) >= required_change) {
-    *chng = TRUE_;
+  if (!map) {
+    nins = iap->nins;
+    // AUTO-07p FNHBEQ equilibrium.f90:624-629: a plain HB changes a pair.
+    constexpr integer hopf_stability_change = 2; // one complex conjugate pair
+    const integer required_change=isw==2 && iap->itpst==xpp::AutoPointKind::Hopf ? 1 : hopf_stability_change;
+    if (f2c::abs(nins1 - nins) >= required_change) *chng = TRUE_;
+    if (isw==2 && (iap->isp==0 || iap->isp==3 ||
+        !xpp::auto_codim_enabled(iap->lib->session->auto_state.special_points,xpp::AutoPointKind::ZeroHopf) ||
+        iap->itp.kind==xpp::AutoPointKind::BogdanovTakens)) { *chng=FALSE_; ret_val=0.; }
   }
-  if (isw==2 && (iap->isp==0 || iap->isp==3 ||
-      !xpp::auto_codim_enabled(iap->lib->session->auto_state.special_points,xpp::AutoPointKind::ZeroHopf) ||
-      iap->itp.kind==xpp::AutoPointKind::BogdanovTakens)) { *chng=FALSE_; ret_val=0.; }
   nins = nins1;
   iap->nins = nins;
 
@@ -6521,6 +6538,8 @@ pvlsae(iap_type *iap, rap_type *rap, doublereal *u, doublereal *par)
     const double kappa = u[2 * ndm];
     if (kappa > 0.) par[xpp::auto_unknown::period] = pi(2.) / sqrt(kappa);
   }
+  if (iap->ips==xpp::AutoProblem::DiscreteMap && iap->itpst==xpp::AutoPointKind::Torus)
+    par[xpp::auto_unknown::torus_angle]=u[2*ndm];
   pvls(ndm, u, par);
 
   return 0;

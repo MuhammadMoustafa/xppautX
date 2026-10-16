@@ -102,6 +102,12 @@ class References(unittest.TestCase):
         self.assertEqual(table_row('m', d, rows, ['.auto07p'], measures, ['m AUTO-07p/steady x']).split(' | ')[2],
                          'differs: 1 (2 points; par 1e-07, norm 2e-07)')
 
+    def test_map_intersections_use_full_codes_before_the_last_digit(self):
+        rows=[self.row(code,0.,0.) for code in (23,28,77,78,83,87,88,-25,-76,-87,-88)]
+        for row in rows: row['lab']='1'
+        self.assertEqual([kind for kind,_ in labelled(rows,'two_parameter')],
+                         ['LTR','LPD','PTR','LPD','LTR','PTR','TTR','R1','R2','R3','R4'])
+
     def test_a_missing_or_extra_special_point_is_a_difference(self):
         ref = [self.point('EP', 0.0, 0.0)]
         diffs, _ = compare_run(self.rows(), self.AUTO, 'equilibrium', ref, 'm')

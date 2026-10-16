@@ -13,6 +13,19 @@ namespace {
 constexpr std::array<double,4> resonance_angles={0.,.5,2./3,1.};
 constexpr std::array<xpp::AutoPointKind,4> resonance_kinds={xpp::AutoPointKind::Resonance1,
     xpp::AutoPointKind::Resonance4,xpp::AutoPointKind::Resonance3,xpp::AutoPointKind::Resonance2};
+
+double resonance_test(const std::array<bool,xpp::auto_codim_kinds.size()> &enabled, double angle, logical *changed)
+{
+    double test=1.;
+    *changed=FALSE_;
+    for (std::size_t i=0;i<resonance_angles.size();++i)
+        if (xpp::auto_codim_enabled(enabled,resonance_kinds[i])) {
+            test*=angle-pi(resonance_angles[i]);
+            *changed=TRUE_;
+        }
+    return *changed ? test : 0.;
+}
+
 }
 
 namespace xpp {
@@ -33,9 +46,20 @@ void AutoCodim::prepare_cycle(std::size_t dimension, std::size_t original)
     cycle_pivots.resize(dimension);
 }
 
+AutoPointKind auto_map_secondary_kind(AutoPointKind start, double angle, double tolerance)
+{
+    const bool flip=std::abs(angle-pi(1.))<=std::sqrt(tolerance);
+    const bool torus=!flip && angle>std::sqrt(tolerance);
+    if (start==AutoPointKind::Regular) return flip ? AutoPointKind::PeriodDoubling : torus ? AutoPointKind::Torus : AutoPointKind::Regular;
+    if (start==AutoPointKind::Fold) return flip ? AutoPointKind::FoldFlip : torus ? AutoPointKind::FoldTorus : AutoPointKind::Regular;
+    if (start==AutoPointKind::PeriodDoubling) return torus ? AutoPointKind::FlipTorus : !flip ? AutoPointKind::FoldFlip : AutoPointKind::Regular;
+    if (start==AutoPointKind::Torus) return flip ? AutoPointKind::FlipTorus : torus ? AutoPointKind::TorusTorus : AutoPointKind::FoldTorus;
+    return AutoPointKind::Regular;
+}
+
 AutoPointKind auto_cycle_resonance_kind(AutoPointKind start, double angle)
 {
-    if (start==AutoPointKind::PeriodicFold) return AutoPointKind::Resonance1;
+    if (start==AutoPointKind::Fold || start==AutoPointKind::PeriodicFold) return AutoPointKind::Resonance1;
     if (start==AutoPointKind::PeriodDoubling) return AutoPointKind::Resonance2;
     // The torus formulation continues theta, rather than atan2's folded angle.
     std::size_t nearest=0;
@@ -207,14 +231,7 @@ double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *p
     const auto kind=xpp::auto_cycle_resonance_kind(start,angle);
     const auto &enabled=iap.lib->session->auto_state.special_points;
     if (start==xpp::AutoPointKind::Torus) {
-        double test=1;
-        *changed=FALSE_;
-        for (std::size_t i=0;i<resonance_angles.size();++i)
-            if (xpp::auto_codim_enabled(enabled,resonance_kinds[i])) {
-                test*=angle-pi(resonance_angles[i]);
-                *changed=TRUE_;
-            }
-        return *changed ? test : 0;
+        return resonance_test(enabled,angle,changed);
     }
     *changed=xpp::auto_codim_enabled(enabled,kind);
     if (!*changed) return 0;
@@ -260,4 +277,21 @@ FNCS_TYPE_AE(fnghae)
     const double coefficient=lyapunov(*iap,*rap,par,icp,u,dfdu,iap->ndim);
     if (iap->iid>=2) xpp::print(iap->lib->fp9,"GH first Lyapunov coefficient: {:.9E}\n",coefficient);
     return coefficient;
+}
+
+// Maps use the same double-eigenvalue test as equilibrium folds, with
+// A-I (fold) or A+I (flip); a torus curve tests its continued angle.
+FNCS_TYPE_AE(fnrnae)
+{
+    auto &w=iap->lib->codim;
+    if (iap->itpst==xpp::AutoPointKind::Torus) {
+        const double angle=u[2*iap->ndm];
+        w.map_kind=xpp::auto_cycle_resonance_kind(iap->itpst,angle);
+        return resonance_test(iap->lib->session->auto_state.special_points,angle,chng);
+    }
+    w.map_kind=xpp::auto_cycle_resonance_kind(iap->itpst,0.);
+    *chng=xpp::auto_codim_enabled(iap->lib->session->auto_state.special_points,w.map_kind);
+    (*funi)(iap,rap,iap->ndim,u,uold,icp,par,2,rhs,dfdu,dfdp);
+    left_null(*iap,dfdu,iap->ndim);
+    return dot({u+iap->ndm,static_cast<size_t>(iap->ndm)},w.left);
 }

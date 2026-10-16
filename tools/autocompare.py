@@ -302,8 +302,9 @@ CODIM_TWO = ('BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4', 'LPD', 'LTR', 'PTR'
 # the type of a stored point (itp, core/auto_nox.h) that both programs label a special point
 BIFURCATIONS = {1: 'BP', 2: 'LP', 3: 'HB', 5: 'LP', 6: 'BP', 7: 'PD', 8: 'TR',
                 -21: 'BT', -22: 'CP', -23: 'ZH', -31: 'BT', -32: 'GH', -33: 'ZH',
-                **{-10 * start - 5 - i: kind for start in (5, 7, 8)
-                   for i, kind in enumerate(('R1', 'R2', 'R3', 'R4'))}}
+                **{-10 * start - 5 - i: kind for start in (2, 5, 7, 8)
+                   for i, kind in enumerate(('R1', 'R2', 'R3', 'R4'))},
+                28: 'LPD', 78: 'LPD', 23: 'LTR', 83: 'LTR', 77: 'PTR', 87: 'PTR', 88: 'TTR'}
 POINT_FIELDS = ('type', 'branch', 'label', 'point', 'par', 'norm', 'period', 'spectrum', 'values')
 # Newton's convergence test of both codes (autlib1.c solvae, ae.f90 stepae) stops on a
 # relative change below EPSL for the parameter and EPSU for the state, so a computed

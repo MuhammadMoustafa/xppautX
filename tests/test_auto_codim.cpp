@@ -3,6 +3,8 @@
 #include "session.h"
 #include "auto_c.h"
 #include "auto_settings.h"
+#include "jacobian.h"
+#include "expr_native.h"
 #include "auto_stability_auto.h"
 #include "auto_unknowns.h"
 #include "xpp_batch.h"
@@ -120,5 +122,53 @@ int main()
     std::array<double,3> real={multipliers[0].r,multipliers[1].r,multipliers[2].r};
     std::sort(real.begin(),real.end());
     CHECK(std::abs(real[0]+2)<1e-10 && std::abs(real[1]+1)<1e-10 && std::abs(real[2]-1)<1e-10);
+    // Map secondary labels distinguish real +1/-1 crossings from pairs.
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Regular,pi(1.),1e-4)==xpp::AutoPointKind::PeriodDoubling);
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Regular,pi(.5),1e-4)==xpp::AutoPointKind::Torus);
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Fold,pi(1.),1e-4)==xpp::AutoPointKind::FoldFlip);
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Fold,pi(.5),1e-4)==xpp::AutoPointKind::FoldTorus);
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::PeriodDoubling,0.,1e-4)==xpp::AutoPointKind::FoldFlip);
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::PeriodDoubling,pi(.5),1e-4)==xpp::AutoPointKind::FlipTorus);
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Torus,pi(.5),1e-4)==xpp::AutoPointKind::TorusTorus);
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Torus,0.,1e-4)==xpp::AutoPointKind::FoldTorus);
+    // Henon's exact unit-circle pair satisfies A^2-2*cos(theta)*A+I=0.
+    std::string map_path="tools/models/henon_rot.odex";
+    char *map_args[]={name,map_path.data(),nullptr};
+    CHECK(xpp::load_model(2,map_args,1).has_value());
+    auto &map_session=xpp::client_session();
+    CHECK(xpp::ensure_exact_jacobian(map_session));
+    map_session.numerics.jacobian=xpp::JACOBIAN_EXACT;
+    iap.jac=1;
+    auto &map_lib=map_session.auto_lib;
+    map_lib.session=&map_session;
+    map_lib.parameter_count=map_session.auto_state.parameter_layout.size();
+    iap.lib=&map_lib; iap.ndm=4; iap.ndim=10;
+    iap.ips=xpp::AutoProblem::DiscreteMap; iap.itpst=xpp::AutoPointKind::Torus;
+    icp={map_session.auto_state.parameter_layout.solver_index(0),map_session.auto_state.parameter_layout.solver_index(1)};
+    std::vector<double> mp(map_lib.parameter_count),mj(100),mdp(10*map_lib.parameter_count),mr(10);
+    const double fixed=std::sqrt(2.5)-1.;
+    mp[icp[0]]=1.5;
+    std::array<double,10> state={fixed,fixed,0,0,1,0,0,0,xpp::math::acos(-fixed),1}, previous=state;
+    fnhb(&iap,&rap,10,state.data(),previous.data(),icp.data(),mp.data(),2,mr.data(),mj.data(),mdp.data());
+    for (double value:mr) CHECK(std::abs(value)<1e-6);
+    // An independent central difference checks every augmented Jacobian column.
+    constexpr double perturbation=1e-4; // larger than the model's inner difference step
+    for (int column=0;column<10;++column) {
+        auto low=state,high=state;
+        low[column]-=perturbation; high[column]+=perturbation;
+        std::array<double,10> fm{},fp{};
+        fnhb(&iap,&rap,10,low.data(),previous.data(),icp.data(),mp.data(),0,fm.data(),nullptr,nullptr);
+        fnhb(&iap,&rap,10,high.data(),previous.data(),icp.data(),mp.data(),0,fp.data(),nullptr,nullptr);
+        for (int row=0;row<10;++row) {
+            const double numeric=(fp[row]-fm[row])/(2*perturbation);
+            CHECK(std::abs(mj[row+10*column]-numeric)<2e-5);
+        }
+    }
+    iap.itpst=xpp::AutoPointKind::PeriodDoubling; iap.ndim=9;
+    mp[icp[0]]=0.;
+    std::array<double,9> flip={0,0,0,0,1/std::sqrt(2.),-1/std::sqrt(2.),0,0,-1};
+    fnlp(&iap,&rap,9,flip.data(),flip.data(),icp.data(),mp.data(),2,mr.data(),mj.data(),mdp.data());
+    for (int row=0;row<9;++row) CHECK(std::abs(mr[row])<1e-6);
+    CHECK(std::abs(mj[4+9*4]-1.)<1e-6 && std::abs(mj[0]+1.)<1e-6);
     TEST_REPORT("AUTO codim-2");
 }

@@ -178,6 +178,7 @@ FNCS_TYPE_AE(fnbpae);
 FNCS_TYPE_AE(fnlpae);
 FNCS_TYPE_AE(fnhbae);
 FNCS_TYPE_AE(fnbtae);
+FNCS_TYPE_AE(fnrnae);
 FNCS_TYPE_AE(fncpae);
 FNCS_TYPE_AE(fnghae);
 FNCS_TYPE_AE(fnuzae);
@@ -279,9 +280,6 @@ int ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublerea
 STPNT_TYPE_AE(stpnc2);
 FUNI_TYPE(fnds);
 FUNI_TYPE(fnti);
-FUNI_TYPE(fnhd);
-int ffhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp);
-STPNT_TYPE_AE(stpnhd);
 FUNI_TYPE(fnhb);
 int ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp);
 STPNT_TYPE_AE(stpnhb);

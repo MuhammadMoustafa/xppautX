@@ -731,9 +731,8 @@ void auto_per_par(xpp::Session &s)
 
 void auto_num_par(xpp::Session &s)
 {
-  /* grouped by what they do, which upstream's order was not: the box is 8
-     rows by 4 columns, so a column is a group. Mesh and step size, then the
-     ranges and tolerances, then the solver's integer knobs. */
+  /* Mesh and step size, ranges and tolerances, integer knobs, then named
+     special points. Four columns; the row count follows the field count. */
   std::array<const char *,xpp::AUTO_NUM_N+xpp::auto_codim_kinds.size()> n;
   for(int i=0;i<xpp::AUTO_NUM_N;++i) n[i]=xpp::auto_settings_num_label(i);
   for(std::size_t i=0;i<xpp::auto_codim_kinds.size();++i) n[xpp::AUTO_NUM_N+i]=xpp::auto_codim_keys[i];
@@ -768,8 +767,9 @@ void auto_num_par(xpp::Session &s)
                             XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
                             XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
+                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
                             XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
-  status=do_string_box_of(8,4,"AutoNum",n.data(),values,kinds);
+  status=do_string_box_of((n.size()+3)/4,4,"AutoNum",n.data(),values,kinds);
   if(status!=0){
     auto enabled=s.auto_state.special_points;
     for (std::size_t i=0;i<xpp::auto_codim_kinds.size();++i) {
@@ -1864,7 +1864,7 @@ void auto_run(xpp::Session &s)
     ping(); return;
   }
   if(involves(xpp::AutoPointKind::Fold)){ /* limit point */
-     s.auto_state.bifur.ips=xpp::AutoProblem::SteadyState;
+     s.auto_state.bifur.ips=xpp::solver_info(s.numerics.method).traits.discrete ? xpp::AutoProblem::DiscreteMap : xpp::AutoProblem::SteadyState;
      auto_2p_limit(s, s.auto_state.bifur.ips);
     ping();return;
   }
@@ -2325,6 +2325,7 @@ void auto_2p_limit(xpp::Session &s, xpp::AutoProblem ips)
   s.auto_state.bifur.isw=2;
   s.auto_state.bifur.isp=1; /* was 2 */
   /* fix ips now */
+  if(ips==xpp::AutoProblem::DiscreteMap) ipsuse=ips;
   if(ips==xpp::AutoProblem::BoundaryValue)
     ipsuse=xpp::AutoProblem::BoundaryValue;
   else {
@@ -2332,11 +2333,11 @@ void auto_2p_limit(xpp::Session &s, xpp::AutoProblem ips)
       ipsuse=xpp::AutoProblem::Periodic;
   }
 
-  if(ipsuse!=xpp::AutoProblem::SteadyState)
+  if(!xpp::problem_is_steady_or_map(ipsuse))
     s.auto_state.bifur.isp=ipsuse==xpp::AutoProblem::Periodic && !s.auto_state.suppress_bp ? 2 : 0;
   s.auto_state.bifur.ips=ipsuse;
   s.auto_state.two_param=LPP2;
-  if(ipsuse==xpp::AutoProblem::SteadyState){
+  if(xpp::problem_is_steady_or_map(ipsuse)){
     s.auto_state.type_of_calc=LPE2;
     s.auto_state.two_param=LPE2;
   }
@@ -2358,10 +2359,10 @@ void auto_2p_periodic(xpp::Session &s, int kind)
   s.auto_state.bifur.nfpar=2;
   s.auto_state.two_param=kind;
   s.auto_state.type_of_calc=kind;
-  s.auto_state.bifur.ips=xpp::AutoProblem::Periodic;
+  s.auto_state.bifur.ips=xpp::solver_info(s.numerics.method).traits.discrete ? xpp::AutoProblem::DiscreteMap : xpp::AutoProblem::Periodic;
   s.auto_state.bifur.ilp=0;
   s.auto_state.bifur.isw=2;
-  s.auto_state.bifur.isp=s.auto_state.suppress_bp ? 0 : 2;
+  s.auto_state.bifur.isp=s.auto_state.suppress_bp ? 0 : (s.auto_state.bifur.ips==xpp::AutoProblem::DiscreteMap ? 1 : 2);
   do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 } // namespace
@@ -2815,7 +2816,7 @@ Result<> check_auto_solutions(std::string_view text, std::string file, int varia
                 l.fail(xpp::format("AUTO solution parameter layout has {} slots; expected {}: {}",h.npar,parameters,head));
             if (h.nar - 1 > variables || h.npar > parameters || h.nfpr > h.npar)
                 l.fail(xpp::format("AUTO solution counts ({}, {}, {}) exceed this model's storage ({}, {})",h.nar-1,h.npar,h.nfpr,variables,parameters));
-            if (!foreign && hopf_dimension && h.ntst == 0 && h.itp.started_from(AutoPointKind::Hopf)
+            if (!foreign && hopf_dimension && h.ntst == 0 && (h.itp.started_from(AutoPointKind::Hopf) || h.itp.started_from(AutoPointKind::Torus))
                 && h.nar != hopf_dimension + 1)
                 l.fail(xpp::format("AUTO Hopf solution has {} states; expected {} (the current layout): {}", h.nar - 1, hopf_dimension, head));
             const long rows = h.ntpl, columns = h.nar, payload = h.nskip, parameter_values = h.npar;

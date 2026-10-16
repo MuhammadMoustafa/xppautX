@@ -2536,7 +2536,7 @@ def section_codim():
         ranges = {}
         settings = completed(s, dict(cmd='data', events=['autoinfo','autosettings']))
         flags = next(e['special_points'] for e in settings if e.get('ev') == 'autosettings')
-        check('codim: BT CP ZH GH enabled by default', flags == dict(BT=True, CP=True, ZH=True, GH=True, R1=True, R2=True, R3=True, R4=True))
+        check('codim: BT CP ZH GH enabled by default', flags == dict(BT=True, CP=True, ZH=True, GH=True, R1=True, R2=True, R3=True, R4=True, LPD=True, LTR=True, PTR=True, TTR=True))
         for mode, changes in (('default', {}), ('ZH disabled', {'ZH': False}),
                               ('all disabled', dict.fromkeys(flags, False)), ('restored', dict.fromkeys(flags, True))):
             s.close()
@@ -2614,6 +2614,56 @@ def section_codim():
         rows = autocompare.stored_rows(session_diagram(s), intervals)['torus_up']
         check('cycle codim: disabling R4 keeps the curve running without its label',
               any('continued_parameter2' in r for r in rows) and not any(r['itp'] == '-88' for r in rows))
+    finally:
+        s.close()
+
+
+    # W404: independent fixed-point and secondary-curve identities of the map.
+    for curve in ('tr','pd','lp'):
+        maps = read_description(BASE / ('henon_rot_' + curve + '.json'))
+        if curve=='tr':
+            maps['runs'][2].pop('skip',None)
+            maps['runs'][2]['auto']['nmax']=48 # before the traced singular R1 endpoint
+        data, _, _, intervals = compute(args.server, maps, 1)
+        runs = autocompare.stored_rows(data, intervals)
+        for direction in ('up','down'):
+            rows = runs[direction]
+            residual = max(abs(float(r['continued_parameter2'])-1.) if curve=='tr' else
+                           abs(float(r['continued_parameter'])-(3. if curve=='pd' else -1.)*
+                               (1+float(r['continued_parameter2']))**2/4) for r in rows)
+            check('map codim: ' + curve + '/' + direction + ' closed-form curve', residual < 1e-4)
+            if curve=='tr':
+                exact={'R1':-1.,'R2':3.,'R3':1.25,'R4':0.,'TTR':1.1}
+                for kind,index in autocompare.labelled(rows,'two_parameter'):
+                    if kind in exact:
+                        check('map codim: ' + direction + ' ' + kind + ' closed-form place',
+                              abs(float(rows[index]['continued_parameter'])-exact[kind])<3e-4)
+    # A disabled map kind leaves the curve and the other tests active; all
+    # settings and typed point codes survive a session round trip.
+    maps = read_description(BASE / 'henon_rot_tr.json')
+    maps['runs'][2].pop('skip',None)
+    maps['runs'][2]['auto']['nmax']=40 # includes R3 and R4; avoids the singular R1 endpoint
+    s = Server(args.server, maps['model'])
+    try:
+        completed(s)
+        completed(s, dict(cmd='set',values=[dict(kind='par',name=k,value=v) for k,v in maps['parameters'].items()]))
+        completed(s, dict(cmd='data',events=['autoinfo','autosettings']))
+        diagram=autocompare.Diagram().apply(open_auto(s)); intervals={}
+        execute_run(s,maps['runs'][0],diagram,intervals)
+        completed(s,dict(cmd='auto',op='set',special_points={'TTR':False,'R4':False}))
+        execute_run(s,maps['runs'][2],diagram,intervals)
+        rows=autocompare.stored_rows(session_diagram(s),intervals)['down']
+        kinds=[kind for kind,_ in autocompare.labelled(rows,'two_parameter')]
+        check('map codim: disabling TTR/R4 preserves R3', 'TTR' not in kinds and 'R4' not in kinds and 'R3' in kinds)
+        with tempfile.TemporaryDirectory() as folder:
+            path=os.path.join(folder,'maps.snapx')
+            completed(s,dict(cmd='session',op='save',name=path,data=False))
+            before=session_diagram(s)
+            check('map codim: session load accepts current layout', not errors_of(open_session(s,path)))
+            check('map codim: session restores typed diagram', session_diagram(s)==before)
+            events=completed(s,dict(cmd='data',events=['autosettings']))
+            flags=next(e['special_points'] for e in events if e.get('ev')=='autosettings')
+            check('map codim: session restores named switches', not flags['TTR'] and not flags['R4'] and flags['LPD'])
     finally:
         s.close()
 

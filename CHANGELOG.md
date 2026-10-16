@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Continue map fold, flip and torus curves with PD/TR and R1?R4, LPD, LTR, PTR, TTR detection as AUTO-07p does (W404, [#466](https://github.com/MuhammadMoustafa/xppautX/issues/466)).
+
 - Detect and locate R1-R4 resonances on two-parameter cycle curves, with named detection controls and diagram/session labels (W400, [#462](https://github.com/MuhammadMoustafa/xppautX/issues/462)).
 - A special point whose location does not converge on a curve of cycles or a boundary-value problem is given up with a note and the branch goes on, as in AUTO-07p, instead of ending with "no convergence" (W400, [#462](https://github.com/MuhammadMoustafa/xppautX/issues/462)).
 

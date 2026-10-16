@@ -370,13 +370,13 @@ int set_function_pointers(const iap_type iap,function_list *data) {
   /* ---------------------------------------------------*/
   /* ---------------------------------------------------*/
       
-  else if (xpp::problem_at_most_steady(iap.ips) && abs(iap.isw) == 2 && (iap.itp.is(xpp::AutoPointKind::BranchPoint) || iap.itp.is(xpp::AutoPointKind::Fold))) {
+  else if (xpp::problem_at_most_steady(iap.ips) && abs(iap.isw) == 2 && (iap.itp.is(xpp::AutoPointKind::BranchPoint) || iap.itp.is(xpp::AutoPointKind::Fold) || (iap.ips==xpp::AutoProblem::DiscreteMap && iap.itp.is(xpp::AutoPointKind::PeriodDoubling)))) {
     /*	** Fold continuation (algebraic problems). */
     data->type	   = AUTOAE;
     data->aelist.funi  = fnlp;
     data->aelist.stpnt  = stpnlp;
     data->aelist.pvli    = pvlsae;
-  } else if (xpp::problem_at_most_steady(iap.ips) && abs(iap.isw) == 2 && (iap.itp.started_from(xpp::AutoPointKind::BranchPoint) || iap.itp.started_from(xpp::AutoPointKind::Fold))) {
+  } else if (xpp::problem_at_most_steady(iap.ips) && abs(iap.isw) == 2 && (iap.itp.started_from(xpp::AutoPointKind::BranchPoint) || iap.itp.started_from(xpp::AutoPointKind::Fold) || (iap.ips==xpp::AutoProblem::DiscreteMap && iap.itp.started_from(xpp::AutoPointKind::PeriodDoubling)))) {
     /*	** Fold continuation (algebraic problems, restart). */
     data->type	   = AUTOAE;
     data->aelist.funi  = fnlp;
@@ -406,16 +406,16 @@ int set_function_pointers(const iap_type iap,function_list *data) {
     data->aelist.funi  = fnhw;
     data->aelist.stpnt  = stpnae;
     data->aelist.pvli    = pvlsae;
-  } else if (iap.ips == xpp::AutoProblem::DiscreteMap && abs(iap.isw) == 2 && iap.itp.is(xpp::AutoPointKind::Hopf)) {
+  } else if (iap.ips == xpp::AutoProblem::DiscreteMap && abs(iap.isw) == 2 && iap.itp.is(xpp::AutoPointKind::Torus)) {
     /*	** Hopf bifurcation continuation (Maps). */
     data->type	   = AUTOAE;
-    data->aelist.funi  = fnhd;
-    data->aelist.stpnt  = stpnhd;
+    data->aelist.funi  = fnhb;
+    data->aelist.stpnt  = stpnhb;
     data->aelist.pvli    = pvlsae;
-  } else if (iap.ips == xpp::AutoProblem::DiscreteMap && abs(iap.isw) == 2 && iap.itp.started_from(xpp::AutoPointKind::Hopf)) {
+  } else if (iap.ips == xpp::AutoProblem::DiscreteMap && abs(iap.isw) == 2 && iap.itp.started_from(xpp::AutoPointKind::Torus)) {
     /*	** Hopf bifurcation continuation (Maps). */
     data->type	   = AUTOAE;
-    data->aelist.funi  = fnhd;
+    data->aelist.funi  = fnhb;
     data->aelist.stpnt  = stpnae;
     data->aelist.pvli    = pvlsae;
   } else if (iap.ips == xpp::AutoProblem::Periodic && abs(iap.isw) == 2 && (iap.itp.is(xpp::AutoPointKind::PeriodicFold) || iap.itp.is(xpp::AutoPointKind::PeriodicBranch))) {

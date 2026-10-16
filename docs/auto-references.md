@@ -214,10 +214,10 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-40 descriptions have an AUTO-07p reference (95 special points compared, and the two-parameter curves) and 24 an
-XPPAUT 8.0 reference (44 points); 24 hold both. Every untraced comparison agrees. AUTO-07p has 25 traced points
+40 descriptions have an AUTO-07p reference (114 special points compared, and the two-parameter curves) and 24 an
+XPPAUT 8.0 reference (44 points); 24 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
 and XPPAUT 8.0 three; the runs a description skips (its reason says why) are neither run nor compared. The whole
-comparison is 52 descriptions, 9 skipped, 9100 stored points across one and automatic threads, 126 checks, zero
+comparison is 52 descriptions, 9 skipped, 9592 stored points across one and automatic threads, 126 checks, zero
 failures. No tolerance was widened. Before W326 there were 44 compared points and six traced points against
 AUTO-07p, and 44 compared points with none traced against XPPAUT.
 
@@ -226,9 +226,9 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | explicit_homoclinic | steady: EP | agrees (1 points; par 0, norm 1.5e-15) | not run |
 | forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 3.6e-08, par2 1.2e-08, norm 6.7e-09, period 2e-14, spectrum 5.1e-05; curve par 0.00034, par2 8.9e-06, norm 4.5e-06) | not run |
 | forced_pp_pd | steady: EP HB; cycles: PD; pd_down: R2 | agrees (4 points; par 1.8e-06, par2 6.4e-07, norm 3.5e-07, period 2.1e-14, spectrum 4.3e-05; curve par 5e-09, par2 1.2e-08, norm 2.6e-09) | not run |
-| henon_rot_lp | steady: EP LP HB | agrees, 3 traced (2 points; par 4.6e-12, norm 9.9e-11, spectrum 3.3e-06) | not run |
-| henon_rot_pd | steady: EP HB HB | agrees, 5 traced (1 points; par 0, norm 0) | not run |
-| henon_rot_tr | steady: EP HB HB | agrees, 5 traced (1 points; par 0, norm 4.2e-13) | not run |
+| henon_rot_lp | steady: EP LP TR PD; up: LTR LPD R1; down: LTR | agrees (8 points; par 8.9e-07, par2 1.5e-06, norm 8e-07, spectrum 3.3e-05; curve par 3.4e-06, par2 1.1e-06, norm 7.8e-07) | not run |
+| henon_rot_pd | steady: EP PD TR TR; up: PTR R2 PTR; down: LPD PTR PTR | agrees (10 points; par 8.3e-07, par2 6.5e-07, norm 4.6e-07, spectrum 2.7e-05; curve par 3.1e-07, par2 1e-06, norm 7.3e-07) | not run |
+| henon_rot_tr | steady: EP PD TR TR; up: R2 | agrees (5 points; par 1.4e-07, par2 2.2e-10, norm 4.9e-08, spectrum 7.3e-06; curve par 3.2e-05, par2 5.8e-07, norm 1.2e-05) | not run |
 | hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 9.3e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07; curve par 2.7e-09, par2 1e-09, norm 8.4e-12) | not run |
 | hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP | agrees (7 points; par 2.1e-11, par2 3.9e-12, norm 7.7e-12, period 2e-11, spectrum 2.6e-06; curve par 2.1e-11, par2 4.4e-06, norm 1.5e-11) | not run |
 | lorenz_homoclinic | steady: EP | agrees (1 points; par 0, norm 3.8e-15) | not run |
@@ -498,8 +498,8 @@ projection, [#427](https://github.com/MuhammadMoustafa/xppautX/issues/427)) need
   parameters and the period. From a PD, TR or LP AUTO-07p first writes the curve's starting data (an EP) and the
   curve is the run restarted from that; xppautX does both in one run. The direction the restart takes is not fixed by
   the sign of DS, and the two programs' DS differ: the references follow AUTO-07p's.
-- **A two-parameter curve of a map's fixed points** (an LP, PD or TR): IPS=-1, ISP=1. xppautX labels a map's torus
-  bifurcation HB and finds no flip bifurcation of a map; the description's `HB` start is AUTO-07p's `TR`.
+- **A two-parameter curve of a map's fixed points** (an LP, PD or TR): IPS=-1, ISP=1. W404 labels a map's torus
+  bifurcation TR and its flip PD, matching AUTO-07p (before W404 these were HB and undetected, respectively).
   AUTO-07p's printed eigenvalues of a map's fixed point are its multipliers.
 - **A HomCont run** (`homoclinic`, IEQUIB=1, `heteroclinic`, -2): one run from the orbit the description integrates
   (`settle`); STPNT integrates the same orbit with RK4 over `T*PAR(11)`.
@@ -518,22 +518,23 @@ the branch from the first branch point, which xppautX's switched branch does not
 |---|---|---|---|
 | `hill_cycles_torus` | `tools/models/hill_cycles.odex` | torus curve of cycles: R4 (d = 0.5637; 9/16 = 0.5625 for q = 0), R3 (d = 0.4464; 4/9 = 0.4444), a BP of the curve near d = 0.277 | R3, R4 and BP agree; the straight curve has max abs(c + mu) < 7.9e-11; the uncoupled R3/R4 places agree within 1.1e-7 (W400) |
 | `hill_cycles_pd` | the same | period-doubling curve of cycles: a closed lens, R2 at (c, d) = (-0.17495, 0.3107) and (-0.17494, 0.1854), where c + mu = 0 exactly (mu = 0.1749 at PD1) | all five R2 encounters agree, on the same closed lens; max abs(c + mu) at a labelled end is 1.8e-5, within location tolerance (W400) |
-| `henon_rot_tr` (curve skipped) | `tools/models/henon_rot.odex` (the hen demo's Henon map beside a rotation) | torus curve of the map: R2 (alpha = 3), R3 (1.25), TTR (1.1), R4 (0), R1 (-1), the exact places of x = -cos(theta) | runs, labels none of them |
-| `henon_rot_pd` (curve skipped) | the same | flip curve: PTR (0.5139, 3.1198), R2 (3), LPD (0, -1), PTR (0.0195, 1.4136) | finds no flip point to start from |
-| `henon_rot_lp` (curve skipped) | the same | fold curve: LTR (-0.0127, -0.7873), LPD (0, -1), R1 (-1, 1) | stops at the second point (nonfinite) |
+| `henon_rot_tr` (down skipped) | `tools/models/henon_rot.odex` (the hen demo's Henon map beside a rotation) | torus curve of the map: R2 (alpha = 3), R3 (1.25), TTR (1.1), R4 (0), R1 (-1), the exact places of x = -cos(theta) | R2 up agrees; R3, TTR, R4 are detected down, but the singular R1 endpoint differs (W404 below) |
+| `henon_rot_pd` | the same | flip curve: PTR (0.5139, 3.1198), R2 (3), LPD (0, -1), PTR (0.0195, 1.4136) | both directions agree, including PTR, R2 and LPD (W404) |
+| `henon_rot_lp` | the same | fold curve: LTR (-0.0127, -0.7873), LPD (0, -1), R1 (-1, 1) | both directions agree, including LTR, LPD and R1 (W404) |
 | `tstauto_torx_homcont` (curve skipped) | `examples/tstauto/torx.odex` at the cir demo's parameters | HomCont, three dimensions (one real unstable eigenvalue, a stable pair): the curve in (rn, be) from (-0.721309, 0.6), an LP at (-0.71809, 0.54238) | runs; the same LP, but the orbit's norm differs at the first point (0.214167 against 0.214053), W365 |
 
 `hill_cycles` has closed forms: its torus bifurcation is at mu = -c = 0.3 (AUTO-07p 0.3), the resonances of the torus curve
 at sqrt(d) = 1/4, 1/3, 1/2, 2/3, 3/4 for q = 0 (the places above move by about 1e-3 for q = 0.1, the Hill equation's
 coupling), the lens of the period-doubling curve ends where both multipliers are -1, c = -mu. `henon_rot` has them too:
 the torus curve is beta = 1 with cos(theta) = -x, x = -1 + sqrt(1 + alpha); the fold curve alpha = -(1+beta)^2/4, the flip
-curve alpha = 3(1+beta)^2/4, and the rotation's radius is 1 on beta = 2 alpha - 1.2, which crosses them at alpha = 1.1,
-(-0.0127, -0.7873) and (0.0196, 0.5137): AUTO-07p's TTR, LTR and PTR are exactly there (to 1e-4).
+curve alpha = 3(1+beta)^2/4, and the rotation's signed radius rho is +1 on beta = 2 alpha - 1.2: its crossings are at alpha = 1.1 (TTR),
+alpha = -0.0127017 and -0.7872983 (the two LTR), and alpha = 0.0194600 and 0.5138734 (PTR).
+The second unit-circle crossing, rho = -1 on beta = 2 alpha - 5.2, gives PTR at alpha = 1.4135678 and 3.1197655.
+These lists are alpha values, not (alpha, beta) pairs; AUTO-07p and W404 agree within the stated location tolerances.
 
 How a reference reaches the repository when xppautX cannot run it yet: `NAME.auto07p` holds every run, and a run
 skipped in the description (its reason names W400, W404 or W365) is read but not compared; the runs xppautX does run are compared
-(the base runs, whose points all agree, and a map's, with the five traced name differences HB/TR and the undetected PD
-that the `differences` list records). The card that makes xppautX run the curve drops the skip.
+(the base runs and, since W404, all map runs except the torus down direction's singular endpoint). The card that makes xppautX run the curve drops the skip.
 The `tools/autocompare.py` changes that came with it: a curve of cycles' first rows (the starting data, one continued parameter)
 are not on the curve; a spectrum's order of a conjugate pair no longer depends on the last bit of its real parts; a
 HomCont run's reference is read like a two-parameter run's.
@@ -658,3 +659,36 @@ synthetic-spectrum coverage (tests/test_auto_codim.cpp).
 
 The shipped lecar_auto.recx snapshot now includes the four resonance booleans and its missing W376 main-window
 open flag; its recording commands and all other snapshot data are unchanged.
+
+## W404: AUTO on maps ([#466](https://github.com/MuhammadMoustafa/xppautX/issues/466))
+
+Map fixed points now label flips **PD** and Neimark-Sacker bifurcations **TR**.
+Fold, flip and torus curves keep the map equation and detect R1-R4, LPD, LTR,
+PTR and TTR as typed labels, stored in sessions. Existing named switches enable
+them by default in every front end; their common core reuses W400's resonance
+tests, W356's locator and the equilibrium curve/Jacobian owner.
+
+The three descriptions compare **23 points and 92 quantities**, all agreeing
+(previously four compared points and thirteen traced HB/TR/undetected-PD differences).
+Both fold/flip directions and torus up agree. Updated once: `henon_rot_lp` (150
+points: map fold equation and LTR/LPD/R1), `henon_rot_pd` (185: PD start and
+PTR/R2/LPD), `henon_rot_tr` (78: PD/TR and R2 up). One and automatic threads
+match; every flow diagram and `tests/examples.md5` is unchanged. The generated
+table above includes all results, with no reference or tolerance changed.
+The recording's snapshot settings and fingerprint were refreshed; its steps are unchanged.
+
+Closed-form curve residuals are at most 3.11e-6 for
+`alpha+(1+beta)^2/4`, 3.15e-5 for `alpha-3*(1+beta)^2/4`, and 5.81e-7 for
+`beta-1`. Torus R2 is at alpha=2.99999999996; fold R1 differs from (-1,1)
+by 1.63e-5 and flip R2 from (3,1) by 9.21e-5. LPD has |alpha|<4.5e-13
+and |beta+1|<1.33e-6. These satisfy location accuracy.
+
+**One traced skip: `henon_rot_tr/down`.** R3, TTR and R4 are detected at
+alpha=1.24999950, 1.09999929 and 5.31e-7. At the singular double-+1 endpoint,
+the zero-angle torus equations also admit the fold branch. Numerical model
+Jacobian differences let Newton follow that branch briefly, displacing R1 to
+(-1.000268303,1.000268285): 2.68e-4 off (-1,1), failing the existing
+8.74e-6 curve bound; AUTO-07p's following BP is absent. Exact model derivatives
+reduce R1's displacement to 1.89e-5 and restore curve agreement, but still miss
+that BP. This is a real singular-endpoint difference. Its measured skip remains;
+independent checks exercise the down labels and switches before that endpoint.

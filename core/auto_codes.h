@@ -122,10 +122,14 @@ enum class AutoPointKind : int {
     Cusp = 11,           /* CP: vanishing fold quadratic coefficient */
     ZeroHopf = 12,       /* ZH: a zero eigenvalue and imaginary pair */
     GeneralizedHopf = 13,/* GH: vanishing first Lyapunov coefficient */
-    Resonance1 = 14,     /* R1: 1:1 resonance of a cycle */
-    Resonance2 = 15,     /* R2: 1:2 resonance of a cycle */
-    Resonance3 = 16,     /* R3: 1:3 resonance of a cycle */
-    Resonance4 = 17,     /* R4: 1:4 resonance of a cycle */
+    Resonance1 = 14,     /* R1: 1:1 resonance of a map or cycle */
+    Resonance2 = 15,     /* R2: 1:2 resonance of a map or cycle */
+    Resonance3 = 16,     /* R3: 1:3 resonance of a map or cycle */
+    Resonance4 = 17,     /* R4: 1:4 resonance of a map or cycle */
+    FoldFlip = 18,      /* LPD: fold and flip of a map */
+    FoldTorus = 19,     /* LTR: fold and torus of a map */
+    FlipTorus = 20,     /* PTR: flip and torus of a map */
+    TorusTorus = 21,    /* TTR: two torus pairs of a map */
     MaxSteps = -9         /* MX: no convergence, or the step limit */
 };
 
@@ -161,6 +165,10 @@ constexpr int auto_point_encode(AutoPointCode c)
     if (c.kind >= AutoPointKind::Resonance1 && c.kind <= AutoPointKind::Resonance4)
         return -10 * static_cast<int>(c.start) - 5 -
             (static_cast<int>(c.kind) - static_cast<int>(AutoPointKind::Resonance1));
+    if (c.kind == AutoPointKind::FoldFlip) return c.start == AutoPointKind::Fold ? 28 : 78;
+    if (c.kind == AutoPointKind::FoldTorus) return c.start == AutoPointKind::Fold ? 23 : 83;
+    if (c.kind == AutoPointKind::FlipTorus) return c.start == AutoPointKind::PeriodDoubling ? 77 : 87;
+    if (c.kind == AutoPointKind::TorusTorus) return 88;
     const int kind = static_cast<int>(c.kind), start = static_cast<int>(c.start);
     return kind < 0 ? kind - 10 * start : 10 * start + kind;
 }
@@ -172,6 +180,13 @@ constexpr int auto_point_encode(AutoPointCode c)
 constexpr std::optional<AutoPointCode> auto_point_decode(long itp, bool allow_pending = false)
 {
     switch (itp) {
+    case 28: return AutoPointCode{AutoPointKind::FoldFlip, AutoPointKind::Fold};
+    case 78: return AutoPointCode{AutoPointKind::FoldFlip, AutoPointKind::PeriodDoubling};
+    case 23: return AutoPointCode{AutoPointKind::FoldTorus, AutoPointKind::Fold};
+    case 83: return AutoPointCode{AutoPointKind::FoldTorus, AutoPointKind::Torus};
+    case 77: return AutoPointCode{AutoPointKind::FlipTorus, AutoPointKind::PeriodDoubling};
+    case 87: return AutoPointCode{AutoPointKind::FlipTorus, AutoPointKind::Torus};
+    case 88: return AutoPointCode{AutoPointKind::TorusTorus, AutoPointKind::Torus};
     case -21: return AutoPointCode{AutoPointKind::BogdanovTakens, AutoPointKind::Fold};
     case -22: return AutoPointCode{AutoPointKind::Cusp, AutoPointKind::Fold};
     case -23: return AutoPointCode{AutoPointKind::ZeroHopf, AutoPointKind::Fold};
@@ -180,7 +195,7 @@ constexpr std::optional<AutoPointCode> auto_point_decode(long itp, bool allow_pe
     case -33: return AutoPointCode{AutoPointKind::ZeroHopf, AutoPointKind::Hopf};
     default: break;
     }
-    for (auto start : {AutoPointKind::PeriodicFold, AutoPointKind::PeriodDoubling, AutoPointKind::Torus})
+    for (auto start : {AutoPointKind::Fold, AutoPointKind::PeriodicFold, AutoPointKind::PeriodDoubling, AutoPointKind::Torus})
         for (auto kind : {AutoPointKind::Resonance1, AutoPointKind::Resonance2,
                           AutoPointKind::Resonance3, AutoPointKind::Resonance4})
             if (auto_point_encode({kind,start})==itp) return AutoPointCode{kind,start};
@@ -203,7 +218,7 @@ constexpr AutoPointKind auto_point_start_of(AutoPointCode c)
     return static_cast<AutoPointKind>(kind < 0 ? -kind : kind);
 }
 
-/* the two-letter symbol of a point (BP, LP, HB, UZ, PD, TR, EP, MX; two
+/* the short symbol of a point (BP, LP, HB, UZ, PD, TR, EP, MX; two
    blanks for the others), the diagram's Ty column */
 constexpr const char *auto_point_symbol(AutoPointCode c)
 {
@@ -221,6 +236,10 @@ constexpr const char *auto_point_symbol(AutoPointCode c)
     case AutoPointKind::Resonance2: return "R2";
     case AutoPointKind::Resonance3: return "R3";
     case AutoPointKind::Resonance4: return "R4";
+    case AutoPointKind::FoldFlip: return "LPD";
+    case AutoPointKind::FoldTorus: return "LTR";
+    case AutoPointKind::FlipTorus: return "PTR";
+    case AutoPointKind::TorusTorus: return "TTR";
     case AutoPointKind::UserZero: return "UZ";
     case AutoPointKind::PeriodDoubling: return "PD";
     case AutoPointKind::Torus: return "TR";
@@ -231,10 +250,11 @@ constexpr const char *auto_point_symbol(AutoPointCode c)
 }
 
 // Settings and protocol names for codimension-two detection (W364, W400).
-inline constexpr std::array<AutoPointKind, 8> auto_codim_kinds = {
+inline constexpr std::array<AutoPointKind, 12> auto_codim_kinds = {
     AutoPointKind::BogdanovTakens, AutoPointKind::Cusp, AutoPointKind::ZeroHopf, AutoPointKind::GeneralizedHopf,
-    AutoPointKind::Resonance1, AutoPointKind::Resonance2, AutoPointKind::Resonance3, AutoPointKind::Resonance4};
-inline constexpr std::array<const char *, 8> auto_codim_keys = {"BT", "CP", "ZH", "GH", "R1", "R2", "R3", "R4"};
+    AutoPointKind::Resonance1, AutoPointKind::Resonance2, AutoPointKind::Resonance3, AutoPointKind::Resonance4,
+    AutoPointKind::FoldFlip, AutoPointKind::FoldTorus, AutoPointKind::FlipTorus, AutoPointKind::TorusTorus};
+inline constexpr std::array<const char *, 12> auto_codim_keys = {"BT", "CP", "ZH", "GH", "R1", "R2", "R3", "R4", "LPD", "LTR", "PTR", "TTR"};
 
 constexpr bool auto_codim_enabled(const std::array<bool, auto_codim_kinds.size()> &enabled, AutoPointKind kind)
 {

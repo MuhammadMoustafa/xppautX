@@ -142,7 +142,7 @@ export interface AutoAxesSettings {
 }
 
 /** the `autosettings` event's settings, with what the Numerics take */
-export const CODIM_KINDS = ['BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4'] as const;
+export const CODIM_KINDS = ['BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4', 'LPD', 'LTR', 'PTR', 'TTR'] as const;
 export type CodimKind = typeof CODIM_KINDS[number];
 /** every kind set to one value */
 export const allCodim = (on: boolean) => Object.fromEntries(CODIM_KINDS.map(k => [k, on])) as Record<CodimKind, boolean>;

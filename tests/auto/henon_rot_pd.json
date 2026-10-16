@@ -62,8 +62,7 @@
         "epsu": 1e-06,
         "epss": 0.0001,
         "mxbf": 0
-      },
-      "skip": "PENDING W404 (#466): xppautX finds no flip bifurcation of a map to start the curve from (it labels the torus ones HB only)"
+      }
     },
     {
       "name": "down",
@@ -91,50 +90,7 @@
         "epsu": 1e-06,
         "epss": 0.0001,
         "mxbf": 0
-      },
-      "skip": "PENDING W404 (#466): xppautX finds no flip bifurcation of a map to start the curve from (it labels the torus ones HB only)"
-    }
-  ],
-  "differences": [
-    {
-      "reference": ".auto07p",
-      "run": "steady",
-      "side": "reference",
-      "type": "PD",
-      "index": 1,
-      "cause": "xppautX detects no flip (period-doubling) bifurcation of a map's fixed points; AUTO-07p's PD is the Henon map's flip curve crossing (W400)"
-    },
-    {
-      "reference": ".auto07p",
-      "run": "steady",
-      "side": "reference",
-      "type": "TR",
-      "index": 1,
-      "cause": "AUTO-07p names a map's torus bifurcation TR; xppautX names it HB: the two are the same point (compare the HB below), not compared by type"
-    },
-    {
-      "reference": ".auto07p",
-      "run": "steady",
-      "side": "reference",
-      "type": "TR",
-      "index": 2,
-      "cause": "AUTO-07p names a map's torus bifurcation TR; xppautX names it HB: the two are the same point (compare the HB below), not compared by type"
-    },
-    {
-      "reference": ".auto07p",
-      "run": "steady",
-      "side": "ours",
-      "type": "HB",
-      "index": 1,
-      "cause": "xppautX names a map's torus bifurcation HB, AUTO-07p TR (the matching reference point is dropped above)"
-    },
-    {
-      "reference": ".auto07p",
-      "run": "steady",
-      "side": "ours",
-      "type": "HB",
-      "index": 2,
-      "cause": "xppautX names a map's torus bifurcation HB, AUTO-07p TR (the matching reference point is dropped above)"
+      }
     }
   ]
 }

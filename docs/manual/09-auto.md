@@ -727,3 +727,7 @@ neutral saddle extends this curve. Detection of a special BT label is separate.
 Saved sessions carry the reduced Hopf restart layout. An older session with
 the previous `3n+2` Hopf solution layout is refused with the solution member's
 file name and line; recompute that curve before saving it in the new format.
+
+### Maps (W404, #466)
+
+For a discrete model, AUTO continues fixed points and labels a flip (multiplier -1) **PD** and a Neimark-Sacker bifurcation (a complex pair crossing the unit circle) **TR**. Continue their two-parameter curves, or a fold curve, with the same Run choices as for other labelled points. Map curves detect **R1?R4**, **LPD** (fold-flip), **LTR** (fold-torus), **PTR** (flip-torus) and **TTR** (torus-torus). Each codimension-two label is enabled by default and can be disabled individually in Special points. Session files retain these labels.

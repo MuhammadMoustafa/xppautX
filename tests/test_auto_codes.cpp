@@ -81,6 +81,7 @@ int main()
             const xpp::AutoPointCode code{kind, start};
             const int itp = xpp::auto_point_encode(code);
             const auto back = xpp::auto_point_decode(itp, kind == xpp::AutoPointKind::Pending);
+            if (itp==23 || itp==28 || itp==77 || itp==78 || itp==83 || itp==87 || itp==88) continue; // reserved map intersections
             CHECK(back && *back == code);
             /* the AUTO integer: 10*start + kind, and -4 / -9 - 10*start for UZ and MX */
             CHECK(itp == (static_cast<int>(kind) < 0 ? static_cast<int>(kind) - 10 * static_cast<int>(start)
@@ -118,6 +119,14 @@ int main()
         CHECK(point && xpp::auto_point_encode(*point)==value);
         CHECK(std::string(xpp::auto_point_symbol(*point)).size()==2);
     }
+    for (int value : {23,28,77,78,83,87,88,-25,-26,-27,-28}) {
+        const auto point=xpp::auto_point_decode(value);
+        CHECK(point && xpp::auto_point_encode(*point)==value);
+    }
+    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(23)),"LTR");
+    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(78)),"LPD");
+    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(87)),"PTR");
+    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(88)),"TTR");
     CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-32)),"GH");
     CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-22)),"CP");
     CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-55)),"R1");
@@ -127,7 +136,7 @@ int main()
 
     /* an unknown code is refused: out of range, a negative kind AUTO has no
        such point for, a negative composite of a plain kind */
-    for (long bad : {100L, -100L, 1000L, -5L, -3L, -2L, -11L, -10L, -20L, -27L, -99L - 1, -65L})
+    for (long bad : {100L, -100L, 1000L, -5L, -3L, -2L, -11L, -10L, -20L, -99L - 1, -65L})
         CHECK(!xpp::auto_point_decode(bad));
     CHECK_STR(xpp::auto_point_unknown(55 + 100).c_str(), "155 is not an AUTO point type");
 

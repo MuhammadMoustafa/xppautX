@@ -132,7 +132,7 @@ std::deque<xpp::DIAGRAM> points_of(int k, int n)
 void check_settings_text()
 {
     xpp::AutoSettingsSet s;
-    s.special_points={true,false,true,false,false,true,false,true};
+    s.special_points={true,false,true,false,false,true,false,true,true,false,true,false};
     for (int i = 0; i < xpp::AUTO_NUM_N; i++) s.num[i] = awk(i) / (i + 1);
     s.plot = 11;
     s.var = "v";

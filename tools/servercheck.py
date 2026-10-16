@@ -3539,7 +3539,7 @@ def check_autosettings():
               and st.get('step', {}).get('key') == 'ds', str(st and (st.get('pairs'), st.get('step')))[:300])
         ask = ask_of(cmd='key', win='auto', key='n')
         cancel(ask)
-        point_keys = ('BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4')
+        point_keys = ('BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4', 'LPD', 'LTR', 'PTR', 'TTR')
         check('W364: autosettings carries named detection booleans enabled by default',
               st.get('special_points') == dict.fromkeys(point_keys, True))
         want = [form_text(st['numerics'][k]) for k in NUM_KEYS]

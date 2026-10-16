@@ -98,8 +98,8 @@ struct AutoState {
   unsigned threads=0;
   /* Numerics' SuppBP */
   int suppress_bp=0;
-  // AUTO-07p enables equilibrium codimension-two detection by default.
-  std::array<bool, xpp::auto_codim_kinds.size()> special_points{true,true,true,true,true,true,true,true};
+  // AUTO-07p enables codimension-two detection by default.
+  std::array<bool, xpp::auto_codim_kinds.size()> special_points{true,true,true,true,true,true,true,true,true,true,true,true};
   /* a homoclinic orbit's left and right equilibria (autpp.cpp's stpnt),
      and whether a homoclinic run is on */
   std::vector<double> homo_l,homo_r;
