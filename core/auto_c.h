@@ -336,7 +336,7 @@ int fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublerea
 FUNI_TYPE(fnho);
 int ffho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp);
 BCNI_TYPE(bcho);
-int fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, integer nbc0, const doublereal *u0, const doublereal *u1, doublereal *fb, doublereal *dbc);
+int fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, integer nbc0, const doublereal *u0, const doublereal *u1, doublereal *fb, doublereal *dbc, bool save_basis);
 ICNI_TYPE(icho);
 int fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *fi, doublereal *dint);
 int inho(iap_type *iap, integer *icp, doublereal *par);
@@ -346,7 +346,7 @@ int stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublerea
 PVLI_TYPE_BVP(pvlsho);
 doublereal psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublereal *v, doublereal *vt, const integer *icp, doublereal *par);
 int eighi(const iap_type *iap, integer isign, integer itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm);
-int prjcti(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer imfd, integer is, integer itrans, integer *ndm);
+int prjcti(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, xpp::HomcontManifold manifold, xpp::HomcontEndpoint endpoint, bool transpose, integer *ndm, bool save_basis);
 
 
 /* problem defined functions (func, stpnt and bcnd, which run the

@@ -214,16 +214,16 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-40 descriptions have an AUTO-07p reference (114 special points compared, and the two-parameter curves) and 24 an
+40 descriptions have an AUTO-07p reference (118 special points compared, and the two-parameter curves) and 24 an
 XPPAUT 8.0 reference (44 points); 24 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
 and XPPAUT 8.0 three; the runs a description skips (its reason says why) are neither run nor compared. The whole
-comparison is 52 descriptions, 9 skipped, 9592 stored points across one and automatic threads, 126 checks, zero
+comparison is 52 descriptions, 9 skipped, 9982 stored points across one and automatic threads, 126 checks, zero
 failures. No tolerance was widened. Before W326 there were 44 compared points and six traced points against
 AUTO-07p, and 44 compared points with none traced against XPPAUT.
 
 | Model | Special points in xppautX | AUTO-07p | XPPAUT 8.0 |
 |---|---|---|---|
-| explicit_homoclinic | steady: EP | agrees (1 points; par 0, norm 1.5e-15) | not run |
+| explicit_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.2e-08, par2 2.4e-15, norm 1.8e-08) | not run |
 | forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 1.2e-08, par2 4e-09, norm 2.4e-09, period 2e-14, spectrum 9e-05; curve par 0.00037, par2 9.8e-06, norm 4.9e-06) | not run |
 | forced_pp_pd | steady: EP HB; cycles: PD; pd_down: R2 | agrees (4 points; par 1.8e-06, par2 6.4e-07, norm 3.5e-07, period 2.1e-14, spectrum 4.3e-05; curve par 5e-09, par2 1.2e-08, norm 2.6e-09) | not run |
 | henon_rot_lp | steady: EP LP TR PD; up: LTR LPD R1; down: LTR | agrees (8 points; par 8.9e-07, par2 1.5e-06, norm 8e-07, spectrum 3.3e-05; curve par 3.4e-06, par2 1.1e-06, norm 7.8e-07) | not run |
@@ -231,7 +231,7 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | henon_rot_tr | steady: EP PD TR TR; up: R2 | agrees (5 points; par 1.4e-07, par2 2.2e-10, norm 4.9e-08, spectrum 7.3e-06; curve par 3.2e-05, par2 5.8e-07, norm 1.2e-05) | not run |
 | hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 9.3e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07; curve par 2.7e-09, par2 1e-09, norm 8.4e-12) | not run |
 | hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP | agrees (7 points; par 1.2e-10, par2 3.9e-12, norm 7.7e-12, period 2e-11, spectrum 3.5e-06; curve par 1.2e-10, par2 2.7e-06, norm 1.5e-11) | not run |
-| lorenz_homoclinic | steady: EP | agrees (1 points; par 0, norm 3.8e-15) | not run |
+| lorenz_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.8e-08, par2 1.4e-08, norm 6.6e-08) | not run |
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
@@ -259,7 +259,7 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | tstauto_she | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_simplefold | steady: EP LP LP | agrees (3 points; par 4.8e-12, norm 4.5e-11, spectrum 8.6e-11) | agrees (3 points; par 2.1e-08, norm 4.3e-08, spectrum 2.7e-13) |
 | tstauto_torx | steady: EP HB BP; cycles: - | agrees (3 points; par 4.7e-12, norm 0, period 3.3e-12, spectrum 3.9e-07) | agrees (3 points; par 2.2e-08, norm 0, period 3.3e-12, spectrum 3.7e-08) |
-| tstauto_torx_homcont | steady: EP BP | agrees (2 points; par 4.1e-12, norm 2.5e-15, spectrum 3.2e-07) | not run |
+| tstauto_torx_homcont | steady: EP BP; homoclinic: EP LP | agrees (4 points; par 6.9e-12, norm 3.6e-08, spectrum 3.2e-07; curve par 7.4e-06, par2 1.1e-05, norm 5.1e-07) | not run |
 | tstauto_tsthom | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_wcbiwave | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | zero_hopf | steady: EP LP; fold: ZH | agrees (3 points; par 2.1e-09, par2 1.3e-40, norm 5.8e-17, spectrum 2.1e-09; curve par 7.6e-17, par2 6e-18, norm 3.6e-13) | not run |
@@ -521,7 +521,7 @@ the branch from the first branch point, which xppautX's switched branch does not
 | `henon_rot_tr` (down skipped) | `tools/models/henon_rot.odex` (the hen demo's Henon map beside a rotation) | torus curve of the map: R2 (alpha = 3), R3 (1.25), TTR (1.1), R4 (0), R1 (-1), the exact places of x = -cos(theta) | R2 up agrees; R3, TTR, R4 are detected down, but the singular R1 endpoint differs (W404 below) |
 | `henon_rot_pd` | the same | flip curve: PTR (0.5139, 3.1198), R2 (3), LPD (0, -1), PTR (0.0195, 1.4136) | both directions agree, including PTR, R2 and LPD (W404) |
 | `henon_rot_lp` | the same | fold curve: LTR (-0.0127, -0.7873), LPD (0, -1), R1 (-1, 1) | both directions agree, including LTR, LPD and R1 (W404) |
-| `tstauto_torx_homcont` (curve skipped) | `examples/tstauto/torx.odex` at the cir demo's parameters | HomCont, three dimensions (one real unstable eigenvalue, a stable pair): the curve in (rn, be) from (-0.721309, 0.6), an LP at (-0.71809, 0.54238) | runs; the same LP, but the orbit's norm differs at the first point (0.214167 against 0.214053), W365 |
+| `tstauto_torx_homcont` | `examples/tstauto/torx.odex` at the cir demo's parameters | HomCont, three dimensions (one real unstable eigenvalue, a stable pair): the curve in (rn, be) from (-0.721309, 0.6), an LP at (-0.71809, 0.54238) | agrees, the first point and the LP to 2e-9 and 4e-8 (W365 below) |
 
 `hill_cycles` has closed forms: its torus bifurcation is at mu = -c = 0.3 (AUTO-07p 0.3), the resonances of the torus curve
 at sqrt(d) = 1/4, 1/3, 1/2, 2/3, 3/4 for q = 0 (the places above move by about 1e-3 for q = 0.1, the Hill equation's
@@ -551,8 +551,8 @@ description with a reason naming W400 ([#462](https://github.com/MuhammadMoustaf
 | `res_cycles` | `tools/models/res_cycles.odex`: a Hopf cycle beside a Bogdanov-Takens system (w,v) | closed form | torus curve of cycles `c = -mu - sqrt(b)`: R1, R4, R3, R2 at the exact places below | R4 and R3 agree; R2, the BP and R1 are not found (skipped until W405, [#467](https://github.com/MuhammadMoustafa/xppautX/issues/467); traced in W400 below) |
 | `forced_pp_pd` | `tools/models/forced_predator_prey.odex` | Kuznetsov, Muratori, Rinaldi 1992; MatCont Tutorial V (Kuznetsov, Govaerts, Della Rossa, De Witte) | PD of the period-1 cycle; its closed PD curve with R2 at both ends | the R2 at the published end agrees to 6e-7; the far end is 8.5e-5 off (skipped until W405, [#467](https://github.com/MuhammadMoustafa/xppautX/issues/467); traced in W400 below) |
 | `forced_pp_ns` | the same, at b0 = 0.338 | the same | TR of the period-1 cycle; its NS curve to the R2 end, labelled BP; the curve ends at the unforced Hopf point | the curve and its BP agree |
-| `lorenz_homoclinic` | `tools/models/lorenz_homoclinic.odex` | Sparrow 1982, Kaplan and Yorke 1979 | HomCont in three dimensions, r = 13.92655741 to 15.5988 in (r, b) | stops at its first step: singular Newton system (PENDING W365) |
-| `explicit_homoclinic` | `tools/models/explicit_homoclinic.odex` | closed form | HomCont in three dimensions, q = 1 to 3.0145 on k = 0 | stops at its second point: no convergence at DSMIN (PENDING W365) |
+| `lorenz_homoclinic` | `tools/models/lorenz_homoclinic.odex` | Sparrow 1982, Kaplan and Yorke 1979 | HomCont in three dimensions, r = 13.92655741 to 15.6085 in (r, b) | agrees, the whole curve to 6e-8 (W365 below) |
+| `explicit_homoclinic` | `tools/models/explicit_homoclinic.odex` | closed form | HomCont in three dimensions, q = 1 to 3.0145 on k = 0 | agrees, and with the closed form to 2e-8 (W365 below) |
 
 **R1 on a cycle curve (`res_cycles`).** The cycle `(x,y) = sqrt(mu)(cos t, sin t)`, `(w,v) = (sqrt(b), 0)` has period 2 pi and, besides
 the trivial multiplier, `exp(2 pi lambda)` for the eigenvalues of `lambda^2 + (c+mu+w) lambda + 2w = 0`: the torus curve is
@@ -602,9 +602,11 @@ header comment lists their values.
 -18.130 at r = 13.9266: one unstable and two stable, where HomCont's projection matters. The published homoclinic r is 13.926; the orbit
 from the unstable manifold (x = 1e-4) returns to the origin along the z axis, and bisecting on its side finds r = 13.92655741
 (the description's start, the model's value). AUTO-07p's Newton solution of the boundary value problem leaves r at 13.92655741 and
-continues the curve in (r, b) to (15.5988, 3.0903). It does so only with the shorter truncated interval 4.6 and 200 mesh intervals: from
-5.8 and 35 intervals, with the orbit's far end at 6e-4 from the origin, the first Newton step diverges (singular pivot). From r = 13.9265
-or 13.926 the first point does not converge either.
+continues the curve in (r, b) to (15.6085, 3.0927). It does so only with the shorter truncated interval 4.6 and about 200 mesh
+intervals: from 5.8 and 35 intervals, with the orbit's far end at 6e-4 from the origin, the first Newton step diverges (singular
+pivot). From r = 13.9265 or 13.926 the first point does not converge either. W365 takes 230 intervals (from 200, which reached
+(15.5988, 3.0903)): a mesh point every 0.005 time units is a row of the settle's integration with step 0.001, so the two programs'
+starting orbits are the same RK4 values (W365 below).
 
 **An explicit homoclinic orbit.** `x' = y`, `y' = q (x - x^2) - k y`, `z' = -2 (z - x^2) + 2 x y`: at k = 0 the orbit
 `x = 3/2 sech^2(sqrt(q) t/2)`, `y = x'`, `z = x^2` is homoclinic to the origin (eigenvalues sqrt(q), -sqrt(q), -2) for every q. The loop's
@@ -616,8 +618,8 @@ L2 norm over the interval 22 is `sqrt((int x^2 + y^2 + z^2 dt)/22)`, and AUTO-07
 | 3.0145499523 | 0.70294597955 | 0.70294597391 | -1.5e-10 |
 
 Over the 45 points of the curve k stays within 2.3e-10 of 0 and the norm within 1.7e-7 of the closed form (the difference is the
-window: the orbit starts at x = 1e-4 and not at the end of the integral). W365's projection can be judged against this exact orbit.
-xppautX's HomCont run stops at the second point for this model and at the first for Lorenz's.
+window: the orbit starts at x = 1e-4 and not at the end of the integral). Since W365 xppautX's run agrees: 0.86489994504 at q = 1
+and 0.70294598013 at its last point, q = 3.0145499362.
 
 ## W400: R1-R4 on curves of cycles ([#462](https://github.com/MuhammadMoustafa/xppautX/issues/462))
 
@@ -720,3 +722,40 @@ All four runs stay skipped, each with its reason in the description. What W405 f
   admitting the fold branch at a singular endpoint.
 
 The comparison needed no change: the tolerances are as before.
+
+## W365: HomCont projection ([#427](https://github.com/MuhammadMoustafa/xppautX/issues/427))
+
+HomCont's end conditions are AUTO-07p 0.9.4's (homcont.f90 PRJCTN, EIGHO, BCHO, ICHO), written on our own
+numerical helpers (orthes, ortran, hqr3lc, ge, rg): each projection takes exactly NSTAB stable or NUNSTAB unstable
+ordered Schur vectors at machine precision (XPPAUT's AUTO split at `compzero`), reversed for a negative interval;
+the first call's basis is kept as it is and Beyn's normalisation makes the later ones continuous with it; the boundary
+Jacobian's difference quotients use the saved basis without replacing it (xppaut-findings.md, finding 68); the
+equilibria's eigenvectors are DGEEV's (unit length, a complex one turned so its largest component is real); the
+phase conditions' derivatives are exact. Homoclinic info refuses dimensions that do not add up to the model's.
+
+The three runs W402 and W403 skipped were not held back by the projection: the first pass of that code alone
+changed none of their numbers, and with the old projection and the fixes below all three agree too (the projection
+moves their diagrams by at most 5e-11, 4.5e-8 and 2e-10 relative). What differed:
+
+- `tools/autocompare.py` started a run from the current state with the parameters the run before it had left: the
+  torx HomCont run started at rn = 1.6e-7, the end of its steady run, where AUTO-07p's STPNT starts every run at
+  the description's values. A later run from the current state now sets them again.
+- A homoclinic start sampled the integrated orbit with an interpolation weight not divided by the step
+  (finding 69): the explicit orbit's first L2 norm was 0.8659934 at q = 1, against AUTO-07p's 0.8648999632.
+- The first point of a HomCont run is its starting data, which neither program corrects (AUTO-07p CNRLBV), and the
+  phase condition carries it along the curve, so both programs must start from the same integration. xppautX's
+  interval was its last stored time (36.1 for torx's settle of 36.13 at the model's step 0.05), and Lorenz's orbit
+  magnifies a change of integrator (RK4 at 1e-3 and at 1e-4 differ by 7e-3). The three settles now integrate with
+  step 0.001, which `tools/auto_reference.py` takes from the description for AUTO-07p's orbit, and Lorenz's mesh has
+  230 intervals, a mesh point on every fifth row; Lorenz's reference was regenerated for that mesh (explicit's and
+  torx's came out byte for byte the same).
+- `autocompare` did not count a HomCont run's first point as its start (EP).
+
+Before: torx's first norm 0.214167 against AUTO-07p's 0.214053 (in the description's order, from rn = 1.6e-7), Lorenz
+stopped at its first step, the explicit orbit at its second point. After, against AUTO-07p: torx's first norm to
+2.2e-9 (0.21405289126) and its LP to 4e-8, the curve within its tolerances; Lorenz's whole curve to 6.6e-8, ending at
+(15.6085, 3.0927); the explicit orbit's to 5.2e-8, and against the closed form 0.86489994504 at q = 1 (0.86489996419)
+and 0.70294598013 at q = 3.0145499362 (0.70294597391). The three skips are dropped; tstauto_tstheti_homcont's
+diagram moves by 5e-11 relative (the exact phase derivatives and the machine-precision Schur vectors), every other
+diagram and the example checksums are unchanged. The comparison: 52 descriptions, 9 skipped, 9982 stored points,
+126 checks, zero failures; 118 special points against AUTO-07p (114 before).

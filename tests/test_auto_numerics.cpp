@@ -50,7 +50,6 @@ constexpr std::array expected{
     0xdd349a10d75201e4ULL, // Schur dense, stable: work, status, vectors, roots, types
     0x0e63480b71848686ULL, // Schur conjugate, unstable: work, status, vectors, roots, types
     0xa13b817f19765a9eULL, // Schur dense, unstable: work, status, vectors, roots, types
-    0xe2a7aa2b579f4635ULL, // HomCont eigho/prjctn: statuses, arrays, continuity vectors/flags; eig errors, roots, fort.9
 };
 
 constexpr integer n = 3; // Small matrices allow every overwritten element to be compared.
@@ -291,87 +290,136 @@ std::uint64_t blas_helpers()
     return digest;
 }
 
-std::uint64_t homcont()
+void homcont()
 {
-    std::uint64_t digest = fnv_offset_basis;
     xpp::TempDir temp;
     std::string path = temp.path() + "/numerics.odex";
     auto writer = xpp::Writer::binary(path);
-    /* One unstable real root and a stable conjugate pair; p changes the basis
-       so second calls exercise vector sign and Beyn projection continuity. */
-    CHECK(writer.write("par p=0.2\nx'=x+p*y\ny'=-y-2*z\nz'=2*y-z\n") && writer.commit());
+    CHECK(writer.write("par p=0.2,s=0\nx'=(1+s)*x+p*y\ny'=(-1+s)*y-2*z\nz'=2*y+(-1+s)*z\n") && writer.commit());
     char name[] = "test_auto_numerics";
     char *argv[] = {name, path.data(), nullptr};
     const auto loaded = xpp::load_model(2, argv, 1);
     CHECK(loaded.has_value());
-    if (!loaded) return digest;
+    if (!loaded) return;
     auto &session = xpp::client_session();
     CHECK(xpp::ensure_exact_jacobian(session));
     session.numerics.jacobian = xpp::JACOBIAN_EXACT;
     auto &lib = session.auto_lib;
     lib.session = &session;
     lib.parameter_count = session.auto_state.parameter_layout.size();
-    lib.homcont.blhme.ieigc.assign(2,0);
-    lib.homcont.blhme.vrprev.assign(2*n*n,0.);
-    lib.homcont.beyn.iflag.assign(4,0);
-    lib.homcont.beyn.cprev.assign(4*n*n,0.);
-    lib.homcont.blhom.nstab = 2;
-    lib.homcont.blhom.nunstab = 1;
-    lib.homcont.blhma.compzero = auto_hmachho;
-    auto new_state = lib.homcont;
-    std::array projection_new{lib.homcont,lib.homcont};
     iap_type iap{};
-    iap.lib = &lib; iap.ndim = n; iap.ndm = n; iap.nfpr = 1;
-    iap.iid = xpp::auto_ge_pivot_iid; // Keep the pre-W359 diagnostic digest at full verbosity.
-    std::array<integer, 1> icp{session.auto_state.parameter_layout.solver_index(0)};
+    iap.lib = &lib; iap.ndim = n; iap.ndm = n; iap.nfpr = 2;
+    std::array<integer, 2> icp{session.auto_state.parameter_layout.solver_index(0),
+                               session.auto_state.parameter_layout.solver_index(1)};
     std::vector<double> par(lib.parameter_count), dfdp(n*lib.parameter_count);
     std::array<double,n> equilibrium{}, rr{}, ri{};
     std::array<double,n*n> a{}, zz{}, vectors{}, bound{};
     xpp::UniqueFile log(std::tmpfile());
     CHECK(log);
-    if (!log) return digest;
+    if (!log) return;
+    lib.fp9 = log.get();
     integer dim = n;
-    for (integer transpose : {1,2}) for (integer endpoint : {1,2}) for (double p : {.2,.3}) {
-        par[icp[0]] = p;
-        lib.homcont = new_state;
-        lib.fp9 = log.get();
-        const auto eigho_status = xpp::eigho(&iap, &endpoint, &transpose, rr.data(), ri.data(), vectors.data(), equilibrium.data(), icp.data(), par.data(), &dim, a.data(), dfdp.data(), zz.data());
-        CHECK(eigho_status == 0);
-        new_state = lib.homcont;
-        fold(digest, eigho_status);
-        fold(digest, rr); fold(digest, ri); fold(digest, vectors); fold(digest, a); fold(digest, zz); fold(digest, dfdp);
-        fold(digest, new_state.blhme.vrprev);
-        fold(digest, new_state.blhme.ieigc);
-        for (integer manifold : {-1,1}) {
-            const size_t side = manifold == -1 ? 0 : 1;
-            lib.homcont = projection_new[side];
-            lib.fp9 = log.get();
-            const auto projection_status = xpp::prjctn(&iap, bound.data(), equilibrium.data(), icp.data(), par.data(), &manifold, &endpoint, &transpose, &dim, a.data(), dfdp.data());
-            CHECK(projection_status == 0);
-            projection_new[side] = lib.homcont;
-            fold(digest, projection_status);
-            fold(digest, bound); fold(digest, a); fold(digest, dfdp);
-            fold(digest, projection_new[side].beyn.cprev);
-            fold(digest, projection_new[side].beyn.iflag);
+    constexpr double tolerance = 1e-12; // Analytic invariant-subspace identities on a small, well-conditioned matrix.
+    for (bool reverse : {false,true}) for (double shift : {0.,2.}) {
+        par[xpp::auto_unknown::period] = reverse ? -1. : 1.;
+        par[icp[1]] = shift;
+        lib.homcont.blhom.nstab = reverse ? 1 : 2;
+        lib.homcont.blhom.nunstab = reverse ? 2 : 1;
+        lib.homcont.blhme.ieigc.assign(2,0);
+        lib.homcont.blhme.vrprev.assign(2*n*n,0.);
+        lib.homcont.beyn.iflag.assign(4,0);
+        lib.homcont.beyn.cprev.assign(4*n*n,0.);
+        for (bool transpose : {true,false}) for (auto endpoint : {xpp::HomcontEndpoint::left,xpp::HomcontEndpoint::right}) {
+            // Actual boundary/adjoint calls use one manifold per endpoint/transpose slot.
+            const bool stable = (endpoint == xpp::HomcontEndpoint::left) == transpose;
+            const auto manifold = stable ? xpp::HomcontManifold::stable : xpp::HomcontManifold::unstable;
+            const integer count = stable ? lib.homcont.blhom.nstab : lib.homcont.blhom.nunstab;
+            const integer first = stable ? 0 : n-count;
+            const bool pair = stable != reverse;
+            for (double p : {.2,.3}) {
+                par[icp[0]] = p;
+                CHECK(xpp::prjctn(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),true) == 0);
+                for (integer row=first; row<first+count; ++row) {
+                    const double x=bound[row], y=bound[row+n], z=bound[row+2*n];
+                    CHECK(std::isfinite(x) && std::isfinite(y) && std::isfinite(z));
+                    CHECK(x*x+y*y+z*z > .1);
+                    if (pair) CHECK(std::abs(transpose ? x : x+p*(y-z)/4.) < tolerance);
+                    else if (transpose) {
+                        CHECK(std::abs(y-p*x/4.) < tolerance);
+                        CHECK(std::abs(z+p*x/4.) < tolerance);
+                    } else CHECK(std::abs(y)+std::abs(z) < tolerance);
+                }
+                if (count == 2) {
+                    double aa=0., bb=0., ab=0.;
+                    for (integer col=0; col<n; ++col) {
+                        const double a0=bound[first+col*n], b0=bound[first+1+col*n];
+                        aa+=a0*a0; bb+=b0*b0; ab+=a0*b0;
+                    }
+                    CHECK(aa*bb-ab*ab > .1); // The two boundary rows span a plane.
+                }
+                const auto saved = lib.homcont.beyn.cprev;
+                const auto flags = lib.homcont.beyn.iflag;
+                const auto original = bound;
+                par[icp[0]] += auto_hmach;
+                CHECK(xpp::prjctn(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),false) == 0);
+                CHECK(lib.homcont.beyn.cprev == saved && lib.homcont.beyn.iflag == flags);
+                par[icp[0]] = p;
+                CHECK(xpp::prjctn(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),false) == 0);
+                for (integer row=first; row<first+count; ++row)
+                    for (integer col=0; col<n; ++col) CHECK(std::abs(bound[row+col*n]-original[row+col*n]) < tolerance);
+            }
+        }
+        // The real root has a unit eigenvector; the complex pair's shared
+        // real part is orthogonal to it in the uncoupled block (p=0).
+        par[icp[0]] = 0.;
+        for (integer transpose : {1,2}) {
+            integer endpoint = 1;
+            CHECK(xpp::eigho(&iap,&endpoint,&transpose,rr.data(),ri.data(),vectors.data(),equilibrium.data(),icp.data(),par.data(),&dim,a.data(),dfdp.data(),zz.data()) == 0);
+            CHECK(rr[0] <= rr[1] && rr[1] <= rr[2]);
+            const integer real = reverse ? 0 : 2;
+            CHECK(std::abs(vectors[real]-1.) < tolerance);
+            CHECK(std::abs(rr[real]-(reverse ? -1.-shift : 1.+shift)) < tolerance);
+            // The pair's unit vector (0,1,-+i)/sqrt(2), turned so that its largest
+            // component is real (LAPACK DGEEV): a real part of length 1/sqrt(2) on an axis.
+            for (integer row : {(real+1)%n, (real+2)%n}) {
+                const double x=vectors[row], y=vectors[row+n], z=vectors[row+2*n];
+                CHECK(std::abs(x) < tolerance);
+                CHECK(std::abs(std::max(std::abs(y),std::abs(z))-std::sqrt(.5)) < tolerance);
+                CHECK(std::abs(std::min(std::abs(y),std::abs(z))) < tolerance);
+            }
         }
     }
-    /* AUTO's root adapter and its failed-dimension diagnostic are independent
-       of the HomCont vector interface above. */
-    for (integer leading : {n, n-1}) {
+    // Retain the independent root adapter and invalid-leading-dimension checks.
+    for (integer leading : {n,n-1}) {
         a = {2.,0.,0., 0.,-1.,2., 0.,-2.,-1.};
         std::array<doublecomplex,n> ev{};
         integer error = -1;
-        lib.fp9 = log.get();
         const auto message = failure([&] { xpp::eig(&iap,&dim,&leading,a.data(),ev.data(),&error); });
-        fold(digest, message); fold(digest, error);
-        fold(digest, a);
-        for (integer i=0; i<n; ++i) {
-            fold(digest, ev[i].r); fold(digest, ev[i].i);
+        CHECK((leading == n) == message.empty());
+        CHECK(error == (leading == n ? 0 : 1));
+        if (leading == n) {
+            bool real_found=false, positive_found=false, negative_found=false;
+            for (const auto value : ev) {
+                if (std::abs(value.r-2.) < tolerance && std::abs(value.i) < tolerance) real_found=true;
+                if (std::abs(value.r+1.) < tolerance && std::abs(value.i-2.) < tolerance) positive_found=true;
+                if (std::abs(value.r+1.) < tolerance && std::abs(value.i+2.) < tolerance) negative_found=true;
+            }
+            CHECK(real_found && positive_found && negative_found);
         }
     }
-    fold(digest, contents(log.get()));
+    // The phase row has exact linear derivatives in states and zero parameter derivatives.
+    lib.homcont.blhom.nrev = 0;
+    lib.homcont.blhom.itwist = 0;
+    iap.nint = 1;
+    rap_type rap{};
+    const std::array<double,n> old{1.,2.,3.}, state{1.5,1.,5.}, tangent{.25,-.5,2.};
+    std::array<double,1> phase{};
+    std::vector<double> derivative(n+lib.parameter_count, 99.);
+    CHECK(icho(&iap,&rap,n,par.data(),icp.data(),1,state.data(),old.data(),tangent.data(),tangent.data(),phase.data(),1,derivative.data()) == 0);
+    CHECK(phase[0] == 4.625);
+    for (integer column=0; column<n+lib.parameter_count; ++column)
+        CHECK(derivative[column] == (column<n ? tangent[column] : 0.));
     lib.fp9 = nullptr;
-    return digest;
 }
 } // namespace
 
@@ -429,7 +477,7 @@ int main()
         CHECK(schur(conjugate,manifold) == expected[case_index++]);
         CHECK(schur(dense,manifold) == expected[case_index++]);
     }
-    CHECK(homcont() == expected[case_index++]);
+    homcont();
     CHECK(case_index == expected.size());
     TEST_REPORT("auto_numerics");
 }

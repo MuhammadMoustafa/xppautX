@@ -40,7 +40,8 @@
       "kind": "homoclinic",
       "start": {
         "state": "current",
-        "settle": 4.6
+        "settle": 4.6,
+        "step": 0.001
       },
       "parameters": [
         "r",
@@ -68,14 +69,13 @@
         "npr": 100,
         "parmin": 0,
         "parmax": 30,
-        "ntst": 200,
+        "ntst": 230,
         "ncol": 4,
         "epsl": 1e-07,
         "epsu": 1e-07,
         "epss": 1e-05,
         "mxbf": 0
-      },
-      "skip": "PENDING W365 (#427): xppautX's HomCont run stops at its first step (the linear system of a Newton step is singular); AUTO-07p continues it from r=13.92655741 to r=15.6"
+      }
     }
   ]
 }

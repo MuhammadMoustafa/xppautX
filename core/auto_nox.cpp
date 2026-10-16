@@ -1662,26 +1662,6 @@ void find_best_homo_shift(xpp::Session &s, int n)
   s.auto_state.homo_shift=tshift;
   xpp::log_auto("shifting {:g}\n",s.auto_state.homo_shift);
 }
-void get_shifted_orbit(xpp::Session &s, double *u, double t, double p, int n)
-{
-  double ts;
-  int i,i1,i2,ip,j;
-  double lam;
-  if(t>1.0)t-=1.0;
-  if(t<0.0)t+=1.0;
-  ts=fmod(t*p+s.auto_state.homo_shift,p);
-  for(i=0;i<s.data_store.rows;i++){
-    ip=(i+1)%s.data_store.rows;
-    if((ts>=s.data_store.col[0][i])&&(ts<s.data_store.col[0][ip])){
-      i1=i;
-      i2=ip;
-      lam=ts-s.data_store.col[0][i];
-      for(j=0;j<n;j++)
-	u[j]=(1.0-lam)*s.data_store.col[j+1][i1]+lam*s.data_store.col[j+1][i2];
-      break;
-    }
-  }
-}
 void get_start_orbit(xpp::Session &s, double *u, double t, double p, int n)
 {
   double tnorm,lam;
@@ -2151,8 +2131,16 @@ int get_homo_info(xpp::Session &s, int flg,int *nun,int *nst,double *ul, double 
     flag=do_string_box_of(n/2,2,"Homoclinic info",names.data(),v,kinds.data());
   }
   if(flag!=0){
-    *nun=atoi(v[0].c_str());
-    *nst=atoi(v[s.model().node+1].c_str());
+    const int unstable=atoi(v[0].c_str()),stable=atoi(v[s.model().node+1].c_str());
+    /* HomCont's projection takes that many directions at each end: one
+       condition for each of the equilibrium's dimensions */
+    if(unstable<0||stable<0||unstable+stable!=s.model().node){
+      command_error("auto",xpp::format("dim unstable ({}) and dim stable ({}) must add up to the number of variables, {}",
+                                       unstable,stable,s.model().node));
+      return 0;
+    }
+    *nun=unstable;
+    *nst=stable;
     for(i=0;i<s.model().node;i++){
       ul[i]=atof(v[i+1].c_str());
       if(s.auto_state.homo_flag==2)
@@ -2205,13 +2193,13 @@ void auto_start_at_homoclinic(xpp::Session &s)
   s.auto_state.bifur.isp=0;
   s.auto_state.bifur.nbc=0;
   
-  if(s.auto_state.homo_flag==1){
+  if(s.auto_state.homo_flag==1)
     s.auto_state.run.iequib=1;
-    find_best_homo_shift(s, s.model().node);
-  }
   if(s.auto_state.homo_flag==2)
     s.auto_state.run.iequib=-2;
   flag=get_homo_info(s, s.auto_state.homo_flag,&s.auto_state.run.nunstab,&s.auto_state.run.nstab,s.auto_state.homo_l.data(),s.auto_state.homo_r.data());
+  /* the shift is measured from the equilibrium the form has just given */
+  if(flag&&s.auto_state.homo_flag==1)find_best_homo_shift(s, s.model().node);
   if(flag)do_auto(s, opn,cls,s.auto_state.bifur.itp);
 
 }

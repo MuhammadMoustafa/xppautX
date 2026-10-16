@@ -26,8 +26,8 @@ BASE = ROOT / 'tests/auto'
 # Plenty of room for slow CI/sanitizers, never a numerical acceptance criterion.
 TIMEOUT = 120 * SLOW
 DIAGRAM_MEMBER = 'auto/diagram.csv'  # the session file's diagram (core/xpp_session_auto.h)
-KINDS = {'equilibrium', 'periodic', 'two_parameter', 'fixed_period', 'bvp',
-         'homoclinic', 'heteroclinic'}
+HOMCONT = ('homoclinic', 'heteroclinic')
+KINDS = {'equilibrium', 'periodic', 'two_parameter', 'fixed_period', 'bvp', *HOMCONT}
 NUMERICS = {'nmax': 'nmx', 'parmin': 'rl0', 'parmax': 'rl1',
             **{k: k for k in ('ds', 'dsmin', 'dsmax', 'npr', 'ntst', 'ncol',
                               'epsl', 'epsu', 'epss', 'mxbf', 'iid')}}
@@ -109,16 +109,20 @@ def read_description(path):
         if not isinstance(st, dict):
             raise ValueError('start must be an object')
         if st.get('state') == 'current':
-            members(st, ('state', 'settle'), ('state',))
+            members(st, ('state', 'settle', 'step'), ('state',))
             if 'settle' in st:
                 finite(st['settle'], 'settle', positive=True)
+            if 'step' in st:
+                if 'settle' not in st:
+                    raise ValueError('step is the step of a settle')
+                finite(st['step'], 'step', positive=True)
         else:
             members(st, ('run', 'type', 'index'), ('run', 'type', 'index'))
             if st['run'] not in names or st['type'] not in ('EP', 'LP', 'HB', 'BP', 'PD', 'TR', 'UZ', 'MX'):
                 raise ValueError('start must name an earlier run and point type')
             finite(st['index'], 'index', integer=True, positive=True)
         names.add(r['name'])
-        if r['kind'] in ('homoclinic', 'heteroclinic'):
+        if r['kind'] in HOMCONT:
             connection = r.get('connection')
             members(connection, ('left', 'right', 'nunstab', 'nstab'), ('left', 'right', 'nunstab', 'nstab'))
             for side in ('left', 'right'):
@@ -134,7 +138,7 @@ def read_description(path):
                 raise ValueError('connection dimensions must span the phase space')
         elif 'connection' in r:
             raise ValueError('connection settings require HomCont')
-        if r['kind'] in ('two_parameter', 'fixed_period', 'homoclinic', 'heteroclinic'):
+        if r['kind'] in ('two_parameter', 'fixed_period', *HOMCONT):
             if not isinstance(r.get('parameters'), list) or len(r['parameters']) != 2 or len(set(r['parameters'])) != 2:
                 raise ValueError('two-parameter run needs two distinct parameters')
         elif not isinstance(r.get('parameter'), str) or not r['parameter']:
@@ -181,11 +185,21 @@ def ensure_completed(events, end):
         raise RuntimeError('; '.join(errors) or 'command did not complete (safety timeout)')
 
 
+def restore_start(s, r, values, ranges):
+    """A run from the current state starts from the description's parameters and initial conditions, as
+    AUTO-07p's STPNT starts each of its runs (tools/auto_reference.py): a run before it (`ranges`) left its
+    last point's parameters in the model."""
+    if r['start'].get('state') == 'current' and ranges and values:
+        completed(s, dict(cmd='set', values=values))
+
+
 def execute_run(s, r, diagram, ranges):
     """The replaceable adapter to pre-W306 AUTO keys and asks."""
     start = r['start']
     if start.get('state') == 'current':
         if 'settle' in start:
+            if 'step' in start:
+                completed(s, dict(cmd='set', kind='num', name='dt', value=start['step']))
             completed(s, dict(cmd='set', kind='num', name='total_time', value=start['settle']))
             s.send(cmd='key', key='i')
             events, end = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'g'}}, timeout=TIMEOUT)
@@ -276,6 +290,7 @@ def compute(binary, d, threads):
         ranges = {}
         for r in d['runs']:
             if 'skip' not in r:
+                restore_start(s, r, values, ranges)
                 execute_run(s, r, diagram, ranges)
         return session_diagram(s), len(diagram.points), setting['threads_auto'], ranges
     finally:
@@ -329,7 +344,7 @@ def read_reference(path, d):
     if [r.get('name') for r in ref['runs']] != [r['name'] for r in runs]:
         raise ValueError('runs %s, the description has %s' % ([r.get('name') for r in ref['runs']], [r['name'] for r in runs]))
     for r, dr in zip(ref['runs'], runs):
-        curve = dr['kind'] in ('two_parameter', 'homoclinic', 'heteroclinic')  # a curve's file holds its parameters, its samples and its second value
+        curve = dr['kind'] in ('two_parameter', *HOMCONT)  # a curve's file holds its parameters, its samples and its second value
         axes = 'parameters' if curve else 'parameter'
         members(r, ('name', axes, 'unavailable', 'points', *(('curve',) if curve else ())), ('name', axes, 'points'))
         if r[axes] != dr.get(axes) or not isinstance(r['points'], list):
@@ -471,7 +486,7 @@ def labelled(rows, kind):
             symbol = BIFURCATIONS.get(itp % 10)  # the ordinary kind on a two-parameter curve
         if symbol:
             points.append((symbol, i))
-        elif i == 0 and itp == 9 and kind in ('equilibrium', 'bvp'):
+        elif i == 0 and itp == 9 and kind in ('equilibrium', 'bvp', *HOMCONT):
             points.append(('EP', i))
     return points
 

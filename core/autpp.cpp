@@ -191,8 +191,8 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
   unknowns[xpp::auto_unknown::period]=p;
   if(s.auto_state.homo_flag!=1)get_start_orbit(s,u,t,p,ndim);
   if(s.auto_state.homo_flag==1){
-
-    get_shifted_orbit(s,u,t,p,ndim);
+    /* the orbit from its point nearest the equilibrium (find_best_homo_shift) */
+    get_start_orbit(s,u,t+s.auto_state.homo_shift/p,p,ndim);
     for(i=0;i<ndim;i++){
       unknowns[xpp::auto_unknown::homoclinic_equilibrium_start+i]=s.auto_state.homo_l[i];
 

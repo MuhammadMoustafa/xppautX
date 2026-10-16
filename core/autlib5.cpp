@@ -122,7 +122,7 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Generate the function. */
 
   fbho(iap, rap, ndim, par, icp, nbc, nbc0, &u0[0], &u1[0], &
-       f[0], dfu.data());
+       f[0], dfu.data(), true);
 
   if (ijac == 0) {
     return 0;
@@ -132,19 +132,19 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   ep = xpp::auto_jacobian::central(
       ndim, nbc, u0, uu1.data(), uu2.data(), ff1.data(), ff2.data(),
-      [&](const doublereal *uu, doublereal *ff) { fbho(iap, rap, ndim, par, icp, nbc, nbc0, uu, u1, ff, dfu.data()); },
+      [&](const doublereal *uu, doublereal *ff) { fbho(iap, rap, ndim, par, icp, nbc, nbc0, uu, u1, ff, dfu.data(), false); },
       dbc, dbc_dim1);
 
   /* Derivatives with respect to U1. */
 
   ep = xpp::auto_jacobian::central(
       ndim, nbc, u1, uu1.data(), uu2.data(), ff1.data(), ff2.data(),
-      [&](const doublereal *uu, doublereal *ff) { fbho(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu, ff, dfu.data()); },
+      [&](const doublereal *uu, doublereal *ff) { fbho(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu, ff, dfu.data(), false); },
       dbc + ndim * dbc_dim1, dbc_dim1);
 
   xpp::auto_jacobian::forward_parameters(
       nfpr, nbc, icp, ep, par,
-      [&](doublereal *ff) { fbho(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1 , ff, dfu.data()); },
+      [&](doublereal *ff) { fbho(iap, rap, ndim, par, icp, nbc, nbc0, u0, u1 , ff, dfu.data(), false); },
       f, ff2.data(), dbc, dbc_dim1, ndim * 2);
 
   return 0;
@@ -152,7 +152,7 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
 /*     ---------- ---- */
 /* Subroutine */ int 
-fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, integer nbc0, const doublereal *u0, const doublereal *u1, doublereal *fb, doublereal *dbc)
+fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, integer nbc0, const doublereal *u0, const doublereal *u1, doublereal *fb, doublereal *dbc, bool save_basis)
 {
 
     /* Local variables */
@@ -236,7 +236,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   if (iap->lib->homcont.blhom.istart != 3) {
     /*        *Projection boundary conditions for the homoclinic orbit */
     /*        *NSTAB boundary conditions at t=0 */
-    prjcti(iap, bound.data(), xequib1.data(), icp, par, -1, 1, 1, &ndm);
+    prjcti(iap, bound.data(), xequib1.data(), icp, par, xpp::HomcontManifold::stable, xpp::HomcontEndpoint::left, true, &ndm, save_basis);
     for (i = 0; i < iap->lib->homcont.blhom.nstab; ++i) {
       for (k = 0; k < ndm; ++k) {
 	fb[-1 + jb] += (u0[k] - xequib1[k]) * bound[i + k * (iap->ndm)];
@@ -246,8 +246,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     /*        *NUNSTAB boundary conditions at t=1 */
     if (iap->lib->homcont.blhom.nrev == 0) {
-      prjcti(iap, bound.data(), xequib2.data(), icp, par, 1, 2, 1, &
-	     ndm);
+      prjcti(iap, bound.data(), xequib2.data(), icp, par, xpp::HomcontManifold::unstable, xpp::HomcontEndpoint::right, true, &ndm, save_basis);
       for (i = ndm - iap->lib->homcont.blhom.nunstab; i < ndm; ++i) {
 	for (k = 0; k < ndm; ++k) {
 	  fb[-1 + jb] += (u1[k] - xequib2[k]) * bound[i + k * (iap->ndm)];
@@ -277,8 +276,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
      */
     if (iap->lib->homcont.blhom.nfixed > 0) {
       if (ieig == 0) {
-	eighi(iap, 1, 2, rr.data(), ri.data(), vr.data(), xequib1.data(), icp, par, &
-	      ndm);
+	eighi(iap, 1, 2, rr.data(), ri.data(), vr.data(), xequib1.data(), icp, par, &ndm);
 	ieig = 1;
       }
       for (i = 0; i < iap->lib->homcont.blhom.nfixed; ++i) {
@@ -322,7 +320,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     if (iap->lib->homcont.blhom.itwist == 1) {
       /*           *-orthogonal to the unstable directions of A  at t=0 
        */
-      prjcti(iap, bound.data(), xequib1.data(), icp, par, 1, 1, 2, &ndm);
+      prjcti(iap, bound.data(), xequib1.data(), icp, par, xpp::HomcontManifold::unstable, xpp::HomcontEndpoint::left, false, &ndm, save_basis);
       for (i = ndm - iap->lib->homcont.blhom.nunstab; i < ndm; ++i) {
 	dum = 0.;
 	for (k = 0; k < ndm; ++k) {
@@ -332,7 +330,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 	++jb;
       }
       /*           *-orthogonal to the stable directions of A  at t=1 */
-      prjcti(iap, bound.data(), xequib2.data(), icp, par, -1, 2, 2, &ndm);
+      prjcti(iap, bound.data(), xequib2.data(), icp, par, xpp::HomcontManifold::stable, xpp::HomcontEndpoint::right, false, &ndm, save_basis);
       for (i = 0; i < iap->lib->homcont.blhom.nstab; ++i) {
 	dum = 0.;
 	for (k = 0; k < ndm; ++k) {
@@ -438,7 +436,20 @@ t=1 */
 /* Subroutine */ int 
 icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
-  return xpp::auto_jacobian::integral(iap, rap, ndim, par, icp, nint, u, uold, udot, upold, f, ijac, dint, fiho);
+  fiho(iap, rap, ndim, par, icp, nint, iap->nnt0, u, uold, udot, upold, f, dint);
+  if (ijac == 0) return 0;
+  /* The phase conditions are linear: their derivatives are exact (AUTO-07p ICHO). */
+  const integer ndm = iap->ndm;
+  for (integer entry = 0; entry < nint * (ndim + iap->lib->parameter_count); ++entry) dint[entry] = 0.;
+  integer row = 0;
+  if (iap->lib->homcont.blhom.nrev == 0) {
+    for (integer i = 0; i < ndm; ++i) dint[row + i*nint] = upold[i];
+    ++row;
+  }
+  if (iap->lib->homcont.blhom.itwist == 1) {
+    for (integer i = 0; i < ndm; ++i) dint[row + (ndm + i)*nint] = uold[ndm + i];
+  }
+  return 0;
 } /* icho_ */
 
 /*     ---------- ---- */
@@ -1203,13 +1214,13 @@ eighi(const iap_type *iap, integer isign, integer itrans, doublereal *rr, double
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-prjcti(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer imfd, integer is, integer itrans, integer *ndm)
+prjcti(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, xpp::HomcontManifold manifold, xpp::HomcontEndpoint endpoint, bool transpose, integer *ndm, bool save_basis)
 {
   
   std::vector<doublereal> dfdp(xpp::size_product(*ndm, iap->lib->parameter_count));
   std::vector<doublereal> dfdu(xpp::size_product(*ndm, *ndm));
   
-  xpp::prjctn(iap, bound, xequib, icp, par, &imfd, &is, &itrans, ndm, dfdu.data(), dfdp.data());
+  xpp::prjctn(iap, bound, xequib, icp, par, manifold, endpoint, transpose, *ndm, dfdu.data(), dfdp.data(), save_basis);
   
   return 0;
 } /* prjcti */

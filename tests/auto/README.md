@@ -17,8 +17,13 @@ maps these names to today's protocol fields, not to recording keys.
 
 A `start` is `{"state":"current"}`, optionally with `"settle":30`
 (integrate for 30 model-time units, then copy the ending values to the
-initial conditions). For periodic/BVP starts that integration supplies
-the orbit too. A stored start is `{"run":"steady","type":"HB","index":1}`:
+initial conditions) and `"step":0.001`, the settle's integration step
+(default: the model's). A run from the current state after another run
+starts again from the description's parameters and initial conditions,
+as AUTO-07p starts each of its runs (W365). For periodic/BVP starts that
+integration supplies the orbit too; a HomCont run's first point is that
+orbit uncorrected in both programs, and `tools/auto_reference.py`
+integrates AUTO-07p's with the same step. A stored start is `{"run":"steady","type":"HB","index":1}`:
 the first HB in that named run, grabbed by its label. Indices are one-based
 within the named run, not across the whole diagram. `switch:true` requests
 branch switching. A model or individual run may instead carry `skip` with
@@ -75,7 +80,8 @@ that fixes it) is read with the file but not compared; the card that makes xppau
 
 W403 (#465) adds references from published models and models of our own (`res_cycles`, `forced_pp_pd`, `forced_pp_ns`,
 `lorenz_homoclinic`, `explicit_homoclinic`; docs/auto-references.md, "W403"): the curves xppautX runs but does not label, and the
-HomCont runs it cannot follow, are skipped with PENDING W405 / W365.
+HomCont runs it could not follow were skipped with PENDING W365 until W365 (#427) made them agree; the curves
+stay skipped with PENDING W405.
 
 W404 (#466) runs the Henon-with-rotation map descriptions against AUTO-07p:
 fixed-point PD/TR labels and both map fold/flip directions, plus the torus up direction.

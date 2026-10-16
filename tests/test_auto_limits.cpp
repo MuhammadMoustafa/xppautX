@@ -56,6 +56,16 @@ int main()
     xpp::set_ui(&saved_ui);
     CHECK(unstable==2 && stable==399);
     CHECK(s.auto_state.homo_l[400]==2.75 && s.auto_state.homo_r[400]==3.25);
+    // W365: dimensions that do not add up to the model's start no run and keep the ones before.
+    form_ui.string_box=[](int,int,std::string_view,const char *const *,std::span<std::string> values,const int *) {
+        values[0]="2";
+        values[402]="400";
+        return 1;
+    };
+    xpp::set_ui(&form_ui);
+    CHECK(xpp::get_homo_info(s,2,&unstable,&stable,s.auto_state.homo_l.data(),s.auto_state.homo_r.data())==0);
+    xpp::set_ui(&saved_ui);
+    CHECK(unstable==2 && stable==399);
     s.auto_state.homo_flag=0;
     xpp::AutoSettingsSet set;
     set.par1="P39";

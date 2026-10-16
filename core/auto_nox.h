@@ -203,7 +203,6 @@ void auto_start_at_per(Session &s);
 void find_best_homo_shift(Session &s, int n);
 void get_start_period(Session &s, double *p);
 void get_start_orbit(Session &s, double *u, double t, double p, int n);
-void get_shifted_orbit(Session &s, double *u, double t, double p, int n);
 void auto_new_ss(Session &s);
 void auto_new_discrete(Session &s);
 void auto_extend_ss(Session &s);

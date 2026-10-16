@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from autocompare import BASE, Diagram, compare_curve, compare_run, difference, labelled, read_description, read_reference, reference_spectrum, table_row
+from autocompare import BASE, Diagram, compare_curve, compare_run, difference, labelled, read_description, read_reference, reference_spectrum, restore_start, table_row
 
 
 class AutoCompare(unittest.TestCase):
@@ -40,7 +40,7 @@ class AutoCompare(unittest.TestCase):
     def test_bad_descriptions_fail_before_a_server_starts(self):
         original = json.loads((BASE / 'tstauto_lo.json').read_text())
         bad = []
-        for edit in ('unknown', 'zero_step', 'future_run', 'nan', 'skip_and_runs', 'outside'):
+        for edit in ('unknown', 'zero_step', 'future_run', 'nan', 'skip_and_runs', 'outside', 'step_alone', 'zero_settle_step'):
             d = copy.deepcopy(original)
             if edit == 'unknown':
                 d['runs'][0]['auto']['nmx'] = 10
@@ -52,6 +52,10 @@ class AutoCompare(unittest.TestCase):
                 d['initial_conditions'] = {'x': float('nan')}
             elif edit == 'skip_and_runs':
                 d['skip'] = 'not converged'
+            elif edit == 'step_alone':  # the step of a settle the start does not have
+                d['runs'][0]['start'] = dict(state='current', step=0.001)
+            elif edit == 'zero_settle_step':
+                d['runs'][0]['start'] = dict(state='current', settle=10, step=0)
             else:
                 d['model'] = '../lecar.odex'
             bad.append(d)
@@ -101,6 +105,28 @@ class References(unittest.TestCase):
                          '| m | steady: EP LP | agrees (2 points; par 1e-07, norm 2e-07) | not run |')
         self.assertEqual(table_row('m', d, rows, ['.auto07p'], measures, ['m AUTO-07p/steady x']).split(' | ')[2],
                          'differs: 1 (2 points; par 1e-07, norm 2e-07)')
+
+    def test_a_homcont_runs_first_point_is_its_start(self):
+        rows = [self.row(9, 1.0, 0.86), self.row(0, 1.1, 0.85), self.row(9, 3.0, 0.7)]
+        for kind in ('homoclinic', 'heteroclinic', 'bvp'):
+            self.assertEqual(labelled(rows, kind), [('EP', 0)])
+        self.assertEqual(labelled(rows, 'periodic'), [])
+
+    def test_a_later_run_from_the_current_state_starts_from_the_descriptions(self):
+        class Server:
+            def __init__(self):
+                self.sent = []
+            def send(self, **command):
+                self.sent.append(command)
+            def collect(self, done, timeout):
+                return [dict(ev='idle')], dict(ev='idle')
+        values = [dict(kind='par', name='q', value=1.0)]
+        current, grabbed = dict(start=dict(state='current')), dict(start=dict(run='steady', type='EP', index=1))
+        for r, ranges, sent in ((current, {}, []), (grabbed, {'steady': (0, 3)}, []),
+                                (current, {'steady': (0, 3)}, [dict(cmd='set', values=values)])):
+            s = Server()
+            restore_start(s, r, values, ranges)
+            self.assertEqual(s.sent, sent)
 
     def test_map_intersections_use_full_codes_before_the_last_digit(self):
         rows=[self.row(code,0.,0.) for code in (23,28,77,78,83,87,88,-25,-76,-87,-88)]

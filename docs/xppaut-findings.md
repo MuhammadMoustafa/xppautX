@@ -99,6 +99,8 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [65](#65-plot-curves-frozen-curves-and-windows-have-fixed-limits) | Plots | 10 curves per graph, 26 frozen curves, 21 plot windows | [W376 / #438](https://github.com/MuhammadMoustafa/xppautX/issues/438) |
 | [66](#66-auto-map-fold-continuation-loses-the-map-problem) | AUTO | a map fold restart changes IPS=-1 to flow IPS=1 | [W404 / #466](https://github.com/MuhammadMoustafa/xppautX/issues/466) |
 | [67](#67-the-torus-integral-condition-is-identically-zero) | AUTO | the torus continuation's phase condition compares the eigenfunction with itself, so it is zero for every input | [W407 / #469](https://github.com/MuhammadMoustafa/xppautX/issues/469) |
+| [68](#68-homcont-differentiates-a-changing-projection-basis) | AUTO HomCont | parameter finite differences update the projection history they differentiate | [W365 / #427](https://github.com/MuhammadMoustafa/xppautX/issues/427) |
+| [69](#69-a-homoclinic-start-samples-its-orbit-with-an-unscaled-weight) | AUTO HomCont | the starting orbit is interpolated with a weight not divided by the step, its end wraps to its start, and the shift is found before the equilibrium is given | [W365 / #427](https://github.com/MuhammadMoustafa/xppautX/issues/427) |
 
 ## 1. Model options
 
@@ -1454,3 +1456,58 @@ steps. tests/test_auto_codim.cpp checks the condition directly: a rotated eigenf
 value, and its Jacobian row matches a central difference.
 
 **Card:** [W407 / #469](https://github.com/MuhammadMoustafa/xppautX/issues/469).
+
+## 68. HomCont differentiates a changing projection basis
+
+XPPAUT 8.0's `bcho` differentiates the boundary conditions by perturbing each
+state and free parameter and calling `fbho` again
+([autlib5.c:325](../reference/xppaut-8.0/autlib5.c#L325),
+[master](../reference/xppaut-master/autlib5.c#L325)), and every projection
+`prjctn` computes replaces the previous Beyn basis with the one it returns
+([autlib5.c:2080](../reference/xppaut-8.0/autlib5.c#L2080),
+[master](../reference/xppaut-master/autlib5.c#L2080)). So each perturbed
+evaluation is normalised against the previous perturbed one, and the
+difference quotients differentiate a boundary function that changes with
+them, not the one whose residual they are compared with. AUTO-07p 0.9.4's
+BCHO passes CSAVE=.FALSE. to its perturbed evaluations, which then use the
+saved basis without replacing it (homcont.f90 PRJCTN).
+
+W365 keeps the basis of the unperturbed evaluation only. tests/test_auto_numerics.cpp
+checks, on `x' = (1+s)x + p y`, `y' = (s-1)y - 2z`, `z' = 2y + (s-1)z`, that the
+projections span the analytic eigenspaces and that a perturbed evaluation
+leaves the saved bases and their flags unchanged. On the measured runs the
+effect is below the comparison's tolerances: the three HomCont runs agree
+with AUTO-07p through finding 69's fix and the descriptions' common start.
+
+**Card:** [W365 / #427](https://github.com/MuhammadMoustafa/xppautX/issues/427).
+
+## 69. A homoclinic start samples its orbit with an unscaled weight
+
+XPPAUT 8.0 starts a homoclinic continuation from the last integration, at
+`t*p + HOMO_SHIFT` (`get_shifted_orbit`,
+[auto_nox.c:1759](../reference/xppaut-8.0/auto_nox.c#L1759),
+[master](../reference/xppaut-master/auto_nox.c#L1747)). Three defects:
+
+- The interpolation weight between two stored rows is the time past the
+  first, `lam = ts - storage[0][i]`, not divided by the step
+  ([auto_nox.c:1765](../reference/xppaut-8.0/auto_nox.c#L1765),
+  [master](../reference/xppaut-master/auto_nox.c#L1753)): with a step of 0.05
+  every mesh point takes about the earlier row. The orbit `x = 3/2 sech^2(t/2)`
+  (tools/models/explicit_homoclinic.odex at q = 1) starts with an L2 norm of
+  0.8659934 in XPPAUT's sampling, reproduced to every digit by a script,
+  against 0.8648322 interpolated and 0.8648999642 exactly.
+- `ts` is taken modulo the period, so the orbit's last point (t = 1) is
+  sampled at its first; a time on no stored interval leaves `u` unset.
+- `find_best_homo_shift` measures the distance to `homo_l` before
+  `get_homo_info` has read it from the form
+  ([auto_nox.c:2388](../reference/xppaut-8.0/auto_nox.c#L2388) and
+  [2392](../reference/xppaut-8.0/auto_nox.c#L2392),
+  [master](../reference/xppaut-master/auto_nox.c#L2366)): the shift is
+  found from the previous run's equilibrium.
+
+A HomCont run's first point is its starting data, which neither AUTO
+corrects, and the phase condition carries its offset along the whole
+curve. xppautX now samples the shifted orbit with the interpolation every
+other start uses (`get_start_orbit`) and finds the shift after the form.
+
+**Card:** [W365 / #427](https://github.com/MuhammadMoustafa/xppautX/issues/427).

@@ -5,6 +5,7 @@
 #include "xpp_io.h"
 #include <array>
 #include <vector>
+#include <limits>
 
 namespace xpp {
 namespace {
@@ -1109,6 +1110,10 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
     }
   }
 
+  if (par[xpp::auto_unknown::period] < 0.) {
+    for (integer entry = 0; entry < *ndm * *ndm; ++entry) dfdu[entry] = -dfdu[entry];
+  }
+
   /* EISPACK call for eigenvalues and eigenvectors */
   rg(*ndm, *ndm, dfdu, rr, ri, 1, zz, 
      iv1.data(), fv1.data(), &ifail);
@@ -1160,6 +1165,33 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
     }
   }
 
+  /* AUTO-07p's EIGHO keeps the real parts of LAPACK DGEEV's eigenvectors:
+     unit length, a complex one turned so that its largest component is real;
+     the first call makes each one's largest real component positive. */
+  for (j = 0; j < *ndm; ++j) {
+    const integer stride = 1;
+    doublereal *re = vr.data()+j*(*ndm), *im = vi.data()+j*(*ndm);
+    const double length = xpp::math::hypot(dnrm2(ndm, re, &stride), dnrm2(ndm, im, &stride));
+    if (length > 0.) {
+      for (i = 0; i < *ndm; ++i) {
+        re[i] /= length;
+        im[i] /= length;
+      }
+    }
+    if (ri[j] != 0. && length > 0.) {
+      integer largest = 0;
+      for (i = 1; i < *ndm; ++i)
+        if (re[i]*re[i] + im[i]*im[i] > re[largest]*re[largest] + im[largest]*im[largest]) largest = i;
+      const double f = re[largest], g = im[largest], r = xpp::math::hypot(f, g);
+      for (i = 0; i < *ndm; ++i) re[i] = (re[i]*f + im[i]*g) / r;
+    }
+    if (iap->lib->homcont.blhme.ieigc[*itrans - 1] == 0) {
+      const integer largest = idamax(ndm, re, &stride)-1;
+      if (re[largest] < 0.)
+        for (i = 0; i < *ndm; ++i) re[i] = -re[i];
+    }
+  }
+
   /* Choose sign of real part of eigenvectors to be */
   /* commensurate with that of the corresponding eigenvector */
   /* from the previous call with the same value of ISIGN */
@@ -1202,177 +1234,72 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
   return 0;
 } /* eigho_ */
 
-/* W337: HomCont projections: Householder basis then ordered real Schur hqr3lc,
-   caller compzero tolerance and Beyn continuity via complete-pivot ge.
-   Keep basis, dot-product and solve order: rg eigenvectors are not this basis. */
-/* Subroutine */ int 
-prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer *imfd, integer *is, integer *itrans, integer *ndm, doublereal *dfdu, doublereal *dfdp)
+// W365: AUTO-07p's fixed-dimensional invariant subspaces and Beyn transport,
+// reimplemented using our ordered real Schur and complete-pivot solve owners.
+int prjctn(const iap_type *iap, double *bound, double *xequib, const integer *icp,
+           double *par, HomcontManifold manifold, HomcontEndpoint endpoint,
+           bool transpose, integer n, double *dfdu, double *dfdp, bool save_basis)
 {
-  /* System generated locals */
-  integer dfdu_dim1;
+    const bool stable = manifold == HomcontManifold::stable;
+    const integer count = stable ? iap->lib->homcont.blhom.nstab : iap->lib->homcont.blhom.nunstab;
+    if (n <= 0 || count < 0 || count > n) xpp::auto_fail("Invalid HomCont projection dimension");
+    const integer first = stable ? 0 : n - count; // Preserve HomCont's boundary row layout.
+    const integer slot = (endpoint == HomcontEndpoint::left ? 0 : 1) + (transpose ? 0 : 2);
+    auto &history = iap->lib->homcont.beyn;
+    double *previous = history.cprev.data() + slot * n * n;
+    std::vector<double> f(n), a(xpp::size_product(n,n)), basis(a.size()), work(n), er(n), ei(n);
+    std::vector<integer> types(n);
+    func(*iap->lib->session, n, xequib, icp, iap->nfpr, par, 1, f.data(), dfdu, dfdp);
+    const double direction = par[xpp::auto_unknown::period] < 0. ? -1. : 1.;
+    for (integer j = 0; j < n; ++j)
+        for (integer i = 0; i < n; ++i)
+            a[i+j*n] = direction * dfdu[transpose ? j+i*n : i+j*n];
 
-    /* Local variables */
-  integer i, j, k;
-  integer mcond, k1, k2, m0;
+    integer low = 1;
+    orthes(&n, &n, &low, &n, a.data(), work.data());
+    ortran(&n, &n, &low, &n, a.data(), work.data(), basis.data());
+    for (integer j = 0; j < n; ++j)
+        for (integer i = j+2; i < n; ++i) a[i+j*n] = 0.;
+    double eps = std::numeric_limits<double>::epsilon();
+    integer order = stable ? -1 : 1;
+    hqr3lc(a.data(), basis.data(), &n, &low, &n, &eps, er.data(), ei.data(), types.data(), &n, &n, &order);
+    for (const auto type : types)
+        if (type < 0) xpp::auto_fail("HomCont Schur decomposition did not converge");
+    // Ordered Schur columns select exactly the requested number of lowest or
+    // highest real parts, including when one crosses zero (AUTO-07p PRJCTN).
+    for (integer i = 0; i < count; ++i)
+        for (integer j = 0; j < n; ++j) bound[first+i+j*n] = basis[j+i*n];
 
-  doublereal det, eps;
-
-  std::vector<doublereal> fdum(*ndm);
-  std::vector<doublereal> cnow(xpp::size_product(*ndm, *ndm));
-  std::vector<integer> type__(*ndm);
-  std::vector<doublereal> a(xpp::size_product(*ndm, *ndm));
-  std::vector<doublereal> d(xpp::size_product(*ndm, *ndm));
-  std::vector<doublereal> v(xpp::size_product(*ndm, *ndm));
-  std::vector<doublereal> ei(*ndm);
-  std::vector<doublereal> er(*ndm);
-  std::vector<doublereal> ort(*ndm);
-  std::vector<doublereal> dum1(xpp::size_product(*ndm, *ndm));
-  std::vector<doublereal> dum2(xpp::size_product(*ndm, *ndm));
-
-  /* Compute NUNSTAB (or NSTAB) projection boundary condition functions */
-  /*onto to the UNSTABLE (or STABLE) manifold of the appropriate equilibrium
-   */
-
-/*    IMFD   = -1 stable eigenspace */
-/*           =  1 unstable eigenspace */
-/*    ITRANS =  1 use transpose of A */
-/*           =  2 otherwise */
-/*    IS     =  I (1 or 2) implies use the ith equilibrium in XEQUIB */
-
-/* Use the normalization in Beyn 1990 (4.4) to ensure continuity */
-/* w.r.t parameters. */
-/* For the purposes of this routine the "previous point on the */
-/* branch" is at the values of PAR at which the routine was last */
-/* called with the same values of IS and ITRANS. */
-
-/* Local */
-
-    /* Parameter adjustments */
-    /*--xequib;*/
-    /*--icp;*/
-    /*--par;*/
-  bound -= ((*ndm)+1);
-  dfdu_dim1 = *ndm;
-  
-  func(*iap->lib->session, *ndm, xequib, icp, iap->nfpr, par, 1, fdum.data(), dfdu, dfdp);
-
-  /* Compute transpose of A if ITRANS=1 */
-  if (*itrans == 1) {
-    for (i = 0; i < *ndm; ++i) {
-      for (j = 0; j < *ndm; ++j) {
-	a[i + j * (*ndm)] = ARRAY2D(dfdu, j, i);
-      }
+    const auto keep = [&] {
+        for (integer i = 0; i < count; ++i)
+            for (integer j = 0; j < n; ++j) previous[first+i+j*n] = bound[first+i+j*n];
+    };
+    // The first call's basis becomes the previous one as it is (AUTO-07p PRJCTN).
+    if (history.iflag[slot] == 0) {
+        keep();
+        history.iflag[slot] = 1;
+        return 0;
     }
-  } else {
-    for (i = 0; i < *ndm; ++i) {
-      for (j = 0; j < *ndm; ++j) {
-	a[i + j * (*ndm)] = ARRAY2D(dfdu, i, j);
-      }
-    }
-  }
-
-  /* Compute basis V to put A in upper Hessenberg form */
-  {
-    /* This is here since I don't want to change the calling sequence of the
-       BLAS routines. */
-    integer tmp = 1;
-    orthes((ndm), ndm, &tmp, ndm, a.data(), ort.data());
-    ortran((ndm), ndm, &tmp, ndm, a.data(), ort.data(), v.data());
-  }
-
-  /* Force A to be upper Hessenberg */
-  if (*ndm > 2) {
-    for (i = 2; i < *ndm; ++i) {
-      for (j = 0; j < i - 1; ++j) {
-	a[i + j * (*ndm)] = 0.;
-      }
-    }
-  }
-
-  /* Computes basis to put A in "Quasi Upper-Triangular form" */
-  /* with the positive (negative) eigenvalues first if IMFD =-1 (=1) */
-  eps = iap->lib->homcont.blhma.compzero;
-  {
-    /* This is here since I don't want to change the calling sequence of the
-       BLAS routines. */
-    integer tmp = 1;
-    hqr3lc(a.data(), v.data(), ndm, &tmp, ndm, &eps, er.data(), ei.data(), type__.data(), (ndm), (ndm),
-	   imfd);
-  }
-  /* Put the basis in the appropriate part of the matrix CNOW */
-  if (*imfd == 1) {
-    k1 = *ndm - iap->lib->homcont.blhom.nunstab + 1;
-    k2 = *ndm;
-  } else {
-    k1 = 1;
-    k2 = iap->lib->homcont.blhom.nstab;
-  }
-  mcond = k2 - k1 + 1;
-  m0 = k1 - 1;
-
-  for (i = k1 - 1; i < k2; ++i) {
-    for (j = 0; j < *ndm; ++j) {
-      cnow[i + j * (*ndm)] = v[j + (i - k1 + 1) * (*ndm)];
-    }
-  }
-
-  /* Set previous matrix to be the present one if this is the first call */
-
-    /* Note by Randy Paffenroth:  There is a slight problem here
-       in that this array is used before it is assigned to,
-       hence its value is, in general, undefined.  It has
-       worked because the just happened to be filled
-       with zeros, even though this is not guaranteed.*/
-  if (iap->lib->homcont.beyn.iflag[*is + (*itrans *2 ) - 3] == 0) {
-    for (i = k1 - 1; i < k2; ++i) {
-      for (j = 0; j < *ndm; ++j) {
-	iap->lib->homcont.beyn.cprev[i + (j + ((*is - 1) + ((*itrans - 1) * 2)) * (*ndm)) * (*ndm)] = cnow[i + j * (*ndm)];
-	bound[(i + 1) + (j + 1) * (*ndm)] = cnow[i + j * (*ndm)];
-      }
-    }
-    iap->lib->homcont.beyn.iflag[*is + (*itrans * 2) - 3] = 1;
+    if (count == 0) return 0;
+    // Beyn's normalisation: (P^T V) D = P^T P; the boundary rows are (V D)^T.
+    std::vector<double> overlap(xpp::size_product(count,count)), gram(overlap.size()), transport(overlap.size());
+    for (integer j = 0; j < count; ++j)
+        for (integer i = 0; i < count; ++i)
+            for (integer k = 0; k < n; ++k) {
+                overlap[i+j*count] += previous[first+i+k*n] * basis[k+j*n];
+                gram[i+j*count] += previous[first+i+k*n] * previous[first+j+k*n];
+            }
+    double det = 0.;
+    ge(iap->lib->fp9, iap->iid, count, count, overlap.data(), count, count, transport.data(), count, gram.data(), &det);
+    for (integer i = 0; i < count; ++i)
+        for (integer j = 0; j < n; ++j) {
+            double value = 0.;
+            for (integer k = 0; k < count; ++k) value += basis[j+k*n] * transport[k+i*count];
+            bound[first+i+j*n] = value;
+        }
+    // A finite-difference evaluation (save_basis false) uses the previous basis
+    // without replacing it, or the difference would differentiate its own history.
+    if (save_basis) keep();
     return 0;
-  }
-
-  /* Calculate the (transpose of the) BEYN matrix D and hence BOUND */
-  for (i = 0; i < mcond; ++i) {
-    for (j = 0; j < mcond; ++j) {
-      dum1[i + j * (*ndm)] = 0.;
-      dum2[i + j * (*ndm)] = 0.;
-      {
-	integer tmp;
-	tmp = *ndm;
-	for (k = 0; k < tmp; ++k) {
-	  dum1[i + j * (tmp)] += iap->lib->homcont.beyn.cprev[i + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)] 
-	    * cnow[j + m0 + k * (tmp)];
-	  dum2[i + j * (tmp)] += iap->lib->homcont.beyn.cprev[i + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)] 
-	    * iap->lib->homcont.beyn.cprev[j + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)];
-	}
-      }
-    }
-  }
-
-  if (mcond > 0) {
-    ge(iap->lib->fp9, iap->iid, mcond, *ndm, dum1.data(), mcond, *ndm, d.data(), *ndm,
-       dum2.data(), &det);
-  }
-
-  for (i = 0; i < mcond; ++i) {
-    for (j = 0; j < *ndm; ++j) {
-      bound[(i + 1) + m0 + (j + 1) * (*ndm)] = 0.;
-      for (k = 0; k < mcond; ++k) {
-	bound[(i + 1) + m0 + (j + 1) * (*ndm)] += d[k + i * (*ndm)] * 
-	  cnow[k + m0 + j * (*ndm)];
-      }
-    }
-  }
-
-  for (i = k1 - 1; i < k2; ++i) {
-    for (j = 0; j < *ndm; ++j) {
-      iap->lib->homcont.beyn.cprev[i + (j + ((*is - 1) + ((*itrans - 1) * 2)) * (*ndm)) * (*ndm)] = bound[(i + 1) + (j + 1) * (*ndm)];
-    }
-  }
-
-  return 0;
-} /* prjctn_ */
+}
 } // namespace xpp

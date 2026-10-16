@@ -21,8 +21,10 @@ inline constexpr integer auto_householder_left = 1;         // Householder plane
    ge also returns the determinant. See definitions for singular semantics.
    eig: balanced elementary Hessenberg/QR roots, machine-precision convergence.
    flowkm: SVD-deflated generalized QZ Floquet multipliers, optional deflation.
-   eigho: sorted complex/conjugate eigenvectors with sign continuity.
-   prjctn: ordered Schur invariant subspaces with Beyn projection continuity.
+   eigho: LAPACK DGEEV's unit eigenvectors (a complex one's largest component
+   real), their real parts, signs continuous with the previous call.
+   prjctn: NSTAB/NUNSTAB-dimensional machine-precision ordered Schur subspaces,
+   reversed with negative period; save_basis=false keeps the Beyn history.
    rg: matz=0 roots only, otherwise conjugate eigenvector columns; machine
    precision QR, 30*n total iterations, ierr identifies an unconverged root.
    hqr/hqr2: that same QR with/without eigenvector accumulation.
@@ -31,7 +33,7 @@ inline constexpr integer auto_householder_left = 1;         // Householder plane
    ezsvd/ndsvd: Demmel-Kahan SVD, job selects vector accumulation, tol controls
    convergence and info reports the unconverged bidiagonal block.
    orthes/ortran: Householder reduction and basis, caller's leading dimension;
-   hqr3lc: ordered real Schur basis with caller's compzero convergence tolerance.
+   hqr3lc: ordered real Schur basis with the caller's convergence tolerance.
    BLAS/rotation helpers retain stride, scaling and summation order. */
 int eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev, integer *ier);
 int nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u);
@@ -40,7 +42,9 @@ int flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *ii
 int dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublereal *beta, doublereal *v);
 int dhhap(integer *k, integer *j, integer *n, integer *q, doublereal *beta, doublereal *v, integer *job, doublereal *a, integer *lda);
 int eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm, doublereal *dfdu, doublereal *dfdp, doublereal *zz);
-int prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer *imfd, integer *is, integer *itrans, integer *ndm, doublereal *dfdu, doublereal *dfdp);
+enum class HomcontManifold { stable, unstable };
+enum class HomcontEndpoint { left, right };
+int prjctn(const iap_type *iap, double *bound, double *xequib, const integer *icp, double *par, HomcontManifold manifold, HomcontEndpoint endpoint, bool transpose, integer n, double *dfdu, double *dfdp, bool save_basis);
 int rg(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__, integer *iv1, doublereal *fv1, integer *ierr);
 int hqr(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doublereal *wr, doublereal *wi, integer *ierr);
 int hqr2(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doublereal *wr, doublereal *wi, doublereal *z__, integer *ierr);

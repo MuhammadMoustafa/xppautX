@@ -41,7 +41,8 @@
       "kind": "homoclinic",
       "start": {
         "state": "current",
-        "settle": 36.13
+        "settle": 36.13,
+        "step": 0.001
       },
       "parameters": [
         "rn",
@@ -75,8 +76,7 @@
         "epsu": 1e-07,
         "epss": 1e-05,
         "mxbf": 0
-      },
-      "skip": "PENDING W365 (#427): xppautX's HomCont run of this orbit converges (its LP at point 9, rn -0.71809, be 0.54238, is AUTO-07p's) but its orbit differs at the very first point, where both hold rn and be at -0.721309 and 0.6: the L2 norm is 0.214167 in xppautX and 0.214053 in AUTO-07p 0.9.4 (tests/auto/tstauto_torx_homcont.auto07p.pending), so the projection or interval conditions differ; W365 makes them AUTO-07p's, then renames the reference, drops this skip and rewrites the baseline"
+      }
     }
   ]
 }

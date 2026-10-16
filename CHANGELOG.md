@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - AUTO goes on along an equilibrium curve when a special point's location does not converge, as AUTO-07p does (W406, [#468](https://github.com/MuhammadMoustafa/xppautX/issues/468)).
 
+- HomCont runs agree with AUTO-07p 0.9.4: a homoclinic start samples its integrated orbit at the right times (XPPAUT's weight was not divided by the step), the shift to the equilibrium is found after the form gives it, the projections take exactly NSTAB/NUNSTAB machine-precision Schur vectors and keep their basis through the boundary Jacobian's differences, the equilibria's eigenvectors are LAPACK's, the phase derivatives exact, and Homoclinic info refuses dimensions that do not add up to the model's (W365, [#427](https://github.com/MuhammadMoustafa/xppautX/issues/427)).
+
 - A NaN prints as `nan` on every platform, never `-nan`: AUTO's singular-matrix diagnostics differed between Linux/Windows and macOS (W408, [#470](https://github.com/MuhammadMoustafa/xppautX/issues/470)).
 
 - Continue map fold, flip and torus curves with PD/TR and R1-R4, LPD, LTR, PTR, TTR detection as AUTO-07p does (W404, [#466](https://github.com/MuhammadMoustafa/xppautX/issues/466)).

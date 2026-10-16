@@ -40,7 +40,8 @@
       "kind": "homoclinic",
       "start": {
         "state": "current",
-        "settle": 22.0
+        "settle": 22.0,
+        "step": 0.001
       },
       "parameters": [
         "q",
@@ -74,8 +75,7 @@
         "epsu": 1e-07,
         "epss": 1e-05,
         "mxbf": 0
-      },
-      "skip": "PENDING W365 (#427): xppautX's HomCont run stops at its second point (no convergence even at the smallest step, DSMIN 0.0001); AUTO-07p continues it from q=1 to q=3.01 with k=0 to 1e-9"
+      }
     }
   ]
 }

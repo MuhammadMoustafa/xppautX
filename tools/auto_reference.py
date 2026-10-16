@@ -44,7 +44,7 @@ import subprocess
 import sys
 import tempfile
 
-from autocompare import CODIM_TWO, SPECIAL_TYPES
+from autocompare import CODIM_TWO, HOMCONT, SPECIAL_TYPES
 from xppclient import wait_until
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -63,12 +63,8 @@ FIXED = dict(IAD=3, IID=2, ITMX=8, ITNW=7, NWTN=3, IADS=1, ILP=1, ISW=1, A0=0, A
 DEFAULTS = dict(ncol=4, epsl=1e-4, epsu=1e-4, epss=1e-4, mxbf=5)
 ISP = {'equilibrium': 1, 'periodic': 2, 'bvp': 2, 'homoclinic': 0, 'heteroclinic': 0}
 IPS = {'equilibrium': 1, 'periodic': 2, 'bvp': 4, 'homoclinic': 9, 'heteroclinic': 9}
-# HomCont's integration steps (RK4, in STPNT) along the orbit that starts the run: far below its own mesh, so the
-# orbit is the model's to the accuracy of the Newton correction that follows
-HOM_STEP = 1e-3
 # PAR(11) is HomCont's truncated time interval, PAR(12...) the equilibrium (equilibria)
 HOM_EQUILIBRIUM = 12
-HOMCONT = ('homoclinic', 'heteroclinic')
 # A two-parameter curve of an LP or HB of equilibria is the equilibrium problem with ISW=2. xppautX runs it
 # with ILP=0 and ISP=0 and detects no codim-2 point yet (core/auto_nox.cpp auto_2p_limit); the reference
 # keeps ILP=0 and the equilibria's ISP=1, which makes AUTO-07p label BT, CP, ZH and GH: those labels are what
@@ -252,7 +248,9 @@ class Equations:
         return out
 
     def orbit(self, hom):
-        """STPNT's lines that set HomCont's parameters and call ORBIT, and ORBIT: RK4 from the initial state over T*interval."""
+        """STPNT's lines that set HomCont's parameters and call ORBIT, and ORBIT: RK4 from the initial state over T*interval,
+        with the description's settle step, the step xppautX integrates its settle with: the run's first point is this
+        starting data, which neither program corrects, and an orbit near a saddle magnifies a change of integrator."""
         body = ['  PAR(11) = ' + fnum(hom['interval'])]
         body += ['  PAR(%d) = %s' % (HOM_EQUILIBRIUM + i, fnum(v)) for i, v in enumerate(hom['equilibria'])]
         body.append('  CALL ORBIT(NDIM, PAR, T*PAR(11), U)')
@@ -261,7 +259,7 @@ class Equations:
               '  DOUBLE PRECISION :: K1(NDIM), K2(NDIM), K3(NDIM), K4(NDIM), W(NDIM), DFDU(NDIM,NDIM), DFDP(NDIM,50), H',
               '  INTEGER :: I, STEPS, ICP(1)', '  ICP(1) = 1']
         f += ['  U(%d) = %s' % (i + 1, fnum(v)) for i, v in enumerate(hom['ic'])]
-        f += ['  STEPS = MAX(1, NINT(TAU/%s))' % fnum(HOM_STEP), '  H = TAU/STEPS', '  DO I = 1, STEPS',
+        f += ['  STEPS = MAX(1, NINT(TAU/%s))' % fnum(hom['step']), '  H = TAU/STEPS', '  DO I = 1, STEPS',
               '    CALL FUNC(NDIM,U,ICP,PAR,0,K1,DFDU,DFDP)', '    W = U + 0.5d0*H*K1',
               '    CALL FUNC(NDIM,W,ICP,PAR,0,K2,DFDU,DFDP)', '    W = U + 0.5d0*H*K2',
               '    CALL FUNC(NDIM,W,ICP,PAR,0,K3,DFDU,DFDP)', '    W = U + H*K3',
@@ -437,8 +435,8 @@ def check_description(name, d, program):
         raise Refused('run kind %s needs constants not mapped here' % sorted(kinds - set(IPS) - {'two_parameter'}))
     kind_of = {r['name']: r['kind'] for r in d['runs']}
     homs = [r for r in d['runs'] if r['kind'] in HOMCONT]
-    if homs and (program == 'xppaut' or len(homs) != 1 or homs[0]['start'].get('state') != 'current' or 'settle' not in homs[0]['start']):
-        raise Refused('HomCont: only AUTO-07p, one run, from the integrated orbit (start current, settle)')
+    if homs and (program == 'xppaut' or len(homs) != 1 or homs[0]['start'].get('state') != 'current' or 'step' not in homs[0]['start']):
+        raise Refused('HomCont: only AUTO-07p, one run, from the integrated orbit (start current, settle, step)')
     for r in d['runs']:
         if r['kind'] == 'two_parameter':
             if program == 'xppaut':
@@ -468,7 +466,7 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name):
         if any(r['kind'] in HOMCONT for r in d['runs']):
             run, = (r for r in d['runs'] if r['kind'] in HOMCONT)
             known = {**odex.inits, **{k.lower(): v for k, v in d.get('initial_conditions', {}).items()}}
-            hom = dict(interval=run['start']['settle'], ic=[known.get(x, 0.0) for x in odex.states],
+            hom = dict(interval=run['start']['settle'], step=run['start']['step'], ic=[known.get(x, 0.0) for x in odex.states],
                        equilibria=run['connection']['left'] + (run['connection']['right'] if run['kind'] == 'heteroclinic' else []))
         (work / 'eq.f90').write_text(eqs.source(start, bvp, hom), encoding='utf-8')
         names, icp1, icp2, cycles = [], {}, {}, set()
