@@ -389,11 +389,11 @@ jobs:
           packages-file: .github/msys2-ucrt64-packages.txt
       - name: Build the X11-free binaries natively
         id: build
-        run: make -j4 xppautx
+        run: mingw32-make -j4 xppautx
       - name: "Unit tests (C and C++ objects linked with g++), test binaries linked in parallel"
         id: unittests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: make -j4 test
+        run: mingw32-make -j4 test
       # a test that crashed (exit above 1: a check that fails exits 1) is run
       # again under gdb for its backtrace
       - name: Backtrace of a crashed unit test
