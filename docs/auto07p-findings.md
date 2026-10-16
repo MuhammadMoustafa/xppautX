@@ -38,6 +38,7 @@ so the index started empty.
 | [1](#1-an-equilibriums-period-depends-on-the-spectrums-order-outside-the-conservative-band) | Equilibria | equally damped complex pairs give a period that depends on the eigenvalue routine's order | [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431) |
 | [2](#2-a-newton-residual-contaminates-cp-and-gh-test-functions) | Equilibrium curves | a second difference that retains the equilibrium residual produces spurious CP/GH labels | [W364](https://github.com/MuhammadMoustafa/xppautX/issues/426) |
 | [3](#3-point-numbers-wrap-after-9999) | Output | printed point numbers repeat after 9999 although the continuation count and labels continue | [W384](https://github.com/MuhammadMoustafa/xppautX/issues/446) |
+| [4](#4-a-torus-curves-result-depends-on-the-start-amplitude-of-its-eigenfunction) | Torus curves of cycles | R1 and R2 on res_cycles are found only from one start amplitude of the eigenfunction; 3 times larger and the run fails at its second point | [W405](https://github.com/MuhammadMoustafa/xppautX/issues/467) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -146,3 +147,30 @@ largest accepted integer count, including signed fort.7 points and both
 fort.8 formulations; no long continuation is needed.
 
 **Card:** [W384](https://github.com/MuhammadMoustafa/xppautX/issues/446).
+
+## 4. A torus curve's result depends on the start amplitude of its eigenfunction
+
+AUTO-07p starts a torus curve of cycles (STPNTR) from the cycle with the eigenfunction set to
+`0.0001*cos(T*THETA)`, `0.0001*sin(T*THETA)`
+([periodic.f90:1772-1773](../reference/auto-07p/src/periodic.f90#L1772)) and the norm unknown
+`PAR(NPAR)` to zero ([periodic.f90:1780](../reference/auto-07p/src/periodic.f90#L1780)). The equations
+for the eigenfunction are linear and homogeneous, so its size is arbitrary, but it is not harmless:
+the Newton convergence test (EPSU) is absolute, and the system is singular at a 1:1 or 1:2 resonance
+(R1, R2), where the difference-quotient Jacobian's noise, proportional to the eigenfunction, decides
+whether the update can reach EPSU.
+
+**Evidence** (tools/models/res_cycles.odex, tests/auto/res_cycles.json, AUTO-07p 0.9.4 through
+tools/auto_reference.py, only the constant in STPNTR changed): at 0.0001 AUTO-07p loses its first
+eight steps to non-convergence, ends with the eigenfunction's squared norm at 7.6e-7 (xppautX, which
+converges at once, ends at 2.1e-2) and labels R1 (torus_down) and R2 and the BP (torus_up). At 0.0003,
+0.001, 0.01 and 0.1 both torus runs end at their second point (MX). Which resonances a torus curve
+shows therefore depends on a constant that the problem does not contain: AUTO-07p reaches R1 and R2
+there because its start run happens to leave the eigenfunction small, not because its location is
+sound. The points are real (the model gives R1 at c = -1, b = 1/4 and R2 at c = -0.625, b = 1/64 in
+closed form), so xppautX's failure to locate them is its own limit, kept as a skip in tests/auto
+(W405).
+
+**Not tried:** a start amplitude between 1e-4 and 3e-4, or a different norm start; the result above
+is two outcomes (found, failed), not a curve of how the loss depends on the amplitude.
+
+**Card:** [W405 / #467](https://github.com/MuhammadMoustafa/xppautX/issues/467).

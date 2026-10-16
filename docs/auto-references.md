@@ -702,3 +702,21 @@ comparison can see: the tangent of the continuation already holds the phase betw
 digits of two diagrams moved (forced_pp_ns and hill_cycles_torus, rewritten once; both still agree with AUTO-07p,
 24 and 32 quantities). tests/test_auto_codim.cpp is the check that it matters: a rotated eigenfunction gives a
 nonzero value and its Jacobian row matches a central difference, neither of which the old condition could.
+
+## W405: the skipped resonance runs ([#467](https://github.com/MuhammadMoustafa/xppautX/issues/467))
+
+All four runs stay skipped, each with its reason in the description. What W405 found:
+
+- AUTO-07p's R1, R2 and BP on res_cycles come from its start run, not from a sounder location. Changing only
+  the start amplitude of the torus eigenfunction in AUTO-07p's STPNTR (1e-4, periodic.f90:1772) to 3e-4, 1e-3,
+  1e-2 or 0.1 makes both torus runs end at their second point; at 1e-4 they find R1, R2 and the BP
+  ([AUTO-07p finding 4](auto07p-findings.md)). The points are real (closed form), so the skips remain xppautX's
+  own limit.
+- A second location try, with the eigenfunction rescaled to a squared norm of 1e-6 when the first fails, did
+  not locate them: Newton stops converging about 8e-6 from the point, as before. It was not kept (no
+  code is left for it). Rescaling at the restart, tried in W400, finds them but changes the agreeing runs.
+- forced_pp_pd's far R2 and henon_rot_tr's R1 are unchanged by W407's phase condition: the first is the
+  square-root-of-roundoff location of a double multiplier -1, the second the zero-angle torus equations
+  admitting the fold branch at a singular endpoint.
+
+The comparison needed no change: the tolerances are as before.
