@@ -15,7 +15,7 @@
 # (0.1838264, 0.7431615). tests/auto/forced_pp_*.json run them; docs/auto-references.md compares AUTO-07p's labels.
 x' = r*x*(1-x/kk)-a*x*y/(b0*(1+eps*u)+x)
 y' = e*a*x*y/(b0*(1+eps*u)+x)-d*y
-u' = m*u-6.283185307179586*v-(u*u+v*v)*u
-v' = 6.283185307179586*u+m*v-(u*u+v*v)*v
+u' = m*u-2*pi*v-(u*u+v*v)*u
+v' = 2*pi*u+m*v-(u*u+v*v)*v
 par m = -0.1, eps = 0.5, b0 = 0.4, kk = 1, r = 6.28, a = 12.56, e = 1, d = 6.28
 init x = 0.4, y = 0.24, u = 0, v = 0
