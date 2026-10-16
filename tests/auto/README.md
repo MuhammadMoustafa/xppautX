@@ -72,3 +72,7 @@ are matched by where they lie, not by step (docs/auto-references.md "Two-paramet
 A reference file holds every run of its description. A run skipped in the description (its reason names the card
 that fixes it) is read with the file but not compared; the card that makes xppautX run it drops the skip
 (docs/auto-references.md, "W402").
+
+W403 (#465) adds references from published models and models of our own (`res_cycles`, `forced_pp_pd`, `forced_pp_ns`,
+`lorenz_homoclinic`, `explicit_homoclinic`; docs/auto-references.md, "W403"): the curves xppautX runs but does not label, and the
+HomCont runs it cannot follow, are skipped with PENDING W400 / W365.

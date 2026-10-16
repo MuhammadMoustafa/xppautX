@@ -517,3 +517,83 @@ that the `differences` list records). The card that makes xppautX run the curve 
 The `tools/autocompare.py` changes that came with it: a curve of cycles' first rows (the starting data, one continued parameter)
 are not on the curve; a spectrum's order of a conjugate pair no longer depends on the last bit of its real parts; a
 HomCont run's reference is read like a two-parameter run's.
+
+## W403: references from published models and models of our own ([#465](https://github.com/MuhammadMoustafa/xppautX/issues/465))
+
+Five more descriptions, each with AUTO-07p 0.9.4's reference made by `tools/auto_reference.py` and a baseline of xppautX's own
+diagram. Fixes nothing in xppautX: a curve it runs but labels differently, or a HomCont run it cannot follow, is skipped in the
+description with a reason naming W400 ([#462](https://github.com/MuhammadMoustafa/xppautX/issues/462)) or W365
+([#427](https://github.com/MuhammadMoustafa/xppautX/issues/427)), as W402's are. Each run's skip says what AUTO-07p labels there.
+
+| Description | Model | Source | AUTO-07p reaches | xppautX today |
+|---|---|---|---|---|
+| `res_cycles` | `tools/models/res_cycles.odex`: a Hopf cycle beside a Bogdanov-Takens system (w,v) | closed form | torus curve of cycles `c = -mu - sqrt(b)`: R1, R4, R3, R2 at the exact places below | runs both directions of the curve, labels none (PENDING W400) |
+| `forced_pp_pd` | `tools/models/forced_predator_prey.odex` | Kuznetsov, Muratori, Rinaldi 1992; MatCont Tutorial V (Kuznetsov, Govaerts, Della Rossa, De Witte) | PD of the period-1 cycle; its closed PD curve with R2 at both ends | the PD is found, the curve runs, no R2 (PENDING W400) |
+| `forced_pp_ns` | the same, at b0 = 0.338 | the same | TR of the period-1 cycle; its NS curve to the R2 end, labelled BP; the curve ends at the unforced Hopf point | runs, no BP (PENDING W400) |
+| `lorenz_homoclinic` | `tools/models/lorenz_homoclinic.odex` | Sparrow 1982, Kaplan and Yorke 1979 | HomCont in three dimensions, r = 13.92655741 to 15.5988 in (r, b) | stops at its first step: singular Newton system (PENDING W365) |
+| `explicit_homoclinic` | `tools/models/explicit_homoclinic.odex` | closed form | HomCont in three dimensions, q = 1 to 3.0145 on k = 0 | stops at its second point: no convergence at DSMIN (PENDING W365) |
+
+**R1 on a cycle curve (`res_cycles`).** The cycle `(x,y) = sqrt(mu)(cos t, sin t)`, `(w,v) = (sqrt(b), 0)` has period 2 pi and, besides
+the trivial multiplier, `exp(2 pi lambda)` for the eigenvalues of `lambda^2 + (c+mu+w) lambda + 2w = 0`: the torus curve is
+`c = -mu - w` and the pair's angle `theta = 2 pi sqrt(2w)`, so the resonances are at `w = 1/2` (R1, theta = 2 pi), `9/32` (R4),
+`2/9` (R3), `1/8` (R2) and `0` (R1 again, where `b = w^2` has its fold). The start is the torus point at mu = 0.5, c = -0.8, b = 0.09.
+AUTO-07p labels, with mu = 0.5 (c = -0.5 - w, b = w^2):
+
+| label | AUTO-07p (c, b) | closed form (c, b) |
+|---|---|---|
+| R1 | (-0.99999999, 0.24999998) | (-1, 1/4) |
+| R4 | (-0.78125002, 0.0791016) | (-0.78125, 0.0791016) |
+| R3 | (-0.72222216, 0.0493827) | (-0.722222, 0.0493827) |
+| R2 | (-0.62500002, 0.0156250) | (-0.625, 0.015625) |
+| BP | (-0.50000004, 1e-15) | R1 at (-0.5, 0) |
+
+All agree to the tolerances (EPSL 1e-7: 2e-8 here). Two things AUTO-07p does not do, both from its source and neither a defect:
+the test function of a torus curve is `theta (theta - pi/2)(theta - 2 pi/3)(theta - pi)` on the continued angle
+([periodic.f90:2044](../reference/auto-07p/src/periodic.f90#L2044)), so it labels R1-R4 only while the angle runs through (0, pi]:
+past R1 the angle is negative, and the R4 at `w = 25/32`, R2 at `9/8`, ... of the closed form are not labelled. At `w = 0`, where
+the cycle is a fold in b, the label is a BP (the torus system is singular there), not R1. xppautX's samples of the curve agree with
+AUTO-07p's only to the curve tolerance after the 99th step of the down direction.
+
+**The forced predator-prey model.** `x' = r x (1 - x/K) - a x y / (b0 (1 + eps u) + x)`, `y' = e a x y / (b0 (1 + eps u) + x) - d y`
+(K = 1, r = d = 6.28, a = 12.56, e = 1, the tutorial's rounded values), the periodic forcing `eps cos(2 pi t)` supplied by
+`u' = m u - 2 pi v - (u^2+v^2) u`, `v' = 2 pi u + m v - (u^2+v^2) v`. The tutorial has m = 1 and finds its cycle by integration;
+here the circle's radius `sqrt(m)` is born at a Hopf point (m = 0) and the (x,y) system feels `eps sqrt(m) cos(2 pi t)`, so the
+tutorial's eps is `eps sqrt(m)` (m is the value of the run's point; the two-parameter curve runs in eps at that m). The
+tutorial's printed pairs are (b0, eps): its Figure 1 and the zoom show eps along the abscissa. `x = b0, y = b0 (1 - b0)` is the
+(x,y) equilibrium (a e = 2 d).
+
+| point | published (MatCont 7.3) | AUTO-07p 0.9.4 |
+|---|---|---|
+| PD of the period-1 cycle, b0 = 0.4 | eps = 0.3050914 | 0.3050919 (m = 0.3723242, eps = 0.5) |
+| R2 of the PD curve | (b0, eps) = (0.3401303, 0.3362213) | (0.3401302, 0.3362215) on the PD curve; (0.3401301, 0.3362216) as the BP at the end of the NS curve |
+| the other R2 of the closed PD curve | "far away", not given | (b0, eps) = (2.5702457, 1.18921) |
+
+AUTO-07p's numbers differ from the paper's by 5e-7 and 2e-7: the tutorial's values are MatCont's, found with its own tolerances,
+and ours with `NTST = 40`, `NCOL = 4`. The curve step matters for the label: with `DSMAX = 0.05` the PD curve's R2 is
+(0.3401071, 0.3362670), 2e-5 and 5e-5 off, so the reference uses 0.005 (the NS curve's BP is the same to 1e-7 at 0.05). The R1, R3,
+R4 and R2 the tutorial lists on the Neimark-Sacker curve of the **period-2** cycle (b0 = 0.1771951, 0.1772744, 0.1798043, 0.1838264;
+eps = 0.6029715, 0.6740362, 0.7084323, 0.7431615) are not reproduced: a period-2 cycle there needs a start the descriptions cannot give
+(a run starts only at a Hopf point or a labelled point of an earlier run, and the period-1 period doubling is at b0 >= 0.318; the
+tutorial reaches it by integration), so a card that adds such a start (a stored orbit as a run's start) can add those four. The model's
+header comment lists their values.
+
+**Lorenz.** `x' = s (y - x)`, `y' = r x - y - x z`, `z' = x y - b z` at s = 10, b = 8/3. The origin has the eigenvalues 7.130, -2.667,
+-18.130 at r = 13.9266: one unstable and two stable, where HomCont's projection matters. The published homoclinic r is 13.926; the orbit
+from the unstable manifold (x = 1e-4) returns to the origin along the z axis, and bisecting on its side finds r = 13.92655741
+(the description's start, the model's value). AUTO-07p's Newton solution of the boundary value problem leaves r at 13.92655741 and
+continues the curve in (r, b) to (15.5988, 3.0903). It does so only with the shorter truncated interval 4.6 and 200 mesh intervals: from
+5.8 and 35 intervals, with the orbit's far end at 6e-4 from the origin, the first Newton step diverges (singular pivot). From r = 13.9265
+or 13.926 the first point does not converge either.
+
+**An explicit homoclinic orbit.** `x' = y`, `y' = q (x - x^2) - k y`, `z' = -2 (z - x^2) + 2 x y`: at k = 0 the orbit
+`x = 3/2 sech^2(sqrt(q) t/2)`, `y = x'`, `z = x^2` is homoclinic to the origin (eigenvalues sqrt(q), -sqrt(q), -2) for every q. The loop's
+L2 norm over the interval 22 is `sqrt((int x^2 + y^2 + z^2 dt)/22)`, and AUTO-07p's matches it:
+
+| q | AUTO-07p norm | closed form | k |
+|---|---|---|---|
+| 1 | 0.86489996318 | 0.86489996419 | 0 |
+| 3.0145499523 | 0.70294597955 | 0.70294597391 | -1.5e-10 |
+
+Over the 45 points of the curve k stays within 2.3e-10 of 0 and the norm within 1.7e-7 of the closed form (the difference is the
+window: the orbit starts at x = 1e-4 and not at the end of the integral). W365's projection can be judged against this exact orbit.
+xppautX's HomCont run stops at the second point for this model and at the first for Lorenz's.

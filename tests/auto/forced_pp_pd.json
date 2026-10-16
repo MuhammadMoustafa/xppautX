@@ -1,0 +1,123 @@
+{
+  "model": "tools/models/forced_predator_prey.odex",
+  "reason": "W403 (#465): the periodically forced predator-prey model of Kuznetsov, Muratori and Rinaldi (1992) in the autonomous form of MatCont's Tutorial V (tools/models/forced_predator_prey.odex; the forcing is the cos of a circle born at a Hopf point in m, so the tutorial's eps is eps*sqrt(m)). At b0=0.4 the period-1 cycle has a period doubling at eps*sqrt(m)=0.3050914 (the tutorial's value); the period-doubling curve in eps and b0 is a closed curve whose R2 points are the tutorial's (b0, eps) = (0.3401303, 0.3362213) and one far away.",
+  "parameters": {
+    "b0": 0.4,
+    "eps": 0.5
+  },
+  "initial_conditions": {
+    "x": 0.4,
+    "y": 0.24,
+    "u": 0.0,
+    "v": 0.0
+  },
+  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves of cycles by tools/auto_reference.py.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "m",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 50,
+        "parmin": -0.2,
+        "parmax": 1,
+        "ntst": 15,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 1
+      },
+      "parameter": "m",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 50,
+        "parmin": -0.2,
+        "parmax": 1,
+        "ntst": 40,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "pd_up",
+      "kind": "two_parameter",
+      "start": {
+        "run": "cycles",
+        "type": "PD",
+        "index": 1
+      },
+      "parameters": [
+        "eps",
+        "b0"
+      ],
+      "auto": {
+        "ds": 0.005,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 400,
+        "npr": 50,
+        "parmin": 0,
+        "parmax": 2,
+        "ntst": 40,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      },
+      "skip": "PENDING W400 (#462): xppautX runs the curve but labels no R2 at the far end (AUTO-07p: b0=2.5702457, eps*sqrt(m)=1.18921), and its samples there leave AUTO-07p's by more than the curve tolerance"
+    },
+    {
+      "name": "pd_down",
+      "kind": "two_parameter",
+      "start": {
+        "run": "cycles",
+        "type": "PD",
+        "index": 1
+      },
+      "parameters": [
+        "eps",
+        "b0"
+      ],
+      "auto": {
+        "ds": -0.005,
+        "dsmin": 1e-05,
+        "dsmax": 0.005,
+        "nmax": 400,
+        "npr": 50,
+        "parmin": 0,
+        "parmax": 2,
+        "ntst": 40,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      },
+      "skip": "PENDING W400 (#462): xppautX runs the curve but labels no R2 (AUTO-07p: b0=0.3401302, eps*sqrt(m)=0.336222, the published place), and its samples leave AUTO-07p's by more than the curve tolerance"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+# W403 (#465): a Hopf normal form (x,y) beside a Bogdanov-Takens system (w,v), whose cycle has a 1:1 resonance (R1)
+# in closed form. The cycle (x,y) = sqrt(mu)*(cos t, sin t), (w,v) = (sqrt(b), 0) has period 2*pi. Its other two
+# Floquet multipliers are exp(2*pi*lambda), lambda the eigenvalues of the (w,v) equilibrium w = sqrt(b):
+#   lambda^2 + (c + mu + g*w)*lambda + 2*w = 0.
+# Closed forms (g = 1):
+#   torus curve (the pair on the unit circle): c + mu + w = 0, with theta = 2*pi*sqrt(2*w), the angle of the pair;
+#   R1 at sqrt(2*w) = 0, 1 (w = 0, 1/2), R2 at sqrt(2*w) = 1/2, 3/2 (w = 1/8, 9/8),
+#   R3 at 1/3, 2/3 (w = 1/18, 2/9), R4 at 1/4, 3/4 (w = 1/32, 9/32); in b = w^2 and c = -mu - w.
+#   At w = 0 (b = 0) the cycle is a fold (the equilibrium w = +-sqrt(b) has its fold at b = 0): the torus curve
+#   passes through it at c = -mu, a 1:1 resonance of the fold curve b = 0, and returns on w < 0.
+# tests/auto/res_cycles.json runs it; docs/auto-references.md compares AUTO-07p 0.9.4's labels with these places.
+x' = mu*x-y-x*(x*x+y*y)
+y' = x+mu*y-y*(x*x+y*y)
+w' = v
+v' = b-w*w-(c+mu+g*w)*v
+par mu = -0.1, c = -0.8, b = 0.09, g = 1
+init x = 0, y = 0, w = 0.3, v = 0

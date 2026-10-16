@@ -1,0 +1,81 @@
+{
+  "model": "tools/models/explicit_homoclinic.odex",
+  "reason": "W403 (#465): the orbit x = 3/2 sech(sqrt(q)t/2)^2, y = x', z = x^2 is homoclinic to the origin of tools/models/explicit_homoclinic.odex at k=0 for every q: three dimensions (eigenvalues sqrt(q), -sqrt(q), -2) with the orbit known in closed form, to check HomCont's projection against the exact orbit. The orbit starts from the unstable manifold's integration over 22 time units; the curve in (q, k) is the line k=0.",
+  "parameters": {
+    "k": 0.0,
+    "q": 1.0
+  },
+  "initial_conditions": {
+    "x": 0.0001,
+    "y": 9.99966667e-05,
+    "z": 1e-08
+  },
+  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves of cycles by tools/auto_reference.py.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "q",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 60,
+        "npr": 100,
+        "parmin": 0.1,
+        "parmax": 3,
+        "ntst": 15,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "homoclinic",
+      "kind": "homoclinic",
+      "start": {
+        "state": "current",
+        "settle": 22.0
+      },
+      "parameters": [
+        "q",
+        "k"
+      ],
+      "connection": {
+        "left": [
+          0,
+          0,
+          0
+        ],
+        "right": [
+          0,
+          0,
+          0
+        ],
+        "nunstab": 1,
+        "nstab": 2
+      },
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 0.0001,
+        "dsmax": 0.05,
+        "nmax": 60,
+        "npr": 100,
+        "parmin": 0.1,
+        "parmax": 3,
+        "ntst": 35,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      },
+      "skip": "PENDING W365 (#427): xppautX's HomCont run stops at its second point (no convergence even at the smallest step, DSMIN 0.0001); AUTO-07p continues it from q=1 to q=3.01 with k=0 to 1e-9"
+    }
+  ]
+}

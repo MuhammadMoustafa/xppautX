@@ -1,0 +1,81 @@
+{
+  "model": "tools/models/lorenz_homoclinic.odex",
+  "reason": "W403 (#465): the Lorenz equations at sigma=10, b=8/3 have a homoclinic orbit to the origin at r=13.926 (Sparrow 1982; Kaplan and Yorke 1979). Three dimensions: one unstable eigenvalue 7.13 and two stable (-18.13, -8/3), so HomCont's projection matters. The orbit starts from the unstable manifold's integration over 4.6 time units, which comes back toward the origin along the z axis; the curve in (r, b) continues it.",
+  "parameters": {
+    "r": 13.92655741,
+    "b": 2.6666666666666665
+  },
+  "initial_conditions": {
+    "x": 0.0001,
+    "y": 0.000171297268,
+    "z": 0.0
+  },
+  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves of cycles by tools/auto_reference.py.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "r",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 60,
+        "npr": 100,
+        "parmin": 0,
+        "parmax": 30,
+        "ntst": 15,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "homoclinic",
+      "kind": "homoclinic",
+      "start": {
+        "state": "current",
+        "settle": 4.6
+      },
+      "parameters": [
+        "r",
+        "b"
+      ],
+      "connection": {
+        "left": [
+          0,
+          0,
+          0
+        ],
+        "right": [
+          0,
+          0,
+          0
+        ],
+        "nunstab": 1,
+        "nstab": 2
+      },
+      "auto": {
+        "ds": 0.0005,
+        "dsmin": 1e-07,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 100,
+        "parmin": 0,
+        "parmax": 30,
+        "ntst": 200,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      },
+      "skip": "PENDING W365 (#427): xppautX's HomCont run stops at its first step (the linear system of a Newton step is singular); AUTO-07p continues it from r=13.92655741 to r=15.6"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+# W403 (#465): the periodically forced predator-prey model of Kuznetsov, Muratori and Rinaldi, "Bifurcations and chaos in a
+# periodic predator-prey model", Int. J. Bifurcation and Chaos 2 (1992) 117-128, in the autonomous form of its extension
+# by a rotation (u,v) that Yu.A. Kuznetsov, W. Govaerts et al. use as the example of MatCont's Tutorial V (the periodic
+# forcing b(t) = b0*(1 + eps*cos(2*pi*t)) is u of a circle of period one); V. De Witte, F. Della Rossa, W. Govaerts and
+# Yu.A. Kuznetsov, "Numerical periodic normalization for codim 2 bifurcations of limit cycles", SIAM J. Appl. Dyn.
+# Syst. 12 (2013) 722-788. Parameters of the tutorial: K = 1, r = 6.28, a = 12.56, e = 1, d = 6.28, the equations
+#   x' = r*x*(1 - x/K) - a*x*y/(b0*(1 + eps*u) + x),   y' = e*a*x*y/(b0*(1 + eps*u) + x) - d*y.
+# The circle's radius is the Hopf parameter m here (the tutorial has m = 1 and finds its starting cycle by
+# integration): (u,v) = sqrt(m)*(cos(2*pi*t), sin(2*pi*t)) is a cycle of period 1 for every m > 0, and the forcing the
+# (x,y) feels is eps*sqrt(m)*cos(2*pi*t), so the tutorial's eps is eps*sqrt(m) here. For b0 > 1/3 the (x,y) equilibrium
+# is x = b0, y = b0*(1 - b0) (a*e = 2*d), stable.
+# Published values (the tutorial, MatCont 7.3, eps there): the period-1 cycle's PD at eps = 0.3050914 for b0 = 0.4;
+# R2 of the period-1 PD curve at (b0, eps) = (0.3401303, 0.3362213); on the Neimark-Sacker curve of the period-2 cycle,
+# (b0, eps): R3 at (0.1798043, 0.7084323), R4 at (0.1772744, 0.6740362) and R1 at (0.1771951, 0.6029715), its R2 at
+# (0.1838264, 0.7431615). tests/auto/forced_pp_*.json run them; docs/auto-references.md compares AUTO-07p's labels.
+x' = r*x*(1-x/kk)-a*x*y/(b0*(1+eps*u)+x)
+y' = e*a*x*y/(b0*(1+eps*u)+x)-d*y
+u' = m*u-6.283185307179586*v-(u*u+v*v)*u
+v' = 6.283185307179586*u+m*v-(u*u+v*v)*v
+par m = -0.1, eps = 0.5, b0 = 0.4, kk = 1, r = 6.28, a = 12.56, e = 1, d = 6.28
+init x = 0.4, y = 0.24, u = 0, v = 0

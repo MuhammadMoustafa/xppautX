@@ -1,0 +1,13 @@
+# W403 (#465): a three-dimensional system with an explicit homoclinic orbit. At k = 0 the orbit to the origin is
+#   x(t) = (3/2)*sech(sqrt(q)*t/2)^2, y(t) = x'(t), z(t) = x(t)^2
+# for every q > 0 (x'' = q*(x - x^2) is the planar Hamiltonian system; z = x^2 solves z' = 2*x*y and is the only
+# bounded solution of z' = -2*(z - x^2) + 2*x*y). The damping k breaks the loop (the Melnikov integral of y^2 is not
+# zero), so the homoclinic curve of the (k, q) plane is the line k = 0 and each q has the exact orbit above.
+# The origin has the eigenvalues +sqrt(q), -sqrt(q), -2: NUNSTAB = 1, NSTAB = 2; q = 4 is where the stable
+# eigenvalues coincide. The loop lasts about 2*ln(6/x_end)/sqrt(q) time units from x = x_end at either end.
+# tests/auto/explicit_homoclinic.json runs it; docs/auto-references.md compares AUTO-07p's orbit with the exact one.
+x' = y
+y' = q*(x-x*x)-k*y
+z' = -2*(z-x*x)+2*x*y
+par k = 0.1, q = 1
+init x = 0.0001, y = 0.0000999966667, z = 0.00000001

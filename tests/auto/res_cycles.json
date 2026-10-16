@@ -1,0 +1,113 @@
+{
+  "model": "tools/models/res_cycles.odex",
+  "reason": "W403 (#465): tools/models/res_cycles.odex has a torus curve of cycles in c and b whose places are known in closed form: c = -mu - sqrt(b), with the pair at theta = 2*pi*sqrt(2*sqrt(b)). AUTO-07p labels R1 at sqrt(b) = 1/2, R4, R3 and R2 on the way down in b, and a BP where the curve turns at b = 0 (closed form: R1).",
+  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves of cycles by tools/auto_reference.py.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "mu",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 50,
+        "parmin": -0.2,
+        "parmax": 0.8,
+        "ntst": 25,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 1
+      },
+      "parameter": "mu",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 60,
+        "npr": 50,
+        "parmin": -0.2,
+        "parmax": 0.8,
+        "ntst": 25,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "torus_down",
+      "kind": "two_parameter",
+      "start": {
+        "run": "cycles",
+        "type": "TR",
+        "index": 1
+      },
+      "parameters": [
+        "c",
+        "b"
+      ],
+      "auto": {
+        "ds": -0.02,
+        "dsmin": 1e-05,
+        "dsmax": 0.05,
+        "nmax": 130,
+        "npr": 50,
+        "parmin": -3,
+        "parmax": 3,
+        "ntst": 25,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      },
+      "skip": "PENDING W400 (#462): xppautX runs the curve but labels no R1 (at c=-1, b=1/4); its samples also leave AUTO-07p's by more than the curve tolerance after the 99th"
+    },
+    {
+      "name": "torus_up",
+      "kind": "two_parameter",
+      "start": {
+        "run": "cycles",
+        "type": "TR",
+        "index": 1
+      },
+      "parameters": [
+        "c",
+        "b"
+      ],
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 1e-05,
+        "dsmax": 0.05,
+        "nmax": 130,
+        "npr": 50,
+        "parmin": -3,
+        "parmax": 3,
+        "ntst": 25,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      },
+      "skip": "PENDING W400 (#462): xppautX runs the curve but labels none of R4, R3, R2 (c=-0.78125, -0.7222, -0.625) and the BP at b=0"
+    }
+  ]
+}

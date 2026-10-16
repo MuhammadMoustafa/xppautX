@@ -1,0 +1,122 @@
+{
+  "model": "tools/models/forced_predator_prey.odex",
+  "reason": "W403 (#465): the same model at b0=0.338, where the period-1 cycle has a Neimark-Sacker point at eps*sqrt(m)=0.2818 (multipliers near -1); the Neimark-Sacker curve in eps and b0 runs from the unforced Hopf point (eps=0, b0=1/3) to the R2 of the period-doubling curve, the tutorial's (b0, eps) = (0.3401303, 0.3362213), which AUTO-07p labels BP there.",
+  "parameters": {
+    "b0": 0.338,
+    "eps": 0.5
+  },
+  "initial_conditions": {
+    "x": 0.338,
+    "y": 0.223756,
+    "u": 0.0,
+    "v": 0.0
+  },
+  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves of cycles by tools/auto_reference.py.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "m",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.02,
+        "nmax": 100,
+        "npr": 50,
+        "parmin": -0.2,
+        "parmax": 1,
+        "ntst": 15,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 1
+      },
+      "parameter": "m",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.01,
+        "nmax": 150,
+        "npr": 50,
+        "parmin": -0.2,
+        "parmax": 1,
+        "ntst": 40,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "ns_up",
+      "kind": "two_parameter",
+      "start": {
+        "run": "cycles",
+        "type": "TR",
+        "index": 1
+      },
+      "parameters": [
+        "eps",
+        "b0"
+      ],
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.05,
+        "nmax": 150,
+        "npr": 50,
+        "parmin": 0,
+        "parmax": 2,
+        "ntst": 40,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      },
+      "skip": "PENDING W400 (#462): xppautX runs the curve but labels no BP at the R2 end (b0=0.3401301, eps*sqrt(m)=0.336221), and its samples leave AUTO-07p's by more than the curve tolerance"
+    },
+    {
+      "name": "ns_down",
+      "kind": "two_parameter",
+      "start": {
+        "run": "cycles",
+        "type": "TR",
+        "index": 1
+      },
+      "parameters": [
+        "eps",
+        "b0"
+      ],
+      "auto": {
+        "ds": -0.01,
+        "dsmin": 1e-05,
+        "dsmax": 0.05,
+        "nmax": 150,
+        "npr": 50,
+        "parmin": 0,
+        "parmax": 2,
+        "ntst": 40,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    }
+  ]
+}

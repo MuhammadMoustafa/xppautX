@@ -1,0 +1,12 @@
+# W403 (#465): the Lorenz equations at sigma = 10, b = 8/3, whose homoclinic orbit to the origin appears at r = 13.926
+# (Sparrow, "The Lorenz Equations: Bifurcations, Chaos, and Strange Attractors", Springer 1982, Appendix C; also
+# J. L. Kaplan and J. A. Yorke, "Preturbulence: a regime observed in a fluid flow model of Lorenz", Commun. Math. Phys.
+# 67 (1979) 93-108: the pair of homoclinic loops at r = 13.926). The origin has one unstable eigenvalue (7.13) and two
+# stable (-18.13, -8/3): HomCont runs it with NUNSTAB = 1, NSTAB = 2 in three dimensions.
+# AUTO-07p's value at these constants, to the digits it prints, is compared with the published 13.926 in
+# docs/auto-references.md. tests/auto/lorenz_homoclinic.json runs it.
+x' = s*(y-x)
+y' = r*x-y-x*z
+z' = x*y-b*z
+par r = 13.92655741, s = 10, b = 2.6666666666666665
+init x = 0.0001, y = 0.000171297268, z = 0
