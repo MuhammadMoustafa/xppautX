@@ -91,7 +91,7 @@
         "epss": 0.0001,
         "mxbf": 0
       },
-      "skip": "W404 (#466), traced at the singular R1 endpoint (zero-angle torus equations also admit the fold branch): the numerical Jacobian locates R1 at (alpha,beta)=(-1.000268303,1.000268285), onto that fold branch, 2.68e-4 off the torus endpoint (-1,1), and misses AUTO-07p's following BP. Exact model derivatives restore curve agreement (R1 displacement 1.89e-5), but still miss that BP. The other torus labels agree before this double +1 degeneracy; no comparison tolerance was widened."
+      "skip": "PENDING W405 (#467): traced by W404 at the singular R1 endpoint (zero-angle torus equations also admit the fold branch): the numerical Jacobian locates R1 at (alpha,beta)=(-1.000268303,1.000268285), onto that fold branch, 2.68e-4 off the torus endpoint (-1,1), and misses AUTO-07p's following BP. Exact model derivatives restore curve agreement (R1 displacement 1.89e-5), but still miss that BP. The other torus labels agree before this double +1 degeneracy; no comparison tolerance was widened."
     }
   ]
 }

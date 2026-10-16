@@ -533,8 +533,8 @@ The second unit-circle crossing, rho = -1 on beta = 2 alpha - 5.2, gives PTR at 
 These lists are alpha values, not (alpha, beta) pairs; AUTO-07p and W404 agree within the stated location tolerances.
 
 How a reference reaches the repository when xppautX cannot run it yet: `NAME.auto07p` holds every run, and a run
-skipped in the description (its reason names W400, W404 or W365) is read but not compared; the runs xppautX does run are compared
-(the base runs and, since W404, all map runs except the torus down direction's singular endpoint). The card that makes xppautX run the curve drops the skip.
+skipped in the description (its reason names the card that takes it: W405 or W365) is read but not compared; the runs xppautX does run are compared
+(the base runs and, since W404, all map runs except the torus down direction's singular endpoint, which W405 takes). The card that makes xppautX run the curve drops the skip.
 The `tools/autocompare.py` changes that came with it: a curve of cycles' first rows (the starting data, one continued parameter)
 are not on the curve; a spectrum's order of a conjugate pair no longer depends on the last bit of its real parts; a
 HomCont run's reference is read like a two-parameter run's.
