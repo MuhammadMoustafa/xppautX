@@ -638,7 +638,7 @@ Newton and chord-error bounds, which serves straight and closed curves alike.
 
 A location that cannot converge no longer ends the run. AUTO-07p gives the point up with a note ("Possible special
 point") and goes on; xppautX stopped the whole branch with "no convergence". Only a cancel or a failed exact
-Jacobian still stops it (the same change for equilibria, lcspae, is not made here).
+Jacobian still stops it (W406 extends this to equilibria, lcspae).
 
 Three runs stay skipped, each with its traced reason in the description:
 

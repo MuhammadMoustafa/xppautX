@@ -1670,9 +1670,16 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 	   dfdu, dfdp, thl, thu);
   }
   istop = iap->istop;
-  if (istop == 1) {
-    *q = 0.;
-    return 0;
+  if (istop != 0) {
+    // AUTO-07p LCSPAE ae.f90:738: a SOLVAE that does not converge leaves the
+    // search; the point is given up (NOTE: Possible special point) and the
+    // branch goes on. Only a stop the user or the model asked for ends it.
+    if (xpp::job::cancelled() || jacobian_failed(iap)) {
+      *q = 0.;
+      return 0;
+    }
+    iap->istop = 0;
+    goto L2;
   }
 
   *q = (*fncs)(iap, rap, par, icp, &chng, funi, m1aaloc, 
@@ -1688,14 +1695,17 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
     /*        Use Mueller's method with bracketing for subsequent steps */
     mueller(&q0, &q1, q, &s0, &s1, &s, &rds);
     goto L1;
-  } else {
-    xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Possible special point\n",ibr,ntot + 1);
-    saved.restore(*iap, *rap);
-    dstest = saved_dstest;
-    stepped = false;
-    *q = saved_q;
-    return 0;
   }
+
+ L2:
+  saved.restore(*iap, *rap);
+  dstest = saved_dstest;
+  stepped = false;
+  *q = saved_q;
+
+  xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Possible special point\n",ibr,ntot + 1);
+
+  return 0;
 
 } /* lcspae_ */
 
