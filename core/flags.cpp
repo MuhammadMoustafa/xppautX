@@ -1,4 +1,5 @@
 #include "model.h"
+#include "my_rhs.h"
 #include "session.h"
 #include "flags.h"
 #include "form_ode.h"
@@ -9,7 +10,6 @@
 #include "cv2.h"
 #include "stiff.h"
 #include "derived.h"
-#include "dormpri.h"
 #include "gear.h"
 #include "integrate.h"
 #include "expr.h"
@@ -235,77 +235,14 @@ int compile_flags(xpp::Session &s)
 
 /*  here is the shell code for a loop around  integration step  */
 
-int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, double told, double *tnew, int neq, double *frac)
+namespace {
+void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double smin)
 {
-  std::array<xpp::Model::GlobalFlag,MAXFLAG> &flags=s.model().flags;
-  double dt=*tnew-told;
-  double f0,f1,tol,tolmin=1e-10;
-  double smin=2;
-  int sign,i,j,in,ncycle=0,newhit,nevents;
-
-  if(s.model().nflags==0)return(0);
-  for(i=0;i<s.model().nflags;i++){
-    s.integrator.flags[i].tstar=2.0;
-    s.integrator.flags[i].hit=0;
-  }
-  /* If this is the first call, then need f1  */
-  if(*istart==1){  
-    for(i=0;i<neq;i++)
-      setvar(s,i+1,yold[i]);
-    setvar(s,0,told);
-    for(i=0;i<s.model().nflags;i++)
-    *istart=0;
-  
-  }
-  for(i=0;i<s.model().nflags;i++){
-    sign=flags[i].sign;
-    s.integrator.flags[i].f0=s.integrator.flags[i].f1;
-    f0=s.integrator.flags[i].f0;
-    for(j=0;j<neq;j++)
-      setvar(s,j+1,ynew[j]);
-    setvar(s,0,*tnew);
-    f1=xpp::evaluate(s,flags[i].comcond);
-    s.integrator.flags[i].f1=f1;
-    tol=fabs(f1-f0);
-    switch(sign){
-    case 1: 
-      if((((f0<0.0)&&(f1>0.0))||((f0<0.0)&&(f1>0.0)))&&tol>tolmin){
-	s.integrator.flags[i].hit=ncycle+1;
-	s.integrator.flags[i].tstar=f0/(f0-f1);
-      }
-      break;
-    case -1:
-      if(f0>0.0&&f1<=0.0&&tol>tolmin){
-	s.integrator.flags[i].hit=ncycle+1;
-	s.integrator.flags[i].tstar=f0/(f0-f1);
-      }
-      break;
-    case 0:
-      if(fabs(f1)<MY_DBL_EPS){
-	s.integrator.flags[i].hit=ncycle+1;
-	s.integrator.flags[i].tstar=told;
-      }
-      break;
-    }
-    if(flags[i].nointerp==1)
-      {
-	s.integrator.flags[i].tstar=1.0;
-      }
-    
-      if(smin>s.integrator.flags[i].tstar)smin=s.integrator.flags[i].tstar;
-
-  } /* run through flags */
- 
-   if(smin<s.numerics.stol)smin=s.numerics.stol;
-  else smin=(1+s.numerics.stol)*smin;  
-  if(smin>1.0)return(0);
-
-  *tnew=told+dt*smin;
-  setvar(s,0,*tnew);
-  for(i=0;i<neq;i++){
-    ynew[i]=yold[i]+smin*(ynew[i]-yold[i]);
-    setvar(s,i+1,ynew[i]);
-  }
+  auto &flags=s.model().flags;
+  int i,j,in,ncycle=0,newhit,nevents,sign;
+  double f0,f1,tol;
+  constexpr double tolmin=1e-10; // Existing cascade threshold, shared with sampled flags.
+  double *tnew=&time;
   for(i=0;i<s.model().nflags;i++)
     s.integrator.flags[i].f0=xpp::evaluate(s,flags[i].comcond);
   while(1){ /* run through all possible events  */
@@ -387,6 +324,93 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
     if(newhit==0)break;
   }
  
+}
+}
+
+void apply_dense_flags(xpp::Session &s, double *y, double time, int neq, std::span<const int> hits)
+{
+  for(int i=0;i<s.model().nflags;++i){
+    s.integrator.flags[i].hit=0;
+    s.integrator.flags[i].tstar=0;
+  }
+  for(int i:hits)s.integrator.flags[i].hit=1;
+  set_fix_rhs(s,time,y);
+  apply_flag_hits(s,y,time,neq,0);
+}
+
+int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, double told, double *tnew, int neq, double *frac)
+{
+  std::array<xpp::Model::GlobalFlag,MAXFLAG> &flags=s.model().flags;
+  double dt=*tnew-told;
+  double f0,f1,tol,tolmin=1e-10;
+  double smin=2;
+  int sign,i,j,ncycle=0;
+
+  if(s.model().nflags==0)return(0);
+  for(i=0;i<s.model().nflags;i++){
+    s.integrator.flags[i].tstar=2.0;
+    s.integrator.flags[i].hit=0;
+  }
+  /* If this is the first call, then need f1  */
+  if(*istart==1){
+    for(i=0;i<neq;i++)
+      setvar(s,i+1,yold[i]);
+    setvar(s,0,told);
+    for(i=0;i<s.model().nflags;i++)
+    *istart=0;
+
+  }
+  for(i=0;i<s.model().nflags;i++){
+    sign=flags[i].sign;
+    s.integrator.flags[i].f0=s.integrator.flags[i].f1;
+    f0=s.integrator.flags[i].f0;
+    for(j=0;j<neq;j++)
+      setvar(s,j+1,ynew[j]);
+    setvar(s,0,*tnew);
+    f1=xpp::evaluate(s,flags[i].comcond);
+    s.integrator.flags[i].f1=f1;
+    tol=fabs(f1-f0);
+    switch(sign){
+    case 1:
+      if((((f0<0.0)&&(f1>0.0))||((f0<0.0)&&(f1>0.0)))&&tol>tolmin){
+	s.integrator.flags[i].hit=ncycle+1;
+	s.integrator.flags[i].tstar=f0/(f0-f1);
+      }
+      break;
+    case -1:
+      if(f0>0.0&&f1<=0.0&&tol>tolmin){
+	s.integrator.flags[i].hit=ncycle+1;
+	s.integrator.flags[i].tstar=f0/(f0-f1);
+      }
+      break;
+    case 0:
+      if(fabs(f1)<MY_DBL_EPS){
+	s.integrator.flags[i].hit=ncycle+1;
+	s.integrator.flags[i].tstar=told;
+      }
+      break;
+    }
+    if(flags[i].nointerp==1)
+      {
+	s.integrator.flags[i].tstar=1.0;
+      }
+
+      if(smin>s.integrator.flags[i].tstar)smin=s.integrator.flags[i].tstar;
+
+  } /* run through flags */
+
+   if(smin<s.numerics.stol)smin=s.numerics.stol;
+  else smin=(1+s.numerics.stol)*smin;
+  if(smin>1.0)return(0);
+
+  *tnew=told+dt*smin;
+  setvar(s,0,*tnew);
+  for(i=0;i<neq;i++){
+    ynew[i]=yold[i]+smin*(ynew[i]-yold[i]);
+    setvar(s,i+1,ynew[i]);
+  }
+  apply_flag_hits(s,ynew,*tnew,neq,smin);
+
   *frac=smin;
   return(1);
 }
@@ -460,14 +484,6 @@ int *istart,int n,double *work,int *ierr)
   if(end!=FlagEnd::too_hard)return 0;
   *ierr=-2;
   return 1;
-}
-
-int one_flag_step_dp(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)
-{
-  FlagEnd end=flag_loop(s,y,n,t,istart,0,[&](double){
-    dormprin(s,istart,y,t,n,tout,tol,atol,flag,kflag,work);
-    return *kflag==1; },&tout);
-  return end==FlagEnd::too_hard;
 }
 
 #ifdef CVODE_YES

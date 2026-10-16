@@ -150,30 +150,6 @@ private:
   CvodeRun run_;
 };
 
-/* dormpri.cpp's Dormand-Prince 5 and 8(3) */
-class DormandPrince final : public Solver {
-public:
-  DormandPrince(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(standard_work(n,s))) {}
-  Result<> step_by(const SolverStep &s) override
-  {
-    NumericsSettings &num=session_.numerics;
-    int kflag=0;
-    dp(session_,s.start,s.y,s.t,s.neq,s.tout,&num.tolerance,&num.abs_tolerance,info().traits.eighth_order,&kflag,
-       work_.data());
-    switch(kflag){
-    case -1: return failed("Input is not consistent");
-    case -2: return failed("Larger nmax needed");
-    case -3: return failed("Step size too small");
-    case -4: return failed("Problem became stiff");
-    default: break;
-    }
-    if(kflag<0)return failed(""); /* the events' own warning said it */
-    return {};
-  }
-private:
-  std::vector<double> work_;
-};
-
 class Rosenbrock final : public Solver {
 public:
   Rosenbrock(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(rosenbrock_work(n,s))) {}
@@ -212,7 +188,7 @@ std::unique_ptr<Solver> start_cvode(const SolverInfo &info, Session &s, int)
 
 std::unique_ptr<Solver> start_dormand_prince(const SolverInfo &info, Session &s, int n)
 {
-  return std::make_unique<DormandPrince>(info,s,n);
+  return make_dormand_prince(info,s,n);
 }
 
 std::unique_ptr<Solver> start_rosenbrock(const SolverInfo &info, Session &s, int n)
@@ -227,9 +203,9 @@ constexpr SolverTraits implicit_steps{.fixed_step=true,.newton=true,.wiener=true
 constexpr SolverTraits integral_steps{.fixed_step=true,.newton=true,.integral_history=true,.wiener=true};
 constexpr SolverTraits paired_steps{.fixed_step=true,.paired_dimension=true,.wiener=true};
 constexpr SolverTraits stiff_tolerance{.step_tolerance=true,.stiff_step=true};
-constexpr SolverTraits rel_abs_eighth{.rel_abs_tolerance=true,.eighth_order=true};
+constexpr SolverTraits rel_abs_eighth{.rel_abs_tolerance=true,.eighth_order=true,.dense_output=true};
 constexpr SolverTraits step_tolerance{.step_tolerance=true};
-constexpr SolverTraits rel_abs{.rel_abs_tolerance=true};
+constexpr SolverTraits rel_abs{.rel_abs_tolerance=true,.dense_output=true};
 constexpr SolverTraits rel_abs_banded{.rel_abs_tolerance=true,.banded=true};
 
 /* The registry: every method, by number. An explicit table rather than

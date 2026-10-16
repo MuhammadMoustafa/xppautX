@@ -253,7 +253,7 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.numerics.max_step; }),
    /* one time unit */
    .reset = [](Session &s) { s.numerics.max_step = 1; },
-   .key = "max_step", .label = "Maximum step", .rule = OptionRule::positive, .use = OptionUse::step, .saved = true},
+   .key = "max_step", .label = "Maximum step", .rule = OptionRule::positive, .use = OptionUse::step_or_dense, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "ABS_TOLERANCE", .xppaut_names = {"ATOL"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.abs_tolerance; }),
    /* XPPAUT's */

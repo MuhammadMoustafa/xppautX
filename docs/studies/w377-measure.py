@@ -22,6 +22,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 INSTRUMENT = r'''
 // Disposable W377 instrumentation, absent from the production executable.
 static long long study_rhs=0, study_accepted=0, study_rejected=0;
+static double study_hout=0;
 static FILE *study_file=nullptr;
 static double study_dt=0, study_end=0;
 static long study_index=1, study_points=0;
@@ -80,8 +81,16 @@ static void study_run(xpp::Session &s, double *y, int n, int flag) {
 '''
 
 def prepare():
-    source = (ROOT / 'core/dormpri.cpp').read_text()
+    # Freeze the stage 1 prototype so later production changes remain comparable.
+    source = subprocess.check_output(['git','show','16a6ac81:core/dormpri.cpp'],text=True)
+    (OUT/'dormpri.h').write_text(subprocess.check_output(['git','show','16a6ac81:core/dormpri.h'],text=True))
+    # The production registry now uses a factory. Adapt only the disposable
+    # entry seam; the stage 1 numerical driver and coefficients stay frozen.
+    a=source.index('int dp(')
+    b=source.index('/* this is the basic routine',a)
+    source=source[:a]+source[b:]
     source = source.replace('void dprhs(', INSTRUMENT + '\nvoid dprhs(', 1)
+    source = source.replace('s.integrator.dp_hout', 'study_hout')
     source = source.replace(' my_rhs(s,t,y,f,n);', ' ++study_rhs;\n my_rhs(s,t,y,f,n);', 1)
     signature = 'int dormprin(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)\n{'
     assert signature in source
@@ -94,6 +103,24 @@ def prepare():
     source = source.replace(needle, needle+'\n      if(iout==2) study_dense(r,x,n,true);',1)
     pos=source.index('} /* dop853 */')
     source=source[:pos]+source[pos:].replace(needle,needle+'\n      if(iout==2) study_dense(r,x,n,false);',1)
+    source += r'''
+namespace xpp {
+namespace {
+class StudySolver final : public Solver {
+public:
+  StudySolver(const SolverInfo &info, Session &s):Solver(info,s){}
+private:
+  Result<> step_by(const SolverStep &step) override {
+    study_run(session_,step.y,step.neq,info().traits.eighth_order);
+    return {};
+  }
+};
+}
+std::unique_ptr<Solver> make_dormand_prince(const SolverInfo &info, Session &s, int) {
+  return std::make_unique<StudySolver>(info,s);
+}
+}
+'''
     (OUT / 'dormpri.cpp').write_text(source)
     # Ask make for its platform's exact production link command. The injected
     # object precedes the archive, so the original dormpri.o is never extracted.
@@ -132,7 +159,7 @@ def fixtures():
         manifest.append(record)
     (OUT/'manifest.json').write_text(json.dumps(manifest,indent=2))
 
-def run(resume=False):
+def run(resume=False, modes=None):
     records=[]
     if resume and (OUT/'counts.json').exists():
         records=[r for r in json.loads((OUT/'counts.json').read_text()) if 'status' in r]
@@ -153,7 +180,7 @@ def run(resume=False):
                 text=text.replace('8   Qual RK','11   DorPrin5' if method=='dopri5' else '12   DorPri8(3)')
                 setpath.write_text(text)
                 extra=['--setfile',str(setpath)]
-            for mode,tol in [('now',1e-6),('continuous',1e-6),('continuous',1e-11),('continuous',1e-12)]:
+            for mode,tol in (modes or [('now',1e-6),('continuous',1e-6),('continuous',1e-11),('continuous',1e-12)]):
                 if (name,method,mode,tol) in completed:
                     continue
                 output=OUT/f'{name}-{method}-{mode}-{tol}.csv'
@@ -161,6 +188,8 @@ def run(resume=False):
                 result=subprocess.run([str(OUT/'study.exe'),str(path),'--silent','--internset','0',*extra],capture_output=True,text=True,env=env,timeout=900)
                 match=re.search(r'W377 (\d+) (\d+) (\d+) (-?\d+) (\d+)',result.stderr)
                 record=dict(model=name,method=method,mode=mode,tolerance=tol,returncode=result.returncode,output=output.name)
+                maximum=re.search(r'W377MAX ([^\n]+)',result.stderr)
+                if maximum:record['max_step']=float(maximum.group(1))
                 if match:
                     record.update(zip(('rhs','accepted','rejected','status','points'),map(int,match.groups())))
                 else:

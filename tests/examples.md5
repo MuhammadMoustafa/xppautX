@@ -12,7 +12,7 @@ ae9f5494d3bc654eb3e4a34c5c5147c9 examples/canonical/lecar.odex
 667cc4ce5dbe9ba5bdd6b2102f4a8cc9 examples/canonical/ratchet.odex
 f2f24685ba7a6c193551be9ba8e09f43 examples/canonical/sine-circle.odex
 aaef52e244c55bd87c7dcb203d2c7cee examples/canonical/swindale.odex
-e0505e7fc192353f098deb27f81ad892 examples/canonical/tyson.odex
+5e92aa3cdf3e06dbf152fb4ddf5b42ff examples/canonical/tyson.odex
 4048ac6d52067b4a2d7387ff9103ec40 examples/canonical/wcfun.odex
 3460fb64a9d25af77fd55a817343427b examples/ode/6x6.odex
 96a8c491a7f1dbb67adcdf0c3b34e6bb examples/ode/acoaster.odex
@@ -137,7 +137,7 @@ noload examples/ode/tstar.ode
 6a038537f4fdf8d8d413a90c0c143976 examples/ode/tstdelsp.odex
 2707862d6aca38c80e09129a19c7da55 examples/ode/tstdll.odex
 93beaf7aa86a32aafc3bc6ccfd58887e examples/ode/tstheti.odex
-4d7afb9dd15acb7818ba28f3e552b485 examples/ode/tsthomi.odex
+c37678b20a8e7cf5cd041bbb81cbf676 examples/ode/tsthomi.odex
 be55ed47574e3c7ce401bcb101dfe6d7 examples/ode/tstset.odex
 6a8692d0c681f8d0d22cc279defb1522 examples/ode/tstvol2.odex
 d0bbcc2e36be293af9e846309f2b56a5 examples/ode/tstvol3.odex

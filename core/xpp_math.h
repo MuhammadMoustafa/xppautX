@@ -23,6 +23,7 @@
 #include "../third_party/core-math/core_math.h"
 
 #include <cstddef>
+#include <functional>
 #include <array>
 #include <cstdint>
 #include <span>
@@ -213,6 +214,10 @@ private:
     T *data_ = nullptr;
     std::ptrdiff_t dim1_ = 0, dim2_ = 0;
 };
+
+/* Refine a sign-changing scalar bracket by safeguarded secant/bisection.
+   Returns a point in the bracket within 8*epsilon*max(1,abs(time)). */
+double bracketed_root(const std::function<double(double)> &f, double a, double b, double fa, double fb);
 
 /* ---- small helpers ----
    sign: Fortran's SIGN, |a| with the sign of b (b >= 0: +|a|). */

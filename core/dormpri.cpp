@@ -11,16 +11,24 @@
 #include "flags.h"
 #include "xpp_log.h"
 #include "model.h"
+#include "my_rhs.h"
+#include <algorithm>
+#include <cmath>
+#include "xpp_job.h"
 
 /* The integrators' messages (Hairer's fileout stream, which XPP passed as
    stdout) are xpp::log WARNs: its Solver (solver.cpp) reports the failure
    itself; the stdout of --server is the protocol. */
+using FcnEqDiff = void (*)(xpp::Session &, unsigned, double, double *, double *);
+using SolTrait = void (*)(long, double, double, double *, unsigned, int *);
+
 namespace {
-/* one dop853 or dopri5 call's counts, its stages in the work memory and
-   its dense output (the step size it ends with is the Session's:
-   IntegratorState::dp_hout, the next call's first guess) */
+/* One continuous run: attempts, FSAL stages, controller and dense coefficients. */
 struct DpRun {
   long nstep=0, naccpt=0, nrejct=0;
+  bool resume=false;
+  double next_h=0, facold=1e-4, hlamb=0;
+  int iasti=0, nonsti=0;
   double xold=0, xout=0;
   unsigned nrds=0, *indir=nullptr;
   double *yy1=nullptr, *k1=nullptr, *k2=nullptr, *k3=nullptr, *k4=nullptr, *k5=nullptr, *k6=nullptr,
@@ -30,47 +38,10 @@ struct DpRun {
 };
 }
 
-void dprhs(xpp::Session &s, unsigned n, double t, double *y, double *f)
+static void dprhs(xpp::Session &s, unsigned n, double t, double *y, double *f)
 {
  my_rhs(s,t,y,f,n);
 
-}
-
-int dp(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)
-{
- int err=0;
- if(s.model().nflags==0)
-   return(dormprin(s,istart,y,t,n,tout,tol,atol,flag,kflag,work));
- err=one_flag_step_dp(s,istart,y,t,n,tout,tol,atol,flag,kflag,work);
- if(err==1)*kflag=-9;
- return 1;
-}
-/* this is the basic routine  */
-
-/* flag=0 for dopri5
-   flag=1 for dopri83
-   kflag = 1  for good integration
-  istart=1 for first time
-  istart=0 for continuation
-*/
-int dormprin(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)
-{
-  double hg=0.0;
-  if(*istart==0)hg=s.integrator.dp_hout;
-  *istart=0;
-  switch(flag){
-  case 0:
-    *kflag=dopri5(s,n,dprhs,*t,y,tout,tol,atol,0,nullptr,0,0.0,
-           0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,work);
-           *t=tout;
-    return 1;
-  case 1:
-     *kflag=dop853(s,n,dprhs,*t,y,tout,tol,atol,0,nullptr,0,0.0,
-           0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,work);
-           *t=tout;
-     return 1;
-  }
-  return(-1);
 }
 
 static double min_d (double a, double b)
@@ -153,7 +124,7 @@ static double hinit (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doubl
     h1 = max_d (1.0E-6, fabs(h)*1.0E-3);
   else
     h1 = xpp::math::pow(0.01/der12, 1.0/static_cast<double>(iord));
-  h = min_d (100.0 * h, min_d (h1, hmax));
+  h = min_d (100.0 * fabs(h), min_d (h1, hmax));
 
   return xpp::sign (h, posneg);
 
@@ -362,7 +333,7 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
       break;
   }
 
-  facold = 1.0E-4;
+  facold = r.resume ? r.facold : 1.0E-4;
   expo1 = 1.0/8.0 - beta * 0.2;
   facc1 = 1.0 / fac1;
   facc2 = 1.0 / fac2;
@@ -372,9 +343,11 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
   atoli = atoler[0];
   rtoli = rtoler[0];
   last  = 0;
-  hlamb = 0.0;
-  iasti = 0;
-  fcn (s, n, x, y, r.k1);
+  hlamb = r.resume ? r.hlamb : 0.0;
+  iasti = r.resume ? r.iasti : 0;
+  nonsti = r.resume ? r.nonsti : 0;
+  if (!r.resume) fcn (s, n, x, y, r.k1);
+  else h = r.next_h;
   hmax = fabs (hmax);
   iord = 8;
   if (h == 0.0)
@@ -382,10 +355,9 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
   reject = 0;
   r.xold = x;
   
-  if (iout)
+  if (iout && solout)
   {
     irtrn = 1;
-    s.integrator.dp_hout = 1.0;
     r.xout = x;
     solout (r.naccpt+1, r.xold, x, y, n, &irtrn); 
     if (irtrn < 0)
@@ -398,11 +370,9 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
   /* basic integration step */
   while (1)
   {
-    if (r.nstep > nmax)
+    if (r.nstep >= nmax)
     {
-      xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}, more than nmax = {} are needed\n", x, nmax);
       r.xout = x;
-      s.integrator.dp_hout = h;
       return -2;
     }
 
@@ -410,7 +380,6 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
     {
       xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}, step size too small h = {:.16e}\n", x, h);
       r.xout = x;
-      s.integrator.dp_hout = h;
       return -3;
     }
 
@@ -643,9 +612,8 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
       r.xold = x;
       x = xph;
 
-      if (iout)
+      if (iout && solout)
       {
-	s.integrator.dp_hout = h;
 	r.xout = x;
 	solout (r.naccpt+1, r.xold, x, y, n, &irtrn);
 	if (irtrn < 0)
@@ -658,7 +626,6 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
       /* normal exit */
       if (last)
       {
-	s.integrator.dp_hout=hnew;
 	r.xout = x;
 	return 1;
       }
@@ -681,19 +648,23 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
     }
 
     h = hnew;
+    if (!reject) {
+      r.next_h=h; r.facold=facold; r.hlamb=hlamb;
+      r.iasti=iasti; r.nonsti=nonsti; r.xout=x; r.resume=true;
+      return 2; /* one accepted step, with its interpolant and controller intact */
+    }
   }
 
 } /* dopcor */
 
 /* front-end */
-int dop853
+static int dop853
  (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y, double xend, double* rtoler,
   double* atoler, int itoler, SolTrait solout, int iout, double uround,
   double safe, double fac1, double fac2, double beta, double hmax, double h,
-  long nmax, int meth, long nstiff, unsigned nrdens, unsigned* icont, unsigned licont,double *work)
+  long nmax, int meth, long nstiff, unsigned nrdens, unsigned* icont, unsigned licont,double *work, DpRun &r)
 {
   int       arret, idid;
-  DpRun     r;
   unsigned  i;
   /* indir (the run's, like rcont1..8) is only ever read back
      within this same call; RAII here still frees it on every return
@@ -701,7 +672,7 @@ int dop853
   std::vector<unsigned> indir_buf;
 
   /* initialisations */
-  r.nstep = r.naccpt = r.nrejct = arret = 0;
+  arret = 0;
   r.rcont1 = r.rcont2 = r.rcont3 = r.rcont4 = r.rcont5 = r.rcont6 = r.rcont7 = r.rcont8 = NULL;
   r.indir = NULL;
 
@@ -714,7 +685,7 @@ int dop853
 
   /* nmax, the maximal number of steps */
   if (!nmax)
-    nmax = 100000;
+    nmax = xpp::DOPRI_RUN_ATTEMPTS;
   else if (nmax <= 0)
   {
     xpp::log(XPP_LOG_WARN, "Wrong input, nmax = {}\n", nmax);
@@ -842,6 +813,7 @@ int dop853
   r.k9 = r.k8+n;
   r.k10 = r.k9+n;
 
+    if (arret) return -1;
     idid = dopcor (s, n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
 		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont, r);
     return idid;
@@ -917,7 +889,7 @@ static double hinit5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doub
     h1 = max_d (1.0E-6, fabs(h)*1.0E-3);
   else
     h1 = xpp::math::pow(0.01/der12, 1.0/static_cast<double>(iord));
-  h = min_d (100.0 * h, min_d (h1, hmax));
+  h = min_d (100.0 * fabs(h), min_d (h1, hmax));
 
   return xpp::sign (h, posneg);
 
@@ -962,7 +934,7 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
       break;
   }
 
-  facold = 1.0E-4;
+  facold = r.resume ? r.facold : 1.0E-4;
   expo1 = 0.2 - beta * 0.75;
   facc1 = 1.0 / fac1;
   facc2 = 1.0 / fac2;
@@ -972,19 +944,20 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
   atoli = atoler[0];
   rtoli = rtoler[0];
   last  = 0;
-  hlamb = 0.0;
-  iasti = 0;
-  fcn (s, n, x, y, r.k1);
+  hlamb = r.resume ? r.hlamb : 0.0;
+  iasti = r.resume ? r.iasti : 0;
+  nonsti = r.resume ? r.nonsti : 0;
+  if (!r.resume) fcn (s, n, x, y, r.k1);
+  else h = r.next_h;
   hmax = fabs (hmax);
   iord = 5;
   if (h == 0.0)
     h = hinit5 (s, n, fcn, x, y, posneg, r.k1, r.k2, r.k3, iord, hmax, atoler, rtoler, itoler);
   reject = 0;
   r.xold = x;
-  if (iout)
+  if (iout && solout)
   {
     irtrn = 1;
-    s.integrator.dp_hout = h;
     r.xout = x;
     solout (r.naccpt+1, r.xold, x, y, n, &irtrn);
     if (irtrn < 0)
@@ -997,11 +970,9 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
   /* basic integration step */
   while (1)
   {
-    if (r.nstep > nmax)
+    if (r.nstep >= nmax)
     {
-      xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}, more than nmax = {} are needed\n", x, nmax);
       r.xout = x;
-      s.integrator.dp_hout = h;
       return -2;
     }
 
@@ -1009,7 +980,6 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
     {
       xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}, step size too small h = {:.16e}\n", x, h);
       r.xout = x;
-      s.integrator.dp_hout = h;
       return -3;
     }
 
@@ -1163,9 +1133,8 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
       r.xold = x;
       x = xph;
 
-      if (iout)
+      if (iout && solout)
       {
-	s.integrator.dp_hout = h;
 	r.xout = x;
 	solout (r.naccpt+1, r.xold, x, y, n, &irtrn);
 	if (irtrn < 0)
@@ -1178,7 +1147,6 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
       /* normal exit */
       if (last)
       {
-	s.integrator.dp_hout=hnew;
 	r.xout = x;
 	return 1;
       }
@@ -1201,19 +1169,23 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
     }
 
     h = hnew;
+    if (!reject) {
+      r.next_h=h; r.facold=facold; r.hlamb=hlamb;
+      r.iasti=iasti; r.nonsti=nonsti; r.xout=x; r.resume=true;
+      return 2; /* one accepted step, with its interpolant and controller intact */
+    }
   }
 
 } /* dopcor5 */
 
 /* front-end */
-int dopri5
+static int dopri5
  (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y, double xend, double* rtoler,
   double* atoler, int itoler, SolTrait solout, int iout, double uround,
   double safe, double fac1, double fac2, double beta, double hmax, double h,
-  long nmax, int meth, long nstiff, unsigned nrdens, unsigned* icont, unsigned licont, double *work)
+  long nmax, int meth, long nstiff, unsigned nrdens, unsigned* icont, unsigned licont, double *work, DpRun &r)
 {
   int       arret, idid;
-  DpRun     r;
   unsigned  i;
   /* indir (the run's, like rcont1..5) is only ever read back
      within this same call; RAII here still frees it on every return
@@ -1221,7 +1193,7 @@ int dopri5
   std::vector<unsigned> indir_buf;
 
   /* initialisations */
-  r.nstep = r.naccpt = r.nrejct = arret = 0;
+  arret = 0;
   r.rcont1 = r.rcont2 = r.rcont3 = r.rcont4 = r.rcont5 = NULL;
   r.indir = NULL;
 
@@ -1234,7 +1206,7 @@ int dopri5
 
   /* nmax, the maximal number of steps */
   if (!nmax)
-    nmax = 100000;
+    nmax = xpp::DOPRI_RUN_ATTEMPTS;
   else if (nmax <= 0)
   {
     xpp::log(XPP_LOG_WARN, "Wrong input, nmax = {}\n", nmax);
@@ -1355,6 +1327,7 @@ int dopri5
   r.k6 = r.k5+n;
   r.ysti = r.k6+n;
 
+    if (arret) return -1;
     idid = dopcor5 (s, n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
 		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont, r);
 
@@ -1362,3 +1335,143 @@ int dopri5
 
 } /* dopri5 */
 
+
+namespace xpp {
+namespace {
+/* The solver owns both internal endpoints and the interpolant. A caller's y
+   remains its requested sample; it never becomes the internal FSAL state. */
+class DormandPrince final : public Solver {
+  // DOP853 needs eight coefficient vectors and eleven stage vectors.
+  static constexpr int work_vectors=19;
+  // Hairer's 1.01*h endpoint test must not clip a step bounded by DtMax.
+  static constexpr double horizon_steps=2;
+  // Preserve dormprin's existing stiffness test after every accepted step.
+  static constexpr long stiffness_interval=1;
+public:
+  DormandPrince(const SolverInfo &info, Session &s, int n)
+    : Solver(info,s), work_(xpp::size_product(work_vectors,n)), endpoint_(n), returned_(n),
+      scratch_(std::max(n,s.model().neq)), derivative_(scratch_.size()) {}
+  void begin(int *start) override
+  {
+    if(*start==1){run_=DpRun{};valid_=false;}
+  }
+  void finish() override {valid_=false;run_.resume=false;}
+  bool section_found() const override { return section_; }
+private:
+  Result<> step_by(const SolverStep &step) override
+  {
+    auto &s=session_;
+    auto &num=s.numerics;
+    section_=false;
+    if(step.sections&&num.poincare_map&&num.poincare_variable>s.model().neq)
+      return failed("A Poincare section requires a model variable, not an added data column");
+    if(step.sections&&num.poincare_map==2&&num.poincare_variable>s.model().node)
+      return failed("Poincare extrema require a state variable with a right-hand side");
+    const int n=step.neq;
+    if(static_cast<std::size_t>(n)!=endpoint_.size())return failed("Solver state dimension changed");
+    const double direction=step.tout>*step.t?1:-1;
+    if(*step.start==1){run_=DpRun{};valid_=false;*step.start=0;}
+    // Torus wrapping and any external state edit invalidate the polynomial.
+    if(valid_&&(*step.t!=returned_time_||!std::equal(returned_.begin(),returned_.end(),step.y)||
+                (internal_time_-*step.t)*direction<0))valid_=false;
+    if(!valid_){
+      std::copy_n(step.y,n,endpoint_.begin());
+      internal_time_=*step.t;
+      run_.resume=false;
+    }
+    while((*step.t-step.tout)*direction<0){
+      if(xpp::job::cancelled()){s.integrator.stop_flag=1;break;}
+      if(!valid_||(internal_time_-*step.t)*direction<=0){
+        const double end=s.delay.flag?step.tout:internal_time_+direction*horizon_steps*fabs(num.max_step);
+        int status;
+        if(info().traits.eighth_order)
+          status=dop853(s,n,dprhs,internal_time_,endpoint_.data(),end,&num.tolerance,&num.abs_tolerance,
+                        0,nullptr,2,0,0,0,0,0,num.max_step,0,DOPRI_RUN_ATTEMPTS,0,stiffness_interval,n,nullptr,0,work_.data(),run_);
+        else
+          status=dopri5(s,n,dprhs,internal_time_,endpoint_.data(),end,&num.tolerance,&num.abs_tolerance,
+                        0,nullptr,2,0,0,0,0,0,num.max_step,0,DOPRI_RUN_ATTEMPTS,0,stiffness_interval,n,nullptr,0,work_.data(),run_);
+        if(status<0){
+          switch(status){
+          case -2:return failed(xpp::format("Run exceeded {} DoPri step attempts (accepted and rejected)",DOPRI_RUN_ATTEMPTS));
+          case -3:return failed("Step size too small");
+          case -4:return failed("Problem became stiff");
+          default:return failed("Input is not consistent");
+          }
+        }
+        internal_time_=run_.xout;
+        valid_=true;
+        events_checked_=false;
+        if(s.integrator.step_error)return std::unexpected(*s.integrator.step_error);
+      }
+      const double until=(internal_time_-step.tout)*direction<0?internal_time_:step.tout;
+      const auto state=[&](double time,std::span<double> y){sample(time,y);};
+      // Inspect the accepted step once, even when many output times lie in it.
+      // A future event stays pending until the caller reaches its root.
+      if(!events_checked_||event_sections_!=step.sections){
+        event_=dense_event(s,*step.t,internal_time_,run_.xold,internal_time_,state,scratch_,derivative_,step.sections);
+        events_checked_=true;event_sections_=step.sections;
+      }
+      const bool reached=event_.found&&(event_.time-until)*direction<=0;
+      const DenseEvent event=reached?event_:DenseEvent{};
+      *step.t=reached?event.time:until;
+      if(reached)events_checked_=false;
+      sample(*step.t,std::span(step.y,static_cast<std::size_t>(n)));
+      if(event.bound_variable>=0&&event.flag_count==0&&!(event.section&&num.poincare_stop)){
+        const auto &name=s.model().uvar_names[event.bound_variable];
+        valid_=false;
+        return failed(xpp::format("{} reaches bound at t = {}",name,*step.t),model_place(s.model(),name));
+      }
+      if(event.flag_count){
+        apply_dense_flags(s,step.y,*step.t,n,std::span(event.flags.data(),static_cast<std::size_t>(event.flag_count)));
+        // A parameter reset also invalidates FSAL, even if no state changed.
+        valid_=false;run_.resume=false;
+        internal_time_=*step.t;
+        std::copy_n(step.y,n,endpoint_.begin());
+      }
+      if(auto checked=check_state(step.y,n,*step.t);!checked)return checked;
+      section_=event.section;
+      if(section_||s.integrator.stop_flag)break;
+    }
+    std::copy_n(step.y,n,returned_.begin());
+    returned_time_=*step.t;
+    set_fix_rhs(s,*step.t,step.y);
+    // History is updated by integrate.cpp at the output grid, so the old
+    // derivative no longer describes the next delay interval.
+    if(s.delay.flag){valid_=false;run_.resume=false;}
+    return {};
+  }
+  Result<> check_state(const double *y,int n,double time) const
+  {
+    for(int i=0;i<n;++i){
+      const auto &s=session_;
+      const bool bounded=!(s.integrator.range_flag||s.integrator.suppress_bounds);
+      if(!std::isfinite(y[i])||(bounded&&fabs(y[i])>s.numerics.bound)){
+        const auto &name=s.model().uvar_names[i];
+        return failed(xpp::format("{} is not finite or exceeds bound at t = {}",name,time),model_place(s.model(),name));
+      }
+    }
+    return {};
+  }
+  void sample(double time,std::span<double> y) const
+  {
+    const double u=(time-run_.xold)/(internal_time_-run_.xold),v=1-u;
+    for(std::size_t i=0;i<endpoint_.size();++i){
+      if(time==internal_time_)y[i]=endpoint_[i];
+      else if(info().traits.eighth_order)
+        y[i]=run_.rcont1[i]+u*(run_.rcont2[i]+v*(run_.rcont3[i]+u*(run_.rcont4[i]+v*(run_.rcont5[i]+u*(run_.rcont6[i]+v*(run_.rcont7[i]+u*run_.rcont8[i]))))));
+      else
+        y[i]=run_.rcont1[i]+u*(run_.rcont2[i]+v*(run_.rcont3[i]+u*(run_.rcont4[i]+v*run_.rcont5[i])));
+    }
+  }
+  DpRun run_;
+  DenseEvent event_;
+  std::vector<double> work_,endpoint_,returned_,scratch_,derivative_;
+  double internal_time_=0,returned_time_=0;
+  bool valid_=false,section_=false,events_checked_=false,event_sections_=false;
+};
+}
+std::unique_ptr<Solver> make_dormand_prince(const SolverInfo &info, Session &s, int n)
+{
+  return std::make_unique<DormandPrince>(info,s,n-s.model().nmarkov);
+}
+}

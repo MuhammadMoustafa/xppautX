@@ -77,7 +77,7 @@ constexpr auto member(F)
 enum class OptionRule { any, nonzero, positive, nonnegative, whole_positive, method, choice };
 /* which methods use a numerics setting (xpp::SolverTraits), so a front end
    can say the others do not */
-enum class OptionUse { always, step_or_rel, step, rel, newton, delays, integral_history };
+enum class OptionUse { always, step_or_rel, step_or_dense, step, rel, newton, delays, integral_history };
 
 /* the source of the value set_option is applying: whether it may set an
    option another source (or an earlier line of its own, mask) set */

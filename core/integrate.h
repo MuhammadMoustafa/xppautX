@@ -2,6 +2,7 @@
 #define _integrate_h_
 
 #include <algorithm>
+#include <functional>
 #include <array>
 #include <cstdio>
 #include <memory>
@@ -72,6 +73,21 @@ void send_halt(Session &s);
 
 /* The integrator's driver works on the Session s the command (or the run)
    that started it passes down (W47d4). */
+
+/* A dense accepted-step event, consumed before the solver returns a sample.
+   Bracketing uses 32 subintervals of each inspected interval; sign crossings
+   are refined to 8*epsilon*max(1,abs(time)). Tangencies without a sampled
+   zero and crossings faster than this subdivision are not guaranteed. */
+inline constexpr int DENSE_EVENT_SUBDIVISIONS=32;
+struct DenseEvent {
+  double time=0;
+  bool found=false, section=false;
+  int bound_variable=-1, flag_count=0;
+  std::array<int,MAXFLAG> flags{};
+};
+DenseEvent dense_event(Session &s, double from, double until, double step_from, double step_until,
+                      const std::function<void(double,std::span<double>)> &state,
+                      std::span<double> scratch, std::span<double> derivative, bool sections=true);
 
 /* the equilibrium Newton finds from the initial data, with its
    eigenvalues (x, re, im per variable), written to name (nothing when
@@ -222,9 +238,6 @@ struct IntegratorState {
   /* the step Rosenbrock's last advance ended with, its next one's first
      (odesol2.cpp rosen) */
   double rosen_htry = 0;
-  /* the step Dormand-Prince's last advance ended with, its next one's
-     first guess (dormpri.cpp dormprin) */
-  double dp_hout = 0;
   /* the global flags' states (flags.cpp) */
   std::vector<FlagState> flags; /* the model's nflags (compile_flags) */
   /* Gear's pivots of the Jacobian it factored last (gear.cpp ggear) */

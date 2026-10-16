@@ -133,6 +133,7 @@ void  get_num_par(xpp::Session &s, char ch)
 			  numerics_settings_ask(s,"min_step");
 			  numerics_settings_ask(s,"max_step");
 			}
+			if(traits.dense_output)numerics_settings_ask(s,"max_step");
 			if(traits.rel_abs_tolerance){
 			  numerics_settings_ask(s,"tolerance");
 			  numerics_settings_ask(s,"abs_tolerance");

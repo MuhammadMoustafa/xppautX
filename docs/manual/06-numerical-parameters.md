@@ -27,7 +27,32 @@ The program will integrate silently for this amount of time before plotting outp
 
 ### (D)t
 
-This is the step size used by the fixed step integrators and the output step for Gear,CVODE, Quality RK, Rosen,and Stiff algorithms. It is positive or negative depending on the direction of integration.
+This is the step size used by the fixed step integrators and the output interval for DoPri5, DoPri8(3), Gear, CVODE, Quality RK, Rosen, and Stiff algorithms. It is positive or negative depending on the direction of integration.
+
+For DoPri5 and DoPri8(3), Dt sets only the requested output times. The solver
+keeps its adaptive step, FSAL derivative and controller between outputs and
+samples its continuous polynomial at those times. DtMax (`max_step`) caps
+its internal step, independently of Dt. Relative and absolute tolerances control
+local error approximately as `abs_tolerance + tolerance*abs(state)`; neither is
+a guarantee on accumulated trajectory or interpolated output error. Results
+therefore intentionally differ from XPPAUT's output-limited DoPri runs.
+
+Global flags, sections and extrema are bracketed on the dense state using 32
+subintervals of each inspected interval and refined within
+`8*epsilon*max(1,abs(time))` (double precision). Extrema use the actual RHS component. Simultaneous flags retain
+their existing order; resets discard the remainder of the step. `no_interp`
+places a flag at the accepted step endpoint. A halt or stop on a section keeps
+the root state and time. Tangencies without a sampled zero and more rapid
+crossings can be missed; decrease DtMax to resolve them. Bounds stop the run
+before a later interpolated state is accepted.
+
+Delay models retain their uniform Dt history grid: DoPri stops at each history
+update and restarts its derivative there. Torus wrapping invalidates retained
+coefficients when it changes a returned state. Backwards integration uses the
+same dense path with signed steps. Each run allows 100,000 accepted plus
+rejected attempts, including restarts after events; exhaustion stops with an
+error naming the command and keeps the completed output rows (W377,
+[#439](https://github.com/MuhammadMoustafa/xppautX/issues/439)).
 
 ### n(C)line ctrl
 

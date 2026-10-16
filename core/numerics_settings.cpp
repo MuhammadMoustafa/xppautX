@@ -44,6 +44,7 @@ bool uses(const xpp::Session &s, const OptionRow &f, int method)
     switch (f.use) {
     case OptionUse::always: return true;
     case OptionUse::step_or_rel: return t.step_tolerance || t.rel_abs_tolerance;
+    case OptionUse::step_or_dense: return t.step_tolerance || t.dense_output;
     case OptionUse::step: return t.step_tolerance;
     case OptionUse::rel: return t.rel_abs_tolerance;
     case OptionUse::newton: return t.newton;

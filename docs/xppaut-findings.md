@@ -1254,11 +1254,13 @@ never reaches DoPri: `dormprin` passes `hmax` as 0, no limit.
   from the dense output: 18.3-99.7% fewer right-hand-side calls at equal
   tolerance (lecar 4,201 to 326, PY_S1Bf 1.4 million to 154 thousand),
   with the error the tolerance asks for instead of the error `dt` forces.
-- **xppautX:** to be one continuous run with the output and the events
-  taken from the dense output, the tolerance meaning what it says, Dt the
-  output interval and DtMax DoPri's maximum step
-  (maintainer, 2026-10-15: "this makes dopri fixed step method not an
-  adaptive one"); W377's stage 2.
+- **xppautX:** DoPri5 and DoPri8(3) retain the step, FSAL derivative,
+  controller and counters across output times, sample the dense polynomial,
+  and pass DtMax as the maximum internal step. Flags, sections and extrema
+  use bracketed dense roots, with resets invalidating the step remainder.
+  Delay models stop at their uniform history updates. The run-wide 100,000
+  attempt budget reports an error instead of shortening a successful run.
+  See the study's stage 2 section for errors, counts and event limitations.
 - **Card:** [W377 / #439](https://github.com/MuhammadMoustafa/xppautX/issues/439).
 
 ## 60. Input-sized writes and size arithmetic

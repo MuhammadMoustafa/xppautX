@@ -668,7 +668,7 @@ The remaining options can be set from within the program. They are
 
 - DTMIN=value sets the minimum allowable timestep for the Gear integrator.
 
-- DTMAX=value sets the maximum allowable timestep for the Gear integrator
+- DTMAX=value sets the maximum allowable internal timestep for Gear and DoPri5/DoPri8(3)
 
 - VMAXPTS=value sets the number of points maintained in for the Volterra integral solver. The default is 4000.
 

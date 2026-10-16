@@ -8,6 +8,8 @@
 #include "xpp_io.h"
 
 #include <cmath>
+#include <algorithm>
+#include <limits>
 #include <complex>
 #include <cstdint>
 #include <cstdlib>
@@ -708,3 +710,27 @@ bool all_finite(std::span<const double> values)
     return true;
 }
 } // namespace xpp
+
+namespace xpp {
+double bracketed_root(const std::function<double(double)> &f, double a, double b, double fa, double fb)
+{
+    // A guarded step contracts the bracket by at least 1/4; 128 suffice
+    // to reach the scaled double-precision time tolerance.
+    constexpr int root_iterations=128;
+    constexpr double guard_fraction=0.25; // Keep a secant away from either bracket edge.
+    for(int i=0;i<root_iterations;++i){
+        if(fa==0)return a;
+        if(fb==0)return b;
+        const double mid=a+(b-a)*0.5;
+        constexpr double time_roundoff=8*std::numeric_limits<double>::epsilon();
+        if(mid==a||mid==b||fabs(b-a)<=time_roundoff*std::max({1.0,fabs(a),fabs(b)}))return mid;
+        double c=a-fa*(b-a)/(fb-fa);
+        const double u=(c-a)/(b-a);
+        if(!std::isfinite(c)||u<guard_fraction||u>1-guard_fraction)c=mid;
+        const double fc=f(c);
+        if(fc==0)return c;
+        if((fa<0)==(fc<0)){a=c;fa=fc;}else{b=c;fb=fc;}
+    }
+    return a+(b-a)*0.5;
+}
+}

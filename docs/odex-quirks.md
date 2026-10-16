@@ -336,3 +336,13 @@ comparisons beside arithmetic, and `&`/`|` beside arithmetic found:
 
 None: `e` is not reserved in .odex, and division by zero (hence NaN
 conditions) is decided (docs/odex.md, open questions 1 and 4).
+
+## W377: DoPri output scheduling
+
+Imported DoPri5 and DoPri8(3) models use Dt for output times and DtMax for the
+maximum internal step. Dense interpolation and retained controller state
+intentionally change their output from XPPAUT's per-output restart schedule.
+Other methods retain their numerical behavior. Delay models retain uniform
+Dt history updates. See [the study](studies/w377-dense-output.md) and
+[finding 59](xppaut-findings.md#59-dormand-prince-restarted-at-every-output-point)
+([#439](https://github.com/MuhammadMoustafa/xppautX/issues/439)).

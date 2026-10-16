@@ -1,0 +1,7 @@
+# W377: the requested past values remain in the constant initial history.
+x' = delay(x,1)
+init x = 1
+history x = 1
+options {
+  integration: { total_time: .5, dt: .05, delay: 2 },
+}

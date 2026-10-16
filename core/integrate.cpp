@@ -3,6 +3,7 @@
 #include "mykeydef.h"
 #include "image_format.h"
 #include "solver.h"
+#include "xpp_math.h"
 #include "model.h"
 #include "session.h"
 #include "ode_read.h"
@@ -76,6 +77,90 @@
 #include "comline.h"
 
 namespace xpp {
+
+DenseEvent dense_event(Session &s, double from, double until, double step_from, double step_until,
+                      const std::function<void(double,std::span<double>)> &state,
+                      std::span<double> scratch, std::span<double> derivative, bool sections)
+{
+  DenseEvent event;
+  event.time=until;
+  const double direction=until>from?1:-1;
+  // Simultaneous events agree to rounding precision in model time.
+  constexpr int simultaneous_time_ulps=128;
+  const double coincidence=simultaneous_time_ulps*std::numeric_limits<double>::epsilon()*std::max({1.0,fabs(from),fabs(until)});
+  const auto consider=[&](double time,int flag,bool section,int bound){
+    if(!event.found||(time-event.time)*direction < -coincidence){
+      event={}; event.found=true; event.time=time;
+    }
+    if(fabs(time-event.time)<=coincidence){
+      if(flag>=0)event.flags.at(static_cast<std::size_t>(event.flag_count++))=flag;
+      event.section=event.section||section;
+      if(bound>=0)event.bound_variable=bound;
+    }
+  };
+  const auto scan=[&](const std::function<double(double)> &value,int sign,int flag,bool section,int bound,bool nointerp){
+    const double left=nointerp?step_from:from, right=nointerp?step_until:until;
+    if(nointerp&&until!=step_until)return;
+    double a=left,fa=value(a);
+    for(int j=1;j<=DENSE_EVENT_SUBDIVISIONS;++j){
+      const double b=j==DENSE_EVENT_SUBDIVISIONS?right:left+(right-left)*j/DENSE_EVENT_SUBDIVISIONS;
+      const double fb=value(b);
+      const bool up=fa<0&&fb>=0, down=fa>0&&fb<=0;
+      if((sign>=0&&up)||(sign<=0&&down)){
+        const double root=nointerp?step_until:bracketed_root(value,a,b,fa,fb);
+        if((root-from)*direction>coincidence){consider(root,flag,section,bound);break;}
+      }
+      a=b;fa=fb;
+    }
+  };
+  for(int i=0;i<s.model().nflags;++i){
+    const auto &flag=s.model().flags[i];
+    scan([&](double t){state(t,scratch);set_fix_rhs(s,t,scratch.data());return evaluate(s,flag.comcond);},
+         flag.sign,i,false,-1,flag.nointerp!=0);
+  }
+  const auto &num=s.numerics;
+  if(sections&&num.poincare_map>=1&&num.poincare_map<=3){
+    if(num.poincare_variable==0&&num.poincare_map!=2){
+      const double period=fabs(num.poincare_plane);
+      if(period>0){
+        const double k=direction>0?floor(from/period)+1:ceil(from/period)-1;
+        const double time=k*period;
+        if((time-from)*direction>0&&(until-time)*direction>=0)consider(time,-1,true,-1);
+      }
+    }else if(num.poincare_variable>0){
+      const int index=num.poincare_variable-1;
+      scan([&](double t){
+        state(t,scratch);
+        if(num.poincare_map==2){
+          s.integrator.rhs(t,scratch.data(),derivative.data(),s.model().node);
+          return derivative[index];
+        }
+        if(index>=s.model().node)extra(s,scratch.data(),t,s.model().node,s.model().neq);
+        return scratch[index]-num.poincare_plane;
+      },num.poincare_map==2?-num.poincare_sign*static_cast<int>(direction):num.poincare_sign,-1,true,-1,false);
+    }
+  }
+  if(!(s.integrator.range_flag||s.integrator.suppress_bounds)){
+    state(from,scratch);
+    for(int i=0;i<s.model().node;++i)derivative[i]=fabs(scratch[i])-num.bound;
+    double a=from;
+    for(int j=1;j<=DENSE_EVENT_SUBDIVISIONS;++j){
+      const double b=j==DENSE_EVENT_SUBDIVISIONS?until:from+(until-from)*j/DENSE_EVENT_SUBDIVISIONS;
+      state(b,scratch);
+      for(int i=0;i<s.model().node;++i){
+        const double fb=fabs(scratch[i])-num.bound,fa=derivative[i];
+        if(fa<=0&&fb>0){
+          const double root=bracketed_root([&](double time){state(time,scratch);return fabs(scratch[i])-num.bound;},a,b,fa,fb);
+          consider(root,-1,false,i);
+          state(b,scratch);
+        }
+        derivative[i]=fb;
+      }
+      a=b;
+    }
+  }
+  return event;
+}
 
 /* a row was just stored (storage[.][storind-1]): a replayed script may stop
    the job here (xpp_job.h), and a front end may show the run growing */
@@ -1558,7 +1643,7 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
  int rval=0;
  std::optional<xpp::Error> failure; /* why the loop stopped, when it failed */
  std::vector<double> oldx_values(neq_size);
- double *const oldx=oldx_values.data(),oldt=0,dint,dxp,sect,sect1,tout,tzero=*t;
+ double *const oldx=oldx_values.data(),oldt=0,dint,dxp,sect,sect1,tout=*t,tzero=*t;
  double sss,tnew=*t;
  int iflagstart=1;
  float tscal=tend,tv;
@@ -1619,16 +1704,16 @@ if(program.interactive) cwidth=get_command_width();
 	   if(!solver.traits().fixed_step){
 	     /* on to the next output time, in steps of the method's own */
 	     tout=tzero+dt*(icount+1);
-	     if(fabs(dt)<fabs(s.numerics.min_step)){
+	     if(!solver.traits().dense_output&&fabs(dt)<fabs(s.numerics.min_step)){
 	       s.integrator.last_time=*t;
 	       solver.finish();
 	       return(1);
 	     }
 	     mswtch(s,s.solver_work.xpv.x,x);
 	     xpp::Result<> r=solver.advance({.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=start,
-						 .tout=tout,.hguess=&hguess});
+						 .tout=tout,.hguess=&hguess,.sections=true});
 	     mswtch(s,x,s.solver_work.xpv.x);
-	     stor_delay(s,x);
+	     if(!solver.traits().dense_output||*t==tout)stor_delay(s,x);
 	     if(s.integrator.step_error){
 	       s.integrator.last_time=*t;
 	       return take_step_error(s);
@@ -1636,7 +1721,8 @@ if(program.interactive) cwidth=get_command_width();
 	     if(!r){
 	       ping();
 	       s.integrator.last_time=*t;
-	       if((s.integrator.range_flag||s.integrator.suppress_bounds)&&r.error().where!=xpp::JACOBIAN_FAILED)return(1);
+	       /* A continuous DoPri failure, including its run budget, is never partial success. */
+	       if((s.integrator.range_flag||s.integrator.suppress_bounds)&&!solver.traits().dense_output&&r.error().where!=xpp::JACOBIAN_FAILED)return(1);
 	       return std::unexpected(stopped(r.error(),tzero+tend,dt));
 	     }
 	   }
@@ -1748,6 +1834,11 @@ if(program.interactive) cwidth=get_command_width();
            ui.live_state(s, x, *t);
            tv=static_cast<float>(*t);
 	   xv[0]=tv;
+ if(solver.traits().dense_output&&s.numerics.poincare_map){
+   pflag=solver.section_found()?1:0;
+   if(!pflag)goto out;
+   goto dense_poi;
+ }
  if((s.numerics.poincare_map==2)&&!(s.numerics.poincare_variable==0))
  {
   pflag=0;
@@ -1839,6 +1930,7 @@ poi:    for(i=0;i<s.model().neq;i++)oldx[i]=x[i];
     if(pflag==0)goto out;
  }
 
+dense_poi:
 /*	   Plotting and storing data      */
  if(s.numerics.poincare_map==3&&pflag==1){
    if(oldperiod==0.0){
@@ -1879,7 +1971,8 @@ poi:    for(i=0;i<s.model().neq;i++)oldx[i]=x[i];
 	   }
 
 out:
-           icount++;
+           if(solver.section_found()&&s.numerics.poincare_stop)break;
+           if(!solver.traits().dense_output||*t==tout)icount++;
            if(s.integrator.steady&&xpp::job::cancelled()){
              s.integrator.steady_result->status="stopped";
              break;

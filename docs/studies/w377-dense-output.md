@@ -2,14 +2,18 @@
 
 Issue: [#439](https://github.com/MuhammadMoustafa/xppautX/issues/439).
 
+The measurement sections through "Gates and review handoff" preserve the stage 1 record.
+The production implementation and its validation are documented in
+[stage 2 below](#stage-2-production-dense-integration-w377-439).
+
 ## Scope and decision
 
-This is a measurement study, with a disposable continuous-integration
-prototype, not a production solver change. The event-safe production path
-requires coordination with `core/integrate.cpp`, which this card's brief
-explicitly forbids editing while another agent changes it. No numerical
-baseline has been rewritten. Instruction counts remain for the coordinator's
-WSL/callgrind review; RHS counts are not instruction counts or a speedup claim.
+Stage 1 measured a disposable continuous-integration prototype. Stage 2 now
+implements one production dense-output path for DoPri5 and DoPri8(3), including
+events and resets in the shared integration loop. Dt is the output interval;
+DtMax caps internal steps. The two changed DoPri example baselines are recorded
+below. Instruction counts remain for the coordinator's WSL/callgrind review;
+RHS counts are not instruction counts or a speedup claim.
 
 ## Method and reproducibility
 
@@ -85,9 +89,9 @@ tools/heavy.sh python docs/studies/w377-measure.py run
 python docs/studies/w377-measure.py summarize
 ```
 
-Raw 17-digit state CSVs and the generated source/executable remain under
-ignored `build/w377/`. The compact counts and input provenance accompany
-this study in `w377-counts.csv` and `w377-counts.json`.
+The generated stage 1 files under ignored `build/w377/` were cleaned after
+review; the commands above regenerate them. The compact counts and input
+provenance accompany this study in `w377-counts.csv` and `w377-counts.json`.
 An initial Kuramoto fixture retained its legacy `d` terminator and therefore
 did not enter DoPri. Its eight uninstrumented runs were discarded, the
 terminator transformation was corrected, and all eight were rerun. Only
@@ -218,60 +222,20 @@ T=2000, dt=0.01; reference refinement delta=1.95e-06.
 
 ## Recommendation
 
-Pursue dense output, but do not merge an unconditional production replacement
-from this prototype. At equal `1e-6` local tolerances it reduces RHS work in
-all 18 model/method pairs, by **18.3% to 99.7%**. That establishes a useful
-optimization opportunity, not equivalent output accuracy or measured runtime
-speed. All 68 completed runs satisfy the stage-count identities above; four
-tight DoPri5 runs are incomplete. The complete input/run records, including
-those failures, are in the accompanying JSON.
+Stage 2 implements the maintainer's decision: one continuous DoPri path, with
+retained solver state, dense output, DtMax and event/reset handling. There is
+no user-selectable restart mode. Its production measurements and checks are
+below; the original stage 1 tables above describe the prototype, whose maximum
+step policy differed from production.
 
-On lecar, DoPri5 changes from 4,201 to 326 RHS calls (**92.2% fewer**), but
-its maximum reference difference changes from `9.96e-10` to `5.77e-6`.
-DoPri8 changes from 7,801 to 380 (**95.1% fewer**), while that difference
-changes from `3.32e-11` to `1.29e-5`. Tightening continuous tolerance to
-`1e-11` gives 2,546 / 1,404 calls, respectively, with differences
-`3.99e-10` / `2.13e-10`; the reference itself moves by `2.13e-10`.
-Consequently those last digits do not establish which path is more accurate.
-
-The slow analytic control needs just 50 / 77 RHS calls with continuous
-DoPri5 / DoPri8 versus 14,001 / 26,001 now, with absolute errors
-`1.37e-7` / `2.43e-9`. The stiff-ish control saves **46.4% / 42.2%** at
-`1e-6`, but errors increase from `1.41e-7` / `1.42e-10` to
-`5.68e-7` / `6.40e-6`. Over-tightening it to `1e-11` costs more calls
-than the current `1e-6` runs. A runtime claim needs accuracy-controlled
-callgrind comparisons, not the most favorable call-count ratio.
-
-The difficult workloads prevent a blanket accuracy conclusion:
-
-- Episodic's full-horizon errors are roughly 113--134 for the `1e-6`
-  runs, despite its two tight DoPri8 references differing by `0.00396`.
-  Neither schedule at this tolerance is a convincing pointwise reproduction
-  of the tight trajectory.
-- Amari contains `heav(u[j])`, a discontinuous RHS. Tight continuous DoPri5
-  still differs from the DoPri8 reference by about `0.459`, whereas
-  DoPri8's own tight refinement changes by `0.000175`. Within-method
-  refinement alone does not validate the branch taken across a discontinuity.
-- PY_S1Bf saves 89.0% / 93.6% of RHS calls, but changes errors from
-  `9.77e-5` / `2.35e-7` to `0.439` / `0.0550`; its tight-reference
-  refinement is `1.95e-6`.
-- The nominal 100,000-attempt limit is per call. One continuous call
-  encounters it where the restarted schedule renews it at every output.
-  Tight DoPri5 stops at 4,250 / 3,571 outputs for episodic and
-  92,118 / 58,194 for PY_S1Bf (`1e-11` / `1e-12`). The implementation
-  must define a continuation budget without silently shortening a long run.
-
-Use one dense path after the shared output/event contract is implemented and
-validated. Retaining an ordinary user-selectable restart mode is not needed
-to establish these savings. The next implementation needs coordination with
-the excluded `integrate.cpp` work, retained solver state, event/reset
-invalidation, backwards integration and delay/torus behavior checks. The
-coordinator should measure both solver-inclusive and whole-run instructions
-in WSL at declared output-error targets; include dense polynomial work and
-the extra DoPri8 stages. This card's **production implementation remains
-unfinished**, rather than interpreting the file-ownership restriction as
-evidence that dense output does not pay. No CHANGELOG, comparison-table or
-checksum update is appropriate until user-visible numerical behavior changes.
+At equal local tolerances, removing the output-step restriction can increase
+trajectory error: the restarted schedule often overresolved that tolerance.
+Production saves RHS calls in 17 of 18 model/method pairs, while clustor/DoPri8
+costs more with DtMax=Dt=1. Episodic, discontinuous Amari and PY_S1Bf prevent a
+blanket accuracy claim. The tolerance controls local error, not the global
+trajectory difference. Accuracy-controlled whole-run and solver-inclusive
+instruction measurements remain for the coordinator; RHS counts alone do not
+establish a runtime improvement.
 
 ## Other adaptive methods
 
@@ -371,3 +335,142 @@ build/check, merge, push, commit, or independent background run was started.
 The coordinator-owned pre-existing W377 assignment in the main checkout's
 background-task register was not edited from this worktree. The roadmap
 records this card as study measured, with implementation and review pending.
+
+## Stage 2: production dense integration (W377, #439)
+
+DoPri5 and DoPri8(3) retain their internal endpoint, FSAL derivative,
+controller/stiffness history and counters across output calls. Dt samples the
+dense polynomial; DtMax follows Gear's `numerics.max_step` path. Backwards
+runs use signed steps with a bounded initial-step magnitude. The 100,000
+accepted-plus-rejected attempt budget includes flag restarts; exhaustion is
+a command-placed Error, never a successful shortened run.
+
+Each accepted step (or remainder after a section) is inspected once in 32
+subintervals; its earliest event stays pending until output reaches it.
+`xpp_math::bracketed_root` uses safeguarded secant/bisection to
+`8*epsilon*max(1,abs(time))`. Extrema use the actual RHS. Simultaneous flags
+within 128 scaled epsilons retain the original cascade/application order;
+resets discard the step remainder. `nointerp` defers to the accepted endpoint.
+Halts and stop-on-section return the full root state/time. Bounds and
+nonfinite states are checked before returning a sample, including resets.
+Tangencies without a sampled zero and crossings faster than the subdivision
+can be missed: this finite bracketing contract is not arbitrary exact-event
+detection. Reduce DtMax for faster event functions.
+
+Delay history has uniform Dt slots, indexed by tau/Dt without timestamps.
+DoPri stops at each history update and invalidates its derivative; intermediate
+section returns add no history slot. This preserves the existing delay
+scheme. Torus/caller state edits invalidate retained coefficients. The live
+expression variables are restored to the returned state/time. Only the
+trajectory loop consumes section returns; fitting/shooting still reach their
+requested endpoint, with flags/halts active. Cancellation is checked between
+accepted steps.
+
+Search/reuse: integrate's output/events and all solver callers (AUTO included),
+flags.cpp, solver.cpp, Gear's DtMax path, stiff's clipping, cv2/CVODE's NORMAL
+interpolation, and xpp_math/core scalar root routines. Reused DoPri's actual
+coefficients/FSAL stages, Gear's setting, CVODE's internal/output ownership
+pattern, the flag application owner and section storage/stop pipeline. No
+scalar bracket refiner existed in the common math owner; added it there.
+AUTO does not call these wrappers. Per-output restart cannot span Dt; caching
+a whole trajectory would advance past resets before they act. Neither is a
+second mode. No file/path/process/protocol trust boundary changed; the shared
+max-step option retains finite-positive validation and now advertises DoPri.
+
+`tests/test_dormpri.cpp` adds 24,861 checks across both orders: exact output
+and live-expression times, analytic decay, backwards samples/events, dense
+sections (including auxiliaries, a root at t=.371 between output samples
+and every component evaluated there), extrema, state/parameter resets,
+simultaneous/multiple/grazing events, nointerp, halt, wrapping, bounds, delay
+history, fitting endpoints and budget exhaustion. Fixtures are
+`tools/models/w377-dense.odex` and `tools/models/w377-delay.odex`.
+
+### Production measurements
+
+[w377-stage2.csv](w377-stage2.csv) and [w377-stage2.json](w377-stage2.json)
+record all nine models, input/source/archive hashes, compiler/flags, and all
+54 runs. Inputs match stage 1 byte-for-byte; every completed run satisfies
+the stage-count identity. Instrumentation exists only in the generated copy
+under `build/w377-stage2`, exercising the actual production Solver. This
+ignored directory is kept with its raw 17-digit trajectories, generated
+source/executable, fixtures, manifest, counts and build provenance; obsolete
+pre-guard backups and unrelated check artifacts were removed. Stage 1's
+harness is frozen to 16a6ac81, with only its disposable registry seam adapted.
+Before-errors are archived stage 1 errors against its tight DoPri8 reference;
+after-errors use production DoPri8 at 1e-12, with its 1e-11 refinement below.
+The scalar controls use exp(-.01*t) and cos(t). These are solver-family
+convergence controls, not an independent reference or a global-error bound.
+All production fixtures have DtMax=1; stage 1 ignored that setting.
+
+| Model | Method | RHS before → after | Max error before → after | Reference refinement |
+|---|---|---:|---:|---:|
+| lecar | dopri5 | 4,201 → 368 | 9.96e-10 → 5.77e-06 | 2.13e-10 |
+| lecar | dopri8 | 7,801 → 590 | 3.32e-11 → 3.17e-06 | 2.13e-10 |
+| episodic | dopri5 | 112,110 → 87,032 | 134 → 123 | 0.000618 |
+| episodic | dopri8 | 134,915 → 119,191 | 113 → 111 | 0.000618 |
+| lecdiff200 | dopri5 | 2,843 → 794 | 7.61e-07 → 1.09e-05 | 4.58e-07 |
+| lecdiff200 | dopri8 | 5,201 → 1,117 | 6.29e-08 → 0.000207 | 4.58e-07 |
+| kuramot100 | dopri5 | 14,019 → 674 | 4.78e-09 → 4.67e-07 | 6.63e-11 |
+| kuramot100 | dopri8 | 26,049 → 1,592 | 4.78e-09 → 8.86e-07 | 6.63e-11 |
+| amari | dopri5 | 14,091 → 752 | 0.459 → 0.459 | 0.000175 |
+| amari | dopri8 | 27,379 → 3,514 | 0.102 → 0.102 | 0.000175 |
+| clustor | dopri5 | 3,525 → 3,026 | 4.84e-09 → 4.1e-09 | 1.22e-13 |
+| clustor | dopri8 | 6,585 → 7,592 | 6.14e-11 → 1.22e-13 | 1.22e-13 |
+| slow | dopri5 | 14,001 → 614 | 1.33e-15 → 3.1e-14 | 4.44e-16 |
+| slow | dopri8 | 26,001 → 1,517 | 1.44e-15 → 3.33e-16 | 4.44e-16 |
+| stiffish | dopri5 | 7,771 → 4,178 | 1.41e-07 → 5.32e-07 | 1.64e-13 |
+| stiffish | dopri8 | 7,849 → 4,533 | 1.42e-10 → 6.4e-06 | 1.64e-13 |
+| PY_S1Bf | dopri5 | 1,400,001 → 153,512 | 9.77e-05 → 0.439 | 1.95e-06 |
+| PY_S1Bf | dopri8 | 2,600,001 → 165,272 | 2.35e-07 → 0.055 | 1.95e-06 |
+
+At tolerance 1e-6 all 18 runs complete: 17 use fewer RHS calls (11.7–95.6%
+fewer), while clustor/DoPri8 uses **15.3% more**. Its DtMax=Dt=1 prevents
+longer steps and DOP853 pays three additional dense stages per accepted step.
+The other accuracy trade-offs remain material: episodic and Amari retain
+large full-trajectory errors, and PY_S1Bf changes to about .439/.055 error.
+No runtime or general accuracy improvement is claimed. Fifty of 54 runs
+complete; the four tight DoPri5 episodic/PY_S1Bf runs stop at exactly 100,000
+attempts with an error. Every tight DoPri8 reference completes.
+
+Reproduce sequentially from Git Bash after the UCRT build:
+
+```sh
+export PATH="/c/msys64/ucrt64/bin:$PATH"
+python docs/studies/w377-stage2.py fixtures
+python docs/studies/w377-stage2.py prepare
+tools/heavy.sh bash build/w377-stage2/build.sh
+tools/heavy.sh python docs/studies/w377-stage2.py run
+tools/heavy.sh python docs/studies/w377-stage2.py summarize
+```
+
+### Stage 2 gates
+
+The final UCRT build/unit and example checks were rerun on 3110207a with
+these documentation updates; the baseline was not updated again.
+
+| Gate | Result |
+|---|---|
+| UCRT `-j4 WERROR=1 xppautx test` | Zero compiler warnings; 56 executables, 68,233 checks, zero failures. |
+| examples_check, then --update once | 185 entries checked; only the two DoPri8 outputs below change; all other methods unchanged. |
+| goldencheck (`--bin`, its supported argument) | Six unchanged files, zero failures; script unchanged. |
+| servercheck | 1,193 checks, zero failures; script unchanged. |
+| autocompare | 90 checks, 40 models, 9 existing skips, 5,936 points; all diagrams unchanged. |
+| web2 manual build/check/typecheck | Passed; rebuilt dist/manual.json. |
+| Frozen stage 1 harness smoke | Builds and reproduces slow/DoPri5: 14,001 restarted and 50 continuous RHS calls. |
+
+Intentional DoPri8 baseline changes (retained controller and dense sampling):
+
+- `examples/canonical/tyson.odex`: `e0505e7fc192353f098deb27f81ad892` → `5e92aa3cdf3e06dbf152fb4ddf5b42ff`.
+- `examples/ode/tsthomi.odex`: `4d7afb9dd15acb7818ba28f3e552b485` → `c37678b20a8e7cf5cd041bbb81cbf676`.
+
+All heavy commands ran sequentially through heavy.sh; its lock worked.
+The wrapper printed a user-profile mkdir permission diagnostic but acquired
+a slot and completed each command; no lock path or script was changed.
+The initial npm cache access was denied; a worktree-local cache succeeded.
+The coordinator reports passing WSL build/unit tests, sourcecheck,
+examples_check, odexcheck, goldencheck, servercheck, autocompare and ASan
+(build, smoke, examples, unit tests, servercheck) on review tip 3110207a.
+Callgrind remains a review measurement. The coordinator's WIP and two review
+commits are preserved; these study updates remain uncommitted. No merge,
+push, link creation or independent background run was started; roadmap is
+untouched.

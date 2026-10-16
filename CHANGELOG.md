@@ -13,6 +13,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - Building from source stops on any compiler warning (`-Werror` is on by default, on gcc and clang alike); `make WERROR=0` builds with warnings as warnings, for a compiler not tested here (W401, [#463](https://github.com/MuhammadMoustafa/xppautX/issues/463)).
 
+- DoPri5 and DoPri8(3) retain adaptive steps across output times and sample dense output; Dt is the output interval and DtMax caps internal steps. Flags, sections and extrema use dense roots; resets restart from the root and the run-wide attempt limit reports an error. Delay history remains on its Dt grid (W377, [#439](https://github.com/MuhammadMoustafa/xppautX/issues/439)).
+
 - A user function that recurses without end stops the run past 256 nested calls with its file and line, keeping the rows already stored; recursion that ends (XPPAUT's ode/test.ode factorial) still runs (W387, [#449](https://github.com/MuhammadMoustafa/xppautX/issues/449)).
 
 - AUTO's mesh adaptation follows AUTO-07p 0.9.4: a new mesh point is placed from the nearer old point by the monitor's own density, the mesh's ends are kept exact, and wave trains (IPS 12) adapt as periodic; 13 stored diagrams change in their last digits, agreement with AUTO-07p unchanged (W361, [#423](https://github.com/MuhammadMoustafa/xppautX/issues/423)).

@@ -1,0 +1,12 @@
+# W377: analytic decay and clock, all states tested at dense times.
+par rate = .01
+x' = -rate*x
+y' = 1
+z' = cos(t)
+init x = 1
+init y = 0
+init z = 0
+aux twice = 2*y
+options {
+  integration: { total_time: 100, dt: .05 },
+}

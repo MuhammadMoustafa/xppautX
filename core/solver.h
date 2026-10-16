@@ -48,6 +48,8 @@ struct SolverTraits {
   bool paired_dimension = false;
   /* uses the eighth-order Dormand-Prince step rather than the fifth */
   bool eighth_order = false;
+  /* retains an accepted-step interpolant across requested output times */
+  bool dense_output = false;
   /* uses the stiff adaptive step rather than adaptive Runge-Kutta */
   bool stiff_step = false;
   /* draws Wiener noise once per step */
@@ -65,6 +67,9 @@ struct SolverStep {
   int steps = 0;
   double tout = 0;
   double *hguess = nullptr;
+  /* The trajectory output loop consumes sections; fitting and shooting need
+     the requested endpoint. Flags and halts apply in either context. */
+  bool sections = false;
 };
 
 /* how an advance went: on a failure, the method's name and why it
@@ -103,6 +108,7 @@ public:
   Result<> advance(const SolverStep &step);
   /* an integration that went through has ended */
   virtual void finish() {}
+  virtual bool section_found() const { return false; }
 
 protected:
   /* the Session it steps: the run takes it once, where it starts (W47d4) */
