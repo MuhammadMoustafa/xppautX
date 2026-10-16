@@ -709,9 +709,7 @@ bool all_finite(std::span<const double> values)
     for (double value : values) if (!std::isfinite(value)) return false;
     return true;
 }
-} // namespace xpp
 
-namespace xpp {
 double bracketed_root(const std::function<double(double)> &f, double a, double b, double fa, double fb)
 {
     // A guarded step contracts the bracket by at least 1/4; 128 suffice
@@ -733,4 +731,4 @@ double bracketed_root(const std::function<double(double)> &f, double a, double b
     }
     return a+(b-a)*0.5;
 }
-}
+} // namespace xpp

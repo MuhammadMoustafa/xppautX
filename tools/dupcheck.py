@@ -57,7 +57,6 @@ core/autlib3.cpp *block*|numerical, keep: Hopf/traveling-wave augmented matrices
 core/cvband.cpp *block*|vendored/numerical, keep: CVODE's band/dense solvers, translated C of parallel structure by the CVODE API's own design
 core/cvdense.cpp *block*|vendored/numerical, keep: see core/cvband.cpp *block*
 core/dormpri.cpp *block*|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure by the original source's own design
-core/dormpri.h *block*|vendored/numerical, keep: see core/dormpri.cpp *block*
 core/xpp_math_eispack.cpp *block*|numerical, keep: EISPACK reduction/QR/QZ and SVD order retained under xpp_math (W337, #398)
 
 

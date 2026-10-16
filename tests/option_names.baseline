@@ -2,5 +2,5 @@
 core/comline.cpp 5 the command line's flags (--quiet, --logfile, ...) each set one named option
 core/xpp_batch.cpp 2 the batch start's --quiet and --logfile set one named option
 core/lunch-new.cpp 35 XPPAUT's positional .set file (import only): its lines are mapped to the table's keys by their order
-core/numerics.cpp 22 the Numerics menu: each item asks for one setting by its key
+core/numerics.cpp 23 the Numerics menu: each item asks for one setting by its key
 core/odex_convert.cpp 1 the .ode converter writes the Discrete method of a model with difference equations
