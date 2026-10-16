@@ -514,7 +514,7 @@ matched-interval wall-time measurements or a reason to choose a default for favo
 Correctly rounded math remains the project default; the system-libm outlier likewise is not an
 isolated price for correct rounding.
 
-The maintainer should decide on a focused follow-up card before using the ModelDB result in a speed
+The follow-up, carded as [W412, #474](https://github.com/MuhammadMoustafa/xppautX/issues/474), comes before any use of the ModelDB result in a speed
 claim: **trace ModelDB's Newton/step-history sensitivity after the AUTO cards**, reproduce the first
 divergence among the three builds, compare the same parameter interval and independently check mesh
 accuracy. It must account for the default's 92.3% increase since W358 and the comparison builds'
