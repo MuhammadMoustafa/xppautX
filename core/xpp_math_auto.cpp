@@ -162,7 +162,7 @@ nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
 
     jjp1 = jj + 1;
     for (l = jjp1; l < n; ++l) {
-      (void)complete_eliminate_row(n, a_dim1, a, ir, ic, jj, l);
+      complete_eliminate_row(n, a_dim1, a, ir, ic, jj, l);
     }
   }
 
