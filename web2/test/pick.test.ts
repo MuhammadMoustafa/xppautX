@@ -149,3 +149,10 @@ test('the core\'s hint box is kept until the command ends', () => {
   s = ev(s, {ev: 'idle'});
   assert.equal(s.box, '');
 });
+
+
+test('plot prompts accept actual window IDs beyond the old maximum', () => {
+  const win = 112;
+  assert.equal(pickModeOf(ask('mouse', {win}), {...view, win}, true, HELLO.window_ids), 'point');
+  assert.equal(pickModeOf(ask('mouse', {win}), {...view, win}, false, HELLO.window_ids), null);
+});

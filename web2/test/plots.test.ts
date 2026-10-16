@@ -118,3 +118,17 @@ test('the core moving a window\'s axes resets that window\'s zoom only, no histo
   assert.deepEqual(windowOf(s.plots, 2)?.viewport, {x: null, y: null});
   assert.deepEqual(windowOf(s.plots, 1)?.viewport, zoom);
 });
+
+
+test('W376: many windows and curves keep their data, selection and styles', () => {
+  const windows = Array.from({length: 30}, (_, i) => info(i + 1, `window ${i + 1}`));
+  let s = ev(READY, plots(30, ...windows));
+  const data = series(30, 0, 1);
+  data.curves = Array.from({length: 13}, (_, i) => ({x: 0, y: 1, z: 0, color: i % 11, line: i}));
+  s = ev(s, data);
+  s = ev(s, {ev: 'window', op: 'select', win: 30});
+  assert.equal(s.plots.windows.length, 30);
+  assert.equal(s.plots.active, 30);
+  assert.equal(activeWindow(s.plots)?.series?.curves.length, 13);
+  assert.equal(activeWindow(s.plots)?.series?.curves[12].line, 12);
+});

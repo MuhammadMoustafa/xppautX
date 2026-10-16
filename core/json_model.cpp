@@ -45,7 +45,7 @@ void init_main_graph(xpp::Session &s)
         s.grobs[i].w = 0;
         s.grobs[i].use = 0;
     }
-    for (i = 0; i < MAXFRZ; i++) s.frozen_curves.curve[i].use = 0;
+    for (i = 0; i < static_cast<int>(s.frozen_curves.curve.size()); i++) s.frozen_curves.curve[i].use = 0;
     init_all_graph(s);
     get_draw_area(s);
 }
@@ -78,7 +78,7 @@ void start_model(xpp::Session &s, const xpp::KeptValues *kept)
 std::vector<unsigned long> shown_windows(const xpp::Session &s)
 {
     std::vector<unsigned long> w;
-    for (int i = 1; i < MAXPOP; i++)
+    for (int i = 1; i < static_cast<int>(s.plot_windows.graph.size()); i++)
         if (s.plot_windows.graph[i].Use) w.push_back(s.plot_windows.graph[i].w);
     if (s.auto_state.bifur.exist) w.push_back(WIN_AUTO);
     if (s.animation.vcr.iexist) w.push_back(WIN_ANI);
@@ -100,7 +100,7 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
     s.file_dialogs.home = req.home.empty() ? xpp::files::working_dir() : req.home;
     for (unsigned long w : shown) send_window("destroy", w, 0, 0);
     /* what the data modules and this front end recorded of the model before */
-    for (int i = 0; i < MAXPOP; i++) {
+    for (int i = 0; i < static_cast<int>(s.plot_windows.graph.size()); i++) {
         phase_data_cleared(s, i);
         marks_data_cleared(s, i);
     }

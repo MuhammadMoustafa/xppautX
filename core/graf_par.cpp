@@ -3,6 +3,7 @@
 #include "model.h"
 #include "session.h"
 #include "graf_par.h"
+#include "colormap.h"
 #include "storage.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -689,18 +690,18 @@ void graph_all(xpp::Session &s, int *list, int n, int type)
 {
   int i;
   if(type==0){
+    s.plot_windows.current->resize_curves(n);
     for(i=0;i<n;i++){
       s.plot_windows.current->xv[i]=0;
       s.plot_windows.current->yv[i]=list[i];
       s.plot_windows.current->line[i]=s.plot_windows.current->line[0];
-      s.plot_windows.current->color[i]=i;
+      s.plot_windows.current->color[i]=i%(LAST_PLOT_COLOR+1);
     }
-    s.plot_windows.current->nvars=n;
     s.plot_windows.current->grtype=0;
     s.plot_windows.current->ThreeDFlag=0;
   }
   if(type==1){
-   s.plot_windows.current->nvars=1;
+   s.plot_windows.current->resize_curves(1);
    s.plot_windows.current->xv[0]=list[0];
    s.plot_windows.current->yv[0]=list[1];
     s.plot_windows.current->grtype=0;
@@ -759,12 +760,14 @@ void edit_curve(xpp::Session &s)
  new_int(xpp::format("Edit 0-{} :",s.plot_windows.current->nvars-1),&crv);
  if(crv>=0&&crv<s.plot_windows.current->nvars)
    alter_curve(s,xpp::format("Edit curve {}",crv),crv,crv);
+ else command_error("plots","no such curve");
 }
 
 void new_curve(xpp::Session &s)
 {
- if(alter_curve(s,"New Curve",0,s.plot_windows.current->nvars))
-   s.plot_windows.current->nvars=s.plot_windows.current->nvars+1;
+ const int count=s.plot_windows.current->nvars;
+ s.plot_windows.current->resize_curves(count+1);
+ if(!alter_curve(s,"New Curve",0,count))s.plot_windows.current->resize_curves(count);
   
  }  
 
@@ -843,7 +846,7 @@ void draw_freeze_key(xpp::Session &s)
   scale_to_screen(s,static_cast<float>(s.frozen_curves.key_x),static_cast<float>(s.frozen_curves.key_y),&ix,&iy);
   ix2=ix+4*s.drawing.h_char;
   y0=iy;
-  for(i=0;i<MAXFRZ;i++){
+  for(i=0;i<static_cast<int>(s.frozen_curves.curve.size());i++){
     if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==s.plot_windows.draw_win&&!s.frozen_curves.curve[i].key.empty()){
       set_linestyle(s,abs(s.frozen_curves.curve[i].color));
       line(s,ix,y0,ix2,y0);
@@ -873,7 +876,7 @@ void key_frz_com(xpp::Session &s, int c)
 
 void delete_frz_crv(xpp::Session &s, int i)
 {
-  if(s.frozen_curves.curve[i].use==0)return;
+  if(i<0 || i>=static_cast<int>(s.frozen_curves.curve.size()) || s.frozen_curves.curve[i].use==0)return;
   s.frozen_curves.curve[i].use=0;
   s.frozen_curves.curve[i].name.clear();
   s.frozen_curves.curve[i].key.clear();
@@ -887,7 +890,7 @@ void delete_frz_crv(xpp::Session &s, int i)
 void kill_frz(xpp::Session &s)
 {
   int i;
-  for(i=0;i<MAXFRZ;i++){
+  for(i=0;i<static_cast<int>(s.frozen_curves.curve.size());i++){
     if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==s.plot_windows.draw_win)
       delete_frz_crv(s,i);
   }
@@ -914,8 +917,13 @@ namespace {
    window w, under its default name and key */
 void fill_frozen_curve(xpp::Session &s, int i, std::vector<float> x, std::vector<float> y, std::vector<float> z, int type, XppWinId w)
 {
+  if(i==static_cast<int>(s.frozen_curves.curve.size())){
+    s.frozen_curves.curve.emplace_back();
+    s.frozen_curves.points.emplace_back();
+    s.marks_shown.generation.emplace_back();
+  }
   CURVE &c=s.frozen_curves.curve[i];
-  std::array<std::vector<float>,3> &pts=s.frozen_curves.points[i];
+  auto &pts=s.frozen_curves.points[i];
   pts[0]=std::move(x);
   pts[1]=std::move(y);
   if(type>0)pts[2]=std::move(z);
@@ -927,7 +935,8 @@ void fill_frozen_curve(xpp::Session &s, int i, std::vector<float> x, std::vector
   c.len=static_cast<int>(pts[0].size());
   c.type=type;
   c.w=w;
-  c.name=xpp::format("crv{}",static_cast<char>('a'+i));
+  constexpr std::string_view letters="abcdefghijklmnopqrstuvwxyz"; // Preserve XPPAUT's letter names, then number new curves.
+  c.name=static_cast<std::size_t>(i)<letters.size()?xpp::format("crv{}",letters[i]):xpp::format("crv{}",i+1);
   c.key=c.name;
   marks_data_frozen_new(s,i); /* the window shows it: it is its current curve */
 }
@@ -936,31 +945,31 @@ void fill_frozen_curve(xpp::Session &s, int i, std::vector<float> x, std::vector
 
 int create_crv(xpp::Session &s, int ind)
 {
-  for(int i=0;i<MAXFRZ;i++){
-    if(s.frozen_curves.curve[i].use==0){
-      const int ix=s.plot_windows.current->xv[ind];
-      const int iy=s.plot_windows.current->yv[ind];
-      const int iz=s.plot_windows.current->zv[ind];
-      if(s.browser.view.maxrow<=2){
-	command_error("freeze", "No Curve to freeze");
-	return(-1);
-      }
-      const int type=s.plot_windows.current->grtype;
-      const int n=s.browser.view.maxrow;
-      float *const *d=s.browser.view.data;
-      fill_frozen_curve(s,i,std::vector<float>(d[ix],d[ix]+n),std::vector<float>(d[iy],d[iy]+n),
-                        type>0?std::vector<float>(d[iz],d[iz]+n):std::vector<float>(),type,s.plot_windows.draw_win);
-      return(i);
-    }
+  if(ind<0 || ind>=s.plot_windows.current->nvars){
+    command_error("freeze","no such curve");
+    return -1;
   }
-    command_error("freeze", "All curves used");
-    return(-1);
-}	
+  if(s.browser.view.maxrow<=2){
+    command_error("freeze","No Curve to freeze");
+    return -1;
+  }
+  int i=0;
+  while(i<static_cast<int>(s.frozen_curves.curve.size())&&s.frozen_curves.curve[i].use)++i;
+  const GRAPH &g=*s.plot_windows.current;
+  const int n=s.browser.view.maxrow;
+  float *const *d=s.browser.view.data;
+  fill_frozen_curve(s,i,std::vector<float>(d[g.xv[ind]],d[g.xv[ind]]+n),
+                    std::vector<float>(d[g.yv[ind]],d[g.yv[ind]]+n),
+                    g.grtype>0?std::vector<float>(d[g.zv[ind]],d[g.zv[ind]]+n):std::vector<float>(),
+                    g.grtype,s.plot_windows.draw_win);
+  return i;
+}
 
 bool restore_frozen_curve(xpp::Session &s, int i, XppWinId w, int type, int color, std::string key, std::string name,
                           std::vector<float> x, std::vector<float> y, std::vector<float> z)
 {
-  if(i<0||i>=MAXFRZ||s.frozen_curves.curve[i].use||x.size()!=y.size()||
+  if(i<0||i>static_cast<int>(s.frozen_curves.curve.size())||
+     (i<static_cast<int>(s.frozen_curves.curve.size())&&s.frozen_curves.curve[i].use)||x.empty()||x.size()!=y.size()||
      (type>0&&z.size()!=x.size()))return false;
   fill_frozen_curve(s,i,std::move(x),std::move(y),std::move(z),type,w);
   CURVE &c=s.frozen_curves.curve[i];
@@ -992,7 +1001,7 @@ void draw_freeze(xpp::Session &s, XppWinId w)
   int i,j,type=s.plot_windows.current->grtype,lt=0;
   float oldxpl,oldypl,oldzpl=0.0,xpl,ypl,zpl=0.0;
   float *xv,*yv,*zv;
-  for(i=0;i<MAXFRZ;i++){
+  for(i=0;i<static_cast<int>(s.frozen_curves.curve.size());i++){
     if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==w&&s.frozen_curves.curve[i].type==type){
       if(type==0)marks_data_frozen(s,w,i); /* the curve as data */
       if(s.frozen_curves.curve[i].color<0){
@@ -1165,7 +1174,7 @@ int get_frz_index(xpp::Session &s, XppWinId w)
   /* window w's frozen curves: their names, and the slot each is in */
   std::vector<std::string> names;
   std::vector<int> slots;
-  for(int i=0;i<MAXFRZ;i++){
+  for(int i=0;i<static_cast<int>(s.frozen_curves.curve.size());i++){
     if(s.frozen_curves.curve[i].use==1&&w==s.frozen_curves.curve[i].w){
       names.push_back(s.frozen_curves.curve[i].name);
       slots.push_back(i);
@@ -1194,7 +1203,7 @@ xpp::DataTable plot_curves_table(const xpp::Session &s)
   if(three)t.names.emplace_back("z");
   t.columns.resize(t.names.size());
   const auto add=[&](int id,float x,float y,float z){
-    t.columns[0].push_back(static_cast<float>(id));
+    t.columns[0].push_back(static_cast<double>(id));
     t.columns[1].push_back(x);
     t.columns[2].push_back(y);
     if(three)t.columns[3].push_back(z);
@@ -1204,7 +1213,7 @@ xpp::DataTable plot_curves_table(const xpp::Session &s)
      from the first j every shift allows (as they are drawn) */
   const int first=std::max({0,g.xshft,g.yshft,g.zshft});
   int id=1;
-  for(int c=0;c<g.nvars&&c<MAXPERPLOT;c++,id++){
+  for(int c=0;c<g.nvars;c++,id++){
     if(!stored(g.xv[c])||!stored(g.yv[c])||(three&&!stored(g.zv[c])))continue;
     for(int j=first;j<b.maxrow;j++)
       add(id,b.data[g.xv[c]][j-g.xshft],b.data[g.yv[c]][j-g.yshft],three?b.data[g.zv[c]][j-g.zshft]:0.0f);
@@ -1223,16 +1232,11 @@ void add_a_curve_com(xpp::Session &s, int c)
 {
 
  switch(c){
- case 0: if(s.plot_windows.current->nvars>=MAXPERPLOT)
-   {
-     command_error("plots", "Too many plots!");
-     return;
-   }
-   new_curve(s);
+ case 0: new_curve(s);
    break;
- case 1:if(s.plot_windows.current->nvars>1)s.plot_windows.current->nvars=s.plot_windows.current->nvars-1;
+ case 1:if(s.plot_windows.current->nvars>1)s.plot_windows.current->resize_curves(s.plot_windows.current->nvars-1);
    break;
- case 2:s.plot_windows.current->nvars=1;
+ case 2:s.plot_windows.current->resize_curves(1);
    break;
  case 3: edit_curve(s);
    break;

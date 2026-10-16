@@ -9,7 +9,6 @@
 #include <vector>
 #include "xpp_types.h"
 #include "many_pops.h"
-#include "struct.h" /* MAXFRZ */
 
 namespace xpp {
 struct Session; /* session.h */
@@ -53,11 +52,11 @@ struct MarksShown {
         std::vector<bool> grobs;              /* grob[] slots drawn */
         std::map<int, unsigned long> frozen;  /* frozen_curves.curve[] slot -> its generation */
     };
-    std::array<Record, MAXPOP> windows;
+    std::vector<Record> windows{1};
     /* each frozen_curves.curve[] slot's generation, bumped when a curve is
        made in it (marks_data_frozen_new): a record keeps the generation it
        drew, so a new curve in the slot is not the one drawn */
-    std::array<unsigned long, MAXFRZ> generation{};
+    std::vector<unsigned long> generation;
     unsigned long generations = 0;
 };
 

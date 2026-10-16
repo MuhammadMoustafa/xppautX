@@ -67,7 +67,7 @@ struct PhaseShown {
         unsigned long nc_generation = 0, df_generation = 0;
         unsigned long trajectory = 0; /* the flow trajectory its last point was from */
     };
-    std::array<Window, MAXPOP> windows;
+    std::vector<Window> windows{1};
     /* Flow is drawing (phase_data_flow_start to _stop), and the number of
        the trajectory it draws */
     bool flowing = false;

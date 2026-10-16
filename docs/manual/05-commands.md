@@ -254,12 +254,12 @@ copy of an X11 pixmap.
 ### (G)raphic stuff
 
 This induces a popup menu with several choices.
-- **(A)dd curve**: This lets you add another curve to the picture. A parameter box will appear aking you for the variables on each axis, a color, and line type (1 is solid, 0 is a point, and negative integers are small circles of increasing radii.) All subsequent integrations and restorations will include the new graph. Up to 10 per window are allowed.
+- **(A)dd curve**: This lets you add another curve to the picture. A parameter box will appear aking you for the variables on each axis, a color, and line type (1 is solid, 0 is a point, and negative integers are small circles of increasing radii.) All subsequent integrations and restorations will include the new graph. Add as many curves as needed, within available memory (W376, #438).
 - **(D)elete last**: Will remove most recent curve from the added list.
 - **(R)emove all**: Deletes all curves but the first.
 - **(E)dit curve**: You will be asked for th curve to edit. The first is 0, the second 1, etc. You will get a parameter box like the add curve option.
 - **(P)ostscript**: This will ask you for a file name and write a postscript representation of the current window. Nullclines, text, and all graphs will be plotted. You will be asked for Black and White or Color. Color tries to match the color on the screen. Black and white will use a variety of dashed curves for the plots. The Land/Port option lets you draw either in Landscape (default) or Portrait style. Note that Portrait is rather distorted and is created in for those who cannot rotate their postscript plots. Font size sets the size of the fonts on the axes.
-- **(F)reeze**: This will create a permanent curve in the window. Usually, when you reintegrate the equations or load in some new data, the current curve will be replace by the new data. Freeze prevents this. Up to 26 curves can be frozen.
+- **(F)reeze**: This will create a permanent curve in the window. Usually, when you reintegrate the equations or load in some new data, the current curve will be replace by the new data. Freeze prevents this. Frozen curves grow with what you add, within available memory (W376, #438).
   - **(F)reeze** : This freezes the current curve 0 for the current plotting window. It will not be plotted in other windows. If you change the axes from 2 to 3 dimensions and it was frozen as a 2D curve (and *vice versa* ) then it will also not be plotted. It is better to create another window to work in 3 dimensions so this is avoided. A parameter box pops up that asks you for the color (linetype) as well as the key name and the curve name. The curve name is for easy reference and should be a few characters. The key name is what will be printed on the graph if a key is present.
   - **(D)elete**: This gives you a choice of available curves to delete.
   - **(E)dit**: This lets you edit a named curve; the key, name, and linetype can be altered.

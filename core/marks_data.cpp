@@ -20,6 +20,7 @@
 
 #include "marks_data.h"
 #include "session.h"
+#include "xpp_util.h"
 #include "json_number.h"
 #include "series_enc.h"
 #include "xpp_io.h"
@@ -95,23 +96,15 @@ struct ClientWindow {
 struct MarksClient {
     MarksDataEmit emit_line = nullptr;
     bool marks_on = false, values_f32 = false;
-    std::array<ClientWindow, MAXPOP> windows;
+    std::vector<ClientWindow> windows;
 };
 MarksClient client;
-
-/* the plot window drawn into as w, or -1 */
-int pop_of(const XppPlotWindows &pw, XppWinId w)
-{
-    for (int i = 0; i < MAXPOP; i++)
-        if (pw.graph[i].Use && pw.graph[i].w == w) return i;
-    return -1;
-}
 
 MarksShown::Record *record_of(Session &s, XppWinId w)
 {
     if (!client.emit_line) return nullptr;
-    const int pop = pop_of(s.plot_windows, w);
-    return pop < 0 ? nullptr : &s.marks_shown.windows[pop];
+    const int pop = graph_of(s,w);
+    return s.plot_windows.graph[pop].Use && s.plot_windows.graph[pop].w==w ? &s.marks_shown.windows[pop] : nullptr;
 }
 
 /* ---- JSON text ---- */
@@ -254,7 +247,8 @@ Content content_of(const xpp::Session &s, int pop, const MarksShown::Record &r)
 
 void update(xpp::Session &s)
 {
-    for (int k = 0; k < MAXPOP; k++) {
+    client.windows.resize(s.plot_windows.graph.size());
+    for (int k = 0; k < static_cast<int>(s.plot_windows.graph.size()); k++) {
         const int pop = k == 0 ? s.plot_windows.active : (k == s.plot_windows.active ? 0 : k); /* the active window first */
         ClientWindow &w = client.windows[pop];
         if (!s.plot_windows.graph[pop].Use) {
@@ -285,7 +279,7 @@ void marks_data_subscribe(int on, int f32)
 
 void marks_data_update(xpp::Session &s)
 {
-    if (!client.emit_line || !client.marks_on || s.plot_windows.active < 0 || s.plot_windows.active >= MAXPOP) return;
+    if (!client.emit_line || !client.marks_on || s.plot_windows.active < 0 || s.plot_windows.active >= static_cast<int>(s.plot_windows.graph.size())) return;
     try {
         update(s);
     } catch (const std::bad_alloc &) {
@@ -295,14 +289,14 @@ void marks_data_update(xpp::Session &s)
 
 void marks_data_cleared(xpp::Session &s, int pop)
 {
-    if (pop < 0 || pop >= MAXPOP) return;
+    if (pop < 0 || pop >= static_cast<int>(s.plot_windows.graph.size())) return;
     s.marks_shown.windows[pop] = MarksShown::Record();
 }
 
 void marks_data_equilibrium(xpp::Session &s, double x, double y, int symbol)
 {
     const int pop = s.plot_windows.active;
-    if (pop < 0 || pop >= MAXPOP) return;
+    if (pop < 0 || pop >= static_cast<int>(s.plot_windows.graph.size())) return;
     MarksShown::Record &r = s.marks_shown.windows[pop];
     const MarksShown::Equilibrium e{x, y, symbol};
     try {
@@ -340,7 +334,7 @@ void marks_data_grob(xpp::Session &s, XppWinId w, int slot)
 void marks_data_frozen(xpp::Session &s, XppWinId w, int slot)
 {
     MarksShown::Record *r = record_of(s, w);
-    if (!r || slot < 0 || slot >= MAXFRZ) return;
+    if (!r || slot < 0 || slot >= static_cast<int>(s.frozen_curves.curve.size())) return;
     try {
         r->frozen[slot] = s.marks_shown.generation[slot];
     } catch (const std::bad_alloc &) {
@@ -350,7 +344,7 @@ void marks_data_frozen(xpp::Session &s, XppWinId w, int slot)
 
 void marks_data_frozen_new(xpp::Session &s, int slot)
 {
-    if (!client.emit_line || slot < 0 || slot >= MAXFRZ) return;
+    if (!client.emit_line || slot < 0 || slot >= static_cast<int>(s.frozen_curves.curve.size())) return;
     s.marks_shown.generation[slot] = ++s.marks_shown.generations;
     marks_data_frozen(s, s.frozen_curves.curve[slot].w, slot);
 }

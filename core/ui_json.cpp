@@ -442,7 +442,6 @@ XppUi make_json_ui(void)
     u.browser_redraw = j_browser_changed;
     u.create_plot_window = j_create_plot_window;
     u.destroy_plot_window = j_destroy_plot_window;
-    u.kill_plot_windows = j_kill_plot_windows;
     u.lower_plot_window = j_void;
     u.gr_col = j_void;
     u.base_col = j_void;
@@ -1026,7 +1025,6 @@ void install(bool silent)
             exit(1);
         }
     }
-    windows_init();
     plot_data_init(data_emit);
     phase_data_init(data_emit);
     marks_data_init(data_emit);
@@ -1175,7 +1173,7 @@ void send_hello(xpp::Session &s)
     buf_format(&b, ",\"player_speed\":{{\"min\":{},\"max\":{}}}", PLAYER_SPEED_MIN, PLAYER_SPEED_MAX);
     buf_format(&b, ",\"text\":{{\"max_length\":{},\"size_max\":{},\"style_count\":{},\"color_max\":{},\"default_size\":{}}}",
                xpp::LABEL_TEXT_MAX, xpp::LABEL_SIZE_MAX, xpp::LABEL_STYLE_COUNT, xpp::LAST_PLOT_COLOR, xpp::LABEL_SIZE_DEFAULT);
-    buf_format(&b, ",\"window_ids\":{{\"plots\":{},\"auto\":{},\"ani\":{},\"aplot\":{}}}", MAXPOP, WIN_AUTO,
+    buf_format(&b, ",\"window_ids\":{{\"plots\":{},\"auto\":{},\"ani\":{},\"aplot\":{}}}", static_cast<int>(s.plot_windows.graph.size()), WIN_AUTO,
                WIN_ANI, WIN_APLOT);
     /* the windows' key layers (menus.h window_layers) and the other
        commands' kinds: what the page enables while a computation runs */

@@ -158,3 +158,12 @@ test('text sizes 0-4 in pixels, out of range clamped', () => {
   assert.equal(textPx(9), 24);
   assert.equal(textPx(-1), 10);
 });
+
+
+test('W376: more than 26 frozen curves remain in the store and legend', () => {
+  const frozen = Array.from({length: 32}, (_, i) => ({...MARKS.frozen[0], name: `curve${i}`, key: `key${i}`}));
+  const marks = marksFromEvent({...MARKS, win: 30, frozen});
+  assert.equal(marks.frozen.length, 32);
+  assert.equal(marks.frozen[31].label, 'key31');
+  assert.equal(marks.frozen[31].xs.length, 3);
+});

@@ -55,9 +55,6 @@
 #include <vector>
 
 /* window ids the client draws into; plot windows are graph index + 1 */
-#define WIN_AUTO 101
-#define WIN_ANI 104
-#define WIN_APLOT 105
 
 /* control_line()'s answer for the animation's Pause */
 #define ANI_PAUSE (-1)
@@ -423,10 +420,10 @@ void state_forget(void); /* what the model before showed (its last equilibrium) 
 
 /* ---- json_windows.cpp ---- */
 
-void windows_init(void);
 void send_main_window(const char *title);
 void send_window(const char *what, unsigned long id, int w, int h, std::string_view title = {});
 void select_graph(xpp::Session &s, int i);
+bool read_plot_window(const xpp::Session &s,const char *line,const char *command,int &index);
 void click_command(xpp::Session &s, const char *line);
 /* {"cmd":"display","win":N,"x":[lo,hi]|null,"y":...,"runs":bool}: the zoom shown in plot window N and whether its earlier runs are drawn (display_state.h) */
 void display_command(xpp::Session &s, const char *line);
@@ -441,7 +438,6 @@ void j_clear_screens(xpp::Session &s);
 void j_reset_graphics(xpp::Session &s);
 void j_create_plot_window(xpp::Session &s);
 void j_destroy_plot_window(xpp::Session &s);
-void j_kill_plot_windows(xpp::Session &s);
 void j_cput_text(xpp::Session &s);
 void j_scroll_window(xpp::Session &s);
 void j_new_colormap(int type);

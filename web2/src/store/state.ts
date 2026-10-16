@@ -424,7 +424,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         }
         return state;
       }
-      return ev.op === 'select' && ev.win <= ids.plots ? withPlots(state, select(state.plots, ev.win)) : state;
+      return ev.op === 'select' && !!windowOf(state.plots, ev.win) ? withPlots(state, select(state.plots, ev.win)) : state;
     }
     case 'ask': {
       const ids = state.hello?.window_ids;

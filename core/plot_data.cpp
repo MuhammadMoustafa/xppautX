@@ -59,7 +59,7 @@ struct PlotClient {
     PlotDataEmit emit_line = nullptr;
     bool series_on = false, plots_on = false, series_f32 = false;
     unsigned long data_version = 0; /* counts data changes */
-    std::array<Sent, MAXPOP> sent;
+    std::vector<Sent> sent{1};
     int rows_seen = 0;     /* storage rows when last seen: fewer next time means it started again */
     int appended = -1;     /* the graph index that got appends in this command */
     double last_append = 0; /* when the last append went (xpp::every) */
@@ -92,13 +92,7 @@ xpp::PlotCurves curves_of(const GRAPH &g)
     xpp::PlotCurves c{};
     c.nvars = g.nvars;
     c.three = g.ThreeDFlag;
-    for (int i = 0; i < g.nvars && i < MAXPERPLOT; i++) {
-        c.xv[i] = g.xv[i];
-        c.yv[i] = g.yv[i];
-        c.zv[i] = g.zv[i];
-        c.line[i] = g.line[i];
-        c.color[i] = g.color[i];
-    }
+    c.xv=g.xv; c.yv=g.yv; c.zv=g.zv; c.line=g.line; c.color=g.color;
     c.shift[0] = g.xshft;
     c.shift[1] = g.yshft;
     c.shift[2] = g.zshft;
@@ -139,7 +133,7 @@ void add_values(std::string &o, const BROWSER &view, int col, int from, int to)
 void add_curves(std::string &o, const xpp::PlotCurves &s)
 {
     o += "\"curves\":[";
-    for (int i = 0; i < s.nvars && i < MAXPERPLOT; i++) {
+    for (int i = 0; i < s.nvars; i++) {
         if (i) o += ',';
         o += "{\"x\":";
         add_int(o, s.xv[i]);
@@ -168,7 +162,7 @@ std::vector<int> used_columns(const xpp::PlotCurves &s, int maxcol)
     std::vector<int> cols{0}; /* T always: a readout names the time of any point */
     std::vector<bool> used(std::max(maxcol, 1), false);
     used[0] = true;
-    for (int i = 0; i < s.nvars && i < MAXPERPLOT; i++) {
+    for (int i = 0; i < s.nvars; i++) {
         const int c[3] = {s.xv[i], s.yv[i], s.zv[i]};
         for (int k = 0; k < (s.three ? 3 : 2); k++)
             if (c[k] >= 0 && c[k] < maxcol && !used[c[k]]) {
@@ -479,7 +473,8 @@ void series_end(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
    it shows changed */
 void series_update(xpp::Session &s)
 {
-    for (int k = 0; k < MAXPOP; k++) {
+    client.sent.resize(s.plot_windows.graph.size());
+    for (int k = 0; k < static_cast<int>(s.plot_windows.graph.size()); k++) {
         const int pop = k == 0 ? s.plot_windows.active : (k == s.plot_windows.active ? 0 : k);
         if (!s.plot_windows.graph[pop].Use) {
             client.sent[pop].valid = false; /* a window made again later starts afresh */
@@ -540,7 +535,7 @@ std::string plots_event(xpp::Session &s)
     add_int(o, static_cast<long>(s.plot_windows.graph[s.plot_windows.active].w));
     o += ",\"windows\":[";
     bool first = true;
-    for (int pop = 0; pop < MAXPOP; pop++) {
+    for (int pop = 0; pop < static_cast<int>(s.plot_windows.graph.size()); pop++) {
         const GRAPH &g = s.plot_windows.graph[pop];
         if (!g.Use) continue;
         if (!first) o += ',';
@@ -622,7 +617,7 @@ void plot_data_picture(xpp::Session &s, int redraw)
     try {
         for (int k = 0; k < n; k++) {
             const int pop = w.simul ? w.open[k] : w.active;
-            if (pop < 0 || pop >= MAXPOP || !w.graph[pop].Use) continue;
+            if (pop < 0 || pop >= static_cast<int>(w.graph.size()) || !w.graph[pop].Use) continue;
             std::string o = redraw ? "{\"ev\":\"redraw\",\"win\":" : "{\"ev\":\"erase\",\"win\":";
             add_int(o, static_cast<long>(w.graph[pop].w));
             o += '}';

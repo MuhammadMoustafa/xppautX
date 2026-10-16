@@ -107,7 +107,7 @@ struct ClientWindow {
 struct PhaseClient {
     PhaseDataEmit emit_line = nullptr;
     bool nullclines_on = false, dfield_on = false, values_f32 = false;
-    std::array<ClientWindow, MAXPOP> windows;
+    std::vector<ClientWindow> windows;
 };
 PhaseClient client;
 
@@ -124,7 +124,7 @@ Record &change(Record &record, unsigned long &generation)
 PhaseShown::Window *current(Session &s)
 {
     const int pop = s.plot_windows.active;
-    if (!client.emit_line || pop < 0 || pop >= MAXPOP) return nullptr;
+    if (!client.emit_line || pop < 0 || pop >= static_cast<int>(s.plot_windows.graph.size())) return nullptr;
     return &s.phase_shown.windows[pop];
 }
 
@@ -265,7 +265,8 @@ void send_dfield(const GRAPH &g, const PhaseShown::Field &f)
 
 void update(xpp::Session &s)
 {
-    for (int k = 0; k < MAXPOP; k++) {
+    client.windows.resize(s.plot_windows.graph.size());
+    for (int k = 0; k < static_cast<int>(s.plot_windows.graph.size()); k++) {
         const int pop = k == 0 ? s.plot_windows.active : (k == s.plot_windows.active ? 0 : k); /* the active window first */
         PhaseShown::Window &w = s.phase_shown.windows[pop];
         ClientWindow &got = client.windows[pop];
@@ -305,7 +306,7 @@ void phase_data_update(xpp::Session &s)
 
 void phase_data_cleared(xpp::Session &s, int pop)
 {
-    if (!client.emit_line || pop < 0 || pop >= MAXPOP) return;
+    if (!client.emit_line || pop < 0 || pop >= static_cast<int>(s.plot_windows.graph.size())) return;
     PhaseShown::Window &w = s.phase_shown.windows[pop];
     PhaseShown::Nullclines &nc = change(w.nc, w.nc_generation);
     nc.now = PhaseShown::Clines();
@@ -313,7 +314,8 @@ void phase_data_cleared(xpp::Session &s, int pop)
     change(w.df, w.df_generation) = PhaseShown::Field();
     /* the record may be a new Session's (a load's): its generations say
        nothing of what the client looked at */
-    client.windows[pop].nc.looked = client.windows[pop].df.looked = false;
+    if(static_cast<std::size_t>(pop)<client.windows.size())
+        client.windows[pop].nc.looked = client.windows[pop].df.looked = false;
 }
 
 void phase_data_nullclines(xpp::Session &s, const float *xn, int nx, const float *yn, int ny, int ix, int iy,

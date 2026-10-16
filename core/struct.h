@@ -4,25 +4,38 @@
 #include "xpplim.h"
 #include "xpp_types.h"
 #include <string>
+#include <array>
+#include <vector>
 
-#define MAXPERPLOT 10
-#define MAXFRZ 26
-#define MAXPOP 21
+/* A phase portrait and stored points have three spatial axes. */
+inline constexpr int plot_axes = 3;
+/* Default plot surface dimensions, in pixels; copies have their own smaller surface. */
+inline constexpr int main_plot_width=640, main_plot_height=480;
+inline constexpr int extra_plot_width=450, extra_plot_height=350;
 
-typedef struct {
+struct GRAPH {
 	       XppWinId w;
 
 	       int Use;
 		int Nullrestore;
-                int x11Wid;
-  int x11Hgt;
+                int x11Wid = main_plot_width;
+  int x11Hgt = main_plot_height;
 		int nvars;
 		double rm[3][3];
 		double min_scale,color_scale;
 		double xmin,ymin,zmin,xmax,ymax,zmax,xorg,yorg,zorg;
 		double xbar,ybar,zbar,dx,dy,dz;
-		int xv[MAXPERPLOT],yv[MAXPERPLOT],zv[MAXPERPLOT];
-		int line[MAXPERPLOT],color[MAXPERPLOT];
+		std::vector<int> xv{0},yv{0},zv{0},line{0},color{0};
+                /* Resize only when curves are added, removed or read, never per step. */
+                void resize_curves(int count) {
+                  xv.resize(count, xv.front()); yv.resize(count, yv.front()); zv.resize(count, zv.front());
+                  line.resize(count, line.front()); color.resize(count, 0);
+                  for (auto &v : plot_points) v.resize(count);
+                  nvars=count;
+                }
+                std::array<std::vector<float>, 2 * plot_axes> plot_points{
+                  std::vector<float>(1),std::vector<float>(1),std::vector<float>(1),
+                  std::vector<float>(1),std::vector<float>(1),std::vector<float>(1)};
 		double Theta,Phi;
 		double ZPlane,ZView;
 		double xlo,ylo,xhi,yhi,oldxlo,oldxhi,oldylo,oldyhi;
@@ -31,7 +44,7 @@ typedef struct {
 	        int xorgflag,yorgflag,zorgflag;
 		int ColorFlag,ColorValue;
 	        std::string xlabel,ylabel,zlabel;
-		} GRAPH;
+		};
 
 typedef struct {
 		XppWinId w;

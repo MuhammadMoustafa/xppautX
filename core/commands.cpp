@@ -111,10 +111,10 @@ static bool pick_target_graph(xpp::Session &s, std::string_view scope, std::opti
   if (scope != xpp::set_scope::all && scope != xpp::option_group::plot) return true;
   std::vector<std::string> names;
   std::vector<int> graphs;
-  for (int i = 0; i < MAXPOP; i++)
+  for (int i = 0; i < static_cast<int>(s.plot_windows.graph.size()); i++)
     if (s.plot_windows.graph[i].Use) {
       graphs.push_back(i);
-      names.push_back(xpp::format("Window {}{}", i + 1, i == s.plot_windows.active ? " (active)" : ""));
+      names.push_back(xpp::format("Window {}{}", s.plot_windows.graph[i].w, i == s.plot_windows.active ? " (active)" : ""));
     }
   if (graphs.size() < 2) return true;
   const int pick = pick_from_list("set_graph", "Window", names);

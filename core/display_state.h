@@ -32,8 +32,8 @@ struct Zoom {
 /* the curves a window plots: its series' identity */
 struct PlotCurves {
     int nvars, three;
-    int xv[MAXPERPLOT], yv[MAXPERPLOT], zv[MAXPERPLOT], line[MAXPERPLOT], color[MAXPERPLOT];
-    int shift[3];
+    std::vector<int> xv, yv, zv, line, color;
+    std::array<int, plot_axes> shift{};
     bool operator==(const PlotCurves &) const = default;
 };
 

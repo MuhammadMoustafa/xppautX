@@ -383,7 +383,7 @@ def check_hello_shared():
     check_command_table(table)
     check('W118: hello gives the limits (64 MB uploads, 2000 rows and 500 columns a browser block) and the window ids',
           hello.get('limits') == {'upload': 64 << 20, 'browser_rows': 2000, 'browser_cols': 500}
-          and hello.get('window_ids') == {'plots': 21, 'auto': 101, 'ani': 104, 'aplot': 105},
+          and hello.get('window_ids') == {'plots': 1, 'auto': 101, 'ani': 104, 'aplot': 105},
           str(hello.get('limits')) + str(hello.get('window_ids')))
     check('W121b: hello gives the core player speed range', hello.get('player_speed') == {'min': 0.25, 'max': 8} and hello.get('upload_error') == 'larger than 64 MB', str(hello.get('player_speed')))
     steps = {(c['cmd'], c.get('op')): c.get('step') for c in hello.get('commands', [])}
@@ -2883,7 +2883,7 @@ def check_marks():
                 ('an add with no position', dict(op='add', text='a'), 'x and y'),
                 ('an add with no text', dict(op='add', x=0, y=0), 'text is a string'),
                 ('an op it has not', dict(op='move', id=tid), 'add, edit or delete'),
-                ('a window it has not', dict(op='edit', id=tid, win=9), 'no such plot window')]:
+                ('a window it has not', dict(op='edit', id=tid, win=9), 'window 9 is not an open plot window')]:
             m, errs = text_cmd(**fields)
             check('W227: text refuses %s, naming it, and changes nothing' % what,
                   m is None and len(errs) == 1 and want in errs[0], str((m, errs))[:300])
@@ -5989,6 +5989,86 @@ def check_save_session():
         stop_server(p, r, snd)
 
 
+
+def check_plot_limits():
+    """W376: the protocol and --silent share dynamically sized plot state."""
+    import zipfile
+    with tempfile.TemporaryDirectory(prefix='w376-model-') as source:
+        model = os.path.join(source, 'limits.odex')
+        with open(model, 'w', encoding='utf-8') as f:
+            f.write(''.join("x%d'=-x%d\n" % (i, i) for i in range(13)))
+            f.write(''.join('init x%d=0\n' % i for i in range(13)))
+            f.write('options { integration: { total_time: 1, dt: 0.1 } }\n')
+        s = Server(args.server, model)
+        def command(menus=(), form=None, **cmd):
+            keys = iter(menus)
+            s.send(**cmd)
+            replies = {
+                'menu': lambda e: {'key': next(keys, '\x1b')},
+                'form': lambda e: {'ok': 1, 'values': form} if form is not None else {'ok': 0},
+            }
+            if cmd.get('cmd') == 'open':
+                replies['choice'] = lambda e: {'key': 'd'}  # Discard the scratch session being replaced.
+            events, end = s.answer_asks(is_idle, replies)
+            check('W376: plot command finishes without error', end is not None and end.get('ev') == 'idle'
+                  and not any(e.get('error') for e in events), str(events[-2:])[:200])
+            return events
+        try:
+            s.collect(is_idle)
+            command(cmd='data', events=['plots', 'series', 'marks'])
+            events = command(cmd='plotvars', how=0, names=['x%d' % i for i in range(13)])
+            graph = next((e for e in reversed(events) if e.get('ev') == 'plots'), {})
+            check('W376: xvst retains all thirteen selected states',
+                  len(graph.get('windows', [{}])[0].get('curves', [])) == 13, str(graph)[:200])
+            command(cmd='key', key='i', menus=['g'])
+            for i in range(32):
+                command(cmd='key', key='g', menus=['f', 'f'], form=['4', 'frozen%d' % i, 'f%d' % i])
+            for i in range(26):
+                command(cmd='key', key='m', menus=['c'])
+            command(cmd='data', events=['plots', 'series', 'marks'])
+            command(cmd='session', op='save', name='limits', data=True)
+            snap = os.path.join(s.run, 'limits.snapx')
+            check('W376: large session archive is written', os.path.exists(snap))
+            if not os.path.exists(snap):
+                return
+            with zipfile.ZipFile(snap) as z:
+                saved = {k: z.read(k) for k in ('windows.setx', 'marks.setx', 'frozen.npz')}
+            for win in (28, 1.5, -1, 2147483647):
+                s.send(cmd='click', win=win)
+                invalid, _ = s.collect(is_idle)
+                errors = [e for e in invalid if e.get('error')]
+                check('W376: missing/fractional plot ID is a placed error',
+                      len(errors) == 1 and errors[0].get('file') == 'command' and errors[0].get('line') == 1, str(errors))
+            # Opening the session uses the same transactional member readers as snapshots.
+            command(cmd='open', file='limits.snapx')
+            all_data = command(cmd='data', events=['plots', 'series', 'marks'])
+            plots = next((e for e in reversed(all_data) if e.get('ev') == 'plots'), {})
+            frozen = next((e.get('frozen', []) for e in all_data if e.get('ev') == 'marks' and e.get('win') == 1), [])
+            check('W376: archive reload restores 27 windows with 13 curves each',
+                  len(plots.get('windows', [])) == 27 and all(len(w.get('curves', [])) == 13 for w in plots['windows']))
+            check('W376: archive reload restores every frozen curve and its data',
+                  len(frozen) == 32 and frozen[-1].get('name') == 'f31' and len(frozen[-1].get('x', [])) == 11,
+                  str(frozen[-1:])[:150])
+            command(cmd='session', op='save', name='again', data=True)
+            with zipfile.ZipFile(os.path.join(s.run, 'again.snapx')) as z:
+                check('W376: plot and frozen archive members round-trip exactly',
+                      all(z.read(k) == v for k, v in saved.items()))
+            # --silent restores sessions through a recording snapshot, not a .snapx argument.
+            command(cmd='record', op='start')
+            command(cmd='key', key='i', menus=['g'])
+            command(cmd='session', op='save', name='silent', data=True)
+            command(cmd='record', op='stop', name='limits.recx')
+            os.remove(os.path.join(s.run, 'silent.snapx'))  # Require the replay's output, not the original save.
+            replay = replay_recording(args.server, model, os.path.join(s.run, 'limits.recx'), s.run)
+            check('W376: --silent loads and runs the recording snapshot with large plot state',
+                  replay.returncode == 0 and os.path.exists(os.path.join(s.run, 'silent.snapx')),
+                  str((replay.returncode, replay.stderr[-200:])))
+            with zipfile.ZipFile(os.path.join(s.run, 'silent.snapx')) as z:
+                check('W376: recording replay preserves every window, curve and frozen curve',
+                      all(z.read(k) == v for k, v in saved.items()))
+        finally:
+            s.close()
+
 def check_session_file():
     """W57, W103: Save session writes one name.snapx (a zip of the files
     listed in core/snapx.h, the model's own included); a new server that
@@ -7432,6 +7512,7 @@ check_player_ani()
 check_open_reload()
 check_display_state()
 check_auto_views()
+check_plot_limits()
 check_session_file()
 check_save_session()
 check_session_random()

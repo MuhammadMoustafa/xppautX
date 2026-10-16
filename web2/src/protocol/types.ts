@@ -53,7 +53,7 @@ export interface HelloEvent {
   limits: {upload: number; browser_rows: number; browser_cols: number};
   /** what a plot text takes (core/grobs.h LABEL_*): its most characters, largest size, number of styles, last colour, the size a new text starts at */
   text: {max_length: number; size_max: number; style_count: number; color_max: number; default_size: number};
-  /** the windows' numbers in `window` events: plot windows are 1 to `plots` */
+  /** auxiliary IDs; plots is the initial slot count, not a maximum; `plots.windows` lists actual IDs */
   window_ids: {plots: number; auto: number; ani: number; aplot: number};
   lists: string[][];
   userbuttons: string[];

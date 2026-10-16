@@ -414,7 +414,7 @@ std::vector<SetItem> set_items(const xpp::Model::InternalSet &set)
 xpp::Result<int> target_graph(const xpp::Session &s, std::optional<int> graph, std::string_view command)
 {
   if(!graph)return s.plot_windows.active;
-  if(*graph<0||*graph>=MAXPOP||!s.plot_windows.graph[*graph].Use)
+  if(*graph<0||*graph>=static_cast<int>(s.plot_windows.graph.size())||!s.plot_windows.graph[*graph].Use)
     return std::unexpected(xpp::Error{std::string(command),xpp::format("{}: window {} is not an open plot window",command,*graph+1),xpp::command_place()});
   return *graph;
 }

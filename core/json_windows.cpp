@@ -33,31 +33,17 @@
 /* the core's own globals and functions that have no header of their own */
 namespace xpp::json {
 
-namespace {
-
-int win_w[MAXPOP], win_h[MAXPOP];
-
-} // namespace
 
 /* ---- plot windows ------------------------------------------------------------ */
 
-void windows_init(void)
-{
-    int i;
-    for (i = 0; i < MAXPOP; i++) {
-        win_w[i] = 640;
-        win_h[i] = 480;
-    }
-}
-
 /* the main plot window, for hello */
-void send_main_window(const char *title) { send_window("create", 1, win_w[0], win_h[0], title); }
+void send_main_window(const char *title) { send_window("create", 1, main_plot_width, main_plot_height, title); }
 
 void j_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h)
 {
     int i = graph_of(s, s.plot_windows.draw_win);
-    *w = win_w[i];
-    *h = win_h[i];
+    *w = s.plot_windows.graph[i].x11Wid;
+    *h = s.plot_windows.graph[i].x11Hgt;
 }
 
 namespace {
@@ -67,12 +53,11 @@ namespace {
    drawn again */
 void blank_draw_window(xpp::Session &s)
 {
-    int i;
-    for (i = 0; i < MAXPOP; i++)
-        if (s.plot_windows.graph[i].Use && s.plot_windows.graph[i].w == s.plot_windows.draw_win) {
-            phase_data_cleared(s, i);
-            marks_data_cleared(s, i);
-        }
+    const int i=graph_of(s,s.plot_windows.draw_win);
+    if(s.plot_windows.graph[i].Use && s.plot_windows.graph[i].w==s.plot_windows.draw_win){
+        phase_data_cleared(s,i);
+        marks_data_cleared(s,i);
+    }
 }
 
 } // namespace
@@ -130,50 +115,22 @@ void select_graph(xpp::Session &s, int i)
     s.plot_windows.current = &s.plot_windows.graph[i];
     s.plot_windows.draw_win = s.plot_windows.graph[i].w;
     get_draw_area(s);
-    send_window("select", s.plot_windows.draw_win, win_w[i], win_h[i]);
+    send_window("select", s.plot_windows.draw_win, s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt);
 }
 
 void j_create_plot_window(xpp::Session &s)
 {
     const int i = s.plot_windows.active;
-    win_w[i] = 450;
-    win_h[i] = 350;
-    send_window("create", s.plot_windows.graph[i].w, win_w[i], win_h[i], "");
-    send_window("select", s.plot_windows.draw_win, win_w[i], win_h[i]);
+    send_window("create", s.plot_windows.graph[i].w, s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt, "");
+    send_window("select", s.plot_windows.draw_win, s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt);
 }
 
-namespace {
-
-void destroy_graph(xpp::Session &s, int i)
-{
-    s.plot_windows.graph[i].Use = 0;
-    destroy_labels_and_grobs(s, s.plot_windows.graph[i].w);
-    send_window("destroy", s.plot_windows.graph[i].w, 0, 0);
-    s.plot_windows.count--;
-}
-
-} // namespace
-
+/* The core removes the window; this callback only tells the page. */
 void j_destroy_plot_window(xpp::Session &s)
 {
-    int i;
-    if (s.plot_windows.draw_win == s.plot_windows.graph[0].w) {
-        j_respond_box("Okay", "Can't destroy big window!");
-        return;
-    }
-    i = graph_of(s, s.plot_windows.draw_win);
-    if (i == 0) return;
-    select_graph(s, 0);
-    destroy_graph(s, i);
-}
-
-void j_kill_plot_windows(xpp::Session &s)
-{
-    int i;
-    select_graph(s, 0);
-    for (i = 1; i < MAXPOP; i++)
-        if (s.plot_windows.graph[i].Use) destroy_graph(s, i);
-    s.plot_windows.count = 1;
+    send_window("destroy",s.plot_windows.draw_win,0,0);
+    const GRAPH &main=s.plot_windows.graph[0];
+    send_window("select",main.w,main.x11Wid,main.x11Hgt);
 }
 
 void j_cput_text(xpp::Session &s)
@@ -193,11 +150,29 @@ void j_cput_text(xpp::Session &s)
     if (add_label(s, look, s.plot_windows.draw_win, xd, yd) < 0) j_command_error("text", xpp::format("a session has at most {} texts", MAXLAB));
 }
 
+/* Parse a plot ID once for commands that name a window. Invalid IDs are
+   errors at the command (or recording step), never the main window fallback. */
+bool read_plot_window(const xpp::Session &s,const char *line,const char *command,int &index)
+{
+    int id=1;
+    if(!get_whole(line,"win",id)||id<1){
+        j_command_error(command,xpp::format("{}: win is a whole number, a positive plot window ID",command));
+        return false;
+    }
+    index=graph_of(s,static_cast<XppWinId>(id));
+    if(!s.plot_windows.graph[index].Use || s.plot_windows.graph[index].w!=static_cast<XppWinId>(id)){
+        j_command_error(command,xpp::format("{}: window {} is not an open plot window",command,id));
+        return false;
+    }
+    return true;
+}
+
 /* {"cmd":"click","win":w}: the user clicked in plot window w */
 void click_command(xpp::Session &s, const char *line)
 {
-    int win = get_int(line, "win", 1) - 1;
-    if (win >= 0 && win < MAXPOP && s.plot_windows.graph[win].Use && s.plot_windows.active != win) select_graph(s, win);
+    int win;
+    if(!read_plot_window(s,line,"click",win))return;
+    if(s.plot_windows.active!=win)select_graph(s,win);
 }
 
 /* {"cmd":"text","op":"add"|"edit"|"delete","win":w,...}: the text labels of
@@ -206,13 +181,10 @@ void text_command(xpp::Session &s, const char *line)
 {
     std::string op;
     get_string(line, "op", op);
-    const int win = get_int(line, "win", 1) - 1;
+    int win;
+    if(!read_plot_window(s,line,"text",win))return;
     if (op != "add" && op != "edit" && op != "delete") {
         j_command_error("text", "text takes op add, edit or delete");
-        return;
-    }
-    if (win < 0 || win >= MAXPOP || !s.plot_windows.graph[win].Use) {
-        j_command_error("text", "no such plot window");
         return;
     }
     const XppWinId w = s.plot_windows.graph[win].w;
@@ -220,7 +192,7 @@ void text_command(xpp::Session &s, const char *line)
     int id = -1;
     if (!add) {
         if (!get_whole(line, "id", id) || id < 0 || id >= MAXLAB || s.labels[id].use != 1 || s.labels[id].w != w) {
-            j_command_error("text", xpp::format("text {}: window {} has no text with that id", op, win + 1));
+            j_command_error("text", xpp::format("text {}: window {} has no text with that id", op, w));
             return;
         }
         if (op == "delete") {
@@ -259,11 +231,8 @@ void text_command(xpp::Session &s, const char *line)
 
 void display_command(xpp::Session &s, const char *line)
 {
-    const int win = get_int(line, "win", 1) - 1;
-    if (win < 0 || win >= MAXPOP || !s.plot_windows.graph[win].Use) {
-        j_command_error("display", "display: no such plot window");
-        return;
-    }
+    int win;
+    if(!read_plot_window(s,line,"display",win))return;
     xpp::PlotDisplay &d = s.plot_display[win];
     xpp::Zoom z = d.zoom;
     const int rx = get_range(line, "x", z.x), ry = get_range(line, "y", z.y);

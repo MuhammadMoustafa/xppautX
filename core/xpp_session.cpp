@@ -91,11 +91,12 @@ xpp::Result<std::string> windows_text(const xpp::Session &s)
 {
     xpp::setx::Out out;
     out.begin_list("windows");
-    for (int i = 0; i < MAXPOP; i++) {
+    for (int i = 0; i < static_cast<int>(s.plot_windows.graph.size()); i++) {
         const GRAPH &g = s.plot_windows.graph[i];
-        if (!g.Use) continue;
         out.begin_item();
         out.whole("number", i);
+        out.flag("open",g.Use!=0);
+        if(!g.Use){out.end_item();continue;}
         xpp::write_window(out, s, g);
         out.text("xlabel", g.xlabel);
         out.text("ylabel", g.ylabel);
@@ -129,6 +130,7 @@ xpp::Result<std::string> windows_text(const xpp::Session &s)
 /* one window as windows.setx holds it */
 struct SavedWindow {
     int saved = 0; /* its number when it was saved */
+    bool open = false;
     GRAPH graph{}; /* its settings and its curves */
     std::string xlabel, ylabel, zlabel;
     xpp::Zoom zoom;
@@ -163,14 +165,20 @@ WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file)
         r.added.push_back(std::move(c));
     }
     std::vector<xpp::setx::Block> windows;
-    file.groups("windows", windows, MAXPOP);
+    file.groups("windows", windows);
     if (windows.empty()) file.fail(*file.member("windows"), "a session has at least one window");
     std::set<int> listed;
     for (xpp::setx::Block &w : windows) {
         SavedWindow &sw = r.windows.emplace_back();
         w.whole("number", sw.saved);
-        if (sw.saved < 0 || sw.saved >= MAXPOP || !listed.insert(sw.saved).second)
-            w.fail(*w.member("number"), xpp::format("window {} is not one of 0 to {} listed once", sw.saved, MAXPOP - 1));
+        if(sw.saved!=static_cast<int>(r.windows.size())-1)
+            w.fail(*w.member("number"),"window slots must be listed once in index order");
+        w.flag("open",sw.open);
+        if(!sw.open){
+            if(sw.saved==0)w.fail(*w.member("open"),"the main window must be open");
+            w.done();continue;
+        }
+        listed.insert(sw.saved);
         sw.graph = s.plot_windows.graph[0];
         xpp::read_window(w, s, sw.graph, r.added);
         w.text("xlabel", sw.xlabel);
@@ -206,12 +214,9 @@ void apply_windows(xpp::Session &s, const WindowsRead &r, std::map<int, int> &sl
             xpp::make_active(s, 0, 1);
             create_a_pop(s);
             i = s.plot_windows.active;
-            /* only a front end with no windows cannot make one */
-            if (i == 0) {
-                xpp::log(XPP_LOG_WARN, "window {} of the session cannot be made here\n", w.saved);
-                continue;
-            }
         }
+        slot[w.saved]=i;
+        if(!w.open)continue;
         GRAPH &g = s.plot_windows.graph[i];
         xpp::copy_graph_settings(w.graph, g);
         xpp::copy_curves(w.graph, g);
@@ -222,8 +227,14 @@ void apply_windows(xpp::Session &s, const WindowsRead &r, std::map<int, int> &sl
         d.zoom = w.zoom;
         d.show_runs = w.show_runs;
         d.axes_seen = false; /* the zoom is for the axes just read */
-        slot[w.saved] = i;
     }
+    for(const SavedWindow &w:r.windows){
+        if(!w.open){
+            xpp::make_active(s,slot.at(w.saved),1);
+            xpp::destroy_a_pop(s);
+        }
+    }
+    xpp::set_active_windows(s);
     if (const auto a = slot.find(r.active); a != slot.end()) xpp::make_active(s, a->second, 1);
 }
 
@@ -264,11 +275,12 @@ xpp::Result<std::string> marks_text(const xpp::Session &s)
     out.end_list();
     out.whole("freeze_each_run", s.frozen_curves.auto_freeze);
     out.begin_list("frozen_curves");
-    for (int i = 0; i < MAXFRZ; i++) {
+    for (int i = 0; i < static_cast<int>(s.frozen_curves.curve.size()); i++) {
         const CURVE &c = s.frozen_curves.curve[i];
-        if (!c.use) continue;
         out.begin_item();
         out.whole("slot", i);
+        out.flag("used",c.use!=0);
+        if(!c.use){out.end_item();continue;}
         out.whole("window", xpp::graph_of(s, c.w));
         out.whole("type", c.type);
         out.whole("color", c.color);
@@ -289,11 +301,11 @@ std::optional<std::string> frozen_npz(const xpp::Session &s)
     t.names = {"curve", "x", "y", "z"};
     t.curves = true;
     t.columns.resize(4);
-    for (int i = 0; i < MAXFRZ; i++) {
+    for (int i = 0; i < static_cast<int>(s.frozen_curves.curve.size()); i++) {
         const CURVE &c = s.frozen_curves.curve[i];
         if (!c.use) continue;
         for (int j = 0; j < c.len; j++) {
-            t.columns[0].push_back(static_cast<float>(i));
+            t.columns[0].push_back(static_cast<double>(i));
             t.columns[1].push_back(c.xv[j]);
             t.columns[2].push_back(c.yv[j]);
             t.columns[3].push_back(c.zv ? c.zv[j] : 0.0f);
@@ -303,11 +315,11 @@ std::optional<std::string> frozen_npz(const xpp::Session &s)
     return xpp::npz_bytes(t);
 }
 
-/* column name's first n values of t, or none */
+/* Column name's exactly n stored values, or none; a declared count never sizes allocation. */
 std::vector<float> points_of(const xpp::DataTable &t, const std::string &name, int n)
 {
     for (std::size_t k = 0; k < t.columns.size(); k++)
-        if (xpp::data_column_name(t, k) == name && t.columns[k].size() >= static_cast<std::size_t>(n))
+        if (n>0 && xpp::data_column_name(t, k) == name && t.columns[k].size() == static_cast<std::size_t>(n))
             return std::vector<float>(t.columns[k].begin(), t.columns[k].begin() + n);
     return {};
 }
@@ -324,6 +336,7 @@ struct SavedGrob {
 };
 struct SavedCurve {
     int slot = 0, window = 0, type = 0, color = 0;
+    bool used = false;
     std::string key, name;
     std::vector<float> x, y, z;
 };
@@ -339,7 +352,7 @@ int window_in(xpp::setx::Block &g, const WindowsRead &w)
 {
     int saved = 0;
     g.whole("window", saved);
-    if (std::none_of(w.windows.begin(), w.windows.end(), [saved](const SavedWindow &x) { return x.saved == saved; }))
+    if (std::none_of(w.windows.begin(), w.windows.end(), [saved](const SavedWindow &x) { return x.saved == saved && x.open; }))
         g.fail(*g.member("window"), xpp::format("windows.setx has no window {}", saved));
     return saved;
 }
@@ -405,15 +418,15 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
         g.done();
     }
     file.whole("freeze_each_run", r.auto_freeze);
-    std::array<bool, MAXFRZ> listed{};
     std::vector<xpp::setx::Block> curves;
-    file.groups("frozen_curves", curves, MAXFRZ);
+    file.groups("frozen_curves", curves);
     for (xpp::setx::Block &g : curves) {
         SavedCurve &c = r.curves.emplace_back();
         g.whole("slot", c.slot);
-        if (c.slot < 0 || c.slot >= MAXFRZ || listed[static_cast<std::size_t>(c.slot)])
-            g.fail(*g.member("slot"), xpp::format("frozen curve {} is not one of 0 to {} listed once", c.slot, MAXFRZ - 1));
-        listed[static_cast<std::size_t>(c.slot)] = true;
+        if(c.slot!=static_cast<int>(r.curves.size())-1)
+            g.fail(*g.member("slot"),"frozen slots must be listed once in index order");
+        g.flag("used",c.used);
+        if(!c.used){g.done();continue;}
         c.window = window_in(g, windows);
         g.whole("type", c.type);
         c.color = color_in(g);
@@ -457,8 +470,11 @@ void apply_marks(xpp::Session &s, MarksRead r, const std::map<int, int> &slot)
                                g.size, 1, w(g.window), g.type, g.color};
     }
     s.frozen_curves.auto_freeze = r.auto_freeze;
+    s.frozen_curves.curve.resize(r.curves.size());
+    s.frozen_curves.points.resize(r.curves.size());
+    s.marks_shown.generation.resize(r.curves.size());
     for (SavedCurve &c : r.curves)
-        restore_frozen_curve(s, c.slot, w(c.window), c.type, c.color, std::move(c.key), std::move(c.name), std::move(c.x),
+        if(c.used)restore_frozen_curve(s, c.slot, w(c.window), c.type, c.color, std::move(c.key), std::move(c.name), std::move(c.x),
                              std::move(c.y), std::move(c.z));
 }
 
@@ -668,7 +684,7 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
 
     /* every window drawn as it now is, the active one last */
     const int active = s.plot_windows.active;
-    for (int i = 0; i < MAXPOP; i++)
+    for (int i = 0; i < static_cast<int>(s.plot_windows.graph.size()); i++)
         if (s.plot_windows.graph[i].Use && i != active) {
             xpp::make_active(s, i, 1);
             redraw_the_graph(s);

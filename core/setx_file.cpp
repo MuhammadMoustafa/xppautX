@@ -36,8 +36,6 @@ constexpr std::string_view numerics = "numerics", run = "run", initial = "initia
                            equilibrium_range = "equilibrium_range", bvp_range = "bvp_range";
 } // namespace group
 
-/* a window has at most this many curves */
-constexpr std::size_t max_curves = MAXPERPLOT;
 
 /* the names of the model's variables: its differential equations first,
    then the Markov chains' (count of them from the first) */
@@ -466,12 +464,12 @@ void copy_graph_settings(const GRAPH &from, GRAPH &to)
 
 void copy_curves(const GRAPH &from, GRAPH &to)
 {
-    to.nvars = from.nvars;
-    std::ranges::copy(from.xv, to.xv);
-    std::ranges::copy(from.yv, to.yv);
-    std::ranges::copy(from.zv, to.zv);
-    std::ranges::copy(from.line, to.line);
-    std::ranges::copy(from.color, to.color);
+    to.resize_curves(from.nvars);
+    to.xv = from.xv;
+    to.yv = from.yv;
+    to.zv = from.zv;
+    to.line = from.line;
+    to.color = from.color;
 }
 
 void write_window(setx::Out &out, const Session &s, const GRAPH &g)
@@ -507,9 +505,9 @@ void write_curves(setx::Out &out, const Session &s, const GRAPH &g)
 void read_curves(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added)
 {
     std::vector<setx::Block> curves;
-    if (!window.groups("curves", curves, max_curves)) return;
+    if (!window.groups("curves", curves)) return;
     if (curves.empty()) window.fail(*window.member("curves"), "a window has at least one curve");
-    g.nvars = static_cast<int>(curves.size());
+    g.resize_curves(static_cast<int>(curves.size()));
     for (std::size_t j = 0; j < curves.size(); j++) {
         setx::Block &c = curves[j];
         const auto column = [&](std::string_view key) {

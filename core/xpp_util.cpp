@@ -16,6 +16,7 @@
 #include "expr.h"
 #include "browse.h"
 #include "graf_par.h"
+#include "grobs.h"
 #include "integrate.h"
 #include "nullcline.h"
 #include "my_ps.h"
@@ -28,6 +29,7 @@
 #include "delay_handle.h"
 #include "numerics.h"
 #include <array>
+#include <algorithm>
 #include <string>
 #include <string_view>
 #include <time.h>
@@ -54,18 +56,53 @@ namespace xpp {
 void create_a_pop(Session &s)
 {
     int i;
-    for (i = 1; i < MAXPOP; i++)
+    for (i = 1; i < static_cast<int>(s.plot_windows.graph.size()); i++)
         if (s.plot_windows.graph[i].Use == 0) break;
-    if (i >= MAXPOP) {
-        respond_box("Okay", "Too many windows!");
-        return;
+    if (i == static_cast<int>(s.plot_windows.graph.size())) {
+        s.plot_windows.graph.emplace_back();
+        s.plot_display.emplace_back();
+        s.marks_shown.windows.emplace_back();
+        s.phase_shown.windows.emplace_back();
+        s.plot_windows.current = &s.plot_windows.graph[s.plot_windows.active];
     }
     copy_graph(s, i, s.plot_windows.active);
+    s.plot_display[i]={};
+    s.marks_shown.windows[i]={};
+    s.phase_shown.windows[i]={};
+    s.plot_windows.graph[i].x11Wid=extra_plot_width;
+    s.plot_windows.graph[i].x11Hgt=extra_plot_height;
     s.plot_windows.graph[i].w = i + 1;
-    s.plot_windows.count++;
+    // Protocol auxiliary windows occupy 101 through 105; plots skip this range.
+    if(s.plot_windows.graph[i].w>=WIN_AUTO)s.plot_windows.graph[i].w+=WIN_APLOT-WIN_AUTO+1;
+    set_active_windows(s);
     make_active(s, i, 1);
     ui.create_plot_window(s);
     get_draw_area(s);
+}
+
+void destroy_a_pop(Session &s)
+{
+    const int index=s.plot_windows.active;
+    if(index==0){
+        command_error("windows","Cannot destroy the main plot window");
+        return;
+    }
+    kill_frz(s);
+    destroy_labels_and_grobs(s,s.plot_windows.graph[index].w);
+    ui.destroy_plot_window(s);
+    s.plot_windows.graph[index].Use=0;
+    make_active(s,0,1);
+    set_active_windows(s);
+}
+
+void kill_all_pops(Session &s)
+{
+    for(int i=1;i<static_cast<int>(s.plot_windows.graph.size());i++){
+        if(!s.plot_windows.graph[i].Use)continue;
+        make_active(s,i,1);
+        destroy_a_pop(s);
+    }
+    make_active(s,0,1);
 }
 
 void make_active(xpp::Session &s, int i, int flag)
@@ -78,7 +115,7 @@ void make_active(xpp::Session &s, int i, int flag)
 
 int graph_of(const xpp::Session &s, XppWinId w)
 {
-    for (int i = 0; i < MAXPOP; i++)
+    for (int i = 0; i < static_cast<int>(s.plot_windows.graph.size()); i++)
         if (s.plot_windows.graph[i].Use && s.plot_windows.graph[i].w == w) return i;
     return 0;
 }
@@ -266,7 +303,8 @@ Result<double> typed_number(xpp::Session &s, std::string_view typed, std::string
 void set_active_windows(xpp::Session &s)
 {
   int i,np=0;
-   for(i=0;i<MAXPOP;i++){
+  s.plot_windows.open.resize(s.plot_windows.graph.size());
+   for(i=0;i<static_cast<int>(s.plot_windows.graph.size());i++){
    if(s.plot_windows.graph[i].Use==1){
      s.plot_windows.open[np]=i;
      np++;
@@ -519,20 +557,23 @@ void box_values_loaded(xpp::Session &s, int type)
 void plot_checked_vars(xpp::Session &s,int how,int *isck,int n)
 {
   int i;
-  int plot_list[10];
-  int k=0,max=(how==0)?10:3;
+  std::vector<int> selected;
+  std::array<int, plot_axes> axes{};
   for(i=0;i<n;i++)
     if(isck[i]){
-      if(k<max){
-	plot_list[k]=i+1;
-	k++;
-      }
+      selected.push_back(i+1);
       isck[i]=0;
     }
-  if(how==0&&k>0)
-    graph_all(s,plot_list,k,0);
-  if(how==1&&k>1)
-    graph_all(s,plot_list,k,1);
+  if(how==0&&!selected.empty())
+    graph_all(s,selected.data(),static_cast<int>(selected.size()),0);
+  if(how==1&&selected.size()>1){
+    if(selected.size()>axes.size()){
+      command_error("pp","A phase portrait takes at most three axes");
+      return;
+    }
+    std::copy(selected.begin(),selected.end(),axes.begin());
+    graph_all(s,axes.data(),static_cast<int>(selected.size()),1);
+  }
 }
 
 /* why slider cannot be one of m's: a name that is no parameter or

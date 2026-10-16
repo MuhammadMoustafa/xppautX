@@ -505,8 +505,15 @@ What a client must keep to, from the core that keeps to it (W118):
   gets (2000 and 500).
 - `hello.text`: what a plot text takes (core/grobs.h `LABEL_*`): `max_length` (1000 characters), `size_max` (4), `style_count` (4), `color_max` (10, the last curve colour) and `default_size` (2).
 - `hello.window_ids`: the window numbers of `window` events and asks:
-  plot windows are 1 to `plots` (21), the AUTO diagram `auto` (101), the
-  animation `ani` (104), the array plot `aplot` (105).
+  the AUTO diagram is `auto` (101), the animation `ani` (104), the array
+  plot `aplot` (105). `plots` is the initial number of plot slots, not a
+  maximum. The `plots.windows` event lists actual open plot IDs. Positive
+  plot IDs skip the reserved auxiliary range 101 through 105. A command's
+  `win` must be a whole ID of an open plot. Nonpositive, fractional or
+  unrepresentable IDs report `win is a whole number, a positive plot window ID`;
+  an ID not held by an open plot reports `window <id> is not an open plot window`.
+  Both are placed errors prefixed with the command's name. Curves, frozen curves and plot windows have no fixed
+  count limit (W376, #438); the page uses the received lists.
 
 The core says when the running command begins computing: `computing`
 (once per command, before its first `progress`; its `idle` ends it). A
@@ -1420,7 +1427,7 @@ them, so a command that only redraws sends none. They come before the
 command's `state` and `idle`, in that order: `plots`, the `series`, the
 `nullclines`, the `dfield`, the `marks`.
 
-**`series`**: one event per plot window (`win` 1..10), each at the end of
+**`series`**: one event per plot window (any open plot `win`), each at the end of
 a command after which what that window shows has changed: the stored data
 (an integration, Continue, a browser Load or Replace, ...; this changes
 every window), the window's curves (Xi vs t, Viewaxes, Graphic
@@ -1440,7 +1447,7 @@ keeps the event whose `win` is the active one (`plots.active` or
 
 | field | meaning |
 |---|---|
-| `win` | the plot window (1..10), as in `window` and `plots` |
+| `win` | an open plot window ID, as in `window` and `plots` |
 | `rows` | stored rows: every column has this many values (0 before an integration) |
 | `three` | 1 when the window is a 3D plot (then `z` matters) |
 | `xlabel`, `ylabel`, `zlabel` | the window's axis labels (Viewaxes), the only place they are sent; a change of a label alone sends the series again; empty means "the plotted column's name" |
@@ -1670,13 +1677,22 @@ is a zip of ordinary files, in this order:
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `--anifile`'s animation; byte for byte |
 | `model.setx` | the session's settings (docs/odex.md ".setx"): the numerics (the Jacobian included) under the option table's keys, the run's position, the initial and ending values, the parameters, the delays, the boundary conditions, Transpose, the coupling, the array plot, the torus and the ranges; every key in it (a session loads nothing it does not hold), without the graphics, which `windows.setx` holds for every window |
 | `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's settings and views; full-precision diagram and restart orbits when a diagram exists (xpp_session_auto.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
-| `windows.setx` | a `windows` list, every plot window as a group (its `number`, its `curves` by variable name with line and colour, the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`), `active` (which window), an `auto_view` group (AUTO's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
-| `marks.setx` | the `labels` list (window, x, y, size, font, style, color, text; each value checked, a text 1 to 1000 characters, at most 50), the `arrows_and_markers` list, `freeze_each_run` and the `frozen_curves` list (slot, window, type, color, points, key, name), per window |
+| `windows.setx` | a `windows` list, every plot slot as a group in index order (its zero-based `number` and boolean `open`; a closed slot has just these keys; an open one also has its `curves` by variable name with line and colour, the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`), `active` (which window), an `auto_view` group (AUTO's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
+| `marks.setx` | the `labels` list (window, x, y, size, font, style, color, text; each value checked, a text 1 to 1000 characters, at most 50), the `arrows_and_markers` list, `freeze_each_run` and the `frozen_curves` list in slot order (zero-based slot and boolean used; unused slots have just these keys; used slots also have window, type, color, points, key, name), per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
 | `data.npz` | the data table as Save data's NPZ writes it (`T.npy`, `V.npy`, ..., `seed.npy`), unless left out |
 | `sliders.setx` | mandatory; a `sliders` list (at least the three model-option slots, at most 256), each slot a group of `name` (empty clears it), `low`, `high` and `step`; all names and ranges are checked before anything applies |
 | `nullclines.setx` | mandatory; a `current` group and a `frozen` list of groups (at most 10000): each pair has its `x_axis` and `y_axis` (variable numbers) and its `x_segments` and `y_segments`, lists of four finite float coordinates per segment (at most 10000 segments a curve); axis indices and the segment limit are checked |
 | `random.txt` | the random numbers' state as text: a `seed N` line (the seed the next Go uses), a `wiener` line (the Wiener parameters' current values), then the generator's state on one line, the last (the Mersenne Twister's, and whether it holds a normal deviate over, 0 or 1, and that deviate); opening restores it, so a stochastic model goes on from the same numbers |
+
+W376 (#438): plot/frozen slot lists include deleted positions explicitly.
+Their storage is sized from parsed entries, never from a declared index or
+point count. Slot numbers must match the list order; active windows and
+mark references must name open windows. A frozen curve's `points` must
+match its actual NPZ arrays exactly. The settings tokenizer and archive/NPZ
+readers retain their file-size and recursion protections. Every member is
+validated before applying any of it; this is also the snapshot pipeline
+for recordings. Older layouts missing `open` or `used` are refused.
 
 The generator line has one portable layout (W169, #221): 312 decimal
 unsigned 64-bit MT19937-64 state words in array order, the next-word index
@@ -2145,7 +2161,7 @@ T18), which replayed the core's pixel drawing:
   every window, the AUTO stability circle (102) and info strip (103)
   included, and `/events?...&draw=0` to leave them out;
 - the `palette` event (the 256 colours the ops referred to);
-- the `size` command (a canvas size in pixels for windows 1..10, 101 and
+- the `size` command (a canvas size in pixels for open plot windows, 101 and
   104): the core keeps its default window sizes;
 - `hello`'s `char` (the font cell the ops laid text out on).
 

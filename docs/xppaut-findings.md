@@ -96,6 +96,8 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [63](#63-recursive-user-functions-segfault-at-runtime) | Expressions | Indefinite user function recursion overflows C stack and segfaults | [W387 / #449](https://github.com/MuhammadMoustafa/xppautX/issues/449) |
 | [64](#64-auto-point-numbers-wrap-to-zero) | AUTO output | point 10000 is printed as 0; later points repeat earlier numbers | [W384 / #446](https://github.com/MuhammadMoustafa/xppautX/issues/446) |
 
+| [65](#65-plot-curves-frozen-curves-and-windows-have-fixed-limits) | Plots | 10 curves per graph, 26 frozen curves, 21 plot windows | [W376 / #438](https://github.com/MuhammadMoustafa/xppautX/issues/438) |
+
 ## 1. Model options
 
 `@ newt_iter`, `@ newt_tol`, `@ jac_eps` and `@ poistop` in a model never
@@ -1390,3 +1392,31 @@ shared bounded header reader in unit tests past 10000; signed fort.7 rows
 and the next-point diagnostic arithmetic are covered directly too.
 
 **Card:** [W384 / #446](https://github.com/MuhammadMoustafa/xppautX/issues/446).
+
+
+## 65. Plot curves, frozen curves and windows have fixed limits
+
+XPPAUT 8.0 defines 10 curves per graph (`MAXPERPLOT`), 26 frozen curves
+(`MAXFRZ`) and 21 plot windows (`MAXPOP`) in
+[struct.h:11](../reference/xppaut-8.0/struct.h#L11),
+[struct.h:12](../reference/xppaut-8.0/struct.h#L12) and
+[struct.h:13](../reference/xppaut-8.0/struct.h#L13).
+Its graph's axis, line and colour arrays use that curve bound
+([struct.h:61](../reference/xppaut-8.0/struct.h#L61)). These are storage
+limits, independent of the number of model variables or available memory.
+
+xppautX uses vectors for curves, frozen slots, plot windows and their
+associated display records. The ICs xvst selection includes every checked
+variable; pp retains its three spatial axes. Session files record empty
+slots explicitly, so allocation follows actual parsed entries and deleted
+slots keep their indices. A dishonest slot or point count fails before
+application, with the member file and line. The common core creates and
+removes windows in both headless and interactive modes.
+
+Regression coverage in `tests/test_snapx.cpp` constructs 13 curves,
+32 frozen slots and 107 window slots, including holes, and compares the
+saved members after snapshot and session reload; protocol and page tests
+exercise the corresponding data paths. Execution results are reported with
+the card review.
+
+**Card:** [W376 / #438](https://github.com/MuhammadMoustafa/xppautX/issues/438).

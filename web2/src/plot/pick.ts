@@ -41,14 +41,14 @@ export const STEP = 0.02;
 export const BIG_STEP = 0.1;
 
 /** the plot mode an ask is, when this page can show it: a 2D plot window
-    (1 to `ids.plots`) it draws, the active one (`state.view`), or the AUTO
+    it draws (identified by the current view), the active one (`state.view`), or the AUTO
     diagram (window `ids.auto`) while the AUTO view is open (`auto`); null for
     anything else (a 3D plot, no plot yet), which the dialog then offers to
     cancel (A13). `ids`: hello.window_ids */
 export function pickModeOf(ask: AskEvent, view: View | undefined, hasPlot: boolean,
   ids: {plots: number; auto: number}, auto = false): PickMode | null {
   const win = Number(ask.win);
-  const plot = hasPlot && win >= 1 && win <= ids.plots && !!view && view.win === win && !view.three;
+  const plot = hasPlot && win >= 1 && win !== ids.auto && !!view && view.win === win && !view.three;
   if (!plot && !(auto && win === ids.auto)) return null;
   switch (ask.kind) {
     case 'mouse': return 'point';

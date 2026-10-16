@@ -19,12 +19,12 @@
    mode needs every key it is asked for (a session's members: nothing is
    guessed, no fallback); in partial mode a key that is absent leaves its
    target as it is (a .setx sets what it names). Either way a key nothing
-   asks for is an error (done()). Every list a Block reads has a
-   maximum, given by the caller, and the tree is nested at most max_depth
-   deep, so a hostile file cannot make an unbounded allocation or
-   recursion. C++ only. */
+   asks for is an error (done()). Lists are sized from their parsed entries,
+   never a declared count; callers can impose a format's own maximum. The
+   tokenizer's file budget and max_depth bound allocation and recursion. C++ only. */
 #include <cstddef>
 #include <optional>
+#include <limits>
 #include <span>
 #include <string>
 #include <string_view>
@@ -108,7 +108,7 @@ public:
     /* a nested group */
     std::optional<Block> group(std::string_view key);
     /* a list of groups, at most max of them */
-    bool groups(std::string_view key, std::vector<Block> &out, std::size_t max);
+    bool groups(std::string_view key, std::vector<Block> &out, std::size_t max = std::numeric_limits<std::size_t>::max());
     /* a list of numbers (finite) / words or strings, at most max of them */
     bool reals(std::string_view key, std::vector<double> &out, std::size_t max);
     /* exactly out.size() finite numbers */

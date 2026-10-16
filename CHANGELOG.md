@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Plot windows, curves per graph (including ICs xvst), and frozen curves grow with what is added; sessions and recordings preserve all slots and reject invalid indices before applying (W376, [#438](https://github.com/MuhammadMoustafa/xppautX/issues/438)).
+
 - AUTO prints and saves the full point count beyond 9999, with whitespace separating numbers that outgrow fort.7/8/9 columns (W384, [#446](https://github.com/MuhammadMoustafa/xppautX/issues/446)).
 - AUTO reuses the Newton Jacobian's residual and skips the discarded residual for a cycle-fold direction; pivot diagnostics follow IID (W359, [#421](https://github.com/MuhammadMoustafa/xppautX/issues/421)).
 - AUTO retains repeated evaluation and linear-solve scratch, and caches the automatic worker count for the process (W375, [#437](https://github.com/MuhammadMoustafa/xppautX/issues/437)).

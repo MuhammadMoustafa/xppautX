@@ -203,7 +203,10 @@ void graph_settings(G &g, F &&f)
 {
   for(int j=0;j<3;j++)
     for(int k=0;k<3;k++)f(g.rm[k][j],"rm");
-  for(int j=0;j<MAXPERPLOT;j++){
+  constexpr int imported_curve_slots=10; // XPPAUT .set wire layout stores ten slots.
+  const int active_curves=g.nvars;
+  g.resize_curves(std::max(active_curves,imported_curve_slots));
+  for(int j=0;j<imported_curve_slots;j++){
     f(g.xv[j]," ");
     f(g.yv[j]," ");
     f(g.zv[j]," ");
@@ -244,6 +247,7 @@ void graph_settings(G &g, F &&f)
   f(g.yhi," yhi");
   f(g.oldxhi," ");
   f(g.oldyhi," ");
+  g.resize_curves(active_curves);
 }
 
 /* the active window's graphics into g; the variables of its curves are

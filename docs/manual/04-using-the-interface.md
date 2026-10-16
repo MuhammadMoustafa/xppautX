@@ -231,6 +231,14 @@ does what `Window` `Fit` does: sets the window's axes to the data's
 extent. 3D plots have the same corner button, since `Window` `Fit` fits
 their box the same way.
 
+There is no fixed count limit on curves in one graph, frozen curves, or
+plot windows: they grow as you add them, within available memory. The ICs
+**xvst** button plots every checked variable; **pp** takes two or three
+axes and reports an error for a larger selection. Curve colours repeat
+through the plot palette. Session files and recording snapshots preserve
+these counts and deleted slots. Closing a plot removes its frozen curves
+along with its labels and markers (W376, #438).
+
 Nullclines, direction fields, equilibria (Sing pts), Text/etc labels and
 markers, and frozen curves all draw on the same plot from data the core
 sends (docs/ui-v2.md sections 2 and 3), not as separate drawing

@@ -238,7 +238,6 @@ XppUi ui = {
     .browser_redraw = hl_int,
     .create_plot_window = hl_s,
     .destroy_plot_window = hl_s,
-    .kill_plot_windows = hl_s,
     .lower_plot_window = hl_void,
     .gr_col = hl_void,
     .base_col = hl_void,
@@ -496,8 +495,6 @@ void drw_all_scrns(Session &s) { ui.redraw_screens(s); }
 void clr_all_scrns(Session &s) { ui.clear_screens(s); }
 void clear_draw_window(Session &s) { ui.clear_draw_window(s); }
 void reset_graphics(Session &s) { ui.reset_graphics(s); }
-void destroy_a_pop(Session &s) { ui.destroy_plot_window(s); }
-void kill_all_pops(Session &s) { ui.kill_plot_windows(s); }
 void GrCol(void) { ui.gr_col(); }
 void BaseCol(void) { ui.base_col(); }
 void cput_text(Session &s) { ui.cput_text(s); }

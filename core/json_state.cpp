@@ -532,17 +532,13 @@ void apply_set(xpp::Session &s, const char *line)
 /* the optional "win" of applyset and restoredefaults, a plot window as the
    plots event numbers them (1 is the first): absent is the active graph; one
    that is no whole number is the command's error */
-static bool read_graph(const char *line, const char *command, std::optional<int> &graph)
+static bool read_graph(const xpp::Session &s, const char *line, const char *command, std::optional<int> &graph)
 {
     const char *value = js_find(line, "win");
     if (!value) return true;
-    double number;
-    /* a window the page could have: a whole number from 1 to MAXPOP (the cast is safe only then) */
-    if (!js_number(value, &number) || number < 1 || number > MAXPOP || number != std::floor(number)) {
-        j_command_error(command, xpp::format("{}: win is a whole number, a plot window's number", command));
-        return false;
-    }
-    graph = static_cast<int>(number) - 1;
+    int index;
+    if(!read_plot_window(s,line,command,index))return false;
+    graph=index;
     return true;
 }
 
@@ -556,7 +552,7 @@ void applyset_command(xpp::Session &s, const char *line)
         j_command_error("applyset", "applyset needs a set and a scope");
         return;
     }
-    if (!read_graph(line, "applyset", graph)) return;
+    if (!read_graph(s,line, "applyset", graph)) return;
     xpp::ok_or_show(xpp::apply_named_set(s, name, scope, graph));
     session.state_dirty = 1;
 }
@@ -572,7 +568,7 @@ void restoredefaults_command(xpp::Session &s, const char *line)
         return;
     }
     get_string(line, "field", field);
-    if (!read_graph(line, "restoredefaults", graph)) return;
+    if (!read_graph(s,line, "restoredefaults", graph)) return;
     xpp::ok_or_show(xpp::restore_defaults(s, scope, field, graph));
     session.state_dirty = 1;
 }
@@ -602,7 +598,7 @@ void saveset_command(xpp::Session &s, const char *line)
         j_command_error("saveset", "saveset needs a set, a mode (new or replace) and a scope");
         return;
     }
-    if (!read_graph(line, "saveset", graph) || !read_state(line, "saveset", last)) return;
+    if (!read_graph(s,line, "saveset", graph) || !read_state(line, "saveset", last)) return;
     xpp::ok_or_show(mode == "new" ? xpp::save_new_set(s, name, scope, graph, last) : xpp::save_into_set(s, name, scope, graph, last));
     session.state_dirty = 1;
 }
@@ -617,7 +613,7 @@ void savedefaults_command(xpp::Session &s, const char *line)
         j_command_error("savedefaults", "savedefaults needs a scope");
         return;
     }
-    if (!read_graph(line, "savedefaults", graph) || !read_state(line, "savedefaults", last)) return;
+    if (!read_graph(s,line, "savedefaults", graph) || !read_state(line, "savedefaults", last)) return;
     xpp::ok_or_show(xpp::save_defaults(s, scope, graph, last));
     session.state_dirty = 1;
 }
@@ -632,7 +628,7 @@ void exportset_command(xpp::Session &s, const char *line)
         j_command_error("exportset", "exportset needs a set, a scope and a file");
         return;
     }
-    if (!read_graph(line, "exportset", graph) || !read_state(line, "exportset", last)) return;
+    if (!read_graph(s,line, "exportset", graph) || !read_state(line, "exportset", last)) return;
     xpp::ok_or_show(xpp::export_values(s, name, scope, file, graph, last));
 }
 

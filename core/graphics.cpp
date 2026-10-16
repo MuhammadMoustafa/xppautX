@@ -1,5 +1,7 @@
 #include "graphics.h"
+#include "setx_file.h"
 #include "session.h"
+#include "colormap.h"
 #include "xpp_util.h"
 #include "xpp_ui.h"
 #include "xpp_globals.h"
@@ -17,7 +19,6 @@
 
 namespace xpp {
 
-#define MAXPERPLOT 10
 #define DEGTORAD .0174532
 #define EP1 1.000001
 #define max(a,b) ((a>b) ? a : b)
@@ -247,9 +248,9 @@ void scale_to_real(xpp::Session &s, int i, int j, float *x, float *y)  /* Not ne
 void reset_all_line_type(xpp::Session &s)
 {
 	int j,k;
-	for(j=0;j<MAXPOP;j++)
+	for(j=0;j<static_cast<int>(s.plot_windows.graph.size());j++)
 	{
-		for(k=0;k<MAXPERPLOT;k++)
+		for(k=0;k<s.plot_windows.graph[j].nvars;k++)
 		{
 			s.plot_windows.graph[j].line[k]=s.plot_settings.start_line_type;
 		}
@@ -261,7 +262,7 @@ void init_all_graph(xpp::Session &s)
 {
  s.drawing.axis_var_labels=1; /* Every plot names its axes, including headless exports. */
  int i;
- for(i=0;i<MAXPOP;i++)
+ for(i=0;i<static_cast<int>(s.plot_windows.graph.size());i++)
  init_graph(s,i);
  s.plot_windows.graph[0].w=1;
  s.plot_windows.graph[0].Use=1;
@@ -283,12 +284,12 @@ void set_extra_graphs(xpp::Session &s)
     s.plot_settings.npltv=8;
   }
   if(s.plot_settings.multi_win==0){
-    s.plot_windows.current->nvars=s.plot_settings.npltv;
+    s.plot_windows.current->resize_curves(s.plot_settings.npltv);
     for(i=1;i<s.plot_settings.npltv;i++){
       s.plot_windows.current->xv[i]=s.plot_settings.ix_plt[i+1];
     s.plot_windows.current->yv[i]=s.plot_settings.iy_plt[i+1];
     s.plot_windows.current->zv[i]=s.plot_settings.iz_plt[i+1];
-    s.plot_windows.current->color[i]=i;
+    s.plot_windows.current->color[i]=i%(LAST_PLOT_COLOR+1);
     }
     return;
   }
@@ -370,8 +371,8 @@ void init_graph(xpp::Session &s, int i)
   for(k=0;k<3;k++)
         if(k==j)s.plot_windows.graph[i].rm[k][j]=1.0;
 	else s.plot_windows.graph[i].rm[k][j]=0.0;
- s.plot_windows.graph[i].nvars=1;
-  for(j=0;j<MAXPERPLOT;j++){
+ s.plot_windows.graph[i].resize_curves(1);
+  for(j=0;j<s.plot_windows.graph[i].nvars;j++){
         s.plot_windows.graph[i].xv[j]=s.plot_settings.ixplt;
 	s.plot_windows.graph[i].yv[j]=s.plot_settings.iyplt;
 	s.plot_windows.graph[i].zv[j]=s.plot_settings.izplt;
@@ -430,60 +431,15 @@ void init_graph(xpp::Session &s, int i)
     
   }
 
-void copy_graph(xpp::Session &s, int i, int l)  /*  Graph[i]=Graph[l]  */
+void copy_graph(xpp::Session &s, int i, int l)
 {
- int j,k;
- s.plot_windows.graph[i].Use=s.plot_windows.graph[l].Use;
- s.plot_windows.graph[i].Nullrestore=s.plot_windows.graph[l].Nullrestore;
- for(j=0;j<3;j++)
-  for(k=0;k<3;k++)
-        s.plot_windows.graph[i].rm[k][j]=s.plot_windows.graph[l].rm[k][j];
- s.plot_windows.graph[i].nvars=s.plot_windows.graph[l].nvars;
-  for(j=0;j<MAXPERPLOT;j++){
-        s.plot_windows.graph[i].xv[j]=s.plot_windows.graph[l].xv[j];
-	s.plot_windows.graph[i].yv[j]=s.plot_windows.graph[l].yv[j];
-	s.plot_windows.graph[i].zv[j]=s.plot_windows.graph[l].zv[j];
-        s.plot_windows.graph[i].line[j]=s.plot_windows.graph[l].line[j];
-	s.plot_windows.graph[i].color[j]=s.plot_windows.graph[l].color[j];
-        }
-
-    s.plot_windows.graph[i].ZPlane=s.plot_windows.graph[l].ZPlane;
-    s.plot_windows.graph[i].ZView=s.plot_windows.graph[l].ZView;
-    s.plot_windows.graph[i].PerspFlag=s.plot_windows.graph[l].PerspFlag;
-    s.plot_windows.graph[i].ThreeDFlag=s.plot_windows.graph[l].ThreeDFlag;
-    s.plot_windows.graph[i].TimeFlag=s.plot_windows.graph[l].TimeFlag;
-    s.plot_windows.graph[i].ColorFlag=s.plot_windows.graph[l].ColorFlag;
-    s.plot_windows.graph[i].grtype=s.plot_windows.graph[l].grtype;
-    s.plot_windows.graph[i].color_scale=s.plot_windows.graph[l].color_scale;
-    s.plot_windows.graph[i].min_scale=s.plot_windows.graph[l].min_scale;
-
-    s.plot_windows.graph[i].xmax=s.plot_windows.graph[l].xmax;
-    s.plot_windows.graph[i].xmin=s.plot_windows.graph[l].xmin;
-    s.plot_windows.graph[i].ymax=s.plot_windows.graph[l].ymax;
-    s.plot_windows.graph[i].ymin=s.plot_windows.graph[l].ymin;
-    s.plot_windows.graph[i].zmax=s.plot_windows.graph[l].zmax;
-    s.plot_windows.graph[i].zmin=s.plot_windows.graph[l].zmin;
-    s.plot_windows.graph[i].xbar=s.plot_windows.graph[l].xbar;
-    s.plot_windows.graph[i].dx  =s.plot_windows.graph[l].dx  ;
-    s.plot_windows.graph[i].ybar=s.plot_windows.graph[l].ybar;
-    s.plot_windows.graph[i].dy  =s.plot_windows.graph[l].dy  ;
-    s.plot_windows.graph[i].zbar=s.plot_windows.graph[l].zbar;
-    s.plot_windows.graph[i].dz  =s.plot_windows.graph[l].dz  ;
-
-    s.plot_windows.graph[i].Theta=s.plot_windows.graph[l].Theta;
-    s.plot_windows.graph[i].Phi=s.plot_windows.graph[l].Phi;
-    s.plot_windows.graph[i].xshft=s.plot_windows.graph[l].xshft;
-    s.plot_windows.graph[i].yshft=s.plot_windows.graph[l].yshft;
-    s.plot_windows.graph[i].zshft=s.plot_windows.graph[l].zshft;
-    s.plot_windows.graph[i].xlo=s.plot_windows.graph[l].xlo;
-    s.plot_windows.graph[i].ylo=s.plot_windows.graph[l].ylo;
-    s.plot_windows.graph[i].oldxlo=s.plot_windows.graph[l].oldxlo;
-    s.plot_windows.graph[i].oldylo=s.plot_windows.graph[l].oldylo;
-    s.plot_windows.graph[i].xhi=s.plot_windows.graph[l].xhi;
-    s.plot_windows.graph[i].yhi=s.plot_windows.graph[l].yhi;
-    s.plot_windows.graph[i].oldxhi=s.plot_windows.graph[l].oldxhi;
-    s.plot_windows.graph[i].oldyhi=s.plot_windows.graph[l].oldyhi;
-  }
+  GRAPH &to=s.plot_windows.graph[i];
+  const GRAPH &from=s.plot_windows.graph[l];
+  to.Use=from.Use;
+  to.Nullrestore=from.Nullrestore;
+  copy_graph_settings(from,to);
+  copy_curves(from,to);
+}
 
 void make_rot(xpp::Session &s, double theta, double phi)
 {

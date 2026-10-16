@@ -3,7 +3,7 @@
 
 #include "xpplim.h"
 #include "xpp_types.h"
-#include "struct.h" /* CURVE, MAXFRZ */
+#include "struct.h" /* CURVE */
 #include <array>
 #include <string>
 #include <string_view>
@@ -35,11 +35,11 @@ struct BifCurve {
 
 /* The frozen curves of every plot window (Graphic stuff > Freeze) */
 typedef struct {
-    CURVE curve[MAXFRZ]; /* .use: the slot holds one; .w: its window */
+    std::vector<CURVE> curve; /* .use: the slot holds one; .w: its window */
     int auto_freeze;     /* freeze the curve after every integration */
     /* their points: curve[i].xv/yv/zv point into points[i][0..2] (CURVE,
        struct.h, holds plain pointers) */
-    std::array<std::array<std::vector<float>,3>,MAXFRZ> points;
+    std::vector<std::array<std::vector<float>,plot_axes>> points;
     /* the key (Freeze > Key): where, and whether it is drawn */
     double key_x, key_y;
     int key_flag;

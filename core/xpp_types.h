@@ -8,4 +8,9 @@
  */
 typedef unsigned long XppWinId;
 
+/* The protocol reserves this range for non-plot surfaces; plot IDs skip it. */
+#define WIN_AUTO 101
+#define WIN_ANI 104
+#define WIN_APLOT 105
+
 #endif

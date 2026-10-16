@@ -6,6 +6,7 @@
 #include "xpp_util.h"
 #include "graphics.h"
 #include "marks_data.h"
+#include "phase_data.h"
 #include "session.h"
 
 /* a model whose first window plots t and whose second is a phase plane: the
@@ -68,5 +69,13 @@ int main()
     marks_data_cleared(s, 0);
     CHECK(eqs.empty());
     check_time_first_model();
+    // A subscribed transport can clear a new window before sending its first record.
+    xpp::phase_data_init([](std::string_view) {});
+    xpp::Session &fresh=xpp::client_session();
+    for(int i=0;i<25;i++)xpp::create_a_pop(fresh);
+    xpp::phase_data_cleared(fresh,fresh.plot_windows.active);
+    xpp::phase_data_subscribe(1,1,0);
+    xpp::phase_data_update(fresh);
+    CHECK(fresh.phase_shown.windows.size()==fresh.plot_windows.graph.size());
     TEST_REPORT("headless graphs");
 }

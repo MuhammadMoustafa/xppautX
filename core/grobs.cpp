@@ -534,12 +534,7 @@ void do_windows_com(xpp::Session &s, int c)
 
 void set_restore(xpp::Session &s, int flag)
 {
-    for (int i = 0; i < MAXPOP; i++) {
-        if (s.plot_windows.graph[i].w == s.plot_windows.draw_win) {
-            s.plot_windows.graph[i].Nullrestore = flag;
-            return;
-        }
-    }
+    s.plot_windows.current->Nullrestore=flag;
 }
 
 } // namespace xpp

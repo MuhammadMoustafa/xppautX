@@ -255,7 +255,6 @@ typedef struct XppUi {
     /* plot windows */
     void (*create_plot_window)(Session &s); /* present the already-created active graph */
     void (*destroy_plot_window)(Session &s); /* the active one; not the main window */
-    void (*kill_plot_windows)(Session &s);   /* all but the main window */
     void (*lower_plot_window)(void);   /* put the active one at the bottom */
     void (*gr_col)(void);   /* pen: graph colours (GrCol) */
     void (*base_col)(void); /* pen: window colours (BaseCol) */

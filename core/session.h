@@ -104,7 +104,7 @@ struct Session {
   /* 3D Params' movie settings (graf_par.cpp) */
   Mov3d movie_3d;
   /* what the page displays of each window: earlier runs, zoom (display_state.h) */
-  std::array<PlotDisplay,MAXPOP> plot_display;
+  std::vector<PlotDisplay> plot_display{1};
   /* what each window shows besides its curves since it was last blanked:
      nullclines, direction field and flows (phase_data.cpp), equilibria,
      labels, objects and frozen curves (marks_data.cpp) */

@@ -16,6 +16,13 @@
 #include "setx.h"
 #include "xpp_session.h"
 #include "xpp_zip.h"
+#include "xpp_util.h"
+#include "xpp_ui.h"
+#include "graf_par.h"
+#include "browse.h"
+#include "data_formats.h"
+#include "setx_file.h"
+#include <array>
 
 #include <string>
 #include <vector>
@@ -175,6 +182,105 @@ void check_saved_model(const xpp::TempDir &tmp)
     CHECK(xpp::is_model_text("x'=-x\n") && !xpp::is_model_text(std::string_view("a\0b", 3)));
 }
 
+
+/* W376 (#438): all three input-sized dimensions, holes, and the protocol's
+   auxiliary ID range survive a recording snapshot and a session reload. */
+void check_plot_limits(const xpp::TempDir &tmp)
+{
+    std::string model;
+    constexpr int curves=13, frozen=32, windows=107;
+    for(int i=0;i<curves;i++)model+="x"+std::to_string(i)+"'=-x"+std::to_string(i)+"\n";
+    for(int i=0;i<curves;i++)model+="init x"+std::to_string(i)+"=0\n";
+    CHECK(write_file("plotlimits.odex",model));
+    CHECK(load("plotlimits.odex"));
+    xpp::Session &s=xpp::client_session();
+    xpp::batch_start(s);
+    std::array<int,curves> checked;
+    checked.fill(1);
+    xpp::plot_checked_vars(s,0,checked.data(),curves);
+    CHECK(s.plot_windows.current->nvars==curves && s.plot_windows.current->yv.back()==curves);
+    CHECK(s.plot_windows.current->plot_points[0].size()==curves);
+    for(int i=0;i<curves;i++)CHECK(checked[i]==0);
+    xpp::DataTable data;
+    data.names={"T"};data.columns={{0,1,2}};
+    for(int i=0;i<curves;i++){
+        data.names.push_back("x"+std::to_string(i));
+        data.columns.push_back({static_cast<double>(i),i+0.5,i+1.0});
+    }
+    CHECK(xpp::put_stored_data(s,data)==3);
+    for(int i=0;i<frozen;i++)CHECK(xpp::create_crv(s,curves-1)==i);
+    CHECK(s.frozen_curves.curve.size()==frozen && s.frozen_curves.curve.back().yv[2]==curves);
+    for(int i=1;i<windows;i++){
+        xpp::create_a_pop(s);
+        CHECK(s.plot_windows.active==i && s.plot_windows.current==&s.plot_windows.graph[i]);
+        CHECK(s.plot_windows.current->nvars==curves);
+        CHECK(s.plot_windows.current->w<WIN_AUTO || s.plot_windows.current->w>WIN_APLOT);
+    }
+    CHECK(s.plot_windows.graph.back().w==windows+WIN_APLOT-WIN_AUTO+1);
+    xpp::make_active(s,7,1);
+    xpp::destroy_a_pop(s);
+    xpp::make_active(s,windows-1,1);
+    xpp::delete_frz_crv(s,5);
+    const auto bytes=xpp_session_snapshot(s);
+    CHECK(bytes.has_value());
+    if(!bytes)return;
+    auto file=xpp_saved_parse(tmp.file("limits.snapx"),"limits.snapx",*bytes,SavedKind::snapshot);
+    CHECK(file.has_value());
+    if(!file)return;
+    CHECK(!xpp_saved_check(s,*file));
+    /* A scalar posing as a list, sparse hostile indices, and dishonest point
+       counts fail at their member line, without changing any current state. */
+    const auto bad=[&](const char *member,const char *old,const char *replacement){
+        SavedFile damaged=*file;
+        std::string &text=damaged.members.at(member);
+        const auto pos=text.find(old);
+        CHECK(pos!=std::string::npos);
+        if(pos==std::string::npos)return;
+        text.replace(pos,std::string_view(old).size(),replacement);
+        const auto error=xpp_saved_check(s,damaged);
+        CHECK(error && error->place.file.ends_with(member) && error->place.line>0 && !error->place.source.empty());
+        CHECK(s.plot_windows.active==windows-1 && s.plot_windows.count==windows-1);
+        CHECK(s.frozen_curves.curve.size()==frozen && !s.frozen_curves.curve[5].use);
+    };
+    bad("windows.setx","number: 0","number: 2147483647");
+    bad("windows.setx","active: 106","active: 7");
+    const std::string &window_text=file->members.at("windows.setx");
+    const auto curve_begin=window_text.find("curves: [");
+    const auto curve_end=window_text.find(']',curve_begin);
+    const std::string curve_list=window_text.substr(curve_begin,curve_end-curve_begin+1);
+    bad("windows.setx",curve_list.c_str(),"curves: 2147483647");
+    bad("marks.setx","slot: 0","slot: 2147483647");
+    bad("marks.setx","points: 3","points: -1");
+    bad("marks.setx","points: 3","points: 2147483647");
+    bad("marks.setx","points: 3","points: 2");
+    /* .setx uses the same curve reader, independently of the archive. */
+    const auto settings=xpp::setx_text(s,xpp::capture_settings(s,xpp::SettingsUse::file));
+    CHECK(settings.has_value());
+    if(settings){
+        const auto read=xpp::read_settings(s,"limits.setx",*settings,xpp::SettingsUse::file);
+        CHECK(read && read->graph.nvars==curves && read->graph.yv.back()==curves);
+    }
+    CHECK(write_file(tmp.file("limits.snapx"),*bytes));
+    auto disk=xpp_saved_read(tmp.file("limits.snapx"));
+    CHECK(disk.has_value());
+    if(!disk)return;
+    CHECK(load("plotlimits.odex",&disk->model));
+    xpp::Session &restored=xpp::client_session();
+    xpp::batch_start(restored);
+    CHECK(xpp_saved_restore(restored,*disk));
+    CHECK(restored.plot_windows.graph.size()==windows && restored.plot_windows.count==windows-1);
+    CHECK(restored.plot_windows.active==windows-1 && !restored.plot_windows.graph[7].Use);
+    CHECK(restored.plot_windows.current->nvars==curves && restored.plot_windows.current->yv.back()==curves);
+    CHECK(restored.frozen_curves.curve.size()==frozen && !restored.frozen_curves.curve[5].use);
+    const auto again=xpp_session_snapshot(restored);
+    CHECK(again.has_value());
+    if(!again)return;
+    const auto back=xpp_saved_parse(tmp.file("again.snapx"),"again.snapx",*again,SavedKind::snapshot);
+    CHECK(back.has_value());
+    if(back)for(const char *member:{"windows.setx","marks.setx","frozen.npz"})
+        CHECK(back->members.at(member)==file->members.at(member));
+}
+
 } // namespace
 
 int main(void)
@@ -186,6 +292,7 @@ int main(void)
         xpp::TempDir tmp;
         CHECK(!tmp.path().empty());
         check_saved_model(tmp);
+        check_plot_limits(tmp);
         xpp::files::change_dir(here.c_str());
     }
     TEST_REPORT("test_snapx");

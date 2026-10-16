@@ -2054,12 +2054,13 @@ void plot_one_graph(xpp::Session &s, float *xv,float *xvold,int node,int neq,dou
 {
  int *xvar,*yvar,*zvar;
  int NPlots,ip;
- float oldxpl[MAXPERPLOT],oldypl[MAXPERPLOT],oldzpl[MAXPERPLOT];
- float xpl[MAXPERPLOT],ypl[MAXPERPLOT],zpl[MAXPERPLOT];
+ auto &points=s.plot_windows.current->plot_points;
+ float *oldxpl=points[0].data(), *oldypl=points[1].data(), *oldzpl=points[2].data();
+ float *xpl=points[3].data(), *ypl=points[4].data(), *zpl=points[5].data();
  NPlots=s.plot_windows.current->nvars;
- xvar=s.plot_windows.current->xv;
- yvar=s.plot_windows.current->yv;
- zvar=s.plot_windows.current->zv;
+ xvar=s.plot_windows.current->xv.data();
+ yvar=s.plot_windows.current->yv.data();
+ zvar=s.plot_windows.current->zv.data();
  for(ip=0;ip<s.model().neq;ip++){
    if(s.itor[ip]==1)
      xvold[ip+1]=xvold[ip+1]+tc[ip]*s.numerics.torus_period;
@@ -2075,7 +2076,7 @@ void plot_one_graph(xpp::Session &s, float *xv,float *xvold,int node,int neq,dou
  if(s.plot_windows.current->ColorFlag)
    comp_color(s,xv,xvold,s.model().node,static_cast<float>(ddt));
  do_plot(s,oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
- phase_data_flow_step(s,NPlots,oldxpl,oldypl,xpl,ypl,s.plot_windows.current->color); /* Dir.field/flow's Flow as data */
+ phase_data_flow_step(s,NPlots,oldxpl,oldypl,xpl,ypl,s.plot_windows.current->color.data()); /* Dir.field/flow's Flow as data */
 }
 void restore(xpp::Session &s, int i1, int i2)
 {
