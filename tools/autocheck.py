@@ -2643,19 +2643,21 @@ def section_codim():
     maps = read_description(BASE / 'henon_rot_tr.json')
     maps['runs'][2].pop('skip',None)
     maps['runs'][2]['auto']['nmax']=40 # includes R3 and R4; avoids the singular R1 endpoint
-    s = Server(args.server, maps['model'])
-    try:
-        completed(s)
-        completed(s, dict(cmd='set',values=[dict(kind='par',name=k,value=v) for k,v in maps['parameters'].items()]))
-        completed(s, dict(cmd='data',events=['autoinfo','autosettings']))
-        diagram=autocompare.Diagram().apply(open_auto(s)); intervals={}
-        execute_run(s,maps['runs'][0],diagram,intervals)
-        completed(s,dict(cmd='auto',op='set',special_points={'TTR':False,'R4':False}))
-        execute_run(s,maps['runs'][2],diagram,intervals)
-        rows=autocompare.stored_rows(session_diagram(s),intervals)['down']
-        kinds=[kind for kind,_ in autocompare.labelled(rows,'two_parameter')]
-        check('map codim: disabling TTR/R4 preserves R3', 'TTR' not in kinds and 'R4' not in kinds and 'R3' in kinds)
-        with tempfile.TemporaryDirectory() as folder:
+    # The server stops before its session's folder goes: Windows cannot
+    # remove a folder a running process still holds (CI run 38913397765).
+    with tempfile.TemporaryDirectory() as folder:
+        s = Server(args.server, maps['model'])
+        try:
+            completed(s)
+            completed(s, dict(cmd='set',values=[dict(kind='par',name=k,value=v) for k,v in maps['parameters'].items()]))
+            completed(s, dict(cmd='data',events=['autoinfo','autosettings']))
+            diagram=autocompare.Diagram().apply(open_auto(s)); intervals={}
+            execute_run(s,maps['runs'][0],diagram,intervals)
+            completed(s,dict(cmd='auto',op='set',special_points={'TTR':False,'R4':False}))
+            execute_run(s,maps['runs'][2],diagram,intervals)
+            rows=autocompare.stored_rows(session_diagram(s),intervals)['down']
+            kinds=[kind for kind,_ in autocompare.labelled(rows,'two_parameter')]
+            check('map codim: disabling TTR/R4 preserves R3', 'TTR' not in kinds and 'R4' not in kinds and 'R3' in kinds)
             path=os.path.join(folder,'maps.snapx')
             completed(s,dict(cmd='session',op='save',name=path,data=False))
             before=session_diagram(s)
@@ -2664,8 +2666,8 @@ def section_codim():
             events=completed(s,dict(cmd='data',events=['autosettings']))
             flags=next(e['special_points'] for e in events if e.get('ev')=='autosettings')
             check('map codim: session restores named switches', not flags['TTR'] and not flags['R4'] and flags['LPD'])
-    finally:
-        s.close()
+        finally:
+            s.close()
 
 
 for name in args.sections:
