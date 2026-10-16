@@ -24,9 +24,9 @@ KINDS = [
     ('Jacobian and residual assembly (setubv, setrhs, icps, fnps, funi, func)',
      lambda o, f: re.match(ANON + r'(setubv|setrhs|icps|fnps|funi|func|continued_constants|stpnt|bcps|icf)', f)),
     ('block linear solve (reduce, infpar, conrhs, bcksub, dimrge, brbd, ge, nlvc)',
-     lambda o, f: re.match(r'(reduce|infpar|conrhs|bcksub|dimrge|rhsrge|cpyrhs|brbd|ge|nlvc|copycp|solvbv)\(', f)),
+     lambda o, f: re.match(r'(reduce|infpar|conrhs|bcksub|dimrge|rhsrge|cpyrhs|brbd|ge|nlvc|copycp|solvbv)\(', f.removeprefix('xpp::'))),
     ('eigenvalue routines (EISPACK, flowkm)',
-     lambda o, f: re.match(r'(hqr|hqr2|orthes|balanc|balbak|elmhes|eltran|qzit|qzhes|qzval|qzvec|rg|rgg|eig|flowkm|cdiv|csroot|ortran|comqr|cbal|corth|comqr2|htribk|ch|cg)\(', f)),
+     lambda o, f: re.match(r'(hqr|hqr2|orthes|balanc|balbak|elmhes|eltran|qzit|qzhes|qzval|qzvec|rg|rgg|eig|flowkm|cdiv|csroot|ortran|comqr|cbal|corth|comqr2|htribk|ch|cg)\(', f.removeprefix('xpp::'))),
     ('allocation and zeroing (malloc, free, new, memset, memcpy)',
      lambda o, f: re.match(r'(malloc|free|calloc|realloc|_int_|operator new|operator delete|__memset|__memcpy|__memmove|memset|memcpy|memmove|cfree|__libc_|unlink_chunk|tcache)', f)),
     ('output, files, session (formatting, compression)',
@@ -104,7 +104,7 @@ def points(out, workload, phase):
 
 
 def calls_of(profile, prefix):
-    return sum(n for f, n in profile['calls'].items() if f.startswith(prefix))
+    return sum(n for f, n in profile['calls'].items() if f.removeprefix('xpp::').startswith(prefix))
 
 
 INCLUSIVE = [  # the routines whose whole cost (with everything they call) a stage 3 card can target
@@ -117,13 +117,13 @@ CALLEES = ['funi(', 'func(', 'ge(', 'malloc', 'memset', '__memset_avx2_unaligned
 
 def inclusive(prof, prefix):
     return sum(prof['self'][f] + prof['callee_cost'][f] for f in set(prof['self']) | set(prof['callee_cost'])
-               if f.startswith(prefix))
+               if f.removeprefix('xpp::').startswith(prefix))
 
 
 def callers(prof, callee, k=6):
     c = collections.Counter()
     for (a, b), n in prof['pairs'].items():
-        if b.startswith(callee):
+        if b.removeprefix('xpp::').startswith(callee):
             c[short(a)] += n
     return c.most_common(k)
 
