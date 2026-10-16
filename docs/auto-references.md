@@ -224,13 +224,13 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | Model | Special points in xppautX | AUTO-07p | XPPAUT 8.0 |
 |---|---|---|---|
 | explicit_homoclinic | steady: EP | agrees (1 points; par 0, norm 1.5e-15) | not run |
-| forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 3.6e-08, par2 1.2e-08, norm 6.7e-09, period 2e-14, spectrum 5.1e-05; curve par 0.00034, par2 8.9e-06, norm 4.5e-06) | not run |
+| forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 1.2e-08, par2 4e-09, norm 2.4e-09, period 2e-14, spectrum 9e-05; curve par 0.00037, par2 9.8e-06, norm 4.9e-06) | not run |
 | forced_pp_pd | steady: EP HB; cycles: PD; pd_down: R2 | agrees (4 points; par 1.8e-06, par2 6.4e-07, norm 3.5e-07, period 2.1e-14, spectrum 4.3e-05; curve par 5e-09, par2 1.2e-08, norm 2.6e-09) | not run |
 | henon_rot_lp | steady: EP LP TR PD; up: LTR LPD R1; down: LTR | agrees (8 points; par 8.9e-07, par2 1.5e-06, norm 8e-07, spectrum 3.3e-05; curve par 3.4e-06, par2 1.1e-06, norm 7.8e-07) | not run |
 | henon_rot_pd | steady: EP PD TR TR; up: PTR R2 PTR; down: LPD PTR PTR | agrees (10 points; par 8.3e-07, par2 6.5e-07, norm 4.6e-07, spectrum 2.7e-05; curve par 3.1e-07, par2 1e-06, norm 7.3e-07) | not run |
 | henon_rot_tr | steady: EP PD TR TR; up: R2 | agrees (5 points; par 1.4e-07, par2 2.2e-10, norm 4.9e-08, spectrum 7.3e-06; curve par 3.2e-05, par2 5.8e-07, norm 1.2e-05) | not run |
 | hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 9.3e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07; curve par 2.7e-09, par2 1e-09, norm 8.4e-12) | not run |
-| hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP | agrees (7 points; par 2.1e-11, par2 3.9e-12, norm 7.7e-12, period 2e-11, spectrum 2.6e-06; curve par 2.1e-11, par2 4.4e-06, norm 1.5e-11) | not run |
+| hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP | agrees (7 points; par 1.2e-10, par2 3.9e-12, norm 7.7e-12, period 2e-11, spectrum 3.5e-06; curve par 1.2e-10, par2 2.7e-06, norm 1.5e-11) | not run |
 | lorenz_homoclinic | steady: EP | agrees (1 points; par 0, norm 3.8e-15) | not run |
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
@@ -692,3 +692,13 @@ Jacobian differences let Newton follow that branch briefly, displacing R1 to
 reduce R1's displacement to 1.89e-5 and restore curve agreement, but still miss
 that BP. This is a real singular-endpoint difference. Its measured skip remains;
 independent checks exercise the down labels and switches before that endpoint.
+
+## W407: the torus phase condition ([#469](https://github.com/MuhammadMoustafa/xppautX/issues/469))
+
+The second integral condition of the torus-bifurcation continuation compared the eigenfunction with itself, so it
+was zero for every input (XPPAUT's own bug, [finding 67](xppaut-findings.md)). It now compares with the previous
+point's eigenfunction, with its Jacobian row, as AUTO-07p's ICTR does. On the references it changed nothing a
+comparison can see: the tangent of the continuation already holds the phase between steps, so only the last
+digits of two diagrams moved (forced_pp_ns and hill_cycles_torus, rewritten once; both still agree with AUTO-07p,
+24 and 32 quantities). tests/test_auto_codim.cpp is the check that it matters: a rotated eigenfunction gives a
+nonzero value and its Jacobian row matches a central difference, neither of which the old condition could.

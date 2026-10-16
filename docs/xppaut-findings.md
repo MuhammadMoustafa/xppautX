@@ -1435,3 +1435,21 @@ at its second point with a nonfinite solution. W404 preserves the map problem
 through the common core run setup, for all front ends.
 
 **Card:** [W404 / #466](https://github.com/MuhammadMoustafa/xppautX/issues/466).
+
+## 67. The torus integral condition is identically zero
+
+XPPAUT 8.0's continuation of torus bifurcations has three integral conditions. The second, meant to fix the
+phase of the complex eigenfunction `u + i v` against the previous point's, is computed from the current
+point twice: `f[1] += u[ndm+i]*u[ndm2+i] - u[ndm2+i]*u[ndm+i]`
+([autlib3.c:3252](../reference/xppaut-8.0/autlib3.c#L3252)), which is zero for every input, and its
+Jacobian row `u[ndm2+i]`, `-u[ndm+i]` is the derivative of a function that is not there. AUTO-07p's ICTR
+multiplies by the previous point's eigenfunction (`U(NDM+I)*UOLD(NDM2+I) - U(NDM2+I)*UOLD(NDM+I)`), which
+is what makes the condition fix the phase. XPPAUT's system therefore has one condition fewer than it
+claims: the eigenfunction's phase is left to the pseudo-arclength equation alone.
+
+On the shipped references the change is small (forced_pp_ns and hill_cycles_torus differ from the old
+run at the 1e-9 level, still agreeing with AUTO-07p), because the tangent already holds the phase in smooth
+steps. tests/test_auto_codim.cpp checks the condition directly: a rotated eigenfunction now gives a nonzero
+value, and its Jacobian row matches a central difference.
+
+**Card:** [W407 / #469](https://github.com/MuhammadMoustafa/xppautX/issues/469).

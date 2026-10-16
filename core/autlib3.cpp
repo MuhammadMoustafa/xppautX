@@ -2187,7 +2187,7 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     if (iap->lib->rotations.nrtn[i] == 0) {
       f[0] += u[i] * upold[i];
     }
-    f[1] = f[1] + u[ndm + i] * u[ndm2 + i] - u[ndm2 + i] * u[ndm + i];
+    f[1] = f[1] + u[ndm + i] * uold[ndm2 + i] - u[ndm2 + i] * uold[ndm + i];
     f[2] = f[2] + u[ndm + i] * u[ndm + i] + u[ndm2 + i] * u[ndm2 + i];
   }
 
@@ -2209,8 +2209,8 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     } else {
       ARRAY2D(dint, 0, i) = 0.;
     }
-    ARRAY2D(dint, 1, ndm + i) = u[ndm2 + i];
-    ARRAY2D(dint, 1, ndm2 + i) = -u[ndm + i];
+    ARRAY2D(dint, 1, ndm + i) = uold[ndm2 + i];
+    ARRAY2D(dint, 1, ndm2 + i) = -uold[ndm + i];
     ARRAY2D(dint, 2, ndm + i) = u[ndm + i] * 2;
     ARRAY2D(dint, 2, ndm2 + i) = u[ndm2 + i] * 2;
   }
