@@ -1,0 +1,103 @@
+# Commands a Codex card agent never runs (AGENTS.md "Task agents", "Hygiene").
+# A card agent runs with -s danger-full-access so it can reach WSL and commit
+# on its branch; these rules refuse what only the coordinator or the
+# maintainer does. A guard against mistakes, not a sandbox: a command built
+# inside a script (python, a bash -c Codex cannot split) is not seen.
+# git -C <dir> and commands inside bash -c strings may slip past (see the delegate skill).
+# Check a command: codex execpolicy check --rules .codex/rules/agents.rules -- git push
+
+GIT_REFUSED = ["push", "merge", "rebase", "reset", "checkout", "switch", "stash", "worktree", "clean", "pull", "fetch", "branch", "tag", "filter-branch", "update-ref", "gc", "prune"]
+
+prefix_rule(
+    pattern = ["git", GIT_REFUSED],
+    decision = "forbidden",
+    justification = "card agents commit on their own branch only; merging, pushing and branches are the coordinator's",
+)
+
+GH_WRITES = {
+    "issue": ["create", "close", "reopen", "comment", "edit", "delete", "lock", "unlock", "pin", "unpin", "transfer", "develop"],
+    "pr": ["create", "merge", "close", "reopen", "comment", "edit", "review", "ready", "lock", "unlock", "update-branch"],
+    "release": ["create", "delete", "edit", "upload", "delete-asset"],
+    "repo": ["create", "delete", "edit", "fork", "rename", "archive", "sync"],
+    "workflow": ["run", "enable", "disable"],
+    "run": ["rerun", "cancel", "delete"],
+    "label": ["create", "edit", "delete", "clone"],
+}
+
+[prefix_rule(
+    pattern = ["gh", noun, verbs],
+    decision = "forbidden",
+    justification = "card agents never write to GitHub (reading an issue is fine)",
+) for noun, verbs in GH_WRITES.items()]
+
+prefix_rule(
+    pattern = ["gh", ["api", "secret", "variable", "gist", "auth"]],
+    decision = "forbidden",
+    justification = "card agents never write to GitHub; ask the coordinator for what you need",
+)
+
+prefix_rule(
+    pattern = ["taskkill", ["/IM", "/im", "-IM", "-im"]],
+    decision = "forbidden",
+    justification = "stop only your own processes, by PID (taskkill /PID <pid> /T /F)",
+)
+
+prefix_rule(
+    pattern = [["pkill", "killall"]],
+    decision = "forbidden",
+    justification = "stop only your own processes, by PID (kill <pid>)",
+)
+
+prefix_rule(
+    pattern = ["Stop-Process", ["-Name", "-name", "-ProcessName"]],
+    decision = "forbidden",
+    justification = "stop only your own processes, by PID (Stop-Process -Id <pid>)",
+)
+
+prefix_rule(
+    pattern = ["rm", ["-r", "-rf", "-fr", "-R", "-Rf", "-fR", "--recursive"]],
+    decision = "forbidden",
+    justification = "no recursive deletes: a deletion that followed a junction wiped an SDK (2026-10-12); delete files one by one, or ask the coordinator",
+)
+
+prefix_rule(
+    pattern = ["Remove-Item", ["-Recurse", "-recurse", "-r"]],
+    decision = "forbidden",
+    justification = "no recursive deletes: a deletion that followed a junction wiped an SDK (2026-10-12)",
+)
+
+prefix_rule(
+    pattern = ["rmdir", ["/s", "/S"]],
+    decision = "forbidden",
+    justification = "no recursive deletes: a deletion that followed a junction wiped an SDK (2026-10-12)",
+)
+
+prefix_rule(
+    pattern = [["wsl", "wsl.exe"], ["--shutdown", "--terminate", "-t", "--unregister", "--install", "--set-default", "-s", "--import", "--export", "--manage", "--update"]],
+    decision = "forbidden",
+    justification = "WSL is shared with the maintainer and other agents: run checks through tools/wslrun.sh only",
+)
+
+prefix_rule(
+    pattern = [["mklink", "New-Item"], ["/J", "/D", "/H", "-ItemType"]],
+    decision = "forbidden",
+    justification = "create no link of any kind (junction, symbolic or hard link)",
+)
+
+prefix_rule(
+    pattern = ["ln", ["-s", "-sf", "-sfn"]],
+    decision = "forbidden",
+    justification = "create no link of any kind (junction, symbolic or hard link)",
+)
+
+prefix_rule(
+    pattern = [["apt", "apt-get", "pip", "pip3", "npm", "choco", "winget", "pacman"], ["install", "uninstall", "remove", "-S", "-R", "i"]],
+    decision = "forbidden",
+    justification = "installing packages is the maintainer's (npm ci in web2/ is allowed)",
+)
+
+prefix_rule(
+    pattern = ["sudo"],
+    decision = "forbidden",
+    justification = "anything run as root is the maintainer's",
+)

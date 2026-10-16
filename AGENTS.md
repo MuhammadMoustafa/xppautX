@@ -636,31 +636,26 @@ pools' limits before a batch (the app's usage for Claude, the task-board
 skill's `codex_limits.py` for Codex) and gives each card to the pool with
 room, saying which in the batch proposal.
 
-A Codex agent (run by the reviewer with `codex exec -C <worktree> -s
-workspace-write -m <model> -o <report>`, registered by the reviewer; the
-`delegate` skill lists every command between Claude and Codex: resume,
-`codex queue`, stopping a run by its PID, a session's id, testing its
-sandbox) follows every rule of this section as written, with four
-differences of its sandbox:
-- it writes only in its worktree and the system's temp folder, so it starts
-  no background runs and does not touch the register;
-- it cannot commit (the worktree's git data is in the main checkout's .git,
-  whose lock file the Windows sandbox refuses even with `--add-dir`, W153),
-  so it leaves its work uncommitted and its report ends with the commit
-  message, which the reviewer commits with the Codex trailer before the
-  review;
-- it runs its gates from Git Bash in the worktree (the UCRT build
-  `mingw32-make -j4 xppautx BUILDDIR=build/ucrt`, its unit tests,
-  servercheck/autocheck against that exe, web2's checks and `web2check
-  --only`), as any agent runs them, each through `tools/heavy.sh` (W289:
-  the lock folder is in the system temp its sandbox may write): the
-  reviewer starts Codex with
-  `XPP_CHECK_NO_BROWSER_SANDBOX=1` in its environment, which its commands
-  inherit, since Chrome's own sandbox cannot start inside Codex's (W168);
-- the WSL gates (`tools/wslrun.sh`) are the reviewer's, run on its branch at
-  review, with the card's web2check sections again (the task-board skill's
-  `codex_gates.sh`, before the review: a failure goes back to the same
-  Codex session).
+A Codex agent is a full card agent (maintainer, 2026-10-16). It follows
+every rule of this section as written: it commits on its branch with the
+`Co-Authored-By: OpenAI Codex <noreply@openai.com>` trailer, runs every
+gate of its card itself (WSL ones through `tools/wslrun.sh`, the others
+through `tools/heavy.sh`) and starts no background runs. The reviewer
+starts it outside Codex's sandbox (`-s danger-full-access`), since the
+sandbox reaches neither WSL nor git's metadata, with the task-board
+skill's `codex_card.sh` and registers it; the `delegate` skill lists every
+command between Claude and Codex. Two guards keep it to its card, and
+neither is a sandbox, so the brief still states every rule:
+- `.codex/rules/agents.rules`, Codex's command rules, refuses what only
+  the coordinator or the maintainer does: git push, merge, rebase, reset,
+  checkout, branch and the like; GitHub writes; stopping a process by
+  name; recursive deletes; links; package installs; sudo. It cannot see
+  a command wrapped in `bash -lc "..."` or `git -C <dir>`;
+- `codex_card.sh`'s environment, which every command inherits, wrapped or
+  not: a push to GitHub goes to a host that does not exist, git gets no
+  credentials, and `gh` gets a token GitHub refuses. Codex cannot read
+  GitHub either, so whatever it needs from there (an issue, a CI log) is
+  saved into the worktree's `build/` first.
 
 ## Checks that can be trusted
 
