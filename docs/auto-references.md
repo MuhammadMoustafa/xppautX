@@ -547,8 +547,8 @@ description with a reason naming W400 ([#462](https://github.com/MuhammadMoustaf
 
 | Description | Model | Source | AUTO-07p reaches | xppautX today |
 |---|---|---|---|---|
-| `res_cycles` | `tools/models/res_cycles.odex`: a Hopf cycle beside a Bogdanov-Takens system (w,v) | closed form | torus curve of cycles `c = -mu - sqrt(b)`: R1, R4, R3, R2 at the exact places below | R4 and R3 agree; R2, the BP and R1 are not found (skipped, W400 below) |
-| `forced_pp_pd` | `tools/models/forced_predator_prey.odex` | Kuznetsov, Muratori, Rinaldi 1992; MatCont Tutorial V (Kuznetsov, Govaerts, Della Rossa, De Witte) | PD of the period-1 cycle; its closed PD curve with R2 at both ends | the R2 at the published end agrees to 6e-7; the far end is 8.5e-5 off (skipped, W400 below) |
+| `res_cycles` | `tools/models/res_cycles.odex`: a Hopf cycle beside a Bogdanov-Takens system (w,v) | closed form | torus curve of cycles `c = -mu - sqrt(b)`: R1, R4, R3, R2 at the exact places below | R4 and R3 agree; R2, the BP and R1 are not found (skipped until W405, [#467](https://github.com/MuhammadMoustafa/xppautX/issues/467); traced in W400 below) |
+| `forced_pp_pd` | `tools/models/forced_predator_prey.odex` | Kuznetsov, Muratori, Rinaldi 1992; MatCont Tutorial V (Kuznetsov, Govaerts, Della Rossa, De Witte) | PD of the period-1 cycle; its closed PD curve with R2 at both ends | the R2 at the published end agrees to 6e-7; the far end is 8.5e-5 off (skipped until W405, [#467](https://github.com/MuhammadMoustafa/xppautX/issues/467); traced in W400 below) |
 | `forced_pp_ns` | the same, at b0 = 0.338 | the same | TR of the period-1 cycle; its NS curve to the R2 end, labelled BP; the curve ends at the unforced Hopf point | the curve and its BP agree |
 | `lorenz_homoclinic` | `tools/models/lorenz_homoclinic.odex` | Sparrow 1982, Kaplan and Yorke 1979 | HomCont in three dimensions, r = 13.92655741 to 15.5988 in (r, b) | stops at its first step: singular Newton system (PENDING W365) |
 | `explicit_homoclinic` | `tools/models/explicit_homoclinic.odex` | closed form | HomCont in three dimensions, q = 1 to 3.0145 on k = 0 | stops at its second point: no convergence at DSMIN (PENDING W365) |
@@ -653,7 +653,7 @@ Three runs stay skipped, each with its traced reason in the description:
   multiplier -1 makes the test |mu| - 1 as inaccurate as the square root of roundoff; neither program is nearer than
   that, and the curve is steep there.
 
-R1 now has a flow reference (res_cycles) but it is the skipped one; the fold and torus tests otherwise have
+R1 now has a flow reference (res_cycles) but it is the skipped one (W405 takes the skipped runs); the fold and torus tests otherwise have
 synthetic-spectrum coverage (tests/test_auto_codim.cpp).
 
 The shipped lecar_auto.recx snapshot now includes the four resonance booleans and its missing W376 main-window
