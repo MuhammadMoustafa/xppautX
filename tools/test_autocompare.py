@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from autocompare import BASE, Diagram, compare_curve, compare_run, difference, read_description, read_reference, reference_spectrum
+from autocompare import BASE, Diagram, compare_curve, compare_run, difference, labelled, read_description, read_reference, reference_spectrum, table_row
 
 
 class AutoCompare(unittest.TestCase):
@@ -90,6 +90,17 @@ class References(unittest.TestCase):
         diffs, _ = compare_run(self.rows(), self.AUTO, 'equilibrium', ref, 'm')
         self.assertEqual(len(diffs), 1)
         self.assertIn('LP (stored point 6) par', diffs[0])
+
+    def test_a_table_row_lists_the_stored_points_and_each_references_result(self):
+        d = dict(runs=[dict(name='steady', kind='equilibrium'), dict(name='skipped', kind='periodic', skip='x')])
+        rows = {'steady': self.rows()}
+        self.assertEqual([s for s, _ in labelled(rows['steady'], 'equilibrium')], ['EP', 'LP'])
+        measures = [('.auto07p', 'steady', 'par', 'LP 6', 1e-7, 1e-4), ('.auto07p', 'steady', 'par', 'EP 1', 0.0, 1e-4),
+                    ('.auto07p', 'steady', 'norm', 'LP 6', 2e-7, 1e-4)]
+        self.assertEqual(table_row('m', d, rows, ['.auto07p'], measures, []),
+                         '| m | steady: EP LP | agrees (2 points; par 1e-07, norm 2e-07) | not run |')
+        self.assertEqual(table_row('m', d, rows, ['.auto07p'], measures, ['m AUTO-07p/steady x']).split(' | ')[2],
+                         'differs: 1 (2 points; par 1e-07, norm 2e-07)')
 
     def test_a_missing_or_extra_special_point_is_a_difference(self):
         ref = [self.point('EP', 0.0, 0.0)]

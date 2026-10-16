@@ -10,6 +10,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 ## [Unreleased]
 
 - Detect and locate R1-R4 resonances on two-parameter cycle curves, with named detection controls and diagram/session labels (W400, [#462](https://github.com/MuhammadMoustafa/xppautX/issues/462)).
+- A special point whose location does not converge on a curve of cycles or a boundary-value problem is given up with a note and the branch goes on, as in AUTO-07p, instead of ending with "no convergence" (W400, [#462](https://github.com/MuhammadMoustafa/xppautX/issues/462)).
 
 - Plot windows, curves per graph (including ICs xvst), and frozen curves grow with what is added; sessions and recordings preserve all slots and reject invalid indices before applying (W376, [#438](https://github.com/MuhammadMoustafa/xppautX/issues/438)).
 

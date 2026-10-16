@@ -78,7 +78,7 @@
         "epss": 1e-05,
         "mxbf": 0
       },
-      "skip": "PENDING W400 (#462): xppautX runs the curve but labels no R1 (at c=-1, b=1/4); its samples also leave AUTO-07p's by more than the curve tolerance after the 99th"
+      "skip": "W400 (#462): xppautX labels no R1 at c=-1, b=1/4, where AUTO-07p does. The torus system is singular at R1 (the model's (w,v) block is then exactly the identity), and Newton there reaches epsu only if the eigenfunction is small: AUTO-07p's start run lost its first eight steps to non-convergence and left its norm at 7.6e-7, xppautX's converges at once and leaves 2.1e-2, where the difference-quotient Jacobian's noise keeps the update at 1e-5. With the eigenfunction scaled to 7.6e-7, or with the exact Jacobian, xppautX finds R1 at AUTO-07p's place to every digit; the scale is not copied, since hill_cycles_pd and hill_cycles_torus, whose start runs end where xppautX's do (2.06e-2), agree and would not"
     },
     {
       "name": "torus_up",
@@ -107,7 +107,7 @@
         "epss": 1e-05,
         "mxbf": 0
       },
-      "skip": "PENDING W400 (#462): xppautX runs the curve but labels none of R4, R3, R2 (c=-0.78125, -0.7222, -0.625) and the BP at b=0"
+      "skip": "W400 (#462): R4 and R3 agree with AUTO-07p to 1e-9; xppautX labels neither R2 (c=-0.625, b=1/64) nor the BP at b=0 after it. R2 is the same case as R1 in torus_down: the multiplier pair is a double -1, the location cannot reach epsu with the eigenfunction at the norm xppautX's start run leaves (2.1e-2, AUTO-07p's 7.6e-7), and with the exact Jacobian it does"
     }
   ]
 }

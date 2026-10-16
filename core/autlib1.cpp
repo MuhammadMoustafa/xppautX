@@ -5621,8 +5621,15 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   }
   istop = iap->istop;
   if (istop != 0) {
-    *q = 0.;
-    return 0;
+    // AUTO-07p LCSPBV bvp.f90:1393: a STEPBV that does not converge leaves the
+    // search; the point is given up (NOTE: Possible special point) and the
+    // branch goes on. Only a stop the user or the model asked for ends it.
+    if (xpp::job::cancelled() || jacobian_failed(iap)) {
+      *q = 0.;
+      return 0;
+    }
+    iap->istop = 0;
+    goto L2;
   }
 
   /* Check for zero. */
@@ -5644,6 +5651,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
     goto L1;
   }
 
+ L2:
   saved.restore(*iap, *rap);
   dstest = saved_dstest;
   stepped = false;

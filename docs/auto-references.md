@@ -214,78 +214,61 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-35 descriptions have an AUTO-07p reference (80 special points compared) and 24 an XPPAUT 8.0
-reference (44 points). All 38 runnable descriptions agree in the W400 run: 47 descriptions,
-9 skipped, 7186 stored points across one and automatic threads, 111 checks, zero failures. AUTO-07p has
-25 traced points and XPPAUT 3; pending curve skips remain explicit. No tolerance was widened.
-Before W326 there were 44 compared points and six traced points against AUTO-07p, and 44 compared
-points with none traced against XPPAUT.
+40 descriptions have an AUTO-07p reference (95 special points compared, and the two-parameter curves) and 24 an
+XPPAUT 8.0 reference (44 points); 24 hold both. Every untraced comparison agrees. AUTO-07p has 25 traced points
+and XPPAUT 8.0 three; the runs a description skips (its reason says why) are neither run nor compared. The whole
+comparison is 52 descriptions, 9 skipped, 9100 stored points across one and automatic threads, 126 checks, zero
+failures. No tolerance was widened. Before W326 there were 44 compared points and six traced points against
+AUTO-07p, and 44 compared points with none traced against XPPAUT.
 
-| Description | Reference | Compared points | Largest absolute differences | Result |
-|---|---|---|---|---|
-| henon_rot_lp | AUTO-07p | 2 | par 4.6e-12, norm 9.9e-11, spectrum 3.3e-06 | agrees, 3 traced |
-| henon_rot_pd | AUTO-07p | 1 | par 0, norm 0 | agrees, 5 traced |
-| henon_rot_tr | AUTO-07p | 1 | par 0, norm 4.2e-13 | agrees, 5 traced |
-| hill_cycles_pd | AUTO-07p | 10 | par 9.3e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07, curve par 2.7e-09, curve par2 1e-09, curve norm 8.4e-12 | agrees |
-| hill_cycles_torus | AUTO-07p | 7 | par 2.1e-11, par2 3.9e-12, norm 7.7e-12, period 2e-11, spectrum 2.6e-06, curve par 2.1e-11, curve par2 4.4e-06, curve norm 1.5e-11 | agrees |
-| ode_del_log | AUTO-07p | 1 | par 0, norm 4.9e-12 | agrees |
-| ode_del_log | XPPAUT 8.0 | 1 | par 0, norm 2.2e-08 | agrees |
-| ode_lecar | AUTO-07p | 4 | par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028 | agrees |
-| ode_lecar | XPPAUT 8.0 | 3 | par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08 | agrees, 1 traced |
-| ode_osc | AUTO-07p | 1 | par 0, norm 2.7e-11 | agrees |
-| ode_osc | XPPAUT 8.0 | 1 | par 0, norm 4.7e-07 | agrees |
-| tstauto_ab | AUTO-07p | 2 | par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08 | agrees |
-| tstauto_ab | XPPAUT 8.0 | 2 | par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09 | agrees |
-| tstauto_ab_fold | AUTO-07p | 4 | par 1.3e-06, par2 5.4e-05, norm 8.1e-05, spectrum 0.0006, curve par 3e-05, curve par2 0.00018, curve norm 2.5e-05 | agrees, 4 traced |
-| tstauto_ab_hopf | AUTO-07p | 4 | par 1.6e-07, norm 9.7e-07, period 3e-05, spectrum 0.00012, curve par 5.2e-06, curve par2 1.9e-05, curve norm 6.6e-06 | agrees, 3 traced |
-| tstauto_bigaut | AUTO-07p | 1 | par 0, norm 0 | agrees |
-| tstauto_bigaut | XPPAUT 8.0 | 1 | par 0, norm 0 | agrees |
-| tstauto_bistable | AUTO-07p | 1 | par 0, norm 0 | agrees |
-| tstauto_bistable | XPPAUT 8.0 | 1 | par 0, norm 0 | agrees |
-| tstauto_bob | AUTO-07p | 1 | par 0, norm 1.8e-12 | agrees |
-| tstauto_bob | XPPAUT 8.0 | 1 | par 0, norm 1.4e-08 | agrees |
-| tstauto_brper | AUTO-07p | 1 | par 0, norm 0 | agrees, 1 traced |
-| tstauto_brper | XPPAUT 8.0 | 2 | par 2.5e-16, norm 0, period 2e-11, spectrum 1.1e-15 | agrees |
-| tstauto_dumb | AUTO-07p | 1 | par 0, norm 0 | agrees |
-| tstauto_dumb | XPPAUT 8.0 | 1 | par 0, norm 0 | agrees |
-| tstauto_dumbvp | AUTO-07p | 1 | par 0, norm 0 | agrees |
-| tstauto_eiz-hom | AUTO-07p | 1 | par 0, norm 1.2e-13 | agrees |
-| tstauto_eiz-hom | XPPAUT 8.0 | 1 | par 0, norm 2e-09 | agrees |
-| tstauto_exp | AUTO-07p | 1 | par 0, norm 0 | agrees |
-| tstauto_frcp | AUTO-07p | 2 | par 3.4e-12, norm 1e-13, period 2.1e-06, spectrum 0.00093 | agrees |
-| tstauto_frcp | XPPAUT 8.0 | 2 | par 5.2e-06, norm 4.6e-08, period 2.5e-12, spectrum 4.1e-06 | agrees |
-| tstauto_lamom | AUTO-07p | 2 | par 3.4e-18, norm 0, period 2e-11, spectrum 1e-14 | agrees |
-| tstauto_lamom | XPPAUT 8.0 | 2 | par 2.7e-16, norm 0, period 2e-11, spectrum 1e-14 | agrees |
-| tstauto_lamom2 | AUTO-07p | 3 | par 9.2e-13, norm 5.9e-12, period 2.6e-11, spectrum 3.8e-06 | agrees |
-| tstauto_lamom2 | XPPAUT 8.0 | 3 | par 6.8e-09, norm 4e-08, period 2.6e-11, spectrum 2.4e-08 | agrees |
-| tstauto_lecar | AUTO-07p | 4 | par 1.2e-05, norm 1.6e-06, period 0.0017, spectrum 0.0029 | agrees |
-| tstauto_lecar | XPPAUT 8.0 | 3 | par 5.5e-05, norm 4e-08, period 3.5e-09, spectrum 4.7e-08 | agrees, 1 traced |
-| tstauto_lo | AUTO-07p | 2 | par 2.7e-18, norm 0, period 2e-11, spectrum 9.8e-15 | agrees |
-| tstauto_lo | XPPAUT 8.0 | 2 | par 2.5e-16, norm 0, period 2e-11, spectrum 2.5e-16 | agrees |
-| tstauto_pen | AUTO-07p | 1 | par 0, norm 3.6e-12 | agrees |
-| tstauto_pen | XPPAUT 8.0 | 1 | par 0, norm 4.9e-09 | agrees |
-| tstauto_pf | AUTO-07p | 2 | par 2.7e-18, norm 0, spectrum 9.8e-15 | agrees |
-| tstauto_pf | XPPAUT 8.0 | 2 | par 2.5e-16, norm 0, spectrum 2.2e-16 | agrees |
-| tstauto_pp2 | AUTO-07p | 3 | par 1.8e-12, norm 3.3e-12, period 6.3e-11, spectrum 5e-07 | agrees, 4 traced |
-| tstauto_pp2 | XPPAUT 8.0 | 4 | par 4.8e-08, norm 4.9e-07, period 2.3e-10, spectrum 2.9e-07 | agrees, 1 traced |
-| tstauto_san | AUTO-07p | 2 | par 2.4e-12, norm 2.8e-15, spectrum 1.3e-07 | agrees |
-| tstauto_san | XPPAUT 8.0 | 2 | par 1.7e-08, norm 4.1e-11, spectrum 1.3e-07 | agrees |
-| tstauto_she | AUTO-07p | 1 | par 0, norm 0 | agrees |
-| tstauto_she | XPPAUT 8.0 | 1 | par 0, norm 0 | agrees |
-| tstauto_simplefold | AUTO-07p | 3 | par 4.8e-12, norm 4.5e-11, spectrum 8.6e-11 | agrees |
-| tstauto_simplefold | XPPAUT 8.0 | 3 | par 2.1e-08, norm 4.3e-08, spectrum 2.7e-13 | agrees |
-| tstauto_torx | AUTO-07p | 3 | par 4.7e-12, norm 0, period 3.3e-12, spectrum 3.9e-07 | agrees |
-| tstauto_torx | XPPAUT 8.0 | 3 | par 2.2e-08, norm 0, period 3.3e-12, spectrum 3.7e-08 | agrees |
-| tstauto_torx_homcont | AUTO-07p | 2 | par 4.1e-12, norm 2.5e-15, spectrum 3.2e-07 | agrees |
-| tstauto_tsthom | AUTO-07p | 1 | par 0, norm 0 | agrees |
-| tstauto_tsthom | XPPAUT 8.0 | 1 | par 0, norm 0 | agrees |
-| tstauto_wcbiwave | AUTO-07p | 1 | par 0, norm 0 | agrees |
-| tstauto_wcbiwave | XPPAUT 8.0 | 1 | par 0, norm 0 | agrees |
-| zero_hopf | AUTO-07p | 3 | par 2.1e-09, par2 1.3e-40, norm 5.8e-17, spectrum 2.1e-09, curve par 7.6e-17, curve par2 6e-18, curve norm 3.6e-13 | agrees |
+| Model | Special points in xppautX | AUTO-07p | XPPAUT 8.0 |
+|---|---|---|---|
+| explicit_homoclinic | steady: EP | agrees (1 points; par 0, norm 1.5e-15) | not run |
+| forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 3.6e-08, par2 1.2e-08, norm 6.7e-09, period 2e-14, spectrum 5.1e-05; curve par 0.00034, par2 8.9e-06, norm 4.5e-06) | not run |
+| forced_pp_pd | steady: EP HB; cycles: PD; pd_down: R2 | agrees (4 points; par 1.8e-06, par2 6.4e-07, norm 3.5e-07, period 2.1e-14, spectrum 4.3e-05; curve par 5e-09, par2 1.2e-08, norm 2.6e-09) | not run |
+| henon_rot_lp | steady: EP LP HB | agrees, 3 traced (2 points; par 4.6e-12, norm 9.9e-11, spectrum 3.3e-06) | not run |
+| henon_rot_pd | steady: EP HB HB | agrees, 5 traced (1 points; par 0, norm 0) | not run |
+| henon_rot_tr | steady: EP HB HB | agrees, 5 traced (1 points; par 0, norm 4.2e-13) | not run |
+| hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 9.3e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07; curve par 2.7e-09, par2 1e-09, norm 8.4e-12) | not run |
+| hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP | agrees (7 points; par 2.1e-11, par2 3.9e-12, norm 7.7e-12, period 2e-11, spectrum 2.6e-06; curve par 2.1e-11, par2 4.4e-06, norm 1.5e-11) | not run |
+| lorenz_homoclinic | steady: EP | agrees (1 points; par 0, norm 3.8e-15) | not run |
+| ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
+| ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
+| ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
+| res_cycles | steady: EP HB HB; cycles: TR | agrees (4 points; par 1.8e-12, norm 1e-11, period 2.2e-11, spectrum 3.3e-07) | not run |
+| tstauto_ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
+| tstauto_ab_fold | steady: EP LP; fold: BT CP | agrees, 4 traced (4 points; par 1.3e-06, par2 5.4e-05, norm 8.1e-05, spectrum 0.0006; curve par 3e-05, par2 0.00018, norm 2.5e-05) | not run |
+| tstauto_ab_hopf | steady: EP LP LP HB; hopf_up: -; hopf_down: - | agrees, 3 traced (4 points; par 1.6e-07, norm 9.7e-07, period 3e-05, spectrum 0.00012; curve par 5.2e-06, par2 1.9e-05, norm 6.6e-06) | not run |
+| tstauto_bigaut | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
+| tstauto_bistable | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
+| tstauto_bob | steady: EP | agrees (1 points; par 0, norm 1.8e-12) | agrees (1 points; par 0, norm 1.4e-08) |
+| tstauto_brper | steady: EP HB; cycles: - | agrees, 1 traced (1 points; par 0, norm 0) | agrees (2 points; par 2.5e-16, norm 0, period 2e-11, spectrum 1.1e-15) |
+| tstauto_dumb | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
+| tstauto_dumbvp | boundary: EP | agrees (1 points; par 0, norm 0) | not run |
+| tstauto_eiz-hom | steady: EP | agrees (1 points; par 0, norm 1.2e-13) | agrees (1 points; par 0, norm 2e-09) |
+| tstauto_exp | boundary: EP | agrees (1 points; par 0, norm 0) | not run |
+| tstauto_frcp | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-12, norm 1e-13, period 2.1e-06, spectrum 0.00093) | agrees (2 points; par 5.2e-06, norm 4.6e-08, period 2.5e-12, spectrum 4.1e-06) |
+| tstauto_lamom | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-18, norm 0, period 2e-11, spectrum 1e-14) | agrees (2 points; par 2.7e-16, norm 0, period 2e-11, spectrum 1e-14) |
+| tstauto_lamom2 | steady: EP HB; cycles: LP | agrees (3 points; par 9.2e-13, norm 5.9e-12, period 2.6e-11, spectrum 3.8e-06) | agrees (3 points; par 6.8e-09, norm 4e-08, period 2.6e-11, spectrum 2.4e-08) |
+| tstauto_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.6e-06, period 0.0017, spectrum 0.0029) | agrees, 1 traced (3 points; par 5.5e-05, norm 4e-08, period 3.5e-09, spectrum 4.7e-08) |
+| tstauto_lo | steady: EP HB; cycles: - | agrees (2 points; par 2.7e-18, norm 0, period 2e-11, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, period 2e-11, spectrum 2.5e-16) |
+| tstauto_pen | steady: EP | agrees (1 points; par 0, norm 3.6e-12) | agrees (1 points; par 0, norm 4.9e-09) |
+| tstauto_pf | steady: EP BP | agrees (2 points; par 2.7e-18, norm 0, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, spectrum 2.2e-16) |
+| tstauto_pp2 | steady: EP HB BP; cycles: LP LP | agrees, 4 traced (3 points; par 1.8e-12, norm 3.3e-12, period 6.3e-11, spectrum 5e-07) | agrees, 1 traced (4 points; par 4.8e-08, norm 4.9e-07, period 2.3e-10, spectrum 2.9e-07) |
+| tstauto_san | steady: EP BP | agrees (2 points; par 2.4e-12, norm 2.8e-15, spectrum 1.3e-07) | agrees (2 points; par 1.7e-08, norm 4.1e-11, spectrum 1.3e-07) |
+| tstauto_she | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
+| tstauto_simplefold | steady: EP LP LP | agrees (3 points; par 4.8e-12, norm 4.5e-11, spectrum 8.6e-11) | agrees (3 points; par 2.1e-08, norm 4.3e-08, spectrum 2.7e-13) |
+| tstauto_torx | steady: EP HB BP; cycles: - | agrees (3 points; par 4.7e-12, norm 0, period 3.3e-12, spectrum 3.9e-07) | agrees (3 points; par 2.2e-08, norm 0, period 3.3e-12, spectrum 3.7e-08) |
+| tstauto_torx_homcont | steady: EP BP | agrees (2 points; par 4.1e-12, norm 2.5e-15, spectrum 3.2e-07) | not run |
+| tstauto_tsthom | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
+| tstauto_wcbiwave | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
+| zero_hopf | steady: EP LP; fold: ZH | agrees (3 points; par 2.1e-09, par2 1.3e-40, norm 5.8e-17, spectrum 2.1e-09; curve par 7.6e-17, par2 6e-18, norm 3.6e-13) | not run |
 
-Rows above are emitted by `autocompare.py --table` (W400): `agrees` means every compared quantity is
-inside its tolerance; `traced` counts the explicitly recorded differences. The differences include both
-parameters on curves, norm, period and spectrum (the eigenvalue or multiplier pair furthest apart). Where the code path is shared the
+Rows are the output of `autocompare.py --table`. Cells: `agrees` (every compared quantity inside its tolerance), the
+number of points compared and the largest absolute difference per quantity (`par`, `par2` on curves, `norm`,
+`period`, `spectrum`: the eigenvalue or multiplier pair furthest apart); `traced` counts the points of that
+description recorded below. The second column lists the special points xppautX stores, run by run (EP: the run's
+start). Where the code path is shared the
 differences remain within the per-quantity tolerances. W356's refreshed test histories
 move the displayed Morris-Lecar HB parameters away from XPPAUT by up to 5.5e-5 and frcp's by
 5.2e-6; these are traced below, with no tolerance widened. Against AUTO-07p 0.9.4 the largest
@@ -564,9 +547,9 @@ description with a reason naming W400 ([#462](https://github.com/MuhammadMoustaf
 
 | Description | Model | Source | AUTO-07p reaches | xppautX today |
 |---|---|---|---|---|
-| `res_cycles` | `tools/models/res_cycles.odex`: a Hopf cycle beside a Bogdanov-Takens system (w,v) | closed form | torus curve of cycles `c = -mu - sqrt(b)`: R1, R4, R3, R2 at the exact places below | runs both directions of the curve, labels none (PENDING W400) |
-| `forced_pp_pd` | `tools/models/forced_predator_prey.odex` | Kuznetsov, Muratori, Rinaldi 1992; MatCont Tutorial V (Kuznetsov, Govaerts, Della Rossa, De Witte) | PD of the period-1 cycle; its closed PD curve with R2 at both ends | the PD is found, the curve runs, no R2 (PENDING W400) |
-| `forced_pp_ns` | the same, at b0 = 0.338 | the same | TR of the period-1 cycle; its NS curve to the R2 end, labelled BP; the curve ends at the unforced Hopf point | runs, no BP (PENDING W400) |
+| `res_cycles` | `tools/models/res_cycles.odex`: a Hopf cycle beside a Bogdanov-Takens system (w,v) | closed form | torus curve of cycles `c = -mu - sqrt(b)`: R1, R4, R3, R2 at the exact places below | R4 and R3 agree; R2, the BP and R1 are not found (skipped, W400 below) |
+| `forced_pp_pd` | `tools/models/forced_predator_prey.odex` | Kuznetsov, Muratori, Rinaldi 1992; MatCont Tutorial V (Kuznetsov, Govaerts, Della Rossa, De Witte) | PD of the period-1 cycle; its closed PD curve with R2 at both ends | the R2 at the published end agrees to 6e-7; the far end is 8.5e-5 off (skipped, W400 below) |
+| `forced_pp_ns` | the same, at b0 = 0.338 | the same | TR of the period-1 cycle; its NS curve to the R2 end, labelled BP; the curve ends at the unforced Hopf point | the curve and its BP agree |
 | `lorenz_homoclinic` | `tools/models/lorenz_homoclinic.odex` | Sparrow 1982, Kaplan and Yorke 1979 | HomCont in three dimensions, r = 13.92655741 to 15.5988 in (r, b) | stops at its first step: singular Newton system (PENDING W365) |
 | `explicit_homoclinic` | `tools/models/explicit_homoclinic.odex` | closed form | HomCont in three dimensions, q = 1 to 3.0145 on k = 0 | stops at its second point: no convergence at DSMIN (PENDING W365) |
 
@@ -637,21 +620,41 @@ xppautX's HomCont run stops at the second point for this model and at the first 
 
 ## W400: R1-R4 on curves of cycles ([#462](https://github.com/MuhammadMoustafa/xppautX/issues/462))
 
-W400 drops the two Hill descriptions' curve
-skips. Before this card the base TR was at mu = 0.299999999753 and the first PD at mu = 0.174946997174;
-those one-parameter rows remain byte-for-byte equivalent as parsed diagram records. The new curve runs
-locate R4 at d = 0.563694064300, R3 at d = 0.446356111806, and the five R2 encounters at alternating
-ends d = 0.310709537918 and 0.185352874006, agreeing with AUTO-07p. At q = 0 the independently known
-R4 (9/16) and R3 (4/9) differ by 5.75e-8 and 1.03e-7. R1 has no flow reference here yet (W403); its
-fold/torus tests have synthetic-spectrum coverage, not a claimed flow-reference comparison.
+xppautX now labels R1, R2, R3 and R4 on the fold, period-doubling and torus curves of cycles, as AUTO-07p does
+(periodic.f90 TPSPBV, PVSPBV): the test is the angle of the cycle's multipliers (1:1, 1:2, 1:3, 1:4), found by
+the location W356 reimplemented and stored as a typed point. `special_points` switches each kind off.
 
-Two causes hid agreement before W400: torus startup oriented the tangent by roundoff in the constant
-first parameter (AUTO-07p's STDRBV uses the first significant component), and the comparator amplified
-constant-coordinate roundoff and chose a starting vertex over a valid coarse chord on a later lap of
-the PD lens. Matching against the existing Newton/chord bounds fixes both straight and closed curves;
-no acceptance bound was increased. The original orbit's Floquet pencil is extracted from the augmented
-cycle system using the numerical owner's partial-pivot LU and existing FLOWKM; it supplies both the
-resonance test and stored stability. The new detector uses W356's location and W364's controls/storage.
+What agrees with AUTO-07p, within the tolerances of this page: hill_cycles_torus (R4 and R3 to 1.4e-9 in the
+second parameter, the BP to 1e-12), hill_cycles_pd (all five R2), forced_pp_ns (the BP to 1e-8) and forced_pp_pd
+going down (the published R2, to 6.4e-7). At q = 0 the independently known R4 (9/16) and R3 (4/9) differ by 5.75e-8
+and 1.03e-7.
 
-The shipped lecar_auto.recx snapshot now includes the four resonance booleans and its missing W376
-main-window open flag; its recording commands and all other snapshot data are unchanged.
+Two comparison problems hid agreement, and both were fixed without widening a bound: a torus curve started with
+its tangent oriented by roundoff in the constant first parameter (AUTO-07p uses the first significant component),
+and the curve comparison amplified the roundoff of a constant coordinate and could pair a sample with a vertex
+on the wrong lap of a closed curve (the lens of hill_cycles_pd). It now matches each sample against each segment's
+Newton and chord-error bounds, which serves straight and closed curves alike.
+
+A location that cannot converge no longer ends the run. AUTO-07p gives the point up with a note ("Possible special
+point") and goes on; xppautX stopped the whole branch with "no convergence". Only a cancel or a failed exact
+Jacobian still stops it (the same change for equilibria, lcspae, is not made here).
+
+Three runs stay skipped, each with its traced reason in the description:
+
+- res_cycles, both curves: R1 (c = -1) and R2 (c = -0.625) are exactly singular for this model, whose (w,v) block is
+  the identity there. Newton reaches EPSU = 1e-7 only if the torus eigenfunction is small. AUTO-07p's start run
+  lost its first eight steps to non-convergence and left the eigenfunction's squared norm at 7.6e-7; xppautX's
+  converges at once and leaves 2.1e-2 (where AUTO-07p's own start also ends for hill_cycles and forced_pp: 2.06e-2
+  and about 1e-3), and its difference-quotient Jacobian then keeps the update near 1e-5. Scaling the
+  eigenfunction down to 7e-7, or using the exact Jacobian, finds R1 at AUTO-07p's place to every digit and R2,
+  but the scale is not copied: it makes the Hill curves' step sequences differ from AUTO-07p's and loses one of
+  hill_cycles_pd's five R2.
+- forced_pp_pd, going up: the far R2 is at b0 = 2.57016 against AUTO-07p's 2.57025 (tolerance 2.1e-5). A double
+  multiplier -1 makes the test |mu| - 1 as inaccurate as the square root of roundoff; neither program is nearer than
+  that, and the curve is steep there.
+
+R1 now has a flow reference (res_cycles) but it is the skipped one; the fold and torus tests otherwise have
+synthetic-spectrum coverage (tests/test_auto_codim.cpp).
+
+The shipped lecar_auto.recx snapshot now includes the four resonance booleans and its missing W376 main-window
+open flag; its recording commands and all other snapshot data are unchanged.

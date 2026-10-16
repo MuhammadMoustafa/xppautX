@@ -459,6 +459,22 @@ def slope(rows, i, name, cycle=False):
     return best
 
 
+def labelled(rows, kind):
+    """The special points a run stored, (symbol, index) in order: its start is an EP for an equilibrium or a
+    boundary value problem."""
+    points = []
+    for i, r in enumerate(rows):
+        itp = int(r['itp'])
+        symbol = BIFURCATIONS.get(itp)
+        if symbol is None and itp > 9:
+            symbol = BIFURCATIONS.get(itp % 10)  # the ordinary kind on a two-parameter curve
+        if symbol:
+            points.append((symbol, i))
+        elif i == 0 and itp == 9 and kind in ('equilibrium', 'bvp'):
+            points.append(('EP', i))
+    return points
+
+
 def compare_run(rows, auto, kind, ref_points, who, known=()):
     """Differences (strings) and measurements (quantity, point, difference, tolerance) of one run
     against a reference's special points. The tolerance of a quantity q at a special point:
@@ -475,16 +491,7 @@ def compare_run(rows, auto, kind, ref_points, who, known=()):
     widened to make a point pass: a difference beyond it is traced (docs/auto-references.md)."""
     epss, epsl, epsu = auto.get('epss', 1e-4), auto.get('epsl', 1e-4), auto.get('epsu', 1e-4)
     loc = epss * (1 + auto['dsmax'])
-    ours = []
-    for i, r in enumerate(rows):
-        itp = int(r['itp'])
-        symbol = BIFURCATIONS.get(itp)
-        if symbol is None and itp > 9:
-            symbol = BIFURCATIONS.get(itp % 10)  # the ordinary kind on a two-parameter curve
-        if symbol:
-            ours.append((symbol, i))
-        elif i == 0 and itp == 9 and kind in ('equilibrium', 'bvp'):
-            ours.append(('EP', i))
+    ours = labelled(rows, kind)
     detected = (*BIFURCATIONS.values(), *(CODIM_TWO if kind == 'two_parameter' else ()))
     theirs = [p for p in ref_points if p['type'] in detected or (p['type'] == 'EP' and p['point'] == 1)]
     diffs = []
@@ -614,17 +621,29 @@ def compare_curve(rows, auto, ref_curve, who):
     return diffs, [(q, w[2], w[0], w[1]) for q, w in worst.items()]
 
 
-def agreement(name, suffix, measures, diffs, traced=0):
-    """One line of docs/auto-references.md's table: a reference's points compared and the largest
-    absolute difference per quantity."""
+def agreement(suffix, measures, diffs, traced=0):
+    """One cell of docs/auto-references.md's table: a reference's result, the points compared and the
+    largest absolute difference per quantity."""
     worst = {}
     for sx, _, q, _, diff, tol in measures:
         if sx == suffix:
             worst[q] = max(worst.get(q, 0.0), diff)
-    cells = ', '.join('%s %.2g' % (q, worst[q]) for q in ('par', 'par2', 'norm', 'period', 'spectrum', *CURVE_QUANTITIES) if q in worst)
-    return '%s | %s | %d | %s | %s' % (name, REFERENCES[suffix], sum(1 for m in measures if m[0] == suffix and m[2] == 'par'),
-                                    cells or '-', 'differs: %d' % len(diffs) if diffs else
-                                    'agrees, %d traced' % traced if traced else 'agrees')
+    points = ', '.join('%s %.2g' % (q, worst[q]) for q in ('par', 'par2', 'norm', 'period', 'spectrum') if q in worst)
+    curve = ', '.join('%s %.2g' % (q[6:], worst[q]) for q in CURVE_QUANTITIES if q in worst)
+    result = 'differs: %d' % len(diffs) if diffs else 'agrees, %d traced' % traced if traced else 'agrees'
+    return '%s (%d points; %s)' % (result, sum(1 for m in measures if m[0] == suffix and m[2] == 'par'),
+                                   '; '.join(x for x in (points, curve and 'curve ' + curve) if x) or '-')
+
+
+def table_row(name, d, rows, references, measures, diffs):
+    """One row of docs/auto-references.md's table: the special points xppautX stored in each run it ran,
+    and the agreement with each reference (not run: the description holds none)."""
+    runs = '; '.join('%s: %s' % (r['name'], ' '.join(s for s, _ in labelled(rows[r['name']], r['kind'])) or '-')
+                     for r in d['runs'] if r['name'] in rows)
+    cells = [agreement(suffix, measures, [x for x in diffs if REFERENCES[suffix] in x],
+                       sum(1 for k in d.get('differences', ()) if k['reference'] == suffix))
+             if suffix in references else 'not run' for suffix in REFERENCES]
+    return '| %s | %s | %s |' % (name, runs, ' | '.join(cells))
 
 
 def compare_references(name, d, data, ranges, refs):
@@ -738,9 +757,8 @@ def main():
                               REFERENCES[x] for x in references[name]), len(measures)), not diffs, '\n'.join(diffs))
                         for m in measures if args.measures else ():
                             print('MEASURE %s %s %s %s %s difference %.3g tolerance %.3g' % ((name,) + m))
-                        for suffix in references[name] if args.table else ():
-                            print('TABLE | ' + agreement(name, suffix, measures, [x for x in diffs if REFERENCES[suffix] in x],
-                                                  sum(1 for k in d.get('differences', ()) if k['reference'] == suffix)) + ' |')
+                        if args.table:
+                            print('TABLE ' + table_row(name, d, stored_rows(data, ranges), references[name], measures, diffs))
             except (OSError, ValueError, RuntimeError, StopIteration, KeyError) as e:
                 check('%s threads=%s' % (name, threads), False, str(e))
             finally:
