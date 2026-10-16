@@ -94,6 +94,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [61](#61-wiener-noise-is-silently-zero-or-has-wrong-variance-in-adaptive-methods) | Numerics | set_wieners is never called by DoPri5, CVODE, Gear or Rosenbrock, and called once per output interval with step guess by Stiff and QualRK | [W379 / #441](https://github.com/MuhammadMoustafa/xppautX/issues/441) |
 | [62](#62-some-long-computations-cannot-be-stopped) | Cancellation | Nullclines, the flow, fitting, a pairwise histogram and delay history run to the end once started | [W388 / #450](https://github.com/MuhammadMoustafa/xppautX/issues/450) |
 | [63](#63-recursive-user-functions-segfault-at-runtime) | Expressions | Indefinite user function recursion overflows C stack and segfaults | [W387 / #449](https://github.com/MuhammadMoustafa/xppautX/issues/449) |
+| [64](#64-auto-point-numbers-wrap-to-zero) | AUTO output | point 10000 is printed as 0; later points repeat earlier numbers | [W384 / #446](https://github.com/MuhammadMoustafa/xppautX/issues/446) |
 
 ## 1. Model options
 
@@ -1363,3 +1364,29 @@ XPPAUT registers a user function symbol before compiling its formula ([parserslo
 
 xppautX permits recursion (such as `test.odex`'s factorial), but bounds the evaluator's call depth (`MAX_UFUN_DEPTH`). When a recursive user function exceeds the bound, evaluation stops with an `xpp::Error` naming the function's model file and line and the line as written (`model_place`), and the run preserves rows stored up to that point.
 - **Card:** [W387 / #449](https://github.com/MuhammadMoustafa/xppautX/issues/449).
+
+## 64. AUTO point numbers wrap to zero
+
+XPPAUT 8.0's AUTO2000 uses `(ntot + 1) % 10000` for the attempted point
+in diagnostics ([autlib1.c:1402](../reference/xppaut-8.0/autlib1.c#L1402))
+and `ntot % 10000` for the stored point in fort.7
+([autlib1.c:2967](../reference/xppaut-8.0/autlib1.c#L2967)) and the
+algebraic and collocation fort.8 headers
+([autlib1.c:3118](../reference/xppaut-8.0/autlib1.c#L3118),
+[autlib1.c:7251](../reference/xppaut-8.0/autlib1.c#L7251)).
+
+**Evidence:** the source expressions print point 10000 as 0 and point
+10001 as 1. Only the output number wraps; the continuation count and
+special-point labels continue. AUTO-07p has a related 9999-point wrap
+([finding 3](auto07p-findings.md#3-point-numbers-wrap-after-9999)).
+
+**xppautX:** removes the output modulo in every algebraic, collocation and
+eigenvalue diagnostic path. fort.7/8/9 and logging keep full counts,
+matching the existing diagram, info strip, table, protocol events and
+session diagram. Explicit whitespace prevents an expanded number from
+joining its neighbour; AUTO-07p's Python fort.7/8 readers accept these
+whitespace-separated integers. Both fort.8 writers round-trip through the
+shared bounded header reader in unit tests past 10000; signed fort.7 rows
+and the next-point diagnostic arithmetic are covered directly too.
+
+**Card:** [W384 / #446](https://github.com/MuhammadMoustafa/xppautX/issues/446).

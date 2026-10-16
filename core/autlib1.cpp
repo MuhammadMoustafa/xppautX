@@ -1381,7 +1381,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   nit = 0;
   iap->nit = nit;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
+  ntop = ntot + 1;
   ndmr = ndim;
   if (ndmr > 6) {
     ndmr = 6;
@@ -1396,7 +1396,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       xpp::print(s.auto_lib.fp9,"  BR    PT  IT\n");
     }
 
-    xpp::print(s.auto_lib.fp9,"{:4}{:6}{:4}    {:14.6E}              ",ibr,ntop,
+    xpp::print(s.auto_lib.fp9,"{:4} {:5}{:4}    {:14.6E}              ",ibr,ntop,
 	    nit,rlcur[0]);
     for (i = 0; i < ndmr; ++i) {
       xpp::print(s.auto_lib.fp9,"{:14.6E}",u[i]);
@@ -1476,7 +1476,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
 
     if (iid >= 2) {
-      xpp::print(s.auto_lib.fp9,"{:4}{:6}{:4}    {:14.6E}              ",ibr,ntop,
+      xpp::print(s.auto_lib.fp9,"{:4} {:5}{:4}    {:14.6E}              ",ibr,ntop,
 	      nit,rlcur[0]);
       for (i = 0; i < ndmr; ++i) {
 	xpp::print(s.auto_lib.fp9,"{:14.6E}",u[i]);
@@ -1517,7 +1517,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L3:
   if (iads == 0) {
-    xpp::print(s.auto_lib.fp9,"{:4}{:6} NOTE:No convergence with fixed step size\n",ibr,ntop);
+    xpp::print(s.auto_lib.fp9,"{:4} {:5} NOTE:No convergence with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
     xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_FIXED, *rds, dsmin); /* xppautX: T23 */
@@ -1544,7 +1544,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* Minimum stepsize reached */
 
  L4:
-  xpp::print(s.auto_lib.fp9,"{:4}{:6} NOTE:No convergence using minimum step size\n",ibr,ntop);
+  xpp::print(s.auto_lib.fp9,"{:4} {:5} NOTE:No convergence using minimum step size\n",ibr,ntop);
   xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_MIN, *rds, dsmin); /* xppautX: T23 */
  L5:
   rlcur[0] = rlold[0];
@@ -1685,7 +1685,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
     mueller(&q0, &q1, q, &s0, &s1, &s, &rds);
     goto L1;
   } else {
-    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Possible special point\n",ibr,(ntot + 1) % auto_point_label_modulo);	
+    xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Possible special point\n",ibr,ntot + 1);
     saved.restore(*iap, *rap);
     dstest = saved_dstest;
     stepped = false;
@@ -1739,7 +1739,7 @@ fnbpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   iid = iap->iid;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
+  ntop = ntot + 1;
 
   det = rap->det;
   ret_val = det;
@@ -1748,7 +1748,7 @@ fnbpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /* If requested write additional output on unit 9 : */
 
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4}{:6}        BP   Function {:14.6E}\n",ibr,ntop,ret_val);
+    xpp::print(iap->lib->fp9,"{:4} {:5}        BP   Function {:14.6E}\n",ibr,ntop,ret_val);
   }
 
   return ret_val;
@@ -1790,7 +1790,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   iid = iap->iid;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
+  ntop = ntot + 1;
 
   par[icp[0]] = rlcur[0];
   (*funi)(iap, rap, ndim, u, uold, icp, par, 2,
@@ -1820,7 +1820,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /* If requested write additional output on unit 9 : */
 
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4}{:6}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
+    xpp::print(iap->lib->fp9,"{:4} {:5}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
   }
   return ret_val;
 } /* fnlpae_ */
@@ -1866,7 +1866,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   iid = iap->iid;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
+  ntop = ntot + 1;
 
 /* INITIALIZE */
 
@@ -1965,22 +1965,22 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ntot = iap->ntot;
   ntotp1 = ntot + 1;
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4}{:6}        Hopf Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);	
+    xpp::print(iap->lib->fp9,"{:4} {:5}        Hopf Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
   }
   if (nins1 == ndm) {
     ntotp1 = -ntotp1;
   }
 
-  xpp::print(iap->lib->fp9,"{:4}{:6}        Eigenvalues:                                 Stable:{:3}\n",f2c::abs(ibr),ntop,nins);	
+  xpp::print(iap->lib->fp9,"{:4} {:5}        Eigenvalues:                                 Stable:{:3}\n",f2c::abs(ibr),ntop,nins);
   if (ips == xpp::AutoProblem::DiscreteMap) {
     for (i = 0; i < ndm; ++i) {
       doublecomplex tmp;
       z_exp(&tmp, &ev[i]);
-      xpp::print(iap->lib->fp9,"{:4}{:6}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,tmp.r,tmp.i);	
+      xpp::print(iap->lib->fp9,"{:4} {:5}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,tmp.r,tmp.i);
     }
   } else {
     for (i = 0; i < ndm; ++i) {
-      xpp::print(iap->lib->fp9,"{:4}{:6}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,ev[i].r,ev[i].i);
+      xpp::print(iap->lib->fp9,"{:4} {:5}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,ev[i].r,ev[i].i);
     }
   }
 
@@ -2005,8 +2005,8 @@ doublereal user_zero(const iap_type &iap, const doublereal *par,
       {par, static_cast<std::size_t>(iap.lib->parameter_count)}) - marks[iuzr].value;
   *chng = TRUE_;
   if (iap.iid >= user_zero_diagnostic_level) {
-    xpp::print(iap.lib->fp9, "{:4}{:6}        User Func. {:3} {:{}.6E}\n",
-               f2c::abs(iap.ibr), (iap.ntot + 1) % auto_point_label_modulo,
+    xpp::print(iap.lib->fp9, "{:4} {:5}        User Func. {:3} {:{}.6E}\n",
+               f2c::abs(iap.ibr), iap.ntot + 1,
                iuzr, value, width);
   }
   return value;
@@ -2248,7 +2248,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   itnw = iap->itnw;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
+  ntop = ntot + 1;
 
   dsmin = rap->dsmin;
   epsl = rap->epsl;
@@ -2372,7 +2372,7 @@ failed_step:
   /* Maximum number of iterations reached. Reduce stepsize and try again. */
 
   if (iads == 0) {
-    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:No convergence when switching branches with fixed step size\n",ibr,ntop);
+    xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:No convergence when switching branches with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
     xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_SWITCH_FIXED, *rds, dsmin); /* xppautX: T23 */
@@ -2390,14 +2390,14 @@ failed_step:
     u[i] = uold[i] + *rds * udot[i];
   }
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Retrying step\n",ibr,ntop);	
+    xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Retrying step\n",ibr,ntop);
   }
   goto L2;
 
 /* Minimum stepsize reached. */
 
  L4:
-  xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);
+  xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);
   xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_SWITCH_MIN, *rds, dsmin); /* xppautX: T23 */
  L5:
   rlcur[0] = rlold[0];
@@ -2804,7 +2804,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   xpp::Session &s=*iap->lib->session;
 
   /* Local variables */
-  integer nicp, mtot, i;
+  integer nicp, i;
   const char *atype = "  ";
   integer n1, n2;
 
@@ -2876,10 +2876,9 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
     atype = "  ";
   }
 
-  mtot = *ntot % auto_point_label_modulo;
   if (n2 == 0) {
     if (itp.kind != xpp::AutoPointKind::Regular) {
-      xpp::log_auto("{:4d}{:6d}  {:c}{:c}{:4d}",(*ibr),mtot,atype[0],atype[1],*(lab));
+      xpp::log_auto("{:4d} {:5d}  {:c}{:c}{:4d}",(*ibr),*ntot,atype[0],atype[1],*(lab));
       xpp::log_auto("{:14.6E}",par[icu[0]]);
       xpp::log_auto("{:14.6E}",(*vaxis));
       for (i = 1; i < n1; ++i) {
@@ -2887,14 +2886,14 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
       }
       xpp::log_auto("\n");
     }
-    xpp::print(s.auto_lib.fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,xpp::auto_point_encode(itp),(*lab));
+    xpp::print(s.auto_lib.fp7,"{:4} {:5} {:3} {:3}",(*ibr),*ntot,xpp::auto_point_encode(itp),(*lab));
     xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[0]]);
     xpp::print(s.auto_lib.fp7,"{:14.5E}",(*vaxis));
     for (i = 1; i < n1; ++i) {
       xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[i]]);
     }
     xpp::print(s.auto_lib.fp7,"\n");
-    xpp::print(s.auto_lib.fp9,"{:4}{:6}  {:c}{:c}{:4}",(*ibr),mtot,atype[0],atype[1],*(lab));	
+    xpp::print(s.auto_lib.fp9,"{:4} {:5}  {:c}{:c}{:4}",(*ibr),*ntot,atype[0],atype[1],*(lab));
     xpp::print(s.auto_lib.fp9,"{:14.6E}",par[icu[0]]);
     xpp::print(s.auto_lib.fp9,"{:14.6E}",(*vaxis));
     for (i = 1; i < n1; ++i) {
@@ -2904,7 +2903,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   } else {
     if (n1 == 1) {
       if (itp.kind != xpp::AutoPointKind::Regular) {
-	xpp::log_auto("{:4d}{:6d}  {:c}{:c}{:4d}",f2c::abs(*ibr),f2c::abs(mtot),atype[0],atype[1],*(lab));
+	xpp::log_auto("{:4d} {:5d}  {:c}{:c}{:4d}",f2c::abs(*ibr),f2c::abs(*ntot),atype[0],atype[1],*(lab));
 	xpp::log_auto("{:14.6E}",par[icu[0]]);
 	xpp::log_auto("{:14.6E}",(*vaxis));
 	for (i = 0; i < n2; ++i) {
@@ -2912,14 +2911,14 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	}
 	xpp::log_auto("\n");
       }
-      xpp::print(s.auto_lib.fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,xpp::auto_point_encode(itp),(*lab));
+      xpp::print(s.auto_lib.fp7,"{:4} {:5} {:3} {:3}",(*ibr),*ntot,xpp::auto_point_encode(itp),(*lab));
       xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[0]]);
       xpp::print(s.auto_lib.fp7,"{:14.5E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
 	xpp::print(s.auto_lib.fp7,"{:14.5E}",u[i]);
       }
       xpp::print(s.auto_lib.fp7,"\n");
-      xpp::print(s.auto_lib.fp9,"{:4}{:6}  {:c}{:c}{:4}",(*ibr),mtot,atype[0],atype[1],*(lab));
+      xpp::print(s.auto_lib.fp9,"{:4} {:5}  {:c}{:c}{:4}",(*ibr),*ntot,atype[0],atype[1],*(lab));
       xpp::print(s.auto_lib.fp9,"{:14.6E}",par[icu[0]]);
       xpp::print(s.auto_lib.fp9,"{:14.6E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
@@ -2929,7 +2928,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 
     } else {
       if (itp.kind != xpp::AutoPointKind::Regular) {
-	xpp::log_auto("{:4d}{:6d}  {:c}{:c}{:4d}",f2c::abs(*ibr),f2c::abs(mtot),atype[0],atype[1],*(lab));
+	xpp::log_auto("{:4d} {:5d}  {:c}{:c}{:4d}",f2c::abs(*ibr),f2c::abs(*ntot),atype[0],atype[1],*(lab));
 	xpp::log_auto("{:14.6E}",par[icu[0]]);
 	xpp::log_auto("{:14.6E}",(*vaxis));
 	for (i = 0; i < n2; ++i) {
@@ -2940,7 +2939,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	}
 	xpp::log_auto("\n");
       }
-      xpp::print(s.auto_lib.fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,xpp::auto_point_encode(itp),(*lab));
+      xpp::print(s.auto_lib.fp7,"{:4} {:5} {:3} {:3}",(*ibr),*ntot,xpp::auto_point_encode(itp),(*lab));
       xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[0]]);
       xpp::print(s.auto_lib.fp7,"{:14.5E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
@@ -2950,7 +2949,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[i]]);
       }
       xpp::print(s.auto_lib.fp7,"\n");
-      xpp::print(s.auto_lib.fp9,"{:4}{:6}  {:c}{:c}{:4}",(*ibr),mtot,atype[0],atype[1],*(lab));
+      xpp::print(s.auto_lib.fp9,"{:4} {:5}  {:c}{:c}{:4}",(*ibr),*ntot,atype[0],atype[1],*(lab));
       xpp::print(s.auto_lib.fp9,"{:14.6E}",par[icu[0]]);
       xpp::print(s.auto_lib.fp9,"{:14.6E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
@@ -2972,7 +2971,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
 {
   xpp::Session &s=*iap->lib->session;
   /* Local variables */
-  integer ndim, nfpr, ntpl, jtmp, mtot, ntot, i;
+  integer ndim, nfpr, ntpl, jtmp, ntot, i;
   doublereal t;
   integer nrowpr, ibr;
   integer nar, isw;
@@ -3003,19 +3002,18 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   par[icp[0]] = rlcur[0];
   t = 0.;
 
-  mtot = ntot % auto_point_label_modulo;
   xpp::print(fp8,"{:5}",ibr);
-  xpp::print(fp8,"{:5}",mtot);
-  xpp::print(fp8,"{:5}",xpp::auto_point_encode(itp));
-  xpp::print(fp8,"{:5}",(*lab));
-  xpp::print(fp8,"{:5}",nfpr);
-  xpp::print(fp8,"{:5}",isw);
-  xpp::print(fp8,"{:5}",ntpl);
-  xpp::print(fp8,"{:5}",nar);
-  xpp::print(fp8,"{:5}",nrowpr);
-  xpp::print(fp8,"{:5}",0);
-  xpp::print(fp8,"{:5}",0);
-  xpp::print(fp8,"{:5}\n",iap->lib->parameter_count);
+  xpp::print(fp8," {:4}",ntot);
+  xpp::print(fp8," {:4}",xpp::auto_point_encode(itp));
+  xpp::print(fp8," {:4}",(*lab));
+  xpp::print(fp8," {:4}",nfpr);
+  xpp::print(fp8," {:4}",isw);
+  xpp::print(fp8," {:4}",ntpl);
+  xpp::print(fp8," {:4}",nar);
+  xpp::print(fp8," {:4}",nrowpr);
+  xpp::print(fp8," {:4}",0);
+  xpp::print(fp8," {:4}",0);
+  xpp::print(fp8," {:4}\n",iap->lib->parameter_count);
   xpp::print(fp8,"    {:19.10E}",t);
   for (i = 0; i < ndim; ++i) {
     if((i>0)&&((i+1)%auto_solution_columns==0))
@@ -3402,7 +3400,7 @@ adptds(iap_type *iap, rap_type *rap, doublereal *rds)
   ibr = iap->ibr;
   nit = iap->nit;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
+  ntop = ntot + 1;
 
   if (itnw <= 3) {
     itnw = 3;
@@ -3426,8 +3424,8 @@ adptds(iap_type *iap, rap_type *rap, doublereal *rds)
     *rds = *rds * dsmax / ards;
   }
 
-  xpp::print(iap->lib->fp9,"{:4}{:6}        Iterations     {:3}\n",f2c::abs(ibr),ntop - 1,nit);	
-  xpp::print(iap->lib->fp9,"{:4}{:6}        Stepsize      {:14.6E}\n",f2c::abs(ibr),ntop,(*rds));	
+  xpp::print(iap->lib->fp9,"{:4} {:5}        Iterations     {:3}\n",f2c::abs(ibr),ntop - 1,nit);
+  xpp::print(iap->lib->fp9,"{:4} {:5}        Stepsize      {:14.6E}\n",f2c::abs(ibr),ntop,(*rds));
 
   return 0;
 } /* adptds_ */
@@ -4825,7 +4823,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   nfpr = iap->nfpr;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
+  ntop = ntot + 1;
 
   dsmin = rap->dsmin;
   epsl = rap->epsl;
@@ -4953,7 +4951,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L3:
   if (iads == 0) {
-    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:No convergence with fixed step size\n",ibr,ntop);
+    xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:No convergence with fixed step size\n",ibr,ntop);
     xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_FIXED, *rds, dsmin); /* xppautX: T23 */
     goto L13;
   }
@@ -4976,7 +4974,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
   }
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Retrying step\n",ibr,ntop);	
+    xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Retrying step\n",ibr,ntop);
 
   }
   goto L1;
@@ -4984,7 +4982,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* Minimum stepsize reached. */
 
  L12:
-  xpp::print(iap->lib->fp9,"{:4}{:6}, NOTE:No convergence using minimum step size\n",ibr,ntop);
+  xpp::print(iap->lib->fp9,"{:4} {:5}, NOTE:No convergence using minimum step size\n",ibr,ntop);
   xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_MIN, *rds, dsmin); /* xppautX: T23 */
  L13:
   for (i = 0; i < nfpr; ++i) {
@@ -5544,7 +5542,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   itmx = iap->itmx;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
+  ntop = ntot + 1;
 
   ds = rap->ds;
   dsmax = rap->dsmax;
@@ -5643,7 +5641,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   std::copy(saved_ev.begin(), saved_ev.end(), ev);
   *q = saved_q;
 
-  xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Possible special point\n",ibr,ntop);	
+  xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Possible special point\n",ibr,ntop);
 
   return 0;
 } /* lcspbv_ */
@@ -5675,7 +5673,7 @@ fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   nfpr = iap->nfpr;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
+  ntop = ntot + 1;
 
   /* Find the direction vector. */
 
@@ -5707,7 +5705,7 @@ fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   scaleb(iap, icp, ndxloc, udotps, rldot, dtm, 
 	 thl, thu);
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4}{:6}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,rldot[0]);	
+    xpp::print(iap->lib->fp9,"{:4} {:5}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,rldot[0]);
   }
 
   /* Set the quantity to be returned. */
@@ -5746,7 +5744,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   det0 = det;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
+  ntop = ntot + 1;
 
   /* Compute the determinant of P1. */
 
@@ -5768,7 +5766,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   }
 
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4}{:6}        BP   Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);	
+    xpp::print(iap->lib->fp9,"{:4} {:5}        BP   Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
 
   }
   return ret_val;
@@ -5809,7 +5807,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   iid = iap->iid;
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
+  ntop = ntot + 1;
 
   /* Initialize. */
 
@@ -5868,15 +5866,15 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   }
   if (amin > .05 && isp == 2) {
     if (iid >= 2) {
-      xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Multiplier inaccurate\n",f2c::abs(ibr),ntop);	
+      xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Multiplier inaccurate\n",f2c::abs(ibr),ntop);
 
     }
     for (i = 0; i < ndim; ++i) {
-      xpp::print(iap->lib->fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);	
+      xpp::print(iap->lib->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
     }
     nins = 0;
     iap->nins = nins;
-    xpp::print(iap->lib->fp9,"{:4}{:6}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);	
+    xpp::print(iap->lib->fp9,"{:4} {:5}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);
     isp = -isp;
     iap->isp = isp;
     return ret_val;
@@ -5887,12 +5885,12 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   if (isp < 0) {
     if (amin < .01) {
-      xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Multiplier accurate again\n",f2c::abs(ibr),ntop);	
+      xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Multiplier accurate again\n",f2c::abs(ibr),ntop);
       isp = -isp;
       iap->isp = isp;
     } else {
       for (i = 0; i < ndim; ++i) {
-	xpp::print(iap->lib->fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);	
+	xpp::print(iap->lib->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
       }
       return ret_val;
     }
@@ -5933,16 +5931,16 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   nins = nins1;
   iap->nins = nins;
   if (iid >= 2 && (isp == 1 || isp == 2)) {
-    xpp::print(iap->lib->fp9,"{:4}{:6}        SPB  Function {:14.6E}\n",f2c::abs(ibr),ntop,d);	
+    xpp::print(iap->lib->fp9,"{:4} {:5}        SPB  Function {:14.6E}\n",f2c::abs(ibr),ntop,d);
   }
 
   /* Print the Floquet multipliers. */
 
   nins = iap->nins;
-  xpp::print(iap->lib->fp9,"{:4}{:6}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);	
+  xpp::print(iap->lib->fp9,"{:4} {:5}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);
 
   for (i = 0; i < ndim; ++i) {
-    xpp::print(iap->lib->fp9,"{:4}{:6}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);	
+    xpp::print(iap->lib->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
 
   }
 
@@ -6226,7 +6224,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer ups_dim1, udotps_dim1;
 
   /* Local variables */
-  integer ndim, ncol, nfpr, ntpl, jtmp, mtot, ntot, ntst, i, j, k;
+  integer ndim, ncol, nfpr, ntpl, jtmp, ntot, ntst, i, j, k;
   doublereal t;
   integer k1, k2;
   doublereal rn;
@@ -6299,19 +6297,18 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   nrowpr = nrd * (ncol * ntst + 1) + (nfpr - 1) / auto_solution_columns + 1 + (jtmp - 1) / auto_solution_columns + 
     1 + (nfpr - 1) / auto_solution_parameter_indices_per_line + 1;
 
-  mtot = ntot % auto_point_label_modulo;
   xpp::print(fp8,"{:5}",ibr);
-  xpp::print(fp8,"{:5}",mtot);
-  xpp::print(fp8,"{:5}",xpp::auto_point_encode(itp));
-  xpp::print(fp8,"{:5}",lab);
-  xpp::print(fp8,"{:5}",nfpr);
-  xpp::print(fp8,"{:5}",isw);
-  xpp::print(fp8,"{:5}",ntpl);
-  xpp::print(fp8,"{:5}",nar);
-  xpp::print(fp8,"{:5}",nrowpr);
-  xpp::print(fp8,"{:5}",ntst);
-  xpp::print(fp8,"{:5}",ncol);
-  xpp::print(fp8,"{:5}\n",iap->lib->parameter_count);
+  xpp::print(fp8," {:4}",ntot);
+  xpp::print(fp8," {:4}",xpp::auto_point_encode(itp));
+  xpp::print(fp8," {:4}",lab);
+  xpp::print(fp8," {:4}",nfpr);
+  xpp::print(fp8," {:4}",isw);
+  xpp::print(fp8," {:4}",ntpl);
+  xpp::print(fp8," {:4}",nar);
+  xpp::print(fp8," {:4}",nrowpr);
+  xpp::print(fp8," {:4}",ntst);
+  xpp::print(fp8," {:4}",ncol);
+  xpp::print(fp8," {:4}\n",iap->lib->parameter_count);
 
 /* Write the entire solution on unit 8 : */
 
@@ -6439,8 +6436,8 @@ wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
       xpp::print(s.auto_lib.fp9,"  BR    PT  IT\n");	
       
     }
-    mtot = (ntot + 1) % auto_point_label_modulo;
-    xpp::print(s.auto_lib.fp9,"{:4}{:6}{:4}    {:14.6E}{:14.6E}\n",ibr,mtot,nitps,rlcur[0],amp);	
+    mtot = ntot + 1;
+    xpp::print(s.auto_lib.fp9,"{:4} {:5}{:4}    {:14.6E}{:14.6E}\n",ibr,mtot,nitps,rlcur[0],amp);
   }
   
   if (iid >= 5) {

@@ -22,14 +22,15 @@ inline constexpr doublereal auto_rlarge = 1.0e+30;          // Practical infinit
 inline constexpr doublereal auto_hmach1 = auto_hmach + 1.0; // 1 + HMACH for multiplier unit circle comparisons
 inline constexpr doublereal auto_hmachho = 1.0e-13;         // HomCont component zero threshold (compzero)
 
-/* AUTO's file schemas and output record layouts (autlib1-2, auto_nox). */
+/* AUTO's file schemas and output record layouts (autlib1-2, auto_nox).
+   Integer output widths are minima: explicit spaces keep full point counts
+   separate when they outgrow a column (AUTO-07p's Python readers split tokens). */
 inline constexpr int auto_solution_columns = 7;             // Floating-point values per line in AUTO solution files (fort.8 / .s / fort.3)
 inline constexpr int auto_solution_header_fields = 12;      // Number of fields in AUTO solution file header records
 inline constexpr int auto_solution_parameter_indices_per_line = 20; // Free parameter indices per line in fort.8 (5 characters each)
 inline constexpr int auto_diagram_columns = 7;              // Maximum parameter and state component columns on a bifurcation diagram row (fort.7/fort.9)
 inline constexpr int auto_heading_columns = auto_diagram_columns + 2; // Column heading slots in headng (1-based index with vaxis and 7 components)
 inline constexpr int auto_column_width = 14;                // Fixed character width for bifurcation diagram columns in fort.7/fort.9 and window
-inline constexpr integer auto_point_label_modulo = 10000;   // Wraps diagnostic and output point numbers to four decimal digits (Fortran fixed-width PT column)
 
 
 struct iap_type {

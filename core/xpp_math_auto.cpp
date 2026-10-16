@@ -75,7 +75,7 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
 
   ibr = iap->ibr;
   ntot = iap->ntot;
-  ntop = (ntot + 1) % auto_point_label_modulo;
+  ntop = ntot + 1;
 
   *ier = 0;
   matz = 0;
@@ -90,7 +90,7 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
     *ier = 1;
   }
   if (*ier == 1) {
-    xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:Error return from EISPACK routine RG\n",ibr,ntop);
+    xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Error return from EISPACK routine RG\n",ibr,ntop);
     xpp::auto_fail("Error return from EISPACK routine RG");
   }
 

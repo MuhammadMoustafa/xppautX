@@ -37,6 +37,7 @@ so the index started empty.
 |---|---|---|---|
 | [1](#1-an-equilibriums-period-depends-on-the-spectrums-order-outside-the-conservative-band) | Equilibria | equally damped complex pairs give a period that depends on the eigenvalue routine's order | [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431) |
 | [2](#2-a-newton-residual-contaminates-cp-and-gh-test-functions) | Equilibrium curves | a second difference that retains the equilibrium residual produces spurious CP/GH labels | [W364](https://github.com/MuhammadMoustafa/xppautX/issues/426) |
+| [3](#3-point-numbers-wrap-after-9999) | Output | printed point numbers repeat after 9999 although the continuation count and labels continue | [W384](https://github.com/MuhammadMoustafa/xppautX/issues/446) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -104,3 +105,44 @@ reference tolerances and emits none of the spurious CP/GH labels above.
 The four extra CP and three GH remain explicit traced differences.
 
 **Card:** [W364](https://github.com/MuhammadMoustafa/xppautX/issues/426).
+
+## 3. Point numbers wrap after 9999
+
+AUTO-07p prints `MOD(NTOT-1,9999)+1`: point 10000 appears as 1 and
+point 19999 as 1 again. The real continuation count still increases
+([ae.f90:927](../reference/auto-07p/src/ae.f90#L927)); this changes its
+printed identifier, not the solution or its label.
+
+**Evidence:** source arithmetic, without a long continuation run. Diagnostic
+output wraps at [ae.f90:243](../reference/auto-07p/src/ae.f90#L243),
+with further sites in ae.f90, bvp.f90, equilibrium.f90, maps.f90,
+periodic.f90, support.f90, toolboxae.f90 and toolboxbv.f90. The signed
+fort.7 point wraps in [io.f90:1128-1132](../reference/auto-07p/src/io.f90#L1128);
+the algebraic and collocation fort.8 headers do so in
+[ae.f90:1031-1033](../reference/auto-07p/src/ae.f90#L1031) and
+[bvp.f90:1713-1715](../reference/auto-07p/src/bvp.f90#L1713).
+
+**Reader widths checked:** fort.7's Python reader splits whitespace and
+converts PT with `int`
+([parseB.py:886-907](../reference/auto-07p/python/auto/parseB.py#L886));
+its numeric bulk reader also uses whitespace, not character slices
+([parseB.py:317-335](../reference/auto-07p/python/auto/parseB.py#L317)).
+The fort.8 reader uses `list(map(int, line.split()))`, so a point number
+need not fit four or five characters
+([parseS.py:72-84](../reference/auto-07p/python/auto/parseS.py#L72)).
+These readers accept wider whitespace-separated fields. However, after
+fully parsing a fort.7 branch, AUTO-07p reconstructs PT from the row index
+and applies its own modulo again
+([parseB.py:237-248](../reference/auto-07p/python/auto/parseB.py#L237));
+its Python writer also wraps PT
+([parseB.py:761-765](../reference/auto-07p/python/auto/parseB.py#L761)).
+Readable input therefore does not remove wrapping inside AUTO-07p's tools.
+
+**xppautX:** keeps the real count in fort.7/8/9 and the log, as the diagram,
+info strip, table, protocol and session diagram already do. Integer fields
+have explicit separators when the numbers outgrow their minimum widths.
+Direct writer/reader unit tests cover 9999, 10000, 10001, 100000 and the
+largest accepted integer count, including signed fort.7 points and both
+fort.8 formulations; no long continuation is needed.
+
+**Card:** [W384](https://github.com/MuhammadMoustafa/xppautX/issues/446).

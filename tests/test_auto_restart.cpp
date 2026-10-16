@@ -12,6 +12,7 @@
 #include "xpp_io.h"
 #include "xpp_math.h"
 #include <array>
+#include <limits>
 #include <vector>
 
 namespace {
@@ -128,7 +129,7 @@ void algebraic(xpp::Session &s, bool truncated) {
     }
 }
 // The UZR routines differ only in diagnostic width; preserve the signed
-// index, point-number wrap and the actual emitted text, not just the value.
+// index, full attempted point number and emitted text, not just the value.
 void user_zero_text(xpp::Session &s) {
     xpp::TempDir temp;
     const std::string path = temp.path() + "/fort.9";
@@ -163,9 +164,78 @@ void user_zero_text(xpp::Session &s) {
     CHECK(changed == TRUE_);
     CHECK(xpp::rewind_stream(file.get(), path).has_value());
     auto reader = xpp::LineReader::attach(file.get());
-    CHECK(reader.next() == "   3     1        User Func.   0     7.500000E-01");
-    CHECK(reader.next() == "   3     1        User Func.   0   7.500000E-01");
+    CHECK(reader.next() == "   3 10001        User Func.   0     7.500000E-01");
+    CHECK(reader.next() == "   3 10001        User Func.   0   7.500000E-01");
     CHECK(!reader.next());
+}
+
+// W384 (#446): exercise the real writers at the wrap and beyond their old
+// column widths, without computing thousands of continuation points.
+void point_files(xpp::Session &s, int count, bool collocation) {
+    xpp::TempDir temp;
+    auto &lib = s.auto_lib;
+    lib.session = &s;
+    lib.parameter_count = s.auto_state.parameter_layout.size();
+    const std::string solution_path = temp.path() + "/fort.8";
+    lib.fp8.reset(xpp::files::open_stream(solution_path, "w+"));
+    CHECK(lib.fp8 != nullptr);
+    iap_type iap{};
+    iap.lib = &lib;
+    iap.ibr = 3;
+    iap.ntot = count;
+    iap.lab = 7;
+    iap.nfpr = iap.nicp = iap.ndim = iap.ndm = 1;
+    iap.isw = 1;
+    iap.itp = {xpp::AutoPointKind::End, xpp::AutoPointKind::Regular};
+    iap.ntst = collocation ? 1 : 0;
+    iap.ncol = collocation ? 2 : 0;
+    rap_type rap{};
+    std::array<integer, 1> icp = {s.auto_state.parameter_layout.solver_index(0)};
+    std::vector<double> par(lib.parameter_count);
+    std::array<double, 4> values = {2., 3., 4., 5.}, tangent = {.5, .5, .5, .5};
+    std::array<double, 2> times = {0., 1.};
+    double current = .25, direction = 1., interval = 1.;
+    integer stride = 2;
+    if (collocation) {
+        CHECK(wrtbv8(&iap, &rap, par.data(), icp.data(), &direction, &stride,
+                      values.data(), tangent.data(), times.data(), &interval) == 0);
+    } else {
+        CHECK(wrtsp8(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data()) == 0);
+    }
+    CHECK(xpp::rewind_stream(lib.fp8.get(), solution_path).has_value());
+    auto solutions = xpp::TokenReader::attach(lib.fp8.get());
+    xpp::AutoSolutionHeader header;
+    CHECK(xpp::read_auto_solution_header(solutions, header, lib.parameter_count));
+    CHECK(header.ibr == 3 && header.ntot == count && header.lab == 7);
+    CHECK(header.itp == iap.itp && header.ntst == iap.ntst && header.ncol == iap.ncol);
+    solutions.close();
+    lib.fp8.reset();
+
+    const std::string diagram_path = temp.path() + "/fort.7";
+    const std::string diagnostic_path = temp.path() + "/fort.9";
+    xpp::UniqueFile diagram(xpp::files::open_stream(diagram_path, "w+"));
+    xpp::UniqueFile diagnostic(xpp::files::open_stream(diagnostic_path, "w+"));
+    CHECK(diagram != nullptr && diagnostic != nullptr);
+    lib.fp7 = diagram.get();
+    lib.fp9 = diagnostic.get();
+    // Both signs matter: fort.7 uses the sign to encode stability.
+    for (integer point : {static_cast<integer>(count), -static_cast<integer>(count)})
+        CHECK(wrline(&iap, &rap, par.data(), icp.data(), icp.data(), &iap.ibr,
+                     &point, &iap.lab, &current, values.data()) == 0);
+    CHECK(xpp::rewind_stream(diagram.get(), diagram_path).has_value());
+    auto lines = xpp::LineReader::attach(diagram.get());
+    for (int sign : {1, -1}) {
+        const auto line = lines.next();
+        CHECK(line.has_value());
+        if (!line) continue;
+        auto row = xpp::TokenReader::of_text(*line);
+        int branch = 0, point = 0, type = 0, label = 0;
+        CHECK(row.read(branch) && row.read(point) && row.read(type) && row.read(label));
+        CHECK(branch == 3 && point == sign * count && type == 9 && label == 7);
+    }
+    CHECK(!lines.next());
+    lib.fp7 = lib.fp9 = nullptr;
+    lib.session = nullptr;
 }
 } // namespace
 
@@ -186,5 +256,7 @@ int main() {
         algebraic(s, truncated);
     }
     user_zero_text(s);
+    for (int count : {9999, 10000, 10001, 100000, std::numeric_limits<int>::max()})
+        for (bool collocation : {false, true}) point_files(s, count, collocation);
     TEST_REPORT("AUTO restart families");
 }
