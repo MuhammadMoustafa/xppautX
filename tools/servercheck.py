@@ -8564,7 +8564,16 @@ def check_storage_full():
         check('W347: imported negative Total stores data and ends at its absolute duration',
               result.returncode == 0 and len(rows) == 3 and abs(rows[-1][0] - .2) < 1e-6
               and abs(rows[-1][1] - .2) < 1e-6, result.stderr + str(rows))
-        for total in (-2, 0):
+        os.remove(output)
+        zero = os.path.join(folder, 'zero.odex')
+        with open(zero, 'w') as f:
+            f.write("x'=1\ninit x=0\noptions { integration: { total_time: 0 } }\n")
+        result = subprocess.run([os.path.abspath(args.server), zero, '--silent'], cwd=folder,
+                                capture_output=True, text=True, timeout=30 * SLOW)
+        rows = [line.split() for line in open(output)] if os.path.isfile(output) else []
+        check('W347: Total=0 loads and stores only the starting point',
+              result.returncode == 0 and len(rows) == 1, result.stderr + str(rows))
+        for total in (-2, -0.5):
             bad = os.path.join(folder, 'bad.odex')
             with open(bad, 'w') as f:
                 f.write("x'=1\noptions { integration: { total_time: %s } }\n" % total)
