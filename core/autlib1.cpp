@@ -65,6 +65,10 @@ namespace {
    the solve in progress are not the model's, so its step is not taken */
 bool jacobian_failed(const iap_type *iap) { return iap->lib->session->auto_lib.jacobian_failure.has_value(); }
 
+/* the user cancelled, or the exact Jacobian failed: what ends a run where
+   anything else (a solve that does not converge) only gives a point up */
+bool stop_asked(const iap_type *iap) { return xpp::job::cancelled() || jacobian_failed(iap); }
+
 /* auto_locating = 1 for a scope: cleared however it ends, a failed solve
    (xpp::AutoFailed) included, so the next run can be cancelled again */
 struct Locating {
@@ -1560,10 +1564,10 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       iap->ibr, iap->ntot + 1);
   istop = 1;
   iap->istop = istop;
-  if (nonfinite && !xpp::job::cancelled() && !jacobian_failed(iap))
+  if (nonfinite && !stop_asked(iap))
     xpp::auto_nonfinite(*iap, iap->ntot + 1);
   if (!retained && xpp::problem_is_steady_or_map(iap->ips) &&
-      !xpp::job::cancelled() && !jacobian_failed(iap))
+      !stop_asked(iap))
     xpp::auto_stability_equilibrium_restored(*iap, *rap, par, icp, funi, u, uold, f, dfdu, dfdp);
   return 0;
 } /* solvae_ */
@@ -1672,9 +1676,8 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
   istop = iap->istop;
   if (istop != 0) {
     // AUTO-07p LCSPAE ae.f90:738: a SOLVAE that does not converge leaves the
-    // search; the point is given up (NOTE: Possible special point) and the
-    // branch goes on. Only a stop the user or the model asked for ends it.
-    if (xpp::job::cancelled() || jacobian_failed(iap)) {
+    // search: the point is given up (NOTE: Possible special point) and the branch goes on.
+    if (stop_asked(iap)) {
       *q = 0.;
       return 0;
     }
@@ -2436,12 +2439,12 @@ failed_step:
       iap->ibr, iap->ntot + 1);
   istop = 1;
   iap->istop = istop;
-  if (nonfinite && !xpp::job::cancelled() && !jacobian_failed(iap))
+  if (nonfinite && !stop_asked(iap))
     xpp::auto_nonfinite(*iap, iap->ntot + 1);
 
   // swpnt can return to an earlier branch point whose spectrum is no
   // longer the owner's last record. Recompute at the restored solution.
-  if (!retained && xpp::problem_is_steady_or_map(iap->ips) && !xpp::job::cancelled() && !jacobian_failed(iap)) {
+  if (!retained && xpp::problem_is_steady_or_map(iap->ips) && !stop_asked(iap)) {
     xpp::auto_stability_equilibrium_restored(*iap, *rap, par, icp, funi, u, uold, f, dfdu, dfdp);
   }
   return 0;
@@ -5026,11 +5029,11 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       iap->ibr, iap->ntot + 1);
   istop = 1;
   iap->istop = istop;
-  if (nonfinite && !xpp::job::cancelled() && !jacobian_failed(iap))
+  if (nonfinite && !stop_asked(iap))
     xpp::auto_nonfinite(*iap, iap->ntot + 1);
 
   if (!retained && xpp::problem_has_orbit_multipliers(iap->ips) &&
-      iap->isp != 0 && !xpp::job::cancelled() && !jacobian_failed(iap)) {
+      iap->isp != 0 && !stop_asked(iap)) {
     // A failed location can restore an unstored solution. Rebuild its
     // circuit pencil at zero step, without applying Newton increments;
     // the trial's pencil (and flowkm's in-place transforms) is not its own.
@@ -5649,9 +5652,8 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   istop = iap->istop;
   if (istop != 0) {
     // AUTO-07p LCSPBV bvp.f90:1393: a STEPBV that does not converge leaves the
-    // search; the point is given up (NOTE: Possible special point) and the
-    // branch goes on. Only a stop the user or the model asked for ends it.
-    if (xpp::job::cancelled() || jacobian_failed(iap)) {
+    // search: the point is given up (NOTE: Possible special point) and the branch goes on.
+    if (stop_asked(iap)) {
       *q = 0.;
       return 0;
     }
