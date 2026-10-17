@@ -25,7 +25,9 @@ in `paper/` (git-ignored; how it gets there is the maintainer's choice).
      refusal (nothing is deleted: move it away);
    - `--python`: `uv sync --locked`, which makes `.venv` in the checkout with the Python
      modules the studies need (numpy, matplotlib, mpmath) at the versions `uv.lock` holds, the
-     same on every machine; `--locked` refuses a lock that disagrees with `pyproject.toml`;
+     same on every machine; `--locked` refuses a lock that disagrees with `pyproject.toml`.
+     The Python itself is `.python-version`'s, the latest stable release (3.14; W420), which
+     uv installs where the system has another;
    - `--build`: xppautX (`git archive HEAD`, `WINDOW=0`, `-g -O2`, no ccache), XPPAUT 8.0
      (W238's command), AUTO-07p (configure `--enable-gui=no --enable-plaut=no
      --enable-plaut04=no`, as W269; built serially, its Makefile races under `-j`) under

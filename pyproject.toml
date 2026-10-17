@@ -6,7 +6,7 @@
 name = "xppautx-comparison"
 version = "0"
 description = "Python dependencies of the xppautX comparison studies"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
     "numpy",       # paper/benchmarks/plots.py
     "matplotlib",  # paper/benchmarks/plots.py

@@ -232,7 +232,7 @@ do_record() {
   GOV=$(cpu_files scaling_governor) DRIVER=$(cpu_files scaling_driver) TURBO=$(turbo_state) \
   XPPAUT8_TREE=$XPPAUT8_TREE MASTER_TREE=$MASTER_TREE AUTO_TREE=$AUTO_TREE \
   XPPAUT8_COMMIT=$XPPAUT8_COMMIT MASTER_COMMIT=$MASTER_COMMIT AUTO_COMMIT=$AUTO_COMMIT \
-  UV_VERSION=$(uv --version 2>&1) PY_LOCKED=$(uv pip freeze 2>&1) \
+  UV_VERSION=$(uv --version 2>&1) PY_LOCKED=$(uv pip freeze 2>&1) PY_PROJECT=$(uv run python --version 2>&1) \
   XPPAUTX_HEAD=$(git rev-parse HEAD) AUTO_CONFIGURE=$AUTO_CONFIGURE ROOTDIR=$ROOT \
   python3 -I - "$out/machine-$stamp.json" <<'PY' || die "cannot write the machine record"
 import json, os, platform, subprocess, sys, datetime
@@ -265,7 +265,7 @@ rec = {
                   "python3": run("python3", "--version"),
                   "valgrind": run("valgrind", "--version"), "gdb": run("gdb", "--version").splitlines()[0],
                   "xdotool": run("xdotool", "version"), "Xvfb": run("sh", "-c", "Xvfb -version 2>&1 | head -1")},
-    "uv": e["UV_VERSION"],
+    "uv": e["UV_VERSION"], "python_project": e["PY_PROJECT"],
     "python_modules": e["PY_LOCKED"].splitlines(),
     "sources": {
         "xppautX_head": e["XPPAUTX_HEAD"],
