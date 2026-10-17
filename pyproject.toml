@@ -8,9 +8,10 @@ version = "0"
 description = "Python dependencies of the xppautX comparison studies"
 requires-python = ">=3.14"
 dependencies = [
-    "numpy",       # paper/benchmarks/plots.py
+    "numpy",       # paper/benchmarks/plots.py, tools/python-integration (W427, #489)
     "matplotlib",  # paper/benchmarks/plots.py
     "mpmath",      # tools/auto-profile/eig_accuracy.py
+    "scipy",       # tools/python-integration/scipy_integrate.py: DOP853, the accuracy reference (W427, #489)
 ]
 
 [tool.uv]

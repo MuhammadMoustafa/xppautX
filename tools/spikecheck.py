@@ -12,10 +12,8 @@ Usage: tools/spikecheck.py [--server PATH] [--only NAME,...]
 import argparse
 import os
 from pathlib import Path
-import subprocess
 import sys
-import tempfile
-from xppclient import Checker
+from xppclient import Checker, silent_rows
 
 ROOT = Path(__file__).resolve().parent.parent
 FOLDER = ROOT / 'examples/ode'
@@ -25,19 +23,6 @@ RUN_SECONDS = 120
 T, V, U, N, TS, I = range(6)
 # a burst is a group of spikes whose intervals stay below this; a longer interval ends it (ms)
 BURST_GAP = 15
-
-
-def run_model(binary, model):
-    """The rows of output.dat of one model's silent run, each a list of numbers."""
-    with tempfile.TemporaryDirectory(prefix='xpp-spike-') as folder:
-        copy = Path(folder) / model.name
-        copy.write_bytes(model.read_bytes())
-        done = subprocess.run([binary, copy.name, '--silent'], cwd=folder, capture_output=True, text=True,
-                              timeout=RUN_SECONDS)
-        output = Path(folder) / 'output.dat'
-        if done.returncode != 0 or not output.exists():
-            raise ValueError('%s: xppautX --silent exited %d: %s' % (model.name, done.returncode, done.stderr[-300:]))
-        return [[float(x) for x in line.split()] for line in output.read_text().splitlines() if line.strip()]
 
 
 def spike_times(rows):
@@ -195,7 +180,7 @@ def main():
     check('every izh_ model has its behaviour checked, and every one checked is a model', models == sorted(BEHAVIOURS),
           'missing %s, extra %s' % (sorted(set(models) - set(BEHAVIOURS)), sorted(set(BEHAVIOURS) - set(models))))
     for name in args.only.split(',') if args.only else models:
-        rows = run_model(str(Path(args.server).resolve()), FOLDER / ('izh_' + name + '.odex'))
+        rows = silent_rows(args.server, FOLDER / ('izh_' + name + '.odex'), timeout=RUN_SECONDS)
         spikes = spike_times(rows)
         check(name + ': every reset is told apart (no row holds two)', spikes is not None)
         if spikes is None:

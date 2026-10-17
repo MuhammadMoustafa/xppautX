@@ -45,6 +45,7 @@ import sys
 import tempfile
 
 from autocompare import CODIM_TWO, HOMCONT, SPECIAL_TYPES
+from odex_model import Odex, Refused, INTRINSICS
 from xppclient import wait_until
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -73,105 +74,7 @@ CURVE_ISW = 2
 # A curve of cycles (an LP, PD or TR of a periodic run) is IPS=2 with ISW=2 and the cycle's detection
 # (ISP=2: R1-R4 on the fold, PD and torus curves); ICP the two parameters and the period.
 CYCLE_ISP = 2
-INTRINSICS = {'exp', 'sin', 'cos', 'tan', 'tanh', 'cosh', 'sinh', 'sqrt', 'max', 'min', 'abs', 'log', 'atan'}
-TOKEN = re.compile(r"\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|[A-Za-z_][A-Za-z_0-9]*'?|\^|[()+\-*/,]")
 LINE = 96  # characters of an expression per Fortran line (free form allows 132)
-
-
-class Refused(Exception):
-    """A problem AUTO-07p cannot be given the same way: the reason is the message."""
-
-
-def tokens(text):
-    out = TOKEN.findall(text)
-    if ''.join(out) != re.sub(r'\s+', '', text):
-        raise Refused('expression not understood: ' + text)
-    return out
-
-
-def split_args(toks, i):
-    """toks[i] is '(': the argument token lists up to its ')' and the index after it."""
-    depth, args, cur = 0, [], []
-    while i < len(toks):
-        t = toks[i]
-        if t == '(':
-            depth += 1
-            if depth > 1:
-                cur.append(t)
-        elif t == ')':
-            depth -= 1
-            if depth == 0:
-                args.append(cur)
-                return args, i + 1
-            cur.append(t)
-        elif t == ',' and depth == 1:
-            args.append(cur)
-            cur = []
-        else:
-            cur.append(t)
-        i += 1
-    raise Refused('unbalanced parentheses')
-
-
-class Odex:
-    """The parts of an .odex the descriptions use."""
-    def __init__(self, path):
-        self.pars, self.inits, self.odes, self.assigns, self.funs, self.bcs = {}, {}, {}, [], {}, []
-        self.discrete = False
-        depth = 0
-        for raw in path.read_text(encoding='utf-8').splitlines():
-            line = raw.split('#')[0].strip()
-            if depth:
-                depth += line.count('{') - line.count('}')
-                self.discrete |= bool(re.search(r'method:\s*discrete', line))
-                continue
-            if not line or line.startswith('"') or line == 'legacy':
-                continue
-            if re.match(r'(options|set\s+\w+)\s*\{', line):
-                depth = line.count('{') - line.count('}')
-                self.discrete |= bool(re.search(r'method:\s*discrete', line))
-                continue
-            self.line(line)
-        if not self.odes:
-            raise Refused('no differential equations')
-        self.states = list(self.odes)
-
-    def line(self, line):
-        m = re.match(r'(.*?)\s+for\s+j\s+in\s+(\d+)\.\.(\d+)$', line)
-        if m:
-            for k in range(int(m.group(2)), int(m.group(3)) + 1):
-                self.line(m.group(1).replace('[j]', '_%d' % k))
-            return
-        m = re.match(r'wiener\s+(\w+)$', line)
-        if m:
-            self.assigns.append((m.group(1), ['0']))  # deterministic: the noise term is zero
-            return
-        m = re.match(r'(par|init)\s+(.*)$', line)
-        if m:
-            target = self.pars if m.group(1) == 'par' else self.inits
-            for item in m.group(2).split(','):
-                name, value = item.split('=')
-                target[name.strip()] = float(value)
-            return
-        m = re.match(r'fun\s+(\w+)\s*\(([^)]*)\)\s*=\s*(.*)$', line)
-        if m:
-            if m.group(1) != 'ode_divisor':
-                self.funs[m.group(1)] = ([a.strip() for a in m.group(2).split(',')], tokens(m.group(3)))
-            return
-        m = re.match(r'boundary\s+(.*)$', line)
-        if m:
-            self.bcs.append(tokens(m.group(1)))
-            return
-        m = re.match(r"(\w+)('?)\s*=\s*(.*)$", line)
-        if m and not line.startswith('aux '):
-            if m.group(2):
-                self.odes[m.group(1)] = tokens(m.group(3))
-            else:
-                self.assigns.append((m.group(1), tokens(m.group(3))))
-            return
-        if line.startswith('aux ') or re.match(r'(done|table|wiener|markov|number|global|dnet)\b', line):
-            return
-        raise Refused('model line not understood: ' + line)
 
 
 class Equations:
@@ -199,26 +102,7 @@ class Equations:
             raise Refused('names differing only by case')
 
     def expand(self, toks):
-        out, i = [], 0
-        while i < len(toks):
-            t = toks[i]
-            if t == 'ode_divisor' and i + 1 < len(toks) and toks[i + 1] == '(':
-                args, i = split_args(toks, i + 1)
-                out += ['('] + self.expand(args[0]) + [')']
-            elif t in self.o.funs and i + 1 < len(toks) and toks[i + 1] == '(':
-                params, body = self.o.funs[t]
-                args, i = split_args(toks, i + 1)
-                if len(args) != len(params):
-                    raise Refused('call of %s with %d arguments' % (t, len(args)))
-                args = [self.expand(a) for a in args]
-                sub = []
-                for b in body:
-                    sub += ['('] + args[params.index(b)] + [')'] if b in params else [b]
-                out += ['('] + self.expand(sub) + [')']
-            else:
-                out.append(t)
-                i += 1
-        return out
+        return self.o.expand(toks, unguarded=('ode_divisor',))
 
     def fortran(self, toks, boundary=False):
         toks = self.expand(toks)
@@ -424,6 +308,8 @@ def check_description(name, d, program):
     if 'skip' in d:
         raise Refused('our description skips it: ' + d['skip'])
     odex = Odex(ROOT / d['model'])
+    if odex.events or odex.networks:
+        raise Refused('the model has events or networks, which the translation does not carry')
     if program == 'xppaut' and odex.discrete and len(d['runs']) != 1:
         raise Refused('discrete model with several runs')
     eqs = Equations(odex, d.get('parameters', {}))

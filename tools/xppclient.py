@@ -355,6 +355,25 @@ def run_commands(binary, ode, lines, run, flags=()):
     return result
 
 
+def silent_rows(binary, model, arguments=(), edit=None, timeout=None):
+    """The rows of the output.dat that `xppautX MODEL --silent ARGUMENTS` writes, run on a copy of the model (its text
+    passed through edit, if given) in a folder of its own: each row a list of floats."""
+    with tempfile.TemporaryDirectory(prefix='xpp-silent-') as folder:
+        copy = os.path.join(folder, os.path.basename(model))
+        if edit:
+            with open(model, encoding='utf-8') as f, open(copy, 'w', encoding='utf-8') as g:
+                g.write(edit(f.read()))
+        else:
+            shutil.copy(model, copy)
+        done = subprocess.run([os.path.abspath(binary), copy, '--silent', *arguments], cwd=folder, capture_output=True,
+                              text=True, timeout=timeout)
+        output = os.path.join(folder, 'output.dat')
+        if done.returncode != 0 or not os.path.exists(output):
+            raise ValueError('%s: xppautX --silent exited %d: %s' % (os.path.basename(model), done.returncode, done.stderr[-300:]))
+        with open(output) as f:
+            return [[float(x) for x in line.split()] for line in f if line.strip()]
+
+
 def recording_steps(lines):
     """Write the .recx step spec: command, its prompt keys/answers, its abort.
     Bare aborts between commands interrupt nothing and need no replay step."""
