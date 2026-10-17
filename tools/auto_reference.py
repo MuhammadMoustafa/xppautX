@@ -473,6 +473,8 @@ MENU_MS = '300'  # ms xdotool waits between keys: XPPAUT opens a pop-up menu per
 TYPE_DELAY = '15'  # ms between the characters typed into a dialog
 BACKSPACES = 40  # more than any field holds
 RUN_LIMIT = 600  # s: a run still going after this has hung (a safety limit, not a result)
+# the keys that pick a one-parameter run's start point by its type (Up, then the key, repeated by index)
+GRAB_KEYS = {'HB': 'h', 'LP': 'l', 'BP': 'b', 'PD': 'p', 'TR': 't'}
 ROW = re.compile(r'^\s*(-?\d+)\s+(-?\d+)\s+(?:([A-Z]{2})\s+)?(\d+)\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)(.*)$')
 
 
@@ -590,7 +592,7 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
             fill_dialog(auto, ('n', 'AutoNum'), values)
             start_run = r['start']
             if start_run.get('state') != 'current':
-                if curve_driver:
+                if curve_driver or start_run['type'] not in GRAB_KEYS:
                     labelled = [pt for pt in points[start_run['run']] if pt['type'] == start_run['type']]
                     if len(labelled) < start_run['index']:
                         raise Refused('XPPAUT 8.0 run %s has no %s %d for %s' %
@@ -600,7 +602,7 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
                     # Tab visits labelled points in diagram order (auto_x11.c traverse_diagram).
                     keys(auto, 'g', 'Home', *(['Tab'] * labels.index(label)), 'Return')
                 else:
-                    keys(auto, 'g', *(['Up', {'HB': 'h', 'LP': 'l', 'BP': 'b', 'PD': 'p', 'TR': 't'}[start_run['type']]] * start_run['index']), 'Return')
+                    keys(auto, 'g', *(['Up', GRAB_KEYS[start_run['type']]] * start_run['index']), 'Return')
             if curve_driver:
                 axes = r['parameters'] if curve else [r['parameter'], next(n for n in pars if n != r['parameter'])]
                 a = r['auto']
@@ -616,7 +618,9 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
                 # LP starts directly; HB/PD/TR offer Two Param (maps' HB starts directly too).
                 keys(auto, 'r', *(['t'] if start_run['type'] != 'LP' and not odex.discrete else []))
             else:
-                keys(auto, 'r', {'equilibrium': 's', 'periodic': 'p'}[r['kind']])
+                # a periodic run from a point of cycles extends them (Run's periodic_choice, auto_nox.c: Extend is 'e')
+                extends = start_run.get('state') != 'current' and start_run['type'] != 'HB'
+                keys(auto, 'r', {'equilibrium': 's', 'periodic': 'e' if extends else 'p'}[r['kind']])
 
             def finished():
                 rows = [ROW.match(l) for l in log.read_text().splitlines()[before:]]
@@ -626,6 +630,7 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
                 # Cycles first generate five starting-data steps, then do_auto restarts automatically.
                 return rows if ends >= (2 if preparing else 1) and not (work / 'fort.9').exists() else None
             rows = wait_for('the end of run ' + r['name'], finished)
+            labels.extend(int(m.group(4)) for m in rows if int(m.group(4)))
             wait_for('the diagnostics of run ' + r['name'], lambda: diag.exists() and diag.stat().st_mtime_ns != stamp)
             sizes = []  # the file is complete once it stops growing
 
@@ -671,7 +676,6 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
                 # The b-file's columns carry the actual free parameter slots.
                 if curve:
                     curves[r['name']] = curve_points(btext, pars.index(axes[0]), pars.index(axes[1]))
-                labels.extend(int(m.group(4)) for m in rows if int(m.group(4)))
             dtext = diag.read_text(errors='replace')
             stab[r['name']] = stability(dtext[:len(dtext) - dsize] if curve_driver else dtext)
             solutions = solution_parameters((work / 'model.ode.s').read_text(errors='replace'))

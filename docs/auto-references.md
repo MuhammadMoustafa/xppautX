@@ -398,6 +398,11 @@ there; the two recorded cases are the ones that reach it.
   automatically generate five starting-data steps and restart (`do_auto`,
   [auto_nox.c:653-659](../reference/xppaut-8.0/auto_nox.c#L653)); the driver waits for the final continuation
   and records its curve alone, reusing AUTO-07p's b-file reader with XPPAUT's zero-based column indices.
+- **Extend from a point of cycles** (W438, [#500](https://github.com/MuhammadMoustafa/xppautX/issues/500)): a periodic
+  run whose start is not an HB grabs it by Tab traversal, as a two-parameter run does, and presses Run then `e`.
+  Run on a periodic point opens `periodic_choice` (Extend `e`, Fixed Period `f`;
+  [auto_nox.c:1883-1900](../reference/xppaut-8.0/auto_nox.c#L1883), reached from [auto_nox.c:2003](../reference/xppaut-8.0/auto_nox.c#L2003)).
+  Every run's labels now feed the Tab order, not only curves'.
   Paired cycle runs reverse from the same generated EP: Grab that EP, set the requested Numerics, Run/Two Param.
   Regenerating starting data for each sign can change its tangent's orientation as well (Hill's two signs
   initially both increased the second parameter); reusing the EP makes the reversal explicit, with each
@@ -1116,8 +1121,10 @@ seconds:
 The last column is the SNIC's law, period proportional to (I - I_LP)^(-1/2): the two programs' ends, at different
 steps, lie on one curve (the control's 3% is the fold's last digit). Run on, both stop with MX near their 310th point
 (periods of 1e5 to 1e6 ms). The branch has no special point between the cycles' fold and the SNIC, so the
-reference comparison adds no quantity; the baseline holds every point. The control's XPPAUT 8.0 reference marks
-`to_snic` unavailable: the driver's keys start a run from an HB, LP, BP, PD or TR only (W438, [#500](https://github.com/MuhammadMoustafa/xppautX/issues/500)).
+reference comparison adds no quantity; the baseline holds every point. XPPAUT 8.0's control reference reaches the same end (W438, [#500](https://github.com/MuhammadMoustafa/xppautX/issues/500)):
+the cycles' EP grabbed by Tab, then Run and `e` (Extend), 170 points, ending at 0.0058180 pA with period 36225 ms.
+The blocked reference's `to_snic` is not made yet: its `lpc_soma` run, which the driver still tries, times out
+(600 s) until W436 makes that reference.
 The run costs about 70 s at one thread per description (the whole comparison went from 144 to 291 s at one thread,
 65 to 112 s at automatic threads).
 
