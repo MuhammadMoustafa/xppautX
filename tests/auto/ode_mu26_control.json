@@ -1,0 +1,88 @@
+{
+  "model": "examples/ode/mu26.odex",
+  "reason": "W415 (#477): the two-compartment PVN parvocellular neuron of Mu26 (28 states), control condition (h-current conductances at the fitted values). The applied current SmIapp is continued from rest: through the rheobase fold (0.0058 pA; a saddle-node on an invariant circle, by the source's notes), the second fold (-79.06 pA) and on to the Hopf point (13.2655 pA), then the cycles born there up to their fold (99.9966 pA). Settings are the source's c.mu26_control (NTST 25, NCOL 4, EPS 1e-7/1e-7/1e-5, DS 0.01; 50 mesh intervals and DS 0.005 for the cycles) with DSMAX raised from 0.1 to 0.8 and 1 so that a run is some hundred points, and the ends at 14 pA and after the fold. The Hopf test function is flat (its real part moves 6e-4 per pA), so xppautX's location of the Hopf point depends on DSMAX within 1.3e-4 pA (docs/auto-references.md W415); 0.8 is a value at which it agrees with AUTO-07p's.",
+  "xppaut_skip": "PENDING (card proposed in W415's report): tools/auto_reference.py's XPPAUT driver stops waiting for an equilibrium run at the first EP row, the run's own start point (finished() in execute_xppaut), so for a run that takes seconds it keeps only the rows printed by then. For this 28-state model it wrote EP and the first LP and neither the second LP nor the Hopf point that XPPAUT 8.0's own log shows (LP -79.05658 pA at point 127, HB 13.26547 pA at point 244, cycles LP 99.99655 pA at point 118: the numbers of ours and AUTO-07p's).",
+  "parameters": {
+    "SmIapp": 0.0
+  },
+  "initial_conditions": {
+    "SmV": -70.30083920658019,
+    "SmNam": 0.007714915899526905,
+    "SmNah": 0.70278866342383,
+    "SmSkcaI": 0.00039947504050505585,
+    "SmSkn": 0.28958609926778395,
+    "SmNpm": 0.007601274394377076,
+    "SmMxm": 0.020104233239997694,
+    "SmKvn": 0.15588188461431193,
+    "SmKam": 0.0009355455080541343,
+    "SmKah": 0.36367679521959845,
+    "SmHxh": 0.0022487328135018807,
+    "SmCam": 0.04478834243386721,
+    "SmCah": 0.21885218704659667,
+    "SmC1m": 0.0002339504010339012,
+    "HxV": -70.41953112043832,
+    "HxCam": 0.00022846344798656607,
+    "HxCtm": 0.043783661230018915,
+    "HxCth": 0.22156970988569824,
+    "HxHxh": 0.0022962099399169407,
+    "HxKam": 0.0009208700117566878,
+    "HxKah": 0.3669529718299542,
+    "HxKvn": 0.15484352709800966,
+    "HxMxm": 0.01987173457392465,
+    "HxNam": 0.007602162291752711,
+    "HxNah": 0.7052618811378323,
+    "HxNpm": 0.007380675719910735,
+    "HxSkcaI": 0.00010132422463448612,
+    "HxSkn": 0.0016836219420945408
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "SmIapp",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-06,
+        "dsmax": 0.8,
+        "nmax": 300,
+        "npr": 50,
+        "parmin": -100,
+        "parmax": 14,
+        "ntst": 25,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 1
+      },
+      "parameter": "SmIapp",
+      "auto": {
+        "ds": 0.005,
+        "dsmin": 1e-06,
+        "dsmax": 1.0,
+        "nmax": 125,
+        "npr": 50,
+        "parmin": -100,
+        "parmax": 120.0,
+        "ntst": 50,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    }
+  ]
+}

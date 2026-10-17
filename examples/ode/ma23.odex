@@ -1,0 +1,106 @@
+# ma23.odex: converted from ma23.ode by xppautX --convert (docs/odex.md)
+
+# ma23.ode: the fast-spiking parvalbumin interneuron (PVIN) of Ma et al. 2023, one
+# compartment, five states: voltage SmV, Na inactivation SmNah, Kv1 and Kv3 gates
+# SmKvn1 and SmK1n3, and the submembrane calcium SmSkcaI (uM) that drives the SK current.
+#
+# Source: the maintainer's parvocell_model/models/main.ode (an XPP export of the model).
+# Citation: Ma et al. 2023, Table 1 and the model equations (the maintainer's transcription
+# is docs/ma2023.md of that repository). The equations and every parameter of Table 1 agree
+# with this file except E_Ca: Table 1 lists 68 mV, this file has 130 mV (ISmCa, as the export
+# has it). The model is kept as exported; a comparison with the paper needs E_Ca = 68.
+# SmStmplti is the applied current in pA (the export's constant step amplitude).
+# tests/auto/ode_ma23.json continues SmStmplti. The run below (backward Euler, as the
+# source, every 20th step stored) holds the model at 200 pA.
+# Parameters
+par SmStmplti = 200
+# Initial conditions
+init SmV = -49.996
+init SmNah = 0.981431
+init SmKvn1 = 0.022024
+init SmK1n3 = 0.002077
+init SmSkcaI = 0.07
+# Algebraic equations
+Smcpctncr = 30
+Smdmtrxxf = 0
+Smlength = 0
+SmxlRsst8 = 100
+SmLegMax = 8
+SmNagMax = 300
+SmNamVHlv = -17.5
+SmNamVSlq = -11.4
+SmNahlph3 = 0.0025
+SmNahlphz = 23
+SmNahlphp = 10
+SmNahBtSb = 0.094
+SmNahBtVu = -31
+SmNahBtS6 = -5.5
+SmKvgMax = 15
+SmKvnlph9 = 0.002
+SmKvnlph5 = -30
+SmKvnlphv = -9
+SmKvnBtSh = 0.017
+SmKvnBtV0 = -35
+SmKvnBtSc = 5.9
+SmK1gMax = 180
+SmK1nlph9 = 1.98
+SmK1nlph5 = 96
+SmK1nlphv = -12.6
+SmK1nBtSh = 0.34
+SmK1nBtV0 = -36
+SmK1nBtSc = 10.5
+SmCagMax = 8
+SmCaVHlfj = 3
+SmCaVSlpe = -10.4
+SmSkgMax = 10
+SmSkkSk = 0.8
+SmSkhillN = 5
+SmSkcRsts = 0.07
+SmSkgamma = 0.01
+SmSkbTot = 90
+SmSkkD = 0.1
+SmSkarea = 3000
+SmSkshll8 = 0.1
+SmStstrto = 100
+SmStdrtnh = 500
+SmStrpttk = 1
+SmStntrvk = 0
+ISmLe = SmLegMax*(SmV-(-50))
+ISmNa = SmNagMax*(1/(1+exp((SmV-SmNamVHlv)/ode_divisor(SmNamVSlq))))^3*SmNah*(SmV-58)
+ahSmNa = SmNahlph3*exp(-((SmV-SmNahlphz)/ode_divisor(SmNahlphp)))
+bhSmNa = SmNahBtSb*(SmV-SmNahBtVu)/ode_divisor(1-exp((SmV-SmNahBtVu)/ode_divisor(SmNahBtS6)))
+rhSmNa = max(ahSmNa+bhSmNa, 1e-09)
+hInfSmNa = ahSmNa/ode_divisor(rhSmNa)
+thSmNa = 1/ode_divisor(rhSmNa)
+ISmKv = SmKvgMax*SmKvn1^4*(SmV-(-80))
+anSmKv = SmKvnlph9*(SmV-SmKvnlph5)/ode_divisor(1-exp((SmV-SmKvnlph5)/ode_divisor(SmKvnlphv)))
+bnSmKv = SmKvnBtSh*exp(-(SmV-SmKvnBtV0)/ode_divisor(SmKvnBtSc))
+rnSmKv = max(anSmKv+bnSmKv, 1e-09)
+nInfSmKv = anSmKv/ode_divisor(rnSmKv)
+tnSmKv = 1/ode_divisor(rnSmKv)
+ISmK1 = SmK1gMax*SmK1n3^2*(SmV-(-80))
+anSmK1 = SmK1nlph9*(SmV-SmK1nlph5)/ode_divisor(1-exp((SmV-SmK1nlph5)/ode_divisor(SmK1nlphv)))
+bnSmK1 = SmK1nBtSh*exp(-(SmV-SmK1nBtV0)/ode_divisor(SmK1nBtSc))
+rnSmK1 = max(anSmK1+bnSmK1, 1e-09)
+nInfSmK1 = anSmK1/ode_divisor(rnSmK1)
+tnSmK1 = 1/ode_divisor(rnSmK1)
+ISmCa = SmCagMax*(1/(1+exp((SmV-SmCaVHlfj)/ode_divisor(SmCaVSlpe))))^2*(SmV-130)
+ISmSk = SmSkgMax*((SmSkcaI/ode_divisor(SmSkkSk))^SmSkhillN/ode_divisor(1+(SmSkcaI/ode_divisor(SmSkkSk))^SmSkhillN))*(SmV-(-80))
+tDurSmSt = (SmStrpttk-1)*(SmStdrtnh+SmStntrvk)+SmStdrtnh
+ISmSt = SmStmplti
+# Differential equations
+SmNah' = (hInfSmNa-SmNah)/ode_divisor(thSmNa)
+SmKvn1' = (nInfSmKv-SmKvn1)/ode_divisor(tnSmKv)
+SmK1n3' = (nInfSmK1-SmK1n3)/ode_divisor(tnSmK1)
+SmSkcaI' = 1/ode_divisor(1+SmSkbTot/ode_divisor(SmSkkD))*(-ISmCa/ode_divisor(2*96485.33212*SmSkarea*SmSkshll8)-SmSkgamma*(SmSkcaI-SmSkcRsts))
+SmV' = (-ISmLe-ISmNa-ISmKv-ISmK1-ISmCa-ISmSk+ISmSt)/ode_divisor(Smcpctncr)
+# XPP simulation options
+options {
+  integration: { dt: 0.01, store_every: 20, method: backward_euler, total_time: 1000.0 },
+  continuation: { parmax: 1, parmin: -10, npr: 100000, nmax: 1000, ntst: 100, dsmax: 0.1 },
+  diagram: { autovar: SmV, autoxmin: -0.1, autoxmax: 1.1, autoymin: -90, autoymax: 20 },
+  plot: { xlo: 0, xhi: 1000.0, ylo: -90, yhi: 50, yp: SmV },
+  interface: { but: "fit:wf", but: "int:ig", but: "intl:il", but: "auto:fa" },
+}
+
+fun ode_divisor(value) = if value then value else 2.23e-15

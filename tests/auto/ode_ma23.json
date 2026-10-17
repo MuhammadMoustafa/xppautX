@@ -1,0 +1,60 @@
+{
+  "model": "examples/ode/ma23.odex",
+  "reason": "W415 (#477): the one-compartment fast-spiking parvalbumin interneuron of Ma et al. 2023 (5 states). The applied current SmStmplti is continued from rest through the saddle-node pair (35.06 and 34.01 pA) to the Hopf point (553.9 pA), then the cycles born there: an unstable branch back to their fold (520.2 pA), then the stable fast-spiking cycles (period 6-7 ms) down to the end of the spiking range (35.5 pA, period 149 ms and growing towards the fold at 35.06). Settings are the c-file of the source's AUTO-07p export (NTST 25, NCOL 4, EPS 1e-7/1e-7/1e-5) with DSMAX 2.",
+  "xppaut_skip": "XPPAUT 8.0 labels no Hopf point on the steady branch: its location of the point at 553.88 pA reaches the Hopf function -3.6e-9 by a one-sided approach, uses up ITMX and prints NOTE:Possible special point (the diagnostics file's point 298), so the cycles run cannot be started from it with this driver. The two folds of its steady run agree with ours (35.05591 and 34.01230 pA). docs/xppaut-findings.md 70.",
+  "parameters": {
+    "SmStmplti": 0.0
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current",
+        "settle": 500,
+        "step": 0.01
+      },
+      "parameter": "SmStmplti",
+      "auto": {
+        "npr": 50,
+        "ntst": 25,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0,
+        "dsmin": 1e-06,
+        "ds": 0.005,
+        "dsmax": 2.0,
+        "nmax": 400,
+        "parmin": -100,
+        "parmax": 600.0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 1
+      },
+      "parameter": "SmStmplti",
+      "auto": {
+        "npr": 50,
+        "ntst": 25,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0,
+        "dsmin": 1e-06,
+        "ds": 0.005,
+        "dsmax": 2.0,
+        "nmax": 600,
+        "parmin": 36.0,
+        "parmax": 1000.0
+      }
+    }
+  ]
+}
