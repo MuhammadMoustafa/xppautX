@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "source": "XPPAUT 8.0 (reference/xppaut-8.0, c021b511) (tools/auto_reference.py)",
+  "model": "examples/ode/ma23.odex",
+  "runs": [
+    {"name": "steady", "parameter": "SmStmplti", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.0, "norm": 49.22732, "period": null, "spectrum": "", "values": []},
+      {"type": "LP", "branch": 1, "label": 2, "point": 32, "par": 35.18014, "norm": 39.94769, "period": null, "spectrum": "eigenvalue", "values": [[-2.173752e-08, 0.0], [-1.109805e-05, 0.0], [-0.02342984, 0.0], [-0.4905948, 0.0], [-1.515725, 0.0]]},
+      {"type": "LP", "branch": 1, "label": 3, "point": 34, "par": 34.21304, "norm": 37.43897, "period": null, "spectrum": "eigenvalue", "values": [[0.1079072, 0.0], [-4.338365e-10, 0.0], [-1.109899e-05, 0.0], [-0.3775062, 0.0], [-1.232004, 0.0]]},
+      {"type": "HB", "branch": 1, "label": 9, "point": 290, "par": 539.2246, "norm": 25.40068, "period": 8.0470039889, "spectrum": "eigenvalue", "values": [[6.236761e-10, -0.7808105], [6.236761e-10, 0.7808105], [-1.109878e-05, 0.0], [-0.04773841, 0.0], [-0.4768392, 0.0]]},
+      {"type": "EP", "branch": 1, "label": 11, "point": 321, "par": 601.2217, "norm": 24.79836, "period": null, "spectrum": "eigenvalue", "values": [[-1.109878e-05, 0.0], [-0.02805617, 0.839096], [-0.02805617, -0.839096], [-0.04424902, 0.0], [-0.4698168, 0.0]]}
+    ]},
+    {"name": "cycles", "parameter": "SmStmplti", "points": [
+      {"type": "EP", "branch": 9, "label": 17, "point": 292, "par": 35.83223, "norm": 39.54189, "period": 123.74026151, "spectrum": "multiplier", "values": [[0.9991493, 0.0], [0.955336, 0.0], [-0.002678305, 0.0], [-6.958862e-08, 0.0], [-1.287772e-14, 0.0]]}
+    ]}
+  ]
+}

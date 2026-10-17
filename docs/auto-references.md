@@ -214,8 +214,8 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-46 descriptions have an AUTO-07p reference (147 special points compared, and the two-parameter curves) and 27 an
-XPPAUT 8.0 reference (52 points); 27 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
+46 descriptions have an AUTO-07p reference (147 special points compared, and the two-parameter curves) and 28 an
+XPPAUT 8.0 reference (56 points); 28 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
 and XPPAUT 8.0 three; the runs a description skips (its reason says why) are neither run nor compared. The whole
 comparison is 58 descriptions, 9 skipped, 15088 stored points across one and automatic threads, 144 checks, zero
 failures. No tolerance was widened. Before W326 there were 44 compared points and six traced points against
@@ -237,7 +237,7 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | lorenz_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.8e-08, par2 1.4e-08, norm 6.3e-08) | not run |
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
-| ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 2.8e-06, norm 2.8e-08, period 3.1e-08, spectrum 1.2e-06) | not run |
+| ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 2.8e-06, norm 2.8e-08, period 3.1e-08, spectrum 1.2e-06) | agrees (4 points; par 1.3e-05, norm 4.7e-06, period 1.6e-08, spectrum 8.4e-08) |
 | ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 1.8e-08, par2 8.6e-09, norm 5.3e-06, period 6.6e-08, spectrum 1.1e-06; curve par 0.00018, par2 4.6e-07, norm 6e-09) | not run |
 | ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 5e-08, norm 3.9e-09, period 8.6e-08, spectrum 1.1e-06) | not run |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
@@ -853,8 +853,9 @@ E_K -90 and E_Na 50 are identical; E_h -30.001, E_L -74.9596 (soma) and -74.9825
 The model was not changed to hide this. Only parameters were compared, not the Python equations.
 
 **Ma23 against its paper and its AUTO-07p export.** `models/main.ode` of the maintainer's parvocell_model agrees with
-Table 1 and the equations of Ma et al. 2023 (docs/ma2023.md there) except E_Ca: the table lists 68 mV, the source `.ode`
-export had 130 mV; the model now uses 68 mV as in Table 1 (W424, #486), which its header notes. `models/Ma2_test_auto07p_export/ma2_test.f90` is not the same
+Table 1 and the equations of Ma et al. 2023 (docs/ma2023.md there) except E_Ca: the table lists 68 mV, the export
+130 mV. The example used the export's 130 until W424 ([#486](https://github.com/MuhammadMoustafa/xppautX/issues/486)),
+and Table 1's 68 since. `models/Ma2_test_auto07p_export/ma2_test.f90` is not the same
 model: C_m 12 (30), E_leak -58 (-50), E_K -90 (-80), E_Ca 120 (68 in the paper, 130 in the export), E_Na 50 (58), a
 different start state and a floor on the calcium of the SK term. The reference is therefore made from the example's
 own equations (`tools/auto_reference.py` translates the `.odex`), not from that file.
@@ -881,7 +882,8 @@ own equations (`tools/auto_reference.py` translates the `.odex`), not from that 
   With the script's RL0=0 AUTO-07p's own run stops at its first step, which leaves g_h negative (one sample of the
   curve; the source's saved `b.lpc_soma` has four points ending at g_h -4e-4), and past it xppautX did not finish
   12 points of the curve within the driver's 120 s safety limit.
-- *XPPAUT 8.0.* Ma23: it labels no Hopf point, so its cycles run cannot start from one (finding 70). Mu26:
+- *XPPAUT 8.0.* Ma23: with the export's E_Ca 130 it labelled no Hopf point, so its cycles run could not start from
+  one (finding 70); with Table 1's 68 (W424) it labels the HB at 539.2246 pA, and its reference agrees. Mu26:
   `tools/auto_reference.py` stops waiting for an equilibrium run at the first EP row, the run's start
   (`finished()` in `execute_xppaut`), and keeps the rows printed by then, which for this model are two of the
   five; XPPAUT's own log shows the same points as ours (LP 0.0058127 at point 9, LP -79.05658 at 127, HB

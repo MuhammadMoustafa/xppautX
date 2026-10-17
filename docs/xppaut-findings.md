@@ -1534,7 +1534,9 @@ evaluation, uses up ITMX and prints `NOTE:Possible special point` (the exit at
 [autlib1.c:1678](../reference/xppaut-8.0/autlib1.c#L1678), [master](../reference/xppaut-master/autlib1.c#L1677)),
 so the point is not labelled and the periodic orbit cannot be started from it with the keys of
 `tools/auto_reference.py`. AUTO-07p labels it at 553.8767 pA (period 7.932) and xppautX does too. That the missing
-re-evaluation is the whole cause was not isolated by an experiment on XPPAUT.
+re-evaluation is the whole cause was not isolated by an experiment on XPPAUT. This is the model as exported, with
+E_Ca 130 mV; with Table 1's 68 mV (W424, [#486](https://github.com/MuhammadMoustafa/xppautX/issues/486)) the Hopf
+point moves to 539.2246 pA, and XPPAUT 8.0 labels it there.
 
 xppautX inherits the call (`core/autlib1.cpp` `solvae`): it locates this point, but its location of a flat Hopf
 function depends on the step. The real part of the Hopf pair of Mu26's control condition moves 6e-4 per pA at its

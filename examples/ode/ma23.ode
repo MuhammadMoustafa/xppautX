@@ -4,9 +4,8 @@
 #
 # Source: the maintainer's parvocell_model/models/main.ode (an XPP export of the model).
 # Citation: Ma et al. 2023, Table 1 and the model equations (the maintainer's transcription
-# is docs/ma2023.md of that repository). The equations and every parameter of Table 1 agree
-# with this file: the file now follows Table 1 in every parameter (E_Ca = 68 mV in ISmCa;
-# the source export had 130 mV).
+# is docs/ma2023.md of that repository). The equations and every parameter agree with Table 1,
+# E_Ca included: 68 mV in ISmCa, where the export had 130 mV (W424).
 # SmStmplti is the applied current in pA (the export's constant step amplitude).
 # tests/auto/ode_ma23.json continues SmStmplti. The run below (backward Euler, as the
 # source, every 20th step stored) holds the model at 200 pA.
