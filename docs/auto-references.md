@@ -237,9 +237,9 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | lorenz_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.8e-08, par2 1.4e-08, norm 6.3e-08) | not run |
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.4e-10, norm 1.6e-07, period 6.7e-05, spectrum 0.00037) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.5e-06, period 0.0017, spectrum 0.00041) |
-| ode_ma23 | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 3.2e-06, norm 3.2e-08, period 2.3e-08, spectrum 1.1e-06) | not run |
+| ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 6.8e-07, norm 6.4e-09, period 2.1e-08, spectrum 1.2e-06) | agrees (4 points; par 1e-05, norm 4.7e-06, period 5.4e-09, spectrum 8.4e-08) |
 | ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | not run |
-| ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 1.2e-07, norm 3.9e-09, period 1.4e-08, spectrum 1.1e-06) | not run |
+| ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 1.2e-07, norm 3.9e-09, period 1.4e-08, spectrum 1.1e-06) | agrees (5 points; par 3.5e-06, norm 4.3e-06, period 8e-08, spectrum 1.3e-07) |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | res_cycles | steady: EP HB HB; cycles: TR; torus_down: R1; torus_up: R4 R3 R2 BP | agrees (9 points; par 7.9e-07, par2 7.9e-07, norm 4.6e-07, period 2.2e-11, spectrum 0.0012; curve par 3.2e-07, par2 6.4e-06, norm 3.5e-07) | not run |
 | tstauto_ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
@@ -937,7 +937,8 @@ the map curves of `henon_rot_lp`, `_pd` and `_tr`. The comparison's totals do no
 
 **Agreement with AUTO-07p**, the largest difference over tolerance in each changed description, before and after:
 henon_rot_lp 0.097, 0.049; henon_rot_pd 0.137, 0.065; henon_rot_tr 0.144, 0.013; izh_class2 0.00114, 0.00108;
-izh_resonator 0.0030, 0.00048; ode_lecar 0.296, 0.00082; ode_ma23 0.282, 0.046; ode_mu26_blocked 0.104, 0.038;
+izh_resonator 0.0030, 0.00048; ode_lecar 0.296, 0.00082; ode_ma23 0.282, 0.046 (at the export's E_Ca 130; W424's E_Ca 68 came first at the merge, and its baseline, rewritten
+then, is at 0.044); ode_mu26_blocked 0.104, 0.038;
 ode_mu26_control 0.0229, 0.0229; tstauto_ab_fold 0.406, 0.343; tstauto_ab_hopf 0.043, 0.0026; tstauto_frcp 0.024,
 0.0010; tstauto_lecar 0.296, 0.00082; tstauto_pp2 3.45e-4, 3.45e-4; tstauto_san 3.7e-5, 3.7e-5; zero_hopf 5.1e-6,
 8.6e-9. Of the 534 quantities compared, 33 move further, the most `tstauto_ab_fold`'s CP spectrum (0.113 to 0.224 of
