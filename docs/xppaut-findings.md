@@ -101,6 +101,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [67](#67-the-torus-integral-condition-is-identically-zero) | AUTO | the torus continuation's phase condition compares the eigenfunction with itself, so it is zero for every input | [W407 / #469](https://github.com/MuhammadMoustafa/xppautX/issues/469) |
 | [68](#68-homcont-differentiates-a-changing-projection-basis) | AUTO HomCont | parameter finite differences update the projection history they differentiate | [W365 / #427](https://github.com/MuhammadMoustafa/xppautX/issues/427) |
 | [69](#69-a-homoclinic-start-samples-its-orbit-with-an-unscaled-weight) | AUTO HomCont | the starting orbit is interpolated with a weight not divided by the step, its end wraps to its start, and the shift is found before the equilibrium is given | [W365 / #427](https://github.com/MuhammadMoustafa/xppautX/issues/427) |
+| [70](#70-auto-evaluates-the-test-functions-at-the-last-newton-iterates-jacobian) | AUTO | the test functions of a converged point use the Jacobian of the last Newton iterate, so a flat Hopf function is located slowly and a Hopf point can go unlabelled | [W415 / #477](https://github.com/MuhammadMoustafa/xppautX/issues/477) |
 
 ## 1. Model options
 
@@ -1511,3 +1512,36 @@ curve. xppautX now samples the shifted orbit with the interpolation every
 other start uses (`get_start_orbit`) and finds the shift after the form.
 
 **Card:** [W365 / #427](https://github.com/MuhammadMoustafa/xppautX/issues/427).
+
+## 70. AUTO evaluates the test functions at the last Newton iterate's Jacobian
+
+XPPAUT 8.0 stops the Newton iteration of an equilibrium point as soon as the update is below EPSL and EPSU and then
+evaluates the point's test functions (`pvlsae`, which reads the eigenvalues of the Jacobian in `aa`) with the Jacobian
+of the iterate *before* that last update
+([autlib1.c:1504](../reference/xppaut-8.0/autlib1.c#L1504),
+[master](../reference/xppaut-master/autlib1.c#L1501)). AUTO-07p 0.9.4 recomputes the Jacobian at the converged point
+first (`SOLVAE`, ae.f90, "Recompute Jacobian for test functions"). A test function is then off by about its slope
+times the last update, and the location of a special point by the secant method (`lcspae`) sees a function that is
+not the same each time the point is solved.
+
+Evidence, the Hopf point of the PV interneuron of Ma et al. 2023 (`examples/ode/ma23.odex`, the steady run of
+`tests/auto/ode_ma23.json`: SmStmplti from 0 at DS 0.005, DSMAX 2, NTST 25, EPS 1e-7/1e-7/1e-5, ITMX 8, which
+`python3 tools/auto_reference.py --program xppaut --only ode_ma23` sets in XPPAUT's windows): the table lists EP, LP
+(35.05591 pA) and LP (34.01230) and no HB. XPPAUT's diagnostics file shows the Hopf function change sign between
+points 297 (7.8e-5, three stable eigenvalues) and 298 (-8.0e-4, five); its location then evaluates 3.3e-7, -2.9e-7,
+-1.4e-7, -7.2e-8, -4.4e-8, -2.5e-8, -1.4e-8, -1.1e-8, -3.6e-9, approaching zero from one side at about 0.6 per
+evaluation, uses up ITMX and prints `NOTE:Possible special point` (the exit at
+[autlib1.c:1678](../reference/xppaut-8.0/autlib1.c#L1678), [master](../reference/xppaut-master/autlib1.c#L1677)),
+so the point is not labelled and the periodic orbit cannot be started from it with the keys of
+`tools/auto_reference.py`. AUTO-07p labels it at 553.8767 pA (period 7.932) and xppautX does too. That the missing
+re-evaluation is the whole cause was not isolated by an experiment on XPPAUT.
+
+xppautX inherits the call (`core/autlib1.cpp` `solvae`): it locates this point, but its location of a flat Hopf
+function depends on the step. The real part of the Hopf pair of Mu26's control condition moves 6e-4 per pA at its
+Hopf point; with DSMAX 0.3, 0.4, 0.5 and 0.7 xppautX's point is 5e-5 to 1.3e-4 pA from the root (its Hopf function
+there -7.9e-8, the last update's size), with 0.6, 0.8 and 1 within 2e-7, while AUTO-07p's is within 1.5e-7 of
+13.2654735 at every DSMAX and its function is 8e-13 there (docs/auto-references.md, "W415"). The fix is the same
+evaluation as AUTO-07p's; it changes the last digits of the stored eigenvalues of every AUTO baseline, so it is a
+card of its own.
+
+**Card:** [W415 / #477](https://github.com/MuhammadMoustafa/xppautX/issues/477) (found; not fixed there).

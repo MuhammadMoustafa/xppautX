@@ -94,3 +94,9 @@ The torus down run retains a traced skip at its singular R1 endpoint: since W405
 R1 is 3.7e-7 from (-1,1), but AUTO-07p's R1 and the BP after it lie 1.9e-5 along the fold
 branch its step entered there. `autocheck codim` independently checks the closed-form curves and torus
 labels before that endpoint, named controls, and session round trips. No tolerance is widened.
+
+W415 (#477) adds three descriptions from the maintainer's published research models (`examples/ode/mu26.odex`, the
+two-compartment PVN neuron of Mu26 in its control and h-blocked conditions, and `ma23.odex`, the PV interneuron of Ma
+et al. 2023; each also kept as the `.ode` it was converted from): the applied current from rest to the Hopf point, the
+cycles from it, and for the blocked condition the Hopf and rheobase-fold loci in the h conductances. All agree with
+AUTO-07p; XPPAUT 8.0's reference is skipped with its reason (docs/auto-references.md, "W415").

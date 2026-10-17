@@ -1,5 +1,5 @@
 #!/bin/sh
-# The five retained foreign examples (W154): opening each .ode converts
+# The retained foreign examples (W154; the five XPPAUT models, and W415's mu26 and ma23): opening each .ode converts
 # it in a temp copy of its folder, saves .odex and runs it. Both that run
 # and a second open of .odex must match its unchanged baseline md5.
 # The refused standalone examples (noload) have no .odex and are skipped.

@@ -237,6 +237,9 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | lorenz_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.8e-08, par2 1.4e-08, norm 6.3e-08) | not run |
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
+| ode_ma23 | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 2.2e-05, norm 2.1e-07, period 1.9e-07, spectrum 7.1e-06) | not run |
+| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 1.8e-08, par2 8.6e-09, norm 5.3e-06, period 6.6e-08, spectrum 1.1e-06; curve par 0.00018, par2 2.9e-06, norm 4.4e-06) | not run |
+| ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 5e-08, norm 3.9e-09, period 8.6e-08, spectrum 1.1e-06) | not run |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | res_cycles | steady: EP HB HB; cycles: TR; torus_down: R1; torus_up: R4 R3 R2 BP | agrees (9 points; par 7.9e-07, par2 7.9e-07, norm 4.6e-07, period 2.2e-11, spectrum 0.0012; curve par 3.2e-07, par2 6.4e-06, norm 3.5e-07) | not run |
 | tstauto_ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
@@ -810,3 +813,81 @@ Diagrams rewritten: res_cycles (its two torus runs added) and forced_pp_pd (pd_u
 byte the same, its branch and labels renumbered). Every other diagram and tests/examples.md5 are unchanged. The
 comparison: 52 descriptions, 9 skipped, 10998 stored points, 126 checks, zero failures; 124 special points against
 AUTO-07p (118 before).
+
+## W415: two research neuron models ([#477](https://github.com/MuhammadMoustafa/xppautX/issues/477))
+
+Two of the maintainer's published models join `examples/ode` (each as the `.ode` with a header naming its source and its
+converted `.odex`, which `tools/odexcheck.sh` runs beside it) and three descriptions of `tests/auto`, each with a
+baseline and AUTO-07p's reference made by `tools/auto_reference.py`:
+
+| Description | Model | Runs | AUTO-07p | Points, quantities |
+|---|---|---|---|---|
+| ode_mu26_control | `mu26`: the two-compartment PVN parvocellular neuron of Mu26, 28 states, h conductances at the fitted values | steady (current from rest: LP 0.0058, LP -79.06, HB 13.2655 pA), cycles from the HB (LP 99.9966) | agrees | 5 points, 16 quantities |
+| ode_mu26_blocked | the same model, both h conductances 0 | the same, and from the HB the loci in (g_h soma, current) and (g_h dendrite, current), from the first LP the locus in (current, g_h soma) through its cusp | agrees | 6 points and three curves, 29 quantities |
+| ode_ma23 | `ma23`: the fast-spiking PV interneuron of Ma et al. 2023, 5 states | steady (LP 35.06, LP 34.01, HB 553.88 pA), cycles from the HB (LP 520.23, then the stable cycles down to period 149 ms) | agrees | 5 points, 16 quantities |
+
+The largest differences from AUTO-07p are: Mu26 control, Hopf point 5.1e-8 pA, folds 5e-10 pA, cycles fold 2.3e-11 pA
+and period 1.8e-9; Mu26 blocked, Hopf 1.8e-8 pA, the Hopf loci within 1.9e-4 in g_h (tolerances 0.01 and 0.04), 1.6e-7 in
+current and 6e-9 in norm of the other program's polyline, the fold locus within 1e-6, 2.9e-6 and 4.4e-6 in its three
+coordinates, the cusp 5.2e-9 in current and 8.6e-9 in g_h; Ma23, Hopf 2.2e-5 pA (tolerance 1.7e-4), cycles fold
+4.5e-9 pA. No tolerance was widened.
+
+**Integration.** `mu26.ode` (backward Euler, DT 0.05, 400 ms, every 10th step stored, 5 pA) and `ma23.ode` (backward
+Euler, DT 0.01, 1000 ms, every 20th step, 200 pA) give XPPAUT 8.0's `-silent` output digit for digit, 801 rows of 29
+columns and 5001 rows of 6 (XPPAUT 8.0 built from reference/xppaut-8.0 as the five-model screen does: GCC 15,
+`-ffp-contract=off`); `tests/examples.md5` holds both.
+
+**One model for two conditions.** Control and blocked differ in two conductances only, so `mu26` has them as parameters
+2 and 3 (the order of the source's AUTO-07p files, where `run_2d_bifurcation.auto` continues them) and the two
+descriptions set them. Two models would copy 300 lines. The `.ode` runs at the control values; the description sets
+`SmIapp` 0 and, for control, the converged control rest from the source's `stpnt` (the `.ode`'s own initial state is the
+blocked rest, which is the blocked description's start). The source's `NMAX=10000000` is 1000 in the example: xppautX
+refuses an NMAX above the points a session file keeps (1000000), and a description sets its own.
+
+**Source parameters against the public version.** `parameters.json` of
+[pvn-hcn-marmoset-model](https://github.com/MuhammadMoustafa/pvn-hcn-marmoset-model) maps to 119 parameters of the
+`.ode` (soma and dendrite). 64 are identical to every digit (the h conductances `0.05196355494318059` and
+`0.6435532020105316` among them); 55 differ by the export's rounding to four to six significant digits, relative
+3.6e-3 at most (g_m dendrite 0.0039 against 0.003885907, g_m soma 0.0143 against 0.01433809, g_SK soma 0.0232 against
+0.02324651, g_Ka dendrite 0.0459 against 0.04594782) and below 8e-4 for the other 51. The reversal potentials E_Ca 130,
+E_K -90 and E_Na 50 are identical; E_h -30.001, E_L -74.9596 (soma) and -74.9825 (dendrite) are rounded the same way.
+The model was not changed to hide this. Only parameters were compared, not the Python equations.
+
+**Ma23 against its paper and its AUTO-07p export.** `models/main.ode` of the maintainer's parvocell_model agrees with
+Table 1 and the equations of Ma et al. 2023 (docs/ma2023.md there) except E_Ca: the table lists 68 mV, the `.ode`
+130 mV, which the example keeps and says in its header. `models/Ma2_test_auto07p_export/ma2_test.f90` is not the same
+model: C_m 12 (30), E_leak -58 (-50), E_K -90 (-80), E_Ca 120 (130 in the `.ode`, 68 in the paper), E_Na 50 (58), a
+different start state and a floor on the calcium of the SK term. The reference is therefore made from the example's
+own equations (`tools/auto_reference.py` translates the `.odex`), not from that file.
+
+**Disagreements, traced.**
+
+- *Hopf point of Mu26 control.* With DSMAX 0.5 xppautX locates it at 13.2656035 pA, AUTO-07p at 13.2654734, a
+  difference of 1.3e-4 against a tolerance of 3.3e-5. At DSMAX 0.3, 0.4, 0.5, 0.6, 0.7, 0.8 and 1.0 xppautX gives
+  13.265539, 13.265527, 13.265604, 13.2654734, 13.265533, 13.26547355 and 13.26547351; AUTO-07p gives 13.265473491,
+  13.265473468, 13.265473448, 13.265473564, 13.265473568, 13.2654736 and 13.265473353. The real part of the Hopf pair
+  moves 6e-4 per pA, and xppautX's located point had a Hopf function of -7.9e-8; its location iterations
+  (diagnostics file, IID 2) alternate in sign at steps of 1e-4 to 1e-5 while the function at one and the same
+  parameter value takes values from +5e-8 to -8e-8. Cause: the test functions are evaluated at the Jacobian of the last
+  Newton iterate, as XPPAUT's AUTO2000 does; AUTO-07p's SOLVAE recomputes it at the converged point first
+  ([xppaut-findings.md 70](xppaut-findings.md#70-auto-evaluates-the-test-functions-at-the-last-newton-iterates-jacobian)).
+  The description uses DSMAX 0.8, where xppautX agrees (5e-8 pA); changing the call changes every AUTO baseline's last
+  digits, so it is a card of its own (proposed in W415's report).
+- *The second fold of Mu26 at DSMAX 1.* xppautX labels a BP at -78.744 pA and the fold at -79.0566 pA is not labelled;
+  AUTO-07p labels neither. Both label the fold from DSMAX 0.8 down. Not traced
+  further.
+- *The cusp of Mu26's rheobase-fold locus.* xppautX labels CP at 1.08110512 pA at DSMAX 1, 0.5, 0.25 and 0.1;
+  AUTO-07p at 0.5 and 0.25 (1.08110512), not at 1 and 0.1. The description uses 0.5. Not traced further.
+- *The folds of cycles in g_h* (`lpc_soma`, `lpc_dend` of `run_2d_bifurcation.auto`) are not in the descriptions.
+  With the script's RL0=0 AUTO-07p's own run stops at its first step, which leaves g_h negative (one sample of the
+  curve; the source's saved `b.lpc_soma` has four points ending at g_h -4e-4), and past it xppautX did not finish
+  12 points of the curve within the driver's 120 s safety limit.
+- *XPPAUT 8.0.* Ma23: it labels no Hopf point, so its cycles run cannot start from one (finding 70). Mu26:
+  `tools/auto_reference.py` stops waiting for an equilibrium run at the first EP row, the run's start
+  (`finished()` in `execute_xppaut`), and keeps the rows printed by then, which for this model are two of the
+  five; XPPAUT's own log shows the same points as ours (LP 0.0058127 at point 9, LP -79.05658 at 127, HB
+  13.26547 at 244, and for the cycles LP 99.99655 at 118 with period 35.54737). Both descriptions therefore skip
+  XPPAUT's reference with the reason; a fix of `finished()` is proposed in W415's report.
+
+**Not run.** The periodic branches of Mu26 to the rheobase fold (`run_bifurcation_*_extend.auto`: 16000 + 30000 steps
+at 50 and 150 mesh intervals, the period diverging to 25 s), and the extent of the cycles beyond their fold.
