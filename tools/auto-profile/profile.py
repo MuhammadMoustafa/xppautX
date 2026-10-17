@@ -12,7 +12,7 @@ OUT/<workload>.newton.jsonl (tools/auto-profile/newton.py) instead.
     python3 tools/auto-profile/profile.py BINARY OUT WORKLOAD [--nmax N] [--paper DIR]
 
 WORKLOAD: py_s1bf (W246/W269's periodic run: phases setup, steady, periodic), modeldb (W269's ModelDB
-267710: the same phases), or a tests/auto description name (tstauto_lecar, ...: phase
+267710 as examples/ode/motoneuron6c.odex, W429: the same phases), or a tests/auto description name (tstauto_lecar, ...: phase
 'all', the description's runs at 1 thread). --paper is paper/benchmarks (git-ignored, so only
 the maintainer's checkout has it; default: the main checkout's). Run it through tools/heavy.sh in WSL.
 """
@@ -102,9 +102,12 @@ def periodic(args, prof, wrapper):
         model = converted(args, only, 'PY_S1Bf_bench.ode', Path(scratch) / 'model')
         hopf_xppautx.measure(wrapper, model=str(model), threads=1)
     else:
-        converted(args, auto_xppautx.MODEL_DIR, 'rest.ode', Path(scratch) / 'model',
-                  [('opt.inc', 'NMAX=10000000', 'NMAX=100000')])  # the program refuses 1e7 (allocation maximum)
-        auto_xppautx.MODEL_DIR = Path(scratch) / 'model'
+        # W429: the model is the repository's (ModelDB 267710 as examples/ode/motoneuron6c.odex, W431), staged
+        # with the integration's output file next to it
+        model = Path(scratch) / 'model'
+        model.mkdir()
+        shutil.copy(ROOT / 'examples/ode/motoneuron6c.odex', model)
+        auto_xppautx.MODEL_DIR, auto_xppautx.MODEL = model, 'motoneuron6c.odex'
         auto_xppautx.measure(wrapper, threads=1)
     shutil.rmtree(scratch, ignore_errors=True)
 
