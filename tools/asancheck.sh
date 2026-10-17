@@ -46,6 +46,7 @@
 #   $MAKE, $PYTHON  the make and python programs (default make, python3)
 cd "$(dirname "$0")/.." || exit 1
 top=$PWD
+. tools/jobs.sh
 BASELINE=c281851de59ffd03b2a46428619a0c8f
 leaks=1
 bdir=build/asan
@@ -102,7 +103,6 @@ export XPP_CHECK_STDERR
 if [ $leaks -eq 1 ]; then
   export LSAN_OPTIONS="suppressions=$top/tools/lsan.supp:print_suppressions=0"
 fi
-. tools/jobs.sh
 if command -v timeout >/dev/null 2>&1; then
   TMO=timeout
 elif command -v gtimeout >/dev/null 2>&1; then
