@@ -1123,8 +1123,8 @@ steps, lie on one curve (the control's 3% is the fold's last digit). Run on, bot
 (periods of 1e5 to 1e6 ms). The branch has no special point between the cycles' fold and the SNIC, so the
 reference comparison adds no quantity; the baseline holds every point. XPPAUT 8.0's control reference reaches the same end (W438, [#500](https://github.com/MuhammadMoustafa/xppautX/issues/500)):
 the cycles' EP grabbed by Tab, then Run and `e` (Extend), 170 points, ending at 0.0058180 pA with period 36225 ms.
-The blocked reference's `to_snic` is not made yet: its `lpc_soma` run, which the driver still tries, times out
-(600 s) until W436 makes that reference.
+The blocked one ends at 0.0658090 pA with period 45125 ms (T * sqrt(I - I_LP) 142.9, against 143.1 and 143.4 above); the
+driver leaves a run the description skips (`lpc_soma`, `lpc_dend`) unavailable with the skip's reason.
 The run costs about 70 s at one thread per description (the whole comparison went from 144 to 291 s at one thread,
 65 to 112 s at automatic threads).
 
