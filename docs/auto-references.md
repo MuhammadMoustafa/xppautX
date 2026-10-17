@@ -229,7 +229,7 @@ four and three, with two additional real special points now compared.
 48 descriptions have an AUTO-07p reference (166 special points compared, and the two-parameter curves) and 42 an
 XPPAUT 8.0 reference (117 points); 42 hold both. Every untraced comparison agrees. AUTO-07p has 26 traced points
 and XPPAUT 8.0 43; the runs a description skips (its reason says why) are neither run nor compared. The whole
-comparison is 60 descriptions, 9 skipped, 17818 stored points across one and automatic threads, 150 checks, zero
+comparison is 60 descriptions, 9 skipped, 18498 stored points across one and automatic threads, 150 checks, zero
 failures. Newton and location tolerances are unchanged; XPPAUT curve exports include their half-unit printing uncertainty
 (above). W428 ([#490](https://github.com/MuhammadMoustafa/xppautX/issues/490)) adds eleven XPPAUT references; only the map fold
 remains refused among the twelve two-parameter descriptions. Three one-parameter references (`tstauto_ab`, `tstauto_dumb`,
@@ -255,8 +255,8 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.4e-10, norm 1.6e-07, period 6.7e-05, spectrum 0.00037) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.5e-06, period 0.0017, spectrum 0.00041) |
 | ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 6.8e-07, norm 6.4e-09, period 2.1e-08, spectrum 1.2e-06) | agrees (4 points; par 1e-05, norm 4.7e-06, period 5.4e-09, spectrum 8.4e-08) |
 | ode_motoneuron6c | steady: EP LP LP HB HB LP HB LP HB HB; periodic: LP; hb_up: -; hb_down: - | agrees, 5 traced (11 points; par 1.5e-09, norm 1.8e-08, period 1.2e-07, spectrum 5e-06; curve par 5.8e-06, par2 7.4e-08, norm 0.00015) | agrees (11 points; par 9.3e-06, norm 0.0005, period 0.1, spectrum 0.001; curve par 2.2e-05, par2 5.1e-07, norm 0.00067) |
-| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | agrees, 1 traced (5 points; par 1.2e-06, norm 1e-05, period 7e-08, spectrum 1e-07; curve par 0.024, par2 0.00087, norm 0.00021) |
-| ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 1.2e-07, norm 3.9e-09, period 1.4e-08, spectrum 1.1e-06) | agrees (5 points; par 3.5e-06, norm 4.3e-06, period 8e-08, spectrum 1.3e-07) |
+| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; to_snic: -; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | agrees, 1 traced (5 points; par 1.2e-06, norm 1e-05, period 7e-08, spectrum 1e-07; curve par 0.024, par2 0.00087, norm 0.00021) |
+| ode_mu26_control | steady: EP LP LP HB; cycles: LP; to_snic: - | agrees (5 points; par 1.2e-07, norm 3.9e-09, period 1.4e-08, spectrum 1.1e-06) | agrees (5 points; par 3.5e-06, norm 4.3e-06, period 8e-08, spectrum 1.3e-07) |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | res_cycles | steady: EP HB HB; cycles: TR; torus_down: R1 R4 R3 R2 R3; torus_up: R4 R3 R2 R3 R4 BP | agrees, 6 traced (9 points; par 4.3e-07, par2 3.3e-07, norm 1.9e-07, period 2.2e-11, spectrum 0.0013; curve par 2.3e-06, par2 2.5e-05, norm 1.5e-06) | agrees, 11 traced (4 points; par 4e-08, norm 2.2e-08, period 2.2e-11, spectrum 6.6e-08; curve par 2.8e-06, par2 2.4e-05, norm 7.2e-06) |
 | tstauto_ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
