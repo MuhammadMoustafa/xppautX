@@ -1071,3 +1071,28 @@ Tried and not kept: a product of trigonometric factors (`sin(theta/2) cos(theta/
 sees the circle as well but changes every torus location's last bits from 0 to pi; returning `std::optional` from the
 twelve test functions says "does not apply" in the type, but changes their shared signature, every stored test value
 and Mueller's arguments, where one named value checked in two places does the same.
+
+## W426: the LAPACK build and res_cycles' 1:2 resonance ([#488](https://github.com/MuhammadMoustafa/xppautX/issues/488))
+
+With `LINALG=lapack`, res_cycles torus_up's point 39 (285 of the whole diagram) was a regular point at c = -0.6217
+where the default build and AUTO-07p locate R2 at -0.625. Traced on master `bde36b9e` in both builds:
+
+- **Not the test.** The resonance test at points 37 and 38 is -0.0396748370 and 0.2339037361 in both builds (they
+  differ from the 12th digit on): it changes sign in both, and both start the location with the same secant step,
+  whose iterate has the test -0.0030763843 at theta = 3.1409967.
+- **The location's solve.** Mueller's next step aims 6.0e-4 further. EISPACK's solve there converges, at theta =
+  3.14159243 (2.3e-7 from pi), and the location ends on R2. LAPACK's does not: `stepbv` halves the step to 3.0e-4,
+  and every later iterate's again, until theta = 3.1415740 (1.9e-5 from pi), where no step converges and the location
+  gives the point up (NOTE: Possible special point). The torus equations are singular at the 1:2 resonance (W419); which
+  step still converges that close to it is decided by the last bits every earlier point carries, and those differ
+  between the two libraries from the first located point on, through the multipliers its location's test reads.
+  AUTO-07p's location is the same Mueller iteration with no handling of the singular point: its R2 converges, as
+  EISPACK's did, by the same luck.
+
+The location, not the test, decided it, and W419 makes it independent of the library here: a location whose zero is
+nearest a 1:2 resonance aims half its tolerance short of it, as one at 1:1 did since W405. After W419,
+`tools/auto-profile/diagram_diff.py build/lapack/xppautX` gives **0 AUTO-07p differences** over the 51 runnable
+descriptions (master's LAPACK build: 1, this one); res_cycles' largest difference is 0.48 of its tolerance, and
+forced_pp_ns's LAPACK diagram now has the default build's 264 points (it differed by 0.34 in the parameter after its
+BP at the 1:2 endpoint, where the same singular solve decided a step). The largest fraction, 0.908, is forced_pp_pd's
+far R2 (W405: 1.9e-5 against a tolerance of 2.1e-5), the same in master's LAPACK build. EISPACK stays the default.
