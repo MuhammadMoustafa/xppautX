@@ -268,8 +268,7 @@ def curve_points(text, first, second):
 
 def script(runs, eq, names):
     """The .auto script: runs in order, every labelled solution printed as a JSON line."""
-    lines = ['import json', 'results = {}', 'def period(s):', '    try:', "        return s['PAR(%d)']" % PERIOD,
-             '    except KeyError:', '        return None  # a boundary value problem has no period']
+    lines = ['import json', 'results = {}']
     for r, c in zip(runs, names):
         start = r['start']
         if start.get('state') == 'current':
@@ -285,12 +284,14 @@ def script(runs, eq, names):
                 # AUTO-07p takes for the description's DS (not necessarily the way xppautX's curve goes)
                 src = "run(run(%s, c='%s'))" % (at, c)
         second = ", 'par2': s['PAR(%d)']" % eq['icp2'][r['name']] if r['name'] in eq['icp2'] else ''
+        # a boundary value problem has no period (its PAR(11) is unused); every other run's solutions carry PAR(11)
+        period = 'None' if r['kind'] == 'bvp' else "s['PAR(%d)']" % PERIOD
         lines += ['print("RUN %s")' % r['name'], 'try:', '    results[%r] = %s' % (r['name'], src),
                   "    save(results[%r], %r)" % (r['name'], c),
                   "    for s in results[%r]():" % r['name'],
                   "        print('POINT ' + json.dumps({'run': %r, 'type': s['TY name'], 'branch': s['BR'], 'label': s['LAB'],"
-                  " 'point': s['PT'], 'par': s['PAR(%d)']%s, 'norm': s['L2-NORM'], 'period': period(s)}))"
-                  % (r['name'], eq['icp1'][r['name']], second),
+                  " 'point': s['PT'], 'par': s['PAR(%d)']%s, 'norm': s['L2-NORM'], 'period': %s}))"
+                  % (r['name'], eq['icp1'][r['name']], second, period),
                   'except Exception as e:', "    print('FAILED %s ' + str(e).replace(chr(10), ' '))" % r['name']]
     return '\n'.join(lines) + '\n'
 
