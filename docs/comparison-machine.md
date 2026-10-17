@@ -19,7 +19,7 @@ in `paper/` (git-ignored; how it gets there is the maintainer's choice).
    - `--check`, as above;
    - `--sources`: rebuilds the git-ignored `reference/`: `xppaut-8.0` (this repository's
      `git archive c021b51...`), `xppaut-master` (ermentrout/xppaut at its tip, 9068d8a) and
-     `auto-07p` (auto-07p/auto-07p at 44cc1c4, the 0.9.4 line). Each tree is compared with
+     `auto-07p` (auto-07p/auto-07p at 44cc1c4: 0.9.4, untagged). Each tree is compared with
      a hash pinned in the script; a tree that already has it is kept, one that has not is a
      refusal (nothing is deleted: move it away);
    - `--build`: xppautX (`git archive HEAD`, `WINDOW=0`, `-g -O2`, no ccache), XPPAUT 8.0

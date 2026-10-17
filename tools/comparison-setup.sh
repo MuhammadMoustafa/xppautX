@@ -36,7 +36,7 @@ MASTER_URL=https://github.com/ermentrout/xppaut
 MASTER_COMMIT=9068d8ac481b315d6b8ad5d1920aeeedde2c0bfd    # master's tip, 2016-02-03
 MASTER_TREE=f90e07f0cabab4129e2d2f34f4658c32b6cb4d680f008fa3e7b7f47e506aa808
 AUTO_URL=https://github.com/auto-07p/auto-07p.git
-AUTO_COMMIT=44cc1c42a888179bdbd608a40613caee9cbc4675      # v0.9.3-82, the 0.9.4 line
+AUTO_COMMIT=44cc1c42a888179bdbd608a40613caee9cbc4675      # 0.9.4 (CHANGELOG; no 0.9.4 tag, so git describe says v0.9.3-82)
 AUTO_TREE=b9ad9f995b8678b0d4b2b12c4650c0f68298c483f1e19be4e033704498b4629d
 # W269's builds (paper/benchmarks/five-model-screen/provenance-w269.json, auto/results provenance)
 AUTO_CONFIGURE="--enable-gui=no --enable-plaut=no --enable-plaut04=no"
