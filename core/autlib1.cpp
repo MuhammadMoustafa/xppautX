@@ -160,19 +160,33 @@ void locate_tests(iap_type &iap, rap_type &rap,
       marks[*tests[*found].user_index].parameter < 0) iap.istop = -1;
 }
 
+// The arclength within which a location takes a zero as found: EPSS
+// relative to the geometric mean of DS and DSMAX (AUTO-07p LCSPAE/LCSPBV).
+double location_tolerance(const rap_type &rap) {
+  return rap.epss * (1 + std::sqrt(std::abs(rap.ds * rap.dsmax)));
+}
+
 // AUTO-07p LCSPAE ae.f90:679-698 / LCSPBV bvp.f90:1309-1329:
 // coincident bifurcations keep the first label, except that they override UZ.
 bool location_sign_change(iap_type &iap, const rap_type &rap,
                           double q0, double &q1, double dstest,
                           bool enabled, bool user_zero) {
   if (iap.itp.kind != xpp::AutoPointKind::Regular &&
-      std::abs(auto_hmach1 * q1 * dstest) <
-          rap.epss * (1 + std::sqrt(std::abs(rap.ds * rap.dsmax))) * std::abs(q0 - q1)) {
+      std::abs(auto_hmach1 * q1 * dstest) < location_tolerance(rap) * std::abs(q0 - q1)) {
     if (iap.itp.kind == xpp::AutoPointKind::UserZero && enabled && !user_zero)
       iap.itp = {xpp::AutoPointKind::Pending};
     q1 = 0;
   }
   return !((q0 >= 0 && q1 >= 0) || (q0 <= 0 && q1 <= 0) || !enabled);
+}
+
+// W405 (#467): a torus curve's own equations are singular at its 1:1
+// resonance (the pair meets the trivial multiplier of a cycle, or the fold
+// branch of a map): the solution there is not isolated and Newton does not
+// converge to it. A location of a zero there aims half its tolerance short
+// of it, so it ends on a converged point within that tolerance.
+double location_step(const rap_type &rap, double rds, bool singular) {
+  return singular ? rds - std::copysign(location_tolerance(rap) / 2, rds) : rds;
 }
 
 /* AutoLib::setubv_stop set for one solvbv, cleared the same way */
@@ -1637,6 +1651,9 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
       {u, n}, {uold, n}, {udot, n}, {aa, na}, {rhs, n + 1}, {du, n + 1},
       {f, n}, {dfdu, n * n}, {dfdp, n * np}});
 
+  const bool singular = iap->itpst == xpp::AutoPointKind::Torus &&
+      xpp::auto_torus_near_one_to_one(u[2 * iap->ndm]);
+
   /* Use the secant method for the first step: */
 
   s0 = 0.;
@@ -1658,6 +1675,8 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
     xpp::print(iap->lib->fp9," ==> Location of special point :  Convergence.    Stepsize ={:11.3E}\n",rds);
     return 0;
   }
+
+  rds = location_step(*rap, rds, singular);
 
   /* If requested write additional output on unit 9 : */
 
@@ -5612,6 +5631,9 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
       {p0, n * n}, {p1, n * n}, {dups, nu}, {fa, nu}, {fc, nc}});
   const std::vector<doublecomplex> saved_ev(ev, ev + n);
 
+  const bool singular = iap->isw == 2 && iap->itpst == xpp::AutoPointKind::Torus &&
+      xpp::auto_torus_near_one_to_one(par[xpp::auto_unknown::torus_angle]);
+
   /* Use the secant method for the first step: */
 
   s0 = 0.;
@@ -5634,6 +5656,8 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 
     return 0;
   }
+
+  rds = location_step(*rap, rds, singular);
 
   /* If requested write additional output on unit 9 : */
 
@@ -5806,6 +5830,15 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   if (det != 0.) {
     ret_val = det0 / det;
     *chng = TRUE_;
+    const double angle = par[xpp::auto_unknown::torus_angle];
+    if (iap->isw == 2 && iap->itpst == xpp::AutoPointKind::Torus && xpp::auto_torus_near_one_to_one(angle)) {
+      // W405 (#467): a cycle's torus equations hold the trivial multiplier's
+      // block, rotation minus identity, whose determinant 4 sin^2(theta/2)
+      // vanishes at the 1:1 resonance: divided out there, a branch point at
+      // the resonance is a simple zero of the test and not a triple one.
+      const double half = xpp::math::sin(angle / 2);
+      if (half != 0) ret_val /= 4 * half * half;
+    }
   } else {
     ret_val = 0.;
     *chng = FALSE_;
@@ -5885,18 +5918,8 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   integer first=1;
   if (isw==2 && (iap->itpst==xpp::AutoPointKind::PeriodicFold ||
-                 iap->itpst==xpp::AutoPointKind::PeriodDoubling)) {
-    // Keep the curve's imposed real multiplier beside the neutral one.
-    const double imposed=iap->itpst==xpp::AutoPointKind::PeriodicFold ? 1. : -1.;
-    integer nearest=1;
-    double distance=auto_rlarge;
-    for (integer k=1;k<ndim;++k) if (ev[k].i==0 && std::abs(ev[k].r-imposed)<distance) {
-      distance=std::abs(ev[k].r-imposed);
-      nearest=k;
-    }
-    std::rotate(ev+1,ev+nearest,ev+nearest+1);
-    first=2;
-  }
+                 iap->itpst==xpp::AutoPointKind::PeriodDoubling))
+    first=static_cast<integer>(auto_cycle_place_imposed(iap->itpst,{ev,static_cast<std::size_t>(ndim)}));
   // W356 (#418): AUTO-07p periodic.f90:1960-1983, insertion by
   // conjugate blocks. Keep both computed values, including their order.
   for (i = first+1; i < ndim; ++i) {

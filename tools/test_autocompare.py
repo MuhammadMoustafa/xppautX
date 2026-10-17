@@ -225,6 +225,18 @@ class Curves(unittest.TestCase):
             diffs, _ = compare_curve(self.rows(ours), self.WIDE, [list(v) for v in ref], 'm')
             self.assertTrue(diffs, len(ref))
 
+    def test_two_runs_of_nmax_steps_are_compared_where_both_went(self):
+        ours = self.parabola(40)
+        longer = [(a, a + a * a, 2 * a) for a in (0.051 * i for i in range(40))]  # longer steps, same curve
+        nmax = dict(self.WIDE, nmax=40)
+        self.assertTrue(compare_curve(self.rows(ours), self.WIDE, [list(v) for v in longer], 'm')[0])
+        self.assertEqual(compare_curve(self.rows(ours), nmax, [list(v) for v in longer], 'm')[0], [])
+        self.assertEqual(compare_curve(self.rows(longer), nmax, [list(v) for v in ours], 'm')[0], [])
+        # a run that stopped before its NMX-th point, or a curve that leaves the other before its end, still differs
+        self.assertTrue(compare_curve(self.rows(ours[:30]), nmax, [list(v) for v in longer], 'm')[0])
+        bent = [(a, b + (0.02 if a > 1.5 else 0), n) for a, b, n in longer]
+        self.assertTrue(compare_curve(self.rows(ours), nmax, [list(v) for v in bent], 'm')[0])
+
     def test_only_samples_inside_the_first_parameters_bounds_are_compared(self):
         ours = self.parabola(40)
         ref = [list(v) for v in self.parabola(60)]

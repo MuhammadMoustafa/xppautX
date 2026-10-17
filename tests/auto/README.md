@@ -86,11 +86,11 @@ that fixes it) is read with the file but not compared; the card that makes xppau
 W403 (#465) adds references from published models and models of our own (`res_cycles`, `forced_pp_pd`, `forced_pp_ns`,
 `lorenz_homoclinic`, `explicit_homoclinic`; docs/auto-references.md, "W403"): the curves xppautX runs but does not label, and the
 HomCont runs it could not follow were skipped with PENDING W365 until W365 (#427) made them agree; the curves
-stay skipped with PENDING W405.
+were skipped with PENDING W405 until W405 (#467) located their resonances where the torus equations are singular.
 
 W404 (#466) runs the Henon-with-rotation map descriptions against AUTO-07p:
 fixed-point PD/TR labels and both map fold/flip directions, plus the torus up direction.
-The torus down run retains a traced skip at its singular R1 endpoint: model Jacobian
-roundoff displaces that label, and AUTO-07p's subsequent BP is missing even with exact
-derivatives. `autocheck codim` independently checks the closed-form curves and torus
+The torus down run retains a traced skip at its singular R1 endpoint: since W405 xppautX's
+R1 is 3.7e-7 from (-1,1), but AUTO-07p's R1 and the BP after it lie 1.9e-5 along the fold
+branch its step entered there. `autocheck codim` independently checks the closed-form curves and torus
 labels before that endpoint, named controls, and session round trips. No tolerance is widened.

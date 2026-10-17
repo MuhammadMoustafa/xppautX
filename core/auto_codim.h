@@ -17,6 +17,8 @@ struct AutoCodim {
 AutoPointKind auto_map_secondary_kind(AutoPointKind start, double angle, double tolerance);
 // The nearest strong resonance of the continued (unwrapped) Floquet angle.
 AutoPointKind auto_cycle_resonance_kind(AutoPointKind start, double angle);
+// Whether a torus curve's angle, taken modulo 2*pi, is nearest its 1:1 resonance.
+bool auto_torus_near_one_to_one(double angle);
 
 }
 #endif

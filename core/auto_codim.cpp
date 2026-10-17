@@ -14,6 +14,12 @@ constexpr std::array<double,4> resonance_angles={0.,.5,2./3,1.};
 constexpr std::array<xpp::AutoPointKind,4> resonance_kinds={xpp::AutoPointKind::Resonance1,
     xpp::AutoPointKind::Resonance4,xpp::AutoPointKind::Resonance3,xpp::AutoPointKind::Resonance2};
 
+// The multiplier a fold (+1) or period-doubling (-1) curve of cycles imposes.
+double imposed_multiplier(xpp::AutoPointKind start)
+{
+    return start==xpp::AutoPointKind::PeriodicFold ? 1. : -1.;
+}
+
 double resonance_test(const std::array<bool,xpp::auto_codim_kinds.size()> &enabled, double angle, logical *changed)
 {
     double test=1.;
@@ -55,6 +61,12 @@ AutoPointKind auto_map_secondary_kind(AutoPointKind start, double angle, double 
     if (start==AutoPointKind::PeriodDoubling) return torus ? AutoPointKind::FlipTorus : !flip ? AutoPointKind::FoldFlip : AutoPointKind::Regular;
     if (start==AutoPointKind::Torus) return flip ? AutoPointKind::FlipTorus : torus ? AutoPointKind::TorusTorus : AutoPointKind::FoldTorus;
     return AutoPointKind::Regular;
+}
+
+bool auto_torus_near_one_to_one(double angle)
+{
+    const double folded=std::abs(std::remainder(angle,pi(2.)));
+    return auto_cycle_resonance_kind(AutoPointKind::Torus,folded)==AutoPointKind::Resonance1;
 }
 
 AutoPointKind auto_cycle_resonance_kind(AutoPointKind start, double angle)
@@ -223,6 +235,20 @@ double lyapunov(iap_type &iap, rap_type &rap, double *par, integer *icp,
 }
 }
 
+std::size_t auto_cycle_place_imposed(xpp::AutoPointKind start, std::span<doublecomplex> spectrum)
+{
+    // At a resonance roundoff splits the double +1/-1 into a conjugate pair:
+    // that pair goes there whole (W405; AUTO-07p's PVSPBV takes reals only).
+    const double imposed=imposed_multiplier(start);
+    const auto distance=[imposed](const doublecomplex &m) { return xpp::math::hypot(m.r-imposed,m.i); };
+    auto nearest=std::min_element(spectrum.begin()+1,spectrum.end(),
+        [&](const doublecomplex &a, const doublecomplex &b) { return distance(a)<distance(b); });
+    if (nearest->i<0 && nearest-1>spectrum.begin()) --nearest; // a+bi precedes a-bi
+    const std::ptrdiff_t width=nearest->i!=0 && nearest+1<spectrum.end() ? 2 : 1;
+    std::rotate(spectrum.begin()+1,nearest,nearest+width);
+    return static_cast<std::size_t>(1+width);
+}
+
 double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *par,
                        std::span<const doublecomplex> spectrum, logical *changed)
 {
@@ -240,9 +266,10 @@ double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *p
         return 0;
     }
     // spectrum[0] is the neutral multiplier; [1] is the curve's imposed
-    // +1/-1. Test the next one, as AUTO-07p's periodic.f90 PVSPBV does.
+    // +1/-1, or one of the conjugate pair it splits into with [2] at the
+    // resonance itself. Test [2], as AUTO-07p's periodic.f90 PVSPBV does.
     constexpr double imposed_multiplier_tolerance=.05; // AUTO-07p's accuracy band.
-    const double imposed=start==xpp::AutoPointKind::PeriodicFold ? 1. : -1.;
+    const double imposed=imposed_multiplier(start);
     const auto &fixed=spectrum[1], &remaining=spectrum[2];
     *changed=*changed && std::abs(remaining.i)<std::sqrt(std::sqrt(rap.epss)) &&
         imposed*remaining.r>0 && xpp::math::hypot(fixed.r-imposed,fixed.i)<imposed_multiplier_tolerance;

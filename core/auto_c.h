@@ -244,6 +244,10 @@ int lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYP
 FNCS_TYPE_BVP(fnlpbv);
 FNCS_TYPE_BVP(fnbpbv);
 FNCS_TYPE_BVP(fnspbv);
+// Moves the multiplier nearest a fold or period-doubling curve's imposed +1/-1
+// (or the conjugate pair it has split into) next to the neutral one at [0];
+// returns how many multipliers now lead the rest.
+std::size_t auto_cycle_place_imposed(xpp::AutoPointKind start, std::span<doublecomplex> spectrum);
 // Cycle-curve part of fnspbv, using its ordered original Floquet spectrum.
 double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *par,
                        std::span<const doublecomplex> spectrum, logical *changed);

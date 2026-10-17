@@ -91,7 +91,7 @@
         "epss": 0.0001,
         "mxbf": 0
       },
-      "skip": "PENDING W405 (#467): traced by W404 at the singular R1 endpoint (zero-angle torus equations also admit the fold branch): the numerical Jacobian locates R1 at (alpha,beta)=(-1.000268303,1.000268285), onto that fold branch, 2.68e-4 off the torus endpoint (-1,1), and misses AUTO-07p's following BP. Exact model derivatives restore curve agreement (R1 displacement 1.89e-5), but still miss that BP. The other torus labels agree before this double +1 degeneracy; no comparison tolerance was widened."
+      "skip": "Traced in W405 (#467): at the singular R1 endpoint (alpha,beta)=(-1,1) the zero-angle Neimark-Sacker equations also hold on the fold branch alpha=-(1+beta)^2/4. AUTO-07p's R1 (-0.99998106,0.99998106) and the BP it labels next lie 1.9e-5 along that fold branch: its step left the torus branch there, and its branch-point test changes sign between the two branches. xppautX's location stops within its tolerance short of the 1:1 resonance and finds R1 3.7e-7 from (-1,1) (2.68e-4 before W405); along the torus branch its branch-point test keeps its sign (-0.18, -8.6e-6 at R1, -0.12), so it labels no BP. The R1 and BP samples of AUTO-07p are off xppautX's curve by that excursion; no comparison tolerance was widened"
     }
   ]
 }

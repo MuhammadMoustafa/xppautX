@@ -214,10 +214,10 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-43 descriptions have an AUTO-07p reference (126 special points compared, and the two-parameter curves) and 27 an
-XPPAUT 8.0 reference (52 points); 27 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
+40 descriptions have an AUTO-07p reference (124 special points compared, and the two-parameter curves) and 24 an
+XPPAUT 8.0 reference (44 points); 24 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
 and XPPAUT 8.0 three; the runs a description skips (its reason says why) are neither run nor compared. The whole
-comparison is 55 descriptions, 9 skipped, 11174 stored points across one and automatic threads, 135 checks, zero
+comparison is 52 descriptions, 9 skipped, 10998 stored points across one and automatic threads, 126 checks, zero
 failures. No tolerance was widened. Before W326 there were 44 compared points and six traced points against
 AUTO-07p, and 44 compared points with none traced against XPPAUT.
 
@@ -225,20 +225,20 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 |---|---|---|---|
 | explicit_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.2e-08, par2 2.4e-15, norm 1.8e-08) | not run |
 | forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 1.2e-08, par2 4e-09, norm 2.4e-09, period 2e-14, spectrum 9e-05; curve par 0.00037, par2 9.8e-06, norm 4.9e-06) | not run |
-| forced_pp_pd | steady: EP HB; cycles: PD; pd_down: R2 | agrees (4 points; par 1.8e-06, par2 6.4e-07, norm 3.5e-07, period 2.1e-14, spectrum 4.3e-05; curve par 5e-09, par2 1.2e-08, norm 2.6e-09) | not run |
-| henon_rot_lp | steady: EP LP TR PD; up: LTR LPD R1; down: LTR | agrees (8 points; par 8.9e-07, par2 1.5e-06, norm 8e-07, spectrum 3.3e-05; curve par 3.4e-06, par2 1.1e-06, norm 7.8e-07) | not run |
+| forced_pp_pd | steady: EP HB; cycles: PD; pd_up: R2; pd_down: R2 | agrees (5 points; par 1.8e-06, par2 1.9e-05, norm 1.3e-06, period 2.1e-14, spectrum 4.3e-05; curve par 2.6e-07, par2 1.3e-05, norm 1.4e-06) | not run |
+| henon_rot_lp | steady: EP LP TR PD; up: LTR LPD R1; down: LTR | agrees (8 points; par 8.9e-07, par2 1.5e-06, norm 8e-07, spectrum 3.3e-05; curve par 2e-06, par2 1.1e-06, norm 7.8e-07) | not run |
 | henon_rot_pd | steady: EP PD TR TR; up: PTR R2 PTR; down: LPD PTR PTR | agrees (10 points; par 8.3e-07, par2 6.5e-07, norm 4.6e-07, spectrum 2.7e-05; curve par 3.1e-07, par2 1e-06, norm 7.3e-07) | not run |
 | henon_rot_tr | steady: EP PD TR TR; up: R2 | agrees (5 points; par 1.4e-07, par2 2.2e-10, norm 4.9e-08, spectrum 7.3e-06; curve par 3.2e-05, par2 5.8e-07, norm 1.2e-05) | not run |
 | hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 9.3e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07; curve par 2.7e-09, par2 1e-09, norm 8.4e-12) | not run |
-| hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP | agrees (7 points; par 1.2e-10, par2 3.9e-12, norm 7.7e-12, period 2e-11, spectrum 3.5e-06; curve par 1.2e-10, par2 2.7e-06, norm 1.5e-11) | not run |
+| hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP | agrees (7 points; par 1.2e-10, par2 3.9e-12, norm 7.7e-12, period 2e-11, spectrum 3.5e-06; curve par 1.2e-10, par2 1.9e-08, norm 1.5e-11) | not run |
 | izh_class1_integrator | steady: EP LP | agrees (2 points; par 7.5e-15, norm 4.1e-10, spectrum 2e-08) | agrees (2 points; par 7.5e-15, norm 3.7e-06, spectrum 2e-08) |
 | izh_class2 | steady: EP HB LP | agrees (3 points; par 4.4e-13, norm 3.7e-10, period 1.5e-05, spectrum 4.9e-07) | agrees (3 points; par 7.1e-06, norm 4.7e-06, period 1.6e-10, spectrum 9.3e-09) |
 | izh_resonator | steady: EP HB LP | agrees (3 points; par 2.5e-12, norm 4.5e-10, period 3.9e-05, spectrum 1.6e-07) | agrees (3 points; par 2.1e-05, norm 3.2e-06, period 3.6e-10, spectrum 5.7e-09) |
-| lorenz_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.8e-08, par2 1.4e-08, norm 6.6e-08) | not run |
+| lorenz_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.8e-08, par2 1.4e-08, norm 6.3e-08) | not run |
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
-| res_cycles | steady: EP HB HB; cycles: TR | agrees (4 points; par 1.8e-12, norm 1e-11, period 2.2e-11, spectrum 3.3e-07) | not run |
+| res_cycles | steady: EP HB HB; cycles: TR; torus_down: R1; torus_up: R4 R3 R2 BP | agrees (9 points; par 7.9e-07, par2 7.9e-07, norm 4.6e-07, period 2.2e-11, spectrum 0.0012; curve par 3.2e-07, par2 6.4e-06, norm 3.5e-07) | not run |
 | tstauto_ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
 | tstauto_ab_fold | steady: EP LP; fold: BT CP | agrees, 4 traced (4 points; par 1.3e-06, par2 5.4e-05, norm 8.1e-05, spectrum 0.0006; curve par 3e-05, par2 0.00018, norm 2.5e-05) | not run |
 | tstauto_ab_hopf | steady: EP LP LP HB; hopf_up: -; hopf_down: - | agrees, 3 traced (4 points; par 1.6e-07, norm 9.7e-07, period 3e-05, spectrum 0.00012; curve par 5.2e-06, par2 1.9e-05, norm 6.6e-06) | not run |
@@ -262,7 +262,7 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | tstauto_she | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_simplefold | steady: EP LP LP | agrees (3 points; par 4.8e-12, norm 4.5e-11, spectrum 8.6e-11) | agrees (3 points; par 2.1e-08, norm 4.3e-08, spectrum 2.7e-13) |
 | tstauto_torx | steady: EP HB BP; cycles: - | agrees (3 points; par 4.7e-12, norm 0, period 3.3e-12, spectrum 3.9e-07) | agrees (3 points; par 2.2e-08, norm 0, period 3.3e-12, spectrum 3.7e-08) |
-| tstauto_torx_homcont | steady: EP BP; homoclinic: EP LP | agrees (4 points; par 6.9e-12, norm 3.6e-08, spectrum 3.2e-07; curve par 7.4e-06, par2 1.1e-05, norm 5.1e-07) | not run |
+| tstauto_torx_homcont | steady: EP BP; homoclinic: EP LP | agrees (4 points; par 6.9e-12, norm 3.6e-08, spectrum 3.2e-07; curve par 6.5e-06, par2 9.8e-06, norm 3.4e-07) | not run |
 | tstauto_tsthom | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_wcbiwave | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | zero_hopf | steady: EP LP; fold: ZH | agrees (3 points; par 2.1e-09, par2 1.3e-40, norm 5.8e-17, spectrum 2.1e-09; curve par 7.6e-17, par2 6e-18, norm 3.6e-13) | not run |
@@ -521,7 +521,7 @@ the branch from the first branch point, which xppautX's switched branch does not
 |---|---|---|---|
 | `hill_cycles_torus` | `tools/models/hill_cycles.odex` | torus curve of cycles: R4 (d = 0.5637; 9/16 = 0.5625 for q = 0), R3 (d = 0.4464; 4/9 = 0.4444), a BP of the curve near d = 0.277 | R3, R4 and BP agree; the straight curve has max abs(c + mu) < 7.9e-11; the uncoupled R3/R4 places agree within 1.1e-7 (W400) |
 | `hill_cycles_pd` | the same | period-doubling curve of cycles: a closed lens, R2 at (c, d) = (-0.17495, 0.3107) and (-0.17494, 0.1854), where c + mu = 0 exactly (mu = 0.1749 at PD1) | all five R2 encounters agree, on the same closed lens; max abs(c + mu) at a labelled end is 1.8e-5, within location tolerance (W400) |
-| `henon_rot_tr` (down skipped) | `tools/models/henon_rot.odex` (the hen demo's Henon map beside a rotation) | torus curve of the map: R2 (alpha = 3), R3 (1.25), TTR (1.1), R4 (0), R1 (-1), the exact places of x = -cos(theta) | R2 up agrees; R3, TTR, R4 are detected down, but the singular R1 endpoint differs (W404 below) |
+| `henon_rot_tr` (down skipped) | `tools/models/henon_rot.odex` (the hen demo's Henon map beside a rotation) | torus curve of the map: R2 (alpha = 3), R3 (1.25), TTR (1.1), R4 (0), R1 (-1), the exact places of x = -cos(theta) | R2 up agrees; R3, TTR, R4 are detected down; R1 is 3.7e-7 from (-1, 1), where AUTO-07p's R1 and BP lie 1.9e-5 along the fold branch (W404, W405 below) |
 | `henon_rot_pd` | the same | flip curve: PTR (0.5139, 3.1198), R2 (3), LPD (0, -1), PTR (0.0195, 1.4136) | both directions agree, including PTR, R2 and LPD (W404) |
 | `henon_rot_lp` | the same | fold curve: LTR (-0.0127, -0.7873), LPD (0, -1), R1 (-1, 1) | both directions agree, including LTR, LPD and R1 (W404) |
 | `tstauto_torx_homcont` | `examples/tstauto/torx.odex` at the cir demo's parameters | HomCont, three dimensions (one real unstable eigenvalue, a stable pair): the curve in (rn, be) from (-0.721309, 0.6), an LP at (-0.71809, 0.54238) | agrees, the first point and the LP to 2e-9 and 4e-8 (W365 below) |
@@ -537,7 +537,7 @@ These lists are alpha values, not (alpha, beta) pairs; AUTO-07p and W404 agree w
 
 How a reference reaches the repository when xppautX cannot run it yet: `NAME.auto07p` holds every run, and a run
 skipped in the description (its reason names the card that takes it: W405 or W365) is read but not compared; the runs xppautX does run are compared
-(the base runs and, since W404, all map runs except the torus down direction's singular endpoint, which W405 takes). The card that makes xppautX run the curve drops the skip.
+(the base runs and, since W404, all map runs except the torus down direction, whose skip W405 traced). The card that makes xppautX run the curve drops the skip.
 The `tools/autocompare.py` changes that came with it: a curve of cycles' first rows (the starting data, one continued parameter)
 are not on the curve; a spectrum's order of a conjugate pair no longer depends on the last bit of its real parts; a
 HomCont run's reference is read like a two-parameter run's.
@@ -551,8 +551,8 @@ description with a reason naming W400 ([#462](https://github.com/MuhammadMoustaf
 
 | Description | Model | Source | AUTO-07p reaches | xppautX today |
 |---|---|---|---|---|
-| `res_cycles` | `tools/models/res_cycles.odex`: a Hopf cycle beside a Bogdanov-Takens system (w,v) | closed form | torus curve of cycles `c = -mu - sqrt(b)`: R1, R4, R3, R2 at the exact places below | R4 and R3 agree; R2, the BP and R1 are not found (skipped until W405, [#467](https://github.com/MuhammadMoustafa/xppautX/issues/467); traced in W400 below) |
-| `forced_pp_pd` | `tools/models/forced_predator_prey.odex` | Kuznetsov, Muratori, Rinaldi 1992; MatCont Tutorial V (Kuznetsov, Govaerts, Della Rossa, De Witte) | PD of the period-1 cycle; its closed PD curve with R2 at both ends | the R2 at the published end agrees to 6e-7; the far end is 8.5e-5 off (skipped until W405, [#467](https://github.com/MuhammadMoustafa/xppautX/issues/467); traced in W400 below) |
+| `res_cycles` | `tools/models/res_cycles.odex`: a Hopf cycle beside a Bogdanov-Takens system (w,v) | closed form | torus curve of cycles `c = -mu - sqrt(b)`: R1, R4, R3, R2 at the exact places below | R1, R4, R3, R2 and the BP agree since W405 ([#467](https://github.com/MuhammadMoustafa/xppautX/issues/467), below) |
+| `forced_pp_pd` | `tools/models/forced_predator_prey.odex` | Kuznetsov, Muratori, Rinaldi 1992; MatCont Tutorial V (Kuznetsov, Govaerts, Della Rossa, De Witte) | PD of the period-1 cycle; its closed PD curve with R2 at both ends | the R2 at the published end agrees to 6e-7, the far one to 1.9e-5 in b0 since W405 ([#467](https://github.com/MuhammadMoustafa/xppautX/issues/467), below) |
 | `forced_pp_ns` | the same, at b0 = 0.338 | the same | TR of the period-1 cycle; its NS curve to the R2 end, labelled BP; the curve ends at the unforced Hopf point | the curve and its BP agree |
 | `lorenz_homoclinic` | `tools/models/lorenz_homoclinic.odex` | Sparrow 1982, Kaplan and Yorke 1979 | HomCont in three dimensions, r = 13.92655741 to 15.6085 in (r, b) | agrees, the whole curve to 6e-8 (W365 below) |
 | `explicit_homoclinic` | `tools/models/explicit_homoclinic.odex` | closed form | HomCont in three dimensions, q = 1 to 3.0145 on k = 0 | agrees, and with the closed form to 2e-8 (W365 below) |
@@ -762,3 +762,51 @@ and 0.70294598013 at q = 3.0145499362 (0.70294597391). The three skips are dropp
 diagram moves by 5e-11 relative (the exact phase derivatives and the machine-precision Schur vectors), every other
 diagram and the example checksums are unchanged. The comparison: 52 descriptions, 9 skipped, 9982 stored points,
 126 checks, zero failures; 118 special points against AUTO-07p (114 before).
+
+## W405 (second attempt): where the torus equations are singular ([#467](https://github.com/MuhammadMoustafa/xppautX/issues/467))
+
+Three of the four skipped runs now run and agree with AUTO-07p; the fourth keeps a traced skip.
+
+- **res_cycles torus_down, R1.** At a torus curve's 1:1 resonance (its angle theta = 0 modulo 2 pi) the pair
+  `exp(+-i theta)` meets a cycle's trivial multiplier 1, whose eigenfunction can then be added to both halves of the
+  torus eigenfunction: the solution there is not isolated, whatever the model. The location aimed at the zero of the
+  angle test, where Newton's correction of the eigenfunction halves each iteration and then hovers at 1e-5 (a hundred
+  times EPSU); its retries halved the step down to DSMIN and gave the point up. AUTO-07p reaches it only because its
+  start run leaves the eigenfunction 160 times smaller (AUTO-07p finding 4). Now a location whose zero is at the 1:1
+  resonance aims half its tolerance short of it and ends on a converged point within that tolerance (lcspbv, lcspae).
+  R1 is at c = -0.99999919, b = 0.24999919, 7.9e-7 from AUTO-07p's and 8.1e-7 from the closed form (-1, 1/4).
+- **res_cycles torus_up, the BP at b = 0.** The curve reaches the 1:1 resonance again (theta = 2 pi) and turns back;
+  AUTO-07p labels it BP (its angle test does not look past pi: finding 5). The branch-point test vanishes there like
+  (theta - 2 pi)^3, since the trivial multiplier's block of the torus equations (a rotation by theta minus the identity)
+  contributes 4 sin^2(theta/2), and Mueller's method creeps to a triple zero: the location ran out of iterations. Near the
+  1:1 resonance that factor is now divided out of the test (fnbpbv), which leaves a simple zero (measured: the divided
+  test is -51.8 (theta - 2 pi) at three points 0.05 apart; in torus_down it vanishes like theta^4, with no sign change,
+  and neither program labels a BP there). The BP is at c = -0.500000006, 3.7e-8 from AUTO-07p's, b = 0 to 2e-23.
+  R2 (theta = pi) needs neither: Newton converges there, and torus_up's R4, R3 and R2 agree.
+- **forced_pp_pd pd_up, the far R2.** At a period-doubling curve's R2 the imposed -1 and the next multiplier form a
+  Jordan block, which roundoff splits into a conjugate pair. AUTO-07p's test then finds no imposed multiplier and
+  returns 0, which its location accepts as the zero (finding 6); xppautX did the same at another location step
+  (b0 = 2.5701605 against AUTO-07p's 2.5702457). Now the split pair stands for the imposed multiplier and its modulus
+  is tested, and the location goes on to |mu| = 1: b0 = 2.5702266, 1.9e-5 from AUTO-07p's (tolerance 2.1e-5). Real
+  multipliers are placed as before, so hill_cycles_pd's five R2 and pd_down's do not move.
+- **henon_rot_tr down** stays skipped, its reason rewritten: R1 is now 3.7e-7 from (-1, 1) (2.68e-4 before), but
+  AUTO-07p's R1 and the BP it labels next lie 1.9e-5 along the fold branch, which its step entered there; along the
+  torus branch the branch-point test keeps its sign, so xppautX labels no BP.
+- **The comparison.** torus_down's curve agrees, but AUTO-07p's ends 0.002 further in b: both runs take NMX = 130
+  steps, and xppautX's are 0.1% shorter, its eigenfunction (squared norm 2.1e-2 against 7.6e-7) counting in the
+  arclength. As for a parameter bound, when both runs end at NMX the samples beyond the other's last point are no
+  longer compared (tools/autocompare.py, tested in tools/test_autocompare.py with a run that stops before NMX and a curve
+  that leaves the other, which still differ). In four other descriptions' rows of the table a trailing sample no
+  longer compared lowers the largest curve difference (hill_cycles_torus par2 from 2.7e-6 to 1.9e-8); none changed agreement.
+
+Tried and not kept: retrying a failed location step below DSMIN also finds torus_down's R1, but it acts only after
+Newton fails, and on the map Newton does not fail, it converges onto the fold branch. More Newton iterations do not
+help: at the singular point the corrections stay at the roundoff level. Testing the pair's sum (accurate at a Jordan
+block) instead of |mu| - 1 locates R2 better still, but at the true R2 the computed pair is split by 5e-4 and
+hill_cycles_pd's R2 spectra would no longer agree. Dividing the trivial factor out of the branch-point test at every
+angle, not only near the 1:1 resonance, moved forced_pp_ns's BP and its later steps.
+
+Diagrams rewritten: res_cycles (its two torus runs added) and forced_pp_pd (pd_up added; pd_down's numbers are byte for
+byte the same, its branch and labels renumbered). Every other diagram and tests/examples.md5 are unchanged. The
+comparison: 52 descriptions, 9 skipped, 10998 stored points, 126 checks, zero failures; 124 special points against
+AUTO-07p (118 before).

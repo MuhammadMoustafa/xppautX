@@ -94,6 +94,21 @@ int main()
     CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)<0 && enabled);
     multipliers[2].i=.5;
     CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)==0 && !enabled);
+    // W405: a real imposed multiplier goes next to the neutral one alone; at the
+    // 1:2 resonance roundoff splits the double -1 into a conjugate pair, which
+    // goes there whole and is still tested (AUTO-07p's test gives 0 there, a
+    // zero its location accepts).
+    std::array<doublecomplex,4> placed={{{1,0},{.47,0},{-.9,0},{-1,0}}};
+    CHECK(auto_cycle_place_imposed(iap.itpst,placed)==2);
+    CHECK(placed[1].r==-1 && placed[2].r==.47 && placed[3].r==-.9);
+    placed={{{1,0},{.47,0},{-1.0000359,2.2e-4},{-1.0000359,-2.2e-4}}};
+    CHECK(auto_cycle_place_imposed(iap.itpst,placed)==3);
+    CHECK(placed[1].i>0 && placed[2].i<0 && placed[3].r==.47);
+    const double split=auto_cycle_test(iap,rap,par.data(),placed,&enabled);
+    CHECK(std::abs(split-(xpp::math::hypot(placed[2].r,placed[2].i)-1))<1e-15 && split>0 && enabled);
+    // A torus curve's 1:1 resonance is its angle 0 modulo 2pi, from either side.
+    for (double angle:{-1e-3,1e-3,pi(2.)-1e-3,pi(2.)+1e-3}) CHECK(xpp::auto_torus_near_one_to_one(angle));
+    for (double angle:{pi(.5),pi(2./3),pi(1.),pi(4./3),pi(1.5)}) CHECK(!xpp::auto_torus_near_one_to_one(angle));
     iap.itpst=xpp::AutoPointKind::Torus;
     for (double root:{0.,.5,2./3,1.}) {
         par[xpp::auto_unknown::torus_angle]=pi(root)-1e-4;

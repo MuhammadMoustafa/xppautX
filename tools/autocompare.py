@@ -606,7 +606,9 @@ def compare_curve(rows, auto, ref_curve, who):
     ones. Both directions are checked, so a curve that stops short or runs on is a difference too.
     Only samples inside the run's bounds on its first parameter (RL0, RL1) are compared: a run ends at
     the first point beyond a bound, which depends on the step before it, and two programs' step
-    sequences differ; samples inside the bounds have the other curve's polyline around them."""
+    sequences differ; samples inside the bounds have the other curve's polyline around them. For the
+    same reason, when both runs end at their NMX-th point the samples of one beyond the other's last
+    point are not compared (W405): where a run of NMX steps ends is its step sequence's, not the curve's."""
     epsl, epsu = auto.get('epsl', 1e-4), auto.get('epsu', 1e-4)
     # a curve of cycles first stores the starting data of the curve (the run xppautX does before it) as a branch of
     # one continued parameter: those rows are not on the curve
@@ -614,14 +616,27 @@ def compare_curve(rows, auto, ref_curve, who):
             for r in rows if 'continued_parameter2' in r]
     ref = [tuple(v) for v in ref_curve]
     diffs, worst = [], {}
+    both_end_at_nmax = len(ours) == len(ref) == auto.get('nmax')
+
+    def tubes(point, chords):
+        return [[NEWTON_TOLERANCE * (epsu if k == 2 else epsl) * (1 + abs(point[k])) + chord[k] for k in range(3)]
+                for chord in chords]
+
     for source, target, side in ((ref, ours, 'reference'), (ours, ref, 'ours')):
         chords = [chord_error(target, i) for i in range(len(target) - 1)]
+        compared = len(source)
+        if both_end_at_nmax:
+            # the vertex of `source` past the other curve's last point: the end of the last segment it lies on
+            end = target[-1]
+            bounds = tubes(end, [chord_error(source, i) for i in range(len(source) - 1)])
+            compared = next((i + 1 for i in range(len(source) - 2, -1, -1)
+                             if all(abs(r) <= b for r, b in zip(project(end, source[i:i + 2], bounds[i:i + 1])[1], bounds[i]))),
+                            compared)
         failed = {}
-        for n, point in enumerate(source):
+        for n, point in enumerate(source[:compared]):
             if not auto['parmin'] <= point[0] <= auto['parmax']:
                 continue
-            tolerances = [[NEWTON_TOLERANCE * (epsu if k == 2 else epsl) * (1 + abs(point[k])) + chord[k]
-                           for k in range(3)] for chord in chords]
+            tolerances = tubes(point, chords)
             i, residual = project(point, target, tolerances)
             for k, q in enumerate(CURVE_QUANTITIES):
                 tol = tolerances[i][k]

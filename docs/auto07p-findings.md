@@ -39,6 +39,8 @@ so the index started empty.
 | [2](#2-a-newton-residual-contaminates-cp-and-gh-test-functions) | Equilibrium curves | a second difference that retains the equilibrium residual produces spurious CP/GH labels | [W364](https://github.com/MuhammadMoustafa/xppautX/issues/426) |
 | [3](#3-point-numbers-wrap-after-9999) | Output | printed point numbers repeat after 9999 although the continuation count and labels continue | [W384](https://github.com/MuhammadMoustafa/xppautX/issues/446) |
 | [4](#4-a-torus-curves-result-depends-on-the-start-amplitude-of-its-eigenfunction) | Torus curves of cycles | R1 and R2 on res_cycles are found only from one start amplitude of the eigenfunction; 3 times larger and the run fails at its second point | [W405](https://github.com/MuhammadMoustafa/xppautX/issues/467) |
+| [5](#5-a-torus-curves-resonance-test-is-blind-once-its-angle-leaves-0-to-pi) | Torus curves of cycles and maps | the R1-R4 test looks at the continued angle only between 0 and pi: past pi a curve crosses R3, R4 and R1 unlabelled | [W405](https://github.com/MuhammadMoustafa/xppautX/issues/467) |
+| [6](#6-a-fold-or-flip-curves-resonance-test-gives-0-when-its-double-multiplier-splits) | Fold and flip curves of cycles | at R1/R2 roundoff splits the double +1/-1 into a conjugate pair; the test then returns 0 and the location takes it for the zero | [W405](https://github.com/MuhammadMoustafa/xppautX/issues/467) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -167,10 +169,56 @@ converges at once, ends at 2.1e-2) and labels R1 (torus_down) and R2 and the BP 
 shows therefore depends on a constant that the problem does not contain: AUTO-07p reaches R1 and R2
 there because its start run happens to leave the eigenfunction small, not because its location is
 sound. The points are real (the model gives R1 at c = -1, b = 1/4 and R2 at c = -0.625, b = 1/64 in
-closed form), so xppautX's failure to locate them is its own limit, kept as a skip in tests/auto
-(W405).
+closed form), so xppautX's failure to locate them was its own limit. Since W405's second attempt xppautX
+locates them without depending on the eigenfunction's size: a location stops within its tolerance short
+of the 1:1 resonance, where the torus equations are singular ([auto-references.md](auto-references.md),
+"W405 (second attempt)").
 
 **Not tried:** a start amplitude between 1e-4 and 3e-4, or a different norm start; the result above
 is two outcomes (found, failed), not a curve of how the loss depends on the amplitude.
+
+**Card:** [W405 / #467](https://github.com/MuhammadMoustafa/xppautX/issues/467).
+
+## 5. A torus curve's resonance test is blind once its angle leaves 0 to pi
+
+A torus curve continues the angle theta of its multipliers `exp(+-i theta)` as an unknown (PAR(12) for cycles,
+the last unknown for maps), started from the folded angle `ABS(ATAN2(...))` of the torus point, between 0 and pi
+([periodic.f90:2196](../reference/auto-07p/src/periodic.f90#L2196)). Along the curve theta moves on smoothly and can
+leave that interval. The resonance test is `THETA*(THETA-PI/2)*(THETA-2PI/3)*(THETA-PI)`
+([periodic.f90:2044](../reference/auto-07p/src/periodic.f90#L2044), maps:
+[maps.f90:350](../reference/auto-07p/src/maps.f90#L350)) and the label is `NINT(THETA*6/PI)` = 0, 3, 4 or 6
+([periodic.f90:2152](../reference/auto-07p/src/periodic.f90#L2152),
+[maps.f90:339](../reference/auto-07p/src/maps.f90#L339)): neither sees a resonance at 4 pi/3 (1:3), 3 pi/2 (1:4) or 2 pi
+(1:1), the same resonances reached from the other side.
+
+**Evidence** (tools/models/res_cycles.odex, tests/auto/res_cycles.json, torus_up): the pair's angle is
+`2 pi - 2 pi sqrt(2w)` on the curve `c = -mu - w`, `b = w^2`, so after R2 at w = 1/8 (theta = pi) the curve crosses
+R3 at w = 1/18 (theta = 4 pi/3, (c, b) = (-0.5556, 0.003086)) and R4 at w = 1/32 (theta = 3 pi/2, (-0.53125, 9.77e-4)),
+and reaches R1 at w = 0 (theta = 2 pi). AUTO-07p's curve passes through the first two (its points 60 and 71:
+(-0.55566, 0.0030978) and (-0.53033, 9.199e-4)) without a label, and labels the third BP, its branch-point test
+changing sign there. xppautX's test has the same angles (auto_codim.cpp `resonance_angles`), so it matches
+AUTO-07p's labels; testing the angle modulo 2 pi would label all three, as the closed form says.
+
+**Card:** [W405 / #467](https://github.com/MuhammadMoustafa/xppautX/issues/467) (found; the test is unchanged).
+
+## 6. A fold or flip curve's resonance test gives 0 when its double multiplier splits
+
+On a fold (LP) or flip (PD) curve of cycles AUTO-07p tests the 1:1 or 1:2 resonance as `|mu| - 1` of the
+multiplier next to the curve's imposed +1 or -1. It finds the imposed one among the real multipliers only
+([periodic.f90:1936-1938](../reference/auto-07p/src/periodic.f90#L1936)) and computes the test only if that
+one is within 0.05 of +1/-1 ([periodic.f90:2047-2053](../reference/auto-07p/src/periodic.f90#L2047)); otherwise
+the test keeps its initial 0 ([periodic.f90:1849](../reference/auto-07p/src/periodic.f90#L1849)). At the resonance
+the two multipliers form a Jordan block, and roundoff splits them into a conjugate pair near +1/-1: no real
+multiplier is near the imposed one, the test is 0, and the location (Mueller's step with `Q = 0` is 0,
+[bvp.f90:1415](../reference/auto-07p/src/bvp.f90#L1415)) stops there as converged
+([bvp.f90:1422](../reference/auto-07p/src/bvp.f90#L1422)).
+
+**Evidence** (tools/models/forced_predator_prey.odex, tests/auto/forced_pp_pd.json, pd_up): AUTO-07p labels the far
+R2 at b0 = 2.5702457 with the multipliers -0.99999 +- 6.99e-5 i, a split pair, so the point is the first location
+iterate whose pair had split. xppautX did the same before W405 at another iterate, b0 = 2.5701605 with
+-1.000036 +- 2.24e-4 i: where the location stops depends on which iterate splits the pair first, not on the
+resonance. When the split pair stands for the imposed multiplier and its modulus is tested (the modulus of a
+conjugate pair is the square root of its product, which roundoff does not split), the location goes on to
+`|mu| = 1`: b0 = 2.5702266, with -1.0000001 +- 3.9e-5 i (xppautX since W405).
 
 **Card:** [W405 / #467](https://github.com/MuhammadMoustafa/xppautX/issues/467).
