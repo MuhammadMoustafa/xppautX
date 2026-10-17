@@ -214,8 +214,8 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-46 descriptions have an AUTO-07p reference (147 special points compared, and the two-parameter curves) and 28 an
-XPPAUT 8.0 reference (56 points); 28 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
+46 descriptions have an AUTO-07p reference (147 special points compared, and the two-parameter curves) and 29 an
+XPPAUT 8.0 reference (61 points); 29 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
 and XPPAUT 8.0 three; the runs a description skips (its reason says why) are neither run nor compared. The whole
 comparison is 58 descriptions, 9 skipped, 15088 stored points across one and automatic threads, 144 checks, zero
 failures. No tolerance was widened. Before W326 there were 44 compared points and six traced points against
@@ -239,7 +239,7 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
 | ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 2.8e-06, norm 2.8e-08, period 3.1e-08, spectrum 1.2e-06) | agrees (4 points; par 1.3e-05, norm 4.7e-06, period 1.6e-08, spectrum 8.4e-08) |
 | ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 1.8e-08, par2 8.6e-09, norm 5.3e-06, period 6.6e-08, spectrum 1.1e-06; curve par 0.00018, par2 4.6e-07, norm 6e-09) | not run |
-| ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 5e-08, norm 3.9e-09, period 8.6e-08, spectrum 1.1e-06) | not run |
+| ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 5e-08, norm 3.9e-09, period 8.6e-08, spectrum 1.1e-06) | agrees (5 points; par 3.5e-06, norm 4.3e-06, period 2e-08, spectrum 1.3e-07) |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | res_cycles | steady: EP HB HB; cycles: TR; torus_down: R1; torus_up: R4 R3 R2 BP | agrees (9 points; par 7.9e-07, par2 7.9e-07, norm 4.6e-07, period 2.2e-11, spectrum 0.0012; curve par 3.2e-07, par2 6.4e-06, norm 3.5e-07) | not run |
 | tstauto_ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
@@ -884,11 +884,11 @@ own equations (`tools/auto_reference.py` translates the `.odex`), not from that 
   12 points of the curve within the driver's 120 s safety limit.
 - *XPPAUT 8.0.* Ma23: with the export's E_Ca 130 it labelled no Hopf point, so its cycles run could not start from
   one (finding 70); with Table 1's 68 (W424) it labels the HB at 539.2246 pA, and its reference agrees. Mu26:
-  `tools/auto_reference.py` stops waiting for an equilibrium run at the first EP row, the run's start
-  (`finished()` in `execute_xppaut`), and keeps the rows printed by then, which for this model are two of the
-  five; XPPAUT's own log shows the same points as ours (LP 0.0058127 at point 9, LP -79.05658 at 127, HB
-  13.26547 at 244, and for the cycles LP 99.99655 at 118 with period 35.54737). Both descriptions therefore skip
-  XPPAUT's reference with the reason; the fix of `finished()` is W422 ([#484](https://github.com/MuhammadMoustafa/xppautX/issues/484)).
+  the XPPAUT 8.0 reference for the control description is made (W422, [#484](https://github.com/MuhammadMoustafa/xppautX/issues/484): the
+  driver now waits for the run's own end, a later EP or MX row, not the start's EP row): LP 0.0058127 at point 9, LP -79.05658 at
+  127, HB 13.26547 at 244, and for the cycles LP 99.99655 at 118, the points of ours and AUTO-07p's. The blocked
+  description has none: its two-parameter curves need keys that continue a curve in XPPAUT's window, which the driver
+  does not have (`xppaut_skip`).
 
 **Not run.** The periodic branches of Mu26 to the rheobase fold (`run_bifurcation_*_extend.auto`: 16000 + 30000 steps
 at 50 and 150 mesh intervals, the period diverging to 25 s), and the extent of the cycles beyond their fold.

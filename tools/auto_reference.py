@@ -629,7 +629,8 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
             def finished():
                 rows = [ROW.match(l) for l in log.read_text().splitlines()[before:]]
                 rows = [m for m in rows if m]
-                return rows if any(m.group(3) in ('EP', 'MX') for m in rows) else None
+                # the run's first row is its own start (an EP row too): its end is a later EP or MX row
+                return rows if any(m.group(3) in ('EP', 'MX') for m in rows[1:]) else None
             rows = wait_for('the end of run ' + r['name'], finished)
             wait_for('the diagnostics of run ' + r['name'], lambda: diag.exists() and diag.stat().st_mtime_ns != stamp)
             sizes = []  # the file is complete once it stops growing
