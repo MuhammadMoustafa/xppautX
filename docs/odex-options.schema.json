@@ -58,7 +58,7 @@
       "additionalProperties": false,
       "properties": {
         "ntst": {"type": "integer", "minimum": 1, "maximum": 10000},
-        "nmax": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "nmax": {"type": "integer", "minimum": 1},
         "npr": {"type": "integer"},
         "ncol": {"type": "integer", "minimum": 1, "maximum": 7},
         "dsmin": {"type": "number"},
