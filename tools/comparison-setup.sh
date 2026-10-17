@@ -45,6 +45,7 @@ LEGACY_CC="gcc -std=gnu99 -D_XOPEN_SOURCE=600 -w -Wno-error=implicit-function-de
 LEGACY_CFLAGS="-g -O2 -ffp-contract=off -fcommon -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL -DMYSTR1=8.0 -DMYSTR2=1"
 LEGACY_LDFLAGS=-fcommon
 JOBS=4   # the project's -j4
+IDLE_LOAD=0.3   # --ready: a 1-minute load below this means nothing else ran for the last minute
 
 die() { echo "comparison-setup: $*" >&2; exit 1; }
 
@@ -89,7 +90,7 @@ do_check() {
   }
   need gcc build-essential; need g++ build-essential; need make build-essential
   need gfortran gfortran; need git git; need tar tar; need sha256sum coreutils
-  need python3 python3; need valgrind valgrind; need gdb gdb; need callgrind_control valgrind
+  need python3 python3; need valgrind valgrind; need gdb gdb
   need Xvfb xvfb; need xdotool xdotool; need taskset util-linux; need lscpu util-linux
   need ps procps; need nproc coreutils
   if command -v python3 >/dev/null 2>&1; then
@@ -275,13 +276,15 @@ PY
 
 # --- --ready -----------------------------------------------------------------------------
 do_ready() {
-  local gov busy
+  local gov load
   gov=$(cpu_files scaling_governor)
   [ "$gov" = performance ] || die "the CPU governor is '$gov', not performance. Set it (yours, root): sudo cpupower frequency-set -g performance   (or: echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor)"
-  # any process other than this one and its ancestors using more than 5% CPU over its life
-  busy=$(ps -eo pid=,pcpu=,comm= | awk -v me=$$ '$2 > 5.0 && $1 != me {print}' )
-  [ -z "$busy" ] || { echo "$busy" >&2; die "other processes are using the CPU (listed: pid, %cpu, command); the series needs the machine to itself"; }
-  echo "ready: governor performance, turbo $(turbo_state), no other process above 5% CPU, load $(cut -d' ' -f1-3 /proc/loadavg)"
+  # the 1-minute load average: what ran recently, which ps's lifetime %CPU cannot see
+  load=$(cut -d' ' -f1 /proc/loadavg)
+  awk -v l="$load" -v max="$IDLE_LOAD" 'BEGIN { exit !(l < max) }' || {
+    ps -eo pid=,pcpu=,comm= --sort=-pcpu | head -5 >&2
+    die "the 1-minute load is $load, not below $IDLE_LOAD (busiest above): the series needs the machine to itself"; }
+  echo "ready: governor performance, turbo $(turbo_state), 1-minute load $load"
 }
 
 do_hashes() {

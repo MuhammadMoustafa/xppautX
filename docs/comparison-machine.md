@@ -33,7 +33,7 @@ in `paper/` (git-ignored; how it gets there is the maintainer's choice).
      series.
 4. Before every timed series: `tools/comparison-setup.sh --ready`. It refuses unless the
    governor is `performance` (set it as root: `sudo cpupower frequency-set -g performance`)
-   and no other process uses more than 5% of a CPU. Nothing else runs on the machine during
+   and the 1-minute load average is below 0.3. Nothing else runs on the machine during
    a series.
 
 `--hashes` prints the tree hashes of `reference/` to update the pins when a pinned source
