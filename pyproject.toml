@@ -1,0 +1,17 @@
+# W417 (#479): the Python the comparison studies (docs/comparison-machine.md) and tools/auto-profile
+# need beyond the standard library, locked in uv.lock so the laptop and the comparison machine run the
+# same versions. Not a package. The repository's own checks (servercheck, autocheck, ...) use the
+# standard library only and do not read this file.
+[project]
+name = "xppautx-comparison"
+version = "0"
+description = "Python dependencies of the xppautX comparison studies"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy",       # paper/benchmarks/plots.py
+    "matplotlib",  # paper/benchmarks/plots.py
+    "mpmath",      # tools/auto-profile/eig_accuracy.py
+]
+
+[tool.uv]
+package = false

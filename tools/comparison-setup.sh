@@ -5,12 +5,16 @@
 #   tools/comparison-setup.sh [--root DIR] MODE
 #
 # MODE (the default is all, in this order; each stops the run at the first failure):
-#   --check     the tools: names every missing apt package in one install command.
-#               The script never runs sudo or apt: installing is the maintainer's.
+#   --check     the tools: names every missing apt package in one install command, and uv
+#               (with its install line). The script never runs sudo, apt or an installer:
+#               installing is the maintainer's.
 #   --sources   rebuilds reference/ (git-ignored): xppaut-8.0 from this repository,
 #               xppaut-master and auto-07p cloned at their pinned commits, each tree
 #               checked against a recorded hash. A tree that has the right hash is kept;
 #               one that has not is a refusal (nothing is deleted, move it away).
+#   --python    `uv sync --locked`: the studies' Python modules (numpy, matplotlib, mpmath) at
+#               the versions uv.lock holds, in .venv of this checkout. The drivers run with
+#               `uv run python ...` (docs/comparison-machine.md).
 #   --build     builds xppautX, XPPAUT 8.0 and AUTO-07p under ROOT/build (a build with
 #               its stamp is kept).
 #   --record    writes the machine record (CPU, governor, turbo, compilers, source hashes)
@@ -53,13 +57,13 @@ modes=()
 while [ $# -gt 0 ]; do
   case $1 in
     --root) [ $# -ge 2 ] || die "--root needs a folder"; ROOT=$2; shift ;;
-    --check|--sources|--build|--record|--ready|--hashes) modes+=("${1#--}") ;;
+    --check|--sources|--python|--build|--record|--ready|--hashes) modes+=("${1#--}") ;;
     -h|--help) sed -n '2,/^set -u/p' "$0" | sed '$d'; exit 0 ;;
     *) die "unknown argument $1 (see --help)" ;;
   esac
   shift
 done
-[ ${#modes[@]} -gt 0 ] || modes=(check sources build record)
+[ ${#modes[@]} -gt 0 ] || modes=(check sources python build record)
 [ "$(uname -s)" = Linux ] || die "this runs on Linux (Ubuntu); this is $(uname -s)"
 case $REPO in /mnt/*) die "run it from a checkout on the machine's own disk, not $REPO (9P is slow and skews builds)" ;; esac
 case $ROOT in /mnt/*) die "ROOT must be on the machine's own disk, not $ROOT" ;; esac
@@ -84,7 +88,7 @@ print(hashlib.sha256((chr(10).join(lines) + chr(10)).encode()).hexdigest())
 
 # --- --check -----------------------------------------------------------------------------
 do_check() {
-  local missing=() pkgs=() n
+  local missing=() pkgs=() n no_uv=0
   need() { # need COMMAND PACKAGE
     command -v "$1" >/dev/null 2>&1 || { missing+=("$1"); pkgs+=("$2"); }
   }
@@ -93,11 +97,6 @@ do_check() {
   need python3 python3; need valgrind valgrind; need gdb gdb
   need Xvfb xvfb; need xdotool xdotool; need taskset util-linux; need lscpu util-linux
   need ps procps; need nproc coreutils
-  if command -v python3 >/dev/null 2>&1; then
-    for m in numpy:python3-numpy scipy:python3-scipy mpmath:python3-mpmath matplotlib:python3-matplotlib; do
-      python3 -I -c "import ${m%%:*}" 2>/dev/null || { missing+=("python3 module ${m%%:*}"); pkgs+=("${m##*:}"); }
-    done
-  fi
   # headers and libraries: a compile says more than a file name
   if command -v gcc >/dev/null 2>&1; then
     printf '#include <X11/Xlib.h>\nint main(void){return 0;}\n' | gcc -x c - -lX11 -o /dev/null 2>/dev/null \
@@ -116,15 +115,18 @@ do_check() {
   fi
   # libtcc is vendored (third_party/tinycc, built by xppautX's Makefile): gcc is all it needs
   [ -f "$REPO/third_party/tinycc/libtcc.c" ] || missing+=("third_party/tinycc (this checkout is incomplete)")
-  n=${#missing[@]}
+  command -v uv >/dev/null 2>&1 || no_uv=1
+  n=$(( ${#missing[@]} + no_uv ))
   if [ "$n" -gt 0 ]; then
     echo "comparison-setup: $n missing:" >&2
-    printf '  %s\n' "${missing[@]}" >&2
+    [ ${#missing[@]} -gt 0 ] && printf '  %s\n' "${missing[@]}" >&2
+    [ "$no_uv" = 1 ] && echo "  uv (the studies' locked Python modules)" >&2
     echo "install (yours to run):" >&2
-    echo "  sudo apt install $(printf '%s\n' "${pkgs[@]}" | sort -u | tr '\n' ' ')" >&2
+    [ ${#pkgs[@]} -gt 0 ] && echo "  sudo apt install $(printf '%s\n' "${pkgs[@]}" | sort -u | tr '\n' ' ')" >&2
+    [ "$no_uv" = 1 ] && echo "  curl -LsSf https://astral.sh/uv/install.sh | sh" >&2
     exit 1
   fi
-  echo "check: all tools present ($(gcc --version | head -1); $(gfortran --version | head -1); $(python3 --version))"
+  echo "check: all tools present ($(gcc --version | head -1); $(gfortran --version | head -1); $(python3 --version); $(uv --version))"
 }
 
 # --- --sources ---------------------------------------------------------------------------
@@ -160,6 +162,14 @@ do_sources() {
     clone_at "$AUTO_URL" "$AUTO_COMMIT" "$ref/auto-07p"
     have_tree auto-07p "$ref/auto-07p" "$AUTO_TREE" "$AUTO_COMMIT" >/dev/null || die "auto-07p cloned with another hash"
     echo "sources: auto-07p cloned at $AUTO_COMMIT"; }
+}
+
+# --- --python ----------------------------------------------------------------------------
+# --locked: a uv.lock that does not match pyproject.toml is a refusal, never a silent re-lock
+do_python() {
+  command -v uv >/dev/null 2>&1 || die "uv is missing (see --check)"
+  uv sync --locked || die "uv sync --locked failed: uv.lock and pyproject.toml disagree, or the network is down"
+  echo "python: $(uv pip freeze | tr '\n' ' ')"
 }
 
 # --- --build -----------------------------------------------------------------------------
@@ -222,6 +232,7 @@ do_record() {
   GOV=$(cpu_files scaling_governor) DRIVER=$(cpu_files scaling_driver) TURBO=$(turbo_state) \
   XPPAUT8_TREE=$XPPAUT8_TREE MASTER_TREE=$MASTER_TREE AUTO_TREE=$AUTO_TREE \
   XPPAUT8_COMMIT=$XPPAUT8_COMMIT MASTER_COMMIT=$MASTER_COMMIT AUTO_COMMIT=$AUTO_COMMIT \
+  UV_VERSION=$(uv --version 2>&1) PY_LOCKED=$(uv pip freeze 2>&1) \
   XPPAUTX_HEAD=$(git rev-parse HEAD) AUTO_CONFIGURE=$AUTO_CONFIGURE ROOTDIR=$ROOT \
   python3 -I - "$out/machine-$stamp.json" <<'PY' || die "cannot write the machine record"
 import json, os, platform, subprocess, sys, datetime
@@ -254,6 +265,8 @@ rec = {
                   "python3": run("python3", "--version"),
                   "valgrind": run("valgrind", "--version"), "gdb": run("gdb", "--version").splitlines()[0],
                   "xdotool": run("xdotool", "version"), "Xvfb": run("sh", "-c", "Xvfb -version 2>&1 | head -1")},
+    "uv": e["UV_VERSION"],
+    "python_modules": e["PY_LOCKED"].splitlines(),
     "sources": {
         "xppautX_head": e["XPPAUTX_HEAD"],
         "xppautX_clean": run("git", "status", "--porcelain", "--untracked-files=no") == "",

@@ -203,7 +203,7 @@ make LIBM=system BUILDDIR=build/libm xppautx      # links build/libm/xppautX; th
 python3 tools/auto-profile/diagram_diff.py $PWD/build/libm/xppautX              # diagrams against the baselines and AUTO-07p
 make LINALG=lapack BUILDDIR=build/lapack xppautx build/lapack/eigcompare
 python3 tools/auto-profile/profile.py build/prof/xppautX build/mat tstauto_lecar --tool gdb   # the matrices
-python tools/auto-profile/eig_accuracy.py DIR                                    # with the Windows Python (mpmath)
+uv run python tools/auto-profile/eig_accuracy.py DIR                              # mpmath, from the locked uv project
 ```
 
 `tools/auto-profile/` also holds the wrappers (`callgrind_wrap.sh`, `gdb_wrap.sh`) and the gdb script; a

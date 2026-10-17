@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """W358 (#420): how accurate EISPACK's and LAPACK's eigenvalues are, on the matrices our AUTO gives them.
 
-    python eig_accuracy.py DIR [--per-file N] [--dps D]
+    uv run python tools/auto-profile/eig_accuracy.py DIR [--per-file N] [--dps D]
 
 DIR holds, per workload, NAME.matrices (tools/auto-profile/dump_matrices.py, from the program under gdb)
 and NAME.results (build/<lapack build>/eigcompare NAME.matrices: both libraries' answers on each
 matrix). The reference is computed here with mpmath at D digits (default 50) from the exact doubles
 that were dumped: eigenvalues of A for an `rg` matrix, of B^-1 A for a `qz` pencil (flowkm's deflated
-Floquet pencil). Needs mpmath (not installed in WSL's Python; run it with the Windows Python).
+Floquet pencil). Needs mpmath: run it with `uv run python` (pyproject.toml, uv.lock).
 
 Per workload and kind it prints, for each library over the matrices sampled (at most N, evenly spaced):
 the largest and the median error of the eigenvalues, each eigenvalue matched with its nearest

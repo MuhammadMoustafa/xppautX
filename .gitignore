@@ -45,3 +45,6 @@ qa/
 
 # upstream bug reports in preparation (reproducers, patches, clones), kept local
 /upstream-reports/
+
+# uv project environment (pyproject.toml)
+.venv/
