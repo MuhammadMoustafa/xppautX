@@ -8,12 +8,24 @@
 #include <stdio.h>
 
 #include "diagram.h"
+#include "xpp_session_auto.h"
 
 #include "auto_stability.h"
 #include "xpp_math.h"
 #include "xpp_job.h"
 
 namespace xpp {
+
+/* The most points a session's diagram holds: the bound where AUTO's memory
+   grows (NMX bounds one branch's loop only, and models set 10^7 to mean "no
+   limit"); it is also what a saved session accepts back.
+   XPP_DIAGRAM_POINTS_LIMIT lowers it, so servercheck reaches it without a
+   million points (the way XPP_STORAGE_FAIL_GROW reaches a full store). */
+static std::size_t diagram_points_limit()
+{
+  const char *lowered=std::getenv("XPP_DIAGRAM_POINTS_LIMIT");
+  return lowered ? static_cast<std::size_t>(std::strtoull(lowered,nullptr,10)) : snapx::auto_members::saved_points_limit;
+}
 
 [[noreturn]] void auto_nonfinite(const iap_type &iap, integer point)
 {
@@ -109,7 +121,9 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
       !xpp::all_finite(p.evr) || !xpp::all_finite(p.evi))
     auto_nonfinite(*iap, std::abs(ntots));
 
-  int from=auto_run_from_take(s); /* the run's first point says which label it started from */
+  if(const std::size_t limit=diagram_points_limit();s.diagram.points.size()>=limit)
+    auto_fail(xpp::format("the diagram holds {} points, the most a session keeps; the points so far are kept (clear the diagram or start a new one)", limit));
+  int from=auto_run_from_take(s);/* the run's first point says which label it started from */
   p.ibr=static_cast<int>(ibrs);
   p.ntot=static_cast<int>(ntots);
   p.itp=iap->itp;

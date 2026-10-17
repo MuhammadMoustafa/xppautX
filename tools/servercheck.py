@@ -3762,6 +3762,37 @@ def check_auto_stop():
 check_auto_stop()
 
 
+def check_auto_points_limit():
+    """W432 (#494): Nmax is a loop bound, not an allocation: 10^7 (XPPAUT models
+    mean "no limit" by it) is accepted; the bound is where the diagram stores
+    points (XPP_DIAGRAM_POINTS_LIMIT lowers it): the run stops with one error
+    naming the limit and keeps the points before it."""
+    p, r, snd, col, _ = launch_server(ode=STOP_ODE, extra_env={'XPP_DIAGRAM_POINTS_LIMIT': '7'})
+    try:
+        col(is_idle)
+        for k in 'fa':
+            snd(cmd='key', key=k)
+            col(lambda e: is_idle(e) or e.get('ev') == 'ask')
+        snd(cmd='auto', op='set', numerics={'rl0': -0.5, 'rl1': 0.9, 'a0': -1, 'a1': 100, 'nmx': 10000000})
+        evs, _ = col(is_idle)
+        check('W432: Nmax 10000000 is accepted', not [e for e in evs if e.get('ev') == 'message' and 'error' in e], str(evs[-3:]))
+        snd(cmd='key', win='auto', key='r')
+        evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
+        snd(cmd='answer', id=ask['id'], key='s')
+        more, _ = col(is_idle, timeout=60 * SLOW)
+        evs += more
+        errs = [e for e in evs if 'error' in e]
+        points = rebuild_diagram(evs, [])
+        check('W432: a diagram at its point limit stops the run with one error naming the limit, its points kept',
+              len(errs) == 1 and 'holds 7 points' in errs[0]['error'] and len(points) == 7,
+              str(errs) + ' %d points' % len(points))
+    finally:
+        stop_server(p, r, snd)
+
+
+check_auto_points_limit()
+
+
 def check_auto_no_nan_par():
     """W35a (issue #73, QA SCI-001): a periodic-continuation script left the
     model's parameter at -nan after a run that never converged, which made

@@ -49,7 +49,7 @@ struct NumField {
 /* the Numerics form's fields and what AUTO accepts for each */
 constexpr NumField num_fields[AUTO_NUM_N] = {
     {"ntst", "Ntst", true, Rule::range, 1, auto_max_mesh_intervals},
-    {"nmx", "Nmax", true, Rule::range, 1, static_cast<int>(snapx::auto_members::saved_points_limit)},
+    {"nmx", "Nmax", true, Rule::range, 1, INT_MAX},
     {"npr", "NPr", true, Rule::range, 1, INT_MAX},
     {"ncol", "Ncol", true, Rule::range, auto_min_collocation_points, auto_max_collocation_points},
     {"ds", "Ds", false, Rule::nonzero, 0, 0},

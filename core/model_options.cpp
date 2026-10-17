@@ -690,7 +690,7 @@ constexpr OptionRow rows[] = {
   {.group = option_group::continuation, .kind = OptionKind::whole, .name = "NTST", .once = true,
    .whole = member([](auto &s) -> auto & { return s.auto_state.options.ntst; }), .rule = OptionRule::whole_positive, .maximum = auto_max_mesh_intervals},
   {.group = option_group::continuation, .kind = OptionKind::whole, .name = "NMAX", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.nmx; }), .rule = OptionRule::whole_positive, .maximum = static_cast<int>(snapx::auto_members::saved_points_limit)},
+   .whole = member([](auto &s) -> auto & { return s.auto_state.options.nmx; }), .rule = OptionRule::whole_positive},
   {.group = option_group::continuation, .kind = OptionKind::whole, .name = "NPR", .once = true,
    .whole = member([](auto &s) -> auto & { return s.auto_state.options.npr; })},
   {.group = option_group::continuation, .kind = OptionKind::whole, .name = "NCOL", .once = true,
