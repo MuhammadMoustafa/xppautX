@@ -9,6 +9,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- W437 ([#499](https://github.com/MuhammadMoustafa/xppautX/issues/499)): center periodic-orbit phase conditions on the previous computed orbit, as AUTO-07p does, so a vanishing location step preserves that orbit. Mu26 cycles locate all four marked currents toward the SNIC without reversing; periodic baselines change deliberately, with remaining reference discrepancies traced per quantity.
 - Fold-of-cycles continuation reuses the model Jacobian and differences only the physical states in its variational equations, as AUTO-07p does; pure AUTO workers retain parameter-only derived values until a parameter changes (Mu26's capped continuation: 2.83 times faster at one thread); Mu26's two h-conductance fold curves join the numerical comparisons (W436, [#498](https://github.com/MuhammadMoustafa/xppautX/issues/498)).
 
 - AUTO no longer labels a spurious branch point (BP) on an equilibrium branch where a large step turns past a fold: the branch point test read the fold test's determinant, as XPPAUT's AUTO did (xppaut-findings.md 72); it now reads the step's own, as AUTO-07p does. Mu26's cycles are continued in the AUTO tests down to the rheobase fold, where their period diverges (W423, [#485](https://github.com/MuhammadMoustafa/xppautX/issues/485)).

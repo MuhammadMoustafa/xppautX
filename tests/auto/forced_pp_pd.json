@@ -133,6 +133,15 @@
       "type": "R2",
       "index": 1,
       "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "pd_up",
+      "side": "ours",
+      "type": "R2",
+      "index": 1,
+      "cause": "W437 (#499): both programs use abs(EV(3))-1 on the PD curve (core/auto_codim.cpp; AUTO-07p periodic.f90:2046-2053). Near this upper R2 the imposed and remaining -1 multipliers coalesce and split into a complex pair; at the reported points their radii give tests about +2.03e-6 in xppautX and -1.00e-5 in AUTO-07p. At EPSS 1e-7, eight location iterations at branch 3 point 205 oscillate between real and complex near-double multipliers (SPB values 7.15e-6, 3.60e-5, 4.17e-5, -5.46e-5, -7.96e-5, 2.03e-6, 7.41e-6, 2.11e-5), then report NOTE:Possible special point; rollback restores the pre-location orbit and no R2 is labelled. Halving DSMAX changes the par2 discrepancy from -2.27e-5 to -1.15e-5; NTST 160 changes its sign to +2.80e-5. This is a finite-precision, ill-conditioned Floquet-test/location-history discrepancy, not the phase condition: the curve itself still agrees. The measured sweep and test definitions are in docs/auto-references.md W437. No tolerance is widened.",
+      "quantity": "par2"
     }
   ]
 }

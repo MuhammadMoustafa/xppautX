@@ -46,7 +46,7 @@ import subprocess
 import sys
 import tempfile
 
-from autocompare import CODIM_TWO, HOMCONT, SPECIAL_TYPES
+from autocompare import CODIM_TWO, HOMCONT, SPECIAL_TYPES, read_description
 from odex_model import Odex, Refused, INTRINSICS
 from xppclient import wait_until
 
@@ -396,6 +396,9 @@ def check_description(name, d, program):
     if homs and (program == 'xppaut' or len(homs) != 1 or homs[0]['start'].get('state') != 'current' or 'step' not in homs[0]['start']):
         raise Refused('HomCont: only AUTO-07p, one run, from the integrated orbit (start current, settle, step)')
     for r in d['runs']:
+        for parameter, _ in r.get('marks', []):
+            if parameter != 'T' and parameter not in eqs.slot:
+                raise Refused('mark parameter %s is not in the model' % parameter)
         if r['kind'] == 'two_parameter':
             base = kind_of.get(r['start'].get('run'))
             base = 'map' if base == 'equilibrium' and odex.discrete else base
@@ -442,8 +445,14 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name):
             else:
                 p = icp1[r['name']] = eqs.slot[r['parameter']]
                 icp = [p] if r['kind'] in ('equilibrium', 'bvp') else [p, PERIOD]
-            (work / ('c.' + c)).write_text(constants(r, len(odex.states), pr, len(odex.bcs) if bvp else 0,
-                                                     icp, 0, max(eqs.npar, HOM_EQUILIBRIUM - 1 + (2 if r['kind'] == 'heteroclinic' else 1) * len(odex.states))))
+            text = constants(r, len(odex.states), pr, len(odex.bcs) if bvp else 0,
+                             icp, 0, max(eqs.npar, HOM_EQUILIBRIUM - 1 + (2 if r['kind'] == 'heteroclinic' else 1) * len(odex.states)))
+            zeros = {}
+            for parameter, value in r.get('marks', []):
+                slot = PERIOD if parameter == 'T' else eqs.slot[parameter]
+                zeros.setdefault(slot, []).append(value)
+            text += 'UZR=%r\n' % zeros
+            (work / ('c.' + c)).write_text(text)
         env = {**os.environ, 'AUTO_DIR': auto_dir, 'PYTHONWARNINGS': 'ignore'}
         env['PATH'] = '%s/cmds:%s/bin:%s' % (auto_dir, auto_dir, env['PATH'])
         (work / 'run.auto').write_text(script(d['runs'], {'icp1': icp1, 'icp2': icp2, 'cycles': cycles, 'discrete': odex.discrete}, names))
@@ -469,10 +478,12 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name):
 
 # --- XPPAUT 8.0: its AUTO window on a private display, driven by the keys a user presses -------------
 DISPLAY = os.environ.get('W300_DISPLAY', ':93')
+# XPPAUT 8.0's AutoPer dialog has nine fields (auto_nox.c:706-729).
+XPPAUT_MARK_ROWS = 9
 MENU_MS = '300'  # ms xdotool waits between keys: XPPAUT opens a pop-up menu per key and reads the next key from it
 TYPE_DELAY = '15'  # ms between the characters typed into a dialog
 BACKSPACES = 40  # more than any field holds
-RUN_LIMIT = 600  # s: a run still going after this has hung (a safety limit, not a result)
+RUN_LIMIT = 600  # s: bound one foreground run; an overrun is unavailable, not a numerical failure.
 # the keys that pick a one-parameter run's start point by its type (Up, then the key, repeated by index)
 GRAB_KEYS = {'HB': 'h', 'LP': 'l', 'BP': 'b', 'PD': 'p', 'TR': 't'}
 ROW = re.compile(r'^\s*(-?\d+)\s+(-?\d+)\s+(?:([A-Z]{2})\s+)?(\d+)\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)(.*)$')
@@ -487,7 +498,7 @@ def wait_for(what, found, timeout=RUN_LIMIT):
     """What `found()` returns once it is true (xppclient's wait_until polls)."""
     got = []
     if not wait_until(lambda: got.append(found()) or got[-1], timeout):
-        raise Refused('XPPAUT: no %s within %d s' % (what, timeout))
+        raise Refused('XPPAUT: timed out waiting for %s after %d s' % (what, timeout))
     return got[-1]
 
 
@@ -580,7 +591,7 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
         labels, seeds = [], {}
         npar = min(8, len(odex.pars))
         for r in d['runs']:
-            if 'skip' in r:  # xppautX does not run it, so XPPAUT's run (lpc_soma's: past RUN_LIMIT) is not driven
+            if 'skip' in r:  # An explicit description skip also skips the foreign run.
                 failed[r['name']] = 'our description skips it: ' + r['skip']
                 continue
             curve = r['kind'] == 'two_parameter'
@@ -593,6 +604,16 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
             fill_dialog(auto, ('p', 'Parameters'), pars[:npar])
             values = numerics(r)
             fill_dialog(auto, ('n', 'AutoNum'), values)
+            marks = r.get('marks', [])
+            if len(marks) > XPPAUT_MARK_ROWS:
+                raise Refused('XPPAUT AutoPer has only %d mark fields' % XPPAUT_MARK_ROWS)
+            if marks:
+                mark_fields = ['%s=%r' % (parameter, value) for parameter, value in marks]
+                # Inactive fields are ignored by NUZR, but AutoPer still edits all nine.
+                mark_fields += ['T=0'] * (XPPAUT_MARK_ROWS - len(marks))
+                fill_dialog(auto, (('u', str(len(marks))), 'AutoPer'), mark_fields)
+            else:
+                keys(auto, 'u', '0')
             start_run = r['start']
             if start_run.get('state') != 'current':
                 if curve_driver or start_run['type'] not in GRAB_KEYS:
@@ -632,8 +653,18 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
                 ends = sum(m.group(3) in ('EP', 'MX') for m in (rows if curve else rows[1:]))
                 # Cycles first generate five starting-data steps, then do_auto restarts automatically.
                 return rows if ends >= (2 if preparing else 1) and not (work / 'fort.9').exists() else None
-            rows = wait_for('the end of run ' + r['name'], finished)
+            try:
+                rows = wait_for('the end of run ' + r['name'], finished)
+            except Refused as error:
+                # A bounded run is unavailable, not a refusal of all earlier results.
+                # Escape is XPPAUT's own abort key (auto_x11.c:660-662); wait for
+                # its normal end before another run edits the window or files.
+                failed[r['name']] = str(error)
+                keys(auto, 'Escape')
+                rows = wait_for('the aborted end of run ' + r['name'], finished)
             labels.extend(int(m.group(4)) for m in rows if int(m.group(4)))
+            if r['name'] in failed:
+                continue
             wait_for('the diagnostics of run ' + r['name'], lambda: diag.exists() and diag.stat().st_mtime_ns != stamp)
             sizes = []  # the file is complete once it stops growing
 
@@ -647,6 +678,7 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
             used = constants_used(btext)
             want = dict(zip(('ntst', 'nmx', 'npr', 'ds', 'dsmin', 'ncol', 'epsl', 'dsmax', 'rl0', 'rl1', 'a0', 'a1', 'epsu', 'epss',
                              'iad', 'mxbf', 'iid', 'itmx', 'itnw', 'nwtn'), values))
+            want['nuzr'] = len(marks)
             bad = {k: (used.get(k), v) for k, v in want.items()
                    if not math.isclose(used.get(k, math.nan), float(v), rel_tol=1e-3, abs_tol=1e-12)}
             if bad:
@@ -680,7 +712,8 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
                 if curve:
                     curves[r['name']] = curve_points(btext, pars.index(axes[0]), pars.index(axes[1]))
             dtext = diag.read_text(errors='replace')
-            stab[r['name']] = stability(dtext[:len(dtext) - dsize] if curve_driver else dtext)
+            # Every run is prepended; Extend reuses its source branch/point numbers.
+            stab[r['name']] = stability(dtext[:len(dtext) - dsize])
             solutions = solution_parameters((work / 'model.ode.s').read_text(errors='replace'))
             points[r['name']] = []
             for m in rows:
@@ -754,11 +787,11 @@ def main():
     args = ap.parse_args()
     names = args.only.split(',') if args.only else [p.stem for p in sorted(BASE.glob('*.json'))]
     for name in names:
-        d = json.loads((BASE / (name + '.json')).read_text(encoding='utf-8'))
         try:
+            d = read_description(BASE / (name + '.json'))
             write(BASE / (name + SUFFIX[args.program]), reference(name, d, args.program, args))
             print('WROTE', name)
-        except Refused as e:
+        except (Refused, ValueError) as e:
             print('REFUSED %s: %s' % (name, e))
     return 0
 

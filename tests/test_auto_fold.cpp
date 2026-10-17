@@ -64,6 +64,36 @@ int main()
         }
         CHECK(par[a]==2 && par[b]==3);
     }
+    // W437: the phase hyperplane passes through the previous computed orbit,
+    // even when its discrete u_old dot u_old' is nonzero (-1 here).
+    lib.rotations.nrtn.assign(2, 0);
+    const std::array<integer,4> phase_icp{a,b,xpp::auto_unknown::period,xpp::auto_unknown::fold_beta};
+    const auto phase_old=u;
+    const std::array<double,4> time_derivative{3,-2,0,0};
+    icps(&iap,&rap,2,par.data(),phase_icp.data(),1,u.data(),phase_old.data(),
+         u.data(),time_derivative.data(),f.data(),1,dp.data());
+    CHECK(f[0]==0 && dp[0]==3 && dp[1]==-2);
+    u[0]+=0.25;
+    icps(&iap,&rap,2,par.data(),phase_icp.data(),1,u.data(),phase_old.data(),
+         u.data(),time_derivative.data(),f.data(),0,nullptr);
+    CHECK(f[0]==0.75);
+    lib.rotations.nrtn[0]=1;
+    icps(&iap,&rap,2,par.data(),phase_icp.data(),1,u.data(),phase_old.data(),
+         u.data(),time_derivative.data(),f.data(),1,dp.data());
+    CHECK(f[0]==0 && dp[0]==0 && dp[1]==-2);
+    lib.rotations.nrtn[0]=0;
+    u=phase_old;
+    icpl(&iap,&rap,4,par.data(),phase_icp.data(),3,u.data(),phase_old.data(),
+         u.data(),time_derivative.data(),f.data(),0,nullptr);
+    CHECK(f[0]==0);
+    icpd(&iap,&rap,4,par.data(),phase_icp.data(),2,u.data(),phase_old.data(),
+         u.data(),time_derivative.data(),f.data(),0,nullptr);
+    CHECK(f[0]==0);
+    const std::array<double,6> torus{1,2,0.3,-0.4,0.5,-0.6};
+    ictr(&iap,&rap,6,par.data(),phase_icp.data(),3,torus.data(),torus.data(),
+         torus.data(),time_derivative.data(),f.data(),0,nullptr);
+    CHECK(f[0]==0);
+
     // The worker's parameter-only derived values survive state differences,
     // but every parameter change (including the sign of zero) invalidates them.
     path = temp.path() + "/derived.odex";

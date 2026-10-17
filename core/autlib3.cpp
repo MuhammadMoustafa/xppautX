@@ -896,10 +896,11 @@ icps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   dint_dim1 = nint;
   
+  // Center on the computed orbit: discrete quadrature need not make uold dot upold zero.
   f[0] = 0.;
   for (i = 0; i < ndim; ++i) {
     if (iap->lib->rotations.nrtn[i] == 0) {
-      f[0] += u[i] * upold[i];
+      f[0] += (u[i] - uold[i]) * upold[i];
     }
   }
 
@@ -1704,14 +1705,13 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   
   ndm = iap->ndm;
 
-  f[0] = 0.;
+  icps(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, f, 0, nullptr);
   f[1] = 0.;
   /* Computing 2nd power */
   f[2] = par[xpp::auto_unknown::fold_beta] * par[xpp::auto_unknown::fold_beta] - par[xpp::auto_unknown::fold_norm];
 
   for (i = 0; i < ndm; ++i) {
     if (iap->lib->rotations.nrtn[i] == 0) {
-      f[0] += u[i] * upold[i];
       f[1] += u[ndm + i] * upold[i];
     }
     f[2] += u[ndm + i] * u[ndm + i];
@@ -1973,13 +1973,10 @@ icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   
   ndm = iap->ndm;
 
-  f[0] = 0.;
+  icps(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, f, 0, nullptr);
   f[1] = -par[xpp::auto_unknown::doubling_norm];
 
   for (i = 0; i < ndm; ++i) {
-    if (iap->lib->rotations.nrtn[i] == 0) {
-      f[0] += u[i] * upold[i];
-    }
     f[1] += u[ndm + i] * u[ndm + i];
   }
 
@@ -2239,14 +2236,11 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   ndm = iap->ndm;
   ndm2 = ndm * 2;
 
-  f[0] = 0.;
+  icps(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, f, 0, nullptr);
   f[1] = 0.;
   f[2] = -par[xpp::auto_unknown::torus_norm];
 
   for (i = 0; i < ndm; ++i) {
-    if (iap->lib->rotations.nrtn[i] == 0) {
-      f[0] += u[i] * upold[i];
-    }
     f[1] = f[1] + u[ndm + i] * uold[ndm2 + i] - u[ndm2 + i] * uold[ndm + i];
     f[2] = f[2] + u[ndm + i] * u[ndm + i] + u[ndm2 + i] * u[ndm2 + i];
   }
@@ -2615,12 +2609,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   ndm = iap->ndm;
   nfpr = iap->nfpr;
 
-  fi[0] = 0.;
-  for (i = 0; i < ndm; ++i) {
-    if (iap->lib->rotations.nrtn[i] == 0) {
-      fi[0] += u[i] * upold[i];
-    }
-  }
+  icps(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, fi, 0, nullptr);
 
   for (i = 0; i < iap->lib->parameter_count; ++i) {
     dfp[i] = 0.;

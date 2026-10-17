@@ -49,31 +49,7 @@
   },
   "differences": [
     {
-      "reference": ".auto07p",
-      "run": "cycles",
-      "side": "ours",
-      "type": "LP",
-      "index": 1,
-      "cause": "The cycles past a period of about 60 are a near-homoclinic orbit that 15 mesh intervals do not resolve, so what both programs print there is the mesh's, not the model's: at NTST 60 and EPS 1e-9 neither ours nor AUTO-07p finds any LP up to period 84.4 (par 0.7080728, norm 0.426543 in both). At NTST 15 ours labels an LP at point 24 where the fold function dips to -7.9e-7 (XPPAUT identical; AUTO-07p's value there is +8.9e-8: no sign change), and AUTO-07p labels two LPs at points 27 and 29. docs/auto-references.md."
-    },
-    {
-      "reference": ".auto07p",
-      "run": "cycles",
-      "side": "reference",
-      "type": "LP",
-      "index": 1,
-      "cause": "The cycles past a period of about 60 are a near-homoclinic orbit that 15 mesh intervals do not resolve, so what both programs print there is the mesh's, not the model's: at NTST 60 and EPS 1e-9 neither ours nor AUTO-07p finds any LP up to period 84.4 (par 0.7080728, norm 0.426543 in both). At NTST 15 ours labels an LP at point 24 where the fold function dips to -7.9e-7 (XPPAUT identical; AUTO-07p's value there is +8.9e-8: no sign change), and AUTO-07p labels two LPs at points 27 and 29. docs/auto-references.md."
-    },
-    {
-      "reference": ".auto07p",
-      "run": "cycles",
-      "side": "reference",
-      "type": "LP",
-      "index": 2,
-      "cause": "The cycles past a period of about 60 are a near-homoclinic orbit that 15 mesh intervals do not resolve, so what both programs print there is the mesh's, not the model's: at NTST 60 and EPS 1e-9 neither ours nor AUTO-07p finds any LP up to period 84.4 (par 0.7080728, norm 0.426543 in both). At NTST 15 ours labels an LP at point 24 where the fold function dips to -7.9e-7 (XPPAUT identical; AUTO-07p's value there is +8.9e-8: no sign change), and AUTO-07p labels two LPs at points 27 and 29. docs/auto-references.md."
-    },
-    {
-      "reference": ".auto07p",
+      "reference": ".xppaut",
       "run": "cycles",
       "side": "ours",
       "type": "LP",
@@ -85,8 +61,18 @@
       "run": "cycles",
       "side": "ours",
       "type": "LP",
-      "index": 2,
-      "cause": "W326 (#387), finding #47: restoring the converged state after a failed fold location at cycles point 27 changes the subsequent path and finds a second LP. XPPAUT 8.0 leaves the displaced iterate and finds only its first LP. These near-homoclinic cycles at NTST 15 are underresolved; AUTO-07p also finds two mesh-dependent LPs, and at NTST 60 and EPS 1e-9 neither program finds an LP up to period 84.4. This extra point is traced to the restore, not an increased tolerance. docs/auto-references.md."
+      "index": 1,
+      "cause": "W437 (#499), finding 73: XPPAUT 8.0 ICPS uses integral(u*upold), while xppautX and AUTO-07p center it on the computed orbit. On this underresolved NTST 15 near-homoclinic branch XPPAUT's first LP has norm 0.4280795, period 64.656143027; the centered discrete equations give norm 0.41805529, period 79.89358, agreeing with AUTO-07p. These mesh-dependent LPs disappear at NTST 60/EPS 1e-9. This deliberate phase-condition difference is recorded in docs/auto-references.md and docs/xppaut-findings.md#73.",
+      "quantity": "norm"
+    },
+    {
+      "reference": ".xppaut",
+      "run": "cycles",
+      "side": "ours",
+      "type": "LP",
+      "index": 1,
+      "cause": "W437 (#499), finding 73: XPPAUT 8.0 ICPS uses integral(u*upold), while xppautX and AUTO-07p center it on the computed orbit. On this underresolved NTST 15 near-homoclinic branch XPPAUT's first LP has norm 0.4280795, period 64.656143027; the centered discrete equations give norm 0.41805529, period 79.89358, agreeing with AUTO-07p. These mesh-dependent LPs disappear at NTST 60/EPS 1e-9. This deliberate phase-condition difference is recorded in docs/auto-references.md and docs/xppaut-findings.md#73.",
+      "quantity": "period"
     }
   ]
 }

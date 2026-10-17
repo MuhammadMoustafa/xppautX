@@ -226,11 +226,15 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-48 descriptions have an AUTO-07p reference (166 special points compared, and the two-parameter curves) and 42 an
-XPPAUT 8.0 reference (117 points); 42 hold both. Every untraced comparison agrees. AUTO-07p has 26 traced points
-and XPPAUT 8.0 43; the runs a description skips (its reason says why) are neither run nor compared. The whole
-comparison is 60 descriptions, 9 skipped, 18678 stored points across one and automatic threads, 150 checks, zero
-failures. Newton and location tolerances are unchanged; XPPAUT curve exports include their half-unit printing uncertainty
+48 descriptions have an AUTO-07p reference (176 special points compared, and the two-parameter curves) and 42 an
+XPPAUT 8.0 reference (120 points); 42 hold both. There are 28 traced difference entries for AUTO-07p
+and 54 for XPPAUT, including six and two quantity-specific discrepancies respectively. Those eight
+quantities remain outside their unchanged bounds; the other quantities and labels stay checked. The full
+W437 comparison passes: 60 descriptions, 9 skipped, 18674 computed points across one and automatic threads,
+150 checks, zero untraced failures. Both Mu26 and the sixteen approved periodic baselines were updated;
+each is named with its change size [below](#w437-user-points-on-mu26s-approach-to-the-snic-499).
+The [before-update impact report](studies/w437-phase-impact.md) preserves the initial 36 failures.
+Newton and location tolerances are unchanged; XPPAUT curve exports include their half-unit printing uncertainty
 (above). W428 ([#490](https://github.com/MuhammadMoustafa/xppautX/issues/490)) adds eleven XPPAUT references; only the map fold
 remains refused among the twelve two-parameter descriptions. Three one-parameter references (`tstauto_ab`, `tstauto_dumb`,
 `ode_del_log`) were replayed byte for byte, and no existing reference file changed. Before W326 there were 44 compared points
@@ -239,24 +243,24 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 | Model | Special points in xppautX | AUTO-07p | XPPAUT 8.0 |
 |---|---|---|---|
 | explicit_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.2e-08, par2 2.4e-15, norm 1.8e-08) | not run |
-| forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 4.1e-10, par2 5.7e-11, norm 1.3e-10, period 2e-14, spectrum 4.3e-05; curve par 0.00036, par2 9.8e-06, norm 4.9e-06) | agrees, 1 traced (4 points; par 3e-08, norm 2.6e-08, period 2e-14, spectrum 3.8e-07; curve par 0.00045, par2 8.2e-06, norm 4.4e-06) |
-| forced_pp_pd | steady: EP HB; cycles: PD; pd_up: R2; pd_down: R2 | agrees (5 points; par 1.8e-06, par2 1.9e-05, norm 1.3e-06, period 2.1e-14, spectrum 4.3e-05; curve par 2.6e-07, par2 1.3e-05, norm 1.4e-06) | agrees, 2 traced (3 points; par 1.6e-08, norm 4.8e-08, period 2.1e-14, spectrum 3.1e-07; curve par 6.5e-06, par2 3.2e-06, norm 1.1e-06) |
+| forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 6.7e-10, par2 1.1e-10, norm 3.1e-10, period 2e-14, spectrum 5.9e-05; curve par 0.00036, par2 9.8e-06, norm 4.9e-06) | agrees, 1 traced (4 points; par 3.1e-08, norm 2.6e-08, period 2e-14, spectrum 3.8e-07; curve par 0.00045, par2 7.9e-06, norm 4.2e-06) |
+| forced_pp_pd | steady: EP HB; cycles: PD; pd_up: R2; pd_down: R2 | agrees, 1 traced (5 points; par 3e-06, par2 2.3e-05, norm 1.6e-06, period 2.1e-14, spectrum 5.7e-05; curve par 9.7e-05, par2 4.9e-05, norm 0.00039) | agrees, 2 traced (3 points; par 1.6e-08, norm 4.8e-08, period 2.1e-14, spectrum 3.1e-07; curve par 9.6e-05, par2 5.4e-05, norm 1.1e-06) |
 | henon_rot_lp | steady: EP LP TR PD; up: LTR LPD R1; down: LTR | agrees (8 points; par 1.4e-09, par2 1.4e-09, norm 1.2e-09, spectrum 1.7e-05; curve par 9.1e-06, par2 2.8e-06, norm 1.9e-06) | not run |
 | henon_rot_pd | steady: EP PD TR TR; up: PTR R2 PTR; down: LPD PTR PTR | agrees (10 points; par 9.8e-09, par2 3.7e-09, norm 2.2e-09, spectrum 1.3e-05; curve par 1.4e-09, par2 6.8e-09, norm 2.9e-09) | agrees, 6 traced (4 points; par 2.6e-07, norm 3.5e-07, spectrum 7e-07; curve par 0.0003, par2 0.00033, norm 0.0076) |
 | henon_rot_th | steady: EP PD TR TR; turn: R4 R3 R2 BP R3 R4 | agrees, 2 traced (8 points; par 3.8e-05, par2 2.8e-11, norm 7.7e-11, spectrum 3.5e-05; curve par 5e-11, par2 2.8e-11, norm 5.7e-12) | agrees, 6 traced (4 points; par 2e-07, norm 3e-07, spectrum 8.4e-07; curve par 5.2e-07, par2 3.9e-08, norm 3e-07) |
 | henon_rot_tr | steady: EP PD TR TR; up: R2 | agrees (5 points; par 1.3e-09, par2 1.4e-11, norm 4.5e-10, spectrum 3.8e-05; curve par 3.2e-08, par2 4.5e-09, norm 2.5e-08) | agrees, 1 traced (4 points; par 2e-07, norm 3e-07, spectrum 8.4e-07; curve par 0.00062, par2 1.8e-07, norm 2.8e-05) |
-| hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 9.3e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07; curve par 2.7e-09, par2 1e-09, norm 8.4e-12) | agrees, 5 traced (5 points; par 4e-08, norm 4.2e-08, period 3.6e-10, spectrum 2.8e-07; curve par 0.0071, par2 0.0013, norm 3.4e-07) |
-| hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP R3 | agrees, 1 traced (7 points; par 5.8e-11, par2 1e-11, norm 7.7e-12, period 2e-11, spectrum 4.3e-06; curve par 5.8e-11, par2 1.9e-08, norm 1.5e-11) | agrees, 4 traced (4 points; par 4e-08, norm 4.3e-08, period 2e-11, spectrum 5.7e-08; curve par 2.5e-10, par2 0.0002, norm 4.4e-07) |
+| hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 3.6e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07; curve par 2.6e-09, par2 1e-09, norm 8.4e-12) | agrees, 5 traced (5 points; par 4e-08, norm 4.2e-08, period 3.6e-10, spectrum 2.8e-07; curve par 0.0071, par2 0.0013, norm 3.4e-07) |
+| hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP R3 | agrees, 1 traced (7 points; par 5.5e-11, par2 1e-11, norm 7.7e-12, period 2e-11, spectrum 4.2e-06; curve par 5.5e-11, par2 1.9e-08, norm 1.5e-11) | agrees, 4 traced (4 points; par 4e-08, norm 4.3e-08, period 2e-11, spectrum 5.7e-08; curve par 2.5e-10, par2 0.0002, norm 4.4e-07) |
 | izh_class1_integrator | steady: EP LP | agrees (2 points; par 7.5e-15, norm 4.1e-10, spectrum 2e-08) | agrees (2 points; par 7.5e-15, norm 3.7e-06, spectrum 2e-08) |
 | izh_class2 | steady: EP HB LP | agrees (3 points; par 4.4e-13, norm 3.7e-10, period 6.6e-11, spectrum 4.6e-07) | agrees (3 points; par 7.1e-06, norm 4.7e-06, period 1.5e-05, spectrum 4.1e-08) |
 | izh_resonator | steady: EP HB LP | agrees (3 points; par 2.5e-12, norm 4.5e-10, period 3.1e-10, spectrum 2e-07) | agrees (3 points; par 2.1e-05, norm 3.2e-06, period 3.9e-05, spectrum 1.6e-07) |
 | lorenz_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.8e-08, par2 1.4e-08, norm 6.3e-08) | not run |
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
-| ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.4e-10, norm 1.6e-07, period 6.7e-05, spectrum 0.00037) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.5e-06, period 0.0017, spectrum 0.00041) |
+| ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 2.7e-11, norm 4.3e-10, period 1.8e-07, spectrum 4.7e-05) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.5e-06, period 0.0017, spectrum 0.00041) |
 | ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 6.8e-07, norm 6.4e-09, period 2.1e-08, spectrum 1.2e-06) | agrees (4 points; par 1e-05, norm 4.7e-06, period 5.4e-09, spectrum 8.4e-08) |
 | ode_motoneuron6c | steady: EP LP LP HB HB LP HB LP HB HB; periodic: LP; hb_up: -; hb_down: - | agrees, 5 traced (11 points; par 1.5e-09, norm 1.8e-08, period 1.2e-07, spectrum 5e-06; curve par 5.8e-06, par2 7.4e-08, norm 0.00015) | agrees (11 points; par 9.3e-06, norm 0.0005, period 0.1, spectrum 0.001; curve par 2.2e-05, par2 5.1e-07, norm 0.00067) |
-| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; to_snic: -; hb_soma: -; hb_dend: -; lp_soma: CP; lpc_soma: -; lpc_dend: - | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | agrees, 1 traced (5 points; par 1.2e-06, norm 1e-05, period 7e-08, spectrum 1e-07; curve par 0.024, par2 0.00087, norm 0.00021) |
-| ode_mu26_control | steady: EP LP LP HB; cycles: LP; to_snic: - | agrees (5 points; par 1.2e-07, norm 3.9e-09, period 1.4e-08, spectrum 1.1e-06) | agrees (5 points; par 3.5e-06, norm 4.3e-06, period 8e-08, spectrum 1.3e-07) |
+| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; to_snic: UZ UZ UZ UZ; hb_soma: -; hb_dend: -; lp_soma: CP; lpc_soma: -; lpc_dend: - | agrees, 2 traced (10 points; par 8.2e-08, par2 2.4e-08, norm 8.3e-05, period 0.0028, spectrum 6.8e-05; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | agrees, 5 traced (7 points; par 1.2e-06, norm 4.1e-05, period 0.00018, spectrum 1.1e-05; curve par 0.024, par2 0.00087, norm 0.00021) |
+| ode_mu26_control | steady: EP LP LP HB; cycles: LP; to_snic: UZ UZ UZ UZ | agrees, 3 traced (9 points; par 1.2e-07, norm 2.9e-05, period 0.0004, spectrum 0.00052) | agrees, 5 traced (6 points; par 3.5e-06, norm 4.4e-05, period 9.6e-06, spectrum 5.6e-07) |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | res_cycles | steady: EP HB HB; cycles: TR; torus_down: R1 R4 R3 R2 R3; torus_up: R4 R3 R2 R3 R4 BP | agrees, 6 traced (9 points; par 4.3e-07, par2 3.3e-07, norm 1.9e-07, period 2.2e-11, spectrum 0.0013; curve par 2.3e-06, par2 2.5e-05, norm 1.5e-06) | agrees, 11 traced (4 points; par 4e-08, norm 2.2e-08, period 2.2e-11, spectrum 6.6e-08; curve par 2.8e-06, par2 2.4e-05, norm 7.2e-06) |
 | tstauto_ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
@@ -272,12 +276,12 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 | tstauto_exp | boundary: EP | agrees (1 points; par 0, norm 0) | not run |
 | tstauto_frcp | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-12, norm 1e-13, period 2.1e-12, spectrum 4e-05) | agrees (2 points; par 5.2e-06, norm 4.6e-08, period 2.1e-06, spectrum 0.00093) |
 | tstauto_lamom | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-18, norm 0, period 2e-11, spectrum 1e-14) | agrees (2 points; par 2.7e-16, norm 0, period 2e-11, spectrum 1e-14) |
-| tstauto_lamom2 | steady: EP HB; cycles: LP | agrees (3 points; par 9.2e-13, norm 5.9e-12, period 2.6e-11, spectrum 3.8e-06) | agrees (3 points; par 6.8e-09, norm 4e-08, period 2.6e-11, spectrum 2.4e-08) |
-| tstauto_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.4e-10, norm 1.6e-07, period 6.7e-05, spectrum 0.00037) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.6e-06, period 0.0017, spectrum 0.00041) |
+| tstauto_lamom2 | steady: EP HB; cycles: LP | agrees (3 points; par 9.2e-13, norm 1.1e-11, period 4.8e-11, spectrum 3.8e-06) | agrees (3 points; par 6.8e-09, norm 4e-08, period 4.8e-11, spectrum 2.4e-08) |
+| tstauto_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 4.1e-11, norm 1.2e-09, period 4.8e-07, spectrum 5e-05) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.6e-06, period 0.0017, spectrum 0.00041) |
 | tstauto_lo | steady: EP HB; cycles: - | agrees (2 points; par 2.7e-18, norm 0, period 2e-11, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, period 2e-11, spectrum 2.5e-16) |
 | tstauto_pen | steady: EP | agrees (1 points; par 0, norm 3.6e-12) | agrees (1 points; par 0, norm 4.9e-09) |
 | tstauto_pf | steady: EP BP | agrees (2 points; par 2.7e-18, norm 0, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, spectrum 2.2e-16) |
-| tstauto_pp2 | steady: EP HB BP; cycles: LP LP | agrees, 4 traced (3 points; par 1.8e-12, norm 3.3e-12, period 6.3e-11, spectrum 5e-07) | agrees, 1 traced (4 points; par 4.8e-08, norm 4.9e-07, period 2.3e-10, spectrum 2.9e-07) |
+| tstauto_pp2 | steady: EP HB BP; cycles: LP LP | agrees (5 points; par 2.8e-12, norm 6.7e-08, period 9.3e-05, spectrum 2.1e-06) | agrees, 3 traced (4 points; par 1.3e-06, norm 0.01, period 15, spectrum 0.0025) |
 | tstauto_san | steady: EP BP | agrees (2 points; par 2.4e-12, norm 2.8e-15, spectrum 1.3e-07) | agrees (2 points; par 1.7e-08, norm 4.1e-11, spectrum 1.3e-07) |
 | tstauto_she | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_simplefold | steady: EP LP LP | agrees (3 points; par 4.8e-12, norm 4.5e-11, spectrum 8.6e-11) | agrees (3 points; par 2.1e-08, norm 4.3e-08, spectrum 2.7e-13) |
@@ -287,10 +291,11 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 | tstauto_wcbiwave | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | zero_hopf | steady: EP LP; fold: ZH | agrees (3 points; par 1.7e-18, par2 1.3e-40, norm 5.8e-17, spectrum 7.4e-12; curve par 3.5e-18, par2 2.4e-21, norm 1e-16) | agrees, 1 traced (2 points; par 3.1e-18, norm 3.2e-13, spectrum 2.6e-12; curve par 9.2e-16, par2 1.3e-10, norm 3.7e-12) |
 
-Rows are the output of `autocompare.py --table`. Cells: `agrees` (every compared quantity inside its tolerance), the
+Rows are the output of `autocompare.py --table`. Cells: `agrees` (every untraced comparison inside its tolerance), the
 number of points compared and the largest absolute difference per quantity (`par`, `par2` on curves, `norm`,
-`period`, `spectrum`: the eigenvalue or multiplier pair furthest apart); `traced` counts the points of that
-description recorded below. The second column lists the special points xppautX stores, run by run (EP: the run's
+`period`, `spectrum`: the eigenvalue or multiplier pair furthest apart); `traced` counts explicit difference
+entries, either unmatched labels or out-of-bound quantities. It does not assert numerical agreement for those
+quantities. Their causes are recorded in each description and below. The second column lists the special points xppautX stores, run by run (EP: the run's
 start). Where the code path is shared the
 differences remain within the per-quantity tolerances. W356's refreshed test histories
 move the displayed Morris-Lecar HB parameters away from XPPAUT by up to 5.5e-5 and frcp's by
@@ -1253,3 +1258,149 @@ The build uses `-Werror` with zero warnings; all 58 unit binaries pass (64 check
 The selected control/blocked comparison stores 2522 points across one and automatic threads, both thread
 comparisons pass, and all 92 reference quantities agree. The control baseline does not change. Full packed-card
 AUTO, autocheck and example gates are recorded with W437 below.
+
+## W437: user points on Mu26's approach to the SNIC ([#499](https://github.com/MuhammadMoustafa/xppautX/issues/499))
+
+The special-point test is parameter minus target in both XPPAUT 8.0's FNUZBV
+(`autlib1.c:6872`) and AUTO-07p's FNUZ (`support.f90:746`). LCSPBV brackets and
+corrects points on the BVP branch. AUTO-07p restores the converged orbit,
+tangent, old point, step history and stability after a failed location
+(`bvp.f90:1436-1459`); W326 already supplies that restoration in xppautX.
+XPPAUT 8.0 does not restore (`autlib1.c:6498-6501`, finding 47).
+
+A separate inherited error remains inside the correction: ICPS imposes
+`integral(u * uold') = 0`. The identity `integral(uold * uold') = 0` holds
+for an exact periodic orbit, but need not hold for quadrature of a computed
+collocation orbit and its model derivative. Therefore a correction with a
+vanishing arclength step can move the previous orbit. AUTO-07p instead uses
+`integral((u-uold) * uold') = 0`, which contains the previous computed orbit
+exactly. W437 adopts that condition, including every augmented periodic
+system, by reusing ICPS. The Jacobian of this condition is unchanged. This
+is a deliberate difference from XPPAUT's discretized equations (finding 73),
+not a larger location tolerance or an extra iteration allowance. Failed
+location rollback is retained. Increasing ITMX or adding another rollback
+would leave the phase bias itself intact.
+
+Search/reuse: ICPS/ICPL/ICPD/ICTR/FIPO and the other `fn*` systems in all
+`autlib*`, `auto_jacobian`, FUNI, LCSPBV/CONTBV/STEPBV, `LocationState`, the
+shared `user_zero`, and the existing comparison/reference readers. ICPS owns
+the physical phase condition; the four augmented systems call it. The run
+description's optional `marks` is passed to the existing core setting, to
+AUTO-07p's UZR, and to XPPAUT's AutoPer dialog. The shared reference vocabulary
+now includes UZ (`itp=-4`), so their parameters, norms, periods and spectra are
+actually compared. The reference driver reuses `read_description` for shape
+and finite-value validation; xdotool receives separate literal arguments,
+never a shell command built from a model or parameter name. The foreign
+nine-field AutoPer bound is checked before the dialog is opened, and NUZR is
+read back from XPPAUT's own constants header. No core trust boundary changes.
+
+Both Mu26 `to_snic` runs now carry the four marks 5, 1, 0.1 and 0.07 pA.
+Control labels them at 4.9999999704, 0.9999999355, 0.0999996688 and
+0.0699999969 pA. Blocked labels them at 4.9999999923, 0.9999997724,
+0.0999999821 and 0.06999999994 pA. Each 170-point continuation has **zero
+upward current steps**: control ends at 0.00581952509 pA (period 31305.9150),
+blocked at 0.06581564808 pA (period 35096.6263). Thus neither reverses after
+the marks. Endpoints depend on the number and sequence of steps and are not
+reference special points. The marked XPPAUT 8.0 references now use W438's Extend
+driver. Native control labels 5 pA, fails to locate 1 pA, labels an LP at
+0.9990257 pA, reverses, and labels 5 pA again. Native blocked labels 5 and
+0.9999987 pA, then LPs at 0.1009347 and 0.07001995 pA and ends back at
+0.08047857 pA. Neither reaches all four marks. These actual labels are retained
+and explained in the descriptions (findings 47 and 73), not replaced by the
+modern results. The shared native UZ points remain numerically compared.
+
+The intended Mu26 baseline changes are `ode_mu26_control` (294 of 540 stored
+rows change) and `ode_mu26_blocked` (388 of 721). Their steady rows remain
+unchanged; their periodic corrections use the centered phase, and `to_snic`
+now stores the four UZ locations. The blocked LPC curves also move in their
+last digits: final (g_h,current) is (15.9420397525,99.8773794775) for soma and
+(15.9424458153,99.9584150441) for dend. No numerical tolerance is widened.
+
+**Record before the update.** The first full comparison had 150 checks and 36 failures:
+32 retained-baseline comparisons plus four reference checks in eight quantities. The
+maintainer approved adopting AUTO-07p's condition on 2026-10-17. The
+[before-update impact report](studies/w437-phase-impact.md) and its
+[raw measurements](studies/w437-phase-impact.json) preserve that result.
+The sixteen approved baselines were then updated with `autocompare.py --update`;
+all their special-point type sequences and label IDs stay unchanged. Each uses
+periodic corrections, including curves started from periodic points. The sizes
+below compare paired stored indices, so adaptive step changes are included and
+are not independent-reference error estimates.
+
+| Description | Points before / after | Changed paired rows | Max norm delta | Max period delta | Threads equal |
+|---|---:|---:|---:|---:|---|
+| forced_pp_ns | 264 / 262 | 205 | 0.00240022 | 2.62013e-14 | True |
+| forced_pp_pd | 706 / 706 | 649 | 0.00526007 | 3.75255e-14 | True |
+| hill_cycles_pd | 151 / 151 | 103 | 3.4861e-13 | 3.55271e-15 | True |
+| hill_cycles_torus | 196 / 196 | 148 | 7.67053e-13 | 3.55271e-15 | True |
+| ode_lecar | 79 / 79 | 29 | 6.94955e-07 | 0.00024097 | True |
+| ode_ma23 | 613 / 613 | 290 | 6.51003e-06 | 0.00125482 | True |
+| ode_motoneuron6c | 1239 / 1239 | 19 | 1.26329e-05 | 1.3651e-05 | True |
+| res_cycles | 376 / 376 | 328 | 5.98905e-07 | 7.90479e-13 | True |
+| tstauto_brper | 49 / 49 | 27 | 3.02891e-12 | 3.14593e-12 | True |
+| tstauto_frcp | 103 / 103 | 29 | 1.73922e-10 | 3.60672e-09 | True |
+| tstauto_lamom | 70 / 70 | 28 | 1.9984e-15 | 4.44089e-15 | True |
+| tstauto_lamom2 | 60 / 60 | 28 | 5.41145e-12 | 2.1358e-11 | True |
+| tstauto_lecar | 83 / 83 | 29 | 6.95434e-07 | 0.000241136 | True |
+| tstauto_lo | 50 / 50 | 28 | 1.57652e-14 | 2.04281e-14 | True |
+| tstauto_pp2 | 130 / 130 | 29 | 0.0132213 | 59.7399 | True |
+| tstauto_torx | 81 / 81 | 28 | 9.54792e-15 | 3.01981e-14 | True |
+
+Only `forced_pp_ns` changes point count (264 to 262): `ns_up` crosses its
+parameter stopping bound after 29 rather than 31 points. Its special labels
+and reference curves still agree. The approved sixteen-model update compared
+8496 points at one and automatic threads, with 16 cross-thread checks and no
+failures. The final full comparison below checks every reference again.
+
+The four reference failures were traced without widening any tolerance:
+
+- `forced_pp_pd` upper `pd_up` R2: par2 differs by 2.27e-5 (bound 2.10e-5).
+  Both use `abs(EV(3))-1`. The imposed and remaining -1 multipliers coalesce;
+  their numerical tests and location histories are sensitive to mesh and step.
+  Halving DSMAX reduces the discrepancy to 1.15e-5; NTST 160 reverses its
+  sign (2.80e-5); EPSS 1e-7 does not produce an xppautX R2 label.
+- Mu26 UZ spectra: control at 1, 0.1, 0.07 pA and blocked at 1 pA exceed
+  their bounds. NTST 50/100/200/400 sweeps are nonmonotonic. At NTST 200,
+  changing only the Jacobian to exact moves the neutral multiplier toward its
+  mathematical value 1 (blocked 0.07: 1.00497448741 to 1.00000003469), with
+  norm changes below 2e-10. This isolates finite-difference sensitivity of the
+  long-period variational problem; mesh refinement alone does not resolve it.
+- Blocked norm at 0.07 pA: the default-history discrepancy is 8.34e-5 against
+  6.03e-5 allowed. Relocating exactly that mark from the nearby saved 0.1 pA
+  orbit reduces it to 7.70e-7 at NTST 50, 4.88e-9 at 100 and 2.22e-9 at 200.
+  The cause is coarse adaptive mesh/history, separate from multiplier accuracy.
+- `tstauto_pp2` first LP: centered (parameter,norm,period) is
+  (0.7080732822986838,0.4180552886559583,79.8935775600), against AUTO-07p
+  (0.7080732823,0.41805535218,79.89348504). XPPAUT's uncentered result
+  (0.708072,0.4280795,64.656143027) deliberately differs in norm and period.
+  The four obsolete AUTO-07p LP exceptions are removed; both LPs are compared.
+  NTST 60/EPS 1e-9 finds no LP through period 84.4, so the coarse NTST 15
+  folds are not established physical bifurcations.
+
+The [trace study](studies/w437-reference-traces.md) and
+[raw values](studies/w437-reference-traces.json) retain configurations, negative
+results and spectra. Numerical traces name only the failing quantity, keeping
+labels and the other quantities checked. A trace must still exceed its original
+bound; a resolved or unused trace fails as stale. All eight AUTO-07p UZ parameter
+locations remain checked. These discrepancies are traced, not declared equal.
+
+The XPPAUT driver has one Extend path and one per-run timeout recovery. A run
+that reaches 600 s is aborted through XPPAUT's own Escape handling and marked
+unavailable, preserving earlier runs; both blocked LPC runs exercised this path.
+Their more detailed W436 diagnostic reasons are retained. New diagnostic text is
+sliced for every run, including Extend, because reused branch/point numbers could
+otherwise replace a new UZ spectrum with an older cycles spectrum. All other
+Mu26 reference point and curve records remain byte for byte unchanged.
+
+Final committed-HEAD gates ran one at a time: zero compiler warnings under
+`-Werror`, all 58 unit binaries passing (70 fold/phase/derived checks); the full
+AUTO comparison has 60 descriptions, 9 skipped, 18674 points and 150 checks,
+zero untraced failures; all 286 `autocheck` assertions pass; all 216 example
+models pass (215 matching outputs, with `ml-range.odex` intentionally writing
+none). The table above is copied from that full `--table` output: 48 AUTO-07p
+references / 176 compared points and 42 XPPAUT references / 120 points, with
+28 and 54 explicit traced entries respectively. The eight out-of-bound numerical
+quantities remain documented, not counted as equal. Four quantity-trace mutation
+checks pass. The fixed control driver reproduces the corrected crop byte for
+byte. The final documentation amendment records these results without changing
+the tested code, descriptions, baselines or references.

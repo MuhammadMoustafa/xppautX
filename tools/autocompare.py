@@ -100,7 +100,7 @@ def read_description(path):
         raise ValueError('runs must be a nonempty list')
     names = set()
     for r in d['runs']:
-        members(r, ('name', 'kind', 'start', 'parameter', 'parameters', 'auto', 'switch', 'skip', 'expected_error', 'connection'),
+        members(r, ('name', 'kind', 'start', 'parameter', 'parameters', 'auto', 'switch', 'skip', 'expected_error', 'connection', 'marks'),
                 ('name', 'kind', 'start', 'auto'))
         if not isinstance(r['name'], str) or not r['name'] or r['name'] in names or r['kind'] not in KINDS:
             raise ValueError('invalid run name or kind: ' + str(r))
@@ -123,6 +123,14 @@ def read_description(path):
                 raise ValueError('start must name an earlier run and point type')
             finite(st['index'], 'index', integer=True, positive=True)
         names.add(r['name'])
+        marks = r.get('marks', [])
+        if not isinstance(marks, list):
+            raise ValueError('marks must be a list of [parameter name, value] pairs')
+        for mark in marks:
+            if (not isinstance(mark, list) or len(mark) != 2 or
+                    not isinstance(mark[0], str) or not mark[0].strip()):
+                raise ValueError('mark must be a [parameter name, value] pair')
+            finite(mark[1], 'mark value')
         if r['kind'] in HOMCONT:
             connection = r.get('connection')
             members(connection, ('left', 'right', 'nunstab', 'nstab'), ('left', 'right', 'nunstab', 'nstab'))
@@ -163,12 +171,19 @@ def read_description(path):
             raise ValueError('switch must be boolean')
     if all('skip' in r for r in d['runs']):
         raise ValueError('no runnable continuations; use a model skip with its reason')
+    traced = set()
     for k in d.get('differences', ()):
-        members(k, ('reference', 'run', 'side', 'type', 'index', 'cause'), ('reference', 'run', 'side', 'type', 'index', 'cause'))
+        members(k, ('reference', 'run', 'side', 'type', 'index', 'cause', 'quantity'), ('reference', 'run', 'side', 'type', 'index', 'cause'))
         if (k['reference'] not in REFERENCES or k['run'] not in names or k['side'] not in ('ours', 'reference')
                 or k['type'] not in ('EP', *BIFURCATIONS.values(), *CODIM_TWO) or not isinstance(k['cause'], str) or not k['cause'].strip()):
             raise ValueError('invalid traced difference: ' + str(k))
         finite(k['index'], 'index', integer=True, positive=True)
+        if 'quantity' in k and (k['side'] != 'ours' or k['quantity'] not in POINT_QUANTITIES):
+            raise ValueError('quantity difference must name an ours point and a compared quantity: ' + str(k))
+        key = tuple(k[x] for x in ('reference', 'run', 'side', 'type', 'index')) + (k.get('quantity'),)
+        if key in traced:
+            raise ValueError('duplicate traced difference: ' + str(k))
+        traced.add(key)
     return d
 
 
@@ -216,7 +231,7 @@ def execute_run(s, r, diagram, ranges):
     pars = r.get('parameters', [r.get('parameter')])
     numerics = {NUMERICS[k]: v for k, v in r['auto'].items()}
     diagram.apply(completed(s, dict(cmd='auto', op='set', numerics=numerics,
-                                   marks=[], axes={'par1': pars[0],
+                                   marks=r.get('marks', []), axes={'par1': pars[0],
                                    **({'par2': pars[1], 'plot': 4} if len(pars) == 2 else {})})))
     keys = {'equilibrium': 's' if start.get('state') == 'current' else 'e',
             # a periodic run from an HB starts the cycles; from a point of cycles it extends them (W423)
@@ -314,14 +329,16 @@ REFERENCE_FORMAT = 1
 # the types a reference point can have: the problem's own special points, then the codim-2
 # points of a two-parameter curve (AUTO-07p's TY names: Bogdanov-Takens, cusp, zero-Hopf,
 # generalised Hopf; the cycles' strong resonances R1-R4, fold-flip, fold-torus, ...)
-SPECIAL_TYPES = ('EP', 'MX', 'BP', 'LP', 'HB', 'PD', 'TR')
+SPECIAL_TYPES = ('EP', 'MX', 'BP', 'LP', 'HB', 'PD', 'TR', 'UZ')
 CODIM_TWO = ('BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4', 'LPD', 'LTR', 'PTR', 'TTR')
 # the type of a stored point (itp, core/auto_nox.h) that both programs label a special point
-BIFURCATIONS = {1: 'BP', 2: 'LP', 3: 'HB', 5: 'LP', 6: 'BP', 7: 'PD', 8: 'TR',
+BIFURCATIONS = {1: 'BP', 2: 'LP', 3: 'HB', -4: 'UZ', 5: 'LP', 6: 'BP', 7: 'PD', 8: 'TR',
                 -21: 'BT', -22: 'CP', -23: 'ZH', -31: 'BT', -32: 'GH', -33: 'ZH',
                 **{-10 * start - 5 - i: kind for start in (2, 5, 7, 8)
                    for i, kind in enumerate(('R1', 'R2', 'R3', 'R4'))},
                 28: 'LPD', 78: 'LPD', 23: 'LTR', 83: 'LTR', 77: 'PTR', 87: 'PTR', 88: 'TTR'}
+# A traced numerical discrepancy names one compared quantity; labels remain checked.
+POINT_QUANTITIES = ('par', 'par2', 'norm', 'period', 'spectrum')
 POINT_FIELDS = ('type', 'branch', 'label', 'point', 'par', 'norm', 'period', 'spectrum', 'values')
 # Newton's convergence test of both codes (autlib1.c solvae, ae.f90 stepae) stops on a
 # relative change below EPSL for the parameter and EPSU for the state, so a computed
@@ -516,11 +533,15 @@ def compare_run(rows, auto, kind, ref_points, who, known=()):
     theirs = [p for p in ref_points if p['type'] in detected or (p['type'] == 'EP' and p['point'] == 1)]
     diffs = []
     dropped = {'ours': set(), 'reference': set()}
-    for k in known:  # a traced difference: one point the other side has no counterpart of (index: among its type, as listed)
+    numerical = {}
+    # Indices count the original type occurrences, before any unmatched point is removed.
+    for k in known:
         kinds = [t for t, _ in ours] if k['side'] == 'ours' else [p['type'] for p in theirs]
         at = [j for j, t in enumerate(kinds) if t == k['type']]
         if len(at) < k['index']:
             diffs.append('%s: traced difference not present any more, remove it: %s' % (who, k))
+        elif 'quantity' in k:
+            numerical[ours[at[k['index'] - 1]][1], k['quantity']] = k
         else:
             dropped[k['side']].add(at[k['index'] - 1])
     ours = [x for j, x in enumerate(ours) if j not in dropped['ours']]
@@ -546,9 +567,15 @@ def compare_run(rows, auto, kind, ref_points, who, known=()):
                    + (NEWTON_TOLERANCE * (FINITE_DIFFERENCE + PRINTED) * (1 + size) * scale if q == 'spectrum' else 0))
             diff = spread(a, b)
             measures.append((q, '%s %d' % (t, i + 1), diff, tol))
-            if not diff <= tol:
+            traced_quantity = numerical.pop((i, q), None)
+            if traced_quantity is not None:
+                if diff <= tol:
+                    diffs.append('%s: traced difference not present any more, remove it: %s' % (who, traced_quantity))
+            elif not diff <= tol:
                 diffs.append('%s %s (stored point %d) %s: ours %s, reference %s, difference %.3g > tolerance %.3g'
                              % (who, t, i + 1, q, a, b, diff, tol))
+    for k in numerical.values():
+        diffs.append('%s: traced quantity was not compared: %s' % (who, k))
     return diffs, measures
 
 

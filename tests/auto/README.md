@@ -18,7 +18,9 @@ optional `parameters` and `initial_conditions` set the starting state.
 its `parameter` (or two `parameters` for `two_parameter` / `fixed_period`),
 and its per-run `auto` settings. `ds` includes the direction. `nmax`, `npr`,
 `ntst`, `dsmin`, `dsmax`, `parmin` and `parmax` are explicit. The driver
-maps these names to today's protocol fields, not to recording keys.
+maps these names to today's protocol fields, not to recording keys. Optional per-run
+`marks: [["parameter", value], ...]` locates user points (UZ); the same marks
+are passed to AUTO-07p as UZR and to XPPAUT through AutoPer (W437).
 
 A `start` is `{"state":"current"}`, optionally with `"settle":30`
 (integrate for 30 model-time units, then copy the ending values to the
@@ -71,7 +73,10 @@ reference, to be explained. A description without a file says why in `auto07p_sk
 (the two projection boundary-value fixtures for AUTO-07p, and the BVP fixtures for XPPAUT, whose
 boundary-value run starts from its integrated storage); a difference found, traced and kept is an entry
 of the description's `differences` (run, side, type, index among that type, cause), held exact:
-the check fails if the difference goes away.
+the check fails if the difference goes away. A numerical discrepancy adds `quantity` (`par`, `par2`,
+`norm`, `period` or `spectrum`) to an `ours` entry: only that quantity is traced,
+the label and every other quantity stay checked, and the check fails if the
+quantity now agrees so the exception must be removed.
 
 A `two_parameter` run (W362, #424) continues a labelled point of an earlier run (`start`: its run, type
 LP or HB, index) in its two `parameters`. Its reference run holds `parameters`, the special points with

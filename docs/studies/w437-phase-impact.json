@@ -1,0 +1,298 @@
+{
+  "tested_source": "1bab3a6645",
+  "full_gate": "AUTO FAILED: 60 models, 9 skipped, 18674 points, 150 checks, 36 failures",
+  "reference_results": {
+    "explicit_homoclinic": "PASS explicit_homoclinic against AUTO-07p (7 quantities)",
+    "forced_pp_ns": "PASS forced_pp_ns against AUTO-07p and XPPAUT 8.0 (44 quantities)",
+    "forced_pp_pd": "FAIL forced_pp_pd against AUTO-07p and XPPAUT 8.0 (40 quantities)",
+    "henon_rot_lp": "PASS henon_rot_lp against AUTO-07p (33 quantities)",
+    "henon_rot_pd": "PASS henon_rot_pd against AUTO-07p and XPPAUT 8.0 (58 quantities)",
+    "henon_rot_th": "PASS henon_rot_th against AUTO-07p and XPPAUT 8.0 (44 quantities)",
+    "henon_rot_tr": "PASS henon_rot_tr against AUTO-07p and XPPAUT 8.0 (32 quantities)",
+    "hill_cycles_pd": "PASS hill_cycles_pd against AUTO-07p and XPPAUT 8.0 (62 quantities)",
+    "hill_cycles_torus": "PASS hill_cycles_torus against AUTO-07p and XPPAUT 8.0 (52 quantities)",
+    "izh_class1_integrator": "PASS izh_class1_integrator against AUTO-07p and XPPAUT 8.0 (10 quantities)",
+    "izh_class2": "PASS izh_class2 against AUTO-07p and XPPAUT 8.0 (18 quantities)",
+    "izh_resonator": "PASS izh_resonator against AUTO-07p and XPPAUT 8.0 (18 quantities)",
+    "lorenz_homoclinic": "PASS lorenz_homoclinic against AUTO-07p (7 quantities)",
+    "ode_del_log": "PASS ode_del_log against AUTO-07p and XPPAUT 8.0 (4 quantities)",
+    "ode_lecar": "PASS ode_lecar against AUTO-07p and XPPAUT 8.0 (24 quantities)",
+    "ode_ma23": "PASS ode_ma23 against AUTO-07p and XPPAUT 8.0 (24 quantities)",
+    "ode_motoneuron6c": "PASS ode_motoneuron6c against AUTO-07p and XPPAUT 8.0 (88 quantities)",
+    "ode_mu26_blocked": "FAIL ode_mu26_blocked against AUTO-07p and XPPAUT 8.0 (76 quantities)",
+    "ode_mu26_control": "FAIL ode_mu26_control against AUTO-07p and XPPAUT 8.0 (48 quantities)",
+    "ode_osc": "PASS ode_osc against AUTO-07p and XPPAUT 8.0 (4 quantities)",
+    "res_cycles": "PASS res_cycles against AUTO-07p and XPPAUT 8.0 (60 quantities)",
+    "tstauto_ab": "PASS tstauto_ab against AUTO-07p and XPPAUT 8.0 (10 quantities)",
+    "tstauto_ab_fold": "PASS tstauto_ab_fold against AUTO-07p and XPPAUT 8.0 (24 quantities)",
+    "tstauto_ab_hopf": "PASS tstauto_ab_hopf against AUTO-07p and XPPAUT 8.0 (36 quantities)",
+    "tstauto_bigaut": "PASS tstauto_bigaut against AUTO-07p and XPPAUT 8.0 (4 quantities)",
+    "tstauto_bistable": "PASS tstauto_bistable against AUTO-07p and XPPAUT 8.0 (4 quantities)",
+    "tstauto_bob": "PASS tstauto_bob against AUTO-07p and XPPAUT 8.0 (4 quantities)",
+    "tstauto_brper": "PASS tstauto_brper against AUTO-07p and XPPAUT 8.0 (8 quantities)",
+    "tstauto_dumb": "PASS tstauto_dumb against AUTO-07p and XPPAUT 8.0 (4 quantities)",
+    "tstauto_dumbvp": "PASS tstauto_dumbvp against AUTO-07p (2 quantities)",
+    "tstauto_eiz-hom": "PASS tstauto_eiz-hom against AUTO-07p and XPPAUT 8.0 (4 quantities)",
+    "tstauto_exp": "PASS tstauto_exp against AUTO-07p (2 quantities)",
+    "tstauto_frcp": "PASS tstauto_frcp against AUTO-07p and XPPAUT 8.0 (12 quantities)",
+    "tstauto_lamom": "PASS tstauto_lamom against AUTO-07p and XPPAUT 8.0 (12 quantities)",
+    "tstauto_lamom2": "PASS tstauto_lamom2 against AUTO-07p and XPPAUT 8.0 (20 quantities)",
+    "tstauto_lecar": "PASS tstauto_lecar against AUTO-07p and XPPAUT 8.0 (24 quantities)",
+    "tstauto_lo": "PASS tstauto_lo against AUTO-07p and XPPAUT 8.0 (12 quantities)",
+    "tstauto_pen": "PASS tstauto_pen against AUTO-07p and XPPAUT 8.0 (4 quantities)",
+    "tstauto_pf": "PASS tstauto_pf against AUTO-07p and XPPAUT 8.0 (10 quantities)",
+    "tstauto_pp2": "FAIL tstauto_pp2 against AUTO-07p and XPPAUT 8.0 (22 quantities)",
+    "tstauto_san": "PASS tstauto_san against AUTO-07p and XPPAUT 8.0 (10 quantities)",
+    "tstauto_she": "PASS tstauto_she against AUTO-07p and XPPAUT 8.0 (4 quantities)",
+    "tstauto_simplefold": "PASS tstauto_simplefold against AUTO-07p and XPPAUT 8.0 (16 quantities)",
+    "tstauto_torx": "PASS tstauto_torx against AUTO-07p and XPPAUT 8.0 (18 quantities)",
+    "tstauto_torx_homcont": "PASS tstauto_torx_homcont against AUTO-07p (12 quantities)",
+    "tstauto_tsthom": "PASS tstauto_tsthom against AUTO-07p and XPPAUT 8.0 (4 quantities)",
+    "tstauto_wcbiwave": "PASS tstauto_wcbiwave against AUTO-07p and XPPAUT 8.0 (4 quantities)",
+    "zero_hopf": "PASS zero_hopf against AUTO-07p and XPPAUT 8.0 (20 quantities)"
+  },
+  "reference_failures": [
+    {
+      "point": "forced_pp_pd AUTO-07p/pd_up R2 (stored point 210)",
+      "quantity": "par2",
+      "difference": 2.27e-05,
+      "tolerance": 2.1e-05
+    },
+    {
+      "point": "ode_mu26_blocked AUTO-07p/to_snic UZ (stored point 135)",
+      "quantity": "spectrum",
+      "difference": 6.8e-05,
+      "tolerance": 2.16e-05
+    },
+    {
+      "point": "ode_mu26_blocked AUTO-07p/to_snic UZ (stored point 150)",
+      "quantity": "norm",
+      "difference": 8.34e-05,
+      "tolerance": 6.03e-05
+    },
+    {
+      "point": "ode_mu26_control AUTO-07p/to_snic UZ (stored point 134)",
+      "quantity": "spectrum",
+      "difference": 0.00015,
+      "tolerance": 2.16e-05
+    },
+    {
+      "point": "ode_mu26_control AUTO-07p/to_snic UZ (stored point 141)",
+      "quantity": "spectrum",
+      "difference": 0.000324,
+      "tolerance": 2.09e-05
+    },
+    {
+      "point": "ode_mu26_control AUTO-07p/to_snic UZ (stored point 142)",
+      "quantity": "spectrum",
+      "difference": 0.000524,
+      "tolerance": 2.08e-05
+    },
+    {
+      "point": "tstauto_pp2 XPPAUT 8.0/cycles LP (stored point 27)",
+      "quantity": "norm",
+      "difference": 0.01,
+      "tolerance": 0.000489
+    },
+    {
+      "point": "tstauto_pp2 XPPAUT 8.0/cycles LP (stored point 27)",
+      "quantity": "period",
+      "difference": 15.2,
+      "tolerance": 0.989
+    }
+  ],
+  "outside_mu26": [
+    {
+      "model": "forced_pp_ns",
+      "old_points": 264,
+      "new_points": 262,
+      "changed_paired_rows": 205,
+      "max_norm_delta": 0.0024002153436955,
+      "max_period_delta": 2.6201263381153694e-14,
+      "identical_threads": true,
+      "reference_result": "PASS forced_pp_ns against AUTO-07p and XPPAUT 8.0 (44 quantities)"
+    },
+    {
+      "model": "forced_pp_pd",
+      "old_points": 706,
+      "new_points": 706,
+      "changed_paired_rows": 649,
+      "max_norm_delta": 0.005260067431997029,
+      "max_period_delta": 3.752553823233029e-14,
+      "identical_threads": true,
+      "reference_result": "FAIL forced_pp_pd against AUTO-07p and XPPAUT 8.0 (40 quantities)"
+    },
+    {
+      "model": "hill_cycles_pd",
+      "old_points": 151,
+      "new_points": 151,
+      "changed_paired_rows": 103,
+      "max_norm_delta": 3.4861002973229915e-13,
+      "max_period_delta": 3.552713678800501e-15,
+      "identical_threads": true,
+      "reference_result": "PASS hill_cycles_pd against AUTO-07p and XPPAUT 8.0 (62 quantities)"
+    },
+    {
+      "model": "hill_cycles_torus",
+      "old_points": 196,
+      "new_points": 196,
+      "changed_paired_rows": 148,
+      "max_norm_delta": 7.670530877135207e-13,
+      "max_period_delta": 3.552713678800501e-15,
+      "identical_threads": true,
+      "reference_result": "PASS hill_cycles_torus against AUTO-07p and XPPAUT 8.0 (52 quantities)"
+    },
+    {
+      "model": "ode_lecar",
+      "old_points": 79,
+      "new_points": 79,
+      "changed_paired_rows": 29,
+      "max_norm_delta": 6.949553981727696e-07,
+      "max_period_delta": 0.00024096978591359175,
+      "identical_threads": true,
+      "reference_result": "PASS ode_lecar against AUTO-07p and XPPAUT 8.0 (24 quantities)"
+    },
+    {
+      "model": "ode_ma23",
+      "old_points": 613,
+      "new_points": 613,
+      "changed_paired_rows": 290,
+      "max_norm_delta": 6.510027461104073e-06,
+      "max_period_delta": 0.00125482018142975,
+      "identical_threads": true,
+      "reference_result": "PASS ode_ma23 against AUTO-07p and XPPAUT 8.0 (24 quantities)"
+    },
+    {
+      "model": "ode_motoneuron6c",
+      "old_points": 1239,
+      "new_points": 1239,
+      "changed_paired_rows": 19,
+      "max_norm_delta": 1.2632913168886262e-05,
+      "max_period_delta": 1.3650992428893005e-05,
+      "identical_threads": true,
+      "reference_result": "PASS ode_motoneuron6c against AUTO-07p and XPPAUT 8.0 (88 quantities)"
+    },
+    {
+      "model": "res_cycles",
+      "old_points": 376,
+      "new_points": 376,
+      "changed_paired_rows": 328,
+      "max_norm_delta": 5.989045064325182e-07,
+      "max_period_delta": 7.904787935331115e-13,
+      "identical_threads": true,
+      "reference_result": "PASS res_cycles against AUTO-07p and XPPAUT 8.0 (60 quantities)"
+    },
+    {
+      "model": "tstauto_brper",
+      "old_points": 49,
+      "new_points": 49,
+      "changed_paired_rows": 27,
+      "max_norm_delta": 3.028910455782352e-12,
+      "max_period_delta": 3.1459279625778436e-12,
+      "identical_threads": true,
+      "reference_result": "PASS tstauto_brper against AUTO-07p and XPPAUT 8.0 (8 quantities)"
+    },
+    {
+      "model": "tstauto_frcp",
+      "old_points": 103,
+      "new_points": 103,
+      "changed_paired_rows": 29,
+      "max_norm_delta": 1.7392232098956129e-10,
+      "max_period_delta": 3.606723697480163e-09,
+      "identical_threads": true,
+      "reference_result": "PASS tstauto_frcp against AUTO-07p and XPPAUT 8.0 (12 quantities)"
+    },
+    {
+      "model": "tstauto_lamom",
+      "old_points": 70,
+      "new_points": 70,
+      "changed_paired_rows": 28,
+      "max_norm_delta": 1.9984014443252818e-15,
+      "max_period_delta": 4.440892098500626e-15,
+      "identical_threads": true,
+      "reference_result": "PASS tstauto_lamom against AUTO-07p and XPPAUT 8.0 (12 quantities)"
+    },
+    {
+      "model": "tstauto_lamom2",
+      "old_points": 60,
+      "new_points": 60,
+      "changed_paired_rows": 28,
+      "max_norm_delta": 5.411449066627938e-12,
+      "max_period_delta": 2.135802645852891e-11,
+      "identical_threads": true,
+      "reference_result": "PASS tstauto_lamom2 against AUTO-07p and XPPAUT 8.0 (20 quantities)"
+    },
+    {
+      "model": "tstauto_lecar",
+      "old_points": 83,
+      "new_points": 83,
+      "changed_paired_rows": 29,
+      "max_norm_delta": 6.954339870635096e-07,
+      "max_period_delta": 0.00024113620980514838,
+      "identical_threads": true,
+      "reference_result": "PASS tstauto_lecar against AUTO-07p and XPPAUT 8.0 (24 quantities)"
+    },
+    {
+      "model": "tstauto_lo",
+      "old_points": 50,
+      "new_points": 50,
+      "changed_paired_rows": 28,
+      "max_norm_delta": 1.5765166949677223e-14,
+      "max_period_delta": 2.042810365310288e-14,
+      "identical_threads": true,
+      "reference_result": "PASS tstauto_lo against AUTO-07p and XPPAUT 8.0 (12 quantities)"
+    },
+    {
+      "model": "tstauto_pp2",
+      "old_points": 130,
+      "new_points": 130,
+      "changed_paired_rows": 29,
+      "max_norm_delta": 0.013221284024869884,
+      "max_period_delta": 59.73986277379798,
+      "identical_threads": true,
+      "reference_result": "FAIL tstauto_pp2 against AUTO-07p and XPPAUT 8.0 (22 quantities)"
+    },
+    {
+      "model": "tstauto_torx",
+      "old_points": 81,
+      "new_points": 81,
+      "changed_paired_rows": 28,
+      "max_norm_delta": 9.547918011776346e-15,
+      "max_period_delta": 3.019806626980426e-14,
+      "identical_threads": true,
+      "reference_result": "PASS tstauto_torx against AUTO-07p and XPPAUT 8.0 (18 quantities)"
+    }
+  ],
+  "gates": {
+    "build": {
+      "exit_code": 0,
+      "unit_binaries": 58,
+      "fold_phase_derived_checks": 70,
+      "compiler_warnings": 0
+    },
+    "autocheck": {
+      "exit_code": 0,
+      "assertions": 286
+    },
+    "examples": {
+      "exit_code": 0,
+      "models": 216,
+      "matching_outputs": 215,
+      "intentional_no_output": [
+        "ml-range.odex"
+      ]
+    },
+    "odexcheck": {
+      "exit_code": 0,
+      "models": 8
+    },
+    "typecheck": {
+      "exit_code": 0
+    },
+    "native_mark_probe": {
+      "exit_code": 0,
+      "points": 20,
+      "quantities": 5
+    }
+  }
+}

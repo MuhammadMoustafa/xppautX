@@ -78,7 +78,25 @@
         "nmax": 170,
         "parmin": -100,
         "parmax": 120
-      }
+      },
+      "marks": [
+        [
+          "SmIapp",
+          5
+        ],
+        [
+          "SmIapp",
+          1
+        ],
+        [
+          "SmIapp",
+          0.1
+        ],
+        [
+          "SmIapp",
+          0.07
+        ]
+      ]
     },
     {
       "name": "hb_soma",
@@ -229,6 +247,56 @@
       "type": "CP",
       "index": 1,
       "cause": "XPPAUT 8.0's auto_2p_limit sets ISP=0 and ILP=0, disabling detection on the curve (auto_nox.c:2510-2512); the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "UZ",
+      "index": 2,
+      "cause": "W437 (#499): the 1 pA UZ parameter, norm and period agree, but its neutral Floquet multiplier does not at the requested NTST 50. A saved-orbit sweep at NTST 50/100/200/400 is nonmonotonic. At NTST 200, changing only xppautX's derivative mode changes the neutral multiplier from 1.00007887541 (difference) to 1.00000000156 (exact) with negligible orbit/norm change. The exact neutral multiplier of this autonomous orbit is 1; this isolates finite-difference sensitivity amplified by the long-period variational problem, with coarse-mesh effects too. Both references retain their original finite-difference outputs. docs/auto-references.md W437 and docs/studies/w437-reference-traces.json record all meshes, including the negative/nonconvergent results. No tolerance or production setting is changed; this quantity is traced, not declared equal.",
+      "quantity": "spectrum"
+    },
+    {
+      "reference": ".auto07p",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "UZ",
+      "index": 4,
+      "cause": "W437 (#499): at the default NTST 50 the forward-path 0.07 pA orbit has a mesh/history-dependent norm difference 8.34e-5. Relocating the same 0.07 mark from the nearby 0.1 orbit gives norm differences 7.70e-7, 4.88e-9 and 2.22e-9 at NTST 50, 100 and 200. This isolates adaptive-mesh/history resolution rather than a wrong target: every target parameter agrees. Coarse/fine Floquet outputs are separately sensitive to the finite-difference Jacobian near the SNIC. The controlled saved-orbit experiments and raw data are in docs/auto-references.md W437 and docs/studies/w437-reference-traces.json. The default run and tolerance are unchanged; this quantity exception is explicit, not numerical agreement.",
+      "quantity": "norm"
+    },
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "UZ",
+      "index": 3,
+      "cause": "W437 (#499), findings 47 and 73: XPPAUT 8.0's actual marked to_snic run finds 5 and 1 pA, misses 0.1 and 0.07 pA, labels LPs at 0.1009347 and 0.07001995 pA, then reverses to end at 0.08047857 pA. The unmarked XPPAUT reference reaches the SNIC without these LPs. Its uncentered phase condition and LCSPBV's displaced iterate after failed location account for this legacy continuation failure. xppautX's centered condition and rollback reach all four marks monotonically. Actual native outputs are retained; the two shared UZ points still compare all quantities. docs/auto-references.md W437 and finding 73."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "UZ",
+      "index": 4,
+      "cause": "W437 (#499), findings 47 and 73: XPPAUT 8.0's actual marked to_snic run finds 5 and 1 pA, misses 0.1 and 0.07 pA, labels LPs at 0.1009347 and 0.07001995 pA, then reverses to end at 0.08047857 pA. The unmarked XPPAUT reference reaches the SNIC without these LPs. Its uncentered phase condition and LCSPBV's displaced iterate after failed location account for this legacy continuation failure. xppautX's centered condition and rollback reach all four marks monotonically. Actual native outputs are retained; the two shared UZ points still compare all quantities. docs/auto-references.md W437 and finding 73."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "side": "reference",
+      "type": "LP",
+      "index": 1,
+      "cause": "W437 (#499), findings 47 and 73: XPPAUT 8.0's actual marked to_snic run finds 5 and 1 pA, misses 0.1 and 0.07 pA, labels LPs at 0.1009347 and 0.07001995 pA, then reverses to end at 0.08047857 pA. The unmarked XPPAUT reference reaches the SNIC without these LPs. Its uncentered phase condition and LCSPBV's displaced iterate after failed location account for this legacy continuation failure. xppautX's centered condition and rollback reach all four marks monotonically. Actual native outputs are retained; the two shared UZ points still compare all quantities. docs/auto-references.md W437 and finding 73."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "side": "reference",
+      "type": "LP",
+      "index": 2,
+      "cause": "W437 (#499), findings 47 and 73: XPPAUT 8.0's actual marked to_snic run finds 5 and 1 pA, misses 0.1 and 0.07 pA, labels LPs at 0.1009347 and 0.07001995 pA, then reverses to end at 0.08047857 pA. The unmarked XPPAUT reference reaches the SNIC without these LPs. Its uncentered phase condition and LCSPBV's displaced iterate after failed location account for this legacy continuation failure. xppautX's centered condition and rollback reach all four marks monotonically. Actual native outputs are retained; the two shared UZ points still compare all quantities. docs/auto-references.md W437 and finding 73."
     }
   ]
 }

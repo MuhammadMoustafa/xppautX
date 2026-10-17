@@ -104,6 +104,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [70](#70-auto-evaluates-the-test-functions-at-the-last-newton-iterates-jacobian) | AUTO | the test functions of a converged point use the Jacobian of the last Newton iterate, so a flat Hopf function is located slowly and a Hopf point can go unlabelled | [W415 / #477](https://github.com/MuhammadMoustafa/xppautX/issues/477) |
 | [71](#71-auto-two-parameter-map-problems-and-disabled-detection) | AUTO | map flips are labelled HB; two-parameter detection is disabled and exports have six significant digits | [W428](https://github.com/MuhammadMoustafa/xppautX/issues/490) |
 | [72](#72-autos-branch-point-test-reads-the-fold-tests-determinant) | AUTO | the branch point test of an equilibrium branch reads the determinant the fold test computed with the tangent row, which changes sign when a step turns past a fold: a spurious BP, and the fold missed | [W423 / #485](https://github.com/MuhammadMoustafa/xppautX/issues/485) |
+| [73](#73-periodic-phase-conditions-do-not-pass-through-the-computed-orbit) | AUTO | the uncentered periodic phase condition has a discrete residual at the previous computed orbit, so zero-length correction can move it | [W437 / #499](https://github.com/MuhammadMoustafa/xppautX/issues/499) |
 
 ## 1. Model options
 
@@ -1651,3 +1652,75 @@ by up to 5.2e-10) and `tstauto_torx_homcont`'s BP at point 8 (its states, about 
 their references.
 
 **Card:** [W423 / #485](https://github.com/MuhammadMoustafa/xppautX/issues/485).
+
+## 73. Periodic phase conditions do not pass through the computed orbit
+
+XPPAUT 8.0's ICPS imposes `integral(u * uold') = 0`
+([autlib3.c:1472](../reference/xppaut-8.0/autlib3.c#L1472)). The cycle fold,
+period doubling, torus and periodic optimization systems repeat it at
+[2448](../reference/xppaut-8.0/autlib3.c#L2448),
+[2850](../reference/xppaut-8.0/autlib3.c#L2850),
+[3253](../reference/xppaut-8.0/autlib3.c#L3253) and
+[3756](../reference/xppaut-8.0/autlib3.c#L3756).
+For an exact periodic function `integral(uold * uold') = 0`. On a collocation
+mesh the stored derivative is the model right-hand side at the previous
+orbit, and quadrature need not make that integral zero. Consequently the
+previous computed orbit need not satisfy the next corrector's phase condition,
+even when the continuation step tends to zero.
+
+AUTO-07p centers the physical phase condition: `integral((u-uold) * uold') = 0`
+([periodic.f90:303](../reference/auto-07p/src/periodic.f90#L303), and the augmented
+systems at [605](../reference/auto-07p/src/periodic.f90#L605),
+[998](../reference/auto-07p/src/periodic.f90#L998),
+[1436](../reference/auto-07p/src/periodic.f90#L1436),
+[1701](../reference/auto-07p/src/periodic.f90#L1701)). This contains the previous
+orbit exactly without changing the state derivative of the phase condition.
+xppautX follows that form and reuses ICPS for the augmented systems.
+An independent unit case has `uold=(1,2)`, `uold'=(3,-2)`: the old integrand is
+-1 at zero step, the centered integrand is exactly zero; perturbing the first
+state by 0.25 gives 0.75, with derivative (3,-2). The rotation mask remains active.
+
+The UZ test itself is just parameter minus target in both programs
+([XPPAUT autlib1.c:6872](../reference/xppaut-8.0/autlib1.c#L6872),
+[AUTO-07p support.f90:746](../reference/auto-07p/src/support.f90#L746)).
+Their failed-search behavior differs independently: XPPAUT exits LCSPBV with
+the last iterate still installed
+([autlib1.c:6499](../reference/xppaut-8.0/autlib1.c#L6499)); AUTO-07p restores
+its converged state
+([bvp.f90:1438](../reference/auto-07p/src/bvp.f90#L1438)). W326 already supplies
+that restoration in xppautX (finding 47). W437 changes the phase condition;
+it does not replace or weaken the failed-location rollback.
+
+Native XPPAUT 8.0 with the four Mu26 marks reproduces the failure. Control
+labels 5 pA, reports a possible special point while locating 1 pA, labels an LP
+at 0.9990257 pA and returns through 5 pA. Blocked labels 5 and 0.9999987 pA,
+then LPs at 0.1009347 and 0.07001995 pA and returns to 0.08047857 pA.
+Neither labels all four targets; unmarked runs approach the SNIC. The stored
+native reference points retain these outcomes. With centered phase and the
+existing W326 rollback, both xppautX continuations label all four targets and
+have no upward current step. The UZ test, discrete phase bias and failed-search
+restoration are distinct parts of this explanation.
+
+Native XPPAUT 8.0 with the four Mu26 marks reproduces the failure. Control
+labels 5 pA, reports a possible special point while locating 1 pA, labels an LP
+at 0.9990257 pA and returns through 5 pA. Blocked labels 5 and 0.9999987 pA,
+then LPs at 0.1009347 and 0.07001995 pA and returns to 0.08047857 pA.
+Neither labels all four targets; unmarked runs approach the SNIC. The stored
+native reference points retain these outcomes. With centered phase and the
+existing W326 rollback, both xppautX continuations label all four targets and
+have no upward current step. The UZ test, discrete phase bias and failed-search
+restoration are distinct parts of this explanation.
+
+Measured consequence on `tstauto_pp2` (the existing NTST 15 periodic description): the centered condition
+locates the first cycle LP at parameter 0.7080732822986838, norm 0.4180552886559583, period 79.8935775600.
+AUTO-07p's stored reference is (0.7080732823, 0.41805535218, 79.89348504), whereas XPPAUT 8.0's is
+(0.708072, 0.4280795, 64.656143027). The new point agrees with AUTO-07p and fails the old XPPAUT norm and
+period bounds. W437 records that discrepancy without widening a tolerance or silently dropping the XPPAUT point.
+The before-update phase-impact report and the subsequent accuracy traces are in
+[auto-references.md](auto-references.md#w437-user-points-on-mu26s-approach-to-the-snic-499).
+
+The NTST 15 branches here are underresolved near a homoclinic orbit: the existing NTST 60/EPS 1e-9 study
+finds no LP up to period 84.4. This demonstrates a discrepancy in discretized equations, not evidence for
+physical cycle folds. The four obsolete AUTO-07p LP exceptions are removed; both LPs now remain directly compared.
+
+**Card:** [W437 / #499](https://github.com/MuhammadMoustafa/xppautX/issues/499).
