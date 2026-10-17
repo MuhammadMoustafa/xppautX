@@ -108,6 +108,10 @@
       [0.622656, -7.63304, 108.444],
       [0.532535, -7.36364, 108.855],
       [0.436606, -7.09306, 109.264]
+    ]},
+    {"name": "lpc_soma", "parameters": ["SmHxgMax", "SmIapp"], "unavailable": "skipped in the description for xppautX's cost, W436 (#498), which makes this reference", "points": [
+    ]},
+    {"name": "lpc_dend", "parameters": ["HxHxgMax", "SmIapp"], "unavailable": "skipped in the description for xppautX's cost, W436 (#498), which makes this reference", "points": [
     ]}
   ]
 }
