@@ -253,6 +253,7 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.4e-10, norm 1.6e-07, period 6.7e-05, spectrum 0.00037) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.5e-06, period 0.0017, spectrum 0.00041) |
 | ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 6.8e-07, norm 6.4e-09, period 2.1e-08, spectrum 1.2e-06) | agrees (4 points; par 1e-05, norm 4.7e-06, period 5.4e-09, spectrum 8.4e-08) |
+| ode_motoneuron6c | steady: EP LP LP HB HB LP HB LP HB HB; periodic: LP; hb_up: -; hb_down: - | agrees, 5 traced (11 points; par 1.5e-09, norm 1.8e-08, period 1.2e-07, spectrum 5e-06; curve par 5.8e-06, par2 7.4e-08, norm 0.00015) | not run |
 | ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | agrees, 1 traced (5 points; par 1.2e-06, norm 1e-05, period 7e-08, spectrum 1e-07; curve par 0.024, par2 0.00087, norm 0.00021) |
 | ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 1.2e-07, norm 3.9e-09, period 1.4e-08, spectrum 1.1e-06) | agrees (5 points; par 3.5e-06, norm 4.3e-06, period 8e-08, spectrum 1.3e-07) |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
@@ -867,8 +868,8 @@ columns and 5001 rows of 6 (XPPAUT 8.0 built from reference/xppaut-8.0 as the fi
 2 and 3 (the order of the source's AUTO-07p files, where `run_2d_bifurcation.auto` continues them) and the two
 descriptions set them. Two models would copy 300 lines. The `.ode` runs at the control values; the description sets
 `SmIapp` 0 and, for control, the converged control rest from the source's `stpnt` (the `.ode`'s own initial state is the
-blocked rest, which is the blocked description's start). The source's `NMAX=10000000` is 1000 in the example: xppautX
-refuses an NMAX above the points a session file keeps (1000000), and a description sets its own.
+blocked rest, which is the blocked description's start). The source's `NMAX=10000000` is 1000 in the example (W432 lifted xppautX's
+refusal of an NMAX above 1000000; a description sets its own).
 
 **Source parameters against the public version.** `parameters.json` of
 [pvn-hcn-marmoset-model](https://github.com/MuhammadMoustafa/pvn-hcn-marmoset-model) maps to 119 parameters of the
@@ -979,3 +980,39 @@ per stored point before and after (then `solvae` 1.0 and the fold test 1.0, now 
 instructions per point; PY_S1Bf 2.01 and 2.01, 0.378 and 0.378 M. Their periodic phases do not change. A run without
 fold detection (ILP 0) builds one Jacobian more per point; a two-parameter curve with BT, CP or GH detection builds
 fewer.
+
+## W431: ModelDB 267710, the six-compartment motoneuron ([#493](https://github.com/MuhammadMoustafa/xppautX/issues/493))
+
+`examples/ode/motoneuron6c.ode` (and its `.odex`) is ModelDB 267710 (Moustafa et al. 2023, archive commit
+2dd9ba299e56c3f2962f883afaada5a899c4e3f6, `6cModel Xppaut/rest.ode` with its 19 include files inlined in the source's order):
+25 states, 254 fixed quantities. Staging edits: `@ OUTPUT=output.dat`, `@ total=600`, and `CaDen_Max` (glob.inc, 0.000168, the
+dendritic L-type Ca / PIC density) a `par`. Its `output.dat` is the original's, digit for digit (md5 0a075c6a7d80...).
+`tests/auto/ode_motoneuron6c.json` runs, with opt.inc's settings (NTST 100, NPR 100000, NMAX 10000000, DSMAX 0.1, ParMin -10, ParMax 1):
+
+| Run | What | xppautX and AUTO-07p |
+|---|---|---|
+| steady | ampPar from the model integrated 1200 ms (the README's Go and Last) | 1081 points: LP 0.1743, 0.1735, 0.2435, -0.00378; HB 0.17376, 0.23105, 0.19427, 0.04117, 0.57279; EP 1.0074; the benchmark's (paper/benchmarks/modeldb-267710) points in all three programs |
+| periodic | from the HB at 0.57279, Ds -0.02, 20 points | the fold of cycles at 0.57278 |
+| hb_up, hb_down | the HB locus in (ampPar, CaDen_Max) from the same HB, CaDen_Max from 2x nominal (ampPar 0.44) down to 0 (ampPar 0.82) | 138 points together, no codimension-two point; the curves agree (par 5.8e-6, par2 7.4e-8, norm 1.5e-4) |
+
+The first parameter of the locus is ampPar, so that both programs orient the curve by it: AUTO-07p takes the first significant
+component of its tangent, and CaDen_Max (1e-4) is not significant next to ampPar (0.57), so with CaDen_Max first the same
+sign of Ds ran the two programs in opposite directions. Both directions end at ParMin/ParMax of ampPar, past which the
+step overshoots (CaDen_Max -1.4e-5 at the end of `hb_up`).
+
+**Traced: five GH on the locus, AUTO-07p only.** AUTO-07p labels five GH between ampPar 0.739 and 0.795; xppautX labels none.
+The cause is `tstauto_ab_hopf`'s ([finding 2](auto07p-findings.md): DERIV2a omits the subtraction of 2*F(u), so the Newton
+residual enters magnified by h^-2). With EPSL = EPSU = EPSS 1e-7 or 1e-9 AUTO-07p labels none on the same curve. Not checked against exact
+derivatives (`tests/auto/codim_coefficients.py` covers a two-state model). Five entries in the description's `differences`.
+
+**XPPAUT 8.0 not run** (`xppaut_skip`, W428, [#490](https://github.com/MuhammadMoustafa/xppautX/issues/490)): the driver refuses a
+description with a two-parameter run. Its steady and periodic runs work: a copy of the description with them alone gave XPPAUT's
+11 special points of the steady run at the same parameters as ours (to the printed digits) and the periodic run's fold of cycles, so W428's
+extension needs no more for this model.
+
+**What `tools/auto_reference.py` learned for this model.** `if C then A else B` in a user function (ModelDB's vtrap and expmod) is
+written as Fortran's `MERGE(A, B, C)` and as XPPAUT's `if(C)then(A)else(B)`; a quantity read before its definition (conn.inc's five
+conductances, which XPPAUT reads ahead as constants) is emitted after the quantities it reads, where the Fortran local was garbage.
+
+**W432** (#494): the model's `@ NMAX=10000000` loads. NMAX bounds one branch's loop, not an allocation; the bound is the diagram's
+stored points (1,000,000, what a saved session keeps), a shown error that keeps the points.

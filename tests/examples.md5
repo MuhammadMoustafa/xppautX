@@ -133,6 +133,7 @@ eb2bdff246a9099b23a796032ab3a918 examples/ode/ma23.odex
 none examples/ode/ml-range.odex
 bef0cae5f930097911b576d9d35c9186 examples/ode/ml1.odex
 5d12566525cffeeb407df998acb524ed examples/ode/mlvolt.odex
+0a075c6a7d805436e713f9a7bc4ffe3c examples/ode/motoneuron6c.odex
 e1b5a5ff09bf784749a83ca9b9abf1d8 examples/ode/mu26.odex
 a5b63b629cd360e30a896a014cdef921 examples/ode/myret.odex
 1040e28cb8ea2754b9db0934cf359424 examples/ode/nf3.odex

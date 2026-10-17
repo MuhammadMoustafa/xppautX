@@ -1,0 +1,142 @@
+{
+  "model": "examples/ode/motoneuron6c.odex",
+  "reason": "W431 (#493), W429 (#491): ModelDB 267710, the 6-compartment spinal motoneuron of Moustafa et al. 2023 (25 states), in the steps of the source's README and the settings of its opt.inc (NTST 100, NPR 100000, NMAX 10000000, DSMAX 0.1, ParMin -10, ParMax 1; XPPAUT's defaults otherwise). The model is integrated for 1200 ms at ampPar 0 (the README's Go and Last, 600 ms each) and the stimulus ampPar is continued from that rest state through its folds and Hopf points; the periodic run is the README's, from the Hopf point at ampPar 0.57279 with Ds -0.02 (20 points: the benchmark's, paper/benchmarks/modeldb-267710). The Hopf locus from the same point is in (CaDen_Max, ampPar), CaDen_Max the dendritic L-type Ca / PIC density glob.inc fixed at 0.000168 and the staged model makes a parameter, from 0 to twice its nominal value, once in each direction.",
+  "parameters": {
+    "ampPar": 0.0,
+    "CaDen_Max": 0.000168
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current",
+        "settle": 1200
+      },
+      "parameter": "ampPar",
+      "auto": {
+        "npr": 100000,
+        "ntst": 100,
+        "ncol": 4,
+        "dsmin": 0.001,
+        "ds": 0.02,
+        "dsmax": 0.1,
+        "nmax": 10000000,
+        "parmin": -10,
+        "parmax": 1
+      }
+    },
+    {
+      "name": "periodic",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 5
+      },
+      "parameter": "ampPar",
+      "auto": {
+        "npr": 100000,
+        "ntst": 100,
+        "ncol": 4,
+        "dsmin": 0.001,
+        "ds": -0.02,
+        "dsmax": 0.1,
+        "nmax": 20,
+        "parmin": -10,
+        "parmax": 1
+      }
+    },
+    {
+      "name": "hb_up",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 5
+      },
+      "parameters": [
+        "ampPar",
+        "CaDen_Max"
+      ],
+      "auto": {
+        "npr": 100000,
+        "ntst": 100,
+        "ncol": 4,
+        "dsmin": 1e-06,
+        "ds": 0.1,
+        "dsmax": 0.5,
+        "nmax": 200,
+        "parmin": 0.44,
+        "parmax": 0.82
+      }
+    },
+    {
+      "name": "hb_down",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "HB",
+        "index": 5
+      },
+      "parameters": [
+        "ampPar",
+        "CaDen_Max"
+      ],
+      "auto": {
+        "npr": 100000,
+        "ntst": 100,
+        "ncol": 4,
+        "dsmin": 1e-06,
+        "ds": -0.1,
+        "dsmax": 0.5,
+        "nmax": 200,
+        "parmin": 0.44,
+        "parmax": 0.82
+      }
+    }
+  ],
+  "xppaut_skip": "two-parameter curve: W428 (#490)",
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "hb_up",
+      "side": "reference",
+      "type": "GH",
+      "index": 1,
+      "cause": "AUTO-07p labels five GH between ampPar 0.739 and 0.795 (CaDen_Max 9.7e-5 to 3.8e-5), five sign changes of the first Lyapunov coefficient within 0.056 of the curve. The same cause as tstauto_ab_hopf's: AUTO-07p's FNGHEQ DERIV2a omits the subtraction of 2*F(u), so the Newton residual (EPSL/EPSU 1e-4 here) enters the second difference magnified by h^-2 (docs/auto07p-findings.md, finding 2). The residual is the cause here too: with EPSL = EPSU = EPSS 1e-7 and 1e-9, AUTO-07p labels no GH on the same curve (W431, tools/auto_reference.py on the description with those constants). Ours subtracts the term and labels none. Not checked against exact derivatives: tests/auto/codim_coefficients.py covers a two-state model."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hb_up",
+      "side": "reference",
+      "type": "GH",
+      "index": 2,
+      "cause": "AUTO-07p labels five GH between ampPar 0.739 and 0.795 (CaDen_Max 9.7e-5 to 3.8e-5), five sign changes of the first Lyapunov coefficient within 0.056 of the curve. The same cause as tstauto_ab_hopf's: AUTO-07p's FNGHEQ DERIV2a omits the subtraction of 2*F(u), so the Newton residual (EPSL/EPSU 1e-4 here) enters the second difference magnified by h^-2 (docs/auto07p-findings.md, finding 2). The residual is the cause here too: with EPSL = EPSU = EPSS 1e-7 and 1e-9, AUTO-07p labels no GH on the same curve (W431, tools/auto_reference.py on the description with those constants). Ours subtracts the term and labels none. Not checked against exact derivatives: tests/auto/codim_coefficients.py covers a two-state model."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hb_up",
+      "side": "reference",
+      "type": "GH",
+      "index": 3,
+      "cause": "AUTO-07p labels five GH between ampPar 0.739 and 0.795 (CaDen_Max 9.7e-5 to 3.8e-5), five sign changes of the first Lyapunov coefficient within 0.056 of the curve. The same cause as tstauto_ab_hopf's: AUTO-07p's FNGHEQ DERIV2a omits the subtraction of 2*F(u), so the Newton residual (EPSL/EPSU 1e-4 here) enters the second difference magnified by h^-2 (docs/auto07p-findings.md, finding 2). The residual is the cause here too: with EPSL = EPSU = EPSS 1e-7 and 1e-9, AUTO-07p labels no GH on the same curve (W431, tools/auto_reference.py on the description with those constants). Ours subtracts the term and labels none. Not checked against exact derivatives: tests/auto/codim_coefficients.py covers a two-state model."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hb_up",
+      "side": "reference",
+      "type": "GH",
+      "index": 4,
+      "cause": "AUTO-07p labels five GH between ampPar 0.739 and 0.795 (CaDen_Max 9.7e-5 to 3.8e-5), five sign changes of the first Lyapunov coefficient within 0.056 of the curve. The same cause as tstauto_ab_hopf's: AUTO-07p's FNGHEQ DERIV2a omits the subtraction of 2*F(u), so the Newton residual (EPSL/EPSU 1e-4 here) enters the second difference magnified by h^-2 (docs/auto07p-findings.md, finding 2). The residual is the cause here too: with EPSL = EPSU = EPSS 1e-7 and 1e-9, AUTO-07p labels no GH on the same curve (W431, tools/auto_reference.py on the description with those constants). Ours subtracts the term and labels none. Not checked against exact derivatives: tests/auto/codim_coefficients.py covers a two-state model."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hb_up",
+      "side": "reference",
+      "type": "GH",
+      "index": 5,
+      "cause": "AUTO-07p labels five GH between ampPar 0.739 and 0.795 (CaDen_Max 9.7e-5 to 3.8e-5), five sign changes of the first Lyapunov coefficient within 0.056 of the curve. The same cause as tstauto_ab_hopf's: AUTO-07p's FNGHEQ DERIV2a omits the subtraction of 2*F(u), so the Newton residual (EPSL/EPSU 1e-4 here) enters the second difference magnified by h^-2 (docs/auto07p-findings.md, finding 2). The residual is the cause here too: with EPSL = EPSU = EPSS 1e-7 and 1e-9, AUTO-07p labels no GH on the same curve (W431, tools/auto_reference.py on the description with those constants). Ours subtracts the term and labels none. Not checked against exact derivatives: tests/auto/codim_coefficients.py covers a two-state model."
+    }
+  ]
+}

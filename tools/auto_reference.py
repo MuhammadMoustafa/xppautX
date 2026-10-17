@@ -78,7 +78,9 @@ CURVE_ISW = 2
 # A curve of cycles (an LP, PD or TR of a periodic run) is IPS=2 with ISW=2 and the cycle's detection
 # (ISP=2: R1-R4 on the fold, PD and torus curves); ICP the two parameters and the period.
 CYCLE_ISP = 2
-LINE = 96  # characters of an expression per Fortran line (free form allows 132)
+# an .odex comparison in Fortran (the condition of an `if C then A else B`)
+RELATIONS = {'<': '.LT.', '<=': '.LE.', '>': '.GT.', '>=': '.GE.', '==': '.EQ.', '!=': '.NE.'}
+LINE = 96  #characters of an expression per Fortran line (free form allows 132)
 
 
 class Equations:
@@ -108,12 +110,71 @@ class Equations:
     def expand(self, toks):
         return self.o.expand(toks, unguarded=('ode_divisor',))
 
+    def ordered_assigns(self):
+        """The model's quantities, each after the quantities it reads: XPPAUT reads a constant ahead of its
+        definition (ModelDB 267710's conn.inc conductances, used by the compartments before it), and a Fortran
+        local read before it is set is garbage."""
+        by_name, order, state = dict(self.o.assigns), [], {}
+
+        def visit(name):
+            if state.get(name) == 'done':
+                return
+            if state.get(name) == 'active':
+                raise Refused('quantity %s depends on itself' % name)
+            state[name] = 'active'
+            for t in self.expand(by_name[name]):
+                if t in by_name:
+                    visit(t)
+            state[name] = 'done'
+            order.append((name, by_name[name]))
+
+        for name in by_name:
+            visit(name)
+        return order
+
+    @classmethod
+    def conditionals(cls, toks, xppaut=False):
+        """The tokens with each `if C then A else B` (C a comparison) as Fortran's MERGE(A, B, C), or with
+        `xppaut` as XPPAUT's if(C)then(A)else(B). MERGE evaluates both branches: one that overflows or divides
+        by zero where the other is taken is not trapped."""
+        out, i = [], 0
+        while i < len(toks):
+            if toks[i] != 'if':
+                out.append(toks[i])
+                i += 1
+                continue
+            parts, k, depth, nested = [[], [], []], 0, 0, 0
+            i += 1
+            while i < len(toks):
+                t = toks[i]
+                if depth == 0 and t == 'then' and not nested:
+                    k = 1
+                elif depth == 0 and t == 'else' and not nested:
+                    k = 2
+                elif depth == 0 and t == ')':
+                    break
+                else:
+                    depth += (t == '(') - (t == ')')
+                    nested += (depth == 0 and t == 'if') - (depth == 0 and t == 'else' and nested > 0)
+                    parts[k].append(t)
+                i += 1
+            if k != 2 or not any(t in RELATIONS for t in parts[0]):
+                raise Refused('only `if COMPARISON then A else B` is translated')
+            then, other, cond = (cls.conditionals(p, xppaut) for p in (parts[1], parts[2], parts[0]))
+            out += (["if", "("] + cond + [")", "then", "("] + then + [")", "else", "("] + other + [")"] if xppaut
+                    else ["MERGE", "("] + then + [","] + other + [","] + cond + [")"])
+        return out
+
     def fortran(self, toks, boundary=False):
-        toks = self.expand(toks)
+        toks = self.conditionals(self.expand(toks))
         out = []
         for j, t in enumerate(toks):
             if t == '^':
                 out.append('**')
+            elif t in RELATIONS:
+                out.append(RELATIONS[t])
+            elif t == 'MERGE':
+                out.append(t)
             elif re.fullmatch(r'\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?', t):
                 if j and toks[j - 1] == '^' and re.fullmatch(r'\d+', t):
                     out.append(t)
@@ -174,7 +235,7 @@ class Equations:
              '  DOUBLE PRECISION, INTENT(INOUT) :: DFDU(NDIM,*), DFDP(NDIM,*)']
         if self.locals:
             f.append('  DOUBLE PRECISION ' + ', '.join('a_' + a for a in self.locals))
-        for name, toks in o.assigns:
+        for name, toks in self.ordered_assigns():
             f.append(self.wrap('  a_%s = ' % name, self.fortran(toks)))
         for i, s in enumerate(o.states):
             f.append(self.wrap('  F(%d) = ' % (i + 1), self.fortran(o.odes[s])))
@@ -471,8 +532,8 @@ def ode_text(eqs, start, discrete):
     o = eqs.o
     lines = ['par %s=%r' % (n, float(eqs.values[n])) for n in o.pars]
     lines += ['init %s=%r' % (s, float(v)) for s, v in zip(o.states, start)]
-    lines += ['%s=%s' % (n, ' '.join(eqs.expand(t))) for n, t in o.assigns]
-    lines += ["%s'=%s" % (s, ' '.join(eqs.expand(o.odes[s]))) for s in o.states]
+    lines += ['%s=%s' % (n, ' '.join(eqs.conditionals(eqs.expand(t), xppaut=True))) for n, t in eqs.ordered_assigns()]
+    lines += ["%s'=%s" % (s, ' '.join(eqs.conditionals(eqs.expand(o.odes[s]), xppaut=True))) for s in o.states]
     if discrete:
         lines.append('@ meth=discrete')
     return '\n'.join(lines + ['done', ''])
