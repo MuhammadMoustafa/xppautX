@@ -648,7 +648,11 @@ aliases, so the newest listed model of a family is found with the
 task-board skill's `codex_model.py <family>`. Which model and effort runs a
 card, where it starts and when it climbs is the task-ladder skill's
 (maintainer's rule: start each card on the cheapest model and effort that
-may do it, and climb on the review's evidence); the reviewer reads both
+may do it, and climb on the review's evidence). Haiku is a real step, not
+a docs-only one: a small code card whose decisions the brief settles
+starts on Haiku at medium effort, and a batch proposal says why a card is
+not on Haiku when it is not (maintainer, 2026-10-17; Haiku 5.5 did W347,
+W351 and W430 with no review fix). The reviewer reads both
 pools' limits before a batch (the app's usage for Claude, the task-board
 skill's `codex_limits.py` for Codex) and gives each card to the pool with
 room, saying which in the batch proposal.
