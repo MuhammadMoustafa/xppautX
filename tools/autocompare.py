@@ -331,6 +331,8 @@ NEWTON_TOLERANCE = 2
 FINITE_DIFFERENCE = 1e-7
 # AUTO-07p's diagnostics file prints an eigenvalue or multiplier with six significant digits
 PRINTED = 5e-6
+# XPPAUT's b-file curves use %14.5E (autlib1.c:3035-3041), six significant digits.
+XPPAUT_CURVE_DIGITS = 6
 
 
 def read_reference(path, d):
@@ -593,7 +595,7 @@ def chord_error(polyline, i):
 CURVE_QUANTITIES = ('curve par', 'curve par2', 'curve norm')
 
 
-def compare_curve(rows, auto, ref_curve, who):
+def compare_curve(rows, auto, ref_curve, who, printed_digits=None):
     """Differences (strings) and measurements of a two-parameter run's curve against a reference's
     samples. The programs' steps differ, so points are matched by where they lie: every sample of one
     curve against the other as a polyline. Match all three coordinates against each segment's
@@ -601,6 +603,8 @@ def compare_curve(rows, auto, ref_curve, who):
 
       2 * EPS * (1+|q|)  +  the chord error of the other curve's polyline (chord_error)
 
+    XPPAUT's six-significant-digit export adds half a last printed unit, bounded by the largest
+    reference coordinate of the point or segment endpoints; this is file quantization, not a solver tolerance.
     EPS is Newton's convergence tolerance of every continued point (EPSL for a parameter, EPSU for the norm),
     twice for two programs; no location term, a curve's samples being converged points and not located
     ones. Both directions are checked, so a curve that stops short or runs on is a difference too.
@@ -618,9 +622,18 @@ def compare_curve(rows, auto, ref_curve, who):
     diffs, worst = [], {}
     both_end_at_nmax = len(ours) == len(ref) == auto.get('nmax')
 
-    def tubes(point, chords):
-        return [[NEWTON_TOLERANCE * (epsu if k == 2 else epsl) * (1 + abs(point[k])) + chord[k] for k in range(3)]
-                for chord in chords]
+    def tubes(point, chords, vertices):
+        bounds = []
+        for i, chord in enumerate(chords):
+            tube = []
+            for k in range(3):
+                # Only the reference was rounded: the point when projecting onto ours,
+                # otherwise the two reference segment endpoints (including NMX trimming).
+                scale = abs(point[k]) if vertices is ours else max(abs(vertices[i][k]), abs(vertices[i + 1][k]))
+                printed = 0.5 * 10 ** (math.floor(math.log10(scale)) - printed_digits + 1) if printed_digits and scale else 0
+                tube.append(NEWTON_TOLERANCE * (epsu if k == 2 else epsl) * (1 + abs(point[k])) + chord[k] + printed)
+            bounds.append(tube)
+        return bounds
 
     for source, target, side in ((ref, ours, 'reference'), (ours, ref, 'ours')):
         chords = [chord_error(target, i) for i in range(len(target) - 1)]
@@ -628,7 +641,7 @@ def compare_curve(rows, auto, ref_curve, who):
         if both_end_at_nmax:
             # the vertex of `source` past the other curve's last point: the end of the last segment it lies on
             end = target[-1]
-            bounds = tubes(end, [chord_error(source, i) for i in range(len(source) - 1)])
+            bounds = tubes(end, [chord_error(source, i) for i in range(len(source) - 1)], source)
             compared = next((i + 1 for i in range(len(source) - 2, -1, -1)
                              if all(abs(r) <= b for r, b in zip(project(end, source[i:i + 2], bounds[i:i + 1])[1], bounds[i]))),
                             compared)
@@ -636,7 +649,7 @@ def compare_curve(rows, auto, ref_curve, who):
         for n, point in enumerate(source[:compared]):
             if not auto['parmin'] <= point[0] <= auto['parmax']:
                 continue
-            tolerances = tubes(point, chords)
+            tolerances = tubes(point, chords, target)
             i, residual = project(point, target, tolerances)
             for k, q in enumerate(CURVE_QUANTITIES):
                 tol = tolerances[i][k]
@@ -689,7 +702,8 @@ def compare_references(name, d, data, ranges, refs):
             a, m = compare_run(rows[r['name']], dr['auto'], dr['kind'], r['points'],
                                '%s %s/%s' % (name, REFERENCES[suffix], r['name']), known)
             if 'curve' in r:
-                c, cm = compare_curve(rows[r['name']], dr['auto'], r['curve'], '%s %s/%s' % (name, REFERENCES[suffix], r['name']))
+                c, cm = compare_curve(rows[r['name']], dr['auto'], r['curve'], '%s %s/%s' % (name, REFERENCES[suffix], r['name']),
+                                      XPPAUT_CURVE_DIGITS if suffix == '.xppaut' else None)
                 a, m = a + c, m + cm
             diffs += a
             measures += [(suffix, r['name']) + x for x in m]

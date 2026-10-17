@@ -102,6 +102,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [68](#68-homcont-differentiates-a-changing-projection-basis) | AUTO HomCont | parameter finite differences update the projection history they differentiate | [W365 / #427](https://github.com/MuhammadMoustafa/xppautX/issues/427) |
 | [69](#69-a-homoclinic-start-samples-its-orbit-with-an-unscaled-weight) | AUTO HomCont | the starting orbit is interpolated with a weight not divided by the step, its end wraps to its start, and the shift is found before the equilibrium is given | [W365 / #427](https://github.com/MuhammadMoustafa/xppautX/issues/427) |
 | [70](#70-auto-evaluates-the-test-functions-at-the-last-newton-iterates-jacobian) | AUTO | the test functions of a converged point use the Jacobian of the last Newton iterate, so a flat Hopf function is located slowly and a Hopf point can go unlabelled | [W415 / #477](https://github.com/MuhammadMoustafa/xppautX/issues/477) |
+| [71](#71-auto-two-parameter-map-problems-and-disabled-detection) | AUTO | map flips are labelled HB; two-parameter detection is disabled and exports have six significant digits | [W428](https://github.com/MuhammadMoustafa/xppautX/issues/490) |
 
 ## 1. Model options
 
@@ -1552,3 +1553,66 @@ where it moved 2.5e-5 (docs/auto-references.md, "W421").
 
 **Card:** [W415 / #477](https://github.com/MuhammadMoustafa/xppautX/issues/477) found it;
 [W421 / #483](https://github.com/MuhammadMoustafa/xppautX/issues/483) fixed it.
+
+## 71. AUTO two-parameter map problems and disabled detection
+
+XPPAUT 8.0 offers Two Param for equilibrium Hopf points, cycle period doublings
+and tori; grabbing an LP and choosing Run starts its curve directly. These are
+real menu paths, not missing functionality in the reference driver:
+[auto_nox.c:1835](../reference/xppaut-8.0/auto_nox.c#L1835),
+[auto_nox.c:1860](../reference/xppaut-8.0/auto_nox.c#L1860),
+[auto_nox.c:1903](../reference/xppaut-8.0/auto_nox.c#L1903) and
+[auto_nox.c:1966](../reference/xppaut-8.0/auto_nox.c#L1966).
+
+The map LP problem is already recorded as [finding 66](#66-auto-map-fold-continuation-loses-the-map-problem):
+`henon_rot_lp` remains refused on that basis. For a map's PD, `auto_twopar_double`
+also chooses the continuous periodic-orbit problem IPS 2 rather than map IPS -1:
+[auto_nox.c:2536-2549](../reference/xppaut-8.0/auto_nox.c#L2536)
+([master:2508](../reference/xppaut-master/auto_nox.c#L2508)). However, that PD menu is not the map flip's
+native route: the period-two HB path works with IPS -1, as recorded in `henon_rot_pd.xppaut`. The map Hopf path does preserve
+IPS -1 ([auto_nox.c:2638](../reference/xppaut-8.0/auto_nox.c#L2638)); a map's
+torus is shown as HB by the equilibrium/map detector.
+The map flip is also called HB (unit-circle crossings use the Hopf detector,
+[autlib1.c:1092-1107](../reference/xppaut-8.0/autlib1.c#L1092)), so a PD
+label does not offer the PD menu in the first place.
+That detector takes the logarithms of the map multipliers and calls every
+nonzero imaginary part a Hopf candidate
+([autlib1.c:1901-1910](../reference/xppaut-8.0/autlib1.c#L1901),
+[autlib1.c:1933-1949](../reference/xppaut-8.0/autlib1.c#L1933)). Thus a real
+flip has stored period 2 (`log(-1)=i*pi`); the driver translates that HB to
+PD, and a complex unit-circle HB to TR, when importing new map references.
+The map Hopf equations also admit the flip at angle pi
+([autlib3.c:734-789](../reference/xppaut-8.0/autlib3.c#L734),
+[master:716](../reference/xppaut-master/autlib3.c#L716)); W428 drives
+that offered HB path for `henon_rot_pd`, retaining the map problem, rather
+than treating the unrelated PD menu as the only possible route.
+The actual labelled point is grabbed by its diagram position, and IRS is
+checked against its label.
+
+The two-parameter routines set ISP 0 and ILP 0:
+[auto_nox.c:2510-2512](../reference/xppaut-8.0/auto_nox.c#L2510),
+[auto_nox.c:2546-2548](../reference/xppaut-8.0/auto_nox.c#L2546),
+[auto_nox.c:2561-2563](../reference/xppaut-8.0/auto_nox.c#L2561), and
+[auto_nox.c:2634-2636](../reference/xppaut-8.0/auto_nox.c#L2634)
+([master:2470](../reference/xppaut-master/auto_nox.c#L2470),
+[master:2606](../reference/xppaut-master/auto_nox.c#L2606)).
+Thus their curves do not label the codimension-two points that xppautX and
+AUTO-07p detect. W428 keeps those missing labels as explicit traced differences,
+while comparing the recorded curves and ordinary source-run special points.
+No numerical tolerance is increased.
+
+XPPAUT's curve export also limits precision to six significant digits:
+[autlib1.c:3035-3041](../reference/xppaut-8.0/autlib1.c#L3035)
+([master:3032](../reference/xppaut-master/autlib1.c#L3032)).
+For example, `hill_cycles_pd`'s constant norm 0.41826665768 is exported as
+0.418267. The file's rounding error alone exceeds the description's EPSU
+1e-7 bound. W428 accounts for half the last printed unit in each coordinate;
+it does not relax the Newton tolerance or alter XPPAUT's output.
+
+Evidence: `python3 tools/auto_reference.py --program xppaut --only
+ tstauto_ab_fold,tstauto_ab_hopf,zero_hopf,ode_mu26_blocked` and the committed
+`.xppaut` files. The run constants are read back from each `.b` header,
+including IPS, IRS, ISW, ISP, ILP and the active parameter slots.
+xppautX uses the map problem and detects the codimension-two points (W364/W402).
+
+**Card:** [W428 / #490](https://github.com/MuhammadMoustafa/xppautX/issues/490).

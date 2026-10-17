@@ -202,6 +202,24 @@ class Curves(unittest.TestCase):
         diffs, _ = compare_curve(self.rows(ours), self.AUTO, ref, 'm')
         self.assertTrue(any('curve par2: 1 of 30 reference samples' in d and 'the first, sample 11' in d for d in diffs), diffs)
 
+    def test_xppaut_printed_unit_does_not_hide_a_larger_curve_error(self):
+        # A constant norm has zero chord error: %14.5E alone loses these digits.
+        ours = [(x, 0.3, 0.41826665768) for x in (0.2, 0.4, 0.8)]
+        ref = [[x, y, float('%14.5E' % n)] for x, y, n in ours]
+        auto = dict(self.AUTO, epsl=1e-9, epsu=1e-9)
+        self.assertTrue(compare_curve(self.rows(ours), auto, ref, 'rounded')[0])
+        self.assertEqual(compare_curve(self.rows(ours), auto, ref, 'rounded', printed_digits=6)[0], [])
+        for point in ref:
+            point[2] += 1e-6  # more than half a printed unit; the constant offset has no chord error
+        self.assertTrue(compare_curve(self.rows(ours), auto, ref, 'wrong', printed_digits=6)[0])
+
+    def test_xppaut_rounding_uses_the_reference_exponent(self):
+        # Crossing a decimal power must not borrow the unrounded side's tenfold larger unit.
+        ours = [(x, 0.3, 0.1000002) for x in (0.2, 0.4, 0.8)]
+        ref = [[x, y, 0.0999999] for x, y, _ in ours]
+        auto = dict(self.AUTO, epsl=1e-9, epsu=1e-9)
+        self.assertTrue(compare_curve(self.rows(ours), auto, ref, 'boundary', printed_digits=6)[0])
+
     def test_straight_curve_does_not_project_on_newton_roundoff(self):
         ours = [(0.3 + (i % 2) * 1e-8, 0.05 * i, 0.5 + (i % 3) * 1e-8) for i in range(41)]
         ref = [(0.3 - (i % 2) * 1e-8, 0.1 * i, 0.5) for i in range(21)]

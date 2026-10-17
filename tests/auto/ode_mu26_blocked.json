@@ -1,7 +1,6 @@
 {
   "model": "examples/ode/mu26.odex",
   "reason": "W415 (#477): the same neuron with the h current blocked (both conductances 0), the source's c.mu26_blocked and run_2d_bifurcation.auto. The applied current is continued from rest through the rheobase fold (0.0658 pA; a saddle-node on an invariant circle, by the source's notes), the second fold (-79.06 pA) and the Hopf point (13.2657 pA), then the cycles up to their fold (99.9986 pA). Two-parameter loci, as the source's: the Hopf point in (g_h soma, current) and in (g_h dendrite, current) up to g_h 20, and the rheobase fold in (current, g_h soma) through its cusp (1.0811 pA). Not run, though the source's script does: the folds of cycles in g_h (lpc_soma, lpc_dend). AUTO-07p's own runs stop at the first step, which leaves g_h below the script's RL0=0 (one sample), and past it xppautX did not finish 12 points within 120 s (the driver's safety limit). DSMAX as in ode_mu26_control; the cusp is labelled by AUTO-07p at DSMAX 0.5 and 0.25 and by xppautX at 1, 0.5, 0.25 and 0.1, AUTO-07p misses it at 1 and 0.1 (docs/auto-references.md W415).",
-  "xppaut_skip": "tools/auto_reference.py drives XPPAUT's AUTO window with keys only for runs of one parameter: it has no keys that continue a two-parameter curve of an LP or HB (the Hopf and rheobase-fold loci of this description), so it makes no XPPAUT reference for it.",
   "parameters": {
     "SmIapp": 0.0,
     "SmHxgMax": 0.0,
@@ -139,6 +138,16 @@
         "parmin": -12,
         "parmax": 20
       }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".xppaut",
+      "run": "lp_soma",
+      "side": "ours",
+      "type": "CP",
+      "index": 1,
+      "cause": "XPPAUT 8.0's auto_2p_limit sets ISP=0 and ILP=0, disabling detection on the curve (auto_nox.c:2510-2512); the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     }
   ]
 }

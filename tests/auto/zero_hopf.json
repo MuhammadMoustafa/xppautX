@@ -1,7 +1,6 @@
 {
   "model": "tools/models/zero_hopf.odex",
   "reason": "W364 (#426): x'=a+x^2 has a fold at x=a=0; the transverse pair b +/- i crosses the imaginary axis at b=0. Continuing the fold in b and a therefore passes a zero-Hopf point with spectrum 0,+i,-i. AUTO-07p 0.9.4 labels the same ZH (zero_hopf.auto07p).",
-  "xppaut_skip": "XPPAUT detects no zero-Hopf labels; the reference adapter does not continue two-parameter curves in its window.",
   "runs": [
     {
       "name": "steady", "kind": "equilibrium", "start": {"state": "current"}, "parameter": "a",
@@ -10,6 +9,16 @@
     {
       "name": "fold", "kind": "two_parameter", "start": {"run": "steady", "type": "LP", "index": 1}, "parameters": ["b", "a"],
       "auto": {"ds": 0.02, "dsmin": 0.00001, "dsmax": 0.05, "nmax": 50, "npr": 25, "parmin": -0.2, "parmax": 0.2, "ntst": 15, "mxbf": 0}
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".xppaut",
+      "run": "fold",
+      "side": "ours",
+      "type": "ZH",
+      "index": 1,
+      "cause": "XPPAUT 8.0's auto_2p_limit sets ISP=0 and ILP=0, disabling detection on the curve (auto_nox.c:2510-2512); the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     }
   ]
 }

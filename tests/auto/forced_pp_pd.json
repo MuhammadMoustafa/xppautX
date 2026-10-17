@@ -11,7 +11,6 @@
     "u": 0.0,
     "v": 0.0
   },
-  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves of cycles by tools/auto_reference.py.",
   "runs": [
     {
       "name": "steady",
@@ -116,6 +115,24 @@
         "epss": 1e-05,
         "mxbf": 0
       }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".xppaut",
+      "run": "pd_up",
+      "side": "ours",
+      "type": "R2",
+      "index": 1,
+      "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "pd_down",
+      "side": "ours",
+      "type": "R2",
+      "index": 1,
+      "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     }
   ]
 }

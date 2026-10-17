@@ -11,7 +11,6 @@
     "u": 0.0,
     "v": 0.0
   },
-  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves by tools/auto_reference.py.",
   "runs": [
     {
       "name": "steady",
@@ -92,6 +91,16 @@
         "mxbf": 0
       },
       "skip": "Traced in W405 (#467): at the singular R1 endpoint (alpha,beta)=(-1,1) the zero-angle Neimark-Sacker equations also hold on the fold branch alpha=-(1+beta)^2/4. AUTO-07p's R1 (-0.99998106,0.99998106) and the BP it labels next lie 1.9e-5 along that fold branch: its step left the torus branch there, and its branch-point test changes sign between the two branches. xppautX's location stops within its tolerance short of the 1:1 resonance and finds R1 3.7e-7 from (-1,1) (2.68e-4 before W405); along the torus branch its branch-point test keeps its sign (-0.18, -8.6e-6 at R1, -0.12), so it labels no BP. The R1 and BP samples of AUTO-07p are off xppautX's curve by that excursion; no comparison tolerance was widened"
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".xppaut",
+      "run": "up",
+      "side": "ours",
+      "type": "R2",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_2p_hopf sets ISP=0 and ILP=0 (auto_nox.c:2634-2636), disabling strong-resonance detection on the map's torus curve; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     }
   ]
 }

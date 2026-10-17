@@ -1,7 +1,6 @@
 {
   "model": "examples/tstauto/ab.odex",
   "reason": "W362 (#424): the Hopf point of the exothermic reaction (p1 = 14, p0 = 0.1309) continued in p0 and the heat parameter p1 as a user does (Grab the HB, two-parameter), in both directions of the curve. Compared with AUTO-07p's Hopf curve; W364 checks GH and traces the residual-contaminated reference labels, and the curve is the reference W363's reduced Hopf system is judged against.",
-  "xppaut_skip": "The keys of tools/auto_reference.py do not continue a two-parameter curve in XPPAUT.",
   "runs": [
     {
       "name": "steady",

@@ -11,7 +11,7 @@
     "u": 0.0,
     "v": 0.0
   },
-  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves by tools/auto_reference.py.",
+  "xppaut_skip": "XPPAUT 8.0 auto_2p_limit forces IPS=1 for a map LP instead of IPS=-1 (auto_nox.c:2498-2533); W428 (#490), docs/xppaut-findings.md finding 66.",
   "runs": [
     {
       "name": "steady",

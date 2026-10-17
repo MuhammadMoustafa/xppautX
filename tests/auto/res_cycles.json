@@ -1,7 +1,6 @@
 {
   "model": "tools/models/res_cycles.odex",
   "reason": "W403 (#465): tools/models/res_cycles.odex has a torus curve of cycles in c and b whose places are known in closed form: c = -mu - sqrt(b), with the pair at theta = 2*pi*sqrt(2*sqrt(b)). AUTO-07p labels R1 at sqrt(b) = 1/2, R4, R3 and R2 on the way down in b, and a BP where the curve turns at b = 0 (closed form: R1).",
-  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves of cycles by tools/auto_reference.py.",
   "runs": [
     {
       "name": "steady",
@@ -106,6 +105,48 @@
         "epss": 1e-05,
         "mxbf": 0
       }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".xppaut",
+      "run": "torus_up",
+      "side": "ours",
+      "type": "BP",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), so its curve does not label this branch point; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "R1",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "torus_up",
+      "side": "ours",
+      "type": "R4",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "torus_up",
+      "side": "ours",
+      "type": "R3",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "torus_up",
+      "side": "ours",
+      "type": "R2",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     }
   ]
 }

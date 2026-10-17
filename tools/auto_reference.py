@@ -28,7 +28,9 @@ run with `switch` is a branch switch (ISW=-1).
 xdotool. The same model is written as an .ode, XPPAUT's AUTO window is opened on a private
 display and driven with the keys a user presses (Parameters and Numerics dialogs, Run, Grab,
 Run); the constants it used are read back from the .b file header and must be the run's.
-The point table is XPPAUT's own stdout, the spectra its diagnostics file.
+The point table is XPPAUT's own stdout, the spectra its diagnostics file. Two-parameter
+curves use the Parameters/Axes dialogs and the grabbed point's Run menu; the shared
+b-file reader records every step, with XPPAUT's zero-based parameter column indices.
 
     python3 tools/auto_reference.py --program auto07p|xppaut [--only NAME,...] [--keep DIR]
 """
@@ -53,6 +55,8 @@ BASE = ROOT / 'tests/auto'
 FORMAT = 1
 # AUTO's index of the period among the parameters (PAR(11); core/auto_nox.h AUTO_PERIOD_INDEX is 0-based 10)
 PERIOD = 11
+# AUTO's reserved PAR(12): torus angle or fold-of-cycles normalization (autlib1.c init).
+CYCLE_EXTRA = 12
 
 
 def fnum(v):
@@ -201,7 +205,7 @@ class Equations:
 
 
 def problem(r, discrete, cycle=False):
-    """The run's AUTO-07p problem: ips, isp, isw, ilp. `cycle`: a two-parameter curve of a periodic run's points."""
+    """The run's AUTO problem: ips, isp, isw, ilp (XPPAUT overrides curve ISP). `cycle`: a two-parameter curve of a periodic run's points."""
     curve = r['kind'] == 'two_parameter'
     kind = 'periodic' if cycle else 'equilibrium' if curve else r['kind']
     return dict(ips=-1 if discrete else IPS[kind], isp=1 if discrete else CYCLE_ISP if cycle else ISP[kind],
@@ -262,8 +266,14 @@ def curve_points(text, first, second):
     # a periodic solution's file names a column "MAX U(1)": one column, two words
     columns = {name: i + 1 for i, name in enumerate(re.sub(r'(MAX|MIN) ', r'\1', lines[head]).split()[1:])}
     wanted = [columns['PAR(%d)' % first], columns['PAR(%d)' % second], columns['L2-NORM']]
-    rows = [l.split() for l in lines[head + 1:]]
-    return [[float(f[k]) for k in wanted] for f in rows if len(f) == len(columns) + 1 and int(f[0]) != 0]
+    rows = []
+    for line in lines[head + 1:]:
+        fields = line.split()
+        if fields and fields[0] == '0':  # XPPAUT prepends runs; the next header starts the earlier run.
+            break
+        if len(fields) == len(columns) + 1:
+            rows.append([float(fields[k]) for k in wanted])
+    return rows
 
 
 def script(runs, eq, names):
@@ -297,7 +307,7 @@ def script(runs, eq, names):
 
 
 # the points a two-parameter curve can start from, by what the run it starts from continues
-CURVE_START = {'equilibrium': ('LP', 'HB'), 'map': ('LP', 'HB', 'PD'), 'periodic': ('LP', 'PD', 'TR')}
+CURVE_START = {'equilibrium': ('LP', 'HB'), 'map': ('LP', 'HB', 'PD', 'TR'), 'periodic': ('LP', 'PD', 'TR')}
 POINT_TYPES = SPECIAL_TYPES + CODIM_TWO
 SOURCES = {'auto07p': 'AUTO-07p 0.9.4', 'xppaut': 'XPPAUT 8.0 (reference/xppaut-8.0, c021b511)'}
 SUFFIX = {'auto07p': '.auto07p', 'xppaut': '.xppaut'}
@@ -311,8 +321,8 @@ def check_description(name, d, program):
     odex = Odex(ROOT / d['model'])
     if odex.events or odex.networks:
         raise Refused('the model has events or networks, which the translation does not carry')
-    if program == 'xppaut' and odex.discrete and len(d['runs']) != 1:
-        raise Refused('discrete model with several runs')
+    if program == 'xppaut' and odex.discrete and any(r['kind'] != 'two_parameter' for r in d['runs'][1:]):
+        raise Refused('XPPAUT multi-run maps: this driver only continues two-parameter curves of the initial fixed-point run')
     eqs = Equations(odex, d.get('parameters', {}))
     bvp = any(r['kind'] == 'bvp' for r in d['runs'])
     if bvp and len(d['runs']) != 1:
@@ -326,10 +336,10 @@ def check_description(name, d, program):
         raise Refused('HomCont: only AUTO-07p, one run, from the integrated orbit (start current, settle, step)')
     for r in d['runs']:
         if r['kind'] == 'two_parameter':
-            if program == 'xppaut':
-                raise Refused('the keys of this driver do not continue a two-parameter curve in XPPAUT')
             base = kind_of.get(r['start'].get('run'))
             base = 'map' if base == 'equilibrium' and odex.discrete else base
+            if program == 'xppaut' and base == 'map' and r['start']['type'] == 'LP':
+                raise Refused('XPPAUT 8.0 auto_2p_limit forces IPS=1 for a map LP (auto_nox.c:2498-2533)')
             if r['start'].get('type') not in CURVE_START.get(base, ()):
                 raise Refused('two-parameter run %s: only a point of %s of %s run is continued' %
                               (r['name'], ' or '.join(CURVE_START.get(base, ('nothing',))), base))
@@ -431,7 +441,7 @@ def keys(win, *ks):
 def fill_dialog(opener, title, values):
     """Open a dialog with the key `opener` in the AUTO window, type every field, finish it (Return
     goes to the next field, Tab finishes)."""
-    keys(opener, title[0])
+    keys(opener, *title[0])
     win = window(title[1])
     xdo('mousemove', '--window', win, '20', '20')
     for i, v in enumerate(values):
@@ -484,7 +494,8 @@ def constants_used(text):
 
 
 def execute_xppaut(d, odex, eqs, start, binary, keep, name):
-    work = Path(tempfile.mkdtemp(prefix='w300-xpp-'))
+    (ROOT / 'build').mkdir(exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix='w428-xpp-', dir=ROOT / 'build'))
     xvfb = xpp = None
     try:
         model = work / 'model.ode'
@@ -498,26 +509,61 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
                                env={**os.environ, 'DISPLAY': DISPLAY, 'HOME': str(work), 'LC_ALL': 'C'})
         keys(window('XPP'), 'f', 'a')
         auto = window('AUTO')
-        points, stab, failed = {}, {}, {}
+        points, stab, failed, curves = {}, {}, {}, {}
+        curve_driver = any(r['kind'] == 'two_parameter' for r in d['runs'])
+        # Keep AUTO slots stable: saved solutions use these positions, not model parameter indices.
+        selected = list(dict.fromkeys(n for r in d['runs'] for n in r.get('parameters', [r.get('parameter')]) if n))
+        selected += [n for n in odex.pars if n not in selected]
+        labels, seeds = [], {}
         npar = min(8, len(odex.pars))
         for r in d['runs']:
-            pars = [r['parameter']] + [n for n in odex.pars if n != r['parameter']]
+            curve = r['kind'] == 'two_parameter'
+            base_kind = next(v['kind'] for v in d['runs'] if v['name'] == r['start'].get('run')) if curve else r['kind']
+            cycle_curve = curve and base_kind == 'periodic'
+            seed_key = (r['start']['run'], r['start']['type'], r['start']['index'], tuple(r['parameters'])) if cycle_curve else None
+            seed = seeds.get(seed_key)
+            preparing = cycle_curve and seed is None
+            pars = selected if curve_driver else [r['parameter']] + [n for n in odex.pars if n != r['parameter']]
             fill_dialog(auto, ('p', 'Parameters'), pars[:npar])
             values = numerics(r)
             fill_dialog(auto, ('n', 'AutoNum'), values)
             start_run = r['start']
             if start_run.get('state') != 'current':
-                keys(auto, 'g', *(['Up', {'HB': 'h', 'LP': 'l', 'BP': 'b', 'PD': 'p', 'TR': 't'}[start_run['type']]] * start_run['index']), 'Return')
+                if curve_driver:
+                    labelled = [pt for pt in points[start_run['run']] if pt['type'] == start_run['type']]
+                    if len(labelled) < start_run['index']:
+                        raise Refused('XPPAUT 8.0 run %s has no %s %d for %s' %
+                                      (start_run['run'], start_run['type'], start_run['index'], r['name']))
+                    point = labelled[start_run['index'] - 1]
+                    label = seed if seed else point['label']
+                    # Tab visits labelled points in diagram order (auto_x11.c traverse_diagram).
+                    keys(auto, 'g', 'Home', *(['Tab'] * labels.index(label)), 'Return')
+                else:
+                    keys(auto, 'g', *(['Up', {'HB': 'h', 'LP': 'l', 'BP': 'b', 'PD': 'p', 'TR': 't'}[start_run['type']]] * start_run['index']), 'Return')
+            if curve_driver:
+                axes = r['parameters'] if curve else [r['parameter'], next(n for n in pars if n != r['parameter'])]
+                a = r['auto']
+                fill_dialog(auto, (('a', 't' if curve else 'h'), 'AutoPlot'),
+                            [odex.states[0], *axes, a['parmin'], FIXED['A0'], a['parmax'], FIXED['A1']])
             before = len(log.read_text().splitlines())
             diag = work / 'model.ode.d'
             stamp = diag.stat().st_mtime_ns if diag.exists() else 0
-            keys(auto, 'r', {'equilibrium': 's', 'periodic': 'p'}[r['kind']])
+            bfile = work / 'model.ode.b'
+            bsize = len(bfile.read_text()) if bfile.exists() else 0
+            dsize = len(diag.read_text()) if diag.exists() else 0
+            if curve:
+                # LP starts directly; HB/PD/TR offer Two Param (maps' HB starts directly too).
+                keys(auto, 'r', *(['t'] if start_run['type'] != 'LP' and not odex.discrete else []))
+            else:
+                keys(auto, 'r', {'equilibrium': 's', 'periodic': 'p'}[r['kind']])
 
             def finished():
                 rows = [ROW.match(l) for l in log.read_text().splitlines()[before:]]
                 rows = [m for m in rows if m]
-                # the run's first row is its own start (an EP row too): its end is a later EP or MX row
-                return rows if any(m.group(3) in ('EP', 'MX') for m in rows[1:]) else None
+                # One-parameter runs print an initial EP; curves may print only their final row before NPR.
+                ends = sum(m.group(3) in ('EP', 'MX') for m in (rows if curve else rows[1:]))
+                # Cycles first generate five starting-data steps, then do_auto restarts automatically.
+                return rows if ends >= (2 if preparing else 1) and not (work / 'fort.9').exists() else None
             rows = wait_for('the end of run ' + r['name'], finished)
             wait_for('the diagnostics of run ' + r['name'], lambda: diag.exists() and diag.stat().st_mtime_ns != stamp)
             sizes = []  # the file is complete once it stops growing
@@ -526,25 +572,64 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
                 sizes.append(diag.stat().st_size)
                 return len(sizes) > 1 and sizes[-1] == sizes[-2]
             wait_for('the diagnostics of run %s to stop growing' % r['name'], complete)
-            used = constants_used((work / 'model.ode.b').read_text(errors='replace'))
+            btext = bfile.read_text(errors='replace')
+            # XPPAUT prepends the newest run when it appends its AUTO files (appendf).
+            btext = btext[:len(btext) - bsize] if curve_driver else btext
+            used = constants_used(btext)
             want = dict(zip(('ntst', 'nmx', 'npr', 'ds', 'dsmin', 'ncol', 'epsl', 'dsmax', 'rl0', 'rl1', 'a0', 'a1', 'epsu', 'epss',
                              'iad', 'mxbf', 'iid', 'itmx', 'itnw', 'nwtn'), values))
             bad = {k: (used.get(k), v) for k, v in want.items()
                    if not math.isclose(used.get(k, math.nan), float(v), rel_tol=1e-3, abs_tol=1e-12)}
             if bad:
                 raise Refused('the Numerics dialog did not set %s (XPPAUT used, wanted)' % bad)
-            stab[r['name']] = stability(diag.read_text(errors='replace'))
-            pars = solution_parameters((work / 'model.ode.s').read_text(errors='replace'))
+            if curve_driver:
+                irs = (seed if seed else labelled[start_run['index'] - 1]['label']) if start_run.get('state') != 'current' else 0
+                if preparing:
+                    # The initial .b header verifies the grabbed label; the final one uses the generated EP.
+                    headers = re.split(r'(?m)(?=^\s*0\s+[-+0-9.]+E[-+][0-9]+\s+[-+0-9.]+E)', btext)
+                    preparation = constants_used(headers[2])
+                    restarts = re.findall(r'RestartLabel=(\d+)', '\n'.join(log.read_text().splitlines()[before:]))
+                    if preparation.get('irs') != irs or not restarts:
+                        raise Refused('XPPAUT starting data did not restart the grabbed label %d' % irs)
+                    irs = int(restarts[-1])
+                    # Reverse from the same generated EP, as a user does; regenerating it with negative DS
+                    # can reverse the saved tangent too, making both signs follow the same direction.
+                    seeds[seed_key] = irs
+                want.update(problem(r, odex.discrete, cycle_curve), irs=irs)
+                if curve:
+                    want['isp'] = 0  # XPPAUT disables detection on singular-point curves (auto_nox.c).
+                bad.update({k: (used.get(k), v) for k, v in want.items() if k in ('irs', 'ips', 'isw', 'ilp', 'isp') and used.get(k) != v})
+                if bad:
+                    raise Refused('XPPAUT run constants differ (used, wanted): %s' % bad)
+                active = re.search(r'Active continuation parameters?:\s*([0-9 ]+)', btext)
+                slots = ([pars.index(n) for n in axes] if curve else [pars.index(r['parameter'])]) + (
+                    [PERIOD - 1] if base_kind == 'periodic' else []) + (
+                    [CYCLE_EXTRA - 1] if cycle_curve and start_run['type'] in ('LP', 'TR') else [])
+                if not active or [int(n) for n in active[1].split()] != slots:
+                    raise Refused('XPPAUT active continuation slots differ from %s' % slots)
+                # The b-file's columns carry the actual free parameter slots.
+                if curve:
+                    curves[r['name']] = curve_points(btext, pars.index(axes[0]), pars.index(axes[1]))
+                labels.extend(int(m.group(4)) for m in rows if int(m.group(4)))
+            dtext = diag.read_text(errors='replace')
+            stab[r['name']] = stability(dtext[:len(dtext) - dsize] if curve_driver else dtext)
+            solutions = solution_parameters((work / 'model.ode.s').read_text(errors='replace'))
             points[r['name']] = []
             for m in rows:
                 if m.group(3) in POINT_TYPES:
                     # the period (PAR(11)) means something at a Hopf point and on a periodic branch
-                    period = pars[int(m.group(4))][PERIOD - 1] if m.group(3) == 'HB' or r['kind'] == 'periodic' else None
-                    points[r['name']].append(dict(type=m.group(3), branch=int(m.group(1)), label=int(m.group(4)),
-                                                  point=int(m.group(2)), par=float(m.group(5)), norm=float(m.group(6)), period=period))
+                    period = solutions[int(m.group(4))][PERIOD - 1] if m.group(3) == 'HB' or r['kind'] == 'periodic' else None
+                    pars_values = solutions[int(m.group(4))]
+                    kind = m.group(3)
+                    if curve_driver and odex.discrete and kind == 'HB':
+                        # fnhbae logs map multipliers: a real flip has log(-1)=i*pi, hence period 2.
+                        kind = 'PD' if period == 2.0 else 'TR'
+                    points[r['name']].append(dict(type=kind, branch=int(m.group(1)), label=int(m.group(4)),
+                                                  point=int(m.group(2)), par=float(m.group(5)), norm=float(m.group(6)), period=period,
+                                                  **({'par2': pars_values[pars.index(axes[1])]} if curve else {})))
         if keep:
             shutil.copytree(work, keep / name, dirs_exist_ok=True)
-        return points, stab, failed, {}
+        return points, stab, failed, curves
     finally:
         for p in (xpp, xvfb):
             if p is not None and p.poll() is None:

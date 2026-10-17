@@ -10,7 +10,7 @@
     "y": 9.99966667e-05,
     "z": 1e-08
   },
-  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves of cycles by tools/auto_reference.py.",
+  "xppaut_skip": "No native XPPAUT HomCont run of this orbit was executed; the driver does not create its integrated starting orbit.",
   "runs": [
     {
       "name": "steady",

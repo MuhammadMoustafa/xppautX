@@ -1,7 +1,6 @@
 {
   "model": "tools/models/hill_cycles.odex",
   "reason": "W402 (#464): the Hopf cycle of tools/models/hill_cycles.odex has a torus bifurcation at mu=-c=0.3 (the cycle's other two multipliers leave the unit circle there as a pair). Continuing it in c and d sweeps the multipliers' angle 2*pi*sqrt(d) through the 1:4 and 1:3 resonances: AUTO-07p labels R4 going up in d and R3 going down, then a BP of the curve near the 1:2 endpoint.",
-  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves of cycles by tools/auto_reference.py.",
   "runs": [
     {
       "name": "steady",
@@ -106,6 +105,32 @@
         "epss": 1e-05,
         "mxbf": 0
       }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".xppaut",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "BP",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), so its curve does not label this branch point; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "torus_up",
+      "side": "ours",
+      "type": "R4",
+      "index": 1,
+      "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "R3",
+      "index": 1,
+      "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     }
   ]
 }

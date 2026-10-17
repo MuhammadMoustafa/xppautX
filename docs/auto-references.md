@@ -85,6 +85,11 @@ handling; `autocheck hopf_reduced` continues the BT normal form
   holds exact (it fails if the difference goes away, too). `--measures` prints every quantity compared,
   `--table` this page's table lines.
 
+W428 keeps XPPAUT's parameter slots stable across the named runs. A curve's two parameters
+are selected in Axes; the displayed ranges do not add a stopping bound on the second
+parameter. The Numerics RL0/RL1 still bound the first parameter, exactly as the description
+specifies. The original one-parameter references are kept byte for byte.
+
 ## The tolerance, per quantity, and why
 
 For a quantity *q* at a special point the allowed difference is
@@ -108,6 +113,15 @@ For a quantity *q* at a special point the allowed difference is
 - The tolerance is **never widened to make a point pass**: a difference beyond it is traced to a cause
   (below) and recorded, or it is a bug.
 
+For XPPAUT curve samples, W428 also accounts for the `.b` file's `%14.5E`
+format ([autlib1.c:3035-3041](../reference/xppaut-8.0/autlib1.c#L3035)):
+six significant digits. The curve comparison adds half a last printed unit,
+`0.5 * 10**(floor(log10(M)) - 5)`, where `M` is the absolute reference sample or the largest absolute coordinate
+of the two reference segment endpoints (zero contributes zero). This bounds
+the reference's rounding in either projection direction. AUTO-07p's comparison
+and all Newton/location tolerances are unchanged. A constant-norm regression
+accepts the rounded export but rejects an offset larger than the printed unit.
+
 ## Two-parameter curves (W362, [#424](https://github.com/MuhammadMoustafa/xppautX/issues/424))
 
 `tstauto_ab_fold` and `tstauto_ab_hopf` continue the exothermic reaction's fold (the LP of the feed `p0`
@@ -116,12 +130,10 @@ Grab the point, two-parameter. The Hopf description runs both directions of the 
 A model has more than one description now (`autocompare.py` still requires every model to have one).
 
 - **AUTO-07p's run** (`tools/auto_reference.py`): the equilibrium problem restarted from the label of the earlier
-  run's LP or HB, `ISW=2`, `ICP=[p0, p1]`, the description's constants, `ILP=0` as ours. `ISP=1`, which ours
-  does not have (`ISP=0`, core/auto_nox.cpp `auto_2p_limit`): it makes AUTO-07p label BT, CP, ZH and GH
-  (`CHECKSP`, support.f90), and those labels are what W363 and W364 are judged against. Detection moves
-  the steps around a label a little and nothing else, so the curves stay comparable. A curve of cycles (a PD)
-  is not driven: no model of `tests/auto` has a PD point (AUTO-07p, 300 steps of the cycles of torx, frcp, pp2,
-  ode/lecar, lo, lamom and lamom2: folds, branch points, none a PD), so it would be code nothing exercises.
+  run's LP or HB, `ISW=2`, `ICP=[p0, p1]`, the description's constants, `ILP=0` as ours. `ISP=1`
+  makes AUTO-07p label BT, CP, ZH and GH (`CHECKSP`, support.f90); xppautX detects those after W364.
+  Detection moves steps around a label a little, so curves are compared geometrically. W402 also drives
+  LP/PD/TR curves of cycles and maps; W428 drives XPPAUT's available menu paths, which keep ISP 0.
 - **What the file holds** (`tstauto_ab_fold.auto07p`): per run the special points as before, now with
   `par2` and the codim-2 types (BT, CP, ZH, GH, R1-R4, LPD, LTR, PTR, TTR) for a two-parameter run, and its
   `curve`: every step AUTO-07p took, `[parameter, second parameter, norm]` from its `b` file (NPR only decides
@@ -214,23 +226,26 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-46 descriptions have an AUTO-07p reference (147 special points compared, and the two-parameter curves) and 29 an
-XPPAUT 8.0 reference (61 points); 29 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
-and XPPAUT 8.0 three; the runs a description skips (its reason says why) are neither run nor compared. The whole
+46 descriptions have an AUTO-07p reference (147 special points compared, and the two-parameter curves) and 40 an
+XPPAUT 8.0 reference (102 points); 40 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
+and XPPAUT 8.0 30; the runs a description skips (its reason says why) are neither run nor compared. The whole
 comparison is 58 descriptions, 9 skipped, 15088 stored points across one and automatic threads, 144 checks, zero
-failures. No tolerance was widened. Before W326 there were 44 compared points and six traced points against
-AUTO-07p, and 44 compared points with none traced against XPPAUT.
+failures. Newton and location tolerances are unchanged; XPPAUT curve exports include their half-unit printing uncertainty
+(above). W428 ([#490](https://github.com/MuhammadMoustafa/xppautX/issues/490)) adds eleven XPPAUT references; only the map fold
+remains refused among the twelve two-parameter descriptions. Three one-parameter references (`tstauto_ab`, `tstauto_dumb`,
+`ode_del_log`) were replayed byte for byte, and no existing reference file changed. Before W326 there were 44 compared points
+and six traced points against AUTO-07p, and 44 compared points with none traced against XPPAUT.
 
 | Model | Special points in xppautX | AUTO-07p | XPPAUT 8.0 |
 |---|---|---|---|
 | explicit_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.2e-08, par2 2.4e-15, norm 1.8e-08) | not run |
-| forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 1.2e-08, par2 4e-09, norm 2.4e-09, period 2e-14, spectrum 9e-05; curve par 0.00037, par2 9.8e-06, norm 4.9e-06) | not run |
-| forced_pp_pd | steady: EP HB; cycles: PD; pd_up: R2; pd_down: R2 | agrees (5 points; par 1.8e-06, par2 1.9e-05, norm 1.3e-06, period 2.1e-14, spectrum 4.3e-05; curve par 2.6e-07, par2 1.3e-05, norm 1.4e-06) | not run |
+| forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 1.2e-08, par2 4e-09, norm 2.4e-09, period 2e-14, spectrum 9e-05; curve par 0.00037, par2 9.8e-06, norm 4.9e-06) | agrees, 1 traced (4 points; par 3e-08, norm 2.6e-08, period 2e-14, spectrum 3.8e-07; curve par 0.00045, par2 7.2e-06, norm 3.8e-06) |
+| forced_pp_pd | steady: EP HB; cycles: PD; pd_up: R2; pd_down: R2 | agrees (5 points; par 1.8e-06, par2 1.9e-05, norm 1.3e-06, period 2.1e-14, spectrum 4.3e-05; curve par 2.6e-07, par2 1.3e-05, norm 1.4e-06) | agrees, 2 traced (3 points; par 1.6e-08, norm 4.8e-08, period 2.1e-14, spectrum 3.1e-07; curve par 6.5e-06, par2 3.2e-06, norm 1.1e-06) |
 | henon_rot_lp | steady: EP LP TR PD; up: LTR LPD R1; down: LTR | agrees (8 points; par 1.4e-09, par2 1.4e-09, norm 1.2e-09, spectrum 1.7e-05; curve par 9.1e-06, par2 2.8e-06, norm 1.9e-06) | not run |
-| henon_rot_pd | steady: EP PD TR TR; up: PTR R2 PTR; down: LPD PTR PTR | agrees (10 points; par 9.8e-09, par2 3.7e-09, norm 2.2e-09, spectrum 1.3e-05; curve par 1.4e-09, par2 6.8e-09, norm 2.9e-09) | not run |
-| henon_rot_tr | steady: EP PD TR TR; up: R2 | agrees (5 points; par 6e-10, par2 4.5e-10, norm 7.7e-11, spectrum 1.3e-05; curve par 7.7e-10, par2 4.5e-09, norm 1.3e-09) | not run |
-| hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 9.3e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07; curve par 2.7e-09, par2 1e-09, norm 8.4e-12) | not run |
-| hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP | agrees (7 points; par 1.2e-10, par2 3.9e-12, norm 7.7e-12, period 2e-11, spectrum 3.5e-06; curve par 1.2e-10, par2 1.9e-08, norm 1.5e-11) | not run |
+| henon_rot_pd | steady: EP PD TR TR; up: PTR R2 PTR; down: LPD PTR PTR | agrees (10 points; par 9.8e-09, par2 3.7e-09, norm 2.2e-09, spectrum 1.3e-05; curve par 1.4e-09, par2 6.8e-09, norm 2.9e-09) | agrees, 6 traced (4 points; par 2.6e-07, norm 3.5e-07, spectrum 7e-07; curve par 0.0003, par2 0.00033, norm 0.0076) |
+| henon_rot_tr | steady: EP PD TR TR; up: R2 | agrees (5 points; par 6e-10, par2 4.5e-10, norm 7.7e-11, spectrum 1.3e-05; curve par 7.7e-10, par2 4.5e-09, norm 1.3e-09) | agrees, 1 traced (4 points; par 2e-07, norm 3e-07, spectrum 8.4e-07; curve par 0.00062, par2 1.8e-07, norm 2.8e-05) |
+| hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 9.3e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07; curve par 2.7e-09, par2 1e-09, norm 8.4e-12) | agrees, 5 traced (5 points; par 4e-08, norm 4.2e-08, period 3.6e-10, spectrum 2.8e-07; curve par 0.0071, par2 0.0013, norm 3.4e-07) |
+| hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP | agrees (7 points; par 1.2e-10, par2 3.9e-12, norm 7.7e-12, period 2e-11, spectrum 3.5e-06; curve par 1.2e-10, par2 1.9e-08, norm 1.5e-11) | agrees, 3 traced (4 points; par 4e-08, norm 4.3e-08, period 2e-11, spectrum 5.7e-08; curve par 3.1e-10, par2 0.0002, norm 4.4e-07) |
 | izh_class1_integrator | steady: EP LP | agrees (2 points; par 7.5e-15, norm 4.1e-10, spectrum 2e-08) | agrees (2 points; par 7.5e-15, norm 3.7e-06, spectrum 2e-08) |
 | izh_class2 | steady: EP HB LP | agrees (3 points; par 4.4e-13, norm 3.7e-10, period 6.6e-11, spectrum 4.6e-07) | agrees (3 points; par 7.1e-06, norm 4.7e-06, period 1.5e-05, spectrum 4.1e-08) |
 | izh_resonator | steady: EP HB LP | agrees (3 points; par 2.5e-12, norm 4.5e-10, period 3.1e-10, spectrum 2e-07) | agrees (3 points; par 2.1e-05, norm 3.2e-06, period 3.9e-05, spectrum 1.6e-07) |
@@ -238,13 +253,13 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.4e-10, norm 1.6e-07, period 6.7e-05, spectrum 0.00037) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.5e-06, period 0.0017, spectrum 0.00041) |
 | ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 6.8e-07, norm 6.4e-09, period 2.1e-08, spectrum 1.2e-06) | agrees (4 points; par 1e-05, norm 4.7e-06, period 5.4e-09, spectrum 8.4e-08) |
-| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | not run |
+| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | agrees, 1 traced (5 points; par 1.2e-06, norm 1e-05, period 7e-08, spectrum 1e-07; curve par 0.024, par2 0.00087, norm 0.00021) |
 | ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 1.2e-07, norm 3.9e-09, period 1.4e-08, spectrum 1.1e-06) | agrees (5 points; par 3.5e-06, norm 4.3e-06, period 8e-08, spectrum 1.3e-07) |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
-| res_cycles | steady: EP HB HB; cycles: TR; torus_down: R1; torus_up: R4 R3 R2 BP | agrees (9 points; par 7.9e-07, par2 7.9e-07, norm 4.6e-07, period 2.2e-11, spectrum 0.0012; curve par 3.2e-07, par2 6.4e-06, norm 3.5e-07) | not run |
+| res_cycles | steady: EP HB HB; cycles: TR; torus_down: R1; torus_up: R4 R3 R2 BP | agrees (9 points; par 7.9e-07, par2 7.9e-07, norm 4.6e-07, period 2.2e-11, spectrum 0.0012; curve par 3.2e-07, par2 6.4e-06, norm 3.5e-07) | agrees, 5 traced (4 points; par 4e-08, norm 2.2e-08, period 2.2e-11, spectrum 6.6e-08; curve par 3.1e-06, par2 2.6e-05, norm 7.6e-06) |
 | tstauto_ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
-| tstauto_ab_fold | steady: EP LP; fold: BT CP | agrees, 4 traced (4 points; par 5.7e-08, par2 4.6e-06, norm 8.3e-05, spectrum 0.00044; curve par 4.5e-06, par2 0.00018, norm 2e-05) | not run |
-| tstauto_ab_hopf | steady: EP LP LP HB; hopf_up: -; hopf_down: - | agrees, 3 traced (4 points; par 2.2e-12, norm 3.4e-11, period 3.7e-11, spectrum 2.7e-05; curve par 7.6e-09, par2 4.7e-08, norm 2.3e-08) | not run |
+| tstauto_ab_fold | steady: EP LP; fold: BT CP | agrees, 4 traced (4 points; par 5.7e-08, par2 4.6e-06, norm 8.3e-05, spectrum 0.00044; curve par 4.5e-06, par2 0.00018, norm 2e-05) | agrees, 2 traced (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09; curve par 4.3e-05, par2 0.0021, norm 0.00018) |
+| tstauto_ab_hopf | steady: EP LP LP HB; hopf_up: -; hopf_down: - | agrees, 3 traced (4 points; par 2.2e-12, norm 3.4e-11, period 3.7e-11, spectrum 2.7e-05; curve par 7.6e-09, par2 4.7e-08, norm 2.3e-08) | agrees (4 points; par 6.3e-06, norm 1.3e-06, period 3e-05, spectrum 0.00012; curve par 1.2e-05, par2 9.1e-05, norm 2.3e-05) |
 | tstauto_bigaut | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_bistable | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_bob | steady: EP | agrees (1 points; par 0, norm 1.8e-12) | agrees (1 points; par 0, norm 1.4e-08) |
@@ -268,7 +283,7 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | tstauto_torx_homcont | steady: EP BP; homoclinic: EP LP | agrees (4 points; par 6.9e-12, norm 3.6e-08, spectrum 3.2e-07; curve par 6.5e-06, par2 9.8e-06, norm 3.4e-07) | not run |
 | tstauto_tsthom | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_wcbiwave | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
-| zero_hopf | steady: EP LP; fold: ZH | agrees (3 points; par 1.7e-18, par2 1.3e-40, norm 5.8e-17, spectrum 7.4e-12; curve par 3.5e-18, par2 2.4e-21, norm 1e-16) | not run |
+| zero_hopf | steady: EP LP; fold: ZH | agrees (3 points; par 1.7e-18, par2 1.3e-40, norm 5.8e-17, spectrum 7.4e-12; curve par 3.5e-18, par2 2.4e-21, norm 1e-16) | agrees, 1 traced (2 points; par 3.1e-18, norm 3.2e-13, spectrum 2.6e-12; curve par 9.2e-16, par2 1.3e-10, norm 3.7e-12) |
 
 Rows are the output of `autocompare.py --table`. Cells: `agrees` (every compared quantity inside its tolerance), the
 number of points compared and the largest absolute difference per quantity (`par`, `par2` on curves, `norm`,
@@ -371,12 +386,24 @@ there; the two recorded cases are the ones that reach it.
   AUTO-07p's homoclinic continuation needs a separately specified valid problem.
 - **XPPAUT 8.0 not run** (`xppaut_skip`): the four boundary-value fixtures (`exp`, `dumbvp`, `tstheti`,
   `tsthom2`). XPPAUT's boundary-value run starts from the solution in its storage, which an integration in its
-  main window fills; the keys of `tools/auto_reference.py` do not drive that. The other 24 models were driven.
+  main window fills; the keys of `tools/auto_reference.py` do not drive that. HomCont runs likewise need an integrated
+  starting orbit that this driver does not create; their descriptions retain explicit skips.
   XPPAUT's AUTO has no batch mode, so any run needs its window and an X server.
-- **Two-parameter curves, XPPAUT 8.0 and the cycles' curves** (W362): `tstauto_ab_fold` and `tstauto_ab_hopf` carry an
-  `xppaut_skip`: the keys of `tools/auto_reference.py` do not continue a curve in XPPAUT's window. A period-doubling
-  curve has no description: no model of `tests/auto` has a PD point (section "Two-parameter curves"). ZH and the
-  cycles' R1-R4, LPD, LTR, PTR, TTR have no reference either: no model here reaches them.
+- **Two-parameter curves in XPPAUT 8.0** (W428, [#490](https://github.com/MuhammadMoustafa/xppautX/issues/490)):
+  the driver now uses Parameters/Axes, Grab and Run (Two Param for HB/PD/TR, immediate continuation for LP).
+  Parameter slots stay fixed across restarts; Grab starts in the named source run. The `.b` header verifies
+  the numerical constants, restart label, problem, detection switches and active parameter slots. Cycles
+  automatically generate five starting-data steps and restart (`do_auto`,
+  [auto_nox.c:653-659](../reference/xppaut-8.0/auto_nox.c#L653)); the driver waits for the final continuation
+  and records its curve alone, reusing AUTO-07p's b-file reader with XPPAUT's zero-based column indices.
+  Paired cycle runs reverse from the same generated EP: Grab that EP, set the requested Numerics, Run/Two Param.
+  Regenerating starting data for each sign can change its tangent's orientation as well (Hill's two signs
+  initially both increased the second parameter); reusing the EP makes the reversal explicit, with each
+  final run's DS and IRS checked in its header.
+  Missing labels are traced, not silently omitted: XPPAUT sets ISP/ILP to zero on these curves.
+  The map flip is continued through its native period-two HB path, which retains IPS -1; the ordinary
+  PD menu is not used. Only `henon_rot_lp` remains refused because its Run routine forces IPS 1
+  ([finding 66](xppaut-findings.md#66-auto-map-fold-continuation-loses-the-map-problem)).
 - **Compared at the start only:** `bigaut` (350 variables) and `dumb` (195) are linear dimension fixtures
   with no special point, and the models whose run meets none before it ends on the step count or a bound
   compare the start alone. A run's last point is not compared.
@@ -888,8 +915,9 @@ own equations (`tools/auto_reference.py` translates the `.odex`), not from that 
   the XPPAUT 8.0 reference for the control description is made (W422, [#484](https://github.com/MuhammadMoustafa/xppautX/issues/484): the
   driver now waits for the run's own end, a later EP or MX row, not the start's EP row): LP 0.0058127 at point 9, LP -79.05658 at
   127, HB 13.26547 at 244, and for the cycles LP 99.99655 at 118, the points of ours and AUTO-07p's. The blocked
-  description has none: its two-parameter curves need keys that continue a curve in XPPAUT's window, which the driver
-  does not have (`xppaut_skip`).
+  description now has its XPPAUT reference too (W428, [#490](https://github.com/MuhammadMoustafa/xppautX/issues/490)),
+  including both HB loci and the rheobase-LP locus through the cusp. XPPAUT sets ISP/ILP 0 on these curves:
+  its missing CP label is traced explicitly, while the three curves are compared.
 
 **Not run.** The periodic branches of Mu26 to the rheobase fold (`run_bifurcation_*_extend.auto`: 16000 + 30000 steps
 at 50 and 150 mesh intervals, the period diverging to 25 s), and the extent of the cycles beyond their fold.

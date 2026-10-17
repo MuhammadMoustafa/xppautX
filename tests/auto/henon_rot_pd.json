@@ -11,7 +11,6 @@
     "u": 0.0,
     "v": 0.0
   },
-  "xppaut_skip": "XPPAUT's AUTO window is not driven through two-parameter curves by tools/auto_reference.py.",
   "runs": [
     {
       "name": "steady",
@@ -91,6 +90,56 @@
         "epss": 0.0001,
         "mxbf": 0
       }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".xppaut",
+      "run": "up",
+      "side": "ours",
+      "type": "PTR",
+      "index": 1,
+      "cause": "XPPAUT 8.0 continues the map flip through its period-two HB path, auto_2p_hopf, with ISP=0 and ILP=0 (auto_nox.c:2634-2643); it does not label these codimension-two points. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "up",
+      "side": "ours",
+      "type": "PTR",
+      "index": 2,
+      "cause": "XPPAUT 8.0 continues the map flip through its period-two HB path, auto_2p_hopf, with ISP=0 and ILP=0 (auto_nox.c:2634-2643); it does not label these codimension-two points. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "up",
+      "side": "ours",
+      "type": "R2",
+      "index": 1,
+      "cause": "XPPAUT 8.0 continues the map flip through its period-two HB path, auto_2p_hopf, with ISP=0 and ILP=0 (auto_nox.c:2634-2643); it does not label these codimension-two points. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "down",
+      "side": "ours",
+      "type": "LPD",
+      "index": 1,
+      "cause": "XPPAUT 8.0 continues the map flip through its period-two HB path, auto_2p_hopf, with ISP=0 and ILP=0 (auto_nox.c:2634-2643); it does not label these codimension-two points. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "down",
+      "side": "ours",
+      "type": "PTR",
+      "index": 1,
+      "cause": "XPPAUT 8.0 continues the map flip through its period-two HB path, auto_2p_hopf, with ISP=0 and ILP=0 (auto_nox.c:2634-2643); it does not label these codimension-two points. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "down",
+      "side": "ours",
+      "type": "PTR",
+      "index": 2,
+      "cause": "XPPAUT 8.0 continues the map flip through its period-two HB path, auto_2p_hopf, with ISP=0 and ILP=0 (auto_nox.c:2634-2643); it does not label these codimension-two points. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     }
   ]
 }
