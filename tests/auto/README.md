@@ -30,7 +30,9 @@ integration supplies the orbit too; a HomCont run's first point is that
 orbit uncorrected in both programs, and `tools/auto_reference.py`
 integrates AUTO-07p's with the same step. A stored start is `{"run":"steady","type":"HB","index":1}`:
 the first HB in that named run, grabbed by its label. Indices are one-based
-within the named run, not across the whole diagram. `switch:true` requests
+within the named run, not across the whole diagram. A periodic run from an HB
+starts the cycles; from another point of a periodic run (its end EP, say) it
+extends them (AUTO's Extend, W423). `switch:true` requests
 branch switching. A model or individual run may instead carry `skip` with
 an explicit reason; invalid descriptions always fail, including skips.
 
@@ -100,3 +102,7 @@ two-compartment PVN neuron of Mu26 in its control and h-blocked conditions, and 
 et al. 2023; each also kept as the `.ode` it was converted from): the applied current from rest to the Hopf point, the
 cycles from it, and for the blocked condition the Hopf and rheobase-fold loci in the h conductances. All agree with
 AUTO-07p; XPPAUT 8.0's reference is skipped with its reason (docs/auto-references.md, "W415").
+
+W423 (#485) extends both Mu26 descriptions' cycles down to the rheobase fold (`to_snic`, the source's
+`run_bifurcation_*_extend.auto`) and adds the folds of cycles in the h conductances (`lpc_soma`, `lpc_dend`), skipped
+for their cost with AUTO-07p's reference (docs/auto-references.md, "W423").

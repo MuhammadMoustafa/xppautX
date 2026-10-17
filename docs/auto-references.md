@@ -277,7 +277,7 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 | tstauto_lo | steady: EP HB; cycles: - | agrees (2 points; par 2.7e-18, norm 0, period 2e-11, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, period 2e-11, spectrum 2.5e-16) |
 | tstauto_pen | steady: EP | agrees (1 points; par 0, norm 3.6e-12) | agrees (1 points; par 0, norm 4.9e-09) |
 | tstauto_pf | steady: EP BP | agrees (2 points; par 2.7e-18, norm 0, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, spectrum 2.2e-16) |
-| tstauto_pp2 | steady: EP HB BP; cycles: LP LP | agrees, 4 traced (3 points; par 1.8e-12, norm 3.3e-12, period 6.3e-11, spectrum 4.9e-07) | agrees, 1 traced (4 points; par 4.8e-08, norm 4.9e-07, period 2.3e-10, spectrum 2.9e-07) |
+| tstauto_pp2 | steady: EP HB BP; cycles: LP LP | agrees, 4 traced (3 points; par 1.8e-12, norm 3.3e-12, period 6.3e-11, spectrum 5e-07) | agrees, 1 traced (4 points; par 4.8e-08, norm 4.9e-07, period 2.3e-10, spectrum 2.9e-07) |
 | tstauto_san | steady: EP BP | agrees (2 points; par 2.4e-12, norm 2.8e-15, spectrum 1.3e-07) | agrees (2 points; par 1.7e-08, norm 4.1e-11, spectrum 1.3e-07) |
 | tstauto_she | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_simplefold | steady: EP LP LP | agrees (3 points; par 4.8e-12, norm 4.5e-11, spectrum 8.6e-11) | agrees (3 points; par 2.1e-08, norm 4.3e-08, spectrum 2.7e-13) |
@@ -904,14 +904,15 @@ own equations (`tools/auto_reference.py` translates the `.odex`), not from that 
   digits, so it is a card of its own (proposed in W415's report). W421 made it: within 9.8e-8 pA at every DSMAX
   ("W421" below).
 - *The second fold of Mu26 at DSMAX 1.* xppautX labels a BP at -78.744 pA and the fold at -79.0566 pA is not labelled;
-  AUTO-07p labels neither. Both label the fold from DSMAX 0.8 down. Not traced
-  further.
+  AUTO-07p labels neither. Both label the fold from DSMAX 0.8 down. Traced in W423: the BP was the fold test's
+  determinant read as the branch point test's, and xppautX labels neither since.
 - *The cusp of Mu26's rheobase-fold locus.* xppautX labels CP at 1.08110512 pA at DSMAX 1, 0.5, 0.25 and 0.1;
-  AUTO-07p at 0.5 and 0.25 (1.08110512), not at 1 and 0.1. The description uses 0.5. Not traced further.
+  AUTO-07p at 0.5 and 0.25 (1.08110512), not at 1 and 0.1. The description uses 0.5. Traced in W423: at 1
+  AUTO-07p's location gives up, at 0.1 neither program reaches the cusp within the 45 points.
 - *The folds of cycles in g_h* (`lpc_soma`, `lpc_dend` of `run_2d_bifurcation.auto`) are not in the descriptions.
   With the script's RL0=0 AUTO-07p's own run stops at its first step, which leaves g_h negative (one sample of the
   curve; the source's saved `b.lpc_soma` has four points ending at g_h -4e-4), and past it xppautX did not finish
-  12 points of the curve within the driver's 120 s safety limit.
+  12 points of the curve within the driver's 120 s safety limit. W423 adds both, skipped with the traced cost.
 - *XPPAUT 8.0.* Ma23: with the export's E_Ca 130 it labelled no Hopf point, so its cycles run could not start from
   one (finding 70); with Table 1's 68 (W424) it labels the HB at 539.2246 pA, and its reference agrees. Mu26:
   the XPPAUT 8.0 reference for the control description is made (W422, [#484](https://github.com/MuhammadMoustafa/xppautX/issues/484): the
@@ -922,7 +923,8 @@ own equations (`tools/auto_reference.py` translates the `.odex`), not from that 
   its missing CP label is traced explicitly, while the three curves are compared.
 
 **Not run.** The periodic branches of Mu26 to the rheobase fold (`run_bifurcation_*_extend.auto`: 16000 + 30000 steps
-at 50 and 150 mesh intervals, the period diverging to 25 s), and the extent of the cycles beyond their fold.
+at 50 and 150 mesh intervals, the period diverging to 25 s), and the extent of the cycles beyond their fold. W423
+adds them (`to_snic`).
 
 The follow-ups are cards: the test functions at the converged Jacobian (finding 70) are W421
 ([#483](https://github.com/MuhammadMoustafa/xppautX/issues/483)); the untraced DSMAX-1 BP and CP, the LPC loci and the
@@ -1096,3 +1098,62 @@ descriptions (master's LAPACK build: 1, this one); res_cycles' largest differenc
 forced_pp_ns's LAPACK diagram now has the default build's 264 points (it differed by 0.34 in the parameter after its
 BP at the 1:2 endpoint, where the same singular solve decided a step). The largest fraction, 0.908, is forced_pp_pd's
 far R2 (W405: 1.9e-5 against a tolerance of 2.1e-5), the same in master's LAPACK build. EISPACK stays the default.
+
+## W423: Mu26's remaining runs ([#485](https://github.com/MuhammadMoustafa/xppautX/issues/485))
+
+**The branches to the SNIC.** Both Mu26 descriptions gain `to_snic`: the cycles extended (AUTO's Extend, which the
+driver now presses for a periodic run from a stored point that is not an HB) from the cycles run's end, past their fold,
+down to the rheobase fold, 170 points at NTST 50 and DSMAX 1. The source's `run_bifurcation_*_extend.auto` needed
+16000 + 30000 steps at DSMAX 0.1 and NTST 50, then 150; at DSMAX 1 both programs get there with 50 mesh intervals.
+The run ends, in xppautX and AUTO-07p alike, within 2e-5 pA of the fold of equilibria with the period in the tens of
+seconds:
+
+| Description | Rheobase fold (LP) | xppautX's end | AUTO-07p's end | T * sqrt(I - I_LP), ours / AUTO-07p |
+|---|---|---|---|---|
+| ode_mu26_control | 0.0058127 pA | 0.0058180 pA, period 36206 ms | 0.0058205 pA, 29102 ms | 83.1 / 80.9 |
+| ode_mu26_blocked | 0.0657990 pA | 0.0658071 pA, 50018 ms | 0.0658182 pA, 32687 ms | 143.1 / 143.4 |
+
+The last column is the SNIC's law, period proportional to (I - I_LP)^(-1/2): the two programs' ends, at different
+steps, lie on one curve (the control's 3% is the fold's last digit). Run on, both stop with MX near their 310th point
+(periods of 1e5 to 1e6 ms). The branch has no special point between the cycles' fold and the SNIC, so the
+reference comparison adds no quantity; the baseline holds every point. The control's XPPAUT 8.0 reference marks
+`to_snic` unavailable: the driver's keys start a run from an HB, LP, BP, PD or TR only (W438, [#500](https://github.com/MuhammadMoustafa/xppautX/issues/500)).
+The run costs about 70 s at one thread per description (the whole comparison went from 144 to 291 s at one thread,
+65 to 112 s at automatic threads).
+
+**The DSMAX-1 BP on the steady branch**
+([xppaut-findings.md 72](xppaut-findings.md#72-autos-branch-point-test-reads-the-fold-tests-determinant)). The step
+past the second fold converges on the branch beyond it; the fold function keeps its sign, and the branch point test
+read the determinant the fold test had just computed with the tangent row, which changes sign there. AUTO-07p's
+branch point test reads the Newton matrix's determinant, which does not. `fnlpae` no longer stores its determinant:
+xppautX now labels neither point at DSMAX 1, as AUTO-07p. The fold is missed by both, a step size matter (both label
+it from DSMAX 0.8 down). Two baselines change: `tstauto_pp2` (its BP's parameter by 2.8e-13, the points after it by
+up to 5.2e-10) and `tstauto_torx_homcont` (its BP's states, about 2.8e-56, by 7.6e-60); both agree with every
+reference as before, and no other diagram changes.
+
+**The cusp at DSMAX 1 and 0.1** ([auto07p-findings.md 2](auto07p-findings.md#2-a-newton-residual-contaminates-cp-and-gh-test-functions)).
+At DSMAX 1 AUTO-07p's cusp function changes sign between points 28 and 29, but next to its root it jumps by about
+3e-10 from one location iterate to the next, more than it changes along the curve: Mueller's method uses up ITMX and
+the point is not labelled. xppautX's cusp function (without the Newton residual's term) is located at 1.0811051 pA.
+At DSMAX 0.1 neither program reaches the cusp within the 45 points: both end at 0.41587 pA, g_h -3.798.
+
+**The folds of cycles in g_h** (`lpc_soma`, `lpc_dend`, from the cycles' LP, DSMAX 0.5, 40 points to g_h 16, Par Min
+-0.001 so that the start, at g_h -2e-7, is inside it). They are in the blocked description, skipped, with AUTO-07p's
+reference (both curves to g_h 15.94, no R1). Measured on `lpc_soma` at NTST 50 and one thread: AUTO-07p takes 0.9 s a
+point (20 points in 17.9 s, after 6.6 s for its starting data), xppautX about 14 s (8 points, 5 of them its starting
+data, in 115 s), with the same 1 or 2 Newton steps a point. The cost is in the Newton step, and the backtraces of a
+callgrind run are all the model's evaluation (`evaluate_pure`) under `fnpl` -> `ffpl` -> `funi`:
+- `fnpl` differences all 2 x 28 columns of the fold system and its 4 parameters (`auto_jacobian::problem`), 117
+  evaluations of `ffpl`, each of which differences the model's Jacobian (61 evaluations): about 7100 model
+  evaluations per collocation point. AUTO-07p's FNPLF differences only the 28 state columns and takes the eigenvector
+  block from the Jacobian it has ([periodic.f90:427-507](../reference/auto-07p/src/periodic.f90#L427)): about 3500.
+- A model evaluation costs more: the cycles run, the same evaluations in both, takes 48 s against AUTO-07p's 19 s.
+- Those two give about 5.5 of the 15; the rest is not traced (xppautX's starting data are five continuation steps in
+  the eigenvector's norm, AUTO2000's start, against AUTO-07p's one solve).
+The fix (FNPLF's structure, which changes every fold-of-cycles curve's last digits) is W436 ([#498](https://github.com/MuhammadMoustafa/xppautX/issues/498)).
+
+**Found, not fixed: a user point (UZ) on these cycles.** To compare the period at given currents, Mark values
+(`marks`, AUTO's UZR) at 5, 1, 0.1 and 0.07 pA were tried on the branch to the SNIC (not committed). AUTO-07p labels
+all four. xppautX labels 5, misses 1 (its location uses up ITMX, `NOTE:Possible special point`), labels 0.1 at
+0.10018 pA, and then continues the branch backwards: it comes back up through 1 and 5 pA, and in the control
+condition past the cycles' fold again. Without marks the same run goes on to the SNIC. W437 ([#499](https://github.com/MuhammadMoustafa/xppautX/issues/499)).

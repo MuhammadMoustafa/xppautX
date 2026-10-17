@@ -103,6 +103,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [69](#69-a-homoclinic-start-samples-its-orbit-with-an-unscaled-weight) | AUTO HomCont | the starting orbit is interpolated with a weight not divided by the step, its end wraps to its start, and the shift is found before the equilibrium is given | [W365 / #427](https://github.com/MuhammadMoustafa/xppautX/issues/427) |
 | [70](#70-auto-evaluates-the-test-functions-at-the-last-newton-iterates-jacobian) | AUTO | the test functions of a converged point use the Jacobian of the last Newton iterate, so a flat Hopf function is located slowly and a Hopf point can go unlabelled | [W415 / #477](https://github.com/MuhammadMoustafa/xppautX/issues/477) |
 | [71](#71-auto-two-parameter-map-problems-and-disabled-detection) | AUTO | map flips are labelled HB; two-parameter detection is disabled and exports have six significant digits | [W428](https://github.com/MuhammadMoustafa/xppautX/issues/490) |
+| [72](#72-autos-branch-point-test-reads-the-fold-tests-determinant) | AUTO | the branch point test of an equilibrium branch reads the determinant the fold test computed with the tangent row, which changes sign when a step turns past a fold: a spurious BP, and the fold missed | [W423 / #485](https://github.com/MuhammadMoustafa/xppautX/issues/485) |
 
 ## 1. Model options
 
@@ -1616,3 +1617,37 @@ including IPS, IRS, ISW, ISP, ILP and the active parameter slots.
 xppautX uses the map problem and detects the codimension-two points (W364/W402).
 
 **Card:** [W428 / #490](https://github.com/MuhammadMoustafa/xppautX/issues/490).
+
+## 72. AUTO's branch point test reads the fold test's determinant
+
+On an equilibrium branch XPPAUT 8.0 evaluates the fold test before the branch point test
+([autlib1.c:1051](../reference/xppaut-8.0/autlib1.c#L1051), [1069](../reference/xppaut-8.0/autlib1.c#L1069)).
+The fold test solves the Jacobian bordered with the *tangent* of the point before (`udot`, `rldot`) and stores that
+matrix's determinant in `rap->det` ([autlib1.c:1828](../reference/xppaut-8.0/autlib1.c#L1828),
+[master](../reference/xppaut-master/autlib1.c#L1825)); the branch point test returns `rap->det`
+([autlib1.c:1752](../reference/xppaut-8.0/autlib1.c#L1752), [master](../reference/xppaut-master/autlib1.c#L1749)),
+so it reads the fold test's matrix and not the Newton matrix of the step, whose last row is the arclength condition,
+which `solvae` stored. The tangent row's determinant changes sign whenever a step turns past a fold: the tangent of
+the point before and the one after point opposite ways. AUTO-07p keeps them apart: its `FNLPAE` leaves `AP%DET`
+alone, with the comment "don't store DET here: it is for a different matrix than used with pseudo arclength
+continuation and sometimes has a different sign"
+([toolboxae.f90:733](../reference/auto-07p/src/toolboxae.f90#L733)); `FNBPAE` reads the determinant `SOLVAE`
+stored ([ae.f90:548](../reference/auto-07p/src/ae.f90#L548)). The location iterations of a branch point then
+mix the two: its first value is the fold matrix's, each iterate's the Newton matrix's.
+
+Evidence, Mu26's steady branch at DSMAX 1 (`examples/ode/mu26.odex`, `tests/auto/ode_mu26_blocked.json`'s steady run
+with `dsmax` 1, h current blocked; the same with the control conductances): the step from point 112 (-78.790 pA)
+predicts -79.606 pA, past the fold at -79.0566, and its corrector converges at -78.849 on the branch beyond it.
+The fold function is -0.6925 at 112 and -0.6781 at 113 (no sign change: the fold is not detected), the determinant
+read as the branch point function 1.37e-29 and -1.69e-30 (a sign change). The location then evaluates the Newton
+matrix's determinant, positive at every iterate (2.4e-29 to 2.6e-29), and still labels a BP at -78.849 pA
+(-78.744 in the control condition). AUTO-07p labels neither point at DSMAX 1: its step jumps the fold the same way,
+and its branch point function does not change sign.
+
+xppautX now follows AUTO-07p (W423): `fnlpae` keeps its determinant to itself. At DSMAX 1 Mu26's steady branches
+have no BP, as AUTO-07p's; the fold is still jumped, a matter of the step size (both programs label it from DSMAX
+0.8 down). Two AUTO baselines change: `tstauto_pp2`'s BP at point 44 (its parameter moves 2.8e-13, its other values
+by up to 5.2e-10) and `tstauto_torx_homcont`'s BP at point 8 (its states, about 2.8e-56, by 7.6e-60); both still agree with
+their references.
+
+**Card:** [W423 / #485](https://github.com/MuhammadMoustafa/xppautX/issues/485).

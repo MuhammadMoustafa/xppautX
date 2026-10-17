@@ -1853,8 +1853,11 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ARRAY2D(aa, ndim, ndim) = rldot[0];
   rhs[ndim] = 1.;
 
+  /* det stays this matrix's: the branch point test (fnbpae) reads the Newton
+     matrix's, whose last row is the arclength condition, as AUTO-07p's FNLPAE
+     leaves AP%DET alone; the tangent row here changes sign when a step turns
+     past a fold (W423, docs/xppaut-findings.md 72) */
   xpp::ge(iap->lib->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
-  rap->det = det;
   {
     integer tmp = ndim + 1;
     nrmlz(&tmp, ud.data());

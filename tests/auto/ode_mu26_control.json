@@ -1,6 +1,6 @@
 {
   "model": "examples/ode/mu26.odex",
-  "reason": "W415 (#477): the two-compartment PVN parvocellular neuron of Mu26 (28 states), control condition (h-current conductances at the fitted values). The applied current SmIapp is continued from rest: through the rheobase fold (0.0058 pA; a saddle-node on an invariant circle, by the source's notes), the second fold (-79.06 pA) and on to the Hopf point (13.2655 pA), then the cycles born there up to their fold (99.9966 pA). Settings are the source's c.mu26_control (NTST 25, NCOL 4, EPS 1e-7/1e-7/1e-5, DS 0.01; 50 mesh intervals and DS 0.005 for the cycles) with DSMAX raised from 0.1 to 0.8 and 1 so that a run is some hundred points, and the ends at 14 pA and after the fold. The Hopf test function is flat (its real part moves 6e-4 per pA), so xppautX's location of the Hopf point depends on DSMAX within 1.3e-4 pA (docs/auto-references.md W415); 0.8 is a value at which it agrees with AUTO-07p's.",
+  "reason": "W415 (#477): the two-compartment PVN parvocellular neuron of Mu26 (28 states), control condition (h-current conductances at the fitted values). The applied current SmIapp is continued from rest: through the rheobase fold (0.0058 pA; a saddle-node on an invariant circle, by the source's notes), the second fold (-79.06 pA) and on to the Hopf point (13.2655 pA), then the cycles born there up to their fold (99.9966 pA) and, extended from there (to_snic, W423), down to the rheobase fold, where their period diverges (the source's run_bifurcation_control_extend.auto). Settings are the source's c.mu26_control (NTST 25, NCOL 4, EPS 1e-7/1e-7/1e-5, DS 0.01; 50 mesh intervals and DS 0.005 for the cycles) with DSMAX raised from 0.1 to 0.8 and 1 so that a run is some hundred points, and the ends at 14 pA and after the fold. The Hopf test function is flat (its real part moves 6e-4 per pA), so xppautX's location of the Hopf point depends on DSMAX within 1.3e-4 pA (docs/auto-references.md W415); 0.8 is a value at which it agrees with AUTO-07p's.",
   "parameters": {
     "SmIapp": 0.0
   },
@@ -72,6 +72,31 @@
         "dsmin": 1e-06,
         "dsmax": 1.0,
         "nmax": 125,
+        "npr": 50,
+        "parmin": -100,
+        "parmax": 120.0,
+        "ntst": 50,
+        "ncol": 4,
+        "epsl": 1e-07,
+        "epsu": 1e-07,
+        "epss": 1e-05,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "to_snic",
+      "kind": "periodic",
+      "start": {
+        "run": "cycles",
+        "type": "EP",
+        "index": 1
+      },
+      "parameter": "SmIapp",
+      "auto": {
+        "ds": 0.01,
+        "dsmin": 1e-06,
+        "dsmax": 1.0,
+        "nmax": 170,
         "npr": 50,
         "parmin": -100,
         "parmax": 120.0,

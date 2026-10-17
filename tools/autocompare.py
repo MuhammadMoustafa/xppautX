@@ -218,7 +218,8 @@ def execute_run(s, r, diagram, ranges):
                                    marks=[], axes={'par1': pars[0],
                                    **({'par2': pars[1], 'plot': 4} if len(pars) == 2 else {})})))
     keys = {'equilibrium': 's' if start.get('state') == 'current' else 'e',
-            'periodic': 'p', 'two_parameter': 't', 'fixed_period': 'f',
+            # a periodic run from an HB starts the cycles; from a point of cycles it extends them (W423)
+            'periodic': 'p' if start.get('type') == 'HB' else 'e', 'two_parameter': 't', 'fixed_period': 'f',
             'bvp': 'b', 'homoclinic': 'h', 'heteroclinic': 'e'}
     key = 's' if r.get('switch') else keys[r['kind']]
     lo = len(diagram.points)

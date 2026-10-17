@@ -36,7 +36,7 @@ so the index started empty.
 | # | Area | Finding | Card |
 |---|---|---|---|
 | [1](#1-an-equilibriums-period-depends-on-the-spectrums-order-outside-the-conservative-band) | Equilibria | equally damped complex pairs give a period that depends on the eigenvalue routine's order | [W369](https://github.com/MuhammadMoustafa/xppautX/issues/431) |
-| [2](#2-a-newton-residual-contaminates-cp-and-gh-test-functions) | Equilibrium curves | a second difference that retains the equilibrium residual produces spurious CP/GH labels | [W364](https://github.com/MuhammadMoustafa/xppautX/issues/426) |
+| [2](#2-a-newton-residual-contaminates-cp-and-gh-test-functions) | Equilibrium curves | a second difference that retains the equilibrium residual produces spurious CP/GH labels, and its noise next to a cusp can leave the cusp unlocated | [W364](https://github.com/MuhammadMoustafa/xppautX/issues/426), [W423](https://github.com/MuhammadMoustafa/xppautX/issues/485) |
 | [3](#3-point-numbers-wrap-after-9999) | Output | printed point numbers repeat after 9999 although the continuation count and labels continue | [W384](https://github.com/MuhammadMoustafa/xppautX/issues/446) |
 | [4](#4-a-torus-curves-result-depends-on-the-start-amplitude-of-its-eigenfunction) | Torus curves of cycles | R1 and R2 on res_cycles are found only from one start amplitude of the eigenfunction; 3 times larger and the run fails at its second point | [W405](https://github.com/MuhammadMoustafa/xppautX/issues/467) |
 | [5](#5-a-torus-curves-resonance-test-is-blind-once-its-angle-leaves-0-to-pi) | Torus curves of cycles and maps | the R1-R4 test looks at the continued angle only between 0 and pi: past pi a curve crosses R3, R4 and R1 unlabelled | [W405](https://github.com/MuhammadMoustafa/xppautX/issues/467) |
@@ -100,6 +100,17 @@ contracts the exact analytic tensors with complex left/right eigenvectors;
 for unit complex eigenvector norm it gives `l1=-0.3606957776` at `t=5.5`.
 The C++ coefficient is checked against this and two other analytic points,
 and against the Bautin normal form's `l1=2*b`.
+
+A cusp can also go unlabelled (W423, [#485](https://github.com/MuhammadMoustafa/xppautX/issues/485)); the noise below fits the residual term, though no experiment on AUTO-07p isolated it.
+On Mu26's rheobase-fold curve in (current, g_h soma) (`tests/auto/ode_mu26_blocked.json`, `lp_soma` with DSMAX 1)
+the cusp function changes sign between points 28 (-3.4e-8) and 29 (8.1e-8), and the location evaluates 8.9e-10,
+-1.8e-10, 3.0e-10, -1.7e-10, -1.3e-10, -1.2e-10, -1.1e-10, -1.0e-10, -9.6e-11: next to the root the function jumps
+between iterates by more than it changes along the curve (its slope there is about 1.4e-7 per unit of arclength),
+so Mueller's method creeps from one side, uses up ITMX (8) and prints `NOTE:Possible special point`
+([ae.f90:729](../reference/auto-07p/src/ae.f90#L729), [768](../reference/auto-07p/src/ae.f90#L768)); the cusp is
+not labelled. At DSMAX 0.5 and 0.25 AUTO-07p labels it at 1.0811051 pA. xppautX labels it at 1.0811051 pA at DSMAX 1
+and 0.5. At DSMAX 0.1 neither program reaches it within the run's 45 points (both end at 0.41587 pA, g_h -3.798),
+so that run is not a miss.
 
 **xppautX:** subtracts `2*F(u)` in the diagonal second difference. This
 retains the same multilinear test function while cancelling its constant
