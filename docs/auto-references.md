@@ -226,10 +226,10 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-46 descriptions have an AUTO-07p reference (147 special points compared, and the two-parameter curves) and 40 an
-XPPAUT 8.0 reference (102 points); 40 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
+47 descriptions have an AUTO-07p reference (158 special points compared, and the two-parameter curves) and 41 an
+XPPAUT 8.0 reference (113 points); 41 hold both. Every untraced comparison agrees. AUTO-07p has 17 traced points
 and XPPAUT 8.0 30; the runs a description skips (its reason says why) are neither run nor compared. The whole
-comparison is 58 descriptions, 9 skipped, 15088 stored points across one and automatic threads, 144 checks, zero
+comparison is 59 descriptions, 9 skipped, 17566 stored points across one and automatic threads, 147 checks, zero
 failures. Newton and location tolerances are unchanged; XPPAUT curve exports include their half-unit printing uncertainty
 (above). W428 ([#490](https://github.com/MuhammadMoustafa/xppautX/issues/490)) adds eleven XPPAUT references; only the map fold
 remains refused among the twelve two-parameter descriptions. Three one-parameter references (`tstauto_ab`, `tstauto_dumb`,
@@ -253,7 +253,7 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.4e-10, norm 1.6e-07, period 6.7e-05, spectrum 0.00037) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.5e-06, period 0.0017, spectrum 0.00041) |
 | ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 6.8e-07, norm 6.4e-09, period 2.1e-08, spectrum 1.2e-06) | agrees (4 points; par 1e-05, norm 4.7e-06, period 5.4e-09, spectrum 8.4e-08) |
-| ode_motoneuron6c | steady: EP LP LP HB HB LP HB LP HB HB; periodic: LP; hb_up: -; hb_down: - | agrees, 5 traced (11 points; par 1.5e-09, norm 1.8e-08, period 1.2e-07, spectrum 5e-06; curve par 5.8e-06, par2 7.4e-08, norm 0.00015) | not run |
+| ode_motoneuron6c | steady: EP LP LP HB HB LP HB LP HB HB; periodic: LP; hb_up: -; hb_down: - | agrees, 5 traced (11 points; par 1.5e-09, norm 1.8e-08, period 1.2e-07, spectrum 5e-06; curve par 5.8e-06, par2 7.4e-08, norm 0.00015) | agrees (11 points; par 9.3e-06, norm 0.0005, period 0.1, spectrum 0.001; curve par 2.2e-05, par2 5.1e-07, norm 0.00067) |
 | ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | agrees, 1 traced (5 points; par 1.2e-06, norm 1e-05, period 7e-08, spectrum 1e-07; curve par 0.024, par2 0.00087, norm 0.00021) |
 | ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 1.2e-07, norm 3.9e-09, period 1.4e-08, spectrum 1.1e-06) | agrees (5 points; par 3.5e-06, norm 4.3e-06, period 8e-08, spectrum 1.3e-07) |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
@@ -1005,10 +1005,9 @@ The cause is `tstauto_ab_hopf`'s ([finding 2](auto07p-findings.md): DERIV2a omit
 residual enters magnified by h^-2). With EPSL = EPSU = EPSS 1e-7 or 1e-9 AUTO-07p labels none on the same curve. Not checked against exact
 derivatives (`tests/auto/codim_coefficients.py` covers a two-state model). Five entries in the description's `differences`.
 
-**XPPAUT 8.0 not run** (`xppaut_skip`, W428, [#490](https://github.com/MuhammadMoustafa/xppautX/issues/490)): the driver refuses a
-description with a two-parameter run. Its steady and periodic runs work: a copy of the description with them alone gave XPPAUT's
-11 special points of the steady run at the same parameters as ours (to the printed digits) and the periodic run's fold of cycles, so W428's
-extension needs no more for this model.
+**XPPAUT 8.0 agrees** on all 11 special points and both loci, through W428's two-parameter driver
+([#490](https://github.com/MuhammadMoustafa/xppautX/issues/490)), made at review once W428 had merged; like xppautX it labels no GH
+on the locus (its two-parameter detection is off, docs/xppaut-findings.md finding 71).
 
 **What `tools/auto_reference.py` learned for this model.** `if C then A else B` in a user function (ModelDB's vtrap and expmod) is
 written as Fortran's `MERGE(A, B, C)` and as XPPAUT's `if(C)then(A)else(B)`; a quantity read before its definition (conn.inc's five
