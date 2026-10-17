@@ -828,3 +828,31 @@ tools/wslrun.sh sh -c 'python3 tools/auto-profile/revision.py 9fb1b333 build/w35
 
 Scratch folders and run outputs were removed after these tables: none left. No core file changed;
 the gates are the card's (build and unit tests, examples, autocompare, sourcecheck).
+
+### W425: after W421
+
+[W425, #487](https://github.com/MuhammadMoustafa/xppautX/issues/487), 2026-10-17. The same traces on top of
+[W421 (#483)](https://github.com/MuhammadMoustafa/xppautX/issues/483), which evaluates the steady run's test functions
+at the converged point's Jacobian, as AUTO-07p does. That alone gives AUTO-07p's behaviour; no other change was needed:
+
+| Run (model's tolerances) | solves | Newton corrections | searches (fold, BP) | Newton in searches | backward steps | HB ampPar | last ampPar |
+|---|---:|---:|---|---:|---:|---:|---:|
+| default, Ds -0.02, -0.0199, -0.0201, -0.0202 | 47 | 24 | 1 (1, 0) | 4 | 0 | 0.57278166045 | 0.5739088 to 0.5739109 |
+| LIBM=system | 47 | 24 | 1 (1, 0) | 4 | 0 | 0.57278166084 | 0.5739095 |
+| LINALG=lapack | 47 | 24 | 1 (1, 0) | 4 | 0 | 0.57278166101 | 0.5739095 |
+| AUTO-07p, the four Ds (above) | | 23 | 1 (1, 0) | 4 | 0 | 0.5727816613 | 0.5739093 to 0.5739106 |
+
+The HB is now 8.5e-10 from AUTO-07p's (5.4e-6 before) and 5.5e-8 from our first periodic point (AUTO-07p 5.6e-8).
+Every run makes AUTO-07p's one 4-correction fold search at its third point and then goes on without a backward
+step; the one correction more than AUTO-07p is the step after that search, which takes two. At 1e-8 the run is
+unchanged: 93 solves, 74 corrections, 3 searches, the stored points of the table above (0.57278239331,
+0.57278484188, 0.57279136682, 0.5728, 0.57282047495, 0.57284) and 39 corrections to the upper mark, as AUTO-07p.
+The cause of the old start was W421's: our HB location evaluated the Hopf function at the last Newton iterate's
+Jacobian, so its secant steps saw a function that changed with the iterate, and at EPSS 1e-4 the location stopped
+5.4e-6 away.
+
+The regression check (one search, no backward step, at the model's tolerances) needs ModelDB 267710's model, which
+is in git-ignored paper/benchmarks, so it cannot be a description of tests/auto or a section of autocheck without
+copying the model in. It is `newton_summary.py`'s `searches` and `backward_steps` columns of the traces above, run
+where paper/benchmarks is (the commands under "Tools and rerunning it", without the `LIBM`/`LAPACK` builds if only the
+default is in question).
