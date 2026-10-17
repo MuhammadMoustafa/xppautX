@@ -214,10 +214,10 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-40 descriptions have an AUTO-07p reference (124 special points compared, and the two-parameter curves) and 24 an
-XPPAUT 8.0 reference (44 points); 24 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
+43 descriptions have an AUTO-07p reference (132 special points compared, and the two-parameter curves) and 27 an
+XPPAUT 8.0 reference (52 points); 27 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
 and XPPAUT 8.0 three; the runs a description skips (its reason says why) are neither run nor compared. The whole
-comparison is 52 descriptions, 9 skipped, 10998 stored points across one and automatic threads, 126 checks, zero
+comparison is 55 descriptions, 9 skipped, 12200 stored points across one and automatic threads, 135 checks, zero
 failures. No tolerance was widened. Before W326 there were 44 compared points and six traced points against
 AUTO-07p, and 44 compared points with none traced against XPPAUT.
 
