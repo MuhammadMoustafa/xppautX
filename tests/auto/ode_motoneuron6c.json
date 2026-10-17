@@ -96,7 +96,6 @@
       }
     }
   ],
-  "xppaut_skip": "two-parameter curve: W428 (#490)",
   "differences": [
     {
       "reference": ".auto07p",

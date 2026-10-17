@@ -12,7 +12,7 @@
 # initial conditions of the description, not from the values below.
 # Differences from the source: SmHxgMax and HxHxgMax are parameters (they were formulas),
 # in the order of the AUTO-07p equation files (par(1) SmIapp, par(2), par(3)), and NMAX is
-# 1000 (the export asks for 10000000, beyond the points a session file keeps).
+# 1000 (the export asks for 10000000, which W432 made loadable; 1000 keeps the descriptions' runs as they were).
 # The run below (backward Euler, as the source, with dt=0.05, every 10th step stored) is the model at 5 pA, in the spiking range.
 
 # Parameters
