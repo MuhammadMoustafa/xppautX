@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Izhikevich's simple model as 28 examples (`examples/ode/izh_*.odex`): the 20 firing behaviours of Izhikevich 2004, Fig. 1 A-T, and the seven cell types of Izhikevich 2003, Fig. 2 (RS, IB, CH, FS, LTS, TC from both starts, RZ), the reset an `event` in all but two panels the paper only has as its discrete update; XPPAUT 8.0 gives the same output for every one, `tools/spikecheck.py` checks each behaviour from its spike times, and AUTO continues the rest state of the class 1, class 2 and resonator panels, agreeing with AUTO-07p and XPPAUT (W416, [#478](https://github.com/MuhammadMoustafa/xppautX/issues/478)).
+
 - AUTO goes on along an equilibrium curve when a special point's location does not converge, as AUTO-07p does (W406, [#468](https://github.com/MuhammadMoustafa/xppautX/issues/468)).
 
 - HomCont runs agree with AUTO-07p 0.9.4: a homoclinic start samples its integrated orbit at the right times (XPPAUT's weight was not divided by the step), the shift to the equilibrium is found after the form gives it, the projections take exactly NSTAB/NUNSTAB machine-precision Schur vectors and keep their basis through the boundary Jacobian's differences, the equilibria's eigenvectors are LAPACK's, the phase derivatives exact, and Homoclinic info refuses dimensions that do not add up to the model's (W365, [#427](https://github.com/MuhammadMoustafa/xppautX/issues/427)).

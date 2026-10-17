@@ -1,0 +1,21 @@
+# izh_2004r_accommodation.odex: converted from izh_2004r_accommodation.ode by xppautX --convert (docs/odex.md)
+
+# Izhikevich's simple model of a spiking neuron: accommodation.
+# Izhikevich E.M. (2004) Which model to use for cortical spiking neurons? IEEE Trans. Neural Networks 15(5):1063-1070, Fig. 1, panel R.
+#   v' = 0.04 v^2 + 5 v + 140 - u + I,  u' = a (b (v + 65));
+#   when v reaches 30 mV, v is set to c and u to u + d (the global event).
+# Input: a slow ramp of current (t/25 until t=200), rest, then a fast ramp (4 in 12.5 ms from t=300); u starts at -16 and u' = a (b (v + 65)).
+# n counts the spikes and ts is the time of the last one, both set where the reset is (bounds is raised: ts is a time,
+# which the default bound of 100 would stop).
+par a = 0.02, b = 1, c = -55, d = 4
+init v = -65, u = -16, n = 0, ts = 0
+I = if t<200 then t/25 else if t<300 then 0 else if t<312.5 then (t-300)/12.5*4 else 0
+v' = 0.04*v^2+5*v+140-u+I
+u' = a*(b*(v+65))
+n' = 0
+ts' = 0
+event 1 v-30, v = c, u = u+d, n = n+1, ts = t
+aux I = I
+options {
+  integration: { total_time: 400, dt: 0.025, store_every: 10, bound: 1000000 },
+}

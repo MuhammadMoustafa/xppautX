@@ -111,6 +111,13 @@ else
   echo "STEADY CHECK FAILED"
   exit 1
 fi
+if python3 tools/spikecheck.py > build/spikecheck.log 2>&1; then
+  echo "firing behaviours ok: $(grep -c '^PASS' build/spikecheck.log) checks"
+else
+  grep -v '^PASS' build/spikecheck.log
+  echo "SPIKE CHECK FAILED"
+  exit 1
+fi
 if python3 tools/livestatecheck.py > build/livestatecheck.log 2>&1; then
   echo "live state and rates ok: $(grep -c '^PASS' build/livestatecheck.log) checks"
 else

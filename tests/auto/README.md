@@ -5,7 +5,12 @@ model with an `auto` options group. Names include the example folder to
 distinguish the two Morris–Lecar models. The driver verifies this inventory
 before starting any server, including when `--only` selects a subset. A model
 may have more descriptions than that one (W362: `tstauto_ab_fold`,
-`tstauto_ab_hopf`, whose names say what they continue).
+`tstauto_ab_hopf`, whose names say what they continue). W416 (#478): the three
+`izh_*` descriptions run `tools/models/izh_rest.odex`, the smooth part of
+Izhikevich's simple model (the reset takes no part in a rest state's
+bifurcation), with the parameters of the `examples/ode/izh_2004*` panel they
+name: the fold of class 1 and the integrator, the Hopf point of class 2 and
+the resonator.
 
 `model` is relative to the repository. `reason` explains the continuation;
 optional `parameters` and `initial_conditions` set the starting state.

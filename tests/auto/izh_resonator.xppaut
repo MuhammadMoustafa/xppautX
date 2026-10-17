@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "source": "XPPAUT 8.0 (reference/xppaut-8.0, c021b511) (tools/auto_reference.py)",
+  "model": "tools/models/izh_rest.odex",
+  "runs": [
+    {"name": "steady", "parameter": "Ib", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": 0.0, "norm": 64.57796, "period": null, "spectrum": "", "values": []},
+      {"type": "HB", "branch": 1, "label": 3, "point": 27, "par": 0.2624787, "norm": 63.2864, "period": 49.672941918, "spectrum": "eigenvalue", "values": [[2.026046e-09, -0.1264911], [2.026046e-09, 0.1264911]]},
+      {"type": "LP", "branch": 1, "label": 6, "point": 69, "par": 0.4225, "norm": 61.2199, "period": null, "spectrum": "eigenvalue", "values": [[0.16, 0.0], [-1.842694e-09, 0.0]]},
+      {"type": "EP", "branch": 1, "label": 12, "point": 171, "par": -0.5090532, "norm": 56.23361, "period": null, "spectrum": "eigenvalue", "values": [[0.6094183, 0.0], [-0.06335025, 0.0]]}
+    ]}
+  ]
+}

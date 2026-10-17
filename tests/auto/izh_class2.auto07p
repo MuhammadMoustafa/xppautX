@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "source": "AUTO-07p 0.9.4 (tools/auto_reference.py)",
+  "model": "tools/models/izh_rest.odex",
+  "runs": [
+    {"name": "steady", "parameter": "Ib", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": -0.5, "norm": 66.178735255, "period": 27.944318101, "spectrum": "eigenvalue", "values": [[-0.162, -0.224847], [-0.162, 0.224847]]},
+      {"type": "HB", "branch": 1, "label": 6, "point": 86, "par": 0.3999999753, "norm": 61.99483892, "period": 57.357358155, "spectrum": "eigenvalue", "values": [[-1.45312e-08, -0.109545], [-1.45312e-08, 0.109545]]},
+      {"type": "LP", "branch": 1, "label": 8, "point": 102, "par": 0.4225, "norm": 61.219903024, "period": 301.71546907, "spectrum": "eigenvalue", "values": [[0.06, 0.0], [5.40524e-09, 0.0]]},
+      {"type": "EP", "branch": 1, "label": 15, "point": 230, "par": -1.0108723249, "norm": 55.034702341, "period": 301.71546907, "spectrum": "eigenvalue", "values": [[0.679789, 0.0], [-0.140895, 0.0]]}
+    ]}
+  ]
+}

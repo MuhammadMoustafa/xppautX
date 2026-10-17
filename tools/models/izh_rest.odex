@@ -1,0 +1,10 @@
+# The smooth part of Izhikevich's simple model, the rest state of its panels (W416, #478):
+#   v' = 0.04 v^2 + k1 v + k0 - u + Ib,  u' = a (b v - u).
+# The reset (v = 30: v = c, u = u + d) is no part of it: a continuation of the rest state, as the base current Ib
+# varies, shows the bifurcation that gives a panel its name: a fold (class 1 excitable, integrator) or a Hopf point
+# (class 2 excitable, resonator). tests/auto's izh_* descriptions set the parameters of the panel (the models'
+# examples/ode/izh_2004*: G, L, H, K) and the rest state it starts from.
+par a = 0.02, b = -0.1, k1 = 4.1, k0 = 108, Ib = 0
+init v = -60, u = 6
+v' = 0.04*v^2+k1*v+k0-u+Ib
+u' = a*(b*v-u)

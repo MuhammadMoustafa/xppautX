@@ -1,0 +1,36 @@
+{
+  "model": "tools/models/izh_rest.odex",
+  "reason": "Izhikevich resonator (panel K): the rest state of v' = 0.04 v^2 + 5 v + 140 - u + Ib, u' = 0.1 (0.26 v - u) loses its stability in a Hopf point, then its stable focus in a fold, as Ib rises.",
+  "parameters": {
+    "a": 0.1,
+    "b": 0.26,
+    "k1": 5,
+    "k0": 140,
+    "Ib": 0
+  },
+  "initial_conditions": {
+    "v": -62.5,
+    "u": -16.25
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "Ib",
+      "auto": {
+        "ds": 0.05,
+        "dsmin": 1e-05,
+        "dsmax": 0.05,
+        "nmax": 300,
+        "npr": 20,
+        "parmin": -0.5,
+        "parmax": 1,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ]
+}

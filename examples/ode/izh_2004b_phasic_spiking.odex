@@ -1,0 +1,22 @@
+# izh_2004b_phasic_spiking.odex: converted from izh_2004b_phasic_spiking.ode by xppautX --convert (docs/odex.md)
+
+# Izhikevich's simple model of a spiking neuron: phasic spiking.
+# Izhikevich E.M. (2004) Which model to use for cortical spiking neurons? IEEE Trans. Neural Networks 15(5):1063-1070, Fig. 1, panel B.
+#   v' = 0.04 v^2 + 5 v + 140 - u + I,  u' = a (b v - u);
+#   when v reaches 30 mV, v is set to c and u to u + d (the global event).
+# Input: step of current I0=0.5 at t=T1=20.
+# n counts the spikes and ts is the time of the last one, both set where the reset is (bounds is raised: ts is a time,
+# which the default bound of 100 would stop).
+par a = 0.02, b = 0.25, c = -65, d = 6
+par I0 = 0.5, T1 = 20
+init v = -64, u = -16, n = 0, ts = 0
+I = I0*heav(t-T1)
+v' = 0.04*v^2+5*v+140-u+I
+u' = a*(b*v-u)
+n' = 0
+ts' = 0
+event 1 v-30, v = c, u = u+d, n = n+1, ts = t
+aux I = I
+options {
+  integration: { total_time: 200, dt: 0.025, store_every: 10, bound: 1000000 },
+}

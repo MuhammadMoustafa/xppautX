@@ -1,0 +1,29 @@
+{
+  "model": "tools/models/izh_rest.odex",
+  "reason": "Izhikevich class 1 excitable and integrator (panels G, L): the rest state of v' = 0.04 v^2 + 4.1 v + 108 - u + Ib, u' = 0.02 (-0.1 v - u) loses its stable node in a fold as Ib rises.",
+  "initial_conditions": {
+    "v": -60,
+    "u": 6
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "Ib",
+      "auto": {
+        "ds": 0.05,
+        "dsmin": 1e-05,
+        "dsmax": 0.05,
+        "nmax": 200,
+        "npr": 20,
+        "parmin": -1,
+        "parmax": 4,
+        "ntst": 15,
+        "mxbf": 0
+      }
+    }
+  ]
+}

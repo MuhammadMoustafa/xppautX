@@ -214,10 +214,10 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-40 descriptions have an AUTO-07p reference (118 special points compared, and the two-parameter curves) and 24 an
-XPPAUT 8.0 reference (44 points); 24 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
+43 descriptions have an AUTO-07p reference (126 special points compared, and the two-parameter curves) and 27 an
+XPPAUT 8.0 reference (52 points); 27 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
 and XPPAUT 8.0 three; the runs a description skips (its reason says why) are neither run nor compared. The whole
-comparison is 52 descriptions, 9 skipped, 9982 stored points across one and automatic threads, 126 checks, zero
+comparison is 55 descriptions, 9 skipped, 11174 stored points across one and automatic threads, 135 checks, zero
 failures. No tolerance was widened. Before W326 there were 44 compared points and six traced points against
 AUTO-07p, and 44 compared points with none traced against XPPAUT.
 
@@ -231,6 +231,9 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | henon_rot_tr | steady: EP PD TR TR; up: R2 | agrees (5 points; par 1.4e-07, par2 2.2e-10, norm 4.9e-08, spectrum 7.3e-06; curve par 3.2e-05, par2 5.8e-07, norm 1.2e-05) | not run |
 | hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 9.3e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07; curve par 2.7e-09, par2 1e-09, norm 8.4e-12) | not run |
 | hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP | agrees (7 points; par 1.2e-10, par2 3.9e-12, norm 7.7e-12, period 2e-11, spectrum 3.5e-06; curve par 1.2e-10, par2 2.7e-06, norm 1.5e-11) | not run |
+| izh_class1_integrator | steady: EP LP | agrees (2 points; par 7.5e-15, norm 4.1e-10, spectrum 2e-08) | agrees (2 points; par 7.5e-15, norm 3.7e-06, spectrum 2e-08) |
+| izh_class2 | steady: EP HB LP | agrees (3 points; par 4.4e-13, norm 3.7e-10, period 1.5e-05, spectrum 4.9e-07) | agrees (3 points; par 7.1e-06, norm 4.7e-06, period 1.6e-10, spectrum 9.3e-09) |
+| izh_resonator | steady: EP HB LP | agrees (3 points; par 2.5e-12, norm 4.5e-10, period 3.9e-05, spectrum 1.6e-07) | agrees (3 points; par 2.1e-05, norm 3.2e-06, period 3.6e-10, spectrum 5.7e-09) |
 | lorenz_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.8e-08, par2 1.4e-08, norm 6.6e-08) | not run |
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |

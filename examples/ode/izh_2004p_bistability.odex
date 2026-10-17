@@ -1,0 +1,22 @@
+# izh_2004p_bistability.odex: converted from izh_2004p_bistability.ode by xppautX --convert (docs/odex.md)
+
+# Izhikevich's simple model of a spiking neuron: bistability.
+# Izhikevich E.M. (2004) Which model to use for cortical spiking neurons? IEEE Trans. Neural Networks 15(5):1063-1070, Fig. 1, panel P.
+#   v' = 0.04 v^2 + 5 v + 140 - u + I,  u' = a (b v - u);
+#   when v reaches 30 mV, v is set to c and u to u + d (the global event).
+# Input: bias current Ib=0.24 and two pulses of height I1=1 and width w=5, at T1=37.5 and T2=216.
+# n counts the spikes and ts is the time of the last one, both set where the reset is (bounds is raised: ts is a time,
+# which the default bound of 100 would stop).
+par a = 0.1, b = 0.26, c = -60, d = 0
+par Ib = 0.24, I1 = 1, w = 5, T1 = 37.5, T2 = 207
+init v = -61, u = -15.86, n = 0, ts = 0
+I = Ib+I1*(heav(t-T1)-heav(t-T1-w))+I1*(heav(t-T2)-heav(t-T2-w))
+v' = 0.04*v^2+5*v+140-u+I
+u' = a*(b*v-u)
+n' = 0
+ts' = 0
+event 1 v-30, v = c, u = u+d, n = n+1, ts = t
+aux I = I
+options {
+  integration: { total_time: 300, dt: 0.025, store_every: 10, bound: 1000000 },
+}

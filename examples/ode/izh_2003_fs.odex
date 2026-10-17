@@ -1,0 +1,22 @@
+# izh_2003_fs.odex: converted from izh_2003_fs.ode by xppautX --convert (docs/odex.md)
+
+# Izhikevich's simple model of a spiking neuron: fast spiking (FS).
+# Izhikevich E.M. (2003) Simple model of spiking neurons. IEEE Trans. Neural Networks 14(6):1569-1572, Fig. 2, FS.
+#   v' = 0.04 v^2 + 5 v + 140 - u + I,  u' = a (b v - u);
+#   when v reaches 30 mV, v is set to c and u to u + d (the global event).
+# Input: step of current I0=10 at t=T1=10.
+# n counts the spikes and ts is the time of the last one, both set where the reset is (bounds is raised: ts is a time,
+# which the default bound of 100 would stop).
+par a = 0.1, b = 0.2, c = -65, d = 2
+par I0 = 10, T1 = 10
+init v = -70, u = -14, n = 0, ts = 0
+I = I0*heav(t-T1)
+v' = 0.04*v^2+5*v+140-u+I
+u' = a*(b*v-u)
+n' = 0
+ts' = 0
+event 1 v-30, v = c, u = u+d, n = n+1, ts = t
+aux I = I
+options {
+  integration: { total_time: 150, dt: 0.025, store_every: 10, bound: 1000000 },
+}
