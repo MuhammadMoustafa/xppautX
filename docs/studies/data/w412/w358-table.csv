@@ -1,0 +1,3 @@
+source,run,points,M_instructions_per_point,solvbv_per_point,setubv_per_point,setrhs_per_point,funi_per_point,func_per_point,steady_M_instructions_per_point
+W358 study's table (published),W358's run (not kept),20,4653,5.0,3.1,1.9,4323,68805,3.974
+9fb1b333 (W358's core and tools),revision.py 9fb1b333 OUT --tool callgrind --own-tools,20,8781.926,9.75,5.85,3.90,8184.90,129867.40,3.983

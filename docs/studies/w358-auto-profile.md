@@ -43,6 +43,10 @@ instructions.
 | tstauto_frcp | 103 | 1.79 | 0% | 10% | 19% | 15% | 6% | 0% | 13% | 0.8 | 0.6 | 0.3 | 103 | 453 |
 | tstauto_pp2 | 130 | 1.34 | 2% | 9% | 9% | 20% | 5% | 0% | 14% | 1.3 | 0.8 | 0.5 | 148 | 455 |
 
+*W412 (below): the ModelDB periodic row does not reproduce. W358's own source, build and tools give
+8781.9 M instructions per point with 9.75 `solvbv`, 5.85 `setubv` and 129867 `func` calls; the
+row above is a run that built about 62 Jacobians instead of 117, at the same cost per build.*
+
 (`ode_lecar`, `lamom`, `lo`, `torx` give the same picture as their neighbours: `tools/auto-profile/tables.py
 --summary`.) The two large problems are the ones whose cost is the periodic run, and there:
 
@@ -255,8 +259,11 @@ additional scratch reuse. These are measurements of the combined revision, not a
 credited to each card. A zero counted `setrhs` call is not evidence of zero residual work: current
 assembly helpers share that work, and optimized call counts need not preserve old wrapper calls.
 
-**ModelDB goes the other way:** its 20-point periodic cost rises **92.3%**, with Newton calls/point
-5.0 -> 11.55, Jacobian builds 3.1 -> 7.05 and model evaluations 68805 -> 151748. Conpar's share falls
+**ModelDB goes the other way:** against W358's table its 20-point periodic cost rises 92.3%, with Newton calls/point
+5.0 -> 11.55, Jacobian builds 3.1 -> 7.05 and model evaluations 68805 -> 151748. *Correction (W412,
+below): W358's ModelDB row does not reproduce. Its own source and tools give 8781.9 M per point with
+9.75 `solvbv` and 5.85 `setubv` calls, so the cost per point rises **1.9%**, not 92.3%: 20.5% more
+Jacobian builds (117 -> 141, W361's path) at 15.5% fewer instructions each.* Conpar's share falls
 53.0% -> 46.3%, but its absolute work rises 2461 -> 4142.885 M/point because there are more solves.
 [W361 `9c7e8c29`](https://github.com/MuhammadMoustafa/xppautX/commit/9c7e8c29cd844a45811bacb355acc30093da4aab)
 changed the mesh and the periodic numerical paths on purpose; this rerun establishes the extra work,
@@ -511,13 +518,15 @@ comparisons pass, and LAPACK still costs more in the steady and small-model runs
 periodic exception is real in instructions and branch progress, so "LAPACK is never faster" is not
 supported by this rerun. These are instruction counts on different adaptive trajectories, not
 matched-interval wall-time measurements or a reason to choose a default for favourable last bits.
-Correctly rounded math remains the project default; the system-libm outlier likewise is not an
+(W412, below: per Jacobian build LAPACK costs the same as EISPACK on this run, and at 1e-8 all three
+builds do the same work; the exception is the path, not the library.) Correctly rounded math remains the project default; the system-libm outlier likewise is not an
 isolated price for correct rounding.
 
 The follow-up, carded as [W412, #474](https://github.com/MuhammadMoustafa/xppautX/issues/474), comes before any use of the ModelDB result in a speed
 claim: **trace ModelDB's Newton/step-history sensitivity after the AUTO cards**, reproduce the first
 divergence among the three builds, compare the same parameter interval and independently check mesh
-accuracy. It must account for the default's 92.3% increase since W358 and the comparison builds'
+accuracy. It must account for the default's 92.3% increase since W358 (W412: 1.9% against W358's
+source rerun; the published row does not reproduce) and the comparison builds'
 fewer iterations and farther progress. This card measures and reports that finding; it makes no
 core, tolerance or baseline change. The 0.788 HomCont reference fraction remains a checkpoint for
 later waves, and W369's period-order issue needs no new card.
@@ -525,3 +534,297 @@ later waves, and W369's period-order issue needs no new card.
 Raw callgrind profiles, phase JSONs, matrix dumps/results and temporary run reports were removed
 after recording these tables: **none left**. Ordinary compiler build caches stay in the WSL clone,
 as tools/wslrun.sh normally keeps them. No background run was started by this card.
+
+## W412: why ModelDB's periodic run does more Newton work
+
+[W412, #474](https://github.com/MuhammadMoustafa/xppautX/issues/474), 2026-10-16. A measurement
+study: no core code, default or numerical baseline changes. Codex (sol) began it (the Newton tracer,
+the bisection, the three builds' traces, the 1e-8 runs and the accuracy check) and stopped at its
+usage limit; Claude (opus) checked it by rerunning every measurement, reran W358's own profile,
+added AUTO-07p's and our runs with other first steps and the accounting of the searches, and kept
+only the tools below. The data are in [data/w412](data/w412/).
+
+**The answer, in short:**
+
+- **W358's ModelDB row does not reproduce.** W358's own source, build and tools give 8781.9 M
+  instructions per point with 9.75 `solvbv` and 5.85 `setubv` calls per point, not 4653, 5.0 and
+  3.1. Against that rerun the current cost per point is **1.9% higher, not 92.3%**.
+- **The reproduced increase, 195 -> 231 solves (117 -> 141 Jacobian builds), is W361's**, and it is
+  not a slower Newton step: every run makes about 24 Newton corrections in its regular steps, and
+  the rest is **searches for special points that are not there**, at the model's tolerances
+  (EPSL = EPSU = EPSS = 1e-4). Their number, 2 to 11 in seven of our runs, is decided by the last
+  bits: W361's 1.1e-16 mesh change, the math library, LAPACK, or a 0.5 to 1% change of the first
+  step.
+- **AUTO-07p makes one search in each of its four runs**, at the same tolerances. With
+  EPSL = EPSU = EPSS = 1e-8 there are no spurious searches: all three builds and AUTO-07p then
+  store the same points and make the same 39 Newton corrections to the upper mark, and the meshes
+  pass an independent accuracy check.
+- **Verdict:** W361 is not a regression (its path is as valid as the one before it), and no library
+  is faster on this run. Our program repeating the spurious searches where AUTO-07p does not is a
+  difference from AUTO-07p, proposed as a card at the end.
+
+### What is measured
+
+The workload is `profile.py`'s ModelDB 267710 driver, the one `run_all.sh` uses: integrate twice,
+the steady run in ampPar to the rightmost HB, then the periodic run from it with one thread,
+NTST = 100, NCOL = 4 and the model's tolerances, cut at 20 stored points. All builds are WSL gcc 15,
+`-g -O2 -ffp-contract=off`, `-j4`, run one at a time through `tools/wslrun.sh`. Counts are work, not
+time.
+
+`profile.py --tool newton` runs the program under gdb with breakpoints (`newton.py`; the program has
+no measuring code). It records every `solvbv` with its caller, every `setubv`, each special-point
+test's value (`fnuzbv`, `fnlpbv`, `fnbpbv`, `fnspbv`) and every stored point with its mesh.
+`newton_summary.py` splits the work:
+
+- **solves**: `solvbv` calls, W358's "Newton iterations". They are of two kinds: **Newton
+  corrections** (`stepbv`'s, each one with a Jacobian build here, `setubv`) and **fold-direction
+  solves** (`fnlpbv`'s, the tangent the fold test reads, one per converged trial).
+- **regular** Newton corrections are those of the continuation steps; **search** corrections are
+  those of `lcspbv`'s trials, the secant/Mueller search that starts when a test function changes
+  sign. A search is counted with the test that started it (the last test evaluated before its first
+  trial).
+- **backward steps**: stored points whose period is below the previous point's; the period rises
+  along this branch (it does in every 1e-8 run and in AUTO-07p's).
+
+The breakpoints change no arithmetic: the counts and stored points of the default build equal
+W370's (231 solves, 141 Jacobian builds, last ampPar 0.5728517), and W358's callgrind rerun below
+counts the same 195/117 as gdb on that source.
+
+### W358's table
+
+`revision.py 9fb1b333 OUT --tool callgrind --own-tools` archives W358's commit (its core is
+b87107d7's), builds it, and profiles ModelDB with that commit's own `profile.py`, under callgrind,
+as W358 did ([w358-table.csv](data/w412/w358-table.csv)):
+
+| ModelDB periodic, 20 points | M instr per point | solvbv | setubv | setrhs | funi | func | steady M per point |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| W358's table | 4653 | 5.0 | 3.1 | 1.9 | 4323 | 68805 | 3.974 |
+| W358's source and tools, rerun | 8781.926 | 9.75 | 5.85 | 3.90 | 8184.9 | 129867.4 | 3.983 |
+
+The published row is internally consistent with a run that built **about 62 Jacobians instead of
+117**: per Jacobian build it costs 1501.0 M instructions and 22195 model evaluations, the rerun
+1501.2 M and 22200. Its steady phase is the default build's (3.974 against 3.983; W358's
+LIBM=system build cost 3.589 there, and LAPACK about 10% more). So W358 measured another of this
+run's paths (the searches below), on a build of its time. Which build, or what moved its last
+bits, cannot be recovered: neither its binary nor its profiles were kept. One candidate is the
+defect b87107d7 fixed: W358's commands copied `./xppautX` after `make xppautx BUILDDIR=build/prof`, and a `./xppautX` newer than that folder's
+objects would have been kept and copied. That is a possibility, not a finding.
+
+What it means:
+
+- **W370's "92.3% more instructions per point" is corrected in place** (above): against the rerun
+  the current default costs 8945.5 M per point, **1.9% more**, with 20.5% more Jacobian builds (W361's
+  path) at **15.5% fewer instructions each** (1268.9 against 1501.2 M; PY_S1Bf's periodic run is
+  15.1% cheaper per point at the same 2.7 solves: W359, W360 and W375's savings).
+- W358's ModelDB rows (its 20-point profile and its 8-point library comparison) are records of one
+  path, not baselines. Its PY_S1Bf and small-description rows are not in question: W370 counts the
+  same 2.7 Newton calls per PY_S1Bf point.
+- W370's ModelDB library ratios (0.426 for LIBM=system, 0.624 for LAPACK) compare paths. Per
+  Jacobian build, LIBM=system costs 1191.5 M (0.939 of the default's 1268.9, like PY_S1Bf's 0.955)
+  and LAPACK 1269.1 M (1.000).
+
+### Revision bisection
+
+Every revision archived, built and traced afresh ([revisions.csv](data/w412/revisions.csv), with a
+hash of all 20 stored meshes):
+
+| Revision | Card | solves | Newton corrections (= Jacobians) | fold-direction solves | searches | last ampPar |
+|---|---|---:|---:|---:|---:|---:|
+| [b87107d7](https://github.com/MuhammadMoustafa/xppautX/commit/b87107d7bfaccf1676b7611c82a9c07de573d428) | [W358](https://github.com/MuhammadMoustafa/xppautX/issues/420) | 195 | 117 | 78 | 10 | 0.5730163 |
+| [556979ef](https://github.com/MuhammadMoustafa/xppautX/commit/556979efafc6ce27da5918750f1a38782f8dfd6d) | [W360](https://github.com/MuhammadMoustafa/xppautX/issues/422) | 195 | 117 | 78 | 10 | 0.5730163 |
+| [1206643a](https://github.com/MuhammadMoustafa/xppautX/commit/1206643a6df8a1fc123063e6d9a2f9010b62e081) | [W363](https://github.com/MuhammadMoustafa/xppautX/issues/425) | 195 | 117 | 78 | 10 | 0.5730163 |
+| [efe265e8](https://github.com/MuhammadMoustafa/xppautX/commit/efe265e8ec574c6ea9b772b554b540e874da7e28) | [W337](https://github.com/MuhammadMoustafa/xppautX/issues/398) | 195 | 117 | 78 | 10 | 0.5730163 |
+| [88401fcc](https://github.com/MuhammadMoustafa/xppautX/commit/88401fccd847aece65be697af5adbf2971c896e1) | W361's parent | 195 | 117 | 78 | 10 | 0.5730163 |
+| [9c7e8c29](https://github.com/MuhammadMoustafa/xppautX/commit/9c7e8c29cd844a45811bacb355acc30093da4aab) | [W361](https://github.com/MuhammadMoustafa/xppautX/issues/423), the mesh | 231 | 141 | 90 | 11 | 0.5728517 |
+| [d0bc7605](https://github.com/MuhammadMoustafa/xppautX/commit/d0bc76050d299b8535c60455de197fdfec971af3) | [W364](https://github.com/MuhammadMoustafa/xppautX/issues/426) | 231 | 141 | 90 | 11 | 0.5728517 |
+| [2a146b61](https://github.com/MuhammadMoustafa/xppautX/commit/2a146b61472bab210fd1f28fca4fd2ab6f1a78f4) | [W359](https://github.com/MuhammadMoustafa/xppautX/issues/421) | 231 | 141 | 90 | 11 | 0.5728517 |
+| [e3ac7b75](https://github.com/MuhammadMoustafa/xppautX/commit/e3ac7b759275bb541de2d6d7e6f9f92da4c3e8e3) | [W375](https://github.com/MuhammadMoustafa/xppautX/issues/437) | 231 | 141 | 90 | 11 | 0.5728517 |
+| [a981c2e0](https://github.com/MuhammadMoustafa/xppautX/commit/a981c2e0adaa0612912f95eebbcd5fce5cc22a80) | [W400](https://github.com/MuhammadMoustafa/xppautX/issues/462) | 231 | 141 | 90 | 11 | 0.5728517 |
+| [0557526e](https://github.com/MuhammadMoustafa/xppautX/commit/0557526e8c13c78b6567ac9f2aad1c2221df0db0) | [W365](https://github.com/MuhammadMoustafa/xppautX/issues/427) | 231 | 141 | 90 | 11 | 0.5728517 |
+| [ab741234](https://github.com/MuhammadMoustafa/xppautX/commit/ab741234be5a89d07fab67b3d8b202a7662b86cf) | this card's start | 231 | 141 | 90 | 11 | 0.5728517 |
+
+The meshes before W361 are bit-identical to each other, and so are those from W361 on. W361 changes
+NEWMSH's arithmetic. Against its parent the first three stored points are identical; the first
+adaptation (before the stored point of index 3, counting from 0) moves the time mesh by at most
+1.11e-16, and that point by 3.75e-10 in the states, 9.1e-13 in ampPar and 6.9e-12 in the period. The
+two runs make the same solves in the same order up to the search after the point of index 11; from
+there the searches end differently.
+
+### Where the work goes: searches for points that are not there
+
+The runs at the model's tolerances ([runs.csv](data/w412/runs.csv); AUTO-07p's from its diagnostics,
+[auto07p.json](data/w412/auto07p.json)):
+
+| Run | solves | Newton corrections | fold-direction solves | Newton in regular steps | searches (fold, BP) | Newton in searches | backward steps | last ampPar |
+|---|---:|---:|---:|---:|---|---:|---:|---:|
+| W361's parent | 195 | 117 | 78 | 24 | 10 | 93 | 5 | 0.5730163 |
+| default (W361 on) | 231 | 141 | 90 | 26 | 11 (8, 3) | 115 | 7 | 0.5728517 |
+| LIBM=system | 104 | 64 | 40 | 24 | 3 (2, 1) | 40 | 2 | 0.5734632 |
+| LINALG=lapack | 142 | 88 | 54 | 23 | 6 (4, 2) | 65 | 4 | 0.5731918 |
+| default, Ds -0.0199 | 96 | 58 | 38 | 21 | 3 (2, 1) | 37 | 1 | 0.5769197 |
+| default, Ds -0.0201 | 110 | 67 | 43 | 22 | 4 (3, 1) | 45 | 3 | 0.5734075 |
+| default, Ds -0.0202 | 61 | 33 | 28 | 22 | 2 (1, 1) | 11 | 0 | 0.5740859 |
+| AUTO-07p, Ds -0.02, -0.0199, -0.0201, -0.0202 | | 23 | | 19 | 1 (1, 0) | 4 | 0 | 0.5739093 to 0.5739106 |
+
+(The parent's trace predates the test events, so its searches are not split by test. The Ds -0.0199
+run makes one correction past NWTN = 3, so 57 Jacobian builds; every other correction in these runs
+builds one. AUTO-07p computes its fold function inside its Newton loop, so it has no separate solve
+to count; it evaluates the fold test 23 times.)
+
+The regular steps cost about the same in every run, 21 to 26 corrections for 19 steps. **The
+difference between runs is the number of searches**, 5 to 13 corrections each on average (AUTO-07p's
+one, 4). Why there are any,
+and why their number follows the last bits:
+
+1. **The test functions are below their own noise near the Hopf point.** At 1e-8 both programs
+   compute the fold function at the second point as -2.53e-5, and its magnitude grows steadily
+   from there; at the model's tolerances a point is accepted after one Newton correction, and the
+   fold function it gives is noise of that size: ours is +2.74e-4 at the second point, AUTO-07p's
+   +4.61e-6, at the same point (ampPar 0.5727816051 and 0.5727816054). The sign is wrong in both,
+   and the next point's opposite sign starts a fold search. The branch-point function is rounding
+   level there (1e-16 in both programs) and its sign flips start the BP searches (in the 1e-8 runs
+   too, once, in both programs).
+2. **A search accepts by its step size, not by a small function** (LCSPBV: the secant/Mueller step
+   divided by 1 + sqrt(|DS DSMAX|) below EPSS). The default's first search sees the fold function
+   jump between -2.8e-5 and +3.4e-5 without passing near zero, and stores its point on the side it
+   started from.
+3. **The step after a search goes back along the branch.** Its direction is the secant over the
+   search's last trial step, 1e-4 to 6e-4 long, whose two ends each carry a correction error up to
+   EPSU. In the six runs of the table at the current source, 15 of the 17 backward steps come right
+   after a point stored after a search (all 7 of the default's). Going back crosses the noisy
+   stretch again and starts another search.
+
+So a last-bit change anywhere decides how the first searches end, and the run either leaves the
+stretch near the Hopf point within a few points (Ds -0.0202: 2 searches) or zigzags through it (the
+default: 11 searches, 7 backward steps, its first 17 stored points within 1e-5 of ampPar 0.572782).
+The default's searches near the start are where its extra work goes, not in the cost of a solve.
+
+### The three builds: where they first differ
+
+The three builds already differ in the HB the steady run hands over: ampPar 0.57278705638,
+0.57278705714 and 0.57278705679 (default, LIBM=system, LAPACK), period 4.8865937635, ...596 and
+...625. The first fold values are 2.743567688e-4, 2.743952965e-4 and 2.743767342e-4; the first
+search's first secant step is 0.016668079, 0.016667901 and 0.016667959. The order of the solves
+first differs while computing the stored point of index 4 (LIBM=system) and 7 (LAPACK); a 0.5%
+different first step (Ds -0.0201) changes it at index 2. A last-bit difference becomes a different
+amount of work through the searches of the list above; the Newton step itself, and the cost of each
+solve, do not change.
+
+### AUTO-07p
+
+AUTO-07p 0.9.4, built in WSL (`~/auto-07p-0.9.4`; its `bvp.f90`, `mesh.f90` and `solvebv.f90` match
+`reference/auto-07p` after line endings, [provenance.json](data/w412/provenance.json)), runs the
+model's C translation (`paper/benchmarks/modeldb-267710/auto07p`) with its constants files: one
+thread, NTST = 100, NCOL = 4, 20 periodic points from the rightmost HB, IID = 3 so that the
+diagnostics list every Newton iterate. Every correction in its runs is a step's first, second or
+third (NWTN = 3), so each builds a Jacobian.
+
+At the model's tolerances AUTO-07p makes **23 Newton corrections over its 20 points: one per step,
+plus one fold search of 4 corrections** at its third point, which it stores as an LP. Its fold
+function then stays negative and grows (-1.47e-5, -6.33e-5, -1.61e-4, ...), its steps grow
+-0.04, -0.08, then the -0.1 cap, and it reaches ampPar 0.5739093. With Ds -0.0199, -0.0201 and
+-0.0202 the counts are the same, to the last correction. Its LP is spurious too (its 1e-8 run has
+none), but it searches once and goes on.
+
+Its start differs from ours: its steady run puts the rightmost HB at ampPar 0.5727816613, 5.6e-8
+from its first periodic point, ours at 0.57278705638, **5.45e-6** from ours. Our first correction
+moves ampPar a hundred times farther, and both programs build the Jacobian the fold test reuses at
+the predicted point, so ours is farther from the branch; that fits our larger first fold error
+(2.74e-4 against 4.61e-6), but does not show it is the whole cause.
+
+### One interval at 1e-8, and the mesh's accuracy
+
+With EPSL = EPSU = EPSS = 1e-8 in the periodic run (the steady run unchanged) and marks at ampPar
+0.5728 and 0.57284 (inside every build's 20-point span, past the searches near the start):
+
+| Run (1e-8) | solves | Newton corrections | searches (marks, BP) | backward steps | period at 0.5728 | period at 0.57284 | last ampPar |
+|---|---:|---:|---|---:|---:|---:|---:|
+| default | 93 | 74 | 3 (2, 1) | 0 | 4.887777442260 | 4.890270728221 | 0.57376928191 |
+| LIBM=system | 93 | 74 | 3 (2, 1) | 0 | 4.887777442279 | 4.890270728239 | 0.57376928191 |
+| LINALG=lapack | 93 | 74 | 3 (2, 1) | 0 | 4.887777442286 | 4.890270728224 | 0.57376928191 |
+| default, NTST 200 | 93 | 74 | 3 (2, 1) | 0 | 4.887777442268 | 4.890270728229 | 0.57376928192 |
+| AUTO-07p (stops at the second mark) | | 39 to the mark | 3 (2, 1) | 0 | 4.8877774423 | 4.8902707282 | |
+
+The three builds make the same solves in the same order, store the same points to 2e-12 in ampPar,
+and locate both marks to 2.3e-13. **AUTO-07p stores the same points** (0.57278239332, 0.57278484188,
+0.57279136682, 0.5728, 0.57282047495, 0.57284 against our 0.5727823933, 0.5727848419,
+0.5727913668, 0.5728, 0.5728204749, 0.57284) and **makes the same 39 Newton corrections to the
+upper mark** as each of our builds. On this interval there is no library-dependent Newton work and
+no difference from AUTO-07p.
+
+`mesh_accuracy.py` checks the stored solutions at the marks independently: it builds the model's C
+translation (not either program's assembly or solver) and compares the derivative of each
+interval's degree-4 polynomial with the right-hand side at four points between the collocation
+points, and integrates each interval with RK4 (steps of at most 0.00025 ms, within stability for the
+fastest mode, about -2220/ms), and again at half the step, to estimate the reference's own error.
+The scaled defect is the largest over states of max|du/dt - f| / (1 + max|f|)
+([accuracy.json](data/w412/accuracy.json)):
+
+| Run (1e-8) | scaled defect at 0.5728 | at 0.57284 | interval closure (largest) | RK4 halving difference |
+|---|---:|---:|---:|---:|
+| default | 2.21e-9 | 4.39e-9 | 5.69e-12 | 8.95e-13 |
+| LIBM=system | 2.16e-9 | 4.25e-9 | 5.63e-12 | 9.45e-13 |
+| LINALG=lapack | 2.16e-9 | 4.45e-9 | 5.51e-12 | 8.88e-13 |
+| default, NTST 200 | 1.40e-10 | 1.93e-10 | 1.42e-13 | 8.95e-13 |
+
+Every periodicity defect u(0) - u(1) is zero in the saved doubles. The builds' periods at the marks
+differ by at most 2.6e-11, the NTST 100 and 200 periods by 7.7e-12: the three builds are equally
+accurate, and the coarser mesh is good to about 1e-11 in the period here. The NTST 200 closure is
+below what the RK4 reference can resolve, so no finer accuracy is claimed for it.
+
+### Verdict and the proposed card
+
+**W361 is not a regression.** Its 1.1e-16 change of the mesh arithmetic (which keeps the reference's
+method) moves the run onto another of this model's noise-driven paths, 11 searches instead of 10;
+both paths store valid solutions at the requested tolerance, and neither is more accurate. **No
+build is faster on this run either**: per Jacobian build LIBM=system saves its usual 6%, LAPACK
+nothing, and at 1e-8 all three do the same work. Nothing should change W361, the libraries or the
+tolerances.
+
+**What should change is our behaviour near the Hopf start.** At the same tolerances AUTO-07p makes
+one search in each of four runs, ours 2 to 11 in seven, with backward steps; at 1e-8 the two programs
+coincide point for point and correction for correction, so the difference is confined to how the
+noise is met. Proposed card: **"ModelDB's periodic run repeats spurious fold and branch-point
+searches near its Hopf start, where AUTO-07p makes one"**:
+
+- find why our steady run places the rightmost HB at ampPar 0.57278706, 5.4e-6 from where both
+  programs' periodic branches start, where AUTO-07p places it 5.6e-8 away (the HB test, its
+  location, or the steady run's settings);
+- start each program's periodic run from the other's HB, to see whether the start alone explains
+  the repeated searches;
+- compare the state after a search (the stored point, the secant the next step uses) with
+  AUTO-07p's;
+- regression: ModelDB's 20-point run at the model's tolerances makes AUTO-07p's one search and no
+  backward step, in every build and with Ds -0.0199 to -0.0202; its 1e-8 run stays AUTO-07p's,
+  point for point, 39 corrections to the upper mark; the examples md5s and autocompare move only
+  with that explained change.
+
+### Tools and rerunning it
+
+Kept in `tools/auto-profile/` (search and reuse: `profile.py`'s driver and cuts, `gdb_wrap.sh`,
+`dump_matrices.py`, `tables.py`, `tools/xppclient.py` and the ModelDB drivers of paper/benchmarks;
+the tracer and the matrix dumper share `gdb_memory.py`'s memory read):
+
+- `profile.py --tool newton` and `--periodic-settings JSON` (an `auto set` for the periodic run),
+  with `newton.py`, the gdb breakpoints;
+- `newton_summary.py`, the counts and histories; `revision.py`, one archived revision's build and
+  trace, or with `--own-tools` that revision's own profile;
+- `auto07p.py`, AUTO-07p's run and its diagnostics' counts; `mesh_accuracy.py`, the independent
+  check; `modeldb_newton.sh`, every run of this study but the bisection.
+
+Removed from Codex's draft: `temporary.py` (a scratch remover; `tempfile` and `shutil` do it),
+`valgrind_none_wrap.sh` and profile.py's `native`/`valgrind-none` modes (callgrind's own rerun now
+answers whether valgrind changes the path), the AUTO diagnostics capture in profile.py,
+`diagnostic_summary.py` (in `auto07p.py`), `common_interval.py` and its interpolation of the
+original cuts (the marks give exact common points), `convergence.sh` (now `modeldb_newton.sh`), and
+the steady-run tolerance experiment (`--steady-settings`): it lost the rightmost HB, and the 1e-8
+periodic runs show the start does not matter there.
+
+```
+tools/wslrun.sh sh -c 'AUTO_DIR=$HOME/auto-07p-0.9.4 tools/auto-profile/modeldb_newton.sh build/w412'   # ~25 min
+tools/wslrun.sh sh -c 'for r in b87107d7 88401fcc 9c7e8c29 ab741234; do python3 tools/auto-profile/revision.py $r build/w412-rev/$r; done; python3 tools/auto-profile/newton_summary.py build/w412-rev/*'
+tools/wslrun.sh sh -c 'python3 tools/auto-profile/revision.py 9fb1b333 build/w358 --tool callgrind --own-tools && python3 tools/auto-profile/tables.py build/w358'   # ~25 min
+```
+
+Scratch folders and run outputs were removed after these tables: none left. No core file changed;
+the gates are the card's (build and unit tests, examples, autocompare, sourcecheck).

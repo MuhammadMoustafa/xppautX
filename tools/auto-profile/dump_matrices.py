@@ -4,20 +4,16 @@
 #   rg NM N MATZ A...     eig / HomCont's eigenvectors: a general matrix (column-major, n columns of n)
 #   qz NM N A... B...     flowkm's deflated Floquet pencil, at qzhes: A x = lambda B x
 # Numbers are C99 hex floats (exact). A call that cannot be read is skipped.
-import gdb, os, struct
+import gdb, os
+from gdb_memory import doubles
 
 out = open(os.environ['MATRIX_OUT'], 'a', buffering=1)
-
-
-def doubles(address, count):
-    raw = gdb.selected_inferior().read_memory(address, 8 * count).tobytes()
-    return [float.hex(x) for x in struct.unpack('<%dd' % count, raw)]
 
 
 def block(pointer, nm, n):
     """the n x n matrix at pointer with leading dimension nm, as n columns of n"""
     address = int(pointer)
-    return [x for j in range(n) for x in doubles(address + 8 * j * nm, n)]
+    return [float.hex(x) for j in range(n) for x in doubles(address + 8 * j * nm, n)]
 
 
 class Dump(gdb.Breakpoint):

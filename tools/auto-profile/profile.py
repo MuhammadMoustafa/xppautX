@@ -5,7 +5,9 @@ Runs a workload through tools/xppclient.py's Server with tools/auto-profile/call
 place of the program, so valgrind counts the whole process; the phases are cut with
 callgrind_control (-d dumps what was counted, -z zeroes it), the program carries no measuring code.
 Writes OUT/<workload>.<phase>.cg (callgrind's own format, read by tables.py) and
-OUT/<workload>.<phase>.json (the phase's stored points, 'points').
+OUT/<workload>.<phase>.json (the phase's stored points, 'points'). With --tool newton (W412), gdb
+breakpoints write ModelDB's BVP solves, steps, fold-function values and stored meshes to
+OUT/<workload>.newton.jsonl (tools/auto-profile/newton.py) instead.
 
     python3 tools/auto-profile/profile.py BINARY OUT WORKLOAD [--nmax N] [--paper DIR]
 
@@ -34,7 +36,7 @@ class Profile:
         """dump what has been counted since the last cut as OUT/workload.phase.cg, then zero
         (under --tool gdb only the phase's points are kept)"""
         pid = s.proc.pid
-        for flag in () if self.tool == 'gdb' else ('-d', '-z') if zero else ('-d',):
+        for flag in () if self.tool != 'callgrind' else ('-d', '-z') if zero else ('-d',):
             # callgrind acts when the process next runs, so wake it with a command that ends in idle
             p = subprocess.Popen(['callgrind_control', flag, str(pid)], stdout=subprocess.PIPE, text=True)
             s.send(cmd='data', events=['diagram'])
@@ -50,11 +52,15 @@ class Profile:
 def program(args):
     os.environ['XPP_PROFILED'] = os.path.abspath(args.binary)
     os.environ['CALLGRIND_OUT'] = tempfile.mkdtemp(prefix='w358-cg-')
+    out = Path(args.out).resolve() / args.workload
     if args.tool == 'gdb':  # the matrices the eigenvalue routines are given (dump_matrices.py)
         os.environ['GDB_SCRIPT'] = str(HERE / 'dump_matrices.py')
-        os.environ['MATRIX_OUT'] = str(Path(args.out).resolve() / (args.workload + '.matrices'))
+        os.environ['MATRIX_OUT'] = f'{out}.matrices'
         Path(os.environ['MATRIX_OUT']).unlink(missing_ok=True)
-    return str(HERE / ('gdb_wrap.sh' if args.tool == 'gdb' else 'callgrind_wrap.sh'))
+    if args.tool == 'newton':  # W412: the BVP solves and steps (newton.py)
+        os.environ['GDB_SCRIPT'] = str(HERE / 'newton.py')
+        os.environ['NEWTON_OUT'] = f'{out}.newton.jsonl'
+    return str(HERE / ('callgrind_wrap.sh' if args.tool == 'callgrind' else 'gdb_wrap.sh'))
 
 
 def converted(args, src, ode, dest, edits=()):
@@ -78,6 +84,8 @@ def periodic(args, prof, wrapper):
     real = hopf_xppautx.run
 
     def run(s, key, *a, **k):
+        if args.periodic_settings and key == 'p':  # W412: AUTO's numerics or marks for the periodic run
+            auto_xppautx._ok(explore_xppautx.step(s, cmd='auto', op='set', **args.periodic_settings)[0], 'settings')
         if args.nmax and key == 'p':  # a section of the periodic branch (the steady run must reach its Hopf point): valgrind is 50-100 times slower
             explore_xppautx.numerics(s, nmx=args.nmax)
         if key == 's':  # everything before AUTO's first run (start-up, ModelDB's integrations)
@@ -114,8 +122,10 @@ def main():
     ap.add_argument('out')
     ap.add_argument('workload')
     ap.add_argument('--nmax', type=int, help='stop the periodic run of py_s1bf/modeldb after this many points (Nmax)')
-    ap.add_argument('--tool', choices=('callgrind', 'gdb'), default='callgrind',
-                    help='callgrind: instruction counts; gdb: the matrices EISPACK is given (OUT/WORKLOAD.matrices)')
+    ap.add_argument('--tool', choices=('callgrind', 'gdb', 'newton'), default='callgrind',
+                    help='callgrind: instruction counts; gdb: the matrices EISPACK is given (OUT/WORKLOAD.matrices); '
+                         'newton: the BVP solves, steps and meshes (OUT/WORKLOAD.newton.jsonl)')
+    ap.add_argument('--periodic-settings', type=json.loads, help="an `auto set` command's fields (JSON) for the periodic run")
     ap.add_argument('--paper', default='/mnt/c/gitRepos/xppautX/paper/benchmarks')
     args = ap.parse_args()
     out = Path(args.out)

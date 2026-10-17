@@ -1,0 +1,48 @@
+{
+  "core_base": "ab741234",
+  "w361": "9c7e8c29",
+  "build_flags": "-g -O2 -ffp-contract=off WERROR=1; one thread; gcc/gfortran 15; WSL ext4; -j4",
+  "cut": 20,
+  "resolved_periodic_tolerances": {
+    "epsl": 1e-08,
+    "epsu": 1e-08,
+    "epss": 1e-08
+  },
+  "ntst": 100,
+  "ncol": 4,
+  "input_sha256": {
+    "models\\6cModel\\ah.inc": "67282013ff6dd97039332ac60b7c0739127d1fdb32117c23d4ecd938854d542e",
+    "models\\6cModel\\ah_KdrIsb1.inc": "67b0c5879ba9b5502494e1883d73071889698cbeb8f0ea83e91c0d601b9c5780",
+    "models\\6cModel\\ah_NafIsb1.inc": "ad15dda6fc2b40ecf290c08184fc30c4bb0b20d7398f8375fca12caf6c757985",
+    "models\\6cModel\\ah_NapIsb1.inc": "ec0af9072aae2ccc54623d19865ac0ea3d66997c401697017ee26feea32f9ef4",
+    "models\\6cModel\\conn.inc": "924813615223bc625386e2d0fed169c6197dc8b9578a07788f20db9bdf3e2203",
+    "models\\6cModel\\dend0.inc": "819a90f6de50ffc3ee8c3c4a88f4d59d0075925c24713a6bdd48477bc5463982",
+    "models\\6cModel\\dend1.inc": "e369762ce2fc7277d035d1ad8e321b12259f2d093322c5f99c9ace0fcc1e2f2b",
+    "models\\6cModel\\dend2.inc": "6102d7573f06a3820a7e13a7245270a95e80af86d29a0241bbcb30eb101ac008",
+    "models\\6cModel\\dend2_CaDen.inc": "35828941a58accadbe6fc1b9c79667b62c8e91ff113cc197cafc3d0d40b175ff",
+    "models\\6cModel\\dend3.inc": "aa0a70333d7a11b04df1bbdd7b45f0f5067981fd0f6566ba19a4f68b0ee0101a",
+    "models\\6cModel\\dend3_CaDen.inc": "7338fb2e01789ac0dc0b6d192d9a581190786ec320cbbfce0ef6f7c3b3c90d9a",
+    "models\\6cModel\\fire.ode": "597c9beb15b2798b1c5d31db7b16577d27ac808b6040014a53bf7a43596d6e56",
+    "models\\6cModel\\func.inc": "feadc14580a3a63497e075df36617a91d345389552f65e3c2c822a2931614244",
+    "models\\6cModel\\glob.inc": "bde689462e38eea350113d72032008d1d07fa4b10c8719e129f420238eaa2e39",
+    "models\\6cModel\\glob_fire.inc": "ea3ad097be5b5faf04fba16cce2d78795ea9b02d06d1d936f7cc4c0bc80e11e7",
+    "models\\6cModel\\main.ode": "150b3bea89252c0c4f8af6a59c2d57ae277ac26946047067ae52af49f21fecfb",
+    "models\\6cModel\\opt.inc": "2fe8eabd2f3ff2a4e30245dbd6bc0fdc931d3c833f84d11cce4a2a66eac8e3af",
+    "models\\6cModel\\rest.ode": "444ce295b1fc3bbac7c9cda93b449c8eac0a03e0cfcbca40bca3993c1108e236",
+    "models\\6cModel\\soma.inc": "d35d737563712bbcef0b8f9394f949208049f1dff2d3012eaa7b4d17da8e9b84",
+    "models\\6cModel\\soma_CaSmb1.inc": "2f8fc998f68dd8acee863b712b8aa526b6f5856b8f13e08931719f6f17098809",
+    "models\\6cModel\\soma_KdrSmb1.inc": "d13254b7dd31d88f806aab869ff974ef11a2515238104c2d913167aff0b40bdf",
+    "models\\6cModel\\soma_NafSmb1.inc": "a38492310bb09b90cc1ee5e6f7ad48dfd62801bff095a3d02a231c24aee0c01b",
+    "models\\6cModel\\stim.inc": "5238717c8ac0769e9089a2fb23092075c815dc26bada09eb104be58a55a5a851",
+    "auto07p\\6c.auto": "7908cf990b0d6bf2ad98391aaf5c7968ad2957a5be0766b900836e316947a2cf",
+    "auto07p\\6c.c": "f1f12a518d107509ed3687417214b249d21f2e6fca0c0d722b92bc22969eefc8",
+    "auto07p\\c.6c.eq": "8675def47c9a7eb3983e0412e3dada5818a91c193f33ac3e58ceea6704ac79c0",
+    "auto07p\\c.6c.po": "9108bf214f6e725ce31266b030cc99ccd0cfee14b9a17a142182cceb4fe84d5a"
+  },
+  "reference_source_lf_sha256": {
+    "src/bvp.f90": "9f4b789c3f1b095cc88265b493f2a8ffc0b12d1a513c7950c98622163ef68a93",
+    "src/mesh.f90": "841dca94dfd6d2dbcd549fafe8baca46c14d3b71b8283d69476f413d6e3a10d6",
+    "src/solvebv.f90": "19a38e02fa6f952d5d364d496b9fe554e4d98c7c070e9e799ce433d3c3122cdf",
+    "CHANGELOG": "876b69f1a5a14b54ded293bd4ca18b6a441407bd52f834adc347069165bd54bb"
+  }
+}
