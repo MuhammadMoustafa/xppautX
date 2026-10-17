@@ -580,6 +580,9 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
         labels, seeds = [], {}
         npar = min(8, len(odex.pars))
         for r in d['runs']:
+            if 'skip' in r:  # xppautX does not run it, so XPPAUT's run (lpc_soma's: past RUN_LIMIT) is not driven
+                failed[r['name']] = 'our description skips it: ' + r['skip']
+                continue
             curve = r['kind'] == 'two_parameter'
             base_kind = next(v['kind'] for v in d['runs'] if v['name'] == r['start'].get('run')) if curve else r['kind']
             cycle_curve = curve and base_kind == 'periodic'
