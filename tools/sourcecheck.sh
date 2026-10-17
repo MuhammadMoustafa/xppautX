@@ -40,13 +40,7 @@
 #   --warnings  also count a clean build's warnings by flag and file
 #               (tools/warnings.sh; a count, it fails only if the build does)
 cd "$(dirname "$0")/.." || exit 1
-if command -v nproc >/dev/null 2>&1; then
-  NPROC=$(nproc)
-elif command -v sysctl >/dev/null 2>&1; then
-  NPROC=$(sysctl -n hw.ncpu)
-else
-  NPROC=4
-fi
+. tools/jobs.sh
 mkdir -p build || exit 1
 if ! python3 tools/cishardcheck.py; then
   echo "CI SHARD CHECK FAILED"
@@ -144,7 +138,7 @@ if ! sh tools/sessioncheck.sh; then
 fi
 # make ltocheck's own sub-make, invoked via $(MAKE), shares the jobserver
 # this -j sets up, so its build/lto compile parallelizes too
-if make -j"$NPROC" ltocheck > build/ltocheck.log 2>&1; then
+if make -j"$JOBS" ltocheck > build/ltocheck.log 2>&1; then
   echo "lto link ok: no types differ across files"
 else
   tail -30 build/ltocheck.log

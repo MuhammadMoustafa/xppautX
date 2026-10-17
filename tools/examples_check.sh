@@ -26,8 +26,9 @@
 #                    uploads DIR and the md5s only when DIR exists)
 # TIMEOUT=seconds per run (default 300: the slowest model takes ~12 s
 # alone, several times that while other checks share the machine).
-# JOBS=models run at once (default: the machine's core count).
+# JOBS=models run at once (default 4: tools/jobs.sh).
 cd "$(dirname "$0")/.." || exit 1
+. tools/jobs.sh
 top=$PWD
 base=tests/examples.md5
 write=
@@ -51,7 +52,6 @@ if [ -z "$bin" ]; then
   if [ ! -e xppautX ] && [ -e xppautX.exe ]; then bin=xppautX.exe; else bin=xppautX; fi
 fi
 case "$bin" in /*) ;; *) bin=$top/$bin ;; esac
-jobs=${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}
 out=$(mktemp -d)
 [ -n "$keep" ] && export KEEP_OUTPUT=1
 find examples -name '*.odex' -o -name '*.ode' | while read -r f; do
@@ -59,7 +59,7 @@ find examples -name '*.odex' -o -name '*.ode' | while read -r f; do
   case "$f" in *.ode) [ -e "${f%.ode}.odex" ] && continue ;; esac
   echo "$f"
 done | sort \
-  | xargs -P"$jobs" -I{} tools/run_example.sh {} "$bin" "${TIMEOUT:-300}" "$out" "$no_compile" > "$out/failures" 2>&1
+  | xargs -P"$JOBS" -I{} tools/run_example.sh {} "$bin" "${TIMEOUT:-300}" "$out" "$no_compile" > "$out/failures" 2>&1
 cat "$out"/*.sum | LC_ALL=C sort -k2 > "$out/all"
 n=$(wc -l < "$out/all" | tr -d ' ')
 if [ -n "$write" ]; then cp "$out/all" "$write"; echo "md5s written to $write"; fi

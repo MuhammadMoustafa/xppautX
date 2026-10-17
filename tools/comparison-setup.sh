@@ -48,7 +48,7 @@ XPPAUTX_MAKE=(xppautx WINDOW=0 "OPT=-g -O2" CCACHE= XPPAUTX_VERSION=paper-compar
 LEGACY_CC="gcc -std=gnu99 -D_XOPEN_SOURCE=600 -w -Wno-error=implicit-function-declaration -Wno-error=int-conversion -Wno-error=incompatible-pointer-types -Wno-error=implicit-int -Wno-error=return-mismatch"
 LEGACY_CFLAGS="-g -O2 -ffp-contract=off -fcommon -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL -DMYSTR1=8.0 -DMYSTR2=1"
 LEGACY_LDFLAGS=-fcommon
-JOBS=4   # the project's -j4
+. tools/jobs.sh
 IDLE_LOAD=0.3   # --ready: a 1-minute load below this means nothing else ran for the last minute
 
 die() { echo "comparison-setup: $*" >&2; exit 1; }

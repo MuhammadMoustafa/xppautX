@@ -38,17 +38,9 @@ if command -v flock >/dev/null 2>&1; then
     flock 9
   fi
 fi
-# make test used to build on one core (60 s on CI); run it with the
-# machine's core count instead
-if command -v nproc >/dev/null 2>&1; then
-  NPROC=$(nproc)
-elif command -v sysctl >/dev/null 2>&1; then
-  NPROC=$(sysctl -n hw.ncpu)
-else
-  NPROC=4
-fi
+. tools/jobs.sh
 mkdir -p build || exit 1
-make -j8 xppautx > build/last-build.log 2>&1
+make -j"$JOBS" xppautx > build/last-build.log 2>&1
 st=$?
 tr -d '\r' < build/last-build.log > build/last-build.tmp && mv build/last-build.tmp build/last-build.log
 if [ $st -ne 0 ] || grep -q ' error:' build/last-build.log; then
@@ -85,7 +77,7 @@ else
   echo "HEADLESS --silent MISMATCH: rows=$rows sum=$sum"
   exit 1
 fi
-if make -j"$NPROC" test > build/unittest.log 2>&1; then
+if make -j"$JOBS" test > build/unittest.log 2>&1; then
   echo "unit tests ok: $(grep -c 'checks,' build/unittest.log) files"
 else
   grep -E 'FAIL|failed' build/unittest.log

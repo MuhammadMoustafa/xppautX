@@ -51,8 +51,8 @@ if [ "$(uname -s)" != Linux ]; then
 fi
 if [ -z "$builddir" ]; then
   builddir=build/obj
-  if command -v nproc >/dev/null 2>&1; then NPROC=$(nproc); else NPROC=4; fi
-  make -s -j"$NPROC" xppautx >/dev/null || { echo "globalcheck: build failed"; exit 1; }
+  . tools/jobs.sh
+  make -s -j"$JOBS" xppautx >/dev/null || { echo "globalcheck: build failed"; exit 1; }
 fi
 
 tmp=$(mktemp -d) || exit 1

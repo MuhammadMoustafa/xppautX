@@ -73,7 +73,7 @@ mkdir -p build || exit 1
 if [ $skip_build -eq 1 ] || ! has_phase build; then
   echo "asan build skipped (--skip-build or --only without build): using $bdir as-is"
 else
-  if ! "$make" -j"${XPP_JOBS:-4}" BUILDDIR="$bdir" ASAN=1 "$@" asan-link > "$log-build.log" 2>&1; then
+  if ! "$make" -j"$JOBS" BUILDDIR="$bdir" ASAN=1 "$@" asan-link > "$log-build.log" 2>&1; then
     grep -E ' error:' "$log-build.log" | head -20
     echo "ASAN BUILD FAILED"
     exit 1
@@ -102,13 +102,7 @@ export XPP_CHECK_STDERR
 if [ $leaks -eq 1 ]; then
   export LSAN_OPTIONS="suppressions=$top/tools/lsan.supp:print_suppressions=0"
 fi
-if command -v nproc >/dev/null 2>&1; then
-  NPROC=$(nproc)
-elif command -v sysctl >/dev/null 2>&1; then
-  NPROC=$(sysctl -n hw.ncpu)
-else
-  NPROC=4
-fi
+. tools/jobs.sh
 if command -v timeout >/dev/null 2>&1; then
   TMO=timeout
 elif command -v gtimeout >/dev/null 2>&1; then
@@ -142,7 +136,7 @@ if has_phase examples; then
   # comparison, just their verdict); a model that does not run by itself
   # exits non-zero without a report
   ex=$(mktemp -d)
-  find examples -name '*.odex' | sort | xargs -P"$NPROC" -I{} sh -c '
+  find examples -name '*.odex' | sort | xargs -P"$JOBS" -I{} sh -c '
     f=$1; run=$2/$(echo "$f" | tr / _); mkdir -p "$run"
     cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
     cd "$run" && ${4:+$4 120} "$3" "$(basename "$f")" --silent > run.log 2>&1
@@ -152,7 +146,7 @@ if has_phase examples; then
 fi
 
 if has_phase unittests; then
-  if "$make" -j"$NPROC" BUILDDIR="$bdir" ASAN=1 "$@" test > "$log-unittest.log" 2>&1; then
+  if "$make" -j"$JOBS" BUILDDIR="$bdir" ASAN=1 "$@" test > "$log-unittest.log" 2>&1; then
     echo "unit tests ok"
   else
     grep -E 'FAIL|failed|ERROR' "$log-unittest.log" | head -20

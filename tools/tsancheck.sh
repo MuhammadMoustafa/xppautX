@@ -18,6 +18,7 @@
 # Usage: tools/tsancheck.sh [--builddir DIR] [--skip-build] [VAR=value ...]
 #   $MAKE, $PYTHON  the make and python programs (default make, python3)
 cd "$(dirname "$0")/.." || exit 1
+. tools/jobs.sh
 top=$PWD
 bdir=build/tsan
 skip_build=0
@@ -37,7 +38,7 @@ mkdir -p build || exit 1
 if [ $skip_build -eq 1 ]; then
   echo "tsan build skipped (--skip-build): using $bdir as-is"
 else
-  if ! "$make" -j4 BUILDDIR="$bdir" TSAN=1 "$@" asan-link "$bdir/tests/test_session_auto" "$bdir/tests/test_eispack" > "$log-build.log" 2>&1; then
+  if ! "$make" -j"$JOBS" BUILDDIR="$bdir" TSAN=1 "$@" asan-link "$bdir/tests/test_session_auto" "$bdir/tests/test_eispack" > "$log-build.log" 2>&1; then
     grep -E ' error:' "$log-build.log" | head -20
     echo "TSAN BUILD FAILED"
     exit 1

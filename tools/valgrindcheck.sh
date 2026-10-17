@@ -21,6 +21,7 @@
 # also says where an uninitialised value came from, for a report to fix.
 # Usage: tools/valgrindcheck.sh [--origins]
 cd "$(dirname "$0")/.." || exit 1
+. tools/jobs.sh
 origins=
 case $1 in
   --origins) origins=--track-origins=yes ;;
@@ -34,7 +35,7 @@ if ! command -v valgrind > /dev/null; then
   exit 1
 fi
 mkdir -p build || exit 1
-if ! make -j8 vg > build/vg-build.log 2>&1; then
+if ! make -j"$JOBS" vg > build/vg-build.log 2>&1; then
   grep -E ' error:' build/vg-build.log | head -20
   echo "VALGRIND BUILD FAILED"
   exit 1
@@ -72,7 +73,7 @@ rm -rf "$tmp"
 # comparison); a model that does not run by itself exits non-zero without
 # a report
 ex=$(mktemp -d)
-find examples -name '*.odex' | sort | xargs -P"$(nproc 2>/dev/null || echo 4)" -I{} sh -c '
+find examples -name '*.odex' | sort | xargs -P"$JOBS" -I{} sh -c '
   f=$1; run=$2/$(echo "$f" | tr / _); mkdir -p "$run"
   cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
   cd "$run" && timeout 900 "$3" "$(basename "$f")" --silent > run.log 2>&1

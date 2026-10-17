@@ -49,16 +49,10 @@ if [ "$(uname -s)" != Linux ]; then
 fi
 MAKE=${MAKE:-make}
 B=build/deadcode
-if command -v nproc >/dev/null 2>&1; then
-  NPROC=$(nproc)
-elif command -v sysctl >/dev/null 2>&1; then
-  NPROC=$(sysctl -n hw.ncpu)
-else
-  NPROC=4
-fi
+. tools/jobs.sh
 mkdir -p build || exit 1
 if [ $build = 1 ]; then
-  if ! $MAKE -j"$NPROC" deadcode "$@" > $B.log 2>&1; then
+  if ! $MAKE -j"$JOBS" deadcode "$@" > $B.log 2>&1; then
     grep -v 'removing unused section' $B.log | tail -30
     echo "deadcode: the build failed ($B.log)"
     exit 1

@@ -165,8 +165,11 @@ the machine's three slots:
   that runs another does not wait on itself.
 - While waiting, an agent keeps coding; it never works around the lock
   (no build outside it, no deleting another run's lock folder).
-- Builds still use -j4. The number of agents is not capped (maintainer,
-  2026-10-14): they code side by side, and only their heavy runs queue.
+- Builds still use -j4: the check scripts take their parallelism (builds,
+  models at once) from `JOBS`, default 4, set once in `tools/jobs.sh`;
+  `JOBS=N tools/x.sh` overrides it, never `nproc` (W418). The number of
+  agents is not capped (maintainer, 2026-10-14): they code side by side, and
+  only their heavy runs queue.
 - One compiler cache (W411, #473): the Makefile puts `ccache` in front of
   CC and CXX when `command -v ccache` finds it, so a worktree's or WSL
   clone's first build compiles only what no earlier build of any

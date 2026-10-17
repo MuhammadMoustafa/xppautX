@@ -13,10 +13,11 @@
 #   --bin PATH       the binary (default ./xppautX, or ./xppautX.exe)
 #   --baseline FILE  the .ode md5s (default tests/examples.md5)
 #   --keep DIR       put each failing model's .odex and log in DIR
-# TIMEOUT=seconds per run (default 300); JOBS=models at once (default:
-# the machine's core count).
+# TIMEOUT=seconds per run (default 300); JOBS=models at once (default 4:
+# tools/jobs.sh).
 set -u
 cd "$(dirname "$0")/.." || exit 1
+. tools/jobs.sh
 top=$PWD
 
 md5() {
@@ -91,7 +92,6 @@ if [ -z "$bin" ]; then
 fi
 case "$bin" in /*) ;; *) bin=$top/$bin ;; esac
 if [ -n "$keep" ]; then mkdir -p "$keep"; KEEP=$(cd "$keep" && pwd); export KEEP; fi
-jobs=${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}
 out=$(mktemp -d)
 find examples -name '*.ode' | sort | while read -r f; do
   [ -e "${f%.ode}.odex" ] || continue
@@ -99,7 +99,7 @@ find examples -name '*.ode' | sort | while read -r f; do
   [ -n "$want" ] || { echo "missing baseline for $f" >&2; exit 1; }
   echo "$f $want"
 done \
-  | xargs -P"$jobs" -L1 "$top/tools/odexcheck.sh" --one "$bin" "$out" "${TIMEOUT:-300}"
+  | xargs -P"$JOBS" -L1 "$top/tools/odexcheck.sh" --one "$bin" "$out" "${TIMEOUT:-300}"
 n=$(ls "$out"/*.r 2>/dev/null | wc -l | tr -d ' ')
 bad=$(grep -l fail "$out"/*.r 2>/dev/null | wc -l | tr -d ' ')
 rm -rf "$out"
