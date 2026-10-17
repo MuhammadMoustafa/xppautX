@@ -229,7 +229,7 @@ four and three, with two additional real special points now compared.
 48 descriptions have an AUTO-07p reference (166 special points compared, and the two-parameter curves) and 42 an
 XPPAUT 8.0 reference (117 points); 42 hold both. Every untraced comparison agrees. AUTO-07p has 26 traced points
 and XPPAUT 8.0 43; the runs a description skips (its reason says why) are neither run nor compared. The whole
-comparison is 60 descriptions, 9 skipped, 18498 stored points across one and automatic threads, 150 checks, zero
+comparison is 60 descriptions, 9 skipped, 18678 stored points across one and automatic threads, 150 checks, zero
 failures. Newton and location tolerances are unchanged; XPPAUT curve exports include their half-unit printing uncertainty
 (above). W428 ([#490](https://github.com/MuhammadMoustafa/xppautX/issues/490)) adds eleven XPPAUT references; only the map fold
 remains refused among the twelve two-parameter descriptions. Three one-parameter references (`tstauto_ab`, `tstauto_dumb`,
@@ -255,7 +255,7 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.4e-10, norm 1.6e-07, period 6.7e-05, spectrum 0.00037) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.5e-06, period 0.0017, spectrum 0.00041) |
 | ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 6.8e-07, norm 6.4e-09, period 2.1e-08, spectrum 1.2e-06) | agrees (4 points; par 1e-05, norm 4.7e-06, period 5.4e-09, spectrum 8.4e-08) |
 | ode_motoneuron6c | steady: EP LP LP HB HB LP HB LP HB HB; periodic: LP; hb_up: -; hb_down: - | agrees, 5 traced (11 points; par 1.5e-09, norm 1.8e-08, period 1.2e-07, spectrum 5e-06; curve par 5.8e-06, par2 7.4e-08, norm 0.00015) | agrees (11 points; par 9.3e-06, norm 0.0005, period 0.1, spectrum 0.001; curve par 2.2e-05, par2 5.1e-07, norm 0.00067) |
-| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; to_snic: -; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | agrees, 1 traced (5 points; par 1.2e-06, norm 1e-05, period 7e-08, spectrum 1e-07; curve par 0.024, par2 0.00087, norm 0.00021) |
+| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; to_snic: -; hb_soma: -; hb_dend: -; lp_soma: CP; lpc_soma: -; lpc_dend: - | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | agrees, 1 traced (5 points; par 1.2e-06, norm 1e-05, period 7e-08, spectrum 1e-07; curve par 0.024, par2 0.00087, norm 0.00021) |
 | ode_mu26_control | steady: EP LP LP HB; cycles: LP; to_snic: - | agrees (5 points; par 1.2e-07, norm 3.9e-09, period 1.4e-08, spectrum 1.1e-06) | agrees (5 points; par 3.5e-06, norm 4.3e-06, period 8e-08, spectrum 1.3e-07) |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | res_cycles | steady: EP HB HB; cycles: TR; torus_down: R1 R4 R3 R2 R3; torus_up: R4 R3 R2 R3 R4 BP | agrees, 6 traced (9 points; par 4.3e-07, par2 3.3e-07, norm 1.9e-07, period 2.2e-11, spectrum 0.0013; curve par 2.3e-06, par2 2.5e-05, norm 1.5e-06) | agrees, 11 traced (4 points; par 4e-08, norm 2.2e-08, period 2.2e-11, spectrum 6.6e-08; curve par 2.8e-06, par2 2.4e-05, norm 7.2e-06) |
@@ -856,8 +856,8 @@ baseline and AUTO-07p's reference made by `tools/auto_reference.py`:
 
 | Description | Model | Runs | AUTO-07p | Points, quantities |
 |---|---|---|---|---|
-| ode_mu26_control | `mu26`: the two-compartment PVN parvocellular neuron of Mu26, 28 states, h conductances at the fitted values | steady (current from rest: LP 0.0058, LP -79.06, HB 13.2655 pA), cycles from the HB (LP 99.9966) | agrees | 5 points, 16 quantities |
-| ode_mu26_blocked | the same model, both h conductances 0 | the same, and from the HB the loci in (g_h soma, current) and (g_h dendrite, current), from the first LP the locus in (current, g_h soma) through its cusp | agrees | 6 points and three curves, 29 quantities |
+| ode_mu26_control | steady: EP LP LP HB; cycles: LP; to_snic: - | agrees (5 points; par 1.2e-07, norm 3.9e-09, period 1.4e-08, spectrum 1.1e-06) | agrees (5 points; par 3.5e-06, norm 4.3e-06, period 8e-08, spectrum 1.3e-07) |
+| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; to_snic: -; hb_soma: -; hb_dend: -; lp_soma: CP; lpc_soma: -; lpc_dend: - | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | agrees, 1 traced (5 points; par 1.2e-06, norm 1e-05, period 7e-08, spectrum 1e-07; curve par 0.024, par2 0.00087, norm 0.00021) |
 | ode_ma23 | `ma23`: the fast-spiking PV interneuron of Ma et al. 2023, 5 states | steady (LP 35.18, LP 34.21, HB 539.22 pA), cycles from the HB (stable cycles down to period 124 ms) | agrees | 4 points, 12 quantities |
 
 The largest differences from AUTO-07p are: Mu26 control, Hopf point 5.1e-8 pA, folds 5e-10 pA, cycles fold 2.3e-11 pA
@@ -1115,8 +1115,8 @@ seconds:
 
 | Description | Rheobase fold (LP) | xppautX's end | AUTO-07p's end | T * sqrt(I - I_LP), ours / AUTO-07p |
 |---|---|---|---|---|
-| ode_mu26_control | 0.0058127 pA | 0.0058180 pA, period 36206 ms | 0.0058205 pA, 29102 ms | 83.1 / 80.9 |
-| ode_mu26_blocked | 0.0657990 pA | 0.0658071 pA, 50018 ms | 0.0658182 pA, 32687 ms | 143.1 / 143.4 |
+| ode_mu26_control | steady: EP LP LP HB; cycles: LP; to_snic: - | agrees (5 points; par 1.2e-07, norm 3.9e-09, period 1.4e-08, spectrum 1.1e-06) | agrees (5 points; par 3.5e-06, norm 4.3e-06, period 8e-08, spectrum 1.3e-07) |
+| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; to_snic: -; hb_soma: -; hb_dend: -; lp_soma: CP; lpc_soma: -; lpc_dend: - | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | agrees, 1 traced (5 points; par 1.2e-06, norm 1e-05, period 7e-08, spectrum 1e-07; curve par 0.024, par2 0.00087, norm 0.00021) |
 
 The last column is the SNIC's law, period proportional to (I - I_LP)^(-1/2): the two programs' ends, at different
 steps, lie on one curve (the control's 3% is the fold's last digit). Run on, both stop with MX near their 310th point
@@ -1164,3 +1164,92 @@ The fix (FNPLF's structure, which changes every fold-of-cycles curve's last digi
 all four. xppautX labels 5, misses 1 (its location uses up ITMX, `NOTE:Possible special point`), labels 0.1 at
 0.10018 pA, and then continues the branch backwards: it comes back up through 1 and 5 pA, and in the control
 condition past the cycles' fold again. Without marks the same run goes on to the SNIC. W437 ([#499](https://github.com/MuhammadMoustafa/xppautX/issues/499)).
+
+## W436: structured folds of cycles ([#498](https://github.com/MuhammadMoustafa/xppautX/issues/498))
+
+For a variable period the equations are `F = T f(u)` and `G = T J(u) v + beta f(u)`.
+`fnpl` now takes both diagonal state blocks from `T J`, the upper parameter block from the model's derivatives,
+and the period, beta and norm columns analytically. Only `G` is differenced in the physical states and model
+parameters, following [FNPLF, periodic.f90:427-507](../reference/auto-07p/src/periodic.f90#L427).
+For fixed period the beta term is `beta df/dp2`; the same structure applies. The independent polynomial test
+uses the exact model Jacobian to isolate these blocks from nested-difference roundoff, and includes nonzero beta.
+
+The search covered `auto_jacobian`, `funi`, the other augmented systems in `autlib3`/`autlib5`, `jacobian` and
+`auto_codim`'s directional derivatives. The implementation reuses `auto_jacobian::central` and
+`forward_parameters`, `funi`, and the run's preallocated scratch. Keeping the generic whole-system difference
+would be fewer lines, but would retain twice the model evaluations and numerical approximations to known blocks.
+
+There was another avoidable cost in `autpp`'s pure worker: every physical-state difference reevaluated all
+parameter-only derived expressions. `continued_constants` now reports a bit change in a model parameter, so the
+worker retains the derived values copied by `AutoParallel::prepare` until a parameter changes. The existing
+constants array is its source of truth; no cache state is added. The worker unit case checks parameter changes,
+restoration and signed zero. The potentially impure serial evaluator retains its evaluation order.
+
+**Capped instruction measurement.** The original binary was built from `375b00f7`; the changed one includes the
+structured Jacobian and the derived-value reuse. Both restart the very same saved `lpc_soma` solution, after
+its five starting-data points, at NTST 50, NCOL 4, 28 physical states, NMAX 3: three stored points, two new points,
+one Newton solve/Jacobian per new point. Callgrind counts all threads (the default automatic four).
+The whole-process totals include loading/compilation and the final session export; the inclusive `fnpl` cost
+isolates the changed evaluator. No full branch was run under callgrind.
+
+| Quantity per new point | Before | After |
+|---|---:|---:|
+| Whole-process instructions | 43,148,633,352 | 19,511,922,527 |
+| Inclusive `fnpl` instructions | 38,715,652,729 | 15,078,811,168 |
+| Model evaluations | 1,439,661 | 684,857 |
+| Worker derived-expression evaluations | 1,427,400 | 1,200 |
+
+The whole-process count falls 2.21 times and `fnpl` 2.57 times. At each collocation Jacobian the model evaluations
+fall from `(1 + 2*56 + 4)*61 = 7137` to `61 + (2*28 + 2)*57 = 3367`; the remaining 402 residual evaluations
+in the capped run fall from 61 model evaluations each to 57. The Newton count stays two in total.
+
+**The remaining factor.** Starting data are outside this continuation capture, so they cannot explain its
+remaining cost. In the changed capture, correctly rounded `pow` and `tanh` alone take 45.2% of all instructions;
+condensation takes 14.9%. The original capture spends 16.6% reevaluating derived expressions; the changed one
+spends 0.031%. Thus evaluation and the augmented linear solve, rather than extra Newton iterations, remain.
+The 48 s / 19 s ordinary-cycle comparison in W423 was a whole-run ratio, not a matched RHS microbenchmark.
+AUTO-07p's translated Fortran uses the system math functions, with integer powers emitted as Fortran integer
+powers (`auto_reference.py`); xppautX retains its correctly rounded CORE-MATH calls and compiled array evaluator.
+Replacing those by the C library or repeated multiplication for higher powers would change the canonical
+numerics and is outside this card. AUTO-07p also sets NMX=5 for ISW=-2 in
+[bvp.f90:112-115](../reference/auto-07p/src/bvp.f90#L112); W423's startup shorthand should not be read as NMX=1.
+
+The description search included every two-parameter run starting from a periodic LP, as well as the LPC/fold
+word search. Only `ode_mu26_blocked/lpc_soma` and `lpc_dend` use this formulation in the current inventory;
+there are no other existing fold-of-cycles baselines to update.
+
+The full 40-point curves still need minutes at one thread. The comparison driver's hang guard is now 600 s,
+matching the reference driver; `XPP_CHECK_SLOW` can scale this safety ceiling. No solver or comparison tolerance
+changes, and elapsed time is never a numerical acceptance criterion.
+
+**Native timings.** Five paired runs at one thread, under `tools/heavy.sh --alone`, restarting the same saved
+solution and dividing by its two new points: before **9.0478 +/- 0.0761 s/point**, after **3.1972 +/- 0.0381**
+(mean and sample SD, `ddof=1`), **2.83 times faster**. Before: 8.98249, 8.97987, 9.02080, 9.10861, 9.14716;
+after: 3.16457, 3.14799, 3.22086, 3.23202, 3.22054 s/point. Exact timings, binary and snapshot hashes,
+conditions and instruction counts are in [w436-lpc-cost.json](studies/w436-lpc-cost.json).
+The original native preparation took 105.5655 s for the five startup rows and two curve rows; that mixed cost
+is not a steady continuation-point cost. The 3.20 s result still exceeds W423's approximately 0.9 s AUTO-07p
+measurement. Its remaining cost is present after initialization and is dominated by evaluation and condensation,
+as the instruction breakdown above shows.
+
+**XPPAUT 8.0 attempt.** The two LPC runs are generated through `auto_reference` using the requested
+`/home/muham/w424-xpp8/xppaut`, with only the required steady/cycles starts in the scratch description (the
+checkout's driver does not support Extend, W438). `lpc_soma` hit the driver's 600 s guard after completing its
+five starting-data points and restarting the curve. The saved partial diagnostics have point 4 complete at
+g_h 0.0349988, current 99.99831, and Newton at point 5 (g_h 0.06499794), with no convergence failure.
+Its reference remains explicitly unavailable for this runtime bound; this is not evidence of a numerical defect.
+
+The separate `lpc_dend` attempt also hit 600 s after successful startup: point 7 completed at g_h 0.1999988,
+current 99.99807, and point 8 was in Newton at g_h 0.3349983. Neither partial trace reports a convergence
+failure. Both `.xppaut` entries retain these explicit runtime reasons; AUTO-07p's full 40-point curves remain
+the references for the two newly enabled runs. XPPAUT's original full augmented differences and interpreted
+model evaluator are retained in that reference binary; no altered XPPAUT implementation is used as a reference.
+
+**Baseline and gates.** Only `ode_mu26_blocked.diagram.csv` changes: 90 rows and four branch headers are
+appended, every previous row preserved byte for byte. Each LPC run adds five starting-data rows and 40 curve
+rows. Their ends are (g_h, current) = (15.9420397502, 99.8773794776) for `lpc_soma` and
+(15.9424458079, 99.9584150441) for `lpc_dend`, with no R1, agreeing with both full AUTO-07p curves.
+The build uses `-Werror` with zero warnings; all 58 unit binaries pass (64 checks in the fold/derived unit).
+The selected control/blocked comparison stores 2522 points across one and automatic threads, both thread
+comparisons pass, and all 92 reference quantities agree. The control baseline does not change. Full packed-card
+AUTO, autocheck and example gates are recorded with W437 below.

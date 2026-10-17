@@ -1,0 +1,59 @@
+{
+  "before": {
+    "seconds_per_new_point": [
+      8.982493061994319,
+      8.979865667002741,
+      9.020796718999918,
+      9.108607148002193,
+      9.147157221501402
+    ],
+    "mean": 9.047783963500114,
+    "sd": 0.07612261878545418
+  },
+  "after": {
+    "seconds_per_new_point": [
+      3.1645683489987277,
+      3.1479902760038385,
+      3.220859642002324,
+      3.232016667498101,
+      3.2205379369988805
+    ],
+    "mean": 3.1971945743003745,
+    "sd": 0.03808890827515052
+  },
+  "conditions": {
+    "threads": 1,
+    "stored_points": 3,
+    "new_points": 2,
+    "ntst": 50,
+    "ncol": 4,
+    "states": 28,
+    "seed_sha256": "7ea35eb9b93dedf28f05a2fc33d6532c89314cab9f11fcf652b14223c2a76d2b",
+    "before_binary_sha256": "71decf7badeae682eb1dc8c0ff9ff30bbe20652070e490c3212d24a454378c0d",
+    "after_binary_sha256": "236799ebc4e5c0a141b6cd38e7315e1e3a244c06640ffbd21a1593a279a3400a"
+  },
+  "before_source": "375b00f7",
+  "after_code_source": "426912969 (code identical to final W436; later changes are documentation and the check hang guard)",
+  "native_method": "Five paired before/after restarts under tools/heavy.sh --alone; seconds divided by two newly solved points.",
+  "callgrind_method": "One capped process per version; identical saved restart; NMAX 3 (three stored, two new points); automatic four threads, all instructions. Includes model loading/compilation and final session export.",
+  "callgrind": {
+    "before": {
+      "total_instructions": 86297266704,
+      "fnpl_inclusive_instructions": 77431305458,
+      "model_evaluations": 2879322,
+      "worker_derived_evaluations": 2854800,
+      "newton_solves": 2,
+      "collocation_jacobians": 400
+    },
+    "after": {
+      "total_instructions": 39023845053,
+      "fnpl_inclusive_instructions": 30157622336,
+      "model_evaluations": 1369714,
+      "worker_derived_evaluations": 2400,
+      "newton_solves": 2,
+      "collocation_jacobians": 400
+    }
+  },
+  "preparation": "autocompare.execute_run: blocked steady, cycles, lpc_soma with nmax=2 (five startup rows plus two curve rows), save snapshot; grab its last fold-curve EP for each measured restart.",
+  "initial_native_lpc_preparation_seconds": 105.5654979099927
+}

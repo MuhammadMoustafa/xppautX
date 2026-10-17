@@ -1520,13 +1520,73 @@ icpe(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Subroutine */ int 
 fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, ffpl);
+  // FNPLF's block structure (AUTO-07p periodic.f90:427-507): only
+  // the derivatives of the variational equations need second differences.
+  const integer n = iap->ndm;
+  auto &scratch = iap->lib->scratch;
+  const auto evaluate = [&](const double *state, double *value, integer derivatives) {
+    ffpl(iap, rap, ndim, state, uold, icp, par, derivatives, value, n,
+         scratch.dfu.data(), scratch.dfp.data());
+  };
+  evaluate(u, f, ijac == 0 ? 1 : 2);
+  if (ijac == 0) return 0;
+  const double period = par[xpp::auto_unknown::period];
+  const bool variable_period = icp[2] == xpp::auto_unknown::period;
+  const xpp::Matrix<const double> a(scratch.dfu, n, n);
+  const xpp::Matrix<const double> p(scratch.dfp, n, iap->lib->parameter_count);
+  const xpp::Matrix<double> jac({dfdu, xpp::size_product(ndim, ndim)}, ndim, ndim);
+  const xpp::Matrix<double> dp({dfdp, xpp::size_product(ndim, iap->lib->parameter_count)}, ndim, iap->lib->parameter_count);
+  std::fill_n(dfdu, ndim * ndim, 0.);
+  std::fill_n(dfdp, ndim * iap->lib->parameter_count, 0.);
+  for (integer i = 0; i < n; ++i) {
+    for (integer j = 0; j < n; ++j) {
+      jac(i, j) = period * a(i, j);
+      jac(n + i, n + j) = jac(i, j);
+    }
+    for (integer k = 0; k < iap->nfpr; ++k)
+      dp(i, icp[k]) = period * p(i, icp[k]);
+    if (variable_period) {
+      dp(i, xpp::auto_unknown::period) = f[i] / period;
+      dp(n + i, xpp::auto_unknown::period) =
+          (f[n + i] - par[xpp::auto_unknown::fold_beta] * dp(i, xpp::auto_unknown::period)) / period;
+    }
+    dp(n + i, xpp::auto_unknown::fold_beta) =
+        variable_period ? f[i] / period : p(i, icp[1]);
+  }
+  // central() copies the physical states; keep the unperturbed eigenvector
+  // in the tail of both preallocated scratch states.
+  std::copy_n(u, ndim, scratch.uu1.data());
+  std::copy_n(u, ndim, scratch.uu2.data());
+  const double step = xpp::auto_jacobian::central(
+      n, n, u, scratch.uu1.data(), scratch.uu2.data(),
+      scratch.ff1.data(), scratch.ff2.data(),
+      [&](const double *state, double *value) {
+        evaluate(state, value, 1);
+        std::copy_n(value + n, n, value);
+      },
+      dfdu + n, ndim);
+  if (ijac == 1) return 0;
+  for (integer k = 0; k < iap->nfpr; ++k) {
+    const integer parameter = icp[k];
+    if (parameter == xpp::auto_unknown::period ||
+        parameter == xpp::auto_unknown::fold_beta ||
+        parameter == xpp::auto_unknown::fold_norm) continue;
+    const double saved = par[parameter];
+    xpp::auto_jacobian::forward_parameters(
+        1, n, icp + k, step, par,
+        [&](double *value) {
+          evaluate(u, scratch.ff2.data(), 1);
+          std::copy_n(scratch.ff2.data() + n, n, value);
+        }, f + n, scratch.ff1.data(), dfdp + n, ndim, 0);
+    par[parameter] = saved;
+  }
+  return 0;
 } /* fnpl_ */
 
 
 /*     ---------- ---- */
 /* Subroutine */ int
-ffpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+ffpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
@@ -1546,7 +1606,7 @@ ffpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     
   period = par[xpp::auto_unknown::period];
   beta = par[xpp::auto_unknown::fold_beta];
-  funi(iap, rap, ndm, u, uold, icp, par, 2, f, 
+  funi(iap, rap, ndm, u, uold, icp, par, icp[2] == xpp::auto_unknown::period ? ijac : 2, f,
        dfdu, dfdp);
 
   for (i = 0; i < ndm; ++i) {

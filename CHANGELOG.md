@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Fold-of-cycles continuation reuses the model Jacobian and differences only the physical states in its variational equations, as AUTO-07p does; pure AUTO workers retain parameter-only derived values until a parameter changes (Mu26's capped continuation: 2.83 times faster at one thread); Mu26's two h-conductance fold curves join the numerical comparisons (W436, [#498](https://github.com/MuhammadMoustafa/xppautX/issues/498)).
+
 - AUTO no longer labels a spurious branch point (BP) on an equilibrium branch where a large step turns past a fold: the branch point test read the fold test's determinant, as XPPAUT's AUTO did (xppaut-findings.md 72); it now reads the step's own, as AUTO-07p does. Mu26's cycles are continued in the AUTO tests down to the rheobase fold, where their period diverges (W423, [#485](https://github.com/MuhammadMoustafa/xppautX/issues/485)).
 - AUTO's resonance test on a torus curve, of cycles or of a map, sees the angle modulo 2 pi: the 1:3, 1:4 and 1:1 resonances past pi (and below 0) are labelled, which AUTO-07p's test cannot see; its 1:2 resonance, where the torus equations are singular as at 1:1, is located whichever eigenvalue library the build uses; and a test that does not apply at a location step (no Hopf pair, a planar orbit, a resonance kind switched off) no longer ends the location there as if it had found the point (W419, [#481](https://github.com/MuhammadMoustafa/xppautX/issues/481)).
 

@@ -23,8 +23,9 @@ from xppclient import Checker, SLOW, Server, is_ask, is_idle, open_auto, placed,
 
 ROOT = Path(__file__).resolve().parent.parent
 BASE = ROOT / 'tests/auto'
-# Plenty of room for slow CI/sanitizers, never a numerical acceptance criterion.
-TIMEOUT = 120 * SLOW
+# Mu26's 40-point, 28-state fold curves take minutes at one thread (W436).
+# Match the reference driver's hang guard; never a numerical acceptance criterion.
+TIMEOUT = 600 * SLOW
 DIAGRAM_MEMBER = 'auto/diagram.csv'  # the session file's diagram (core/xpp_session_auto.h)
 HOMCONT = ('homoclinic', 'heteroclinic')
 KINDS = {'equilibrium', 'periodic', 'two_parameter', 'fixed_period', 'bvp', *HOMCONT}

@@ -2,6 +2,8 @@
 #include "auto_unknowns.h"
 #include "solver.h"
 #include <algorithm>
+#include <bit>
+#include <cstdint>
 #include <array>
 #include <span>
 #include <vector>
@@ -78,12 +80,19 @@ void chain(int n, const double *b, double *column, const double *add, double *t)
   std::copy_n(t,n,column);
 }
 
-void continued_constants(const xpp::Session &s, double *constants, const integer *icp, integer count, std::span<const double> parameters)
+bool continued_constants(const xpp::Session &s, double *constants, const integer *icp, integer count, std::span<const double> parameters)
 {
+  bool changed=false;
   for(integer i=0;i<count;i++){
     const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[i]));
-    if(k>=0 && k<s.model().nupar)constants[s.model().upar_con[k]]=parameters[k];
+    if(k>=0 && k<s.model().nupar){
+      double &constant=constants[s.model().upar_con[k]];
+      // Signed zero can change a derived expression too.
+      changed |= std::bit_cast<std::uint64_t>(constant)!=std::bit_cast<std::uint64_t>(parameters[k]);
+      constant=parameters[k];
+    }
   }
+  return changed;
 }
 
 /* A collocation worker's right-hand side (auto_parallel.cpp): s is const, so
@@ -93,8 +102,11 @@ void worker_func(const xpp::Session &s, AutoLib &worker, integer ndim, const dou
 {
   auto &c=worker.rhs_constants;
   auto &v=worker.rhs_variables;
-  continued_constants(s,c.data(),icp,nfpr,parameters);
-  xpp::evaluate_derived_pure(s,c.data(),v.data());
+  // prepare() copied constants whose derived values are already current.
+  // State differences change no parameter: retain those values until a
+  // parameter actually changes, including either side of its difference.
+  if(continued_constants(s,c.data(),icp,nfpr,parameters))
+    xpp::evaluate_derived_pure(s,c.data(),v.data());
   pure_rhs(s,u,f,c.data(),v.data());
   if(ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT)exact_derivatives(s,worker,c.data(),ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
 }

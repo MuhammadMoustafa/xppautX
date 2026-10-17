@@ -1,6 +1,6 @@
 {
   "model": "examples/ode/mu26.odex",
-  "reason": "W415 (#477): the same neuron with the h current blocked (both conductances 0), the source's c.mu26_blocked and run_2d_bifurcation.auto. The applied current is continued from rest through the rheobase fold (0.0658 pA; a saddle-node on an invariant circle, by the source's notes), the second fold (-79.06 pA) and the Hopf point (13.2657 pA), then the cycles up to their fold (99.9986 pA) and down to the rheobase fold (to_snic, W423; the source's run_bifurcation_blocked_extend.auto). Two-parameter loci, as the source's: the Hopf point in (g_h soma, current) and in (g_h dendrite, current) up to g_h 20, and the rheobase fold in (current, g_h soma) through its cusp (1.0811 pA). The folds of cycles in g_h (lpc_soma, lpc_dend) are skipped for their cost, with AUTO-07p's reference (W423; Par Min -0.001: the start is at g_h -2e-7, which the script's RL0=0 stops at). DSMAX as in ode_mu26_control; the cusp is labelled by AUTO-07p at DSMAX 0.5 and 0.25 and by xppautX at 1, 0.5, 0.25 and 0.1, AUTO-07p's location gives up at 1, and at 0.1 neither reaches it within 45 points (docs/auto-references.md W423).",
+  "reason": "W415 (#477): the same neuron with the h current blocked (both conductances 0), the source's c.mu26_blocked and run_2d_bifurcation.auto. The applied current is continued from rest through the rheobase fold (0.0658 pA; a saddle-node on an invariant circle, by the source's notes), the second fold (-79.06 pA) and the Hopf point (13.2657 pA), then the cycles up to their fold (99.9986 pA) and down to the rheobase fold (to_snic, W423; the source's run_bifurcation_blocked_extend.auto). Two-parameter loci, as the source's: the Hopf point in (g_h soma, current) and in (g_h dendrite, current) up to g_h 20, and the rheobase fold in (current, g_h soma) through its cusp (1.0811 pA). The folds of cycles in g_h (lpc_soma, lpc_dend) are checked against AUTO-07p (W436; Par Min -0.001: the start is at g_h -2e-7, which the script's RL0=0 stops at). DSMAX as in ode_mu26_control; the cusp is labelled by AUTO-07p at DSMAX 0.5 and 0.25 and by xppautX at 1, 0.5, 0.25 and 0.1, AUTO-07p's location gives up at 1, and at 0.1 neither reaches it within 45 points (docs/auto-references.md W423).",
   "parameters": {
     "SmIapp": 0.0,
     "SmHxgMax": 0.0,
@@ -190,8 +190,7 @@
         "nmax": 40,
         "parmin": -0.001,
         "parmax": 20
-      },
-      "skip": "W436 (#498): xppautX's fold-of-cycles Newton step costs about 15 times AUTO-07p's (about 14 s a point against 0.9 s at NTST 50, the same 1 or 2 Newton steps a point), so the run passes the driver's 120 s safety limit; traced in docs/auto-references.md, W423"
+      }
     },
     {
       "name": "lpc_dend",
@@ -219,8 +218,7 @@
         "nmax": 40,
         "parmin": -0.001,
         "parmax": 20
-      },
-      "skip": "W436 (#498): xppautX's fold-of-cycles Newton step costs about 15 times AUTO-07p's (about 14 s a point against 0.9 s at NTST 50, the same 1 or 2 Newton steps a point), so the run passes the driver's 120 s safety limit; traced in docs/auto-references.md, W423"
+      }
     }
   ],
   "differences": [
