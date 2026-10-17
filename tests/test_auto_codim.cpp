@@ -52,7 +52,7 @@ int main()
     CHECK(std::abs(coefficient(-1)+2)<1e-5 && enabled);
     CHECK(std::abs(coefficient(0))<1e-8 && enabled);
     u[4]=-1;
-    CHECK(coefficient(1)==0 && !enabled);
+    CHECK(!auto_test_applies(coefficient(1)) && !enabled);
     xpp::AutoSettingsSet set;
     set.special_points.fill(false);
     std::string why;
@@ -97,7 +97,7 @@ int main()
     multipliers[2].r=-.9;
     CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)<0 && enabled);
     multipliers[2].i=.5;
-    CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)==0 && !enabled);
+    CHECK(!auto_test_applies(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)) && !enabled);
     // W405: a real imposed multiplier goes next to the neutral one alone; at the
     // 1:2 resonance roundoff splits the double -1 into a conjugate pair, which
     // goes there whole and is still tested (AUTO-07p's test gives 0 there, a
@@ -113,20 +113,42 @@ int main()
     // A torus curve's 1:1 resonance is its angle 0 modulo 2pi, from either side.
     for (double angle:{-1e-3,1e-3,pi(2.)-1e-3,pi(2.)+1e-3}) CHECK(xpp::auto_torus_near_one_to_one(angle));
     for (double angle:{pi(.5),pi(2./3),pi(1.),pi(4./3),pi(1.5)}) CHECK(!xpp::auto_torus_near_one_to_one(angle));
+    // W419: its equations are singular at 1:1 and 1:2, where sin(theta) = 0.
+    for (double angle:{-1e-3,pi(1.)-1e-3,pi(1.)+1e-3,pi(3.)}) CHECK(xpp::auto_torus_singular(angle));
+    for (double angle:{pi(.5),pi(2./3),pi(4./3),pi(1.5)}) CHECK(!xpp::auto_torus_singular(angle));
     iap.itpst=xpp::AutoPointKind::Torus;
-    for (double root:{0.,.5,2./3,1.}) {
-        par[xpp::auto_unknown::torus_angle]=pi(root)-1e-4;
-        const double before=auto_cycle_test(iap,rap,par.data(),multipliers,&enabled);
-        par[xpp::auto_unknown::torus_angle]=pi(root)+1e-4;
-        CHECK(before*auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)<0 && enabled);
+    const auto torus_test=[&](double angle) {
+        par[xpp::auto_unknown::torus_angle]=angle;
+        return auto_cycle_test(iap,rap,par.data(),multipliers,&enabled);
+    };
+    // W419: every resonance modulo 2pi, past pi and below 0 too, and the kind it labels.
+    const std::array<std::pair<double,xpp::AutoPointKind>,9> roots={{
+        {-.5,xpp::AutoPointKind::Resonance4},{0.,xpp::AutoPointKind::Resonance1},
+        {.5,xpp::AutoPointKind::Resonance4},{2./3,xpp::AutoPointKind::Resonance3},
+        {1.,xpp::AutoPointKind::Resonance2},{4./3,xpp::AutoPointKind::Resonance3},
+        {1.5,xpp::AutoPointKind::Resonance4},{2.,xpp::AutoPointKind::Resonance1},
+        {3.,xpp::AutoPointKind::Resonance2}}};
+    for (const auto &[root,kind]:roots) {
+        const double before=torus_test(pi(root)-1e-4);
+        CHECK(before*torus_test(pi(root)+1e-4)<0 && enabled);
+        CHECK(xpp::auto_cycle_resonance_kind(iap.itpst,pi(root)+1e-4)==kind);
     }
+    // From 0 to pi the test is AUTO-07p's polynomial, bit for bit.
+    for (double angle:{1e-3,.7,pi(.5)+.1,2.5,pi(1.)})
+        CHECK(torus_test(angle)==angle*(angle-pi(.5))*(angle-pi(2./3))*(angle-pi(1.)));
     // A disabled root is removed, so it cannot hide a later enabled root.
     const auto r4=std::find(xpp::auto_codim_kinds.begin(),xpp::auto_codim_kinds.end(),xpp::AutoPointKind::Resonance4);
     reaction_session.auto_state.special_points[static_cast<std::size_t>(r4-xpp::auto_codim_kinds.begin())]=false;
     par[xpp::auto_unknown::torus_angle]=pi(.5);
     CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)!=0 && enabled);
+    // Without 1:1 and 1:2 the folded angle's turns at 0 and pi change no sign.
+    for (auto kind:{xpp::AutoPointKind::Resonance1,xpp::AutoPointKind::Resonance2})
+        reaction_session.auto_state.special_points[static_cast<std::size_t>(
+            std::find(xpp::auto_codim_kinds.begin(),xpp::auto_codim_kinds.end(),kind)-xpp::auto_codim_kinds.begin())]=false;
+    for (double turn:{0.,1.,2.,3.})
+        CHECK(torus_test(pi(turn)-1e-4)*torus_test(pi(turn)+1e-4)>0 && enabled);
     reaction_session.auto_state.special_points.fill(false);
-    CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)==0 && !enabled);
+    CHECK(!auto_test_applies(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)) && !enabled);
     // A mixed augmented pencil with exact original multipliers {1,-1,-2}.
     // P1's last columns have full rank only after selecting different rows.
     reaction_lib.codim.prepare_cycle(6,3);

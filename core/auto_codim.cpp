@@ -20,16 +20,37 @@ double imposed_multiplier(xpp::AutoPointKind start)
     return start==xpp::AutoPointKind::PeriodicFold ? 1. : -1.;
 }
 
+// The continued angle modulo 2*pi, folded into [0, pi] (exactly the angle
+// there): exp(+-i*theta) is the same pair at theta and at 2*pi - theta.
+double folded_angle(double angle)
+{
+    return std::abs(std::remainder(angle,pi(2.)));
+}
+
+// W419 (#481): AUTO-07p's polynomial theta*(theta-pi/2)*(theta-2pi/3)*(theta-pi)
+// sees 0 to pi only (docs/auto07p-findings.md 5). It is taken of the folded
+// angle, which turns back at 0 and pi, so the test meets every resonance
+// modulo 2*pi; its sign flips where the fold turns at a resonance it tests
+// (0 for 1:1, pi for 1:2), so the curve crossing one there still changes it.
+// From 0 to pi it is AUTO-07p's value, bit for bit.
 double resonance_test(const std::array<bool,xpp::auto_codim_kinds.size()> &enabled, double angle, logical *changed)
 {
+    int turns=0; // the nearest whole number of turns, its low bits (remquo)
+    const double wrapped=std::remquo(angle,pi(2.),&turns);
+    const double folded=std::abs(wrapped);
     double test=1.;
     *changed=FALSE_;
     for (std::size_t i=0;i<resonance_angles.size();++i)
         if (xpp::auto_codim_enabled(enabled,resonance_kinds[i])) {
-            test*=angle-pi(resonance_angles[i]);
+            test*=folded-pi(resonance_angles[i]);
             *changed=TRUE_;
         }
-    return *changed ? test : 0.;
+    if (!*changed) return auto_test_not_applicable;
+    // Turns at 0 passed: one fewer while the angle is below its nearest turn.
+    int flips=0;
+    if (xpp::auto_codim_enabled(enabled,xpp::AutoPointKind::Resonance1)) flips+=turns-(wrapped<0);
+    if (xpp::auto_codim_enabled(enabled,xpp::AutoPointKind::Resonance2)) flips+=turns;
+    return flips%2 ? -test : test;
 }
 
 }
@@ -65,18 +86,25 @@ AutoPointKind auto_map_secondary_kind(AutoPointKind start, double angle, double 
 
 bool auto_torus_near_one_to_one(double angle)
 {
-    const double folded=std::abs(std::remainder(angle,pi(2.)));
-    return auto_cycle_resonance_kind(AutoPointKind::Torus,folded)==AutoPointKind::Resonance1;
+    return auto_cycle_resonance_kind(AutoPointKind::Torus,angle)==AutoPointKind::Resonance1;
+}
+
+bool auto_torus_singular(double angle)
+{
+    const auto kind=auto_cycle_resonance_kind(AutoPointKind::Torus,angle);
+    return kind==AutoPointKind::Resonance1 || kind==AutoPointKind::Resonance2;
 }
 
 AutoPointKind auto_cycle_resonance_kind(AutoPointKind start, double angle)
 {
     if (start==AutoPointKind::Fold || start==AutoPointKind::PeriodicFold) return AutoPointKind::Resonance1;
     if (start==AutoPointKind::PeriodDoubling) return AutoPointKind::Resonance2;
-    // The torus formulation continues theta, rather than atan2's folded angle.
+    // The torus formulation continues theta unwrapped: its resonances are
+    // those of theta modulo 2*pi (W419).
+    const double folded=folded_angle(angle);
     std::size_t nearest=0;
     for (std::size_t i=1;i<resonance_angles.size();++i)
-        if (std::abs(angle-pi(resonance_angles[i]))<std::abs(angle-pi(resonance_angles[nearest]))) nearest=i;
+        if (std::abs(folded-pi(resonance_angles[i]))<std::abs(folded-pi(resonance_angles[nearest]))) nearest=i;
     return resonance_kinds[nearest];
 }
 }
@@ -260,10 +288,10 @@ double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *p
         return resonance_test(enabled,angle,changed);
     }
     *changed=xpp::auto_codim_enabled(enabled,kind);
-    if (!*changed) return 0;
+    if (!*changed) return auto_test_not_applicable;
     if (start!=xpp::AutoPointKind::PeriodicFold && start!=xpp::AutoPointKind::PeriodDoubling) {
         *changed=FALSE_;
-        return 0;
+        return auto_test_not_applicable;
     }
     // spectrum[0] is the neutral multiplier; [1] is the curve's imposed
     // +1/-1, or one of the conjugate pair it splits into with [2] at the
@@ -273,7 +301,7 @@ double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *p
     const auto &fixed=spectrum[1], &remaining=spectrum[2];
     *changed=*changed && std::abs(remaining.i)<std::sqrt(std::sqrt(rap.epss)) &&
         imposed*remaining.r>0 && xpp::math::hypot(fixed.r-imposed,fixed.i)<imposed_multiplier_tolerance;
-    return *changed ? xpp::math::hypot(remaining.r,remaining.i)-1 : 0;
+    return *changed ? xpp::math::hypot(remaining.r,remaining.i)-1 : auto_test_not_applicable;
 }
 
 // The tests read dfdu as solvae left it, the converged point's Jacobian (W421).
@@ -298,7 +326,7 @@ FNCS_TYPE_AE(fncpae)
 FNCS_TYPE_AE(fnghae)
 {
     *chng=u[2*iap->ndm]>0 && iap->itp.kind!=xpp::AutoPointKind::BogdanovTakens;
-    if (!*chng) return 0;
+    if (!*chng) return auto_test_not_applicable;
     const double coefficient=lyapunov(*iap,*rap,par,icp,u,dfdu,iap->ndim);
     if (iap->iid>=2) xpp::print(iap->lib->fp9,"GH first Lyapunov coefficient: {:.9E}\n",coefficient);
     return coefficient;

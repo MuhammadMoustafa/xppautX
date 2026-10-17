@@ -3,6 +3,8 @@
 /* AUTO's own API between its files (autlib1-3/5, conpar2,
    setubv2) and the AUTO front end (gogoauto, auto_nox, autevd). */
 #include <stdio.h>
+#include <cmath>
+#include <limits>
 #include <vector>
 #include <span>
 #include <functional>
@@ -130,6 +132,13 @@ typedef struct {
 /*This is the type for all functions which can be used to detect
   special points for BVPS */
 #define FNCS_TYPE_BVP(X) doublereal X(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks)
+
+/* W419 (#481): what a test function returns where its test does not apply
+   at a point (a Floquet test on a planar orbit, an inaccurate trivial
+   multiplier, no Hopf pair, a resonance test with every kind disabled):
+   no value, never a zero. A location neither starts from it nor stops on it. */
+inline constexpr doublereal auto_test_not_applicable = std::numeric_limits<doublereal>::quiet_NaN();
+inline bool auto_test_applies(doublereal value) { return !std::isnan(value); }
 
 #define AUTOAE 0
 #define AUTOBV 1

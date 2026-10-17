@@ -168,9 +168,11 @@ double location_tolerance(const rap_type &rap) {
 
 // AUTO-07p LCSPAE ae.f90:679-698 / LCSPBV bvp.f90:1309-1329:
 // coincident bifurcations keep the first label, except that they override UZ.
+// A test that does not apply at either point brackets nothing (W419).
 bool location_sign_change(iap_type &iap, const rap_type &rap,
                           double q0, double &q1, double dstest,
                           bool enabled, bool user_zero) {
+  if (!auto_test_applies(q0) || !auto_test_applies(q1)) return false;
   if (iap.itp.kind != xpp::AutoPointKind::Regular &&
       std::abs(auto_hmach1 * q1 * dstest) < location_tolerance(rap) * std::abs(q0 - q1)) {
     if (iap.itp.kind == xpp::AutoPointKind::UserZero && enabled && !user_zero)
@@ -182,9 +184,11 @@ bool location_sign_change(iap_type &iap, const rap_type &rap,
 
 // W405 (#467): a torus curve's own equations are singular at its 1:1
 // resonance (the pair meets the trivial multiplier of a cycle, or the fold
-// branch of a map): the solution there is not isolated and Newton does not
-// converge to it. A location of a zero there aims half its tolerance short
-// of it, so it ends on a converged point within that tolerance.
+// branch of a map), and at its 1:2 (W419): where sin(theta) = 0 the
+// equations of the pair's real and imaginary parts decouple. The solution
+// there is not isolated and Newton does not converge to it. A location of a
+// zero there aims half its tolerance short of it, so it ends on a converged
+// point within that tolerance.
 double location_step(const rap_type &rap, double rds, bool singular) {
   return singular ? rds - std::copysign(location_tolerance(rap) / 2, rds) : rds;
 }
@@ -1657,7 +1661,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
       {f, n}, {dfdu, n * n}, {dfdp, n * np}});
 
   const bool singular = iap->itpst == xpp::AutoPointKind::Torus &&
-      xpp::auto_torus_near_one_to_one(u[2 * iap->ndm]);
+      xpp::auto_torus_singular(u[2 * iap->ndm]);
 
   /* Use the secant method for the first step: */
 
@@ -1712,6 +1716,8 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
   *q = (*fncs)(iap, rap, par, icp, &chng, funi, m1aaloc, 
 	       aa, rlcur, rlold, rldot, u, uold, udot,
 	       rhs, dfdu, dfdp, marks);
+  // W419: an iterate where the test does not apply is no zero: give the point up.
+  if (!auto_test_applies(*q)) goto L2;
   ++itlcsp;
   if (itlcsp <= itmx) {
     // AUTO-07p LCSPAE ae.f90:743 / LCSPBV bvp.f90:1414:
@@ -1955,7 +1961,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   }
 
   // One order-independent choice supplies both the Hopf test and period.
-  rev = 0.;
+  rev = auto_test_not_applicable;
   const auto pair = xpp::auto_hopf_pair({ev.data(),static_cast<size_t>(ndm)},axis_tolerance);
   if (pair) {
     rev = pair->r;
@@ -1987,21 +1993,21 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     std::stable_sort(ev.begin(),ev.begin()+ndm,[](const auto &a,const auto &b) { return std::abs(a.r)<std::abs(b.r); });
     nins1=forced;
     for (i=forced;i<ndm;++i) if (ev[i].r<=axis_tolerance) ++nins1;
-    ret_val=ndm>forced ? ev[forced].r : 0.;
+    ret_val=ndm>forced ? ev[forced].r : auto_test_not_applicable;
     if (map) {
       std::optional<doublecomplex> selected;
       for (i=forced;i<ndm;++i)
         if ((forced || ev[i].i!=0.) && (!selected || std::abs(ev[i].r)<std::abs(selected->r))) selected=ev[i];
       auto &kind=iap->lib->codim.map_kind;
       kind=selected ? xpp::auto_map_secondary_kind(isw==2 ? iap->itpst : xpp::AutoPointKind::Regular,std::abs(selected->i),rap->epss) : xpp::AutoPointKind::Regular;
-      ret_val=selected ? selected->r : 0.;
+      ret_val=selected ? selected->r : auto_test_not_applicable;
       *chng=nins1!=iap->nins && kind!=xpp::AutoPointKind::Regular && iap->isp!=0 &&
           (isw!=2 || xpp::auto_codim_enabled(iap->lib->session->auto_state.special_points,kind));
       if (isw!=2 && selected && kind==xpp::AutoPointKind::Torus)
         par[xpp::auto_unknown::period]=pi(2.)/std::abs(selected->i);
     }
   } else {
-    ret_val = isw==2 ? 0. : rev;
+    ret_val = isw==2 ? auto_test_not_applicable : rev;
   }
   if (!map) {
     nins = iap->nins;
@@ -2011,7 +2017,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     if (f2c::abs(nins1 - nins) >= required_change) *chng = TRUE_;
     if (isw==2 && (iap->isp==0 || iap->isp==3 ||
         !xpp::auto_codim_enabled(iap->lib->session->auto_state.special_points,xpp::AutoPointKind::ZeroHopf) ||
-        iap->itp.kind==xpp::AutoPointKind::BogdanovTakens)) { *chng=FALSE_; ret_val=0.; }
+        iap->itp.kind==xpp::AutoPointKind::BogdanovTakens)) { *chng=FALSE_; ret_val=auto_test_not_applicable; }
   }
   nins = nins1;
   iap->nins = nins;
@@ -5637,7 +5643,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   const std::vector<doublecomplex> saved_ev(ev, ev + n);
 
   const bool singular = iap->isw == 2 && iap->itpst == xpp::AutoPointKind::Torus &&
-      xpp::auto_torus_near_one_to_one(par[xpp::auto_unknown::torus_angle]);
+      xpp::auto_torus_singular(par[xpp::auto_unknown::torus_angle]);
 
   /* Use the secant method for the first step: */
 
@@ -5696,6 +5702,8 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 	       ev, rlcur, rlold, rldot, ndxloc, ups, uoldps, 
 	       udotps, upoldp, fa, fc, dups, tm, dtm, thl, thu, marks)
     ;
+  // W419: an iterate where the test does not apply is no zero: give the point up.
+  if (!auto_test_applies(*q)) goto L2;
 
   ++nitsp1;
   if (nitsp1 <= itmx) {
@@ -5845,7 +5853,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
       if (half != 0) ret_val /= 4 * half * half;
     }
   } else {
-    ret_val = 0.;
+    ret_val = auto_test_not_applicable;
     *chng = FALSE_;
   }
 
@@ -5893,10 +5901,10 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ntot = iap->ntot;
   ntop = ntot + 1;
 
-  /* Initialize. */
+  /* Initialize: until a test below applies, none does. */
 
-  ret_val = 0.;
-  d = 0.;
+  ret_val = auto_test_not_applicable;
+  d = ret_val;
   *chng = FALSE_;
 
 /*  Compute the Floquet multipliers */
@@ -5997,13 +6005,13 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   // TPSPBV periodic.f90:2136-2140: no PD/TR in planar flows.
   if (iap->ndm <= 2) {
-    d = 0.;
+    d = auto_test_not_applicable;
     ret_val = d;
   } else {
     if (isp == 2) {
       if (d_imag(&ev[1]) == 0. && ev[1].r > 0.) {
 	/*            *Ignore if second multiplier is real positive */
-	d = 0.;
+	d = auto_test_not_applicable;
       } else {
 	d = z_abs(&ev[1]) - 1.;
       }

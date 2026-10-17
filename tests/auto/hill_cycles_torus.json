@@ -131,6 +131,22 @@
       "type": "R3",
       "index": 1,
       "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "R3",
+      "index": 2,
+      "cause": "W419 (#481), deliberate: AUTO-07p's resonance test sees the torus angle from 0 to pi only (docs/auto07p-findings.md 5), ours sees it modulo 2*pi (docs/auto-references.md, W419). After the BP near the 1:2 endpoint the curve returns with the angle 2*pi*sqrt(d) > pi: R3 at 4*pi/3, d about 4/9 again (closed form for q = 0; q = 0.1 moves it a little)."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "R3",
+      "index": 2,
+      "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71. W419 (#481): ours labels this resonance past pi or below 0."
     }
   ]
 }

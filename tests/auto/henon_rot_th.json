@@ -1,0 +1,133 @@
+{
+  "model": "tools/models/henon_rot.odex",
+  "reason": "W419 (#481): the rotation's torus curve of the Henon-with-rotation map, from its torus point at beta = 1.8 (alpha = 1.5, th = 1), continued in th and beta. On the line beta = 2*alpha - 1.2 the rotation's pair is exactly exp(+-i*th), so the curve is beta = 1.8 and its continued angle is th, which passes pi: R3 at th = 2pi/3 and 4pi/3, R2 at pi, R4 at 3pi/2, before parmax 6 keeps it from the singular 1:1 resonance at 2pi. AUTO-07p's resonance test sees 0 to pi only (docs/auto07p-findings.md 5) and labels the first two.",
+  "parameters": {
+    "alpha": 1.5,
+    "beta": 0.0
+  },
+  "initial_conditions": {
+    "x": 0.8228756555322954,
+    "y": 0.8228756555322954,
+    "u": 0.0,
+    "v": 0.0
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "beta",
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 0.0005,
+        "dsmax": 0.1,
+        "nmax": 60,
+        "npr": 100,
+        "parmin": -4,
+        "parmax": 4,
+        "ntst": 10,
+        "ncol": 4,
+        "epsl": 1e-06,
+        "epsu": 1e-06,
+        "epss": 0.0001,
+        "mxbf": 0
+      }
+    },
+    {
+      "name": "turn",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "TR",
+        "index": 2
+      },
+      "parameters": [
+        "th",
+        "beta"
+      ],
+      "auto": {
+        "ds": 0.02,
+        "dsmin": 0.0005,
+        "dsmax": 0.1,
+        "nmax": 80,
+        "npr": 100,
+        "parmin": -4,
+        "parmax": 6,
+        "ntst": 10,
+        "ncol": 4,
+        "epsl": 1e-06,
+        "epsu": 1e-06,
+        "epss": 0.0001,
+        "mxbf": 0
+      }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "turn",
+      "side": "ours",
+      "type": "R3",
+      "index": 2,
+      "cause": "W419 (#481), deliberate: AUTO-07p's resonance test sees the torus angle from 0 to pi only (docs/auto07p-findings.md 5), ours sees it modulo 2*pi (docs/auto-references.md, W419). Past pi: R3 at th = 4*pi/3 (closed form; the continued angle is th)."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "turn",
+      "side": "ours",
+      "type": "R4",
+      "index": 2,
+      "cause": "W419 (#481), deliberate: AUTO-07p's resonance test sees the torus angle from 0 to pi only (docs/auto07p-findings.md 5), ours sees it modulo 2*pi (docs/auto-references.md, W419). Past pi: R4 at th = 3*pi/2 (closed form)."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "turn",
+      "side": "ours",
+      "type": "R4",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_2p_hopf sets ISP=0 and ILP=0 (auto_nox.c:2634-2636), disabling strong-resonance detection on the map's torus curve; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "turn",
+      "side": "ours",
+      "type": "R3",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_2p_hopf sets ISP=0 and ILP=0 (auto_nox.c:2634-2636), disabling strong-resonance detection on the map's torus curve; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "turn",
+      "side": "ours",
+      "type": "R2",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_2p_hopf sets ISP=0 and ILP=0 (auto_nox.c:2634-2636), disabling strong-resonance detection on the map's torus curve; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "turn",
+      "side": "ours",
+      "type": "BP",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_2p_hopf sets ISP=0 and ILP=0 (auto_nox.c:2634-2636), so its map torus curve does not label this branch point; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "turn",
+      "side": "ours",
+      "type": "R3",
+      "index": 2,
+      "cause": "XPPAUT 8.0 auto_2p_hopf sets ISP=0 and ILP=0 (auto_nox.c:2634-2636), disabling strong-resonance detection on the map's torus curve; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "turn",
+      "side": "ours",
+      "type": "R4",
+      "index": 2,
+      "cause": "XPPAUT 8.0 auto_2p_hopf sets ISP=0 and ILP=0 (auto_nox.c:2634-2636), disabling strong-resonance detection on the map's torus curve; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    }
+  ]
+}

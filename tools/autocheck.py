@@ -2638,6 +2638,21 @@ def section_codim():
                     if kind in exact:
                         check('map codim: ' + direction + ' ' + kind + ' closed-form place',
                               abs(float(rows[index]['continued_parameter'])-exact[kind])<3e-4)
+    # W419: torus angles past pi and below 0, every resonance at its closed form's angle modulo 2*pi.
+    # henon_rot_th continues the rotation's angle th itself; res_cycles' is 2*pi*(1-sqrt(2*w)), w = -c-mu, mu = 1/2.
+    folded = {'R1': 0., 'R2': math.pi, 'R3': 2 * math.pi / 3, 'R4': math.pi / 2}
+    for name, angle, expected in (
+            ('henon_rot_th', lambda r: float(r['continued_parameter']), {'turn': ['R4', 'R3', 'R2', 'R3', 'R4']}),
+            ('res_cycles', lambda r: 2 * math.pi * (1 - math.sqrt(2 * (-float(r['continued_parameter']) - .5))),
+             {'torus_down': ['R1', 'R4', 'R3', 'R2', 'R3'], 'torus_up': ['R4', 'R3', 'R2', 'R3', 'R4']})):
+        data, _, _, intervals = compute(args.server, read_description(BASE / (name + '.json')), 1)
+        runs = autocompare.stored_rows(data, intervals)
+        for run, kinds in expected.items():
+            labels = [(kind, angle(runs[run][index])) for kind, index in autocompare.labelled(runs[run], 'two_parameter')
+                      if kind in folded]
+            check('torus past pi: %s/%s labels %s at their angles' % (name, run, ' '.join(kinds)),
+                  [kind for kind, _ in labels] == kinds and
+                  all(abs(abs(math.remainder(a, 2 * math.pi)) - folded[kind]) < 1e-3 for kind, a in labels))
     # A disabled map kind leaves the curve and the other tests active; all
     # settings and typed point codes survive a session round trip.
     maps = read_description(BASE / 'henon_rot_tr.json')

@@ -15,10 +15,13 @@ struct AutoCodim {
     void prepare_cycle(std::size_t dimension, std::size_t original);
 };
 AutoPointKind auto_map_secondary_kind(AutoPointKind start, double angle, double tolerance);
-// The nearest strong resonance of the continued (unwrapped) Floquet angle.
+// The nearest strong resonance of the continued Floquet angle, taken modulo 2*pi.
 AutoPointKind auto_cycle_resonance_kind(AutoPointKind start, double angle);
 // Whether a torus curve's angle, taken modulo 2*pi, is nearest its 1:1 resonance.
 bool auto_torus_near_one_to_one(double angle);
+// Whether it is nearest its 1:1 or 1:2 resonance, where sin(theta) = 0 and the
+// torus equations are singular (W405, W419).
+bool auto_torus_singular(double angle);
 
 }
 #endif

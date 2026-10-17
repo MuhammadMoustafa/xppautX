@@ -199,7 +199,14 @@ and reaches R1 at w = 0 (theta = 2 pi). AUTO-07p's curve passes through the firs
 changing sign there. xppautX's test has the same angles (auto_codim.cpp `resonance_angles`), so it matches
 AUTO-07p's labels; testing the angle modulo 2 pi would label all three, as the closed form says.
 
-**Card:** [W405 / #467](https://github.com/MuhammadMoustafa/xppautX/issues/467) (found; the test is unchanged).
+**Card:** [W405 / #467](https://github.com/MuhammadMoustafa/xppautX/issues/467) (found);
+[W419 / #481](https://github.com/MuhammadMoustafa/xppautX/issues/481) (what xppautX does now): the test is AUTO-07p's
+polynomial of the angle taken modulo 2 pi and folded into 0 to pi, its sign flipped where the fold turns at a resonance
+it tests (0 for 1:1, pi for 1:2), so from 0 to pi it is AUTO-07p's bit for bit and past pi it changes sign at every
+resonance. torus_up labels R3 at c = -0.555556 and R4 at -0.531250, torus_down R4, R3, R2 and R3 past 0, and
+tests/auto/henon_rot_th.json, a map's torus curve whose angle is a parameter, R3 at 4 pi/3 and R4 at 3 pi/2: each at
+the closed form's place (`autocheck codim`), a traced difference from AUTO-07p (docs/auto-references.md, W419). At
+b = 0 the BP keeps the label of the coincident R1.
 
 ## 6. A fold or flip curve's resonance test gives 0 when its double multiplier splits
 
@@ -221,4 +228,12 @@ resonance. When the split pair stands for the imposed multiplier and its modulus
 conjugate pair is the square root of its product, which roundoff does not split), the location goes on to
 `|mu| = 1`: b0 = 2.5702266, with -1.0000001 +- 3.9e-5 i (xppautX since W405).
 
-**Card:** [W405 / #467](https://github.com/MuhammadMoustafa/xppautX/issues/467).
+The same 0 stands for "does not apply" in every test that has a case where it does not (the Hopf test with no
+complex pair, the Floquet test of a planar orbit or with an inaccurate trivial multiplier, a resonance test with
+every kind switched off, the branch-point test of a singular P1), and any of them can end a location as converged
+at an iterate where it does not apply. xppautX since W419 returns a named value there, not a number, and a location
+neither starts from it nor stops on it: one that meets it gives the point up, as after a solve that does not
+converge (docs/auto-references.md, W419).
+
+**Card:** [W405 / #467](https://github.com/MuhammadMoustafa/xppautX/issues/467),
+[W419 / #481](https://github.com/MuhammadMoustafa/xppautX/issues/481).
