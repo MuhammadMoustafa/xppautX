@@ -1509,6 +1509,11 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     rdrlm = f2c::abs(drlm) / (f2c::abs(rlcur[0]) + 1.);
     rdumx = dumx / (umx + 1.);
     if (rdrlm <= epsl && rdumx <= epsu) {
+      /* W421: the test functions read the Jacobian of the converged point,
+         as AUTO-07p's SOLVAE recomputes it (ae.f90), not the last iterate's */
+      par[icp[0]] = rlcur[0];
+      (*funi)(iap, rap, ndim, u, uold, icp, par, 2, f, dfdu, dfdp);
+      if (jacobian_failed(iap)) goto L5;
       pvlsae(iap, rap, u, par);
       if (!xpp::all_finite({par, static_cast<size_t>(iap->lib->parameter_count)})) {
         nonfinite = true;
@@ -1828,9 +1833,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   ntot = iap->ntot;
   ntop = ntot + 1;
 
-  par[icp[0]] = rlcur[0];
-  (*funi)(iap, rap, ndim, u, uold, icp, par, 2,
-	  rhs, dfdu, dfdp);
+  /* dfdu and dfdp are the converged point's: solvae computed them (W421) */
   for (i = 0; i < ndim; ++i) {
     ARRAY2D(aa, i, ndim) = dfdp[(icp[0]) * ndim + i];
     for (k = 0; k < ndim; ++k) {
@@ -1913,10 +1916,12 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   const bool codim_curve=ips==xpp::AutoProblem::SteadyState && isw==2 &&
       (iap->itpst==xpp::AutoPointKind::Fold ||
        (iap->itpst==xpp::AutoPointKind::Hopf && ndim==2*ndm+2));
-  // EISPACK overwrites dfdu: inspect the original Jacobian first.
   const double axis_tolerance = xpp::auto_hopf_axis_tolerance(
       xpp::Matrix<const double>({dfdu,static_cast<size_t>(ndim*ndm)},ndim,ndm),ndm);
-  xpp::eig(iap, &ndm, &ndim, dfdu, ev.data(), &ier);
+  // EISPACK overwrites its matrix: dfdu stays the converged point's Jacobian
+  // for the tests after this one and stbif (W421; AUTO-07p PVLSAE's copy).
+  std::vector<doublereal> jacobian(dfdu, dfdu + static_cast<size_t>(ndim*ndm));
+  xpp::eig(iap, &ndm, &ndim, jacobian.data(), ev.data(), &ier);
   if (ips == xpp::AutoProblem::DiscreteMap) {
     for (i = 0; i < ndm; ++i) {
       if (ev[i].r != -1. || d_imag(&ev[i]) != 0.) {

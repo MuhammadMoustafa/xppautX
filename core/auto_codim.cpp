@@ -276,9 +276,9 @@ double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *p
     return *changed ? xpp::math::hypot(remaining.r,remaining.i)-1 : 0;
 }
 
+// The tests read dfdu as solvae left it, the converged point's Jacobian (W421).
 FNCS_TYPE_AE(fnbtae)
 {
-    (*funi)(iap,rap,iap->ndim,u,uold,icp,par,2,rhs,dfdu,dfdp);
     *chng=TRUE_;
     if (iap->itpst==xpp::AutoPointKind::Hopf) return u[2*iap->ndm];
     left_null(*iap,dfdu,iap->ndim);
@@ -287,7 +287,6 @@ FNCS_TYPE_AE(fnbtae)
 
 FNCS_TYPE_AE(fncpae)
 {
-    (*funi)(iap,rap,iap->ndim,u,uold,icp,par,2,rhs,dfdu,dfdp);
     *chng=TRUE_;
     left_null(*iap,dfdu,iap->ndim);
     auto &w=iap->lib->codim;
@@ -298,7 +297,6 @@ FNCS_TYPE_AE(fncpae)
 
 FNCS_TYPE_AE(fnghae)
 {
-    (*funi)(iap,rap,iap->ndim,u,uold,icp,par,2,rhs,dfdu,dfdp);
     *chng=u[2*iap->ndm]>0 && iap->itp.kind!=xpp::AutoPointKind::BogdanovTakens;
     if (!*chng) return 0;
     const double coefficient=lyapunov(*iap,*rap,par,icp,u,dfdu,iap->ndim);
@@ -318,7 +316,6 @@ FNCS_TYPE_AE(fnrnae)
     }
     w.map_kind=xpp::auto_cycle_resonance_kind(iap->itpst,0.);
     *chng=xpp::auto_codim_enabled(iap->lib->session->auto_state.special_points,w.map_kind);
-    (*funi)(iap,rap,iap->ndim,u,uold,icp,par,2,rhs,dfdu,dfdp);
     left_null(*iap,dfdu,iap->ndim);
     return dot({u+iap->ndm,static_cast<size_t>(iap->ndm)},w.left);
 }

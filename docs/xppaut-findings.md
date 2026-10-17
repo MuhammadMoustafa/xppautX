@@ -1542,8 +1542,13 @@ xppautX inherits the call (`core/autlib1.cpp` `solvae`): it locates this point, 
 function depends on the step. The real part of the Hopf pair of Mu26's control condition moves 6e-4 per pA at its
 Hopf point; with DSMAX 0.3, 0.4, 0.5 and 0.7 xppautX's point is 5e-5 to 1.3e-4 pA from the root (its Hopf function
 there -7.9e-8, the last update's size), with 0.6, 0.8 and 1 within 2e-7, while AUTO-07p's is within 1.5e-7 of
-13.2654735 at every DSMAX and its function is 8e-13 there (docs/auto-references.md, "W415"). The fix is the same
-evaluation as AUTO-07p's; it changes the last digits of the stored eigenvalues of every AUTO baseline, so it is a
-card of its own.
+13.2654735 at every DSMAX and its function is 8e-13 there (docs/auto-references.md, "W415").
 
-**Card:** [W415 / #477](https://github.com/MuhammadMoustafa/xppautX/issues/477) (found; not fixed there).
+xppautX now follows AUTO-07p (W421): `solvae` recomputes the Jacobian at the converged point, and the fold, Hopf,
+branch-point data and codimension-two tests read that one; none computes its own, and the Hopf test's eigenvalues
+are taken from a copy, so the matrix stays the converged point's for the tests after it. Mu26's HB is then within
+9.8e-8 pA of itself at DSMAX 0.3 to 1 (13.26547344 to 13.26547354) and Ma23's within 4e-6 pA at DSMAX 0.5 to 3,
+where it moved 2.5e-5 (docs/auto-references.md, "W421").
+
+**Card:** [W415 / #477](https://github.com/MuhammadMoustafa/xppautX/issues/477) found it;
+[W421 / #483](https://github.com/MuhammadMoustafa/xppautX/issues/483) fixed it.

@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- AUTO evaluates an equilibrium's test functions and eigenvalues at the converged point's Jacobian, as AUTO-07p does, not at the last Newton iterate's: a Hopf point's location no longer depends on DSMAX (Mu26's moved by up to 1.3e-4 pA), and the last digits of located points' eigenvalues, periods and parameters change, closer to AUTO-07p's everywhere (W421, [#483](https://github.com/MuhammadMoustafa/xppautX/issues/483)).
+
 - Two research neuron models join the examples and the AUTO tests: `mu26` (the two-compartment PVN parvocellular neuron of Mu26, 28 states, with and without the h current) and `ma23` (the fast-spiking PV interneuron of Ma et al. 2023, 5 states, using Table 1's E_Ca = 68 mV; W424, [#486](https://github.com/MuhammadMoustafa/xppautX/issues/486)). Each integrates exactly as XPPAUT 8.0 does and is continued in the applied current to its Hopf point and cycles, with Mu26's Hopf and rheobase-fold loci in the h conductances, all checked against AUTO-07p (W415, [#477](https://github.com/MuhammadMoustafa/xppautX/issues/477)).
 
 - AUTO locates the 1:1 resonance of a torus curve of cycles or of a map (R1), and the branch point where a torus curve of cycles turns back at it, where the curve's own equations are singular; and a fold or period-doubling curve of cycles locates its R1 or R2 to the end when the double multiplier there has split into a conjugate pair, instead of labelling the first location step (W405, [#467](https://github.com/MuhammadMoustafa/xppautX/issues/467)).

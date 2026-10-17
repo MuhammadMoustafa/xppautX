@@ -226,25 +226,25 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | explicit_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.2e-08, par2 2.4e-15, norm 1.8e-08) | not run |
 | forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 1.2e-08, par2 4e-09, norm 2.4e-09, period 2e-14, spectrum 9e-05; curve par 0.00037, par2 9.8e-06, norm 4.9e-06) | not run |
 | forced_pp_pd | steady: EP HB; cycles: PD; pd_up: R2; pd_down: R2 | agrees (5 points; par 1.8e-06, par2 1.9e-05, norm 1.3e-06, period 2.1e-14, spectrum 4.3e-05; curve par 2.6e-07, par2 1.3e-05, norm 1.4e-06) | not run |
-| henon_rot_lp | steady: EP LP TR PD; up: LTR LPD R1; down: LTR | agrees (8 points; par 8.9e-07, par2 1.5e-06, norm 8e-07, spectrum 3.3e-05; curve par 2e-06, par2 1.1e-06, norm 7.8e-07) | not run |
-| henon_rot_pd | steady: EP PD TR TR; up: PTR R2 PTR; down: LPD PTR PTR | agrees (10 points; par 8.3e-07, par2 6.5e-07, norm 4.6e-07, spectrum 2.7e-05; curve par 3.1e-07, par2 1e-06, norm 7.3e-07) | not run |
-| henon_rot_tr | steady: EP PD TR TR; up: R2 | agrees (5 points; par 1.4e-07, par2 2.2e-10, norm 4.9e-08, spectrum 7.3e-06; curve par 3.2e-05, par2 5.8e-07, norm 1.2e-05) | not run |
+| henon_rot_lp | steady: EP LP TR PD; up: LTR LPD R1; down: LTR | agrees (8 points; par 1.4e-09, par2 1.4e-09, norm 1.2e-09, spectrum 1.7e-05; curve par 9.1e-06, par2 2.8e-06, norm 1.9e-06) | not run |
+| henon_rot_pd | steady: EP PD TR TR; up: PTR R2 PTR; down: LPD PTR PTR | agrees (10 points; par 9.8e-09, par2 3.7e-09, norm 2.2e-09, spectrum 1.3e-05; curve par 1.4e-09, par2 6.8e-09, norm 2.9e-09) | not run |
+| henon_rot_tr | steady: EP PD TR TR; up: R2 | agrees (5 points; par 6e-10, par2 4.5e-10, norm 7.7e-11, spectrum 1.3e-05; curve par 7.7e-10, par2 4.5e-09, norm 1.3e-09) | not run |
 | hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 9.3e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07; curve par 2.7e-09, par2 1e-09, norm 8.4e-12) | not run |
 | hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP | agrees (7 points; par 1.2e-10, par2 3.9e-12, norm 7.7e-12, period 2e-11, spectrum 3.5e-06; curve par 1.2e-10, par2 1.9e-08, norm 1.5e-11) | not run |
 | izh_class1_integrator | steady: EP LP | agrees (2 points; par 7.5e-15, norm 4.1e-10, spectrum 2e-08) | agrees (2 points; par 7.5e-15, norm 3.7e-06, spectrum 2e-08) |
-| izh_class2 | steady: EP HB LP | agrees (3 points; par 4.4e-13, norm 3.7e-10, period 1.5e-05, spectrum 4.9e-07) | agrees (3 points; par 7.1e-06, norm 4.7e-06, period 1.6e-10, spectrum 9.3e-09) |
-| izh_resonator | steady: EP HB LP | agrees (3 points; par 2.5e-12, norm 4.5e-10, period 3.9e-05, spectrum 1.6e-07) | agrees (3 points; par 2.1e-05, norm 3.2e-06, period 3.6e-10, spectrum 5.7e-09) |
+| izh_class2 | steady: EP HB LP | agrees (3 points; par 4.4e-13, norm 3.7e-10, period 6.6e-11, spectrum 4.6e-07) | agrees (3 points; par 7.1e-06, norm 4.7e-06, period 1.5e-05, spectrum 4.1e-08) |
+| izh_resonator | steady: EP HB LP | agrees (3 points; par 2.5e-12, norm 4.5e-10, period 3.1e-10, spectrum 2e-07) | agrees (3 points; par 2.1e-05, norm 3.2e-06, period 3.9e-05, spectrum 1.6e-07) |
 | lorenz_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.8e-08, par2 1.4e-08, norm 6.3e-08) | not run |
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
-| ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
-| ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 2.8e-06, norm 2.8e-08, period 3.1e-08, spectrum 1.2e-06) | agrees (4 points; par 1.3e-05, norm 4.7e-06, period 1.6e-08, spectrum 8.4e-08) |
-| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 1.8e-08, par2 8.6e-09, norm 5.3e-06, period 6.6e-08, spectrum 1.1e-06; curve par 0.00018, par2 4.6e-07, norm 6e-09) | not run |
-| ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 5e-08, norm 3.9e-09, period 8.6e-08, spectrum 1.1e-06) | agrees (5 points; par 3.5e-06, norm 4.3e-06, period 2e-08, spectrum 1.3e-07) |
+| ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.4e-10, norm 1.6e-07, period 6.7e-05, spectrum 0.00037) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.5e-06, period 0.0017, spectrum 0.00041) |
+| ode_ma23 | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 3.2e-06, norm 3.2e-08, period 2.3e-08, spectrum 1.1e-06) | not run |
+| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 8.2e-08, par2 2.4e-08, norm 5.9e-07, period 1.3e-08, spectrum 1.1e-06; curve par 0.00017, par2 1.1e-07, norm 5.7e-09) | not run |
+| ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 1.2e-07, norm 3.9e-09, period 1.4e-08, spectrum 1.1e-06) | not run |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | res_cycles | steady: EP HB HB; cycles: TR; torus_down: R1; torus_up: R4 R3 R2 BP | agrees (9 points; par 7.9e-07, par2 7.9e-07, norm 4.6e-07, period 2.2e-11, spectrum 0.0012; curve par 3.2e-07, par2 6.4e-06, norm 3.5e-07) | not run |
 | tstauto_ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
-| tstauto_ab_fold | steady: EP LP; fold: BT CP | agrees, 4 traced (4 points; par 1.3e-06, par2 5.4e-05, norm 8.1e-05, spectrum 0.0006; curve par 3e-05, par2 0.00018, norm 2.5e-05) | not run |
-| tstauto_ab_hopf | steady: EP LP LP HB; hopf_up: -; hopf_down: - | agrees, 3 traced (4 points; par 1.6e-07, norm 9.7e-07, period 3e-05, spectrum 0.00012; curve par 5.2e-06, par2 1.9e-05, norm 6.6e-06) | not run |
+| tstauto_ab_fold | steady: EP LP; fold: BT CP | agrees, 4 traced (4 points; par 5.7e-08, par2 4.6e-06, norm 8.3e-05, spectrum 0.00044; curve par 4.5e-06, par2 0.00018, norm 2e-05) | not run |
+| tstauto_ab_hopf | steady: EP LP LP HB; hopf_up: -; hopf_down: - | agrees, 3 traced (4 points; par 2.2e-12, norm 3.4e-11, period 3.7e-11, spectrum 2.7e-05; curve par 7.6e-09, par2 4.7e-08, norm 2.3e-08) | not run |
 | tstauto_bigaut | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_bistable | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_bob | steady: EP | agrees (1 points; par 0, norm 1.8e-12) | agrees (1 points; par 0, norm 1.4e-08) |
@@ -253,14 +253,14 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | tstauto_dumbvp | boundary: EP | agrees (1 points; par 0, norm 0) | not run |
 | tstauto_eiz-hom | steady: EP | agrees (1 points; par 0, norm 1.2e-13) | agrees (1 points; par 0, norm 2e-09) |
 | tstauto_exp | boundary: EP | agrees (1 points; par 0, norm 0) | not run |
-| tstauto_frcp | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-12, norm 1e-13, period 2.1e-06, spectrum 0.00093) | agrees (2 points; par 5.2e-06, norm 4.6e-08, period 2.5e-12, spectrum 4.1e-06) |
+| tstauto_frcp | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-12, norm 1e-13, period 2.1e-12, spectrum 4e-05) | agrees (2 points; par 5.2e-06, norm 4.6e-08, period 2.1e-06, spectrum 0.00093) |
 | tstauto_lamom | steady: EP HB; cycles: - | agrees (2 points; par 3.4e-18, norm 0, period 2e-11, spectrum 1e-14) | agrees (2 points; par 2.7e-16, norm 0, period 2e-11, spectrum 1e-14) |
 | tstauto_lamom2 | steady: EP HB; cycles: LP | agrees (3 points; par 9.2e-13, norm 5.9e-12, period 2.6e-11, spectrum 3.8e-06) | agrees (3 points; par 6.8e-09, norm 4e-08, period 2.6e-11, spectrum 2.4e-08) |
-| tstauto_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.6e-06, period 0.0017, spectrum 0.0029) | agrees, 1 traced (3 points; par 5.5e-05, norm 4e-08, period 3.5e-09, spectrum 4.7e-08) |
+| tstauto_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.4e-10, norm 1.6e-07, period 6.7e-05, spectrum 0.00037) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.6e-06, period 0.0017, spectrum 0.00041) |
 | tstauto_lo | steady: EP HB; cycles: - | agrees (2 points; par 2.7e-18, norm 0, period 2e-11, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, period 2e-11, spectrum 2.5e-16) |
 | tstauto_pen | steady: EP | agrees (1 points; par 0, norm 3.6e-12) | agrees (1 points; par 0, norm 4.9e-09) |
 | tstauto_pf | steady: EP BP | agrees (2 points; par 2.7e-18, norm 0, spectrum 9.8e-15) | agrees (2 points; par 2.5e-16, norm 0, spectrum 2.2e-16) |
-| tstauto_pp2 | steady: EP HB BP; cycles: LP LP | agrees, 4 traced (3 points; par 1.8e-12, norm 3.3e-12, period 6.3e-11, spectrum 5e-07) | agrees, 1 traced (4 points; par 4.8e-08, norm 4.9e-07, period 2.3e-10, spectrum 2.9e-07) |
+| tstauto_pp2 | steady: EP HB BP; cycles: LP LP | agrees, 4 traced (3 points; par 1.8e-12, norm 3.3e-12, period 6.3e-11, spectrum 4.9e-07) | agrees, 1 traced (4 points; par 4.8e-08, norm 4.9e-07, period 2.3e-10, spectrum 2.9e-07) |
 | tstauto_san | steady: EP BP | agrees (2 points; par 2.4e-12, norm 2.8e-15, spectrum 1.3e-07) | agrees (2 points; par 1.7e-08, norm 4.1e-11, spectrum 1.3e-07) |
 | tstauto_she | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_simplefold | steady: EP LP LP | agrees (3 points; par 4.8e-12, norm 4.5e-11, spectrum 8.6e-11) | agrees (3 points; par 2.1e-08, norm 4.3e-08, spectrum 2.7e-13) |
@@ -268,7 +268,7 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | tstauto_torx_homcont | steady: EP BP; homoclinic: EP LP | agrees (4 points; par 6.9e-12, norm 3.6e-08, spectrum 3.2e-07; curve par 6.5e-06, par2 9.8e-06, norm 3.4e-07) | not run |
 | tstauto_tsthom | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | tstauto_wcbiwave | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
-| zero_hopf | steady: EP LP; fold: ZH | agrees (3 points; par 2.1e-09, par2 1.3e-40, norm 5.8e-17, spectrum 2.1e-09; curve par 7.6e-17, par2 6e-18, norm 3.6e-13) | not run |
+| zero_hopf | steady: EP LP; fold: ZH | agrees (3 points; par 1.7e-18, par2 1.3e-40, norm 5.8e-17, spectrum 7.4e-12; curve par 3.5e-18, par2 2.4e-21, norm 1e-16) | not run |
 
 Rows are the output of `autocompare.py --table`. Cells: `agrees` (every compared quantity inside its tolerance), the
 number of points compared and the largest absolute difference per quantity (`par`, `par2` on curves, `norm`,
@@ -872,7 +872,8 @@ own equations (`tools/auto_reference.py` translates the `.odex`), not from that 
   Newton iterate, as XPPAUT's AUTO2000 does; AUTO-07p's SOLVAE recomputes it at the converged point first
   ([xppaut-findings.md 70](xppaut-findings.md#70-auto-evaluates-the-test-functions-at-the-last-newton-iterates-jacobian)).
   The description uses DSMAX 0.8, where xppautX agrees (5e-8 pA); changing the call changes every AUTO baseline's last
-  digits, so it is a card of its own (proposed in W415's report).
+  digits, so it is a card of its own (proposed in W415's report). W421 made it: within 9.8e-8 pA at every DSMAX
+  ("W421" below).
 - *The second fold of Mu26 at DSMAX 1.* xppautX labels a BP at -78.744 pA and the fold at -79.0566 pA is not labelled;
   AUTO-07p labels neither. Both label the fold from DSMAX 0.8 down. Not traced
   further.
@@ -896,3 +897,56 @@ at 50 and 150 mesh intervals, the period diverging to 25 s), and the extent of t
 The follow-ups are cards: the test functions at the converged Jacobian (finding 70) are W421
 ([#483](https://github.com/MuhammadMoustafa/xppautX/issues/483)); the untraced DSMAX-1 BP and CP, the LPC loci and the
 branches to the SNIC are W423 ([#485](https://github.com/MuhammadMoustafa/xppautX/issues/485)).
+
+## W421: the test functions at the converged point's Jacobian ([#483](https://github.com/MuhammadMoustafa/xppautX/issues/483))
+
+`solvae` now recomputes the Jacobian at the converged point, as AUTO-07p's SOLVAE does ("Recompute Jacobian for test
+functions", ae.f90), and every equilibrium and map test reads that one: the fold test (it computed its own, at the
+same point, so a run with fold detection costs no more), the Hopf test and the eigenvalues stored with the point (they
+read the last Newton iterate's, [finding 70](xppaut-findings.md#70-auto-evaluates-the-test-functions-at-the-last-newton-iterates-jacobian)),
+the codimension-two tests of fold, Hopf and map curves (BT, CP, GH, RN computed their own) and `stbif`'s branch
+direction. The Hopf test takes its eigenvalues from a copy, as AUTO-07p's PVLSAE does: EISPACK overwrote the matrix
+in place, which `stbif` read after a branch point's location (it runs after every test, W356) and GH after the HB
+test. Only automatic branch switching (MXBF other than 0) uses `stbif`'s direction; no description sets it.
+Curves of cycles and boundary-value problems already matched: AUTO-07p's NEWTONBV also takes the fold function from
+a solve with the last iterate's factorization and the multipliers from that iterate's P0 and P1, as `stepbv` does.
+
+**The Hopf point against DSMAX** (the steady runs of `ode_mu26_control` and `ode_ma23`, NMAX raised where the run
+did not reach the point):
+
+| DSMAX | 0.3 | 0.4 | 0.5 | 0.6 | 0.7 | 0.8 | 1.0 |
+|---|---|---|---|---|---|---|---|
+| Mu26, before | 13.265539107 | 13.265526825 | 13.265603538 | 13.265473414 | 13.265532821 | 13.265473550 | 13.265473513 |
+| Mu26, W421 | 13.265473526 | 13.265473439 | 13.265473469 | 13.265473487 | 13.265473516 | 13.265473484 | 13.265473537 |
+
+| DSMAX | 0.5 | 1.0 | 1.5 | 2.0 | 3.0 |
+|---|---|---|---|---|---|
+| Ma23 (E_Ca 130), before | 553.876745993 | 553.876753998 | 553.876751804 | 553.876748995 | 553.876729314 |
+| Ma23 (E_Ca 130), W421 | 553.876729713 | 553.876728607 | 553.876726552 | 553.876730607 | 553.876727617 |
+
+Mu26's spread falls from 1.3e-4 to 9.8e-8 pA (AUTO-07p's 2.2e-7, W415), Ma23's from 2.5e-5 to 4.1e-6 pA (AUTO-07p
+553.87672736 at DSMAX 2), within the location's own tolerance (EPSS relative to the arclength step).
+
+**Baselines.** 16 descriptions change, each at the points the change reaches: the located HB of `izh_class2` and
+`izh_resonator` (its period, spectrum and stability sign; the parameter is the same), of `tstauto_frcp` and of
+`ode_lecar`, `tstauto_lecar`, `ode_ma23`, `ode_mu26_control` and `ode_mu26_blocked` (the location moves, by up to
+1.2e-5 in lecar's current, and the cycles started there follow); the BP point's spectrum of `tstauto_pp2` and
+`tstauto_san` (its last digits); the two-parameter curves of `tstauto_ab_fold` (the fold curve's zero eigenvalue at its
+second point was -2.9e-4, the last iterate's, and is -1.4e-7), `tstauto_ab_hopf`, `zero_hopf` and the Mu26 loci; and
+the map curves of `henon_rot_lp`, `_pd` and `_tr`. The comparison's totals do not change (15188 points, 144 checks).
+
+**Agreement with AUTO-07p**, the largest difference over tolerance in each changed description, before and after:
+henon_rot_lp 0.097, 0.049; henon_rot_pd 0.137, 0.065; henon_rot_tr 0.144, 0.013; izh_class2 0.00114, 0.00108;
+izh_resonator 0.0030, 0.00048; ode_lecar 0.296, 0.00082; ode_ma23 0.282, 0.046; ode_mu26_blocked 0.104, 0.038;
+ode_mu26_control 0.0229, 0.0229; tstauto_ab_fold 0.406, 0.343; tstauto_ab_hopf 0.043, 0.0026; tstauto_frcp 0.024,
+0.0010; tstauto_lecar 0.296, 0.00082; tstauto_pp2 3.45e-4, 3.45e-4; tstauto_san 3.7e-5, 3.7e-5; zero_hopf 5.1e-6,
+8.6e-9. Of the 534 quantities compared, 33 move further, the most `tstauto_ab_fold`'s CP spectrum (0.113 to 0.224 of
+its tolerance) while that point's parameter comes 400 times closer (1.3e-6 to 3.2e-9). Against XPPAUT 8.0, which
+evaluates at the last iterate, Morris-Lecar's HB spectrum moves from 0.12 to 0.29 of its tolerance and frcp's from
+0.011 to 0.024; both still agree. No tolerance was widened.
+
+**Cost**, `tools/auto-profile/profile.py` (callgrind) and `tables.py`, the steady phases: ModelDB 2.03 model Jacobians
+per stored point before and after (then `solvae` 1.0 and the fold test 1.0, now `solvae` 2.0), 3.844 and 3.846 M
+instructions per point; PY_S1Bf 2.01 and 2.01, 0.378 and 0.378 M. Their periodic phases do not change. A run without
+fold detection (ILP 0) builds one Jacobian more per point; a two-parameter curve with BT, CP or GH detection builds
+fewer.

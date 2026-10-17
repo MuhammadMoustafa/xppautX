@@ -37,10 +37,15 @@ int main()
     std::array<double,36> jac{};
     integer stride=7;
     logical enabled;
-    const auto coefficient=[&](double b) {
-        u[5]=b; par[icp[1]]=b;
+    // The test reads the Jacobian solvae computed at the converged point (W421).
+    const auto lyapunov=[&]() {
+        fnhb(&iap,&rap,iap.ndim,u.data(),old.data(),icp.data(),par.data(),2,rhs.data(),jac.data(),dp.data());
         return fnghae(&iap,&rap,par.data(),icp.data(),&enabled,fnhb,&stride,nullptr,
             nullptr,nullptr,nullptr,u.data(),old.data(),nullptr,rhs.data(),jac.data(),dp.data(),{});
+    };
+    const auto coefficient=[&](double b) {
+        u[5]=b; par[icp[1]]=b;
+        return lyapunov();
     };
     // Unit complex eigenvector gives l1=2*b at omega=1 for this normal form.
     CHECK(std::abs(coefficient(1)-2)<1e-5 && enabled);
@@ -74,8 +79,7 @@ int main()
         const double t=item[0], y=(4+t)/3, p1=(4+t)*(1+t)/t;
         u={t/(1+t),y,1,0,2*t-1,p1}; old=u;
         par[icp[0]]=t*xpp::math::exp(-y); par[icp[1]]=p1;
-        const double got=fnghae(&iap,&rap,par.data(),icp.data(),&enabled,fnhb,&stride,nullptr,
-            nullptr,nullptr,nullptr,u.data(),old.data(),nullptr,rhs.data(),jac.data(),dp.data(),{});
+        const double got=lyapunov();
         CHECK(std::abs(got-item[1])<1e-3 && enabled);
     }
     // Independent spectra: fixed neutral/imposed multipliers and a real
