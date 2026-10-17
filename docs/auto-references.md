@@ -214,10 +214,10 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-46 descriptions have an AUTO-07p reference (148 special points compared, and the two-parameter curves) and 27 an
+46 descriptions have an AUTO-07p reference (147 special points compared, and the two-parameter curves) and 27 an
 XPPAUT 8.0 reference (52 points); 27 hold both. Every untraced comparison agrees. AUTO-07p has 12 traced points
 and XPPAUT 8.0 three; the runs a description skips (its reason says why) are neither run nor compared. The whole
-comparison is 58 descriptions, 9 skipped, 15188 stored points across one and automatic threads, 144 checks, zero
+comparison is 58 descriptions, 9 skipped, 15088 stored points across one and automatic threads, 144 checks, zero
 failures. No tolerance was widened. Before W326 there were 44 compared points and six traced points against
 AUTO-07p, and 44 compared points with none traced against XPPAUT.
 
@@ -237,7 +237,7 @@ AUTO-07p, and 44 compared points with none traced against XPPAUT.
 | lorenz_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.8e-08, par2 1.4e-08, norm 6.3e-08) | not run |
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 1.2e-05, norm 1.5e-06, period 0.0017, spectrum 0.0028) | agrees, 1 traced (3 points; par 5.5e-05, norm 4.4e-08, period 5.7e-09, spectrum 4.1e-08) |
-| ode_ma23 | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 2.2e-05, norm 2.1e-07, period 1.9e-07, spectrum 7.1e-06) | not run |
+| ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 2.8e-06, norm 2.8e-08, period 3.1e-08, spectrum 1.2e-06) | not run |
 | ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; hb_soma: -; hb_dend: -; lp_soma: CP | agrees (6 points; par 1.8e-08, par2 8.6e-09, norm 5.3e-06, period 6.6e-08, spectrum 1.1e-06; curve par 0.00018, par2 4.6e-07, norm 6e-09) | not run |
 | ode_mu26_control | steady: EP LP LP HB; cycles: LP | agrees (5 points; par 5e-08, norm 3.9e-09, period 8.6e-08, spectrum 1.1e-06) | not run |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
@@ -824,13 +824,12 @@ baseline and AUTO-07p's reference made by `tools/auto_reference.py`:
 |---|---|---|---|---|
 | ode_mu26_control | `mu26`: the two-compartment PVN parvocellular neuron of Mu26, 28 states, h conductances at the fitted values | steady (current from rest: LP 0.0058, LP -79.06, HB 13.2655 pA), cycles from the HB (LP 99.9966) | agrees | 5 points, 16 quantities |
 | ode_mu26_blocked | the same model, both h conductances 0 | the same, and from the HB the loci in (g_h soma, current) and (g_h dendrite, current), from the first LP the locus in (current, g_h soma) through its cusp | agrees | 6 points and three curves, 29 quantities |
-| ode_ma23 | `ma23`: the fast-spiking PV interneuron of Ma et al. 2023, 5 states | steady (LP 35.06, LP 34.01, HB 553.88 pA), cycles from the HB (LP 520.23, then the stable cycles down to period 149 ms) | agrees | 5 points, 16 quantities |
+| ode_ma23 | `ma23`: the fast-spiking PV interneuron of Ma et al. 2023, 5 states | steady (LP 35.18, LP 34.21, HB 539.22 pA), cycles from the HB (stable cycles down to period 124 ms) | agrees | 4 points, 12 quantities |
 
 The largest differences from AUTO-07p are: Mu26 control, Hopf point 5.1e-8 pA, folds 5e-10 pA, cycles fold 2.3e-11 pA
 and period 1.8e-9; Mu26 blocked, Hopf 1.8e-8 pA, the Hopf loci within 1.9e-4 in g_h (tolerances 0.01 and 0.04), 1.6e-7 in
 current and 6e-9 in norm of the other program's polyline, the fold locus within 1e-6, 2.9e-6 and 4.4e-6 in its three
-coordinates, the cusp 5.2e-9 in current and 8.6e-9 in g_h; Ma23, Hopf 2.2e-5 pA (tolerance 1.7e-4), cycles fold
-4.5e-9 pA. No tolerance was widened.
+coordinates, the cusp 5.2e-9 in current and 8.6e-9 in g_h; Ma23, Hopf 2.8e-6 pA (tolerance 1.7e-4). No tolerance was widened.
 
 **Integration.** `mu26.ode` (backward Euler, DT 0.05, 400 ms, every 10th step stored, 5 pA) and `ma23.ode` (backward
 Euler, DT 0.01, 1000 ms, every 20th step, 200 pA) give XPPAUT 8.0's `-silent` output digit for digit, 801 rows of 29
@@ -854,9 +853,9 @@ E_K -90 and E_Na 50 are identical; E_h -30.001, E_L -74.9596 (soma) and -74.9825
 The model was not changed to hide this. Only parameters were compared, not the Python equations.
 
 **Ma23 against its paper and its AUTO-07p export.** `models/main.ode` of the maintainer's parvocell_model agrees with
-Table 1 and the equations of Ma et al. 2023 (docs/ma2023.md there) except E_Ca: the table lists 68 mV, the `.ode`
-130 mV, which the example keeps and says in its header. `models/Ma2_test_auto07p_export/ma2_test.f90` is not the same
-model: C_m 12 (30), E_leak -58 (-50), E_K -90 (-80), E_Ca 120 (130 in the `.ode`, 68 in the paper), E_Na 50 (58), a
+Table 1 and the equations of Ma et al. 2023 (docs/ma2023.md there) except E_Ca: the table lists 68 mV, the source `.ode`
+export had 130 mV; the model now uses 68 mV as in Table 1 (W424, #486), which its header notes. `models/Ma2_test_auto07p_export/ma2_test.f90` is not the same
+model: C_m 12 (30), E_leak -58 (-50), E_K -90 (-80), E_Ca 120 (68 in the paper, 130 in the export), E_Na 50 (58), a
 different start state and a floor on the calcium of the SK term. The reference is therefore made from the example's
 own equations (`tools/auto_reference.py` translates the `.odex`), not from that file.
 

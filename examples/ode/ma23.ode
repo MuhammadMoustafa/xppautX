@@ -5,8 +5,8 @@
 # Source: the maintainer's parvocell_model/models/main.ode (an XPP export of the model).
 # Citation: Ma et al. 2023, Table 1 and the model equations (the maintainer's transcription
 # is docs/ma2023.md of that repository). The equations and every parameter of Table 1 agree
-# with this file except E_Ca: Table 1 lists 68 mV, this file has 130 mV (ISmCa, as the export
-# has it). The model is kept as exported; a comparison with the paper needs E_Ca = 68.
+# with this file: the file now follows Table 1 in every parameter (E_Ca = 68 mV in ISmCa;
+# the source export had 130 mV).
 # SmStmplti is the applied current in pA (the export's constant step amplitude).
 # tests/auto/ode_ma23.json continues SmStmplti. The run below (backward Euler, as the
 # source, every 20th step stored) holds the model at 200 pA.
@@ -85,7 +85,7 @@ bnSmK1 = SmK1nBtSh * exp(-(SmV - SmK1nBtV0) / SmK1nBtSc)
 rnSmK1 = max(anSmK1 + bnSmK1, 1e-09)
 nInfSmK1 = anSmK1 / rnSmK1
 tnSmK1 = 1 / rnSmK1
-ISmCa = SmCagMax * (1 / (1 + exp((SmV - SmCaVHlfj) / SmCaVSlpe)))^2 * (SmV - 130)
+ISmCa = SmCagMax * (1 / (1 + exp((SmV - SmCaVHlfj) / SmCaVSlpe)))^2 * (SmV - 68)
 ISmSk = SmSkgMax * (((SmSkcaI/SmSkkSk)^SmSkhillN) / (1 + (SmSkcaI/SmSkkSk)^SmSkhillN)) * (SmV - (-80))
 tDurSmSt = (SmStrpttk-1)*(SmStdrtnh + SmStntrvk) + SmStdrtnh
 ISmSt = SmStmplti
