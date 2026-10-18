@@ -310,7 +310,7 @@ def sample():
             pass  # a process that exited during the snapshot cannot compete with the series
     return result
 before, start = sample(), time.monotonic()
-time.sleep(SAMPLE_SECONDS)
+time.sleep(SAMPLE_SECONDS)  # lower bound: the interval each process's CPU rate is measured over, not a wait for a condition
 after, end = sample(), time.monotonic()
 busy = []
 for pid, (ticks, name) in after.items():
