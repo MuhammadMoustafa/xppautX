@@ -16,7 +16,6 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('--ode', default='examples/ode/lecar.odex')
 ap.add_argument('-v', action='store_true')
-ap.add_argument('--only', choices=['diagram'], help='run just the diagram subscription section')
 args = ap.parse_args()
 # XPP_CHECK_SLOW=F multiplies every wait by F (tools/xppclient.py)
 SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
@@ -161,9 +160,6 @@ def check_diagram_subscription():
 
 
 check_diagram_subscription()
-if args.only:
-    print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
-    sys.exit(1 if check.failures else 0)
 
 proc, run, send, collect, events = launch_server()
 

@@ -759,10 +759,10 @@ def compare_references(name, d, data, ranges, refs):
             known = [k for k in d.get('differences', ()) if k['reference'] == suffix and k['run'] == r['name']]
             a, m = compare_run(rows[r['name']], dr['auto'], dr['kind'], r['points'],
                                '%s %s/%s' % (name, REFERENCES[suffix], r['name']), known,
-                               # An equilibrium restart reuses an existing EP;
+                               # An equilibrium restarted from an EP reuses that point;
                                # its seed remains checked by the whole branch,
                                # rather than counted as a newly labelled point.
-                               compare_start=dr['kind'] != 'equilibrium' or dr['start'].get('state') == 'current')
+                               compare_start=not (dr['kind'] == 'equilibrium' and dr['start'].get('type') == 'EP'))
             if 'curve' in r:
                 c, cm = compare_curve(rows[r['name']], dr['auto'], r['curve'], '%s %s/%s' % (name, REFERENCES[suffix], r['name']),
                                       XPPAUT_CURVE_DIGITS if suffix == '.xppaut' else None,
