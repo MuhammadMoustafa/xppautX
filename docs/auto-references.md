@@ -1404,3 +1404,13 @@ quantities remain documented, not counted as equal. Four quantity-trace mutation
 checks pass. The fixed control driver reproduces the corrected crop byte for
 byte. The final documentation amendment records these results without changing
 the tested code, descriptions, baselines or references.
+
+**The LAPACK build after W437** (coordinator, on the merged tip 0c6b5936): `tools/wslrun.sh
+tools/auto-profile/modeldb_check.sh` still finds one fold search and no step back in the default, LIBM=system and
+LAPACK builds. `tools/auto-profile/diagram_diff.py build/lapack/xppautX` gives 2 AUTO-07p differences, both at
+forced_pp_pd's upper `pd_up` R2, the point traced above (before W437 it was already the largest fraction, 0.908 of
+its tolerance). With LAPACK's eigenvalue routines its par2 differs by 1.10e-5, inside the 2.10e-5 bound, so the
+default build's par2 trace reads as stale there, and its multipliers differ by 4.69e-5 against 4.29e-5 allowed. The
+two coalescing -1 multipliers make the location depend on the eigenvalue routine as it depends on the mesh and the
+step; every other description has 0 differences (forced_pp_ns: 265 LAPACK points against the default's 262, all
+quantities within tolerance). EISPACK stays the default, and its comparison is the one the traces hold exact.
