@@ -302,7 +302,7 @@ class Curves(unittest.TestCase):
             path = Path(tmp) / 'ab.auto07p'
             for edit in (lambda r: r['runs'][1].pop('curve'), lambda r: r['runs'][1].update(parameters=['p0', 'p2']),
                          lambda r: r['runs'][1].update(curve=[[0.1, 14.0]] * 2), lambda r: r['runs'][1].update(curve=sample[:1]),
-                         lambda r: r['runs'][0].update(curve=sample), lambda r: r['runs'][1]['points'].append(dict(type='XX')),
+                         lambda r: r['runs'][0].update(curve=sample[:1]), lambda r: r['runs'][1]['points'].append(dict(type='XX')),
                          lambda r: r['runs'][1].update(parameter='p0')):
                 bad = copy.deepcopy(good)
                 edit(bad)
@@ -311,6 +311,11 @@ class Curves(unittest.TestCase):
                     read_reference(path, d)
             path.write_text(json.dumps(good), encoding='utf-8')
             self.assertEqual(read_reference(path, d)['runs'][1]['curve'], sample)
+            # a one-parameter run may carry its branch samples too (W439's whole-branch gate)
+            branch = copy.deepcopy(good)
+            branch['runs'][0]['curve'] = sample
+            path.write_text(json.dumps(branch), encoding='utf-8')
+            self.assertEqual(read_reference(path, d)['runs'][0]['curve'], sample)
 
     def test_a_start_is_grabbed_from_the_points_its_run_left(self):
         dg = Diagram()
