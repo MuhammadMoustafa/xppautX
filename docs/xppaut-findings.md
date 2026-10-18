@@ -1701,16 +1701,6 @@ existing W326 rollback, both xppautX continuations label all four targets and
 have no upward current step. The UZ test, discrete phase bias and failed-search
 restoration are distinct parts of this explanation.
 
-Native XPPAUT 8.0 with the four Mu26 marks reproduces the failure. Control
-labels 5 pA, reports a possible special point while locating 1 pA, labels an LP
-at 0.9990257 pA and returns through 5 pA. Blocked labels 5 and 0.9999987 pA,
-then LPs at 0.1009347 and 0.07001995 pA and returns to 0.08047857 pA.
-Neither labels all four targets; unmarked runs approach the SNIC. The stored
-native reference points retain these outcomes. With centered phase and the
-existing W326 rollback, both xppautX continuations label all four targets and
-have no upward current step. The UZ test, discrete phase bias and failed-search
-restoration are distinct parts of this explanation.
-
 Measured consequence on `tstauto_pp2` (the existing NTST 15 periodic description): the centered condition
 locates the first cycle LP at parameter 0.7080732822986838, norm 0.4180552886559583, period 79.8935775600.
 AUTO-07p's stored reference is (0.7080732823, 0.41805535218, 79.89348504), whereas XPPAUT 8.0's is
