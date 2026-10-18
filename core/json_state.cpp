@@ -341,6 +341,13 @@ void plotvars_command(xpp::Session &s, const char *line)
    anything else as JSON numbers. */
 void data_command(xpp::Session &s, const char *line)
 {
+    bool diagram = session.diagram_subscribed;
+    if (const char *value = js_find(line, "diagram")) {
+        if (!xpp::parse_bool(js_raw(value), diagram)) {
+            j_command_error("data", "data diagram must be true or false");
+            return;
+        }
+    }
     const char *arr = js_find(line, "events");
     std::string name, enc;
     int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, ani = 0, autoinfo = 0, autosettings = 0,
@@ -368,6 +375,10 @@ void data_command(xpp::Session &s, const char *line)
     auto_settings_subscribe(s, autosettings);
     numerics_settings_subscribe(s, numerics);
     if (player) player_data();
+    if (diagram != session.diagram_subscribed) {
+        session.diagram_subscribed = diagram;
+        if (diagram) auto_redraw_for_client(s);
+    }
 }
 
 /* the equations window: one "dX/dT=..." line per equation (eig_list.c) */

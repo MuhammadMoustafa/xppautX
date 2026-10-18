@@ -39,7 +39,9 @@ in `paper/` (git-ignored; how it gets there is the maintainer's choice).
      series.
 4. Before every timed series: `tools/comparison-setup.sh --ready`. It refuses unless the
    governor is `performance` (set it as root: `sudo cpupower frequency-set -g performance`)
-   and the 1-minute load average is below 0.3. Nothing else runs on the machine during
+   and no other process uses more than 5% of one CPU during a 0.5 s sample. This
+   sample sees only processes running at that moment; it cannot predict work
+   started later. Nothing else runs on the machine during
    a series.
 
 ## Running the Python drivers
@@ -84,3 +86,112 @@ untimed accuracy reference. The scripts time nothing; the timing series is W354 
 
 `--hashes` prints the tree hashes of `reference/` to update the pins when a pinned source
 changes on purpose.
+
+## W354 stage 2: one foreground sequence (W439, #501)
+
+Copy the entire current `paper/` beside this clean checkout on Ubuntu, including
+W269's saved results and `benchmarks/large-stiff/`. Use the final merged tip;
+W269's tip is never rebuilt or timed. The commands below are for the maintainer
+on that machine. W439 installs nothing and runs no timing series on the laptop.
+Run `--check` first if dependencies are missing; it prints the additional apt/uv
+install lines to run before proceeding.
+
+```sh
+tools/comparison-setup.sh --check
+# Run the apt/uv lines it prints, then W378's additional install line:
+sudo apt install build-essential cmake libsuitesparse-dev time valgrind
+tools/comparison-setup.sh
+
+# W378's pinned CVODE 7.9.0, with KLU. Keep the archive and CMakeCache.txt.
+mkdir -p "$HOME/w378-deps"
+curl -fL https://github.com/LLNL/sundials/releases/download/v7.9.0/cvode-7.9.0.tar.gz \
+  -o "$HOME/w378-deps/cvode-7.9.0.tar.gz"
+printf '%s  %s\n' ae1602334e17b410462fda3d08cfe6ec4610f2e76e50f775fd64c1a4a5671a8e \
+  "$HOME/w378-deps/cvode-7.9.0.tar.gz" | sha256sum -c -
+tar -xf "$HOME/w378-deps/cvode-7.9.0.tar.gz" -C "$HOME/w378-deps"
+cmake -S "$HOME/w378-deps/cvode-7.9.0" -B "$HOME/w378-deps/sundials-build" \
+  -DCMAKE_INSTALL_PREFIX="$HOME/w378-deps/sundials-install" -DCMAKE_INSTALL_LIBDIR=lib \
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS='-ffp-contract=off' \
+  -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF \
+  -DSUNDIALS_PRECISION=DOUBLE -DSUNDIALS_INDEX_SIZE=64 \
+  -DSUNDIALS_ENABLE_CVODE=ON -DSUNDIALS_ENABLE_MPI=OFF -DSUNDIALS_ENABLE_OPENMP=OFF \
+  -DSUNDIALS_ENABLE_KLU=ON -DSUNDIALS_ENABLE_SUNLINSOL_KLU=ON \
+  -DKLU_INCLUDE_DIR=/usr/include/suitesparse \
+  -DSUNDIALS_ENABLE_C_EXAMPLES=OFF -DSUNDIALS_ENABLE_CXX_EXAMPLES=OFF \
+  -DSUNDIALS_ENABLE_EXAMPLES_INSTALL=OFF
+cmake --build "$HOME/w378-deps/sundials-build" -j4
+cmake --install "$HOME/w378-deps/sundials-build"
+uv run python paper/benchmarks/large-stiff/build.py \
+  --sundials "$HOME/w378-deps/sundials-install" --out build/w378
+
+# Set performance governor as root, fix turbo on or off, then leave the machine idle.
+sudo cpupower frequency-set -g performance
+TIP=$(git rev-parse --short=12 HEAD)
+XX="$HOME/xppautx-comparison/build/xppautX-$TIP/xppautX"
+XPP="$HOME/xppautx-comparison/build/xppaut-8.0/xppaut"
+export AUTO_DIR="$HOME/xppautx-comparison/build/auto-07p"
+OUT="paper/benchmarks/results/w354-ubuntu-$(date -u +%Y%m%d)"
+uv run python paper/benchmarks/comparison/run.py \
+  --out "$OUT" --xppautx "$XX" --xppaut "$XPP" --auto-dir "$AUTO_DIR" \
+  --worker build/w378/worker
+```
+
+This runs, serially: Terman stage 0 and convergence; screen plus sandbox;
+ModelDB integration; Mu26/Ma23 integration; all 28 Izhikevich sets; W427 Python
+methods (and untimed DOP853); bifurcation; size scaling; the unchanged W378 kit.
+Integration has no thread rows. Continuation has 1/2/4/auto for xppautX,
+1/2/4 for AUTO-07p, both diagram delivery choices, FD headlines and the
+settled exact rows. Physical cores come from that study's machine record,
+one CPU per socket/core pair. No SMT sibling is used as another core.
+
+Each study gets `STUDY/attempt-NNN/` with its own `machine.json`, provenance,
+input hashes, raw outputs, `runs.json`, numerical gates and summaries. The
+root `status.json` records commands, failures and completed studies. A failed
+study does not erase another's results or prevent the later studies running.
+Repeat the same command to resume; add `--study continuation` (or any study
+name printed by `--help`) to retry one study only. A retry gets a new attempt;
+completed studies are retained. Another tip, binary, driver or selection
+requires another `--out`. The runner calls `--record` for every study and
+`--ready` before every timed series. Readiness refusal is a failure to resolve,
+with no automatic sleep/retry. Run in the foreground of tmux; no concurrent runs.
+
+`summary.json` and `summary.csv` use five successes and sample SD (`ddof=1`);
+partial or numerically unequal rows get no timing summary. Warm-ups are kept
+as repetition 0. Raw run-window wall/CPU and seconds per point are separate
+from time-to-ready; AUTO-07p also records wrapper wall versus executable
+CPU (`RUSAGE_CHILDREN`, after equation compilation). Integration's run row is
+the full silent process, as in W269; its one-step ready row is separate.
+XPPAUT's final timed key has no key delay; file completion is observed by the
+shared driver's condition poll, so its wall resolution includes that poll.
+No time, throughput, pilot size or readiness observation is a numerical gate.
+
+Terman refuses timing without `comparison/terman-criteria.json` and a passing
+convergence record, applies the selected tolerance and checks the timed runs'
+readouts against DOP853. A failure stays a reported convergence failure.
+Its claim is numerical convergence of the archive's behaviour, neither a
+Figure 3 reproduction nor validation of the 31 repaired SET labels' intent.
+W269's SMT-thread timings remain history; current event digests are compared
+with its saved digests, with changes or differing windows reported explicitly.
+`modeldb-267710/auto07p/odex_to_c.py` is retired; every FD AUTO-07p equation
+comes from `tools/auto_reference.py`. Only PY_S1Bf's exact row uses its C file.
+The default P2 window ends at ampPar .62, before XPPAUT's spurious BP near .6211;
+all programs use that parameter bound, not a matching point count.
+
+Planning allowance, **not Ubuntu timing evidence**, excluding installs/builds
+and manual readiness waits; revise it from the machine's pilots:
+
+| Study | Allowance |
+|---|---:|
+| Terman saved readouts and full convergence axes | 0.5–3 h |
+| Screen/sandbox and ModelDB integration | 0.25–1 h |
+| Mu26/Ma23 and 28 Izhikevich integration cases | 0.5–2 h |
+| W427 Python methods and accuracy references | 3–20 h |
+| All continuation workloads, Jacobians, events and threads | 5–30 h |
+| Size scaling | 1–3 h |
+| W378 check, pilot, measure, cache | 0.5–2.1 h |
+| **Total (rounded)** | **11–62 h** |
+
+The Python method matrix and Mu26's full continuation/thread/Jacobian matrix
+dominate. W269's small timing allowance omitted those rows. A nonconvergent
+fixed-step pilot or failed agreement gate is reported without equal-work
+timings; this can shorten the run but does not establish a speed advantage.

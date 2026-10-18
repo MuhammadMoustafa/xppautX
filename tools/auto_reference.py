@@ -45,10 +45,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
-from autocompare import CODIM_TWO, HOMCONT, SPECIAL_TYPES, read_description
+from autocompare import CODIM_TWO, HOMCONT, SPECIAL_TYPES, completed, read_description
 from odex_model import Odex, Refused, INTRINSICS
-from xppclient import wait_until
+from comparison_measure import clock, elapsed, run_foreground
+from xppclient import Server, wait_until
 
 ROOT = Path(__file__).resolve().parent.parent
 BASE = ROOT / 'tests/auto'
@@ -57,6 +59,7 @@ FORMAT = 1
 PERIOD = 11
 # AUTO's reserved PAR(12): torus angle or fold-of-cycles normalization (autlib1.c init).
 CYCLE_EXTRA = 12
+RHS_RELATIVE_TOLERANCE = 1e-12  # settled comparison generator check, including near-zero RHS components
 
 
 def fnum(v):
@@ -282,7 +285,7 @@ def constants(r, ndim, pr, nbc, icp, irs, npar):
              'NMX=%d, NPR=%d, MXBF=%d, IID=%d, ITMX=%d, ITNW=%d, NWTN=%d, JAC=0' %
              (a['nmax'], a['npr'], a['mxbf'], FIXED['IID'], FIXED['ITMX'], FIXED['ITNW'], FIXED['NWTN']),
              'EPSL=%r, EPSU=%r, EPSS=%r' % (a['epsl'], a['epsu'], a['epss']),
-             'DS=%r, DSMIN=%r, DSMAX=%r, IADS=%d' % (a['ds'], a['dsmin'], a['dsmax'], FIXED['IADS']),
+             'DS=%r, DSMIN=%r, DSMAX=%r, IADS=%d' % (a['ds'], a['dsmin'], a['dsmax'], a.get('iads', FIXED['IADS'])),
              'RL0=%r, RL1=%r, A0=%r, A1=%r' % (a['parmin'], a['parmax'], FIXED['A0'], FIXED['A1']),
              'NPAR=%d, THL={%d:0.0}, THU={}' % (npar, PERIOD)]
     if 'connection' in r:  # HomCont: the equilibrium (equilibria) is solved for, IEQUIB=1 (homoclinic) or -2
@@ -296,6 +299,60 @@ def first_point(name):
         # the file starts with one `branch,...` line per branch (core/xpp_session_auto.h), then the points
         row = next(csv.DictReader(line for line in f if not line.startswith('branch,')))
     return [float(row[k]) for k in row if k.startswith('u0.')]
+
+
+def check_rhs(binary, eqs, start, folder):
+    """W439: evaluate the generated FUNC and the same expanded RHS with
+    xppautX's expression evaluator at the series' start. No Python math copy.
+    Retain both vectors; a near-zero residual is not given an absolute floor.
+    """
+    folder.mkdir(parents=True)
+    n, npar = len(start), max(eqs.npar, PERIOD)
+    source = eqs.source(start, False)
+    driver = ['program rhs_probe', 'implicit none',
+              'integer :: icp(1), i',
+              'double precision :: u(%d), par(%d), f(%d), dfdu(%d,%d), dfdp(%d,%d)' % (n, npar, n, n, n, n, npar),
+              'par=0', 'icp=1', 'call stpnt(%d,u,par,0d0)' % n,
+              'call func(%d,u,icp,par,0,f,dfdu,dfdp)' % n,
+              "do i=1,%d; write(*,'(ES26.17E3)') f(i); end do" % n, 'end program rhs_probe']
+    (folder / 'probe.f90').write_text(source + '\n' + '\n'.join(driver) + '\n')
+    subprocess.run(['gfortran', '-ffp-contract=off', 'probe.f90', '-o', 'probe'], cwd=folder, check=True, capture_output=True)
+    p = subprocess.run([str((folder / 'probe').resolve())], cwd=folder, check=True, capture_output=True, text=True)
+    foreign = [float(v) for v in p.stdout.split()]
+    (folder / 'probe.odex').write_text("par probe_value = 0\nz' = 0\n")
+    assignments = dict(eqs.ordered_assigns())
+    values = {**eqs.values, **dict(zip(eqs.o.states, start)), 't': 0.0}
+
+    def expand(toks):
+        out = []
+        for t in eqs.expand(toks):
+            if t in assignments:
+                out += ['('] + expand(assignments[t]) + [')']
+            elif t in values:
+                out += ['(', repr(float(values[t])), ')']
+            else:
+                out.append(t)
+        return out
+
+    ours = []
+    run = folder / 'xppautx'
+    run.mkdir()
+    s = Server(binary, folder / 'probe.odex', run=str(run))
+    try:
+        completed(s)
+        for name in eqs.o.states:
+            expression = ' '.join(expand(eqs.o.odes[name]))
+            events = completed(s, dict(cmd='set', kind='par', name='probe_value', text='%' + expression))
+            state = next(e for e in reversed(events) if e.get('ev') == 'state')
+            ours.append(dict(state['pars'])['probe_value'])
+    finally:
+        s.close()
+    relative = [abs(a-b)/max(abs(a), abs(b)) if a or b else 0.0 for a, b in zip(ours, foreign)]
+    result = dict(states=eqs.o.states, start=start, xppautx=ours, fortran=foreign,
+                  relative_errors=relative, relative_tolerance=RHS_RELATIVE_TOLERANCE,
+                  passed=len(ours) == len(foreign) == n and all(math.isfinite(v) and v <= RHS_RELATIVE_TOLERANCE for v in relative))
+    (folder / 'rhs-check.json').write_text(json.dumps(result, indent=2, allow_nan=False) + '\n')
+    return result
 
 
 BLOCK = re.compile(r'^\s*(\d+)\s+(\d+)\s+(Eigenvalue|Multiplier)\s*(\d+):?\s+(\S+)\s+(\S+)(\s|$)')
@@ -318,7 +375,7 @@ def stability(text):
     return out
 
 
-def curve_points(text, first, second):
+def curve_points(text, first, second=None):
     """[[PAR(first), PAR(second), L2-NORM]] of every step of a two-parameter run, from its bifurcation
     diagram file (b.*: a header line naming the columns, then one line per step, whatever NPR is)."""
     lines = text.splitlines()
@@ -326,20 +383,32 @@ def curve_points(text, first, second):
     # the header starts with a 0 where the lines have their branch number
     # a periodic solution's file names a column "MAX U(1)": one column, two words
     columns = {name: i + 1 for i, name in enumerate(re.sub(r'(MAX|MIN) ', r'\1', lines[head]).split()[1:])}
-    wanted = [columns['PAR(%d)' % first], columns['PAR(%d)' % second], columns['L2-NORM']]
+    wanted = [columns['PAR(%d)' % first], columns['PAR(%d)' % second] if second is not None else None, columns['L2-NORM']]
     rows = []
     for line in lines[head + 1:]:
         fields = line.split()
         if fields and fields[0] == '0':  # XPPAUT prepends runs; the next header starts the earlier run.
             break
         if len(fields) == len(columns) + 1:
-            rows.append([float(fields[k]) for k in wanted])
+            rows.append([float(fields[k]) if k is not None else 0.0 for k in wanted])
     return rows
 
 
-def script(runs, eq, names):
+def script(runs, eq, names, measure=False):
     """The .auto script: runs in order, every labelled solution printed as a JSON line."""
-    lines = ['import json', 'results = {}']
+    lines = ['import json, os, subprocess', 'results = {}']
+    compile_lines = ["subprocess.run(['make', '-f', os.path.join(os.environ['AUTO_DIR'], 'cmds/cmds.make'), 'EQUATION_NAME=eq', 'CC=gcc -std=gnu17', 'eq.exe'], check=True)",
+                     "assert os.path.isfile('eq.exe'), 'AUTO make did not produce eq.exe'"]
+    if measure:
+        # Compile before the run() clocks. AUTO reuses the up-to-date object and
+        # executable, so RUSAGE_CHILDREN below counts the executable, not gfortran.
+        lines += ['import resource, time', *compile_lines,
+                  "ready_self, ready_children = resource.getrusage(resource.RUSAGE_SELF), resource.getrusage(resource.RUSAGE_CHILDREN)",
+                  "print('READY ' + json.dumps({'wall_seconds': time.perf_counter()-float(os.environ['W439_START']), 'cpu_seconds': ready_self.ru_utime+ready_self.ru_stime+ready_children.ru_utime+ready_children.ru_stime}))",
+                  'def child_cpu():', '    r = resource.getrusage(resource.RUSAGE_CHILDREN)',
+                  '    return r.ru_utime + r.ru_stime']
+    else:
+        lines += compile_lines
     for r, c in zip(runs, names):
         start = r['start']
         if start.get('state') == 'current':
@@ -364,6 +433,10 @@ def script(runs, eq, names):
                   " 'point': s['PT'], 'par': s['PAR(%d)']%s, 'norm': s['L2-NORM'], 'period': %s}))"
                   % (r['name'], eq['icp1'][r['name']], second, period),
                   'except Exception as e:', "    print('FAILED %s ' + str(e).replace(chr(10), ' '))" % r['name']]
+        if measure:
+            at = lines.index('    results[%r] = %s' % (r['name'], src))
+            lines[at:at] = ['    t0, c0 = time.perf_counter(), child_cpu()']
+            lines.insert(at + 2, "    print('TIMING ' + json.dumps({'run': %r, 'wall_seconds': time.perf_counter()-t0, 'cpu_seconds': child_cpu()-c0}))" % r['name'])
     return '\n'.join(lines) + '\n'
 
 
@@ -419,9 +492,10 @@ def check_description(name, d, program):
     return odex, eqs, start, bvp
 
 
-def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name):
+def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name, measurements=None, exact_source=None, process_env=None):
     """{run: [point]}, {run: {(branch, point): spectrum}}, {run: reason} from AUTO-07p."""
-    work = Path(tempfile.mkdtemp(prefix='w300-a07-'))
+    (ROOT / 'build').mkdir(exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix='w300-a07-', dir=ROOT / 'build'))
     try:
         hom = None
         if any(r['kind'] in HOMCONT for r in d['runs']):
@@ -430,6 +504,9 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name):
             hom = dict(interval=run['start']['settle'], step=run['start']['step'], ic=[known.get(x, 0.0) for x in odex.states],
                        equilibria=run['connection']['left'] + (run['connection']['right'] if run['kind'] == 'heteroclinic' else []))
         (work / 'eq.f90').write_text(eqs.source(start, bvp, hom), encoding='utf-8')
+        if exact_source:
+            (work / 'eq.f90').unlink()
+            shutil.copy2(exact_source, work / 'eq.c')
         names, icp1, icp2, cycles = [], {}, {}, set()
         kind_of = {r['name']: r['kind'] for r in d['runs']}
         for i, r in enumerate(d['runs']):
@@ -452,17 +529,23 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name):
                 slot = PERIOD if parameter == 'T' else eqs.slot[parameter]
                 zeros.setdefault(slot, []).append(value)
             text += 'UZR=%r\n' % zeros
+            if exact_source:
+                text = text.replace('JAC=0', 'JAC=1')
             (work / ('c.' + c)).write_text(text)
-        env = {**os.environ, 'AUTO_DIR': auto_dir, 'PYTHONWARNINGS': 'ignore'}
+        env = {**os.environ, **(process_env or {}), 'AUTO_DIR': auto_dir, 'PYTHONWARNINGS': 'ignore'}
         env['PATH'] = '%s/cmds:%s/bin:%s' % (auto_dir, auto_dir, env['PATH'])
-        (work / 'run.auto').write_text(script(d['runs'], {'icp1': icp1, 'icp2': icp2, 'cycles': cycles, 'discrete': odex.discrete}, names))
-        p = subprocess.run(['auto', 'run.auto'], cwd=work, env=env, capture_output=True, text=True)
+        (work / 'run.auto').write_text(script(d['runs'], {'icp1': icp1, 'icp2': icp2, 'cycles': cycles, 'discrete': odex.discrete}, names, measurements is not None))
+        env['W439_START'] = str(time.perf_counter())
+        p = run_foreground(['auto', 'run.auto'], cwd=work, env=env, timeout=RUN_LIMIT * len(d['runs']))
+        (work / 'wrapper.log').write_text(p.stdout + p.stderr)
+        if measurements is not None:
+            measurements['wrapper_wall_seconds'] = time.perf_counter() - float(env['W439_START'])
+            measurements['runs'] = [json.loads(l[7:]) for l in p.stdout.splitlines() if l.startswith('TIMING ')]
+            measurements['ready'] = next((json.loads(l[6:]) for l in p.stdout.splitlines() if l.startswith('READY ')), None)
         if p.returncode or 'POINT ' not in p.stdout:
             raise Refused('AUTO-07p failed: ' + (p.stderr or p.stdout)[-600:])
-        curves = {r['name']: curve_points((work / ('b.' + c)).read_text(errors='replace'), icp1[r['name']], icp2[r['name']])
-                  for c, r in zip(names, d['runs']) if r['name'] in icp2 and (work / ('b.' + c)).exists()}
-        if keep:
-            shutil.copytree(work, keep / name, dirs_exist_ok=True)
+        curves = {r['name']: curve_points((work / ('b.' + c)).read_text(errors='replace'), icp1[r['name']], icp2.get(r['name']))
+                  for c, r in zip(names, d['runs']) if (work / ('b.' + c)).exists()}
         stab = {r['name']: (stability((work / ('d.' + c)).read_text(errors='replace'))
                             if (work / ('d.' + c)).exists() else {}) for c, r in zip(names, d['runs'])}
         failed = {l.split()[1]: l.split(None, 2)[2] for l in p.stdout.splitlines() if l.startswith('FAILED ')}
@@ -473,6 +556,8 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name):
                 points[pt.pop('run')].append(pt)
         return points, stab, failed, curves
     finally:
+        if keep:
+            shutil.copytree(work, keep / name, dirs_exist_ok=True)
         shutil.rmtree(work, ignore_errors=True)
 
 
@@ -556,7 +641,7 @@ def numerics(r):
     a = {**DEFAULTS, **r['auto']}
     return [a['ntst'], a['nmax'], a['npr'], a['ds'], a['dsmin'], a['ncol'], a['epsl'], a['dsmax'], a['parmin'],
             a['parmax'], FIXED['A0'], FIXED['A1'], a['epsu'], a['epss'], FIXED['IAD'], a['mxbf'], FIXED['IID'],
-            FIXED['ITMX'], FIXED['ITNW'], FIXED['NWTN'], FIXED['IADS'], 0]
+            FIXED['ITMX'], FIXED['ITNW'], FIXED['NWTN'], a.get('iads', FIXED['IADS']), 0]
 
 
 def constants_used(text):
@@ -567,7 +652,7 @@ def constants_used(text):
     return used
 
 
-def execute_xppaut(d, odex, eqs, start, binary, keep, name):
+def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, process_env=None):
     (ROOT / 'build').mkdir(exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix='w428-xpp-', dir=ROOT / 'build'))
     xvfb = xpp = None
@@ -579,10 +664,20 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         wait_for('Xvfb', lambda: subprocess.run(['xdpyinfo', '-display', DISPLAY], capture_output=True).returncode == 0, 30)
         log = work / 'xppaut.log'
+        launched = time.perf_counter() if measurements is not None else None
         xpp = subprocess.Popen([os.path.abspath(binary), model.name], cwd=work, stdout=open(log, 'w'), stderr=subprocess.STDOUT,
-                               env={**os.environ, 'DISPLAY': DISPLAY, 'HOME': str(work), 'LC_ALL': 'C'})
-        keys(window('XPP'), 'f', 'a')
+                               env={**os.environ, **(process_env or {}), 'DISPLAY': DISPLAY, 'HOME': str(work), 'LC_ALL': 'C'})
+        main = window('XPP')
+        if measurements is not None:
+            key_start = time.perf_counter()
+        keys(main, 'f', 'a')
+        if measurements is not None:
+            key_pauses = time.perf_counter() - key_start
         auto = window('AUTO')
+        if measurements is not None:
+            measurements['ready'] = dict(wall_seconds=time.perf_counter() - launched - key_pauses,
+                                         cpu_seconds=clock(xpp.pid)[1], excluded_key_driver_seconds=key_pauses)
+            measurements['runs'] = []
         points, stab, failed, curves = {}, {}, {}, {}
         curve_driver = any(r['kind'] == 'two_parameter' for r in d['runs'])
         # Keep AUTO slots stable: saved solutions use these positions, not model parameter indices.
@@ -640,21 +735,40 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
             dsize = len(diag.read_text()) if diag.exists() else 0
             if curve:
                 # LP starts directly; HB/PD/TR offer Two Param (maps' HB starts directly too).
-                keys(auto, 'r', *(['t'] if start_run['type'] != 'LP' and not odex.discrete else []))
+                run_keys = ['r', *(['t'] if start_run['type'] != 'LP' and not odex.discrete else [])]
             else:
                 # a periodic run from a point of cycles extends them (Run's periodic_choice, auto_nox.c: Extend is 'e')
                 extends = start_run.get('state') != 'current' and start_run['type'] != 'HB'
-                keys(auto, 'r', {'equilibrium': 's', 'periodic': 'e' if extends else 'p'}[r['kind']])
+                run_keys = ['r', {'equilibrium': 's', 'periodic': 'e' if extends else 'p'}[r['kind']]]
+                if r['kind'] == 'equilibrium' and start_run.get('type') == 'EP':
+                    # E1's repeated branches: an ordinary labelled equilibrium
+                    # extends directly, with no menu (XPPAUT 8.0 auto_nox.c:2006-2008).
+                    run_keys = ['r']
+            if measurements is None:
+                keys(auto, *run_keys)
+            else:
+                # All menu delays precede the timed final key. Its xdotool
+                # invocation has no --delay, so no fixed key pause is timed.
+                if len(run_keys) > 1:
+                    keys(auto, *run_keys[:-1])
+                xdo('mousemove', '--window', auto, '20', '20')
+                run_start = clock(xpp.pid)
+                xdo('key', '--window', auto, '--delay', '0', run_keys[-1])
 
             def finished():
                 rows = [ROW.match(l) for l in log.read_text().splitlines()[before:]]
                 rows = [m for m in rows if m]
                 # One-parameter runs print an initial EP; curves may print only their final row before NPR.
-                ends = sum(m.group(3) in ('EP', 'MX') for m in (rows if curve else rows[1:]))
+                # Equilibrium EP restarts do not print their seed again;
+                # auto_run extends it directly (auto_nox.c:2006-2008).
+                repeats_equilibrium = r['kind'] == 'equilibrium' and start_run.get('type') == 'EP'
+                ends = sum(m.group(3) in ('EP', 'MX') for m in (rows if curve or repeats_equilibrium else rows[1:]))
                 # Cycles first generate five starting-data steps, then do_auto restarts automatically.
                 return rows if ends >= (2 if preparing else 1) and not (work / 'fort.9').exists() else None
             try:
                 rows = wait_for('the end of run ' + r['name'], finished)
+                if measurements is not None:
+                    measurements['runs'].append(dict(run=r['name'], **elapsed(xpp.pid, run_start)))
             except Refused as error:
                 # A bounded run is unavailable, not a refusal of all earlier results.
                 # Escape is XPPAUT's own abort key (auto_x11.c:660-662); wait for
@@ -709,8 +823,8 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
                 if not active or [int(n) for n in active[1].split()] != slots:
                     raise Refused('XPPAUT active continuation slots differ from %s' % slots)
                 # The b-file's columns carry the actual free parameter slots.
-                if curve:
-                    curves[r['name']] = curve_points(btext, pars.index(axes[0]), pars.index(axes[1]))
+            curves[r['name']] = curve_points(btext, pars.index(axes[0]) if curve else pars.index(r['parameter']),
+                                             pars.index(axes[1]) if curve else None)
             dtext = diag.read_text(errors='replace')
             # Every run is prepended; Extend reuses its source branch/point numbers.
             stab[r['name']] = stability(dtext[:len(dtext) - dsize])
@@ -728,23 +842,23 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name):
                     points[r['name']].append(dict(type=kind, branch=int(m.group(1)), label=int(m.group(4)),
                                                   point=int(m.group(2)), par=float(m.group(5)), norm=float(m.group(6)), period=period,
                                                   **({'par2': pars_values[pars.index(axes[1])]} if curve else {})))
-        if keep:
-            shutil.copytree(work, keep / name, dirs_exist_ok=True)
         return points, stab, failed, curves
     finally:
         for p in (xpp, xvfb):
             if p is not None and p.poll() is None:
                 p.kill()
                 p.wait()
+        if keep:
+            shutil.copytree(work, keep / name, dirs_exist_ok=True)
         shutil.rmtree(work, ignore_errors=True)
 
 
-def reference(name, d, program, args):
-    odex, eqs, start, bvp = check_description(name, d, program)
+def reference(name, d, program, args, inputs=None, measurements=None, exact_source=None, process_env=None):
+    odex, eqs, start, bvp = inputs if inputs is not None else check_description(name, d, program)
     if program == 'auto07p':
-        points, stab, failed, curves = execute_auto07p(d, odex, eqs, start, bvp, args.auto_dir, args.keep, name)
+        points, stab, failed, curves = execute_auto07p(d, odex, eqs, start, bvp, args.auto_dir, args.keep, name, measurements, exact_source, process_env)
     else:
-        points, stab, failed, curves = execute_xppaut(d, odex, eqs, start, args.xppaut, args.keep, name)
+        points, stab, failed, curves = execute_xppaut(d, odex, eqs, start, args.xppaut, args.keep, name, measurements, process_env)
     runs = []
     for r in d['runs']:
         kept = []

@@ -137,6 +137,7 @@ struct ProtocolSession {
     xpp::ChangedEvent<xpp::Session> autosettings{xpp::auto_settings_event_line, "sending AUTO's settings"};
     xpp::ChangedEvent<xpp::Session> autoview{auto_view_event_line, "sending AUTO's view"};
     std::vector<ClientDiagramView> client_diagram{1}; /* the lists the client holds, one per view */
+    bool diagram_subscribed = true; /* diagrams are sent until a client explicitly opts out */
     int client_views = 1; /* how many of them */
     int grab_key_after = 0;
     double auto_refresh_last = 0;

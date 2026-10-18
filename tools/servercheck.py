@@ -7,14 +7,16 @@ Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
 and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
-import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
+import argparse, base64, cmath, copy, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from xppclient import CONFIG_ROOT, Server, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, file_bytes, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
+import autocompare
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('--ode', default='examples/ode/lecar.odex')
 ap.add_argument('-v', action='store_true')
+ap.add_argument('--only', choices=['diagram'], help='run just the diagram subscription section')
 args = ap.parse_args()
 # XPP_CHECK_SLOW=F multiplies every wait by F (tools/xppclient.py)
 SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
@@ -126,8 +128,44 @@ def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=
     return proc, run_dir, send, collect, events
 
 
-proc, run, send, collect, events = launch_server()
 check = Checker()
+
+
+def check_diagram_subscription():
+    """W439: delivery is presentation only; resubscribe recovers every point."""
+    d = copy.deepcopy(autocompare.read_description(autocompare.BASE / 'tstauto_simplefold.json'))
+    d['runs'][0]['auto']['nmax'] = 5
+    with_events = autocompare.compute(args.server, d, 1)[0]
+    without_events = autocompare.compute(args.server, d, 1, diagram_data=False)[0]
+    check('data.diagram: opt-out keeps every saved number', with_events == without_events)
+    s = Server(args.server, autocompare.ROOT / d['model'])
+    try:
+        autocompare.completed(s)
+        autocompare.open_auto(s)
+        autocompare.completed(s, dict(cmd='data', events=['autoinfo'], diagram=False))
+        autocompare.completed(s, dict(cmd='set', values=[dict(kind='ic', name=k, value=v) for k, v in d.get('initial_conditions', {}).items()]))
+        events = autocompare.execute_run(s, d['runs'][0], autocompare.Diagram(), {}, diagram_data=False)
+        check('data.diagram: opt-out emits no diagram events', not any(e.get('ev') == 'diagram' for e in events))
+        before = autocompare.session_diagram(s)
+        events = autocompare.completed(s, dict(cmd='data', events=['autoinfo'], diagram=True))
+        check('data.diagram: resubscribe replays the existing points',
+              any(e.get('ev') == 'diagram' and e.get('op') == 'add' for e in events))
+        check('data.diagram: resubscribe keeps every saved number', before == autocompare.session_diagram(s))
+        s.send(cmd='data', events=[], diagram='invalid')
+        events, end = s.collect(autocompare.is_idle)
+        errors = [e for e in events if e.get('error')]
+        check('data.diagram: invalid choice has one placed command error',
+              end is not None and len(errors) == 1 and errors[0].get('file') and errors[0].get('line'), str(events))
+    finally:
+        s.close()
+
+
+check_diagram_subscription()
+if args.only:
+    print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
+    sys.exit(1 if check.failures else 0)
+
+proc, run, send, collect, events = launch_server()
 
 
 check_logging()

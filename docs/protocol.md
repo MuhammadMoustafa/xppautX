@@ -1319,6 +1319,14 @@ has none, and gets no event). core/auto_settings.cpp keeps it.
 Numbers are doubles in their shortest exact form, the whole-number fields
 as integers; `null` when not finite.
 
+The `data` command also accepts `diagram: true|false` (W439, #501). Diagrams
+are delivered initially; omitting this field keeps that choice. `false` stops
+diagram collection and delivery for this client, while AUTO still computes and
+stores its complete numerical diagram. `true` replays the current diagram,
+including points computed while delivery was off. This switch is independent
+of `events`; `events: []` stops the listed data subscriptions. A non-boolean
+`diagram` is one command error and changes no subscription.
+
 **`{"cmd":"auto","op":"set", ...}`** writes them without the forms, with
 any of the members above, each part only when given: `numerics` any
 of its fields, `axes` any of `plot`, `var`, `par1`, `par2` (model parameter names), the four ranges, and `"fit":true` for

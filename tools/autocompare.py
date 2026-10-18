@@ -31,7 +31,7 @@ HOMCONT = ('homoclinic', 'heteroclinic')
 KINDS = {'equilibrium', 'periodic', 'two_parameter', 'fixed_period', 'bvp', *HOMCONT}
 NUMERICS = {'nmax': 'nmx', 'parmin': 'rl0', 'parmax': 'rl1',
             **{k: k for k in ('ds', 'dsmin', 'dsmax', 'npr', 'ntst', 'ncol',
-                              'epsl', 'epsu', 'epss', 'mxbf', 'iid')}}
+                              'epsl', 'epsu', 'epss', 'mxbf', 'iid', 'iads')}}
 
 
 class Diagram:
@@ -163,6 +163,7 @@ def read_description(path):
         if ('ncol' in a and not 2 <= a['ncol'] <= 7
                 or 'iid' in a and not 0 <= a['iid'] <= 5
                 or 'mxbf' in a and a['mxbf'] < 0
+                or 'iads' in a and a['iads'] not in (0, 1)
                 or any(a[k] <= 0 for k in ('epsl', 'epsu', 'epss') if k in a)):
             raise ValueError('invalid AUTO setting (docs/protocol.md AUTO settings): ' + str(a))
         if 'skip' in r and (not isinstance(r['skip'], str) or not r['skip'].strip()):
@@ -209,7 +210,7 @@ def restore_start(s, r, values, ranges):
         completed(s, dict(cmd='set', values=values))
 
 
-def execute_run(s, r, diagram, ranges):
+def execute_run(s, r, diagram, ranges, diagram_data=True):
     """The replaceable adapter to pre-W306 AUTO keys and asks."""
     start = r['start']
     if start.get('state') == 'current':
@@ -262,13 +263,24 @@ def execute_run(s, r, diagram, ranges):
         result.remove(errors[0])
     ensure_completed(result, events[-1] if events and is_idle(events[-1]) else None)
     diagram.apply(events)
+    if not diagram_data:
+        # W439: the like-for-like timing row sends no diagram data. Read the
+        # saved diagram after idle, outside the run window, for subsequent grabs.
+        diagram.points = [dict(lab=int(p['lab']), sym=point_symbol(int(p['itp'])))
+                          for p in diagram_rows(session_diagram(s))]
     if len(diagram.points) <= lo:
         raise RuntimeError('AUTO stored no points for ' + r['name'])
     stops = [e['stop'] for e in events if e.get('ev') == 'autoinfo' and e.get('stop')]
+    if not stops and 'expected_error' not in r:
+        # An identical repeated branch can leave the info strip unchanged;
+        # its change-only event then needs an explicit current-value request.
+        current = completed(s, dict(cmd='data', events=['autoinfo', 'autosettings'], diagram=diagram_data))
+        stops = [e['stop'] for e in current if e.get('ev') == 'autoinfo' and e.get('stop')]
     if 'expected_error' not in r and (not stops or stops[-1]['why'].startswith('noconv')):
         raise RuntimeError('AUTO failed to converge: ' + str(stops[-1:] or events[-3:]))
     ranges[r['name']] = lo, len(diagram.points)
     diagram.runs[r['name']] = [dict(p) for p in diagram.points[lo:]]
+    return events
 
 
 def session_diagram(s):
@@ -288,14 +300,18 @@ def session_diagram(s):
             return data
 
 
-def compute(binary, d, threads):
-    s = Server(binary, ROOT / d['model'])
+def compute(binary, d, threads, *, env=None, run=None, diagram_data=True, jacobian=None, observer=None):
+    s = Server(binary, ROOT / d['model'], env=env, run=run)
     try:
+        if observer:
+            observer.created(s)
         completed(s)
+        if jacobian is not None:
+            completed(s, dict(cmd='set', kind='num', name='jacobian', text=jacobian))
         completed(s, dict(cmd='auto', op='set', threads=threads))
         # Subscription returns the current settings even when a repeated
         # threads=1 assignment changed nothing and emitted no change event.
-        events = completed(s, dict(cmd='data', events=['autoinfo', 'autosettings']))
+        events = completed(s, dict(cmd='data', events=['autoinfo', 'autosettings'], diagram=diagram_data))
         setting = next(e for e in reversed(events) if e.get('ev') == 'autosettings')
         if setting['threads'] != threads:
             raise RuntimeError('thread setting was not applied')
@@ -304,11 +320,15 @@ def compute(binary, d, threads):
         if values:
             completed(s, dict(cmd='set', values=values))
         diagram = Diagram().apply(open_auto(s))
+        if observer:
+            observer.ready(s)
         ranges = {}
         for r in d['runs']:
             if 'skip' not in r:
                 restore_start(s, r, values, ranges)
-                execute_run(s, r, diagram, ranges)
+                events = execute_run(s, r, diagram, ranges, diagram_data=diagram_data)
+                if observer:
+                    observer.finished(s, r, events, ranges)
         return session_diagram(s), len(diagram.points), setting['threads_auto'], ranges
     finally:
         s.close()
@@ -367,12 +387,12 @@ def read_reference(path, d):
     for r, dr in zip(ref['runs'], runs):
         curve = dr['kind'] in ('two_parameter', *HOMCONT)  # a curve's file holds its parameters, its samples and its second value
         axes = 'parameters' if curve else 'parameter'
-        members(r, ('name', axes, 'unavailable', 'points', *(('curve',) if curve else ())), ('name', axes, 'points'))
+        members(r, ('name', axes, 'unavailable', 'points', 'curve'), ('name', axes, 'points'))
         if r[axes] != dr.get(axes) or not isinstance(r['points'], list):
             raise ValueError('run %s: %s or points' % (r['name'], axes))
         if 'unavailable' in r and not (isinstance(r['unavailable'], str) and r['unavailable'].strip()):
             raise ValueError('run %s: unavailable needs its reason' % r['name'])
-        if curve and 'unavailable' not in r:
+        if (curve or 'curve' in r) and 'unavailable' not in r:
             if not isinstance(r.get('curve'), list) or len(r['curve']) < 2:
                 raise ValueError('run %s: a curve of at least two samples' % r['name'])
             for sample in r['curve']:
@@ -496,23 +516,28 @@ def slope(rows, i, name, cycle=False):
     return best
 
 
+def point_symbol(itp):
+    """A stored AUTO type's symbol, shared by matching and no-data grabs."""
+    if itp == 9:
+        return 'EP'
+    return BIFURCATIONS.get(itp, BIFURCATIONS.get(itp % 10, '') if itp > 9 else '')
+
+
 def labelled(rows, kind):
     """The special points a run stored, (symbol, index) in order: its start is an EP for an equilibrium or a
     boundary value problem."""
     points = []
     for i, r in enumerate(rows):
         itp = int(r['itp'])
-        symbol = BIFURCATIONS.get(itp)
-        if symbol is None and itp > 9:
-            symbol = BIFURCATIONS.get(itp % 10)  # the ordinary kind on a two-parameter curve
-        if symbol:
+        symbol = point_symbol(itp)
+        if symbol and symbol != 'EP':
             points.append((symbol, i))
-        elif i == 0 and itp == 9 and kind in ('equilibrium', 'bvp', *HOMCONT):
+        elif i == 0 and symbol == 'EP' and kind in ('equilibrium', 'bvp', *HOMCONT):
             points.append(('EP', i))
     return points
 
 
-def compare_run(rows, auto, kind, ref_points, who, known=()):
+def compare_run(rows, auto, kind, ref_points, who, known=(), compare_start=True):
     """Differences (strings) and measurements (quantity, point, difference, tolerance) of one run
     against a reference's special points. The tolerance of a quantity q at a special point:
 
@@ -529,8 +554,10 @@ def compare_run(rows, auto, kind, ref_points, who, known=()):
     epss, epsl, epsu = auto.get('epss', 1e-4), auto.get('epsl', 1e-4), auto.get('epsu', 1e-4)
     loc = epss * (1 + auto['dsmax'])
     ours = labelled(rows, kind)
+    if not compare_start:
+        ours = [(symbol, i) for symbol, i in ours if not (symbol == 'EP' and i == 0)]
     detected = (*BIFURCATIONS.values(), *(CODIM_TWO if kind == 'two_parameter' else ()))
-    theirs = [p for p in ref_points if p['type'] in detected or (p['type'] == 'EP' and p['point'] == 1)]
+    theirs = [p for p in ref_points if p['type'] in detected or (compare_start and p['type'] == 'EP' and p['point'] == 1)]
     diffs = []
     dropped = {'ours': set(), 'reference': set()}
     numerical = {}
@@ -624,7 +651,7 @@ def chord_error(polyline, i):
 CURVE_QUANTITIES = ('curve par', 'curve par2', 'curve norm')
 
 
-def compare_curve(rows, auto, ref_curve, who, printed_digits=None):
+def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter=True):
     """Differences (strings) and measurements of a two-parameter run's curve against a reference's
     samples. The programs' steps differ, so points are matched by where they lie: every sample of one
     curve against the other as a polyline. Match all three coordinates against each segment's
@@ -645,10 +672,12 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None):
     epsl, epsu = auto.get('epsl', 1e-4), auto.get('epsu', 1e-4)
     # a curve of cycles first stores the starting data of the curve (the run xppautX does before it) as a branch of
     # one continued parameter: those rows are not on the curve
-    ours = [(float(r['continued_parameter']), float(r['continued_parameter2']), float(r['norm']))
-            for r in rows if 'continued_parameter2' in r]
+    ours = [(float(r['continued_parameter']), float(r.get('continued_parameter2', 0)), float(r['norm']))
+            for r in rows if not two_parameter or 'continued_parameter2' in r]
     ref = [tuple(v) for v in ref_curve]
     diffs, worst = [], {}
+    if len(ours) < 2 or len(ref) < 2:
+        return ['%s: fewer than two branch samples' % who], []
     both_end_at_nmax = len(ours) == len(ref) == auto.get('nmax')
 
     def tubes(point, chords, vertices):
@@ -729,10 +758,15 @@ def compare_references(name, d, data, ranges, refs):
             dr = next(x for x in d['runs'] if x['name'] == r['name'])
             known = [k for k in d.get('differences', ()) if k['reference'] == suffix and k['run'] == r['name']]
             a, m = compare_run(rows[r['name']], dr['auto'], dr['kind'], r['points'],
-                               '%s %s/%s' % (name, REFERENCES[suffix], r['name']), known)
+                               '%s %s/%s' % (name, REFERENCES[suffix], r['name']), known,
+                               # An equilibrium restart reuses an existing EP;
+                               # its seed remains checked by the whole branch,
+                               # rather than counted as a newly labelled point.
+                               compare_start=dr['kind'] != 'equilibrium' or dr['start'].get('state') == 'current')
             if 'curve' in r:
                 c, cm = compare_curve(rows[r['name']], dr['auto'], r['curve'], '%s %s/%s' % (name, REFERENCES[suffix], r['name']),
-                                      XPPAUT_CURVE_DIGITS if suffix == '.xppaut' else None)
+                                      XPPAUT_CURVE_DIGITS if suffix == '.xppaut' else None,
+                                      dr['kind'] in ('two_parameter', *HOMCONT))
                 a, m = a + c, m + cm
             diffs += a
             measures += [(suffix, r['name']) + x for x in m]

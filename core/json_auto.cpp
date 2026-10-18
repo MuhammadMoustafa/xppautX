@@ -109,6 +109,7 @@ void diag_end_replay(ClientDiagramView &d, int k)
 
 void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
 {
+    if (!session.diagram_subscribed) return;
     ClientDiagramView &d = view_data(view);
     if (!p) {
         const AUTOAX &a = s.auto_state.views[static_cast<std::size_t>(view)].axes;
@@ -319,6 +320,7 @@ void diag_flush_view(const xpp::Session &s, int v, ClientDiagramView &d, int fin
    something, so a replay that has not been completed never will be */
 void diag_flush(const xpp::Session &s, int final)
 {
+    if (!session.diagram_subscribed) return;
     const int n = static_cast<int>(s.auto_state.views.size());
     if (n != session.client_views && s.auto_state.bifur.exist) {
         /* the lists of views no longer there go on both sides; a new one

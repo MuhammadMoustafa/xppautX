@@ -21,6 +21,7 @@ METHOD_RESET = re.compile(r'"Volterra" : "([^"]+)"')
 STOL = re.compile(r'double stol = ([-0-9.eE]+);')
 # core/solver.cpp's registry rows: {method::ID,"name","set file label","key",...}
 METHOD_ROW = re.compile(r'\{method::\w+,"([^"]+)","([^"]+)","(\w+)"')
+LEGACY_METHOD_KEYS = re.compile(r'constexpr std::string_view keys = "([^"]+)"')
 # XPPAUT's set file labels, in its "Numerical stuff", of the options a run reads
 SET_LABELS = {'nout': 'store_every', 'total': 'total_time', 'DeltaT': 'dt', 'T0': 'start_time', 'Transient': 'transient_time',
               'Bound': 'bound', 'DtMin': 'min_step', 'DtMax': 'max_step', 'Tolerance': 'tolerance',
@@ -41,6 +42,18 @@ def method_rows():
     if not rows:
         raise Unreadable('core/solver.cpp: no method rows found')
     return rows
+
+
+def legacy_method_key(key):
+    """XPPAUT's one-character method key, from the same core registry reader."""
+    keys = LEGACY_METHOD_KEYS.search(read_core('solver.cpp'))
+    rows = method_rows()
+    if keys is None or len(keys.group(1)) != len(rows):
+        raise Unreadable('core/solver.cpp: legacy method keys do not match the registry')
+    for i, (_, _, candidate) in enumerate(rows):
+        if key == candidate:
+            return keys.group(1)[i]
+    raise Unreadable('core/solver.cpp: no method key ' + key)
 
 
 def core_defaults():

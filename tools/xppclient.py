@@ -230,6 +230,7 @@ class Server:
         if env is not None:
             full = dict(os.environ)
             full.update(env)
+        self.started_at = time.monotonic()  # process launch, after scratch/model staging (comparison time-to-ready)
         self.proc = subprocess.Popen([os.path.abspath(binary), '--server', os.path.basename(ode), *extra_args], cwd=self.run,
                                      stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                      text=True, encoding='utf-8', bufsize=1, env=full)

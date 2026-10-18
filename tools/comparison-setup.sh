@@ -49,7 +49,6 @@ LEGACY_CC="gcc -std=gnu99 -D_XOPEN_SOURCE=600 -w -Wno-error=implicit-function-de
 LEGACY_CFLAGS="-g -O2 -ffp-contract=off -fcommon -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL -DMYSTR1=8.0 -DMYSTR2=1"
 LEGACY_LDFLAGS=-fcommon
 . tools/jobs.sh
-IDLE_LOAD=0.3   # --ready: a 1-minute load below this means nothing else ran for the last minute
 
 die() { echo "comparison-setup: $*" >&2; exit 1; }
 
@@ -289,15 +288,42 @@ PY
 
 # --- --ready -----------------------------------------------------------------------------
 do_ready() {
-  local gov load
+  local gov
   gov=$(cpu_files scaling_governor)
   [ "$gov" = performance ] || die "the CPU governor is '$gov', not performance. Set it (yours, root): sudo cpupower frequency-set -g performance   (or: echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor)"
-  # the 1-minute load average: what ran recently, which ps's lifetime %CPU cannot see
-  load=$(cut -d' ' -f1 /proc/loadavg)
-  awk -v l="$load" -v max="$IDLE_LOAD" 'BEGIN { exit !(l < max) }' || {
-    ps -eo pid=,pcpu=,comm= --sort=-pcpu | head -5 >&2
-    die "the 1-minute load is $load, not below $IDLE_LOAD (busiest above): the series needs the machine to itself"; }
-  echo "ready: governor performance, turbo $(turbo_state), 1-minute load $load"
+  # W439: recent load includes our just-completed series. Observe current
+  # process CPU instead, so serial series can follow one another without a
+  # minute-long cool-down. Lifetime ps %CPU cannot identify current activity.
+  python3 - <<'PY' || die "another process is using the CPU (above): leave the machine idle and retry"
+from pathlib import Path
+import os, time
+SAMPLE_SECONDS = 0.5  # one bounded observation interval for a CPU rate, not a readiness polling loop
+MAX_CPU_FRACTION = 0.05  # reject visible competing work above five percent of one CPU
+def sample():
+    result = {}
+    for path in Path('/proc').glob('[0-9]*/stat'):
+        try:
+            text = path.read_text()
+            fields = text.rsplit(')', 1)[1].split()
+            result[int(path.parent.name)] = (int(fields[11]) + int(fields[12]), text.split('(', 1)[1].rsplit(')', 1)[0])
+        except (FileNotFoundError, ProcessLookupError, PermissionError):
+            pass  # a process that exited during the snapshot cannot compete with the series
+    return result
+before, start = sample(), time.monotonic()
+time.sleep(SAMPLE_SECONDS)
+after, end = sample(), time.monotonic()
+busy = []
+for pid, (ticks, name) in after.items():
+    if pid == os.getpid() or pid not in before:
+        continue
+    fraction = (ticks - before[pid][0]) / os.sysconf('SC_CLK_TCK') / (end-start)
+    if fraction > MAX_CPU_FRACTION:
+        busy.append((pid, fraction, name))
+for pid, fraction, name in busy:
+    print('busy: PID %d %.1f%% %s' % (pid, 100*fraction, name))
+raise SystemExit(bool(busy))
+PY
+  echo "ready: governor performance, turbo $(turbo_state), no other process above 5% CPU"
 }
 
 do_hashes() {
