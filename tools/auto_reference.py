@@ -59,7 +59,7 @@ FORMAT = 1
 PERIOD = 11
 # AUTO's reserved PAR(12): torus angle or fold-of-cycles normalization (autlib1.c init).
 CYCLE_EXTRA = 12
-RHS_RELATIVE_TOLERANCE = 1e-12  # settled comparison generator check, including near-zero RHS components
+RHS_RELATIVE_TOLERANCE = 1e-12  # of the sum of the absolute sizes of the terms (magnitude_bound), so a cancelling RHS is judged by its rounding, not by its small value
 
 
 def fnum(v):
@@ -301,6 +301,56 @@ def first_point(name):
     return [float(row[k]) for k in row if k.startswith('u0.')]
 
 
+NUMBER = re.compile(r'-?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?')
+
+
+def magnitude_bound(toks):
+    """The expression with every binary minus a plus, every sign dropped and each function call or number
+    in abs(): its value is the sum of the absolute sizes of the terms (a bound on what rounding works on),
+    where the RHS itself may cancel to almost nothing. A condition keeps its true value."""
+    out, i, previous = [], 0, None
+    while i < len(toks):
+        t = toks[i]
+        operand_before = previous is not None and (previous == ')' or NUMBER.fullmatch(previous) or previous.isidentifier())
+        if t == '-':
+            if operand_before:
+                out.append('+')
+            elif previous == '^':
+                out.append('-')  # an exponent's sign is part of its value
+            previous = t
+            i += 1
+        elif NUMBER.fullmatch(t):
+            out.append(t.lstrip('-'))
+            previous, i = t, i + 1
+        elif t.isidentifier() and t not in ('if', 'then', 'else') and i + 1 < len(toks) and toks[i + 1] == '(':
+            depth, j = 0, i + 1
+            while True:
+                depth += (toks[j] == '(') - (toks[j] == ')')
+                if depth == 0:
+                    break
+                j += 1
+            out += ['abs', '('] + toks[i:j + 1] + [')']
+            previous, i = ')', j + 1
+        elif t == 'if':
+            groups, j = [], i + 1
+            for _ in range(3):  # if ( C ) then ( A ) else ( B ), as Equations.conditionals writes it
+                j += 1 if toks[j] in ('then', 'else') else 0
+                start_group, depth = j, 0
+                while True:
+                    depth += (toks[j] == '(') - (toks[j] == ')')
+                    j += 1
+                    if depth == 0:
+                        break
+                groups.append(toks[start_group + 1:j - 1])
+            condition, taken, other = groups
+            out += ['if', '('] + condition + [')', 'then', '('] + magnitude_bound(taken) + [')', 'else', '('] + magnitude_bound(other) + [')']
+            previous, i = ')', j
+        else:
+            out.append(t)
+            previous, i = t, i + 1
+    return out
+
+
 def check_rhs(binary, eqs, start, folder):
     """W439: evaluate the generated FUNC and the same expanded RHS with
     xppautX's expression evaluator at the series' start. No Python math copy.
@@ -334,7 +384,7 @@ def check_rhs(binary, eqs, start, folder):
                 out.append(t)
         return out
 
-    ours = []
+    ours, scales = [], []
     run = folder / 'xppautx'
     run.mkdir()
     s = Server(binary, folder / 'probe.odex', run=str(run))
@@ -345,10 +395,13 @@ def check_rhs(binary, eqs, start, folder):
             events = completed(s, dict(cmd='set', kind='par', name='probe_value', text='%' + expression))
             state = next(e for e in reversed(events) if e.get('ev') == 'state')
             ours.append(dict(state['pars'])['probe_value'])
+            events = completed(s, dict(cmd='set', kind='par', name='probe_value', text='%' + ' '.join(magnitude_bound(expression.split()))))
+            state = next(e for e in reversed(events) if e.get('ev') == 'state')
+            scales.append(dict(state['pars'])['probe_value'])
     finally:
         s.close()
-    relative = [abs(a-b)/max(abs(a), abs(b)) if a or b else 0.0 for a, b in zip(ours, foreign)]
-    result = dict(states=eqs.o.states, start=start, xppautx=ours, fortran=foreign,
+    relative = [abs(a-b)/scale if scale else float(a != b) for a, b, scale in zip(ours, foreign, scales)]
+    result = dict(states=eqs.o.states, start=start, xppautx=ours, fortran=foreign, term_sizes=scales,
                   relative_errors=relative, relative_tolerance=RHS_RELATIVE_TOLERANCE,
                   passed=len(ours) == len(foreign) == n and all(math.isfinite(v) and v <= RHS_RELATIVE_TOLERANCE for v in relative))
     (folder / 'rhs-check.json').write_text(json.dumps(result, indent=2, allow_nan=False) + '\n')
