@@ -341,7 +341,7 @@ def check_rhs(binary, eqs, start, folder):
     try:
         completed(s)
         for name in eqs.o.states:
-            expression = ' '.join(expand(eqs.o.odes[name]))
+            expression = ' '.join(eqs.conditionals(expand(eqs.o.odes[name]), xppaut=True))
             events = completed(s, dict(cmd='set', kind='par', name='probe_value', text='%' + expression))
             state = next(e for e in reversed(events) if e.get('ev') == 'state')
             ours.append(dict(state['pars'])['probe_value'])
