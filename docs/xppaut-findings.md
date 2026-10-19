@@ -95,7 +95,6 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [62](#62-some-long-computations-cannot-be-stopped) | Cancellation | Nullclines, the flow, fitting, a pairwise histogram and delay history run to the end once started | [W388 / #450](https://github.com/MuhammadMoustafa/xppautX/issues/450) |
 | [63](#63-recursive-user-functions-segfault-at-runtime) | Expressions | Indefinite user function recursion overflows C stack and segfaults | [W387 / #449](https://github.com/MuhammadMoustafa/xppautX/issues/449) |
 | [64](#64-auto-point-numbers-wrap-to-zero) | AUTO output | point 10000 is printed as 0; later points repeat earlier numbers | [W384 / #446](https://github.com/MuhammadMoustafa/xppautX/issues/446) |
-
 | [65](#65-plot-curves-frozen-curves-and-windows-have-fixed-limits) | Plots | 10 curves per graph, 26 frozen curves, 21 plot windows | [W376 / #438](https://github.com/MuhammadMoustafa/xppautX/issues/438) |
 | [66](#66-auto-map-fold-continuation-loses-the-map-problem) | AUTO | a map fold restart changes IPS=-1 to flow IPS=1 | [W404 / #466](https://github.com/MuhammadMoustafa/xppautX/issues/466) |
 | [67](#67-the-torus-integral-condition-is-identically-zero) | AUTO | the torus continuation's phase condition compares the eigenfunction with itself, so it is zero for every input | [W407 / #469](https://github.com/MuhammadMoustafa/xppautX/issues/469) |
