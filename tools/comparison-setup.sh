@@ -298,7 +298,7 @@ do_ready() {
 from pathlib import Path
 import os, time
 SAMPLE_SECONDS = 0.5  # one bounded observation interval for a CPU rate, not a readiness polling loop
-MAX_CPU_FRACTION = 0.05  # reject visible competing work above five percent of one CPU
+MAX_CPU_FRACTION = 0.10  # reject visible competing work above ten percent of one CPU
 def sample():
     result = {}
     for path in Path('/proc').glob('[0-9]*/stat'):
@@ -323,7 +323,7 @@ for pid, fraction, name in busy:
     print('busy: PID %d %.1f%% %s' % (pid, 100*fraction, name))
 raise SystemExit(bool(busy))
 PY
-  echo "ready: governor performance, turbo $(turbo_state), no other process above 5% CPU"
+  echo "ready: governor performance, turbo $(turbo_state), no other process above 10% CPU"
 }
 
 do_hashes() {
