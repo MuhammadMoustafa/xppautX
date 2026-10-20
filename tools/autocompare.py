@@ -748,28 +748,47 @@ def table_row(name, d, rows, references, measures, diffs):
     return '| %s | %s | %s |' % (name, runs, ' | '.join(cells))
 
 
-def compare_references(name, d, data, ranges, refs):
+def compare_reference_run(name, suffix, dr, r, rows, known):
+    """One reference run against one of our runs: its special points, then its curve."""
+    who = '%s %s/%s' % (name, REFERENCES[suffix], r['name'])
+    a, m = compare_run(rows[dr['name']], dr['auto'], dr['kind'], r['points'], who, known,
+                       # An equilibrium restarted from an EP reuses that point;
+                       # its seed remains checked by the whole branch,
+                       # rather than counted as a newly labelled point.
+                       compare_start=not (dr['kind'] == 'equilibrium' and dr['start'].get('type') == 'EP'))
+    if 'curve' in r:
+        c, cm = compare_curve(rows[dr['name']], dr['auto'], r['curve'], who, XPPAUT_CURVE_DIGITS if suffix == '.xppaut' else None,
+                              dr['kind'] in ('two_parameter', *HOMCONT))
+        a, m = a + c, m + cm
+    return a, m
+
+
+def compare_references(name, d, data, ranges, refs, notes=None):
+    """Our runs against every reference's. Runs of one description that start at the same point and trace a
+    two-parameter curve (a Hopf curve continued up and down from one Hopf point) are the two arms of one curve:
+    which program calls an arm "up" is the sign convention of its tangent, so each reference arm is compared
+    with the arm of ours it overlaps (fewest differences), and a pairing other than by name is added to `notes`."""
     rows = stored_rows(data, ranges)
     diffs, measures = [], []
     for suffix, ref in refs.items():
         for r in ref['runs']:
             if 'unavailable' in r:
                 continue
-            dr = next(x for x in d['runs'] if x['name'] == r['name'])
-            known = [k for k in d.get('differences', ()) if k['reference'] == suffix and k['run'] == r['name']]
-            a, m = compare_run(rows[r['name']], dr['auto'], dr['kind'], r['points'],
-                               '%s %s/%s' % (name, REFERENCES[suffix], r['name']), known,
-                               # An equilibrium restarted from an EP reuses that point;
-                               # its seed remains checked by the whole branch,
-                               # rather than counted as a newly labelled point.
-                               compare_start=not (dr['kind'] == 'equilibrium' and dr['start'].get('type') == 'EP'))
-            if 'curve' in r:
-                c, cm = compare_curve(rows[r['name']], dr['auto'], r['curve'], '%s %s/%s' % (name, REFERENCES[suffix], r['name']),
-                                      XPPAUT_CURVE_DIGITS if suffix == '.xppaut' else None,
-                                      dr['kind'] in ('two_parameter', *HOMCONT))
-                a, m = a + c, m + cm
+            named = next(x for x in d['runs'] if x['name'] == r['name'])
+            arms = [x for x in d['runs'] if x['kind'] == 'two_parameter' and named['kind'] == 'two_parameter'
+                    and x['start'] == named['start']] or [named]
+            best = None
+            for dr in arms:
+                known = [k for k in d.get('differences', ()) if k['reference'] == suffix and k['run'] == dr['name']]
+                a, m = compare_reference_run(name, suffix, dr, r, rows, known)
+                if best is None or len(a) < len(best[1]):
+                    best = dr, a, m
+            dr, a, m = best
+            if dr is not named and notes is not None:
+                notes.append('%s %s: its %s overlaps our %s, not our %s: the two arms of one curve, opposite sign convention'
+                             % (name, REFERENCES[suffix], r['name'], dr['name'], named['name']))
             diffs += a
-            measures += [(suffix, r['name']) + x for x in m]
+            measures += [(suffix, dr['name']) + x for x in m]
     return diffs, measures
 
 

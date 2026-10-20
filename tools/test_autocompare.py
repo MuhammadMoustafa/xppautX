@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
-from autocompare import BASE, Diagram, compare_curve, compare_run, difference, labelled, read_description, read_reference, reference_spectrum, restore_start, table_row
+from autocompare import BASE, Diagram, compare_curve, compare_references, compare_run, difference, labelled, read_description, read_reference, reference_spectrum, restore_start, table_row
 
 
 class AutoCompare(unittest.TestCase):
@@ -327,6 +328,43 @@ class Curves(unittest.TestCase):
                        runs=[dict(br=1, pt=1, x=[0.0] * 3, y=[0.0] * 3, lab=[])])])
         self.assertEqual([p['sym'] for p in dg.points], ['', '', ''])
         self.assertEqual([p['sym'] for p in dg.runs['steady']], ['', 'HB', ''])
+
+
+class Arms(unittest.TestCase):
+    AUTO = dict(dsmax=0.1, epsl=1e-4, epsu=1e-4, epss=1e-4, parmin=-3.0, parmax=3.0)
+
+    @staticmethod
+    def arm(sign):
+        """one arm of a curve from the origin: the second parameter a + a^2, a every 0.05 on the side `sign`"""
+        return [(sign * 0.05 * i, sign * 0.05 * i + (0.05 * i) ** 2, 2 * sign * 0.05 * i) for i in range(20)]
+
+    def compare(self, theirs_up, theirs_down, kind='two_parameter'):
+        start = dict(run='steady', type='HB', index=1)
+        d = dict(runs=[dict(name='up', kind=kind, start=start, auto=self.AUTO), dict(name='down', kind=kind, start=start, auto=self.AUTO)])
+        rows = {n: Curves.rows(v) for n, v in (('up', self.arm(1)), ('down', self.arm(-1)))}
+        ref = {'.auto07p': dict(runs=[dict(name='up', points=[], curve=[list(v) for v in theirs_up]),
+                                      dict(name='down', points=[], curve=[list(v) for v in theirs_down])])}
+        notes = []
+        with mock.patch('autocompare.stored_rows', return_value=rows):
+            diffs, _ = compare_references('T', d, b'', {}, ref, notes)
+        return diffs, notes
+
+    def test_the_two_arms_of_one_curve_may_be_named_the_other_way_round(self):
+        diffs, notes = self.compare(self.arm(1), self.arm(-1))
+        self.assertEqual((diffs, notes), ([], []))
+        diffs, notes = self.compare(self.arm(-1), self.arm(1))
+        self.assertEqual(diffs, [])
+        self.assertEqual(len(notes), 2, notes)
+        self.assertIn('its up overlaps our down', notes[0])
+
+    def test_a_curve_that_is_neither_arm_is_still_a_difference(self):
+        bent = [(a, b + 0.05, n) for a, b, n in self.arm(1)]
+        diffs, _ = self.compare(bent, self.arm(-1))
+        self.assertTrue(diffs)
+
+    def test_runs_that_are_not_curves_are_paired_by_name_only(self):
+        diffs, notes = self.compare(self.arm(-1), self.arm(1), kind='equilibrium')
+        self.assertEqual(notes, [])
 
 
 if __name__ == '__main__':
