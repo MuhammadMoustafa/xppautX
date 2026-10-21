@@ -4,6 +4,7 @@
 #include <array>
 #include <vector>
 #include "xpp_error.h"
+#include "xpp_mem.h"
 
 namespace xpp {
 
@@ -79,9 +80,15 @@ struct DataStore {
      until the store grows). */
   void lend_columns(float **dst, int from, int to) const;
 private:
-  /* the columns' memory, and the table of their addresses col points at
-     (fixed, so a pointer to it stays valid) */
-  std::vector<std::vector<float>> columns_;
+  /* The model's columns are one block of pool_cols_ x pool_rows_ zeroed
+     floats (untouched until written: a short run of a large model does
+     not pay for its whole storage); a column the data browser adds is a
+     vector of its own, added_[c]. table_ holds their addresses, which col
+     points at (fixed, so a pointer to it stays valid). */
+  ZeroedFloats pool_;
+  int pool_cols_ = 0;
+  int pool_rows_ = 0;
+  std::vector<std::vector<float>> added_;
   std::vector<float *> table_;
 };
 

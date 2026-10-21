@@ -16,7 +16,7 @@
    "out of memory <what>", then exit(1).
 
    The core never calls the C library's malloc/calloc/realloc/strdup/free
-   directly; the exceptions are memory that crosses a boundary with a
+   directly (ZeroedFloats, below, is the one owner of calloc); the exceptions are memory that crosses a boundary with a
    library, which keeps that library's allocator (Xlib's own memory,
    XReadBitmapFileData's in main.c, goes back through XFree; dirname()
    (auto_nox.c, aniparse.c) returns a pointer into its argument; getcwd()
@@ -70,6 +70,29 @@ template<class... T> std::size_t size_sum(T... terms)
   (add(terms), ...);
   return size;
 }
+/* n floats, all zero, whose memory the system hands over untouched: pages
+   are mapped and zero-filled only when first written, so a big block that
+   a run fills slowly costs only what it uses (the data store's columns,
+   storage.cpp: 16 MB for a 200-equation model, of which a short run
+   writes a few rows). Move-only; the constructor throws std::bad_alloc
+   when there is no memory. The one place that calls the C library's
+   calloc (tools/alloccheck.sh): a std::vector fills what it makes. */
+class ZeroedFloats {
+public:
+  ZeroedFloats() noexcept = default;
+  explicit ZeroedFloats(std::size_t n);
+  ZeroedFloats(ZeroedFloats &&other) noexcept : p_(std::exchange(other.p_, nullptr)) {}
+  ZeroedFloats &operator=(ZeroedFloats &&other) noexcept
+  {
+    std::swap(p_, other.p_);
+    return *this;
+  }
+  ~ZeroedFloats();
+  float *data() const noexcept { return p_; }
+private:
+  float *p_ = nullptr;
+};
+
 /* what says what was being built ("reading a command"): the ERROR is
    "out of memory <what>". It allocates nothing itself. */
 [[noreturn]] void out_of_memory(std::string_view what) noexcept;

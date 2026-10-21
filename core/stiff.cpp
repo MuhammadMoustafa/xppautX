@@ -58,7 +58,7 @@ void jacobn(xpp::Session &s, double x, double *y, double *dfdx, double *dermat, 
 
 int adaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
 {
-  if(s.model().nflags==0)
+  if(s.model().flag_count()==0)
     return(gadaptive(s,ystart,nvar,xs,x2,eps,
 		     hguess,hmin,work,ier,epjac,iflag,jstart));
   return(one_flag_step_adap(s,ystart,nvar,xs,x2,eps,hguess,

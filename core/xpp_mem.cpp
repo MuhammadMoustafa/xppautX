@@ -6,6 +6,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <new>
 
 void xpp::out_of_memory(std::string_view what) noexcept
 {
@@ -18,4 +19,16 @@ void xpp::out_of_memory_now(std::string_view what) noexcept
     xpp::log(XPP_LOG_ERROR, "out of memory {}\n", what);
     std::fflush(nullptr);
     std::_Exit(1);
+}
+
+xpp::ZeroedFloats::ZeroedFloats(std::size_t n)
+{
+    p_ = static_cast<float *>(std::calloc(n ? n : 1, sizeof(float)));
+    if (!p_)
+        throw std::bad_alloc();
+}
+
+xpp::ZeroedFloats::~ZeroedFloats()
+{
+    std::free(p_);
 }

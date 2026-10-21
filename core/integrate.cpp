@@ -113,7 +113,7 @@ DenseEvent dense_event(Session &s, double from, double until, double step_from, 
       a=b;fa=fb;
     }
   };
-  for(int i=0;i<s.model().nflags;++i){
+  for(int i=0;i<s.model().flag_count();++i){
     const auto &flag=s.model().flags[i];
     scan([&](double t){state(t,scratch);set_fix_rhs(s,t,scratch.data());return evaluate(s,flag.comcond);},
          flag.sign,i,false,-1,flag.nointerp!=0);

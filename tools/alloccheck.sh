@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.." || exit 1
 # A new exception (memory that crosses a boundary with a library, which
 # keeps that library's allocator) is listed here and in xpp_mem.h's
 # comment.
-EXCLUDE=""
+EXCLUDE="core/xpp_mem.cpp" # ZeroedFloats: calloc's untouched zero pages (xpp_mem.h)
 
 # a call, not a member (x.free(, p->free() or a longer name (xpp_free()
 PATTERN='(^|[^a-zA-Z0-9_.>])(malloc|calloc|realloc|strdup|free)[ \t]*\('
