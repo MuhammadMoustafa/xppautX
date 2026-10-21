@@ -136,7 +136,7 @@ int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &eve
 int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<FlagEvent> &events)
 {
   xpp::Model &m=s.model();
-  if(m.nflags>=MAXFLAG){
+  if(m.flag_count()>=MAXFLAG){
     xpp::log(XPP_LOG_WARN, "Too many global conditions\n");
     return(1);
   }
@@ -144,7 +144,7 @@ int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<Fl
     xpp::log(XPP_LOG_WARN, " Too many events per flag \n");
     return(1);
   }
-  xpp::Model::GlobalFlag &f=m.flags[m.nflags];
+  xpp::Model::GlobalFlag &f=m.flags.emplace_back();
   f.cond=cond;
   for(size_t e=0;e<events.size();e++){
     f.lhsname[e]=events[e].name;
@@ -152,7 +152,6 @@ int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<Fl
   }
   f.sign=sign;
   f.nevents=static_cast<int>(events.size());
-  m.nflags++;
   return(0);
 }
 
@@ -167,12 +166,12 @@ static bool compile(xpp::Session &s, const std::string &expr, std::vector<int> &
 
 int compile_flags(xpp::Session &s)
 {
-  std::array<xpp::Model::GlobalFlag,MAXFLAG> &flags=s.model().flags;
+  std::vector<xpp::Model::GlobalFlag> &flags=s.model().flags;
   int j;
   int i,index;
-  if(s.model().nflags==0)return(0);
-  s.integrator.flags.assign(s.model().nflags,xpp::FlagState{});
-  for(j=0;j<s.model().nflags;j++){
+  if(s.model().flag_count()==0)return(0);
+  s.integrator.flags.assign(s.model().flag_count(),xpp::FlagState{});
+  for(j=0;j<s.model().flag_count();j++){
     if(!compile(s,flags[j].cond,flags[j].comcond.rpn)){
       xpp::log(XPP_LOG_WARN, "Illegal global condition:  {}\n",flags[j].cond);
       return(1);
@@ -243,12 +242,12 @@ void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double
   double f0,f1,tol;
   constexpr double tolmin=1e-10; // Existing cascade threshold, shared with sampled flags.
   double *tnew=&time;
-  for(i=0;i<s.model().nflags;i++)
+  for(i=0;i<s.model().flag_count();i++)
     s.integrator.flags[i].f0=xpp::evaluate(s,flags[i].comcond);
   while(1){ /* run through all possible events  */
     ncycle++;
     newhit=0;
-    for(i=0;i<s.model().nflags;i++){
+    for(i=0;i<s.model().flag_count();i++){
       nevents=flags[i].nevents;
       if(s.integrator.flags[i].hit==ncycle&&s.integrator.flags[i].tstar<=smin){
 	for(j=0;j<nevents;j++){
@@ -260,7 +259,7 @@ void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double
 	}
       }
     }
-    for(i=0;i<s.model().nflags;i++){
+    for(i=0;i<s.model().flag_count();i++){
       nevents=flags[i].nevents;
       if(s.integrator.flags[i].hit==ncycle&&s.integrator.flags[i].tstar<=smin){
 	for(j=0;j<nevents;j++){
@@ -291,7 +290,7 @@ void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double
     for(i=0;i<neq;i++){
       ynew[i]=getvar(s,i+1); /* if this screws up */
     }
-    for(i=0;i<s.model().nflags;i++){
+    for(i=0;i<s.model().flag_count();i++){
       s.integrator.flags[i].f1=xpp::evaluate(s,flags[i].comcond);
       if(s.integrator.flags[i].hit>0)continue; /* already hit so dont do anything */
       f1=s.integrator.flags[i].f1;
@@ -329,7 +328,7 @@ void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double
 
 void apply_dense_flags(xpp::Session &s, double *y, double time, int neq, std::span<const int> hits)
 {
-  for(int i=0;i<s.model().nflags;++i){
+  for(int i=0;i<s.model().flag_count();++i){
     s.integrator.flags[i].hit=0;
     s.integrator.flags[i].tstar=0;
   }
@@ -340,14 +339,14 @@ void apply_dense_flags(xpp::Session &s, double *y, double time, int neq, std::sp
 
 int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, double told, double *tnew, int neq, double *frac)
 {
-  std::array<xpp::Model::GlobalFlag,MAXFLAG> &flags=s.model().flags;
+  std::vector<xpp::Model::GlobalFlag> &flags=s.model().flags;
   double dt=*tnew-told;
   double f0,f1,tol,tolmin=1e-10;
   double smin=2;
   int sign,i,j,ncycle=0;
 
-  if(s.model().nflags==0)return(0);
-  for(i=0;i<s.model().nflags;i++){
+  if(s.model().flag_count()==0)return(0);
+  for(i=0;i<s.model().flag_count();i++){
     s.integrator.flags[i].tstar=2.0;
     s.integrator.flags[i].hit=0;
   }
@@ -356,11 +355,11 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
     for(i=0;i<neq;i++)
       setvar(s,i+1,yold[i]);
     setvar(s,0,told);
-    for(i=0;i<s.model().nflags;i++)
+    for(i=0;i<s.model().flag_count();i++)
     *istart=0;
 
   }
-  for(i=0;i<s.model().nflags;i++){
+  for(i=0;i<s.model().flag_count();i++){
     sign=flags[i].sign;
     s.integrator.flags[i].f0=s.integrator.flags[i].f1;
     f0=s.integrator.flags[i].f0;
@@ -428,7 +427,7 @@ struct NoHit {
 };
 
 /* Take the method's step; when an event fired inside it, go back to the
-   event (dt shortened by the fraction left) and step again, up to nflags+2
+   event (dt shortened by the fraction left) and step again, up to the flag count+2
    times. step(dtt) takes the step of length dtt (a method with no fixed
    step ignores it) and says whether it can go on; on_hit runs after each
    crossing (an integrator that must restart). With tend, the loop also ends
@@ -453,7 +452,7 @@ FlagEnd flag_loop(xpp::Session &s, double *y, int neq, double *t, int *istart,
     dtt=(1-frac)*dt;
     on_hit();
     if(tend&&*t==*tend)return FlagEnd::done;
-    if(nstep>(s.model().nflags+2)){
+    if(nstep>(s.model().flag_count()+2)){
       xpp::log(XPP_LOG_WARN, " Working too hard?? smin={:g}\n",frac);
       return FlagEnd::too_hard;
     }

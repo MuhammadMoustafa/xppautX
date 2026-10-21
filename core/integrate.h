@@ -239,7 +239,7 @@ struct IntegratorState {
      (odesol2.cpp rosen) */
   double rosen_htry = 0;
   /* the global flags' states (flags.cpp) */
-  std::vector<FlagState> flags; /* the model's nflags (compile_flags) */
+  std::vector<FlagState> flags; /* the model's flags (compile_flags) */
   /* Gear's pivots of the Jacobian it factored last (gear.cpp ggear) */
   std::vector<int> gear_pivot;
   /* the array initial values in use */

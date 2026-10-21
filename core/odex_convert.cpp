@@ -440,7 +440,7 @@ private:
     for (int k = 0; k < m_.nupar; k++) moving.insert(m_.upar_con[k]);
     for (const auto &d : m_.derived) moving.insert(d.index);
     for (int k = 0; k < m_.nwiener; k++) moving.insert(m_.wiener[k]);
-    for (int j = 0; j < m_.nflags; j++)
+    for (int j = 0; j < m_.flag_count(); j++)
       for (int e = 0; e < m_.flags[j].nevents; e++)
         if (m_.flags[j].type[e] == 1) {
           const int c = get_param_index(s_, xpp::upper_case(m_.flags[j].lhsname[e]));
@@ -1677,11 +1677,11 @@ Fingerprint fingerprint(const xpp::Session &s, int guard = -1)
   const xpp::Model &m = s.model();
   Fingerprint f;
   f.values.push_back(s.numerics.method);
-  for (int c : {m.neq, m.node, m.nmarkov, m.fix_var, m.nupar, m.nfun - (guard >= 0 ? 1 : 0), m.nflags, m.naeqn, m.nsvar, m.nkernel, m.nwiener})
+  for (int c : {m.neq, m.node, m.nmarkov, m.fix_var, m.nupar, m.nfun - (guard >= 0 ? 1 : 0), m.flag_count(), m.naeqn, m.nsvar, m.nkernel, m.nwiener})
     f.values.push_back(c);
   for (int i = 0; i < m.node + m.fix_var + m.neq - m.node - m.nmarkov; i++) f.programs.push_back(normalized(m.programs[i].rpn, guard));
   for (int i = 0; i < m.nfun; i++) if (i != guard) f.programs.push_back(normalized(m.ufun_programs[i].rpn, guard));
-  for (int j = 0; j < m.nflags; j++) {
+  for (int j = 0; j < m.flag_count(); j++) {
     f.programs.push_back(normalized(m.flags[j].comcond.rpn, guard));
     for (int e = 0; e < m.flags[j].nevents; e++) f.programs.push_back(normalized(m.flags[j].comrhs[e].rpn, guard));
   }

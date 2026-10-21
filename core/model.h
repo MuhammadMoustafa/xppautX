@@ -166,7 +166,7 @@ struct Model {
   };
   std::vector<FixedVariable> fixinfo;
 
-  /* ---- the global flags (flags.cpp), nflags of them ---- */
+  /* ---- the global flags (flags.cpp) ---- */
   /* a flag: when the condition's value (cond, compiled comcond) crosses
      0 in the direction sign (1 up, -1 down, 0 at 0), set each of its
      nevents events' lhs to its formula (rhs, compiled comrhs); type 0 a
@@ -185,8 +185,8 @@ struct Model {
     int anypars=0;
     int nointerp=0;
   };
-  int nflags=0;
-  std::array<GlobalFlag,MAXFLAG> flags;
+  std::vector<GlobalFlag> flags;
+  int flag_count() const { return static_cast<int>(flags.size()); }
 
   /* ---- the derived quantities (derived.cpp): each one's constant (its
      place in the parser's constants) and formula, as text and compiled,

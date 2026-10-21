@@ -23,7 +23,7 @@ int main()
     for(auto method:{xpp::method::DP5,xpp::method::DP83}){
         const auto fresh=[&]{
             CHECK(xpp::set_val(s,"rate",.01));
-            s.model().nflags=0;s.numerics.poincare_map=0;s.integrator.stop_flag=0;
+            s.model().flags.clear();s.numerics.poincare_map=0;s.integrator.stop_flag=0;
             return xpp::make_dormand_prince(xpp::solver_info(method),s,3);
         };
         auto solver=fresh();
@@ -127,7 +127,7 @@ int main()
         const auto state=[](double time,std::span<double> values){values[0]=1;values[1]=time;values[2]=xpp::math::sin(time);};
         const auto grazing=xpp::dense_event(s,0,1,0,1,state,scratch,derivative);
         CHECK(grazing.found);CHECK(grazing.flag_count==1);CHECK(grazing.time==.5);
-        s.model().nflags=0;
+        s.model().flags.clear();
         CHECK(add_global(s,"(t-.5)^2+.0001",0,{{"arret","1"}})==0);CHECK(compile_flags(s)==0);
         CHECK(!xpp::dense_event(s,0,1,0,1,state,scratch,derivative).found);
         // A bound between output points stops before any later sample is valid.

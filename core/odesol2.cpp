@@ -53,7 +53,7 @@ int fixed_steps(xpp::Session &s, double *y, int nt, int neq, double *tim, int *i
 {
   const std::function<void(double)> f=step;
   for(int i=0;i<nt;i++){
-    if(s.model().nflags==0)step(dt);
+    if(s.model().flag_count()==0)step(dt);
     else one_flag_steps(s,y,neq,tim,istart,dt,f);
     stor_delay(s,y);
     if(s.integrator.step_error||xpp::job::cancelled())break;
@@ -66,7 +66,7 @@ int fixed_steps(xpp::Session &s, double *y, int nt, int neq, double *tim, int *i
 
 int symplect3(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
- if(s.model().nflags==0){ 
+ if(s.model().flag_count()==0){ 
    for(int i=0;i<nt;i++){
      one_step_symp(s,y,dt,work,neq,tim);
      if(xpp::job::cancelled())break;
@@ -97,7 +97,7 @@ int bak_euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int ne
   errvec=yg+neq;
   yp2=errvec+neq;
   jac=yp2+neq;
-  if(s.model().nflags==0){
+  if(s.model().flag_count()==0){
     for(i=0;i<nt;i++)
       {
 	
@@ -392,7 +392,7 @@ int rb23(xpp::Session &s, double *y,double *tstart,double tfinal,
  int *istart,int n,double *work,int *ierr)
 {
 int out =-1;
- if(s.model().nflags==0)
+ if(s.model().flag_count()==0)
  {
    out = rosen(s,y,tstart,tfinal,istart,n,work,ierr);
  }

@@ -627,7 +627,7 @@ return(z*z);
 
 int gear(xpp::Session &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
-  if(s.model().nflags==0)
+  if(s.model().flag_count()==0)
     return(ggear(s, n,t, tout,y, hmin, hmax,eps,
 	  mf,error,kflag,jstart,work,iwork));
   return(one_flag_step_gear(s,n,t, tout,y, hmin, 

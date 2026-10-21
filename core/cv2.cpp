@@ -143,7 +143,7 @@ std::string cvode_error_text(const xpp::Session &s, const CvodeRun &run, int kfl
 int cvode(xpp::Session &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
  int err=0;
- if(s.model().nflags==0)
+ if(s.model().flag_count()==0)
    return(ccvode(s,run,command,y,t,n,tout,kflag,atol,rtol));
  err=one_flag_step_cvode(s,run,command,y,t,n,tout,kflag,atol,rtol);
  if(err==1)*kflag=-9;

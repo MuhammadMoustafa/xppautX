@@ -104,7 +104,7 @@ void  get_num_par(xpp::Session &s, char ch)
 			 numerics_settings_ask(s,"singpt_max_iterates");
 			 numerics_settings_ask(s,"singpt_newton_tolerance");
 			 numerics_settings_ask(s,"singpt_jacobian_epsilon");
-		       if(s.model().nflags>0)
+		       if(s.model().flag_count()>0)
 			 new_float(s,"SMIN :",&s.numerics.stol);
 		       
 			flash(5);
