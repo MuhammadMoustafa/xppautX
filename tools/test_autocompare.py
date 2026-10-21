@@ -1,12 +1,15 @@
 """Regression checks for the baseline check's acceptance and text contract."""
 import copy
 import json
+import math
 from pathlib import Path
 import tempfile
 import unittest
 from unittest import mock
 
-from autocompare import BASE, Diagram, compare_curve, compare_references, compare_run, difference, labelled, read_description, read_reference, reference_spectrum, restore_start, table_row
+import numpy as np
+
+from autocompare import BASE, Diagram, compare_curve, compare_references, compare_run, difference, labelled, project, read_description, read_reference, reference_spectrum, restore_start, table_row
 
 
 class AutoCompare(unittest.TestCase):
@@ -178,6 +181,47 @@ class References(unittest.TestCase):
                     read_reference(path, d)
             path.write_text(json.dumps(good), encoding='utf-8')
             self.assertEqual(read_reference(path, d)['model'], d['model'])
+
+
+def brute_project(point, polyline, tolerances):
+    """project() one segment at a time in plain Python: the definition its vectorised form must equal bit for bit."""
+    best = None
+    for i, bounds in enumerate(tolerances):
+        a, b = polyline[i], polyline[i + 1]
+        along = [(b[k] - a[k]) / bounds[k] for k in range(3)]
+        length = sum(x * x for x in along)
+        t = 0.0 if length == 0 else min(1.0, max(0.0, sum((point[k] - a[k]) / bounds[k] * along[k] for k in range(3)) / length))
+        lo, hi = 0.0, 1.0
+        for k in range(3):
+            delta = b[k] - a[k]
+            if delta:
+                ends = [(point[k] - a[k] + sign * bounds[k]) / delta for sign in (-1, 1)]
+                lo, hi = max(lo, min(ends)), min(hi, max(ends))
+            elif abs(point[k] - a[k]) > bounds[k]:
+                lo, hi = 1.0, 0.0
+        if lo <= hi:
+            t = min(hi, max(lo, t))
+        residual = [point[k] - (a[k] + t * (b[k] - a[k])) for k in range(3)]
+        distance = max(abs(residual[k]) / bounds[k] for k in range(3))
+        if best is None or distance < best[0]:
+            best = distance, i, residual
+    return best[1], best[2]
+
+
+class Projection(unittest.TestCase):
+    def test_the_vectorised_projection_equals_the_plain_loop_on_a_closed_curve_with_laps_and_ties(self):
+        lap = [(math.cos(2 * math.pi * i / 12), math.sin(2 * math.pi * i / 12), 0.1 * (i % 3)) for i in range(12)]
+        # three identical laps (equal distances: the lowest segment wins), one with a repeated vertex (a segment of length 0),
+        # one straight run along an axis (a zero step in two coordinates)
+        polyline = lap * 3 + [lap[0], lap[0], (2.0, 0.0, 0.0), (3.0, 0.0, 0.0)]
+        tolerances = [[0.02 * (1 + (i + k) % 4) for k in range(3)] for i in range(len(polyline) - 1)]
+        tolerances[3] = tolerances[3 + 12] = tolerances[3 + 24] = [0.05, 0.03, 0.04]
+        points = [lap[5], (0.3, 0.2, 0.1), (1.0, 0.0, 0.0), (2.5, 0.01, 0.0), (2.5, 0.5, 0.0), (-3.0, 2.0, 1.0),
+                  (0.5 * (lap[2][0] + lap[3][0]), 0.5 * (lap[2][1] + lap[3][1]), 0.1)]
+        for point in points:
+            self.assertEqual(project(np.array(point), np.array(polyline), np.array(tolerances)), brute_project(point, polyline, tolerances))
+        # a sample on a vertex shared by identical laps goes to the first lap
+        self.assertEqual(project(np.array(lap[5]), np.array(polyline), np.array(tolerances))[0], 4)
 
 
 class Curves(unittest.TestCase):

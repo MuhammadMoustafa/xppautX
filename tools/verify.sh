@@ -164,7 +164,7 @@ else
   echo "EXAMPLES CHECK FAILED"
   exit 1
 fi
-if python3 tools/autocompare.py --keep build/auto-differ > build/autocompare.log 2>&1; then
+if uv run --locked python tools/autocompare.py --keep build/auto-differ > build/autocompare.log 2>&1; then
   tail -3 build/autocompare.log
 else
   cat build/autocompare.log

@@ -64,6 +64,9 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
       - uses: actions/setup-node@v7
         id: node
         with:
@@ -97,6 +100,9 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
       # the packages WebKitGTK pulls in (libsoup, gstreamer, ...) are the
       # bulk of this install; caching them cuts it to a dpkg unpack
       # the runner image (ubuntu24, ubuntu26 ...) in the cache's key: ImageOS is
@@ -274,6 +280,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
       - name: "Build xppautX (WKWebView window on, the Darwin default since W13d)"
         id: build
         run: |
@@ -332,7 +341,7 @@ jobs:
           if-no-files-found: ignore
       - name: AUTO diagrams against the shared numerical baseline (1 and auto threads)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python3 tools/autocompare.py --server ./xppautX --keep auto-differ
+        run: uv run --locked python tools/autocompare.py --server ./xppautX --keep auto-differ
       - name: Upload the differing AUTO diagrams
         if: ${{ !cancelled() && hashFiles('auto-differ/**') != '' }}
         uses: actions/upload-artifact@v7
@@ -383,6 +392,9 @@ jobs:
         shell: msys2 {0}
     steps:
       - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
       - uses: ./.github/actions/msys2-toolchain
         with:
           msystem: UCRT64
@@ -440,7 +452,9 @@ jobs:
           if-no-files-found: ignore
       - name: AUTO diagrams against the shared numerical baseline (1 and auto threads)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python tools/autocompare.py --server ./xppautX.exe --keep auto-differ
+        # uv is a Windows program: outside the MSYS2 shell, whose PATH holds only its own tools
+        shell: pwsh
+        run: uv run --locked python tools/autocompare.py --server ./xppautX.exe --keep auto-differ
       - name: Upload the differing AUTO diagrams
         if: ${{ !cancelled() && hashFiles('auto-differ/**') != '' }}
         uses: actions/upload-artifact@v7
@@ -509,6 +523,9 @@ jobs:
         shell: msys2 {0}
     steps:
       - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
       - uses: ./.github/actions/msys2-toolchain
         with:
           msystem: CLANG64
@@ -575,7 +592,12 @@ jobs:
           if-no-files-found: ignore
       - name: AUTO diagrams against the shared numerical baseline (1 and auto threads)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python tools/autocompare.py --server ./build/clang/xppautX.exe --keep auto-differ
+        # uv is a Windows program: outside the MSYS2 shell, whose PATH holds only its own tools;
+        # the dynamically linked clang build finds its runtime on clang64/bin
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\msys64\clang64\bin;$env:PATH"
+          uv run --locked python tools/autocompare.py --server ./build/clang/xppautX.exe --keep auto-differ
       - name: Upload the differing AUTO diagrams
         if: ${{ !cancelled() && hashFiles('auto-differ/**') != '' }}
         uses: actions/upload-artifact@v7

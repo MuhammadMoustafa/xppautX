@@ -55,7 +55,7 @@ if ! python3 tools/test_xppclient.py; then
   echo "CHECKER UNIT TESTS FAILED"
   exit 1
 fi
-if ! python3 tools/test_autocompare.py; then
+if ! uv run --locked python tools/test_autocompare.py; then
   echo "AUTO BASELINE UNIT TESTS FAILED"
   exit 1
 fi

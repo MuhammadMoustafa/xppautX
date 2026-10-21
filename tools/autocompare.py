@@ -19,6 +19,8 @@ import tempfile
 import time
 import zipfile
 
+import numpy as np
+
 from xppclient import Checker, SLOW, Server, is_ask, is_idle, open_auto, placed, run_any
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -606,33 +608,40 @@ def compare_run(rows, auto, kind, ref_points, who, known=(), compare_start=True)
     return diffs, measures
 
 
+def fit_segments(point, polyline, tolerances):
+    """How well a sample matches every segment of the polyline with its coordinate-wise tube (`tolerances`,
+    one row of three bounds per segment): the largest fraction of a bound consumed, and the residual, at
+    the point of the segment that keeps all three coordinates inside their bounds together (the closest
+    such point when none does). All segments at once, each in the order of operations of one segment."""
+    a, b = polyline[:-1], polyline[1:]
+    with np.errstate(divide='ignore', invalid='ignore'):
+        along = (b - a) / tolerances
+        length = along[:, 0] * along[:, 0] + along[:, 1] * along[:, 1] + along[:, 2] * along[:, 2]
+        dot = (point - a) / tolerances * along
+        t = np.where(length == 0, 0.0, np.minimum(1.0, np.maximum(0.0, (dot[:, 0] + dot[:, 1] + dot[:, 2]) / length)))
+        lo, hi = np.zeros(len(a)), np.ones(len(a))
+        for k in range(3):
+            delta = b[:, k] - a[:, k]
+            ends = [(point[k] - a[:, k] + sign * tolerances[:, k]) / delta for sign in (-1, 1)]
+            moving = delta != 0
+            off = ~moving & (np.abs(point[k] - a[:, k]) > tolerances[:, k])
+            lo = np.where(moving, np.maximum(lo, np.minimum(*ends)), np.where(off, 1.0, lo))
+            hi = np.where(moving, np.minimum(hi, np.maximum(*ends)), np.where(off, 0.0, hi))
+        t = np.where(lo <= hi, np.minimum(hi, np.maximum(lo, t)), t)
+        residual = point - (a + t[:, None] * (b - a))
+        return (np.abs(residual) / tolerances).max(axis=1), residual
+
+
 def project(point, polyline, tolerances):
     """Match a sample to the polyline's coordinate-wise uncertainty tubes.
     Each segment has Newton plus chord-error bounds. A geometrically nearest
     vertex can be a worse match than a coarser chord on another lap of a closed
     curve. Rank by the largest fraction of a bound consumed, without changing
-    any bound. The feasible interval preserves all three coordinates together."""
-    best = None
-    for i, bounds in enumerate(tolerances):
-        a, b = polyline[i], polyline[i + 1]
-        along = [(b[k] - a[k]) / bounds[k] for k in range(3)]
-        length = sum(x * x for x in along)
-        t = 0.0 if length == 0 else min(1.0, max(0.0, sum((point[k] - a[k]) / bounds[k] * along[k] for k in range(3)) / length))
-        lo, hi = 0.0, 1.0
-        for k in range(3):
-            delta = b[k] - a[k]
-            if delta:
-                ends = [(point[k] - a[k] + sign * bounds[k]) / delta for sign in (-1, 1)]
-                lo, hi = max(lo, min(ends)), min(hi, max(ends))
-            elif abs(point[k] - a[k]) > bounds[k]:
-                lo, hi = 1.0, 0.0
-        if lo <= hi:
-            t = min(hi, max(lo, t))
-        residual = [point[k] - (a[k] + t * (b[k] - a[k])) for k in range(3)]
-        distance = max(abs(residual[k]) / bounds[k] for k in range(3))
-        if best is None or distance < best[0]:
-            best = distance, i, residual
-    return best[1], best[2]
+    any bound. The feasible interval preserves all three coordinates together.
+    The first of equally good segments wins."""
+    distance, residual = fit_segments(point, polyline, tolerances)
+    i = int(np.argmin(distance))
+    return i, residual[i].tolist()
 
 
 def chord_error(polyline, i):
@@ -680,37 +689,44 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
         return ['%s: fewer than two branch samples' % who], []
     both_end_at_nmax = len(ours) == len(ref) == auto.get('nmax')
 
-    def tubes(point, chords, vertices):
-        bounds = []
-        for i, chord in enumerate(chords):
-            tube = []
-            for k in range(3):
-                # Only the reference was rounded: the point when projecting onto ours,
-                # otherwise the two reference segment endpoints (including NMX trimming).
-                scale = abs(point[k]) if vertices is ours else max(abs(vertices[i][k]), abs(vertices[i + 1][k]))
-                printed = 0.5 * 10 ** (math.floor(math.log10(scale)) - printed_digits + 1) if printed_digits and scale else 0
-                tube.append(NEWTON_TOLERANCE * (epsu if k == 2 else epsl) * (1 + abs(point[k])) + chord[k] + printed)
-            bounds.append(tube)
-        return bounds
+    def printed_by_segment(vertices):
+        # the half last printed unit of the largest reference coordinate of each segment's endpoints
+        return np.array([[half_unit(max(abs(vertices[i][k]), abs(vertices[i + 1][k]))) for k in range(3)]
+                         for i in range(len(vertices) - 1)])
+
+    def half_unit(scale):
+        return 0.5 * 10 ** (math.floor(math.log10(scale)) - printed_digits + 1) if printed_digits and scale else 0
+
+    def tubes(point, chords, vertices, printed):
+        # Only the reference was rounded: the point when projecting onto ours, otherwise the two reference
+        # segment endpoints (including NMX trimming).
+        base = [NEWTON_TOLERANCE * (epsu if k == 2 else epsl) * (1 + abs(point[k])) for k in range(3)]
+        if vertices is ours:
+            printed = np.array([half_unit(abs(point[k])) for k in range(3)])
+        return (np.array(base) + chords) + printed
 
     for source, target, side in ((ref, ours, 'reference'), (ours, ref, 'ours')):
-        chords = [chord_error(target, i) for i in range(len(target) - 1)]
+        chords = np.array([chord_error(target, i) for i in range(len(target) - 1)])
+        printed = None if target is ours else printed_by_segment(target)
         compared = len(source)
         if both_end_at_nmax:
             # the vertex of `source` past the other curve's last point: the end of the last segment it lies on
             end = target[-1]
-            bounds = tubes(end, [chord_error(source, i) for i in range(len(source) - 1)], source)
-            compared = next((i + 1 for i in range(len(source) - 2, -1, -1)
-                             if all(abs(r) <= b for r, b in zip(project(end, source[i:i + 2], bounds[i:i + 1])[1], bounds[i]))),
-                            compared)
+            polyline = np.array(source)
+            bounds = tubes(end, np.array([chord_error(source, i) for i in range(len(source) - 1)]), source,
+                           None if source is ours else printed_by_segment(source))
+            fits = fit_segments(np.array(end), polyline, bounds)[1]
+            inside = (np.abs(fits) <= bounds).all(axis=1)
+            compared = next((i + 1 for i in range(len(source) - 2, -1, -1) if inside[i]), compared)
         failed = {}
+        polyline = np.array(target)
         for n, point in enumerate(source[:compared]):
             if not auto['parmin'] <= point[0] <= auto['parmax']:
                 continue
-            tolerances = tubes(point, chords, target)
-            i, residual = project(point, target, tolerances)
+            tolerances = tubes(point, chords, target, printed)
+            i, residual = project(np.array(point), polyline, tolerances)
             for k, q in enumerate(CURVE_QUANTITIES):
-                tol = tolerances[i][k]
+                tol = float(tolerances[i][k])
                 diff = abs(residual[k])
                 if q not in worst or diff / tol > worst[q][0] / worst[q][1]:
                     worst[q] = diff, tol, '%s sample %d' % (side, n + 1)

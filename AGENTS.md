@@ -236,7 +236,7 @@ not a baseline of its own. Bessel `besselj`/`bessely` use the vendored musl impl
 `xpp::math` (W163, #215), so they also give the same bits on every platform. From Git Bash:
 `tools/examples_check.sh --bin xppautX.exe`.
 
-`tools/autocompare.py` (W299, #357) runs `tests/auto/`'s descriptions of
+`tools/autocompare.py` (W299, #357; it runs under the repo's uv environment, `uv run --locked python tools/autocompare.py`, numpy from uv.lock) runs `tests/auto/`'s descriptions of
 all tstauto models and examples/ode models with AUTO settings through
 `--server`, at 1 and automatic threads. It compares the diagram the session file
 keeps (every point's parameters, states and eigenvalues, exact) byte for
