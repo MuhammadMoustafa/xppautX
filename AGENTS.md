@@ -133,8 +133,10 @@ run, by any agent, Claude or Codex, the reviewer included, takes one of
 the machine's three slots. This applies to the Windows laptop (WSL and
 Git Bash). On the Ubuntu machine (W448, #511) builds and checks run
 directly, without heavy.sh, since its locks are Windows folders and it
-hangs there; a timed comparison series is guarded by
-`tools/comparison-setup.sh --record`'s busy check (1-minute load) instead:
+hangs there; a timed comparison series is guarded instead by
+`tools/comparison-setup.sh --ready` (W439: the performance governor and no
+other process on the CPU), which the comparison's run.py runs before each
+timed study:
 
     tools/heavy.sh [--alone] COMMAND [ARGS...]
 
