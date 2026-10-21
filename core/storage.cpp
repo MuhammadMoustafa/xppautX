@@ -33,13 +33,13 @@ void DataStore::allocate(int nrow, int ncol)
 {
   max_rows=nrow;
   rows=0;
-  columns_.assign(ncol+ADDED_COLUMNS,{});
+  added_.assign(ncol+ADDED_COLUMNS,{});
   table_.assign(ncol+ADDED_COLUMNS,nullptr);
   if(current.size()<static_cast<std::size_t>(ncol))current.resize(ncol);
-  for(int c=0;c<ncol;c++){
-    columns_[c].assign(nrow,0.0f);
-    table_[c]=columns_[c].data();
-  }
+  pool_=ZeroedFloats(xpp::size_product(nrow,ncol));
+  pool_cols_=ncol;
+  pool_rows_=nrow;
+  for(int c=0;c<ncol;c++)table_[c]=pool_.data()+xpp::size_product(c,nrow);
   col=table_.data();
 }
 
@@ -49,10 +49,14 @@ xpp::Result<> DataStore::grow(int ncol, int nrow)
     /* The general allocator hook was retired at W48 (xpp_mem.h).
        Exercise the recoverable storage-full path deterministically. */
     if(std::getenv("XPP_STORAGE_FAIL_GROW"))throw std::bad_alloc();
-    for(int c=0;c<ncol;c++){
-      columns_[c].resize(nrow,0.0f);
-      table_[c]=columns_[c].data();
-    }
+    ZeroedFloats grown(xpp::size_product(nrow,ncol));
+    const std::size_t keep=static_cast<std::size_t>(std::min(nrow,pool_rows_));
+    for(int c=0;c<std::min(ncol,pool_cols_);c++)
+      std::copy_n(table_[c],keep,grown.data()+xpp::size_product(c,nrow));
+    pool_=std::move(grown);
+    pool_cols_=ncol;
+    pool_rows_=nrow;
+    for(int c=0;c<ncol;c++)table_[c]=pool_.data()+xpp::size_product(c,nrow);
   } catch (const std::bad_alloc &) {
     return xpp::fail("storage","Cannot allocate sufficient storage",xpp::command_place());
   }
@@ -63,25 +67,25 @@ void DataStore::thin(int ncol)
 {
   const int kept=(rows+1)/2;
   for(int c=0;c<ncol;c++)
-    for(int r=1;r<kept;r++)columns_[c][r]=columns_[c][2*r];
+    for(int r=1;r<kept;r++)table_[c][r]=table_[c][2*r];
   rows=kept;
 }
 
 void DataStore::add_column(int c)
 {
-  columns_[c].assign(max_rows,0.0f);
-  table_[c]=columns_[c].data();
+  added_[c].assign(max_rows,0.0f);
+  table_[c]=added_[c].data();
 }
 
 Result<> DataStore::remove_column(int c, int count)
 {
-  if(c<0||c>=count||count>static_cast<int>(columns_.size()))
+  if(c<pool_cols_||c>=count||count>static_cast<int>(added_.size()))
     return xpp::fail("storage",xpp::format("Cannot remove column {} of {}",c,count),xpp::command_place());
   for(int j=c;j<count-1;j++){
-    columns_[j].swap(columns_[j+1]);
-    table_[j]=columns_[j].data();
+    added_[j].swap(added_[j+1]);
+    table_[j]=added_[j].data();
   }
-  std::vector<float>().swap(columns_[count-1]);
+  std::vector<float>().swap(added_[count-1]);
   table_[count-1]=nullptr;
   return {};
 }
