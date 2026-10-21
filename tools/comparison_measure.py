@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import signal
 import subprocess
+import threading
 import time
 
 
@@ -15,18 +16,35 @@ def run_foreground(argv, *, cwd, env, timeout, stdout=subprocess.PIPE, stderr=su
 
     AUTO's Python wrapper starts its executable and compiler. A private
     process group lets a failed wrapper leave none of those running.
+    The wait itself has no timeout: with one, CPython polls waitpid with
+    sleeps of up to 50 ms, and a measured wall time would be rounded up
+    to that step. A timer enforces the limit instead.
     """
     with subprocess.Popen(argv, cwd=cwd, env=env, stdout=stdout, stderr=stderr,
                           text=True, start_new_session=True) as child:
-        try:
-            output, errors = child.communicate(timeout=timeout)
-        except BaseException:
+        expired = threading.Event()
+
+        def stop():
             try:
                 os.killpg(child.pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
+
+        def expire():
+            expired.set()
+            stop()
+        timer = threading.Timer(timeout, expire)
+        timer.start()
+        try:
+            output, errors = child.communicate()
+        except BaseException:
+            stop()
             child.communicate()
             raise
+        finally:
+            timer.cancel()
+        if expired.is_set():
+            raise subprocess.TimeoutExpired(argv, timeout, output, errors)
         return subprocess.CompletedProcess(argv, child.returncode, output, errors)
 
 
