@@ -409,22 +409,33 @@ def check_rhs(binary, eqs, start, folder):
 
 
 BLOCK = re.compile(r'^\s*(\d+)\s+(\d+)\s+(Eigenvalue|Multiplier)\s*(\d+):?\s+(\S+)\s+(\S+)(\s|$)')
+# the row that ends a special point's output: BR, PT (negative when stable), TY, LAB; a location's
+# iteration rows (BR, PT, IT) have no TY
+SUMMARY = re.compile(r'^\s*(-?\d+)\s+(-?\d+)\s+[A-Z]{2}\s+(\d+)\s+-?\d\.\d+E[-+]\d+')
 
 
 def stability(text):
-    """d.<name>: {(branch, point): (kind, [[re, im], ...])}, the last block printed for a point (the
-    location of a special point prints the point again after each of its iterations). A block
-    starts when the number of its line is not above the one before: AUTO-07p numbers eigenvalues
-    and multipliers from 1, XPPAUT's multipliers from 0."""
-    out, last = {}, {}
+    """d.<name>: {(branch, label): (kind, [[re, im], ...])}, the last block printed for a special point
+    (the location of a special point prints the point again after each of its iterations). Keyed by
+    label, not point: a run of more than 9999 steps prints a point's number again for a later point
+    (AUTO-07p's NTOP=MOD(NTOT-1,9999)+1, ae.f90; XPPAUT's ntop=(ntot+1)%10000, autlib1.c).
+    A block starts when the number of its line is not above the one before: AUTO-07p numbers
+    eigenvalues and multipliers from 1, XPPAUT's multipliers from 0."""
+    out, block, last = {}, None, None
     for line in text.splitlines():
         m = BLOCK.match(line)
         if m:
             key, number = (int(m.group(1)), int(m.group(2))), int(m.group(4))
-            if key not in out or number <= last[key]:
-                out[key] = (m.group(3), [])
-            last[key] = number
-            out[key][1].append([float(m.group(5)), float(m.group(6))])
+            if block is None or block[0] != key or number <= last:
+                block = (key, m.group(3), [])
+            last = number
+            block[2].append([float(m.group(5)), float(m.group(6))])
+            continue
+        m = SUMMARY.match(line)
+        if m:
+            branch, label = abs(int(m.group(1))), int(m.group(3))
+            if block is not None and block[0] == (branch, abs(int(m.group(2)))):
+                out[branch, label] = block[1:]
     return out
 
 
@@ -917,7 +928,7 @@ def reference(name, d, program, args, inputs=None, measurements=None, exact_sour
         kept = []
         for pt in points.get(r['name'], []):
             if pt['type'] in POINT_TYPES:
-                kind, vals = stab[r['name']].get((abs(pt['branch']), abs(pt['point'])), ('', []))
+                kind, vals = stab[r['name']].get((abs(pt['branch']), pt['label']), ('', []))
                 # AUTO-07p prints a map's fixed point's Jacobian eigenvalues, which are its multipliers
                 kept.append({**pt, 'spectrum': 'multiplier' if odex.discrete and kind else kind.lower(), 'values': vals})
         names = {'parameters': r['parameters']} if 'parameters' in r else {'parameter': r['parameter']}

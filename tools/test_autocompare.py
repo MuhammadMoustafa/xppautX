@@ -367,5 +367,26 @@ class Arms(unittest.TestCase):
         self.assertEqual(notes, [])
 
 
+class Stability(unittest.TestCase):
+    # AUTO-07p's d-file: the located HB at point 3591, then point 13590, printed 3591 again (modulo 9999)
+    D = '''   1  3591         Eigenvalue  1:   1.00000E-01  -2.00000E+00
+   1  3591         Eigenvalue  2:   1.00000E-01   2.00000E+00
+ ==> Location of special point :  Iteration   0  Step size =   4.14209E-01
+   1  3591   1        1.64094E+04   1.97136E+01
+   1  3591         Eigenvalue  1:  -3.19686E-09  -2.91214E+00
+   1  3591         Eigenvalue  2:  -3.19686E-09   2.91214E+00
+   1  3591         Fold Function:   1.00000E+00
+  BR    PT  TY  LAB    PAR(1)        L2-NORM         U(1)
+   1 -3591  HB    2   1.64094E+04   1.97136E+01  -1.96243E+01
+   1  3591         Eigenvalue  1:   8.39045E-01  -2.34610E+00
+   1  3591         Eigenvalue  2:   8.39045E-01   2.34610E+00
+   1  3591        0   6.41041E+03   2.22004E+01  -2.21265E+01
+'''
+
+    def test_a_special_point_keeps_its_own_block_when_its_number_is_printed_again(self):
+        from auto_reference import stability
+        self.assertEqual(stability(self.D), {(1, 2): ('Eigenvalue', [[-3.19686e-09, -2.91214], [-3.19686e-09, 2.91214]])})
+
+
 if __name__ == '__main__':
     unittest.main()
