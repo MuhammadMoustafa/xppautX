@@ -130,7 +130,11 @@ builds and checks, and twice more on 2026-10-10, about 40 minutes after
 three agents (one Codex, two Claude) each built and checked at once,
 each keeping "one heavy run at a time" for itself only. So every heavy
 run, by any agent, Claude or Codex, the reviewer included, takes one of
-the machine's three slots:
+the machine's three slots. This applies to the Windows laptop (WSL and
+Git Bash). On the Ubuntu machine (W448, #511) builds and checks run
+directly, without heavy.sh, since its locks are Windows folders and it
+hangs there; a timed comparison series is guarded by
+`tools/comparison-setup.sh --record`'s busy check (1-minute load) instead:
 
     tools/heavy.sh [--alone] COMMAND [ARGS...]
 
@@ -599,7 +603,8 @@ difficulty) implements one card in the worktree its brief names:
   and refuses uncommitted changes). The machine is a laptop that
   overheats (maintainer, 2026-09-29): build with -j4, and never run two
   heavy things side by side yourself (a build, servercheck, autocheck,
-  web2check). Across agents: every build, check or timing run goes
+  web2check). Across agents, on the Windows laptop (on the Ubuntu machine
+  builds and checks run directly, W448): every build, check or timing run goes
   through `tools/heavy.sh [--alone] COMMAND...` (Build: "At most three
   heavy runs at a time on this machine", W289), which waits for one of
   the machine's three slots (`tools/wslrun.sh` takes it itself); code while

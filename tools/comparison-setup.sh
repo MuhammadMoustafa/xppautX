@@ -17,8 +17,9 @@
 #               `uv run python ...` (docs/comparison-machine.md).
 #   --build     builds xppautX, XPPAUT 8.0 and AUTO-07p under ROOT/build (a build with
 #               its stamp is kept).
-#   --record    writes the machine record (CPU, governor, turbo, compilers, source hashes)
-#               to ROOT/provenance/machine-<UTC time>.json: copy it beside the results.
+#   --record    writes the machine record (CPU, governor, turbo, compilers, source hashes,
+#               the start load) to ROOT/provenance/machine-<UTC time>.json: copy it beside
+#               the results. Refuses when the 1-minute load is above MAX_LOAD_1M (W448).
 #   --ready     run before each timed series: refuses unless the CPU governor is
 #               "performance" and no other process uses the CPU (the series needs the
 #               machine to itself); changing the governor is the maintainer's (root).
@@ -48,6 +49,9 @@ XPPAUTX_MAKE=(xppautx WINDOW=0 "OPT=-g -O2" CCACHE= XPPAUTX_VERSION=paper-compar
 LEGACY_CC="gcc -std=gnu99 -D_XOPEN_SOURCE=600 -w -Wno-error=implicit-function-declaration -Wno-error=int-conversion -Wno-error=incompatible-pointer-types -Wno-error=implicit-int -Wno-error=return-mismatch"
 LEGACY_CFLAGS="-g -O2 -ffp-contract=off -fcommon -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL -DMYSTR1=8.0 -DMYSTR2=1"
 LEGACY_LDFLAGS=-fcommon
+# W448 (#511): a timed series needs the machine to itself. The 1-minute load average
+# above this refuses --record (one busy core is 1.0, so 1.0 is the first sign of work).
+MAX_LOAD_1M=1.0
 . tools/jobs.sh
 
 die() { echo "comparison-setup: $*" >&2; exit 1; }
@@ -225,7 +229,14 @@ turbo_state() {
   else echo "unknown (no intel_pstate/no_turbo or cpufreq/boost)"; fi
 }
 do_record() {
-  local out=$ROOT/provenance stamp
+  local out=$ROOT/provenance stamp load1
+  # W448: the record is written only for an idle machine; its load_average field keeps the start load
+  load1=$(cut -d' ' -f1 /proc/loadavg)
+  if awk -v l="$load1" -v m="$MAX_LOAD_1M" 'BEGIN { exit !(l > m) }'; then
+    echo "comparison-setup: the 1-minute load is $load1, above $MAX_LOAD_1M: the machine is busy and a timed series needs it idle. Busiest processes:" >&2
+    ps -eo pid,pcpu,etime,args --sort=-pcpu | head -n 6 | cut -c1-160 >&2
+    exit 1
+  fi
   stamp=$(date -u +%Y%m%dT%H%M%SZ)
   mkdir -p "$out" || die "cannot make $out"
   GOV=$(cpu_files scaling_governor) DRIVER=$(cpu_files scaling_driver) TURBO=$(turbo_state) \
