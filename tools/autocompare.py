@@ -44,6 +44,13 @@ class Diagram:
     def __init__(self):
         self.points = []
         self.runs = {}
+        # W454: a run sent without diagram data stores points this object has not read (their number is known from
+        # the branch's own end, their labels only from the session file): `unread` of them lie after `points`.
+        self.unread = 0
+
+    @property
+    def size(self):
+        return len(self.points) + self.unread
 
     def apply(self, events):
         for e in events:
@@ -227,6 +234,8 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
             completed(s, dict(cmd='set', values=[dict(kind='ic', name=p[0], value=float(v))
                        for p, v in zip(state['ics'], state['now'])]))
     else:
+        if diagram.runs[start['run']] is None:
+            read_unlabelled(s, diagram, ranges)
         points = [p for p in diagram.runs[start['run']] if p['sym'] == start['type']]
         if len(points) < start['index']:
             raise ValueError('start point not found: ' + str(start))
@@ -241,7 +250,7 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
             'periodic': 'p' if start.get('type') == 'HB' else 'e', 'two_parameter': 't', 'fixed_period': 'f',
             'bvp': 'b', 'homoclinic': 'h', 'heteroclinic': 'e'}
     key = 's' if r.get('switch') else keys[r['kind']]
-    lo = len(diagram.points)
+    lo = diagram.size
     if 'connection' in r:
         c = r['connection']
         values = [c['nunstab'], *c['left'], c['nstab'], *c['right']]
@@ -265,13 +274,6 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
         result.remove(errors[0])
     ensure_completed(result, events[-1] if events and is_idle(events[-1]) else None)
     diagram.apply(events)
-    if not diagram_data:
-        # W439: the like-for-like timing row sends no diagram data. Read the
-        # saved diagram after idle, outside the run window, for subsequent grabs.
-        diagram.points = [dict(lab=int(p['lab']), sym=point_symbol(int(p['itp'])))
-                          for p in diagram_rows(session_diagram(s))]
-    if len(diagram.points) <= lo:
-        raise RuntimeError('AUTO stored no points for ' + r['name'])
     stops = [e['stop'] for e in events if e.get('ev') == 'autoinfo' and e.get('stop')]
     if not stops and 'expected_error' not in r:
         # An identical repeated branch can leave the info strip unchanged;
@@ -280,9 +282,62 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
         stops = [e['stop'] for e in current if e.get('ev') == 'autoinfo' and e.get('stop')]
     if 'expected_error' not in r and (not stops or stops[-1]['why'].startswith('noconv')):
         raise RuntimeError('AUTO failed to converge: ' + str(stops[-1:] or events[-3:]))
-    ranges[r['name']] = lo, len(diagram.points)
-    diagram.runs[r['name']] = [dict(p) for p in diagram.points[lo:]]
+    if diagram_data:
+        stored = len(diagram.points) - lo
+    else:
+        # W439/W454: the like-for-like timing row sends no diagram data, and the session is not saved after every
+        # branch (a save writes the whole diagram; a branch repeated 87 times cost minutes). A branch's own end
+        # (`stop.pt`) says how many points it stored, except for a cycle curve (a two-parameter run from a point of
+        # cycles stores five more than it numbers): that kind counts the saved file. A grab reads the labels from the
+        # file only when the run it grabs from has none yet, and compute checks the counts against the whole diagram
+        # once, at its end.
+        stored = (stops[-1]['pt'] if stops and numbered_points(r) else saved_count(s) - lo)
+        diagram.unread += stored
+    if stored <= 0:
+        raise RuntimeError('AUTO stored no points for ' + r['name'])
+    ranges[r['name']] = lo, lo + stored
+    diagram.runs[r['name']] = [dict(p) for p in diagram.points[lo:]] if not diagram.unread else None
     return events
+
+
+def numbered_points(r):
+    """Whether a run's last point number (`stop.pt`) is the number of points it stored."""
+    return r['kind'] != 'two_parameter' or r['start'].get('type') == 'HB'
+
+
+def read_unlabelled(s, diagram, ranges):
+    """Read the saved diagram's labels and types for the points sent without data, and give every finished run
+    its own points."""
+    rows = diagram_rows(saved_member(s))
+    check_size(len(rows), diagram)
+    diagram.points = [dict(lab=int(p['lab']), sym=point_symbol(int(p['itp']))) for p in rows]
+    diagram.unread = 0
+    for name, (lo, hi) in ranges.items():
+        if diagram.runs.get(name) is None:
+            diagram.runs[name] = [dict(p) for p in diagram.points[lo:hi]]
+
+
+def saved_member(s):
+    """The session file's diagram member (auto/diagram.csv), CRs removed."""
+    with tempfile.TemporaryDirectory() as folder:
+        path = os.path.join(folder, 'baseline.snapx')
+        completed(s, dict(cmd='session', op='save', name=path, data=False))
+        with zipfile.ZipFile(path) as z:
+            return z.read(DIAGRAM_MEMBER).replace(b'\r\n', b'\n')
+
+
+def point_count(data):
+    """How many points a saved diagram holds: its lines but the branch constants and the header."""
+    return sum(1 for line in data.splitlines() if not line.startswith(b'branch,')) - 1
+
+
+def saved_count(s):
+    return point_count(saved_member(s))
+
+
+def check_size(count, diagram):
+    if diagram.unread and count != diagram.size:
+        raise RuntimeError('the saved diagram holds %d points, the branches ended at %d' % (count, diagram.size))
 
 
 def session_diagram(s):
@@ -290,16 +345,12 @@ def session_diagram(s):
     point's parameters, states, extremes and eigenvalues, each number
     written to round-trip exactly, where the diagram events carry only the
     plotted coordinates to seven digits."""
-    with tempfile.TemporaryDirectory() as folder:
-        path = os.path.join(folder, 'baseline.snapx')
-        completed(s, dict(cmd='session', op='save', name=path, data=False))
-        with zipfile.ZipFile(path) as z:
-            data = z.read(DIAGRAM_MEMBER).replace(b'\r\n', b'\n')
-            for point, row in enumerate(diagram_rows(data)):
-                for key,value in row.items():
-                    for item in value.split(';') if key in ('continued','values') else [value]:
-                        finite(float(item), 'diagram point %d %s' % (point,key))
-            return data
+    data = saved_member(s)
+    for point, row in enumerate(diagram_rows(data)):
+        for key,value in row.items():
+            for item in value.split(';') if key in ('continued','values') else [value]:
+                finite(float(item), 'diagram point %d %s' % (point,key))
+    return data
 
 
 def compute(binary, d, threads, *, env=None, run=None, diagram_data=True, jacobian=None, observer=None):
@@ -331,7 +382,9 @@ def compute(binary, d, threads, *, env=None, run=None, diagram_data=True, jacobi
                 events = execute_run(s, r, diagram, ranges, diagram_data=diagram_data)
                 if observer:
                     observer.finished(s, r, events, ranges)
-        return session_diagram(s), len(diagram.points), setting['threads_auto'], ranges
+        data = session_diagram(s)
+        check_size(point_count(data), diagram)
+        return data, diagram.size, setting['threads_auto'], ranges
     finally:
         s.close()
         if s.proc.returncode and sys.exc_info()[0] is None:
