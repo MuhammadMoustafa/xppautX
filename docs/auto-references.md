@@ -1414,3 +1414,52 @@ default build's par2 trace reads as stale there, and its multipliers differ by 4
 two coalescing -1 multipliers make the location depend on the eigenvalue routine as it depends on the mesh and the
 step; every other description has 0 differences (forced_pp_ns: 265 LAPACK points against the default's 262, all
 quantities within tolerance). EISPACK stays the default, and its comparison is the one the traces hold exact.
+
+## W455: the exact Jacobian against two programs' differences ([#518](https://github.com/MuhammadMoustafa/xppautX/issues/518))
+
+W354's continuation comparison (series 20261021b) gated every row against XPPAUT 8.0 and AUTO-07p. xppautX's finite-difference
+rows passed everywhere; its exact-Jacobian rows (`jacobian: exact`, every thread count) failed on P2, E2 and T1 and passed on
+P1, E1 and E3. The exact rows are the ones that are right.
+
+| Quantity | exact, converged | exact, as run | `difference`, converged | XPPAUT 8.0 | AUTO-07p |
+|---|---|---|---|---|---|
+| motoneuron6c, HB at stored point 362: ampPar | 0.1737640862 | 0.1737640407 | 0.1737627148 | 0.1737628 | 0.1737626685 |
+| the period at it (gate tolerance 0.264) | 608.83265 | 608.8645 | 607.28611 | 607.215 | 607.3187 |
+| mu26 blocked, first fold (stored point 16): SmIapp | 0.0657989595 | 0.0657989595 | 0.0657989566 | 0.06579896 | 0.065798956561 |
+| its norm (gate tolerance 5.6e-5) | 99.22379848 | 99.22379876 | 99.22409174 | 99.22409 | 99.224092019 |
+
+"Converged" is EPSL = EPSU = EPSS 1e-7, DS 0.002, DSMAX 0.01 for motoneuron6c and 1e-10, 0.001 and 0.05 for mu26; "as run" is
+the description's. Three checks that the exact Jacobian is the right one: (1) an independent double-precision evaluation, from
+AUTO-07p's own Fortran `FUNC` of the model (the benchmark's `probe.f90`), of the equilibrium by Newton and the Hopf point by
+bisection on the real part of the critical pair, with a centred Richardson-extrapolated Jacobian, gives ampPar 0.1737640862 and
+period 608.8326, xppautX's converged exact numbers to every printed digit; (2) `tests/test_exact_jacobian.cpp` now compares
+the exact Jacobian of mu26 and motoneuron6c, at a point away from the initial one, with central differences: 7e-8 and 1.3e-7
+relative to the larger of 1 and the entry; (3) the difference in the two programs' rows is independent of the tolerances
+(the converged rows differ as the as-run ones do) and is reproduced, to every printed digit, by AUTO's own step rule applied to the independent evaluator.
+
+**Why the differences differ**: both programs difference the right-hand side centrally with one step for every state,
+1e-7 times the largest state plus 1 ([AUTO-07p finding 7](auto07p-findings.md#7-the-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale),
+[XPPAUT finding 74](xppaut-findings.md#74-autos-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale)), 7e-6 on
+motoneuron6c, whose gating variables and concentrations are 1e-5 to 1e-22. The Hopf point moves 1.4e-6 in ampPar, and the
+period at a Hopf point there changes by about 7e5 per unit of it: 0.25 percent. Mu26's fold norm moves 2.9e-4 and its Hopf curve by up to
+8e-4 in SmIapp (6e-5 against XPPAUT). The gate's period and norm tolerances (position error along the branch times the
+branch's own slope, plus Newton's) do not include the Jacobian's error, which for a spectrum they do (`FINITE_DIFFERENCE`),
+and could not include a Hopf period's sensitivity.
+
+**P2's periodic special point.** Exact labels BP at point 3 of the cycles from the Hopf point, the difference rows, XPPAUT and
+AUTO-07p an LP. Neither is real: the parameter is monotonic from the Hopf point (0.5727814554, 0.5727816054, 0.5727852281), and with EPS
+1e-8 and DS -0.002 neither Jacobian labels anything in 60 points, at NTST 100 and 200 alike. The point is 1.5e-7 in ampPar and
+8e-6 in norm from the start; both tests change sign between points 2 and 3, the fold function (the tangent's parameter
+component, +4.6e-6 then -5.8e-6) and the branch-point function (a determinant ratio of 1e-16 to 1e-17, noise), and which
+one is located first depends on the Jacobian: the fold's location does not converge (its values -3.8e-5, +1.4e-5, -1.3e-5,
+-1.5e-5, ...), the branch point's is taken. The table above (W431) lists this point as a fold of cycles; it is the start of
+the branch, in all four programs.
+
+**How the gate should judge exact rows** (a proposal for the benchmark's driver, `paper/benchmarks/comparison/continuation.py`,
+not made here): a program that differences cannot judge a Jacobian that does not, wherever a quantity depends on the Jacobian's
+accuracy (a Hopf period, a fold's norm, a Hopf curve). An exact row is equal work when (1) each of its runs has the special points of xppautX's
+`difference` pilot, in order (the pilot is gated against both programs), and (2) its values are within the existing tolerances of a converged exact run of the same description (EPSL, EPSU,
+EPSS and DS, DSMAX divided by 1e3 and 10, as above, one run per workload), compared by `compare_references` as a reference of
+its own. (1) fails on P2's cycle start, which is a start-of-branch artefact of both Jacobians: until it is dropped in the core
+(a separate card: a test function that changes sign between the first two points of a branch started from a Hopf point
+should not label), (1) skips the first two points after a Hopf start.

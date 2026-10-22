@@ -41,6 +41,7 @@ so the index started empty.
 | [4](#4-a-torus-curves-result-depends-on-the-start-amplitude-of-its-eigenfunction) | Torus curves of cycles | R1 and R2 on res_cycles are found only from one start amplitude of the eigenfunction; 3 times larger and the run fails at its second point | [W405](https://github.com/MuhammadMoustafa/xppautX/issues/467) |
 | [5](#5-a-torus-curves-resonance-test-is-blind-once-its-angle-leaves-0-to-pi) | Torus curves of cycles and maps | the R1-R4 test looks at the continued angle only between 0 and pi: past pi a curve crosses R3, R4 and R1 unlabelled | [W405](https://github.com/MuhammadMoustafa/xppautX/issues/467) |
 | [6](#6-a-fold-or-flip-curves-resonance-test-gives-0-when-its-double-multiplier-splits) | Fold and flip curves of cycles | at R1/R2 roundoff splits the double +1/-1 into a conjugate pair; the test then returns 0 and the location takes it for the zero | [W405](https://github.com/MuhammadMoustafa/xppautX/issues/467) |
+| [7](#7-the-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale) | Equilibria | the finite-difference Jacobian (JAC=0) steps every state by 1e-7 times the largest state, so a model with states of very different size has a Jacobian, and a Hopf point, that is off by an amount no tolerance changes | [W455 / #518](https://github.com/MuhammadMoustafa/xppautX/issues/518) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -248,3 +249,40 @@ converge (docs/auto-references.md, W419).
 
 **Card:** [W405 / #467](https://github.com/MuhammadMoustafa/xppautX/issues/467),
 [W419 / #481](https://github.com/MuhammadMoustafa/xppautX/issues/481).
+
+## 7. The finite-difference Jacobian steps every state by the largest one's scale
+
+With no user Jacobian (`JAC=0`) AUTO-07p's `FUNI` differences `FUNC` centrally, with one step for every component:
+`EP = HMACH*(1+UMX)`, `UMX` the largest `|u(i)|` and `HMACH = 1e-7`
+([interfaces.f90:86-103](../reference/auto-07p/src/interfaces.f90#L86)). A model whose states differ in size by many
+orders (a membrane voltage near -70 and gating variables or concentrations of 1e-5 to 1e-22) steps each small state by
+more than its own size: motoneuron6c's `EP` is 7.1e-6. The Jacobian's error is then that of the model's nonlinearity at
+the largest state's scale, whatever `EPSL`, `EPSU`, `EPSS` and the continuation step are.
+
+**Evidence** (ModelDB 267710, `tests/auto/ode_motoneuron6c.json`, the steady run's Hopf point at stored point 362; the
+right-hand side is the Fortran `FUNC` of AUTO-07p's own run, `eq.f90`):
+
+| Jacobian | Hopf ampPar | period at it |
+|---|---|---|
+| independent: Newton and the eigenvalues of a centred, Richardson-extrapolated Jacobian of that `FUNC`, double precision | 0.1737640862 | 608.8326 |
+| xppautX `jacobian: exact`, EPSL = EPSU = EPSS 1e-7, DS 0.002, DSMAX 0.01 | 0.1737640862 | 608.83265 |
+| xppautX `jacobian: exact`, the description's EPS 1e-4 | 0.1737640407 | 608.8645 |
+| AUTO-07p, the description's EPS 1e-4 (XPPAUT 8.0: 0.1737628, 607.215) | 0.1737626685 | 607.3187 |
+| xppautX `jacobian: difference` (AUTO's step), EPS 1e-7 as above | 0.1737627148 | 607.28611 |
+| the independent evaluator with AUTO's rule: centred, `EP = 1e-7*(1+max\|u\|)` | 0.1737627148 | 607.2861 |
+| the same with `HMACH` 1e-8 | 0.1737640725 | 608.8171 |
+
+The two kinds of Jacobian differ the same way at every tolerance, AUTO's rule reproduces its numbers to every printed digit,
+and the error shrinks with `HMACH`: it is the step, not Newton's tolerance. The Hopf point moves 1.4e-6 in ampPar (8e-6
+relative), and the period at a Hopf point changes by about 7e5 per unit of ampPar there, so the period is off by 1.5, 0.25
+percent. On Mu26 with blocked h-current (`tests/auto/ode_mu26_blocked.json`, the steady run's first fold) the two
+Jacobians give the fold at SmIapp 0.0657989595 with norm 99.22379848 (exact) and 99.22409174 (difference), both at EPS 1e-10,
+DS 0.001, DSMAX 0.05. xppautX's exact Jacobian is the derivative of the right-hand side itself and agrees with a central
+difference of it to 1.3e-7 (motoneuron6c) and 7e-8 (Mu26), relative to the larger of 1 and the entry, at a point away
+from the initial one (`tests/test_exact_jacobian.cpp`).
+
+**xppautX:** keeps AUTO's rule as its `difference` Jacobian (the default, so a run reproduces AUTO-07p's and XPPAUT's
+numbers, docs/auto-references.md) and offers the exact one (W260). The rule is XPPAUT's own as well
+([xppaut-findings.md](xppaut-findings.md#74-autos-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale)).
+
+**Card:** [W455 / #518](https://github.com/MuhammadMoustafa/xppautX/issues/518).

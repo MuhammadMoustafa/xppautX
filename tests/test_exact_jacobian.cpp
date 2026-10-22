@@ -179,7 +179,7 @@ void check_operations()
 
 /* the model file's exact Jacobian at its initial point against forward
    differences of step eps, in the form the integrators use */
-void check_model(const char *path, bool map)
+void check_model(const char *path, bool map, bool forward = true)
 {
     std::string file = path;
     char name[] = "test_exact_jacobian";
@@ -207,6 +207,30 @@ void check_model(const char *path, bool map)
     xpp::jacobian(s, t, x.data(), f.data(), n, 1e-8, form, exact.data(), map ? nullptr : dt_exact.data());
     double worst = 0;
     for (std::size_t k = 0; k < exact.size(); ++k) worst = std::max(worst, std::fabs(exact[k] - differences[k]) / std::max(1.0, std::fabs(exact[k])));
+    /* every column again against a central difference of step 1e-5*max(1,|x|)
+       (good to about 1e-9): a forward difference is only as good as its step,
+       and on motoneuron6c's and mu26's gates and concentrations near zero the
+       one above is off by more than 1e-5 (W455) */
+    double central = 0;
+    {
+        std::vector<double> xp = x, fp(f.size()), fm(f.size());
+        for (int j = 0; j < n; ++j) {
+            const auto sj = static_cast<std::size_t>(j);
+            const double h = 1e-5 * std::max(1.0, std::fabs(x[sj]));
+            xp[sj] = x[sj] + h;
+            s.integrator.rhs(t, xp.data(), fp.data(), n);
+            xp[sj] = x[sj] - h;
+            s.integrator.rhs(t, xp.data(), fm.data(), n);
+            xp[sj] = x[sj];
+            for (int i = 0; i < n; ++i) {
+                const auto si = static_cast<std::size_t>(i);
+                const double d = (fp[si] - fm[si] - (map ? 2 * h * (j == i) : 0)) / (2 * h);
+                central = std::max(central, std::fabs(exact[si * static_cast<std::size_t>(n) + sj] - d) / std::max(1.0, std::fabs(d)));
+            }
+        }
+    }
+    std::printf("%s: exact against central differences, largest relative difference %.3g\n", path, central);
+    CHECK(central < 1e-6);
     for (std::size_t k = 0; k < dt.size(); ++k) worst = std::max(worst, std::fabs(dt_exact[k] - dt[k]) / std::max(1.0, std::fabs(dt_exact[k])));
     /* each parameter's column against a central difference, the derived
        parameters worked out again from it as AUTO does */
@@ -229,9 +253,10 @@ void check_model(const char *path, bool map)
         }
     }
     std::printf("%s: exact against differences, largest relative difference %.3g\n", path, worst);
-    /* a forward difference of step 1e-8 is good to about 1e-7, a central
-       one of step 1e-6 to about 1e-10 */
-    CHECK(worst < 1e-5);
+    /* a forward difference of step 1e-8 is good to about 1e-7 on a model of
+       moderate scale; the two models of W455 (gates and concentrations near zero)
+       have only the central difference above to check against */
+    if (forward) CHECK(worst < 1e-5);
 }
 
 /* AUTO's func with ijac 2 (JAC=1): dfdu and the continuation parameters'
@@ -296,6 +321,8 @@ int main()
     check_model("examples/ode/cobweb2.odex", true);   /* a map, its time in mod and an if */
     check_model("tools/models/compile_derived.odex", false); /* a derived parameter */
     check_model("tools/models/exact_jacobian.odex", false);  /* derived, a user function, a fixed variable */
+    check_model("examples/ode/mu26.odex", false, false);          /* W455: 15 states, gates near zero; the T1 model */
+    check_model("examples/ode/motoneuron6c.odex", false, false);  /* W455: 25 states, concentrations near zero; the P2/E2 model */
     check_auto_func("tools/models/exact_jacobian.odex", 0.3, -0.2);
     check_auto_func("examples/ode/lecar.odex", -0.144, 0.03);
     check_auto_func("examples/ode/cobweb2.odex", 0.4, 0.3, 3); /* a map, three steps a point */
