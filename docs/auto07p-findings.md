@@ -102,6 +102,15 @@ for unit complex eigenvector norm it gives `l1=-0.3606957776` at `t=5.5`.
 The C++ coefficient is checked against this and two other analytic points,
 and against the Bautin normal form's `l1=2*b`.
 
+The same labels, with an independent first Lyapunov coefficient (W456, [#519](https://github.com/MuhammadMoustafa/xppautX/issues/519)):
+ModelDB 267710's six-compartment motoneuron (25 states, `tests/auto/ode_motoneuron6c.json`, T2 of the benchmark), Hopf
+locus in (CaDen_Max, ampPar) from the fifth HB. AUTO-07p 0.9.4 labels five GH at points 63, 67, 71, 76 and 83, ampPar 0.7392 to 0.7954
+(CaDen_Max 9.68e-5 to 3.85e-5), five sign changes of its test function within 0.056 of ampPar. The coefficient from Kuznetsov's
+formula with the multilinear forms differenced in quadruple precision, from the model's own Fortran `FUNC`, is +8.5e-4 to
++1.9e-3 at all 89 points of that arm, the labelled ones included (+1.25e-3, +9.1e-4, +1.05e-3, +1.02e-3, +9.2e-4, taken at AUTO-07p's own places); xppautX's
+test function agrees to 1.5e-4 relative, with the difference or the exact Jacobian. With EPSL = EPSU = EPSS 1e-4 AUTO-07p labels the
+five GH again on T2's own description; with 1e-7 and 1e-9 it labels none.
+
 A cusp can also go unlabelled (W423, [#485](https://github.com/MuhammadMoustafa/xppautX/issues/485)); the noise below fits the residual term, though no experiment on AUTO-07p isolated it.
 On Mu26's rheobase-fold curve in (current, g_h soma) (`tests/auto/ode_mu26_blocked.json`, `lp_soma` with DSMAX 1)
 the cusp function changes sign between points 28 (-3.4e-8) and 29 (8.1e-8), and the location evaluates 8.9e-10,
@@ -119,7 +128,7 @@ Newton residual. It locates the true CP and BT within the unchanged
 reference tolerances and emits none of the spurious CP/GH labels above.
 The four extra CP and three GH remain explicit traced differences.
 
-**Card:** [W364](https://github.com/MuhammadMoustafa/xppautX/issues/426).
+**Card:** [W364](https://github.com/MuhammadMoustafa/xppautX/issues/426), [W456](https://github.com/MuhammadMoustafa/xppautX/issues/519).
 
 ## 3. Point numbers wrap after 9999
 

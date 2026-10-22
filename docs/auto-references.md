@@ -1015,8 +1015,8 @@ step overshoots (CaDen_Max -1.4e-5 at the end of `hb_up`).
 
 **Traced: five GH on the locus, AUTO-07p only.** AUTO-07p labels five GH between ampPar 0.739 and 0.795; xppautX labels none.
 The cause is `tstauto_ab_hopf`'s ([finding 2](auto07p-findings.md): DERIV2a omits the subtraction of 2*F(u), so the Newton
-residual enters magnified by h^-2). With EPSL = EPSU = EPSS 1e-7 or 1e-9 AUTO-07p labels none on the same curve. Not checked against exact
-derivatives (`tests/auto/codim_coefficients.py` covers a two-state model). Five entries in the description's `differences`.
+residual enters magnified by h^-2). With EPSL = EPSU = EPSS 1e-7 or 1e-9 AUTO-07p labels none on the same curve. Checked against an independent first
+Lyapunov coefficient at W456 (below): positive along the whole curve. Five entries in the description's `differences`.
 
 **XPPAUT 8.0 agrees** on all 11 special points and both loci, through W428's two-parameter driver
 ([#490](https://github.com/MuhammadMoustafa/xppautX/issues/490)), made at review once W428 had merged; like xppautX it labels no GH
@@ -1463,3 +1463,39 @@ EPSS and DS, DSMAX divided by 1e3 and 10, as above, one run per workload), compa
 its own. (1) fails on P2's cycle start, which is a start-of-branch artefact of both Jacobians: until it is dropped in the core
 (a separate card: a test function that changes sign between the first two points of a branch started from a Hopf point
 should not label), (1) skips the first two points after a Hopf start.
+
+## W456: the five GH on motoneuron6c's Hopf locus are not generalised Hopf points ([#519](https://github.com/MuhammadMoustafa/xppautX/issues/519))
+
+W354's T2 workload (series 20261021b) continues the Hopf locus of motoneuron6c in (CaDen_Max, ampPar) from the fifth HB
+(ampPar 0.5728), the order that W431 reversed so both programs orient the curve by ampPar. xppautX and XPPAUT 8.0 label no
+codimension-two point; AUTO-07p labels five GH, at points 63, 67, 71, 76 and 83 of the arm that runs to ampPar 0.82:
+
+| AUTO-07p's point | CaDen_Max | ampPar | first Lyapunov coefficient, independent, at that place |
+|---|---|---|---|
+| 63 | 9.6795e-5 | 0.739173 | +1.2527e-3 |
+| 67 | 8.1050e-5 | 0.748771 | +9.136e-4 |
+| 71 | 6.7135e-5 | 0.759599 | +1.0513e-3 |
+| 76 | 5.9025e-5 | 0.773125 | +1.0228e-3 |
+| 83 | 3.8473e-5 | 0.795370 | +9.210e-4 |
+
+(AUTO-07p's `hb_up` is our `hb_down`. At each label's CaDen_Max the Hopf value of ampPar is found again, within 3e-7 of AUTO-07p's.)
+The independent coefficient: at each label and at each of our 89 points of the arm (CaDen_Max fixed), the equilibrium and the Hopf value of ampPar
+are found again in quadruple precision from AUTO-07p's own Fortran `FUNC` of the model (compiled with `-freal-8-real-16`), the
+Jacobian, and the bilinear and trilinear forms by central differences in quadruple precision with steps 1e-8 and 3e-9 (the two
+agree to 2e-4), and the coefficient taken from Kuznetsov's formula,
+`l1 = Re[<p, C(q,q,conj q)> - 2<p, B(q, A^-1 B(q, conj q))> + <p, B(conj q, (2 i w - A)^-1 B(q,q))>] / (2 w)`,
+`A q = i w q`, `A^T p = -i w p`, `<p,q> = 1`, with `|q| = 1` as xppautX's `lyapunov` normalises. Over the 89 points it is
++8.5e-4 to +1.9e-3, never zero or negative, and differs from xppautX's value (the GH test function, logged at `IID` 2) by 1.5e-4 relative at most.
+The coefficient between the labels is no different from the coefficient at them (+9.1e-4 to +1.25e-3 over our points 63 to 83), so the
+five sign changes AUTO-07p's test function shows within 0.056 of ampPar are noise of its own, as in
+[finding 2](auto07p-findings.md#2-a-newton-residual-contaminates-cp-and-gh-test-functions). The tolerance is the cause:
+rerunning AUTO-07p 0.9.4 on T2's own description (the `eq.f90` and constants files the pilot made) with EPSL = EPSU = EPSS 1e-4
+labels the same five GH at the same points; at 1e-7 and at 1e-9 it labels none, and the arm ends at the same place
+(ampPar 0.81858 and 0.81870).
+
+xppautX's own value does not change with the Jacobian: with `jacobian: exact` the coefficient is +8.5e-4 to +1.9e-3 as well.
+T2's `differences` therefore take five entries for the reference `.auto07p`, side `reference`, type `GH`, index 1 to 5, on
+the run `hb_down`: the gate compares AUTO-07p's `hb_up` with our `hb_down` (the two arms of one curve, opposite sign
+convention, its note), and a traced difference belongs to the arm it is compared with. With the five entries the gate reports no difference
+for T2 on the pilot's data (checked with `compare_references` on the pilot's diagram, `reference.json`s and ranges: one
+difference without them, none with them).
