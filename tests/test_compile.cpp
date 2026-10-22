@@ -142,6 +142,13 @@ int main()
          "ran(1)-ran(1)", "normal(par,2)*poisson(3)", "normal(ran(1),ran(2))", "ran(par)+if(x)then(ran(2))else(normal(1,2))",
          "@+x", "delay(z0,2)+delay(x,1)", "del_shft(z0,1,2)-x", "q(x)+r(x,par)-r(par,x)", "x*q(par)+z0*r(x,x)+r(1,z1)",
          "r(ran(1),ran(2))", "r(set(z0,1,1),z1)"}) expression(text);
+    /* a squared value is a product (W466): every kind of operand, and the values where a
+       product and a correctly rounded pow could differ */
+    const int first_square=count;
+    for (const auto *text:{"x^2", "x**2", "par^2", "(x*par+1)^2", "tanh(x)^2", "(x^2)^2", "x^2+x^2", "2^x", "x^3", "x^(1+1)",
+         "x^par", "1/x^2", "if(x)then((x+1)^2)else(par^2)", "if(x)then(x)else(1)^2", "sum(0,2)of((i'+x)^2)", "set(z0,1,x)^2+z1^2+x^2",
+         "ran(1)^2", "g(x,par)^2", "q(x)^2"}) expression(text);
+    const int after_square=count;
     const int first_outside=count;
     expression("shift(t,-1)");
     expression("shift(t,"+std::to_string(s.parser.variables.size())+")");
@@ -155,6 +162,16 @@ int main()
         s.parser.variables[1]=x;
         s.parser.constants[2]=x+4.0;
         for (int i=0;i<count;++i) same_both_ways(s,m.programs[i]);
+    }
+    for (const double x:{-0.0,0.0,1.0,-1.0,1.5,-2.5,1e154,-1e155,1e200,-1e308,1e-160,-1e-162,1e-170,
+         std::numeric_limits<double>::denorm_min(),-std::numeric_limits<double>::denorm_min(),std::numeric_limits<double>::min(),
+         std::numeric_limits<double>::max(),std::numeric_limits<double>::infinity(),-std::numeric_limits<double>::infinity(),
+         std::bit_cast<double>(std::uint64_t{0x7ff8000000001234}),std::bit_cast<double>(std::uint64_t{0xfff8000000005678}),
+         std::bit_cast<double>(std::uint64_t{0x7ff0000000000001}),std::bit_cast<double>(std::uint64_t{0xfff0000000000bad})}) {
+        for (size_t i=0;i<s.parser.variables.size();++i) s.parser.variables[i]=0.5*static_cast<double>(i%7)-1.0;
+        s.parser.variables[1]=x;
+        s.parser.constants[2]=x;
+        for (int i=first_square;i<after_square;++i) same_both_ways(s,m.programs[i]);
     }
     for (int i=first_outside;i<first_outside+3;++i) {
         CHECK(xpp::evaluate(s,m.programs[i])==0.0);

@@ -164,6 +164,8 @@ extern const std::array<Fun2, FUN2_COUNT> fun2;
 /* the FUN2TYPE indices of + - * / (an .ode model's guarded division),
    which the evaluator does itself */
 constexpr int ADD = 0, SUBTRACT = 1, MULTIPLY = 2, DIVIDE = 3;
+/* the FUN2TYPE index of x^y (also written x**y) */
+constexpr int POW = 5;
 
 /* the symbol table's indices of RAN(x) (FUN1TYPE), POISSON(m) (FUN1TYPE)
    and NORMAL(mean,sd) (FUN2TYPE): their table entries are null (the

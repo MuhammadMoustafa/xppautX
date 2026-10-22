@@ -29,6 +29,7 @@ struct Node {
     std::string text;
     bool atom = false; /* a name, subscript or literal: may be repeated in the C */
     bool mut = false;  /* reads state a later statement may change (a variable, the sum's index) */
+    bool two = false;  /* the literal 2: an exponent written as x*x */
 };
 
 /* A conditional being read: cond is the tested value, base the stack depth
@@ -181,6 +182,18 @@ struct Generator {
         return statement(std::move(call));
     }
 
+    /* x^2 for the literal exponent 2, as x*x with x written once (a
+       temporary when it is no atom). A correctly rounded pow(x,2) is the
+       exact square rounded to nearest once, which is what the product is:
+       the same bits for every x, signed zeros, infinities, NaN (both give
+       the quieted x), overflow and subnormals included; ^3 and the others
+       are two roundings and stay pow. */
+    Node square(const Node &x)
+    {
+        const Node a = x.atom ? x : statement(x.text);
+        return {xpp::format("({0}*{0})", a.text), false, a.mut};
+    }
+
     /* The two branches met (other is the else value, already off the
        stack): a conditional expression when neither wrote a statement,
        else an if with a temporary for the value. */
@@ -229,7 +242,7 @@ struct Generator {
             } else if (op == ENDSUM) {
                 return pop();
             } else if (op == NUMSYM) {
-                stack.push_back({"N[" + std::to_string(numbers.size()) + "]", true});
+                stack.push_back({"N[" + std::to_string(numbers.size()) + "]", true, false, i.number == 2.0});
                 numbers.push_back(i.number);
             } else if (op == MYIF) {
                 Node cond = pop();
@@ -304,6 +317,10 @@ struct Generator {
             } else if (type == FUN2TYPE) {
                 const Node right = pop(), left = pop();
                 std::string text;
+                if (in == expr::POW && right.two) {
+                    stack.push_back(square(left));
+                    continue;
+                }
                 if (in == expr::ADD || in == expr::MULTIPLY) text = "(" + right.text + (in == expr::ADD ? "+" : "*") + left.text + ")";
                 else if (in == expr::SUBTRACT || in == expr::IEEE_DIVIDE) text = "(" + left.text + (in == expr::SUBTRACT ? "-" : "/") + right.text + ")";
                 else if (in == expr::DIVIDE) {
@@ -419,6 +436,12 @@ struct Generator {
                 case expr::MULTIPLY: value = xpp::format("({}*{})", x, y); break;
                 case expr::DIVIDE: value = xpp::format("dv({},{})", x, y); break;
                 case expr::IEEE_DIVIDE: value = xpp::format("({}/{})", x, y); break;
+                case expr::POW:
+                    if (g.is(expr::Term{n.args[1]}, 2)) {
+                        value = xpp::format("({0}*{0})", x);
+                        break;
+                    }
+                    [[fallthrough]];
                 default:
                     binary.insert(n.index);
                     value = xpp::format("f2_{}({},{})", n.index, x, y);
