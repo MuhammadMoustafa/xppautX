@@ -202,9 +202,12 @@ private:
   void resolve(Expr &e, const std::string &index, int value) const
   {
     if (e.kind == Expr::Kind::Name && !e.primed && !index.empty() && e.text == index) {
-      e.kind = Expr::Kind::Number;
-      e.value = value;
-      e.text = std::to_string(value);
+      Expr n;  // a fresh Number: no field of the Name it replaces carries over
+      n.kind = Expr::Kind::Number;
+      n.pos = e.pos;
+      n.value = value;
+      n.text = std::to_string(value);
+      e = std::move(n);
       return;
     }
     if (e.kind == Expr::Kind::Index) {
