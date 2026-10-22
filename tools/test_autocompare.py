@@ -9,7 +9,7 @@ from unittest import mock
 
 import numpy as np
 
-from autocompare import BASE, Diagram, compare_curve, compare_references, compare_run, difference, labelled, project, read_description, read_reference, reference_spectrum, restore_start, table_row
+from autocompare import BASE, Diagram, check_size, compare_curve, compare_references, compare_run, difference, labelled, numbered_points, point_count, project, read_description, read_reference, reference_spectrum, restore_start, table_row
 
 
 class AutoCompare(unittest.TestCase):
@@ -26,6 +26,22 @@ class AutoCompare(unittest.TestCase):
         self.assertEqual(whole.points, batches.points)
         self.assertEqual(whole.points[1], dict(lab=4, sym='HB'))
         self.assertEqual(whole.points[0], dict(lab=0, sym=''))
+
+    def test_points_sent_without_data_are_counted_and_checked_against_the_saved_diagram(self):
+        saved = b'branch,1,0.5\nbranch,2,0.6\ncalc,ibr,lab\nx,1,0\nx,1,3\nx,2,0\n'
+        self.assertEqual(point_count(saved), 3)
+        self.assertEqual(point_count(b'calc,ibr,lab\n'), 0)
+        diagram = Diagram()
+        diagram.points, diagram.unread = [dict(lab=0, sym='')], 2
+        self.assertEqual(diagram.size, 3)
+        check_size(3, diagram)
+        with self.assertRaisesRegex(RuntimeError, 'holds 4 points, the branches ended at 3'):
+            check_size(4, diagram)
+
+    def test_a_cycle_curve_is_the_only_run_whose_last_point_number_is_not_its_count(self):
+        self.assertTrue(numbered_points(dict(kind='equilibrium', start={})))
+        self.assertTrue(numbered_points(dict(kind='two_parameter', start=dict(type='HB'))))
+        self.assertFalse(numbered_points(dict(kind='two_parameter', start=dict(type='PD'))))
 
     def test_reset_keeps_the_points_before(self):
         dg = Diagram().apply([self.add(0, [self.point_run(1, 2, [[1, 4, 'HB']])])])
