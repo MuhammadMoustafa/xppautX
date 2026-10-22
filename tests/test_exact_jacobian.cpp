@@ -177,8 +177,9 @@ void check_operations()
     program.compile = true;
 }
 
-/* the model file's exact Jacobian at its initial point against forward
-   differences of step eps, in the form the integrators use */
+/* the model file's exact Jacobian at its initial point against central
+   differences, and (forward) against forward differences of step eps in the
+   form the integrators use */
 void check_model(const char *path, bool map, bool forward = true)
 {
     std::string file = path;
