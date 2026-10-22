@@ -15,6 +15,7 @@
 #include "auto_nox.h"
 #include "derived.h"
 #include "pp_shoot.h"
+#include "auto_parallel.h"  /* auto_parallel_ready() */
 #include "tabular.h"  /* redo_all_fun_tables() */
 #include "jacobian.h"
 #include "xpp_job.h"
@@ -95,20 +96,27 @@ bool continued_constants(const xpp::Session &s, double *constants, const integer
   return changed;
 }
 
-/* A collocation worker's right-hand side (auto_parallel.cpp): s is const, so
-   a worker can read the model, the AUTO settings and the immutable tables but
-   write only its own lib (constants, variables, jacobian_failure). */
+/* The right-hand side f of a model with no function tables, no networks and
+   native programs (Model::auto_rhs_pure), on the constants c and variables v:
+   a collocation worker's own copies (auto_parallel.cpp: s is const, so a
+   worker writes only its own lib) or, serially, the Session's.
+   The derived constants were current when the run began (the workers'
+   prepare() copied them); a state difference changes no parameter, so they
+   are worked out again only when a continued parameter actually changed,
+   including either side of its difference. With no function table, nothing
+   else depends on a parameter. */
+void pure_values(const xpp::Session &s, double *c, double *v, const double *u, const integer *icp, integer nfpr, std::span<const double> parameters, double *f)
+{
+  if(continued_constants(s,c,icp,nfpr,parameters))
+    xpp::evaluate_derived_pure(s,c,v);
+  pure_rhs(s,u,f,c,v);
+}
+
 void worker_func(const xpp::Session &s, AutoLib &worker, integer ndim, const double *u, const integer *icp, integer nfpr, std::span<const double> parameters, integer ijac, double *f, double *dfdu, double *dfdp)
 {
-  auto &c=worker.rhs_constants;
-  auto &v=worker.rhs_variables;
-  // prepare() copied constants whose derived values are already current.
-  // State differences change no parameter: retain those values until a
-  // parameter actually changes, including either side of its difference.
-  if(continued_constants(s,c.data(),icp,nfpr,parameters))
-    xpp::evaluate_derived_pure(s,c.data(),v.data());
-  pure_rhs(s,u,f,c.data(),v.data());
-  if(ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT)exact_derivatives(s,worker,c.data(),ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
+  double *c=worker.rhs_constants.data();
+  pure_values(s,c,worker.rhs_variables.data(),u,icp,nfpr,parameters,f);
+  if(ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT)exact_derivatives(s,worker,c,ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
 }
 
 }
@@ -140,11 +148,15 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
    int i,j;
    /* the right-hand side and the Jacobian only read the point */
    double *x=const_cast<double *>(u);
-   continued_constants(s,s.parser.constants.data(),icp,nfpr,parameters);
-   xpp::evaluate_derived(s);
-   if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error());
-   s.integrator.rhs(0.0,x,f,ndim);
-   if(s.integrator.step_error)xpp::auto_fail(take_step_error(s).error());
+   if(xpp::auto_parallel_ready(s))
+     pure_values(s,s.parser.constants.data(),s.parser.variables.data(),x,icp,nfpr,parameters,f);
+   else{
+     continued_constants(s,s.parser.constants.data(),icp,nfpr,parameters);
+     xpp::evaluate_derived(s);
+     if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error());
+     s.integrator.rhs(0.0,x,f,ndim);
+     if(s.integrator.step_error)xpp::auto_fail(take_step_error(s).error());
+   }
    const double *c=s.parser.constants.data();
    if(exact)exact_derivatives(s,s.auto_lib,c,ndim,x,f,icp,nfpr,ijac,dfdu,dfdp);
    else if(ijac==1){
@@ -226,11 +238,14 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
 {
 /* Hooks to the XPP bc parser!! */
 
- continued_constants(s,s.parser.constants.data(),icp,s.auto_state.run.nicp,
+ const bool changed=continued_constants(s,s.parser.constants.data(),icp,s.auto_state.run.nicp,
                      s.auto_state.parameter_layout.parameters(par));
 
- xpp::evaluate_derived(s);
- if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error());
+ /* with no function table the derived constants depend on the parameters
+    alone (pure_values) */
+ const bool pure=s.model().auto_rhs_pure;
+ if(changed||!pure)xpp::evaluate_derived(s);
+ if(!pure)if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error());
  /* the boundary conditions only read the two ends */
  xpp::do_bc(s,const_cast<double *>(u0),0.0,const_cast<double *>(u1),1.0,fb,nbc);
 
