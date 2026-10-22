@@ -303,6 +303,8 @@ void buf_num(Buf *b, double v, int sig);
 
 void open_protocol_stdout(void); /* the protocol on the stdout of now */
 void out_line(const char *s, size_t n);
+/* whether an event line goes anywhere (not --silent): a state event nobody reads is not built */
+bool out_wanted();
 void out_flush(void);
 void flush_pending(void);
 void send_buf(Buf *b);
