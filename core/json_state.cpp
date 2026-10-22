@@ -82,6 +82,7 @@ void send_state(xpp::Session &s)
     int i;
     session.state_dirty = 0;
     evaluate_derived(s);
+    if (!out_wanted()) return;
     BUF_LIT(&b, "{\"ev\":\"state\",\"sliders\":[");
     for (std::size_t slot = 0; slot < s.sliders.size(); ++slot) {
         if (slot) BUF_LIT(&b, ",");

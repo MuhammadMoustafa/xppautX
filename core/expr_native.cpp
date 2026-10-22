@@ -229,7 +229,7 @@ struct Generator {
             } else if (op == ENDSUM) {
                 return pop();
             } else if (op == NUMSYM) {
-                stack.push_back({xpp::format("N[{}]", numbers.size()), true});
+                stack.push_back({"N[" + std::to_string(numbers.size()) + "]", true});
                 numbers.push_back(i.number);
             } else if (op == MYIF) {
                 Node cond = pop();
@@ -240,7 +240,7 @@ struct Generator {
                 f.then_value = pop();
                 f.then_mark = out.size();
             } else if (op == INDXCOM) {
-                stack.push_back({xpp::format("N[{}]", numbers.size()), true});
+                stack.push_back({"N[" + std::to_string(numbers.size()) + "]", true});
                 numbers.push_back(expr::CURRENT_INDEX);
             } else if (op == SUMSYM) {
                 if (depth >= MAX_SUM_DEPTH) return refuse("sums nested too deep");
@@ -293,10 +293,10 @@ struct Generator {
                 } else {
                     if (type == VARTYPE) variable_reads.insert(in);
                     if (type == CONTYPE && in == expr::SUM_INDEX && depth == 0) array_pure = false;
-                    stack.push_back({xpp::format("{}[{}]", type == CONTYPE ? "c" : "v", in), true, type == VARTYPE || in == expr::SUM_INDEX});
+                    stack.push_back({(type == CONTYPE ? "c[" : "v[") + std::to_string(in) + "]", true, type == VARTYPE || in == expr::SUM_INDEX});
                 }
             } else if (type == USTACKTYPE) {
-                stack.push_back({xpp::format("a{}", in), true});
+                stack.push_back({"a" + std::to_string(in), true});
             } else if (type == FUN1TYPE) {
                 unary.insert(in);
                 const Node x = pop();
@@ -304,8 +304,8 @@ struct Generator {
             } else if (type == FUN2TYPE) {
                 const Node right = pop(), left = pop();
                 std::string text;
-                if (in == expr::ADD || in == expr::MULTIPLY) text = xpp::format("({}{}{})", right.text, in == expr::ADD ? "+" : "*", left.text);
-                else if (in == expr::SUBTRACT || in == expr::IEEE_DIVIDE) text = xpp::format("({}{}{})", left.text, in == expr::SUBTRACT ? "-" : "/", right.text);
+                if (in == expr::ADD || in == expr::MULTIPLY) text = "(" + right.text + (in == expr::ADD ? "+" : "*") + left.text + ")";
+                else if (in == expr::SUBTRACT || in == expr::IEEE_DIVIDE) text = "(" + left.text + (in == expr::SUBTRACT ? "-" : "/") + right.text + ")";
                 else if (in == expr::DIVIDE) {
                     /* the guarded division: a zero divisor becomes N[0] */
                     if (right.atom) text = xpp::format("({}/({}==0.0?N[0]:{}))", left.text, right.text, right.text);

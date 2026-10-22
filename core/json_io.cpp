@@ -83,6 +83,8 @@ void buf_num(Buf *b, double v, int sig)
     }
 }
 
+bool out_wanted() { return xpp::http::active() || proto; }
+
 /* one event line to the client: stdout, or the page xppautX serves. Whole
    under a lock: the inbox's busy reply comes from a reader thread while
    the core writes (W389). */

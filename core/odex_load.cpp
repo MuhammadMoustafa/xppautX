@@ -103,7 +103,7 @@ public:
 
   Parsed run()
   {
-    const std::vector<Statement> statements = expanded();
+    std::vector<Statement> statements = expanded();
     for (const Statement &s : statements) in_copy(s.array, [&] { declare(s); });
     for (const Statement &s : p_.statements)
       if (!s.range.index.empty())
@@ -116,7 +116,7 @@ public:
     out.files = p_.files;
     out.ieee_division = true;
     out.derived = true;
-    for (const Statement &s : statements) in_copy(s.array, [&] { ready(s, out.statements); });
+    for (Statement &s : statements) in_copy(s.array, [&] { ready(s, out.statements); });
     return out;
   }
 
@@ -198,34 +198,32 @@ private:
   }
 
   /* e with the range's index its value (value) and every element x[e]
-     the name it is */
-  Expr resolved(const Expr &e, const std::string &index, int value) const
+     the name it is, in place */
+  void resolve(Expr &e, const std::string &index, int value) const
   {
     if (e.kind == Expr::Kind::Name && !e.primed && !index.empty() && e.text == index) {
-      Expr n;
-      n.kind = Expr::Kind::Number;
-      n.pos = e.pos;
-      n.value = value;
-      n.text = std::to_string(value);
-      return n;
+      e.kind = Expr::Kind::Number;
+      e.value = value;
+      e.text = std::to_string(value);
+      return;
     }
     if (e.kind == Expr::Kind::Index) {
-      const Expr &a = e.args[0];
+      Expr &a = e.args[0];
       if (a.kind != Expr::Kind::Name || a.primed) fail(e.pos, "only a name can be indexed: x[j]");
-      Expr n = a;
-      n.text = element(a.text, e.args[1], index, value);
-      return n;
+      std::string text = element(a.text, e.args[1], index, value);
+      Expr n = std::move(a);
+      n.text = std::move(text);
+      e = std::move(n);
+      return;
     }
-    Expr out = e;
-    for (Expr &a : out.args) a = resolved(a, index, value);
-    return out;
+    for (Expr &a : e.args) resolve(a, index, value);
   }
 
   void resolve_block(std::vector<BlockStmt> &body, const std::string &index, int value) const
   {
     for (BlockStmt &b : body) {
-      b.value = resolved(b.value, index, value);
-      for (Expr &c : b.conds) c = resolved(c, index, value);
+      resolve(b.value, index, value);
+      for (Expr &c : b.conds) resolve(c, index, value);
       for (std::vector<BlockStmt> &blk : b.blocks) resolve_block(blk, index, value);
     }
   }
@@ -238,11 +236,11 @@ private:
     c.range = Range();
     if (c.name_index) c.name = defined(c.name, *c.name_index, index, value);
     c.name_index.reset();
-    c.expr = resolved(c.expr, index, value);
+    resolve(c.expr, index, value);
     for (Binding &b : c.bindings) {
       if (b.index) b.name = defined(b.name, *b.index, index, value);
       b.index.reset();
-      b.value = resolved(b.value, index, value);
+      resolve(b.value, index, value);
     }
     for (size_t i = 0; i < c.name_indices.size(); i++)
       if (c.name_indices[i]) c.names[i] = defined(c.names[i], *c.name_indices[i], index, value);
@@ -250,7 +248,7 @@ private:
     for (size_t i = 0; i < c.call_arg_indices.size(); i++)
       if (c.call_arg_indices[i]) c.call_args[i] = element(c.call_args[i], *c.call_arg_indices[i], index, value);
     c.call_arg_indices.clear();
-    for (Expr &e : c.cells) e = resolved(e, index, value);
+    for (Expr &e : c.cells) resolve(e, index, value);
     resolve_block(c.body, index, value);
     if (c.kind == Statement::Kind::Const) {
       /* its value now, the consts before it read */
@@ -635,12 +633,10 @@ private:
 
   /* e checked, near's tol filled in (its third argument, the model's
      neartol when the call gives none) */
-  Expr formula(const Expr &e, const Scope &sc) const
+  void formula(Expr &e, const Scope &sc) const
   {
     check(e, sc);
-    Expr out = e;
-    fill_near(out);
-    return out;
+    fill_near(e);
   }
 
   void fill_near(Expr &e) const
@@ -697,9 +693,9 @@ private:
     }
   }
 
-  void ready(const Statement &in, std::vector<Statement> &out)
+  /* s (an expanded copy, changed in place) readied and moved to out */
+  void ready(Statement &s, std::vector<Statement> &out)
   {
-    Statement s = in;
     switch (s.kind) {
     case Statement::Kind::Options:
       if (s.options.empty()) return;
@@ -734,38 +730,39 @@ private:
       break;
     case Statement::Kind::Init:
       variables(s, true, "init gives a variable its initial value");
-      for (Binding &b : s.bindings) b.value = formula(b.value, formula_scope());
+      for (Binding &b : s.bindings) formula(b.value, formula_scope());
       break;
     case Statement::Kind::History:
       variables(s, false, "history gives a variable its values before the start");
-      for (Binding &b : s.bindings) b.value = formula(b.value, formula_scope());
+      for (Binding &b : s.bindings) formula(b.value, formula_scope());
       break;
     case Statement::Kind::Ode:
     case Statement::Kind::Volterra:
-    case Statement::Kind::Fixed: s.expr = formula(s.expr, formula_scope(true)); break;
+    case Statement::Kind::Fixed: formula(s.expr, formula_scope(true)); break;
     case Statement::Kind::Aux:
-      for (Binding &b : s.bindings) b.value = formula(b.value, formula_scope());
+      for (Binding &b : s.bindings) formula(b.value, formula_scope());
       break;
     case Statement::Kind::Fun: {
       Scope sc;
-      sc.args = &in.names;
-      s.expr = formula(s.has_body ? flatten(in, in.body, 0, {}, nullptr) : in.expr, sc);
+      sc.args = &s.names;
+      if (s.has_body) s.expr = flatten(s, s.body, 0, {}, nullptr);
+      formula(s.expr, sc);
       s.has_body = false;
       s.body.clear();
       break;
     }
     case Statement::Kind::Set:
-      set_named(in);
+      set_named(s);
       for (size_t i = 0; i < s.bindings.size(); i++) {
         set_key(s.bindings[i]);
         s.text += (i ? "," : "") + s.bindings[i].name + "=" + set_value(s.bindings[i]);
       }
       break;
     case Statement::Kind::Table:
-      if (s.table_kind == Statement::TableKind::Formula) s.expr = formula(s.expr, formula_scope());
+      if (s.table_kind == Statement::TableKind::Formula) formula(s.expr, formula_scope());
       break;
     case Statement::Kind::Markov:
-      for (Expr &c : s.cells) c = formula(c, formula_scope());
+      for (Expr &c : s.cells) formula(c, formula_scope());
       break;
     case Statement::Kind::Wiener:
       /* a Wiener parameter starts at 0, as .ode's wiener w does */
@@ -780,7 +777,7 @@ private:
       }
       break;
     case Statement::Kind::Event:
-      s.expr = formula(s.expr, formula_scope());
+      formula(s.expr, formula_scope());
       for (Binding &b : s.bindings) {
         const Model::Name *d = find(b.name);
         /* what flags.cpp's compile_flags finds: a column (a variable or
@@ -790,13 +787,13 @@ private:
         if (!target && b.name != "out_put" && b.name != "arret" && b.name != "no_interp")
           fail(b.pos, xpp::format("an event sets a variable, an aux quantity, a parameter, out_put, arret or "
                                   "no_interp, not `{}`", b.name));
-        b.value = formula(b.value, formula_scope());
+        formula(b.value, formula_scope());
       }
       break;
     case Statement::Kind::Boundary: {
       Scope sc;
       sc.primed_vars = true;
-      s.expr = formula(s.expr, sc);
+      formula(s.expr, sc);
       break;
     }
     case Statement::Kind::Network: {
@@ -806,7 +803,7 @@ private:
       break;
     }
     case Statement::Kind::Solv:
-    case Statement::Kind::Dae: s.expr = formula(s.expr, formula_scope()); break;
+    case Statement::Kind::Dae: formula(s.expr, formula_scope()); break;
     default: break;
     }
     out.push_back(std::move(s));
