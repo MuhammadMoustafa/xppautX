@@ -104,6 +104,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [71](#71-auto-two-parameter-map-problems-and-disabled-detection) | AUTO | map flips are labelled HB; two-parameter detection is disabled and exports have six significant digits | [W428](https://github.com/MuhammadMoustafa/xppautX/issues/490) |
 | [72](#72-autos-branch-point-test-reads-the-fold-tests-determinant) | AUTO | the branch point test of an equilibrium branch reads the determinant the fold test computed with the tangent row, which changes sign when a step turns past a fold: a spurious BP, and the fold missed | [W423 / #485](https://github.com/MuhammadMoustafa/xppautX/issues/485) |
 | [73](#73-periodic-phase-conditions-do-not-pass-through-the-computed-orbit) | AUTO | the uncentered periodic phase condition has a discrete residual at the previous computed orbit, so zero-length correction can move it | [W437 / #499](https://github.com/MuhammadMoustafa/xppautX/issues/499) |
+| [74](#74-autos-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale) | AUTO | the finite-difference Jacobian of an equilibrium or cycle problem (`JAC=0`, always) steps every state by 1e-7 times the largest state: Hopf periods and fold norms are off on a model whose states differ in scale | [W455 / #518](https://github.com/MuhammadMoustafa/xppautX/issues/518) |
 
 ## 1. Model options
 
@@ -1713,3 +1714,28 @@ finds no LP up to period 84.4. This demonstrates a discrepancy in discretized eq
 physical cycle folds. The four obsolete AUTO-07p LP exceptions are removed; both LPs now remain directly compared.
 
 **Card:** [W437 / #499](https://github.com/MuhammadMoustafa/xppautX/issues/499).
+
+## 74. AUTO's finite-difference Jacobian steps every state by the largest one's scale
+
+XPPAUT 8.0 runs AUTO with `JAC=0` ([autevd.c:69](../reference/xppaut-8.0/autevd.c#L69)), so `funi` asks `func` for no Jacobian
+([autlib3.c:4593-4599](../reference/xppaut-8.0/autlib3.c#L4593)) and differences the right-hand side centrally with one step
+for every state, `ep = HMACH*(umx + 1)`, `umx` the largest `|u[i]|` and `HMACH = 1e-7`
+([autlib3.c:4609-4631](../reference/xppaut-8.0/autlib3.c#L4609), [master](../reference/xppaut-master/autlib3.c#L4610);
+[auto_c.h:21](../reference/xppaut-8.0/auto_c.h#L21)). A state of 1e-5 to 1e-22 (a gating variable, a concentration) next to
+a membrane voltage near -70 is stepped by 7e-6, far more than its own size, and the Jacobian, its eigenvalues and so every
+Hopf test and period carry the error. AUTO-07p's `FUNI` is the same
+([auto07p-findings.md](auto07p-findings.md#7-the-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale)).
+
+Evidence: ModelDB 267710 (`examples/ode/motoneuron6c.odex`, `tests/auto/ode_motoneuron6c.json`, the steady run's Hopf point,
+stored point 362). The converged point (an independent centred-difference Jacobian of the right-hand side, and xppautX's exact
+Jacobian at EPS 1e-7) is at ampPar 0.1737640862 with period 608.8326; XPPAUT 8.0 labels it at 0.1737628 with period 607.215,
+AUTO-07p at 0.1737626685 with 607.3187, and a centred difference with this step rule at tight tolerances at 0.1737627148
+with 607.2861: the Hopf point is 1.4e-6 off and the period, which changes by about 7e5 per unit of ampPar there, 0.25
+percent. XPPAUT's difference from AUTO-07p (0.1) is finding 70 (its Hopf test reads the last Newton iterate's Jacobian).
+Mu26 with blocked h-current: the first fold's norm is 99.22379848 exactly and 99.22409174 by this rule (XPPAUT 8.0:
+99.22409). The table is in the AUTO-07p entry.
+
+xppautX's default `difference` Jacobian keeps the rule, so it reproduces XPPAUT's and AUTO-07p's numbers; `jacobian: exact`
+(W260) gives the converged ones.
+
+**Card:** [W455 / #518](https://github.com/MuhammadMoustafa/xppautX/issues/518).
