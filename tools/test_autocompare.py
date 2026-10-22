@@ -9,7 +9,8 @@ from unittest import mock
 
 import numpy as np
 
-from autocompare import BASE, Diagram, check_size, compare_curve, compare_references, compare_run, difference, labelled, numbered_points, point_count, project, read_description, read_reference, reference_spectrum, restore_start, table_row
+import autocompare
+from autocompare import BASE, Diagram, Matcher, check_size, compare_curve, compare_references, compare_run, difference, fit_segments, labelled, numbered_points, point_count, read_description, read_reference, reference_spectrum, restore_start, table_row
 
 
 class AutoCompare(unittest.TestCase):
@@ -199,6 +200,13 @@ class References(unittest.TestCase):
             self.assertEqual(read_reference(path, d)['model'], d['model'])
 
 
+def plain_project(point, polyline, tolerances):
+    """Fit every segment, the first of the best wins: the definition `Matcher` must give the same answer as."""
+    distance, residual = fit_segments(point, polyline[:-1], polyline[1:], tolerances)
+    i = int(np.argmin(distance))
+    return i, residual[i].tolist()
+
+
 def brute_project(point, polyline, tolerances):
     """project() one segment at a time in plain Python: the definition its vectorised form must equal bit for bit."""
     best = None
@@ -235,9 +243,33 @@ class Projection(unittest.TestCase):
         points = [lap[5], (0.3, 0.2, 0.1), (1.0, 0.0, 0.0), (2.5, 0.01, 0.0), (2.5, 0.5, 0.0), (-3.0, 2.0, 1.0),
                   (0.5 * (lap[2][0] + lap[3][0]), 0.5 * (lap[2][1] + lap[3][1]), 0.1)]
         for point in points:
-            self.assertEqual(project(np.array(point), np.array(polyline), np.array(tolerances)), brute_project(point, polyline, tolerances))
+            self.assertEqual(plain_project(np.array(point), np.array(polyline), np.array(tolerances)), brute_project(point, polyline, tolerances))
         # a sample on a vertex shared by identical laps goes to the first lap
-        self.assertEqual(project(np.array(lap[5]), np.array(polyline), np.array(tolerances))[0], 4)
+        self.assertEqual(plain_project(np.array(lap[5]), np.array(polyline), np.array(tolerances))[0], 4)
+
+
+    def test_searching_for_the_segment_gives_the_one_of_fitting_them_all_on_random_curves_with_ties_and_degenerate_segments(self):
+        rng = np.random.default_rng(463)
+        with mock.patch.object(autocompare, 'INDEXED_FROM', 0):
+            for trial in range(300):
+                # coordinates on a coarse grid (exact ties, repeated vertices, steps of zero in a coordinate), laps repeated,
+                # bounds from a few values, a scale from 1e-9 to 1e9 (the rounding allowance against the coordinates' size)
+                scale = 10.0 ** rng.integers(-9, 10)
+                walk = np.cumsum(rng.integers(-2, 3, size=(int(rng.integers(2, 60)), 3)), axis=0) * scale
+                polyline = np.vstack([walk] * int(rng.integers(1, 4)) + [walk[:1]])
+                tolerances = rng.choice([0.4, 0.5, 1.0, 1.5, 3.0], size=(len(polyline) - 1, 3)) * scale
+                tolerances[::7] = tolerances[0]
+                matcher = Matcher(polyline)
+                self.assertTrue(matcher.searched)
+                for _ in range(20):
+                    point = np.array(rng.choice(polyline) if rng.random() < 0.5 else rng.integers(-8, 9, size=3) * scale * 0.5, dtype=float)
+                    i, residual = plain_project(point, polyline, tolerances)
+                    # the bounds as the caller gives them: of some rows, of the largest of each coordinate for None
+                    got = matcher.project(point, lambda rows: tolerances.max(axis=0, keepdims=True) if rows is None else tolerances[rows])
+                    self.assertEqual(got[:2], (i, residual), (trial, point))
+                    self.assertTrue((got[2] == tolerances[i]).all())
+        self.assertFalse(Matcher(np.array([[0.0, 0.0, 0.0], [math.inf, 1.0, 1.0], [2.0, 2.0, 2.0]])).searched)
+        self.assertFalse(Matcher(walk).searched)  # short: fitted whole
 
 
 class Curves(unittest.TestCase):
@@ -252,6 +284,20 @@ class Curves(unittest.TestCase):
     def parabola(steps, shift=0.0):
         """a smooth curve: the second parameter a + a^2, the norm 2a, a every 0.05 from `shift`"""
         return [(a, a + a * a, 2 * a) for a in (shift + 0.05 * i for i in range(steps))]
+
+    def test_a_curve_gives_the_same_differences_and_measures_whether_or_not_its_segments_are_searched(self):
+        rng = np.random.default_rng(526)
+        for trial in range(40):
+            ours = [tuple(v) for v in np.cumsum(rng.integers(-1, 4, size=(int(rng.integers(2, 50)), 3)), axis=0) * 0.01]
+            ours = ours * int(rng.integers(1, 3))
+            ref = [list(v) for v in np.array(ours)[rng.permutation(len(ours))[:int(rng.integers(2, len(ours) + 1))]] + rng.integers(-1, 2, size=3) * 1e-4]
+            if trial % 3 == 0:
+                ref = [list(v) for v in ours[::-1]]
+            for auto in (self.WIDE, dict(self.WIDE, nmax=len(ours)), dict(self.WIDE, parmin=0.02, parmax=0.1)):
+                for digits in (None, 6):
+                    whole = compare_curve(self.rows(ours), auto, ref, 'm', digits)
+                    with mock.patch.object(autocompare, 'INDEXED_FROM', 0):
+                        self.assertEqual(compare_curve(self.rows(ours), auto, ref, 'm', digits), whole, trial)
 
     def test_a_curve_matches_at_other_steps_and_differs_beyond_the_tolerance(self):
         ours = self.parabola(40)
