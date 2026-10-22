@@ -173,7 +173,9 @@ Figure 3 reproduction nor validation of the 31 repaired SET labels' intent.
 W269's SMT-thread timings remain history; current event digests are compared
 with its saved digests, with changes or differing windows reported explicitly.
 `modeldb-267710/auto07p/odex_to_c.py` is retired; every FD AUTO-07p equation
-comes from `tools/auto_reference.py`. Only PY_S1Bf's exact row uses its C file.
+comes from `tools/auto_reference.py`. AUTO-07p's exact rows (`JAC = 1`) run P1 and E1 from PY_S1Bf's C file and P2, E2 and T1
+from one generated from the model with its derivatives, checked against central differences (W459); exact rows are judged against a
+converged exact run, and every row carries its error against it (W457, docs/auto-references.md).
 The default P2 window ends at ampPar .62, before XPPAUT's spurious BP near .6211;
 all programs use that parameter bound, not a matching point count.
 

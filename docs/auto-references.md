@@ -1543,3 +1543,23 @@ gate with W456's five traced `GH` differences, and its exact row passes against 
 A bug of W454's `--reuse` row loop, found by testing it here: an imported row's `reusable_row` result was unpacked as `found, why`
 (the records and the folder) and used as the records, so no row of an earlier series could be imported; it is `recs, source` now. `--pilots` (with
 `--only`) runs a workload's pilots and gates (the converged and exact pilots included) on the full descriptions, untimed, then stops.
+
+## W459: AUTO-07p's exact derivatives for motoneuron6c and Mu26 blocked ([#522](https://github.com/MuhammadMoustafa/xppautX/issues/522))
+
+The `auto07p-exact-1` row (`JAC = 1`: AUTO-07p's `DFDU` and `DFDP`) ran on P1 and E1 only, with PY_S1Bf's hand-written `py_s1bf.c`. It runs on
+P2, E2 and T1 as well, with an equation file generated from the model by `paper/benchmarks/auto/auto07p/exact_source.py`: the expanded right-hand
+side of `tools/auto_reference.py`'s Fortran `FUNC` (`Equations.expand`, `conditionals`, `ordered_assigns`), differentiated by forward mode over the
+model's own formulas, in C, straight-line, one temporary per operation, a derivative only where it is not zero (`if C then A else B`: the
+branch taken; `exp`, `tanh`, `abs`, `max` and powers are the functions the two models need; another is refused by name). `DFDU(i, j)` is
+filled for every state, and `DFDP(i, k)` for the parameters the description's runs continue (ampPar on P2 and E2; SmIapp and SmHxgMax on T1),
+AUTO adding the period's column itself, as for P1. xppautX's own symbolic Jacobian (`core/expr_derivative.cpp`) emits no expressions, and a core feature for a
+benchmark's input is not small.
+
+Every derivative is checked before AUTO-07p runs (`exact_source.check`, the workload's `exact/exact-check.json`; a failure stops the workload):
+the file is compiled with a driver and each column of `DFDU` and `DFDP` compared with Richardson-extrapolated central differences (step
+max(1e-3 |x|, 1e-8)) at the start and at three points off it (each state scaled by its own factor, up to 7 percent), relative to the larger of 1 and the
+derivative as `tests/test_exact_jacobian.cpp`'s; `ijac` 1 and 2 must agree, and the C right-hand side's values at the start must equal the
+Fortran `FUNC`'s to `check_rhs`'s 1e-12 of the terms' sizes. Largest relative error: motoneuron6c (25 states, ampPar) 4.7e-7 in the states, 1.9e-9 in
+the ampPar column, the right-hand sides equal to the last bit; Mu26 blocked (28 states, SmIapp and SmHxgMax) 5.4e-8 (the SmHxgMax column), the right-hand
+sides within 4e-19. The errors are the differences' own (their step), the tolerance 1e-6. On the pilots the three programs' exact rows
+agree: the table of W457, and T1's, P2's cycles, all in the gate's tolerances of the converged run.
