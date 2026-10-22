@@ -183,7 +183,7 @@ const std::array<Fun2,FUN2_COUNT> fun2={
 namespace {
 /* the indices of fun1 and fun2 the derivatives name */
 constexpr int SIN = 0, COS = 1, SINH = 6, TANH = 7, COSH = 8, EXP = 10, LOG = 11, SQRT = 13, NEG = 14, SIGN = 17;
-constexpr int POW = 5, PMOD = 8, GT = 11, LT = 12, GE = 14, LE = 15, BESSEL_J = 18, BESSEL_Y = 19, BESSEL_I = 20, BESSEL_I_SCALED = 21;
+constexpr int PMOD = 8, GT = 11, LT = 12, GE = 14, LE = 15, BESSEL_J = 18, BESSEL_Y = 19, BESSEL_I = 20, BESSEL_I_SCALED = 21;
 
 Term zero(Symbolic &g) { return g.number(0); }
 Term one(Symbolic &g) { return g.number(1); }

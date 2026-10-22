@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Compiled models square with a multiplication: `x^2` (and `x**2`) is `x*x` instead of a call of the correctly rounded `pow`, which gives the same bits for every value (one exact product, one rounding), 24 of the 32 `pow` calls of Mu26's right-hand side; `^3` and the other powers still call `pow`. The two-parameter Hopf continuation of Mu26 (finite differences, one thread) takes 0.45 s instead of 0.58 s, its diagram byte for byte the same (W466, [#529](https://github.com/MuhammadMoustafa/xppautX/issues/529))
+
 - Loading a model does less work: an array's copies are resolved in place instead of copied three times, the generated C is joined with plain string appends, and `--silent` no longer builds a state event nobody reads. Process-to-one-step instructions (callgrind) fall from 83.6 M to 66.9 M for lecdiff200 and from 64.9 M to 54.7 M for episodic; elapsed 11.8 to 10.8 ms and 9.1 to 8.3 ms (XPPAUT 8.0: 6.7, 6.0); the rest is TinyCC compiling the model (W453, [#516](https://github.com/MuhammadMoustafa/xppautX/issues/516))
 
 - Start-up is about twice as fast for a large model: the data store's columns are one lazily zeroed block and the model keeps no 5.7 MB table of global flags, so process start through one integration step takes 7.6 ms instead of 16.7 ms for amari (200 equations) and 10.8 ms instead of 24.5 ms for lecdiff200 (W451, [#514](https://github.com/MuhammadMoustafa/xppautX/issues/514)).
