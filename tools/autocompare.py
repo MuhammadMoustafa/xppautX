@@ -661,12 +661,11 @@ def compare_run(rows, auto, kind, ref_points, who, known=(), compare_start=True)
     return diffs, measures
 
 
-def fit_segments(point, polyline, tolerances):
-    """How well a sample matches every segment of the polyline with its coordinate-wise tube (`tolerances`,
+def fit_segments(point, a, b, tolerances):
+    """How well a sample matches every segment from a[i] to b[i] with its coordinate-wise tube (`tolerances`,
     one row of three bounds per segment): the largest fraction of a bound consumed, and the residual, at
     the point of the segment that keeps all three coordinates inside their bounds together (the closest
     such point when none does). All segments at once, each in the order of operations of one segment."""
-    a, b = polyline[:-1], polyline[1:]
     with np.errstate(divide='ignore', invalid='ignore'):
         along = (b - a) / tolerances
         length = along[:, 0] * along[:, 0] + along[:, 1] * along[:, 1] + along[:, 2] * along[:, 2]
@@ -685,16 +684,71 @@ def fit_segments(point, polyline, tolerances):
         return (np.abs(residual) / tolerances).max(axis=1), residual
 
 
-def project(point, polyline, tolerances):
-    """Match a sample to the polyline's coordinate-wise uncertainty tubes.
-    Each segment has Newton plus chord-error bounds. A geometrically nearest
-    vertex can be a worse match than a coarser chord on another lap of a closed
-    curve. Rank by the largest fraction of a bound consumed, without changing
-    any bound. The feasible interval preserves all three coordinates together.
-    The first of equally good segments wins."""
-    distance, residual = fit_segments(point, polyline, tolerances)
-    i = int(np.argmin(distance))
-    return i, residual[i].tolist()
+# a polyline of fewer segments is fitted whole: the search costs more than it saves
+INDEXED_FROM = 2000
+# the segments with the nearest start (in the first coordinate) fitted first, to learn how good a match is to be beaten
+NEAREST_STARTS = 8
+# a computed fraction of a bound is that of the exact position up to this many rounding units of the
+# coordinates' size over the bound (a position is a few operations on them): generous, it only widens the search
+ROUNDING_UNITS = 16
+
+
+class Matcher:
+    """Match samples to the uncertainty tubes of a polyline's segments. A geometrically nearest vertex can be
+    a worse match than a coarser chord on another lap of a closed curve, so rank every segment by the largest
+    fraction of a bound its best point consumes, without changing any bound (`fit_segments`: the feasible
+    interval keeps all three coordinates together). The first of equally good segments wins.
+
+    A long polyline is searched, not fitted whole. A segment consumes at least as much of a bound as its
+    bounding box does, less the rounding allowance (the gap in a coordinate over the bound), so once some
+    segment is fitted to `best`, a segment whose box is further than best times the largest bound
+    in the first coordinate, or whose box already consumes more than `best`, is strictly worse, never a
+    tie. Segments fit independently of each other, so fitting the rest alone gives each its own fraction
+    and residual, and the first minimum among them, in segment order, is the first overall."""
+
+    def __init__(self, polyline):
+        self.a, self.b = polyline[:-1], polyline[1:]
+        self.searched = len(self.a) >= INDEXED_FROM and bool(np.isfinite(polyline).all())
+        if self.searched:
+            self.low, self.high = np.minimum(self.a, self.b), np.maximum(self.a, self.b)
+            size = np.abs(self.a) + np.abs(self.b)
+            self.largest = size.max(axis=0)
+            self.starts = np.argsort(self.low[:, 0], kind='stable')
+            self.sorted_starts = self.low[self.starts, 0]
+            self.longest = (self.high[:, 0] - self.low[:, 0]).max()
+        self.last = 0  # the segment the previous sample matched: consecutive samples lie close
+
+    def project(self, point, tubes):
+        """The segment, the residual of `point` there and the segment's three bounds. `tubes(rows)`
+        gives the bounds of those segments, of the largest of each coordinate for `rows` None."""
+        rows = self.candidates(point, tubes) if self.searched and np.isfinite(point).all() else None
+        found = rows is not None
+        rows = rows if found else slice(None)
+        bounds = tubes(rows)
+        distance, residual = fit_segments(point, self.a[rows], self.b[rows], bounds)
+        i = int(np.argmin(distance))
+        self.last = int(rows[i]) if found else i
+        return self.last, residual[i].tolist(), bounds[i]
+
+    def candidates(self, point, tubes):
+        """The segments, in order, that can match `point` as well as the best of a few it fits first (None:
+        search nothing)."""
+        n = np.searchsorted(self.sorted_starts, point[0])
+        seed = np.unique(np.concatenate([np.arange(max(0, self.last - 2), self.last + 3).clip(0, len(self.a) - 1),
+                                         self.starts[max(0, n - NEAREST_STARTS // 2):n + NEAREST_STARTS // 2]]))
+        bounds = tubes(seed)
+        best = fit_segments(point, self.a[seed], self.b[seed], bounds)[0].min()
+        if not np.isfinite(best):
+            return None
+        rounding = ROUNDING_UNITS * np.finfo(float).eps * (self.largest + np.abs(point))
+        reach = 2 * (best * tubes(None)[0, 0] + rounding[0])
+        left = np.searchsorted(self.sorted_starts, point[0] - reach - 1.000001 * self.longest, 'left')
+        right = np.searchsorted(self.sorted_starts, point[0] + reach, 'right')
+        rows = np.sort(self.starts[left:right])
+        rows = rows[self.high[rows, 0] >= point[0] - reach]
+        gap = np.maximum(np.maximum(self.low[rows] - point, point - self.high[rows]), 0.0)
+        allowance = ROUNDING_UNITS * np.finfo(float).eps * (np.abs(self.a[rows]) + np.abs(self.b[rows]) + np.abs(point))
+        return rows[~(((gap - allowance) / tubes(rows)).max(axis=1) > best)]  # a NaN stays
 
 
 def chord_error(polyline, i):
@@ -768,18 +822,25 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
             polyline = np.array(source)
             bounds = tubes(end, np.array([chord_error(source, i) for i in range(len(source) - 1)]), source,
                            None if source is ours else printed_by_segment(source))
-            fits = fit_segments(np.array(end), polyline, bounds)[1]
+            fits = fit_segments(np.array(end), polyline[:-1], polyline[1:], bounds)[1]
             inside = (np.abs(fits) <= bounds).all(axis=1)
             compared = next((i + 1 for i in range(len(source) - 2, -1, -1) if inside[i]), compared)
         failed = {}
-        polyline = np.array(target)
+        matcher = Matcher(np.array(target))
+        chords_max, printed_max = chords.max(axis=0, keepdims=True), None if printed is None else printed.max(axis=0)
+
+        def bounds_of(point, rows):
+            # the bounds of the segments `rows`; None: the largest of each coordinate (one row), which none exceeds
+            if rows is None:
+                return tubes(point, chords_max, target, printed_max)
+            return tubes(point, chords[rows], target, None if printed is None else printed[rows])
+
         for n, point in enumerate(source[:compared]):
             if not auto['parmin'] <= point[0] <= auto['parmax']:
                 continue
-            tolerances = tubes(point, chords, target, printed)
-            i, residual = project(np.array(point), polyline, tolerances)
+            i, residual, tolerances = matcher.project(np.array(point), lambda rows: bounds_of(point, rows))
             for k, q in enumerate(CURVE_QUANTITIES):
-                tol = float(tolerances[i][k])
+                tol = float(tolerances[k])
                 diff = abs(residual[k])
                 if q not in worst or diff / tol > worst[q][0] / worst[q][1]:
                     worst[q] = diff, tol, '%s sample %d' % (side, n + 1)
