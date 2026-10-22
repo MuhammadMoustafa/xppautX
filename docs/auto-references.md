@@ -1499,3 +1499,47 @@ the run `hb_down`: the gate compares AUTO-07p's `hb_up` with our `hb_down` (the 
 convention, its note), and a traced difference belongs to the arm it is compared with. With the five entries the gate reports no difference
 for T2 on the pilot's data (checked with `compare_references` on the pilot's diagram, `reference.json`s and ranges: one
 difference without them, none with them).
+
+## W457: the exact rows are judged against a converged exact run ([#520](https://github.com/MuhammadMoustafa/xppautX/issues/520))
+
+W455 showed that XPPAUT's and AUTO-07p's finite-difference Jacobians, not xppautX's exact one, are off on P2, E2 and T1, so a
+row with the exact Jacobian cannot be judged against them. The continuation study's driver
+(`paper/benchmarks/comparison/continuation.py`, git-ignored with the rest of `paper/benchmarks/`) now gates the rows of the
+group `jacobian: exact` (xppautX's `xppautx-exact-*`, AUTO-07p's `auto07p-exact-1`, W459) differently; the finite-difference rows keep the
+gate of every earlier series (every program against the two others' pilots).
+
+An exact row is equal work when (1) its special points are those of xppautX's own finite-difference pilot, in order, and
+(2) its values are within the gate's tolerances (`compare_run`'s and `compare_curve`'s, the row's own EPS and DSMAX, unchanged) of a
+converged run of xppautX's exact Jacobian on the same description: EPSL, EPSU and EPSS divided by 1000, DS, DSMIN and DSMAX by 10,
+NMX times 10. That run is a pilot of its own, untimed, in the workload's folder (`pilot-xppautx-converged/`, with `converged.json`).
+(2) is one `compare_references` call: a row of xppautX as `ours` against the converged run in the form of a reference file (the
+points `labelled` gives, every stored point's [parameter, second parameter, norm]), a row of AUTO-07p as the reference against the
+converged run's diagram as `ours`. (1) is checked once, on the pilots: the converged run's special points must equal the
+finite-difference pilot's, and (2) makes every row's equal to the converged run's. The first two points after a Hopf start
+are left out of both (W458's artefact: a test function that changes sign between a Hopf-started branch's first two points labels
+there, BP in xppautX and LP in AUTO-07p on P2's cycles, none at EPS/1000 and DS/10: the stored points 2 and 3 of a periodic run started at HB).
+A converged run that fails (the tight tolerances of ode_mu26_control and ode_mu26_blocked do not converge on the cycles near the
+SNIC, even with the tolerances divided by 10 only: "no convergence even at the smallest step", branches 49 and 50, near the end of the cycles run) is "unavailable" in `converged.json` and the
+workload's exact rows keep the finite-difference gate; the fixed-step P1 has none (its step is the workload). A deliberately wrong
+exact row fails: xppautX's finite-difference pilot run as an exact row is refused on E2's HB period (607.319 against the converged 608.833, tolerance 0.26).
+
+Every row, finite-difference or exact, now carries its error against the converged run (W445's error beside the time):
+`converged_error` (the worst difference of each compared quantity: `par`, `norm`, `period`, `spectrum`, `curve par`, ..., of the run and
+the runs it started from) and `converged_error_ratio` (the worst difference over its tolerance) in `runs.json` and `summary.csv`.
+On the pilots, against the converged run (E2 and P2's steady run, the Hopf point at stored point 362 of the as-run diagram):
+
+| Row | HB period (converged 608.83265) | HB ampPar (converged 0.1737640862) | norm | worst over tolerance |
+|---|---|---|---|---|
+| xppautX, finite differences | 607.3187, 1.51 off | 1.42e-6 | 6.2e-3 | 5.7 |
+| XPPAUT 8.0 | 607.2151, 1.62 | 5.6e-6 | 6.2e-3 | 6.3 |
+| AUTO-07p, finite differences | 607.3187, 1.51 | 1.42e-6 | 6.2e-3 | 5.9 |
+| xppautX, exact | 608.8645, 0.032 | 7.4e-7 | 9.9e-5 | 0.12 |
+| AUTO-07p, exact (W459) | 608.8645, 0.032 | 7.4e-7 | 9.9e-5 | 0.12 |
+
+On T1 (the first fold of mu26 blocked, SmIapp 0.0657989595 and norm 99.22379848 converged) the norm is off by 2.9e-4 in the finite-difference rows
+(ratio 5.2, XPPAUT 5.2 and 1.2 on the Hopf curve) and by 3.6e-6 in the exact rows (0.58; the curve 0.001). T2 passes its finite-difference
+gate with W456's five traced `GH` differences, and its exact row passes against its converged run.
+
+A bug of W454's `--reuse` row loop, found by testing it here: an imported row's `reusable_row` result was unpacked as `found, why`
+(the records and the folder) and used as the records, so no row of an earlier series could be imported; it is `recs, source` now. `--pilots` (with
+`--only`) runs a workload's pilots and gates (the converged and exact pilots included) on the full descriptions, untimed, then stops.
