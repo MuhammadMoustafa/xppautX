@@ -13,6 +13,7 @@
 #include "xpp_io.h"
 #include <array>
 #include <bit>
+#include <cctype>
 #include <cstdint>
 #include <map>
 #include <set>
@@ -122,6 +123,10 @@ struct Generator {
     std::vector<std::set<int>> calls;
     std::vector<char> pure_function; /* a user function written so far that changes no state */
     std::vector<double> numbers{expr::ZERO_DIVISOR}; /* N[0]: the zero divisor's value, bit-exact */
+    std::unordered_map<std::uint64_t, size_t> literal_slot; /* a literal's bits: its N[], so one value has one name */
+    /* the function being written: the pure calls already made at its top
+       level, by their C text, each held in a temporary (pure_call) */
+    std::unordered_map<std::string, Node> calls_made;
     std::array<bool, static_cast<size_t>(Helper::Count)> used{};
     /* the function being written: its statements in order, how many
        temporaries and loop counters it declares, how deep in sums it is,
@@ -179,7 +184,37 @@ struct Generator {
     {
         flush(stack, from);
         impure = true;
+        calls_made.clear();
         return statement(std::move(call));
+    }
+
+    /* A literal's N[] slot: the same value, the same slot, so two writings
+       of one expression have one text. */
+    Node literal(double x)
+    {
+        const auto [slot, added] = literal_slot.emplace(std::bit_cast<std::uint64_t>(x), numbers.size());
+        if (added) numbers.push_back(x);
+        return {xpp::format("N[{}]", slot->second), true, false, x == 2.0};
+    }
+
+    /* The call text of a math function (a table's fun1/fun2: pure, they
+       read and change no state) as a node. A call made before in this
+       function, with the same text, is its temporary again; else, at the
+       function's top level (in no conditional or sum, whose statements
+       may not run), it is written once to a temporary now. The same
+       operations on the same values in the same order: the call is only
+       made once instead of twice. A state-changing statement forgets the
+       calls made (effect, a sum), since their text may read what it
+       changes. */
+    Node pure_call(std::string text, bool mut, bool top)
+    {
+        if (depth > 0) return {std::move(text), false, mut};
+        if (const auto made = calls_made.find(text); made != calls_made.end()) return made->second;
+        if (!top) return {std::move(text), false, mut};
+        Node t = statement(text);
+        t.mut = false; /* a value of the state at its statement: never rewritten */
+        calls_made.emplace(std::move(text), t);
+        return t;
     }
 
     /* x^2 for the literal exponent 2, as x*x with x written once (a
@@ -242,8 +277,7 @@ struct Generator {
             } else if (op == ENDSUM) {
                 return pop();
             } else if (op == NUMSYM) {
-                stack.push_back({"N[" + std::to_string(numbers.size()) + "]", true, false, i.number == 2.0});
-                numbers.push_back(i.number);
+                stack.push_back(literal(i.number));
             } else if (op == MYIF) {
                 Node cond = pop();
                 frames.push_back({std::move(cond), {}, stack.size()});
@@ -253,13 +287,13 @@ struct Generator {
                 f.then_value = pop();
                 f.then_mark = out.size();
             } else if (op == INDXCOM) {
-                stack.push_back({"N[" + std::to_string(numbers.size()) + "]", true});
-                numbers.push_back(expr::CURRENT_INDEX);
+                stack.push_back(literal(expr::CURRENT_INDEX));
             } else if (op == SUMSYM) {
                 if (depth >= MAX_SUM_DEPTH) return refuse("sums nested too deep");
                 const Node high = pop(), low = pop();
                 flush(stack, lower());
                 impure = true;
+                calls_made.clear();
                 const int n = loops++;
                 const Node total{xpp::format("t{}", temps++), true};
                 /* lo, hi and ix are int: the assignments truncate the bounds and
@@ -313,7 +347,7 @@ struct Generator {
             } else if (type == FUN1TYPE) {
                 unary.insert(in);
                 const Node x = pop();
-                stack.push_back({xpp::format("f1_{}({})", in, x.text), false, x.mut});
+                stack.push_back(pure_call(xpp::format("f1_{}({})", in, x.text), x.mut, frames.empty()));
             } else if (type == FUN2TYPE) {
                 const Node right = pop(), left = pop();
                 std::string text;
@@ -329,7 +363,8 @@ struct Generator {
                     else text = xpp::format("dv({},{})", left.text, right.text);
                 } else {
                     binary.insert(in);
-                    text = xpp::format("f2_{}({},{})", in, left.text, right.text);
+                    stack.push_back(pure_call(xpp::format("f2_{}({},{})", in, left.text, right.text), left.mut || right.mut, frames.empty()));
+                    continue;
                 }
                 stack.push_back({std::move(text), false, left.mut || right.mut});
             } else if (type == UFUNTYPE) {
@@ -357,29 +392,91 @@ struct Generator {
         return pop();
     }
 
-    /* One C function for a program (an equation's, or user function index's). */
-    Result<> program(const std::vector<int> &p, int index, bool user, std::string_view name={})
+    /* A new function: no statements, temporaries, loops or calls made yet. */
+    void begin()
     {
-        if (p.empty()) return refuse("an invalid program length");
         out.clear();
+        calls_made.clear();
         temps = loops = depth = 0;
         impure = false;
         array_pure = true;
         variable_reads.clear();
+    }
+
+    /* Program p's value in the function being written, its statements
+       appended to out. */
+    Result<Node> value(const std::vector<int> &p, int index, bool user)
+    {
+        if (p.empty()) return refuse("an invalid program length");
         const auto code = expr::decode(s, p, user ? s.model().narg_fun[index] : -1);
         if (!code) return refuse(code.error());
         size_t k = 0;
-        auto value = sequence(*code, k, user, index);
-        if (!value) return std::unexpected(value.error());
+        return sequence(*code, k, user, index);
+    }
+
+    /* The function being written into the source: head, then its
+       declarations and statements, then tail. */
+    void write(std::string_view head, std::string_view tail)
+    {
         std::string declarations;
         for (int i = 0; i < temps; ++i) declarations += xpp::format("{}t{}", i ? "," : "double ", i);
         if (temps) declarations += ";";
         for (int i = 0; i < loops; ++i) declarations += xpp::format("{1}lo{0},hi{0},ix{0}", i, i ? "," : "int ");
         if (loops) declarations += ";";
-        source += signature(index, user, name) + "{" + declarations;
+        source += xpp::format("{}{{{}", head, declarations);
         for (const std::string &statement : out) source += statement;
-        source += xpp::format("return {};}}\n", value->text);
+        source += xpp::format("{}}}\n", tail);
+    }
+
+    /* One C function for a program (an equation's, or user function index's). */
+    Result<> program(const std::vector<int> &p, int index, bool user, std::string_view name={})
+    {
+        begin();
+        const auto result = value(p, index, user);
+        if (!result) return std::unexpected(result.error());
+        write(signature(index, user, name), xpp::format("return {};", result->text));
         if (user) pure_function[index] = !impure;
+        return {};
+    }
+
+    /* Whether the C text may read variable k: by its name v[k], or through
+       a call given the Session S (the only S in the text): a user
+       function's that reads k or what is not its arguments or variables
+       (array_pure_function), or a helper's other than a table's. */
+    bool may_read(std::string_view text, int k) const
+    {
+        if (text.find(xpp::format("v[{}]", k)) != std::string_view::npos) return true;
+        for (size_t at = text.find('S'); at != std::string_view::npos; at = text.find('S', at + 1)) {
+            const size_t open = text.rfind('(', at);
+            size_t start = open;
+            while (start > 0 && (std::isalnum(static_cast<unsigned char>(text[start - 1])) || text[start - 1] == '_')) --start;
+            const std::string_view call = text.substr(start, open - start);
+            if (call == helper_text[static_cast<size_t>(Helper::Table)].name || call == helper_text[static_cast<size_t>(Helper::TableSlope)].name) continue;
+            if (call.starts_with('u')) {
+                const size_t f = std::stoul(std::string(call.substr(1)));
+                if (array_pure_function[f] && !function_reads[f].contains(k)) continue;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /* One C function, name, for the fixed variables (W468): each program's
+       value written into its variable, first and on, in order, as
+       fixed_values (my_rhs.cpp) sets them one by one, so a math call two
+       of them make on the same values is made once. Writing a variable
+       forgets the calls whose text may read it. */
+    Result<> fixed(std::span<const Program> programs, int first, std::string_view name)
+    {
+        begin();
+        for (size_t i = 0; i < programs.size(); ++i) {
+            const auto result = value(programs[i].rpn, 0, false);
+            if (!result) return std::unexpected(result.error());
+            const int variable = first + static_cast<int>(i);
+            out.push_back(xpp::format("v[{}]={};", variable, result->text));
+            std::erase_if(calls_made, [&](const auto &made) { return may_read(made.first, variable); });
+        }
+        write(xpp::format("void {}(double *c,double *v,void *S)", name), "");
         return {};
     }
 
@@ -544,6 +641,7 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     Model &m=s.model();
     for (const auto &entry:entries) { entry.code->native=nullptr; entry.code->array_pure=false; entry.code->native_reads.clear(); }
     m.auto_rhs_pure=false;
+    m.native_fixed=nullptr;
     m.native_program.reset();
     if (!::program.compile || entries.empty()) return {};
     Generator g{s};
@@ -616,6 +714,19 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
         if (entry.user_index<0) entry.code->native_reads.assign(g.variable_reads.begin(),g.variable_reads.end());
         emitted.push_back(&entry);
     }
+    /* the fixed variables once more, as one function, when each compiled alone (W468) */
+    const std::string fixed_symbol="p_fixed";
+    bool fixed=m.fix_var>0 && static_cast<size_t>(m.node+m.fix_var)<=m.programs.size()
+        && std::all_of(m.programs.begin()+m.node,m.programs.begin()+m.node+m.fix_var,[&](const Program &p){
+               return std::any_of(emitted.begin(),emitted.end(),[&](const ModelProgram *e){return e->code==&p;});});
+    if (fixed) {
+        g.place=model_place(m,m.fixinfo[0].name);
+        g.dynamic=false;
+        if (auto r=g.fixed({m.programs.data()+m.node,static_cast<size_t>(m.fix_var)},m.node+1,fixed_symbol);!r) {
+            warnings.push_back(r.error());
+            fixed=false;
+        }
+    }
     if (emitted.empty()) return warnings;
     auto compiled=g.build(emitted.front()->place);
     if (!compiled) {g.place=compiled.error().place;return g.refuse("TinyCC: "+compiled.error().what);}
@@ -625,7 +736,14 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
         if (!address) {g.place=address.error().place;return g.refuse("TinyCC: "+address.error().what);}
         functions.push_back(reinterpret_cast<decltype(Program::native)>(*address));
     }
+    decltype(Model::native_fixed) native_fixed=nullptr;
+    if (fixed) {
+        auto address=(*compiled)->function(fixed_symbol);
+        if (!address) {g.place=address.error().place;return g.refuse("TinyCC: "+address.error().what);}
+        native_fixed=reinterpret_cast<decltype(Model::native_fixed)>(*address);
+    }
     m.native_program=std::move(*compiled);
+    m.native_fixed=native_fixed;
     for (size_t i=0;i<emitted.size();++i) emitted[i]->code->native=functions[i];
     // Networks and DAEs run between the fixed variables and equations even
     // when no equation calls their helpers. Function tables can rebuild on

@@ -6,6 +6,7 @@
 #include "xpp_batch.h"
 #include "xpp_log.h"
 #include "xpp_globals.h"
+#include "my_rhs.h"
 #include <bit>
 #include <cstdint>
 #include <limits>
@@ -69,6 +70,43 @@ void same_both_ways(xpp::Session &s,const xpp::Program &code)
     CHECK(same(native_variables,s.parser.variables));
     CHECK(same(native_constants,s.parser.constants));
     CHECK(native_random==s.random.save());
+    s.parser.variables=variables;
+    s.parser.constants=constants;
+}
+
+/* The fixed variables by the model's one native function (W468) and
+   interpreted one by one, each from the same state: the same left behind
+   (the fixed variables, what SET writes, the generator's next draws); and,
+   when the model's right-hand side is AUTO's pure one, the same by its
+   path on copies of the arrays. */
+void same_fixed(xpp::Session &s)
+{
+    CHECK(s.model().native_fixed!=nullptr);
+    const auto variables=s.parser.variables;
+    const auto constants=s.parser.constants;
+    s.random.seed(7);
+    const std::string random=s.random.save();
+    fix_only(s);
+    const auto native_variables=s.parser.variables;
+    const auto native_constants=s.parser.constants;
+    const std::string native_random=s.random.save();
+    s.parser.variables=variables;
+    s.parser.constants=constants;
+    CHECK(s.random.load(random));
+    program.compile=false;
+    fix_only(s);
+    program.compile=true;
+    CHECK(same(native_variables,s.parser.variables));
+    CHECK(same(native_constants,s.parser.constants));
+    CHECK(native_random==s.random.save());
+    if (s.model().auto_rhs_pure) {
+        auto c=constants;
+        auto v=variables;
+        std::vector<double> y(static_cast<size_t>(s.model().node)),ydot(y.size());
+        for (size_t i=0;i<y.size();++i) y[i]=variables[i+1];
+        pure_rhs(s,y.data(),ydot.data(),c.data(),v.data());
+        for (size_t i=y.size()+1;i<=y.size()+static_cast<size_t>(s.model().fix_var);++i) CHECK(bits(native_variables[i])==bits(v[i]));
+    }
     s.parser.variables=variables;
     s.parser.constants=constants;
 }
@@ -147,7 +185,14 @@ int main()
     const int first_square=count;
     for (const auto *text:{"x^2", "x**2", "par^2", "(x*par+1)^2", "tanh(x)^2", "(x^2)^2", "x^2+x^2", "2^x", "x^3", "x^(1+1)",
          "x^par", "1/x^2", "if(x)then((x+1)^2)else(par^2)", "if(x)then(x)else(1)^2", "sum(0,2)of((i'+x)^2)", "set(z0,1,x)^2+z1^2+x^2",
-         "ran(1)^2", "g(x,par)^2", "q(x)^2"}) expression(text);
+         "ran(1)^2", "g(x,par)^2", "q(x)^2",
+         /* a repeated math call is made once (W467), except across what changes its argument or what may not run */
+         "tanh(x)+tanh(x)", "tanh(x)*tanh(x)-atan2(x,par)/atan2(x,par)", "sin(x*par)^2+cos(x*par)^2+sin(x*par)",
+         "tanh(z1)+set(z0,1,x*2)+tanh(z1)", "z1+tanh(z1)+set(z0,1,par)*0+tanh(z1)", "ran(1)+tanh(x)+ran(1)+tanh(x)",
+         "tanh(x)+if(par)then(tanh(x)+sin(x))else(sin(x)*2)+sin(x)", "if(x)then(sin(x)+sin(x))else(sin(x))+sin(x)",
+         "tanh(x)+sum(0,2)of(tanh(x)+tanh(i')+tanh(i'))+tanh(x)", "sum(0,2)of(tanh(i'))+sum(0,2)of(tanh(i'))",
+         "sum(0,2)of(tanh(set(z0,1,i')*1+i'))+tanh(z1)", "tanh(q(x))+tanh(q(x))", "tanh(g(x,par))*tanh(g(x,par))+g(x,par)",
+         "atan2(x,par)+atan2(par,x)+x^par*x^par", "(1/x)^2+(1/x)^2+exp(1/x)+exp(1/x)"}) expression(text);
     const int after_square=count;
     const int first_outside=count;
     expression("shift(t,-1)");
@@ -218,6 +263,33 @@ int main()
     CHECK(!m.native_program);
     CHECK(xpp::evaluate(s,m.programs[0])==0.1);
     program.compile=true;
+    /* z0 to z3 as fixed variables, compiled as one function (W468): a math call is made
+       once across them, except across what changes its argument (a fixed variable
+       written, read by name, by a user function or by a shift; a set; a draw) or what may
+       not run (a branch, a sum). w reads z1; f only its arguments. */
+    CHECK(xpp::add_ufun_name(s,"w",4,1)==0);
+    m.nfun=5;
+    CHECK(xpp::add_ufun_new(s,4,"z1*a",{args.data(),1})==0);
+    m.fix_var=4;
+    for (const auto &fixed:std::vector<std::array<const char *,4>>{
+         {"tanh(x*par)", "tanh(x*par)^2+z0", "tanh(z0)+tanh(x*par)", "tanh(z0)*tanh(z1)+tanh(x*par)"},
+         {"tanh(z1)+tanh(z2)", "tanh(x)", "tanh(z1)+tanh(z2)", "tanh(z1)*tanh(z3)+tanh(z2)"},
+         {"z3+tanh(z3)", "tanh(z3)*2", "tanh(z0)", "tanh(z3)+tanh(z0)"},
+         {"tanh(z2)", "set(z0,2,par)*0+tanh(z2)", "tanh(z2)+tanh(x)", "tanh(x)+tanh(z2)"},
+         {"tanh(w(x))", "tanh(x)", "tanh(w(x))+tanh(f(x,par))", "tanh(f(x,par))+tanh(w(x))"},
+         {"tanh(shift(z0,1))", "tanh(par)", "tanh(shift(z0,1))", "z1+tanh(shift(z0,1))"},
+         {"if(x)then(tanh(x))else(0)", "tanh(x)+sum(0,2)of(tanh(x))", "if(par)then(tanh(x))else(tanh(par))+tanh(x)", "sum(0,1)of(tanh(i'))+tanh(x)"},
+         {"ran(1)+tanh(x)", "tanh(x)+ran(1)", "normal(0,1)*tanh(x)", "tanh(x)"}}) {
+        count=1;
+        for (const char *text:fixed) expression(text);
+        CHECK(xpp::compile_model(s).has_value());
+        for (const double x:{-0.0,1.0,-2.5,1e200,std::numeric_limits<double>::infinity(),std::bit_cast<double>(std::uint64_t{0x7ff8000000001234})}) {
+            for (size_t i=0;i<s.parser.variables.size();++i) s.parser.variables[i]=0.5*static_cast<double>(i%7)-1.0;
+            s.parser.variables[1]=x;
+            s.parser.constants[2]=x+4.0;
+            same_fixed(s);
+        }
+    }
     /* Models with lookup tables, networks, vectorizers, kernels, delays, sums and shifts,
        Markov chains, integral equations and draws: every equation of each, as loaded, from
        its own state and a changed one, and the loaded model compiled whole. */
@@ -226,7 +298,7 @@ int main()
          "examples/ode/angela.odex", "examples/ode/gausvolt.odex", "examples/ode/kuramot100.odex",
          "examples/ode/waterwheel.odex", "examples/canonical/mackey.odex", "examples/ode/kohox.odex",
          "examples/ode/dae.odex", "examples/canonical/huygens.odex", "examples/canonical/qif-noise.odex",
-         "examples/ode/amari2.odex", "examples/ode/kepler.odex", "examples/ode/lamvolt.odex", "examples/ode/junk2.odex"}) {
+         "examples/ode/amari2.odex", "examples/ode/kepler.odex", "examples/ode/lamvolt.odex", "examples/ode/junk2.odex", "examples/ode/mu26.odex"}) {
         std::string file=path;
         char name[]="test_compile";
         char *argv[]={name,file.data(),nullptr};
@@ -261,6 +333,7 @@ int main()
                     entry.code->rpn=operands;
                 }
             }
+            if (t.model().fix_var>0) same_fixed(t);
         }
     }
     for (const auto *kind:{"p_eq","p_fun","p_solv","p_dae","p_markov","p_kernel","p_convolution","p_condition","p_event","p_derived","p_network"})

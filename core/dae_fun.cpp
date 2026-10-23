@@ -18,6 +18,7 @@
 #include <string_view>
 #include <vector>
 #include "model.h"
+#include "my_rhs.h"
 
 namespace xpp {
 
@@ -167,8 +168,7 @@ void get_dae_fun(xpp::Session &s, double *y, double *f)
   /* better do this in case fixed variables depend on sol_var */
   for(i=0;i<m.nsvar;i++)
     setvar(s,m.svars[i].index,y[i]);
-  for(i=m.node;i<m.node+m.fix_var;i++)
-    setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
+  fix_only(s);
   for(i=0;i<m.naeqn;i++)
     f[i]=evaluate(s,m.aeqns[i].form);
 }

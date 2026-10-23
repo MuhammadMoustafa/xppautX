@@ -139,6 +139,10 @@ struct Model {
   std::vector<Program> programs;
   /* W258: executable code has exactly this Model's lifetime. */
   std::unique_ptr<tcc::Program> native_program;
+  /* compile_model: the fixed variables' programs as one function, writing
+     each value into the variables v in order (W468); none when one of them
+     is interpreted */
+  void (*native_fixed)(double *c, double *v, Session *S)=nullptr;
   bool auto_rhs_pure=false; /* compile_model: every AUTO RHS program is native and Session-independent */
   /* the exact Jacobian compile_model made, or why there is none (W260) */
   ExactJacobian jacobian;
