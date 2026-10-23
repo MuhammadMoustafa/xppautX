@@ -17,6 +17,7 @@
 #include <vector>
 #include "model.h"
 #include "xpp_math.h"
+#include "my_rhs.h"
 
 namespace xpp {
 #define MAX(a,b) ((a)>(b)?(a):(b))
@@ -232,8 +233,7 @@ void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y t
   setvar(s,s.model().prime_start,t);
   for(i=0;i<s.model().node;i++)
     setvar(s,i+1,y[i]);
-  for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
-    setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
+  fix_only(s);
   for(i=0;i<s.model().nkernel;i++){
     if(kernels[i].flag==CONV)
       s.volterra.kernels[i].k_n=s.volterra.kernels[i].sum+
@@ -272,16 +272,14 @@ int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, 
     setvar(s,s.model().prime_start,*t);
     for(i=0;i<s.model().node;i++)
       if(!s.model().eq_type[i])setvar(s,i+1,y[i]);  /* assign initial data             */
-    for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
-      setvar(s,i+1,xpp::evaluate(s,s.model().programs[i])); /* set fixed variables  for pass 1 */
+    fix_only(s); /* set fixed variables  for pass 1 */
     for(i=0;i<s.model().node;i++)
       if(s.model().eq_type[i]){  
 	z=xpp::evaluate(s,s.model().programs[i]);           /* reset IC for integral eqns      */
 	setvar(s,i+1,z);
 	y[i]=z;    
       }
-    for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)       /* pass 2 for fixed variables      */   
-      setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
+    fix_only(s); /* pass 2 for fixed variables      */
     for(i=0;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)
       s.volterra.memory[i][0]=getvar(s,i+1);        /* save everything                 */
     s.volterra.current_point=1;
@@ -318,8 +316,7 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
  for(i=s.model().node;i<s.model().node+s.model().nmarkov;i++)
    setvar(s,i+1+s.model().fix_var,y[i]);
  setvar(s,0,t-dt);
- for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
-   setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
+ fix_only(s);
  for(i=0;i<s.model().node;i++){
    if(!s.model().eq_type[i])yp2[i]=y[i]+dt2*xpp::evaluate(s,s.model().programs[i]);
    else yp2[i]=0.0;
@@ -327,8 +324,7 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
  s.volterra.kn_flag=1;
  while(1){
    get_kn(s,yg,t);
-    for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
-     setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
+    fix_only(s);
    for(i=0;i<s.model().node;i++){
      yp[i]=xpp::evaluate(s,s.model().programs[i]);
      if(s.model().eq_type[i])errvec[i]=-yg[i]+yp[i];
@@ -341,8 +337,7 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
      yg[i]+=del;
      delinv=1./del;
      get_kn(s,yg,t);
-      for(j=s.model().node;j<s.model().node+s.model().fix_var;j++)
-       setvar(s,j+1,xpp::evaluate(s,s.model().programs[j]));
+      fix_only(s);
      for(j=0;j<s.model().node;j++){
        fac=delinv;
        if(!s.model().eq_type[j])fac*=dt2;

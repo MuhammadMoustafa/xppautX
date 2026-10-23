@@ -235,8 +235,7 @@ void update_markov(xpp::Session &s, double *x, double t, double dt)
   setvar(s,0,t);
   for(i=0;i<s.model().node;i++)setvar(s,i+1,x[i]);
   for(i=s.model().node+s.model().fix_var;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)setvar(s,i+1,x[i-s.model().fix_var]);
-  for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
-  setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
+  fix_only(s);
   /* every chain moves with the others' variables at their old values (the
      transition formulas read them), so the variables are set after; a
      chain reads of x only its own state, so x itself holds the new ones */
