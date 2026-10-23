@@ -105,6 +105,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [72](#72-autos-branch-point-test-reads-the-fold-tests-determinant) | AUTO | the branch point test of an equilibrium branch reads the determinant the fold test computed with the tangent row, which changes sign when a step turns past a fold: a spurious BP, and the fold missed | [W423 / #485](https://github.com/MuhammadMoustafa/xppautX/issues/485) |
 | [73](#73-periodic-phase-conditions-do-not-pass-through-the-computed-orbit) | AUTO | the uncentered periodic phase condition has a discrete residual at the previous computed orbit, so zero-length correction can move it | [W437 / #499](https://github.com/MuhammadMoustafa/xppautX/issues/499) |
 | [74](#74-autos-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale) | AUTO | the finite-difference Jacobian of an equilibrium or cycle problem (`JAC=0`, always) steps every state by 1e-7 times the largest state: Hopf periods and fold norms are off on a model whose states differ in scale | [W455 / #518](https://github.com/MuhammadMoustafa/xppautX/issues/518) |
+| [75](#75-the-auto-file-name-overflows-past-199-characters-of-home-and-model-name) | AUTO | starting any model writes `$HOME/<model file name>` into a 200-byte array unchecked: a long HOME or model name aborts (fortified build) or overwrites what follows | W354 series 22m (no card) |
 
 ## 1. Model options
 
@@ -1739,3 +1740,20 @@ xppautX's default `difference` Jacobian keeps the rule, so it reproduces XPPAUT'
 (W260) gives the converged ones.
 
 **Card:** [W455 / #518](https://github.com/MuhammadMoustafa/xppautX/issues/518).
+
+## 75. The AUTO file name overflows past 199 characters of HOME and model name
+
+At start-up, even with `-silent`, `do_main` calls `init_auto_win` ([main.c:468](../reference/xppaut-8.0/main.c#L468)),
+whose `create_auto_file_name` writes `sprintf(this_auto_file,"%s/%s",HOME,bname)`, `HOME` the environment's (else the
+model's folder) and `bname` the model file's name ([auto_nox.c:577-594](../reference/xppaut-8.0/auto_nox.c#L577)), into
+`char this_auto_file[200]` ([auto_nox.c:212](../reference/xppaut-8.0/auto_nox.c#L212); the same in
+[master](../reference/xppaut-master/auto_nox.c#L207)), with no bound. Together they need not be long: a 160-character home
+and a 40-character model name are enough.
+
+Evidence: W354's izhikevich study gives every run a private HOME inside its run folder. On the Ubuntu machine (XPPAUT 8.0
+built with Ubuntu's default `_FORTIFY_SOURCE`) `xppaut izh_2004s_inhibition_induced_spiking.ode -silent`, with a HOME of
+196 characters, ends with `*** buffer overflow detected ***: terminated` before integrating; gdb puts the abort in
+`___sprintf_chk` from `create_auto_file_name` (`init_auto_win`, auto_nox.c:1555). 22 of the 28 Izhikevich models
+(the 2004 ones, whose names are longer) failed; the six 2003 ones ran. A build without fortify checks writes past the array
+unnoticed. The series ran from a shorter folder instead (no source of XPPAUT's is edited); xppautX has no such array.
+
