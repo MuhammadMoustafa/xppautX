@@ -468,6 +468,16 @@ class Arms(unittest.TestCase):
         diffs, _ = self.compare(bent, self.arm(-1))
         self.assertTrue(diffs)
 
+    def test_a_skipped_arm_is_not_paired(self):
+        # henon_rot_tr's down is skipped: no rows of ours, and the reference keeps only up (read_reference)
+        start = dict(run='steady', type='HB', index=1)
+        d = dict(runs=[dict(name='up', kind='two_parameter', start=start, auto=self.AUTO),
+                       dict(name='down', kind='two_parameter', start=start, auto=self.AUTO, skip='traced')])
+        ref = {'.auto07p': dict(runs=[dict(name='up', points=[], curve=[list(v) for v in self.arm(1)])])}
+        with mock.patch('autocompare.stored_rows', return_value={'up': Curves.rows(self.arm(1))}):
+            diffs, _ = compare_references('T', d, b'', {}, ref, [])
+        self.assertEqual(diffs, [])
+
     def test_runs_that_are_not_curves_are_paired_by_name_only(self):
         diffs, notes = self.compare(self.arm(-1), self.arm(1), kind='equilibrium')
         self.assertEqual(notes, [])

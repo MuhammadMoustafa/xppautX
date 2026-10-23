@@ -905,8 +905,9 @@ def compare_references(name, d, data, ranges, refs, notes=None):
             if 'unavailable' in r:
                 continue
             named = next(x for x in d['runs'] if x['name'] == r['name'])
+            # a skipped arm has no rows of ours to pair with (henon_rot_tr's down, W405)
             arms = [x for x in d['runs'] if x['kind'] == 'two_parameter' and named['kind'] == 'two_parameter'
-                    and x['start'] == named['start']] or [named]
+                    and x['start'] == named['start'] and 'skip' not in x] or [named]
             best = None
             for dr in arms:
                 known = [k for k in d.get('differences', ()) if k['reference'] == suffix and k['run'] == dr['name']]
