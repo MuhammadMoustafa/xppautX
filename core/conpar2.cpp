@@ -1,6 +1,7 @@
 #include "auto_c.h"
 #include "session.h"
 #include "xpp_math.h"
+#include <cmath>
 #include <utility>
 
 namespace {
@@ -22,6 +23,19 @@ struct conpar_parallel_arglist {
   integer loop_start; /*scalar input*/
   integer loop_end; /*scalar output*/
 };
+
+/* The first column of [from, to) holding the largest |value| (strict comparison: a tie keeps
+   the earlier one, a NaN never wins); `from` when every value is zero. */
+integer first_maximum(const double *row, integer from, integer to)
+{
+  integer at = from;
+  double largest = 0.;
+  for (integer l = from; l < to; ++l) {
+    const double value = std::fabs(row[l]);
+    if (largest < value) [[unlikely]] { largest = value; at = l; }
+  }
+  return at;
+}
 
 /* The process function: the original AUTO called it per worker, on a
    shared-memory machine or wrapped for message passing. */
@@ -55,26 +69,16 @@ void conpar_process(const conpar_parallel_arglist *arg)
       for (integer row = 0; row < rows; ++row) std::swap(a(first, row), a(second, row));
       for (integer row = 0; row < constraints; ++row) std::swap(c(first, row), c(second, row));
     };
-    for (integer row = 0; row < rows; ++row) {
-      double largest = 0.;
-      maximum_column[row] = left;
-      for (integer col = left; col < end; ++col) {
-        double value = a(col, row);
-        if (value < 0.) value = -value;
-        if (largest < value) {
-          largest = value;
-          maximum_column[row] = col;
-        }
-      }
-    }
+    // maximum_column[row]: the first largest |value| of the row's columns [col, end), kept up to date
+    // below: a row whose multiplier is zero is only rescanned when a swap touched its maximum.
+    for (integer row = 0; row < rows; ++row) maximum_column[row] = first_maximum(&a(0, row), left, end);
     for (integer col = left; col < end; ++col) {
       const integer pivot_row = col - left;
       integer selected_row = pivot_row, selected_column = col;
       double largest = 0.;
       // Strict comparisons preserve the original first maximum, including ties.
       for (integer row = pivot_row; row < rows; ++row) {
-        double value = a(maximum_column[row], row);
-        if (value < 0.) value = -value;
+        const double value = std::fabs(a(maximum_column[row], row));
         if (largest < value) {
           largest = value;
           selected_row = row;
@@ -83,6 +87,7 @@ void conpar_process(const conpar_parallel_arglist *arg)
       }
       swaps[pivot_row] = {selected_row, selected_column};
       swap_rows(pivot_row, selected_row);
+      std::swap(maximum_column[pivot_row], maximum_column[selected_row]);
       swap_columns(col, selected_column);
       std::swap(irf[pivot_row], irf[selected_row]);
       std::swap(icf[col], icf[selected_column]);
@@ -90,36 +95,23 @@ void conpar_process(const conpar_parallel_arglist *arg)
         const double rm = a(col, row) / a(col, pivot_row);
         a(col, row) = rm;
         // Shape follows AUTO-07p's IMSBRA (solvebv.f90): the zero test sits outside the element loops, same bits.
-        double *__restrict target = &a(0, row);
-        const double *__restrict source = &a(0, pivot_row);
-        largest = 0.;
-        integer at = col + 1;
+        double *target = &a(0, row);
+        const double *source = &a(0, pivot_row);
         if (rm != 0.) {
-          for (integer l = 0; l < left; ++l) target[l] -= rm * source[l];
-          for (integer l = col + 1; l < end; ++l) {
-            const double v = target[l] - rm * source[l];
-            target[l] = v;
-            const double value = v < 0. ? -v : v;
-            if (largest < value) [[unlikely]] { largest = value; at = l; }
-          }
-          for (integer l = end; l < cols; ++l) target[l] -= rm * source[l];
-          for (integer l = 0; l < parameters; ++l) b(l, row) -= rm * b(l, pivot_row);
-        } else {
-          // A zero multiplier still needs a scan: the column swap can change tie order.
-          for (integer l = col + 1; l < end; ++l) {
-            const double v = target[l];
-            const double value = v < 0. ? -v : v;
-            if (largest < value) [[unlikely]] { largest = value; at = l; }
-          }
+          xpp::subtract_scaled(target, source, rm, left);
+          xpp::subtract_scaled(target + col + 1, source + col + 1, rm, cols - col - 1);
+          xpp::subtract_scaled(&b(0, row), &b(0, pivot_row), rm, parameters);
+          maximum_column[row] = first_maximum(target, col + 1, end);
+        } else if (maximum_column[row] == col || maximum_column[row] == selected_column) {
+          maximum_column[row] = first_maximum(target, col + 1, end);
         }
-        maximum_column[row] = at;
       }
       for (integer row = *arg->nbc; row < constraints; ++row) {
         const double rm = c(col, row) / a(col, pivot_row);
         c(col, row) = rm;
         if (rm != 0.) {
-          for (integer l = 0; l < left; ++l) c(l, row) -= rm * a(l, pivot_row);
-          for (integer l = col + 1; l < cols; ++l) c(l, row) -= rm * a(l, pivot_row);
+          xpp::subtract_scaled(&c(0, row), &a(0, pivot_row), rm, left);
+          xpp::subtract_scaled(&c(col + 1, row), &a(col + 1, pivot_row), rm, cols - col - 1);
           for (integer l = 0; l < parameters; ++l) {
             const integer at = l + row * parameters;
             // W247 replays subtractions in serial interval/step/row/column order.

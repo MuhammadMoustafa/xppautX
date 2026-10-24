@@ -264,6 +264,21 @@ private:
 void product_accumulate(double *__restrict c, std::ptrdiff_t ldc, const double *__restrict a, std::ptrdiff_t lda,
                         const double *__restrict b, std::ptrdiff_t ldb, std::ptrdiff_t m, std::ptrdiff_t n, std::ptrdiff_t p);
 
+/* target[l] -= factor * source[l] for l in [0, n): each product rounded before the
+   subtract (no FMA), the bits of the plain loop. Written in groups of four, which
+   gcc's -O2 vectorizes where it leaves a loop of unknown length scalar (W475). */
+inline void subtract_scaled(double *__restrict target, const double *__restrict source, double factor, std::ptrdiff_t n)
+{
+    std::ptrdiff_t l = 0;
+    for (; l + 4 <= n; l += 4) {
+        target[l] -= factor * source[l];
+        target[l + 1] -= factor * source[l + 1];
+        target[l + 2] -= factor * source[l + 2];
+        target[l + 3] -= factor * source[l + 3];
+    }
+    for (; l < n; ++l) target[l] -= factor * source[l];
+}
+
 /* Refine a sign-changing scalar bracket by safeguarded secant/bisection.
    Returns a point in the bracket within 8*epsilon*max(1,abs(time)). */
 double bracketed_root(const std::function<double(double)> &f, double a, double b, double fa, double fb);
