@@ -4,6 +4,10 @@
 	-lf2c -lm   (in that order)
 */
 
+#include <algorithm>
+#include <array>
+#include <functional>
+#include <limits>
 #include <vector>
 #include "xpp_log.h"
 #include "session.h"
@@ -56,20 +60,20 @@ void SolvbvWork::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t
   s1.resize(xpp::size_product(ndim, ndim, nodes));
   s2.resize(xpp::size_product(ndim, ndim, nodes));
   bb.resize(xpp::size_product(ndim, parameters, nodes));
-  cc.resize(xpp::size_sum(xpp::size_product(nrc, ndim, nodes), 1));
+  cc.resize(xpp::size_product(ndim, nrc, nodes));
+  c2.resize(xpp::size_product(ndim, nrc, nodes));
+  dd.resize(xpp::size_product(parameters, nrc, nodes));
   faa.resize(xpp::size_product(ndim, nodes));
+  fcfc.resize(xpp::size_product(nrc, nodes));
   icf.resize(xpp::size_product(nclm, nodes));
   irf.resize(xpp::size_product(nrow, nodes));
   ipr.resize(xpp::size_product(ndim, nodes));
-  icf1.resize(xpp::size_product(ndim, nodes));
   icf2.resize(xpp::size_product(ndim, nodes));
   ft.resize(xpp::size_product(nrow, nodes));
   const auto reduced = xpp::size_sum(ndim, nrc);
   e.resize(xpp::size_product(reduced, reduced));
   fcc.resize(xpp::size_sum(reduced, xpp::size_product(2, ndim, ndim), 1));
-  sol1.resize(xpp::size_product(ndim, nodes));
-  sol2.resize(xpp::size_product(ndim, nodes));
-  sol3.resize(xpp::size_product(ndim, nodes));
+  sol.resize(xpp::size_product(ndim, nodes));
   xe.resize(reduced);
 }
 
@@ -368,6 +372,317 @@ setrhs(integer *ndim, xpp::AutoProblem *ips, integer *na, integer *ncol, integer
   return 0;
 } /* setrhs_ */
 
+namespace {
+/* W474: the condensed blocks are reduced by AUTO-07p's nested dissection
+   (solvebv.f90's REDUCER and BCKSUBR): blocks lo..hi split at
+   mid=(lo+hi)/2, both halves are reduced, then the interface variable
+   between them, x(mid+1), is eliminated. The tree depends on NTST alone,
+   so the elimination order, and every bit of the solution, is the same at
+   every thread count (AUTO-07p cuts its ranges by thread count, so its last
+   bits change with it); it is AUTO-07p's own order on one thread. The
+   subtrees at depth solve_chunk_levels are the chunks the collocation
+   workers share, the merges above them run on the caller; a mesh with
+   fewer intervals than chunks simply has single-block chunks, which have
+   nothing to merge. Block k's equations couple x(k) and x(k+1); a reduced
+   range lo..hi keeps its rows in slot hi, coupled to x(lo) through a1's slot
+   lo and to x(hi+1) through a2's slot hi; the rows that eliminated x(mid+1)
+   stay in slot mid (s1: x(lo), a2: x(mid+1), s2: x(hi+1)) for the back
+   substitution. */
+// 4 chunks, one for each of AutoParallel::max_threads, leaving three merges
+// to the caller; no number depends on it (W474 measured 8 chunks 1.7% slower
+// at four threads on Mu26's cycles, 1.2% faster at three).
+constexpr int solve_chunk_levels = 2;
+constexpr std::size_t solve_chunks = std::size_t{1} << solve_chunk_levels;
+// A chunk's own subtree goes to its leaves.
+constexpr int whole_subtree = std::numeric_limits<int>::max();
+
+struct BlockRange { integer lo, hi; };
+using RangeWork = std::function<void(integer lo, integer mid, integer hi)>;
+
+/* AUTO-07p's MID=(LO+HI)/2: where lo..hi splits */
+integer bisect(integer lo, integer hi) { return lo + (hi - lo) / 2; }
+
+/* Calls work(lo,mid,hi) for the merges of lo..hi's bisection tree down to
+   levels below it, children before their parent (up) or after it (down). */
+void tree_up(integer lo, integer hi, int levels, const RangeWork &work)
+{
+  if (lo >= hi || levels == 0) return;
+  const integer mid = bisect(lo, hi);
+  tree_up(lo, mid, levels - 1, work);
+  tree_up(mid + 1, hi, levels - 1, work);
+  work(lo, mid, hi);
+}
+
+void tree_down(integer lo, integer hi, int levels, const RangeWork &work)
+{
+  if (lo >= hi || levels == 0) return;
+  const integer mid = bisect(lo, hi);
+  work(lo, mid, hi);
+  tree_down(mid + 1, hi, levels - 1, work);
+  tree_down(lo, mid, levels - 1, work);
+}
+
+void chunk_ranges(integer lo, integer hi, int levels, std::array<BlockRange, solve_chunks> &chunks, std::size_t &count)
+{
+  if (lo >= hi || levels == 0) { chunks[count++] = {lo, hi}; return; }
+  const integer mid = bisect(lo, hi);
+  chunk_ranges(lo, mid, levels - 1, chunks, count);
+  chunk_ranges(mid + 1, hi, levels - 1, chunks, count);
+}
+
+/* Runs work on n independent blocks, on the collocation workers when there
+   are some; the result does not depend on how they are shared. */
+void for_blocks(AutoLib &lib, integer n, const std::function<void(integer begin, integer end)> &work)
+{
+  if (lib.collocation && lib.collocation->threads() > 1)
+    lib.collocation->intervals(n, [&](std::ptrdiff_t begin, std::ptrdiff_t end, AutoLib &) { work(begin, end); });
+  else work(0, n);
+}
+
+/* Runs walk on each chunk of blocks 0..na-1, a chunk on one thread. */
+void for_chunks(AutoLib &lib, integer na, const std::function<void(integer lo, integer hi)> &walk)
+{
+  std::array<BlockRange, solve_chunks> chunks{};
+  std::size_t count = 0;
+  chunk_ranges(0, na - 1, solve_chunk_levels, chunks, count);
+  for_blocks(lib, static_cast<integer>(count), [&](integer begin, integer end) {
+    for (integer k = begin; k < end; ++k) walk(chunks[k].lo, chunks[k].hi);
+  });
+}
+
+/* The chunks' merges, then the merges above them on the caller. */
+void reduce_tree(AutoLib &lib, integer na, const RangeWork &merge)
+{
+  for_chunks(lib, na, [&](integer lo, integer hi) { tree_up(lo, hi, whole_subtree, merge); });
+  tree_up(0, na - 1, solve_chunk_levels, merge);
+}
+
+/* The back substitution: the same tree from the root down. */
+void backsubstitute_tree(AutoLib &lib, integer na, const RangeWork &solve)
+{
+  tree_down(0, na - 1, solve_chunk_levels, solve);
+  for_chunks(lib, na, [&](integer lo, integer hi) { tree_down(lo, hi, whole_subtree, solve); });
+}
+
+/* The condensed system copycp builds, by block slot: nov x nov blocks
+   (a1, a2, s1, s2: row + column*nov), nov x ncb (bb), the conditions'
+   columns nov x nrc (cc: x(k), c2: x(k+1)), ncb x nrc (dd), the right-hand
+   sides (faa: nov, fcfc: nrc), the row pivots and column order (ipr, icf2:
+   nov). dd and fcfc gather what a range's merges subtract from the
+   conditions' d and fc, so that no two chunks write the same numbers. */
+struct CondensedBlocks {
+  double *a1, *a2, *s1, *s2, *bb, *cc, *c2, *dd, *faa, *fcfc;
+  integer *ipr, *icf2;
+  integer nov, ncb, nrc, nbc;
+  double *square(double *m, integer slot) const { return m + slot * nov * nov; }
+  double *border(integer slot) const { return bb + slot * nov * ncb; }
+  double *conditions(double *m, integer slot) const { return m + slot * nov * nrc; }
+};
+
+/* AUTO-07p's REDBLK in AUTO2000's arithmetic: eliminates x(mid+1) from
+   the rows of lo..mid (slot mid) and mid+1..hi (slot hi) with complete
+   pivoting over both, rows swapped physically, columns through icf2. */
+void reduce_merge(const CondensedBlocks &m, integer lo, integer mid, integer hi)
+{
+  const integer nov = m.nov, ncb = m.ncb, nrc = m.nrc;
+  double *s1l = m.square(m.s1, mid), *a2l = m.square(m.a2, mid), *s2l = m.square(m.s2, mid), *bbl = m.border(mid);
+  double *a11 = m.square(m.a1, lo), *a12 = m.square(m.a1, mid + 1), *a22 = m.square(m.a2, hi), *bbr = m.border(hi);
+  double *cc1 = m.conditions(m.cc, lo), *cc2 = m.conditions(m.cc, mid + 1), *cc3 = m.conditions(m.c2, hi);
+  const double *c2l = m.conditions(m.c2, mid);
+  double *ddr = m.dd + hi * ncb * nrc;
+  const double *ddl = m.dd + mid * ncb * nrc;
+  integer *perm = m.icf2 + mid * nov, *ipr = m.ipr + mid * nov;
+  // every array here has the leading dimension nov: (i, j) at i + j*nov
+  const auto at = [nov](double *block, integer row, integer column) -> double & { return block[row + column * nov]; };
+
+  /* x(lo)'s columns of lo..mid's rows move to s1; a11 gathers those of
+     mid+1..hi's, the merged range's coupling to x(lo) */
+  for (integer k = 0; k < nov * nov; ++k) {
+    s1l[k] = a11[k];
+    a11[k] = 0.;
+    s2l[k] = 0.;
+  }
+  for (integer k = 0; k < nov * nrc; ++k) cc2[k] += c2l[k];
+  for (integer ir = m.nbc; ir < nrc; ++ir)
+    for (integer l = 0; l < ncb; ++l) ddr[l + ir * ncb] += ddl[l + ir * ncb];
+  for (integer k = 0; k < nov; ++k) perm[k] = k;
+
+  for (integer ic = 0; ic < nov; ++ic) {
+    double piv1 = 0.;
+    integer ipiv1 = ic, jpiv1 = ic;
+    for (integer k1 = ic; k1 < nov; ++k1)
+      for (integer k2 = ic; k2 < nov; ++k2) {
+        const double tpiv = std::fabs(at(a2l, k1, perm[k2]));
+        if (piv1 < tpiv) { piv1 = tpiv; ipiv1 = k1; jpiv1 = k2; }
+      }
+    double piv2 = 0.;
+    integer ipiv2 = 0, jpiv2 = ic;
+    for (integer k1 = 0; k1 < nov; ++k1)
+      for (integer k2 = ic; k2 < nov; ++k2) {
+        const double tpiv = std::fabs(at(a12, k1, perm[k2]));
+        if (piv2 < tpiv) { piv2 = tpiv; ipiv2 = k1; jpiv2 = k2; }
+      }
+
+    if (piv1 >= piv2) {
+      ipr[ic] = ipiv1;
+      std::swap(perm[ic], perm[jpiv1]);
+      for (integer l = 0; l < nov; ++l) {
+        std::swap(at(s1l, ic, l), at(s1l, ipiv1, l));
+        if (l >= ic) std::swap(at(a2l, ic, perm[l]), at(a2l, ipiv1, perm[l]));
+        std::swap(at(s2l, ic, l), at(s2l, ipiv1, l));
+      }
+      for (integer l = 0; l < ncb; ++l) std::swap(at(bbl, ic, l), at(bbl, ipiv1, l));
+    } else {
+      ipr[ic] = nov + ipiv2;
+      std::swap(perm[ic], perm[jpiv2]);
+      for (integer l = 0; l < nov; ++l) {
+        if (l >= ic) std::swap(at(a2l, ic, perm[l]), at(a12, ipiv2, perm[l]));
+        std::swap(at(s2l, ic, l), at(a22, ipiv2, l));
+        std::swap(at(s1l, ic, l), at(a11, ipiv2, l));
+      }
+      for (integer l = 0; l < ncb; ++l) std::swap(at(bbl, ic, l), at(bbr, ipiv2, l));
+    }
+
+    const integer pc = perm[ic];
+    const double pivot = at(a2l, ic, pc);
+    for (integer ir = ic + 1; ir < nov; ++ir) {
+      const double rm = at(a2l, ir, pc) / pivot;
+      at(a2l, ir, pc) = rm;
+      if (rm == 0.) continue;
+      for (integer l = ic + 1; l < nov; ++l) at(a2l, ir, perm[l]) -= rm * at(a2l, ic, perm[l]);
+      for (integer l = 0; l < nov; ++l) {
+        at(s1l, ir, l) -= rm * at(s1l, ic, l);
+        at(s2l, ir, l) -= rm * at(s2l, ic, l);
+      }
+      for (integer l = 0; l < ncb; ++l) at(bbl, ir, l) -= rm * at(bbl, ic, l);
+    }
+    for (integer ir = 0; ir < nov; ++ir) {
+      const double rm = at(a12, ir, pc) / pivot;
+      at(a12, ir, pc) = rm;
+      if (rm == 0.) continue;
+      for (integer l = ic + 1; l < nov; ++l) at(a12, ir, perm[l]) -= rm * at(a2l, ic, perm[l]);
+      for (integer l = 0; l < nov; ++l) {
+        at(a11, ir, l) -= rm * at(s1l, ic, l);
+        at(a22, ir, l) -= rm * at(s2l, ic, l);
+      }
+      for (integer l = 0; l < ncb; ++l) at(bbr, ir, l) -= rm * at(bbl, ic, l);
+    }
+    for (integer ir = m.nbc; ir < nrc; ++ir) {
+      const double rm = at(cc2, pc, ir) / pivot;
+      at(cc2, pc, ir) = rm;
+      if (rm == 0.) continue;
+      for (integer l = ic + 1; l < nov; ++l) at(cc2, perm[l], ir) -= rm * at(a2l, ic, perm[l]);
+      for (integer l = 0; l < nov; ++l) {
+        at(cc1, l, ir) -= rm * at(s1l, ic, l);
+        at(cc3, l, ir) -= rm * at(s2l, ic, l);
+      }
+      for (integer l = 0; l < ncb; ++l) ddr[l + ir * ncb] -= rm * at(bbl, ic, l);
+    }
+  }
+}
+
+/* AUTO-07p's REDRHSBLK: the right-hand side through reduce_merge's pivots and multipliers. */
+void redrhs_merge(const CondensedBlocks &m, integer mid, integer hi)
+{
+  const integer nov = m.nov, nrc = m.nrc;
+  const double *a2l = m.square(m.a2, mid), *a12 = m.square(m.a1, mid + 1), *cc2 = m.conditions(m.cc, mid + 1);
+  double *faal = m.faa + mid * nov, *faar = m.faa + hi * nov, *fcr = m.fcfc + hi * nrc;
+  const double *fcl = m.fcfc + mid * nrc;
+  const integer *perm = m.icf2 + mid * nov, *ipr = m.ipr + mid * nov;
+  for (integer ir = m.nbc; ir < nrc; ++ir) fcr[ir] += fcl[ir];
+  for (integer ic = 0; ic < nov; ++ic) {
+    const integer p = ipr[ic];
+    std::swap(faal[ic], p < nov ? faal[p] : faar[p - nov]);
+    const integer pc = perm[ic];
+    for (integer ir = ic + 1; ir < nov; ++ir) faal[ir] -= a2l[ir + pc * nov] * faal[ic];
+    for (integer ir = 0; ir < nov; ++ir) faar[ir] -= a12[ir + pc * nov] * faal[ic];
+    for (integer ir = m.nbc; ir < nrc; ++ir) fcr[ir] -= cc2[pc + ir * nov] * faal[ic];
+  }
+}
+
+/* AUTO-07p's BCKSUB1: x(mid+1) from slot mid's rows, x(lo), x(hi+1) and the parameters. */
+void bcksub_merge(const CondensedBlocks &m, const double *parameters, double *sol, integer lo, integer mid, integer hi)
+{
+  const integer nov = m.nov, ncb = m.ncb;
+  const double *s1 = m.square(m.s1, mid), *s2 = m.square(m.s2, mid), *a2 = m.square(m.a2, mid), *bb = m.border(mid);
+  const double *faa = m.faa + mid * nov, *left = sol + lo * nov, *right = sol + (hi + 1) * nov;
+  double *x = sol + (mid + 1) * nov;
+  const integer *perm = m.icf2 + mid * nov;
+  for (integer k = nov - 1; k >= 0; --k) {
+    double sm = 0.;
+    for (integer l = 0; l < nov; ++l) {
+      sm += left[l] * s1[k + l * nov];
+      sm += right[l] * s2[k + l * nov];
+    }
+    for (integer l = 0; l < ncb; ++l) sm += parameters[l] * bb[k + l * nov];
+    for (integer l = k + 1; l < nov; ++l) sm += x[perm[l]] * a2[k + perm[l] * nov];
+    const integer pk = perm[k];
+    x[pk] = (faa[k] - sm) / a2[k + pk * nov];
+  }
+}
+
+/* The reduction of the blocks; what it subtracts from the conditions' d is
+   gathered by range and added once, at the root. */
+void reduce(AutoLib &lib, const CondensedBlocks &m, integer na, double *d)
+{
+  std::fill_n(m.dd, na * m.ncb * m.nrc, 0.);
+  reduce_tree(lib, na, [&](integer lo, integer mid, integer hi) { reduce_merge(m, lo, mid, hi); });
+  const double *root = m.dd + (na - 1) * m.ncb * m.nrc;
+  for (integer ir = m.nbc; ir < m.nrc; ++ir)
+    for (integer l = 0; l < m.ncb; ++l) d[l + ir * m.ncb] += root[l + ir * m.ncb];
+}
+
+/* The right-hand side through the same tree; fc's share added at the root. */
+void redrhs(AutoLib &lib, const CondensedBlocks &m, integer na, double *fc)
+{
+  std::fill_n(m.fcfc, na * m.nrc, 0.);
+  reduce_tree(lib, na, [&](integer, integer mid, integer hi) { redrhs_merge(m, mid, hi); });
+  const double *root = m.fcfc + (na - 1) * m.nrc;
+  for (integer ir = m.nbc; ir < m.nrc; ++ir) fc[ir] += root[ir];
+}
+
+/* x(0) and x(na) from dimrge's solution fcc (and fc = fcc after x(0)),
+   then every other x(k) down the tree, into sol (nov x (na+1)). */
+void bcksub(AutoLib &lib, const CondensedBlocks &m, integer na, const double *fc, const double *fcc, double *sol)
+{
+  for (integer l = 0; l < m.nov; ++l) {
+    sol[l] = fcc[l];
+    sol[l + na * m.nov] = fc[l];
+  }
+  backsubstitute_tree(lib, na, [&](integer lo, integer mid, integer hi) { bcksub_merge(m, fc + m.nov, sol, lo, mid, hi); });
+}
+
+/* Determine the local variables by backsubstitution, blocks begin..end-1:
+   no communication, so the blocks are shared among the workers. */
+void infpar(const doublereal *a, const doublereal *b, doublereal *fa, const doublereal *sol, const doublereal *fc, integer begin, integer end, integer nov, integer nra, integer nca, integer ncb, const integer *irf, const integer *icf)
+{
+  const integer irf_dim1 = nra, fa_dim1 = nra, icf_dim1 = nca, a_dim1 = nca, a_dim2 = nra, b_dim1 = ncb, b_dim2 = nra;
+  const integer nram = nra - nov;
+  std::vector<doublereal> x(nra);
+  for (integer i = begin; i < end; ++i) {
+    const doublereal *left = sol + i * nov, *right = sol + (i + 1) * nov;
+    for (integer ir = nram - 1; ir >= 0; --ir) {
+      doublereal sm = 0.;
+      const integer irfir = ARRAY2D(irf, ir, i) - 1;
+      for (integer j = 0; j < nov; ++j) {
+        sm += ARRAY3D(a, j, irfir, i) * left[j];
+        sm += ARRAY3D(a, nra + j, irfir, i) * right[j];
+      }
+      for (integer j = 0; j < ncb; ++j) sm += ARRAY3D(b, j, irfir, i) * fc[nov + j];
+      for (integer j = ir + 1; j < nram; ++j) {
+        const integer icfj1 = ARRAY2D(icf, j + nov, i) - 1;
+        sm += ARRAY3D(a, icfj1, irfir, i) * x[icfj1];
+      }
+      const integer icfnovpir = ARRAY2D(icf, nov + ir, i) - 1;
+      x[icfnovpir] = (ARRAY2D(fa, irfir, i) - sm) / ARRAY3D(a, icfnovpir, irfir, i);
+    }
+    /* Copy x(i) and the local variables into fa */
+    for (integer j = 0; j < nov; ++j) ARRAY2D(fa, j, i) = left[j];
+    for (integer j = nov; j < nra; ++j) ARRAY2D(fa, j, i) = x[j];
+  }
+}
+} // namespace
+
 /*     ---------- ---- */
 /* Subroutine */ int 
 brbd(AutoLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc)
@@ -375,81 +690,42 @@ brbd(AutoLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, do
   /* the matrices and index arrays solvbv sized and kept in lib.solvbv */
   SolvbvWork &work = lib.solvbv;
   doublereal *a = work.a.data(), *b = work.b.data(), *c = work.c.data(), *d = work.d.data();
-  doublereal *a1 = work.a1.data(), *a2 = work.a2.data(), *bb = work.bb.data(), *cc = work.cc.data();
-  doublereal *faa = work.faa.data(), *s1 = work.s1.data(), *s2 = work.s2.data();
-  integer *ipr = work.ipr.data(), *icf1 = work.icf1.data(), *icf2 = work.icf2.data();
   integer *irf = work.irf.data(), *icf = work.icf.data();
-
-  auto &e = work.e;
-  auto &fcc = work.fcc;
-
-  auto &sol1 = work.sol1;
-  auto &sol2 = work.sol2;
-  auto &sol3 = work.sol3;
-  
-  /* Local */
-
-  /* Parameter adjustments */
-  /*--icf;*/
-  /*--irf;*/
-  /*--icf2;*/
-  /*--icf1;*/
-  /*--ipr;*/
-  /*--s2;*/
-  /*--s1;*/
-  /*--faa;*/
-  /*--cc;*/
-  /*--bb;*/
-  /*--a2;*/
-  /*--a1;*/
-  /*--p1;*/
-  /*--p0;*/
-  /*--fc;*/
-  /*--fa;*/
-  /*--d;*/
-  /*--c;*/
-  /*--b;*/
-  /*--a;*/
+  const CondensedBlocks blocks{work.a1.data(), work.a2.data(), work.s1.data(), work.s2.data(), work.bb.data(),
+    work.cc.data(), work.c2.data(), work.dd.data(), work.faa.data(), work.fcfc.data(),
+    work.ipr.data(), work.icf2.data(), *nov, *ncb, *nrc, *nbc};
 
   if (*idb > 4) {
-    print1(fp9, nov, na, nra, nca, ncb, nrc, a, b, c, d, &
-    	   fa[0], fc);
+    print1(fp9, nov, na, nra, nca, ncb, nrc, a, b, c, d, fa, fc);
   }
   if (*ifst == 1) {
     conpar(lib, nov, na, nra, nca, a, ncb, b, nbc, nrc, c, d, irf, icf);
-    copycp(na, nov, nra, nca, a, ncb, b, nrc, c, 
-	   a1, a2, bb, cc, irf);
+    copycp(na, nov, nra, nca, a, ncb, b, nrc, c, blocks.a1, blocks.a2, blocks.bb, blocks.cc, blocks.c2, irf);
   }
 
   if (*nllv == 0) {
-    conrhs(nov, na, nra, nca, a, nbc, nrc, c, fa, fc, 
-	   irf, icf);
-    cpyrhs(na, nov, nra, faa, fa, irf);
+    conrhs(nov, na, nra, nca, a, nbc, nrc, c, fa, fc, irf, icf);
   } else {
     setzero(fa, fc, na, nra, nrc);
-    cpyrhs(na, nov, nra, faa, fa, irf);
   }
+  cpyrhs(na, nov, nra, blocks.faa, fa, irf);
 
   if (*ifst == 1) {
-    reduce(a1, a2, bb, cc, d, na, 
-	   nov, ncb, nrc, s1, s2, icf1, icf2, 
-	   ipr, nbc);
+    reduce(lib, blocks, *na, d);
   }
-
   if (*nllv == 0) {
-    redrhs(a1, a2, cc, faa, fc, na, 
-	   nov, ncb, nrc, icf1, icf2, ipr, nbc);
+    redrhs(lib, blocks, *na, fc);
   }
 
-  dimrge(lib, fp9, e.data(), cc, d, fc, ifst, na,
-	 nrc, nov, ncb, idb, nllv, fcc.data(), p0, p1, det, s1, a2,
-	 faa, bb);
+  dimrge(lib, fp9, work.e.data(), blocks.cc, blocks.c2, d, fc, ifst, na,
+	 nrc, nov, ncb, idb, nllv, work.fcc.data(), p0, p1, det, blocks.a1, blocks.a2,
+	 blocks.faa, blocks.bb);
 
-  bcksub(s1, s2, a2, bb, faa, fc, 
-	 fcc.data(), sol1.data(), sol2.data(), sol3.data(), na, nov, ncb, icf2);
+  bcksub(lib, blocks, *na, fc, work.fcc.data(), work.sol.data());
 
-  infpar(a, b, fa, sol1.data(), sol2.data(), fc, na, nov, nra, 
-	 nca, ncb, irf, icf);
+  for_blocks(lib, *na, [&](integer begin, integer end) {
+    infpar(a, b, fa, work.sol.data(), fc, begin, end, *nov, *nra, *nca, *ncb, irf, icf);
+  });
 
   return 0;
 } /* brbd_ */
@@ -536,18 +812,20 @@ conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, int
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, integer *irf)
+copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *c2, integer *irf)
 {
   /* System generated locals */
   integer irf_dim1, a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, c_dim2, a1_dim1, a1_dim2,
-    a2_dim1, a2_dim2, bb_dim1, bb_dim2, cc_dim1,cc_dim2;
+    a2_dim1, a2_dim2, bb_dim1, bb_dim2, cc_dim1, cc_dim2, c2_dim1, c2_dim2;
 
   /* Local variables */
-  integer i, irfir, ic, ir, ic1, nap1;
+  integer i, irfir, ic, ir, ic1;
 
 /* Local */
 
-/* Copies the condensed sytem generated by CONPAR into workspace. */
+/* Copies the condensed sytem generated by CONPAR into workspace: the
+   conditions' columns of x(i) to cc and of x(i+1) to c2, by block, as
+   AUTO-07p keeps them (W474: reduce adds them where it eliminates x(i)). */
 
     /* Parameter adjustments */
   a2_dim1 = *nov;
@@ -563,10 +841,11 @@ copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, int
   b_dim2 = *nra;
   cc_dim1 = *nov;
   cc_dim2 = *nrc;
+  c2_dim1 = *nov;
+  c2_dim2 = *nrc;
   c_dim1 = *nca;
   c_dim2 = *nrc;
     
-  nap1 = *na + 1;
   for (i = 0; i < *na; ++i) {
     for (ir = 0; ir < *nov; ++ir) {
       irfir = ARRAY2D(irf, *nra - *nov + ir, i);
@@ -581,16 +860,11 @@ copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, int
     }
   }
 
-  for (i = 0; i < nap1; ++i) {
+  for (i = 0; i < *na; ++i) {
     for (ir = 0; ir < *nrc; ++ir) {
       for (ic = 0; ic < *nov; ++ic) {
-	if (i + 1 == 1) {
-	  ARRAY3D(cc, ic, ir, i) = ARRAY3D(c, ic, ir, i);
-	} else if (i + 1 == nap1) {
-	  ARRAY3D(cc, ic, ir, i) = ARRAY3D(c, *nra + ic, ir, (i - 1));
-	} else {
-	  ARRAY3D(cc, ic, ir, i) = ARRAY3D(c, ic, ir, i) + ARRAY3D(c, *nra + ic, ir, (i - 1));
-	}
+	ARRAY3D(cc, ic, ir, i) = ARRAY3D(c, ic, ir, i);
+	ARRAY3D(c2, ic, ir, i) = ARRAY3D(c, *nra + ic, ir, i);
       }
     }
   }
@@ -624,328 +898,16 @@ cpyrhs(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa,
   return 0;
 } /* cpyrhs_ */
 
-/*     ---------- ------ */
-/* Subroutine */ int 
-reduce(doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *dd, integer *na, integer *nov, integer *ncb, integer *nrc, doublereal *s1, doublereal *s2, integer *icf1, integer *icf2, integer *ipr, integer *nbc)
-{
-  /* System generated locals */
-  integer icf1_dim1, icf2_dim1, a1_dim1, a1_dim2, a2_dim1, a2_dim2, 
-    s1_dim1, s1_dim2, s2_dim1, s2_dim2, 
-    bb_dim1, bb_dim2, cc_dim1, cc_dim2, 
-    dd_dim1, ipr_dim1;
 
-  /* Local variables */
-  doublereal zero, tpiv;
-  integer nbcp1, ipiv1, jpiv1, ipiv2, jpiv2, i, l;
-  integer i1, i2, i3, k1, k2, ic, ir;
-  doublereal rm;
-  doublereal tmp;
-  integer nam1, icp1;
-  doublereal piv1, piv2;
-  int itmp;
-
-  /* Parameter adjustments */
-  ipr_dim1 = *nov;
-  icf2_dim1 = *nov;
-  icf1_dim1 = *nov;
-  s2_dim1 = *nov;
-  s2_dim2 = *nov;
-  s1_dim1 = *nov;
-  s1_dim2 = *nov;
-  a2_dim1 = *nov;
-  a2_dim2 = *nov;
-  a1_dim1 = *nov;
-  a1_dim2 = *nov;
-  dd_dim1 = *ncb;
-  bb_dim1 = *nov;
-  bb_dim2 = *ncb;
-  cc_dim1 = *nov;
-  cc_dim2 = *nrc;
-    
-  zero = 0.;
-  nbcp1 = *nbc + 1;
-  nam1 = *na - 1;
-
-  /* Initialization */
-
-  for (i = 0; i < *na; ++i) {
-    for (k1 = 0; k1 < *nov; ++k1) {
-      ARRAY2D(icf1, k1, i) = k1 + 1;
-      ARRAY2D(icf2, k1, i) = k1 + 1;
-      ARRAY2D(ipr, k1, i) = k1 + 1;
-      for (k2 = 0; k2 < *nov; ++k2) {
-	ARRAY3D(s2, k1, k2, i) = 0.;
-	ARRAY3D(s1, k1, k2, i) = 0.;
-      }
-    }
-  }
-
-  for (ir = 0; ir < *nov; ++ir) {
-    for (ic = 0; ic < *nov; ++ic) {
-      ARRAY2D(s1, ir, ic) = ARRAY2D(a1, ir, ic);
-    }
-  }
-
-  /* The reduction process is done concurrently */
-  for (i1 = 0; i1 < nam1; ++i1) {
-
-    i2 = i1 + 1;
-    i3 = i2 + 1;
-
-    for (ic = 0; ic < *nov; ++ic) {
-      icp1 = ic + 1;
-
-      /* Complete pivoting; rows are swapped physically, columns swap in
-	 dices */
-      piv1 = zero;
-      ipiv1 = ic + 1;
-      jpiv1 = ic + 1;
-      for (k1 = ic; k1 < *nov; ++k1) {
-	for (k2 = ic; k2 < *nov; ++k2) {
-	  tpiv = ARRAY3D(a2, k1, ARRAY2D(icf2, k2, i1) - 1, i1);
-	  if (tpiv < zero) {
-	    tpiv = -tpiv;
-	  }
-	  if (piv1 < tpiv) {
-	    piv1 = tpiv;
-	    ipiv1 = k1 + 1;
-	    jpiv1 = k2 + 1;
-	  }
-	}
-      }
-
-      piv2 = zero;
-      ipiv2 = 1;
-      jpiv2 = ic + 1;
-      for (k1 = 0; k1 < *nov; ++k1) {
-	for (k2 = ic; k2 < *nov; ++k2) {
-	  tpiv = ARRAY3D(a1, k1, ARRAY2D(icf1, k2, i2) - 1, i2);
-	  if (tpiv < zero) {
-	    tpiv = -tpiv;
-	  }
-	  if (piv2 < tpiv) {
-	    piv2 = tpiv;
-	    ipiv2 = k1 + 1;
-	    jpiv2 = k2 + 1;
-	  }
-	}
-      }
-
-      if (piv1 >= piv2) {
-	ARRAY2D(ipr, ic, i1) = ipiv1;
-	itmp = ARRAY2D(icf2, ic, i1);
-	ARRAY2D(icf2, ic, i1) = ARRAY2D(icf2, (jpiv1 - 1), i1);
-	ARRAY2D(icf2, (jpiv1 - 1), i1) = itmp;
-	itmp = ARRAY2D(icf1, ic, i2);
-	ARRAY2D(icf1, ic, i2) = ARRAY2D(icf1, (jpiv1 - 1), i2);
-	ARRAY2D(icf1, (jpiv1 - 1), i2) = itmp;
-	/* Swapping */
-	for (l = 0; l < *nov; ++l) {
-	  tmp = ARRAY3D(s1, ic, l, i1);
-	  ARRAY3D(s1, ic, l, i1) = ARRAY3D(s1, (ipiv1 - 1), l, i1);
-	  ARRAY3D(s1, (ipiv1 - 1), l, i1) = tmp;
-	  if (l >= ic) {
-	    tmp = ARRAY3D(a2, ic, ARRAY2D(icf2, l, i1) - 1, i1);
-	    ARRAY3D(a2, ic, ARRAY2D(icf2, l, i1) - 1, i1) = 
-	      ARRAY3D(a2, (ipiv1 - 1), ARRAY2D(icf2, l, i1) - 1, i1);
-	    ARRAY3D(a2, (ipiv1 - 1), ARRAY2D(icf2, l, i1) - 1, i1) = tmp;
-	  }
-	  tmp = ARRAY3D(s2, ic, l, i1);
-	  ARRAY3D(s2, ic, l, i1) = ARRAY3D(s2, (ipiv1 - 1), l, i1);
-	  ARRAY3D(s2, (ipiv1 - 1), l, i1) = tmp;
-	}
-
-	for (l = 0; l < *ncb; ++l) {
-	  tmp = ARRAY3D(bb, ic, l, i1);
-	  ARRAY3D(bb, ic, l, i1) = ARRAY3D(bb, (ipiv1 - 1), l, i1);
-	  ARRAY3D(bb, (ipiv1 - 1), l, i1) = tmp;
-	}
-      } else {
-	ARRAY2D(ipr, ic, i1) = *nov + ipiv2;
-	itmp = ARRAY2D(icf2, ic, i1);
-	ARRAY2D(icf2, ic, i1) = ARRAY2D(icf2, (jpiv2 - 1), i1);
-	ARRAY2D(icf2, (jpiv2 - 1), i1) = itmp;
-	itmp = ARRAY2D(icf1, ic, i2);
-	ARRAY2D(icf1, ic, i2) = ARRAY2D(icf1, (jpiv2 - 1), i2);
-	ARRAY2D(icf1, (jpiv2 - 1), i2) = itmp;
-	/* Swapping */
-	for (l = 0; l < *nov; ++l) {
-	  if (l >= ic) {
-	    tmp = ARRAY3D(a2, ic , ARRAY2D(icf2, l, i1) - 1, i1);
-	    ARRAY3D(a2, ic , ARRAY2D(icf2, l, i1) - 1, i1) = 
-	      ARRAY3D(a1, (ipiv2 - 1), ARRAY2D(icf2, l, i1) - 1, i2);
-	    ARRAY3D(a1, (ipiv2 - 1), ARRAY2D(icf2, l, i1) - 1, i2) = tmp;
-	  }
-	  tmp = ARRAY3D(s2, ic, l, i1);
-	  ARRAY3D(s2, ic, l, i1) = ARRAY3D(a2, (ipiv2 - 1), l, i2);
-	  ARRAY3D(a2, (ipiv2 - 1), l, i2) = tmp;
-	  tmp = ARRAY3D(s1, ic, l, i1);
-	  ARRAY3D(s1, ic, l, i1) = ARRAY3D(s1, (ipiv2 - 1), l, i2);
-	  ARRAY3D(s1, (ipiv2 - 1), l, i2) = tmp;
-	}
-	for (l = 0; l < *ncb; ++l) {
-	  tmp = ARRAY3D(bb, ic, l, i1);
-	  ARRAY3D(bb, ic, l, i1) = ARRAY3D(bb, (ipiv2 - 1), l, i2);
-	  ARRAY3D(bb, (ipiv2 - 1), l, i2) = tmp;
-	}
-      }
-
-      /* End of pivoting; Elimination starts here */
-
-      for (ir = icp1; ir < *nov; ++ir) {
-	rm = ARRAY3D(a2, ir, ARRAY2D(icf2, ic, i1) - 1, i1) / 
-	  ARRAY3D(a2, ic, ARRAY2D(icf2, ic, i1) - 1, i1);
-	ARRAY3D(a2, ir, ARRAY2D(icf2, ic, i1) - 1, i1) = rm;
-
-	if (rm != 0.) {
-	  for (l = icp1; l < *nov; ++l) {
-	    ARRAY3D(a2, ir, ARRAY2D(icf2, l, i1) - 1, i1) -= 
-	      rm * ARRAY3D(a2, ic, ARRAY2D(icf2, l, i1) - 1, i1);
-	  }
-
-	  for (l = 0; l < *nov; ++l) {
-	    ARRAY3D(s1, ir, l, i1) -= rm * ARRAY3D(s1, ic, l, i1);
-	    ARRAY3D(s2, ir, l, i1) -= rm * ARRAY3D(s2, ic, l, i1);
-	  }
-
-	  for (l = 0; l < *ncb; ++l) {
-	    ARRAY3D(bb, ir, l, i1) -= rm * ARRAY3D(bb, ic, l, i1);
-	  }
-	}
-      }
-
-      for (ir = 0; ir < *nov; ++ir) {
-	rm = ARRAY3D(a1, ir, ARRAY2D(icf1, ic, i2) - 1, i2) / 
-	  ARRAY3D(a2, ic, ARRAY2D(icf2, ic, i1) - 1, i1);
-	ARRAY3D(a1, ir, ARRAY2D(icf1, ic, i2) - 1, i2) = rm;
-
-	if (rm != 0.) {
-	  for (l = icp1; l < *nov; ++l) {
-	    ARRAY3D(a1, ir, ARRAY2D(icf1, l, i2) - 1, i2) -= 
-	      rm * ARRAY3D(a2, ic, ARRAY2D(icf2, l, i1) - 1, i1);
-	  }
-	  for (l = 0; l < *nov; ++l) {
-	    ARRAY3D(s1, ir, l, i2) -= rm * ARRAY3D(s1, ic, l, i1);
-	    ARRAY3D(a2, ir, l, i2) -= rm * ARRAY3D(s2, ic, l, i1);
-	  }
-	  for (l = 0; l < *ncb; ++l) {
-	    ARRAY3D(bb, ir, l, i2) -= rm * ARRAY3D(bb, ic, l, i1);
-	  }
-	}
-      }
-
-      for (ir = nbcp1 - 1; ir < *nrc; ++ir) {
-	rm = ARRAY3D(cc, ARRAY2D(icf2, ic, i1) - 1, ir, i2) / 
-	  ARRAY3D(a2, ic, ARRAY2D(icf2, ic, i1) - 1, i1);
-	ARRAY3D(cc, ARRAY2D(icf2, ic, i1) - 1, ir, i2) = rm;
-
-	if (rm != 0.) {
-	  for (l = icp1; l < *nov; ++l) {
-	    ARRAY3D(cc, ARRAY2D(icf2, l, i1) - 1, ir, i2) -= 
-	      rm * ARRAY3D(a2, ic, ARRAY2D(icf2, l, i1) - 1, i1);
-	  }
-	  for (l = 0; l < *nov; ++l) {
-	    ARRAY3D(cc, l, ir, 0) -= rm * ARRAY3D(s1, ic, l, i1);
-	    ARRAY3D(cc, l, ir, i3) -= rm * ARRAY3D(s2, ic, l, i1);
-	  }
-	  for (l = 0; l < *ncb; ++l) {
-	    ARRAY2D(dd, l, ir) -= rm * ARRAY3D(bb, ic, l, i1);
-	  }
-	}
-      }
-
-      /* L2: */
-    }
-    /* L3: */
-  }
-
-  /* Initialization */
-  for (i = 0; i < *nov; ++i) {
-    ARRAY2D(icf2, i, (*na - 1)) = i + 1;
-  }
-
-  return 0;
-} /* reduce_ */
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-redrhs(doublereal *a1, doublereal *a2, doublereal *cc, doublereal *faa, doublereal *fc, integer *na, integer *nov, integer *ncb, integer *nrc, integer *icf1, integer *icf2, integer *ipr, integer *nbc)
-{
-  /* System generated locals */
-  integer icf1_dim1, icf2_dim1, 
-    a1_dim1, a1_dim2, a2_dim1, a2_dim2, 
-    cc_dim1, cc_dim2, faa_dim1, 
-    ipr_dim1;
-
-  /* Local variables */
-  integer nbcp1, ipiv1;
-
-  integer i1, i2, l1, ic, ir;
-  doublereal rm;
-  doublereal tmp;
-  integer nam1, icp1;
-
-  /* Parameter adjustments */
-  /*--fc;*/
-  ipr_dim1 = *nov;
-  icf2_dim1 = *nov;
-  icf1_dim1 = *nov;
-  faa_dim1 = *nov;
-  a2_dim1 = *nov;
-  a2_dim2 = *nov;
-  a1_dim1 = *nov;
-  a1_dim2 = *nov;
-  cc_dim1 = *nov;
-  cc_dim2 = *nrc;
-
-  nbcp1 = *nbc + 1;
-  nam1 = *na - 1;
-
-  /* Reduce concurrently in each node */
-  for (i1 = 0; i1 < nam1; ++i1) {
-    i2 = i1 + 1;
-    for (ic = 0; ic < *nov; ++ic) {
-      icp1 = ic + 1;
-      ipiv1 = ARRAY2D(ipr, ic, i1);
-      if (ipiv1 <= *nov) {
-	tmp = ARRAY2D(faa, ic, i1);
-	ARRAY2D(faa, ic, i1) = ARRAY2D(faa, (ipiv1 - 1), i1);
-	ARRAY2D(faa, (ipiv1 - 1), i1) = tmp;
-      } else {
-	l1 = (ipiv1 - *nov) - 1;
-	tmp = ARRAY2D(faa, ic, i1);
-	ARRAY2D(faa, ic, i1) = ARRAY2D(faa, l1, i2);
-	ARRAY2D(faa, l1, i2) = tmp;
-      }
-      for (ir = icp1; ir < *nov; ++ir) {
-	l1 = ARRAY2D(icf2, ic, i1) - 1;
-	rm = ARRAY3D(a2, ir, l1, i1);
-	ARRAY2D(faa, ir, i1) -= rm * ARRAY2D(faa, ic, i1);
-      }
-      for (ir = 0; ir < *nov; ++ir) {
-	l1 = ARRAY2D(icf1, ic, i2) - 1;
-	rm = ARRAY3D(a1, ir, l1, i2);
-	ARRAY2D(faa, ir, i2) -= rm * ARRAY2D(faa, ic, i1);
-      }
-      for (ir = nbcp1 - 1; ir < *nrc; ++ir) {
-	l1 = ARRAY2D(icf2, ic, i1) - 1;
-	rm = ARRAY3D(cc, l1, ir, i2);
-	fc[ir] -= rm * ARRAY2D(faa, ic, i1);
-      }
-    }
-  }
-
-  return 0;
-} /* redrhs_ */
-
-/*     ---------- ------ */
-/* Subroutine */ int 
-dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *s, doublereal *a2, doublereal *faa, doublereal *bb)
+dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *a1, doublereal *a2, doublereal *faa, doublereal *bb)
 {
 
   /* System generated locals */
-  integer e_dim1, cc_dim1, cc_dim2, d_dim1, 
-    p0_dim1, p1_dim1, s_dim1, s_dim2, 
+  integer e_dim1, cc_dim1, cc_dim2, c2_dim1, c2_dim2, d_dim1, 
+    p0_dim1, p1_dim1, a1_dim1, a1_dim2, 
     faa_dim1, a2_dim1, a2_dim2, bb_dim1, 
     bb_dim2;
 
@@ -955,7 +917,7 @@ dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, do
 
   integer novpi, novpj, k1, k2;
 
-  integer novpj2, kc, kr, ncrloc, nap1;
+  integer novpj2, kc, kr, ncrloc;
 
   auto &xe = lib.solvbv.xe;
 
@@ -966,26 +928,27 @@ dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, do
   faa_dim1 = *nov;
   a2_dim1 = *nov;
   a2_dim2 = *nov;
-  s_dim1 = *nov;
-  s_dim2 = *nov;
+  a1_dim1 = *nov;
+  a1_dim2 = *nov;
   p1_dim1 = *nov;
   p0_dim1 = *nov;
   cc_dim1 = *nov;
   cc_dim2 = *nrc;
+  c2_dim1 = *nov;
+  c2_dim2 = *nrc;
   e_dim1 = *nov + *nrc;
   bb_dim1 = *nov;
   bb_dim2 = *ncb;
   d_dim1 = *ncb;
     
-  nap1 = *na + 1;
   ncrloc = *nrc + *nov;
 
-  /* Copy */
+  /* Copy the reduced rows: x(0)'s coupling is a1's first slot, x(na)'s a2's last (reduce) */
   for (i = 0; i < *nov; ++i) {
     for (j = 0; j < *nov; ++j) {
       novpj = *nov + j;
-      ARRAY2D(e, i, j) = ARRAY3D(s, i, j, (*na - 1));
-      ARRAY2D(p0, i, j) = ARRAY3D(s, i, j, (*na - 1));
+      ARRAY2D(e, i, j) = ARRAY3D(a1, i, j, 0);
+      ARRAY2D(p0, i, j) = ARRAY3D(a1, i, j, 0);
       ARRAY2D(e, i, novpj) = ARRAY3D(a2, i, j, (*na - 1));
       ARRAY2D(p1, i, j) = ARRAY3D(a2, i, j, (*na - 1));
     }
@@ -1000,7 +963,7 @@ dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, do
     for (j = 0; j < *nov; ++j) {
       novpj = *nov + j;
       ARRAY2D(e, novpi, j) = ARRAY3D(cc, j, i, 0);
-      ARRAY2D(e, novpi, novpj) = ARRAY3D(cc, j, i, (nap1 - 1));
+      ARRAY2D(e, novpi, novpj) = ARRAY3D(c2, j, i, (*na - 1));
     }
     for (j = 0; j < *ncb; ++j) {
       novpj2 = (*nov * 2) + j;
@@ -1091,151 +1054,7 @@ dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, do
   return 0;
 } /* dimrge_ */
 
-/*     ---------- ------ */
-/* Subroutine */ int 
-bcksub(doublereal *s1, doublereal *s2, doublereal *a2, doublereal *bb, doublereal *faa, doublereal *fc, doublereal *fcc, doublereal *sol1, doublereal *sol2, doublereal *sol3, integer *na, integer *nov, integer *ncb, integer *icf2)
-{
-  /* System generated locals */
-  integer icf2_dim1, s1_dim1, s1_dim2, s2_dim1, 
-    s2_dim2, a2_dim1, a2_dim2, bb_dim1, bb_dim2,
-    sol1_dim1, sol2_dim1, 
-    sol3_dim1, faa_dim1;
 
-  /* Local variables */
-  integer i, k, l;
-  integer l1, l2;
-  doublereal sm;
-  integer nam1;
-
-  /* Parameter adjustments */
-  /*--fc;*/
-  /*--fcc;*/
-  icf2_dim1 = *nov;
-  sol3_dim1 = *nov;
-  sol2_dim1 = *nov;
-  sol1_dim1 = *nov;
-  faa_dim1 = *nov;
-  a2_dim1 = *nov;
-  a2_dim2 = *nov;
-  s2_dim1 = *nov;
-  s2_dim2 = *nov;
-  s1_dim1 = *nov;
-  s1_dim2 = *nov;
-  bb_dim1 = *nov;
-  bb_dim2 = *ncb;
-
-  for (l = 0; l < *nov; ++l) {
-    ARRAY2D(sol1, l, (*na - 1)) = fcc[l];
-    ARRAY2D(sol2, l, (*na - 1)) = fc[l];
-  }
-
-  if (*na > 1) {
-    for (l = 0; l < *nov; ++l) {
-      ARRAY2D(sol1, l, (*na - 2)) = ARRAY2D(sol1, l, (*na - 1));
-      ARRAY2D(sol3, l, (*na - 2)) = ARRAY2D(sol2, l, (*na - 1));
-    }
-  }
-
-  /* Backsubstitution process; concurrently in each node. */
-  nam1 = *na - 1;
-  for (i = nam1 - 1; i >= 0; --i) {
-    for (k = *nov - 1; k >= 0; --k) {
-      sm = 0.;
-      for (l = 0; l < *nov; ++l) {
-	sm += ARRAY2D(sol1, l, i) * ARRAY3D(s1, k, l, i);
-	sm += ARRAY2D(sol3, l, i) * ARRAY3D(s2, k, l, i);
-      }
-      for (l = 0; l < *ncb; ++l) {
-	sm += fc[*nov + l] * ARRAY3D(bb, k, l, i);
-      }
-      for (l = k + 1; l < *nov; ++l) {
-	l1 = ARRAY2D(icf2, l, i) - 1;
-	sm += ARRAY2D(sol2, l1, i) * ARRAY3D(a2, k, l1, i);
-      }
-      l2 = ARRAY2D(icf2, k, i) - 1;
-      ARRAY2D(sol2, l2, i) = (ARRAY2D(faa, k, i) - sm) / ARRAY3D(a2, k, l2, i);
-    }
-    for (l = 0; l < *nov; ++l) {
-      ARRAY2D(sol1, l, (i + 1)) = ARRAY2D(sol2, l, i);
-      if (i + 1 > 1) {
-	ARRAY2D(sol3, l, (i - 1)) = ARRAY2D(sol2, l, i);
-	ARRAY2D(sol1, l, (i - 1)) = ARRAY2D(sol1, l, i);
-      }
-    }
-  }
-
-  return 0;
-} /* bcksub_ */
-
-/*     ---------- ------ */
-/* Subroutine */ int 
-infpar(doublereal *a, doublereal *b, doublereal *fa, doublereal *sol1, doublereal *sol2, doublereal *fc, integer *na, integer *nov, integer *nra, integer *nca, integer *ncb, integer *irf, integer *icf)
-{
-  /* System generated locals */
-  integer irf_dim1, icf_dim1, a_dim1, a_dim2, 
-    b_dim1, b_dim2, fa_dim1, sol1_dim1,
-    sol2_dim1;
-
-    /* Local variables */
-  integer nram, icfj1, i, j;
-  integer nrapj, irfir, j1, novpj, icfnovpir, ir;
-  doublereal sm;
-  integer novpir, irp1;
-
-  std::vector<doublereal> x(*nra);
-
-/* Determine the local varables by backsubstitition. */
-
-    /* Parameter adjustments */
-    /*--fc;*/
-  sol2_dim1 = *nov;
-  sol1_dim1 = *nov;
-  irf_dim1 = *nra;
-  fa_dim1 = *nra;
-  icf_dim1 = *nca;
-  a_dim1 = *nca;
-  a_dim2 = *nra;
-  b_dim1 = *ncb;
-  b_dim2 = *nra;
-    
-  nram = *nra - *nov;
-
-/* Backsubstitution in the condensation of parameters; no communication. 
-*/
-  for (i = 0; i < *na; ++i) {
-    for (ir = nram - 1; ir >= 0; --ir) {
-      irp1 = ir + 1;
-      sm = 0.;
-      irfir = ARRAY2D(irf, ir, i) - 1;
-      for (j = 0; j < *nov; ++j) {
-	nrapj = *nra + j;
-	sm += ARRAY3D(a, j, irfir, i) * ARRAY2D(sol1, j, i);
-	sm += ARRAY3D(a, nrapj, irfir, i) * ARRAY2D(sol2, j, i);
-      }
-      for (j = 0; j < *ncb; ++j) {
-	novpj = *nov + j;
-	sm += ARRAY3D(b, j, irfir , i) * fc[novpj];
-      }
-      for (j = irp1; j < nram; ++j) {
-	j1 = j + *nov;
-	icfj1 = ARRAY2D(icf, j1, i) - 1;
-	sm += ARRAY3D(a, icfj1, irfir, i) * x[icfj1];
-      }
-      novpir = *nov + ir;
-      icfnovpir = ARRAY2D(icf, novpir, i) - 1;
-      x[icfnovpir] = (ARRAY2D(fa, irfir, i) - sm) / ARRAY3D(a, icfnovpir, irfir, i);
-    }
-    /*        **Copy SOL1 and X into FA */
-    for (j = 0; j < *nov; ++j) {
-      ARRAY2D(fa, j, i) = ARRAY2D(sol1, j, i);
-    }
-    for (j = *nov; j < *nra; ++j) {
-      ARRAY2D(fa, j, i) = x[j];
-    }
-  }
-
-  return 0;
-} /* infpar_ */
 
 /*     ---------- ------ */
 /* Subroutine */ int 

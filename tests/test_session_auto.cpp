@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <stdexcept>
 
@@ -717,7 +718,7 @@ void check_collocation()
     const auto large=collocation_run(1,true,false,{},false,worker_mesh);
     const auto constants=xpp::client_session().parser.constants;
     const auto variables=xpp::client_session().parser.variables;
-    for (unsigned threads:{2u,4u}) {
+    for (unsigned threads:{2u,3u,4u}) {
         CHECK(same_diagram(large,collocation_run(threads,true,false,{},false,worker_mesh)));
         CHECK(same_vector(constants,xpp::client_session().parser.constants));
         CHECK(same_vector(variables,xpp::client_session().parser.variables));
@@ -807,6 +808,93 @@ void check_pool_reuse()
     s.auto_lib.jacobian_failure.reset();
 }
 
+/* W474: brbd reduces the condensed blocks in a tree whose shape NTST alone
+   fixes, so a solve gives the same bits on every thread count; the
+   solution, a refactored one and one through the kept factors (ifst=0)
+   alike, satisfies the system it was given. NTST 13 is no power of two and
+   more than the eight chunks, so chunks of one, two and more blocks meet. */
+void check_brbd_tree()
+{
+    constexpr integer nov=3, ncol=2, ntst=13, nbc=3, nint=1, ncb=nint+1;
+    constexpr integer nra=nov*ncol, nca=nra+nov, nrc=nbc+nint+1;
+    std::uint64_t state=474;
+    const auto next=[&]{
+        state=state*6364136223846793005ULL+1442695040888963407ULL;
+        return static_cast<double>(state>>11)/static_cast<double>(1ULL<<53)*2-1;
+    };
+    std::vector<double> a(nca*nra*ntst),b(ncb*nra*ntst),c(nca*nrc*ntst,0.),d(ncb*nrc),fa(nra*ntst),fc(nrc),fa2(nra*ntst),fc2(nrc);
+    for (auto &v:a) v=next();
+    for (auto &v:b) v=next();
+    for (integer i=0;i<ntst;++i)
+        for (integer ir=0;ir<nrc;++ir)
+            for (integer j=0;j<nca;++j) {
+                // boundary conditions hold x(0) and x(ntst) only
+                const bool bc_column=(i==0 && j<nov) || (i==ntst-1 && j>=nra);
+                if (ir>=nbc || bc_column) c[j+(ir+i*nrc)*nca]=next();
+            }
+    for (auto &v:d) v=next();
+    for (auto &v:fa) v=next();
+    for (auto &v:fc) v=next();
+    for (auto &v:fa2) v=next();
+    for (auto &v:fc2) v=next();
+
+    /* the largest residual of the solution in fa/fc (x(i) and the local
+       values per block, then x(ntst) and the parameters) against the rhs */
+    const auto residual=[&](const std::vector<double> &u,const std::vector<double> &w,
+                            const std::vector<double> &rhs,const std::vector<double> &rhsc){
+        const auto value=[&](integer i,integer j){
+            if (j<nra) return u[j+i*nra];
+            return i+1<ntst ? u[j-nra+(i+1)*nra] : w[j-nra];
+        };
+        double worst=0;
+        for (integer i=0;i<ntst;++i)
+            for (integer r=0;r<nra;++r) {
+                double sm=-rhs[r+i*nra];
+                for (integer j=0;j<nca;++j) sm+=a[j+(r+i*nra)*nca]*value(i,j);
+                for (integer k=0;k<ncb;++k) sm+=b[k+(r+i*nra)*ncb]*w[nov+k];
+                worst=std::max(worst,std::fabs(sm));
+            }
+        for (integer ir=0;ir<nrc;++ir) {
+            double sm=-rhsc[ir];
+            for (integer i=0;i<ntst;++i)
+                for (integer j=0;j<nca;++j) sm+=c[j+(ir+i*nrc)*nca]*value(i,j);
+            for (integer k=0;k<ncb;++k) sm+=d[k+ir*ncb]*w[nov+k];
+            worst=std::max(worst,std::fabs(sm));
+        }
+        return worst;
+    };
+
+    std::vector<double> first_fa,first_fc,second_fa,second_fc;
+    double first_det=0;
+    for (unsigned threads=1;threads<=xpp::AutoParallel::max_threads;++threads) {
+        AutoLib lib;
+        lib.session=&xpp::client_session();
+        lib.parameter_count=ncb;
+        lib.collocation=std::make_unique<xpp::AutoParallel>(threads);
+        lib.collocation->prepare(lib,nov,nbc);
+        SolvbvWork &work=lib.solvbv;
+        work.resize(nov,ncol,ntst,nbc,nint,ncb);
+        std::copy(a.begin(),a.end(),work.a.begin());
+        std::copy(b.begin(),b.end(),work.b.begin());
+        std::copy(c.begin(),c.end(),work.c.begin());
+        std::copy(d.begin(),d.end(),work.d.begin());
+        std::vector<double> u(fa),w(fc),p0(nov*nov),p1(nov*nov);
+        u.resize(work.ft.size());
+        integer ifst=1,idb=0,nllv=0,nov_=nov,na=ntst,nbc_=nbc,nra_=nra,nca_=nca,ncb_=ncb,nrc_=nrc;
+        double det=0;
+        brbd(lib,nullptr,u.data(),w.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
+        CHECK(residual(u,w,fa,fc)<1e-10);
+        std::vector<double> u2(fa2),w2(fc2);
+        u2.resize(work.ft.size());
+        ifst=0;
+        brbd(lib,nullptr,u2.data(),w2.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
+        CHECK(residual(u2,w2,fa2,fc2)<1e-10);
+        if (threads==1) { first_fa=u; first_fc=w; second_fa=u2; second_fc=w2; first_det=det; }
+        else CHECK(same_vector(first_fa,u) && same_vector(first_fc,w) && same_vector(second_fa,u2)
+                   && same_vector(second_fc,w2) && same_bits(first_det,det));
+    }
+}
+
 } // namespace
 
 int main(int argc,char **argv)
@@ -827,6 +915,7 @@ int main(int argc,char **argv)
     }
     check_collocation_purity();
     check_collocation();
+    check_brbd_tree();
     check_branch_parameters();
     check_parameterless_model();
     check_pool_reuse();
