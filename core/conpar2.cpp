@@ -24,22 +24,6 @@ struct conpar_parallel_arglist {
   integer loop_end; /*scalar output*/
 };
 
-/* target[l] -= rm * source[l] for l in [from, to). Written in groups of four so gcc's -O2
-   (which vectorizes straight-line groups, not a loop of unknown length) uses packed
-   mulpd/subpd: the same multiply and subtract on every element, so the same bits. */
-void subtract_scaled(double *__restrict target, const double *__restrict source, double rm,
-                     integer from, integer to)
-{
-  integer l = from;
-  for (; l + 4 <= to; l += 4) {
-    target[l] -= rm * source[l];
-    target[l + 1] -= rm * source[l + 1];
-    target[l + 2] -= rm * source[l + 2];
-    target[l + 3] -= rm * source[l + 3];
-  }
-  for (; l < to; ++l) target[l] -= rm * source[l];
-}
-
 /* The first column of [from, to) holding the largest |value| (strict comparison: a tie keeps
    the earlier one, a NaN never wins); `from` when every value is zero. */
 integer first_maximum(const double *row, integer from, integer to)
@@ -114,10 +98,9 @@ void conpar_process(const conpar_parallel_arglist *arg)
         double *target = &a(0, row);
         const double *source = &a(0, pivot_row);
         if (rm != 0.) {
-          subtract_scaled(target, source, rm, 0, left);
-          subtract_scaled(target, source, rm, col + 1, end);
-          subtract_scaled(target, source, rm, end, cols);
-          subtract_scaled(&b(0, row), &b(0, pivot_row), rm, 0, parameters);
+          xpp::subtract_scaled(target, source, rm, left);
+          xpp::subtract_scaled(target + col + 1, source + col + 1, rm, cols - col - 1);
+          xpp::subtract_scaled(&b(0, row), &b(0, pivot_row), rm, parameters);
           maximum_column[row] = first_maximum(target, col + 1, end);
         } else if (maximum_column[row] == col || maximum_column[row] == selected_column) {
           maximum_column[row] = first_maximum(target, col + 1, end);
@@ -127,8 +110,8 @@ void conpar_process(const conpar_parallel_arglist *arg)
         const double rm = c(col, row) / a(col, pivot_row);
         c(col, row) = rm;
         if (rm != 0.) {
-          subtract_scaled(&c(0, row), &a(0, pivot_row), rm, 0, left);
-          subtract_scaled(&c(0, row), &a(0, pivot_row), rm, col + 1, cols);
+          xpp::subtract_scaled(&c(0, row), &a(0, pivot_row), rm, left);
+          xpp::subtract_scaled(&c(col + 1, row), &a(col + 1, pivot_row), rm, cols - col - 1);
           for (integer l = 0; l < parameters; ++l) {
             const integer at = l + row * parameters;
             // W247 replays subtractions in serial interval/step/row/column order.
