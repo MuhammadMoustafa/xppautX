@@ -209,10 +209,10 @@ struct Session; /* session.h */
    matrices setubv fills are handed out as bounded views, made again for each
    call, so none outlives a resize or a copy of the work. */
 struct SolvbvWork {
-  std::vector<double> a,b,c,d,a1,a2,s1,s2,bb,cc,faa;
-  std::vector<double> ft,e,fcc,sol1,sol2,sol3,xe;
+  std::vector<double> a,b,c,d,a1,a2,s1,s2,bb,cc,c2,dd,faa,fcfc;
+  std::vector<double> ft,e,fcc,sol,xe;
   std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> dlog;
-  std::vector<std::ptrdiff_t> icf,irf,ipr,icf1,icf2;
+  std::vector<std::ptrdiff_t> icf,irf,ipr,icf2;
   /* for ndim variables, ncol collocation points, ntst intervals, nbc
      boundary conditions, nint integral constraints and up to parameters
      continuation parameters */

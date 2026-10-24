@@ -288,6 +288,24 @@
       "type": "LP",
       "index": 2,
       "cause": "W437 (#499), findings 47 and 73: XPPAUT 8.0's actual marked to_snic run finds 5 and 1 pA, misses 0.1 and 0.07 pA, labels LPs at 0.1009347 and 0.07001995 pA, then reverses to end at 0.08047857 pA. The unmarked XPPAUT reference reaches the SNIC without these LPs. Its uncentered phase condition and LCSPBV's displaced iterate after failed location account for this legacy continuation failure. xppautX's centered condition and rollback reach all four marks monotonically. Actual native outputs are retained; the two shared UZ points still compare all quantities. docs/auto-references.md W437 and finding 73."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "UZ",
+      "index": 4,
+      "cause": "W474 (#537): the 0.07 pA UZ next to the SNIC (period 2715) has a nearly singular collocation system, so where Newton stops at EPSU 1e-7 depends on the elimination order: its norm is 5.0e-5 (AUTO2000's chain), 8.0e-5 (AUTO-07p's nested dissection, now used) and 8.3e-5 (a tree split at mid=(lo+hi-1)/2) from AUTO-07p's. With EPSL=EPSU=1e-10 on to_snic the three agree to 4e-6 and lie 0.7e-5 to 1.2e-5 from AUTO-07p's. No tolerance is widened.",
+      "quantity": "norm"
+    },
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "UZ",
+      "index": 2,
+      "cause": "W474 (#537): the 1 pA UZ's neutral Floquet multiplier, traced against AUTO-07p above (W437: finite-difference sensitivity of the long-period variational problem at NTST 50); against XPPAUT 8.0 it is 3.44e-5 off in AUTO-07p's nested-dissection order, 1.42e-5 in AUTO2000's chain order and 5.0e-6 in a tree split at mid=(lo+hi-1)/2. No tolerance is widened.",
+      "quantity": "spectrum"
     }
   ]
 }

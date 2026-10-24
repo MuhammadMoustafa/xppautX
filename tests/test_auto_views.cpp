@@ -69,7 +69,7 @@ void check_solvbv_work()
         const long nrow = ndim * ncol, nclm = nrow + ndim, nrc = nbc + nint + 1, nfpr = 2;
         w.resize(ndim, ncol, ntst, nbc, nint, parameters);
         CHECK(w.a.size() == static_cast<size_t>(nclm * nrow * (ntst + 1)));
-        CHECK(w.cc.size() == static_cast<size_t>(nrc * ndim * (ntst + 1) + 1));
+        CHECK(w.cc.size() == static_cast<size_t>(nrc * ndim * (ntst + 1)) && w.c2.size() == w.cc.size());
         CHECK(w.icf.size() == static_cast<size_t>(nclm * (ntst + 1)) && w.ipr.size() == static_cast<size_t>(ndim * (ntst + 1)));
         // A fresh factorization overwrites its active entries; sizing must
         // preserve existing storage rather than clearing the whole workspace.

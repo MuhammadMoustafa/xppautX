@@ -274,13 +274,9 @@ int setrhs(integer *ndim, xpp::AutoProblem *ips, integer *na, integer *ncol, int
 int brbd(AutoLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc);
 int setzero(doublereal *fa, doublereal *fc, integer *na, integer *nra, integer *nrc);
 int conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *nbc, integer *nrc, doublereal *c, doublereal *fa, doublereal *fc, integer *irf, integer *icf);
-int copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, integer *irf);
+int copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *c2, integer *irf);
 int cpyrhs(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa, integer *irf);
-int reduce(doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *dd, integer *na, integer *nov, integer *ncb, integer *nrc, doublereal *s1, doublereal *s2, integer *icf1, integer *icf2, integer *ipr, integer *nbc);
-int redrhs(doublereal *a1, doublereal *a2, doublereal *cc, doublereal *faa, doublereal *fc, integer *na, integer *nov, integer *ncb, integer *nrc, integer *icf1, integer *icf2, integer *ipr, integer *nbc);
-int dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *s, doublereal *a2, doublereal *faa, doublereal *bb);
-int bcksub(doublereal *s1, doublereal *s2, doublereal *a2, doublereal *bb, doublereal *faa, doublereal *fc, doublereal *fcc, doublereal *sol1, doublereal *sol2, doublereal *sol3, integer *na, integer *nov, integer *ncb, integer *icf2);
-int infpar(doublereal *a, doublereal *b, doublereal *fa, doublereal *sol1, doublereal *sol2, doublereal *fc, integer *na, integer *nov, integer *nra, integer *nca, integer *ncb, integer *irf, integer *icf);
+int dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *a1, doublereal *a2, doublereal *faa, doublereal *bb);
 int print1(FILE *fp9, integer *nov, integer *na, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc);
 /* autlib3.c */
 FUNI_TYPE(fnlp);
