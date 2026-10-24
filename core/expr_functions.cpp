@@ -108,6 +108,13 @@ double ieee_divide(double x, double y)
  return x/y;
 }
 
+/* x^n with a literal whole n (INTEGER_POWER): multiplied out; a program
+   the compiler did not write may give it another n, which is pow's */
+double integer_power(double x, double n)
+{
+ return xpp::math::is_integer_power(n)?xpp::math::integer_power(x,static_cast<int>(n)):xpp::math::pow(x,n);
+}
+
 }
 
 namespace xpp::expr {
@@ -168,6 +175,7 @@ const std::array<Fun2,FUN2_COUNT> fun2={
   xpp::bessel_i,  /* 20 */
   xpp::bessel_i_scaled,
   ::ieee_divide,   /* IEEE_DIVIDE */
+  ::integer_power, /* INTEGER_POWER */
 };
 
 /* The derivatives of the functions above (W260), each beside its
@@ -262,6 +270,9 @@ constexpr std::array<Fun2Derivative,FUN2_COUNT> fun2_derivative={
     return g.subtract(bessel_neighbours(g, BESSEL_I_SCALED, n, x, 1), g.multiply(g.fun1(SIGN, x), g.fun2(BESSEL_I_SCALED, n, x)));
   }},
   quotient<IEEE_DIVIDE>(),                                                                                                  /* IEEE_DIVIDE */
+  /* x^n's own: n x^(n-1) multiplied out too (x^1 is x), and x^n log(x) in n */
+  Fun2Derivative{[](Symbolic &g, Term x, Term n) { return g.multiply(n, g.fun2(INTEGER_POWER, x, g.subtract(n, one(g)))); },
+                 [](Symbolic &g, Term x, Term n) { return g.multiply(g.fun2(INTEGER_POWER, x, n), g.fun1(LOG, x)); }},
 };
 
 /*********************************************

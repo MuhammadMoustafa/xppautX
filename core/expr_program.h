@@ -17,7 +17,8 @@
                 done in place (a zero divisor becomes ZERO_DIVISOR), and
                 IEEE_DIVIDE is / without that guard, an .odex model's
                 division (1/0 is inf, 0/0 NaN: docs/odex.md), done in
-                place too
+                place too; INTEGER_POWER is x^n written with a literal
+                whole n from 2 to MAX_INTEGER_POWER, multiplied out
      UFUNTYPE   user function index; the next int is its argument count n:
                 pop n arguments onto the argument stack, push the value of
                 the Model's ufun_programs[index]
@@ -156,7 +157,7 @@ constexpr double CURRENT_INDEX = 0;
 
 /* the built-in functions FUN1TYPE and FUN2TYPE call, by index
    (expr_functions.cpp), FUN1_COUNT and FUN2_COUNT of them */
-constexpr std::size_t FUN1_COUNT = 26, FUN2_COUNT = 23;
+constexpr std::size_t FUN1_COUNT = 26, FUN2_COUNT = 24;
 using Fun1 = double (*)(double);
 using Fun2 = double (*)(double, double);
 extern const std::array<Fun1, FUN1_COUNT> fun1;
@@ -196,6 +197,11 @@ constexpr int random_com(int instruction)
 /* the FUN2TYPE index of an .odex model's division, which the compiler
    writes for / when the Model's ieee_division is set */
 constexpr int IEEE_DIVIDE = 22;
+/* the FUN2TYPE index the compiler writes for x^n (x**n) when n is a
+   literal whole number from 2 to MAX_INTEGER_POWER: x^n multiplied out
+   (xpp_math.h integer_power), compiled and interpreted alike; any other
+   exponent, a parameter's too, is POW's correctly rounded pow (W471) */
+constexpr int INTEGER_POWER = 23;
 /* what an .ode model's division divides by instead of 0 (XPP's guard) */
 constexpr double ZERO_DIVISOR = 2.23E-15;
 

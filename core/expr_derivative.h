@@ -34,8 +34,9 @@ struct Term {
 /* A graph of values, each node once: a node asked for again is the one
    made before (so a derivative that reuses a value, exp's, computes it
    once), and identities are taken as it is built (x+0 is x, x*1 is x,
-   x*0 is 0, a choice between equal values is that value). Its nodes are
-   numbered in the order made, so a node's arguments come before it. */
+   x*0 is 0, INTEGER_POWER's x^1 is x, a choice between equal values is
+   that value). Its nodes are numbered in the order made, so a node's
+   arguments come before it. */
 class Symbolic {
 public:
     enum class Op : unsigned char {

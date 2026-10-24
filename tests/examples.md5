@@ -33,7 +33,7 @@ dad380965e47854139fde99dc8dd82fb examples/ode/coaster2D.odex
 3989da722c07edde4b0e99cf67724fe5 examples/ode/cobweb2.odex
 bb1743f40d2f2a996d45533e06042da0 examples/ode/crazy.odex
 cc403b35f1a3b5bf883793498c4e94c8 examples/ode/cuplamdif.odex
-72594e0727d28bcab40f935877d68778 examples/ode/dae.odex
+3b0bb4c1b3bbc1ba8ddc6e880ed3a418 examples/ode/dae.odex
 aba502d66e89d82d8574b4005d3e3dd1 examples/ode/dae_ex1.odex
 9d3d3bfab5041f14db881f3179c5a343 examples/ode/dae_ex2.odex
 961a51c4aa5699b8170285f6e45b48a2 examples/ode/dae_ex3.odex
@@ -63,7 +63,7 @@ be68fe44495220199e510b716bdbe9bc examples/ode/geisel.odex
 36583e5b3e7e7ed625a6bddee23c033b examples/ode/greg.odex
 noload examples/ode/hedge.ode
 1c6d35891c64c2370d06ec6944c09f17 examples/ode/henhei.odex
-222b7dc0d4619d62087231a3f6e9412a examples/ode/hhred.odex
+3e3816029183759b82eeb518424769d3 examples/ode/hhred.odex
 54c0547f991fd47910f83ac3b15eb862 examples/ode/iaf.odex
 b28a3a1dbdfcf52bd002b34d599006d2 examples/ode/idoubpend.odex
 db0d49e67e2b87e1f9a6fb4a7d427f90 examples/ode/ielaspen.odex

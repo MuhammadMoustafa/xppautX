@@ -7,6 +7,7 @@
 #include "xpp_log.h"
 #include "xpp_io.h"
 #include "xpp_mem.h"
+#include "xpp_math.h"
 #include "expr_decode.h"
 
 #include <array>
@@ -256,6 +257,9 @@ int alg_to_rpn(xpp::Session &s, int *toklist, std::vector<int> &command)
   int nif=0,nthen=0,nelse=0;
   int newtok,oldtok;
   int my_com,my_arg,jmp;
+  /* where the last literal's NUMSYM and halves end: a ^ written there
+     raises to that literal */
+  int number_end=-1;
 
   command.clear();
 
@@ -396,6 +400,10 @@ int alg_to_rpn(xpp::Session &s, int *toklist, std::vector<int> &command)
 	      ins=COM(FUN2TYPE,xpp::expr::IEEE_DIVIDE);
 	    /* ran, poisson and normal: instructions of their own */
 	    ins=xpp::expr::random_instruction(ins);
+	    /* x^n with a literal whole n from 2 to 16: multiplied out (W471) */
+	    if(ins==COM(FUN2TYPE,xpp::expr::POW)&&number_end==comptr&&
+	       xpp::math::is_integer_power(xpp::expr::number_from_halves(command[comptr-1],command[comptr-2])))
+	      ins=COM(FUN2TYPE,xpp::expr::INTEGER_POWER);
 	    push(command,comptr,ins);
 	    if((my_symb[oldtok].arg==2)&&
 	       (my_symb[oldtok].com/MAXTYPE==FUN2TYPE))
@@ -407,6 +415,7 @@ int alg_to_rpn(xpp::Session &s, int *toklist, std::vector<int> &command)
 	     push(command,comptr,tokstak[tokptr-1]);
 	     tokptr--;
 	     push(command,comptr,tokstak[tokptr-1]);
+	     number_end=comptr;
 	   }
  /*   end new code    3/95    */
            if(my_com==SUMSYM){

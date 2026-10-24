@@ -83,6 +83,9 @@ Term Symbolic::fun2(int i, Term x, Term y)
         if (is(y, 1)) return x;
         if (numbers && i == IEEE_DIVIDE) return number(a / b);
         break;
+    case INTEGER_POWER:
+        if (is(y, 1)) return x;
+        break;
     default:
         break;
     }

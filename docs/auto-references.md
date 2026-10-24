@@ -1369,6 +1369,9 @@ The four reference failures were traced without widening any tolerance:
   6.03e-5 allowed. Relocating exactly that mark from the nearby saved 0.1 pA
   orbit reduces it to 7.70e-7 at NTST 50, 4.88e-9 at 100 and 2.22e-9 at 200.
   The cause is coarse adaptive mesh/history, separate from multiplier accuracy.
+  W471 ([#534](https://github.com/MuhammadMoustafa/xppautX/issues/534)), which
+  multiplies out Mu26's x^3 and x^4 instead of calling pow, brings it within
+  the bound at the default history, and the trace was removed as stale.
 - `tstauto_pp2` first LP: centered (parameter,norm,period) is
   (0.7080732822986838,0.4180552886559583,79.8935775600), against AUTO-07p
   (0.7080732823,0.41805535218,79.89348504). XPPAUT's uncentered result

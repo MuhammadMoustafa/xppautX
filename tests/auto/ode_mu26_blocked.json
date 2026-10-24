@@ -258,15 +258,6 @@
       "quantity": "spectrum"
     },
     {
-      "reference": ".auto07p",
-      "run": "to_snic",
-      "side": "ours",
-      "type": "UZ",
-      "index": 4,
-      "cause": "W437 (#499): at the default NTST 50 the forward-path 0.07 pA orbit has a mesh/history-dependent norm difference 8.34e-5. Relocating the same 0.07 mark from the nearby 0.1 orbit gives norm differences 7.70e-7, 4.88e-9 and 2.22e-9 at NTST 50, 100 and 200. This isolates adaptive-mesh/history resolution rather than a wrong target: every target parameter agrees. Coarse/fine Floquet outputs are separately sensitive to the finite-difference Jacobian near the SNIC. The controlled saved-orbit experiments and raw data are in docs/auto-references.md W437 and docs/studies/w437-reference-traces.json. The default run and tolerance are unchanged; this quantity exception is explicit, not numerical agreement.",
-      "quantity": "norm"
-    },
-    {
       "reference": ".xppaut",
       "run": "to_snic",
       "side": "ours",

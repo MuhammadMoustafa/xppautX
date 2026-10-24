@@ -7,6 +7,7 @@
 #include "xpp_log.h"
 #include "xpp_globals.h"
 #include "my_rhs.h"
+#include <algorithm>
 #include <bit>
 #include <cstdint>
 #include <limits>
@@ -211,8 +212,23 @@ int main()
          "tanh(x)+if(par)then(tanh(x)+sin(x))else(sin(x)*2)+sin(x)", "if(x)then(sin(x)+sin(x))else(sin(x))+sin(x)",
          "tanh(x)+sum(0,2)of(tanh(x)+tanh(i')+tanh(i'))+tanh(x)", "sum(0,2)of(tanh(i'))+sum(0,2)of(tanh(i'))",
          "sum(0,2)of(tanh(set(z0,1,i')*1+i'))+tanh(z1)", "tanh(q(x))+tanh(q(x))", "tanh(g(x,par))*tanh(g(x,par))+g(x,par)",
-         "atan2(x,par)+atan2(par,x)+x^par*x^par", "(1/x)^2+(1/x)^2+exp(1/x)+exp(1/x)"}) expression(text);
+         "atan2(x,par)+atan2(par,x)+x^par*x^par", "(1/x)^2+(1/x)^2+exp(1/x)+exp(1/x)",
+         /* a literal whole exponent up to 16 is multiplied out (W471), compiled and interpreted alike */
+         "x^4", "x^5", "x^6", "x^7", "x^8", "x^9", "x^10", "x^11", "x^12", "x^13", "x^14", "x^15", "x^16", "x**3",
+         "(x*par+1)^7", "tanh(x)^5+tanh(x)^3", "if(x)then((x+1)^3)else(par^4)", "sum(0,2)of((i'+x)^5)", "x^3^2",
+         "x^17", "x^(-3)", "x^2.5", "x^1", "x^0", "x^16.0"}) expression(text);
     const int after_square=count;
+    /* which power the compiler writes: INTEGER_POWER for a literal whole 2 to 16 only */
+    auto writes=[&](const std::string &text,int index) {
+        std::vector<int> p;
+        int length=0;
+        CHECK(xpp::add_expr(s,text,p,&length)==0);
+        return std::ranges::find(p,COM(FUN2TYPE,index))!=p.end();
+    };
+    for (int n=2;n<=16;++n) CHECK(writes("x^"+std::to_string(n),xpp::expr::INTEGER_POWER));
+    CHECK(writes("x**3",xpp::expr::INTEGER_POWER) && writes("(x+1)^16.0",xpp::expr::INTEGER_POWER));
+    for (const auto *text:{"x^17","x^2.5","x^par","x^(-3)","x^0","x^1","x^(1+2)","x^(3*1)"})
+        CHECK(writes(text,xpp::expr::POW) && !writes(text,xpp::expr::INTEGER_POWER));
     const int first_outside=count;
     expression("shift(t,-1)");
     expression("shift(t,"+std::to_string(s.parser.variables.size())+")");

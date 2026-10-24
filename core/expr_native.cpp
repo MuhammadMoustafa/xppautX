@@ -11,6 +11,7 @@
 #include "volterra2.h"
 #include "xpp_tcc.h"
 #include "xpp_io.h"
+#include "xpp_math.h"
 #include <array>
 #include <bit>
 #include <cctype>
@@ -30,7 +31,7 @@ struct Node {
     std::string text;
     bool atom = false; /* a name, subscript or literal: may be repeated in the C */
     bool mut = false;  /* reads state a later statement may change (a variable, the sum's index) */
-    bool two = false;  /* the literal 2: an exponent written as x*x */
+    int power = 0;     /* a literal whole n INTEGER_POWER multiplies out (math::is_integer_power), else 0 */
 };
 
 /* A conditional being read: cond is the tested value, base the stack depth
@@ -194,7 +195,7 @@ struct Generator {
     {
         const auto [slot, added] = literal_slot.emplace(std::bit_cast<std::uint64_t>(x), numbers.size());
         if (added) numbers.push_back(x);
-        return {xpp::format("N[{}]", slot->second), true, false, x == 2.0};
+        return {xpp::format("N[{}]", slot->second), true, false, math::is_integer_power(x) ? static_cast<int>(x) : 0};
     }
 
     /* The call text of a math function (a table's fun1/fun2: pure, they
@@ -217,16 +218,13 @@ struct Generator {
         return t;
     }
 
-    /* x^2 for the literal exponent 2, as x*x with x written once (a
-       temporary when it is no atom). A correctly rounded pow(x,2) is the
-       exact square rounded to nearest once, which is what the product is:
-       the same bits for every x, signed zeros, infinities, NaN (both give
-       the quieted x), overflow and subnormals included; ^3 and the others
-       are two roundings and stay pow. */
-    Node square(const Node &x)
+    /* x^n for a literal whole n (INTEGER_POWER), multiplied out as the
+       interpreter does (math::power_by_squaring), each product a
+       temporary, so x and each square are computed once */
+    Node integer_power(const Node &x, int n)
     {
         const Node a = x.atom ? x : statement(x.text);
-        return {xpp::format("({0}*{0})", a.text), false, a.mut};
+        return math::power_by_squaring(a, n, [&](const Node &p, const Node &q) { return statement("(" + p.text + "*" + q.text + ")"); });
     }
 
     /* The two branches met (other is the else value, already off the
@@ -351,8 +349,8 @@ struct Generator {
             } else if (type == FUN2TYPE) {
                 const Node right = pop(), left = pop();
                 std::string text;
-                if (in == expr::POW && right.two) {
-                    stack.push_back(square(left));
+                if (in == expr::INTEGER_POWER && right.power) {
+                    stack.push_back(integer_power(left, right.power));
                     continue;
                 }
                 if (in == expr::ADD || in == expr::MULTIPLY) text = "(" + right.text + (in == expr::ADD ? "+" : "*") + left.text + ")";
@@ -506,6 +504,7 @@ struct Generator {
                 if (a >= 0) pending.push_back(a);
         }
         std::unordered_map<int, int> slot;
+        int products = 0; /* the locals an INTEGER_POWER's products are kept in */
         auto text = [&](int id) {
             const expr::Symbolic::Node &n = g.node({id});
             switch (n.op) {
@@ -541,9 +540,15 @@ struct Generator {
                 case expr::MULTIPLY: value = xpp::format("({}*{})", x, y); break;
                 case expr::DIVIDE: value = xpp::format("dv({},{})", x, y); break;
                 case expr::IEEE_DIVIDE: value = xpp::format("({}/{})", x, y); break;
-                case expr::POW:
-                    if (g.is(expr::Term{n.args[1]}, 2)) {
-                        value = xpp::format("({0}*{0})", x);
+                case expr::INTEGER_POWER:
+                    /* x^n multiplied out as the interpreter does, each product a local */
+                    if (const expr::Symbolic::Node &e = g.node({n.args[1]});
+                        e.op == expr::Symbolic::Op::Number && math::is_integer_power(e.number)) {
+                        value = math::power_by_squaring(x, static_cast<int>(e.number), [&](const std::string &p, const std::string &q) {
+                            std::string t = xpp::format("q{}", products++);
+                            source += xpp::format("double {}=({}*{});", t, p, q);
+                            return t;
+                        });
                         break;
                     }
                     [[fallthrough]];
