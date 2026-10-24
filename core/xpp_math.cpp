@@ -731,4 +731,14 @@ double bracketed_root(const std::function<double(double)> &f, double a, double b
     }
     return a+(b-a)*0.5;
 }
+
+void product_accumulate(double *__restrict c, std::ptrdiff_t ldc, const double *__restrict a, std::ptrdiff_t lda,
+                        const double *__restrict b, std::ptrdiff_t ldb, std::ptrdiff_t m, std::ptrdiff_t n, std::ptrdiff_t p)
+{
+    for(std::ptrdiff_t j=0;j<n;++j)
+        for(std::ptrdiff_t k=0;k<p;++k){
+            const double factor=b[k+j*ldb];
+            for(std::ptrdiff_t i=0;i<m;++i) c[i+j*ldc]+=a[i+k*lda]*factor;
+        }
+}
 } // namespace xpp

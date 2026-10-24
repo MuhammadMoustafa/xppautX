@@ -215,6 +215,16 @@ private:
     std::ptrdiff_t dim1_ = 0, dim2_ = 0;
 };
 
+/* c(m x n) += a(m x p) * b(p x n), column-major with leading dimensions
+   ldc, lda, ldb. Each c(i,j) gets its p terms added one after another,
+   a(i,0)*b(0,j) first, each product rounded before the add (no
+   reassociation, no FMA): the bits of `for k: c(i,j) += a(i,k)*b(k,j)`. The
+   loops run with i innermost so the compiler vectorizes them (the
+   restrict qualifiers say c shares no element with a or b, which the
+   caller guarantees; c's own elements are only ever added to). */
+void product_accumulate(double *__restrict c, std::ptrdiff_t ldc, const double *__restrict a, std::ptrdiff_t lda,
+                        const double *__restrict b, std::ptrdiff_t ldb, std::ptrdiff_t m, std::ptrdiff_t n, std::ptrdiff_t p);
+
 /* Refine a sign-changing scalar bracket by safeguarded secant/bisection.
    Returns a point in the bracket within 8*epsilon*max(1,abs(time)). */
 double bracketed_root(const std::function<double(double)> &f, double a, double b, double fa, double fb);

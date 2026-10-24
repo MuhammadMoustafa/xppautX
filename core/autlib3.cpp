@@ -550,12 +550,12 @@ ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   const xpp::Matrix<double> blocks({dfdu, static_cast<size_t>(ndm * ndim)}, ndm, ndim);
   const double kappa = u[2 * ndm];
   const double shift=map ? 2*(1-xpp::math::cos(kappa)) : kappa;
+  // The square goes into columns ndm..2*ndm-1, which share nothing with the Jacobian's.
+  for (integer i = 0; i < ndm; ++i)
+    for (integer j = 0; j < ndm; ++j)
+      blocks(i, ndm + j) = (i == j ? shift : 0.) + (map ? shift*blocks(i,j) : 0.);
+  xpp::product_accumulate(&blocks(0, ndm), ndm, &blocks(0, 0), ndm, &blocks(0, 0), ndm, ndm, ndm, ndm);
   for (integer i = 0; i < ndm; ++i) {
-    for (integer j = 0; j < ndm; ++j) {
-      double square = (i == j ? shift : 0.) + (map ? shift*blocks(i,j) : 0.);
-      for (integer k = 0; k < ndm; ++k) square += blocks(i, k) * blocks(k, j);
-      blocks(i, ndm + j) = square;
-    }
     blocks(i, 2 * ndm) = map ? 2*xpp::math::sin(kappa)*u[ndm+i] : u[ndm+i];
     if (map) for (integer j=0;j<ndm;++j) blocks(i,2*ndm)+=2*xpp::math::sin(kappa)*blocks(i,j)*u[ndm+j];
     blocks(i, ndim - 1) = 0.;

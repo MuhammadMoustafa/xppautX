@@ -12,7 +12,9 @@
 #include <bit>
 #include <cmath>
 #include <cstdint>
+#include <iterator>
 #include <limits>
+#include <vector>
 
 static bool same(double got, std::uint64_t want_bits)
 {
@@ -168,6 +170,42 @@ int main(void)
         CHECK(differ == 0);
     }
 #endif
+
+    { /* product_accumulate: the plain triple loop's bits, special values included. */
+        const std::ptrdiff_t m = 11, n = 5, p = 7, lda = 13, ldb = 9, ldc = 12;
+        const double special[] = {0.0, -0.0, 5e-324, -5e-324, 1e308, -1e308,
+                                  std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity(),
+                                  nan, 1.0, -1.0, 0x1.fffffffffffffp+0};
+        std::uint64_t state = 88172645463325252ULL;
+        auto next = [&]() {
+            state ^= state << 13; state ^= state >> 7; state ^= state << 17;
+            return state;
+        };
+        auto value = [&](bool use_special) {
+            if (use_special && next() % 4 == 0) return special[next() % std::size(special)];
+            return static_cast<double>(next() >> 11) * (1.0 / 9007199254740992.0) * 4 - 2;
+        };
+        int differ = 0;
+        for (int round = 0; round < 200; ++round) {
+            const bool use_special = round % 2 == 1;
+            std::vector<double> a(lda * p), b(ldb * n), c(ldc * n), expected;
+            for (double &v : a) v = value(use_special);
+            for (double &v : b) v = value(use_special);
+            for (double &v : c) v = value(use_special);
+            expected = c;
+            for (std::ptrdiff_t i = 0; i < m; ++i)
+                for (std::ptrdiff_t j = 0; j < n; ++j) {
+                    double sum = expected[i + j * ldc];
+                    for (std::ptrdiff_t k = 0; k < p; ++k) sum += a[i + k * lda] * b[k + j * ldb];
+                    expected[i + j * ldc] = sum;
+                }
+            xpp::product_accumulate(c.data(), ldc, a.data(), lda, b.data(), ldb, m, n, p);
+            for (std::size_t i = 0; i < c.size(); ++i)
+                differ += !(std::bit_cast<std::uint64_t>(c[i]) == std::bit_cast<std::uint64_t>(expected[i]) ||
+                            (std::isnan(c[i]) && std::isnan(expected[i])));
+        }
+        CHECK(differ == 0);
+    }
 
     TEST_REPORT("xpp::math");
 }
