@@ -20,12 +20,13 @@ void state_values(const xpp::Model &m, double t, const double *y, int node, int 
 
 /* The fixed variables into the variables v, from the constants c (the
    Session s's, or AUTO's own copies): by the one native function
-   compile_model made for them (W468), else each program in order. */
+   compile_model made for the right-hand side (W468), else each program in
+   order. */
 template <class Set, class Evaluate>
 void fixed_values(const xpp::Model &m, int node, double *c, double *v, xpp::Session *s, Set &&set, Evaluate &&evaluate)
 {
-  if (node==m.node && program.compile && m.native_fixed) {
-    m.native_fixed(c,v,s);
+  if (node==m.node && program.compile && m.native_rhs) {
+    m.native_rhs(c,v,s,nullptr);
     return;
   }
   for (int i=node;i<node+m.fix_var;++i) set(i+1,evaluate(m.programs[i]));
@@ -42,6 +43,14 @@ void rhs_order(const xpp::Model &m, double t, const double *y, double *ydot, dou
                Set &&set, Evaluate &&evaluate, Between &&between)
 {
   state_values(m,t,y,m.node,0,set);
+  /* the fixed variables and the equations in one native call (W469): a
+     model with native_equations has no network or DAE, so between reads
+     and writes nothing they do (do_daes only records that no DAE failed) */
+  if (program.compile && m.native_equations) {
+    between();
+    m.native_rhs(c,v,s,ydot);
+    return;
+  }
   fixed_values(m,m.node,c,v,s,set,evaluate);
   between();
   equation_values(m,ydot,evaluate);
