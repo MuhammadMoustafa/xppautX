@@ -764,8 +764,8 @@ private:
         const int *divisor = nullptr;
         Expr y = st.pop(&divisor), x = st.pop(&first);
         static const std::map<int, std::string> ops = {
-          {0, "+"}, {1, "-"}, {2, "*"}, {3, "/"}, {xpp::expr::IEEE_DIVIDE, "/"}, {5, "^"}, {8, "mod"}, {9, "and"},
-          {10, "or"}, {11, ">"}, {12, "<"}, {13, "=="}, {14, ">="}, {15, "<="}, {16, "!="}};
+          {0, "+"}, {1, "-"}, {2, "*"}, {3, "/"}, {xpp::expr::IEEE_DIVIDE, "/"}, {5, "^"}, {xpp::expr::INTEGER_POWER, "^"},
+          {8, "mod"}, {9, "and"}, {10, "or"}, {11, ">"}, {12, "<"}, {13, "=="}, {14, ">="}, {15, "<="}, {16, "!="}};
         /* XPP's division: a divisor that can be 0 written with XPP's guard */
         if (in == 3 && !never_zero(y, divisor, here, positive_index)) y = guarded(std::move(y));
         auto op = ops.find(in);

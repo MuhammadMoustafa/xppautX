@@ -19,6 +19,7 @@
 #include "auto_c.h"
 #include "auto_unknowns.h"
 #include "auto_nox.h"
+#include "xpp_math.h"
 
 #include <algorithm>
 #include <cmath>
@@ -132,6 +133,20 @@ void check_operations()
         /* mod's quotient is not 0 here, and pow's base is above 0 */
         CHECK(fx.agrees(2.3, 0.7, what.c_str()));
         CHECK(fx.agrees(0.3, 0.7, what.c_str()));
+    }
+    /* x^n for a literal whole n (W471): its derivative n x^(n-1) multiplied out as
+       the interpreter multiplies, x^1 being x */
+    for (int n = 2; n <= xpp::math::MAX_INTEGER_POWER; ++n) {
+        std::vector<int> p{x};
+        for (int k : number(n)) p.push_back(k);
+        p.push_back(COM(FUN2TYPE, xpp::expr::INTEGER_POWER));
+        CHECK(fx.compile(p));
+        CHECK(fx.agrees(1.3, 0.7, ("x^" + std::to_string(n)).c_str()));
+        xpp::Session &s = *fx.session;
+        const double point[2] = {-0.83, 0.7}, fxy[2] = {fx.f(0, point[0], point[1]), 0};
+        double exact[4];
+        xpp::exact_jacobian(s, s.jacobian_scratch, s.parser.constants.data(), 0.0, point, fxy, 2, {xpp::JacobianLayout::RowMajor}, exact);
+        CHECK(exact[0] == n * (n == 2 ? point[0] : xpp::math::integer_power(point[0], n - 1)));
     }
     /* if, a constant, the time */
     /* if(x>0.5)then(x*x)else(-x): MYIF skips the then part and MYTHEN, MYTHEN the else part */

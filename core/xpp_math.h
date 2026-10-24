@@ -84,6 +84,45 @@ inline double lgamma(double x) { return XPP_CR_PICK(lgamma, x); }
 
 #undef XPP_CR_PICK
 
+/* ---- a model's x^n for a small whole n: multiplied out (W471) ----
+
+   The largest exponent a model's literal x^n is multiplied out for, from
+   2 (x*x, the correctly rounded square itself, W466): each product rounds
+   once, so the error against the correctly rounded power grows with n,
+   at most 1.2 ulp at 3, 1.8 at 4, 4.9 at 8 and 10.9 at 16 (relative
+   2.4e-15, over random x), and gcc's __builtin_powi multiplies an integer
+   constant alike; a larger exponent is pow's. */
+constexpr int MAX_INTEGER_POWER = 16;
+
+/* n is a whole exponent x^n is multiplied out for */
+constexpr bool is_integer_power(double n)
+{
+    return n >= 2 && n <= MAX_INTEGER_POWER && n == static_cast<double>(static_cast<int>(n));
+}
+
+/* x^n, n >= 1, by squaring, in the one order both the expression engine's
+   interpreter and its generated C (expr_native.cpp, V a C value there)
+   take, so the two agree bit for bit: over n's bits from the lowest, x
+   squared to x^2, x^4, x^8, ..., the result the first of these n has,
+   times each further one it has, in turn (x^3 is x*(x*x), x^6 is
+   (x*x)*((x*x)*(x*x))). multiply(a, b) is a*b: exact IEEE, so the same
+   bits on every CPU and compiler (no FMA: -ffp-contract=off). */
+template <class V, class Multiply> V power_by_squaring(V x, int n, Multiply multiply)
+{
+    for (; (n & 1) == 0; n >>= 1) x = multiply(x, x);
+    V r = x;
+    while ((n >>= 1) != 0) {
+        x = multiply(x, x);
+        if (n & 1) r = multiply(r, x);
+    }
+    return r;
+}
+
+inline double integer_power(double x, int n)
+{
+    return power_by_squaring(x, n, [](double a, double b) { return a * b; });
+}
+
 } // namespace math
 
 /* ---- Fourier transform (pocketfft, third_party/pocketfft) ----

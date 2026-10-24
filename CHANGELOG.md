@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- A model's `x^n` (and `x**n`) with a literal whole exponent from 3 to 16 is multiplied out by squaring in one fixed order (`x^3` is `x*(x*x)`), compiled and interpreted alike, instead of a call of the correctly rounded `pow`: a deliberate change of the numbers, still the same bits on every system and CPU, at most 10.9 ulp from the correctly rounded power (at 16; 1.2 at 3). A parameter, a negative, a fraction or a larger exponent still calls `pow`. Mu26's right-hand side drops from 8,701 to 7,287 instructions per call; the outputs of dae and hhred and the AUTO diagrams of ma23, motoneuron6c, mu26 (both), osc and simplefold changed. W471 ([#534](https://github.com/MuhammadMoustafa/xppautX/issues/534)).
+
 - A compiled model's whole right-hand side, its fixed variables then its equations, is one native function, so the integrators and AUTO make one call per right-hand side instead of one per equation, and a math call repeated across equations is made once; a model with a network or a DAE keeps the per-equation path, since those run between the fixed variables and the equations. Mu26's right-hand side in AUTO costs 8,701 instructions instead of 9,429 (callgrind, 190,492 calls in the Hopf locus in (g_h soma, current) from rest), that run 0.273 s instead of 0.282 s and `--silent` 0.42 s instead of 0.45 s, every output and diagram byte for byte the same (W469, [#532](https://github.com/MuhammadMoustafa/xppautX/issues/532))
 
 - AUTO's Hopf and torus systems form the square of the Jacobian with a vectorized matrix product (`xpp::product_accumulate`): same bits, about half the instructions of that step and 3% less time on mu26's Hopf-curve run (W470, #533).

@@ -207,5 +207,19 @@ int main(void)
         CHECK(differ == 0);
     }
 
+    /* x^n multiplied out (W471): the one fixed order, from n's lowest bit; x^2 is
+       the correctly rounded square; 2 to 16 whole only */
+    for (const double x : {1.1, -0.7, 3.0e-3, 1.7e30, -2.5e-80}) {
+        const double x2 = x * x, x4 = x2 * x2, x8 = x4 * x4;
+        CHECK(xpp::math::integer_power(x, 2) == xpp::math::pow(x, 2));
+        CHECK(same(xpp::math::integer_power(x, 3), std::bit_cast<std::uint64_t>(x * x2)));
+        CHECK(same(xpp::math::integer_power(x, 6), std::bit_cast<std::uint64_t>(x2 * x4)));
+        CHECK(same(xpp::math::integer_power(x, 13), std::bit_cast<std::uint64_t>((x * x4) * x8)));
+        CHECK(same(xpp::math::integer_power(x, 16), std::bit_cast<std::uint64_t>(x8 * x8)));
+    }
+    CHECK(!xpp::math::is_integer_power(1) && xpp::math::is_integer_power(2) && xpp::math::is_integer_power(16));
+    CHECK(!xpp::math::is_integer_power(17) && !xpp::math::is_integer_power(2.5) && !xpp::math::is_integer_power(-3));
+    CHECK(!xpp::math::is_integer_power(0) && !xpp::math::is_integer_power(nan));
+
     TEST_REPORT("xpp::math");
 }

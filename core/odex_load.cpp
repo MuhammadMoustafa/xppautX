@@ -159,7 +159,10 @@ private:
         if (op == "-") return a - b;
         if (op == "*") return a * b;
         if (op == "/") return a / b;
-        if (op == "^") return xpp::math::pow(a, b);
+        /* a literal small whole exponent multiplied out, as a formula's (W471) */
+        if (op == "^")
+          return e.args[1].kind == Expr::Kind::Number && xpp::math::is_integer_power(b)
+                   ? xpp::math::integer_power(a, static_cast<int>(b)) : xpp::math::pow(a, b);
         /* mod as the expression engine's: in [0, b) */
         const double z = std::fmod(a, b);
         return z < 0 ? z + b : z;
