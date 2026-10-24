@@ -89,26 +89,30 @@ void conpar_process(const conpar_parallel_arglist *arg)
       for (integer row = pivot_row + 1; row < rows; ++row) {
         const double rm = a(col, row) / a(col, pivot_row);
         a(col, row) = rm;
-        if (rm != 0.) {
-          for (integer l = 0; l < left; ++l) a(l, row) -= rm * a(l, pivot_row);
-        }
+        // Shape follows AUTO-07p's IMSBRA (solvebv.f90): the zero test sits outside the element loops, same bits.
+        double *__restrict target = &a(0, row);
+        const double *__restrict source = &a(0, pivot_row);
         largest = 0.;
-        maximum_column[row] = col + 1;
-        // Find the next maximum while updating contiguous elements. A zero
-        // multiplier still needs a scan: the column swap can change tie order.
-        for (integer l = col + 1; l < end; ++l) {
-          if (rm != 0.) a(l, row) -= rm * a(l, pivot_row);
-          double value = a(l, row);
-          if (value < 0.) value = -value;
-          if (largest < value) {
-            largest = value;
-            maximum_column[row] = l;
+        integer at = col + 1;
+        if (rm != 0.) {
+          for (integer l = 0; l < left; ++l) target[l] -= rm * source[l];
+          for (integer l = col + 1; l < end; ++l) {
+            const double v = target[l] - rm * source[l];
+            target[l] = v;
+            const double value = v < 0. ? -v : v;
+            if (largest < value) [[unlikely]] { largest = value; at = l; }
+          }
+          for (integer l = end; l < cols; ++l) target[l] -= rm * source[l];
+          for (integer l = 0; l < parameters; ++l) b(l, row) -= rm * b(l, pivot_row);
+        } else {
+          // A zero multiplier still needs a scan: the column swap can change tie order.
+          for (integer l = col + 1; l < end; ++l) {
+            const double v = target[l];
+            const double value = v < 0. ? -v : v;
+            if (largest < value) [[unlikely]] { largest = value; at = l; }
           }
         }
-        if (rm != 0.) {
-          for (integer l = end; l < cols; ++l) a(l, row) -= rm * a(l, pivot_row);
-          for (integer l = 0; l < parameters; ++l) b(l, row) -= rm * b(l, pivot_row);
-        }
+        maximum_column[row] = at;
       }
       for (integer row = *arg->nbc; row < constraints; ++row) {
         const double rm = c(col, row) / a(col, pivot_row);
