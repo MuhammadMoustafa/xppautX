@@ -165,7 +165,7 @@ examples and `tools/associate/`. Unpack one and run the program on a model:
 on Windows, `xppautX.exe examples\ode\lecar.ode` from the install folder or the unzipped one.
 Nothing else is needed:
 the front end opens in a window of its own (the system's web view:
-WebView2 on Windows, which ships with Windows 10 and 11; the system's
+WebView2 on Windows 10 (1903 or later) and 11, which ship with it; the system's
 WKWebView on macOS; WebKitGTK 4.1 on Linux, where a system without it
 gets the browser and the command that installs it), served by the
 program itself. Its menu bar has File (Open model…, which loads another

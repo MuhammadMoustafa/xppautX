@@ -127,12 +127,12 @@ bool path_is_link(const char *path)
 
 int open_plain(const char *path, bool create, bool binary, unsigned long long &size, bool overwrite)
 {
-    /* Match the narrow CRT/GetFileAttributesA paths used by xpp_files;
-       the window's UTF-8 converter serves a different encoding boundary. */
-    const int n = MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, path, -1, nullptr, 0);
+    /* The core's paths are UTF-8, as the narrow calls beside this one read
+       them under the manifest's activeCodePage UTF-8 (assets/xppautx.rc). */
+    const int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, nullptr, 0);
     if (!n) { errno = EINVAL; return -1; }
     std::wstring wide(static_cast<size_t>(n), L'\0');
-    if (!MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, path, -1, wide.data(), n)) {
+    if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide.data(), n)) {
         errno = EINVAL;
         return -1;
     }
