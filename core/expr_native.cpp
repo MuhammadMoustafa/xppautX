@@ -461,22 +461,30 @@ struct Generator {
         return false;
     }
 
-    /* One C function, name, for the fixed variables (W468): each program's
-       value written into its variable, first and on, in order, as
-       fixed_values (my_rhs.cpp) sets them one by one, so a math call two
-       of them make on the same values is made once. Writing a variable
-       forgets the calls whose text may read it. */
-    Result<> fixed(std::span<const Program> programs, int first, std::string_view name)
+    /* One C function, name, for the right-hand side in its order: each
+       fixed program's value written into its variable, first and on, as
+       fixed_values (my_rhs.cpp) sets them one by one (W468), then, when
+       the caller gives o, each equation's value into o[i], as
+       equation_values does (W469); so a math call two of them make on the
+       same values is made once. Writing a variable forgets the calls whose
+       text may read it; nothing reads o. */
+    Result<> rhs(std::span<const Program> fixed, int first, std::span<const Program> equations, std::string_view name)
     {
         begin();
-        for (size_t i = 0; i < programs.size(); ++i) {
-            const auto result = value(programs[i].rpn, 0, false);
+        for (size_t i = 0; i < fixed.size(); ++i) {
+            const auto result = value(fixed[i].rpn, 0, false);
             if (!result) return std::unexpected(result.error());
             const int variable = first + static_cast<int>(i);
             out.push_back(xpp::format("v[{}]={};", variable, result->text));
             std::erase_if(calls_made, [&](const auto &made) { return may_read(made.first, variable); });
         }
-        write(xpp::format("void {}(double *c,double *v,void *S)", name), "");
+        if (!equations.empty()) out.push_back("if(!o)return;");
+        for (size_t i = 0; i < equations.size(); ++i) {
+            const auto result = value(equations[i].rpn, 0, false);
+            if (!result) return std::unexpected(result.error());
+            out.push_back(xpp::format("o[{}]={};", i, result->text));
+        }
+        write(xpp::format("void {}(double *c,double *v,void *S,double *o)", name), "");
         return {};
     }
 
@@ -641,7 +649,8 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     Model &m=s.model();
     for (const auto &entry:entries) { entry.code->native=nullptr; entry.code->array_pure=false; entry.code->native_reads.clear(); }
     m.auto_rhs_pure=false;
-    m.native_fixed=nullptr;
+    m.native_rhs=nullptr;
+    m.native_equations=false;
     m.native_program.reset();
     if (!::program.compile || entries.empty()) return {};
     Generator g{s};
@@ -714,17 +723,27 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
         if (entry.user_index<0) entry.code->native_reads.assign(g.variable_reads.begin(),g.variable_reads.end());
         emitted.push_back(&entry);
     }
-    /* the fixed variables once more, as one function, when each compiled alone (W468) */
-    const std::string fixed_symbol="p_fixed";
-    bool fixed=m.fix_var>0 && static_cast<size_t>(m.node+m.fix_var)<=m.programs.size()
-        && std::all_of(m.programs.begin()+m.node,m.programs.begin()+m.node+m.fix_var,[&](const Program &p){
-               return std::any_of(emitted.begin(),emitted.end(),[&](const ModelProgram *e){return e->code==&p;});});
-    if (fixed) {
-        g.place=model_place(m,m.fixinfo[0].name);
+    /* the fixed variables and the equations once more, as one function
+       (W468, W469): the fixed variables when each compiled alone, the
+       equations too when each did and nothing runs between them and the
+       fixed variables (my_rhs: no network, no DAE) */
+    const std::string rhs_symbol="p_rhs";
+    std::set<const Program *> native;
+    for (const auto *entry:emitted) native.insert(entry->code);
+    const auto compiled_alone=[&](const Program &p){return native.contains(&p);};
+    const auto fixed_begin=m.programs.begin()+m.node;
+    bool rhs=static_cast<size_t>(m.node+m.fix_var)<=m.programs.size()
+        && std::all_of(fixed_begin,fixed_begin+m.fix_var,compiled_alone);
+    bool equations=rhs && m.node>0 && m.nnetwork==0 && m.nsvar==0 && m.naeqn==0
+        && std::all_of(m.programs.begin(),fixed_begin,compiled_alone);
+    rhs=rhs && (m.fix_var>0 || equations);
+    if (rhs) {
+        g.place=m.fix_var>0?model_place(m,m.fixinfo[0].name):model_place(m,m.uvar_names[0]);
         g.dynamic=false;
-        if (auto r=g.fixed({m.programs.data()+m.node,static_cast<size_t>(m.fix_var)},m.node+1,fixed_symbol);!r) {
+        const std::span<const Program> equation_programs=equations?std::span<const Program>{m.programs.data(),static_cast<size_t>(m.node)}:std::span<const Program>{};
+        if (auto r=g.rhs({m.programs.data()+m.node,static_cast<size_t>(m.fix_var)},m.node+1,equation_programs,rhs_symbol);!r) {
             warnings.push_back(r.error());
-            fixed=false;
+            rhs=equations=false;
         }
     }
     if (emitted.empty()) return warnings;
@@ -736,14 +755,15 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
         if (!address) {g.place=address.error().place;return g.refuse("TinyCC: "+address.error().what);}
         functions.push_back(reinterpret_cast<decltype(Program::native)>(*address));
     }
-    decltype(Model::native_fixed) native_fixed=nullptr;
-    if (fixed) {
-        auto address=(*compiled)->function(fixed_symbol);
+    decltype(Model::native_rhs) native_rhs=nullptr;
+    if (rhs) {
+        auto address=(*compiled)->function(rhs_symbol);
         if (!address) {g.place=address.error().place;return g.refuse("TinyCC: "+address.error().what);}
-        native_fixed=reinterpret_cast<decltype(Model::native_fixed)>(*address);
+        native_rhs=reinterpret_cast<decltype(Model::native_rhs)>(*address);
     }
     m.native_program=std::move(*compiled);
-    m.native_fixed=native_fixed;
+    m.native_rhs=native_rhs;
+    m.native_equations=equations;
     for (size_t i=0;i<emitted.size();++i) emitted[i]->code->native=functions[i];
     // Networks and DAEs run between the fixed variables and equations even
     // when no equation calls their helpers. Function tables can rebuild on

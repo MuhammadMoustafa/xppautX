@@ -74,38 +74,57 @@ void same_both_ways(xpp::Session &s,const xpp::Program &code)
     s.parser.constants=constants;
 }
 
-/* The fixed variables by the model's one native function (W468) and
-   interpreted one by one, each from the same state: the same left behind
-   (the fixed variables, what SET writes, the generator's next draws); and,
-   when the model's right-hand side is AUTO's pure one, the same by its
-   path on copies of the arrays. */
-void same_fixed(xpp::Session &s)
+/* The right-hand side by the model's one native function (W468, W469) and
+   interpreted program by program, each from the same state: the fixed
+   variables alone (fix_only) and, when the function writes the equations,
+   the whole right-hand side (my_rhs), the same left behind (the
+   variables, what SET writes, the generator's next draws) and the same
+   derivatives; and, when the model's right-hand side is AUTO's pure one,
+   the same by its path on copies of the arrays. */
+void same_rhs(xpp::Session &s)
 {
-    CHECK(s.model().native_fixed!=nullptr);
+    const xpp::Model &m=s.model();
+    CHECK(m.native_rhs!=nullptr);
+    const size_t node=static_cast<size_t>(m.node);
     const auto variables=s.parser.variables;
     const auto constants=s.parser.constants;
-    s.random.seed(7);
-    const std::string random=s.random.save();
-    fix_only(s);
-    const auto native_variables=s.parser.variables;
-    const auto native_constants=s.parser.constants;
-    const std::string native_random=s.random.save();
-    s.parser.variables=variables;
-    s.parser.constants=constants;
-    CHECK(s.random.load(random));
-    program.compile=false;
-    fix_only(s);
-    program.compile=true;
-    CHECK(same(native_variables,s.parser.variables));
-    CHECK(same(native_constants,s.parser.constants));
-    CHECK(native_random==s.random.save());
-    if (s.model().auto_rhs_pure) {
+    std::vector<double> y(node),native_ydot(node),ydot(node);
+    for (size_t i=0;i<node;++i) y[i]=variables[i+1];
+    for (const bool whole:{false,true}) {
+        if (whole && !m.native_equations) break;
+        /* run, natively then interpreted, from the same state */
+        auto run=[&](std::vector<double> &out) {
+            s.parser.variables=variables;
+            s.parser.constants=constants;
+            s.random.seed(7);
+            if (whole) my_rhs(s,variables[0],y.data(),out.data(),m.node);
+            else fix_only(s);
+        };
+        run(native_ydot);
+        const auto native_variables=s.parser.variables;
+        const auto native_constants=s.parser.constants;
+        const std::string native_random=s.random.save();
+        program.compile=false;
+        run(ydot);
+        program.compile=true;
+        CHECK(same(native_variables,s.parser.variables));
+        CHECK(same(native_constants,s.parser.constants));
+        CHECK(native_random==s.random.save());
+        if (whole) CHECK(same(native_ydot,ydot));
+    }
+    if (m.auto_rhs_pure) {
         auto c=constants;
         auto v=variables;
-        std::vector<double> y(static_cast<size_t>(s.model().node)),ydot(y.size());
-        for (size_t i=0;i<y.size();++i) y[i]=variables[i+1];
         pure_rhs(s,y.data(),ydot.data(),c.data(),v.data());
-        for (size_t i=y.size()+1;i<=y.size()+static_cast<size_t>(s.model().fix_var);++i) CHECK(bits(native_variables[i])==bits(v[i]));
+        s.parser.variables=variables;
+        fix_only(s);
+        for (size_t i=node+1;i<=node+static_cast<size_t>(m.fix_var);++i) CHECK(bits(s.parser.variables[i])==bits(v[i]));
+        if (m.native_equations) {
+            /* the integrators' order: my_rhs from the same state */
+            s.parser.variables=variables;
+            my_rhs(s,variables[0],y.data(),native_ydot.data(),m.node);
+            CHECK(same(native_ydot,ydot));
+        }
     }
     s.parser.variables=variables;
     s.parser.constants=constants;
@@ -263,37 +282,39 @@ int main()
     CHECK(!m.native_program);
     CHECK(xpp::evaluate(s,m.programs[0])==0.1);
     program.compile=true;
-    /* z0 to z3 as fixed variables, compiled as one function (W468): a math call is made
-       once across them, except across what changes its argument (a fixed variable
+    /* z0 to z3 as fixed variables and x' after them, compiled as one function (W468,
+       W469): a math call is made once across them, except across what changes its argument (a fixed variable
        written, read by name, by a user function or by a shift; a set; a draw) or what may
        not run (a branch, a sum). w reads z1; f only its arguments. */
     CHECK(xpp::add_ufun_name(s,"w",4,1)==0);
     m.nfun=5;
     CHECK(xpp::add_ufun_new(s,4,"z1*a",{args.data(),1})==0);
     m.fix_var=4;
-    for (const auto &fixed:std::vector<std::array<const char *,4>>{
-         {"tanh(x*par)", "tanh(x*par)^2+z0", "tanh(z0)+tanh(x*par)", "tanh(z0)*tanh(z1)+tanh(x*par)"},
-         {"tanh(z1)+tanh(z2)", "tanh(x)", "tanh(z1)+tanh(z2)", "tanh(z1)*tanh(z3)+tanh(z2)"},
-         {"z3+tanh(z3)", "tanh(z3)*2", "tanh(z0)", "tanh(z3)+tanh(z0)"},
-         {"tanh(z2)", "set(z0,2,par)*0+tanh(z2)", "tanh(z2)+tanh(x)", "tanh(x)+tanh(z2)"},
-         {"tanh(w(x))", "tanh(x)", "tanh(w(x))+tanh(f(x,par))", "tanh(f(x,par))+tanh(w(x))"},
-         {"tanh(shift(z0,1))", "tanh(par)", "tanh(shift(z0,1))", "z1+tanh(shift(z0,1))"},
-         {"if(x)then(tanh(x))else(0)", "tanh(x)+sum(0,2)of(tanh(x))", "if(par)then(tanh(x))else(tanh(par))+tanh(x)", "sum(0,1)of(tanh(i'))+tanh(x)"},
-         {"ran(1)+tanh(x)", "tanh(x)+ran(1)", "normal(0,1)*tanh(x)", "tanh(x)"}}) {
-        count=1;
+    for (const auto &fixed:std::vector<std::array<const char *,5>>{
+         {"tanh(x*par)+tanh(z3)*tanh(z0)", "tanh(x*par)", "tanh(x*par)^2+z0", "tanh(z0)+tanh(x*par)", "tanh(z0)*tanh(z1)+tanh(x*par)"},
+         {"tanh(z1)+tanh(z2)+tanh(x)", "tanh(z1)+tanh(z2)", "tanh(x)", "tanh(z1)+tanh(z2)", "tanh(z1)*tanh(z3)+tanh(z2)"},
+         {"tanh(z3)+tanh(z0)", "z3+tanh(z3)", "tanh(z3)*2", "tanh(z0)", "tanh(z3)+tanh(z0)"},
+         {"tanh(x)+set(z0,1,par)*0+tanh(z2)+tanh(x)", "tanh(z2)", "set(z0,2,par)*0+tanh(z2)", "tanh(z2)+tanh(x)", "tanh(x)+tanh(z2)"},
+         {"tanh(w(x))+tanh(f(x,par))", "tanh(w(x))", "tanh(x)", "tanh(w(x))+tanh(f(x,par))", "tanh(f(x,par))+tanh(w(x))"},
+         {"tanh(shift(z0,1))+tanh(par)", "tanh(shift(z0,1))", "tanh(par)", "tanh(shift(z0,1))", "z1+tanh(shift(z0,1))"},
+         {"tanh(x)+if(x)then(tanh(x))else(tanh(par))", "if(x)then(tanh(x))else(0)", "tanh(x)+sum(0,2)of(tanh(x))", "if(par)then(tanh(x))else(tanh(par))+tanh(x)", "sum(0,1)of(tanh(i'))+tanh(x)"},
+         {"ran(1)+tanh(x)+normal(0,1)", "ran(1)+tanh(x)", "tanh(x)+ran(1)", "normal(0,1)*tanh(x)", "tanh(x)"}}) {
+        count=0;
         for (const char *text:fixed) expression(text);
         CHECK(xpp::compile_model(s).has_value());
         for (const double x:{-0.0,1.0,-2.5,1e200,std::numeric_limits<double>::infinity(),std::bit_cast<double>(std::uint64_t{0x7ff8000000001234})}) {
             for (size_t i=0;i<s.parser.variables.size();++i) s.parser.variables[i]=0.5*static_cast<double>(i%7)-1.0;
             s.parser.variables[1]=x;
             s.parser.constants[2]=x+4.0;
-            same_fixed(s);
+            same_rhs(s);
+            CHECK(m.native_equations);
         }
     }
     /* Models with lookup tables, networks, vectorizers, kernels, delays, sums and shifts,
        Markov chains, integral equations and draws: every equation of each, as loaded, from
        its own state and a changed one, and the loaded model compiled whole. */
     std::set<std::string> kinds;
+    int whole=0; /* the models whose whole right-hand side is native */
     for (const auto *path:{"tools/models/compile_derived.odex", "examples/canonical/swindale.odex", "examples/canonical/gb_wnet.odex", "examples/ode/koho.odex",
          "examples/ode/angela.odex", "examples/ode/gausvolt.odex", "examples/ode/kuramot100.odex",
          "examples/ode/waterwheel.odex", "examples/canonical/mackey.odex", "examples/ode/kohox.odex",
@@ -333,9 +354,13 @@ int main()
                     entry.code->rpn=operands;
                 }
             }
-            if (t.model().fix_var>0) same_fixed(t);
+            if (t.model().native_rhs) same_rhs(t);
+            /* every program of these models compiles: the whole right-hand side does when nothing runs inside it */
+            CHECK(t.model().native_equations==(t.model().nnetwork==0 && t.model().nsvar==0 && t.model().naeqn==0));
+            whole+=t.model().native_equations;
         }
     }
+    CHECK(whole>0);
     for (const auto *kind:{"p_eq","p_fun","p_solv","p_dae","p_markov","p_kernel","p_convolution","p_condition","p_event","p_derived","p_network"})
         CHECK(kinds.contains(kind));
     TEST_REPORT("compiled programs");
