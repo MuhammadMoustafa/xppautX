@@ -1,5 +1,4 @@
-#ifndef _dae_fun_h_
-#define _dae_fun_h_
+#pragma once
 
 #include <array>
 #include <optional>
@@ -72,4 +71,3 @@ int solve_dae(Session &s);
 void get_new_guesses(Session &s);
 
 } // namespace xpp
-#endif

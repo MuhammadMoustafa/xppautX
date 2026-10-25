@@ -48,8 +48,7 @@
  ******************************************************************/
  
 
-#ifndef _band_h
-#define _band_h
+#pragma once
 
 
 #include "llnltyps.h"
@@ -478,5 +477,4 @@ void bandaddI(real **a, integer n, integer smu);
 
 #ifdef __cplusplus
 }
-#endif
 #endif

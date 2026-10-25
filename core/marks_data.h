@@ -1,5 +1,4 @@
-#ifndef MARKS_DATA_H
-#define MARKS_DATA_H
+#pragma once
 
 #include <array>
 #include <cstring>
@@ -94,4 +93,3 @@ void marks_data_frozen(Session &s, XppWinId w, int slot);
 void marks_data_frozen_new(Session &s, int slot);
 
 } // namespace xpp
-#endif

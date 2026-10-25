@@ -20,8 +20,7 @@
    that calls them; the front end's own operations that core code reaches
    with no Session (an ask, a checkpoint) take the client's (client(),
    below). */
-#ifndef XPP_UI_JSON_INTERNAL_H
-#define XPP_UI_JSON_INTERNAL_H
+#pragma once
 
 #ifndef __cplusplus
 #error "ui_json_internal.h is C++ only"
@@ -281,8 +280,7 @@ struct Buf {
     std::string s;
 };
 
-/* a failed allocation ends the program (xpp::out_of_memory, xpp_mem.h):
-   no exception leaves the front end's functions, which the core calls as C */
+/* a failed allocation ends the program (xpp::out_of_memory, xpp_mem.h) */
 
 void buf_add(Buf *b, const char *s, size_t n);
 /* std::format into a Buf (type-checked at compile time; the formatting
@@ -508,4 +506,3 @@ void j_ani_show(void);
 
 } // namespace xpp::json
 
-#endif

@@ -18,9 +18,8 @@ output.dat
 *.tgz
 *.bak
 *conflicted copy*
-# everything a build writes; build/legacy holds upstream Makefiles, kept
-/build/*
-!/build/legacy/
+# everything a build writes
+/build/
 /xppautX
 /xppautX.app/
 /libxppcore.a

@@ -553,7 +553,7 @@ if (y0==NULL) {
   /* cv_mem goes to the caller as the opaque void *cvode_mem handle
      (cv2.cpp keeps it for the lifetime of the solver, CVodeFree deletes
      it); owned here until then, so a return on an error frees it.
-     Value-initialised (zeroed), as the xpp_malloc block it replaces was. */
+     Value-initialised (zeroed). */
   std::unique_ptr<CVodeMemRec> owner(new CVodeMemRec());
   cv_mem = owner.get();
 

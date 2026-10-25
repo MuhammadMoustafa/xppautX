@@ -1,5 +1,4 @@
-#ifndef AUTO_STABILITY_AUTO_H
-#define AUTO_STABILITY_AUTO_H
+#pragma once
 /* The stability owner's numerical seam. Keep AUTO's legacy scalar types
    out of auto_stability.h, which every Session (including CVODE) includes. */
 #include "auto_c.h"
@@ -31,4 +30,3 @@ void auto_cycle_multipliers(const iap_type &iap, const double *p0, const double 
 void auto_stability_multipliers_restored(AutoStability &st, const iap_type &iap, double *p0, double *p1);
 
 } // namespace xpp
-#endif

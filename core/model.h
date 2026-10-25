@@ -1,5 +1,4 @@
-#ifndef XPP_MODEL_H
-#define XPP_MODEL_H
+#pragma once
 /* xpp::Model: what loading a model produces (AGENTS.md "No global state";
    docs/roadmap.md W46c, the start of W47b). C++ only.
 
@@ -413,4 +412,3 @@ struct Model {
 
 }
 
-#endif

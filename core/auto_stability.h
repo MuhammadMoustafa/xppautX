@@ -1,5 +1,4 @@
-#ifndef AUTO_STABILITY_H
-#define AUTO_STABILITY_H
+#pragma once
 
 /* The one source of truth for the stability values of AUTO's points
    (issue #27, W15): the eigenvalues of a steady state, the Floquet
@@ -84,4 +83,3 @@ int auto_stability_run_start(AutoStability &st, AutoStabilityKind run, int isw, 
 int auto_stability_for(const AutoStability &st, int br, int pt, std::span<double> evr, std::span<double> evi);
 
 } // namespace xpp
-#endif

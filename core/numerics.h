@@ -1,5 +1,4 @@
-#ifndef _numerics_h_
-#define _numerics_h_
+#pragma once
 
 namespace xpp {
 
@@ -24,4 +23,3 @@ void set_col_par_com(Session &s, int i);
 void do_meth(Session &s);
 
 } // namespace xpp
-#endif

@@ -1,5 +1,4 @@
-#ifndef _del_stab_h_
-#define _del_stab_h_
+#pragma once
 
 #include "xpp_error.h"
 
@@ -33,4 +32,3 @@ int find_positive_root(Session &s, double *coef, double *delay, int n, int m, do
 Result<> do_delay_sing(Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo);
 
 } // namespace xpp
-#endif

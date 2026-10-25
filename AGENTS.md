@@ -1269,9 +1269,6 @@ external, 615 internal at -O0 (461 of them vendored EISPACK).
   (xpp_util.cpp, ends in `~`); the JSON front end always sends names
   whole. tools/models/longnames.ode (200-character names), autocheck's
   `names` section and tests/test_names.cpp are the test.
-- The refactoring scripts under `tools/` (guard_x11_headers.py, move_funcs.py,
-  ui_seam_refactor.py, phase2_step*.py, cxx_guard_headers.py) are one-shot and already applied;
-  keep them for the record, do not re-run them.
 - Files on disk may be CRLF (Windows checkout); scripts that edit them must
   preserve line endings. Python written with `newline=''` does.
 - Commit messages: imperative subject, body explains why, include the metric

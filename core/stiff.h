@@ -1,5 +1,4 @@
-#ifndef _stiff_h_
-#define _stiff_h_
+#pragma once
 
 namespace xpp {
 
@@ -13,4 +12,3 @@ int rkqs(Session &s, double *y, double *dydx, int n, double *x, double htry, dou
 void rkck(Session &s, double *y, double *dydx, int n, double x, double h, double *yout, double *yerr, double *work);
 
 } // namespace xpp
-#endif

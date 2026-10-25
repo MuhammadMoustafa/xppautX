@@ -1,5 +1,4 @@
-#ifndef XPP_WINDOW_H
-#define XPP_WINDOW_H
+#pragma once
 
 /* The desktop window (xpp_window.cpp, docs/roadmap.md W13a), in namespace
    xpp::window (W109f): web2 in the operating system's own web view (the
@@ -55,4 +54,3 @@ const char *launch_document();
 #endif
 
 } // namespace xpp::window
-#endif

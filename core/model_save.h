@@ -1,5 +1,4 @@
-#ifndef XPP_MODEL_SAVE_H
-#define XPP_MODEL_SAVE_H
+#pragma once
 /* Save values into the model file (W320, sets-design.md sections 6, 7 and 9):
    a new set, a set's part replaced, the defaults, an export to another .odex,
    a set renamed or deleted. Every one builds the new text of the file with
@@ -46,4 +45,3 @@ std::vector<std::string> own_set_names(const Session &s);
 
 }
 
-#endif

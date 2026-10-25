@@ -1,6 +1,5 @@
 
-#ifndef _delay_handle_h_
-#define _delay_handle_h_
+#pragma once
 
 #include <array>
 #include <span>
@@ -45,4 +44,3 @@ struct DelayState {
 };
 
 } // namespace xpp
-#endif

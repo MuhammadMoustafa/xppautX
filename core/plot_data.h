@@ -1,5 +1,4 @@
-#ifndef PLOT_DATA_H
-#define PLOT_DATA_H
+#pragma once
 
 #include <string_view>
 
@@ -54,4 +53,3 @@ void plot_data_rows_stored(Session &s, int nrows);
 void plot_data_update(Session &s);
 
 } // namespace xpp
-#endif

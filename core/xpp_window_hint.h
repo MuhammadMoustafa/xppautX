@@ -1,5 +1,4 @@
-#ifndef XPP_WINDOW_HINT_H
-#define XPP_WINDOW_HINT_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -42,4 +41,3 @@ inline std::string webview_error_message(int code, std::string_view msg)
 }
 } // namespace xpp
 
-#endif

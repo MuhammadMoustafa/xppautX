@@ -48,8 +48,7 @@
  ******************************************************************/
  
 
-#ifndef _dense_h
-#define _dense_h
+#pragma once
 
 
 #include "llnltyps.h"
@@ -369,5 +368,4 @@ void denaddI(real **a, integer n);
 
 #ifdef __cplusplus
 }
-#endif
 #endif

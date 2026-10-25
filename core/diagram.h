@@ -1,5 +1,4 @@
-#ifndef _diagram_h_
-#define _diagram_h_
+#pragma once
 /* AUTO's bifurcation diagram (diagram.cpp). C++ only. */
 
 #include <stdio.h>
@@ -69,4 +68,3 @@ double diagram_axis_value(const xpp::DIAGRAM &point, xpp::AutoAxis axis);
 std::vector<double> diagram_parameters(const xpp::DIAGRAM &point);
 /* Attach the current computed branch, capturing all model parameters once. */
 void diagram_record_branch(xpp::Session &s, xpp::DIAGRAM &point);
-#endif

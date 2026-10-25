@@ -15,8 +15,7 @@
  ******************************************************************/
 
 
-#ifndef _cvband_h
-#define _cvband_h
+#pragma once
 
 
 #include "cvode.h"
@@ -214,7 +213,6 @@ void CVBandDQJac(integer N, integer mupper, integer mlower, BandMat J,
 
 #ifdef __cplusplus
 }
-#endif
 #endif
 
 

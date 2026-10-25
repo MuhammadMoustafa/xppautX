@@ -1,5 +1,4 @@
-#ifndef XPP_OPEN_MODEL_H
-#define XPP_OPEN_MODEL_H
+#pragma once
 /* What File > Open model accepts, said once (W232): the dialog the core asks
    (model_switch.cpp), the desktop window's native one (xpp_window.cpp) and
    the start screen's Open model button all offer these. A .ode is converted
@@ -34,4 +33,3 @@ inline std::string open_model_wild()
 
 } // namespace xpp
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef _my_ps_h_
-#define _my_ps_h_
+#pragma once
 
 #include <stdio.h>
 #include <string>
@@ -64,4 +63,3 @@ int ps_ask_params(Session &s);
 std::vector<std::string> ps_parameter_values(const Session &s);
 
 } // namespace xpp
-#endif

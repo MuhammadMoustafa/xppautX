@@ -80,7 +80,7 @@ void compile_svars(xpp::Session &s)
   for(i=0;i<m.naeqn;i++){
     if(add_expr(s,m.aeqns[i].rhs,m.aeqns[i].form.rpn,&n)==1)
       model_failed(xpp::Error{"DAE","Bad right-hand side for the algebraic equation",m.aeqns[i].where});
-    /* n+2, zero-padded like the xpp_malloc block this replaces: evaluate(s,)
+    /* n+2, zero-padded: evaluate(s,)
        may read a couple of entries past the parsed length. */
     m.aeqns[i].form.rpn.resize(n+2, 0);
   }

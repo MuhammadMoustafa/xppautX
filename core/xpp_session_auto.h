@@ -1,5 +1,4 @@
-#ifndef XPP_SESSION_AUTO_H
-#define XPP_SESSION_AUTO_H
+#pragma once
 /* The session's auto/ members: settings, views, full-precision diagram
    and AUTO's restart orbits. The pure serializers are xpp_session_auto.cpp;
    xpp_session_auto_io.cpp gathers and restores the session's state. The
@@ -139,4 +138,3 @@ Result<> restore_members(Session &s, Members m);
 
 } // namespace xpp::snapx::auto_members
 
-#endif

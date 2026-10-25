@@ -1,5 +1,4 @@
-#ifndef AUTO_DATA_H
-#define AUTO_DATA_H
+#pragma once
 #include <stddef.h>
 
 #include <string>
@@ -11,7 +10,7 @@
    diagram as data", docs/ui-v2.md event 7).
 
    - The info strip (window 103 of the X11 program) is what
-     traverse_out() in auto_nox.c shows for the point a grab's cursor is on:
+     traverse_out() in auto_nox.cpp shows for the point a grab's cursor is on:
      branch, point, type, label, the parameters, the norm, the plotted
      variable's value and the period.
    - The stability circle (window 102) holds a stored diagram point's
@@ -26,7 +25,7 @@
    - Why the run's last branch ended (auto_stop.h, T23): "stop", null
      until a branch ends; a run's start and a new AUTO window clear it.
 
-   auto_nox.c reports the strip and the circle as it draws them; the front
+   auto_nox.cpp reports the strip and the circle as it draws them; the front
    end sends the event at the end of a command, before every prompt and at
    most ten times a second while AUTO runs, and only when it differs from the one it sent
    last. The client's subscription and pacing are the protocol client's
@@ -95,4 +94,3 @@ void auto_data_update(const Session &s, int final);
 void auto_data_hold(Session &s, int on);
 
 } // namespace xpp
-#endif

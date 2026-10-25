@@ -1,5 +1,4 @@
-#ifndef XPP_MATH_AUTO_H
-#define XPP_MATH_AUTO_H
+#pragma once
 
 /* AUTO-specific interfaces of the numerical owner. Kept out of xpp_math.h
    because f2c and CVODE define incompatible global real/integer types. */
@@ -84,4 +83,3 @@ int ortran(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, d
 
 } // namespace xpp
 
-#endif

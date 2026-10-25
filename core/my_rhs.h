@@ -1,5 +1,4 @@
-#ifndef _my_rhs_h_
-#define _my_rhs_h_
+#pragma once
 /* The model's right-hand side (my_rhs.cpp), in the Session s: the run's,
    which the solvers reach through IntegratorState::rhs (integrate.h).
    C++ only. */
@@ -23,4 +22,3 @@ void fix_only(xpp::Session &s);
 /* ydot, the ODEs' right-hand sides from the variables as they are */
 void rhs_only(xpp::Session &s, double *ydot);
 void vec_rhs(double t, double *y, double *ydot, int neq);
-#endif

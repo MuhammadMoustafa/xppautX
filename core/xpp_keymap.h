@@ -1,5 +1,4 @@
-#ifndef XPP_KEYMAP_H
-#define XPP_KEYMAP_H
+#pragma once
 /* keymap.json (W211, docs/command-design.md "Settings file"): the user's
    own differences from the command table's defaults, in the per-user config
    folder (files::config_dir). The one owner: how a key is written, what a
@@ -105,4 +104,3 @@ std::string effective_json(const Result<Keymap> &loaded);
 
 } // namespace xpp::keymap
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef _form_ode_h
-#define _form_ode_h
+#pragma once
 
 #include "xpplim.h"
 #include "newpars.h"
@@ -16,12 +15,6 @@ namespace xpp {
 
 struct Model;   /* model.h */
 struct Session; /* session.h */
-
-/* --convert: an old-style file read is rewritten in the new syntax, into
-   the loading Session's parser.convert (markov.cpp writes it too). The
-   command line's flag (comline.cpp), which a model read in the new
-   syntax clears for the rest of the run */
-extern int ConvertStyle;
 
 /* a model statement that calls compiled C code (export, dll_lib, dll_fun,
    a network's import; W55 removed them): the load fails at the line,
@@ -82,4 +75,3 @@ void set_bc_formula(Session &s, int i, std::string_view string);
 void set_ode_name(Model &m, int i, std::string_view text);
 
 } // namespace xpp
-#endif

@@ -1,5 +1,4 @@
-#ifndef XPP_FILES_H
-#define XPP_FILES_H
+#pragma once
 
 #include "xpp_error.h"
 
@@ -337,4 +336,3 @@ private:
 };
 } // namespace xpp
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef XPP_SETX_H
-#define XPP_SETX_H
+#pragma once
 /* The settings syntax (W284, docs/odex.md ".setx"): .odex's options
    syntax, `key: value` entries separated by commas, groups `{ ... }`
    nested, a trailing comma allowed, a bare one-token value or a value in
@@ -215,4 +214,3 @@ bool is_bare_word(std::string_view text);
 
 } // namespace xpp::setx
 
-#endif

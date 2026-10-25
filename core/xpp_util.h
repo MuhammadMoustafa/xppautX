@@ -1,5 +1,4 @@
-#ifndef XPP_UTIL_H
-#define XPP_UTIL_H
+#pragma once
 
 #include <stdio.h>
 #include "xpp_types.h"
@@ -186,4 +185,3 @@ private:
 };
 
 } // namespace xpp
-#endif

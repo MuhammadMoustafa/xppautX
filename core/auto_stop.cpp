@@ -117,8 +117,6 @@ void auto_stop_last(const AutoStop &st, AutoStopInfo *out)
     out->limit = st.last_limit;
 }
 
-const char *auto_stop_key(int why) { return why >= 0 && why < AUTO_STOP_N ? keys[why] : nullptr; }
-
 void auto_stop_branch_end(Session &s, const AutoStopAt *at)
 {
     AutoStop &st = s.auto_state.stop;

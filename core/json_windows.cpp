@@ -567,7 +567,7 @@ void aplot_command(xpp::Session &s, const char *line)
     }
     if (!s.array_plot.plot.alive) return;
     if (o == "scroll") {
-        /* dragging the plot by dy pixels moves the first row, as in X11 */
+        /* dragging the plot by dy pixels moves the first row */
         s.array_plot.plot.nstart -= get_int(line, "dy", 0);
         if (s.array_plot.plot.nstart < 0) s.array_plot.plot.nstart = 0;
         send_aplot(s, NULL);

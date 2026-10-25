@@ -1,5 +1,4 @@
-#ifndef XPP_EXPR_DERIVATIVE_H
-#define XPP_EXPR_DERIVATIVE_H
+#pragma once
 /* Symbolic differentiation of a model's programs (W260): the exact
    Jacobian's derivatives. A program (expr_program.h) is read into a graph
    of values with no side effects, each value once (Symbolic), and every
@@ -130,4 +129,3 @@ Result<ModelDerivatives> differentiate_model(const xpp::Session &s, std::span<co
 
 } // namespace xpp::expr
 
-#endif

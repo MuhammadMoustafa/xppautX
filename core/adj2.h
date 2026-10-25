@@ -1,5 +1,4 @@
-#ifndef _adj2_h_
-#define _adj2_h_
+#pragma once
 
 #include <cstdio>
 #include <array>
@@ -74,4 +73,3 @@ Result<> step_eul(double **jac, int k, int k2, double *yold, double *work, int n
 Result<double> hrw_liapunov(Session &s, double eps);
 
 } // namespace xpp
-#endif

@@ -48,10 +48,6 @@ namespace xpp {
 XppBatchOptions batch_options;
 
 
-/* nullcline.c / integrate.c batch helpers without a header prototype */
-
-/* ---- moved from main.c (appended by tools/move_funcs.py) --------------- */
-
 void check_for_quiet(xpp::Session &s, int argc, char **argv)
 {
 	/*First scan, check for any QUIET option set...*/
@@ -129,10 +125,8 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch,
     xpp::init_alloc_info(s);
     xpp::set_init_guess(s);
     update_all_ffts(s);
-#ifdef AUTO
     init_auto_win(s);
     auto_threads_load(s);
-#endif
     if (disc(m)) {
         const auto picked = pick_method(m, "Discrete", Load::place());
         if (!picked) model_failed(picked.error());

@@ -40,8 +40,7 @@
  ****************************************************************/
  
 
-#ifndef vector_h
-#define vector_h
+#pragma once
 
 
 #include "llnltyps.h"
@@ -322,5 +321,4 @@ real N_VMin(N_Vector x);
  
 #ifdef __cplusplus
 }
-#endif
 #endif

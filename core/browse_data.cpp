@@ -1,6 +1,6 @@
 /* The data side of the browser: the one BROWSER instance, its storage
-   pointer, row/column bookkeeping and the file writer. No X11 here; the
-   widget code that displays it stays in browse.c. */
+   pointer, row/column bookkeeping and the file writer. The page
+   displays it. */
 #include "xpp_files.h"
 #include <array>
 #include <chrono>

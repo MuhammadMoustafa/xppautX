@@ -98,8 +98,12 @@ int main()
     xpp::auto_stop_last(stop, &st);
     CHECK_STR(st.text, "the branch reached Max points (NMX 7)");
 
-    CHECK_STR(xpp::auto_stop_key(xpp::AUTO_STOP_NOCONV_SWITCH_FIXED), "noconv-switch-fixed");
-    CHECK(xpp::auto_stop_key(xpp::AUTO_STOP_N) == nullptr);
+    at = inside();
+    at.noconv = 1;
+    xpp::auto_stop_noconv(stop, xpp::AUTO_STOP_NOCONV_SWITCH_FIXED, 0.0, 0.0);
+    xpp::auto_stop_branch_end(xpp::client_session(), &at);
+    xpp::auto_stop_last(stop, &st);
+    CHECK_STR(st.key, "noconv-switch-fixed");
     xpp::auto_stop_clear(stop);
     xpp::auto_stop_last(stop, &st);
     CHECK(st.why == xpp::AUTO_STOP_NONE);

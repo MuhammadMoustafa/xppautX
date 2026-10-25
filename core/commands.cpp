@@ -1,8 +1,7 @@
 /* The command layer: the main-window key handler (commander), the M_*
    command switch (run_the_commands) and the pop-up menus that lead to it.
-   Moved out of main.c and menudrive.c so that every front end drives XPP
-   through the same code. Menus are data (menus.c) and are shown with
-   menu_choose(); see xpp_ui.h. */
+   Every front end drives xppautX through this one code. Menus are data
+   (menus.cpp) and are shown with menu_choose(); see xpp_ui.h. */
 #include "xpp_files.h"
 #include "xpp_ui.h"
 #include "image_format.h"
@@ -72,7 +71,7 @@ void show_main_menu(xpp::Session &s, int which)
 
 /* ---- things the File menu runs without a pop-up ---------------------- */
 
-/* ---- commands that were in X11 files -------------------------------- */
+/* ---- commands the menus run through the command switch --------------- */
 
 void do_movie_com(xpp::Session &s, int c)
 {
@@ -382,9 +381,7 @@ static void do_file_com(xpp::Session &s, int com)
   case M_FP: make_txtview(s); break;
   case M_FS: xpp::file_inf(s); break;
   case M_FA:
-#ifdef AUTO
     do_auto_win(s);
-#endif
     break;
   case M_FC: q_calc(s); break;
   case M_FR: xpp::import_settings_command(s); break;
@@ -511,9 +508,7 @@ void commander(xpp::Session &s, int ch)
     case 's': flash(2); xpp::file_inf(s); flash(2); break;
     case 'a':
       flash(3);
-#ifdef AUTO
       do_auto_win(s);
-#endif
       flash(3);
       break;
     case 'c': flash(4); q_calc(s); flash(4); break;

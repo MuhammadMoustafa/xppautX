@@ -1,5 +1,4 @@
-#ifndef XPP_PREFS_H
-#define XPP_PREFS_H
+#pragma once
 /* The program's preferences (W287): what xppautX keeps for the user across
    runs, in one file of the per-user config folder (files::config_dir),
    preferences.setx, in the settings syntax (setx.h, docs/odex.md ".setx").
@@ -112,4 +111,3 @@ Result<> update_prefs(const std::function<void(Preferences &)> &change);
 
 } // namespace xpp::prefs
 
-#endif

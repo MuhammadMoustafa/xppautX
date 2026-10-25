@@ -620,7 +620,7 @@ xpp::Result<> rooter(xpp::Session &s, double *x, double err, double eps, double 
  return {};
 }
 
-double sqr2(double z)
+static double sqr2(double z)
 {
 return(z*z);
 }

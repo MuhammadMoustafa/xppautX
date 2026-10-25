@@ -1,5 +1,4 @@
-#ifndef XPP_SESSION_H
-#define XPP_SESSION_H
+#pragma once
 #include "xpp_files.h"
 #include "jacobian.h"
 /* xpp::Session: everything a run changes (AGENTS.md "No global state";
@@ -349,4 +348,3 @@ private:
 
 }
 
-#endif

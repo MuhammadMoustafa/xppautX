@@ -1,5 +1,4 @@
-#ifndef JSON_NUMBER_H
-#define JSON_NUMBER_H
+#pragma once
 /* The one JSON number writer (docs/protocol.md, AGENTS.md "Single source"):
    JSON has no NaN or Infinity, so a non-finite double becomes the literal
    "null" instead of "-nan"/"inf", which is not valid JSON. Everything that
@@ -34,4 +33,3 @@ void json_append_field(std::string &s, const char *name, double v);
 
 } // namespace xpp::json
 
-#endif

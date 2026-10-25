@@ -1,5 +1,4 @@
-#ifndef _integrate_h_
-#define _integrate_h_
+#pragma once
 
 #include <algorithm>
 #include <functional>
@@ -277,4 +276,3 @@ Result<> shoot_easy(Session &s, double *x);
 Result<> do_monte_carlo_search(Session &s, int append, int stuffbrowse,int ishoot);
 
 } // namespace xpp
-#endif

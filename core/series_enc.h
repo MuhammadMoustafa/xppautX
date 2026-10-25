@@ -1,5 +1,4 @@
-#ifndef SERIES_ENC_H
-#define SERIES_ENC_H
+#pragma once
 
 #include <string>
 
@@ -16,4 +15,3 @@
 
    series_enc.cpp; nothing escapes it. */
 void xpp_series_append(std::string &out, const float *v, int n, int f32) noexcept;
-#endif

@@ -1,6 +1,5 @@
 
-#ifndef _my_svg_h_
-#define _my_svg_h_
+#pragma once
 
 #include "xpp_error.h"
 #include "my_ps.h"
@@ -28,4 +27,3 @@ void special_put_text_svg(Session &s, int x, int y, const char *str, int size);
 void svg_text(Session &s, int x, int y, const char *str);
 
 } // namespace xpp
-#endif

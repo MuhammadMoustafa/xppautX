@@ -1,5 +1,4 @@
-#ifndef _aniparse_h_
-#define _aniparse_h_
+#pragma once
 
 #include "xpplim.h"
 #include "xpp_types.h"
@@ -138,4 +137,3 @@ void render_ani(Session &s);
 void set_ani_perm(Session &s);
 
 } // namespace xpp
-#endif

@@ -1,4 +1,4 @@
-/* The animation window (aniwin.c without X): its slider and buttons, and
+/* The animation window: its slider and buttons, and
    Go, which plays the frames (ani_data.cpp sends them) and can write them
    to files with the pixels the client renders. */
 #include "ui_json_internal.h"

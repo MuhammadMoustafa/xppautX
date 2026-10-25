@@ -1,5 +1,4 @@
-#ifndef XPP_TCC_H
-#define XPP_TCC_H
+#pragma once
 
 #include "xpp_error.h"
 #include <memory>
@@ -33,4 +32,3 @@ private:
 };
 
 } // namespace xpp::tcc
-#endif

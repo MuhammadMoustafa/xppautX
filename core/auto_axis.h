@@ -1,5 +1,4 @@
-#ifndef AUTO_AXIS_H
-#define AUTO_AXIS_H
+#pragma once
 
 /* What a stored AUTO point continued in (W330, #391): a tagged value, not an
    integer that means a model parameter below the model's size and an AUTO
@@ -54,4 +53,3 @@ constexpr std::optional<AutoAxis> auto_axis_decode(long code, int model_paramete
 
 } // namespace xpp
 
-#endif

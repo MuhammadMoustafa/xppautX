@@ -5,8 +5,8 @@
    diagram, animation frames: the page draws them); keys, parameter edits
    and the answers to prompts come in as commands ("cmd"). A prompt (menu,
    string box, file name, mouse pick, ...) is an "ask" event with an id; the
-   core blocks until the matching {"cmd":"answer","id":N,...} arrives, the
-   same way the X11 front end runs a nested event loop. See docs/protocol.md.
+   core blocks until the matching {"cmd":"answer","id":N,...} arrives.
+   See docs/protocol.md.
 
    This file holds the XppUi table, the command dispatch, the input
    classifier, install and hello; ui_json_internal.h names
@@ -1196,7 +1196,7 @@ void send_hello(xpp::Session &s)
     }
     BUF_LIT(&b, "}");
     buf_commands(&b);
-    /* the lists a form field *n picks from (pop_list.c make_scrbox_lists) */
+    /* the lists a form field *n picks from */
     BUF_LIT(&b, ",\"lists\":[[\"T\"");
     for (i = 0; i < m.neq; i++) {
         BUF_LIT(&b, ",");

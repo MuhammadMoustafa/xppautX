@@ -1,5 +1,4 @@
-#ifndef XPP_EXPR_PROGRAM_H
-#define XPP_EXPR_PROGRAM_H
+#pragma once
 /* A compiled program: what a compiler writes (expr_compile.cpp's add_expr,
    and the .odex parser's, W74) and the evaluator runs (expr_eval.cpp's
    evaluate). C++ only, the expression engine's own (expr.h).
@@ -236,4 +235,3 @@ double do_random_normal(xpp::Session &s, double mean, double sd);
 
 }
 
-#endif

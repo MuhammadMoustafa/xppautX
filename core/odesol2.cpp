@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <functional>
 #include "odesol2.h"
 #include "jacobian.h"
@@ -16,8 +17,6 @@
 
 namespace xpp {
 
-#define MAX(a,b) ((a)>(b)?(a):(b))
-#define MIN(a,b) ((a)<(b)?(a):(b))
 
 
 constexpr double coefp[]={ 6.875/3.00,-7.375/3.00,4.625/3.00,-.375},
@@ -438,12 +437,12 @@ int *istart,int n,double *work,int *ierr)
    htry=hmax;
  s.integrator.rhs(t0,y,f0,n);
  hmin=16*eps*fabs(t);
- absh = MIN(hmax, MAX(hmin, htry));
+ absh = std::min(std::max(htry, hmin), hmax);
  while(!done)
    {
      nofailed=1;
      hmin = 16*eps*fabs(t);
-     absh = MIN(hmax, MAX(hmin, absh));
+     absh = std::min(std::max(absh, hmin), hmax);
      h = tdir * absh;
      if(1.1*absh >= fabs(tfinal - t)){
        h = tfinal - t;
@@ -451,7 +450,7 @@ int *istart,int n,double *work,int *ierr)
        done = 1;
      }
      get_the_jac(s,t,y,f0,dfdy,n,epsjac,1.0);
-     tdel = (t + tdir*MIN(sqrteps*MAX(fabs(t),fabs(t+h)),absh)) - t;
+     tdel = (t + tdir*std::min(absh,sqrteps*std::max(fabs(t+h),fabs(t)))) - t;
      s.integrator.rhs(t+tdel,y,f1,n);
      for(i=0;i<n;i++)
        dfdt[i]=(f1[i]-f0[i])/tdel;
@@ -499,7 +498,7 @@ int *istart,int n,double *work,int *ierr)
        */
        err=0.0;
        for(i=0;i<n;i++){
-	 temp=MAX(MAX(fabs(y[i]),fabs(ynew[i])),thresh);
+	 temp=std::max(thresh,std::max(fabs(ynew[i]),fabs(y[i])));
 	 temp=fabs(k1[i]-2*k2[i]+k3[i])/temp;
 	 if(err<temp)err=temp;
        }
@@ -509,7 +508,7 @@ int *istart,int n,double *work,int *ierr)
            *ierr=-1;
 	   return(-1);
 	 }
-	 absh = MAX(hmin, absh * MAX(0.1, xpp::math::pow(0.8*(rtol/err),1./3.)));
+	 absh = std::max(absh * std::max(xpp::math::pow(0.8*(rtol/err),1./3.),0.1), hmin);
 	 h = tdir * absh;
 	 nofailed=0;
 	 done=0;

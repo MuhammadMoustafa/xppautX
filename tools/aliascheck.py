@@ -13,6 +13,8 @@ use the real name rather than add an entry.
 Usage: tools/aliascheck.py [--check]   (exit 1 on a finding)"""
 import re, sys, glob, os
 
+import cstrip
+
 # (file basename, alias name) -> reason
 ALLOW = {
     ("xpp_files_internal.h", "Stat"): "platform shim: struct stat vs _stat64",
@@ -29,33 +31,14 @@ ALLOW = {
     ("cvode.cpp", "HMAX_INV_DEFAULT"): "vendored CVODE default constant",
     ("cvode.cpp", "RDIV"): "vendored CVODE default constant",
     ("cvode.h", "Q_MAX"): "vendored CVODE default constant",
-    ("load_eqn.h", "XPP_MAX_NAME"): "FILENAME_MAX is the C library's, not ours",
 }
-
-def strip(text):
-    out, i, n = [], 0, len(text)
-    while i < n:
-        c = text[i]
-        if text.startswith("//", i):
-            while i < n and text[i] != "\n": i += 1
-        elif text.startswith("/*", i):
-            j = text.find("*/", i + 2); j = n if j < 0 else j + 2
-            out.append("\n" * text.count("\n", i, j)); i = j
-        elif c in "\"'":
-            j = i + 1
-            while j < n and text[j] != c and text[j] != "\n":
-                j += 2 if text[j] == "\\" else 1
-            out.append(c + c); i = j + 1
-        else:
-            out.append(c); i += 1
-    return "".join(out)
 
 BUILTIN = re.compile(r"^(unsigned |signed |long |short |const )*(int|char|float|double|long|short|bool|size_t|void)\b[\s\w*]*$")
 
 def check(path):
     bad = []
     base = os.path.basename(path)
-    text = strip(open(path, encoding="utf-8", errors="replace", newline="").read())
+    text = cstrip.strip(open(path, encoding="utf-8", errors="replace", newline="").read())
     ns = []   # stack: namespace name or None per open brace
     pending = None
     for no, line in enumerate(text.split("\n"), 1):

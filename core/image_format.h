@@ -1,5 +1,4 @@
-#ifndef _image_format_h_
-#define _image_format_h_
+#pragma once
 /* xpp::ImageFormat: the picture-export registry (W53, issue #101). Same
    idea as W51/W52's Solver/DataFormat tables: one row per format instead
    of a per-format branch at each place a picture is written or drawn
@@ -79,4 +78,3 @@ Result<bool> save_pixels(const ImageFormat &format, const char *filename, std::s
 const ImageFormat *find_image_format_by_extension(std::string_view extension);
 
 } // namespace xpp
-#endif

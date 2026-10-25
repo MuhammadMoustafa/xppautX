@@ -1,5 +1,4 @@
-#ifndef _gear_h_
-#define _gear_h_
+#pragma once
 
 #include <array>
 #include <vector>
@@ -12,7 +11,6 @@ struct Session; /* session.h */
 class Random;   /* xpp_math.h */
 
 void get_evec(Random &random, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval, int *ierr);
-double sqr2(double z);
 
 Result<> do_sing_info(Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 void pr_evec(Session &s, double *x, double *ev, int n, int pr, double eval,int type);
@@ -46,4 +44,3 @@ struct ManifoldShots {
 };
 
 } // namespace xpp
-#endif

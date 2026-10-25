@@ -1,5 +1,4 @@
-#ifndef XPP_EXPR_DECODE_H
-#define XPP_EXPR_DECODE_H
+#pragma once
 /* The one decoder of a compiled program's instructions (expr_program.h
    describes the format, W276): it reads the ints once, checks the whole
    program (every operand's range, the stack's depth at every instruction,
@@ -48,4 +47,3 @@ std::expected<std::vector<Instr>, std::string> decode(const Session &s, std::spa
 
 }
 
-#endif

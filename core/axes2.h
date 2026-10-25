@@ -1,6 +1,5 @@
 
-#ifndef _axes2_h_
-#define _axes2_h_
+#pragma once
 
 namespace xpp {
 struct Session; /* session.h */
@@ -12,4 +11,3 @@ void Box_axis(Session &s, double x_min, double x_max, double y_min, double y_max
               int flag);
 
 } // namespace xpp
-#endif

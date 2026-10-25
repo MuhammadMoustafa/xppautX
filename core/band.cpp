@@ -28,8 +28,7 @@ BandMat BandAllocMat(integer N, integer mu, integer ml, integer smu)
   if (N <= 0) return(NULL);
 
   /* The C API's raw handle (BandFreeMat deletes it), its elements in its
-     own std::vectors, zeroed like the xpp_malloc blocks they replace:
-     data[0] points to all N*(smu+ml+1), data[j] to the jth column's. */
+     own std::vectors, zeroed: data[0] points to all N*(smu+ml+1), data[j] to the jth column's. */
   integer colSize = smu + ml + 1;
   BandMat A = new BandMatRec();
   A->values.assign(N * colSize, ZERO);

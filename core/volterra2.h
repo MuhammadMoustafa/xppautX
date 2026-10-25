@@ -1,5 +1,4 @@
-#ifndef _volterra2_h_
-#define _volterra2_h_
+#pragma once
 
 namespace xpp {
 
@@ -20,4 +19,3 @@ int volterra(Session &s, double *y, double *t, double dt, int nt, int neq, int *
 int volt_step(Session &s, double *y, double t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac);
 
 } // namespace xpp
-#endif

@@ -8,8 +8,7 @@
  *                                                                *
  ******************************************************************/
 
-#ifndef _cvode_h
-#define _cvode_h
+#pragma once
 
 #include "llnltyps.h"
 #include <string>
@@ -730,5 +729,4 @@ typedef struct CVodeMemRec {
 
 #ifdef __cplusplus
 }
-#endif
 #endif

@@ -1,5 +1,4 @@
-#ifndef XPP_MEM_H
-#define XPP_MEM_H
+#pragma once
 
 /* xpp_mem.cpp. Every core allocation is C++ now (std::vector, std::string,
    std::unique_ptr, ...): the raw allocator this header used to declare
@@ -17,9 +16,8 @@
 
    The core never calls the C library's malloc/calloc/realloc/strdup/free
    directly (ZeroedFloats, below, is the one owner of calloc); the exceptions are memory that crosses a boundary with a
-   library, which keeps that library's allocator (Xlib's own memory,
-   XReadBitmapFileData's in main.c, goes back through XFree; dirname()
-   (auto_nox.c, aniparse.c) returns a pointer into its argument; getcwd()
+   library: dirname()
+   (auto_nox.cpp, aniparse.cpp) returns a pointer into its argument; getcwd()
    (xpp_files_dir.cpp) fills the caller's buffer). A new exception
    (getline, scandir, realpath(p, NULL), asprintf ...) is listed here and
    in tools/alloccheck.sh, which fails any other direct call
@@ -103,4 +101,3 @@ private:
 [[noreturn]] void out_of_memory_now(std::string_view what) noexcept;
 } // namespace xpp
 
-#endif

@@ -65,7 +65,6 @@ namespace xpp {
 
 
 
-int ConvertStyle=0;
 
 
 
@@ -337,16 +336,12 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
   int narg,done,nn,iflg=0,VFlag=0,nstates,alt,index,sign;
   int len; /* a program's length, from add_expr */
   std::string name,formula,condition;
-  /* the fixed variables' names, for a converted file */
-  std::vector<std::string> &fixname=s.parser.build.fixname;
-  int nlin,i;
+  int nlin;
   done=1;
   room_for_declared(s);
   if(bob[0]=='@'){
     if(add_model_option(m,bob)<0)
       model_failed(); /* the option said why, at this line */
-    if(ConvertStyle)
-      xpp::print(s.parser.convert.file(),"{}\n",bob.c_str());
     return(done);
   }
   xpp::Tokens tokens(bob);
@@ -370,20 +365,10 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
     case 'w':  /*  Make a Wiener (heh heh) constants  */
     case 'n':
       xpp::log(XPP_LOG_INFO, "{}", command[0]=='w'?"Wiener constants\n":" Hidden params:\n");
-      if(ConvertStyle)
-	xpp::print(s.parser.convert.file(),"{}",command[0]=='w'?"wiener ":"number ");
       for(const OdeItem &item : ode_items(values))
 	{
-	  if(ConvertStyle){
-	    if(command[0]=='w')
-	      xpp::print(s.parser.convert.file(),"{}  ",item.name);
-	    else
-	      xpp::print(s.parser.convert.file(),"{}={:g}  ",item.name,item.value);
-	  }
 	  add_constant(s,item.name,item.value,command[0]=='w');
 	}
-      if(ConvertStyle)
-	xpp::print(s.parser.convert.file(),"\n");
       xpp::log(XPP_LOG_DEBUG, "\n");
       break;
     case 'g': { /* global */
@@ -397,23 +382,14 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	model_failed();
       }
       add_flag(s,condition,sign,events);
-      if(ConvertStyle){
-	xpp::print(s.parser.convert.file(),"global {} {{{}}} {}\n",sign,condition,formula);
-      }
       break;
     }
     case 'p':
       xpp::log(XPP_LOG_INFO, "Parameters:\n");
-      if(ConvertStyle)
-	xpp::print(s.parser.convert.file(),"par ");
       for(const OdeItem &item : ode_items(values))
 	{
 	  add_parameter(s,item.name,item.value);
-	  if(ConvertStyle)
-	    xpp::print(s.parser.convert.file(),"{}={:g}  ",item.name,item.value);
 	}
-      if(ConvertStyle)
-	xpp::print(s.parser.convert.file(),"\n");
       xpp::log(XPP_LOG_DEBUG, "\n");
       break;
     case 'c':
@@ -433,8 +409,6 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       m.default_ic[s.parser.build.in_vars+m.nmarkov]=value;
       xpp::log(XPP_LOG_INFO, " Markov variable {}={:f} has {} states \n",name,value,nstates);
       xpp::add_markov(s,nstates,name.c_str());
-      if(ConvertStyle)
-	xpp::print(s.parser.convert.file(),"{}(0)={:g}\n",name,value);
       break;
     case 'r': /* state table for Markov variables  */
       name=tokens.text("\n");
@@ -445,8 +419,6 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
     case 'v':
       iflg=1;
       xpp::log(XPP_LOG_INFO, "\nVariables:\n");
-      if(ConvertStyle)
-	xpp::print(s.parser.convert.file(),"init ");
     vrs:
       if(m.nmarkov>0) {
 	xpp::log(XPP_LOG_WARN, " Error at line {:d} \n Must declare Markov variables after fixed and regular variables\n",m.nlines());
@@ -471,32 +443,18 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	      s.last_ic[s.parser.build.in_vars]=value;
               m.default_ic[s.parser.build.in_vars]=value;
 	      s.parser.build.in_vars++;
-	      if(ConvertStyle)
-		xpp::print(s.parser.convert.file(),"{}={:g}  ",name,value);
 	    }
-	  else {
-	    if(ConvertStyle){
-	      fixname.resize(m.fix_var+1);
-	      fixname[m.fix_var]=name;
-	    }
+	  else
 	    m.fix_var++;
-
-	  }
 	  xpp::log(XPP_LOG_DEBUG, "|{}| ",name);
 
 	}
       xpp::log(XPP_LOG_DEBUG, " \n");
-      if(iflg&&ConvertStyle)
-	xpp::print(s.parser.convert.file(),"\n");
       break;
     case 'b':
       add_boundary(s,tokens.text("\n"));
-      if(ConvertStyle)
-	xpp::print(s.parser.convert.file(),"bndry {}\n",m.bcs[s.model().bc_defined-1].string.data());
       break;
     case 'k':
-      if(ConvertStyle)
-	xpp::log(XPP_LOG_WARN, " Warning  kernel declaration cannot be converted \n");
       name=tokens.text(" ");
       value=atof(tokens.text(" ").c_str());
       formula=tokens.text("$");
@@ -529,9 +487,6 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	if(auto t=add_form_table(s,s.ntable,nn,xlo,xhi,formula);!t)
 	  table_failed(t.error());
 
-	if(ConvertStyle)
-	  xpp::print(s.parser.convert.file(),"table {} % {} {:g} {:g} {}\n",
-		  name,nn,xlo,xhi,formula);
 	s.ntable++;
 	xpp::log(XPP_LOG_INFO, " NTable = {:d} \n",s.ntable);
 
@@ -550,9 +505,6 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
             add_table_name(s,s.ntable,name);
 	    if(auto t=add_file_table(s,s.ntable,formula);!t)
 	      table_failed(t.error());
-	    if(ConvertStyle)
-	      xpp::print(s.parser.convert.file(),"table {} {}\n",
-		      name,formula);
 	    s.ntable++;
 	  }
       break;
@@ -562,15 +514,6 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       narg=atoi(tokens.text(" ").c_str());
       formula=tokens.text("$");
       xpp::log(XPP_LOG_INFO, "{} {} :\n",name,narg);
-      if(ConvertStyle){
-	xpp::print(s.parser.convert.file(),"{}(",name);
-	for(i=0;i<narg;i++){
-	  xpp::print(s.parser.convert.file(),"arg{}",i+1);
-	  if(i<(narg-1))
-	    xpp::print(s.parser.convert.file(),",");
-	}
-	xpp::print(s.parser.convert.file(),")={}",formula);
-      }
       m.define_name(name,xpp::Model::NameKind::Function,m.nfun,{0,xpp::Load::place().line,xpp::Load::place().col});
       if(add_ufun(s,name,formula,narg)){
 	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
@@ -593,12 +536,6 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       if(m.node<s.parser.build.in_vars)
 	{
 	  set_ode_name(m,m.node,formula);
-	  if(ConvertStyle){
-	    if(VFlag)
-	      xpp::print(s.parser.convert.file(),"volt {}={}\n",m.uvar_names[m.node],formula);
-	    else
-	      xpp::print(s.parser.convert.file(),"{}'={}\n",m.uvar_names[m.node],formula);
-	  }
 	  find_ker(s,formula,&alt);
 
 	  m.eq_type[m.node]=VFlag;
@@ -607,22 +544,13 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	}
       if(m.node>=s.parser.build.in_vars&&m.node<(s.parser.build.in_vars+m.fix_var))
 	{
-	  if(ConvertStyle)
-	    xpp::print(s.parser.convert.file(),"{}={}\n",fixname[m.node-s.parser.build.in_vars],formula);
 	  find_ker(s,formula,&alt);
 
 	}
 
       if(m.node>=(s.parser.build.in_vars+m.fix_var))
 	{
-	  i=m.node-(s.parser.build.in_vars+m.fix_var);
 	  set_ode_name(m,m.node-m.fix_var+m.nmarkov,formula);
-	  if(ConvertStyle){
-	    if(i<s.parser.build.naux)
-	      xpp::print(s.parser.convert.file(),"aux {}={}\n",s.parser.build.aux_names[i],formula);
-	    else
-	      xpp::print(s.parser.convert.file(),"aux aux{}={}\n",i+1,formula);
-	  }
 	}
       xpp::log(XPP_LOG_INFO, "RHS({})={}\n",m.node,formula);
       if(add_expr(s,formula,m.programs[m.node].rpn,&len)){
@@ -647,9 +575,6 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       break;
 
     default:
-      if(ConvertStyle) {
-	xpp::print(s.parser.convert.file(),"{} {}\n",command,tokens.text("\n"));
-      }
       break;
     }
 
@@ -811,23 +736,9 @@ void build_old_style(xpp::Session &s, int neq, FILE *fptr, const std::function<b
   begin_model(s);
   s.model().neq=neq;
   xpp::log(XPP_LOG_INFO, "NEQ={:d}\n",neq);
-  if(ConvertStyle){
-    const std::string &this_file=s.model().this_file;
-    std::string filename=this_file.empty()?std::string("convert.ode"):this_file+".new";
-    s.parser.convert=xpp::Writer(filename.c_str());
-    if(s.parser.convert.file()==NULL){
-      xpp::log(XPP_LOG_WARN, "{}; no conversion done\n",xpp::files::write_error("conversion",filename).text());
-      ConvertStyle=0;
-    }
-    xpp::print(s.parser.convert.file(),"# converted {} \n",this_file);
-  }
   std::string bob;
   for(int done=1;done&&next_line(bob);)
     done=compiler(s,bob,fptr);
-  if(ConvertStyle){
-    xpp::print(s.parser.convert.file(),"done\n");
-    if(const xpp::Result<> saved=s.parser.convert.commit();!saved)xpp::show_error(saved.error());
-  }
   finish_model(s);
 }
 
@@ -928,7 +839,6 @@ public:
   {
     xpp::Model &m=m_;
     m.ieee_division=p_.ieee_division;
-    ConvertStyle=0;
     begin_model(s_);
     /* every name the statements declare is one of their bindings (or the
        statement's own): the tables are as large as the file */

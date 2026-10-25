@@ -1,5 +1,4 @@
-#ifndef _volterra_h_
-#define _volterra_h_
+#pragma once
 
 #include "xpplim.h"
 #include "expr_program.h"
@@ -47,4 +46,3 @@ struct VolterraState {
 
 }
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef AUTO_CODES_H
-#define AUTO_CODES_H
+#pragma once
 
 /* The one owner of AUTO's problem and point-type codes (W329, #390):
    what AUTO's IPS and ITP integers mean, as types. Integers stay only at
@@ -268,4 +267,3 @@ inline std::string auto_point_unknown(long itp) { return xpp::format("{} is not 
 
 } // namespace xpp
 
-#endif

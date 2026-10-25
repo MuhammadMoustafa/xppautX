@@ -1,5 +1,4 @@
-#ifndef XPP_GETVAR_H
-#define XPP_GETVAR_H
+#pragma once
 #include "model.h"
 #include "session.h"
 /* the expression engine's variable i in the Session s (0 is t, then the
@@ -13,4 +12,3 @@ inline double getvar(const xpp::Session &s, int i)
 {
   return i<s.model().nvar ? s.parser.variables[i] : 0.0;
 }
-#endif

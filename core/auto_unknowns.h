@@ -1,5 +1,4 @@
-#ifndef XPP_AUTO_UNKNOWNS_H
-#define XPP_AUTO_UNKNOWNS_H
+#pragma once
 
 namespace xpp::auto_unknown {
 // PAR(10) holds the objective in algebraic and periodic optimization.
@@ -46,4 +45,3 @@ constexpr int homoclinic_blocks = 4;
 constexpr int block_size = 36;
 }
 
-#endif

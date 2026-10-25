@@ -1,5 +1,4 @@
-#ifndef XPP_SHA256_H
-#define XPP_SHA256_H
+#pragma once
 
 /* SHA-256 (FIPS 180-4), xpp_sha256.cpp. The file endpoints (xpp_files.h)
    list each file's digest so the page can tell whether a file it is about
@@ -29,4 +28,3 @@ private:
 
 } // namespace xpp
 
-#endif

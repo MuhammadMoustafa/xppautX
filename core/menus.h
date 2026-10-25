@@ -1,5 +1,4 @@
-#ifndef _menus_h_
-#define _menus_h_
+#pragma once
 
 #include <optional>
 #include <string>
@@ -121,4 +120,3 @@ extern const XppMenu menu_auto_plot_type, menu_auto_start, menu_auto_torus,
 std::string menu_label(std::string_view item);
 
 } // namespace xpp
-#endif

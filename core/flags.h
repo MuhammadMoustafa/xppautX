@@ -1,5 +1,4 @@
-#ifndef _flags_h_
-#define _flags_h_
+#pragma once
 /* the global flags (events) of the Session s's Model (flags.cpp), C++ only */
 #include <functional>
 #include <span>
@@ -36,5 +35,4 @@ int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &eve
 /* a flag: when cond crosses 0 in the direction sign, each event sets its
    name to its formula; 0, or 1 (said why) */
 int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<FlagEvent> &events);
-#endif
 

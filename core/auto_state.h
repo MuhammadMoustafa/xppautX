@@ -1,5 +1,4 @@
-#ifndef XPP_AUTO_STATE_H
-#define XPP_AUTO_STATE_H
+#pragma once
 /* AUTO's part of a Session (session.h): its settings, the run's own
    parameters, the diagram and the scratch folder. C++ only.
 
@@ -306,4 +305,3 @@ struct AutoFailed {
 [[noreturn]] inline void auto_fail(std::string what) { throw AutoFailed{{"auto", std::move(what)}}; }
 } // namespace xpp
 
-#endif

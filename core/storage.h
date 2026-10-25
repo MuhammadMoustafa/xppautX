@@ -1,5 +1,4 @@
-#ifndef _storage_h_
-#define _storage_h_
+#pragma once
 
 #include <array>
 #include <vector>
@@ -115,4 +114,3 @@ private:
 };
 
 } // namespace xpp
-#endif

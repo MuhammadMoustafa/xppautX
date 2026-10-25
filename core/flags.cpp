@@ -485,7 +485,6 @@ int *istart,int n,double *work,int *ierr)
   return 1;
 }
 
-#ifdef CVODE_YES
 int one_flag_step_cvode(xpp::Session &s, xpp::CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
   FlagEnd end=flag_loop(s,y,n,t,command,0,[&](double){
@@ -495,7 +494,6 @@ int one_flag_step_cvode(xpp::Session &s, xpp::CvodeRun &run, int *command, doubl
   return end==FlagEnd::too_hard;
 }
 
-#endif
 int one_flag_step_adap(xpp::Session &s, double *y, int neq, double *t, double tout, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
 {
   flag_loop(s,y,neq,t,jstart,0,[&](double){

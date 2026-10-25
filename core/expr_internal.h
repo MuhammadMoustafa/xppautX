@@ -1,5 +1,4 @@
-#ifndef XPP_EXPR_INTERNAL_H
-#define XPP_EXPR_INTERNAL_H
+#pragma once
 /* What the expression engine's files share (expr.h): the .ode compiler's
    tokens, which are indexes into the symbol table's built-ins
    (expr_symbols.cpp), and the tests on what a symbol compiles to. C++
@@ -35,4 +34,3 @@ inline bool is_lookup(int com) { return com / MAXTYPE == TABTYPE; }
 
 }
 
-#endif

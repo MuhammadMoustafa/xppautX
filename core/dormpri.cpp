@@ -44,18 +44,6 @@ static void dprhs(xpp::Session &s, unsigned n, double t, double *y, double *f)
 
 }
 
-static double min_d (double a, double b)
-{
-  return (a < b)?a:b;
-
-} /* min_d */
-
-static double max_d (double a, double b)
-{
-  return (a > b)?a:b;
-
-} /* max_d */
-
 static double hinit (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y,
 	      double posneg, double* f0, double* f1, double* yy1, int iord,
 	      double hmax, double* atoler, double* rtoler, int itoler)
@@ -92,7 +80,7 @@ static double hinit (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doubl
   else
     h = sqrt (dny/dnf) * 0.01;
 
-  h = min_d (h, hmax);
+  h = std::min(hmax, h);
   h = xpp::sign (h, posneg);
 
   /* perform an explicit Euler step */
@@ -118,13 +106,13 @@ static double hinit (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doubl
     }
   der2 = sqrt (der2) / h;
 
-  /* step size is computed such that h**iord * max_d(norm(f0),norm(der2)) = 0.01 */
-  der12 = max_d (fabs(der2), sqrt(dnf));
+  /* step size is computed such that h**iord * max(norm(f0),norm(der2)) = 0.01 */
+  der12 = std::max(sqrt(dnf), fabs(der2));
   if (der12 <= 1.0E-15)
-    h1 = max_d (1.0E-6, fabs(h)*1.0E-3);
+    h1 = std::max(fabs(h)*1.0E-3, 1.0E-6);
   else
     h1 = xpp::math::pow(0.01/der12, 1.0/static_cast<double>(iord));
-  h = min_d (100.0 * fabs(h), min_d (h1, hmax));
+  h = std::min(std::min(hmax, h1), 100.0 * fabs(h));
 
   return xpp::sign (h, posneg);
 
@@ -445,7 +433,7 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
     if (!itoler)
       for (i = 0; i < n; i++)
       {
-	sk = atoli + rtoli * max_d (fabs(y[i]), fabs(r.k5[i]));
+	sk = atoli + rtoli * std::max(fabs(r.k5[i]), fabs(y[i]));
 	erri = r.k4[i] - bhh1*r.k1[i] - bhh2*r.k9[i] - bhh3*r.k3[i];
 	sqr = erri / sk;
 	err2 += sqr*sqr;
@@ -457,7 +445,7 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
     else
       for (i = 0; i < n; i++)
       {
-	sk = atoler[i] + rtoler[i] * max_d (fabs(y[i]), fabs(r.k5[i]));
+	sk = atoler[i] + rtoler[i] * std::max(fabs(r.k5[i]), fabs(y[i]));
 	erri = r.k4[i] - bhh1*r.k1[i] - bhh2*r.k9[i] - bhh3*r.k3[i];
 	sqr = erri / sk;
 	err2 += sqr*sqr;
@@ -476,14 +464,14 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
     /* Lund-stabilization */
     fac = fac11 / xpp::math::pow(facold,beta);
     /* we require fac1 <= hnew/h <= fac2 */
-    fac = max_d (facc2, min_d (facc1, fac/safe));
+    fac = std::max(std::min(fac/safe, facc1), facc2);
     hnew = h / fac;
 
     if (err <= 1.0)
     {
       /* step accepted */
 
-      facold = max_d (err, 1.0E-4);
+      facold = std::max(1.0E-4, err);
       r.naccpt++;
       fcn (s, n, xph, r.k5, r.k4);
       
@@ -633,14 +621,14 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
       if (fabs(hnew) > hmax)
 	hnew = posneg * hmax;
       if (reject)
-	hnew = posneg * min_d (fabs(hnew), fabs(h));
+	hnew = posneg * std::min(fabs(h), fabs(hnew));
 
       reject = 0;
     }
     else
     {
       /* step rejected */
-      hnew = h / min_d (facc1, fac11/safe);
+      hnew = h / std::min(fac11/safe, facc1);
       reject = 1;
       if (r.naccpt >= 1)
 	r.nrejct=r.nrejct + 1;
@@ -667,8 +655,8 @@ static int dop853
   int       arret, idid;
   unsigned  i;
   /* indir (the run's, like rcont1..8) is only ever read back
-     within this same call; RAII here still frees it on every return
-     path without a manual xpp_free. */
+     within this same call; RAII here frees it on every return
+     path. */
   std::vector<unsigned> indir_buf;
 
   /* initialisations */
@@ -857,7 +845,7 @@ static double hinit5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doub
   else
     h = sqrt (dny/dnf) * 0.01;
 
-  h = min_d (h, hmax);
+  h = std::min(hmax, h);
   h = xpp::sign (h, posneg);
 
   /* perform an explicit Euler step */
@@ -883,13 +871,13 @@ static double hinit5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doub
     }
   der2 = sqrt (der2) / h;
 
-  /* step size is computed such that h**iord * max_d(norm(f0),norm(der2)) = 0.01 */
-  der12 = max_d (fabs(der2), sqrt(dnf));
+  /* step size is computed such that h**iord * max(norm(f0),norm(der2)) = 0.01 */
+  der12 = std::max(sqrt(dnf), fabs(der2));
   if (der12 <= 1.0E-15)
-    h1 = max_d (1.0E-6, fabs(h)*1.0E-3);
+    h1 = std::max(fabs(h)*1.0E-3, 1.0E-6);
   else
     h1 = xpp::math::pow(0.01/der12, 1.0/static_cast<double>(iord));
-  h = min_d (100.0 * fabs(h), min_d (h1, hmax));
+  h = std::min(std::min(hmax, h1), 100.0 * fabs(h));
 
   return xpp::sign (h, posneg);
 
@@ -1037,14 +1025,14 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
     if (!itoler)
       for (i = 0; i < n; i++)
       {
-	sk = atoli + rtoli * max_d (fabs(y[i]), fabs(r.yy1[i]));
+	sk = atoli + rtoli * std::max(fabs(r.yy1[i]), fabs(y[i]));
 	sqr = r.k4[i] / sk;
 	err += sqr*sqr;
       }
     else
       for (i = 0; i < n; i++)
       {
-	sk = atoler[i] + rtoler[i] * max_d (fabs(y[i]), fabs(r.yy1[i]));
+	sk = atoler[i] + rtoler[i] * std::max(fabs(r.yy1[i]), fabs(y[i]));
 	sqr = r.k4[i] / sk;
 	err += sqr*sqr;
       }
@@ -1055,14 +1043,14 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
     /* Lund-stabilization */
     fac = fac11 / xpp::math::pow(facold,beta);
     /* we require fac1 <= hnew/h <= fac2 */
-    fac = max_d (facc2, min_d (facc1, fac/safe));
+    fac = std::max(std::min(fac/safe, facc1), facc2);
     hnew = h / fac;
 
     if (err <= 1.0)
     {
       /* step accepted */
 
-      facold = max_d (err, 1.0E-4);
+      facold = std::max(1.0E-4, err);
       r.naccpt++;
 
       /* stiffness detection */
@@ -1154,14 +1142,14 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
       if (fabs(hnew) > hmax)
 	hnew = posneg * hmax;
       if (reject)
-	hnew = posneg * min_d (fabs(hnew), fabs(h));
+	hnew = posneg * std::min(fabs(h), fabs(hnew));
 
       reject = 0;
     }
     else
     {
       /* step rejected */
-      hnew = h / min_d (facc1, fac11/safe);
+      hnew = h / std::min(fac11/safe, facc1);
       reject = 1;
       if (r.naccpt >= 1)
 	r.nrejct=r.nrejct + 1;
@@ -1188,8 +1176,8 @@ static int dopri5
   int       arret, idid;
   unsigned  i;
   /* indir (the run's, like rcont1..5) is only ever read back
-     within this same call; RAII here still frees it on every return
-     path without a manual xpp_free. */
+     within this same call; RAII here frees it on every return
+     path. */
   std::vector<unsigned> indir_buf;
 
   /* initialisations */

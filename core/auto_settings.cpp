@@ -6,7 +6,7 @@
    The same fields the AUTO window's forms write (auto_nox.cpp auto_num_par,
    auto_plot_par, auto_per_par), with every value checked
    first: AUTO takes some values badly (Ncol above 7 exits the program,
-   autlib1.c cpnts), and a form typed into by hand could always send them. */
+   autlib1.cpp cpnts), and a form typed into by hand could always send them. */
 #include <cmath>
 #include <climits>
 #include <cstring>

@@ -1,5 +1,4 @@
-#ifndef XPP_MODEL_FILES_H
-#define XPP_MODEL_FILES_H
+#pragma once
 /* A model's own files (W103): the .ode or .odex and every file its load
    reads -- the files it includes, its file tables, its options file,
    --anifile's animation. Their readers read them through here, by the name
@@ -121,4 +120,3 @@ std::string model_title(const Model &m);
 
 } // namespace xpp
 
-#endif

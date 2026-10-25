@@ -1,5 +1,4 @@
-#ifndef _mykeydef_h_
-#define _mykeydef_h_
+#pragma once
 
 #define RIGHT 6
 #define LEFT 2
@@ -19,4 +18,3 @@ inline constexpr int KEY_NONE = 64; /* Historical UI sentinel: no key was receiv
 
 
 
-#endif

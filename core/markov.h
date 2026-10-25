@@ -1,5 +1,4 @@
-#ifndef _markov_h_
-#define _markov_h_
+#pragma once
 
 #include <cstdio>
 #include "xpp_math.h" /* Random, the generator stocHast seeds */
@@ -57,4 +56,3 @@ struct StochasticState {
 };
 
 } // namespace xpp
-#endif

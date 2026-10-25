@@ -1,5 +1,4 @@
-#ifndef XPP_RECX_H
-#define XPP_RECX_H
+#pragma once
 /* A recording, name.recx (W59, docs/protocol.md "Recordings"): one plain
    text file, openable and editable in any editor, that holds what a
    session did and nothing it computed (a replay computes it again):
@@ -116,4 +115,3 @@ std::string fingerprint(const std::vector<std::string> &hashed);
 
 } // namespace xpp::recx
 
-#endif

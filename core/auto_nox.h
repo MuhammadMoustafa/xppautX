@@ -1,5 +1,4 @@
-#ifndef _auto_nox_h_
-#define _auto_nox_h_
+#pragma once
 
 #include <stdio.h>
 #include <string>
@@ -285,4 +284,3 @@ std::string auto_solutions_file(const Session &s);
 void get_auto_str(const Session &s, const AUTOAX &ax, std::string &xlabel, std::string &ylabel);
 
 } // namespace xpp
-#endif

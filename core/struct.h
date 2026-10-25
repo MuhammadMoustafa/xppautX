@@ -1,5 +1,4 @@
-#ifndef _struct_h_
-#define _struct_h_
+#pragma once
 
 #include "xpplim.h"
 #include "xpp_types.h"
@@ -66,5 +65,4 @@ typedef struct {
 
 
 
-#endif
 

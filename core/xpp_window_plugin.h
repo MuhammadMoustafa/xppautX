@@ -1,5 +1,4 @@
-#ifndef XPP_WINDOW_PLUGIN_H
-#define XPP_WINDOW_PLUGIN_H
+#pragma once
 
 #include <stddef.h>
 #include "xpp_log.h"
@@ -49,4 +48,3 @@ typedef struct XppWindowApi {
 typedef int (*XppWindowPluginInit)(const XppWindowHost *host, XppWindowApi *api);
 #define XPP_WINDOW_PLUGIN_INIT "xpp_window_plugin_init"
 
-#endif

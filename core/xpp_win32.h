@@ -1,5 +1,4 @@
-#ifndef XPP_WIN32_H
-#define XPP_WIN32_H
+#pragma once
 
 /* xpp_win32.cpp, Windows only: the Windows API behind the few POSIX calls
    the core and the protocol front end use, in namespace xpp::win32
@@ -57,5 +56,4 @@ std::string documents_folder();
 void attach_console();
 
 } // namespace xpp::win32
-#endif
 #endif

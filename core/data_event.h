@@ -1,5 +1,4 @@
-#ifndef DATA_EVENT_H
-#define DATA_EVENT_H
+#pragma once
 
 /* A data event a client asked for (`{"cmd":"data"}`) that carries a
    whole set of values and is sent again only when they changed: AUTO's
@@ -68,4 +67,3 @@ private:
 
 } // namespace xpp
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef XPP_SETX_FILE_H
-#define XPP_SETX_FILE_H
+#pragma once
 /* A settings file, name.setx (W284, docs/odex.md ".setx"): the values,
    numerics, delays, boundary conditions and graphics of a model, in the
    settings syntax (setx.h), every key named and in any order. It is also a
@@ -126,4 +125,3 @@ void copy_curves(const GRAPH &from, GRAPH &to);
 void copy_graph_settings(const GRAPH &from, GRAPH &to);
 
 } // namespace xpp
-#endif

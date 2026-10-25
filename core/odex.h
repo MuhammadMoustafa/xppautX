@@ -1,5 +1,4 @@
-#ifndef XPP_ODEX_H
-#define XPP_ODEX_H
+#pragma once
 /* The statement list both model formats are read into, and .odex, the
    model format without .ode's quirks (docs/odex.md; W74, W79). C++ only.
 
@@ -392,4 +391,3 @@ std::string engine_text(const Expr &e);
 
 }
 
-#endif

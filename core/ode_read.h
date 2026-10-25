@@ -1,5 +1,4 @@
-#ifndef XPP_ODE_READ_H
-#define XPP_ODE_READ_H
+#pragma once
 /* The .ode reader (ode_read.cpp): an .ode file's lines to the statement
    list (odex.h) the Model builder (form_ode.h) makes the Model from. */
 #include <stdio.h>
@@ -44,4 +43,3 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Mo
 void subsk(std::string_view big, std::string &newstr, int k, int flag);
 
 } // namespace xpp
-#endif

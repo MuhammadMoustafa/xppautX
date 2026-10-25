@@ -4,8 +4,7 @@
 
 	- From The Shogakukan DICTIONARY OF NEW ENGLISH (Second edition) */
 
-#ifndef F2C_INCLUDE
-#define F2C_INCLUDE
+#pragma once
 
 #include <stdlib.h>
 #include <math.h>
@@ -61,4 +60,3 @@ constexpr auto max(A a, B b) noexcept
   return a >= b ? a : b;
 }
 } // namespace f2c
-#endif
