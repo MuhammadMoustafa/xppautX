@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """W358 (#420): how a comparison build's AUTO diagrams differ from the default build's and from AUTO-07p's.
 
-    python3 tools/auto-profile/diagram_diff.py BINARY [--only NAME,...]
+    uv run --locked python tools/auto-profile/diagram_diff.py BINARY [--only NAME,...]
 
 For each tests/auto description (tools/autocompare.py's, run at 1 thread through the same driver), the
 diagram the BINARY stores is compared with

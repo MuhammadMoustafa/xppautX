@@ -43,7 +43,7 @@
 #                    needs --skip-build); Linux also shards its long AUTO
 #                    checks; macOS CI runs it whole.
 #   VAR=value       passed to make (the compilers, say)
-#   $MAKE, $PYTHON  the make and python programs (default make, python3)
+#   $MAKE, $PYTHON  the make and python programs (default make, uv run --locked python)
 cd "$(dirname "$0")/.." || exit 1
 top=$PWD
 . tools/jobs.sh
@@ -67,7 +67,7 @@ has_phase() {
   case ",$only," in *",$1,"*) return 0 ;; *) return 1 ;; esac
 }
 make=${MAKE:-make}
-python=${PYTHON:-python3}
+python=${PYTHON:-uv run --locked python}
 # the logs: build/asan-*.log for build/asan
 log=build/$(basename "$bdir")
 mkdir -p build || exit 1
@@ -192,9 +192,9 @@ IFS=$old_ifs
 if [ -n "$want" ]; then
   for name in $want; do
     case $name in
-      servercheck) run_check servercheck "$python" tools/servercheck.py --server "$bin" & ;;
-      webcheck) run_check webcheck "$python" tools/webcheck.py --bin "$bin" & ;;
-      autocheck) run_check autocheck "$python" tools/autocheck.py --server "$bin" $autosections & ;;
+      servercheck) run_check servercheck $python tools/servercheck.py --server "$bin" & ;;
+      webcheck) run_check webcheck $python tools/webcheck.py --bin "$bin" & ;;
+      autocheck) run_check autocheck $python tools/autocheck.py --server "$bin" $autosections & ;;
     esac
   done
   wait

@@ -16,7 +16,7 @@
 # Slow (minutes), so not part of verify.sh or CI yet. Linux only (gcc's or
 # clang's ThreadSanitizer).
 # Usage: tools/tsancheck.sh [--builddir DIR] [--skip-build] [VAR=value ...]
-#   $MAKE, $PYTHON  the make and python programs (default make, python3)
+#   $MAKE, $PYTHON  the make and python programs (default make, uv run --locked python)
 cd "$(dirname "$0")/.." || exit 1
 . tools/jobs.sh
 top=$PWD
@@ -32,7 +32,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 make=${MAKE:-make}
-python=${PYTHON:-python3}
+python=${PYTHON:-uv run --locked python}
 log=build/$(basename "$bdir")
 mkdir -p build || exit 1
 if [ $skip_build -eq 1 ]; then
@@ -63,8 +63,8 @@ run_check() {
   fi
   echo "$name finished after $(( $(date +%s) - t0 ))s"
 }
-run_check servercheck "$python" tools/servercheck.py --server "$bin" &
-run_check webcheck "$python" tools/webcheck.py --bin "$bin" &
+run_check servercheck $python tools/servercheck.py --server "$bin" &
+run_check webcheck $python tools/webcheck.py --bin "$bin" &
 wait
 run_check auto_threads "$bdir/tests/test_session_auto"
 run_check eispack_threads "$bdir/tests/test_eispack"

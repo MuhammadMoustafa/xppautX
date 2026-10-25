@@ -31,6 +31,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
       # the runner image (ubuntu24, ubuntu26 ...) in the cache's key: ImageOS is
       # an environment variable of the runner, not in the workflow's env context
       - name: Runner image
@@ -56,8 +59,8 @@ jobs:
         run: make -j4 xppautx WINDOW=1 RELEASE=1
       - name: Check
         run: |
-          python3 tools/servercheck.py
-          python3 tools/webcheck.py
+          uv run --locked python tools/servercheck.py
+          uv run --locked python tools/webcheck.py
           sh tools/modecheck.sh
           # the release flags (RELEASE=1) must not change the numerics
           tools/examples_check.sh
@@ -87,6 +90,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
       # zip has no pre-installed equivalent on the runner (7zip's -tzip
       # differs from package_release.sh's `zip`), so this job keeps MSYS2
       # rather than the bare runner toolchain build.yml's windows-core job
@@ -97,12 +103,13 @@ jobs:
           msystem: UCRT64
           release: false
           install: make zip mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-python
+          path-type: inherit  # W443: uv, from setup-uv, runs the checks
       - name: Build
         run: make -j4 xppautx RELEASE=1
       - name: Check
         run: |
-          python tools/servercheck.py --server ./xppautX.exe
-          python tools/webcheck.py --bin ./xppautX.exe
+          uv run --locked python tools/servercheck.py --server ./xppautX.exe
+          uv run --locked python tools/webcheck.py --bin ./xppautX.exe
           tools/examples_check.sh --bin xppautX.exe
       # WiX v5 builds the .msi (packaging/windows/xppautX.wxs); the version
       # is pinned so a release does not change with the tool
@@ -144,12 +151,15 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
       - name: Build
         run: make -j3 xppautx RELEASE=1
       - name: Check
         run: |
-          python3 tools/servercheck.py
-          python3 tools/webcheck.py
+          uv run --locked python tools/servercheck.py
+          uv run --locked python tools/webcheck.py
           tools/examples_check.sh
       - name: Package
         run: tools/package_release.sh ${{ matrix.arch }}
@@ -176,14 +186,21 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
-          sparse-checkout: CHANGELOG.md
+          sparse-checkout: |
+            CHANGELOG.md
+            pyproject.toml
+            uv.lock
+            .python-version
           sparse-checkout-cone-mode: false
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
       - uses: actions/download-artifact@v8
         with:
           path: dist
       - name: Release notes from CHANGELOG.md
         run: |
-          python3 - "${XPP_VERSION#v}" > notes.md <<'PY'
+          uv run --locked python - "${XPP_VERSION#v}" > notes.md <<'PY'
           import re, sys
           version = sys.argv[1] or "Unreleased"
           text = open("CHANGELOG.md", encoding="utf-8").read()

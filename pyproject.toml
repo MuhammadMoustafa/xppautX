@@ -1,7 +1,7 @@
 # W417 (#479): the Python the comparison studies (docs/comparison-machine.md) and tools/auto-profile
 # need beyond the standard library, locked in uv.lock so the laptop and the comparison machine run the
 # same versions. Not a package. The repository's own checks (servercheck, autocheck, ...) use the
-# standard library only and do not read this file.
+# standard library plus numpy (autocompare, via autocheck and servercheck) and run through `uv run --locked python`.
 [project]
 name = "xppautx-comparison"
 version = "0"
@@ -12,6 +12,7 @@ dependencies = [
     "matplotlib",  # paper/benchmarks/plots.py
     "mpmath",      # tools/auto-profile/eig_accuracy.py
     "scipy",       # tools/python-integration/scipy_integrate.py: DOP853, the accuracy reference (W427, #489)
+    "pillow",      # tools/make_icons.py
 ]
 
 [tool.uv]

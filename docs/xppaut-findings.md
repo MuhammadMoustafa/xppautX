@@ -1530,7 +1530,7 @@ not the same each time the point is solved.
 
 Evidence, the Hopf point of the PV interneuron of Ma et al. 2023 (`examples/ode/ma23.odex`, the steady run of
 `tests/auto/ode_ma23.json`: SmStmplti from 0 at DS 0.005, DSMAX 2, NTST 25, EPS 1e-7/1e-7/1e-5, ITMX 8, which
-`python3 tools/auto_reference.py --program xppaut --only ode_ma23` sets in XPPAUT's windows): the table lists EP, LP
+`uv run --locked python tools/auto_reference.py --program xppaut --only ode_ma23` sets in XPPAUT's windows): the table lists EP, LP
 (35.05591 pA) and LP (34.01230) and no HB. XPPAUT's diagnostics file shows the Hopf function change sign between
 points 297 (7.8e-5, three stable eigenvalues) and 298 (-8.0e-4, five); its location then evaluates 3.3e-7, -2.9e-7,
 -1.4e-7, -7.2e-8, -4.4e-8, -2.5e-8, -1.4e-8, -1.1e-8, -3.6e-9, approaching zero from one side at about 0.6 per
@@ -1612,7 +1612,7 @@ For example, `hill_cycles_pd`'s constant norm 0.41826665768 is exported as
 1e-7 bound. W428 accounts for half the last printed unit in each coordinate;
 it does not relax the Newton tolerance or alter XPPAUT's output.
 
-Evidence: `python3 tools/auto_reference.py --program xppaut --only
+Evidence: `uv run --locked python tools/auto_reference.py --program xppaut --only
  tstauto_ab_fold,tstauto_ab_hopf,zero_hopf,ode_mu26_blocked` and the committed
 `.xppaut` files. The run constants are read back from each `.b` header,
 including IPS, IRS, ISW, ISP, ILP and the active parameter slots.

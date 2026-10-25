@@ -70,7 +70,7 @@ parentheses remove precedence warnings; information explains preserved
 power grouping, unary-minus precedence and trailing `if` operators.
 The inventory's diagnostic ids and known limits are in
 [odex-quirks.md](odex-quirks.md#diagnostic-ids-w75).
-`python3 tools/checkcheck.py --bin ./xppautX.exe` tests each quirk and the
+`uv run --locked python tools/checkcheck.py --bin ./xppautX.exe` tests each quirk and the
 JSON/no-write contract; `verify.sh` runs it too.
 
 ## Design decisions (from issue #121)

@@ -1,7 +1,7 @@
 """W412 (#474): one archived revision's build and 20-point ModelDB run.
 
 Run through tools/wslrun.sh, once per revision, never in parallel:
-    python3 tools/auto-profile/revision.py COMMIT OUT [--tool newton|callgrind] [--own-tools]
+    uv run --locked python tools/auto-profile/revision.py COMMIT OUT [--tool newton|callgrind] [--own-tools]
 The revision is archived into a temporary folder (no checkout or worktree) and
 built there. The driver is this checkout's profile.py, or with --own-tools the
 revision's own (W358's callgrind table was made by its commit's tools).

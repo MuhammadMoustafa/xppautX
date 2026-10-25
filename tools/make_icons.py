@@ -14,7 +14,7 @@ what tools/associate/install-linux.sh installs). Needs Python 3 with Pillow
 (pip install pillow) and a Chrome or Edge: found in the usual places, or
 named with --chrome.
 
-    python3 tools/make_icons.py [--chrome PATH]
+    uv run --locked python tools/make_icons.py [--chrome PATH]
 """
 import argparse
 import os

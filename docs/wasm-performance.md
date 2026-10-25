@@ -275,7 +275,7 @@ g++ -std=c++23 -O2 -Wall -Wextra -Werror -ffp-contract=off -mfma -DXPP_CORE_MATH
 em++ -std=c++23 -O2 -Wall -Wextra -Werror -ffp-contract=off -Icore tools/wasmmathbench.cpp build/wasm/core_math_sin.o -sENVIRONMENT=web,node -o build/wasm-math.js
 build/native-math > build/native-math.log
 node build/wasm-math.js > build/wasm-math.log
-python3 tools/wasmprofile.py PROFILE_DIR build/native-math.log build/wasm-math.log
+uv run --locked python tools/wasmprofile.py PROFILE_DIR build/native-math.log build/wasm-math.log
 em++ -std=c++23 -O2 -ffp-contract=off -pthread -Icore tests/test_math.cpp build/wasm/libxppcore.a -sENVIRONMENT=node -sEXIT_RUNTIME=1 -o build/wasm-test-math.js
 node build/wasm-test-math.js
 ```

@@ -1,6 +1,6 @@
 """W412 (#474): ModelDB 267710's AUTO-07p translation run by AUTO-07p itself.
 
-    AUTO_DIR=~/auto-07p-0.9.4 python3 tools/auto-profile/auto07p.py OUT [--marks P ...] [--constants JSON]
+    AUTO_DIR=~/auto-07p-0.9.4 uv run --locked python tools/auto-profile/auto07p.py OUT [--marks P ...] [--constants JSON]
 The steady run (c.6c.eq), then 20 periodic points from its rightmost HB (c.6c.po),
 one thread, IID=3 (every Newton iterate in the diagnostics), NPR=1. --marks
 stops at the last of these ampPar values (UZR); --constants overrides c.6c.po's

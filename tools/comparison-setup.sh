@@ -67,9 +67,9 @@ done
 case $REPO in /mnt/*) die "run it from a checkout on the machine's own disk, not $REPO (9P is slow and skews builds)" ;; esac
 case $ROOT in /mnt/*) die "ROOT must be on the machine's own disk, not $ROOT" ;; esac
 
-# one tree hash: python3 does it in one process
+# one tree hash: python does it in one process
 tree_hash() {
-  python3 -I -c '
+  uv run --locked python -I -c '
 import hashlib, os, sys
 root = sys.argv[1]
 lines = []
@@ -93,7 +93,7 @@ do_check() {
   }
   need gcc build-essential; need g++ build-essential; need make build-essential
   need gfortran gfortran; need git git; need tar tar; need sha256sum coreutils
-  need python3 python3; need valgrind valgrind; need gdb gdb
+  need uv uv; need valgrind valgrind; need gdb gdb
   need Xvfb xvfb; need xdotool xdotool; need taskset util-linux; need lscpu util-linux
   need ps procps; need nproc coreutils
   # headers and libraries: a compile says more than a file name
@@ -125,7 +125,7 @@ do_check() {
     [ "$no_uv" = 1 ] && echo "  curl -LsSf https://astral.sh/uv/install.sh | sh" >&2
     exit 1
   fi
-  echo "check: all tools present ($(gcc --version | head -1); $(gfortran --version | head -1); $(python3 --version); $(uv --version))"
+  echo "check: all tools present ($(gcc --version | head -1); $(gfortran --version | head -1); $(uv --version))"
 }
 
 # --- --sources ---------------------------------------------------------------------------
@@ -233,7 +233,7 @@ do_record() {
   XPPAUT8_COMMIT=$XPPAUT8_COMMIT MASTER_COMMIT=$MASTER_COMMIT AUTO_COMMIT=$AUTO_COMMIT \
   UV_VERSION=$(uv --version 2>&1) PY_LOCKED=$(uv pip freeze 2>&1) PY_PROJECT=$(uv run python --version 2>&1) \
   XPPAUTX_HEAD=$(git rev-parse HEAD) AUTO_CONFIGURE=$AUTO_CONFIGURE ROOTDIR=$ROOT \
-  python3 -I - "$out/machine-$stamp.json" <<'PY' || die "cannot write the machine record"
+  uv run --locked python -I - "$out/machine-$stamp.json" <<'PY' || die "cannot write the machine record"
 import json, os, platform, subprocess, sys, datetime
 def run(*a):
     try:
@@ -294,7 +294,7 @@ do_ready() {
   # W439: recent load includes our just-completed series. Observe current
   # process CPU instead, so serial series can follow one another without a
   # minute-long cool-down. Lifetime ps %CPU cannot identify current activity.
-  python3 - <<'PY' || die "another process is using the CPU (above): leave the machine idle and retry"
+  uv run --locked python - <<'PY' || die "another process is using the CPU (above): leave the machine idle and retry"
 from pathlib import Path
 import os, time
 SAMPLE_SECONDS = 0.5  # one bounded observation interval for a CPU rate, not a readiness polling loop

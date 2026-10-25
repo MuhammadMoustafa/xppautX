@@ -85,7 +85,7 @@ checkout (the main one or a worktree):
 
     tools/wslrun.sh make -j4 xppautx test
     tools/wslrun.sh tools/odexcheck.sh
-    tools/wslrun.sh python3 tools/servercheck.py
+    tools/wslrun.sh uv run --locked python tools/servercheck.py
 
 Windows-side tools (the MSYS2 builds, web2, web2check against
 xppautX.exe) run from Git Bash on the checkout itself, as below.
@@ -368,7 +368,7 @@ parameter set but never read are the compiler's (`-Wunused-macros`,
 `-Wunused-but-set-variable`).
 
 `tools/dupcheck.sh` (W30; sourcecheck runs it with `--check`, a few
-seconds; `tools/dupcheck.py` does the work, `python3 tools/dupcheck.py`
+seconds; `tools/dupcheck.py` does the work, `uv run --locked python tools/dupcheck.py`
 with no wrapper also runs) is a duplication audit of core/: normalising
 whitespace, comments and (for functions) identifiers, it lists duplicated
 functions, runs of >= 16 duplicated lines and a struct/typedef defined
@@ -486,8 +486,8 @@ build, from Git Bash, into build/ucrt (objects of another toolchain must
 not be mixed in):
 
     PATH=/c/msys64/ucrt64/bin:$PATH mingw32-make -j4 xppautx BUILDDIR=build/ucrt
-    python3 tools/servercheck.py --server ./xppautX.exe
-    python3 tools/webcheck.py --bin ./xppautX.exe
+    uv run --locked python tools/servercheck.py --server ./xppautX.exe
+    uv run --locked python tools/webcheck.py --bin ./xppautX.exe
 
 MSYS2's CLANG64 toolchain (C:\msys64\clang64\bin: clang, libc++, lld,
 compiler-rt; W23) is a second Windows compiler, never the default: CI's

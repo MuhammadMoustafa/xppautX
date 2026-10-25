@@ -16,14 +16,14 @@ make -j4 LIBM=system BUILDDIR=build/libm xppautx
 make -j4 LINALG=lapack BUILDDIR=build/lapack xppautx
 runs=''
 for build in default:xppautX system:build/libm/xppautX lapack:build/lapack/xppautX; do
-  python3 "$here/profile.py" "${build#*:}" "$out/${build%%:*}" modeldb --nmax 20 --tool newton \
+  uv run --locked python "$here/profile.py" "${build#*:}" "$out/${build%%:*}" modeldb --nmax 20 --tool newton \
     > "$out/${build%%:*}.log" 2>&1
   runs="$runs $out/${build%%:*}"
 done
 # the list holds folder names without spaces, one argument each
 # shellcheck disable=SC2086
-python3 "$here/newton_summary.py" $runs > "$out/runs.csv"
-python3 -c 'import csv, sys
+uv run --locked python "$here/newton_summary.py" $runs > "$out/runs.csv"
+uv run --locked python -c 'import csv, sys
 bad = [r["run"] for r in csv.DictReader(open(sys.argv[1])) if (r["searches"], r["backward_steps"]) != ("1", "0")]
 print("modeldb_check: " + ("FAIL, searches not 1 or backward_steps not 0 in " + ", ".join(bad) if bad else "one search and no backward step in all three builds"))
 sys.exit(1 if bad else 0)' "$out/runs.csv"

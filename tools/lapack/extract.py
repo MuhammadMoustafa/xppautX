@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """W358 (#420): third_party/lapack from Reference-LAPACK's source tarball, verbatim.
 
-    python3 tools/lapack/extract.py lapack-3.12.1.tar.gz [--out third_party/lapack]
+    uv run --locked python tools/lapack/extract.py lapack-3.12.1.tar.gz [--out third_party/lapack]
 
 Checks the tarball's SHA-256 against VERSIONS, then copies, unchanged, the routines the closure of
 DGEEV (eigenvalues and vectors of a general matrix, replacing EISPACK's RG) and DGGEV (generalized

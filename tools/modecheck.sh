@@ -206,7 +206,7 @@ fi
 # --silent at once (browser and window mode keep the page open on the log)
 cp tools/models/malformed_unbalanced.ode "$tmp/"
 for mode in --server --silent; do
-  ( cd "$tmp" && exec python3 "$TIMEOUT_RUNNER" "$EXIT_TIMEOUT_SECONDS" "$BIN" $mode malformed_unbalanced.ode < /dev/null > bad.out 2>&1 )
+  ( cd "$tmp" && exec uv run --locked python "$TIMEOUT_RUNNER" "$EXIT_TIMEOUT_SECONDS" "$BIN" $mode malformed_unbalanced.ode < /dev/null > bad.out 2>&1 )
   status=$?
   if [ $status -ne 0 ] && [ $status -lt 124 ] && grep -q 'ERROR' "$tmp/bad.out"; then
     pass "$mode: a model that does not load exits with status $status"
@@ -221,7 +221,7 @@ printf "x'=xp\nxp=0\nexport {x} {xp}\ninit x=1\ndone\n" > "$tmp/c_export.ode"
 printf "x'=-x\n@ dll_lib=ex.so, dll_fun=vdp\ndone\n" > "$tmp/c_dll.ode"
 printf "x[0..3]'=-x[j]\nspecial k=import(a.so,f,4,x0)\ndone\n" > "$tmp/c_import.ode"
 for m in c_export c_dll c_import; do
-  ( cd "$tmp" && exec python3 "$TIMEOUT_RUNNER" "$EXIT_TIMEOUT_SECONDS" "$BIN" --silent $m.ode < /dev/null > $m.out 2>&1 )
+  ( cd "$tmp" && exec uv run --locked python "$TIMEOUT_RUNNER" "$EXIT_TIMEOUT_SECONDS" "$BIN" --silent $m.ode < /dev/null > $m.out 2>&1 )
   status=$?
   # one error, at its line (W140b): "c_dll.ode:2: dll_lib: compiled functions ..."
   if [ $status -ne 0 ] && [ $status -lt 124 ] &&

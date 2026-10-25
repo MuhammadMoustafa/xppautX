@@ -17,7 +17,7 @@ marks='[["ampPar",0.5728],["ampPar",0.57284]]' # inside every build's 20-point s
 tight='"epsl":1e-8,"epsu":1e-8,"epss":1e-8'
 runs='' tight_runs='' auto_runs=''
 trace() { # NAME BINARY [SETTINGS]
-  python3 "$here/profile.py" "$2" "$out/$1" modeldb --nmax 20 --tool newton ${3:+--periodic-settings "$3"} \
+  uv run --locked python "$here/profile.py" "$2" "$out/$1" modeldb --nmax 20 --tool newton ${3:+--periodic-settings "$3"} \
     > "$out/$1.log" 2>&1
   runs="$runs $out/$1"
   case $1 in *-tight*) tight_runs="$tight_runs $out/$1" ;; esac
@@ -25,7 +25,7 @@ trace() { # NAME BINARY [SETTINGS]
 auto07p() { # NAME [ARGS]
   name=$1
   shift
-  python3 "$here/auto07p.py" "$out/$name" "$@" > "$out/$name.log" 2>&1
+  uv run --locked python "$here/auto07p.py" "$out/$name" "$@" > "$out/$name.log" 2>&1
   auto_runs="$auto_runs $out/$name"
 }
 for build in default:xppautX system:build/libm/xppautX lapack:build/lapack/xppautX; do
@@ -42,10 +42,10 @@ for ds in 0.0199 0.0201 0.0202; do
 done
 # the lists hold folder names without spaces, one argument each
 # shellcheck disable=SC2086
-python3 "$here/newton_summary.py" --history "$out/histories.json" $runs > "$out/runs.csv"
+uv run --locked python "$here/newton_summary.py" --history "$out/histories.json" $runs > "$out/runs.csv"
 # shellcheck disable=SC2086
-python3 "$here/mesh_accuracy.py" "$out/accuracy.json" $tight_runs --at 0.5728 0.57284
+uv run --locked python "$here/mesh_accuracy.py" "$out/accuracy.json" $tight_runs --at 0.5728 0.57284
 # shellcheck disable=SC2086
-python3 -c 'import json, sys
+uv run --locked python -c 'import json, sys
 json.dump({p.split("/")[-1]: json.load(open(p + "/summary.json")) for p in sys.argv[2:]}, open(sys.argv[1], "w"), indent=1)' \
   "$out/auto07p.json" $auto_runs

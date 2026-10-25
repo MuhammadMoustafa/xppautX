@@ -42,16 +42,16 @@
 cd "$(dirname "$0")/.." || exit 1
 . tools/jobs.sh
 mkdir -p build || exit 1
-if ! python3 tools/cishardcheck.py; then
+if ! uv run --locked python tools/cishardcheck.py; then
   echo "CI SHARD CHECK FAILED"
   exit 1
 fi
-if ! python3 tools/utf8check.py; then
+if ! uv run --locked python tools/utf8check.py; then
   echo "ENCODING CHECK FAILED"
   exit 1
 fi
 # W170: captured macOS ps output exercises the shared parser on every CI source run.
-if ! python3 tools/test_xppclient.py; then
+if ! uv run --locked python tools/test_xppclient.py; then
   echo "CHECKER UNIT TESTS FAILED"
   exit 1
 fi
@@ -59,11 +59,11 @@ if ! uv run --locked python tools/test_autocompare.py; then
   echo "AUTO BASELINE UNIT TESTS FAILED"
   exit 1
 fi
-if ! python3 tools/test_findingscheck.py; then
+if ! uv run --locked python tools/test_findingscheck.py; then
   echo "FINDINGS CHECK UNIT TESTS FAILED"
   exit 1
 fi
-if ! python3 tools/findingscheck.py > build/findingscheck.out 2>&1; then
+if ! uv run --locked python tools/findingscheck.py > build/findingscheck.out 2>&1; then
   cat build/findingscheck.out
   echo "FINDINGS NUMBERING CHECK FAILED"
   exit 1
@@ -110,7 +110,7 @@ if ! sh tools/filecheck.sh --check; then
   echo "FILE CHECK FAILED"
   exit 1
 fi
-if ! python3 tools/errorcheck.py --check > build/errorcheck.out 2>&1; then
+if ! uv run --locked python tools/errorcheck.py --check > build/errorcheck.out 2>&1; then
   tail -40 build/errorcheck.out
   echo "ERROR PLACE CHECK FAILED"
   exit 1
@@ -179,13 +179,13 @@ if ! sh tools/aliascheck.sh --check > build/aliascheck.out 2>&1; then
   exit 1
 fi
 tail -1 build/aliascheck.out
-if ! python3 tools/deadcheck.py --check > build/deadcheck.out 2>&1; then
+if ! uv run --locked python tools/deadcheck.py --check > build/deadcheck.out 2>&1; then
   tail -40 build/deadcheck.out
   echo "DEAD DECLARATION CHECK FAILED"
   exit 1
 fi
 tail -1 build/deadcheck.out
-if ! python3 tools/keycheck.py > build/keycheck.out 2>&1; then
+if ! uv run --locked python tools/keycheck.py > build/keycheck.out 2>&1; then
   cat build/keycheck.out
   echo "KEY CHECK FAILED"
   exit 1

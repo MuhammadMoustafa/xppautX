@@ -1,6 +1,6 @@
 """W412 (#474): what profile.py --tool newton recorded, run by run.
 
-    python3 tools/auto-profile/newton_summary.py [--history OUT.json] DIR...
+    uv run --locked python tools/auto-profile/newton_summary.py [--history OUT.json] DIR...
 Prints one CSV row per DIR (named by the folder): its stored points, BVP solves,
 Newton corrections (stepbv's solves) and Jacobian builds (setubv), fold-direction
 solves (fnlpbv's), the Newton corrections of regular steps and of special-point

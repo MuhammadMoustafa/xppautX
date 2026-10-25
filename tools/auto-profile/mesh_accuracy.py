@@ -1,6 +1,6 @@
 """W412 (#474): independent off-collocation ODE defect of saved BVP polynomials.
 
-    python3 tools/auto-profile/mesh_accuracy.py OUT.json TRACE_DIR... --at PARAMETER...
+    uv run --locked python tools/auto-profile/mesh_accuracy.py OUT.json TRACE_DIR... --at PARAMETER...
 For each profile.py --tool newton run, the stored point at each PARAMETER (a mark
 the run located). The model is ModelDB's AUTO-07p C translation, built as a
 library (system libm), so no continuation, assembly or Newton code of either

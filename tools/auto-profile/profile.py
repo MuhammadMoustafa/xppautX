@@ -9,7 +9,7 @@ OUT/<workload>.<phase>.json (the phase's stored points, 'points'). With --tool n
 breakpoints write ModelDB's BVP solves, steps, fold-function values and stored meshes to
 OUT/<workload>.newton.jsonl (tools/auto-profile/newton.py) instead.
 
-    python3 tools/auto-profile/profile.py BINARY OUT WORKLOAD [--nmax N] [--paper DIR]
+    uv run --locked python tools/auto-profile/profile.py BINARY OUT WORKLOAD [--nmax N] [--paper DIR]
 
 WORKLOAD: py_s1bf (W246/W269's periodic run: phases setup, steady, periodic), modeldb (W269's ModelDB
 267710 as examples/ode/motoneuron6c.odex, W429: the same phases), or a tests/auto description name (tstauto_lecar, ...: phase

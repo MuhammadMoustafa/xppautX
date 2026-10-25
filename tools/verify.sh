@@ -23,8 +23,8 @@ done
 BASELINE=c281851de59ffd03b2a46428619a0c8f
 # the behaviour checks are python: without it the gate would pass having
 # run only part of itself, so it refuses to start (review 2026-10-01, W146)
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "verify.sh: python3 is required (servercheck, autocheck, goldencheck, manualcheck)"
+if ! command -v uv >/dev/null 2>&1; then
+  echo "verify.sh: uv is required (servercheck, autocheck, goldencheck, manualcheck)"
   exit 2
 fi
 # one verify.sh at a time on this machine, whatever the checkout (W84):
@@ -89,35 +89,35 @@ fi
 if [ $source_checks -eq 1 ] && ! sh tools/sourcecheck.sh; then
   exit 1
 fi
-if python3 tools/servercheck.py > build/servercheck.log 2>&1; then
+if uv run --locked python tools/servercheck.py > build/servercheck.log 2>&1; then
   echo "server protocol ok: $(grep -c '^PASS' build/servercheck.log) checks"
 else
   grep -v '^PASS' build/servercheck.log
   echo "SERVER CHECK FAILED"
   exit 1
 fi
-if python3 tools/steadycheck.py > build/steadycheck.log 2>&1; then
+if uv run --locked python tools/steadycheck.py > build/steadycheck.log 2>&1; then
   echo "steady and continuation ok: $(grep -c '^PASS' build/steadycheck.log) checks"
 else
   grep -v '^PASS' build/steadycheck.log
   echo "STEADY CHECK FAILED"
   exit 1
 fi
-if python3 tools/spikecheck.py > build/spikecheck.log 2>&1; then
+if uv run --locked python tools/spikecheck.py > build/spikecheck.log 2>&1; then
   echo "firing behaviours ok: $(grep -c '^PASS' build/spikecheck.log) checks"
 else
   grep -v '^PASS' build/spikecheck.log
   echo "SPIKE CHECK FAILED"
   exit 1
 fi
-if python3 tools/livestatecheck.py > build/livestatecheck.log 2>&1; then
+if uv run --locked python tools/livestatecheck.py > build/livestatecheck.log 2>&1; then
   echo "live state and rates ok: $(grep -c '^PASS' build/livestatecheck.log) checks"
 else
   grep -v '^PASS' build/livestatecheck.log
   echo "LIVE STATE CHECK FAILED"
   exit 1
 fi
-if python3 tools/webcheck.py > build/webcheck.log 2>&1; then
+if uv run --locked python tools/webcheck.py > build/webcheck.log 2>&1; then
   echo "web front end ok: $(grep -c '^PASS' build/webcheck.log) checks"
 else
   grep -v '^PASS' build/webcheck.log
@@ -138,7 +138,7 @@ else
   echo "ASSOCIATE CHECK FAILED"
   exit 1
 fi
-if python3 tools/autocheck.py > build/autocheck.log 2>&1; then
+if uv run --locked python tools/autocheck.py > build/autocheck.log 2>&1; then
   echo "auto checks ok: $(grep -c '^PASS' build/autocheck.log) checks"
 else
   grep -v '^PASS' build/autocheck.log
@@ -149,7 +149,7 @@ fi
 # examples still run after a golden failure, so one run says both
 rm -rf build/golden-differ
 golden_failed=0
-if python3 tools/goldencheck.py --keep build/golden-differ > build/goldencheck.log 2>&1; then
+if uv run --locked python tools/goldencheck.py --keep build/golden-differ > build/goldencheck.log 2>&1; then
   echo "golden outputs ok: $(grep -c '^PASS' build/goldencheck.log) files"
 else
   grep -v '^PASS' build/goldencheck.log
@@ -181,7 +181,7 @@ else
   exit 1
 fi
 # W75: quirk findings and the --check JSON/no-write contract
-if python3 tools/checkcheck.py > build/checkcheck.log 2>&1; then
+if uv run --locked python tools/checkcheck.py > build/checkcheck.log 2>&1; then
   tail -1 build/checkcheck.log
 else
   tail -20 build/checkcheck.log
@@ -189,7 +189,7 @@ else
   exit 1
 fi
 # W178: the embedding generators leave no partial target and name the file that failed
-if python3 tools/embedcheck.py --build-dir build/obj > build/embedcheck.log 2>&1; then
+if uv run --locked python tools/embedcheck.py --build-dir build/obj > build/embedcheck.log 2>&1; then
   tail -1 build/embedcheck.log
 else
   tail -20 build/embedcheck.log
@@ -198,7 +198,7 @@ else
 fi
 # every whole model the manual shows still loads, and every command-line
 # option it names is real (W81)
-if python3 tools/manualcheck.py > build/manualcheck.log 2>&1; then
+if uv run --locked python tools/manualcheck.py > build/manualcheck.log 2>&1; then
   tail -1 build/manualcheck.log
 else
   cat build/manualcheck.log
