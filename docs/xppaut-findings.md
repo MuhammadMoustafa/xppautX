@@ -115,7 +115,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [82](#82-a-range-integration-ignores-every-failure-of-its-solver) | Ranges | a range or manipulation run that fails in its solver ends or continues silently |
 | [83](#83-the-transient-time-compares-the-absolute-time) | Integration | `TRANS` compares \|t\|, wrong for a run not starting at 0 or going backward |
 | [84](#84-the-array-plots-time-range-starts-at-0-and-ends-at-20-by-default) | Array plot | Print arrayplot and the window's time range start at 0 and end at 20 whatever the data holds (only a first row above 0 moves the start): a run of any other length prints with a wrong axis | [W492 / #556](https://github.com/MuhammadMoustafa/xppautX/issues/556) |
-| [86](#86-the-cross-spectrum-averages-one-window-more-than-it-divides-by) | Spectra | the cross spectrum and coherence loop over `kwin+1` windows (the last wraps round the data) but divide by `kwin`, where the spectrum loops over `kwin`: the cross spectrum is too large by (kwin+1)/kwin (the coherence, a ratio of sums over the same windows, is unaffected) | [W489 / #553](https://github.com/MuhammadMoustafa/xppautX/issues/553) |
+| [85](#85-the-cross-spectrum-averages-one-window-more-than-it-divides-by) | Spectra | the cross spectrum and coherence loop over `kwin+1` windows (the last wraps round the data) but divide by `kwin`, where the spectrum loops over `kwin`: the cross spectrum is too large by (kwin+1)/kwin (the coherence, a ratio of sums over the same windows, is unaffected) | [W489 / #553](https://github.com/MuhammadMoustafa/xppautX/issues/553) |
 
 ## 1. Model options
 
@@ -1867,7 +1867,7 @@ The end of the time range is therefore 20 for every run, so a run of 100 time un
 a run of 5 has its axis stretched to 20. xppautX reads the time of the first and the last row shown (W492,
 [#556](https://github.com/MuhammadMoustafa/xppautX/issues/556)); no example model's output changed.
 
-## 86. The cross spectrum averages one window more than it divides by
+## 85. The cross spectrum averages one window more than it divides by
 
 `cross_spectrum` runs `for(j=0;j<=kwin;j++)` over the windows and then divides by `kwin`
 ([histogram.c:602](../reference/xppaut-8.0/histogram.c#L602), [histogram.c:624-627](../reference/xppaut-8.0/histogram.c#L624-L627);
