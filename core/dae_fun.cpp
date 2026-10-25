@@ -122,11 +122,6 @@ void set_init_guess(xpp::Session &s)
   }
 }
 namespace {
-/* a Newton update of the algebraic variables larger than this, per variable,
-   in total has run away: XPPAUT's default bound of 100, which a model's bound
-   no longer changes */
-constexpr double dae_update_limit=100;
-
 /* the 0= line a failure is at: the equation whose residual was the
    largest at the last iterate (the first of equals) */
 const xpp::Place &dae_place(const xpp::Session &s)
@@ -276,7 +271,8 @@ int solve_dae(xpp::Session &s)
       y[i]-=errvec[i];
       err+=fabs(errvec[i]);
     } 
-    if(err>(n*dae_update_limit)){
+    /* a Newton update past n times the state limit has run away, as XPPAUT's bound cap it */
+    if(err>(n*s.numerics.state_limit)){
       for(i=0;i<n;i++)
 	setvar(s,m.svars[i].index,s.dae.svar_last[i]);
       return DAE_OUT_OF_BOUNDS;

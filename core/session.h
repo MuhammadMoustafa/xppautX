@@ -40,7 +40,7 @@
 #include "adj2.h"
 #include "markov.h"
 #include "nullcline.h"
-#include "gear.h"
+#include "equilibria.h"
 #include "pp_shoot.h"
 #include "graphics.h"
 #include "my_ps.h"
@@ -237,7 +237,7 @@ struct Session {
   ShootRange shoot_range;
   /* Text,etc's marker settings (grobs.cpp) */
   MarkInfo marker;
-  /* Sing pts' shooting (gear.cpp) */
+  /* Sing pts' shooting (equilibria.cpp) */
   ManifoldShots manifolds;
 
   /* the drawing state and a picture file's (graphics.cpp, axes2.cpp,

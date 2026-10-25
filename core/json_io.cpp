@@ -19,6 +19,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <mutex>
 #include <string_view>
 #include <unistd.h>
@@ -256,9 +257,15 @@ double get_num(const char *obj, const char *key, double def)
     return js_num(js_find(obj, key), def);
 }
 
+/* a value outside int's range saturates (INT_MIN/INT_MAX, which every caller's
+   own range check refuses); NaN is the default: never an undefined conversion */
 int get_int(const char *obj, const char *key, double def)
 {
-    return static_cast<int>(get_num(obj, key, def));
+    const double v = get_num(obj, key, def);
+    if (std::isnan(v)) return static_cast<int>(def);
+    if (v >= static_cast<double>(std::numeric_limits<int>::max())) return std::numeric_limits<int>::max();
+    if (v <= static_cast<double>(std::numeric_limits<int>::min())) return std::numeric_limits<int>::min();
+    return static_cast<int>(v);
 }
 
 int is_cmd(const char *line, const char *name)

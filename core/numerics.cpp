@@ -295,10 +295,6 @@ void get_pmap_pars_com(xpp::Session &s, int l)
 {
  static const char *const mkey="nsmp";
  char ch;
- static const char *const n[]={"*0Variable","Section","Direction (+1,-1,0)","Stop on sect(y/n)"};
- std::array<std::string, 4> values;
- static const char *const yn[]={"N","Y"};
- int status;
  int i1=s.numerics.poincare_variable;
 
  ch=mkey[l];
@@ -310,23 +306,24 @@ void get_pmap_pars_com(xpp::Session &s, int l)
 
  if(s.numerics.poincare_map==PoincareMap::none)return;
 
- values[0] = ind_to_sym(s,i1);
- values[1] = xpp::format("{:.16g}", s.numerics.poincare_plane);
- values[2] = xpp::format("{}", static_cast<int>(s.numerics.poincare_sign));
- values[3] = yn[s.numerics.poincare_stop];
- static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
- status=do_string_box_of(4,1,"Poincare map",n,values,kinds);
- if(status!=0){
-              find_variable(s,values[0].c_str(),&i1);
+ /* the crossing direction by the section sign's own words (model_options.cpp's section_sign_names) */
+ static constexpr std::array<xpp::SectionSign,3> signs={xpp::SectionSign::negative,xpp::SectionSign::both,xpp::SectionSign::positive};
+ const auto sign_at=std::find(signs.begin(),signs.end(),s.numerics.poincare_sign);
+ std::array<xpp::FormField,4> fields={
+   xpp::FormField{.name="*0Variable",.kind=XPP_FIELD_NAME_IN(0),.value=ind_to_sym(s,i1)},
+   xpp::FormField::real_number("Section",s.numerics.poincare_plane),
+   xpp::FormField::choice("Direction",{"negative","both","positive"},static_cast<std::size_t>(sign_at-signs.begin())),
+   xpp::FormField::boolean("Stop on section",s.numerics.poincare_stop)};
+ if(xpp::ask_form(s,"Poincare map",fields)){
+              find_variable(s,fields[0].value.c_str(),&i1);
 	      if(i1<0) { s.numerics.poincare_map=PoincareMap::none;
                          command_error("numerics", "No such section");
 			 return;
 		       }
 	      s.numerics.poincare_variable=i1;
-	      s.numerics.poincare_sign=section_sign(atoi(values[2].c_str()));
-	      if(values[3][0]=='Y'||values[3][0]=='y')s.numerics.poincare_stop=true;
-	      else s.numerics.poincare_stop=false;
-	      s.numerics.poincare_plane=atof(values[1].c_str());
+	      s.numerics.poincare_plane=fields[1].real;
+	      s.numerics.poincare_sign=signs[static_cast<std::size_t>(fields[2].whole)];
+	      s.numerics.poincare_stop=fields[3].flag;
 	    }
 
 }

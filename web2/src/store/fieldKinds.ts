@@ -15,6 +15,9 @@
    name        one of a given set (the model's variables or parameters),
                case not mattering; the box suggests them
    file        a file's base name, the core's own rule (store/files.ts safeName)
+   boolean     `true` or `false` (a checkbox in a form)
+   choice      one of a given set of names, exactly (a select in a form; its label is
+               the name, choiceLabel)
    text        anything */
 import {safeName} from './files';
 
@@ -24,6 +27,8 @@ export type FieldSpec =
   | {kind: 'expression'}
   | {kind: 'name'; names: readonly string[]; what?: string}
   | {kind: 'file'}
+  | {kind: 'boolean'}
+  | {kind: 'choice'; choices: readonly string[]}
   | {kind: 'text'};
 
 export type FieldKind = FieldSpec['kind'];
@@ -111,11 +116,26 @@ const KINDS: {[K in FieldKind]: KindEntry<K>} = {
     check: text => (safeName(text) ? null : 'a file name only: no folders, no leading dot, none of \\ / : * ? " < > |'),
     inputMode: () => 'text',
   },
+  boolean: {
+    check: text => (text === 'true' || text === 'false' ? null : 'true or false'),
+    inputMode: () => 'text',
+  },
+  choice: {
+    check: (text, spec) => (spec.choices.includes(text) ? null : `one of ${spec.choices.join(', ')}`),
+    inputMode: () => 'text',
+  },
   text: {
     check: () => null,
     inputMode: () => 'text',
   },
 };
+
+/** a choice's label: its name with the underscores as spaces and a capital first letter, derived,
+    never written apart ("extra_large" is "Extra large") */
+export function choiceLabel(name: string): string {
+  const spaced = name.replace(/_/g, ' ');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
 
 function entry<K extends FieldKind>(spec: SpecOf<K>): KindEntry<K> {
   return KINDS[spec.kind as K];
@@ -235,21 +255,22 @@ export function fieldMessage(phrase: string): string {
   return phrase.charAt(0).toUpperCase() + phrase.slice(1);
 }
 
-/** a choice's label: its name, underscores as spaces and a capital first letter ("runge_kutta" is
-    "Runge kutta"); labels are never written apart from the names (docs/protocol.md "The numerics as data") */
-export function choiceLabel(name: string): string {
-  return fieldMessage(name.replace(/_/g, ' '));
-}
-
-/** a protocol kind as a spec: `integer`, `number`, `formula` (a number or
-    %formula), `expression`, `file`, `text`, `name:N` (a name from
+/** a protocol kind as a spec: `integer`, `number`, `real` (a plain number within the
+    field's range), `formula` (a number or %formula), `boolean`, `choice` (one of the field's
+    options), `expression`, `file`, `text`, `name:N` (a name from
     `hello.lists[N]`; typed when that list is empty: a model with no
     parameters). Core and page ship together: a kind or list the page does
     not know is a bug, thrown */
-export function specOfKind(kind: string, lists: readonly (readonly string[])[] = []): FieldSpec {
+export function specOfKind(kind: string, lists: readonly (readonly string[])[] = [],
+  field: {options?: readonly string[] | null; range?: {min?: number; max?: number} | null} = {}): FieldSpec {
   switch (kind) {
+    case 'boolean': return {kind: 'boolean'};
+    case 'choice':
+      if (!field.options) throw new Error('a choice field without its options');
+      return {kind: 'choice', choices: field.options};
+    case 'real': return {kind: 'number', ...field.range};
     case 'text': return {kind: 'text'};
-    case 'integer': return {kind: 'integer'};
+    case 'integer': return {kind: 'integer', ...field.range};
     case 'number': return {kind: 'number'};
     case 'formula': return {kind: 'number', formula: true};
     case 'expression': return {kind: 'expression'};

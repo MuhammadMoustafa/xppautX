@@ -1929,8 +1929,22 @@ initial data from a formula). `file`: a file's base name. `name:N`: a name
 from `hello.lists[N]` (`name:0` T or a variable). `text`: anything. Every
 field of a prompt whose call site says nothing is `text`, and a client
 reading an ask without `kinds` (an older core) treats every field as
-text. The kinds are a client's guide, not a check: the core reads what it
-is answered as it always did. A `*n` field (above) picks from its list
+text. For the kinds above the kinds are a client's guide, not a check: the
+core reads what it is answered as it always did. A typed form (W485, #549;
+core `ask_form`) is different: every field is checked by its kind, all of
+them, before any is used, and a bad value is a `message` `error` naming the
+field (`Poincare map: Direction: "up" is not one of both, increasing,
+decreasing`), nothing applied. Its extra kinds: `boolean` (the answer is the
+text `true` or `false`; a checkbox), `choice` (one of the names in the
+form's `options` entry for the field, exactly; a select whose labels are the
+names with underscores as spaces and a capital first letter, derived, never
+written apart) and `real` (a plain number, no `%formula`; `integer` takes
+the same). The form ask carries `options` (per field the names of a `choice`,
+`null` for another kind) and `ranges` (per field `{min, max}` of an `integer`
+or `real`, either key only when given, `null` when it has none) beside
+`kinds`; the answer stays `values`, one text per field. Poincare map's form
+(Numerics, Poincare map) is the first: Section `real`, Direction `choice`
+(`both`, `increasing`, `decreasing`), Stop on section `boolean`. A `*n` field (above) picks from its list
 whatever its kind. web2 marks a field whose text its kind does not take
 and does not answer until it is corrected (web2/src/store/fieldKinds.ts);
 `tools/servercheck.py` checks the kinds of a `formula`, a form of

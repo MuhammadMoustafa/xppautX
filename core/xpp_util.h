@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -60,8 +61,17 @@ class TypedFields {
   explicit TypedFields(Session &s) : s_(s) {}
   /* typed_number's reading of `text`; 0 after a fault */
   double number(std::string_view field, const std::string &text);
-  /* a whole number (parse_int); 0 after a fault */
-  int integer(std::string_view field, const std::string &text);
+  /* a whole number (parse_int), within min..max where given; 0 after a fault */
+  int integer(std::string_view field, const std::string &text, std::optional<double> min = std::nullopt,
+              std::optional<double> max = std::nullopt);
+  /* a plain real number (parse_number: no %formula), within min..max where
+     given; 0 after a fault */
+  double real(std::string_view field, const std::string &text, std::optional<double> min = std::nullopt,
+              std::optional<double> max = std::nullopt);
+  /* `true` or `false`; false after a fault */
+  bool boolean(std::string_view field, const std::string &text);
+  /* one of choices, by its name, exactly: its index; 0 after a fault */
+  int choice(std::string_view field, const std::string &text, std::span<const std::string> choices);
   void fail(std::string_view field, std::string_view what);
   const std::optional<std::string> &error() const { return error_; }
 

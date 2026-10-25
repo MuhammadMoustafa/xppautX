@@ -374,6 +374,7 @@ void j_respond_box(std::string_view button, std::string_view message);
 int j_checklist(std::string_view title, const char *const *names, int *flags, int n);
 int j_string_box(int row, int col, std::string_view title, const char *const *names, std::span<std::string> values,
                  const int *kinds);
+int j_typed_form(std::string_view title, std::span<FormField> fields);
 int j_grid_box(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
                const char *const *names, std::span<std::string> values, const int *kinds);
 int j_file_selector(std::string_view title, std::string &file, std::string_view wild);

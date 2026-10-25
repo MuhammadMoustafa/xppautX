@@ -2018,6 +2018,36 @@ async function prompts() {
     await until(`(() => { const p = __xpp.plot(); return !!p && p.xLabel === 'V' && p.yLabel === 'W'; })()`, 'labels cleared'),
     JSON.stringify(await cdp.eval('__xpp.plot()')));
 
+  /* W485: a typed form shows a boolean as a checkbox and a choice as a select labelled by its names,
+     and the answer carries `true`/`false` and the name chosen (Numerics/Poincare map) */
+  await focusPlot();
+  await key('u');
+  await menuKeys('p', 's');
+  await until("s.ask && s.ask.kind === 'form' && s.ask.title === 'Poincare map'", 'Poincare map form');
+  const typed = await cdp.eval(`(() => { const d = document.querySelector('[role=dialog]'), sel = d.querySelector('select[data-choice]'),
+    box = d.querySelector('input[type=checkbox]'); return {labels: sel && [...sel.options].map(o => o.textContent),
+    values: sel && [...sel.options].map(o => o.value), checkbox: !!box, checked: box && box.checked}; })()`);
+  check('W485: a choice is a select labelled by its names, a boolean a checkbox',
+    typed.labels?.join() === 'Negative,Both,Positive' && typed.values?.join() === 'negative,both,positive'
+    && typed.checkbox && typed.checked === false, JSON.stringify(typed));
+  await cdp.eval(`(() => { const d = document.querySelector('[role=dialog]'), sel = d.querySelector('select[data-choice]'),
+    box = d.querySelector('input[type=checkbox]'); sel.value = 'negative'; sel.dispatchEvent(new Event('change', {bubbles: true}));
+    box.click(); })()`);
+  await rendered();
+  await key('Enter');
+  await until('!s.busy && !s.ask', 'Poincare answered');
+  const poincare = await lastAnswer();
+  check('W485: the answer carries the name chosen and true', poincare?.values?.[2] === 'negative' && poincare?.values?.[3] === 'true',
+    JSON.stringify(poincare));
+  await key('Escape');
+  await until('!s.busy && !s.ask', 'back to the plot');
+  await focusPlot();
+  await key('u');
+  await menuKeys('p', 'n'); /* the map off again: later runs are plain */
+  await until('!s.busy && !s.ask', 'Poincare map off');
+  await key('Escape');
+  await until('!s.busy && !s.ask', 'back to the plot again');
+
   /* T35d/T31: the form's fields take what the core says they take (the ask's kinds): a keystroke
      a number field never takes (a letter) is refused outright and never lands (T35d); one left
      half-typed ("1e") is marked with a message, OK is disabled and Enter answers nothing */

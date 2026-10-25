@@ -371,7 +371,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
     tol=fabs(f1-f0);
     switch(sign){
     case 1:
-      if((((f0<0.0)&&(f1>0.0))||((f0<0.0)&&(f1>0.0)))&&tol>tolmin){
+      if(f0<0.0&&f1>=0.0&&tol>tolmin){
 	s.integrator.flags[i].hit=ncycle+1;
 	s.integrator.flags[i].tstar=f0/(f0-f1);
       }

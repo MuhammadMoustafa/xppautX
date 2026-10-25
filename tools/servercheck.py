@@ -178,13 +178,13 @@ STOPS_KNOWN = {  # case id -> (card that fixes it, reason it is not started or N
     'backward_euler': ('W488', None),
     'cvode': ('W488', None),
     'delay': ('W488', None),
+    'rosenbrock': ('W488', None),
     'range_gear': ('W487', None),
     'range_backward_euler': ('W487', None),
     'range_bound': ('W487', None),
     'eq_range': ('W487', None),
     'event_halt': ('W487', None),
     'sing_pts': ('W489', None),
-    'rosenbrock': ('W482', 'a step never ends: odesol2.cpp rosen retries forever (W480 S5)'),
 }
 STOPS_PLAIN_GO = [{'key': 'g'}]  # the Integrate or Equilibria menu's Go
 STOPS_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '2', '1', '3']}]  # Range Integrate over a, 1 to 3
@@ -1047,6 +1047,51 @@ if ask:
     collect(is_idle)
 send(cmd='key', key='Escape')
 collect(is_idle)
+
+# W485 (#549): a typed form. Numerics/Poincare map's form has a real (Section), a choice (Direction) and a
+# boolean (Stop on section); every answer is read by its kind, whole, before any is applied
+def poincare_form():
+    send(cmd='key', key='Escape')  # out of the Numerics menu a command left open
+    collect(is_idle)
+    send(cmd='key', key='u')
+    send(cmd='key', key='p')
+    evs, a = collect(lambda e: e.get('ev') == 'ask')
+    send(cmd='answer', id=a['id'], key='s')
+    return collect(lambda e: e.get('ev') == 'ask')[1]
+ask = poincare_form()
+check('W485: the Poincare map form says each field\'s kind, a choice\'s options and a boolean\'s text',
+      ask is not None and ask['kind'] == 'form' and ask.get('kinds') == ['name:0', 'real', 'choice', 'boolean']
+      and ask.get('options') == [None, None, ['negative', 'both', 'positive'], None]
+      and ask['values'][2:] == ['positive', 'false'], str(ask))
+if ask:
+    var = ask['values'][0]
+    for what, vals, want in (('a Section that is not a number', [var, 'abc', 'both', 'false'], 'Section'),
+                             ('a Direction that is not a choice', [var, '0.5', 'up', 'false'], 'Direction'),
+                             ('a Stop on section that is not true or false', [var, '0.5', 'both', 'Y'], 'Stop on section')):
+        send(cmd='answer', id=ask['id'], ok=1, values=vals)
+        evs = collect(is_idle)[0]
+        e = next((v for v in evs if v.get('ev') == 'message' and 'error' in v), {})
+        check('W485: %s is an error naming the field' % what, want in e.get('error', ''), str(e))
+        ask = poincare_form()
+        check('W485: ... and nothing of that answer was applied', ask is not None and ask.get('values', [])[1:] == ['0', 'positive', 'false'],
+              str(ask and ask))
+    send(cmd='answer', id=ask['id'], ok=1, values=[var, '0.5', 'negative', 'true'])
+    evs = collect(is_idle)[0]
+    check('W485: a good answer raises no error', not [v for v in evs if v.get('ev') == 'message' and 'error' in v], str(evs)[:300])
+    ask = poincare_form()
+    check('W485: ... and is what the form shows next', ask is not None and ask['values'][1:] == ['0.5', 'negative', 'true'],
+          str(ask and ask['values']))
+    send(cmd='answer', id=ask['id'], ok=1, values=[var, '0', 'positive', 'false'])  # back to as it was
+    collect(is_idle)
+    send(cmd='key', key='Escape')
+    collect(is_idle)
+    send(cmd='key', key='u')
+    send(cmd='key', key='p')
+    evs, a = collect(lambda e: e.get('ev') == 'ask')
+    send(cmd='answer', id=a['id'], key='n')  # Poincare map off
+    collect(is_idle)
+    send(cmd='key', key='Escape')
+    collect(is_idle)
 
 send(cmd='key', key='v')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')

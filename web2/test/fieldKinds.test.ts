@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
-  EXPRESSION, FILE, FORMULA, choiceLabel, fieldAcceptsEdit, fieldCharMessage, fieldError, fieldIncomplete, fieldIncompleteReason,
+  choiceLabel, EXPRESSION, FILE, FORMULA, fieldAcceptsEdit, fieldCharMessage, fieldError, fieldIncomplete, fieldIncompleteReason,
   fieldInputMode, fieldMessage, fieldPasteMessage, fieldPasteOffender, fieldsValid, NUMBER, specOfKind, TEXT,
   type FieldSpec,
 } from '../src/store/fieldKinds';
@@ -102,12 +102,6 @@ test('a message starts with a capital', () => {
   assert.equal(fieldMessage('a whole number'), 'A whole number');
 });
 
-test('a choice is labelled by its name: underscores as spaces, a capital first letter', () => {
-  assert.equal(choiceLabel('runge_kutta'), 'Runge kutta');
-  assert.equal(choiceLabel('cvode'), 'Cvode');
-  assert.equal(choiceLabel('backward_euler'), 'Backward euler');
-});
-
 test('fieldAcceptsEdit (T35d): a keystroke, paste or drop is taken only when it is valid or on the way to it', () => {
   const int: FieldSpec = {kind: 'integer'};
   for (const t of ['', '-', '+', '0', '42', '-7']) assert.equal(fieldAcceptsEdit(int, t), true, t);
@@ -170,4 +164,24 @@ test('the start of a number is not a wrong entry while typed; a complete wrong o
   assert.equal(fieldIncomplete({kind: 'integer'}, '-'), true);
   assert.equal(fieldIncomplete({kind: 'integer'}, '2.5'), false);
   assert.equal(fieldIncomplete(TEXT, ''), false);
+});
+
+test('a boolean takes true or false; a choice one of its names exactly; a real its range (W485)', () => {
+  const bool = specOfKind('boolean');
+  ok(bool, 'true', 'false');
+  refused(bool, 'True', 'Y', '1', '');
+  const pick = specOfKind('choice', [], {options: ['both', 'increasing', 'decreasing']});
+  ok(pick, 'both', 'decreasing');
+  refused(pick, 'Both', 'up', '');
+  assert.throws(() => specOfKind('choice'), /options/);
+  const real = specOfKind('real', [], {range: {min: 0, max: 1}});
+  ok(real, '0', '0.5', '1e-1');
+  refused(real, '2', '-1', 'abc', '%2*pi');
+  ok(specOfKind('real', [], {range: null}), '-1e9');
+  assert.equal(fieldError(specOfKind('integer', [], {range: {min: 1}}), '0'), 'a whole number of at least 1');
+});
+
+test('a choice\'s label is its name, underscores as spaces, a capital first letter (W485)', () => {
+  assert.equal(choiceLabel('both'), 'Both');
+  assert.equal(choiceLabel('maximum_and_minimum'), 'Maximum and minimum');
 });
