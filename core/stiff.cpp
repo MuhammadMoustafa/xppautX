@@ -18,7 +18,6 @@ namespace xpp {
 #define SHRNK 0.5
 #define PSHRNK (-1.0/3.0)
 #define ERRCON 0.1296
-#define MAXTRY 40
 #define GAM (1.0/2.0)
 #define A21 2.0
 #define A31 (48.0/25.0)
@@ -43,7 +42,6 @@ namespace xpp {
 #define C4X (29.0/250.0)
 #define A2X 1.0
 #define A3X (3.0/5.0)
-#define MAXSTP 100000
 #define TINY 1.0e-30
 #define PGROW2 -0.2
 #define PSHRNK2 -0.25
@@ -78,7 +76,7 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
   h=xpp::sign(h1,x2-x1);
   *ier=0;
   for (i=0;i<nvar;i++) y[i]=ystart[i];
-  for(nstp=1;nstp<=MAXSTP;nstp++){
+  for(nstp=1;nstp<=ADAPTIVE_MAX_STEPS;nstp++){
     s.integrator.rhs(x,y,dydx,nvar);
     for(i=0;i<nvar;i++)
       if(xpp::solver_info(iflag).traits.stiff_step)
@@ -90,7 +88,12 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
       stiff(s,y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,epjac,ier);
     else
       rkqs(s,y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,ier); 
-    if(*ier>0)return -1;
+    /* a positive *ier ends the advance; XPPAUT's stiff step that found its
+       matrix singular (ADAPTIVE_SINGULAR) is not one: the loop goes on */
+    if(*ier>0){
+      s.solver_work.stop.t=x;
+      return -1;
+    }
     if ((x-x2)*(x2-x1) >= 0.0) 
       {
 	for (i=0;i<nvar;i++) ystart[i]=y[i];
@@ -99,15 +102,20 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
 	return 0;
       }
     if (fabs(hnext) <= hmin) {
-     
-      *ier=2;
+      /* the variable whose error estimate in the step just taken is the
+         largest: stiff's err (after its matrix, derivatives and saved
+         state in work2), or rkqs's yerr (work2's first) */
+      const double *err=xpp::solver_info(iflag).traits.stiff_step?work2+2*nvar*nvar+2*nvar:work2;
+      s.solver_work.stop={x,hnext,xpp::largest_magnitude(err,nvar),0};
+      *ier=ADAPTIVE_BELOW_MIN_STEP;
       return -1;
     }
     h=hnext;
     
   }
   
-  *ier=3;
+  s.solver_work.stop={x,h,-1,0};
+  *ier=ADAPTIVE_TOO_MANY_STEPS;
   return -1;
 }
 
@@ -141,15 +149,14 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 	}
 	jacobn(s,xsav,ysav,dfdx,dfdy,epjac,work2,n);
 	h=htry;
-	for (jtry=1;jtry<=MAXTRY;jtry++) {
+	for (jtry=1;jtry<=ADAPTIVE_MAX_TRIES;jtry++) {
 		for (j=0;j<n;j++) {
 			for (i=0;i<n;i++) a[i+n*j] = -dfdy[i+n*j];
 			a[j+n*j] += 1.0/(GAM*h);
 		}
 		xpp::sgefa(a,n,n,indx,&info);
 		if(info!=-1){
-		 
-                  *ier=-1;
+		  *ier=ADAPTIVE_SINGULAR;
 		  return -1;
 		}
 
@@ -179,10 +186,10 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 		}
 		*x=xsav+h;
 		if (*x == xsav) {
-		         
-		       	 *ier=1;
-		       	 return -1;
-			       }
+		  s.solver_work.stop={xsav,h,xpp::largest_magnitude(err,n),0};
+		  *ier=ADAPTIVE_STEP_UNDERFLOW;
+		  return -1;
+		}
 		errmax=0.0;
                 
 		for (i=0;i<n;i++) errmax=std::max(fabs(err[i]/yscal[i]),errmax);
@@ -197,10 +204,9 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 		  h=(h >= 0.0 ? std::max(SHRNK*h,*hnext) : std::min(SHRNK*h,*hnext));
 		}
 	}
-         
-        *ier=4;
-       return -1;
-	
+	s.solver_work.stop={xsav,h,xpp::largest_magnitude(err,n),0};
+	*ier=ADAPTIVE_TOO_MANY_TRIES;
+	return -1;
 }
 
 int rkqs(xpp::Session &s, double *y, double *dydx, int n, double *x, double htry, double eps, double *yscal, double *hdid, double *hnext, double *work, int *ier)
@@ -223,8 +229,8 @@ int rkqs(xpp::Session &s, double *y, double *dydx, int n, double *x, double htry
       h=(h >= 0.0 ? std::max(0.1*h,htemp) : std::min(0.1*h,htemp));
       xnew=(*x)+h;
       if (xnew == *x) {
-	
-	*ier=1;
+	s.solver_work.stop={*x,h,xpp::largest_magnitude(yerr,n),0};
+	*ier=ADAPTIVE_STEP_UNDERFLOW;
 	return -1;
       }
       continue;

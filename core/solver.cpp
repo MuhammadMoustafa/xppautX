@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include "xpp_io.h"
 #include <new>
 #include <string>
@@ -24,6 +25,9 @@
 #include "xpp_mem.h" /* xpp::out_of_memory */
 #include "xpp_ui.h"
 #include "model.h"
+#include "model_files.h"
+#include "numerics_settings.h"
+#include "xpp_math.h"
 
 namespace xpp {
 namespace {
@@ -36,6 +40,15 @@ int implicit_work(int n, const Session &s) { return 10*n+jacobian_work(n,s)+100;
 int gear_work(int n) { return 30*n+n*n+100; }
 int stiff_work(int n, const Session &) { return 2*n*n+13*n+100; }
 int rosenbrock_work(int n, const Session &s) { return 12*n+100+jacobian_work(n,s); }
+
+/* where an error about settings is: the line the model sets the first of
+   them on, else the command that ran the computation */
+Place settings_place(const Model &m, std::initializer_list<std::string_view> settings)
+{
+  for(const std::string_view key:settings)
+    if(Place place=model_place(m,key);place.line>0)return place;
+  return command_place();
+}
 
 std::vector<double> make_work(int size)
 {
@@ -57,13 +70,16 @@ public:
     : Solver(info,s), step_(step), work_(make_work(work)) {}
   Result<> step_by(const SolverStep &s) override
   {
-    int kflag=step_(session_,s.y,s.t,s.dt,s.steps,s.neq,s.start,work_.data());
+    const int kflag=step_(session_,s.y,s.t,s.dt,s.steps,s.neq,s.start,work_.data());
+    /* an implicit step's Newton iteration (backward Euler's, Volterra's) */
+    const SolverWork::Stop &stop=session_.solver_work.stop;
     switch(kflag){
-    case -1: return failed("Singular Jacobian");
-    case -2: return failed("Too many iterates");
+    case NEWTON_SINGULAR: return stopped("the Newton iteration's matrix is singular",*s.t,stop.variable,{});
+    case NEWTON_NO_CONVERGENCE:
+      return stopped(xpp::format("the Newton iteration did not converge in {} iterations",stop.iterations),*s.t,stop.variable,
+                     {"eul_iter","eul_tol"});
     default: break;
     }
-    if(kflag<0)return failed("");
     return {};
   }
 private:
@@ -82,14 +98,16 @@ public:
     int kflag=0;
     gear(session_,s.neq,s.t,s.tout,s.y,num.min_step,num.max_step,num.relative_tolerance,2,error_.data(),&kflag,s.start,
          work_.data(),iwork_.data());
+    /* on a failure, the variable whose error estimate is the largest */
+    const int worst=kflag<0?largest_magnitude(error_.data(),s.neq):-1;
     switch(kflag){
-    case -1: return failed("kflag=-1: minimum step too big");
-    case -2: return failed("kflag=-2: required order too big");
-    case -3: return failed("kflag=-3: minimum step too big");
-    case -4: return failed("kflag=-4: tolerance too small");
+    case -1: return stopped("the error test failed with the step at min_step",*s.t,worst,{"min_step","relative_tolerance"});
+    case -2: return stopped("the method's order would exceed its highest, 6",*s.t,-1,{});
+    case -3: return stopped("the corrector did not converge with the step at min_step",*s.t,worst,{"min_step","relative_tolerance"});
+    case -4: return stopped("the error test failed repeatedly at order 1: the tolerance is too small for the rounding",*s.t,worst,
+                            {"relative_tolerance"});
     default: break;
     }
-    if(kflag<0)return failed("");
     return {};
   }
 private:
@@ -108,14 +126,17 @@ public:
     int kflag=0;
     adaptive(session_,s.y,s.neq,s.t,s.tout,num.relative_tolerance,s.hguess,num.min_step,work_.data(),&kflag,
              num.equilibria.jacobian_step,info().id,s.start);
+    const SolverWork::Stop &stop=session_.solver_work.stop;
     switch(kflag){
-    case 0: return {};
-    case 1: return failed("stepsize is close to 0");
-    case 2: return failed("Step size too small");
-    case 3: return failed("Too many steps");
-    case 4: return failed("exceeded MAXTRY in stiff");
-    case -1: return failed("singular jacobian encountered");
-    default: return failed("");
+    case ADAPTIVE_STEP_UNDERFLOW: return stopped("the step size became too small to change t",stop.t,stop.variable,{"relative_tolerance"});
+    case ADAPTIVE_BELOW_MIN_STEP:
+      return stopped(xpp::format("the step size {} fell below min_step",stop.h),stop.t,stop.variable,{"min_step","relative_tolerance"});
+    case ADAPTIVE_TOO_MANY_STEPS:
+      return stopped(xpp::format("more than {} steps between two output times",ADAPTIVE_MAX_STEPS),stop.t,-1,{"dt","relative_tolerance"});
+    case ADAPTIVE_TOO_MANY_TRIES:
+      return stopped(xpp::format("the error test failed {} times with ever smaller steps",ADAPTIVE_MAX_TRIES),stop.t,stop.variable,
+                     {"relative_tolerance"});
+    default: return {};
     }
   }
 private:
@@ -130,16 +151,11 @@ public:
     NumericsSettings &num=session_.numerics;
     int kflag=0;
     cvode(session_,run_,s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.relative_tolerance,&num.absolute_tolerance);
-    if(kflag<0){
-      /* the short reason, then CVODE's own words; at the equation of the
-         variable CVODE's error test or corrector failed at, if it names one */
-      std::string what=cvode_error_text(session_,run_,kflag);
-      if(!run_.error.empty())what+="\n"+run_.error;
-      const Model &m=session_.model();
-      if(run_.error_var>=0&&run_.error_var<m.neq)
-        return failed(std::move(what),model_place(m,m.uvar_names[static_cast<size_t>(run_.error_var)]));
-      return failed(std::move(what));
-    }
+    if(kflag<0)
+      /* the reason, then CVODE's own words; at the equation of the variable
+         CVODE's error test or corrector failed at, if it names one */
+      return stopped(cvode_error_text(session_,run_,kflag),*s.t,static_cast<int>(run_.error_var),
+                     {"relative_tolerance","absolute_tolerance"},run_.error);
     return {};
   }
   void finish() override { end_cv(run_); }
@@ -157,7 +173,10 @@ public:
   {
     int kflag=0;
     rb23(session_,s.y,s.t,s.tout,s.start,s.neq,work_.data(),&kflag);
-    if(kflag<0)return failed("Step size too small");
+    const SolverWork::Stop &stop=session_.solver_work.stop;
+    if(kflag<0)
+      return stopped(xpp::format("the step size fell to the rounding limit {} with the error still above the tolerance",stop.h),
+                     stop.t,stop.variable,{"relative_tolerance","absolute_tolerance"});
     return {};
   }
 private:
@@ -202,11 +221,15 @@ constexpr SolverTraits steps{.fixed_step=true,.wiener=true};
 constexpr SolverTraits implicit_steps{.fixed_step=true,.newton=true,.wiener=true};
 constexpr SolverTraits integral_steps{.fixed_step=true,.newton=true,.integral_history=true,.wiener=true};
 constexpr SolverTraits paired_steps{.fixed_step=true,.paired_dimension=true,.wiener=true};
-constexpr SolverTraits stiff_tolerance{.step_tolerance=true,.stiff_step=true};
-constexpr SolverTraits rel_abs_eighth{.rel_abs_tolerance=true,.eighth_order=true,.dense_output=true};
-constexpr SolverTraits step_tolerance{.step_tolerance=true};
-constexpr SolverTraits rel_abs{.rel_abs_tolerance=true,.dense_output=true};
-constexpr SolverTraits rel_abs_banded{.rel_abs_tolerance=true,.banded=true};
+/* Gear: its step between min_step and max_step; QualRK and Stiff stop at
+   min_step and have no bound above; CVODE and Rosenbrock read neither; the
+   Dormand-Prince pair bounds its steps by max_step */
+constexpr SolverTraits gear_steps{.relative_tolerance=true,.min_step=true,.max_step=true};
+constexpr SolverTraits adaptive_steps{.relative_tolerance=true,.min_step=true};
+constexpr SolverTraits stiff_steps{.relative_tolerance=true,.min_step=true,.stiff_step=true};
+constexpr SolverTraits rel_abs_eighth{.relative_tolerance=true,.absolute_tolerance=true,.max_step=true,.eighth_order=true,.dense_output=true};
+constexpr SolverTraits rel_abs{.relative_tolerance=true,.absolute_tolerance=true,.max_step=true,.dense_output=true};
+constexpr SolverTraits rel_abs_banded{.relative_tolerance=true,.absolute_tolerance=true,.banded=true};
 
 /* The registry: every method, by number. An explicit table rather than
    solvers that register themselves from static initializers, which a
@@ -217,11 +240,11 @@ constexpr std::array<SolverInfo,method::COUNT> registry{{
   {method::MOD_EULER,"Mod. Euler","Mod. Euler","modified_euler",steps,fixed_step<mod_euler,standard_work>},
   {method::RK4,"Runge-Kutta","Runge-Kutta","runge_kutta",steps,fixed_step<rung_kut,standard_work>},
   {method::ADAMS,"Adams","Adams","adams",steps,fixed_step<adams,standard_work>},
-  {method::GEAR,"Gear","Gear","gear",step_tolerance,start_gear},
+  {method::GEAR,"Gear","Gear","gear",gear_steps,start_gear},
   {method::VOLTERRA,"Volterra","Volterra","volterra",integral_steps,fixed_step<volterra,implicit_work>},
-  {method::BACKEUL,"BackEul","BackEul","backward_euler",implicit_steps,fixed_step<bak_euler,implicit_work>},
-  {method::RKQS,"QualRK","Qual RK","qualrk",step_tolerance,start_adaptive<standard_work>},
-  {method::STIFF,"Stiff","Stiff","stiff",stiff_tolerance,start_adaptive<stiff_work>},
+  {method::BACKEUL,"Backward Euler","BackEul","backward_euler",implicit_steps,fixed_step<bak_euler,implicit_work>},
+  {method::RKQS,"QualRK","Qual RK","qualrk",adaptive_steps,start_adaptive<standard_work>},
+  {method::STIFF,"Stiff","Stiff","stiff",stiff_steps,start_adaptive<stiff_work>},
   {method::CVODE,"CVode","CVode","cvode",rel_abs_banded,start_cvode},
   {method::DP5,"DoPri5","DorPrin5","dopri5",rel_abs,start_dormand_prince},
   {method::DP83,"DoPri8(3)","DorPri8(3)","dopri8",rel_abs_eighth,start_dormand_prince},
@@ -256,6 +279,39 @@ Result<> Solver::advance(const SolverStep &step)
 Result<> Solver::failed(std::string what) const
 {
   return fail(info_.name,std::move(what),command_place());
+}
+
+Result<> Solver::stopped(std::string_view what, double t, int variable, std::initializer_list<std::string_view> settings,
+                         std::string_view detail) const
+{
+  const Model &m=session_.model();
+  std::string text=xpp::format("{}: {} at t = {}",info_.name,what,t);
+  Place place;
+  if(variable>=0&&variable<m.neq){
+    const std::string &name=m.uvar_names[static_cast<std::size_t>(variable)];
+    text+=xpp::format(", in {}",name);
+    place=model_place(m,name);
+  }
+  if(settings.size()>0)text+=xpp::format(" ({})",named_settings(session_,settings));
+  if(!detail.empty())text+=xpp::format("\n{}",detail);
+  if(place.line==0)place=settings_place(m,settings);
+  return fail(info_.name,std::move(text),std::move(place));
+}
+
+Result<> check_step_limits(const Session &s, const SolverInfo &info, double dt, double length)
+{
+  const double min_step=s.numerics.min_step;
+  if(!info.traits.min_step)return {};
+  auto refuse=[&](std::string what,std::initializer_list<std::string_view> settings)->Result<>{
+    return fail(info.name,xpp::format("{}: {} ({})",info.name,what,named_settings(s,settings)),settings_place(s.model(),settings));
+  };
+  if(info.traits.max_step&&min_step>s.numerics.max_step)
+    return refuse("min_step is larger than max_step, so no step size satisfies both",{"min_step","max_step"});
+  if(std::fabs(dt)<min_step)
+    return refuse(xpp::format("Dt = {} is below min_step, so no step fits between two output times",dt),{"min_step"});
+  if(std::fabs(length)<min_step)
+    return refuse(xpp::format("the run's length {} is shorter than min_step",length),{"min_step"});
+  return {};
 }
 
 const SolverInfo &solver_info(int m)
@@ -308,7 +364,6 @@ Result<method::Id> pick_method(const Model &model, std::string_view text, Place 
   if (name == "qualrk4") chosen = &registry[method::RKQS];
   if (name == "modified euler") chosen = &registry[method::MOD_EULER];
   if (name == "modeuler") chosen = &registry[method::MOD_EULER];
-  if (name == "backward euler") chosen = &registry[method::BACKEUL];
   if (!chosen) return fail("method", xpp::format("Unknown method `{}`", text), std::move(place));
   return check_method(model, chosen->id, std::move(place));
 }

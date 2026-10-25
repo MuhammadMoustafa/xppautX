@@ -129,16 +129,11 @@ void  get_num_par(xpp::Session &s, char ch)
 			   break;
 			 }
 			const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
-			if(traits.step_tolerance){
-			  numerics_settings_ask(s,"relative_tolerance");
-			  numerics_settings_ask(s,"min_step");
-			  numerics_settings_ask(s,"max_step");
-			}
-			if(traits.dense_output)numerics_settings_ask(s,"max_step");
-			if(traits.rel_abs_tolerance){
-			  numerics_settings_ask(s,"relative_tolerance");
-			  numerics_settings_ask(s,"absolute_tolerance");
-			}
+			/* the settings the method reads, in the table's order */
+			if(traits.relative_tolerance)numerics_settings_ask(s,"relative_tolerance");
+			if(traits.min_step)numerics_settings_ask(s,"min_step");
+			if(traits.max_step)numerics_settings_ask(s,"max_step");
+			if(traits.absolute_tolerance)numerics_settings_ask(s,"absolute_tolerance");
 		       if(traits.newton){
 			 numerics_settings_ask(s,"eul_tol");
 			 numerics_settings_ask(s,"eul_iter");

@@ -1,11 +1,9 @@
-#include <stdlib.h> 
 #include "storage.h"
 #include "session.h"
 #include "xpp_ui.h"
 #include "xpp_math.h"
 #include <math.h>
-#include <limits.h>
-#include <memory.h>
+#include <cstring>
 #include <vector>
 #include "dormpri.h"
 #include "flags.h"
@@ -16,11 +14,12 @@
 #include <cmath>
 #include "xpp_job.h"
 
-/* The integrators' messages (Hairer's fileout stream, which XPP passed as
-   stdout) are xpp::log WARNs: its Solver (solver.cpp) reports the failure
-   itself; the stdout of --server is the protocol. */
-using FcnEqDiff = void (*)(xpp::Session &, unsigned, double, double *, double *);
-using SolTrait = void (*)(long, double, double, double *, unsigned, int *);
+/* Hairer's DOP853 and DOPRI5, with what XPP's one caller (the Solver
+   below) always chose built in: one scalar relative and absolute
+   tolerance, dense output of every component, no solution callback, and
+   Hairer's defaults for the rounding unit, the safety factor and the step
+   ratio bounds. A failure is returned as its code, with the time and step
+   it happened at in the run; the Solver reports it, once. */
 
 namespace {
 /* One continuous run: attempts, FSAL stages, controller and dense coefficients. */
@@ -30,7 +29,7 @@ struct DpRun {
   double next_h=0, facold=1e-4, hlamb=0;
   int iasti=0, nonsti=0;
   double xold=0, xout=0;
-  unsigned nrds=0, *indir=nullptr;
+  double failed_h=0; /* the step size an attempt failed with */
   double *yy1=nullptr, *k1=nullptr, *k2=nullptr, *k3=nullptr, *k4=nullptr, *k5=nullptr, *k6=nullptr,
          *k7=nullptr, *k8=nullptr, *k9=nullptr, *k10=nullptr, *ysti=nullptr;
   double *rcont1=nullptr, *rcont2=nullptr, *rcont3=nullptr, *rcont4=nullptr;
@@ -38,37 +37,39 @@ struct DpRun {
 };
 }
 
+/* Hairer's rounding unit (the smallest number with 1+uround > 1, for his
+   step-size-too-small test) and safety factor of the step controller */
+constexpr double DOPRI_UROUND = 2.3E-16;
+constexpr double DOPRI_SAFE = 0.9;
+/* the run's attempts (DOPRI_RUN_ATTEMPTS, dormpri.h), and the accepted
+   steps between stiffness tests: every one, as XPP's dormprin always did */
+constexpr long DOPRI_NMAX = xpp::DOPRI_RUN_ATTEMPTS;
+constexpr long DOPRI_NSTIFF = 1;
+/* Hairer's defaults for each method: the bounds fac1 <= hnew/h <= fac2
+   and beta, the Lund stabilization of the step controller */
+constexpr double DOP853_FAC1 = 0.333, DOP853_FAC2 = 6.0, DOP853_BETA = 0.0;
+constexpr double DOPRI5_FAC1 = 0.2, DOPRI5_FAC2 = 10.0, DOPRI5_BETA = 0.04;
+
 static void dprhs(xpp::Session &s, unsigned n, double t, double *y, double *f)
 {
  my_rhs(s,t,y,f,n);
 
 }
 
-static double hinit (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y,
+/* the initial step size of a method of order iord (both methods') */
+static double hinit (xpp::Session &s, unsigned n, double x, double* y,
 	      double posneg, double* f0, double* f1, double* yy1, int iord,
-	      double hmax, double* atoler, double* rtoler, int itoler)
+	      double hmax, double atoli, double rtoli)
 {
-  double   dnf, dny, atoli, rtoli, sk, h, h1, der2, der12, sqr;
+  double   dnf, dny, sk, h, h1, der2, der12, sqr;
   unsigned i;
 
   dnf = 0.0;
   dny = 0.0;
-  atoli = atoler[0];
-  rtoli = rtoler[0];
 
-  if (!itoler)
-    for (i = 0; i < n; i++)
+  for (i = 0; i < n; i++)
     {
       sk = atoli + rtoli * fabs(y[i]);
-      sqr = f0[i] / sk;
-      dnf += sqr*sqr;
-      sqr = y[i] / sk;
-      dny += sqr*sqr;
-    }
-  else
-    for (i = 0; i < n; i++)
-    {
-      sk = atoler[i] + rtoler[i] * fabs(y[i]);
       sqr = f0[i] / sk;
       dnf += sqr*sqr;
       sqr = y[i] / sk;
@@ -86,21 +87,13 @@ static double hinit (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doubl
   /* perform an explicit Euler step */
   for (i = 0; i < n; i++)
     yy1[i] = y[i] + h * f0[i];
-  fcn (s, n, x+h, yy1, f1);
+  dprhs (s, n, x+h, yy1, f1);
 
   /* estimate the second derivative of the solution */
   der2 = 0.0;
-  if (!itoler)
-    for (i = 0; i < n; i++)
+  for (i = 0; i < n; i++)
     {
       sk = atoli + rtoli * fabs(y[i]);
-      sqr = (f1[i] - f0[i]) / sk;
-      der2 += sqr*sqr;
-    }
-  else
-    for (i = 0; i < n; i++)
-    {
-      sk = atoler[i] + rtoler[i] * fabs(y[i]);
       sqr = (f1[i] - f0[i]) / sk;
       der2 += sqr*sqr;
     }
@@ -118,18 +111,75 @@ static double hinit (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doubl
 
 } /* hinit */
 
-/* core integrator */
-static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
-		   double hmax, double h, double* rtoler, double* atoler,
-		   int itoler, SolTrait solout, int iout,
-		   long nmax, double uround, int meth, long nstiff, double safe,
-		   double beta, double fac1, double fac2, unsigned* icont, DpRun &r)
+/* where a call's attempts start: k1 = f(x, y) and Hairer's initial step
+   for a fresh run, else the step the run's last call chose */
+static double dp_first_step (xpp::Session &s, unsigned n, double x, double *y, double posneg, int iord,
+			     double hmax, double atoli, double rtoli, DpRun &r)
 {
+  double h = 0.0;
+  if (!r.resume) dprhs (s, n, x, y, r.k1);
+  else h = r.next_h;
+  if (h == 0.0)
+    h = hinit (s, n, x, y, posneg, r.k1, r.k2, r.k3, iord, hmax, atoli, rtoli);
+  return h;
+}
+
+/* before an attempt from x with step h: the run's attempts spent (-2) or
+   h below the rounding limit (-3) end the run; a step that would reach
+   past xend is clipped to it, the last one; 0 to go on */
+static int dp_before_attempt (DpRun &r, double x, double &h, double xend, double posneg, int &last)
+{
+  if (r.nstep >= DOPRI_NMAX)
+    {
+      r.xout = x;
+      return -2;
+    }
+  if (0.1 * fabs(h) <= fabs(x) * DOPRI_UROUND)
+    {
+      r.xout = x;
+      r.failed_h = h;
+      return -3;
+    }
+  if ((x + 1.01*h - xend) * posneg > 0.0)
+    {
+      h = xend - x;
+      last = 1;
+    }
+  r.nstep++;
+  return 0;
+}
+
+/* a step accepted, now at x: 1 when it was the last one, else 2 with the
+   next step size (hnew, bounded by hmax and, after a rejection, by h) and
+   the controller kept for the run's next call */
+static int dp_accepted (DpRun &r, double x, double h, double hnew, double hmax, double posneg, int last, int reject,
+			double facold, double hlamb, int iasti, int nonsti)
+{
+  if (last)
+    {
+      r.xout = x;
+      return 1;
+    }
+  if (fabs(hnew) > hmax)
+    hnew = posneg * hmax;
+  if (reject)
+    hnew = posneg * std::min(fabs(h), fabs(hnew));
+  r.next_h=hnew; r.facold=facold; r.hlamb=hlamb;
+  r.iasti=iasti; r.nonsti=nonsti; r.xout=x; r.resume=true;
+  return 2; /* one accepted step, with its interpolant and controller intact */
+}
+
+/* core integrator */
+static int dopcor (xpp::Session &s, unsigned n, double x, double* y, double xend,
+		   double hmax, double rtoli, double atoli, DpRun &r)
+{
+  constexpr double safe = DOPRI_SAFE, fac1 = DOP853_FAC1, fac2 = DOP853_FAC2, beta = DOP853_BETA;
   double   facold, expo1, fac, facc1, facc2, fac11, posneg, xph;
-  double   atoli, rtoli, hlamb, err, sk, hnew, ydiff, bspl;
+  double   hlamb, err, sk, hnew, ydiff, bspl;
   double   stnum, stden, sqr, err2, erri, deno;
-  int      iasti, iord, irtrn, reject, last, nonsti=0;
-  unsigned i, j;
+  double   h = 0.0;
+  int      iasti, iord, reject, last, nonsti=0;
+  unsigned i;
   double   c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c14, c15, c16;
   double   b1, b6, b7, b8, b9, b10, b11, b12, bhh1, bhh2, bhh3;
   double   er1, er6, er7, er8, er9, er10, er11, er12;
@@ -147,10 +197,6 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
   double   d71, d76, d77, d78, d79, d710, d711, d712, d713, d714, d715, d716;
 
   /* initialisations */
-  switch (meth)
-  {
-    case 1:
-
       c2  = 0.526001519587677318785587544488E-01;
       c3  = 0.789002279381515978178381316732E-01;
       c4  = 0.118350341907227396726757197510E+00;
@@ -318,9 +364,6 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
       d715 = -0.39177261675615439165231486172E+02;
       d716 = -0.14972683625798562581422125276E+03;
 
-      break;
-  }
-
   facold = r.resume ? r.facold : 1.0E-4;
   expo1 = 1.0/8.0 - beta * 0.2;
   facc1 = 1.0 / fac1;
@@ -328,98 +371,63 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
   posneg = xpp::sign (1.0, xend-x);
 
   /* initial preparations */
-  atoli = atoler[0];
-  rtoli = rtoler[0];
   last  = 0;
   hlamb = r.resume ? r.hlamb : 0.0;
   iasti = r.resume ? r.iasti : 0;
   nonsti = r.resume ? r.nonsti : 0;
-  if (!r.resume) fcn (s, n, x, y, r.k1);
-  else h = r.next_h;
   hmax = fabs (hmax);
   iord = 8;
-  if (h == 0.0)
-    h = hinit (s, n, fcn, x, y, posneg, r.k1, r.k2, r.k3, iord, hmax, atoler, rtoler, itoler);
+  h = dp_first_step (s, n, x, y, posneg, iord, hmax, atoli, rtoli, r);
   reject = 0;
   r.xold = x;
-  
-  if (iout && solout)
-  {
-    irtrn = 1;
-    r.xout = x;
-    solout (r.naccpt+1, r.xold, x, y, n, &irtrn); 
-    if (irtrn < 0)
-    {
-      xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}\n", x);
-      return 2;
-    }
-  }
 
   /* basic integration step */
   while (1)
   {
-    if (r.nstep >= nmax)
-    {
-      r.xout = x;
-      return -2;
-    }
-
-    if (0.1 * fabs(h) <= fabs(x) * uround)
-    {
-      xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}, step size too small h = {:.16e}\n", x, h);
-      r.xout = x;
-      return -3;
-    }
-
-    if ((x + 1.01*h - xend) * posneg > 0.0)
-    {
-      h = xend - x;
-      last = 1;
-    }
-
-    r.nstep++;
+    if (const int failed = dp_before_attempt (r, x, h, xend, posneg, last))
+      return failed;
 
     /* the twelve stages */
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * a21 * r.k1[i];
-    fcn (s, n, x+c2*h, r.yy1, r.k2);
+    dprhs (s, n, x+c2*h, r.yy1, r.k2);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a31*r.k1[i] + a32*r.k2[i]);
-    fcn (s, n, x+c3*h, r.yy1, r.k3);
+    dprhs (s, n, x+c3*h, r.yy1, r.k3);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a41*r.k1[i] + a43*r.k3[i]);
-    fcn (s, n, x+c4*h, r.yy1, r.k4);
+    dprhs (s, n, x+c4*h, r.yy1, r.k4);
     for (i = 0; i <n; i++)
       r.yy1[i] = y[i] + h * (a51*r.k1[i] + a53*r.k3[i] + a54*r.k4[i]);
-    fcn (s, n, x+c5*h, r.yy1, r.k5);
+    dprhs (s, n, x+c5*h, r.yy1, r.k5);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a61*r.k1[i] + a64*r.k4[i] + a65*r.k5[i]);
-    fcn (s, n, x+c6*h, r.yy1, r.k6);
+    dprhs (s, n, x+c6*h, r.yy1, r.k6);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a71*r.k1[i] + a74*r.k4[i] + a75*r.k5[i] + a76*r.k6[i]);
-    fcn (s, n, x+c7*h, r.yy1, r.k7);
+    dprhs (s, n, x+c7*h, r.yy1, r.k7);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a81*r.k1[i] + a84*r.k4[i] + a85*r.k5[i] + a86*r.k6[i] +
 			  a87*r.k7[i]);
-    fcn (s, n, x+c8*h, r.yy1, r.k8);
+    dprhs (s, n, x+c8*h, r.yy1, r.k8);
     for (i = 0; i <n; i++)
       r.yy1[i] = y[i] + h * (a91*r.k1[i] + a94*r.k4[i] + a95*r.k5[i] + a96*r.k6[i] +
 			  a97*r.k7[i] + a98*r.k8[i]);
-    fcn (s, n, x+c9*h, r.yy1, r.k9);
+    dprhs (s, n, x+c9*h, r.yy1, r.k9);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a101*r.k1[i] + a104*r.k4[i] + a105*r.k5[i] + a106*r.k6[i] +
 			  a107*r.k7[i] + a108*r.k8[i] + a109*r.k9[i]);
-    fcn (s, n, x+c10*h, r.yy1, r.k10);
+    dprhs (s, n, x+c10*h, r.yy1, r.k10);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a111*r.k1[i] + a114*r.k4[i] + a115*r.k5[i] + a116*r.k6[i] +
 			  a117*r.k7[i] + a118*r.k8[i] + a119*r.k9[i] + a1110*r.k10[i]);
-    fcn (s, n, x+c11*h, r.yy1, r.k2);
+    dprhs (s, n, x+c11*h, r.yy1, r.k2);
     xph = x + h;
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a121*r.k1[i] + a124*r.k4[i] + a125*r.k5[i] + a126*r.k6[i] +
 			  a127*r.k7[i] + a128*r.k8[i] + a129*r.k9[i] +
 			  a1210*r.k10[i] + a1211*r.k2[i]);
-    fcn (s, n, xph, r.yy1, r.k3);
+    dprhs (s, n, xph, r.yy1, r.k3);
     for (i = 0; i < n; i++)
     {
       r.k4[i] = b1*r.k1[i] + b6*r.k6[i] + b7*r.k7[i] + b8*r.k8[i] + b9*r.k9[i] +
@@ -430,22 +438,9 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
     /* error estimation */
     err = 0.0;
     err2 = 0.0;
-    if (!itoler)
-      for (i = 0; i < n; i++)
+    for (i = 0; i < n; i++)
       {
 	sk = atoli + rtoli * std::max(fabs(r.k5[i]), fabs(y[i]));
-	erri = r.k4[i] - bhh1*r.k1[i] - bhh2*r.k9[i] - bhh3*r.k3[i];
-	sqr = erri / sk;
-	err2 += sqr*sqr;
-	erri = er1*r.k1[i] + er6*r.k6[i] + er7*r.k7[i] + er8*r.k8[i] + er9*r.k9[i] +
-	       er10 * r.k10[i] + er11*r.k2[i] + er12*r.k3[i];
-	sqr = erri / sk;
-	err += sqr*sqr;
-      }
-    else
-      for (i = 0; i < n; i++)
-      {
-	sk = atoler[i] + rtoler[i] * std::max(fabs(r.k5[i]), fabs(y[i]));
 	erri = r.k4[i] - bhh1*r.k1[i] - bhh2*r.k9[i] - bhh3*r.k3[i];
 	sqr = erri / sk;
 	err2 += sqr*sqr;
@@ -473,10 +468,10 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
 
       facold = std::max(1.0E-4, err);
       r.naccpt++;
-      fcn (s, n, xph, r.k5, r.k4);
+      dprhs (s, n, xph, r.k5, r.k4);
       
       /* stiffness detection */
-      if (!(r.naccpt % nstiff) || (iasti > 0))
+      if (!(r.naccpt % DOPRI_NSTIFF) || (iasti > 0))
       {
 	stnum = 0.0;
 	stden = 0.0;
@@ -508,12 +503,8 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
 	}
       }
        
-      /* final preparation for dense output */
-      if (iout == 2)
-      {
-	/* save the first function evaluations */
-	if (r.nrds == n)
-	  for (i = 0; i < n; i++)
+      /* final preparation for dense output: save the first function evaluations */
+      for (i = 0; i < n; i++)
 	  {
 	    r.rcont1[i] = y[i];
 	    ydiff = r.k5[i] - y[i];
@@ -530,46 +521,26 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
 	    r.rcont8[i] = d71*r.k1[i] + d76*r.k6[i] + d77*r.k7[i] + d78*r.k8[i] +
 			d79*r.k9[i] + d710*r.k10[i] + d711*r.k2[i] + d712*r.k3[i];
 	  }
-	else
-	  for (j = 0; j < r.nrds; j++)
-	  {
-	    i = icont[j];
-	    r.rcont1[j] = y[i];
-	    ydiff = r.k5[i] - y[i];
-	    r.rcont2[j] = ydiff;
-	    bspl = h * r.k1[i] - ydiff;
-	    r.rcont3[j] = bspl;
-	    r.rcont4[j] = ydiff - h*r.k4[i] - bspl;
-	    r.rcont5[j] = d41*r.k1[i] + d46*r.k6[i] + d47*r.k7[i] + d48*r.k8[i] +
-			d49*r.k9[i] + d410*r.k10[i] + d411*r.k2[i] + d412*r.k3[i];
-	    r.rcont6[j] = d51*r.k1[i] + d56*r.k6[i] + d57*r.k7[i] + d58*r.k8[i] +
-			d59*r.k9[i] + d510*r.k10[i] + d511*r.k2[i] + d512*r.k3[i];
-	    r.rcont7[j] = d61*r.k1[i] + d66*r.k6[i] + d67*r.k7[i] + d68*r.k8[i] +
-			d69*r.k9[i] + d610*r.k10[i] + d611*r.k2[i] + d612*r.k3[i];
-	    r.rcont8[j] = d71*r.k1[i] + d76*r.k6[i] + d77*r.k7[i] + d78*r.k8[i] +
-			d79*r.k9[i] + d710*r.k10[i] + d711*r.k2[i] + d712*r.k3[i];
-	  }
 
 	/* the next three function evaluations */
 	for (i = 0; i < n; i++)
 	  r.yy1[i] = y[i] + h * (a141*r.k1[i] + a147*r.k7[i] + a148*r.k8[i] +
 			      a149*r.k9[i] + a1410*r.k10[i] + a1411*r.k2[i] +
 			      a1412*r.k3[i] + a1413*r.k4[i]);
-	fcn (s, n, x+c14*h, r.yy1, r.k10);
+	dprhs (s, n, x+c14*h, r.yy1, r.k10);
 	for (i = 0; i < n; i++)
 	  r.yy1[i] = y[i] + h * (a151*r.k1[i] + a156*r.k6[i] + a157*r.k7[i] + a158*r.k8[i] +
 			      a1511*r.k2[i] + a1512*r.k3[i] + a1513*r.k4[i] +
 			      a1514*r.k10[i]);
-	fcn (s, n, x+c15*h, r.yy1, r.k2);
+	dprhs (s, n, x+c15*h, r.yy1, r.k2);
 	for (i = 0; i < n; i++)
 	  r.yy1[i] = y[i] + h * (a161*r.k1[i] + a166*r.k6[i] + a167*r.k7[i] + a168*r.k8[i] +
 			      a169*r.k9[i] + a1613*r.k4[i] + a1614*r.k10[i] +
 			      a1615*r.k2[i]);
-	fcn (s, n, x+c16*h, r.yy1, r.k3);
+	dprhs (s, n, x+c16*h, r.yy1, r.k3);
 
 	/* final preparation */
-	if (r.nrds == n)
-	  for (i = 0; i < n; i++)
+	for (i = 0; i < n; i++)
 	  {
 	    r.rcont5[i] = h * (r.rcont5[i] + d413*r.k4[i] + d414*r.k10[i] +
 			     d415*r.k2[i] + d416*r.k3[i]);
@@ -580,330 +551,41 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
 	    r.rcont8[i] = h * (r.rcont8[i] + d713*r.k4[i] + d714*r.k10[i] +
 			     d715*r.k2[i] + d716*r.k3[i]);
 	  }
-        else
-	  for (j = 0; j < r.nrds; j++)
-	  {
-	    i = icont[j];
-	    r.rcont5[j] = h * (r.rcont5[j] + d413*r.k4[i] + d414*r.k10[i] +
-			     d415*r.k2[i] + d416*r.k3[i]);
-	    r.rcont6[j] = h * (r.rcont6[j] + d513*r.k4[i] + d514*r.k10[i] +
-			     d515*r.k2[i] + d516*r.k3[i]);
-	    r.rcont7[j] = h * (r.rcont7[j] + d613*r.k4[i] + d614*r.k10[i] +
-			     d615*r.k2[i] + d616*r.k3[i]);
-	    r.rcont8[j] = h * (r.rcont8[j] + d713*r.k4[i] + d714*r.k10[i] +
-			     d715*r.k2[i] + d716*r.k3[i]);
-	  }
-      }
 
       memcpy (r.k1, r.k4, n * sizeof(double)); 
       memcpy (y, r.k5, n * sizeof(double));
       r.xold = x;
       x = xph;
 
-      if (iout && solout)
-      {
-	r.xout = x;
-	solout (r.naccpt+1, r.xold, x, y, n, &irtrn);
-	if (irtrn < 0)
-	{
-	  xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}\n", x);
-	  return 2;
-	}
-      }
-
-      /* normal exit */
-      if (last)
-      {
-	r.xout = x;
-	return 1;
-      }
-
-      if (fabs(hnew) > hmax)
-	hnew = posneg * hmax;
-      if (reject)
-	hnew = posneg * std::min(fabs(h), fabs(hnew));
-
-      reject = 0;
-    }
-    else
-    {
-      /* step rejected */
-      hnew = h / std::min(fac11/safe, facc1);
-      reject = 1;
-      if (r.naccpt >= 1)
-	r.nrejct=r.nrejct + 1;
-      last = 0;
+      return dp_accepted (r, x, h, hnew, hmax, posneg, last, reject, facold, hlamb, iasti, nonsti);
     }
 
-    h = hnew;
-    if (!reject) {
-      r.next_h=h; r.facold=facold; r.hlamb=hlamb;
-      r.iasti=iasti; r.nonsti=nonsti; r.xout=x; r.resume=true;
-      return 2; /* one accepted step, with its interpolant and controller intact */
-    }
+    /* step rejected */
+    h = h / std::min(fac11/safe, facc1);
+    reject = 1;
+    if (r.naccpt >= 1)
+      r.nrejct=r.nrejct + 1;
+    last = 0;
   }
 
 } /* dopcor */
 
-/* front-end */
-static int dop853
- (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y, double xend, double* rtoler,
-  double* atoler, int itoler, SolTrait solout, int iout, double uround,
-  double safe, double fac1, double fac2, double beta, double hmax, double h,
-  long nmax, int meth, long nstiff, unsigned nrdens, unsigned* icont, unsigned licont,double *work, DpRun &r)
-{
-  int       arret, idid;
-  unsigned  i;
-  /* indir (the run's, like rcont1..8) is only ever read back
-     within this same call; RAII here frees it on every return
-     path. */
-  std::vector<unsigned> indir_buf;
-
-  /* initialisations */
-  arret = 0;
-  r.rcont1 = r.rcont2 = r.rcont3 = r.rcont4 = r.rcont5 = r.rcont6 = r.rcont7 = r.rcont8 = NULL;
-  r.indir = NULL;
-
-  /* n, the dimension of the system */
-  if (n == UINT_MAX)
-  {
-    xpp::log(XPP_LOG_WARN, "System too big, max. n = {}\n", UINT_MAX-1);
-    arret = 1;
-  }
-
-  /* nmax, the maximal number of steps */
-  if (!nmax)
-    nmax = xpp::DOPRI_RUN_ATTEMPTS;
-  else if (nmax <= 0)
-  {
-    xpp::log(XPP_LOG_WARN, "Wrong input, nmax = {}\n", nmax);
-    arret = 1;
-  }
-
-  /* meth, coefficients of the method */
-  if (!meth)
-    meth = 1;
-  else if ((meth <= 0) || (meth >= 2))
-  {
-    xpp::log(XPP_LOG_WARN, "Curious input, meth = {}\n", meth);
-    arret = 1;
-  }
-
-  /* nstiff, parameter for stiffness detection */
-  if (!nstiff)
-    nstiff = 1000;
-  else if (nstiff < 0)
-    nstiff = nmax + 10;
-
-  /* iout, switch for calling solout */
-  if ((iout < 0) || (iout > 2))
-  {
-    xpp::log(XPP_LOG_WARN, "Wrong input, iout = {}\n", iout);
-    arret = 1;
-  }
-
-  /* nrdens, number of dense output components */
-  if (nrdens > n)
-  {
-    xpp::log(XPP_LOG_WARN, "Curious input, nrdens = {}\n", nrdens);
-    arret = 1;
-  }
-  else if (nrdens)
-  {
-    
-    /* is there enough memory to allocate rcont12345678&indir ? */
-    r.rcont1 = work;
-    r.rcont2 = r.rcont1+nrdens;
-    r.rcont3 = r.rcont2+nrdens;
-    r.rcont4 = r.rcont3+nrdens;
-    r.rcont5 = r.rcont4+nrdens;
-    r.rcont6 = r.rcont5+nrdens;
-    r.rcont7 = r.rcont6+nrdens;
-    r.rcont8 = r.rcont7+nrdens;
-    if (nrdens < n) {
-      indir_buf.assign(n, 0);
-      r.indir = indir_buf.data();
-    }
-
-    /* control of length of icont */
-    if (nrdens == n)
-    {
-      if (icont)
-	xpp::log(XPP_LOG_WARN, "Warning : when nrdens = n there is no need allocating memory for icont\n");
-      r.nrds = n;
-    }
-    else if (licont < nrdens)
-    {
-      xpp::log(XPP_LOG_WARN, "Insufficient storage for icont, min. licont = {}\n", nrdens);
-      arret = 1;
-    }
-    else
-    {
-      if (iout < 2)
-	xpp::log(XPP_LOG_WARN, "Warning : put iout = 2 for dense output\n");
-      r.nrds = nrdens;
-      for (i = 0; i < n; i++)
-	r.indir[i] = UINT_MAX;
-      for (i = 0; i < nrdens; i++)
-	r.indir[icont[i]] = i;
-    }
-  }
-
-  /* uround, smallest number satisfying 1.0+uround > 1.0 */
-  if (uround == 0.0)
-    uround = 2.3E-16;
-  else if ((uround <= 1.0E-35) || (uround >= 1.0))
-  {
-    xpp::log(XPP_LOG_WARN, "Which machine do you have ? Your uround was : {:.16e}\n", uround);
-    arret = 1;
-  }
-
-  /* safety factor */
-  if (safe == 0.0)
-    safe = 0.9;
-  else if ((safe >= 1.0) || (safe <= 1.0E-4))
-  {
-    xpp::log(XPP_LOG_WARN, "Curious input for safety factor, safe = {:.16e}\n", safe);
-    arret = 1;
-  }
-
-  /* fac1, fac2, parameters for step size selection */
-  if (fac1 == 0.0)
-    fac1 = 0.333;
-  if (fac2 == 0.0)
-    fac2 = 6.0;
-
-  /* beta for step control stabilization */
-  if (beta == 0.0)
-    beta = 0.0;
-  else if (beta < 0.0)
-    beta = 0.0;
-  else if (beta > 0.2)
-  {
-    xpp::log(XPP_LOG_WARN, "Curious input for beta : beta = {:.16e}\n", beta);
-    arret = 1;
-  }
-
-  /* maximal step size */
-  if (hmax == 0.0)
-    hmax = xend - x;
-
-  /* is there enough free memory for the method ? */
-  r.yy1 = work+8*nrdens;
-  r.k1 = r.yy1+n;
-  r.k2 = r.k1+n;
-  r.k3 = r.k2+n;
-  r.k4 = r.k3+n;
-  r.k5 = r.k4+n;
-  r.k6 = r.k5+n;
-  r.k7 = r.k6+n;
-  r.k8 = r.k7+n;
-  r.k9 = r.k8+n;
-  r.k10 = r.k9+n;
-
-    if (arret) return -1;
-    idid = dopcor (s, n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
-		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont, r);
-    return idid;
-
-} /* dop853 */
-
-/************    dopri5  ***************************/
-static double hinit5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y,
-	      double posneg, double* f0, double* f1, double* yy1, int iord,
-	      double hmax, double* atoler, double* rtoler, int itoler)
-{
-  double   dnf, dny, atoli, rtoli, sk, h, h1, der2, der12, sqr;
-  unsigned i;
-
-  dnf = 0.0;
-  dny = 0.0;
-  atoli = atoler[0];
-  rtoli = rtoler[0];
-
-  if (!itoler)
-    for (i = 0; i < n; i++)
-    {
-      sk = atoli + rtoli * fabs(y[i]);
-      sqr = f0[i] / sk;
-      dnf += sqr*sqr;
-      sqr = y[i] / sk;
-      dny += sqr*sqr;
-    }
-  else
-    for (i = 0; i < n; i++)
-    {
-      sk = atoler[i] + rtoler[i] * fabs(y[i]);
-      sqr = f0[i] / sk;
-      dnf += sqr*sqr;
-      sqr = y[i] / sk;
-      dny += sqr*sqr;
-    }
-
-  if ((dnf <= 1.0E-10) || (dny <= 1.0E-10))
-    h = 1.0E-6;
-  else
-    h = sqrt (dny/dnf) * 0.01;
-
-  h = std::min(hmax, h);
-  h = xpp::sign (h, posneg);
-
-  /* perform an explicit Euler step */
-  for (i = 0; i < n; i++)
-    yy1[i] = y[i] + h * f0[i];
-  fcn (s, n, x+h, yy1, f1);
-
-  /* estimate the second derivative of the solution */
-  der2 = 0.0;
-  if (!itoler)
-    for (i = 0; i < n; i++)
-    {
-      sk = atoli + rtoli * fabs(y[i]);
-      sqr = (f1[i] - f0[i]) / sk;
-      der2 += sqr*sqr;
-    }
-  else
-    for (i = 0; i < n; i++)
-    {
-      sk = atoler[i] + rtoler[i] * fabs(y[i]);
-      sqr = (f1[i] - f0[i]) / sk;
-      der2 += sqr*sqr;
-    }
-  der2 = sqrt (der2) / h;
-
-  /* step size is computed such that h**iord * max(norm(f0),norm(der2)) = 0.01 */
-  der12 = std::max(sqrt(dnf), fabs(der2));
-  if (der12 <= 1.0E-15)
-    h1 = std::max(fabs(h)*1.0E-3, 1.0E-6);
-  else
-    h1 = xpp::math::pow(0.01/der12, 1.0/static_cast<double>(iord));
-  h = std::min(std::min(hmax, h1), 100.0 * fabs(h));
-
-  return xpp::sign (h, posneg);
-
-} /* hinit */
-
 /* core integrator */
-static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
-		   double hmax, double h, double* rtoler, double* atoler,
-		   int itoler, SolTrait solout, int iout,
-		   long nmax, double uround, int meth, long nstiff, double safe,
-		   double beta, double fac1, double fac2, unsigned* icont, DpRun &r)
+static int dopcor5 (xpp::Session &s, unsigned n, double x, double* y, double xend,
+		   double hmax, double rtoli, double atoli, DpRun &r)
 {
+  constexpr double safe = DOPRI_SAFE, fac1 = DOPRI5_FAC1, fac2 = DOPRI5_FAC2, beta = DOPRI5_BETA;
   double   facold, expo1, fac, facc1, facc2, fac11, posneg, xph;
-  double   atoli, rtoli, hlamb, err, sk, hnew, yd0, ydiff, bspl;
+  double   hlamb, err, sk, hnew, yd0, ydiff, bspl;
   double   stnum, stden, sqr;
-  int      iasti, iord, irtrn, reject, last, nonsti=0;
-  unsigned i, j;
+  double   h = 0.0;
+  int      iasti, iord, reject, last, nonsti=0;
+  unsigned i;
   double   c2, c3, c4, c5, e1, e3, e4, e5, e6, e7, d1, d3, d4, d5, d6, d7;
   double   a21, a31, a32, a41, a42, a43, a51, a52, a53, a54;
   double   a61, a62, a63, a64, a65, a71, a73, a74, a75, a76;
 
   /* initialisations */
-  switch (meth)
-  {
-    case 1:
-
       c2=0.2, c3=0.3, c4=0.8, c5=8.0/9.0;
       a21=0.2, a31=3.0/40.0, a32=9.0/40.0;
       a41=44.0/45.0, a42=-56.0/15.0; a43=32.0/9.0;
@@ -919,9 +601,6 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
       d4=-10690763975.0/1880347072.0, d5=701980252875.0/199316789632.0;
       d6=-1453857185.0/822651844.0, d7=69997945.0/29380423.0;
 
-      break;
-  }
-
   facold = r.resume ? r.facold : 1.0E-4;
   expo1 = 0.2 - beta * 0.75;
   facc1 = 1.0 / fac1;
@@ -929,110 +608,54 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
   posneg = xpp::sign (1.0, xend-x);
 
   /* initial preparations */
-  atoli = atoler[0];
-  rtoli = rtoler[0];
   last  = 0;
   hlamb = r.resume ? r.hlamb : 0.0;
   iasti = r.resume ? r.iasti : 0;
   nonsti = r.resume ? r.nonsti : 0;
-  if (!r.resume) fcn (s, n, x, y, r.k1);
-  else h = r.next_h;
   hmax = fabs (hmax);
   iord = 5;
-  if (h == 0.0)
-    h = hinit5 (s, n, fcn, x, y, posneg, r.k1, r.k2, r.k3, iord, hmax, atoler, rtoler, itoler);
+  h = dp_first_step (s, n, x, y, posneg, iord, hmax, atoli, rtoli, r);
   reject = 0;
   r.xold = x;
-  if (iout && solout)
-  {
-    irtrn = 1;
-    r.xout = x;
-    solout (r.naccpt+1, r.xold, x, y, n, &irtrn);
-    if (irtrn < 0)
-    {
-      xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}\n", x);
-      return 2;
-    }
-  }
 
   /* basic integration step */
   while (1)
   {
-    if (r.nstep >= nmax)
-    {
-      r.xout = x;
-      return -2;
-    }
-
-    if (0.1 * fabs(h) <= fabs(x) * uround)
-    {
-      xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}, step size too small h = {:.16e}\n", x, h);
-      r.xout = x;
-      return -3;
-    }
-
-    if ((x + 1.01*h - xend) * posneg > 0.0)
-    {
-      h = xend - x;
-      last = 1;
-    }
-
-    r.nstep++;
+    if (const int failed = dp_before_attempt (r, x, h, xend, posneg, last))
+      return failed;
 
     /* the first 6 stages */
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * a21 * r.k1[i];
-    fcn (s, n, x+c2*h, r.yy1, r.k2);
+    dprhs (s, n, x+c2*h, r.yy1, r.k2);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a31*r.k1[i] + a32*r.k2[i]);
-    fcn (s, n, x+c3*h, r.yy1, r.k3);
+    dprhs (s, n, x+c3*h, r.yy1, r.k3);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a41*r.k1[i] + a42*r.k2[i] + a43*r.k3[i]);
-    fcn (s, n, x+c4*h, r.yy1, r.k4);
+    dprhs (s, n, x+c4*h, r.yy1, r.k4);
     for (i = 0; i <n; i++)
       r.yy1[i] = y[i] + h * (a51*r.k1[i] + a52*r.k2[i] + a53*r.k3[i] + a54*r.k4[i]);
-    fcn (s, n, x+c5*h, r.yy1, r.k5);
+    dprhs (s, n, x+c5*h, r.yy1, r.k5);
     for (i = 0; i < n; i++)
       r.ysti[i] = y[i] + h * (a61*r.k1[i] + a62*r.k2[i] + a63*r.k3[i] + a64*r.k4[i] + a65*r.k5[i]);
     xph = x + h;
-    fcn (s, n, xph, r.ysti, r.k6);
+    dprhs (s, n, xph, r.ysti, r.k6);
     for (i = 0; i < n; i++)
       r.yy1[i] = y[i] + h * (a71*r.k1[i] + a73*r.k3[i] + a74*r.k4[i] + a75*r.k5[i] + a76*r.k6[i]);
-    fcn (s, n, xph, r.yy1, r.k2);
-    if (iout == 2)
-    {
-      if (r.nrds == n)
-      {
-	for (i = 0; i < n; i++)
+    dprhs (s, n, xph, r.yy1, r.k2);
+    for (i = 0; i < n; i++)
 	{
 	  r.rcont5[i] = h * (d1*r.k1[i] + d3*r.k3[i] + d4*r.k4[i] + d5*r.k5[i] + d6*r.k6[i] + d7*r.k2[i]);
 	}
-      }
-      else
-      {
-	for (j = 0; j < r.nrds; j++)
-	{
-	  i = icont[j];
-	  r.rcont5[j] = h * (d1*r.k1[i] + d3*r.k3[i] + d4*r.k4[i] + d5*r.k5[i] + d6*r.k6[i] + d7*r.k2[i]);
-	}
-      } 
-    }
     for (i = 0; i < n; i++)
       r.k4[i] = h * (e1*r.k1[i] + e3*r.k3[i] + e4*r.k4[i] + e5*r.k5[i] + e6*r.k6[i] + e7*r.k2[i]);
 
     /* error estimation */
     err = 0.0;
-    if (!itoler)
-      for (i = 0; i < n; i++)
+    for (i = 0; i < n; i++)
       {
 	sk = atoli + rtoli * std::max(fabs(r.yy1[i]), fabs(y[i]));
-	sqr = r.k4[i] / sk;
-	err += sqr*sqr;
-      }
-    else
-      for (i = 0; i < n; i++)
-      {
-	sk = atoler[i] + rtoler[i] * std::max(fabs(r.yy1[i]), fabs(y[i]));
 	sqr = r.k4[i] / sk;
 	err += sqr*sqr;
       }
@@ -1054,7 +677,7 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
       r.naccpt++;
 
       /* stiffness detection */
-      if (!(r.naccpt % nstiff) || (iasti > 0))
+      if (!(r.naccpt % DOPRI_NSTIFF) || (iasti > 0))
       {
 	stnum = 0.0;
 	stden = 0.0;
@@ -1086,11 +709,7 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
 	}
       }
 
-      if (iout == 2)
-      {
-	if (r.nrds == n)
-	{
-	  for (i = 0; i < n; i++)
+      for (i = 0; i < n; i++)
 	  {
 	    yd0 = y[i];
 	    ydiff = r.yy1[i] - yd0;
@@ -1100,229 +719,38 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
 	    r.rcont3[i] = bspl;
 	    r.rcont4[i] = -h * r.k2[i] + ydiff - bspl;
 	  }
-	}
-	else
-	{
-	  for (j = 0; j < r.nrds; j++)
-	  {
-	    i = icont[j];
-	    yd0 = y[i];
-	    ydiff = r.yy1[i] - yd0;
-	    bspl = h * r.k1[i] - ydiff;
-	    r.rcont1[j] = y[i];
-	    r.rcont2[j] = ydiff;
-	    r.rcont3[j] = bspl;
-	    r.rcont4[j] = -h * r.k2[i] + ydiff - bspl;
-	  }
-	}
-      }
       memcpy (r.k1, r.k2, n * sizeof(double)); 
       memcpy (y, r.yy1, n * sizeof(double));
       r.xold = x;
       x = xph;
 
-      if (iout && solout)
-      {
-	r.xout = x;
-	solout (r.naccpt+1, r.xold, x, y, n, &irtrn);
-	if (irtrn < 0)
-	{
-	  xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}\n", x);
-	  return 2;
-	}
-      }
-
-      /* normal exit */
-      if (last)
-      {
-	r.xout = x;
-	return 1;
-      }
-
-      if (fabs(hnew) > hmax)
-	hnew = posneg * hmax;
-      if (reject)
-	hnew = posneg * std::min(fabs(h), fabs(hnew));
-
-      reject = 0;
-    }
-    else
-    {
-      /* step rejected */
-      hnew = h / std::min(fac11/safe, facc1);
-      reject = 1;
-      if (r.naccpt >= 1)
-	r.nrejct=r.nrejct + 1;
-      last = 0;
+      return dp_accepted (r, x, h, hnew, hmax, posneg, last, reject, facold, hlamb, iasti, nonsti);
     }
 
-    h = hnew;
-    if (!reject) {
-      r.next_h=h; r.facold=facold; r.hlamb=hlamb;
-      r.iasti=iasti; r.nonsti=nonsti; r.xout=x; r.resume=true;
-      return 2; /* one accepted step, with its interpolant and controller intact */
-    }
+    /* step rejected */
+    h = h / std::min(fac11/safe, facc1);
+    reject = 1;
+    if (r.naccpt >= 1)
+      r.nrejct=r.nrejct + 1;
+    last = 0;
   }
 
 } /* dopcor5 */
 
-/* front-end */
-static int dopri5
- (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y, double xend, double* rtoler,
-  double* atoler, int itoler, SolTrait solout, int iout, double uround,
-  double safe, double fac1, double fac2, double beta, double hmax, double h,
-  long nmax, int meth, long nstiff, unsigned nrdens, unsigned* icont, unsigned licont, double *work, DpRun &r)
+/* One run of DOP853 (eighth) or DOPRI5 from x to xend, its vectors carved
+   from work: the dense output coefficients (eight or five of n), then the
+   stage vectors; returns dopcor's code */
+static int dormand_prince(xpp::Session &s, unsigned n, double x, double *y, double xend, double rtol, double atol,
+                          double hmax, bool eighth, double *work, DpRun &r)
 {
-  int       arret, idid;
-  unsigned  i;
-  /* indir (the run's, like rcont1..5) is only ever read back
-     within this same call; RAII here frees it on every return
-     path. */
-  std::vector<unsigned> indir_buf;
-
-  /* initialisations */
-  arret = 0;
-  r.rcont1 = r.rcont2 = r.rcont3 = r.rcont4 = r.rcont5 = NULL;
-  r.indir = NULL;
-
-  /* n, the dimension of the system */
-  if (n == UINT_MAX)
-  {
-    xpp::log(XPP_LOG_WARN, "System too big, max. n = {}\n", UINT_MAX-1);
-    arret = 1;
-  }
-
-  /* nmax, the maximal number of steps */
-  if (!nmax)
-    nmax = xpp::DOPRI_RUN_ATTEMPTS;
-  else if (nmax <= 0)
-  {
-    xpp::log(XPP_LOG_WARN, "Wrong input, nmax = {}\n", nmax);
-    arret = 1;
-  }
-
-  /* meth, coefficients of the method */
-  if (!meth)
-    meth = 1;
-  else if ((meth <= 0) || (meth >= 2))
-  {
-    xpp::log(XPP_LOG_WARN, "Curious input, meth = {}\n", meth);
-    arret = 1;
-  }
-
-  /* nstiff, parameter for stiffness detection */
-  if (!nstiff)
-    nstiff = 1000;
-  else if (nstiff < 0)
-    nstiff = nmax + 10;
-
-  /* iout, switch for calling solout */
-  if ((iout < 0) || (iout > 2))
-  {
-    xpp::log(XPP_LOG_WARN, "Wrong input, iout = {}\n", iout);
-    arret = 1;
-  }
-
-  /* nrdens, number of dense output components */
-  if (nrdens > n)
-  {
-    xpp::log(XPP_LOG_WARN, "Curious input, nrdens = {}\n", nrdens);
-    arret = 1;
-  }
-  else if (nrdens)
-  {
-    /* is there enough memory to allocate rcont12345&indir ? */
-    r.rcont1 = work;
-    r.rcont2 = r.rcont1+nrdens;
-    r.rcont3 = r.rcont2+nrdens;
-    r.rcont4 = r.rcont3+nrdens;
-    r.rcont5 = r.rcont4+nrdens;
-    if (nrdens < n) {
-      indir_buf.assign(n, 0);
-      r.indir = indir_buf.data();
-    }
-
-    /* control of length of icont */
-    if (nrdens == n)
-    {
-      if (icont)
-	xpp::log(XPP_LOG_WARN, "Warning : when nrdens = n there is no need allocating memory for icont\n");
-      r.nrds = n;
-    }
-    else if (licont < nrdens)
-    {
-      xpp::log(XPP_LOG_WARN, "Insufficient storage for icont, min. licont = {}\n", nrdens);
-      arret = 1;
-    }
-    else
-    {
-      if (iout < 2)
-	xpp::log(XPP_LOG_WARN, "Warning : put iout = 2 for dense output\n");
-      r.nrds = nrdens;
-      for (i = 0; i < n; i++)
-	r.indir[i] = UINT_MAX;
-      for (i = 0; i < nrdens; i++)
-	r.indir[icont[i]] = i;
-    }
-  }
-
-  /* uround, smallest number satisfying 1.0+uround > 1.0 */
-  if (uround == 0.0)
-    uround = 2.3E-16;
-  else if ((uround <= 1.0E-35) || (uround >= 1.0))
-  {
-    xpp::log(XPP_LOG_WARN, "Which machine do you have ? Your uround was : {:.16e}\n", uround);
-    arret = 1;
-  }
-
-  /* safety factor */
-  if (safe == 0.0)
-    safe = 0.9;
-  else if ((safe >= 1.0) || (safe <= 1.0E-4))
-  {
-    xpp::log(XPP_LOG_WARN, "Curious input for safety factor, safe = {:.16e}\n", safe);
-    arret = 1;
-  }
-
-  /* fac1, fac2, parameters for step size selection */
-  if (fac1 == 0.0)
-    fac1 = 0.2;
-  if (fac2 == 0.0)
-    fac2 = 10.0;
-
-  /* beta for step control stabilization */
-  if (beta == 0.0)
-    beta = 0.04;
-  else if (beta < 0.0)
-    beta = 0.0;
-  else if (beta > 0.2)
-  {
-    xpp::log(XPP_LOG_WARN, "Curious input for beta : beta = {:.16e}\n", beta);
-    arret = 1;
-  }
-
-  /* maximal step size */
-  if (hmax == 0.0)
-    hmax = xend - x;
-
-  /* is there enough free memory for the method ? */
-  r.yy1 = work+5*nrdens;
-  r.k1 = r.yy1+n;
-  r.k2 = r.k1+n;
-  r.k3 = r.k2+n;
-  r.k4 = r.k3+n;
-  r.k5 = r.k4+n;
-  r.k6 = r.k5+n;
-  r.ysti = r.k6+n;
-
-    if (arret) return -1;
-    idid = dopcor5 (s, n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
-		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont, r);
-
-    return idid;
-
-} /* dopri5 */
-
+  double **const rcont[] = {&r.rcont1, &r.rcont2, &r.rcont3, &r.rcont4, &r.rcont5, &r.rcont6, &r.rcont7, &r.rcont8};
+  double **const stages[] = {&r.yy1, &r.k1, &r.k2, &r.k3, &r.k4, &r.k5, &r.k6, eighth ? &r.k7 : &r.ysti, &r.k8, &r.k9, &r.k10};
+  const unsigned coefficients = eighth ? 8 : 5, stage_vectors = eighth ? 11 : 8;
+  for (unsigned i = 0; i < 8; i++) *rcont[i] = i < coefficients ? work + i * n : nullptr;
+  for (unsigned i = 0; i < 11; i++) *stages[i] = i < stage_vectors ? work + (coefficients + i) * n : nullptr;
+  if (eighth) return dopcor (s, n, x, y, xend, hmax, rtol, atol, r);
+  return dopcor5 (s, n, x, y, xend, hmax, rtol, atol, r);
+}
 
 namespace xpp {
 namespace {
@@ -1333,8 +761,6 @@ class DormandPrince final : public Solver {
   static constexpr int work_vectors=19;
   // Hairer's 1.01*h endpoint test must not clip a step bounded by DtMax.
   static constexpr double horizon_steps=2;
-  // Preserve dormprin's existing stiffness test after every accepted step.
-  static constexpr long stiffness_interval=1;
 public:
   DormandPrince(const SolverInfo &info, Session &s, int n)
     : Solver(info,s), work_(xpp::size_product(work_vectors,n)), endpoint_(n), returned_(n),
@@ -1371,21 +797,16 @@ private:
       if(xpp::job::cancelled()){s.integrator.stop_flag=1;break;}
       if(!valid_||(internal_time_-*step.t)*direction<=0){
         const double end=s.delay.flag?step.tout:internal_time_+direction*horizon_steps*fabs(num.max_step);
-        int status;
-        if(info().traits.eighth_order)
-          status=dop853(s,n,dprhs,internal_time_,endpoint_.data(),end,&num.relative_tolerance,&num.absolute_tolerance,
-                        0,nullptr,2,0,0,0,0,0,num.max_step,0,DOPRI_RUN_ATTEMPTS,0,stiffness_interval,n,nullptr,0,work_.data(),run_);
-        else
-          status=dopri5(s,n,dprhs,internal_time_,endpoint_.data(),end,&num.relative_tolerance,&num.absolute_tolerance,
-                        0,nullptr,2,0,0,0,0,0,num.max_step,0,DOPRI_RUN_ATTEMPTS,0,stiffness_interval,n,nullptr,0,work_.data(),run_);
-        if(status<0){
-          switch(status){
-          case -2:return failed(xpp::format("Run exceeded {} DoPri step attempts (accepted and rejected)",DOPRI_RUN_ATTEMPTS));
-          case -3:return failed("Step size too small");
-          case -4:return failed("Problem became stiff");
-          default:return failed("Input is not consistent");
-          }
-        }
+        const int status=dormand_prince(s,n,internal_time_,endpoint_.data(),end,num.relative_tolerance,num.absolute_tolerance,
+                                        num.max_step,info().traits.eighth_order,work_.data(),run_);
+        /* dopcor fails when its attempts run out (-2) or its step falls
+           below the rounding limit (-3) */
+        if(status==-2)
+          return stopped(xpp::format("more than {} step attempts (accepted and rejected) in the run",DOPRI_RUN_ATTEMPTS),run_.xout,-1,
+                         {"relative_tolerance","absolute_tolerance"});
+        if(status<0)
+          return stopped(xpp::format("the step size {} fell below the rounding limit",run_.failed_h),run_.xout,-1,
+                         {"relative_tolerance","absolute_tolerance"});
         internal_time_=run_.xout;
         valid_=true;
         events_checked_=false;

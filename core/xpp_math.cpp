@@ -256,22 +256,6 @@ void saxpy(int n, double sa, const double *sx, int incx, double *sy, int incy)
     for (int i = 0; i < n; i++, ix += incx, iy += incy) sy[iy] = sy[iy] + sa * sx[ix];
 }
 
-int isamax(int n, const double *sx, int incx)
-{
-    if (n < 1) return -1;
-    if (n == 1) return 0;
-    int imax = 0;
-    double smax = std::fabs(sx[0]);
-    int ix = incx;
-    for (int i = 1; i < n; i++, ix += incx) {
-        if (std::fabs(sx[ix]) > smax) {
-            imax = i;
-            smax = std::fabs(sx[ix]);
-        }
-    }
-    return imax;
-}
-
 void sscal(int n, double sa, double *sx, int incx)
 {
     if (n <= 0) return;
@@ -281,58 +265,81 @@ void sscal(int n, double sa, double *sx, int incx)
 
 } // namespace
 
-/* LINPACK partial pivoting, first maximum in each column; negative stored
-   multipliers and row updates in the original order. AUTO ge instead searches
-   the complete trailing matrix and accumulates a determinant and pivot log. */
+int largest_magnitude(const double *x, int n, int stride)
+{
+    if (n < 1) return -1;
+    int imax = 0;
+    double smax = std::fabs(x[0]);
+    for (int i = 1, ix = stride; i < n; i++, ix += stride) {
+        if (std::fabs(x[ix]) > smax) {
+            imax = i;
+            smax = std::fabs(x[ix]);
+        }
+    }
+    return imax;
+}
+
+/* LINPACK partial pivoting, first maximum in each column, negative stored
+   multipliers (AUTO's ge instead searches the complete trailing matrix and
+   accumulates a determinant and pivot log). LINPACK eliminates column by
+   column, skipping a column whose pivot-row element t is zero; on this
+   row-major block a column strides by lda. When the pivot row has no zero
+   past the pivot, the rows below it are updated along their own contiguous
+   elements instead, which vectorizes (W488, W476 finding 4); a sparse pivot
+   row (a model's Jacobian mostly is) keeps LINPACK's column sweep, which
+   leaves its zero columns alone. Either way every element gets the same
+   product added in the same step k, so the bits are LINPACK's. */
 void sgefa(double *a, int lda, int n, int *ipvt, int *info)
 {
     *info = -1;
-    for (int k = 1; k <= n - 1; k++) {
-        const int l = isamax(n - k + 1, &a[(k - 1) * lda + k - 1], lda) + k - 1;
-        ipvt[k - 1] = l;
-        if (a[l * lda + k - 1] == 0.0) {
-            *info = k - 1;
+    for (int k = 0; k < n - 1; k++) {
+        double *const pivot_row = a + k * lda;
+        const int l = largest_magnitude(&pivot_row[k], n - k, lda) + k;
+        ipvt[k] = l;
+        double *const row_l = a + l * lda;
+        if (row_l[k] == 0.0) {
+            *info = k;
             continue;
         }
-        double t;
-        if (l != (k - 1)) {
-            t = a[l * lda + k - 1];
-            a[l * lda + k - 1] = a[(k - 1) * lda + k - 1];
-            a[(k - 1) * lda + k - 1] = t;
-        }
-        t = -1.0 / a[(k - 1) * lda + k - 1];
-        sscal(n - k, t, (a + k * lda + k - 1), lda);
-        for (int j = k + 1; j <= n; j++) {
-            t = a[l * lda + j - 1];
-            if (l != (k - 1)) {
-                a[l * lda + j - 1] = a[(k - 1) * lda + j - 1];
-                a[(k - 1) * lda + j - 1] = t;
+        if (l != k) std::swap(row_l[k], pivot_row[k]);
+        const double t = -1.0 / pivot_row[k];
+        double *const multipliers = a + (k + 1) * lda + k;
+        sscal(n - k - 1, t, multipliers, lda);
+        if (l != k)
+            for (int j = k + 1; j < n; j++) std::swap(row_l[j], pivot_row[j]);
+        if (std::find(pivot_row + k + 1, pivot_row + n, 0.0) == pivot_row + n) {
+            for (int i = k + 1; i < n; i++) {
+                double *const row = a + i * lda;
+                const double m = row[k];
+                for (int j = k + 1; j < n; j++) row[j] = row[j] + pivot_row[j] * m;
             }
-            saxpy(n - k, t, (a + k * lda + k - 1), lda, (a + k * lda + j - 1), lda);
+        } else {
+            for (int j = k + 1; j < n; j++) saxpy(n - k - 1, pivot_row[j], multipliers, lda, multipliers + (j - k), lda);
         }
     }
     ipvt[n - 1] = n - 1;
     if (a[(n - 1) * lda + n - 1] == 0.0) *info = n - 1;
 }
 
-/* Solve from sgefa's partial-pivot LU, retaining pivot application and dot
-   accumulation order; AUTO ge performs its own complete-pivot substitution. */
+/* Solve from sgefa's partial-pivot LU in LINPACK's order. Its column
+   sweeps stay: the forward pass's updates are ordered after each
+   interchange, and both passes skip a whole column where b's element is
+   zero, which a row-by-row back substitution measured slower (W488). */
 void sgesl(double *a, int lda, int n, int *ipvt, double *b)
 {
-    for (int k = 1; k <= n - 1; k++) {
-        const int l = ipvt[k - 1];
+    for (int k = 0; k < n - 1; k++) {
+        const int l = ipvt[k];
         const double t = b[l];
-        if (l != (k - 1)) {
-            b[l] = b[k - 1];
-            b[k - 1] = t;
+        if (l != k) {
+            b[l] = b[k];
+            b[k] = t;
         }
-        saxpy(n - k, t, (a + lda * k + k - 1), lda, (b + k), 1);
+        saxpy(n - k - 1, t, a + lda * (k + 1) + k, lda, b + k + 1, 1);
     }
-    for (int kb = 1; kb <= n; kb++) {
-        const int k = n + 1 - kb;
-        b[k - 1] = b[k - 1] / a[(k - 1) * lda + k - 1];
-        const double t = -b[k - 1];
-        saxpy(k - 1, t, (a + k - 1), lda, b, 1);
+    for (int k = n - 1; k >= 0; k--) {
+        b[k] = b[k] / a[k * lda + k];
+        const double t = -b[k];
+        saxpy(k, t, a + k, lda, b, 1);
     }
 }
 

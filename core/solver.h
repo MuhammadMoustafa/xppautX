@@ -7,6 +7,7 @@
    own kflag dialect. C++ only.
    AUTO's own integrators are not here. */
 
+#include <initializer_list>
 #include <memory>
 #include <span>
 #include <string>
@@ -26,6 +27,11 @@ enum Id : int {
 };
 }
 
+/* what an implicit fixed step (backward Euler's, Volterra's) returns when
+   its Newton iteration fails: the matrix is singular, or the iterations
+   ran out (SolverWork::Stop says where) */
+inline constexpr int NEWTON_SINGULAR = -1, NEWTON_NO_CONVERGENCE = -2;
+
 /* what a method is: how Integrate drives it, what the numerics menu asks */
 struct SolverTraits {
   /* the time counts iterations of a map (dt is +-1) */
@@ -33,10 +39,13 @@ struct SolverTraits {
   /* advances a number of steps of dt; otherwise it chooses its own steps
      on to an output time (its store_every is 1) */
   bool fixed_step = false;
-  /* asks Tolerance, minimum and maximum step */
-  bool step_tolerance = false;
-  /* asks the relative and absolute tolerances */
-  bool rel_abs_tolerance = false;
+  /* the settings its steps read, which the numerics menu asks and the
+     Numerics form shows (W381 questions 5 and 8): relative_tolerance,
+     absolute_tolerance, min_step, max_step */
+  bool relative_tolerance = false;
+  bool absolute_tolerance = false;
+  bool min_step = false;
+  bool max_step = false;
   /* asks the Newton tolerance and iterations of its implicit step */
   bool newton = false;
   /* asks whether the system is banded */
@@ -117,6 +126,15 @@ protected:
      script, its step: xpp_ui.h command_place), or at place (a model line) */
   Result<> failed(std::string what) const;
   Result<> failed(std::string what, Place place) const { return fail(info_.name, std::move(what), std::move(place)); }
+  /* An advance that stopped at time t (W480, "every stop says why"):
+     "<method>: <what> at t = <t>", then the variable it stopped in
+     (", in X"; from 0, -1 when none is known), the settings that caused it
+     with their values (" (min_step = 1e-12)", the option table's keys) and
+     detail, on a line of its own. It is at the variable's model line, else
+     at the line the model sets the first of the settings on, else at the
+     command that ran the method. */
+  Result<> stopped(std::string_view what, double t, int variable, std::initializer_list<std::string_view> settings,
+                   std::string_view detail = {}) const;
 
 private:
   /* the method's own advance */
@@ -140,6 +158,12 @@ Result<method::Id> method_by_key(const Model &model, std::string_view key, Place
 /* a method's row: callers must supply a checked id */
 const SolverInfo &solver_info(int method);
 
+
+/* A run by method info with output interval dt over length, refused before
+   it starts when its step limits leave no step to take (W381 question 8,
+   W480 I1): for a method that reads min_step, min_step above max_step (when
+   it reads that too), above |dt| or above the run's |length|. */
+Result<> check_step_limits(const Session &s, const SolverInfo &info, double dt, double length);
 
 /* starts the solver of s's numerics.method: a fresh one, with fresh work
    memory, the Session's (integrate.h's IntegratorState) */

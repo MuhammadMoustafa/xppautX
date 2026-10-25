@@ -18,6 +18,7 @@
 #include <string>
 #include "model.h"
 #include "jacobian.h"
+#include "xpp_math.h"
 #include <algorithm>
 #include <vector>
 
@@ -98,12 +99,19 @@ void start_cv(xpp::Session &s, CvodeRun &run, double *y, double t, int n, double
 }
 
 namespace {
-/* why CVODE's integration failed, from its memory before it is freed */
+/* why CVODE's integration failed, from its memory before it is freed; when
+   CVODE names no variable (too many steps), the one whose weighted local
+   error is the largest, as CVODE picks it for a failed error test */
 void keep_failure(CvodeRun &run)
 {
   const CVodeMem m=static_cast<CVodeMem>(run.memory->cvode);
   run.error=m->cv_error;
   run.error_var=m->cv_error_var;
+  if(run.error_var<0&&m->cv_acor&&m->cv_ewt){
+    std::vector<double> weighted(static_cast<std::size_t>(m->cv_N));
+    for(std::size_t i=0;i<weighted.size();i++)weighted[i]=N_VDATA(m->cv_acor)[i]*N_VDATA(m->cv_ewt)[i];
+    run.error_var=largest_magnitude(weighted.data(),static_cast<int>(weighted.size()));
+  }
 }
 }
 
@@ -114,30 +122,19 @@ void end_cv(CvodeRun &run)
 
 std::string cvode_error_text(const xpp::Session &s, const CvodeRun &run, int kflag)
 {
-  std::string text;
   switch(kflag){
-  case 0: break;
-  case -1: text = "No memory allocated";
-    break;
-  case -2: text = "Bad input to CVode";
-    break;
-  case -3: text = "Too much work -- try smaller DT";
-    break;
-  case -4: text = xpp::format("Tolerance too low-- try relative_tolerance={} absolute_tolerance={}",
-	s.numerics.relative_tolerance*run.ropt[ROPT_TOLSF], s.numerics.absolute_tolerance*run.ropt[ROPT_TOLSF]);
-    break;
-  case -5: text = "Error test failure too frequent ??";
-    break;
-  case -6: text = "Converg. failure -- oh well!";
-    break;
-  case -7: text = "Setup failed for linsolver in CVODE ???";
-    break;
-  case -8: text = "Singular matrix encountered. Hmmm?";
-    break;
-  case -9: text = "Flags error...";
-    break;
+  case -1: return "CVODE has no memory for the integration";
+  case -2: return "CVODE refused its input";
+  case -3: return "more steps between two output times than CVODE takes";
+  case -4: return xpp::format("the tolerances are too small for the rounding: relative_tolerance = {} and absolute_tolerance = {} would do",
+                              s.numerics.relative_tolerance*run.ropt[ROPT_TOLSF], s.numerics.absolute_tolerance*run.ropt[ROPT_TOLSF]);
+  case -5: return "the error test failed repeatedly";
+  case -6: return "the corrector (Newton iteration) failed to converge repeatedly";
+  case -7: return "the setup of CVODE's linear solver failed";
+  case -8: return "the Newton matrix is singular";
+  case -9: return "the events in one step could not be resolved";
+  default: return "";
   }
-  return text;
 }
 
 int cvode(xpp::Session &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */

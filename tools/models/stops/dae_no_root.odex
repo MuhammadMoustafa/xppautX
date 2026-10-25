@@ -1,0 +1,10 @@
+# dae_no_root.odex: a stop case of servercheck's stops section (docs/studies/w480-stops.md):
+# the algebraic equation has no real root, so Newton's method does not converge
+
+x' = -x
+0 = y^2+1
+init x = 1
+solv y = 0.5
+options {
+  integration: { method: euler, total_time: 1, dt: 0.1 },
+}
