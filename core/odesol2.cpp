@@ -504,7 +504,7 @@ int *istart,int n,double *work,int *ierr)
        }
        err=err*(absh/6);
        if(err>rtol){
-	 if(absh<hmin){
+	 if(absh<=hmin){
            *ierr=-1;
 	   return(-1);
 	 }
