@@ -14,6 +14,6 @@ for w in "$@"; do
     modeldb) extra="--nmax ${MODELDB_NMAX:-20}" ;;
     *) extra="" ;;
   esac
-  python3 "$here/profile.py" "$binary" "$out" "$w" $extra > /dev/null
+  uv run --locked python "$here/profile.py" "$binary" "$out" "$w" $extra > /dev/null
   echo "profiled $w"
 done

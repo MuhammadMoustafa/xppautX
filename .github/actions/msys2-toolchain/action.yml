@@ -51,6 +51,9 @@ runs:
         release: false
         update: false
         cache: false
+        # W443: the checks run through `uv run --locked python`; uv (setup-uv, a Windows
+        # program) is on the runner's PATH, which the MSYS2 shell keeps only when inherited
+        path-type: inherit
     - name: Extract the cached ${{ inputs.msystem }} tree with 7-Zip
       if: steps.cache.outputs.cache-hit == 'true'
       shell: pwsh
@@ -68,6 +71,9 @@ runs:
         release: false
         update: false
         cache: false
+        # W443: the checks run through `uv run --locked python`; uv (setup-uv, a Windows
+        # program) is on the runner's PATH, which the MSYS2 shell keeps only when inherited
+        path-type: inherit
         pacboy: >-
           toolchain:p
           make:p

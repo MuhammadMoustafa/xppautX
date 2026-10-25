@@ -32,7 +32,7 @@ The point table is XPPAUT's own stdout, the spectra its diagnostics file. Two-pa
 curves use the Parameters/Axes dialogs and the grabbed point's Run menu; the shared
 b-file reader records every step, with XPPAUT's zero-based parameter column indices.
 
-    python3 tools/auto_reference.py --program auto07p|xppaut [--only NAME,...] [--keep DIR]
+    uv run --locked python tools/auto_reference.py --program auto07p|xppaut [--only NAME,...] [--keep DIR]
 """
 import argparse
 import csv

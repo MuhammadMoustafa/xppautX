@@ -54,7 +54,7 @@ if [ -n "$tmo" ]; then
   ( cd "$run" && exec "$tmo" "$timeout_s" "$bin" "$(basename "$f")" --silent ${no_compile:+"$no_compile"} >run.log 2>&1 ) || st=$?
   [ "$st" -eq 124 ] && timed_out=1
 else
-  ( cd "$run" && exec python3 "$TIMEOUT_RUNNER" "$timeout_s" "$bin" "$(basename "$f")" --silent ${no_compile:+"$no_compile"} >run.log 2>&1 ) || st=$?
+  ( cd "$run" && exec uv run --locked python "$TIMEOUT_RUNNER" "$timeout_s" "$bin" "$(basename "$f")" --silent ${no_compile:+"$no_compile"} >run.log 2>&1 ) || st=$?
   [ "$st" -eq 124 ] && timed_out=1
 fi
 if [ $timed_out -eq 1 ]; then

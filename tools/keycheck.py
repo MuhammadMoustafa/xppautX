@@ -17,7 +17,7 @@ XppMenu's `keys`. This fails when
     a different number of keys than its enum in menus.h (the page has no
     copy of them: hello.windows sends them, W95).
 
-Usage: python3 tools/keycheck.py   (exit 1 on a failure; no options)
+Usage: uv run --locked python tools/keycheck.py   (exit 1 on a failure; no options)
 """
 import re
 import sys

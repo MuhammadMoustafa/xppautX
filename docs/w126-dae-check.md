@@ -85,7 +85,7 @@ a step because `newt_tol` is loose.
 
 ## Rerun
 
-    python3 docs/w126-dae-check.py C:/gitRepos/xppautX/xppautX.exe C:/gitRepos/xppautX/.claude/worktrees/W119/xppautX.exe --work SCRATCH
+    uv run --locked python docs/w126-dae-check.py C:/gitRepos/xppautX/xppautX.exe C:/gitRepos/xppautX/.claude/worktrees/W119/xppautX.exe --work SCRATCH
 
 (any two builds; needs numpy and scipy; prints the rows, the errors against
 each reference and the references' agreement).

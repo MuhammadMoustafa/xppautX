@@ -312,7 +312,7 @@ make -j8 xppautx
 
 It opens the front end in its own window (WebView2, with webview's own
 loader: no DLL to ship). The icon comes from `assets/icon.svg`, made
-into `assets/icon.ico` by `python3 tools/make_icons.py` (Pillow and a
+into `assets/icon.ico` by `uv run --locked python tools/make_icons.py` (Pillow and a
 Chrome or Edge); swapping the icon is those two files.
 
 ### Headless smoke test

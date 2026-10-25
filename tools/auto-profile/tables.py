@@ -2,7 +2,7 @@
 """W358 (#420): the tables of docs/studies/w358-auto-profile.md from tools/auto-profile/profile.py's
 callgrind files (written with --compress-strings=no --compress-pos=no).
 
-    python3 tools/auto-profile/tables.py OUT [--top N | --summary | --compare OUT2]
+    uv run --locked python tools/auto-profile/tables.py OUT [--top N | --summary | --compare OUT2]
 
 Per workload and phase (OUT/<workload>.<phase>.cg, points from the matching .json): the total
 instructions per stored point; the instructions by kind of routine (self cost, so each

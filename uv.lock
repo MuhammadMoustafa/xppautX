@@ -438,6 +438,7 @@ dependencies = [
     { name = "matplotlib" },
     { name = "mpmath" },
     { name = "numpy" },
+    { name = "pillow" },
     { name = "scipy" },
 ]
 
@@ -446,5 +447,6 @@ requires-dist = [
     { name = "matplotlib" },
     { name = "mpmath" },
     { name = "numpy" },
+    { name = "pillow" },
     { name = "scipy" },
 ]

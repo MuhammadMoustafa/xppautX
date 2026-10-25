@@ -238,6 +238,9 @@ jobs:
             only: build,autocheck-shard=3/3
     steps:
       - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
       # gcc's ASan cannot map its shadow memory with the 32 bits of mmap
       # randomness recent runner kernels use
       - name: Allow ASan's memory layout
@@ -263,6 +266,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
       - name: "Sanitizers: no error report (no leak detection on macOS)"
         run: tools/asancheck.sh --no-leaks
       - name: Upload sanitizer reports
@@ -299,7 +305,7 @@ jobs:
           echo "md5 on this platform: $(md5 -q output.dat) (linux baseline c281851de59ffd03b2a46428619a0c8f)"
       - name: Server protocol and web front end
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python3 tools/servercheck.py && python3 tools/steadycheck.py && python3 tools/spikecheck.py && python3 tools/livestatecheck.py && python3 tools/webcheck.py
+        run: uv run --locked python tools/servercheck.py && uv run --locked python tools/steadycheck.py && uv run --locked python tools/spikecheck.py && uv run --locked python tools/livestatecheck.py && uv run --locked python tools/webcheck.py
       - name: Command-line modes (--help, --browser, --no-open)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh
@@ -322,7 +328,7 @@ jobs:
           grep -q 'macOS asked to open .*/examples/ode/lecar.ode' "$log" && grep -q 'Used [0-9]* constants' "$log"
       - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python3 tools/autocheck.py
+        run: uv run --locked python tools/autocheck.py
       # compares strictly with tests/examples.md5 (one baseline for every
       # platform, W235); a crash or timeout fails too (tools/examples_check.sh)
       - name: "Every example: no crash, output md5s against tests/examples.md5"
@@ -425,13 +431,13 @@ jobs:
           test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
       - name: Server protocol and web front end
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python tools/servercheck.py --server ./xppautX.exe && python tools/steadycheck.py --server ./xppautX.exe && python tools/spikecheck.py --server ./xppautX.exe && python tools/livestatecheck.py --server ./xppautX.exe && python tools/webcheck.py --bin ./xppautX.exe
+        run: uv run --locked python tools/servercheck.py --server ./xppautX.exe && uv run --locked python tools/steadycheck.py --server ./xppautX.exe && uv run --locked python tools/spikecheck.py --server ./xppautX.exe && uv run --locked python tools/livestatecheck.py --server ./xppautX.exe && uv run --locked python tools/webcheck.py --bin ./xppautX.exe
       - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh xppautX.exe
       - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python tools/autocheck.py --server ./xppautX.exe
+        run: uv run --locked python tools/autocheck.py --server ./xppautX.exe
       # Linux's tests/examples.md5, no baseline of its own since W159: the
       # numbers are the same on every CPU and system (xpp::math); a crash,
       # a timeout or a differing md5 fails; output.dat's CRs are removed
@@ -565,12 +571,12 @@ jobs:
               echo "$name FAILED" > "$name.verdict"
             fi
           }
-          run_check servercheck python tools/servercheck.py --server "$bin" &
-          run_check steadycheck python tools/steadycheck.py --server "$bin" &
-          run_check spikecheck python tools/spikecheck.py --server "$bin" &
-          run_check livestatecheck python tools/livestatecheck.py --server "$bin" &
-          run_check webcheck python tools/webcheck.py --bin "$bin" &
-          run_check autocheck python tools/autocheck.py --server "$bin" &
+          run_check servercheck uv run --locked python tools/servercheck.py --server "$bin" &
+          run_check steadycheck uv run --locked python tools/steadycheck.py --server "$bin" &
+          run_check spikecheck uv run --locked python tools/spikecheck.py --server "$bin" &
+          run_check livestatecheck uv run --locked python tools/livestatecheck.py --server "$bin" &
+          run_check webcheck uv run --locked python tools/webcheck.py --bin "$bin" &
+          run_check autocheck uv run --locked python tools/autocheck.py --server "$bin" &
           # Linux's tests/examples.md5, no baseline of its own since W159
           run_check examples tools/examples_check.sh --bin "$bin" --write examples.windows-clang.md5 --keep examples-differ &
           wait
@@ -642,6 +648,9 @@ jobs:
             only: build,autocheck-shard=3/3
     steps:
       - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6.4.3
+        with:
+          enable-cache: true
       - uses: ./.github/actions/msys2-toolchain
         with:
           msystem: CLANG64

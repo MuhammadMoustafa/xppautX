@@ -92,10 +92,10 @@ fi
 
 # servercheck and autocheck's sections side by side, each logged to
 # build/vg-<name>.log; then each one's exit status
-python3 tools/servercheck.py --server "$wrap" > build/vg-servercheck.log 2>&1 &
+uv run --locked python tools/servercheck.py --server "$wrap" > build/vg-servercheck.log 2>&1 &
 jobs="servercheck:$!"
-for sec in $(python3 tools/autocheck.py --list); do
-  python3 tools/autocheck.py --server "$wrap" "$sec" > "build/vg-auto-$sec.log" 2>&1 &
+for sec in $(uv run --locked python tools/autocheck.py --list); do
+  uv run --locked python tools/autocheck.py --server "$wrap" "$sec" > "build/vg-auto-$sec.log" 2>&1 &
   jobs="$jobs auto-$sec:$!"
 done
 passes=0

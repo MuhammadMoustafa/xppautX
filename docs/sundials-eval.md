@@ -263,8 +263,8 @@ one file. It can be merged on its own; `cv_sundials.cpp`, the Makefile switch
 and the harness are the evaluation, to delete or keep as the maintainer
 decides. Reproduce: build SUNDIALS as above, then
 `make BUILDDIR=build/sundials SUNDIALS=$HOME/sundials-install build/sundials/xppautX`,
-`python3 tools/sundials_eval.py --vendored ./xppautX --sundials
-build/sundials/xppautX --out results` and `python3 tools/sundials_report.py
+`uv run --locked python tools/sundials_eval.py --vendored ./xppautX --sundials
+build/sundials/xppautX --out results` and `uv run --locked python tools/sundials_report.py
 results`.
 
 ## Appendix: every table

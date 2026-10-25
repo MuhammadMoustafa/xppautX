@@ -137,7 +137,7 @@ def main():
         print("optioncheck:", line)
     if bad:
         print("An option is one row of core/model_options.cpp: name it there only (or give the file a reason in "
-              f"{BASELINE}, python3 tools/optioncheck.py --update).")
+              f"{BASELINE}, uv run --locked python tools/optioncheck.py --update).")
         return 1
     print(f"optioncheck ok: {sum(len(h) for h in found.values())} names in {len(found)} files, none beyond the baseline")
     return 0
