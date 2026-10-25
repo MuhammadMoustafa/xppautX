@@ -222,7 +222,7 @@ void jacobian(Session &s, double t, const double *x, const double *f0, int n, do
   };
   if (!s.jacobian_scratch.groups) s.jacobian_scratch.groups = difference_groups(s.model(), n);
   const DifferenceGroups &g = *s.jacobian_scratch.groups;
-  if (g.groups.empty() || g.groups.size() + 1 >= static_cast<size_t>(n)) {
+  if (g.groups.empty() || g.rows.size() != static_cast<size_t>(n) || g.groups.size() + 1 >= static_cast<size_t>(n)) {
     auto evaluate = [&](int i, double xi, double *f) {
       xp[i] = xi;
       rhs(f);
