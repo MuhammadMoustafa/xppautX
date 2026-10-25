@@ -26,6 +26,7 @@
 #include "adj2.h"
 #include "browse.h"
 #include "derived.h"
+#include "equilibria.h"
 #include "gear.h"
 #include "graf_par.h"
 #include "graphics.h"

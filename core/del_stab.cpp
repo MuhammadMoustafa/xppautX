@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "gear.h"
+#include "equilibria.h"
 #include "jacobian.h"
 
 #include <math.h>
