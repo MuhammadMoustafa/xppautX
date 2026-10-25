@@ -1,4 +1,5 @@
 
+#include "numerics_settings.h"
 #include "dae_fun.h"
 #include "session.h"
 #include "expr.h"
@@ -138,10 +139,12 @@ const xpp::Place &dae_place(const xpp::Session &s)
    value: where the solutions end, and why no step went further */
 xpp::Error dae_failure(const xpp::Session &s, int status)
 {
-  const char *why="";
+  std::string why;
   switch(status){
   case DAE_SINGULAR: why="their Jacobian is singular"; break;
-  case DAE_NO_CONVERGENCE: why="Newton's method did not converge (maximum iterates exceeded)"; break;
+  case DAE_NO_CONVERGENCE:
+    why=xpp::format("Newton's method did not converge ({})",xpp::named_settings(s,{"max_iterations","newton_tolerance"}));
+    break;
   case DAE_OUT_OF_BOUNDS: why="the Newton update went out of bounds"; break;
   case DAE_FOLD: why="their Jacobian changed sign, a fold where this branch of solutions ends"; break;
   }

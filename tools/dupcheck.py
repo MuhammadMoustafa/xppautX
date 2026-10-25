@@ -42,8 +42,6 @@ core/cvband.cpp CVBandSolve|vendored/numerical, keep: CVODE's band and dense lin
 core/cvdense.cpp CVDenseSolve|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
 core/cvband.cpp CVBandFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
 core/cvdense.cpp CVDenseFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
-core/dormpri.cpp hinit|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure (hinit/hinit5) by the original source's own design
-core/dormpri.cpp hinit5|vendored/numerical, keep: see core/dormpri.cpp hinit
 core/xpp_http.cpp release|keep: each object's own shutdown signal (lock, set its flag, broadcast its condition) over its own mutex and condition; a shared helper would only take all three
 core/xpp_inbox.cpp close|keep: see core/xpp_http.cpp release
 core/graphics.cpp point|keep: each primitive dispatched to its own sink (PS, SVG, the front end) and each _abs form clipped then scaled for its own; the same shape per primitive by design, a merge would only hide which sink call each makes (W33f looked again)
@@ -58,7 +56,6 @@ core/odesol2.cpp euler|keep: see core/odesol2.cpp discrete
 core/autlib3.cpp *block*|numerical, keep: Hopf/traveling-wave augmented matrices have different signs and block roles; W337 centralizes numerical kernels while formulation-specific Jacobian assembly stays in the caller
 core/cvband.cpp *block*|vendored/numerical, keep: CVODE's band/dense solvers, translated C of parallel structure by the CVODE API's own design
 core/cvdense.cpp *block*|vendored/numerical, keep: see core/cvband.cpp *block*
-core/dormpri.cpp *block*|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure by the original source's own design
 core/xpp_math_eispack.cpp *block*|numerical, keep: EISPACK reduction/QR/QZ and SVD order retained under xpp_math (W337, #398)
 
 

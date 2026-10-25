@@ -5,6 +5,7 @@
    value is checked first, then applied as leaving the menu does
    (do_meth). */
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <climits>
 #include <optional>
@@ -43,10 +44,10 @@ bool uses(const xpp::Session &s, const OptionRow &f, int method)
     const xpp::SolverTraits &t = xpp::solver_info(method).traits;
     switch (f.use) {
     case OptionUse::always: return true;
-    case OptionUse::step_or_rel: return t.step_tolerance || t.rel_abs_tolerance;
-    case OptionUse::step_or_dense: return t.step_tolerance || t.dense_output;
-    case OptionUse::step: return t.step_tolerance;
-    case OptionUse::rel: return t.rel_abs_tolerance;
+    case OptionUse::relative_tolerance: return t.relative_tolerance;
+    case OptionUse::absolute_tolerance: return t.absolute_tolerance;
+    case OptionUse::min_step: return t.min_step;
+    case OptionUse::max_step: return t.max_step;
     case OptionUse::newton: return t.newton;
     case OptionUse::delays: return s.model().ndelays > 0;
     case OptionUse::integral_history: return t.integral_history;
@@ -286,6 +287,17 @@ std::string setting_text(const xpp::Session &s, const OptionRow &row)
     if (row.text) return row.text(s);
     if (row.color) return print_color(row.color(s));
     return xpp::number(value_of(s, row));
+}
+
+std::string named_settings(const xpp::Session &s, std::initializer_list<std::string_view> keys)
+{
+    std::string text;
+    for (const std::string_view key : keys) {
+        const OptionRow *row = saved_setting(key);
+        assert(row != nullptr);
+        text += xpp::format("{}{} = {}", text.empty() ? "" : ", ", key, setting_text(s, *row));
+    }
+    return text;
 }
 
 /* whether row is checked and written as an @ line is: it has no numerics key, or a model is loading (the exact

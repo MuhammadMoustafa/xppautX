@@ -17,6 +17,7 @@
 #include "form_ode.h"
 #include "model.h"
 #include "model_files.h"
+#include "numerics_settings.h"
 #include "xpp_mem.h"
 #include <limits>
 #include <cmath>
@@ -131,7 +132,10 @@ double get_delay(xpp::Session &s, int in, double tau)
  const std::size_t nodes=s.model().node;
 
  if(tau<0.0||tau>s.numerics.delay){
-			stop_integration(s,{"delay","Delay negative or too large"});
+			const std::string &name=s.model().uvar_names[static_cast<std::size_t>(in)];
+			stop_integration(s,{"delay",xpp::format("delay of {}: tau = {} is outside 0 to the delay setting at t = {} ({})",
+			                                        name,tau,getvar(s,0),named_settings(s,{"delay"})),
+			                    model_place(s.model(),name)});
 			return(0.0);
   			}
  if(tau==0.0) /* check fro zero delay and ignore the rest */

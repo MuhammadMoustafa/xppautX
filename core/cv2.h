@@ -44,8 +44,7 @@ void end_cv(CvodeRun &run);
 int cvode(Session &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol);
 int ccvode(Session &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol);
 
-/* what a CVODE failure flag of run means, for the user (empty: nothing to
-   say) */
+/* what a CVODE failure flag of run means, for the user (empty for none) */
 std::string cvode_error_text(const Session &s, const CvodeRun &run, int kflag);
 
 } // namespace xpp

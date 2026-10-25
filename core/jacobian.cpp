@@ -61,6 +61,48 @@ void column(const Session &s, JacobianScratch &scratch, const JacobianProgram &p
     if (p.rows[k] < n) out[p.rows[k]] = e[k];
 }
 
+/* m's difference groups for its n states (DifferenceGroups) */
+DifferenceGroups difference_groups(const Model &m, int n)
+{
+  if (!m.auto_rhs_pure || n != m.node) return {};
+  const int programs = m.node + m.fix_var;
+  /* the states each fixed variable and equation reads; a fixed variable
+     reads only those before it (auto_rhs_pure), so one pass in order */
+  std::vector<std::vector<int>> reads(static_cast<size_t>(programs));
+  std::vector<char> read(static_cast<size_t>(n));
+  for (int p = m.node; p < programs + m.node; p++) {
+    const int q = p < programs ? p : p - programs; /* the fixed variables, then the equations */
+    std::fill(read.begin(), read.end(), 0);
+    for (const int v : m.programs[static_cast<size_t>(q)].native_reads) {
+      if (v >= 1 && v <= m.node) read[static_cast<size_t>(v - 1)] = 1;
+      else if (v > m.node && v <= programs)
+        for (const int k : reads[static_cast<size_t>(v - 1)]) read[static_cast<size_t>(k)] = 1;
+    }
+    if (q < m.node) read[static_cast<size_t>(q)] = 1; /* a map's f(x)-x reads its own state */
+    for (int k = 0; k < n; k++)
+      if (read[static_cast<size_t>(k)]) reads[static_cast<size_t>(q)].push_back(k);
+  }
+  DifferenceGroups g;
+  g.rows.resize(static_cast<size_t>(n));
+  for (int j = 0; j < n; j++)
+    for (const int i : reads[static_cast<size_t>(j)]) g.rows[static_cast<size_t>(i)].push_back(j);
+  /* greedy colouring: a state joins the first group none of whose states
+     an equation reading it also reads */
+  std::vector<int> group(static_cast<size_t>(n), -1);
+  std::vector<char> taken;
+  for (int i = 0; i < n; i++) {
+    taken.assign(g.groups.size() + 1, 0);
+    for (const int j : g.rows[static_cast<size_t>(i)])
+      for (const int k : reads[static_cast<size_t>(j)])
+        if (group[static_cast<size_t>(k)] >= 0) taken[static_cast<size_t>(group[static_cast<size_t>(k)])] = 1;
+    const int c = static_cast<int>(std::find(taken.begin(), taken.end(), 0) - taken.begin());
+    if (c == static_cast<int>(g.groups.size())) g.groups.emplace_back();
+    g.groups[static_cast<size_t>(c)].push_back(i);
+    group[static_cast<size_t>(i)] = c;
+  }
+  return g;
+}
+
 } // namespace
 
 ErrorAction switch_to_differences(std::string resume)
@@ -172,14 +214,59 @@ void jacobian(Session &s, double t, const double *x, const double *f0, int n, do
     s.integrator.rhs(t + r, xp.data(), f1.data(), n);
     for (int i = 0; i < n; i++) dfdt[i] = (f1[i] - f0[i]) / r;
   }
-  auto evaluate = [&](int i, double xi, double *f) {
-    xp[i] = xi;
+  /* the right-hand side at (t, xp) into f (for a map's fixed point, f(x)-x) */
+  auto rhs = [&](double *f) {
     s.integrator.rhs(t, xp.data(), f, n);
     if (form.discrete_map)
       for (int j = 0; j < n; j++) f[j] -= xp[j];
-    xp[i] = x[i];
   };
-  jacobian(evaluate, x, f0, n, eps, form, out);
+  if (!s.jacobian_scratch.groups) s.jacobian_scratch.groups = difference_groups(s.model(), n);
+  const DifferenceGroups &g = *s.jacobian_scratch.groups;
+  if (g.groups.empty() || g.groups.size() + 1 >= static_cast<size_t>(n)) {
+    auto evaluate = [&](int i, double xi, double *f) {
+      xp[i] = xi;
+      rhs(f);
+      xp[i] = x[i];
+    };
+    jacobian(evaluate, x, f0, n, eps, form, out);
+    return;
+  }
+  /* By groups, the same bits as one state at a time: an equation that
+     does not read state i gets, with i perturbed, its value at x itself
+     (fx, the same computation of the same values), so its entry is
+     (fx-f0)/r as before; one that reads i reads no other state of i's
+     group, so the group's evaluation gives it f at x with i alone
+     perturbed. */
+  std::vector<double> fx(n), f1(n), entry(n);
+  rhs(fx.data());
+  const bool banded = form.layout == JacobianLayout::Banded;
+  const int mt = form.lower + form.upper + 1;
+  if (banded) std::fill_n(out, static_cast<size_t>(n) * mt, 0.0);
+  for (const std::vector<int> &group : g.groups) {
+    for (const int i : group) xp[i] = x[i] + difference_step(eps, x[i]);
+    rhs(f1.data());
+    for (const int i : group) xp[i] = x[i];
+    for (const int i : group) {
+      const double r = difference_step(eps, x[i]);
+      for (int j = 0; j < n; j++) entry[j] = (fx[j] - f0[j]) / r;
+      for (const int j : g.rows[static_cast<size_t>(i)]) entry[j] = (f1[j] - f0[j]) / r;
+      switch (form.layout) {
+      case JacobianLayout::RowMajor:
+        for (int j = 0; j < n; j++) out[static_cast<size_t>(j) * n + i] = entry[j];
+        break;
+      case JacobianLayout::ColumnMajor:
+        std::copy_n(entry.data(), n, out + static_cast<size_t>(n) * i);
+        break;
+      case JacobianLayout::Banded:
+        for (int d = -form.lower; d <= form.upper; d++) {
+          const int k = i - d;
+          if (k < 0 || k > n - 1) continue;
+          out[static_cast<size_t>(k) * mt + d + form.lower] = entry[k];
+        }
+        break;
+      }
+    }
+  }
 }
 
 } // namespace xpp

@@ -109,6 +109,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [76](#76-the-equilibrium-ranges-monte-carlo-answer-is-read-from-the-movie-field) | Equilibria | Equilibria > Range's Monte Carlo field reads a `y` typed in the Movie field's position (and its own `n` is ignored when Movie is `y`) | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
 | [77](#77-rosenbrock-retries-a-failing-step-forever-at-the-smallest-step) | Integrators | a Rosenbrock step that fails at the smallest step size never reaches its "Step size too small" exit, since the size is clamped up to that minimum first: the run does not end | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
 | [78](#78-a-flag-with-sign-1-repeats-one-clause-and-misses-an-exact-zero) | Events | the rising-flag test repeats one clause where the falling one tests `f1<=0`: a rising flag that lands exactly on zero is missed | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
+| [79](#79-the-stiff-step-that-finds-its-matrix-singular-is-retried-with-a-stale-step) | Integrators | Stiff's step that finds its matrix singular reports `*ier=-1`, which the driver does not test (it stops only for a positive one): the step is retried with a step size left over, or never set | [W488 / #552](https://github.com/MuhammadMoustafa/xppautX/issues/552) |
 
 ## 1. Model options
 
@@ -1787,3 +1788,13 @@ The event test for a rising flag is `(((f0<0.0)&&(f1>0.0))||((f0<0.0)&&(f1>0.0))
 where the falling flag tests `f0>0.0&&f1<=0.0`. A condition that is exactly zero at the end of a step after being
 negative is a falling event but not a rising one. xppautX tests `f0<0.0&&f1>=0.0`, the mirror of the falling case; no
 example model's output changed (W482, [#546](https://github.com/MuhammadMoustafa/xppautX/issues/546)).
+
+## 79. The stiff step that finds its matrix singular is retried with a stale step
+
+`stiff` returns with `*ier=-1` when `sgefa` finds its matrix singular ([stiff.c:193](../reference/xppaut-8.0/stiff.c#L193);
+the same in [master](../reference/xppaut-master/stiff.c#L193)), but its driver `gadaptive` ends the advance only for
+`if(*ier>0)return -1;` ([stiff.c:130](../reference/xppaut-8.0/stiff.c#L130)). The singular step is not reported:
+the loop tests the stale `hnext` against `hmin` (uninitialised when the first step is singular) and tries again with it,
+so the solver's "singular jacobian encountered" message is never shown. Found by reading (W488,
+[#552](https://github.com/MuhammadMoustafa/xppautX/issues/552)); xppautX keeps the behaviour, so a model's numbers do
+not change, and names the case in a comment (stiff.cpp) for a card that decides the fix.
