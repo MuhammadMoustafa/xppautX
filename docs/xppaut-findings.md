@@ -111,6 +111,8 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [78](#78-a-flag-with-sign-1-repeats-one-clause-and-misses-an-exact-zero) | Events | the rising-flag test repeats one clause where the falling one tests `f1<=0`: a rising flag that lands exactly on zero is missed | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
 | [79](#79-the-stiff-step-that-finds-its-matrix-singular-is-retried-with-a-stale-step) | Integrators | Stiff's step that finds its matrix singular reports `*ier=-1`, which the driver does not test (it stops only for a positive one): the step is retried with a step size left over, or never set | [W488 / #552](https://github.com/MuhammadMoustafa/xppautX/issues/552) |
 | [80](#80-a-networks-tables-are-never-checked-for-the-values-it-reads-and-fftcons-check-tests-the-wrong-variable) | Networks | a network reads its weight, index and delay tables with no check of their length; fftcon's check compares the keyword code, so the zero-ends test never runs | [W490 / #554](https://github.com/MuhammadMoustafa/xppautX/issues/554) |
+| [81](#81-a-range-integration-ignores-every-failure-of-its-solver) | Ranges | a range or manipulation run that fails in its solver ends or continues silently |
+| [82](#82-the-transient-time-compares-the-absolute-time) | Integration | `TRANS` compares \|t\|, wrong for a run not starting at 0 or going backward |
 
 ## 1. Model options
 
@@ -1815,3 +1817,25 @@ an `fftcon(0, n, w, ...)` whose table holds fewer than `2n` values loads and the
 transformed. Evidence: reading the lines (XPPAUT was not run on a short table). xppautX works out
 what each network reads from its arguments and refuses a table that holds fewer values, at the network's line (W490,
 [#554](https://github.com/MuhammadMoustafa/xppautX/issues/554)).
+
+## 81. A range integration ignores every failure of its solver
+
+`integrate` returns 1, with no error, when a solver step fails while `RANGE_FLAG` or `suppress_bounds` is set
+(the adaptive and Gear/CVODE advance), and a fixed-step method that fails (backward Euler's "Too many iterates",
+Volterra) is ignored altogether: the loop goes on with the state it had. The sweep's loop then ends at the first
+parameter value with no row and no message, or runs to the end with unconverged values, and the only trace is
+`plintf(" Errors occured in range integration \n")` in batch mode
+([integrate.c:1170](../reference/xppaut-8.0/integrate.c#L1170); the same in
+[master](../reference/xppaut-master/integrate.c#L1170)). Evidence: a blow-up model (`x'=a*x^2`) with Gear, CVODE and
+backward Euler over `a` from 1 to 3 (W480's study, I2 and I3). xppautX stops the sweep with the solver's error, the
+parameter value and the run's number (W487, [#551](https://github.com/MuhammadMoustafa/xppautX/issues/551)).
+
+## 82. The transient time compares the absolute time
+
+A row is stored when `fabs(MyTime)>=TRANS` ([integrate.c:904](../reference/xppaut-8.0/integrate.c#L904), 1179 and
+1487; `!(fabs(*t)<TRANS)` at [:2386](../reference/xppaut-8.0/integrate.c#L2386); the same in
+[master](../reference/xppaut-master/integrate.c#L904)), although the setting is described as an amount of time to
+integrate before storing. For a run that starts at `T0` below 0 the rows from `T0` to 0 are stored whatever `TRANS` is
+(`|t|` falls from `|T0|` to 0 and rises again), and for a backward run nothing is stored until `|t|` reaches `TRANS`.
+Evidence: reading the lines. xppautX compares `t` itself in the run's direction (W487,
+[#551](https://github.com/MuhammadMoustafa/xppautX/issues/551)).

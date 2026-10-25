@@ -1,0 +1,8 @@
+# store_from_past_end.odex: a stop case of servercheck's stops section (docs/studies/w480-stops.md):
+# store_from lies beyond the run's end, so no row would be stored: refused before the run
+
+x' = -x
+init x = 1
+options {
+  integration: { total_time: 10, dt: 0.1, store_from: 20 },
+}

@@ -1920,11 +1920,24 @@ policy above, never a recorded save decision.
 | `drag` | `win` | `what` (`down`, `move`, `up`), `x`, `y` (or `xd`, `yd`) for each pointer event; cancel or a key ends. Window/Scroll and AUTO Axes/Scroll ask it again after every event. |
 | `pixels` | `win`, or `film` (a kinescope frame index) | `w`, `h`, `rgb` (base64 of w*h*3 bytes). Frame, GIF and kinescope writers use it: only the client has the picture, which web2 renders from the data it holds (the window's chart, or a kinescope frame's snapshot). |
 
-Range Integrate and Double Range Integrate append a text field named
-`Write each run to its own file (Y/N)`, with value `Y` or `N` (W349,
-[#410](https://github.com/MuhammadMoustafa/xppautX/issues/410)). It controls
-`sweep.rangefiles` and matters only with Reset storage on. The existing
-`form` ask and `values` answer carry it; no new command is needed.
+Range Integrate, Double Range Integrate and Range Equilibria are typed forms
+(W487, [#551](https://github.com/MuhammadMoustafa/xppautX/issues/551)): their
+yes/no fields (`Reset storage`, `Use old ic's`, `Cycle color`, `Movie`,
+`Shoot`, `Monte Carlo` and `Write each run to its own file`, W349,
+[#410](https://github.com/MuhammadMoustafa/xppautX/issues/410)) are
+`boolean` fields answered `true` or `false`, the steps are `integer`
+fields of at least 1, Start and End are `real`, and the double range's
+`Vary both` is a `choice` of `together` or `independently`. Every answer is
+read by its kind before any is used, a bad one is an error naming its field.
+`Write each run to its own file` controls `sweep.rangefiles` and matters only
+with Reset storage on. The existing `form` ask and `values` answer carry them.
+
+A range run that fails (a solver's error) ends the sweep with that error,
+prefixed `Range stopped at <parameter> = <value> (run n of N): `. A run that
+ends early without failing (a state at `state_limit`, an event's `arret`, a
+section that stops the run) is reported once at the end as a `message` with a
+`bottom` line, `n of N runs ended early; the first at <parameter> = <value>: <why>`,
+and one WARN log line per such run.
 
 **Field kinds.** A `string` or `form` ask says what each of its fields
 takes, in `kinds`: one entry per field (a `string` ask has one), from the
