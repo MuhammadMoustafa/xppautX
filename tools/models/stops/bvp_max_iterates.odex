@@ -1,0 +1,11 @@
+# bvp_max_iterates.odex: a stop case of servercheck's stops section (docs/studies/w480-stops.md)
+
+x' = y
+y' = x^3
+boundary x-1
+boundary x'-2
+init x = 1
+init y = 0
+options {
+  integration: { total_time: 1 },
+}

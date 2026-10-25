@@ -31,12 +31,19 @@ void test_fit(Session &s);
 
 /* a fit that ran: it converged, stopped at its iteration limit, or was cancelled */
 enum class FitEnd { Converged, MaxIterations, Stopped };
+/* how a fit ended and where it stood: the iterations taken, chi-squared, and the last relative
+   improvement of chi-squared (what tol is compared with) */
+struct FitResult {
+  FitEnd end = FitEnd::Stopped;
+  int iterations = 0;
+  double chisq = 0, change = 0;
+};
 
 /* the fit's pieces return why they failed (a data file, a singular
    matrix, an integration), for the command, test_fit, to show */
 Result<> get_fit_info(Session &s, double *y, double *a, double *t0, double eps, double *yfit, double **yderv, int npts, int npars, int nvars, int *ivar, int *ipar);
 Result<> one_step_int(Session &s, double *y, double t0, double t1, int *istart);
-Result<FitEnd> run_fit(Session &s, const char *filename, int npts, int npars, int nvars, int maxiter, int ndim, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a, double *yfit);
+Result<FitResult> run_fit(Session &s, const char *filename, int npts, int npars, int nvars, int maxiter, int ndim, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a, double *yfit);
 Result<> marlevstep(Session &s, double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *covar, double *alpha, double *chisq, double *alambda, double *work, double **yderv, double *yfit, double *ochisq, int ictrl, double eps);
 Result<> mrqcof(Session &s, double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *alpha, double *chisq, double *beta, double **yderv, double *yfit, double eps);
 

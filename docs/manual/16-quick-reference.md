@@ -337,7 +337,7 @@ The remaining options can be set from within the program. They are
 
 - DFDRAW =`1, 2, or 3` computes a direction field after each run in the window, `--server` and `--silent`; 1 is unscaled, 2 is scaled, and 3 is colorized. The session keeps it for display and PS/SVG export. Values 4 and 5 also write `dirfields.dat` (unscaled and scaled respectively).
 
-- NCDRAW=`1` computes nullclines after each run in every mode, for display and PS/SVG export. `NCDRAW=2` also writes `nullclines.dat`, X-nullcline first then Y. Automatic data files go to the current working folder, including in the window, through the ordinary overwrite and atomic-writer rules.
+- NCDRAW=`1` computes nullclines after each run in every mode, for display and PS/SVG export. `NCDRAW=2` also writes `nullclines.dat`, a row for each segment (`nullcline` 1 for the X-nullcline and 2 for the Y, then `x1`, `y1`, `x2`, `y2`), as `nullclines.file` in a `.odex` does in the data format its extension names. Automatic data files go to the current working folder, including in the window, through the ordinary overwrite and atomic-writer rules.
 
 0-Foreground color; 1-Red; 2-Red Orange; 3-Orange; 4-Yellow Orange; 5-Yellow; 6-Yellow Green; 7-Green; 8-Blue Green; 9-Blue; 10-Purple.
 
@@ -475,7 +475,7 @@ run or the files, not the X11 windows:
 - **--noout**: does not write an output data file in batch mode; combine with `--mkplot` to suppress the data.
 - **--plotfmt *pdf\|svg***: sets the plot format for `--mkplot` (`ps` is read as `pdf`).
 - **--version**: prints xpp's version (`xppautX --version` prints this fork's).
-- **--ncdraw *k***: after a run in any mode: `k=1` computes nullclines for the plot and exports; `k=2` also dumps them to `nullclines.dat`, X-nullcline first then Y (format for gnuplot). For example, to compute the nullclines, dump them to a file and not save the run's output:
+- **--ncdraw *k***: after a run in any mode: `k=1` computes nullclines for the plot and exports; `k=2` also dumps them to `nullclines.dat`, a row for each segment (`nullcline` 1 or 2, `x1`, `y1`, `x2`, `y2`). For example, to compute the nullclines, dump them to a file and not save the run's output:
 
   ```
   xppautX lecar.ode --noout --silent --ncdraw 2

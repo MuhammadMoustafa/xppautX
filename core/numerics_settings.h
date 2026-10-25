@@ -24,6 +24,7 @@ constexpr SectionSign section_sign(double x) { return x < 0 ? SectionSign::negat
 struct Session; /* session.h */
 struct OptionRow; /* model_options.h */
 struct Place; /* xpp_error.h */
+struct Model; /* model.h */
 
 /* The main numerics as data (W106, docs/protocol.md "The numerics as
    data"): what the Numerics menu's items that ask for a value edit (Total,
@@ -76,6 +77,9 @@ std::string setting_text(const Session &s, const OptionRow &row);
 /* the saved settings keys with s's values, for a message that names what
    caused it (W480): "min_step = 1e-12, relative_tolerance = 0.001" */
 std::string named_settings(const Session &s, std::initializer_list<std::string_view> keys);
+/* where an error about settings is: the line the model sets the first of them on, else the
+   command that ran the computation */
+Place settings_place(const Model &m, std::initializer_list<std::string_view> settings);
 /* why text is not a value of row for s's model (the rule the Numerics menu,
    `set num` and the @ lines check), nothing when it is; changes nothing */
 std::optional<std::string> setting_problem(Session &s, const OptionRow &row, std::string_view text);

@@ -71,7 +71,7 @@ struct NullclineState {
 /* The current nullclines and the frozen ones as nullclines.setx's text (a
    session file's member): per pair, the variables on its axes and its x and
    y segments, four finite coordinates each. Saved segments are read whole
-   (setx.h's Block, every number checked, at most MAX_NULL segments a curve)
+   (setx.h's Block, every number checked, at most a cell of the largest mesh a segment)
    before the session applies any member. */
 Result<std::string> nullclines_text(const Session &s);
 NullclineState read_nullclines(const Model &m, setx::Block &file);

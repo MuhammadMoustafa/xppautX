@@ -15,6 +15,7 @@
 #include "auto_settings.h"
 #include "xpp_session_auto.h"
 #include "browse.h"
+#include "data_formats.h"
 #include "colormap.h"
 #include "expr_native.h"
 #include "command_table.h"
@@ -715,6 +716,7 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      /* the nullclines saved after a run, in the working folder like the other files a run writes by itself */
      if (!files::name_ok(v.text)) return "must be a file name, without a folder: it is written in the working folder";
+     if (!data_format_of_file(v.text)) return "must end in the extension of a data format (.dat, .csv, .csv.gz, .npz)";
      if (v.apply) s.nullclines.file = v.text;
      return nullptr;
    }},

@@ -18,6 +18,7 @@
 #include "xpp_util.h"
 #include "data_event.h"
 #include "model.h"
+#include "model_files.h"
 #include "model_options.h"
 #include "numerics.h"
 #include "pp_shoot.h"
@@ -298,6 +299,13 @@ std::string named_settings(const xpp::Session &s, std::initializer_list<std::str
         text += xpp::format("{}{} = {}", text.empty() ? "" : ", ", key, setting_text(s, *row));
     }
     return text;
+}
+
+Place settings_place(const Model &m, std::initializer_list<std::string_view> settings)
+{
+    for (const std::string_view key : settings)
+        if (Place place = model_place(m, key); place.line > 0) return place;
+    return command_place();
 }
 
 /* whether row is checked and written as an @ line is: it has no numerics key, or a model is loading (the exact

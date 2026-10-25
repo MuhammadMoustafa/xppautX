@@ -214,8 +214,9 @@ you wrote (`1/30`) alone while the value is unchanged.
   `search_limit` (the equilibria's search gives up past it), both read from
   it; the DAE solver's own cap is a constant, no setting. A `.ode`'s
   `ncdraw` is `nullclines.draw` and `nullclines.file` (`1`: draw; `2`: not
-  drawn and saved to `nullclines.dat`, a file name written in the working
-  folder). A bad value is an error naming the option and the bad text, at
+  drawn and saved to `nullclines.dat`; `nullclines.file` is a file name written
+  in the working folder, in the data format its extension names: `.dat`, `.csv`,
+  `.csv.gz` or `.npz`, one row a segment: `nullcline` (1 or 2), `x1`, `y1`, `x2`, `y2`). A bad value is an error naming the option and the bad text, at
   its line.
 
   A value is one bare word or number (letters, digits, `_ . + -`), no

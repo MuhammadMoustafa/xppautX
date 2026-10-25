@@ -110,6 +110,8 @@ std::optional<double> pure_builtin_value(std::string_view name, std::span<const 
 int get_var_index(const Session &s, std::string_view name);
 int find_lookup(const Session &s, std::string_view name);
 int get_param_index(const Session &s, std::string_view name);
+/* the model's parameter whose constant is k (get_param_index's number), "" when it has none */
+std::string_view parameter_name(const Session &s, int k);
 int get_val(const Session &s, std::string_view name, double *value);
 int set_val(Session &s, std::string_view name, double value);
 /* where a parameter's or variable's value lives (nullptr when name is not

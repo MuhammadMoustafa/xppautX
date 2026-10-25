@@ -30,25 +30,27 @@ namespace xpp {
 
 xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
 {
-      double rr[2];
+      double rr[2]={0,0};
 
  double colnorm=0,colmax,colsum;
  double sign;
  std::vector<double> old_x(n),y(n);
  for(auto &shift : s.delay.variable_shift)shift.assign(s.model().neq,0.0);
- int kmem=n*(2*n+5)+50,i,j,k,okroot;
+ int kmem=n*(2*n+5)+50,i,j,k;
 
  std::vector<double> ev(2*n, 0.0);
  /* first we establish how many delays there are */
  s.delay.stab_flag=0;
  for(i=0;i<n;i++)old_x[i]=x[i];
  std::vector<double> work(kmem);
- if(auto r=rooter(s,x,err,eps,big,work.data(),ierr,maxit,n);!r)return r;
+ NewtonRun run;
+ if(auto r=rooter(s,x,err,eps,big,work.data(),run,maxit,n);!r)return r;
+ *ierr=run.end==NewtonEnd::converged?0:1;
  if(*ierr!=0)
    {
      s.delay.stab_flag=1;
      for(i=0;i<n;i++)x[i]=old_x[i];
-     return xpp::fail("equilibrium","Could not converge to root",command_place());
+     return std::unexpected(newton_error(s,run,old_x));
    }
  /* OKAY -- we have the root */
  s.delay.ndelay=0;
@@ -93,14 +95,19 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
  }
  sign=plot_args(coef.data(),s.delay.list.data(),n,s.delay.ndelay,s.delay.grid,colnorm,colnorm);
 
- okroot=find_positive_root(s,coef.data(),s.delay.list.data(),n,s.delay.ndelay,colnorm,err,eps,big,maxit,rr);
- if(okroot>0){
+ const double guess_re=s.delay.alpha_max,guess_im=s.delay.omega_max;
+ const NewtonRun root=find_positive_root(s,coef.data(),s.delay.list.data(),n,s.delay.ndelay,colnorm,err,eps,big,maxit,rr);
+ const bool okroot=root.end==NewtonEnd::converged;
+ if(okroot){
    ev[0]=rr[0];
    ev[1]=rr[1];
  }
+ else /* the contour's count of roots is still shown */
+   xpp::log(XPP_LOG_WARN,"No characteristic root near {} + i {}: the search {}\n",xpp::number(guess_re),xpp::number(guess_im),
+            newton_cause(s,root,1).why);
  *stabinfo=static_cast<float>(fabs(sign));
  i=static_cast<int>(sign);
-if(i==0&&okroot==1&&s.delay.alpha_max>0)
+if(i==0&&okroot&&s.delay.alpha_max>0)
   i=2;
 
  /* no eigenvalue list: a delay equation has infinitely many; the
@@ -108,7 +115,7 @@ if(i==0&&okroot==1&&s.delay.alpha_max>0)
  create_eq_box(s,abs(i),2,0,0,0,x,NULL,n);
  /* DING; */
  s.delay.stab_flag=1;
- if(okroot==1)*stabinfo=s.delay.alpha_max;
+ if(okroot)*stabinfo=s.delay.alpha_max;
  return {};
 }
 
@@ -222,7 +229,7 @@ void make_z(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambd
   }
 }
 
-int find_positive_root(xpp::Session &s, double *coef, double *delay, int n, int m, double rad, double err, double eps, double big, int maxit, double *rr)
+NewtonRun find_positive_root(xpp::Session &s, double *coef, double *delay, int n, int m, double rad, double err, double eps, double big, int maxit, double *rr)
 {
   COMPLEX lambda,lambdap;
   COMPLEX det,detp;
@@ -230,6 +237,7 @@ int find_positive_root(xpp::Session &s, double *coef, double *delay, int n, int 
   double xl,yl,r,xlp,ylp;
 
   int k;
+  double change=0.0;
 
     lambda.r=s.delay.alpha_max;
     lambda.i=s.delay.omega_max;
@@ -247,7 +255,7 @@ int find_positive_root(xpp::Session &s, double *coef, double *delay, int n, int 
       process_root(lambda.r,lambda.i);
       s.delay.alpha_max=lambda.r;
       s.delay.omega_max=lambda.i;
-      return 1;
+      return {NewtonEnd::converged,k,0.0,0};
     }
     xl=lambda.r;
     yl=lambda.i;
@@ -268,10 +276,7 @@ int find_positive_root(xpp::Session &s, double *coef, double *delay, int n, int 
     jac[1]=(detp.r-det.r)/r;
     jac[3]=(detp.i-det.i)/r;
     r=jac[0]*jac[3]-jac[1]*jac[2];
-    if(r==0){
-      xpp::log(XPP_LOG_WARN, " singular jacobian \n");
-      return -1;
-    }
+    if(r==0)return {NewtonEnd::singular_jacobian,k,0.0,0};
    xlp=(jac[3]*det.r-jac[1]*det.i)/r;
    ylp=(-jac[2]*det.r+jac[0]*det.i)/r;
     xl=xl-xlp;
@@ -286,16 +291,13 @@ int find_positive_root(xpp::Session &s, double *coef, double *delay, int n, int 
       s.delay.omega_max=lambda.i;
       rr[0]=s.delay.alpha_max;
       rr[1]=s.delay.omega_max;
-      return 1;
+      return {NewtonEnd::converged,k+1,r,0};
     }
-    if(r>big){
-      xpp::log(XPP_LOG_WARN, "Failed to converge \n");
-      return -1;
-    }
+    if(r>big)return {NewtonEnd::left_box,k+1,r,0};
+    change=r;
   }
 
-  xpp::log(XPP_LOG_WARN, "Max iterates exceeded \n");
-  return -1;
+  return {NewtonEnd::max_iterates,maxit,change,0};
 }
 void process_root(double real, double im)
 {

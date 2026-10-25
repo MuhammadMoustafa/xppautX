@@ -173,9 +173,7 @@ def stops_idle(e):
 
 YES_NO = {'Y': 'true', 'N': 'false'}  # the range forms' yes/no fields are boolean (W487)
 STOPS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'stops')
-STOPS_KNOWN = {  # case id -> (card that fixes it, reason it is not started or None)
-    'sing_pts': ('W489', None),
-}
+STOPS_KNOWN = {}  # case id -> (card that fixes it, reason it is not started or None)
 STOPS_PLAIN_GO = [{'key': 'g'}]  # the Integrate or Equilibria menu's Go
 STOPS_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '2', '1', '3']}]  # Range Integrate over a, 1 to 3 (the three runs a = 1, 2, 3)
 STOPS_EQ_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '5', '-1', '1', 'false', '-1', 'false', 'false']}]
@@ -220,8 +218,16 @@ STOPS_CASES = [
          says=[r'store_from ?= ?20\b', r'starts at t ?= ?0\b', r'ends at t ?= ?10\b']),
     dict(id='store_from_backward', model='store_from_backward', key='i', replies=STOPS_PLAIN_GO, at='store_from: -20',
          says=[r'store_from ?= ?-20\b', r'starts at t ?= ?0\b', r'ends at t ?= ?-10\b']),
-    dict(id='sing_pts', model='sing_pts', key='s', replies=STOPS_PLAIN_GO, at=None,
-         says=[r'max_iterations', r'X ?= ?0\.5']),
+    dict(id='sing_pts', model='sing_pts', key='s', replies=STOPS_PLAIN_GO, at="x' = x^2+1",
+         says=[r'X ?= ?0\.5', r'max_iterations ?= ?100\b', r'newton_tolerance', r'iterations']),
+    dict(id='bvp_max_iterates', model='bvp_max_iterates', key='b', replies=[{'key': 'n'}], at=None,
+         first=[{'cmd': 'set', 'kind': 'num', 'name': 'bvp_max_iterates', 'value': 1},
+                {'cmd': 'set', 'kind': 'num', 'name': 'bvp_tolerance', 'value': 1e-12}],
+         says=[r'Shoot', r'bvp_max_iterates ?= ?1\b', r'bvp_tolerance ?= ?1e-12', r'residual']),
+    dict(id='nullcline_delay', model='nullcline_delay', key='n', replies=[{'key': 'n'}], at="x' = -delay",
+         says=[r'tau ?= ?2\b', r'X ?= ?-?\d', r'Y ?= ?-?\d']),
+    dict(id='postprocess_one_variable', model='fourier_one_variable', key='i', replies=STOPS_PLAIN_GO, at=None,
+         then=[{'cmd': 'browser', 'op': 'postprocess'}], says=[r'1 variable', r'at least 2']),
     dict(id='eq_range', model='eq_range', key='s', replies=STOPS_EQ_RANGE_A, at=None, bottom=True,
          says=[r'\d of 6 values have no equilibrium', r'a ?= ?0\.2\d*: no equilibrium found']),
     dict(id='range_gear', model='blowup_gear', key='i', replies=STOPS_RANGE_A, at=None,
@@ -233,19 +239,28 @@ STOPS_CASES = [
 ]
 
 
-def stops_run(path, key, replies):
-    """the messages and state of one run: a key, the answers to its asks in order, then idle"""
+def stops_run(path, key, replies, then=(), first=()):
+    """the messages and state of one run: a key, the answers to its asks in order, then idle; then each
+    of the commands `then`, run to idle; the commands `first` before the key"""
     s = Server(args.server, path)
     try:
         s.collect(stops_idle)
+        for command in first:
+            s.send(**command)
+            s.collect(stops_idle, timeout=60 * SLOW)
         s.send(cmd='key', key=key)
         pending, got = list(replies), []
         while True:
             evs, e = s.collect(lambda e: is_ask(e) or stops_idle(e), timeout=60 * SLOW)
             got += evs
             if e is None or stops_idle(e):
-                return got
+                break
             s.send(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
+        for command in then:
+            s.send(**command)
+            evs, _ = s.collect(stops_idle, timeout=60 * SLOW)
+            got += evs
+        return got
     finally:
         s.close()
 
@@ -301,7 +316,7 @@ def check_stops():
             continue
         path = os.path.join(STOPS_DIR, case['model'] + '.odex')
         try:
-            parts = stops_parts(case, stops_run(path, case['key'], case['replies']), path)
+            parts = stops_parts(case, stops_run(path, case['key'], case['replies'], case.get('then', ()), case.get('first', ())), path)
             if 'silent' in case:
                 parts += stops_silent(path, case['silent'])
         except Exception as exc:  # a crash or a wait that ran out is a failure of the case, never a pass
@@ -5841,7 +5856,7 @@ def check_export_elements():
         result = subprocess.run([binary, os.path.basename(model), '--silent', '--yes', '--ncdraw', '2', '--dfdraw', '4'],
                                 cwd=root, capture_output=True, text=True, timeout=60 * SLOW)
         check('W346: ncdraw=2 dumps the same nullclines in server and silent',
-              result.returncode == 0 and dump and b'# X-nullcline' in dump
+              result.returncode == 0 and dump and dump.splitlines()[0].split()[0] in (b'1', b'2') and len(dump.splitlines()[0].split()) == 5
               and dump == open(os.path.join(root, 'nullclines.dat'), 'rb').read(), result.stderr[-300:])
         check('W346: dfdraw=4 dumps the same 25 arrows in server and silent',
               len(field_dump.splitlines()) == 25
@@ -6024,11 +6039,11 @@ def check_dae_fold():
     # that stopped at the fold and after one that ended on the branch
     # (total .3, before the fold). dae_ex3's equilibrium, w=0 and v=0, is on
     # the middle branch, which Newton from the run's v (the outer branch)
-    # does not reach, before W127 or since: "Could not converge to root",
+    # does not reach, before W127 or since: "No equilibrium from W = 0",
     # and no DAE error of the search's own.
     code, errs, rows, err = run('examples/ode/dae_ex3.odex', GO + SING)
     check('Sing pts right after the run stopped at the fold: as before W127',
-          rows == 10 and len(errs) == 2 and 'fold' in errs[0] and errs[1] == 'Could not converge to root', str(errs))
+          rows == 10 and len(errs) == 2 and 'fold' in errs[0] and errs[1].startswith('No equilibrium from W = 0: Newton'), str(errs))
     short_dir = tempfile.mkdtemp(prefix='xppdae')
     try:
         short = os.path.join(short_dir, 'dae_ex3.odex')
@@ -6038,7 +6053,7 @@ def check_dae_fold():
             f.write(text)
         code, errs, rows, err = run(short, GO + SING)
         check('Sing pts after a run that ended on its branch: as before W127',
-              rows == 7 and errs == ['Could not converge to root'], 'rows %s, %s' % (rows, errs))
+              rows == 7 and len(errs) == 1 and errs[0].startswith('No equilibrium from W = 0: Newton'), 'rows %s, %s' % (rows, errs))
     finally:
         shutil.rmtree(short_dir, ignore_errors=True)
 
@@ -6669,8 +6684,8 @@ def check_session_file():
              ('badsliderrange.snapx/sliders.setx:5:', 'slider range -1 -2')),
             ('nannullcline', lambda m: m.__setitem__('nullclines.setx', nullclines('nan, 0, 0, 0')),
              ('nannullcline.snapx/nullclines.setx:1:', 'nan')),
-            ('badnullcline', lambda m: m.__setitem__('nullclines.setx', nullclines(', '.join(['0'] * 40004))),
-             ('badnullcline.snapx/nullclines.setx:1:', 'at most 40000')),
+            ('badnullcline', lambda m: m.__setitem__('nullclines.setx', nullclines('0, 0, 0, 0, 0')),
+             ('badnullcline.snapx/nullclines.setx:1:', 'four for each segment')),
 
             ('nowindows', lambda m: m.pop('windows.setx'), 'its windows.setx is missing'),
             ('cutwindows', lambda m: m.__setitem__('windows.setx', '\n'.join(win_rows[:10]).encode() + b'\n'),

@@ -696,6 +696,14 @@ int get_param_index(const xpp::Session &s, std::string_view name)
     return(-1);
 }
 
+std::string_view parameter_name(const xpp::Session &s, int k)
+{
+  const Model &m=s.model();
+  for(int i=0;i<m.nupar;i++)
+    if(get_param_index(s,m.upar_names[i])==k)return m.upar_names[i];
+  return {};
+}
+
 namespace {
 
 /* where name's value lives in p, a parameter's or a variable's (nullptr
