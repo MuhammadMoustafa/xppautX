@@ -118,6 +118,10 @@ static int hl_string_box(int, int, std::string_view, const char *const *, std::s
 {
     return 0;
 }
+static int hl_typed_form(std::string_view, std::span<FormField>)
+{
+    return 0;
+}
 static int hl_grid_box(std::string_view, std::span<const char *const>, std::span<const char *const>,
                        const char *const *, std::span<std::string>, const int *)
 {
@@ -206,6 +210,7 @@ XppUi ui = {
     .respond_box = hl_respond_box,
     .checklist = hl_checklist,
     .string_box = hl_string_box,
+    .typed_form = hl_typed_form,
     .grid_box = hl_grid_box,
     .file_selector = hl_file_selector,
     .dialog = hl_dialog,
@@ -424,6 +429,48 @@ int do_string_box_of(int row, int col, std::string_view title, const char *const
                      std::span<std::string> values, const int *kinds)
 {
     return question_fields(names, values, kinds, [&] { return ui.string_box(row, col, title, names, values, kinds); });
+}
+FormField FormField::boolean(std::string name, bool value)
+{
+    return FormField{.name = std::move(name), .kind = XPP_FIELD_BOOLEAN, .value = value ? "true" : "false"};
+}
+FormField FormField::choice(std::string name, std::vector<std::string> choices, std::size_t selected)
+{
+    std::string value = selected < choices.size() ? choices[selected] : std::string();
+    return FormField{.name = std::move(name), .kind = XPP_FIELD_CHOICE, .value = std::move(value),
+                     .choices = std::move(choices)};
+}
+FormField FormField::real_number(std::string name, double value, std::optional<double> min, std::optional<double> max)
+{
+    return FormField{.name = std::move(name), .kind = XPP_FIELD_REAL, .value = format("{:.16g}", value), .min = min, .max = max};
+}
+int ask_form(Session &s, std::string_view title, std::span<FormField> fields)
+{
+    if (ui.question_policy(false) == QuestionPolicy::User) {
+        if (!ui.typed_form(title, fields)) return 0;
+    } else {
+        std::vector<std::string> answered;
+        for (const FormField &f : fields) answered.push_back(f.value);
+        for (std::size_t i = 0; i < fields.size(); i++)
+            if (!question_string(fields[i].name, answered[i], fields[i].kind)) return 0;
+        for (std::size_t i = 0; i < fields.size(); i++) fields[i].value = answered[i];
+    }
+    /* every answer read by its kind before any is used */
+    TypedFields read(s);
+    for (FormField &f : fields) {
+        switch (f.kind) {
+        case XPP_FIELD_BOOLEAN: f.flag = read.boolean(f.name, f.value); break;
+        case XPP_FIELD_CHOICE: f.whole = read.choice(f.name, f.value, f.choices); break;
+        case XPP_FIELD_INTEGER: f.whole = read.integer(f.name, f.value, f.min, f.max); break;
+        case XPP_FIELD_REAL: f.real = read.real(f.name, f.value, f.min, f.max); break;
+        default: break;
+        }
+    }
+    if (read.error()) {
+        command_error(title, *read.error());
+        return 0;
+    }
+    return 1;
 }
 int do_grid_box_of(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
                    const char *const *names, std::span<std::string> values, const int *kinds)

@@ -180,7 +180,8 @@ namespace {
 /* a field's kind as the protocol names it (docs/protocol.md "Asks", `kinds`) */
 void buf_kind(Buf *b, int kind)
 {
-    static constexpr std::array<const char *, 6> names = {"text", "integer", "number", "formula", "expression", "file"};
+    static constexpr std::array<const char *, 9> names = {"text",       "integer", "number",  "formula", "expression",
+                                                              "file",       "boolean", "choice",  "real"};
     if (kind >= XPP_FIELD_NAME) buf_format(b, "\"name:{:d}\"", kind - XPP_FIELD_NAME);
     else buf_str(b, kind > 0 && kind < static_cast<int>(names.size()) ? names[kind] : "text");
 }
@@ -299,7 +300,8 @@ namespace {
 /* string_box: a form of named fields, each of kinds[i]
    (every one `all` when kinds is NULL) */
 int form(std::string_view title, const char *const *names, std::span<std::string> values, const int *kinds, int all,
-         std::span<const char *const> columns = {}, std::span<const char *const> rows = {})
+         std::span<const char *const> columns = {}, std::span<const char *const> rows = {},
+         std::span<const FormField> typed = {})
 {
     Buf b;
     const int n = static_cast<int>(values.size());
@@ -314,6 +316,36 @@ int form(std::string_view title, const char *const *names, std::span<std::string
     BUF_LIT(&b, ",\"values\":");
     buf_str_array(&b, shown.data(), n);
     buf_kinds(&b, kinds, all, n);
+    if (!typed.empty()) {
+        /* a choice's names and a number's range, one entry per field, null where it has none */
+        BUF_LIT(&b, ",\"options\":[");
+        for (size_t i = 0; i < typed.size(); i++) {
+            if (i) BUF_LIT(&b, ",");
+            if (typed[i].kind == XPP_FIELD_CHOICE) buf_str_array(&b, typed[i].choices);
+            else BUF_LIT(&b, "null");
+        }
+        BUF_LIT(&b, "],\"ranges\":[");
+        for (size_t i = 0; i < typed.size(); i++) {
+            const FormField &f = typed[i];
+            if (i) BUF_LIT(&b, ",");
+            if (!f.min && !f.max) {
+                BUF_LIT(&b, "null");
+                continue;
+            }
+            BUF_LIT(&b, "{");
+            if (f.min) {
+                BUF_LIT(&b, "\"min\":");
+                buf_num(&b, *f.min, 17);
+            }
+            if (f.max) {
+                if (f.min) BUF_LIT(&b, ",");
+                BUF_LIT(&b, "\"max\":");
+                buf_num(&b, *f.max, 17);
+            }
+            BUF_LIT(&b, "}");
+        }
+        BUF_LIT(&b, "]");
+    }
     if (!columns.empty()) {
         BUF_LIT(&b, ",\"columns\":");
         buf_str_array(&b, columns.data(), static_cast<int>(columns.size()));
@@ -335,6 +367,21 @@ int j_string_box(int, int, std::string_view title, const char *const *names, std
                  const int *kinds)
 {
     return form(title, names, values, kinds, XPP_FIELD_TEXT);
+}
+
+int j_typed_form(std::string_view title, std::span<FormField> fields)
+{
+    std::vector<const char *> names;
+    std::vector<std::string> values;
+    std::vector<int> kinds;
+    for (const FormField &f : fields) {
+        names.push_back(f.name.c_str());
+        values.push_back(f.value);
+        kinds.push_back(f.kind);
+    }
+    if (!form(title, names.data(), values, kinds.data(), XPP_FIELD_TEXT, {}, {}, fields)) return 0;
+    for (size_t i = 0; i < fields.size(); i++) fields[i].value = values[i];
+    return 1;
 }
 
 int j_grid_box(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,

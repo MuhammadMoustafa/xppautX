@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 #include <optional>
+#include <vector>
 #include "xpp_error.h"
 #include "auto_codes.h"
 
@@ -54,7 +55,34 @@ enum {
     XPP_FIELD_FORMULA,    /* a number, or %formula (new_float) */
     XPP_FIELD_EXPRESSION, /* a formula of the model's quantities */
     XPP_FIELD_FILE,       /* a file's base name */
+    XPP_FIELD_BOOLEAN,    /* `true` or `false` (FormField) */
+    XPP_FIELD_CHOICE,     /* one of a FormField's named choices */
+    XPP_FIELD_REAL,       /* a plain real number, within a range where given (FormField) */
     XPP_FIELD_NAME = 16   /* + n: a name from the hello event's lists[n] */
+};
+
+/* One field of a typed form (ask_form): what it takes (kind: BOOLEAN,
+   CHOICE, INTEGER, REAL or TEXT, by aggregate initialisation where no factory is), its value as text (BOOLEAN `true` or
+   `false`, CHOICE one of `choices` by name, a number as its digits), and
+   the range an INTEGER or REAL keeps to. A client shows a choice's name
+   with its underscores as spaces and a capital first letter: the label is
+   never written apart. ask_form checks every answer by its kind and, once
+   all are good, fills flag, whole (an INTEGER's value, a CHOICE's index in
+   `choices`) and real. */
+struct FormField {
+    std::string name;
+    int kind = XPP_FIELD_TEXT;
+    std::string value;
+    std::vector<std::string> choices;
+    std::optional<double> min, max;
+    bool flag = false;
+    int whole = 0;
+    double real = 0;
+
+    static FormField boolean(std::string name, bool value);
+    static FormField choice(std::string name, std::vector<std::string> choices, std::size_t selected);
+    static FormField real_number(std::string name, double value, std::optional<double> min = std::nullopt,
+                                 std::optional<double> max = std::nullopt);
 };
 /* a name from list n: 0 T and the variables, 1 the ODE variables,
    2 the parameters, 3 both (ui_json.cpp hello) */
@@ -200,6 +228,9 @@ typedef struct XppUi {
     /* kinds: one XPP_FIELD_* per field, or NULL (all text) */
     int (*string_box)(int row, int col, std::string_view title, const char *const *names,
                       std::span<std::string> values, const int *kinds);
+    /* a typed form (ask_form): every field by its kind, choices and range;
+       the answers go back into fields' value; 0 on cancel */
+    int (*typed_form)(std::string_view title, std::span<FormField> fields);
     /* string_box laid out as a grid: the first columns.size() * rows.size()
        fields are its cells, row by row; the rest are plain fields below it */
     int (*grid_box)(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
@@ -425,6 +456,10 @@ int do_string_box(int row, int col, std::string_view title, const char *const *n
                   std::span<std::string> values);
 int do_string_box_of(int row, int col, std::string_view title, const char *const *names,
                      std::span<std::string> values, const int *kinds);
+/* a form of typed fields (FormField): every answer is checked by its kind,
+   whole, before any is used. 0 on cancel or when an answer is bad (the error,
+   naming the field, is shown with `title` as the command) */
+int ask_form(Session &s, std::string_view title, std::span<FormField> fields);
 /* do_string_box_of laid out as a grid (XppUi::grid_box) */
 int do_grid_box_of(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
                    const char *const *names, std::span<std::string> values, const int *kinds);

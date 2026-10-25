@@ -1048,6 +1048,51 @@ if ask:
 send(cmd='key', key='Escape')
 collect(is_idle)
 
+# W485 (#549): a typed form. Numerics/Poincare map's form has a real (Section), a choice (Direction) and a
+# boolean (Stop on section); every answer is read by its kind, whole, before any is applied
+def poincare_form():
+    send(cmd='key', key='Escape')  # out of the Numerics menu a command left open
+    collect(is_idle)
+    send(cmd='key', key='u')
+    send(cmd='key', key='p')
+    evs, a = collect(lambda e: e.get('ev') == 'ask')
+    send(cmd='answer', id=a['id'], key='s')
+    return collect(lambda e: e.get('ev') == 'ask')[1]
+ask = poincare_form()
+check('W485: the Poincare map form says each field\'s kind, a choice\'s options and a boolean\'s text',
+      ask is not None and ask['kind'] == 'form' and ask.get('kinds') == ['name:0', 'real', 'choice', 'boolean']
+      and ask.get('options') == [None, None, ['both', 'increasing', 'decreasing'], None]
+      and ask['values'][2:] == ['increasing', 'false'], str(ask))
+if ask:
+    var = ask['values'][0]
+    for what, vals, want in (('a Section that is not a number', [var, 'abc', 'both', 'false'], 'Section'),
+                             ('a Direction that is not a choice', [var, '0.5', 'up', 'false'], 'Direction'),
+                             ('a Stop on section that is not true or false', [var, '0.5', 'both', 'Y'], 'Stop on section')):
+        send(cmd='answer', id=ask['id'], ok=1, values=vals)
+        evs = collect(is_idle)[0]
+        e = next((v for v in evs if v.get('ev') == 'message' and 'error' in v), {})
+        check('W485: %s is an error naming the field' % what, want in e.get('error', ''), str(e))
+        ask = poincare_form()
+        check('W485: ... and nothing of that answer was applied', ask is not None and ask.get('values', [])[1:] == ['0', 'increasing', 'false'],
+              str(ask and ask))
+    send(cmd='answer', id=ask['id'], ok=1, values=[var, '0.5', 'decreasing', 'true'])
+    evs = collect(is_idle)[0]
+    check('W485: a good answer raises no error', not [v for v in evs if v.get('ev') == 'message' and 'error' in v], str(evs)[:300])
+    ask = poincare_form()
+    check('W485: ... and is what the form shows next', ask is not None and ask['values'][1:] == ['0.5', 'decreasing', 'true'],
+          str(ask and ask['values']))
+    send(cmd='answer', id=ask['id'], ok=1, values=[var, '0', 'increasing', 'false'])  # back to as it was
+    collect(is_idle)
+    send(cmd='key', key='Escape')
+    collect(is_idle)
+    send(cmd='key', key='u')
+    send(cmd='key', key='p')
+    evs, a = collect(lambda e: e.get('ev') == 'ask')
+    send(cmd='answer', id=a['id'], key='n')  # Poincare map off
+    collect(is_idle)
+    send(cmd='key', key='Escape')
+    collect(is_idle)
+
 send(cmd='key', key='v')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 send(cmd='answer', id=ask['id'], key='2')

@@ -13,7 +13,7 @@ import {answerFill, litAskKey} from '../store/player';
 import {LEAVE_ASK} from '../store/state';
 import {askHelp} from '../help/links';
 import {fieldSpec, selectOptions} from '../protocol/lists';
-import {fieldsValid, specOfKind, TEXT, type FieldSpec} from '../store/fieldKinds';
+import {choiceLabel, fieldsValid, specOfKind, TEXT, type FieldSpec} from '../store/fieldKinds';
 import type {AskEvent} from '../protocol/types';
 import {Field} from './Field';
 import {FileAsk} from './FileDialog';
@@ -70,7 +70,8 @@ function FormAsk({ask}: {ask: AskEvent}) {
   const [values, setValues] = useState<string[]>(isString ? [ask.value ?? ''] : [...(ask.values ?? [])]);
   /* what each typed field takes, as the core says (`kinds`, one per field); a list field picks, so takes its pick */
   const specs = names.map((n, i): FieldSpec =>
-    (!isString && fieldSpec(n).list !== null ? TEXT : specOfKind(ask.kinds![i], lists)));
+    (!isString && fieldSpec(n).list !== null ? TEXT
+      : specOfKind(ask.kinds![i], lists, {options: ask.options?.[i], range: ask.ranges?.[i]})));
   const valid = fieldsValid(specs, values);
   const submit = (e: Event) => {
     e.preventDefault();
@@ -95,11 +96,7 @@ function FormAsk({ask}: {ask: AskEvent}) {
     const n = names[i];
     const spec = isString ? {label: n, list: null} : fieldSpec(n);
     const items = spec.list !== null ? lists?.[spec.list] : undefined;
-    const set = (text: string) => {
-      const v = values.slice();
-      v[i] = text;
-      setValues(v);
-    };
+    const set = (text: string) => setValues(prev => prev.map((v, j) => (j === i ? text : v)));
     const caption = cell ? <span class="visually-hidden">{cellLabel}</span> : <span>{spec.label}</span>;
     if (items) {
       /* the X11 scroll list of variables, parameters, colours, markers or methods */
@@ -110,6 +107,27 @@ function FormAsk({ask}: {ask: AskEvent}) {
           <select value={selected} data-list={spec.list} data-autofocus={i === 0 ? '' : undefined}
             onChange={(e: Event) => set((e.target as HTMLSelectElement).value)}>
             {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+      );
+    }
+    const typed = specs[i];
+    if (typed.kind === 'boolean') {
+      return (
+        <label key={i} class="form-check">
+          <input type="checkbox" checked={values[i] === 'true'} data-autofocus={i === 0 ? '' : undefined}
+            onChange={(e: Event) => set((e.target as HTMLInputElement).checked ? 'true' : 'false')} />
+          {caption}
+        </label>
+      );
+    }
+    if (typed.kind === 'choice') {
+      return (
+        <label key={i}>
+          {caption}
+          <select value={values[i]} data-choice data-autofocus={i === 0 ? '' : undefined}
+            onChange={(e: Event) => set((e.target as HTMLSelectElement).value)}>
+            {typed.choices.map(c => <option key={c} value={c}>{choiceLabel(c)}</option>)}
           </select>
         </label>
       );
