@@ -405,8 +405,10 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
         if(!suppress)phase_data_arrow(s,y[inx],y[iny],ydot[inx],ydot[iny]);
         scale_dxdy(s,ydot[inx],ydot[iny],&dxp,&dyp);
         if(s.nullcline_state.dfield_type==1){
-          ydot[inx]/=mdf;
-          ydot[iny]/=mdf;
+          if(mdf!=0.0){
+            ydot[inx]/=mdf;
+            ydot[iny]/=mdf;
+          }
         }
         else{
           const double amp=xpp::math::hypot(dxp,dyp);
