@@ -93,9 +93,9 @@ int main(void)
     char cmap_arg[] = "build/test_load_cmap.ode";
     char *argv_cmap[] = {arg0, cmap_arg, NULL};
     CHECK(xpp::load_model(2, argv_cmap, 1).has_value());
-    CHECK(xpp::client_session().colormap == 3);
+    CHECK(xpp::client_session().colormap == xpp::Colormap::cool);
     CHECK(xpp::load_model(2, argv_good, 1).has_value());
-    CHECK(xpp::client_session().colormap == 0);
+    CHECK(xpp::client_session().colormap == xpp::Colormap::jet);
 
     /* @ range= and @ output= are the Session's (W350): the next model, and
        a load that fails, neither inherits nor loses them */

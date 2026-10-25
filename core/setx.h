@@ -95,7 +95,7 @@ public:
     bool has(std::string_view key) const { return find(key) != nullptr; }
 
     /* a finite number / any number (inf and nan included) / a whole
-       number in int's range / 0 or 1 / a bare word / a string or a bare
+       number in int's range / true or false / a bare word / a string or a bare
        word */
     bool real(std::string_view key, double &v);
     bool number(std::string_view key, double &v);
@@ -181,7 +181,7 @@ class Out {
 public:
     void real(std::string_view key, double v);
     void whole(std::string_view key, long long v);
-    void flag(std::string_view key, bool v) { whole(key, v ? 1 : 0); }
+    void flag(std::string_view key, bool v) { word(key, v ? "true" : "false"); }
     /* a bare word when text is one (letters, digits, _ . + - and not
        empty), else quoted */
     void word(std::string_view key, std::string_view text);

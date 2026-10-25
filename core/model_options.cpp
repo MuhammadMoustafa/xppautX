@@ -39,6 +39,9 @@ namespace xpp {
 
 namespace {
 
+/* where XPPAUT's ncdraw=2 saves the nullclines */
+constexpr const char *nullclines_dump_file = "nullclines.dat";
+
 /* a 3D box side's default: wide enough for most models' variables */
 constexpr double box_side = 12;
 
@@ -74,6 +77,17 @@ const char *whole_into(int &member, const OptionValue &v)
   return nullptr;
 }
 
+/* style as the line every new curve starts with, when a line type draws it (the curves already there start again with it) */
+const char *start_line_style_into(Session &s, const LineStyle &style, const OptionValue &v)
+{
+  if (!xppaut_line_type(style)) return "not a line the core draws yet: a solid line, or points as circles of 0 to 5 pixels";
+  if (v.apply) {
+    s.plot_settings.start_line_style = style;
+    reset_all_line_type(s);
+  }
+  return nullptr;
+}
+
 /* the variable v names (0 the time), -1 for none */
 int variable_of(const Session &s, const OptionValue &v)
 {
@@ -82,13 +96,47 @@ int variable_of(const Session &s, const OptionValue &v)
   return i;
 }
 
-const char *color_into(int &member, const OptionValue &v)
+/* the colours an option takes today: the drawing code draws XPPAUT's eleven only (W478, #541
+   makes any colour drawable and removes this); the words say which */
+std::string drawn_colors()
+{
+  std::string words;
+  for (int i = 0; i <= LAST_PLOT_COLOR; i++) words += (i ? ", " : "") + print_color(xppaut_color(i));
+  return words;
+}
+
+/* a colour option's value: our own colour words, or on import XPPAUT's number in the row's own way (foreign);
+   refused (why, kept alive in the caller) when it is none or is not one of the colours drawn today */
+const char *color_into(Color &member, const OptionRow &row, const OptionValue &v, bool foreign, std::string &why)
+{
+  std::optional<Color> c = parse_color(v.text);
+  if (!c && foreign && row.foreign) c = parse_color(row.foreign(v.text));
+  if (!c) {
+    why = "not a colour: `#rrggbb`, `#rrggbbaa`, a CSS colour name or foreground";
+    return why.c_str();
+  }
+  if (!xppaut_color_index(*c)) {
+    why = "not a colour drawn yet, the colours are " + drawn_colors();
+    return why.c_str();
+  }
+  if (v.apply) member = *c;
+  return nullptr;
+}
+
+/* XPPAUT's colour number as our colour's word: 0..10 */
+std::string foreign_plot_color(std::string_view value)
 {
   int i = 0;
-  static_assert(LAST_PLOT_COLOR == 10, "the message below names the last colour");
-  if (whole_in(v, i) || i < 0 || i > LAST_PLOT_COLOR) return "not a colour from 0 to 10";
-  if (v.apply) member = i;
-  return nullptr;
+  if (!parse_int(value, i) || i < 0 || i > LAST_PLOT_COLOR) return {};
+  return print_color(xppaut_color(i));
+}
+
+/* XPPAUT's AUTO colour number as our colour's word: 0 or the slots 20 to 29 of its named colours */
+std::string foreign_auto_color(std::string_view value)
+{
+  int i = 0;
+  if (!parse_int(value, i) || (i != 0 && (i < 20 || i > 19 + LAST_PLOT_COLOR))) return {};
+  return print_color(xppaut_color(i == 0 ? 0 : i - 19));
 }
 
 const char *variable_into(const Session &s, int &member, const OptionValue &v)
@@ -97,16 +145,6 @@ const char *variable_into(const Session &s, int &member, const OptionValue &v)
   if (i < 0) return "no such variable";
   if (v.apply) member = i;
   return nullptr;
-}
-
-/* yes (y..., Y...: 1) or no (n..., N...: 0) into member */
-const char *yes_no_into(int &member, const OptionValue &v)
-{
-  switch (v.text[0]) {
-  case 'y': case 'Y': if (v.apply) member = 1; return nullptr;
-  case 'n': case 'N': if (v.apply) member = 0; return nullptr;
-  default: return "not yes or no";
-  }
 }
 
 /* what the log file's option says of a file that could not be opened */
@@ -127,9 +165,47 @@ const char *own_file(Session &s, const OptionValue &v, std::string &path)
 
 /* the words a .odex writes for the choice rows (option_choices); the
    Jacobian's are jacobian.h's, the method's the registry's */
-constexpr std::array<std::string_view, 2> yes_no_names{"no", "yes"};
+constexpr std::array<std::string_view, 2> boolean_names{"false", "true"};
 constexpr std::array<std::string_view, 2> axes_names{"2", "3"};
 constexpr std::array<std::string_view, 4> poincare_map_names{"none", "section", "max", "period"};
+/* the section's crossings by the sign of SectionSign: -1, 0, 1 */
+constexpr std::array<std::string_view, 3> section_sign_names{"negative", "both", "positive"};
+
+/* the word of words that value starts with, "" when none */
+template <class Words> std::string first_letter_word(const Words &words, std::string_view value)
+{
+  if (value.empty()) return {};
+  for (const auto &w : words)
+    if (std::tolower(static_cast<unsigned char>(std::string_view(w)[0])) == std::tolower(static_cast<unsigned char>(value[0]))) return std::string(w);
+  return {};
+}
+
+/* XPPAUT's yes or no as a boolean's word: y... or 1 (or t...), n... or 0 (or f...) */
+std::string foreign_boolean(std::string_view value)
+{
+  if (value.empty()) return {};
+  switch (std::tolower(static_cast<unsigned char>(value[0]))) {
+  case 'y': case 't': case '1': return "true";
+  case 'n': case 'f': case '0': return "false";
+  default: return {};
+  }
+}
+
+/* the word of words that value, a number from 0, counts to (XPPAUT's numbered choices), "" when none */
+template <class Words> std::string numbered_word(const Words &words, std::string_view value)
+{
+  int i = 0;
+  if (!parse_int(value, i) || i < 0 || static_cast<std::size_t>(i) >= words.size()) return {};
+  return std::string(words[static_cast<std::size_t>(i)]);
+}
+
+/* XPPAUT's Poincare sign, a number whose sign says which crossings */
+std::string foreign_section_sign(std::string_view value)
+{
+  double x = 0;
+  if (!parse_number(value, x)) return {};
+  return std::string(section_sign_names[static_cast<std::size_t>(static_cast<int>(section_sign(x)) + 1)]);
+}
 
 /* Only foreign S1-S3 options need numbered slots; native presets are a list. */
 XppSlider &slider_slot(Session &s, std::size_t index)
@@ -169,11 +245,11 @@ constexpr OptionRow rows[] = {
    /* time starts at 0 */
    .reset = [](Session &s) { s.numerics.start_time = 0; },
    .key = "start_time", .label = "Start time", .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .name = "TRANSIENT_TIME", .xppaut_names = {"TRANS"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.numerics.transient_time; }),
-   /* no transient: store from the start */
-   .reset = [](Session &s) { s.numerics.transient_time = 0; },
-   .key = "transient_time", .label = "Transient time", .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::number, .name = "STORE_FROM", .xppaut_names = {"TRANS"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics.store_from; }),
+   /* store from the start */
+   .reset = [](Session &s) { s.numerics.store_from = 0; },
+   .key = "store_from", .label = "Store from", .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "DT", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.delta_t; }),
    /* twenty steps per time unit, XPPAUT's */
@@ -184,33 +260,51 @@ constexpr OptionRow rows[] = {
    /* a 40 by 40 grid: smooth nullclines, quickly */
    .reset = [](Session &s) { s.numerics.nullcline_mesh = 40; },
    .key = "nullcline_mesh", .label = "Nullcline mesh", .rule = OptionRule::whole_positive, .maximum = option_limit::mesh, .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::whole, .name = "SINGPT_MAX_ITERATES", .xppaut_names = {"NEWT_ITER"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.numerics.singpt_max_iterates; }),
+  {.group = option_group::equilibria, .kind = OptionKind::whole, .name = "MAX_ITERATIONS", .xppaut_names = {"NEWT_ITER"}, .once = true,
+   .whole = member([](auto &s) -> auto & { return s.numerics.equilibria.max_iterations; }),
    /* Newton's method converges in far fewer or not at all */
-   .reset = [](Session &s) { s.numerics.singpt_max_iterates = 100; },
-   .key = "singpt_max_iterates", .label = "Sing pt: maximum iterates", .rule = OptionRule::whole_positive, .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::number, .name = "SINGPT_NEWTON_TOLERANCE", .xppaut_names = {"NEWT_TOL"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.numerics.singpt_newton_tolerance; }),
+   .reset = [](Session &s) { s.numerics.equilibria.max_iterations = 100; },
+   .key = "max_iterations", .label = "Equilibria: maximum iterations", .rule = OptionRule::whole_positive, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::number, .name = "NEWTON_TOLERANCE", .xppaut_names = {"NEWT_TOL"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics.equilibria.newton_tolerance; }),
    /* XPPAUT's */
-   .reset = [](Session &s) { s.numerics.singpt_newton_tolerance = .001; },
-   .key = "singpt_newton_tolerance", .label = "Sing pt: Newton tolerance", .rule = OptionRule::positive, .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::number, .name = "SINGPT_JACOBIAN_EPSILON", .xppaut_names = {"JAC_EPS"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.numerics.singpt_jacobian_epsilon; }),
+   .reset = [](Session &s) { s.numerics.equilibria.newton_tolerance = .001; },
+   .key = "newton_tolerance", .label = "Equilibria: Newton tolerance", .rule = OptionRule::positive, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::number, .name = "JACOBIAN_STEP", .xppaut_names = {"JAC_EPS"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics.equilibria.jacobian_step; }),
    /* XPPAUT's */
-   .reset = [](Session &s) { s.numerics.singpt_jacobian_epsilon = .001; },
-   .key = "singpt_jacobian_epsilon", .label = "Sing pt: Jacobian epsilon", .rule = OptionRule::positive, .saved = true},
+   .reset = [](Session &s) { s.numerics.equilibria.jacobian_step = .001; },
+   .key = "jacobian_step", .label = "Equilibria: Jacobian step", .rule = OptionRule::positive, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::number, .name = "SEARCH_LIMIT", .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics.equilibria.search_limit; }),
+   /* XPPAUT's bound: the search gives up where a variable passes it */
+   .reset = [](Session &s) { s.numerics.equilibria.search_limit = 100; },
+   .key = "search_limit", .label = "Equilibria: search limit", .rule = OptionRule::positive, .saved = true},
+  /* a .ode's bound (import only) is both the state limit and the search limit */
+  {.name = "BOUND", .once = true,
+   .expand = [](std::string_view value) -> ForeignOptions {
+     double x = 0;
+     if (!parse_number(value, x)) return {{}, "not a number"};
+     if (const char *why = rule_problem(OptionRule::positive, x)) return {{}, why};
+     return {{{"state_limit", std::string(value)}, {"search_limit", std::string(value)}}, nullptr};
+   }},
   {.group = option_group::integration, .kind = OptionKind::whole, .name = "STORE_EVERY", .xppaut_names = {"NOUT", "NJMP"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics.store_every; }),
    /* every step stored */
    .reset = [](Session &s) { s.numerics.store_every = 1; },
    .key = "store_every", .label = STORE_EVERY_LABEL, .rule = OptionRule::whole_positive, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .name = "BOUND", .once = true,
-   .real = member([](auto &s) -> auto & { return s.numerics.bound; }),
+  {.group = option_group::integration, .kind = OptionKind::number, .name = "STATE_LIMIT", .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics.state_limit; }),
    /* XPPAUT's: past it a solution is taken to blow up */
-   .reset = [](Session &s) { s.numerics.bound = 100; },
-   .key = "bound", .label = "Bounds", .rule = OptionRule::positive, .saved = true},
+   .reset = [](Session &s) { s.numerics.state_limit = 100; },
+   .key = "state_limit", .label = "State limit", .rule = OptionRule::positive, .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::choice, .name = "STOP_AT_LIMIT", .once = true,
+   .boolean = member([](auto &s) -> auto & { return s.numerics.stop_at_limit; }),
+   /* XPPAUT's: a solution past the limit ends the run */
+   .reset = [](Session &s) { s.numerics.stop_at_limit = true; },
+   .key = "stop_at_limit", .label = "Stop at the limit", .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::choice, .name = "METHOD", .xppaut_names = {"METH"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.numerics.method; }),
+   .index = choice_member([](auto &s) -> auto & { return s.numerics.method; }),
    /* Integral equations require Volterra; otherwise the usual RK4 default. */
    .reset = [](Session &s) {
      s.numerics.method = pick_method(s.model(), s.model().nkernel > 0 ? "Volterra" : "Runge-Kutta", command_place()).value();
@@ -239,11 +333,11 @@ constexpr OptionRow rows[] = {
      return i == JACOBIAN_EXACT && m.jacobian.tried && !m.jacobian.available() ? std::string_view(m.jacobian.unavailable) : std::string_view();
    },
    .prepare = [](Session &s, int i) { if (i == JACOBIAN_EXACT) ensure_exact_jacobian(s); }, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .name = "TOLERANCE", .xppaut_names = {"TOL"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.numerics.tolerance; }),
+  {.group = option_group::integration, .kind = OptionKind::number, .name = "RELATIVE_TOLERANCE", .xppaut_names = {"TOL"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics.relative_tolerance; }),
    /* XPPAUT's */
-   .reset = [](Session &s) { s.numerics.tolerance = .001; },
-   .key = "tolerance", .label = "Tolerance", .rule = OptionRule::positive, .use = OptionUse::step_or_rel, .saved = true},
+   .reset = [](Session &s) { s.numerics.relative_tolerance = .001; },
+   .key = "relative_tolerance", .label = "Relative tolerance", .rule = OptionRule::positive, .use = OptionUse::step_or_rel, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "MIN_STEP", .xppaut_names = {"DTMIN"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.min_step; }),
    /* as small as an adaptive method may need */
@@ -254,11 +348,11 @@ constexpr OptionRow rows[] = {
    /* one time unit */
    .reset = [](Session &s) { s.numerics.max_step = 1; },
    .key = "max_step", .label = "Maximum step", .rule = OptionRule::positive, .use = OptionUse::step_or_dense, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .name = "ABS_TOLERANCE", .xppaut_names = {"ATOL"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.numerics.abs_tolerance; }),
+  {.group = option_group::integration, .kind = OptionKind::number, .name = "ABSOLUTE_TOLERANCE", .xppaut_names = {"ATOL"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics.absolute_tolerance; }),
    /* XPPAUT's */
-   .reset = [](Session &s) { s.numerics.abs_tolerance = .001; },
-   .key = "abs_tolerance", .label = "Absolute tolerance", .rule = OptionRule::positive, .use = OptionUse::rel, .saved = true},
+   .reset = [](Session &s) { s.numerics.absolute_tolerance = .001; },
+   .key = "absolute_tolerance", .label = "Absolute tolerance", .rule = OptionRule::positive, .use = OptionUse::rel, .saved = true},
   {.real = member([](auto &s) -> auto & { return s.numerics.eul_tol; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.eul_tol = 1e-7; },
@@ -299,7 +393,7 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.numerics.torus_period; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      if (const char *why = number_into(s.numerics.torus_period, v)) return why;
-     if (v.apply) s.numerics.torus = 1;
+     if (v.apply) s.numerics.torus=true;
      return nullptr;
    }},
   {.group = option_group::integration, .kind = OptionKind::name, .name = "FOLD",
@@ -308,7 +402,7 @@ constexpr OptionRow rows[] = {
      if (i < 1) return "no such variable";
      if (!v.apply) return nullptr;
      s.itor[i - 1] = 1;
-     s.numerics.torus = 1;
+     s.numerics.torus=true;
      return nullptr;
    },
    .repeatable = true},
@@ -316,33 +410,22 @@ constexpr OptionRow rows[] = {
    .whole = member([](auto &s) -> auto & { return s.numerics.cv_bandupper; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      if (const char *why = whole_into(s.numerics.cv_bandupper, v)) return why;
-     if (v.apply) s.numerics.cv_bandflag = 1;
+     if (v.apply) s.numerics.cv_bandflag=true;
      return nullptr;
    }, .rule = OptionRule::nonnegative, .maximum = option_limit::bandwidth},
   {.group = option_group::integration, .kind = OptionKind::whole, .name = "BANDLO", .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics.cv_bandlower; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      if (const char *why = whole_into(s.numerics.cv_bandlower, v)) return why;
-     if (v.apply) s.numerics.cv_bandflag = 1;
+     if (v.apply) s.numerics.cv_bandflag=true;
      return nullptr;
    }, .rule = OptionRule::nonnegative, .maximum = option_limit::bandwidth},
   {.group = option_group::poincare, .kind = OptionKind::choice, .name = "POINCARE_MAP", .xppaut_names = {"POIMAP"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.numerics.poincare_map; }),
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     int map = 0;
-     switch (v.text[0]) {
-     case 'n': case 'N': map = 0; break;
-     case 's': case 'S': map = 1; break;
-     case 'm': case 'M': map = 2; break;
-     case 'p': case 'P': map = 3; break;
-     default: return "not none, section, max or period";
-     }
-     if (v.apply) s.numerics.poincare_map = map;
-     return nullptr;
-   },
+   .index = choice_member([](auto &s) -> auto & { return s.numerics.poincare_map; }),
    /* no Poincare map */
-   .reset = [](Session &s) { s.numerics.poincare_map = 0; },
-   .choices = poincare_map_names, .saved = true},
+   .reset = [](Session &s) { s.numerics.poincare_map = PoincareMap::none; },
+   .foreign = [](std::string_view v) { return first_letter_word(poincare_map_names, v); },
+   .rule = OptionRule::choice, .choices = poincare_map_names, .saved = true},
   {.group = option_group::poincare, .kind = OptionKind::name, .name = "POINCARE_VARIABLE", .xppaut_names = {"POIVAR"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics.poincare_variable; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -350,14 +433,17 @@ constexpr OptionRow rows[] = {
    },
    /* the first variable */
    .reset = [](Session &s) { s.numerics.poincare_variable = 1; }, .saved = true},
-  {.group = option_group::poincare, .kind = OptionKind::whole, .name = "POINCARE_SIGN", .xppaut_names = {"POISGN"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.numerics.poincare_sign; }),
+  {.group = option_group::poincare, .kind = OptionKind::choice, .name = "POINCARE_SIGN", .xppaut_names = {"POISGN"}, .once = true,
+   .index = choice_member<1>([](auto &s) -> auto & { return s.numerics.poincare_sign; }),
    /* crossings upwards */
-   .reset = [](Session &s) { s.numerics.poincare_sign = 1; }, .saved = true},
-  {.group = option_group::poincare, .kind = OptionKind::whole, .name = "POINCARE_STOP", .xppaut_names = {"POISTOP"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.numerics.poincare_stop; }),
+   .reset = [](Session &s) { s.numerics.poincare_sign = SectionSign::positive; },
+   .foreign = foreign_section_sign,
+   .rule = OptionRule::choice, .choices = section_sign_names, .saved = true},
+  {.group = option_group::poincare, .kind = OptionKind::choice, .name = "POINCARE_STOP", .xppaut_names = {"POISTOP"}, .once = true,
+   .boolean = member([](auto &s) -> auto & { return s.numerics.poincare_stop; }),
    /* a section does not stop the run */
-   .reset = [](Session &s) { s.numerics.poincare_stop = 0; }, .saved = true},
+   .reset = [](Session &s) { s.numerics.poincare_stop = false; },
+   .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   {.group = option_group::poincare, .kind = OptionKind::number, .name = "POINCARE_PLANE", .xppaut_names = {"POIPLN"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.poincare_plane; }),
    /* the section at 0 */
@@ -548,44 +634,72 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.drawing.phi0; })},
   {.group = option_group::plot, .kind = OptionKind::number, .name = "THETA", .once = true,
    .real = member([](auto &s) -> auto & { return s.drawing.theta0; })},
-  {.group = option_group::plot, .kind = OptionKind::whole, .name = "LT", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.plot_settings.start_line_type; }),
+  /* the line every new curve starts with; the drawing takes XPPAUT's line types only (W492, #556 draws the
+     rest), so a style no line type draws is refused: a solid line, or points as circles of 0 to 5 pixels */
+  {.group = option_group::plot, .kind = OptionKind::choice, .name = "LINE.DRAW", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     int i = 0;
-     if (whole_in(v, i) || i >= 2 || i <= -6) return "not a line type from -5 to 1";
-     if (!v.apply) return nullptr;
-     s.plot_settings.start_line_type = i;
-     reset_all_line_type(s);
-     return nullptr;
+     const std::optional<LineDraw> draw = parse_line_draw(v.text);
+     if (!draw) return "not line, points or both";
+     LineStyle style = s.plot_settings.start_line_style;
+     style.draw = *draw;
+     return start_line_style_into(s, style, v);
+   },
+   .rule = OptionRule::choice, .choices = line_draw_names},
+  {.group = option_group::plot, .kind = OptionKind::choice, .name = "LINE.DASH", .once = true,
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     const std::optional<LineDash> dash = parse_line_dash(v.text);
+     if (!dash) return "not solid, dashed, dotted or dash_dot";
+     LineStyle style = s.plot_settings.start_line_style;
+     style.dash = *dash;
+     return start_line_style_into(s, style, v);
+   },
+   .rule = OptionRule::choice, .choices = line_dash_names},
+  {.group = option_group::plot, .kind = OptionKind::number, .name = "LINE.WIDTH", .once = true,
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     const std::optional<double> width = parse_line_size(v.text, false);
+     if (!width) return "not a number above 0";
+     LineStyle style = s.plot_settings.start_line_style;
+     style.width = *width;
+     return start_line_style_into(s, style, v);
    }},
-  {.group = option_group::plot, .kind = OptionKind::whole, .name = "YNC", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.nullclines.y_null_color; }),
+  {.group = option_group::plot, .kind = OptionKind::choice, .name = "LINE.MARKER", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return color_into(s.nullclines.y_null_color, v);
+     const std::optional<LineMarker> marker = parse_line_marker(v.text);
+     if (!marker) return "not circle, square, triangle, diamond, cross, plus or star";
+     LineStyle style = s.plot_settings.start_line_style;
+     style.marker = *marker;
+     return start_line_style_into(s, style, v);
+   },
+   .rule = OptionRule::choice, .choices = line_marker_names},
+  {.group = option_group::plot, .kind = OptionKind::number, .name = "LINE.MARKER_SIZE", .once = true,
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     const std::optional<double> size = parse_line_size(v.text, true);
+     if (!size) return "not a number of at least 0";
+     LineStyle style = s.plot_settings.start_line_style;
+     style.marker_size = *size;
+     return start_line_style_into(s, style, v);
    }},
-  {.group = option_group::plot, .kind = OptionKind::whole, .name = "XNC", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.nullclines.x_null_color; }),
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return color_into(s.nullclines.x_null_color, v);
+  /* XPPAUT's lt (import only): 1 a solid line, 0 a dot at each point, -n a circle of radius n at each point */
+  {.name = "LT", .once = true,
+   .expand = [](std::string_view value) -> ForeignOptions {
+     int lt = 0;
+     const std::optional<LineStyle> style = parse_int(value, lt) ? line_style_of_xppaut(lt) : std::nullopt;
+     if (!style) return {{}, "not a line type from -5 to 1"};
+     if (style->draw == LineDraw::line) return {{{"line.draw", "line"}}, nullptr};
+     return {{{"line.draw", "points"}, {"line.marker", "circle"}, {"line.marker_size", number(style->marker_size)}}, nullptr};
    }},
-  {.group = option_group::plot, .kind = OptionKind::whole, .name = "SMC", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.manifolds.stable_color; }),
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return color_into(s.manifolds.stable_color, v);
-   }},
-  {.group = option_group::plot, .kind = OptionKind::whole, .name = "UMC", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.manifolds.unstable_color; }),
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return color_into(s.manifolds.unstable_color, v);
-   }},
-  {.group = option_group::plot, .kind = OptionKind::whole, .name = "COLORMAP", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.colormap; }),
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     int i = 0;
-     if (whole_in(v, i) || i < 0 || i >= 7) return "not a colour map from 0 to 6";
-     if (v.apply) s.colormap = i;
-     return nullptr;
-   }, .wide = true},
+  {.group = option_group::plot, .kind = OptionKind::color, .name = "YNC", .once = true,
+   .color = member([](auto &s) -> auto & { return s.nullclines.y_null_color; }), .foreign = foreign_plot_color},
+  {.group = option_group::plot, .kind = OptionKind::color, .name = "XNC", .once = true,
+   .color = member([](auto &s) -> auto & { return s.nullclines.x_null_color; }), .foreign = foreign_plot_color},
+  {.group = option_group::plot, .kind = OptionKind::color, .name = "SMC", .once = true,
+   .color = member([](auto &s) -> auto & { return s.manifolds.stable_color; }), .foreign = foreign_plot_color},
+  {.group = option_group::plot, .kind = OptionKind::color, .name = "UMC", .once = true,
+   .color = member([](auto &s) -> auto & { return s.manifolds.unstable_color; }), .foreign = foreign_plot_color},
+  {.group = option_group::plot, .kind = OptionKind::choice, .name = "COLORMAP", .once = true,
+   .index = choice_member([](auto &s) -> auto & { return s.colormap; }),
+   .foreign = [](std::string_view v) { return numbered_word(colormap_names, v); },
+   .rule = OptionRule::choice, .choices = colormap_names, .wide = true},
   {.group = option_group::export_, .kind = OptionKind::name, .name = "PLOTFMT", .once = true,
    .text = member([](auto &s) -> auto & { return s.plot_export.format; })},
   {.group = option_group::export_, .kind = OptionKind::name, .name = "PS_FONT", .once = true,
@@ -605,8 +719,25 @@ constexpr OptionRow rows[] = {
    .whole = member([](auto &s) -> auto & { return s.nullclines.df_grid; })},
   {.group = option_group::plot, .kind = OptionKind::whole, .name = "DFDRAW", .once = true,
    .whole = member([](auto &s) -> auto & { return s.nullclines.df_batch; })},
-  {.group = option_group::plot, .kind = OptionKind::whole, .name = "NCDRAW", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.nullclines.nc_batch; })},
+  {.group = option_group::plot, .kind = OptionKind::choice, .name = "NULLCLINES.DRAW", .once = true,
+   .boolean = member([](auto &s) -> auto & { return s.nullclines.draw; }),
+   .rule = OptionRule::choice, .choices = boolean_names},
+  {.group = option_group::plot, .kind = OptionKind::path, .name = "NULLCLINES.FILE", .once = true,
+   .text = member([](auto &s) -> auto & { return s.nullclines.file; }),
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     /* the nullclines saved after a run, in the working folder like the other files a run writes by itself */
+     if (!files::name_ok(v.text)) return "must be a file name, without a folder: it is written in the working folder";
+     if (v.apply) s.nullclines.file = v.text;
+     return nullptr;
+   }},
+  /* XPPAUT's ncdraw (import only): 1 draws them, 2 saves them (to nullclines.dat) */
+  {.name = "NCDRAW", .once = true,
+   .expand = [](std::string_view value) -> ForeignOptions {
+     if (value == "0") return {{{"nullclines.draw", "false"}}, nullptr};
+     if (value == "1") return {{{"nullclines.draw", "true"}}, nullptr};
+     if (value == "2") return {{{"nullclines.draw", "false"}, {"nullclines.file", nullclines_dump_file}}, nullptr};
+     return {{}, "not 0, 1 or 2"};
+   }},
   {.group = option_group::plot, .kind = OptionKind::name, .name = "COLORVIA", .once = true,
    .text = member([](auto &s) -> auto & { return s.nullclines.color_via; })},
   {.group = option_group::plot, .kind = OptionKind::whole, .name = "COLORIZE", .once = true,
@@ -653,25 +784,19 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.integrator.range.phigh; }),
    .reset = [](Session &s) { s.integrator.range.phigh = s.integrator.range.phigh2 = 1; }, .saved = true},
   {.group = option_group::sweep, .kind = OptionKind::choice, .name = "RANGERESET", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.integrator.range.reset; }),
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return yes_no_into(s.integrator.range.reset, v);
-   },
+   .boolean = member([](auto &s) -> auto & { return s.integrator.range.reset; }),
    /* each run starts from the initial data */
-   .reset = [](Session &s) { s.integrator.range.reset = 1; },
-   .choices = yes_no_names, .saved = true},
+   .reset = [](Session &s) { s.integrator.range.reset = true; },
+   .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   {.group = option_group::sweep, .kind = OptionKind::choice, .name = "RANGEOLDIC", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.integrator.range.oldic; }),
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return yes_no_into(s.integrator.range.oldic, v);
-   },
+   .boolean = member([](auto &s) -> auto & { return s.integrator.range.oldic; }),
    /* the same initial data for each run */
-   .reset = [](Session &s) { s.integrator.range.oldic = 1; },
-   .choices = yes_no_names, .saved = true},
+   .reset = [](Session &s) { s.integrator.range.oldic = true; },
+   .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   {.group = option_group::sweep, .kind = OptionKind::choice, .name = "RANGEFILES",
    .xppaut_names = {"RANGE"}, .once = true,
    .boolean = member([](auto &s) -> auto & { return s.integrator.range.write_files; }),
-   .rule = OptionRule::choice, .choices = yes_no_names, .saved = true},
+   .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   {.group = option_group::output, .kind = OptionKind::path, .name = "OUTPUT", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      /* the batch data file, named from the model's folder */
@@ -731,14 +856,14 @@ constexpr OptionRow rows[] = {
      if (v.apply) s.auto_state.options.var = i - 1;
      return nullptr;
    }},
-  {.group = option_group::diagram, .kind = OptionKind::whole, .name = "SEC", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.stable_eq_color; })},
-  {.group = option_group::diagram, .kind = OptionKind::whole, .name = "UEC", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.unstable_eq_color; })},
-  {.group = option_group::diagram, .kind = OptionKind::whole, .name = "SPC", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.stable_po_color; })},
-  {.group = option_group::diagram, .kind = OptionKind::whole, .name = "UPC", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.unstable_po_color; })},
+  {.group = option_group::diagram, .kind = OptionKind::color, .name = "SEC", .once = true,
+   .color = member([](auto &s) -> auto & { return s.auto_state.stable_eq_color; }), .foreign = foreign_auto_color},
+  {.group = option_group::diagram, .kind = OptionKind::color, .name = "UEC", .once = true,
+   .color = member([](auto &s) -> auto & { return s.auto_state.unstable_eq_color; }), .foreign = foreign_auto_color},
+  {.group = option_group::diagram, .kind = OptionKind::color, .name = "SPC", .once = true,
+   .color = member([](auto &s) -> auto & { return s.auto_state.stable_po_color; }), .foreign = foreign_auto_color},
+  {.group = option_group::diagram, .kind = OptionKind::color, .name = "UPC", .once = true,
+   .color = member([](auto &s) -> auto & { return s.auto_state.unstable_po_color; }), .foreign = foreign_auto_color},
 
   /* ---- the histogram and the spectrum a batch run writes ---- */
   {.group = option_group::analysis, .kind = OptionKind::whole, .name = "POSTPROCESS", .once = true,
@@ -887,12 +1012,8 @@ const char *rule_problem(OptionRule rule, double v, int maximum)
 
 int choice_index(std::span<const std::string_view> choices, std::string_view text)
 {
-  const std::string lower = lower_case(std::string(text));
-  int i = 0;
-  for (std::size_t k = 0; k < choices.size(); ++k)
-    if (choices[k] == lower) return static_cast<int>(k);
-  if (parse_int(text, i) && i >= 0 && static_cast<std::size_t>(i) < choices.size()) return i;
-  return -1;
+  const auto at = std::ranges::find(choices, text);
+  return at == choices.end() ? -1 : static_cast<int>(at - choices.begin());
 }
 
 std::span<const OptionRow> option_rows() { return rows; }
@@ -961,6 +1082,11 @@ bool xppaut_slider_option(const OptionRow &row)
   return std::ranges::contains(slider_slot_parsers, row.parse);
 }
 
+bool option_written_quoted(const OptionRow &row, std::string_view text)
+{
+  return row.kind == OptionKind::path || row.kind == OptionKind::text || (row.kind == OptionKind::color && text != "foreground");
+}
+
 std::vector<std::string> option_choices(const OptionRow &row)
 {
   std::vector<std::string> words;
@@ -974,15 +1100,11 @@ std::vector<std::string> option_choices(const OptionRow &row)
 
 std::string option_choice(const OptionRow &row, std::string_view value)
 {
-  const std::vector<std::string> words = option_choices(row);
-  if (row.rule == OptionRule::choice) {
-    const int i = choice_index(row.choices, value);
-    return i < 0 ? std::string() : words[static_cast<std::size_t>(i)];
-  }
-  if (value.empty()) return {};
-  for (const std::string &w : words)
-    if (lower_case(std::string(1, w[0])) == lower_case(std::string(1, value[0]))) return w;
-  return {};
+  if (choice_index(row.choices, value) >= 0) return std::string(value);
+  if (row.foreign) return row.foreign(value);
+  if (row.boolean) return foreign_boolean(value);
+  if (row.rule == OptionRule::choice) return choice_index(row.choices, value) < 0 ? std::string() : std::string(value);
+  return first_letter_word(option_choices(row), value);
 }
 
 const OptionRow *numerics_option(std::string_view key)
@@ -1003,6 +1125,15 @@ namespace {
 /* what option_value says of a name no option has */
 constexpr const char *unknown_option = "not an option";
 
+/* why a value is none of the words of a choice row: "not false or true" */
+std::string choice_problem(const OptionRow &row)
+{
+  std::string why = "not ";
+  for (std::size_t i = 0; i < row.choices.size(); ++i)
+    why += (i ? (i + 1 == row.choices.size() ? " or " : ", ") : "") + std::string(row.choices[i]);
+  return why;
+}
+
 /* option name set to value (apply), or only checked; why it is not one,
    empty when it is (or another source set it, which set_option leaves) */
 std::optional<std::string> option_value(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask, bool apply,
@@ -1019,6 +1150,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   const OptionSource source{force, mask};
   const OptionValue v{text.c_str(), index, source, apply};
   const char *why = nullptr;
+  std::string choice_why, color_why; /* why, when it is a choice's or a colour's */
   /* Check the row's shared numeric bounds before its parser can apply a value. */
   double x = 0;
   const char *refused = parse_number(text, x) ? rule_problem(row->rule, x, row->maximum) : nullptr;
@@ -1026,9 +1158,17 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   else if (row->once && !source.may(s, *row)) return std::nullopt;
   else if (refused) why = refused;
   else if (row->rule == OptionRule::method) {
-    const auto picked = pick_method(s.model(), text, Load::running() ? Load::place() : command_place());
+    const Place place = Load::running() ? Load::place() : command_place();
+    const auto picked = importing || xppaut_names ? pick_method(s.model(), text, place) : method_by_key(s.model(), text, place);
     if (!picked) return picked.error().what;
     if (apply) s.numerics.method = *picked;
+  }
+  else if (row->expand) {
+    /* an XPPAUT option that is several of ours: each is set as written, by its own name */
+    const ForeignOptions ours = row->expand(text);
+    if (ours.why) return std::string(ours.why);
+    for (const auto &[key, value] : ours.items)
+      if (const auto why = option_value(s, key, value, force, mask, apply, false)) return why;
   }
   else if (row->kind == OptionKind::sliders) {
     const auto sliders = setx::read_block("options", s.model().this_file, "sliders: " + text, false,
@@ -1040,12 +1180,17 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
     why = row->parse(s, v);
     if (why == log_open_failed) return files::write_error("option", value).what;
   }
-  else if (row->boolean) {
-    /* Numeric choices belong to a foreign .ode import, never our own files. */
-    const std::string named = importing ? option_choice(*row, text) : lower_case(text);
-    const auto picked = std::ranges::find(row->choices, named);
-    if (picked == row->choices.end()) why = "not yes or no";
-    else if (apply) row->boolean(s) = picked != row->choices.begin();
+  else if (row->color) why = color_into(row->color(s), *row, v, importing || xppaut_names, color_why);
+  else if (row->boolean || row->index) {
+    /* XPPAUT's spellings (y, 1, s, ...) belong to a foreign file, never to our own */
+    const std::string word = importing || xppaut_names ? option_choice(*row, text) : text;
+    const int i = choice_index(row->choices, word);
+    if (i < 0) {
+      choice_why = choice_problem(*row);
+      why = choice_why.c_str();
+    }
+    else if (apply && row->boolean) row->boolean(s) = i != 0;
+    else if (apply) row->index.write(s, i);
   }
   else if (row->real) why = number_into(row->real(s), v);
   else if (row->whole) why = whole_into(row->whole(s), v);

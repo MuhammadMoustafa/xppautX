@@ -20,7 +20,8 @@ acc' = 0
 aux liap = acc/ode_divisor(max(1, t))
 aux mya = alpha
 options {
-  integration: { bound: 100000000, dt: .025001, total_time: 1000, store_every: 100, transient_time: 999.99 },
+  integration: { state_limit: 100000000, dt: .025001, total_time: 1000, store_every: 100, store_from: 999.99 },
+  equilibria: { search_limit: 100000000 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

@@ -273,7 +273,7 @@ public:
     root.line = root.col = 1;
     std::map<std::string, int> keys;
     while (!at_end()) {
-      const Token &key = name_token("a key");
+      const Token &key = key_token();
       expect_punct(":", xpp::format("after {}", key.text));
       setting_entry(root, keys, 0, key);
       if (at_end()) break;
@@ -530,6 +530,19 @@ private:
     return take();
   }
 
+  /* a settings key: a name, or names joined by dots (nullclines.draw), kept as one token */
+  const Token &key_token()
+  {
+    const Token &first = name_token("a key");
+    while (at_punct(".") && !peek().space_before && peek(1).kind == Token::Kind::Name && !peek(1).primed && !peek(1).space_before) {
+      Token &joined = toks_[i_ - 1];
+      joined.text += "." + peek(1).text;
+      joined.end = peek(1).end;
+      toks_.erase(toks_.begin() + static_cast<std::ptrdiff_t>(i_), toks_.begin() + static_cast<std::ptrdiff_t>(i_) + 2);
+    }
+    return first;
+  }
+
   /* a declared name, and its index when it is an array's element */
   void name_of(Statement &s, std::string_view what)
   {
@@ -586,7 +599,7 @@ private:
     expect_punct("{", xpp::format("to open {}", what));
     while (!at_punct("}")) {
       if (at_end()) fail(peek().pos, xpp::format("missing `}}` for the block opened at {}:{}", open.line, open.col));
-      const Token &key = name_token("a key");
+      const Token &key = key_token();
       expect_punct(":", xpp::format("after {}", key.text));
       entry(key);
       if (!at_punct(",")) break;
@@ -726,7 +739,7 @@ private:
     const bool quoted = row->kind == OptionKind::path || row->kind == OptionKind::text;
     o.value_pos = peek().pos;
     if (peek().kind == Token::Kind::String) {
-      if (!quoted) fail(o.value_pos, xpp::format("the option {} takes a bare word or number, not a string", o.name));
+      if (!quoted && row->kind != OptionKind::color) fail(o.value_pos, xpp::format("the option {} takes a bare word or number, not a string", o.name));
       o.value = take().text;
       if (o.value.empty()) fail(o.value_pos, xpp::format("the option {} has an empty string", o.name));
       return o;
@@ -756,6 +769,10 @@ private:
       std::string all;
       for (const std::string &w : words) all += (all.empty() ? "" : ", ") + w;
       fail(o.value_pos, xpp::format("the option {}'s value `{}` is none of {}", o.name, v, all));
+    }
+    if (row.kind == OptionKind::color) {
+      if (!parse_color(v)) fail(o.value_pos, xpp::format("the option {}'s value `{}` is not a colour (foreground, a CSS colour name, or #rrggbb in quotes)", o.name, v));
+      return;
     }
     for (char k : v)
       if (!is_name_char(k) && k != '.' && k != '-' && k != '+')

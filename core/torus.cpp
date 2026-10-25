@@ -10,7 +10,7 @@
 void do_torus_com(xpp::Session &s, int c)
 {
  int i;
- s.numerics.torus=0;
+ s.numerics.torus=false;
  if(c==0||c==2){
    new_float(s,"Period :",&s.numerics.torus_period);
    if(s.numerics.torus_period<=0.0){
@@ -19,7 +19,7 @@ void do_torus_com(xpp::Session &s, int c)
    }
    if(c==0){
      for(i=0;i<s.model().neq;i++)s.itor[i]=1;
-     s.numerics.torus=1;
+     s.numerics.torus=true;
      return;
    }
    /* Choose them   */
@@ -27,7 +27,7 @@ void do_torus_com(xpp::Session &s, int c)
    return;
  }
  for(i=0;i<s.model().neq;i++)s.itor[i]=0;
- s.numerics.torus=0;
+ s.numerics.torus=false;
 }
 
 void choose_torus(xpp::Session &s)
@@ -36,5 +36,5 @@ void choose_torus(xpp::Session &s)
  std::vector<const char *> names(s.model().neq);
  for(i=0;i<s.model().neq;i++)names[i]=s.model().uvar_names[i].c_str();
  xpp::ui.checklist("Fold which",names.data(),s.itor.data(),s.model().neq);
- for(i=0;i<s.model().neq;i++)if(s.itor[i]==1)s.numerics.torus=1;
+ for(i=0;i<s.model().neq;i++)if(s.itor[i]==1)s.numerics.torus=true;
 }

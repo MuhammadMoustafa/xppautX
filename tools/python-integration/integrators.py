@@ -138,7 +138,7 @@ def backward_euler_step(rhs, t, y, dt, numerics):
         yp = rhs(t, yg)
         errvec = yg - .5 * dt * (yp + yp2) - y
         err1 = total(np.abs(errvec))
-        jac = jacobian(rhs, t, yg, yp, numerics.singpt_jacobian_epsilon) * (-.5 * dt)
+        jac = jacobian(rhs, t, yg, yp, numerics.equilibria.jacobian_step) * (-.5 * dt)
         jac[np.diag_indices_from(jac)] += 1.0
         ipvt, info = sgefa(jac)
         if info != -1:
@@ -201,7 +201,7 @@ def qualrk_advance(rhs, t, y, hguess, tout, numerics):
         yscal = np.abs(y) + np.abs(dydx * h) + TINY
         if (x + h - x2) * (x + h - x1) > 0.0:
             h = x2 - x
-        x, y, hnext = rkqs(rhs, y, dydx, x, h, numerics.tolerance, yscal)
+        x, y, hnext = rkqs(rhs, y, dydx, x, h, numerics.relative_tolerance, yscal)
         if (x - x2) * (x2 - x1) >= 0.0:
             return x2, y, sign(hnext, x2 - x1)
         if abs(hnext) <= numerics.min_step:
@@ -315,7 +315,7 @@ class Dop853:
             facold, h, f = self.facold, self.next_h, self.f
         else:
             facold, f = 1.0E-4, {1: rhs(x, y)}
-            h = hinit(rhs, x, y, posneg, f[1], hmax, num.abs_tolerance, num.tolerance)
+            h = hinit(rhs, x, y, posneg, f[1], hmax, num.absolute_tolerance, num.relative_tolerance)
         reject = last = False
         while True:
             if self.attempts >= DOPRI_RUN_ATTEMPTS:
@@ -334,7 +334,7 @@ class Dop853:
             f[12] = rhs(xph, y + h * combine(coefficients('a', 12, LAST_STAGE), f))
             k4 = combine(WEIGHTS, f)
             k5 = y + h * k4
-            sk = num.abs_tolerance + num.tolerance * np.maximum(np.abs(y), np.abs(k5))
+            sk = num.absolute_tolerance + num.relative_tolerance * np.maximum(np.abs(y), np.abs(k5))
             sqr = (k4 - K.bhh1 * f[1] - K.bhh2 * f[9] - K.bhh3 * f[12]) / sk
             err2 = total(sqr * sqr)
             sqr = combine(ERROR_TERMS, f) / sk
@@ -439,5 +439,5 @@ class Dop853:
 
     def check_state(self, y, t):
         for name, value in zip(self.model.states, y):
-            if not math.isfinite(value) or abs(value) > self.numerics.bound:
+            if not math.isfinite(value) or abs(value) > self.numerics.state_limit:
                 raise IntegrationError('DoPri8(3): %s is not finite or exceeds bound at t = %s' % (name, repr(t)))

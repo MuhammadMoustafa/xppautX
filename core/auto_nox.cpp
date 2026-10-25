@@ -165,21 +165,28 @@ static void auto_restore_finite_pars(xpp::Session &s, const double *before)
 
 
 
+/* the number AUTO's drawing calls a colour by: 0 the foreground, 20 to 29 the named colours */
+static int auto_slot(const xpp::Color &c)
+{
+  const int index=plot_color(c);
+  return index==0?0:index+19;
+}
+
 /* color plot stuff */
 void colset(xpp::Session &s, DiagramPointType type )
 {
   switch(type) {
   case STABLE_EQ:
-    autocol(s.auto_state.stable_eq_color);
+    autocol(auto_slot(s.auto_state.stable_eq_color));
     break;
  case UNSTABLE_EQ:
-    autocol(s.auto_state.unstable_eq_color);
+    autocol(auto_slot(s.auto_state.unstable_eq_color));
     break;
  case STABLE_PERIODIC:
-    autocol(s.auto_state.stable_po_color);
+    autocol(auto_slot(s.auto_state.stable_po_color));
     break;
  case UNSTABLE_PERIODIC:
-    autocol(s.auto_state.unstable_po_color);
+    autocol(auto_slot(s.auto_state.unstable_po_color));
     break;
   }
   
@@ -1200,10 +1207,10 @@ static int auto_point_color(xpp::Session &s, DiagramPointType type,int flag2)
   default: return 0;
   }
   switch(type){
-  case STABLE_EQ: return s.auto_state.stable_eq_color;
-  case UNSTABLE_EQ: return s.auto_state.unstable_eq_color;
-  case STABLE_PERIODIC: return s.auto_state.stable_po_color;
-  case UNSTABLE_PERIODIC: return s.auto_state.unstable_po_color;
+  case STABLE_EQ: return auto_slot(s.auto_state.stable_eq_color);
+  case UNSTABLE_EQ: return auto_slot(s.auto_state.unstable_eq_color);
+  case STABLE_PERIODIC: return auto_slot(s.auto_state.stable_po_color);
+  case UNSTABLE_PERIODIC: return auto_slot(s.auto_state.unstable_po_color);
   }
   return 0;
 }
@@ -1978,7 +1985,7 @@ void auto_start_at_bvp(xpp::Session &s)
 {
   int opn=NO_OPEN_3,cls=OVERWRITE;
  xpp::compile_bvp(s);
-  if(s.numerics.bvp_flag==0)
+  if(!s.numerics.bvp_flag)
     return; 
   s.auto_state.type_of_calc=BV1;
  s.auto_state.bifur.ips=xpp::AutoProblem::BoundaryValue;

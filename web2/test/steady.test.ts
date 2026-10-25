@@ -23,13 +23,13 @@ test('steady and direct continuation are computations guarded during another run
 });
 
 test('the run interval is one for a map and Dt otherwise; the defaults follow Run duration and the core time', () => {
-  const fields = (method: number) => [
+  const fields = (method: string) => [
     {key: 'total_time', label: 'Total time', value: 20}, {key: 'dt', label: 'Dt', value: 0.05},
-    {key: 'method', label: 'Method', value: method, choices: ['Discrete', 'Euler']}];
-  assert.equal(runInterval(fields(0)), 1);
-  assert.equal(runInterval(fields(1)), 0.05);
+    {key: 'method', label: 'Method', value: method, choices: ['discrete', 'euler']}];
+  assert.equal(runInterval(fields('discrete')), 1);
+  assert.equal(runInterval(fields('euler')), 0.05);
   assert.ok(Number.isNaN(runInterval(null)));
-  assert.equal(numericsField(fields(1), 'total_time')?.value, 20);
+  assert.equal(numericsField(fields('euler'), 'total_time')?.value, 20);
   assert.equal(numericsField(null, 'total_time'), undefined);
   assert.deepEqual(steadyDefaults(HELLO.steady, 20, 0.05), {decimals: '9', hold: '1', maximum: '20'});
   /* a new Run duration moves the limit, and a short run caps the hold */
@@ -51,7 +51,7 @@ test('Continue until ends at the next interval from the core time, as the core r
 
 test('Continue honours Store every N steps: the end shown is on the output grid, and the command is the field as typed (W213)', () => {
   const fields = (every: number) => [
-    {key: 'total_time', label: 'Total time', value: 20}, {key: 'dt', label: 'Dt', value: 0.05}, {key: 'method', label: 'Method', value: 1, choices: ['Discrete', 'Euler']},
+    {key: 'total_time', label: 'Total time', value: 20}, {key: 'dt', label: 'Dt', value: 0.05}, {key: 'method', label: 'Method', value: 'euler', choices: ['discrete', 'euler']},
     {key: 'store_every', label: 'Store every N steps', value: every, integer: true}];
   assert.ok(Math.abs(outputInterval(fields(7)) - 0.35) < 1e-12);
   assert.equal(outputInterval(fields(1)), 0.05);

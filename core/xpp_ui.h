@@ -9,6 +9,7 @@
 #include <vector>
 #include "xpp_error.h"
 #include "auto_codes.h"
+#include "colormap.h"
 
 namespace xpp {
 struct Session; /* session.h */
@@ -180,7 +181,7 @@ int byeauto_(int *iflag);
 void init_txtview(void);
 void bye_bye(void);
 void draw_help(void);
-void NewColormap(int type);
+void NewColormap(Colormap type);
 
 /* The front end's character cell in pixels, for laying out the AUTO and
    array plot windows and text in plots: a big and a small monospace font.
@@ -311,7 +312,7 @@ typedef struct XppUi {
     void (*scroll_window)(Session &s);
 
     /* colormap changed (Session::colormap) */
-    void (*new_colormap)(int type);
+    void (*new_colormap)(Colormap type);
 
     /* raw drawing primitives used by graphics.c when the plot format is
        the screen (PS and SVG are handled in graphics.c itself); no front

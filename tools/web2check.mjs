@@ -2028,16 +2028,16 @@ async function prompts() {
     box = d.querySelector('input[type=checkbox]'); return {labels: sel && [...sel.options].map(o => o.textContent),
     values: sel && [...sel.options].map(o => o.value), checkbox: !!box, checked: box && box.checked}; })()`);
   check('W485: a choice is a select labelled by its names, a boolean a checkbox',
-    typed.labels?.join() === 'Both,Increasing,Decreasing' && typed.values?.join() === 'both,increasing,decreasing'
+    typed.labels?.join() === 'Negative,Both,Positive' && typed.values?.join() === 'negative,both,positive'
     && typed.checkbox && typed.checked === false, JSON.stringify(typed));
   await cdp.eval(`(() => { const d = document.querySelector('[role=dialog]'), sel = d.querySelector('select[data-choice]'),
-    box = d.querySelector('input[type=checkbox]'); sel.value = 'decreasing'; sel.dispatchEvent(new Event('change', {bubbles: true}));
+    box = d.querySelector('input[type=checkbox]'); sel.value = 'negative'; sel.dispatchEvent(new Event('change', {bubbles: true}));
     box.click(); })()`);
   await rendered();
   await key('Enter');
   await until('!s.busy && !s.ask', 'Poincare answered');
   const poincare = await lastAnswer();
-  check('W485: the answer carries the name chosen and true', poincare?.values?.[2] === 'decreasing' && poincare?.values?.[3] === 'true',
+  check('W485: the answer carries the name chosen and true', poincare?.values?.[2] === 'negative' && poincare?.values?.[3] === 'true',
     JSON.stringify(poincare));
   await key('Escape');
   await until('!s.busy && !s.ask', 'back to the plot');
@@ -3086,7 +3086,7 @@ async function autoViews(dir) {
   await cdp.eval(`document.querySelector('.auto-pane[data-view="1"] .auto-axis-name[data-axis=y]').click()`);
   await until(`document.querySelector('.auto-pane[data-view="1"] .auto-axis-dialog select[data-field=plot]')`, 'view 2 axis dialog');
   await cdp.eval(`(() => { const s = document.querySelector('.auto-pane[data-view="1"] .auto-axis-dialog select[data-field=plot]');
-    s.value = '1'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+    s.value = 'exact'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
   check("AUTO views: a view's axis dialog changes that view alone (an auto set naming it): norms in the second, the first still hI-lo, the same points in each",
     await until(`!s.busy && s.diagram.views[1].axes.plot === 1 && s.diagram.views[1].axes.ylabel === 'Norm'
       && s.diagram.views[0].axes.plot === 2 && s.diagram.views[0].axes.ylabel === 'V'
@@ -4832,7 +4832,7 @@ async function valuesBusy() {
   /* All heavy.odex ICs are zero: RK4 keeps that equilibrium exactly, and
      unlike Stiff it honours Store every N steps instead of resetting it to one. */
   await cdp.eval(`__xpp.send({cmd: 'set', values: [
-    {kind: 'num', name: 'method', text: 'rk4'},
+    {kind: 'num', name: 'method', text: 'runge_kutta'},
     {kind: 'num', name: 'total_time', value: ${BUSY_TOTAL}},
     {kind: 'num', name: 'store_every', value: ${BUSY_JUMP}}]})`);
   if (!await until(`!s.busy && s.numerics.find(f => f.key === 'total_time')?.value === ${BUSY_TOTAL}
@@ -4896,14 +4896,14 @@ async function valuesJacobian(dir) {
   await cdp.eval(`(() => { const t = document.querySelector('[data-section="num"] .value-fold[aria-expanded="false"]'); if (t) t.click(); })()`);
   await until(`!!${select}`, 'the Jacobian select');
   check('W260: Numerics shows Jacobian as a choice of difference and exact, difference selected, both available',
-    JSON.stringify(await options()) === JSON.stringify([['difference', false], ['exact', false]])
-    && await cdp.eval(`${select}.value === '0'`), JSON.stringify(await options()));
+    JSON.stringify(await options()) === JSON.stringify([['Difference', false], ['Exact', false]])
+    && await cdp.eval(`${select}.value === 'difference'`), JSON.stringify(await options()));
   const sent = await S('__xpp.sentCount()');
-  await cdp.eval(`(() => { const s = ${select}; s.value = '1'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  check('W260: choosing exact sends set num jacobian 1, and the core takes it',
-    await until(`!s.busy && s.numerics.find(f => f.key === 'jacobian')?.value === 1`, 'exact taken')
+  await cdp.eval(`(() => { const s = ${select}; s.value = 'exact'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  check('W260: choosing exact sends set num jacobian exact, and the core takes it',
+    await until(`!s.busy && s.numerics.find(f => f.key === 'jacobian')?.value === 'exact'`, 'exact taken')
     && JSON.stringify((await S(`__xpp.sentFrom(${sent})`)).filter(c => c.cmd === 'set'))
-      === JSON.stringify([{cmd: 'set', kind: 'num', name: 'jacobian', text: '1'}]),
+      === JSON.stringify([{cmd: 'set', kind: 'num', name: 'jacobian', text: 'exact'}]),
     JSON.stringify(await S(`__xpp.sentFrom(${sent})`)));
   fs.writeFileSync(path.join(dir, 'w260noise.odex'), "par a = 1\nx' = -a*x + ran(1)\n");
   await cdp.eval(`__xpp.send({cmd: 'open', file: 'w260noise.odex'})`);
@@ -4912,13 +4912,13 @@ async function valuesJacobian(dir) {
   await until(`!s.busy && !s.ask && s.hello.file === 'w260noise.odex' && !!${select}`, 'the noisy model opened');
   const hint = `document.querySelector('[data-section="num"] [data-num="jacobian"] [data-unavailable="exact"]')`;
   check('W260: a model with random numbers offers exact until it is chosen',
-    JSON.stringify(await options()) === JSON.stringify([['difference', false], ['exact', false]]) && !await cdp.eval(`!!${hint}`),
+    JSON.stringify(await options()) === JSON.stringify([['Difference', false], ['Exact', false]]) && !await cdp.eval(`!!${hint}`),
     JSON.stringify(await options()));
-  await cdp.eval(`(() => { const s = ${select}; s.value = '1'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  await cdp.eval(`(() => { const s = ${select}; s.value = 'exact'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
   await until(`!s.busy && !!s.numerics.find(f => f.key === 'jacobian')?.unavailable`, 'the refusal');
   check('W260: choosing exact there is refused, then shows exact disabled, and why, at its line',
-    JSON.stringify(await options()) === JSON.stringify([['difference', false], ['exact', true]])
-    && await cdp.eval(`${hint}?.textContent`) === 'No exact Jacobian: w260noise.odex:2:1: uses random numbers',
+    JSON.stringify(await options()) === JSON.stringify([['Difference', false], ['Exact', true]])
+    && await cdp.eval(`${hint}?.textContent`) === 'No Exact Jacobian: w260noise.odex:2:1: uses random numbers',
     JSON.stringify([await options(), await cdp.eval(`${hint}?.textContent`)]));
   fs.writeFileSync(path.join(dir, 'w379wiener.odex'), "wiener w\nx' = w\n");
   await cdp.eval(`__xpp.send({cmd: 'open', file: 'w379wiener.odex'})`);
@@ -4926,14 +4926,14 @@ async function valuesJacobian(dir) {
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
   await until(`!s.busy && !s.ask && s.hello.file === 'w379wiener.odex'`, 'the Wiener model opened');
   const methSelect = `document.querySelector('[data-section="num"] [data-num="method"] select')`;
-  const methHint = `document.querySelector('[data-section="num"] [data-num="method"] [data-unavailable="DoPri5"]')`;
+  const methHint = `document.querySelector('[data-section="num"] [data-num="method"] [data-unavailable="dopri5"]')`;
   await until(`!!${methSelect} && !!${methHint}`, 'method field updated');
   const methOptions = await cdp.eval(`(() => { const s = ${methSelect}; return s ? [...s.options].map(o => [o.textContent, o.disabled]) : null; })()`);
-  const dopriEntry = methOptions.find(o => o[0] === 'DoPri5');
+  const dopriEntry = methOptions.find(o => o[0] === 'Dopri5');
   const eulerEntry = methOptions.find(o => o[0] === 'Euler');
   check('W379: Wiener model disables adaptive methods in numerics menu with reason',
     dopriEntry && dopriEntry[1] === true && eulerEntry && eulerEntry[1] === false
-    && (await cdp.eval(`${methHint}?.textContent`)) === 'No DoPri5 Method: a model with Wiener noise requires a method that draws it each step',
+    && (await cdp.eval(`${methHint}?.textContent`)) === 'No Dopri5 Method: a model with Wiener noise requires a method that draws it each step',
     JSON.stringify([dopriEntry, eulerEntry, await cdp.eval(`${methHint}?.textContent`)]));
 }
 

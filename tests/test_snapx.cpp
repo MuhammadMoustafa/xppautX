@@ -47,7 +47,7 @@ void check_manifest()
 {
     using namespace xpp::snapx;
     const std::string file = "s/session.setx";
-    const auto foreign = parse_manifest(file, "session: { version: 2, model: \"x.ode\", data: 0 }\n");
+    const auto foreign = parse_manifest(file, "session: { version: 4, model: \"x.ode\", data: false }\n");
     CHECK(!foreign && foreign.error().place.line == 1 && foreign.error().what.find(".ode is refused") != std::string::npos);
     Manifest m;
     m.model_name = "my models/lecar.odex";
@@ -72,14 +72,14 @@ void check_manifest()
 
     /* a key it does not have, another version or an older layout is refused,
        saying what is wrong and where */
-    const auto later = parse_manifest(file, "session: { version: 2, model: \"a.odex\", data: 0, future: 1 }\n");
+    const auto later = parse_manifest(file, "session: { version: 4, model: \"a.odex\", data: false, future: 1 }\n");
     CHECK(!later && later.error().place.file == file && later.error().place.line == 1 && later.error().what.find("`future` is not a setting") != std::string::npos);
-    CHECK(!parse_manifest(file, "session: { version: 2, model: \"x.odex\", data: 2 }\n").has_value()); /* data is 0 or 1 */
-    CHECK(!parse_manifest(file, "session: { version: 2, data: 0 }\n").has_value());                    /* no model */
-    CHECK(!parse_manifest(file, "session: { version: 2, model: \"a.odex\", model: \"b.odex\", data: 0 }\n").has_value()); /* a key twice */
+    CHECK(!parse_manifest(file, "session: { version: 4, model: \"x.odex\", data: 2 }\n").has_value()); /* data is 0 or 1 */
+    CHECK(!parse_manifest(file, "session: { version: 4, data: false }\n").has_value());                    /* no model */
+    CHECK(!parse_manifest(file, "session: { version: 4, model: \"a.odex\", model: \"b.odex\", data: false }\n").has_value()); /* a key twice */
     CHECK(!parse_manifest(file, "xppautX session 1\nname x.odex\ndata 0\n").has_value());              /* the older layout */
     CHECK(!parse_manifest(file, "").has_value());
-    CHECK(!parse_manifest(file, "session: { version: 3, model: \"m.odex\", data: 0 }\n").has_value()); /* another version */
+    CHECK(!parse_manifest(file, "session: { version: 3, model: \"m.odex\", data: false }\n").has_value()); /* another version */
 
     /* the model's members: model/<name>, in order; the model's own needed */
     std::vector<xpp::zip::Entry> entries{{"session.setx", text}};

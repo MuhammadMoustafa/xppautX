@@ -106,7 +106,7 @@ int main(void)
     CHECK(imported.has_value());
     if (!imported) printf("  %s\n", imported.error().text().c_str());
     CHECK(xpp::files::exists(xsx));
-    CHECK(s.numerics.total_time == 500 && s.numerics.delta_t == 0.05 && s.numerics.transient_time == 200);
+    CHECK(s.numerics.total_time == 500 && s.numerics.delta_t == 0.05 && s.numerics.store_from == 200);
     CHECK(s.numerics.method == xpp::method::RK4);
     CHECK(s.data_store.current_time == 8.549999999999986);
     xpp::get_val(s, "iapp", &x);
@@ -114,7 +114,7 @@ int main(void)
     xpp::get_val(s, "gca", &x);
     CHECK(x == 1);
     CHECK(s.last_ic[0] == 0.008015491512486121 && s.last_ic[1] == 0.05732158561413084);
-    CHECK(s.numerics.poincare_map == 3); /* Period */
+    CHECK(s.numerics.poincare_map == xpp::PoincareMap::period); /* Period */
     CHECK(s.numerics.jacobian == 0);
 
     /* W347: XPPAUT's negative Total remains a finite absolute duration. */
@@ -201,7 +201,7 @@ int main(void)
        twice, an unknown key: each at its line, nothing applied */
     for (const auto &[line, value, why] : {std::tuple{"  dt: ", "  dt: 0,", "Dt must be a number other than 0"},
                                            std::tuple{"  store_every: ", "  store_every: 0,", "Store every N steps must be a whole number of at least 1"},
-                                           std::tuple{"  bound: ", "  bound: -1,", "Bounds must be a number above 0"},
+                                           std::tuple{"  state_limit: ", "  state_limit: -1,", "State limit must be a number above 0"},
                                            std::tuple{"  method: ", "  method: nosuch,", "nosuch"},
                                            std::tuple{"  iapp: ", "  nosuchpar: 1,", "`nosuchpar` is not one of the model's parameters"},
                                            std::tuple{"  iapp: ", "  Iapp: 1,", "`Iapp` is not one of the model's parameters"},

@@ -6,7 +6,7 @@ export const NUM_TOTAL = 'total_time', NUM_DT = 'dt', NUM_METHOD = 'method', NUM
 /** the solver the core names for difference equations (core/solver.cpp's method table, the one entry
     listed in the method field's `choices`); a map advances one step per iteration, so its interval is
     one whatever Dt holds */
-export const DISCRETE_METHOD = 'Discrete';
+export const DISCRETE_METHOD = 'discrete';
 export const DISCRETE_INTERVAL = 1;
 
 /** the numerics field `key` names, undefined before the `numerics` event */
@@ -14,10 +14,16 @@ export function numericsField(numerics: NumericsField[] | null, key: string): Nu
   return numerics?.find(f => f.key === key);
 }
 
+/** the numerics field `key`'s value when it is a number, null before the `numerics` event */
+export function numericValue(numerics: NumericsField[] | null, key: string): number | null {
+  const value = numericsField(numerics, key)?.value;
+  return typeof value === 'number' ? value : null;
+}
+
 /** the time between stored points of a run: one for a map, else Dt (NaN before the numerics arrive) */
 export function runInterval(numerics: NumericsField[] | null): number {
   const method = numericsField(numerics, NUM_METHOD);
-  return method?.choices?.[Number(method.value)] === DISCRETE_METHOD ? DISCRETE_INTERVAL : Number(numericsField(numerics, NUM_DT)?.value);
+  return method?.value === DISCRETE_METHOD ? DISCRETE_INTERVAL : Number(numericsField(numerics, NUM_DT)?.value);
 }
 
 /** the keys of the Initial conditions command's own prompt (core/menus.cpp ic_items: (G)o runs from
@@ -98,7 +104,7 @@ export function continuePlan(input: ContinueInput, numerics: NumericsField[] | n
     arrive. The one place the toolbar's button and the command's key both read. */
 export function steadyRun(hello: HelloEvent | null, numerics: NumericsField[] | null, edit: Partial<SteadyInput>):
     {input: SteadyInput; interval: number; problem: string | null} | null {
-  const total = numericsField(numerics, NUM_TOTAL)?.value ?? null;
+  const total = numericValue(numerics, NUM_TOTAL);
   const interval = runInterval(numerics);
   if (!hello || total === null || !Number.isFinite(interval) || interval <= 0) return null;
   const input = {...steadyDefaults(hello.steady, total, interval), ...edit};

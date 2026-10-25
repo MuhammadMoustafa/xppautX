@@ -21,7 +21,8 @@ tr' = tr+z(0)
 y1' = max(1, y1+z(1)-z(2)+z(3)-z(4))
 y2' = max(1, y2+z(2)-z(3))
 options {
-  integration: { bound: 100000000, method: discrete, total_time: 1000000, store_every: 1000 },
+  integration: { state_limit: 100000000, method: discrete, total_time: 1000000, store_every: 1000 },
+  equilibria: { search_limit: 100000000 },
   plot: { xp: y1, yp: y2, xlo: 0, ylo: 0, xhi: 10000, yhi: 10000 },
 }
 aux w[j] = z(j) for j in 0..4

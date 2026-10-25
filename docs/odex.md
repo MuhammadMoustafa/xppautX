@@ -175,30 +175,40 @@ grammar:
   Groups: `integration`, `poincare`, `equilibria`, `continuation`,
   `diagram`, `plot`, `export`, `sweep`, `analysis`, `interface`, `output`.
   Integration holds solver and time settings; poincare holds section settings;
-  equilibria holds `singpt_*` and `neartol`; continuation holds AUTO run settings;
+  equilibria holds `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit` and `neartol`; continuation holds AUTO run settings;
   diagram holds its axes and colours; plot holds view and grid settings; export
-  holds `ps_*` and `plotfmt`; sweep holds range settings (including `rangefiles: yes` or `no`, default `no`, which writes each reset run separately in every mode); analysis holds histograms
+  holds `ps_*` and `plotfmt`; sweep holds range settings (including `rangefiles: true` or `false`, default `false`, which writes each reset run separately in every mode); analysis holds histograms
   and spectra; interface holds sliders and buttons; output holds files and logging.
   Older group names are errors. A key is the option's one name in lower
   case, spelled exactly (`xp2`..`xp8` for the numbered ones): XPPAUT's word
-  (`total`, `nout`, `meth`, ...), a prefix match (`xplot`, `bounds`), a key
+  (`total`, `nout`, `meth`, ...), a prefix match (`xplot`, `state_limits`), a key
   of another group and a key twice (but for `fold` and `but`, which name one
   thing each) are errors at the key, as is anything the old `@` form wrote.
   The X11 window's settings (`bell`, `bigfont`, ...) are no options: the
   converter drops them. Every option has one name: `total_time`,
-  `start_time`, `transient_time`, `nullcline_mesh`, `singpt_max_iterates`,
-  `singpt_newton_tolerance`, `singpt_jacobian_epsilon`, `method`,
-  `tolerance`, `min_step`, `max_step`, `abs_tolerance`, `storage_rows`,
-  `torus_period`, `poincare_map`, `poincare_variable`, `poincare_sign`,
-  `poincare_stop`, `poincare_plane`, where a `.ode` says `total`, `t0`,
-  `trans`, `nmesh`, `newt_iter`, `newt_tol`, `jac_eps`, `meth`, `tol`,
-  `dtmin`, `dtmax`, `atol`, `maxstor`, `tor_per`, `poimap`, `poivar`,
-  `poisgn`, `poistop`, `poipln`; `store_every` is `nout`/`njmp`. A bad value
-  is an error naming the option and the bad text, at its line.
+  `start_time`, `store_from` (a time, not a duration: `trans` of a `.ode`),
+  `nullcline_mesh`, `max_iterations`, `newton_tolerance`, `jacobian_step`,
+  `method`, `relative_tolerance`, `min_step`, `max_step`, `absolute_tolerance`,
+  `storage_rows`, `torus_period`, `poincare_map`, `poincare_variable`,
+  `poincare_sign`, `poincare_stop`, `poincare_plane`, where a `.ode` says
+  `total`, `t0`, `trans`, `nmesh`, `newt_iter`, `newt_tol`, `jac_eps`,
+  `meth`, `tol`, `dtmin`, `dtmax`, `atol`, `maxstor`, `tor_per`, `poimap`,
+  `poivar`, `poisgn`, `poistop`, `poipln`; `store_every` is `nout`/`njmp`.
+  A `.ode`'s `bound` is two settings of ours: `state_limit` (a variable past
+  it is a blow-up, and `stop_at_limit: true`, the default, ends the run) and
+  `search_limit` (the equilibria's search gives up past it), both read from
+  it; the DAE solver's own cap is a constant, no setting. A `.ode`'s
+  `ncdraw` is `nullclines.draw` and `nullclines.file` (`1`: draw; `2`: not
+  drawn and saved to `nullclines.dat`, a file name written in the working
+  folder). A bad value is an error naming the option and the bad text, at
+  its line.
 
   A value is one bare word or number (letters, digits, `_ . + -`), no
-  quotes, except a **path** or a **text**, which is a double-quoted string
-  (`logfile: "out/run 1.log"`, `output: "données.dat"`): `\"` and `\\`
+  quotes, except a **path**, a **text** or a **colour**, which is a double-quoted string
+  (`logfile: "out/run 1.log"`, `output: "données.dat"`, `xnc: "#ffa500"`; a colour is
+  `foreground`, a CSS colour name or `#rrggbb` (`#rrggbbaa` with alpha), and
+  only `foreground` is bare since `#` starts a comment; today the colours the
+  core draws are XPPAUT's eleven, any colour comes with the pictures' work): `\"` and `\\`
   are its only escapes, a path is written with `/` on every system, and a
   path outside the model's folder is a question the user answers (W175, W286). Only `output` and
   `logfile` are paths, and `but` (a button, `but: "quit:fq"`) a text. Every
@@ -218,9 +228,13 @@ grammar:
   | `DoPri5` | `dopri5` |
   | `QualRK` (`Qual RK`, `qualrk4`) | `qualrk` |
   | `Discrete`, `Euler`, `Adams`, `Gear`, `Volterra`, `Stiff`, `CVode`, `Rosenbrock`, `Symplectic` | the same in lower case |
-  | `range=0/1` | `sweep: { rangefiles: no/yes }` (W349, [#410](https://github.com/MuhammadMoustafa/xppautX/issues/410)) |
-  | `rangereset=y...`, `rangeoldic=n...` | `yes`, `no` |
+  | `range=0/1` | `sweep: { rangefiles: false/true }` (W349, [#410](https://github.com/MuhammadMoustafa/xppautX/issues/410)) |
+  | `rangereset=y...`, `rangeoldic=n...`, `poistop=1` | `true`, `false` (a yes or no is always `true` or `false`) |
   | `poincare_map=s...`, `m...`, `p...` | `section`, `max`, `period` |
+  | `poisgn=-1`, `0`, `1` | `negative`, `both`, `positive` |
+  | `colormap=0`..`6` | `jet`, `periodic`, `hot`, `cool`, `blue_red`, `gray`, `cubehelix` |
+  | `xnc`, `ync`, `smc`, `umc` `=0`..`10`; `sec`, `uec`, `spc`, `upc` `=0`, `20`..`29` | the colour in XPPAUT's own table: `foreground` for 0, else `"#rrggbb"` |
+  | `lt=1`, `0`, `-n` | `plot: { line.draw: line }`, `line.draw: points`, `line.draw: points, line.marker: circle, line.marker_size: n` (the style every new curve starts with: `line.draw` is `line`, `points` or `both`, `line.dash` `solid`, `dashed`, `dotted` or `dash_dot`, `line.width`, `line.marker` `circle`, `square`, `triangle`, `diamond`, `cross`, `plus` or `star`, `line.marker_size`; today only the lines XPPAUT's types draw are accepted) |
   | `axes=3d` | `3` |
 
   A choice takes exactly one of its words (`runge_kutta`, not `Runge-Kutta`
@@ -320,8 +334,8 @@ curves by variable name and its rotation, scales and box), `transpose`,
 `bvp_range`. The keys of `numerics` and of the table-held part of `range`
 are the option table's (core/model_options.cpp, the rows marked `saved`): a
 numerics setting is written under the key the Numerics menu and `set num`
-use (`total_time`, `dt`, `method`, `jacobian`, `tolerance`, ...), a choice
-by its word (`jacobian: exact`, `poincare_map: section`, `rangereset: no`),
+use (`total_time`, `dt`, `method`, `jacobian`, `relative_tolerance`, ...), a choice
+by its word (`jacobian: exact`, `poincare_map: section`) and a yes or no as `true` or `false` (`rangereset: false`), a bare number never standing for either,
 so a setting added to the table is a key of the file with no other change.
 The `columns` and `rows` of `array_plot` and `transpose` are whole numbers
 from 1 through 4096, limiting their rectangle to about 16 million cells.
@@ -754,7 +768,7 @@ reached), a parameter's value evaluated in order, an `.odex` initial
 value once the model is set up (an `.ode`'s numbers at once), an
 event's actions taken one by one (so `==` in one needs no rewriting).
 `odex_convert.cpp` is `--convert`. The integrator already stops a run at
-a NaN in the state (always) and at |x| > `bound` (an inf), naming the
+a NaN in the state (always) and at |x| > `state_limit` (an inf, unless `stop_at_limit: false`), naming the
 variable and the time.
 
 ### Where this spec was open: the smallest reading taken

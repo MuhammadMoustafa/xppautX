@@ -23,7 +23,7 @@ stdin (commands, `"cmd"`) and stdout (events, `"ev"`). stderr carries the
 core's own log output. The implementation is `core/ui_json.cpp` and the
 `core/json_*.cpp` files it is split into (`core/ui_json_internal.h`);
 `tools/servercheck.py` is a working client, the browser page (`web2/`,
-served by `xppautX` itself) a full one. This is protocol 3 (W118: what core
+served by `xppautX` itself) a full one. This is protocol 4 (W118: what core
 and page both know comes in `hello` and the events, below; the page checks
 the number and shows a mismatch as an error, since core and page ship
 together); see "Removed in protocol 2" at the end for what protocol 1 had
@@ -39,7 +39,7 @@ once, and keeps any other command for after the one that asked. See
 
 ## Startup
 
-1. `hello`: protocol version (3), `about` (Help > About's lines, from core/xpp_about.cpp, the same lines the desktop window's own About box shows: an array of lines, each an array of parts `{"text":...}`, with `"url"` too when the part is a link (`https:` or `mailto:`); the first line's text is `xppautX <version>`; a blank line is `[]`), `quit` (File > Quit's question as the core asks it, W110: `question`, `recording` (the question while a recording is in progress), `choices` (`["Save session","Don't save"]`) and `keys` (`sd`), for a client that asks it itself while a command runs: `quit` with `save` below), window title, the three main menus
+1. `hello`: protocol version (4), `about` (Help > About's lines, from core/xpp_about.cpp, the same lines the desktop window's own About box shows: an array of lines, each an array of parts `{"text":...}`, with `"url"` too when the part is a link (`https:` or `mailto:`); the first line's text is `xppautX <version>`; a blank line is `[]`), `quit` (File > Quit's question as the core asks it, W110: `question`, `recording` (the question while a recording is in progress), `choices` (`["Save session","Don't save"]`) and `keys` (`sd`), for a client that asks it itself while a command runs: `quit` with `save` below), window title, the three main menus
    (`menu_names`, `command_categories` and `command_table`: "The command
    table"), the windows' key layers (`windows`), every command's kind and
    whether it is a step (`commands`): see "Action kinds"; the limits the
@@ -813,7 +813,7 @@ format is core/recx.h); File/recorD again or `record` `stop` writes it,
 
 ```
 recording: {
-  version: 2,
+  version: 4,
   program: "xppautX 8.1",
   model: "lecar.odex",
   recorded: "2026-09-30T10:14:02Z",
@@ -1024,8 +1024,9 @@ each set's data then in `<set>.dat` unless `--outfile` is given):
 | output.dat (`@ output=`, `--outfile`; not with `--noout`) | `browser` `write`, `what` `output`, `format` `dat`, `replace` 1 |
 | `--mkplot` | `key` `g`, `answer` `p` then the PostScript form answered with its own values (or `answer` `v`, SVG, for `--plotfmt svg`), then `answer` `file` |
 
-After a run, the core computes requested `ncdraw`/`dfdraw` phase-plane data
-in every mode, before exports: `ncdraw=2` also writes nullclines.dat and
+After a run, the core computes requested nullclines (`nullclines.draw`, `nullclines.file`; a `.ode`'s `ncdraw`)
+and `dfdraw` phase-plane data
+in every mode, before exports: `nullclines.file` (`ncdraw=2`: `nullclines.dat`) also writes the nullclines and
 `dfdraw=4`/`5` dirfields.dat through the normal writer rules in the current
 working folder (W346). These are no longer extra script commands.
 After every run the script sends `--equil 0`/`1` as `equilibrium` `write`
@@ -1385,23 +1386,28 @@ core/numerics_settings.cpp keeps it.
   {"key":"total_time","label":"Total time","value":30},
   {"key":"dt","label":"Dt","value":0.05},
   {"key":"store_every","label":"Store every N steps","value":1,"integer":true},
-  {"key":"method","label":"Method","value":3,"integer":true,
-   "choices":["Discrete","Euler","Mod. Euler","Runge-Kutta",...]},
-  {"key":"jacobian","label":"Jacobian","value":0,"integer":true,
+  {"key":"method","label":"Method","value":"runge_kutta",
+   "choices":["discrete","euler","modified_euler","runge_kutta",...]},
+  {"key":"jacobian","label":"Jacobian","value":"difference",
    "choices":["difference","exact"]},
-  {"key":"tolerance","label":"Tolerance","value":0.001,"unused":true}, ...]}
+  {"key":"stop_at_limit","label":"Stop at the limit","value":true,"boolean":true},
+  {"key":"relative_tolerance","label":"Relative tolerance","value":0.001,"unused":true}, ...]}
 ```
 
 The fields, in the menu's order: `total_time` (the run duration, 0 or more;
-a negative value is refused with its place), `start_time`, `transient_time`, `dt`, `nullcline_mesh` (nullcline mesh),
-`singpt_max_iterates`, `singpt_newton_tolerance`, `singpt_jacobian_epsilon` (sIng pt ctrl),
-`store_every`, `bound`, `method` (its number, `choices` its names by number), `jacobian` (W260:
+a negative value is refused with its place), `start_time`, `store_from`, `dt`, `nullcline_mesh` (nullcline mesh),
+`max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit` (sIng pt ctrl),
+`store_every`, `state_limit` and `stop_at_limit` (a boolean: whether a variable past the limit ends the run),
+`method` (its name, `choices` its names, W484 [#548](https://github.com/MuhammadMoustafa/xppautX/issues/548): the key of the
+solver table, never its number), `jacobian` (W260:
 how every Jacobian of the model is formed, `difference` by XPPAUT's forward differences or `exact`
-from the model's own derivatives, by number as `method`), `tolerance`,
-`min_step`, `max_step`, `abs_tolerance`, `eul_tol`, `eul_iter` (the method's own), `delay` (only
+from the model's own derivatives, by name as `method`), `relative_tolerance`,
+`min_step`, `max_step`, `absolute_tolerance`, `eul_tol`, `eul_iter` (the method's own), `delay` (only
 for a model with delays), `bvp_max_iterates`, `bvp_tolerance`, `bvp_epsilon` (bndVal). Each key
 is the words of its label, and the XPPAUT words (`total`, `nmesh`, `newt_tol`, ...) are not keys
-(W216). `integer` marks a whole-number
+(W216). A choice's `value` is its name, as are its `choices` (a page shows each as its name with
+underscores as spaces and a capital first letter, `runge_kutta` as "Runge kutta"; a label is never
+written apart from the name); a yes or no is `"boolean":true` with a `true` or `false` value. `integer` marks a whole-number
 field; `unused` one the current method does not use; `unavailable` the choices the model
 cannot have, each by its name with why (`{"exact":"noisy.odex:2:1: uses random numbers"}`: a
 model with no exact Jacobian, "Numerics" in docs/manual/06-numerical-parameters.md). The exact
@@ -1412,15 +1418,15 @@ so a model's `exact` is offered until it was chosen once: the reason appears aft
 field. The core checks the value first and changes nothing on a bad one,
 with a `message` `error` naming the field (`Numerics: Store every N steps must be a
 whole number of at least 1`): a number; `dt` not 0; the tolerances,
-`bound`, `singpt_newton_tolerance`, `singpt_jacobian_epsilon` above 0; `delay` at least 0; the whole-number
-fields at least 1; `jacobian` a name of `choices` (any case) or its number, one the
-model can have (`Numerics: Jacobian: exact is not available: WHY`); `method` a name of `choices` (any case) or its number, one
+`state_limit`, `search_limit`, `newton_tolerance`, `jacobian_step` above 0; `stop_at_limit` `true` or `false`; `delay` at least 0; the whole-number
+fields at least 1; `jacobian` exactly a name of `choices`, one the
+model can have (`Numerics: Jacobian: exact is not available: WHY`); `method` exactly a name of `choices`, one
 the model can use (Volterra only for integral equations, and only it then;
 Symplectic only for an even dimension; methods that draw Wiener noise once per step for a model with Wiener noise, W379 [#441](https://github.com/MuhammadMoustafa/xppautX/issues/441); `unavailable` on `method` lists incompatible methods with the reason). W132 ([#184](https://github.com/MuhammadMoustafa/xppautX/issues/184))
 uses the same solver picker for the menu, values panel, model options and
 set import. A method refusal keeps the previous method; `@ method` rejects
-unknown or unsuitable methods at its file and line. Protocol numeric IDs
-remain IDs (8 is QualRK), while the legacy `@ meth=8` key of a `.ode` means DoPri8(3).
+unknown or unsuitable methods at its file and line. A number is no name: `set num method 3` is refused, while
+the legacy `@ meth=8` key of a `.ode` (read on import only) means DoPri8(3).
 Then it applies the numerics as
 leaving the Numerics menu does (the delays' and integrals' memory for a new
 `dt` or `delay`, a fresh solver; a method that picks its own steps stores

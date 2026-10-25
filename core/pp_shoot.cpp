@@ -65,11 +65,11 @@ void compile_bvp(xpp::Session &s)
  int i;
  int len;
  reset_bvp(s);
- if(s.numerics.bvp_flag==0)return;
+ if(!s.numerics.bvp_flag)return;
 
  s.parser.ncon=s.model().ncon_start;
  s.parser.nsym=s.model().nsym_start;
- s.numerics.bvp_flag=0;
+ s.numerics.bvp_flag=false;
  for(i=0;i<s.model().node;i++){
 
    if(add_expr(s,s.bcs[i].string.data(),s.bcs[i].com,&len)){
@@ -78,12 +78,12 @@ void compile_bvp(xpp::Session &s)
      return;
    }
  }
- s.numerics.bvp_flag=1;
+ s.numerics.bvp_flag=true;
 }
 
 void reset_bvp(xpp::Session &s)
 {
- s.numerics.bvp_flag=1;
+ s.numerics.bvp_flag=true;
 } 
 
 void init_shoot_range(xpp::Session &s, std::string_view item)
@@ -228,12 +228,12 @@ void find_bvp_com(xpp::Session &s, int com)
  wipe_rep(s.browser);
  data_back(s);
  compile_bvp(s);
- if(s.numerics.fft||s.numerics.hist||s.delay.flag||s.numerics.bvp_flag==0)return;
- s.numerics.storflag=0;
+ if(s.numerics.fft||s.numerics.hist||s.delay.flag||!s.numerics.bvp_flag)return;
+ s.numerics.storflag=false;
  s.integrator.range_flag=1;
- s.numerics.poincare_map=0;
- oldtrans=s.numerics.transient_time;
- s.numerics.transient_time=0.0;
+ s.numerics.poincare_map=PoincareMap::none;
+ oldtrans=s.numerics.store_from;
+ s.numerics.store_from=0.0;
  get_ic(s,1,ystart);
  switch(com){
  case 0:
@@ -270,7 +270,7 @@ void find_bvp_com(xpp::Session &s, int com)
    reset_graphics(s);
  }
  const xpp::Result<> last=last_shot(s,1);
- s.numerics.inflag=1;
+ s.numerics.inflag=true;
  refresh_browser(s,s.data_store.rows);
  auto_freeze_it(s);
  ping();
@@ -280,7 +280,7 @@ else
  if(iper)set_val(s,s.model().upar_names[ipar],oldpar);
  }
   
-bye:  s.numerics.transient_time=oldtrans;
+bye:  s.numerics.store_from=oldtrans;
 }
 
 xpp::Result<> last_shot(xpp::Session &s, int flag)

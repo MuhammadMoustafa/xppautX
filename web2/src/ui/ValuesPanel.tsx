@@ -21,7 +21,7 @@ import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import type {ComponentChildren} from 'preact';
 import {HELP} from '../help/links';
-import {EXPRESSION, FORMULA, FORMULA_HINT, NUMBER, fieldMessage, type FieldSpec} from '../store/fieldKinds';
+import {EXPRESSION, FORMULA, FORMULA_HINT, NUMBER, choiceLabel, fieldMessage, type FieldSpec} from '../store/fieldKinds';
 import {fieldKey, foldKey, inspectNumber, isFolded, sentText, showsBcSection, sixSig, type ValueKind} from '../store/values';
 import type {NumericsField} from '../protocol/types';
 import {NUM_METHOD, numericsField} from '../store/steady';
@@ -270,19 +270,30 @@ function NumericField({f}: {f: NumericsField}) {
   const sent = useStore(s => sentText(s.values.inflight, field));
   const id = `value-${field}`.replace(/[^\w-]/g, '_');
   const title = f.unused ? `${f.label}: not used by this method` : f.label;
+  if (f.boolean) {
+    return (
+      <div class={'value-field value-num' + (f.unused ? ' unused' : '')} data-num={f.key}>
+        <label htmlFor={id} class="value-name" title={title}>{f.label}</label>
+        <input id={id} type="checkbox" checked={(sent ?? String(f.value)) === 'true'} title={title}
+          aria-invalid={error ? true : undefined}
+          onChange={e => session.setNumeric(f.key, String((e.target as HTMLInputElement).checked))} />
+        {error && <span class="field-error" role="alert">{error}</span>}
+      </div>
+    );
+  }
   if (f.choices) {
-    const value = sent ?? String(f.value ?? 0);
+    const value = sent ?? String(f.value);
     return (
       <div class={'value-field value-num' + (f.unused ? ' unused' : '')} data-num={f.key}>
         <label htmlFor={id} class="value-name" title={title}>{f.label}</label>
         <select id={id} value={value} title={title} aria-invalid={error ? true : undefined}
           onChange={e => session.setNumeric(f.key, (e.target as HTMLSelectElement).value)}>
-          {f.choices.map((c, i) => <option key={c} value={String(i)} disabled={!!f.unavailable?.[c]}
-            title={f.unavailable?.[c]}>{c}</option>)}
+          {f.choices.map(c => <option key={c} value={c} disabled={!!f.unavailable?.[c]}
+            title={f.unavailable?.[c]}>{choiceLabel(c)}</option>)}
         </select>
         {error && <span class="field-error" role="alert">{error}</span>}
         {f.unavailable && Object.entries(f.unavailable).map(([c, why]) =>
-          <span key={c} class="value-hint" data-unavailable={c}>No {c} {f.label}: {why}</span>)}
+          <span key={c} class="value-hint" data-unavailable={c}>No {choiceLabel(c)} {f.label}: {why}</span>)}
       </div>
     );
   }
@@ -291,7 +302,7 @@ function NumericField({f}: {f: NumericsField}) {
   return (
     <div class={'value-field value-num' + (f.unused ? ' unused' : '')} data-num={f.key}>
       <label htmlFor={id} class="value-name" title={title}>{f.label}</label>
-      <Field id={id} spec={spec} value={sent ?? (f.value === null ? '' : sixSig(f.value))} editValue={sent ?? shown}
+      <Field id={id} spec={spec} value={sent ?? (typeof f.value === 'number' ? sixSig(f.value) : '')} editValue={sent ?? shown}
         onCommit={text => session.setNumeric(f.key, text)} error={error ?? null} settling={sent !== null}
         onDropError={() => session.store.dispatch({type: 'values', action: {type: 'clearError', field}})}
         title={title} />
@@ -305,7 +316,7 @@ function NumericsSection() {
   const fields = useStore(s => s.numerics);
   if (!fields?.length) return null;
   const method = numericsField(fields, NUM_METHOD);
-  const methodName = method?.choices?.[Number(method.value)] ?? 'the selected solver';
+  const methodName = method ? choiceLabel(String(method.value)) : 'the selected solver';
   const unused = fields.filter(f => f.unused);
   return (
     <Section id="num" title="Numerics" startFolded hint="Changes apply to the next run: a run in progress keeps its own.">

@@ -245,6 +245,12 @@ void scale_to_real(xpp::Session &s, int i, int j, float *x, float *y)  /* Not ne
   
  }
 
+/* the XPPAUT line type a new curve starts with (the option that sets the style refuses one no line type draws) */
+static int start_line_type(const xpp::Session &s)
+{
+  return xpp::xppaut_line_type(s.plot_settings.start_line_style).value();
+}
+
 void reset_all_line_type(xpp::Session &s)
 {
 	int j,k;
@@ -252,7 +258,7 @@ void reset_all_line_type(xpp::Session &s)
 	{
 		for(k=0;k<s.plot_windows.graph[j].nvars;k++)
 		{
-			s.plot_windows.graph[j].line[k]=s.plot_settings.start_line_type;
+			s.plot_windows.graph[j].line[k]=start_line_type(s);
 		}
 	}
 
@@ -376,7 +382,7 @@ void init_graph(xpp::Session &s, int i)
         s.plot_windows.graph[i].xv[j]=s.plot_settings.ixplt;
 	s.plot_windows.graph[i].yv[j]=s.plot_settings.iyplt;
 	s.plot_windows.graph[i].zv[j]=s.plot_settings.izplt;
-        s.plot_windows.graph[i].line[j]=s.plot_settings.start_line_type;
+        s.plot_windows.graph[i].line[j]=start_line_type(s);
 	s.plot_windows.graph[i].color[j]=0;
         }
      

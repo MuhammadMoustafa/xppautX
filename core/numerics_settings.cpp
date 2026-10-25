@@ -65,19 +65,50 @@ double value_of(const xpp::Session &s, const OptionRow &f)
     return f.real ? f.real(s) : f.whole(s);
 }
 
+/* the number of choice row f's word now (a boolean's false is 0, true 1) */
+int index_of(const xpp::Session &s, const OptionRow &f)
+{
+    if (f.boolean) return f.boolean(s) ? 1 : 0;
+    return f.index ? f.index.read(s) : f.whole(s);
+}
+
+/* the checked word number i put in choice row f's member */
+void write_index(xpp::Session &s, const OptionRow &f, int i)
+{
+    if (f.boolean) f.boolean(s) = i != 0;
+    else if (f.index) f.index.write(s, i);
+    else f.whole(s) = i;
+}
+
+/* the words of choice row f: "false or true" in a message */
+std::string words_in_text(const OptionRow &f)
+{
+    const std::vector<std::string> words = option_choices(f);
+    std::string text;
+    for (std::size_t k = 0; k < words.size(); ++k) text += xpp::format("{}{}", k ? (k + 1 == words.size() ? " or " : ", ") : "", words[k]);
+    return text;
+}
+
 std::string event_text(const xpp::Session &s)
 {
     std::string o = "{\"ev\":\"numerics\",\"fields\":[";
     bool first = true;
     for (const OptionRow &f : fields()) {
         if (f.use == OptionUse::delays && !used(s, f)) continue; /* no delays: no field */
-        const double v = value_of(s, f);
         o += xpp::format("{}{{\"key\":\"{}\",\"label\":", first ? "" : ",", f.key);
         first = false;
         xpp::json_append_string(o, f.label);
         o += ",\"value\":";
-        o += std::isfinite(v) ? xpp::number(v) : std::string("null");
-        if (f.whole) o += ",\"integer\":true";
+        if (f.boolean) {
+            o += f.boolean(s) ? "true,\"boolean\":true" : "false,\"boolean\":true";
+        } else if (f.rule == OptionRule::method || f.rule == OptionRule::choice) {
+            const std::vector<std::string> words = option_choices(f);
+            xpp::json_append_string(o, words[static_cast<std::size_t>(index_of(s, f))]);
+        } else {
+            const double v = value_of(s, f);
+            o += std::isfinite(v) ? xpp::number(v) : std::string("null");
+            if (f.whole) o += ",\"integer\":true";
+        }
         if (!used(s, f)) o += ",\"unused\":true";
         if (f.rule == OptionRule::method) {
             o += ",\"choices\":[";
@@ -86,11 +117,11 @@ std::string event_text(const xpp::Session &s)
             for (const xpp::SolverInfo &m : xpp::solvers()) {
                 if (!c1) o += ',';
                 c1 = false;
-                xpp::json_append_string(o, m.name);
+                xpp::json_append_string(o, m.key);
                 const auto res = xpp::check_method(s.model(), m.id, {});
                 if (!res) {
                     unavailable += unavailable.empty() ? "{" : ",";
-                    xpp::json_append_string(unavailable, m.name);
+                    xpp::json_append_string(unavailable, m.key);
                     unavailable += ':';
                     xpp::json_append_string(unavailable, res.error().what);
                 }
@@ -98,7 +129,7 @@ std::string event_text(const xpp::Session &s)
             o += ']';
             if (!unavailable.empty()) o += ",\"unavailable\":" + unavailable + "}";
         }
-        if (f.rule == OptionRule::choice) {
+        if (f.rule == OptionRule::choice && !f.boolean) {
             o += ",\"choices\":[";
             std::string unavailable;
             for (std::size_t i = 0; i < f.choices.size(); ++i) {
@@ -128,9 +159,7 @@ bool check(xpp::Session &s, const OptionRow &f, std::string_view text, double &v
 {
     const xpp::Model &m_of = s.model();
     if (f.rule == OptionRule::method) {
-        int id = 0;
-        const auto picked = xpp::parse_int(text, id) ? xpp::check_method(m_of, id, place)
-                                                     : xpp::pick_method(m_of, text, place);
+        const auto picked = xpp::method_by_key(m_of, text, place);
         if (!picked) {
             why = xpp::format("{}: {}", f.label, picked.error().what);
             return false;
@@ -141,8 +170,7 @@ bool check(xpp::Session &s, const OptionRow &f, std::string_view text, double &v
     if (f.rule == OptionRule::choice) {
         const int i = choice_index(f.choices, text);
         if (i < 0) {
-            why = xpp::format("{} must be one of", f.label);
-            for (std::size_t k = 0; k < f.choices.size(); ++k) why += xpp::format("{}{}", k ? ", " : " ", f.choices[k]);
+            why = xpp::format("{} must be {}", f.label, words_in_text(f));
             return false;
         }
         if (f.prepare) f.prepare(s, i);
@@ -167,11 +195,9 @@ bool check(xpp::Session &s, const OptionRow &f, std::string_view text, double &v
 /* the checked value v put in field f's member */
 void write_field(xpp::Session &s, const OptionRow &f, double v)
 {
-    if (f.real) {
-        f.real(s) = v;
-    } else {
-        f.whole(s) = static_cast<int>(v);
-    }
+    if (f.real) f.real(s) = v;
+    else if (f.rule == OptionRule::method || f.rule == OptionRule::choice) write_index(s, f, static_cast<int>(v));
+    else f.whole(s) = static_cast<int>(v);
 }
 
 } // namespace
@@ -255,14 +281,10 @@ bool setting_applies(const xpp::Session &s, const OptionRow &row, int method)
 
 std::string setting_text(const xpp::Session &s, const OptionRow &row)
 {
-    if (row.rule == OptionRule::method) return std::string(xpp::solver_info(row.whole(s)).key);
-    if (row.kind == OptionKind::choice) {
-        /* a number out of the choices (a member set by hand) is written as it is, and refused when read */
-        const int v = row.boolean ? static_cast<int>(row.boolean(s)) : row.whole(s);
-        return v >= 0 && static_cast<std::size_t>(v) < row.choices.size() ? std::string(row.choices[static_cast<std::size_t>(v)]) : xpp::number(v);
-    }
+    if (row.kind == OptionKind::choice) return option_choices(row)[static_cast<std::size_t>(index_of(s, row))];
     if (row.kind == OptionKind::name && row.whole) return xpp::ind_to_sym(s, row.whole(s));
     if (row.text) return row.text(s);
+    if (row.color) return print_color(row.color(s));
     return xpp::number(value_of(s, row));
 }
 

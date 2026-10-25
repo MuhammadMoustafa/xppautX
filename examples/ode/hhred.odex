@@ -29,7 +29,8 @@ aux aux1 = 0
 aux aux2 = 0
 aux aux3 = 0
 options {
-  integration: { total_time: 40, method: gear, bound: 500, dt: .25, min_step: 1e-12 },
+  integration: { total_time: 40, method: gear, state_limit: 500, dt: .25, min_step: 1e-12 },
+  equilibria: { search_limit: 500 },
   plot: { xhi: 40, yhi: 120, ylo: -10 },
 }
 

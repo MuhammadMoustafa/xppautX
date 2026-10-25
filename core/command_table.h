@@ -97,7 +97,7 @@ inline constexpr std::array<CommandRow, 66> COMMANDS = {{
     {MAIN_MENU, 'p', "parameters", "Parameters", "Change problem parameters", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 't', "total_time", "Total time", "Total time to integrate eqns", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 's', "start_time", "Start time", "Starting time -- T0", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
-    {NUM_MENU, 'r', "transient_time", "Transient time", "Time to integrate before storing", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
+    {NUM_MENU, 'r', "store_from", "Transient time", "Time to integrate before storing", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 'd', "dt", "Time step", "Time step to use", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 'm', "method", "Solver method", "Integration method", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 'o', "store_every", STORE_EVERY_LABEL, "Store one row per N output steps", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},

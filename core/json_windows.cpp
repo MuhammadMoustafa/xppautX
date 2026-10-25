@@ -276,7 +276,7 @@ void j_scroll_window(xpp::Session &s)
     j_kill_message_box();
 }
 
-void j_new_colormap(int type)
+void j_new_colormap(Colormap type)
 {
     xpp_build_colormap(type);
 }

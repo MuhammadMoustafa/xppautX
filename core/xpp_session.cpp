@@ -705,7 +705,7 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
        values just restored */
     if (r.data && r.data->rows() > 0) {
         refresh_browser(s, s.data_store.rows);
-        s.numerics.storflag = 1; /* a run stored these rows: Continue stores on (storing is not in the .set) */
+        s.numerics.storflag=true; /* a run stored these rows: Continue stores on (storing is not in the .set) */
     }
 
     apply_marks(s, std::move(r.marks), slot);
@@ -786,6 +786,8 @@ std::uint64_t values_fingerprint(const xpp::Session &s)
     for (const xpp::OptionRow *row : xpp::saved_settings("numerics")) {
         if (row->real) f.value(row->real(s));
         else if (row->whole) f.value(row->whole(s));
+        else if (row->boolean) f.value(row->boolean(s) ? 1 : 0);
+        else if (row->index) f.value(row->index.read(s));
     }
     f.value(s.data_store.rows);
     f.value(s.data_store.current_time);

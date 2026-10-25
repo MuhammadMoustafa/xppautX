@@ -13,7 +13,7 @@ fr(t) = 1+cos(th)*(cos(delay(x, tau))*delay(fr, tau)-sin(delay(x, tau))*delay(fi
 fi(t) = 1+cos(th)*(sin(delay(x, tau))*delay(fr, tau)+cos(delay(x, tau))*delay(fi, tau))
 par q = 0.11, xs = 1.07, a = 11.459, th = 1, r = 1.2221, c = 120, eps = 0.1
 options {
-  integration: { dt: .025, total_time: 200, transient_time: 50, delay: 4, vmaxpts: 1 },
+  integration: { dt: .025, total_time: 200, store_from: 50, delay: 4, vmaxpts: 1 },
 }
 
 # what followed the .ode's done:

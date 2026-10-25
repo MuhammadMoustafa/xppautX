@@ -247,7 +247,7 @@ The remaining options can be set from within the program. They are
 
 - ZP=name sets the name of the variable on the z-axis (if the plot is 3D.)
 
-- COLORMAP=`0,1,2,3,4,5` sets the colormap
+- COLORMAP=`0,1,2,3,4,5,6` sets the colormap (in a `.odex`: `jet`, `periodic`, `hot`, `cool`, `blue_red`, `gray`, `cubehelix`)
 
 - NPLOT=`int` tells XPP how many plots will be in the opening screen.
 

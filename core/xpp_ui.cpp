@@ -94,6 +94,7 @@ static files::WriteFolders *hl_write_folders() { return nullptr; }
 static void hl_void(void) {}
 static void hl_str(std::string_view) {}
 static void hl_int(int) {}
+static void hl_colormap(Colormap) {}
 static void hl_bottom_msg(int, std::string_view msg, std::string_view, std::string_view) { log(XPP_LOG_INFO, "{}\n", msg); }
 static void hl_s(Session &) {}
 static void hl_s_int(Session &, int) {}
@@ -259,7 +260,7 @@ XppUi ui = {
     .movie_make_anigif = hl_s,
     .rubber_band = hl_auto_rubber,
     .scroll_window = hl_s,
-    .new_colormap = hl_int,
+    .new_colormap = hl_colormap,
     .draw_point = hl_draw_point,
     .draw_line = hl_draw_line,
     .draw_bead = hl_draw_point,
@@ -596,7 +597,7 @@ int rubber_band(Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
     return ui.rubber_band(s, i1, j1, i2, j2, flag);
 }
 void scroll_window(Session &s) { ui.scroll_window(s); }
-void NewColormap(int type) { ui.new_colormap(type); }
+void NewColormap(Colormap type) { ui.new_colormap(type); }
 void make_my_aplot(Session &s, std::string_view name) { ui.aplot_make(s, name); }
 void new_vcr(Session &s) { ui.new_vcr(s); }
 void redraw_the_graph(Session &s) { ui.redraw_graph(s); }

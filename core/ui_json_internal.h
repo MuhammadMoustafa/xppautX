@@ -443,7 +443,7 @@ void j_create_plot_window(xpp::Session &s);
 void j_destroy_plot_window(xpp::Session &s);
 void j_cput_text(xpp::Session &s);
 void j_scroll_window(xpp::Session &s);
-void j_new_colormap(int type);
+void j_new_colormap(Colormap type);
 
 std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h); /* empty: cancelled */
 

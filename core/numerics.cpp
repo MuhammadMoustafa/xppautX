@@ -54,7 +54,7 @@ void dt_changed(xpp::Session &s)
 {
   chk_delay(s);
   if(s.model().nkernel>0){
-    s.numerics.inflag=0;
+    s.numerics.inflag=false;
     s.integrator.my_start=1;
     alloc_kernels(s,1);
   }
@@ -83,7 +83,7 @@ void  get_num_par(xpp::Session &s, char ch)
 			flash(1);
 			break;
 		case 'r': flash(2);
-			 numerics_settings_ask(s,"transient_time");
+			 numerics_settings_ask(s,"store_from");
 			flash(2);
 			break;
 		case 'd': flash(3);
@@ -101,9 +101,10 @@ void  get_num_par(xpp::Session &s, char ch)
 		         break;
 		case 'i': flash(5);
 			 /* sing pt */
-			 numerics_settings_ask(s,"singpt_max_iterates");
-			 numerics_settings_ask(s,"singpt_newton_tolerance");
-			 numerics_settings_ask(s,"singpt_jacobian_epsilon");
+			 numerics_settings_ask(s,"max_iterations");
+			 numerics_settings_ask(s,"newton_tolerance");
+			 numerics_settings_ask(s,"jacobian_step");
+			 numerics_settings_ask(s,"search_limit");
 		       if(s.model().flag_count()>0)
 			 new_float(s,"SMIN :",&s.numerics.stol);
 		       
@@ -114,7 +115,7 @@ void  get_num_par(xpp::Session &s, char ch)
 			flash(6);
 			break;
 		case 'b': flash(7);
-			 numerics_settings_ask(s,"bound");
+			 numerics_settings_ask(s,"state_limit");
 			flash(7);
 			break;
 		case 'm': flash(8);
@@ -122,21 +123,21 @@ void  get_num_par(xpp::Session &s, char ch)
 			 /* the method picked, refused as `set num` refuses it */
 			 const xpp::Place place=command_place();
 			 std::string why;
-			 if(numerics_settings_set(s,"method",xpp::solver_info(chosen_method(s)).name,why,&place)!=0){
+			 if(numerics_settings_set(s,"method",xpp::solver_info(chosen_method(s)).key,why,&place)!=0){
 			   show_error(Error{"numerics",why,place});
 			   flash(8);
 			   break;
 			 }
 			const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
 			if(traits.step_tolerance){
-			  numerics_settings_ask(s,"tolerance");
+			  numerics_settings_ask(s,"relative_tolerance");
 			  numerics_settings_ask(s,"min_step");
 			  numerics_settings_ask(s,"max_step");
 			}
 			if(traits.dense_output)numerics_settings_ask(s,"max_step");
 			if(traits.rel_abs_tolerance){
-			  numerics_settings_ask(s,"tolerance");
-			  numerics_settings_ask(s,"abs_tolerance");
+			  numerics_settings_ask(s,"relative_tolerance");
+			  numerics_settings_ask(s,"absolute_tolerance");
 			}
 		       if(traits.newton){
 			 numerics_settings_ask(s,"eul_tol");
@@ -145,14 +146,18 @@ void  get_num_par(xpp::Session &s, char ch)
 		       if(xpp::solver_info(s.numerics.method).traits.integral_history){
 			 int tmp=s.numerics.max_points;
 			 new_int("MaxPoints:",&tmp);
-			 new_int("AutoEval(1=yes) :",&s.numerics.auto_evaluate);
+			 int auto_evaluate=s.numerics.auto_evaluate;
+			 new_int("AutoEval(1=yes) :",&auto_evaluate);
+			 s.numerics.auto_evaluate=auto_evaluate!=0;
 			 allocate_volterra(s,tmp,1);
 		       }
 			 
 		       if(traits.banded)
 			 {
-			   new_int("Banded system(0/1)?",&s.numerics.cv_bandflag);
-			   if(s.numerics.cv_bandflag==1){
+			   int banded=s.numerics.cv_bandflag;
+			   new_int("Banded system(0/1)?",&banded);
+			   s.numerics.cv_bandflag=banded!=0;
+			   if(s.numerics.cv_bandflag){
 			     new_int("Lower band:",&s.numerics.cv_bandlower);
 			     new_int("Upper band:",&s.numerics.cv_bandupper);
 			   }
@@ -210,7 +215,7 @@ void chk_delay(xpp::Session &s)
   free_delay(s);
   if(s.numerics.delay<=0.0)return;
   const auto allocated=alloc_delay(s,s.numerics.delay);
-  if(allocated)s.numerics.inflag=0; /* No last ICs with a fresh history. */
+  if(allocated)s.numerics.inflag=false; /* No last ICs with a fresh history. */
   else if(Load::running())model_failed(allocated.error());
   else show_error(allocated.error());
 }
@@ -232,18 +237,18 @@ void ruelle(xpp::Session &s)
 
 void compute_one_period(xpp::Session &s, double period,double *x,const char *name)
 {
-  int opm=s.numerics.poincare_map;
-  double ot=s.numerics.transient_time,ote=s.numerics.total_time;
+  const PoincareMap opm=s.numerics.poincare_map;
+  double ot=s.numerics.store_from,ote=s.numerics.total_time;
   const auto restore = [&]() {
-    s.numerics.transient_time=ot;
+    s.numerics.store_from=ot;
     s.numerics.poincare_map=opm;
     s.numerics.total_time=ote;
   };
-  s.numerics.transient_time=0;
+  s.numerics.store_from=0;
   s.numerics.start_time=0;
   s.data_store.current_time=0;
   s.numerics.total_time=period;
-  s.numerics.poincare_map=0; /* turn off poincare map */
+  s.numerics.poincare_map=PoincareMap::none;
   reset_browser(s);
 
   usual_integrate_stuff(s,x);
@@ -294,31 +299,31 @@ void get_pmap_pars_com(xpp::Session &s, int l)
 
  ch=mkey[l];
 
- s.numerics.poincare_map=0;
- if(ch=='s')s.numerics.poincare_map=1;
- if(ch=='m')s.numerics.poincare_map=2;
- if(ch=='p')s.numerics.poincare_map=3;
+ s.numerics.poincare_map=PoincareMap::none;
+ if(ch=='s')s.numerics.poincare_map=PoincareMap::section;
+ if(ch=='m')s.numerics.poincare_map=PoincareMap::max;
+ if(ch=='p')s.numerics.poincare_map=PoincareMap::period;
 
- if(s.numerics.poincare_map==0)return;
+ if(s.numerics.poincare_map==PoincareMap::none)return;
 
- /* the crossing direction by name; the sign the numerics keep follows its index */
- static constexpr std::array<int,3> signs={0,1,-1};
+ /* the crossing direction by the section sign's own words (model_options.cpp's section_sign_names) */
+ static constexpr std::array<xpp::SectionSign,3> signs={xpp::SectionSign::negative,xpp::SectionSign::both,xpp::SectionSign::positive};
  const auto sign_at=std::find(signs.begin(),signs.end(),s.numerics.poincare_sign);
  std::array<xpp::FormField,4> fields={
    xpp::FormField{.name="*0Variable",.kind=XPP_FIELD_NAME_IN(0),.value=ind_to_sym(s,i1)},
    xpp::FormField::real_number("Section",s.numerics.poincare_plane),
-   xpp::FormField::choice("Direction",{"both","increasing","decreasing"},static_cast<std::size_t>(sign_at-signs.begin())),
-   xpp::FormField::boolean("Stop on section",s.numerics.poincare_stop!=0)};
+   xpp::FormField::choice("Direction",{"negative","both","positive"},static_cast<std::size_t>(sign_at-signs.begin())),
+   xpp::FormField::boolean("Stop on section",s.numerics.poincare_stop)};
  if(xpp::ask_form(s,"Poincare map",fields)){
               find_variable(s,fields[0].value.c_str(),&i1);
-	      if(i1<0) { s.numerics.poincare_map=0;
+	      if(i1<0) { s.numerics.poincare_map=PoincareMap::none;
                          command_error("numerics", "No such section");
 			 return;
 		       }
 	      s.numerics.poincare_variable=i1;
 	      s.numerics.poincare_plane=fields[1].real;
 	      s.numerics.poincare_sign=signs[static_cast<std::size_t>(fields[2].whole)];
-	      s.numerics.poincare_stop=fields[3].flag?1:0;
+	      s.numerics.poincare_stop=fields[3].flag;
 	    }
 
 }

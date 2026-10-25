@@ -14,7 +14,7 @@ from types import SimpleNamespace
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # core/model_options.cpp writes an option's default in its row: `.reset = [](Session &s) { s.numerics.MEMBER = VALUE; }, ... .key = "KEY"`
-RESET = re.compile(r'\.reset = \[\]\(Session &s\) \{ s\.numerics\.\w+ = ([-0-9.eE]+); \},[^{}]*?\.key = "(\w+)"')
+RESET = re.compile(r'\.reset = \[\]\(Session &s\) \{ s\.numerics\.[\w.]+ = ([-0-9.eE]+); \},[^{}]*?\.key = "(\w+)"')
 # ... and the default method's, the name picked unless the model has integral equations
 METHOD_RESET = re.compile(r'"Volterra" : "([^"]+)"')
 # core/load_eqn.h: a NumericsSettings member that no option names
@@ -23,9 +23,9 @@ STOL = re.compile(r'double stol = ([-0-9.eE]+);')
 METHOD_ROW = re.compile(r'\{method::\w+,"([^"]+)","([^"]+)","(\w+)"')
 LEGACY_METHOD_KEYS = re.compile(r'constexpr std::string_view keys = "([^"]+)"')
 # XPPAUT's set file labels, in its "Numerical stuff", of the options a run reads
-SET_LABELS = {'nout': 'store_every', 'total': 'total_time', 'DeltaT': 'dt', 'T0': 'start_time', 'Transient': 'transient_time',
-              'Bound': 'bound', 'DtMin': 'min_step', 'DtMax': 'max_step', 'Tolerance': 'tolerance',
-              'Abs. Tolerance': 'abs_tolerance', 'Newton tolerance': 'singpt_jacobian_epsilon'}
+SET_LABELS = {'nout': 'store_every', 'total': 'total_time', 'DeltaT': 'dt', 'T0': 'start_time', 'Transient': 'store_from',
+              'Bound': 'state_limit', 'DtMin': 'min_step', 'DtMax': 'max_step', 'Tolerance': 'relative_tolerance',
+              'Abs. Tolerance': 'absolute_tolerance', 'Newton tolerance': 'jacobian_step'}
 WHOLE = ('store_every', 'eul_iter')
 
 

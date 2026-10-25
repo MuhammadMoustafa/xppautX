@@ -251,7 +251,7 @@ kinds = [e['ev'] for e in evs]
 check('a new page gets hello, window and state', all(k in kinds for k in ('hello', 'window', 'state')),
       str(kinds[:8]))
 check('and no drawing ops or palette (protocol 2)', not any(k in ('draw', 'palette') for k in kinds), str(kinds[:8]))
-check('hello says protocol 3', any(e['ev'] == 'hello' and e.get('protocol') == 3 for e in evs))
+check('hello says protocol 4', any(e['ev'] == 'hello' and e.get('protocol') == 4 for e in evs))
 check('what xppaut printed reaches the page', any(e['ev'] == 'log' for e in evs))
 # The log pipe can deliver after idle: wait for the matching event.
 log_seen = any(e['ev'] == 'log' and log_marker in e.get('text', '') for e in evs)

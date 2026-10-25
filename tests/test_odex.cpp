@@ -497,7 +497,7 @@ int main(void)
   CHECK(starts(lowered("x' = 1\nset s { options: { nosuch: { dt: 1 } } }\n"), "error 2:20 `nosuch` is not a group of options"));
   CHECK(starts(lowered("x' = 1\nset s { options: { output: { quiet: 1 } } }\n"), "error 2:20 a set does not hold the group `output`"));
   CHECK(starts(lowered("x' = 1\nset s { options: { diagram: { autovar: x } } }\n"), "error 2:20 a set does not hold the group `diagram`"));
-  CHECK(starts(lowered("x' = 1\nset s { options: { plot: { colormap: 2 } } }\n"), "error 2:28 a set does not hold `colormap`"));
+  CHECK(starts(lowered("x' = 1\nset s { options: { plot: { colormap: hot } } }\n"), "error 2:28 a set does not hold `colormap`"));
   CHECK(starts(lowered("x' = 1\nset s { options: { integration: { nosuch: 1 } } }\n"), "error 2:35 `nosuch` is not an option"));
   CHECK(starts(lowered("x' = 1\nset s { options: { plot: { dt: 1 } } }\n"), "error 2:28 `dt` is in the group integration, not plot"));
   CHECK(starts(lowered("x' = 1\nset s { x: 1 }\nset s { x: 2 }\n"), "error 3:1 the set `s` is defined twice: at m.odex:2:1 and at m.odex:3:1"));
@@ -836,7 +836,7 @@ int main(void)
     auto integrate = [](int method, int width) {
       CHECK(load_text("x'=-x+y\ny'=-y\ninit x=1,y=2\n@ total=.1 dt=.01\ndone\n","ode"));
       xpp::Session &s=xpp::client_session();
-      s.numerics.method=method;
+      s.numerics.method=static_cast<xpp::method::Id>(method);
       s.numerics.cv_bandflag=width>0;
       s.numerics.cv_bandlower=width;
       s.numerics.cv_bandupper=width;

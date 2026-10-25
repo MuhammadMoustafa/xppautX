@@ -160,7 +160,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
    const double *c=s.parser.constants.data();
    if(exact)exact_derivatives(s,s.auto_lib,c,ndim,x,f,icp,nfpr,ijac,dfdu,dfdp);
    else if(ijac==1){
-     xpp::jacobian(s,0.0,x,f,ndim,s.numerics.singpt_jacobian_epsilon,{xpp::JacobianLayout::ColumnMajor},dfdu);
+     xpp::jacobian(s,0.0,x,f,ndim,s.numerics.equilibria.jacobian_step,{xpp::JacobianLayout::ColumnMajor},dfdu);
    }
    if(!xpp::solver_info(s.numerics.method).traits.discrete||s.numerics.store_every==1)return 0;
    /* the map applied store_every times: its exact Jacobian is the product

@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include "xpplim.h"
 #include "model_options.h"
+#include "line_style.h"
+#include "numerics_settings.h"
+#include "solver.h"
 #include "odex.h"
 #include "odex_write.h"
 #include "xpp_error.h"
@@ -36,25 +39,33 @@ struct XppSlider {
     double step = 0.0;         /* 0: the page picks one */
 };
 
+/* The equilibria's settings (the nUmerics menu's Sing pt ctrl, the options'
+   `equilibria` group): Newton's tolerance and iterations, the Jacobian's
+   step and the limit past which a search gives up */
+struct EquilibriaSettings {
+  double newton_tolerance = 0, jacobian_step = 0, search_limit = 0;
+  int max_iterations = 0;
+};
+
 /* The numerics settings in use (the nUmerics menu, the model's @ options,
    the command line), a Session's (session.h) */
 struct NumericsSettings {
   /* the time span: from start_time for total_time, step delta_t, every store_every-th step
-     stored once |t| is past the transient_time */
-  double start_time = 0, total_time = 0, delta_t = 0, transient_time = 0;
+     stored once |t| is past store_from */
+  double start_time = 0, total_time = 0, delta_t = 0, store_from = 0;
   int store_every = 0;
-  /* the method (numerics.cpp's numbers) and its step bounds, tolerances,
-     the bound on the variables and the delays' maximum */
-  int method = 0;
-  double min_step = 0, max_step = 0, tolerance = 0, abs_tolerance = 0, bound = 0, delay = 0;
+  /* the method and its step bounds, tolerances, the limit on the variables
+     (and whether passing it ends the run) and the delays' maximum */
+  method::Id method = method::DISCRETE;
+  double min_step = 0, max_step = 0, relative_tolerance = 0, absolute_tolerance = 0, state_limit = 0, delay = 0;
+  bool stop_at_limit = true;
   /* the Volterra equations' memory, in points */
   int max_points = 0;
-  /* equilibria: the Newton and eigenvector tolerances and iterations */
-  double singpt_newton_tolerance = 0, singpt_jacobian_epsilon = 0;
-  int singpt_max_iterates = 0;
+  EquilibriaSettings equilibria;
   /* the boundary value solver */
   double bvp_epsilon = 0, bvp_tolerance = 0;
-  int bvp_max_iterates = 0, bvp_flag = 0;
+  int bvp_max_iterates = 0;
+  bool bvp_flag = false;
   /* the backward Euler's Newton solve */
   double eul_tol = 0;
   int max_eul_iter = 0;
@@ -62,10 +73,13 @@ struct NumericsSettings {
   int nullcline_mesh = 0;
   /* the Poincare map: its kind, the section's variable, sign and plane,
      extrema, stop on section */
-  int poincare_map = 0, poincare_variable = 0, poincare_sign = 0, poiext = 0, poincare_stop = 0;
+  PoincareMap poincare_map = PoincareMap::none;
+  int poincare_variable = 0, poiext = 0;
+  SectionSign poincare_sign = SectionSign::both;
+  bool poincare_stop = false;
   double poincare_plane = 0;
   /* the torus and its period (each variable's flag is Session::itor) */
-  int torus = 0;
+  bool torus = false;
   double torus_period = 6.2831853071795864770;
   /* the random numbers' seed: rand_seed is the NEXT run's (shown/set by
      "@ seed=", Stochastic > New seed, --newseed; W71's "a seed per run"),
@@ -78,7 +92,8 @@ struct NumericsSettings {
   int rand_seed = 12345678;
   std::optional<int> last_seed;
   /* CVODE's banded Jacobian (the nUmerics menu's Stiff settings) */
-  int cv_bandflag = 0, cv_bandupper = 1, cv_bandlower = 1;
+  bool cv_bandflag = false;
+  int cv_bandupper = 1, cv_bandlower = 1;
   /* how every Jacobian of the model is formed: JACOBIAN_DIFFERENCE or
      JACOBIAN_EXACT (jacobian.h, W260) */
   int jacobian = 0;
@@ -86,14 +101,14 @@ struct NumericsSettings {
   double stol = 1.e-10;
   /* recompute the tables and kernels when a parameter changes
      (Numerics' AutoEval, @ autoeval=) */
-  int auto_evaluate = 0;
+  bool auto_evaluate = false;
   /* a run's state: data were stored (inflag), storing is on (storflag),
      a range stops (endsing), pauses
      between runs (pauser), shoots (shoot) or follows its parameter
      (par_fol); the browser shows a Fourier transform (fft) or a
      histogram (hist); nullclines were computed (null_here) */
-  int inflag = 0, storflag = 0, endsing = 0, pauser = 0;
-  int shoot = 0, par_fol = 0, fft = 0, hist = 0, null_here = 0;
+  bool inflag = false, storflag = false, endsing = false, pauser = false;
+  bool shoot = false, par_fol = false, fft = false, hist = false, null_here = false;
 };
 
 /* The main plot's settings in use (the model's @ options, the Viewaxes
@@ -108,7 +123,7 @@ struct PlotSettings {
   std::array<int,10> ix_plt{}, iy_plt{}, iz_plt{};
   int npltv = 0, multi_win = 0;
   std::array<double,10> x_lo{}, y_lo{}, x_hi{}, y_hi{};
-  int start_line_type = 1;
+  LineStyle start_line_style; /* the style every new curve starts with (@ lt=, line.draw, ...) */
 };
 
 /* the name=value items of an @ line as set_internopts reads them, or

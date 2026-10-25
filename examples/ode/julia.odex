@@ -8,6 +8,6 @@ s = sign(ran(1)-0.5)
 x' = s*r*cos(th)
 y' = s*r*sin(th)
 options {
-  integration: { total_time: 2000, method: discrete, transient_time: 100 },
+  integration: { total_time: 2000, method: discrete, store_from: 100 },
   plot: { xlo: -2, ylo: -2, xhi: 2, yhi: 2, xp: x, yp: y },
 }

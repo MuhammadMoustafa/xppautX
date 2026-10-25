@@ -42,7 +42,7 @@ options {
     fold: x90, fold: x91, fold: x92, fold: x93, fold: x94, fold: x95, fold: x96, fold: x97,
     fold: x98, fold: x99, total_time: 50, method: euler,
   },
-  plot: { xp: x0, yp: x21, xlo: 0, xhi: 6.3, ylo: 0, yhi: 6.3, colormap: 1 },
+  plot: { xp: x0, yp: x21, xlo: 0, xhi: 6.3, ylo: 0, yhi: 6.3, colormap: periodic },
 }
 # add the relative phase difference
 aux y[j] = (x[j]-x0) mod (2*pi) for j in 0..99

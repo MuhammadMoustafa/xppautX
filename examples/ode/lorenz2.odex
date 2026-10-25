@@ -15,7 +15,8 @@ th[j] = theta+2*pi*j/8 for j in 0..7
 z1 = z-del*(-b*z+x*y)
 x1 = x-del*(s*(-x+y))
 options {
-  integration: { dt: .025, total_time: 40, bound: 10000 },
+  integration: { dt: .025, total_time: 40, state_limit: 10000 },
+  equilibria: { search_limit: 10000 },
   plot: {
     xp: x, yp: y, zp: z, axes: 3, xmin: -20, xmax: 20, ymin: -30, ymax: 30, zmin: 0, zmax: 50,
     xlo: -1.5, ylo: -2, xhi: 1.5, yhi: 2,

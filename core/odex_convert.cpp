@@ -1196,6 +1196,10 @@ private:
       }
       int index = 0;
       const OptionRow *row = xpp::find_option(upper, index, true);
+      if (row && row->expand) {
+        add_expanded(*row, key, value, settings, true);
+        continue;
+      }
       const bool slider = row && xpp::xppaut_slider_option(*row);
       if (!row || (row->group.empty() && !slider)) {
         option_note(xpp::format("{}={} in the .ode's set {}: XPP ignores it, so it is dropped", key, value, set.name), "set-value");
@@ -1449,6 +1453,10 @@ private:
         option_note(xpp::format("@ {}={} in the .ode: startup running is removed, dropped; use Run or --silent", key, value), "runnow-removed");
         continue;
       }
+      if (row && row->expand) {
+        add_expanded(*row, key, value, entries, false);
+        continue;
+      }
       const bool slider = row && xpp::xppaut_slider_option(*row);
       if (!row || (row->group.empty() && !slider)) {
         option_note(xpp::format("@ {}={} in the .ode: {}", key, value, row ? "an X11 window setting xppautX does not keep, dropped"
@@ -1483,6 +1491,23 @@ private:
     }
   }
 
+  /* XPPAUT's option that is several of ours (bound, ncdraw), each written under
+     its own key into entries; in a set, only the ones a set holds */
+  void add_expanded(const OptionRow &row, const std::string &key, const std::string &value, std::vector<OptionEntry> &entries, bool in_set)
+  {
+    const xpp::ForeignOptions ours = row.expand(value);
+    if (ours.why) refuse(xpp::format("{}={} is {}", key, value, ours.why));
+    for (const auto &[ours_key, ours_value] : ours.items) {
+      int unused = 0;
+      const OptionRow *own = xpp::find_odex_option(ours_key, unused);
+      if (in_set && !xpp::set_holds(*own)) refuse(xpp::format("{}={}: a set does not hold {}", key, value, ours_key));
+      const std::string text = option_text(*own, ours_key, ours_value, in_set ? "set-value" : "option-value");
+      const auto same = std::ranges::find_if(entries, [&](const OptionEntry &e) { return e.key == ours_key; });
+      if (same != entries.end()) same->value = text;
+      else entries.push_back({ours_key, text, own});
+    }
+  }
+
   /* option row's value, as the .ode applies it, written for the .odex: a
      path or a text in double quotes (a path with / for \),
      a choice by its word, a name as its declaration spells it, a number
@@ -1497,6 +1522,14 @@ private:
       std::string text = value;
       if (row.kind == OptionKind::path) std::ranges::replace(text, '\\', '/');
       return quote_string(text);
+    }
+    case OptionKind::color: {
+      /* XPPAUT's colour number (its own way for each option) as the colour it is, written as a colour is */
+      std::optional<xpp::Color> c = xpp::parse_color(value);
+      if (!c && row.foreign) c = xpp::parse_color(row.foreign(value));
+      if (!c) refuse(xpp::format("{}={} is not a colour of XPPAUT's ({})", key, value, xpp::odex_key(row, 0)));
+      const std::string text = xpp::print_color(*c);
+      return xpp::option_written_quoted(row, text) ? quote_string(text) : text;
     }
     case OptionKind::choice: {
       if (row.rule == OptionRule::method) return method_key(value);

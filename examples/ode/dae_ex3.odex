@@ -7,5 +7,5 @@ solv v_ = 1
 aux v = v_
 options {
   integration: { method: qualrk },
-  equilibria: { singpt_max_iterates: 1000, singpt_newton_tolerance: 1e-3, singpt_jacobian_epsilon: 1e-5 },
+  equilibria: { max_iterations: 1000, newton_tolerance: 1e-3, jacobian_step: 1e-5 },
 }
