@@ -503,6 +503,20 @@ evs, _ = collect(is_idle)
 check('size is no command any more (removed in protocol 2): an unknown-command error, then state and idle',
       [e.get('ev') for e in evs] == ['message', 'state', 'idle'] and 'Unknown command' in evs[0].get('error', ''),
       str(evs)[:200])
+# W493: a command's arguments are read by their kinds; a bad one is an error naming the command and the argument
+for bad_args, what in (({'label': 'x'}, 'auto: argument "label" must be a number, not "x"'),
+                   ({'label': 1.5}, 'auto: argument "label" must be a whole number, not 1.5')):
+    send(cmd='auto', op='restart', **bad_args)
+    evs, _ = collect(is_idle)
+    msg = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+    check('a command argument of the wrong kind is a command error that names it: ' + what,
+          what in msg.get('error', '') and msg.get('source', '').find('"cmd": "auto"') >= 0, str(evs)[:300])
+proc.stdin.write('{"cmd":"auto" "op":"restart"}\n')
+proc.stdin.flush()
+evs, _ = collect(is_idle)
+msg = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+check('a command line that is not JSON is an error naming where it stops',
+      'the command line is not valid JSON (at character 15)' in msg.get('error', ''), str(evs)[:300])
 check('hello lists the series feature', 'series' in hello.get('features', []), str(hello.get('features')))
 
 # W95: every action's kind, one letter (c control, v view, d data, x

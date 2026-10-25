@@ -322,7 +322,30 @@ char *read_line(xpp::inbox::From which, int wait_ms);
 unsigned long read_line_seq(void); /* the sequence number of read_line()'s line */
 bool read_line_refused(void);      /* whether classify() refused read_line()'s line */
 
+/* An argument of a command that is not the kind its reader asks for: a
+   number or a whole number where there is a string, an object or a
+   fraction. get_num and get_int throw it inside a command (an
+   ArgumentCheck is live); handle_line catches it and shows the command
+   error naming the command and the argument. */
+struct BadArgument {
+    std::string key;      /* the argument's name ("" for an array's element) */
+    std::string given;    /* its JSON text */
+    std::string expected; /* "a number", "a whole number" */
+};
+/* the number at v (absent: def; true, false, null: 1 and 0); where a command
+   array's element is read, get_num otherwise */
 double js_num(const char *v, double def);
+/* while one lives, the readers below refuse a wrong kind (BadArgument) on this thread */
+class ArgumentCheck {
+ public:
+    ArgumentCheck();
+    ~ArgumentCheck();
+    ArgumentCheck(const ArgumentCheck &) = delete;
+    ArgumentCheck &operator=(const ArgumentCheck &) = delete;
+
+ private:
+    bool before_;
+};
 int js_number(const char *v, double *out);
 /* a JSON number at v that is a whole number an int holds, into *out; 0 for anything else */
 int js_whole(const char *v, int *out);

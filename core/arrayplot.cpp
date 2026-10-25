@@ -9,6 +9,7 @@
 #include "xpp_files.h"
 #include "xpp_error.h"
 #include "xpp_job.h"
+#include "xpp_util.h"
 
 #include <array>
 #include <cctype>
@@ -66,9 +67,15 @@ void set_up_aplot_range(xpp::Session &s)
  if(status!=0){
    std::string root=xpp::files::output_name(s.model().this_file,".gif","array");
    if(!xpp::file_selector("Save array frames",root,"*.gif"))return;
+   xpp::TypedFields f(s);
+   const int still=f.integer(n[0],values[0]),tag=f.integer(n[1],values[1]);
+   if(f.error()){
+     xpp::command_error("Array range saving",*f.error());
+     return;
+   }
    s.array_plot.range_stem=root;
-   s.array_plot.still=atoi(values[0].c_str());
-   s.array_plot.tag=atoi(values[1].c_str());
+   s.array_plot.still=still;
+   s.array_plot.tag=tag;
  s.array_plot.range=1;
  s.array_plot.range_count=0;
  s.array_plot.save_cancelled=false;
@@ -218,7 +225,6 @@ std::string get_root(std::string_view s, int *num)
 int editaplot(xpp::Session &s, APLOT *ap)
 {
  int i,status;
- double zmax,zmin;
   const char *n[]={"*0Column 1","NCols","Row 1","NRows","RowSkip",
   "Zmin","Zmax","Autoplot(0/1)","ColSkip"};
  std::array<std::string, 9> values;
@@ -235,32 +241,35 @@ values[8] = xpp::format("{:d}", ap->ncskip);
                            xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_NUMBER,xpp::XPP_FIELD_NUMBER,xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER};
  status=xpp::do_string_box_of(9,1,"Edit arrayplot",n,values,kinds);
  if(status!=0){
-   find_variable(s,values[0].c_str(),&i);
-   if(i>-1){
-     ap->index0=i;
-     ap->name=values[0];
+   /* every field read before any is set */
+   xpp::TypedFields f(s);
+   const int nacross=f.integer(n[1],values[1]),nstart=f.integer(n[2],values[2]),ndown=f.integer(n[3],values[3]);
+   const int nskip=f.integer(n[4],values[4]);
+   const double zmin=f.real(n[5],values[5]),zmax=f.real(n[6],values[6]);
+   const int auto_redraw=f.integer(n[7],values[7]),ncskip=f.integer(n[8],values[8]);
+   if(f.error()){
+     xpp::command_error("array plot",*f.error());
+     return 0;
    }
-   else
-     {
-       xpp::command_error("array plot", "No such columns");
-       ap->plotdef=0;
-       return 0;
-     }
-    zmax=atof(values[6].c_str());
-    zmin=atof(values[5].c_str());
+   find_variable(s,values[0].c_str(),&i);
+   if(i<0){
+     xpp::command_error("array plot", "No such columns");
+     ap->plotdef=0;
+     return 0;
+   }
+    ap->index0=i;
+    ap->name=values[0];
     if(zmin<zmax){
       ap->zmin=zmin;
       ap->zmax=zmax;
     }
-    ap->nacross=atoi(values[1].c_str());
-    ap->nstart=atoi(values[2].c_str());
-    ap->ndown=atoi(values[3].c_str());
-    ap->nskip=atoi(values[4].c_str());
-    s.array_plot.auto_redraw=atoi(values[7].c_str());
+    ap->nacross=nacross;
+    ap->nstart=nstart;
+    ap->ndown=ndown;
+    ap->nskip=nskip;
+    s.array_plot.auto_redraw=auto_redraw;
     ap->plotdef=1;
-    ap->ncskip=atoi(values[8].c_str());
-    if(ap->ncskip<1)
-      ap->ncskip=1;
+    ap->ncskip=ncskip<1?1:ncskip;
     xpp::ui.aplot_reset_axes(s);
  }
    return 1;

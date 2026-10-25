@@ -1,5 +1,4 @@
 # FILE COUNT REASON: files that pass an option's name or key as a literal to a function that takes one (tools/optioncheck.py, W293); a count may only drop
-core/comline.cpp 5 the command line's flags (--quiet, --logfile, ...) each set one named option
 core/xpp_batch.cpp 2 the batch start's --quiet and --logfile set one named option
 core/lunch-new.cpp 28 XPPAUT's positional .set file (import only): its lines are mapped to the table's keys by their order
 core/numerics.cpp 24 the Numerics menu: each item asks for one setting by its key

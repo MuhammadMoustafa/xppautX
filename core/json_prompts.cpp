@@ -97,7 +97,7 @@ int ask_wait(Buf *b, int id)
             /* an Abort sent before this answer no longer stops the command */
             if (ask_user) xpp::job::resume(read_line_seq());
             const char *ok = js_find(answer.c_str(), "ok");
-            const bool answered = ok == NULL || js_num(ok, 0) != 0;
+            const bool answered = ok == NULL || get_num(answer.c_str(), "ok", 0) != 0;
             /* the user's answer is part of the step a recording is taking
                (a pixels ask is the client's to answer: no step's) */
             if (ask_user) record_answer(ask_kind, answer.c_str(), answered);
@@ -492,12 +492,12 @@ void answer_point(xpp::Session &s, unsigned long win, int k, int *x, int *y)
         *x = get_int(answer.c_str(), px[k], 0);
         *y = get_int(answer.c_str(), py[k], 0);
     } else if (win == WIN_AUTO) {
-        *x = data_to_pixel(js_num(jx, 0), s.auto_state.axes().xmin, s.auto_state.axes().xmax, s.auto_state.bifur.x0, s.auto_state.bifur.x0 + s.auto_state.bifur.wid);
-        *y = data_to_pixel(js_num(jy, 0), s.auto_state.axes().ymin, s.auto_state.axes().ymax, s.auto_state.bifur.y0 + s.auto_state.bifur.hgt, s.auto_state.bifur.y0);
+        *x = data_to_pixel(get_num(answer.c_str(), dx[k], 0), s.auto_state.axes().xmin, s.auto_state.axes().xmax, s.auto_state.bifur.x0, s.auto_state.bifur.x0 + s.auto_state.bifur.wid);
+        *y = data_to_pixel(get_num(answer.c_str(), dy[k], 0), s.auto_state.axes().ymin, s.auto_state.axes().ymax, s.auto_state.bifur.y0 + s.auto_state.bifur.hgt, s.auto_state.bifur.y0);
     } else {
         get_draw_area(s);
-        *x = data_to_pixel(js_num(jx, 0), s.plot_windows.current->xlo, s.plot_windows.current->xhi, s.drawing.d_left, s.drawing.d_right);
-        *y = data_to_pixel(js_num(jy, 0), s.plot_windows.current->ylo, s.plot_windows.current->yhi, s.drawing.d_bottom, s.drawing.d_top);
+        *x = data_to_pixel(get_num(answer.c_str(), dx[k], 0), s.plot_windows.current->xlo, s.plot_windows.current->xhi, s.drawing.d_left, s.drawing.d_right);
+        *y = data_to_pixel(get_num(answer.c_str(), dy[k], 0), s.plot_windows.current->ylo, s.plot_windows.current->yhi, s.drawing.d_bottom, s.drawing.d_top);
     }
 }
 

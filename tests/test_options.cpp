@@ -245,7 +245,7 @@ int main(void)
         CHECK(xpp::check_command_line(2, argv).has_value());
         xpp::Session &session = xpp::client_session();
         xpp::batch_options.enabled = 0;
-        CHECK(xpp::parse_it(session, silent) == 0);
+        CHECK(xpp::do_comline(session, 2, argv) == -1);
         CHECK(xpp::batch_options.enabled == 1);
         xpp::batch_options.enabled = 0;
         for (const char *name : {"silent", "setfile", "parfile", "icfile", "logfile", "include", "anifile", "outfile", "newseed", "version", "internset", "uset", "rset", "qsets", "qpars", "qics", "quiet", "mkplot", "plotfmt", "noout", "dfdraw", "ncdraw", "readset", "with", "equil", "verbose", "debug"}) {
@@ -271,6 +271,26 @@ int main(void)
                 CHECK(r.error().place.line == 1);
             }
           }
+        }
+        /* one pass: an argument is read and checked where it stands, and the error names the option */
+        {
+            const auto fault = [&](std::initializer_list<const char *> words) {
+                std::vector<std::string> keep(words.begin(), words.end());
+                std::vector<char *> v{exe};
+                for (std::string &w : keep) v.push_back(w.data());
+                v.push_back(nullptr);
+                const xpp::Result<> r = xpp::check_command_line(static_cast<int>(v.size()) - 1, v.data());
+                return r ? std::string() : r.error().what;
+            };
+            CHECK(fault({"--equil", "x"}) == "--equil needs a whole number, not \"x\"");
+            CHECK(fault({"--internset", "2"}) == "--internset must be 0 or 1, not 2");
+            CHECK(fault({"--internset", "yes"}) == "--internset needs a whole number, not \"yes\"");
+            CHECK(fault({"--parfile", "a", "--parfile", "b"}) == "--parfile given twice");
+            CHECK(fault({"--setfile", "a", "--setfile", "b"}) == "--setfile given twice");
+            CHECK(fault({"--readset", "a", "--with", "b"}) == "--with given with --readset: one of --readset and --with");
+            CHECK(fault({"--uset", "a", "--uset", "b", "--include", "c", "--include", "d"}).empty());
+            CHECK(fault({"--equil", "1", "--internset", "0", "model.ode"}).empty());
+            CHECK(fault({"--equil"}) == "--equil needs an argument");
         }
         for (const char *word : {"--silently", "--nosuch", "--runnow", "--setfile"}) {
             std::string arg(word);

@@ -124,7 +124,7 @@ void SilentScript::add_run(int set)
     steps.push_back([this] {
         if (!dryrun) return;
         command("values", "query", session.batch_out_file,
-                xpp::format(",\"sets\":{},\"pars\":{},\"ics\":{}", querysets, querypars, queryics));
+                xpp::format(",\"sets\":{},\"pars\":{},\"ics\":{}", int{querysets}, int{querypars}, int{queryics}));
     });
     steps.push_back([this] {
         if (!ran) return;

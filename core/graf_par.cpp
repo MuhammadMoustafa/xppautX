@@ -247,7 +247,7 @@ bool axes_dialog(xpp::Session &s, int ind, bool three)
 void axes_opts(xpp::Session &s)
 {
   static const char *const n[]={"X-origin","Y-origin","Z-origin",
-		   "X-org(1=on)","Y-org(1=on)","Z-org(1=on",
+		   "X-org(1=on)","Y-org(1=on)","Z-org(1=on)",
 		    "Axes font size"};
   std::array<std::string, 7> values;
   int status;
@@ -262,13 +262,27 @@ void axes_opts(xpp::Session &s)
                             XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER};
   status=do_string_box_of(7,1,"Axes options",n,values,kinds);
  if(status!=0){
-   s.plot_windows.current->xorg=atof(values[0].c_str());
-   s.plot_windows.current->yorg=atof(values[1].c_str());
-   s.plot_windows.current->zorg=atof(values[2].c_str());
-   s.plot_windows.current->xorgflag=atoi(values[3].c_str());
-   s.plot_windows.current->yorgflag=atoi(values[4].c_str());
-   s.plot_windows.current->zorgflag=atoi(values[5].c_str());
-   s.plot_export.font_size=atof(values[6].c_str());
+   /* every field read before any is set */
+   xpp::TypedFields f(s);
+   double org[3];
+   int orgflag[3];
+   for(int i=0;i<3;i++){
+     org[i]=f.number(n[i],values[static_cast<size_t>(i)]);
+     orgflag[i]=f.integer(n[3+i],values[static_cast<size_t>(3+i)]);
+   }
+   const double font_size=f.number(n[6],values[6]);
+   if(f.error()){
+     xpp::command_error("Axes options",*f.error());
+     return;
+   }
+   GRAPH &g=*s.plot_windows.current;
+   g.xorg=org[0];
+   g.yorg=org[1];
+   g.zorg=org[2];
+   g.xorgflag=orgflag[0];
+   g.yorgflag=orgflag[1];
+   g.zorgflag=orgflag[2];
+   s.plot_export.font_size=font_size;
    redraw_the_graph(s);
  }
    
@@ -463,10 +477,17 @@ void user_window(xpp::Session &s)
  status=do_string_box_of(2,2,"Window",n,values,kinds);
  if(status!=0){
              
-	      s.plot_windows.current->xlo=atof(values[0].c_str());
-	      s.plot_windows.current->ylo=atof(values[2].c_str());
-	      s.plot_windows.current->xhi=atof(values[1].c_str());
-	      s.plot_windows.current->yhi=atof(values[3].c_str());
+	      xpp::TypedFields f(s);
+	      const double xlo=f.number(n[0],values[0]),xhi=f.number(n[1],values[1]);
+	      const double ylo=f.number(n[2],values[2]),yhi=f.number(n[3],values[3]);
+	      if(f.error()){
+	        xpp::command_error("Window",*f.error());
+	        return;
+	      }
+	      s.plot_windows.current->xlo=xlo;
+	      s.plot_windows.current->ylo=ylo;
+	      s.plot_windows.current->xhi=xhi;
+	      s.plot_windows.current->yhi=yhi;
 	      if(s.plot_windows.current->grtype<5){
 	      s.plot_windows.current->xmin=s.plot_windows.current->xlo;
 	      s.plot_windows.current->xmax=s.plot_windows.current->xhi;

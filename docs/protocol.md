@@ -149,6 +149,15 @@ fields, always all of them, and `field`:
 
     {"ev":"message","error":"it is for 3 parameters, the model has 12","file":"bad.par","line":1,"col":0,"source":"3   Number params","field":""}
 
+A command line is checked before it runs (W493): text that is not valid JSON
+is a `message` error `the command line is not valid JSON (at character N)`
+(`is nested too deeply` and `has text after its value` the other two), and a
+command's argument that is not the kind the command reads (a string or an
+object where a number goes, a fraction where a whole number goes) is a
+`message` error naming the command and the argument, `auto: argument "label"
+must be a number, not "x"`; the command does not run. `true`, `false` and
+`null` are accepted for a flag (1 and 0).
+
 - `error`: what failed, as the user reads it (one line or several).
 - `file`: the file it is in or about, as the command was given it (a
   name in the model's folder, or a path); "" when none.

@@ -687,7 +687,7 @@ void data_unreplace(xpp::Session &s)
  ui.browser_redraw(0);
 }
 
-void data_table(const xpp::Session &s, BROWSER *b)
+void data_table(xpp::Session &s, BROWSER *b)
 {
  if(!save_ready(b->iend>b->istart))return;
  int status;
@@ -703,8 +703,13 @@ void data_table(const xpp::Session &s, BROWSER *b)
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
  status=do_string_box_of(3,1,"Tabulate",name,value,kinds);
  if(status==0)return;
- xlo=atof(value[1].c_str());
- xhi=atof(value[2].c_str());
+ xpp::TypedFields f(s);
+ xlo=f.number(name[1],value[1]);
+ xhi=f.number(name[2],value[2]);
+ if(f.error()){
+   command_error("Tabulate",*f.error());
+   return;
+ }
  find_variable(s,value[0].c_str(),&col);
   if(col>=0){
    std::string file=xpp::files::output_name(s.model().this_file,".tab",value[0]);
@@ -712,7 +717,7 @@ void data_table(const xpp::Session &s, BROWSER *b)
   }
 }
 
-void data_find(const xpp::Session &s, BROWSER *b)
+void data_find(xpp::Session &s, BROWSER *b)
 {
  int status;
 
@@ -728,7 +733,12 @@ void data_find(const xpp::Session &s, BROWSER *b)
  status=do_string_box_of(2,1,"Find Data",name,value,kinds);
 
  if(status==0)return;
- val=atof(value[1].c_str());
+ xpp::TypedFields f(s);
+ val=f.number(name[1],value[1]);
+ if(f.error()){
+   command_error("Find Data",*f.error());
+   return;
+ }
  find_variable(s,value[0].c_str(),&col);
  if(col>=0)find_value(col,val,&row,*b);
  if(row>=0){

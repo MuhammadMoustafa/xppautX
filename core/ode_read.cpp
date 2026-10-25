@@ -905,10 +905,12 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
      next_line(old);
    }
    else {
-        if(loadincludefile)
+        if(!include_files.empty())
 	{
-		loadincludefile=0;/*Only do this once*/
-		for (const std::string &inc : include_files)
+		/* only once */
+		const std::vector<std::string> includes=std::move(include_files);
+		include_files.clear();
+		for (const std::string &inc : includes)
 		{
 			const xpp::Result<> allowed = xpp::approve_model_path(*src.model, inc, xpp::Place{});
 			xpp::UniqueFile fnew = allowed ? xpp::open_model_file(*src.model,inc) : xpp::UniqueFile();
