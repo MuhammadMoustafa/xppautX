@@ -36,7 +36,6 @@ std::string named(std::string_view prefix, const char *name) { return std::strin
 AutoSettingsSet view_settings(const SavedView &v, int k)
 {
     AutoSettingsSet a;
-    a.has_plot = 1;
     a.plot = v.plot;
     a.var = v.var;
     a.par1 = v.par1;
@@ -55,10 +54,10 @@ Result<> add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, st
     views.active = s.auto_state.active_view;
     for (std::size_t k = 0; k < s.auto_state.views.size(); k++) {
         const AutoSettingsSet a = auto_settings_view(s, static_cast<int>(k));
-        views.views.push_back({a.plot, a.var, a.par1, a.par2, a.range, s.auto_state.views[k].zoom});
+        views.views.push_back({*a.plot, a.var, a.par1, a.par2, a.range, s.auto_state.views[k].zoom});
     }
     entries.push_back({named(prefix, views_member), views_text(views)});
-    if (s.auto_state.diag_flag == 0) return {};
+    if (!s.auto_state.diag_flag) return {};
     const std::string solutions_path = auto_solutions_file(s);
     std::string solutions;
     if (!xpp::read_bytes(solutions_path, solutions))
@@ -112,10 +111,9 @@ Result<Members> members_read(const Session &s, const std::map<std::string, std::
     }
     Result<SettingsRead> settings = parse_settings(text(settings_member), file(settings_member));
     if (!settings) return std::unexpected(settings.error());
-    std::string why, key;
-    if (!auto_settings_check(s, settings->set, -1, why, key)) {
-        const auto at = settings->lines.find(key);
-        return xpp::fail("AUTO file", why,
+    if (const Result<> checked = auto_settings_check(s, settings->set, -1); !checked) {
+        const auto at = settings->lines.find(checked.error().field);
+        return xpp::fail("AUTO file", checked.error().what,
                          line_place(file(settings_member), text(settings_member), at == settings->lines.end() ? 0 : at->second));
     }
     const bool diagram = members.contains(named(prefix, diagram_member));
@@ -142,8 +140,8 @@ Result<Members> members_read(const Session &s, const std::map<std::string, std::
     const int nviews = static_cast<int>(views->views.views.size());
     for (int k = 0; k < nviews; k++) {
         AutoSettingsSet a = view_settings(views->views.views[static_cast<std::size_t>(k)], k);
-        if (!auto_settings_check(s, a, nviews, why, key))
-            return xpp::fail("AUTO file", why, line_place(file(views_member), text(views_member), views->lines[static_cast<std::size_t>(k)]));
+        if (const Result<> checked = auto_settings_check(s, a, nviews); !checked)
+            return xpp::fail("AUTO file", checked.error().what, line_place(file(views_member), text(views_member), views->lines[static_cast<std::size_t>(k)]));
     }
     return Members{std::move(settings->set), std::move(points), std::move(views->views), diagram ? std::string_view(text(solutions_member)) : std::string_view()};
 }

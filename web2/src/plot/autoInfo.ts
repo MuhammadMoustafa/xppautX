@@ -5,9 +5,6 @@ import type {AutoInfo, AutoStab, DiagramAxes} from '../store/diagram';
 import {axesNames} from './axisDialog';
 import {fmt, symbolName} from './diagramModel';
 
-/* Axes' plot types whose y axis is the point's Norm or period (axisDialog.ts PLOT_TYPES) */
-const PLOT_NORM = 1, PLOT_PERIOD = 3;
-
 /** the strip's fields as [name, value] rows (A14: six significant digits), in order of importance:
     branch, point, type, label; what the diagram's axes show (the x axis's quantity, the main
     parameter, then the y axis's: the plotted variable, Norm, the period, or the second parameter of
@@ -36,7 +33,7 @@ export function infoRows(info: AutoInfo, axes: DiagramAxes | null): [string, str
 
   /* the y axis's quantity: the plotted variable, the second parameter, Norm or the period */
   const plot = axes?.plot;
-  const yRow = yvar ? varRow : yPar ? parRow(yPar) : plot === PLOT_NORM ? normRow : plot === PLOT_PERIOD ? periodRow : null;
+  const yRow = yvar ? varRow : yPar ? parRow(yPar) : plot === 'norm' ? normRow : plot === 'period' ? periodRow : null;
 
   if (xPar) rows.push(parRow(xPar));
   if (yRow) rows.push(yRow);

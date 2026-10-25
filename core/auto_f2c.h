@@ -25,15 +25,8 @@ typedef integer logical;
 #define ARRAY3D(array,i,j,k) array[(i) + ((j)  + (k) * array ## _dim2) * array ## _dim1]
 
 /* f2c's libF77 helpers (f2c_helpers.cpp) */
-double d_imag(const doublecomplex *z);
 double d_sign(doublereal a, doublereal b);
-integer i_dnnt(const doublereal *x);
-double pow_dd(const doublereal *ap, const doublereal *bp);
-double pow_di(const doublereal *ap, const integer *bp);
-integer pow_ii(integer ap, integer bp);
 double z_abs(const doublecomplex *z);
-void z_exp(doublecomplex *r, const doublecomplex *z);
-void z_log(doublecomplex *r, const doublecomplex *z);
 
 /* f2c's abs/fabs/min/max macros, as functions (W33c): the macros broke
    every C++ standard header included after this one. Same types (the

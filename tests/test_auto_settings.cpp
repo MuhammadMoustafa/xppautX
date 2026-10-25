@@ -107,15 +107,13 @@ int main()
     s = xpp::AutoSettingsSet{};
     s.par1 = "GCA";
     s.var = "w";
-    s.has_plot = 1;
-    s.plot = 1;
-    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.axes().icp1 == 1 && xpp::client_session().auto_state.axes().var == 1 && xpp::client_session().auto_state.axes().plot == 1);
+    s.plot = xpp::AutoProjection::norm;
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.axes().icp1 == 1 && xpp::client_session().auto_state.axes().var == 1 && xpp::client_session().auto_state.axes().plot == xpp::AutoProjection::norm);
     s.par1 = "nosuch";
     CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.axes().icp1 == 1);
-    s = xpp::AutoSettingsSet{};
-    s.has_plot = 1;
-    s.plot = 5;
-    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.axes().plot == 1);
+    /* a projection is a name: XPPAUT's numbers are read on import only */
+    CHECK(xpp::auto_projection_from_name("norm") == xpp::AutoProjection::norm && !xpp::auto_projection_from_name("1"));
+    CHECK(xpp::auto_projection_from_xppaut(11) == xpp::AutoProjection::average && !xpp::auto_projection_from_xppaut(5));
     s = xpp::AutoSettingsSet{};
     s.has_range[2] = 1;
     s.range[2] = 3; /* ymin above ymax */

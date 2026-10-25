@@ -26,7 +26,7 @@ int main()
     lib.parameter_count = s.auto_state.parameter_layout.size();
     iap_type iap{};
     iap.lib = &lib; iap.ndm = 2; iap.ndim = 4; iap.nfpr = 4;
-    allocate_global_memory(iap);
+    size_run_scratch(iap);
     // Isolate the augmented blocks from roundoff in nested first differences.
     s.numerics.jacobian = xpp::JACOBIAN_EXACT;
     CHECK(xpp::ensure_exact_jacobian(s));

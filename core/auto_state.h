@@ -75,6 +75,22 @@ struct AutoParameterLayout {
   template<class T> std::span<T> parameters(T *par) const { return {par+block,static_cast<std::size_t>(model_parameters)}; }
 };
 
+/* a homoclinic run (HomCont, IPS 9): none, a homoclinic orbit (one
+   equilibrium) or a heteroclinic one (a left and a right equilibrium) */
+enum class HomoclinicRun { None, Homoclinic, Heteroclinic };
+/* the equilibrium of a heteroclinic orbit */
+enum class HomoclinicSide { Left, Right };
+/* the File menu's "Draw labeled" toggle: off, traversing the diagram
+   draws each labelled point's orbit, or clears the screens first */
+enum class LabeledOrbits { Off, Draw, ClearAndDraw };
+/* every codimension-two kind detected, as AUTO-07p does by default */
+constexpr std::array<bool, xpp::auto_codim_kinds.size()> all_special_points()
+{
+  std::array<bool, xpp::auto_codim_kinds.size()> on{};
+  on.fill(true);
+  return on;
+}
+
 struct AutoState {
   /* the AUTO window and its settings */
   xpp::BIFUR bifur{};
@@ -96,19 +112,19 @@ struct AutoState {
   /* AUTO's thread count, a program preference (xpp_prefs.h, W267) kept
      here for the run: prefs::AUTO_THREADS_AUTO, or the count */
   unsigned threads=0;
-  /* Numerics' SuppBP */
-  int suppress_bp=0;
+  /* Numerics' SuppBP: no branch point detection */
+  bool suppress_bp=false;
   // AUTO-07p enables codimension-two detection by default.
-  std::array<bool, xpp::auto_codim_kinds.size()> special_points{true,true,true,true,true,true,true,true,true,true,true,true};
+  std::array<bool, xpp::auto_codim_kinds.size()> special_points=all_special_points();
   /* a homoclinic orbit's left and right equilibria (autpp.cpp's stpnt),
      and whether a homoclinic run is on */
   std::vector<double> homo_l,homo_r;
-  int homo_flag=0;
-  /* which of them the equilibrium window's Import saves next: 0 the
-     left, 1 the right (xpp_util.cpp eq_import) */
-  int homo_side=0;
-  /* a periodic run starts from a new period (autpp.cpp's stpnt) */
-  int new_period_flag=0;
+  HomoclinicRun homo_flag=HomoclinicRun::None;
+  /* which of them the equilibrium window's Import saves next (xpp_util.cpp eq_import) */
+  HomoclinicSide homo_side=HomoclinicSide::Left;
+  /* a run that starts from an orbit, its period new (autpp.cpp's stpnt);
+     false: from the steady state of the initial conditions */
+  bool new_period_flag=false;
   /* a two-parameter run */
   int two_param=0;
   /* the label do_auto's follow-up run (a restart) continues from, 0 for
@@ -128,9 +144,9 @@ struct AutoState {
   /* the AUTO run's own parameters, filled from the model and settings
      (auto_nox.cpp) before go_go_auto() (gogoauto.cpp) reads them */
   XAUTO run{};
-  /* 0 until addbif (autevd.cpp) fills the diagram's first point
-     (start_diagram's), then 1 */
-  int diag_flag=0;
+  /* false until addbif (autevd.cpp) fills the diagram's first point
+     (start_diagram's) */
+  bool diag_flag=false;
   /* AUTO's scratch directory (fort.3/7/8/9, <model>.ode.b/.d/.s). Empty:
      HOME, as upstream (--silent); xppautX sets a private one per session
      so concurrent sessions never share AUTO files (xppautx_main.cpp) */
@@ -151,15 +167,13 @@ struct AutoState {
   /* the diagram's marked stretch (the S and E keys in the Grab loop) */
   AutoDiagramMark diagram_mark;
   /* AUTO's File menu Redraw toggle: only reported */
-  int redraw=1;
-  /* the File menu's "Draw labeled" toggle: 0 off, 1 traversing the
-     diagram draws each labelled point's orbit, 2 clearing the screens
-     first */
-  int load_all_labeled_orbits=0;
+  bool redraw=true;
+  /* the File menu's "Draw labeled" toggle */
+  LabeledOrbits load_all_labeled_orbits=LabeledOrbits::Off;
   /* the two-parameter point the Grab loop picked (storeautopoint), for
      setautopoint to give the model's parameters */
   double from_auto_x=0,from_auto_y=0;
-  int from_auto_flag=0;
+  bool from_auto_flag=false;
   /* the time shift that best lines a homoclinic orbit up with the one
      before (find_best_homo_shift) */
   double homo_shift=0.0;
@@ -182,7 +196,7 @@ struct AutoAssemblyScratch {
               std::ptrdiff_t nint, std::ptrdiff_t parameters);
 };
 
-/* Evaluator scratch: allocate_global_memory sizes augmented-system and
+/* Evaluator scratch: size_run_scratch sizes augmented-system and
    FUNI differences once per run. Condensation, quadrature and map storage
    are sized by their owners on first use. Each worker owns its copy.
    Spell auto_f2c.h's types out here: its typedefs clash with CVODE's. */
@@ -248,19 +262,19 @@ struct AutoLib {
   AutoAssemblyScratch assembly;
   xpp::JacobianScratch jacobian_scratch;
   AutoGlobalRotations rotations{};
-  /* 1 while stepbv solves a Newton step (autlib1.cpp). A cancelled job
+  /* while stepbv solves a Newton step (autlib1.cpp). A cancelled job
      then stops the collocation setup early (setubv2.cpp), solvbv skips
      the solve and stepbv returns to the last converged point. Other
      solves, such as stdrbv's starting direction and the location of a
      special point (lcspae, lcspbv), always run to the end. */
-  int setubv_stop=0;
-  /* 1 from init's "Generating starting data" (a restart that switches
+  bool setubv_stop=false;
+  /* from init's "Generating starting data" (a restart that switches
      branch) until the run writes its first label, which becomes the
      follow-up run's restart label (autlib1.cpp); a failed run clears it */
-  int restart_flag=0;
-  /* 1 while lcspae/lcspbv locate a special point: their solves run to
+  bool restart_flag=false;
+  /* while lcspae/lcspbv locate a special point: their solves run to
      the end (autlib1.cpp's Locating) */
-  int locating=0;
+  bool locating=false;
   /* the exact Jacobian's failure (W275): a derivative not finite where the
      right-hand side is, recorded by func (autpp.cpp) on its own AutoLib (a
      collocation worker's, merged into the Session's by the caller when the

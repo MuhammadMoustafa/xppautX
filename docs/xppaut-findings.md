@@ -111,6 +111,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [78](#78-a-flag-with-sign-1-repeats-one-clause-and-misses-an-exact-zero) | Events | the rising-flag test repeats one clause where the falling one tests `f1<=0`: a rising flag that lands exactly on zero is missed | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
 | [79](#79-the-stiff-step-that-finds-its-matrix-singular-is-retried-with-a-stale-step) | Integrators | Stiff's step that finds its matrix singular reports `*ier=-1`, which the driver does not test (it stops only for a positive one): the step is retried with a step size left over, or never set | [W488 / #552](https://github.com/MuhammadMoustafa/xppautX/issues/552) |
 | [80](#80-a-networks-tables-are-never-checked-for-the-values-it-reads-and-fftcons-check-tests-the-wrong-variable) | Networks | a network reads its weight, index and delay tables with no check of their length; fftcon's check compares the keyword code, so the zero-ends test never runs | [W490 / #554](https://github.com/MuhammadMoustafa/xppautX/issues/554) |
+| [81](#81-a-failed-auto-set-up-a-missing-restart-label-and-a-short-restart-read-pass-silently) | AUTO | a combination AUTO has no functions for leaves the run's function table uninitialised and only prints "Initialization Error CRASH!!"; a missing restart label only prints; a short read of the restart data is ignored and the run goes on with half-zero data | [W491 / #555](https://github.com/MuhammadMoustafa/xppautX/issues/555) |
 
 ## 1. Model options
 
@@ -1815,3 +1816,18 @@ an `fftcon(0, n, w, ...)` whose table holds fewer than `2n` values loads and the
 transformed. Evidence: reading the lines (XPPAUT was not run on a short table). xppautX works out
 what each network reads from its arguments and refuses a table that holds fewer values, at the network's line (W490,
 [#554](https://github.com/MuhammadMoustafa/xppautX/issues/554)).
+
+## 81. A failed AUTO set-up, a missing restart label and a short restart read pass silently
+
+`go_go_auto` declares `function_list list;` uninitialised ([gogoauto.c:33](../reference/xppaut-8.0/gogoauto.c#L33));
+`set_function_pointers`'s last branch, reached for a problem, ISW and start type it has no functions for, only prints
+`Initialization Error CRASH!!` and returns ([gogoauto.c:494-499](../reference/xppaut-8.0/gogoauto.c#L494)), so
+`list.type` is read uninitialised ([gogoauto.c:99-103](../reference/xppaut-8.0/gogoauto.c#L99)): neither driver runs, or
+one runs with garbage pointers, and the run ends with no point and no error. A restart label missing from fort.3 prints
+`Restart label not found` and returns as from a normal end ([gogoauto.c:68-75](../reference/xppaut-8.0/gogoauto.c#L68)).
+The start routines read the restart data with unchecked `fscanf`s (e.g. `stpnbv`,
+[autlib1.c:6004-6008](../reference/xppaut-8.0/autlib1.c#L6004)) and their callers ignore the result
+([autlib1.c:5893](../reference/xppaut-8.0/autlib1.c#L5893)), so a truncated fort.3 continues from half-read data.
+xppautX chooses the functions from a table and makes each of the three an error that ends the run and is shown, naming the
+problem, ISW and start type, or the label, the file and what the data ended before (W491,
+[#555](https://github.com/MuhammadMoustafa/xppautX/issues/555); tests/test_auto_restart.cpp truncates a restart file).

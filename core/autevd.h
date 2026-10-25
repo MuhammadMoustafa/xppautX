@@ -14,7 +14,9 @@ namespace xpp {
 /* One failure message for a refused AUTO solution, rendered by do_auto. */
 [[noreturn]] void auto_nonfinite(const iap_type &iap, integer point);
 
-DiagramPointType get_bif_type(int ibr, int ntot, int lab);
+/* a point's type from AUTO's signs: a negative branch is periodic, a
+   negative point stable (a zero sign: a stable steady state) */
+DiagramPointType get_bif_type(int ibr, int ntot);
 void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int labw, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar);
 
 /* the AUTO run's own parameters (st.run) from its settings (st.bifur,

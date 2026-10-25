@@ -23,13 +23,16 @@ export function autoWindow(s: {hello: HelloEvent | null}): number | null {
   return s.hello?.window_ids.auto ?? null;
 }
 
+/** what a view of the diagram plots up its side against the main parameter (W381 question 12) */
+export type AutoProjection = 'maximum' | 'norm' | 'maximum_and_minimum' | 'period' | 'two_parameter' | 'frequency' | 'average';
+
 /** `diagram` `axes` (and `reset`): the core's axes of a view of the diagram */
 export interface DiagramAxes {
   xmin: number; xmax: number; ymin: number; ymax: number;
   /** where the core draws it in window 101's pixels (for answers in pixels) */
   x0: number; y0: number; wid: number; hgt: number;
-  /** Auto.plot: 0 hi, 1 norm, 2 hi and lo, 3 period, 4 two parameters, 10 frequency, 11 average */
-  plot: number;
+  /** what the view plots up its side (its projection) */
+  plot: AutoProjection;
   xlabel: string;
   ylabel: string;
 }

@@ -44,7 +44,7 @@ void init_auto(AutoState &st, int ndim, bool exact)
   st.run.itmx=st.advanced.itmx;
   st.run.itnw=st.advanced.itnw;
   st.run.nwtn=st.advanced.nwtn;
-  st.run.jac=exact?1:0;
+  st.run.jac=exact?auto_jac_supplied:auto_jac_differences;
   st.run.iads=st.advanced.iads;
   st.run.weights={{xpp::auto_unknown::period,0.0}};
   st.run.nint=0;    
@@ -92,15 +92,11 @@ void init_auto(AutoState &st, int ndim, bool exact)
 
 /* Only unit 8,3 or q.prb is important; all others are unnecesary */
 
-DiagramPointType get_bif_type(int ibr, int ntot, int lab)
+DiagramPointType get_bif_type(int ibr, int ntot)
 {
-  DiagramPointType type=STABLE_EQ;
-
-    if(ibr<0&&ntot<0)type=STABLE_PERIODIC;
-  if(ibr<0&&ntot>0)type=UNSTABLE_PERIODIC;
-  if(ibr>0&&ntot>0)type=UNSTABLE_EQ;
-  if(ibr>0&&ntot<0)type=STABLE_EQ;
-  return(type);
+  if(ibr<0&&ntot!=0)return ntot<0?STABLE_PERIODIC:UNSTABLE_PERIODIC;
+  if(ibr>0&&ntot>0)return UNSTABLE_EQ;
+  return STABLE_EQ;
 }
 void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int lab, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar)
 {
@@ -108,7 +104,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   int icp1=icp[0],icp2=icp[1],icp3=icp[2],icp4=icp[3];
   double per=par[xpp::auto_unknown::period];
   int n=iap->ndim;
-  const DiagramPointType type=get_bif_type(ibrs,ntots,lab);
+  const DiagramPointType type=get_bif_type(ibrs,ntots);
   /* xppautX: the point's stability, or zeros: not computed (auto_stability.h) */
   xpp::DIAGRAM p{};
   p.size_variables(static_cast<size_t>(n));
@@ -136,7 +132,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   p.ubar.assign(ubar.begin(),ubar.end());
   for(int k=0;k<iap->nfpr;k++){
     const int parameter=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[k]));
-    if(parameter>=0 && parameter<s.model().nupar){
+    if(parameter>=0){
       p.parameter_indices.push_back(parameter);
       p.par.push_back(par[icp[k]]);
     }
@@ -151,9 +147,9 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
     p.flag2=auto_hopf_curve_kind(u0[2 * iap->ndm]);
   p.jacobian=s.numerics.jacobian;
   diagram_record_branch(s,p);
-  if(s.auto_state.diag_flag==0){
+  if(!s.auto_state.diag_flag){
     edit_start(s,p);
-    s.auto_state.diag_flag=1;
+    s.auto_state.diag_flag=true;
   } else {
     add_diagram(s,p);
   }

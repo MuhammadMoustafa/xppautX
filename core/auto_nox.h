@@ -119,12 +119,13 @@ typedef struct diagram {
 } DIAGRAM;
 
 /* a view of the diagram's axes (W50, AutoState::views): what it plots
-   (Auto.plot: HI_P ... AV_P; the variable var; icp1 the x axis' parameter
+   (its projection; the variable var; icp1 the x axis' parameter
    and, in a two-parameter view, icp2 the y axis', both indices into
    Model::upar_names) and the ranges. The active view's icp1 and icp2 are also
    the parameters a run continues in. */
 typedef struct {
-  int plot,var,icp1,icp2;
+  AutoProjection plot;
+  int var,icp1,icp2;
   double xmin,ymin,xmax,ymax;
 }  AUTOAX;
 
@@ -189,8 +190,14 @@ void info_header(Session &s, int flag2, AutoAxis icp1, AutoAxis icp2);
 void new_info(Session &s, const DIAGRAM &d);
 void traverse_out(Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw);
 void do_auto_win(Session &s);
-void load_last_plot(Session &s, int flag);
-void keep_last_plot(Session &s, int flag);
+/* the axes a one-parameter and a two-parameter view had last
+   (AutoState::old1p, old2p): the Axes menu's last 1 par and last 2 par */
+enum class LastPlot { OneParameter, TwoParameter };
+void load_last_plot(Session &s, LastPlot which);
+void keep_last_plot(Session &s, LastPlot which);
+/* the active view's axes kept as the last of their kind (a two-parameter
+   view's, or a one-parameter one's; XPPAUT keeps no frequency or average) */
+void keep_axes_as_last(Session &s);
 void init_auto_win(Session &s);
 int yes_reset_auto(Session &s);
 int reset_auto(Session &s);
@@ -212,7 +219,7 @@ void periodic_choice(Session &s);
 void hopf_choice(Session &s);
 void auto_new_per(Session &s);
 void auto_start_at_homoclinic(Session &s);
-int get_homo_info(Session &s, int flg,int *nun,int *nst,double *ul, double *ur);
+int get_homo_info(Session &s, int *nun,int *nst,double *ul, double *ur);
 void auto_extend_homoclinic(Session &s);
 void auto_extend_bvp(Session &s);
 void auto_switch_per(Session &s);

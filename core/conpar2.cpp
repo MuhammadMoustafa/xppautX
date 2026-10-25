@@ -176,14 +176,12 @@ conpar_default_wrapper(AutoLib &lib, integer *nov, integer *na, integer *nra, in
 }
 } // namespace
 
-
 int 
 conpar(AutoLib &lib, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
 {
   /* Aliases for the dimensions of the arrays */
   integer icf_dim1, irf_dim1;
   
-  /* Local variables */
   integer i,j;
   integer nex;
 
@@ -212,11 +210,3 @@ conpar(AutoLib &lib, integer *nov, integer *na, integer *nra, integer *nca, doub
 			  ncb, b, nbc, nrc, c, d,irf, icf);
   return 0;
 } 
-
-
-
-
-
-
-
-

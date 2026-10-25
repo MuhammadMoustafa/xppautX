@@ -9,9 +9,8 @@
 #include <vector>
 
 /* AUTO's bifurcation diagram, a Session's (session.h): its points in the
-   order they were stored, point i with index i (so next/prev are index
-   +/- 1). A deque, so a point's address stays valid while points are
-   added. */
+   order they were stored, point i with index i, read by index. A deque,
+   so a point's address stays valid while points are added. */
 struct AutoDiagram {
   std::deque<xpp::DIAGRAM> points;
 };
@@ -23,28 +22,24 @@ namespace xpp { struct Session; /* session.h */ }
    run's first point (edit_start) fills in place; add_diagram appends.
    Point i has index i. */
 void start_diagram(xpp::Session &s, int n);
-/* how many points (1 for an empty diagram, 0 before start_diagram) */
+/* how many points: start_diagram's empty diagram has one (the run's first
+   point, not filled in yet), a diagram before start_diagram none */
 int diagram_count(const AutoDiagram &diagram);
-/* the point of that index, or NULL */
-xpp::DIAGRAM *diagram_point(AutoDiagram &diagram, int index);
-/* the first point, or NULL before start_diagram */
-xpp::DIAGRAM *diagram_first(AutoDiagram &diagram);
-/* the point after / before d, or NULL at the end / the start */
-xpp::DIAGRAM *diagram_next(AutoDiagram &diagram, const xpp::DIAGRAM *d);
-xpp::DIAGRAM *diagram_prev(AutoDiagram &diagram, const xpp::DIAGRAM *d);
 /* p, a point of AUTO's run or of a file being read (its arrays n long),
    into the diagram: edit_start fills the first point in place with the
    run's flag2 (two_param), add_diagram appends it with p's; the kind of
    calculation and the torus period are the run's (s) */
 void edit_start(xpp::Session &s, const xpp::DIAGRAM &p);
 void add_diagram(xpp::Session &s, const xpp::DIAGRAM &p);
-void kill_diagrams(xpp::Session &s);
-/* the entry add_diagram or edit_start made last */
+/* the entry add_diagram or edit_start made last, or NULL before start_diagram */
 xpp::DIAGRAM *last_diagram(AutoDiagram &diagram);
 /* the stored point labelled lab (the first, as AUTO reads its .s file), or NULL */
 const xpp::DIAGRAM *diagram_of_label(const xpp::Session &s, int lab);
-/* entry `index` of the diagram list is AUTO's point ntot of branch ibr (either sign of ntot) */
-int diagram_has(const AutoDiagram &diagram, int index, int ibr, int ntot);
+/* entry `index` of the diagram is AUTO's point ntot of branch ibr (either sign of ntot) */
+bool diagram_has(const AutoDiagram &diagram, int index, int ibr, int ntot);
+/* the first point of branch ibr numbered ntot (either sign: the sign is
+   its stability), or NULL */
+const xpp::DIAGRAM *diagram_find(const AutoDiagram &diagram, int ibr, int ntot);
 void redraw_diagram(xpp::Session &s);
 void write_info_out(xpp::Session &s);
 void write_init_data_file(xpp::Session &s);

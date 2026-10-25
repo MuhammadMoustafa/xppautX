@@ -32,7 +32,7 @@ const settings: AutoSettings = {
   special_points: {BT:true,CP:true,ZH:true,GH:true,R1:true,R2:true,R3:true,R4:true,LPD:true,LTR:true,PTR:true,TTR:true},
   numerics: {ntst: 15, nmx: 200, npr: 50, ncol: 4, ds: 0.02, dsmin: 0.001, dsmax: 0.5, rl0: 0, rl1: 2, a0: 0, a1: 1000,
     epsl: 1e-4, epsu: 1e-4, epss: 1e-4, iad: 3, mxbf: 5, iid: 2, itmx: 8, itnw: 7, nwtn: 3, iads: 1, suppbp: 0},
-  axes: {plot: 2, var: 'V', par1: 'iapp', par2: 'phi', xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4},
+  axes: {plot: 'maximum_and_minimum', var: 'V', par1: 'iapp', par2: 'phi', xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4},
   marks: [],
   threads: 'auto',
   threads_auto: 4,
@@ -57,10 +57,10 @@ test('the event is the store; an edit sent during a run shows until its own idle
   assert.deepEqual(s.autoSettings.core, {ev: 'autosettings', ...settings});
   /* sent during a computation: one idle (the run's) ahead of each set's own */
   s = act(s, {type: 'sent', patch: {numerics: {nmx: 20}}, ahead: 1});
-  s = act(s, {type: 'sent', patch: {numerics: {npr: 5}, axes: {plot: 1, fit: true}}, ahead: 2});
+  s = act(s, {type: 'sent', patch: {numerics: {npr: 5}, axes: {plot: 'norm', fit: true}}, ahead: 2});
   s = act(s, {type: 'sent', patch: {numerics: {nmx: 25}}, ahead: 3});
   const shown = shownSettings(s.autoSettings)!;
-  assert.deepEqual([shown.numerics.nmx, shown.numerics.npr, shown.numerics.ntst, shown.axes.plot], [25, 5, 15, 1]);
+  assert.deepEqual([shown.numerics.nmx, shown.numerics.npr, shown.numerics.ntst, shown.axes.plot], [25, 5, 15, 'norm']);
   assert.ok(!('fit' in shown.axes));
   assert.deepEqual([...pendingFields(s.autoSettings)].sort(), ['axes.plot', 'numerics.nmx', 'numerics.npr']);
   assert.deepEqual(autoSettingsSetCommand({numerics: {nmx: 25}}), {cmd: 'auto', op: 'set', numerics: {nmx: 25}});

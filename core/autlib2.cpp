@@ -1,8 +1,5 @@
 #include "xpp_mem.h"
-/* Autlib2.f -- translated by f2c (version 19970805).
-   You must link the resulting object file with the libraries:
-	-lf2c -lm   (in that order)
-*/
+/* translated from AUTO's autlib2.f by f2c */
 
 #include <algorithm>
 #include <array>
@@ -77,20 +74,16 @@ void SolvbvWork::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t
   xe.resize(reduced);
 }
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*           Setting up of the Jacobian and right hand side */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *rds, integer *nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu)
 {
 
-  /* Local variables */
-  
   integer ndim;
   integer ncol, nclm, nfpr, nint, nrow, ntst;
 
@@ -164,19 +157,13 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   return 0;
 } /* solvbv_ */
 
-
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 faft(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *ndxloc)
 {
-  /* System generated locals */
   integer fa_dim1, ff_dim1;
 
-    /* Local variables */
   integer i, j;
 
-  /* Parameter adjustments */
   ff_dim1 = *nrow;
   fa_dim1 = *ndxloc;
     
@@ -189,13 +176,9 @@ faft(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *ndxl
   return 0;
 } /* faft_ */
 
-
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 setrhs(integer *ndim, xpp::AutoProblem *ips, integer *na, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
 {
-  /* System generated locals */
   integer ups_dim1, dups_dim1, uoldps_dim1, 
     udotps_dim1, upoldp_dim1, 
     fa_dim1, wt_dim1, wp_dim1, wploc_dim1;
@@ -233,16 +216,6 @@ setrhs(integer *ndim, xpp::AutoProblem *ips, integer *na, integer *ncol, integer
   auto &ubc0 = iap->lib->assembly.ubc0;
   auto &ubc1 = iap->lib->assembly.ubc1;
 
-  /* Parameter adjustments */
-  /*--par;*/
-  /*--icp;*/
-  /*--fc;*/
-  /*--rlcur;*/
-  /*--rlold;*/
-  /*--rldot;*/
-  /*--dtm;*/
-  /*--thl;*/
-  /*--thu;*/
   fa_dim1 = *nra;
   dups_dim1 = *ndxloc;
   upoldp_dim1 = *ndxloc;
@@ -683,8 +656,7 @@ void infpar(const doublereal *a, const doublereal *b, doublereal *fa, const doub
 }
 } // namespace
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 brbd(AutoLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc)
 {
   /* the matrices and index arrays solvbv sized and kept in lib.solvbv */
@@ -730,18 +702,13 @@ brbd(AutoLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, do
   return 0;
 } /* brbd_ */
 
-/*     ---------- ------- */
-/* Subroutine */ int 
+int 
 setzero(doublereal *fa, doublereal *fc, integer *na, integer *nra, integer *nrc)
 {
-  /* System generated locals */
   integer fa_dim1;
 
-    /* Local variables */
   integer i, j;
 
-    /* Parameter adjustments */
-    /*--fc;*/
   fa_dim1 = *nra;
     
   for (i = 0; i < *na; ++i) {
@@ -757,19 +724,14 @@ setzero(doublereal *fa, doublereal *fc, integer *na, integer *nra, integer *nrc)
   return 0;
 } /* setzero_ */
 
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *nbc, integer *nrc, doublereal *c, doublereal *fa, doublereal *fc, integer *irf, integer *icf)
 {
-  /* System generated locals */
   integer icf_dim1, irf_dim1, a_dim1, a_dim2, c_dim1, c_dim2, fa_dim1;
 
-    /* Local variables */
   integer i, icfic, irfir, m2, ic, ir, irfirp, ir1, nex,
     irp;
 
-    /* Parameter adjustments */
-    /*--fc;*/
   irf_dim1 = *nra;
   fa_dim1 = *nra;
   icf_dim1 = *nca;
@@ -810,24 +772,18 @@ conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, int
   return 0;
 } /* conrhs_ */
 
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *c2, integer *irf)
 {
-  /* System generated locals */
   integer irf_dim1, a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, c_dim2, a1_dim1, a1_dim2,
     a2_dim1, a2_dim2, bb_dim1, bb_dim2, cc_dim1, cc_dim2, c2_dim1, c2_dim2;
 
-  /* Local variables */
   integer i, irfir, ic, ir, ic1;
-
-/* Local */
 
 /* Copies the condensed sytem generated by CONPAR into workspace: the
    conditions' columns of x(i) to cc and of x(i+1) to c2, by block, as
    AUTO-07p keeps them (W474: reduce adds them where it eliminates x(i)). */
 
-    /* Parameter adjustments */
   a2_dim1 = *nov;
   a2_dim2 = *nov;
   a1_dim1 = *nov;
@@ -872,18 +828,14 @@ copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, int
   return 0;
 } /* copycp_ */
 
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 cpyrhs(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa, integer *irf)
 {
-  /* System generated locals */
   integer irf_dim1, fa_dim1, faa_dim1;
 
-  /* Local variables */
   integer i, irfir, ir;
 
 /*     **Copy the RHS */
-    /* Parameter adjustments */
   faa_dim1 = *nov;
   irf_dim1 = *nra;
   fa_dim1 = *nra;
@@ -898,20 +850,14 @@ cpyrhs(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa,
   return 0;
 } /* cpyrhs_ */
 
-
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *a1, doublereal *a2, doublereal *faa, doublereal *bb)
 {
 
-  /* System generated locals */
   integer e_dim1, cc_dim1, cc_dim2, c2_dim1, c2_dim2, d_dim1, 
     p0_dim1, p1_dim1, a1_dim1, a1_dim2, 
     faa_dim1, a2_dim1, a2_dim2, bb_dim1, 
     bb_dim2;
-
-  /* Local variables */
 
   integer i, j, k;
 
@@ -921,10 +867,6 @@ dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, d
 
   auto &xe = lib.solvbv.xe;
 
-  /* Parameter adjustments */
-  /*--fc;*/
-  /*--xe;*/
-  /*--fcc;*/
   faa_dim1 = *nov;
   a2_dim1 = *nov;
   a2_dim2 = *nov;
@@ -1054,22 +996,15 @@ dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, d
   return 0;
 } /* dimrge_ */
 
-
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 print1(FILE *fp9, integer *nov, integer *na, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc)
 {
 
-  /* System generated locals */
   integer a_dim1, a_dim2, b_dim1, b_dim2, c_dim1, 
     c_dim2, d_dim1, fa_dim1;
 
-  /* Local variables */
   integer i, ic, ir;
 
-  /* Parameter adjustments */
-  /*--fc;*/
   fa_dim1 = *nra;
   a_dim1 = *nca;
   a_dim2 = *nra;
@@ -1135,4 +1070,3 @@ print1(FILE *fp9, integer *nov, integer *na, integer *nra, integer *nca, integer
 
   return 0;
 } /* print1_ */
-

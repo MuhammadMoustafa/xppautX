@@ -3,6 +3,7 @@
 #include "auto_c.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
+#include <algorithm>
 #include <array>
 #include <vector>
 #include <limits>
@@ -49,10 +50,9 @@ double complete_eliminate_row(integer n, integer leading, double *a,
 /* W337: AUTO eigenvalues: balanced EISPACK rg (elementary Hessenberg reduction,
    machine-precision QR), no eigenvectors; preserve branch diagnostics.
    Gear uses unbalanced Householder reduction and fixed 1e-10 QR instead. */
-/* Subroutine */ int 
+int 
 eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev, integer *ier)
 {
-    /* Local variables */
   integer matz, ntop, ntot, i;
 
   integer ibr;
@@ -68,11 +68,6 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
   /* NDIM is the dimension of A. */
   /* M1A is the first dimension of A as in the DIMENSION statement. */
   /* The eigenvalues are to be returned in the complex vector EV. */
-
-/* Local */
-
-  /* Parameter adjustments */
-  /*--ev;*/
 
   ibr = iap->ibr;
   ntot = iap->ntot;
@@ -102,13 +97,11 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
    elimination stages and its own free-component/backsubstitution order.
    Share only the exact pivot search and trailing-row updates with ge; retain
    NLVC's free components, singular divisions and diagnostics separately. */
-/* Subroutine */ int 
+int 
 nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
 {
-  /* System generated locals */
   integer a_dim1;
 
-    /* Local variables */
   integer ipiv, jpiv, i, j, l;
   integer i1, jj, kk;
   doublereal sm;
@@ -131,10 +124,6 @@ nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
 /*     U : on exit U contains the null vector, */
 /* IR,IC : integer arrays of dimension at least N. */
 
-  /* Parameter adjustments */
-  /*--u;*/
-  /*--ir;*/
-  /*--ic;*/
   a_dim1 = m;
   
   for (i = 0; i < n; ++i) {
@@ -183,154 +172,155 @@ nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u)
     u[ic[i]] = -sm / ARRAY2D(a, ir[i], ic[i]);
   }
 
-  /* Since the pointers for ir and ic were adjusted we need to put the
-       back here. */
-  /*ir \+= 1;*/
-  /*ic \+= 1;*/
   return 0;
 } /* nlvc_ */
 
-/* W337: Complete pivoting: row-major search over permutation indices, strict > ties,
-   unchanged determinant product/sign order and fort.9 pivot diagnostics.
-   LINPACK sgefa uses partial pivoting and updates stored multipliers instead;
-   substituting it changes both rounding and AUTO diagnostics. */
-/* Subroutine */ int 
+/* Solves A U = F (NRHS right-hand sides; 0: the determinant only) by Gauss
+   elimination with complete pivoting; A is overwritten.
+   W337: the pivot is the largest |a| of the trailing block, ties to the
+   smallest row, then the smallest column (AUTO's row-then-column scan with a
+   strict >); the determinant's product and sign order and the fort.9 pivot
+   lines are AUTO's. LINPACK sgefa (partial pivoting) would change both.
+   W491: rows and columns of A are swapped in place, so the trailing update runs
+   down contiguous columns and finds the next pivot in the same pass; every
+   product, difference and pivot is AUTO's, so the bits are the same. F keeps
+   its layout (its rows are reached through ir), U is written through ic.
+   The searches use std::fabs: it differs from f2c::abs only at -0 and NaN,
+   which never win a strict > against a magnitude >= 0.
+   Returns the smallest pivot magnitude: below auto_rsmall, A is singular. */
+double
 ge(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det)
 {
-  /* System generated locals */
-  integer a_dim1, u_dim1, f_dim1;
-
-  /* Local variables */
-  integer ipiv, jpiv, i, j, k, l;
-  integer i1, jj;
-  doublereal rm, sm;
-  integer ip1, irh;
-  doublereal piv;
-  integer jjp1;
-
-  std::vector<integer> ic(n);
-  std::vector<integer> ir(n);
-
-/* Solves the linear system  A U = F by Gauss elimination */
-/* with complete pivoting. */
-
-/* Parameters : */
-
-/*   N   : number of equations, */
-/*   M1A : first dimension of A from DIMENSION statement, */
-/*   A   : N * N matrix of coefficients, */
-/*   NRHS: 0   if no right hand sides (determinant only), */
-/*         >0   if there are NRHS right hand sides, */
-/*   ndxloc : first dimension of U from DIMENSION statement, */
-/*   U   : on exit U contains the solution vector(s), */
-/*   M1F : first dimension of F from DIMENSION statement, */
-/*   F   : right hand side vector(s), */
-/*  IR,IC: integer vectors of dimension at least N. */
-
-/* The input matrix A is overwritten. */
-
-  /* Parameter adjustments */
-  /*--ir;*/
-  /*--ic;*/
-  a_dim1 = m1a;
-  u_dim1 = ndxloc;
-  f_dim1 = m1f;
-  
-  for (i = 0; i < n; ++i) {
-    ic[i] = i;
+  const auto at = [&](integer i, integer j) -> double & { return a[i + j * m1a]; };
+  const auto rhs = [&](integer i, integer k) -> double & { return f[i + k * m1f]; };
+  std::vector<integer> ir(n), ic(n);
+  for (integer i = 0; i < n; ++i) {
     ir[i] = i;
+    ic[i] = i;
   }
+  std::vector<double> rm(n), col_max(n);
 
-  /*   Elimination. */
+  /* The first pivot: the whole matrix, row by row. */
+  integer ipiv = 0, jpiv = 0;
+  double piv = 0.;
+  for (integer i = 0; i < n; ++i)
+    for (integer j = 0; j < n; ++j) {
+      const double p = std::fabs(at(i, j));
+      if (p > piv) {
+        piv = p;
+        ipiv = i;
+        jpiv = j;
+      }
+    }
 
   *det = 1.;
-
-  for (jj = 0; jj < n - 1; ++jj) {
-    complete_pivot(n, a_dim1, a, ir, ic, jj, ipiv, jpiv, piv);
-    *det *= ARRAY2D(a, ir[ipiv], ic[jpiv]);
+  double smallest = std::numeric_limits<double>::infinity();
+  integer jj = 0;
+  for (; jj < n - 1; ++jj) {
+    smallest = std::min(smallest, piv);
+    *det *= at(ipiv, jpiv);
     if (iid >= auto_ge_pivot_iid) {
-      if(jj==0) xpp::print(fp9,"\n Pivots in GE");
-      if((jj%6)==0) xpp::print(fp9,"\n");
-      xpp::print(fp9," {:4} {:12.3e} ",jj,f2c::abs(ARRAY2D(a, ir[ipiv], ic[jpiv])));
+      if (jj == 0) xpp::print(fp9, "\n Pivots in GE");
+      if ((jj % 6) == 0) xpp::print(fp9, "\n");
+      xpp::print(fp9, " {:4} {:12.3e} ", jj, f2c::abs(at(ipiv, jpiv)));
     }
+    if (ipiv != jj) *det = -(*det);
+    if (jpiv != jj) *det = -(*det);
+    if (iid >= auto_ge_note_iid && piv < auto_rsmall)
+      xpp::print(fp9, "         NOTE:Pivot {:3} < {:10.3E}, in GE\n", jj, auto_rsmall);
+
     if (ipiv != jj) {
-      *det = -(*det);
+      for (integer c = 0; c < n; ++c) std::swap(at(jj, c), at(ipiv, c));
+      std::swap(ir[jj], ir[ipiv]);
     }
     if (jpiv != jj) {
-      *det = -(*det);
+      for (integer r = 0; r < n; ++r) std::swap(at(r, jj), at(r, jpiv));
+      std::swap(ic[jj], ic[jpiv]);
     }
 
-    if (iid >= auto_ge_note_iid && piv < auto_rsmall) {
-      xpp::print(fp9,"         NOTE:Pivot {:3} < {:10.3E}, in GE\n",jj,auto_rsmall);	
+    const double pivot = at(jj, jj);
+    for (integer l = jj + 1; l < n; ++l) rm[l] = at(l, jj) / pivot;
+    for (integer irh = 0; irh < nrhs; ++irh) {
+      const double top = rhs(ir[jj], irh);
+      for (integer l = jj + 1; l < n; ++l)
+        if (rm[l] != 0.) rhs(ir[l], irh) -= rm[l] * top;
     }
 
-    k = ir[jj];
-    ir[jj] = ir[ipiv];
-    ir[ipiv] = k;
-
-    k = ic[jj];
-    ic[jj] = ic[jpiv];
-    ic[jpiv] = k;
-
-    jjp1 = jj + 1;
-    for (l = jjp1; l < n; ++l) {
-      
-      rm = complete_eliminate_row(n, a_dim1, a, ir, ic, jj, l);
-      if (rm != 0.) {
-	if (nrhs != 0) {
-	  for (irh = 0; irh < nrhs; ++irh) {
-	    ARRAY2D(f, ir[l], irh) -= rm * ARRAY2D(f, ir[jj], irh);
-	  }
-	}
+    /* The trailing block, column by column, each column's largest |a| on the
+       way (four running maxima, for the vector unit; a maximum is exact). */
+    const integer height = n - jj - 1;
+    const double *__restrict mult = &rm[jj + 1];
+    for (integer c = jj + 1; c < n; ++c) {
+      double *__restrict col = &at(jj + 1, c);
+      const double top = at(jj, c);
+      std::array<double, 4> best{};
+      integer l = 0;
+      for (; l + 4 <= height; l += 4)
+        for (integer k = 0; k < 4; ++k) {
+          const double updated = col[l + k] - mult[l + k] * top;
+          const double v = mult[l + k] != 0. ? updated : col[l + k];
+          col[l + k] = v;
+          const double av = std::fabs(v);
+          best[k] = best[k] < av ? av : best[k];
+        }
+      double m = 0.;
+      for (const double b : best)
+        if (m < b) m = b;
+      for (; l < height; ++l) {
+        const double updated = col[l] - mult[l] * top;
+        if (mult[l] != 0.) col[l] = updated;
+        const double av = std::fabs(col[l]);
+        if (m < av) m = av;
       }
+      col_max[c] = m;
+    }
+
+    /* The next pivot: the largest of the column maxima; of the columns that
+       hold it, the one whose first such row is smallest. */
+    ipiv = jj + 1;
+    jpiv = jj + 1;
+    piv = 0.;
+    for (integer c = jj + 1; c < n; ++c)
+      if (piv < col_max[c]) piv = col_max[c];
+    if (piv > 0.) {
+      integer best_row = n;
+      for (integer c = jj + 1; c < n; ++c) {
+        if (col_max[c] != piv) continue;
+        integer r = jj + 1;
+        while (std::fabs(at(r, c)) != piv) ++r;
+        if (r < best_row) {
+          best_row = r;
+          jpiv = c;
+        }
+      }
+      ipiv = best_row;
     }
   }
-  *det *= ARRAY2D(a, ir[n - 1], ic[n - 1]);
+  *det *= at(n - 1, n - 1);
+  smallest = std::min(smallest, std::fabs(at(n - 1, n - 1)));
   if (iid >= auto_ge_pivot_iid) {
-    if((jj%6)==0) xpp::print(fp9,"\n");
-    xpp::print(fp9," {:4} {:12.3e} \n",n-1,ARRAY2D(a, ir[n - 1], ic[n - 1]));
+    if ((jj % 6) == 0) xpp::print(fp9, "\n");
+    xpp::print(fp9, " {:4} {:12.3e} \n", n - 1, at(n - 1, n - 1));
   }
+  if (nrhs == 0) return smallest;
 
-  if (nrhs == 0) {
-    /* Since the pointers for ir and ic were adjusted we need to put the
-       back here. */
-    /*ir \+= 1;*/
-    /*ic \+= 1;*/
-    return 0;
-  }
-
-  /*   Backsubstitution : */
-
-  for (irh = 0; irh < nrhs; ++irh) {
-    if(ARRAY2D(a, ir[n - 1], ic[n - 1]) == 0) {
-      xpp::auto_fail("division by zero: the linear system of a Newton step is singular");
+  /* Back substitution, in AUTO's order. */
+  if (at(n - 1, n - 1) == 0)
+    xpp::auto_fail("division by zero: the linear system of a Newton step is singular");
+  std::vector<double> y(n);
+  for (integer irh = 0; irh < nrhs; ++irh) {
+    y[n - 1] = rhs(ir[n - 1], irh) / at(n - 1, n - 1);
+    for (integer i = n - 2; i >= 0; --i) {
+      double sm = 0.;
+      for (integer j = i + 1; j < n; ++j) sm += at(i, j) * y[j];
+      y[i] = (rhs(ir[i], irh) - sm) / at(i, i);
     }
-    ARRAY2D(u, ic[n - 1], irh) = ARRAY2D(f, ir[n - 1], irh) / ARRAY2D(a, ir[n - 1], ic[n - 1]);
-    for (i1 = 0; i1 < n - 1; ++i1) {
-      i = n - (i1 + 1) - 1;
-      sm = 0.;
-      ip1 = i + 1;
-      for (j = ip1; j < n; ++j) {
-	sm += ARRAY2D(a, ir[i], ic[j]) * ARRAY2D(u, ic[j], irh);
-      }
-      ARRAY2D(u, ic[i], irh) = (ARRAY2D(f, ir[i], irh) - sm) / ARRAY2D(a, ir[i], ic[i]);
-    }
+    for (integer j = 0; j < n; ++j) u[ic[j] + irh * ndxloc] = y[j];
   }
+  return smallest;
+}
 
-  /* Since the pointers for ir and ic were adjusted we need to put the
-       back here. */
-  /*ir \+= 1;*/
-  /*ic \+= 1;*/
-
-  return 0;
-} /* ge_ */
-
-/* autlib4.f -- translated by f2c (version 19970805).
-   You must link the resulting object file with the libraries:
-	-lf2c -lm   (in that order)
-*/
-
-
+/* translated from AUTO's autlib4.f by f2c */
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -388,21 +378,16 @@ ge(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, integer nrhs, 
 /* W337: Floquet multipliers: Fairgrieve SVD deflation followed by generalized QZ,
    retaining reflector/rotation order, multiplier ratios and diagnostics.
    Ordinary rg or a matrix inverse followed by QR changes these operations. */
-/* Subroutine */ int 
+int 
 flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *rwork, doublecomplex *ev, bool deflate)
 {
     
-
-  /* System generated locals */
   integer c0_dim1, c1_dim1, rwork_dim1;
 
-  /* Local variables */
   doublereal beta;
   std::array<doublereal, 1> svdu;
 
-
   integer i, j;
-
 
   logical infev;
 
@@ -427,35 +412,7 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
   /*  Subroutine to compute Floquet multipliers via the "deflated circuit */
   /*  pencil" method. This routine is called by the AUTO routine FNSPBV */
 
-  /*  storage for SVD computations */
 
-  /*  compute right singular vectors only */
-
-  /*  storage for generalized eigenvalue computations */
-
-  /*      LOGICAL           QZMATZ */
-  /*  don't want to accumulate the transforms --- vectors not needed */
-
-  /*  BLAS routines */
-
-
-  /*  routines from EISPACK */
-
-
-  /*  own routines */
-
-
-  /*  Jim Demmel's svd routine  (demmel@nyu.edu) */
-
-
-  /*  builtin F77 functions */
-
-  /* xx   DOUBLE COMPLEX    DCMPLX */
-
-  /*  Make sure that you have enough local storage. */
-
-  /* Parameter adjustments */
-  /*--ev;*/
   rwork_dim1 = *ndim;
   c1_dim1 = *ndim;
   c0_dim1 = *ndim;
@@ -539,7 +496,7 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
     /* This is here since I don't want to change the calling sequence of the
        BLAS routines. */
     integer tmp = 1;
-    doublereal tmp_tol = 1.0E-16;
+    doublereal tmp_tol = auto_svd_tolerance;
     ezsvd(rwork, ndim, ndim, ndim, svds.data(), svde.data(), svdu.data(), &tmp, 
 	  svdv.data(), ndim, svdwrk.data(), &tmp, &svdinf, &tmp_tol);
   }
@@ -655,7 +612,6 @@ eigenvalues:
   /*  reduce the generalized eigenvalue problem to a simpler form */
   /*   (C0BarDef,C1BarDef) = (upper hessenberg, upper triangular) */
 
-
   qzhes(*ndim, ndimm1, &c0[offset], &c1[offset], FALSE_ , qzz.data());
 
   /*  now reduce to an even simpler form */
@@ -684,7 +640,7 @@ eigenvalues:
       ev[j + offset].r = qzalfr[j] / qzbeta[j];
       ev[j + offset].i = qzalfi[j] / qzbeta[j];
     } else {
-      ev[j + offset].r = 1e30, ev[j + offset].i = 1e30;
+      ev[j + offset].r = auto_rlarge, ev[j + offset].i = auto_rlarge; /* an infinite multiplier */
       infev = TRUE_;
     }
   }
@@ -693,16 +649,13 @@ eigenvalues:
 
   }
 
-
   return 0;
 
 } /* flowkm_ */
 
-
 /* ************************** */
 /* *  Householder routines  * */
 /* ************************** */
-
 
 /*  Subroutines for performing Householder plane rotations. */
 
@@ -712,20 +665,16 @@ eigenvalues:
 /*  Ref: Golub and van Loan, Matrix Calcualtions, */
 /*       First Edition, Pages 38-43 */
 
-/* Subroutine */ int 
+int 
 dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublereal *beta, doublereal *v)
 {
 
-  /* Local variables */
   integer iend, jmkp1;
 
   integer i, l;
   doublereal m, alpha;
 
   integer istart;
-
-    
-
 
   /*     IMPLICIT UNDEFINED (A-Z,a-z) */
   /*     .. Scalar Arguments .. */
@@ -792,11 +741,6 @@ dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublere
 
   /*  Test the input parameters. */
 
-  /* Parameter adjustments */
-  /*--v;*/
-  /*--x;*/
-
-    
   if (*k < 1 || *k > *j) {
     xpp::auto_fail("domain error for K in DHHPR");
   }
@@ -862,22 +806,14 @@ dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublere
 
 } /* dhhpr_ */
 
-/* Subroutine */ int 
+int 
 dhhap(integer *k, integer *j, integer *n, integer *q, doublereal *beta, doublereal *v, integer *job, doublereal *a, integer *lda)
 {
-  /* System generated locals */
   integer a_dim1;
-
-    
-
-    /* Local variables */
 
   integer jmkp1;
   doublereal s;
   integer col, row;
-
-    
-
 
   /*     IMPLICIT LOGICAL (A-Z) */
   /*     .. Scalar Arguments .. */
@@ -951,8 +887,6 @@ on.*/
 
 /*  Test the input parameters. */
 
-    /* Parameter adjustments */
-    /*--v;*/
   a_dim1 = *lda;
     
   if (*job != 1 && *job != 2) {
@@ -1025,30 +959,13 @@ on.*/
 
 } /* dhhap_ */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* W337: HomCont eigenvectors: rg with vectors, optional transpose, ascending real
    roots, conjugate-column unpacking and previous-vector sign continuity.
    Gear computes no vectors; its fixed-tolerance QR cannot replace this path. */
-/* Subroutine */ int 
+int 
 eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm, doublereal *dfdu, doublereal *dfdp, doublereal *zz)
 {
-  /* System generated locals */
   integer dfdu_dim1, zz_dim1;
-
-  /* Local variables */
 
   integer i, j, k, ifail;
   doublereal vdot;
@@ -1080,14 +997,6 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
 /* 	        VRET the rows of which are real parts of corresponding */
 /*                  eigenvectors */
 
-/* Local */
-
-    /* Parameter adjustments */
-    /*--rr;*/
-    /*--ri;*/
-    /*--xequib;*/
-    /*--icp;*/
-    /*--par;*/
   vret -= ((*ndm)+1);
   zz_dim1 = *ndm;
   dfdu_dim1 = *ndm;

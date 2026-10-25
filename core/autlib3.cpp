@@ -1,9 +1,6 @@
 #include "xpp_mem.h"
 #include "auto_unknowns.h"
-/* autlib3.f -- translated by f2c (version 19970805).
-   You must link the resulting object file with the libraries:
-	-lf2c -lm   (in that order)
-*/
+/* translated from AUTO's autlib3.f by f2c */
 
 #include <array>
 #include <vector>
@@ -28,31 +25,20 @@ constexpr doublereal torus_initial_amplitude = 1e-4;
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   return xpp::auto_jacobian::curve(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, false, fflp);
 } /* fnlp_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1;
-  
-  /* Local variables */
   
   integer i, j;
   xpp::AutoProblem ips;
   
-  
-  
-  
-  
-  /* Parameter adjustments */
   dfdu_dim1 = ndm;
 
   ips = iap->ips;
@@ -80,19 +66,15 @@ fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fflp_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
 {
-  /* Local variables */
   integer ndim;
 
   doublereal uold = 0.; /* funi/fnds take it, unread */
   integer nfpr1;
   integer i;
   logical found;
-
 
   integer ndm, irs;
   xpp::AutoProblem ips;
@@ -101,11 +83,6 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   std::vector<doublereal> v(iap->ndim);
   /* Generates starting data for the continuation of folds. */
 
-  /* Local */
-
-    /* Parameter adjustments */
-
-    
   ndim = iap->ndim;
   ips = iap->ips;
   irs = iap->irs;
@@ -133,21 +110,16 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   return 0;
 } /* stpnlp_ */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*     Subroutines for the Optimization of Algebraic Systems */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
-
-    /* Local variables */
 
   integer i, j;
   std::vector<doublereal> ddp(iap->lib->parameter_count);
@@ -157,9 +129,6 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the equations for the continuation scheme used for */
   /* the optimization of algebraic systems (one parameter). */
 
-/* Local */
-
-    /* Parameter adjustments */
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
     
@@ -200,9 +169,7 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnc1_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpnc1(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
 {
   integer ndim;
@@ -212,15 +179,8 @@ stpnc1(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer ndm;
   doublereal fop, dum;
 
-
-  
-
-
   /* Generate starting data for optimization problems (one parameter). */
 
-
-  /* Parameter adjustments */
-  
   ndim = iap->ndim;
   ndm = iap->ndm;
 
@@ -235,29 +195,17 @@ stpnc1(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   return 0;
 } /* stpnc1_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
-  /* Local variables */
   integer i;
   integer ndm;
-
-
-
-  
-
 
   /* Generate the equations for the continuation scheme used for the */
   /* optimization of algebraic systems (more than one parameter). */
 
-  /* Local */
-
-    /* Parameter adjustments */
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
     
@@ -287,15 +235,10 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnc2_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
-
-    /* Local variables */
 
   integer icpm;
 
@@ -304,11 +247,8 @@ ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   std::vector<doublereal> ddp(iap->lib->parameter_count);
   integer ndm2;
 
-
   std::vector<doublereal> ddu(iap->ndim);
-  /* Local */
 
-    /* Parameter adjustments */
   dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
     
@@ -348,13 +288,10 @@ ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffc2_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
 {
 
-  /* Local variables */
   integer ndim;
 
   doublereal uold = 0.; /* funi/fnds take it, unread */
@@ -375,9 +312,6 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* Generates starting data for the continuation equations for */
   /* optimization of algebraic systems (More than one parameter). */
 
-  /* Local */
-
-  /* Parameter adjustments */
   ndim = iap->ndim;
   irs = iap->irs;
   ndm = iap->ndm;
@@ -421,31 +355,21 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   return 0;
 } /* stpnc2_ */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*        Subroutines for Discrete Dynamical Systems */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnds(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1;
-
-    /* Local variables */
 
   integer i;
 
-
-  
-
   /* Generate the equations for continuing fixed points. */
 
-
-    /* Parameter adjustments */
   dfdu_dim1 = ndim;
     
   funi(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp);
@@ -465,33 +389,23 @@ fnds(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnds_ */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*        Subroutines for Time Integration of ODEs */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnti(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
-
-    /* Local variables */
 
   doublereal told;
   integer i, j;
   doublereal dt;
 
-
-  
-
   /* Generate the equations for continuing fixed points. */
 
-
-    /* Parameter adjustments */
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
     
@@ -520,23 +434,19 @@ fnti(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnti */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*     Subroutines for Hopf (ODE) and Torus (Map) Curves */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   return xpp::auto_jacobian::curve(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, true, ffhb);
 } /* fnhb_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   // AUTO-07p equilibrium.f90:190-258, Kuznetsov (10.80), reimplemented:
@@ -573,16 +483,15 @@ ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffhb_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
 {
   // AUTO-07p equilibrium.f90:278-323: a unit null vector of A^2+kappa I.
   integer free = 0;
   logical found = FALSE_;
   findlb(iap, rap, iap->irs, &free, &found);
-  if (!found || readlb(iap, rap, u, par) != 0) return 1;
+  if (!found) auto_restart_label_missing(iap);
+  readlb(iap, rap, u, par);
   const integer n = iap->ndm;
   const double omega = pi(2.) / par[xpp::auto_unknown::period];
   u[2 * n] = iap->ips==xpp::AutoProblem::DiscreteMap ? omega : omega * omega;
@@ -598,40 +507,29 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   return 0;
 } /* stpnhb_ */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*   Subroutines for the Continuation of Hopf Bifurcation Points (Waves) */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, xpp::auto_jacobian::principal_parameter_count, ffhw);
 } /* fnhw_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 ffhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1;
 
-    /* Local variables */
   integer ijac;
 
   integer i, j;
   doublereal rom;
   integer ndm2;
 
-
-
-
-
-    /* Parameter adjustments */
   dfdu_dim1 = ndm;
     
   ndm2 = ndm * 2;
@@ -666,12 +564,9 @@ ffhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffhw_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *u)
 {
-  /* Local variables */
   integer ijac, ndim;
 
   doublereal uold = 0.;
@@ -679,7 +574,6 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer nfpr1;
   integer i, j;
   logical found;
-
 
   doublereal period;
   integer ndm, irs;
@@ -692,13 +586,11 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   std::vector<doublereal> dfp(xpp::size_product(iap->ndim, iap->lib->parameter_count));
   std::vector<doublereal> dfu(xpp::size_product(iap->ndim, iap->ndim));
 
-
   /* Generates starting data for the continuation of a bifurcation to a */
   /* traveling wave. */
 
   /* Local (Can't use BLLOC here.) */
 
-    /* Parameter adjustments */
   ndim = iap->ndim;
   irs = iap->irs;
   ndm = iap->ndm;
@@ -746,10 +638,8 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   u[ndim - 2] = rom;
   u[-1 + ndim] = par[icp[1]];
 
-
   return 0;
 } /* stpnhw_ */
-
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -757,27 +647,18 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnps(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
-
-    /* Local variables */
 
   integer i, j;
   doublereal period;
 
-
-
-
 /* Generates the equations for the continuation of periodic orbits. */
-
 
 /* Generate the function. */
 
-    /* Parameter adjustments */
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
     
@@ -823,23 +704,12 @@ fnps(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnps_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 bcps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
-  /* System generated locals */
   integer dbc_dim1;
 
-  /* Local variables */
   integer jtmp, i, j, nn;
-
-
-  
-
-
-
-  /* Parameter adjustments */
 
   dbc_dim1 = nbc;
   
@@ -876,23 +746,12 @@ bcps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bcps_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 icps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
-  /* System generated locals */
   integer dint_dim1;
 
-    /* Local variables */
   integer jtmp, i, nn;
-
-
-  
-
-
-
-  /* Parameter adjustments */
 
   dint_dim1 = nint;
   
@@ -925,26 +784,15 @@ icps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* icps_ */
 
-
-/*     ---------- ----- */
-/* Subroutine */ int 
+int 
 pdble(const iap_type *iap, const rap_type *rap, integer *ndim, integer *ntst, integer *ncol, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *par)
 {
-  /* System generated locals */
   integer ups_dim1, udotps_dim1;
 
-  /* Local variables */
   integer i, j, i1, i2;
-
-
-  
 
   /* Preprocesses restart data for switching branches at a period doubling */
 
-
-
-
-    /* Parameter adjustments */
   udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
     
@@ -981,14 +829,10 @@ pdble(const iap_type *iap, const rap_type *rap, integer *ndim, integer *ntst, in
   return 0;
 } /* pdble_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
-  /* System generated locals */
 
-    /* Local variables */
   integer ndim;
 
   doublereal uold = 0.;
@@ -1010,10 +854,6 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Generates starting data for the continuation of a branch of periodic */
   /* solutions from a Hopf bifurcation point. */
 
-  /* Local */
-
-    /* Parameter adjustments */
-  
   ndim = iap->ndim;
   irs = iap->irs;
   nfpr = iap->nfpr;
@@ -1071,35 +911,22 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   return 0;
 } /* stpnps_ */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*          Travelling Wave Solutions to Parabolic PDEs */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
-
-    /* Local variables */
 
   integer ndm, ndm2;
-
-
-  
-
 
   /* Sets up equations for the continuation of spatially homogeneous */
   /* solutions to parabolic systems, for the purpose of finding */
   /* bifurcations to travelling wave solutions. */
 
-/* Local */
-
-    /* Parameter adjustments */
-    
   ndm = iap->ndm;
 
   /* Generate the function. */
@@ -1111,25 +938,14 @@ fnws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnws_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 ffws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp, integer ndm, doublereal *dfu, doublereal *dfp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1, dfu_dim1, dfp_dim1;
-
-  /* Local variables */
 
   integer nfpr;
   doublereal c;
   integer i, j;
-
-
-  
-
-
-  /* Parameter adjustments */
 
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
@@ -1189,28 +1005,18 @@ ffws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffws_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnwp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
-
-    /* Local variables */
 
   integer i, j;
   doublereal period;
 
-
-
-
 /* Equations for the continuation of traveling waves. */
-
 
 /* Generate the function and Jacobian. */
 
-    /* Parameter adjustments */
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
     
@@ -1260,14 +1066,10 @@ fnwp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnwp_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
-  /* System generated locals */
 
-    /* Local variables */
   integer ndim;
 
   doublereal uold = 0.;
@@ -1296,8 +1098,6 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
 /* Local (Can't use BLLOC here.) */
 
-    /* Parameter adjustments */
-  
   ndim = iap->ndim;
   irs = iap->irs;
   nfpr = iap->nfpr;
@@ -1351,38 +1151,25 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   return 0;
 } /* stpnwp_ */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*             Parabolic PDEs : Stationary States */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   return xpp::auto_jacobian::supplied(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ffsp);
 } /* fnsp_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 ffsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp, integer ndm, doublereal *dfu, doublereal *dfp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1, dfu_dim1, dfp_dim1;
-
-  /* Local variables */
 
   integer i, j;
   doublereal period;
-
-
-
-
-
-    /* Parameter adjustments */
 
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
@@ -1424,38 +1211,26 @@ ffsp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffsp_ */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*            Time Evolution of Parabolic PDEs */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   return xpp::auto_jacobian::supplied(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ffpe);
 } /* fnpe_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 ffpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp, integer ndm, doublereal *dfu, doublereal *dfp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1, dfu_dim1;
-
-    /* Local variables */
 
   integer i, j;
   doublereal t, dsmin, rlold, ds, dt, period;
 
-
-
-
-
-    /* Parameter adjustments */
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
   dfu_dim1 = ndm;
@@ -1499,9 +1274,7 @@ ffpe(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffpe_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 icpe(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
 
@@ -1510,15 +1283,13 @@ icpe(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* icpe_ */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*    Subroutines for the Continuation of Folds for Periodic Solution */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   // FNPLF's block structure (AUTO-07p periodic.f90:427-507): only
@@ -1584,24 +1355,16 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnpl_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int
+int
 ffpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
-    /* Local variables */
   doublereal beta;
 
   integer i, j;
   doublereal period;
 
-
-
-
-    /* Parameter adjustments */
   dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
     
@@ -1628,24 +1391,14 @@ ffpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffpl_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 bcpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
-  /* System generated locals */
   integer dbc_dim1;
-  /* Local variables */
   integer jtmp, i, j, nn, ndm;
-
 
   /* Boundary conditions for continuing folds (Periodic solutions) */
 
-
-
-
-
-    /* Parameter adjustments */
   dbc_dim1 = nbc;
   
   for (i = 0; i < ndim; ++i) {
@@ -1682,25 +1435,15 @@ bcpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bcpl_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
-  /* System generated locals */
   integer dint_dim1;
 
-  /* Local variables */
   integer jtmp, i, j, nn, ndm;
-
 
   /* Integral conditions for continuing folds (Periodic solutions) */
 
-
-
-
-
-    /* Parameter adjustments */
   dint_dim1 = nint;
   
   ndm = iap->ndm;
@@ -1746,16 +1489,12 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* icpl_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
 
-  /* System generated locals */
   integer ups_dim1, udotps_dim1;
 
-  /* Local variables */
   integer ndim;
   integer nfpr, nrsp1, i, j, k;
 
@@ -1768,9 +1507,6 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Generates starting data for the 2-parameter continuation of folds */
   /* on a branch of periodic solutions. */
 
-  /* Local */
-
-  /* Parameter adjustments */
   udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
 
@@ -1780,23 +1516,25 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   xpp::TokenReader tr;
   xpp::AutoSolutionHeader header;
-  if (!read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs)) return 1;
+  read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs);
   nrsp1 = *ntsr + 1;
 
-  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
-                                    0, ndm, ups, tm, false, 0, {})) return 1;
-  if (!tr.read(icprs[0])) return 1;
-  if (!tr.read(icprs[1])) return 1;
-  if (!tr.read(rd1)) return 1;
-  if (!tr.read(rd2)) return 1;
+  auto_restart_read(iap, xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, ups, tm, false, 0, {}),
+                    "the solution rows");
+  auto_restart_read(iap, tr.read(icprs[0]), "the free parameter indices");
+  auto_restart_read(iap, tr.read(icprs[1]), "the free parameter indices");
+  auto_restart_read(iap, tr.read(rd1), "the parameter derivatives");
+  auto_restart_read(iap, tr.read(rd2), "the parameter derivatives");
 
   /* Read U-dot (derivative with respect to arclength). */
 
-  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
-                                    0, ndm, udotps, nullptr, false, 0, {})) return 1;
+  auto_restart_read(iap, xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, udotps, nullptr, false, 0, {}),
+                    "the arclength derivatives");
   /* Read the parameter values. */
 
-  if (!xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par)) return 1;
+  auto_restart_read(iap, xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
 
   /* Complement starting data */
   par[xpp::auto_unknown::fold_beta] = 0.;
@@ -1841,38 +1579,26 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   return 0;
 } /* stpnpl_ */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*   Subroutines for the Continuation of Period Doubling Bifurcations */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, ffpd);
 } /* fnpd_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 ffpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1;
-
-    /* Local variables */
 
   integer i, j;
   doublereal period;
 
-
-
-
-
-    /* Parameter adjustments */
   dfdu_dim1 = ndm;
     
   period = par[xpp::auto_unknown::period];
@@ -1890,26 +1616,16 @@ ffpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffpd_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 bcpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
-  /* System generated locals */
   integer dbc_dim1;
 
-    /* Local variables */
   integer jtmp, i, j, nn, ndm;
-
-
-  
-
 
   /* Generate boundary conditions for the 2-parameter continuation */
   /* of period doubling bifurcations. */
 
-
-  /* Parameter adjustments */
   dbc_dim1 = nbc;
   
   ndm = iap->ndm;
@@ -1952,23 +1668,13 @@ bcpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bcpd_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
-  /* System generated locals */
   integer dint_dim1;
 
-    /* Local variables */
   integer jtmp, i, j, nn, ndm;
 
-
-  
-
-
-
-  /* Parameter adjustments */
   dint_dim1 = nint;
   
   ndm = iap->ndm;
@@ -2006,16 +1712,12 @@ icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* icpd_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
 
-  /* System generated locals */
   integer ups_dim1, udotps_dim1;
 
-  /* Local variables */
   integer ndim;
   integer nfpr, i, j, k;
 
@@ -2027,9 +1729,6 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Generates starting data for the 2-parameter continuation of */
   /* period-doubling bifurcations on a branch of periodic solutions. */
 
-  /* Local */
-
-  /* Parameter adjustments */
   udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
 
@@ -2039,22 +1738,24 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   xpp::TokenReader tr;
   xpp::AutoSolutionHeader header;
-  if (!read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs)) return 1;
+  read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs);
 
-  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
-                                    0, ndm, ups, tm, false, 0, {})) return 1;
-  if (!tr.read(icprs[0])) return 1;
-  if (!tr.read(icprs[1])) return 1;
-  if (!tr.read(rldot[0])) return 1;
-  if (!tr.read(rldot[1])) return 1;
+  auto_restart_read(iap, xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, ups, tm, false, 0, {}),
+                    "the solution rows");
+  auto_restart_read(iap, tr.read(icprs[0]), "the free parameter indices");
+  auto_restart_read(iap, tr.read(icprs[1]), "the free parameter indices");
+  auto_restart_read(iap, tr.read(rldot[0]), "the parameter derivatives");
+  auto_restart_read(iap, tr.read(rldot[1]), "the parameter derivatives");
 
   /* Read U-dot (derivative with respect to arclength). */
 
-  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
-                                    0, ndm, udotps, nullptr, false, 0, {})) return 1;
+  auto_restart_read(iap, xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, udotps, nullptr, false, 0, {}),
+                    "the arclength derivatives");
   /* Read the parameter values. */
 
-  if (!xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par)) return 1;
+  auto_restart_read(iap, xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
 
   /* Complement starting data */
   par[xpp::auto_unknown::doubling_norm] = 0.;
@@ -2083,39 +1784,27 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   return 0;
 } /* stpnpd_ */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*       Subroutines for the Continuation of Torus Bifurcations */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, fftr);
 } /* fntr_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fftr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1;
-
-    /* Local variables */
 
   integer i, j;
   doublereal period;
   integer ndm2;
 
-
-  
-
-
-  /* Parameter adjustments */
   dfdu_dim1 = ndm;
     
   period = par[xpp::auto_unknown::period];
@@ -2137,30 +1826,17 @@ fftr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fftr_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 bctr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
-  /* System generated locals */
   integer dbc_dim1;
 
-    
-
-
-    /* Local variables */
   integer jtmp, i, j;
   doublereal theta, cs;
   integer nn;
   doublereal ss;
   integer ndm, ndm2;
 
-
-  
-
-
-
-  /* Parameter adjustments */
   dbc_dim1 = nbc;
   
   ndm = iap->ndm;
@@ -2214,23 +1890,13 @@ bctr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bctr_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
-  /* System generated locals */
   integer dint_dim1;
 
-    /* Local variables */
   integer jtmp, i, j, nn, ndm, ndm2;
 
-
-  
-
-
-
-  /* Parameter adjustments */
   dint_dim1 = nint;
   
   ndm = iap->ndm;
@@ -2274,16 +1940,12 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* ictr_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
 
-  /* System generated locals */
   integer ups_dim1, udotps_dim1;
 
-  /* Local variables */
   integer ndim;
   integer nfpr, i;
 
@@ -2294,9 +1956,6 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Generates starting data for the 2-parameter continuation of torus */
   /* bifurcations. */
 
-  /* Local */
-
-  /* Parameter adjustments */
   udotps_dim1 = *ndxloc;
   ups_dim1 = *ndxloc;
     
@@ -2306,32 +1965,33 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   xpp::TokenReader tr;
   xpp::AutoSolutionHeader header;
-  if (!read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs)) return 1;
+  read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs);
 
-  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+  auto_restart_read(iap, xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
                                     0, ndm, ups, tm, false, 0, [&](integer j, integer i, doublereal time) {
         const integer k1 = i * ndim + ndm;
         for (integer k = k1; k < k1 + ndm; ++k) {
           ARRAY2D(ups, j, k) = xpp::math::sin(time) * torus_initial_amplitude;
           ARRAY2D(ups, j, (k + ndm)) = xpp::math::cos(time) * torus_initial_amplitude;
         }
-      })) return 1;
+      }), "the solution rows");
   for (i = 0; i < ndm; ++i) {
     ARRAY2D(ups, *ntsr, (ndm + i)) = 0.;
     ARRAY2D(ups, *ntsr, ((ndm * 2) + i)) = 0.;
   }
 
-  if (!tr.read(icprs[0])) return 1;
-  if (!tr.read(icprs[1])) return 1;
-  if (!tr.read(rldot[0])) return 1;
-  if (!tr.read(rldot[1])) return 1;
+  auto_restart_read(iap, tr.read(icprs[0]), "the free parameter indices");
+  auto_restart_read(iap, tr.read(icprs[1]), "the free parameter indices");
+  auto_restart_read(iap, tr.read(rldot[0]), "the parameter derivatives");
+  auto_restart_read(iap, tr.read(rldot[1]), "the parameter derivatives");
   rldot[2] = 0.;
   rldot[3] = 0.;
 
   /* Read the direction vector and initialize the starting direction. */
 
-  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
-                                    0, ndm, udotps, nullptr, false, 0, {})) return 1;
+  auto_restart_read(iap, xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, udotps, nullptr, false, 0, {}),
+                    "the arclength derivatives");
   // Preserve the original interior direction columns; only the endpoint
   // initialized the added torus columns (the old interior loop was empty).
   for (i = 0; i < ndm; ++i) {
@@ -2341,7 +2001,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read the parameter values. */
 
-  if (!xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par)) return 1;
+  auto_restart_read(iap, xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
 
   par[xpp::auto_unknown::torus_norm] = 0.;
 
@@ -2354,21 +2014,16 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   return 0;
 } /* stpntr_ */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*        Subroutines for Optimization of Periodic Solutions */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
-
-  /* Local variables */
 
   integer nfpr;
   integer i;
@@ -2379,9 +2034,6 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generates the equations for periodic optimization problems. */
 
-/* Local */
-
-    /* Parameter adjustments */
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
     
@@ -2421,25 +2073,17 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* fnpo_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const doublereal *upold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
-
-    /* Local variables */
 
   integer i, j;
   doublereal gamma, rkappa, period, fop;
   std::vector<doublereal> dfp(iap->lib->parameter_count);
 
-
   std::vector<doublereal> dfu(iap->ndim);
-  /* Local */
 
-    /* Parameter adjustments */
   dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
     
@@ -2471,26 +2115,16 @@ ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffpo_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 bcpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
-  /* System generated locals */
   integer dbc_dim1;
 
-    /* Local variables */
   integer nfpr, i, j, nbc0;
-
-
-  
-
 
   /* Generates the boundary conditions for periodic optimization problems. 
 */
 
-
-    /* Parameter adjustments */
   dbc_dim1 = nbc;
   
   nfpr = iap->nfpr;
@@ -2526,15 +2160,10 @@ bcpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bcpo_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
-  /* System generated locals */
   integer dint_dim1;
-
-  /* Local variables */
 
   integer nfpr;
 
@@ -2546,12 +2175,8 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   std::vector<doublereal> f2(iap->nint);
   std::vector<doublereal> dnt(xpp::size_product(iap->nint, xpp::size_sum(iap->ndim, iap->lib->parameter_count)));
 
-
 /* Generates integral conditions for periodic optimization problems. */
 
-/* Local */
-
-    /* Parameter adjustments */
   dint_dim1 = nint;
   
   ndm = iap->ndm;
@@ -2582,15 +2207,10 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* icpo_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *fi, doublereal *dint, integer ndmt, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdp_dim1;
-
-    /* Local variables */
 
   integer nfpr, indx;
   integer i, j, l;
@@ -2600,12 +2220,9 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> dfu(iap->ndim);
-  /* Local */
 
-  /* Parameter adjustments */
   dfdp_dim1 = ndmt;
 
-    
   ndm = iap->ndm;
   nfpr = iap->nfpr;
 
@@ -2650,16 +2267,12 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* fipo_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
 
-  /* System generated locals */
   integer ups_dim1;
 
-  /* Local variables */
   integer ndim;
   integer nfpr;
   doublereal dump;
@@ -2682,9 +2295,6 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Generates starting data for optimization of periodic solutions. */
 
-  /* Local */
-
-  /* Parameter adjustments */
   ups_dim1 = *ndxloc;
   temporary_storage_dim1 = *ndxloc;
   
@@ -2694,22 +2304,24 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   xpp::TokenReader tr;
   xpp::AutoSolutionHeader header;
-  if (!read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs)) goto read_failed;
+  read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs);
 
-  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
-                                    0, ndm, ups, tm, false, 0, {})) goto read_failed;
+  auto_restart_read(iap, xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, ups, tm, false, 0, {}),
+                    "the solution rows");
   for (j = 0; j < *ntsr; ++j) dtm[j] = tm[j + 1] - tm[j];
 
-  if (!tr.read(icprs[0])) goto read_failed;
-  if (!tr.read(icprs[1])) goto read_failed;
-  if (!tr.read(rld1)) goto read_failed;
-  if (!tr.read(rld2)) goto read_failed;
+  auto_restart_read(iap, tr.read(icprs[0]), "the free parameter indices");
+  auto_restart_read(iap, tr.read(icprs[1]), "the free parameter indices");
+  auto_restart_read(iap, tr.read(rld1), "the parameter derivatives");
+  auto_restart_read(iap, tr.read(rld2), "the parameter derivatives");
 
   /* Read U-dot (derivative with respect to arclength). */
-  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
-                                    0, ndm, udotps, nullptr, false, 0, {})) goto read_failed;
+  auto_restart_read(iap, xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, udotps, nullptr, false, 0, {}),
+                    "the arclength derivatives");
   /* Read the parameter values. */
-  if (!xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par)) goto read_failed;
+  auto_restart_read(iap, xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
 
   for (j = 0; j < *ntsr; ++j) {
     for (i = 0; i < *ncolrs; ++i) {
@@ -2755,9 +2367,6 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   *nodir = 1;
 
   return 0;
-
- read_failed:
-  return 1;
 } /* stpnpo_ */
 
 /* ----------------------------------------------------------------------- */
@@ -2766,30 +2375,19 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, ffbl);
 } /* fnbl_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 ffbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
-
-    /* Local variables */
 
   integer nfpr, nfpx, i, j;
 
-
-  
-
-
-  /* Parameter adjustments */
   dfdp_dim1 = ndm;
   dfdu_dim1 = ndm;
     
@@ -2814,15 +2412,10 @@ ffbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffbl_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
-  /* System generated locals */
   integer dbc_dim1;
-
-  /* Local variables */
 
   integer nfpr;
 
@@ -2835,16 +2428,9 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   std::vector<doublereal> uu2(iap->ndim);
   std::vector<doublereal> dfu(xpp::size_product(iap->nbc, xpp::size_sum(xpp::size_product(2, iap->ndim), iap->lib->parameter_count)));
 		     
-
-
-
-
 /* Generates the boundary conditions for the 2-parameter continuation */
 /* of folds (BVP). */
 
-/* Local */
-
-    /* Parameter adjustments */
   dbc_dim1 = nbc;
   
   nbc0 = iap->nbc0;
@@ -2880,23 +2466,13 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bcbl_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fbbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, integer nbc0, const doublereal *u0, const doublereal *u1, doublereal *f, doublereal *dbc)
 {
-  /* System generated locals */
   integer dbc_dim1;
-
-    /* Local variables */
 
   integer nfpr, nfpx, i, j, ndm;
 
-
-  
-
-
-  /* Parameter adjustments */
   dbc_dim1 = nbc0;
   
   ndm = iap->ndm;
@@ -2921,31 +2497,19 @@ fbbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* fbbl_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
   return xpp::auto_jacobian::integral(iap, rap, ndim, par, icp, nint, u, uold, udot, upold, f, ijac, dint, fibl);
 } /* icbl_ */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fibl(const iap_type *iap, const rap_type *rap, const integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, doublereal *dint)
 {
-  /* System generated locals */
   integer dint_dim1;
-
-  /* Local variables */
 
   integer nfpr, nfpx=0, i, j, ndm;
 
-
-  
-
-
-  /* Parameter adjustments */
   dint_dim1 = nnt0;
   
   ndm = iap->ndm;
@@ -2982,15 +2546,10 @@ fibl(const iap_type *iap, const rap_type *rap, const integer ndim, doublereal *p
   return 0;
 } /* fibl_ */
 
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
 
-  /* System generated locals */
-
-  /* Local variables */
   integer ndim;
   integer nfpr, nfpx, nfpr0, i;
 
@@ -3001,33 +2560,31 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Generates starting data for the 2-parameter continuation of folds. */
   /* (BVP). */
 
-  /* Local */
-
-  /* Parameter adjustments */
-
   ndim = iap->ndim;
   ndm = iap->ndm;
   nfpr = iap->nfpr;
 
   xpp::TokenReader tr;
   xpp::AutoSolutionHeader header;
-  if (!read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs)) return 1;
+  read_auto_restart_header(iap, rap, tr, header, ntsr, ncolrs);
 
-  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
-                                    0, ndm, ups, tm, false, 0, {})) return 1;
+  auto_restart_read(iap, xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    0, ndm, ups, tm, false, 0, {}),
+                    "the solution rows");
   nfpr0 = nfpr / 2;
-  if (!tr.read(icprs[0])) return 1;
+  auto_restart_read(iap, tr.read(icprs[0]), "the free parameter indices");
   for (i = 0; i < nfpr0; ++i) {
-    if (!tr.read(rldot[i])) return 1;
+    auto_restart_read(iap, tr.read(rldot[i]), "the parameter derivatives");
   }
 
   /* Read U-dot (Derivative with respect to arclength). */
 
-  if (!xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
-                                    ndm, ndim - ndm, ups, nullptr, false, 0, {})) return 1;
+  auto_restart_read(iap, xpp::read_auto_solution_rows(tr, ndim, *ntsr, *ncolrs, *ndxloc,
+                                    ndm, ndim - ndm, ups, nullptr, false, 0, {}),
+                    "the arclength derivatives");
   /* Read the parameter values. */
 
-  if (!xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par)) return 1;
+  auto_restart_read(iap, xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
 
   nfpx = nfpr / 2 - 1;
   if (nfpx > 0) {
@@ -3047,7 +2604,6 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   return 0;
 } /* stpnbl_ */
 
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /*          Routines for Interface with User Supplied Routines */
@@ -3055,21 +2611,16 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
-
-  /* Local variables */
 
   integer nfpr;
   doublereal rtmp;
   integer i;
   doublereal ep;
   integer jac, ijc;
-
 
   auto &u1zz = iap->lib->scratch.funi_u1;
   auto &u2zz = iap->lib->scratch.funi_u2;
@@ -3078,9 +2629,6 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Interface subroutine to user supplied FUNC. */
 
-/* Local */
-
-    /* Parameter adjustments */
   dfdp_dim1 = ndim;
   dfdu_dim1 = ndim;
     
@@ -3089,15 +2637,11 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
 /* Generate the function. */
 
-  if (jac == 0) {
-    ijc = 0;
-  } else {
-    ijc = ijac;
-  }
+  ijc = jac == auto_jac_differences ? 0 : ijac;
   func(*iap->lib->session, ndim, u, icp, nfpr, par, ijc, f, dfdu,
        dfdp, iap->lib);
 
-  if (jac == 1 || ijac == 0) {
+  if (jac == auto_jac_supplied || ijac == 0) {
     return 0;
   }
 
@@ -3129,15 +2673,10 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* funi */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
-  /* System generated locals */
   integer dbc_dim1;
-
-  /* Local variables */
 
   integer nfpr;
   doublereal rtmp;
@@ -3149,14 +2688,8 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   std::vector<doublereal> f1zz(iap->nbc);
   std::vector<doublereal> f2zz(iap->nbc);
 
-  
-
-
   /* Interface subroutine to the user supplied BCND. */
 
-/* Local */
-
-    /* Parameter adjustments */
   dbc_dim1 = nbc;
 
   nfpr = iap->nfpr;
@@ -3199,31 +2732,21 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bcni */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
-  /* System generated locals */
   integer dint_dim1;
-
-  /* Local variables */
 
   integer nfpr;
   doublereal rtmp;
   integer i;
   doublereal ep;
 
-
   std::vector<doublereal> f1zz(iap->nint);
   std::vector<doublereal> f2zz(iap->nint);
   std::vector<doublereal> u1zz(iap->ndim);
   std::vector<doublereal> u2zz(iap->ndim);
   /* Interface subroutine to user supplied ICND. */
-
-/* Local */
-
-    /* Parameter adjustments */
 
   dint_dim1 = nint;
 
@@ -3263,13 +2786,10 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* icni */
 
-
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
 
-  /* Local variables */
   integer nfpr;
 
   doublereal rtmp;
@@ -3281,10 +2801,6 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Interface subroutine to user supplied FOPT. */
 
-  /* Local */
-
-  /* Parameter adjustments */
-    
   nfpr = iap->nfpr;
 
   /* Generate the objective function. */

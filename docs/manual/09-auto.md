@@ -51,9 +51,10 @@ back). It has:
   core's last message and the connection state when it is not simply
   connected, as the main window's status bar does;
 - an **axis dialog** (`ui/AutoAxes.tsx`), opened by clicking an axis name
-  next to the diagram, for Axes' choices (Hi, Norm, Hi-lo, Period, Two
-  par, Frequency, Average and their ranges) below — usable during a run,
-  applied when idle;
+  next to the diagram, for Axes' projections (Maximum, Maximum and
+  minimum, Norm, Average, Period, Frequency, Two parameter, the labels
+  of the projections' names) and their ranges below — usable during a
+  run, applied when idle;
 - any number of **views** of the one diagram (see "Views of the diagram"
   below), side by side;
 - once a run ends, the status strip says **why it stopped**, in words:
@@ -419,8 +420,23 @@ next to the end point's label when you hover it, and as `autoinfo`'s
 | no convergence with a fixed step size (IADS 0) | the solver failed and Adapt step every (IADS) is 0, so the step is not reduced (MX) | IADS 1 |
 | no convergence switching branches, ... | the same while starting a bifurcating branch at a branch point | as above |
 
-Recording the reason changes nothing AUTO computes: the points, labels and
-saved diagrams are the same as before.
+A no convergence's words also name the Newton settings that gave up
+(ITNW, EPSL, EPSU) and, when the last linear system was singular, its
+smallest pivot. Recording the reason changes nothing AUTO computes: the
+points, labels and saved diagrams are the same as before.
+
+A run that cannot start says so as an error, and AUTO stops: a start AUTO
+has no continuation for (it names the problem, ISW and the start's type),
+a restart label that is not in the restart data, or restart data that end
+before what they should hold (the label, the file and the part).
+
+What a run loses on the way is a warning in Output (and `autoinfo`'s
+`notes` for a client), the branch going on: a special point AUTO gave up
+locating ("Br 1 Pt 12: a fold (LP) between points 12 and 13 was not
+located (not in ITMX=8 iterations); it is missing from the diagram":
+raise ITMX, or lower DSMAX), and Floquet multipliers that turn inaccurate
+(period doubling and torus detection are off until they are accurate
+again: raise NTST or NCOL).
 
 ## Grabbing
 

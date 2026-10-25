@@ -47,6 +47,13 @@ namespace xpp::json {
    at the end of the command. */
 
 namespace {
+/* the first size of a client's copy of the diagram, doubled as it fills */
+constexpr std::size_t diagram_copy_initial = 1024;
+/* an "add" event's size, in bytes, past which the next points go in a new
+   event: lines the page parses in one piece */
+constexpr std::size_t diagram_event_bytes = 60000;
+/* the most points in one run of an "add" event, so a long branch splits */
+constexpr int diagram_run_points = 2000;
 
 /* view v's list the client holds, made when the view is new */
 ClientDiagramView &view_data(int v)
@@ -100,7 +107,7 @@ int diag_same(ClientDiagramView &view, const XppDiagPoint *a, const XppDiagPoint
 void diag_end_replay(ClientDiagramView &d, int k)
 {
     d.branch_matches.clear();
-    d.replay = 0;
+    d.replay = false;
     d.n = k;
     if (k < d.dirty) d.dirty = k;
 }
@@ -123,8 +130,8 @@ void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
         d.ax.hgt = s.auto_state.bifur.hgt;
         d.ax.plot = a.plot;
         get_auto_str(s, a, d.ax.xlabel, d.ax.ylabel);
-        d.axes = 1;
-        d.replay = 1;
+        d.axes = true;
+        d.replay = true;
         d.match = 0;
         return;
     }
@@ -140,7 +147,7 @@ void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
     }
     if (static_cast<size_t>(d.n) == d.dg.size()) {
         try {
-            d.dg.resize(d.dg.empty() ? 1024 : 2 * d.dg.size());
+            d.dg.resize(d.dg.empty() ? diagram_copy_initial : 2 * d.dg.size());
             d.branches.resize(d.dg.size());
         } catch (...) {
             xpp::out_of_memory("keeping the AUTO diagram");
@@ -179,8 +186,8 @@ void diag_axes(Buf *b, const ClientDiagramView &d)
     buf_num(b, d.ax.ymin, 17);
     BUF_LIT(b, ",\"ymax\":");
     buf_num(b, d.ax.ymax, 17);
-    buf_format(b, ",\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"plot\":{:d},\"xlabel\":", d.ax.x0, d.ax.y0,
-               d.ax.wid, d.ax.hgt, d.ax.plot);
+    buf_format(b, ",\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"plot\":\"{}\",\"xlabel\":", d.ax.x0, d.ax.y0,
+               d.ax.wid, d.ax.hgt, auto_projection_name(d.ax.plot));
     buf_str(b, d.ax.xlabel.c_str());
     BUF_LIT(b, ",\"ylabel\":");
     buf_str(b, d.ax.ylabel.c_str());
@@ -285,22 +292,22 @@ void diag_flush_view(const xpp::Session &s, int v, ClientDiagramView &d, int fin
         out_line(b.s.data(), b.s.size());
         b.s.clear();
         d.client = d.dirty;
-        d.axes = 0;
+        d.axes = false;
     } else if (d.axes) {
         diag_head(&b, "axes", v);
         diag_axes(&b, d);
         BUF_LIT(&b, "}");
         out_line(b.s.data(), b.s.size());
         b.s.clear();
-        d.axes = 0;
+        d.axes = false;
     }
-    /* the points in events of some 60 kB */
+    /* the points, in events of some diagram_event_bytes */
     while (d.client < d.n) {
         int i = d.client, j;
         diag_head(&b, "add", v);
         buf_format(&b, ",\"from\":{:d},\"runs\":[", d.client);
-        while (i < d.n && b.s.size() < 60000) {
-            for (j = i; j + 1 < d.n && j - i < 2000 && diag_joins(&d.dg[static_cast<std::size_t>(j)], &d.dg[static_cast<std::size_t>(j + 1)]); j++) {
+        while (i < d.n && b.s.size() < diagram_event_bytes) {
+            for (j = i; j + 1 < d.n && j - i < diagram_run_points && diag_joins(&d.dg[static_cast<std::size_t>(j)], &d.dg[static_cast<std::size_t>(j + 1)]); j++) {
             }
             if (i > d.client) BUF_LIT(&b, ",");
             diag_run(s, &b, d.dg, i, j);
@@ -594,13 +601,12 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
     if (axes && *axes == '{') {
         static const char *const range[4] = {"xmin", "xmax", "ymin", "ymax"};
         double z;
-        if ((v = js_find(axes, "plot")) != NULL) {
-            if (!js_number(v, &z) || z < INT_MIN || z > INT_MAX || z != std::floor(z)) {
-                why = "the plot type must be a whole number";
+        if (js_find(axes, "plot") != NULL) {
+            std::string word;
+            if (!get_string(axes, "plot", word) || !(s.plot = auto_projection_from_name(word))) {
+                why = auto_projection_unknown(word);
                 return 0;
             }
-            s.has_plot = 1;
-            s.plot = static_cast<int>(z);
         }
         get_string(axes, "var", s.var);
         get_string(axes, "par1", s.par1);

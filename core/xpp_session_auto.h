@@ -54,7 +54,7 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file);
    ranges xmin, xmax, ymin, ymax; a name there is none of is empty) and the
    zoom the page shows of them */
 struct SavedView {
-    int plot = 0;
+    AutoProjection plot = AutoProjection::maximum;
     std::string var, par1, par2;
     std::array<double, 4> range{};
     xpp::Zoom zoom;

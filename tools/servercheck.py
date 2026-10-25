@@ -316,7 +316,40 @@ def check_stops():
                   % (case['id'], card), False, 'all parts hold')
 
 
-STOPS_SECTIONS = {'stops': check_stops}
+def auto_lost_points(itmx):
+    """W491: a steady-state run of examples/ode/lecar.odex (tests/auto/ode_lecar.json's first run) with
+    ITMX itmx: the last autoinfo's notes and stop"""
+    d = autocompare.read_description(autocompare.BASE / 'ode_lecar.json')
+    s = Server(args.server, autocompare.ROOT / d['model'])
+    try:
+        autocompare.completed(s)
+        autocompare.completed(s, dict(cmd='data', events=['autoinfo']))
+        diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
+        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'itmx': itmx}))
+        r = d['runs'][0]
+        autocompare.restore_start(s, r, [], {})
+        infos = [e for e in autocompare.execute_run(s, r, diagram, {}) if e.get('ev') == 'autoinfo']
+        return (infos[-1].get('notes'), infos[-1].get('stop')) if infos else (None, None)
+    finally:
+        s.close()
+
+
+def check_auto_stops():
+    """W480's AUTO cases (docs/studies/w480-stops.md A4): a special point AUTO gives up locating is a note
+    naming it, its points and ITMX; the branch goes on. A failed set-up or a short restart read (A1, A3)
+    cannot be reached through the protocol (the forms offer no impossible start, and a restart file is
+    checked when it is loaded): tests/test_auto_restart.cpp checks their errors."""
+    notes, stop = auto_lost_points(1)
+    check('stops AUTO special point: ITMX 1 gives up the folds, each a note naming it, its points and ITMX',
+          isinstance(notes, list) and len(notes) > 0
+          and all(re.search(r'^Br 1 Pt \d+: a fold \(LP\) between points \d+ and \d+ was not located \(not in ITMX=1 iterations\)', n)
+                  for n in notes)
+          and isinstance(stop, dict) and stop.get('why') == 'parmax', '%s %s' % (notes, stop))
+    notes, _ = auto_lost_points(8)
+    check('stops AUTO special point: the default ITMX locates them, no note', notes == [], str(notes))
+
+
+STOPS_SECTIONS = {'stops': lambda: (check_stops(), check_auto_stops())}
 if args.only:
     for name in args.only.split(','):
         if name not in STOPS_SECTIONS:
@@ -1453,7 +1486,7 @@ if ask:
     resets = [i for i, e in enumerate(dg) if e['op'] == 'reset']
     added = sum(len(r['x']) for e in dg[resets[-1]:] if e['op'] == 'add' for r in e['runs']) if resets else 0
     check('Axes/Norm, OK: the diagram comes again in norms (reset, then every point) without a reDraw',
-          resets and dg[resets[-1]]['plot'] == 1 and dg[resets[-1]]['keep'] == 0 and added > 0,
+          resets and dg[resets[-1]]['plot'] == 'norm' and dg[resets[-1]]['keep'] == 0 and added > 0,
           str([(e['op'], e.get('keep'), e.get('from'), added) for e in dg])[:300])
     evs, ask = auto_dialog('usr', lambda ask: {'ok': 0})
     titles = [e.get('name') for e in evs if e.get('ev') == 'ask']
@@ -3823,7 +3856,7 @@ def check_autosettings():
         evs, all_axes, errs = auto_set(axes={'par1':'gk'})
         check('W339: Axes accepts a parameter beyond the old eight', not errs and all_axes and all_axes['axes']['par1']=='gk')
         auto_set(axes={'par1':'iapp'})
-        plot_key = {0: 'h', 1: 'n', 2: 'i', 3: 'p', 4: 't', 10: 'r', 11: 'a'}[st['axes']['plot']]
+        plot_key = {'maximum': 'h', 'norm': 'n', 'maximum_and_minimum': 'i', 'period': 'p', 'two_parameter': 't', 'frequency': 'r', 'average': 'a'}[st['axes']['plot']]
         menu_ask = ask_of(cmd='key', win='auto', key='a')
         snda(cmd='answer', id=menu_ask['id'], key=plot_key)
         ask = cola(lambda e: e.get('ev') == 'ask')[1]
@@ -3849,11 +3882,11 @@ def check_autosettings():
 
         # the set: every part, then read back through the forms
         p0, p1 = 'iapp', 'gca'
-        evs, st3, errs = auto_set(numerics={'nmx': 12, 'ds': -0.01}, axes={'plot': 1, 'var': 'W', 'par1': p1},
+        evs, st3, errs = auto_set(numerics={'nmx': 12, 'ds': -0.01}, axes={'plot': 'norm', 'var': 'W', 'par1': p1},
                                   marks=[[p0, 0.25], ['T', 30]])
         check('auto set: numerics, pars, axes and marks set, the event says so', not errs and st3
               and st3['numerics']['nmx'] == 12 and st3['numerics']['ds'] == -0.01
-              and st3['axes']['plot'] == 1 and st3['axes']['var'] == 'W' and st3['axes']['par1'] == p1
+              and st3['axes']['plot'] == 'norm' and st3['axes']['var'] == 'W' and st3['axes']['par1'] == p1
               and st3['marks'] == [[p0, 0.25], ['T', 30]], '%s %s' % (errs, st3))
         ask = ask_of(cmd='key', win='auto', key='n')
         cancel(ask)
@@ -3896,7 +3929,7 @@ def check_autosettings():
                          ({'numerics': {'dsmin': 0.5, 'dsmax': 1, 'ds': 0.1}}, 'Ds must be from Dsmin to Dsmax'),
                          ({'numerics': {'nmx': 'many'}}, 'Nmax'), ({'pars': ['nosuch']}, 'no pars field'),
                          ({'axes': {'par1': 'nosuch'}}, 'nosuch'),
-                         ({'axes': {'var': 'nosuch'}}, 'nosuch'), ({'axes': {'plot': 7}}, 'plot'),
+                         ({'axes': {'var': 'nosuch'}}, 'nosuch'), ({'axes': {'plot': 'sideways'}}, 'sideways'), ({'axes': {'plot': 7}}, 'projection'),
                          ({'axes': {'xmin': 1, 'xmax': 0}}, 'Xmin'), ({'marks': [['W', 1]]}, 'W')):
             evs, st4, errs = auto_set(**bad)
             check('auto set %s is refused with an error naming %s, nothing changes' % (json.dumps(bad), why),
@@ -3916,7 +3949,7 @@ def check_autosettings():
               st5a is None and st5 and st5['numerics']['nmx'] == 77, str(st5)[:200])
 
         # a set changes the next run: Nmax 12 against the default on the other server
-        evs, st6, errs = auto_set(numerics={'nmx': 12}, axes={'plot': 2, 'var': 'V', 'par1': p0}, marks=[])
+        evs, st6, errs = auto_set(numerics={'nmx': 12}, axes={'plot': 'maximum_and_minimum', 'var': 'V', 'par1': p0}, marks=[])
         evs_a = lecar_to_auto(snda, cola)
         evs_b = lecar_to_auto(sndb, colb)
         na, nb = len(rebuild_diagram(evs_a, [])), len(rebuild_diagram(evs_b, []))
@@ -3986,8 +4019,8 @@ def check_auto_stop():
             ({**wide, 'rl0': -0.3, 'ds': -0.01}, 'parmin', 'parameter a reached Par Min (-0.3)', False),
             ({**wide, 'a1': 0.3}, 'normmax', 'the norm reached Norm Max (0.3)', False),
             ({**wide, 'nmx': 5}, 'npts', 'the branch reached Max points (NMX 5)', False),
-            ({**wide, 'rl1': 10}, 'noconv-min', 'no convergence even at the smallest step (Dsmin 0.001)', False),
-            ({**wide, 'rl1': 10, 'iads': 0}, 'noconv-fixed', 'no convergence with a fixed step size (IADS 0)', False),
+            ({**wide, 'rl1': 10}, 'noconv-min', 'no convergence even at the smallest step (Dsmin 0.001; ITNW 7, EPSL 0.0001, EPSU 0.0001)', False),
+            ({**wide, 'rl1': 10, 'iads': 0}, 'noconv-fixed', 'no convergence with a fixed step size (IADS 0; ITNW 7, EPSL 0.0001, EPSU 0.0001)', False),
             ({**wide, 'nmx': 1000000, 'ds': 1e-7, 'dsmin': 1e-8, 'dsmax': 1e-7}, 'user', 'by the user (Stop)', True)):
         stop, n = auto_stop_run(numerics, abort)
         ok = isinstance(stop, dict) and stop.get('why') == why and stop.get('text') == text and stop.get('br') == 1
@@ -5081,7 +5114,7 @@ def check_auto_jacobian_failure():
             col(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
             col(is_idle)
             snd(cmd='auto', op='set', numerics={'ds': -0.1, 'dsmax': 0.1, 'rl0': -0.5, 'rl1': 2, 'nmx': 100},
-                axes={'plot': 1, 'var': 'x', 'par1': 'a'})
+                axes={'plot': 'norm', 'var': 'x', 'par1': 'a'})
             col(is_idle)
             snd(cmd='key', win='auto', key='r')
             _, ask = col(is_ask)
@@ -6398,7 +6431,7 @@ def check_session_file():
         answered(snd, col, (), cmd='auto', op='display', x=[0.05, 0.3], y=None)
         # W50: a second view of the diagram, the norm, with a zoom of its own; the first active again
         answered(snd, col, (), cmd='auto', op='view', new=1)
-        answered(snd, col, (), cmd='auto', op='set', axes={'view': 1, 'plot': 1, 'fit': True})
+        answered(snd, col, (), cmd='auto', op='set', axes={'view': 1, 'plot': 'norm', 'fit': True})
         answered(snd, col, (), cmd='auto', op='display', view=1, x=None, y=[0, 0.5])
         answered(snd, col, (), cmd='auto', op='view', active=0)
         key(snd, col, 't', 't', {'xd': 10, 'yd': 0.1}, {'value': 'here', 'size': 2, 'style': 2, 'color': 4})
@@ -6442,7 +6475,7 @@ def check_session_file():
                 check('session save: model/lecar.odex is the model, byte for byte', z.read('model/lecar.odex') == f.read())
             vt = z.read('auto/views.txt').decode().splitlines()
             check('session save: auto/views.txt holds both views, the first active',
-                  len(vt) == 3 and vt[0].startswith('view 2 V iapp ') and vt[1].startswith('view 1 V iapp ')
+                  len(vt) == 3 and vt[0].startswith('view maximum_and_minimum V iapp ') and vt[1].startswith('view norm V iapp ')
                   and vt[1].endswith(' - 0:0.5') and vt[2] == 'active 0', str(vt))
             shutil.copy(snap, keep)
         answered(snd, col, (), cmd='session', op='save', name='s2.snapx', data=False)
@@ -6750,10 +6783,10 @@ def check_auto_views():
         check('views: the new view is the active one, with a zoom of its own',
               av(evs) and av(evs)[-1]['active'] == 1 and len(av(evs)[-1]['views']) == 2, str(av(evs)))
 
-        evs = after(cmd='auto', op='set', axes={'view': 1, 'plot': 1, 'fit': True})
+        evs = after(cmd='auto', op='set', axes={'view': 1, 'plot': 'norm', 'fit': True})
         a0, a1 = last_axes(0), last_axes(1)
         check("views: a view's axes are its own: view 1 plots the norm, view 0 still hI-lo",
-              a1 and a1['plot'] == 1 and a1['ylabel'] == 'Norm' and a0 and a0['plot'] == 2
+              a1 and a1['plot'] == 'norm' and a1['ylabel'] == 'Norm' and a0 and a0['plot'] == 'maximum_and_minimum'
               and not [e for e in dg(evs, 0) if e['op'] != 'axes'], '%s | %s' % (a0, a1))
         v1 = rebuild_diagram(allev, [], 1)
         check('views: every view holds the same points in the same order (branch, point, kind), at its own axes',
@@ -6762,7 +6795,7 @@ def check_auto_views():
         evs = menu('a', {'key': 'v'})
         a2 = last_axes(2)
         check("views: the Axes menu's new view makes a third, the active one, with the active one's axes (the norm)",
-              views_n(evs) == [3] and a2 and a2['plot'] == 1 and av(evs) and av(evs)[-1]['active'] == 2
+              views_n(evs) == [3] and a2 and a2['plot'] == 'norm' and av(evs) and av(evs)[-1]['active'] == 2
               and rebuild_diagram(allev, [], 2) == v1, '%s %s' % (views_n(evs), a2))
 
         evs = after(cmd='auto', op='display', view=0, x=[0.1, 0.2], y=None)
@@ -9199,6 +9232,7 @@ def check_recursive_user_functions():
 
 check_recursive_user_functions()
 check_stops()
+check_auto_stops()
 
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

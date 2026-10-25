@@ -107,9 +107,6 @@ std::string pair_message(const NumPair &p)
     return xpp::format("{} must be {} {}", num_fields[p.lo].label, p.strict ? "below" : "at most", num_fields[p.hi].label);
 }
 
-/* Auto.plot's values: hi, norm, hi and lo, period, two parameters, frequency, average */
-bool plot_ok(int p) { return (p >= 0 && p <= 4) || p == 10 || p == 11; }
-
 /* ---- the settings now ---- */
 
 void read_num(const xpp::Session &s, double v[AUTO_NUM_N])
@@ -119,7 +116,7 @@ void read_num(const xpp::Session &s, double v[AUTO_NUM_N])
         static_cast<double>(s.auto_state.bifur.ncol), s.auto_state.bifur.ds, s.auto_state.bifur.dsmin, s.auto_state.bifur.dsmax, s.auto_state.bifur.rl0, s.auto_state.bifur.rl1, s.auto_state.bifur.a0, s.auto_state.bifur.a1,
         s.auto_state.bifur.epsl, s.auto_state.bifur.epsu, s.auto_state.bifur.epss, static_cast<double>(s.auto_state.advanced.iad), static_cast<double>(s.auto_state.advanced.mxbf),
         static_cast<double>(s.auto_state.advanced.iid), static_cast<double>(s.auto_state.advanced.itmx), static_cast<double>(s.auto_state.advanced.itnw),
-        static_cast<double>(s.auto_state.advanced.nwtn), static_cast<double>(s.auto_state.advanced.iads), static_cast<double>(s.auto_state.suppress_bp),
+        static_cast<double>(s.auto_state.advanced.nwtn), static_cast<double>(s.auto_state.advanced.iads), s.auto_state.suppress_bp ? 1.0 : 0.0,
     };
     std::memcpy(v, now, sizeof now);
 }
@@ -148,7 +145,7 @@ void write_num(xpp::Session &s, const double v[AUTO_NUM_N])
     s.auto_state.advanced.itnw = i(AUTO_NUM_ITNW);
     s.auto_state.advanced.nwtn = i(AUTO_NUM_NWTN);
     s.auto_state.advanced.iads = i(AUTO_NUM_IADS);
-    s.auto_state.suppress_bp = i(AUTO_NUM_SUPPBP);
+    s.auto_state.suppress_bp = i(AUTO_NUM_SUPPBP) != 0;
 }
 
 /* ---- the event ---- */
@@ -168,7 +165,6 @@ std::string name_or_empty(const char *s) { return s ? std::string(s) : std::stri
 /* view axes a as the `set` command's axes keys */
 void axes_of(const xpp::Session &s, const AUTOAX &a, AutoSettingsSet &set)
 {
-    set.has_plot = 1;
     set.plot = a.plot;
     if (a.var >= 0 && a.var < s.model().node) set.var = s.model().uvar_names[a.var];
     set.par1 = name_or_empty(auto_par_name(s, a.icp1));
@@ -200,7 +196,7 @@ std::string event_text(const xpp::Session &s)
         o += xpp::format("{}\"{}\":", i ? "," : "", num_fields[i].key);
         add_num(o, set.num[i]);
     }
-    o += xpp::format("}},\"axes\":{{\"plot\":{},\"var\":", set.plot);
+    o += xpp::format("}},\"axes\":{{\"plot\":\"{}\",\"var\":", auto_projection_name(*set.plot));
     add_str_or_null(o, set.var);
     o += ",\"par1\":";
     add_str_or_null(o, set.par1);
@@ -279,45 +275,42 @@ bool num_ok(int i, double v, std::string &why)
 /* what a set changes, checked (check), for commit to write */
 struct Checked {
     double num[AUTO_NUM_N];
-    int view = 0, plot = 0, var = 0, icp1 = 0, icp2 = 0;
+    int view = 0, var = 0, icp1 = 0, icp2 = 0;
+    AutoProjection plot = AutoProjection::maximum;
     double range[4];
     std::vector<UserMark> marks;
 };
 
-/* set checked against s, as it will be when views views of the diagram
-   are there (-1: the views s has), into c: false, with why and the key
-   of the value that is wrong ("ntst", "var", "mark2", ...; "" for
-   the whole set) when one is */
-bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked &c, std::string &why, std::string &key)
+/* a value of the set that is wrong: what, and its key ("ntst", "var",
+   "mark2", ...; "" for the whole set) as the Error's field; at the
+   command's place (a file of settings gives its own line instead) */
+Error refused(std::string what, std::string key = {})
 {
-    key.clear();
-    if (!have_settings(s)) {
-        why = "AUTO needs a model with variables";
-        return false;
-    }
+    return Error{"auto set", std::move(what), command_place(), std::move(key)};
+}
+
+/* set checked against s, as it will be when views views of the diagram
+   are there (-1: the views s has) */
+Result<Checked> check(const xpp::Session &s, const AutoSettingsSet *set, int views)
+{
+    Checked c;
+    if (!have_settings(s)) return std::unexpected(refused("AUTO needs a model with variables"));
     /* Numerics: each value given, then the pairs that must be in order */
     double *num = c.num;
     read_num(s, num);
     for (int i = 0; i < AUTO_NUM_N; i++) {
         if (!set->has_num[i]) continue;
-        if (!num_ok(i, set->num[i], why)) {
-            key = num_fields[i].key;
-            return false;
-        }
+        if (std::string why; !num_ok(i, set->num[i], why)) return std::unexpected(refused(why, num_fields[i].key));
         num[i] = set->num[i];
     }
     for (const NumPair &p : num_pairs) {
         if (!set->has_num[p.lo] && !set->has_num[p.hi]) continue;
         if (p.strict ? num[p.lo] < num[p.hi] : num[p.lo] <= num[p.hi]) continue;
-        why = pair_message(p);
-        key = num_fields[p.hi].key;
-        return false;
+        return std::unexpected(refused(pair_message(p), num_fields[p.hi].key));
     }
     if ((set->has_num[AUTO_NUM_DS] || set->has_num[AUTO_NUM_DSMIN] || set->has_num[AUTO_NUM_DSMAX])
         && !(std::fabs(num[AUTO_NUM_DS]) >= num[AUTO_NUM_DSMIN] && std::fabs(num[AUTO_NUM_DS]) <= num[AUTO_NUM_DSMAX])) {
-        why = step_rule;
-        key = num_fields[AUTO_NUM_DS].key;
-        return false;
+        return std::unexpected(refused(step_rule, num_fields[AUTO_NUM_DS].key));
     }
 
     /* the Axes: plot type, the variable, the two parameters among AUTO's, the ranges */
@@ -325,14 +318,13 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
     const int view = set->view < 0 ? s.auto_state.active_view : set->view;
     c.view = view;
     if (view >= (views < 0 ? static_cast<int>(s.auto_state.views.size()) : views)) {
-        why = xpp::format("there is no view {}", view);
-        key = "view";
-        return false;
+        return std::unexpected(refused(xpp::format("there is no view {}", view), "view"));
     }
     /* a view not there yet (views) starts from the active one's axes */
     const AUTOAX &now = static_cast<std::size_t>(view) < s.auto_state.views.size() ? s.auto_state.views[static_cast<std::size_t>(view)].axes
                                                                                   : s.auto_state.axes();
-    int &plot = c.plot, &var = c.var, &icp1 = c.icp1, &icp2 = c.icp2;
+    AutoProjection &plot = c.plot;
+    int &var = c.var, &icp1 = c.icp1, &icp2 = c.icp2;
     plot = now.plot;
     var = now.var;
     icp1 = now.icp1;
@@ -342,21 +334,12 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
     range[1] = now.xmax;
     range[2] = now.ymin;
     range[3] = now.ymax;
-    if (set->has_plot) {
-        if (!plot_ok(set->plot)) {
-            why = xpp::format("{} is not one of AUTO's plot types (0-4, 10, 11)", set->plot);
-            key = "plot";
-            return false;
-        }
-        plot = set->plot;
-    }
+    if (set->plot) plot = *set->plot;
     if (!set->var.empty()) {
         int col;
         find_variable(s,set->var.c_str(), &col);
         if (col < 1 || col > s.model().node) {
-            why = xpp::format("{} is not a variable AUTO computes", set->var);
-            key = "var";
-            return false;
+            return std::unexpected(refused(xpp::format("{} is not a variable AUTO computes", set->var), "var"));
         }
         var = col - 1;
     }
@@ -365,9 +348,7 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
         if (!a.name[0]) continue;
         int k = xpp::find_user_name(s.model(), PARAM_BOX, a.name);
         if (k < 0) {
-            why = xpp::format("{} is not a model parameter", a.name);
-            key = a.key;
-            return false;
+            return std::unexpected(refused(xpp::format("{} is not a model parameter", a.name), a.key));
         }
         *a.icp = k;
     }
@@ -376,17 +357,13 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
     for (int i = 0; i < 4; i++) {
         if (!set->has_range[i]) continue;
         if (!std::isfinite(set->range[i])) {
-            why = xpp::format("{} must be a number", range_names[i]);
-            key = range_keys[i];
-            return false;
+            return std::unexpected(refused(xpp::format("{} must be a number", range_names[i]), range_keys[i]));
         }
         range[i] = set->range[i];
     }
     for (int i = 0; i < 4; i += 2) {
         if ((set->has_range[i] || set->has_range[i + 1]) && !(range[i] < range[i + 1])) {
-            why = xpp::format("{} must be below {}", range_names[i], range_names[i + 1]);
-            key = range_keys[i + 1];
-            return false;
+            return std::unexpected(refused(xpp::format("{} must be below {}", range_names[i], range_names[i + 1]), range_keys[i + 1]));
         }
     }
 
@@ -394,39 +371,34 @@ bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked
     if (set->nmarks < -1 || (set->nmarks >= 0 &&
         (set->mark_name.size() != static_cast<std::size_t>(set->nmarks) ||
          set->mark_value.size() != static_cast<std::size_t>(set->nmarks)))) {
-        why = "Mark values: count does not match the list";
-        key = "mark";
-        return false;
+        return std::unexpected(refused("Mark values: count does not match the list", "mark"));
     }
     for (int i = 0; i < set->nmarks; i++) {
         const bool period = strcasecmp(set->mark_name[i].c_str(), "T") == 0;
         const int parameter = period ? xpp::auto_unknown::period : xpp::find_user_name(s.model(), PARAM_BOX, set->mark_name[i]);
         if (parameter < 0) {
-            why = xpp::format("Mark values: {} is not a model parameter or T", set->mark_name[i]);
-            key = xpp::format("mark{}", i);
-            return false;
+            return std::unexpected(refused(xpp::format("Mark values: {} is not a model parameter or T", set->mark_name[i]), xpp::format("mark{}", i)));
         }
         if (!std::isfinite(set->mark_value[i])) {
-            why = xpp::format("Mark values: the value of {} must be a number", set->mark_name[i]);
-            key = xpp::format("mark{}", i);
-            return false;
+            return std::unexpected(refused(xpp::format("Mark values: the value of {} must be a number", set->mark_name[i]), xpp::format("mark{}", i)));
         }
         c.marks.push_back({parameter, period, set->mark_value[i]});
     }
 
-    return true;
+    return c;
 }
 
 /* set, checked into c, written as the forms do */
 void commit(xpp::Session &s, const AutoSettingsSet *set, Checked &c)
 {
     const double *num = c.num;
-    const int view = c.view, plot = c.plot, var = c.var, icp1 = c.icp1, icp2 = c.icp2;
+    const int view = c.view, var = c.var, icp1 = c.icp1, icp2 = c.icp2;
+    const AutoProjection plot = c.plot;
     const double(&range)[4] = c.range;
     write_num(s, num);
     for (std::size_t i=0;i<auto_codim_kinds.size();++i)
         if (set->special_points[i]) s.auto_state.special_points[i]=*set->special_points[i];
-    bool axes = set->has_plot || !set->var.empty() || !set->par1.empty() || !set->par2.empty() || set->fit;
+    bool axes = set->plot.has_value() || !set->var.empty() || !set->par1.empty() || !set->par2.empty() || set->fit;
     for (int i = 0; i < 4; i++) axes = axes || set->has_range[i];
     if (axes) {
         s.auto_state.active_view = view;
@@ -438,8 +410,7 @@ void commit(xpp::Session &s, const AutoSettingsSet *set, Checked &c)
         s.auto_state.axes().xmax = range[1];
         s.auto_state.axes().ymin = range[2];
         s.auto_state.axes().ymax = range[3];
-        if (s.auto_state.axes().plot < 4) keep_last_plot(s, 1);
-        if (s.auto_state.axes().plot == 4) keep_last_plot(s, 2);
+        keep_axes_as_last(s);
         if (set->fit) auto_fit(s);
     }
     if (set->nmarks >= 0) s.auto_state.bifur.marks.swap(c.marks);
@@ -449,9 +420,12 @@ void commit(xpp::Session &s, const AutoSettingsSet *set, Checked &c)
 
 bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
 {
-    Checked c;
-    std::string key;
-    if (!check(s, set, -1, c, why, key)) return false;
+    Result<Checked> checked = check(s, set, -1);
+    if (!checked) {
+        why = checked.error().what;
+        return false;
+    }
+    Checked &c = *checked;
     if (set->threads) {
         if (*set->threads != prefs::AUTO_THREADS_AUTO)
             if (const auto problem = prefs::auto_threads_problem(*set->threads)) {
@@ -525,12 +499,12 @@ void auto_settings_reload(Session &s, const AutoSettingsSet &kept)
     AutoSettingsSet names = set;
     names.has_num.fill(0);
     names.has_range.fill(0);
-    Checked c;
-    std::string why, key;
-    if (!check(s, &names, -1, c, why, key)) {
-        command_error("reload AUTO settings", why);
+    Result<Checked> checked = check(s, &names, -1);
+    if (!checked) {
+        command_error("reload AUTO settings", checked.error().what);
         return;
     }
+    Checked &c = *checked;
     std::copy(set.num.begin(), set.num.end(), c.num);
     std::copy(set.range.begin(), set.range.end(), c.range);
     commit(s, &set, c);
@@ -562,10 +536,10 @@ int auto_settings_num_ok(int i, double v, std::string &why)
     return 0;
 }
 
-bool auto_settings_check(const xpp::Session &s, const AutoSettingsSet &set, int views, std::string &why, std::string &key)
+Result<> auto_settings_check(const xpp::Session &s, const AutoSettingsSet &set, int views)
 {
-    Checked c;
-    return check(s, &set, views, c, why, key);
+    if (auto checked = check(s, &set, views); !checked) return std::unexpected(std::move(checked.error()));
+    return {};
 }
 
 int auto_settings_apply(xpp::Session &s, const AutoSettingsSet &set, std::string &why)

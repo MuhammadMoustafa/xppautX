@@ -101,10 +101,12 @@ struct ClientDiagramView {
     std::vector<std::shared_ptr<const xpp::DiagramBranch>> branches; /* immutable records behind those points */
     std::map<std::shared_ptr<const xpp::DiagramBranch>,std::map<std::shared_ptr<const xpp::DiagramBranch>,bool>> branch_matches;
     int n = 0, client = 0, dirty = 0;
-    int replay = 0, match = 0, axes = 0;
+    int match = 0;
+    bool replay = false, axes = false;
     struct {
         double xmin, xmax, ymin, ymax;
-        int x0, y0, wid, hgt, plot;
+        int x0, y0, wid, hgt;
+        xpp::AutoProjection plot;
         std::string xlabel, ylabel;
     } ax{};
 };

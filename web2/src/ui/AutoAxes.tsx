@@ -9,11 +9,12 @@
    Not modal: Escape or Close closes it, the focus goes back to the axis
    name. */
 import {useEffect, useRef, useState} from 'preact/hooks';
-import {axesNames, boundText, PLOT_TYPES, spinStep, typedRange, yNeeds} from '../plot/axisDialog';
+import {axesNames, boundText, PROJECTIONS, spinStep, typedRange, yNeeds} from '../plot/axisDialog';
 import {HELP} from '../help/links';
 import {pendingFields, shownSettings} from '../store/autoSettings';
 import type {Range, Viewport} from '../store/plots';
-import {fieldError, NUMBER} from '../store/fieldKinds';
+import {choiceLabel, fieldError, NUMBER} from '../store/fieldKinds';
+import type {AutoProjection} from '../store/diagram';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
@@ -76,10 +77,10 @@ export function AutoAxisDialog({axis, view, onClose}: {axis: AxisName; view: num
 
   const names = settings
     ? {par1: settings.axes.par1 ?? '', yvar: settings.axes.var ?? '', par2: settings.axes.par2 ?? ''} : axesNames(axes);
-  const plot = settings?.axes.plot ?? axes?.plot ?? 0;
+  const plot: AutoProjection = settings?.axes.plot ?? axes?.plot ?? 'maximum';
   const need = yNeeds(plot);
   /* the new quantities, then a Fit: the diagram's ranges follow what it plots */
-  const change = (c: {plot?: number; var?: string; par1?: string; par2?: string}) => {
+  const change = (c: {plot?: AutoProjection; var?: string; par1?: string; par2?: string}) => {
     if (!settings) return;
     session.autoSettings({axes: {...c, fit: true, view}});
   };
@@ -116,8 +117,8 @@ export function AutoAxisDialog({axis, view, onClose}: {axis: AxisName; view: num
       <div class="auto-axis-fields">
         {axis === 'x'
           ? select('Parameter', names.par1, listOf(pars), v => change({par1: v}), 'par1', 'par1')
-          : select('Plots', String(plot), PLOT_TYPES.map(t => ({value: String(t.plot), text: t.text})),
-            v => change({plot: Number(v)}), 'plot', 'plot')}
+          : select('Plots', plot, PROJECTIONS.map(p => ({value: p, text: choiceLabel(p)})),
+            v => change({plot: v as AutoProjection}), 'plot', 'plot')}
         {axis === 'y' && need === 'var' && select('Variable', names.yvar, listOf(vars), v => change({var: v}), 'yvar', 'var')}
         {axis === 'y' && need === 'par2'
           && select('Second parameter', names.par2, listOf(pars), v => change({par2: v}), 'par2', 'par2')}
