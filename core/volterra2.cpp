@@ -199,7 +199,7 @@ void init_sums(xpp::Session &s, double t0, int n, double dt, int i0, int iend, i
    int nvar=s.model().fix_var+s.model().node+s.model().nmarkov;
    int l,ioff,ker,i;
    const int nkernel=s.model().nkernel;
-   std::array<Keep,MAXKER> keep;
+   std::vector<Keep> keep(static_cast<std::size_t>(nkernel));
    for(ker=0;ker<nkernel;ker++)keep[ker]=keep_formula(s,kernels[ker]);
    xpp::HistoryValues &history=history_values(s);
    /* whether kernel ker's value at grid point `point` (memory's slot) is kept */
