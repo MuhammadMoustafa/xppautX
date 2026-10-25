@@ -6,6 +6,7 @@
 #include "xpp_util.h"
 #include "xpp_math.h"
 #include "pp_shoot.h"
+#include "numerics_settings.h"
 
 #include "my_rhs.h"
 #include "adj2.h"
@@ -31,11 +32,6 @@
 namespace xpp {
 
 
-#define NOCHANGE 2
-#define NUMICS -1
-#define BADINT -4
-#define TOOMANY -2
-#define BADJAC -3
 #define PARAM 1
 #define IC 2
 
@@ -98,31 +94,10 @@ void init_shoot_range(xpp::Session &s, std::string_view item)
 }
   
 
-void bad_shoot(int iret)
-{
- switch(iret){
- case NOCHANGE:
-   bottom_msg(0,"No change from last point. Saving anyway");
-   break;
- case NUMICS:
-   command_error("bvp", "Number BCS not equal number ICs");
-   break;
- case BADINT:
-   command_error("bvp", "Unable to complete integration");
-   break;
- case TOOMANY:
-   command_error("bvp", "Maximum iterates exceeded");
-   break;
- case BADJAC:
-   command_error("bvp", "Bad Jacobian -- uninvertable");
-   break;
- }
-}
-
 void do_sh_range(xpp::Session &s, double *ystart, double *yend)
 {
  double parlo,parhi,dpar,temp;
- int npar,i,j,ierr;
+ int npar,i,j;
  int side,cycle,icol;
  xpp::Color color;
 
@@ -148,13 +123,16 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
      if(s.shoot_range.movie==1)
        clr_scrn(s);
      
-     xpp::ok_or_show(bvshoot(s,ystart,yend,s.numerics.bvp_tolerance,s.numerics.bvp_epsilon,s.numerics.bvp_max_iterates,&ierr,s.model().node,0,
-	     0,0,0,0.0));
-     if(xpp::job::cancelled()||ierr==-5||ierr==-6)break;
-     if(ierr<0){ 
-       bad_shoot(ierr);
+     const xpp::Result<Shot> shot=bvshoot(s,ystart,yend,s.numerics.bvp_tolerance,s.numerics.bvp_epsilon,s.numerics.bvp_max_iterates,s.model().node,0,
+	     0,0,0,0.0);
+     if(xpp::job::cancelled())break;
+     if(!shot){ /* a value with no solution ends the sweep, naming it */
+       xpp::Error stopped=shot.error();
+       stopped.what=xpp::format("Range Shoot stopped at {} = {} (step {} of {}): {}",s.shoot_range.item,xpp::number(temp),i+1,npar+1,stopped.what);
+       show_error(stopped);
        break;
      }
+     if(shot->end==ShootEnd::cancelled)break;
      if(s.data_store.rows==s.data_store.max_rows){
        const auto grown=stor_full(s);
        if(!grown){show_error(grown.error());break;}
@@ -214,7 +192,7 @@ int set_up_periodic(xpp::Session &s, int *ipar, int *ivar, double *sect, int *is
 
 void find_bvp_com(xpp::Session &s, int com)
 {
- int ishow=0,iret;
+ int ishow=0;
  int iper=0,ivar=0,ipar=0,pflag;
  double sect=0.0;
  double oldpar;
@@ -258,13 +236,13 @@ void find_bvp_com(xpp::Session &s, int com)
    break;
  }
  {
- const xpp::Result<> shot=iper
-   ? bvshoot(s,ystart,yend,s.numerics.bvp_tolerance,s.numerics.bvp_epsilon,s.numerics.bvp_max_iterates,&iret,s.model().node,ishow,
-	iper,ipar,ivar,sect)
-   : bvshoot(s,ystart,yend,s.numerics.bvp_tolerance,s.numerics.bvp_epsilon,s.numerics.bvp_max_iterates,&iret,s.model().node,ishow,0,0,0,0.0 );
+ const xpp::Result<Shot> shot=bvshoot(s,ystart,yend,s.numerics.bvp_tolerance,s.numerics.bvp_epsilon,s.numerics.bvp_max_iterates,s.model().node,ishow,
+	iper,ipar,ivar,sect);
  if(!shot)xpp::show_error(shot.error());
- bad_shoot(iret);
- if(iret==1||iret==2) {
+ else if(!shot->curve)xpp::show_error(shot->curve.error());
+ if(shot&&shot->end==ShootEnd::update_met)
+   bottom_msg(0,"No change from last point. Saving anyway");
+ if(shot&&shot->end!=ShootEnd::cancelled) {
  set_initial_data(s,{ystart,static_cast<size_t>(s.model().node)});
  redraw_ics();
  if(ishow){
@@ -348,15 +326,14 @@ static const char *const n[]={"*2Range over","Steps","Start","End",
  return(0);
 }
 
-xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, double eps, int maxit, int *iret, int n, int ishow, int iper, int ipar, int ivar, double sect)
+xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, double eps, int maxit, int n, int ishow, int iper, int ipar, int ivar, double sect)
 {
  xpp::Computation computing; /* what Escape stops (xpp_job.h) */
  xpp::FirstError shown; /* the drawn curve's failure */
  double dev,error,ytemp;
 
-  int ntot=n;
+ int ntot=n;
  int i,istart=1,j;
- char esc;
  int info,niter=0;
  double dt=s.numerics.delta_t,t;
  double t0=s.numerics.start_time;
@@ -368,21 +345,21 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
  std::vector<double> jac_v(static_cast<size_t>(ntot)*ntot);
  std::vector<double> f_v(ntot), fdev_v(ntot), y0_v(ntot), y1_v(ntot);
  double *jac=jac_v.data(), *f=f_v.data(), *fdev=fdev_v.data(), *y0=y0_v.data(), *y1=y1_v.data();
+ const auto limits_place=[&]{return settings_place(s.model(),{"bvp_max_iterates","bvp_tolerance"});};
+ /* the integration failed: its own error, at the iterate (and Jacobian column) it failed in */
+ const auto integration_failed=[&](xpp::Error e,std::string_view where){
+   e.what=xpp::format("Shoot: the integration failed at iterate {}{}: {}",niter,where,e.what);
+   return std::unexpected(std::move(e));
+ };
 
  for(i=0;i<n;i++)
    y0[i]=y[i];
  if(iper)  get_val(s,s.model().upar_names[ipar],&y0[n]);
 
  while(1){
-   esc=my_abort();
+   const char esc=my_abort();
+   if(esc==ESC||esc=='/')return Shot{ShootEnd::cancelled,shown.result()};
 
-           {
-            
-             if(esc==ESC) {*iret=-5;break;}
-	     if(esc=='/'){*iret=-6;break;}
-	    
-           }
-         
   t=t0;
  istart=1;
  if(iper)set_val(s,s.model().upar_names[ipar],y0[n]);
@@ -391,10 +368,7 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
    const xpp::Result<> run=ode_int(s,y,&t,&istart,ishow);
    /* drawn as it runs, a failure only ends the curve */
    if(ishow)shown.keep(run);
-   else if(!run){
-     *iret=-4;
-     goto bye;
-   }
+   else if(!run)return integration_failed(run.error(),"");
  }
  for(i=0;i<n;i++){
    y1[i]=y[i];
@@ -412,15 +386,12 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
   }
    
    for(i=0;i<n;i++)yend[i]=y1[i];
-   *iret=1;
-   goto bye;
-  
+   return Shot{ShootEnd::residual_met,shown.result()};
  }
  niter++;
- if(niter>maxit){
-   *iret=-2;
-   goto bye;
- }      /* Too many iterates   */
+ if(niter>maxit) /* Too many iterates   */
+   return xpp::fail("bvp",xpp::format("Shoot: no convergence after {} iterations: the residual of the boundary conditions {} is not below {}",
+                    named_settings(s,{"bvp_max_iterates"}),xpp::number(error),named_settings(s,{"bvp_tolerance"})),limits_place());
 
  /*   create the Jacobian matrix ...   */
  
@@ -438,10 +409,8 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
      t=t0;
      istart=1;
 
-      if(!ode_int(s,y,&t,&istart,0)){
-	*iret=-4;
-	goto bye;
-      }
+      if(const xpp::Result<> run=ode_int(s,y,&t,&istart,0);!run)
+        return integration_failed(run.error(),xpp::format(", perturbing {}",j<n?s.model().uvar_names[j]:s.model().upar_names[ipar]));
 
      do_bc(s,y0,t0,y,t1,fdev,n);
      if(iper)fdev[n]=y[ivar]-sect;
@@ -450,10 +419,9 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
  }
 
   xpp::sgefa(jac,ntot,ntot,ipvt,&info);
-  if(info!=-1){
-    *iret=-3;
-    goto bye;
-  }
+  if(info!=-1)
+    return xpp::fail("bvp",xpp::format("Shoot: the Jacobian of the boundary conditions is singular at iterate {} (residual {})",niter,xpp::number(error)),
+                     limits_place());
   for(i=0;i<ntot;i++)fdev[i]=f[i];
   xpp::sgesl(jac,ntot,ntot,ipvt,fdev);
   error=0.0;
@@ -465,13 +433,9 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
  for(i=0;i<n;i++)y[i]=y0[i];
   if(error<1.e-10){
    for(i=0;i<n;i++)yend[i]=y1[i];
-    *iret=2;
-    goto bye;
+    return Shot{ShootEnd::update_met,shown.result()};
   }
 }
-  
- bye:
-   return shown.result();
 }
 
 } // namespace xpp

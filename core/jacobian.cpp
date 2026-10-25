@@ -144,10 +144,8 @@ void exact_constant_derivative(const Session &s, JacobianScratch &scratch, const
   if (it == columns.end() || it->first != k) std::fill_n(out, n, 0.0);
   else column(s, scratch, it->second, c, t, x, f, n, [&]() -> std::string_view {
     /* the parameter constant k is: AUTO's are the model's parameters */
-    const Model &m = s.model();
-    for (int i = 0; i < m.nupar; i++)
-      if (get_param_index(s, m.upar_names[i]) == k) return m.upar_names[i];
-    return "a constant";
+    const std::string_view name = parameter_name(s, k);
+    return name.empty() ? "a constant" : name;
   }, out);
 }
 

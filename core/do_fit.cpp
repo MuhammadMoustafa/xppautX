@@ -31,7 +31,14 @@
 namespace xpp {
 
 /*  this is also X free ! */
- 
+
+namespace {
+/* the fitted quantity ipar names (an initial condition, else a parameter's constant: parse_parlist) */
+std::string_view fit_parameter_name(const xpp::Session &s, int ipar)
+{
+  return ipar>=0?std::string_view(s.model().uvar_names[ipar]):parameter_name(s,-ipar);
+}
+}
 
 
 
@@ -268,7 +275,14 @@ void test_fit(xpp::Session &s)
      xpp::show_error(ok.error());
      return;
    }
-   bottom_msg(0,*ok==FitEnd::Converged ? " Success! " : (*ok==FitEnd::Stopped ? " Stopped " : "Max iterations exceeded..."));
+   switch(ok->end){
+   case FitEnd::Converged: bottom_msg(0," Success! "); break;
+   case FitEnd::Stopped: bottom_msg(0," Stopped "); break;
+   case FitEnd::MaxIterations:
+     bottom_msg(0,xpp::format("Fit: stopped after maxiter = {} iterations, chisq = {} (the last relative change {} is not below tol = {}); the parameters are set to the last iterate",
+                              s.fit.maxiter,xpp::number(ok->chisq),xpp::number(ok->change),xpp::number(s.fit.tol)));
+     break;
+   }
 
  /* get the latest par values ...  */
  
@@ -281,7 +295,7 @@ void test_fit(xpp::Session &s)
 
 }
 
-xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int npars, int nvars, int maxiter, int ndim, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a, double *yfit)
+xpp::Result<FitResult> run_fit(xpp::Session &s, const char *filename, int npts, int npars, int nvars, int maxiter, int ndim, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a, double *yfit)
 /* 
    filename is where the data file is -- it is of the form:
    t1 y11 y12 .... y1m
@@ -297,7 +311,7 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
   int i,j,k,ictrl=0;
   xpp::Result<> ok;
   int niter=0,good_flag=0;
-  double tol10=10*tol;
+  double tol10=10*tol,change=0.0;
   std::vector<double> sig(nvars);
   double chisq=0.0,ochisq=0.0,alambda=0.0;
 
@@ -339,12 +353,12 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
   double *covar=covar_v.data(), *alpha=alpha_v.data();
 
   while(good_flag<3){  /* take 3 good steps after convergence  */
-    if(my_abort()==ESC)return FitEnd::Stopped;
+    if(my_abort()==ESC)return FitResult{FitEnd::Stopped,niter,chisq,change};
 
     ok=marlevstep(s,t0,y0,y,sig.data(),a,npts,nvars,npars,
 	       ivar,ipar,covar,alpha,&chisq,&alambda,work,
 	       yderv.data(),yfit,&ochisq,ictrl,eps);
-    if(xpp::job::cancelled())return FitEnd::Stopped;
+    if(xpp::job::cancelled())return FitResult{FitEnd::Stopped,niter,chisq,change};
     niter++;
     xpp::log(XPP_LOG_INFO, " step {} is {}  -- lambda= {:g}  chisq= {:g} oldchi= {:g}\n",
 	   niter,ok.has_value()?1:0,alambda,chisq,ochisq);
@@ -353,8 +367,9 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
       xpp::log(XPP_LOG_INFO, " {:g} ",a[i]);
     xpp::log(XPP_LOG_INFO, "\n");
     if(!ok||(niter>=maxiter))break;
+    change=ochisq>chisq?(ochisq-chisq)/std::max(chisq,1.0):0.0;
     if(ochisq>chisq){
-      if(((ochisq-chisq)<tol10)||(((ochisq-chisq)/std::max(chisq,1.0))<tol))
+      if(((ochisq-chisq)<tol10)||(change<tol))
       {
 	good_flag++;
 	niter--;  /* compensate for good stuff ... */
@@ -368,8 +383,12 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
 
   }
 
-  if(!ok)return std::unexpected(ok.error());
-  if(niter>=maxiter)return FitEnd::MaxIterations;
+  if(!ok){
+    xpp::Error failed=ok.error();
+    failed.what=xpp::format("Fit iteration {}: {}",niter,failed.what);
+    return std::unexpected(std::move(failed));
+  }
+  if(niter>=maxiter)return FitResult{FitEnd::MaxIterations,niter,chisq,change};
   ictrl=2;
   /* the covariance: a singular matrix here is still the fit's error, as
      it was shown before W63d */
@@ -385,7 +404,7 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
     xpp::log(XPP_LOG_INFO, "\n");
   }
 
-  return FitEnd::Converged;
+  return FitResult{FitEnd::Converged,niter,chisq,change};
 }
 
 xpp::Result<> marlevstep(xpp::Session &s, double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *covar, double *alpha, double *chisq, double *alambda, double *work, double **yderv, double *yfit, double *ochisq, int ictrl, double eps)
@@ -438,9 +457,9 @@ sigma  weights on nvars
     oneda[j]=beta[j];
   }
   xpp::sgefa(covar,npars,npars,ipivot,&ierr);
-    if(ierr!=-1){
-      return xpp::fail("fit","Singular matrix encountered",command_place());
-    }
+    if(ierr!=-1)
+      return xpp::fail("fit",xpp::format("Singular matrix encountered: with lambda = {}, the parameter {} (column {} of {}) does not change the fit independently of the ones before it",
+                       xpp::number(*alambda),fit_parameter_name(s,ipar[ierr]),ierr+1,npars),command_place());
   
   xpp::sgesl(covar,npars,npars,ipivot,oneda);
   for(j=0;j<npars;j++){

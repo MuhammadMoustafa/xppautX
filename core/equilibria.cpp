@@ -11,11 +11,15 @@
 #include "flags.h"
 #include "integrate.h"
 #include "xpp_job.h"
+#include "model_files.h"
+#include "numerics_settings.h"
 
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
 #include <algorithm>
+#include <span>
+#include <string>
 #include <vector>
 #include "xpp_globals.h"
 #include "form_ode.h"
@@ -39,13 +43,14 @@ struct Equilibrium {
   int pose=0, nege=0;               /* the last real positive, negative eigenvalue */
   double bigpos=-1e10, bigneg=1e10; /* the largest of each sign */
   int bpos=0, bneg=0;               /* its index, -1 when it is complex */
+  NewtonRun run;                    /* how Newton's method ended */
 };
 
 enum class SingStatus { found, no_root, no_eigenvalues };
 
 /* Newton from x for the root, then the eigenvalues of the Jacobian there;
-   the counts only when found (*ierr says why not; x is put back when there
-   is no root). Leaves work as the Jacobian transposed for the eigenvalue
+   the counts only when found (q.run says why there is no root, *ierr that
+   there is none; x is put back when there is no root). Leaves work as the Jacobian transposed for the eigenvalue
    solver and oldwork as the Jacobian itself, work then back to oldwork
    transposed (as get_evec wants it). */
 xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double *x, double eps, double err, double big, int maxit, int n, int *ierr)
@@ -64,7 +69,8 @@ xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double
  double *ework=q.bp+n;
  s.manifolds.ic_flag=0;
  s.manifolds.count=0;
- if(auto r=rooter(s,x,err,eps,big,q.work,ierr,maxit,n);!r)return std::unexpected(r.error());
+ if(auto r=rooter(s,x,err,eps,big,q.work,q.run,maxit,n);!r)return std::unexpected(r.error());
+ *ierr=q.run.end==NewtonEnd::converged?0:1;
  if(*ierr!=0)
  {
   std::copy(q.old_x.begin(),q.old_x.end(),x);
@@ -139,6 +145,41 @@ void mark_equilibrium(xpp::Session &s, const Equilibrium &q, double *x)
 
 }
 
+NewtonCause newton_cause(const Session &s, const NewtonRun &run, std::size_t variables)
+{
+ switch(run.end){
+ case NewtonEnd::singular_jacobian:
+   return {xpp::format("met a singular Jacobian after {} iterations",run.iterations),""};
+ case NewtonEnd::left_box:
+   return {xpp::format("went out of the search box after {} iterations (a step of {} per variable is above {})",
+                       run.iterations,xpp::number(run.change/static_cast<double>(variables)),named_settings(s,{"search_limit"})),
+           "search_limit"};
+ case NewtonEnd::max_iterates:
+   return {xpp::format("exceeded {} with the last change {} not below {}",named_settings(s,{"max_iterations"}),
+                       xpp::number(run.change),named_settings(s,{"newton_tolerance"})),
+           "max_iterations"};
+ case NewtonEnd::cancelled:
+   return {xpp::format("was stopped after {} iterations",run.iterations),""};
+ case NewtonEnd::converged:
+ case NewtonEnd::step_error:
+   break;
+ }
+ return {};
+}
+
+Error newton_error(const Session &s, const NewtonRun &run, std::span<const double> start)
+{
+ const Model &m=s.model();
+ std::string from;
+ for(std::size_t i=0;i<start.size();i++)
+   from+=xpp::format("{}{} = {}",i?", ":"",m.uvar_names[i],xpp::number(start[i]));
+ const NewtonCause cause=newton_cause(s,run,start.size());
+ Place place=cause.setting.empty()?Place{}:model_place(m,cause.setting);
+ if(place.line==0&&run.end!=NewtonEnd::cancelled)place=model_place(m,m.uvar_names[run.worst]);
+ if(place.line==0)place=command_place();
+ return {"equilibrium",xpp::format("No equilibrium from {}: Newton's method {}",from,cause.why),place};
+}
+
 /* main fixed point finder */ 
 xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
 {
@@ -152,7 +193,7 @@ xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double
  auto found=find_equilibrium(s,q,x,eps,err,big,maxit,n,ierr);
  if(!found)return std::unexpected(found.error());
  if(*found==SingStatus::no_root)
-  return xpp::fail("equilibrium","Could not converge to root",command_place());
+  return std::unexpected(newton_error(s,q.run,q.old_x));
  DING;
  if(*found==SingStatus::no_eigenvalues)
   return xpp::fail("equilibrium","Could not compute eigenvalues",command_place());
@@ -195,8 +236,8 @@ if(!s.numerics.par_fol)
   
    if(rp==1)
    {
-     get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
-     if(*ierr==0)
+     const xpp::Result<> evec=get_evec(s,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose]);
+     if(evec)
      {
      change_current_color(s,s.manifolds.unstable_color,&oldcol);
      pr_evec(s,x,b,n,pr,eval[2*pose],1);
@@ -207,13 +248,13 @@ if(!s.numerics.par_fol)
 
      }
      else
-       failure.keep({"equilibrium","Failed to compute eigenvector"});
+       failure.keep(evec);
    }
    if(rn==1)
    {
      
-     get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege],ierr);
-     if(*ierr==0)
+     const xpp::Result<> evec=get_evec(s,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege]);
+     if(evec)
      {
         change_current_color(s,s.manifolds.stable_color,&oldcol);
 	pr_evec(s,x,b,n,pr,eval[2*nege],-1);
@@ -223,7 +264,7 @@ if(!s.numerics.par_fol)
         change_current_color(s,oldcol,&dummy);
      }
      else
-       failure.keep({"equilibrium","Failed to compute eigenvector"});
+       failure.keep(evec);
    }
     s.numerics.delta_t=oldt;
   }
@@ -246,8 +287,8 @@ if(!s.numerics.par_fol)
 	 if((rp>1)&&(bpos>=0)) /* then there is a strong unstable */
 	 {
 	   xpp::log(XPP_LOG_INFO, "strong unstable {:g} \n",bigpos);
-	   get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,bigpos,ierr);
-	   if(*ierr==0)
+	   const xpp::Result<> evec=get_evec(s,work,oldwork,b,bp,n,maxit,err,ipivot,bigpos);
+     if(evec)
 	     {
 	       change_current_color(s,s.manifolds.unstable_color,&oldcol);
 	       pr_evec(s,x,b,n,pr,bigpos,1);
@@ -258,14 +299,14 @@ if(!s.numerics.par_fol)
 	       
 	     }
 	   else
-	     failure.keep({"equilibrium","Failed to compute eigenvector"});   
+	     failure.keep(evec);   
 	 }
 	 
      if((rn>1)&&(bneg>=0)) /* then there is a strong stable */
 	 {
 	   xpp::log(XPP_LOG_INFO, "strong stable {:g} \n",bigneg);
-	   get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,bigneg,ierr);
-	   if(*ierr==0)
+	   const xpp::Result<> evec=get_evec(s,work,oldwork,b,bp,n,maxit,err,ipivot,bigneg);
+     if(evec)
 	     {
 	       change_current_color(s,s.manifolds.stable_color,&oldcol);
 	       pr_evec(s,x,b,n,pr,bigneg,-1);
@@ -275,7 +316,7 @@ if(!s.numerics.par_fol)
 	       change_current_color(s,oldcol,&dummy);
 	     }
 	   else
-	     failure.keep({"equilibrium","Failed to compute eigenvector"});
+	     failure.keep(evec);
 
 	 }
      }
@@ -375,34 +416,17 @@ xpp::Result<> do_sing_info(xpp::Session &s, double *x, double eps, double err, d
  }
  mark_equilibrium(s,q,x);
 
- if((n>1))
+ if(n>1)
  {
- 
-   if(rp==1)
-   {
-     get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
-
-     if(*ierr==0)
-     {
-       pr_evec(s,x,b,n,pr,eval[2*pose],1);
-
-     }
-
-   }
-
-   if(rn==1)
-   {
-     
-     get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege],ierr);
-
-     if(*ierr==0)
-     {
-       pr_evec(s,x,b,n,pr,eval[2*nege],-1);
-
-     }
-
-   }
-
+   /* an eigenvector that cannot be found only leaves out its manifold */
+   auto manifold=[&](double eigenvalue,int type){
+     if(const xpp::Result<> evec=get_evec(s,work,oldwork,b,bp,n,maxit,err,ipivot,eigenvalue);evec)
+       pr_evec(s,x,b,n,pr,eigenvalue,type);
+     else
+       xpp::log(XPP_LOG_WARN,"{}\n",evec.error().text());
+   };
+   if(rp==1)manifold(eval[2*pose],1);
+   if(rn==1)manifold(eval[2*nege],-1);
  }
 
  return {};
@@ -429,31 +453,30 @@ void pr_evec(xpp::Session &s, double *x, double *ev, int n, int pr, double eval,
  if(pr==0)return;
 }
 
-void get_evec(xpp::Random &random, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval, int *ierr)
+xpp::Result<> get_evec(xpp::Session &s, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval)
 {
-    int j,iter,jmax;
+    int j,iter,jmax,ierr;
     double temp;
     double zz=fabs(eval);
     if(zz<err)zz=err;
-    *ierr=0;
+    ierr=0;
     for(j=0;j<n*n;j++){
     anew[j]=a[j];
     }
     for(j=0;j<n;j++)
     anew[j*(1+n)]=anew[j*(1+n)]-eval-err*err*zz;
 
-    xpp::sgefa(anew,n,n,ipivot,ierr);
-    if(*ierr!=-1) {
-      xpp::log(XPP_LOG_WARN, " Pivot failed\n");
-      return;
-    }
+    xpp::sgefa(anew,n,n,ipivot,&ierr);
+    if(ierr!=-1)
+      return xpp::fail("equilibrium",xpp::format("No eigenvector for the eigenvalue {}: the Jacobian shifted by it is singular ({})",
+                       xpp::number(eval),named_settings(s,{"newton_tolerance"})),settings_place(s.model(),{"newton_tolerance"}));
     for(j=0;j<n;j++)
     {
-     b[j]=1+.1*random.uniform();
+     b[j]=1+.1*s.random.uniform();
      bp[j]=b[j];
     }
      iter=0;
-     *ierr=0;
+     ierr=0;
      while(1)
      {
       xpp::sgesl(anew,n,n,ipivot,b);
@@ -482,14 +505,11 @@ void get_evec(xpp::Random &random, double *a, double *anew, double *b, double *b
       if(temp<err)break;
       iter++;
       if(iter>maxit)
-      {
-       xpp::log(XPP_LOG_WARN, " max iterates exceeded\n");
-
-       *ierr=1;
-       break;
-      }
+        return xpp::fail("equilibrium",xpp::format("No eigenvector for the eigenvalue {}: the inverse iteration exceeded {} with the last change {} not below {}",
+                         xpp::number(eval),named_settings(s,{"max_iterations"}),xpp::number(temp),named_settings(s,{"newton_tolerance"})),
+                         settings_place(s.model(),{"max_iterations","newton_tolerance"}));
      }
-    if(*ierr==0){
+    {
       temp=fabs(b[0]);
       jmax=0;
       for(j=0;j<n;j++)
@@ -503,7 +523,7 @@ void get_evec(xpp::Random &random, double *a, double *anew, double *b, double *b
       temp=b[jmax];
       for(j=0;j<n;j++)b[j]=b[j]/temp;
     }
-     return;
+     return {};
   }
 
 void getjac(xpp::Session &s, double *x, double *y, double eps, double *dermat, int n)
@@ -516,7 +536,17 @@ void getjac(xpp::Session &s, double *x, double *y, double eps, double *dermat, i
 }
 
 namespace {
-void newton(xpp::Session &s, double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n)
+/* the variable whose equation the last Newton iterate satisfied worst: the
+   equation an error about it names */
+int worst_residual(const double *f, int n)
+{
+ int k=0;
+ for(int i=1;i<n;i++)
+   if(fabs(f[i])>fabs(f[k]))k=i;
+ return k;
+}
+
+void newton(xpp::Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
 {
  int i,iter,info;
  std::vector<int> ipivot(static_cast<std::size_t>(n));
@@ -527,7 +557,12 @@ void newton(xpp::Session &s, double *x, double err, double eps, double big, doub
  y=dermat+n*n;
  dely=y+n;
  iter=0;
- *ierr=0;
+ run=NewtonRun{};
+ auto stop=[&](NewtonEnd end){
+   run.end=end;
+   run.iterations=iter;
+   run.worst=worst_residual(y,n);
+ };
  
  while(1)
  {
@@ -538,12 +573,12 @@ void newton(xpp::Session &s, double *x, double err, double eps, double big, doub
   
        if(ch==27)
 	 {
-	   *ierr=1;
+	   stop(NewtonEnd::cancelled);
 	   return;
 	 }
        if(ch=='/')
 	 {
-	   *ierr=1;
+	   stop(NewtonEnd::cancelled);
 	   s.numerics.endsing=true;
 	   return;
 	 }
@@ -554,13 +589,13 @@ void newton(xpp::Session &s, double *x, double err, double eps, double big, doub
   getjac(s,x,y,eps,dermat,n);
   if(s.integrator.step_error)
   {
-   *ierr=1;
+   stop(NewtonEnd::step_error);
    return;
   }
   xpp::sgefa(dermat,n,n,ipivot.data(),&info);
   if(info!=-1)
   {
-   *ierr=1;
+   stop(NewtonEnd::singular_jacobian);
    return;
   }
   for(i=0;i<n;i++)dely[i]=y[i];
@@ -571,41 +606,41 @@ void newton(xpp::Session &s, double *x, double err, double eps, double big, doub
    x[i]=x[i]-dely[i];
    r=r+fabs(dely[i]);
   }
+  run.change=r;
   if(r<err)
   {
      getjac(s,x,y,eps,dermat,n);
      if(xpp::solver_info(s.numerics.method).traits.discrete)
      for(i=0;i<n;i++)dermat[i*(n+1)]+=1.0;
+     run.iterations=iter+1;
      return; /* success !! */
   }
   if((r/static_cast<double>(n))>big)
   {
-   *ierr=1;
+   stop(NewtonEnd::left_box);
    return;
    }
    iter++;
    if(iter>maxit)
    {
-    *ierr=1;
+    stop(NewtonEnd::max_iterates);
     return;
    }
  }
 }
 }
 
-xpp::Result<> rooter(xpp::Session &s, double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n)
+xpp::Result<> rooter(xpp::Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
 {
  xpp::Computation computing; /* what Escape stops (xpp_job.h) */
  const std::vector<double> start(x,x+n);
  try {
-   newton(s,x,err,eps,big,work,ierr,maxit,n);
+   newton(s,x,err,eps,big,work,run,maxit,n);
  } catch (const xpp::JacobianFailed &failed) {
-   *ierr=1;
    std::copy(start.begin(),start.end(),x);
    return std::unexpected(failed.error);
  }
  if(s.integrator.step_error){
-   *ierr=1;
    std::copy(start.begin(),start.end(),x);
    return std::unexpected(take_step_error(s).error());
  }

@@ -1,4 +1,5 @@
 #include "xpp_files.h"
+#include "data_formats.h"
 #include "image_format.h"
 #include "mykeydef.h"
 /* Nullclines and direction fields (Nullcline, Dir.field/flow): the current
@@ -33,11 +34,11 @@
 #include "menudrive.h"
 #include "form_ode.h"
 #include "model.h"
+#include "model_options.h"
 #include "xpp_math.h"
 
 namespace xpp {
 
-#define MAX_NULL 10000 /* Existing contour storage caps each curve at this many segments. */
 
 
 constexpr int NullStyle=0; /* 1 is with little vertical/horizontal lines */
@@ -121,20 +122,37 @@ void add_froz_cline(xpp::Session &s, const float *xn, int nmx, int n_ix, const f
   s.nullcline_state.frozen.push_back(std::move(z));
 }
 
-void dump_clines(xpp::Writer &fp, const float *x, int nx, const float *y, int ny)  /* gnuplot format */
+/* the segments of an x- and a y-nullcline as a table, a row each: which nullcline (1 or 2), the segment's ends */
+xpp::DataTable nullclines_table(const float *x, int nx, const float *y, int ny)
 {
-  fp.print("# X-nullcline\n");
-  for(int i=0;i<nx-1;i++){
-    fp.print("{:g} {:g} 1 \n",static_cast<double>(x[4*i]),static_cast<double>(x[4*i+1]));
-    fp.print("{:g} {:g} 1 \n",static_cast<double>(x[4*i+2]),static_cast<double>(x[4*i+3]));
-    fp.print("\n");
+  xpp::DataTable table;
+  table.names={"nullcline","x1","y1","x2","y2"};
+  table.columns.resize(table.names.size());
+  const auto add=[&](const float *v,int n,int which){
+    for(int i=0;i<n;i++){
+      table.columns[0].push_back(which);
+      for(int k=0;k<4;k++)table.columns[1+k].push_back(static_cast<double>(v[4*i+k]));
+    }
+  };
+  add(x,nx,1);
+  add(y,ny,2);
+  return table;
+}
+
+/* the nullclines into path, in the data format its extension names (.dat when it names none), by the
+   ordinary writer (independent: a destination derived from the one asked); asked before replacing a file, an error shown */
+void write_clines(const std::string &path, bool independent, const float *x, int nx, const float *y, int ny)
+{
+  const xpp::DataFormat *format=xpp::data_format_of_file(path);
+  if(!format)format=xpp::data_format_named("dat");
+  xpp::Writer fp=xpp::open_writer_asking(path,format->binary,nullptr,independent);
+  if(!fp)return;
+  if(!format->write(nullclines_table(x,nx,y,ny),fp)){
+    xpp::abort_save(fp);
+    command_error("nullclines",xpp::format("Cannot write {}",path));
+    return;
   }
-  fp.print("\n# Y-nullcline\n");
-  for(int i=0;i<ny-1;i++){
-    fp.print("{:g} {:g} 2 \n",static_cast<double>(y[4*i]),static_cast<double>(y[4*i+1]));
-    fp.print("{:g} {:g} 2 \n",static_cast<double>(y[4*i+2]),static_cast<double>(y[4*i+3]));
-    fp.print("\n");
-  }
+  xpp::ok_or_show(xpp::commit_save(fp));
 }
 
 void save_frozen_clines(xpp::Session &s, const std::string &fn)
@@ -145,10 +163,7 @@ void save_frozen_clines(xpp::Session &s, const std::string &fn)
   int i=1;
   for(const FrozenCline &z:s.nullcline_state.frozen){
     if(z.nmx==0&&z.nmy==0)return;
-    xpp::Writer fp=xpp::open_writer_asking(xpp::format("{}.{}",fn,i),false,nullptr,true);
-    if(!fp)return;
-    dump_clines(fp,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
-    if(!xpp::ok_or_show(xpp::commit_save(fp)))return;
+    write_clines(xpp::format("{}.{}",fn,i),true,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
     i++;
   }
 }
@@ -200,12 +215,10 @@ void redraw_froz_cline(xpp::Session &s, int flag)
   });
 }
 
-/* The current nullclines' storage: made once (NULL_HERE), the contour's
+/* The current nullclines' state: marked made (NULL_HERE), the contour's
    two grid rows for this mesh every time. */
 void null_storage(xpp::Session &s, int course)
 {
-  s.nullcline_state.x_null.resize(4*MAX_NULL);
-  s.nullcline_state.y_null.resize(4*MAX_NULL);
   s.numerics.null_here=true;
   s.nullcline_state.n_top.assign(course+1,0.0f);
   s.nullcline_state.n_bot.assign(course+1,0.0f);
@@ -213,12 +226,7 @@ void null_storage(xpp::Session &s, int course)
 
 void stor_null(xpp::Session &s, float x1, float y1, float x2, float y2)
 {
-  if(s.nullcline_state.num_index>=MAX_NULL)return;
-  const int i=4*s.nullcline_state.num_index;
-  (*s.nullcline_state.saver)[i]=x1;
-  (*s.nullcline_state.saver)[i+1]=y1;
-  (*s.nullcline_state.saver)[i+2]=x2;
-  (*s.nullcline_state.saver)[i+3]=y2;
+  s.nullcline_state.saver->insert(s.nullcline_state.saver->end(),{x1,y1,x2,y2});
   s.nullcline_state.num_index++;
 }
 
@@ -262,6 +270,16 @@ void quad_contour(xpp::Session &s, Pt p1, Pt p2, Pt p3, Pt p4)
   }
 }
 
+/* a right-hand side that failed at a grid point (its error is the Session's step_error, taken by the
+   command) names the point, in variables ix and iy (0-based); whether it failed */
+bool grid_point_failed(xpp::Session &s, int ix, int iy, double x, double y)
+{
+  if(!s.integrator.step_error)return false;
+  s.integrator.step_error->what+=xpp::format(" (at the grid point {} = {}, {} = {})",s.model().uvar_names[ix],xpp::number(x),
+                                              s.model().uvar_names[iy],xpp::number(y));
+  return true;
+}
+
 void do_cline(xpp::Session &s, int ngrid, float x1, float y1, float x2, float y2)
 {
   const float dx=(x2-x1)/static_cast<float>(ngrid);
@@ -270,11 +288,12 @@ void do_cline(xpp::Session &s, int ngrid, float x1, float y1, float x2, float y2
   const int ny=ngrid+1;
   std::array<Pt,4> p;
 
+  const int ix=s.nullcline_state.null_ix-1,iy=s.nullcline_state.null_iy-1;
   float y=y2;
   for(int i=0;i<nx;i++){
     const float x=x1+i*dx;
     s.nullcline_state.n_bot[i]=fnull(s,x,y);
-    if(s.integrator.step_error)return;
+    if(grid_point_failed(s,ix,iy,x,y))return;
   }
 
   for(int j=1;j<ny;j++){
@@ -282,12 +301,12 @@ void do_cline(xpp::Session &s, int ngrid, float x1, float y1, float x2, float y2
     y=y2-j*dy;
     s.nullcline_state.n_top[0]=s.nullcline_state.n_bot[0];
     s.nullcline_state.n_bot[0]=fnull(s,x1,y);
-    if(s.integrator.step_error)return;
+    if(grid_point_failed(s,ix,iy,x1,y))return;
     for(int i=1;i<nx;i++){
       const float x=x1+i*dx;
       s.nullcline_state.n_top[i]=s.nullcline_state.n_bot[i];
       s.nullcline_state.n_bot[i]=fnull(s,x,y);
-      if(s.integrator.step_error)return;
+      if(grid_point_failed(s,ix,iy,x,y))return;
       p[0].x=x-dx;
       p[0].y=y+dy;
       p[0].z=s.nullcline_state.n_top[i-1];
@@ -308,6 +327,7 @@ void do_cline(xpp::Session &s, int ngrid, float x1, float y1, float x2, float y2
 void new_nullcline(xpp::Session &s, int course, float xlo, float ylo, float xhi, float yhi, std::vector<float> &stor, int *npts)
 {
   s.nullcline_state.num_index=0;
+  stor.clear();
   s.nullcline_state.saver=&stor;
   do_cline(s,course,xlo,ylo,xhi,yhi);
   *npts=s.nullcline_state.num_index;
@@ -374,7 +394,7 @@ void get_max_dfield(xpp::Session &s, double *y, double *ydot, double u0, double 
     for(int j=0;j<=n;j++){
       y[iny]=v0+dv*j;
       s.integrator.rhs(0.0,y,ydot,s.model().node);
-      if(s.integrator.step_error)break;
+      if(grid_point_failed(s,inx,iny,y[inx],y[iny]))return;
       extra(s,y,0.0,s.model().node,s.model().neq);
       scale_dxdy(s,ydot[inx],ydot[iny],&dxp,&dyp);
       const double amp=xpp::math::hypot(dxp,dyp);
@@ -453,10 +473,7 @@ void save_the_nullclines(xpp::Session &s)
   std::string filename=xpp::files::output_name(s.model().this_file,".dat","nullclines");
   ping();
   if(!file_selector("Save nullclines",filename,"*.dat"))return;
-  xpp::Writer fp=xpp::open_writer_asking(filename.c_str());
-  if(!fp)return;
-  dump_clines(fp,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n);
-  if(!xpp::ok_or_show(xpp::commit_save(fp)))return;
+  write_clines(filename,false,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n);
   save_frozen_clines(s,filename);
 }
 
@@ -527,13 +544,9 @@ void do_batch_nclines(xpp::Session &s)
   if(!s.nullclines.draw && s.nullclines.file.empty())return;
   if(!phase_plane(*s.plot_windows.current))return;
   new_clines_com(s,0);
-  if(!s.nullclines.file.empty()){
-    xpp::Writer fp=xpp::open_writer_asking(s.nullclines.file);
-    if(!fp)return;
-    dump_clines(fp,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,
-                s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n);
-    xpp::ok_or_show(xpp::commit_save(fp));
-  }
+  if(!s.nullclines.file.empty())
+    write_clines(s.nullclines.file,false,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,
+                 s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n);
 }
 
 void set_colorization_stuff(xpp::Session &s)
@@ -747,7 +760,7 @@ NullclineState read_nullclines(const Model &m, setx::Block &file)
     axis("y_axis",iy);
     const auto segments=[&](std::string_view key,std::vector<float> &v,int &count){
       std::vector<double> values;
-      g.reals(key,values,4*static_cast<std::size_t>(MAX_NULL));
+      g.reals(key,values,4*static_cast<std::size_t>(option_limit::mesh)*static_cast<std::size_t>(option_limit::mesh));
       if(values.size()%4!=0)g.fail(*g.member(key),xpp::format("{} holds {} numbers: four for each segment",key,values.size()));
       for(const double value:values){
         if(value>std::numeric_limits<float>::max()||value<-std::numeric_limits<float>::max())

@@ -1038,7 +1038,7 @@ each set's data then in `<set>.dat` unless `--outfile` is given):
 
 After a run, the core computes requested nullclines (`nullclines.draw`, `nullclines.file`; a `.ode`'s `ncdraw`)
 and `dfdraw` phase-plane data
-in every mode, before exports: `nullclines.file` (`ncdraw=2`: `nullclines.dat`) also writes the nullclines and
+in every mode, before exports: `nullclines.file` (`ncdraw=2`: `nullclines.dat`) also writes the nullclines (a row a segment: `nullcline` 1 or 2, `x1`, `y1`, `x2`, `y2`, in the data format its extension names) and
 `dfdraw=4`/`5` dirfields.dat through the normal writer rules in the current
 working folder (W346). These are no longer extra script commands.
 After every run the script sends `--equil 0`/`1` as `equilibrium` `write`

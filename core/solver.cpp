@@ -41,15 +41,6 @@ int gear_work(int n) { return 30*n+n*n+100; }
 int stiff_work(int n, const Session &) { return 2*n*n+13*n+100; }
 int rosenbrock_work(int n, const Session &s) { return 12*n+100+jacobian_work(n,s); }
 
-/* where an error about settings is: the line the model sets the first of
-   them on, else the command that ran the computation */
-Place settings_place(const Model &m, std::initializer_list<std::string_view> settings)
-{
-  for(const std::string_view key:settings)
-    if(Place place=model_place(m,key);place.line>0)return place;
-  return command_place();
-}
-
 std::vector<double> make_work(int size)
 {
   try {

@@ -104,6 +104,23 @@ for(i=0;i<length;i++)s.histogram.four()[0][i]=static_cast<float>(i)/total;
   ping();
 }
 
+namespace {
+/* whether the run stored what an analysis of the data needs (at least 2 rows, and 2 variables for the
+   column it takes); when not, says so, once, as the command's error */
+bool has_data_for(const xpp::Session &s, std::string_view command)
+{
+  if(s.data_store.rows<=1){
+    command_error(command,xpp::format("The run stored {} row(s): nothing to analyse (at least 2 are needed)",s.data_store.rows));
+    return false;
+  }
+  if(s.model().neq<2){
+    command_error(command,xpp::format("The model has {} variable(s): the analysis needs at least 2",s.model().neq));
+    return false;
+  }
+  return true;
+}
+}
+
 void post_process_stuff(xpp::Session &s)
 {
 
@@ -326,8 +343,8 @@ void compute_power(xpp::Session &s)
   int i;
   double sv,c;
   float *datx,*daty,ptot=0;
+  if(!has_data_for(s,"power"))return;
   compute_fourier(s);
-  if((s.model().neq<2)||(s.data_store.rows<=1))return;
   datx=get_data_col(s,1);
   daty=get_data_col(s,2);
 
@@ -354,6 +371,25 @@ void compute_power(xpp::Session &s)
       size = win/2
 */
 
+namespace {
+/* the data window of win points, w_type 0 square, 1 parzen, 2 hamming, 3 bartlett, 4 hanning */
+std::vector<float> data_window(int win, int w_type)
+{
+  std::vector<float> f(win);
+  for(int i=0;i<win;i++){
+    const float x=static_cast<float>(i)/(static_cast<float>(win));
+    switch(w_type){
+    case 0: f[i]=1; break;
+    case 1: f[i]=x*(1-x)*4.0; break;
+    case 2: f[i]=.54-.46*xpp::math::cos(2*M_PI*x);break;
+    case 3: f[i]=1-2*fabs(x-.5);break;
+    case 4: f[i]=.5*(1-xpp::math::cos(2*M_PI*x));break;
+    }
+  }
+  return f;
+}
+}
+
 int spectrum(std::span<const float> data,int win,int w_type,float *pow)
 {
   const int nr=static_cast<int>(data.size());
@@ -364,20 +400,12 @@ int spectrum(std::span<const float> data,int win,int w_type,float *pow)
  float x,nrmf;
  if(nr<2)return(0);
  if(kwin<1)return(0);
- std::vector<float> ct_v(win), d_v(win), st_v(win), f_v(win);
- float *ct=ct_v.data(), *d=d_v.data(), *st=st_v.data(), *f=f_v.data();
+ std::vector<float> ct_v(win), d_v(win), st_v(win);
+ float *ct=ct_v.data(), *d=d_v.data(), *st=st_v.data();
+ const std::vector<float> window=data_window(win,w_type);
+ const float *f=window.data();
  nrmf=0.0;
- for(i=0;i<win;i++){
-   x=static_cast<float>(i)/(static_cast<float>(win));
-   switch(w_type){
-   case 0: f[i]=1; break;
-   case 1: f[i]=x*(1-x)*4.0; break;
-   case 2: f[i]=.54-.46*xpp::math::cos(2*M_PI*x);break;
-   case 4: f[i]=.5*(1-xpp::math::cos(2*M_PI*x));break;
-   case 3: f[i]=1-2*fabs(x-.5);break;
-   }
-   nrmf+=(f[i]*f[i]/win);
- }
+ for(i=0;i<win;i++)nrmf+=(f[i]*f[i]/win);
  for(i=0;i<shift;i++)
    pow[i]=0.0;
   
@@ -420,29 +448,21 @@ int cross_spectrum(std::span<const float> data,std::span<const float> data2,int 
   int kwin=(nr-win+1)/shift; 
   /*  int kwin=nr/shift; */
   int i,j,kk;
- float x,nrmwin;
+ float nrmwin;
  /*float sum; Not used anywhere*/
  if(nr<2)return(0);
  if(kwin<1)return(0);
- std::vector<float> ct_v(win), d_v(win), st_v(win), f_v(win);
+ std::vector<float> ct_v(win), d_v(win), st_v(win);
  std::vector<float> ct2_v(win), d2_v(win), st2_v(win);
  std::vector<float> pxx_v(win), pyy_v(win), pxyr_v(win), pxym_v(win);
- float *ct=ct_v.data(), *st=st_v.data(), *f=f_v.data(), *d=d_v.data();
+ const std::vector<float> window=data_window(win,w_type);
+ const float *f=window.data();
+ float *ct=ct_v.data(), *st=st_v.data(), *d=d_v.data();
  float *ct2=ct2_v.data(), *st2=st2_v.data(), *d2=d2_v.data();
  float *pxx=pxx_v.data(), *pyy=pyy_v.data();
  float *pxyr=pxyr_v.data(), *pxym=pxym_v.data();
  nrmwin=0.0;
- for(i=0;i<win;i++){
-   x=static_cast<float>(i)/(static_cast<float>(win));
-   switch(w_type){
-   case 0: f[i]=1; break;
-   case 1: f[i]=x*(1-x)*4.0; break;
-   case 4: f[i]=.5*(1-xpp::math::cos(2*M_PI*x));break;
-   case 2: f[i]=.54-.46*xpp::math::cos(2*M_PI*x);break;
-   case 3: f[i]=1-2*fabs(x-.5);break;
-   }
-   nrmwin+=f[i]*f[i];
- }
+ for(i=0;i<win;i++)nrmwin+=f[i]*f[i];
  for(i=0;i<shift;i++){
    pxx[i]=0.0;
    pyy[i]=0.0;
@@ -484,6 +504,7 @@ int cross_spectrum(std::span<const float> data,std::span<const float> data2,int 
 void just_sd(xpp::Session &s, int flag)
 {
  int length,j;
+  if(!has_data_for(s,"spectrum"))return;
   float total=s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0];
   s.histogram.spec_type=flag;
   if(s.histogram.hist_here){
@@ -496,10 +517,11 @@ void just_sd(xpp::Session &s, int flag)
   s.histogram.hist_columns.make(s.data_store,2,length,s.model().neq);
   s.histogram.hist_here=1;
   for(j=0;j<s.histogram.hist_len;j++)s.histogram.hist()[0][j]=(static_cast<float>(j)*s.data_store.rows/s.histogram.spec_wid)/total;
-  if(s.histogram.spec_type==0)
-    spectrum(std::span(s.data_store.col[s.histogram.spec_col],s.data_store.rows),s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1]);
-  else
-    cross_spectrum(std::span(s.data_store.col[s.histogram.spec_col],s.data_store.rows),std::span(s.data_store.col[s.histogram.spec_col2],s.data_store.rows),s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1],s.histogram.spec_type);
+  const int computed=s.histogram.spec_type==0
+    ? spectrum(std::span(s.data_store.col[s.histogram.spec_col],s.data_store.rows),s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1])
+    : cross_spectrum(std::span(s.data_store.col[s.histogram.spec_col],s.data_store.rows),std::span(s.data_store.col[s.histogram.spec_col2],s.data_store.rows),s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1],s.histogram.spec_type);
+  if(!computed)
+    command_error("spectrum",xpp::format("No window of {} points fits in the {} rows the run stored (windows overlap by half)",s.histogram.spec_wid,s.data_store.rows));
   hist_back(s);
   ping();
 }
@@ -521,7 +543,7 @@ void just_fourier(xpp::Session &s, int flag)
   double sv,c;
   float *datx,*daty;
   int nmodes=s.data_store.rows/2-1;
-  if(s.model().neq<2||s.data_store.rows<=1)return;
+  if(!has_data_for(s,"fourier"))return;
    new_four(s,nmodes,s.histogram.spec_col);
    if(flag)
      {
@@ -542,14 +564,7 @@ void just_fourier(xpp::Session &s, int flag)
 void compute_fourier(xpp::Session &s)
 {
   int nmodes=10;
-  if(s.model().neq<2){
-    command_error("fourier", "Need at least three data columns");
-    return;
-  }
-  if(s.data_store.rows<=1){
-    command_error("fourier", "No data!");
-    return;
-  }
+  if(!has_data_for(s,"fourier"))return;
   if(get_col_info(s,&s.histogram.spec_col,"Variable ")==1){
     nmodes=s.data_store.rows/2-1;
     new_four(s,nmodes,s.histogram.spec_col);

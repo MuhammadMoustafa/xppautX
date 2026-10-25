@@ -1,0 +1,8 @@
+# fourier_one_variable.odex: a stop case of servercheck's stops section (docs/studies/w480-stops.md)
+
+x' = -x
+init x = 1
+options {
+  integration: { total_time: 5 },
+  analysis: { postprocess: 2 },
+}

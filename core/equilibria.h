@@ -1,6 +1,9 @@
 #pragma once
 
 #include <array>
+#include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 #include "xpp_error.h"
 #include "xpplim.h"
@@ -9,15 +12,36 @@
 namespace xpp {
 
 struct Session; /* session.h */
-class Random;   /* xpp_math.h */
 
-void get_evec(Random &random, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval, int *ierr);
+/* how Newton's method for an equilibrium ended: the way it converged, or what stopped it (a failed
+   evaluation of the right-hand side is rooter's error, not an end) */
+enum class NewtonEnd { converged, singular_jacobian, left_box, max_iterates, cancelled, step_error };
+struct NewtonRun {
+  NewtonEnd end = NewtonEnd::converged;
+  int iterations = 0;   /* the steps taken */
+  double change = 0;    /* the size of the last step (the sum of its parts) */
+  int worst = 0;        /* the variable whose equation was furthest from zero at the last iterate */
+};
+/* what stopped Newton's method, as words ("exceeded max_iterations = 100 ...") and the key of the
+   setting that did ("" when none): for n variables */
+struct NewtonCause {
+  std::string why;
+  std::string_view setting;
+};
+NewtonCause newton_cause(const Session &s, const NewtonRun &run, std::size_t variables);
+/* why Newton's method from start (the variables' values) found no equilibrium, with the setting that
+   stopped it and the model line (the setting's, else the worst equation's) */
+Error newton_error(const Session &s, const NewtonRun &run, std::span<const double> start);
+
+/* the eigenvector of the Jacobian a (a copy, anew, is factored) for eval, into b and bp (inverse
+   iteration); the error says why there is none */
+Result<> get_evec(Session &s, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval);
 
 Result<> do_sing_info(Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 void pr_evec(Session &s, double *x, double *ev, int n, int pr, double eval,int type);
 void getjac(Session &s, double *x, double *y, double eps, double *dermat, int n);
 /* (a failed exact Jacobian is its error, the point back where it was) */
-Result<> rooter(Session &s, double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n);
+Result<> rooter(Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n);
 
 /* Sing pts: the equilibrium Newton finds from x (Could not converge,
    no eigenvalues: an error), its stability (stabinfo) and, when asked,
