@@ -226,10 +226,11 @@ four and three, with two additional real special points now compared.
 
 ## Result
 
-48 descriptions have an AUTO-07p reference (176 special points compared, and the two-parameter curves) and 42 an
-XPPAUT 8.0 reference (120 points); 42 hold both. There are 31 traced difference entries for AUTO-07p
-and 55 for XPPAUT, including nine and three quantity-specific discrepancies respectively (four of AUTO-07p's
-and one of XPPAUT's since [W474](#w474-auto-07ps-nested-dissection-for-the-collocation-blocks-537)). Those twelve
+49 descriptions have an AUTO-07p reference (176 special points compared before W458, and the two-parameter curves) and 43 an
+XPPAUT 8.0 reference (120 points before W458); 43 hold both. There are 36 traced difference entries for AUTO-07p
+and 58 for XPPAUT, including ten and five quantity-specific discrepancies respectively (four of AUTO-07p's
+and one of XPPAUT's since [W474](#w474-auto-07ps-nested-dissection-for-the-collocation-blocks-537), one and two
+since [W458](#w458-the-first-steps-of-cycles-from-a-hopf-point-521), whose `bautin_near_hopf` adds a description with both). Those fifteen
 quantities remain outside their unchanged bounds; the other quantities and labels stay checked. The full
 W437 comparison passes: 60 descriptions, 9 skipped, 18674 computed points across one and automatic threads,
 150 checks, zero untraced failures. Both Mu26 and the sixteen approved periodic baselines were updated;
@@ -243,6 +244,7 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 
 | Model | Special points in xppautX | AUTO-07p | XPPAUT 8.0 |
 |---|---|---|---|
+| bautin_near_hopf | steady: EP HB; cycles_up: LP; cycles_down: LP | agrees, 4 traced (3 points; par 1.5e-09, norm 0.00048, period 2e-11, spectrum 2e-06; curve par 5.6e-05, par2 0, norm 3.5e-05) | agrees, 2 traced (4 points; par 1.5e-09, norm 0.00048, period 2e-11, spectrum 1.6e-06; curve par 5.6e-05, par2 0, norm 1.1e-05) |
 | explicit_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.2e-08, par2 2.7e-15, norm 1.8e-08) | not run |
 | forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 7.9e-10, par2 9.1e-11, norm 4.3e-10, period 2e-14, spectrum 1.9e-05; curve par 0.00053, par2 9.8e-06, norm 4.9e-06) | agrees, 1 traced (4 points; par 3.1e-08, norm 2.6e-08, period 2e-14, spectrum 3.8e-07; curve par 0.00062, par2 7.9e-06, norm 4.2e-06) |
 | forced_pp_pd | steady: EP HB; cycles: PD; pd_up: R2; pd_down: R2 | agrees, 4 traced (5 points; par 5e-06, par2 5.2e-05, norm 3.5e-06, period 2.1e-14, spectrum 0.00032; curve par 9.5e-07, par2 7.7e-05, norm 5.8e-06) | agrees, 2 traced (3 points; par 1.6e-08, norm 4.8e-08, period 2.1e-14, spectrum 3.1e-07; curve par 6.5e-06, par2 0.0029, norm 0.00019) |
@@ -259,7 +261,7 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 | ode_del_log | steady: EP | agrees (1 points; par 0, norm 4.9e-12) | agrees (1 points; par 0, norm 2.2e-08) |
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 2.7e-11, norm 2.5e-11, period 9.6e-09, spectrum 4.2e-07) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.5e-06, period 0.0017, spectrum 0.00041) |
 | ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 4.6e-07, norm 5e-09, period 5.7e-09, spectrum 1.2e-06) | agrees (4 points; par 9.3e-06, norm 4.7e-06, period 2.1e-08, spectrum 8.5e-08) |
-| ode_motoneuron6c | steady: EP LP LP HB HB LP HB LP HB HB; periodic: LP; hb_up: -; hb_down: - | agrees, 5 traced (11 points; par 1.4e-09, norm 1.6e-08, period 3.7e-07, spectrum 4.9e-06; curve par 5.8e-06, par2 7.4e-08, norm 0.00015) | agrees (11 points; par 9.3e-06, norm 0.0005, period 0.1, spectrum 0.001; curve par 2.2e-05, par2 5.1e-07, norm 0.00067) |
+| ode_motoneuron6c | steady: EP LP LP HB HB LP HB LP HB HB; periodic: -; hb_up: -; hb_down: - | agrees, 6 traced (10 points; par 1.4e-09, norm 1.6e-08, period 3.7e-07, spectrum 4.6e-06; curve par 5.8e-06, par2 7.4e-08, norm 0.00015) | agrees, 1 traced (10 points; par 5.4e-06, norm 0.00019, period 0.1, spectrum 1e-05; curve par 2.2e-05, par2 5.1e-07, norm 0.00067) |
 | ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; to_snic: UZ UZ UZ UZ; hb_soma: -; hb_dend: -; lp_soma: CP; lpc_soma: -; lpc_dend: - | agrees, 2 traced (10 points; par 1.2e-07, par2 7.3e-08, norm 8e-05, period 0.0028, spectrum 4.4e-05; curve par 6.4e-05, par2 1.4e-07, norm 6.9e-09) | agrees, 6 traced (7 points; par 1.2e-06, norm 4.1e-05, period 0.00018, spectrum 3.4e-05; curve par 0.024, par2 0.00087, norm 0.00021) |
 | ode_mu26_control | steady: EP LP LP HB; cycles: LP; to_snic: UZ UZ UZ UZ | agrees, 3 traced (9 points; par 8.9e-08, norm 3.1e-05, period 0.0004, spectrum 0.00052) | agrees, 5 traced (6 points; par 3.5e-06, norm 4.4e-05, period 1.2e-05, spectrum 4.8e-07) |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
@@ -1457,7 +1459,8 @@ AUTO-07p an LP. Neither is real: the parameter is monotonic from the Hopf point 
 component, +4.6e-6 then -5.8e-6) and the branch-point function (a determinant ratio of 1e-16 to 1e-17, noise), and which
 one is located first depends on the Jacobian: the fold's location does not converge (its values -3.8e-5, +1.4e-5, -1.3e-5,
 -1.5e-5, ...), the branch point's is taken. The table above (W431) lists this point as a fold of cycles; it is the start of
-the branch, in all four programs.
+the branch, in all four programs. W458 found the two causes and removed both from the core
+([W458](#w458-the-first-steps-of-cycles-from-a-hopf-point-521)).
 
 **How the gate should judge exact rows** (a proposal for the benchmark's driver, `paper/benchmarks/comparison/continuation.py`,
 not made here): a program that differences cannot judge a Jacobian that does not, wherever a quantity depends on the Jacobian's
@@ -1601,3 +1604,83 @@ Times (Ubuntu, best of three, `autocompare.compute`): ode_mu26_blocked's steady 
 threads before, 11.44, 6.39, 4.07 s after (2.81 times faster at four threads instead of 2.38); motoneuron6c's steady and periodic runs
 2.95, 2.45, 2.19 s before, 2.93, 2.37, 2.09 s after. Four chunks (the tree's second level) go to the workers and the three merges above
 them run on the caller; eight chunks change no number and measured 1.7% slower at four threads, 1.2% faster at three.
+
+## W458: the first steps of cycles from a Hopf point ([#521](https://github.com/MuhammadMoustafa/xppautX/issues/521))
+
+W455 found an LP (difference Jacobian, XPPAUT 8.0, AUTO-07p) or a BP (exact Jacobian) at the third point of motoneuron6c's
+cycles from the Hopf point, 1.5e-7 in ampPar from it, where ampPar rises monotonically and nothing is labelled at EPSL = EPSU
+1e-8 and DS -0.002. The maintainer's decision (2026-10-25): where AUTO-07p labels a point that is not there, xppautX does
+not follow it.
+
+**What the test functions do at a Hopf start.** Both the fold test (the parameter component of the branch's tangent) and
+the branch-point test (a ratio of determinants, the Newton system's over its condensed block's) vanish at the start by
+construction: the cycles leave the Hopf point with the parameter stationary, and the Hopf point is where the constant
+solutions cross the cycles' equations. Every test starts at 0, so the first step never labels (AUTO-07p's `TEST(I)=0`,
+[bvp.f90:178](../reference/auto-07p/src/bvp.f90#L178), with the sign check at
+[bvp.f90:1325](../reference/auto-07p/src/bvp.f90#L1325)); the first comparison is the second step, between the second and
+third point. Two separate errors gave the second point's value the wrong sign there:
+
+1. **The fold test was read from the predictor's Jacobian.** AUTO (AUTO-07p's Newton, [bvp.f90:711-724](../reference/auto-07p/src/bvp.f90#L711),
+   and ours) solves for the tangent with the last factorization, at the iterate before the final correction. At the second
+   point the corrector starts from the eigen-cycle and converges in one correction (motoneuron6c: 1.7e-6 relative, 1e-6 in
+   ampPar), more than the branch has moved since the start (1.5e-7), and near the start the tangent is ill-conditioned.
+   The fold test was +4.57e-6 at the second point, -1.6e-5 at the third; factored at the point it is -2.5e-5, the sign of
+   every later point's. Refactoring at the second point alone does not do: the location then compares that value with
+   the third point's and its own iterates', still taken at their predictors, and on the Bautin model below it ran into the first step.
+2. **The phase condition's orientation followed the eigen-cycle, not DS.** The start's `upoldp` is the eigen-cycle's
+   derivative; the first cycle is the equilibrium plus DS times the eigen-cycle, so from the second point on the phase
+   condition is the derivative of a cycle oriented by the sign of DS. With DS < 0 the phase row, and with it the
+   determinant, changed sign between the second and third point: motoneuron6c's BP test -1.16e-16, then +1.85e-16 (with DS
+   +0.02 it keeps its sign: -1.16e-16, -2.09e-17, -5.16e-16). The determinant is linear in that row; nothing else reads its sign.
+
+**The rule.** The start's phase condition is oriented by the sign of DS (`auto_hopf_mesh`), and on a branch started at a
+Hopf point (`stpnps`, `stpnwp`) the points of the first two steps, and every point of a location between them, are
+factored again at the converged point before their tests and multipliers are read (`stepbv`, `hopf_start_steps`), the
+rule W421 made for every equilibrium. The orientation changes no number but the determinant's sign (multiplying a row by
+-1 changes no pivot), so a DS > 0 run is untouched.
+
+**Rules considered and not taken.** A test whose two values lie below a noise level: the fold test is the parameter
+component of a unit tangent, about 1e-5 all along motoneuron6c's cycles (their parameter barely moves), and no level
+separates the spurious change from a real fold of such a branch. A zero located at the start or within the first step:
+the spurious zeros were located at 0.07 percent of the step (LP), 22 to 26 percent into it (BP, exact Jacobian) and,
+with DS 0.002, before the second point; a position does not tell them from a real fold. A sign change that disappears at
+a tighter tolerance: true (W455), but it needs a second run. Skipping the second step's comparison: the Bautin fold below
+lies in that step and would be lost. All steps at the converged point's Jacobian: the whole comparison took 45 percent
+longer at one thread (197 s against 136 s), and on `tstauto_pp2`'s cycles near their homoclinic orbit (NTST 15) it
+labelled an LP at stored point 24, where the parameter rises monotonically (0.7080693, 0.7080721, 0.7080730).
+
+**A real fold close to the start is kept** (`tests/auto/bautin_near_hopf.json`, the Bautin normal form
+`r' = r (b1 + b2 r^2 - r^4)` with b2 = 0.0032, `tools/models/bautin_near_hopf.odex`): its fold of cycles is at amplitude
+0.04, b1 = -2.56e-6, between the second (0.02) and third (0.06) point of the cycles from the Hopf point at DS 0.02.
+
+| Run | fold: norm | fold: b1 | other labels |
+|---|---|---|---|
+| exact | 0.04 | -2.56e-6 | |
+| xppautX, DS 0.02 and -0.02 | 0.0399989 | -2.5599999923e-6 | none |
+| xppautX before W458, DS 0.02 | 0.0404764 | -2.55853e-6 | none |
+| AUTO-07p 0.9.4, DS 0.02 | 0.040476392578 | -2.5585301701e-6 | none |
+| AUTO-07p 0.9.4, DS -0.02 | 0.018453107838 (before the second point) | -9.7370305335e-7 | BP at norm 0.02027 |
+| XPPAUT 8.0, DS 0.02 and -0.02 | 0.0404764 | -2.55853e-6 | none |
+
+AUTO-07p's DS < 0 run labels a BP that is not there and the LP in the first step, and misses the fold
+([auto07p-findings.md](auto07p-findings.md#8-the-first-comparison-of-cycles-from-a-hopf-point-reads-a-predictors-fold-test-and-a-misoriented-phase-condition));
+the description traces both, and the last-iterate programs' fold 1.2 percent off in amplitude.
+
+**motoneuron6c** labels nothing at the start of its cycles with either Jacobian at the description's DS -0.02, at DS
+-0.002 and 0.002, at DS -0.002 with EPSL = EPSU 1e-9, at DS ±0.0002 with the difference Jacobian, and on P2's run to
+ampPar 0.62 (108 points). One case remains: the exact Jacobian at DS +0.0002 (a hundredth of the description's) labels an
+LP at the third point, where the computed branch's parameter does dip, by 7e-11 (second point 0.572781455613, the LP
+0.572781455540, third point 0.572781456017):
+a fold of the computed points, within the Hopf start's own accuracy, that no test of the branch tells from a real fold of that size.
+
+**Baselines.** `ode_motoneuron6c` loses the LP at the third point of its cycles (label 12; the points after it follow
+from the third point instead of the located one, and the later labels renumber; its second point's multipliers change as
+below); its two references trace their LP. Seventeen more descriptions change only the multipliers of the second and
+third points of their cycles from a Hopf point (forced_pp_ns, forced_pp_pd, hill_cycles_pd, hill_cycles_torus, ode_lecar,
+ode_ma23, ode_mu26_blocked, ode_mu26_control, res_cycles, tstauto_brper, tstauto_frcp, tstauto_lamom, tstauto_lamom2,
+tstauto_lecar, tstauto_lo, tstauto_pp2, tstauto_torx): the trivial multiplier, 1 for a cycle, was up to 2.3e-4 from 1
+(tstauto_lamom2's third point; ode_lecar's second 1.3e-4) and is within 6.1e-9 of it at every one of these 35 points:
+closer at 29, the same on the two Mu26 descriptions, and at two, already within 2.4e-12, it moves by rounding
+(forced_pp_pd's second point to 1.6e-12, tstauto_lo's to 2.3e-11). No point of any branch moves, no label is added or removed
+elsewhere, and the AUTO-07p and XPPAUT comparisons pass (61 descriptions, 153 checks). The time does not change (one
+factorization more for each of the first two points of such a branch).

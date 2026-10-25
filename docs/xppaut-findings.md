@@ -112,6 +112,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [79](#79-the-stiff-step-that-finds-its-matrix-singular-is-retried-with-a-stale-step) | Integrators | Stiff's step that finds its matrix singular reports `*ier=-1`, which the driver does not test (it stops only for a positive one): the step is retried with a step size left over, or never set | [W488 / #552](https://github.com/MuhammadMoustafa/xppautX/issues/552) |
 | [80](#80-a-networks-tables-are-never-checked-for-the-values-it-reads-and-fftcons-check-tests-the-wrong-variable) | Networks | a network reads its weight, index and delay tables with no check of their length; fftcon's check compares the keyword code, so the zero-ends test never runs | [W490 / #554](https://github.com/MuhammadMoustafa/xppautX/issues/554) |
 | [81](#81-a-failed-auto-set-up-a-missing-restart-label-and-a-short-restart-read-pass-silently) | AUTO | a combination AUTO has no functions for leaves the run's function table uninitialised and only prints "Initialization Error CRASH!!"; a missing restart label only prints; a short read of the restart data is ignored and the run goes on with half-zero data | [W491 / #555](https://github.com/MuhammadMoustafa/xppautX/issues/555) |
+| [86](#86-the-fold-test-at-the-first-point-of-cycles-from-a-hopf-point-is-read-from-the-predictors-jacobian) | AUTO | the second point of cycles from a Hopf point takes its fold test from the eigen-cycle predictor's factorization: an LP next to the start that is not there (motoneuron6c), and a fold close to the start placed 1.2 percent off | [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521) |
 
 ## 1. Model options
 
@@ -1831,3 +1832,32 @@ The start routines read the restart data with unchecked `fscanf`s (e.g. `stpnbv`
 xppautX chooses the functions from a table and makes each of the three an error that ends the run and is shown, naming the
 problem, ISW and start type, or the label, the file and what the data ended before (W491,
 [#555](https://github.com/MuhammadMoustafa/xppautX/issues/555); tests/test_auto_restart.cpp truncates a restart file).
+
+## 86. The fold test at the first point of cycles from a Hopf point is read from the predictor's Jacobian
+
+`cnrlbv` starts every test at 0 ([autlib1.c:5039-5041](../reference/xppaut-8.0/autlib1.c#L5039),
+[master](../reference/xppaut-master/autlib1.c#L5036)), so the first step from a Hopf point never labels and the second
+compares the second point's values with the third's. `fnlpbv`, the fold test, solves for the tangent with the last
+Newton factorization (`ifst = 0`, [autlib1.c:6542](../reference/xppaut-8.0/autlib1.c#L6542),
+[master](../reference/xppaut-master/autlib1.c#L6539)), the iterate before the final correction. At the second point that is
+the eigen-cycle predictor of `stpnps` ([autlib3.c:1653-1654](../reference/xppaut-8.0/autlib3.c#L1653)): the corrector
+converges in one correction, which moves the parameter further than the branch has moved since the start, and the
+tangent is ill-conditioned there, since the fold and branch-point tests vanish at the Hopf point by construction.
+
+Evidence: on ModelDB 267710's cycles from the Hopf point at ampPar 0.5728 (`tests/auto/ode_motoneuron6c.json`, its
+`.xppaut` reference) XPPAUT 8.0 labels an LP at ampPar 0.5727909, where ampPar rises monotonically from the Hopf point and
+nothing is labelled at EPSL = EPSU 1e-8 (W455); its multipliers there hold 1.000141 beside the trivial 1. With the same
+factorization xppautX's fold test was +4.57e-6 at the second point, and -2.5e-5 when factored at the point, the sign of
+every later point's. On the Bautin normal form `r' = r (b1 + b2 r^2 - r^4)`, b2 = 0.0032
+(`tests/auto/bautin_near_hopf.json`), whose fold of cycles is at amplitude 0.04, b1 = -2.56e-6, between the second and
+third point, XPPAUT 8.0 places it at norm 0.0404764, b1 = -2.55853e-6, 1.2 percent off in amplitude, at DS 0.02 and
+-0.02 alike. `stpnps` also orients the start's phase-condition derivative `upoldp` by the eigen-cycle whatever the sign
+of DS, the cause of AUTO-07p's spurious BP with DS < 0
+([auto07p-findings.md](auto07p-findings.md#8-the-first-comparison-of-cycles-from-a-hopf-point-reads-a-predictors-fold-test-and-a-misoriented-phase-condition));
+XPPAUT's Bautin run with DS < 0 labels no BP, which was not traced further.
+
+xppautX factors the points of the first two steps of such a branch, and those of a location between them, again at the
+converged point before reading their tests and multipliers, and orients `upoldp` by the sign of DS: it labels nothing at
+motoneuron6c's start and locates the Bautin fold at norm 0.0399989, b1 = -2.5599999923e-6 (docs/auto-references.md, W458).
+
+**Card:** [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521).

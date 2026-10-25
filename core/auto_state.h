@@ -275,6 +275,9 @@ struct AutoLib {
   /* while lcspae/lcspbv locate a special point: their solves run to
      the end (autlib1.cpp's Locating) */
   bool locating=false;
+  /* the branch of cycles cnrlbv continues started at a Hopf point: its
+     first steps' tests read the converged point's Jacobian (autlib1.cpp) */
+  bool hopf_start=false;
   /* the exact Jacobian's failure (W275): a derivative not finite where the
      right-hand side is, recorded by func (autpp.cpp) on its own AutoLib (a
      collocation worker's, merged into the Session's by the caller when the
