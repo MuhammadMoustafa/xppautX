@@ -115,6 +115,16 @@ inline std::string number(double v)
     return std::to_string(v); /* unreachable for a finite double in 32 bytes */
 }
 
+/* v appended in the general format with `significant` digits: printf's "%.*g"
+   character for character (std::format's "{:.Ng}" too), straight from
+   std::to_chars into a stack buffer, without the format string's parse */
+inline void append_general(std::string &out, double v, int significant)
+{
+    std::array<char, 32> buf;
+    const std::to_chars_result r = std::to_chars(buf.data(), buf.data() + buf.size(), v, std::chars_format::general, significant);
+    if (r.ec == std::errc()) out.append(buf.data(), r.ptr);
+}
+
 /* Checked stream positions. Positions returned by tell_stream are opaque:
    seek_stream uses an absolute seek, including on Windows text streams.
    rewind_stream also clears EOF/error indicators, as rewind does. */

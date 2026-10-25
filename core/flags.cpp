@@ -271,7 +271,7 @@ void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double
 	    else{
 
 	      if((flags[i].type[j]==2)&&(s.integrator.flags[i].vrhs[j]>0))xpp::send_output(s,ynew,*tnew);
-	      if((flags[i].type[j]==3)&&(s.integrator.flags[i].vrhs[j]>0))xpp::send_halt(s);
+	      if((flags[i].type[j]==3)&&(s.integrator.flags[i].vrhs[j]>0))xpp::send_halt(s,i);
 	    }
 	  }
 
@@ -355,13 +355,14 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
     *istart=0;
 
   }
+  /* the step's end state, stored once: evaluating a condition never writes it */
+  for(j=0;j<neq;j++)
+    setvar(s,j+1,ynew[j]);
+  setvar(s,0,*tnew);
   for(i=0;i<s.model().flag_count();i++){
     sign=flags[i].sign;
     s.integrator.flags[i].f0=s.integrator.flags[i].f1;
     f0=s.integrator.flags[i].f0;
-    for(j=0;j<neq;j++)
-      setvar(s,j+1,ynew[j]);
-    setvar(s,0,*tnew);
     f1=xpp::evaluate(s,flags[i].comcond);
     s.integrator.flags[i].f1=f1;
     tol=fabs(f1-f0);
@@ -449,7 +450,8 @@ FlagEnd flag_loop(xpp::Session &s, double *y, int neq, double *t, int *istart,
     on_hit();
     if(tend&&*t==*tend)return FlagEnd::done;
     if(nstep>(s.model().flag_count()+2)){
-      xpp::log(XPP_LOG_WARN, " Working too hard?? smin={:g}\n",frac);
+      xpp::log(XPP_LOG_WARN, "Events: more than {} events inside one step at t = {:g} (smin = {:g}); the step was taken without the later ones\n",
+               s.model().flag_count()+2,*t,frac);
       return FlagEnd::too_hard;
     }
   }

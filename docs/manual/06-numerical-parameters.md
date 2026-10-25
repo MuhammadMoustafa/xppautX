@@ -23,7 +23,7 @@ This is the initial time `T0` For autonomous systems it is usually irrelevant.
 
 ### tRansient
 
-The program will integrate silently for this amount of time before plotting output. It is used to get rid of transients.
+The time from which rows are stored (`store_from`): the run integrates silently until `t` has passed it in the direction of the run (`t` at least this value going forward, at most it going backward), then stores. It is a time, not a duration, so a run that starts at `T0` other than 0 stores from this very time. A value before the start stores every row; a value beyond the run's end is an error before the run (nothing would be stored), naming the setting, the start and the end, unless an event writes rows (`out_put`). It is used to get rid of transients.
 
 ### (D)t
 

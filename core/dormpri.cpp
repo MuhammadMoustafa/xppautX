@@ -828,7 +828,7 @@ private:
       if(event.bound_variable>=0&&event.flag_count==0&&!(event.section&&num.poincare_stop)){
         const auto &name=s.model().uvar_names[event.bound_variable];
         valid_=false;
-        return failed(xpp::format("{} reaches bound at t = {}",name,*step.t),model_place(s.model(),name));
+        return failed(xpp::format("{} reaches state_limit = {} at t = {}",name,xpp::number(num.state_limit),*step.t),model_place(s.model(),name));
       }
       if(event.flag_count){
         apply_dense_flags(s,step.y,*step.t,n,std::span(event.flags.data(),static_cast<std::size_t>(event.flag_count)));
@@ -856,7 +856,7 @@ private:
       const bool bounded=s.numerics.stop_at_limit&&!(s.integrator.range_flag||s.integrator.suppress_bounds);
       if(!std::isfinite(y[i])||(bounded&&fabs(y[i])>s.numerics.state_limit)){
         const auto &name=s.model().uvar_names[i];
-        return failed(xpp::format("{} is not finite or exceeds bound at t = {}",name,time),model_place(s.model(),name));
+        return failed(xpp::format("{} is not finite or exceeds state_limit = {} at t = {}",name,xpp::number(s.numerics.state_limit),time),model_place(s.model(),name));
       }
     }
     return {};

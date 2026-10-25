@@ -165,6 +165,17 @@ const SolverInfo &solver_info(int method);
    it reads that too), above |dt| or above the run's |length|. */
 Result<> check_step_limits(const Session &s, const SolverInfo &info, double dt, double length);
 
+/* A run from start over length (both in the direction of dt) that stores
+   rows, refused before it starts when store_from lies beyond its end in
+   that direction: nothing would be stored (W381 decision 4), unless an event
+   writes rows (out_put). A store_from
+   before the start is fine (every row is stored). */
+Result<> check_store_from(const Session &s, double start, double dt, double length);
+
+/* whether a row at time t is stored: t has passed store_from in the run's
+   direction (forward t >= store_from, backward t <= store_from) */
+inline bool stored_from(double store_from, double t, double dt) { return dt<0 ? t<=store_from : t>=store_from; }
+
 /* starts the solver of s's numerics.method: a fresh one, with fresh work
    memory, the Session's (integrate.h's IntegratorState) */
 void start_solver(Session &s);
