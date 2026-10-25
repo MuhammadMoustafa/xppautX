@@ -109,6 +109,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [76](#76-the-equilibrium-ranges-monte-carlo-answer-is-read-from-the-movie-field) | Equilibria | Equilibria > Range's Monte Carlo field reads a `y` typed in the Movie field's position (and its own `n` is ignored when Movie is `y`) | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
 | [77](#77-rosenbrock-retries-a-failing-step-forever-at-the-smallest-step) | Integrators | a Rosenbrock step that fails at the smallest step size never reaches its "Step size too small" exit, since the size is clamped up to that minimum first: the run does not end | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
 | [78](#78-a-flag-with-sign-1-repeats-one-clause-and-misses-an-exact-zero) | Events | the rising-flag test repeats one clause where the falling one tests `f1<=0`: a rising flag that lands exactly on zero is missed | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
+| [79](#79-a-failed-auto-set-up-a-missing-restart-label-and-a-short-restart-read-pass-silently) | AUTO | a combination AUTO has no functions for leaves the run's function table uninitialised and only prints "Initialization Error CRASH!!"; a missing restart label only prints; a short read of the restart data is ignored and the run goes on with half-zero data | [W491 / #555](https://github.com/MuhammadMoustafa/xppautX/issues/555) |
 
 ## 1. Model options
 
@@ -1787,3 +1788,18 @@ The event test for a rising flag is `(((f0<0.0)&&(f1>0.0))||((f0<0.0)&&(f1>0.0))
 where the falling flag tests `f0>0.0&&f1<=0.0`. A condition that is exactly zero at the end of a step after being
 negative is a falling event but not a rising one. xppautX tests `f0<0.0&&f1>=0.0`, the mirror of the falling case; no
 example model's output changed (W482, [#546](https://github.com/MuhammadMoustafa/xppautX/issues/546)).
+
+## 79. A failed AUTO set-up, a missing restart label and a short restart read pass silently
+
+`go_go_auto` declares `function_list list;` uninitialised ([gogoauto.c:33](../reference/xppaut-8.0/gogoauto.c#L33));
+`set_function_pointers`'s last branch, reached for a problem, ISW and start type it has no functions for, only prints
+`Initialization Error CRASH!!` and returns ([gogoauto.c:494-499](../reference/xppaut-8.0/gogoauto.c#L494)), so
+`list.type` is read uninitialised ([gogoauto.c:99-103](../reference/xppaut-8.0/gogoauto.c#L99)): neither driver runs, or
+one runs with garbage pointers, and the run ends with no point and no error. A restart label missing from fort.3 prints
+`Restart label not found` and returns as from a normal end ([gogoauto.c:68-75](../reference/xppaut-8.0/gogoauto.c#L68)).
+The start routines read the restart data with unchecked `fscanf`s (e.g. `stpnbv`,
+[autlib1.c:6004-6008](../reference/xppaut-8.0/autlib1.c#L6004)) and their callers ignore the result
+([autlib1.c:5893](../reference/xppaut-8.0/autlib1.c#L5893)), so a truncated fort.3 continues from half-read data.
+xppautX chooses the functions from a table and makes each of the three an error that ends the run and is shown, naming the
+problem, ISW and start type, or the label, the file and what the data ended before (W491,
+[#555](https://github.com/MuhammadMoustafa/xppautX/issues/555); tests/test_auto_restart.cpp truncates a restart file).

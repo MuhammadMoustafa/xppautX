@@ -244,7 +244,7 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
     numerics = {NUMERICS[k]: v for k, v in r['auto'].items()}
     diagram.apply(completed(s, dict(cmd='auto', op='set', numerics=numerics,
                                    marks=r.get('marks', []), axes={'par1': pars[0],
-                                   **({'par2': pars[1], 'plot': 4} if len(pars) == 2 else {})})))
+                                   **({'par2': pars[1], 'plot': 'two_parameter'} if len(pars) == 2 else {})})))
     keys = {'equilibrium': 's' if start.get('state') == 'current' else 'e',
             # a periodic run from an HB starts the cycles; from a point of cycles it extends them (W423)
             'periodic': 'p' if start.get('type') == 'HB' else 'e', 'two_parameter': 't', 'fixed_period': 'f',

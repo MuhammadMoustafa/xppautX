@@ -242,7 +242,7 @@ int main()
     // A failed equilibrium location also returns to an unstored point.
     xpp::auto_stability_run_start(actual, xpp::AUTO_STABILITY_STEADY, 1,
         xpp::AUTO_STABILITY_NONE, xpp::AutoPointCode{}, {}, {});
-    lib.locating = 1;
+    lib.locating = true;
     iap.ips = xpp::AutoProblem::SteadyState;
     iap.istop = 0;
     ds = rap.dsold = 1;
@@ -255,7 +255,7 @@ int main()
         &uold, &udot, &f, &dfdu, dfdp.data(), thl.data(), &thu);
     CHECK(iap.istop == 1 && ds < rap.dsmin && u == 2 && par[0] == 2);
     CHECK(xpp::auto_stability_for(actual, 1, 6, std::span(r, 1), std::span(i, 1)) == 1 && near(r[0], std::exp(3.0)) && i[0] == 0);
-    lib.locating = 0;
+    lib.locating = false;
 
     // stprae's successful seed is unstored: the following contae sees
     // NTOT=1 again, but its u is no longer the restart label's solution.

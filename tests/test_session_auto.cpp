@@ -135,7 +135,7 @@ void check_settings_text()
     xpp::AutoSettingsSet s;
     s.special_points={true,false,true,false,false,true,false,true,true,false,true,false};
     for (int i = 0; i < xpp::AUTO_NUM_N; i++) s.num[i] = awk(i) / (i + 1);
-    s.plot = 11;
+    s.plot = xpp::AutoProjection::average;
     s.var = "v";
     s.par1 = "iapp";
     s.par2 = "";
@@ -151,7 +151,7 @@ void check_settings_text()
     for (int i = 0; i < xpp::AUTO_NUM_N; i++) num = num && r->has_num[i] && same_bits(r->num[i], s.num[i]);
     CHECK(num);
     CHECK(r->special_points==s.special_points);
-    CHECK(r->has_plot && r->plot == 11 && r->var == "v" && r->par1 == "iapp" && r->par2.empty());
+    CHECK(r->plot == xpp::AutoProjection::average && r->var == "v" && r->par1 == "iapp" && r->par2.empty());
     bool range = true;
     for (int i = 0; i < 4; i++) range = range && r->has_range[i] && same_bits(r->range[i], s.range[i]);
     CHECK(range);
@@ -168,7 +168,7 @@ void check_settings_text()
         return e ? std::string() : e.error().text() + " [" + e.error().place.source + "]";
     };
     CHECK(error("ds not-a-number\n") == "a.snapx/auto/settings.txt:1: \"not-a-number\" is not a number [ds not-a-number]");
-    CHECK(error("plot 1.5\n") == "a.snapx/auto/settings.txt:1: \"1.5\" is not a whole number [plot 1.5]");
+    CHECK(error("plot 1\n") == "a.snapx/auto/settings.txt:1: \"1\" is not a projection (maximum, norm, maximum_and_minimum, period, two_parameter, frequency, average) [plot 1]");
     /* every key there once, none it does not have */
     const std::string text = xpp::snapx::auto_members::settings_text(s);
     const int lines = static_cast<int>(xpp::split_lines(text).size());
@@ -188,20 +188,21 @@ void check_settings_text()
 void check_views_text()
 {
     xpp::snapx::auto_members::SavedViews v;
-    v.views.push_back({2, "v", "iapp", "phi", {awk(0), awk(1), awk(2), awk(3)}, {}});
+    v.views.push_back({xpp::AutoProjection::maximum_and_minimum, "v", "iapp", "phi", {awk(0), awk(1), awk(2), awk(3)}, {}});
     xpp::Zoom z;
     z.x = {true, awk(4), awk(5) + 1};
-    v.views.push_back({3, "", "iapp", "", {-0.2, 0.08, 0, 0}, z});
+    v.views.push_back({xpp::AutoProjection::period, "", "iapp", "", {-0.2, 0.08, 0, 0}, z});
     v.active = 1;
     const std::string text = xpp::snapx::auto_members::views_text(v);
     const xpp::Result<xpp::snapx::auto_members::ViewsRead> r = xpp::snapx::auto_members::parse_views(text, "views.txt");
     CHECK(r && r->views == v && r->lines == std::vector<int>({1, 2}));
     CHECK(text.ends_with("active 1\n"));
-    CHECK(!xpp::snapx::auto_members::parse_views("view 2 v iapp phi 0 1 0 1 - -\n", "views.txt"));                /* no active line */
+    CHECK(!xpp::snapx::auto_members::parse_views("view maximum_and_minimum v iapp phi 0 1 0 1 - -\n", "views.txt"));                /* no active line */
     CHECK(!xpp::snapx::auto_members::parse_views("active 0\n", "views.txt"));                                     /* no view */
-    CHECK(!xpp::snapx::auto_members::parse_views("view 2 v iapp phi 0 1 0 1 - -\nactive 1\n", "views.txt"));     /* no view 1 */
-    CHECK(!xpp::snapx::auto_members::parse_views("view 2 v iapp phi 0 1 0 1 1:0 -\nactive 0\n", "views.txt"));   /* a zoom low above high */
-    CHECK(!xpp::snapx::auto_members::parse_views("view 2 v iapp phi 0 1 0 -\nactive 0\n", "views.txt"));        /* a field short */
+    CHECK(!xpp::snapx::auto_members::parse_views("view maximum_and_minimum v iapp phi 0 1 0 1 - -\nactive 1\n", "views.txt"));     /* no view 1 */
+    CHECK(!xpp::snapx::auto_members::parse_views("view maximum_and_minimum v iapp phi 0 1 0 1 1:0 -\nactive 0\n", "views.txt"));   /* a zoom low above high */
+    CHECK(!xpp::snapx::auto_members::parse_views("view maximum_and_minimum v iapp phi 0 1 0 -\nactive 0\n", "views.txt"));        /* a field short */
+    CHECK(!xpp::snapx::auto_members::parse_views("view 2 v iapp phi 0 1 0 1 - -\nactive 0\n", "views.txt"));   /* a projection is its name */
 }
 
 void check_solutions()
@@ -231,7 +232,7 @@ void check_solutions()
 
 void check_untrusted_zoom()
 {
-    CHECK(!xpp::snapx::auto_members::parse_views("view 2 v iapp phi 0 1 0 1 -inf:inf -\nactive 0\n", "sent.snapx/auto/views.txt"));
+    CHECK(!xpp::snapx::auto_members::parse_views("view maximum_and_minimum v iapp phi 0 1 0 1 -inf:inf -\nactive 0\n", "sent.snapx/auto/views.txt"));
 }
 
 void check_diagram_csv()
@@ -328,7 +329,7 @@ void check_parameterless_model()
     CHECK(s.model().nupar==0);
     const int points=diagram_count(s.diagram);
     xpp::auto_start_diff_ss(s);
-    CHECK(s.auto_state.diag_flag==0 && diagram_count(s.diagram)==points);
+    CHECK(!s.auto_state.diag_flag && diagram_count(s.diagram)==points);
     CHECK(!xpp::files::exists(xpp::auto_solutions_file(s))
           && !xpp::files::exists(s.auto_state.fort3) && !xpp::files::exists(s.auto_state.fort8));
 }
@@ -448,7 +449,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     pts.back().parameter_indices.pop_back();
     pts.back().par.pop_back(); /* the period is kept separately from model parameters */
     diagram_restore(s, pts);
-    CHECK(diagram_count(xpp::client_session().diagram) == 9 && diagram_point(xpp::client_session().diagram, 3)->uhi[1] == pts[3].uhi[1]);
+    CHECK(diagram_count(xpp::client_session().diagram) == 9 && xpp::client_session().diagram.points[3].uhi[1] == pts[3].uhi[1]);
     std::string solutions;
     const int parameter_rows=(s.auto_state.parameter_layout.size()+6)/7;
     // One orbit row, then seven-column parameter rows, matching AUTO's writer.
@@ -468,7 +469,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     const xpp::AutoSettingsSet before = xpp::auto_settings_now(xpp::client_session());
     /* a second view (W50), the norm, a zoom of its own; the first active */
     xpp::auto_new_view(xpp::client_session());
-    s.auto_state.views[1].axes.plot = 1;
+    s.auto_state.views[1].axes.plot = xpp::AutoProjection::norm;
     s.auto_state.views[1].axes.ymax = 5;
     s.auto_state.views[1].zoom.y = {true, 0.5, 1.5};
     s.auto_state.active_view = 0;
@@ -499,13 +500,13 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     CHECK(same_diagram(s.diagram.points, pts));
     bool indexed = true;
     for (int i = 0; i < diagram_count(xpp::client_session().diagram); i++)
-        indexed = indexed && diagram_point(xpp::client_session().diagram, i)->index == i;
+        indexed = indexed && xpp::client_session().diagram.points[i].index == i;
     CHECK(indexed);
     CHECK(file_text(xpp::auto_solutions_file(xpp::client_session())) == solutions);
     CHECK(same_bits(s.auto_state.bifur.ds, 0.1 + 0.2) && same_bits(s.auto_state.bifur.rl1, 1.0 / 3.0));
     const xpp::AutoSettingsSet after = xpp::auto_settings_now(xpp::client_session());
     CHECK(xpp::snapx::auto_members::settings_text(after) == xpp::snapx::auto_members::settings_text(before));
-    CHECK(s.auto_state.views.size() == 2 && s.auto_state.active_view == 0 && s.auto_state.views[1].axes.plot == 1 &&
+    CHECK(s.auto_state.views.size() == 2 && s.auto_state.active_view == 0 && s.auto_state.views[1].axes.plot == xpp::AutoProjection::norm &&
           s.auto_state.views[1].axes.ymax == 5 && (s.auto_state.views[1].zoom.y == xpp::AxisRange{true, 0.5, 1.5}) &&
           !s.auto_state.views[1].zoom.x.set && s.auto_state.views[0].axes.plot == s.auto_state.axes().plot);
 
@@ -536,7 +537,7 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     fp.reset();
     CHECK(diagram_count(xpp::client_session().diagram) == 2042);
     /* its first point, as the file prints it */
-    const xpp::DIAGRAM *d = diagram_first(xpp::client_session().diagram);
+    const xpp::DIAGRAM *d = &xpp::client_session().diagram.points.front();
     CHECK(d && d->ibr == 1 && d->ntot == 1 && d->itp.is(xpp::AutoPointKind::End) && d->lab == 1 && diagram_parameter(*d,0) == 0.05 && d->u0[0] == -0.144 &&
           d->u0[1] == 0.03);
     CHECK(s.auto_state.bifur.ntst == 15 && s.auto_state.bifur.nmx == 2000 && s.auto_state.bifur.dsmin == 1e-05);
@@ -549,7 +550,8 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     const auto before_solutions = file_text(xpp::auto_solutions_file(s));
     const auto before_parameters = s.auto_state.imported_parameters;
     const auto before_marks = s.auto_state.bifur.marks;
-    s.auto_state.from_auto_flag = s.auto_state.grabpt.flag = s.auto_state.diagram_mark.state = 1;
+    s.auto_state.from_auto_flag = true;
+    s.auto_state.grabpt.flag = s.auto_state.diagram_mark.state = 1;
     const auto rows = xpp::split_lines(auto_text);
     const auto refuse_import = [&](std::string bad, int line) {
         CHECK(write_file(path, bad));
@@ -566,7 +568,7 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
         CHECK(file_text(xpp::auto_solutions_file(s)) == before_solutions);
         CHECK(s.auto_state.imported_parameters == before_parameters);
         CHECK(s.auto_state.bifur.marks == before_marks);
-        CHECK(s.auto_state.from_auto_flag == 1 && s.auto_state.grabpt.flag == 1 && s.auto_state.diagram_mark.state == 1);
+        CHECK(s.auto_state.from_auto_flag && s.auto_state.grabpt.flag == 1 && s.auto_state.diagram_mark.state == 1);
     };
     const auto replace_row = [&](int row, std::string value) {
         std::string bad;
@@ -588,7 +590,7 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     CHECK(write_file(path, auto_text));
     auto valid_again = xpp::open_read(path);
     CHECK(xpp::import_auto_file(s, valid_again.get(), path));
-    CHECK(s.auto_state.from_auto_flag == 0 && s.auto_state.grabpt.flag == 0 && s.auto_state.diagram_mark.state == 0);
+    CHECK(!s.auto_state.from_auto_flag && s.auto_state.grabpt.flag == 0 && s.auto_state.diagram_mark.state == 0);
     const std::deque<xpp::DIAGRAM> imported = s.diagram.points;
     const std::string solutions = file_text(xpp::auto_solutions_file(xpp::client_session()));
 

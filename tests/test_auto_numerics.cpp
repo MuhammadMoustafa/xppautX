@@ -23,10 +23,10 @@
 
 namespace {
 constexpr std::array expected{
-    0x7f0016dd13d0138bULL, // GE pivot, two RHS: error, matrix, RHS, solution, determinant, fort.9
-    0x3e642bfd43cbcd9eULL, // GE pivot, determinant only: error, matrix, RHS, solution, determinant, fort.9
-    0x53b0f029f52be3e2ULL, // GE singular, determinant only (its NaN folded as one value): error, matrix, RHS, solution, determinant, fort.9
-    0xc69e4e9650dff6c7ULL, // GE singular solve: error, matrix, RHS, solution, determinant, fort.9
+    0xc4c5d0baa047199fULL, // GE pivot, two RHS: error, RHS, solution, determinant, fort.9
+    0xac6207bd79708ce2ULL, // GE pivot, determinant only: error, RHS, solution, determinant, fort.9
+    0x165587c4679f1271ULL, // GE singular, determinant only (its NaN folded as one value): error, RHS, solution, determinant, fort.9
+    0xc6e9ae0eee1df6e9ULL, // GE singular solve: error, RHS, solution, determinant, fort.9
     0x44024f41db685dd8ULL, // NLVC nullity two: status, matrix, null vector, fort.9
     0xf81615fb6d07755dULL, // NLVC tiny pivot: status, matrix, null vector, fort.9
     0x7f661e0e57524baaULL, // RG pivot, values only: status, padded matrix, roots, vectors, work, pivots
@@ -101,7 +101,10 @@ std::uint64_t solve(std::vector<double> input, integer rhs, bool expect_failure 
     const auto error = failure([&] { xpp::ge(log.get(), xpp::auto_ge_pivot_iid, n, n, a.data(), rhs, n, u.data(), n, f.data(), &det); });
     fold(digest, error);
     CHECK(!error.empty() == expect_failure);
-    fold(digest, a); fold(digest, f); fold(digest, u); fold(digest, det);
+    /* W491: GE's matrix after the call is its scratch (rows and columns
+       swapped in place), no output; the digests without it were checked
+       equal to the pre-W491 GE's */
+    fold(digest, f); fold(digest, u); fold(digest, det);
     fold(digest, contents(log.get()));
     return digest;
 }

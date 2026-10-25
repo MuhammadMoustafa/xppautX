@@ -6,6 +6,7 @@
 #include <limits>
 #include <vector>
 #include <span>
+#include <string_view>
 #include <functional>
 #include "auto_f2c.h"
 #include "auto_codes.h"
@@ -22,6 +23,12 @@ inline constexpr doublereal auto_hmach = 1.0e-7;            // Relative finite-d
 inline constexpr doublereal auto_rlarge = 1.0e+30;          // Practical infinity for uncomputed bounds and eigenvalues
 inline constexpr doublereal auto_hmach1 = auto_hmach + 1.0; // 1 + HMACH for multiplier unit circle comparisons
 inline constexpr doublereal auto_hmachho = 1.0e-13;         // HomCont component zero threshold (compzero)
+inline constexpr doublereal auto_svd_tolerance = 1.0e-16;   // FLOWKM's SVD tolerance (AUTO's own value)
+inline constexpr doublereal auto_divergence_ratio = 20;     // A Newton step this many times the first one diverges (AUTO's DELREF factor)
+inline constexpr doublereal auto_homoclinic_norm_start = 1.0e20; // HomCont's search for the orbit's point nearest the equilibrium starts above any norm
+/* AUTO's JAC: who supplies the derivatives funi passes on */
+inline constexpr integer auto_jac_differences = 0;          // AUTO differences the right-hand side
+inline constexpr integer auto_jac_supplied = 1;             // func supplies them: the model's exact Jacobian (W260)
 
 /* AUTO's file schemas and output record layouts (autlib1-2, auto_nox).
    Integer output widths are minima: explicit spaces keep full point counts
@@ -139,31 +146,34 @@ typedef struct {
 inline constexpr doublereal auto_test_not_applicable = std::numeric_limits<doublereal>::quiet_NaN();
 inline bool auto_test_applies(doublereal value) { return !std::isnan(value); }
 
-#define AUTOAE 0
-#define AUTOBV 1
+/* the two continuation drivers: autoae (algebraic problems) and autobv
+   (boundary value problems, periodic orbits included) */
+enum class AutoSolver { Algebraic, BoundaryValue };
 
-typedef struct {
+struct autobv_function_list {
   FUNI_TYPE((*funi));
   BCNI_TYPE((*bcni));
   ICNI_TYPE((*icni));
   STPNT_TYPE_BVP((*stpnt));
   PVLI_TYPE_BVP((*pvli));
-} autobv_function_list;
+};
 
-typedef struct {
+struct autoae_function_list {
   FUNI_TYPE((*funi));
   STPNT_TYPE_AE((*stpnt));
   PVLI_TYPE_AE((*pvli));
-} autoae_function_list;
+};
 
-typedef struct {
-  int type;
-  autobv_function_list bvlist;
-  autoae_function_list aelist;
-} function_list;
+/* a run's problem functions (gogoauto.cpp problem_functions): the driver's
+   list; the other is empty */
+struct function_list {
+  AutoSolver solver;
+  autobv_function_list bvlist{};
+  autoae_function_list aelist{};
+};
 
 /* autlib1.cpp */
-void allocate_global_memory(const iap_type);
+void size_run_scratch(const iap_type &iap);
 int chdim(iap_type *iap);
 int autoae(iap_type *iap, rap_type *rap, doublereal *par, 
 integer *icp, 
@@ -225,11 +235,15 @@ int nrmlz(integer *ndim, doublereal *v);
 doublereal pi(doublereal r__);
 int newlab(iap_type *iap, rap_type *rap);
 // Locate and re-read the validated restart header once for all formulations.
-bool read_auto_restart_header(iap_type *iap, const rap_type *rap,
+/* fort.3's restart data: a missing label or a short read ends the run
+   (xpp::AutoFailed), naming the label, the file and what was missing */
+[[noreturn]] void auto_restart_label_missing(const iap_type *iap);
+void auto_restart_read(const iap_type *iap, bool ok, std::string_view what);
+void read_auto_restart_header(iap_type *iap, const rap_type *rap,
                               xpp::TokenReader &reader, xpp::AutoSolutionHeader &header,
                               integer *ntst, integer *ncol);
 int findlb(iap_type *iap, const rap_type *rap, integer irs, integer *nfpr, logical *found);
-int readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par);
+void readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par);
 int skip3(FILE *fp3, integer *nskip, logical *eof3);
 doublereal rinpr(iap_type *iap, const integer *ndim1, const integer *ndxloc, doublereal *ups, doublereal *vps, doublereal *dtm, doublereal *thu);
 doublereal rnrmsq(iap_type *iap, integer *ndim1, integer *ndxloc, doublereal *ups, doublereal *dtm, doublereal *thu);
@@ -376,7 +390,6 @@ int setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer
 	   doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, 
 	   doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1);
 /* gogoauto.cpp */
-int set_function_pointers(const iap_type,function_list *);
 
 namespace xpp {
 struct Session; /* session.h */
@@ -404,7 +417,7 @@ int bcnd(xpp::Session &s, integer ndim, const doublereal *par, const integer *ic
 	 doublereal *f, doublereal *dbc);
 /* gogoauto.cpp: AUTO's run in the Session s, from the settings do_auto
    (auto_nox.cpp) put in xAuto */
-int go_go_auto(xpp::Session &s);
+void go_go_auto(xpp::Session &s);
 /* autlib1.cpp: fills thu (ndim*8 entries, each 1.) that thu_vec owns;
    thu_vec.data() is what the AE/BVP solves take as their doublereal *thu */
 int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, std::span<AutoMark> marks);

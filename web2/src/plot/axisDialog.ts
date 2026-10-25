@@ -1,31 +1,23 @@
 /* The AUTO diagram's axis dialog (docs/ui-v2.md T21), its pure part: the
-   plot types the y axis can show, which name each needs (a variable, the
+   projections the y axis can show, which name each needs (a variable, the
    second parameter or none), the names the core's axes show now, the
    spinners' step and the range typed. Pure. */
-import type {DiagramAxes} from '../store/diagram';
+import type {AutoProjection, DiagramAxes} from '../store/diagram';
 import {fieldError, NUMBER} from '../store/fieldKinds';
 
-/** Auto.plot values in the order of AUTO's Plot Type menu, with what they plot */
-export const PLOT_TYPES: {plot: number; text: string}[] = [
-  {plot: 0, text: 'Maximum (Hi)'},
-  {plot: 2, text: 'Maximum and minimum (hI-lo)'},
-  {plot: 1, text: 'Norm'},
-  {plot: 11, text: 'Average'},
-  {plot: 3, text: 'Period'},
-  {plot: 10, text: 'Frequency'},
-  {plot: 4, text: 'Two parameters'},
-];
+/** the projections in the order of AUTO's Plot Type menu (each labelled by its name, choiceLabel) */
+export const PROJECTIONS: AutoProjection[] = ['maximum', 'maximum_and_minimum', 'norm', 'average', 'period', 'frequency', 'two_parameter'];
 
-/** the name the y axis needs besides the plot type: a variable, the second parameter, or none */
-export function yNeeds(plot: number): 'var' | 'par2' | null {
-  return plot === 0 || plot === 2 || plot === 11 ? 'var' : plot === 4 ? 'par2' : null;
+/** the name the y axis needs besides the projection: a variable, the second parameter, or none */
+export function yNeeds(plot: AutoProjection): 'var' | 'par2' | null {
+  return plot === 'maximum' || plot === 'maximum_and_minimum' || plot === 'average' ? 'var' : plot === 'two_parameter' ? 'par2' : null;
 }
 
 /** what the core's axes show now: the main parameter, and the y axis's variable or second parameter */
 export function axesNames(axes: DiagramAxes | null): {par1: string; yvar: string; par2: string} {
   if (!axes) return {par1: '', yvar: '', par2: ''};
   const need = yNeeds(axes.plot);
-  const y = axes.plot === 11 ? axes.ylabel.replace(/_bar$/, '') : axes.ylabel;
+  const y = axes.plot === 'average' ? axes.ylabel.replace(/_bar$/, '') : axes.ylabel;
   return {par1: axes.xlabel, yvar: need === 'var' ? y : '', par2: need === 'par2' ? y : ''};
 }
 

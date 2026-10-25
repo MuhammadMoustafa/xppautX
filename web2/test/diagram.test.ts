@@ -21,7 +21,7 @@ test('equilibrium and cycle codim-2 labels have names, legend entries and marks'
 });
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
-const axes = {xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4, x0: 70, y0: 26, wid: 603, hgt: 300, plot: 2,
+const axes = {xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4, x0: 70, y0: 26, wid: 603, hgt: 300, plot: 'maximum_and_minimum' as const,
   xlabel: 'iapp', ylabel: 'V'};
 const line = (n: number, x0: number, dx: number, y0: number, dy: number) =>
   Array.from({length: n}, (_, i) => [x0 + i * dx, y0 + i * dy]);
@@ -59,7 +59,7 @@ test('window 101 opens the view, empty, with the axes the core drew', () => {
   assert.equal(s.diagram.shown, true);
   assert.equal(pointCount(activeView(s.diagram).points), 0);
   assert.equal(activeView(s.diagram).axes?.xlabel, 'iapp');
-  assert.equal(activeView(s.diagram).axes?.plot, 2);
+  assert.equal(activeView(s.diagram).axes?.plot, 'maximum_and_minimum');
 });
 
 test('add puts every point of every run in place, in order, labels included', () => {
@@ -324,17 +324,17 @@ test('the strip in words and the circle: inside is stable, the eigenvalues liste
 /* T28: the strip in order of importance -- the axes' quantities, then Norm/the plotted variable/the
    period not already shown as an axis, then the remaining parameters (a second one last) */
 test('infoRows orders the axes first, then Norm and the period, then the remaining parameters', () => {
-  /* a one-parameter diagram, Iapp against V (axes.plot 2, hi-lo: the y axis is the variable) */
+  /* a one-parameter diagram, Iapp against V (maximum_and_minimum: the y axis is the variable) */
   assert.deepEqual(infoRows(hbInfo as never, axes).slice(4, -1),
     [['iapp', '0.26'], ['V', '-0.2'], ['Norm', '0.29'], ['phi', '0.2']]);
   /* a periodic orbit: the period is not an axis either, so it comes before the remaining parameter */
   assert.deepEqual(infoRows({...hbInfo, type: 4, periodic: true} as never, axes).slice(4, -1),
     [['iapp', '0.26'], ['V', '-0.2'], ['Norm', '0.29'], ['Period', '14.4'], ['phi', '0.2']]);
-  /* a Norm y axis (axes.plot 1): Norm is the axis, the variable falls back with the remaining parameter */
-  assert.deepEqual(infoRows(hbInfo as never, {...axes, plot: 1}).slice(4, -1),
+  /* a Norm y axis (norm): Norm is the axis, the variable falls back with the remaining parameter */
+  assert.deepEqual(infoRows(hbInfo as never, {...axes, plot: 'norm'}).slice(4, -1),
     [['iapp', '0.26'], ['Norm', '0.29'], ['V', '-0.2'], ['phi', '0.2']]);
-  /* a two-parameter diagram (axes.plot 4): both parameters in axis order, nothing left over for them */
-  assert.deepEqual(infoRows(hbInfo as never, {...axes, plot: 4, ylabel: 'phi'}).slice(4, -1),
+  /* a two-parameter diagram (two_parameter): both parameters in axis order, nothing left over for them */
+  assert.deepEqual(infoRows(hbInfo as never, {...axes, plot: 'two_parameter', ylabel: 'phi'}).slice(4, -1),
     [['iapp', '0.26'], ['phi', '0.2'], ['Norm', '0.29'], ['V', '-0.2']]);
   /* no axes data at all: still nothing dropped, the main parameter first */
   assert.deepEqual(infoRows(hbInfo as never, null).slice(4, -1),
@@ -406,7 +406,7 @@ test("views (W50): each view its own axes, points and zoom; `views` resizes; the
   assert.equal(s.diagram.views.length, 2);
   assert.equal(s.diagram.views[0], one, 'view 0 untouched');
   assert.equal(pointCount(s.diagram.views[1].points), 0, 'a new view starts empty');
-  s = ev(s, {ev: 'diagram', view: 1, op: 'reset', keep: 0, ...axes, plot: 1, ylabel: 'Norm'});
+  s = ev(s, {ev: 'diagram', view: 1, op: 'reset', keep: 0, ...axes, plot: 'norm', ylabel: 'Norm'});
   s = ev(s, {ev: 'diagram', view: 1, op: 'add', from: 0, runs: [{br: 1, pt: 1, ty: 1, stable: true, periodic: false, d: 1, c: 20, lw: 2, x: [0.1, 0.2], y: [1, 2]}]});
   assert.equal(s.diagram.views[1].axes?.ylabel, 'Norm');
   assert.equal(pointCount(s.diagram.views[1].points), 2);

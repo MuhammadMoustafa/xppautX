@@ -51,8 +51,8 @@ int main()
     };
     xpp::set_ui(&form_ui);
     int unstable=1,stable=400;
-    s.auto_state.homo_flag=2;
-    CHECK(xpp::get_homo_info(s,2,&unstable,&stable,s.auto_state.homo_l.data(),s.auto_state.homo_r.data())==1);
+    s.auto_state.homo_flag=HomoclinicRun::Heteroclinic;
+    CHECK(xpp::get_homo_info(s,&unstable,&stable,s.auto_state.homo_l.data(),s.auto_state.homo_r.data())==1);
     xpp::set_ui(&saved_ui);
     CHECK(unstable==2 && stable==399);
     CHECK(s.auto_state.homo_l[400]==2.75 && s.auto_state.homo_r[400]==3.25);
@@ -63,10 +63,10 @@ int main()
         return 1;
     };
     xpp::set_ui(&form_ui);
-    CHECK(xpp::get_homo_info(s,2,&unstable,&stable,s.auto_state.homo_l.data(),s.auto_state.homo_r.data())==0);
+    CHECK(xpp::get_homo_info(s,&unstable,&stable,s.auto_state.homo_l.data(),s.auto_state.homo_r.data())==0);
     xpp::set_ui(&saved_ui);
     CHECK(unstable==2 && stable==399);
-    s.auto_state.homo_flag=0;
+    s.auto_state.homo_flag=HomoclinicRun::None;
     xpp::AutoSettingsSet set;
     set.par1="P39";
     set.var="X400";

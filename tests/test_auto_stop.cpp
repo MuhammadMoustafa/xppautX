@@ -82,12 +82,13 @@ int main()
     at = inside();
     at.noconv = 1;
     at.br = -2; /* AUTO's sign is stability, not part of the number */
-    xpp::auto_stop_noconv(stop, xpp::AUTO_STOP_NOCONV_MIN, -1e-5, 0.0001);
+    xpp::auto_stop_noconv(stop, {xpp::AUTO_STOP_NOCONV_MIN, -1e-5, 0.0001, 5, 1e-7, 1e-6, 1e-31});
     xpp::auto_stop_branch_end(xpp::client_session(), &at);
     xpp::auto_stop_last(stop, &st);
     CHECK(st.why == xpp::AUTO_STOP_NOCONV_MIN && st.br == 2 && st.value == 1e-5 && st.limit == 0.0001);
     CHECK_STR(st.key, "noconv-min");
-    CHECK_STR(st.text, "no convergence even at the smallest step (Dsmin 0.0001)");
+    CHECK_STR(st.text, "no convergence even at the smallest step (Dsmin 0.0001; ITNW 5, EPSL 1e-07, EPSU 1e-06): "
+                       "the linear system is singular (smallest pivot 1e-31 < 1e-30)");
     xpp::auto_stop_branch_end(xpp::client_session(), &at);
     xpp::auto_stop_last(stop, &st);
     CHECK(st.why == xpp::AUTO_STOP_NOCONV && std::isnan(st.value));
@@ -100,7 +101,7 @@ int main()
 
     at = inside();
     at.noconv = 1;
-    xpp::auto_stop_noconv(stop, xpp::AUTO_STOP_NOCONV_SWITCH_FIXED, 0.0, 0.0);
+    xpp::auto_stop_noconv(stop, {xpp::AUTO_STOP_NOCONV_SWITCH_FIXED, 0.0, 0.0});
     xpp::auto_stop_branch_end(xpp::client_session(), &at);
     xpp::auto_stop_last(stop, &st);
     CHECK_STR(st.key, "noconv-switch-fixed");

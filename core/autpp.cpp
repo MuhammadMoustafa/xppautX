@@ -26,7 +26,6 @@
 
 /*    Hooks to xpp RHS     */
 
-
 namespace {
 
 /* dfdu (ndim by ndim, by columns) at u, where the right-hand side is f,
@@ -52,14 +51,14 @@ void exact_derivatives(const xpp::Session &s, AutoLib &lib, const double *c, int
     for(integer i=0;i<nfpr;i++){
       double *column=dfdp+icp[i]*ndim;
       const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[i]));
-      if(k>=0 && k<s.model().nupar)xpp::exact_constant_derivative(s,lib.jacobian_scratch,c,s.model().upar_con[k],0.0,u,f,n,column);
+      if(k>=0)xpp::exact_constant_derivative(s,lib.jacobian_scratch,c,s.model().upar_con[k],0.0,u,f,n,column);
       else std::fill_n(column,n,0.0);
     }
   } catch (const xpp::JacobianFailed &failed) {
     if(!lib.jacobian_failure){
       lib.jacobian_failure=failed.error;
       const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[0]));
-      if(k>=0 && k<s.model().nupar)
+      if(k>=0)
         lib.jacobian_failure->what+=xpp::format(" (AUTO at {}={})",s.model().upar_names[k],c[s.model().upar_con[k]]);
     }
     std::fill_n(dfdu,n*n,0.0);
@@ -81,17 +80,22 @@ void chain(int n, const double *b, double *column, const double *add, double *t)
   std::copy_n(t,n,column);
 }
 
+/* Puts the continued parameters into the constants; true when one changed.
+   AUTO changes them between calls (a Newton step, and funi's differences
+   with respect to a parameter, which perturb par itself), and setubv hands
+   every collocation point its own copy of par, so every call compares. */
 bool continued_constants(const xpp::Session &s, double *constants, const integer *icp, integer count, std::span<const double> parameters)
 {
+  const auto &layout=s.auto_state.parameter_layout;
+  const int *constant_index=s.model().upar_con.data();
   bool changed=false;
   for(integer i=0;i<count;i++){
-    const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[i]));
-    if(k>=0 && k<s.model().nupar){
-      double &constant=constants[s.model().upar_con[k]];
-      // Signed zero can change a derived expression too.
-      changed |= std::bit_cast<std::uint64_t>(constant)!=std::bit_cast<std::uint64_t>(parameters[k]);
-      constant=parameters[k];
-    }
+    const int k=layout.model_index(static_cast<int>(icp[i]));
+    if(k<0)continue;
+    double &constant=constants[constant_index[k]];
+    // Signed zero can change a derived expression too.
+    changed |= std::bit_cast<std::uint64_t>(constant)!=std::bit_cast<std::uint64_t>(parameters[k]);
+    constant=parameters[k];
   }
   return changed;
 }
@@ -205,7 +209,7 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
   const auto parameters=layout.parameters(par);
   for(int k=0;k<s.model().nupar;k++)parameters[k]=s.parser.constants[s.model().upar_con[k]];
 
-  if(s.auto_state.new_period_flag==0){  
+  if(!s.auto_state.new_period_flag){  
     for(i=0;i<ndim;i++)
       u[i]=s.last_ic[i];
     return 0;
@@ -213,8 +217,8 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
 
   get_start_period(s,&p);
   unknowns[xpp::auto_unknown::period]=p;
-  if(s.auto_state.homo_flag!=1)get_start_orbit(s,u,t,p,ndim);
-  if(s.auto_state.homo_flag==1){
+  if(s.auto_state.homo_flag!=HomoclinicRun::Homoclinic)get_start_orbit(s,u,t,p,ndim);
+  if(s.auto_state.homo_flag==HomoclinicRun::Homoclinic){
     /* the orbit from its point nearest the equilibrium (find_best_homo_shift) */
     get_start_orbit(s,u,t+s.auto_state.homo_shift/p,p,ndim);
     for(i=0;i<ndim;i++){
@@ -222,7 +226,7 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
 
     }
   }
-  if(s.auto_state.homo_flag==2){ /* heteroclinic */
+  if(s.auto_state.homo_flag==HomoclinicRun::Heteroclinic){
     for(i=0;i<ndim;i++){
       unknowns[xpp::auto_unknown::homoclinic_equilibrium_start+i]=s.auto_state.homo_l[i];
       unknowns[xpp::auto_unknown::homoclinic_equilibrium_start+i+ndim]=s.auto_state.homo_r[i];
@@ -234,7 +238,7 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
 
 } /* stpnt_ */
 
-/* Subroutine */ int bcnd(xpp::Session &s, integer ndim, const double *par, const integer *icp, integer nbc, const double *u0, const double *u1, integer ijac, double *fb, double *dbc)
+int bcnd(xpp::Session &s, integer ndim, const double *par, const integer *icp, integer nbc, const double *u0, const double *u1, integer ijac, double *fb, double *dbc)
 {
 /* Hooks to the XPP bc parser!! */
 
@@ -254,7 +258,7 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
 
 /* AUTO's user routines that xppautX does not supply: stubs, with
    auto_c.h's prototypes (which AUTO calls them through) */
-/* Subroutine */ int icnd(integer ndim, const doublereal *par, const integer *icp, integer nint,
+int icnd(integer ndim, const doublereal *par, const integer *icp, integer nint,
 	 const doublereal *u, const doublereal *uold, const doublereal *udot,
 	 const doublereal *upold, integer ijac,
 	 doublereal *fi, doublereal *dint)
@@ -262,11 +266,10 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
     return 0;
 } /* icnd_ */
 
-/* Subroutine */ int fopt(integer ndim, const doublereal *u, const integer *icp,
+int fopt(integer ndim, const doublereal *u, const integer *icp,
 	 const doublereal *par, integer ijac,
 	 doublereal *fs, doublereal *dfdu, doublereal *dfdp)
 {
-/*     ---------- ---- */
     return 0;
 } /* fopt_ */
 

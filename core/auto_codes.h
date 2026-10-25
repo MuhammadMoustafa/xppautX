@@ -31,7 +31,7 @@ constexpr bool point_is_periodic(DiagramPointType type) { return type == STABLE_
 constexpr int diagram_point_type_code(DiagramPointType type) { return static_cast<int>(type); }
 
 /* AUTO's IPS: the kind of problem a run solves. Only these have a function
-   table (gogoauto.cpp set_function_pointers); the code is AUTO's own number
+   table (gogoauto.cpp problem_functions); the code is AUTO's own number
    (AUTO-07p manual, IPS). */
 enum class AutoProblem : int {
     TimeIntegration = -2,   /* IPS -2 */
@@ -90,6 +90,28 @@ constexpr bool problem_has_solution_profile(AutoProblem p) {
     return p == AutoProblem::Periodic || p == AutoProblem::BoundaryValue || p == AutoProblem::FloquetBoundaryValue ||
            p == AutoProblem::Homoclinic || p == AutoProblem::WavePeriodic || problem_is_parabolic_evolution(p) ||
            p == AutoProblem::PeriodicOptimization || p == AutoProblem::ParabolicUserSteady;
+}
+/* what a problem is, for a message: AUTO-07p's manual's names of the IPS */
+constexpr const char *auto_problem_description(AutoProblem p)
+{
+    switch (p) {
+    case AutoProblem::TimeIntegration: return "time integration (IPS -2)";
+    case AutoProblem::DiscreteMap: return "fixed points of a map (IPS -1)";
+    case AutoProblem::Algebraic: return "an algebraic system (IPS 0)";
+    case AutoProblem::SteadyState: return "steady states (IPS 1)";
+    case AutoProblem::Periodic: return "periodic orbits (IPS 2)";
+    case AutoProblem::BoundaryValue: return "a boundary value problem (IPS 4)";
+    case AutoProblem::AlgebraicOptimization: return "algebraic optimization (IPS 5)";
+    case AutoProblem::FloquetBoundaryValue: return "a boundary value problem with Floquet multipliers (IPS 7)";
+    case AutoProblem::Homoclinic: return "homoclinic orbits (IPS 9)";
+    case AutoProblem::WaveSteady: return "spatially homogeneous waves (IPS 11)";
+    case AutoProblem::WavePeriodic: return "wave trains (IPS 12)";
+    case AutoProblem::ParabolicPeriodicEvolution: return "parabolic evolution, periodic boundary conditions (IPS 14)";
+    case AutoProblem::PeriodicOptimization: return "periodic optimization (IPS 15)";
+    case AutoProblem::ParabolicUserEvolution: return "parabolic evolution, user boundary conditions (IPS 16)";
+    case AutoProblem::ParabolicUserSteady: return "parabolic steady states (IPS 17)";
+    }
+    return "an unknown problem";
 }
 /* PAR(11) is headed PERIOD: every problem but IPS <= 0 and the BVP (IPS 4) */
 constexpr bool problem_heads_period(AutoProblem p) { return auto_problem_code(p) > 0 && p != AutoProblem::BoundaryValue; }

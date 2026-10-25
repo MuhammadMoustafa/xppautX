@@ -1,7 +1,7 @@
 /* AUTO's info strip and stability circle as data: the "autoinfo" event
    (auto_data.h, docs/protocol.md "The AUTO diagram as data").
 
-   auto_nox.c reports what the strip and the circle show as it draws them;
+   auto_nox.cpp reports what the strip and the circle show as it draws them;
    the event is built from that record when the front end asks for an
    update and sent only when its text differs from the last one sent. */
 #include <new>
@@ -136,7 +136,12 @@ std::string auto_data_event_line(const Session &s, const int &point)
     else o += "null";
     o += ",\"stop\":";
     add_stop(o, s.auto_state.stop);
-    o += '}';
+    o += ",\"notes\":[";
+    for (std::size_t i = 0; i < s.auto_state.stop.notes.size(); ++i) {
+        if (i > 0) o += ',';
+        xpp::json_append_string(o, s.auto_state.stop.notes[i]);
+    }
+    o += "]}";
     return o;
 }
 

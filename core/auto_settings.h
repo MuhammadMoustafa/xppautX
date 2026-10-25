@@ -5,7 +5,9 @@
 #include <optional>
 #include <string>
 #include "xpplim.h"
+#include "auto_axis.h"
 #include "auto_codes.h"
+#include "xpp_error.h"
 
 /* AUTO's settings as data (docs/ui-v2.md T22, docs/protocol.md "AUTO's
    settings as data"): what the AUTO window's Numerics, Axes
@@ -72,8 +74,7 @@ struct AutoSettingsSet {
     std::array<std::optional<bool>, auto_codim_kinds.size()> special_points{};
     std::array<int, AUTO_NUM_N> has_num{};
     std::array<double, AUTO_NUM_N> num{};
-    int has_plot = 0;
-    int plot = 0;
+    std::optional<AutoProjection> plot;
     std::string var, par1, par2;
     std::array<int, 4> has_range{}; /* xmin, xmax, ymin, ymax */
     std::array<double, 4> range{};
@@ -118,10 +119,10 @@ int auto_settings_num_ok(int i, double v, std::string &why);
    window is open, as the AutoPlot form does. Nothing is thrown. */
 int auto_settings_apply(Session &s, const AutoSettingsSet &set, std::string &why);
 /* the same checks, nothing applied, as the diagram will be when it has
-   views views (-1: the views s has; a file's views.txt restores them):
-   false with why and the key of the value that is wrong ("ntst",
+   views views (-1: the views s has; a file's views.txt restores them): the
+   Error says why, its field the key of the value that is wrong ("ntst",
    "var", "par1", "xmax", "mark2", ...; "view"; "" for the whole set), for
    a file of AUTO's settings to name its line (xpp_session_auto_io.cpp) */
-bool auto_settings_check(const Session &s, const AutoSettingsSet &set, int views, std::string &why, std::string &key);
+Result<> auto_settings_check(const Session &s, const AutoSettingsSet &set, int views);
 
 } // namespace xpp

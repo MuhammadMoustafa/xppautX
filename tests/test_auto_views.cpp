@@ -133,15 +133,15 @@ void check_diagram_points(xpp::Session &s)
 {
     constexpr int n = 3;
     start_diagram(s, n);
-    xpp::DIAGRAM *first = diagram_first(s.diagram);
+    xpp::DIAGRAM *first = &s.diagram.points.front();
     CHECK(first && first->u0.size() == n && first->evi.size() == n && first->index == 0);
     for (int k = 1; k <= 20; k++) { /* a deque keeps the earlier points' addresses while it grows */
         xpp::DIAGRAM p = point_of(n, k);
         p.branch = std::make_shared<xpp::DiagramBranch>();
         add_diagram(s, p);
     }
-    CHECK(diagram_count(s.diagram) == 21 && diagram_first(s.diagram) == first);
-    CHECK(diagram_point(s.diagram, 7)->u0[2] == 2 * 7 + 2 && diagram_point(s.diagram, 7)->index == 7);
+    CHECK(diagram_count(s.diagram) == 21 && &s.diagram.points.front() == first);
+    CHECK(s.diagram.points[7].u0[2] == 2 * 7 + 2 && s.diagram.points[7].index == 7);
 
     /* restore: the list is taken whole, indices renumbered, arrays kept */
     std::deque<xpp::DIAGRAM> list;
@@ -152,7 +152,7 @@ void check_diagram_points(xpp::Session &s)
         CHECK(diagram_count(s.diagram) == 5);
         bool ok = true;
         for (int i = 0; i < 5; i++) {
-            const xpp::DIAGRAM *d = diagram_point(s.diagram, i);
+            const xpp::DIAGRAM *d = &s.diagram.points[static_cast<std::size_t>(i)];
             ok = ok && d->index == i && d->uhi == snapshot[i].uhi && d->evi == snapshot[i].evi &&
                  d->uhi.data() != snapshot[i].uhi.data();
         }
@@ -160,14 +160,14 @@ void check_diagram_points(xpp::Session &s)
         list = std::move(s.diagram.points); /* moved out and back in */
     }
     diagram_restore(s, std::move(list));
-    diagram_point(s.diagram, 0)->u0.assign(n, -1.0);
+    s.diagram.points[0].u0.assign(n, -1.0);
     CHECK(snapshot[0].u0[0] == 200); /* no point shares an array with a copy */
 
     /* a run's point of the wrong length is the caller's: the first point takes the point whole */
     start_diagram(s, n);
     xpp::DIAGRAM p = point_of(n, 9);
     edit_start(s, p);
-    CHECK(diagram_first(s.diagram)->ubar == p.ubar && diagram_first(s.diagram)->ubar.data() != p.ubar.data());
+    CHECK(s.diagram.points.front().ubar == p.ubar && s.diagram.points.front().ubar.data() != p.ubar.data());
 }
 
 /* the work arrays of a library: sized once, a worker's copy of the rotation
@@ -275,7 +275,7 @@ void check_library_arrays(xpp::Session &s)
     for (int ndim : {2, 4, 1, 3}) { /* the same library sized again for each run */
         iap.ndim = ndim;
         iap.nbc = ndim + 1;
-        allocate_global_memory(iap);
+        size_run_scratch(iap);
         CHECK(lib.scratch.dfu.size() == static_cast<size_t>(ndim * ndim) && lib.scratch.dfp.size() == static_cast<size_t>(ndim * 5));
         CHECK(lib.scratch.uu1.size() == static_cast<size_t>(ndim) && lib.scratch.ff2.size() == static_cast<size_t>(ndim));
         CHECK(lib.rotations.nrtn.size() == static_cast<size_t>(ndim + 1));
@@ -327,7 +327,7 @@ int main()
     point.ntot = 3;
     point.lab = 8;
     add_diagram(markov, point);
-    markov.auto_state.diag_flag = 1;
+    markov.auto_state.diag_flag = true;
     const double saved_markov = markov.last_ic[1];
     CHECK(auto_grab_label(markov, 7) == 1);
     CHECK(markov.last_ic[0] == 6 && markov.last_ic[1] == saved_markov);

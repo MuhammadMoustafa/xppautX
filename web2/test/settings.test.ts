@@ -54,7 +54,7 @@ test('W106: a parameter or numerics edit during a computation is sent at once an
 test('W106: an AUTO settings edit during a run is sent at once, shown until its own idle', () => {
   const {s, sent, ev} = session();
   ev(HELLO);
-  ev({ev: 'autosettings', numerics: {nmx: 200}, pars: [], axes: {plot: 1}, marks: []});
+  ev({ev: 'autosettings', numerics: {nmx: 200}, pars: [], axes: {plot: 'norm'}, marks: []});
   ev({ev: 'idle'});
   s.key('i');
   ev({ev: 'computing'});

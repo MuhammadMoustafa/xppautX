@@ -54,7 +54,7 @@ std::string settings_text(const AutoSettingsSet &s)
     for (int i = 0; i < AUTO_NUM_N; i++) o += xpp::format("{} {}\n", auto_settings_num_key(i), xpp::number(s.num[i]));
     for (std::size_t i=0;i<auto_codim_kinds.size();++i)
         o += xpp::format("{} {}\n",auto_codim_keys[i],*s.special_points[i] ? "true" : "false");
-    o += xpp::format("plot {}\nvar {}\npar1 {}\npar2 {}\n", s.plot, name_text(s.var), name_text(s.par1), name_text(s.par2));
+    o += xpp::format("plot {}\nvar {}\npar1 {}\npar2 {}\n", auto_projection_name(*s.plot), name_text(s.var), name_text(s.par1), name_text(s.par2));
     for (std::size_t i = 0; i < range_keys.size(); i++) o += xpp::format("{} {}\n", range_keys[i], xpp::number(s.range[i]));
     for (int i = 0; i < s.nmarks; i++) o += xpp::format("mark {} {}\n", name_text(s.mark_name[i]), xpp::number(s.mark_value[i]));
     return o;
@@ -92,8 +92,8 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
             const std::string_view value = w[1];
             if (key == "plot") {
                 at("plot");
-                if (!xpp::parse_int(value, s.plot)) l.fail(xpp::format("\"{}\" is not a whole number", value));
-                s.has_plot = 1;
+                s.plot = auto_projection_from_name(value);
+                if (!s.plot) l.fail(auto_projection_unknown(value));
             } else if (key == "var" || key == "par1" || key == "par2") {
                 at(std::string(key));
                 (key == "var" ? s.var : key == "par1" ? s.par1 : s.par2) = name_of(value);
@@ -139,7 +139,7 @@ std::string views_text(const SavedViews &v)
 {
     std::string o;
     for (const SavedView &w : v.views) {
-        o += xpp::format("view {} {} {} {}", w.plot, name_text(w.var), name_text(w.par1), name_text(w.par2));
+        o += xpp::format("view {} {} {} {}", auto_projection_name(w.plot), name_text(w.var), name_text(w.par1), name_text(w.par2));
         for (double r : w.range) o += ' ' + xpp::number(r);
         o += ' ' + range_text(w.zoom.x) + ' ' + range_text(w.zoom.y) + '\n';
     }
@@ -168,7 +168,9 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file)
             if (v.views.size() >= saved_views_limit) l.fail("too many AUTO views");
             SavedView &s = v.views.emplace_back();
             r.lines.push_back(l.line());
-            if (!xpp::parse_int(w[1], s.plot)) l.fail(xpp::format("\"{}\" is not a whole number", w[1]));
+            const std::optional<AutoProjection> plot = auto_projection_from_name(w[1]);
+            if (!plot) l.fail(auto_projection_unknown(w[1]));
+            s.plot = *plot;
             s.var = name_of(w[2]);
             s.par1 = name_of(w[3]);
             s.par2 = name_of(w[4]);

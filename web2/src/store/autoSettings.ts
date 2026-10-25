@@ -11,6 +11,7 @@
    core's too (AUTO's File menu, W118). Pure: no DOM, no I/O. */
 import type {Command} from '../protocol/types';
 import {fieldError, type FieldSpec} from './fieldKinds';
+import type {AutoProjection} from './diagram';
 
 export type NumKey = 'ntst' | 'nmx' | 'npr' | 'ncol' | 'ds' | 'dsmin' | 'dsmax' | 'rl0' | 'rl1' | 'a0' | 'a1'
   | 'epsl' | 'epsu' | 'epss' | 'iad' | 'mxbf' | 'iid' | 'itmx' | 'itnw' | 'nwtn' | 'iads' | 'suppbp';
@@ -133,8 +134,7 @@ export const NUM_GROUPS: {title: string; keys: NumKey[]}[] = [
 export const fieldOf = (key: NumKey): NumField => NUM_FIELDS.find(f => f.key === key)!;
 
 export interface AutoAxesSettings {
-  /** 0 hi, 1 norm, 2 hi and lo, 3 period, 4 two parameters, 10 frequency, 11 average */
-  plot: number;
+  plot: AutoProjection;
   var: string | null;
   par1: string | null;
   par2: string | null;

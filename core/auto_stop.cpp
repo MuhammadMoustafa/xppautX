@@ -6,9 +6,11 @@
 #include <string>
 
 #include "auto_nox.h"
+#include "xpp_math_auto.h" /* auto_rsmall */
 #include "session.h"
 #include "auto_stop.h"
 #include "xpp_log.h"
+#include "xpp_mem.h"
 
 namespace xpp {
 
@@ -24,12 +26,27 @@ std::string par_name(const xpp::Session &s, long ipar)
 {
     if (ipar == xpp::auto_unknown::period) return "the period T";
     const int k = s.auto_state.parameter_layout.model_index(static_cast<int>(ipar));
-    const char *name = k >= 0 && k < s.model().nupar ? auto_par_name(s, k) : nullptr;
+    const char *name = auto_par_name(s, k);
     return name ? std::string("parameter ") + name : std::string("the parameter");
 }
 
 /* a limit as a person typed it: AUTO keeps some as floats (0.0009999999) */
 std::string num(double v) { return std::isfinite(v) ? xpp::format("{:g}", v) : std::string("?"); }
+
+/* the Newton settings that gave up, after the step's: "; ITNW 5, EPSL
+   1e-07, EPSU 1e-07" (nothing for a solver without them) */
+std::string newton(const AutoNoConvergence &nc)
+{
+    if (nc.itnw <= 0) return "";
+    return "; ITNW " + std::to_string(nc.itnw) + ", EPSL " + num(nc.epsl) + ", EPSU " + num(nc.epsu);
+}
+
+/* the linear system the last Newton step solved was singular */
+std::string singular(const AutoNoConvergence &nc)
+{
+    if (!(nc.pivot < auto_rsmall)) return "";
+    return ": the linear system is singular (smallest pivot " + num(nc.pivot) + " < " + num(auto_rsmall) + ")";
+}
 
 /* the reason in words, and what reached which limit */
 std::string describe(const xpp::Session &s, const AutoStop &st, int why, const AutoStopAt &at, double &value, double &limit)
@@ -57,17 +74,20 @@ std::string describe(const xpp::Session &s, const AutoStop &st, int why, const A
         value = at.par;
         return par_name(s, at.ipar) + " reached a Mark value set to stop (" + num(at.par) + ")";
     case AUTO_STOP_NOCONV_FIXED:
-        value = st.noconv_ds;
-        return "no convergence with a fixed step size (IADS 0)";
+        value = st.noconv.ds;
+        return "no convergence with a fixed step size (IADS 0" + newton(st.noconv) + ")" + singular(st.noconv);
     case AUTO_STOP_NOCONV_MIN:
-        value = st.noconv_ds, limit = st.noconv_dsmin;
-        return "no convergence even at the smallest step (Dsmin " + num(st.noconv_dsmin) + ")";
+        value = st.noconv.ds, limit = st.noconv.dsmin;
+        return "no convergence even at the smallest step (Dsmin " + num(st.noconv.dsmin) + newton(st.noconv) + ")" +
+               singular(st.noconv);
     case AUTO_STOP_NOCONV_SWITCH_FIXED:
-        value = st.noconv_ds;
-        return "no convergence switching branches with a fixed step size (IADS 0)";
+        value = st.noconv.ds;
+        return "no convergence switching branches with a fixed step size (IADS 0" + newton(st.noconv) + ")" +
+               singular(st.noconv);
     case AUTO_STOP_NOCONV_SWITCH_MIN:
-        value = st.noconv_ds, limit = st.noconv_dsmin;
-        return "no convergence switching branches, even at the smallest step (Dsmin " + num(st.noconv_dsmin) + ")";
+        value = st.noconv.ds, limit = st.noconv.dsmin;
+        return "no convergence switching branches, even at the smallest step (Dsmin " + num(st.noconv.dsmin) +
+               newton(st.noconv) + ")" + singular(st.noconv);
     case AUTO_STOP_NOCONV:
         return "no convergence";
     case AUTO_STOP_JACOBIAN:
@@ -79,17 +99,17 @@ std::string describe(const xpp::Session &s, const AutoStop &st, int why, const A
 
 } // namespace
 
-void auto_stop_noconv(AutoStop &st, int why, double ds, double dsmin)
+void auto_stop_noconv(AutoStop &st, const AutoNoConvergence &noconv)
 {
-    st.noconv_why = why >= AUTO_STOP_NOCONV && why < AUTO_STOP_N ? why : AUTO_STOP_NOCONV;
-    st.noconv_ds = std::fabs(ds);
-    st.noconv_dsmin = dsmin;
+    st.noconv = noconv;
+    if (noconv.why < AUTO_STOP_NOCONV || noconv.why >= AUTO_STOP_N) st.noconv.why = AUTO_STOP_NOCONV;
+    st.noconv.ds = std::fabs(noconv.ds);
 }
 
 int auto_stop_why(const AutoStop &st, const AutoStopAt *at)
 {
     if (at->user) return AUTO_STOP_USER;
-    if (at->noconv) return st.noconv_why;
+    if (at->noconv) return st.noconv.why;
     if (at->mark) return AUTO_STOP_MARK;
     if (at->par < at->rl0) return AUTO_STOP_PAR_MIN;
     if (at->par > at->rl1) return AUTO_STOP_PAR_MAX;
@@ -103,7 +123,19 @@ void auto_stop_clear(AutoStop &st)
 {
     st.last_why = AUTO_STOP_NONE;
     st.last_text.clear();
-    st.noconv_why = AUTO_STOP_NOCONV;
+    st.noconv = {};
+    st.notes.clear();
+}
+
+void auto_stop_note(Session &s, std::string text)
+{
+    if (xpp::log_auto_enabled()) xpp::log_auto("Warning: {}\n", text);
+    else xpp::log(XPP_LOG_WARN, "AUTO: {}\n", text);
+    try {
+        s.auto_state.stop.notes.push_back(std::move(text));
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("recording an AUTO note");
+    }
 }
 
 void auto_stop_last(const AutoStop &st, AutoStopInfo *out)
@@ -131,10 +163,13 @@ void auto_stop_branch_end(Session &s, const AutoStopAt *at)
         st.last_limit = limit;
         st.last_text = std::move(text);
         xpp::log_auto("Branch {:d} stopped at point {:d}: {}\n", st.last_br, st.last_pt, st.last_text.c_str());
+        /* no convergence is no limit the user set: said where AUTO's Output is not shown too */
+        if (why >= AUTO_STOP_NOCONV && why <= AUTO_STOP_NOCONV_SWITCH_MIN && !xpp::log_auto_enabled())
+            xpp::log(XPP_LOG_WARN, "AUTO: branch {:d} stopped at point {:d}: {}\n", st.last_br, st.last_pt, st.last_text);
     } catch (...) {
         st.last_why = AUTO_STOP_NONE;
     }
-    st.noconv_why = AUTO_STOP_NOCONV; /* a NOTE says how the next one failed */
+    st.noconv = {}; /* a NOTE says how the next one failed */
 }
 
 

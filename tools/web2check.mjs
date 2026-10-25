@@ -2771,20 +2771,20 @@ async function autoView(dir) {
   await until(`!!document.activeElement.closest('.dialog')`, 'autoplot focus');
   await key('Enter');
   check('T21: Axes/Norm, OK: the diagram holds all its points again, in norms, without a reDraw',
-    await until(`!s.busy && dv.axes.plot === 1 && dv.points.x.length === ${nAll}`, 'norm axes')
+    await until(`!s.busy && dv.axes.plot === 'norm' && dv.points.x.length === ${nAll}`, 'norm axes')
     && JSON.stringify(await DS('d.points.y.slice(0, 50)')) !== JSON.stringify(y0)
     && !(await cdp.eval(`__xpp.sentFrom(${sentAxes}).some(c => c.cmd === 'redraw' || (c.win === 'auto' && c.key === 'd'))`))
     && (await DG()).curves.length > 0, JSON.stringify(await DS('[d.axes, d.points.x.length]')));
   /* and the axis dialog does the same: hI-lo from its Plots select, then a Fit */
   await cdp.eval(`document.querySelector('.auto-axis-name[data-axis=y]').click()`);
   await until(`document.querySelector('.auto-axis-dialog select[data-field=plot]')`, 'y dialog');
-  await cdp.eval(`(() => { const s = document.querySelector('.auto-axis-dialog select[data-field=plot]'); s.value = '2';
+  await cdp.eval(`(() => { const s = document.querySelector('.auto-axis-dialog select[data-field=plot]'); s.value = 'maximum_and_minimum';
     s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
   check('T22: the axis dialog\'s plot type goes to the core as an auto set with a Fit: hI-lo, every point, periodic max and min',
-    await until(`!s.busy && dv.axes.plot === 2 && dv.points.x.length === ${nAll}
+    await until(`!s.busy && dv.axes.plot === 'maximum_and_minimum' && dv.points.x.length === ${nAll}
       && document.querySelector('.auto-axis-dialog select[data-field=yvar]')`, 'hilo axes', 20000)
     && (await DG()).curves.some(c => c.which === 'y2')
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set' && c.axes && c.axes.plot === 2 && c.axes.fit)`),
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set' && c.axes && c.axes.plot === 'maximum_and_minimum' && c.axes.fit)`),
     JSON.stringify(await DS('d.axes')));
   const fitted = await DS('d.axes');
   await setAxisRange(fitted.ymin - 0.1, fitted.ymax + 0.1);
@@ -2837,7 +2837,7 @@ async function autoView(dir) {
   await until("s.ask && s.ask.kind === 'form'", 'autoplot form 2');
   await until(`!!document.activeElement.closest('.dialog')`, 'autoplot focus 2');
   await key('Enter');
-  await until('!s.busy && dv.axes.plot === 2', 'hilo again');
+  await until("!s.busy && dv.axes.plot === 'maximum_and_minimum'", 'hilo again');
   await key('a');
   await menuKey('f');
   await until('!s.busy', 'fit again');
@@ -3086,13 +3086,13 @@ async function autoViews(dir) {
   await cdp.eval(`document.querySelector('.auto-pane[data-view="1"] .auto-axis-name[data-axis=y]').click()`);
   await until(`document.querySelector('.auto-pane[data-view="1"] .auto-axis-dialog select[data-field=plot]')`, 'view 2 axis dialog');
   await cdp.eval(`(() => { const s = document.querySelector('.auto-pane[data-view="1"] .auto-axis-dialog select[data-field=plot]');
-    s.value = 'exact'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+    s.value = 'norm'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
   check("AUTO views: a view's axis dialog changes that view alone (an auto set naming it): norms in the second, the first still hI-lo, the same points in each",
-    await until(`!s.busy && s.diagram.views[1].axes.plot === 1 && s.diagram.views[1].axes.ylabel === 'Norm'
-      && s.diagram.views[0].axes.plot === 2 && s.diagram.views[0].axes.ylabel === 'V'
+    await until(`!s.busy && s.diagram.views[1].axes.plot === 'norm' && s.diagram.views[1].axes.ylabel === 'Norm'
+      && s.diagram.views[0].axes.plot === 'maximum_and_minimum' && s.diagram.views[0].axes.ylabel === 'V'
       && s.diagram.views.every(v => v.points.x.length === ${n})
       && s.diagram.views[0].points.br.every((b, i) => b === s.diagram.views[1].points.br[i])`, 'norm view', 20000)
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set' && c.axes && c.axes.view === 1 && c.axes.plot === 1)`)
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set' && c.axes && c.axes.view === 1 && c.axes.plot === 'norm')`)
     && await cdp.eval(`[...document.querySelectorAll('.auto-pane-title')].map(t => t.textContent).join('|') === 'V against iapp|Norm against iapp'`),
     JSON.stringify(await S('s.diagram.views.map(v => v.axes)')));
   check('AUTO views: each view draws its own chart', (await cdp.eval('__xpp.diagram(0).curves.length')) > 0
@@ -3128,7 +3128,7 @@ async function autoViews(dir) {
   check('AUTO views: the session file is written', fs.existsSync(path.join(dir, 'views.snapx')), saved);
   await cdp.eval(`document.querySelector('.auto-pane[data-view="0"] .auto-pane-close').click()`);
   check('AUTO views: closing the first view leaves the second, now the only one (no close button), in norms',
-    await until(`!s.busy && s.diagram.views.length === 1 && dv.axes.plot === 1 && s.diagram.active === 0
+    await until(`!s.busy && s.diagram.views.length === 1 && dv.axes.plot === 'norm' && s.diagram.active === 0
       && document.querySelectorAll('.auto-pane').length === 1 && !document.querySelector('.auto-pane-close')`, 'closed'),
     JSON.stringify(await S('[s.diagram.views.map(v => v.axes), s.diagram.active]')));
   await cdp.eval(`__xpp.send({cmd: 'open', file: 'views.snapx'})`);
@@ -6033,7 +6033,7 @@ async function jacobianOfferCheck(dir) {
   await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
   await key('a');
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
-  await cdp.eval(`__xpp.send({cmd: 'auto', op: 'set', numerics: {ds: -0.1, dsmax: 0.1, rl0: -0.5, rl1: 2, nmx: 100}, axes: {plot: 1, var: 'x', par1: 'a'}})`);
+  await cdp.eval(`__xpp.send({cmd: 'auto', op: 'set', numerics: {ds: -0.1, dsmax: 0.1, rl0: -0.5, rl1: 2, nmx: 100}, axes: {plot: 'norm', var: 'x', par1: 'a'}})`);
   await until('!s.busy', 'AUTO settings');
   await cdp.eval(`__xpp.send({cmd: 'key', win: 'auto', key: 'r'})`);
   await until("s.ask && s.ask.kind === 'menu'", 'AUTO start menu');
