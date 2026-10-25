@@ -27,10 +27,6 @@ using xpp::expr::is_lookup;
 
 namespace xpp {
 
-#ifndef M_PI
-# define M_PI	3.14159265358979323846264338327950288
-#endif
-
 
 namespace {
 
@@ -121,7 +117,7 @@ constexpr Builtin builtins[]=
    {"[",1,ENDSHIFT,0,PRIMARY_PRIORITY}, /*70 */
    {"POISSON",7,COM(FUN1TYPE,xpp::expr::RANDOM_POISSON),0,PRIMARY_PRIORITY}, /* 71 */
    {"SET",3,ENDSET,3,PRIMARY_PRIORITY}, /* 72 */
-   {"ARG1",4,COM(USTACKTYPE,0),0,PRIMARY_PRIORITY}, /*  FIXXX ????  */
+   {"ARG1",4,COM(USTACKTYPE,0),0,PRIMARY_PRIORITY}, /* ARG1..ARG20: a user function reads its arguments by these */
    {"ARG2",4,COM(USTACKTYPE,1),0,PRIMARY_PRIORITY},
    {"ARG3",4,COM(USTACKTYPE,2),0,PRIMARY_PRIORITY},
    {"ARG4",4,COM(USTACKTYPE,3),0,PRIMARY_PRIORITY},
@@ -183,6 +179,27 @@ int builtin_arity(std::string_view name)
 bool is_builtin_symbol(std::string_view name)
 {
   return builtin_named(name)!=nullptr;
+}
+
+bool is_pure_builtin(std::string_view name)
+{
+  const Builtin *b=builtin_named(name);
+  if(!b||b->pri!=PRIMARY_PRIORITY)return false;
+  const std::size_t index=static_cast<std::size_t>(b->com%MAXTYPE);
+  if(b->com/MAXTYPE==FUN1TYPE)return xpp::expr::fun1[index]!=nullptr;
+  if(b->com/MAXTYPE==FUN2TYPE)return xpp::expr::fun2[index]!=nullptr;
+  return false;
+}
+
+std::optional<double> pure_builtin_value(std::string_view name, std::span<const double> args)
+{
+  const std::string upper=upper_case(std::string(name));
+  if(!is_pure_builtin(upper))return std::nullopt;
+  const Builtin *b=builtin_named(upper);
+  const std::size_t index=static_cast<std::size_t>(b->com%MAXTYPE);
+  if(b->com/MAXTYPE==FUN1TYPE&&args.size()==1)return xpp::expr::fun1[index](args[0]);
+  if(b->com/MAXTYPE==FUN2TYPE&&args.size()==2)return xpp::expr::fun2[index](args[0],args[1]);
+  return std::nullopt;
 }
 
 namespace {
@@ -287,7 +304,7 @@ void init_rpn(xpp::Session &s)
 
     s.numerics.max_points=4000;
     s.parser.nsym = STDSYM;
-    add_con(s,"PI", M_PI);
+    add_con(s,"PI", pi_value);
 
     /* I', the constant SUM sets: xpp::expr::SUM_INDEX */
         add_con(s,"I'",0.0);
@@ -401,7 +418,7 @@ int add_con(xpp::Session &s, std::string_view name, double value)
  ParserState &p=s.parser;
  if(p.ncon>=MAXTYPE) /* likewise a constant (COM) */
  {
-  if(p.errout)xpp::log(XPP_LOG_WARN, "too many constants !!\n");
+  if(p.errout)xpp::log(XPP_LOG_WARN, "a model has at most {} constants: a compiled formula names one by its place in that many\n",MAXTYPE);
   return(1);
  }
  if(p.constants.size()<=static_cast<size_t>(p.ncon))p.constants.resize(std::max<size_t>(64,2*p.constants.size()));
@@ -418,18 +435,11 @@ int add_kernel(xpp::Session &s, std::string_view name, double mu, std::string_vi
   xpp::Model &m=s.model();
   int in=-1;
   if(duplicate_name(s.parser,name)==1)return(1);
-  if(m.nkernel==MAXKER){
-    xpp::log(XPP_LOG_WARN, "Too many kernels..\n");
-    return(1);
-  }
   if(mu<0||mu>=1.0){
     xpp::log(XPP_LOG_WARN, " mu must lie in [0,1.0) \n");
     return(1);
   }
   if(set_symbol(s.parser,name,10,0,COM(KERTYPE,m.nkernel)))return 1;
-  KERNEL &k=m.kernels[m.nkernel];
-  k.mu=mu;
-  k.flag=0;
   std::string_view text=expr;
   size_t hash=text.rfind('#');
   if(hash!=std::string_view::npos)in=static_cast<int>(hash);
@@ -437,6 +447,10 @@ int add_kernel(xpp::Session &s, std::string_view name, double mu, std::string_vi
     xpp::log(XPP_LOG_WARN, "Illegal use of convolution...\n");
     return(1);
   }
+  m.kernels.resize(m.nkernel+1);
+  KERNEL &k=m.kernels[m.nkernel];
+  k.mu=mu;
+  k.flag=0;
   if(in>0){
     k.flag=CONV;
     /* split at the # */
@@ -463,7 +477,7 @@ int add_var(xpp::Session &s, std::string_view junk, double value)
  if(duplicate_name(p,junk)==1)return(1);
  if(m.nvar>=MAXTYPE) /* an operand names its variable below MAXTYPE (COM) */
  {
-  if(p.errout)xpp::log(XPP_LOG_WARN, "too many variables !!\n");
+  if(p.errout)xpp::log(XPP_LOG_WARN, "a model has at most {} variables: a compiled formula names one by its place in that many\n",MAXTYPE);
   return(1);
  }
  if(set_symbol(p,junk,10,0,COM(VARTYPE,m.nvar)))return 1;
@@ -554,14 +568,10 @@ void set_ufun_arg_names(xpp::Session &session, int index)
 int add_ufun_name(xpp::Session &s, std::string_view name, int index, int narg)
 {
  if(duplicate_name(s.parser,name)==1)return(1);
- if(index>=MAXUFUN)
- {
-  if(s.parser.errout)xpp::log(XPP_LOG_WARN, "too many functions !!\n");
-  return(1);
- }
-  xpp::log(XPP_LOG_INFO, " Added user fun {} \n",name);
+ xpp::log(XPP_LOG_INFO, " Added user fun {} \n",name);
   if(set_symbol(s.parser,name,10,narg,COM(UFUNTYPE, index)))return 1;
   s.parser.nsym++;
+  s.model().room_for_function(index);
   s.model().ufun_names[index]=name;
   return (0);
 }
@@ -623,11 +633,7 @@ int add_ufun(xpp::Session &s, std::string_view junk, std::string_view expr, int 
  int end;
 
  if(duplicate_name(s.parser,junk)==1)return(1);
- if(m.nfun>=MAXUFUN)
- {
-  if(s.parser.errout)xpp::log(XPP_LOG_WARN, "too many functions !!\n");
-  return(1);
- }
+ m.room_for_function(m.nfun);
  std::vector<int> &program=m.ufun_programs[m.nfun].rpn;
  program.clear();
  set_ufun_def(m,m.nfun,"");

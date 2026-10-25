@@ -136,10 +136,6 @@ int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &eve
 int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<FlagEvent> &events)
 {
   xpp::Model &m=s.model();
-  if(m.flag_count()>=MAXFLAG){
-    xpp::log(XPP_LOG_WARN, "Too many global conditions\n");
-    return(1);
-  }
   if(static_cast<int>(events.size())>MAX_EVENTS){
     xpp::log(XPP_LOG_WARN, " Too many events per flag \n");
     return(1);

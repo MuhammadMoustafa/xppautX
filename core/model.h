@@ -223,8 +223,8 @@ struct Model {
     Place where; /* its 0= line, for an error (a DAE that cannot be solved) */
   };
   int nsvar=0,naeqn=0;
-  std::array<AlgebraicVariable,MAXDAE> svars;
-  std::array<AlgebraicEquation,MAXDAE> aeqns;
+  std::vector<AlgebraicVariable> svars;
+  std::vector<AlgebraicEquation> aeqns;
 
   /* ---- the model's own values and options ---- */
   /* the parameters' values and the variables' initial conditions as the
@@ -232,12 +232,13 @@ struct Model {
      last_ic) */
   std::vector<double> default_val;
   std::vector<double> default_ic;
-  /* the initial values a model gives as formulas (an .odex's init): each
-     variable (by name) and its formula (the expression engine's text),
-     evaluated in order once the model is set up (form_ode.cpp's
+  /* the initial values a model draws (an .odex's init that calls ran; any
+     other init is a number at load): each variable (by name) and its
+     formula, drawn in order once the model is set up (form_ode.cpp's
      set_initial_values); where its init is, for an error (no cause) */
   struct InitialValue {
-    std::string name, formula;
+    std::string name;
+    odex::Expr formula;
     Place where;
     int index = -1; /* -1 until the builder resolves the state column */
   };
@@ -263,7 +264,7 @@ struct Model {
   int ndelays=0;
   /* the integral equations' kernels (nkernel of them) */
   int nkernel=0;
-  std::array<KERNEL,MAXKER> kernels;
+  std::vector<KERNEL> kernels;
 
   /* a Markov variable's chain: nstates states and their values, and the
      nstates x nstates transitions as typed (trans) and compiled
@@ -279,7 +280,7 @@ struct Model {
     std::string name;
   };
   /* the Markov variables' chains (nmarkov of them) */
-  std::array<MarkovChain,MAXMARK> markov;
+  std::vector<MarkovChain> markov;
   /* the Wiener parameters' places in the parser's constants (nwiener) */
   std::vector<int> wiener;
 
@@ -293,24 +294,35 @@ struct Model {
      there: the state event reads every parameter, without the lookups) */
   std::vector<int> upar_con;
   /* the user functions' names (NFUN of them) */
-  std::array<std::string, MAXUFUN> ufun_names;
+  std::vector<std::string> ufun_names;
   /* each user function's argument names (narg_fun[i] of them) */
-  std::array<std::vector<std::string>, MAXUFUN> ufun_args;
+  std::vector<std::vector<std::string>> ufun_args;
 
   /* ---- the networks and vectorizers (simplenet.cpp) ---- */
   int nnetwork=0,nvector=0;
-  std::array<Network,MAXNET> networks;
-  std::array<Vectorizer,MAXVEC> vectors;
+  std::vector<Network> networks;
+  std::vector<Vectorizer> vectors;
 
   /* ---- the user functions (expr_symbols.cpp), nfun of them ---- */
   int nfun=0;
   /* each one's argument count */
-  std::array<int,MAXUFUN> narg_fun{};
+  std::vector<int> narg_fun;
   /* each one's formula as typed */
-  std::array<std::string,MAXUFUN> ufun_defs;
+  std::vector<std::string> ufun_defs;
   /* each one compiled: the formula then ENDFUN, its argument count and
      ENDEXP */
-  std::array<Program,MAXUFUN> ufun_programs;
+  std::vector<Program> ufun_programs;
+  /* room for user function index in each of the above (the functions have
+     no limit: the vectors grow with what the model defines) */
+  void room_for_function(int index) {
+    const std::size_t size = static_cast<std::size_t>(index) + 1;
+    if (ufun_names.size() >= size) return;
+    ufun_names.resize(size);
+    ufun_args.resize(size);
+    narg_fun.resize(size);
+    ufun_defs.resize(size);
+    ufun_programs.resize(size);
+  }
   /* ---- the source ---- */
   /* the model file's lines as read (strip_saveqn makes their control
      characters blanks at the end of the load) */

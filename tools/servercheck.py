@@ -2283,7 +2283,7 @@ def check_load_all_or_nothing():
     is checked whole when the model loads (W318), so none can fail here."""
     model = os.path.join(tempfile.mkdtemp(prefix='w125m'), 'w125.odex')
     with open(model, 'w') as f:
-        f.write("x'=-a*x+b\ny'=x-y\npar a=1,b=2\ninit x=1,y=0\nset good { a: 3, b: 4 }\n")
+        f.write("x'=-a*x+b\ny'=x-y\npar a=1,b=2\ninit x=1,y=0\nset \"good\" { a: 3, b: 4 }\n")
     p, r, snd, col, _ = launch_server(ode=model)
 
     def answered(answers, **cmd):
@@ -2429,10 +2429,10 @@ def check_apply_restore():
     folder = tempfile.mkdtemp(prefix='w319')
     model = os.path.join(folder, 'w319.odex')
     with open(model, 'w') as f:
-        f.write("x'=-a*x+b\ny'=-y+c\npar a=1,b=2,c=0.5\ninit x=0.5,y=2*a\n"
+        f.write("x'=-a*x+b\ny'=-y+c\npar a=1,b=2,c=0.5\ninit x=0.5,y=2\n"
                 "options { integration: { dt: 0.02, total_time: 9 } }\n"
-                "set pa { a: 10, b: 20 }\n"
-                "set mix { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { xlo: -3, xhi: 3 } } }\n")
+                "set \"pa\" { a: 10, b: 20 }\n"
+                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { xlo: -3, xhi: 3 } } }\n")
     p, r, snd, col, _ = launch_server(ode=model)
     errs = lambda evs: [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
 
@@ -2452,11 +2452,11 @@ def check_apply_restore():
     try:
         col(is_idle)
         start = view()
-        check('W319: the model gives its defaults (init y = 2*a is 2)',
+        check('W319: the model gives its defaults (init y = 2)',
               start[0] == {'a': 1, 'b': 2, 'c': 0.5} and start[1] == {'x': 0.5, 'y': 2} and start[2] == 0.02 and start[3] == 9, str(start))
         evs = run(cmd='applyset', set='pa', scope='parameters')
         v = view()
-        check('W319: a parameter-only apply changes the parameters and leaves the initial values (y = 2*a stays 2)',
+        check('W319: a parameter-only apply changes the parameters and leaves the initial values (y = 2 stays 2)',
               not errs(evs) and v[0] == {'a': 10, 'b': 20, 'c': 0.5} and v[1] == start[1] and v[2:] == start[2:], str(v))
         evs = run(cmd='applyset', set='mix', scope='initial')
         v = view()
@@ -2480,7 +2480,7 @@ def check_apply_restore():
         check('W319: restoring one parameter leaves the others', v[0] == {'a': 1, 'b': 20, 'c': 0.5}, str(v))
         run(cmd='restoredefaults', scope='initial')
         v = view()
-        check('W319: restoring the initial values gives the model\'s (init y = 2*a as loaded)', v[1] == start[1], str(v))
+        check('W319: restoring the initial values gives the model\'s (init y = 2 as loaded)', v[1] == start[1], str(v))
         run(cmd='restoredefaults', scope='integration')
         v = view()
         check('W319: restoring a section gives the model\'s numerics', v[2:4] == start[2:4], str(v))
@@ -2551,19 +2551,19 @@ def check_save_values():
                 "x' = -a*x + b   # decay\n"
                 "y' = -y + c\n"
                 "par a = 1, b = 2, c = 0.5\n"
-                "init x = 0.5, y = 2*a\n"
+                "init x = 0.5, y = 2\n"
                 "\n"
                 "options {\n"
                 "  integration: { dt: 0.02, total_time: 9 },\n"
                 "}\n"
                 "\n"
                 "# regimes\n"
-                "set pa { a: 10, b: 20 }\n"
-                "set mix { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { xlo: -3, xhi: 3 } } }\n")
+                "set \"pa\" { a: 10, b: 20 }\n"
+                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { xlo: -3, xhi: 3 } } }\n")
     with open(model, 'w', newline='') as f:
         f.write(original)
     with open(os.path.join(folder, 'lib.odex'), 'w', newline='') as f:
-        f.write("set shared { a: 3 }\n")
+        f.write("set \"shared\" { a: 3 }\n")
     s = Server(args.server, model, run=folder)
     errs = lambda evs: [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
 
@@ -2589,7 +2589,7 @@ def check_save_values():
         evs = run(cmd='saveset', set='s1', mode='new', scope='parameters')
         after = text()
         check('W320: a new set is appended; the rest of the file is byte for byte as it was',
-              not errs(evs) and after.startswith(before) and after[len(before):].strip().startswith('set s1 {')
+              not errs(evs) and after.startswith(before) and after[len(before):].strip().startswith('set "s1" {')
               and 'a: 7' in after[len(before):] and 'b: 2.5' in after[len(before):] and 'x:' not in after[len(before):], repr(after[len(before):]) + str(errs(evs)))
         run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1}])
         evs = run(cmd='applyset', set='s1', scope='parameters')
@@ -2599,16 +2599,16 @@ def check_save_values():
         old = text()
         evs = run(cmd='saveset', set='mix', mode='replace', scope='initial')
         new = text()
-        mix = [new[new.index('set mix'):]]
+        mix = [new[new.index('set "mix"'):]]
         check('W320: replacing the initial values of mix keeps its parameter and its options as written',
               not errs(evs) and mix and 'a: 5' in mix[0] and 'x: 0.1' in mix[0] and 'y: 0.2' in mix[0] and 'x: 0.9' not in mix[0]
               and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: { xlo: -3, xhi: 3 }' in mix[0], str(mix) + str(errs(evs)))
-        check('W320: the rest of the file is byte for byte as it was', new[:old.index('set mix')] == old[:old.index('set mix')], '')
+        check('W320: the rest of the file is byte for byte as it was', new[:old.index('set "mix"')] == old[:old.index('set "mix"')], '')
         run(cmd='set', values=[{'kind': 'ic', 'name': 'x', 'value': 3}])
         run(cmd='applyset', set='mix', scope='initial')
         check('W320: the live model uses the replaced part', view()[1]['x'] == 0.1)
         evs = run(cmd='saveset', set='mix', mode='replace', scope='plot')
-        mix = [text()[text().index('set mix'):]]
+        mix = [text()[text().index('set "mix"'):]]
         check('W320: replacing the plot settings leaves the rest of the set', not errs(evs) and mix and 'xlo: -3' not in mix[0]
               and 'x: 0.1' in mix[0] and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: {' in mix[0], str(mix) + str(errs(evs)))
         # the defaults: par and init lines in place, an options group
@@ -2636,26 +2636,26 @@ def check_save_values():
         evs = run(cmd='exportset', set='e1', scope='parameters', file='out.odex')
         out = text('out.odex')
         check('W320: Export writes a new file with the Saved-from header and the set',
-              not errs(evs) and out.startswith('# Saved from w320.odex at ') and 'set e1 {' in out, out + str(errs(evs)))
+              not errs(evs) and out.startswith('# Saved from w320.odex at ') and 'set "e1" {' in out, out + str(errs(evs)))
         evs = run(cmd='exportset', set='e1', scope='initial', file='out.odex')
         out2 = text('out.odex')
         check('W320: Export to an existing set asks and replaces its part of that kind',
-              not errs(evs) and out2.count('set e1') == 1 and out2.startswith(out.split('set e1')[0]), out2 + str(errs(evs)))
+              not errs(evs) and out2.count('set "e1"') == 1 and out2.startswith(out.split('set "e1"')[0]), out2 + str(errs(evs)))
         evs = run(cmd='exportset', set='e2', scope='integration', file='out.odex')
         out3 = text('out.odex')
-        check('W320: Export to an existing file appends a set of another name', not errs(evs) and 'set e2 {' in out3 and out3.startswith(out2), out3 + str(errs(evs)))
+        check('W320: Export to an existing file appends a set of another name', not errs(evs) and 'set "e2" {' in out3 and out3.startswith(out2), out3 + str(errs(evs)))
         # rename and delete
         evs = run(cmd='renameset', set='pa', to='pb')
         new = text()
         check('W320: Rename changes the name in the file and in the model',
-              not errs(evs) and 'set pb { a: 10, b: 20 }' in new and 'set pa' not in new, str(errs(evs)))
+              not errs(evs) and 'set "pb" { a: 10, b: 20 }' in new and 'set "pa"' not in new, str(errs(evs)))
         evs = run(cmd='applyset', set='pb', scope='parameters')
         check('W320: the renamed set applies, the old name is gone', not errs(evs) and view()[0]['a'] == 10
               and errs(run(cmd='applyset', set='pa', scope='parameters')), '')
         old = text()
         evs = run(cmd='deleteset', set='pb')
         new = text()
-        check('W320: Delete removes the set and its line only', not errs(evs) and new == old.replace('set pb { a: 10, b: 20 }\n', ''), new[-200:] + str(errs(evs)))
+        check('W320: Delete removes the set and its line only', not errs(evs) and new == old.replace('set "pb" { a: 10, b: 20 }\n', ''), new[-200:] + str(errs(evs)))
         # refusals change nothing
         old = text()
         for bad, why in ((dict(cmd='saveset', set='s1', mode='new', scope='parameters'), 'already a set'),
@@ -2708,13 +2708,13 @@ def check_save_values():
                 else:
                     s.send(cmd='answer', id=e['id'], key='y')
         evs = menu_flow('o', ['New set', 'parameters'])
-        check('W320: File > Save values: New set, a name, parameters writes the set', not errs(evs) and 'set menuset {' in text(), str(errs(evs)))
+        check('W320: File > Save values: New set, a name, parameters writes the set', not errs(evs) and 'set "menuset" {' in text(), str(errs(evs)))
         evs = menu_flow('i', ['plot'], text='menuex')
-        check('W320: File > Export values writes the set to the file picked', not errs(evs) and 'set menuex {' in text('menu_out.odex'), str(errs(evs)))
+        check('W320: File > Export values writes the set to the file picked', not errs(evs) and 'set "menuex" {' in text('menu_out.odex'), str(errs(evs)))
         evs = menu_flow('f', ['menuset'])
-        check('W320: File > Delete set asks, then deletes the set from the file', not errs(evs) and 'set menuset' not in text(), str(errs(evs)))
+        check('W320: File > Delete set asks, then deletes the set from the file', not errs(evs) and 'set "menuset"' not in text(), str(errs(evs)))
         evs = menu_flow('z', ['s1'], text='s1b')
-        check('W320: File > Rename set asks which set and the new name', not errs(evs) and 'set s1b {' in text() and 'set s1 {' not in text(), str(errs(evs)))
+        check('W320: File > Rename set asks which set and the new name', not errs(evs) and 'set "s1b" {' in text() and 'set "s1" {' not in text(), str(errs(evs)))
         old = text()
         # a plot's settings saved and applied again
         evs = run(cmd='applyset', set='mix', scope='plot')

@@ -32,8 +32,7 @@ namespace xpp {
 
 void add_svar(xpp::Session &s, const char *name, const char *rhs)
 {
-  if(s.model().nsvar>=MAXDAE)
-    model_failed(xpp::format("Too many algebraic variables (at most {})",MAXDAE));
+  s.model().svars.resize(s.model().nsvar+1);
   s.model().svars[s.model().nsvar].name=name;
   s.model().svars[s.model().nsvar].rhs=rhs;
   s.model().svars[s.model().nsvar].where=xpp::Load::place();
@@ -61,8 +60,7 @@ void add_svar_names(xpp::Session &s)
 void add_aeqn(xpp::Session &s, const char *rhs)
 {
   xpp::Model &m=s.model();
-  if(m.naeqn>=MAXDAE)
-    model_failed(xpp::format("Too many algebraic equations (at most {})",MAXDAE));
+  m.aeqns.resize(m.naeqn+1);
   m.aeqns[m.naeqn].rhs=rhs;
   m.aeqns[m.naeqn].where=xpp::Load::place();
   m.naeqn++;
@@ -161,6 +159,7 @@ void init_dae_work(xpp::Session &s)
 
   s.dae.work.assign(m.nsvar*m.nsvar+10*m.nsvar, 0.0);
   s.dae.iwork.assign(m.nsvar, 0);
+  s.dae.svar_last.assign(m.nsvar, 0.0);
   reset_dae(s);
 }
 

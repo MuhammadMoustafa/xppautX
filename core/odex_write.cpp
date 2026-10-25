@@ -75,6 +75,17 @@ Result<Parsed> read(Model &m, std::string_view text, const std::string &file)
   }
 }
 
+/* read(), and the fixed values worked out (par and init become the numbers
+   they are): what the defaults are compared with */
+Result<Parsed> read_worked_out(Model &m, std::string_view text, const std::string &file)
+{
+  try {
+    return ready(m, parse(m, text, file));
+  } catch (Error &e) {
+    return std::unexpected(std::move(e));
+  }
+}
+
 /* the file's set called name; nullptr when there is none, and then imported
    says whether an import brought a set of that name */
 const Statement *find_set(const Parsed &p, std::string_view name, const Statement *&imported)
@@ -185,7 +196,7 @@ const Binding *own_binding(const Parsed &p, Statement::Kind kind, std::string_vi
 {
   const std::string wanted = xpp::converted(name);
   for (const Statement &s : p.statements) {
-    if (s.kind != kind || !local(s) || !s.range.index.empty()) continue;
+    if (s.kind != kind || !local(s) || !s.range.index.empty() || s.array.group) continue;
     for (const Binding &b : s.bindings)
       if (!b.index && xpp::converted(b.name) == wanted) return &b;
   }
@@ -263,7 +274,7 @@ std::string set_block(std::string_view name, const std::vector<std::string> &ite
 {
   std::vector<std::string> all = items;
   if (!settings.empty()) all.push_back("options: " + braced(grouped(settings, 8 + name.size()), 6 + name.size()));
-  return "set " + std::string(name) + " " + braced(all, 4 + name.size());
+  return "set \"" + std::string(name) + "\" " + braced(all, 4 + name.size());
 }
 
 Result<> check_text(Model &m, std::string_view text, const std::string &file, bool partial)
@@ -324,7 +335,7 @@ Result<Edited> rename_set(Model &m, std::string_view text, const std::string &fi
   const Result<const Statement *> old = local_set(*p, file, from);
   if (!old) return std::unexpected(old.error());
   if (const std::string why = name_problem(*p, to); !why.empty()) return std::unexpected(error_in(file, (*old)->pos, why));
-  return checked(m, apply(text, {{(*old)->name_begin, (*old)->name_begin + from.size(), std::string(to)}}), file, false);
+  return checked(m, apply(text, {{(*old)->name_begin, (*old)->name_begin + from.size() + 2, "\"" + std::string(to) + "\""}}), file, false);
 }
 
 Result<Edited> delete_set(Model &m, std::string_view text, const std::string &file, std::string_view name)
@@ -338,7 +349,7 @@ Result<Edited> delete_set(Model &m, std::string_view text, const std::string &fi
 
 Result<Edited> set_defaults(Model &m, std::string_view text, const std::string &file, const Values &values)
 {
-  const Result<Parsed> p = read(m, text, file);
+  const Result<Parsed> p = read_worked_out(m, text, file);
   if (!p) return std::unexpected(p.error());
   std::vector<Replacement> edits;
   std::string added, added_inits;
@@ -354,7 +365,9 @@ Result<Edited> set_defaults(Model &m, std::string_view text, const std::string &
         }
         return std::unexpected(Error{"save values", xpp::format("the default of {} is declared at {}: it cannot be saved here", name, where.value_or("no line")), Place{file}});
       }
-      const std::optional<double> now = number_of(slice(text, b->value_begin, b->end));
+      /* the number the value was worked out to (1/30), not only the text a number is written as */
+      const std::optional<double> now = b->value.kind == Expr::Kind::Number ? std::optional<double>(b->value.value)
+                                                                            : number_of(slice(text, b->value_begin, b->end));
       const std::optional<double> wanted = number_of(value);
       if (now && wanted && *now == *wanted) continue;
       edits.push_back({b->value_begin, b->end, value});

@@ -134,7 +134,6 @@ Result<bool> write_model_file(Session &s, const Edit &edit, const Adopt &changed
     } catch (Error &e) {
         return std::unexpected(std::move(e));
     }
-    if (const Result<> limits = check_model_limits(now); !limits) return std::unexpected(limits.error());
     /* a model opened from a session (or played from a recording) has no file of its own to write: the
        session's copy of the model changes, and saving the session keeps it */
     if (m.saved_in.empty()) {

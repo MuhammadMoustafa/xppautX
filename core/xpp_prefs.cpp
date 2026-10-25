@@ -90,7 +90,7 @@ public:
     void count(std::string_view key, unsigned &out, std::string_view automatic, CountProblem problem)
     {
         std::string text;
-        if (!block_.text(key, text)) return;
+        if (!block_.word(key, text)) return;
         if (text == automatic) {
             out = 0;
             return;

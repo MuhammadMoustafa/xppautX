@@ -44,7 +44,7 @@ std::vector<std::string> grouped(const std::vector<GroupItem> &items, std::size_
 /* options { group: { ... }, ... } at the start of a line ("" without items) */
 std::string options_block(const std::vector<GroupItem> &items);
 
-/* set name { items..., options: { group: { key: value } } } */
+/* set "name" { items..., options: { group: { key: value } } } */
 std::string set_block(std::string_view name, const std::vector<std::string> &items, const std::vector<GroupItem> &settings);
 
 /* ---- the values a save writes ---- */

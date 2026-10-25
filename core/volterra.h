@@ -52,7 +52,7 @@ struct HistoryValues {
 };
 
 struct VolterraState {
-  std::array<KernelState,MAXKER> kernels;
+  std::vector<KernelState> kernels; /* one per kernel (alloc_v_memory sizes it) */
   int current_point=0, kn_flag=0;
   std::vector<std::vector<double>> memory; /* allocate_volterra's variables */
   HistoryValues history;

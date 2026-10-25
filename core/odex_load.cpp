@@ -69,6 +69,14 @@ const char *kind_name(Model::NameKind k)
   return "a name";
 }
 
+/* the const named name, with its value */
+std::optional<double> const_named(const Model &m, const std::string &name)
+{
+  const Model::Name *c = m.name(name);
+  if (c && c->load_constant && c->load_constant->first == name) return c->load_constant->second;
+  return std::nullopt;
+}
+
 /* a value a formula reads */
 bool is_value(Model::NameKind k)
 {
@@ -135,50 +143,46 @@ private:
   }
 
   /* ---- consts and arrays ---- */
-  /* the value of e, worked out at load: numbers, the consts before it and
-     the range's index (in index, its value in value), with + - * / mod ^
-     and a sign (docs/odex.md "Arrays"); what is an index or a range's end
-     says so in what */
-  double load_value(const Expr &e, std::string_view what, const std::string &index, int value) const
+  /* e's value as a fixed value (fixed_value), a problem at e's part that is not */
+  double fixed(const Expr &e, std::string_view what, const std::string &index, int value, const Draw *draw = nullptr) const
   {
-    switch (e.kind) {
-    case Expr::Kind::Number: return e.value;
-    case Expr::Kind::Name: {
-      if (!e.primed && !index.empty() && e.text == index) return value;
-      const Model::Name *c = m_.name(e.text);
-      if (!e.primed && c && c->load_constant && c->load_constant->first == e.text) return c->load_constant->second;
-      fail(e.pos, xpp::format("{} reads numbers, the consts before it and the range's index, not `{}{}`", what,
-                              e.text, e.primed ? "'" : ""));
+    try {
+      return fixed_value(m_, e, what, index, value, draw);
+    } catch (const FixedProblem &p) {
+      fail(p.pos, p.why);
     }
-    case Expr::Kind::Neg: return -load_value(e.args[0], what, index, value);
-    case Expr::Kind::Binary: {
-      const std::string &op = e.text;
-      if (op == "+" || op == "-" || op == "*" || op == "/" || op == "mod" || op == "^") {
-        const double a = load_value(e.args[0], what, index, value), b = load_value(e.args[1], what, index, value);
-        if (op == "+") return a + b;
-        if (op == "-") return a - b;
-        if (op == "*") return a * b;
-        if (op == "/") return a / b;
-        /* a literal small whole exponent multiplied out, as a formula's (W471) */
-        if (op == "^")
-          return e.args[1].kind == Expr::Kind::Number && xpp::math::is_integer_power(b)
-                   ? xpp::math::integer_power(a, static_cast<int>(b)) : xpp::math::pow(a, b);
-        /* mod as the expression engine's: in [0, b) */
-        const double z = std::fmod(a, b);
-        return z < 0 ? z + b : z;
+  }
+
+  /* b's value becomes the number v it is worked out to */
+  static void number_of(Binding &b, double v)
+  {
+    Expr n;
+    n.kind = Expr::Kind::Number;
+    n.pos = b.value.pos;
+    n.value = v;
+    n.text = print_number(v);
+    b.value = std::move(n);
+  }
+  void number_of(Binding &b, const std::string &what) const { number_of(b, fixed(b.value, what, std::string(), 0)); }
+
+  /* e with every const it reads its number: a formula drawn later reads no name */
+  void with_consts(Expr &e) const
+  {
+    if (e.kind == Expr::Kind::Name && !e.primed) {
+      if (const std::optional<double> c = const_named(m_, e.text)) {
+        e.kind = Expr::Kind::Number;
+        e.value = *c;
+        e.text = print_number(*c);
       }
-      break;
+      return;
     }
-    default: break;
-    }
-    fail(e.pos, xpp::format("{} is worked out at load from numbers, consts and the range's index with + - * / mod "
-                            "^: `{}` is not", what, print(e)));
+    for (Expr &a : e.args) with_consts(a);
   }
 
   /* e's value, a whole number (and not negative with nonnegative) */
   int whole(const Expr &e, std::string_view what, const std::string &index, int value, bool nonnegative) const
   {
-    const double v = load_value(e, what, index, value);
+    const double v = fixed(e, what, index, value);
     if (!(v == std::floor(v)) || std::fabs(v) > 1e9)
       fail(e.pos, xpp::format("{} `{}` is {}, not a whole number", what, print(e), print_number(v)));
     if (nonnegative && v < 0) fail(e.pos, xpp::format("{} `{}` is {}: an element's index is 0 or more", what, print(e), print_number(v)));
@@ -259,13 +263,8 @@ private:
     if (c.kind == Statement::Kind::Const) {
       /* its value now, the consts before it read */
       for (Binding &b : c.bindings) {
-        const double v = load_value(b.value, xpp::format("the value of const {}", b.name), index, value);
-        Expr n;
-        n.kind = Expr::Kind::Number;
-        n.pos = b.value.pos;
-        n.value = v;
-        n.text = print_number(v);
-        b.value = std::move(n);
+        const double v = fixed(b.value, xpp::format("the value of const {}", b.name), index, value);
+        number_of(b, v);
         m_.names[xpp::upper_case(b.name)].load_constant=std::pair{b.name,v};
       }
     }
@@ -717,26 +716,20 @@ private:
       }
       break;
     case Statement::Kind::Par:
-      /* numbers only (docs/odex.md question 9): a quantity worked out
-         from the parameters is d = expr */
-      for (Binding &b : s.bindings) {
-        const Expr &v = b.value;
-        const bool neg = v.kind == Expr::Kind::Neg && v.args[0].kind == Expr::Kind::Number;
-        if (v.kind != Expr::Kind::Number && !neg)
-          fail(v.pos, xpp::format("a parameter's value is a number, not `{}` (par takes numbers; a quantity worked "
-                                  "out from parameters is `{} = ...` outside par)", print(v), b.name));
-        if (neg) {
-          Expr n = v.args[0];
-          n.pos = v.pos;
-          n.value = -n.value;
-          n.text = print_number(n.value);
-          b.value = std::move(n);
-        }
-      }
+      /* a fixed value, kept as its number */
+      for (Binding &b : s.bindings) number_of(b, xpp::format("the value of parameter {}", b.name));
       break;
     case Statement::Kind::Init:
       variables(s, true, "init gives a variable its initial value");
-      for (Binding &b : s.bindings) formula(b.value, formula_scope());
+      /* a fixed value, a number at once; one that calls ran stays a formula,
+         drawn once the model is set up (set_initial_values) */
+      for (Binding &b : s.bindings) {
+        bool drawn = false;
+        const Draw dry = [&drawn](double) { drawn = true; return 0.0; };
+        const double v = fixed(b.value, xpp::format("the initial value of {}", b.name), std::string(), 0, &dry);
+        if (!drawn) number_of(b, v);
+        else with_consts(b.value);
+      }
       break;
     case Statement::Kind::History:
       variables(s, false, "history gives a variable its values before the start");
@@ -848,6 +841,90 @@ std::string name_clash(std::string_view name, std::string_view array, std::strin
   const std::string who = array.empty() ? xpp::format("`{}`", name) : xpp::format("`{}`, a member of the array {},", name, array);
   if (earlier_array.empty()) return xpp::format("{} is already declared at {}", who, earlier_at);
   return xpp::format("{} is already a member of the array {}, declared at {}", who, earlier_array, earlier_at);
+}
+
+namespace {
+
+/* kind_name without its article: the parameter, the state ... */
+std::string_view the_kind(Model::NameKind k)
+{
+  std::string_view name = kind_name(k);
+  for (std::string_view article : {"a ", "an "})
+    if (name.starts_with(article)) name.remove_prefix(article.size());
+  return name;
+}
+
+
+}
+
+double fixed_value(const Model &m, const Expr &e, std::string_view what, const std::string &index, int value, const Draw *draw)
+{
+  const auto problem = [&e](std::string why) -> FixedProblem { return {e.pos, std::move(why)}; };
+  const auto sub = [&](const Expr &a) { return fixed_value(m, a, what, index, value, draw); };
+  switch (e.kind) {
+  case Expr::Kind::Number: return e.value;
+  case Expr::Kind::Index:
+  case Expr::Kind::Name: {
+    std::string name = e.text;
+    if (e.kind == Expr::Kind::Index) {
+      /* an array's element: the base followed by its index's value */
+      const double at = sub(e.args[1]);
+      if (e.args[0].kind != Expr::Kind::Name || e.args[0].primed || !(at == std::floor(at)) || at < 0 || at > 1e9)
+        throw problem(xpp::format("{} reads an element of a const array: `x[2]` with a whole index", what));
+      name = e.args[0].text + std::to_string(static_cast<long long>(at));
+    }
+    if (e.primed) throw problem(xpp::format("{} can't use `{}'`: a state's rate is no fixed value", what, e.text));
+    if (e.kind == Expr::Kind::Name && !index.empty() && name == index) return value;
+    if (name == "pi" && is_reserved(name)) return xpp::pi_value;
+    if (const std::optional<double> c = const_named(m, name)) return *c;
+    const Model::Name *d = m.name(name);
+    if (d && d->declared && d->written == name)
+      throw problem(xpp::format("{} can't use the {} {}; use a const or a number", what, the_kind(d->kind), name));
+    throw problem(xpp::format("{} can't use `{}`: a fixed value is numbers, pi, consts declared before it and the "
+                              "range's index, with + - * / mod ^ and the pure functions", what, name));
+  }
+  case Expr::Kind::Neg: return -sub(e.args[0]);
+  case Expr::Kind::Binary: {
+    const std::string &op = e.text;
+    if (op == "+" || op == "-" || op == "*" || op == "/" || op == "mod" || op == "^") {
+      const double a = sub(e.args[0]), b = sub(e.args[1]);
+      if (op == "+") return a + b;
+      if (op == "-") return a - b;
+      if (op == "*") return a * b;
+      if (op == "/") return a / b;
+      /* a literal small whole exponent multiplied out, as a formula's (W471) */
+      if (op == "^")
+        return e.args[1].kind == Expr::Kind::Number && xpp::math::is_integer_power(b)
+                 ? xpp::math::integer_power(a, static_cast<int>(b)) : xpp::math::pow(a, b);
+      /* mod as the expression engine's: in [0, b) */
+      const double z = std::fmod(a, b);
+      return z < 0 ? z + b : z;
+    }
+    break;
+  }
+  case Expr::Kind::Call: {
+    std::vector<double> args;
+    for (std::size_t i = 0; i < e.args.size(); i++) {
+      if (!e.arg_names[i].empty()) throw problem(xpp::format("{} takes no named argument ({}=)", e.text, e.arg_names[i]));
+      args.push_back(sub(e.args[i]));
+    }
+    if (e.text == "ran") {
+      if (!draw) throw problem(xpp::format("{} can't call ran: only an initial value draws a random number", what));
+      if (args.size() != 1) throw problem(xpp::format("ran takes 1 argument, not {}", args.size()));
+      return (*draw)(args[0]);
+    }
+    if (const std::optional<double> v = pure_builtin_value(e.text, args)) return *v;
+    if (is_pure_builtin(upper_case(e.text)))
+      throw problem(xpp::format("{} takes {} argument{}, not {}", e.text, builtin_arity(e.text), builtin_arity(e.text) == 1 ? "" : "s", args.size()));
+    const Model::Name *d = m.name(e.text);
+    if (d && d->declared && d->written == e.text)
+      throw problem(xpp::format("{} can't call the {} {}; use a const or a number", what, the_kind(d->kind), e.text));
+    throw problem(xpp::format("{} can't call {}: only the pure functions of numbers (sin, exp, max ...)", what, e.text));
+  }
+  default: break;
+  }
+  throw problem(xpp::format("{} is worked out from numbers, consts, pi and the range's index with + - * / mod ^ and the "
+                            "pure functions: `{}` is not", what, print(e)));
 }
 
 Parsed ready(Model &m, const Parsed &p)

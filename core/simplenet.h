@@ -6,27 +6,38 @@
 #include <string_view>
 #include <vector>
 
-#define MAXVEC 100
-
 namespace xpp {
 
 struct Session; /* session.h */
 
-/* s (blanks removed and upper-cased in place) names a network's kind:
-   its number (conv 1, sparse 2, ...), 0 when it names none */
-int is_network(char *s);
-void fft_conv(int it, int n, double *values, double *yy, double *fftr, double *ffti, double *dr, double *di);
+/* what a network computes (the Model's networks, simplenet.cpp's table of
+   forms): a convolution of a variable with a weight table (its ends:
+   Ends), a sparse or full matrix product, a Fourier transform's
+   convolution, the delayed products, a Gillespie chain, an interpolation
+   and the extrema of a list of variables */
+enum class NetworkKind { convolution, sparse, fft_convolution, matrix_product, delayed_matrix_product,
+                         delayed_sparse, gillespie, interpolation, extremum };
+
+/* how a convolution or a vector treats its ends */
+enum class Ends { even, zero, periodic };
+
+/* which extremum an extremum network finds */
+enum class Extremum { both, maximum, minimum };
+
+/* whether s (blanks removed and upper-cased in place) is the call of a
+   network: its keyword names one of simplenet.cpp's forms */
+bool is_network(char *s);
 
 /* vector(var,length,e|z|p,e|z|p) in str (blanks removed in place): its
    first variable (ses's), length and ends' kinds */
-int get_vector_info(const Session &ses, char *str, std::string_view name, int *root, int *length, int *il, int *ir);
+int get_vector_info(const Session &ses, char *str, std::string_view name, int *root, int *length, Ends *il, Ends *ir);
 
-double net_interp(Session &s, double x, int i);
 int add_vectorizer(Session &s, std::string_view name, char *rhs);
 void add_vectorizer_name(Session &s, std::string_view name, std::string_view rhs);
 double vector_value(Session &s, double x, int i);
 double network_value(Session &s, double x, int i);
-int add_spec_fun(Session &s, std::string_view name, char *rhs);
+/* the network name's call rhs: its Model network is filled in (an error is thrown); false when rhs is no network */
+bool add_spec_fun(Session &s, std::string_view name, char *rhs);
 void add_special_name(Session &s, std::string_view name, char *rhs);
 void eval_all_nets(Session &s);
 void evaluate_network(Session &s, int ind);
@@ -35,14 +46,19 @@ void update_fft(Session &s, int ind);
 
 /* a network (a special function: conv, sparse, fftcon, gill, ...) as
    the model defines it, xpp::Model's (model.h): its kind, sizes, roots
-   and compiled f(root,root2), and the tables whose values are its
-   weights, indices and delays */
+   and compiled f(root,root2) (applies_function: each tap is f(root+unit,
+   root2+source) instead of the source's value), and the tables whose
+   values are its weights, indices and delays */
 struct Network {
-  int type=0,ncon=0,n=0;
+  NetworkKind kind=NetworkKind::convolution;
+  Ends ends=Ends::even; /* a convolution's */
+  Extremum extremum=Extremum::both; /* an extremum network's */
+  int gill_method=0; /* a gillespie chain's evaluation method (0: the exact one) */
+  int ncon=0,n=0;
   std::string name;
   int root=0,root2=0;
+  bool applies_function=false;
   Program f;
-  int iwgt=0;
   std::vector<int> gcom; /* a gillespie chain's commands */
   /* the tables (Session::tables) of its weights, indices and delays, -1
      for none */
@@ -64,7 +80,8 @@ struct NetworkValues {
 /* a vectorizer (a variable's neighbours as one name), xpp::Model's */
 struct Vectorizer {
   std::string name;
-  int root=0,length=0,il=0,ir=0;
+  int root=0,length=0;
+  Ends il=Ends::periodic,ir=Ends::periodic;
 };
 
 } // namespace xpp

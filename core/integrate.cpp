@@ -94,7 +94,7 @@ DenseEvent dense_event(Session &s, double from, double until, double step_from, 
       event={}; event.found=true; event.time=time;
     }
     if(fabs(time-event.time)<=coincidence){
-      if(flag>=0)event.flags.at(static_cast<std::size_t>(event.flag_count++))=flag;
+      if(flag>=0){event.flags.push_back(flag);event.flag_count++;}
       event.section=event.section||section;
       if(bound>=0)event.bound_variable=bound;
     }
