@@ -205,6 +205,20 @@ void locate_tests(iap_type &iap, rap_type &rap,
       marks[*tests[*found].user_index].parameter < 0) iap.istop = -1;
 }
 
+// W458 (#521): the steps of a branch started at a Hopf point whose points'
+// test functions and multipliers read the converged point's Jacobian, as an
+// equilibrium's do (W421), and not the last Newton iterate's, AUTO's choice
+// for cycles. The start is where the constant solutions cross the cycles'
+// equations, and the tangent, the fold's test, is ill-conditioned near it;
+// the second point's corrector starts from the eigen-cycle, and its one
+// correction moves the parameter further than the branch has moved
+// (motoneuron6c: 1e-6 against 1.5e-7), so its fold test had the wrong sign
+// and an LP that is not there was labelled. A test's first comparison is
+// the second step (each starts at 0, AUTO-07p's TEST): its two points and
+// every point of a location between them read their own Jacobian, so a
+// fold there is located where it is (the Bautin normal form's, to 1e-9).
+constexpr integer hopf_start_steps = 2;
+
 // The arclength within which a location takes a zero as found: EPSS
 // relative to the geometric mean of DS and DSMAX (AUTO-07p LCSPAE/LCSPBV).
 double location_tolerance(const rap_type &rap) {
@@ -4179,6 +4193,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer ntot, ntst, nuzr, i, j;
   doublereal dsold;
   integer nodir = 0;
+  iap->lib->hopf_start = stpnt == stpnps || stpnt == stpnwp;
   std::vector<doublereal> rlold(iap->lib->parameter_count);
   std::vector<doublereal> rldot(iap->lib->parameter_count);
   std::vector<doublereal> rlcur(iap->lib->parameter_count);
@@ -4707,6 +4722,14 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
     rdumx = dumx / (umx + 1.);
     if (done && rdumx < epsu) {
+      if (iap->lib->hopf_start && iap->ntot <= hopf_start_steps && (iap->ilp == 1 || iap->isp != 0)) {
+        integer refactor = 1, tangent = -1;
+        doublereal no_step = 0.;
+        solvbv(&refactor, iap, rap, par, icp, funi, bcni, icni, &no_step, &tangent,
+               rlcur, rlold, rldot, ndxloc, ups, dups, uoldps, udotps, upoldp, dtm,
+               fa, fc, p0, p1, thl, thu);
+        if ((!iap->lib->locating && xpp::job::cancelled()) || jacobian_failed(iap)) { nrow = ndim * ncol; goto L13; }
+      }
       (*pvli)(iap, rap, icp, dtm, ndxloc, ups, &ndim, p0, p1, par);
       if (!xpp::all_finite({par, static_cast<size_t>(iap->lib->parameter_count)})) {
         nonfinite = true;
@@ -5072,6 +5095,13 @@ void auto_hopf_mesh(const iap_type *iap, const rap_type *rap, integer ndxloc,
                     doublereal *tm, doublereal *dtm, doublereal *rldot,
                     const doublereal *u, const doublereal *rnllv, doublereal tpi) {
   const integer ndim = iap->ndim, ntst = iap->ntst, ncol = iap->ncol;
+  // W458 (#521): the first cycle is the equilibrium plus DS times the
+  // eigen-cycle udotps, so its time derivative, the next point's phase
+  // condition, points along upoldp times the sign of DS. Oriented so, the
+  // phase condition (and the determinant in BP's test) keeps its sign
+  // from the first point to the second; with DS < 0 it flipped, a BP between
+  // the second and third point that is not there (motoneuron6c's cycles).
+  const doublereal orientation = std::copysign(1., rap->ds);
   msh(iap, rap, tm);
   const doublereal dt = 1. / ntst;
   for (integer j = 0; j < ntst + 1; ++j) {
@@ -5080,7 +5110,7 @@ void auto_hopf_mesh(const iap_type *iap, const rap_type *rap, integer ndxloc,
     const doublereal cosine = xpp::math::cos(tpi * time);
     for (integer k = 0; k < ndim; ++k) {
       udotps[j + k * ndxloc] = sine * rnllv[k] + cosine * rnllv[ndim + k];
-      upoldp[j + k * ndxloc] = cosine * rnllv[k] - sine * rnllv[ndim + k];
+      upoldp[j + k * ndxloc] = orientation * (cosine * rnllv[k] - sine * rnllv[ndim + k]);
       ups[j + k * ndxloc] = u[k];
     }
   }
@@ -5092,7 +5122,7 @@ void auto_hopf_mesh(const iap_type *iap, const rap_type *rap, integer ndxloc,
       for (integer k = 0; k < ndim; ++k) {
         const integer k1 = (i + 1) * ndim + k;
         udotps[j + k1 * ndxloc] = sine * rnllv[k] + cosine * rnllv[ndim + k];
-        upoldp[j + k1 * ndxloc] = cosine * rnllv[k] - sine * rnllv[ndim + k];
+        upoldp[j + k1 * ndxloc] = orientation * (cosine * rnllv[k] - sine * rnllv[ndim + k]);
         ups[j + k1 * ndxloc] = u[k];
       }
     }

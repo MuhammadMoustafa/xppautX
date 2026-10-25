@@ -42,6 +42,7 @@ so the index started empty.
 | [5](#5-a-torus-curves-resonance-test-is-blind-once-its-angle-leaves-0-to-pi) | Torus curves of cycles and maps | the R1-R4 test looks at the continued angle only between 0 and pi: past pi a curve crosses R3, R4 and R1 unlabelled | [W405](https://github.com/MuhammadMoustafa/xppautX/issues/467) |
 | [6](#6-a-fold-or-flip-curves-resonance-test-gives-0-when-its-double-multiplier-splits) | Fold and flip curves of cycles | at R1/R2 roundoff splits the double +1/-1 into a conjugate pair; the test then returns 0 and the location takes it for the zero | [W405](https://github.com/MuhammadMoustafa/xppautX/issues/467) |
 | [7](#7-the-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale) | Equilibria | the finite-difference Jacobian (JAC=0) steps every state by 1e-7 times the largest state, so a model with states of very different size has a Jacobian, and a Hopf point, that is off by an amount no tolerance changes | [W455 / #518](https://github.com/MuhammadMoustafa/xppautX/issues/518) |
+| [8](#8-the-first-comparison-of-cycles-from-a-hopf-point-reads-a-predictors-fold-test-and-a-misoriented-phase-condition) | Cycles from a Hopf point | between the second and third point the fold test comes from the eigen-cycle predictor's Jacobian and, with DS < 0, the branch-point test's determinant from a phase condition of the wrong orientation: spurious LP or BP labels next to the start, and a real fold there missed or misplaced | [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -295,3 +296,39 @@ numbers, docs/auto-references.md) and offers the exact one (W260). The rule is X
 ([xppaut-findings.md](xppaut-findings.md#74-autos-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale)).
 
 **Card:** [W455 / #518](https://github.com/MuhammadMoustafa/xppautX/issues/518).
+
+## 8. The first comparison of cycles from a Hopf point reads a predictor's fold test and a misoriented phase condition
+
+Every test of a periodic run starts at 0 ([bvp.f90:178](../reference/auto-07p/src/bvp.f90#L178)), so the first step from a
+Hopf point never labels ([bvp.f90:1325](../reference/auto-07p/src/bvp.f90#L1325)); the second step compares the second
+point's values with the third's. Both of the tests that vanish at a Hopf point by construction, the fold's and the branch
+point's, can have the wrong sign at the second point, for two reasons:
+
+- the fold function `AP%FLDF` is the tangent solved with the last Newton factorization (`IFST=0`,
+  [bvp.f90:711-724](../reference/auto-07p/src/bvp.f90#L711)), the iterate before the final correction. At the second point
+  that is the eigen-cycle predictor `STHOPF` builds, the corrector converges in one correction, and the correction moves
+  the parameter further than the branch has moved since the start, where the tangent is ill-conditioned (the Hopf point is
+  where the constant solutions cross the cycles' equations);
+- `STHOPF` sets `UPOLDP`, the derivative the next point's phase condition uses, from the eigen-cycle with one orientation
+  ([bvp.f90:956](../reference/auto-07p/src/bvp.f90#L956)), but the first cycle is the equilibrium plus `DS` times the
+  eigen-cycle, so from the third point on the phase condition follows the sign of `DS`. With `DS` < 0 the phase row, and
+  the determinant in `FNBPBV`'s ratio ([toolboxbv.f90:397-405](../reference/auto-07p/src/toolboxbv.f90#L397)), change sign
+  between the second and third point.
+
+**Evidence.** The Bautin normal form `r' = r (b1 + b2 r^2 - r^4)`, b2 = 0.0032 (`tests/auto/bautin_near_hopf.json`, the
+equations translated by `tools/auto_reference.py`): its fold of cycles is at amplitude 0.04, b1 = -2.56e-6, between the
+second and third point at DS 0.02. With DS 0.02 AUTO-07p labels it at norm 0.040476392578, b1 = -2.5585301701e-6, 1.2
+percent off in amplitude; with DS -0.02 it labels a BP at norm 0.020270071998 (just past the second point, 0.02) and an LP
+at norm 0.018453107838, before the second point, and the fold at 0.04 is not labelled. On ModelDB 267710's cycles from
+the Hopf point at ampPar 0.5728 (`tests/auto/ode_motoneuron6c.json`, DS -0.02) it labels an LP at the third point, 1.5e-7
+in ampPar from the Hopf point, where ampPar rises monotonically; there xppautX's fold test was +4.57e-6 at the second point
+from the last iterate's factorization and -2.5e-5 from the point's own, the sign of every later point's (-1.6e-5,
+-6.3e-5, ...), and the branch-point test -1.16e-16, then +1.85e-16 (with DS +0.02: -1.16e-16, -2.09e-17, -5.16e-16).
+
+**xppautX:** orients the start's phase condition by the sign of DS, and factors the points of the first two steps of a
+branch from a Hopf point, and those of a location between them, again at the converged point before reading their tests
+and multipliers (docs/auto-references.md, W458). It locates the Bautin fold at norm 0.0399989, b1 = -2.5599999923e-6, in
+both directions, and labels nothing at motoneuron6c's start. XPPAUT 8.0 reads the fold test the same way
+([xppaut-findings.md](xppaut-findings.md#86-the-fold-test-at-the-first-point-of-cycles-from-a-hopf-point-is-read-from-the-predictors-jacobian)).
+
+**Card:** [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521).
