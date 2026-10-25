@@ -225,6 +225,15 @@ number, a boundary condition longer than its room) and a line after the
 last the file holds all refuse the file; a file of ours is never read in
 part. A file that cannot be read at all is the error with line 0 (above).
 
+User text is quoted in every such file and a choice never is (W490): a
+name, a label, a title, a key, a path or a formula the user wrote (a
+window's or a curve's name, a recording's model, a set's name in a `.odex`:
+`set "hopf" { ... }`) is a string in double quotes even when it is one word,
+and the reader refuses it bare, at its line and column; a choice, a number,
+`true` or `false` and a name of the model's own (`method: runge_kutta`,
+`xp: v`) are bare words, and the reader refuses one in quotes. The protocol's
+JSON strings need no such rule: a string is always a string.
+
 ## The command table
 
 `hello.command_table` (W207, core/command_table.h) is the one list of the

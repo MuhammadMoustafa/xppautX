@@ -88,7 +88,7 @@ int pure_number(const Symbols &my_symb, int token)
 {
   int com=my_symb[token].com;
   int i1=com/MAXTYPE;
-/* !! */  if(token==NUMTOK||isvar(i1)||iscnst(i1)||isker(i1)||i1==USTACKTYPE||token==INDX)
+  if(token==NUMTOK||isvar(i1)||iscnst(i1)||isker(i1)||i1==USTACKTYPE||token==INDX)
     return(1);
   return(0);
 }
@@ -101,8 +101,6 @@ int gives_number(const Symbols &my_symb, int token)
   if(token==NUMTOK)return(1);
   if(i1==FUN1TYPE&&!unary_sym(token))return(1); /* single variable functions */
   if(i1==FUN2TYPE&&!binary_sym(token))return(1); /* two-variable function */
-  /* !! */ 
-  /* ram: 5 issue; was if(i1==8||isvar(i1)||iscnst(i1)||i1==7||i1==6||i1==5||isker(i1)||i1==UFUN)return(1); */
   if (i1 == USTACKTYPE || isvar(i1) || iscnst(i1) || i1 == TABTYPE || i1==VECTYPE||i1 == NETTYPE || isker(i1) || i1 == UFUNTYPE) return(1);
   if(com==MYIF||token==DELSHFTSYM||token==SETSYM||token==DELSYM||token==SHIFTSYM||token==ISHIFTSYM||com==SUMSYM)return(1);
   return(0);
@@ -176,7 +174,6 @@ void find_tok(const ParserState &p, const char *source, int *index, int *tok)
 
 int make_toks(const ParserState &p, const char *dest, std::vector<int> &my_token)
 {
- std::array<char,40> num{}; /* do_num writes the number's start */
  double value;
   int old_tok=STARTTOK;
  int index=0,token,nparen=0,lastindex=0;
@@ -195,7 +192,7 @@ int make_toks(const ParserState &p, const char *dest, std::vector<int> &my_token
   
   if(token==p.nsym)
     {
-      if(do_num(dest,num.data(),&value,&index,p.errout)){
+      if(do_num(dest,&value,&index,p.errout)){
 	show_where(dest,index);
 	return(1);
       }
@@ -280,9 +277,9 @@ int alg_to_rpn(xpp::Session &s, int *toklist, std::vector<int> &command)
           if(newtok==DELSYM)
 	  {
            temp=my_symb[toklist[lstptr+1]].com;
-   /* !! */   if(is_uvar(temp))
+   if(is_uvar(temp))
 	   {
-	    /* ram -- is this right? not sure I understand what was happening here */
+	    /* the argument names a variable: the temporary symbol keeps its place for the delay (SVARTYPE) */
 	    my_symb[temporary_token].com=COM(SVARTYPE,temp%MAXTYPE); /* create a temporary sybol */
             m.ndelays++;
            toklist[lstptr+1]=temporary_token;
@@ -302,9 +299,9 @@ int alg_to_rpn(xpp::Session &s, int *toklist, std::vector<int> &command)
           if(newtok==DELSHFTSYM)
 	  {
            temp=my_symb[toklist[lstptr+1]].com;
-   /* !! */   if(is_uvar(temp))
+   if(is_uvar(temp))
 	   {
-	    /* ram -- same issue */
+	    /* as for delay: the temporary symbol names the variable (SVARTYPE) by its place */
 	    my_symb[temporary_token].com=COM(SVARTYPE, temp%MAXTYPE); /* create a temporary sybol */
             m.ndelays++;
            toklist[lstptr+1]=temporary_token;
@@ -324,7 +321,7 @@ int alg_to_rpn(xpp::Session &s, int *toklist, std::vector<int> &command)
 	     temp=my_symb[toklist[lstptr+1]].com;
              if(is_uvar(temp))
 	   {
-	    /* ram -- same issue */
+	    /* as for delay: the temporary symbol names the variable (SVARTYPE) by its place */
 	    my_symb[temporary_token].com=COM(SVARTYPE, temp%MAXTYPE); /* create a temporary sybol */
            toklist[lstptr+1]=temporary_token;
 	  	
@@ -341,9 +338,9 @@ int alg_to_rpn(xpp::Session &s, int *toklist, std::vector<int> &command)
 	  if(newtok==SHIFTSYM||newtok==ISHIFTSYM)
 	  {
            temp=my_symb[toklist[lstptr+1]].com;
-/* !! */	   if(is_uvar(temp) || is_ucon(temp))
+	   if(is_uvar(temp) || is_ucon(temp))
 	   {
-	    /* ram -- same issue */
+	    /* as for delay: the temporary symbol names the variable (SVARTYPE) or the constant (SCONTYPE) by its place */
              if(is_uvar(temp))my_symb[temporary_token].com=COM(SVARTYPE, temp%MAXTYPE);
 	        if(is_ucon(temp))my_symb[temporary_token].com=COM(SCONTYPE, temp%MAXTYPE);
 /* create a temporary sybol */
@@ -535,7 +532,7 @@ int add_expr(xpp::Session &s, std::string_view expr, std::vector<int> &command, 
 }
 
 
-int do_num(std::string_view source, char *num, double *value, int *ind, int report)
+int do_num(std::string_view source, double *value, int *ind, int report)
 {
  int i=*ind,error=0;
  int ndec=0,nexp=0,ndig=0;
@@ -577,8 +574,6 @@ err:
     break;
   }
   }
-  size_t n=text.copy(num,39);
-  num[n]='\0';
   if(error==0)*value=atof(text.c_str());
   else
   if(report)xpp::log(XPP_LOG_WARN, " illegal expression: {}\n",text);

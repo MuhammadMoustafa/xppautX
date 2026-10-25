@@ -95,7 +95,7 @@ bool table_count_ok(const Session &s, int index, int count)
 {
   if (count < 2 || count > table_points_limit) return false;
   size_t total = static_cast<size_t>(count);
-  for (int i = 0; i < MAX_TAB; ++i)
+  for (int i = 0; i < static_cast<int>(s.tables.size()); ++i)
     if (i != index) total += s.tables[i].y_storage.size();
   return total <= static_cast<size_t>(table_points_limit);
 }
@@ -103,12 +103,12 @@ bool table_count_ok(const Session &s, int index, int count)
 
 void set_auto_eval_flags(xpp::Session &s, int f)
 {
- int i;
-  for(i=0;i<MAX_TAB;i++) 
-    s.tables[i].autoeval=f;
+ for(TABULAR &t:s.tables)
+    t.autoeval=f;
 }
 void set_table_name(xpp::Session &s, std::string_view name, int index)
 {
+  if(s.tables.size()<=static_cast<std::size_t>(index))s.tables.resize(static_cast<std::size_t>(index)+1);
   s.tables[index].name=name;
 }
 
@@ -219,12 +219,7 @@ double lookup_slope(const xpp::Session &s, double x, int index)
 
 void init_table(xpp::Session &s)
 {
-  int i;
-  for(i=0;i<MAX_TAB;i++) {
-    s.tables[i].flag=0;
-    s.tables[i].autoeval=1;
-    s.tables[i].interp=0;
-  }
+  s.tables.clear();
 }
 
 xpp::Result<> redo_all_fun_tables(xpp::Session &s)
@@ -405,7 +400,7 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
   return {};
 }
    
-int get_lookup_len(xpp::Session &s, int i)
+int get_lookup_len(const xpp::Session &s, int i)
 {
   return s.tables[i].n;
 }

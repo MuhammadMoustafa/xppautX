@@ -1210,7 +1210,7 @@ std::vector<XppSlider> read_sliders(const Model &m, xpp::setx::Block &file, bool
         xpp::XppSlider slider;
         for (std::string_view key : {"name", "low", "high"})
             if (!g.has(key)) g.fail(xpp::format("slider preset requires {}", key));
-        g.text("name", slider.var);
+        slider.var = g.name_of(*g.member("name"));
         if (const auto why = xpp::slider_wrong(m, slider, check_names)) g.fail(*g.member("name"), *why);
         g.number("low", slider.lo);
         g.number("high", slider.hi);

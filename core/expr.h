@@ -23,6 +23,8 @@
 
 #include <array>
 #include <map>
+#include <numbers>
+#include <optional>
 #include <set>
 #include <span>
 #include <string>
@@ -44,7 +46,7 @@ int add_2d_table(std::string_view name, std::string_view file);
 /* the number at source[*ind] (the parser's grammar): its text into num
    (at most 39 characters and a NUL), its value into *value, *ind past
    it; 1 (with a WARN when report is set) when it is not a number */
-int do_num(std::string_view source, char *num, double *value, int *ind, int report);
+int do_num(std::string_view source, double *value, int *ind, int report);
 
 /* The symbol table and the compiler are the Session s's (its ParserState
    and its Model's names and programs): a load passes the Session it
@@ -91,6 +93,16 @@ std::string converted(std::string_view name);
    first STDSYM, the same in every Session */
 bool is_builtin_symbol(std::string_view name);
 int builtin_arity(std::string_view name); /* .odex calls: -1 absent, -2 named arguments. */
+/* pi, the constant PI of every Session's symbol table */
+inline constexpr double pi_value = std::numbers::pi;
+/* name (upper case) is a built-in function of numbers alone: the one- and
+   two-argument functions the evaluator calls through its tables, not the
+   operators, delay, shift, sum or the random functions */
+bool is_pure_builtin(std::string_view name);
+/* the pure built-in name (the case .odex writes it in) at args, nullopt
+   when it is none or takes another number of arguments: the value the
+   evaluator gives, from the same tables */
+std::optional<double> pure_builtin_value(std::string_view name, std::span<const double> args);
 /* the symbol table by name (as converted makes it, of any length): a
    variable's, a lookup table's or a parameter's index (-1 when name is
    not one); a parameter's or variable's value got or set (1 when name is

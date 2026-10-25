@@ -101,13 +101,17 @@ bool Block::flag(std::string_view key, bool &v)
     return true;
 }
 
-bool Block::text(std::string_view key, std::string &v)
+bool Block::read(std::string_view key, std::string &v, Value::Kind want)
 {
     const Member *m = take(key);
     if (!m) return false;
-    v = scalar(*m, "a string").text;
+    v = kind_of(*m, want);
     return true;
 }
+
+bool Block::text(std::string_view key, std::string &v) { return read(key, v, Value::Kind::string); }
+
+bool Block::word(std::string_view key, std::string &v) { return read(key, v, Value::Kind::word); }
 
 std::optional<Block> Block::group(std::string_view key)
 {
@@ -137,8 +141,8 @@ bool Block::groups(std::string_view key, std::vector<Block> &out, std::size_t ma
 
 namespace {
 
-/* the items of the list member m (at most max), each a word (or a string
-   when strings): the list read into out through convert(item) */
+/* the items of the list member m (at most max), each a word or, when
+   strings, a string: the list read into out through convert(item) */
 template <class T, class F>
 bool read_list(const Document &doc, const Member &m, std::vector<T> &out, std::size_t max, bool strings, F convert)
 {
@@ -146,8 +150,12 @@ bool read_list(const Document &doc, const Member &m, std::vector<T> &out, std::s
     if (m.value.items.size() > max) doc.fail(m.value, xpp::format("`{}` has {} entries: at most {}", m.key, m.value.items.size(), max));
     std::vector<T> items;
     for (const Value &item : m.value.items) {
-        if (item.kind == Value::Kind::group || item.kind == Value::Kind::list || (item.kind == Value::Kind::string && !strings))
-            doc.fail(item, xpp::format("`{}` holds {}", m.key, strings ? "words and strings" : "bare values"));
+        if (item.kind == Value::Kind::group || item.kind == Value::Kind::list)
+            doc.fail(item, xpp::format("`{}` holds {}", m.key, strings ? "texts in double quotes" : "words"));
+        if (strings && item.kind != Value::Kind::string)
+            doc.fail(item, xpp::format("`{}` holds texts: write `{}` in double quotes", m.key, item.text));
+        if (!strings && item.kind == Value::Kind::string)
+            doc.fail(item, xpp::format("`{}` holds words, never in quotes: write {} bare", m.key, item.text));
         items.push_back(convert(item));
     }
     out = std::move(items);
@@ -182,6 +190,12 @@ bool Block::texts(std::string_view key, std::vector<std::string> &out, std::size
     return m && read_list(*doc_, *m, out, max, true, [](const Value &v) { return v.text; });
 }
 
+bool Block::words(std::string_view key, std::vector<std::string> &out, std::size_t max)
+{
+    const Member *m = take(key);
+    return m && read_list(*doc_, *m, out, max, false, [](const Value &v) { return v.text; });
+}
+
 std::vector<const Member *> Block::members()
 {
     std::vector<const Member *> all;
@@ -197,7 +211,26 @@ double Block::number_of(const Member &m) const
     return x;
 }
 
-std::string Block::text_of(const Member &m) const { return scalar(m, "a string").text; }
+/* the scalar of m, a string (the user's text: in double quotes, even one
+   word) or a word (a choice, a number or a name of the model, never in
+   quotes), as want says */
+std::string Block::kind_of(const Member &m, Value::Kind want) const
+{
+    const bool text = want == Value::Kind::string;
+    const Value &v = scalar(m, text ? "text in double quotes" : "a word");
+    if (v.kind != want)
+        doc_->fail(v, text ? xpp::format("`{}` takes text in double quotes: write \"{}\"", m.key, v.text)
+                           : xpp::format("`{}` takes a word, never in quotes: write {}", m.key, v.text));
+    return v.text;
+}
+
+std::string Block::text_of(const Member &m) const { return kind_of(m, Value::Kind::string); }
+
+std::string Block::word_of(const Member &m) const { return kind_of(m, Value::Kind::word); }
+
+/* a reference to a variable or a column: a word, or a string for a column a
+   user named with more than letters and digits */
+std::string Block::name_of(const Member &m) const { return scalar(m, "a name").text; }
 
 const Member *Block::member(std::string_view key) { return take(key); }
 
@@ -259,10 +292,16 @@ void Out::whole(std::string_view key, long long v)
 
 void Out::word(std::string_view key, std::string_view text_)
 {
-    if (!is_bare_word(text_)) return text(key, text_);
+    if (!is_bare_word(text_) && !bad_) bad_ = xpp::format("`{}`: `{}` cannot be written as a word", key, text_);
     entry(key);
     put(text_);
     put(",\n");
+}
+
+void Out::name(std::string_view key, std::string_view text_)
+{
+    if (is_bare_word(text_)) word(key, text_);
+    else text(key, text_);
 }
 
 void Out::text(std::string_view key, std::string_view text_)
@@ -294,8 +333,19 @@ void Out::texts(std::string_view key, std::span<const std::string> v)
     put("[");
     for (std::size_t k = 0; k < v.size(); k++) {
         put(k == 0 ? "" : ", ");
-        if (is_bare_word(v[k])) put(v[k]);
-        else quote(v[k]);
+        quote(v[k]);
+    }
+    put("],\n");
+}
+
+void Out::words(std::string_view key, std::span<const std::string> v)
+{
+    entry(key);
+    put("[");
+    for (std::size_t k = 0; k < v.size(); k++) {
+        if (!is_bare_word(v[k]) && !bad_) bad_ = xpp::format("`{}` cannot be written as a word", v[k]);
+        put(k == 0 ? "" : ", ");
+        put(v[k]);
     }
     put("],\n");
 }

@@ -52,17 +52,17 @@ M' = mdt(M)
 L' = Lalt
 #Thanks to Newton!
 Lalt' = 1/ode_divisor(mass)*(-g*zMdM(M)/ode_divisor(normM(M))-drag*Lalt)
-set Sun { g: 274.13 }
-set Mercury { g: 3.59 }
-set Venus { g: 8.87 }
-set Earth { g: 9.81 }
-set Moon { g: 1.62 }
-set Mars { g: 3.77 }
-set Jupiter { g: 25.95 }
-set Saturn { g: 11.08 }
-set Uranus { g: 10.67 }
-set Neptune { g: 14.07 }
-set Pluto { g: 0.42 }
+set "Sun" { g: 274.13 }
+set "Mercury" { g: 3.59 }
+set "Venus" { g: 8.87 }
+set "Earth" { g: 9.81 }
+set "Moon" { g: 1.62 }
+set "Mars" { g: 3.77 }
+set "Jupiter" { g: 25.95 }
+set "Saturn" { g: 11.08 }
+set "Uranus" { g: 10.67 }
+set "Neptune" { g: 14.07 }
+set "Pluto" { g: 0.42 }
 options {
   integration: { state_limit: 100000, method: runge_kutta, dt: .01, store_every: 5, total_time: 50 },
   equilibria: { search_limit: 100000 },

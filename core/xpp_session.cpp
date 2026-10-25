@@ -572,7 +572,7 @@ xpp::Result<std::string> sliders_text(const xpp::Session &s)
     out.begin_list("sliders");
     for (const xpp::XppSlider &slider : s.sliders) {
         out.begin_item();
-        out.word("name", slider.var);
+        out.name("name", slider.var);
         out.real("low", slider.lo);
         out.real("high", slider.hi);
         out.real("step", slider.step);

@@ -64,7 +64,8 @@ int main()
     out.real("negative", -2.5);
     out.whole("n", -7);
     out.word("method", "runge_kutta");
-    out.word("spaced", "two words"); /* not a bare word: quoted */
+    out.text("spaced", "two words");
+    out.text("one", "word"); /* user text is quoted even when it is one word */
     out.text("path", "sub dir/a \"b\" \\c.dat");
     out.end();
     const std::vector<double> numbers{1, 2.5, -3, 4, 5, 6, 7, 8, 9, 10};
@@ -84,17 +85,18 @@ int main()
         CHECK(n.has_value());
         double dt = 0, tiny = 0, negative = 0;
         int whole = 0;
-        std::string method, spaced, path;
+        std::string method, spaced, path, one;
         n->real("dt", dt);
         n->real("tiny", tiny);
         n->real("negative", negative);
         n->whole("n", whole);
-        n->text("method", method);
+        n->word("method", method);
         n->text("spaced", spaced);
+        n->text("one", one);
         n->text("path", path);
         n->done();
         CHECK(dt == 0.05 && tiny == 1e-300 && negative == -2.5 && whole == -7);
-        CHECK(method == "runge_kutta" && spaced == "two words" && path == "sub dir/a \"b\" \\c.dat");
+        CHECK(method == "runge_kutta" && spaced == "two words" && one == "word" && path == "sub dir/a \"b\" \\c.dat");
         std::vector<double> list;
         CHECK(b.reals("list", list, 10) && list.size() == 10 && list[1] == 2.5 && list[2] == -3);
         std::vector<Block> items;
@@ -133,6 +135,21 @@ int main()
     CHECK(error_of("a: { b: 1\n", whole_a).find("expected `}` to close the block, found the end of the file") != std::string::npos);
     CHECK(error_of("a: [1, 2\n", whole_a).starts_with("t.setx:"));
     CHECK(error_of("a: \"never closed\n", whole_a).find("never closed") != std::string::npos);
+    /* text is always a string, a choice or a name never one */
+    const auto text_a = [](Block &b) {
+        std::string a;
+        b.text("a", a);
+        return 0;
+    };
+    const auto word_a = [](Block &b) {
+        std::string a;
+        b.word("a", a);
+        return 0;
+    };
+    CHECK(error_of("a: \"one\",\n", text_a).empty());
+    CHECK(error_of("a: one,\n", text_a) == "t.setx:1:4: `a` takes text in double quotes: write \"one\"");
+    CHECK(error_of("a: one,\n", word_a).empty());
+    CHECK(error_of("a: \"one\",\n", word_a) == "t.setx:1:4: `a` takes a word, never in quotes: write one");
     /* partial: an absent key is left, a key nothing asks for is still refused */
     CHECK(error_of("", whole_a, false).empty());
     CHECK(error_of("z: 1,\n", whole_a, false).find("`z` is not a setting") != std::string::npos);

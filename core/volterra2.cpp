@@ -47,7 +47,7 @@ double ker_val(xpp::Session &s, int in)
 
 void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations */
 {
-  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().kernels;
   int i,len;
   /* add_expr's program, sized to its formula */
   std::vector<int> formula;
@@ -58,6 +58,7 @@ void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations *
     return p;
   };
 
+  s.volterra.kernels.resize(s.model().nkernel);
 /* First parse the kernels   since these were deferred */
   for(i=0;i<s.model().nkernel;i++){
      s.volterra.kernels[i].k_n=0.0;
@@ -98,7 +99,7 @@ void allocate_volterra(xpp::Session &s, int npts, int flag)
 
 void re_evaluate_kernels(xpp::Session &s)
 {
-  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().kernels;
   int i,j,n=s.numerics.max_points;
 
   if(!s.numerics.auto_evaluate)return;
@@ -115,7 +116,7 @@ void re_evaluate_kernels(xpp::Session &s)
 
 void alloc_kernels(xpp::Session &s, int flag)
 {
-  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().kernels;
   int i,n=s.numerics.max_points;
   int j;
   double mu;
@@ -151,9 +152,9 @@ void alloc_kernels(xpp::Session &s, int flag)
 
 void init_sums(xpp::Session &s, double t0, int n, double dt, int i0, int iend, int ishift)
 {
-  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().kernels;
    double t=t0+n*dt,tp=t0+i0*dt;
-   std::array<double,MAXKER> sum;
+   std::vector<double> sum(static_cast<std::size_t>(s.model().nkernel));
    double al,alpbet,mu;
    int nvar=s.model().fix_var+s.model().node+s.model().nmarkov;
    int l,ioff,ker,i;
@@ -224,7 +225,7 @@ double betnn(double mu, double dt, double t0, double t)
 
 void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y to update Kn  */
 {
-  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().kernels;
   int i;
 
   setvar(s,0,t);
@@ -243,7 +244,7 @@ void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y t
      
 int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, int *istart, double *work)
 {
-  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().kernels;
   double *jac,*yg,*yp,*yp2,*ytemp,*errvec;
   double z,mu,bet;
   int i,j;

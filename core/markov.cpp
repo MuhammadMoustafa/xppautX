@@ -145,9 +145,7 @@ void create_markov(xpp::Session &s, int nstates, double *st, int type, const cha
 {
   int n2=nstates*nstates;
   int j=s.model().nmarkov;
-  if(j>=MAXMARK){
-    model_failed("Too many Markov chains");
-  }
+  s.model().markov.resize(j+1);
 
   s.model().markov[j].nstates=nstates;
   s.model().markov[j].states.assign(st, st+nstates);

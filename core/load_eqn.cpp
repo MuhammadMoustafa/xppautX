@@ -57,21 +57,9 @@ namespace xpp {
 
 
 #define DFNORMAL 1
-#define MAXOPT 1000
 
 
 namespace {
-
-/* line appended to options, unless they already hold MAXOPT */
-template <class Line>
-void store_option(std::vector<Line> &options, Line line, std::string_view s1)
-{
-  if(options.size()>=MAXOPT){
-   xpp::log(XPP_LOG_WARN, "to many options set {} ignored\n",s1);
-    return;
-  }
-  options.push_back(std::move(line));
-}
 
 /* "name=value" split at its first '='; value "" when there is none */
 void split_apart(std::string_view bob, std::string &name, std::string &value)
@@ -222,11 +210,6 @@ void add_set_at(xpp::Model &m, std::string_view name, std::string_view does,
                 std::vector<std::pair<std::string,std::string>> settings, const xpp::Place &where)
 {
   std::vector<xpp::Model::InternalSet> &sets=m.intern_sets;
-  if(sets.size()>=MAX_INTERN_SET){
-   xpp::log(XPP_LOG_WARN, " {} not added -- too many must be less than {} \n",
-	   name,MAX_INTERN_SET);
-    return;
-  }
   /* "$ " then does without its braces, commas as spaces */
   std::string bob="$ ";
   for(char c:does){
@@ -270,18 +253,6 @@ void replace_intern_sets(xpp::Model &m, const xpp::odex::Parsed &parsed)
     for(const xpp::odex::Option &o : st.options)settings.emplace_back(o.name,o.value);
     add_set_at(m,st.name,st.text,std::move(settings),xpp::Place{parsed.files.at(static_cast<std::size_t>(st.pos.file)),st.pos.line,st.pos.col});
   }
-}
-
-xpp::Result<> check_model_limits(const xpp::odex::Parsed &parsed)
-{
-  std::size_t options=0,sets=0;
-  for(const xpp::odex::Statement &st : parsed.statements){
-    if(st.kind==xpp::odex::Statement::Kind::Options)options+=st.options.size();
-    if(st.kind==xpp::odex::Statement::Kind::Set)sets++;
-  }
-  if(options>MAXOPT)return xpp::fail("save values",xpp::format("a model may set at most {} options",MAXOPT),xpp::Place{parsed.files.front()});
-  if(sets>MAX_INTERN_SET)return xpp::fail("save values",xpp::format("a model may have at most {} sets",MAX_INTERN_SET),xpp::Place{parsed.files.front()});
-  return {};
 }
 
 void replace_model_options(xpp::Model &m, const xpp::odex::Parsed &parsed)
@@ -758,7 +729,7 @@ std::vector<std::string> check_for_xpprc()
   if(!lr)return interopt;
   while(std::optional<std::string_view> line=lr.next()){
     if(!line->empty()&&(*line)[0]=='@')
-      store_option(interopt,std::string(*line),*line);
+      interopt.push_back(std::string(*line));
   }
   return interopt;
 }
@@ -776,15 +747,13 @@ int add_model_option(xpp::Model &m, std::string_view s1)
   if(refused)refuse_compiled_functions(refused);
   /* an .ode's value ends at a space as well as a comma, as XPPAUT reads it
      (`@ parmin=-.2 parmax=.5`) */
-  store_option(m.options,xpp::Model::OptionLine{std::string(s1),option_items(s1,false),xpp::Load::place()},s1);
+  m.options.push_back(xpp::Model::OptionLine{std::string(s1),option_items(s1,false),xpp::Load::place()});
   return 0;
 }
 
 void add_model_options(xpp::Model &m, std::span<const xpp::odex::Option> entries, const std::vector<std::string> &files)
 {
   for(const xpp::odex::Option &o : entries){
-    if(m.options.size()>=MAXOPT)
-      model_failed(xpp::format("A model may set at most {} options",MAXOPT));
     m.options.push_back(xpp::Model::OptionLine{"",{{o.name,o.value}},
       xpp::Place{files.at(static_cast<std::size_t>(o.pos.file)),o.pos.line,o.pos.col}});
   }

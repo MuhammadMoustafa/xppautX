@@ -109,6 +109,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [76](#76-the-equilibrium-ranges-monte-carlo-answer-is-read-from-the-movie-field) | Equilibria | Equilibria > Range's Monte Carlo field reads a `y` typed in the Movie field's position (and its own `n` is ignored when Movie is `y`) | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
 | [77](#77-rosenbrock-retries-a-failing-step-forever-at-the-smallest-step) | Integrators | a Rosenbrock step that fails at the smallest step size never reaches its "Step size too small" exit, since the size is clamped up to that minimum first: the run does not end | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
 | [78](#78-a-flag-with-sign-1-repeats-one-clause-and-misses-an-exact-zero) | Events | the rising-flag test repeats one clause where the falling one tests `f1<=0`: a rising flag that lands exactly on zero is missed | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
+| [79](#79-a-networks-tables-are-never-checked-for-the-values-it-reads-and-fftcons-check-tests-the-wrong-variable) | Networks | a network reads its weight, index and delay tables with no check of their length; fftcon's check compares the keyword code, so the zero-ends test never runs | [W490 / #554](https://github.com/MuhammadMoustafa/xppautX/issues/554) |
 
 ## 1. Model options
 
@@ -1787,3 +1788,19 @@ The event test for a rising flag is `(((f0<0.0)&&(f1>0.0))||((f0<0.0)&&(f1>0.0))
 where the falling flag tests `f0>0.0&&f1<=0.0`. A condition that is exactly zero at the end of a step after being
 negative is a falling event but not a rising one. xppautX tests `f0<0.0&&f1>=0.0`, the mirror of the falling case; no
 example model's output changed (W482, [#546](https://github.com/MuhammadMoustafa/xppautX/issues/546)).
+
+## 79. A network's tables are never checked for the values it reads, and fftcon's check tests the wrong variable
+
+`conv`, `sparse`, `mmult` and the other special functions read their weight, index and delay tables through raw
+pointers (`w[j+ncon]`, `cc[ij]`, `tau[ij]`: [simplenet.c:1226](../reference/xppaut-8.0/simplenet.c#L1226), the same in
+[master](../reference/xppaut-master/simplenet.c#L1226)) and never test that a table holds that many values, so a table
+shorter than the network reads past the end of its heap block. `fftcon` is the one that tries: it compares the table's
+length with `ntot` or `2*ntot` by `if(type==FFTCONP&&ntab<ntot)` and `if(type==FFTCON0&&ntab<(2*ntot))`
+([simplenet.c:635](../reference/xppaut-8.0/simplenet.c#L635), [:639](../reference/xppaut-8.0/simplenet.c#L639); the same in
+[master](../reference/xppaut-master/simplenet.c#L635)), but `type` there is the keyword's code from `is_network`
+([simplenet.c:336](../reference/xppaut-8.0/simplenet.c#L336)), which is 5 for every `fftcon`, the value `FFTCONP` also has
+by coincidence: the periodic test applies to both kinds of ends and the zero-ends test (`FFTCON0` is 4) never does, so
+an `fftcon(0, n, w, ...)` whose table holds fewer than `2n` values loads and then reads past it when the kernel is
+transformed. Evidence: reading the lines (XPPAUT was not run on a short table). xppautX works out
+what each network reads from its arguments and refuses a table that holds fewer values, at the network's line (W490,
+[#554](https://github.com/MuhammadMoustafa/xppautX/issues/554)).

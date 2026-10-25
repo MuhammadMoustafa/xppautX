@@ -1,23 +1,15 @@
 #pragma once
 
-/* The limits of the parser's fixed tables. A model's variables, parameters
-   (constants) and symbols have none (W243): the tables grow with what the
-   file declares (Session::size_variables, Model::size_parameters,
-   ParserState::room_for_symbol), so MAXODE, MAXODE1, MAXPAR, MAX_SYMBS,
-   MAXPRIMEVAR and MAXDELAY are gone.
+/* A model has no fixed table: its variables, parameters (constants),
+   symbols (W243), tables, user functions, kernels, networks, vectorizers,
+   Markov chains, algebraic variables and equations, global flags,
+   internal sets, options and lines (W490) are vectors that grow with what
+   the file declares, so MAXODE, MAXPAR, MAX_SYMBS, MAXFLAG, MAXDAE,
+   MAXUFUN, MAX_TAB, MAXKER, MAXNET, MAXVEC, MAXMARK, MAX_INTERN_SET,
+   MAXOPT and MAXLINES are gone. What stays is a size of the method. */
 
-   What stays counts something other than variables or parameters, in a
-   fixed array of its owner that no model has outgrown; raising one is its
-   own change. */
-#define MAXFLAG 2000       /* global flags (Model::flags) */
-#define MAXDAE 400         /* algebraic variables and equations (dae_fun.cpp) */
-#define MAXUFUN 50         /* user functions (expr_symbols.cpp) */
-#define MAX_TAB 50         /* lookup tables (Session::tables) */
-#define MAXKER 50          /* Volterra kernels (Model::kernels) */
-#define MAXNET 50          /* networks (simplenet.h) */
-#define MAXMARK 200        /* Markov chains (Model::markov) */
-#define MAX_INTERN_SET 500 /* internal sets (the @-sets a model names) */
-/* a user function's arguments */
+/* the arguments a user function may take: the symbol table's ARG1..ARG20
+   (expr_symbols.cpp) are the names its body reads them by */
 #define MAXARG 20
 
 /* A model's names (variables, parameters, auxiliary quantities,

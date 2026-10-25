@@ -24,6 +24,7 @@
 #include "setx.h"
 #include "xpp_error.h"
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -93,6 +94,27 @@ struct Expr {
   std::vector<Expr> args;
   std::vector<std::string> arg_names;
 };
+
+/* a fixed value cannot be worked out: where, and why */
+struct FixedProblem {
+  Pos pos;
+  std::string why;
+};
+
+/* ran(x) drawn: the one random function a fixed value may call */
+using Draw = std::function<double(double)>;
+
+/* The one function that works out a fixed value (docs/odex.md "Fixed
+   values"): what par, const and init take, a range's ends and an
+   element's index. It is numbers, + - * / mod ^ and a sign, pi, the
+   consts (an array's element x[2] is the const named x2), the pure
+   built-in functions of those, and the range's index (index, whose value
+   is value). ran(x), drawn once at load, is init's alone: draw is its draw,
+   null where it is not allowed. what says what the value is, for the
+   problem ("the initial value of v"), which is thrown at the part of e
+   that is not a fixed value: a parameter, a state, an aux or fixed
+   variable or a user function. */
+double fixed_value(const Model &m, const Expr &e, std::string_view what, const std::string &index, int value, const Draw *draw);
 
 /* a statement of a block function's body */
 struct BlockStmt {

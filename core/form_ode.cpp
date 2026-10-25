@@ -466,11 +466,6 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       }
       break;
     case 't':
-      if(s.ntable>=MAX_TAB)
-	{
-	  if(s.parser.errout)xpp::log(XPP_LOG_WARN, "too many tables !!\n");
-	  model_failed();
-	}
       name=tokens.text(" ");
       formula=tokens.text(" \n");
       m.define_name(name,xpp::Model::NameKind::Table,s.ntable,{0,xpp::Load::place().line,xpp::Load::place().col});
@@ -785,11 +780,10 @@ public:
 private:
   static bool builtin(const std::string &u)
   {
-    static const std::set<std::string> pure={
-      "SIN","COS","TAN","ASIN","ACOS","ATAN","ATAN2","SINH","COSH","TANH","EXP","LN","LOG","LOG10","SQRT",
-      "HEAV","SIGN","FLR","ABS","MAX","MIN","BESSELJ","BESSELY","BESSELI","BESSELIS","ERF","ERFC","LGAMMA",
-      "MOD","PI","IF","THEN","ELSE","NOT","AND","OR"};
-    return pure.count(u)>0;
+    /* the engine's own words that are not functions: the constant and the
+       conditional and logic as the engine's text spells them */
+    static const std::set<std::string> words={"PI","IF","THEN","ELSE","NOT","AND","OR"};
+    return xpp::is_pure_builtin(u)||words.count(u)>0;
   }
 
   /* a user function is pure when its formula reads only its arguments,
@@ -1245,11 +1239,12 @@ private:
       for(const Binding &b : s.bindings)initial_value(b);
       break;
     case Statement::Kind::Init:
-      /* evaluated in order with every parameter set, once the model is
-         set up (set_initial_values) */
+      /* a number (the reader worked it out), or one that draws with ran: drawn
+         in order once the model is set up (set_initial_values) */
       for(const Binding &b : s.bindings){
         bool markov;
-        m.initial_values.push_back({b.name,text(b.value),where(b.value.pos),initial_variable(converted(b.name),markov)});
+        if(b.value.kind==Expr::Kind::Number)initial_value(b);
+        else m.initial_values.push_back({b.name,b.value,where(b.value.pos),initial_variable(converted(b.name),markov)});
       }
       break;
     case Statement::Kind::History:
@@ -1316,9 +1311,9 @@ private:
       break;
     }
     case Statement::Kind::Network: {
-      const int ok=add_spec_fun(s_,s.name,s.text.data());
+      const bool ok=add_spec_fun(s_,s.name,s.text.data());
       c_resync(s.text);
-      if(ok==0){
+      if(!ok){
 	model_failed(xpp::format("Illegal special function {}",s.text));
       }
       break;
@@ -1459,11 +1454,14 @@ std::string missing_initial_values_text(const Model &m)
 void set_initial_values(xpp::Session &s)
 {
   xpp::Model &m=s.model();
+  /* ran(x) as the evaluator draws it */
+  const xpp::odex::Draw draw=[&s](double x){return x*s.random.uniform();};
   for(const xpp::Model::InitialValue &init : m.initial_values){
-    int ok=0;
-    const double z=calculate(s,init.formula,&ok);
-    if(!ok){
-      xpp::model_failed(xpp::Error{"model",xpp::format("the initial value of {} does not evaluate",init.name),init.where});
+    double z=0;
+    try{
+      z=xpp::odex::fixed_value(m,init.formula,xpp::format("the initial value of {}",init.name),std::string(),0,&draw);
+    }catch(const xpp::odex::FixedProblem &p){
+      xpp::model_failed(xpp::Error{"model",p.why,init.where});
     }
     const int i=init.index;
     s.last_ic[i]=z;

@@ -56,7 +56,7 @@ void check_bad_files()
         {"a control character", "recent_models: [" + a + ",\n" + quoted(abs_path("b\x01x")) + "],\n", 2, "control"},
         {"a path past the limit", "recent_models: [" + a + ",\n" + quoted(abs_path(std::string(xpp::prefs::MAX_PATH_BYTES, 'x'))) + "],\n", 2, "longer"},
         {"a group where a list is due", "recent_models: { x: 1 },\n", 1, "list"},
-        {"a number where a path is due", "recent_models: [3],\n", 1, "absolute"},
+        {"a number where a path is due", "recent_models: [3],\n", 1, "double quotes"},
         {"a key that is not a preference", "recent_models: [" + a + "],\nsurprise: 1,\n", 2, "surprise"},
     };
     std::string many = "recent_models: [";

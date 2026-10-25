@@ -95,13 +95,16 @@ public:
     bool has(std::string_view key) const { return find(key) != nullptr; }
 
     /* a finite number / any number (inf and nan included) / a whole
-       number in int's range / true or false / a bare word / a string or a bare
-       word */
+       number in int's range / true or false / a string / a bare word */
     bool real(std::string_view key, double &v);
     bool number(std::string_view key, double &v);
     bool whole(std::string_view key, int &v);
     bool flag(std::string_view key, bool &v);
+    /* text the user wrote (a name, a label, a path, a formula): always a
+       string in double quotes, even one word; a word names a choice, a
+       number or a name of the model and is never in quotes */
     bool text(std::string_view key, std::string &v);
+    bool word(std::string_view key, std::string &v);
 
     /* a nested group */
     std::optional<Block> group(std::string_view key);
@@ -112,15 +115,20 @@ public:
     /* exactly out.size() finite numbers */
     bool reals(std::string_view key, std::span<double> out);
     bool texts(std::string_view key, std::vector<std::string> &out, std::size_t max);
+    bool words(std::string_view key, std::vector<std::string> &out, std::size_t max);
 
     /* the members whose keys the reader does not know beforehand
        (parameters, variables): each marked read; the reader checks the
        key and reads the value with the getters below */
     std::vector<const Member *> members();
-    /* a member's value as a number (any, inf and nan included) / a string
-       or word, at its place */
+    /* a member's value as a number (any, inf and nan included) / a string /
+       a word, at its place */
     double number_of(const Member &m) const;
     std::string text_of(const Member &m) const;
+    std::string word_of(const Member &m) const;
+    /* a reference to a variable or a column: a word, or a string when the
+       column is a user's own name with more than letters and digits */
+    std::string name_of(const Member &m) const;
 
     /* the value of key as the value text of an option row (a bare word
        or a string) with the member, for a reader that hands the text
@@ -142,6 +150,8 @@ private:
     /* the member key, marked read; null when absent (an error in complete mode) */
     const Member *take(std::string_view key);
     const Value &scalar(const Member &m, std::string_view what) const;
+    std::string kind_of(const Member &m, Value::Kind want) const;
+    bool read(std::string_view key, std::string &v, Value::Kind want);
 
     const Document *doc_;
     const Value *group_;
@@ -174,7 +184,7 @@ auto read_block(std::string where, std::string file, std::string_view text, bool
 
 /* a file being written: entries at the top, groups and lists nested, the
    numbers as to_chars writes them (they read back as the same value),
-   words bare and every other text in double quotes. A text a line cannot
+   words bare and the user's text always in double quotes. A text a line cannot
    hold (a newline) is an error found at result(), not a file that does
    not read. */
 class Out {
@@ -182,12 +192,16 @@ public:
     void real(std::string_view key, double v);
     void whole(std::string_view key, long long v);
     void flag(std::string_view key, bool v) { word(key, v ? "true" : "false"); }
-    /* a bare word when text is one (letters, digits, _ . + - and not
-       empty), else quoted */
+    /* a word (a choice, a number, a name of the model): bare, never in
+       quotes; text the user wrote: always in double quotes, even one word */
     void word(std::string_view key, std::string_view text);
     void text(std::string_view key, std::string_view text);
+    /* a reference to a variable or a column: bare when it is a word, in
+       quotes for a user's column named with more (Block::name_of) */
+    void name(std::string_view key, std::string_view text);
     void reals(std::string_view key, std::span<const double> v);
     void texts(std::string_view key, std::span<const std::string> v);
+    void words(std::string_view key, std::span<const std::string> v);
     void begin(std::string_view key);
     void end();
     /* a list of groups: begin_list, then each as begin_item ... end_item */
