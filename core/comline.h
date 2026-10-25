@@ -10,21 +10,21 @@ namespace xpp {
 struct Model;   /* model.h */
 struct Session; /* session.h */
 
-/* the command line's switches: --include (loadincludefile), --qsets/--qpars/
-   --qics (querysets, querypars, queryics), -dryrun and --newseed (the
-   internal sets it picked are batch_options') */
-extern int loadincludefile;
-extern int querysets,querypars,queryics,dryrun,newseed;
+/* the command line's switches: --qsets/--qpars/--qics (querysets, querypars,
+   queryics), dryrun (any of them) and --newseed (the internal sets it
+   picked are batch_options') */
+extern bool querysets,querypars,queryics,dryrun,newseed;
 /* --include's files, in order (form_ode.cpp parses them with the model) */
 extern std::vector<std::string> include_files;
 
-/* the command line read into the loading Session s (its switches, the
-   model's file into its Model's this_file), one argument of it */
-/* The model argument's index, or -1 when a file still needs choosing. */
-/* Validate exact spellings and required arguments before any mode starts. */
+/* Read the whole command line in one pass: every option's spelling, argument
+   and value checked; the first fault is an error naming the option, at its
+   place in the command line. Run before any mode starts. */
 Result<> check_command_line(int argc, char **argv);
+/* the same pass, then its switches into the loading Session s and the model's
+   file into its Model's this_file; the model argument's index, or -1 when a
+   file still needs choosing. A fault throws LoadFailed. */
 int do_comline(Session &s, int argc, char **argv);
-int parse_it(Session &s, std::string_view com);
 /* the internal sets of m the command line picked (--internset, --uset,
    --rset) into batch_options */
 int if_needed_select_sets(const Model &m);

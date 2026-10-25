@@ -1002,9 +1002,14 @@ void ani_create_mpeg(xpp::Session &s)
     static const int kinds[] = {XPP_FIELD_INTEGER, XPP_FIELD_INTEGER};
     const int status = do_string_box_of(2, 1, "Frame saving", n, values, kinds);
     if (status != 0) {
-        s.animation.mpeg.flag = std::atoi(values[0].c_str());
-        if (s.animation.mpeg.flag > 0) s.animation.mpeg.flag = 1;
-        s.animation.mpeg.aviflag = std::atoi(values[1].c_str());
+        xpp::TypedFields f(s);
+        const int flag = f.integer(n[0], values[0]), aviflag = f.integer(n[1], values[1]);
+        if (f.error()) {
+            command_error("Frame saving", *f.error());
+            return;
+        }
+        s.animation.mpeg.flag = flag > 0 ? 1 : flag;
+        s.animation.mpeg.aviflag = aviflag;
         if(s.animation.mpeg.flag>0 && s.animation.mpeg.aviflag!=1){
             std::string root=xpp::files::output_name(s.model().this_file,".ppm","animation");
             if(!file_selector("Save animation frames",root,"*.ppm")){s.animation.mpeg.flag=0;return;}
@@ -1021,8 +1026,13 @@ void ani_newskip(xpp::Session &s)
     std::string bob = xpp::format("{}", s.animation.vcr.inc);
     int status = get_dialog_of("Frame skip", "Increment:", bob, "Ok", "Cancel", XPP_FIELD_INTEGER);
     if (status != 0) {
-        s.animation.vcr.inc = std::atoi(bob.c_str());
-        if (s.animation.vcr.inc <= 0) s.animation.vcr.inc = 1;
+        xpp::TypedFields f(s);
+        const int inc = f.integer("Increment", bob);
+        if (f.error()) {
+            command_error("Frame skip", *f.error());
+            return;
+        }
+        s.animation.vcr.inc = inc <= 0 ? 1 : inc;
     }
 }
 

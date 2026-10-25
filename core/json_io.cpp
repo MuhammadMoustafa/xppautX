@@ -208,12 +208,32 @@ unsigned long read_line_seq(void) { return line_seq; }
 
 bool read_line_refused(void) { return line_refused; }
 
+namespace {
+
+/* whether the command running on this thread (handle_line's) refuses an
+   argument that is not what its reader asks for; the reader thread's own
+   calls (classify) never do */
+thread_local bool checking_arguments = false;
+
+} // namespace
+
+ArgumentCheck::ArgumentCheck() : before_(checking_arguments) { checking_arguments = true; }
+ArgumentCheck::~ArgumentCheck() { checking_arguments = before_; }
+
+/* The argument at v as a number: true, false and null are 1 and 0 (a flag
+   sent as a boolean), a number is itself, absent is def; a string, an
+   object, an array or a token that is not all one number is a BadArgument
+   in a command, and the old reading (a string is def, the number's prefix)
+   on the reader thread. */
 double js_num(const char *v, double def)
 {
     if (!v) return def;
-    if (*v == '"') return def;
     if (strncmp(v, "true", 4) == 0) return 1;
     if (strncmp(v, "false", 5) == 0 || strncmp(v, "null", 4) == 0) return 0;
+    double d;
+    if (js_number(v, &d)) return d;
+    if (checking_arguments) throw BadArgument{"", std::string(js_raw(v)), "a number"};
+    if (*v == '"') return def;
     return atof(v);
 }
 
@@ -254,15 +274,22 @@ bool get_string(const char *obj, const char *key, std::string &out)
 
 double get_num(const char *obj, const char *key, double def)
 {
-    return js_num(js_find(obj, key), def);
+    try {
+        return js_num(js_find(obj, key), def);
+    } catch (BadArgument &bad) {
+        bad.key = key;
+        throw;
+    }
 }
 
-/* a value outside int's range saturates (INT_MIN/INT_MAX, which every caller's
-   own range check refuses); NaN is the default: never an undefined conversion */
+/* a whole number int holds (a value outside int's range saturates, which
+   every caller's own range check refuses; NaN is the default: never an
+   undefined conversion); in a command a fraction is a BadArgument */
 int get_int(const char *obj, const char *key, double def)
 {
     const double v = get_num(obj, key, def);
     if (std::isnan(v)) return static_cast<int>(def);
+    if (checking_arguments && v != std::floor(v)) throw BadArgument{key, std::string(js_raw(js_find(obj, key))), "a whole number"};
     if (v >= static_cast<double>(std::numeric_limits<int>::max())) return std::numeric_limits<int>::max();
     if (v <= static_cast<double>(std::numeric_limits<int>::min())) return std::numeric_limits<int>::min();
     return static_cast<int>(v);

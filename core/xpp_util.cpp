@@ -194,50 +194,6 @@ int find_user_name(const xpp::Model &m, int type, std::string_view oname)
   return type==PARAMBOX ? entry->parameter : type==ICBOX ? entry->column : -1;
 }
 
-int do_calc(xpp::Session &s, std::string_view temp, double *z)
-{
- std::string val; /* the name before ':' */
- int ok; 
- int i;
- double newz;
- if(temp.empty()){
-	*z=0.0;
-	return(1);
-	}
- if(has_eq(temp,val,&i))
- {
-
-  newz=calculate(s,temp.substr(i),&ok);  /*  calculate quantity  */
- 
-  if(ok==0)return(-1);
-  i=find_user_name(s.model(),PARAM,val);
-  if(i>-1){
-    set_val(s,val,newz); /* a parameter set to value  */
-    *z=newz;
-    redraw_params();
-  }
-  else {
-    i=find_user_name(s.model(),IC,val);
-    if(i<0){
-      command_error("value", "No such name!");
-      return(-1);
-    }
-    set_val(s,val,newz);
-
-    s.last_ic[i]=newz;
-    *z=newz;
-    redraw_ics();
-  }
-    return(0);
-}
-	    
-  newz=calculate(s,temp,&ok);
-  if(ok==0)return(-1);
- *z=newz;
- return(1);
-}
-
-
 int has_eq(std::string_view z, std::string &name, int *where)
 {
   size_t i=z.find(':');
@@ -273,26 +229,68 @@ static std::unexpected<Error> refused_value(std::string what,std::string_view fi
   return std::unexpected(Error{"value",std::move(what),command_place(),std::string(field)});
 }
 
+/* what a %formula (the text after the '%') says: its value, and the name it
+   sets when it is "name:formula" (empty otherwise). The one rule of the
+   %name:formula form: the name checked, the formula worked out once. */
+struct WorkedOut {
+  double value=0.0;
+  std::string name;
+};
+
+static Result<WorkedOut> work_out(xpp::Session &s, std::string_view formula, std::string_view field)
+{
+  WorkedOut w;
+  if(formula.empty())return w; /* nothing typed after the % is 0 */
+  int i;
+  if(has_eq(formula,w.name,&i)){
+    if(find_user_name(s.model(),PARAM,w.name)<0&&find_user_name(s.model(),IC,w.name)<0)
+      return refused_value("No such name!",field);
+    formula=formula.substr(static_cast<size_t>(i));
+  }
+  const Result<double> r=evaluate_formula(s,formula);
+  if(!r){
+    Error e=r.error();
+    e.field=field;
+    return std::unexpected(std::move(e));
+  }
+  w.value=*r;
+  return w;
+}
+
+/* the parameter or IC `name` set to value (a "%name:formula" or do_calc) */
+static void set_named(xpp::Session &s, const std::string &name, double value)
+{
+  const int i=find_user_name(s.model(),PARAM,name);
+  set_val(s,name,value);
+  if(i>-1){
+    redraw_params();
+    return;
+  }
+  s.last_ic[find_user_name(s.model(),IC,name)]=value;
+  redraw_ics();
+}
+
 Result<double> typed_number(xpp::Session &s, std::string_view typed, std::string_view field)
 {
   const std::string_view text=trim_blanks(typed);
   if(text.starts_with('%')){
-    std::string_view formula=text.substr(1);
-    if(formula.empty())return 0.0; /* as do_calc takes it */
-    std::string name;
-    int i;
-    if(has_eq(formula,name,&i)){
-      if(find_user_name(s.model(),PARAM,name)<0&&find_user_name(s.model(),IC,name)<0)
-        return refused_value("No such name!",field);
-      formula=formula.substr(static_cast<size_t>(i));
-    }
-    Result<double> r=evaluate_formula(s,formula);
-    if(!r)r.error().field=field;
-    return r;
+    const Result<WorkedOut> w=work_out(s,text.substr(1),field);
+    if(!w)return std::unexpected(w.error());
+    return w->value;
   }
   double v;
   if(!parse_number(text,v))return refused_value(xpp::format("\"{}\" is not a number",text),field);
   return v;
+}
+
+int do_calc(xpp::Session &s, std::string_view temp, double *z)
+{
+  const Result<WorkedOut> w=work_out(s,temp,{});
+  if(!ok_or_show(w))return -1;
+  *z=w->value;
+  if(w->name.empty())return 1;
+  set_named(s,w->name,w->value);
+  return 0;
 }
 
 void set_active_windows(xpp::Session &s)
@@ -549,16 +547,16 @@ void TypedFields::fail(std::string_view field, std::string_view what)
   if(!error_)error_=xpp::format("{}: {}",field,what);
 }
 
-/* the value typed for a number box: checked whole by typed_number, then a
-   "%name:formula" also sets its name (do_calc), whose value the box takes */
+/* the value typed for a number box: checked whole, worked out once, and a
+   "%name:formula" also sets its name, whose value the box takes */
 static Result<double> box_number(xpp::Session &s,std::string_view text,std::string_view field)
 {
-  const Result<double> r=typed_number(s,text,field);
-  if(!r)return r;
   const std::string_view t=trim_blanks(text);
-  double z=*r;
-  if(t.starts_with('%')&&do_calc(s,t.substr(1),&z)==-1)return std::unexpected(Error{"formula","",command_place(),std::string(field)});
-  return z;
+  if(!t.starts_with('%'))return typed_number(s,t,field);
+  const Result<WorkedOut> w=work_out(s,t.substr(1),field);
+  if(!w)return std::unexpected(w.error());
+  if(!w->name.empty())set_named(s,w->name,w->value);
+  return w->value;
 }
 
 /* store the text typed for entry i of a box of the given type: a number

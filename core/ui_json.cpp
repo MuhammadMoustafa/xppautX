@@ -525,7 +525,7 @@ void session_command(xpp::Session &s, const char *line)
     get_string(line, "name", name);
     /* data: in (1), left out (0), or asked above 50 MB (absent) */
     const char *jd = js_find(line, "data");
-    if (o == "save") xpp_session_save(s, name.empty() ? nullptr : name.c_str(), jd ? (js_num(jd, 1) != 0) : -1);
+    if (o == "save") xpp_session_save(s, name.empty() ? nullptr : name.c_str(), jd ? (get_num(line, "data", 1) != 0) : -1);
     else if (o == "load") xpp_session_load(s, name.empty() ? nullptr : name.c_str());
 }
 
@@ -877,30 +877,43 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
        loaded in its place below replaces it */
     xpp::Session *s = &xpp::client_session();
     std::string input_error;
-    if (get_string(line, "input_error", input_error)) {
-        j_command_error("input", input_error);
-    } else if (!permission) {
-        xpp::show_error(permission.error());
-    } else if (applied) {
-    } else if (refused) {
-        std::string c;
-        get_string(line, "cmd", c);
-        j_command_error("command", xpp::format("{}: {} was refused", xpp::job::REFUSED_WHILE_COMPUTING, c));
-    } else if (!s->model().loaded() && !runs_without_model(line)) {
-        j_command_error("command", "No model is open: open one first (Open model)");
-    } else if (is_cmd(line, "data") && !s->model().loaded()) {
-        /* no model: no events to send, nothing to subscribe */
-    } else if (handle_async(*s, line)) {
-    } else if (const CommandInfo *e = command_of(line)) {
-        record_begin(line);
-        e->run(*s, line);
-        /* an evaluation's failure no caller took (W387: user functions
-           nested too deep in the flow, a plot, a formula) is shown once,
-           and the next command starts clean */
-        if (s->integrator.step_error) xpp::show_error(xpp::take_step_error(*s).error());
-    } else {
-        std::string c;
-        if (get_string(line, "cmd", c)) j_command_error("command", xpp::format("Unknown command {}", c));
+    const char *wrong_at = nullptr;
+    const char *wrong = js_problem(line, wrong_at);
+    try {
+        const ArgumentCheck check;
+        if (wrong) {
+            j_command_error("command", xpp::format("the command line {} (at character {})", wrong, wrong_at - line + 1));
+        } else if (get_string(line, "input_error", input_error)) {
+            j_command_error("input", input_error);
+        } else if (!permission) {
+            xpp::show_error(permission.error());
+        } else if (applied) {
+        } else if (refused) {
+            std::string c;
+            get_string(line, "cmd", c);
+            j_command_error("command", xpp::format("{}: {} was refused", xpp::job::REFUSED_WHILE_COMPUTING, c));
+        } else if (!s->model().loaded() && !runs_without_model(line)) {
+            j_command_error("command", "No model is open: open one first (Open model)");
+        } else if (is_cmd(line, "data") && !s->model().loaded()) {
+            /* no model: no events to send, nothing to subscribe */
+        } else if (handle_async(*s, line)) {
+        } else if (const CommandInfo *e = command_of(line)) {
+            record_begin(line);
+            e->run(*s, line);
+            /* an evaluation's failure no caller took (W387: user functions
+               nested too deep in the flow, a plot, a formula) is shown once,
+               and the next command starts clean */
+            if (s->integrator.step_error) xpp::show_error(xpp::take_step_error(*s).error());
+        } else {
+            std::string c;
+            if (get_string(line, "cmd", c)) j_command_error("command", xpp::format("Unknown command {}", c));
+        }
+    } catch (const BadArgument &bad) {
+        std::string cmd;
+        get_string(line, "cmd", cmd);
+        j_command_error(cmd.empty() ? "command" : cmd,
+                        xpp::format("{}: {} must be {}, not {}", cmd.empty() ? "command" : cmd,
+                                    bad.key.empty() ? std::string("an element") : xpp::format("argument \"{}\"", bad.key), bad.expected, bad.given));
     }
     /* File > Open model or Reload asked for another model: loaded now,
        when nothing of this one's Session is in use any more */

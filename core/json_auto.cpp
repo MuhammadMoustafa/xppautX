@@ -513,7 +513,7 @@ int j_auto_grab_event(xpp::Session &s, int *x, int *y)
        have, or whose entry AUTO no longer has (the data are an old drawing
        until reDraw), is ignored, and so is its key */
     if ((jp = js_find(ask_answer(), "point")) != NULL) {
-        double i = js_num(jp, -1);
+        double i = get_num(ask_answer(), "point", -1);
         const XppDiagPoint *p = i >= 0 && i < INT_MAX ? diag_client_point(s, static_cast<int>(i)) : NULL;
         *x = p && diagram_has(s.diagram, p->node, p->ibr, p->pt) ? p->node : -1;
         if (*x >= 0 && get_string(ask_answer(), "key", k)) session.grab_key_after = key_code(k.c_str());
@@ -679,7 +679,7 @@ void auto_command(xpp::Session &s, const char *line)
         const char *jl = js_find(line, "label");
         std::string type;
         if (jl != NULL) {
-            int lab = static_cast<int>(js_num(jl, 0));
+            int lab = get_int(line, "label", 0);
             if (!auto_grab_label(s, lab))
                 j_command_error("auto", xpp::format("Grab: no point labelled {}", lab));
         } else if (get_string(line, "type", type) && js_find(line, "index") != NULL) {
@@ -692,7 +692,7 @@ void auto_command(xpp::Session &s, const char *line)
         /* goes on from a stored point's label with the settings of the
            last run (docs/protocol.md "Restarting a run") */
         const char *jl = js_find(line, "label");
-        if (jl != NULL) auto_restart(s, static_cast<int>(js_num(jl, 0)));
+        if (jl != NULL) auto_restart(s, get_int(line, "label", 0));
         else j_command_error("auto", "Restart: give a label");
     }
     else if (o == "set") auto_set_command(s, line);
@@ -713,7 +713,7 @@ void auto_command(xpp::Session &s, const char *line)
         }
         s.auto_state.views[static_cast<std::size_t>(k)].zoom = z;
         const char *js = js_find(line, "show");
-        if (js) v.show_earlier = js_num(js, 0) != 0 && v.earlier > 0;
+        if (js) v.show_earlier = get_num(line, "show", 0) != 0 && v.earlier > 0;
     }
     else if (o == "view") {
         /* the views of the diagram (W50): a new one, one closed, the active one */
@@ -732,7 +732,7 @@ void auto_command(xpp::Session &s, const char *line)
         /* in the diagram's quantities, or a pixel of window 101 */
         const char *jx = js_find(line, "xd"), *jy = js_find(line, "yd");
         if (!s.auto_state.bifur.exist) return;
-        if (jx && jy) auto_point_xy(s, js_num(jx, 0), js_num(jy, 0));
+        if (jx && jy) auto_point_xy(s, get_num(line, "xd", 0), get_num(line, "yd", 0));
         else auto_motion_xy(s, get_int(line, "x", 0), get_int(line, "y", 0));
     }
     else if (o == "close") {

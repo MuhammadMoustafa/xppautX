@@ -275,11 +275,19 @@ std::vector<xpp::FormField> marker_fields(const MarkInfo &m)
             xpp::FormField::color_field("Colour", m.color), xpp::FormField::real_number("Size", m.size)};
 }
 
-void take_marker_fields(MarkInfo &m, std::span<const xpp::FormField> f)
+/* the marker the fields describe, the type read whole like every other field; false (shown) when it is not a number */
+bool take_marker_fields(xpp::Session &s, MarkInfo &m, std::span<const xpp::FormField> f)
 {
-    m.type = std::atoi(f[0].value.c_str());
+    xpp::TypedFields read(s);
+    const int type = read.integer("Type", f[0].value, 0);
+    if (read.error()) {
+        command_error("Marker", *read.error());
+        return false;
+    }
+    m.type = type;
     m.color = f[1].color;
     m.size = f[2].real;
+    return true;
 }
 
 } // namespace
@@ -288,8 +296,7 @@ int get_marker_info(xpp::Session &s)
 {
     std::vector<xpp::FormField> fields = marker_fields(s.marker);
     if (!xpp::ask_form(s, "Add Marker", fields)) return 0;
-    take_marker_fields(s.marker, fields);
-    return 1;
+    return take_marker_fields(s, s.marker, fields) ? 1 : 0;
 }
 
 int get_markers_info(xpp::Session &s)
@@ -299,7 +306,7 @@ int get_markers_info(xpp::Session &s)
     fields.push_back(xpp::FormField{.name = "Row1", .kind = xpp::XPP_FIELD_INTEGER, .value = xpp::format("{:d}", s.marker.start)});
     fields.push_back(xpp::FormField{.name = "Skip", .kind = xpp::XPP_FIELD_INTEGER, .value = xpp::format("{:d}", s.marker.skip)});
     if (!xpp::ask_form(s, "Add Markers", fields)) return 0;
-    take_marker_fields(s.marker, fields);
+    if (!take_marker_fields(s, s.marker, fields)) return 0;
     s.marker.number = fields[3].whole;
     s.marker.start = fields[4].whole;
     s.marker.skip = fields[5].whole;

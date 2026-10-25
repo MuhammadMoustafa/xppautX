@@ -20,35 +20,6 @@ const char *skip_ws(const char *p)
     return p;
 }
 
-const char *skip_value(const char *p)
-{
-    int depth = 0;
-    p = skip_ws(p);
-    do {
-        if (*p == '"') {
-            p++;
-            while (*p && *p != '"') {
-                if (*p == '\\' && p[1]) p++;
-                p++;
-            }
-            if (*p) p++;
-        } else if (*p == '[' || *p == '{') {
-            depth++;
-            p++;
-        } else if (*p == ']' || *p == '}') {
-            if (depth == 0) return p;
-            depth--;
-            p++;
-        } else if (*p == ',' && depth == 0) {
-            return p;
-        } else if (*p) {
-            p++;
-        }
-        if (depth == 0 && (*p == ',' || *p == '}' || *p == ']')) return p;
-    } while (*p);
-    return p;
-}
-
 namespace {
 
 /* Where valid_value stopped, and why, for js_problem. */
@@ -133,6 +104,16 @@ const char *valid_value(const char *p, int depth, Stop &st)
 }
 
 } // namespace
+
+/* past the value at p; the end of the text when it is not a JSON value, so
+   nothing is read from where the text stopped being JSON (the one walker:
+   js_problem's) */
+const char *skip_value(const char *p)
+{
+    Stop st;
+    const char *end = valid_value(p, 0, st);
+    return end ? end : p + std::strlen(p);
+}
 
 const char *js_problem(const char *text, const char *&at)
 {

@@ -154,7 +154,7 @@ void get_data_xyz(const Session &s, float *x, float *y, float *z, int i1, int i2
 void data_get(Session &s, BROWSER *b);
 void data_replace(Session &s, BROWSER *b);
 void data_unreplace(Session &s);
-void data_table(const Session &s, BROWSER *b);
-void data_find(const Session &s, BROWSER *b);
+void data_table(Session &s, BROWSER *b);
+void data_find(Session &s, BROWSER *b);
 
 } // namespace xpp
