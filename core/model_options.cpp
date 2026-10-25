@@ -324,22 +324,22 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.numerics.relative_tolerance; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.relative_tolerance = .001; },
-   .key = "relative_tolerance", .label = "Relative tolerance", .rule = OptionRule::positive, .use = OptionUse::step_or_rel, .saved = true},
+   .key = "relative_tolerance", .label = "Relative tolerance", .rule = OptionRule::positive, .use = OptionUse::relative_tolerance, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "MIN_STEP", .xppaut_names = {"DTMIN"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.min_step; }),
    /* as small as an adaptive method may need */
    .reset = [](Session &s) { s.numerics.min_step = 1e-12; },
-   .key = "min_step", .label = "Minimum step", .rule = OptionRule::positive, .use = OptionUse::step, .saved = true},
+   .key = "min_step", .label = "Minimum step", .rule = OptionRule::positive, .use = OptionUse::min_step, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "MAX_STEP", .xppaut_names = {"DTMAX"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.max_step; }),
    /* one time unit */
    .reset = [](Session &s) { s.numerics.max_step = 1; },
-   .key = "max_step", .label = "Maximum step", .rule = OptionRule::positive, .use = OptionUse::step_or_dense, .saved = true},
+   .key = "max_step", .label = "Maximum step", .rule = OptionRule::positive, .use = OptionUse::max_step, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "ABSOLUTE_TOLERANCE", .xppaut_names = {"ATOL"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.absolute_tolerance; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.absolute_tolerance = .001; },
-   .key = "absolute_tolerance", .label = "Absolute tolerance", .rule = OptionRule::positive, .use = OptionUse::rel, .saved = true},
+   .key = "absolute_tolerance", .label = "Absolute tolerance", .rule = OptionRule::positive, .use = OptionUse::absolute_tolerance, .saved = true},
   {.real = member([](auto &s) -> auto & { return s.numerics.eul_tol; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.eul_tol = 1e-7; },
@@ -1198,7 +1198,7 @@ std::vector<XppSlider> read_sliders(const Model &m, xpp::setx::Block &file, bool
         xpp::XppSlider slider;
         for (std::string_view key : {"name", "low", "high"})
             if (!g.has(key)) g.fail(xpp::format("slider preset requires {}", key));
-        g.text("name", slider.var);
+        slider.var = g.name_of(*g.member("name"));
         if (const auto why = xpp::slider_wrong(m, slider, check_names)) g.fail(*g.member("name"), *why);
         g.number("low", slider.lo);
         g.number("high", slider.hi);

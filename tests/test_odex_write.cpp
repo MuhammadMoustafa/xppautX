@@ -64,15 +64,15 @@ const std::string model =
     "x' = -a*x + b   # decay\n"
     "y' = -y\n"
     "par a = 1, b = 2\n"
-    "init x = 0.5, y = 2*a\n"
+    "init x = 0.5, y = 2*3\n"
     "\n"
     "options {\n"
     "  integration: { dt: 0.02, total_time: 9 },\n"
     "}\n"
     "\n"
     "# regimes\n"
-    "set one { a: 10 }\n"
-    "set two { a: 5, x: 0.9, options: { integration: { dt: 0.1 }, plot: { xlo: -3 } } }\n";
+    "set \"one\" { a: 10 }\n"
+    "set \"two\" { a: 5, x: 0.9, options: { integration: { dt: 0.1 }, plot: { xlo: -3 } } }\n";
 
 } // namespace
 
@@ -84,7 +84,7 @@ int main()
     CHECK(braced({"a: 1", "b: 2"}, 4) == "{ a: 1, b: 2 }");
     CHECK(options_block({}).empty());
     CHECK(options_block({{"integration", "dt: 0.1"}}) == "options {\n  integration: { dt: 0.1 },\n}\n");
-    CHECK(set_block("s", {"a: 1"}, {{"plot", "xlo: 1"}}) == "set s { a: 1, options: { plot: { xlo: 1 } } }");
+    CHECK(set_block("s", {"a: 1"}, {{"plot", "xlo: 1"}}) == "set \"s\" { a: 1, options: { plot: { xlo: 1 } } }");
     std::string many;
     std::vector<std::string> items;
     for (int i = 0; i < 40; i++) items.push_back("name" + std::to_string(i) + ": 1.5");
@@ -109,13 +109,13 @@ int main()
         auto m = scratch();
         const std::string out = result(add_set(*m, model, file, "three", parameters({{"a", "7"}, {"b", "2.5"}})));
         CHECK(out.starts_with(model));
-        CHECK(out.substr(model.size()) == "\nset three { a: 7, b: 2.5 }\n");
+        CHECK(out.substr(model.size()) == "\nset \"three\" { a: 7, b: 2.5 }\n");
         /* no newline at the end of the file, and a CRLF file */
-        const std::string bare = result(add_set(*m, "x' = -x\nset s { }", file, "other", parameters({{"a", "1"}}), true));
-        CHECK(bare == "x' = -x\nset s { }\n\nset other { a: 1 }\n");
+        const std::string bare = result(add_set(*m, "x' = -x\nset \"s\" { }", file, "other", parameters({{"a", "1"}}), true));
+        CHECK(bare == "x' = -x\nset \"s\" { }\n\nset \"other\" { a: 1 }\n");
         const std::string crlf = result(add_set(*m, "x' = -x\r\npar a = 1\r\n", file, "other", parameters({{"a", "2"}, {"b", "3"}}), true));
         CHECK(crlf.starts_with("x' = -x\r\npar a = 1\r\n"));
-        CHECK(crlf.find("\r\n\r\nset other { a: 2, b: 3 }\r\n") != std::string::npos);
+        CHECK(crlf.find("\r\n\r\nset \"other\" { a: 2, b: 3 }\r\n") != std::string::npos);
         /* the name is checked like any model name, and is not already a set */
         std::string error;
         CHECK(result(add_set(*m, model, file, "one", parameters({{"a", "1"}})), &error).empty() && error.find("already a set") != std::string::npos);
@@ -129,21 +129,21 @@ int main()
     {
         auto m = scratch();
         const std::string out = result(replace_in_set(*m, model, file, "two", states({{"x", "0.1"}, {"y", "0.2"}}), classify));
-        const std::size_t at = model.find("set two");
+        const std::size_t at = model.find("set \"two\"");
         CHECK(out.substr(0, at) == model.substr(0, at));
         CHECK(out.substr(at).find("a: 5, x: 0.1, y: 0.2") != std::string::npos);
         CHECK(out.substr(at).find("options: { integration: { dt: 0.1 }, plot: { xlo: -3 } }") != std::string::npos);
         /* a group replaced, the others and the values kept */
         const std::string g = result(replace_in_set(*m, model, file, "two", group("plot", {{"xlo", "1"}, {"xhi", "2"}}), classify));
-        CHECK(g.substr(g.find("set two")).find("a: 5, x: 0.9, options: { integration: { dt: 0.1 }, plot: { xlo: 1, xhi: 2 } }") != std::string::npos);
+        CHECK(g.substr(g.find("set \"two\"")).find("a: 5, x: 0.9, options: { integration: { dt: 0.1 }, plot: { xlo: 1, xhi: 2 } }") != std::string::npos);
         /* a kind emptied: its entries go and the others stay */
         Values none;
         none.parameters = true;
         const std::string e = result(replace_in_set(*m, model, file, "two", none, classify));
-        CHECK(e.find("set two { x: 0.9, options: {") != std::string::npos);
+        CHECK(e.find("set \"two\" { x: 0.9, options: {") != std::string::npos);
         /* a group added to a set that had none */
         const std::string added = result(replace_in_set(*m, model, file, "one", group("integration", {{"dt", "0.3"}}), classify));
-        CHECK(added.find("set one { a: 10, options: { integration: { dt: 0.3 } } }") != std::string::npos);
+        CHECK(added.find("set \"one\" { a: 10, options: { integration: { dt: 0.3 } } }") != std::string::npos);
         std::string error;
         CHECK(result(replace_in_set(*m, model, file, "nosuch", none, classify), &error).empty() && error.find("no set nosuch") != std::string::npos);
     }
@@ -152,15 +152,15 @@ int main()
     {
         auto m = scratch();
         const std::string out = result(rename_set(*m, model, file, "one", "uno"));
-        CHECK(out == model.substr(0, model.find("set one")) + "set uno" + model.substr(model.find("set one") + 7));
+        CHECK(out == model.substr(0, model.find("set \"one\"")) + "set \"uno\"" + model.substr(model.find("set \"one\"") + 9));
         std::string error;
         CHECK(result(rename_set(*m, model, file, "one", "two"), &error).empty() && error.find("already a set") != std::string::npos);
         CHECK(result(rename_set(*m, model, file, "one", "a b"), &error).empty() && !error.empty());
         const xpp::Result<Edited> deleted = delete_set(*m, model, file, "one");
-        CHECK(deleted && deleted->text == model.substr(0, model.find("set one")) + model.substr(model.find("set two")));
+        CHECK(deleted && deleted->text == model.substr(0, model.find("set \"one\"")) + model.substr(model.find("set \"two\"")));
         CHECK(deleted && deleted->lines.map(13) == 12);
         const std::string last = result(delete_set(*m, model, file, "two"));
-        CHECK(last == model.substr(0, model.find("set two")));
+        CHECK(last == model.substr(0, model.find("set \"two\"")));
         CHECK(result(delete_set(*m, model, file, "nosuch"), &error).empty());
     }
 
@@ -172,6 +172,11 @@ int main()
         /* an init that is a formula becomes the number; the equal one stays as written */
         const std::string ic = result(set_defaults(*m, model, file, states({{"y", "3"}})));
         CHECK(ic.find("init x = 0.5, y = 3\n") != std::string::npos);
+        CHECK(result(set_defaults(*m, model, file, states({{"y", "6"}}))) == model);
+        /* a parameter written as a formula stays as written while its value is the same */
+        const std::string quotient = "x' = -a*x\npar a = 1/30\n";
+        CHECK(result(set_defaults(*m, quotient, file, parameters({{"a", "0.03333333333333333"}}))) == quotient);
+        CHECK(result(set_defaults(*m, quotient, file, parameters({{"a", "0.5"}}))) == "x' = -a*x\npar a = 0.5\n");
         /* the same value written differently is not rewritten */
         CHECK(result(set_defaults(*m, model, file, parameters({{"a", "1.0"}}))) == model);
         /* a state with no init line gets one */
@@ -195,8 +200,8 @@ int main()
     {
         auto m = scratch();
         CHECK(check_text(*m, model, file));
-        CHECK(!check_text(*m, "x' = -x\nset s { nosuch: 1 }\n", file));
-        CHECK(check_text(*m, "set s { a: 1 }\n", file, true));
+        CHECK(!check_text(*m, "x' = -x\nset \"s\" { nosuch: 1 }\n", file));
+        CHECK(check_text(*m, "set \"s\" { a: 1 }\n", file, true));
         const auto bad = check_text(*m, "x' = \n", file);
         CHECK(!bad && bad.error().place.file == file && bad.error().place.line >= 1);
     }

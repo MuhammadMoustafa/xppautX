@@ -329,7 +329,7 @@ int main(void)
       "fun f(v, s) = v*s\n"
       "fun g(v, w) { let s = v + w  if s > 1 { return a*s } else if s > 0 { return b } else { return 0 } }\n"
       "options { integration: { total_time: 20, dt: 0.05, method: stiff }, output: { output: \"out.dat\" } }\n"
-      "set fast { a: 2, b: 3 }\n"
+      "set \"fast\" { a: 2, b: 3 }\n"
       "table w1 \"w.tab\"\n"
       "table w2 exp(-abs(t)), n=51, lo=-25, hi=25\n"
       "markov m 2 {0} {a} {b} {0}\n"
@@ -432,8 +432,8 @@ int main(void)
     CHECK(starts(lowered("par k = 1\nimport \"build/test_import_cell.odex\"\n"), "error 2:1 `k` is already declared at 1:5"));
     CHECK(starts(lowered("import \"build/test_import_cell.odex\"\nimport \"build/test_import_cell.odex\"\n"), "error 2:1 `k` is already declared"));
     /* W318: a set's name is its own, an imported file's sets included */
-    put("build/test_import_sets.odex", "par k = 1\nx' = -x\nset s { k: 2 }\n");
-    CHECK(starts(lowered("set s { k: 3 }\nimport \"build/test_import_sets.odex\"\n"),
+    put("build/test_import_sets.odex", "par k = 1\nx' = -x\nset \"s\" { k: 2 }\n");
+    CHECK(starts(lowered("set \"s\" { k: 3 }\nimport \"build/test_import_sets.odex\"\n"),
                  "error 2:1 the set `s` is defined twice: at m.odex:1:1 and at build/test_import_sets.odex:3:1"));
     remove("build/test_import_sets.odex");
     CHECK(starts(model_error("from \"build/test_import_cell.odex\" import nosuch\n"), "1:1 build/test_import_cell.odex declares no `nosuch`"));
@@ -469,10 +469,21 @@ int main(void)
             "x'=(if(x>0)then(1)else((if(x<0)then((-1))else(0))))");
   CHECK_STR(lowered("x' = sum(shift(x, i'), from=0, to=2)\n").c_str(), "x'=(sum(0,2)of(shift(x,i')))");
   CHECK_STR(lowered("u(t) = sin(t)+volterra(exp(-t), of=u, mu=0.5)\n").c_str(), "volt u=sin(t)+(int[0.5]{exp((-t))#u})");
-  /* par takes numbers (docs/odex.md question 9) */
+  /* par, const and init take a fixed value (docs/odex.md "Fixed values"): numbers, arithmetic, pi, consts,
+     the pure functions of those; a parameter, a state or a function is an error at its line */
   CHECK_STR(lowered("par a = -2, b = 1e-3\nx' = b\n").c_str(), "par a=-2|par b=0.001|x'=b");
-  CHECK(starts(lowered("par a = 2*pi\nx' = a\n"), "error 1:9 a parameter's value is a number, not `2*pi`"));
-  CHECK_STR(lowered("init x = a\npar a = 2\nx' = -x\n").c_str(), "par a=2|x'=(-x)");
+  CHECK_STR(lowered("par a = 1/30\nx' = a\n").c_str(), "par a=0.03333333333333333|x'=a");
+  CHECK_STR(lowered("const k = 2\npar a = 2*k + max(1, 3), b = sin(0) + pi - pi\nx' = a+b\n").c_str(), "const k=2|par a=7|par b=0|x'=a+b");
+  CHECK_STR(lowered("const c[j] = j*j for j in 0..2\npar a = c[2] + c1\nx' = a\n").c_str(), "const c0=0|const c1=1|const c2=4|par a=5|x'=a");
+  CHECK_STR(lowered("par a = 2\ninit x = 2*pi\nx' = -x\n").c_str(), "par a=2|x'=(-x)");
+  CHECK(starts(lowered("par a = 2\ninit x = a\nx' = -x\n"), "error 2:10 the initial value of x can't use the parameter a; use a const or a number"));
+  CHECK(starts(lowered("x' = -x\ninit x = x\n"), "error 2:10 the initial value of x can't use the variable x; use a const or a number"));
+  CHECK(starts(lowered("fun f(u) = u\nx' = -x\ninit x = f(1)\n"), "error 3:10 the initial value of x can't call the function f; use a const or a number"));
+  CHECK(starts(lowered("x' = -x\ninit x = delay(x, 1)\n"), "error 2:16 the initial value of x can't use the variable x"));
+  CHECK(starts(lowered("par a = ran(1)\nx' = a\n"), "error 1:9 the value of parameter a can't call ran"));
+  CHECK_STR(lowered("x' = -x\ninit x = ran(2)\n").c_str(), "x'=(-x)");
+  CHECK(starts(lowered("x' = -x\ninit x = max(1)\n"), "error 2:10 max takes 2 arguments, not 1"));
+  CHECK(starts(lowered("x' = -x\ninit x = normal(0, 1)\n"), "error 2:10 the initial value of x can't call normal"));
   CHECK_STR(lowered("x' = -delay(x, 1)\nhistory x = cos(t)\n").c_str(), "x'=(-delay(x,1))|x(0)=cos(t)");
   /* an event's formula whole: the builder takes its actions one by one,
      so == needs no rewriting (W79) */
@@ -487,21 +498,21 @@ int main(void)
   CHECK_STR(lowered("x' = w\nw = x^2\naux w = w\n").c_str(), "x'=w|w=x^2|aux w=w");
   CHECK_STR(lowered("x' = 1\ntable f exp(-abs(t)), n=51, lo=-25, hi=25\n").c_str(), "x'=1|table f % 51 -25 25 exp((-abs(t)))");
   /* W318: a set's keys are parameters and states, its settings are under options: */
-  CHECK_STR(lowered("x' = 1\nset s { x: -1, options: { integration: { method: stiff, dt: 0.1 } } }\n").c_str(),
+  CHECK_STR(lowered("x' = 1\nset \"s\" { x: -1, options: { integration: { method: stiff, dt: 0.1 } } }\n").c_str(),
             "x'=1|set s {x=-1} integration.method=stiff integration.dt=0.1");
-  CHECK_STR(lowered("par dt = 2\nx' = 1\nset s { dt: 3, options: { integration: { dt: 0.05 } } }\n").c_str(),
+  CHECK_STR(lowered("par dt = 2\nx' = 1\nset \"s\" { dt: 3, options: { integration: { dt: 0.05 } } }\n").c_str(),
             "par dt=2|x'=1|set s {dt=3} integration.dt=0.05");
-  CHECK(starts(lowered("x' = 1\nset s { x: -1, method: stiff }\n"),
-               "error 2:16 `method` is a setting: a set holds it under `options: { integration: { method: ... } }`"));
-  CHECK(starts(lowered("x' = 1\nset s { zz: 1 }\n"), "error 2:9 a set's keys are the model's parameters and states, and `zz` is neither"));
-  CHECK(starts(lowered("x' = 1\nset s { options: { nosuch: { dt: 1 } } }\n"), "error 2:20 `nosuch` is not a group of options"));
-  CHECK(starts(lowered("x' = 1\nset s { options: { output: { quiet: 1 } } }\n"), "error 2:20 a set does not hold the group `output`"));
-  CHECK(starts(lowered("x' = 1\nset s { options: { diagram: { autovar: x } } }\n"), "error 2:20 a set does not hold the group `diagram`"));
-  CHECK(starts(lowered("x' = 1\nset s { options: { plot: { colormap: hot } } }\n"), "error 2:28 a set does not hold `colormap`"));
-  CHECK(starts(lowered("x' = 1\nset s { options: { integration: { nosuch: 1 } } }\n"), "error 2:35 `nosuch` is not an option"));
-  CHECK(starts(lowered("x' = 1\nset s { options: { plot: { dt: 1 } } }\n"), "error 2:28 `dt` is in the group integration, not plot"));
-  CHECK(starts(lowered("x' = 1\nset s { x: 1 }\nset s { x: 2 }\n"), "error 3:1 the set `s` is defined twice: at m.odex:2:1 and at m.odex:3:1"));
-  CHECK(starts(lowered("x' = 1\nset s { x: a }\n"), "error 2:12 a set's value for `x` is a number, not `a`"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { x: -1, method: stiff }\n"),
+               "error 2:18 `method` is a setting: a set holds it under `options: { integration: { method: ... } }`"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { zz: 1 }\n"), "error 2:11 a set's keys are the model's parameters and states, and `zz` is neither"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { options: { nosuch: { dt: 1 } } }\n"), "error 2:22 `nosuch` is not a group of options"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { options: { output: { quiet: 1 } } }\n"), "error 2:22 a set does not hold the group `output`"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { options: { diagram: { autovar: x } } }\n"), "error 2:22 a set does not hold the group `diagram`"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { options: { plot: { colormap: hot } } }\n"), "error 2:30 a set does not hold `colormap`"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { options: { integration: { nosuch: 1 } } }\n"), "error 2:37 `nosuch` is not an option"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { options: { plot: { dt: 1 } } }\n"), "error 2:30 `dt` is in the group integration, not plot"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { x: 1 }\nset \"s\" { x: 2 }\n"), "error 3:1 the set `s` is defined twice: at m.odex:2:1 and at m.odex:3:1"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { x: a }\n"), "error 2:14 a set's value for `x` is a number, not `a`"));
   CHECK_STR(lowered("x' = 1\noptions { integration: { total_time: 20, method: stiff } }\n").c_str(), "x'=1|@ total_time=20,method=stiff");
   CHECK_STR(lowered("markov m 2 {0} {a} {1} {0}\npar a=1\n").c_str(), "markov m 2|{0} {a} |{1} {0} |par a=1");
   CHECK_STR(lowered("x' = 1\n\"{a=1} a comment\"\n").c_str(), "x'=1|\" {a=1} a comment");
@@ -535,13 +546,13 @@ int main(void)
   CHECK(starts(lowered("x' = sin\n"), "error 1:6 `sin` is a built-in function: call it"));
   CHECK(starts(lowered("par a = 1\nfun g(v) { let a = v  return a }\nx' = g(x)\n"), "error 2:12 fun g cannot set `a`, a parameter"));
   CHECK(starts(lowered("par a = 1\ninit a = 2\nx' = 1\n"), "error 2:6 `a` is not a variable"));
-  CHECK(starts(lowered("par a = x\nx' = 1\n"), "error 1:9 a parameter's value is a number, not `x`"));
+  CHECK(starts(lowered("par a = x\nx' = 1\n"), "error 1:9 the value of parameter a can't use the variable x; use a const or a number"));
   CHECK(starts(lowered("x' = delay(2*x, 1)\n"), "error 1:12 delay's first argument is the name of a variable"));
   CHECK(starts(lowered("aux z = volterra(x)\nx' = 1\n"), "error 1:9 volterra(...) belongs in"));
   CHECK(starts(lowered("x' = x'\n"), "error 1:6 `x'` cannot be read here"));
   CHECK(starts(lowered("x' = x[1]\n"), "error 1:6 the name `x1` is not declared"));
   CHECK(starts(lowered("x' = sum(i', from=0)\n"), "error 1:6 sum needs from= and to="));
-  CHECK(starts(lowered("x' = 1\nset s { a: x+1 }\n"), "error 2:13 expected `}` to close the block, found `+`"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { a: x+1 }\n"), "error 2:15 expected `}` to close the block, found `+`"));
   CHECK(starts(lowered("x' = 1\naux flag = near(x)\n"), "error 2:12 near takes 2 or 3 arguments, not 1"));
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, 1, 1)\n"), "error 2:12 near takes 2 or 3 arguments, not 4"));
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, 1e-6)\n"), "error 2:23 near's third argument must be named tol="));
@@ -603,7 +614,7 @@ int main(void)
   CHECK(starts(lowered("x[j]' = y[j] for j in 1..2\n"), "error 1:9 the name `y1` is not declared (where j = 1)"));
   CHECK(starts(lowered("x[j]' = x[j-1] for j in 0..1\n"), "error 1:11 the index of x `j-1` is -1: an element's index is 0 or more (where j = 0)"));
   CHECK(starts(lowered("par j = 1\nx[j]' = 1 for j in 1..2\n"), "error 2:15 the index `j` is a parameter, declared at 1:5"));
-  CHECK(starts(lowered("par n = 3\nx[j]' = 1 for j in 1..n\n"), "error 2:23 the range's last index reads numbers, the consts before it"));
+  CHECK(starts(lowered("par n = 3\nx[j]' = 1 for j in 1..n\n"), "error 2:23 the range's last index can't use `n`"));
   CHECK(starts(lowered("x[j]' = 1 for j in 1..2.5\n"), "error 1:23 the range's last index `2.5` is 2.5, not a whole number"));
   CHECK(starts(lowered("x[j]' = 1 for j in 3..1\n"), "error 1:20 the range 3..1 is empty"));
   CHECK(starts(lowered("x[j]' = 1 for j in 1..3 by 0\n"), "error 1:28 the range's step is a whole number above 0, not 0"));
@@ -613,8 +624,8 @@ int main(void)
 
   /* const: fixed at load, from numbers and the consts before it */
   CHECK_STR(lowered("const n = 2, m = n*3+1\nx' = m\n").c_str(), "const n=2|const m=7|x'=m");
-  CHECK(starts(lowered("par a = 1\nconst n = a\nx' = n\n"), "error 2:11 the value of const n reads numbers, the consts before it"));
-  CHECK(starts(lowered("const n = m\nconst m = 1\nx' = n\n"), "error 1:11 the value of const n reads numbers, the consts before it"));
+  CHECK(starts(lowered("par a = 1\nconst n = a\nx' = n\n"), "error 2:11 the value of const n can't use `a`"));
+  CHECK(starts(lowered("const n = m\nconst m = 1\nx' = n\n"), "error 1:11 the value of const n can't use `m`"));
   CHECK(starts(lowered("const n = 1\nx' = 1\nevent 1 t, n = 2\n"), "error 3:12 an event sets a variable"));
 
   /* derived quantities (docs/odex.md question 9): a fixed quantity that
@@ -752,7 +763,7 @@ int main(void)
     const auto result = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
-    CHECK(text.find("set trial { dt: 0.1, x: 3, options: { integration: { total_time: 5 }, plot: { xlo: -3 } } }") != std::string::npos);
+    CHECK(text.find("set \"trial\" { dt: 0.1, x: 3, options: { integration: { total_time: 5 }, plot: { xlo: -3 } } }") != std::string::npos);
     if (result) CHECK(model_error(text.c_str()).empty());
   }
 
@@ -966,6 +977,32 @@ int main(void)
     CHECK(xpp::client_session().sliders.empty());
     CHECK(!model_error("x'=0\noptions { interface: { sliders: [ { name: x, low: 2, high: 1 } ] } }\n").empty());
     CHECK(!model_error("x'=0\noptions { interface: { sliders: [ { name: x, low: 0, high: 1, extra: 1 } ] } }\n").empty());
+  }
+
+  /* W490: a model's tables, functions, networks, sets and events have no limit (they were 50, 50, 50, 500, 2000) */
+  {
+    std::string big = "par a = 1\nx[j]' = -x[j] for j in 0..2\ninit x[j] = 1 for j in 0..2\ntable w t, n=3, lo=0, hi=2\n";
+    const int many = 600;
+    for (int i = 0; i < 60; i++) {
+      big += xpp::format("table t{} t*{}, n=3, lo=0, hi=2\n", i, i + 1);
+      big += xpp::format("fun f{}(u) = u+{}\n", i, i);
+      big += xpp::format("network n{} = conv(even, 3, 1, w, x0)\n", i);
+    }
+    for (int i = 0; i < many; i++) big += xpp::format("set \"s{}\" {{ a: {} }}\n", i, i);
+    for (int i = 0; i < 2100; i++) big += xpp::format("event 1 x0 > {}, a = {}\n", i + 10, i);
+    big += "aux last_table = t59(1)+f59(1)+n59(0)\n";
+    CHECK(load_text(big.c_str()) == 1);
+    xpp::Session &s = xpp::client_session();
+    CHECK(s.ntable == 61 && s.model().nfun == 60 && s.model().nnetwork == 60);
+    CHECK(s.model().intern_sets.size() == static_cast<std::size_t>(many) && s.model().flag_count() == 2100);
+  }
+  /* a network's tables hold the values it reads: a convolution of one tap each side reads three weights */
+  {
+    put("build/test_odex_model.odex", "table w t, n=2, lo=0, hi=1\nx[j]' = -x[j] for j in 0..2\ninit x[j] = 1 for j in 0..2\nnetwork k = conv(even, 3, 1, w, x0)\n");
+    std::string arg0 = "test_odex", path = "build/test_odex_model.odex";
+    char *argv[] = {arg0.data(), path.data(), nullptr};
+    const auto loaded = xpp::load_model(2, argv, 1);
+    CHECK(!loaded && loaded.error().place.line == 4 && loaded.error().what == "In k, W has 2 values; 3 are needed");
   }
 
   TEST_REPORT("odex: grammar");

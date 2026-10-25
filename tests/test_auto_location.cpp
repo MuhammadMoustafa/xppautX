@@ -206,7 +206,7 @@ int main()
                         &norm, std::span(&state, 1), std::span(&state, 1), std::span(&state, 1), std::span(&state, 1));
         } catch (const xpp::AutoFailed &e) { error = e.error.what; }
         CHECK(error == "Branch 1 point 2: nonfinite AUTO solution");
-        CHECK(s.diagram.points.size() == count && s.auto_state.diag_flag == 0);
+        CHECK(s.diagram.points.size() == count && !s.auto_state.diag_flag);
     }
     lib.fp9 = nullptr;
     // Two UZ tests cross in the same step on u=p. The farther mark is

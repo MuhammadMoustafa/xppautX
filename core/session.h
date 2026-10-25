@@ -201,14 +201,14 @@ struct Session {
 
   /* what each network computed last and its work space (simplenet.cpp;
      their definitions are Model::networks) */
-  std::array<NetworkValues,MAXNET> networks;
+  std::vector<NetworkValues> networks; /* one per Model network (add_net_name) */
 
   /* the tables (tabular.cpp), ntable of them: a function table's values
      are computed again when a parameter it reads changes (autoeval,
      redo_all_fun_tables), and a file table can be read again from the
      Numerics menu */
   int ntable=0;
-  std::array<TABULAR,MAX_TAB> tables;
+  std::vector<TABULAR> tables; /* set_table_name makes room for each */
 
   /* the boundary conditions in use, one per ODE: the Model's, copied at
      the end of a load, then changed by a `set` or a .set

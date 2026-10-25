@@ -236,7 +236,7 @@ def section_diagram():
                                      'form': lambda e: {'ok': 1, 'values': e['values']}})
     dg.apply(evs)
     check('Axes/hI-lo draws the diagram again at once: every point, the new plot type',
-          'axes' in diagram_ops(evs) and len(dg.pts) == n and dg.axes['plot'] == 2,
+          'axes' in diagram_ops(evs) and len(dg.pts) == n and dg.axes['plot'] == 'maximum_and_minimum',
           '%s, %d points of %d' % (diagram_ops(evs), len(dg.pts), n))
     s.send(cmd='key', win='auto', key='a')
     evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'f'}})
@@ -1111,7 +1111,7 @@ def section_sessiondiagram():
     # W50: a second view of the diagram, the period, the first active again: an .snapx keeps its views
     s.send(cmd='auto', op='view', new=1)
     evs += s.collect(is_idle)[0]
-    s.send(cmd='auto', op='set', axes={'view': 1, 'plot': 3, 'fit': True})
+    s.send(cmd='auto', op='set', axes={'view': 1, 'plot': 'period', 'fit': True})
     evs += s.collect(is_idle)[0]
     s.send(cmd='auto', op='view', active=0)
     evs += s.collect(is_idle)[0]
@@ -1132,7 +1132,7 @@ def section_sessiondiagram():
           '%d rows' % len(rows))
     check('sessiondiagram: solutions.s holds the orbits', len(got.get('auto/solutions.s', '')) > 1000, str(len(got.get('auto/solutions.s', ''))))
     check('sessiondiagram: views.txt holds the two views of the diagram, the first active',
-          re.fullmatch(r'view 2 V iapp \S+( \S+){6}\nview 3 V iapp \S+( \S+){6}\nactive 0\n', got.get('auto/views.txt', '')) is not None,
+          re.fullmatch(r'view maximum_and_minimum V iapp \S+( \S+){6}\nview period V iapp \S+( \S+){6}\nactive 0\n', got.get('auto/views.txt', '')) is not None,
           got.get('auto/views.txt', '')[:300])
     d1 = os.path.join(scratch, 'd1.snapx')
     if os.path.exists(os.path.join(s.run, 'd1.snapx')):
@@ -1155,7 +1155,7 @@ def section_sessiondiagram():
     dg2 = Diagram().apply(evs).pts
     v1 = Diagram(1).apply(evs)
     check('sessiondiagram: Load diagram in a new server gives its two views, the second the period, its points exactly',
-          view1.pts and v1.pts == view1.pts and v1.axes and v1.axes['plot'] == 3 and v1.axes['ylabel'] == 'Period',
+          view1.pts and v1.pts == view1.pts and v1.axes and v1.axes['plot'] == 'period' and v1.axes['ylabel'] == 'Period',
           '%d vs %d points, %s' % (len(v1.pts), len(view1.pts), v1.axes))
     check('sessiondiagram: Load diagram in a new server gives the same diagram, exactly',
           dg1 and dg2 == dg1 and 'left as they were' not in messages(evs), '%d vs %d points, first difference %s' % (
@@ -1612,7 +1612,7 @@ def section_names():
     au = autosettings(evs)
     check("names: AUTO's parameters are the long names", au is not None
           and 'pars' not in au and au['axes']['par1'].upper()==LONG_PAR.upper(), str(au)[:300])
-    s.send(cmd='auto', op='set', axes={'plot': 1, 'var': LONG_V, 'par1': LONG_B})
+    s.send(cmd='auto', op='set', axes={'plot': 'norm', 'var': LONG_V, 'par1': LONG_B})
     evs, _ = s.collect(is_idle)
     au = autosettings(evs)
     errs = [e for e in evs if e.get('ev') == 'message']
@@ -1624,7 +1624,7 @@ def section_names():
     au=autosettings(evs)
     check('W339: both axes accept complete long model parameter names', au is not None
           and au['axes']['par1'].upper()==LONG_B.upper() and au['axes']['par2'].upper()==LONG_PAR.upper())
-    s.send(cmd='auto', op='set', axes={'plot': 1, 'var': LONG_V, 'par1': LONG_PAR})
+    s.send(cmd='auto', op='set', axes={'plot': 'norm', 'var': LONG_V, 'par1': LONG_PAR})
     s.collect(is_idle)
 
     s.send(cmd='key', key='i')

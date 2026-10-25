@@ -1,7 +1,6 @@
 
 #pragma once
 
-#include "xpplim.h" /* MAX_TAB */
 #include "xpp_error.h"
 
 #include <string>
@@ -23,7 +22,7 @@ struct TABULAR {
   double xlo=0.0,xhi=0.0,dx=0.0;
   double *y=nullptr;
   std::vector<double> y_storage;
-  int n=0,flag=0,interp=0,autoeval=0;
+  int n=0,flag=0,interp=0,autoeval=1;
 /* flag=0 if virgin array, flag=1 if already allocated; flag=2 for function
    interp=0 for normal interpolation, interp=1 for 'step'
    interp=2 for cubic spline */
@@ -33,7 +32,7 @@ struct TABULAR {
 
 /* Tables return why they failed; the command (or the model load) shows it. */
 
-int get_lookup_len(Session &s, int i);
+int get_lookup_len(const Session &s, int i);
 /* the Session s's function tables again, after a parameter changed: the
    first failure, the others still done */
 Result<> redo_all_fun_tables(Session &s);

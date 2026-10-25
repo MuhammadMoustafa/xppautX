@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <functional>
 #include "odesol2.h"
+#include "solver.h"
 #include "jacobian.h"
 #include "session.h"
 #include <stdlib.h> 
@@ -153,8 +154,8 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
       xpp::sgefa(jac,neq,neq,ipivot,&info);
       if(info!=-1)
 	{
-	 
-	  return(-1);
+	  s.solver_work.stop={*t,dt,info,iter};
+	  return(NEWTON_SINGULAR);
 	}
       xpp::sgesl(jac,neq,neq,ipivot,errvec);
       }
@@ -167,7 +168,10 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
 	return(0);
       }
       iter++;
-      if(iter>s.numerics.max_eul_iter)return(-2);
+      if(iter>s.numerics.max_eul_iter){
+	s.solver_work.stop={*t,dt,xpp::largest_magnitude(errvec,neq),iter};
+	return(NEWTON_NO_CONVERGENCE);
+      }
     }
 }
 
@@ -505,6 +509,10 @@ int *istart,int n,double *work,int *ierr)
        err=err*(absh/6);
        if(err>rtol){
 	 if(absh<=hmin){
+	   /* the variable whose error is the largest (f1 is free: the step ends) */
+	   for(i=0;i<n;i++)
+	     f1[i]=fabs(k1[i]-2*k2[i]+k3[i])/std::max(thresh,std::max(fabs(ynew[i]),fabs(y[i])));
+	   s.solver_work.stop={t,absh,xpp::largest_magnitude(f1,n),0};
            *ierr=-1;
 	   return(-1);
 	 }

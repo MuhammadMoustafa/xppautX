@@ -18,6 +18,7 @@
 
 #include <cmath>
 #include <string>
+#include <vector>
 
 namespace xpp {
 
@@ -41,22 +42,35 @@ enum AutoStopWhy {
     AUTO_STOP_N
 };
 
+/* a "No convergence" NOTE: which one (an AUTO_STOP_NOCONV_*), the step
+   size then, and the settings that gave up: Dsmin and the Newton
+   iterations' ITNW, EPSL, EPSU (0 and NAN where a solver has none); the
+   last linear solve's smallest pivot magnitude (xpp::ge; NAN: not known),
+   which says a singular system when below auto_rsmall */
+struct AutoNoConvergence {
+    int why = AUTO_STOP_NOCONV;
+    double ds = NAN, dsmin = NAN;
+    long itnw = 0;
+    double epsl = NAN, epsu = NAN;
+    double pivot = NAN;
+};
+
 /* what a Session's AUTO runs recorded (AutoState::stop) */
 struct AutoStop {
-    /* the last "No convergence" NOTE: which one, the step size then and Dsmin */
-    int noconv_why = AUTO_STOP_NOCONV;
-    double noconv_ds = NAN, noconv_dsmin = NAN;
+    /* the last "No convergence" NOTE */
+    AutoNoConvergence noconv;
     /* the last branch end: why, where, what reached which limit, in words */
     int last_why = AUTO_STOP_NONE;
     long last_br = 0, last_pt = 0;
     double last_value = NAN, last_limit = NAN;
     std::string last_text;
+    /* what the run lost or could not trust (auto_stop_note), in words */
+    std::vector<std::string> notes;
 };
 
-/* a "No convergence" NOTE: which one (an AUTO_STOP_NOCONV_*), the step
-   size then and Dsmin; the branch end that follows says "no convergence"
-   in its words */
-void auto_stop_noconv(AutoStop &st, int why, double ds, double dsmin);
+/* a "No convergence" NOTE; the branch end that follows says "no
+   convergence" in its words, with the settings */
+void auto_stop_noconv(AutoStop &st, const AutoNoConvergence &noconv);
 
 /* the point at which stplae/stplbv end a branch, and what they saw */
 struct AutoStopAt {
@@ -75,6 +89,12 @@ struct AutoStopAt {
    points; a solver that gave up, in the words of st's last NOTE. Pure */
 int auto_stop_why(const AutoStop &st, const AutoStopAt *at);
 
+
+/* a point the session s's run lost or computed unreliably (what fort.9's
+   NOTEs say: a special point not located, inaccurate Floquet multipliers):
+   kept for the autoinfo event's "notes" until the next run starts, and
+   written in AUTO's Output (a WARN where AUTO's Output is not shown) */
+void auto_stop_note(Session &s, std::string text);
 
 /* a run starts, or AUTO's window is new: no reason until a branch ends */
 void auto_stop_clear(AutoStop &st);

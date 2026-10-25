@@ -94,7 +94,7 @@ DenseEvent dense_event(Session &s, double from, double until, double step_from, 
       event={}; event.found=true; event.time=time;
     }
     if(fabs(time-event.time)<=coincidence){
-      if(flag>=0)event.flags.at(static_cast<std::size_t>(event.flag_count++))=flag;
+      if(flag>=0){event.flags.push_back(flag);event.flag_count++;}
       event.section=event.section||section;
       if(bound>=0)event.bound_variable=bound;
     }
@@ -1178,8 +1178,7 @@ void do_init_data(xpp::Session &s, int com)
     }
     break;
   }
-if(usual_integrate_stuff(s,x)!=0&&!program.interactive)
-  xpp::log(XPP_LOG_WARN, " Integration not completed -- will write anyway...\n");
+usual_integrate_stuff(s,x);
 s.numerics.delta_t=old_dt;
 }	
 void run_now(xpp::Session &s)
@@ -1631,6 +1630,7 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
   xpp::Computation computing; /* what Escape stops (xpp_job.h) */
   const DaeRun dae_run(s); /* the run follows one branch of a DAE's solutions */
   xpp::Solver &solver=*s.integrator.solver;
+  if(auto limits=xpp::check_step_limits(s,solver.info(),dt,tend);!limits)return std::unexpected(limits.error());
 
  /* an added column (add_stor_col) plotted live has index above neq and no live value: it reads 0 */
  const std::size_t neq_size=static_cast<std::size_t>(s.model().neq);
@@ -1708,11 +1708,6 @@ if(program.interactive) cwidth=get_command_width();
 	   if(!solver.traits().fixed_step){
 	     /* on to the next output time, in steps of the method's own */
 	     tout=tzero+dt*(icount+1);
-	     if(!solver.traits().dense_output&&fabs(dt)<fabs(s.numerics.min_step)){
-	       s.integrator.last_time=*t;
-	       solver.finish();
-	       return(1);
-	     }
 	     mswtch(s,s.solver_work.xpv.x,x);
 	     xpp::Result<> r=solver.advance({.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=start,
 						 .tout=tout,.hguess=&hguess,.sections=true});

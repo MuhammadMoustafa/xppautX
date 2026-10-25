@@ -124,13 +124,28 @@ grammar:
 - State variable: `x' = EXPR` (the only derivative spelling; `.ode`'s
   `dx/dt=`, `x(t+1)=` and `!x=` are covered by `--convert`, not by new
   `.odex` syntax, since a fresh `.odex` model always uses `x'=`).
-- `par NAME = NUMBER, NAME = NUMBER, ...` — one or more parameters, each
-  a number (W80: `par` takes numbers only; a quantity worked out from
-  parameters is `d = expr`, below).
-- `const NAME = EXPR, ...` — a constant fixed at load (W80, `.ode`'s
-  `number`): its value an expression of numbers and the consts before
-  it, usable anywhere a number is (formulas, a range's ends and step), not
-  in the values panel, never set.
+- `par NAME = VALUE, NAME = VALUE, ...` — one or more parameters, each a
+  fixed value (below: `par tau = 1/30` is fine, stored as its number; a
+  quantity worked out from other parameters is `d = expr`, below).
+- `const NAME = VALUE, ...` — a constant fixed at load (W80, `.ode`'s
+  `number`): its value a fixed value, usable anywhere a number is
+  (formulas, a range's ends and step), not in the values panel, never set.
+
+Fixed values (W490, decision 9 of
+[docs/studies/w381-choices.md](studies/w381-choices.md)): `par`, `const` and
+`init` take one kind of value, read by one function (`fixed_value`,
+core/odex_load.cpp), the same one that reads a range's ends and an
+element's index: numbers, `+ - * / mod ^` and a sign, `pi`, consts (a const
+array's element `c[2]` too), the pure built-in functions of those (`sin`,
+`exp`, `max`, `atan2`, `besselj`, ...: every one the evaluator calls by
+name but `ran`, `normal`, `poisson`, `delay`, `shift`, `sum`), and the
+range's index. `init` alone may call `ran(x)`, drawn once when the model is
+set up. A parameter, a state, an aux or fixed variable or a user function
+is an error at its line, in the words `the initial value of v can't use the
+parameter vrest; use a const or a number`: a value worked out from
+parameters is `d = expr`. A `par` or `init` value is kept as the number it
+works out to, and the model writer (File > Save values) leaves the text
+you wrote (`1/30`) alone while the value is unchanged.
 - `NAME = EXPR` — a quantity: always the formula's current value. When the
   formula reads only parameters, consts, pure functions (not `ran`,
   `normal`, `poisson`, nor a user function calling one) and the
@@ -138,10 +153,10 @@ grammar:
   changes (a slider, an event setting a parameter, each AUTO evaluation),
   as `.ode`'s `!` does, so the numbers are identical; otherwise at every
   evaluation (question 9).
-- `init NAME = EXPR, ...` — initial conditions, evaluated once at load
-  with every parameter in scope (fixing the `.ode` quirk in
-  docs/odex-quirks.md where a parameter read into `init`/`x(0)=` was
-  measured as 0). A state without `init` starts at 0; one warning per load
+- `init NAME = VALUE, ...` — initial conditions: a fixed value, worked
+  out at load (a parameter is no part of one: `init` cannot read it, the
+  `.ode` quirk in docs/odex-quirks.md where a parameter read into
+  `init`/`x(0)=` was measured as 0 is an error here). A state without `init` starts at 0; one warning per load
   lists those states at their equation files and lines (an array once with
   its missing range). Conversion writes explicit zero initial values for
   every state the `.ode` left unspecified (W313, [#372](https://github.com/MuhammadMoustafa/xppautX/issues/372)).
@@ -246,14 +261,14 @@ grammar:
   [#317](https://github.com/MuhammadMoustafa/xppautX/issues/317); the
   manual's "Numerical parameters"). `neartol` (near's tolerance) is
   an equilibria key.
-- `set NAME { key: value, ..., options: { group: { key: value } } }` — a named set. Its top-level keys are
+- `set "NAME" { key: value, ..., options: { group: { key: value } } }` — a named set. Its name is the user's text, so it is in double quotes even without spaces (`set "hopf" { ... }`; letters, digits and `_`, starting with a letter); a bare name is an error at its line. Its top-level keys are
   parameters and states only (`g: 9.81`, `v: -0.3`), each a number. Settings go only under `options:`, in the options
   block's shape and from the groups a set may hold: `integration`, `poincare`, `equilibria`, `continuation`, `plot`,
   `sweep` and `analysis` (each a graph's or a run's own configuration; `diagram`, `export`, `interface` and `output`
   are the model's or the session's as a whole, and so are `simplot`, `multiwin` and `colormap`). A setting at the top
   level, an unknown key or group, or a group or key a set does not hold is an error at its line and column, naming it;
   the whole set is checked when the model loads (values included), so a bad one stops the load. A parameter named like a
-  setting (`par dt = 2`) is unambiguous: `set a { dt: 0.1, options: { integration: { dt: 0.05 } } }` is one parameter
+  setting (`par dt = 2`) is unambiguous: `set "a" { dt: 0.1, options: { integration: { dt: 0.05 } } }` is one parameter
   and one setting. A set's name is its own, apart from the model's names; two sets of one name, an imported file's
   included, are an error naming both places. `--convert` writes XPPAUT's flat set by XPPAUT's precedence (a model name
   first) and nests the rest under `options:`.
@@ -308,7 +323,15 @@ numerics, the delays, the boundary conditions, the active window's graphics),
 in the options block's syntax: `key: value` entries separated by commas,
 groups `{ ... }` nested, a trailing comma allowed, a bare one-token value
 or a value in double quotes (`\"` and `\` the only escapes), `#` and `/* */`
-comments. The one addition is a list, `[ a, b, c ]`, of values or of groups
+comments. **User text is quoted, a choice never** (W490): whatever the user
+names or writes (a set's name, a window's or a curve's name, a key, a label, a
+title, a formula, a path) is a string in double quotes even when it is one word,
+and the reader refuses it bare (`` `name` takes text in double quotes: write "hopf" ``);
+a choice, a number, `true` or `false` and a name of the model's own
+(`method: runge_kutta`, `xp: v`) stay bare words, and one in quotes is
+refused too (`` `method` takes a word, never in quotes ``). A reference to a
+column a user named with more than letters and digits is the one place a
+name may be either. The one addition is a list, `[ a, b, c ]`, of values or of groups
 (a window's curves). The file is the entries of one unbraced top-level group,
 in any order; it is read by the `.odex` reader's own tokenizer and block
 grammar (core/odex_parse.cpp), not a second parser, and loaded all or
@@ -454,9 +477,9 @@ element      = name , [ "[" , expr , "]" ] ;   (* x or x[e] *)
 
 ode_decl     = name , "'" , "=" , expr | name , "[" , expr , "]" , "'" , "=" , expr ;
 fixed_decl   = element , "=" , expr ;
-par_decl     = "par" , element , "=" , [ "-" ] , number , { "," , element , "=" , [ "-" ] , number } ;
-const_decl   = "const" , name_init_list ;
-init_decl    = "init" , name_init_list ;
+par_decl     = "par" , name_init_list ;      (* each value a fixed value *)
+const_decl   = "const" , name_init_list ;    (* likewise *)
+init_decl    = "init" , name_init_list ;     (* likewise; ran(x) too *)
 aux_decl     = "aux" , name_init_list ;
 name_init_list = element , "=" , expr , { "," , element , "=" , expr } ;
 
@@ -478,7 +501,7 @@ entry        = name , ":" , ( bare_word | string ) ;
 (* a string for a path or a text, a bare word (one token: letters, digits,
    _ . + -) for any other value; the keys and values are read here only *)
 
-set_decl     = "set" , name , "{" , [ set_entry , { "," , set_entry } , [ "," ] ] , "}" ;
+set_decl     = "set" , string , "{" , [ set_entry , { "," , set_entry } , [ "," ] ] , "}" ;
 set_entry    = name , ":" , [ "-" ] , ( number | name ) ;
 table_decl   = "table" , name , ( expr | filename ) ;
 markov_decl  = "markov" , name , integer , { transition_row } ;
@@ -732,7 +755,7 @@ from):
    writes arrays back as arrays.
 9. **Constants and derived quantities** (decided, maintainer, 2026-09-28;
    W80): `const n = 20` is fixed at load (.ode's `number`). There is no
-   `!` and `par` takes numbers only: `d = expr` always means the
+   `!`: `d = expr` always means the
    formula's current value, and when it reads only parameters, consts
    and pure functions (not `ran`, `normal`, `poisson` or a function
    calling one) the loader computes it only when a parameter changes (a

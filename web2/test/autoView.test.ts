@@ -16,7 +16,7 @@ import {logEntries} from '../src/store/log';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const act = (s: AppState, action: object) => reduce(s, {type: 'diagram', action: action as never});
-const axes = {xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4, x0: 70, y0: 26, wid: 603, hgt: 300, plot: 2,
+const axes = {xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4, x0: 70, y0: 26, wid: 603, hgt: 300, plot: 'maximum_and_minimum' as const,
   xlabel: 'iapp', ylabel: 'V'};
 const steady: DiagramRun[] = [
   {br: 1, pt: 1, ty: 2, stable: false, periodic: false, d: 1, c: 'foreground', lw: 1, jac: 'difference', new: 1, x: [0.05, 0.1, 0.2], y: [-0.44, -0.4, -0.3], lab: [[0, 1, 'EP']]},
@@ -138,9 +138,9 @@ test('Clear hides the branches so far; new ones draw alone; the key shows them a
 });
 
 test('the axis dialog: the names shown, the spinner step, the range typed', () => {
-  assert.deepEqual(axesNames({...axes, plot: 11, ylabel: 'V_bar'}), {par1: 'iapp', yvar: 'V', par2: ''});
-  assert.deepEqual(axesNames({...axes, plot: 4, ylabel: 'phi'}), {par1: 'iapp', yvar: '', par2: 'phi'});
-  assert.deepEqual([yNeeds(0), yNeeds(2), yNeeds(1), yNeeds(4)], ['var', 'var', null, 'par2']);
+  assert.deepEqual(axesNames({...axes, plot: 'average', ylabel: 'V_bar'}), {par1: 'iapp', yvar: 'V', par2: ''});
+  assert.deepEqual(axesNames({...axes, plot: 'two_parameter', ylabel: 'phi'}), {par1: 'iapp', yvar: '', par2: 'phi'});
+  assert.deepEqual([yNeeds('maximum'), yNeeds('maximum_and_minimum'), yNeeds('norm'), yNeeds('two_parameter')], ['var', 'var', null, 'par2']);
   assert.deepEqual([spinStep(18000), spinStep(0.7), spinStep(0)], [1000, 0.01, 1]);
   assert.deepEqual(typedRange('-1', '2'), {min: -1, max: 2});
   assert.equal(typedRange('2', '1'), null);

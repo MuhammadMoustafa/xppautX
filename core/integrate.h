@@ -82,7 +82,7 @@ struct DenseEvent {
   double time=0;
   bool found=false, section=false;
   int bound_variable=-1, flag_count=0;
-  std::array<int,MAXFLAG> flags{};
+  std::vector<int> flags; /* the global flags that fire, flag_count of them */
 };
 DenseEvent dense_event(Session &s, double from, double until, double step_from, double step_until,
                       const std::function<void(double,std::span<double>)> &state,

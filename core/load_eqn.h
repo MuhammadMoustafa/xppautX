@@ -167,9 +167,6 @@ void add_intern_set(Model &m, std::string_view name, std::string_view does,
    entries (the sets and the options of the model before are dropped) */
 void replace_intern_sets(Model &m, const odex::Parsed &parsed);
 void replace_model_options(Model &m, const odex::Parsed &parsed);
-/* the limits the builder keeps that the parser does not (the options a model
-   sets, its sets): a file past them would not load again */
-Result<> check_model_limits(const odex::Parsed &parsed);
 /* all or nothing: every item is checked first, and the first that cannot
    be applied is the error, at where (the set's line in the model), with
    nothing applied. xppaut_names: XPPAUT's words for the options count too

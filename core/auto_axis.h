@@ -14,7 +14,11 @@
    and auto_axis_decode are that boundary and the only place the sum is made.
    The run's own array layout is AutoParameterLayout (auto_state.h). */
 
+#include <array>
+#include <cstddef>
 #include <optional>
+#include <string>
+#include <string_view>
 
 #include "auto_unknowns.h"
 
@@ -35,6 +39,55 @@ struct AutoAxis {
     constexpr bool is_parameter(int k) const { return is_parameter() && index == k; }
     bool operator==(const AutoAxis &) const = default;
 };
+
+/* What a diagram view plots up its side against the first parameter
+   (W381 question 12): a variable's maximum, the norm, the variable's
+   maximum and minimum, the period, a second parameter (a two-parameter
+   view), the frequency, the variable's average. Its name is its word in
+   the protocol and the session files; its label is the name with spaces
+   and a capital first letter. */
+enum class AutoProjection { maximum, norm, maximum_and_minimum, period, two_parameter, frequency, average };
+inline constexpr std::array<std::string_view, 7> auto_projection_names{
+    "maximum", "norm", "maximum_and_minimum", "period", "two_parameter", "frequency", "average"};
+
+constexpr std::string_view auto_projection_name(AutoProjection p)
+{
+    return auto_projection_names[static_cast<std::size_t>(p)];
+}
+
+/* the projection a name names, or none */
+constexpr std::optional<AutoProjection> auto_projection_from_name(std::string_view name)
+{
+    for (std::size_t i = 0; i < auto_projection_names.size(); ++i)
+        if (auto_projection_names[i] == name) return static_cast<AutoProjection>(i);
+    return std::nullopt;
+}
+
+/* why a word is no projection: "\"x\" is not a projection (maximum, norm, ...)" */
+inline std::string auto_projection_unknown(std::string_view word)
+{
+    std::string text = "\"" + std::string(word) + "\" is not a projection (";
+    for (std::size_t i = 0; i < auto_projection_names.size(); ++i)
+        text += (i ? ", " : "") + std::string(auto_projection_names[i]);
+    return text + ")";
+}
+
+/* XPPAUT's Auto.plot number (its .auto file, the Axes menu's item): 0 Hi,
+   1 Norm, 2 hI-lo, 3 Period, 4 Two par, 10 fRequency, 11 Average; read on
+   import only */
+constexpr std::optional<AutoProjection> auto_projection_from_xppaut(long code)
+{
+    switch (code) {
+    case 0: return AutoProjection::maximum;
+    case 1: return AutoProjection::norm;
+    case 2: return AutoProjection::maximum_and_minimum;
+    case 3: return AutoProjection::period;
+    case 4: return AutoProjection::two_parameter;
+    case 10: return AutoProjection::frequency;
+    case 11: return AutoProjection::average;
+    default: return std::nullopt;
+    }
+}
 
 /* the file form of an axis of a model with that many parameters */
 constexpr int auto_axis_encode(AutoAxis a, int model_parameters)

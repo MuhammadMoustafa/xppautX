@@ -244,9 +244,6 @@ bool read_raw_line(LineSource &src, std::string &line)
    then removes its comment before continuation or declaration parsing. */
 void save_line(std::vector<std::string> &source, std::string &line)
 {
-  if (source.size()>=MAXLINES) {
-    model_failed(xpp::format("The model has more than {} lines", MAXLINES));
-  }
   source.push_back(line.substr(0,line.find('\0')));
   const size_t comment=ode_comment_start(line);
   if(comment!=std::string::npos){
@@ -373,11 +370,10 @@ std::vector<std::string> break_up_list(std::string_view rhs)
 */
 int formula_or_number(const char *expr,double *z)
 {
-  std::array<char,40> num{}; /* do_num's 40 bytes */
   int flag,i=0;
   *z=0.0; /* initial it to 0 */
   const std::string form=converted(expr);
-  flag=do_num(form,num.data(),z,&i,0); /* a formula is no error here */
+  flag=do_num(form,z,&i,0); /* a formula is no error here */
   if(i<static_cast<int>(form.size()))flag=1;
   if(flag==0)
     return 0; /* 0 is a number */

@@ -27,6 +27,14 @@ struct SolverWork {
   std::vector<double> state;
   std::vector<double> flag_yold; /* flags.cpp's flag_loop: the state before a step */
   std::vector<int> pivot;        /* the implicit steps' LU pivots (odesol2.cpp, volterra2.cpp), sized once by size_pivots */
+  /* where a method's routine (odesol2.cpp, stiff.cpp, volterra2.cpp) last
+     gave up, for its Solver's error (solver.cpp): the time it reached, the
+     step size it last tried, the variable it failed in (from 0, -1 when it
+     cannot tell) and the iterations it made */
+  struct Stop {
+    double t = 0, h = 0;
+    int variable = -1, iterations = 0;
+  } stop;
   /* the pivots for an n x n factorization: its address, valid until the
      next call with a different n */
   int *size_pivots(int n)

@@ -202,7 +202,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
   const busy = useStore(s => s.computing);
   const grabbing = useStore(s => s.diagram.grabbing);
   const info = useStore(s => s.diagram.info);
-  const stored = useStore(s => (viewOf(s, view).axes?.plot === 4 ? s.diagram.stored : null));
+  const stored = useStore(s => (viewOf(s, view).axes?.plot === 'two_parameter' ? s.diagram.stored : null));
   const pick = useStore(s => (s.diagram.active === view && s.pick?.win === autoWindow(s) && !s.pick.waiting ? s.pick : null));
   const earlier = useStore(s => Math.min(s.diagram.earlier, pointCount(viewOf(s, view).points)));
   const showEarlier = useStore(s => s.diagram.showEarlier);
@@ -257,7 +257,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
         const st = session.store.getState(), at = down;
         down = null;
         if (!at || Math.hypot(e.clientX - at.x, e.clientY - at.y) > 4) return;
-        if (viewOf(st, view).axes?.plot !== 4 || st.diagram.grabbing || st.pick || st.ask || st.busy) return;
+        if (viewOf(st, view).axes?.plot !== 'two_parameter' || st.diagram.grabbing || st.pick || st.ask || st.busy) return;
         const r = area.getBoundingClientRect();
         const d = toData(c.ranges(), {fx: (e.clientX - r.left) / r.width, fy: (e.clientY - r.top) / r.height});
         session.autoPoint(d.x, d.y);

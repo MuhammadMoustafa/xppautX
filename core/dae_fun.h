@@ -28,7 +28,7 @@ struct DaeState {
   std::vector<double> work;
   std::vector<int> iwork;
   int status = 0;
-  std::array<double, MAXDAE> svar_last{};
+  std::vector<double> svar_last; /* each algebraic variable's last solution (init_dae_work sizes it) */
   /* the branch the run in progress follows; none outside a run (DaeRun) */
   std::optional<DaeRunBranch> run;
 };

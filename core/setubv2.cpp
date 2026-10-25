@@ -5,7 +5,6 @@
 #include "session.h"
 #include "xpp_job.h" /* xppautX: cancel */
 
-
 namespace {
 /* This structure contains all of the input data for the setubv routine
    Those values which are arrays and those
@@ -110,7 +109,6 @@ void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
       }
       (*(larg->funi))(larg->iap, larg->rap, larg->ndim, u.data(), uold.data(), larg->icp, prm.data(), larg->jacobian ? 2 : 0, f.data(), dfdu.data(), dfdp.data());
 
-
       ic1 = ic * (larg->ndim);
       // FUNI already supplied the residual before differentiating.
       const integer fa_dim1 = larg->nra;
@@ -171,12 +169,10 @@ void dispatch_mesh(const setubv_parallel_arglist *larg,
 
 void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 {
-  /* System generated locals */
   integer ups_dim1,
     uoldps_dim1, udotps_dim1, upoldp_dim1,
     dbc_dim1, dicd_dim1;
 
-  /* Local variables */
   integer i, j, k, m;
   integer k1;
   integer i1,j1;
@@ -220,7 +216,6 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
       ubc1[i] = ARRAY2D(ups, larg->na, i);
     }
     
-
     (*(larg->bcni))(larg->iap, larg->rap, larg->ndim, larg->par, 
 	    larg->icp, larg->nbc, ubc0.data(), ubc1.data(), fbc.data(), 2, dbc.data());
     for (i = 0; i < larg->nbc; ++i) {
@@ -260,12 +255,10 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 	  uip[i] = ARRAY2D(upoldp, j1 + larg->loop_offset, i1);
 	}
 	
-
 	(*(larg->icni))(larg->iap, larg->rap, larg->ndim, larg->par, 
 		larg->icp, larg->nint, 
 		uic.data(), uio.data(), uid.data(), uip.data(), ficd.data(), 2, dicd.data());
 
-	
 	for (m = 0; m < larg->nint; ++m) {
 	  for (i = 0; i < larg->ndim; ++i) {
 	    k1 = k * larg->ndim + i;
@@ -291,7 +284,6 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
     }
   }
 
-
 }
 
 } // namespace
@@ -304,15 +296,12 @@ setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc
        doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
 {
   iap->lib->assembly.resize(ndim, ncol, nbc, nint, iap->lib->parameter_count);
-  /* Local variables */
   integer i, j, k;
 
-  
   auto &wi = iap->lib->assembly.wi;
   auto &wp = iap->lib->assembly.wp;
   auto &wt = iap->lib->assembly.wt;
 
-  
   /* Initialize to zero. */
   for (i = 0; i < nrc; ++i) {
     fc[i] = 0.;
@@ -378,7 +367,6 @@ setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc
 }
 
 namespace {
-
 
 void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, doublereal *rlcur, 
 	     doublereal *rlold, doublereal rds) {
@@ -485,9 +473,7 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
 
   larg.fc[larg.nrc-1] = rds - rinpr(larg.iap, &(larg.ndim), &(larg.ndxloc), larg.udotps, dups, larg.dtm, larg.thu) - rlsum;
 
-
 }
-
 
 /* Fill in a setubv_parallel_arglist for the individual variables */
 void setubv_parallel_arglist_constructor(integer ndim, integer na, integer ncol, 

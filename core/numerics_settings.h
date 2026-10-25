@@ -1,5 +1,7 @@
 #pragma once
 
+#include <initializer_list>
+
 #include <cstddef>
 #include <string>
 #include <optional>
@@ -71,6 +73,9 @@ bool setting_applies(const Session &s, const OptionRow &row, int method);
 /* s's value of row as text: a number, the method's or a choice's word, a
    variable's name, a name */
 std::string setting_text(const Session &s, const OptionRow &row);
+/* the saved settings keys with s's values, for a message that names what
+   caused it (W480): "min_step = 1e-12, relative_tolerance = 0.001" */
+std::string named_settings(const Session &s, std::initializer_list<std::string_view> keys);
 /* why text is not a value of row for s's model (the rule the Numerics menu,
    `set num` and the @ lines check), nothing when it is; changes nothing */
 std::optional<std::string> setting_problem(Session &s, const OptionRow &row, std::string_view text);

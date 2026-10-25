@@ -1,0 +1,9 @@
+# unbounded_qualrk.odex: a stop case of servercheck's stops section (docs/studies/w480-stops.md):
+# with no state limit the blow-up stops at the method's own step limit
+
+par a=1
+x' = a*x^2
+init x = 1
+options {
+  integration: { method: qualrk, total_time: 2, dt: 0.1, stop_at_limit: false },
+}

@@ -9,8 +9,6 @@
 #include <string>
 #include <string_view>
 
-#define MAXLINES 5000
-
 namespace xpp {
 
 struct Model;   /* model.h */

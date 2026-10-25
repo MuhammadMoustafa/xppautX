@@ -208,6 +208,10 @@ int next_seed(int seed);
 
    Their matrices keep LINPACK's pointer and dimensions (a 2-D layout a
    span would not describe); the solvers call them inside their steps. */
+/* the index of the first of x's n elements (every stride-th) whose
+   magnitude is the largest: LINPACK's isamax, sgefa's pivot search; -1 for
+   none */
+int largest_magnitude(const double *x, int n, int stride = 1);
 void sgefa(double *a, int lda, int n, int *ipvt, int *info);
 void sgesl(double *a, int lda, int n, int *ipvt, double *b);
 int sgefa_det_sign(const double *a, int lda, int n, const int *ipvt);

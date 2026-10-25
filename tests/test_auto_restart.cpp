@@ -62,12 +62,21 @@ void formulation(xpp::Session &s, decltype(&stpnpl) restart,
     std::array<double, 4> current{}, direction{};
     std::array<double, 3> tm{}, dtm{}, thl{}, thu{};
     integer ntst = 0, ncol = 0, stride = 3, nodir = -2;
-    const int result = restart(&iap, &rap, par.data(), icp.data(), &ntst, &ncol,
-                              current.data(), direction.data(), &stride,
-                              ups.data(), tangent.data(), old.data(), tm.data(),
-                              dtm.data(), &nodir, thl.data(), thu.data());
-    CHECK(result == (truncated ? 1 : 0));
-    if (truncated) return;
+    std::string failed;
+    try {
+        CHECK(restart(&iap, &rap, par.data(), icp.data(), &ntst, &ncol,
+                      current.data(), direction.data(), &stride,
+                      ups.data(), tangent.data(), old.data(), tm.data(),
+                      dtm.data(), &nodir, thl.data(), thu.data()) == 0);
+    } catch (const xpp::AutoFailed &e) {
+        failed = e.error.what;
+    }
+    /* a short read ends the run, naming the label and what is missing */
+    CHECK(failed.empty() != truncated);
+    if (truncated) {
+        CHECK(failed.find("label 7") != std::string::npos && failed.find("ends before") != std::string::npos);
+        return;
+    }
     CHECK(ntst == 2 && ncol == 2 && iap.ibr == 3);
     CHECK(tm == (std::array<double, 3>{0., .5, 1.}));
     CHECK(nodir == (bvp || optimization ? 1 : 0));
@@ -115,6 +124,7 @@ void algebraic(xpp::Session &s, bool truncated) {
     iap_type iap{};
     iap.lib = &lib;
     iap.ndim = 2;
+    iap.irs = 7;
     rap_type rap{};
     logical found = 0;
     integer free = 0;
@@ -122,7 +132,15 @@ void algebraic(xpp::Session &s, bool truncated) {
     CHECK(found && free == 1);
     std::array<double, 2> u{};
     std::vector<double> par(lib.parameter_count, canary);
-    CHECK(readlb(&iap, &rap, u.data(), par.data()) == (truncated ? 1 : 0));
+    std::string failed;
+    try {
+        readlb(&iap, &rap, u.data(), par.data());
+    } catch (const xpp::AutoFailed &e) {
+        failed = e.error.what;
+    }
+    /* a short read ends the run, naming the label and what is missing */
+    CHECK(failed.empty() != truncated);
+    if (truncated) CHECK(failed.find("label 7") != std::string::npos && failed.find("ends before the parameter values") != std::string::npos);
     if (!truncated) {
         CHECK(u == (std::array<double, 2>{2., 3.}));
         CHECK(par.back() == lib.parameter_count - 1 + .125);

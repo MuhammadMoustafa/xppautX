@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <vector>
 #include <span>
 #include <functional>
@@ -11,9 +12,22 @@ namespace xpp {
 
 struct Session; /* session.h */
 
+/* The difference Jacobian's columns in groups (W488, W476 finding 6): no
+   equation reads two states of one group, so one right-hand side with all
+   of a group's states perturbed gives each equation's difference for the
+   one it reads. rows[i] are the equations that read state i (through the
+   fixed variables they read), i itself included; groups the states
+   perturbed together. Empty when the model's reads are not known (an
+   interpreted program, a network, a DAE, ...: Model::auto_rhs_pure). */
+struct DifferenceGroups {
+  std::vector<std::vector<int>> rows, groups;
+};
+
 // Compiled derivative evaluation storage; AUTO workers each own one.
 struct JacobianScratch {
   std::vector<double> point, workspace, values;
+  /* the model's difference groups, made on the first difference Jacobian */
+  std::optional<DifferenceGroups> groups;
 };
 
 /* How the model's Jacobian is formed, the numerics' `jacobian` (W260):

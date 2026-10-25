@@ -1,9 +1,6 @@
 #include "xpp_mem.h"
 #include "auto_unknowns.h"
-/* autlib5.f -- translated by f2c (version 19970805).
-   You must link the resulting object file with the libraries:
-	-lf2c -lm   (in that order)
-*/
+/* translated from AUTO's autlib5.f by f2c */
 
 #include <vector>
 #include "xpp_io.h"
@@ -23,31 +20,20 @@
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fnho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
   return xpp::auto_jacobian::problem(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, iap->nfpr, ffho);
 } /* fnho_ */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 ffho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
-  /* System generated locals */
   integer dfdu_dim1;
-
-    /* Local variables */
 
   integer i, j;
   doublereal dum1;
 
-    /* Parameter adjustments */
-    /*--u;*/
-    /*--uold;*/
-    /*--icp;*/
-    /*--par;*/
-    /*--f;*/
   dfdu_dim1 = ndm;
     
   ndm = iap->ndm;
@@ -83,14 +69,10 @@ ffho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   return 0;
 } /* ffho_ */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, const doublereal *u0, const doublereal *u1, doublereal *f, integer ijac, doublereal *dbc)
 {
-  /* System generated locals */
   integer dbc_dim1;
-
-  /* Local variables */
 
   integer nfpr;
 
@@ -106,14 +88,6 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 /* Generates the boundary conditions for homoclinic bifurcation analysis 
 */
 
-/* Local */
-
-    /* Parameter adjustments */
-    /*--par;*/
-    /*--icp;*/
-    /*--f;*/
-    /*--u0;*/
-    /*--u1;*/
   dbc_dim1 = nbc;
   
   nbc0 = iap->nbc0;
@@ -150,12 +124,9 @@ bcho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* bcho_ */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nbc, integer nbc0, const doublereal *u0, const doublereal *u1, doublereal *fb, doublereal *dbc, bool save_basis)
 {
-
-    /* Local variables */
 
   integer ieig;
 
@@ -190,15 +161,6 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   std::vector<doublereal> xequib2(iap->ndm);
 
   /* Generates the boundary conditions for homoclinic orbits. */
-
-/* Local */
-
-    /* Parameter adjustments */
-    /*--par;*/
-    /*--icp;*/
-    /*--u0;*/
-    /*--u1;*/
-    /*--fb;*/
 
   ndm = iap->ndm;
 
@@ -432,8 +394,7 @@ t=1 */
   return 0;
 } /* fbho_ */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *f, integer ijac, doublereal *dint)
 {
   fiho(iap, rap, ndim, par, icp, nint, iap->nnt0, u, uold, udot, upold, f, dint);
@@ -452,12 +413,10 @@ icho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* icho_ */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *fi, doublereal *dint)
 {
 
-    /* Local variables */
   integer ijac = 0;
 
   integer i, jb;
@@ -466,15 +425,6 @@ fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   std::vector<doublereal> fj(iap->ndim);
   /* Generates the integral conditions for homoclinic orbits. */
-
-  /* Parameter adjustments */
-  /*--par;*/
-  /*--icp;*/
-  /*--u;*/
-  /*--uold;*/
-  /*--udot;*/
-  /*--upold;*/
-  /*--fi;*/
 
   ndm = iap->ndm;
   jb = 0;
@@ -513,12 +463,10 @@ fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   return 0;
 } /* fiho_ */
 
-/*     ---------- ---- */
-/* Subroutine */ int 
+int 
 inho(iap_type *iap, integer *icp, doublereal *par)
 {
 
-    /* Local variables */
   integer ndim, nint, nuzr, i, nfree, icorr, nbc, ndm, isw;
 
   /* Allocate memory for global structures. */
@@ -543,10 +491,6 @@ inho(iap_type *iap, integer *icp, doublereal *par)
 /* Sets other constants in the following common blocks. */
 
 /* set various constants */
-
-    /* Parameter adjustments */
-    /*--par;*/
-    /*--icp;*/
 
   ndim = iap->ndim;
   isw = iap->isw;
@@ -634,7 +578,7 @@ inho(iap_type *iap, integer *icp, doublereal *par)
       nbc = ndm * (iap->lib->homcont.blhom.iequib + 1) + iap->lib->homcont.blhom.nunstab + 1;
     }
     if (iap->lib->homcont.blhom.iequib == 2) {
-      xpp::print(iap->lib->fp9,"WARNING: IEQUIB=2 NOT ALLOWED WITH ISTART=3\n");	
+      xpp::auto_fail("AUTO: HomCont's IEQUIB 2 (a generic heteroclinic orbit) is not allowed with ISTART 3 (a start by homotopy)");
     }
     if (iap->lib->homcont.blhom.iequib < 0) {
       nbc -= ndm * (iap->lib->homcont.blhom.iequib * 3 + 2);
@@ -653,14 +597,11 @@ inho(iap_type *iap, integer *icp, doublereal *par)
   return 0;
 } /* inho_ */
 
-/*     ---------- ----- */
-/* Subroutine */ int 
+int 
 preho(AutoLib &lib, integer *ndx, integer *ntsr, integer *nar, integer *ndim, integer *ncolrs, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *par)
 {
-  /* System generated locals */
   integer ups_dim1, udotps_dim1;
 
-  /* Local variables */
   integer jmin;
   doublereal upsi;
   integer i, j, k;
@@ -672,9 +613,6 @@ preho(AutoLib &lib, integer *ndx, integer *ntsr, integer *nar, integer *ndim, in
 /* Preprocesses (perturbs) restart data to enable */
 /* initial computation of the adjoint variable */
 
-    /* Parameter adjustments */
-    /*--tm;*/
-    /*--par;*/
   udotps_dim1 = *ndx;
   ups_dim1 = *ndx;
     
@@ -700,7 +638,7 @@ preho(AutoLib &lib, integer *ndx, integer *ntsr, integer *nar, integer *ndim, in
 
     /* First find smallest value in norm */
 
-    upsmin = 1e20;
+    upsmin = auto_homoclinic_norm_start;
     jmin = 1;
     for (j = 0; j < *ntsr + 1; ++j) {
       upsi = 0.;
@@ -761,19 +699,16 @@ preho(AutoLib &lib, integer *ndx, integer *ntsr, integer *nar, integer *ndim, in
   return 0;
 } /* preho_ */
 
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 stpnho(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
   return auto_uniform_start(iap, rap, par, icp, ntsr, ncolrs, rlcur, *ndxloc, ups, tm, nodir,
       [&](doublereal *state, doublereal &time) { stpho(iap, icp, state, par, &time); });
 } /* stpnho_ */
 
-/*     ---------- ----- */
-/* Subroutine */ int 
+int 
 stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t)
 {
-    /* Local variables */
 
   integer i, j;
 
@@ -790,13 +725,6 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
   /* Generates a starting point for homoclinic continuation */
   /* If ISTART=2 it calls STPNHO. */
   /* If ISTART=3 it sets up the homotopy method. */
-
-/* Local */
-
-    /* Parameter adjustments */
-    /*--par;*/
-    /*--u;*/
-    /*--icp;*/
 
   ndm = iap->ndm;
 
@@ -886,22 +814,15 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
    */
 } /* stpho_ */
 
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndxloc, doublereal *ups, integer *ndim, doublereal *p0, doublereal *p1, doublereal *par)
 {
 
-  /* Local variables */
   integer i, j;
 
   doublereal orient;
 
   integer iid, ndm;
-
-    /* Parameter adjustments */
-    /*--icp;*/
-    /*--dtm;*/
-    /*--par;*/
 
   iid = iap->iid;
   ndm = iap->ndm;
@@ -954,14 +875,10 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 
 } /* pvlsho_ */
 
-/*     -------- ------- -------- ----- */
 doublereal 
 psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublereal *v, doublereal *vt, const integer *icp, doublereal *par)
 {
-  /* System generated locals */
   doublereal ret_val;
-
-    /* Local variables */
 
   integer i, j;
   doublereal droot, s1, s2, f0norm, f1norm, u0norm, u1norm;
@@ -983,13 +900,6 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 /*and right (PU1) endpoints of the solution (+  vector if that is computed
 )*/
 
-/* Local */
-
-    /* Parameter adjustments */
-    /*--par;*/
-    /*--icp;*/
-    /*--ri;*/
-    /*--rr;*/
   vt -= ((iap->ndm)+1);
   v -= ((iap->ndm)+1);
 
@@ -1195,8 +1105,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 
 } /* psiho_ */
 
-/*     ---------- ----- */
-/* Subroutine */ int 
+int 
 eighi(const iap_type *iap, integer isign, integer itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm)
 {
 
@@ -1209,11 +1118,7 @@ eighi(const iap_type *iap, integer isign, integer itrans, doublereal *rr, double
   return 0;
 } /* eighi */
 
-/*     ---------- ----- */
-
-
-/*     ---------- ------ */
-/* Subroutine */ int 
+int 
 prjcti(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, xpp::HomcontManifold manifold, xpp::HomcontEndpoint endpoint, bool transpose, integer *ndm, bool save_basis)
 {
   
@@ -1224,5 +1129,3 @@ prjcti(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer
   
   return 0;
 } /* prjcti */
-
-/*     ---------- ------ */

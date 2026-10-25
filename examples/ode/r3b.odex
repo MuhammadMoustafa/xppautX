@@ -10,7 +10,7 @@ y' = v
 u' = 2*v+x-(1-m)*(x+m)/ode_divisor(d1)-m*(x-1+m)/ode_divisor(d2)
 v' = -2*u+y-(1-m)*y/ode_divisor(d1)-m*y/ode_divisor(d2)
 init x = 0.5, y = 0.87
-set period {
+set "period" {
             x: 0.994, y: 0, u: 0, v: -2.001583,
             options: {
               integration: { total_time: 17.2, dt: .05, method: dopri8 },

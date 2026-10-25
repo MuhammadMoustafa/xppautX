@@ -225,6 +225,15 @@ number, a boundary condition longer than its room) and a line after the
 last the file holds all refuse the file; a file of ours is never read in
 part. A file that cannot be read at all is the error with line 0 (above).
 
+User text is quoted in every such file and a choice never is (W490): a
+name, a label, a title, a key, a path or a formula the user wrote (a
+window's or a curve's name, a recording's model, a set's name in a `.odex`:
+`set "hopf" { ... }`) is a string in double quotes even when it is one word,
+and the reader refuses it bare, at its line and column; a choice, a number,
+`true` or `false` and a name of the model's own (`method: runge_kutta`,
+`xp: v`) are bare words, and the reader refuses one in quotes. The protocol's
+JSON strings need no such rule: a string is always a string.
+
 ## The command table
 
 `hello.command_table` (W207, core/command_table.h) is the one list of the
@@ -1044,7 +1053,7 @@ model's start in every mode, before the script.
 | `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`, `player`), `title`, `file`, `output_names` (`par`, `ic`, `csv`, `curves`), `menu_names`, `command_categories`, `command_table`, `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 markers, 5 methods (items like `2 Box` start with the number to enter); `line_styles` (above), `colormaps` (above). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows, AUTO, animation and array plot, numbered as `hello.window_ids` says. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
 | `diagram` | `op` (`axes`, `reset`, `add`, `views`), `view`, ... | The AUTO diagram as data, each view of it; see "The AUTO diagram as data". |
-| `autoinfo` | `info`, `stab`, `stop` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
+| `autoinfo` | `info`, `stab`, `stop`, `notes` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
 | `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`data`); see "AUTO's settings as data". |
 | `numerics` | `fields` [{`key`, `label`, `value`, `integer`, `unused`, `choices`, `unavailable`}...] | The main numerics as data, for a client that asked (`data`); see "The numerics as data". |
 | `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns`; or `op` `end`, `win`, `rows`, `version` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
@@ -1140,7 +1149,7 @@ An Axes change (the AutoPlot form, last 1 par, last 2 par), File/Load
 diagram and File/Reset diagram draw the diagram again at once, so a client
 always holds the diagram in the current quantities without a reDraw.
 
-A point is one `add_point()` of `core/auto_nox.c`, in the quantities the
+A point is one `add_point()` of `core/auto_nox.cpp`, in the quantities the
 axes plot (`auto_xy_plot`: the parameter against the maximum, norm,
 period, ... of the Axes setting), in the order it was plotted.
 
@@ -1173,9 +1182,9 @@ continues in), and a grab's point by its data.
   as they come.
 
 - `{"ev":"diagram","op":"axes","view":v, xmin, xmax, ymin, ymax, x0, y0, wid, hgt, plot, xlabel, ylabel}`:
-  the diagram was drawn again at these axes (`plot` is `Auto.plot`: 0 hi,
-  1 norm, 2 hi and lo, 3 period, 4 two parameters, 10 frequency, 11
-  average); the points are unchanged. Pixel `x0 + wid*(x-xmin)/(xmax-xmin)`,
+  the diagram was drawn again at these axes (`plot` is the view's
+  projection, by name: `maximum`, `norm`, `maximum_and_minimum`, `period`,
+  `two_parameter`, `frequency` or `average`; W491); the points are unchanged. Pixel `x0 + wid*(x-xmin)/(xmax-xmin)`,
   `y0 + hgt - hgt*(y-ymin)/(ymax-ymin)` of window 101 is (x, y) in the
   core's pixels (what a pixel answer to a `grab` or `rubber` ask means).
 - `{"ev":"diagram","op":"reset","view":v,"keep":k, ...the axes fields}`: drop every
@@ -1224,8 +1233,8 @@ AUTO runs; a command that changes neither sends none. A redraw of the
 diagram (reDraw, new axes, a loaded diagram) leaves the strip and the
 circle as they were: after a run, the run's last point; after a grab, the
 grabbed point. core/auto_data.cpp
-keeps it, from what auto_nox.c shows there; `stop` comes from
-core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
+keeps it, from what auto_nox.cpp shows there; `stop` comes from
+core/auto_stop.cpp, which autlib1.cpp tells where it ends a branch (T23).
 
 ```
 {"ev":"autoinfo",
@@ -1235,7 +1244,8 @@ core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
  "stab":{"periodic":0,"circle":[[0.9069413,0.4214016],[0.9069413,-0.4214016]],
          "eig":[[6.093e-05,0.434962],[6.093e-05,-0.434962]]},
  "stop":{"why":"parmax","text":"parameter iapp reached Par Max (0.5)","br":1,"pt":49,
-         "value":0.5048396225954056,"limit":0.5}}
+         "value":0.5048396225954056,"limit":0.5},
+ "notes":["Br 1 Pt 12: a Hopf bifurcation (HB) between points 12 and 13 was not located (not in ITMX=8 iterations); it is missing from the diagram"]}
 ```
 
 | field | meaning |
@@ -1251,10 +1261,11 @@ core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
 | `stab.periodic` | 1: `circle` holds the Floquet multipliers of a periodic orbit; 0: e^λ of each eigenvalue λ of a steady state (XPP keeps them so: inside the unit circle is stable) |
 | `stab.circle` | `[re,im]` per variable, the values themselves (the X11 circle clamps them to ±1.95). All `[0,0]`: not computed. Always a stored diagram point's own values, while AUTO runs and while grabbing alike (core/auto_stability.h). AUTO computes them from a run's second point on, so a run's first point, and a run that stops there, has none, unless the run restarts from a label of the same kind (a steady state from a steady label, a periodic orbit from a periodic one, one parameter): that first point is the label's solution and carries the label's values. A periodic run from a Hopf point, a two-parameter run and a period doubling's branch switch start with none; a two-parameter curve of periodic orbits (a limit point's, a period doubling's, a torus') has none at all, AUTO computing no multipliers along it. (XPPAUT stores the last values computed with every point, so its first points carry those of another point.) |
 | `stop` | why the run's last branch ended; `null` until one ends, and again when a run starts or AUTO's window is new. AUTO labels the end EP (a limit, Max points, Stop, a Mark value) or MX (no convergence); this says which |
-| `stop.why` | `parmin` / `parmax`: the continuation parameter went below Par Min (RL0) / above Par Max (RL1); `normmin` / `normmax`: the norm AUTO checks went below Norm Min (A0) / above Norm Max (A1); `npts`: the branch has Max points (NMX); `user`: Stop (an `abort`); `mark`: a Mark value set to stop (AUTO's UZR endpoint); `jacobian`: the exact Jacobian was not finite (W275: an error with an action follows); `noconv-min`: no convergence even at the smallest step (Dsmin); `noconv-fixed`: no convergence with a fixed step (IADS 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted |
+| `stop.why` | `parmin` / `parmax`: the continuation parameter went below Par Min (RL0) / above Par Max (RL1); `normmin` / `normmax`: the norm AUTO checks went below Norm Min (A0) / above Norm Max (A1); `npts`: the branch has Max points (NMX); `user`: Stop (an `abort`); `mark`: a Mark value set to stop (AUTO's UZR endpoint); `jacobian`: the exact Jacobian was not finite (W275: an error with an action follows); `noconv-min`: no convergence even at the smallest step (Dsmin); `noconv-fixed`: no convergence with a fixed step (IADS 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted. A no convergence's `text` names the Newton settings that gave up (`ITNW`, `EPSL`, `EPSU`) and, when the last linear solve was singular, its smallest pivot (W491); it is logged as a WARN where AUTO's Output is not shown |
 | `stop.text` | the reason in words, to follow "Stopped: " (the page's status strip); AUTO's Output gets the line `Branch 1 stopped at point 49: parameter iapp reached Par Max (0.5)` for every branch that ends |
 | `stop.br`, `pt` | the branch and point number of the end (positive, as in `diagram`) |
 | `stop.value`, `limit` | what crossed the limit and the limit: the parameter and Par Min/Max, the norm and Norm Min/Max, the point count and NMX, the step size and Dsmin; `null` where there is none |
+| `notes` | what the run lost or could not trust, in words (W491): a special point AUTO gave up locating (the corrector did not converge, its test does not apply, or not in ITMX iterations: the point is missing from the diagram), Floquet multipliers that are inaccurate (period doubling and torus detection are off until they are accurate again); `[]` for none, cleared when a run starts or AUTO's window is new. Each is also written in AUTO's Output (`Warning: ...`), or logged as a WARN where AUTO's Output is not shown |
 | `stab.eig` | steady states only: the eigenvalues λ = log z of the `circle` values, `[null,null]` where z is 0 (Re λ below about -745); the imaginary part is only known modulo 2π, its principal value |
 
 Cycle-curve resonances use AUTO-07p's signed point codes: `-55` for R1 on
@@ -1295,7 +1306,7 @@ has none, and gets no event). core/auto_settings.cpp keeps it.
  "numerics":{"ntst":15,"nmx":2000,"npr":500,"ncol":4,"ds":0.02,"dsmin":1e-05,"dsmax":0.02,
              "rl0":-0.2,"rl1":0.5,"a0":0,"a1":1000,"epsl":0.0001,"epsu":0.0001,"epss":0.0001,
              "iad":3,"mxbf":5,"iid":2,"itmx":8,"itnw":7,"nwtn":3,"iads":1,"suppbp":0},
- "axes":{"plot":2,"var":"V","par1":"iapp","par2":"phi","xmin":-0.2,"xmax":0.5,"ymin":-0.5,"ymax":0.4},
+ "axes":{"plot":"maximum_and_minimum","var":"V","par1":"iapp","par2":"phi","xmin":-0.2,"xmax":0.5,"ymin":-0.5,"ymax":0.4},
  "marks":[["iapp",0.25],["T",30]],
  "threads":"auto","threads_auto":4,"threads_max":16,
  "rules":{"ntst":{"label":"Ntst","integer":true,"min":1,"message":"Ntst must be a whole number of at least 1"},
@@ -1307,7 +1318,7 @@ has none, and gets no event). core/auto_settings.cpp keeps it.
 | field | meaning |
 |---|---|
 | `numerics` | the Numerics form's fields by AUTO's names, in the form's order: `ntst` Ntst, `nmx` Nmax, `npr` NPr, `ncol` Ncol, `ds`, `dsmin`, `dsmax`, `rl0` Par Min, `rl1` Par Max, `a0` Norm Min, `a1` Norm Max, `epsl`, `epsu`, `epss`, `iad`, `mxbf`, `iid`, `itmx`, `itnw`, `nwtn`, `iads`, `suppbp` SuppBP |
-| `axes.plot` | the plot type: 0 hi, 1 norm, 2 hi and lo, 3 period, 4 two parameters, 10 frequency, 11 average |
+| `axes.plot` | the projection, by name: `maximum`, `norm`, `maximum_and_minimum`, `period`, `two_parameter`, `frequency`, `average` (a client labels it from its name; XPPAUT's numbers 0-4, 10, 11 are read only from an imported XPPAUT `.auto` file) |
 | `axes.var` | the variable the y axis plots (Y-axis) |
 | `axes.par1`, `par2` | Main Parm and Secnd Parm, two model parameters (`null` if none) |
 | `axes.xmin` .. `ymax` | the diagram's axes |

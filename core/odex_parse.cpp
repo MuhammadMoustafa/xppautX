@@ -779,13 +779,23 @@ private:
         fail(o.value_pos, xpp::format("the option {}'s value `{}` is not a word (letters, digits and _ . + -)", o.name, v));
   }
 
-  /* set name { key: value, ..., options: { group: { key: value } } }: a
+  /* set "name" { key: value, ..., options: { group: { key: value } } }: a
      variable's or a parameter's value, a number or a name each, and the
-     settings under `options:` */
+     settings under `options:`; the name is the user's text, in quotes */
   void set_block(Statement &s)
   {
     s.kind = Statement::Kind::Set;
-    name_of(s, "the set's name");
+    const Token &n = peek();
+    if (n.kind != Token::Kind::String)
+      fail(n.pos, xpp::format("a set's name is text: write it in double quotes, set \"{}\" {{ ... }} (found {})",
+                              n.kind == Token::Kind::Name && !n.primed ? n.text : std::string("name"), describe(n)));
+    if (!is_name(n.text))
+      fail(n.pos, xpp::format("\"{}\" is not a name a set can have: letters, digits and _, starting with a letter", n.text));
+    if (is_reserved(n.text)) fail(n.pos, xpp::format("\"{}\" is a reserved word and cannot be a set's name", n.text));
+    s.name = n.text;
+    s.name_pos = n.pos;
+    s.name_begin = n.begin;
+    take();
     std::map<std::string, int> keys;
     entries(xpp::format("the set {}", s.name), [&](const Token &key) {
       const auto [first, fresh] = keys.emplace(key.text, key.pos.line);
@@ -1129,25 +1139,20 @@ private:
 
   Expr expr() { return or_expr(); }
 
-  Expr or_expr()
+  /* operand { word operand }: the left-associative chain of the binary word `or` or `and` */
+  template <class Operand> Expr chain(std::string_view word, Operand operand)
   {
-    Expr e = and_expr();
-    while (at_word("or")) {
+    Expr e = operand();
+    while (at_word(word)) {
       Pos p = take().pos;
-      e = binary("or", p, std::move(e), and_expr());
+      e = binary(std::string(word), p, std::move(e), operand());
     }
     return e;
   }
 
-  Expr and_expr()
-  {
-    Expr e = not_expr();
-    while (at_word("and")) {
-      Pos p = take().pos;
-      e = binary("and", p, std::move(e), not_expr());
-    }
-    return e;
-  }
+  Expr or_expr() { return chain("or", [this] { return and_expr(); }); }
+
+  Expr and_expr() { return chain("and", [this] { return not_expr(); }); }
 
   Expr not_expr()
   {

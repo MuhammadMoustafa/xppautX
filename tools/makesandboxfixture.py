@@ -75,7 +75,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         command(server, cmd='auto', op='set', numerics={'ntst': 15, 'nmx': 1500, 'npr': 20,
             'ds': 1, 'dsmax': 50, 'rl0': -500, 'rl1': 17500, 'a0': -200, 'a1': 200, 'mxbf': 5})
         command(server, cmd='record', op='note', text='Show voltage V versus applied current Iapp, with fixed readable axes.')
-        command(server, cmd='auto', op='set', axes={'plot': 0, 'var': 'V', 'par1': 'Iapp',
+        command(server, cmd='auto', op='set', axes={'plot': 'maximum', 'var': 'V', 'par1': 'Iapp',
             'xmin': -20, 'xmax': 200, 'ymin': -90, 'ymax': -35})
         command(server, cmd='record', op='note', text='Run steady-state continuation; AUTO marks stability changes and labelled special points.')
         server.send(cmd='key', win='auto', key='r')

@@ -3,10 +3,12 @@
 #include "load_eqn.h"
 #include "form_ode.h"
 #include "volterra2.h"
+#include "solver.h"
 #include "xpp_log.h"
 #include "delay_handle.h"
 #include "markov.h"
 #include "xpp_job.h"
+#include "xpp_globals.h"
 
 #include <stdlib.h> 
 #include "getvar.h"
@@ -47,7 +49,7 @@ double ker_val(xpp::Session &s, int in)
 
 void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations */
 {
-  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().kernels;
   int i,len;
   /* add_expr's program, sized to its formula */
   std::vector<int> formula;
@@ -58,6 +60,7 @@ void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations *
     return p;
   };
 
+  s.volterra.kernels.resize(s.model().nkernel);
 /* First parse the kernels   since these were deferred */
   for(i=0;i<s.model().nkernel;i++){
      s.volterra.kernels[i].k_n=0.0;
@@ -98,7 +101,7 @@ void allocate_volterra(xpp::Session &s, int npts, int flag)
 
 void re_evaluate_kernels(xpp::Session &s)
 {
-  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().kernels;
   int i,j,n=s.numerics.max_points;
 
   if(!s.numerics.auto_evaluate)return;
@@ -115,7 +118,7 @@ void re_evaluate_kernels(xpp::Session &s)
 
 void alloc_kernels(xpp::Session &s, int flag)
 {
-  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().kernels;
   int i,n=s.numerics.max_points;
   int j;
   double mu;
@@ -149,43 +152,122 @@ void alloc_kernels(xpp::Session &s, int flag)
        K(t,t',u,u') someday...
 ***/
 
+namespace {
+/* how a kernel formula's value at a history point may be kept (HistoryValues) */
+enum class Keep { never, always, same_window };
+
+/* A compiled formula that reads only the constants, tables and what
+   init_sums sets for a history point (its variables, and t' when kept
+   per window) gives the same value there at every step: not t, a kernel,
+   a random draw, a delay or anything else a step changes. */
+Keep keep_formula(const xpp::Session &s, const KERNEL &kernel)
+{
+  const xpp::Program &f=kernel.formula;
+  if(!::program.compile||!f.native||!f.array_pure)return Keep::never;
+  const int nvar=s.model().fix_var+s.model().node+s.model().nmarkov;
+  Keep keep=Keep::always;
+  for(const int v:f.native_reads){
+    if(v==s.model().prime_start)keep=Keep::same_window;
+    else if(v<1||v>nvar)return Keep::never;
+  }
+  return keep;
+}
+
+/* the history's kept values, emptied when the constants changed since they
+   were computed (a parameter set between runs, or a function table rebuilt
+   from one) */
+xpp::HistoryValues &history_values(xpp::Session &s)
+{
+  xpp::HistoryValues &h=s.volterra.history;
+  const std::size_t slots=static_cast<std::size_t>(s.numerics.max_points);
+  if(h.point.size()!=slots||h.constants!=s.parser.constants){
+    h.point.assign(slots,-1);
+    h.first.assign(slots,-1);
+    h.value.assign(slots*static_cast<std::size_t>(s.model().nkernel),0.0);
+    h.constants=s.parser.constants;
+  }
+  return h;
+}
+}
+
 void init_sums(xpp::Session &s, double t0, int n, double dt, int i0, int iend, int ishift)
 {
-  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().kernels;
    double t=t0+n*dt,tp=t0+i0*dt;
-   std::array<double,MAXKER> sum;
+   std::vector<double> sum(static_cast<std::size_t>(s.model().nkernel));
    double al,alpbet,mu;
    int nvar=s.model().fix_var+s.model().node+s.model().nmarkov;
    int l,ioff,ker,i;
+   const int nkernel=s.model().nkernel;
+   std::vector<Keep> keep(static_cast<std::size_t>(nkernel));
+   for(ker=0;ker<nkernel;ker++)keep[ker]=keep_formula(s,kernels[ker]);
+   xpp::HistoryValues &history=history_values(s);
+   /* whether kernel ker's value at grid point `point` (memory's slot) is kept */
+   auto kept=[&](int ker,int slot,int point){
+     const std::size_t p=static_cast<std::size_t>(slot);
+     return keep[ker]!=Keep::never&&history.point[p]==point&&(keep[ker]==Keep::always||history.first[p]==i0);
+   };
+   /* kernel ker's formula at the history point in slot (grid point
+      point), kept or evaluated now with the point's variables set */
+   auto formula_at=[&](int ker,int slot,int point)->double{
+     const std::size_t k=static_cast<std::size_t>(slot)*static_cast<std::size_t>(nkernel)+static_cast<std::size_t>(ker);
+     if(kept(ker,slot,point))return history.value[k];
+     const double value=evaluate(s,kernels[ker].formula);
+     if(keep[ker]!=Keep::never)history.value[k]=value;
+     return value;
+   };
+   /* every kernel's value at the point is kept: its variables need not be set */
+   auto held=[&](int slot,int point){
+     for(int k=0;k<nkernel;k++)
+       if(!kept(k,slot,point))return false;
+     return true;
+   };
+   auto mark=[&](int ioff,int point){
+     history.point[static_cast<std::size_t>(ioff)]=point;
+     history.first[static_cast<std::size_t>(ioff)]=i0;
+   };
    setvar(s,0,t);
    setvar(s,s.model().prime_start,tp);
    for(l=0;l<nvar;l++)setvar(s,l+1,s.volterra.memory[l][ishift]);
-   for(ker=0;ker<s.model().nkernel;ker++){
+   for(ker=0;ker<nkernel;ker++){
      s.volterra.kernels[ker].k_n1=s.volterra.kernels[ker].k_n;
      mu=kernels[ker].mu;
      if(mu==0.0)al=.5*dt;
      else al=alpha1n(mu,dt,t,tp);
-     sum[ker]=al*evaluate(s,kernels[ker].formula);
+     sum[ker]=al*formula_at(ker,ishift,i0);
      if(kernels[ker].flag==CONV)
        sum[ker]=sum[ker]*s.volterra.kernels[ker].cnv[n-i0];
      
    }
+   mark(ishift,i0);
+   /* the variables hold the last point's values when the loop ends, as
+      every evaluation left them */
+   int set_at=ishift;
    for(i=1;i<=iend;i++){
      ioff=(ishift+i)%s.numerics.max_points;
      tp+=dt;
-     setvar(s,s.model().prime_start,tp);
-     for(l=0;l<nvar;l++)setvar(s,l+1,s.volterra.memory[l][ioff]);
-     for(ker=0;ker<s.model().nkernel;ker++){
+     if(!held(ioff,i0+i)){
+       setvar(s,s.model().prime_start,tp);
+       for(l=0;l<nvar;l++)setvar(s,l+1,s.volterra.memory[l][ioff]);
+       set_at=ioff;
+     }
+     for(ker=0;ker<nkernel;ker++){
        mu=kernels[ker].mu;
        if(mu==0.0)alpbet=dt;
        else alpbet=s.volterra.kernels[ker].al[n-i0-i];
        if(kernels[ker].flag==CONV)
-	 sum[ker]+=(alpbet*evaluate(s,kernels[ker].formula)
+	 sum[ker]+=(alpbet*formula_at(ker,ioff,i0+i)
 		    *s.volterra.kernels[ker].cnv[n-i0-i]);
-       else sum[ker]+=(alpbet*evaluate(s,kernels[ker].formula));
+       else sum[ker]+=(alpbet*formula_at(ker,ioff,i0+i));
      }
+     mark(ioff,i0+i);
    }
-   for(ker=0;ker<s.model().nkernel;ker++){
+   const int last=(ishift+std::max(iend,0))%s.numerics.max_points;
+   if(set_at!=last){
+     setvar(s,s.model().prime_start,tp);
+     for(l=0;l<nvar;l++)setvar(s,l+1,s.volterra.memory[l][last]);
+   }
+   for(ker=0;ker<nkernel;ker++){
      s.volterra.kernels[ker].sum=sum[ker];
      
    }
@@ -224,7 +306,7 @@ double betnn(double mu, double dt, double t0, double t)
 
 void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y to update Kn  */
 {
-  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().kernels;
   int i;
 
   setvar(s,0,t);
@@ -243,7 +325,7 @@ void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y t
      
 int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, int *istart, double *work)
 {
-  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  std::vector<KERNEL> &kernels=s.model().kernels;
   double *jac,*yg,*yp,*yp2,*ytemp,*errvec;
   double z,mu,bet;
   int i,j;
@@ -258,6 +340,7 @@ int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, 
   if(*istart==1){
     s.volterra.current_point=0;
     s.volterra.kn_flag=1;
+    s.volterra.history.point.clear();
     for(i=0;i<s.model().nkernel;i++){              /* zero the integrals              */
       s.volterra.kernels[i].k_n=0.0;
       s.volterra.kernels[i].k_n1=0.0;
@@ -349,8 +432,8 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
    xpp::sgefa(jac,s.model().node,s.model().node,ipivot,&info);
    if(info!=-1)
      {
-	 
-       return(-1); /* Jacobian is singular   */
+       s.solver_work.stop={t,dt,info,iter};
+       return(NEWTON_SINGULAR);
      }
    err=0.0;
    xpp::sgesl(jac,s.model().node,s.model().node,ipivot,errvec);
@@ -360,7 +443,10 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
       }
    if(err<s.numerics.eul_tol) break;
    iter++;
-   if(iter>s.numerics.max_eul_iter)return(-2);  /* too many iterates   */
+   if(iter>s.numerics.max_eul_iter){
+     s.solver_work.stop={t,dt,xpp::largest_magnitude(errvec,s.model().node),iter};
+     return(NEWTON_NO_CONVERGENCE);
+   }
    
  }
  /* We have a good point; lets save it    */

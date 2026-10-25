@@ -82,8 +82,8 @@ public:
     void operator()(std::string_view key, int v) { out_.whole(key, v); }
     void dimension(std::string_view key, int v) { (*this)(key, v); }
     void flag(std::string_view key, int v) { out_.flag(key, v != 0); }
-    /* a name (bare when it can be) / a formula or any other text (quoted) */
-    void word(std::string_view key, const std::string &v) { out_.word(key, v); }
+    /* a name of the model (bare, "" for none: quoted) / a formula or any other text (quoted) */
+    void word(std::string_view key, const std::string &v) { out_.name(key, v); }
     void text(std::string_view key, const std::string &v) { out_.text(key, v); }
     void numbers(std::string_view key, std::span<const double> v) { out_.reals(key, v); }
     template <class F> void group(std::string_view key, F fn)
@@ -116,7 +116,7 @@ public:
         std::vector<std::string> on;
         for (std::size_t i = 0; i < names.size(); i++)
             if (flags[i]) on.push_back(names[i]);
-        out_.texts(key, on);
+        out_.words(key, on);
     }
     void curves(const GRAPH &g) { write_curves(out_, *s_, g); }
 
@@ -144,7 +144,10 @@ public:
         block_.flag(key, on);
         v = on ? 1 : 0;
     }
-    void word(std::string_view key, std::string &v) { block_.text(key, v); }
+    void word(std::string_view key, std::string &v)
+    {
+        if (const setx::Member *m = block_.member(key)) v = block_.name_of(*m);
+    }
     void text(std::string_view key, std::string &v) { block_.text(key, v); }
     void numbers(std::string_view key, std::span<double> v) { block_.reals(key, v); }
     template <class F> void group(std::string_view key, F fn)
@@ -169,7 +172,7 @@ public:
             }
             const setx::Member *m = block_.member(key);
             if (!m) continue;
-            const std::string text = block_.text_of(*m);
+            const std::string text = block_.word_of(*m);
             if (const std::optional<std::string> why = setting_problem(*s_, *row, text))
                 block_.fail(*m, xpp::format("`{}`: {} (found `{}`)", key, *why, text));
             if (row->rule == OptionRule::method) method = method_by_key(s_->model(), text, command_place()).value();
@@ -197,7 +200,7 @@ public:
     {
         std::vector<std::string> on;
         const setx::Member *m = block_.member(key);
-        if (!block_.texts(key, on, names.size())) return;
+        if (!block_.words(key, on, names.size())) return;
         std::ranges::fill(flags, 0);
         for (const std::string &n : on) {
             const Model::Name *entry = s_->model().name(n);
@@ -503,9 +506,9 @@ void write_curves(setx::Out &out, const Session &s, const GRAPH &g)
     for (int j = 0; j < g.nvars; j++) {
         const auto k = static_cast<std::size_t>(j);
         out.begin_item();
-        out.word("x", ind_to_sym(s, g.xv[k]));
-        out.word("y", ind_to_sym(s, g.yv[k]));
-        out.word("z", ind_to_sym(s, g.zv[k]));
+        out.name("x", ind_to_sym(s, g.xv[k]));
+        out.name("y", ind_to_sym(s, g.yv[k]));
+        out.name("z", ind_to_sym(s, g.zv[k]));
         out.color("color", g.color[k]);
         out.line_style(g.style[k]);
         out.end_item();
@@ -528,7 +531,7 @@ void read_curves(setx::Block &window, const Session &s, GRAPH &g, std::span<cons
         const auto column = [&](std::string_view key) {
             const setx::Member *m = c.member(key);
             if (!m) return 0;
-            const std::string name = c.text_of(*m);
+            const std::string name = c.name_of(*m);
             const std::optional<int> col = column_named(s, added, name);
             if (!col) c.fail(*m, xpp::format("the model has no variable \"{}\"", name));
             return *col;
