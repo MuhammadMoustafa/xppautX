@@ -1,0 +1,8 @@
+# blowup_dopri5.odex: a stop case of servercheck's stops section (docs/studies/w480-stops.md)
+
+par a=1
+x' = a*x^2
+init x = 1
+options {
+  integration: { method: dopri5, total_time: 2, dt: 0.1 },
+}

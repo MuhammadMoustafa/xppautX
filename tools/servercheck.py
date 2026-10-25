@@ -16,6 +16,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('--ode', default='examples/ode/lecar.odex')
 ap.add_argument('-v', action='store_true')
+ap.add_argument('--only', default='', help='run only these sections, comma-separated (stops); the rest needs the whole run')
 args = ap.parse_args()
 # XPP_CHECK_SLOW=F multiplies every wait by F (tools/xppclient.py)
 SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
@@ -157,6 +158,166 @@ def check_diagram_subscription():
               end is not None and len(errors) == 1 and errors[0].get('file') and errors[0].get('line'), str(events))
     finally:
         s.close()
+
+
+# W480 "every stop says why" (docs/studies/w480-stops.md; card W486). One small model per stop in
+# tools/models/stops/, run through --server, and through --silent where the stop has an exit code.
+# A case names the parts its message must have (regular expressions, never the exact wording), the
+# model line of the equation the error must name, and parts the message must not have. A case whose
+# fixing card has not landed is KNOWN while a part is missing; it FAILs once every part holds, so the
+# card that fixes it moves it out of this table. A case that would hang today is not started. Each run
+# waits for idle, never for time.
+def stops_idle(e):
+    return e.get('ev') == 'idle'
+
+
+STOPS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'stops')
+STOPS_KNOWN = {  # case id -> (card that fixes it, reason it is not started or None)
+    'min_step': ('W488', None),
+    'gear': ('W488', None),
+    'backward_euler': ('W488', None),
+    'cvode': ('W488', None),
+    'delay': ('W488', None),
+    'range_gear': ('W487', None),
+    'range_backward_euler': ('W487', None),
+    'range_bound': ('W487', None),
+    'eq_range': ('W487', None),
+    'event_halt': ('W487', None),
+    'sing_pts': ('W489', None),
+    'rosenbrock': ('W482', 'a step never ends: odesol2.cpp rosen retries forever (W480 S5)'),
+}
+STOPS_PLAIN_GO = [{'key': 'g'}]  # the Integrate or Equilibria menu's Go
+STOPS_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '2', '1', '3']}]  # Range Integrate over a, 1 to 3
+STOPS_EQ_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '5', '-1', '1', 'N', '-1', 'N', 'N']}]
+STOPS_CASES = [
+    # says: the message's parts; at: the equation the error names; forbids: parts it must not have
+    dict(id='nan', model='nan_sqrt', key='i', replies=STOPS_PLAIN_GO, at="x' = sqrt",
+         says=[r'X is NaN', r't ?= ?']),
+    dict(id='qualrk_bound', model='blowup_qualrk', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+         says=[r'X out of bounds', r't ?= ?1\b']),
+    dict(id='dopri5_bound', model='blowup_dopri5', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+         says=[r'X reaches bound', r't ?= ?0\.9']),
+    dict(id='rk4_bound', model='bound_rk4', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+         says=[r'X out of bounds', r't ?= ?1']),
+    dict(id='min_step', model='min_step', key='i', replies=STOPS_PLAIN_GO, at='method: gear',
+         says=[r'\b[Dd]t\b', r'0\.01', r'min_step', r'0\.1'],
+         silent=dict(says=[r'min_step'], forbids=[r'will write anyway'])),
+    dict(id='gear', model='blowup_gear', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+         says=[r'\bGear\b', r'min_step', r't ?= ?0\.9']),
+    dict(id='backward_euler', model='blowup_backward_euler', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+         says=[r'Backward Euler', r'eul_iter ?= ?100\b', r'eul_tol', r't ?= ?0\.9']),
+    dict(id='cvode', model='blowup_cvode', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+         says=[r'CVode', r't ?= ?0\.9', r'tolerance'], forbids=[r'oh well', r'\?\?\?', r'Hmmm']),
+    dict(id='rosenbrock', model='blowup_rosenbrock', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+         says=[r'Rosenbrock', r't ?= ?']),
+    dict(id='delay', model='delay', key='i', replies=STOPS_PLAIN_GO, at="x' = -delay",
+         says=[r'tau ?= ?2\b', r'\bdelay\b', r't ?= ?']),
+    dict(id='event_halt', model='event_halt', key='i', replies=STOPS_PLAIN_GO, at=None,
+         says=[r'Stopped', r't ?= ?3\b', r'arret']),
+    dict(id='sing_pts', model='sing_pts', key='s', replies=STOPS_PLAIN_GO, at=None,
+         says=[r'singpt_max_iterates', r'X ?= ?0\.5']),
+    dict(id='eq_range', model='eq_range', key='s', replies=STOPS_EQ_RANGE_A, at=None,
+         says=[r'\ba ?= ?0\.2', r'no equilibrium']),
+    dict(id='range_gear', model='blowup_gear', key='i', replies=STOPS_RANGE_A, at=None,
+         says=[r'\ba ?= ?1\b', r'\bGear\b', r't ?= ?0\.9']),
+    dict(id='range_backward_euler', model='blowup_backward_euler', key='i', replies=STOPS_RANGE_A, at=None,
+         says=[r'\ba ?= ?1\b', r'Backward Euler|Too many iterates']),
+    dict(id='range_bound', model='bound_rk4', key='i', replies=STOPS_RANGE_A, at=None,
+         says=[r'\bbound\b', r'\ba ?= ?1\b']),
+]
+
+
+def stops_run(path, key, replies):
+    """the messages and state of one run: a key, the answers to its asks in order, then idle"""
+    s = Server(args.server, path)
+    try:
+        s.collect(stops_idle)
+        s.send(cmd='key', key=key)
+        pending, got = list(replies), []
+        while True:
+            evs, e = s.collect(lambda e: is_ask(e) or stops_idle(e), timeout=60 * SLOW)
+            got += evs
+            if e is None or stops_idle(e):
+                return got
+            s.send(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
+    finally:
+        s.close()
+
+
+def stops_line(path, text):
+    with open(path) as f:
+        for n, line in enumerate(f, 1):
+            if text in line:
+                return n
+    raise ValueError('%s has no line %r' % (path, text))
+
+
+def stops_parts(case, evs, path):
+    msgs = [e for e in evs if e.get('ev') == 'message' and 'bottom' not in e]  # bottom lines are progress
+    text = ' | '.join(json.dumps(e) for e in msgs)
+    parts = [('a message is shown', bool(msgs), str(evs[-4:]))]
+    for rx in case['says']:
+        parts.append(('the message says %s' % rx, re.search(rx, text) is not None, text[:400]))
+    for rx in case.get('forbids', []):
+        parts.append(('the message does not say %s' % rx, re.search(rx, text) is None, text[:400]))
+    if case['at']:
+        line = stops_line(path, case['at'])
+        name = os.path.basename(path)
+        errs = [(e.get('file'), e.get('line')) for e in msgs if e.get('error')]
+        parts.append(('the error names %s, model line %d' % (name, line), (name, line) in errs, str(errs)))
+    return parts
+
+
+def stops_silent(path, rule):
+    folder = tempfile.mkdtemp(prefix='w486stops')
+    try:
+        p = subprocess.run([os.path.abspath(args.server), path, '--silent'], cwd=folder,
+                           capture_output=True, text=True, timeout=60 * SLOW)
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+    parts = [('--silent exits with an error', p.returncode != 0, str(p.returncode))]
+    for rx in rule['says']:
+        parts.append(('--silent says %s' % rx, re.search(rx, p.stderr) is not None, p.stderr[:400]))
+    for rx in rule['forbids']:
+        parts.append(('--silent does not say %s' % rx, re.search(rx, p.stderr) is None, p.stderr[:400]))
+    return parts
+
+
+def check_stops():
+    """W480: a computation that stops early says what stopped, the setting with its value, and the
+    model line (docs/studies/w480-stops.md). Known cases are listed in STOPS_KNOWN."""
+    assert set(STOPS_KNOWN) <= {c['id'] for c in STOPS_CASES}, 'a known case has no model'
+    for case in STOPS_CASES:
+        card, reason = STOPS_KNOWN.get(case['id'], (None, None))
+        if reason:
+            print('KNOWN stops %s (%s): not started, %s' % (case['id'], card, reason))
+            continue
+        path = os.path.join(STOPS_DIR, case['model'] + '.odex')
+        try:
+            parts = stops_parts(case, stops_run(path, case['key'], case['replies']), path)
+            if 'silent' in case:
+                parts += stops_silent(path, case['silent'])
+        except Exception as exc:  # a crash or a wait that ran out is a failure of the case, never a pass
+            parts = [('the run finishes', False, repr(exc))]
+        missing = [name for name, ok, _ in parts if not ok]
+        if card is None:
+            for name, ok, detail in parts:
+                check('stops %s: %s' % (case['id'], name), ok, detail)
+        elif missing:
+            print('KNOWN stops %s (%s): missing %s' % (case['id'], card, '; '.join(missing)))
+        else:
+            check('stops %s: every part holds, so %s fixed it: move the case out of STOPS_KNOWN'
+                  % (case['id'], card), False, 'all parts hold')
+
+
+STOPS_SECTIONS = {'stops': check_stops}
+if args.only:
+    for name in args.only.split(','):
+        if name not in STOPS_SECTIONS:
+            sys.exit('servercheck: --only has no section %r (%s)' % (name, ', '.join(STOPS_SECTIONS)))
+        STOPS_SECTIONS[name]()
+    print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
+    sys.exit(1 if check.failures else 0)
 
 
 check_diagram_subscription()
@@ -8978,6 +9139,7 @@ def check_recursive_user_functions():
 
 
 check_recursive_user_functions()
+check_stops()
 
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

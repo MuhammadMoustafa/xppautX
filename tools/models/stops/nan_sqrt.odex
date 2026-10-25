@@ -1,0 +1,7 @@
+# nan_sqrt.odex: a stop case of servercheck's stops section (docs/studies/w480-stops.md)
+
+x' = sqrt(1-10*t)
+init x = 1
+options {
+  integration: { method: euler, total_time: 1, dt: 0.01 },
+}

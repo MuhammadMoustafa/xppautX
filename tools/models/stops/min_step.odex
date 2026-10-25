@@ -1,0 +1,7 @@
+# min_step.odex: a stop case of servercheck's stops section (docs/studies/w480-stops.md)
+
+x' = -x
+init x = 1
+options {
+  integration: { method: gear, total_time: 1, dt: 0.01, min_step: 0.1 },
+}
