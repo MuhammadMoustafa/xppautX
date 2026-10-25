@@ -712,7 +712,7 @@ The remaining options can be set from within the program. They are
 
 - AUTOEVAL=`{0,1}` tells XPP whether or not to automatically re-evaluate tables everytime a parameter is changed. The default is to do this. However for random tables, you may want this off. Each table can be flagged individually within XPP.
 
-- Postscript options. `PS_COLOR,PS_FONT,PS_LW,PS_FSIZE` represent respectively, the color flag (0/1), the name of the font (default is Times-Roman), the linewidth in tenths of a point (default 5), the fontsize (in points, default 14).
+- Picture options. `PS_COLOR,PS_FSIZE` are read as `picture_color` (`false`, `true`) and `picture_font_size` (points, default 12) of the PDF and SVG pictures; `PS_FONT` and `PS_LW` are read and ignored (a picture's font is Helvetica, and each curve has its own width). `PLOTFMT=ps` is read as `pdf`.
 
 - AUTO-stuff. The following AUTO-specific variables can also be set: `NTST, NMAX, NPR, EPSU, EPSS, EPSL, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within AUTO.
 

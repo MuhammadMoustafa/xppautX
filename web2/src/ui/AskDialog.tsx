@@ -15,6 +15,7 @@ import {askHelp} from '../help/links';
 import {fieldSpec, selectOptions} from '../protocol/lists';
 import {choiceLabel, fieldsValid, specOfKind, TEXT, type FieldSpec} from '../store/fieldKinds';
 import type {AskEvent} from '../protocol/types';
+import {ColorField} from './ColorField';
 import {Field} from './Field';
 import {FileAsk} from './FileDialog';
 import {nativeFileDialog} from '../pickers';
@@ -23,6 +24,7 @@ import {TextForm} from './TextDialog';
 import {MENU_ONE_COLUMN, menuRows} from './menuLayout';
 import {useSession, useStore} from './context';
 import {FOCUSABLE, useDialogFocus} from './dialogFocus';
+import {useDark} from './theme';
 
 
 function MenuAsk({ask}: {ask: AskEvent}) {
@@ -65,6 +67,7 @@ function MenuAsk({ask}: {ask: AskEvent}) {
 function FormAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
   const lists = useStore(s => s.hello?.lists);
+  const dark = useDark(useStore(s => s.theme));
   const isString = ask.kind === 'string';
   const names = isString ? [ask.name ?? ''] : ask.names ?? [];
   const [values, setValues] = useState<string[]>(isString ? [ask.value ?? ''] : [...(ask.values ?? [])]);
@@ -118,6 +121,14 @@ function FormAsk({ask}: {ask: AskEvent}) {
           <input type="checkbox" checked={values[i] === 'true'} data-autofocus={i === 0 ? '' : undefined}
             onChange={(e: Event) => set((e.target as HTMLInputElement).checked ? 'true' : 'false')} />
           {caption}
+        </label>
+      );
+    }
+    if (typed.kind === 'color') {
+      return (
+        <label key={i}>
+          {caption}
+          <ColorField value={values[i] ?? ''} dark={dark} label={spec.label} onChange={set} />
         </label>
       );
     }
@@ -205,7 +216,7 @@ function ChecklistAsk({ask}: {ask: AskEvent}) {
 /* Text,etc/Text: the text, size, style and colour of the text just placed */
 function TextAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
-  return <TextForm initial={{text: ask.value ?? '', size: Number(ask.size), style: Number(ask.style), color: Number(ask.color)}}
+  return <TextForm initial={{text: ask.value ?? '', size: Number(ask.size), style: Number(ask.style), color: String(ask.color)}}
     position={null} submit={(ask.ok as string) || 'OK'}
     onSubmit={v => session.answer(ask, {ok: 1, value: v.text, size: v.size, style: v.style, color: v.color})} />;
 }

@@ -4,6 +4,7 @@
 #include "colormap.h"
 #include "line_style.h"
 
+#include <cmath>
 #include <string>
 
 namespace {
@@ -35,17 +36,30 @@ int main(void)
     CHECK(xpp::print_color(xpp::xppaut_color(1)) == "#ff0000" && xpp::print_color(xpp::xppaut_color(2)) == "#f06400"
           && xpp::print_color(xpp::xppaut_color(6)) == "#c8eb4b" && xpp::print_color(xpp::xppaut_color(9)) == "#0000ff"
           && xpp::print_color(xpp::xppaut_color(10)) == "#a020f0");
-    for (int i = 0; i <= xpp::LAST_PLOT_COLOR; i++) {
-        CHECK(xpp::xppaut_color_index(xpp::xppaut_color(i)) == i);
-        CHECK(xpp::plot_color(*xpp::parse_color(xpp::print_color(xpp::xppaut_color(i)))) == i);
-    }
-    CHECK(!xpp::xppaut_color_index(rgba(1, 2, 3)).has_value() && !xpp::xppaut_color_index(rgba(255, 0, 0, 128)).has_value());
-    CHECK(!xpp::xppaut_color_index(rgba(0, 0, 0)).has_value()); /* black is not the foreground */
+    for (int i = 0; i <= xpp::LAST_PLOT_COLOR; i++) CHECK(xpp::parse_color(xpp::print_color(xpp::xppaut_color(i))) == xpp::xppaut_color(i));
+    CHECK(xpp::quoted_color(rgba(1, 2, 3, 4)) == "\"#01020304\"" && xpp::quoted_color(xpp::foreground_color) == "\"foreground\"");
 
-    /* the colour scales: XPPAUT's seven, by number 0..6 in the order of their words */
-    CHECK(xpp::colormap_names.size() == 7 && xpp::colormap_names[static_cast<std::size_t>(xpp::Colormap::jet)] == "jet"
+    /* the colour scales: XPPAUT's seven first, by number 0..6 in the order of their words, then the 17 more */
+    CHECK(xpp::colormap_names.size() == 24 && xpp::xppaut_colormap_count == 7);
+    CHECK(xpp::colormap_names[static_cast<std::size_t>(xpp::Colormap::jet)] == "jet"
           && xpp::colormap_names[static_cast<std::size_t>(xpp::Colormap::cubehelix)] == "cubehelix"
-          && xpp::colormap_names[static_cast<std::size_t>(xpp::Colormap::blue_red)] == "blue_red");
+          && xpp::colormap_names[static_cast<std::size_t>(xpp::Colormap::blue_red)] == "blue_red"
+          && xpp::colormap_names[static_cast<std::size_t>(xpp::Colormap::viridis)] == "viridis"
+          && xpp::colormap_names[static_cast<std::size_t>(xpp::Colormap::purples)] == "purples");
+    /* every scale is 256 opaque colours, and no two scales are alike */
+    for (std::size_t m = 0; m < xpp::colormap_names.size(); m++) {
+        const xpp::Ramp ramp = xpp::make_ramp(static_cast<xpp::Colormap>(m));
+        CHECK(ramp.size() == 256);
+        for (const xpp::Color &c : ramp) CHECK(c.a == 255 && !c.foreground);
+        for (std::size_t n = 0; n < m; n++) CHECK(ramp != xpp::make_ramp(static_cast<xpp::Colormap>(n)));
+    }
+    const xpp::Ramp viridis = xpp::make_ramp(xpp::Colormap::viridis), gray = xpp::make_ramp(xpp::Colormap::gray);
+    CHECK(viridis.front() == rgba(68, 1, 84) && viridis.back() == rgba(253, 231, 37)); /* matplotlib's table's ends */
+    CHECK(gray.front() == rgba(0, 0, 0) && gray.back() == rgba(254, 254, 254));
+    /* a fraction picks a colour of the ramp: 0 the first, 1 the last, outside 0..1 the nearest end, NaN the first */
+    CHECK(xpp::ramp_color(viridis, 0) == viridis.front() && xpp::ramp_color(viridis, 1) == viridis.back() && xpp::ramp_color(viridis, 2) == viridis.back()
+          && xpp::ramp_color(viridis, -1) == viridis.front() && xpp::ramp_color(viridis, std::nan("")) == viridis.front()
+          && xpp::ramp_color(viridis, .5) == viridis[128]);
 
     /* the line style: words, sizes and XPPAUT's line types */
     CHECK(xpp::parse_line_draw("both") == xpp::LineDraw::both && !xpp::parse_line_draw("Line").has_value());
@@ -59,16 +73,8 @@ int main(void)
     CHECK(xpp::line_style_of_xppaut(-3) && xpp::line_style_of_xppaut(-3)->draw == xpp::LineDraw::points && xpp::line_style_of_xppaut(-3)->marker_size == 3
           && xpp::line_style_of_xppaut(-3)->marker == xpp::LineMarker::circle);
     CHECK(!xpp::line_style_of_xppaut(2).has_value() && !xpp::line_style_of_xppaut(-6).has_value());
-    for (int lt = -5; lt <= 1; lt++) CHECK(xpp::xppaut_line_type(*xpp::line_style_of_xppaut(lt)) == lt);
-    xpp::LineStyle dashed;
-    dashed.dash = xpp::LineDash::dashed;
-    xpp::LineStyle both;
-    both.draw = xpp::LineDraw::both;
-    xpp::LineStyle squares = *xpp::line_style_of_xppaut(-2);
-    squares.marker = xpp::LineMarker::square;
-    xpp::LineStyle wide;
-    wide.width = 2;
-    CHECK(!xpp::xppaut_line_type(dashed) && !xpp::xppaut_line_type(both) && !xpp::xppaut_line_type(squares) && !xpp::xppaut_line_type(wide));
+    for (int lt = -5; lt <= 1; lt++) CHECK(xpp::line_style_of_xppaut(lt).has_value());
+    CHECK(xpp::line_style_json(xpp::LineStyle{}) == "\"draw\":\"line\",\"dash\":\"solid\",\"width\":1,\"marker\":\"circle\",\"marker_size\":3");
 
     TEST_REPORT("colours and line styles");
 }

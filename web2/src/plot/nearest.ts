@@ -1,6 +1,7 @@
 /* The point under the mouse: the plotted point nearest to it in screen
    distance, over every visible curve. Pure; a linear scan, which is fast
    enough for the sizes XPP stores (a grid index can replace it later). */
+import {drawsLine} from './linestyle';
 import type {CurveData} from './model';
 
 export interface Frame {
@@ -32,7 +33,7 @@ export function nearestPoint(curves: CurveData[], visible: boolean[], frame: Fra
     for (let i = 0; i < c.xs.length; i++) {
       const dx = (c.xs[i] - frame.xmin) * sx - px, dy = (frame.ymax - c.ys[i]) * sy - py;
       let d2 = dx * dx + dy * dy;
-      if (alongLines && c.line && i > 0) {
+      if (alongLines && drawsLine(c.style) && i > 0) {
         const ax = (c.xs[i - 1] - frame.xmin) * sx - px, ay = (frame.ymax - c.ys[i - 1]) * sy - py;
         const segment = segmentDistance2(ax, ay, dx, dy);
         if (segment < d2) d2 = segment;

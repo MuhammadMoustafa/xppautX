@@ -201,7 +201,7 @@ closing a view never touches the diagram).
 
 A click in a view makes it the **active** one, framed in the accent
 colour: Axes and its zoom, Fit and Scroll change the active view, the
-exports (Postscript, SVG, Write pts, All info) draw it, the info strip
+exports (PDF, SVG, Write pts, All info) draw it, the info strip
 names its variable, and Run continues in its parameters (Main Parm, and
 2nd Parm for a two-parameter run). Every view gets the points of a run as
 they come, and every view shows the grab's cursor and the point under
@@ -507,9 +507,9 @@ Imports an XPPAUT `.auto` into the model open, after asking whether to
 reset its diagram. The imported points have the six digits XPPAUT wrote;
 Save diagram saves them in the session. Nothing writes `.auto` files.
 
-### Postscript
+### PDF
 
-This makes a hard copy of the bifurcation diagram
+This makes a hard copy of the bifurcation diagram, as a PDF file
 
 ### SVG
 

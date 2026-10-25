@@ -37,10 +37,9 @@ namespace xpp {
 
 /*Default is now color*/
 
-#define lsSEQ 0
-#define lsUEQ 1
-#define lsSPER 8
-#define lsUPER 9
+/* the colours of an imported diagram's curves by their kind (XPPAUT's own line types for them: 0, 1, 8 and 9) */
+constexpr xpp::Color bd_stable_eq=xpp::xppaut_color(0),bd_unstable_eq=xpp::xppaut_color(1),
+  bd_stable_periodic=xpp::xppaut_color(8),bd_unstable_periodic=xpp::xppaut_color(9);
 
 namespace {
 
@@ -50,11 +49,6 @@ void frz_bd(xpp::Session &s);
 } // namespace
 
 constexpr int CurrentCurve=0;
-
-const int colorline[]={0,20,21,22,23,24,25,26,27,28,29,0};
-const char *const color_names[]={"WHITE","RED","REDORANGE","ORANGE","YELLOWORANGE",
-                    "YELLOW","YELLOWGREEN","GREEN","BLUEGREEN",
-		      "BLUE","PURPLE","BLACK"};
 
 void change_view_com(xpp::Session &s, int com)
 {
@@ -254,7 +248,7 @@ void axes_opts(xpp::Session &s)
 {
   static const char *const n[]={"X-origin","Y-origin","Z-origin",
 		   "X-org(1=on)","Y-org(1=on)","Z-org(1=on",
-		    "PSFontSize"};
+		    "Axes font size"};
   std::array<std::string, 7> values;
   int status;
   values[0] = xpp::format("{:g}", s.plot_windows.current->xorg);
@@ -263,9 +257,9 @@ void axes_opts(xpp::Session &s)
   values[3] = xpp::format("{:d}", s.plot_windows.current->xorgflag);
   values[4] = xpp::format("{:d}", s.plot_windows.current->yorgflag);
   values[5] = xpp::format("{:d}", s.plot_windows.current->zorgflag);
-  values[6] = xpp::format("{:d}", s.plot_file.ps_font_size);
+  values[6] = xpp::number(s.plot_export.font_size);
   static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
-                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
+                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER};
   status=do_string_box_of(7,1,"Axes options",n,values,kinds);
  if(status!=0){
    s.plot_windows.current->xorg=atof(values[0].c_str());
@@ -274,7 +268,7 @@ void axes_opts(xpp::Session &s)
    s.plot_windows.current->xorgflag=atoi(values[3].c_str());
    s.plot_windows.current->yorgflag=atoi(values[4].c_str());
    s.plot_windows.current->zorgflag=atoi(values[5].c_str());
-   s.plot_file.ps_font_size=atoi(values[6].c_str());
+   s.plot_export.font_size=atof(values[6].c_str());
    redraw_the_graph(s);
  }
    
@@ -694,8 +688,8 @@ void graph_all(xpp::Session &s, int *list, int n, int type)
     for(i=0;i<n;i++){
       s.plot_windows.current->xv[i]=0;
       s.plot_windows.current->yv[i]=list[i];
-      s.plot_windows.current->line[i]=s.plot_windows.current->line[0];
-      s.plot_windows.current->color[i]=i%(LAST_PLOT_COLOR+1);
+      s.plot_windows.current->style[i]=s.plot_windows.current->style[0];
+      s.plot_windows.current->color[i]=xpp::xppaut_color(i%(LAST_PLOT_COLOR+1));
     }
     s.plot_windows.current->grtype=0;
     s.plot_windows.current->ThreeDFlag=0;
@@ -717,40 +711,65 @@ void graph_all(xpp::Session &s, int *list, int n, int type)
 
 }
 
+namespace {
+
+template <std::size_t N> std::vector<std::string> words(const std::array<std::string_view, N> &names)
+{
+ return std::vector<std::string>(names.begin(),names.end());
+}
+
+/* the form fields of a colour and a line style (the curve dialogs'): their count and what they say */
+constexpr std::size_t style_field_count=6;
+std::array<xpp::FormField,style_field_count> style_fields(const xpp::Color &color, const xpp::LineStyle &style)
+{
+ return {xpp::FormField::color_field("Colour",color),
+         xpp::FormField::choice("Draw",words(xpp::line_draw_names),static_cast<std::size_t>(style.draw)),
+         xpp::FormField::choice("Dash",words(xpp::line_dash_names),static_cast<std::size_t>(style.dash)),
+         xpp::FormField::real_number("Width",style.width,0.0),
+         xpp::FormField::choice("Marker",words(xpp::line_marker_names),static_cast<std::size_t>(style.marker)),
+         xpp::FormField::real_number("Marker size",style.marker_size,0.0)};
+}
+
+/* the colour and style the fields (an answered ask_form's) say, or why not: a width of 0 is no line */
+bool read_style_fields(std::string_view title, std::span<const xpp::FormField> fields, xpp::Color &color, xpp::LineStyle &style)
+{
+ if(fields[3].real<=0){
+   command_error(title,"Width: must be above 0");
+   return false;
+ }
+ color=fields[0].color;
+ style.draw=static_cast<xpp::LineDraw>(fields[1].whole);
+ style.dash=static_cast<xpp::LineDash>(fields[2].whole);
+ style.width=fields[3].real;
+ style.marker=static_cast<xpp::LineMarker>(fields[4].whole);
+ style.marker_size=fields[5].real;
+ return true;
+}
+
+} // namespace
+
 int alter_curve(xpp::Session &s, std::string_view title, int in_it, int n)
 {
- static const char *const nn[]={"*0X-axis","*0Y-axis","*0Z-axis","*4Color","Line type"};
- std::array<std::string, 5> values;
- int status,i;
- int i1=s.plot_windows.current->xv[in_it],i2=s.plot_windows.current->yv[in_it],i3=s.plot_windows.current->zv[in_it];
- values[0] = xpp::ind_to_sym(s,i1);
- values[1] = xpp::ind_to_sym(s,i2);
- values[2] = xpp::ind_to_sym(s,i3);
- values[3] = xpp::format("{:d}", s.plot_windows.current->color[in_it]);
- values[4] = xpp::format("{:d}", s.plot_windows.current->line[in_it]);
- static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),
-                           XPP_FIELD_NAME_IN(4),XPP_FIELD_INTEGER};
- status=do_string_box_of(5,1,title,nn,values,kinds);
- if(status!=0){
-		    find_variable(s,values[0].c_str(),&i);
- 	      if(i>-1)
-		s.plot_windows.current->xv[n]=i;
-              find_variable(s,values[1].c_str(),&i);
-              if(i>-1)
-		s.plot_windows.current->yv[n]=i;
-              find_variable(s,values[2].c_str(),&i);
-  		if(i>-1)
-		  s.plot_windows.current->zv[n]=i;
-
-	       s.plot_windows.current->line[n]=atoi(values[4].c_str());
-               i=atoi(values[3].c_str());
-		    if(i<0||i>10)i=0;
-		    s.plot_windows.current->color[n]=i;
-		   
-		  return(1);
-              
-              }
- return(0);
+ GRAPH &g=*s.plot_windows.current;
+ std::vector<xpp::FormField> fields={
+   xpp::FormField{.name="*0X-axis",.kind=XPP_FIELD_NAME_IN(0),.value=xpp::ind_to_sym(s,g.xv[in_it])},
+   xpp::FormField{.name="*0Y-axis",.kind=XPP_FIELD_NAME_IN(0),.value=xpp::ind_to_sym(s,g.yv[in_it])},
+   xpp::FormField{.name="*0Z-axis",.kind=XPP_FIELD_NAME_IN(0),.value=xpp::ind_to_sym(s,g.zv[in_it])}};
+ for(xpp::FormField &f:style_fields(g.color[in_it],g.style[in_it]))fields.push_back(std::move(f));
+ if(!xpp::ask_form(s,title,fields))return 0;
+ xpp::Color color;
+ xpp::LineStyle style;
+ if(!read_style_fields(title,std::span(fields).subspan(3),color,style))return 0;
+ int i;
+ find_variable(s,fields[0].value.c_str(),&i);
+ if(i>-1)g.xv[n]=i;
+ find_variable(s,fields[1].value.c_str(),&i);
+ if(i>-1)g.yv[n]=i;
+ find_variable(s,fields[2].value.c_str(),&i);
+ if(i>-1)g.zv[n]=i;
+ g.color[n]=color;
+ g.style[n]=style;
+ return 1;
 }
 
 void edit_curve(xpp::Session &s)
@@ -771,20 +790,16 @@ void new_curve(xpp::Session &s)
   
  }  
 
-/* the main plot window's picture export (W53, issue #101): one entry
-   point through image_format.h's registry in place of the former
-   create_ps/create_svg pair -- each format's own extra step (PostScript's
-   parameter dialog; SVG asks nothing) is that row's ask_params, the rest
-   (file_selector, begin, restore) is shared. Same dialog, default name,
-   title and wildcard per format as before. */
+/* the main plot window's picture export (W53, issue #101; PDF and SVG, W479): one entry point through
+   image_format.h's registry: the picture's parameters, the file, the plot drawn into the picture */
 void export_plot_picture(xpp::Session &s, int fmt)
 {
  const xpp::ImageFormat &f=xpp::image_formats[fmt];
- if(f.ask_params && !f.ask_params(s))return;
- std::string filename=f.plot_filename(s);
+ if(!xpp::ask_picture_params(s))return;
+ std::string filename=xpp::picture_filename(s,f);
  if(!file_selector(f.plot_title,filename,xpp::format("*.{}",f.extension)))return;
- if(xpp::ok_or_show(f.begin(s,filename.c_str(),s.plot_export.color))&&s.plot_file.writer){
-   f.restore(s);
+ if(xpp::ok_or_show(xpp::begin_picture(s,f,filename,s.plot_export.color))&&s.plot_file.writer){
+   vector_restore(s);
    ping();
  }
 }
@@ -792,7 +807,7 @@ void export_plot_picture(xpp::Session &s, int fmt)
 void change_cmap_com(xpp::Session &s, int i)
 {
   s.colormap=static_cast<Colormap>(i);
-  NewColormap(s.colormap);
+  xpp::ui.aplot_redraw(s); /* the array plot shows the new colours */
 }
 
 void freeze_com(xpp::Session &s, int c)
@@ -841,16 +856,15 @@ void draw_freeze_key(xpp::Session &s)
   int i,y0;
   int ix2;
   int dy=2*s.drawing.h_char;
-  if(s.frozen_curves.key_flag==SCRNFMT)return;
-  if (const xpp::ImageFormat *f=xpp::active_image_format(s)) dy*=f->key_direction;
+  if(!s.frozen_curves.key_flag)return;
   scale_to_screen(s,static_cast<float>(s.frozen_curves.key_x),static_cast<float>(s.frozen_curves.key_y),&ix,&iy);
   ix2=ix+4*s.drawing.h_char;
   y0=iy;
   for(i=0;i<static_cast<int>(s.frozen_curves.curve.size());i++){
     if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==s.plot_windows.draw_win&&!s.frozen_curves.curve[i].key.empty()){
-      set_linestyle(s,abs(s.frozen_curves.curve[i].color));
+      xpp::set_pen(s,s.frozen_curves.curve[i].color,s.frozen_curves.curve[i].style);
       line(s,ix,y0,ix2,y0);
-      set_linestyle(s,0);
+      xpp::set_pen(s,xpp::foreground_color,xpp::LineStyle{});
       put_text(s,ix2+s.drawing.h_char,y0,s.frozen_curves.curve[i].key.c_str());
       y0+=dy;
     }
@@ -935,6 +949,8 @@ void fill_frozen_curve(xpp::Session &s, int i, std::vector<float> x, std::vector
   c.len=static_cast<int>(pts[0].size());
   c.type=type;
   c.w=w;
+  c.color=xpp::foreground_color;
+  c.style=xpp::LineStyle{};
   constexpr std::string_view letters="abcdefghijklmnopqrstuvwxyz"; // Preserve XPPAUT's letter names, then number new curves.
   c.name=static_cast<std::size_t>(i)<letters.size()?xpp::format("crv{}",letters[i]):xpp::format("crv{}",i+1);
   c.key=c.name;
@@ -965,7 +981,7 @@ int create_crv(xpp::Session &s, int ind)
   return i;
 }
 
-bool restore_frozen_curve(xpp::Session &s, int i, XppWinId w, int type, int color, std::string key, std::string name,
+bool restore_frozen_curve(xpp::Session &s, int i, XppWinId w, int type, const xpp::Color &color, const xpp::LineStyle &style, std::string key, std::string name,
                           std::vector<float> x, std::vector<float> y, std::vector<float> z)
 {
   if(i<0||i>static_cast<int>(s.frozen_curves.curve.size())||
@@ -974,6 +990,7 @@ bool restore_frozen_curve(xpp::Session &s, int i, XppWinId w, int type, int colo
   fill_frozen_curve(s,i,std::move(x),std::move(y),std::move(z),type,w);
   CURVE &c=s.frozen_curves.curve[i];
   c.color=color;
+  c.style=style;
   c.key=std::move(key);
   c.name=std::move(name);
   return true;
@@ -981,35 +998,31 @@ bool restore_frozen_curve(xpp::Session &s, int i, XppWinId w, int type, int colo
 
 void edit_frz_crv(xpp::Session &s, int i)
 {
- static const char *const nn[]={"*4Color","Key","Name"};
- std::array<std::string, 3> values;
- int status;
- values[0] = xpp::format("{:d}", s.frozen_curves.curve[i].color);
- values[1] = s.frozen_curves.curve[i].key;
- values[2] = s.frozen_curves.curve[i].name;
- static const int kinds[]={XPP_FIELD_NAME_IN(4),XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(3,1,"Edit Freeze",nn,values,kinds);
- if(status!=0){
-   s.frozen_curves.curve[i].color=atoi(values[0].c_str());
-   s.frozen_curves.curve[i].key=xpp::format("{:.19}",values[1]);
-   s.frozen_curves.curve[i].name=xpp::format("{:.9}",values[2]);
- }
+ CURVE &c=s.frozen_curves.curve[i];
+ std::vector<xpp::FormField> fields;
+ for(xpp::FormField &f:style_fields(c.color,c.style))fields.push_back(std::move(f));
+ fields.push_back(xpp::FormField{.name="Key",.value=c.key});
+ fields.push_back(xpp::FormField{.name="Name",.value=c.name});
+ if(!xpp::ask_form(s,"Edit Freeze",fields))return;
+ xpp::Color color;
+ xpp::LineStyle style;
+ if(!read_style_fields("Edit Freeze",std::span(fields).first(style_field_count),color,style))return;
+ c.color=color;
+ c.style=style;
+ c.key=xpp::format("{:.19}",fields[style_field_count].value);
+ c.name=xpp::format("{:.9}",fields[style_field_count+1].value);
 }
 
 void draw_freeze(xpp::Session &s, XppWinId w)
 {
-  int i,j,type=s.plot_windows.current->grtype,lt=0;
+  int i,j,type=s.plot_windows.current->grtype;
   float oldxpl,oldypl,oldzpl=0.0,xpl,ypl,zpl=0.0;
   float *xv,*yv,*zv;
   for(i=0;i<static_cast<int>(s.frozen_curves.curve.size());i++){
     if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==w&&s.frozen_curves.curve[i].type==type){
       if(type==0)marks_data_frozen(s,w,i); /* the curve as data */
-      if(s.frozen_curves.curve[i].color<0){
-	set_linestyle(s,-s.frozen_curves.curve[i].color);
-	lt=1;
-      }
-      else
-	set_linestyle(s,s.frozen_curves.curve[i].color);
+      const xpp::LineStyle &style=s.frozen_curves.curve[i].style;
+      xpp::set_pen(s,s.frozen_curves.curve[i].color,style);
       xv=s.frozen_curves.curve[i].xv;
       yv=s.frozen_curves.curve[i].yv;
       zv=s.frozen_curves.curve[i].zv;
@@ -1022,13 +1035,13 @@ void draw_freeze(xpp::Session &s, XppWinId w)
 	ypl=yv[j];
 	if(type>0)
 	  zpl=zv[j];
-        if(lt==0){
+        if(style.draw!=xpp::LineDraw::points){
 	if(type==0)
 	  line_abs(s,oldxpl,oldypl,xpl,ypl);
 	else
 	  line_3d(s,oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
 	}
-	else {
+        if(style.draw!=xpp::LineDraw::line){
 	  if(type==0)
 	  point_abs(s,xpl,ypl);
 	else
@@ -1053,7 +1066,7 @@ void draw_bd(xpp::Session &s, XppWinId w)
 {
  if(w!=s.frozen_curves.bif_diagram.w)return;
  for(const BifCurve &c:s.frozen_curves.bif_diagram.curves){
-   set_linestyle(s,c.color);
+   xpp::set_pen(s,c.color,xpp::LineStyle{});
    const int len=static_cast<int>(c.x.size());
    float xpl=c.x[0],ypl=c.y[0];
    for(int j=0;j<len;j++){
@@ -1071,11 +1084,10 @@ void add_bd_crv(xpp::Session &s, const float *x, const float *y, int len, int ty
   BifCurve c;
   c.x.assign(x,x+len);
   c.y.assign(y,y+len);
-  int i=lsSEQ;
-  if(type==UNSTABLE_PERIODIC)i=lsUPER;
-  if(type==STABLE_PERIODIC)i=lsSPER;
-  if(type==UNSTABLE_EQ)i=lsUEQ;
-  c.color=i;
+  c.color=bd_stable_eq;
+  if(type==UNSTABLE_PERIODIC)c.color=bd_unstable_periodic;
+  if(type==STABLE_PERIODIC)c.color=bd_stable_periodic;
+  if(type==UNSTABLE_EQ)c.color=bd_unstable_eq;
   s.frozen_curves.bif_diagram.curves.push_back(std::move(c));
 }
 
@@ -1240,7 +1252,7 @@ void add_a_curve_com(xpp::Session &s, int c)
    break;
  case 3: edit_curve(s);
    break;
- case 4: export_plot_picture(s,xpp::IMAGE_FORMAT_PS);
+ case 4: export_plot_picture(s,xpp::IMAGE_FORMAT_PDF);
    break;
  case 5: export_plot_picture(s,xpp::IMAGE_FORMAT_SVG);
    break;

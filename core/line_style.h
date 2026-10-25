@@ -8,6 +8,7 @@
 
 #include <array>
 #include <optional>
+#include <string>
 #include <string_view>
 
 namespace xpp {
@@ -37,10 +38,12 @@ std::optional<LineMarker> parse_line_marker(std::string_view word);
 /* a width or a marker size: a number above 0, a marker size also 0 (a dot) when allow_zero */
 std::optional<double> parse_line_size(std::string_view text, bool allow_zero);
 
+/* the style as the protocol's events carry it, the members of an object: "draw":"line","dash":"solid","width":1,
+   "marker":"circle","marker_size":3 */
+std::string line_style_json(const LineStyle &style);
+
 /* the style of XPPAUT's line type lt, -5 to 1 (1 a solid line, 0 a dot at each point, -n a circle of
    radius n at each point), nothing outside them */
 std::optional<LineStyle> line_style_of_xppaut(int lt);
-/* the XPPAUT line type that draws style, nothing when none does (a dash, a width, another marker) */
-std::optional<int> xppaut_line_type(const LineStyle &style);
 
 } // namespace xpp

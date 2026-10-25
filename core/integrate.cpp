@@ -177,7 +177,6 @@ static void mswtch(const xpp::Session &s, double *u, const double *v)
 }
 
 
-#define FIRSTCOLOR 30
 
 #define PARAM 1
 #define IC 2
@@ -647,7 +646,7 @@ void do_eq_range(xpp::Session &s, double *x)
  else if(!film.result())xpp::show_error(film.result().error());
 }
 
-void swap_color(xpp::Session &s, int *col, int rorw)
+void swap_color(xpp::Session &s, xpp::Color *col, int rorw)
 {
  if(rorw)s.plot_windows.current->color[0]=*col;
  else *col=s.plot_windows.current->color[0];
@@ -656,7 +655,7 @@ void swap_color(xpp::Session &s, int *col, int rorw)
 void set_cycle(xpp::Session &s, int flag, int *icol)
 {
  if(flag==0)return;
- s.plot_windows.current->color[0]=*icol+1;
+ s.plot_windows.current->color[0]=xpp::xppaut_color(*icol+1); /* XPPAUT cycles red to purple */
  *icol=*icol+1;
   if(*icol==10)*icol=0;
 } 
@@ -704,7 +703,7 @@ xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFra
   std::string parn; /* auto_get_info writes the parameter's name */
  int ivar=0,ivar2=0,res=0,oldic=0;
  int nit=20,i=0,j=0,itype=0,itype2=0,cycle=0,icol=0,nit2=0,iii=0;
- int color=s.plot_windows.current->color[0];
+ xpp::Color color=s.plot_windows.current->color[0];
  double t,dpar,plow=0.0,phigh=1.0,p=0.0,plow2=0.0,phigh2=0.0,p2=0.0,dpar2=0.0;
  double temp,temp2;
  int ierr=0;
@@ -753,7 +752,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
  for(i=0;i<=nit;i++)
   {
     if(s.integrator.range.movie)clear_draw_window(s);
-   if(cycle)s.plot_windows.current->color[0]=icol+1;
+   if(cycle)s.plot_windows.current->color[0]=xpp::xppaut_color(icol+1);
    icol++;
    if(icol==10)icol=0;
    t=s.numerics.start_time;
@@ -2012,30 +2011,30 @@ void send_output(xpp::Session &s, double *y,double t)
   }
 }
 
-  void  do_plot(xpp::Session &s, float *oldxpl, float *oldypl, float *oldzpl, float *xpl, float *ypl, float *zpl)
+  /* the segment or the point of curve ip, in the pen its colour and style make */
+static void draw_curve_step(xpp::Session &s, int ip, float oldx, float oldy, float oldz, float x, float y, float z)
+{
+  const xpp::LineStyle &style=s.plot_windows.current->style[ip];
+  const bool flat=s.plot_windows.current->ThreeDFlag==0;
+  if(style.draw!=xpp::LineDraw::points){
+    if(flat)line_abs(s,oldx,oldy,x,y);
+    else line_3d(s,oldx,oldy,oldz,x,y,z);
+  }
+  if(style.draw!=xpp::LineDraw::line){
+    if(flat)point_abs(s,x,y);
+    else point_3d(s,x,y,z);
+  }
+}
+
+void  do_plot(xpp::Session &s, float *oldxpl, float *oldypl, float *oldzpl, float *xpl, float *ypl, float *zpl)
 {
 	int ip,np=s.plot_windows.current->nvars;
         
         for(ip=0;ip<np;ip++){
-           if(s.plot_windows.current->ColorFlag==0){
-
-	     set_linestyle(s,s.plot_windows.current->color[ip]);
-	   }
-           if(s.plot_windows.current->line[ip]<=0)
-           {
-	    s.drawing.point_radius=-s.plot_windows.current->line[ip];
-	   if(s.plot_windows.current->ThreeDFlag==0) point_abs(s,xpl[ip],ypl[ip]);
-	   else point_3d(s,xpl[ip],ypl[ip],zpl[ip]);
-           }
-           else
-	   {
-	    if(s.plot_windows.current->ThreeDFlag==0){
-            
-	      line_abs(s,oldxpl[ip],oldypl[ip],xpl[ip],ypl[ip]);
-	    }
-            else line_3d(s,oldxpl[ip],oldypl[ip],oldzpl[ip],
-		         xpl[ip],ypl[ip],zpl[ip]);
-	   }
+           if(s.plot_windows.current->ColorFlag==0)
+	     xpp::set_pen(s,s.plot_windows.current->color[ip],s.plot_windows.current->style[ip]);
+           else xpp::set_pen_style(s,s.plot_windows.current->style[ip]);
+           draw_curve_step(s,ip,oldxpl[ip],oldypl[ip],oldzpl[ip],xpl[ip],ypl[ip],zpl[ip]);
        }
 }
 
@@ -2097,7 +2096,7 @@ void restore(xpp::Session &s, int i1, int i2)
   if(s.data_store.rows<2)return;
 
    for(ip=0;ip<np;ip++){
-     xpp::image_group(s, true);
+     xpp::picture_group(s, true);
      kxoff=i1-XSHFT;
      kzoff=i1-ZSHFT;
      kyoff=i1-YSHFT;
@@ -2105,7 +2104,7 @@ void restore(xpp::Session &s, int i1, int i2)
     iiXPLT=s.plot_windows.current->xv[ip];
     iiYPLT=s.plot_windows.current->yv[ip];
     iiZPLT=s.plot_windows.current->zv[ip];
-    set_linestyle(s,s.plot_windows.current->color[ip]);
+    xpp::set_pen(s,s.plot_windows.current->color[ip],s.plot_windows.current->style[ip]);
     oldxpl=data[iiXPLT][kxoff];
     oldypl=data[iiYPLT][kyoff];
     oldzpl=data[iiZPLT][kzoff];
@@ -2130,18 +2129,8 @@ void restore(xpp::Session &s, int i1, int i2)
 
 	  comp_color(s,v1.data(),v2.data(),s.model().node,
 		     static_cast<float>(fabs(data[0][i]-data[0][i+1])));
-	}     /* ignored by postscript */
-      if(s.plot_windows.current->line[ip]<=0){
-	s.drawing.point_radius=-s.plot_windows.current->line[ip];
-	if(s.plot_windows.current->ThreeDFlag==0)point_abs(s,xpl,ypl);
-	else point_3d(s,xpl,ypl,zpl);
-      }
-      else {
-	if(s.plot_windows.current->ThreeDFlag==0)
-	  line_abs(s,oldxpl,oldypl,xpl,ypl);
-	else
-	  line_3d(s,oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
-      }
+	}
+      draw_curve_step(s,ip,oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
      /*noplot:*/
       oldxpl=xpl;
       oldypl=ypl;
@@ -2151,7 +2140,7 @@ void restore(xpp::Session &s, int i1, int i2)
       kzoff++;
      
     }
-    xpp::image_group(s, false);
+    xpp::picture_group(s, false);
     
   }
 }
@@ -2159,7 +2148,7 @@ void restore(xpp::Session &s, int i1, int i2)
 /*  Sets the color according to the velocity or z-value */
 void comp_color(xpp::Session &s, float *v1, float *v2, int n, float dt)
 {
- int i,cur_color;
+ int i;
  float sum;
  float min_scale=static_cast<float>((s.plot_windows.current->min_scale));
  float color_scale=static_cast<float>((s.plot_windows.current->color_scale));
@@ -2171,12 +2160,7 @@ void comp_color(xpp::Session &s, float *v1, float *v2, int n, float dt)
      for(i=0,sum=0.0;i<n;i++)sum+=static_cast<float>(fabs(static_cast<double>((v1[i+1]-v2[i+1]))));
      sum=sum/(dt);
    }
- cur_color=static_cast<int>(((sum-min_scale)*static_cast<float>(color_table.count)/color_scale));
- if(cur_color<0)cur_color=0;
- if(cur_color>color_table.count)cur_color=color_table.count-1;
-  cur_color+=FIRSTCOLOR;
-  if (program.interactive){set_color(cur_color);}
- xpp::image_color(s,cur_color);
+ xpp::set_pen_color(s,xpp::ramp_color(s.ramp(),static_cast<double>((sum-min_scale)/color_scale)));
 }
 
 xpp::Result<> shoot_easy(xpp::Session &s, double *x)

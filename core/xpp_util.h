@@ -70,6 +70,8 @@ class TypedFields {
               std::optional<double> max = std::nullopt);
   /* `true` or `false`; false after a fault */
   bool boolean(std::string_view field, const std::string &text);
+  /* a colour (colormap.h's parse_color); the foreground after a fault */
+  Color color(std::string_view field, const std::string &text);
   /* one of choices, by its name, exactly: its index; 0 after a fault */
   int choice(std::string_view field, const std::string &text, std::span<const std::string> choices);
   void fail(std::string_view field, std::string_view what);

@@ -128,14 +128,10 @@ typedef struct {
   double xmin,ymin,xmax,ymax;
 }  AUTOAX;
 
-void colset(Session &s, DiagramPointType type);
-void pscolset2(Session &s, int flag2);
-void colset2(int flag2);
 void draw_export_axes(Session &s);
 void draw_bif_axes(Session &s);
 int IXVal(const Session &s, double x);
 int IYVal(const Session &s, double y);
-int chk_auto_bnds(const Session &s, int ix, int iy);
 void close_auto(Session &s, int flag);
 void open_auto(Session &s, int flag);
 /* the path of AUTO's fort.<unit> (3, 7, 8 or 9) open_auto set, "" for
@@ -175,7 +171,6 @@ void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double pa
 /* the stored point d into the PostScript or SVG picture being written
    (type its get_bif_type, flag 0 for a branch's first point) */
 void add_ps_point(Session &s, const DIAGRAM &d, DiagramPointType type, int flag);
-void auto_line(Session &s, double x1i, double y1i, double x2i, double y2i);
 /* the label the running continuation started from, once: for its first point */
 int auto_run_from_take(Session &s);
 /* the stored point d (its branch, point and type, its entry in the
@@ -184,9 +179,7 @@ int auto_run_from_take(Session &s);
    parameters from its stored branch. type is its get_bif_type, flag 0 for
    a branch's first point. */
 void add_point(Session &s, const DIAGRAM &d, DiagramPointType type, int flag);
-void info_header(Session &s, int flag2, AutoAxis icp1, AutoAxis icp2);
 /* the info strip's line for the stored point d */
-void new_info(Session &s, const DIAGRAM &d);
 void traverse_out(Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw);
 void do_auto_win(Session &s);
 void load_last_plot(Session &s, int flag);
@@ -250,7 +243,6 @@ int auto_grab_label(Session &s, int lab);
 int auto_grab_type_index(Session &s, const char *type, int index);
 /* asks which kind of special point: its symbol (auto_point_symbol's), or NULL */
 const char *query_special(const char *title);
-void MarkAuto(int x, int y);
 void clear_msg(Session &s);
 void auto_update_view(Session &s, float xlo, float xhi, float ylo, float yhi);
 void auto_motion_xy(Session &s, int i, int j);
@@ -258,7 +250,6 @@ void auto_motion_xy(Session &s, int i, int j);
    as the point AUTO's File/sElect 2par pt uses in a two-parameter plot */
 void auto_point_xy(Session &s, double x, double y);
 
-void DLINE(Session &s, double a, double b, double c, double d);
 void find_point(Session &s, int ibr, int pt);
 void auto_set_mark(Session &s, int i);
 void do_auto_range(Session &s);

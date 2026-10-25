@@ -221,7 +221,7 @@ held by the core's window and sent as data, so a saved session
 themselves are not saved. There is no zoom
 history: "Reset view" and the **Fit** button
 below are the way back. "Use this view" makes the client's current zoom
-the window's axes, so PostScript/SVG export and Restore agree with
+the window's axes, so PDF/SVG export and Restore agree with
 what's on screen.
 
 A **Fit** button sits in the plot's own top-right corner, over the chart
@@ -370,7 +370,7 @@ beside an imported XPPAUT `.set`. Declining the last keeps the imported values
 applied, without changing the session file. Scripts can put `replace:1` on
 the saving command to authorize it, or `replace:-1` to decline it (W129).
 
-Files (PostScript/SVG, GIF, `.dat`, tables, kinescope frames) are
+Files (PDF/SVG, GIF, `.dat`, tables, kinescope frames) are
 written next to the ODE file, by the program, exactly as in X11. The
 browser never silently downloads anything on its own.
 
@@ -386,7 +386,7 @@ browser never silently downloads anything on its own.
   again. Nothing is copied while a computation runs: the copy is refused
   with "Not while a computation runs", so a run never has a file it
   reads replaced under it.
-- **Save** (Save session, Save diagram, PostScript/SVG, ...): where the
+- **Save** (Save session, Save diagram, PDF/SVG, ...): where the
   browser supports it, a native Save dialog is offered with the name
   suggested; xppautX writes the file into the working directory and the
   page then offers (or directly saves) that same copy. Elsewhere the page
@@ -450,9 +450,9 @@ kinescope frames, eigenvector manifolds and periodic-orbit data. Cancel
 writes nothing. Settings forms contain settings; file names are asked
 separately and kept whole. A bad name is an error.
 
-Defaults use the model's base: `lecar.par`, `lecar.ps`, `lecar.svg`,
+Defaults use the model's base: `lecar.par`, `lecar.pdf`, `lecar.svg`,
 `lecar.gif`, `lecar.dat`, `lecar.csv`, `lecar.snapx`. Another output of the
-same type adds its purpose, such as `lecar-curves.csv`, `lecar-array.ps`
+same type adds its purpose, such as `lecar-curves.csv`, `lecar-array.pdf`
 or `lecar-eigen1-stable.dat`. Kinescope and animation PPM sequences ask
 once, then derive `-frame1`, `-frame2`, etc.; an existing derived file
 still needs its own replacement decision (W177, #229). Kinescope

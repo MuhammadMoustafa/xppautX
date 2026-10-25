@@ -1,41 +1,23 @@
-/* The picture-export registry (W53, issue #101): one row per format, so
-   the call sites that used to branch on which format was chosen
-   (graphics.cpp's PSFMT/SVGFMT primitive dispatch, AUTO's export_diagram
-   picking ps_init/ps_end vs. svg_init/svg_end, graf_par.cpp's
-   create_ps/create_svg pair, xpp_util.cpp's dump_ps, json_windows.cpp's
-   duplicated still-GIF writer) look it up here instead. Output is
-   unchanged: tools/goldencheck.py's .ps/.svg files and the
-   kinescope/array-plot GIFs still come from exactly the same
-   ps_.../svg_.../gif_stuff_ppm calls as before. */
-#include "xpp_files.h"
+/* The picture-export registry (W53, issue #101): one row per format, so the call sites that used to
+   branch on which format was chosen look it up here instead. A vector picture is recorded by
+   picture.cpp and written by its row's writer (my_pdf.cpp, my_svg.cpp, W479); GIF and PPM take the
+   page's pixels. */
 #include "image_format.h"
-#include "my_ps.h"
-#include "my_svg.h"
-#include "xpp_util.h"
-#include "session.h"
+#include "graphics.h"
 #include "model.h"
-#include "graf_par.h"
+#include "my_pdf.h"
+#include "my_svg.h"
+#include "picture.h"
 #include "scrngif.h"
-#include "browse.h"
-#include "array_print.h"
+#include "session.h"
+#include "xpp_files.h"
+#include "xpp_globals.h"
+#include "xpp_ui.h"
+#include "xpp_util.h"
 
 namespace xpp {
 
 namespace {
-
-std::string ps_filename(const Session &s) { return xpp::files::output_name(s.model().this_file,".ps"); }
-std::string svg_filename(const Session &s) { return xpp::files::output_name(s.model().this_file,".svg"); }
-
-void svg_group(Session &s, bool begin, bool direction_field)
-{
-  if (direction_field) s.nullclines.doing_dfield = begin;
-  svg_write(s.plot_file, begin ? "<g>" : "</g>");
-}
-
-void svg_label(Session &s, int x, int y, const char *str)
-{
-  svg_y_axis_label(s.plot_file, x, y, str);
-}
 
 void gif_pixels(Writer &w, std::span<const unsigned char> rgb, int width, int height, int frame)
 {
@@ -57,35 +39,57 @@ void ppm_pixels(Writer &w, std::span<const unsigned char> rgb, int width, int he
 } // namespace
 
 const ImageFormat image_formats[n_image_formats] = {
-  {"Postscript", "ps",  ps_init,  ps_end,  vector_restore,  ps_ask_params,
-   ps_point,  ps_line,  ps_bead,  ps_frect,  ps_text,  ps_linetype,  special_put_text_ps,
-   PSFMT, ps_do_color, nullptr, nullptr, -1, nullptr, nullptr, array_print, "Print postscript", ps_filename, "p", ps_parameter_values},
-  {"SVG",        "svg", svg_init, svg_end, vector_restore, nullptr,
-   svg_point, svg_line, svg_bead, svg_frect, svg_text, svg_linetype, special_put_text_svg,
-   SVGFMT, svg_do_color, svg_group, svg_label, 1, nullptr, nullptr, nullptr, "Print svg", svg_filename, "v"},
-  {"GIF",        "gif", nullptr,  nullptr, nullptr,     nullptr,
-   nullptr,   nullptr,  nullptr,  nullptr,   nullptr,  nullptr,      nullptr,
-   SCRNFMT, nullptr, nullptr, nullptr, 1, gif_pixels, gif_finish},
-  {"PPM", "ppm", nullptr, nullptr, nullptr, nullptr,
-   nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-   SCRNFMT, nullptr, nullptr, nullptr, 1, ppm_pixels},
+  {.name = "PDF", .extension = "pdf", .write = write_pdf, .binary = true, .plot_title = "Print pdf", .plot_key = "p"},
+  {.name = "SVG", .extension = "svg", .write = write_svg, .plot_title = "Print svg", .plot_key = "v"},
+  {.name = "GIF", .extension = "gif", .pixels = gif_pixels, .finish_movie = gif_finish},
+  {.name = "PPM", .extension = "ppm", .pixels = ppm_pixels},
 };
 
-const ImageFormat *active_image_format(const Session &s)
+int ask_picture_params(Session &s)
 {
-  for (const ImageFormat &f : image_formats)
-    if (f.begin && f.plot_flag == s.plot_file.plt_fmt_flag) return &f;
-  return nullptr;
+  std::array<FormField, 2> fields = {FormField::boolean("Colour", s.plot_export.color),
+                                     FormField::real_number("Axes font size", s.plot_export.font_size, 1.0, 100.0)};
+  if (!ask_form(s, "Picture parameters", fields)) return 0;
+  s.plot_export.color = fields[0].flag;
+  s.plot_export.font_size = fields[1].real;
+  return 1;
 }
 
-void image_color(Session &s, int color)
+std::vector<std::string> picture_parameter_values(const Session &s)
 {
-  if (const ImageFormat *f = active_image_format(s); f && f->color) f->color(s.plot_file, color);
+  return {s.plot_export.color ? "true" : "false", number(s.plot_export.font_size)};
 }
 
-void image_group(Session &s, bool begin, bool direction_field)
+std::string picture_filename(const Session &s, const ImageFormat &picture_format)
 {
-  if (const ImageFormat *f = active_image_format(s); f && f->group) f->group(s, begin, direction_field);
+  return files::output_name(s.model().this_file, xpp::format(".{}", picture_format.extension));
+}
+
+Result<> begin_picture(Session &s, const ImageFormat &format, std::string_view filename, bool color)
+{
+  Result<> opened;
+  s.plot_file.writer = open_writer_asking(std::string(filename).c_str(), format.binary, &opened);
+  if (!opened || !s.plot_file.writer) return opened;
+  s.plot_file.format = &format;
+  s.plot_file.picture = Picture{};
+  s.plot_file.picture.color = color;
+  s.plot_file.picture.font_size = s.plot_export.font_size;
+  s.plot_file.pen = Pen{};
+  s.plot_file.text_color = foreground_color;
+  init_picture(s);
+  return {};
+}
+
+void end_picture(Session &s)
+{
+  PlotFileState &f = s.plot_file;
+  if (f.writer) {
+    if (const Result<> written = f.format->write(f.picture, f.writer); !written) ok_or_show(written);
+    else ok_or_show(commit_save(f.writer));
+  }
+  f.format = nullptr;
+  f.picture = Picture{};
+  if (program.interactive) init_x11(s);
 }
 
 Result<bool> save_pixels(const ImageFormat &format, const char *filename, std::span<const unsigned char> rgb, int width, int height)

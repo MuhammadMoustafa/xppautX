@@ -1,18 +1,13 @@
-/* Colour table computation: PostScript and SVG export need the RGB
-   values with no display. */
+/* Colours: the colour type's text, XPPAUT's eleven, and the colour scales (XPPAUT's seven by its
+   formulas, the others the tables of third_party/colormaps), each as a ramp of 256 colours. */
 #include "colormap.h"
 #include "xpp_math.h"
+#include "../third_party/colormaps/colormaps.h"
 #include <algorithm>
 #include <cctype>
-#include <math.h>
-#include <stdio.h>
+#include <cmath>
 
 namespace xpp {
-
-/* the first of the ten named colours' slots in cmap_rgb */
-#define RED 20
-
-#define COL_TOTAL 150
 
 /* the CSS colour names (CSS Color Module Level 4), with their RGB: sorted, so a name is found by search */
 struct CssColor {
@@ -56,165 +51,114 @@ constexpr std::array<CssColor, 148> css_colors{{
 static_assert(std::ranges::is_sorted(css_colors, {}, &CssColor::name) && css_colors.back().name == "yellowgreen",
               "the CSS colours are sorted and all 148 are there");
 
-/* 16-bit RGB per colour index, same scale X11 uses */
-unsigned short cmap_rgb[XPP_MAX_COLORS][3];
 XppColorTable color_table;
+
+/* XPPAUT's seven scales (its colormap.c, the same formulas), each at x = i/n for n entries */
+namespace {
 
 int rfun(double y, int per)
 {
-    double x;
-    x = y;
+    double x = y;
     if ((y > .666666) && (per == 1)) x = 1. - y;
     if (x > .33333333333) return 0;
     return static_cast<int>(3. * 255 * sqrt((.333334 - x) * (x + .33334)));
 }
 
-int gfun(double y, int)
+int gfun(double y)
 {
     if (y > .666666) return 0;
     return static_cast<int>(3. * 255 * sqrt((.6666667 - y) * (y)));
 }
 
-int bfun(double y, int)
+int bfun(double y)
 {
     if (y < .333334) return 0;
     return static_cast<int>(2.79 * 255 * sqrt((1.05 - y) * (y - .333333333)));
 }
 
-void make_cmaps(int *r, int *g, int *b, int n, Colormap type)
+Color rgb8(int r, int g, int b)
 {
-    double x;
-    int i, i1, i2, i3;
-    double pii = 3.1415926;
-    double start = .5, rots = -1.5, hue = 1.2, gamma = 1.;
-    double angle, amp;
-    double rr, gg, bb;
+    return Color{static_cast<std::uint8_t>(r), static_cast<std::uint8_t>(g), static_cast<std::uint8_t>(b), 255, false};
+}
+
+Color rgb_of(const unsigned char (&c)[3]) { return Color{c[0], c[1], c[2], 255, false}; }
+
+/* a fraction 0 to 1 of the scale's cubehelix colour (Green's: start, rotations, hue, gamma as XPPAUT's) */
+Color cubehelix_color(double x)
+{
+    constexpr double pii = 3.1415926, start = .5, rots = -1.5, hue = 1.2, gamma = 1.;
+    const double angle = 2 * pii * (start / 3.0 + 1 + rots * x);
+    x = xpp::math::pow(x, gamma);
+    const double amp = hue * x * (1 - x) / 2.0;
+    const auto clamp8 = [](double v) { return static_cast<int>(255 * std::clamp(v, 0.0, 1.0)); };
+    return rgb8(clamp8(x + amp * (-.14861 * xpp::math::cos(angle) + 1.78277 * xpp::math::sin(angle))),
+                clamp8(x + amp * (-.29227 * xpp::math::cos(angle) - .90649 * xpp::math::sin(angle))),
+                clamp8(x + amp * (1.97294 * xpp::math::cos(angle))));
+}
+
+/* the entry i of XPPAUT's scale type, of n */
+Color xppaut_ramp_color(Colormap type, int i, int n)
+{
+    const double x = static_cast<double>(i) / static_cast<double>(n);
     switch (type) {
-    case Colormap::jet:
-        for (i = 0; i < n; i++) {
-            x = static_cast<double>(i) / static_cast<double>(n);
-            r[i] = rfun(1 - x, 0) << 8;
-            g[i] = gfun(1 - x, 0) << 8;
-            b[i] = bfun(1 - x, 0) << 8;
-        }
-        break;
-    case Colormap::periodic:
-        for (i = 0; i < n; i++) {
-            x = static_cast<double>(i) / static_cast<double>(n);
-            r[i] = rfun(x, 1) << 8;
-            g[i] = gfun(x, 1) << 8;
-            b[i] = bfun(x, 1) << 8;
-        }
-        break;
-    case Colormap::hot:
-        i1 = .375 * n;
-        i2 = 2 * i1;
-        i3 = n - i2;
-        for (i = 0; i < i1; i++) {
-            x = 256 * 255 * static_cast<double>(i) / static_cast<double>(i1);
-            r[i] = static_cast<int>(x);
-            g[i] = 0;
-            b[i] = 0;
-            g[i + i1] = static_cast<int>(x);
-            b[i + i1] = 0;
-        }
-        for (i = i1; i < n; i++) r[i] = 256 * 255;
-        for (i = i2; i < n; i++) {
-            x = 256 * 255 * static_cast<double>(i - i2) / static_cast<double>(i3);
-            g[i] = 256 * 255;
-            b[i] = static_cast<int>(x);
-        }
-        break;
-    case Colormap::cool:
-        for (i = 0; i < n; i++) {
-            x = static_cast<double>(i) / static_cast<double>(n);
-            r[i] = static_cast<int>(256 * 255 * x);
-            b[i] = static_cast<int>(256 * 255 * (1 - x));
-            g[i] = 256 * 255;
-        }
-        break;
-    case Colormap::blue_red:
-        for (i = 0; i < n; i++) {
-            x = static_cast<double>(i) / static_cast<double>(n);
-            r[i] = static_cast<int>(256 * 255 * x);
-            b[i] = static_cast<int>(256 * 255 * (1 - x));
-            g[i] = 0;
-        }
-        break;
-    case Colormap::gray:
-        for (i = 0; i < n; i++) {
-            r[i] = i * 256 * 255 / n;
-            b[i] = i * 256 * 255 / n;
-            g[i] = i * 256 * 255 / n;
-        }
-        break;
-    case Colormap::cubehelix:
-        for (i = 0; i < n; i++) {
-            x = static_cast<double>(i) / static_cast<double>(n);
-            angle = 2 * pii * (start / 3.0 + 1 + rots * x);
-            x = xpp::math::pow(x, gamma);
-            amp = hue * x * (1 - x) / 2.0;
-            rr = x + amp * (-.14861 * xpp::math::cos(angle) + 1.78277 * xpp::math::sin(angle));
-            gg = x + amp * (-.29227 * xpp::math::cos(angle) - .90649 * xpp::math::sin(angle));
-            bb = x + amp * (1.97294 * xpp::math::cos(angle));
-            if (rr < 0.0) rr = 0.0;
-            if (rr > 1.0) rr = 1.0;
-            if (gg < 0.0) gg = 0.0;
-            if (gg > 1.0) gg = 1.0;
-            if (bb < 0.0) bb = 0.0;
-            if (bb > 1.0) bb = 1.0;
-            r[i] = 256 * 255 * rr;
-            b[i] = 256 * 255 * bb;
-            g[i] = 256 * 255 * gg;
-        }
-        break;
+    case Colormap::jet: return rgb8(rfun(1 - x, 0), gfun(1 - x), bfun(1 - x));
+    case Colormap::periodic: return rgb8(rfun(x, 1), gfun(x), bfun(x));
+    case Colormap::hot: {
+        const int i1 = static_cast<int>(.375 * n), i2 = 2 * i1, i3 = n - i2;
+        const auto ramp = [](int k, int len) { return static_cast<int>(255.0 * static_cast<double>(k) / static_cast<double>(len)); };
+        if (i < i1) return rgb8(ramp(i, i1), 0, 0);
+        if (i < i2) return rgb8(255, ramp(i - i1, i1), 0);
+        return rgb8(255, 255, ramp(i - i2, i3));
     }
+    case Colormap::cool: return rgb8(static_cast<int>(255 * x), 255, static_cast<int>(255 * (1 - x)));
+    case Colormap::blue_red: return rgb8(static_cast<int>(255 * x), 0, static_cast<int>(255 * (1 - x)));
+    case Colormap::gray: return rgb8(i * 255 / n, i * 255 / n, i * 255 / n);
+    case Colormap::cubehelix: return cubehelix_color(x);
+    default: break;
+    }
+    return foreground_color;
 }
 
-/* Fill cmap_rgb and color_table's first/last/count. This is the
-   device-independent half of what MakeColormap() in color.c used to do. */
-void xpp_build_colormap(Colormap type)
+const auto &table_of(Colormap type)
 {
-    int i;
-    int r[256], g[256], b[256];
-
-    color_table.first = 30;
-    color_table.last = XPP_MAX_COLORS - 1;
-    color_table.count = color_table.last - color_table.first + 1;
-    if (color_table.count > COL_TOTAL) color_table.count = COL_TOTAL;
-    color_table.last = color_table.first + color_table.count;
-
-    for (i = 0; i < XPP_MAX_COLORS; i++)
-        cmap_rgb[i][0] = cmap_rgb[i][1] = cmap_rgb[i][2] = 0;
-
-    /* the ten named colours, 8-bit values shifted up to 16 bit */
-    for (std::size_t k = 0; k < named_colors.size(); k++) {
-        cmap_rgb[RED + k][0] = static_cast<unsigned short>(named_colors[k][0] << 8);
-        cmap_rgb[RED + k][1] = static_cast<unsigned short>(named_colors[k][1] << 8);
-        cmap_rgb[RED + k][2] = static_cast<unsigned short>(named_colors[k][2] << 8);
+    switch (type) {
+    case Colormap::viridis: return colormaps::viridis;
+    case Colormap::plasma: return colormaps::plasma;
+    case Colormap::inferno: return colormaps::inferno;
+    case Colormap::magma: return colormaps::magma;
+    case Colormap::cividis: return colormaps::cividis;
+    case Colormap::coolwarm: return colormaps::coolwarm;
+    case Colormap::rdbu: return colormaps::rdbu;
+    case Colormap::seismic: return colormaps::seismic;
+    case Colormap::twilight: return colormaps::twilight;
+    case Colormap::hsv: return colormaps::hsv;
+    case Colormap::turbo: return colormaps::turbo;
+    case Colormap::greys: return colormaps::greys;
+    case Colormap::blues: return colormaps::blues;
+    case Colormap::reds: return colormaps::reds;
+    case Colormap::greens: return colormaps::greens;
+    case Colormap::oranges: return colormaps::oranges;
+    case Colormap::purples: return colormaps::purples;
+    default: break;
     }
-
-    make_cmaps(r, g, b, color_table.count + 1, type);
-    for (i = color_table.first; i <= color_table.last; i++) {
-        cmap_rgb[i][0] = r[i - color_table.first];
-        cmap_rgb[i][1] = g[i - color_table.first];
-        cmap_rgb[i][2] = b[i - color_table.first];
-    }
+    return colormaps::viridis;
 }
 
-void get_ps_color(int i, float *r, float *g, float *b)
+} // namespace
+
+Ramp make_ramp(Colormap type)
 {
-    float z = 1. / (65535);
-    *r = z * static_cast<float>(cmap_rgb[i][0]);
-    *g = z * static_cast<float>(cmap_rgb[i][1]);
-    *b = z * static_cast<float>(cmap_rgb[i][2]);
+    Ramp ramp;
+    const bool xppaut = static_cast<std::size_t>(type) < xppaut_colormap_count;
+    for (int i = 0; i < ramp_size; i++)
+        ramp[static_cast<std::size_t>(i)] = xppaut ? xppaut_ramp_color(type, i, ramp_size) : rgb_of(table_of(type)[i]);
+    return ramp;
 }
 
-void get_svg_color(int i, int *r, int *g, int *b)
+Color ramp_color(const Ramp &ramp, double fraction)
 {
-    *r = cmap_rgb[i][0] / 255;
-    *g = cmap_rgb[i][1] / 255;
-    *b = cmap_rgb[i][2] / 255;
+    const double f = std::isnan(fraction) ? 0.0 : std::clamp(fraction, 0.0, 1.0);
+    return ramp[std::min(static_cast<std::size_t>(f * ramp_size), ramp.size() - 1)];
 }
 
 std::optional<Color> parse_color(std::string_view text)
@@ -254,13 +198,6 @@ std::string print_color(const Color &c)
     return text;
 }
 
-std::optional<int> xppaut_color_index(const Color &c)
-{
-    for (int i = 0; i <= LAST_PLOT_COLOR; i++)
-        if (xppaut_color(i) == c) return i;
-    return std::nullopt;
-}
-
-int plot_color(const Color &c) { return xppaut_color_index(c).value(); }
+std::string quoted_color(const Color &c) { return '"' + print_color(c) + '"'; }
 
 } // namespace xpp

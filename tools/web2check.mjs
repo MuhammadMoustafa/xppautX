@@ -1042,11 +1042,11 @@ async function marks() {
     await answer('text', look);
     await idle();
   };
-  await addText({value: '\\1a\\0-point', size: 3, style: 1, color: 4});
+  await addText({value: '\\1a\\0-point', size: 3, style: 1, color: '#ffcd00'});
   check('Text,etc/Text: the store holds the text, Greek as Unicode, with its size, style and colour',
     await until("w.marks && w.marks.text.length === 1", 'text')
     && await S("w.marks.text[0].plain === 'α-point' && w.marks.text[0].size === 3 && Math.abs(w.marks.text[0].x + 0.3) < 0.01"
-      + " && w.marks.text[0].style === 1 && w.marks.text[0].color === 4 && w.marks.text[0].source === '\\\\1a\\\\0-point'"),
+      + " && w.marks.text[0].style === 1 && w.marks.text[0].color === '#ffcd00' && w.marks.text[0].source === '\\\\1a\\\\0-point'"),
     JSON.stringify(await S('w.marks && w.marks.text')));
   let t = await layer('text');
   check('... drawn as text, "Text" in the legend, named in the plot\'s label', t && t.drawn === 1 && t.visible
@@ -1066,7 +1066,7 @@ async function marks() {
     return {text: d.querySelector('[data-text-input]').value, size: d.querySelector('[data-text-size]').value,
       style: d.querySelector('[data-text-style]').value, x: d.querySelector('[data-text-x]').value,
       y: d.querySelector('[data-text-y]').value,
-      color: [...d.querySelectorAll('[data-text-color]')].filter(b => b.getAttribute('aria-checked') === 'true').map(b => b.dataset.textColor)}; })()`);
+      color: d.querySelector('[data-color-text]').value}; })()`);
   const openDialog = async () => {
     const at = await cdp.eval(`(() => { const t = __xpp.plot().texts[0]; return t ? [t.x, t.y] : null; })()`);
     if (!at) return false;
@@ -1077,7 +1077,7 @@ async function marks() {
   const viewBefore = await S('JSON.stringify(w.viewport)');
   check('W227: double click on the text opens the dialog filled in (text as written, size, style, colour, position)',
     await openDialog() && JSON.stringify(await dialog()).includes('"text":"\\\\1a\\\\0-point","size":"3","style":"1"')
-    && (await dialog()).color.join() === '4' && Math.abs(Number((await dialog()).x) + 0.3) < 0.01,
+    && (await dialog()).color === '#ffcd00' && Math.abs(Number((await dialog()).x) + 0.3) < 0.01,
     JSON.stringify(await dialog()));
   check('... and it does not reset the zoom', (await S('JSON.stringify(w.viewport)')) === viewBefore);
   await cdp.eval(`(() => { const d = document.querySelector('[data-text-dialog]');
@@ -1085,19 +1085,19 @@ async function marks() {
     set(d.querySelector('[data-text-input]'), 'plain words', 'input');
     set(d.querySelector('[data-text-size]'), '0', 'change');
     set(d.querySelector('[data-text-style]'), '3', 'change');
-    d.querySelector('[data-text-color="9"]').click();
+    set(d.querySelector('[data-color-text]'), '#0000ff80', 'input');
     set(d.querySelector('[data-text-x]'), '0.25', 'input');
     set(d.querySelector('[data-text-y]'), '0.4', 'input'); })()`);
-  await until(`document.querySelector('[data-text-dialog] [data-text-color="9"]').getAttribute('aria-checked') === 'true'
+  await until(`document.querySelector('[data-text-dialog] [data-color-text]').value === '#0000ff80'
     && document.querySelector('[data-text-dialog] [data-text-y]').value === '0.4'`, 'dialog draft');
   await cdp.eval("document.querySelector('[data-text-dialog] form').requestSubmit(); true");
   await idle();
   check('W227: Apply sends one text edit with every field, and the store holds the new text',
     await until("w.marks && w.marks.text.length === 1 && w.marks.text[0].plain === 'plain words'", 'edited')
-    && await S("(() => { const x = w.marks.text[0]; return x.size === 0 && x.style === 3 && x.color === 9"
+    && await S("(() => { const x = w.marks.text[0]; return x.size === 0 && x.style === 3 && x.color === '#0000ff80'"
       + " && Math.abs(x.x - 0.25) < 1e-6 && Math.abs(x.y - 0.4) < 1e-6; })()")
     && JSON.stringify((await sentText()).at(-1)) === JSON.stringify({cmd: 'text', op: 'edit', win: 1, id: await S('w.marks.text[0].id'),
-      text: 'plain words', size: 0, style: 3, color: 9, x: 0.25, y: 0.4})
+      text: 'plain words', size: 0, style: 3, color: '#0000ff80', x: 0.25, y: 0.4})
     && !(await cdp.eval("!!document.querySelector('[data-text-dialog]')")),
     JSON.stringify({marks: await S('w.marks.text'), sent: (await sentText()).at(-1)}));
   check('... drawn once, in the new look', (await layer('text'))?.drawn === 1);
@@ -1110,7 +1110,7 @@ async function marks() {
     && await until("w.marks && w.marks.text.length === 0", 'deleted') && (await layer('text')) === null
     && !(await legendLabels()).includes('Text') && (await sentText()).at(-1).op === 'delete',
     JSON.stringify({marks: await S('w.marks.text'), sent: (await sentText()).at(-1)}));
-  await addText({value: '\\1a\\0-point', size: 3, style: 1, color: 4});
+  await addText({value: '\\1a\\0-point', size: 3, style: 1, color: '#ffcd00'});
   check('W227: the text added again is as the first was',
     await until("w.marks && w.marks.text.length === 1 && w.marks.text[0].plain === 'α-point'", 'text again')
     && (await layer('text'))?.drawn === 1);
@@ -1118,29 +1118,29 @@ async function marks() {
   await key('t');
   await menu('p');
   await answer('string', {value: '0.2'});
-  await answer('string', {value: '5'});
+  await answer('string', {value: '#c8c800'});
   await answer('rubber', {xd: 0.1, yd: 0.2, xd2: 0.6, yd2: 0.8});
   await idle();
   await key('t');
   await menu('m');
-  await answer('form', {values: ['3', '7', '2']});
+  await answer('form', {values: ['3', '#00e100', '2']});
   await answer('mouse', {xd: 0.9, yd: 0.1});
   await idle();
   check('Pointer and Marker: in the store, drawn, "Arrows" and "Markers" in the legend',
     await until('w.marks && w.marks.arrows.length === 1 && w.marks.markers.length === 1', 'objects')
-    && await S("w.marks.arrows[0].pointer && w.marks.arrows[0].color === 5 && w.marks.markers[0].shape === 'diamond'")
+    && await S("w.marks.arrows[0].pointer && w.marks.arrows[0].color === '#c8c800' && w.marks.markers[0].shape === 'diamond'")
     && (await layer('arrows'))?.drawn === 1 && (await layer('markers'))?.drawn === 1
     && (await markLabels()).join() === 'Text,Arrows,Markers', JSON.stringify(await S('w.marks')));
 
   await key('g');
   await menu('f', 'f');
-  await answer('form', {values: ['4', 'first run', 'frz1']});
+  await answer('form', {values: ['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'first run', 'frz1']});
   await idle();
   check('Graphic stuff/Freeze: the frozen curve in the store equals the series, named by its key',
     await until('w.marks && w.marks.frozen.length === 1', 'frozen')
     && await S(`(() => { const f = w.marks.frozen[0], c = w.series.curves[0];
       const x = w.series.columns.get(c.x), y = w.series.columns.get(c.y);
-      return f.label === 'first run' && f.color === 4 && f.xs.length === x.length
+      return f.label === 'first run' && f.color === '#ffcd00' && f.style.draw === 'line' && f.xs.length === x.length
         && f.xs.every((v, i) => v === x[i]) && f.ys.every((v, i) => v === y[i]); })()`),
     JSON.stringify(await S('w.marks && w.marks.frozen.map(f => [f.label, f.xs.length])')));
   const frozen = await layer('frozen-0');
@@ -1180,8 +1180,8 @@ async function marks() {
    the title bar's Array button (the classic key path underneath it,
    Window/zoom's Axes submenu, Array: `v` `a`, which also pops the Edit
    form the first time -- both already generic, AskDialog's menu and form).
-   Its cells come from `values` (not the core's own colour indices), so the
-   store can pick its own colour map; the core's own buttons (Fit, Redraw,
+   Its cells come from `values` and the session's ramp of 256 colours (the core's:
+   its pictures use it too); the core's own buttons (Fit, Redraw,
    Close) and time scroll (wheel, keyboard) still go through the protocol.
    examples/ode/wcring.odex (a ring of 20 coupled neurons, u0..u19) is a real
    array model, so the grid actually has columns worth scrolling through. */
@@ -1238,12 +1238,16 @@ async function aplotView() {
   check('... zmax > zmin, and the range changed from the core\'s default',
     after[1] > after[0] && JSON.stringify(after) !== JSON.stringify(before), JSON.stringify({before, after}));
 
-  /* the colour map switch is client-only: the store's map changes, nothing goes to the core */
+  /* the colour scale is the core's: the event carries its name and its 256 colours, and the select asks the core to change it */
+  check('the event carries the session\'s colour scale: its name and 256 colours',
+    await S("s.aplot.event.colormap === 'viridis' && s.aplot.event.ramp.length === 256 && s.aplot.event.ramp[0] === '#440154'"));
   const sentBefore = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`(() => { const s = document.querySelector('.aplot-map select');
-    s.value = 'xpp'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  check('the colour map switch changes the store\'s map, and sends nothing to the core',
-    await S("s.aplot.colorMap === 'xpp'") && await cdp.eval('__xpp.sentCount()') === sentBefore);
+    s.value = 'plasma'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  check('the colour map switch asks the core, and the next event carries the other ramp',
+    await until("s.aplot.event.colormap === 'plasma' && s.aplot.event.ramp[0] === '#0d0887'", 'plasma')
+    && await cdp.eval('__xpp.sentCount()') === sentBefore + 1
+    && await cdp.eval(`__xpp.sent().at(-1).cmd === 'colormap'`));
 
   /* hover names a cell: its variable, row and value */
   const cellPt = await cdp.eval(`(() => { const r = document.querySelector('.aplot-canvas').getBoundingClientRect();
@@ -2576,6 +2580,8 @@ async function autoView(dir) {
   /* the store is the events, exactly */
   const want = rebuildDiagram(await cdp.eval('__xpp.diagramEvents()'));
   const got = await DS('Object.fromEntries(Object.keys(d.points).filter(k => k !== "buffers").map(k => [k, Array.from(d.points[k])]))');
+  const palette = await DS('d.points.palette');
+  got.c = got.c.map(i => palette[i]); /* the store keeps a colour as an index into its palette */
   let bad = want.pts.length === got.x.length ? null : `${got.x.length} points held, ${want.pts.length} sent`;
   const same = (a, b) => (a === null ? b === null : a === b); /* NaN arrives as null through JSON */
   for (let i = 0; i < want.pts.length && !bad; i++) {

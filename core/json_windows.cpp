@@ -213,9 +213,18 @@ void text_command(xpp::Session &s, const char *line)
         j_command_error("text", "the text is a string");
         return;
     }
-    if (!get_whole(line, "size", look.size) || !get_whole(line, "style", look.style) || !get_whole(line, "color", look.color)) {
-        j_command_error("text", "size, style and color are whole numbers");
+    if (!get_whole(line, "size", look.size) || !get_whole(line, "style", look.style)) {
+        j_command_error("text", "size and style are whole numbers");
         return;
+    }
+    if (const char *jc = js_find(line, "color")) {
+        std::string word;
+        const std::optional<xpp::Color> parsed = js_string(jc, word) ? xpp::parse_color(word) : std::nullopt;
+        if (!parsed) {
+            j_command_error("text", "the color is a string: #rrggbb, #rrggbbaa, a CSS colour name or foreground");
+            return;
+        }
+        look.color = *parsed;
     }
     if (const std::string problem = xpp::label_problem(look); !problem.empty()) {
         j_command_error("text", problem);
@@ -276,11 +285,6 @@ void j_scroll_window(xpp::Session &s)
     j_kill_message_box();
 }
 
-void j_new_colormap(Colormap type)
-{
-    xpp_build_colormap(type);
-}
-
 /* ---- pixels -------------------------------------------------------------------
    Only the client has the rendered picture: it draws the window from the
    data events. Frame and GIF writers ask for it: {"kind":"pixels","win":W}
@@ -321,8 +325,6 @@ std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
 
 namespace {
 
-#define MAXFILM 250 /* kinescope.c */
-
 void send_film(const xpp::Session &s, const char *what)
 {
     Buf b;
@@ -335,7 +337,7 @@ void send_film(const xpp::Session &s, const char *what)
 
 xpp::Result<> j_film_clip(xpp::Session &s)
 {
-    if (s.kinescope.frames >= MAXFILM)
+    if (s.kinescope.frames >= kinescope_max_frames)
         return xpp::fail("kinescope", "Out of film: the kinescope holds no more frames", xpp::command_place());
     s.kinescope.frames++;
     send_film(s, "capture");
@@ -405,17 +407,14 @@ void j_movie_make_anigif(xpp::Session &s)
 }
 
 /* ---- array plot ------------------------------------------------------------------
-   The picture is a grid of colour indices (aplotwin.c redraw_aplot).
-   `values` (docs/ui-v2.md T12) carries the same cells' numbers before that
-   mapping, so a client can pick its own colour scale from them and zmin/zmax;
-   encoded like a series column (series_enc.h), base64 float32 when the
-   client last asked for that (data_command's "enc":"f32", reused here via
-   plot_data_want_f32 since aplot is not itself in the "data" subscription
-   list -- it is sent whenever the window is alive and dirtied, as before). */
+   The array plot as data (docs/ui-v2.md T12): `values` is the cells' numbers (encoded like a series
+   column, series_enc.h: base64 float32 when the client last asked for that, data_command's "enc":"f32",
+   reused here via plot_data_want_f32 since aplot is not itself in the "data" subscription list: it is sent
+   whenever the window is alive and dirtied), with zmin, zmax, the range of time shown and the colour scale
+   the session has, as its name and its 256 colours: the page colours a cell by ramp_color's rule, a fraction
+   of zmin to zmax into the ramp, and the print file does the same. */
 
 namespace {
-
-#define FIRSTCOLOR 30 /* aplotwin.c */
 
 int aplot_dirty; /* the data behind an array plot changed */
 
@@ -423,7 +422,6 @@ void send_aplot(xpp::Session &s, const char *tag)
 {
     Buf b;
     int num, i, j, nx, ny, nrows = s.browser.view.maxrow;
-    double tlo = 0.0, thi = 20.0;
     APLOT *ap = &s.array_plot.plot;
     std::vector<float> vals;
     int f32 = plot_data_want_f32();
@@ -435,22 +433,18 @@ void send_aplot(xpp::Session &s, const char *tag)
     nx = ap->ncskip > 0 ? ap->nacross / ap->ncskip : 0;
     ny = ap->ndown;
     if (nrows <= 2 || ap->plotdef == 0 || ap->nacross < 2 || ap->ndown < 2) nx = ny = 0;
-    if (nx) {
-        j = ap->nstart;
-        if (j > 0 && j < nrows) tlo = s.browser.view.data[0][j];
-        j = ap->nstart + ap->nskip * (ap->ndown - 1);
-        if (j >= nrows) j = nrows - 1;
-        if (j >= 0) thi = s.browser.view.data[0][j];
-    }
+    const AplotTimes times = nx ? aplot_times(s, *ap) : AplotTimes{0.0, 0.0};
     BUF_LIT(&b, ",\"tlo\":");
-    buf_num(&b, tlo, 6);
+    buf_num(&b, times.first, 6);
     BUF_LIT(&b, ",\"thi\":");
-    buf_num(&b, thi, 6);
+    buf_num(&b, times.last, 6);
     BUF_LIT(&b, ",\"zmin\":");
     buf_num(&b, ap->zmin, 6);
     BUF_LIT(&b, ",\"zmax\":");
     buf_num(&b, ap->zmax, 6);
-    buf_format(&b, ",\"first\":{:d},\"ncolors\":{:d},\"nx\":{:d},\"ny\":{:d}", FIRSTCOLOR, color_table.count, nx, ny);
+    buf_format(&b, ",\"colormap\":\"{}\",\"ramp\":[", xpp::colormap_names[static_cast<std::size_t>(s.colormap)]);
+    for (std::size_t k = 0; k < s.ramp().size(); k++) buf_format(&b, "{}{}", k ? "," : "", xpp::quoted_color(s.ramp()[k]));
+    buf_format(&b, "],\"nx\":{:d},\"ny\":{:d}", nx, ny);
     if (tag) {
         BUF_LIT(&b, ",\"tag\":");
         buf_str(&b, tag);
@@ -460,28 +454,16 @@ void send_aplot(xpp::Session &s, const char *tag)
     } catch (...) {
         xpp::out_of_memory("sending an array plot");
     }
-    /* -1 (cells) / NaN (values): past the stored rows or columns (left blank) */
-    BUF_LIT(&b, ",\"cells\":[");
+    /* NaN: past the stored rows or columns (left blank) */
     for (j = 0; j < ny; j++) {
         int jb = ap->nstart + ap->nskip * j;
         for (i = 0; i < nx; i++) {
-            int ib = ap->index0 + i * ap->ncskip, c = -1;
+            int ib = ap->index0 + i * ap->ncskip;
             float v = NAN;
-            if (ib < s.browser.view.maxcol && jb < nrows && jb >= 0) {
-                double z = s.browser.view.data[ib][jb];
-                v = static_cast<float>(z);
-                if (ap->zmax > ap->zmin) {
-                    c = static_cast<int>(color_table.count * (z - ap->zmin) / (ap->zmax - ap->zmin));
-                    if (c < 0) c = 0;
-                    if (c > color_table.count) c = color_table.count;
-                }
-            }
+            if (ib < s.browser.view.maxcol && jb < nrows && jb >= 0) v = static_cast<float>(s.browser.view.data[ib][jb]);
             if (!vals.empty()) vals[j * nx + i] = v;
-            if (i || j) BUF_LIT(&b, ",");
-            buf_format(&b, "{:d}", c);
         }
     }
-    BUF_LIT(&b, "]");
     if (f32) BUF_LIT(&b, ",\"enc\":\"f32\"");
     BUF_LIT(&b, ",\"values\":");
     xpp_series_append(b.s, vals.empty() ? nullptr : vals.data(), nx * ny, f32);
@@ -575,6 +557,24 @@ void aplot_command(xpp::Session &s, const char *line)
         s.array_plot.plot.alive = 0;
         send_window("destroy", WIN_APLOT, 0, 0);
     }
+}
+
+/* {"cmd":"colormap","name":"plasma"}: the session's colour scale (the Colormap menu's change, by name); the
+   array plot shows it at once */
+void colormap_command(xpp::Session &s, const char *line)
+{
+    std::string name;
+    if (!get_string(line, "name", name)) {
+        j_command_error("colormap", "colormap takes a name");
+        return;
+    }
+    const int i = xpp::choice_index(xpp::colormap_names, name);
+    if (i < 0) {
+        j_command_error("colormap", xpp::format("`{}` is no colour scale", name));
+        return;
+    }
+    s.colormap = static_cast<xpp::Colormap>(i);
+    send_aplot(s, NULL);
 }
 
 /* a key of the array plot window (menu_aplot_window) */

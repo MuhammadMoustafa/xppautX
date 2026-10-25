@@ -309,11 +309,6 @@ void run_the_commands(xpp::Session &s, int com)
     freeze_com(s,com - M_GFF);
     return;
   }
-  if (com >= M_GCN && com <= M_GCU) {
-    change_cmap_com(s,com - M_GCN);
-    redraw_dfield(s);
-    return;
-  }
   if (com == M_GFKK || com == M_GFKN) {
     key_frz_com(s,com - M_GFKN);
     return;
@@ -453,10 +448,16 @@ static void add_a_curve(xpp::Session &s)
       com = M_GFF + j;
     }
     break;
-  case 'c':
-    j = menu_pick(&menu_colormap, 0);
-    if (j >= 0) com = M_GCN + j;
-    break;
+  case 'c': {
+    /* a scale by its name, from all of them */
+    const std::vector<std::string> names(colormap_names.begin(), colormap_names.end());
+    j = pick_from_list("colormap", "Colormap", names);
+    if (j >= 0) {
+      change_cmap_com(s, j);
+      redraw_dfield(s);
+    }
+    return;
+  }
   default:
     com = M_GA + i;
   }

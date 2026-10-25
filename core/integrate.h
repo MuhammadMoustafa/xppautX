@@ -110,7 +110,7 @@ int set_up_range2(Session &s);
 void init_monte_carlo(Session &s);
 void monte_carlo(Session &s);
 void do_eq_range(Session &s, double *x);
-void swap_color(Session &s, int *col, int rorw);
+void swap_color(Session &s, Color *col, int rorw);
 void set_cycle(Session &s, int flag, int *icol);
 int do_range(Session &s, double *x, int flag);
 void find_equilib_com(Session &s, int com);

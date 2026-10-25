@@ -15,14 +15,14 @@ const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never}
 const f32 = (v: number[]) => Buffer.from(new Float32Array(v).buffer).toString('base64');
 
 const NC: NullclinesEvent = {
-  ev: 'nullclines', win: 1, xname: 'V', yname: 'W', xcolor: 2, ycolor: 7,
+  ev: 'nullclines', win: 1, xname: 'V', yname: 'W', xcolor: '#f06400', ycolor: '#00e100',
   x: [0, 0, 1, 1, 1, 1, 2, 0], y: [0, 1, 1, 0], frozen: [{x: [0, 0, 0, 1], y: []}],
 };
 
 const DF: DfieldEvent = {
-  ev: 'dfield', win: 1, scaled: 1, color: 0, n: 2, du: 1, dv: 1,
+  ev: 'dfield', win: 1, scaled: 1, color: 'foreground', n: 2, du: 1, dv: 1,
   grid: [0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, -1, 0], speed: [2, 1, 0, 4],
-  flows: [{color: 3, x: [0, 1, null, 2, 3, 4], y: [0, 1, null, 2, 3, 4]}],
+  flows: [{color: '#ffa500', x: [0, 1, null, 2, 3, 4], y: [0, 1, null, 2, 3, 4]}],
 };
 
 /** a unit square of plot coordinates on a 100 x 100 canvas area at (10, 20) */
@@ -55,10 +55,10 @@ test('the store keeps each window its own nullclines and field', () => {
 test('layers: named for the legend, empty ones left out', () => {
   const nc = nullclinesFromEvent(NC), df = dfieldFromEvent(DF);
   assert.deepEqual(phaseLayers(nc, df).map(l => [l.key, l.label, l.color, l.count]), [
-    ['xnull', 'V-nullcline', 2, 3], /* two segments and a frozen one */
-    ['ynull', 'W-nullcline', 7, 1],
-    ['dfield', 'Direction field', 0, 4],
-    ['flow', 'Flow', 3, 2],
+    ['xnull', 'V-nullcline', '#f06400', 3], /* two segments and a frozen one */
+    ['ynull', 'W-nullcline', '#00e100', 1],
+    ['dfield', 'Direction field', 'foreground', 4],
+    ['flow', 'Flow', '#ffa500', 2],
   ]);
   assert.deepEqual(phaseLayers(nullclinesFromEvent({...NC, x: [], y: [], frozen: []}),
     dfieldFromEvent({...DF, n: 0, grid: [], speed: [], flows: []})), []);
@@ -78,7 +78,7 @@ test('a flow breaks at NaN: each trajectory starts with a move', () => {
   assert.deepEqual(r.ops.map(o => o[0]).join(''), 'MLMLL');
 });
 
-const field = (over: Partial<Dfield>): Dfield => ({n: 2, du: 0.5, dv: 0.5, scaled: true, color: 0,
+const field = (over: Partial<Dfield>): Dfield => ({n: 2, du: 0.5, dv: 0.5, scaled: true, color: 'foreground',
   grid: new Float32Array(0), speed: new Float32Array(0), flows: [], ...over});
 
 test('scaled arrows: from the grid point, along the direction on screen, one length', () => {

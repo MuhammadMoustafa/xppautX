@@ -52,7 +52,8 @@
    on it. The info strip and the stability circle are ui/AutoInfo.tsx. */
 import {TraceDialog} from './TraceDialog';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hooks';
-import {DiagramChart, paletteColor, setDiagramChart} from '../plot/diagramChart';
+import {DiagramChart, setDiagramChart} from '../plot/diagramChart';
+import {cssColor} from '../plot/colors';
 import {stopPoint} from '../plot/autoStatus';
 import {
   buildDiagramModel, describePoint, fmt, grabStep, labelShape, LABEL_GLYPH, labelTypes, stepLabel, symbolHelp,
@@ -173,8 +174,8 @@ function GrabBar() {
 }
 
 /** the kinds of curve the diagram has, for its key (colour is not the only carrier, A7) */
-function legendOf(m: DiagramModel): {text: string; color: number; dashed: boolean}[] {
-  const seen = new Map<string, {text: string; color: number; dashed: boolean}>();
+function legendOf(m: DiagramModel): {text: string; color: string; dashed: boolean}[] {
+  const seen = new Map<string, {text: string; color: string; dashed: boolean}>();
   for (const c of m.curves) {
     const text = c.kind === 'two-parameter' ? 'Two-parameter curve'
       : `${c.stable ? 'Stable' : 'Unstable'} ${c.kind === 'periodic' ? 'periodic orbits (max, min)' : 'steady states'}`;
@@ -435,7 +436,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
           {legendOf(model).map(l => (
             <li key={`${l.text}/${l.color}`}>
               <span class={'auto-swatch' + (l.dashed ? ' dashed' : '')} aria-hidden="true"
-                style={{borderColor: paletteColor(l.color, dark)}} />
+                style={{borderColor: cssColor(l.color, dark)}} />
               {l.text}
             </li>
           ))}
@@ -464,8 +465,8 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
             title="Click to show or hide; double click to edit name and colour"
             onMouseEnter={() => chart.current?.highlight(i)} onMouseLeave={() => chart.current?.highlight(null)}
             onClick={() => setAppearance(a => ({...a, [traceKey(c)]: {...a[traceKey(c)], visible: c.visible === false}}))}
-            onDblClick={() => setEditing({key: traceKey(c), label: c.legend!, color: c.cssColor ?? paletteColor(c.color, dark)})}>
-            <span class="swatch" style={{background: c.cssColor ?? paletteColor(c.color, dark)}} aria-hidden="true" />{c.legend}
+            onDblClick={() => setEditing({key: traceKey(c), label: c.legend!, color: c.cssColor ?? cssColor(c.color, dark)})}>
+            <span class="swatch" style={{background: c.cssColor ?? cssColor(c.color, dark)}} aria-hidden="true" />{c.legend}
           </button>)}
         </div>
         <div class="plot-tools">

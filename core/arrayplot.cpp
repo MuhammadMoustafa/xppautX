@@ -160,52 +160,42 @@ void init_my_aplot(xpp::Session &s)
  ap->xtitle="index";
  ap->ytitle="time";
  ap->bottom="";
- ap->type=xpp::ARRAY_GREYSCALE;
+}
+
+AplotTimes aplot_times(const xpp::Session &s, const APLOT &ap)
+{
+  const int nrows=s.browser.view.maxrow;
+  const auto time_of=[&](int row){return static_cast<double>(s.browser.view.data[0][std::clamp(row,0,nrows-1)]);};
+  return {time_of(ap.nstart),time_of(ap.nstart+ap.nskip*(ap.ndown-1))};
 }
 
 void print_aplot(const xpp::Session &s, APLOT *ap)
 {
-  double tlo,thi;
-  int status;
-  static const char *const n[]={"Top label","Side label","Bottom label",
-	       "Render(-1,0,1,2)"};
-   std::array<std::string, 4> values;
+  static const char *const n[]={"Top label","Side label","Bottom label"};
+  std::array<std::string, 3> values;
   int nrows=s.browser.view.maxrow;
   int row0=ap->nstart;
   int col0=ap->index0;
-  int jb;
   if(!xpp::save_ready(nrows>2&&ap->plotdef!=0&&ap->nacross>=2&&ap->ndown>=2))return;
-  jb=row0;
-  tlo=0.0;
-  thi=20.0;
-  if(jb>0&&jb<nrows)tlo=s.browser.view.data[0][jb];
-  jb=row0+ap->nskip*(ap->ndown-1);
-  if(jb>=nrows)jb=nrows-1;
-  if(jb>=0)thi=s.browser.view.data[0][jb];
+  const AplotTimes times=aplot_times(s,*ap);
   values[0] = ap->xtitle;
   values[1] = ap->ytitle;
-    values[2] = ap->bottom;
-  values[3] = xpp::format("{:d}", ap->type);
-  static const int kinds[]={xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_INTEGER};
-  status=xpp::do_string_box_of(4,1,"Print arrayplot",n,values,kinds);
- if(status!=0){
-   int render;
-   if(!xpp::parse_int(values[3],render)||render<xpp::ARRAY_GREYSCALE||render>xpp::ARRAY_PERIODIC){xpp::command_error("Print arrayplot",xpp::format("Render must be -1, 0, 1 or 2: {}",values[3]));return;}
+  values[2] = ap->bottom;
+  if(xpp::do_string_box(3,1,"Print arrayplot",n,values)!=0){
    ap->xtitle=values[0];
    ap->ytitle=values[1];
    ap->bottom=values[2];
-   ap->type=render;
-   if(ap->filename.empty())ap->filename=xpp::files::output_name(s.model().this_file,".ps","array");
-   if(!xpp::file_selector("Save array plot",ap->filename,"*.ps"))return;
+   if(ap->filename.empty())ap->filename=xpp::files::output_name(s.model().this_file,".pdf","array");
+   if(!xpp::file_selector("Save array plot",ap->filename,"*.pdf"))return;
    const xpp::ArrayPicture picture{
      .filename=ap->filename.c_str(), .xtitle=ap->xtitle.c_str(),
      .ytitle=ap->ytitle.c_str(), .bottom=ap->bottom.c_str(),
      .nacross=ap->nacross, .ndown=ap->ndown, .col0=col0, .row0=row0,
      .nskip=ap->nskip, .ncskip=ap->ncskip, .maxrow=nrows,
      .maxcol=s.browser.view.maxcol, .data=s.browser.view.data,
-     .zmin=ap->zmin, .zmax=ap->zmax, .tlo=tlo, .thi=thi, .type=ap->type};
-   xpp::ok_or_show(xpp::image_formats[xpp::IMAGE_FORMAT_PS].array(picture));
- }
+     .zmin=ap->zmin, .zmax=ap->zmax, .tlo=times.first, .thi=times.last};
+   xpp::ok_or_show(xpp::array_print(s,picture));
+  }
 }
 
 /* splits an array plot's first column name at its trailing digits:

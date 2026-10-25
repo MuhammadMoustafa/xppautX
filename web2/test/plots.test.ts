@@ -5,14 +5,14 @@ import {test} from 'node:test';
 import type {PlotWindowInfo, SeriesEvent} from '../src/protocol/types';
 import {activeWindow, windowOf} from '../src/store/plots';
 import {reduce, type AppState} from '../src/store/state';
-import {READY} from './hello';
+import {READY, LINE, xppColor} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const wins = (s: AppState) => s.plots.windows.map(w => w.win);
 
 const series = (win: number, x: number, y: number): SeriesEvent => ({
   ev: 'series', win, rows: 2, three: 0, xlabel: '', ylabel: '', zlabel: '',
-  curves: [{x, y, z: 0, color: 0, line: 1}], shift: [0, 0, 0],
+  curves: [{x, y, z: 0, color: 'foreground', ...LINE}], shift: [0, 0, 0],
   columns: [{col: 0, name: 'T', data: [0, 1]}, {col: 1, name: 'V', data: [2, 3]}, {col: 2, name: 'W', data: [4, 5]}]
     .filter(c => c.col === 0 || c.col === x || c.col === y),
 });
@@ -20,7 +20,7 @@ const series = (win: number, x: number, y: number): SeriesEvent => ({
 const info = (win: number, title: string): PlotWindowInfo => ({
   win, title, three: 0, xlo: -1, xhi: 1, ylo: -2, yhi: 2,
   box: {xmin: -1, xmax: 1, ymin: -2, ymax: 2, zmin: -1, zmax: 1}, theta: 45, phi: 45, persp: 0, zplane: -1000,
-  zview: 1000, curves: [{x: 1, y: 2, z: 1, color: 0, line: 1}], shift: [0, 0, 0],
+  zview: 1000, curves: [{x: 1, y: 2, z: 1, color: 'foreground', ...LINE}], shift: [0, 0, 0],
 });
 
 const plots = (active: number, ...w: PlotWindowInfo[]) => ({ev: 'plots', active, windows: w});
@@ -124,11 +124,12 @@ test('W376: many windows and curves keep their data, selection and styles', () =
   const windows = Array.from({length: 30}, (_, i) => info(i + 1, `window ${i + 1}`));
   let s = ev(READY, plots(30, ...windows));
   const data = series(30, 0, 1);
-  data.curves = Array.from({length: 13}, (_, i) => ({x: 0, y: 1, z: 0, color: i % 11, line: i}));
+  data.curves = Array.from({length: 13}, (_, i) => ({x: 0, y: 1, z: 0, color: xppColor(i % 11), ...LINE, draw: i % 2 ? 'points' : 'line'}));
   s = ev(s, data);
   s = ev(s, {ev: 'window', op: 'select', win: 30});
   assert.equal(s.plots.windows.length, 30);
   assert.equal(s.plots.active, 30);
   assert.equal(activeWindow(s.plots)?.series?.curves.length, 13);
-  assert.equal(activeWindow(s.plots)?.series?.curves[12].line, 12);
+  assert.equal(activeWindow(s.plots)?.series?.curves[12].draw, 'line');
+  assert.equal(activeWindow(s.plots)?.series?.curves[11].draw, 'points');
 });

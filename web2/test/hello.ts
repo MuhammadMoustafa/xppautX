@@ -4,6 +4,30 @@ import {readFileSync} from 'node:fs';
 import type {CommandCategory, CommandRow} from '../src/protocol/kinds';
 import {PROTOCOL, type HelloEvent, type MenuName} from '../src/protocol/types';
 import {initialState, reduce} from '../src/store/state';
+import {setLineGeometry, type LineGeometry} from '../src/plot/linestyle';
+import type {CoreColor, LineStyle} from '../src/protocol/types';
+
+/** XPPAUT's colour 0..10 as the core says it (core/colormap.h xppaut_color) */
+export const xppColor = (i: number): CoreColor =>
+  ['foreground', '#ff0000', '#f06400', '#ffa500', '#ffcd00', '#c8c800', '#c8eb4b', '#00e100', '#00c8c8', '#0000ff', '#a020f0'][i];
+
+/** the core's default curve style */
+export const LINE: LineStyle = {draw: 'line', dash: 'solid', width: 1, marker: 'circle', marker_size: 3};
+
+/** the dash patterns and marker glyphs the core's hello carries (core/picture.cpp line_styles_json) */
+export const LINE_GEOMETRY: LineGeometry = {
+  dash: {solid: [], dashed: [6, 3], dotted: [1, 2], dash_dot: [6, 3, 1, 3]},
+  markers: {
+    circle: {circle: 1, polygon: [], strokes: []},
+    square: {circle: 0, polygon: [[-1, -1], [1, -1], [1, 1], [-1, 1]], strokes: []},
+    triangle: {circle: 0, polygon: [[0, -1.15], [1.05, 0.85], [-1.05, 0.85]], strokes: []},
+    diamond: {circle: 0, polygon: [[0, -1.2], [1.2, 0], [0, 1.2], [-1.2, 0]], strokes: []},
+    cross: {circle: 0, polygon: [], strokes: [[[-1, -1], [1, 1]], [[-1, 1], [1, -1]]]},
+    plus: {circle: 0, polygon: [], strokes: [[[-1, 0], [1, 0]], [[0, -1], [0, 1]]]},
+    star: {circle: 0, polygon: [], strokes: [[[-1, 0], [1, 0]], [[0, -1], [0, 1]], [[-0.7, -0.7], [0.7, 0.7]], [[-0.7, 0.7], [0.7, -0.7]]]},
+  },
+};
+setLineGeometry(LINE_GEOMETRY);
 
 /** the string literal `"..."` of C++ source as its text */
 const cString = (literal: string): string => JSON.parse(literal);
@@ -82,7 +106,9 @@ export const HELLO: HelloEvent = {
   upload_error: 'larger than 64 MB',
   player_speed: {min: 0.25, max: 8},
   limits: {upload: 64 * 1024 * 1024, browser_rows: 2000, browser_cols: 500},
-  text: {max_length: 1000, size_max: 4, style_count: 4, color_max: 10, default_size: 2},
+  text: {max_length: 1000, size_max: 4, style_count: 4, default_size: 2},
+  line_styles: LINE_GEOMETRY,
+  colormaps: ['jet', 'viridis', 'plasma'],
   window_ids: {plots: 21, auto: 101, ani: 104, aplot: 105},
 };
 

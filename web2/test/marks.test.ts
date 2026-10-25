@@ -4,14 +4,15 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {PixelFrame} from '../src/plot/decimate';
-import {arrowPath, equilibriumPath, markerPath, markLayers, textPx, traceFrozen} from '../src/plot/marks';
+import {arrowPath, equilibriumPath, markerPath, markLayers, textPx, traceCurve} from '../src/plot/marks';
+import {dashPattern} from '../src/plot/linestyle';
 import type {PathSink} from '../src/plot/phase';
 import {parseRichText, plainText, symbolToUnicode} from '../src/plot/richtext';
 import type {MarksEvent} from '../src/protocol/types';
 import {markCount, marksFromEvent} from '../src/store/marks';
 import {windowOf} from '../src/store/plots';
 import {reduce, type AppState} from '../src/store/state';
-import {READY} from './hello';
+import {LINE, READY} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const f32 = (v: number[]) => Buffer.from(new Float32Array(v).buffer).toString('base64');
@@ -19,11 +20,11 @@ const f32 = (v: number[]) => Buffer.from(new Float32Array(v).buffer).toString('b
 const MARKS: MarksEvent = {
   ev: 'marks', win: 1,
   equilibria: [{x: -0.14, y: 0.03, type: 'saddle', symbol: 'triangle'}, {x: 0.3, y: 0.2, type: 'stable', symbol: 'circle'}],
-  text: [{id: 4, x: 0.1, y: 0.5, text: '\\1a\\0-point', source: '\\1a\\0-point', size: 3, font: 0, style: 1, color: 5}],
-  arrows: [{kind: 'pointer', x1: 0, y1: 0, x2: 1, y2: 0, size: 0.2, color: 5}],
-  markers: [{x: 0.5, y: 0.5, shape: 'diamond', size: 2, color: 7}],
-  frozen: [{key: 'first run', name: 'frz1', color: 4, line: 1, x: [0, 0.5, 1], y: [0, 1, null]},
-    {key: '', name: 'crvb', color: 2, line: 0, x: [], y: []}],
+  text: [{id: 4, x: 0.1, y: 0.5, text: '\\1a\\0-point', source: '\\1a\\0-point', size: 3, font: 0, style: 1, color: '#c8c800'}],
+  arrows: [{kind: 'pointer', x1: 0, y1: 0, x2: 1, y2: 0, size: 0.2, color: '#c8c800'}],
+  markers: [{x: 0.5, y: 0.5, shape: 'diamond', size: 2, color: '#00e100'}],
+  frozen: [{key: 'first run', name: 'frz1', color: '#ffcd00', ...LINE, x: [0, 0.5, 1], y: [0, 1, null]},
+    {key: '', name: 'crvb', color: '#f06400b0', ...LINE, draw: 'points', marker: 'square', marker_size: 2, x: [], y: []}],
 };
 
 /** a unit square of plot coordinates on a 100 x 100 canvas area at (10, 20) */
@@ -59,13 +60,14 @@ test('marks decoded: stability, text runs, arrows, markers, frozen curves from J
   assert.deepEqual(m.equilibria.map(e => e.type), ['saddle', 'stable']);
   assert.equal(m.text[0].plain, 'α-point');
   assert.equal(m.text[0].raw, '\\1a\\0-point');
-  assert.deepEqual([m.text[0].id, m.text[0].source, m.text[0].style, m.text[0].color], [4, '\\1a\\0-point', 1, 5]);
+  assert.deepEqual([m.text[0].id, m.text[0].source, m.text[0].style, m.text[0].color], [4, '\\1a\\0-point', 1, '#c8c800']);
   assert.equal(m.arrows[0].pointer, true);
   assert.equal(m.markers[0].shape, 'diamond');
   assert.equal(m.frozen[0].label, 'first run');
   assert.equal(m.frozen[1].label, 'crvb', 'no key: the name');
-  assert.equal(m.frozen[0].line, true);
-  assert.equal(m.frozen[1].line, false);
+  assert.equal(m.frozen[0].style.draw, 'line');
+  assert.deepEqual(m.frozen[1].style, {draw: 'points', dash: 'solid', width: 1, marker: 'square', marker_size: 2});
+  assert.equal(m.frozen[1].color, '#f06400b0', 'a colour with its alpha is kept');
   assert.ok(Number.isNaN(m.frozen[0].ys[2]));
   const b = marksFromEvent({...MARKS, enc: 'f32', frozen: [{...MARKS.frozen[0], x: f32([0, 0.5, 1]), y: f32([0, 1, NaN])}]});
   assert.deepEqual(Array.from(b.frozen[0].xs), Array.from(m.frozen[0].xs));
@@ -84,12 +86,12 @@ test('the store keeps each window its marks; an empty event clears them', () => 
 
 test('layers: one per kind, named for the legend, and one per frozen curve by its key', () => {
   assert.deepEqual(markLayers(marksFromEvent(MARKS)).map(l => [l.key, l.label, l.color, l.count]), [
-    ['equilibria', 'Equilibria', 0, 2],
-    ['text', 'Text', 0, 1],
-    ['arrows', 'Arrows', 5, 1],
-    ['markers', 'Markers', 7, 1],
-    ['frozen-0', 'first run', 4, 3],
-    ['frozen-1', 'crvb', 2, 0],
+    ['equilibria', 'Equilibria', 'foreground', 2],
+    ['text', 'Text', 'foreground', 1],
+    ['arrows', 'Arrows', '#c8c800', 1],
+    ['markers', 'Markers', '#00e100', 1],
+    ['frozen-0', 'first run', '#ffcd00', 3],
+    ['frozen-1', 'crvb', '#f06400b0', 0],
   ]);
   assert.deepEqual(markLayers(marksFromEvent({...MARKS, equilibria: [], text: [], arrows: [], markers: [], frozen: []})), []);
   assert.deepEqual(markLayers(null), []);
@@ -138,19 +140,37 @@ test('equilibria: a circle stable, a box unstable, a triangle a saddle, about th
   assert.equal(equilibriumPath({x: Infinity, y: 0, type: 'stable'}, FRAME, 5, recorder()), false);
 });
 
-test('a frozen curve: a line through its points, breaking at NaN; dots for points', () => {
-  const r = recorder();
-  const n = traceFrozen(new Float32Array([0, 0.5, 0.5, 1, 0]), new Float32Array([0, 1, NaN, 0, 1]), true, FRAME, 1.5, r);
+test('a curve of any style: a line through its points breaking at NaN, markers of its shape for points, both for both', () => {
+  const sinks = () => ({line: recorder(), fill: recorder(), stroke: recorder()});
+  let k = sinks();
+  const n = traceCurve(new Float32Array([0, 0.5, 0.5, 1, 0]), new Float32Array([0, 1, NaN, 0, 1]), LINE, FRAME, 1, k.line, k.fill, k.stroke);
   assert.equal(n, 4);
-  assert.deepEqual(r.ops.map(o => o[0]).join(''), 'MLML');
+  assert.deepEqual(k.line.ops.map(o => o[0]).join(''), 'MLML');
+  assert.equal(k.fill.ops.length + k.stroke.ops.length, 0, 'a line has no markers');
   /* W82: a line going over the same pixels again and again (an earlier run
      round a limit cycle) is drawn once, not once per pass */
   const back = new Float32Array(1001).map((_, i) => i % 2), half = new Float32Array(1001).fill(0.5);
-  const same = recorder();
-  assert.equal(traceFrozen(back, half, true, FRAME, 1.5, same), 2, 'the passes after the first change no pixel');
-  const dots = recorder();
-  assert.equal(traceFrozen(new Float32Array([0, 1]), new Float32Array([0, 1]), false, FRAME, 1.5, dots), 2);
-  assert.equal(dots.ops.filter(o => o[0] === 'M').length, 2);
+  k = sinks();
+  assert.equal(traceCurve(back, half, LINE, FRAME, 1, k.line, k.fill, k.stroke), 2, 'the passes after the first change no pixel');
+  const xy = [new Float32Array([0, 1]), new Float32Array([0, 1])] as const;
+  k = sinks();
+  assert.equal(traceCurve(...xy, {...LINE, draw: 'points'}, FRAME, 1, k.line, k.fill, k.stroke), 2);
+  assert.equal(k.line.ops.length, 0, 'points draw no line');
+  assert.equal(k.fill.ops.filter(o => o[0] === 'M').length, 2, 'a circle for each point');
+  k = sinks();
+  traceCurve(...xy, {...LINE, draw: 'points', marker: 'cross', marker_size: 4}, FRAME, 1, k.line, k.fill, k.stroke);
+  assert.equal(k.fill.ops.length, 0);
+  assert.equal(k.stroke.ops.filter(o => o[0] === 'M').length, 4, 'two strokes for each of two points');
+  k = sinks();
+  assert.equal(traceCurve(...xy, {...LINE, draw: 'both', marker: 'square'}, FRAME, 1, k.line, k.fill, k.stroke), 2 + 2);
+  assert.ok(k.line.ops.length > 0 && k.fill.ops.length > 0, 'a line and its markers');
+});
+
+test('the dash of a style is the core\'s pattern at width 1 times the width, at least 1', () => {
+  assert.deepEqual(dashPattern(LINE), []);
+  assert.deepEqual(dashPattern({...LINE, dash: 'dashed'}), [6, 3]);
+  assert.deepEqual(dashPattern({...LINE, dash: 'dash_dot', width: 2}), [12, 6, 2, 6]);
+  assert.deepEqual(dashPattern({...LINE, dash: 'dotted', width: 0.5}), [1, 2], 'a thin line is dashed as a width of 1');
 });
 
 test('text sizes 0-4 in pixels, out of range clamped', () => {

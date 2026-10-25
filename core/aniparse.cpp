@@ -2,12 +2,9 @@
    drawing of a frame.
 
    A frame is computed in the animation's own coordinates (`dimension`,
-   [0,1] x [0,1] by default, y up) and each primitive goes to two places
-   (the "frame sinks" below): the pixel callbacks (xpp_ui ani_*, scaled
-   to the vcr.wid x vcr.hgt window exactly as XPP always has; no front end
-   draws them since protocol 2) and ani_data.h, which
-   keeps it in unit coordinates for a front end that draws it itself
-   (docs/protocol.md "The animation as data"). */
+   [0,1] x [0,1] by default, y up) and each primitive goes to ani_data.h
+   (the "frame sinks" below), which keeps it in unit coordinates for a front
+   end that draws it itself (docs/protocol.md "The animation as data"). */
 #include "xpp_files.h"
 #include <array>
 #include <chrono>
@@ -117,10 +114,9 @@ namespace {
 
 /************************  end grabber **********************/
 
-constexpr int FIRSTCOLOR = 30;
 constexpr int on_the_fly_speed = 10;
 
-void set_ani_font_stuff(xpp::Session &s, int size, int font, int color);
+void set_ani_font_stuff(xpp::Session &s, int size, int font, const xpp::Color &color);
 void eval_ani_color(xpp::Session &s, int j);
 void eval_ani_com(xpp::Session &s, int j);
 void free_ani(xpp::Session &s);
@@ -137,22 +133,6 @@ double get_current_time(void)
 
 /**************   DRAWING ROUTINES   *******************/
 
-void ani_rad2scale(xpp::Session &s, double rx, double ry, int *ix, int *iy)
-{
-    double dx = static_cast<double>(s.animation.vcr.wid) / (s.animation.xhi - s.animation.xlo), dy = static_cast<double>(s.animation.vcr.hgt) / (s.animation.yhi - s.animation.ylo);
-    double r1 = rx * dx, r2 = ry * dy;
-    *ix = static_cast<int>(r1);
-    *iy = static_cast<int>(r2);
-}
-
-void ani_radscale(xpp::Session &s, double rad, int *ix, int *iy)
-{
-    double dx = static_cast<double>(s.animation.vcr.wid) / (s.animation.xhi - s.animation.xlo), dy = static_cast<double>(s.animation.vcr.hgt) / (s.animation.yhi - s.animation.ylo);
-    double r1 = rad * dx, r2 = rad * dy;
-    *ix = static_cast<int>(r1);
-    *iy = static_cast<int>(r2);
-}
-
 void ani_ij_to_xy(xpp::Session &s, int ix, int iy, double *x, double *y)
 {
     double dx = (s.animation.xhi - s.animation.xlo) / static_cast<double>(s.animation.vcr.wid);
@@ -161,32 +141,16 @@ void ani_ij_to_xy(xpp::Session &s, int ix, int iy, double *x, double *y)
     *y = s.animation.ylo + static_cast<double>(s.animation.vcr.hgt - iy) * dy;
 }
 
-void ani_xyscale(xpp::Session &s, double x, double y, int *ix, int *iy)
-{
-    double dx = static_cast<double>(s.animation.vcr.wid) / (s.animation.xhi - s.animation.xlo), dy = static_cast<double>(s.animation.vcr.hgt) / (s.animation.yhi - s.animation.ylo);
-    double xx = (x - s.animation.xlo) * dx;
-    double yy = s.animation.vcr.hgt - dy * (y - s.animation.ylo);
-    *ix = static_cast<int>(xx);
-    *iy = static_cast<int>(yy);
-    if (*ix < 0) *ix = 0;
-    if (*ix >= s.animation.vcr.wid) *ix = s.animation.vcr.wid - 1;
-    if (*iy < 0) *iy = 0;
-    if (*iy >= s.animation.vcr.hgt) *iy = s.animation.vcr.hgt - 1;
-}
-
 } // namespace
 
 /* ---- the frame sinks ------------------------------------------------------------
 
    Every primitive of a frame is given here in the animation's own
-   coordinates (the `dimension` box, y up). It goes to the front end's
-   pixel callbacks, scaled to the vcr.wid x vcr.hgt window as XPP always
-   has (ani_xyscale and friends: truncated to whole pixels, points clamped
-   to the window), and to ani_data.h in unit coordinates, unclamped: u = 0
-   at xlo and 1 at xhi, v = 0 at ylo and 1 at yhi. The s.animation.pen (colour, line
-   width, text font) is the one the callbacks keep between primitives, as
-   an X11 graphics context does: the colour starts black each frame, the
-   width and font carry over. */
+   coordinates (the `dimension` box, y up) and goes to ani_data.h in unit
+   coordinates, unclamped: u = 0 at xlo and 1 at xhi, v = 0 at ylo and 1 at
+   yhi. The s.animation.pen (colour, line width, text font) is the one kept
+   between primitives, as an X11 graphics context was: the colour starts
+   black each frame, the width and font carry over. */
 
 namespace {
 
@@ -194,22 +158,16 @@ namespace {
 double unit_x(xpp::Session &s, double x) { return (x - s.animation.xlo) / (s.animation.xhi - s.animation.xlo); }
 double unit_y(xpp::Session &s, double y) { return (y - s.animation.ylo) / (s.animation.yhi - s.animation.ylo); }
 
-void pen_color(xpp::Session &s, int icol)
-{
-    ui.ani_color(icol);
-    s.animation.pen.color = icol;
-}
+void pen_color(xpp::Session &s, const xpp::Color &color) { s.animation.pen.color = color; }
 
 void pen_thick(xpp::Session &s, int t)
 {
     if (t < 0) t = 0;
-    ui.ani_thick(t);
     s.animation.pen.thick = t;
 }
 
-void pen_font(xpp::Session &s, int size, int font, int color)
+void pen_font(xpp::Session &s, int size, int font, const xpp::Color &color)
 {
-    ui.ani_font(size, font, color);
     s.animation.pen.size = size;
     s.animation.pen.font = font;
     s.animation.pen.color = color;
@@ -217,45 +175,24 @@ void pen_font(xpp::Session &s, int size, int font, int color)
 
 void put_line(xpp::Session &s, double x1, double y1, double x2, double y2)
 {
-    int i1, j1, i2, j2;
-    ani_xyscale(s,x1, y1, &i1, &j1);
-    ani_xyscale(s,x2, y2, &i2, &j2);
-    ui.ani_line(i1, j1, i2, j2);
     ani_data_line(s, unit_x(s, x1), unit_y(s, y1), unit_x(s, x2), unit_y(s, y2), s.animation.pen.color, s.animation.pen.thick);
 }
 
 /* a rectangle with corners (x1,y1) and (x2,y2), in either order */
 void put_rect(xpp::Session &s, double x1, double y1, double x2, double y2, int fill)
 {
-    int i1, j1, i2, j2, h, w;
-    ani_xyscale(s,x1, y1, &i1, &j1);
-    ani_xyscale(s,x2, y2, &i2, &j2);
-    h = abs(j2 - j1);
-    w = abs(i2 - i1);
-    if (i1 > i2) i1 = i2;
-    if (j1 > j2) j1 = j2;
-    ui.ani_rect(i1, j1, w, h, fill);
     ani_data_rect(s, unit_x(s, x1), unit_y(s, y1), unit_x(s, x2), unit_y(s, y2), s.animation.pen.color, s.animation.pen.thick, fill);
 }
 
 /* a circle of radius r: in pixels the mean of the radius scaled along x and along y */
 void put_circle(xpp::Session &s, double x, double y, double r, int fill)
 {
-    int i1, j1, i2, j2, ir;
-    ani_xyscale(s,x, y, &i1, &j1);
-    ani_radscale(s,r, &i2, &j2);
-    ir = (i2 + j2) / 2;
-    ui.ani_arc(i1 - ir, j1 - ir, 2 * ir, 2 * ir, fill);
     ani_data_circle(s, unit_x(s, x), unit_y(s, y), r / (s.animation.xhi - s.animation.xlo), r / (s.animation.yhi - s.animation.ylo), s.animation.pen.color, s.animation.pen.thick,
                     fill);
 }
 
 void put_ellipse(xpp::Session &s, double x, double y, double rx, double ry, int fill)
 {
-    int i1, j1, i2, j2;
-    ani_xyscale(s,x, y, &i1, &j1);
-    ani_rad2scale(s,rx, ry, &i2, &j2);
-    ui.ani_arc(i1 - i2, j1 - j2, 2 * i2, 2 * j2, fill);
     ani_data_ellipse(s, unit_x(s, x), unit_y(s, y), rx / (s.animation.xhi - s.animation.xlo), ry / (s.animation.yhi - s.animation.ylo), s.animation.pen.color,
                      s.animation.pen.thick, fill);
 }
@@ -263,18 +200,12 @@ void put_ellipse(xpp::Session &s, double x, double y, double rx, double ry, int 
 /* a filled circle of r pixels (a comet's), whatever the window's size */
 void put_dot(xpp::Session &s, double x, double y, int r)
 {
-    int i, j;
-    ani_xyscale(s,x, y, &i, &j);
-    ui.ani_arc(i - r, j - r, 2 * r, 2 * r, 1);
     ani_data_dot(s, unit_x(s, x), unit_y(s, y), r, s.animation.pen.color);
 }
 
 /* text from its baseline's left end */
 void put_text(xpp::Session &s, double x, double y, const char *str)
 {
-    int i, j;
-    ani_xyscale(s,x, y, &i, &j);
-    ui.ani_text(i, j, str);
     ani_data_text(s, unit_x(s, x), unit_y(s, y), str, s.animation.pen.color, s.animation.pen.size, s.animation.pen.font);
 }
 
@@ -315,40 +246,39 @@ bool compile_expr(xpp::Session &s, const char *x, std::vector<int> &c)
     return true;
 }
 
-/* a named colour ($RED ...): its palette index, or none (s is left
-   de-spaced and upper case, as the expression compiled from it) */
-int chk_ani_color(std::string &s, int *index)
+/* a named colour of a .ani file ($RED ...) is XPPAUT's colour of that name (a foreign format: read on import only) */
+constexpr std::array<std::string_view, 12> ani_color_names{"WHITE", "RED", "REDORANGE", "ORANGE", "YELLOWORANGE", "YELLOW",
+                                                           "YELLOWGREEN", "GREEN", "BLUEGREEN", "BLUE", "PURPLE", "BLACK"};
+
+/* a named colour ($RED ...) or none given (the foreground): true with its colour (s is left de-spaced and upper
+   case, as the expression compiled from it) */
+bool named_ani_color(std::string &s, xpp::Color &color)
 {
-    *index = -1;
     xpp::de_space(s.data());
     s.resize(std::strlen(s.c_str()));
     xpp::to_upper(s.data());
-    if (s.empty()) {
-        *index = 0;
-        return 1;
-    }
+    color = xpp::foreground_color;
+    if (s.empty()) return true;
     if (s[0] == '$') {
-        for (int j = 0; j < 12; j++) {
-            if (s.compare(1, std::string::npos, color_names[j]) == 0) {
-                *index = colorline[j];
-                return 1;
+        for (std::size_t j = 0; j < ani_color_names.size(); j++) {
+            if (std::string_view(s).substr(1) == ani_color_names[j]) {
+                color = xpp::xppaut_color(j <= static_cast<std::size_t>(xpp::LAST_PLOT_COLOR) ? static_cast<int>(j) : 0);
+                return true;
             }
         }
     }
-    return 0;
+    return false;
 }
 
-/* the colour argument of a drawing command: a named colour ($RED) is kept
-   as minus its palette index, anything else is compiled as an expression
-   whose value (0..1) picks a colour of the colour map */
+/* the colour argument of a drawing command: a named colour ($RED) is kept, anything else is compiled as an
+   expression whose value (0..1) picks a colour of the colour map */
 int add_ani_color(xpp::Session &s, AniCom &a, std::string &col)
 {
-    int index;
-    if (chk_ani_color(col, &index) == 1) {
-        a.col.assign(1, -index);
+    if (named_ani_color(col, a.color)) {
+        a.col_expr.clear();
         return 0;
     }
-    return compile_expr(s, col.c_str(), a.col) ? 0 : -1;
+    return compile_expr(s, col.c_str(), a.col_expr) ? 0 : -1;
 }
 
 /*  the commands  */
@@ -366,7 +296,7 @@ int add_ani_rline(xpp::Session &s, AniCom &a, const std::string &x1, const std::
 }
 
 /* the comet's newest position (in the animation's coordinates) and colour */
-void roll_comet(AniCom &a, double xn, double yn, int col)
+void roll_comet(AniCom &a, double xn, double yn, const xpp::Color &col)
 {
     Comet &c = a.c;
     const int n = c.n;
@@ -403,7 +333,7 @@ int add_ani_comet(xpp::Session &s, AniCom &a, const std::string &x1, const std::
     a.c.n = n;
     a.c.x.assign(n, 0.0);
     a.c.y.assign(n, 0.0);
-    a.c.col.assign(n, 0);
+    a.c.col.assign(n, xpp::foreground_color);
     a.c.i = 0;
     return 1;
 }
@@ -460,15 +390,15 @@ int add_ani_settext(AniCom &a, const std::string &x1, std::string &y1, std::stri
 {
     int size = std::atoi(x1.c_str());
     int font = 0;
-    int index = 0;
+    xpp::Color color;
     xpp::de_space(y1.data());
     if (y1[0] == 's' || y1[0] == 'S') font = 1;
-    if (chk_ani_color(col, &index) != 1) index = 0;
+    if (!named_ani_color(col, color)) color = xpp::foreground_color;
     if (size < 0) size = 0;
     if (size > 4) size = 4;
     a.tsize = size;
     a.tfont = font;
-    a.tcolor = index;
+    a.tcolor = color;
     return 0;
 }
 
@@ -826,7 +756,6 @@ xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_fil
 
 void ani_frame(xpp::Session &s, int task)
 {
-    ui.ani_clear();
     if (task == 1) {
         set_ani_perm(s);
         reset_comets(s);
@@ -875,8 +804,8 @@ void ani_disk_warn(xpp::Session &s)
 void eval_ani_color(xpp::Session &s, int j)
 {
     AniCom &a = s.animation.commands[j];
-    if (a.col[0] > 0) {
-        double z = xpp::evaluate(s,a.col.data());
+    if (!a.col_expr.empty()) {
+        double z = xpp::evaluate(s,a.col_expr.data());
         if (z > 1) z = 1.0;
         if (z < 0) z = 0.0;
         a.zcol = z;
@@ -912,19 +841,14 @@ void eval_ani_com(xpp::Session &s, int j)
     if (a.type == AXNULL || a.type == AYNULL) a.zval = xpp::evaluate(s,a.who.data());
 }
 
-void set_ani_font_stuff(xpp::Session &s, int size, int font, int color) { pen_font(s, size, font, color); }
+void set_ani_font_stuff(xpp::Session &s, int size, int font, const xpp::Color &color) { pen_font(s, size, font, color); }
 
 void set_ani_col(xpp::Session &s, int j)
 {
-    const int c = s.animation.commands[j].col[0];
-    int icol;
-
-    if (c <= 0)
-        icol = -c;
-    else
-        icol = static_cast<int>(color_table.count * s.animation.commands[j].zcol) + FIRSTCOLOR;
-    pen_color(s, icol);
-    s.animation.last_color = icol;
+    const AniCom &a=s.animation.commands[j];
+    const xpp::Color color=a.col_expr.empty()?a.color:xpp::ramp_color(s.ramp(),a.zcol);
+    pen_color(s, color);
+    s.animation.last_color = color;
 }
 
 /* the comet keeps its last n positions (in the animation's coordinates)
@@ -1030,7 +954,7 @@ void draw_ani_vtext(xpp::Session &s, int j)
 /* Draw little black x's where the grab points are */
 void draw_grab_points(xpp::Session &s)
 {
-    pen_color(s, 0);
+    pen_color(s, xpp::foreground_color);
     for (AniGrab &g : s.animation.grabs) {
         const double xc = xpp::evaluate(s,g.x.data());
         const double yc = xpp::evaluate(s,g.y.data());
@@ -1114,7 +1038,6 @@ void ani_flip1(xpp::Session &s, int n)
     if (s.animation.ncom == 0) return;
     if (s.browser.view.maxrow < 2) return;
     float **ss = s.browser.view.data;
-    ui.ani_clear();
     if (s.animation.vcr.pos == 0) set_ani_perm(s);
 
     s.animation.vcr.pos = s.animation.vcr.pos + n;
@@ -1175,7 +1098,7 @@ void reset_comets(xpp::Session &s)
 void render_ani(xpp::Session &s)
 {
     ui.ani_slider(s);
-    s.animation.pen.color = 0; /* ani_clear gave the frame a black s.animation.pen */
+    s.animation.pen.color = xpp::foreground_color; /* each frame starts with the foreground */
     ani_data_begin(s);
     for (int i = 0; i < s.animation.ncom; i++) {
         const int type = s.animation.commands[i].type;

@@ -1,10 +1,10 @@
 /* The array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`): XPP's grid
    of cells over a range of stored columns and rows, each cell coloured by
-   its value between the core's zmin and zmax. The core also sends `cells`
-   (its own colour indices, FIRSTCOLOR..+ncolors, what its GIF writer paints); this
-   view draws from `values` instead, so it can offer its own colour map
-   (session.setAplotColorMap) without asking the core again -- store/aplot.ts
-   is the truth for both, `plot/aplotColors.ts` the pure colour maths. A
+   its value between the core's zmin and zmax, from the session's colour
+   scale (the `ramp` of the event, the core's own: its Print and its other
+   pictures use it, and the Colour map choice here changes it there,
+   session.setColormap) -- store/aplot.ts is the truth, `plot/aplotColors.ts`
+   the pure colour rule. A
    floating panel like the data table (R6): a section under the plot from
    48rem, a full-screen sheet under that, opened from the title bar's Array
    button and closed by Back or Escape, focus moving in and back like
@@ -20,8 +20,8 @@ import {useEffect, useRef} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import {cellColor, legendStops} from '../plot/aplotColors';
 import {dragScroll, wheelScroll} from '../plot/aplotScroll';
-import type {AplotColorMap} from '../store/aplot';
 import {aplotColumnName, timeAt, valueAt} from '../store/aplot';
+import {choiceLabel} from '../store/fieldKinds';
 import type {AplotOp} from '../session';
 import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {FOCUSABLE} from './dialogFocus';
@@ -32,7 +32,7 @@ const BUTTONS: [string, AplotOp, string][] = [
   ['Edit', 'edit', 'Columns, rows, skips and the z range'],
   ['Fit', 'fit', 'Fit the z range to the data'],
   ['Range', 'range', 'Save a GIF for each run of Integrate/Range'],
-  ['Print', 'print', 'Write a PostScript file'],
+  ['Print', 'print', 'Write a PDF file'],
   ['GIF', 'gif', 'Save the picture as a GIF'],
 ];
 
@@ -50,7 +50,7 @@ export function AplotView() {
   const windowOpen = useStore(s => s.aplot.windowOpen);
   const aplot = useStore(s => s.aplot);
   const ev = aplot.event;
-  const colorMap = aplot.colorMap;
+  const colormaps = useStore(s => s.hello?.colormaps) ?? [];
   const hover = aplot.hover;
 
   const panel = useRef<HTMLElement>(null);
@@ -104,11 +104,11 @@ export function AplotView() {
     const dx = c.width / nx, dy = c.height / ny;
     for (let row = 0; row < ny; row++) {
       for (let col = 0; col < nx; col++) {
-        ctx.fillStyle = cellColor(colorMap, valueAt(aplot, row, col), ev.zmin, ev.zmax);
+        ctx.fillStyle = cellColor(ev.ramp, valueAt(aplot, row, col), ev.zmin, ev.zmax);
         ctx.fillRect(Math.floor(col * dx), Math.floor(row * dy), Math.ceil(dx) + 1, Math.ceil(dy) + 1);
       }
     }
-  }, [aplot, colorMap, nx, ny]);
+  }, [aplot, nx, ny]);
 
   const cellAt = (clientX: number, clientY: number): {row: number; col: number} | null => {
     const c = canvas.current;
@@ -154,7 +154,7 @@ export function AplotView() {
     e.stopPropagation();
   };
 
-  const stops = legendStops(colorMap);
+  const stops = ev ? legendStops(ev.ramp) : [];
   const label = ev && hover ? aplotColumnName(ev, hover.col) : '';
 
   return (
@@ -164,10 +164,8 @@ export function AplotView() {
         <h2>Array plot</h2>
         <label class="aplot-map">
           Colour map
-          <select value={colorMap}
-            onChange={e => session.setAplotColorMap((e.target as HTMLSelectElement).value as AplotColorMap)}>
-            <option value="viridis">Viridis</option>
-            <option value="xpp">XPP</option>
+          <select value={ev?.colormap ?? ''} disabled={!ev} onChange={e => session.setColormap((e.target as HTMLSelectElement).value)}>
+            {colormaps.map(c => <option key={c} value={c}>{choiceLabel(c)}</option>)}
           </select>
         </label>
       </div>

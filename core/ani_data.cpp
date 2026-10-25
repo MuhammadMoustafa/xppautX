@@ -44,23 +44,6 @@ void add_num(std::string &o, double v)
 
 void add_int(std::string &o, long v) { o += std::to_string(v); }
 
-/* a palette index as the event says it: an XPP colour index (0 the
-   foreground, 1..10 red .. purple) for the named colours, the colour
-   map's colour as #rrggbb for the others */
-void add_color(std::string &o, int icol)
-{
-    if (icol >= 20 && icol <= 29) {
-        add_int(o, icol - 19);
-        return;
-    }
-    if (icol < 30 || icol >= XPP_MAX_COLORS) {
-        o += '0';
-        return;
-    }
-    o += xpp::format("\"#{:02x}{:02x}{:02x}\"", cmap_rgb[icol][0] >> 8, cmap_rgb[icol][1] >> 8,
-                     cmap_rgb[icol][2] >> 8);
-}
-
 /* ["kind", ... */
 void open_prim(std::string &prims, const char *kind)
 {
@@ -82,10 +65,10 @@ void integer(std::string &prims, long v)
     add_int(prims, v);
 }
 
-void color(std::string &prims, int icol)
+void color(std::string &prims, const xpp::Color &c)
 {
     prims += ',';
-    add_color(prims, icol);
+    prims += xpp::quoted_color(c);
 }
 
 void send_frame(const std::string &frame)
@@ -121,7 +104,7 @@ void ani_data_forget(xpp::Session &s)
 
 void ani_data_begin(xpp::Session &s) { s.ani_shown.prims.clear(); }
 
-void ani_data_line(xpp::Session &s, double u1, double v1, double u2, double v2, int c, int thick)
+void ani_data_line(xpp::Session &s, double u1, double v1, double u2, double v2, const xpp::Color &c, int thick)
 {
     if (!client.emit_line) return;
     std::string &prims = s.ani_shown.prims;
@@ -135,7 +118,7 @@ void ani_data_line(xpp::Session &s, double u1, double v1, double u2, double v2, 
     prims += ']';
 }
 
-static void box_prim(xpp::Session &s, const char *kind, double a, double b, double c, double d, int col, int thick,
+static void box_prim(xpp::Session &s, const char *kind, double a, double b, double c, double d, const xpp::Color &col, int thick,
                      int fill)
 {
     if (!client.emit_line) return;
@@ -151,22 +134,22 @@ static void box_prim(xpp::Session &s, const char *kind, double a, double b, doub
     prims += ']';
 }
 
-void ani_data_rect(xpp::Session &s, double u1, double v1, double u2, double v2, int c, int thick, int fill)
+void ani_data_rect(xpp::Session &s, double u1, double v1, double u2, double v2, const xpp::Color &c, int thick, int fill)
 {
     box_prim(s, "rect", u1, v1, u2, v2, c, thick, fill);
 }
 
-void ani_data_circle(xpp::Session &s, double u, double v, double ru, double rv, int c, int thick, int fill)
+void ani_data_circle(xpp::Session &s, double u, double v, double ru, double rv, const xpp::Color &c, int thick, int fill)
 {
     box_prim(s, "circle", u, v, ru, rv, c, thick, fill);
 }
 
-void ani_data_ellipse(xpp::Session &s, double u, double v, double ru, double rv, int c, int thick, int fill)
+void ani_data_ellipse(xpp::Session &s, double u, double v, double ru, double rv, const xpp::Color &c, int thick, int fill)
 {
     box_prim(s, "ellipse", u, v, ru, rv, c, thick, fill);
 }
 
-void ani_data_dot(xpp::Session &s, double u, double v, int r, int c)
+void ani_data_dot(xpp::Session &s, double u, double v, int r, const xpp::Color &c)
 {
     if (!client.emit_line) return;
     std::string &prims = s.ani_shown.prims;
@@ -178,7 +161,7 @@ void ani_data_dot(xpp::Session &s, double u, double v, int r, int c)
     prims += ']';
 }
 
-void ani_data_text(xpp::Session &s, double u, double v, std::string_view text, int c, int size, int font)
+void ani_data_text(xpp::Session &s, double u, double v, std::string_view text, const xpp::Color &c, int size, int font)
 {
     if (!client.emit_line) return;
     std::string &prims = s.ani_shown.prims;

@@ -1,23 +1,34 @@
-/* XPP's eleven curve colours (color_names[] in the core: 0 the foreground,
-   then red .. purple), redrawn as a modern palette for each theme. The
-   index is what the core sends; the hue family stays what XPP names. Every
-   colour has at least 3:1 contrast against its theme's plot background
-   (WCAG 1.4.11), which is why the light theme's yellows are dark gold. */
+/* Colours as the core says them (core/colormap.h): `#rrggbb`, `#rrggbbaa` (alpha only when not opaque) or
+   `foreground`, the colour the page draws dark on a light theme and light on a dark one. Every colour of a
+   curve, a mark, a nullcline or a text arrives in that form and is drawn as it is (CSS reads `#rrggbbaa`),
+   the foreground by the theme; the pickers give it back in the same form. */
+import type {CoreColor} from '../protocol/types';
 
-const LIGHT = ['#1f2937', '#d62839', '#e8590c', '#d97706', '#b8860b', '#a88400', '#6b8e00', '#2b9348', '#0c8599',
-  '#1c7ed6', '#7048e8'];
-const DARK = ['#e5e7eb', '#ff6b6b', '#ff7a45', '#ffa94d', '#fcc419', '#ffe066', '#c0eb75', '#69db7c', '#3bc9db',
-  '#4dabf7', '#b197fc'];
+export type {CoreColor};
 
-export const CURVE_COLORS = {light: LIGHT, dark: DARK} as const;
+/** the foreground colour of each theme (the plot's text and default curve) */
+const FOREGROUND = {light: '#1f2937', dark: '#e5e7eb'} as const;
 
-/** what each colour is called, by the same index */
-export const CURVE_COLOR_NAMES = ['Default', 'Red', 'Orange red', 'Orange', 'Gold', 'Yellow', 'Yellow green', 'Green', 'Teal',
-  'Blue', 'Purple'] as const;
+/** the colour the canvas or CSS draws `c` in */
+export function cssColor(c: CoreColor, dark: boolean): string {
+  return c === 'foreground' ? (dark ? FOREGROUND.dark : FOREGROUND.light) : c;
+}
 
-export function curveColor(index: number, dark: boolean): string {
-  const p = dark ? DARK : LIGHT;
-  return p[index >= 0 && index < p.length ? index : 0];
+const CORE_HEX = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i;
+
+/** a colour as the core writes it: `foreground`, `#rrggbb` or `#rrggbbaa` */
+export const CORE_COLOR = /^(foreground|#[0-9a-f]{6}([0-9a-f]{2})?)$/i;
+
+/** a colour as a picker has it: its `#rrggbb` and its alpha, 0 to 255 (the foreground: the theme's, opaque) */
+export function splitColor(c: CoreColor, dark: boolean): {hex: string; alpha: number} {
+  const m = CORE_HEX.exec(cssColor(c, dark));
+  return m ? {hex: '#' + m[1].toLowerCase(), alpha: m[2] ? parseInt(m[2], 16) : 255} : {hex: '#000000', alpha: 255};
+}
+
+/** a picker's `#rrggbb` and alpha as the core's colour text (`#rrggbbaa` only when not opaque) */
+export function joinColor(hex: string, alpha: number): CoreColor {
+  const a = Math.max(0, Math.min(255, Math.round(alpha)));
+  return hex.toLowerCase() + (a === 255 ? '' : a.toString(16).padStart(2, '0'));
 }
 
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;

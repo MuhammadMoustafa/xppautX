@@ -247,7 +247,7 @@ The remaining options can be set from within the program. They are
 
 - ZP=name sets the name of the variable on the z-axis (if the plot is 3D.)
 
-- COLORMAP=`0,1,2,3,4,5,6` sets the colormap (in a `.odex`: `jet`, `periodic`, `hot`, `cool`, `blue_red`, `gray`, `cubehelix`)
+- COLORMAP=`0,1,2,3,4,5,6` sets the colormap (in a `.odex`: `jet`, `periodic`, `hot`, `cool`, `blue_red`, `gray`, `cubehelix`, or one of xppautX's: `viridis`, `plasma`, `inferno`, `magma`, `cividis`, `coolwarm`, `rdbu`, `seismic`, `twilight`, `hsv`, `turbo`, `greys`, `blues`, `reds`, `greens`, `oranges`, `purples`)
 
 - NPLOT=`int` tells XPP how many plots will be in the opening screen.
 
@@ -321,7 +321,7 @@ The remaining options can be set from within the program. They are
 
 - FOLD=name, tells XPP that the variable \<name\> is to be considered modulo the period. You can repeat this for many variables.
 
-- PS_Font=`fontname`,PS_LW=`linewidth`,PS_FSIZE=`fontsize`,PS_COLOR=`0,1` sets up postscript options.
+- PS_FSIZE=`fontsize`,PS_COLOR=`0,1` set up the pictures (in a `.odex`: `picture_font_size`, `picture_color`); PS_Font and PS_LW are read and ignored. PLOTFMT=`pdf`,`svg` (`ps` is read as `pdf`) is the format `--mkplot` writes.
 
 - S1=`name`, SLO1=`number`,SHI1=`number` sets the variables, parameters associated with a slider and their low and high values. Use S2,S3 for the other sliders (This is different for the iPad/iPhone.)
 
@@ -471,9 +471,9 @@ run or the files, not the X11 windows:
 - **--quiet *B***: verbose log messages will (`B=0`) or will not (`B=1`) be written; xppautX's own `--verbose`/`--debug` raise the level further (core/xpp_log.h).
 - **--logfile *filename***: the file to which log messages are written (also xppautX's `--logfile`).
 - **--anifile *filename***: loads an animation (`.ani`) from the named file at start-up; useful for teaching demonstrations.
-- **--mkplot**: with `--silent`, writes a plot named after the ODE file (or numbered, for several); SVG or PS (`--plotfmt`).
+- **--mkplot**: with `--silent`, writes a plot named after the ODE file (or numbered, for several); PDF or SVG (`--plotfmt`).
 - **--noout**: does not write an output data file in batch mode; combine with `--mkplot` to suppress the data.
-- **--plotfmt *ps\|svg***: sets the plot format for `--mkplot`.
+- **--plotfmt *pdf\|svg***: sets the plot format for `--mkplot` (`ps` is read as `pdf`).
 - **--version**: prints xpp's version (`xppautX --version` prints this fork's).
 - **--ncdraw *k***: after a run in any mode: `k=1` computes nullclines for the plot and exports; `k=2` also dumps them to `nullclines.dat`, X-nullcline first then Y (format for gnuplot). For example, to compute the nullclines, dump them to a file and not save the run's output:
 

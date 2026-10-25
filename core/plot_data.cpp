@@ -92,7 +92,7 @@ xpp::PlotCurves curves_of(const GRAPH &g)
     xpp::PlotCurves c{};
     c.nvars = g.nvars;
     c.three = g.ThreeDFlag;
-    c.xv=g.xv; c.yv=g.yv; c.zv=g.zv; c.line=g.line; c.color=g.color;
+    c.xv=g.xv; c.yv=g.yv; c.zv=g.zv; c.style=g.style; c.color=g.color;
     c.shift[0] = g.xshft;
     c.shift[1] = g.yshft;
     c.shift[2] = g.zshft;
@@ -142,9 +142,9 @@ void add_curves(std::string &o, const xpp::PlotCurves &s)
         o += ",\"z\":";
         add_int(o, s.zv[i]);
         o += ",\"color\":";
-        add_int(o, s.color[i]);
-        o += ",\"line\":";
-        add_int(o, s.line[i]);
+        o += xpp::quoted_color(s.color[i]);
+        o += ',';
+        o += xpp::line_style_json(s.style[i]);
         o += '}';
     }
     o += "],\"shift\":[";

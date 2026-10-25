@@ -144,7 +144,7 @@ xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double
 {
  xpp::FirstError failure; /* an eigenvector or a manifold's */
  int i;
- int oldcol,dummy;
+ xpp::Color oldcol,dummy;
  int pr;
  double oldt=s.numerics.delta_t;
  char ch;
@@ -198,12 +198,12 @@ if(!s.numerics.par_fol)
      get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
      if(*ierr==0)
      {
-     change_current_linestyle(s,plot_color(s.manifolds.unstable_color),&oldcol);
+     change_current_color(s,s.manifolds.unstable_color,&oldcol);
      pr_evec(s,x,b,n,pr,eval[2*pose],1);
       s.numerics.delta_t=fabs(s.numerics.delta_t);
       failure.keep(shoot(s,bp,x,b,1));
       failure.keep(shoot(s,bp,x,b,-1));
-     change_current_linestyle(s,oldcol,&dummy);
+     change_current_color(s,oldcol,&dummy);
 
      }
      else
@@ -215,12 +215,12 @@ if(!s.numerics.par_fol)
      get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege],ierr);
      if(*ierr==0)
      {
-        change_current_linestyle(s,plot_color(s.manifolds.stable_color),&oldcol);
+        change_current_color(s,s.manifolds.stable_color,&oldcol);
 	pr_evec(s,x,b,n,pr,eval[2*nege],-1);
       s.numerics.delta_t=-fabs(s.numerics.delta_t);
       failure.keep(shoot(s,bp,x,b,1));
       failure.keep(shoot(s,bp,x,b,-1));
-        change_current_linestyle(s,oldcol,&dummy);
+        change_current_color(s,oldcol,&dummy);
      }
      else
        failure.keep({"equilibrium","Failed to compute eigenvector"});
@@ -249,12 +249,12 @@ if(!s.numerics.par_fol)
 	   get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,bigpos,ierr);
 	   if(*ierr==0)
 	     {
-	       change_current_linestyle(s,plot_color(s.manifolds.unstable_color),&oldcol);
+	       change_current_color(s,s.manifolds.unstable_color,&oldcol);
 	       pr_evec(s,x,b,n,pr,bigpos,1);
 	       s.numerics.delta_t=fabs(s.numerics.delta_t);
 	       failure.keep(shoot(s,bp,x,b,1));
 	       failure.keep(shoot(s,bp,x,b,-1));
-	       change_current_linestyle(s,oldcol,&dummy);
+	       change_current_color(s,oldcol,&dummy);
 	       
 	     }
 	   else
@@ -267,12 +267,12 @@ if(!s.numerics.par_fol)
 	   get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,bigneg,ierr);
 	   if(*ierr==0)
 	     {
-	       change_current_linestyle(s,plot_color(s.manifolds.stable_color),&oldcol);
+	       change_current_color(s,s.manifolds.stable_color,&oldcol);
 	       pr_evec(s,x,b,n,pr,bigneg,-1);
 	       s.numerics.delta_t=-fabs(s.numerics.delta_t);
 	       failure.keep(shoot(s,bp,x,b,1));
 	       failure.keep(shoot(s,bp,x,b,-1));
-	       change_current_linestyle(s,oldcol,&dummy);
+	       change_current_color(s,oldcol,&dummy);
 	     }
 	   else
 	     failure.keep({"equilibrium","Failed to compute eigenvector"});
@@ -328,7 +328,8 @@ int i,k,type;
 xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled saddle point stuff to integrate */
 {
   xpp::FirstError failure;
-  int i,k,type,oldcol,dummy;
+  int i,k,type;
+  xpp::Color oldcol,dummy;
   double olddt;
   std::vector<double> x(s.model().node);
   if(s.manifolds.count<1)return {};
@@ -340,16 +341,16 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
     
     type=s.manifolds.type[k];
     if(type>0){
-       change_current_linestyle(s,plot_color(s.manifolds.unstable_color),&oldcol);
+       change_current_color(s,s.manifolds.unstable_color,&oldcol);
        s.numerics.delta_t=fabs(s.numerics.delta_t);
        failure.keep(shoot_easy(s,x.data()));
-       change_current_linestyle(s,oldcol,&dummy);
+       change_current_color(s,oldcol,&dummy);
     }
     if(type<0){
-      change_current_linestyle(s,plot_color(s.manifolds.stable_color),&oldcol);
+      change_current_color(s,s.manifolds.stable_color,&oldcol);
        s.numerics.delta_t=-fabs(s.numerics.delta_t);
        failure.keep(shoot_easy(s,x.data()));
-       change_current_linestyle(s,oldcol,&dummy);
+       change_current_color(s,oldcol,&dummy);
     }
   }
   s.numerics.delta_t=olddt;

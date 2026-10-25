@@ -5,7 +5,7 @@ import {test} from 'node:test';
 import type {RunsEvent} from '../src/protocol/types';
 import {windowOf} from '../src/store/plots';
 import {reduce, type AppState} from '../src/store/state';
-import {READY} from './hello';
+import {READY, LINE} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const w1 = (s: AppState) => windowOf(s.plots, 1)!;
@@ -13,7 +13,7 @@ const w1 = (s: AppState) => windowOf(s.plots, 1)!;
 function run(v0: number, rows = 3): RunsEvent['add'][number] {
   const vs = Array.from({length: rows}, (_, i) => v0 + i);
   return {
-    rows, three: 0, curves: [{x: 0, y: 2, z: 0, color: 1, line: 1}], shift: [0, 0, 0],
+    rows, three: 0, curves: [{x: 0, y: 2, z: 0, color: '#ff0000', ...LINE}], shift: [0, 0, 0],
     columns: [{col: 0, name: 'T', data: vs.map((_, i) => i)}, {col: 2, name: 'W', data: vs}],
   };
 }
@@ -41,7 +41,7 @@ test('drop forgets the oldest runs, clear all of them', () => {
 test('keep makes the series the window holds its newest run, without its data again', () => {
   const series = {
     ev: 'series', win: 1, rows: 2, three: 0, xlabel: 'V', ylabel: 'W', zlabel: '', version: 4,
-    curves: [{x: 0, y: 2, z: 0, color: 1, line: 1}], shift: [0, 0, 0],
+    curves: [{x: 0, y: 2, z: 0, color: '#ff0000', ...LINE}], shift: [0, 0, 0],
     columns: [{col: 0, name: 'T', data: [0, 1]}, {col: 2, name: 'W', data: [7, 8]}],
   };
   let s = ev(READY, runs([run(0)]));

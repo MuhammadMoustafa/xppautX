@@ -1,14 +1,14 @@
 /* A text on a plot (Text,etc/Text): its text, size, style and colour, and for one already there its
    position and Delete. One form for the ask that adds a text (AskDialog's `text`) and for the dialog a
-   double click on a text opens (TextDialog), as the trace dialog opens on a legend item. The colours
-   are the curves' (plot/colors.ts): the core keeps an index, which its PostScript and the other marks
-   share, not the free colour TraceDialog's picker gives a legend. */
+   double click on a text opens (TextDialog), as the trace dialog opens on a legend item. The colour is
+   any colour with its alpha (ui/ColorField.tsx), which the core keeps and its PDF and SVG draw. */
 import {useRef, useState} from 'preact/hooks';
-import {CURVE_COLOR_NAMES, curveColor} from '../plot/colors';
+import {CORE_COLOR} from '../plot/colors';
 import {TEXT_STYLES, textPx} from '../plot/marks';
 import {fieldsValid, NUMBER, TEXT} from '../store/fieldKinds';
 import type {HelloEvent} from '../protocol/types';
 import type {TextPosition, TextValues} from '../store/marks';
+import {ColorField} from './ColorField';
 import {Field} from './Field';
 import {useStore} from './context';
 import {useDialogFocus} from './dialogFocus';
@@ -25,7 +25,7 @@ export function TextForm({initial, position, submit, onSubmit, onDelete}: {
   const [x, setX] = useState(position ? String(position.x) : ''), [y, setY] = useState(position ? String(position.y) : '');
   const specs = position ? [TEXT, NUMBER, NUMBER] : [TEXT];
   const texts = position ? [text, x, y] : [text];
-  const valid = text !== '' && fieldsValid(specs, texts) && (!position || (x !== '' && y !== ''));
+  const valid = text !== '' && CORE_COLOR.test(color) && fieldsValid(specs, texts) && (!position || (x !== '' && y !== ''));
   return <form onSubmit={e => {
     e.preventDefault();
     if (valid) onSubmit({text, size, style, color}, position ? {x: Number(x), y: Number(y)} : null);
@@ -41,15 +41,8 @@ export function TextForm({initial, position, submit, onSubmit, onDelete}: {
         <select data-text-style value={style} onChange={e => setStyle(Number(e.currentTarget.value))}>
           {TEXT_STYLES.slice(0, limits.style_count).map((st, i) => <option key={i} value={i}>{st.name}</option>)}
         </select></label>
-      <div class="text-colors" role="radiogroup" aria-label="Colour">
-        <span>Colour</span>
-        <span class="text-color-row">
-          {Array.from({length: limits.color_max + 1}, (_, i) =>
-            <button type="button" key={i} role="radio" aria-checked={color === i} aria-label={CURVE_COLOR_NAMES[i]}
-              title={CURVE_COLOR_NAMES[i]} data-text-color={i} class={'text-color' + (color === i ? ' chosen' : '')}
-              style={{background: curveColor(i, dark)}} onClick={() => setColor(i)} />)}
-        </span>
-      </div>
+      <label><span>Colour</span>
+        <ColorField value={color} dark={dark} label="Text" onChange={setColor} /></label>
       {position && <>
         <label><span>X</span><Field spec={NUMBER} value={x} onInput={setX} data-text-x /></label>
         <label><span>Y</span><Field spec={NUMBER} value={y} onInput={setY} data-text-y /></label>

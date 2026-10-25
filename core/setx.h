@@ -32,6 +32,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "colormap.h"
+#include "line_style.h"
 #include "xpp_error.h"
 #include "xpp_io.h" /* ReadFailed */
 
@@ -102,6 +104,11 @@ public:
     bool whole(std::string_view key, int &v);
     bool flag(std::string_view key, bool &v);
     bool text(std::string_view key, std::string &v);
+    /* a colour (colormap.h: #rrggbb, #rrggbbaa, a CSS name or foreground) */
+    bool color(std::string_view key, Color &v);
+    /* a line style (line_style.h): its keys draw, dash, width, marker and marker_size, each read as
+       the others are (all of them in complete mode) */
+    void line_style(LineStyle &v);
 
     /* a nested group */
     std::optional<Block> group(std::string_view key);
@@ -186,6 +193,10 @@ public:
        empty), else quoted */
     void word(std::string_view key, std::string_view text);
     void text(std::string_view key, std::string_view text);
+    /* a colour written as the colour type's text (quoted when it has a #) */
+    void color(std::string_view key, const Color &c) { word(key, print_color(c)); }
+    /* a line style's five keys */
+    void line_style(const LineStyle &v);
     void reals(std::string_view key, std::span<const double> v);
     void texts(std::string_view key, std::span<const std::string> v);
     void begin(std::string_view key);

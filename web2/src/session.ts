@@ -2,8 +2,8 @@
    sends commands. Components call its methods, never the transport. */
 import {nativeFileDialog, nativeFileRequest, offerDownload, writeTo, type SaveHandle} from './pickers';
 import {accumulateScroll, keyScroll} from './plot/aplotScroll';
-import type {AplotColorMap} from './plot/aplotColors';
 import {bytesToBase64} from './plot/gif';
+import {setLineGeometry} from './plot/linestyle';
 import {renderFrame} from './plot/kinescopeRender';
 import {pickAnswer, type PickState} from './plot/pick';
 import {chartOf} from './plot/registry';
@@ -163,6 +163,7 @@ export class Session {
           + 'open the page the program itself serves (reload it after an update).'}});
       return;
     }
+    if (ev.ev === 'hello') setLineGeometry(ev.line_styles); /* before any plot is built */
     this.store.dispatch({type: 'event', ev: this.unguarded(ev)});
     if (ev.ev === 'hello') {
       this.displayHeld.clear();
@@ -1600,8 +1601,9 @@ export class Session {
     return true;
   }
 
-  setAplotColorMap(map: AplotColorMap): void {
-    this.store.dispatch({type: 'aplot', action: {type: 'colorMap', map}});
+  /** the session's colour scale, by name: the core's, so the pictures it writes use it too */
+  setColormap(name: string): void {
+    this.send({cmd: 'colormap', name});
   }
 
   /** the cell under the pointer, or null off the grid */

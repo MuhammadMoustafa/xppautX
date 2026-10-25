@@ -8,6 +8,7 @@
 #include <string_view>
 
 #include "model_options.h"
+#include "image_format.h"
 #include "setx.h"
 #include "odex.h"
 #include "xpp_util.h"
@@ -77,10 +78,9 @@ const char *whole_into(int &member, const OptionValue &v)
   return nullptr;
 }
 
-/* style as the line every new curve starts with, when a line type draws it (the curves already there start again with it) */
+/* style as the line every new curve starts with (the curves already there start again with it) */
 const char *start_line_style_into(Session &s, const LineStyle &style, const OptionValue &v)
 {
-  if (!xppaut_line_type(style)) return "not a line the core draws yet: a solid line, or points as circles of 0 to 5 pixels";
   if (v.apply) {
     s.plot_settings.start_line_style = style;
     reset_all_line_type(s);
@@ -96,27 +96,14 @@ int variable_of(const Session &s, const OptionValue &v)
   return i;
 }
 
-/* the colours an option takes today: the drawing code draws XPPAUT's eleven only (W478, #541
-   makes any colour drawable and removes this); the words say which */
-std::string drawn_colors()
-{
-  std::string words;
-  for (int i = 0; i <= LAST_PLOT_COLOR; i++) words += (i ? ", " : "") + print_color(xppaut_color(i));
-  return words;
-}
-
 /* a colour option's value: our own colour words, or on import XPPAUT's number in the row's own way (foreign);
-   refused (why, kept alive in the caller) when it is none or is not one of the colours drawn today */
+   refused (why, kept alive in the caller) when it is none */
 const char *color_into(Color &member, const OptionRow &row, const OptionValue &v, bool foreign, std::string &why)
 {
   std::optional<Color> c = parse_color(v.text);
   if (!c && foreign && row.foreign) c = parse_color(row.foreign(v.text));
   if (!c) {
     why = "not a colour: `#rrggbb`, `#rrggbbaa`, a CSS colour name or foreground";
-    return why.c_str();
-  }
-  if (!xppaut_color_index(*c)) {
-    why = "not a colour drawn yet, the colours are " + drawn_colors();
     return why.c_str();
   }
   if (v.apply) member = *c;
@@ -634,8 +621,7 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.drawing.phi0; })},
   {.group = option_group::plot, .kind = OptionKind::number, .name = "THETA", .once = true,
    .real = member([](auto &s) -> auto & { return s.drawing.theta0; })},
-  /* the line every new curve starts with; the drawing takes XPPAUT's line types only (W492, #556 draws the
-     rest), so a style no line type draws is refused: a solid line, or points as circles of 0 to 5 pixels */
+  /* the line every new curve starts with */
   {.group = option_group::plot, .kind = OptionKind::choice, .name = "LINE.DRAW", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const std::optional<LineDraw> draw = parse_line_draw(v.text);
@@ -698,23 +684,25 @@ constexpr OptionRow rows[] = {
    .color = member([](auto &s) -> auto & { return s.manifolds.unstable_color; }), .foreign = foreign_plot_color},
   {.group = option_group::plot, .kind = OptionKind::choice, .name = "COLORMAP", .once = true,
    .index = choice_member([](auto &s) -> auto & { return s.colormap; }),
-   .foreign = [](std::string_view v) { return numbered_word(colormap_names, v); },
+   .foreign = [](std::string_view v) { return numbered_word(colormap_names, v); }, .imported_default = "jet",
    .rule = OptionRule::choice, .choices = colormap_names, .wide = true},
-  {.group = option_group::export_, .kind = OptionKind::name, .name = "PLOTFMT", .once = true,
-   .text = member([](auto &s) -> auto & { return s.plot_export.format; })},
-  {.group = option_group::export_, .kind = OptionKind::name, .name = "PS_FONT", .once = true,
-   .text = member([](auto &s) -> auto & { return s.plot_file.ps_font; })},
-  {.group = option_group::export_, .kind = OptionKind::number, .name = "PS_LW", .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_file.ps_lw; })},
-  {.group = option_group::export_, .kind = OptionKind::whole, .name = "PS_FSIZE", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.plot_file.ps_font_size; })},
-  {.group = option_group::export_, .kind = OptionKind::whole, .name = "PS_COLOR", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.plot_file.ps_color_flag; }),
+  /* the picture files a batch run writes: PDF or SVG (XPPAUT's ps imports as pdf: PostScript went with W479, #542) */
+  {.group = option_group::export_, .kind = OptionKind::choice, .name = "PLOTFMT", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (const char *why = whole_into(s.plot_file.ps_color_flag, v)) return why;
-     if (v.apply) s.plot_export.color = s.plot_file.ps_color_flag;
+     if (v.apply) s.plot_export.format = v.text;
      return nullptr;
-   }},
+   },
+   .foreign = [](std::string_view v) { return v == "ps" ? std::string("pdf") : std::string(); },
+   .rule = OptionRule::choice, .choices = picture_format_names},
+  {.group = option_group::export_, .kind = OptionKind::choice, .name = "PICTURE_COLOR", .xppaut_names = {"PS_COLOR"}, .once = true,
+   .boolean = member([](auto &s) -> auto & { return s.plot_export.color; }),
+   .rule = OptionRule::choice, .choices = boolean_names},
+  {.group = option_group::export_, .kind = OptionKind::number, .name = "PICTURE_FONT_SIZE", .xppaut_names = {"PS_FSIZE"}, .once = true,
+   .real = member([](auto &s) -> auto & { return s.plot_export.font_size; }),
+   .rule = OptionRule::positive},
+  /* XPPAUT's PostScript font and line width (import only): a PDF has Helvetica, and each curve has its own width */
+  {.name = "PS_FONT", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
+  {.name = "PS_LW", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
   {.group = option_group::plot, .kind = OptionKind::whole, .name = "DFGRID", .once = true,
    .whole = member([](auto &s) -> auto & { return s.nullclines.df_grid; })},
   {.group = option_group::plot, .kind = OptionKind::whole, .name = "DFDRAW", .once = true,

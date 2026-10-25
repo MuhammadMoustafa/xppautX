@@ -22,6 +22,7 @@
 #include "integrate.h"
 #include "nullcline.h"
 #include "ui_json_internal.h"
+#include "picture.h"
 #include "json_error.h"
 #include "xpp_log.h"
 #include "xpp_http.h"
@@ -444,13 +445,9 @@ XppUi make_json_ui(void)
     u.create_plot_window = j_create_plot_window;
     u.destroy_plot_window = j_destroy_plot_window;
     u.lower_plot_window = j_void;
-    u.gr_col = j_void;
-    u.base_col = j_void;
     u.cput_text = j_cput_text;
     u.get_draw_size = j_get_draw_size;
     u.blank_draw_window = j_blank_draw_window;
-    u.small_base = j_void;
-    u.small_gr = j_void;
     u.film_clip = j_film_clip;
     u.reset_film = j_reset_film;
     u.movie_play_back = j_movie_play_back;
@@ -459,13 +456,11 @@ XppUi make_json_ui(void)
     u.movie_make_anigif = j_movie_make_anigif;
     u.rubber_band = j_rubber_band;
     u.scroll_window = j_scroll_window;
-    u.new_colormap = j_new_colormap;
     u.aplot_make = j_aplot_make;
     u.aplot_redraw = j_aplot_redraw;
     u.aplot_reset_axes = j_aplot_redraw;
     u.aplot_draw_one = j_aplot_draw_one;
     u.auto_make_window = j_auto_make_window;
-    u.auto_redraw_menus = j_void;
     u.auto_refresh = j_auto_refresh;
     u.auto_check_abort = j_auto_check_abort;
     u.auto_rubber = j_auto_rubber;
@@ -646,6 +641,7 @@ const CommandInfo commands[] = {
      }},
     {"plotvars", nullptr, V, STEP, plotvars_command},
     {"aplot", nullptr, V, STEP, aplot_command},
+    {"colormap", nullptr, S, STEP, colormap_command},
     {"ani", "mouse", X, STEP, ani_command}, /* release can integrate */
     {"ani", nullptr, V, STEP, ani_command},
     {"browser", "write", D, STEP, browser_command},
@@ -1172,8 +1168,16 @@ void send_hello(xpp::Session &s)
     BUF_LIT(&b, ",\"upload_error\":");
     buf_str(&b, xpp::files::status_text(XPP_FILES_TOO_LARGE));
     buf_format(&b, ",\"player_speed\":{{\"min\":{},\"max\":{}}}", PLAYER_SPEED_MIN, PLAYER_SPEED_MAX);
-    buf_format(&b, ",\"text\":{{\"max_length\":{},\"size_max\":{},\"style_count\":{},\"color_max\":{},\"default_size\":{}}}",
-               xpp::LABEL_TEXT_MAX, xpp::LABEL_SIZE_MAX, xpp::LABEL_STYLE_COUNT, xpp::LAST_PLOT_COLOR, xpp::LABEL_SIZE_DEFAULT);
+    buf_format(&b, ",\"text\":{{\"max_length\":{},\"size_max\":{},\"style_count\":{},\"default_size\":{}}}",
+               xpp::LABEL_TEXT_MAX, xpp::LABEL_SIZE_MAX, xpp::LABEL_STYLE_COUNT, xpp::LABEL_SIZE_DEFAULT);
+    BUF_LIT(&b, ",\"colormaps\":");
+    {
+        std::vector<std::string> names(xpp::colormap_names.begin(), xpp::colormap_names.end());
+        buf_str_array(&b, names);
+    }
+    const std::string line_styles = xpp::line_styles_json();
+    BUF_LIT(&b, ",\"line_styles\":");
+    buf_add(&b, line_styles.data(), line_styles.size());
     buf_format(&b, ",\"window_ids\":{{\"plots\":{},\"auto\":{},\"ani\":{},\"aplot\":{}}}", static_cast<int>(s.plot_windows.graph.size()), WIN_AUTO,
                WIN_ANI, WIN_APLOT);
     /* the windows' key layers (menus.h window_layers) and the other
@@ -1217,11 +1221,6 @@ void send_hello(xpp::Session &s)
     for (i = 0; i < m.node + m.nmarkov + m.nupar; i++) {
         if (i) BUF_LIT(&b, ",");
         buf_str(&b, i < m.node + m.nmarkov ? m.uvar_names[i] : m.upar_names[i - m.node - m.nmarkov]);
-    }
-    BUF_LIT(&b, "],[");
-    for (i = 0; i <= xpp::LAST_PLOT_COLOR; i++) {
-        if (i) BUF_LIT(&b, ",");
-        buf_str(&b, xpp::format("{} {}", i, color_names[i]).c_str());
     }
     BUF_LIT(&b, "],[\"2 Box\",\"3 Diamond\",\"4 Triangle\",\"5 Plus\",\"6 X\",\"7 Circle\"],[");
     for (const xpp::SolverInfo &solver : xpp::solvers()) {

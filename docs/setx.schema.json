@@ -50,7 +50,7 @@
     "delays": {"type": "object", "additionalProperties": {"type": "string"}},
     "boundary": {"type": "object", "additionalProperties": {"type": "string"}},
     "graphics": {"type": "object", "additionalProperties": false, "properties": {
-      "curves": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "properties": {"x": {"type": "string"}, "y": {"type": "string"}, "z": {"type": "string"}, "line": {"type": "integer"}, "color": {"type": "integer"}}}},
+      "curves": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "properties": {"x": {"type": "string"}, "y": {"type": "string"}, "z": {"type": "string"}, "color": {"type": "string"}, "draw": {"enum": ["line", "points", "both"]}, "dash": {"enum": ["solid", "dashed", "dotted", "dash_dot"]}, "width": {"type": "number", "exclusiveMinimum": 0}, "marker": {"enum": ["circle", "square", "triangle", "diamond", "cross", "plus", "star"]}, "marker_size": {"type": "number", "minimum": 0}}}},
       "rm": {"type": "array", "items": {"type": "number"}, "minItems": 9, "maxItems": 9},
       "z_plane": {"type": "number"},
       "z_view": {"type": "number"},

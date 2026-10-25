@@ -6,7 +6,7 @@ import type {SeriesAppendEvent, SeriesEvent} from '../src/protocol/types';
 import {appendRows, columnStats, seriesFromEvent} from '../src/store/series';
 import {activeWindow} from '../src/store/plots';
 import {reduce, type AppState} from '../src/store/state';
-import {READY} from './hello';
+import {READY, LINE} from './hello';
 
 /** base64 of little-endian float32, as the server's enc "f32" */
 function f32(values: number[]): string {
@@ -17,7 +17,7 @@ function f32(values: number[]): string {
 
 const full: SeriesEvent = {
   ev: 'series', win: 1, rows: 2, three: 0, xlabel: '', ylabel: '', zlabel: '',
-  curves: [{x: 1, y: 2, z: 1, color: 0, line: 1}], shift: [0, 0, 0],
+  curves: [{x: 1, y: 2, z: 1, color: 'foreground', ...LINE}], shift: [0, 0, 0],
   columns: [
     {col: 0, name: 'T', data: [0, 1]},
     {col: 1, name: 'V', data: [10, 11]},

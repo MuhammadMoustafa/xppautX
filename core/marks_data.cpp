@@ -42,7 +42,8 @@ struct Label {
     int id; /* the slot: the page names the label by it */
     float x, y;
     std::string text, source; /* as drawn, and as written (its \{expr}s unfilled) */
-    int size, font, style, color;
+    int size, font, style;
+    Color color;
     bool operator==(const Label &o) const
     {
         return id == o.id && x == o.x && y == o.y && text == o.text && source == o.source && size == o.size && font == o.font
@@ -51,7 +52,8 @@ struct Label {
 };
 
 struct Grob {
-    int type, color;
+    int type;
+    Color color;
     float xs, ys, xe, ye;
     double size;
     bool operator==(const Grob &o) const
@@ -66,11 +68,13 @@ struct Grob {
 struct Frozen {
     int slot;
     unsigned long gen;
-    int color, len;
+    Color color;
+    LineStyle style;
+    int len;
     std::string key, name;
     bool operator==(const Frozen &o) const
     {
-        return slot == o.slot && gen == o.gen && color == o.color && len == o.len && key == o.key
+        return slot == o.slot && gen == o.gen && color == o.color && style == o.style && len == o.len && key == o.key
                && name == o.name;
     }
 };
@@ -159,7 +163,7 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
         o += ",\"style\":";
         add_int(o, l.style);
         o += ",\"color\":";
-        add_int(o, l.color);
+        o += xpp::quoted_color(l.color);
         o += '}';
     }
     o += "],\"arrows\":[";
@@ -180,7 +184,7 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
         o += ",\"size\":";
         xpp::json::json_append_number_shortest(o, g.size);
         o += ",\"color\":";
-        add_int(o, g.color);
+        o += xpp::quoted_color(g.color);
         o += '}';
     }
     o += "],\"markers\":[";
@@ -198,7 +202,7 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
         o += "\",\"size\":";
         xpp::json::json_append_number_shortest(o, g.size);
         o += ",\"color\":";
-        add_int(o, g.color);
+        o += xpp::quoted_color(g.color);
         o += '}';
     }
     o += "],\"frozen\":[";
@@ -210,9 +214,9 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
         o += ",\"name\":";
         xpp::json_append_string(o, f.name.c_str());
         o += ",\"color\":";
-        add_int(o, f.color < 0 ? -f.color : f.color);
-        o += ",\"line\":";
-        o += f.color < 0 ? '0' : '1';
+        o += xpp::quoted_color(f.color);
+        o += ',';
+        o += line_style_json(f.style);
         o += ",\"x\":";
         add_values(o, z.xv, f.len);
         o += ",\"y\":";
@@ -240,7 +244,7 @@ Content content_of(const xpp::Session &s, int pop, const MarksShown::Record &r)
     for (const auto &e : r.frozen) {
         const CURVE &z = s.frozen_curves.curve[e.first];
         if (z.use == 1 && z.w == w && z.type == 0 && e.second == s.marks_shown.generation[e.first] && z.xv && z.yv)
-            c.frozen.push_back({e.first, e.second, z.color, z.len, z.key, z.name});
+            c.frozen.push_back({e.first, e.second, z.color, z.style, z.len, z.key, z.name});
     }
     return c;
 }

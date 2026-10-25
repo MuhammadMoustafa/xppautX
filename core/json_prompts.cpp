@@ -180,8 +180,8 @@ namespace {
 /* a field's kind as the protocol names it (docs/protocol.md "Asks", `kinds`) */
 void buf_kind(Buf *b, int kind)
 {
-    static constexpr std::array<const char *, 9> names = {"text",       "integer", "number",  "formula", "expression",
-                                                              "file",       "boolean", "choice",  "real"};
+    static constexpr std::array<const char *, 10> names = {"text",       "integer", "number",  "formula", "expression",
+                                                               "file",       "boolean", "choice",  "real",    "color"};
     if (kind >= XPP_FIELD_NAME) buf_format(b, "\"name:{:d}\"", kind - XPP_FIELD_NAME);
     else buf_str(b, kind > 0 && kind < static_cast<int>(names.size()) ? names[kind] : "text");
 }
@@ -226,14 +226,16 @@ int j_text_dialog(xpp::LabelLook &look)
     const int id = ask_begin(&b, "text");
     BUF_LIT(&b, ",\"title\":\"Text\",\"value\":");
     buf_str(&b, look.text);
-    buf_format(&b, ",\"size\":{:d},\"style\":{:d},\"color\":{:d}", look.size, look.style, look.color);
+    buf_format(&b, ",\"size\":{:d},\"style\":{:d},\"color\":{}", look.size, look.style, xpp::quoted_color(look.color));
     if (!ask_wait(&b, id)) return 0;
     get_string(answer.c_str(), "value", look.text);
-    if (!get_whole(answer.c_str(), "size", look.size) || !get_whole(answer.c_str(), "style", look.style) ||
-        !get_whole(answer.c_str(), "color", look.color)) {
-        j_command_error("text", "the size, style and colour of a text are whole numbers");
+    std::string word;
+    const std::optional<xpp::Color> color = get_string(answer.c_str(), "color", word) ? xpp::parse_color(word) : std::nullopt;
+    if (!get_whole(answer.c_str(), "size", look.size) || !get_whole(answer.c_str(), "style", look.style) || !color) {
+        j_command_error("text", "the size and style of a text are whole numbers and its colour is #rrggbb, #rrggbbaa, a CSS colour name or foreground");
         return 0;
     }
+    look.color = *color;
     return 1;
 }
 

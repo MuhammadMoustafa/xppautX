@@ -8,7 +8,8 @@
    keeps it per window. */
 import {BOX_AXIS_EDGES, BOX_EDGES} from './project3d';
 import type {Point2} from './project3d';
-import {curveColor} from './colors';
+import {cssColor} from './colors';
+import {addMarker, dashPattern, drawsLine, drawsPoints} from './linestyle';
 import type {Model3D} from './model3d';
 import {segmentDistance2} from './nearest';
 
@@ -68,7 +69,7 @@ export function nearest3d(model: Model3D, cw: number, ch: number, x: number, y: 
     for (const p of c.points) {
       if (!p) { previous = null; continue; }
       const [px, py] = toCanvas(f, p);
-      const d = c.line && previous ? segmentDistance2(previous[0] - x, previous[1] - y, px - x, py - y)
+      const d = drawsLine(c.style) && previous ? segmentDistance2(previous[0] - x, previous[1] - y, px - x, py - y)
         : (px - x) ** 2 + (py - y) ** 2;
       if (d < best) { best = d; nearest = i; }
       previous = [px, py];
@@ -130,10 +131,11 @@ export function draw3d(
   g.lineJoin = 'round';
   for (const c of model.curves) {
     if (c.visible === false) continue;
-    g.strokeStyle = c.cssColor ?? curveColor(c.color, dark);
+    g.strokeStyle = c.cssColor ?? cssColor(c.color, dark);
     g.fillStyle = g.strokeStyle;
-    if (c.line) {
-      g.lineWidth = c.highlighted ? 3.5 : 1.5;
+    if (drawsLine(c.style)) {
+      g.lineWidth = c.highlighted ? Math.max(3.5, c.style.width + 2) : c.style.width;
+      g.setLineDash(dashPattern(c.style));
       g.beginPath();
       let open = false;
       for (const p of c.points) {
@@ -147,14 +149,18 @@ export function draw3d(
         open = true;
       }
       g.stroke();
-    } else {
+      g.setLineDash([]);
+    }
+    if (drawsPoints(c.style)) {
+      const fill = new Path2D(), stroke = new Path2D();
       for (const p of c.points) {
         if (!p) continue;
         const [x, y] = toCanvas(f, p);
-        g.beginPath();
-        g.arc(x, y, c.radius, 0, 2 * Math.PI);
-        g.fill();
+        addMarker(fill, stroke, c.style, x, y);
       }
+      g.lineWidth = 1;
+      g.fill(fill);
+      g.stroke(stroke);
     }
   }
   return {

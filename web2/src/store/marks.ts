@@ -4,7 +4,7 @@
    Unicode runs, plot/richtext.ts), arrows and markers, and the frozen
    curves with their values decoded to float32. Pure: no DOM. */
 import {decode} from '../protocol/decode';
-import type {MarksEvent} from '../protocol/types';
+import type {CoreColor, LineStyle, MarksEvent} from '../protocol/types';
 import {parseRichText, type TextRun} from '../plot/richtext';
 
 /** an equilibrium's stability, as the core names it (the `marks` event) */
@@ -32,8 +32,7 @@ export interface TextMark {
   size: number;
   /** 0 normal, 1 bold, 2 italic, 3 bold italic */
   style: number;
-  /** a curve colour's index */
-  color: number;
+  color: CoreColor;
 }
 
 /** what a text takes in its dialog (core/grobs.h LabelLook) */
@@ -41,7 +40,7 @@ export interface TextValues {
   text: string;
   size: number;
   style: number;
-  color: number;
+  color: CoreColor;
 }
 
 /** where a text is, in the plot's coordinates */
@@ -58,7 +57,7 @@ export interface ArrowMark {
   y2: number;
   /** the head's length as a fraction of the whole */
   size: number;
-  color: number;
+  color: CoreColor;
 }
 
 /** a marker's shape, as the core names it (core/marks_data.cpp MARKER_SHAPES) */
@@ -69,14 +68,14 @@ export interface MarkerMark {
   y: number;
   shape: MarkerShape;
   size: number;
-  color: number;
+  color: CoreColor;
 }
 
 export interface FrozenCurve {
   /** the legend's name: the key, else the name */
   label: string;
-  color: number;
-  line: boolean;
+  color: CoreColor;
+  style: LineStyle;
   xs: Float32Array;
   ys: Float32Array;
 }
@@ -101,7 +100,8 @@ export function marksFromEvent(ev: MarksEvent): Marks {
     arrows: ev.arrows.map(a => ({pointer: a.kind === 'pointer', x1: a.x1, y1: a.y1, x2: a.x2, y2: a.y2, size: a.size,
       color: a.color})),
     markers: ev.markers.map(m => ({x: m.x, y: m.y, shape: m.shape, size: m.size, color: m.color})),
-    frozen: ev.frozen.map((f, i) => ({label: f.key || f.name || `Frozen ${i + 1}`, color: f.color, line: f.line !== 0,
+    frozen: ev.frozen.map((f, i) => ({label: f.key || f.name || `Frozen ${i + 1}`, color: f.color,
+      style: {draw: f.draw, dash: f.dash, width: f.width, marker: f.marker, marker_size: f.marker_size},
       xs: decode(f.x), ys: decode(f.y)})),
   };
 }

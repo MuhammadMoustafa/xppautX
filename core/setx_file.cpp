@@ -424,9 +424,16 @@ public:
     }
     void curves(const GRAPH &)
     {
+        const auto words = [](auto names) {
+            std::string list;
+            for (const std::string_view n : names) list += (list.empty() ? "\"" : ", \"") + std::string(n) + "\"";
+            return "{\"enum\": [" + list + "]}";
+        };
         prop("curves", "{\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, "
                        "\"properties\": {\"x\": {\"type\": \"string\"}, \"y\": {\"type\": \"string\"}, \"z\": {\"type\": \"string\"}, "
-                       "\"line\": {\"type\": \"integer\"}, \"color\": {\"type\": \"integer\"}}}}");
+                       "\"color\": {\"type\": \"string\"}, \"draw\": " + words(line_draw_names) + ", \"dash\": " + words(line_dash_names)
+                       + ", \"width\": {\"type\": \"number\", \"exclusiveMinimum\": 0}, \"marker\": " + words(line_marker_names)
+                       + ", \"marker_size\": {\"type\": \"number\", \"minimum\": 0}}}}");
     }
     explicit Shape(std::string indent = "    ") : indent_(std::move(indent)) {}
     std::string props;
@@ -472,7 +479,7 @@ void copy_curves(const GRAPH &from, GRAPH &to)
     to.xv = from.xv;
     to.yv = from.yv;
     to.zv = from.zv;
-    to.line = from.line;
+    to.style = from.style;
     to.color = from.color;
 }
 
@@ -499,8 +506,8 @@ void write_curves(setx::Out &out, const Session &s, const GRAPH &g)
         out.word("x", ind_to_sym(s, g.xv[k]));
         out.word("y", ind_to_sym(s, g.yv[k]));
         out.word("z", ind_to_sym(s, g.zv[k]));
-        out.whole("line", g.line[k]);
-        out.whole("color", g.color[k]);
+        out.color("color", g.color[k]);
+        out.line_style(g.style[k]);
         out.end_item();
     }
     out.end_list();
@@ -529,8 +536,8 @@ void read_curves(setx::Block &window, const Session &s, GRAPH &g, std::span<cons
         g.xv[j] = column("x");
         g.yv[j] = column("y");
         g.zv[j] = column("z");
-        c.whole("line", g.line[j]);
-        c.whole("color", g.color[j]);
+        c.color("color", g.color[j]);
+        c.line_style(g.style[j]);
         c.done();
     }
 }

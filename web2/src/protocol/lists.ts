@@ -1,7 +1,6 @@
 /* Form fields that pick from a list (docs/protocol.md "Asks", `form`): a
    field named `*nLabel` picks from `hello.lists[n]` (0 T and the variables,
-   1 the ODE variables, 2 parameters, 3 both, 4 colours, 5 markers,
-   6 methods). Items that start with a number (`2 Box`) answer with the
+   1 the ODE variables, 2 parameters, 3 both, 4 markers, 5 methods). Items that start with a number (`2 Box`) answer with the
    number, as the X11 scroll list and the classic page do; the others (names)
    with themselves. Pure. */
 

@@ -3,18 +3,19 @@
    aligned mode 1) or not (a phase plane, uPlot's xy mode 2). Pure. */
 import {axisTitle, seriesColumnName, columnStats, curveLabel, type ColumnStats, type PlotSeries} from '../store/series';
 import type {Range} from '../store/plots';
+import type {CoreColor, LineStyle} from '../protocol/types';
+import {styleOf} from './linestyle';
 
 export interface CurveData {
   label: string;
   xName: string;
   yName: string;
-  color: number;
+  color: CoreColor;
   /** Local legend presentation; never changes the core's numerical data. */
   cssColor?: string;
   visible?: boolean;
-  /** a line, or points of this radius */
-  line: boolean;
-  radius: number;
+  /** how it is drawn: a line, points or both, dashed or not, its width and its marker */
+  style: LineStyle;
   xs: Float32Array;
   ys: Float32Array;
   /** storage row of xs[0] (rows before the largest shift are not plotted) */
@@ -72,8 +73,7 @@ export function buildModel(s: PlotSeries, erased = false): PlotModel {
       xName: seriesColumnName(s, c.x),
       yName: seriesColumnName(s, c.y),
       color: c.color,
-      line: c.line > 0,
-      radius: c.line > 0 ? 0 : Math.max(1, -c.line),
+      style: styleOf(c),
       xs: erased ? EMPTY : x.subarray(start - xs, start - xs + n),
       ys: erased ? EMPTY : y.subarray(start - ys, start - ys + n),
       row0: start,

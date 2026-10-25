@@ -133,6 +133,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"ZP", {"x", "1"}},
         {"AXES", {"3", "5"}},            /* 3D */
         {"LT", {"-1", "-1"}},
+        {"PLOTFMT", {"svg", ""}},
         {"POINCARE_SIGN", {"-1", "0"}},         /* negative */
         {"LINE.DRAW", {"line", ""}}, {"LINE.DASH", {"solid", ""}}, {"LINE.WIDTH", {"1", ""}}, {"LINE.MARKER", {"circle", ""}},
         {"LINE.MARKER_SIZE", {"3", ""}},
@@ -310,18 +311,29 @@ int main(void)
         CHECK(l && l->numerics.state_limit == 7 && l->numerics.stop_at_limit && l->numerics.equilibria.search_limit == 7);
         CHECK(l && l->nullclines.draw == (std::string_view(ncdraw) == "1") && l->nullclines.file == (std::string_view(ncdraw) == "2" ? "nullclines.dat" : ""));
     }
-    /* XPPAUT's lt is the line style every new curve starts with: its line types, and no style they do not draw */
+    /* XPPAUT's lt is the line style every new curve starts with: its line types; our own style is any */
     for (const int lt : {1, 0, -3}) {
         CHECK(write_file("build/test_lt.ode", xpp::format("x'=-x\n@ lt={}\ndone\n", lt)));
         const xpp::Session *l = load("build/test_lt.ode");
-        CHECK(l && xpp::xppaut_line_type(l->plot_settings.start_line_style) == lt);
+        CHECK(l && l->plot_settings.start_line_style == *xpp::line_style_of_xppaut(lt));
     }
     CHECK(write_file("build/test_lt.odex", "x' = -x\noptions { plot: { line.draw: points, line.marker_size: 4 } }\n"));
     {
         const xpp::Session *l = load("build/test_lt.odex");
-        CHECK(l && xpp::xppaut_line_type(l->plot_settings.start_line_style) == -4);
+        CHECK(l && l->plot_settings.start_line_style == *xpp::line_style_of_xppaut(-4));
     }
-    for (const char *bad : {"line.dash: dashed", "line.width: 2", "line.draw: both", "line.marker: star, line.draw: points", "line.marker_size: -1", "line.draw: 1"}) {
+    CHECK(write_file("build/test_style.odex", "x' = -x\noptions { plot: { line.dash: dash_dot, line.width: 2.5, line.draw: both, line.marker: star, line.marker_size: 6 } }\n"));
+    {
+        const xpp::Session *l = load("build/test_style.odex");
+        xpp::LineStyle want;
+        want.draw = xpp::LineDraw::both;
+        want.dash = xpp::LineDash::dash_dot;
+        want.width = 2.5;
+        want.marker = xpp::LineMarker::star;
+        want.marker_size = 6;
+        CHECK(l && l->plot_settings.start_line_style == want);
+    }
+    for (const char *bad : {"line.dash: dotted dashed", "line.width: 0", "line.marker: 5", "line.marker_size: -1", "line.draw: 1"}) {
         CHECK(write_file("build/test_bad_choice.odex", xpp::format("x' = -x\noptions {{ plot: {{ {} }} }}\n", bad)));
         char arg0[] = "test_options";
         char file[] = "build/test_bad_choice.odex";
@@ -400,7 +412,7 @@ int main(void)
     std::vector<std::string> defaults;
     for (const xpp::OptionRow &r : rows) defaults.push_back(value_of(*s, r));
     for (const xpp::OptionRow &r : rows)
-        if (r.once && !r.reset) CHECK(!s->options_set.has(r));
+        if (r.once && !r.reset && r.name != "COLORMAP") CHECK(!s->options_set.has(r)); /* an .ode's conversion sets its colormap, jet */
 
     /* every option set from @ lines, the last row's first (xmin sets the
        2D window's xlo too; xlo's own line after it wins) */

@@ -94,7 +94,6 @@ static files::WriteFolders *hl_write_folders() { return nullptr; }
 static void hl_void(void) {}
 static void hl_str(std::string_view) {}
 static void hl_int(int) {}
-static void hl_colormap(Colormap) {}
 static void hl_bottom_msg(int, std::string_view msg, std::string_view, std::string_view) { log(XPP_LOG_INFO, "{}\n", msg); }
 static void hl_s(Session &) {}
 static void hl_s_int(Session &, int) {}
@@ -146,16 +145,9 @@ static void hl_get_draw_size(Session &s, unsigned int *w, unsigned int *h)
     *w = g && g->x11Wid > 0 ? static_cast<unsigned int>(g->x11Wid) : 640;
     *h = g && g->x11Hgt > 0 ? static_cast<unsigned int>(g->x11Hgt) : 480;
 }
-static void hl_put_text(int, int, const char *) {}
 static Result<> hl_film_clip(Session &) { return {}; }
-static void hl_draw_point(int, int) {}
-static void hl_draw_line(int, int, int, int) {}
-static void hl_draw_frect(int, int, int, int) {}
-static void hl_draw_special_text(int, int, const char *, int) {}
 static void hl_auto_make_window(Session &, std::string_view, std::string_view) {}
-static void hl_auto_circle(int, int, int) {}
 static void hl_auto_diagram(Session &, int, const XppDiagPoint *) {}
-static void hl_auto_draw_info(std::string_view, int, int) {}
 static int hl_auto_grab_event(Session &, int *, int *) { return 27; }
 static int hl_auto_check_abort(int *iflag) { *iflag = 0; return 0; }
 static int hl_auto_rubber(Session &, int *, int *, int *, int *, int)
@@ -176,8 +168,6 @@ static int hl_dialog(std::string_view, std::string_view, std::string &, std::str
 {
     return 0;
 }
-static void hl_ani_font(int, int, int) {}
-static void hl_ani_box(int, int, int, int, int) {}
 static void hl_param_box_set(int, const char *) {}
 static void hl_respond_box(std::string_view, std::string_view message) { xpp::log(XPP_LOG_WARN, "{}\n", message); }
 static int hl_checklist(std::string_view, const char *const *, int *, int)
@@ -245,13 +235,9 @@ XppUi ui = {
     .create_plot_window = hl_s,
     .destroy_plot_window = hl_s,
     .lower_plot_window = hl_void,
-    .gr_col = hl_void,
-    .base_col = hl_void,
     .cput_text = hl_s,
     .get_draw_size = hl_get_draw_size,
     .blank_draw_window = hl_s,
-    .small_base = hl_void,
-    .small_gr = hl_void,
     .film_clip = hl_film_clip,
     .reset_film = hl_s,
     .movie_play_back = hl_s,
@@ -260,32 +246,11 @@ XppUi ui = {
     .movie_make_anigif = hl_s,
     .rubber_band = hl_auto_rubber,
     .scroll_window = hl_s,
-    .new_colormap = hl_colormap,
-    .draw_point = hl_draw_point,
-    .draw_line = hl_draw_line,
-    .draw_bead = hl_draw_point,
-    .draw_frect = hl_draw_frect,
-    .draw_text = hl_put_text,
-    .draw_special_text = hl_draw_special_text,
-    .draw_linestyle = hl_int,
-    .set_color = hl_int,
     .aplot_make = hl_s_str,
     .aplot_redraw = hl_s,
     .aplot_reset_axes = hl_s,
     .aplot_draw_one = hl_s_str,
     .auto_make_window = hl_auto_make_window,
-    .auto_line = hl_draw_line,
-    .auto_text = hl_put_text,
-    .auto_circle = hl_auto_circle,
-    .auto_fill_circle = hl_auto_circle,
-    .auto_xor_cross = hl_draw_point,
-    .auto_line_width = hl_int,
-    .auto_col = hl_int,
-    .auto_bw = hl_void,
-    .auto_clear_plot = hl_void,
-    .auto_redraw_menus = hl_void,
-    .auto_clear_info = hl_void,
-    .auto_draw_info = hl_auto_draw_info,
     .auto_refresh = hl_s,
     .auto_check_abort = hl_auto_check_abort,
     .auto_rubber = hl_auto_rubber,
@@ -295,15 +260,7 @@ XppUi ui = {
     .auto_grab_end = hl_int,
     .auto_diagram = hl_auto_diagram,
     .new_vcr = hl_s,
-    .ani_clear = hl_void,
     .ani_show = hl_void,
-    .ani_color = hl_int,
-    .ani_thick = hl_int,
-    .ani_font = hl_ani_font,
-    .ani_line = hl_draw_line,
-    .ani_rect = hl_ani_box,
-    .ani_arc = hl_ani_box,
-    .ani_text = hl_put_text,
     .ani_slider = hl_s,
     .init_txtview = hl_void,
     .show_eq_box = hl_show_eq_box,
@@ -441,6 +398,10 @@ FormField FormField::choice(std::string name, std::vector<std::string> choices, 
     return FormField{.name = std::move(name), .kind = XPP_FIELD_CHOICE, .value = std::move(value),
                      .choices = std::move(choices)};
 }
+FormField FormField::color_field(std::string name, const Color &value)
+{
+    return FormField{.name = std::move(name), .kind = XPP_FIELD_COLOR, .value = print_color(value)};
+}
 FormField FormField::real_number(std::string name, double value, std::optional<double> min, std::optional<double> max)
 {
     return FormField{.name = std::move(name), .kind = XPP_FIELD_REAL, .value = format("{:.16g}", value), .min = min, .max = max};
@@ -464,6 +425,7 @@ int ask_form(Session &s, std::string_view title, std::span<FormField> fields)
         case XPP_FIELD_CHOICE: f.whole = read.choice(f.name, f.value, f.choices); break;
         case XPP_FIELD_INTEGER: f.whole = read.integer(f.name, f.value, f.min, f.max); break;
         case XPP_FIELD_REAL: f.real = read.real(f.name, f.value, f.min, f.max); break;
+        case XPP_FIELD_COLOR: f.color = read.color(f.name, f.value); break;
         default: break;
         }
     }
@@ -543,27 +505,10 @@ void drw_all_scrns(Session &s) { ui.redraw_screens(s); }
 void clr_all_scrns(Session &s) { ui.clear_screens(s); }
 void clear_draw_window(Session &s) { ui.clear_draw_window(s); }
 void reset_graphics(Session &s) { ui.reset_graphics(s); }
-void GrCol(void) { ui.gr_col(); }
-void BaseCol(void) { ui.base_col(); }
 void cput_text(Session &s) { ui.cput_text(s); }
-void SmallBase(void) { ui.small_base(); }
-void SmallGr(void) { ui.small_gr(); }
 void reset_film(Session &s) { ui.reset_film(s); }
-void set_color(int col) { ui.set_color(col); }
 void draw_one_array_plot(Session &s, std::string_view bob) { ui.aplot_draw_one(s, bob); }
 void make_auto(Session &s, std::string_view wname, std::string_view iname) { ui.auto_make_window(s, wname, iname); }
-void ALINE(int a, int b, int c, int d) { ui.auto_line(a, b, c, d); }
-void ATEXT(int a, int b, const char *c) { ui.auto_text(a, b, c); }
-void Circle(int x, int y, int r) { ui.auto_circle(x, y, r); }
-void FillCircle(int x, int y, int r) { ui.auto_fill_circle(x, y, r); }
-void XORCross(int x, int y) { ui.auto_xor_cross(x, y); }
-void LineWidth(int wid) { ui.auto_line_width(wid); }
-void autocol(int col) { ui.auto_col(col); }
-void autobw(void) { ui.auto_bw(); }
-void clear_auto_plot(void) { ui.auto_clear_plot(); }
-void redraw_auto_menus(void) { ui.auto_redraw_menus(); }
-void clear_auto_info(void) { ui.auto_clear_info(); }
-void draw_auto_info(std::string_view bob, int x, int y) { ui.auto_draw_info(bob, x, y); }
 void refreshdisplay(Session &s) { ui.auto_refresh(s); }
 int byeauto_(int *iflag) /* AUTO's checkpoint, as my_abort() */
 {
@@ -597,7 +542,6 @@ int rubber_band(Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
     return ui.rubber_band(s, i1, j1, i2, j2, flag);
 }
 void scroll_window(Session &s) { ui.scroll_window(s); }
-void NewColormap(Colormap type) { ui.new_colormap(type); }
 void make_my_aplot(Session &s, std::string_view name) { ui.aplot_make(s, name); }
 void new_vcr(Session &s) { ui.new_vcr(s); }
 void redraw_the_graph(Session &s) { ui.redraw_graph(s); }

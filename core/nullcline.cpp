@@ -55,6 +55,21 @@ struct Pt {
   float x,y,z;
 };
 
+/* XPPAUT's PostScript page (7200 by 5040, y up) as the device, which dirfields.dat's arrows were always computed in:
+   their lengths do not depend on the window's size (the numbers are the old PostScript set-up's) */
+void init_data_frame(xpp::Session &s)
+{
+  constexpr int page_width=7200,page_height=5040,tic=63,char_height=140,char_width=84;
+  s.drawing.v_tic=tic;
+  s.drawing.h_tic=tic;
+  s.drawing.v_char=char_height;
+  s.drawing.h_char=char_width;
+  s.drawing.d_left=12*char_width;
+  s.drawing.d_right=page_width-3*char_width-tic;
+  s.drawing.d_top=page_height-1-char_height*7/2;
+  s.drawing.d_bottom=char_height*5/2+1;
+}
+
 
 /* Walks the frozen nullclines up to the first empty one (the original
    linked list's end marker, also where one with no points stops it). */
@@ -140,7 +155,7 @@ void save_frozen_clines(xpp::Session &s, const std::string &fn)
 
 void restor_null(xpp::Session &s, const float *v, int n, int d)  /* d=1 for x and 2 for y  */
 {
-  xpp::image_group(s, true);
+  xpp::picture_group(s, true);
   for(int i=0;i<n;i++){
     const int i4=4*i;
     line_abs(s,v[i4],v[i4+1],v[i4+2],v[i4+3]);
@@ -159,12 +174,12 @@ void restor_null(xpp::Session &s, const float *v, int n, int d)  /* d=1 for x an
       }
     }
   }
-  xpp::image_group(s, false);
+  xpp::picture_group(s, false);
 }
 
 void redraw_froz_cline(xpp::Session &s, int flag)
 {
-  const int col1=plot_color(s.nullclines.x_null_color),col2=plot_color(s.nullclines.y_null_color);
+  const xpp::Color col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
   if(!s.nullcline_state.frozen_started)return;
   phase_data_frozen_begin(s);
   for_each_frozen(s,[&](FrozenCline &z){
@@ -174,9 +189,9 @@ void redraw_froz_cline(xpp::Session &s, int flag)
         waitasec(flag);
         xpp::clr_scrn(s);
       }
-      set_linestyle(s,col1);
+      set_pen(s,col1,LineStyle{});
       restor_null(s,z.xn.data(),z.nmx,1);
-      set_linestyle(s,col2);
+      set_pen(s,col2,LineStyle{});
       restor_null(s,z.yn.data(),z.nmy,2);
       phase_data_frozen(s,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
       if(flag>0)
@@ -302,7 +317,7 @@ void do_range_clines(xpp::Session &s)
 {
   static const char *const n[]={"*2Range parameter","Steps","Low","High"};
   std::array<std::string, 4> values;
-  const int col1=plot_color(s.nullclines.x_null_color),col2=plot_color(s.nullclines.y_null_color);
+  const xpp::Color col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
   const int course=s.numerics.nullcline_mesh;
   values[0] = s.nullcline_state.range.rv;
   values[1] = xpp::format("{:d}", s.nullcline_state.range.nstep);
@@ -336,11 +351,11 @@ void do_range_clines(xpp::Session &s)
     null_storage(s,course);
 
     s.nullcline_state.which_crv=s.nullcline_state.null_ix;
-    set_linestyle(s,col1);
+    set_pen(s,col1,LineStyle{});
     new_nullcline(s,course,xmin,y_bot,xmax,y_tp,s.nullcline_state.x_null,&s.nullcline_state.num_x_n);
 
     s.nullcline_state.which_crv=s.nullcline_state.null_iy;
-    set_linestyle(s,col2);
+    set_pen(s,col2,LineStyle{});
     new_nullcline(s,course,xmin,y_bot,xmax,y_tp,s.nullcline_state.y_null,&s.nullcline_state.num_y_n);
     add_froz_cline(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.null_ix,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_iy);
   }
@@ -383,7 +398,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
   if(s.integrator.step_error)return;
   if(!suppress&&(s.nullclines.df_flag==1||s.nullclines.df_flag==4))
     phase_data_dfield_begin(s,grid+1,du,dv,s.nullcline_state.dfield_type==0,s.plot_windows.current->color[0]);
-  xpp::image_group(s, true, true);
+  xpp::picture_group(s, true);
   for(int i=0;i<=grid;i++){
     if(my_abort()==ESC)break;
     y[inx]=u0+du*i;
@@ -429,7 +444,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
         frect_abs(s,static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(du),static_cast<float>(dv));
     }
   }
-  xpp::image_group(s, false, true);
+  xpp::picture_group(s, false);
 }
 
 void save_the_nullclines(xpp::Session &s)
@@ -579,7 +594,7 @@ void dfield_of_window(xpp::Session &s, xpp::Writer *dump)
   const double dz=xpp::math::hypot(dup,dvp)*(.25+.75*s.nullcline_state.dfield_type);
   const double u0=s.plot_windows.current->xlo;
   const double v0=s.plot_windows.current->ylo;
-  if(!dump)set_linestyle(s,s.plot_windows.current->color[0]);
+  if(!dump)set_pen(s,s.plot_windows.current->color[0],LineStyle{});
   dfield_grid(s,grid,u0,v0,du,dv,dz,inx,iny,dump);
 }
 
@@ -593,10 +608,10 @@ void redraw_dfield(xpp::Session &s)
 void write_dfield(xpp::Session &s, std::string_view name)
 {
   if(!save_ready(dfield_shown(s)))return;
-  /* in PostScript's frame, whatever the window's, as --silent always
+  /* in XPPAUT's PostScript page, whatever the window's, as --silent always
      wrote it: the arrows' lengths do not depend on the window's size */
   const DrawingState drawn=s.drawing;
-  init_ps(s);
+  init_data_frame(s);
   xpp::Writer w=xpp::open_writer_asking(name);
   if(w){
     dfield_of_window(s,&w);
@@ -633,7 +648,7 @@ void direct_field_com(xpp::Session &s, int c)
   const double dz=xpp::math::hypot(dup,dvp)*(.25+.75*s.nullcline_state.dfield_type) ;
   const double u0=s.plot_windows.current->xlo;
   const double v0=s.plot_windows.current->ylo;
-  set_linestyle(s,s.plot_windows.current->color[0]);
+  set_pen(s,s.plot_windows.current->color[0],LineStyle{});
   if(c!=1){
     s.nullclines.df_flag=1;
     if(c==3){
@@ -671,7 +686,7 @@ flow_done:
   phase_data_flow_stop(s);
   s.integrator.suppress_bounds=0;
   s.numerics.delta_t=dtold;
-  xpp::image_group(s, false, true);
+  xpp::picture_group(s, false);
   if(const xpp::Result<> r=failure.result();!r)xpp::show_error(r.error());
 }
 
@@ -763,12 +778,12 @@ NullclineState read_nullclines(const Model &m, setx::Block &file)
 
 void restore_nullclines(xpp::Session &s)
 {
-  const int col1=plot_color(s.nullclines.x_null_color),col2=plot_color(s.nullclines.y_null_color);
+  const xpp::Color col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
   if(!s.numerics.null_here)return;
   if(s.plot_windows.current->xv[0]==s.nullcline_state.null_ix&&s.plot_windows.current->yv[0]==s.nullcline_state.null_iy&&s.plot_windows.current->ThreeDFlag==0){
-    set_linestyle(s,col1);
+    set_pen(s,col1,LineStyle{});
     restor_null(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,1);
-    set_linestyle(s,col2);
+    set_pen(s,col2,LineStyle{});
     restor_null(s,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,2);
     phase_data_nullclines(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_ix,s.nullcline_state.null_iy,col1,col2);
   }
@@ -784,7 +799,7 @@ void create_new_cline(xpp::Session &s)
 void new_clines_com(xpp::Session &s, int c)
 {
   const int course=s.numerics.nullcline_mesh;
-  const int col1=plot_color(s.nullclines.x_null_color),col2=plot_color(s.nullclines.y_null_color);
+  const xpp::Color col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
 
   if(!phase_plane(*s.plot_windows.current))return;
 
@@ -819,12 +834,12 @@ void new_clines_com(xpp::Session &s, int c)
   null_storage(s,course);
 
   s.nullcline_state.which_crv=s.nullcline_state.null_ix;
-  set_linestyle(s,col1);
+  set_pen(s,col1,LineStyle{});
   new_nullcline(s,course,xmin,y_bot,xmax,y_tp,s.nullcline_state.x_null,&s.nullcline_state.num_x_n);
   ping();
 
   s.nullcline_state.which_crv=s.nullcline_state.null_iy;
-  set_linestyle(s,col2);
+  set_pen(s,col2,LineStyle{});
   new_nullcline(s,course,xmin,y_bot,xmax,y_tp,s.nullcline_state.y_null,&s.nullcline_state.num_y_n);
   ping();
   phase_data_nullclines(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_ix,s.nullcline_state.null_iy,col1,col2);

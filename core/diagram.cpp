@@ -16,7 +16,7 @@
 #include "autevd.h"
 
 #include "my_svg.h"
-#include "my_ps.h"
+#include "picture.h"
 #include "graphics.h"
 #include "image_format.h"
 #include <stdlib.h>
@@ -222,10 +222,8 @@ xpp::Writer diagram_file(const xpp::Session &s, const char *title, const char *w
   return w;
 }
 
-/* the diagram as a picture: PostScript or SVG, whichever begin (ps_init
-   or svg_init) opened, finished with end */
-void export_diagram(xpp::Session &s, const char *title, const char *name, const char *wild,
-                    xpp::Result<> (*begin)(xpp::Session &, const char *, int), void (*end)(xpp::Session &))
+/* the diagram as a picture in the vector format f */
+void export_diagram(xpp::Session &s, const char *title, const char *name, const char *wild, const xpp::ImageFormat &f)
 {
   xpp::DIAGRAM *d;
   xpp::DiagramPointType type;
@@ -233,7 +231,7 @@ void export_diagram(xpp::Session &s, const char *title, const char *name, const 
   if(!xpp::save_ready(diagram_count(s.diagram)>=2))return;
   std::string filename=name;
   if(!xpp::file_selector(title,filename,wild))return;
-  if(!xpp::ok_or_show(begin(s,filename.c_str(),s.plot_export.color))||!s.plot_file.writer)
+  if(!xpp::ok_or_show(xpp::begin_picture(s,f,filename,s.plot_export.color))||!s.plot_file.writer)
     return;
   draw_export_axes(s);
   d=diagram_first(s.diagram);
@@ -246,7 +244,7 @@ void export_diagram(xpp::Session &s, const char *title, const char *name, const 
     d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
-  end(s);
+  xpp::end_picture(s);
   set_normal_scale(s);
 }
 
@@ -411,16 +409,16 @@ void write_pts(xpp::Session &s)
   xpp::ok_or_show(xpp::commit_save(w));
 }
 
-/* the AUTO File menu's Postscript/SVG entries (W53, issue #101): one
+/* the AUTO File menu's PDF/SVG entries (W53, issue #101): one
    function through the image_format.h registry in place of the former
    post_auto/svg_auto pair, with model-based default names and
-   "*.ps"/"*.svg" filter as before */
+   "*.pdf"/"*.svg" filter */
 void export_auto_picture(xpp::Session &s, int fmt)
 {
   const xpp::ImageFormat &f=xpp::image_formats[fmt];
   std::string name=xpp::files::output_name(s.model().this_file,xpp::format(".{}",f.extension),"diagram");
   std::string wild=xpp::format("*.{}",f.extension);
-  export_diagram(s,f.name,name.c_str(),wild.c_str(),f.begin,f.end);
+  export_diagram(s,f.name,name.c_str(),wild.c_str(),f);
 }
 
 void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, double *yhi)

@@ -18,7 +18,7 @@
 #include "grobs.h"
 #include "integrate.h"
 #include "nullcline.h"
-#include "my_ps.h"
+#include "picture.h"
 #include "my_svg.h"
 #include "image_format.h"
 #include "tabular.h"
@@ -355,12 +355,12 @@ void dump_ps(xpp::Session &s, int i)
 {
   const std::string filename=batch_plot_name(s,i);
    const xpp::ImageFormat *fmt=xpp::find_image_format_by_extension(s.plot_export.format);
-   if (!fmt || !fmt->begin) {
+   if (!fmt || !fmt->write) {
      xpp::command_error("mkplot",xpp::format("Unsupported batch picture format {}",s.plot_export.format));
      return;
    }
-   if(xpp::ok_or_show(fmt->begin(s,filename.c_str(),s.plot_export.color)) && s.plot_file.writer)
-     fmt->restore(s);
+   if(xpp::ok_or_show(xpp::begin_picture(s,*fmt,filename,s.plot_export.color)) && s.plot_file.writer)
+     vector_restore(s);
 }
 
 void   redo_stuff(xpp::Session &s)
@@ -382,24 +382,16 @@ void user_fun_info(const xpp::Model &m, FILE *fp)
   }
 }
 
-/* a PostScript or SVG export: what the session holds for the window, in one
-   order for both formats, then the format's own end */
+/* a PDF or SVG export: what the session holds for the window, drawn into the picture begun, which is then ended */
 void vector_restore(xpp::Session &s)
 {
-  const bool postscript = s.plot_file.plt_fmt_flag == PSFMT;
   redraw_dfield(s);
-  if (postscript) ps_do_color(s.plot_file,0);
-  if (s.plot_windows.current->Nullrestore) {
-    restore_nullclines(s);
-    if (postscript) ps_stroke(s.plot_file);
-  }
+  if (s.plot_windows.current->Nullrestore) restore_nullclines(s);
   xpp::restore(s,0,s.browser.view.maxrow);
   do_axes(s);
-  if (postscript) ps_do_color(s.plot_file,0);
   draw_label(s,s.plot_windows.draw_win);
   draw_freeze(s,s.plot_windows.draw_win);
-  if (postscript) ps_end(s);
-  else svg_end(s);
+  xpp::end_picture(s);
 }
 
 void new_parameter(xpp::Session &s)
@@ -531,6 +523,14 @@ bool TypedFields::boolean(std::string_view field, const std::string &text)
   if(text=="true")return true;
   if(text!="false")fail(field,xpp::format("\"{}\" is not true or false",text));
   return false;
+}
+
+Color TypedFields::color(std::string_view field, const std::string &text)
+{
+  if(error_)return foreground_color;
+  if(const auto c=parse_color(trim_blanks(text)))return *c;
+  fail(field,xpp::format("\"{}\" is not a colour: write #rrggbb, #rrggbbaa, a CSS colour name or foreground",text));
+  return foreground_color;
 }
 
 int TypedFields::choice(std::string_view field, const std::string &text, std::span<const std::string> choices)
