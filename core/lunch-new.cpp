@@ -108,6 +108,17 @@ void keep_real(const xpp::Session &s, Lines &l, Settings &f, int method, std::st
   keep_setting(s,l,f,method,key,l.real(label,true));
 }
 
+/* the line's whole number as the word of the choice setting key (its row's foreign spelling:
+   a sign's, a yes or no's 0 and 1), refused when it is none of them */
+void keep_choice(const xpp::Session &s, Lines &l, Settings &f, int method, std::string_view key, std::string_view label)
+{
+  const OptionRow *row=saved_setting(key);
+  const int v=l.whole(label,true);
+  const std::string word=option_choice(*row,xpp::number(v));
+  if(word.empty())l.fail(xpp::format("{} {} is not a value of {}",label,v,key));
+  if(setting_applies(s,*row,method))f.set_setting(row,word);
+}
+
 /* the numerics, each checked as the Numerics menu checks it; the
    store-every line is named as XPPAUT's file names it */
 void read_numerics(const xpp::Session &s, Lines &l, Settings &f)
@@ -135,17 +146,20 @@ void read_numerics(const xpp::Session &s, Lines &l, Settings &f)
   keep_setting(s,l,f,method,"total_time",std::abs(l.real("total",true)));
   keep_real(s,l,f,method,"dt","DeltaT");
   keep_real(s,l,f,method,"start_time","T0");
-  keep_real(s,l,f,method,"transient_time","Transient");
-  keep_real(s,l,f,method,"bound","Bound");
+  keep_real(s,l,f,method,"store_from","Transient");
+  /* XPPAUT's one bound is both limits */
+  const double bound=l.real("Bound",true);
+  keep_setting(s,l,f,method,"state_limit",bound);
+  keep_setting(s,l,f,method,"search_limit",bound);
   keep_real(s,l,f,method,"min_step","DtMin");
   keep_real(s,l,f,method,"max_step","DtMax");
-  keep_real(s,l,f,method,"tolerance","Tolerance");
-  keep_real(s,l,f,method,"abs_tolerance","Abs. Tolerance");
+  keep_real(s,l,f,method,"relative_tolerance","Tolerance");
+  keep_real(s,l,f,method,"absolute_tolerance","Abs. Tolerance");
   keep_real(s,l,f,method,"delay","Max Delay");
-  keep_whole(s,l,f,method,"singpt_max_iterates","Eigenvector iterates");
-  keep_real(s,l,f,method,"singpt_newton_tolerance","Eigenvector tolerance");
+  keep_whole(s,l,f,method,"max_iterations","Eigenvector iterates");
+  keep_real(s,l,f,method,"newton_tolerance","Eigenvector tolerance");
   /* XPPAUT's set file labels the Jacobian's epsilon with Newton's name */
-  keep_real(s,l,f,method,"singpt_jacobian_epsilon","Newton tolerance");
+  keep_real(s,l,f,method,"jacobian_step","Newton tolerance");
   keep_real(s,l,f,method,"poincare_plane","Poincare plane");
   keep_real(s,l,f,method,"bvp_tolerance","Boundary value tolerance");
   keep_real(s,l,f,method,"bvp_epsilon","Boundary value epsilon");
@@ -160,8 +174,8 @@ void read_numerics(const xpp::Session &s, Lines &l, Settings &f)
   if(variable<0||variable>s.model().neq)
     l.fail(xpp::format("{} is not a variable's number (0 to {})",variable,s.model().neq));
   f.set_setting(saved_setting("poincare_variable"),xpp::ind_to_sym(s,variable));
-  keep_whole(s,l,f,method,"poincare_sign","Poincare sign");
-  keep_whole(s,l,f,method,"poincare_stop","Stop on Section");
+  keep_choice(s,l,f,method,"poincare_sign","Poincare sign");
+  keep_choice(s,l,f,method,"poincare_stop","Stop on Section");
   f.delay_flag=l.whole("Delay flag",true);
   f.current_time=l.real("Current time",true);
   f.last_time=l.real("Last Time",true);
@@ -493,17 +507,18 @@ void do_info(const xpp::Session &s, FILE *fp)
   put_equations(s,fp);
 
   xpp::print(fp,"\n\n Numerical parameters ...\n");
-  xpp::print(fp,"STORE_EVERY={}  NULLCLINE_MESH={} METHOD={} SINGPT_MAX_ITERATES={} \n",
-	 s.numerics.store_every,s.numerics.nullcline_mesh,xpp::solver_info(s.numerics.method).name,s.numerics.singpt_max_iterates);
+  const auto word=[&](std::string_view key){ return setting_text(s,*saved_setting(key)); };
+  xpp::print(fp,"STORE_EVERY={}  NULLCLINE_MESH={} METHOD={} MAX_ITERATIONS={} \n",
+	 s.numerics.store_every,s.numerics.nullcline_mesh,xpp::solver_info(s.numerics.method).name,s.numerics.equilibria.max_iterations);
   xpp::print(fp,"BVP_EPSILON={:g},BVP_TOLERANCE={:g},BVP_MAX_ITERATES={} \n",
 	 s.numerics.bvp_epsilon,s.numerics.bvp_tolerance,s.numerics.bvp_max_iterates);
-  xpp::print(fp,"DT={:g} START_TIME={:g} TRANSIENT_TIME={:g} TOTAL_TIME={:g} BOUND={:g} DELAY={:g} MaxPts={}\n",
-	 s.numerics.delta_t,s.numerics.start_time,s.numerics.transient_time,s.numerics.total_time,s.numerics.bound,s.numerics.delay,s.numerics.max_points);
-  xpp::print(fp,"SINGPT_NEWTON_TOLERANCE={:g}, SINGPT_JACOBIAN_EPSILON={:g} MIN_STEP={:g} MAX_STEP={:g} TOLERANCE={:g} \n",
-	 s.numerics.singpt_newton_tolerance,s.numerics.singpt_jacobian_epsilon,s.numerics.min_step,s.numerics.max_step,s.numerics.tolerance);
+  xpp::print(fp,"DT={:g} START_TIME={:g} STORE_FROM={:g} TOTAL_TIME={:g} STATE_LIMIT={:g} STOP_AT_LIMIT={} DELAY={:g} MaxPts={}\n",
+	 s.numerics.delta_t,s.numerics.start_time,s.numerics.store_from,s.numerics.total_time,s.numerics.state_limit,word("stop_at_limit"),s.numerics.delay,s.numerics.max_points);
+  xpp::print(fp,"NEWTON_TOLERANCE={:g}, JACOBIAN_STEP={:g} SEARCH_LIMIT={:g} MIN_STEP={:g} MAX_STEP={:g} RELATIVE_TOLERANCE={:g} \n",
+	 s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.search_limit,s.numerics.min_step,s.numerics.max_step,s.numerics.relative_tolerance);
   const std::string &poincare_variable=ind_to_sym(s,s.numerics.poincare_variable);
   xpp::print(fp,"POINCARE_MAP={} POINCARE_VARIABLE={} POINCARE_PLANE={:g} POINCARE_SIGN={} \n",
-        s.numerics.poincare_map,poincare_variable,s.numerics.poincare_plane,s.numerics.poincare_sign);
+        word("poincare_map"),poincare_variable,s.numerics.poincare_plane,word("poincare_sign"));
 
   xpp::print(fp,"\n\n Delay strings ...\n");
   for(int i=0;i<s.model().node;i++)xpp::print(fp,"{}\n",s.delay_string[i]);

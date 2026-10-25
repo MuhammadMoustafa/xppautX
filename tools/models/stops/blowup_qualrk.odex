@@ -4,5 +4,6 @@ par a=1
 x' = a*x^2
 init x = 1
 options {
-  integration: { method: qualrk, total_time: 2, dt: 0.1, bound: 1000 },
+  integration: { method: qualrk, total_time: 2, dt: 0.1, state_limit: 1000 },
+  equilibria: { search_limit: 1000 },
 }

@@ -215,7 +215,7 @@ STOPS_CASES = [
     dict(id='event_halt', model='event_halt', key='i', replies=STOPS_PLAIN_GO, at=None,
          says=[r'Stopped', r't ?= ?3\b', r'arret']),
     dict(id='sing_pts', model='sing_pts', key='s', replies=STOPS_PLAIN_GO, at=None,
-         says=[r'singpt_max_iterates', r'X ?= ?0\.5']),
+         says=[r'max_iterations', r'X ?= ?0\.5']),
     dict(id='eq_range', model='eq_range', key='s', replies=STOPS_EQ_RANGE_A, at=None,
          says=[r'\ba ?= ?0\.2', r'no equilibrium']),
     dict(id='range_gear', model='blowup_gear', key='i', replies=STOPS_RANGE_A, at=None,
@@ -395,7 +395,7 @@ def check_load_error():
                 ('badopt.ode', "par a=1\nx'=-x\n@ total=5\n@ ync=12\ndone\n", 4, '@ ync=12', 'ync=12'),
                 ('badnum.ode', "par a=1\nx'=-x\n@ total=5\n@ dt=2*3\ndone\n", 4, '@ dt=2*3', 'dt=2*3'),
                 ('badopt.odex', "par a = 1\nx' = -x\noptions {\n  integration: { total_time: 5 },\n  plot: { ync: 12 },\n}\n",
-                 5, '  plot: { ync: 12 },', 'ync=12'),
+                 5, '  plot: { ync: 12 },', '`12` is not a colour'),
                 # W206: XPPAUT's name for store_every is a .ode's; a .odex refuses it
                 ('oldname.odex', "par a = 1\nx' = -x\noptions {\n  integration: { total_time: 5, nout: 2 },\n}\n",
                  4, '  integration: { total_time: 5, nout: 2 },', 'nout')):
@@ -439,8 +439,8 @@ evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
 check('hello', hello is not None and len(hello["command_table"]) == 66)
-check('hello says protocol 3, and no draw ops or palette follow (removed in 2)',
-      hello is not None and hello.get('protocol') == 3 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
+check('hello says protocol 4, and no draw ops or palette follow (removed in 2)',
+      hello is not None and hello.get('protocol') == 4 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
 about_parts = [p for line in (hello or {}).get('about', []) for p in line]
 about_links = {p['text']: p['url'] for p in about_parts if 'url' in p}
@@ -453,7 +453,7 @@ check('hello carries the About lines: version, author, credit, build, and the fi
                           'Source': 'https://github.com/MuhammadMoustafa/xppautX',
                           'Report a problem': 'https://github.com/MuhammadMoustafa/xppautX/issues'}
       and 'by Muhammad Ahmad' in about_text and 'Based on XPPAUT 8.0 by G. Bard Ermentrout' in about_text
-      and 'Protocol 3' in about_text,
+      and 'Protocol 4' in about_text,
       str(hello and hello.get('about')))
 check('state after hello', st is not None and any(p[0] == 'iapp' for p in st['pars']), str(st))
 check('window 1 is created', any(e.get('ev') == 'window' and e.get('op') == 'create' and e.get('win') == 1
@@ -4743,7 +4743,7 @@ def check_method_refusal():
         fields = next((e['fields'] for e in col(is_idle)[0] if e.get('ev') == 'numerics'), [])
         method = next((f['value'] for f in fields if f['key'] == 'method'), None)
         check('W132: menu refuses odd Symplectic at the command and keeps Euler',
-              method == 1 and len(errors) == 1 and 'even dimensions' in errors[0]['error']
+              method == 'euler' and len(errors) == 1 and 'even dimensions' in errors[0]['error']
               and errors[0].get('file') == 'command' and errors[0].get('line') == 1, str(errors))
         snd(cmd='set', kind='num', name='method', text='symplectic')
         evs, _ = col(is_idle)
@@ -4751,12 +4751,12 @@ def check_method_refusal():
         fields = next((e['fields'] for e in col(is_idle)[0] if e.get('ev') == 'numerics'), [])
         check('W132: values panel refuses odd Symplectic and keeps Euler',
               any('even dimensions' in e.get('error', '') for e in evs)
-              and next((f['value'] for f in fields if f['key'] == 'method'), None) == 1, str(evs))
+              and next((f['value'] for f in fields if f['key'] == 'method'), None) == 'euler', str(evs))
         m_field = next((f for f in fields if f['key'] == 'method'), {})
         unav = m_field.get('unavailable', {})
         check('W379: odd model has Symplectic and Volterra unavailable in numerics',
-              unav.get('Symplectic') == 'Symplectic is only for even dimensions'
-              and unav.get('Volterra') == 'Volterra only for integral eqns', str(unav))
+              unav.get('symplectic') == 'Symplectic is only for even dimensions'
+              and unav.get('volterra') == 'Volterra only for integral eqns', str(unav))
     finally:
         p.stdin.close()
         p.wait(timeout=10 * SLOW)
@@ -4774,8 +4774,8 @@ def check_method_refusal():
         unav = mfield.get('unavailable', {})
         reason = 'a model with Wiener noise requires a method that draws it each step'
         check('W379: Wiener model marks adaptive methods unavailable with reason',
-              all(unav.get(m) == reason for m in ['Gear', 'QualRK', 'Stiff', 'CVode', 'DoPri5', 'DoPri8(3)', 'Rosenbrock'])
-              and 'Euler' not in unav and 'Runge-Kutta' not in unav, str(unav))
+              all(unav.get(m) == reason for m in ['gear', 'qualrk', 'stiff', 'cvode', 'dopri5', 'dopri8', 'rosenbrock'])
+              and 'euler' not in unav and 'runge_kutta' not in unav, str(unav))
         snd(cmd='set', kind='num', name='method', text='dopri5')
         evs, _ = col(is_idle)
         errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
@@ -4822,21 +4822,24 @@ def check_jacobian_setting():
             col(is_idle)
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
             check('W260: the numerics event has jacobian, difference by default, its choices, available',
-                  jac.get('value') == 0 and jac.get('choices') == ['difference', 'exact'] and 'unavailable' not in jac
-                  and jac.get('integer') is True, str(jac))
+                  jac.get('value') == 'difference' and jac.get('choices') == ['difference', 'exact'] and 'unavailable' not in jac
+                  and 'integer' not in jac, str(jac))
             snd(cmd='set', kind='num', name='jacobian', text='exact')
             evs, _ = col(is_idle)
             errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
-            check('W260: set num jacobian exact takes it', not errs and jac.get('value') == 1, '%s %s' % (errs, jac))
-            snd(cmd='set', kind='num', name='jacobian', text='0')
+            check('W260: set num jacobian exact takes it', not errs and jac.get('value') == 'exact', '%s %s' % (errs, jac))
+            snd(cmd='set', kind='num', name='jacobian', text='difference')
             col(is_idle)
             snd(cmd='set', kind='num', name='jacobian', text='finite')
             evs, _ = col(is_idle)
             errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
-            check('W260: set num jacobian by number; a name that is no choice is refused, naming them',
-                  errs == ['Numerics: Jacobian must be one of difference, exact'] and jac.get('value') == 0, '%s %s' % (errs, jac))
+            snd(cmd='set', kind='num', name='jacobian', text='1')
+            evs, _ = col(is_idle)
+            errs += [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+            check('W260: set num jacobian by name; a name that is no choice, a number too, is refused, naming them',
+                  errs == ['Numerics: Jacobian must be difference or exact'] * 2 and jac.get('value') == 'difference', '%s %s' % (errs, jac))
             # W274 (folded into W285): the setting is saved with the session and restored
             snd(cmd='set', kind='num', name='jacobian', text='exact')
             col(is_idle)
@@ -4853,7 +4856,7 @@ def check_jacobian_setting():
                     break
                 snd(cmd='answer', id=e['id'], key='d')
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
-            check('W274: opening the session restores exact', jac.get('value') == 1, str(jac))
+            check('W274: opening the session restores exact', jac.get('value') == 'exact', str(jac))
         finally:
             p.stdin.close()
             p.wait(timeout=10 * SLOW)
@@ -4866,7 +4869,7 @@ def check_jacobian_setting():
             col(is_idle)
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
             check('W260: the exact Jacobian is not made until asked for: exact is offered, with no reason yet',
-                  jac.get('value') == 0 and 'unavailable' not in jac, str(jac))
+                  jac.get('value') == 'difference' and 'unavailable' not in jac, str(jac))
             why = 'noisy.odex:2:1: uses random numbers'
             snd(cmd='set', kind='num', name='jacobian', text='exact')
             evs, _ = col(is_idle)
@@ -4875,7 +4878,7 @@ def check_jacobian_setting():
                   errs == ['Numerics: Jacobian: exact is not available: ' + why], str(errs))
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
             check('W260: a model with random numbers has no exact Jacobian; the field then says why, at its line',
-                  jac.get('value') == 0 and jac.get('unavailable', {}).get('exact') == why, str(jac))
+                  jac.get('value') == 'difference' and jac.get('unavailable', {}).get('exact') == why, str(jac))
         finally:
             p.stdin.close()
             p.wait(timeout=10 * SLOW)
@@ -4918,7 +4921,7 @@ def check_jacobian_setting():
                 snd(cmd='answer', id=e['id'], key='d')
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
             check('W260: Reload keeping exact for a model with none says so, naming the file and why, and sets difference',
-                  jac.get('value') == 0 and any('Jacobian set to difference: smooth.odex has no exact Jacobian: '
+                  jac.get('value') == 'difference' and any('Jacobian set to difference: smooth.odex has no exact Jacobian: '
                                                 'smooth.odex:2:1: uses random numbers' in l for l in lines), '%s %s' % (jac, lines[-3:]))
         finally:
             p.stdin.close()
@@ -5109,9 +5112,9 @@ def check_settings_during_run():
         n0 = num(evs)
         fields = next((e['fields'] for e in evs if e.get('ev') == 'numerics'), [])
         meth = next((f for f in fields if f['key'] == 'method'), {})
-        check('W106: data numerics sends the numerics: total, dt, method (by number, with its choices)',
+        check('W106: data numerics sends the numerics: total, dt, method (by name, with its choices)',
               n0 is not None and n0.get('total_time') == 30 and n0.get('dt') == 0.05
-              and meth.get('choices', [None] * 4)[meth.get('value', 0)] == 'Runge-Kutta'
+              and meth.get('value') == 'runge_kutta'
               and next((f for f in fields if f['key'] == 'store_every'), {}).get('integer') is True, str(n0))
         snd(cmd='set', kind='num', name='total_time', value=1e7)
         evs, _ = col(is_idle)
@@ -5161,10 +5164,15 @@ def check_settings_during_run():
         snd(cmd='set', kind='num', name='method', text='cvode')
         evs, _ = col(is_idle)
         m = num(evs)
-        snd(cmd='set', kind='num', name='method', value=3)
+        snd(cmd='set', kind='num', name='method', text='runge_kutta')
         evs, _ = col(is_idle)
-        check('W106: set num method takes a name (any case) or a number',
-              m and m.get('method') == 10 and (num(evs) or {}).get('method') == 3, str(m))
+        taken = num(evs)
+        snd(cmd='set', kind='num', name='method', value=3)
+        refused, _ = col(is_idle)
+        errs = [e.get('error') for e in refused if e.get('ev') == 'message' and 'error' in e]
+        check('W106: set num method takes its name (the key of the method table), never its number',
+              m and m.get('method') == 'cvode' and (taken or {}).get('method') == 'runge_kutta'
+              and len(errs) == 1 and '`3` is not a method' in errs[0] and num(refused) is None, str((m, taken, errs)))
         snd(cmd='key', key='i')
         evs, ask = col(lambda e: e.get('ev') == 'ask')
         snd(cmd='answer', id=ask['id'], key='g')
@@ -5199,7 +5207,7 @@ def check_settings_during_run():
         live = br and br['data']
         code, out, err = run_replay([
             {'cmd': 'set', 'kind': 'num', 'name': 'total_time', 'value': 1e7},
-            {'cmd': 'set', 'kind': 'num', 'name': 'method', 'value': 3},
+            {'cmd': 'set', 'kind': 'num', 'name': 'method', 'text': 'runge_kutta'},
             {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
             {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': rows, 't': 0}},
             {'cmd': 'browser', 'from': rows - 1, 'count': 1}])
@@ -5217,7 +5225,7 @@ def check_settings_during_run():
         code, out, err = run_replay([
             {'cmd': 'set', 'kind': 'par', 'name': 'iapp', 'value': 0.3},
             {'cmd': 'set', 'kind': 'num', 'name': 'total_time', 'value': 50},
-            {'cmd': 'set', 'kind': 'num', 'name': 'method', 'value': 3},
+            {'cmd': 'set', 'kind': 'num', 'name': 'method', 'text': 'runge_kutta'},
             {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
             {'cmd': 'browser', 'from': 1000, 'count': 1}])
         ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'browser'), None)
@@ -7150,7 +7158,7 @@ def check_recording():
         header, files, steps, written, got = read_recx(text)
         ode = os.path.basename(args.ode)
         check('record: the header names the format, program, model and date',
-              header[0] == 'recording: {' and header[1] == '  version: 2,' and header[2].startswith('  program: "xppautX ')
+              header[0] == 'recording: {' and header[1] == '  version: 4,' and header[2].startswith('  program: "xppautX ')
               and header[3] == '  model: "%s",' % ode and re.match(r'  recorded: "\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ",$', header[4]),
               str(header))
         want = open(os.path.join(r, ode), encoding='utf-8').read().splitlines()
@@ -8701,7 +8709,7 @@ def check_range_files():
         with open(model, 'w') as f:
             f.write("par a=1\nx'=a\ninit x=0\noptions { integration: { dt: 0.1, total_time: 0.2 }, "
                     "sweep: { rangeover: a, rangestep: 2, rangelow: 1, rangehigh: 3, "
-                    "rangereset: yes, rangeoldic: yes, rangefiles: yes } }\n")
+                    "rangereset: true, rangeoldic: true, rangefiles: true } }\n")
         with tempfile.TemporaryDirectory(prefix='w349run') as run:
             s = Server(args.server, model, run=run)
             try:
@@ -8710,7 +8718,7 @@ def check_range_files():
                 s.collect(is_idle)
                 with zipfile.ZipFile(os.path.join(run, 'before.snapx')) as z:
                     settings = z.read('model.setx').decode()
-                check('W349: session saves rangefiles by name', 'rangefiles: yes' in settings, settings[-600:])
+                check('W349: session saves rangefiles by name', 'rangefiles: true' in settings, settings[-600:])
                 for enabled, reset, expected in (('Y', 'Y', 3), ('N', 'Y', 0), ('Y', 'N', 0)):
                     s.send(cmd='key', key='i')
                     s.answer_asks(is_idle, {'menu': lambda e: {'key': 'r'},
@@ -8745,14 +8753,14 @@ def check_range_files():
                 s.send(cmd='savedefaults', scope='all')
                 s.answer_asks(is_idle, {'choice': lambda e: {'key': 'y'}})
                 saved = open(os.path.join(run, 'range.odex')).read()
-                check('W349: saving .odex writes the named range setting', 'rangefiles: yes' in saved, saved)
+                check('W349: saving .odex writes the named range setting', 'rangefiles: true' in saved, saved)
                 s.send(cmd='open', file='range.odex')
                 s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
                 s.send(cmd='session', op='save', name='odex-roundtrip', data=False)
                 s.collect(is_idle)
                 with zipfile.ZipFile(os.path.join(run, 'odex-roundtrip.snapx')) as z:
                     text = z.read('model.setx').decode()
-                check('W349: saved .odex reloads rangefiles', 'rangefiles: yes' in text, text[-600:])
+                check('W349: saved .odex reloads rangefiles', 'rangefiles: true' in text, text[-600:])
             finally:
                 s.close()
         for enabled in ('Y', 'N'):
@@ -8776,8 +8784,8 @@ def check_range_files():
                                   capture_output=True, text=True, timeout=60 * SLOW)
         converted = os.path.join(folder, 'legacy.odex')
         text = open(converted).read() if os.path.isfile(converted) else ''
-        check('W349: .ode range=1 imports as sweep rangefiles: yes',
-              imported.returncode == 0 and 'rangefiles: yes' in text and 'range: 1' not in text, imported.stderr + text)
+        check('W349: .ode range=1 imports as sweep rangefiles: true',
+              imported.returncode == 0 and 'rangefiles: true' in text and 'range: 1' not in text, imported.stderr + text)
         result = subprocess.run([os.path.abspath(args.server), converted, '--silent', '--outfile', 'out.dat'],
                                 cwd=folder, capture_output=True, text=True, timeout=60 * SLOW)
         paths = sorted(glob.glob(os.path.join(folder, 'out.dat.*')))
@@ -8805,7 +8813,7 @@ def check_range_files():
                 s.collect(is_idle)
                 with zipfile.ZipFile(os.path.join(run, 'roundtrip.snapx')) as z:
                     text = z.read('model.setx').decode()
-                check('W349: converted .odex loads the named setting', 'rangefiles: yes' in text, text[-600:])
+                check('W349: converted .odex loads the named setting', 'rangefiles: true' in text, text[-600:])
             finally:
                 s.close()
 
@@ -8912,7 +8920,7 @@ def check_stop_checks():
         col(is_idle)
         snd(cmd='set', kind='num', name='total_time', value=10000000)
         col(is_idle)
-        snd(cmd='set', kind='num', name='method', value=1)  # Euler
+        snd(cmd='set', kind='num', name='method', text='euler')
         col(is_idle)
         snd(cmd='key', key='i')
         _, ask = col(is_ask)
@@ -9014,7 +9022,7 @@ def check_stop_checks():
     # 7. --silent: recx replay with armed abort on large store_every
     code, out, err = run_replay([
         {'cmd': 'set', 'kind': 'num', 'name': 'store_every', 'value': 1000000},
-        {'cmd': 'set', 'kind': 'num', 'name': 'method', 'value': 1},
+        {'cmd': 'set', 'kind': 'num', 'name': 'method', 'text': 'euler'},
         {'cmd': 'set', 'kind': 'num', 'name': 'total_time', 'value': 10000000},
         {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
         {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': 2, 't': 0}},

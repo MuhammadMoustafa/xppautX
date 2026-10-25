@@ -80,7 +80,7 @@ public:
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
-    gear(session_,s.neq,s.t,s.tout,s.y,num.min_step,num.max_step,num.tolerance,2,error_.data(),&kflag,s.start,
+    gear(session_,s.neq,s.t,s.tout,s.y,num.min_step,num.max_step,num.relative_tolerance,2,error_.data(),&kflag,s.start,
          work_.data(),iwork_.data());
     switch(kflag){
     case -1: return failed("kflag=-1: minimum step too big");
@@ -106,8 +106,8 @@ public:
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
-    adaptive(session_,s.y,s.neq,s.t,s.tout,num.tolerance,s.hguess,num.min_step,work_.data(),&kflag,
-             num.singpt_jacobian_epsilon,info().id,s.start);
+    adaptive(session_,s.y,s.neq,s.t,s.tout,num.relative_tolerance,s.hguess,num.min_step,work_.data(),&kflag,
+             num.equilibria.jacobian_step,info().id,s.start);
     switch(kflag){
     case 0: return {};
     case 1: return failed("stepsize is close to 0");
@@ -129,7 +129,7 @@ public:
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
-    cvode(session_,run_,s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.tolerance,&num.abs_tolerance);
+    cvode(session_,run_,s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.relative_tolerance,&num.absolute_tolerance);
     if(kflag<0){
       /* the short reason, then CVODE's own words; at the equation of the
          variable CVODE's error test or corrector failed at, if it names one */
@@ -278,6 +278,15 @@ Result<method::Id> check_method(const Model &model, int id, Place place)
   if (model.nwiener > 0 && !traits.wiener)
     return fail("method", "a model with Wiener noise requires a method that draws it each step", std::move(place));
   return static_cast<method::Id>(id);
+}
+
+Result<method::Id> method_by_key(const Model &model, std::string_view key, Place place)
+{
+  for (const SolverInfo &info : registry)
+    if (info.key == key) return check_method(model, info.id, std::move(place));
+  std::string keys;
+  for (const SolverInfo &info : registry) keys += (keys.empty() ? "" : ", ") + std::string(info.key);
+  return fail("method", xpp::format("`{}` is not a method ({})", key, keys), std::move(place));
 }
 
 Result<method::Id> pick_method(const Model &model, std::string_view text, Place place)

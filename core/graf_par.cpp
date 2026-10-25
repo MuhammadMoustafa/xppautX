@@ -791,8 +791,8 @@ void export_plot_picture(xpp::Session &s, int fmt)
 
 void change_cmap_com(xpp::Session &s, int i)
 {
-  s.colormap=i;
-  NewColormap(i);
+  s.colormap=static_cast<Colormap>(i);
+  NewColormap(s.colormap);
 }
 
 void freeze_com(xpp::Session &s, int c)

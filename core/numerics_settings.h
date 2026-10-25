@@ -8,6 +8,17 @@
 
 namespace xpp {
 
+/* the numerics' value types: the words of each are model_options.cpp's
+   (poincare_map_names, section_sign_names), the number of a word its
+   position there */
+/* the Poincare map's kind: a section, the extrema or the period of a variable */
+enum class PoincareMap { none, section, max, period };
+/* which crossings of the section count: those going down, either way, or up
+   (the sign of the crossing's direction) */
+enum class SectionSign { negative = -1, both = 0, positive = 1 };
+/* the sign a number's own sign says (XPPAUT's +1, -1 and 0) */
+constexpr SectionSign section_sign(double x) { return x < 0 ? SectionSign::negative : x == 0 ? SectionSign::both : SectionSign::positive; }
+
 struct Session; /* session.h */
 struct OptionRow; /* model_options.h */
 struct Place; /* xpp_error.h */

@@ -18,12 +18,12 @@ int main()
     if(!loaded)TEST_REPORT("DoPri dense");
     auto &s=**loaded;
     s.numerics.max_step=20;
-    s.numerics.tolerance=s.numerics.abs_tolerance=1e-9;
-    s.numerics.bound=1e8;
+    s.numerics.relative_tolerance=s.numerics.absolute_tolerance=1e-9;
+    s.numerics.state_limit=1e8;
     for(auto method:{xpp::method::DP5,xpp::method::DP83}){
         const auto fresh=[&]{
             CHECK(xpp::set_val(s,"rate",.01));
-            s.model().flags.clear();s.numerics.poincare_map=0;s.integrator.stop_flag=0;
+            s.model().flags.clear();s.numerics.poincare_map=xpp::PoincareMap::none;s.integrator.stop_flag=0;
             return xpp::make_dormand_prince(xpp::solver_info(method),s,3);
         };
         auto solver=fresh();
@@ -45,20 +45,20 @@ int main()
             CHECK(t==100-i*1.0);CHECK(fabs(y[0]-xpp::math::exp(-.01*t))<2e-8);
         }
         // Section and every state at a root strictly between scheduled samples.
-        solver=fresh();s.numerics.poincare_map=1;s.numerics.poincare_variable=2;
-        s.numerics.poincare_plane=.371;s.numerics.poincare_sign=1;
+        solver=fresh();s.numerics.poincare_map=xpp::PoincareMap::section;s.numerics.poincare_variable=2;
+        s.numerics.poincare_plane=.371;s.numerics.poincare_sign=xpp::SectionSign::positive;
         y={1,0,0};t=0;start=1;
         CHECK(solver->advance({.y=y.data(),.t=&t,.neq=3,.start=&start,.tout=1,.sections=true}).has_value());
         CHECK(solver->section_found());CHECK(fabs(t-.371)<1e-12);
         CHECK(fabs(y[0]-xpp::math::exp(-.01*t))<2e-8);CHECK(fabs(y[1]-.371)<1e-12);
         CHECK(solver->advance({.y=y.data(),.t=&t,.neq=3,.start=&start,.tout=1,.sections=true}).has_value());CHECK(t==1);
-        solver=fresh();s.numerics.poincare_map=1;s.numerics.poincare_variable=4;
-        s.numerics.poincare_plane=.742;s.numerics.poincare_sign=1;
+        solver=fresh();s.numerics.poincare_map=xpp::PoincareMap::section;s.numerics.poincare_variable=4;
+        s.numerics.poincare_plane=.742;s.numerics.poincare_sign=xpp::SectionSign::positive;
         y={1,0,0};t=0;start=1;
         CHECK(solver->advance({.y=y.data(),.t=&t,.neq=3,.start=&start,.tout=1,.sections=true}).has_value());
         CHECK(solver->section_found());CHECK(fabs(t-.371)<1e-12);
-        solver=fresh();s.numerics.poincare_map=1;s.numerics.poincare_variable=2;
-        s.numerics.poincare_plane=.371;s.numerics.poincare_sign=1;
+        solver=fresh();s.numerics.poincare_map=xpp::PoincareMap::section;s.numerics.poincare_variable=2;
+        s.numerics.poincare_plane=.371;s.numerics.poincare_sign=xpp::SectionSign::positive;
         y={1,0,0};t=0;start=1;
         CHECK(solver->advance({.y=y.data(),.t=&t,.neq=3,.start=&start,.tout=1}).has_value());
         CHECK(t==1);CHECK(!solver->section_found());
@@ -102,11 +102,11 @@ int main()
         CHECK(solver->advance({.y=y.data(),.t=&t,.neq=3,.start=&start,.tout=1,.sections=true}).has_value());
         CHECK(fabs(y[0]-2*xpp::math::exp(-.01*(1-.371)))<2e-8);CHECK(fabs(y[1]-7.629)<1e-11);
         // Extrema are zeros of the actual RHS, with all components interpolated.
-        solver=fresh();s.numerics.poincare_map=2;s.numerics.poincare_variable=3;s.numerics.poincare_sign=1;
+        solver=fresh();s.numerics.poincare_map=xpp::PoincareMap::max;s.numerics.poincare_variable=3;s.numerics.poincare_sign=xpp::SectionSign::positive;
         y={1,0,0};t=0;start=1;
         CHECK(solver->advance({.y=y.data(),.t=&t,.neq=3,.start=&start,.tout=4,.sections=true}).has_value());
         CHECK(solver->section_found());CHECK(fabs(t-xpp::math::acos(-1.0)/2)<1e-12);CHECK(fabs(y[2]-1)<2e-8);
-        solver=fresh();s.numerics.poincare_map=2;s.numerics.poincare_variable=3;s.numerics.poincare_sign=1;
+        solver=fresh();s.numerics.poincare_map=xpp::PoincareMap::max;s.numerics.poincare_variable=3;s.numerics.poincare_sign=xpp::SectionSign::positive;
         y={xpp::math::exp(-.04),4,xpp::math::sin(4)};t=4;start=1;
         CHECK(solver->advance({.y=y.data(),.t=&t,.neq=3,.start=&start,.tout=0,.sections=true}).has_value());
         CHECK(solver->section_found());CHECK(fabs(t-xpp::math::acos(-1.0)/2)<1e-12);CHECK(fabs(y[2]-1)<2e-8);
@@ -131,10 +131,10 @@ int main()
         CHECK(add_global(s,"(t-.5)^2+.0001",0,{{"arret","1"}})==0);CHECK(compile_flags(s)==0);
         CHECK(!xpp::dense_event(s,0,1,0,1,state,scratch,derivative).found);
         // A bound between output points stops before any later sample is valid.
-        solver=fresh();s.numerics.bound=1.5;y={1,0,0};t=0;start=1;
+        solver=fresh();s.numerics.state_limit=1.5;y={1,0,0};t=0;start=1;
         CHECK(solver->advance({.y=y.data(),.t=&t,.neq=3,.start=&start,.tout=1,.sections=true}).has_value());CHECK(t==1);
         CHECK(!solver->advance({.y=y.data(),.t=&t,.neq=3,.start=&start,.tout=2,.sections=true}));CHECK(fabs(t-1.5)<1e-12);
-        s.numerics.bound=1e8;
+        s.numerics.state_limit=1e8;
         // A continuous run cannot renew the attempt budget at each output.
         solver=fresh();s.numerics.max_step=.0001;y={1,0,0};t=0;start=1;
         const auto capped=solver->advance({.y=y.data(),.t=&t,.neq=3,.start=&start,.tout=11,.sections=true});
@@ -151,7 +151,7 @@ int main()
           if(!range)CHECK(range.error().what.find("100000")!=std::string::npos);
           CHECK(t<11);s.integrator.range_flag=0;s.numerics.max_step=20;
         }
-        s.numerics.bound=1e8;
+        s.numerics.state_limit=1e8;
     }
     // Delay queries retain their existing uniform-grid history contract.
     char delay_file[]="tools/models/w377-delay.odex";

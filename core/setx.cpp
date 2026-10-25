@@ -93,11 +93,11 @@ bool Block::whole(std::string_view key, int &v)
 
 bool Block::flag(std::string_view key, bool &v)
 {
-    int x = 0;
-    const Member *m = find(key);
-    if (!whole(key, x)) return false;
-    if (x != 0 && x != 1) doc_->fail(m->value, xpp::format("`{}`: {} is not 0 or 1", key, x));
-    v = x == 1;
+    const Member *m = take(key);
+    if (!m) return false;
+    if (scalar(*m, "true or false").kind != Value::Kind::word || (m->value.text != "true" && m->value.text != "false"))
+        doc_->fail(m->value, xpp::format("`{}`: `{}` is not true or false", key, m->value.text));
+    v = m->value.text == "true";
     return true;
 }
 

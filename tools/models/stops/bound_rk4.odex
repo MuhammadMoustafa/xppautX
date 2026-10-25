@@ -4,5 +4,6 @@ par a=1
 x' = a*x^2
 init x = 1
 options {
-  integration: { method: runge_kutta, total_time: 2, dt: 0.01, bound: 100 },
+  integration: { method: runge_kutta, total_time: 2, dt: 0.01, state_limit: 100 },
+  equilibria: { search_limit: 100 },
 }

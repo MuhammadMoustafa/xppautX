@@ -11,7 +11,8 @@ aux lx = ln(abs(x))
 aux ly = ln(abs(y))
 aux lz = ln(abs(z))
 options {
-  integration: { method: cvode, total_time: 1000, dt: .5, tolerance: 1e-8, abs_tolerance: 1e-7, bound: 1e7 },
+  integration: { method: cvode, total_time: 1000, dt: .5, relative_tolerance: 1e-8, absolute_tolerance: 1e-7, state_limit: 1e7 },
+  equilibria: { search_limit: 1e7 },
   plot: { xlo: 0, xhi: 1000, ylo: 0, yhi: 12, yp: lz },
 }
 

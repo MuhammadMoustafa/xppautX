@@ -50,7 +50,12 @@ std::string option_value_schema(const OptionRow &row)
            "\"step\": {\"type\": \"number\", \"minimum\": 0}}}";
     break;
   case OptionKind::text: out += "\"type\": \"string\""; break;
+  case OptionKind::color: out += "\"type\": \"string\", \"x-kind\": \"color\""; break;
   case OptionKind::choice: {
+    if (row.boolean) {
+      out += "\"type\": \"boolean\"";
+      break;
+    }
     const std::vector<std::string> words = option_choices(row);
     const bool numbers = std::ranges::all_of(words, all_digits);
     out += numbers ? "\"type\": \"integer\", \"enum\": [" : "\"type\": \"string\", \"enum\": [";

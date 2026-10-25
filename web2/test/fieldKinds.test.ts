@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
-  EXPRESSION, FILE, FORMULA, fieldAcceptsEdit, fieldCharMessage, fieldError, fieldIncomplete, fieldIncompleteReason,
+  EXPRESSION, FILE, FORMULA, choiceLabel, fieldAcceptsEdit, fieldCharMessage, fieldError, fieldIncomplete, fieldIncompleteReason,
   fieldInputMode, fieldMessage, fieldPasteMessage, fieldPasteOffender, fieldsValid, NUMBER, specOfKind, TEXT,
   type FieldSpec,
 } from '../src/store/fieldKinds';
@@ -100,6 +100,12 @@ test('a form is valid when every field is', () => {
 
 test('a message starts with a capital', () => {
   assert.equal(fieldMessage('a whole number'), 'A whole number');
+});
+
+test('a choice is labelled by its name: underscores as spaces, a capital first letter', () => {
+  assert.equal(choiceLabel('runge_kutta'), 'Runge kutta');
+  assert.equal(choiceLabel('cvode'), 'Cvode');
+  assert.equal(choiceLabel('backward_euler'), 'Backward euler');
 });
 
 test('fieldAcceptsEdit (T35d): a keystroke, paste or drop is taken only when it is valid or on the way to it', () => {

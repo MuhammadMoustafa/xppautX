@@ -56,13 +56,13 @@ def run_model(model, numerics, method=None):
         for name, value in zip(names[1:], x):
             if np.isnan(value):
                 raise IntegrationError('%s is NaN at t = %s' % (name, repr(t)))
-            if abs(value) > numerics.bound:
+            if abs(value) > numerics.state_limit:
                 raise IntegrationError('%s out of bounds at t = %s' % (name, repr(t)))
-        if not abs(t) < numerics.transient_time:
+        if not abs(t) < numerics.store_from:
             rows.append(np.concatenate(([t], x)).astype(np.float32))
             times.append(t)
 
-    if not abs(t) < numerics.transient_time:
+    if not abs(t) < numerics.store_from:
         rows.append(np.concatenate(([t], y, model.aux(t, y))).astype(np.float32))
         times.append(t)
     # core/numerics.cpp do_meth: a map steps by 1, and a method that picks its own steps stores every output time

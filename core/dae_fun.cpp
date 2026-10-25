@@ -122,6 +122,11 @@ void set_init_guess(xpp::Session &s)
   }
 }
 namespace {
+/* a Newton update of the algebraic variables larger than this, per variable,
+   in total has run away: XPPAUT's default bound of 100, which a model's bound
+   no longer changes */
+constexpr double dae_update_limit=100;
+
 /* the 0= line a failure is at: the equation whose residual was the
    largest at the last iterate (the first of equals) */
 const xpp::Place &dae_place(const xpp::Session &s)
@@ -198,8 +203,8 @@ int solve_dae(xpp::Session &s)
   int i,j,n;
   int info;
   double err,del,z,yold;
-  double tol=s.numerics.singpt_newton_tolerance,eps=s.numerics.singpt_jacobian_epsilon;
-  int maxit=s.numerics.singpt_max_iterates,iter=0;
+  double tol=s.numerics.equilibria.newton_tolerance,eps=s.numerics.equilibria.jacobian_step;
+  int maxit=s.numerics.equilibria.max_iterations,iter=0;
   int sign=0; /* the sign of the last Jacobian factored, 0 before one */
   DaeRunBranch *run=s.dae.run?&*s.dae.run:nullptr; /* none outside a run */
   double *y,*ynew,*f,*fnew,*jac,*errvec;
@@ -271,7 +276,7 @@ int solve_dae(xpp::Session &s)
       y[i]-=errvec[i];
       err+=fabs(errvec[i]);
     } 
-    if(err>(n*s.numerics.bound)){
+    if(err>(n*dae_update_limit)){
       for(i=0;i<n;i++)
 	setvar(s,m.svars[i].index,s.dae.svar_last[i]);
       return DAE_OUT_OF_BOUNDS;

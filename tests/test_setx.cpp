@@ -136,8 +136,8 @@ int main()
     /* partial: an absent key is left, a key nothing asks for is still refused */
     CHECK(error_of("", whole_a, false).empty());
     CHECK(error_of("z: 1,\n", whole_a, false).find("`z` is not a setting") != std::string::npos);
-    /* a flag is 0 or 1, a finite number is not inf or nan */
-    CHECK(error_of("a: 2,\n", [](Block &b) { bool f = false; b.flag("a", f); return 0; }).find("2 is not 0 or 1") != std::string::npos);
+    /* a flag is true or false, a finite number is not inf or nan */
+    CHECK(error_of("a: 2,\n", [](Block &b) { bool f = false; b.flag("a", f); return 0; }).find("`2` is not true or false") != std::string::npos);
     CHECK(error_of("a: nan,\n", [](Block &b) { double v = 0; b.real("a", v); return 0; }).find("not a finite number") != std::string::npos);
     CHECK(error_of("a: nan,\n", [](Block &b) { double v = 0; b.number("a", v); CHECK(std::isnan(v)); return 0; }).empty());
     CHECK(error_of("a: -inf,\n", [](Block &b) { double v = 0; b.number("a", v); CHECK(std::isinf(v) && v < 0); return 0; }).empty());

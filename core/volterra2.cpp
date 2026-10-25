@@ -101,7 +101,7 @@ void re_evaluate_kernels(xpp::Session &s)
   std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
   int i,j,n=s.numerics.max_points;
 
-  if(s.numerics.auto_evaluate==0)return;
+  if(!s.numerics.auto_evaluate)return;
   for(i=0;i<s.model().nkernel;i++){
     if(kernels[i].flag==CONV){
       for(j=0;j<=n;j++){
@@ -330,7 +330,7 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
    }
    /*   Compute Jacobian     */
    for(i=0;i<s.model().node;i++){
-     del=s.numerics.singpt_jacobian_epsilon*std::max(fabs(yg[i]),s.numerics.singpt_jacobian_epsilon);
+     del=s.numerics.equilibria.jacobian_step*std::max(fabs(yg[i]),s.numerics.equilibria.jacobian_step);
      yold=yg[i];
      yg[i]+=del;
      delinv=1./del;

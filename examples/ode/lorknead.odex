@@ -18,5 +18,6 @@ aux ss = s
 # 2 PAR RANGE r 20-120, s 10-70
 # color by p
 options {
-  integration: { dt: .001, store_every: 10, total_time: 40, transient_time: 1000, bound: 100000 },
+  integration: { dt: .001, store_every: 10, total_time: 40, store_from: 1000, state_limit: 100000 },
+  equilibria: { search_limit: 100000 },
 }

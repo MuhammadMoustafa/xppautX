@@ -48,7 +48,7 @@ int main()
     CHECK(r.files.size() == 1);
     const std::string hashed = "@snapshot\nUEsFBg==\n@end\n@file lecar.odex\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n"
                                "{\"step\":\"Initialconds → Go\",\"keys\":[\"i\",\"g\"]}\n{\"step\":\"Erase\",\"keys\":[\"e\"]}\n";
-    const std::string want = "recording: {\n  version: 2,\n  program: \"xppautX dev\",\n  model: \"lecar.odex\",\n  recorded: \"2026-09-30T10:14:02Z\",\n},\n\n"
+    const std::string want = "recording: {\n  version: 4,\n  program: \"xppautX dev\",\n  model: \"lecar.odex\",\n  recorded: \"2026-09-30T10:14:02Z\",\n},\n\n"
                              "@snapshot\nUEsFBg==\n@end\n\n@file lecar.odex\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n\n@steps\n"
                              "# First run.\n#\n# It settles.\n{\"step\":\"Initialconds → Go\",\"keys\":[\"i\",\"g\"]}\n"
                              "{\"step\":\"Erase\",\"keys\":[\"e\"]}\n\nfingerprint: "
@@ -95,8 +95,8 @@ int main()
         const xpp::Result<xpp::recx::Read> e = xpp::recx::read(text, "");
         return e ? std::string() : e.error().text();
     };
-    const std::string head = "recording: {\n  version: 2,\n  program: \"xppautX\",\n  model: \"a.odex\",\n  recorded: \"now\",\n},\n\n";
-    CHECK(error("recording: {\n  version: 2,\n  program: \"x\",\n  model: \"a.ode\",\n  recorded: \"now\",\n},\n@steps\n") ==
+    const std::string head = "recording: {\n  version: 4,\n  program: \"xppautX\",\n  model: \"a.odex\",\n  recorded: \"now\",\n},\n\n";
+    CHECK(error("recording: {\n  version: 4,\n  program: \"x\",\n  model: \"a.ode\",\n  recorded: \"now\",\n},\n@steps\n") ==
           "line 4:3: a recording stores an .odex model only; .ode is refused");
     CHECK(error(head + "@snapshot\nUEsFBg==\n@end\n@file a.odex\nx'=1\n") == "line 11: the section of a.odex has no @end");
     /* no fallback: a file without the session it began from is not a recording */
@@ -105,10 +105,10 @@ int main()
     CHECK(error("not one\n").starts_with("line 1:5: not a recording: expected `:`"));
     CHECK(error("xppautx-recording 1\nprogram: x\nmodel: a.odex\nrecorded: now\n\n@steps\n").starts_with("line 1:"));
     /* the header: each key once, none other, this version */
-    CHECK(error("recording: { version: 2, program: \"x\", model: \"a.odex\" },\n@steps\n") == "line 1:12: recording has no `recorded`");
-    CHECK(error("recording: { version: 2, program: \"x\", model: \"a.odex\", model: \"b.odex\" },\n@steps\n").find("`model` is given twice") != std::string::npos);
-    CHECK(error("recording: { version: 2, author: \"me\" },\n@steps\n").find("recording has no `program`") != std::string::npos);
-    CHECK(error("recording: { version: 1, program: \"x\", model: \"a.odex\", recorded: \"now\" },\n@steps\n").find("version 1: this program reads recordings of version 2") != std::string::npos);
+    CHECK(error("recording: { version: 4, program: \"x\", model: \"a.odex\" },\n@steps\n") == "line 1:12: recording has no `recorded`");
+    CHECK(error("recording: { version: 4, program: \"x\", model: \"a.odex\", model: \"b.odex\" },\n@steps\n").find("`model` is given twice") != std::string::npos);
+    CHECK(error("recording: { version: 4, author: \"me\" },\n@steps\n").find("recording has no `program`") != std::string::npos);
+    CHECK(error("recording: { version: 1, program: \"x\", model: \"a.odex\", recorded: \"now\" },\n@steps\n").find("version 1: this program reads recordings of version 4") != std::string::npos);
     /* the fingerprint ends it: missing, or a line after it */
     const std::string steps = head + "@snapshot\nUEsFBg==\n@end\n@steps\n{\"keys\":[\"g\"]}\n";
     CHECK(error(steps) == "line 13: the file ends here, before its fingerprint");

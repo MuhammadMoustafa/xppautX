@@ -9,6 +9,7 @@
    `set num` and the menu's questions). model_options.cpp. */
 
 #include <array>
+#include "colormap.h"
 #include <cstddef>
 #include <functional>
 #include <type_traits>
@@ -70,6 +71,23 @@ constexpr auto member(F)
   return Member<T>{[](Session &s) -> T & { return F{}(s); }, [](const Session &s) -> const T & { return F{}(s); }};
 }
 
+/* the member of a choice row that is an enum, read and written as its number
+   in the row's words: `choice_member([](auto &s) -> auto & { return s.x.y; })`.
+   A word's number is the enum's value plus Offset (1 for SectionSign, whose
+   first word, negative, is -1) */
+struct ChoiceMember {
+  int (*read)(const Session &) = nullptr;
+  void (*write)(Session &, int) = nullptr;
+  explicit operator bool() const { return read != nullptr; }
+};
+template <int Offset = 0, class F>
+constexpr ChoiceMember choice_member(F)
+{
+  using T = std::remove_cvref_t<std::invoke_result_t<F, Session &>>;
+  return {[](const Session &s) { return static_cast<int>(F{}(s)) + Offset; },
+          [](Session &s, int i) { F{}(s) = static_cast<T>(i - Offset); }};
+}
+
 /* what the Numerics menu and `set num` accept for a numerics setting;
    allocation-sized rows also have an inclusive maximum */
 /* (choice: one of the row's choices, by name or number) */
@@ -129,8 +147,17 @@ inline constexpr std::array<std::string_view, 7> set_groups{
 
 /* what a .odex writes as an option's value: a number, a whole number, a
    bare word (a variable's, a parameter's, a name), one of the row's
-   choices (option_choices), a path or a text, both in double quotes */
-enum class OptionKind { number, whole, name, choice, path, text, sliders };
+   choices (option_choices), a path or a text, both in double quotes, a colour
+   (`foreground` bare, a hex colour in double quotes since # starts a comment) */
+enum class OptionKind { number, whole, name, choice, path, text, color, sliders };
+
+/* what an XPPAUT option (import only) says in our own options: the keys and
+   their values as a .odex writes them (a path unquoted), or why the value is
+   none */
+struct ForeignOptions {
+  std::vector<std::pair<std::string, std::string>> items;
+  const char *why = nullptr;
+};
 
 /* One option. Its names match as prefixes of the name given, upper case,
    the longest winning (so "method" and "methodx" are one, and "dt" is not
@@ -157,6 +184,8 @@ struct OptionRow {
   Member<double> real;
   Member<int> whole;
   Member<bool> boolean;
+  ChoiceMember index; /* a choice row's enum */
+  Member<Color> color; /* a colour row's colour */
   Member<std::string> text;
   /* the value when it is not just the member's: nullptr when taken, else
      why not (logged, the option left unset) */
@@ -166,6 +195,13 @@ struct OptionRow {
   /* the default a load gives it when no source set it, nullptr: the
      member's own initial value */
   void (*reset)(Session &) = nullptr;
+  /* a choice row's word for the value XPPAUT's files spell otherwise (a first
+     letter, a number), "" when it is none: a .ode, an .xpprc and the command
+     line only, never our own files; nullptr: the row's words alone (a boolean's
+     are y/n and 0/1) */
+  std::string (*foreign)(std::string_view) = nullptr;
+  /* an XPPAUT option that is several of ours (bound, ncdraw, lt): the options it sets */
+  ForeignOptions (*expand)(std::string_view) = nullptr;
   /* a numerics setting: its key in the "numerics" event and `set num`,
      the menu's label, what it accepts and which methods use it */
   std::string_view key, label;
@@ -199,8 +235,7 @@ struct OptionRow {
    (OptionRule::method's name is checked by numerics_settings.cpp) */
 const char *rule_problem(OptionRule rule, double v, int maximum = 0);
 
-/* the value text names among choices (its name in any case, or its
-   number), -1 when none */
+/* the value text names among choices (exactly), -1 when none */
 int choice_index(std::span<const std::string_view> choices, std::string_view text);
 
 /* the table, the numerics settings first, in the Numerics menu's order */
@@ -234,13 +269,15 @@ const OptionRow &slider_presets_option();
    no .odex option, but an .ode's, which the converter turns into presets */
 bool xppaut_slider_option(const OptionRow &row);
 
+/* whether a .odex writes row's value text in double quotes: a path, a text, a hex colour */
+bool option_written_quoted(const OptionRow &row, std::string_view text);
+
 /* the words a choice row takes, in a .odex (the registry's keys for the
    method), empty for any other row */
 std::vector<std::string> option_choices(const OptionRow &row);
 
-/* the word of a choice row's value as the .ode, an .xpprc or the menus give
-   it (the Jacobian's by name or number, the others by the first letter), ""
-   when it selects none; the method's is solver.h's pick_method */
+/* the word of a choice row's value as the .ode, an .xpprc or the command line
+   spell it (XPPAUT's), "" when it selects none; the method's is solver.h's pick_method */
 std::string option_choice(const OptionRow &row, std::string_view value);
 
 /* the JSON Schema of a .odex's options block, built from the table: what

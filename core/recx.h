@@ -58,7 +58,7 @@
 namespace xpp::recx {
 
 inline constexpr std::string_view extension = ".recx";
-inline constexpr int format_version = 2; /* refuse other recording formats (2: the header in the settings syntax, W285) */
+inline constexpr int format_version = 4; /* refuse other recording formats (4: W308 question 9, the one format number; W484's option names, true and false for a yes or no) */
 inline constexpr std::string_view header_group = "recording"; /* the header's one group */
 
 /* a step: its note (its lines separated by "\n", "" for none) and the

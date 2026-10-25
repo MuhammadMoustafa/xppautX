@@ -81,7 +81,7 @@ public:
     void operator()(std::string_view key, double v) { out_.real(key, v); }
     void operator()(std::string_view key, int v) { out_.whole(key, v); }
     void dimension(std::string_view key, int v) { (*this)(key, v); }
-    void flag(std::string_view key, int v) { out_.whole(key, v); }
+    void flag(std::string_view key, int v) { out_.flag(key, v != 0); }
     /* a name (bare when it can be) / a formula or any other text (quoted) */
     void word(std::string_view key, const std::string &v) { out_.word(key, v); }
     void text(std::string_view key, const std::string &v) { out_.text(key, v); }
@@ -172,7 +172,7 @@ public:
             const std::string text = block_.text_of(*m);
             if (const std::optional<std::string> why = setting_problem(*s_, *row, text))
                 block_.fail(*m, xpp::format("`{}`: {} (found `{}`)", key, *why, text));
-            if (row->rule == OptionRule::method) method = pick_method(s_->model(), text, command_place()).value();
+            if (row->rule == OptionRule::method) method = method_by_key(s_->model(), text, command_place()).value();
             fill.set_setting(row, text);
         }
     }
@@ -322,8 +322,8 @@ template <class IO, class S> void describe(IO &io, S &f, const Names &n)
         r("current_time", f.current_time);
         r("last_time", f.last_time);
         r("my_start", f.my_start);
-        r("inflag", f.inflag);
-        r("delay_flag", f.delay_flag);
+        r.flag("inflag", f.inflag);
+        r.flag("delay_flag", f.delay_flag);
     });
     io.named(group::initial, n.variables, f.last_ic);
     io.named(group::ending, n.variables, f.current);
@@ -393,7 +393,7 @@ public:
     {
         prop(key, option_value_schema(OptionRow{.kind = OptionKind::whole, .rule = OptionRule::whole_positive, .maximum = settings_dimension_limit}));
     }
-    void flag(std::string_view key, int) { prop(key, "{\"type\": \"integer\", \"enum\": [0, 1]}"); }
+    void flag(std::string_view key, int) { prop(key, "{\"type\": \"boolean\"}"); }
     void word(std::string_view key, const std::string &) { prop(key, "{\"type\": \"string\"}"); }
     void text(std::string_view key, const std::string &) { prop(key, "{\"type\": \"string\"}"); }
     void numbers(std::string_view key, std::span<const double> v)

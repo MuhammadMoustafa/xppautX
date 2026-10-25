@@ -152,7 +152,9 @@ std::vector<ArrayInitialValue> array_initial_values(const Model &m);
 struct RangeVars {
   std::string item, item2;
   bool write_files = false; // Opt in: reset runs otherwise keep no separate files.
-  int steps, steps2, reset, oldic, index, index2, cycle, type, type2, movie;
+  int steps, steps2;
+  bool reset, oldic; /* each run starts from the initial data / from the same initial data */
+  int index, index2, cycle, type, type2, movie;
   double plow, phigh, plow2, phigh2;
   int rtype;
 };

@@ -11,16 +11,17 @@
       "properties": {
         "total_time": {"type": "number", "minimum": 0, "description": "Total time"},
         "start_time": {"type": "number", "description": "Start time"},
-        "transient_time": {"type": "number", "description": "Transient time"},
+        "store_from": {"type": "number", "description": "Store from"},
         "dt": {"type": "number", "description": "Dt"},
         "store_every": {"type": "integer", "minimum": 1, "description": "Store every N steps"},
-        "bound": {"type": "number", "exclusiveMinimum": 0, "description": "Bounds"},
+        "state_limit": {"type": "number", "exclusiveMinimum": 0, "description": "State limit"},
+        "stop_at_limit": {"type": "boolean", "description": "Stop at the limit"},
         "method": {"type": "string", "enum": ["discrete", "euler", "modified_euler", "runge_kutta", "adams", "gear", "volterra", "backward_euler", "qualrk", "stiff", "cvode", "dopri5", "dopri8", "rosenbrock", "symplectic"], "description": "Method"},
         "jacobian": {"type": "string", "enum": ["difference", "exact"], "description": "Jacobian"},
-        "tolerance": {"type": "number", "exclusiveMinimum": 0, "description": "Tolerance"},
+        "relative_tolerance": {"type": "number", "exclusiveMinimum": 0, "description": "Relative tolerance"},
         "min_step": {"type": "number", "exclusiveMinimum": 0, "description": "Minimum step"},
         "max_step": {"type": "number", "exclusiveMinimum": 0, "description": "Maximum step"},
-        "abs_tolerance": {"type": "number", "exclusiveMinimum": 0, "description": "Absolute tolerance"},
+        "absolute_tolerance": {"type": "number", "exclusiveMinimum": 0, "description": "Absolute tolerance"},
         "delay": {"type": "number", "minimum": 0, "description": "Maximal delay"},
         "vmaxpts": {"type": "integer", "minimum": 1, "maximum": 10000000},
         "storage_rows": {"type": "integer", "minimum": 1, "maximum": 10000000},
@@ -38,8 +39,8 @@
       "properties": {
         "poincare_map": {"type": "string", "enum": ["none", "section", "max", "period"]},
         "poincare_variable": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
-        "poincare_sign": {"type": "integer"},
-        "poincare_stop": {"type": "integer"},
+        "poincare_sign": {"type": "string", "enum": ["negative", "both", "positive"]},
+        "poincare_stop": {"type": "boolean"},
         "poincare_plane": {"type": "number"}
       }
     },
@@ -47,9 +48,10 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "singpt_max_iterates": {"type": "integer", "minimum": 1, "description": "Sing pt: maximum iterates"},
-        "singpt_newton_tolerance": {"type": "number", "exclusiveMinimum": 0, "description": "Sing pt: Newton tolerance"},
-        "singpt_jacobian_epsilon": {"type": "number", "exclusiveMinimum": 0, "description": "Sing pt: Jacobian epsilon"},
+        "max_iterations": {"type": "integer", "minimum": 1, "description": "Equilibria: maximum iterations"},
+        "newton_tolerance": {"type": "number", "exclusiveMinimum": 0, "description": "Equilibria: Newton tolerance"},
+        "jacobian_step": {"type": "number", "exclusiveMinimum": 0, "description": "Equilibria: Jacobian step"},
+        "search_limit": {"type": "number", "exclusiveMinimum": 0, "description": "Equilibria: search limit"},
         "neartol": {"type": "number", "exclusiveMinimum": 0}
       }
     },
@@ -83,10 +85,10 @@
         "autoxmin": {"type": "number"},
         "autoymin": {"type": "number"},
         "autovar": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
-        "sec": {"type": "integer"},
-        "uec": {"type": "integer"},
-        "spc": {"type": "integer"},
-        "upc": {"type": "integer"}
+        "sec": {"type": "string", "x-kind": "color"},
+        "uec": {"type": "string", "x-kind": "color"},
+        "spc": {"type": "string", "x-kind": "color"},
+        "upc": {"type": "string", "x-kind": "color"}
       }
     },
     "plot": {
@@ -162,15 +164,20 @@
         "zmax": {"type": "number"},
         "phi": {"type": "number"},
         "theta": {"type": "number"},
-        "lt": {"type": "integer"},
-        "ync": {"type": "integer"},
-        "xnc": {"type": "integer"},
-        "smc": {"type": "integer"},
-        "umc": {"type": "integer"},
-        "colormap": {"type": "integer"},
+        "line.draw": {"type": "string", "enum": ["line", "points", "both"]},
+        "line.dash": {"type": "string", "enum": ["solid", "dashed", "dotted", "dash_dot"]},
+        "line.width": {"type": "number"},
+        "line.marker": {"type": "string", "enum": ["circle", "square", "triangle", "diamond", "cross", "plus", "star"]},
+        "line.marker_size": {"type": "number"},
+        "ync": {"type": "string", "x-kind": "color"},
+        "xnc": {"type": "string", "x-kind": "color"},
+        "smc": {"type": "string", "x-kind": "color"},
+        "umc": {"type": "string", "x-kind": "color"},
+        "colormap": {"type": "string", "enum": ["jet", "periodic", "hot", "cool", "blue_red", "gray", "cubehelix"]},
         "dfgrid": {"type": "integer"},
         "dfdraw": {"type": "integer"},
-        "ncdraw": {"type": "integer"},
+        "nullclines.draw": {"type": "boolean"},
+        "nullclines.file": {"type": "string", "x-kind": "path"},
         "colorvia": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
         "colorize": {"type": "integer"},
         "colorlo": {"type": "number"},
@@ -196,9 +203,9 @@
         "rangestep": {"type": "integer"},
         "rangelow": {"type": "number"},
         "rangehigh": {"type": "number"},
-        "rangereset": {"type": "string", "enum": ["no", "yes"]},
-        "rangeoldic": {"type": "string", "enum": ["no", "yes"]},
-        "rangefiles": {"type": "string", "enum": ["no", "yes"]}
+        "rangereset": {"type": "boolean"},
+        "rangeoldic": {"type": "boolean"},
+        "rangefiles": {"type": "boolean"}
       }
     },
     "analysis": {

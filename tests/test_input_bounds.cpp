@@ -61,7 +61,7 @@ int main()
     s.shoot_range.plow=1;
     s.shoot_range.phigh=10;
     xpp::compile_bvp(s);
-    s.numerics.storflag=0;
+    s.numerics.storflag=false;
     for(bool fail:{false,true}){
         s.data_store.allocate(2,s.model().neq+1);
         fail_growth(fail);

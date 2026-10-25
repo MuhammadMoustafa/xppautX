@@ -18,7 +18,8 @@ norm' = 0
 acc' = 0
 aux liap = acc/ode_divisor(max(1, t))
 options {
-  integration: { bound: 100000000, dt: .025001, total_time: 400, store_every: 10 },
+  integration: { state_limit: 100000000, dt: .025001, total_time: 400, store_every: 10 },
+  equilibria: { search_limit: 100000000 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

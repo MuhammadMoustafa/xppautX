@@ -6,6 +6,7 @@ y' = -y-85*x-x*z
 z' = z/2+x*y+1
 init x = 8, y = 2, z = 1
 options {
-  integration: { dt: .002, total_time: 20, bound: 1000, storage_rows: 12000, method: qualrk },
+  integration: { dt: .002, total_time: 20, state_limit: 1000, storage_rows: 12000, method: qualrk },
+  equilibria: { search_limit: 1000 },
   plot: { xp: x, yp: z, xlo: -125, xhi: 125, ylo: -125, yhi: 10 },
 }

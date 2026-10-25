@@ -19,13 +19,28 @@ for the rank evidence and exact-speed derivation
 
 ## Requested phase-plane elements (W346)
 
-Converted models keep their `ncdraw` and `dfdraw` options. Unlike XPPAUT,
+Converted models keep their `dfdraw` option and write `ncdraw` as `nullclines.draw` and `nullclines.file` (`1`: draw; `2`: not drawn, saved to `nullclines.dat`). Unlike XPPAUT,
 xppautX honours them after a run in the window and `--server` too, so a
 model such as `lecar.ode` now shows its requested nullclines and direction
 field automatically; its PS and SVG exports include them. The file variants
 also write `nullclines.dat` / `dirfields.dat` in the current working folder.
 This is a deliberate behaviour difference, not a conversion rewrite
 ([W346 / #407](https://github.com/MuhammadMoustafa/xppautX/issues/407)).
+
+## One bound that is two limits, a number that is a word (W484)
+
+XPPAUT's `bound` is one number for three things: the limit past which a
+solution is taken to blow up, the limit its equilibria search gives up at, and
+(unnamed) the cap of the DAE solver's Newton update, `n` times it. Conversion
+writes `state_limit` and `search_limit`, both the `bound` value, and the DAE
+cap is the constant 100 per variable, XPPAUT's default, which a model's `bound`
+no longer changes (no shipped DAE model sets one). XPPAUT's choices spelled by
+number or letter (`poisgn=-1`, `poimap=s`, `colormap=3`, `lt=-2`, `sec=22`,
+`rangereset=y`, colours 0 to 10) convert to the words of the `.odex`
+(`poincare_sign: negative`, `poincare_map: section`, `colormap: cool`,
+`line.draw: points, line.marker: circle, line.marker_size: 2`,
+`sec: "#ffa500"`, `rangereset: true`); a number no choice has (a colour 11,
+`lt=3`) stops the conversion at its line.
 
 ## Diagnostic ids (W75)
 

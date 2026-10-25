@@ -119,8 +119,8 @@ DenseEvent dense_event(Session &s, double from, double until, double step_from, 
          flag.sign,i,false,-1,flag.nointerp!=0);
   }
   const auto &num=s.numerics;
-  if(sections&&num.poincare_map>=1&&num.poincare_map<=3){
-    if(num.poincare_variable==0&&num.poincare_map!=2){
+  if(sections&&num.poincare_map!=PoincareMap::none){
+    if(num.poincare_variable==0&&num.poincare_map!=PoincareMap::max){
       const double period=fabs(num.poincare_plane);
       if(period>0){
         const double k=direction>0?floor(from/period)+1:ceil(from/period)-1;
@@ -131,26 +131,26 @@ DenseEvent dense_event(Session &s, double from, double until, double step_from, 
       const int index=num.poincare_variable-1;
       scan([&](double t){
         state(t,scratch);
-        if(num.poincare_map==2){
+        if(num.poincare_map==PoincareMap::max){
           s.integrator.rhs(t,scratch.data(),derivative.data(),s.model().node);
           return derivative[index];
         }
         if(index>=s.model().node)extra(s,scratch.data(),t,s.model().node,s.model().neq);
         return scratch[index]-num.poincare_plane;
-      },num.poincare_map==2?-num.poincare_sign*static_cast<int>(direction):num.poincare_sign,-1,true,-1,false);
+      },num.poincare_map==PoincareMap::max?-static_cast<int>(num.poincare_sign)*static_cast<int>(direction):static_cast<int>(num.poincare_sign),-1,true,-1,false);
     }
   }
-  if(!(s.integrator.range_flag||s.integrator.suppress_bounds)){
+  if(s.numerics.stop_at_limit&&!(s.integrator.range_flag||s.integrator.suppress_bounds)){
     state(from,scratch);
-    for(int i=0;i<s.model().node;++i)derivative[i]=fabs(scratch[i])-num.bound;
+    for(int i=0;i<s.model().node;++i)derivative[i]=fabs(scratch[i])-num.state_limit;
     double a=from;
     for(int j=1;j<=DENSE_EVENT_SUBDIVISIONS;++j){
       const double b=j==DENSE_EVENT_SUBDIVISIONS?until:from+(until-from)*j/DENSE_EVENT_SUBDIVISIONS;
       state(b,scratch);
       for(int i=0;i<s.model().node;++i){
-        const double fb=fabs(scratch[i])-num.bound,fa=derivative[i];
+        const double fb=fabs(scratch[i])-num.state_limit,fa=derivative[i];
         if(fa<=0&&fb>0){
-          const double root=bracketed_root([&](double time){state(time,scratch);return fabs(scratch[i])-num.bound;},a,b,fa,fb);
+          const double root=bracketed_root([&](double time){state(time,scratch);return fabs(scratch[i])-num.state_limit;},a,b,fa,fb);
           consider(root,-1,false,i);
           state(b,scratch);
         }
@@ -465,7 +465,7 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
     for(j=0;j<s.model().node;j++){ 
       x[j]=s.random.uniform()*(s.integrator.fixptguess.xhi[j]-s.integrator.fixptguess.xlo[j])+s.integrator.fixptguess.xlo[j];
     }
-    if(auto r=do_sing_info(s,x.data(),s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,s.model().node,er.data(),em.data(),&ierr);!r)return r;
+    if(auto r=do_sing_info(s,x.data(),s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,s.model().node,er.data(),em.data(),&ierr);!r)return r;
     if(ierr==0){
       m=s.integrator.fixptlist.n;
       if(m==0){ /* first fixed point found */
@@ -575,14 +575,14 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
  mc=s.integrator.eq_range.mc;
  s.data_store.rows=0;
  s.integrator.step_error.reset();
- s.numerics.endsing=0;
- s.numerics.par_fol=1;
- s.numerics.pauser=0;
+ s.numerics.endsing=false;
+ s.numerics.par_fol=true;
+ s.numerics.pauser=false;
  s.numerics.shoot=s.integrator.eq_range.shoot;
  reset_browser(s);
  if(mc==1){
    s.integrator.eq_range.movie=1;
-   s.numerics.shoot=0;
+   s.numerics.shoot=false;
  }
  if(s.integrator.eq_range.movie)reset_film(s);
  for(i=0;i<=npar;i++)
@@ -592,7 +592,7 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
        clear_draw_window(s);
       temp=parlo+dpar*static_cast<double>(i);
       set_val(s,s.integrator.eq_range.item,temp);
-      s.numerics.par_fol=1;
+      s.numerics.par_fol=true;
       {
         std::string bob=xpp::format("{}={:.16g}",s.integrator.eq_range.item,temp);
         show_progress(bob);
@@ -603,9 +603,9 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
         }
         else {
         if(s.delay.flag)
-	  failure.keep(do_delay_sing(s,x,s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,
+	  failure.keep(do_delay_sing(s,x,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,
 		        s.model().node,&ierr,&stabinfo));
-        else failure.keep(do_sing(s,x,s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,
+        else failure.keep(do_sing(s,x,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,
 		     s.model().node,&ierr,&stabinfo));
         }
         if(s.integrator.eq_range.movie){
@@ -625,10 +625,10 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
 
       s.data_store.rows++;
       row_stored(s);}
-      if(s.numerics.endsing==1||xpp::job::cancelled())break;
+      if(s.numerics.endsing||xpp::job::cancelled())break;
     }
     refresh_browser(s,s.data_store.rows);
- s.numerics.par_fol=0;
+ s.numerics.par_fol=false;
  return failure.result();
 }
 }
@@ -722,8 +722,8 @@ xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFra
 
  get_ic(s,2,x);
  s.data_store.rows=0;
- s.numerics.storflag=1;
- s.numerics.pauser=0;
+ s.numerics.storflag=true;
+ s.numerics.pauser=false;
 nit2=0;
 if(s.integrator.range.rtype==2)nit2=s.integrator.range.steps2; 
 if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
@@ -806,7 +806,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
      show_progress(bob);
    }
    do_start_flags(s,x,&s.data_store.current_time);
-if(fabs(s.data_store.current_time)>=s.numerics.transient_time&&s.numerics.storflag==1&&s.numerics.poincare_map==0)
+if(fabs(s.data_store.current_time)>=s.numerics.store_from&&s.numerics.storflag&&s.numerics.poincare_map==PoincareMap::none)
   {
     s.data_store.col[0][s.data_store.rows]=static_cast<float>(s.data_store.current_time);
     extra(s,x,s.data_store.current_time,s.model().node,s.model().neq);
@@ -868,7 +868,7 @@ if(fabs(s.data_store.current_time)>=s.numerics.transient_time&&s.numerics.storfl
    if(s.integrator.range.type2==PARAM)set_val(s,s.integrator.range.item2,temp2);
  evaluate_derived(s);
 s.plot_windows.current->color[0]=color;
- s.numerics.inflag=1;
+ s.numerics.inflag=true;
  
  ping();
  s.integrator.adj_range=0;
@@ -906,7 +906,7 @@ void write_equilibrium(xpp::Session &s, const char *name, int shoot)
   std::vector<double> x(s.last_ic.begin(),s.last_ic.begin()+n),er(n),em(n);
   int ierr;
 
-  if(!xpp::ok_or_show(do_sing_info(s,x.data(),s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,n,er.data(),em.data(),&ierr)))return;
+  if(!xpp::ok_or_show(do_sing_info(s,x.data(),s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,n,er.data(),em.data(),&ierr)))return;
   if(ierr!=0)return;
   xpp::Writer w=xpp::open_writer_asking(name);
   if(!w)return;
@@ -929,10 +929,10 @@ void find_equilib_com(xpp::Session &s, int com)
  x=&s.data_store.current[0];
  if(s.numerics.fft||s.numerics.hist||s.model().nkernel>0)return;
 
- s.numerics.storflag=0;
- s.numerics.poincare_map=0;
- oldtrans=s.numerics.transient_time;
- s.numerics.transient_time=0.0;
+ s.numerics.storflag=false;
+ s.numerics.poincare_map=PoincareMap::none;
+ oldtrans=s.numerics.store_from;
+ s.numerics.store_from=0.0;
  evaluate_derived(s); 
  switch(com){
  case 2: 
@@ -969,12 +969,12 @@ void find_equilib_com(xpp::Session &s, int com)
 
  xpp::Result<> r;
  if(s.delay.flag){
-   r=do_delay_sing(s,x,s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,s.model().node,&ierr,&stabinfo);
+   r=do_delay_sing(s,x,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,s.model().node,&ierr,&stabinfo);
    ping();
  }
  else
-    r=do_sing(s,x,s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,s.model().node,&ierr,&stabinfo);
- s.numerics.transient_time=oldtrans;
+    r=do_sing(s,x,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,s.model().node,&ierr,&stabinfo);
+ s.numerics.store_from=oldtrans;
  if(!r)xpp::show_error(r.error());
  
 }
@@ -1020,7 +1020,7 @@ void do_init_data(xpp::Session &s, int com)
   wipe_rep(s.browser);
   s.data_store.current_time=s.numerics.start_time;
  
-  s.numerics.storflag=1;
+  s.numerics.storflag=true;
   s.numerics.poiext=0;
   s.data_store.rows=0;
   reset_browser(s);
@@ -1035,7 +1035,7 @@ void do_init_data(xpp::Session &s, int com)
     return;
   case M_IS:
   case M_IL:
-    if(s.numerics.inflag==0){
+    if(!s.numerics.inflag){
       ping();
       command_error("initialconds","No prior solution");
       return;
@@ -1189,7 +1189,7 @@ void run_now(xpp::Session &s)
  reset_dae(s);
  s.data_store.current_time=s.numerics.start_time;
  get_ic(s,2,x); 
-  s.numerics.storflag=1;
+  s.numerics.storflag=true;
   s.numerics.poiext=0;
   s.data_store.rows=0;
   reset_browser(s);
@@ -1210,7 +1210,7 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
 
   seed_this_run(s);
   do_start_flags(s,x,&s.data_store.current_time);
-   if(fabs(s.data_store.current_time)>=s.numerics.transient_time&&s.numerics.storflag==1&&s.numerics.poincare_map==0)
+   if(fabs(s.data_store.current_time)>=s.numerics.store_from&&s.numerics.storflag&&s.numerics.poincare_map==PoincareMap::none)
     {
       s.data_store.col[0][0]=static_cast<float>(s.data_store.current_time);
       extra(s,x,s.data_store.current_time,s.model().node,s.model().neq);
@@ -1229,7 +1229,7 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
   }();
   
   ping();
-  s.numerics.inflag=1;
+  s.numerics.inflag=true;
   do_batch_nclines(s);
   do_batch_dfield(s);
   refresh_browser(s,s.data_store.rows);
@@ -1578,7 +1578,7 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings)
 {
   const double interval=s.integrator.solver->traits().discrete?(s.numerics.delta_t>0?1:-1):s.numerics.delta_t;
   if(auto valid=validate_steady_state(settings,interval,s.numerics.start_time);!valid)return valid;
-  if(s.model().node+s.model().nmarkov==0||s.numerics.poincare_map||s.numerics.fft||s.numerics.hist)
+  if(s.model().node+s.model().nmarkov==0||s.numerics.poincare_map!=PoincareMap::none||s.numerics.fft||s.numerics.hist)
     return fail("steady","Needs model states and ordinary trajectory output (disable Poincare, FFT and histogram modes)",command_place());
   if(!s.integrator.solver->traits().fixed_step&&interval<std::fabs(s.numerics.min_step))
     return fail("steady","Dt must be at least the solver's minimum step",command_place());
@@ -1687,7 +1687,7 @@ if(program.interactive) cwidth=get_command_width();
  for(ieqn=1;ieqn<=s.model().neq;ieqn++)xv[ieqn]=static_cast<float>(x[ieqn-1]);
  if(s.animation.options.on_the_fly)on_the_fly(s,1); 
    
- if(s.numerics.poincare_map)
+ if(s.numerics.poincare_map!=PoincareMap::none)
  {
  oldt=*t;
  for(ieqn=0;ieqn<s.model().neq;ieqn++)oldx[ieqn]=x[ieqn];
@@ -1745,7 +1745,7 @@ if(program.interactive) cwidth=get_command_width();
 
 	   extra(s,x,*t,s.model().node,s.model().neq);
 
-          if (s.numerics.torus == 1) {
+          if (s.numerics.torus) {
 	for (ieqn = 0; ieqn < s.model().neq; ieqn++) {
 	        torcross[ieqn]=0;
 		if (s.itor[ieqn] == 1) {
@@ -1791,7 +1791,7 @@ if(program.interactive) cwidth=get_command_width();
              break;
              }
        /* end of NaN */     
-            if(fabs(x[ieqn-1])>s.numerics.bound)
+            if(s.numerics.stop_at_limit&&fabs(x[ieqn-1])>s.numerics.state_limit)
             {
 	     if(s.integrator.range_flag||s.integrator.suppress_bounds)break;
              std::string error_message=xpp::format("{} out of bounds at t = {}",
@@ -1820,12 +1820,12 @@ if(program.interactive) cwidth=get_command_width();
            {
             
              if(esc==ESC){if(s.integrator.steady)s.integrator.steady_result->status="stopped";break;}
-	     if(esc=='/'){rval=1;s.numerics.endsing=1;if(s.integrator.steady)s.integrator.steady_result->status="stopped";break;}
+	     if(esc=='/'){rval=1;s.numerics.endsing=true;if(s.integrator.steady)s.integrator.steady_result->status="stopped";break;}
 	    
            }
 	if(s.integrator.stop_flag==1){s.integrator.stop_flag=0;if(s.integrator.steady)s.integrator.steady_result->status="stopped";break;}
            if(s.integrator.step_error){
-             s.numerics.endsing=1;
+             s.numerics.endsing=true;
              xpp::Error e=take_step_error(s).error();
              if(!failure)failure=std::move(e); /* a variable's NaN came first */
              break;
@@ -1834,12 +1834,12 @@ if(program.interactive) cwidth=get_command_width();
            ui.live_state(s, x, *t);
            tv=static_cast<float>(*t);
 	   xv[0]=tv;
- if(solver.traits().dense_output&&s.numerics.poincare_map){
+ if(solver.traits().dense_output&&s.numerics.poincare_map!=PoincareMap::none){
    pflag=solver.section_found()?1:0;
    if(!pflag)goto out;
    goto dense_poi;
  }
- if((s.numerics.poincare_map==2)&&!(s.numerics.poincare_variable==0))
+ if((s.numerics.poincare_map==PoincareMap::max)&&!(s.numerics.poincare_variable==0))
  {
   pflag=0;
   if((oldx[s.numerics.poincare_variable-1]<x[s.numerics.poincare_variable-1])&&!(s.numerics.poiext<0))s.numerics.poiext=1;
@@ -1848,7 +1848,7 @@ if(program.interactive) cwidth=get_command_width();
        ( !(oldx[s.numerics.poincare_variable-1]>x[s.numerics.poincare_variable-1]) && (s.numerics.poiext<0) )
     )
   {
-     if(s.numerics.poincare_sign*s.numerics.poiext>=0)
+     if(static_cast<int>(s.numerics.poincare_sign)*s.numerics.poiext>=0)
       {
 	/*  We will interpolate to get a good local extremum   */
 	
@@ -1870,13 +1870,7 @@ if(program.interactive) cwidth=get_command_width();
   goto poi;
  }
 
- /*  here is code for a formula type map --  F(X,t)=0 
-  */
- if(s.numerics.poincare_map==4) {
-
- }
- 
- if(s.numerics.poincare_map==1||s.numerics.poincare_map==3)
+ if(s.numerics.poincare_map==PoincareMap::section||s.numerics.poincare_map==PoincareMap::period)
  {
     if(s.numerics.poincare_variable==0)
 
@@ -1898,7 +1892,7 @@ if(program.interactive) cwidth=get_command_width();
     else
 
     {
-     if(!(s.numerics.poincare_sign<0))
+     if(s.numerics.poincare_sign!=SectionSign::negative)
      {
      if((oldx[s.numerics.poincare_variable-1]<s.numerics.poincare_plane)&&!(x[s.numerics.poincare_variable-1]<s.numerics.poincare_plane))
      {
@@ -1912,7 +1906,7 @@ if(program.interactive) cwidth=get_command_width();
      }
      else pflag=0;
      }
-    if(!(s.numerics.poincare_sign>0))
+    if(s.numerics.poincare_sign!=SectionSign::positive)
      {
        if((oldx[s.numerics.poincare_variable-1]>s.numerics.poincare_plane)&&!(x[s.numerics.poincare_variable-1]>s.numerics.poincare_plane))
        {
@@ -1932,7 +1926,7 @@ poi:    for(i=0;i<s.model().neq;i++)oldx[i]=x[i];
 
 dense_poi:
 /*	   Plotting and storing data      */
- if(s.numerics.poincare_map==3&&pflag==1){
+ if(s.numerics.poincare_map==PoincareMap::period&&pflag==1){
    if(oldperiod==0.0){
      pflag=0; /* this is the first hit !! */
      oldperiod=*t;
@@ -1942,13 +1936,13 @@ dense_poi:
    oldperiod=*t;
  }
      
-          if(!(fabs(*t)<s.numerics.transient_time)&&program.interactive&&OnTheFly)
+          if(!(fabs(*t)<s.numerics.store_from)&&program.interactive&&OnTheFly)
 	  {
 	     plot_the_graphs(s,xv,xvold,s.model().node,s.model().neq,fabs(dt*s.numerics.store_every),torcross,0); 
 
 	  }
 
-	   if((s.numerics.storflag==1)&&(count!=0)&&(s.data_store.rows<s.data_store.max_rows)&&!(fabs(*t)<s.numerics.transient_time)
+	   if((s.numerics.storflag)&&(count!=0)&&(s.data_store.rows<s.data_store.max_rows)&&!(fabs(*t)<s.numerics.store_from)
 	      &&(!s.integrator.steady||++steady_seen%steady_stride==0))
 	   {
            if(s.animation.options.on_the_fly)on_the_fly(s,0);
@@ -1967,7 +1961,7 @@ dense_poi:
               if(!grown){stop_integration(s,grown.error());failure=take_step_error(s).error();break;}
             }
             }
-	    if((pflag==1)&&(s.numerics.poincare_stop==1))break;
+	    if((pflag==1)&&(s.numerics.poincare_stop))break;
 	   }
 
 out:
@@ -2003,7 +1997,7 @@ void send_output(xpp::Session &s, double *y,double t)
   for(i=0;i<s.model().node;i++)
     yy[i]=y[i];
   extra(s,yy.data(),t,s.model().node,s.model().neq);
-  if((s.numerics.storflag==1)&&(s.data_store.rows<s.data_store.max_rows)){
+  if((s.numerics.storflag)&&(s.data_store.rows<s.data_store.max_rows)){
     
     for(i=0;i<s.model().neq;i++)
       s.data_store.col[i+1][s.data_store.rows]=static_cast<float>(yy[i]);
@@ -2117,7 +2111,7 @@ void restore(xpp::Session &s, int i1, int i2)
 	zpl=data[iiZPLT][kzoff];
       }
       
-      if(s.numerics.torus==1)
+      if(s.numerics.torus)
       {
 	if (fabs(oldxpl-xpl)>static_cast<float>((.5*s.numerics.torus_period)))oldxpl=xpl;
 	if (fabs(oldypl-ypl)>static_cast<float>((.5*s.numerics.torus_period)))oldypl=ypl;

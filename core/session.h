@@ -22,6 +22,7 @@
    session list (client_session, below). A load builds a new Model and
    Session together (Load, below) and keeps them only when it succeeds. */
 #include "model.h"
+#include "colormap.h"
 #include "storage.h"
 #include "many_pops.h"
 #include "graf_par.h"
@@ -182,8 +183,8 @@ struct Session {
   /* the command line named a model file */
   int got_file=0;
   /* the colour scale's type (colormap.h's make_cmaps: @ colormap, the
-     Colormap menu); 0 the default, so a model without @ colormap gets it */
-  int colormap=0;
+     Colormap menu); jet the default, so a model without @ colormap gets it */
+  Colormap colormap=Colormap::jet;
 
   /* what each network computed last and its work space (simplenet.cpp;
      their definitions are Model::networks) */

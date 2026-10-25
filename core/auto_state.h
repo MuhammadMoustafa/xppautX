@@ -11,6 +11,7 @@
 #include "jacobian.h"
 #include "auto_nox.h"
 #include "auto_data.h"
+#include "colormap.h"
 #include "auto_stop.h"
 #include "auto_stability.h"
 #include "auto_codim.h"
@@ -120,8 +121,8 @@ struct AutoState {
   xpp::ROTCHK blrtn{};
   /* the colours of stable and unstable equilibria and periodic orbits
      (@ sec=, uec=, spc=, upc=) */
-  int stable_eq_color=20,unstable_eq_color=0;
-  int stable_po_color=26,unstable_po_color=28;
+  xpp::Color stable_eq_color=xpp::xppaut_color(1),unstable_eq_color=xpp::xppaut_color(0);
+  xpp::Color stable_po_color=xpp::xppaut_color(7),unstable_po_color=xpp::xppaut_color(9);
   /* the model's @ options for AUTO */
   AutoOptions options;
   /* the AUTO run's own parameters, filled from the model and settings

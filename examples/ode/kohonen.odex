@@ -27,5 +27,5 @@ par t0 = 0
 #
 options {
   integration: { method: discrete, total_time: 16000, store_every: 8 },
-  plot: { colormap: 6 },
+  plot: { colormap: cubehelix },
 }

@@ -88,7 +88,8 @@ aux y1 = sin(t1)
 aux y2 = sin(t2)
 fun t1dot(x, y, xp, yp) = (yp*x-xp*y)/ode_divisor(x^2+y^2)
 options {
-  integration: { bound: 10000, method: cvode, dt: .05, abs_tolerance: 1e-4, tolerance: 1e-5, total_time: 100 },
+  integration: { state_limit: 10000, method: cvode, dt: .05, absolute_tolerance: 1e-4, relative_tolerance: 1e-5, total_time: 100 },
+  equilibria: { search_limit: 10000 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

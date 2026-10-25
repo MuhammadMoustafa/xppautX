@@ -89,7 +89,9 @@ std::string value_of(xpp::Session &s, const xpp::OptionRow &r)
 {
     if (r.real) return xpp::number(r.real(s));
     if (r.whole) return xpp::format("{}", r.whole(s));
-    if (r.boolean) return r.boolean(s) ? "yes" : "no";
+    if (r.boolean) return r.boolean(s) ? "true" : "false";
+    if (r.index) return xpp::format("{}", r.index.read(s));
+    if (r.color) return xpp::print_color(r.color(s));
     if (r.text) return r.text(s);
     return "";
 }
@@ -98,7 +100,9 @@ std::string value_of(xpp::Session &s, const xpp::OptionRow &r)
    the command line's batch_options) */
 bool in_session(xpp::Session &s, const xpp::OptionRow &r)
 {
-    const void *p = r.real ? static_cast<void *>(&r.real(s))
+    if (r.index) return true;
+    const void *p = r.color ? static_cast<void *>(&r.color(s))
+                  : r.real ? static_cast<void *>(&r.real(s))
                   : r.whole ? static_cast<void *>(&r.whole(s))
                   : r.boolean ? static_cast<void *>(&r.boolean(s))
                   : r.text ? static_cast<void *>(&r.text(s)) : nullptr;
@@ -129,8 +133,14 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"ZP", {"x", "1"}},
         {"AXES", {"3", "5"}},            /* 3D */
         {"LT", {"-1", "-1"}},
-        {"RANGERESET", {"n", "0"}},
-        {"RANGEOLDIC", {"n", "0"}},
+        {"POINCARE_SIGN", {"-1", "0"}},         /* negative */
+        {"LINE.DRAW", {"line", ""}}, {"LINE.DASH", {"solid", ""}}, {"LINE.WIDTH", {"1", ""}}, {"LINE.MARKER", {"circle", ""}},
+        {"LINE.MARKER_SIZE", {"3", ""}},
+        {"XNC", {"3", "#ffa500"}}, {"YNC", {"4", "#ffcd00"}}, {"SMC", {"1", "#ff0000"}}, {"UMC", {"0", "foreground"}},
+        {"SEC", {"22", "#ffa500"}}, {"UEC", {"0", "foreground"}}, {"SPC", {"26", "#00e100"}}, {"UPC", {"28", "#0000ff"}},
+        {"NULLCLINES.FILE", {"nc.dat", "nc.dat"}},
+        {"RANGERESET", {"n", "false"}},
+        {"RANGEOLDIC", {"n", "false"}},
         {"AUTOVAR", {"y", "1"}},         /* AUTO counts from x */
         {"HISTCOL", {"y", "2"}},
         {"HISTCOL2", {"z", "3"}},
@@ -151,7 +161,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         return {xpp::number(v), xpp::number(v)};
     }
     if (r.whole) return {"2", "2"};
-    if (r.boolean) return {"yes", "yes"};
+    if (r.boolean) return {"yes", "true"};
     if (r.text) return {"abc", "abc"};
     return {"1", ""};
 }
@@ -159,7 +169,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
 /* what the option model leaves out: a log file, a button */
 bool left_out(const xpp::OptionRow &r)
 {
-    return r.name.empty() || r.name == "LOGFILE" || r.name == "BUT" || r.kind == xpp::OptionKind::sliders;
+    return r.name.empty() || r.name == "LOGFILE" || r.name == "BUT" || r.kind == xpp::OptionKind::sliders || r.expand;
 }
 
 /* whether a .setx holds the option: the table's rows marked saved, and the
@@ -285,6 +295,51 @@ int main(void)
         CHECK(named && named->numerics.method == info.id && named->numerics.total_time == 1);
     }
 
+    /* the limits and the nullclines' options: our own words in a .odex, XPPAUT's bound and ncdraw
+       (each several of ours) in a .ode */
+    CHECK(write_file("build/test_limits.odex", "x' = -x\noptions { integration: { state_limit: 7, stop_at_limit: false }, equilibria: { search_limit: 9 }, "
+                                               "plot: { nullclines.draw: true, nullclines.file: \"nc.dat\" } }\n"));
+    {
+        const xpp::Session *l = load("build/test_limits.odex");
+        CHECK(l && l->numerics.state_limit == 7 && !l->numerics.stop_at_limit && l->numerics.equilibria.search_limit == 9);
+        CHECK(l && l->nullclines.draw && l->nullclines.file == "nc.dat");
+    }
+    for (const char *ncdraw : {"0", "1", "2"}) {
+        CHECK(write_file("build/test_bound.ode", xpp::format("x'=-x\n@ bound=7 ncdraw={}\ndone\n", ncdraw)));
+        const xpp::Session *l = load("build/test_bound.ode");
+        CHECK(l && l->numerics.state_limit == 7 && l->numerics.stop_at_limit && l->numerics.equilibria.search_limit == 7);
+        CHECK(l && l->nullclines.draw == (std::string_view(ncdraw) == "1") && l->nullclines.file == (std::string_view(ncdraw) == "2" ? "nullclines.dat" : ""));
+    }
+    /* XPPAUT's lt is the line style every new curve starts with: its line types, and no style they do not draw */
+    for (const int lt : {1, 0, -3}) {
+        CHECK(write_file("build/test_lt.ode", xpp::format("x'=-x\n@ lt={}\ndone\n", lt)));
+        const xpp::Session *l = load("build/test_lt.ode");
+        CHECK(l && xpp::xppaut_line_type(l->plot_settings.start_line_style) == lt);
+    }
+    CHECK(write_file("build/test_lt.odex", "x' = -x\noptions { plot: { line.draw: points, line.marker_size: 4 } }\n"));
+    {
+        const xpp::Session *l = load("build/test_lt.odex");
+        CHECK(l && xpp::xppaut_line_type(l->plot_settings.start_line_style) == -4);
+    }
+    for (const char *bad : {"line.dash: dashed", "line.width: 2", "line.draw: both", "line.marker: star, line.draw: points", "line.marker_size: -1", "line.draw: 1"}) {
+        CHECK(write_file("build/test_bad_choice.odex", xpp::format("x' = -x\noptions {{ plot: {{ {} }} }}\n", bad)));
+        char arg0[] = "test_options";
+        char file[] = "build/test_bad_choice.odex";
+        char *argv[] = {arg0, file, nullptr};
+        CHECK(!xpp::load_model(2, argv, 1).has_value());
+    }
+
+    /* a number or a yes for a choice is no word of ours */
+    for (const char *bad : {"poincare: { poincare_sign: 1 }", "poincare: { poincare_stop: 1 }", "integration: { stop_at_limit: yes }", "integration: { method: 3 }"}) {
+        CHECK(write_file("build/test_bad_choice.odex", xpp::format("x' = -x\noptions {{ {} }}\n", bad)));
+        char arg0[] = "test_options";
+        char file[] = "build/test_bad_choice.odex";
+        char *argv[] = {arg0, file, nullptr};
+        const xpp::Loaded l = xpp::load_model(2, argv, 1);
+        CHECK(!l.has_value());
+        if (!l) CHECK(l.error().place.line == 2);
+    }
+
     /* each name finds its row */
     for (const xpp::OptionRow &r : rows) {
         for (std::string_view n : {r.name, r.alias, r.xppaut_names[0], r.xppaut_names[1]}) {
@@ -332,7 +387,14 @@ int main(void)
         CHECK(xpp::option_problem(*s, "total", "5", false).has_value());
         CHECK(!xpp::option_problem(*s, "total", "5", true).has_value());
         CHECK(!xpp::option_problem(*s, "total_time", "5", false).has_value());
-        CHECK(xpp::option_problem(*s, "meth", "e", false).has_value() && !xpp::option_problem(*s, "method", "e", false).has_value());
+        CHECK(xpp::option_problem(*s, "meth", "e", false).has_value() && !xpp::option_problem(*s, "method", "euler", false).has_value());
+        CHECK(!xpp::option_problem(*s, "method", "euler", false).has_value());
+        /* an XPPAUT choice's letter, number or yes/no is a foreign file's, never our own */
+        CHECK(!xpp::option_problem(*s, "meth", "e", true).has_value() && xpp::option_problem(*s, "method", "1", false).has_value());
+        CHECK(xpp::option_problem(*s, "poincare_sign", "1", false).has_value() && !xpp::option_problem(*s, "poincare_sign", "positive", false).has_value());
+        CHECK(!xpp::option_problem(*s, "poisgn", "1", true).has_value() && !xpp::option_problem(*s, "poistop", "1", true).has_value());
+        CHECK(xpp::option_problem(*s, "poincare_stop", "1", false).has_value() && xpp::option_problem(*s, "rangereset", "yes", false).has_value());
+        CHECK(!xpp::option_problem(*s, "rangereset", "true", false).has_value() && !xpp::option_problem(*s, "rangereset", "y", true).has_value());
     }
     if (!s) TEST_REPORT("options");
     std::vector<std::string> defaults;
@@ -391,8 +453,11 @@ int main(void)
         written.push_back(value_of(*s, r));
         if (!in_session(*s, r)) continue;
         if (r.real) r.real(*s) += 1;
+        else if (r.whole && r.saved && r.kind == xpp::OptionKind::choice) r.whole(*s) = (r.whole(*s) + 1) % static_cast<int>(xpp::option_choices(r).size());
         else if (r.whole) r.whole(*s) += 1;
         else if (r.boolean) r.boolean(*s) = !r.boolean(*s);
+        else if (r.index) r.index.write(*s, (r.index.read(*s) + 1) % static_cast<int>(xpp::option_choices(r).size()));
+        else if (r.color) r.color(*s) = xpp::xppaut_color(5);
         else if (r.text) r.text(*s) = "xyz";
     }
     std::vector<std::string> changed;
@@ -490,13 +555,13 @@ int main(void)
         if (!l) {
             CHECK(l.error().place.file == bad_odex);
             CHECK(l.error().place.line == 3);
-            CHECK(l.error().what.find("ync=12") != std::string::npos);
+            CHECK(l.error().what.find("`12` is not a colour") != std::string::npos);
             if (l.error().place.line != 3) printf("  odex: %s\n", l.error().text().c_str());
         }
     }
     /* XPPAUT's names for the renamed options are a .ode's: a .odex refuses them
        at their line */
-    for (const char *old_name : {"nout", "njmp", "total", "t0", "trans", "nmesh", "newt_iter", "newt_tol", "jac_eps", "meth", "tol", "dtmin", "dtmax", "atol", "maxstor", "tor_per", "poimap", "poivar", "poisgn", "poistop", "poipln"}) {
+    for (const char *old_name : {"nout", "njmp", "total", "t0", "trans", "nmesh", "newt_iter", "newt_tol", "jac_eps", "bound", "ncdraw", "meth", "tol", "dtmin", "dtmax", "atol", "maxstor", "tor_per", "poimap", "poivar", "poisgn", "poistop", "poipln"}) {
         CHECK(write_file(bad_odex, std::string("par a = 1\nx' = -a*x\noptions { integration: { ") + old_name + ": 2 } }\n"));
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.odex";

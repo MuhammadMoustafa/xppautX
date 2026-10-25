@@ -134,6 +134,9 @@ struct Model;
    Volterra no kernels, kernels anything but Volterra) at place. */
 Result<method::Id> pick_method(const Model &model, std::string_view text, Place place);
 Result<method::Id> check_method(const Model &model, int id, Place place);
+/* the method whose key (the word our files and the protocol use: runge_kutta,
+   cvode, ...) is exactly key, refused as check_method refuses */
+Result<method::Id> method_by_key(const Model &model, std::string_view key, Place place);
 /* a method's row: callers must supply a checked id */
 const SolverInfo &solver_info(int method);
 

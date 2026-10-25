@@ -207,7 +207,7 @@ if(!s.numerics.par_fol)
      get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
      if(*ierr==0)
      {
-     change_current_linestyle(s,s.manifolds.unstable_color,&oldcol);
+     change_current_linestyle(s,plot_color(s.manifolds.unstable_color),&oldcol);
      pr_evec(s,x,b,n,pr,eval[2*pose],1);
       s.numerics.delta_t=fabs(s.numerics.delta_t);
       failure.keep(shoot(s,bp,x,b,1));
@@ -224,7 +224,7 @@ if(!s.numerics.par_fol)
      get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege],ierr);
      if(*ierr==0)
      {
-        change_current_linestyle(s,s.manifolds.stable_color,&oldcol);
+        change_current_linestyle(s,plot_color(s.manifolds.stable_color),&oldcol);
 	pr_evec(s,x,b,n,pr,eval[2*nege],-1);
       s.numerics.delta_t=-fabs(s.numerics.delta_t);
       failure.keep(shoot(s,bp,x,b,1));
@@ -258,7 +258,7 @@ if(!s.numerics.par_fol)
 	   get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,bigpos,ierr);
 	   if(*ierr==0)
 	     {
-	       change_current_linestyle(s,s.manifolds.unstable_color,&oldcol);
+	       change_current_linestyle(s,plot_color(s.manifolds.unstable_color),&oldcol);
 	       pr_evec(s,x,b,n,pr,bigpos,1);
 	       s.numerics.delta_t=fabs(s.numerics.delta_t);
 	       failure.keep(shoot(s,bp,x,b,1));
@@ -276,7 +276,7 @@ if(!s.numerics.par_fol)
 	   get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,bigneg,ierr);
 	   if(*ierr==0)
 	     {
-	       change_current_linestyle(s,s.manifolds.stable_color,&oldcol);
+	       change_current_linestyle(s,plot_color(s.manifolds.stable_color),&oldcol);
 	       pr_evec(s,x,b,n,pr,bigneg,-1);
 	       s.numerics.delta_t=-fabs(s.numerics.delta_t);
 	       failure.keep(shoot(s,bp,x,b,1));
@@ -301,7 +301,7 @@ int i,k,type;
   std::vector<double> x(s.model().node);
   if(s.manifolds.count<1)return;
   olddt=s.numerics.delta_t;
-  s.numerics.storflag=1;
+  s.numerics.storflag=true;
   for(k=0;k<s.manifolds.count;k++){
     for(i=0;i<s.model().node;i++)
       x[i]=s.manifolds.ic[k][i];
@@ -349,13 +349,13 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
     
     type=s.manifolds.type[k];
     if(type>0){
-       change_current_linestyle(s,s.manifolds.unstable_color,&oldcol);
+       change_current_linestyle(s,plot_color(s.manifolds.unstable_color),&oldcol);
        s.numerics.delta_t=fabs(s.numerics.delta_t);
        failure.keep(shoot_easy(s,x.data()));
        change_current_linestyle(s,oldcol,&dummy);
     }
     if(type<0){
-      change_current_linestyle(s,s.manifolds.stable_color,&oldcol);
+      change_current_linestyle(s,plot_color(s.manifolds.stable_color),&oldcol);
        s.numerics.delta_t=-fabs(s.numerics.delta_t);
        failure.keep(shoot_easy(s,x.data()));
        change_current_linestyle(s,oldcol,&dummy);
@@ -552,10 +552,10 @@ void newton(xpp::Session &s, double *x, double err, double eps, double big, doub
        if(ch=='/')
 	 {
 	   *ierr=1;
-	   s.numerics.endsing=1;
+	   s.numerics.endsing=true;
 	   return;
 	 }
-       if(ch=='p')s.numerics.pauser=1;
+       if(ch=='p')s.numerics.pauser=true;
      }
    }
  

@@ -24,7 +24,7 @@ options {
   continuation: { dsmin: 1e-5, dsmax: .02, parmin: -.2, parmax: .5, npr: 500, nmax: 2000 },
   diagram: { autoymax: .4, autoymin: -.5, autoxmin: -.2, autoxmax: .5 },
   plot: {
-    colormap: 5, xlo: -.6, xhi: 1.2, ylo: -.25, yhi: 1.2, xp: v, yp: w, dfgrid: 16, ncdraw: 1,
+    colormap: gray, xlo: -.6, xhi: 1.2, ylo: -.25, yhi: 1.2, xp: v, yp: w, dfgrid: 16, nullclines.draw: true,
     dfdraw: 2,
   },
 }

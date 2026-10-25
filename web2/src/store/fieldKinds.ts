@@ -235,6 +235,12 @@ export function fieldMessage(phrase: string): string {
   return phrase.charAt(0).toUpperCase() + phrase.slice(1);
 }
 
+/** a choice's label: its name, underscores as spaces and a capital first letter ("runge_kutta" is
+    "Runge kutta"); labels are never written apart from the names (docs/protocol.md "The numerics as data") */
+export function choiceLabel(name: string): string {
+  return fieldMessage(name.replace(/_/g, ' '));
+}
+
 /** a protocol kind as a spec: `integer`, `number`, `formula` (a number or
     %formula), `expression`, `file`, `text`, `name:N` (a name from
     `hello.lists[N]`; typed when that list is empty: a model with no

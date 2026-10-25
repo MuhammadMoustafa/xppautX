@@ -23,5 +23,6 @@ ts' = if vn>30 then (t+1)*tau else ts
 aux I = I
 # the .ode is a map: x' = f with the discrete method is x(t+1) = f
 options {
-  integration: { total_time: 500, bound: 1000000, method: discrete },
+  integration: { total_time: 500, state_limit: 1000000, method: discrete },
+  equilibria: { search_limit: 1000000 },
 }

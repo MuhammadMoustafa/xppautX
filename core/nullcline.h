@@ -1,4 +1,5 @@
 #pragma once
+#include "colormap.h"
 
 #include "xpplim.h"
 #include "setx.h"
@@ -15,13 +16,15 @@ struct Model; /* model.h */
 int get_nullcline_floats(Session &s, float **v, int *n, int who, int type);
 
 /* nullcline.cpp's settings, a Session's (session.h): a run's requested
-   nullclines and direction field (@ ncdraw=, dfdraw=), the nullclines'
+   nullclines (nullclines.draw, nullclines.file) and direction field (@ dfdraw=), the nullclines'
    colours, the direction field's grid and kind (df_flag), set while it
    is drawn (for the SVG classes), and what colours an orbit
    (@ colorvia=, colorlo=, colorhi=, colorize=) */
 struct NullclineSettings {
-  int nc_batch = 0, df_batch = 0;
-  int x_null_color = 2, y_null_color = 7;
+  bool draw = false;     /* compute them after a run */
+  std::string file;      /* and save them there; empty: not saved */
+  int df_batch = 0;
+  Color x_null_color = xppaut_color(2), y_null_color = xppaut_color(7);
   int df_grid = 16, df_flag = 0;
   int doing_dfield = 0;
   std::string color_via = "speed";

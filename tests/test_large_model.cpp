@@ -82,7 +82,7 @@ int main(void)
     const std::size_t indexed=m.names.size();
 
     xpp::get_ic(s, 2, s.data_store.current.data());
-    s.numerics.storflag = 1;
+    s.numerics.storflag=true;
     CHECK(xpp::usual_integrate_stuff(s, s.data_store.current.data()) == 0);
     CHECK(m.names.size()==indexed);
     const int rows = s.data_store.rows;

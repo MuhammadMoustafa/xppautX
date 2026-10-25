@@ -11,5 +11,6 @@ x20' = 1+20*grad+ar*h(x9-x10)
 an1 = bend*sin(x1)
 an[j] = bend*sin(x[j])+an[j-1] for j in 2..20
 options {
-  integration: { bound: 1000, total_time: 50 },
+  integration: { state_limit: 1000, total_time: 50 },
+  equilibria: { search_limit: 1000 },
 }

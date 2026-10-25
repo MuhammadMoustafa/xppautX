@@ -641,7 +641,7 @@ void finish_model(xpp::Session &s)
       set_bc(m,i,"0");
     }
   }
-  s.numerics.bvp_flag=1;
+  s.numerics.bvp_flag=true;
 
   if(m.node!=m.neq+m.fix_var-m.nmarkov)
     {

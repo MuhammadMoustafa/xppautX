@@ -33,7 +33,7 @@ For DoPri5 and DoPri8(3), Dt sets only the requested output times. The solver
 keeps its adaptive step, FSAL derivative and controller between outputs and
 samples its continuous polynomial at those times. DtMax (`max_step`) caps
 its internal step, independently of Dt. Relative and absolute tolerances control
-local error approximately as `abs_tolerance + tolerance*abs(state)`; neither is
+local error approximately as `absolute_tolerance + relative_tolerance*abs(state)`; neither is
 a guarantee on accumulated trajectory or interpolated output error. Results
 therefore intentionally differ from XPPAUT's output-limited DoPri runs.
 
@@ -60,7 +60,7 @@ will prompt you for the grid size for computing nullclines.
 
 ### s(I)ng pt ctrl
 
-This prompts you for errors and epsilons for eigenvalues and equilibria calculations as well as the maximum iterates. If you have global flags, then you will be asked for `smin` as well.
+This prompts you for errors and epsilons for eigenvalues and equilibria calculations (`newton_tolerance`, `jacobian_step`) as well as the maximum iterates (`max_iterations`) and the search limit (`search_limit`). If you have global flags, then you will be asked for `smin` as well.
 
 ### n(O)ut
 
@@ -68,7 +68,7 @@ This sets the number of integration steps to perform between output to storage. 
 
 ### (B)ounds
 
-This sets a global bound on the integrator. If any variable exceeds this value in magnitude, a message appears and the integration stops.
+This sets the state limit (`state_limit`, XPPAUT's bound): if any variable exceeds this value in magnitude, a message appears and the integration stops, unless `stop_at_limit` is `false` (a setting of the values panel and of a model's options). The equilibria's search has its own limit, `search_limit` (asked with Sing pt ctrl), which a `.ode`'s `bound` also sets.
 
 ### (M)ethod
 

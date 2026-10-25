@@ -1351,9 +1351,9 @@ private:
     auto &s=session_;
     auto &num=s.numerics;
     section_=false;
-    if(step.sections&&num.poincare_map&&num.poincare_variable>s.model().neq)
+    if(step.sections&&num.poincare_map!=PoincareMap::none&&num.poincare_variable>s.model().neq)
       return failed("A Poincare section requires a model variable, not an added data column");
-    if(step.sections&&num.poincare_map==2&&num.poincare_variable>s.model().node)
+    if(step.sections&&num.poincare_map==PoincareMap::max&&num.poincare_variable>s.model().node)
       return failed("Poincare extrema require a state variable with a right-hand side");
     const int n=step.neq;
     if(static_cast<std::size_t>(n)!=endpoint_.size())return failed("Solver state dimension changed");
@@ -1373,10 +1373,10 @@ private:
         const double end=s.delay.flag?step.tout:internal_time_+direction*horizon_steps*fabs(num.max_step);
         int status;
         if(info().traits.eighth_order)
-          status=dop853(s,n,dprhs,internal_time_,endpoint_.data(),end,&num.tolerance,&num.abs_tolerance,
+          status=dop853(s,n,dprhs,internal_time_,endpoint_.data(),end,&num.relative_tolerance,&num.absolute_tolerance,
                         0,nullptr,2,0,0,0,0,0,num.max_step,0,DOPRI_RUN_ATTEMPTS,0,stiffness_interval,n,nullptr,0,work_.data(),run_);
         else
-          status=dopri5(s,n,dprhs,internal_time_,endpoint_.data(),end,&num.tolerance,&num.abs_tolerance,
+          status=dopri5(s,n,dprhs,internal_time_,endpoint_.data(),end,&num.relative_tolerance,&num.absolute_tolerance,
                         0,nullptr,2,0,0,0,0,0,num.max_step,0,DOPRI_RUN_ATTEMPTS,0,stiffness_interval,n,nullptr,0,work_.data(),run_);
         if(status<0){
           switch(status){
@@ -1432,8 +1432,8 @@ private:
   {
     for(int i=0;i<n;++i){
       const auto &s=session_;
-      const bool bounded=!(s.integrator.range_flag||s.integrator.suppress_bounds);
-      if(!std::isfinite(y[i])||(bounded&&fabs(y[i])>s.numerics.bound)){
+      const bool bounded=s.numerics.stop_at_limit&&!(s.integrator.range_flag||s.integrator.suppress_bounds);
+      if(!std::isfinite(y[i])||(bounded&&fabs(y[i])>s.numerics.state_limit)){
         const auto &name=s.model().uvar_names[i];
         return failed(xpp::format("{} is not finite or exceeds bound at t = {}",name,time),model_place(s.model(),name));
       }

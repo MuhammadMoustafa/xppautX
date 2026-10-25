@@ -70,7 +70,7 @@ struct CvodeRun::Memory {
     cvode=CVodeMalloc(n, cvf, t, y, BDF, NEWTON, SS, rtol, atol,
                       &s, FALSE, run.iopt.data(), run.ropt.data(), NULL);
     const bool exact=s.numerics.jacobian==JACOBIAN_EXACT;
-    if(s.numerics.cv_bandflag==1)
+    if(s.numerics.cv_bandflag)
       CVBand(cvode,s.numerics.cv_bandupper,s.numerics.cv_bandlower,exact?cv_band_jacobian:nullptr,exact?&s:nullptr);
     else
       CVDense(cvode,exact?cv_dense_jacobian:nullptr,exact?&s:nullptr);
@@ -123,8 +123,8 @@ std::string cvode_error_text(const xpp::Session &s, const CvodeRun &run, int kfl
     break;
   case -3: text = "Too much work -- try smaller DT";
     break;
-  case -4: text = xpp::format("Tolerance too low-- try tolerance={} abs_tolerance={}",
-	s.numerics.tolerance*run.ropt[ROPT_TOLSF], s.numerics.abs_tolerance*run.ropt[ROPT_TOLSF]);
+  case -4: text = xpp::format("Tolerance too low-- try relative_tolerance={} absolute_tolerance={}",
+	s.numerics.relative_tolerance*run.ropt[ROPT_TOLSF], s.numerics.absolute_tolerance*run.ropt[ROPT_TOLSF]);
     break;
   case -5: text = "Error test failure too frequent ??";
     break;

@@ -24,7 +24,7 @@ namespace xpp::setx { class Block; }
 namespace xpp::snapx {
 
 inline constexpr std::string_view extension = ".snapx";
-inline constexpr int format_version = 2; /* Reject incompatible session manifests (2: the members in the settings syntax, W285). */
+inline constexpr int format_version = 4; /* Reject incompatible session manifests (4: W308 question 9, the one format number; W484's option names, true and false for a yes or no). */
 
 /* Account for expanded objects, not their compressed text. No multiplication
    overflows and a refused claim leaves the running byte estimate unchanged. */

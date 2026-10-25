@@ -18,5 +18,6 @@ ts' = 0
 event 1 v-30, v = c, u = u+d, n = n+1, ts = t
 aux I = I
 options {
-  integration: { total_time: 160, dt: 0.025, store_every: 10, bound: 1000000 },
+  integration: { total_time: 160, dt: 0.025, store_every: 10, state_limit: 1000000 },
+  equilibria: { search_limit: 1000000 },
 }

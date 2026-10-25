@@ -5,7 +5,7 @@ import type {CommandCategory, CommandKind, CommandRow, LayerWindow, WindowLayer}
 
 /** the protocol this page speaks (core/ui_json.h JSON_UI_PROTOCOL): core and
     page ship together, so a hello with another is a shown error (session.ts) */
-export const PROTOCOL = 3;
+export const PROTOCOL = 4;
 
 /** a main-window menu's name (hello.menu_names, by state's menu number) */
 export type MenuName = 'main' | 'file' | 'num';
@@ -685,15 +685,17 @@ export type XppEvent =
   | {ev: 'numerics'; fields: NumericsField[]};
 
 /** one field of the `numerics` event: `key` names it in `set` kind `num`;
-    `value` the choice's number when `choices` (their names: the method's,
-    the Jacobian's) are given, `unavailable` why the model cannot have a
-    choice, by its name (W260: no exact Jacobian, known once exact was chosen); `unused` when the current
+    `value` the choice's name when `choices` (their names: the method's,
+    the Jacobian's) are given, a boolean when `boolean`, else a number;
+    `unavailable` why the model cannot have a choice, by its name (W260: no exact
+    Jacobian, known once exact was chosen); `unused` when the current
     method does not use it */
 export interface NumericsField {
   key: string;
   label: string;
-  value: number | null;
+  value: number | string | boolean | null;
   integer?: boolean;
+  boolean?: boolean;
   unused?: boolean;
   choices?: string[];
   unavailable?: Record<string, string>;

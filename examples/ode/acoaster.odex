@@ -37,7 +37,8 @@ set Uranus { g: 10.67 }
 set Neptune { g: 14.07 }
 set Pluto { g: 0.42 }
 options {
-  integration: { bound: 100000, dt: .01, store_every: 5, total_time: 50 },
+  integration: { state_limit: 100000, dt: .01, store_every: 5, total_time: 50 },
+  equilibria: { search_limit: 100000 },
   plot: { xp: X, yp: Z, xlo: -1, xhi: 1, ylo: -1, yhi: 1 },
 }
 

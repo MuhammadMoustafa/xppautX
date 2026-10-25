@@ -2,6 +2,7 @@
 
 #include <array>
 #include <vector>
+#include "colormap.h"
 #include "xpp_error.h"
 #include "xpplim.h"
 
@@ -40,7 +41,7 @@ struct ManifoldShots {
   /* each one's kind: stable or unstable (pr_evec's type) */
   std::array<int, 8> type{};
   int ic_flag = 0, count = 0;
-  int stable_color = 8, unstable_color = 5;
+  Color stable_color = xppaut_color(8), unstable_color = xppaut_color(5);
 };
 
 } // namespace xpp

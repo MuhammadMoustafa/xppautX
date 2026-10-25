@@ -21,7 +21,7 @@ boundary u-u0
 boundary up'
 options {
   integration: { total_time: 5.001, dt: .005 },
-  equilibria: { singpt_jacobian_epsilon: 1e-5, singpt_newton_tolerance: 1e-5 },
+  equilibria: { jacobian_step: 1e-5, newton_tolerance: 1e-5 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15
