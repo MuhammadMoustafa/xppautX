@@ -68,7 +68,7 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings);
    search_array hands it) kept in m's array initial values */
 int extract_ic_data(Model &m, char *big);
 /* a global flag's event stops the integration (flags.cpp) */
-void send_halt(Session &s);
+void send_halt(Session &s, int flag);
 
 /* The integrator's driver works on the Session s the command (or the run)
    that started it passes down (W47d4). */
@@ -152,7 +152,7 @@ std::vector<ArrayInitialValue> array_initial_values(const Model &m);
 struct RangeVars {
   std::string item, item2;
   bool write_files = false; // Opt in: reset runs otherwise keep no separate files.
-  int steps, steps2;
+  int steps = 20, steps2 = 10; /* the option's default; a double range's second steps, 10 as XPPAUT's dialog fell back to */
   bool reset, oldic; /* each run starts from the initial data / from the same initial data */
   int index, index2, cycle, type, type2, movie;
   double plow, phigh, plow2, phigh2;
@@ -190,7 +190,7 @@ struct FixedPointGuess {
 /* Sing pts' Range settings */
 struct EquilibriumRange {
   std::string item;
-  int steps = 0, shoot = 0, col = 0, movie = 0, mc = 0;
+  int steps = 10, shoot = 0, col = 0, movie = 0, mc = 0; /* Steps starts at 10, what the dialog's empty value fell back to */
   double plow = 0, phigh = 0;
 };
 
@@ -234,8 +234,14 @@ struct IntegratorState {
   double last_time = 0;
   /* the adjoint is computed over a range (adj2.cpp) */
   int adj_range = 0;
-  /* a global flag's event asked the integration to stop (send_halt) */
+  /* a global flag's event asked the integration to stop (send_halt): the
+     flag that did, or -1 when the stop came from elsewhere (a cancel) */
   int stop_flag = 0;
+  int halt_flag = -1;
+  /* why the last integrate() ended before its end without failing (a state
+     at state_limit inside a sweep or a drawn flow, an event's arret, a
+     section crossing that stops the run); empty when it ran to its end */
+  std::string stop_note;
   /* the step Rosenbrock's last advance ended with, its next one's first
      (odesol2.cpp rosen) */
   double rosen_htry = 0;

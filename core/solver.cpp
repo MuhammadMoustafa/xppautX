@@ -314,6 +314,19 @@ Result<> check_step_limits(const Session &s, const SolverInfo &info, double dt, 
   return {};
 }
 
+Result<> check_store_from(const Session &s, double start, double dt, double length)
+{
+  if(!s.numerics.storflag)return {};
+  const double end=start+(dt<0?-length:length);
+  if(stored_from(s.numerics.store_from,end,dt)||std::isnan(s.numerics.store_from))return {};
+  /* a model whose events write rows (out_put) stores something past store_from or not */
+  for(const Model::GlobalFlag &flag:s.model().flags)
+    for(int e=0;e<flag.nevents;++e)
+      if(flag.type[e]==2)return {};
+  return fail("store_from",xpp::format("store_from is beyond the end of the run: it starts at t = {} and ends at t = {}, so no row would be stored ({})",
+                                      start,end,named_settings(s,{"store_from"})),settings_place(s.model(),{"store_from"}));
+}
+
 const SolverInfo &solver_info(int m)
 {
   assert(m>=0 && m<method::COUNT);

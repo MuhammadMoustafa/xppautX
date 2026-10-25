@@ -210,48 +210,30 @@ void init_range(xpp::Session &s)
 
 int set_up_eq_range(xpp::Session &s)
 {
-static const char *const n[]={"*2Range over","Steps","Start","End",
-		     "Shoot (Y/N)",
-		  "Stability col","Movie (Y/N)","Monte Carlo (Y/N)"};
- std::array<std::string, 8> values;
- int status,i;
- static const char *const yn[]={"N","Y"};
- values[0] = s.integrator.eq_range.item;
- values[1] = xpp::format("{}", s.integrator.eq_range.steps);
- values[2] = xpp::format("{:.16g}", s.integrator.eq_range.plow);
- values[3] = xpp::format("{:.16g}", s.integrator.eq_range.phigh);
- values[4] = yn[s.integrator.eq_range.shoot];
- values[5] = xpp::format("{}", s.integrator.eq_range.col);
- values[6] = yn[s.integrator.eq_range.movie];
-values[7] = yn[s.integrator.eq_range.mc];
-
- static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
-                           XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(8,1,"Range Equilibria",n,values,kinds);
- if(status!=0){
-   s.integrator.eq_range.item=values[0];
-   i=find_user_name(s.model(),PARAM,s.integrator.eq_range.item);
-   if(i<0){
-        command_error("range",xpp::format("No such parameter {}",s.integrator.eq_range.item));
-       return(0);
-     }
-   
-   s.integrator.eq_range.steps=atoi(values[1].c_str());
-   if(s.integrator.eq_range.steps<=0)s.integrator.eq_range.steps=10;
-   s.integrator.eq_range.plow=atof(values[2].c_str());
-   s.integrator.eq_range.phigh=atof(values[3].c_str());
-   if(values[4][0]=='Y'||values[4][0]=='y')s.integrator.eq_range.shoot=1;
-   else s.integrator.eq_range.shoot=0;
-   if(values[6][0]=='Y'||values[6][0]=='y')s.integrator.eq_range.movie=1;
-   else s.integrator.eq_range.movie=0;
-    if(values[7][0]=='Y'||values[7][0]=='y')s.integrator.eq_range.mc=1;
-   else s.integrator.eq_range.mc=0;
-   s.integrator.eq_range.col=atoi(values[5].c_str());
-   if(s.integrator.eq_range.col<=1||s.integrator.eq_range.col>(s.model().neq+1))s.integrator.eq_range.col=-1;
- 
- return(1);
+ std::array<xpp::FormField,8> fields={
+   xpp::FormField{.name="*2Range over",.kind=XPP_FIELD_NAME_IN(2),.value=s.integrator.eq_range.item},
+   xpp::FormField{.name="Steps",.kind=XPP_FIELD_INTEGER,.value=xpp::format("{}",s.integrator.eq_range.steps),.min=1},
+   xpp::FormField::real_number("Start",s.integrator.eq_range.plow),
+   xpp::FormField::real_number("End",s.integrator.eq_range.phigh),
+   xpp::FormField::boolean("Shoot",s.integrator.eq_range.shoot),
+   xpp::FormField{.name="Stability col",.kind=XPP_FIELD_INTEGER,.value=xpp::format("{}",s.integrator.eq_range.col)},
+   xpp::FormField::boolean("Movie",s.integrator.eq_range.movie),
+   xpp::FormField::boolean("Monte Carlo",s.integrator.eq_range.mc)};
+ if(!xpp::ask_form(s,"Range Equilibria",fields))return 0;
+ s.integrator.eq_range.item=fields[0].value;
+ if(find_user_name(s.model(),PARAM,s.integrator.eq_range.item)<0){
+   command_error("range",xpp::format("No such parameter {}",s.integrator.eq_range.item));
+   return 0;
  }
- return(0);
+ s.integrator.eq_range.steps=fields[1].whole;
+ s.integrator.eq_range.plow=fields[2].real;
+ s.integrator.eq_range.phigh=fields[3].real;
+ s.integrator.eq_range.shoot=fields[4].flag;
+ s.integrator.eq_range.col=fields[5].whole;
+ if(s.integrator.eq_range.col<=1||s.integrator.eq_range.col>(s.model().neq+1))s.integrator.eq_range.col=-1;
+ s.integrator.eq_range.movie=fields[6].flag;
+ s.integrator.eq_range.mc=fields[7].flag;
+ return 1;
 }
 
 namespace {
@@ -288,118 +270,75 @@ int range_item2(xpp::Session &s)
 
 int set_up_range(xpp::Session &s)
 {
- static const char *const n[]={"*3Range over","Steps","Start","End",
-		     "Reset storage (Y/N)",
-		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)","Write each run to its own file (Y/N)"};
- std::array<std::string, std::size(n)> values;
- int status;
- static const char *const yn[]={"N","Y"};
  if(!program.interactive){ /* no dialog: the range the options set */
    if(range_item(s)==0)return 0;
    s.integrator.range_flag=1;
    return 1;
  }
-
- values[0] = s.integrator.range.item;
- values[1] = xpp::format("{}", s.integrator.range.steps);
- values[2] = xpp::format("{:.16g}", s.integrator.range.plow);
- values[3] = xpp::format("{:.16g}", s.integrator.range.phigh);
- values[4] = yn[s.integrator.range.reset];
- values[5] = yn[s.integrator.range.oldic];
- values[6] = yn[s.integrator.range.cycle];
- values[7] = yn[s.integrator.range.movie];
- values[8] = yn[s.integrator.range.write_files];
- 
- static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(static_cast<int>(values.size()),1,"Range Integrate",n,values,kinds);
- if(status!=0){
-   s.integrator.range.item=values[0];
-   if(range_item(s)==0)return 0;
-   s.integrator.range.steps=atoi(values[1].c_str());
-   if(s.integrator.range.steps<=0)s.integrator.range.steps=10;
-   s.integrator.range.plow=atof(values[2].c_str());
-   s.integrator.range.phigh=atof(values[3].c_str());
-   if(values[4][0]=='Y'||values[4][0]=='y')s.integrator.range.reset=1;
-   else s.integrator.range.reset=0;
-   if(values[5][0]=='Y'||values[5][0]=='y')s.integrator.range.oldic=1;
-   else s.integrator.range.oldic=0;
-    if(values[6][0]=='Y'||values[6][0]=='y')s.integrator.range.cycle=1;
-   else s.integrator.range.cycle=0;
-    if(values[7][0]=='Y'||values[7][0]=='y')s.integrator.range.movie=1;
-   else s.integrator.range.movie=0;
-   s.integrator.range.write_files = values[8][0]=='Y'||values[8][0]=='y';
+ std::array<xpp::FormField,9> fields={
+   xpp::FormField{.name="*3Range over",.value=s.integrator.range.item},
+   xpp::FormField{.name="Steps",.kind=XPP_FIELD_INTEGER,.value=xpp::format("{}",s.integrator.range.steps),.min=1},
+   xpp::FormField::real_number("Start",s.integrator.range.plow),
+   xpp::FormField::real_number("End",s.integrator.range.phigh),
+   xpp::FormField::boolean("Reset storage",s.integrator.range.reset),
+   xpp::FormField::boolean("Use old ic's",s.integrator.range.oldic),
+   xpp::FormField::boolean("Cycle color",s.integrator.range.cycle),
+   xpp::FormField::boolean("Movie",s.integrator.range.movie),
+   xpp::FormField::boolean("Write each run to its own file",s.integrator.range.write_files)};
+ if(!xpp::ask_form(s,"Range Integrate",fields))return 0;
+ s.integrator.range.item=fields[0].value;
+ if(range_item(s)==0)return 0;
+ s.integrator.range.steps=fields[1].whole;
+ s.integrator.range.plow=fields[2].real;
+ s.integrator.range.phigh=fields[3].real;
+ s.integrator.range.reset=fields[4].flag;
+ s.integrator.range.oldic=fields[5].flag;
+ s.integrator.range.cycle=fields[6].flag;
+ s.integrator.range.movie=fields[7].flag;
+ s.integrator.range.write_files=fields[8].flag;
  s.integrator.range_flag=1;
- return(1);
- }
- return(0);
+ return 1;
 }
 
 int set_up_range2(xpp::Session &s)
 {
- static const char *const n[]={"*3Vary1","Start1","End1",
-                   "*3Vary2","Start2","End2","Steps",
-		     "Reset storage (Y/N)",
-		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)",
-                      "Crv(1) Array(2)","Steps2","Write each run to its own file (Y/N)"};
- std::array<std::string, std::size(n)> values;
- int status;
- static const char *const yn[]={"N","Y"};
  if(!program.interactive){
    return(range_item(s));
  }
- values[0] = s.integrator.range.item;
-  values[1] = xpp::format("{:.16g}", s.integrator.range.plow);
- values[2] = xpp::format("{:.16g}", s.integrator.range.phigh);
- values[3] = s.integrator.range.item2;
-  values[4] = xpp::format("{:.16g}", s.integrator.range.plow2);
- values[5] = xpp::format("{:.16g}", s.integrator.range.phigh2);
-values[6] = xpp::format("{}", s.integrator.range.steps);
- values[7] = yn[s.integrator.range.reset];
- values[8] = yn[s.integrator.range.oldic];
- values[9] = yn[s.integrator.range.cycle];
- values[10] = yn[s.integrator.range.movie];
- if(s.integrator.range.rtype==2)
-  values[11] = "2";
- else
-   values[11] = "1";
- values[12] = xpp::format("{}", s.integrator.range.steps2);
- values[13] = yn[s.integrator.range.write_files];
- static const int kinds[]={XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
-                           XPP_FIELD_NAME_IN(3),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
-                           XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
-                           XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
- status=do_string_box_of(7,2,"Double Range Integrate",n,values,kinds);
- if(status!=0){
-   s.integrator.range.item=values[0];
-   
-   if(range_item(s)==0)return 0;
-    s.integrator.range.item2=values[3];
-   
-   if(range_item2(s)==0)return 0;
-   s.integrator.range.steps=atoi(values[6].c_str());
-      s.integrator.range.steps2=atoi(values[12].c_str());
-   if(s.integrator.range.steps<=0)s.integrator.range.steps=10;
-    if(s.integrator.range.steps2<=0)s.integrator.range.steps2=10;
-  
-   s.integrator.range.plow=atof(values[1].c_str());
-   s.integrator.range.phigh=atof(values[2].c_str());
-    s.integrator.range.plow2=atof(values[4].c_str());
-   s.integrator.range.phigh2=atof(values[5].c_str());
-   if(values[7][0]=='Y'||values[7][0]=='y')s.integrator.range.reset=1;
-   else s.integrator.range.reset=0;
-   if(values[8][0]=='Y'||values[8][0]=='y')s.integrator.range.oldic=1;
-   else s.integrator.range.oldic=0;
-    if(values[9][0]=='Y'||values[9][0]=='y')s.integrator.range.cycle=1;
-   else s.integrator.range.cycle=0;
-    if(values[10][0]=='Y'||values[10][0]=='y')s.integrator.range.movie=1;
-   else s.integrator.range.movie=0;
-   s.integrator.range.rtype=atoi(values[11].c_str());
-   s.integrator.range.write_files = values[13][0]=='Y'||values[13][0]=='y';
-
+ std::array<xpp::FormField,14> fields={
+   xpp::FormField{.name="*3Vary1",.kind=XPP_FIELD_NAME_IN(3),.value=s.integrator.range.item},
+   xpp::FormField::real_number("Start1",s.integrator.range.plow),
+   xpp::FormField::real_number("End1",s.integrator.range.phigh),
+   xpp::FormField{.name="*3Vary2",.kind=XPP_FIELD_NAME_IN(3),.value=s.integrator.range.item2},
+   xpp::FormField::real_number("Start2",s.integrator.range.plow2),
+   xpp::FormField::real_number("End2",s.integrator.range.phigh2),
+   xpp::FormField{.name="Steps",.kind=XPP_FIELD_INTEGER,.value=xpp::format("{}",s.integrator.range.steps),.min=1},
+   xpp::FormField::boolean("Reset storage",s.integrator.range.reset),
+   xpp::FormField::boolean("Use old ic's",s.integrator.range.oldic),
+   xpp::FormField::boolean("Cycle color",s.integrator.range.cycle),
+   xpp::FormField::boolean("Movie",s.integrator.range.movie),
+   xpp::FormField::choice("Vary both",{"together","independently"},s.integrator.range.rtype==2?1:0),
+   xpp::FormField{.name="Steps2",.kind=XPP_FIELD_INTEGER,.value=xpp::format("{}",s.integrator.range.steps2),.min=1},
+   xpp::FormField::boolean("Write each run to its own file",s.integrator.range.write_files)};
+ if(!xpp::ask_form(s,"Double Range Integrate",fields))return 0;
+ s.integrator.range.item=fields[0].value;
+ if(range_item(s)==0)return 0;
+ s.integrator.range.item2=fields[3].value;
+ if(range_item2(s)==0)return 0;
+ s.integrator.range.plow=fields[1].real;
+ s.integrator.range.phigh=fields[2].real;
+ s.integrator.range.plow2=fields[4].real;
+ s.integrator.range.phigh2=fields[5].real;
+ s.integrator.range.steps=fields[6].whole;
+ s.integrator.range.reset=fields[7].flag;
+ s.integrator.range.oldic=fields[8].flag;
+ s.integrator.range.cycle=fields[9].flag;
+ s.integrator.range.movie=fields[10].flag;
+ s.integrator.range.rtype=fields[11].whole+1;
+ s.integrator.range.steps2=fields[12].whole;
+ s.integrator.range.write_files=fields[13].flag;
  s.integrator.range_flag=1;
- return(1);
- }
- return(0);
+ return 1;
 }
 
 void init_monte_carlo(xpp::Session &s)
@@ -567,6 +506,8 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
  int mc;
  float stabinfo;
  xpp::FirstError failure;
+ int without_root=0; /* the values the search found no equilibrium at */
+ std::string first_without;
 
  wipe_rep(s.browser);
  data_back(s);
@@ -595,6 +536,7 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
      if(s.integrator.eq_range.movie)
        clear_draw_window(s);
       temp=parlo+dpar*static_cast<double>(i);
+      bool found=true;
       set_val(s,s.integrator.eq_range.item,temp);
       s.numerics.par_fol=true;
       {
@@ -606,18 +548,25 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
 	  failure.keep(do_monte_carlo_search(s,0,0,1));
         }
         else {
-        if(s.delay.flag)
-	  failure.keep(do_delay_sing(s,x,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,
-		        s.model().node,&ierr,&stabinfo));
-        else failure.keep(do_sing(s,x,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,
-		     s.model().node,&ierr,&stabinfo));
+        const xpp::Result<> search=s.delay.flag
+          ? do_delay_sing(s,x,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,
+		          s.model().node,&ierr,&stabinfo)
+          : do_sing(s,x,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,
+		    s.model().node,&ierr,&stabinfo);
+        if(!search){
+          /* a value with no equilibrium has no row; the sweep goes on */
+          const std::string note=xpp::format("{} = {}: no equilibrium found ({})",s.integrator.eq_range.item,xpp::number(temp),search.error().what);
+          xpp::log(XPP_LOG_WARN,"Range Equilibria step {} of {}: {}\n",i+1,npar+1,note);
+          if(without_root++==0)first_without=note;
+          found=false;
+        }
         }
         if(s.integrator.eq_range.movie){
 	  draw_label(s,s.plot_windows.draw_win);
 	  take_frame(); /* out of film, the sweep goes on without frames */
         }
       }
-      if(mc==0){
+      if(mc==0&&found){
       if(s.data_store.rows==s.data_store.max_rows){
         const auto grown=stor_full(s);
         if(!grown){failure.keep(grown);break;}
@@ -633,6 +582,7 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
     }
     refresh_browser(s,s.data_store.rows);
  s.numerics.par_fol=false;
+ if(without_root>0)bottom_msg(0,xpp::format("{} of {} values have no equilibrium; the first: {}",without_root,npar+1,first_without));
  return failure.result();
 }
 }
@@ -688,6 +638,15 @@ void seed_this_run(xpp::Session &s)
   s.numerics.last_seed=seed;
   xpp::log(XPP_LOG_INFO,"Go: seed {}\n",seed);
   s.numerics.rand_seed=xpp::next_seed(seed);
+}
+
+/* A run that ended early without failing (an event's arret, a section that
+   stops the run) says why, once: its note is shown and cleared. */
+void show_stop_note(xpp::Session &s)
+{
+  if(s.integrator.stop_note.empty())return;
+  bottom_msg(0,s.integrator.stop_note);
+  s.integrator.stop_note.clear();
 }
 
 /* Range's sweep (flag 0 one parameter, 1 two, 2 AUTO's range over its
@@ -748,6 +707,9 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
    auto_get_info(s, &nit,parn);
    nit2=0;
  }
+ const int runs=(nit+1)*(nit2+1);
+ int early=0; /* the runs that ended before their end without failing */
+ std::string first_early; /* the first of them, with its parameter value */
  for(j=0;j<=nit2;j++){
  for(i=0;i<=nit;i++)
   {
@@ -809,8 +771,12 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
      bob=xpp::format("{:.230}={:.16g}",parn,temp);
      show_progress(bob);
    }
+   const int run_number=j*(nit+1)+i+1;
+   const std::string where=flag==2?xpp::format("{} = {}",parn,xpp::number(temp))
+     :s.integrator.range.rtype>0?xpp::format("{} = {}, {} = {}",s.integrator.range.item,xpp::number(p),s.integrator.range.item2,xpp::number(p2))
+     :xpp::format("{} = {}",s.integrator.range.item,xpp::number(p));
    do_start_flags(s,x,&s.data_store.current_time);
-if(fabs(s.data_store.current_time)>=s.numerics.store_from&&s.numerics.storflag&&s.numerics.poincare_map==PoincareMap::none)
+if(stored_from(s.numerics.store_from,s.data_store.current_time,s.numerics.delta_t)&&s.numerics.storflag&&s.numerics.poincare_map==PoincareMap::none)
   {
     s.data_store.col[0][s.data_store.rows]=static_cast<float>(s.data_store.current_time);
     extra(s,x,s.data_store.current_time,s.model().node,s.model().neq);
@@ -820,10 +786,20 @@ if(fabs(s.data_store.current_time)>=s.numerics.store_from&&s.numerics.storflag&&
 
  const xpp::Result<int> run=integrate(s,&t,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start);
  if(!run||*run==1||xpp::job::cancelled()){
-   if(!run)failure=run.error();
+   if(!run){
+     failure=run.error();
+     failure->what=xpp::format("Range stopped at {} (run {} of {}): {}",where,run_number,runs,failure->what);
+     failure->action.reset(); /* Continue goes on from a single run, not a sweep's */
+   }
    ierr=-1;
    complete=false;
    break;
+ }
+ if(!s.integrator.stop_note.empty()){
+   const std::string note=xpp::format("{}: {}",where,s.integrator.stop_note);
+   xpp::log(XPP_LOG_WARN,"Range run {} of {} ended early at {}\n",run_number,runs,note);
+   if(early++==0)first_early=note;
+   s.integrator.stop_note.clear();
  }
  if(s.stochastic.flag)
    append_stoch(s,i,s.data_store.rows);
@@ -860,7 +836,9 @@ if(fabs(s.data_store.current_time)>=s.numerics.store_from&&s.numerics.storflag&&
      s.data_store.rows=0;
    }
   }
+  if(!complete)break;
  }
+ if(early>0)bottom_msg(0,xpp::format("{} of {} runs ended early; the first at {}",early,runs,first_early));
  if(s.array_plot.range==1){
    s.array_plot.range=0;
    close_aplot_files(s, complete && !failure && ierr == 0 && !xpp::job::cancelled());
@@ -1031,8 +1009,7 @@ void do_init_data(xpp::Session &s, int com)
 
   switch(com){
   case M_IR: /* do range   */
-    if(do_range(s,x,0)!=0&&!program.interactive)
-      xpp::log(XPP_LOG_WARN, " Errors occured in range integration \n");
+    do_range(s,x,0);
     return;
   case M_I2:
     do_range(s,x,1);
@@ -1213,7 +1190,7 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
 
   seed_this_run(s);
   do_start_flags(s,x,&s.data_store.current_time);
-   if(fabs(s.data_store.current_time)>=s.numerics.store_from&&s.numerics.storflag&&s.numerics.poincare_map==PoincareMap::none)
+   if(stored_from(s.numerics.store_from,s.data_store.current_time,s.numerics.delta_t)&&s.numerics.storflag&&s.numerics.poincare_map==PoincareMap::none)
     {
       s.data_store.col[0][0]=static_cast<float>(s.data_store.current_time);
       extra(s,x,s.data_store.current_time,s.model().node,s.model().neq);
@@ -1236,6 +1213,7 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
   do_batch_nclines(s);
   do_batch_dfield(s);
   refresh_browser(s,s.data_store.rows);
+  show_stop_note(s);
   if(program.interactive){
  auto_freeze_it(s);
   redraw_ics();
@@ -1564,6 +1542,7 @@ Result<> continue_to(Session &s, double until)
   do_batch_nclines(s);
   do_batch_dfield(s);
   refresh_browser(s,s.data_store.rows);
+  show_stop_note(s);
   return r.transform([](int){});
 }
 
@@ -1624,13 +1603,31 @@ xpp::Error stopped(xpp::Error e, double end, double dt)
 }
 }
 
+namespace {
+/* what a global event that set arret says: the time, the condition and its line */
+std::string halt_note(const xpp::Session &s, int flag, double t)
+{
+  const xpp::Place where=xpp::model_place(s.model(),odex::Statement::Kind::Event,flag);
+  std::string text=xpp::format("Stopped at t = {}: the global event \"{}\" set arret",t,s.model().flags[flag].cond);
+  if(where.line>0)text+=xpp::format(" (model line {})",where.line);
+  return text;
+}
+
+std::string section_note(double t)
+{
+  return xpp::format("Stopped at the section crossing t = {} (poincare_stop = true)",t);
+}
+}
+
 xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, double dt, int count, int store_every, int *start)
 {
   if(!s.integrator.steady)s.integrator.steady_result.reset();
+  s.integrator.stop_note.clear();
   xpp::Computation computing; /* what Escape stops (xpp_job.h) */
   const DaeRun dae_run(s); /* the run follows one branch of a DAE's solutions */
   xpp::Solver &solver=*s.integrator.solver;
   if(auto limits=xpp::check_step_limits(s,solver.info(),dt,tend);!limits)return std::unexpected(limits.error());
+  if(auto from=xpp::check_store_from(s,*t,dt,tend);!from)return std::unexpected(from.error());
 
  /* an added column (add_stor_col) plotted live has index above neq and no live value: it reads 0 */
  const std::size_t neq_size=static_cast<std::size_t>(s.model().neq);
@@ -1663,7 +1660,6 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
  int cwidth=0;
  /* new poincare map stuff */
 
-  int i_nan=0; /* NaN */
 mswtch(s,s.solver_work.xpv.x,x);
 
 if(program.interactive) cwidth=get_command_width();
@@ -1702,6 +1698,17 @@ if(program.interactive) cwidth=get_command_width();
  /* xppautX: the rows a cancel before the first step finds (xpp_job.h) */
  xpp::job::report_rows(s.data_store.rows, s.data_store.rows > 0 ? s.data_store.col[0][s.data_store.rows-1] : *t);
 
+ /* the variables' last two values up to ieqn, then the rest, at DEBUG: what
+    --debug shows about a state that stopped the run */
+ const auto trace_states=[&](int ieqn){
+   xpp::log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
+   int k=1;
+   for(;k<=ieqn;k++)
+     xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",s.model().uvar_names[k-1],xvold[k],xv[k]);
+   for(;k<=s.model().neq;k++)
+     xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",s.model().uvar_names[k-1],xv[k],static_cast<float>(x[k-1]));
+ };
+
  while(1)
  {
 	
@@ -1720,8 +1727,6 @@ if(program.interactive) cwidth=get_command_width();
 	     if(!r){
 	       ping();
 	       s.integrator.last_time=*t;
-	       /* A continuous DoPri failure, including its run budget, is never partial success. */
-	       if((s.integrator.range_flag||s.integrator.suppress_bounds)&&!solver.traits().dense_output&&r.error().where!=xpp::JACOBIAN_FAILED)return(1);
 	       return std::unexpected(stopped(r.error(),tzero+tend,dt));
 	     }
 	   }
@@ -1732,12 +1737,9 @@ if(program.interactive) cwidth=get_command_width();
 						 .dt=dt,.steps=store_every});
 	     mswtch(s,x,s.solver_work.xpv.x);
 	     if(!r){
-	       /* a range or a run without bounds checks goes on */
 	       ping();
-	       if(!(s.integrator.range_flag||s.integrator.suppress_bounds)||r.error().where==xpp::JACOBIAN_FAILED){
-		 s.integrator.last_time=*t;
-		 return std::unexpected(stopped(r.error(),tzero+tend,dt));
-	       }
+	       s.integrator.last_time=*t;
+	       return std::unexpected(stopped(r.error(),tzero+tend,dt));
 	     }
 	   }
 	   /*   START POST INTEGRATE STUFF */           
@@ -1772,41 +1774,20 @@ if(program.interactive) cwidth=get_command_width();
 	*/	    
 	    if(isnan(x[ieqn-1])!=0)
             {
-             std::string error_message=xpp::format("{} is NaN at t = {}",
-             s.model().uvar_names[ieqn-1],*t);
- i_nan=0;
-	         xpp::log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
-                for(i_nan=1;i_nan<=ieqn;i_nan++)
-		 {
- 		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
-             		s.model().uvar_names[i_nan-1],xvold[i_nan],xv[i_nan]);
-		 }
-		for(;i_nan<=s.model().neq;i_nan++) 
-		 {
- 		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
-             		s.model().uvar_names[i_nan-1],xv[i_nan],static_cast<float>(x[i_nan-1]));
-		 }	
-             failure=xpp::Error{"integration",error_message,xpp::model_place(s.model(),s.model().uvar_names[ieqn-1])};
+             trace_states(ieqn);
+             failure=xpp::Error{"integration",xpp::format("{} is NaN at t = {}",s.model().uvar_names[ieqn-1],*t),xpp::model_place(s.model(),s.model().uvar_names[ieqn-1])};
              break;
              }
        /* end of NaN */     
             if(s.numerics.stop_at_limit&&fabs(x[ieqn-1])>s.numerics.state_limit)
             {
-	     if(s.integrator.range_flag||s.integrator.suppress_bounds)break;
-             std::string error_message=xpp::format("{} out of bounds at t = {}",
-             s.model().uvar_names[ieqn-1],*t);
- i_nan=0;
-	         xpp::log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
-                for(i_nan=1;i_nan<=ieqn;i_nan++)
-		 {
- 		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
-             		s.model().uvar_names[i_nan-1],xvold[i_nan],xv[i_nan]);
-		 }
-		for(;i_nan<=s.model().neq;i_nan++) 
-		 {
- 		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
-             		s.model().uvar_names[i_nan-1],xv[i_nan],static_cast<float>(x[i_nan-1]));
-		 }	
+             const std::string error_message=xpp::format("{} out of bounds at t = {} (state_limit = {})",
+             s.model().uvar_names[ieqn-1],*t,xpp::number(s.numerics.state_limit));
+	     if(s.integrator.range_flag||s.integrator.suppress_bounds){
+	       s.integrator.stop_note=error_message; /* the run ends, its sweep or drawing goes on */
+	       break;
+	     }
+             trace_states(ieqn);
              failure=xpp::Error{"integration",error_message,xpp::model_place(s.model(),s.model().uvar_names[ieqn-1])};
              break;
             }
@@ -1822,7 +1803,13 @@ if(program.interactive) cwidth=get_command_width();
 	     if(esc=='/'){rval=1;s.numerics.endsing=true;if(s.integrator.steady)s.integrator.steady_result->status="stopped";break;}
 	    
            }
-	if(s.integrator.stop_flag==1){s.integrator.stop_flag=0;if(s.integrator.steady)s.integrator.steady_result->status="stopped";break;}
+	if(s.integrator.stop_flag==1){
+	  s.integrator.stop_flag=0;
+	  if(s.integrator.halt_flag>=0)s.integrator.stop_note=halt_note(s,s.integrator.halt_flag,*t);
+	  s.integrator.halt_flag=-1;
+	  if(s.integrator.steady)s.integrator.steady_result->status="stopped";
+	  break;
+	}
            if(s.integrator.step_error){
              s.numerics.endsing=true;
              xpp::Error e=take_step_error(s).error();
@@ -1935,13 +1922,13 @@ dense_poi:
    oldperiod=*t;
  }
      
-          if(!(fabs(*t)<s.numerics.store_from)&&program.interactive&&OnTheFly)
+          if(stored_from(s.numerics.store_from,*t,dt)&&program.interactive&&OnTheFly)
 	  {
 	     plot_the_graphs(s,xv,xvold,s.model().node,s.model().neq,fabs(dt*s.numerics.store_every),torcross,0); 
 
 	  }
 
-	   if((s.numerics.storflag)&&(count!=0)&&(s.data_store.rows<s.data_store.max_rows)&&!(fabs(*t)<s.numerics.store_from)
+	   if((s.numerics.storflag)&&(count!=0)&&(s.data_store.rows<s.data_store.max_rows)&&stored_from(s.numerics.store_from,*t,dt)
 	      &&(!s.integrator.steady||++steady_seen%steady_stride==0))
 	   {
            if(s.animation.options.on_the_fly)on_the_fly(s,0);
@@ -1960,11 +1947,11 @@ dense_poi:
               if(!grown){stop_integration(s,grown.error());failure=take_step_error(s).error();break;}
             }
             }
-	    if((pflag==1)&&(s.numerics.poincare_stop))break;
+	    if((pflag==1)&&(s.numerics.poincare_stop)){s.integrator.stop_note=section_note(*t);break;}
 	   }
 
 out:
-           if(solver.section_found()&&s.numerics.poincare_stop)break;
+           if(solver.section_found()&&s.numerics.poincare_stop){s.integrator.stop_note=section_note(*t);break;}
            if(!solver.traits().dense_output||*t==tout)icount++;
            if(s.integrator.steady&&xpp::job::cancelled()){
              s.integrator.steady_result->status="stopped";
@@ -1985,9 +1972,10 @@ out:
        if(failure)return std::unexpected(std::move(*failure));
        return(rval);
   }
-void send_halt(xpp::Session &s)
+void send_halt(xpp::Session &s, int flag)
 {
   s.integrator.stop_flag=1;
+  s.integrator.halt_flag=flag;
 }
 void send_output(xpp::Session &s, double *y,double t)
 {
@@ -2158,6 +2146,15 @@ void comp_color(xpp::Session &s, float *v1, float *v2, int n, float dt)
  xpp::set_pen_color(s,xpp::ramp_color(s.ramp(),static_cast<double>((sum-min_scale)/color_scale)));
 }
 
+/* an invariant set's branch ends where it leaves the box (state_limit) or an
+   event stops it: said once, at INFO, since drawing the set means that */
+static void log_branch_end(xpp::Session &s)
+{
+  if(s.integrator.stop_note.empty())return;
+  xpp::log(XPP_LOG_INFO,"Invariant set branch ended: {}\n",s.integrator.stop_note);
+  s.integrator.stop_note.clear();
+}
+
 xpp::Result<> shoot_easy(xpp::Session &s, double *x)
 {
   double t=0.0;
@@ -2165,6 +2162,7 @@ xpp::Result<> shoot_easy(xpp::Session &s, double *x)
   s.integrator.suppress_bounds=1;
   const xpp::Result<int> r=integrate(s,&t,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&i);
   s.integrator.suppress_bounds=0;
+  log_branch_end(s);
   return r.transform([](int){});
 }
 
@@ -2179,6 +2177,7 @@ i=1;
  const xpp::Result<int> r=integrate(s,&t,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&i);
  ping();
   s.integrator.suppress_bounds=0;
+ log_branch_end(s);
  return r.transform([](int){});
 }
 

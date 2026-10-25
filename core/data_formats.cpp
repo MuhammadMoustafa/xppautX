@@ -45,7 +45,10 @@ bool write_dat(const DataTable &t, Writer &w)
     std::string text;
     const std::size_t n = t.rows();
     for (std::size_t i = 0; i < n; i++) {
-        for (const std::vector<double> &c : t.columns) format_append(text, "{:.8g} ", c[i]);
+        for (const std::vector<double> &c : t.columns) {
+            append_general(text, c[i], 8);
+            text += ' ';
+        }
         text += '\n';
         if (text.size() >= chunk) {
             if (!w.write(text)) return false;

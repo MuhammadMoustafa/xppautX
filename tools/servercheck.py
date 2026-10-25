@@ -171,28 +171,24 @@ def stops_idle(e):
     return e.get('ev') == 'idle'
 
 
+YES_NO = {'Y': 'true', 'N': 'false'}  # the range forms' yes/no fields are boolean (W487)
 STOPS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'stops')
 STOPS_KNOWN = {  # case id -> (card that fixes it, reason it is not started or None)
-    'range_gear': ('W487', None),
-    'range_backward_euler': ('W487', None),
-    'range_bound': ('W487', None),
-    'eq_range': ('W487', None),
-    'event_halt': ('W487', None),
     'sing_pts': ('W489', None),
 }
 STOPS_PLAIN_GO = [{'key': 'g'}]  # the Integrate or Equilibria menu's Go
-STOPS_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '2', '1', '3']}]  # Range Integrate over a, 1 to 3
-STOPS_EQ_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '5', '-1', '1', 'N', '-1', 'N', 'N']}]
+STOPS_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '2', '1', '3']}]  # Range Integrate over a, 1 to 3 (the three runs a = 1, 2, 3)
+STOPS_EQ_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '5', '-1', '1', 'false', '-1', 'false', 'false']}]
 STOPS_CASES = [
     # says: the message's parts; at: the equation the error names; forbids: parts it must not have
     dict(id='nan', model='nan_sqrt', key='i', replies=STOPS_PLAIN_GO, at="x' = sqrt",
          says=[r'X is NaN', r't ?= ?']),
     dict(id='qualrk_bound', model='blowup_qualrk', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
-         says=[r'X out of bounds', r't ?= ?1\b']),
+         says=[r'X out of bounds', r'state_limit ?= ?1000\b', r't ?= ?1\b']),
     dict(id='dopri5_bound', model='blowup_dopri5', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
-         says=[r'X reaches bound', r't ?= ?0\.9']),
+         says=[r'X reaches state_limit ?= ?100\b', r't ?= ?0\.9']),
     dict(id='rk4_bound', model='bound_rk4', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
-         says=[r'X out of bounds', r't ?= ?1']),
+         says=[r'X out of bounds', r'state_limit ?= ?100\b', r't ?= ?1']),
     dict(id='min_step', model='min_step', key='i', replies=STOPS_PLAIN_GO, at='method: gear',
          says=[r'\b[Dd]t\b', r'0\.01', r'min_step', r'0\.1'],
          silent=dict(says=[r'min_step'], forbids=[r'will write anyway'])),
@@ -218,18 +214,22 @@ STOPS_CASES = [
          says=[r'algebraic equations', r't ?= ?0\b', r'max_iterations ?= ?100\b', r'newton_tolerance']),
     dict(id='step_limits', model='step_limits', key='i', replies=STOPS_PLAIN_GO, at='min_step: 0.2',
          says=[r'min_step ?= ?0\.2', r'max_step ?= ?0\.1', r'larger than max_step']),
-    dict(id='event_halt', model='event_halt', key='i', replies=STOPS_PLAIN_GO, at=None,
-         says=[r'Stopped', r't ?= ?3\b', r'arret']),
+    dict(id='event_halt', model='event_halt', key='i', replies=STOPS_PLAIN_GO, at=None, bottom=True,
+         says=[r'Stopped at t ?= ?3\.1', r'global event \\"x-3\.05\\"', r'arret', r'model line 5']),
+    dict(id='store_from_past_end', model='store_from_past_end', key='i', replies=STOPS_PLAIN_GO, at='store_from: 20',
+         says=[r'store_from ?= ?20\b', r'starts at t ?= ?0\b', r'ends at t ?= ?10\b']),
+    dict(id='store_from_backward', model='store_from_backward', key='i', replies=STOPS_PLAIN_GO, at='store_from: -20',
+         says=[r'store_from ?= ?-20\b', r'starts at t ?= ?0\b', r'ends at t ?= ?-10\b']),
     dict(id='sing_pts', model='sing_pts', key='s', replies=STOPS_PLAIN_GO, at=None,
          says=[r'max_iterations', r'X ?= ?0\.5']),
-    dict(id='eq_range', model='eq_range', key='s', replies=STOPS_EQ_RANGE_A, at=None,
-         says=[r'\ba ?= ?0\.2', r'no equilibrium']),
+    dict(id='eq_range', model='eq_range', key='s', replies=STOPS_EQ_RANGE_A, at=None, bottom=True,
+         says=[r'\d of 6 values have no equilibrium', r'a ?= ?0\.2\d*: no equilibrium found']),
     dict(id='range_gear', model='blowup_gear', key='i', replies=STOPS_RANGE_A, at=None,
-         says=[r'\ba ?= ?1\b', r'\bGear\b', r't ?= ?0\.9']),
+         says=[r'Range stopped at a ?= ?1 \(run 1 of 3\)', r'\bGear\b', r't ?= ?0\.9']),
     dict(id='range_backward_euler', model='blowup_backward_euler', key='i', replies=STOPS_RANGE_A, at=None,
-         says=[r'\ba ?= ?1\b', r'Backward Euler|Too many iterates']),
-    dict(id='range_bound', model='bound_rk4', key='i', replies=STOPS_RANGE_A, at=None,
-         says=[r'\bbound\b', r'\ba ?= ?1\b']),
+         says=[r'Range stopped at a ?= ?1 \(run 1 of 3\)', r'Backward Euler', r'eul_iter']),
+    dict(id='range_bound', model='bound_rk4', key='i', replies=STOPS_RANGE_A, at=None, bottom=True,
+         says=[r'3 of 3 runs ended early', r'a ?= ?1: X out of bounds at t ?= ?(0\.9|1\.0)', r'state_limit ?= ?100\b']),
 ]
 
 
@@ -259,7 +259,8 @@ def stops_line(path, text):
 
 
 def stops_parts(case, evs, path):
-    msgs = [e for e in evs if e.get('ev') == 'message' and 'bottom' not in e]  # bottom lines are progress
+    # a bottom line is progress, except where the case reads one as its message (a stop that is no error)
+    msgs = [e for e in evs if e.get('ev') == 'message' and (case.get('bottom') or 'bottom' not in e)]
     text = ' | '.join(json.dumps(e) for e in msgs)
     parts = [('a message is shown', bool(msgs), str(evs[-4:]))]
     for rx in case['says']:
@@ -1181,7 +1182,7 @@ evs, ask = collect(lambda e: e.get('ev') == 'ask')
 kinds = ask.get('kinds') if ask else None
 check('T31: Range Integrate says Steps is an integer and Start and End numbers',
       ask is not None and ask['kind'] == 'form' and kinds is not None and len(kinds) == len(ask['names'])
-      and kinds[1:4] == ['integer', 'number', 'number'], str(ask))
+      and kinds[1:4] == ['integer', 'real', 'real'] and kinds[4:] == ['boolean'] * 5, str(ask))
 if ask:
     send(cmd='answer', id=ask['id'], ok=0)
     collect(is_idle)
@@ -5906,7 +5907,7 @@ def check_outcomes_once():
             {'cmd': 'key', 'win': 'aplot', 'key': 'r', 'replace': 1},
             {'cmd': 'answer', 'values': ['0', '0']},
             {'cmd': 'answer', 'file': 'movie.gif'},
-            {'cmd': 'answer', 'values': ['a', '2', '1', '3', 'N', 'Y', 'N', 'N']},
+            {'cmd': 'answer', 'values': ['a', '2', '1', '3', 'false', 'true', 'false', 'false', 'false']},
             {'cmd': 'answer', **pixels(None)},
             {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': STOP_MOVIE_ROWS, 't': 0}}]
         movie_path = os.path.join(d, 'movie.gif')
@@ -8816,7 +8817,7 @@ def check_range_files():
                 for enabled, reset, expected in (('Y', 'Y', 3), ('N', 'Y', 0), ('Y', 'N', 0)):
                     s.send(cmd='key', key='i')
                     s.answer_asks(is_idle, {'menu': lambda e: {'key': 'r'},
-                        'form': lambda e: {'values': ['a', '2', '1', '3', reset, 'Y', 'N', 'N', enabled]}})
+                        'form': lambda e: {'values': ['a', '2', '1', '3', YES_NO[reset], 'true', 'false', 'false', YES_NO[enabled]]}})
                     paths = sorted(glob.glob(os.path.join(run, 'range.dat.*')))
                     rows = [[list(map(float, line.split())) for line in open(path)] for path in paths]
                     check('W349: server reset=%s files=%s writes %d runs' % (reset, enabled, expected),
@@ -8827,7 +8828,7 @@ def check_range_files():
                         os.remove(path)
                 s.send(cmd='key', key='i')
                 s.answer_asks(is_idle, {'menu': lambda e: {'key': '2'},
-                    'form': lambda e: {'values': ['a', '1', '3', 'x', '0', '2', '1', 'Y', 'Y', 'N', 'N', '2', '1', 'Y']}})
+                    'form': lambda e: {'values': ['a', '1', '3', 'x', '0', '2', '1', 'true', 'true', 'false', 'false', 'independently', '1', 'true']}})
                 paths = sorted(glob.glob(os.path.join(run, 'range.dat.*')))
                 rows = [[list(map(float, line.split())) for line in open(path)] for path in paths]
                 check('W349: double range gives every run a separate file', len(rows) == 4
@@ -8841,7 +8842,7 @@ def check_range_files():
                 _, ask = s.collect(is_ask)
                 s.send(cmd='answer', id=ask['id'], key='r')
                 _, ask = s.collect(is_ask)
-                check('W349: session load restores rangefiles', ask is not None and ask['values'][-1] == 'Y', str(ask))
+                check('W349: session load restores rangefiles', ask is not None and ask['values'][-1] == 'true', str(ask))
                 s.send(cmd='answer', id=ask['id'], ok=0)
                 s.collect(is_idle)
                 s.send(cmd='savedefaults', scope='all')
@@ -8860,7 +8861,7 @@ def check_range_files():
         for enabled in ('Y', 'N'):
             with tempfile.TemporaryDirectory(prefix='w349rec') as run:
                 lines = [dict(cmd='key', key='i'), dict(cmd='answer', key='r'),
-                         dict(cmd='answer', values=['a', '2', '1', '3', 'Y', 'Y', 'N', 'N', enabled])]
+                         dict(cmd='answer', values=['a', '2', '1', '3', 'true', 'true', 'false', 'false', YES_NO[enabled]])]
                 rec = make_recording(args.server, model, lines, run)
                 result = subprocess.run([os.path.abspath(args.server), rec, '--silent', '--yes'],
                                         cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
@@ -9058,7 +9059,7 @@ def check_stop_checks():
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='r')
         _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], ok=1, values=['iapp', str(W388_STEPS), '-0.5', '0.5', 'N', '-1', 'N', 'N'])
+        snd(cmd='answer', id=ask['id'], ok=1, values=['iapp', str(W388_STEPS), '-0.5', '0.5', 'false', '-1', 'false', 'false'])
         snd(cmd='abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         check('W388: range equilibria sweep stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))

@@ -37,6 +37,7 @@ int main()
     auto test_ui=saved_ui;
     test_ui.question_policy=[](bool){return xpp::QuestionPolicy::User;};
     test_ui.string_box=[](int,int,std::string_view,const char *const *,std::span<std::string>,const int *){return 1;};
+    test_ui.typed_form=[](std::string_view,std::span<xpp::FormField>){return 1;};
     test_ui.err_msg=[](const xpp::Error &e){CHECK(e.where=="storage");};
     xpp::set_ui(&test_ui);
     s.integrator.eq_range.item="a";
