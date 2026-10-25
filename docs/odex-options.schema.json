@@ -173,7 +173,7 @@
         "xnc": {"type": "string", "x-kind": "color"},
         "smc": {"type": "string", "x-kind": "color"},
         "umc": {"type": "string", "x-kind": "color"},
-        "colormap": {"type": "string", "enum": ["jet", "periodic", "hot", "cool", "blue_red", "gray", "cubehelix"]},
+        "colormap": {"type": "string", "enum": ["jet", "periodic", "hot", "cool", "blue_red", "gray", "cubehelix", "viridis", "plasma", "inferno", "magma", "cividis", "coolwarm", "rdbu", "seismic", "twilight", "hsv", "turbo", "greys", "blues", "reds", "greens", "oranges", "purples"]},
         "dfgrid": {"type": "integer"},
         "dfdraw": {"type": "integer"},
         "nullclines.draw": {"type": "boolean"},
@@ -188,11 +188,9 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "plotfmt": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
-        "ps_font": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
-        "ps_lw": {"type": "number"},
-        "ps_fsize": {"type": "integer"},
-        "ps_color": {"type": "integer"}
+        "plotfmt": {"type": "string", "enum": ["pdf", "svg"]},
+        "picture_color": {"type": "boolean"},
+        "picture_font_size": {"type": "number", "exclusiveMinimum": 0}
       }
     },
     "sweep": {

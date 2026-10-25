@@ -15,7 +15,6 @@ struct APLOT {
   std::string name; /* its first column */
   double zmin,zmax;
   std::string xtitle,ytitle,filename,bottom; /* Print's */
-  int type;
 };
 
 namespace xpp {
@@ -25,7 +24,6 @@ struct ArrayPicture {
   int nacross, ndown, col0, row0, nskip, ncskip, maxrow, maxcol;
   float **data;
   double zmin, zmax, tlo, thi;
-  int type;
 };
 struct Session; /* session.h */
 }
@@ -44,6 +42,9 @@ void fit_aplot(xpp::Session &s);
 void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin);
 int editaplot(xpp::Session &s, APLOT *ap);
 void print_aplot(const xpp::Session &s, APLOT *ap);
+/* the time of the first and the last row the array plot shows (the page's range label, Print's ranges) */
+struct AplotTimes { double first, last; };
+AplotTimes aplot_times(const xpp::Session &s, const APLOT &ap);
 /* splits an array plot's first column name at its trailing digits: "u10"
    gives "u" and 10, a name with no digits itself and 0 */
 std::string get_root(std::string_view s, int *num);

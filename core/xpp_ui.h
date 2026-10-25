@@ -19,18 +19,17 @@ namespace files { struct WriteFolders; }
  * The seam between the numerics and whatever front end is driving them.
  *
  * Core code keeps calling the historical names (err_msg, new_int, ping,
- * refresh_browser, TwoChoice, set_color, ALINE, ...). Those are thin
+ * refresh_browser, TwoChoice, ...). Those are thin
  * dispatchers in xpp_ui.cpp that go through the XppUi table below. The
  * default table is headless: messages go to the log, the question policy
- * supplies terminal answers, and redraws and drawing do nothing. The browser front end installs its own
+ * supplies terminal answers, and redraws do nothing. The browser front end installs its own
  * table (ui_json.cpp) before it serves a session.
  *
- * The pixel primitives (draw_*, set_color, auto_line and the rest of the
- * AUTO window's, ani_color ... ani_text) have no front end implementation
- * since protocol 2 (docs/ui-v2.md T18): the page draws from data, which
- * the code that calls them hands to the data modules (plot_data,
- * phase_data, marks_data, auto_data through auto_diagram, ani_data). They
- * stay as the headless no-ops below.
+ * There are no pixel primitives: since protocol 2 (docs/ui-v2.md T18) the page
+ * draws from data, which the code hands to the data modules (plot_data,
+ * phase_data, marks_data, auto_data through auto_diagram, ani_data), and a
+ * PDF or SVG picture is recorded by picture.h (W492, #556 removed the 31
+ * drawing callbacks that no front end implemented).
  *
  * Conventions kept from the original code:
  *   new_string / file_selector / string_box return 0 when the user cancels.
@@ -59,12 +58,13 @@ enum {
     XPP_FIELD_BOOLEAN,    /* `true` or `false` (FormField) */
     XPP_FIELD_CHOICE,     /* one of a FormField's named choices */
     XPP_FIELD_REAL,       /* a plain real number, within a range where given (FormField) */
+    XPP_FIELD_COLOR,      /* a colour: `#rrggbb`, `#rrggbbaa`, a CSS name or `foreground` (FormField) */
     XPP_FIELD_NAME = 16   /* + n: a name from the hello event's lists[n] */
 };
 
 /* One field of a typed form (ask_form): what it takes (kind: BOOLEAN,
-   CHOICE, INTEGER, REAL or TEXT, by aggregate initialisation where no factory is), its value as text (BOOLEAN `true` or
-   `false`, CHOICE one of `choices` by name, a number as its digits), and
+   CHOICE, INTEGER, REAL, COLOR or TEXT, by aggregate initialisation where no factory is), its value as text (BOOLEAN `true` or
+   `false`, CHOICE one of `choices` by name, a number as its digits, a COLOR as colormap.h's print_color writes it), and
    the range an INTEGER or REAL keeps to. A client shows a choice's name
    with its underscores as spaces and a capital first letter: the label is
    never written apart. ask_form checks every answer by its kind and, once
@@ -79,7 +79,9 @@ struct FormField {
     bool flag = false;
     int whole = 0;
     double real = 0;
+    Color color;
 
+    static FormField color_field(std::string name, const Color &value);
     static FormField boolean(std::string name, bool value);
     static FormField choice(std::string name, std::vector<std::string> choices, std::size_t selected);
     static FormField real_number(std::string name, double value, std::optional<double> min = std::nullopt,
@@ -107,7 +109,8 @@ typedef struct XppDiagPoint {
                       back to the previous point, 2 filled circles at y1 and
                       y2, 3 open circles */
     int newseg;    /* the previous point is this one: no line back */
-    int color, lw; /* what autocol() and LineWidth() get for it */
+    Color color;   /* the colour its line or marker is drawn in */
+    int lw;        /* its line's width in pixels */
     int node;      /* its entry in AUTO's diagram list (DIAGRAM.index) */
     int from;      /* the label the run that computed it started from, on
                       the run's first point only (0 otherwise, or unknown) */
@@ -159,29 +162,11 @@ void plot_command(int nit, int icount, int cwidth);
 void FlushDisplay(void);
 void redraw_params(void);
 void redraw_ics(void);
-void GrCol(void);
-void BaseCol(void);
-void SmallBase(void);
-void SmallGr(void);
-void set_color(int col);
-void ALINE(int a, int b, int c, int d);
-void ATEXT(int a, int b, const char *c);
-void Circle(int x, int y, int r);
-void FillCircle(int x, int y, int r);
-void XORCross(int x, int y);
-void LineWidth(int wid);
-void autocol(int col);
-void autobw(void);
-void clear_auto_plot(void);
-void redraw_auto_menus(void);
-void clear_auto_info(void);
-void draw_auto_info(std::string_view bob, int x, int y);
 void refreshdisplay(Session &s);
 int byeauto_(int *iflag);
 void init_txtview(void);
 void bye_bye(void);
 void draw_help(void);
-void NewColormap(Colormap type);
 
 /* The front end's character cell in pixels, for laying out the AUTO and
    array plot windows and text in plots: a big and a small monospace font.
@@ -287,15 +272,11 @@ typedef struct XppUi {
     void (*create_plot_window)(Session &s); /* present the already-created active graph */
     void (*destroy_plot_window)(Session &s); /* the active one; not the main window */
     void (*lower_plot_window)(void);   /* put the active one at the bottom */
-    void (*gr_col)(void);   /* pen: graph colours (GrCol) */
-    void (*base_col)(void); /* pen: window colours (BaseCol) */
     /* Text,etc (T)ext: ask for a label, place it with the mouse, draw it
        and add_label() it */
     void (*cput_text)(Session &s);
     void (*get_draw_size)(Session &s, unsigned int *w, unsigned int *h);
     void (*blank_draw_window)(Session &s);
-    void (*small_base)(void);  /* pen selection for small text */
-    void (*small_gr)(void);
     Result<> (*film_clip)(Session &s); /* a frame, or why it was not captured */
     void (*reset_film)(Session &s);
     /* kinescope: the captured frames live in the front end */
@@ -311,20 +292,9 @@ typedef struct XppUi {
     int (*rubber_band)(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
     void (*scroll_window)(Session &s);
 
-    /* colormap changed (Session::colormap) */
-    void (*new_colormap)(Colormap type);
-
     /* raw drawing primitives used by graphics.c when the plot format is
        the screen (PS and SVG are handled in graphics.c itself); no front
        end draws them (see the top of this file) */
-    void (*draw_point)(int x, int y);
-    void (*draw_line)(int x1, int y1, int x2, int y2);
-    void (*draw_bead)(int x, int y);
-    void (*draw_frect)(int x, int y, int w, int h);
-    void (*draw_text)(int x, int y, const char *s);
-    void (*draw_special_text)(int x, int y, const char *s, int size);
-    void (*draw_linestyle)(int ls);
-    void (*set_color)(int col);
 
     /* array plot window (arrayplot.h: aplot) */
     void (*aplot_make)(Session &s, std::string_view name); /* open the array plot window */
@@ -334,18 +304,6 @@ typedef struct XppUi {
 
     /* AUTO bifurcation window */
     void (*auto_make_window)(Session &s, std::string_view wname, std::string_view iname);
-    void (*auto_line)(int a, int b, int c, int d);
-    void (*auto_text)(int a, int b, const char *c);
-    void (*auto_circle)(int x, int y, int r);
-    void (*auto_fill_circle)(int x, int y, int r);
-    void (*auto_xor_cross)(int x, int y);
-    void (*auto_line_width)(int wid);
-    void (*auto_col)(int col);
-    void (*auto_bw)(void);
-    void (*auto_clear_plot)(void);
-    void (*auto_redraw_menus)(void);
-    void (*auto_clear_info)(void);
-    void (*auto_draw_info)(std::string_view s, int x, int y);
     void (*auto_refresh)(Session &s);
     int (*auto_check_abort)(int *iflag);
     int (*auto_rubber)(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
@@ -365,15 +323,7 @@ typedef struct XppUi {
     /* animation (toon) window. Frames are drawn off screen, vcr.wid by
        vcr.hgt pixels (aniparse.h), then ani_show puts one on screen. */
     void (*new_vcr)(Session &s);
-    void (*ani_clear)(void);    /* white frame, black pen */
     void (*ani_show)(void);
-    void (*ani_color)(int icol); /* 0 black, else a colour index */
-    void (*ani_thick)(int t);
-    void (*ani_font)(int size, int font, int color); /* font 0 roman, 1 symbol */
-    void (*ani_line)(int x1, int y1, int x2, int y2);
-    void (*ani_rect)(int x, int y, int w, int h, int fill);
-    void (*ani_arc)(int x, int y, int w, int h, int fill); /* ellipse in box */
-    void (*ani_text)(int x, int y, const char *s);
     void (*ani_slider)(Session &s);    /* vcr.pos changed */
 
     /* misc front-end hooks called while loading an ODE file */

@@ -83,13 +83,6 @@ struct Session; /* session.h */
 #define M_GFKN 120
 #define M_GFKK 121
 
-#define M_GCN 130
-#define M_GCP 131
-#define M_GCH 132
-#define M_GCC 133
-#define M_GCB 134
-#define M_GCG 135
-#define M_GCU 136
 
 #define M_P 140
 

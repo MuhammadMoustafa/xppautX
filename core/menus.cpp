@@ -108,23 +108,14 @@ const char *const graf_hint[]={
 "Delete last added plot",
 "Remove all the added plots except the main one",
 "Edit parameters for a plot",
-"Create a postscript file of current plot",
+"Create a pdf file of current plot",
 "Create a styleable svg file of current plot",
 "Options for permanently saving curve",
-"Axes label sizes and zero axes for postscript",
+"Axes label sizes and zero axes for the picture files",
 "Save what the plot shows (its curves and frozen curves) as data",
 "Change colormap"
 };
 
-const char *const cmap_hint[]={
- " blue-green-red",
- "red-...-violet-red",
- "black-red-yellow-white",
- "pale cyan->pale yellow",
- "blue-violet-red",
- "black-white",
- "helical luminence corrected"
-};
 const char *const frz_hint[]={
 "Permanently keep main curve -- even after reintegrating",
 "Delete specified frozen curve",
@@ -347,15 +338,13 @@ static const char *const torus_items[]={"(A)ll","(N)one","(C)hoose"};
 static const char *const kin_items[]={"(C)apture","(R)eset","(P)layback","(A)utoplay",
   "(S)ave","(M)ake AniGif"};
 static const char *const curve_items[]={"(A)dd curve","(D)elete last","(R)emove all",
-  "(E)dit curve","(P)ostscript","S(V)G","(F)reeze","a(X)es opts",
+  "(E)dit curve","(P)DF","S(V)G","(F)reeze","a(X)es opts",
   "exp(O)rt data","(C)olormap"};
 static const char *const freeze_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
   "(K)ey","(B)if.Diag","(C)lr. BD","(O)n freeze"};
 static const char *const freeze_off_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
   "(K)ey","(B)if.Diag","(C)lr. BD","(O)ff freeze"};
 static const char *const key_items[]={"(N)o key","(K)ey"};
-static const char *const cmap_items[]={"(N)ormal","(P)eriodic","(H)ot","(C)ool",
-  "(B)lue-red","(G)ray","c(U)behelix"};
 static const char *const windows_items[]={"(C)reate","(K)ill all","(D)estroy","(B)ottom",
   "(A)uto","(M)anual","(S)imPlot On"};
 static const char *const windows_simoff_items[]={"(C)reate","(K)ill all","(D)estroy",
@@ -392,7 +381,6 @@ const XppMenu menu_curves = XPP_MENU("curves", "Curves", curve_items, "adrepvfxo
 const XppMenu menu_freeze = XPP_MENU("freeze", "Freeze", freeze_items, "fderkbco", "vvvvvdvv", frz_hint, M_GFF);
 const XppMenu menu_freeze_off = XPP_MENU("freeze_off", "Freeze", freeze_off_items, "fderkbco", "vvvvvdvv", frz_hint, M_GFF);
 const XppMenu menu_freeze_key = XPP_MENU("freeze_key", "Key", key_items, "nk", "vv", no_hint, M_GFKN);
-const XppMenu menu_colormap = XPP_MENU("colormap", "Colormap", cmap_items, "nphcbgu", "vvvvvvv", cmap_hint, M_GCN);
 const XppMenu menu_windows = XPP_MENU("windows", "Make window", windows_items, "ckdbams", "vvvvvvv", half_hint, M_MC);
 const XppMenu menu_windows_simoff = XPP_MENU("windows_simoff", "Make window", windows_simoff_items, "ckdbams", "vvvvvvv", half_hint, M_MC);
 /* (E)dit opens menu_text_edit */
@@ -455,7 +443,7 @@ const XppMenu menu_ani_window = XPP_MENU("ani_window", "Animation", ani_window_i
 
 static const char *const aplot_window_items[]={"re(D)raw","(E)dit","(F)it","(R)ange","(P)rint","(G)IF"};
 static const char *const aplot_window_hint[]={"Redraw the array plot","Edit its settings","Fit the range to the data",
-  "Draw a range of parameter values","Write PostScript","Write a GIF"};
+  "Draw a range of parameter values","Write a PDF","Write a GIF"};
 const XppMenu menu_aplot_window = XPP_MENU("aplot_window", "Array plot", aplot_window_items, "defrpg", "vvvxdd", aplot_window_hint, -1);
 
 static const char *const equilibrium_window_items[]={"(I)mport"};
@@ -517,7 +505,7 @@ static const char *const auto_file_hint[]={
 "Load a computed orbit into XPP",
 "Save this session, including the diagram and AUTO's settings (.snapx)",
 "Open a saved session (.snapx), including its AUTO diagram",
-"Create postscript file of picture",
+"Create pdf file of picture",
 "Create SVG file of picture",
 "Delete all points of diagram and associated files",
 "Clear grab point to allow start from new point",
@@ -531,7 +519,7 @@ static const char *const auto_file_hint[]={
 "Put all data from branch into browser",
 "Write the diagram, and its eigenvalues/multipliers, as CSV",
 "Import a foreign XPPAUT diagram (.auto)"};
-static const char *const auto_file_items[]={"Import orbit","Save diagram","Load diagram","Postscript","SVG",
+static const char *const auto_file_items[]={"Import orbit","Save diagram","Load diagram","PDF","SVG",
   "Reset diagram","Clear grab","Write pts","All info","init Data","Toggle redraw","auto raNge","sElect 2par pt",
   "draw laBled","lOad branch","eXport CSV","Import diagram"};
 const XppMenu menu_auto_file = XPP_MENU("auto", "File", auto_file_items, "islpvrcwadtneboxf", "ddddddddddvxdxddd", auto_file_hint, -1);

@@ -1,9 +1,8 @@
 /* The array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`): a grid of
    cells the core computes from a range of stored columns and rows --
-   `values`, the numbers before XPP maps them to a colour (`cells` stays
-   the core's own mapping, what its GIF writer paints). This slice keeps the
-   latest event decoded once, the colour map the client picked (its own
-   choice, never sent to the core), whether the core's array plot window
+   `values`, the numbers, and the session's colour scale as a ramp of 256
+   colours (the core's own, which its pictures use too). This slice keeps the
+   latest event decoded once, whether the core's array plot window
    (105) exists, the panel's own open state (R6: a section under the plot
    from 48rem, a full-screen sheet under that, like store/table.ts) and the
    hovered/picked cell. The core owns everything about what the array shows
@@ -12,10 +11,6 @@
    no DOM, no I/O. */
 import {decode} from '../protocol/decode';
 import type {AplotEvent} from '../protocol/types';
-import type {AplotColorMap} from '../plot/aplotColors';
-
-export type {AplotColorMap} from '../plot/aplotColors';
-
 /** the cell under the pointer, or read out with the keyboard: its grid
     position, the approximate time of its row (interpolated, see `timeAt`:
     the core only sends the extremes tlo/thi) and its value */
@@ -34,19 +29,17 @@ export interface AplotState {
   windowOpen: boolean;
   /** the panel is shown */
   open: boolean;
-  colorMap: AplotColorMap;
   hover: AplotHover | null;
 }
 
 export const initialAplot: AplotState = {
-  event: null, values: new Float32Array(0), windowOpen: false, open: false, colorMap: 'viridis', hover: null,
+  event: null, values: new Float32Array(0), windowOpen: false, open: false, hover: null,
 };
 
 export type AplotAction =
   | {type: 'event'; ev: AplotEvent}
   | {type: 'window'; open: boolean}
   | {type: 'panel'; open: boolean}
-  | {type: 'colorMap'; map: AplotColorMap}
   | {type: 'hover'; hover: AplotHover | null};
 
 export function reduceAplot(state: AplotState, action: AplotAction): AplotState {
@@ -61,8 +54,6 @@ export function reduceAplot(state: AplotState, action: AplotAction): AplotState 
           : {...state, windowOpen: false, open: false, event: null, values: new Float32Array(0), hover: null};
     case 'panel':
       return action.open === state.open ? state : {...state, open: action.open};
-    case 'colorMap':
-      return action.map === state.colorMap ? state : {...state, colorMap: action.map};
     case 'hover':
       return action.hover === state.hover ? state : {...state, hover: action.hover};
   }

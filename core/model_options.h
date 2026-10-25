@@ -200,6 +200,9 @@ struct OptionRow {
      line only, never our own files; nullptr: the row's words alone (a boolean's
      are y/n and 0/1) */
   std::string (*foreign)(std::string_view) = nullptr;
+  /* the value an .ode that does not set the option is converted with (XPPAUT's own default, where ours is
+     another: @ colormap, jet); empty: none, the option's default stays */
+  std::string_view imported_default;
   /* an XPPAUT option that is several of ours (bound, ncdraw, lt): the options it sets */
   ForeignOptions (*expand)(std::string_view) = nullptr;
   /* a numerics setting: its key in the "numerics" event and `set num`,

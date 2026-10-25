@@ -9,20 +9,20 @@ import type {PlotWindowInfo, SeriesEvent} from '../src/protocol/types';
 import {initialKinescope, reduceKinescope, snapshotWindow} from '../src/store/kinescope';
 import {blank, windowOf} from '../src/store/plots';
 import {reduce, type AppState} from '../src/store/state';
-import {READY} from './hello';
+import {READY, LINE} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 
 const series = (win: number, v0: number): SeriesEvent => ({
   ev: 'series', win, rows: 2, three: 0, xlabel: '', ylabel: '', zlabel: '',
-  curves: [{x: 0, y: 1, z: 0, color: 0, line: 1}], shift: [0, 0, 0],
+  curves: [{x: 0, y: 1, z: 0, color: 'foreground', ...LINE}], shift: [0, 0, 0],
   columns: [{col: 0, name: 'T', data: [0, 1]}, {col: 1, name: 'V', data: [v0, v0 + 1]}],
 });
 
 const info = (win: number): PlotWindowInfo => ({
   win, title: 'V vs T', three: 0, xlo: 0, xhi: 1, ylo: -1, yhi: 1,
   box: {xmin: 0, xmax: 1, ymin: -1, ymax: 1, zmin: -1, zmax: 1}, theta: 45, phi: 45, persp: 0, zplane: -1000,
-  zview: 1000, curves: [{x: 0, y: 1, z: 0, color: 0, line: 1}], shift: [0, 0, 0],
+  zview: 1000, curves: [{x: 0, y: 1, z: 0, color: 'foreground', ...LINE}], shift: [0, 0, 0],
 });
 
 const plots = (...w: PlotWindowInfo[]) => ({ev: 'plots', active: w[0]?.win ?? 1, windows: w});

@@ -213,7 +213,7 @@ void read_exprs(const xpp::Session &s, Lines &l, Settings &f)
 /* a plot window's settings as XPPAUT's set file holds them, in its order:
    each member given to f with its name (the set file's label after it) */
 template <class G, class F>
-void graph_settings(G &g, F &&f)
+void graph_settings(G &g, std::array<int,10> &line_types, std::array<int,10> &colors, F &&f)
 {
   for(int j=0;j<3;j++)
     for(int k=0;k<3;k++)f(g.rm[k][j],"rm");
@@ -224,8 +224,8 @@ void graph_settings(G &g, F &&f)
     f(g.xv[j]," ");
     f(g.yv[j]," ");
     f(g.zv[j]," ");
-    f(g.line[j]," ");
-    f(g.color[j]," ");
+    f(line_types[static_cast<std::size_t>(j)]," ");
+    f(colors[static_cast<std::size_t>(j)]," ");
   }
   f(g.ZPlane," ");
   f(g.ZView," ");
@@ -270,18 +270,26 @@ void read_graph(const xpp::Session &s, Lines &l, GRAPH &g)
 {
   l.heading("# Graphics");
   const int first=l.line();
-  graph_settings(g,[&l](auto &v,const char *name){
+  std::array<int,10> line_types{},colors{};
+  graph_settings(g,line_types,colors,[&l](auto &v,const char *name){
     if constexpr(std::is_same_v<std::decay_t<decltype(v)>,int>)v=l.whole(name,true);
     else v=l.real(name,true);
   });
   /* the 9 numbers of the rotation, then 5 lines for each curve */
   constexpr int rotation_lines=9,lines_per_curve=5;
   for(int j=0;j<g.nvars;j++){
+    const auto k=static_cast<std::size_t>(j);
     const int base=first+rotation_lines+lines_per_curve*j;
-    const std::array<int,3> columns={g.xv[j],g.yv[j],g.zv[j]};
-    for(std::size_t k=0;k<columns.size();k++)
-      if(columns[k]<0||columns[k]>s.model().neq)
-        l.fail(base+1+static_cast<int>(k),xpp::format("{} is not a variable's number (0 to {})",columns[k],s.model().neq));
+    const std::array<int,3> columns={g.xv[k],g.yv[k],g.zv[k]};
+    for(std::size_t c=0;c<columns.size();c++)
+      if(columns[c]<0||columns[c]>s.model().neq)
+        l.fail(base+1+static_cast<int>(c),xpp::format("{} is not a variable's number (0 to {})",columns[c],s.model().neq));
+    /* XPPAUT's line type and colour number, read on import only */
+    const std::optional<xpp::LineStyle> style=xpp::line_style_of_xppaut(line_types[k]);
+    if(!style)l.fail(base+4,xpp::format("{} is not a line type (-5 to 1)",line_types[k]));
+    if(colors[k]<0||colors[k]>xpp::LAST_PLOT_COLOR)l.fail(base+5,xpp::format("{} is not a colour (0 to {})",colors[k],xpp::LAST_PLOT_COLOR));
+    g.style[k]=*style;
+    g.color[k]=xpp::xppaut_color(colors[k]);
   }
 }
 
@@ -493,12 +501,6 @@ void file_inf(xpp::Session &s)
   redraw_params();
   do_info(s,w.file());
   xpp::ok_or_show(xpp::commit_save(w));
-}
-
-void ps_write_pars(const xpp::Session &s, FILE *fp)
-{
-  xpp::print(fp,"\n %% {} \n %% Parameters ...\n",s.model().this_file);
-  put_parameters(s,fp,"%% ");
 }
 
 void do_info(const xpp::Session &s, FILE *fp)

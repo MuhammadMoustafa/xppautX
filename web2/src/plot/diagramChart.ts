@@ -8,7 +8,7 @@ import {cssVar} from './css';
    reports back into the store; the gestures are plot/interactions.ts's. */
 import uPlot from 'uplot';
 import type {Range, Viewport} from '../store/plots';
-import {curveColor} from './colors';
+import {cssColor} from './colors';
 import {fitRanges, labelShape, nearestVertex, type DiagramHit, type DiagramModel, type LabelShape} from './diagramModel';
 import {placeLabels} from './labelPlace';
 import type {Ranges} from './viewmath';
@@ -31,11 +31,6 @@ export interface DiagramChartInfo {
 const NAMED_MAX = 40;
 const DASH = [6, 4];
 
-
-/** a palette colour of the core (0 the foreground, 20..29 red..purple) as a curve colour of the theme */
-export function paletteColor(c: number, dark: boolean): string {
-  return curveColor(c >= 20 && c <= 29 ? c - 19 : 0, dark);
-}
 
 /** a labelled point's shape (T29), `r` canvas pixels from its centre; the
     caller sets `ctx`'s stroke/fill style first. Outlines except HB's
@@ -187,7 +182,7 @@ export class DiagramChart {
     const facets: uPlot.Series.Facet[] = [{scale: 'x', auto: false}, {scale: 'y', auto: false}];
     const series: uPlot.Series[] = m.curves.map(c => ({
       label: `Branch ${c.branch}`,
-      stroke: c.cssColor ?? paletteColor(c.color, this.dark), show: c.visible !== false,
+      stroke: c.cssColor ?? cssColor(c.color, this.dark), show: c.visible !== false,
       width: c.width,
       dash: c.dashed ? DASH : undefined,
       paths: this.linePath,
@@ -355,7 +350,7 @@ export class DiagramChart {
     if (!u || !m) return null;
     return {
       curves: m.curves.map(c => ({branch: c.branch, type: c.type, kind: c.kind, stable: c.stable, which: c.which,
-        points: c.xs.length, dashed: c.dashed, width: c.width, color: c.cssColor ?? paletteColor(c.color, this.dark), hopf: c.hopf,
+        points: c.xs.length, dashed: c.dashed, width: c.width, color: c.cssColor ?? cssColor(c.color, this.dark), hopf: c.hopf,
         first: [c.xs[0], c.ys[0], c.idx[0]]})),
       labels: m.labels.map(l => ({point: l.point, lab: l.lab, sym: l.sym, x: l.x, y: l.y, y2: l.y2})),
       named: this.named,

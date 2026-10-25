@@ -43,7 +43,7 @@
 #include "equilibria.h"
 #include "pp_shoot.h"
 #include "graphics.h"
-#include "my_ps.h"
+#include "picture.h"
 #include "grobs.h"
 #include "arrayplot.h"
 #include "aniparse.h"
@@ -182,9 +182,22 @@ struct Session {
   int help_menu=0;
   /* the command line named a model file */
   int got_file=0;
-  /* the colour scale's type (colormap.h's make_cmaps: @ colormap, the
-     Colormap menu); jet the default, so a model without @ colormap gets it */
-  Colormap colormap=Colormap::jet;
+  /* the colour scale: its name (@ colormap, the Colormap menu; viridis the
+     default of a model of ours, jet the one an XPPAUT .ode without @ colormap
+     is converted with) and its 256 colours (colormap.h's make_ramp: made once for each name it has) */
+  Colormap colormap=Colormap::viridis;
+  const Ramp &ramp() const
+  {
+    if(ramp_of_!=colormap){
+      ramp_=make_ramp(colormap);
+      ramp_of_=colormap;
+    }
+    return ramp_;
+  }
+
+  /* the colormap's ramp: ramp()'s cache */
+  mutable Ramp ramp_=make_ramp(Colormap::viridis);
+  mutable Colormap ramp_of_=Colormap::viridis;
 
   /* what each network computed last and its work space (simplenet.cpp;
      their definitions are Model::networks) */
@@ -241,7 +254,7 @@ struct Session {
   ManifoldShots manifolds;
 
   /* the drawing state and a picture file's (graphics.cpp, axes2.cpp,
-     my_ps.cpp, my_svg.cpp) */
+     picture.cpp) */
   DrawingState drawing;
   PlotFileState plot_file;
   /* the text labels and graphic objects on the plot windows (grobs.cpp) */

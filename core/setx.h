@@ -32,6 +32,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "colormap.h"
+#include "line_style.h"
 #include "xpp_error.h"
 #include "xpp_io.h" /* ReadFailed */
 
@@ -104,6 +106,11 @@ public:
        string in double quotes, even one word; a word names a choice, a
        number or a name of the model and is never in quotes */
     bool text(std::string_view key, std::string &v);
+    /* a colour (colormap.h: #rrggbb, #rrggbbaa, a CSS name or foreground) */
+    bool color(std::string_view key, Color &v);
+    /* a line style (line_style.h): its keys draw, dash, width, marker and marker_size, each read as
+       the others are (all of them in complete mode) */
+    void line_style(LineStyle &v);
     bool word(std::string_view key, std::string &v);
 
     /* a nested group */
@@ -196,6 +203,10 @@ public:
        quotes; text the user wrote: always in double quotes, even one word */
     void word(std::string_view key, std::string_view text);
     void text(std::string_view key, std::string_view text);
+    /* a colour written as the colour type's text (bare for foreground, quoted with a #) */
+    void color(std::string_view key, const Color &c) { name(key, print_color(c)); }
+    /* a line style's five keys */
+    void line_style(const LineStyle &v);
     /* a reference to a variable or a column: bare when it is a word, in
        quotes for a user's column named with more (Block::name_of) */
     void name(std::string_view key, std::string_view text);

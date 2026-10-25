@@ -1313,8 +1313,9 @@ check('the animation window closes', any(e.get('ev') == 'window' and e.get('op')
 send(cmd='plotvars', how=2, names=['V', 'W'])
 evs, _ = collect(is_idle)
 ap = [e for e in evs if e.get('ev') == 'aplot']
-check('the IC arry button opens an array plot', ap and ap[-1]['nx'] == 2 and len(ap[-1]['cells']) == 2 * ap[-1]['ny'],
-      str(ap[-1:])[:200])
+check('the IC arry button opens an array plot, its colour scale a ramp of 256 colours (W492)',
+      ap and ap[-1]['nx'] == 2 and 'cells' not in ap[-1] and ap[-1]['colormap'] == 'jet' and len(ap[-1]['ramp']) == 256
+      and ap[-1]['ramp'][0] == '#000081' and ap[-1]['ramp'][255] == '#fe2600', str(ap[-1]['ramp'][-3:]))
 
 # docs/ui-v2.md T12: `values`, the cells' numbers before XPP maps them to a
 # colour, equal the browser's own numbers for the same rows and columns.
@@ -1402,7 +1403,7 @@ AUTO_MENUS = {
     'Start': (['Steady state', 'Periodic', 'Bdry Value', 'Homoclinic', 'hEteroclinic'], 'spbhe'),
     'Plot Type': (['Hi', 'Norm', 'hI-lo', 'Period', 'Two par', '(Z)oom in', 'Zoom (O)ut', 'last 1 par',
                    'last 2 par', 'Fit', 'fRequency', 'Average', 'Default', 'Scroll', 'new (V)iew'], 'hniptzo12fradsv'),
-    'File': (['Import orbit', 'Save diagram', 'Load diagram', 'Postscript', 'SVG', 'Reset diagram', 'Clear grab',
+    'File': (['Import orbit', 'Save diagram', 'Load diagram', 'PDF', 'SVG', 'Reset diagram', 'Clear grab',
               'Write pts', 'All info', 'init Data', 'Toggle redraw', 'auto raNge', 'sElect 2par pt', 'draw laBled',
               'lOad branch', 'eXport CSV', 'Import diagram'], 'islpvrcwadtneboxf'),
     'Torus': (['Two Param', 'Fixed period', 'Extend'], 'tfe'),
@@ -2846,8 +2847,8 @@ def check_phase_data():
         evs = command('n', {'key': 'n'})
         nc, v = of(evs, 'nullclines'), last_state(evs)['view']
         n0 = nc[0] if nc else {}
-        check('Nullcline/New: the event names V and W, colours 2 and 7',
-              len(nc) == 1 and n0['xname'] == 'V' and n0['yname'] == 'W' and n0['xcolor'] == 2 and n0['ycolor'] == 7,
+        check('Nullcline/New: the event names V and W, colours #f06400 and #00e100 (XPPAUT\'s 2 and 7)',
+              len(nc) == 1 and n0['xname'] == 'V' and n0['yname'] == 'W' and n0['xcolor'] == '#f06400' and n0['ycolor'] == '#00e100',
               str(nc)[:300])
         why = (segments_ok(n0.get('x', []), v) or segments_ok(n0.get('y', []), v)) if n0 else 'no event'
         check('... its x- and y-nullclines are whole segments inside the view', not why, why)
@@ -2858,7 +2859,7 @@ def check_phase_data():
         df, v = of(evs, 'dfield'), last_state(evs)['view']
         d0 = df[0] if df else {}
         check('Dir.field/Scaled: dfield has a 17 x 17 grid, scaled, in the curve\'s colour',
-              len(df) == 1 and d0['n'] == 17 and d0['scaled'] == 1 and d0['color'] == 0
+              len(df) == 1 and d0['n'] == 17 and d0['scaled'] == 1 and d0['color'] == 'foreground'
               and len(d0['grid']) == 4 * 289 and len(d0['speed']) == 289, str(df)[:300])
         why = grid_ok(d0.get('grid', []), 17, v) if d0 else 'no event'
         check('... its arrows start on the 17 x 17 grid of the view', not why, why)
@@ -2888,7 +2889,7 @@ def check_phase_data():
         xs = fl[0]['x'] if fl else []
         starts = [0] + [i + 1 for i, a in enumerate(xs) if a is None]
         check('Dir.field/Flow: one curve of 72 trajectories (6 x 6, forward and back), finite points',
-              len(fl) == 1 and fl[0]['color'] == 0 and len(starts) == 72 and len(xs) == len(fl[0]['y'])
+              len(fl) == 1 and fl[0]['color'] == 'foreground' and len(starts) == 72 and len(xs) == len(fl[0]['y'])
               and all(a is None or abs(a) < 1e6 for a in xs), '%d curves, %d trajectories, %d points'
               % (len(fl), len(starts), len(xs)))
         check('... each trajectory starts on the grid',
@@ -2973,15 +2974,16 @@ def check_view():
         if ask:
             send6(cmd='answer', id=ask['id'], key='p')
         evs, ask2 = collect6(lambda e: e.get('ev') == 'ask')
-        check('Postscript asks for its PS parameters first',
-              ask2 is not None and ask2['kind'] == 'form', str(ask2))
+        check('PDF asks for its picture parameters first (colour, axes font size)',
+              ask2 is not None and ask2['kind'] == 'form' and ask2['kinds'] == ['boolean', 'real']
+              and ask2['values'] == ['true', '12'], str(ask2))
         if ask2:
             send6(cmd='answer', id=ask2['id'], ok=1, values=ask2['values'])
         evs, ask3 = collect6(lambda e: e.get('ev') == 'ask')
-        check('... then a file to write it to (mode write, *.ps)',
+        check('... then a file to write it to (mode write, *.pdf)',
               ask3 is not None and ask3['kind'] == 'file' and ask3.get('mode') == 'write'
-              and ask3.get('wild') == '*.ps', str(ask3))
-        psname = 't9view.ps'
+              and ask3.get('wild') == '*.pdf', str(ask3))
+        psname = 't9view.pdf'
         if ask3:
             send6(cmd='answer', id=ask3['id'], ok=1, file=psname)
         collect6(is_idle)
@@ -2990,9 +2992,9 @@ def check_view():
         if os.path.exists(pspath):
             with open(pspath, encoding='latin-1') as f:
                 ps = f.read()
-        check('the PostScript file was written', ps != '')
+        check('the PDF file was written', ps.startswith('%PDF-1.4'))
         check("its axes use the new view: the boundary tick labels (-100, 100) appear in the file's text",
-              '(-100) ' in ps and '(100) ' in ps, str(len(ps)))
+              '(-100) Tj' in ps and '(100) Tj' in ps, str(len(ps)))
     finally:
         stop_server(proc6, run6, send6)
 
@@ -3117,21 +3119,21 @@ def check_marks():
         cols = {c['col']: c['data'] for c in ser[-1]['columns']} if ser else {}
 
         typed = r'\1a\0-point \{2*3}'
-        evs = command('t', keys('t', {'xd': -0.3, 'yd': 0.5}, {'value': typed, 'size': 3, 'style': 1, 'color': 4}))
+        evs = command('t', keys('t', {'xd': -0.3, 'yd': 0.5}, {'value': typed, 'size': 3, 'style': 1, 'color': '#ffcd00'}))
         m = marks_of(evs)
         t = m['text'] if m else []
         check('Text,etc/Text: a text mark with its text (\\{expr} filled in), size, style, colour and position',
               len(t) == 1 and t[0]['text'] == r'\1a\0-point 6' and t[0]['source'] == typed and t[0]['size'] == 3
-              and t[0]['font'] == 0 and t[0]['style'] == 1 and t[0]['color'] == 4
+              and t[0]['font'] == 0 and t[0]['style'] == 1 and t[0]['color'] == '#ffcd00'
               and near(t[0]['x'], -0.3, px) and near(t[0]['y'], 0.5, py), str(m)[:300])
         asks = of(evs, 'ask')
         check('W227: Text asks where first (mouse), then the text dialog (text) with the defaults',
               [e['kind'] for e in asks] == ['menu', 'mouse', 'text'] and asks[2]['title'] == 'Text'
               and asks[2]['size'] == hello6['text']['default_size'] and asks[2]['style'] == 0
-              and asks[2]['color'] == 0 and asks[2]['value'] == '',
+              and asks[2]['color'] == 'foreground' and asks[2]['value'] == '',
               str([(e['kind'], e.get('size')) for e in asks]))
         check('W227: hello.text says what a text takes',
-              hello6.get('text') == {'max_length': 1000, 'size_max': 4, 'style_count': 4, 'color_max': 10, 'default_size': 2},
+              hello6.get('text') == {'max_length': 1000, 'size_max': 4, 'style_count': 4, 'default_size': 2},
               str(hello6.get('text')))
         tid = t[0]['id'] if t else -1
 
@@ -3139,21 +3141,22 @@ def check_marks():
         def text_cmd(**fields):
             evs = after(dict({'cmd': 'text', 'win': 1}, **fields))
             return marks_of(evs), [e.get('error', '') for e in of(evs, 'message')]
-        m, errs = text_cmd(op='edit', id=tid, color=9)
+        m, errs = text_cmd(op='edit', id=tid, color='#0000ff')
         t = m['text'] if m else []
         check('W227: text edit with only a colour changes only the colour',
-              len(t) == 1 and t[0]['color'] == 9 and t[0]['style'] == 1 and t[0]['size'] == 3 and t[0]['source'] == typed
+              len(t) == 1 and t[0]['color'] == '#0000ff' and t[0]['style'] == 1 and t[0]['size'] == 3 and t[0]['source'] == typed
               and not errs, str((m, errs))[:300])
-        m, errs = text_cmd(op='edit', id=tid, text='moved', size=0, style=3, color=0, x=0.25, y=0.75)
+        m, errs = text_cmd(op='edit', id=tid, text='moved', size=0, style=3, color='foreground', x=0.25, y=0.75)
         t = m['text'] if m else []
         check('W227: text edit changes the text, size, style, colour and position',
               len(t) == 1 and t[0]['text'] == 'moved' and t[0]['source'] == 'moved' and t[0]['size'] == 0
-              and t[0]['style'] == 3 and t[0]['color'] == 0 and t[0]['id'] == tid and near(t[0]['x'], 0.25, 1e-6)
+              and t[0]['style'] == 3 and t[0]['color'] == 'foreground' and t[0]['id'] == tid and near(t[0]['x'], 0.25, 1e-6)
               and near(t[0]['y'], 0.75, 1e-6) and not errs, str((m, errs))[:300])
         for what, fields, want in [
                 ('a size above 4', dict(op='edit', id=tid, size=9), '9 is not a text size (0 to 4)'),
                 ('a style of 4', dict(op='edit', id=tid, style=4), '4 is not a text style (0 to 3)'),
-                ('a colour of 11', dict(op='edit', id=tid, color=11), '11 is not a colour (0 to 10)'),
+                ('a colour that is none', dict(op='edit', id=tid, color='banana'), 'the color is a string'),
+                ('a colour that is a number', dict(op='edit', id=tid, color=3), 'the color is a string'),
                 ('a size that is not whole', dict(op='edit', id=tid, size=1.5), 'whole numbers'),
                 ('an empty text', dict(op='edit', id=tid, text=''), 'not empty'),
                 ('a text of 1001 characters', dict(op='edit', id=tid, text='x' * 1001), 'at most 1000 characters'),
@@ -3167,41 +3170,41 @@ def check_marks():
             m, errs = text_cmd(**fields)
             check('W227: text refuses %s, naming it, and changes nothing' % what,
                   m is None and len(errs) == 1 and want in errs[0], str((m, errs))[:300])
-        m, errs = text_cmd(op='add', text=r'%a\{2*3}', x=0.5, y=-0.5, size=4, style=2, color=7)
+        m, errs = text_cmd(op='add', text=r'%a\{2*3}', x=0.5, y=-0.5, size=4, style=2, color='#00e100c0')
         t = m['text'] if m else []
         added = next((x for x in t if x['id'] != tid), None)
         check('W227: text add: a new label with its look, a % text stored as its value',
               len(t) == 2 and added and added['text'] == added['source'] and added['text'] == 'a6'
-              and added['size'] == 4 and added['style'] == 2 and added['color'] == 7 and not errs, str((m, errs))[:300])
+              and added['size'] == 4 and added['style'] == 2 and added['color'] == '#00e100c0' and not errs, str((m, errs))[:300])
         m, errs = text_cmd(op='delete', id=added['id'] if added else -1)
         check('W227: text delete removes that label only', m is not None and [x['id'] for x in m['text']] == [tid] and not errs,
               str((m, errs))[:300])
-        m, errs = text_cmd(op='edit', id=tid, text=typed, size=3, style=1, color=4, x=-0.3, y=0.5)
+        m, errs = text_cmd(op='edit', id=tid, text=typed, size=3, style=1, color='#ffcd00', x=-0.3, y=0.5)
         check('W227: ... and the first label is as Text left it', m is not None and len(m['text']) == 1
               and m['text'][0]['text'] == r'\1a\0-point 6' and not errs, str((m, errs))[:300])
 
-        evs = command('t', keys('p', {'value': '0.2'}, {'value': '5'},
+        evs = command('t', keys('p', {'value': '0.2'}, {'value': '#c8c800'},
                                 {'xd': 0.1, 'yd': 0.2, 'xd2': 0.6, 'yd2': 0.8}))
         m = marks_of(evs)
         a = m['arrows'] if m else []
         check('Text,etc/Pointer: an arrow mark from the first point to the second, its size and colour',
-              len(a) == 1 and a[0]['kind'] == 'pointer' and a[0]['size'] == 0.2 and a[0]['color'] == 5
+              len(a) == 1 and a[0]['kind'] == 'pointer' and a[0]['size'] == 0.2 and a[0]['color'] == '#c8c800'
               and near(a[0]['x1'], 0.1, px) and near(a[0]['y1'], 0.2, py) and near(a[0]['x2'], 0.6, px)
               and near(a[0]['y2'], 0.8, py) and len(m['text']) == 1, str(m)[:300])
 
-        evs = command('t', keys('m', {'values': ['3', '7', '2']}, {'xd': 0.9, 'yd': 0.1}))
+        evs = command('t', keys('m', {'values': ['3', '#00e100', '2']}, {'xd': 0.9, 'yd': 0.1}))
         m = marks_of(evs)
         k = m['markers'] if m else []
         check('Text,etc/Marker: a marker mark with its shape, size, colour and position',
-              len(k) == 1 and k[0]['shape'] == 'diamond' and k[0]['size'] == 2 and k[0]['color'] == 7
+              len(k) == 1 and k[0]['shape'] == 'diamond' and k[0]['size'] == 2 and k[0]['color'] == '#00e100'
               and near(k[0]['x'], 0.9, px) and near(k[0]['y'], 0.1, py), str(m)[:300])
 
-        evs = command('g', keys('f', 'f', {'values': ['4', 'first run', 'frz1']}))
+        evs = command('g', keys('f', 'f', {'values': ['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'first run', 'frz1']}))
         m = marks_of(evs)
         f = m['frozen'] if m else []
         check('Graphic stuff/Freeze: a frozen curve equal to the series at freeze time, its key and colour',
-              len(f) == 1 and f[0]['key'] == 'first run' and f[0]['name'] == 'frz1' and f[0]['color'] == 4
-              and f[0]['line'] == 1 and values({'data': f[0]['x']}, None) == cols.get(curve['x']) and values({'data': f[0]['y']}, None) == cols.get(curve['y'])
+              len(f) == 1 and f[0]['key'] == 'first run' and f[0]['name'] == 'frz1' and f[0]['color'] == '#ffcd00'
+              and f[0]['draw'] == 'line' and f[0]['dash'] == 'solid' and f[0]['width'] == 1 and values({'data': f[0]['x']}, None) == cols.get(curve['x']) and values({'data': f[0]['y']}, None) == cols.get(curve['y'])
               and len(f[0]['x']) > 2, str(m)[:300])
 
         got = command('s', lambda e, n: {'key': 'g' if n == 0 else 'n'})
@@ -3264,7 +3267,7 @@ def check_ani_data():
     """The animation as data (docs/protocol.md "The animation as data",
     docs/ui-v2.md T13): tools/gui_test.ani (one of every command) on lecar.
     Each frame event's primitives are in unit coordinates of the dimension
-    box, colours as XPP indices or #rrggbb; the player's step, seek and Go
+    box, colours as #rrggbb or foreground; the player's step, seek and Go
     send the frames they show, Go at most 25 a second and always its last
     one."""
     proc6, run6, send6, collect6, _ = launch_server()
@@ -3296,11 +3299,13 @@ def check_ani_data():
             send6(cmd='ani', op=op, **kw)
         return answered(list(answers))
 
+    named = {'foreground', '#ff0000', '#f06400', '#ffa500', '#ffcd00', '#c8c800', '#c8eb4b', '#00e100', '#00c8c8', '#0000ff', '#a020f0'}
+
     def colours_ok(f):
-        """'' when every primitive's colour is an XPP index (0..10) or a colour map's #rrggbb, else why"""
+        """'' when every primitive's colour is `foreground` or a #rrggbb, else why"""
         for p in f['prims']:
             c = p[4] if p[0] in ('dot', 'text') else p[5]
-            if not ((isinstance(c, int) and 0 <= c <= 10) or (isinstance(c, str) and len(c) == 7 and c[0] == '#')):
+            if not (c == 'foreground' or (isinstance(c, str) and len(c) == 7 and c[0] == '#')):
                 return 'colour %r of %s' % (c, p)
         return ''
 
@@ -3339,11 +3344,11 @@ def check_ani_data():
         kinds = sorted({p[0] for p in f0['prims']})
         check('ani data: every kind of primitive (line, rect, circle, ellipse, dot, text)',
               kinds == ['circle', 'dot', 'ellipse', 'line', 'rect', 'text'], str(kinds))
-        check('ani data: frame 0 has a primitive per drawing command of the .ani, colours as indices or #rrggbb',
+        check('ani data: frame 0 has a primitive per drawing command of the .ani, colours as #rrggbb or foreground',
               len(f0['prims']) == 13 and not colours_ok(f0), '%d primitives %s' % (len(f0['prims']), colours_ok(f0)))
         check('ani data: its coordinates are in [0,1] (only a line may leave the box)',
               in_unit(f0) is None, str(in_unit(f0)))
-        spectral = [p for p in f0['prims'] if p[0] == 'circle' and isinstance(p[5], str)]
+        spectral = [p for p in f0['prims'] if p[0] == 'circle' and p[5] not in named]
         check('ani data: a colour of the colour map is #rrggbb (fcircle ...;w)', len(spectral) == 1, str(spectral))
 
         evs = ani('step', n=1)
@@ -3394,7 +3399,7 @@ def check_ani_data():
         evs = ani('grab')
         fr = frames(evs)
         check('ani data: Grab shows the grab points', bool(fr) and states(evs)[-1]['grab'] == 1, str(states(evs)))
-        cross = [p for p in (fr[-1] if fr else f0)['prims'] if p[0] == 'line' and p[5] == 0][-2:]
+        cross = [p for p in (fr[-1] if fr else f0)['prims'] if p[0] == 'line' and p[5] == 'foreground'][-2:]
         if len(cross) == 2:
             cx, cy = (cross[1][1] + cross[1][3]) / 2, (cross[1][2] + cross[1][4]) / 2
             ani('mouse', what='down', u=cx, v=cy)
@@ -4411,7 +4416,7 @@ def check_output_names():
         snd(cmd='key', key='Escape')
         col(is_idle)
         live_run(snd, col)
-        for key, ext in [('p', 'ps'), ('v', 'svg')]:
+        for key, ext in [('p', 'pdf'), ('v', 'svg')]:
             snd(cmd='key', key='g')
             _, ask = col(is_ask)
             snd(cmd='answer', id=ask['id'], key=key)
@@ -4421,7 +4426,7 @@ def check_output_names():
         snd(cmd='plotvars', how=2, names=['V', 'W'])
         col(is_idle)
         snd(cmd='key', win='aplot', key='p')
-        cancel_name('lecar-array.ps')
+        cancel_name('lecar-array.pdf')
         snd(cmd='aplot', op='close')
         col(is_idle)
         for what, ext, format in [('table', 'dat', 'dat'), ('table', 'csv', 'csv'),
@@ -4507,14 +4512,10 @@ def check_output_names():
         col(is_idle)
         snd(cmd='key', win='aplot', key='p')
         _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], values=['index', 'time', '', 'garbage'])
-        evs, end = col(lambda e: is_ask(e) or is_idle(e))
-        check('W177: malformed render reports a placed error before asking for a filename',
-              end and is_idle(end) and any(e.get('error') and e.get('file') and 'line' in e
-                  and 'garbage' in e['error'] for e in evs), str(evs)[-400:])
-        if end and is_ask(end):
-            snd(cmd='answer', id=end['id'], ok=0)
-            col(is_idle)
+        check('W492: Print arrayplot asks its three labels, no render type (the colour scale is the session\'s)',
+              ask.get('kind') == 'form' and ask.get('names') == ['Top label', 'Side label', 'Bottom label'], str(ask))
+        snd(cmd='answer', id=ask['id'], ok=0)
+        col(is_idle)
         snd(cmd='aplot', op='close')
         col(is_idle)
         # A long valid name is retained, while traversal/device names report an error.
@@ -5730,25 +5731,40 @@ def check_export_elements():
     go = [{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'}]
 
     def elements(data, fmt):
+        """the picture's items as (kind, colour, text): a path or a dot (a marker) in its colour, a text in its colour"""
         text = data.decode('utf-8')
         if fmt == 'svg':
-            return [(node.tag.rsplit('}', 1)[-1], node.get('class'), (node.text or '').strip())
-                    for node in ET.fromstring(text).iter()
-                    if node.tag.rsplit('}', 1)[-1] in ('line', 'text', 'use')]
-        style, result = '', []
-        for line in text.splitlines():
-            if re.fullmatch(r'LT[0-9abc]', line):
-                style = line[2:]
-            elif re.fullmatch(r'-?\d+ -?\d+ L', line):
-                result.append(('line', style, ''))
-            elif re.search(r'\) (?:[LCR]show|show)', line):
-                result.append(('text', '', line[line.index('('):]))
+            result = []
+            for node in ET.fromstring(text).iter():
+                tag = node.tag.rsplit('}', 1)[-1]
+                if tag == 'polyline':
+                    result.append(('path', node.get('stroke'), ''))
+                elif tag == 'circle':
+                    result.append(('dot', node.get('fill'), ''))
+                elif tag == 'text':
+                    result.append(('text', node.get('fill'), ''.join(node.itertext()).strip()))
+            return result
+        hexed = lambda r, g, b: '#%02x%02x%02x' % tuple(round(float(v) * 255) for v in (r, g, b))
+        result, stroke, fill, curved = [], '#000000', '#000000', False
+        for line in text.split('stream\n', 1)[1].splitlines():
+            m = re.fullmatch(r'(\S+) (\S+) (\S+) (RG|rg)', line)
+            if m:
+                if m.group(4) == 'RG':
+                    stroke = hexed(*m.group(1, 2, 3))
+                else:
+                    fill = hexed(*m.group(1, 2, 3))
+            elif line.endswith(' c'):
+                curved = True
+            elif line == 'S':
+                result.append(('path', stroke, ''))
+            elif line == 'f':
+                result.append(('dot' if curved else 'fill', fill, ''))
+                curved = False
+            elif line.endswith(' Tj'):
+                result.append(('text', fill, line[line.index('('):]))
         return result
 
     with tempfile.TemporaryDirectory(prefix='xppexport') as root, patch.dict(os.environ, HOME=root):
-        # SVG may read a user stylesheet; keep it local and captured by recordings.
-        with open(os.path.join(root, 'xppaut-stylesheet.css'), 'w') as f:
-            f.write('/* W346 isolated stylesheet */\n')
         server = Server(binary, model, run=root)
         try:
             server.collect(is_idle)
@@ -5761,21 +5777,21 @@ def check_export_elements():
             check('W346: a run publishes requested nullclines and field without a separate command',
                   nc is not None and df is not None, str(events[-3:])[:300])
             expected_files = {}
-            ps_values = []
-            for fmt in ('ps', 'svg'):
+            picture_values = []
+            for fmt in ('pdf', 'svg'):
                 name = 'server.' + fmt
                 def form(e):
-                    ps_values[:] = e['values']
+                    picture_values[:] = e['values']
                     return {'ok': 1, 'values': e['values']}
                 server.send(cmd='key', key='g')
                 server.answer_asks(is_idle, {
-                    'menu': lambda e: {'key': 'p' if fmt == 'ps' else 'v'},
+                    'menu': lambda e: {'key': 'p' if fmt == 'pdf' else 'v'},
                     'form': form, 'file': lambda e: {'file': name}})
                 with open(os.path.join(root, name), 'rb') as f:
                     expected_files[fmt] = elements(f.read(), fmt)
         finally:
             server.close()
-        for fmt in ('ps', 'svg'):
+        for fmt in ('pdf', 'svg'):
             expected = expected_files[fmt]
             result = subprocess.run([binary, os.path.basename(model), '--silent', '--yes', '--mkplot', '--plotfmt', fmt],
                                     cwd=root, capture_output=True, text=True, timeout=60 * SLOW)
@@ -5786,36 +5802,30 @@ def check_export_elements():
                   result.returncode == 0 and bool(actual) and actual == expected,
                   str((len(expected), len(actual), next(((a, b) for a, b in zip(expected, actual) if a != b), None)))
                   + result.stderr[-300:])
-            counts = Counter((kind, style) for kind, style, _ in actual)
-            xstyle, ystyle = ('2', '7') if fmt == 'ps' else ('xppline2', 'xppline7')
-            check('W346: ' + fmt + ' holds both nullclines and label text',
-                  counts['line', xstyle] > 0 and counts['line', ystyle] > 0
+            counts = Counter((kind, colour) for kind, colour, _ in actual)
+            check('W346: ' + fmt + ' holds both nullclines (XPPAUT\'s colours 2 and 7) and label text',
+                  counts['path', '#f06400'] > 0 and counts['path', '#00e100'] > 0
                   and any(kind == 'text' for kind, _, _ in actual), str(counts))
-            if fmt == 'svg':
-                arrows = counts['line', 'xppdfield']
-            else:
-                # Field first, then the differently styled nullclines.
-                arrows = next((i for i, item in enumerate(actual) if item != ('line', '0', '')), len(actual))
-            check('W346: ' + fmt + ' holds all 25 requested field arrows', arrows == 25, str(counts))
+            # each arrow is a path with a dot at its head
+            check('W346: ' + fmt + ' holds all 25 requested field arrows', counts['dot', '#000000'] == 25, str(counts))
         annotations = go + [
             {'cmd': 'text', 'op': 'add', 'win': 1, 'x': 0.2, 'y': 0.4, 'text': 'W346label'},
             {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'f'},
-            {'cmd': 'answer', 'key': 'f'}, {'cmd': 'answer', 'values': ['4', 'W346frozen', 'frz1']}]
-        for fmt in ('ps', 'svg'):
+            {'cmd': 'answer', 'key': 'f'}, {'cmd': 'answer', 'values': ['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'W346frozen', 'frz1']}]
+        for fmt in ('pdf', 'svg'):
             name = 'annotated.' + fmt
-            annotations += [{'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'p' if fmt == 'ps' else 'v'}]
-            if fmt == 'ps':
-                annotations += [{'cmd': 'answer', 'values': ps_values}]
+            annotations += [{'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'p' if fmt == 'pdf' else 'v'}]
+            annotations += [{'cmd': 'answer', 'values': picture_values}]
             annotations += [{'cmd': 'answer', 'file': name}]
         result = run_commands(binary, model, annotations, root)
         annotated = {}
-        for fmt in ('ps', 'svg'):
+        for fmt in ('pdf', 'svg'):
             with open(os.path.join(root, 'annotated.' + fmt), 'rb') as f:
                 annotated[fmt] = elements(f.read(), fmt)
         recording = make_recording(binary, model, annotations, root)
         result = subprocess.run([binary, recording, '--silent', '--yes'], cwd=root,
                                 capture_output=True, text=True, timeout=60 * SLOW)
-        for fmt in ('ps', 'svg'):
+        for fmt in ('pdf', 'svg'):
             with open(os.path.join(root, 'annotated.' + fmt), 'rb') as f:
                 replayed = elements(f.read(), fmt)
             check('W346: silent/server ' + fmt + ' preserve a label and frozen curve',
@@ -6341,7 +6351,7 @@ def check_plot_limits():
                   len(graph.get('windows', [{}])[0].get('curves', [])) == 13, str(graph)[:200])
             command(cmd='key', key='i', menus=['g'])
             for i in range(32):
-                command(cmd='key', key='g', menus=['f', 'f'], form=['4', 'frozen%d' % i, 'f%d' % i])
+                command(cmd='key', key='g', menus=['f', 'f'], form=['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'frozen%d' % i, 'f%d' % i])
             for i in range(26):
                 command(cmd='key', key='m', menus=['c'])
             command(cmd='data', events=['plots', 'series', 'marks'])
@@ -6435,8 +6445,8 @@ def check_session_file():
         answered(snd, col, (), cmd='auto', op='set', axes={'view': 1, 'plot': 'norm', 'fit': True})
         answered(snd, col, (), cmd='auto', op='display', view=1, x=None, y=[0, 0.5])
         answered(snd, col, (), cmd='auto', op='view', active=0)
-        key(snd, col, 't', 't', {'xd': 10, 'yd': 0.1}, {'value': 'here', 'size': 2, 'style': 2, 'color': 4})
-        key(snd, col, 'g', 'f', 'f', {'values': ['4', 'first', 'frz1']})
+        key(snd, col, 't', 't', {'xd': 10, 'yd': 0.1}, {'value': 'here', 'size': 2, 'style': 2, 'color': '#ffcd00'})
+        key(snd, col, 'g', 'f', 'f', {'values': ['#ffcd00', 'line', 'dashed', '2', 'square', '4', 'first', 'frz1']})
         key(snd, col, 'm', 'c')
         # W145: an added browser column is saved with the session and comes back computed
         key(snd, col, 'a', {'ok': 1, 'value': 'VW'}, {'ok': 1, 'value': 'v*w'}, win='browser')
@@ -6626,7 +6636,7 @@ def check_session_file():
         def label_marks(label_line=None, **over):
             """marks.setx with one label (its fields over the defaults); the label's
             lines are 3 (window) to 10 (text)"""
-            f = dict(window='0', x='0.5', y='0.5', size='2', font='0', style='0', color='0', text='"hi"')
+            f = dict(window='0', x='0.5', y='0.5', size='2', font='0', style='0', color='foreground', text='"hi"')
             f.update(over)
             rows = ['labels: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in ('window', 'x', 'y', 'size', 'font', 'style', 'color', 'text')]
             rows += ['  },', '],', 'arrows_and_markers: [],', 'freeze_each_run: 0,', 'frozen_curves: [],', '']
@@ -6634,7 +6644,7 @@ def check_session_file():
 
         def mark_marks(**over):
             """marks.setx with one arrow or marker; its lines are 4 (window) to 11"""
-            f = dict(window='0', type='0', color='0', size='1', x_start='0', y_start='0', x_end='1', y_end='1')
+            f = dict(window='0', type='0', color='foreground', size='1', x_start='0', y_start='0', x_end='1', y_end='1')
             f.update(over)
             rows = ['labels: [],', 'arrows_and_markers: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in
                                                                        ('window', 'type', 'color', 'size', 'x_start', 'y_start', 'x_end', 'y_end')]
@@ -6701,7 +6711,7 @@ def check_session_file():
             ('labelstyle', lambda m: m.__setitem__('marks.setx', label_marks(style='7')),
              ('labelstyle.snapx/marks.setx:8:', '7 is not a text style (0 to 3)')),
             ('labelcolor', lambda m: m.__setitem__('marks.setx', label_marks(color='99')),
-             ('labelcolor.snapx/marks.setx:9:', '99 is not a colour (0 to 10)')),
+             ('labelcolor.snapx/marks.setx:9:', '`99` is not a colour')),
             ('labelempty', lambda m: m.__setitem__('marks.setx', label_marks(text='""')),
              ('labelempty.snapx/marks.setx:10:', 'a text is not empty')),
             ('labellong', lambda m: m.__setitem__('marks.setx', label_marks(text='"' + 'x' * 1001 + '"')),
@@ -6713,7 +6723,7 @@ def check_session_file():
             ('marktype', lambda m: m.__setitem__('marks.setx', mark_marks(type='999')),
              ('marktype.snapx/marks.setx:5:', "999 is not an object's type (0 to 7)")),
             ('markcolor', lambda m: m.__setitem__('marks.setx', mark_marks(color='999')),
-             ('markcolor.snapx/marks.setx:6:', '999 is not a colour (0 to 10)')),
+             ('markcolor.snapx/marks.setx:6:', '`999` is not a colour')),
             ('twonames', lambda m: m.__setitem__('session.setx', m['session.setx'].replace(b'session: {', b'session: { model: "lecar.odex",', 1)),
              ('twonames.snapx/session.setx:3:', 'is given twice')),
         ]

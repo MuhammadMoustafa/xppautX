@@ -95,7 +95,27 @@ int main(void)
     CHECK(xpp::load_model(2, argv_cmap, 1).has_value());
     CHECK(xpp::client_session().colormap == xpp::Colormap::cool);
     CHECK(xpp::load_model(2, argv_good, 1).has_value());
+    CHECK(xpp::client_session().colormap == xpp::Colormap::viridis); /* an .odex without one */
+    {
+        /* an .ode without one is converted with XPPAUT's own, jet */
+        xpp::files::remove("build/test_load_nocmap.odex");
+        xpp::Writer w("build/test_load_nocmap.ode");
+        CHECK(w && w.write("x'=-x\ndone\n") && w.commit());
+    }
+    char nocmap_arg[] = "build/test_load_nocmap.ode";
+    char *argv_nocmap[] = {arg0, nocmap_arg, NULL};
+    CHECK(xpp::load_model(2, argv_nocmap, 1).has_value());
     CHECK(xpp::client_session().colormap == xpp::Colormap::jet);
+    {
+        /* a model of ours without one: viridis, and its ramp is the session's */
+        xpp::Writer w("build/test_load_viridis.odex");
+        CHECK(w && w.write("x' = -x\n") && w.commit());
+    }
+    char viridis_arg[] = "build/test_load_viridis.odex";
+    char *argv_viridis[] = {arg0, viridis_arg, NULL};
+    CHECK(xpp::load_model(2, argv_viridis, 1).has_value());
+    CHECK(xpp::client_session().colormap == xpp::Colormap::viridis);
+    CHECK(xpp::client_session().ramp() == xpp::make_ramp(xpp::Colormap::viridis));
 
     /* @ range= and @ output= are the Session's (W350): the next model, and
        a load that fails, neither inherits nor loses them */

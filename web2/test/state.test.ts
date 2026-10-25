@@ -8,12 +8,12 @@ import {zoomAbout} from '../src/plot/viewmath';
 import type {SeriesEvent} from '../src/protocol/types';
 import {activeWindow} from '../src/store/plots';
 import {busyText, classifyLogText, initialState, LEAVE_ASK, noIdle, reduce, type AppState} from '../src/store/state';
-import {HELLO, READY} from './hello';
+import {HELLO, READY, LINE} from './hello';
 import {logEntries} from '../src/store/log';
 
 const phase: SeriesEvent = {
   ev: 'series', win: 1, rows: 3, three: 0, xlabel: '', ylabel: '', zlabel: '',
-  curves: [{x: 1, y: 2, z: 1, color: 0, line: 1}], shift: [0, 0, 0],
+  curves: [{x: 1, y: 2, z: 1, color: 'foreground', ...LINE}], shift: [0, 0, 0],
   columns: [
     {col: 0, name: 'T', data: [0, 0.05, 0.1]},
     {col: 1, name: 'V', data: [-0.144, -0.1438, null]},
@@ -37,7 +37,7 @@ test('the zoom survives new data for the same curves, not other curves', () => {
   s = reduce(s, {type: 'viewport', viewport: {x: {min: 0, max: 1}, y: null}});
   s = ev(s, phase);
   assert.deepEqual(shown(s).viewport.x, {min: 0, max: 1});
-  s = ev(s, {...phase, curves: [{x: 0, y: 1, z: 0, color: 0, line: 1}]});
+  s = ev(s, {...phase, curves: [{x: 0, y: 1, z: 0, color: 'foreground', ...LINE}]});
   assert.equal(shown(s).viewport.x, null);
 });
 
@@ -60,7 +60,7 @@ test('a phase plane is an xy plot, a time plot an aligned one', () => {
   assert.equal(m.mode, 2);
   assert.equal(m.curves[0].label, 'W vs V');
   assert.equal(m.xLabel, 'V');
-  const t = ev(READY, {...phase, curves: [{x: 0, y: 1, z: 0, color: 0, line: 1}]});
+  const t = ev(READY, {...phase, curves: [{x: 0, y: 1, z: 0, color: 'foreground', ...LINE}]});
   assert.equal(buildModel(shown(t).series!).mode, 1);
 });
 

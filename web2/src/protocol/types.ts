@@ -2,6 +2,7 @@
    new front end reads are typed; everything else passes through untouched. */
 
 import type {CommandCategory, CommandKind, CommandRow, LayerWindow, WindowLayer} from './kinds';
+import type {LineGeometry} from '../plot/linestyle';
 
 /** the protocol this page speaks (core/ui_json.h JSON_UI_PROTOCOL): core and
     page ship together, so a hello with another is a shown error (session.ts) */
@@ -51,12 +52,16 @@ export interface HelloEvent {
   upload_error: string;
   player_speed: {min: number; max: number};
   limits: {upload: number; browser_rows: number; browser_cols: number};
-  /** what a plot text takes (core/grobs.h LABEL_*): its most characters, largest size, number of styles, last colour, the size a new text starts at */
-  text: {max_length: number; size_max: number; style_count: number; color_max: number; default_size: number};
+  /** what a plot text takes (core/grobs.h LABEL_*): its most characters, largest size, number of styles, the size a new text starts at */
+  text: {max_length: number; size_max: number; style_count: number; default_size: number};
+  /** the dash patterns and marker glyphs the pictures draw (core/picture.h): at width and size 1 (plot/linestyle.ts) */
+  line_styles: LineGeometry;
   /** auxiliary IDs; plots is the initial slot count, not a maximum; `plots.windows` lists actual IDs */
   window_ids: {plots: number; auto: number; ani: number; aplot: number};
   lists: string[][];
   userbuttons: string[];
+  /** the colour scales the core has, by name (the array plot's choice) */
+  colormaps: string[];
   /** the model file's own values, in the order of `state`'s pars and ics (what `default` restores) */
   defaults: {pars: number[]; ics: number[]};
 }
@@ -212,15 +217,26 @@ export interface PressEvent {
   ms: number;
 }
 
-/** One curve of the active plot window: storage columns (0 is T) and XPP's style. */
-export interface Curve {
+/** A colour as the core says it: `#rrggbb`, `#rrggbbaa` (alpha only when not opaque) or `foreground`,
+    the colour the page draws dark on a light theme and light on a dark one */
+export type CoreColor = string;
+
+/** how a curve (or a frozen curve) is drawn: line, points or both, the line's dash and width,
+    the points' marker and its size (pixels) */
+export interface LineStyle {
+  draw: 'line' | 'points' | 'both';
+  dash: 'solid' | 'dashed' | 'dotted' | 'dash_dot';
+  width: number;
+  marker: 'circle' | 'square' | 'triangle' | 'diamond' | 'cross' | 'plus' | 'star';
+  marker_size: number;
+}
+
+/** One curve of the active plot window: storage columns (0 is T), its colour and style. */
+export interface Curve extends LineStyle {
   x: number;
   y: number;
   z: number;
-  /** XPP colour index: 0 the foreground, 1..10 red .. purple */
-  color: number;
-  /** > 0 a line, <= 0 points of radius -line */
-  line: number;
+  color: CoreColor;
 }
 
 /** a column's values: JSON numbers (null for NaN), or with enc "f32" base64 of little-endian float32 */
@@ -348,9 +364,9 @@ export interface NullclinesEvent {
   /** the variables whose derivative is 0 along the x- and y-nullcline */
   xname: string;
   yname: string;
-  /** XPP colour indices, as a curve's */
-  xcolor: number;
-  ycolor: number;
+  /** colours, as a curve's */
+  xcolor: CoreColor;
+  ycolor: CoreColor;
   x: SeriesData;
   y: SeriesData;
   /** Nullcline/Freeze: earlier sets, drawn in the same colours */
@@ -364,7 +380,7 @@ export interface DfieldEvent {
   enc?: 'f32';
   /** 1: arrows of one length (Scaled Dir.Fld); 0: lengths follow the speed (Direct field) */
   scaled: number;
-  color: number;
+  color: CoreColor;
   /** grid points a side; 0 when the window shows no field */
   n: number;
   /** the grid's spacing in plot units */
@@ -375,7 +391,7 @@ export interface DfieldEvent {
   /** one per arrow, plot units per unit time */
   speed: SeriesData;
   /** one per curve of the window: its trajectories, NaN (null) between two */
-  flows: {color: number; x: SeriesData; y: SeriesData}[];
+  flows: {color: CoreColor; x: SeriesData; y: SeriesData}[];
 }
 
 /** what a plot window shows on top of its curves (docs/protocol.md "The plot
@@ -390,13 +406,12 @@ export interface MarksEvent {
   equilibria: {x: number; y: number; type: 'stable' | 'unstable' | 'saddle'; symbol: string}[];
   /** XPP's text: backslash escapes switch the font (\1 symbol: Greek, \0 roman), \s \S \n
       subscript, superscript, normal; size 0-4; `source` is the text as written (its \{expr}s unfilled); `id` names the text for the `text` command; style 0 normal, 1 bold,
-      2 italic, 3 bold italic; color a curve colour's index */
-  text: {id: number; x: number; y: number; text: string; source: string; size: number; font: number; style: number; color: number}[];
+      2 italic, 3 bold italic; color its colour */
+  text: {id: number; x: number; y: number; text: string; source: string; size: number; font: number; style: number; color: CoreColor}[];
   /** from (x1, y1), where the head's tip is, towards (x2, y2); a pointer has a shaft, an arrow only the head */
-  arrows: {kind: 'arrow' | 'pointer'; x1: number; y1: number; x2: number; y2: number; size: number; color: number}[];
-  markers: {x: number; y: number; shape: 'box' | 'diamond' | 'triangle' | 'plus' | 'cross' | 'circle'; size: number; color: number}[];
-  /** line 0: drawn as points */
-  frozen: {key: string; name: string; color: number; line: number; x: SeriesData; y: SeriesData}[];
+  arrows: {kind: 'arrow' | 'pointer'; x1: number; y1: number; x2: number; y2: number; size: number; color: CoreColor}[];
+  markers: {x: number; y: number; shape: 'box' | 'diamond' | 'triangle' | 'plus' | 'cross' | 'circle'; size: number; color: CoreColor}[];
+  frozen: (LineStyle & {key: string; name: string; color: CoreColor; x: SeriesData; y: SeriesData})[];
 }
 
 export interface AskEvent {
@@ -538,22 +553,21 @@ export interface EquilibriumEvent {
 }
 
 /** the array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`, window 105):
-    `ny` rows of `nx` cells, row-major like `cells` (the core's own colour
-    indices, what its GIF writer paints). `values` is the same cells' stored
-    numbers before that mapping (float32, null/NaN off the stored rows or
-    columns), so this view can pick its own colour scale from them and
-    zmin/zmax; `enc` "f32" (the client's last `data` `enc`) sends it as
-    base64 like a series column. */
+    `ny` rows of `nx` cells, row-major. `values` is the cells' stored numbers
+    (float32, null/NaN off the stored rows or columns); a cell's colour is the
+    ramp's at the fraction of zmin to zmax its value is (the core's rule,
+    colormap.h's ramp_color); `enc` "f32" (the client's last `data` `enc`)
+    sends it as base64 like a series column. */
 export interface AplotEvent {
   ev: 'aplot';
   title: string;
   nx: number;
   ny: number;
-  cells: number[];
   values: SeriesData;
   enc?: 'f32';
-  first: number;
-  ncolors: number;
+  /** the session's colour scale: its name and its 256 colours from the low end to the high one */
+  colormap: string;
+  ramp: CoreColor[];
   zmin: number;
   zmax: number;
   tlo: number;
@@ -580,9 +594,8 @@ export interface AniStateEvent {
   open?: number;
 }
 
-/** a primitive's colour: an XPP colour index (0 the foreground, 1..10 red ..
-    purple), or a colour of the colour map as #rrggbb */
-export type AniColor = number | string;
+/** a primitive's colour, as the core says it */
+export type AniColor = CoreColor;
 
 /** a frame's primitive as sent (docs/protocol.md "The animation as data"):
     unit coordinates u, v of the dimension box (y up), not clamped; widths

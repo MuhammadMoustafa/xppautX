@@ -6,7 +6,10 @@
    saddle; its six markers), at a size in pixels rather than a fraction of
    the axes, so they stay readable at any zoom. Pure: no DOM. */
 import {traceLine, tracePoints, type PixelFrame} from './decimate';
+import type {CoreColor} from './colors';
+import {addMarker, drawsLine, drawsPoints, markerRadius} from './linestyle';
 import {pixelMap, type PathSink} from './phase';
+import type {LineStyle} from '../protocol/types';
 import type {ArrowMark, EquilibriumMark, Marks, MarkerMark, MarkerShape} from '../store/marks';
 
 export type MarkKey = 'equilibria' | 'text' | 'arrows' | 'markers' | `frozen-${number}`;
@@ -15,8 +18,7 @@ export interface MarkLayer {
   key: MarkKey;
   /** the legend's name: "Equilibria", "Text", "Arrows", "Markers", a frozen curve's key */
   label: string;
-  /** XPP colour index */
-  color: number;
+  color: CoreColor;
   /** marks, or a frozen curve's points */
   count: number;
 }
@@ -25,8 +27,8 @@ export interface MarkLayer {
 export function markLayers(m: Marks | null): MarkLayer[] {
   if (!m) return [];
   const out: MarkLayer[] = [];
-  if (m.equilibria.length) out.push({key: 'equilibria', label: 'Equilibria', color: 0, count: m.equilibria.length});
-  if (m.text.length) out.push({key: 'text', label: 'Text', color: 0, count: m.text.length});
+  if (m.equilibria.length) out.push({key: 'equilibria', label: 'Equilibria', color: 'foreground', count: m.equilibria.length});
+  if (m.text.length) out.push({key: 'text', label: 'Text', color: 'foreground', count: m.text.length});
   if (m.arrows.length) out.push({key: 'arrows', label: 'Arrows', color: m.arrows[0].color, count: m.arrows.length});
   if (m.markers.length) out.push({key: 'markers', label: 'Markers', color: m.markers[0].color, count: m.markers.length});
   m.frozen.forEach((f, i) => out.push({key: `frozen-${i}`, label: f.label, color: f.color, count: f.xs.length}));
@@ -101,16 +103,19 @@ export function arrowPath(a: ArrowMark, f: PixelFrame, sink: PathSink): boolean 
   return true;
 }
 
-/** a frozen curve or an earlier run on `f`: a polyline (line) or a dot of
-    radius `dot` per point, through decimate.ts's tracers, which leave out
-    what changes no pixel (W82: an earlier run of a million rows was a path
-    of most of its points, stroked again at every frame of a live run);
-    returns the vertices or dots drawn */
-export function traceFrozen(xs: Float32Array, ys: Float32Array, line: boolean, f: PixelFrame, dot: number,
-  sink: PathSink): number {
+/** the paths of a curve of style `style` (a frozen curve or an earlier run) on `f`: its polyline into
+    `line`, its markers into `fill` (the filled shapes) and `stroke` (the stroked ones), through decimate.ts's
+    tracers, which leave out what changes no pixel (W82: an earlier run of a million rows was a path of most of
+    its points, stroked again at every frame of a live run); returns the vertices and markers drawn. `scale` is
+    the pixel ratio of the canvas */
+export function traceCurve(xs: Float32Array, ys: Float32Array, style: LineStyle, f: PixelFrame, scale: number,
+  line: PathSink, fill: PathSink, stroke: PathSink): number {
   const last = Math.min(xs.length, ys.length) - 1;
-  if (line) return traceLine(xs, ys, 0, last, f, sink);
-  return tracePoints(xs, ys, 0, last, f, dot, (x, y) => polygon(sink, x, y, dot, 8, 0));
+  let drawn = 0;
+  if (drawsLine(style)) drawn += traceLine(xs, ys, 0, last, f, line);
+  if (drawsPoints(style))
+    drawn += tracePoints(xs, ys, 0, last, f, markerRadius(style) * scale, (x, y) => addMarker(fill, stroke, style, x, y, scale));
+  return drawn;
 }
 
 /** pixel sizes of XPP's text sizes 0-4 (its fonts are 8 to 24 points) */

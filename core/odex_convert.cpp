@@ -1402,6 +1402,14 @@ private:
     const bool map = disc(m_) != 0;
     std::vector<OptionEntry> entries;
     for (const xpp::Model::OptionLine &line : m_.options) collect_options(line, map, entries);
+    /* an option XPPAUT's default for which is not ours (the colormap: jet, ours is viridis) is written out when the .ode does not
+       set it, so the model keeps the look it had */
+    for (const OptionRow &row : xpp::option_rows()) {
+      if (row.imported_default.empty()) continue;
+      const std::string key = xpp::odex_key(row, 0);
+      if (std::ranges::none_of(entries, [&](const OptionEntry &e) { return e.key == key; }))
+        entries.push_back({key, std::string(row.imported_default), &row});
+    }
     std::string prefix;
     if (map) {
       /* a map ((t+1)=, or a .dis file) runs with the discrete method */

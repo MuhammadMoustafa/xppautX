@@ -18,7 +18,9 @@
    boolean     `true` or `false` (a checkbox in a form)
    choice      one of a given set of names, exactly (a select in a form; its label is
                the name, choiceLabel)
+   color       `foreground`, `#rrggbb` or `#rrggbbaa` (ui/ColorField.tsx)
    text        anything */
+import {CORE_COLOR} from '../plot/colors';
 import {safeName} from './files';
 
 export type FieldSpec =
@@ -29,6 +31,7 @@ export type FieldSpec =
   | {kind: 'file'}
   | {kind: 'boolean'}
   | {kind: 'choice'; choices: readonly string[]}
+  | {kind: 'color'}
   | {kind: 'text'};
 
 export type FieldKind = FieldSpec['kind'];
@@ -122,6 +125,10 @@ const KINDS: {[K in FieldKind]: KindEntry<K>} = {
   },
   choice: {
     check: (text, spec) => (spec.choices.includes(text) ? null : `one of ${spec.choices.join(', ')}`),
+    inputMode: () => 'text',
+  },
+  color: {
+    check: text => (CORE_COLOR.test(text.trim()) ? null : 'a colour: #rrggbb, #rrggbbaa or foreground'),
     inputMode: () => 'text',
   },
   text: {
@@ -256,7 +263,7 @@ export function fieldMessage(phrase: string): string {
 }
 
 /** a protocol kind as a spec: `integer`, `number`, `real` (a plain number within the
-    field's range), `formula` (a number or %formula), `boolean`, `choice` (one of the field's
+    field's range), `formula` (a number or %formula), `color`, `boolean`, `choice` (one of the field's
     options), `expression`, `file`, `text`, `name:N` (a name from
     `hello.lists[N]`; typed when that list is empty: a model with no
     parameters). Core and page ship together: a kind or list the page does
@@ -269,6 +276,7 @@ export function specOfKind(kind: string, lists: readonly (readonly string[])[] =
       if (!field.options) throw new Error('a choice field without its options');
       return {kind: 'choice', choices: field.options};
     case 'real': return {kind: 'number', ...field.range};
+    case 'color': return {kind: 'color'};
     case 'text': return {kind: 'text'};
     case 'integer': return {kind: 'integer', ...field.range};
     case 'number': return {kind: 'number'};

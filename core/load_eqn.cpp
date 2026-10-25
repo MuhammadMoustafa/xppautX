@@ -13,7 +13,6 @@
 #include "model.h"
 #include "session.h"
 #include "ode_read.h"
-#include "my_ps.h"
 #include "nullcline.h"
 #include "colormap.h"
 #include "xpp_ui.h"

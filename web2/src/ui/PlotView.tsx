@@ -11,7 +11,7 @@
    drawn by the chart too, and listed in the legend after the curves. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {Chart, padded} from '../plot/chart';
-import {curveColor} from '../plot/colors';
+import {cssColor} from '../plot/colors';
 import {attachGestures, type PickSink} from '../plot/interactions';
 import {pickInstruction, pickKey, toData, type Frac, type PickState} from '../plot/pick';
 import {buildModel, visibleRanges, type PlotModel} from '../plot/model';
@@ -360,8 +360,8 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
       onMouseEnter={() => chart.current?.highlight({run, curve})}
       onMouseLeave={() => chart.current?.highlight(null)}
       onClick={() => setAppearance(a => ({...a, [key]: {...a[key], visible: c.visible === false}}))}
-      onDblClick={() => setEditing({key, label: c.label, color: c.cssColor ?? curveColor(c.color, dark)})}>
-      <span class="swatch" style={{background: c.cssColor ?? curveColor(c.color, dark)}} aria-hidden="true" />
+      onDblClick={() => setEditing({key, label: c.label, color: c.cssColor ?? cssColor(c.color, dark)})}>
+      <span class="swatch" style={{background: c.cssColor ?? cssColor(c.color, dark)}} aria-hidden="true" />
       {c.label}{run >= 0 && <small> · run {keys[run].slice(4)}</small>}
     </button>
   );
@@ -398,7 +398,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
                 chart.current!.setLayerVisible(l.key, !chart.current!.isLayerVisible(l.key));
                 setShown(n => n + 1);
               }}>
-              <span class={`swatch swatch-${l.key.replace(/-\d+$/, '')}`} style={{background: curveColor(l.color, dark)}}
+              <span class={`swatch swatch-${l.key.replace(/-\d+$/, '')}`} style={{background: cssColor(l.color, dark)}}
                 aria-hidden="true" />
               {l.label}
             </button>

@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Golden-file checks for PostScript, SVG, GIF and array-print exports
+"""Golden-file checks for PDF, SVG, GIF and array-print exports
 (W31c: what W29f compared by hand, as a committed check).
 Drives xppautX --server through tools/xppclient.py's Server and compares
 what it writes, byte for byte with CRs stripped (a Windows checkout may
 have CRLF line endings), with tests/golden/<name>. A difference prints
 the file and the number of its first differing line.
 
-Two models cover the four kinds of output: examples/ode/lecar.odex (run,
-then Graphic stuff/Postscript and .../SVG export the default V-W phase
+Three models cover the kinds of output: examples/ode/lecar.odex (run,
+then Graphic stuff/PDF and .../SVG export the default V-W phase
 plane, its own two variables as an array plot for Print arrayplot, and
-two kinescope frames saved as GIF) and examples/ode/vanderpol.odex (run,
+two kinescope frames saved as GIF), examples/ode/vanderpol.odex (run,
 switched to the x-xp phase plane with a fixed view, Nullcline/New and
-Dir.field-Flow/(D)irect Field computed, then a PostScript export, so a
-plot with a nullcline and a direction field is covered too).
+Dir.field-Flow/(D)irect Field computed, then a PDF export, so a
+plot with a nullcline and a direction field is covered too) and
+tools/models/pictures.odex (W492: colours with alpha, dashed curves with
+markers, a label and a frozen curve in their own colours and styles, PDF and SVG).
 
-Nothing here embeds a date, a host path or the program's version:
-core/my_ps.cpp and core/my_svg.cpp write fixed header text (checked
-below), and my_svg.cpp's only outside input is $HOME/xppaut-stylesheet.css
-(read when present and folded into the <style> block), kept out by
-pointing HOME at an empty scratch directory for every run started here.
+Nothing here embeds a date, a host path or the program's version: the
+PDF has no date or identifier (core/my_pdf.cpp), and neither writer reads
+anything outside the picture, so the same session is the same bytes.
 The kinescope GIFs are the core's own GIF encoder (core/scrngif.cpp)
 applied to a fixed 2x1 RGB image this script answers every "pixels" ask
 with, not a real screen capture: protocol v2 draws nothing itself, only
@@ -132,18 +132,18 @@ def run_lecar(home):
     try:
         run_and_go(s)
 
-        # Graphic stuff/Postscript: menu 'g', its submenu's 'p', the PS
+        # Graphic stuff/PDF: menu 'g', its submenu's 'p', the picture
         # parameters form (kept at its own defaults), then the file to
         # write it to
         s.send(cmd='key', key='g')
         s.answer_asks(is_idle, {'menu': menu('p'), 'form': form_defaults,
-                                 'file': lambda e: {'ok': 1, 'file': 'lecar.ps'}})
-        check_file('lecar.ps', read(s.run, 'lecar.ps'))
+                                 'file': lambda e: {'ok': 1, 'file': 'lecar.pdf'}})
+        check_file('lecar.pdf', read(s.run, 'lecar.pdf'))
 
-        # .../SVG: the same submenu's 'v' (create_svg asks no form), then
+        # .../SVG: the same submenu's 'v' (the same parameters form), then
         # the file to write
         s.send(cmd='key', key='g')
-        s.answer_asks(is_idle, {'menu': menu('v'), 'file': lambda e: {'ok': 1, 'file': 'lecar.svg'}})
+        s.answer_asks(is_idle, {'menu': menu('v'), 'form': form_defaults, 'file': lambda e: {'ok': 1, 'file': 'lecar.svg'}})
         check_file('lecar.svg', read(s.run, 'lecar.svg'))
 
         # the IC box's arry button (V, W, lecar's own two variables), then
@@ -156,8 +156,8 @@ def run_lecar(home):
             return {'ok': 1, 'values': values}
 
         s.send(cmd='key', win='aplot', key='p')
-        s.answer_asks(is_idle, {'form': print_form, 'file': lambda e: {'file': 'lecar_array.ps'}})
-        check_file('lecar_array.ps', read(s.run, 'lecar_array.ps'))
+        s.answer_asks(is_idle, {'form': print_form, 'file': lambda e: {'file': 'lecar_array.pdf'}})
+        check_file('lecar_array.pdf', read(s.run, 'lecar_array.pdf'))
         s.send(cmd='aplot', op='close')
         s.collect(is_idle)
 
@@ -182,7 +182,7 @@ def run_vanderpol(home):
         run_and_go(s)
 
         # the ICs box's pp (phase plane) button: x vs xp, then a fixed
-        # view so the axes (and so the PostScript tick labels) do not
+        # view so the axes (and so the PDF tick labels) do not
         # depend on any auto-scaling of this run's own trajectory
         s.send(cmd='plotvars', how=1, names=['x', 'xp'])
         s.collect(is_idle)
@@ -201,8 +201,42 @@ def run_vanderpol(home):
 
         s.send(cmd='key', key='g')
         s.answer_asks(is_idle, {'menu': menu('p'), 'form': form_defaults,
-                                 'file': lambda e: {'ok': 1, 'file': 'vanderpol.ps'}})
-        check_file('vanderpol.ps', read(s.run, 'vanderpol.ps'))
+                                 'file': lambda e: {'ok': 1, 'file': 'vanderpol.pdf'}})
+        check_file('vanderpol.pdf', read(s.run, 'vanderpol.pdf'))
+    finally:
+        s.close()
+
+
+def run_pictures(home):
+    """W492: colours with alpha, a dashed curve with diamond markers, a label and a frozen curve in their own
+    colours and styles, the array plot in the plasma scale"""
+    s = Server(binary, 'tools/models/pictures.odex', env={'HOME': home}, verbose=args.v)
+    try:
+        run_and_go(s)
+        s.send(cmd='key', key='n')
+        s.answer_asks(is_idle, {'menu': menu('n')})
+        s.send(cmd='text', op='add', win=1, x=0.1, y=0.9, text='\\1a\\0 label', size=3, color='#1c7ed6cc')
+        s.collect(is_idle)
+        # Graphic stuff/Freeze/Freeze, its form: colour, how it is drawn, dash, width, marker and its size, key and name
+        s.send(cmd='key', key='g')
+        s.answer_asks(is_idle, {'menu': lambda e: {'key': 'f'}, 'form': lambda e: {
+            'ok': 1, 'values': ['#7048e8b0', 'both', 'dotted', '2', 'cross', '3', 'first run', 'frz1']}})
+        s.send(cmd='key', key='i')
+        s.answer_asks(is_idle, {'menu': menu('g')})
+        s.send(cmd='key', key='g')
+        s.answer_asks(is_idle, {'menu': menu('p'), 'form': form_defaults, 'file': lambda e: {'ok': 1, 'file': 'pictures.pdf'}})
+        check_file('pictures.pdf', read(s.run, 'pictures.pdf'))
+        s.send(cmd='key', key='g')
+        s.answer_asks(is_idle, {'menu': menu('v'), 'form': form_defaults, 'file': lambda e: {'ok': 1, 'file': 'pictures.svg'}})
+        check_file('pictures.svg', read(s.run, 'pictures.svg'))
+        s.send(cmd='plotvars', how=2, names=['v', 'w'])
+        s.collect(is_idle)
+        s.send(cmd='key', win='aplot', key='p')
+        s.answer_asks(is_idle, {'form': lambda e: {'ok': 1, 'values': ['top', 'side', 'bottom']},
+                                 'file': lambda e: {'file': 'pictures_array.pdf'}})
+        check_file('pictures_array.pdf', read(s.run, 'pictures_array.pdf'))
+        s.send(cmd='aplot', op='close')
+        s.collect(is_idle)
     finally:
         s.close()
 
@@ -212,6 +246,7 @@ def main():
     try:
         run_lecar(home)
         run_vanderpol(home)
+        run_pictures(home)
     finally:
         shutil.rmtree(home, ignore_errors=True)
     if args.update:

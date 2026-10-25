@@ -2,6 +2,8 @@
 
 #include "xpplim.h"
 #include "xpp_types.h"
+#include "colormap.h"
+#include "line_style.h"
 #include <string>
 #include <array>
 #include <vector>
@@ -24,11 +26,13 @@ struct GRAPH {
 		double min_scale,color_scale;
 		double xmin,ymin,zmin,xmax,ymax,zmax,xorg,yorg,zorg;
 		double xbar,ybar,zbar,dx,dy,dz;
-		std::vector<int> xv{0},yv{0},zv{0},line{0},color{0};
+		std::vector<int> xv{0},yv{0},zv{0};
+                std::vector<xpp::LineStyle> style{xpp::LineStyle{}}; /* each curve's */
+                std::vector<xpp::Color> color{xpp::foreground_color};
                 /* Resize only when curves are added, removed or read, never per step. */
                 void resize_curves(int count) {
                   xv.resize(count, xv.front()); yv.resize(count, yv.front()); zv.resize(count, zv.front());
-                  line.resize(count, line.front()); color.resize(count, 0);
+                  style.resize(count, style.front()); color.resize(count, xpp::foreground_color);
                   for (auto &v : plot_points) v.resize(count);
                   nvars=count;
                 }
@@ -52,7 +56,8 @@ typedef struct {
 		std::string s;
 		short use;
 		int font,size;
-		int style,color; /* grobs.h: LABEL_STYLE_COUNT, LAST_PLOT_COLOR */
+		int style; /* grobs.h: LABEL_STYLE_COUNT */
+		xpp::Color color;
 		} LABEL;
 
 typedef struct {
@@ -60,7 +65,9 @@ typedef struct {
 		std::string key,name; /* at most 19 and 9 characters */
 		short use,type;
 		float *xv,*yv,*zv;
-		int len,color;
+		int len;
+		xpp::Color color;
+		xpp::LineStyle style;
 	      } CURVE;
 
 

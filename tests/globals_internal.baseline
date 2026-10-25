@@ -6,7 +6,7 @@ core/json_io.cpp 5 the protocol client's: the output's sequence, its protocol ve
 core/json_player.cpp 1 the .recx player in progress (the protocol client's)
 core/json_prompts.cpp 7 the JSON front end's ask in progress and its pacing clocks (the protocol client's, file-local per AGENTS.md)
 core/json_record.cpp 1 the session recording in progress (the protocol client's)
-core/json_windows.cpp 3 the JSON front end's array plot dirty flag and window size (the protocol client's, file-local per AGENTS.md)
+core/json_windows.cpp 1 the JSON front end's array plot dirty flag (the protocol client's, file-local per AGENTS.md)
 core/marks_data.cpp 1 the protocol client's (one struct): its subscription, its sink and the content each window's last event said, which outlive a load (the records are the Session's marks_shown)
 core/numerics_settings.cpp 1 the numerics subscription (the protocol client's, xpp::ChangedEvent)
 core/odex_convert.cpp 1 a const table built at first use

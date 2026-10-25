@@ -64,10 +64,9 @@ void load_ic_file(Session &s, std::string name);
 void write_values_query(const Session &s, std::string_view name, bool sets, bool pars, bool ics);
 
 /* File > Import settings (asks for the file), the session s's info file
-   (File > Save info); a PostScript picture's parameters (ps_write_pars) */
+   (File > Save info) */
 void import_settings_command(Session &s);
 void file_inf(Session &s);
-void ps_write_pars(const Session &s, FILE *fp);
 void do_info(const Session &s, FILE *fp);
 
 } // namespace xpp

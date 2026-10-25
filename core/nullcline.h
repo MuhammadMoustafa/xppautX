@@ -26,7 +26,6 @@ struct NullclineSettings {
   int df_batch = 0;
   Color x_null_color = xppaut_color(2), y_null_color = xppaut_color(7);
   int df_grid = 16, df_flag = 0;
-  int doing_dfield = 0;
   std::string color_via = "speed";
   double color_via_lo = 0, color_via_hi = 1;
   int colorize_flag = 0;

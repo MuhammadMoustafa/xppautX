@@ -7,9 +7,9 @@ import {aplotColumnName, initialAplot, reduceAplot, timeAt, valueAt} from '../sr
 
 const ev = (over: Partial<AplotEvent> = {}): AplotEvent => ({
   ev: 'aplot', title: 'u0..3', nx: 4, ny: 3,
-  cells: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
   values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-  first: 30, ncolors: 10, zmin: 0, zmax: 11, tlo: 0, thi: 20,
+  colormap: 'viridis', ramp: Array.from({length: 256}, (_, i) => '#' + i.toString(16).padStart(2, '0').repeat(3)),
+  zmin: 0, zmax: 11, tlo: 0, thi: 20,
   ...over,
 });
 
@@ -41,16 +41,9 @@ test('window open/close tracks the core\'s array plot window (105)', () => {
   assert.equal(s.event, null, 'there is nothing left to show');
 });
 
-test('colorMap and panel toggles are no-ops when already at that value (same object back)', () => {
-  const s = reduceAplot(initialAplot, {type: 'colorMap', map: 'viridis'});
-  assert.equal(s, initialAplot);
+test('the panel toggle is a no-op when already at that value (same object back)', () => {
   const t = reduceAplot(initialAplot, {type: 'panel', open: false});
   assert.equal(t, initialAplot);
-});
-
-test('colorMap switches to the other map', () => {
-  const s = reduceAplot(initialAplot, {type: 'colorMap', map: 'xpp'});
-  assert.equal(s.colorMap, 'xpp');
 });
 
 test('valueAt reads row-major, off-grid as NaN', () => {

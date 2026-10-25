@@ -3,7 +3,7 @@
    docs/ui-v2.md T7): the events' value arrays decoded to float32, as the
    core computed them. Pure: no DOM. */
 import {decode} from '../protocol/decode';
-import type {DfieldEvent, NullclinesEvent} from '../protocol/types';
+import type {CoreColor, DfieldEvent, NullclinesEvent} from '../protocol/types';
 
 export interface Segments {
   /** x1, y1, x2, y2 per segment, plot coordinates */
@@ -14,13 +14,13 @@ export interface Segments {
 export interface Nullclines extends Segments {
   xName: string;
   yName: string;
-  xColor: number;
-  yColor: number;
+  xColor: CoreColor;
+  yColor: CoreColor;
   frozen: Segments[];
 }
 
 export interface FlowCurve {
-  color: number;
+  color: CoreColor;
   /** the trajectories one after the other, NaN between two */
   xs: Float32Array;
   ys: Float32Array;
@@ -32,7 +32,7 @@ export interface Dfield {
   du: number;
   dv: number;
   scaled: boolean;
-  color: number;
+  color: CoreColor;
   /** x, y, ux, uy per arrow */
   grid: Float32Array;
   speed: Float32Array;

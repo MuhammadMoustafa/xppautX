@@ -9,7 +9,7 @@
 import {cssVar} from '../plot/css';
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {Chart3D} from '../plot/chart3d';
-import {curveColor} from '../plot/colors';
+import {cssColor} from '../plot/colors';
 import type {PlotSeries} from '../store/series';
 import {buildModel3d} from '../plot/model3d';
 import {KEY_STEP, KEY_STEP_FINE, rotateByDrag, rotateByKey} from '../plot/project3d';
@@ -151,7 +151,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
               onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}
               onClick={() => setAppearance(a => ({...a, [traceKeys[i]]: {...a[traceKeys[i]], visible: c.visible === false}}))}
               onDblClick={() => setEditing(i)}>
-              <span class="swatch" style={{background: c.cssColor ?? curveColor(c.color, dark)}} aria-hidden="true" />
+              <span class="swatch" style={{background: c.cssColor ?? cssColor(c.color, dark)}} aria-hidden="true" />
               {c.label}
             </button>
           ))}
@@ -188,7 +188,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
         )}
       </div>
       {editing !== null && model && <TraceDialog label={model.curves[editing].label}
-        color={model.curves[editing].cssColor ?? curveColor(model.curves[editing].color, dark)} close={() => setEditing(null)}
+        color={model.curves[editing].cssColor ?? cssColor(model.curves[editing].color, dark)} close={() => setEditing(null)}
         apply={(label, color) => { setAppearance(a => ({...a, [traceKeys[editing]]: {...a[traceKeys[editing]], label, color}})); setEditing(null); }} />}
       <p id="plot-3d-keys-help" class="visually-hidden">
         {`Drag turns the view; the arrow keys turn it ${KEY_STEP} degrees at a time, Shift ${KEY_STEP_FINE}.`}

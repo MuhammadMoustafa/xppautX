@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "json_number.h"
 #include "model_options.h"
 #include "xpp_util.h"
 
@@ -32,6 +33,21 @@ std::optional<double> parse_line_size(std::string_view text, bool allow_zero)
     return x;
 }
 
+std::string line_style_json(const LineStyle &style)
+{
+    std::string o = "\"draw\":\"";
+    o += line_draw_names[static_cast<std::size_t>(style.draw)];
+    o += "\",\"dash\":\"";
+    o += line_dash_names[static_cast<std::size_t>(style.dash)];
+    o += "\",\"width\":";
+    json::json_append_number_shortest(o, style.width);
+    o += ",\"marker\":\"";
+    o += line_marker_names[static_cast<std::size_t>(style.marker)];
+    o += "\",\"marker_size\":";
+    json::json_append_number_shortest(o, style.marker_size);
+    return o;
+}
+
 std::optional<LineStyle> line_style_of_xppaut(int lt)
 {
     if (lt < first_line_type || lt > solid_line_type) return std::nullopt;
@@ -40,17 +56,6 @@ std::optional<LineStyle> line_style_of_xppaut(int lt)
     style.draw = LineDraw::points;
     style.marker_size = -lt;
     return style;
-}
-
-std::optional<int> xppaut_line_type(const LineStyle &style)
-{
-    const LineStyle line_defaults;
-    if (style.dash != LineDash::solid || style.width != line_defaults.width) return std::nullopt;
-    if (style.draw == LineDraw::line) return solid_line_type;
-    if (style.draw == LineDraw::both || style.marker != LineMarker::circle) return std::nullopt;
-    const double radius = style.marker_size;
-    if (radius != std::floor(radius) || radius < 0 || radius > -first_line_type) return std::nullopt;
-    return -static_cast<int>(radius);
 }
 
 } // namespace xpp

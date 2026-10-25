@@ -24,8 +24,8 @@
      @ stoch=1/2             key u, key h, answer m or v (the Mean or
                              Variance of the runs), key Escape
      output.dat              browser write, what output, replace
-     --mkplot                 key g, answer p (the PostScript form
-                             answered with its values) or v, the file
+     --mkplot                 key g, answer p (pdf) or v (svg), the picture parameters
+                             form answered with its values, the file
    The core computes requested nullclines and direction fields after a run.
    After every run: --equil 0/1 (equilibrium write equil.dat). */
 #include "ui_json_internal.h"
@@ -157,7 +157,7 @@ void SilentScript::add_run(int set)
                 }
                 key("g");
                 answer("key", format->plot_key);
-                if (format->parameter_values) answer_values(format->parameter_values(s));
+                answer_values(xpp::picture_parameter_values(s));
                 answer("file", batch_plot_name(s, -1));
             }
         }

@@ -199,7 +199,7 @@ new page adds direct manipulation that maps onto existing commands:
 | Integrate button | `key` `i`, then answers the menu with `g` (the session's key sequence) |
 | edit a parameter or IC, slider, Default | `set`, `slide`, `default` |
 | legend toggle, zoom, pan, reset, readout, export | client only |
-| "Use this view" (make the client's zoom the window's axes, so PostScript/SVG export and Restore agree) | new `{"cmd":"view","win":w,"xlo":..,"xhi":..,"ylo":..,"yhi":..}` (T9) |
+| "Use this view" (make the client's zoom the window's axes, so PDF/SVG export and Restore agree) | new `{"cmd":"view","win":w,"xlo":..,"xhi":..,"ylo":..,"yhi":..}` (T9) |
 | Abort | `abort` |
 | open / save a file | the `file` ask plus the file endpoints (section 4) |
 
@@ -259,7 +259,7 @@ files for the browser's Load, `--anifile`. The page runs on the same machine
   without a confirm (Replace, Keep both as `name-2.ext`, Cancel); one with
   the same content is not copied.
 - **Save** (a `file` ask for writing: Save session, Save diagram, the browser's
-  Write, `session save`, Save info, PostScript/SVG): where the File System
+  Write, `session save`, Save info, PDF/SVG): where the File System
   Access API exists (Chrome, Edge, the VS Code webview), the page shows
   `showSaveFilePicker` with the ask's name suggested; the core writes the
   file into the working directory under that base name, and the page copies

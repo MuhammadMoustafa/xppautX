@@ -47,15 +47,9 @@ std::string label_style_problem(int style)
                                                     : std::string();
 }
 
-std::string label_color_problem(int color)
-{
-    return color < 0 || color > LAST_PLOT_COLOR ? xpp::format("{} is not a colour (0 to {})", color, LAST_PLOT_COLOR) : std::string();
-}
-
 std::string label_problem(const LabelLook &look)
 {
-    for (std::string p : {label_text_problem(look.text), label_size_problem(look.size), label_style_problem(look.style),
-                          label_color_problem(look.color)})
+    for (std::string p : {label_text_problem(look.text), label_size_problem(look.size), label_style_problem(look.style)})
         if (!p.empty()) return p;
     return {};
 }
@@ -162,7 +156,7 @@ void draw_marker(xpp::Session &s, double xd, double yd, double size, int type)
 void draw_grob(xpp::Session &s, int i)
 {
     const float xs = s.grobs[i].xs, ys = s.grobs[i].ys, xe = s.grobs[i].xe, ye = s.grobs[i].ye;
-    set_linestyle(s,s.grobs[i].color);
+    set_pen(s,s.grobs[i].color,LineStyle{});
     if (s.grobs[i].type == POINTER) line_abs(s,xs, ys, xe, ye);
     if (s.grobs[i].type == ARROW || s.grobs[i].type == POINTER) arrow_head(s,xs, ys, xe, ye, s.grobs[i].size);
     if (s.grobs[i].type >= MARKER) draw_marker(s,xs, ys, s.grobs[i].size, s.grobs[i].type - 2);
@@ -205,13 +199,13 @@ void destroy_labels_and_grobs(xpp::Session &s, XppWinId w)
 
 void draw_label(xpp::Session &s, XppWinId w)
 {
-    GrCol();
     for (int i = 0; i < MAXLAB; i++) {
         if (s.labels[i].use == 1 && s.labels[i].w == w) {
             /* \{expr} filled in once: an expression may set a parameter.
                The filled text has none left, so fancy_text_abs leaves it. */
             const std::string text = shown_label_text(s, i);
             marks_data_label(s,w, i, text);
+            set_text_color(s,s.labels[i].color);
             fancy_text_abs(s,s.labels[i].x, s.labels[i].y, text.c_str(), s.labels[i].size, s.labels[i].font);
         }
     }
@@ -221,10 +215,10 @@ void draw_label(xpp::Session &s, XppWinId w)
             draw_grob(s,i);
         }
     }
-    BaseCol();
+    set_text_color(s,foreground_color);
 }
 
-void add_grob(xpp::Session &s, double xs, double ys, double xe, double ye, double size, int type, int color)
+void add_grob(xpp::Session &s, double xs, double ys, double xe, double ye, double size, int type, const Color &color)
 {
     for (int i = 0; i < MAXGROB; i++) {
         if (s.grobs[i].use == 0) {
@@ -258,47 +252,58 @@ int select_marker_type(int *type)
     return 1;
 }
 
+namespace {
+
+/* the colour the user types at the prompt (offered c), false when none was given or it is not one: the error is shown */
+bool ask_color(std::string_view prompt, xpp::Color &c)
+{
+    std::string text = xpp::print_color(c);
+    if (!new_string_of(prompt, text, xpp::XPP_FIELD_COLOR)) return false;
+    const std::optional<xpp::Color> parsed = xpp::parse_color(text);
+    if (!parsed) {
+        command_error(prompt, xpp::format("\"{}\" is not a colour: write #rrggbb, #rrggbbaa, a CSS colour name or foreground", text));
+        return false;
+    }
+    c = *parsed;
+    return true;
+}
+
+/* the fields of the marker dialogs: type, colour and size */
+std::vector<xpp::FormField> marker_fields(const MarkInfo &m)
+{
+    return {xpp::FormField{.name = "*4Type", .kind = XPP_FIELD_NAME_IN(4), .value = xpp::format("{:d}", m.type)},
+            xpp::FormField::color_field("Colour", m.color), xpp::FormField::real_number("Size", m.size)};
+}
+
+void take_marker_fields(MarkInfo &m, std::span<const xpp::FormField> f)
+{
+    m.type = std::atoi(f[0].value.c_str());
+    m.color = f[1].color;
+    m.size = f[2].real;
+}
+
+} // namespace
+
 int get_marker_info(xpp::Session &s)
 {
-    static const char *const n[] = {"*5Type", "*4Color", "Size"};
-    std::array<std::string, 3> values;
-    values[0] = xpp::format("{:d}", s.marker.type);
-    values[1] = xpp::format("{:d}", s.marker.color);
-    values[2] = xpp::format("{:g}", s.marker.size);
-    static const int kinds[] = {XPP_FIELD_NAME_IN(5), XPP_FIELD_NAME_IN(4), XPP_FIELD_NUMBER};
-    const int status = do_string_box_of(3, 1, "Add Marker", n, values, kinds);
-    if (status != 0) {
-        s.marker.type = std::atoi(values[0].c_str());
-        s.marker.size = std::atof(values[2].c_str());
-        s.marker.color = std::atoi(values[1].c_str());
-        return 1;
-    }
-    return 0;
+    std::vector<xpp::FormField> fields = marker_fields(s.marker);
+    if (!xpp::ask_form(s, "Add Marker", fields)) return 0;
+    take_marker_fields(s.marker, fields);
+    return 1;
 }
 
 int get_markers_info(xpp::Session &s)
 {
-    static const char *const n[] = {"*5Type", "*4Color", "Size", "Number", "Row1", "Skip"};
-    std::array<std::string, 6> values;
-    values[0] = xpp::format("{:d}", s.marker.type);
-    values[1] = xpp::format("{:d}", s.marker.color);
-    values[2] = xpp::format("{:g}", s.marker.size);
-    values[3] = xpp::format("{:d}", s.marker.number);
-    values[4] = xpp::format("{:d}", s.marker.start);
-    values[5] = xpp::format("{:d}", s.marker.skip);
-    static const int kinds[] = {XPP_FIELD_NAME_IN(5), XPP_FIELD_NAME_IN(4), XPP_FIELD_NUMBER,
-                                XPP_FIELD_INTEGER, XPP_FIELD_INTEGER, XPP_FIELD_INTEGER};
-    const int status = do_string_box_of(6, 1, "Add Markers", n, values, kinds);
-    if (status != 0) {
-        s.marker.type = std::atoi(values[0].c_str());
-        s.marker.size = std::atof(values[2].c_str());
-        s.marker.color = std::atoi(values[1].c_str());
-        s.marker.number = std::atoi(values[3].c_str());
-        s.marker.start = std::atoi(values[4].c_str());
-        s.marker.skip = std::atoi(values[5].c_str());
-        return 1;
-    }
-    return 0;
+    std::vector<xpp::FormField> fields = marker_fields(s.marker);
+    fields.push_back(xpp::FormField{.name = "Number", .kind = xpp::XPP_FIELD_INTEGER, .value = xpp::format("{:d}", s.marker.number)});
+    fields.push_back(xpp::FormField{.name = "Row1", .kind = xpp::XPP_FIELD_INTEGER, .value = xpp::format("{:d}", s.marker.start)});
+    fields.push_back(xpp::FormField{.name = "Skip", .kind = xpp::XPP_FIELD_INTEGER, .value = xpp::format("{:d}", s.marker.skip)});
+    if (!xpp::ask_form(s, "Add Markers", fields)) return 0;
+    take_marker_fields(s.marker, fields);
+    s.marker.number = fields[3].whole;
+    s.marker.start = fields[4].whole;
+    s.marker.skip = fields[5].whole;
+    return 1;
 }
 
 void add_marker(xpp::Session &s)
@@ -317,7 +322,7 @@ void add_marker(xpp::Session &s)
 }
 
 /* markers at every skip-th row of the window's first curve */
-static void add_markers_at(xpp::Session &s, int number, int start, int skip, double size, int type, int color)
+static void add_markers_at(xpp::Session &s, int number, int start, int skip, double size, int type, const Color &color)
 {
     float xs, ys, x, y, z;
     for (int i = 0; i < number; i++) {
@@ -342,10 +347,11 @@ void add_markers(xpp::Session &s)
 void add_pntarr(xpp::Session &s, int type)
 {
     double size = .1;
-    int i1, j1, i2, j2, color = 0;
+    int i1, j1, i2, j2;
+    xpp::Color color;
     float xe, ye, xs, ys;
     if (new_float(s,"Size: ", &size)) return;
-    if (new_int("Color: ", &color)) return;
+    if (!ask_color("Colour: ", color)) return;
     MessageBox("Choose start/end");
     const int flag = rubber_band(s,&i1, &j1, &i2, &j2, 1);
     KillMessageBox();
@@ -460,7 +466,7 @@ void edit_object_com(xpp::Session &s, int com)
             if (ans == 'y') {
                 if (s.grobs[ilab].type >= MARKER) select_marker_type(&s.grobs[ilab].type);
                 new_float(s,"Size ", &s.grobs[ilab].size);
-                new_int("Color :", &s.grobs[ilab].color);
+                ask_color("Colour: ", s.grobs[ilab].color);
                 xpp::clr_scrn(s);
                 redraw_all(s);
             }

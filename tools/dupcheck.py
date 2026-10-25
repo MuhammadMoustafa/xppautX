@@ -44,11 +44,7 @@ core/cvband.cpp CVBandFree|vendored/numerical, keep: see core/cvband.cpp CVBandS
 core/cvdense.cpp CVDenseFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
 core/xpp_http.cpp release|keep: each object's own shutdown signal (lock, set its flag, broadcast its condition) over its own mutex and condition; a shared helper would only take all three
 core/xpp_inbox.cpp close|keep: see core/xpp_http.cpp release
-core/graphics.cpp point|keep: each primitive dispatched to its own sink (PS, SVG, the front end) and each _abs form clipped then scaled for its own; the same shape per primitive by design, a merge would only hide which sink call each makes (W33f looked again)
-core/graphics.cpp bead|keep: see core/graphics.cpp point
-core/graphics.cpp line|keep: see core/graphics.cpp point
-core/graphics.cpp frect|keep: see core/graphics.cpp point
-core/graphics.cpp point_abs|keep: see core/graphics.cpp point
+core/graphics.cpp point_abs|keep: each _abs form is clipped then scaled for its own primitive; the same shape per primitive by design, a merge would only hide which call each makes (W33f looked again)
 core/graphics.cpp bead_abs|keep: see core/graphics.cpp point
 core/odesol2.cpp discrete|merged (W33a): the step loop they shared is odesol2.cpp's fixed_steps; what is left is each method naming its own two step functions
 core/odesol2.cpp euler|keep: see core/odesol2.cpp discrete

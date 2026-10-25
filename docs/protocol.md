@@ -108,7 +108,7 @@ command, except `quit` (no question: there is nothing to save), `abort`,
 
 When the model does not load (a line the reader does not understand, a
 formula that does not compile, a name given twice, a value an `@` option
-refuses: a colour outside 0-10, an unknown variable, a word where a
+refuses: a colour that is none, an unknown variable, a word where a
 number goes, ... at the option's line, W119), the server sends one
 `error` event instead of `hello` and exits with status 1 (W63c). The log
 (stderr, the page's `log` event) says it once, at its place
@@ -441,7 +441,7 @@ steps are not comparison intervals.
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
 | `display` | `win`; `x`, `y` (`[low, high]` or `null`), `runs` (bool), `freeze` (bool) | What the page displays of plot window `win` (W65, "Display state" below): the zoom shown on each axis given (`null`: the window's own), whether its earlier runs are drawn (`runs`) and whether a replaced trajectory is kept as an earlier run (`freeze`, default true; false: a new run drops the earlier runs instead of keeping the replaced one). A key left out stays as it is. A view (see "Action kinds"): sent during a computation it runs after it (the page holds its changes for the idle anyway, to send only the last). A range whose low is not below its high, or a window that does not exist, is a `message` `error` and nothing changes. The values come back in `plots`. |
-| `text` | `op` (`add`, `edit`, `delete`), `win`, `id` (`edit`, `delete`), `text`, `size` 0-4, `style` 0-3, `color` 0-10, `x`, `y` | The text labels of plot window `win` (W227, #281), which the page's text dialog drives. `add` needs `text`, `x` and `y` (plot coordinates, the position of the text's baseline start); `size` (default 2), `style` (0) and `color` (0) default. `edit` changes the label `id` of that window (the `id` of its `marks` `text`): a key left out stays, and `x`, `y` move it. `delete` removes it. A text starting with `%` is stored as its rest with each `\{expr}` filled in once, as XPPAUT's Text dialog did. A view ("Action kinds"). All or nothing: a window or `id` that does not exist, a text that is empty or longer than `hello.text.max_length`, a `size`, `style` or `color` outside `hello.text`'s range, a value that is not a whole number or a position that is not a finite number is a `message` `error` (`text: 9 is not a text size (0 to 4)`) and nothing changes; so is an `add` when the session already has 50 texts. The label shows in `marks` at the end of the command. |
+| `text` | `op` (`add`, `edit`, `delete`), `win`, `id` (`edit`, `delete`), `text`, `size` 0-4, `style` 0-3, `color` (a colour, see "Colours"), `x`, `y` | The text labels of plot window `win` (W227, #281), which the page's text dialog drives. `add` needs `text`, `x` and `y` (plot coordinates, the position of the text's baseline start); `size` (default 2), `style` (0) and `color` (`foreground`) default. `edit` changes the label `id` of that window (the `id` of its `marks` `text`): a key left out stays, and `x`, `y` move it. `delete` removes it. A text starting with `%` is stored as its rest with each `\{expr}` filled in once, as XPPAUT's Text dialog did. A view ("Action kinds"). All or nothing: a window or `id` that does not exist, a text that is empty or longer than `hello.text.max_length`, a `size` or `style` outside `hello.text`'s range, a `color` that is no colour (`text: the color is a string: #rrggbb, ...`), a value that is not a whole number or a position that is not a finite number is a `message` `error` (`text: 9 is not a text size (0 to 4)`) and nothing changes; so is an `add` when the session already has 50 texts. The label shows in `marks` at the end of the command. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
 | `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`view`, `x`, `y`, `show`), `view` (`new`, `close` or `active`), `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `axes`, `marks`, `threads`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` a view's zoom, `show` whether the branches hidden by Clear are drawn; `view` adds, closes or activates a view of the diagram ("Views of the diagram" below); `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `close` destroys window 101, File/Auto opens it again. |
@@ -451,6 +451,7 @@ steps are not comparison intervals.
 | `record` | `op`: `start`, `stop` (`name`), `note` (`text`) | Record the session's steps into a `.recx` file ("Recordings" below): File/recorD, key `d` of the File menu, starts a recording or stops it. `start` begins one, with the session as it is now (its `@snapshot`, W59d; an error when one runs, or when the model was not read from files); `stop` writes `name.recx` (`.recx` added unless `name` ends so; without `name`, asks for one as the other File saves do: `ask` kind `file`, wildcard `*.recx`, the model's name offered; a cancel or a refused overwrite keeps recording) and ends it; `note` sets the note for the next step (replacing one set before; an error when not recording). `start` and `stop` are data, `note` control ("Action kinds"). `state.recording` says one runs. |
 | `play` | `op`: `open` (`file`, `autoplay`), `start`, `pause`, `step`, `speed` (`speed`), `from` (`step`, `play`), `note` (`step`, `text`), `close` | Play a recording ("Playing a recording" below). `open` loads the `.recx` `file` (without one, asks for it: `ask` kind `file`, wildcard `*.recx`; then, as File > Open model does, whether to save this model's session first) and its model, then starts playback (set `autoplay:false` to open paused at step 0); File/plaY recording (key `y` of the File menu) and Open model of a `.recx` do the same. `start` plays (at the end, nothing), `pause` pauses (a wait in progress keeps what is left of it), `step` plays the next step, or the rest of the one running, then pauses; `speed` divides every pace by `speed` (0.25 to 8; the page offers 0.5, 1, 2, 4); these four act at once, even during a step or a computation, and have no `idle` of their own then. `from` loads the model again and runs steps 0 to `step` - 1 with no pace (their `press` events 0 ms), then pauses there (plays on with `play` 1); `step` 0 is Restart. `note` writes `text` as step `step`'s note into the `.recx` (its fingerprint kept: "Recordings") and sends `player` again. `close` leaves the player; the model stays. `open`, `from` and `note` are data, the rest control. |
 | `aplot` | `op`: `scroll` (`dy` pixels), `close` | Dragging the array plot scrolls through time; `close` destroys its window. Its other buttons are the window's keys. |
+| `colormap` | `name` | The session's colour scale (one of `hello.colormaps`), as Graphic stuff's Colormap does by picking one: the array plot sends itself again with the new ramp, and the pictures, the colour-coded orbit and the animation use it. A setting ("Action kinds"). |
 | `ani` | `op`: `pause`, `fast`, `slow`, `speed` (`ms`), `step` (`n`), `seek` (`pos`), `mouse` (`what` down/move/up, `x`, `y` or `u`, `v`), `close` | What the animation window's keys ("Window keys") do not say: the ones that carry a number, steer a playing Go (`pause`, `fast`, `slow` and `speed` sent while it plays reach its loop) or drag. `speed` sets the delay between two frames of `go` to `ms` (0..1000; `fast` and `slow` change it by 2 within 0..100). `step` moves `n` rows from the core's position (`ani` `pos`), `seek` goes to row `pos`. `mouse` drags a grab point after the grab key, at pixel `x`, `y`, or at `u`, `v` in the animation's unit coordinates (those of the `ani` `frame` event, y up). |
 | `steady` | `decimals`, `hold`, `maximum` | One-click unchanged-digits run; see Direct run controls above. |
 | `continue` | exactly one of `extra`, `until` | Append directly using current core time; see Direct run controls above. |
@@ -512,7 +513,9 @@ What a client must keep to, from the core that keeps to it (W118):
   (bytes, xpp_files.h XPP_FILES_CAP, 64 MB); `browser_rows` and
   `browser_cols`, the most rows and columns one `browser` block request
   gets (2000 and 500).
-- `hello.text`: what a plot text takes (core/grobs.h `LABEL_*`): `max_length` (1000 characters), `size_max` (4), `style_count` (4), `color_max` (10, the last curve colour) and `default_size` (2).
+- `hello.text`: what a plot text takes (core/grobs.h `LABEL_*`): `max_length` (1000 characters), `size_max` (4), `style_count` (4) and `default_size` (2).
+- `hello.line_styles` (W492, #556): how a curve's style is drawn, decided once in the core (core/picture.cpp): `dash` the pattern of each dash word at a width of 1 (a wider line multiplies it by its width, at least 1; empty: solid) and `markers` the glyph of each marker word at a size of 1 (a size s multiplies it by max(s, 0.5)): `circle` the radius of a filled circle (0 for none), `polygon` the corners of a filled polygon, `strokes` its line segments, in pixels with y down. The page draws a curve's markers and dashes from it as the PDF and SVG do.
+- `hello.colormaps`: the colour scales the core has, by name (the order of core/colormap.h `colormap_names`); the `colormap` command changes the session's.
 - `hello.window_ids`: the window numbers of `window` events and asks:
   the AUTO diagram is `auto` (101), the animation `ani` (104), the array
   plot `aplot` (105). `plots` is the initial number of plot slots, not a
@@ -578,7 +581,7 @@ one error, `Nothing to save`. An unknown `what` or `format` is an error message.
 Default output names (W130, #182) use `xpp::files::output_name`: the model's
 base without its last extension, then the output extension. A second kind
 with that extension adds `-<what>`: `lecar.csv`, `lecar-curves.csv`,
-`lecar-array.ps`, `lecar-eigen1-unstable.dat`. `hello.output_names` sends
+`lecar-array.pdf`, `lecar-eigen1-unstable.dat`. `hello.output_names` sends
 `par`, `ic`, `csv`, and `curves`, the complete defaults for the values
 panel and the two CSV buttons. Clients use these names directly, including
 on reconnect or model change; they do not derive names from `hello.file`.
@@ -1031,7 +1034,7 @@ each set's data then in `<set>.dat` unless `--outfile` is given):
 | `@ postprocess=` | `browser` `postprocess` |
 | unless each run of a range wrote its own `output.dat.N`: `@ stoch=1`/`2` | `key` `u`, `key` `h`, `answer` `m` (Mean) or `v` (Variance), `key` `Escape` |
 | output.dat (`@ output=`, `--outfile`; not with `--noout`) | `browser` `write`, `what` `output`, `format` `dat`, `replace` 1 |
-| `--mkplot` | `key` `g`, `answer` `p` then the PostScript form answered with its own values (or `answer` `v`, SVG, for `--plotfmt svg`), then `answer` `file` |
+| `--mkplot` | `key` `g`, `answer` `p` then the picture parameters form (Colour, Axes font size) answered with its own values (or `answer` `v`, SVG, for `--plotfmt svg`), then `answer` `file` |
 
 After a run, the core computes requested nullclines (`nullclines.draw`, `nullclines.file`; a `.ode`'s `ncdraw`)
 and `dfdraw` phase-plane data
@@ -1047,7 +1050,7 @@ model's start in every mode, before the script.
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`, `player`), `title`, `file`, `output_names` (`par`, `ic`, `csv`, `curves`), `menu_names`, `command_categories`, `command_table`, `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`, `player`), `title`, `file`, `output_names` (`par`, `ic`, `csv`, `curves`), `menu_names`, `command_categories`, `command_table`, `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 markers, 5 methods (items like `2 Box` start with the number to enter); `line_styles` (above), `colormaps` (above). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows, AUTO, animation and array plot, numbered as `hello.window_ids` says. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
 | `diagram` | `op` (`axes`, `reset`, `add`, `views`), `view`, ... | The AUTO diagram as data, each view of it; see "The AUTO diagram as data". |
 | `autoinfo` | `info`, `stab`, `stop`, `notes` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
@@ -1078,7 +1081,7 @@ model's start in every mode, before the script.
 | `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
 | `equations` | `lines` | One `dX/dT=...` line per equation. |
 | `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open`; or `op` `frame`, ... | Animation state for its slider and toggles, sent with every frame drawn and after every `ani` command: `pos` the row the next step starts from, `speed` the ms between frames of Go, `loaded` 1 when an `.ani` file is loaded, `open` 1 while the animation window exists. With `op` `frame`: a frame as data, for a client that asked (`data`); see "The animation as data". |
-| `aplot` | `op`: `scroll` (`dy` pixels), `close` | Dragging the array plot scrolls through time; `close` destroys its window. Its other buttons are the window's keys. |
+| `aplot` | `title`, `nx`, `ny`, `values`, `enc`, `colormap`, `ramp`, `zmin`, `zmax`, `tlo`, `thi`, `tag` | The array plot (window 105; W492, #556 made it data only): `ny` rows of `nx` cells, row by row, `values` their numbers (as a series column; `null`/NaN off the stored rows and columns), `colormap` the session's colour scale by name and `ramp` its 256 colours from the low end to the high one: a cell is the ramp's colour at floor(256 * fraction), fraction being (value - `zmin`) / (`zmax` - `zmin`) clamped to 0..1 (core/colormap.h `ramp_color`); with `zmax` not above `zmin` no cell is coloured. `tlo` and `thi` are the times of its first and last row. `tag` the range-saving frame's text. Print writes the same cells and colours as a PDF. |
 | `film` | `op` (`capture`, `reset`, `play`, `autoplay`), `count`, `win`, `cycles`, `delay` | Kinescope. The client keeps the frames: on `capture` it copies window `win` as it is drawn now; `play` shows them, `autoplay` plays `cycles` times `delay` ms apart. |
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
 | `ping` | | Beep. |
@@ -1140,7 +1143,7 @@ A run beginning a segment carries `parameters`, the branch's `[name,value]` pair
 The server sends the AUTO diagram's points (window 101) as data, so that
 a client draws it and can zoom, pan and name the point under the mouse
 without a round trip. The data describe exactly what XPP's diagram shows
-(and what PostScript and SVG export draw): after the `auto` op `clear` it
+(and what PDF and SVG export draw): after the `auto` op `clear` it
 is empty (web2 does not send it: its Clear only hides the branches so far).
 An Axes change (the AutoPlot form, last 1 par, last 2 par), File/Load
 diagram and File/Reset diagram draw the diagram again at once, so a client
@@ -1197,7 +1200,7 @@ continues in), and a grab's point by its data.
 | `stable`, `periodic` | what `ty` is (W118): stable or not, a periodic orbit or a steady state; what a client reads |
 | `f2` | two-parameter curve (1 limit point, 2 limit point of periodics, 3 Hopf, 4 torus, 5 branch point, 6 period doubling, 7 fixed period, 13 neutral saddle); absent for one parameter |
 | `d` | how it is drawn: 0 not at all (the next line starts from it), 1 a line back to the point before it, 2 filled circles of radius 3 at y and y2, 3 open circles |
-| `c`, `lw` | colour (the core's colour index: 0 the foreground, 20..29 red .. purple) and line width |
+| `c`, `lw` | colour (a colour: `foreground`, `#rrggbb`, see "Colours") and line width |
 | `new` | 1: the run's first point starts a new line (no line back) |
 | `from` | the label the continuation that computed the run's first point started from (Auto.irs: the point Grab took), on the first point of such a continuation only; absent otherwise, and for a diagram loaded from a file or computed before AUTO kept it. A periodic branch's `from` names the Hopf point it bifurcates from |
 | `jac` | how the Jacobian of the AUTO run that computed the run was formed: `difference` (XPPAUT's forward differences) or `exact` (the Numerics' Jacobian at that run, W278); a run never joins one with another setting, so one diagram can hold both |
@@ -1448,6 +1451,29 @@ option table (core/model_options.cpp), which also gives their `@` names
 and defaults. A setting ("Commands during a command"): sent during a run it
 applies when the run ends.
 
+### Colours and line styles (W478, W479, W492; #541, #542, #556)
+
+**Colours.** Every colour of ours, in every event, file and command, is one text: `#rrggbb`, `#rrggbbaa`
+(the alpha, 00 clear to ff opaque, written only when not opaque) or `foreground`, the colour a page
+draws dark on a light theme and light on a dark one and a picture draws black. A CSS colour name is read (a
+form's colour field, a `text` command, a file) and written back as hex. There is no colour number anywhere
+of ours; XPPAUT's 0 to 10 are read in a `.ode`, an `.xpprc` and a `.set` only, as the RGB of XPPAUT's own
+table (`foreground`, then red `#ff0000`, `#f06400`, `#ffa500`, `#ffcd00`, `#c8c800`, `#c8eb4b`, `#00e100`,
+`#00c8c8`, `#0000ff` and purple `#a020f0`). The alpha is drawn by the page, in SVG (`fill-opacity`,
+`stroke-opacity`) and in PDF (an ExtGState). The colour of the colour scale (the array plot's cells, the
+colour-coded orbit, the animation's expression colours) is a colour of the session's `ramp`.
+
+**Line styles.** A curve, a frozen curve and a new curve's start (the option `line.*`) carry their style as
+five keys: `draw` (`line`, `points` or `both`), `dash` (`solid`, `dashed`, `dotted` or `dash_dot`), `width`
+(pixels, above 0), `marker` (`circle`, `square`, `triangle`, `diamond`, `cross`, `plus` or `star`) and
+`marker_size` (pixels, 0 or more, a radius). XPPAUT's line type (-5 to 1) is read on import only. The page
+draws them from `hello.line_styles`, and the PDF and SVG writers from the same table.
+
+**Pictures.** `Graphic stuff` writes a PDF (one page, 640 by 400 points; Helvetica and Symbol, two of the
+standard 14 fonts, nothing embedded; no date and no identifier, so the same plot is the same bytes) or an SVG, after
+a form of the picture's parameters (`Colour`, a boolean; `Axes font size`, a number); `@ plotfmt=` picks
+`pdf` or `svg` for `--mkplot` (a `.ode`'s `ps` imports as `pdf`). PostScript is gone.
+
 ### The plot as data
 
 The page (docs/ui-v2.md) draws the plots itself from numbers. Five events carry them, each sent only to
@@ -1471,7 +1497,7 @@ keeps the event whose `win` is the active one (`plots.active` or
 
 ```
 {"ev":"series","win":1,"rows":601,"three":0,"xlabel":"","ylabel":"","zlabel":"",
- "curves":[{"x":1,"y":2,"z":1,"color":0,"line":1}],"shift":[0,0,0],
+ "curves":[{"x":1,"y":2,"z":1,"color":"foreground","draw":"line","dash":"solid","width":1,"marker":"circle","marker_size":3}],"shift":[0,0,0],
  "columns":[{"col":0,"name":"T","data":[0,0.0500000007,...]},
             {"col":1,"name":"V","data":[-0.143999994,...]},
             {"col":2,"name":"W","data":[0.0299999993,...]}]}
@@ -1483,7 +1509,7 @@ keeps the event whose `win` is the active one (`plots.active` or
 | `rows` | stored rows: every column has this many values (0 before an integration) |
 | `three` | 1 when the window is a 3D plot (then `z` matters) |
 | `xlabel`, `ylabel`, `zlabel` | the window's axis labels (Viewaxes), the only place they are sent; a change of a label alone sends the series again; empty means "the plotted column's name" |
-| `curves` | the window's curves (`MyGraph->nvars` of them): `x`, `y`, `z` are storage columns (0 is T, `i` is `cols[i]` of `browser`), `color` the XPP colour index (0 foreground, 1..10 red .. purple), `line` > 0 a line, <= 0 points of radius `-line` |
+| `curves` | the window's curves (`MyGraph->nvars` of them): `x`, `y`, `z` are storage columns (0 is T, `i` is `cols[i]` of `browser`), `color` its colour ("Colours") and its style ("Line styles": `draw`, `dash`, `width`, `marker`, `marker_size`) |
 | `shift` | row shifts of the x, y and z columns (a lag plot): point `i` pairs x row `i - shift[0]` with y row `i - shift[1]`, from row `max(shift)` on |
 | `columns` | T and each column a curve uses, once each: `col`, its `name`, and `data`, one value per row (`null` for NaN) |
 
@@ -1513,7 +1539,7 @@ or 3D view); its text is compared with the last one sent.
  {"win":1,"title":"W vs V","three":0,"xlo":-0.6,"xhi":1.2,"ylo":-0.25,"yhi":1.2,
   "box":{"xmin":-0.6,"xmax":1.2,"ymin":-0.25,"ymax":1.2,"zmin":-12,"zmax":12},
   "theta":45,"phi":45,"persp":0,"zplane":-1000,"zview":1000,
-  "curves":[{"x":1,"y":2,"z":1,"color":0,"line":1}],"shift":[0,0,0]},
+  "curves":[{"x":1,"y":2,"z":1,"color":"foreground","draw":"line","dash":"solid","width":1,"marker":"circle","marker_size":3}],"shift":[0,0,0]},
  {"win":2,"title":"V vs T",...}]}
 ```
 
@@ -1547,7 +1573,7 @@ nothing), and for every window once after `data`. The active window's
 comes first.
 
 ```
-{"ev":"nullclines","win":1,"xname":"V","yname":"W","xcolor":2,"ycolor":7,
+{"ev":"nullclines","win":1,"xname":"V","yname":"W","xcolor":"#f06400","ycolor":"#00e100",
  "x":[-0.596100688,0.475000024,-0.600000024,0.503065467,...],"y":[...],
  "frozen":[{"x":[...],"y":[...]}]}
 ```
@@ -1555,14 +1581,14 @@ comes first.
 | field | meaning |
 |---|---|
 | `xname`, `yname` | the variables of the x- and y-nullclines (where their derivative is 0): the window's x and y axes when they were computed; `""` before any |
-| `xcolor`, `ycolor` | their XPP colour indices (as `curves` `color`; 2 and 7 unless the model sets them) |
+| `xcolor`, `ycolor` | their colours (`#f06400` and `#00e100` unless the model sets them) |
 | `x`, `y` | the x- and y-nullcline as line segments, 4 values each: `[x1,y1,x2,y2, x1,y1,x2,y2, ...]`, in plot coordinates, in the order XPP draws them; empty when the window does not show them |
 | `frozen` | the frozen nullclines (Nullcline/Freeze) the window shows, the same colours, each set's `x` and `y` as above |
 
 ```
-{"ev":"dfield","win":1,"scaled":1,"color":0,"n":17,"du":0.1125,"dv":0.090625,
+{"ev":"dfield","win":1,"scaled":1,"color":"foreground","n":17,"du":0.1125,"dv":0.090625,
  "grid":[-0.600000024,-0.25,0.305723518,0.952120364,...],"speed":[0.0421,...],
- "flows":[{"color":0,"x":[-0.600000024,-0.59258616,...,null,...],"y":[...]}]}
+ "flows":[{"color":"foreground","x":[-0.600000024,-0.59258616,...,null,...],"y":[...]}]}
 ```
 
 | field | meaning |
@@ -1572,7 +1598,7 @@ comes first.
 | `grid` | one arrow per grid point, 4 values each: `[x,y,ux,uy, ...]`, the point and the field's direction there as a unit vector in plot coordinates (`0,0` where the field is 0), x outer, y inner, in XPP's order |
 | `speed` | one per arrow: the length of the field's (x, y) components there, in plot units per unit time |
 | `scaled` | 1 (Scaled Dir.Fld): every arrow the same length, a quarter of a grid cell's diagonal in XPP; 0 (Direct field): lengths in proportion to the speed, the fastest a whole cell's diagonal. The client scales the arrows to its own grid spacing on screen: a direction in plot units maps to pixels with the axes' scales, so it is normalized after that mapping. |
-| `color` | the arrows' XPP colour index (the window's first curve's) |
+| `color` | the arrows' colour (the window's first curve's) |
 | `flows` | Flow's trajectories in this window, one entry per curve of the window (its `color`): `x` and `y` of the points drawn, the trajectories one after the other with `null` (NaN) between two. Points that move less than 1/5000 of the axes from the last one kept are left out |
 
 Values in these arrays are float32 (9 digits in JSON). Dir.field/flow's
@@ -1596,18 +1622,18 @@ for every window once after `data`; the active window's first.
 {"ev":"marks","win":1,
  "equilibria":[{"x":-0.1425351775676935,"y":0.034048992272573395,"type":"saddle","symbol":"triangle"}],
  "text":[{"x":-0.298305094,"y":0.498503745,"text":"\\1a\\0-point 6","size":3,"font":0}],
- "arrows":[{"kind":"pointer","x1":0.1,"y1":0.2,"x2":0.6,"y2":0.8,"size":0.2,"color":5}],
- "markers":[{"x":0.9,"y":0.1,"shape":"diamond","size":2,"color":7}],
- "frozen":[{"key":"first run","name":"frz1","color":4,"line":1,"x":[...],"y":[...]}]}
+ "arrows":[{"kind":"pointer","x1":0.1,"y1":0.2,"x2":0.6,"y2":0.8,"size":0.2,"color":"#c8c800"}],
+ "markers":[{"x":0.9,"y":0.1,"shape":"diamond","size":2,"color":"#00e100"}],
+ "frozen":[{"key":"first run","name":"frz1","color":"#ffcd00","draw":"line","dash":"solid","width":1,"marker":"circle","marker_size":3,"x":[...],"y":[...]}]}
 ```
 
 | field | meaning |
 |---|---|
 | `equilibria` | the points Sing pts marked (Monte Carlo's too), in the order marked, each once: `x`, `y` in plot coordinates (the window's x and y variables at the equilibrium, the doubles themselves: the `equilibrium` event's values for those variables), `type` what its symbol says (`stable`: no eigenvalue with a positive real part; `saddle`: some on each side; `unstable`: the rest) and `symbol` XPP's (`circle`, `triangle`, `box`). 2D windows only |
-| `text` | Text,etc's labels: `id` the label's slot, which the `text` command names it by (it stays while the label lasts; a deleted label's is reused by the next), `x`, `y` where the text starts (its baseline, plot coordinates), `text` as drawn (`\{expr}` already replaced by its value), `source` as written (what the edit dialog starts from), `size` 0-4, `font` (1: all in the symbol font; 0 otherwise), `style` (0 normal, 1 bold, 2 italic, 3 bold italic) and `color` (an XPP colour index, 0 the foreground; the page draws style and colour, the PostScript and SVG output do not use them). XPP's markup stays in the text: a backslash and `1` switches to the symbol font, where the Latin letters show Greek ones (`\1a` is α, Adobe Symbol encoding), `0` back to roman, `s` and `S` a subscript and a superscript one size smaller (they add up), `n` back to the baseline and size; any other character after a backslash is dropped. Bytes that are not UTF-8 are Latin-1 |
-| `arrows` | Text,etc's arrows and pointers: `kind` `arrow` (only a head) or `pointer` (a head and a shaft), the head's tip at `x1`, `y1`, pointing from `x2`, `y2`; `size` the head's length as a fraction of that distance (half as wide as long); `color` an XPP colour index |
-| `markers` | Text,etc's markers (Marker, marKers): `x`, `y`, `shape` (`box`, `diamond`, `triangle`, `plus`, `cross`, `circle`), `size` (1 is about 1% of the window), `color` |
-| `frozen` | the frozen curves of the window (2D ones): `key` (its legend text) and `name` (Freeze's Edit form), `color` an XPP colour index, `line` 1 a line, 0 points (a negative colour in the form), `x`, `y` the values of the curve's x and y columns when it was frozen (float32, as `series`: equal to that `series`' columns then) |
+| `text` | Text,etc's labels: `id` the label's slot, which the `text` command names it by (it stays while the label lasts; a deleted label's is reused by the next), `x`, `y` where the text starts (its baseline, plot coordinates), `text` as drawn (`\{expr}` already replaced by its value), `source` as written (what the edit dialog starts from), `size` 0-4, `font` (1: all in the symbol font; 0 otherwise), `style` (0 normal, 1 bold, 2 italic, 3 bold italic) and `color` (a colour; the page draws style and colour, the PDF and SVG output the size and the colour, not the style). XPP's markup stays in the text: a backslash and `1` switches to the symbol font, where the Latin letters show Greek ones (`\1a` is α, Adobe Symbol encoding), `0` back to roman, `s` and `S` a subscript and a superscript one size smaller (they add up), `n` back to the baseline and size; any other character after a backslash is dropped. Bytes that are not UTF-8 are Latin-1 |
+| `arrows` | Text,etc's arrows and pointers: `kind` `arrow` (only a head) or `pointer` (a head and a shaft), the head's tip at `x1`, `y1`, pointing from `x2`, `y2`; `size` the head's length as a fraction of that distance (half as wide as long); `color` a colour |
+| `markers` | Text,etc's markers (Marker, marKers): `x`, `y`, `shape` (`box`, `diamond`, `triangle`, `plus`, `cross`, `circle`), `size` (1 is about 1% of the window), `color` a colour |
+| `frozen` | the frozen curves of the window (2D ones): `key` (its legend text) and `name` (Freeze's Edit form), `color` its colour and its style (`draw`, `dash`, `width`, `marker`, `marker_size`, as a curve's), `x`, `y` the values of the curve's x and y columns when it was frozen (float32, as `series`: equal to that `series`' columns then) |
 
 Label and object positions are the stored float32 values, 9 digits.
 
@@ -1709,8 +1735,8 @@ is a zip of ordinary files, in this order:
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `--anifile`'s animation; byte for byte |
 | `model.setx` | the session's settings (docs/odex.md ".setx"): the numerics (the Jacobian included) under the option table's keys, the run's position, the initial and ending values, the parameters, the delays, the boundary conditions, Transpose, the coupling, the array plot, the torus and the ranges; every key in it (a session loads nothing it does not hold), without the graphics, which `windows.setx` holds for every window |
 | `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's settings and views; full-precision diagram and restart orbits when a diagram exists (xpp_session_auto.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
-| `windows.setx` | a `windows` list, every open plot slot as a group in index order (its zero-based `number`, boolean `open` and its `curves` by variable name with line and colour, the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`), `active` (which window), an `auto_view` group (AUTO's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
-| `marks.setx` | the `labels` list (window, x, y, size, font, style, color, text; each value checked, a text 1 to 1000 characters, at most 50), the `arrows_and_markers` list, `freeze_each_run` and the `frozen_curves` list of used slots in slot order (zero-based slot, boolean used, window, type, color, points, key, name), per window |
+| `windows.setx` | a `windows` list, every open plot slot as a group in index order (its zero-based `number`, boolean `open` and its `curves` by variable name with colour and style (`color`, `draw`, `dash`, `width`, `marker`, `marker_size`), the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`), `active` (which window), an `auto_view` group (AUTO's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
+| `marks.setx` | the `labels` list (window, x, y, size, font, style, color, text; each value checked, a text 1 to 1000 characters, at most 50), the `arrows_and_markers` list, `freeze_each_run` and the `frozen_curves` list of used slots in slot order (zero-based slot, boolean used, window, type, color, the style keys of a curve, points, key, name), per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
 | `data.npz` | the data table as Save data's NPZ writes it (`T.npy`, `V.npy`, ..., `seed.npy`), unless left out |
 | `sliders.setx` | mandatory; a `sliders` list (at least the three model-option slots, at most 256), each slot a group of `name` (empty clears it), `low`, `high` and `step`; all names and ranges are checked before anything applies |
@@ -1763,7 +1789,7 @@ does not know, a variable, a window or a slot it does not have, a value
 of AUTO's it does not take; and (W145) a numerical setting its rule
 refuses, as `set` `num` and an `@` line refuse it (0 `store_every`, 0 `DeltaT`),
 more added columns than the model has room for or one whose formula does
-not compile, an arrow's or marker's type or a colour out of range, a
+not compile, an arrow's or marker's type out of range, a colour that is none, a
 manifest line given twice. Every member is read whole and checked
 against the model's load before it is kept, and only then applied (W125):
 the session before stays exactly as it was, its model included; the
@@ -1911,10 +1937,10 @@ policy above, never a recorded save decision.
 | `menu` | `name`, `title`, `items`, `keys`, `hints`, `def` | `key` (empty or `ok:0` cancels); for an item past the end of `keys` (a menu with more items than keys: the named sets past the 26th, W229), `index`, the item's place in `items` |
 | `choice` | `title`, `question`, `choices`, `keys` | `key` |
 | `string` | `title`, `name`, `value`, `ok`, `cancel`, `kinds` | `value` (any length: no dialog cuts what is typed, W76) |
-| `form` | `title`, `names`, `values`, `kinds` | `values` (same length, each of any length: W76 dropped `max`). A name starting with `*n` means the field picks from `hello.lists[n]`: a variable (`*0`), a parameter (`*2`), a colour (`*4`), a marker (`*5`), ...; for a list whose items start with a number (`2 Box`) the value is that number. A form may also carry `columns` and `rows` (arrays of text), asking for a grid: its first `columns.length * rows.length` fields are the cells, row by row (field `r * columns.length + c` is column `c`, row `r`), and the others follow as plain fields. Viewaxes' 2D View (`X`, `Y`; `Variable`, `Min`, `Max`, `Label`) and 3D View (`X`, `Y`, `Z`, then `XLo`, `XHi`, `YLo`, `YHi` and the 3D params' ten fields) are the only grids (W225): the core reads every field whole before it sets any, and a variable that is not one, a number that is not one, a Min not below its Max (or XLo/YLo not below XHi/YHi) is a `message` error naming the field, with nothing applied. |
+| `form` | `title`, `names`, `values`, `kinds` | `values` (same length, each of any length: W76 dropped `max`). A name starting with `*n` means the field picks from `hello.lists[n]`: a variable (`*0`), a parameter (`*2`), a marker (`*4`), ...; for a list whose items start with a number (`2 Box`) the value is that number. A form may also carry `columns` and `rows` (arrays of text), asking for a grid: its first `columns.length * rows.length` fields are the cells, row by row (field `r * columns.length + c` is column `c`, row `r`), and the others follow as plain fields. Viewaxes' 2D View (`X`, `Y`; `Variable`, `Min`, `Max`, `Label`) and 3D View (`X`, `Y`, `Z`, then `XLo`, `XHi`, `YLo`, `YHi` and the 3D params' ten fields) are the only grids (W225): the core reads every field whole before it sets any, and a variable that is not one, a number that is not one, a Min not below its Max (or XLo/YLo not below XHi/YHi) is a `message` error naming the field, with nothing applied. |
 | `checklist` | `title`, `names`, `flags` | `flags` |
 | `file` | `title`, `mode` (`read` or `write`), `file`, `wild`, `dir`, `save_dir`, `dirs`, `files` | `file` (a name in `dir`, or a full path anywhere, whole: the desktop window's own dialog answers with one, W88); a native save dialog also supplies `replace:1` and passes the ask `id` as `ask` to `__xppFileDialog`; the binding grants that exact path once for that prompt, so `replace:1` alone never authorizes an external write (W177, #229), while a browser save supplies no decision for the core's model-folder copy (W129); or `cd` (a folder name or `..`, in `dir`: only the folder listed changes, not the process's) or `wild` (a new pattern) to be asked again with that listing; `save_dir` is the writable model folder offered for a native save retry after permission denial; `dir` starts as the folder of the file of that `wild` last chosen, else the model's folder (a replay's recording's), never AUTO's or a replay's scratch folder (W151) |
-| `text` | `title`, `value` (the text), `size`, `style`, `color` | `value`, `size`, `style`, `color` (whole numbers in the ranges of `hello.text`; a value outside them is a `message` `error` and the text is not added). Text,etc/Text asks a `mouse` first (where the text goes), then this; a cancel adds nothing. |
+| `text` | `title`, `value` (the text), `size`, `style`, `color` | `value`, `size`, `style` (whole numbers in the ranges of `hello.text`), `color` (a colour); a value outside them is a `message` `error` and the text is not added. Text,etc/Text asks a `mouse` first (where the text goes), then this; a cancel adds nothing. |
 | `alert` | `button`, `message` | nothing |
 | `mouse` | `win` | `x`, `y`; or `xd`, `yd` (data coordinates, below) |
 | `rubber` | `win`, `flag` (0 box, 1 line) | `x`, `y`, `x2`, `y2`; or `xd`, `yd`, `xd2`, `yd2` |
@@ -1962,8 +1988,8 @@ decreasing`), nothing applied. Its extra kinds: `boolean` (the answer is the
 text `true` or `false`; a checkbox), `choice` (one of the names in the
 form's `options` entry for the field, exactly; a select whose labels are the
 names with underscores as spaces and a capital first letter, derived, never
-written apart) and `real` (a plain number, no `%formula`; `integer` takes
-the same). The form ask carries `options` (per field the names of a `choice`,
+written apart) `real` (a plain number, no `%formula`; `integer` takes
+the same) and `color` (`foreground`, `#rrggbb`, `#rrggbbaa` or a CSS colour name; the page's picker gives the first three: a colour and its alpha). The form ask carries `options` (per field the names of a `choice`,
 `null` for another kind) and `ranges` (per field `{min, max}` of an `integer`
 or `real`, either key only when given, `null` when it has none) beside
 `kinds`; the answer stays `values`, one text per field. Poincare map's form
@@ -2031,7 +2057,7 @@ AUTO run offers (`error`'s `action`, above).
 
 **The file ask's mode.** `mode` says whether the command opens the file
 (`read`: Import settings, Load diagram, the browser's Load, Import, ...) or saves
-one (`write`: Save session, Save diagram, PostScript, SVG, ...), so a client
+one (`write`: Save session, Save diagram, PDF, SVG, ...), so a client
 can show an open or a save dialog. The core decides by the selector's title
 (`xpp_files_ask_mode` in core/xpp_files.cpp: a title starting with Load,
 Read, Import, Open, Select or Library reads, anything else writes;
@@ -2190,10 +2216,9 @@ outside [0,1]. XPP's own window put a primitive at `u*w`, `h - v*h`.
 | `dot` | `u`, `v`, `r`, colour: a filled circle of `r` pixels (a comet's, with a negative thickness) |
 | `text` | `u`, `v`, string, colour, size (0..4), font (0 roman, 1 symbol: Greek letters): from the baseline's left end |
 
-A colour is an XPP colour index (0 the foreground, 1..10 red .. purple, as
-`curves` `color`) for the `.ani`'s named colours, or `"#rrggbb"` for a
-colour of the colour map (an expression's value, 0..1). A primitive's
-colour, width and text font are the pen's at that point: the colour starts at 0 each frame, width and font
+A colour is a colour ("Colours"): the `.ani`'s named colours as XPPAUT's own,
+or a colour of the session's colour scale (an expression's value, 0..1). A primitive's
+colour, width and text font are the pen's at that point: the colour starts as the foreground each frame, width and font
 carry over from the frame before, `settext` sets the font and colour for
 the text after it, and text takes the colour last set, as XPP draws it.
 Widths are in pixels (0 is a thin line of one pixel).

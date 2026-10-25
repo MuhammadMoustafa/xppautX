@@ -3,6 +3,7 @@
    geometry on the chart's canvas. The chart (chart.ts) strokes what these
    return in uPlot's draw cycle, under the curves. Pure: no DOM. */
 import type {PixelFrame} from './decimate';
+import type {CoreColor} from './colors';
 import {segmentCount, trajectoryCount, type Dfield, type Nullclines} from '../store/phase';
 
 export type LayerKey = 'xnull' | 'ynull' | 'dfield' | 'flow';
@@ -11,8 +12,7 @@ export interface Layer {
   key: LayerKey;
   /** the legend's name: "V-nullcline", "Direction field", "Flow" */
   label: string;
-  /** XPP colour index */
-  color: number;
+  color: CoreColor;
   /** segments (nullclines, frozen ones included), arrows, or trajectories */
   count: number;
 }

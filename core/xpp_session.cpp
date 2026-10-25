@@ -273,7 +273,7 @@ xpp::Result<std::string> marks_text(const xpp::Session &s)
         out.whole("size", l.size);
         out.whole("font", l.font);
         out.whole("style", l.style);
-        out.whole("color", l.color);
+        out.color("color", l.color);
         out.text("text", l.s);
         out.end_item();
     }
@@ -284,7 +284,7 @@ xpp::Result<std::string> marks_text(const xpp::Session &s)
         out.begin_item();
         out.whole("window", xpp::graph_of(s, g.w));
         out.whole("type", g.type);
-        out.whole("color", g.color);
+        out.color("color", g.color);
         out.real("size", g.size);
         out.real("x_start", g.xs);
         out.real("y_start", g.ys);
@@ -303,7 +303,8 @@ xpp::Result<std::string> marks_text(const xpp::Session &s)
         out.flag("used",c.use!=0);
         out.whole("window", xpp::graph_of(s, c.w));
         out.whole("type", c.type);
-        out.whole("color", c.color);
+        out.color("color", c.color);
+        out.line_style(c.style);
         out.whole("points", c.len);
         out.text("key", c.key);
         out.text("name", c.name);
@@ -348,14 +349,17 @@ std::vector<float> points_of(const xpp::DataTable &t, const std::string &name, i
 struct SavedLabel {
     int window = 0, font = 0;
     double x = 0, y = 0;
-    xpp::LabelLook look{"", 0, 0, 0};
+    xpp::LabelLook look{"", 0, 0, xpp::foreground_color};
 };
 struct SavedGrob {
-    int window = 0, type = 0, color = 0;
+    int window = 0, type = 0;
+    xpp::Color color;
     double size = 0, xs = 0, ys = 0, xe = 0, ye = 0;
 };
 struct SavedCurve {
-    int slot = 0, window = 0, type = 0, color = 0;
+    int slot = 0, window = 0, type = 0;
+    xpp::Color color;
+    xpp::LineStyle style;
     bool used = false;
     std::string key, name;
     std::vector<float> x, y, z;
@@ -377,13 +381,11 @@ int window_in(xpp::setx::Block &g, const WindowsRead &w)
     return saved;
 }
 
-/* a colour of marks.setx: one a curve or a mark takes (colormap.h) */
-int color_in(xpp::setx::Block &g)
+/* a colour of marks.setx (colormap.h) */
+xpp::Color color_in(xpp::setx::Block &g)
 {
-    int color = 0;
-    g.whole("color", color);
-    if (color < 0 || color > xpp::LAST_PLOT_COLOR)
-        g.fail(*g.member("color"), xpp::format("{} is not a colour (0 to {})", color, xpp::LAST_PLOT_COLOR));
+    xpp::Color color;
+    g.color("color", color);
     return color;
 }
 
@@ -457,6 +459,7 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
         c.window = window_in(g, windows);
         g.whole("type", c.type);
         c.color = color_in(g);
+        g.line_style(c.style);
         int len = 0;
         g.whole("points", len);
         g.text("key", c.key);
@@ -504,7 +507,7 @@ void apply_marks(xpp::Session &s, MarksRead r, const std::map<int, int> &slot)
     s.frozen_curves.points.resize(slots);
     s.marks_shown.generation.resize(slots);
     for (SavedCurve &c : r.curves)
-        if(c.used)restore_frozen_curve(s, c.slot, w(c.window), c.type, c.color, std::move(c.key), std::move(c.name), std::move(c.x),
+        if(c.used)restore_frozen_curve(s, c.slot, w(c.window), c.type, c.color, c.style, std::move(c.key), std::move(c.name), std::move(c.x),
                              std::move(c.y), std::move(c.z));
 }
 

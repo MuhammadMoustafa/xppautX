@@ -32,7 +32,7 @@ namespace xpp {
    
     point(x,y)        Draws point to (x,y) with pointtype PointStyle
     line(x1,y1,x2,y2) Draws line with linetype LineStyle
-    put_text(x1,y,text)  Draws text with TextAngle, Justify
+    put_text(x1,y,text)  Draws text with Justify
     init_device()     Sets up the default for tics, plotting area,
                       and anything else 
 
@@ -44,21 +44,9 @@ namespace xpp {
     VTic Htic are the actual sizes of the tics in device pixels
     VChar HChar are the height and width used for character spacing
  
-    linetypes   -2  thick plain lines
-                -1  thin plain lines
+    the pen (picture.h's set_pen) says each line's colour, dash and width
 
 */
-
-/* text is never turned (my_ps.cpp's rotation stays for it) */
-const int TextAngle=0;
-
-void get_scale(const xpp::Session &s, double *x1, double *y1, double *x2, double *y2)
-{
-  *x1=s.drawing.x_min;
-  *y1=s.drawing.y_min;
-  *x2=s.drawing.x_max;
-  *y2=s.drawing.y_max;
-}
 
 void set_scale(xpp::Session &s, double x1, double y1, double x2, double y2)
 {
@@ -104,10 +92,10 @@ void get_draw_area_flag(xpp::Session &s, int flag)
  set_normal_scale(s);
 }
 
-void change_current_linestyle(xpp::Session &s, int newstyle, int *old)
+void change_current_color(xpp::Session &s, const xpp::Color &newcolor, xpp::Color *old)
 {
  *old=s.plot_windows.current->color[0];
-  s.plot_windows.current->color[0]=newstyle;
+  s.plot_windows.current->color[0]=newcolor;
 }
 
 void set_normal_scale(xpp::Session &s)
@@ -120,40 +108,32 @@ s.drawing.x_min=s.plot_windows.current->xlo;
 
 
 
+/* what a picture file begun records (picture.h); the page draws from the data modules, so with no
+   file begun nothing is drawn here */
 void point(xpp::Session &s, int x, int y)
 {
-  const xpp::ImageFormat *f=xpp::active_image_format(s);
-  if(f)f->draw_point(s,x,y);
-  else ui.draw_point(x,y);
+  if(s.plot_file.format)xpp::picture_marker(s,x,y);
 }
 
 void line(xpp::Session &s, int x1, int y1, int x2, int y2)
 {
-  const xpp::ImageFormat *f=xpp::active_image_format(s);
-  if(f)f->draw_line(s,x1,y1,x2,y2);
-  else ui.draw_line(x1,y1,x2,y2);
+  if(s.plot_file.format)xpp::picture_line(s,x1,y1,x2,y2);
 }
-/* draw a little filled circle */
 
+/* draw a little filled circle */
 void bead(xpp::Session &s, int x1, int y1)
 {
-  const xpp::ImageFormat *f=xpp::active_image_format(s);
-  if(f)f->draw_bead(s,x1,y1);
-  else ui.draw_bead(x1,y1);
+  if(s.plot_file.format)xpp::picture_bead(s,x1,y1);
 }
 
 void frect(xpp::Session &s, int x1, int y1, int w, int h)
 {
-  const xpp::ImageFormat *f=xpp::active_image_format(s);
-  if(f)f->draw_frect(s,x1,y1,w,h);
-  else ui.draw_frect(x1,y1,w,h);
+  if(s.plot_file.format)xpp::picture_rect(s,x1,y1,w,h);
 }
 
 void put_text(xpp::Session &s, int x, int y, const char *str)
 {
-  const xpp::ImageFormat *f=xpp::active_image_format(s);
-  if(f)f->draw_text(s,x,y,str);
-  else ui.draw_text(x,y,str);
+  if(s.plot_file.format)xpp::picture_text(s,x,y,str);
 }
 
 void init_x11(xpp::Session &s)
@@ -161,58 +141,16 @@ void init_x11(xpp::Session &s)
  get_draw_area(s);
 }
 
-void init_ps(xpp::Session &s)
+void init_picture(xpp::Session &s)
 {
-  int XDMax,YDMax; /* the device's size */
-  if(!s.drawing.ps_port){
- XDMax=7200;
- YDMax=5040;
- s.drawing.v_tic=63;
- s.drawing.h_tic=63;
- s.drawing.v_char=140;
- s.drawing.h_char=84;
- s.drawing.d_left=12*s.drawing.h_char;
- s.drawing.d_right=XDMax-3*s.drawing.h_char-s.drawing.h_tic;
- s.drawing.d_top=YDMax-1-s.drawing.v_char*7/2;
- s.drawing.d_bottom=s.drawing.v_char*5/2+1;
-  }
-  else
-    {
- YDMax=7200;
- XDMax=5040;
- s.drawing.v_tic=63;
- s.drawing.h_tic=63;
- s.drawing.v_char=140;
- s.drawing.h_char=84;
- s.drawing.d_left=12*s.drawing.h_char;
- s.drawing.d_right=XDMax-3*s.drawing.h_char-s.drawing.h_tic;
- s.drawing.d_top=YDMax-1-s.drawing.v_char*7/2;
- s.drawing.d_bottom=s.drawing.v_char*5/2+1;
-
-    }
-
-}
-
-void init_svg(xpp::Session &s)
-{
-  int XDMax,YDMax; /* the device's size */
-  XDMax=640;
-  YDMax=400;
   s.drawing.v_tic=9;
   s.drawing.h_tic=9;
   s.drawing.v_char=20;
   s.drawing.h_char=12;
   s.drawing.d_left=12*s.drawing.h_char;
-  s.drawing.d_right=XDMax-3*s.drawing.h_char-s.drawing.h_tic;
-  s.drawing.d_bottom=YDMax-1-s.drawing.v_char*7/2;
+  s.drawing.d_right=xpp::picture_width-3*s.drawing.h_char-s.drawing.h_tic;
+  s.drawing.d_bottom=xpp::picture_height-1-s.drawing.v_char*7/2;
   s.drawing.d_top=s.drawing.v_char*5/2+1;
-}
-
-void set_linestyle(xpp::Session &s, int ls)
-{
-  const xpp::ImageFormat *f=xpp::active_image_format(s);
-  if(f)f->draw_linetype(s,ls);
-  else ui.draw_linestyle(ls);
 }
 
 void scale_dxdy(const xpp::Session &s, float x, float y, double *i, double *j)
@@ -245,12 +183,6 @@ void scale_to_real(xpp::Session &s, int i, int j, float *x, float *y)  /* Not ne
   
  }
 
-/* the XPPAUT line type a new curve starts with (the option that sets the style refuses one no line type draws) */
-static int start_line_type(const xpp::Session &s)
-{
-  return xpp::xppaut_line_type(s.plot_settings.start_line_style).value();
-}
-
 void reset_all_line_type(xpp::Session &s)
 {
 	int j,k;
@@ -258,7 +190,7 @@ void reset_all_line_type(xpp::Session &s)
 	{
 		for(k=0;k<s.plot_windows.graph[j].nvars;k++)
 		{
-			s.plot_windows.graph[j].line[k]=start_line_type(s);
+			s.plot_windows.graph[j].style[k]=s.plot_settings.start_line_style;
 		}
 	}
 
@@ -295,7 +227,7 @@ void set_extra_graphs(xpp::Session &s)
       s.plot_windows.current->xv[i]=s.plot_settings.ix_plt[i+1];
     s.plot_windows.current->yv[i]=s.plot_settings.iy_plt[i+1];
     s.plot_windows.current->zv[i]=s.plot_settings.iz_plt[i+1];
-    s.plot_windows.current->color[i]=i%(LAST_PLOT_COLOR+1);
+    s.plot_windows.current->color[i]=xpp::xppaut_color(i%(LAST_PLOT_COLOR+1)); /* XPPAUT cycles its eleven colours */
     }
     return;
   }
@@ -382,8 +314,8 @@ void init_graph(xpp::Session &s, int i)
         s.plot_windows.graph[i].xv[j]=s.plot_settings.ixplt;
 	s.plot_windows.graph[i].yv[j]=s.plot_settings.iyplt;
 	s.plot_windows.graph[i].zv[j]=s.plot_settings.izplt;
-        s.plot_windows.graph[i].line[j]=start_line_type(s);
-	s.plot_windows.graph[i].color[j]=0;
+        s.plot_windows.graph[i].style[j]=s.plot_settings.start_line_style;
+	s.plot_windows.graph[i].color[j]=xpp::foreground_color;
         }
      
     s.plot_windows.graph[i].xlabel.clear();
@@ -741,10 +673,7 @@ void fancy_text_abs(xpp::Session &s, float x, float y, const char *old, int size
   int xp,yp;
   scale_to_screen(s,x,y,&xp,&yp);
   const std::string text=fill_in_text(s,old);
-  const xpp::ImageFormat *f=xpp::active_image_format(s);
-  if(f)f->draw_special_text(s,xp,yp,text.c_str(),size);
-  else ui.draw_special_text(xp,yp,text.c_str(),size);
-    
+  if(s.plot_file.format)xpp::picture_label(s,xp,yp,text,size,font==1);
 }
 
 int clip3d(float x1, float y1, float z1, float x2, float y2, float z2, float *x1p, float *y1p, float *z1p, float *x2p, float *y2p, float *z2p)
@@ -955,7 +884,7 @@ void eq_symb(xpp::Session &s, double *x, int type)
   float dy=6.0*static_cast<float>(s.plot_windows.current->yhi-s.plot_windows.current->ylo)*SYMSIZE;
  int ix=s.plot_windows.current->xv[0]-1,iy=s.plot_windows.current->yv[0]-1,iz=s.plot_windows.current->zv[0]-1;
   if(s.plot_windows.current->TimeFlag)return;
-  set_color(0); 
+  set_pen(s,foreground_color,LineStyle{});
   if(s.plot_windows.current->ThreeDFlag)
   {
    dx=6.0*SYMSIZE/s.plot_windows.current->dx;

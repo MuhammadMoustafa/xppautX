@@ -10,18 +10,20 @@ import {cssVar} from './css';
    from the legend like a curve. */
 import uPlot from 'uplot';
 import {canvasPixels} from './canvasPixels';
-import {curveColor} from './colors';
+import {cssColor, type CoreColor} from './colors';
+import {addMarker, dashPattern, drawsLine, drawsPoints, markerRadius} from './linestyle';
 import {ColumnTrace, LineTrace, sameFrame, tracePoints, type CurveTrace, type PixelFrame} from './decimate';
 import type {PlotModel} from './model';
 import {nearestTrace, type Nearest} from './nearest';
 import {
-  arrowPath, equilibriumPath, MARKER_PX, markerPath, markLayers, TEXT_STYLES, textPx, traceFrozen, type MarkKey, type MarkLayer,
+  arrowPath, equilibriumPath, MARKER_PX, markerPath, markLayers, TEXT_STYLES, textPx, traceCurve, type MarkKey, type MarkLayer,
 } from './marks';
 import {arrowSegments, phaseLayers, tracePolyline, traceSegments, type Layer, type LayerKey} from './phase';
 import type {Marks} from '../store/marks';
 import type {Dfield, Nullclines} from '../store/phase';
 import type {Ranges} from './viewmath';
 import type {Range, Viewport} from '../store/state';
+import type {LineStyle} from '../protocol/types';
 
 export interface ChartCallbacks {
   onViewport(v: Viewport): void;
@@ -87,6 +89,11 @@ export function padded(r: Range | null): Range | null {
   return {min: min - pad, max: max + pad};
 }
 
+/** whether two curves are drawn alike */
+function sameStyle(a: LineStyle, b: LineStyle): boolean {
+  return a.draw === b.draw && a.dash === b.dash && a.width === b.width && a.marker === b.marker && a.marker_size === b.marker_size;
+}
+
 /** a plot point in canvas pixels on `f`, or null off the finite plane */
 function pixelOf(f: PixelFrame, x: number, y: number): {x: number; y: number} | null {
   const px = f.left + ((x - f.xmin) * f.width) / (f.xmax - f.xmin);
@@ -124,7 +131,7 @@ export class Chart {
   /** each earlier run's paths for the frame they were traced for: a run does
       not change, so only a new view traces it again */
   private runPaths = new WeakMap<PlotModel,
-    {frame: PixelFrame; dark: boolean; drawn: number; paths: {p: Path2D; css: string; fill: boolean}[]}>();
+    {frame: PixelFrame; dark: boolean; drawn: number; paths: {p: Path2D; fill: Path2D; marks: Path2D; css: string; style: LineStyle}[]}>();
   /** the earlier runs drawn once into a canvas of the chart's size, for the
       frame, theme and runs it was drawn for: every other draw (each append
       of a live run) copies it instead of stroking the runs again (W82: a
@@ -147,7 +154,7 @@ export class Chart {
     const rebuild = !this.u || !this.model || this.model.mode !== model.mode
       || this.model.curves.length !== model.curves.length || this.dark !== dark
       || this.model.xLabel !== model.xLabel || this.model.yLabel !== model.yLabel
-      || this.model.curves.some((c, i) => c.color !== model.curves[i].color || c.line !== model.curves[i].line
+      || this.model.curves.some((c, i) => c.color !== model.curves[i].color || !sameStyle(c.style, model.curves[i].style)
         || c.label !== model.curves[i].label || c.cssColor !== model.curves[i].cssColor);
     this.visible = model.curves.map(c => c.visible !== false);
     this.model = model;
@@ -237,19 +244,23 @@ export class Chart {
     this.applying = false;
   }
 
-  private pointPath(radius: number): uPlot.Series.PathBuilder {
-    return (u, si, i0, i1) => {
-      const c = this.model?.curves[si - 1], fill = new Path2D(), clip = new Path2D();
-      const r = (radius + 0.5) * uPlot.pxRatio, b = u.bbox;
-      clip.rect(b.left - 2 * r, b.top - 2 * r, b.width + 4 * r, b.height + 4 * r);
-      if (c) {
-        tracePoints(c.xs, c.ys, Math.max(0, i0), Math.min(i1, c.xs.length - 1), this.frame(u), r, (x, y) => {
-          fill.moveTo(x + r, y);
-          fill.arc(x, y, r, 0, 2 * Math.PI);
-        });
-      }
-      return {stroke: null, fill, clip, flags: 3};
-    };
+  /** the markers of every curve that draws points (draw `points` or `both`), over the lines: in the curve's
+      colour, a point for each pixel it reaches (decimate.ts) */
+  private drawCurveMarkers(u: uPlot): void {
+    const m = this.model;
+    if (!m) return;
+    const f = this.frame(u), r = uPlot.pxRatio;
+    this.clipped(u, ctx => m.curves.forEach((c, i) => {
+      if (!drawsPoints(c.style) || !this.visible[i]) return;
+      const fill = new Path2D(), stroke = new Path2D();
+      tracePoints(c.xs, c.ys, 0, c.xs.length - 1, f, markerRadius(c.style) * r, (x, y) => addMarker(fill, stroke, c.style, x, y, r));
+      const css = c.cssColor ?? cssColor(c.color, this.dark);
+      ctx.fillStyle = css;
+      ctx.fill(fill);
+      ctx.strokeStyle = css;
+      ctx.lineWidth = r;
+      ctx.stroke(stroke);
+    }));
   }
 
   private data(): uPlot.AlignedData {
@@ -270,15 +281,11 @@ export class Chart {
       label, stroke: fg, font, labelFont: font, grid: {stroke: grid, width: 1}, ticks: {stroke: grid, width: 1},
     });
     const series: uPlot.Series[] = m.curves.map((c, i) => {
-      const color = c.cssColor ?? curveColor(c.color, this.dark);
-      const s: uPlot.Series = {label: c.label, stroke: color, width: 1.5, show: this.visible[i], points: {show: false}};
-      if (!c.line) {
-        s.paths = this.pointPath(c.radius);
-        s.fill = color;
-        s.points = {show: false, size: 2 * c.radius + 1, width: 0, fill: color};
-      } else {
-        s.paths = this.linePath; /* a time plot's too: uPlot's own walks every row at every draw (W82) */
-      }
+      const color = c.cssColor ?? cssColor(c.color, this.dark);
+      const s: uPlot.Series = {label: c.label, stroke: color, width: c.style.width, dash: dashPattern(c.style), show: this.visible[i],
+        points: {show: false}};
+      /* a time plot's too: uPlot's own walks every row at every draw (W82); the markers are drawn apart (drawCurveMarkers) */
+      s.paths = drawsLine(c.style) ? this.linePath : () => ({stroke: new Path2D(), fill: null, clip: null, band: null, flags: 1});
       if (m.mode === 2) s.facets = [{scale: 'x', auto: false}, {scale: 'y', auto: false}];
       return s;
     });
@@ -307,7 +314,7 @@ export class Chart {
       hooks: {
         setScale: [() => this.scaleChanged()],
         drawAxes: [u => this.drawPhase(u)], /* after the axes, before the curves */
-        draw: [u => { this.drawMarks(u); this.drawHighlight(u); this.drawn(); }], /* over the curves */
+        draw: [u => { this.drawCurveMarkers(u); this.drawMarks(u); this.drawHighlight(u); this.drawn(); }], /* over the curves */
       },
     };
     this.u = new uPlot(opts, this.data(), this.root);
@@ -381,12 +388,12 @@ export class Chart {
       what each layer drew */
   private strokePhase(u: uPlot, f: PixelFrame, ctx: CanvasRenderingContext2D): Map<LayerKey, number> {
     const r = uPlot.pxRatio, nc = this.nullclines, df = this.dfield, drawn = new Map<LayerKey, number>();
-    const stroke = (key: LayerKey, color: number, width: number, dash: number[], trace: (p: Path2D) => number) => {
+    const stroke = (key: LayerKey, color: CoreColor, width: number, dash: number[], trace: (p: Path2D) => number) => {
       if (this.hiddenLayers.has(key)) return;
       const p = new Path2D();
       const n = trace(p);
       drawn.set(key, (drawn.get(key) ?? 0) + n);
-      ctx.strokeStyle = curveColor(color, this.dark);
+      ctx.strokeStyle = cssColor(color, this.dark);
       ctx.lineWidth = width * r;
       ctx.setLineDash(dash.map(d => d * r));
       ctx.stroke(p);
@@ -476,27 +483,29 @@ export class Chart {
     let total = 0;
     this.clipped(u, ctx => {
       ctx.globalAlpha = 0.35;
-      ctx.lineWidth = 1.25 * r;
       for (const run of this.runs) {
         let cached = this.runPaths.get(run);
         if (!cached || cached.dark !== this.dark || !sameFrame(cached.frame, f)) {
           let drawn = 0;
           const paths = run.curves.filter(c => c.visible !== false).map(c => {
-            const p = new Path2D();
-            drawn += traceFrozen(c.xs, c.ys, c.line, f, Math.max(1, c.radius) * r, p);
-            return {p, css: c.cssColor ?? curveColor(c.color, this.dark), fill: !c.line};
+            const p = new Path2D(), fill = new Path2D(), marks = new Path2D();
+            drawn += traceCurve(c.xs, c.ys, c.style, f, r, p, fill, marks);
+            return {p, fill, marks, css: c.cssColor ?? cssColor(c.color, this.dark), style: c.style};
           });
           cached = {frame: f, dark: this.dark, drawn, paths};
           this.runPaths.set(run, cached);
         }
         total += cached.drawn;
-        for (const {p, css, fill} of cached.paths) {
+        for (const {p, fill, marks, css, style} of cached.paths) {
           ctx.strokeStyle = css;
+          ctx.lineWidth = style.width * r;
+          ctx.setLineDash(dashPattern(style).map(d => d * r));
           ctx.stroke(p);
-          if (fill) {
-            ctx.fillStyle = css;
-            ctx.fill(p);
-          }
+          ctx.setLineDash([]);
+          ctx.lineWidth = r;
+          ctx.stroke(marks);
+          ctx.fillStyle = css;
+          ctx.fill(fill);
         }
       }
     }, target);
@@ -509,8 +518,20 @@ export class Chart {
     if (!m?.frozen.length) return;
     const f = this.frame(u), r = uPlot.pxRatio;
     this.clipped(u, ctx => m.frozen.forEach((c, i) => {
-      const css = curveColor(c.color, this.dark);
-      this.strokeLayer(ctx, `frozen-${i}`, css, 1.5, p => traceFrozen(c.xs, c.ys, c.line, f, 1.5 * r, p), !c.line);
+      const key: MarkKey = `frozen-${i}`;
+      if (this.hiddenLayers.has(key)) return;
+      const line = new Path2D(), fill = new Path2D(), marks = new Path2D();
+      this.layerDrawn.set(key, traceCurve(c.xs, c.ys, c.style, f, r, line, fill, marks));
+      const css = cssColor(c.color, this.dark);
+      ctx.strokeStyle = css;
+      ctx.lineWidth = c.style.width * r;
+      ctx.setLineDash(dashPattern(c.style).map(d => d * r));
+      ctx.stroke(line);
+      ctx.setLineDash([]);
+      ctx.lineWidth = r;
+      ctx.stroke(marks);
+      ctx.fillStyle = css;
+      ctx.fill(fill);
     }));
   }
 
@@ -521,9 +542,9 @@ export class Chart {
     const f = this.frame(u), r = uPlot.pxRatio, fg = cssVar('--fg'), bg = cssVar('--surface');
     this.clipped(u, ctx => {
       for (const a of m.arrows)
-        this.strokeLayer(ctx, 'arrows', curveColor(a.color, this.dark), 1.5, p => (arrowPath(a, f, p) ? 1 : 0));
+        this.strokeLayer(ctx, 'arrows', cssColor(a.color, this.dark), 1.5, p => (arrowPath(a, f, p) ? 1 : 0));
       for (const k of m.markers)
-        this.strokeLayer(ctx, 'markers', curveColor(k.color, this.dark), 1.5,
+        this.strokeLayer(ctx, 'markers', cssColor(k.color, this.dark), 1.5,
           p => (markerPath(k, f, MARKER_PX * r, p) ? 1 : 0));
       /* a stable one filled, so the three kinds differ by more than their outline */
       for (const e of m.equilibria)
@@ -540,7 +561,7 @@ export class Chart {
           const base = textPx(t.size) * r, at = pixelOf(f, t.x, t.y);
           if (!at) continue;
           let x = at.x;
-          ctx.fillStyle = t.color === 0 ? fg : curveColor(t.color, this.dark);
+          ctx.fillStyle = t.color === 'foreground' ? fg : cssColor(t.color, this.dark);
           for (const run of t.runs) {
             ctx.font = `${TEXT_STYLES[t.style].css} ${run.small ? Math.round(base * 0.75) : base}px Inter, system-ui, sans-serif`;
             const y = at.y - run.rise * 0.45 * base;
@@ -653,10 +674,10 @@ export class Chart {
     if (!c || c.visible === false || (h!.run >= 0 && !this.showRuns)) return;
     this.clipped(u, ctx => {
       const p = new Path2D(), f = this.frame(u);
-      if (c.line) tracePolyline(c.xs, c.ys, f, p);
-      else tracePoints(c.xs, c.ys, 0, c.xs.length - 1, f, (c.radius + 1) * uPlot.pxRatio,
+      if (drawsLine(c.style)) tracePolyline(c.xs, c.ys, f, p);
+      else tracePoints(c.xs, c.ys, 0, c.xs.length - 1, f, (markerRadius(c.style) + 1) * uPlot.pxRatio,
         (x, y) => { p.moveTo(x + 3, y); p.arc(x, y, 3 * uPlot.pxRatio, 0, Math.PI * 2); });
-      ctx.strokeStyle = c.cssColor ?? curveColor(c.color, this.dark);
+      ctx.strokeStyle = c.cssColor ?? cssColor(c.color, this.dark);
       ctx.lineWidth = 3.5 * uPlot.pxRatio;
       ctx.stroke(p);
     });
@@ -699,7 +720,7 @@ export class Chart {
     return {
       mode: m.mode,
       curves: m.curves.map((c, i) => ({label: c.label, points: c.xs.length, visible: this.visible[i],
-        color: c.cssColor ?? curveColor(c.color, this.dark)})),
+        color: c.cssColor ?? cssColor(c.color, this.dark)})),
       ...this.ranges(),
       xLabel: m.xLabel,
       yLabel: m.yLabel,
@@ -710,7 +731,7 @@ export class Chart {
       vertices: this.vertices.slice(),
       runs: {count: this.runs.length, shown: this.showRuns, drawn: this.runsDrawn},
       layers: [...this.layers, ...this.markLayers].map(l => ({...l, visible: this.isLayerVisible(l.key),
-        drawn: this.layerDrawn.get(l.key) ?? 0, css: curveColor(l.color, this.dark)})),
+        drawn: this.layerDrawn.get(l.key) ?? 0, css: cssColor(l.color, this.dark)})),
       texts: this.textBoxes.map(b => {
         const c = u.ctx.canvas.getBoundingClientRect(), r = uPlot.pxRatio;
         return {id: b.id, x: c.left + (b.x0 + b.x1) / 2 / r, y: c.top + (b.y0 + b.y1) / 2 / r};

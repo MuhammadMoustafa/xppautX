@@ -43,7 +43,7 @@ struct MPEG_SAVE {
 struct Comet {
     int n = 0;
     std::vector<double> x, y;
-    std::vector<int> col;
+    std::vector<Color> col;
     int i = 0;
 };
 
@@ -52,12 +52,15 @@ struct Comet {
 struct AniCom {
     Comet c;
     int type = 0, flag = 0;
-    /* col[0] <= 0 is a named colour, -index; else the compiled expression */
-    std::vector<int> col{0};
+    /* the colour of the command: fixed (a named colour, or none: the foreground), or the colour of
+       the colour map at the value of the compiled expression (col_expr, empty when fixed) */
+    Color color = foreground_color;
+    std::vector<int> col_expr;
     std::vector<int> x1, y1, x2, y2, who;
     std::string text; /* text and vtext's string */
     double zcol = 0, zx1 = 0, zy1 = 0, zx2 = 0, zy2 = 0, zrad = 0, zval = 0;
-    int zthick = 0, tfont = 0, tsize = 0, tcolor = 0;
+    int zthick = 0, tfont = 0, tsize = 0;
+    Color tcolor = foreground_color;
 };
 
 /**************  the Grabber ***************************/
@@ -90,7 +93,7 @@ struct AniMotionInfo {
 
 /* the pen the front end's callbacks keep between primitives */
 struct AniPen {
-    int color = 0; /* palette index: 0 black, 20..29 the named colours, 30.. the colour map */
+    Color color = foreground_color;
     int thick = 0;
     int size = 0, font = 0;
 };
@@ -110,7 +113,7 @@ struct AnimationState {
   /* TRANSIENT or PERMANENT: the kind the next command parsed is */
   int aniflag = 0;
   /* the colour eval_ani_color found last: a comet's next point's */
-  int last_color = 0;
+  Color last_color = foreground_color;
   /* the .ani file's line being parsed */
   int lineno = 0;
   /* the `dimension` box, and where the last line ended (rline) */

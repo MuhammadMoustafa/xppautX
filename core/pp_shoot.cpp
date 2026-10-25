@@ -123,7 +123,8 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
 {
  double parlo,parhi,dpar,temp;
  int npar,i,j,ierr;
- int side,cycle,icol,color;
+ int side,cycle,icol;
+ xpp::Color color;
 
  if(set_up_sh_range(s)==0)return;
  swap_color(s,&color,0);

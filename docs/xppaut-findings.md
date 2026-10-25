@@ -114,6 +114,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [81](#81-a-failed-auto-set-up-a-missing-restart-label-and-a-short-restart-read-pass-silently) | AUTO | a combination AUTO has no functions for leaves the run's function table uninitialised and only prints "Initialization Error CRASH!!"; a missing restart label only prints; a short read of the restart data is ignored and the run goes on with half-zero data | [W491 / #555](https://github.com/MuhammadMoustafa/xppautX/issues/555) |
 | [82](#82-a-range-integration-ignores-every-failure-of-its-solver) | Ranges | a range or manipulation run that fails in its solver ends or continues silently |
 | [83](#83-the-transient-time-compares-the-absolute-time) | Integration | `TRANS` compares \|t\|, wrong for a run not starting at 0 or going backward |
+| [84](#84-the-array-plots-time-range-starts-at-0-and-ends-at-20-by-default) | Array plot | Print arrayplot and the window's time range start at 0 and end at 20 whatever the data holds (only a first row above 0 moves the start): a run of any other length prints with a wrong axis | [W492 / #556](https://github.com/MuhammadMoustafa/xppautX/issues/556) |
 
 ## 1. Model options
 
@@ -1855,3 +1856,12 @@ integrate before storing. For a run that starts at `T0` below 0 the rows from `T
 (`|t|` falls from `|T0|` to 0 and rises again), and for a backward run nothing is stored until `|t|` reaches `TRANS`.
 Evidence: reading the lines. xppautX compares `t` itself in the run's direction (W487,
 [#551](https://github.com/MuhammadMoustafa/xppautX/issues/551)).
+
+## 84. The array plot's time range starts at 0 and ends at 20 by default
+
+Print arrayplot and the array plot window set `tlo=0.0; thi=20.0` and replace only `tlo`, and only when the first
+row shown is above 0 (`if(jb>0&&jb<nrows)tlo=my_browser.data[0][jb]`): [arrayplot.c:371](../reference/xppaut-8.0/arrayplot.c#L371)
+and [arrayplot.c:655](../reference/xppaut-8.0/arrayplot.c#L655) (the same in [master](../reference/xppaut-master/arrayplot.c#L371)).
+The end of the time range is therefore 20 for every run, so a run of 100 time units is labelled as ending at 20 and
+a run of 5 has its axis stretched to 20. xppautX reads the time of the first and the last row shown (W492,
+[#556](https://github.com/MuhammadMoustafa/xppautX/issues/556)); no example model's output changed.

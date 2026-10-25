@@ -3,12 +3,11 @@
 
 namespace xpp {
 
-/* The four PostScript colour scales; these are also the form's allowed bounds. */
-enum ArrayRenderType { ARRAY_GREYSCALE=-1, ARRAY_REDBLUE=0, ARRAY_ROYGBIV=1, ARRAY_PERIODIC=2 };
-
 struct ArrayPicture;
+struct Session; /* session.h */
 
-/* array_print.cpp: Print arrayplot's PostScript file */
-Result<> array_print(const ArrayPicture &picture);
+/* array_print.cpp: Print arrayplot's picture, a PDF: the cells, the colour scale and the labels, built as a
+   Picture (picture.h) the way the plot windows' pictures are */
+Result<> array_print(const Session &s, const ArrayPicture &picture);
 
 } // namespace xpp

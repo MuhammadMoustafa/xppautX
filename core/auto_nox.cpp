@@ -60,16 +60,13 @@
 #include "getvar.h"    /* setvar() */
 #include "my_rhs.h"    /* extra() */
 #include "menus.h"
-#include "my_ps.h"
+#include "picture.h"
 #include "solver.h"
 
 #define PARAM_BOX 1
 
 #define RUBBOX 0
 
-
-#define UPT 6
-#define SPT 7
 
 #define OPEN_3 1
 #define NO_OPEN_3 0
@@ -96,31 +93,15 @@ namespace xpp {
 
 
 
-/*  two parameter colors  need to do this
-    LP is 20 (red)
-    HB  is  28 blue
-    TR  is  26 (green) 
-    PD  is 24  (orange)
-    BR  is  27 (turquoise)
-    FP  is 25  (olive)
-*/
+/*  two parameter curves' colours by their kind (XPPAUT's)  */
 
-constexpr int LPP_color=0;
-constexpr int LPE_color=20;
-constexpr int HB_color=28;
-constexpr int TR_color=26;
-constexpr int PD_color=23;
-constexpr int BR_color=27;
-constexpr int FP_color=25;
-
-
-
-
-
-
-
-
-
+constexpr xpp::Color LPP_color=xpp::xppaut_color(0);  /* the foreground */
+constexpr xpp::Color LPE_color=xpp::xppaut_color(1);  /* red */
+constexpr xpp::Color HB_color=xpp::xppaut_color(9);   /* blue */
+constexpr xpp::Color TR_color=xpp::xppaut_color(7);   /* green */
+constexpr xpp::Color PD_color=xpp::xppaut_color(4);   /* orange */
+constexpr xpp::Color BR_color=xpp::xppaut_color(8);   /* turquoise */
+constexpr xpp::Color FP_color=xpp::xppaut_color(6);   /* olive */
 
 /* AUTO's continuation parameters back into the model (find_point, the
    Grab loop's Return): a diverged run's stored point can hold a
@@ -157,93 +138,20 @@ static void auto_restore_finite_pars(xpp::Session &s, const double *before)
 
 
 
-/* the number AUTO's drawing calls a colour by: 0 the foreground, 20 to 29 the named colours */
-static int auto_slot(const xpp::Color &c)
+/* the colour of the two-parameter curve of kind flag2 */
+static xpp::Color two_parameter_color(int flag2)
 {
-  const int index=plot_color(c);
-  return index==0?0:index+19;
-}
-
-/* color plot stuff */
-void colset(xpp::Session &s, DiagramPointType type )
-{
-  switch(type) {
-  case STABLE_EQ:
-    autocol(auto_slot(s.auto_state.stable_eq_color));
-    break;
- case UNSTABLE_EQ:
-    autocol(auto_slot(s.auto_state.unstable_eq_color));
-    break;
- case STABLE_PERIODIC:
-    autocol(auto_slot(s.auto_state.stable_po_color));
-    break;
- case UNSTABLE_PERIODIC:
-    autocol(auto_slot(s.auto_state.unstable_po_color));
-    break;
-  }
-  
-}
-
-void pscolset2(xpp::Session &s, int flag2)
-{
-   switch(flag2){
-  case LPE2:
-    set_linestyle(s,LPE_color-19);
-    break;
-  case LPP2:
-    set_linestyle(s,LPP_color);
-    break;
-  case auto_neutral_saddle_curve:
-  case auto_hopf_curve:
-    set_linestyle(s,HB_color-19);
-    break;
-  case TR2:
-    set_linestyle(s,TR_color-19);
-    break;
-  case BR2:
-    set_linestyle(s,BR_color-19);
-    break;
-  case PD2:
-    set_linestyle(s,PD_color-19);
-    break;
-  case FP2:
-     set_linestyle(s,FP_color-19);
-    break;
-  default:
-    set_linestyle(s,0);
-  }
-
-}
-void colset2(int flag2)
-{
-  LineWidth(2);
   switch(flag2){
-  case LPE2:
-    autocol(LPE_color);
-    break;
-  case LPP2:
-    autocol(LPP_color);
-    break;
+  case LPE2: return LPE_color;
+  case LPP2: return LPP_color;
   case auto_neutral_saddle_curve:
-  case auto_hopf_curve:
-    autocol(HB_color);
-    break;
-  case TR2:
-    autocol(TR_color);
-    break;
-  case BR2:
-    autocol(BR_color);
-    break;
-  case PD2:
-    autocol(PD_color);
-    break;
-  case FP2:
-     autocol(FP_color);
-    break;
-  default:
-    autocol(0);
+  case auto_hopf_curve: return HB_color;
+  case TR2: return TR_color;
+  case BR2: return BR_color;
+  case PD2: return PD_color;
+  case FP2: return FP_color;
+  default: return xpp::foreground_color;
   }
-
 }
 
 void storeautopoint(xpp::Session &s, double x,double y)
@@ -327,33 +235,7 @@ void draw_export_axes(xpp::Session &s)
 
 void draw_bif_axes(xpp::Session &s)
 {
- int x0=s.auto_state.bifur.x0,y0=s.auto_state.bifur.y0,ii,i0;
- int x1=x0+s.auto_state.bifur.wid,y1=y0+s.auto_state.bifur.hgt;
- std::string junk;
- clear_auto_plot();
- ALINE(x0,y0,x1,y0);
- ALINE(x1,y0,x1,y1);
- ALINE(x1,y1,x0,y1);
- ALINE(x0,y1,x0,y0);
- junk=xpp::format("{:g}",s.auto_state.axes().xmin);
- ATEXT(x0,y1+text_metrics.small_height+2,junk.c_str());
- junk=xpp::format("{:g}",s.auto_state.axes().xmax);
- ii=static_cast<int>(junk.size())*text_metrics.small_width;
- ATEXT(x1-ii,y1+text_metrics.small_height+2,junk.c_str());
- junk=xpp::format("{:g}",s.auto_state.axes().ymin);
- ii=static_cast<int>(junk.size());
- i0=9-ii;
- if(i0<0)i0=0;
- ATEXT(i0*text_metrics.small_width,y1,junk.c_str());
- junk=xpp::format("{:g}",s.auto_state.axes().ymax);
- ii=static_cast<int>(junk.size());
- i0=9-ii;
- if(i0<0)i0=0;
- ATEXT(i0*text_metrics.small_width,y0+text_metrics.small_height,junk.c_str());
- const AxisLabels l=axis_labels(s, s.auto_state.axes());
- ATEXT((x0+x1)/2,y1+text_metrics.small_height+2,l.x.c_str());
- ATEXT(10*text_metrics.small_width,text_metrics.small_height,l.y.c_str());
- /* the data of the diagram starts again too, in every view */
+ /* the data of the diagram starts again, in every view */
  for(int v=0;v<static_cast<int>(s.auto_state.views.size());v++)auto_diagram(s,v,NULL);
  refreshdisplay(s);
 }
@@ -370,13 +252,6 @@ int IYVal(const xpp::Session &s, double y)
   return(s.auto_state.bifur.hgt-static_cast<int>(temp)+s.auto_state.bifur.y0);
 }
 
-int chk_auto_bnds(const xpp::Session &s, int ix,int iy)
-{
-  int x1=s.auto_state.bifur.x0,x2=s.auto_state.bifur.x0+s.auto_state.bifur.wid;
-  int y1=s.auto_state.bifur.y0,y2=s.auto_state.bifur.y0+s.auto_state.bifur.hgt;
-  if((ix>=x1)&&(ix<x2)&&(iy>=y1)&&(iy<y2))return 1;
-  return 0;
-}
 void close_auto(xpp::Session &s, int flg) /* labels compatible with A2K  */
 {
   /* Close fp8 before the renames below: Windows refuses rename()/remove()
@@ -521,7 +396,6 @@ void do_auto(xpp::Session &s, int iold, int isave, xpp::AutoPointCode itp)
       if(s.auto_state.diag_flag && isave==OVERWRITE)isave=APPEND;
       if(const DIAGRAM *point=diagram_of_label(s,s.auto_state.bifur.irs))
         auto_set_pars_from(s,diagram_parameters(*point).data());
-      redraw_auto_menus();
       
     set_auto(s); /* this sets up all the continuation initialization 
                    it is equivalent to reading in auto parameters
@@ -1095,55 +969,35 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
 
   if((flag2>0)&&(s.auto_state.axes().plot==AutoProjection::two_parameter))
    type1=STABLE_EQ;
+  /* a stable equilibrium is drawn thick, an unstable one dashed, in the options' colours, a two-parameter curve in its kind's */
+  const auto color_of=[&](const xpp::Color &option){return flag2>0?two_parameter_color(flag2):option;};
+  xpp::LineStyle line_style;
+  line_style.width=2;
+  xpp::LineStyle dots;
+  dots.draw=xpp::LineDraw::points;
+  dots.marker_size=3;
   switch(type1){
- 
   case STABLE_EQ:
-    if(s.auto_state.axes().plot==AutoProjection::period||s.auto_state.axes().plot==AutoProjection::frequency)break;
-    if(!icp1.is_parameter(s.auto_state.axes().icp1))break;
-    if(flag2>0&&!icp2.is_parameter(s.auto_state.axes().icp2))break;
-
-    if(s.plot_export.color){
-      set_linestyle(s,1);
-      if(flag2>0)pscolset2(s, flag2);
-    }
-    else 
-      set_linestyle(s,8);
-    line_abs(s,static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.auto_state.bifur.lastx),static_cast<float>(s.auto_state.bifur.lasty));
-    break;
   case UNSTABLE_EQ:
     if(s.auto_state.axes().plot==AutoProjection::period||s.auto_state.axes().plot==AutoProjection::frequency)break;
     if(!icp1.is_parameter(s.auto_state.axes().icp1))break;
     if(flag2>0&&!icp2.is_parameter(s.auto_state.axes().icp2))break;
-    if(s.auto_state.axes().plot!=AutoProjection::two_parameter)
-      {if(s.plot_export.color) set_linestyle(s,0);else set_linestyle(s,4);}
-    else
-      {
-	pscolset2(s, flag2);
-      
-      }
+    if(type1==UNSTABLE_EQ){
+      line_style.width=1;
+      line_style.dash=xpp::LineDash::dashed;
+    }
+    xpp::set_pen(s,color_of(type1==STABLE_EQ?s.auto_state.stable_eq_color:s.auto_state.unstable_eq_color),line_style);
     line_abs(s,static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.auto_state.bifur.lastx),static_cast<float>(s.auto_state.bifur.lasty));
     break;
   case UNSTABLE_PERIODIC:
-    if(s.plot_export.color) 
-      set_linestyle(s,9); 
-    else 
-      set_linestyle(s,0);
+  case STABLE_PERIODIC:
     if(!icp1.is_parameter(s.auto_state.axes().icp1))break;
     if(flag2>0&&!icp2.is_parameter(s.auto_state.axes().icp2))break;
-    s.drawing.point_type=UPT;
+    /* a stable periodic orbit's extremes are filled circles, an unstable one's open */
+    xpp::set_pen(s,type1==STABLE_PERIODIC?s.auto_state.stable_po_color:s.auto_state.unstable_po_color,dots);
+    s.plot_file.pen.hollow=type1==UNSTABLE_PERIODIC;
     point_abs(s,static_cast<float>(x),static_cast<float>(y1));
     point_abs(s,static_cast<float>(x),static_cast<float>(y2));
-    break;
-  case STABLE_PERIODIC:
-    if(s.plot_export.color)
-      set_linestyle(s,7);
-    else
-      set_linestyle(s,0);
-    if(!icp1.is_parameter(s.auto_state.axes().icp1))break;
-    if(flag2>0&&!icp2.is_parameter(s.auto_state.axes().icp2))break;
-    s.drawing.point_type=SPT;
-    point_abs(s,static_cast<float>(x),static_cast<float>(y1));
-    point_abs(s,static_cast<float>(x),static_cast<float>(y2)); 
     break;
   }
 
@@ -1151,25 +1005,6 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
   s.auto_state.bifur.lasty=y1;
 }
 
-void auto_line(xpp::Session &s, double x1i, double y1i, double x2i, double y2i)
-{
-  double xmin,ymin,xmax,ymax;
-  float x1=x1i,x2=x2i,y1=y1i,y2=y2i;
-  double x1d,x2d,y1d,y2d;
-  float x1_out,y1_out,x2_out,y2_out;
-
-  get_scale(s,&xmin,&ymin,&xmax,&ymax);
-  set_scale(s,s.auto_state.axes().xmin,s.auto_state.axes().ymin,s.auto_state.axes().xmax,s.auto_state.axes().ymax);
-  if(clip(s.drawing,x1,x2,y1,y2,&x1_out,&y1_out,&x2_out,&y2_out)){
-    x1d=x1_out;
-    x2d=x2_out;
-    y1d=y1_out;
-    y2d=y2_out;
-    DLINE(s, x1d,y1d,x2d,y2d);
-  }
- 
-  set_scale(s,xmin,ymin,xmax,ymax);
-}
 int auto_run_from_take(xpp::Session &s)
 {
   int f=s.auto_state.run_from;
@@ -1184,28 +1019,17 @@ static void show_stab(xpp::Session &s, std::span<const double> evr,std::span<con
   auto_data_stab(s,evr,evi,periodic);
 }
 
-/* the colour colset() and colset2() give a point */
-static int auto_point_color(xpp::Session &s, DiagramPointType type,int flag2)
+/* the colour a point is drawn in: its kind of two-parameter curve's, or its stability's */
+static xpp::Color auto_point_color(xpp::Session &s, DiagramPointType type,int flag2)
 {
-  switch(flag2){
-  case 0: break;
-  case LPE2: return LPE_color;
-  case LPP2: return LPP_color;
-  case auto_neutral_saddle_curve:
-  case auto_hopf_curve: return HB_color;
-  case TR2: return TR_color;
-  case BR2: return BR_color;
-  case PD2: return PD_color;
-  case FP2: return FP_color;
-  default: return 0;
-  }
+  if(flag2!=0)return two_parameter_color(flag2);
   switch(type){
-  case STABLE_EQ: return auto_slot(s.auto_state.stable_eq_color);
-  case UNSTABLE_EQ: return auto_slot(s.auto_state.unstable_eq_color);
-  case STABLE_PERIODIC: return auto_slot(s.auto_state.stable_po_color);
-  case UNSTABLE_PERIODIC: return auto_slot(s.auto_state.unstable_po_color);
+  case STABLE_EQ: return s.auto_state.stable_eq_color;
+  case UNSTABLE_EQ: return s.auto_state.unstable_eq_color;
+  case STABLE_PERIODIC: return s.auto_state.stable_po_color;
+  case UNSTABLE_PERIODIC: return s.auto_state.unstable_po_color;
   }
-  return 0;
+  return xpp::foreground_color;
 }
 
 /* this bit of code is for writing points - it only saves what is
@@ -1240,7 +1064,6 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
   const int lab=d.lab,flag2=d.flag2;
   const xpp::AutoAxis icp1=d.icp1,icp2=d.icp2;
   double x,y1,y2,par1,par2=0;
-  int ix=0,iy1=0,iy2=0;
   DiagramPointType type1=type;
   XppDiagPoint dp;
   par1=diagram_axis_value(d,icp1);
@@ -1261,15 +1084,9 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
   dp.x=x;
   dp.y1=y1;
   dp.y2=y2;
-  if(active){
-    if(flg==0){
-      s.auto_state.bifur.lastx=x;
-      s.auto_state.bifur.lasty=y1;
-    }
-    ix=IXVal(s, x);
-    iy1=IYVal(s, y1);
-    iy2=IYVal(s, y2);
-    autobw();
+  if(active&&flg==0){
+    s.auto_state.bifur.lastx=x;
+    s.auto_state.bifur.lasty=y1;
   }
   if((flag2==0&&ax.plot==AutoProjection::two_parameter)||(flag2>0&&ax.plot!=AutoProjection::two_parameter)){
     dp.x=dp.y1=dp.y2=std::numeric_limits<double>::quiet_NaN();
@@ -1285,50 +1102,16 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
     if(!icp1.is_parameter(ax.icp1))break;
     if(flag2>0&&!icp2.is_parameter(ax.icp2))break;
     dp.draw=1;
-    if(active){
-      LineWidth(type1==STABLE_EQ?2:1);
-      colset(s, type);
-      if(flag2>0)colset2(flag2);
-      auto_line(s, x,y1,s.auto_state.bifur.lastx,s.auto_state.bifur.lasty);
-      autobw();
-    }
     break;
   case UNSTABLE_PERIODIC:
   case STABLE_PERIODIC:
     if(!icp1.is_parameter(ax.icp1))break;
     if(flag2>0&&!icp2.is_parameter(ax.icp2))break;
     dp.draw=type1==STABLE_PERIODIC?2:3;
-    if(active){
-      LineWidth(1);
-      colset(s, type);
-      if(flag2>0)colset2(flag2);
-      if(type1==STABLE_PERIODIC){
-        if(chk_auto_bnds(s, ix,iy1))FillCircle(ix,iy1,3);
-        if(chk_auto_bnds(s, ix,iy2))FillCircle(ix,iy2,3);
-      }
-      else{
-        if(chk_auto_bnds(s, ix,iy1))Circle(ix,iy1,3);
-        if(chk_auto_bnds(s, ix,iy2))Circle(ix,iy2,3);
-      }
-      autobw();
-    }
     break;
   }
   if(lab!=0&&icp1.is_parameter(ax.icp1)&&(flag2==0||icp2.is_parameter(ax.icp2))){
     dp.lab=lab;
-    if(active){
-      const std::string bob=xpp::format("{}",lab);
-      LineWidth(1);
-      if(chk_auto_bnds(s, ix,iy1)){
-        ALINE(ix-4,iy1,ix+4,iy1);
-        ALINE(ix,iy1-4,ix,iy1+4);
-      }
-      if(chk_auto_bnds(s, ix,iy2)){
-        ALINE(ix-4,iy2,ix+4,iy2);
-        ALINE(ix,iy2-4,ix,iy2+4);
-      }
-      if(chk_auto_bnds(s, ix,iy1))ATEXT(ix+8,iy1+8,bob.c_str());
-    }
   }
   if(active){
     s.auto_state.bifur.lastx=x;
@@ -1345,35 +1128,6 @@ void add_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int flg
   for(int v=0;v<static_cast<int>(s.auto_state.views.size());v++)
     view_point(s, v,s.auto_state.views[static_cast<std::size_t>(v)].axes,v==s.auto_state.active_view,d,type,flg);
   show_stab(s, d.evr,d.evi,type==STABLE_PERIODIC||type==UNSTABLE_PERIODIC);
-  refreshdisplay(s);
-}
-
-void info_header(xpp::Session &s, int flag2, xpp::AutoAxis icp1, xpp::AutoAxis icp2)
-{
-  /* the names head 10-wide columns of new_info's numbers */
-  auto short10=[](std::string_view name){ return xpp::short_name(name,10); };
-  const std::string p1name=short10(s.model().upar_names[icp1.index]);
-  const std::string p2name=icp2.is_parameter()?short10(s.model().upar_names[icp2.index]):std::string("   ");
-  const std::string vname=short10(s.model().uvar_names[s.auto_state.axes().var]);
-  SmallBase();
-  std::string bob=xpp::format("  Br  Pt Ty  Lab {:>10} {:>10}       norm {:>10}     period",
-	  p1name,
-	  p2name,
-	  vname);
-  draw_auto_info(bob,10,text_metrics.small_height+1);
-
-}
-
-void new_info(xpp::Session &s, const DIAGRAM &d)
-{
-  double p1,p2=0.0;
-  clear_auto_info();
-  info_header(s, d.flag2,d.icp1,d.icp2);
-  p1=diagram_axis_value(d,d.icp1);
-  if(d.icp2.is_parameter())p2=diagram_axis_value(d,d.icp2);
-  std::string bob=xpp::format("{:4} {:4} {:>2} {:4} {:10.4g} {:10.4g} {:10.4g} {:10.4g} {:10.4g}",
-	  d.ibr,d.ntot,auto_point_symbol(d.itp),d.lab,p1,p2,d.norm,d.u0[s.auto_state.axes().var],d.per);
-  draw_auto_info(bob,10,2*text_metrics.small_height+2);
   refreshdisplay(s);
 }
 
@@ -1412,8 +1166,6 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
     if (dodraw==1)
     {
       AutoDataInfo ai;
-    	XORCross(*ix,*iy);
-  	new_info(s, *d);
       /* what the strip shows, as data */
       ai.ibr=ibr;
       ai.pt=pt;
@@ -1435,8 +1187,7 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
       ai.x=x;
       ai.y=y1;
       ai.y2=y2;
-      /* the point and its circle together, after new_info (whose drawing
-         may flush the autoinfo event): a flush between them sent the new
+      /* the point and its circle together: a flush between them sent the new
          circle with the old point when a step took over 0.1 s (autocheck
          under valgrind, W21) */
       auto_data_info(s,&ai);
@@ -1700,7 +1451,6 @@ void auto_start_choice(xpp::Session &s)
    return;
  }
 
-  redraw_auto_menus();
 }
 
 void torus_choice(xpp::Session &s)
@@ -1719,7 +1469,6 @@ void torus_choice(xpp::Session &s)
     auto_torus(s);
     return;
     } 
-  redraw_auto_menus();
 }
  
 void per_doub_choice(xpp::Session &s)
@@ -1742,7 +1491,6 @@ void per_doub_choice(xpp::Session &s)
     auto_twopar_double(s);
     return;
   }
-  redraw_auto_menus();
 }
   
 void periodic_choice(xpp::Session &s)
@@ -1758,7 +1506,6 @@ void periodic_choice(xpp::Session &s)
     return;
   }
 
-  redraw_auto_menus();
 }
 
 void hopf_choice(xpp::Session &s)
@@ -1787,7 +1534,6 @@ void hopf_choice(xpp::Session &s)
     auto_2p_hopf(s);
     return;
   }
-  redraw_auto_menus();
 }
 
 void auto_run(xpp::Session &s)
@@ -1906,7 +1652,6 @@ void auto_branch_choice(xpp::Session &s, int ibr, xpp::AutoProblem ips)
     auto_2p_branch(s, ipsuse);
     return;
   }
-  redraw_auto_menus();
 }
 
 /*  RUN AUTO HERE */
@@ -2882,14 +2627,10 @@ void auto_file(xpp::Session &s)
     s.auto_state.grabpt.flag=0;
   }
   if(ch=='p'){
-    s.plot_file.no_break_line=1;
-    export_auto_picture(s, xpp::IMAGE_FORMAT_PS);
-    s.plot_file.no_break_line=0;
+    export_auto_picture(s, xpp::IMAGE_FORMAT_PDF);
   }
   if(ch=='v'){
-    s.plot_file.no_break_line=1;
     export_auto_picture(s, xpp::IMAGE_FORMAT_SVG);
-    s.plot_file.no_break_line=0;
   }
   if(ch=='w'){
     write_pts(s);
@@ -2998,11 +2739,6 @@ void do_auto_range(xpp::Session &s)
   s.numerics.total_time=t;
 }
 
-void DLINE(xpp::Session &s, double a,double b,double c,double d)
-{
-  ALINE(IXVal(s, a),IYVal(s, b),IXVal(s, c),IYVal(s, d));
-}
-
 /* ---- grabbing a point on the bifurcation diagram, marking a branch and
    the hint line (logic from auto_x11.c) ---- */
 static void grab_diagram_point(xpp::Session &s, const DIAGRAM *d);
@@ -3013,7 +2749,6 @@ const char *query_special(const char *title)
 	XppMenu menu=menu_auto_special;
 	menu.title=title;
 	int ch=static_cast<char>(menu_choose(&menu,1));
-	redraw_auto_menus();
 	int i=ch!=0?menu_index(&menu,ch):-1;
 	return i>=0?menu.items[i]:NULL;
 }
@@ -3039,7 +2774,6 @@ void traverse_diagram(xpp::Session &s)
   const auto symbol_search=[&](int step, const char *title, const char *missing){
     const char *nsymb=query_special(title);
     if(nsymb==NULL)return;
-    XORCross(ix,iy);
     const int i=search(step,[&](const DIAGRAM &d){ return strcmp(auto_point_symbol(d.itp),nsymb)==0; });
     if(i>=0)at=i;
     else{
@@ -3057,7 +2791,6 @@ void traverse_diagram(xpp::Session &s)
       /* a point of the diagram by its entry: the cursor goes there */
       if(xm>=0&&xm<=last){
         clear_msg(s);
-        XORCross(ix,iy);
         at=xm;
         show(1);
       }
@@ -3065,12 +2798,10 @@ void traverse_diagram(xpp::Session &s)
     else if(kp==XPP_AUTO_CLICK){
       /* the point nearest the click: every point visited for its place */
       clear_msg(s);
-      XORCross(ix,iy);
       at=0;
       show(0);
       int nearest=0;
       double ndist=s.auto_state.bifur.wid*s.auto_state.bifur.hgt;
-      XORCross(ix,iy);
       const LabeledOrbits lalo=s.auto_state.load_all_labeled_orbits;
       s.auto_state.load_all_labeled_orbits=LabeledOrbits::Off;
       for(;;){
@@ -3085,7 +2816,6 @@ void traverse_diagram(xpp::Session &s)
       }
       s.auto_state.load_all_labeled_orbits=lalo;
       show(0);
-      XORCross(ix,iy);
       at=nearest;
       show(1);
     }
@@ -3093,12 +2823,10 @@ void traverse_diagram(xpp::Session &s)
       clear_msg(s);
       switch(kp){
       case RIGHT:
-        XORCross(ix,iy);
         at=at<last?at+1:0;
         show(1);
         break;
       case LEFT:
-        XORCross(ix,iy);
         at=at>0?at-1:0;
         show(1);
         break;
@@ -3109,7 +2837,6 @@ void traverse_diagram(xpp::Session &s)
         symbol_search(-1,"Previous...","Lower");
         break;
       case TAB: /* the next labelled point; wraps to the first */
-        XORCross(ix,iy);
         {
           const int i=search(1,labelled);
           at=i>=0?i:0;
@@ -3118,7 +2845,6 @@ void traverse_diagram(xpp::Session &s)
         break;
       case 's': /* mark the start of a branch */
         if(s.auto_state.diagram_mark.state==0) {
-          MarkAuto(ix,iy);
           s.auto_state.diagram_mark.start_branch=points[at].ibr;
           s.auto_state.diagram_mark.start_point=points[at].ntot;
           s.auto_state.diagram_mark.state=1;
@@ -3126,24 +2852,20 @@ void traverse_diagram(xpp::Session &s)
         break;
       case 'e': /* mark end of branch */
         if(s.auto_state.diagram_mark.state==1){
-          MarkAuto(ix,iy);
           s.auto_state.diagram_mark.end_branch=points[at].ibr;
           s.auto_state.diagram_mark.end_point=points[at].ntot;
           s.auto_state.diagram_mark.state=2;
         }
         break;
       case END: /* all the way to the end */
-        XORCross(ix,iy);
         at=last;
         show(1);
         break;
       case HOME: /* all the way to the beginning */
-        XORCross(ix,iy);
         at=0;
         show(1);
         break;
       case PGUP: /* the next labelled point, no wrap: the last point when none */
-        XORCross(ix,iy);
         {
           const int i=search(1,labelled);
           at=i>=0?i:last;
@@ -3151,7 +2873,6 @@ void traverse_diagram(xpp::Session &s)
         show(1);
         break;
       case PGDN: /* the previous labelled point: the first point when none */
-        XORCross(ix,iy);
         {
           const int i=search(-1,labelled);
           at=i>=0?i:0;
@@ -3160,10 +2881,6 @@ void traverse_diagram(xpp::Session &s)
         break;
       case FINE:
         done=1;
-        XORCross(ix,iy);
-        /* Cross should be erased now that we have made our selection.
-           XORing it with a new draw can bring it back, depending on the
-           order of window expose events: no XORCross after this. */
         ui.auto_grab_end(1);
         break;
       case ESC:
@@ -3248,16 +2965,6 @@ int auto_grab_type_index(xpp::Session &s, const char *type, int index)
     if(d.lab!=0 && strcmp(auto_point_symbol(d.itp),type)==0 && ++count==index)
       return grab_and_finish(s, &d);
   return 0;
-}
-
-void MarkAuto(int x, int y)
-{
-
-  LineWidth(2);
-  ALINE(x-8,y-8,x+8,y+8);
-  ALINE(x+8,y-8,x-8,y+8);
-  LineWidth(1);
-
 }
 
 void clear_msg(xpp::Session &s)

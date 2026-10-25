@@ -2,7 +2,7 @@
    dimension box letterboxed at its own aspect (ani/frame.ts), clipped to
    it, pixel sizes scaled with the picture. The last drawing is described
    for tests (__xpp.ani(), testhook.ts), which read that, never pixels. */
-import {curveColor} from '../plot/colors';
+import {cssColor} from '../plot/colors';
 import type {AniColor} from '../protocol/types';
 import type {AniFrame} from '../store/ani';
 import {
@@ -34,7 +34,7 @@ export function frameBox(cw: number, ch: number, dim: readonly number[]): Box {
 }
 
 function paint(c: AniColor, dark: boolean): string {
-  return typeof c === 'string' ? c : curveColor(c, dark);
+  return cssColor(c, dark);
 }
 
 /** draws `frame` (or only the empty box without one) on `canvas`, sized to cw x ch CSS pixels */

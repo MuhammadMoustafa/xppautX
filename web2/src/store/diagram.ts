@@ -15,7 +15,7 @@
    same points in the same order, so a point index (the hover, the grab,
    Clear's `earlier`) is the same in all of them.
    Pure: no DOM, no I/O. */
-import type {AutoViewEvent, HelloEvent} from '../protocol/types';
+import type {AutoViewEvent, CoreColor, HelloEvent} from '../protocol/types';
 import {viewportOf, type Viewport} from './plots';
 
 /** the AUTO diagram's window number in the protocol (hello.window_ids.auto), null before hello */
@@ -49,7 +49,7 @@ export interface DiagramRun {
   stable: boolean;
   periodic: boolean;
   d: number;
-  c: number;
+  c: CoreColor;
   lw: number;
   f2?: number;
   new?: number;
@@ -95,8 +95,10 @@ export interface DiagramPoints {
   pe: Float64Array;
   /** 0 not drawn (the next line starts there), 1 a line back, 2 filled circles, 3 open circles */
   d: Float64Array;
-  /** palette colour (0 the foreground, 20..29 red..purple) */
+  /** the colour as an index into `palette` */
   c: Float64Array;
+  /** the colours the points have, as the core says them (`foreground`, `#rrggbb`); a run's colour is added once */
+  palette: string[];
   lw: Float64Array;
   /** two-parameter curve kind, 0 for one parameter */
   f2: Float64Array;
@@ -245,8 +247,8 @@ export const FIELDS = ['x', 'y', 'y2', 'br', 'pt', 'ty', 'st', 'pe', 'd', 'c', '
 export type PointField = typeof FIELDS[number];
 
 /** points over `buffers`, the first `n` of them */
-function pointsOver(buffers: Record<PointField, Float64Array>, n: number): DiagramPoints {
-  const out = {buffers} as DiagramPoints;
+function pointsOver(buffers: Record<PointField, Float64Array>, n: number, palette: string[]): DiagramPoints {
+  const out = {buffers, palette} as DiagramPoints;
   for (const f of FIELDS) out[f] = buffers[f].subarray(0, n);
   return out;
 }
@@ -266,7 +268,7 @@ const MIN_CAPACITY = 256;
 function noPoints(): DiagramPoints {
   const empty = {} as Record<PointField, Float64Array>;
   for (const f of FIELDS) empty[f] = new Float64Array(0);
-  return pointsOver(empty, 0);
+  return pointsOver(empty, 0, []);
 }
 
 const HOME: Viewport = {x: null, y: null};
@@ -324,7 +326,7 @@ const num = (v: number | null | undefined) => (v === null || v === undefined ? N
     the longer state shows) */
 function truncate(p: DiagramPoints, k: number): DiagramPoints {
   if (k >= pointCount(p)) return p;
-  return pointsOver(newBuffers(p, k, k), k);
+  return pointsOver(newBuffers(p, k, k), k, p.palette);
 }
 
 /** `ev`'s points put in place from `from` on (the caller checked from <= held) */
@@ -337,6 +339,15 @@ function add(p: DiagramPoints, labels: DiagramLabel[], from: number, runs: Diagr
        starts small, a growing one doubles) */
     b = newBuffers(p, from, Math.max(MIN_CAPACITY, total, from < held ? 2 * total : 2 * b.x.length));
   const labs = labels.filter(l => l.point < from);
+  let palette = p.palette;
+  const colorIndex = (c: CoreColor): number => {
+    let i = palette.indexOf(c);
+    if (i < 0) {
+      i = palette.length;
+      palette = [...palette, c];
+    }
+    return i;
+  };
   let k = from;
   for (const r of runs) {
     const base = k;
@@ -351,7 +362,7 @@ function add(p: DiagramPoints, labels: DiagramLabel[], from: number, runs: Diagr
       b.st[k] = r.stable ? 1 : 0;
       b.pe[k] = r.periodic ? 1 : 0;
       b.d[k] = r.d;
-      b.c[k] = r.c;
+      b.c[k] = colorIndex(r.c);
       b.lw[k] = r.lw;
       b.f2[k] = r.f2 ?? 0;
       b.nw[k] = i === 0 && r.new ? 1 : 0;
@@ -359,7 +370,7 @@ function add(p: DiagramPoints, labels: DiagramLabel[], from: number, runs: Diagr
     }
     for (const [i, lab, sym] of r.lab ?? []) labs.push({point: base + i, lab, sym});
   }
-  return {points: pointsOver(b, total), labels: labs};
+  return {points: pointsOver(b, total, palette), labels: labs};
 }
 
 function axesOf(ev: DiagramAxes): DiagramAxes {

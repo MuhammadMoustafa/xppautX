@@ -3,10 +3,10 @@
 #include <string>
 #include <string_view>
 
+#include "colormap.h"
+
 namespace xpp {
 struct Session; /* session.h */
-
-extern const int TextAngle;
 
 int clip3d(float x1, float y1, float z1, float x2, float y2, float z2, float *x1p, float *y1p, float *z1p, float *x2p, float *y2p, float *z2p);
 
@@ -15,26 +15,22 @@ std::string fill_in_text(Session &s, std::string_view old);
 
 /* the drawing state (graphics.cpp, axes2.cpp), a Session's (session.h):
    the drawing area in device units, its tick and character sizes, its
-   world coordinates, the current point's type and size, the text's
-   justification, a PostScript picture's orientation (ps_port) and the 3D
-   view's angles; set while the axes (the box's own sides) are drawn, for
-   the SVG classes; label unlabelled 2D axes with the plotted variables
-   (front ends that ask) */
+   world coordinates, the text's justification and the 3D view's angles;
+   label unlabelled 2D axes with the plotted variables (front ends that ask) */
 struct DrawingState {
   int d_left = 0, d_right = 0, d_top = 0, d_bottom = 0;
   int v_tic = 0, h_tic = 0, v_char = 0, h_char = 0;
   double x_min = 0, y_min = 0, x_max = 0, y_max = 0;
-  int point_type = -1, point_radius = 0, text_justify = 0, ps_port = 0;
+  int text_justify = 0;
   double theta0 = 45, phi0 = 45;
-  int doing_axes = 0, doing_box_axes = 0;
   int axis_var_labels = 0;
 };
 
 /* the world coordinates of the session s's drawing */
-void get_scale(const Session &s, double *x1, double *y1, double *x2, double *y2);
 void set_scale(Session &s, double x1, double y1, double x2, double y2);
-void set_linestyle(Session &s, int ls);
-void change_current_linestyle(Session &s, int newstyle, int *old);
+/* the colour of the window's first curve is newcolor, the one it had given back in *old (the equilibria's
+   manifolds are drawn in their own colours with the curve's pen) */
+void change_current_color(Session &s, const Color &newcolor, Color *old);
 void eq_symb(Session &s, double *x, int type);
 
 /* The drawing into the session s's active plot window, or into the
@@ -51,8 +47,8 @@ void bead(Session &s, int x1, int y1);
 void frect(Session &s, int x1, int y1, int w, int h);
 void put_text(Session &s, int x, int y, const char *str);
 void init_x11(Session &s);
-void init_ps(Session &s);
-void init_svg(Session &s);
+/* the drawing area of a picture file: the device of picture.h */
+void init_picture(Session &s);
 void scale_dxdy(const Session &s, float x, float y, double *i, double *j);
 void scale_to_screen(const Session &s, float x, float y, int *i, int *j);
 void scale_to_real(Session &s, int i, int j, float *x, float *y);
@@ -63,6 +59,7 @@ void get_graph(Session &s);
 void init_graph(Session &s, int i);
 void copy_graph(Session &s, int i, int l);
 void make_rot(Session &s, double theta, double phi);
+/* every curve of every window starts with the model's curve style again */
 void reset_all_line_type(Session &s);
 void scale3d(const Session &s, float x, float y, float z, float *xp, float *yp, float *zp);
 int threedproj(const Session &s, float x2p, float y2p, float z2p, float *xp, float *yp);

@@ -55,7 +55,7 @@ try {
   await cdp.eval(`${legend}.click(); ${legend}.dispatchEvent(new MouseEvent('dblclick', {bubbles:true})); true`);
   await until('document.querySelector("[data-trace-dialog]")', 'double click edits legend');
   await cdp.eval(`(() => { const n = document.querySelector('[data-trace-name]'); n.value='My trajectory'; n.dispatchEvent(new Event('input',{bubbles:true}));
-    const c = document.querySelector('[data-trace-color]'); c.value='#123456'; c.dispatchEvent(new Event('input',{bubbles:true})); })()`);
+    const c = document.querySelector('[data-trace-dialog] [data-color-hex]'); c.value='#123456'; c.dispatchEvent(new Event('input',{bubbles:true})); })()`);
   await until('document.querySelector("[data-trace-name]").value === "My trajectory"', 'legend draft');
   await cdp.eval("document.querySelector('[data-trace-dialog] form').requestSubmit(); true");
   await until('__xpp.plot().curves[0].label === "My trajectory" && __xpp.plot().curves[0].color === "#123456"', 'name and colour applied');

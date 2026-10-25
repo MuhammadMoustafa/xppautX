@@ -13,23 +13,15 @@ struct Session; /* session.h */
 
 #define RUBBOX 0
 
-#define SCRNFMT 0
-#define PSFMT 1
-#define SVGFMT 2
-
 #define REAL_SMALL 1.e-6
 
 #define MAXBIFCRV 100
 #define lmax(a,b) ((a) > (b) ? (a) : (b))
 
-/* graf_par.cpp: the colours' names and each one's palette index */
-extern const char *const color_names[];
-extern const int colorline[];
-
 /* an imported bifurcation diagram's curve (Freeze > Bif.Diag) */
 struct BifCurve {
   std::vector<float> x,y;
-  int color=0;
+  Color color;
 };
 
 /* The frozen curves of every plot window (Graphic stuff > Freeze) */
@@ -127,13 +119,14 @@ std::string batch_plot_name(const Session &s, int i);
    W57): in window w, of grtype type (z's points only when type>0: 3D),
    its colour, key and name; false when the slot is in use or the points'
    counts differ */
-bool restore_frozen_curve(Session &s, int i, XppWinId w, int type, int color, std::string key, std::string name,
+bool restore_frozen_curve(Session &s, int i, XppWinId w, int type, const Color &color, const LineStyle &style, std::string key, std::string name,
                           std::vector<float> x, std::vector<float> y, std::vector<float> z);
 
-/* How plots are written to files (PostScript, SVG) */
+/* How plots are written to files (PDF, SVG) */
 struct XppPlotExport {
-    std::string format; /* a batch run's plot files: "ps" or "svg" (@ plotfmt=) */
-    int color = 1;      /* in colour (1) or black and white */
+    std::string format = "pdf"; /* a batch run's plot files: "pdf" or "svg" (@ plotfmt=) */
+    bool color = true;          /* in colour or black and white */
+    double font_size = 12;      /* the axes' text, points */
 };
 
 } // namespace xpp

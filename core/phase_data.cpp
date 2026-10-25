@@ -50,7 +50,9 @@ void add_to(Fingerprint &f, const PhaseShown::Clines &c)
 std::uint64_t fingerprint(const PhaseShown::Nullclines &nc)
 {
     Fingerprint f;
-    for (int v : {nc.ix, nc.iy, nc.xcolor, nc.ycolor}) f.value(v);
+    for (int v : {nc.ix, nc.iy}) f.value(v);
+    f.value(nc.xcolor);
+    f.value(nc.ycolor);
     add_to(f, nc.now);
     f.value(nc.frozen.size());
     for (const PhaseShown::Clines &c : nc.frozen) add_to(f, c);
@@ -60,7 +62,8 @@ std::uint64_t fingerprint(const PhaseShown::Nullclines &nc)
 std::uint64_t fingerprint(const PhaseShown::Field &d)
 {
     Fingerprint f;
-    for (int v : {d.n, d.scaled, d.color}) f.value(v);
+    for (int v : {d.n, d.scaled}) f.value(v);
+    f.value(d.color);
     f.value(d.du);
     f.value(d.dv);
     f.floats(d.grid);
@@ -212,9 +215,9 @@ void send_nullclines(const xpp::Session &s, int pop, const PhaseShown::Nullcline
     o += ",\"yname\":";
     add_name(o, s.model(), nc.iy);
     o += ",\"xcolor\":";
-    add_int(o, nc.xcolor);
+    o += xpp::quoted_color(nc.xcolor);
     o += ",\"ycolor\":";
-    add_int(o, nc.ycolor);
+    o += xpp::quoted_color(nc.ycolor);
     o += ",\"x\":";
     add_values(o, nc.now.x);
     o += ",\"y\":";
@@ -238,7 +241,7 @@ void send_dfield(const GRAPH &g, const PhaseShown::Field &f)
     o += ",\"scaled\":";
     add_int(o, f.scaled);
     o += ",\"color\":";
-    add_int(o, f.color);
+    o += xpp::quoted_color(f.color);
     o += ",\"n\":";
     add_int(o, f.n);
     o += ",\"du\":";
@@ -252,7 +255,7 @@ void send_dfield(const GRAPH &g, const PhaseShown::Field &f)
     o += ",\"flows\":[";
     for (std::size_t k = 0; k < f.flows.size(); k++) {
         o += k ? ",{\"color\":" : "{\"color\":";
-        add_int(o, f.flows[k].color);
+        o += xpp::quoted_color(f.flows[k].color);
         o += ",\"x\":";
         add_values(o, f.flows[k].x);
         o += ",\"y\":";
@@ -319,7 +322,7 @@ void phase_data_cleared(xpp::Session &s, int pop)
 }
 
 void phase_data_nullclines(xpp::Session &s, const float *xn, int nx, const float *yn, int ny, int ix, int iy,
-                           int xcolor, int ycolor)
+                           const Color &xcolor, const Color &ycolor)
 {
     PhaseShown::Window *w = current(s);
     if (!w) return;
@@ -355,7 +358,7 @@ void phase_data_frozen(xpp::Session &s, const float *xn, int nx, const float *yn
     }
 }
 
-void phase_data_dfield_begin(xpp::Session &s, int n, double du, double dv, int scaled, int color)
+void phase_data_dfield_begin(xpp::Session &s, int n, double du, double dv, int scaled, const Color &color)
 {
     PhaseShown::Window *w = current(s);
     if (!w) return;
@@ -391,7 +394,7 @@ void phase_data_flow_start(xpp::Session &s) { s.phase_shown.flowing = client.emi
 void phase_data_flow_next(xpp::Session &s) { s.phase_shown.trajectory++; }
 
 void phase_data_flow_step(xpp::Session &s, int ncurves, const float *ox, const float *oy, const float *x,
-                          const float *y, const int *color)
+                          const float *y, const Color *color)
 {
     if (!s.phase_shown.flowing) return;
     PhaseShown::Window *w = current(s);

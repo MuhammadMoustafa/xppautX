@@ -39,20 +39,22 @@ struct PhaseShown {
         std::vector<float> x, y;
     };
     struct Nullclines {
-        int ix = 0, iy = 0, xcolor = 0, ycolor = 0;
+        int ix = 0, iy = 0;
+        Color xcolor, ycolor;
         Clines now;
         std::vector<Clines> frozen;
     };
     /* one curve's trajectories of Flow */
     struct FlowCurve {
-        int color = 0;
+        Color color;
         std::vector<float> x, y; /* the trajectories one after the other, NaN between two */
         /* thinning: the last point kept, and the last one seen when it was not kept */
         float kx = 0, ky = 0, px = 0, py = 0;
         bool pending = false;
     };
     struct Field {
-        int n = 0, scaled = 0, color = 0;
+        int n = 0, scaled = 0;
+        Color color;
         double du = 0, dv = 0;
         std::vector<float> grid;  /* x, y, ux, uy per arrow */
         std::vector<float> speed; /* one per arrow */
@@ -101,9 +103,9 @@ void phase_data_update(Session &s);
    plot window of s, the one drawn in. */
 
 /* that window now shows these nullclines (nx and ny segments of 4 floats,
-   of the variables ix and iy, 1-based) in these colour indices */
+   of the variables ix and iy, 1-based) in these colours */
 void phase_data_nullclines(Session &s, const float *xn, int nx, const float *yn, int ny, int ix, int iy,
-                           int xcolor, int ycolor);
+                           const Color &xcolor, const Color &ycolor);
 
 /* its frozen nullclines: begin (none), then each set drawn */
 void phase_data_frozen_begin(Session &s);
@@ -113,13 +115,13 @@ void phase_data_frozen(Session &s, const float *xn, int nx, const float *yn, int
    dv in plot units), then each arrow at (x, y) with the vector field's
    components (fx, fy) there. scaled: 1 every arrow has one length (Scaled
    Dir.Fld), 0 the length follows the speed (Direct field) */
-void phase_data_dfield_begin(Session &s, int n, double du, double dv, int scaled, int color);
+void phase_data_dfield_begin(Session &s, int n, double du, double dv, int scaled, const Color &color);
 void phase_data_arrow(Session &s, double x, double y, double fx, double fy);
 
 /* between flow_start and flow_stop, each segment of Flow the integrator
    draws (a no-op otherwise): ncurves segments from (ox[i], oy[i]) to
    (x[i], y[i]) in colour color[i] */
 void phase_data_flow_step(Session &s, int ncurves, const float *ox, const float *oy, const float *x,
-                          const float *y, const int *color);
+                          const float *y, const Color *color);
 
 } // namespace xpp

@@ -3,6 +3,8 @@
 #include <string>
 #include <string_view>
 
+#include "colormap.h"
+
 namespace xpp {
 struct Session; /* session.h */
 
@@ -14,9 +16,8 @@ struct Session; /* session.h */
    coordinates of the animation's `dimension` box (u 0 at xlo, 1 at xhi; v
    0 at ylo, 1 at yhi: y up, as the .ani language has it), not clamped: a
    primitive the .ani puts outside the box lies outside [0,1]. Colours are
-   palette indices as the pixel callbacks get them (0 black, 20..29 the
-   named colours, 30.. the colour map); the event says them as XPP colour
-   indices or #rrggbb. Line widths and a comet's dots are in pixels.
+   colours (colormap.h), said in the event as the colour type's text.
+   Line widths and a comet's dots are in pixels.
 
    The finished frame goes to a client that subscribed at once, or when
    frames come faster than 25 a second (Go, Fly) the latest one waits for
@@ -50,16 +51,16 @@ void ani_data_forget(Session &s);
 
 /* a frame of s's animation, primitive by primitive */
 void ani_data_begin(Session &s);
-void ani_data_line(Session &s, double u1, double v1, double u2, double v2, int color, int thick);
+void ani_data_line(Session &s, double u1, double v1, double u2, double v2, const Color &color, int thick);
 /* corners in either order */
-void ani_data_rect(Session &s, double u1, double v1, double u2, double v2, int color, int thick, int fill);
+void ani_data_rect(Session &s, double u1, double v1, double u2, double v2, const Color &color, int thick, int fill);
 /* radius r of the .ani along u (r / (xhi-xlo)) and along v (r / (yhi-ylo)) */
-void ani_data_circle(Session &s, double u, double v, double ru, double rv, int color, int thick, int fill);
-void ani_data_ellipse(Session &s, double u, double v, double ru, double rv, int color, int thick, int fill);
+void ani_data_circle(Session &s, double u, double v, double ru, double rv, const Color &color, int thick, int fill);
+void ani_data_ellipse(Session &s, double u, double v, double ru, double rv, const Color &color, int thick, int fill);
 /* a filled circle of r pixels */
-void ani_data_dot(Session &s, double u, double v, int r, int color);
+void ani_data_dot(Session &s, double u, double v, int r, const Color &color);
 /* text from its baseline's left end; size 0..4, font 0 roman, 1 symbol */
-void ani_data_text(Session &s, double u, double v, std::string_view text, int color, int size, int font);
+void ani_data_text(Session &s, double u, double v, std::string_view text, const Color &color, int size, int font);
 
 typedef struct {
     int pos, rows;      /* the stored row drawn (vcr.pos), of how many */

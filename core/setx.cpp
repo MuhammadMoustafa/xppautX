@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "model_options.h"
 #include "odex.h"
 #include "xpp_io.h"
 
@@ -107,6 +108,49 @@ bool Block::read(std::string_view key, std::string &v, Value::Kind want)
     if (!m) return false;
     v = kind_of(*m, want);
     return true;
+}
+
+bool Block::color(std::string_view key, Color &v)
+{
+    const Member *m = take(key);
+    if (!m) return false;
+    const Value &value = scalar(*m, "a colour");
+    const std::optional<Color> c = parse_color(value.text);
+    if (!c) doc_->fail(value, xpp::format("`{}`: `{}` is not a colour (#rrggbb, #rrggbbaa, a CSS colour name or foreground)", key, value.text));
+    v = *c;
+    return true;
+}
+
+namespace {
+
+/* the enum value of the word a member holds, among names, or the error naming them */
+template <class E, std::size_t N>
+E enum_of(const Document &doc, const Member &m, const std::string &word, const std::array<std::string_view, N> &names)
+{
+    const int i = choice_index(names, word);
+    if (i >= 0) return static_cast<E>(i);
+    std::string list;
+    for (const std::string_view n : names) list += (list.empty() ? "" : ", ") + std::string(n);
+    doc.fail(m.value, xpp::format("`{}`: `{}` is not one of {}", m.key, word, list));
+}
+
+} // namespace
+
+void Block::line_style(LineStyle &v)
+{
+    if (const Member *m = take("draw")) v.draw = enum_of<LineDraw>(*doc_, *m, word_of(*m), line_draw_names);
+    if (const Member *m = take("dash")) v.dash = enum_of<LineDash>(*doc_, *m, word_of(*m), line_dash_names);
+    if (const Member *m = take("marker")) v.marker = enum_of<LineMarker>(*doc_, *m, word_of(*m), line_marker_names);
+    const auto size = [&](std::string_view key, double &target, bool allow_zero) {
+        if (const Member *m = take(key)) {
+            const Value &value = scalar(*m, "a number");
+            const std::optional<double> x = parse_line_size(value.text, allow_zero);
+            if (!x) doc_->fail(value, xpp::format("`{}`: `{}` is not a number {}", key, value.text, allow_zero ? "of at least 0" : "above 0"));
+            target = *x;
+        }
+    };
+    size("width", v.width, false);
+    size("marker_size", v.marker_size, true);
 }
 
 bool Block::text(std::string_view key, std::string &v) { return read(key, v, Value::Kind::string); }
@@ -309,6 +353,15 @@ void Out::text(std::string_view key, std::string_view text_)
     entry(key);
     quote(text_);
     put(",\n");
+}
+
+void Out::line_style(const LineStyle &v)
+{
+    word("draw", line_draw_names[static_cast<std::size_t>(v.draw)]);
+    word("dash", line_dash_names[static_cast<std::size_t>(v.dash)]);
+    real("width", v.width);
+    word("marker", line_marker_names[static_cast<std::size_t>(v.marker)]);
+    real("marker_size", v.marker_size);
 }
 
 void Out::reals(std::string_view key, std::span<const double> v)

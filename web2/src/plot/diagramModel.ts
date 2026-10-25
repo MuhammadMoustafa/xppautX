@@ -21,6 +21,7 @@
    max..min spans the label's value is taken to start there. */
 import type {DiagramAxes, DiagramLabel, DiagramPoints} from '../store/diagram';
 import type {Range} from '../store/state';
+import type {CoreColor} from '../protocol/types';
 import type {Ranges} from './viewmath';
 
 export type CurveKind = 'steady' | 'periodic' | 'two-parameter';
@@ -34,8 +35,8 @@ export interface DiagramCurve {
   stable: boolean;
   /** the values it draws: y (the maximum for hi and lo) or y2 (the minimum) */
   which: 'y' | 'y2';
-  /** palette colour of the run (0 the foreground, 20..29 red..purple) */
-  color: number;
+  /** the colour of the run as the core says it */
+  color: CoreColor;
   cssColor?: string;
   visible?: boolean;
   legend?: string;
@@ -127,7 +128,7 @@ function curve(p: DiagramPoints, s: number, verts: number[], which: 'y' | 'y2', 
     idx[k] = v;
   });
   const width = kind === 'steady' ? (p.lw[s] >= 2 ? 2.25 : 1.25) : stable ? 1.75 : 1.25;
-  return {branch: p.br[s], type: ty, f2: p.f2[s], kind, stable, which, color: p.c[s], width, dashed: !stable,
+  return {branch: p.br[s], type: ty, f2: p.f2[s], kind, stable, which, color: p.palette[p.c[s]], width, dashed: !stable,
     xs, ys, idx, hopf};
 }
 

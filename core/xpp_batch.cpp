@@ -101,7 +101,7 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch,
 {
     xpp::Model &m = s.model();
     program.interactive = 0;
-    s.plot_export.format = "ps";
+    s.plot_export.format = "pdf";
     check_for_quiet(s, argc, argv);
     do_comline(s, argc, argv);
     if (batch) batch_options.enabled = 1; /* headless: always batch, even without --silent */
@@ -310,7 +310,6 @@ void model_failed(std::string_view what)
 
 void batch_start(xpp::Session &s)
 {
-    xpp_build_colormap(s.colormap);
     init_browser(s);
     init_all_graph(s);
     if_needed_select_sets(s.model());

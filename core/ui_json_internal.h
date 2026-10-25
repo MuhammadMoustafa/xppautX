@@ -445,7 +445,6 @@ void j_create_plot_window(xpp::Session &s);
 void j_destroy_plot_window(xpp::Session &s);
 void j_cput_text(xpp::Session &s);
 void j_scroll_window(xpp::Session &s);
-void j_new_colormap(Colormap type);
 
 std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h); /* empty: cancelled */
 
@@ -459,6 +458,7 @@ void j_movie_make_anigif(xpp::Session &s);
 void aplot_changed(void); /* the data behind an array plot changed */
 void aplot_update(xpp::Session &s); /* at a command's end */
 void aplot_command(xpp::Session &s, const char *line);
+void colormap_command(xpp::Session &s, const char *line);
 void aplot_key(xpp::Session &s, int ch);
 void j_aplot_make(xpp::Session &s, std::string_view name);
 void j_aplot_redraw(xpp::Session &s);

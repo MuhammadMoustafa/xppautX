@@ -1,4 +1,4 @@
-#include "image_format.h"
+#include "picture.h"
 #include "xpp_ui.h"
 #include "session.h"
 #include "xpp_util.h"
@@ -95,9 +95,8 @@ void do_axes(xpp::Session &s)
 {
     const std::string s1(xpp::ind_to_sym(s,s.plot_windows.current->xv[0]));
     const std::string s2(xpp::ind_to_sym(s,s.plot_windows.current->yv[0]));
-    set_linestyle(s,0);
+    set_pen(s,foreground_color,LineStyle{});
     if(program.interactive){  re_title(s);
-    SmallGr();
     }
 
     switch(s.plot_windows.current->grtype)
@@ -108,7 +107,6 @@ void do_axes(xpp::Session &s)
     case 5: Frame_3d(s); break;
 
    }
-    if(program.interactive)SmallBase();
  
  }
 
@@ -126,7 +124,6 @@ void Frame_3d(xpp::Session &s)
   float x4=xmin,y4=ymin,z4=zmin,x5=xmax,y5=ymax,z5=zmax;
   float x3,y3,z3,x6,y6,z6;
   
-  s.drawing.doing_axes=1;
   
   tx=make_tics(xmin,xmax);
   ty=make_tics(ymin,ymax);
@@ -139,7 +136,7 @@ void Frame_3d(xpp::Session &s)
  
   scale3d(s,x4,y4,z4,&x3,&y3,&z3);
   scale3d(s,x5,y5,z5,&x6,&y6,&z6);
-  set_linestyle(s,-2);
+  set_border_pen(s);
   line3d(s,-1.,-1.,-1.,1.,-1.,-1.);
   line3d(s,1.,-1.,-1.,1.,1.,-1.);
   line3d(s,1.,1.,-1.,-1.,1.,-1.);
@@ -162,7 +159,7 @@ void Frame_3d(xpp::Session &s)
   
 
     
-  set_linestyle(s,-1);
+  set_zero_axes_pen(s);
   
   if(s.plot_windows.current->zorgflag)line_3d(s,x0,y0,z4,x0,y0,z5);
   if(s.plot_windows.current->yorgflag)line_3d(s,x0,y4,z0,x0,y5,z0);
@@ -183,7 +180,6 @@ void Frame_3d(xpp::Session &s)
   text3d(s,-1.-dt,-1.-dt,0.0,s.plot_windows.current->zlabel.c_str());
   s.drawing.text_justify=0;
   
-  s.drawing.doing_axes=0;
    
 }
 
@@ -201,7 +197,6 @@ void Box_axis(xpp::Session &s, double x_min, double x_max, double y_min, double 
   int ybot=s.drawing.d_bottom,ytop=s.drawing.d_top;
   int xleft=s.drawing.d_left,xright=s.drawing.d_right;
   
-  s.drawing.doing_axes=1;
   
   if(ybot>ytop){
     ytop=ybot;
@@ -211,26 +206,23 @@ void Box_axis(xpp::Session &s, double x_min, double x_max, double y_min, double 
   ytic=make_tics(y_min,y_max);
   xtic=make_tics(x_min,x_max);
  scale_to_screen(s,static_cast<float>(s.plot_windows.current->xorg),static_cast<float>(s.plot_windows.current->yorg),&yaxis_x,&xaxis_y);
-  set_linestyle(s,-1);
+  set_zero_axes_pen(s);
   if(s.plot_windows.current->xorgflag&&flag)
     if(xaxis_y>=ybot&&xaxis_y<=ytop)
       line(s,xleft,xaxis_y,xright,xaxis_y);
   if(s.plot_windows.current->yorgflag&&flag)
     if(yaxis_x>=xleft&&yaxis_x<=xright)
       line(s,yaxis_x,ybot,yaxis_x,ytop);
- set_linestyle(s,-2);
-  s.drawing.doing_box_axes=1;
+  set_border_pen(s);
   line(s,xleft,ybot,xright,ybot);
   line(s,xright,ybot,xright,ytop);
-  s.drawing.doing_box_axes=0;
   line(s,xright,ytop,xleft,ytop);
   line(s,xleft,ytop,xleft,ybot);
   draw_ytics(s,sy,ytic*floor(y_min/ytic),ytic,ytic*ceil(y_max/ytic));
   draw_xtics(s,sx,xtic*floor(x_min/xtic),xtic,xtic*ceil(x_max/xtic));
   s.drawing.text_justify=0;
-  set_linestyle(s,0);
+  set_pen(s,foreground_color,LineStyle{});
   
-  s.drawing.doing_axes=0;
 }
 
 
@@ -241,25 +233,17 @@ void draw_ytics(xpp::Session &s, const char *s1, double start, double incr, doub
   double ticvalue,place;
   double y_min=s.drawing.y_min,y_max=s.drawing.y_max,
   x_min=s.drawing.x_min;
-  int xt,yt,sign=1;
+  int xt,yt;
   s.drawing.text_justify=2; /* Right justification  */
   for(ticvalue=start;ticvalue<=end;ticvalue+=incr){
     place=CheckZero(ticvalue,incr);
     if(ticvalue<y_min||ticvalue>y_max)continue;
     scale_to_screen(s,static_cast<float>(x_min),static_cast<float>(place),&xt,&yt);
-    s.drawing.doing_box_axes=0;
     line(s,s.drawing.d_left,yt,s.drawing.d_left+s.drawing.h_tic,yt);
-    s.drawing.doing_box_axes=1;
     line(s,s.drawing.d_right,yt,s.drawing.d_right-s.drawing.h_tic,yt);
-    s.drawing.doing_box_axes=0;
     put_text(s,s.drawing.d_left-static_cast<int>(1.25*s.drawing.h_char),yt,xpp::format("{:g}",place).c_str());
   }
-   scale_to_screen(s,static_cast<float>(x_min),static_cast<float>(y_max),&xt,&yt);
-   if(s.drawing.d_top<s.drawing.d_bottom)sign=-1;
-   if (const xpp::ImageFormat *f=xpp::active_image_format(s); f && f->y_label)
-     f->y_label(s,s.drawing.d_left-s.drawing.h_char,yt+2*sign*s.drawing.v_char,s1);
-   else
-     put_text(s,s.drawing.d_left-s.drawing.h_char,yt+2*sign*s.drawing.v_char,s1);
+   if(s.plot_file.format)picture_y_label(s,s1);
 
 }
 
@@ -278,11 +262,8 @@ void draw_xtics(xpp::Session &s, const char *s2, double start, double incr, doub
     place=CheckZero(ticvalue,incr);
     if(ticvalue<x_min||ticvalue>x_max)continue;
     scale_to_screen(s,static_cast<float>(place),y_min,&xt,&yt);
-    s.drawing.doing_box_axes=0;
     line(s,xt,s.drawing.d_bottom,xt,s.drawing.d_bottom+sign*s.drawing.v_tic); 
-    s.drawing.doing_box_axes=1;
     line(s,xt,s.drawing.d_top,xt,s.drawing.d_top-sign*s.drawing.v_tic);
-    s.drawing.doing_box_axes=0;
     put_text(s,xt,yt-static_cast<int>(1.25*s.drawing.v_char*sign),xpp::format("{:g}",place).c_str());
   }
   put_text(s,(s.drawing.d_left+s.drawing.d_right)/2,yt-static_cast<int>(2.5*s.drawing.v_char*sign),s2);    
