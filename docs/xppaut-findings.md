@@ -106,6 +106,9 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [73](#73-periodic-phase-conditions-do-not-pass-through-the-computed-orbit) | AUTO | the uncentered periodic phase condition has a discrete residual at the previous computed orbit, so zero-length correction can move it | [W437 / #499](https://github.com/MuhammadMoustafa/xppautX/issues/499) |
 | [74](#74-autos-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale) | AUTO | the finite-difference Jacobian of an equilibrium or cycle problem (`JAC=0`, always) steps every state by 1e-7 times the largest state: Hopf periods and fold norms are off on a model whose states differ in scale | [W455 / #518](https://github.com/MuhammadMoustafa/xppautX/issues/518) |
 | [75](#75-the-auto-file-name-overflows-past-199-characters-of-home-and-model-name) | AUTO | starting any model writes `$HOME/<model file name>` into a 200-byte array unchecked: a long HOME or model name aborts (fortified build) or overwrites what follows | W354 series 22m (no card) |
+| [76](#76-the-equilibrium-ranges-monte-carlo-answer-is-read-from-the-movie-field) | Equilibria | Equilibria > Range's Monte Carlo field reads a `y` typed in the Movie field's position (and its own `n` is ignored when Movie is `y`) | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
+| [77](#77-rosenbrock-retries-a-failing-step-forever-at-the-smallest-step) | Integrators | a Rosenbrock step that fails at the smallest step size never reaches its "Step size too small" exit, since the size is clamped up to that minimum first: the run does not end | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
+| [78](#78-a-flag-with-sign-1-repeats-one-clause-and-misses-an-exact-zero) | Events | the rising-flag test repeats one clause where the falling one tests `f1<=0`: a rising flag that lands exactly on zero is missed | [W482 / #546](https://github.com/MuhammadMoustafa/xppautX/issues/546) |
 
 ## 1. Model options
 
@@ -1757,3 +1760,30 @@ built with Ubuntu's default `_FORTIFY_SOURCE`) `xppaut izh_2004s_inhibition_indu
 (the 2004 ones, whose names are longer) failed; the six 2003 ones ran. A build without fortify checks writes past the array
 unnoticed. The series ran from a shorter folder instead (no source of XPPAUT's is edited); xppautX has no such array.
 
+## 76. The equilibrium range's Monte Carlo answer is read from the Movie field
+
+Equilibria > Range's dialog has the fields parameter, steps, low, high, shoot, color column, movie and Monte Carlo, the
+last two in that order. The reader takes the movie flag from `values[6]` and the Monte Carlo flag from `values[7]`, but
+tests `values[6][0]` for it: `if(values[7][0]=='Y'||values[6][0]=='y')eq_range.mc=1`
+([integrate.c:356](../reference/xppaut-8.0/integrate.c#L356); the same in
+[master](../reference/xppaut-master/integrate.c#L351)). A capital `Y` in the Monte Carlo field works, a lower-case `y`
+there does not, and a `y` in the Movie field turns Monte Carlo on. Evidence: reading the line; the Range Integrate
+dialog's reader a few lines later ([integrate.c:478](../reference/xppaut-8.0/integrate.c#L478)) tests `values[7]` twice.
+xppautX tests the field it reads (W482, [#546](https://github.com/MuhammadMoustafa/xppautX/issues/546)).
+
+## 77. Rosenbrock retries a failing step forever at the smallest step
+
+`rosen` shrinks a failed step with `absh = MAX(hmin, absh * MAX(0.1, pow(0.8*(rtol/err),1./3.)))` and gives up through
+`if(absh<hmin){ *ierr=-1; return(-1); }` ([odesol2.c:588-596](../reference/xppaut-8.0/odesol2.c#L588); the same in
+[master](../reference/xppaut-master/odesol2.c#L589)). The size is clamped up to `hmin` by the line above, so the test
+`absh<hmin` is never true on the retry and a step that cannot succeed (a solution that blows up) loops without end.
+Evidence: tools/models/stops/blowup_rosenbrock.odex never returned in xppautX before this fix. xppautX tests
+`absh<=hmin` (the step has nowhere left to shrink to) and the run ends with "Step size too small" (W482, [#546](https://github.com/MuhammadMoustafa/xppautX/issues/546)).
+
+## 78. A flag with sign 1 repeats one clause and misses an exact zero
+
+The event test for a rising flag is `(((f0<0.0)&&(f1>0.0))||((f0<0.0)&&(f1>0.0)))&&tol>tolmin`, one clause twice
+([flags.c:307](../reference/xppaut-8.0/flags.c#L307); the same in [master](../reference/xppaut-master/flags.c#L307)),
+where the falling flag tests `f0>0.0&&f1<=0.0`. A condition that is exactly zero at the end of a step after being
+negative is a falling event but not a rising one. xppautX tests `f0<0.0&&f1>=0.0`, the mirror of the falling case; no
+example model's output changed (W482, [#546](https://github.com/MuhammadMoustafa/xppautX/issues/546)).

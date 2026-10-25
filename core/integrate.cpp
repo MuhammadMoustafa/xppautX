@@ -244,7 +244,7 @@ values[7] = yn[s.integrator.eq_range.mc];
    else s.integrator.eq_range.shoot=0;
    if(values[6][0]=='Y'||values[6][0]=='y')s.integrator.eq_range.movie=1;
    else s.integrator.eq_range.movie=0;
-    if(values[7][0]=='Y'||values[6][0]=='y')s.integrator.eq_range.mc=1;
+    if(values[7][0]=='Y'||values[7][0]=='y')s.integrator.eq_range.mc=1;
    else s.integrator.eq_range.mc=0;
    s.integrator.eq_range.col=atoi(values[5].c_str());
    if(s.integrator.eq_range.col<=1||s.integrator.eq_range.col>(s.model().neq+1))s.integrator.eq_range.col=-1;
@@ -490,8 +490,12 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
 	}
 	if(is_new==1){
 	  m=s.integrator.fixptlist.n;
+	  if(m>=MAXFP){
+	    failure.keep(xpp::Error{"equilibria",xpp::format("The Monte Carlo search found {} equilibria, the most it keeps: stopped after {} of {} guesses",MAXFP,i,n),command_place()});
+	    break;
+	  }
 	  s.integrator.fixptlist.n++;
-	  if(m<MAXFP){
+	  {
 	    xpp::log(XPP_LOG_INFO, "Found: {}\n",m);
 	    for(j=0;j<s.model().node;j++){
 	      s.integrator.fixptlist.x[m][j]=x[j];

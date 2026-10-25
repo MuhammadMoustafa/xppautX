@@ -178,13 +178,13 @@ STOPS_KNOWN = {  # case id -> (card that fixes it, reason it is not started or N
     'backward_euler': ('W488', None),
     'cvode': ('W488', None),
     'delay': ('W488', None),
+    'rosenbrock': ('W488', None),
     'range_gear': ('W487', None),
     'range_backward_euler': ('W487', None),
     'range_bound': ('W487', None),
     'eq_range': ('W487', None),
     'event_halt': ('W487', None),
     'sing_pts': ('W489', None),
-    'rosenbrock': ('W482', 'a step never ends: odesol2.cpp rosen retries forever (W480 S5)'),
 }
 STOPS_PLAIN_GO = [{'key': 'g'}]  # the Integrate or Equilibria menu's Go
 STOPS_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '2', '1', '3']}]  # Range Integrate over a, 1 to 3

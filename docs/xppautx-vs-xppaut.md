@@ -295,4 +295,4 @@ Bugs and limits of XPPAUT that xppautX fixes, with evidence and the lines
 in XPPAUT's own source, are in [xppaut-findings.md](xppaut-findings.md),
 one section each (the index there is by area): model options (#1, #2, #4),
 names and limits (#3, #19, #20), DAEs (#6, #25), AUTO (#7-#18),
-analysis and networks (#22, #23), export (#24), files (#21).
+analysis and networks (#22, #23), export (#24), files (#21), equilibria, integrators and events (#76-#78).

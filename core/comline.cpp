@@ -104,6 +104,7 @@ static const CommandOption *command_option(std::string_view word)
 Result<> check_command_line(int argc, char **argv)
 {
   bool model = false;
+  std::string parfile_value, icfile_value; /* a second --parfile or --icfile is an error */
   for (int i = 1; i < argc; ++i) {
     const std::string_view word(argv[i]);
     const Place place{"command line", i, 0, std::string(word)};
@@ -126,6 +127,12 @@ Result<> check_command_line(int argc, char **argv)
     }
     if (option->argument && ++i >= argc)
       return fail("options", xpp::format("{} needs an argument", word), place);
+    if (option->id == PARFILE || option->id == ICFILE) {
+      std::string &first = option->id == PARFILE ? parfile_value : icfile_value;
+      if (!first.empty())
+        return fail("options", xpp::format("{} given twice: '{}' and '{}'", word, first, argv[i]), place);
+      first = argv[i];
+    }
   }
   return {};
 }
@@ -162,7 +169,7 @@ int do_comline(xpp::Session &s, int argc, char **argv)
      
    }
    if(k==4){
-     parfilename+=argv[i+1];
+     parfilename=argv[i+1];
      i++;
      loadparfile=1;
    }
@@ -174,7 +181,7 @@ int do_comline(xpp::Session &s, int argc, char **argv)
      i++;
    }
    if(k==6){
-     icfilename+=argv[i+1];
+     icfilename=argv[i+1];
      i++;
      loadicfile=1;
    }
