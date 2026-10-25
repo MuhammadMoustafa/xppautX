@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <stdlib.h> 
 #include <math.h>
 #include "odesol2.h"
@@ -11,9 +12,6 @@
 
 namespace xpp {
 
-#define MAX(a,b) ((a)>(b)?(a):(b))
-#define MIN(a,b) ((a)<(b)?(a):(b))
-#define SIGN(a,b) ((b)>=0.0 ? fabs(a):-fabs(a))
 #define SAFETY 0.9
 #define GROW 1.5
 #define PGROW -0.25
@@ -77,14 +75,14 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
   dydx=y+nvar;
   work2=dydx+nvar;
   x=x1;
-  h=SIGN(h1,x2-x1);
+  h=xpp::sign(h1,x2-x1);
   *ier=0;
   for (i=0;i<nvar;i++) y[i]=ystart[i];
   for(nstp=1;nstp<=MAXSTP;nstp++){
     s.integrator.rhs(x,y,dydx,nvar);
     for(i=0;i<nvar;i++)
       if(xpp::solver_info(iflag).traits.stiff_step)
-	yscal[i]=MAX(1,fabs(y[i]));
+	yscal[i]=std::max(fabs(y[i]),1.0);
       else
 	yscal[i]=fabs(y[i])+fabs(dydx[i]*h)+TINY; 
     if ((x+h-x2)*(x+h-x1) > 0.0) h=x2-x;
@@ -96,7 +94,7 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
     if ((x-x2)*(x2-x1) >= 0.0) 
       {
 	for (i=0;i<nvar;i++) ystart[i]=y[i];
-        *hguess=SIGN(hnext,x2-x1);
+        *hguess=xpp::sign(hnext,x2-x1);
 	*xs=x2;
 	return 0;
       }
@@ -187,7 +185,7 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 			       }
 		errmax=0.0;
                 
-		for (i=0;i<n;i++) errmax=MAX(errmax,fabs(err[i]/yscal[i]));
+		for (i=0;i<n;i++) errmax=std::max(fabs(err[i]/yscal[i]),errmax);
 		errmax /= eps;
 		if (errmax <= 1.0) {
 		  *hdid=h;
@@ -196,7 +194,7 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 		  return 0;
 		} else {
 		  *hnext=SAFETY*h*xpp::math::pow(errmax,PSHRNK);
-		  h=(h >= 0.0 ? MAX(*hnext,SHRNK*h) : MIN(*hnext,SHRNK*h));
+		  h=(h >= 0.0 ? std::max(SHRNK*h,*hnext) : std::min(SHRNK*h,*hnext));
 		}
 	}
          
@@ -218,11 +216,11 @@ int rkqs(xpp::Session &s, double *y, double *dydx, int n, double *x, double htry
   for (;;) {
     rkck(s,y,dydx,n,*x,h,ytemp,yerr,work2);
     errmax=0.0;
-    for (i=0;i<n;i++) errmax=MAX(errmax,fabs(yerr[i]/yscal[i]));
+    for (i=0;i<n;i++) errmax=std::max(fabs(yerr[i]/yscal[i]),errmax);
     errmax /= eps;
     if (errmax > 1.0) {
       htemp=SAFETY*h*xpp::math::pow(errmax,PSHRNK2);
-      h=(h >= 0.0 ? MAX(htemp,0.1*h) : MIN(htemp,0.1*h));
+      h=(h >= 0.0 ? std::max(0.1*h,htemp) : std::min(0.1*h,htemp));
       xnew=(*x)+h;
       if (xnew == *x) {
 	

@@ -1,5 +1,4 @@
-#ifndef _simplenet_h_
-#define _simplenet_h_
+#pragma once
 
 #include "expr_program.h"
 #include <array>
@@ -69,4 +68,3 @@ struct Vectorizer {
 };
 
 } // namespace xpp
-#endif

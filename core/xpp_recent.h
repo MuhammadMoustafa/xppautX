@@ -1,5 +1,4 @@
-#ifndef XPP_RECENT_H
-#define XPP_RECENT_H
+#pragma once
 /* The recent models (W232): the models the user opened lately, newest
    first, kept in the preferences file (xpp_prefs.h, W287: its
    `recent_models`); the start screen lists them (hello's `start`,
@@ -34,4 +33,3 @@ std::string start_json(const Result<std::vector<std::string>> &loaded, std::stri
 
 } // namespace xpp::recent
 
-#endif

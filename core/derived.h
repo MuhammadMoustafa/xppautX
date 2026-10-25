@@ -1,5 +1,4 @@
-#ifndef _derived_h
-#define _derived_h
+#pragma once
 
 #include <string_view>
 
@@ -17,4 +16,3 @@ void evaluate_derived_pure(const Session &s, double *constants, double *variable
 int add_derived(Session &s, std::string_view name, std::string_view rhs);
 
 } // namespace xpp
-#endif

@@ -45,8 +45,7 @@ N_Vector N_VNew(integer N, void *machEnv)
   if (N <= 0) return(NULL);
 
   /* N_Vector is the C API's raw handle (N_VFree deletes it); its
-     components live in the handle's own std::vector, zeroed like the
-     xpp_malloc block it replaces. */
+     components live in the handle's own std::vector, zeroed. */
   N_Vector v = new N_VectorContent();
   v->storage.assign(N, ZERO);
   v->data = v->storage.data();

@@ -1,5 +1,4 @@
-#ifndef _xpp_session_h_
-#define _xpp_session_h_
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -120,4 +119,3 @@ std::optional<xpp::Error> xpp_saved_check(xpp::Session &s, const SavedFile &f);
    place (a file xpp_saved_check passed fails only on the disk) */
 bool xpp_saved_restore(xpp::Session &s, const SavedFile &f);
 
-#endif

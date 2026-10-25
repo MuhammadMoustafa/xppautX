@@ -197,8 +197,7 @@ void CVDense(void *cvode_mem, CVDenseJacFn djac, void *jac_data)
   lfree  = CVDenseFree;
 
   /* The record behind cv_mem's opaque void *lmem, deleted by
-     CVDenseFree below; value-initialised (zeroed), as the xpp_malloc
-     block it replaces was. */
+     CVDenseFree below; value-initialised (zeroed). */
   lmem = cvdense_mem = new CVDenseMemRec();
 
   /* Set Jacobian routine field to user's djac or CVDenseDQJac */

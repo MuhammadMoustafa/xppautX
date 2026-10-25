@@ -1,5 +1,4 @@
-#ifndef ANI_DATA_H
-#define ANI_DATA_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -73,4 +72,3 @@ typedef struct {
 void ani_data_end(Session &s, const AniDataFrame *f);
 
 } // namespace xpp
-#endif

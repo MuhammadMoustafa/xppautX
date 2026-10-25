@@ -1,5 +1,4 @@
-#ifndef XPP_BATCH_H
-#define XPP_BATCH_H
+#pragma once
 
 #include "xpp_error.h"
 #include "model_files.h"
@@ -99,4 +98,3 @@ struct XppBatchOptions {
 extern XppBatchOptions batch_options;
 
 } // namespace xpp
-#endif

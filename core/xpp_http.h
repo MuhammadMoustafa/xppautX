@@ -1,5 +1,4 @@
-#ifndef XPP_HTTP_H
-#define XPP_HTTP_H
+#pragma once
 
 #include <string_view>
 #include "xpp_error.h"
@@ -49,4 +48,3 @@ xpp::Result<> open_about_link(std::string_view url);
 void emit(std::string_view line);
 
 } // namespace xpp::http
-#endif

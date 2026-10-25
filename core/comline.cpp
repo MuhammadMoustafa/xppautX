@@ -18,7 +18,7 @@
 
 namespace xpp {
 
-enum CommandId { SILENT, CONVERT, NEWSEED, SETFILE, PARFILE, OUTFILE, ICFILE, ITRNSETS, USET, RSET, INCLUDE, QSETS, QPARS, QICS, QUIET, LOGFILE, ANIFILE, VERSION, MKPLOT, PLOTFMT, NOOUT, DFDRAW, NCDRAW, READSET, WITH, EQUIL, VERBOSEOPT, DEBUGOPT, NOCOMPILE };
+enum CommandId { SILENT, NEWSEED, SETFILE, PARFILE, OUTFILE, ICFILE, ITRNSETS, USET, RSET, INCLUDE, QSETS, QPARS, QICS, QUIET, LOGFILE, ANIFILE, VERSION, MKPLOT, PLOTFMT, NOOUT, DFDRAW, NCDRAW, READSET, WITH, EQUIL, VERBOSEOPT, DEBUGOPT, NOCOMPILE };
 
 namespace {
 
@@ -66,7 +66,6 @@ struct CommandOption {
 constexpr CommandOption my_cmd[] = {
   {"--silent", SILENT, false},
   {"--no-compile", NOCOMPILE, false},
-  {"--convert", CONVERT, false},
   {"--newseed", NEWSEED, false},
   {"--setfile", SETFILE, true},
   {"--parfile", PARFILE, true},
@@ -374,9 +373,6 @@ int parse_it(xpp::Session &s, std::string_view com)
       break;
     case SILENT:
       batch_options.enabled=1;
-      break;
-    case CONVERT:
-      ConvertStyle=1;
       break;
     case NEWSEED:
      xpp::log(XPP_LOG_INFO, "Random number seed changed\n");

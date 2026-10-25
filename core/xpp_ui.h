@@ -1,5 +1,4 @@
-#ifndef XPP_UI_H
-#define XPP_UI_H
+#pragma once
 
 #include "xpplim.h"
 #include <stdio.h>
@@ -65,7 +64,7 @@ enum {
 /* auto_grab_event: move the cursor to AUTO's diagram entry x (DIAGRAM.index) */
 #define XPP_AUTO_NODE 1001
 
-/* One point of the AUTO diagram as add_point() (auto_nox.c) plots it in
+/* One point of the AUTO diagram as add_point() (auto_nox.cpp) plots it in
    one of its views, in that view's axis quantities (auto_xy_plot), for a
    front end that draws the diagram from data. A point the view does not
    plot has draw 0 and x, y1 and y2 NaN. */
@@ -459,4 +458,3 @@ template <class T> bool ok_or_show(const Result<T> &r)
 }
 
 } // namespace xpp
-#endif

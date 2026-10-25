@@ -1,5 +1,4 @@
-#ifndef DATA_FORMATS_H
-#define DATA_FORMATS_H
+#pragma once
 
 /* The data file formats (data_formats.cpp, docs/roadmap.md W52): a table
    of numbers written as XPP's own .dat, CSV with a header row, gzipped
@@ -80,4 +79,3 @@ bool npz_table(std::string_view bytes, DataTable &table) noexcept;
 
 } // namespace xpp
 
-#endif

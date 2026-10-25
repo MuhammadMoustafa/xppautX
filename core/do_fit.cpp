@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "data_formats.h"
 
 #include "do_fit.h"
@@ -31,7 +32,6 @@ namespace xpp {
 
 /*  this is also X free ! */
  
-#define MAX(a,b) ((a)>(b)?(a):(b))
 
 
 
@@ -354,7 +354,7 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
     xpp::log(XPP_LOG_INFO, "\n");
     if(!ok||(niter>=maxiter))break;
     if(ochisq>chisq){
-      if(((ochisq-chisq)<tol10)||(((ochisq-chisq)/MAX(1.0,chisq))<tol))
+      if(((ochisq-chisq)<tol10)||(((ochisq-chisq)/std::max(chisq,1.0))<tol))
       {
 	good_flag++;
 	niter--;  /* compensate for good stuff ... */

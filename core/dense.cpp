@@ -27,8 +27,7 @@ DenseMat DenseAllocMat(integer N)
   if (N <= 0) return(NULL);
 
   /* The C API's raw handle (DenseFreeMat deletes it), its elements in
-     its own std::vectors, zeroed like the xpp_malloc blocks they
-     replace: data[0] points to all N*N, data[j] to the jth column. */
+     its own std::vectors, zeroed: data[0] points to all N*N, data[j] to the jth column. */
   DenseMat A = new DenseMatRec();
   A->values.assign(N * N, ZERO);
   A->columns.resize(N);

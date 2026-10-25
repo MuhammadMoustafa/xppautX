@@ -1,5 +1,4 @@
-#ifndef XPP_EXAMPLES_H
-#define XPP_EXAMPLES_H
+#pragma once
 /* The bundled examples (W233): the .odex models a release ships in the
    examples/ folder beside the program (files::program_dir; the .app's
    Contents/Resources), which the start screen lists (hello's `start`,
@@ -52,4 +51,3 @@ Result<std::string> install(std::string_view name);
 
 } // namespace xpp::examples
 
-#endif

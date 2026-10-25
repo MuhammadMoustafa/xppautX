@@ -1,5 +1,4 @@
-#ifndef XPP_SNAPX_H
-#define XPP_SNAPX_H
+#pragma once
 /* The session file, name.snapx (W57, docs/protocol.md "Session files"):
    a zip (xpp_zip.h) of ordinary files, what continuing where the user
    stopped needs, the model included (W103: its every file, model/<name>).
@@ -85,4 +84,3 @@ std::string session_file_name(std::string_view name);
 
 } // namespace xpp::snapx
 
-#endif

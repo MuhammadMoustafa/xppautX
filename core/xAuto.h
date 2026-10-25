@@ -1,5 +1,4 @@
-#ifndef _xAuto_h_
-#define _xAuto_h_
+#pragma once
 
 #include "auto_codes.h"
 
@@ -64,5 +63,4 @@ struct AutoRunWeight {
 
 /*  for homcont  - itwist=0, istart=2, nrev=0,nfixed=0,npsi=0 */
 
-#endif
 

@@ -1,5 +1,4 @@
-#ifndef _histogram_h_
-#define _histogram_h_
+#pragma once
 
 #include <span>
 #include <string>
@@ -77,4 +76,3 @@ void post_process_stuff(Session &s);
 int get_col_info(const Session &s, int *col, const char *prompt);
 
 } // namespace xpp
-#endif

@@ -88,8 +88,6 @@ static void start_auto_dir(void)
     if (!dir.empty()) atexit([] { xpp::cleanup_auto_dir(xpp::client_session()); });
 }
 
-/* the desktop window's Help > About: the same text hello sends the page
-   (xpp_about.h) */
 /* --help: the modes, then the options that go with them */
 static const char *const usage_head =
     "usage: xppautX [MODE] [--port N] [--no-open] [--verbose|--debug] file.ode [xppaut options]\n"

@@ -1,5 +1,4 @@
-#ifndef _cv2_h_
-#define _cv2_h_
+#pragma once
 
 #include <array>
 #include <memory>
@@ -50,4 +49,3 @@ int ccvode(Session &s, CvodeRun &run, int *command, double *y, double *t, int n,
 std::string cvode_error_text(const Session &s, const CvodeRun &run, int kflag);
 
 } // namespace xpp
-#endif

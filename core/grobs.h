@@ -1,5 +1,4 @@
-#ifndef XPP_GROBS_H
-#define XPP_GROBS_H
+#pragma once
 
 #include "xpp_types.h"
 #include "xpplim.h"
@@ -92,4 +91,3 @@ void do_windows_com(Session &s, int c);
 void set_restore(Session &s, int flag);
 
 } // namespace xpp
-#endif

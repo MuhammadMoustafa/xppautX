@@ -1,5 +1,4 @@
-#ifndef _command_table_h_
-#define _command_table_h_
+#pragma once
 
 /* The one table of commands (W207, docs/command-design.md): every item of the
    three main-window menus once, with the stable id the protocol and
@@ -193,4 +192,3 @@ constexpr const CommandRow *layer_entry(int which)
 
 }  // namespace xpp
 
-#endif

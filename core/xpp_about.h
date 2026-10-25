@@ -1,8 +1,7 @@
 /* The About text (W107, W224): the one place it is written. The desktop
    window's Help > About box shows it and hello's "about" carries the same
    lines to the page's Help > About, so they cannot differ. */
-#ifndef XPP_ABOUT_H
-#define XPP_ABOUT_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -34,4 +33,3 @@ bool xpp_about_has_link(std::string_view url);
 /* what --version prints after "xppautX ": the release tag, or "dev" */
 const char *xpp_version_string();
 
-#endif

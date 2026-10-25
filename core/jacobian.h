@@ -1,5 +1,4 @@
-#ifndef _jacobian_h_
-#define _jacobian_h_
+#pragma once
 
 #include <array>
 #include <vector>
@@ -103,4 +102,3 @@ void exact_constant_derivative(const Session &s, JacobianScratch &scratch, const
 void exact_time_derivative(const Session &s, JacobianScratch &scratch, const double *c, double t, const double *x, const double *f, int n, double *out);
 
 } // namespace xpp
-#endif

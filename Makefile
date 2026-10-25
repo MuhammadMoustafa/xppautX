@@ -30,8 +30,7 @@ ifeq ($(RELEASE),1)
 OPT     = -O2 -flto=auto
 RELEASE_LD = -O2 -flto=auto
 endif
-DEFS     = -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES \
-           -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)
+DEFS     = -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)
 # what `xppautX --version` prints: the release tag (release.yml sets
 # XPP_VERSION), else git describe
 XPPAUTX_VERSION ?= $(or $(XPP_VERSION),$(shell git describe --tags --always 2>/dev/null),dev)

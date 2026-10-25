@@ -259,7 +259,7 @@ void j_browser_changed(int)
     plot_data_changed();
     session.state_dirty = 1;
     session.browser_dirty = 1;
-    aplot_changed(); /* X11 redraws an auto-redrawn array plot on expose */
+    aplot_changed();
 }
 
 /* {"cmd":"browser","op":"load"|"write",...}: Save data's and Load's
@@ -438,7 +438,7 @@ std::string field_key(const std::string &kind, const std::string &name, int inde
 }
 
 /* one value of a "set": {"kind":"par|ic|bc|delay|num","name":...,"value":number
-   or "text":...}. Text is what the user would type in the X11 box: a number
+   or "text":...}. Text is what the user would type in the value's box: a number
    or %formula for parameters and ICs, an expression for BCs and delays; for
    the numerics (num, W106) a number, or a method's name, the field named by
    its key (numerics_settings.h). Checks it all and changes nothing: the

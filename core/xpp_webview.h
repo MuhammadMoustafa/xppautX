@@ -1,5 +1,4 @@
-#ifndef XPP_WEBVIEW_H
-#define XPP_WEBVIEW_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -30,4 +29,3 @@ std::string webview_json_value(const std::string &json, std::string_view key, in
 std::string webview_json_quote(const std::string &s);
 
 } // namespace xpp
-#endif

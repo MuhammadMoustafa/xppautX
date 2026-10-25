@@ -1,5 +1,4 @@
-#ifndef _userbut_h_
-#define _userbut_h_
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -19,4 +18,3 @@ struct USERBUT {
 void add_user_button(Session &s, std::string_view spec);
 
 } // namespace xpp
-#endif

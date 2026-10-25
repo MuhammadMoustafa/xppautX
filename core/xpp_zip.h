@@ -1,5 +1,4 @@
-#ifndef XPP_ZIP_H
-#define XPP_ZIP_H
+#pragma once
 
 /* Compression, the one module for it (xpp_zip.cpp, over the vendored
    third_party/miniz, which no other file includes): gzip (RFC 1952) and
@@ -47,4 +46,3 @@ std::optional<std::vector<Entry>> read_zip(std::string_view zip);
 
 } // namespace xpp::zip
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef PHASE_DATA_H
-#define PHASE_DATA_H
+#pragma once
 
 #include <array>
 #include <string_view>
@@ -124,4 +123,3 @@ void phase_data_flow_step(Session &s, int ncurves, const float *ox, const float 
                           const float *y, const int *color);
 
 } // namespace xpp
-#endif

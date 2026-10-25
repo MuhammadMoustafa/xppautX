@@ -1,5 +1,4 @@
-#ifndef AUTO_SETTINGS_H
-#define AUTO_SETTINGS_H
+#pragma once
 #include <stddef.h>
 #include <array>
 #include <vector>
@@ -126,4 +125,3 @@ int auto_settings_apply(Session &s, const AutoSettingsSet &set, std::string &why
 bool auto_settings_check(const Session &s, const AutoSettingsSet &set, int views, std::string &why, std::string &key);
 
 } // namespace xpp
-#endif

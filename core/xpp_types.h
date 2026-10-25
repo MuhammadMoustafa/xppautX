@@ -1,5 +1,4 @@
-#ifndef XPP_TYPES_H
-#define XPP_TYPES_H
+#pragma once
 
 /*
  * Opaque window handle stored inside core data structures (GRAPH, CURVE,
@@ -13,4 +12,3 @@ typedef unsigned long XppWinId;
 #define WIN_ANI 104
 #define WIN_APLOT 105
 
-#endif

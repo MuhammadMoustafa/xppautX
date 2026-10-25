@@ -1,5 +1,4 @@
-#ifndef _odesol2_h_
-#define _odesol2_h_
+#pragma once
 
 namespace xpp {
 
@@ -23,4 +22,3 @@ int rosen(Session &s, double *y, double *tstart, double tfinal, int *istart, int
 void get_the_jac(Session &s, double t, double *y, double *yp, double *dfdy, int neq, double eps, double scal);
 
 } // namespace xpp
-#endif

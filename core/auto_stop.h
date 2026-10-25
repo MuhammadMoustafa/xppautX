@@ -1,10 +1,9 @@
-#ifndef AUTO_STOP_H
-#define AUTO_STOP_H
+#pragma once
 
 /* Why AUTO ended a branch (docs/ui-v2.md T23, docs/protocol.md "The AUTO
    diagram as data", `autoinfo` `stop`): a parameter or norm limit, the
    point count, the user's Stop, a Mark value set to stop, or no
-   convergence. AUTO itself only labels the end EP or MX; autlib1.c's
+   convergence. AUTO itself only labels the end EP or MX; autlib1.cpp's
    stplae and stplbv, which decide that the branch ends, report the point
    here, and the places that write fort.9's "No convergence" NOTEs say
    which one it was. Nothing here changes what AUTO computes: it only
@@ -92,12 +91,8 @@ struct AutoStopInfo {
 };
 void auto_stop_last(const AutoStop &st, AutoStopInfo *out);
 
-/* the key of an AutoStopWhy ("parmax", ...), or NULL out of range */
-const char *auto_stop_key(int why);
-
 /* the branch ended at `at` in the session s's run: record why (its
    parameter by the name s gives it) and write it in AUTO's Output */
 void auto_stop_branch_end(Session &s, const AutoStopAt *at);
 
 } // namespace xpp
-#endif

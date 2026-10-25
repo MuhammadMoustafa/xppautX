@@ -27,6 +27,8 @@ import re
 import sys
 from pathlib import Path
 
+import cstrip
+
 ROOT = Path(__file__).resolve().parent.parent
 CORE = ROOT / "core"
 
@@ -94,18 +96,10 @@ CONTROL_KW = {
     "struct", "class", "union", "enum", "extern", "typedef",
 }
 
-C_COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)
-CPP_COMMENT_RE = re.compile(r"//.*")
 STRING_RE = re.compile(r'"(?:\\.|[^"\\])*"')
 CHAR_RE = re.compile(r"'(?:\\.|[^'\\])*'")
 IDENT_RE = re.compile(r"\b[A-Za-z_]\w*\b")
 NUMBER_RE = re.compile(r"\b\d[\d.eEfFuUlLxX]*\b")
-
-
-def strip_comments(text: str) -> str:
-    text = C_COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), text)
-    text = CPP_COMMENT_RE.sub("", text)
-    return text
 
 
 def mask_literals(text: str) -> str:
@@ -240,7 +234,7 @@ def find_duplicated_functions(files: list[Path]):
         if path.suffix not in (".cpp", ".h"):
             continue
         raw = path.read_text(encoding="utf-8", errors="replace")
-        stripped = strip_comments(raw)
+        stripped = cstrip.strip_comments(raw)
         stripped = mask_literals(stripped)
         lines = stripped.split("\n")
         for name, s, e in extract_functions(path, lines):
@@ -285,7 +279,7 @@ def find_duplicated_blocks(files: list[Path]):
     file_lines: dict[Path, list[tuple[int, str]]] = {}
     for path in files:
         raw = path.read_text(encoding="utf-8", errors="replace")
-        stripped = strip_comments(raw)
+        stripped = cstrip.strip_comments(raw)
         entries = []
         for i, line in enumerate(stripped.split("\n"), start=1):
             norm = normalise_line(line)
@@ -379,7 +373,7 @@ def find_duplicated_structs(files: list[Path]):
     names: dict[str, list[tuple[Path, int]]] = {}
     for path in files:
         raw = path.read_text(encoding="utf-8", errors="replace")
-        stripped = strip_comments(raw)
+        stripped = cstrip.strip_comments(raw)
         lines = stripped.split("\n")
         depth = 0
         struct_start_depth = None

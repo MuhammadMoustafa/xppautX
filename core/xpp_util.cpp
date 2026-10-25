@@ -1,5 +1,4 @@
-/* Pure helpers that used to live in X11 source files (init_conds.c,
-   aniparse.c, graf_par.c, calc.c, many_pops.c, main.c). Nothing here
+/* Pure helpers: graph bookkeeping, parameters, time. Nothing here
    touches a window. */
 #include <cmath>
 #include "model.h"
@@ -51,7 +50,7 @@ namespace xpp {
 #define IC 2
 #define REAL_SMALL 1.e-6
 
-/* ---- graph bookkeeping (was many_pops.c / main.c) ----------------------- */
+/* ---- graph bookkeeping ----------------------------------------------- */
 
 void create_a_pop(Session &s)
 {
@@ -125,10 +124,6 @@ void clr_scrn(xpp::Session &s)
     ui.blank_draw_window(s);
     do_axes(s);
 }
-
-/* ---- moved function bodies follow (appended by tools/move_funcs.py) ---- */
-
-/* new_parameter, set_default_params: from init_conds.c */
 
 std::string utc_now()
 {

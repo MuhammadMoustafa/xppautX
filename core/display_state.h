@@ -1,5 +1,4 @@
-#ifndef XPP_DISPLAY_STATE_H
-#define XPP_DISPLAY_STATE_H
+#pragma once
 /* What the page displays, held by the core (W65, docs/ui-v2.md "Display
    state"): each plot window's earlier runs until Erase, the zoom shown and
    whether the earlier runs are drawn; AUTO's hidden branches and zoom.
@@ -74,4 +73,3 @@ struct AutoView {
 };
 
 } // namespace xpp
-#endif

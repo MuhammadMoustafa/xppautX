@@ -1,5 +1,4 @@
-#ifndef _graphics_h
-#define _graphics_h
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -89,4 +88,3 @@ int clip(const DrawingState &d, float x1, float x2, float y1, float y2, float *x
          float *y2_out);
 
 } // namespace xpp
-#endif

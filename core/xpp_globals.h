@@ -1,8 +1,6 @@
-#ifndef XPP_GLOBALS_H
-#define XPP_GLOBALS_H
+#pragma once
 
-/* What this run of the program is. The rest of the state main.c and the
-   X11 files once defined now lives with the module that owns it (batch
+/* What this run of the program is. The rest of the state lives with the module that owns it (batch
    options in xpp_batch.h, logging in xpp_log.h, the plot windows in
    many_pops.h, and so on; AGENTS.md lists them). Defined in
    xpp_globals.cpp, which has no UI dependency. C++ (a std::string
@@ -17,4 +15,3 @@ struct XppProgram {
 };
 extern XppProgram program;
 
-#endif

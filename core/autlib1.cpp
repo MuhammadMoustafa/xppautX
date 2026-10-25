@@ -6610,7 +6610,7 @@ pvlsbv(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 
 
 void allocate_global_memory(const iap_type iap) {
-    /* assign: zeroed, like the xpp_malloc it replaces */
+    /* assign: zeroed */
     iap.lib->scratch.dfu.assign(xpp::size_product(iap.ndim, iap.ndim), 0.);
     iap.lib->scratch.dfp.assign(xpp::size_product(iap.ndim, iap.lib->parameter_count), 0.);
     iap.lib->scratch.uu1.assign(iap.ndim, 0.);

@@ -6,8 +6,7 @@
    inline rather than split into its own translation unit. The shared path
    walk is implemented by xpp_files.cpp. C++ only,
    internal to the two xpp_files*.cpp files (never a public header). */
-#ifndef XPP_FILES_INTERNAL_H
-#define XPP_FILES_INTERNAL_H
+#pragma once
 
 #ifndef __cplusplus
 #error "xpp_files_internal.h is C++ only"
@@ -81,4 +80,3 @@ inline constexpr char SEP = '/';
 #endif
 
 } // namespace xpp::files
-#endif

@@ -1,5 +1,4 @@
-#ifndef XPP_MATH_H
-#define XPP_MATH_H
+#pragma once
 
 /* The core's numerics toolbox (xpp_math.cpp, W32a): the one place for the
    Fourier transform, random numbers, the dense and banded linear solves,
@@ -300,4 +299,3 @@ double bessel_i_scaled(double n, double x);
 
 } // namespace xpp
 
-#endif

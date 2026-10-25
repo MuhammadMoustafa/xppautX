@@ -1,12 +1,10 @@
-#ifndef XPP_JOB_H
-#define XPP_JOB_H
+#pragma once
 
 /* The cancel token of a running computation (xpp_job.cpp), in namespace
    xpp::job (W109f).
 
    The core computes on the main thread. A "job" is one command being carried
-   out: the JSON front end runs every protocol command as a job, the X11 front
-   end an integration or an AUTO run. Abort (and Quit) can come from another
+   out: the JSON front end runs every protocol command as a job. Abort (and Quit) can come from another
    thread at any moment: the protocol's reader threads call job::cancel()
    as soon as the line arrives, and the computation sees it at its next
    job::cancelled() or checkpoint, without the front end having to read
@@ -209,4 +207,3 @@ struct Job {
 };
 
 } // namespace xpp
-#endif

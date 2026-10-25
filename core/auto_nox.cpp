@@ -408,7 +408,7 @@ void close_auto(xpp::Session &s, int flg) /* labels compatible with A2K  */
 
 /* AUTO writes fort.3/7/8/9 under HOME. A HOME that is set but unusable
    (missing, not writable) must fall back to the model's directory like an
-   unset one, or the opens fail deep inside autlib1.c. */
+   unset one, or the opens fail deep inside autlib1.cpp. */
 static const char *auto_home_dir(xpp::Session &s, char *dname)
 {
   const char *home;

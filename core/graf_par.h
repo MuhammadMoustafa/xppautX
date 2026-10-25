@@ -1,5 +1,4 @@
-#ifndef _graf_par_h_
-#define _graf_par_h_
+#pragma once
 
 #include "xpplim.h"
 #include "xpp_types.h"
@@ -138,4 +137,3 @@ struct XppPlotExport {
 };
 
 } // namespace xpp
-#endif

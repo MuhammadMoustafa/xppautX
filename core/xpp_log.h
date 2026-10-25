@@ -33,8 +33,7 @@
    C++ linkage in namespace xpp (W109a); the level stays the plain enum
    XppLogLevel, which the window library's C table names too
    (xpp_window_plugin.h). */
-#ifndef XPP_LOG_H
-#define XPP_LOG_H
+#pragma once
 
 #include <atomic>
 #include <cstdio> /* first, so MinGW's libstdc++ picks its C99 printf */
@@ -121,7 +120,6 @@ private:
     LogCapture *outer_;
 };
 
-#ifdef XPP_IO_HAVE_STD_FORMAT
 /* The checked calls below and the window library's callback share this
    formatting and delivery path. The caller writes the newline. */
 void log_message(XppLogLevel level, std::string_view fmt, std::format_args args) noexcept;
@@ -145,7 +143,5 @@ void log_auto(std::format_string<Args...> fmt, Args &&...args) noexcept
     xpp::with_format_args([&fmt](std::format_args a) { log_auto_message(fmt.get(), a); },
                           std::forward<Args>(args)...);
 }
-#endif
 } // namespace xpp
 
-#endif

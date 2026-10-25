@@ -19,6 +19,8 @@ import os
 import re
 import sys
 
+import cstrip
+
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 TABLE = "core/model_options.cpp"
 BASELINE = "tests/option_names.baseline"
@@ -30,34 +32,9 @@ def read(path):
         return f.read().replace("\r\n", "\n")
 
 
-def strip_comments(text):
-    """text with /* */ and // comments blanked, string and char literals kept"""
-    out, i, n = [], 0, len(text)
-    while i < n:
-        c = text[i]
-        if c in "\"'":
-            j = i + 1
-            while j < n and text[j] != c:
-                j += 2 if text[j] == "\\" else 1
-            out.append(text[i:j + 1])
-            i = j + 1
-        elif text.startswith("/*", i):
-            j = text.find("*/", i + 2)
-            j = n if j < 0 else j + 2
-            out.append("\n" * text.count("\n", i, j))
-            i = j
-        elif text.startswith("//", i):
-            j = text.find("\n", i)
-            i = n if j < 0 else j
-        else:
-            out.append(c)
-            i += 1
-    return "".join(out)
-
-
 def table_words():
     """(names lower case, numerics keys) the table spells"""
-    t = strip_comments(read(TABLE))
+    t = cstrip.strip_comments(read(TABLE))
     names = set(m.lower() for m in re.findall(r'\.name = "([A-Za-z_0-9]+)"', t))
     names |= set(m.lower() for m in re.findall(r'\.alias = "([A-Za-z_0-9]+)"', t))
     for group in re.findall(r'\.xppaut_names = \{([^}]*)\}', t):
@@ -81,7 +58,7 @@ def sites():
         rel = os.path.relpath(path, ROOT).replace("\\", "/")
         if rel == TABLE:
             continue
-        for number, line in enumerate(strip_comments(read(rel)).split("\n"), 1):
+        for number, line in enumerate(cstrip.strip_comments(read(rel)).split("\n"), 1):
             for call in CALL.finditer(line):
                 for m in re.finditer(r'"([A-Za-z_0-9]+)"', call.group(1)):
                     if m.group(1).lower() in words:
@@ -104,7 +81,7 @@ def baseline():
 
 def page_problems():
     _, keys = table_words()
-    text = strip_comments(read(PAGE_KEYS))
+    text = cstrip.strip_comments(read(PAGE_KEYS))
     bad = []
     for m in re.finditer(r"export const ([^;]*);", text):
         for name, key in re.findall(r"(NUM_[A-Z_]+) = '([a-z_0-9]+)'", m.group(1)):

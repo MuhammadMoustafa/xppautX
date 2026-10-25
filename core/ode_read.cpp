@@ -336,8 +336,8 @@ std::string array_written(std::string_view line, int i1, int i2)
 int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end, Parsed &p);
 
 /* no exception crosses into C: the only one parse_model() can throw is
-   std::bad_alloc, and running out of memory ends the program, as
-   xpp_malloc() does */
+   std::bad_alloc, and running out of memory ends the program
+   (xpp::out_of_memory) */
 int do_new_parser(LineSource &src, const std::string &first, int nnn, bool at_end, Parsed &p)
 {
   if (p.included > xpp::odex::max_include_depth)

@@ -1,5 +1,4 @@
-#ifndef _arrayplot_h_
-#define _arrayplot_h_
+#pragma once
 
 #include "xpplim.h"
 #include "xpp_io.h"
@@ -63,4 +62,3 @@ struct ArrayPlotState {
   bool save_cancelled = false; /* stop later frame saves after a declined/failed frame */
   std::string range_stem;
 };
-#endif

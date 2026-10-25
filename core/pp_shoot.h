@@ -1,5 +1,4 @@
-#ifndef _pp_shoot_h_
-#define _pp_shoot_h_
+#pragma once
 
 #include <cstdio>
 #include <string_view>
@@ -42,4 +41,3 @@ Result<> bvshoot(Session &s, double *y, double *yend, double err, double eps, in
 void init_shoot_range(Session &s, std::string_view item);
 
 } // namespace xpp
-#endif

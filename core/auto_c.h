@@ -1,5 +1,4 @@
-#ifndef AUTO_C_H
-#define AUTO_C_H
+#pragma once
 /* AUTO's own API between its files (autlib1-3/5, conpar2,
    setubv2) and the AUTO front end (gogoauto, auto_nox, autevd). */
 #include <stdio.h>
@@ -163,7 +162,7 @@ typedef struct {
   autoae_function_list aelist;
 } function_list;
 
-/* autlib1.c */
+/* autlib1.cpp */
 void allocate_global_memory(const iap_type);
 int chdim(iap_type *iap);
 int autoae(iap_type *iap, rap_type *rap, doublereal *par, 
@@ -267,7 +266,7 @@ int wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublere
 int wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rlcur, integer *ndxloc, doublereal *ups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu);
 PVLI_TYPE_AE(pvlsae);
 PVLI_TYPE_BVP(pvlsbv);
-/* autlib2.c */
+/* autlib2.cpp */
 int solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *rds, integer *nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu);
 int faft(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *ndxloc);
 int setrhs(integer *ndim, xpp::AutoProblem *ips, integer *na, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1);
@@ -278,7 +277,7 @@ int copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a,
 int cpyrhs(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa, integer *irf);
 int dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *a1, doublereal *a2, doublereal *faa, doublereal *bb);
 int print1(FILE *fp9, integer *nov, integer *na, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc);
-/* autlib3.c */
+/* autlib3.cpp */
 FUNI_TYPE(fnlp);
 int fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp);
 STPNT_TYPE_AE(stpnlp);
@@ -341,7 +340,7 @@ FUNI_TYPE(funi);
 BCNI_TYPE(bcni);
 ICNI_TYPE(icni);
 int fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp);
-/* autlib5.c */
+/* autlib5.cpp */
 FUNI_TYPE(fnho);
 int ffho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp);
 BCNI_TYPE(bcho);
@@ -409,4 +408,3 @@ int go_go_auto(xpp::Session &s);
 /* autlib1.cpp: fills thu (ndim*8 entries, each 1.) that thu_vec owns;
    thu_vec.data() is what the AE/BVP solves take as their doublereal *thu */
 int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, std::span<AutoMark> marks);
-#endif

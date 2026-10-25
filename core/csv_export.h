@@ -1,5 +1,4 @@
-#ifndef _csv_export_h_
-#define _csv_export_h_
+#pragma once
 
 #include "xpp_error.h"
 
@@ -43,4 +42,3 @@ xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const ch
    data, its error returned too). */
 xpp::Result<bool> csv_export_diagram_pair(const xpp::Session &s, const char *filename);
 
-#endif

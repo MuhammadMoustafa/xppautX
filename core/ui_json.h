@@ -1,5 +1,4 @@
-#ifndef XPP_UI_JSON_H
-#define XPP_UI_JSON_H
+#pragma once
 
 #include <optional>
 #include <string>
@@ -62,4 +61,3 @@ std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
 void json_ui_play_launched(Session &s, const std::string &path);
 
 } // namespace xpp
-#endif

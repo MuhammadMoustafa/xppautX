@@ -1,7 +1,7 @@
 #include "mykeydef.h"
 /* Text labels, arrows, pointers and markers drawn on the plot windows, and
-   the Text,etc and Makewindow commands. Moved out of many_pops.c (X11);
-   the window handling itself stays in the front end. What draw_label draws
+   the Text,etc and Makewindow commands. The window
+   handling itself is the front end's. What draw_label draws
    is also reported as data (marks_data.h). */
 #include "xpp_ui.h"
 #include "session.h"

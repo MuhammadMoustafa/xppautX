@@ -1,5 +1,4 @@
-#ifndef AUTO_CODIM_H
-#define AUTO_CODIM_H
+#pragma once
 #include <vector>
 #include "auto_codes.h"
 
@@ -24,4 +23,3 @@ bool auto_torus_near_one_to_one(double angle);
 bool auto_torus_singular(double angle);
 
 }
-#endif

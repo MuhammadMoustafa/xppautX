@@ -1,5 +1,4 @@
-#ifndef _many_pops_h
-#define _many_pops_h
+#pragma once
 
 #include "grobs.h"
 
@@ -18,4 +17,3 @@ struct XppPlotWindows {
 };
 
 } // namespace xpp
-#endif

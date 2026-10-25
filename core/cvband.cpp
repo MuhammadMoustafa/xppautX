@@ -229,8 +229,7 @@ void CVBand(void *cvode_mem, integer mupper, integer mlower, CVBandJacFn bjac,
   lfree  = CVBandFree;
   
   /* The record behind cv_mem's opaque void *lmem, deleted by CVBandFree
-     below; value-initialised (zeroed), as the xpp_malloc block it
-     replaces was. */
+     below; value-initialised (zeroed). */
   lmem = cvband_mem = new CVBandMemRec();
 
   /* Set Jacobian routine field to user's bjac or CVBandDQJac */

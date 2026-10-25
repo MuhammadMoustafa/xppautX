@@ -1,5 +1,4 @@
-#ifndef XPP_INBOX_H
-#define XPP_INBOX_H
+#pragma once
 
 #include <cstddef>
 #include <functional>
@@ -118,4 +117,3 @@ enum class Took {
 Took next(From which, int wait_ms, std::string &line, unsigned long &seq, bool &refused);
 
 } // namespace xpp::inbox
-#endif

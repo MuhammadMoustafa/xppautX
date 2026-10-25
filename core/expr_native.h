@@ -1,5 +1,4 @@
-#ifndef XPP_EXPR_NATIVE_H
-#define XPP_EXPR_NATIVE_H
+#pragma once
 #include "xpp_error.h"
 #include <vector>
 namespace xpp {
@@ -24,4 +23,3 @@ Result<std::vector<Error>> compile_model(Session &s);
    why. Every user of Model::jacobian calls this first. */
 bool ensure_exact_jacobian(Session &s);
 }
-#endif

@@ -1,5 +1,4 @@
-#ifndef _newpars_h
-#define _newpars_h
+#pragma once
 
 #include "xpplim.h"
 
@@ -28,4 +27,3 @@
 #define VECTOR 28
 
 
-#endif

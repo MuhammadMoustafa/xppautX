@@ -1,5 +1,4 @@
-#ifndef XPP_SOLVER_H
-#define XPP_SOLVER_H
+#pragma once
 /* The integration methods (W51): one xpp::Solver per method, found in an
    explicit registry table (solver.cpp) by the number the model's METHOD
    option, the numerics menu and .set files use. A Solver owns its work
@@ -145,4 +144,3 @@ void start_solver(Session &s);
 
 } // namespace xpp
 
-#endif

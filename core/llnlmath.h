@@ -18,8 +18,7 @@
  ******************************************************************/
 
 
-#ifndef _llnlmath_h
-#define _llnlmath_h
+#pragma once
 
 
 #include "llnltyps.h"
@@ -110,7 +109,6 @@ real RSqrt(real x);
 
 #ifdef __cplusplus
 }
-#endif
 #endif
 
 

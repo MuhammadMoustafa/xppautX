@@ -41,42 +41,11 @@ import os
 import re
 import sys
 
+import cstrip
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINE = os.path.join(ROOT, 'tests', 'errors.baseline')
 OWNERS = {'core/xpp_error.h', 'core/xpp_ui.cpp', 'core/json_prompts.cpp'}
-
-
-def strip(text):
-    """comments removed, string and character literals emptied, newlines kept"""
-    out, i, n = [], 0, len(text)
-    while i < n:
-        c = text[i]
-        if text.startswith('//', i):
-            while i < n and text[i] != '\n':
-                i += 1
-        elif text.startswith('/*', i):
-            j = text.find('*/', i + 2)
-            j = n if j < 0 else j + 2
-            out.append('\n' * text.count('\n', i, j))
-            i = j
-        elif c in '"\'':
-            if c == '"' and i > 0 and text[i - 1] == 'R':
-                # a raw string R"d(...)d"
-                m = re.match(r'"([^(]*)\(', text[i:])
-                end = text.find(')' + m.group(1) + '"', i) if m else -1
-                if end >= 0:
-                    out.append('""' + '\n' * text.count('\n', i, end))
-                    i = end + len(m.group(1)) + 2
-                    continue
-            j = i + 1
-            while j < n and text[j] != c:
-                j += 2 if text[j] == '\\' else 1
-            out.append(c + c)
-            i = j + 1
-        else:
-            out.append(c)
-            i += 1
-    return ''.join(out)
 
 
 def args_at(text, i):
@@ -129,7 +98,7 @@ DEFINITION = re.compile(r'(?:void|int|bool|Error|Result<[^>]*>)\s*[&*]?\s*$')
 def sites(path):
     rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
     with open(path, encoding='utf-8', errors='replace') as f:
-        text = strip(f.read())
+        text = cstrip.strip(f.read())
     with open(path, encoding='utf-8', errors='replace') as f:
         lines = f.read().split('\n')
     found = []

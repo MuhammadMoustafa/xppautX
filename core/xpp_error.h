@@ -1,5 +1,4 @@
-#ifndef XPP_ERROR_H
-#define XPP_ERROR_H
+#pragma once
 /* xpp::Error: an error as a value, and where it is (W63b, W63c; one type
    since W140). C++ only. Every way of reporting one takes it: show_error
    and command_error (xpp_ui.h), a load that fails (xpp::load_model and
@@ -115,4 +114,3 @@ private:
 
 } // namespace xpp
 
-#endif

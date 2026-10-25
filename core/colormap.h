@@ -1,5 +1,4 @@
-#ifndef XPP_COLORMAP_H
-#define XPP_COLORMAP_H
+#pragma once
 
 namespace xpp {
 
@@ -34,4 +33,3 @@ void get_ps_color(int i, float *r, float *g, float *b);
 void get_svg_color(int i, int *r, int *g, int *b);
 
 } // namespace xpp
-#endif

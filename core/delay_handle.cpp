@@ -163,9 +163,8 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
  int i,j;
  int len;
 
- /* del_form's per-node formula buffers are RAII now (std::vector), so
-    every return path below frees them automatically -- no more manual
-    xpp_free loops paired to each early-exit. */
+ /* del_form's per-node formula buffers are std::vectors: every return
+    path below frees them. */
  std::vector<std::vector<int>> del_form(s.model().node);
  /* Allocation proves the ratio and all history indices representable. */
  if(!s.delay.flag)return xpp::fail("delay","Delay history is not allocated",model_place(s.model(),"delay"));

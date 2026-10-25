@@ -1,5 +1,4 @@
-#ifndef NUMERICS_SETTINGS_H
-#define NUMERICS_SETTINGS_H
+#pragma once
 
 #include <cstddef>
 #include <string>
@@ -75,4 +74,3 @@ void setting_write(Session &s, const OptionRow &row, std::string_view text);
 bool numerics_settings_ask(Session &s, std::string_view key);
 
 } // namespace xpp
-#endif

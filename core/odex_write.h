@@ -1,5 +1,4 @@
-#ifndef XPP_ODEX_WRITE_H
-#define XPP_ODEX_WRITE_H
+#pragma once
 /* .odex text written, and a model file's text edited with the rest of it
    kept as written (W320, docs/studies/w309-values-design/sets-design.md
    section 9). C++ only.
@@ -122,4 +121,3 @@ std::string export_header(std::string_view file, std::string_view time);
 
 }
 
-#endif

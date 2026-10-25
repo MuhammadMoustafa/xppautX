@@ -20,8 +20,6 @@
 #include "my_rhs.h"
 
 namespace xpp {
-#define MAX(a,b) ((a)>(b)?(a):(b))
-#define MIN(a,b) ((a)<(b)?(a):(b))
 
 /*  This is an implicit solver for volterra integral and integro-differential
     equations.  It is based on code found in Peter Linz's book
@@ -304,8 +302,8 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
  int n1=s.model().node+1;
  double dt2=.5*dt,err;
  double del,yold,fac,delinv;
- i0=MAX(0,s.volterra.current_point-s.numerics.max_points);
- iend=MIN(s.volterra.current_point-1,s.numerics.max_points-1);
+ i0=std::max(s.volterra.current_point-s.numerics.max_points,0);
+ iend=std::min(s.numerics.max_points-1,s.volterra.current_point-1);
  ishift=i0%s.numerics.max_points;
  init_sums(s,s.numerics.start_time,s.volterra.current_point,dt,i0,iend,ishift); /*  initialize all the sums */
  s.volterra.kn_flag=0;
@@ -332,7 +330,7 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
    }
    /*   Compute Jacobian     */
    for(i=0;i<s.model().node;i++){
-     del=s.numerics.singpt_jacobian_epsilon*MAX(s.numerics.singpt_jacobian_epsilon,fabs(yg[i]));
+     del=s.numerics.singpt_jacobian_epsilon*std::max(fabs(yg[i]),s.numerics.singpt_jacobian_epsilon);
      yold=yg[i];
      yg[i]+=del;
      delinv=1./del;
@@ -357,7 +355,7 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
    err=0.0;
    xpp::sgesl(jac,s.model().node,s.model().node,ipivot,errvec);
    for(i=0;i<s.model().node;i++){
-	err=MAX(fabs(errvec[i]),err);
+	err=std::max(err,fabs(errvec[i]));
 	yg[i]-=errvec[i];
       }
    if(err<s.numerics.eul_tol) break;

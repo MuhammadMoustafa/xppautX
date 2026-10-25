@@ -1,5 +1,4 @@
-#ifndef _kinescope_h_
-#define _kinescope_h_
+#pragma once
 
 /* The kinescope, a Session's (session.h): the frames it holds (the front
    end keeps their pictures) and Autoplay's settings, how many times it
@@ -16,5 +15,4 @@ struct Session; /* session.h */
 
 /* the Kinescope menu's item c on s's kinescope (commands.cpp) */
 void do_movie_com(xpp::Session &s, int c);
-#endif
 

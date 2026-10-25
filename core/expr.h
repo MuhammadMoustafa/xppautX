@@ -1,5 +1,4 @@
-#ifndef XPP_EXPR_H
-#define XPP_EXPR_H
+#pragma once
 /* The expression engine: a model's formulas, compiled once as it loads and
    evaluated at every step. Four files, one job each:
 
@@ -170,16 +169,11 @@ struct ParserState {
     if (symbols.size() < static_cast<size_t>(nsym) + 3) symbols.resize(2 * symbols.size());
   }
   ExprStack stack;
-  /* --convert's rewrite of the old-style file being read (form_ode.cpp,
-     markov.cpp), open while it is read */
-  Writer convert;
-  /* the Model builder's count of variables read (in_vars), the named
-     auxiliary variables (naux of aux_names) and the fixed variables'
-     names (form_ode.cpp) */
+  /* the Model builder's count of variables read (in_vars) and the named
+     auxiliary variables (naux of aux_names) (form_ode.cpp) */
   struct {
     int in_vars = 0, naux = 0;
     std::vector<std::string> aux_names; /* the n-th aux name (naux of them) */
-    std::vector<std::string> fixname;   /* the n-th fixed variable's name (--convert) */
   } build;
 private:
   void sync_symbols() const;
@@ -189,4 +183,3 @@ private:
 };
 
 } // namespace xpp
-#endif

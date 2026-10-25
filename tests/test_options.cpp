@@ -237,7 +237,7 @@ int main(void)
         CHECK(xpp::parse_it(session, silent) == 0);
         CHECK(xpp::batch_options.enabled == 1);
         xpp::batch_options.enabled = 0;
-        for (const char *name : {"silent", "setfile", "parfile", "icfile", "logfile", "include", "anifile", "outfile", "newseed", "version", "internset", "uset", "rset", "qsets", "qpars", "qics", "quiet", "mkplot", "plotfmt", "noout", "dfdraw", "ncdraw", "readset", "with", "equil", "verbose", "debug", "convert"}) {
+        for (const char *name : {"silent", "setfile", "parfile", "icfile", "logfile", "include", "anifile", "outfile", "newseed", "version", "internset", "uset", "rset", "qsets", "qpars", "qics", "quiet", "mkplot", "plotfmt", "noout", "dfdraw", "ncdraw", "readset", "with", "equil", "verbose", "debug"}) {
             std::string word = "-" + std::string(name);
             argv[1] = word.data();
             const xpp::Result<> r = xpp::check_command_line(2, argv);

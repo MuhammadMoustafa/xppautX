@@ -1,5 +1,4 @@
-#ifndef _load_eqn_h_
-#define _load_eqn_h_
+#pragma once
 
 #include <stdio.h>
 #include "xpplim.h"
@@ -15,25 +14,6 @@
 #include <string_view>
 #include <utility>
 #include <vector>
-#include <vector>
-
-/*
-The acutual max filename length is determined by the 
-FILENAME_MAX (see <stdio.h>), and usually 4096 -- but
-this is huge and usually overkill.  On the otherhand 
-the old Xpp default string buffer size of 100 is a bit
-restricitive for lengths of filenames. You could also 
-set this define in the Makefile or at compile time to 
-override the below definition.
-*/
-
-#ifndef XPP_MAX_NAME
-#define XPP_MAX_NAME 300
-#if (XPP_MAX_NAME > FILENAME_MAX)
-	#undef XPP_MAX_NAME
-	#define XPP_MAX_NAME FILENAME_MAX
-#endif
-#endif
 
 
 namespace xpp {
@@ -223,4 +203,3 @@ Result<odex::Values> captured_values(Session &s, std::string_view scope, std::op
 odex::ValueKind value_kind(const Model &m, std::string_view name);
 
 } // namespace xpp
-#endif

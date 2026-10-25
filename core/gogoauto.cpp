@@ -82,11 +82,9 @@ int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has b
       xpp::AutoParallel::select_run(s.auto_lib, iap.ndim, iap.ntst, iap.ncol);
     else s.auto_lib.collocation.reset();
 
-    /* Create the allocations for the global structures used in 
-       autlib3.c and autlib5.c.  There are purely an efficiency thing.
-       The allocation and deallocation of these scratch areas takes
-       up a nontrivial amount of time if done directly in the
-       wrapper functions in autlib3.c*/
+    /* Size the evaluator scratch (s.auto_lib.scratch) the run reuses in
+       autlib3.cpp and autlib5.cpp: allocating it in each call takes
+       up a nontrivial amount of time. */
     allocate_global_memory(iap);
 
     /* ---------------------------------------------------------- */

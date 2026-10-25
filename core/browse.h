@@ -1,5 +1,4 @@
-#ifndef _browse_h_
-#define _browse_h_
+#pragma once
 
 #include <stdio.h>
 #include "xpp_io.h"
@@ -159,4 +158,3 @@ void data_table(const Session &s, BROWSER *b);
 void data_find(const Session &s, BROWSER *b);
 
 } // namespace xpp
-#endif

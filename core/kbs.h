@@ -1,3 +1,5 @@
+#pragma once
+
 #include "menudrive.h"
 
 namespace xpp {

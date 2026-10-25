@@ -13,8 +13,7 @@
  ******************************************************************/
 
 
-#ifndef _cvdense_h
-#define _cvdense_h
+#pragma once
 
 
 #include "cvode.h"
@@ -184,5 +183,4 @@ void CVDenseDQJac(integer N, DenseMat J, RhsFn f, void *f_data, real t,
 
 #ifdef __cplusplus
 }
-#endif
 #endif

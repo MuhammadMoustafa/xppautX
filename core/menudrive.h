@@ -1,5 +1,4 @@
-#ifndef _menudrive_h_
-#define _menudrive_h_
+#pragma once
 
 namespace xpp {
 struct Session; /* session.h */
@@ -213,4 +212,3 @@ void new_lookup(Session &s);
 void froz_cline_stuff(Session &s);
 
 } // namespace xpp
-#endif

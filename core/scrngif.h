@@ -1,5 +1,4 @@
-#ifndef _scrngif_h_
-#define _scrngif_h_
+#pragma once
 
 #include <stdio.h>
 
@@ -14,4 +13,3 @@ void end_ani_gif(FILE *fp);
 void gif_stuff_ppm(unsigned char *ppm, int w, int h, FILE *fp, int task);
 
 } // namespace xpp
-#endif

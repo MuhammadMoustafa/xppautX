@@ -1,5 +1,4 @@
-#ifndef _nullcline_h_
-#define _nullcline_h_
+#pragma once
 
 #include "xpplim.h"
 #include "setx.h"
@@ -90,4 +89,3 @@ void write_dfield(Session &s, std::string_view name);
 void set_colorization_stuff(Session &s);
 
 } // namespace xpp
-#endif

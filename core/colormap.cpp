@@ -1,6 +1,5 @@
-/* Colour table computation, split out of color.c so that PostScript and SVG
-   export (which need the RGB values) work without an X display. color.c
-   keeps the X colormap allocation and pixel lookup. */
+/* Colour table computation: PostScript and SVG export need the RGB
+   values with no display. */
 #include "colormap.h"
 #include "xpp_math.h"
 #include <math.h>

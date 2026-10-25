@@ -1,6 +1,5 @@
 
-#ifndef _tabular_h_
-#define _tabular_h_
+#pragma once
 
 #include "xpplim.h" /* MAX_TAB */
 #include "xpp_error.h"
@@ -19,8 +18,7 @@ inline constexpr int table_points_limit = 1000000;
 /* a model's table (xpp::Model's tables, model.h): file or function values y on [xlo,xhi]
    step dx; y stays a raw double* because simplenet.cpp's networks
    keep pointers into it (weights, indices, delays); y_storage owns that
-   block (tabular.cpp's resize_values), a std::vector instead of a
-   hand-paired xpp_realloc/xpp_free */
+   block (tabular.cpp's resize_values), a std::vector */
 struct TABULAR {
   double xlo=0.0,xhi=0.0,dx=0.0;
   double *y=nullptr;
@@ -67,4 +65,3 @@ Result<> create_fun_table(Session &s, int npts, double xlo, double xhi, std::str
 Result<> load_table(Session &s, std::string_view filename, int index, int model_file);
 
 } // namespace xpp
-#endif

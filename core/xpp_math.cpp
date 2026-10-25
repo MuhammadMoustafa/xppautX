@@ -53,7 +53,7 @@ namespace {
 using cplx = std::complex<double>;
 
 /* pocketfft throws only std::bad_alloc here (the shapes and strides are
-   always valid): treat it like a failed xpp_malloc, loud and fatal */
+   always valid): a loud, final exit (xpp::out_of_memory) */
 [[noreturn]] void fft_failed(const std::exception &e, size_t n)
 {
     xpp::log(XPP_LOG_ERROR, "Fourier transform of {} points failed: {}\n", n, e.what());

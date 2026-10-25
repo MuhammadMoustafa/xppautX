@@ -1,5 +1,4 @@
-#ifndef XPP_MODEL_SWITCH_H
-#define XPP_MODEL_SWITCH_H
+#pragma once
 /* File > Open model and File > Reload (W61), and File > Quit's question
    (W59d): every way of leaving a session asks the one question,
    xpp_session_may_leave. Open model and Reload: another model, or the same
@@ -134,4 +133,3 @@ void restore_values(Session &s, const KeptValues &kept);
 Session *load_requested(const Session &now, const ModelRequest &req);
 
 }
-#endif

@@ -1,5 +1,4 @@
-#ifndef _comline_h_
-#define _comline_h_
+#pragma once
 
 #include "xpp_error.h"
 #include <string>
@@ -34,4 +33,3 @@ int if_needed_select_sets(const Model &m);
 void load_command_line_values(Session &s);
 
 } // namespace xpp
-#endif

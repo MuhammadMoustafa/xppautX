@@ -1,5 +1,4 @@
-#ifndef _do_fit_h_
-#define _do_fit_h_
+#pragma once
 
 #include <string_view>
 #include "xpp_error.h"
@@ -48,4 +47,3 @@ void parse_varlist(const Session &s, std::string_view varlist, std::vector<int> 
 void parse_parlist(const Session &s, std::string_view parlist, std::vector<int> &ipars);
 
 } // namespace xpp
-#endif

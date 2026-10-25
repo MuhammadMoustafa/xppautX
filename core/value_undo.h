@@ -1,5 +1,4 @@
-#ifndef XPP_VALUE_UNDO_H
-#define XPP_VALUE_UNDO_H
+#pragma once
 /* Undo and redo of the Values edits (W210, docs/command-design.md): a
    bounded stack of snapshots of the parameters, the initial conditions
    (and a delay equation's history) and the numerics, the things model_switch.h's
@@ -38,4 +37,3 @@ bool undo_values(Session &s);
 bool redo_values(Session &s);
 
 }
-#endif

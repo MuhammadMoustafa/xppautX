@@ -1,5 +1,4 @@
-#ifndef XPP_IO_H
-#define XPP_IO_H
+#pragma once
 
 /* core/xpp_io.cpp: text formatting (xpp::format, xpp::number) and the file
    handles (xpp::LineReader, xpp::TokenReader, xpp::Writer; issue: W11
@@ -37,14 +36,8 @@
 #include "xpp_error.h" /* a file of ours that does not read (read_lines) */
 #include "xpp_files.h" /* the files the readers and writers open */
 
-#if defined(__cpp_lib_format) || (defined(__has_include) && __has_include(<format>))
-#include <format>
-#define XPP_IO_HAVE_STD_FORMAT 1
-#endif
-#if defined(__cpp_lib_to_chars) || (defined(__has_include) && __has_include(<charconv>))
 #include <charconv>
-#define XPP_IO_HAVE_TO_CHARS 1
-#endif
+#include <format>
 
 namespace xpp {
 
@@ -63,7 +56,6 @@ template <class T> constexpr T canonical_nan(T v) noexcept
     return std::isnan(v) ? std::numeric_limits<T>::quiet_NaN() : v;
 }
 
-#ifdef XPP_IO_HAVE_STD_FORMAT
 /* the format arguments of a call: a floating value is canonical_nan'd
    (a copy, kept by with_format_args for the call), any other argument is
    passed by reference as std::make_format_args does */
@@ -83,9 +75,7 @@ template <class F, class... Args> decltype(auto) with_format_args(F &&f, Args &&
     std::tuple<canonical_arg_t<Args>...> values(canonical_arg(std::forward<Args>(args))...);
     return std::apply([&f](auto &...v) { return f(std::make_format_args(v...)); }, values);
 }
-#endif
 
-#ifdef XPP_IO_HAVE_STD_FORMAT
 /* The formatting itself, compiled once, here (xpp_io.cpp): the templates
    below (and xpp::log) only check the format string against the
    arguments at compile time and pack them (std::make_format_args), so a
@@ -112,9 +102,7 @@ void format_append(std::string &out, std::format_string<Args...> fmt, Args &&...
     xpp::with_format_args([&](std::format_args a) { xpp::vformat_append(out, fmt.get(), a); },
                           std::forward<Args>(args)...);
 }
-#endif
 
-#ifdef XPP_IO_HAVE_TO_CHARS
 /* A double's shortest round-trip decimal text (std::to_chars): unlike
    "%g" it never loses precision and never needs a chosen digit count;
    prefer this in new C++ code. */
@@ -126,7 +114,6 @@ inline std::string number(double v)
         return std::string(buf.data(), r.ptr);
     return std::to_string(v); /* unreachable for a finite double in 32 bytes */
 }
-#endif
 
 /* Checked stream positions. Positions returned by tell_stream are opaque:
    seek_stream uses an absolute seek, including on Windows text streams.
@@ -313,8 +300,7 @@ void json_append_string(std::string &out, std::string_view s);
    pair combined into one code point, encoded to UTF-8) into `out`
    (cleared first), stopping at the closing '"' or the end of the input.
    At most `max` bytes are appended (SIZE_MAX for no limit); a command
-   object's fixed-size destination passes its buffer size, same as the
-   old js_string.
+   object's fixed-size destination passes its buffer size.
 
    `strict` is xpp_files' stricter rule for a file name: false for any
    other escape, control character (embedded raw or via \u), or unpaired
@@ -393,7 +379,6 @@ inline bool read_bytes(std::string_view path, std::string &out, std::size_t limi
     return read_bytes(f.get(), out, limit);
 }
 
-#ifdef XPP_IO_HAVE_STD_FORMAT
 /* fprintf's type-checked counterpart: std::format into fp, for a stream
    that stays a FILE * (AUTO's fort.7/8/9, written while it runs, and the
    helpers that are handed one); a Writer prints with its own print().
@@ -405,7 +390,6 @@ void print(FILE *fp, std::format_string<Args...> fmt, Args &&...args) noexcept
                                                std::forward<Args>(args)...);
     if (fp) std::fwrite(s.data(), 1, s.size(), fp);
 }
-#endif
 
 /* ---- the file handles ---------------------------------------------------
    A line reader and a token reader replace the fgets/fscanf/feof loops
@@ -526,13 +510,11 @@ public:
     Writer &operator=(Writer &&o) noexcept;
     explicit operator bool() const noexcept { return state_ != nullptr; }
     FILE *file() const noexcept;
-#ifdef XPP_IO_HAVE_STD_FORMAT
     template <class... Args>
     void print(std::format_string<Args...> fmt, Args &&...args) noexcept
     {
         xpp::print(file(), fmt, std::forward<Args>(args)...);
     }
-#endif
     /* bytes written as they are (a binary Writer's file); false when they
        could not all be */
     bool write(std::string_view bytes) noexcept
@@ -717,4 +699,3 @@ auto read_file_lines(std::string where, std::string_view path, F &&parse, std::s
 
 } // namespace xpp
 
-#endif

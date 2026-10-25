@@ -1,5 +1,4 @@
-#ifndef _lunch_new_h_
-#define _lunch_new_h_
+#pragma once
 
 
 #include <stdio.h>
@@ -72,4 +71,3 @@ void ps_write_pars(const Session &s, FILE *fp);
 void do_info(const Session &s, FILE *fp);
 
 } // namespace xpp
-#endif

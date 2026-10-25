@@ -1,5 +1,4 @@
-#ifndef XPP_MODEL_OPTIONS_H
-#define XPP_MODEL_OPTIONS_H
+#pragma once
 
 /* The model's options as one table (W119): every @ option's names, the
    member it sets, its default and, for the main numerics, the label and
@@ -283,4 +282,3 @@ void set_option_defaults(Session &s);
 std::optional<double> imported_total(const OptionRow &row, std::string_view value);
 
 } // namespace xpp
-#endif

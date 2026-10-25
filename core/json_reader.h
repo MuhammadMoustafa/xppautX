@@ -1,5 +1,4 @@
-#ifndef XPP_JSON_READER_H
-#define XPP_JSON_READER_H
+#pragma once
 /* The JSON reader (json_reader.cpp): reads text in place through pointers
    into it, with no tree. The protocol's command lines (json_io.cpp's
    get_string, get_num ...) and keymap.json (xpp_keymap.cpp) read with it. */
@@ -38,4 +37,3 @@ int js_line(const char *text, const char *at);
 
 } // namespace xpp::json
 
-#endif

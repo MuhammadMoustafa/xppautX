@@ -1,5 +1,4 @@
-#ifndef _xpplim_h_
-#define _xpplim_h_
+#pragma once
 
 /* The limits of the parser's fixed tables. A model's variables, parameters
    (constants) and symbols have none (W243): the tables grow with what the
@@ -25,4 +24,3 @@
    functions and their arguments, tables, fixed quantities) have no length
    limit (W76): they are std::string throughout. A display or file column
    of fixed width shortens one with short_name (xpp_util.h). */
-#endif
