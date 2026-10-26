@@ -3,6 +3,7 @@
    value and what it accepts. docs/odex-options.schema.json holds the
    output; tools/optionschema.sh checks it is current. */
 #include "model_options.h"
+#include "auto_settings.h"
 
 #include "xpp_io.h"
 
@@ -75,6 +76,7 @@ std::string option_value_schema(const OptionRow &row)
   case OptionRule::choice: break;
   }
   if (row.maximum) out += ", \"maximum\": " + std::to_string(row.maximum);
+  if (row.auto_numeric >= 0) out += auto_settings_num_schema(row.auto_numeric);
   if (!row.label.empty()) out += ", \"description\": " + quoted(row.label);
   if (row.repeatable) out += ", \"x-repeatable\": true";
   return out + "}";

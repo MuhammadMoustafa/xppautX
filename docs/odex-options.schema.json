@@ -61,18 +61,18 @@
       "properties": {
         "ntst": {"type": "integer", "minimum": 1, "maximum": 10000},
         "nmax": {"type": "integer", "minimum": 1},
-        "npr": {"type": "integer"},
-        "ncol": {"type": "integer", "minimum": 1, "maximum": 7},
-        "dsmin": {"type": "number"},
-        "dsmax": {"type": "number"},
+        "npr": {"type": "integer", "minimum": 1},
+        "ncol": {"type": "integer", "minimum": 2, "maximum": 7},
+        "dsmin": {"type": "number", "exclusiveMinimum": 0},
+        "dsmax": {"type": "number", "exclusiveMinimum": 0},
         "ds": {"type": "number"},
         "parmin": {"type": "number"},
         "parmax": {"type": "number"},
         "normmin": {"type": "number"},
         "normmax": {"type": "number"},
-        "epsl": {"type": "number"},
-        "epsu": {"type": "number"},
-        "epss": {"type": "number"}
+        "epsl": {"type": "number", "exclusiveMinimum": 0},
+        "epsu": {"type": "number", "exclusiveMinimum": 0},
+        "epss": {"type": "number", "exclusiveMinimum": 0}
       }
     },
     "diagram": {

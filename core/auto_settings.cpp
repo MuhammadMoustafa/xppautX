@@ -535,6 +535,23 @@ Result<> auto_settings_numbers_check(std::span<const double, AUTO_NUM_N> num,
     return {};
 }
 
+std::string auto_settings_num_schema(int i)
+{
+    const NumField &f = num_fields[i];
+    switch (f.rule) {
+    case Rule::positive: return ", \"exclusiveMinimum\": 0";
+    case Rule::range: {
+        std::string out;
+        if (f.lo != INT_MIN) out += xpp::format(", \"minimum\": {}", static_cast<long>(f.lo));
+        if (f.hi != INT_MAX) out += xpp::format(", \"maximum\": {}", static_cast<long>(f.hi));
+        return out;
+    }
+    case Rule::nonzero:
+    case Rule::any: break;
+    }
+    return {};
+}
+
 int auto_settings_num_ok(int i, double v, std::string &why)
 {
     try {
