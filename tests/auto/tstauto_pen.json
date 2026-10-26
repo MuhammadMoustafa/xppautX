@@ -27,5 +27,23 @@
     "ph2": 0.411516846067488,
     "ps1": 0,
     "ps2": 0
-  }
+  },
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "steady",
+      "side": "ours",
+      "type": "LP",
+      "index": 1,
+      "cause": "The branch's last step locates this point and also passes a bound: AUTO-07p and XPPAUT 8.0 relabel it EP, xppautX keeps its label and ends the branch there (W495 #559, docs/auto07p-findings.md finding 9)."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "steady",
+      "side": "ours",
+      "type": "LP",
+      "index": 1,
+      "cause": "The branch's last step locates this point and also passes a bound: AUTO-07p and XPPAUT 8.0 relabel it EP, xppautX keeps its label and ends the branch there (W495 #559, docs/auto07p-findings.md finding 9)."
+    }
+  ]
 }

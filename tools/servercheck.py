@@ -384,16 +384,18 @@ def check_auto_stops():
 
 
 def check_auto_starts():
-    """W495: reject bad starts before a first diagram point is produced."""
+    """W495: reject bad starts before a first diagram point is produced. A start at or past a
+    bound is refused only when Ds leads away from the interval (autocheck's extend of a branch
+    that ended just past Par Min goes back in)."""
     path = os.path.join(STOPS_DIR, 'auto_start.odex')
     # a start Newton cannot refine (no steady state) is refused; auto_start.odex's X = 1 is refined instead (below)
     no_root = os.path.join(STOPS_DIR, 'auto_start_no_root.odex')
     cases = [
         ('residual', no_root, {}, {}, ['largest residual', 'did not converge', 'Newton settings', 'Sing pts']),
-        ('parameter low', path, {'pars': {'a': -3}}, {}, ['parameter "a" = -3', 'Par Min = -2', 'Par Max = 2']),
+        ('parameter low', path, {'pars': {'a': -3}}, {'ds': -0.02}, ['parameter "a" = -3', 'Par Min = -2', 'Par Max = 2']),
         ('parameter high', path, {'pars': {'a': 3}}, {}, ['parameter "a" = 3', 'Par Min = -2', 'Par Max = 2']),
-        ('parameter below Par Min', path, {}, {'rl0': 0.2, 'rl1': 0.9}, ['parameter "a" = 0', 'Par Min = 0.2', 'Par Max = 0.9']),
-        ('bound outward', path, {}, {'rl0': 0, 'ds': -0.02}, ['Ds = -0.02', 'pointing out']),
+        ('parameter below Par Min', path, {}, {'rl0': 0.2, 'rl1': 0.9, 'ds': -0.02}, ['parameter "a" = 0', 'Par Min = 0.2', 'Par Max = 0.9']),
+        ('bound outward', path, {}, {'rl0': 0, 'ds': -0.02}, ['Ds = -0.02', 'pointing away']),
         ('norm low', path, {}, {'a0': 1}, ['Start norm = 0', 'Norm Min = 1', 'widen']),
         ('norm high', path, {'ics': {'X': 1}, 'pars': {'a': 1}}, {'a1': 0.5}, ['Start norm = 1', 'Norm Max = 0.5', 'widen']),
     ]

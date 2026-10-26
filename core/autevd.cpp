@@ -43,8 +43,10 @@ void auto_check_start_parameters(const iap_type &iap, const rap_type &rap, const
   const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[0]));
   if(k<0)return; // AUTO's period is not a model parameter; AUTO bounds only the principal parameter.
   const double value=par[icp[0]];
-  if(value<rap.rl0 || value>rap.rl1 || (value==rap.rl0 && rap.ds<0) || (value==rap.rl1 && rap.ds>0))
-    auto_fail(Error{"auto",xpp::format("Start parameter \"{}\" = {} is outside [Par Min = {}, Par Max = {}] or on a bound with Ds = {} pointing out; change the start, the bounds or the sign of Ds",
+  /* outside or on a bound, a start is refused only when Ds leads away from
+     the interval: extending a branch that ended just past a bound goes back in */
+  if((value<=rap.rl0 && rap.ds<0) || (value>=rap.rl1 && rap.ds>0))
+    auto_fail(Error{"auto",xpp::format("Start parameter \"{}\" = {} is at or outside [Par Min = {}, Par Max = {}] with Ds = {} pointing away; change the start, the bounds or the sign of Ds",
         s.model().upar_names[k],value,rap.rl0,rap.rl1,rap.ds),command_place()});
 }
 

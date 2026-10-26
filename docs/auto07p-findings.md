@@ -43,6 +43,7 @@ so the index started empty.
 | [6](#6-a-fold-or-flip-curves-resonance-test-gives-0-when-its-double-multiplier-splits) | Fold and flip curves of cycles | at R1/R2 roundoff splits the double +1/-1 into a conjugate pair; the test then returns 0 and the location takes it for the zero | [W405](https://github.com/MuhammadMoustafa/xppautX/issues/467) |
 | [7](#7-the-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale) | Equilibria | the finite-difference Jacobian (JAC=0) steps every state by 1e-7 times the largest state, so a model with states of very different size has a Jacobian, and a Hopf point, that is off by an amount no tolerance changes | [W455 / #518](https://github.com/MuhammadMoustafa/xppautX/issues/518) |
 | [8](#8-the-first-comparison-of-cycles-from-a-hopf-point-reads-a-predictors-fold-test-and-a-misoriented-phase-condition) | Cycles from a Hopf point | between the second and third point the fold test comes from the eigen-cycle predictor's Jacobian and, with DS < 0, the branch-point test's determinant from a phase condition of the wrong orientation: spurious LP or BP labels next to the start, and a real fold there missed or misplaced | [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521) |
+| [9](#9-a-special-point-located-on-a-branchs-last-step-is-relabelled-as-its-end) | Branch ends | a branch point, fold or Hopf point located on the step that also passes Par Min/Max, Norm Min/Max or NMX is labelled EP, so the special point is lost | [W495](https://github.com/MuhammadMoustafa/xppautX/issues/559) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -332,3 +333,21 @@ both directions, and labels nothing at motoneuron6c's start. XPPAUT 8.0 reads th
 ([xppaut-findings.md](xppaut-findings.md#86-the-fold-test-at-the-first-point-of-cycles-from-a-hopf-point-is-read-from-the-predictors-jacobian)).
 
 **Card:** [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521).
+
+## 9. A special point located on a branch's last step is relabelled as its end
+
+When the step that reaches a branch point, fold or Hopf point also takes the continuation parameter past Par Min or Par
+Max (or the norm past Norm Min or Norm Max, or the point count to NMX), the point is located and then relabelled: the
+end check overwrites its type with EP ([ae.f90:957-961](../reference/auto-07p/src/ae.f90#L957) for equilibria,
+[bvp.f90:1574-1577](../reference/auto-07p/src/bvp.f90#L1574) for periodic orbits), so the special point appears
+nowhere in the output. Evidence: `tests/auto/tstauto_san.json` continues the trivial branch of the saddle normal form in
+par0 with Par Max 1, where the branch point is (det of the Jacobian is proportional to par0^2-1). From the exact
+equilibrium the steps land on multiples of 0.02, the 50th at par0 = 1.0000001: the branch point is located there and
+labelled EP. AUTO-07p's own reference run labels the branch point only because its start, 1.8e-4 off the equilibrium,
+shifts its steps so that one lands at 0.99999998, inside the bound. With Par Max 1.5 the same branch point is
+labelled BP at the same point.
+
+**xppautX:** a special point located on the last step keeps its label; the branch still ends there, and its stop note
+names the bound that was passed (core/autlib1.cpp, stplae and stplbv).
+
+**Card:** [W495 / #559](https://github.com/MuhammadMoustafa/xppautX/issues/559).

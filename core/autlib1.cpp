@@ -2755,7 +2755,11 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 	== context.nmx|| iflag==1) {
       istop = 1;
       iap->istop = istop;
-      context.itp = xpp::AutoPointCode{xpp::AutoPointKind::End, context.itpst};
+      /* xppautX (W495): a special point the last step located keeps its
+         label; the branch still ends there, its stop note says which bound
+         (AUTO-07p labels it EP: auto07p-findings 9) */
+      if (context.itp.kind == xpp::AutoPointKind::Regular || context.itp.kind == xpp::AutoPointKind::Output)
+        context.itp = xpp::AutoPointCode{xpp::AutoPointKind::End, context.itpst};
       iap->itp = context.itp;
     }
   }
@@ -5944,7 +5948,11 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 	ntot >= context.nmx || iflag==1 ) { /* more bye auto */
       istop = 1;
       iap->istop = istop;
-      context.itp = xpp::AutoPointCode{xpp::AutoPointKind::End, context.itpst};
+      /* xppautX (W495): a special point the last step located keeps its
+         label; the branch still ends there, its stop note says which bound
+         (AUTO-07p labels it EP: auto07p-findings 9) */
+      if (context.itp.kind == xpp::AutoPointKind::Regular || context.itp.kind == xpp::AutoPointKind::Output)
+        context.itp = xpp::AutoPointCode{xpp::AutoPointKind::End, context.itpst};
       iap->itp = context.itp;
     }
   }
