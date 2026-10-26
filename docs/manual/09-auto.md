@@ -7,12 +7,16 @@ The version supported in XPP is a subset of AUTO but allows you to do most of th
 Click on the `File Auto` menu item to bring up AUTO.
 
 Before a run, AUTO checks the start. Initial conditions for a steady-state
-run must have every equation's absolute residual at most EPSU; otherwise the
-error names the worst equation and suggests **Sing pts** or integration to a
-steady state. Labelled restarts and orbit starts are exempt from that test.
-The first parameter (and the second model parameter in a two-parameter run)
-must lie within **Par Min/Max**. At a primary parameter bound, **Ds** must
-point inward. The two parameters must differ. A periodic restart needs a
+run whose largest equation residual is above EPSU are first refined by
+Newton's method, with the **Sing pts** settings, at the run's parameter
+values; the run starts from the converged point and the log says how the
+residual changed. Only when Newton does not converge is the run refused:
+the error names the worst equation, the residual and the Newton settings,
+and suggests **Sing pts** or integration to a steady state. Labelled
+restarts and orbit starts are exempt from that test.
+The first parameter must lie within **Par Min/Max** (the second parameter of
+a two-parameter run is not bounded, as in AUTO-07p). At a primary parameter
+bound, **Ds** must point inward. The two parameters must differ. A periodic restart needs a
 Hopf point or a periodic orbit; two-parameter starts need a supported special
 point. The start norm must lie within **Norm Min/Max**, whose defaults are
 0 and 1e100. Tighten these to end a branch when its norm leaves your interval.

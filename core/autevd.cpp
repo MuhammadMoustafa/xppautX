@@ -15,6 +15,9 @@
 #include "xpp_ui.h"
 #include "xpp_math.h"
 #include "xpp_job.h"
+#include "xpp_log.h"
+#include "equilibria.h"
+#include "numerics_settings.h"
 
 namespace xpp {
 
@@ -37,16 +40,12 @@ static std::size_t diagram_points_limit()
 void auto_check_start_parameters(const iap_type &iap, const rap_type &rap, const double *par, const integer *icp)
 {
   const Session &s=*iap.lib->session;
-  const int count=std::abs(iap.isw)==2 ? 2 : 1;
-  for(int i=0;i<count;i++){
-    const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[i]));
-    if(k<0)continue; // AUTO unknowns, such as the period, are not model parameters.
-    const double value=par[icp[i]];
-    if(value<rap.rl0 || value>rap.rl1 || (i==0 &&
-       ((value==rap.rl0 && rap.ds<0) || (value==rap.rl1 && rap.ds>0))))
-      auto_fail(Error{"auto",xpp::format("Start parameter \"{}\" = {} is outside [Par Min = {}, Par Max = {}] or on a bound with Ds = {} pointing out; change the start, the bounds or the sign of Ds",
-          s.model().upar_names[k],value,rap.rl0,rap.rl1,rap.ds),command_place()});
-  }
+  const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[0]));
+  if(k<0)return; // AUTO's period is not a model parameter; AUTO bounds only the principal parameter.
+  const double value=par[icp[0]];
+  if(value<rap.rl0 || value>rap.rl1 || (value==rap.rl0 && rap.ds<0) || (value==rap.rl1 && rap.ds>0))
+    auto_fail(Error{"auto",xpp::format("Start parameter \"{}\" = {} is outside [Par Min = {}, Par Max = {}] or on a bound with Ds = {} pointing out; change the start, the bounds or the sign of Ds",
+        s.model().upar_names[k],value,rap.rl0,rap.rl1,rap.ds),command_place()});
 }
 
 void auto_check_start_norm(const iap_type &iap, const rap_type &rap, double norm)
@@ -55,19 +54,39 @@ void auto_check_start_norm(const iap_type &iap, const rap_type &rap, double norm
     auto_fail(Error{"auto",xpp::format("Start norm = {} is outside [Norm Min = {}, Norm Max = {}]; change the start or widen the norm bounds",norm,rap.a0,rap.a1),command_place()});
 }
 
-void auto_check_start_equilibrium(const iap_type &iap, const rap_type &rap, const double *u, const double *par, const integer *icp)
+/* A steady-state start from initial conditions (irs 0) is refined by Newton
+   from the run's own parameters, as Sing pts refines an equilibrium, when its
+   residual is above EPSU; u is the refined start, or the start as given when
+   Newton does not converge (then the run is refused). */
+void auto_check_start_equilibrium(const iap_type &iap, const rap_type &rap, double *u, const double *par, const integer *icp)
 {
   if(iap.irs!=0 || iap.ips!=AutoProblem::SteadyState)return;
   Session &s=*iap.lib->session;
-  std::vector<double> residual(s.model().node);
-  func(s,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr);
-  const auto worst=std::max_element(residual.begin(),residual.end(),[](double a,double b){return std::isfinite(a) && (!std::isfinite(b) || std::abs(a)<std::abs(b));});
-  if(worst==residual.end())return;
-  const double value=std::abs(*worst);
-  if(!std::isfinite(value) || value>rap.epsu){
-    const std::string &name=s.model().uvar_names[worst-residual.begin()];
-    auto_fail(Error{"auto",xpp::format("The initial conditions are not a steady state: equation \"{}\" has the largest residual |f(x,p)| = {}, above EPSU = {}; use Sing pts or integrate to a steady state before starting AUTO",name,value,rap.epsu),model_place(s.model(),name)});
+  const int n=s.model().node;
+  if(n<=0)return;
+  std::vector<double> residual(static_cast<std::size_t>(n));
+  func(s,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr); // also sets the constants to par
+  const int worst=xpp::worst_residual(residual.data(),n);
+  const double start_value=std::abs(residual[worst]);
+  if(std::isfinite(start_value) && start_value<=rap.epsu)return;
+
+  const auto &eq=s.numerics.equilibria;
+  std::vector<double> start(u,u+n);
+  std::vector<double> work(static_cast<std::size_t>(n*n+2*n));
+  xpp::NewtonRun run;
+  if(auto r=xpp::rooter(s,u,eq.newton_tolerance,eq.jacobian_step,eq.search_limit,work.data(),run,eq.max_iterations,n);!r)
+    auto_fail(r.error());
+  if(run.end!=xpp::NewtonEnd::converged){
+    std::copy(start.begin(),start.end(),u);
+    const std::string &name=s.model().uvar_names[worst];
+    const std::string why=xpp::newton_cause(s,run,static_cast<std::size_t>(n)).why;
+    auto_fail(Error{"auto",xpp::format("The initial conditions are not a steady state, and Newton's method from them did not converge ({}); equation \"{}\" has the largest residual |f(x,p)| = {}, above EPSU = {}. Newton settings: {}. Use Sing pts or integrate to a steady state before starting AUTO",
+        why,name,xpp::number(start_value),xpp::number(rap.epsu),xpp::named_settings(s,{"newton_tolerance","jacobian_step","search_limit","max_iterations"})),model_place(s.model(),name)});
   }
+
+  func(s,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr);
+  const double refined=std::abs(residual[xpp::worst_residual(residual.data(),n)]);
+  xpp::log(XPP_LOG_INFO,"AUTO start refined by Newton: largest residual {} -> {}\n",xpp::number(start_value),xpp::number(refined));
 }
 
 void init_auto(AutoState &st, int ndim, bool exact)

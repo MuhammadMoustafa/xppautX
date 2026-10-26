@@ -9,6 +9,21 @@ names the translator, with XPPAUT's own glue in `auto_nox.c`, `autevd.c` and `au
 is part of `tools/autocompare.py` and runs on every push from committed files: neither program is
 installed in CI, nor vendored.
 
+## Steady-state starts refined by Newton (W495, [#559](https://github.com/MuhammadMoustafa/xppautX/issues/559))
+
+A steady-state start from initial conditions whose largest residual is above
+EPSU is refined by Newton's method, with the Sing pts settings, before the
+run (xppautX refines an inexact steady-state start; AUTO-07p starts from it
+as given). Seven descriptions had such starts and now run from the refined
+point: `explicit_homoclinic`, `izh_class2`, `lorenz_homoclinic`,
+`tstauto_eiz-hom`, `tstauto_san`, `tstauto_torx_homcont` and
+`tstauto_wcbiwave`. Their diagrams changed on purpose, and the first point
+of each is the refined equilibrium. Their stored first point, compared with
+AUTO-07p's, is a deliberate difference, not an agreement: AUTO-07p's own
+start is the unrefined one. Principal-parameter bounds only: the second
+parameter of a two-parameter run is not bounded, as in AUTO-07p
+(`ae.f90` tests U(NDIM+1) only).
+
 ## Mesh adaptation and measured Floquet candidates (W361, [#423](https://github.com/MuhammadMoustafa/xppautX/issues/423))
 
 Mesh redistribution now retains the EQDF monitor density and interpolates

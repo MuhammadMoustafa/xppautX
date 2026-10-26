@@ -386,16 +386,19 @@ def check_auto_stops():
 def check_auto_starts():
     """W495: reject bad starts before a first diagram point is produced."""
     path = os.path.join(STOPS_DIR, 'auto_start.odex')
+    # a start Newton cannot refine (no steady state) is refused; auto_start.odex's X = 1 is refined instead (below)
+    no_root = os.path.join(STOPS_DIR, 'auto_start_no_root.odex')
     cases = [
-        ('residual', {'ics': {'X': 1}}, {}, ['largest residual', 'EPSU = 1e-04', 'Sing pts']),
-        ('parameter low', {'pars': {'a': -3}}, {}, ['parameter "a" = -3', 'Par Min = -2', 'Par Max = 2']),
-        ('parameter high', {'pars': {'a': 3}}, {}, ['parameter "a" = 3', 'Par Min = -2', 'Par Max = 2']),
-        ('bound outward', {}, {'rl0': 0, 'ds': -0.02}, ['Ds = -0.02', 'pointing out']),
-        ('norm low', {}, {'a0': 1}, ['Start norm = 0', 'Norm Min = 1', 'widen']),
-        ('norm high', {'ics': {'X': 1}, 'pars': {'a': 1}}, {'a1': 0.5}, ['Start norm = 1', 'Norm Max = 0.5', 'widen']),
+        ('residual', no_root, {}, {}, ['largest residual', 'did not converge', 'Newton settings', 'Sing pts']),
+        ('parameter low', path, {'pars': {'a': -3}}, {}, ['parameter "a" = -3', 'Par Min = -2', 'Par Max = 2']),
+        ('parameter high', path, {'pars': {'a': 3}}, {}, ['parameter "a" = 3', 'Par Min = -2', 'Par Max = 2']),
+        ('parameter below Par Min', path, {}, {'rl0': 0.2, 'rl1': 0.9}, ['parameter "a" = 0', 'Par Min = 0.2', 'Par Max = 0.9']),
+        ('bound outward', path, {}, {'rl0': 0, 'ds': -0.02}, ['Ds = -0.02', 'pointing out']),
+        ('norm low', path, {}, {'a0': 1}, ['Start norm = 0', 'Norm Min = 1', 'widen']),
+        ('norm high', path, {'ics': {'X': 1}, 'pars': {'a': 1}}, {'a1': 0.5}, ['Start norm = 1', 'Norm Max = 0.5', 'widen']),
     ]
-    for name, values, limits, words in cases:
-        s = Server(args.server, path)
+    for name, case_path, values, limits, words in cases:
+        s = Server(args.server, case_path)
         try:
             autocompare.completed(s)
             autocompare.open_auto(s)
@@ -412,9 +415,22 @@ def check_auto_starts():
                   and not any(e.get('ev') == 'diagram' and e.get('op') == 'add' and e.get('runs') for e in evs), text)
             if name == 'residual':
                 check('stops AUTO residual names the equation line', len(errors) == 1
-                      and errors[0].get('line') == stops_line(path, "x' ="), str(errors))
+                      and errors[0].get('line') == stops_line(case_path, "x' ="), str(errors))
         finally:
             s.close()
+    # W495 (maintainer, 2026-10-26): auto_start.odex's X = 1 (residual 1 at a = 0) is refined by Newton to X = 0, and the run starts
+    s = Server(args.server, path)
+    try:
+        autocompare.completed(s)
+        autocompare.open_auto(s)
+        autocompare.completed(s, dict(cmd='set', values=[dict(kind='ic', name='X', value=1)]))
+        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'rl0': -2, 'rl1': 2}))
+        evs = autocompare.run_any(s, 's')
+        errors = [e for e in evs if e.get('error')]
+        check('stops AUTO start refined by Newton: X = 1 is refined and the run starts',
+              not errors and any(e.get('ev') == 'diagram' and e.get('op') == 'add' for e in evs), str(errors))
+    finally:
+        s.close()
 
 
 def check_auto_two_parameter_starts():
@@ -428,9 +444,9 @@ def check_auto_two_parameter_starts():
         autocompare.completed(s, dict(cmd='auto', op='set', axes={'par1': 'p0', 'par2': 'p1'}))
         evs = autocompare.run_any(s, 't')
         errors = [e for e in evs if e.get('error')]
-        check('stops AUTO second parameter bound', len(errors) == 1
-              and 'parameter "p1" = 14' in errors[0]['error']
-              and 'Par Min' in errors[0]['error'] and 'Par Max' in errors[0]['error'], str(errors))
+        # W495: AUTO bounds only the principal parameter (ae.f90 tests U(NDIM+1)), so p1 = 14 starts the run
+        check('stops AUTO second parameter is not bounded: p1 = 14 outside [Par Min, Par Max] starts the run',
+              not errors and any(e.get('ev') == 'diagram' and e.get('op') == 'add' for e in evs), str(errors))
         autocompare.completed(s, dict(cmd='auto', op='grab', type='LP', index=1))
         autocompare.completed(s, dict(cmd='auto', op='set', axes={'par2': 'p0'}))
         evs = autocompare.run_any(s, 't')
@@ -4296,10 +4312,6 @@ def check_auto_stop():
         if ok and why == 'user':
             ok = 1 < stop['pt'] < 1000000
         check('autoinfo stop: %s ends the branch with "%s"' % (why, text), ok, '%s (%d points)' % (stop, n))
-    # a run that starts where the limit already is: Par Min below the start
-    stop, _ = auto_stop_run({**wide, 'rl0': 0.2, 'rl1': 0.9})
-    check('autoinfo stop: a start beyond Par Min ends at its first point',
-          isinstance(stop, dict) and stop.get('why') == 'parmin' and stop.get('pt') == 1, str(stop))
 
 
 check_auto_stop()

@@ -39,6 +39,8 @@ Result<> get_evec(Session &s, double *a, double *anew, double *b, double *bp, in
 Result<> do_sing_info(Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 void pr_evec(Session &s, double *x, double *ev, int n, int pr, double eval,int type);
 void getjac(Session &s, double *x, double *y, double eps, double *dermat, int n);
+/* the variable whose equation f (n values) is furthest from zero: the equation an error about it names */
+int worst_residual(const double *f, int n);
 /* (a failed exact Jacobian is its error, the point back where it was) */
 Result<> rooter(Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n);
 

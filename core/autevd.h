@@ -17,7 +17,7 @@ namespace xpp {
 /* Start checks run before storing a point or taking a continuation step. */
 void auto_check_start_parameters(const iap_type &iap, const rap_type &rap, const double *par, const integer *icp);
 void auto_check_start_norm(const iap_type &iap, const rap_type &rap, double norm);
-void auto_check_start_equilibrium(const iap_type &iap, const rap_type &rap, const double *u, const double *par, const integer *icp);
+void auto_check_start_equilibrium(const iap_type &iap, const rap_type &rap, double *u, const double *par, const integer *icp);
 
 /* a point's type from AUTO's signs: a negative branch is periodic, a
    negative point stable (a zero sign: a stable steady state) */

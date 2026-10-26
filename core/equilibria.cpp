@@ -536,9 +536,6 @@ void getjac(xpp::Session &s, double *x, double *y, double eps, double *dermat, i
   xpp::jacobian(s,0.0,x,y,n,eps,{xpp::JacobianLayout::RowMajor,0,0,discrete},dermat);
 }
 
-namespace {
-/* the variable whose equation the last Newton iterate satisfied worst: the
-   equation an error about it names */
 int worst_residual(const double *f, int n)
 {
  int k=0;
@@ -547,6 +544,7 @@ int worst_residual(const double *f, int n)
  return k;
 }
 
+namespace {
 void newton(xpp::Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
 {
  int i,iter,info;

@@ -1,0 +1,4 @@
+# W495: no steady state (1 + x^2 has no root), so Newton from the start does not converge and AUTO refuses it.
+par a = 0
+x' = a+1+x^2
+init x = 0
