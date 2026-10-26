@@ -115,8 +115,9 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [82](#82-a-range-integration-ignores-every-failure-of-its-solver) | Ranges | a range or manipulation run that fails in its solver ends or continues silently |
 | [83](#83-the-transient-time-compares-the-absolute-time) | Integration | `TRANS` compares \|t\|, wrong for a run not starting at 0 or going backward |
 | [84](#84-the-array-plots-time-range-starts-at-0-and-ends-at-20-by-default) | Array plot | Print arrayplot and the window's time range start at 0 and end at 20 whatever the data holds (only a first row above 0 moves the start): a run of any other length prints with a wrong axis | [W492 / #556](https://github.com/MuhammadMoustafa/xppautX/issues/556) |
-| [85](#85-the-cross-spectrum-averages-one-window-more-than-it-divides-by) | Spectra | the cross spectrum and coherence loop over `kwin+1` windows (the last wraps round the data) but divide by `kwin`, where the spectrum loops over `kwin`: the cross spectrum is too large by (kwin+1)/kwin (the coherence, a ratio of sums over the same windows, is unaffected) | [W489 / #553](https://github.com/MuhammadMoustafa/xppautX/issues/553) |
+| [85](#85-the-cross-spectrum-averages-one-window-more-than-it-divides-by) | Spectra | the cross spectrum and coherence loop over `kwin+1` windows (the last wraps round the data) but divide by `kwin`, where the spectrum loops over `kwin`: the cross product is over-normalized and an extra window biases both spectra and coherence | [W489 / #553](https://github.com/MuhammadMoustafa/xppautX/issues/553) |
 | [86](#86-the-fold-test-at-the-first-point-of-cycles-from-a-hopf-point-is-read-from-the-predictors-jacobian) | AUTO | the second point of cycles from a Hopf point takes its fold test from the eigen-cycle predictor's factorization: an LP next to the start that is not there (motoneuron6c), and a fold close to the start placed 1.2 percent off | [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521) |
+| [87](#87-an-event-at-a-steps-end-is-discarded-by-the-crossing-tolerance) | Events | the crossing tolerance pushes an endpoint event beyond the step, so it is discarded | [W496](https://github.com/MuhammadMoustafa/xppautX/issues/560) |
 
 ## 1. Model options
 
@@ -1803,8 +1804,9 @@ the same in [master](../reference/xppaut-master/stiff.c#L193)), but its driver `
 `if(*ier>0)return -1;` ([stiff.c:130](../reference/xppaut-8.0/stiff.c#L130)). The singular step is not reported:
 the loop tests the stale `hnext` against `hmin` (uninitialised when the first step is singular) and tries again with it,
 so the solver's "singular jacobian encountered" message is never shown. Found by reading (W488,
-[#552](https://github.com/MuhammadMoustafa/xppautX/issues/552)); xppautX keeps the behaviour, so a model's numbers do
-not change, and names the case in a comment (stiff.cpp) for a card that decides the fix.
+[#552](https://github.com/MuhammadMoustafa/xppautX/issues/552)); xppautX now stops on this error without consuming `hnext`, naming the singular matrix, time, variable and settings
+(W496, [#560](https://github.com/MuhammadMoustafa/xppautX/issues/560)). The regression uses `x'=2*x`, exact Jacobian,
+and first step 1, whose matrix is exactly `2-2=0`.
 
 ## 80. A network's tables are never checked for the values it reads, and fftcon's check tests the wrong variable
 
@@ -1874,10 +1876,13 @@ a run of 5 has its axis stretched to 20. xppautX reads the time of the first and
 ([histogram.c:602](../reference/xppaut-8.0/histogram.c#L602), [histogram.c:624-627](../reference/xppaut-8.0/histogram.c#L624-L627);
 [master 581](../reference/xppaut-master/histogram.c#L581)), while `spectrum` runs `j<kwin`
 ([histogram.c:514](../reference/xppaut-8.0/histogram.c#L514)). The extra window starts where fewer than `win` points are
-left and wraps round to the start of the data (`kk=(i+j*shift)%nr`). The cross spectrum (`PSDxy`) is therefore
-(kwin+1)/kwin times too large; the coherence is not, for its numerator and denominators sum over the same windows.
-xppautX keeps the numbers (the Fourier menu's results stay those of XPPAUT) and names the difference here; no example
-model's output changed (W489, [#553](https://github.com/MuhammadMoustafa/xppautX/issues/553)).
+left and wraps round to the start of the data (`kk=(i+j*shift)%nr`). For identical windows the averaged cross product is
+(kwin+1)/kwin times too large; `PSDxy` returns the logarithm of its squared magnitude. The normalization factor
+cancels in coherence, but including a different extra window can still change that ratio.
+Found in W489 ([#553](https://github.com/MuhammadMoustafa/xppautX/issues/553)); xppautX now sums `j<kwin`, matching
+its divisor and `spectrum` (W496, [#560](https://github.com/MuhammadMoustafa/xppautX/issues/560)). The regression's
+constant columns 2 and 3, window 8, give `log((6/8)^2)` at DC rather than the extra-window result. Coherence on
+nonstationary data may change too, since the extra window is no longer included.
 
 ## 86. The fold test at the first point of cycles from a Hopf point is read from the predictor's Jacobian
 
@@ -1907,3 +1912,22 @@ converged point before reading their tests and multipliers, and orients `upoldp`
 motoneuron6c's start and locates the Bautin fold at norm 0.0399989, b1 = -2.5599999923e-6 (docs/auto-references.md, W458).
 
 **Card:** [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521).
+
+## 87. An event at a step's end is discarded by the crossing tolerance
+
+After finding the event fraction, `one_flag_step` multiplies it by `1+STOL`, then returns without applying any event
+when the result exceeds 1 ([flags.c:341-343](../reference/xppaut-8.0/flags.c#L341),
+[master](../reference/xppaut-master/flags.c#L341)). Thus a falling event with `f0>0, f1=0` has fraction 1 and is
+always discarded for positive STOL; finding 78 also affects rising events. Evidence: the endpoint regression in
+`tests/test_numerical_fixes.cpp` and servercheck's `event_halt` (a unit slope, `x-3`, step 0.125) miss the event
+before the fix. A sign-zero event also uses the absolute `told` as its fraction
+([flags.c:323](../reference/xppaut-8.0/flags.c#L323), [master](../reference/xppaut-master/flags.c#L323)).
+xppautX caps the tolerance shift at fraction 1 after rejecting fractions outside the step, uses fraction 1 for a
+sign-zero endpoint reached from a nonzero condition (or an initial zero), and ends an endpoint hit without a zero-length retry.
+The first-call loop also only assigns `*istart=0`, never initializing `flag[i].f1`
+([flags.c:285-293](../reference/xppaut-8.0/flags.c#L285), [master](../reference/xppaut-master/flags.c#L285));
+xppautX evaluates the starting conditions there, so the first step and a fresh run also find their endpoints.
+An initial sign-zero event (used to initialize random states) still fires once; a zero-length remainder must not
+apply it again. No example model output changes.
+The endpoint regression checks rising, falling and sign-zero events, each once (W496,
+[#560](https://github.com/MuhammadMoustafa/xppautX/issues/560)).

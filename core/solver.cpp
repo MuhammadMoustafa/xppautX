@@ -119,6 +119,8 @@ public:
              num.equilibria.jacobian_step,info().id,s.start);
     const SolverWork::Stop &stop=session_.solver_work.stop;
     switch(kflag){
+    case ADAPTIVE_SINGULAR:
+      return stopped("the step matrix is singular",stop.t,stop.variable,{"dt","jacobian"});
     case ADAPTIVE_STEP_UNDERFLOW: return stopped("the step size became too small to change t",stop.t,stop.variable,{"relative_tolerance"});
     case ADAPTIVE_BELOW_MIN_STEP:
       return stopped(xpp::format("the step size {} fell below min_step",stop.h),stop.t,stop.variable,{"min_step","relative_tolerance"});

@@ -12,9 +12,8 @@ inline constexpr int ADAPTIVE_MAX_STEPS = 100000;
 inline constexpr int ADAPTIVE_MAX_TRIES = 40;
 /* why an adaptive advance stopped (its *ier): the step no longer changes t,
    it fell below min_step, more than ADAPTIVE_MAX_STEPS steps, more than
-   ADAPTIVE_MAX_TRIES tries (SolverWork::Stop says where); and the stiff
-   step's singular matrix, which gadaptive does not stop for (xppaut-findings
-   79) */
+   ADAPTIVE_MAX_TRIES tries, or the stiff step's singular matrix
+   (SolverWork::Stop says where) */
 inline constexpr int ADAPTIVE_STEP_UNDERFLOW = 1, ADAPTIVE_BELOW_MIN_STEP = 2, ADAPTIVE_TOO_MANY_STEPS = 3,
                      ADAPTIVE_TOO_MANY_TRIES = 4, ADAPTIVE_SINGULAR = -1;
 

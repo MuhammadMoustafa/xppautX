@@ -340,6 +340,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
   double f0,f1,tol,tolmin=1e-10;
   double smin=2;
   int sign,i,j,ncycle=0;
+  const bool first=*istart==1;
 
   if(s.model().flag_count()==0)return(0);
   for(i=0;i<s.model().flag_count();i++){
@@ -347,11 +348,12 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
     s.integrator.flags[i].hit=0;
   }
   /* If this is the first call, then need f1  */
-  if(*istart==1){
+  if(first){
     for(i=0;i<neq;i++)
       setvar(s,i+1,yold[i]);
     setvar(s,0,told);
     for(i=0;i<s.model().flag_count();i++)
+      s.integrator.flags[i].f1=xpp::evaluate(s,flags[i].comcond);
     *istart=0;
 
   }
@@ -380,9 +382,9 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
       }
       break;
     case 0:
-      if(fabs(f1)<MY_DBL_EPS){
+      if(fabs(f1)<MY_DBL_EPS&&(first||fabs(f0)>=MY_DBL_EPS)){
 	s.integrator.flags[i].hit=ncycle+1;
-	s.integrator.flags[i].tstar=told;
+	s.integrator.flags[i].tstar=1.0;
       }
       break;
     }
@@ -395,9 +397,11 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
 
   } /* run through flags */
 
-   if(smin<s.numerics.stol)smin=s.numerics.stol;
-  else smin=(1+s.numerics.stol)*smin;
   if(smin>1.0)return(0);
+  // Nudge an interior root forward, but keep an endpoint inside this step.
+  if(smin<s.numerics.stol)smin=s.numerics.stol;
+  else smin=(1+s.numerics.stol)*smin;
+  smin=std::min(1.0,smin);
 
   *tnew=told+dt*smin;
   setvar(s,0,*tnew);
@@ -448,6 +452,7 @@ FlagEnd flag_loop(xpp::Session &s, double *y, int neq, double *t, int *istart,
     nstep++;
     dtt=(1-frac)*dt;
     on_hit();
+    if(frac==1.0)return FlagEnd::done;
     if(tend&&*t==*tend)return FlagEnd::done;
     if(nstep>(s.model().flag_count()+2)){
       xpp::log(XPP_LOG_WARN, "Events: more than {} events inside one step at t = {:g} (smin = {:g}); the step was taken without the later ones\n",

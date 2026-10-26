@@ -360,3 +360,11 @@ Other methods retain their numerical behavior. Delay models retain uniform
 Dt history updates. See [the study](studies/w377-dense-output.md) and
 [finding 59](xppaut-findings.md#59-dormand-prince-restarted-at-every-output-point)
 ([#439](https://github.com/MuhammadMoustafa/xppautX/issues/439)).
+
+## W496: inherited numerical bugs corrected
+
+Imported models deliberately use the corrected Stiff singular-matrix stop,
+cross-spectrum window average and sampled endpoint events, rather than
+XPPAUT's wrong results (findings 79, 85 and 87 in
+[xppaut-findings.md](xppaut-findings.md),
+[W496 / #560](https://github.com/MuhammadMoustafa/xppautX/issues/560)).

@@ -88,10 +88,7 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
       stiff(s,y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,epjac,ier);
     else
       rkqs(s,y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,ier); 
-    /* a positive *ier ends the advance; XPPAUT's stiff step that found its
-       matrix singular (ADAPTIVE_SINGULAR) is not one: the loop goes on */
-    if(*ier>0){
-      s.solver_work.stop.t=x;
+    if(*ier!=0){
       return -1;
     }
     if ((x-x2)*(x2-x1) >= 0.0) 
@@ -156,6 +153,7 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 		}
 		xpp::sgefa(a,n,n,indx,&info);
 		if(info!=-1){
+		  s.solver_work.stop={xsav,h,info,0};
 		  *ier=ADAPTIVE_SINGULAR;
 		  return -1;
 		}

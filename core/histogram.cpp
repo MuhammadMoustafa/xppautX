@@ -470,7 +470,7 @@ int cross_spectrum(std::span<const float> data,std::span<const float> data2,int 
    pxym[i]=0.0;
  }
    
- for(j=0;j<=kwin;j++){
+ for(j=0;j<kwin;j++){
    for(i=0;i<win;i++){
      kk=(i+j*shift)%nr;
      d[i]=f[i]*data[kk];
