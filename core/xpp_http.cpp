@@ -1230,14 +1230,6 @@ void start_serving(int got, bool show, bool open)
     srv.page_url = xpp::format("http://127.0.0.1:{}/?t={}", got, srv.token);
     if (show) print_address(srv.page_url.c_str());
 
-    /* the terminal's own stderr, for what xpp_log sends it: WARN, ERROR, and all at --verbose (the page takes stderr below) */
-    const int terminal_fd = fileno(stderr) >= 0 ? dup(fileno(stderr)) : -1;
-    if (terminal_fd >= 0) {
-        no_inherit_fd(terminal_fd);
-        FILE *terminal = fdopen(terminal_fd, "w");
-        if (terminal != nullptr) setvbuf(terminal, nullptr, _IONBF, 0);
-        xpp::log_set_terminal(terminal);
-    }
 #ifdef _WIN32
     constexpr unsigned LOG_PIPE_BYTES = 65536; /* the log pipe's buffer: printed text waits here for log_main */
     if (_pipe(log_pipe.data(), LOG_PIPE_BYTES, _O_BINARY | _O_NOINHERIT) == 0) {
@@ -1246,6 +1238,15 @@ void start_serving(int got, bool show, bool open)
 #endif
         no_inherit_fd(log_pipe[0]);
         no_inherit_fd(log_pipe[1]);
+        /* the terminal's own stderr, kept before the page takes it, for what
+           xpp_log sends it: WARN, ERROR, and all at --verbose; without the
+           pipe stderr stays the terminal and needs no copy */
+        if (const int terminal_fd = dup(xpp::files::stream_fd(stderr)); terminal_fd >= 0) {
+            no_inherit_fd(terminal_fd);
+            FILE *terminal = fdopen(terminal_fd, "w");
+            if (terminal != nullptr) setvbuf(terminal, nullptr, _IONBF, 0);
+            xpp::log_set_terminal(terminal);
+        }
         dup2(log_pipe[1], xpp::files::stream_fd(stdout));
         dup2(log_pipe[1], xpp::files::stream_fd(stderr));
         setvbuf(stdout, nullptr, _IONBF, 0);
