@@ -37,14 +37,11 @@ const char *eq_stability(int cp, int rp, int im);
 void cleanup_auto_dir(Session &s);
 void man_ic(Session &s);
 void redo_stuff(Session &s);
-/* the value of the formula expr in the Session s (*ok 0, said why, when it
-   does not compile) */
-double calculate(Session &s, std::string_view expr, int *ok);
 /* temp ("name:formula" sets name, or a formula) worked out in the Session
    s into *z */
 int do_calc(Session &s, std::string_view temp, double *z);
 /* the formula expr worked out in s, or why it does not compile; shows
-   nothing and changes nothing (calculate shows the error) */
+   nothing and changes nothing */
 Result<double> evaluate_formula(Session &s, std::string_view expr);
 /* what was typed in a number field: a plain number (xpp::parse_number's
    rule, blanks around it allowed) or %formula (worked out in s; "%name:

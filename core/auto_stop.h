@@ -17,6 +17,7 @@
    auto_stop.cpp; nothing escapes it. */
 
 #include <cmath>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -50,7 +51,7 @@ enum AutoStopWhy {
 struct AutoNoConvergence {
     int why = AUTO_STOP_NOCONV;
     double ds = NAN, dsmin = NAN;
-    long itnw = 0;
+    std::ptrdiff_t itnw = 0;
     double epsl = NAN, epsu = NAN;
     double pivot = NAN;
 };

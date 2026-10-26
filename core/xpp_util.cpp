@@ -216,13 +216,6 @@ Result<double> evaluate_formula(xpp::Session &s, std::string_view expr)
   return z;
 }
 
-double calculate(xpp::Session &s, std::string_view expr, int *ok)
-{
-  const Result<double> r=evaluate_formula(s,expr);
-  *ok=ok_or_show(r)?1:0;
-  return r.value_or(0.0);
-}
-
 /* a typed value refused: what, and the field it was typed in */
 static std::unexpected<Error> refused_value(std::string what,std::string_view field)
 {
