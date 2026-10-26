@@ -11,6 +11,8 @@
 #include "xpp_session_auto.h"
 
 #include "auto_stability.h"
+#include "model_files.h"
+#include "xpp_ui.h"
 #include "xpp_math.h"
 #include "xpp_job.h"
 
@@ -30,6 +32,42 @@ static std::size_t diagram_points_limit()
 [[noreturn]] void auto_nonfinite(const iap_type &iap, integer point)
 {
   auto_fail(xpp::format("Branch {} point {}: nonfinite AUTO solution", iap.ibr, point));
+}
+
+void auto_check_start_parameters(const iap_type &iap, const rap_type &rap, const double *par, const integer *icp)
+{
+  const Session &s=*iap.lib->session;
+  const int count=std::abs(iap.isw)==2 ? 2 : 1;
+  for(int i=0;i<count;i++){
+    const int k=s.auto_state.parameter_layout.model_index(static_cast<int>(icp[i]));
+    if(k<0)continue; // AUTO unknowns, such as the period, are not model parameters.
+    const double value=par[icp[i]];
+    if(value<rap.rl0 || value>rap.rl1 || (i==0 &&
+       ((value==rap.rl0 && rap.ds<0) || (value==rap.rl1 && rap.ds>0))))
+      auto_fail(Error{"auto",xpp::format("Start parameter \"{}\" = {} is outside [Par Min = {}, Par Max = {}] or on a bound with Ds = {} pointing out; change the start, the bounds or the sign of Ds",
+          s.model().upar_names[k],value,rap.rl0,rap.rl1,rap.ds),command_place()});
+  }
+}
+
+void auto_check_start_norm(const iap_type &iap, const rap_type &rap, double norm)
+{
+  if(!std::isfinite(norm) || norm<rap.a0 || norm>rap.a1)
+    auto_fail(Error{"auto",xpp::format("Start norm = {} is outside [Norm Min = {}, Norm Max = {}]; change the start or widen the norm bounds",norm,rap.a0,rap.a1),command_place()});
+}
+
+void auto_check_start_equilibrium(const iap_type &iap, const rap_type &rap, const double *u, const double *par, const integer *icp)
+{
+  if(iap.irs!=0 || iap.ips!=AutoProblem::SteadyState)return;
+  Session &s=*iap.lib->session;
+  std::vector<double> residual(s.model().node);
+  func(s,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr);
+  const auto worst=std::max_element(residual.begin(),residual.end(),[](double a,double b){return std::isfinite(a) && (!std::isfinite(b) || std::abs(a)<std::abs(b));});
+  if(worst==residual.end())return;
+  const double value=std::abs(*worst);
+  if(!std::isfinite(value) || value>rap.epsu){
+    const std::string &name=s.model().uvar_names[worst-residual.begin()];
+    auto_fail(Error{"auto",xpp::format("The initial conditions are not a steady state: equation \"{}\" has the largest residual |f(x,p)| = {}, above EPSU = {}; use Sing pts or integrate to a steady state before starting AUTO",name,value,rap.epsu),model_place(s.model(),name)});
+  }
 }
 
 void init_auto(AutoState &st, int ndim, bool exact)

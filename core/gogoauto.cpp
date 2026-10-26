@@ -177,16 +177,22 @@ std::optional<function_list> two_parameter(const iap_type &iap)
 /* the run's problem functions; a combination AUTO has none for is an error */
 function_list problem_functions(const iap_type &iap)
 {
+  const auto named = [](xpp::AutoPointCode c) {
+    const std::string symbol = xpp::auto_point_symbol(c);
+    return symbol == "  " ? std::string("a regular point") : "a point of type " + symbol;
+  };
+  const auto &s=*iap.lib->session;
+  if(std::abs(iap.isw)==2 && s.auto_state.run.icp[0]==s.auto_state.run.icp[1])
+    xpp::auto_fail(xpp::format("Two-parameter start has the same parameter \"{}\" on both axes; select two different parameters",xpp::auto_par_name(s,s.auto_state.axes().icp1)));
+  if(iap.irs>0 && iap.ips==xpp::AutoProblem::Periodic && std::abs(iap.isw)!=2 && iap.ibr>0 &&
+     !iap.itp.is(xpp::AutoPointKind::Hopf) && !iap.itp.started_from(xpp::AutoPointKind::Hopf))
+    xpp::auto_fail(xpp::format("Restart label {} has kind {}; a periodic run needs a Hopf point (HB) or a periodic orbit; select one of those points",iap.irs,named(iap.itp)));
   if (auto list = one_parameter(iap)) return *list;
   if (auto list = two_parameter(iap)) return *list;
   const char *continuation = std::abs(iap.isw) == 2 ? "a two-parameter continuation (ISW 2)"
                              : iap.isw < 0          ? "a branch switch (ISW -1)"
                                                     : "a one-parameter continuation (ISW 1)";
-  const auto named = [](xpp::AutoPointCode c) {
-    const std::string symbol = xpp::auto_point_symbol(c);
-    return symbol == "  " ? std::string("a regular point") : "a point of type " + symbol;
-  };
-  xpp::auto_fail(xpp::format("AUTO has no {} of {} from {} (ITP {}){}", continuation,
+  xpp::auto_fail(xpp::format("Restart label {}: AUTO has no {} of {} from {} (ITP {}){}; select a point of a kind supported by the run (two-parameter starts need a fold, Hopf, period doubling, torus or branch point)", iap.irs, continuation,
                              xpp::auto_problem_description(iap.ips), named(iap.itp), xpp::auto_point_encode(iap.itp),
                              iap.itp.start == xpp::AutoPointKind::Regular ? ""
                                  : ", continued from " + named({iap.itp.start, xpp::AutoPointKind::Regular})));

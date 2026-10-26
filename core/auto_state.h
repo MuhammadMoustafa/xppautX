@@ -33,10 +33,13 @@
 
 /* the AUTO settings the model's @ options give (auto_ntst=, ...), which
    init_auto_win copies into AutoState::bifur */
+// A nonnegative norm has no useful lower default; the upper bound leaves ordinary branches unrestricted.
+inline constexpr double auto_default_norm_min=0.0;
+inline constexpr double auto_default_norm_max=1e100;
 struct AutoOptions {
   int ntst=15,nmx=200,npr=50,ncol=4;
   double ds=.02,dsmax=.5,dsmin=.001;
-  double rl0=0.0,rl1=2,a0=0.0,a1=1000.;
+  double rl0=0.0,rl1=2,a0=auto_default_norm_min,a1=auto_default_norm_max;
   double xmax=2.5,xmin=-.5,ymax=3.0,ymin=-3.0;
   double epsl=1e-4,epsu=1e-4,epss=1e-4;
   int var=0;

@@ -1,0 +1,4 @@
+# W495: a known equilibrium, changed by each start-check case.
+par a = 0, b = 0
+x' = a-x
+init x = 0

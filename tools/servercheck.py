@@ -368,7 +368,93 @@ def check_auto_stops():
     check('stops AUTO special point: the default ITMX locates them, no note', notes == [], str(notes))
 
 
-STOPS_SECTIONS = {'stops': lambda: (check_stops(), check_auto_stops())}
+def check_auto_starts():
+    """W495: reject bad starts before a first diagram point is produced."""
+    path = os.path.join(STOPS_DIR, 'auto_start.odex')
+    cases = [
+        ('residual', {'ics': {'X': 1}}, {}, ['largest residual', 'EPSU = 1e-04', 'Sing pts']),
+        ('parameter low', {'pars': {'a': -3}}, {}, ['parameter "a" = -3', 'Par Min = -2', 'Par Max = 2']),
+        ('parameter high', {'pars': {'a': 3}}, {}, ['parameter "a" = 3', 'Par Min = -2', 'Par Max = 2']),
+        ('bound outward', {}, {'rl0': 0, 'ds': -0.02}, ['Ds = -0.02', 'pointing out']),
+        ('norm low', {}, {'a0': 1}, ['Start norm = 0', 'Norm Min = 1', 'widen']),
+        ('norm high', {'ics': {'X': 1}, 'pars': {'a': 1}}, {'a1': 0.5}, ['Start norm = 1', 'Norm Max = 0.5', 'widen']),
+    ]
+    for name, values, limits, words in cases:
+        s = Server(args.server, path)
+        try:
+            autocompare.completed(s)
+            autocompare.open_auto(s)
+            commands = [dict(kind=kind, name=k, value=v) for group, kind in [('ics', 'ic'), ('pars', 'par')]
+                        for k, v in values.get(group, {}).items()]
+            if commands:
+                autocompare.completed(s, dict(cmd='set', values=commands))
+            autocompare.completed(s, dict(cmd='auto', op='set', numerics={'rl0': -2, 'rl1': 2, **limits}))
+            evs = autocompare.run_any(s, 's')
+            errors = [e for e in evs if e.get('error')]
+            text = errors[0]['error'] if len(errors) == 1 else str(errors)
+            check('stops AUTO start ' + name, len(errors) == 1 and all(w in text for w in words)
+                  and bool(errors[0].get('file')) and bool(errors[0].get('line'))
+                  and not any(e.get('ev') == 'diagram' and e.get('op') == 'add' and e.get('runs') for e in evs), text)
+            if name == 'residual':
+                check('stops AUTO residual names the equation line', len(errors) == 1
+                      and errors[0].get('line') == stops_line(path, "x' ="), str(errors))
+        finally:
+            s.close()
+
+
+def check_auto_two_parameter_starts():
+    d = autocompare.read_description(autocompare.BASE / 'tstauto_ab_fold.json')
+    s = Server(args.server, autocompare.ROOT / d['model'])
+    try:
+        autocompare.completed(s)
+        diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
+        autocompare.execute_run(s, d['runs'][0], diagram, {})
+        autocompare.completed(s, dict(cmd='auto', op='grab', type='LP', index=1))
+        autocompare.completed(s, dict(cmd='auto', op='set', axes={'par1': 'p0', 'par2': 'p1'}))
+        evs = autocompare.run_any(s, 't')
+        errors = [e for e in evs if e.get('error')]
+        check('stops AUTO second parameter bound', len(errors) == 1
+              and 'parameter "p1" = 14' in errors[0]['error']
+              and 'Par Min' in errors[0]['error'] and 'Par Max' in errors[0]['error'], str(errors))
+        autocompare.completed(s, dict(cmd='auto', op='grab', type='LP', index=1))
+        autocompare.completed(s, dict(cmd='auto', op='set', axes={'par2': 'p0'}))
+        evs = autocompare.run_any(s, 't')
+        errors = [e for e in evs if e.get('error')]
+        check('stops AUTO duplicate parameters', len(errors) == 1
+              and 'same parameter "p0"' in errors[0]['error']
+              and 'two different parameters' in errors[0]['error'], str(errors))
+        # Restart uses the last run's two-parameter formulation but this label is a plain EP.
+        evs = autocompare.completed(s, dict(cmd='auto', op='set', axes={'par2': 'p1'}))
+        s.send(cmd='auto', op='restart', label=1)
+        evs, _ = s.collect(stops_idle)
+        errors = [e for e in evs if e.get('error')]
+        check('stops AUTO incompatible restart kind', len(errors) == 1
+              and 'Restart label 1' in errors[0]['error'] and 'EP' in errors[0]['error']
+              and 'two-parameter starts need' in errors[0]['error'], str(errors))
+    finally:
+        s.close()
+
+
+def check_auto_periodic_start_kind():
+    d = autocompare.read_description(autocompare.BASE / 'ode_lecar.json')
+    s = Server(args.server, autocompare.ROOT / d['model'])
+    try:
+        autocompare.completed(s)
+        diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
+        autocompare.restore_start(s, d['runs'][0], [], {})
+        for r in d['runs']:
+            autocompare.execute_run(s, r, diagram, {})
+        s.send(cmd='auto', op='restart', label=1)
+        evs, _ = s.collect(stops_idle)
+        errors = [e for e in evs if e.get('error')]
+        check('stops AUTO periodic from a steady EP', len(errors) == 1
+              and 'Restart label 1' in errors[0]['error'] and 'EP' in errors[0]['error']
+              and 'Hopf point (HB) or a periodic orbit' in errors[0]['error'], str(errors))
+    finally:
+        s.close()
+
+
+STOPS_SECTIONS = {'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind())}
 if args.only:
     for name in args.only.split(','):
         if name not in STOPS_SECTIONS:
@@ -9284,6 +9370,9 @@ def check_recursive_user_functions():
 check_recursive_user_functions()
 check_stops()
 check_auto_stops()
+check_auto_starts()
+check_auto_two_parameter_starts()
+check_auto_periodic_start_kind()
 
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

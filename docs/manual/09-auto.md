@@ -6,6 +6,18 @@ The version supported in XPP is a subset of AUTO but allows you to do most of th
 
 Click on the `File Auto` menu item to bring up AUTO.
 
+Before a run, AUTO checks the start. Initial conditions for a steady-state
+run must have every equation's absolute residual at most EPSU; otherwise the
+error names the worst equation and suggests **Sing pts** or integration to a
+steady state. Labelled restarts and orbit starts are exempt from that test.
+The first parameter (and the second model parameter in a two-parameter run)
+must lie within **Par Min/Max**. At a primary parameter bound, **Ds** must
+point inward. The two parameters must differ. A periodic restart needs a
+Hopf point or a periodic orbit; two-parameter starts need a supported special
+point. The start norm must lie within **Norm Min/Max**, whose defaults are
+0 and 1e100. Tighten these to end a branch when its norm leaves your interval.
+Errors name the value and bound and how to fix the start (W495, #559).
+
 ## The AUTO view
 
 **In web2**, AUTO opens as its own view (`ui/AutoView.tsx`), a full-screen

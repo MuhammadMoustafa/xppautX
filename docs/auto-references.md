@@ -1684,3 +1684,20 @@ closer at 29, the same on the two Mu26 descriptions, and at two, already within 
 (forced_pp_pd's second point to 1.6e-12, tstauto_lo's to 2.3e-11). No point of any branch moves, no label is added or removed
 elsewhere, and the AUTO-07p and XPPAUT comparisons pass (61 descriptions, 153 checks). The time does not change (one
 factorization more for each of the first two points of such a branch).
+
+## Start validation (W495, [#559](https://github.com/MuhammadMoustafa/xppautX/issues/559))
+
+Before continuation, xppautX checks an initial steady state's largest absolute
+RHS residual against the run's EPSU (the state tolerance). A labelled restart
+or an orbit start does not undergo this equilibrium test. Parameter bounds
+apply to both model parameters in a two-parameter run; an initial primary
+parameter on a bound must have Ds pointing into the interval. A second
+parameter's direction is determined by the computed tangent, rather than Ds.
+The start's norm is the solver's own Euclidean (equilibrium) or collocation
+L2 (orbit) norm, including only the original model states.
+
+Norm Min and Norm Max are retained. Their named defaults are 0 and 1e100:
+a norm cannot be negative, and the wide upper default avoids truncating an
+ordinary growing branch at XPPAUT's former default of 1000. These are
+xppautX defaults; AUTO-07p's A0/A1 remain explicitly configurable bounds.
+No baseline is rewritten for a start that fails validation.

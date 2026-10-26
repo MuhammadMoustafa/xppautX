@@ -1038,6 +1038,10 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   double rbt=0, rcp=0, rgh=0;
   const auto special_points=iap->lib->session->auto_state.special_points;
   (*stpnt)(iap, rap, par, icp, u.data());
+  xpp::auto_check_start_parameters(*iap,*rap,par,icp);
+  xpp::auto_check_start_equilibrium(*iap,*rap,u.data(),par,icp);
+  constexpr integer stride=1; // The algebraic state is contiguous.
+  xpp::auto_check_start_norm(*iap,*rap,xpp::dnrm2(&iap->ndm,u.data(),&stride));
   (*pvli)(iap, rap, u.data(), par);
 
 /* Determine a suitable starting label and branch number */
@@ -4285,6 +4289,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   rsptbv(iap, rap, par, icp, funi, stpnt, &rds, rlcur.data(), 
 	 rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(), dups.data(), tm.data(), 
 	 dtm.data(), ev.data(), &nodir, thl, thu);
+  xpp::auto_check_start_parameters(*iap,*rap,par,icp);
+  xpp::auto_check_start_norm(*iap,*rap,sqrt(rnrmsq(iap,&iap->ndm,&ntst_plus_one,ups.data(),dtm.data(),thu)));
   (*pvli)(iap, rap, icp, dtm.data(), &ntst_plus_one, ups.data(), &ndim, p0.data(), p1.data(), par);
 
   setrtn(iap, &ntst, &ntst_plus_one, ups.data(), par);

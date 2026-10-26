@@ -2376,3 +2376,14 @@ the member's file name, header line and source text, before applying the load.
 For positive kappa, period is `2*pi/sqrt(kappa)`; at and beyond zero kappa,
 `per` retains the last positive-kappa period, as in AUTO-07p, and is not a
 period of the neutral saddle.
+
+### AUTO start validation (W495, #559)
+
+All front ends use the same checks before continuation. A refused start emits
+one placed error and adds no diagram point. An initial steady-state start
+checks the largest absolute RHS residual against EPSU at that equation's
+model line; labelled restarts and orbit starts skip this test. The model
+parameters must lie within Par Min/Max (both axes for a two-parameter run),
+the primary parameter on a bound must have Ds directed inward, and two axes
+must differ. The start's solver norm must be within Norm Min/Max (defaults
+0 and 1e100). Incompatible restart kinds name the label and needed kinds.
