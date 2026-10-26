@@ -23,12 +23,22 @@ FILE *sink()
     return log_settings.file != nullptr && log_settings.file != stdout ? log_settings.file : stderr;
 }
 
-/* Every delivery uses the same sink and flush, including captured text. */
-void write_text(std::string_view text) noexcept
+/* Every delivery uses the same flush, including captured text. */
+void write_to(FILE *out, std::string_view text) noexcept
 {
-    FILE *out = sink();
     std::fwrite(text.data(), 1, text.size(), out);
     std::fflush(out);
+}
+
+/* the terminal's copy of a message at level: WARN and ERROR always (the
+   page may be gone), everything at --verbose or --debug */
+bool terminal_gets(XppLogLevel level) { return level <= XPP_LOG_WARN || threshold >= XPP_LOG_INFO; }
+
+/* the message goes to the sink, and to the terminal's copy when wanted */
+void deliver(std::string_view text, bool to_terminal) noexcept
+{
+    write_to(sink(), text);
+    if (log_settings.terminal != nullptr && to_terminal) write_to(log_settings.terminal, text);
 }
 
 /* exit() while a LogCapture keeps messages (a command-line mistake or
@@ -54,7 +64,7 @@ void close_log_file()
 }
 } // namespace
 
-LogSettings log_settings = {nullptr, 1, 0, 0};
+LogSettings log_settings = {nullptr, 1, 0, 0, nullptr};
 
 bool log_open_file(std::string_view path)
 {
@@ -75,6 +85,7 @@ void log_new_model()
 
 void log_set_threshold(XppLogLevel level) { threshold = level; }
 void log_set_auto_echo(bool on) { auto_echo = on; }
+void log_set_terminal(FILE *out) { log_settings.terminal = out; }
 
 /* printf semantics: the caller writes the newline, so a line can be built
    in pieces */
@@ -99,9 +110,7 @@ LogCapture::~LogCapture()
 
 void LogCapture::write(std::string_view text) noexcept
 {
-    if (!text.empty() && log_enabled(XPP_LOG_WARN)) {
-        write_text(text);
-    }
+    if (!text.empty() && log_enabled(XPP_LOG_WARN)) deliver(text, terminal_gets(XPP_LOG_WARN));
     text_.clear();
 }
 
@@ -127,7 +136,7 @@ void log_message(XppLogLevel level, std::string_view fmt, std::format_args args)
         capture->keep(message.c_str());
         return;
     }
-    write_text(message);
+    deliver(message, terminal_gets(level));
 }
 
 bool log_auto_enabled() { return auto_echo || threshold >= XPP_LOG_INFO; }
@@ -136,7 +145,7 @@ void log_auto_message(std::string_view fmt, std::format_args args) noexcept
 {
     if (!log_auto_enabled()) return;
     std::string message = xpp::vformat(fmt, args);
-    write_text(message);
+    deliver(message, terminal_gets(XPP_LOG_INFO));
 }
 
 bool log_parse_arg(std::string_view arg)

@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- The terminal shows only what the page cannot (W501, [#565](https://github.com/MuhammadMoustafa/xppautX/issues/565)): with a page open (window and browser modes) the page's log takes everything, AUTO's table included, and the terminal that started xppautX gets its warnings and errors (the page may be closed), the browser's address and, with `--verbose` or `--debug`, the whole log. Before, the terminal repeated the whole log, AUTO's table among it. `--server`, `--silent`, `--convert` and `--check` are unchanged.
+
 - Fix three inherited numerical bugs (W496, [#560](https://github.com/MuhammadMoustafa/xppautX/issues/560)): Stiff stops with a placed error when its step matrix is singular; the cross spectrum averages exactly the windows it divides by; sampled events at a step's exact endpoint fire once, including sign-zero events. These deliberately correct XPPAUT's results (findings 79, 85 and 87).
 - The remaining stop messages say why: a Poincare map with no crossing names its section and interval, Monte Carlo reports attempted and converged guesses and distinct equilibria, and a failed manifold returns one placed error. Periodic AUTO no-convergence messages include a singular reduced-system pivot; a zero pivot error includes its value and threshold. Short AUTO solution input names its label (W498, [#562](https://github.com/MuhammadMoustafa/xppautX/issues/562)).
 

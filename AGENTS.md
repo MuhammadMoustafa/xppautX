@@ -908,7 +908,10 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   WARN, raised by `--verbose`/`--debug`. The caller writes the newline;
   output goes to
   `--logfile`'s file if given, else stderr, which browser mode shows in the
-  page's log. There is no `plintf()` any more (retired at W25, ~620
+  page's log. With a page, the terminal gets WARN and ERROR too, and every
+  message at `--verbose`/`--debug` (`xpp::log_set_terminal`, W501): what the
+  page cannot show, a closed page included. The other modes write once, to the
+  sink. There is no `plintf()` any more (retired at W25, ~620
   call sites): there is one logging call, `xpp::log`, checked with
   std::format like xpp::format in xpp_io.h. Dynamic widths and precisions
   use nested replacement fields (`{:{}}`, `{:.{}}`); AUTO uses the same

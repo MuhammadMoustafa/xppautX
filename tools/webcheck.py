@@ -723,5 +723,108 @@ if os.name == 'nt':
         check('T27: ... and it exits', False)
     _winapi.CloseHandle(hproc)
     shutil.rmtree(run, ignore_errors=True)
+
+# ---- W501: with a page, the terminal gets only what the page cannot show (core/xpp_log.h's rule). An AUTO
+# run's table and the INFO lines go to the page's log alone; a WARN reaches the terminal too (no opener on
+# PATH here, so the browser cannot open). Each process is stopped by its own handle.
+trun = tempfile.mkdtemp(prefix='xppterm')
+shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'examples', 'ode', 'lecar.odex'), trun)
+idle_event = lambda e: e['ev'] == 'idle'
+
+
+def page_process(extra, env=None):
+    """a --browser process on lecar: (proc, its terminal lines, the address match, a reader still draining)"""
+    p = subprocess.Popen([os.path.abspath(args.bin), '--browser'] + extra + ['--port', '0', 'lecar.odex'],
+                         cwd=trun, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    term, mm = [], None
+    for line in p.stdout:
+        term.append(line)
+        mm = re.search(r'http://127\.0\.0\.1:(\d+)/\?t=(\w+)', line)
+        if mm:
+            break
+    reader = threading.Thread(target=lambda: [term.append(line) for line in p.stdout], daemon=True)
+    reader.start()
+    return p, term, mm, reader
+
+
+def page_events(pt, tk):
+    q = queue.Queue()
+
+    def stream():
+        try:
+            c = http.client.HTTPConnection('127.0.0.1', pt, timeout=300)
+            c.request('GET', '/events?t=' + tk)
+            for raw in c.getresponse():
+                line = raw.decode('utf-8').strip()
+                if line.startswith('data: '):
+                    q.put(json.loads(line[6:]))
+        except (OSError, http.client.HTTPException):
+            pass  # the program exited
+
+    threading.Thread(target=stream, daemon=True).start()
+    return q
+
+
+def until_event(q, pred, timeout=120):
+    got = []
+    while True:
+        try:
+            e = q.get(timeout=timeout)
+        except queue.Empty:
+            return got, None
+        got.append(e)
+        if pred(e):
+            return got, e
+
+
+def send_cmd(pt, tk, obj):
+    c = http.client.HTTPConnection('127.0.0.1', pt, timeout=10)
+    c.request('POST', '/cmd?t=' + tk, body=json.dumps(obj))
+    return c.getresponse().status
+
+
+def stop_page(p, reader):
+    p.terminate()
+    p.wait()
+    reader.join(timeout=10)
+
+
+p, term, mm, reader = page_process(['--no-open'])
+if mm is None:
+    check('W501: the browser run prints its address', False, ''.join(term)[:200])
+else:
+    pt, tk = int(mm.group(1)), mm.group(2)
+    q = page_events(pt, tk)
+    until_event(q, idle_event)
+    send_cmd(pt, tk, {'cmd': 'key', 'key': 'f'})
+    until_event(q, idle_event)
+    send_cmd(pt, tk, {'cmd': 'key', 'key': 'a'})  # File/Auto opens the AUTO window
+    until_event(q, idle_event)
+    send_cmd(pt, tk, {'cmd': 'key', 'win': 'auto', 'key': 'r'})  # Run: the start menu
+    _, ask = until_event(q, lambda e: e['ev'] == 'ask')
+    send_cmd(pt, tk, {'cmd': 'answer', 'id': ask['id'], 'key': 's'})  # steady state
+    evs, _ = until_event(q, idle_event, 300)
+    page_log = ''.join(e.get('text', '') for e in evs if e['ev'] == 'log')
+    check('W501: the page log has AUTO\'s table', 'BR    PT' in page_log and 'stopped at point' in page_log, page_log[:200])
+    stop_page(p, reader)
+    lines = [line for line in term if not line.startswith('XPP: ')]
+    check('W501: the terminal shows no AUTO table or INFO line of a page run', lines == [], ''.join(lines)[:300])
+
+empty_path = tempfile.mkdtemp(prefix='xppnoopener')
+p, term, mm, reader = page_process([], env=dict(os.environ, PATH=empty_path))
+if mm is None:
+    check('W501: the browser run with no opener prints its address', False, ''.join(term)[:200])
+else:
+    pt, tk = int(mm.group(1)), mm.group(2)
+    for _ in range(600):  # a wait for the WARN on the terminal; the page is served before it, and the poll is its interval
+        if any('in a browser' in line for line in term):
+            break
+        time.sleep(0.05)
+    stop_page(p, reader)
+    check('W501: a WARN (no opener) reaches the terminal', any('open http' in line and 'in a browser' in line for line in term),
+          ''.join(term)[:300])
+shutil.rmtree(trun, ignore_errors=True)
+shutil.rmtree(empty_path, ignore_errors=True)
+
 print('web checks: %d passed, %d failed' % (checks - failures, failures))
 sys.exit(1 if failures else 0)

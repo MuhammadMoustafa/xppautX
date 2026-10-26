@@ -15,10 +15,10 @@ namespace xpp::http {
 constexpr int DEFAULT_PORT = 8765; /* stable default address for local browser sessions */
 
 /* Serve on `port` (another free one when it is taken). This redirects
-   stdout and stderr (what xppaut prints) into the page's log as well as
-   the terminal, and after it the protocol goes to the page instead of
-   stdin/stdout; the page's commands go into the inbox (xpp_inbox.h).
-   false when no port can be opened.
+   stdout and stderr (what xppaut prints) into the page's log; the terminal
+   keeps what the page cannot show (xpp_log.h). After it the protocol goes to the
+   page instead of stdin/stdout; the page's commands go into the inbox
+   (xpp_inbox.h). false when no port can be opened.
 
    show prints the address (the "XPP: http://..." line tools and the VS
    Code extension read) and open opens it in the default browser; the

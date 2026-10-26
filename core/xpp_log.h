@@ -23,7 +23,9 @@
    built in pieces. They go to --logfile's file when one was given, else to
    stderr. That is enough for both front ends: browser mode turns stderr
    into the page's log panel, and --server mode writes its protocol to a
-   separate descriptor.
+   separate descriptor. With a page, the terminal gets only what the page
+   cannot show (log_set_terminal below): WARN and ERROR, and everything
+   at --verbose or --debug.
 
    xpp::log_auto() is AUTO's console table and its notes. The console gets
    it at INFO, like the rest; in browser mode it is always written
@@ -59,6 +61,7 @@ struct LogSettings {
     int verbose;                 /* 0: an INFO message prints nothing (@ quiet=1) */
     int quiet_from_command_line; /* --quiet was given: @ quiet= is ignored */
     int file_from_command_line;  /* --logfile was given: @ logfile= is ignored */
+    FILE *terminal;              /* the terminal's copy while a page takes the log (log_set_terminal); NULL: none */
     std::atomic<unsigned> errors{0}; /* errors reported, even when output is suppressed */
 };
 extern LogSettings log_settings;
@@ -88,6 +91,14 @@ bool log_enabled(XppLogLevel level);
 bool log_auto_enabled();
 /* true: AUTO's table is written whatever the threshold (browser mode) */
 void log_set_auto_echo(bool on);
+
+/* With a page taking the log (browser and window modes: stderr is its
+   pipe), `terminal` is the terminal's own copy of stderr. A WARN or ERROR
+   message is written to it as well, since the page may be closed or have
+   crashed, and so is every message at --verbose or --debug. NULL (the
+   default, and in every mode with no page): the log is written once, to
+   its sink. */
+void log_set_terminal(FILE *terminal);
 
 /* Recognizes "--verbose"/"--debug" (xppautX) and "--verbose"/"--debug"
    (xppaut); true when arg matched, the threshold then applied. */

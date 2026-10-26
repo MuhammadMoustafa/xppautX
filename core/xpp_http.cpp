@@ -167,7 +167,6 @@ struct RequestSlot {
 pthread_t watchdog_thread;
 pthread_t http_thread, log_thread;
 bool saw_bye;
-int orig_stderr = -1;
 /* at_exit's wait after an error ends when this is set (http::release) */
 bool released;
 pthread_cond_t released_cond = PTHREAD_COND_INITIALIZER;
@@ -418,7 +417,6 @@ void *log_main(void *arg)
         for (;;) {
             int r = read(fd, chunk.data(), chunk.size());
             if (r <= 0) break;
-            if (orig_stderr >= 0 && write(orig_stderr, chunk.data(), static_cast<unsigned>(r)) < 0) orig_stderr = -1;
             std::string_view got(chunk.data(), static_cast<size_t>(r));
             pthread_mutex_lock(&lock);
             srv.log_text += got;
@@ -1121,10 +1119,10 @@ void at_exit()
     bool done = saw_bye || released; /* released: the window showing the page is closed */
     pthread_mutex_unlock(&lock);
     if (done) return;
-    if (orig_stderr >= 0) {
+    if (xpp::log_settings.terminal != nullptr) {
         static constexpr std::string_view msg =
             "xppautX: the model stopped; the page shows what it printed. Ctrl+C (or closing its window) quits.\n";
-        if (write(orig_stderr, msg.data(), static_cast<unsigned>(msg.size())) < 0) orig_stderr = -1;
+        xpp::print(xpp::log_settings.terminal, "{}", msg);
     }
     /* until Ctrl+C, or until the window showing the page is closed */
     pthread_mutex_lock(&lock);
@@ -1216,11 +1214,12 @@ int listen_on(int port)
     return ntohs(addr.sin_port);
 }
 
-/* the "XPP: http://..." line tools and the VS Code extension read */
+/* the "XPP: http://..." line tools and the VS Code extension read: stdout until the log pipe takes it, then the terminal */
 void print_address(const char *page_url)
 {
-    printf("XPP: %s\n", page_url);
-    std::fflush(stdout);
+    FILE *out = serving && xpp::log_settings.terminal != nullptr ? xpp::log_settings.terminal : stdout;
+    xpp::print(out, "XPP: {}\n", page_url);
+    std::fflush(out);
 }
 
 std::array<int, 2> log_pipe;
@@ -1231,9 +1230,14 @@ void start_serving(int got, bool show, bool open)
     srv.page_url = xpp::format("http://127.0.0.1:{}/?t={}", got, srv.token);
     if (show) print_address(srv.page_url.c_str());
 
-    /* what xppaut prints: to the terminal and the page */
-    orig_stderr = fileno(stderr) >= 0 ? dup(fileno(stderr)) : -1;
-    if (orig_stderr >= 0) no_inherit_fd(orig_stderr);
+    /* the terminal's own stderr, for what xpp_log sends it: WARN, ERROR, and all at --verbose (the page takes stderr below) */
+    const int terminal_fd = fileno(stderr) >= 0 ? dup(fileno(stderr)) : -1;
+    if (terminal_fd >= 0) {
+        no_inherit_fd(terminal_fd);
+        FILE *terminal = fdopen(terminal_fd, "w");
+        if (terminal != nullptr) setvbuf(terminal, nullptr, _IONBF, 0);
+        xpp::log_set_terminal(terminal);
+    }
 #ifdef _WIN32
     constexpr unsigned LOG_PIPE_BYTES = 65536; /* the log pipe's buffer: printed text waits here for log_main */
     if (_pipe(log_pipe.data(), LOG_PIPE_BYTES, _O_BINARY | _O_NOINHERIT) == 0) {

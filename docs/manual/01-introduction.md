@@ -215,10 +215,11 @@ and stops playback with exit 1. `--yes` replaces them without asking.
 
 `--verbose` and `--debug` raise how much xppautX logs (parser stats, the
 startup banner, AUTO's table, solver chatter); by default it logs only
-warnings and errors. Without `--logfile`, that log goes to the terminal,
-and the browser front end also shows it live in the page's Messages
-panel; `--logfile FILE` sends it to FILE instead, so a run started that
-way has nothing in Messages. See
+warnings and errors. Without `--logfile`, that log goes to the page's
+Messages panel, live; the terminal gets the warnings and errors (a page
+may be closed), and everything with `--verbose` or `--debug`. `--logfile FILE`
+sends it to FILE instead, so a run started that way has nothing in Messages
+and the terminal shows only its warnings and errors. See
 [Using the interface: the log](04-using-the-interface.md#the-log).
 
 ### Command-line options

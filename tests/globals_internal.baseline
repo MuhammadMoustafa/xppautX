@@ -17,7 +17,7 @@ core/ui_json.cpp 1 the XppUi table installed (the protocol client's)
 core/xpp_about.cpp 1 About's text, a const string built at first use
 core/xpp_files.cpp 4 the files module's cache and the HTTP reader's hooks (process-wide, thread-shared)
 core/xpp_files_dir.cpp 1 the file selector's current folder (process-wide, like the working directory)
-core/xpp_http.cpp 16 the HTTP server's threads, sockets and locks (process-wide)
+core/xpp_http.cpp 15 the HTTP server's threads, sockets and locks (process-wide)
 core/xpp_inbox.cpp 9 the input queues the reader threads fill (process-wide, thread-shared)
 core/xpp_io.cpp 1 the temp-file name counter (process-wide)
 core/xpp_job.cpp 21 the job's state the reader threads set (atomics) and its pacing clocks, the one clock read a stored row's throttles share among them (W122): process-wide, one job at a time

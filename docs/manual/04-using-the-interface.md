@@ -69,8 +69,8 @@ The bar keeps a fixed height and, at its right end, a fixed-width slot
 for the progress bar and Stop/"Stopping…", reserved whether or not a run is going, so a
 command starting or ending never resizes the bar or shifts the plot
 above it.
-What XPP prints appears under **Messages** at the bottom of the page as
-well as in the terminal ("The log", below); a problem it reports (an
+What XPP prints appears under **Messages** at the bottom of the page
+("The log", below); a problem it reports (an
 illegal formula, a value out of bounds, a file it cannot read) shows as a
 dialog with an OK button (Enter or Escape closes it; errors that arrive
 together are lines of one dialog; each also stays in Messages), while a
@@ -427,9 +427,12 @@ The title bar's Help button (or F1) opens this manual in the page's Help view. I
 ## The log
 
 What xppautX prints — including AUTO's table (`Output`, in the AUTO
-view) — goes to **Messages** at the bottom of the page, as well as to
-the terminal or `--logfile`'s file, quiet by default (warnings and
-errors); `--verbose`/`--debug` raise the level (core/xpp_log.h). The
+view) — goes to **Messages** at the bottom of the page, quiet by default
+(warnings and errors); `--verbose`/`--debug` raise the level (core/xpp_log.h).
+The terminal that started it gets only what the page cannot show: the
+warnings and errors, since the page may be closed, and the browser's
+address; with `--verbose` or `--debug`, or `--logfile`'s file, everything
+(the file gets all of it either way). The
 core never prints to stdout or stderr directly, so nothing bypasses
 Messages.
 
