@@ -558,8 +558,8 @@ refuses any other subject. The coordinator enables it once per checkout with
 ## Task agents
 
 Work is run as a task board (docs/roadmap.md, docs/ui-v2.md). An agent
-(.claude/agents/task-easy, task, task-hard: the model and effort by
-difficulty) implements one card in the worktree its brief names:
+(.claude/agents/task: the model and effort the task-ladder skill picks for
+each card, passed with each start; default haiku at medium) implements one card in the worktree its brief names:
 
 - Work only there, with every path in this file adapted to it; commit on
   its branch and stop. Never merge, push, touch master, or write to GitHub.
