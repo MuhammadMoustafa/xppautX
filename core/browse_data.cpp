@@ -506,18 +506,20 @@ int add_stor_col(xpp::Session &s, std::string_view name, const std::string &form
   return(1);
 }
 
-/* a:b (seq 1) or a;b (seq 2), split at the last ':' or ';' */
-void chk_seq(std::string_view s,int *seq, double *a1, double *a2)
+namespace {
+/* a:b (seq 1) or a;b (seq 2), split at the last ':' or ';' (0 when neither);
+   each side is a number read through f, whose fault is the caller's */
+int chk_seq(xpp::TypedFields &f, std::string_view text, double &a1, double &a2)
 {
-  *seq=0;
-  *a1=0.0;
-  *a2=0.0;
-  const size_t j=s.find_last_of(":;");
-  if(j==std::string_view::npos)return;
-  *seq=s[j]==':'?1:2;
-  *a1=std::atof(std::string(s.substr(0,j)).c_str());
-  *a2=std::atof(std::string(s.substr(j+1)).c_str());
+  a1=0.0;
+  a2=0.0;
+  const size_t j=text.find_last_of(":;");
+  if(j==std::string_view::npos)return 0;
+  a1=f.real("sequence",std::string(text.substr(0,j)));
+  a2=f.real("sequence",std::string(text.substr(j+1)));
+  return text[j]==':'?1:2;
 }
+} // namespace
 
 void replace_column(xpp::Session &s, const char *var, char *form, float **dat, int n)
 {
@@ -549,8 +551,14 @@ while(i<static_cast<int>(strlen(form))){
 
  }
 
-if(dif_var<0)
-  chk_seq(form,&seq,&a1,&a2);
+if(dif_var<0){
+  xpp::TypedFields fields(s);
+  seq=chk_seq(fields,form,a1,a2);
+  if(fields.error()){
+    command_error("browser", *fields.error());
+    return;
+  }
+ }
  if(seq==1){
    if(a1==a2)
      seq=3;

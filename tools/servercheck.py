@@ -5973,6 +5973,14 @@ def check_outcomes_once():
         check('an unreadable animation names its file at line 0 once',
               r.returncode == 1 and len(errors) == 1 and errors[0].get('file') == 'missing.ani'
               and errors[0].get('line') == 0, str(errors))
+        # W500: a bad number in an animation file is a load error at its file and line (no value is applied)
+        with open(os.path.join(d, 'bad.ani'), 'w') as f:
+            f.write('line 0;0;1;1;$RED;thick_bad\n')
+        r, evs = run([{'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'bad.ani'}])
+        errors = [e for e in evs if e.get('error')]
+        check('an animation line with a bad number names its file, line and the value',
+              r.returncode == 1 and len(errors) == 1 and errors[0].get('file') == 'bad.ani'
+              and errors[0].get('line') == 1 and 'thick_bad' in errors[0].get('error', ''), str(errors))
         # Kinescope capture has a fixed capacity; its last attempted frame fails once.
         capture = [{'cmd': 'key', 'key': 'k'}, {'cmd': 'answer', 'key': 'c'}]
         r, evs = run(capture * 251)

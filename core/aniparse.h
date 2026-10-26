@@ -65,6 +65,13 @@ struct AniCom {
 /**************  the Grabber ***************************/
 constexpr int MAX_GEVENTS = 20; /* maximum variables you can change per grabbable */
 constexpr int MAX_ANI_GRAB = 50; /* max grabbable objects  */
+/* the most points a comet keeps: its tail is drawn every frame */
+constexpr int MAX_COMET_POINTS = 10000;
+/* the sizes a text command takes (0 to this), and the speeds (0 to this, in ms per frame of Go) */
+constexpr int ANI_TEXT_SIZES = 4;
+constexpr int MAX_ANI_SPEED = 1000;
+/* a grab's tolerance when its file gives none above zero */
+constexpr double GRAB_TOLERANCE = .02;
 
 /* tasks have the form {name1=formula1;name2=formula2;...} */
 struct GrabEvent {

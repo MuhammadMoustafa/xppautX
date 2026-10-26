@@ -1,5 +1,5 @@
 core/colormap.cpp 1 color_table: whether the front end shows colour at all (process-wide, AGENTS.md)
-core/comline.cpp 7 the command line's options (process-wide, AGENTS.md)
+core/comline.cpp 6 the command line's options (process-wide, AGENTS.md)
 core/ui_json.cpp 1 xpp::json::session, the protocol client's state (one client per process)
 core/xpp_batch.cpp 1 batch_options: --silent's options (process-wide, AGENTS.md)
 core/xpp_globals.cpp 1 program: interactive, version (process-wide, AGENTS.md)

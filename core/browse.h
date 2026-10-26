@@ -18,7 +18,6 @@ typedef struct {
 } BROWSER;
 
 void waitasec(int msec);
-void chk_seq(std::string_view f, int *seq, double *a1, double *a2);
 void make_d_table(double xlo, double xhi, int col, std::string_view filename, BROWSER b);
 void find_value(int col, double val, int *row, BROWSER b);
 void data_first(BROWSER *b);
