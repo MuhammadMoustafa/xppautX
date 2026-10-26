@@ -380,6 +380,10 @@ def compute(binary, d, threads, *, env=None, run=None, diagram_data=True, jacobi
             if 'skip' not in r:
                 restore_start(s, r, values, ranges)
                 events = execute_run(s, r, diagram, ranges, diagram_data=diagram_data)
+                # AUTO refines an inexact steady-state start by Newton (autoinfo's start_refined, W495): that start is
+                # not the one AUTO-07p starts from, so the reference comparison leaves its first point out
+                infos = [e for e in events if e.get('ev') == 'autoinfo' and 'start_refined' in e]
+                r['start_refined'] = bool(infos and infos[-1]['start_refined'])
                 if observer:
                     observer.finished(s, r, events, ranges)
         data = session_diagram(s)
@@ -885,7 +889,8 @@ def compare_reference_run(name, suffix, dr, r, rows, known):
                        # An equilibrium restarted from an EP reuses that point;
                        # its seed remains checked by the whole branch,
                        # rather than counted as a newly labelled point.
-                       compare_start=not (dr['kind'] == 'equilibrium' and dr['start'].get('type') == 'EP'))
+                       compare_start=not (dr['kind'] == 'equilibrium' and dr['start'].get('type') == 'EP')
+                       and not dr.get('start_refined'))
     if 'curve' in r:
         c, cm = compare_curve(rows[dr['name']], dr['auto'], r['curve'], who, XPPAUT_CURVE_DIGITS if suffix == '.xppaut' else None,
                               dr['kind'] in ('two_parameter', *HOMCONT))

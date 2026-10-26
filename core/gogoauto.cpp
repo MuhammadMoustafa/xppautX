@@ -9,6 +9,7 @@
 #include "session.h"
 #include "autevd.h" /* xAuto (its own extern) */
 #include "auto_nox.h" /* xpp::auto_fort_path() */
+#include "diagram.h" /* diagram_of_label */
 
 
 namespace {
@@ -184,7 +185,11 @@ function_list problem_functions(const iap_type &iap)
   const auto &s=*iap.lib->session;
   if(std::abs(iap.isw)==2 && s.auto_state.run.icp[0]==s.auto_state.run.icp[1])
     xpp::auto_fail(xpp::format("Two-parameter start has the same parameter \"{}\" on both axes; select two different parameters",xpp::auto_par_name(s,s.auto_state.axes().icp1)));
-  if(iap.irs>0 && iap.ips==xpp::AutoProblem::Periodic && std::abs(iap.isw)!=2 && iap.ibr>0 &&
+  /* the restart label's stored point decides whether it is a periodic orbit (its branch's sign, get_bif_type):
+     a periodic branch's end point restarts a periodic run; a steady state needs a Hopf point */
+  const xpp::DIAGRAM *label=iap.irs>0?diagram_of_label(s,iap.irs):nullptr;
+  if(label && iap.ips==xpp::AutoProblem::Periodic && std::abs(iap.isw)!=2 &&
+     !xpp::point_is_periodic(xpp::get_bif_type(label->ibr,label->ntot)) &&
      !iap.itp.is(xpp::AutoPointKind::Hopf) && !iap.itp.started_from(xpp::AutoPointKind::Hopf))
     xpp::auto_fail(xpp::format("Restart label {} has kind {}; a periodic run needs a Hopf point (HB) or a periodic orbit; select one of those points",iap.irs,named(iap.itp)));
   if (auto list = one_parameter(iap)) return *list;

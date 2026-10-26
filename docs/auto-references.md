@@ -14,15 +14,19 @@ installed in CI, nor vendored.
 A steady-state start from initial conditions whose largest residual is above
 EPSU is refined by Newton's method, with the Sing pts settings, before the
 run (xppautX refines an inexact steady-state start; AUTO-07p starts from it
-as given). Seven descriptions had such starts and now run from the refined
-point: `explicit_homoclinic`, `izh_class2`, `lorenz_homoclinic`,
-`tstauto_eiz-hom`, `tstauto_san`, `tstauto_torx_homcont` and
-`tstauto_wcbiwave`. Their diagrams changed on purpose, and the first point
-of each is the refined equilibrium. Their stored first point, compared with
-AUTO-07p's, is a deliberate difference, not an agreement: AUTO-07p's own
-start is the unrefined one. Principal-parameter bounds only: the second
-parameter of a two-parameter run is not bounded, as in AUTO-07p
-(`ae.f90` tests U(NDIM+1) only).
+as given). The run reports it: `autoinfo`'s `start_refined` (docs/protocol.md).
+Principal-parameter bounds only: the second parameter of a two-parameter run
+is not bounded, as in AUTO-07p (`ae.f90` tests U(NDIM+1) only).
+
+Diagrams of the descriptions whose start was refined changed on purpose; their
+first point is the refined equilibrium. Against AUTO-07p and XPPAUT 8.0,
+autocompare leaves a refined run's first point out of the special-point and
+quantity comparison, because both programs start from the inexact point, and
+keeps every later point in it. Descriptions this applies to and that pass:
+`explicit_homoclinic`, `lorenz_homoclinic`, `tstauto_eiz-hom`,
+`tstauto_torx_homcont` and `tstauto_wcbiwave`. Not yet passing for other
+reasons: `tstauto_san` (a later special point, the BP, which we do not find)
+and the two `ode_mu26` descriptions (their baselines, see the W495 study).
 
 ## Mesh adaptation and measured Floquet candidates (W361, [#423](https://github.com/MuhammadMoustafa/xppautX/issues/423))
 

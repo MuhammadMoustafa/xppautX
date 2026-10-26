@@ -141,7 +141,7 @@ std::string auto_data_event_line(const Session &s, const int &point)
         if (i > 0) o += ',';
         xpp::json_append_string(o, s.auto_state.stop.notes[i]);
     }
-    o += "]}";
+    o += s.auto_state.stop.start_refined ? "],\"start_refined\":true}" : "],\"start_refined\":false}";
     return o;
 }
 

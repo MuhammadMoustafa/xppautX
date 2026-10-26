@@ -67,6 +67,8 @@ struct AutoStop {
     std::string last_text;
     /* what the run lost or could not trust (auto_stop_note), in words */
     std::vector<std::string> notes;
+    /* the run's start was refined by Newton before it ran (autevd.cpp), so it is not the start as given */
+    bool start_refined = false;
 };
 
 /* a "No convergence" NOTE; the branch end that follows says "no

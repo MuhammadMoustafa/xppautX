@@ -125,6 +125,7 @@ void auto_stop_clear(AutoStop &st)
     st.last_text.clear();
     st.noconv = {};
     st.notes.clear();
+    st.start_refined = false;
 }
 
 void auto_stop_note(Session &s, std::string text)

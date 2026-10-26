@@ -38,23 +38,23 @@ starts. Periodic restarts additionally require a Hopf point or an orbit
 ## Validation
 
 - Build: zero warnings; unit tests all passed.
-- `autocompare`: 61 models, 9 skipped, 151 checks, 10 failures. Seven
-  refined descriptions had their diagram baselines rewritten (see below).
-  Remaining failures: `ode_mu26_blocked` and `ode_mu26_control` (a restart
-  from label 13, an EP, for a periodic run, now refused by the restart-kind
-  check; not updated, reported); and seven reference comparisons of the
-  refined first point against AUTO-07p (`explicit_homoclinic`,
-  `lorenz_homoclinic`, `tstauto_eiz-hom`, `tstauto_san`,
-  `tstauto_torx_homcont`, `tstauto_wcbiwave`), a deliberate difference
-  recorded in docs/auto-references.md.
-- `servercheck`: 1512 checks, all passed. Its start cases: the residual case
-  now uses `auto_start_no_root.odex` (no steady state, refused); the default
-  auto_start.odex X = 1 is refined and runs; a start below Par Min is a
-  pre-run error; the second-parameter check asserts the run starts.
-- `autocheck diagram`: all passed.
-- `examples_check`: 215 of 216 outputs match (ml-range.odex has no output by
-  design). `deadcode --check`: the 13 known window entries only.
-  `deadcheck`, `dupcheck`, `errorcheck`: clean.
+- `autocompare` (after the follow-up of 2026-10-26): 61 models, 9 skipped,
+  153 checks, 5 failures:
+  - `ode_mu26_blocked`, `ode_mu26_control` (threads 1 and auto, 4 checks):
+    their steady start is refined (confirmed: with the refinement switched
+    off for a diagnostic run, `ode_mu26_control` matches its baseline and
+    AUTO-07p byte for byte), so the HB point of the steady branch moves by
+    about 4e-8 and the baseline differs at point 1. Not updated: the
+    baselines are to stay unchanged, so this needs a maintainer decision.
+    Restart from the cycles' end point (to_snic) is now allowed: the
+    refusal looks at the stored label point's branch sign.
+  - `tstauto_san` against AUTO-07p and XPPAUT 8.0: a later special point,
+    the BP, is in both references and not found by xppautX. Not relaxed.
+- `servercheck`: 1512 checks, all passed.
+- The AUTO-07p and XPPAUT comparisons leave a refined run's first point out
+  (autoinfo `start_refined`); every later point is compared as before.
+- `autocheck diagram`: all passed (earlier run). `examples_check`,
+  `deadcode`, `deadcheck`, `dupcheck`, `errorcheck`: as before.
 
 ## Baselines rewritten (autocompare --update)
 
