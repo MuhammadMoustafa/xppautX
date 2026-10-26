@@ -1144,7 +1144,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   /* Check the row's shared numeric bounds before its parser can apply a value. */
   double x = 0;
   const char *refused = parse_number(text, x) ? rule_problem(row->rule, x, row->maximum) : nullptr;
-  if (row->auto_numeric >= 0 && parse_number(text, x) && !auto_settings_num_ok(row->auto_numeric, x, color_why)) return color_why;
+  if (std::string auto_why; row->auto_numeric >= 0 && parse_number(text, x) && !auto_settings_num_ok(row->auto_numeric, x, auto_why)) return auto_why;
   if (row->zero_or_one && text != "0" && text != "1") why = "not 0 or 1";
   else if (row->once && !source.may(s, *row)) return std::nullopt;
   else if (refused) why = refused;

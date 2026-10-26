@@ -362,7 +362,7 @@ Result<Checked> check(const xpp::Session &s, const AutoSettingsSet *set, int vie
     }
 
     /* Mark values: parameter (or T, the period) = value */
-    if ((set->nmarks && (*set->nmarks < 0 || *set->nmarks > auto_file_marks_limit)) || (set->nmarks &&
+    if (set->nmarks && (*set->nmarks < 0 || *set->nmarks > auto_file_marks_limit ||
         (set->mark_name.size() != static_cast<std::size_t>(*set->nmarks) ||
          set->mark_value.size() != static_cast<std::size_t>(*set->nmarks)))) {
         return std::unexpected(refused("Mark values: count does not match the list", "mark"));
