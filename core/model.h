@@ -25,7 +25,6 @@
    with size_variables as the file declares its variables (W243: no
    limit on their number): it writes an entry by its index (a variable, a
    Markov variable, an aux quantity each at its own offset). */
-#include "xpplim.h"
 #include "xpp_error.h"
 #include "volterra.h"
 #include "tabular.h"

@@ -16,7 +16,6 @@
 #include "auto_stability.h"
 #include "auto_codim.h"
 #include "auto_parallel.h"
-#include "xpplim.h"
 #include "display_state.h"
 #include "xAuto.h"
 #include "xpp_io.h"

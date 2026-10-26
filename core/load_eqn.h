@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdio.h>
-#include "xpplim.h"
 #include "model_options.h"
 #include "line_style.h"
 #include "numerics_settings.h"

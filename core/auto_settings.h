@@ -4,7 +4,6 @@
 #include <vector>
 #include <optional>
 #include <string>
-#include "xpplim.h"
 #include "auto_axis.h"
 #include "auto_codes.h"
 #include "xpp_error.h"

@@ -2,7 +2,6 @@
 
 #include <string_view>
 #include "xpp_error.h"
-#include "xpplim.h"
 
 #include <array>
 #include <string>

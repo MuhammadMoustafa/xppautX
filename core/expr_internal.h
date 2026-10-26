@@ -20,7 +20,7 @@
 #define ISHIFTSYM 67
 #define INDX 68
 #define SETSYM  72
-#define FIRST_ARG 73 /* ARG1, the first of 20 */
+#define FIRST_ARG 73 /* ARG1, the first of BUILTIN_ARGS (expr.h) */
 #define NUMTOK 59
 
 namespace xpp::expr {

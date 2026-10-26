@@ -1,6 +1,5 @@
 #pragma once
 
-#include "xpplim.h"
 #include "xpp_types.h"
 #include "struct.h" /* CURVE */
 #include <array>

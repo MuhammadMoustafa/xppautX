@@ -15,6 +15,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 #include <array>
 #include <optional>
 #include <string>
@@ -281,6 +282,7 @@ xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi
   }
   if (!table_count_ok(s,index,npts))
     return xpp::fail("table",xpp::format("{} points exceeds the session table budget of {} points",npts,table_points_limit),table_place(s,index));
+  if (auto fits=check_network_table_length(s,index,npts); !fits) return fits;
   resize_values(s.tables[index],length);
   s.tables[index].flag=2;
   auto ev=eval_fun_table(s,index,npts,xlo,xhi,std::string(formula),s.tables[index].y);
@@ -341,7 +343,8 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
     return problem(xpp::format("The table file ends after {} lines: it is too short",at));
   };
 
- s.tables[index].interp=0;
+  /* the file's values and kind are applied only once the whole file is read */
+  int interp=0; /* 0 linear, 1 closest step, 2 cubic spline */
   auto line0=next_line();
   if(!line0){
     return too_short();
@@ -350,12 +353,12 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
     const char *bob=line0->c_str();
     if (bob[0]=='i') /* closest step value */
       {
-        s.tables[index].interp=1;
+        interp=1;
         bob++;  /* skip past initial "i" to length */
       };
     if (bob[0]=='s') /* cubic spline  */
       {
-        s.tables[index].interp=2;
+        interp=2;
         bob++;  /* skip past initial "i" to length */
       };
     if (!xpp::parse_int(bob,length))
@@ -380,17 +383,19 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
     return problem(xpp::format("Its high end {:g} is not above its low end {:g}",xhi,xlo));
   }
   bool fresh=(s.tables[index].flag==0);
-  resize_values(s.tables[index],length);
+  std::vector<double> values(static_cast<std::size_t>(length));
   for(i=0;i<length;i++){
     auto line=next_line();
-    if(!line){
-       s.tables[index].y_storage=std::vector<double>();
-       s.tables[index].y=NULL;
-       s.tables[index].flag=0;
-       return too_short();
-     }
-     s.tables[index].y[i]=atof(line->c_str());
-   }
+    if(!line) return too_short();
+    values[i]=atof(line->c_str());
+  }
+  /* a re-read must keep every network's values in range (nothing is applied
+     when it does not) */
+  const xpp::Result<> fits=check_network_table_length(s,index,length);
+  if(!fits) return fits;
+  s.tables[index].interp=interp;
+  resize_values(s.tables[index],length);
+  std::copy(values.begin(),values.end(),s.tables[index].y);
   s.tables[index].xlo=xlo;
   s.tables[index].xhi=xhi;
   s.tables[index].n=length;

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "xpplim.h"
 #include "expr_program.h"
 
 /* a kernel that is a convolution (KERNEL's flag) */

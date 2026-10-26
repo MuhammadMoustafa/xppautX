@@ -1,6 +1,7 @@
 #pragma once
 
 #include "expr_program.h"
+#include "xpp_error.h"
 #include <array>
 #include <string>
 #include <string_view>
@@ -38,6 +39,10 @@ double vector_value(Session &s, double x, int i);
 double network_value(Session &s, double x, int i);
 /* the network name's call rhs: its Model network is filled in (an error is thrown); false when rhs is no network */
 bool add_spec_fun(Session &s, std::string_view name, char *rhs);
+/* table index is about to take length values (a re-read): the first network
+   that reads it needs more is the error, at the network's line; nothing is
+   changed by the check */
+xpp::Result<> check_network_table_length(const Session &s, int index, long long length);
 void add_special_name(Session &s, std::string_view name, char *rhs);
 void eval_all_nets(Session &s);
 void evaluate_network(Session &s, int ind);

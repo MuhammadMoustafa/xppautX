@@ -1,6 +1,5 @@
 #pragma once
 
-#include "xpplim.h"
 #include "xpp_types.h"
 #include "colormap.h"
 #include "line_style.h"

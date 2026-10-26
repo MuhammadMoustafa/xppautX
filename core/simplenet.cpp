@@ -325,6 +325,20 @@ long long convolution_weights(Ends ends, int n, int ncon)
   return ncon+reach+1;
 }
 
+/* the values a network reads from its weight table (a convolution's, an
+   fft convolution's or a matrix product's) and from its index or delay
+   table (one per connection) */
+long long weights_needed(const Network &net)
+{
+  return net.kind==NetworkKind::convolution?convolution_weights(net.ends,net.n,net.ncon):
+    net.kind==NetworkKind::fft_convolution?(net.ends==Ends::zero?2LL:1LL)*net.n:1LL*net.n*net.ncon;
+}
+
+long long pairs_needed(const Network &net)
+{
+  return 1LL*net.n*net.ncon;
+}
+
 /* a convolution's ends from its first argument */
 Ends next_ends(xpp::Tokens &args, NetworkKind kind)
 {
@@ -373,13 +387,9 @@ void read_tabled(xpp::Session &s, const NetworkForm &form, int ind, const char *
   net.n=form.matrix?ncon:ntot;
   net.ncon=form.matrix?ntot:ncon;
   /* every table the network reads has the values it will read */
-  if(form.weights){
-    const long long needed=form.kind==NetworkKind::convolution?convolution_weights(net.ends,ntot,ncon):
-      form.kind==NetworkKind::fft_convolution?(net.ends==Ends::zero?2LL:1LL)*ntot:1LL*net.n*net.ncon;
-    require_table_length(s,name,wgtname,net.weight_table,needed);
-  }
-  if(form.index)require_table_length(s,name,indname,net.index_table,1LL*net.n*net.ncon);
-  if(form.delays)require_table_length(s,name,tauname,net.taud_table,1LL*net.n*net.ncon);
+  if(form.weights)require_table_length(s,name,wgtname,net.weight_table,weights_needed(net));
+  if(form.index)require_table_length(s,name,indname,net.index_table,pairs_needed(net));
+  if(form.delays)require_table_length(s,name,tauname,net.taud_table,pairs_needed(net));
   s.networks[ind].values.assign(net.n+1,0.0);
   if(form.kind==NetworkKind::fft_convolution){
     net.ncon=net.ends==Ends::zero?2*ntot:ntot;
@@ -463,6 +473,20 @@ void read_extremum(xpp::Session &s, int ind, const char *name, xpp::Tokens &args
 }
 
 } // namespace
+
+xpp::Result<> check_network_table_length(const Session &s, int index, long long length)
+{
+  for(const Network &net:s.model().networks){
+    long long needed=0;
+    if(net.weight_table==index)needed=std::max(needed,weights_needed(net));
+    if(net.index_table==index)needed=std::max(needed,pairs_needed(net));
+    if(net.taud_table==index)needed=std::max(needed,pairs_needed(net));
+    if(needed>length)
+      return xpp::fail("network",xpp::format("In network {}, table {} has {} values; {} are needed",
+                                             net.name,s.tables[index].name,length,needed),xpp::model_place(s.model(),net.name));
+  }
+  return {};
+}
 
 bool add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
 {

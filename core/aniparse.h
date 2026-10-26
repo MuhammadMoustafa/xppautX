@@ -1,6 +1,5 @@
 #pragma once
 
-#include "xpplim.h"
 #include "xpp_types.h"
 #include "load_eqn.h"
 #include <string>

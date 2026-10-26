@@ -1,7 +1,6 @@
 #pragma once
 
 #include "xpp_types.h"
-#include "xpplim.h"
 #include "struct.h"
 #include <string>
 #include <string_view>

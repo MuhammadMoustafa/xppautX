@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "solver.h"
-#include "xpplim.h"
 #include "model.h"
 
 namespace xpp {

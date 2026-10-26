@@ -6,7 +6,6 @@
 #include <string_view>
 #include <vector>
 #include "xpp_error.h"
-#include "xpplim.h"
 #include "colormap.h"
 
 namespace xpp {

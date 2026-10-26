@@ -7,7 +7,6 @@
 #include "model.h"
 #include "auto_stop.h"
 #include "auto_unknowns.h"
-#include "xpplim.h"
 
 #include <cmath>
 #include <cstring>

@@ -525,8 +525,9 @@ int add_expr(xpp::Session &s, std::string_view expr, std::vector<int> &command, 
  err = alg_to_rpn(s,my_token.data(),command);
  if(err!=0)return(1);
  /* Function bodies are compiled before ENDFUN and their argument count
-    are installed. MAXARG admits the compiler's temporary argument names. */
- size_expr_stack(s,command,MAXARG);
+    are installed. The argument symbols the table holds bound the names a
+    body may read. */
+ size_expr_stack(s,command,s.parser.arg_count());
  if(length)*length=static_cast<int>(command.size());
  return(0);
 }

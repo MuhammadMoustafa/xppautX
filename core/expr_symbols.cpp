@@ -269,6 +269,31 @@ int ParserState::symbol_prefix(const char *source, int &length) const
   return token;
 }
 
+int ParserState::arg_symbol(int i)
+{
+  if (i < BUILTIN_ARGS) return FIRST_ARG + i;
+  const int com = COM(USTACKTYPE, i);
+  for (int k = STDSYM; k < nsym; k++)
+    if (symbols[k].com == com) return k;
+  forget_symbols_from(nsym);
+  room_for_symbol();
+  ExprSymbol &s = symbols[nsym];
+  s.name = xpp::format("ARG{}", i + 1);
+  s.len = static_cast<int>(s.name.size());
+  s.pri = PRIMARY_PRIORITY;
+  s.arg = 0;
+  s.com = com;
+  return nsym++;
+}
+
+int ParserState::arg_count() const
+{
+  int n = BUILTIN_ARGS;
+  for (int k = 0; k < nsym; k++)
+    if (symbols[k].com / MAXTYPE == USTACKTYPE) n = std::max(n, symbols[k].com % MAXTYPE + 1);
+  return n;
+}
+
 ParserState::ParserState()
 {
   symbols.resize(2*STDSYM);
@@ -541,10 +566,11 @@ void set_old_arg_names(ParserState &p, int narg)
 {
   int i;
   for(i=0;i<narg;i++){
-    ExprSymbol &s=p.symbols[FIRST_ARG+i];
+    const int k=p.arg_symbol(i);
+    ExprSymbol &s=p.symbols[k];
     s.name=xpp::format("ARG{}",i+1);
     s.len=static_cast<int>(s.name.size());
-    p.symbol_name_changed(FIRST_ARG+i);
+    p.symbol_name_changed(k);
   }
 }
 
@@ -554,10 +580,11 @@ void set_ufun_arg_names(xpp::Session &session, int index)
 {
   const std::vector<std::string> &args=session.model().ufun_args[index];
   for(size_t i=0;i<args.size();i++){
-    ExprSymbol &s=session.parser.symbols[FIRST_ARG+i];
+    const int k=session.parser.arg_symbol(static_cast<int>(i));
+    ExprSymbol &s=session.parser.symbols[k];
     s.name=args[i];
     s.len=static_cast<int>(s.name.size());
-    session.parser.symbol_name_changed(FIRST_ARG+static_cast<int>(i));
+    session.parser.symbol_name_changed(k);
  }
 }
 
@@ -602,10 +629,6 @@ int add_ufun_new(xpp::Session &s, int index, std::string_view rhs, std::span<con
   xpp::Model &m=s.model();
   int end;
   int narg=static_cast<int>(args.size());
-   if(narg>MAXARG){
-    xpp::log(XPP_LOG_WARN, "Maximal arguments exceeded \n");
-    return(1);
-  }
   m.ufun_programs[index].rpn.clear();
   set_ufun_def(m,index,"");
   m.ufun_args[index].assign(args.begin(),args.end());

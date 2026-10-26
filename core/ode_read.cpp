@@ -452,9 +452,6 @@ int extract_args(const char *s1, int i0, int *ie, std::vector<std::string> &args
   while(i<n){
     type=find_char(s1,",)",i,&i1);
     if(type<0)break;
-    if(static_cast<int>(args.size())>=MAXARG){
-      model_failed(xpp::format("More than {} arguments",MAXARG));
-    }
     args.emplace_back(s1+i,s1+i1);
     i=i1+1;
     if(type==1){

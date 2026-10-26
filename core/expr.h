@@ -19,7 +19,6 @@
    documents. A second front end (the .odex parser, W74) writes the same
    programs, and evaluate() and the built-ins serve both. The four files
    share expr_internal.h; the rest of the core uses this header. */
-#include "xpplim.h"
 
 #include <array>
 #include <map>
@@ -35,6 +34,9 @@
 
 /* the built-in symbols, the symbol table's first entries (expr_symbols.cpp) */
 #define STDSYM 96
+/* the built-in argument symbols ARG1..ARG20: a user function with more
+   arguments gets its own (ParserState::arg_symbol) */
+#define BUILTIN_ARGS 20
 
 namespace xpp {
 
@@ -162,6 +164,13 @@ struct ParserState {
      was rolled back) is dropped from it first, a renamed one re-indexed. */
   int symbol_named(std::string_view name) const;
   int symbol_prefix(const char *source, int &length) const;
+  /* the symbol of argument i (from 0) of a user function, ARG{i+1}: the
+     built-ins hold the first BUILTIN_ARGS, a symbol past them is appended
+     to the table when first needed */
+  int arg_symbol(int i);
+  /* the arguments the table has symbols for: no function reads more, and
+     the compiler's stack holds that many */
+  int arg_count() const;
   void symbol_name_changed(int index);
   void forget_symbols_from(int index) const;
 

@@ -19,6 +19,7 @@
 #include "xpp_util.h"
 #include "menudrive.h"
 #include "solver.h"
+#include "tabular.h"
 
 #include <cmath>
 #include <algorithm>
@@ -1003,6 +1004,39 @@ int main(void)
     char *argv[] = {arg0.data(), path.data(), nullptr};
     const auto loaded = xpp::load_model(2, argv, 1);
     CHECK(!loaded && loaded.error().place.line == 4 && loaded.error().what == "In k, W has 2 values; 3 are needed");
+  }
+
+  /* W497: a table re-read (the Numerics' load table) must keep every network's values in range: a
+     shorter file is refused at the network's line, and the table keeps its values */
+  {
+    put("build/w_long.tab", "3\n0\n2\n1\n2\n3\n");
+    put("build/w_short.tab", "2\n0\n1\n1\n2\n");
+    put("build/test_odex_model.odex", "table w \"build/w_long.tab\"\nx[j]' = -x[j] for j in 0..2\ninit x[j] = 1 for j in 0..2\nnetwork k = conv(even, 3, 1, w, x0)\n");
+    std::string arg0 = "test_odex", path = "build/test_odex_model.odex";
+    char *argv[] = {arg0.data(), path.data(), nullptr};
+    CHECK(xpp::load_model(2, argv, 1).has_value());
+    xpp::Session &s = xpp::client_session();
+    const int index = s.model().networks[0].weight_table;
+    const auto shorter = xpp::load_table(s, "build/w_short.tab", index, 0);
+    CHECK(!shorter && shorter.error().place.line == 4 && shorter.error().what == "In network k, table W has 2 values; 3 are needed");
+    CHECK(xpp::get_lookup_len(s, index) == 3 && s.tables[index].y[2] == 3.0);
+  }
+
+  /* W497: a user function takes any number of arguments: ARG1..ARG20 are built in, and the rest are
+     added as a function needs them */
+  {
+    std::string params, call;
+    for (int i = 1; i <= 25; i++) {
+      params += (i > 1 ? "," : "") + xpp::format("a{}", i);
+      call += (i > 1 ? "," : "") + std::to_string(i);
+    }
+    CHECK(load_text(("fun f(" + params + ") = a1 + a25\nx' = -x\ninit x = 0\naux y = f(" + call + ")\n").c_str()) == 1);
+    xpp::Session &s = xpp::client_session();
+    std::vector<int> command;
+    int length = 0;
+    CHECK(xpp::add_expr(s, "f(" + call + ")", command, &length) == 0);
+    CHECK(xpp::evaluate(s, command.data()) == 26.0);
+    CHECK(s.parser.arg_count() == 25);
   }
 
   TEST_REPORT("odex: grammar");

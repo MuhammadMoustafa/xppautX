@@ -5,7 +5,6 @@
 #include <span>
 #include <vector>
 #include "xpp_error.h"
-#include "xpplim.h"
 
 namespace xpp {
 
