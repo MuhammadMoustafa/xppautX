@@ -10,6 +10,8 @@
    stability values' kind auto_stability.h's AutoStabilityKind. */
 
 #include <array>
+#include <algorithm>
+#include <string_view>
 #include <optional>
 #include <string>
 
@@ -116,11 +118,28 @@ constexpr const char *auto_problem_description(AutoProblem p)
 /* PAR(11) is headed PERIOD: every problem but IPS <= 0 and the BVP (IPS 4) */
 constexpr bool problem_heads_period(AutoProblem p) { return auto_problem_code(p) > 0 && p != AutoProblem::BoundaryValue; }
 
-// Diagram curve codes: retain the Hopf code and distinguish its real-pair
-// extension across kappa=0 without changing the restart's Hopf formulation.
-constexpr int auto_hopf_curve = 3;
-constexpr int auto_neutral_saddle_curve = 13;
-constexpr int auto_hopf_curve_kind(double kappa) {
+/* The calculation recorded by a point; foreign XPPAUT codes are decoded
+   only at import. Native files write the corresponding name. */
+enum AutoCalculation : int {
+    no_calculation=0, LPE2=1, LPP2=2, auto_hopf_curve=3, TR2=4, BR2=5, PD2=6,
+    FP2=7, BV1=8, EQ1=9, PE1=10, DI1=11, HO2=12, auto_neutral_saddle_curve=13
+};
+inline constexpr auto auto_calculation_names=std::to_array<std::string_view>({
+    "none", "equilibrium_fold", "periodic_fold", "hopf", "torus", "branch_point", "period_doubling",
+    "fixed_period", "boundary_value", "equilibrium", "periodic", "discrete", "homoclinic", "neutral_saddle"});
+constexpr std::string_view auto_calculation_name(AutoCalculation kind) {
+    return auto_calculation_names[static_cast<std::size_t>(kind)];
+}
+constexpr std::optional<AutoCalculation> auto_calculation_from_code(int code) {
+    if(code<0 || code>=static_cast<int>(auto_calculation_names.size())) return std::nullopt;
+    return static_cast<AutoCalculation>(code);
+}
+constexpr std::optional<AutoCalculation> auto_calculation_from_name(std::string_view name) {
+    const auto at=std::ranges::find(auto_calculation_names,name);
+    if(at==auto_calculation_names.end()) return std::nullopt;
+    return static_cast<AutoCalculation>(at-auto_calculation_names.begin());
+}
+constexpr AutoCalculation auto_hopf_curve_kind(double kappa) {
     return kappa < 0. ? auto_neutral_saddle_curve : auto_hopf_curve;
 }
 

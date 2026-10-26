@@ -176,10 +176,11 @@ struct Model {
   /* ---- the global flags (flags.cpp) ---- */
   /* a flag: when the condition's value (cond, compiled comcond) crosses
      0 in the direction sign (1 up, -1 down, 0 at 0), set each of its
-     nevents events' lhs to its formula (rhs, compiled comrhs); type 0 a
-     variable, 1 a parameter (anypars when any is), 2 "out_put", 3
-     "arret"; nointerp for "no_interp" */
+     nevents events' lhs to its formula (rhs, compiled comrhs); the target
+     is a variable, a parameter (anypars when any is), output or halt;
+     nointerp for "no_interp" */
   static constexpr int max_events=20;
+  enum class EventTarget { variable, parameter, output, halt };
   struct GlobalFlag {
     std::array<int,max_events> lhs{};
     std::array<std::string,max_events> lhsname;
@@ -188,7 +189,7 @@ struct Model {
     std::string cond;
     Program comcond;
     int sign=0,nevents=0;
-    std::array<int,max_events> type{};
+    std::array<EventTarget,max_events> type{};
     int anypars=0;
     int nointerp=0;
   };

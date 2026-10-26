@@ -1818,7 +1818,7 @@ fnbpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   det = rap->det;
   ret_val = det;
-  *chng = TRUE_;
+  *chng = true;
 
   /* If requested write additional output on unit 9 : */
 
@@ -1874,7 +1874,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     nrmlz(&tmp, ud.data());
   }
   ret_val = ud[ndim];
-  *chng = TRUE_;
+  *chng = true;
 
   /* If requested write additional output on unit 9 : */
 
@@ -1916,7 +1916,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
 /* INITIALIZE */
 
-  *chng = FALSE_;
+  *chng = false;
 
   /* Compute the eigenvalues of the Jacobian */
 
@@ -2016,10 +2016,10 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     // AUTO-07p FNHBEQ equilibrium.f90:624-629: a plain HB changes a pair.
     constexpr integer hopf_stability_change = 2; // one complex conjugate pair
     const integer required_change=isw==2 && iap->itpst==xpp::AutoPointKind::Hopf ? 1 : hopf_stability_change;
-    if (f2c::abs(nins1 - nins) >= required_change) *chng = TRUE_;
+    if (f2c::abs(nins1 - nins) >= required_change) *chng = true;
     if (isw==2 && (iap->isp==0 || iap->isp==3 ||
         !xpp::auto_codim_enabled(iap->lib->session->auto_state.special_points,xpp::AutoPointKind::ZeroHopf) ||
-        iap->itp.kind==xpp::AutoPointKind::BogdanovTakens)) { *chng=FALSE_; ret_val=auto_test_not_applicable; }
+        iap->itp.kind==xpp::AutoPointKind::BogdanovTakens)) { *chng=false; ret_val=auto_test_not_applicable; }
   }
   nins = nins1;
   iap->nins = nins;
@@ -2064,7 +2064,7 @@ doublereal user_zero(const iap_type &iap, const doublereal *par,
       *iap.lib->session, f2c::abs(marks[iuzr].parameter),
       {icp, static_cast<std::size_t>(iap.nfpr)},
       {par, static_cast<std::size_t>(iap.lib->parameter_count)}) - marks[iuzr].value;
-  *chng = TRUE_;
+  *chng = true;
   if (iap.iid >= user_zero_diagnostic_level) {
     xpp::print(iap.lib->fp9, "{:4} {:5}        User Func. {:3} {:{}.6E}\n",
                f2c::abs(iap.ibr), iap.ntot + 1,
@@ -3644,7 +3644,7 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
 
   cntdif(ncol, wh.data());
 
-  small = TRUE_;
+  small = true;
   for (j = 0; j < *ntst; ++j) {
     jp1 = j + 1;
     sc = 1. / power_by_squaring(dtm[j], *ncol);
@@ -3656,7 +3656,7 @@ eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, 
       }
       hd[j + i * (*ntst + 1)] = sc * hd[j + i * (*ntst + 1)];
       if (f2c::abs(hd[j + i * (*ntst + 1)]) > auto_hmach) {
-	small = FALSE_;
+	small = false;
       }
     }
   }
@@ -3855,7 +3855,7 @@ findlb(iap_type *iap, const rap_type *rap,
   /* Locates restart point with label IRS and determines type. */
   /* If the label can not be located on unit 3 then FOUND will be .FALSE. */
 
-  *found = FALSE_;
+  *found = false;
   if (auto r=xpp::rewind_stream(iap->lib->fp3, xpp::auto_fort_path(*iap->lib->session,3)); !r)
     xpp::auto_fail(r.error());
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
@@ -3878,7 +3878,7 @@ findlb(iap_type *iap, const rap_type *rap,
     iap->itp = itp;
     iap->ibr = ibr;
     if (labrs == irs) {
-      *found = TRUE_;
+      *found = true;
       if (f2c::abs(isw) == 2) {
 	itpst = xpp::auto_point_start_of(itp);
 	iap->itpst = itpst;
@@ -3930,13 +3930,13 @@ skip3(FILE *fp3, integer *nskip, logical *eof3)
 
   /* Skips the specified number of lines on unit 3. */
 
-  *eof3 = FALSE_;
+  *eof3 = false;
   xpp::TokenReader tr = xpp::TokenReader::attach(fp3);
   for (i = 0; i < *nskip; ++i) {
     /* NOTE from Randy:  I am not 100% happy with this.  I am
        not sure if this properly simulates the Fortran behavior */
     if (!tr.skip_line()) { /* end of file before the line's \n */
-      *eof3 = TRUE_;
+      *eof3 = true;
       return 0;
     }
   }
@@ -4704,12 +4704,12 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
     /* Check whether user-supplied error tolerances have been met : */
 
-    done = TRUE_;
+    done = true;
     rdrl = 0.;
     for (i = 0; i < nfpr; ++i) {
       adrl = f2c::abs(fc[ndim + i]) / (f2c::abs(rlcur[i]) + 1.);
       if (adrl > epsl) {
-	done = FALSE_;
+	done = false;
       }
       if (adrl > rdrl) {
 	rdrl = adrl;
@@ -5495,7 +5495,7 @@ fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   /* Set the quantity to be returned. */
 
   ret_val = rldot[0];
-  *chng = TRUE_;
+  *chng = true;
   return ret_val;
 } /* fnlpbv_ */
 
@@ -5540,7 +5540,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   if (det != 0.) {
     ret_val = det0 / det;
-    *chng = TRUE_;
+    *chng = true;
     const double angle = par[xpp::auto_unknown::torus_angle];
     if (iap->isw == 2 && iap->itpst == xpp::AutoPointKind::Torus && xpp::auto_torus_near_one_to_one(angle)) {
       // W405 (#467): a cycle's torus equations hold the trivial multiplier's
@@ -5552,7 +5552,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     }
   } else {
     ret_val = auto_test_not_applicable;
-    *chng = FALSE_;
+    *chng = false;
   }
 
   if (iid >= 2) {
@@ -5594,7 +5594,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
 
   ret_val = auto_test_not_applicable;
   d = ret_val;
-  *chng = FALSE_;
+  *chng = false;
 
 /*  Compute the Floquet multipliers */
 
@@ -5716,7 +5716,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
       }
       nins = iap->nins;
       if (isw!=2 && nins1 != nins) {
-	*chng = TRUE_;
+	*chng = true;
       }
     }
   }

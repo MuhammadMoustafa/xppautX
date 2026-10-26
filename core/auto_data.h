@@ -54,7 +54,7 @@ struct AutoDataInfo {
     AutoPointCode itp; /* AUTO's point type */
     int lab;         /* AUTO's label */
     DiagramPointType type; /* stable steady state, unstable, stable periodic, unstable periodic */
-    int flag2;       /* two-parameter curve kind, 0 for one parameter */
+    AutoCalculation flag2;       /* two-parameter curve kind, 0 for one parameter */
     int node;        /* DIAGRAM.index of the point */
     int jacobian;    /* DIAGRAM.jacobian: how its run formed the Jacobian */
     const char *sym; /* auto_point_symbol: EP, LP, HB, ... or blank */

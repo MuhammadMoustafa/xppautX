@@ -2,6 +2,8 @@
 #include "session.h"
 #include "xpp_batch.h"
 #include "simplenet.h"
+#include "model_options.h"
+#include "xpp_files.h"
 #include "form_ode.h"
 #include "xpp_log.h"
 
@@ -450,17 +452,23 @@ void read_interpolation(xpp::Session &s, int ind, const char *name, xpp::Tokens 
 }
 
 /* z=FINDEXT(type,n,skip,root): the extremum of every skip-th of n variables,
-   type 1 the maximum, -1 the minimum, 0 both: values[0..1] the maximum and
+   type names maximum, minimum or both: values[0..1] the maximum and
    its index, values[2..3] the minimum and its index */
 void read_extremum(xpp::Session &s, int ind, const char *name, xpp::Tokens &args)
 {
   Network &net=s.model().networks[ind];
   net.kind=NetworkKind::extremum;
   args.next("(");
-  const int type=atoi(args.text(",").c_str());
-  if(type>1||type<(-1))
-    model_failed(xpp::format("In {}, type is -1, 0 or 1, not {}",name,type));
-  net.extremum=type==1?Extremum::maximum:type==-1?Extremum::minimum:Extremum::both;
+  std::string type=xpp::lower_case(args.text(","));
+  if (xpp::files::has_extension(s.model().this_file,".ode")) {
+    int code;
+    if (!xpp::parse_int(type,code) || !extremum_from_xppaut(code))
+      model_failed(xpp::format("In {}, type is -1, 0 or 1, not {}",name,type));
+    type=extremum_names[static_cast<std::size_t>(*extremum_from_xppaut(code))];
+  }
+  const int selected=xpp::choice_index(extremum_names,type);
+  if (selected < 0) model_failed(xpp::format("In {}, extremum is both, maximum or minimum, not {}",name,type));
+  net.extremum=static_cast<Extremum>(selected);
   net.n=atoi(args.text(",").c_str());
   if(net.n<=0)model_failed(xpp::format("In {}, n > 0, not {}",name,net.n));
   net.ncon=atoi(args.text(",").c_str());
@@ -468,7 +476,7 @@ void read_extremum(xpp::Session &s, int ind, const char *name, xpp::Tokens &args
   std::string rootname;
   net.root=next_index(s,args,name,")",rootname,NameKind::variable);
   s.networks[ind].values.assign(6,0.0);
-  xpp::log(XPP_LOG_INFO, " Added findextr {}: type={:d} len={:d}  skip= {:d} using var[{:d}] \n",
+  xpp::log(XPP_LOG_INFO, " Added findextr {}: type={} len={:d}  skip= {:d} using var[{:d}] \n",
            name,type,net.n,net.ncon,net.root);
 }
 

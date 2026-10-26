@@ -88,7 +88,7 @@ struct GRABPT {
   double per,torper;
   int nfpar;
   int flag;
-  int curve=0; // diagram curve kind, including the neutral-saddle extension
+  AutoCalculation curve=no_calculation; // diagram curve kind, including the neutral-saddle extension
 };
 
 struct DiagramBranch {
@@ -96,7 +96,8 @@ struct DiagramBranch {
 };
 
 typedef struct diagram {
-  int ibr=0,ntot=0,lab=0,calc=0;
+  int ibr=0,ntot=0,lab=0;
+  AutoCalculation calc=no_calculation;
   AutoPointCode itp;
   double norm=0;
   /* the point's n variables' extremes, solution, norm and stability values
@@ -108,7 +109,7 @@ typedef struct diagram {
   double per=0,torper=0;
   int index=0,nfpar=0;
   AutoAxis icp1,icp2,icp3,icp4; /* what the point continued in (auto_axis.h) */
-  int flag2=0;
+  AutoCalculation flag2=no_calculation;
   int from=0; /* the label its run started from, on a run's first point (not saved in files) */
   int jacobian=0; /* how the run that computed it formed the Jacobian: JACOBIAN_DIFFERENCE or JACOBIAN_EXACT (jacobian.h, W278) */
   /* the six arrays n long, zeroed: the one place a point's dimension is set */
@@ -238,7 +239,7 @@ Result<> import_auto_file(Session &s, FILE *fp, const std::string &file);
 int move_to_label(const Session &s, int mylab, int *nrow, int *ndim, FILE *fp);
 void get_a_row(double *u, double *t, int n, FILE *fp);
 void auto_file(Session &s);
-int check_plot_type(const Session &s, int flag2, AutoAxis icp1, AutoAxis icp2);
+int check_plot_type(const Session &s, AutoCalculation flag2, AutoAxis icp1, AutoAxis icp2);
 
 /* grabbing and marking points on the diagram (from auto_x11.c) */
 void traverse_diagram(Session &s);

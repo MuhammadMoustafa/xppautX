@@ -488,7 +488,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 {
   // AUTO-07p equilibrium.f90:278-323: a unit null vector of A^2+kappa I.
   integer free = 0;
-  logical found = FALSE_;
+  logical found = false;
   findlb(iap, rap, iap->irs, &free, &found);
   if (!found) auto_restart_label_missing(iap);
   readlb(iap, rap, u, par);

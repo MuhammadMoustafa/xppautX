@@ -38,7 +38,7 @@ xpp::DIAGRAM *new_point(AutoDiagram &dg, std::size_t n)
 
 /* point d set to p, a point of AUTO's run, with flag2 (s: the run's
    kind of calculation and torus period) */
-void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p, int flag2)
+void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p, xpp::AutoCalculation flag2)
 {
   d->calc=s.auto_state.type_of_calc;
   d->ibr=p.ibr;
@@ -259,7 +259,7 @@ void write_info_out(xpp::Session &s)
      
     {
       std::string line=xpp::format("{} {} {} {:g} {:g} {:g} ",
-	      xpp::diagram_point_type_code(type),d->ibr,d->flag2,par1,par2,per);
+	      xpp::diagram_point_type_code(type),d->ibr,auto_calculation_name(d->flag2),par1,par2,per);
       for(i=0;i<s.model().node;i++)
         line+=xpp::format("{:g} ",uhigh[i]);
       for(i=0;i<s.model().node;i++)
@@ -368,7 +368,7 @@ void write_pts(xpp::Session &s)
     if(check_plot_type(s,d->flag2,icp1,icp2)==1){
       auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
       w.print("{:g} {:g} {:g} {} {} {}\n",
-	      x,y1,y2,xpp::diagram_point_type_code(type),abs(d->ibr),d->flag2);
+	      x,y1,y2,xpp::diagram_point_type_code(type),abs(d->ibr),auto_calculation_name(d->flag2));
     }
   }
   xpp::ok_or_show(xpp::commit_save(w));

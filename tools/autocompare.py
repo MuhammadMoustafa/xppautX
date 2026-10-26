@@ -348,6 +348,9 @@ def session_diagram(s):
     data = saved_member(s)
     for point, row in enumerate(diagram_rows(data)):
         for key,value in row.items():
+            # Calculation and curve metadata are names; the core reader checks their vocabulary.
+            if key in ('calc', 'flag2'):
+                continue
             for item in value.split(';') if key in ('continued','values') else [value]:
                 finite(float(item), 'diagram point %d %s' % (point,key))
     return data

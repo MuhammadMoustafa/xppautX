@@ -194,7 +194,8 @@ std::string event_text(const xpp::Session &s)
     std::string o = "{\"ev\":\"autosettings\",\"numerics\":{";
     for (int i = 0; i < AUTO_NUM_N; i++) {
         o += xpp::format("{}\"{}\":", i ? "," : "", num_fields[i].key);
-        add_num(o, set.num[i]);
+        if(i==AUTO_NUM_SUPPBP) o+=set.num[i]!=0 ? "true" : "false";
+        else add_num(o, set.num[i]);
     }
     o += xpp::format("}},\"axes\":{{\"plot\":\"{}\",\"var\":", auto_projection_name(*set.plot));
     add_str_or_null(o, set.var);
@@ -208,7 +209,7 @@ std::string event_text(const xpp::Session &s)
         add_num(o, set.range[i]);
     }
     o += "},\"marks\":[";
-    for (int i = 0; i < set.nmarks; i++) {
+    for (int i = 0; i < set.nmarks.value_or(0); i++) {
         o += i ? ",[" : "[";
         add_str_or_null(o, set.mark_name[i]);
         o += ',';
@@ -231,7 +232,8 @@ std::string event_text(const xpp::Session &s)
         const NumField &f = num_fields[i];
         o += xpp::format("{}\"{}\":{{\"label\":", i ? "," : "", f.key);
         xpp::json_append_string(o, f.label);
-        if (f.integer) o += ",\"integer\":true";
+        if (i==AUTO_NUM_SUPPBP) o += ",\"boolean\":true";
+        if (f.integer && i!=AUTO_NUM_SUPPBP) o += ",\"integer\":true";
         if (f.rule == Rule::positive) o += ",\"positive\":true";
         if (f.rule == Rule::nonzero) o += ",\"nonzero\":true";
         if (f.rule == Rule::range && f.lo != INT_MIN) o += xpp::format(",\"min\":{}", static_cast<long>(f.lo));
@@ -360,12 +362,12 @@ Result<Checked> check(const xpp::Session &s, const AutoSettingsSet *set, int vie
     }
 
     /* Mark values: parameter (or T, the period) = value */
-    if (set->nmarks < -1 || (set->nmarks >= 0 &&
-        (set->mark_name.size() != static_cast<std::size_t>(set->nmarks) ||
-         set->mark_value.size() != static_cast<std::size_t>(set->nmarks)))) {
+    if ((set->nmarks && (*set->nmarks < 0 || *set->nmarks > auto_file_marks_limit)) || (set->nmarks &&
+        (set->mark_name.size() != static_cast<std::size_t>(*set->nmarks) ||
+         set->mark_value.size() != static_cast<std::size_t>(*set->nmarks)))) {
         return std::unexpected(refused("Mark values: count does not match the list", "mark"));
     }
-    for (int i = 0; i < set->nmarks; i++) {
+    for (int i = 0; i < set->nmarks.value_or(0); i++) {
         const bool period = strcasecmp(set->mark_name[i].c_str(), "T") == 0;
         const int parameter = period ? xpp::auto_unknown::period : xpp::find_user_name(s.model(), PARAM_BOX, set->mark_name[i]);
         if (parameter < 0) {
@@ -405,7 +407,7 @@ void commit(xpp::Session &s, const AutoSettingsSet *set, Checked &c)
         keep_axes_as_last(s);
         if (set->fit) auto_fit(s);
     }
-    if (set->nmarks >= 0) s.auto_state.bifur.marks.swap(c.marks);
+    if (set->nmarks.has_value()) s.auto_state.bifur.marks.swap(c.marks);
     /* the diagram in its new quantities (and a new parameter's name on its axis) */
     if (axes && s.auto_state.bifur.exist) redraw_diagram(s);
 }
@@ -478,13 +480,13 @@ void auto_settings_reload(Session &s, const AutoSettingsSet &kept)
     if (!has_par(set.par1)) set.par1 = fresh.par1;
     if (!has_par(set.par2)) set.par2 = fresh.par2;
     set.nmarks = 0;
-    for (int i = 0; i < kept.nmarks; i++) {
+    for (int i = 0; i < kept.nmarks.value_or(0); i++) {
         if (kept.mark_name[i] != "T" && xpp::find_user_name(s.model(), PARAM_BOX, kept.mark_name[i]) < 0) continue;
-        set.mark_name[set.nmarks] = kept.mark_name[i];
-        set.mark_value[set.nmarks++] = kept.mark_value[i];
+        set.mark_name[*set.nmarks] = kept.mark_name[i];
+        set.mark_value[(*set.nmarks)++] = kept.mark_value[i];
     }
-    set.mark_name.resize(set.nmarks);
-    set.mark_value.resize(set.nmarks);
+    set.mark_name.resize(*set.nmarks);
+    set.mark_value.resize(*set.nmarks);
     /* The form can hold values that a run refuses (and a Fit can leave a
        flat range). Check the names through the normal settings owner,
        then commit the numbers and ranges already held in memory. */

@@ -906,3 +906,11 @@ refuses). --convert's check builds the `.ode` as the `.odex` will be
 either way. The derived quantities are the Model's
 (`Model::derived`), so a model loaded after another starts without the
 one before's.
+
+Native `findext` networks name the extremum: `findext(minimum, 50, 1, d0)`,
+`findext(maximum, 50, 1, d0)` or `findext(both, 50, 1, d0)`. XPPAUT's -1,
+1 and 0 are read on `.ode` import only; conversion writes the name (W499).
+Native AUTO session diagrams likewise write calculation and curve names
+(`equilibrium`, `periodic`, `equilibrium_fold`, `periodic_fold`, `hopf`,
+`neutral_saddle`, `torus`, `branch_point`, `period_doubling`, `fixed_period`,
+`boundary_value`, `discrete`, `homoclinic`, or `none`), rather than XPPAUT codes.

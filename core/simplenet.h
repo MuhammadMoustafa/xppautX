@@ -3,6 +3,7 @@
 #include "expr_program.h"
 #include "xpp_error.h"
 #include <array>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -24,6 +25,11 @@ enum class Ends { even, zero, periodic };
 
 /* which extremum an extremum network finds */
 enum class Extremum { both, maximum, minimum };
+inline constexpr std::array<std::string_view, 3> extremum_names{"both", "maximum", "minimum"};
+constexpr std::optional<Extremum> extremum_from_xppaut(int code) {
+    if(code < -1 || code > 1) return std::nullopt;
+    return code==1 ? Extremum::maximum : code==-1 ? Extremum::minimum : Extremum::both;
+}
 
 /* whether s (blanks removed and upper-cased in place) is the call of a
    network: its keyword names one of simplenet.cpp's forms */

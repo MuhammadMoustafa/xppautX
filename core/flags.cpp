@@ -81,14 +81,6 @@ global -1 u-.2 {m=.5*m}
 
 */
 
-/*
-
-type =0 variable
-type =1 parameter
-type =2 output
-type =3 halt
-*/
-
 #define IC 2
 #define PARAM 1
 
@@ -182,13 +174,13 @@ int compile_flags(xpp::Session &s)
 	if(index<0){
 	  if(strcasecmp(name,"out_put")==0)
 	    {
-	      flags[j].type[i]=2;
+	      flags[j].type[i]=xpp::Model::EventTarget::output;
 	      flags[j].lhs[i]=0;
 	    }
 	  else {
 	    if(strcasecmp(name,"arret")==0)
 	      {
-		flags[j].type[i]=3;
+		flags[j].type[i]=xpp::Model::EventTarget::halt;
 		flags[j].lhs[i]=0;
 
 	      }
@@ -196,7 +188,7 @@ int compile_flags(xpp::Session &s)
 	      if(strcasecmp(name,"no_interp")==0)
 		{
 		  flags[j].nointerp=1;
-                  flags[j].type[i]=0;
+                  flags[j].type[i]=xpp::Model::EventTarget::variable;
 		  flags[j].lhs[i]=0;
 		}
 
@@ -210,13 +202,13 @@ int compile_flags(xpp::Session &s)
 	}
 	else{
 	  flags[j].lhs[i]=index;
-	  flags[j].type[i]=1;
+	  flags[j].type[i]=xpp::Model::EventTarget::parameter;
           flags[j].anypars=1;
 	}
       }
       else {
 	flags[j].lhs[i]=index;
-	flags[j].type[i]=0;
+	flags[j].type[i]=xpp::Model::EventTarget::variable;
       }
       if(!compile(s,flags[j].rhs[i],flags[j].comrhs[i].rpn)){
 	xpp::log(XPP_LOG_WARN, "Illegal event {} for global {}\n",
@@ -249,7 +241,7 @@ void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double
 	for(j=0;j<nevents;j++){
 	  s.integrator.flags[i].vrhs[j]=xpp::evaluate(s,flags[i].comrhs[j]);
 	  in=flags[i].lhs[j];
-	  if(flags[i].type[j]==0)
+	  if(flags[i].type[j]==xpp::Model::EventTarget::variable)
 	        setvar(s,in+1,s.integrator.flags[i].vrhs[j]);
 	 
 	}
@@ -261,17 +253,17 @@ void apply_flag_hits(xpp::Session &s, double *ynew, double time, int neq, double
 	for(j=0;j<nevents;j++){
 	  
 	  in=flags[i].lhs[j];
-	  if(flags[i].type[j]==0){
+	  if(flags[i].type[j]==xpp::Model::EventTarget::variable){
 	     ynew[in]=s.integrator.flags[i].vrhs[j];
 	     /* setvar(s,in+1,ynew[in]); if this screws up */
 	  }
 	  else {
-	    if(flags[i].type[j]==1)
+	    if(flags[i].type[j]==xpp::Model::EventTarget::parameter)
 	      xpp::set_val(s,s.model().upar_names[in],s.integrator.flags[i].vrhs[j]);
 	    else{
 
-	      if((flags[i].type[j]==2)&&(s.integrator.flags[i].vrhs[j]>0))xpp::send_output(s,ynew,*tnew);
-	      if((flags[i].type[j]==3)&&(s.integrator.flags[i].vrhs[j]>0))xpp::send_halt(s,i);
+	      if((flags[i].type[j]==xpp::Model::EventTarget::output)&&(s.integrator.flags[i].vrhs[j]>0))xpp::send_output(s,ynew,*tnew);
+	      if((flags[i].type[j]==xpp::Model::EventTarget::halt)&&(s.integrator.flags[i].vrhs[j]>0))xpp::send_halt(s,i);
 	    }
 	  }
 

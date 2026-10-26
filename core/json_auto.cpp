@@ -203,7 +203,7 @@ void diag_run(const xpp::Session &s, Buf *b, const std::vector<XppDiagPoint> &dg
     buf_format(b, "{{\"br\":{:d},\"pt\":{:d},\"ty\":{:d},\"d\":{:d},\"c\":{},\"lw\":{:d}", std::abs(p->ibr), std::abs(p->pt), xpp::diagram_point_type_code(p->type),
                p->draw, xpp::quoted_color(p->color), p->lw);
     buf_format(b, ",\"stable\":{},\"periodic\":{}", xpp::point_is_stable(p->type), xpp::point_is_periodic(p->type));
-    if (p->flag2) buf_format(b, ",\"f2\":{:d}", p->flag2);
+    if (p->flag2!=no_calculation) buf_format(b, ",\"f2\":{:d}", static_cast<int>(p->flag2));
     if (p->newseg) BUF_LIT(b, ",\"new\":1");
     if (p->from) buf_format(b, ",\"from\":{:d}", p->from);
     buf_format(b, ",\"jac\":\"{}\"", xpp::jacobian_name(p->jacobian));
@@ -578,7 +578,11 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
     int i;
     for (i = 0; num && *num == '{' && i < AUTO_NUM_N; i++) {
         if (!(v = js_find(num, auto_settings_num_key(i)))) continue;
-        if (!js_number(v, &s.num[i])) {
+        if (i==AUTO_NUM_SUPPBP) {
+            bool enabled;
+            if (!xpp::parse_bool(js_raw(v),enabled)) { why="SuppBP must be true or false"; return 0; }
+            s.num[i]=enabled;
+        } else if (!js_number(v, &s.num[i])) {
             why = xpp::format("{} must be a number", auto_settings_num_label(i));
             return 0;
         }

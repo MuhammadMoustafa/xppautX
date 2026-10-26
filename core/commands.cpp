@@ -58,7 +58,7 @@ static void menu_run(xpp::Session &s, const XppMenu *m, int def)
 {
   int i = menu_pick(m, def);
   if (i >= 0)
-    run_the_commands(s, m->first_cmd + i);
+    run_the_commands(s, static_cast<MenuCommand>(m->first_cmd + i));
 }
 
 /* ---- the three main-window menus ------------------------------------ */
@@ -258,7 +258,7 @@ static void delete_set_menu(xpp::Session &s)
 
 static void do_file_com(xpp::Session &s, int com);
 
-void run_the_commands(xpp::Session &s, int com)
+void run_the_commands(xpp::Session &s, MenuCommand com)
 {
   if (com < 0) return;
   if (com <= MAX_M_I) {
@@ -428,7 +428,7 @@ static void do_gr_objs(xpp::Session &s)
     menu_run(s, &menu_text_edit, 0);
     return;
   }
-  run_the_commands(s, M_TT + i);
+  run_the_commands(s, static_cast<MenuCommand>(M_TT + i));
 }
 
 static void add_a_curve(xpp::Session &s)
@@ -461,7 +461,7 @@ static void add_a_curve(xpp::Session &s)
   default:
     com = M_GA + i;
   }
-  run_the_commands(s, com);
+  run_the_commands(s, static_cast<MenuCommand>(com));
 }
 
 /* ---- the key handler ------------------------------------------------ */

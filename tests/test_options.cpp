@@ -612,6 +612,15 @@ int main(void)
         CHECK(!loaded);
         if (!loaded) CHECK(loaded.error().place.line == 2);
     }
+    /* XPPAUT's numeric findext type is an import spelling, never native text. */
+    for (const std::string type : {"-1", "0", "1", "sideways"}) {
+        CHECK(write_file(bad_odex,"x'=-x\nnetwork ext = findext("+type+", 1, 1, x)\n"));
+        char arg0[]="test_options", file[]="build/test_options_bad.odex";
+        char *argv[]={arg0,file,nullptr};
+        const auto loaded=xpp::load_model(2,argv,1);
+        CHECK(!loaded);
+        if(!loaded) CHECK(loaded.error().place.line==2);
+    }
     /* XPPAUT's names for the renamed options are a .ode's: a .odex refuses them
        at their line */
     for (const char *old_name : {"nout", "njmp", "total", "t0", "trans", "nmesh", "newt_iter", "newt_tol", "jac_eps", "bound", "ncdraw", "meth", "tol", "dtmin", "dtmax", "atol", "maxstor", "tor_per", "poimap", "poivar", "poisgn", "poistop", "poipln"}) {

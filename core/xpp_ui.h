@@ -103,7 +103,7 @@ typedef struct XppDiagPoint {
     AutoPointCode itp; /* AUTO's point type (auto_point_symbol) */
     int lab;       /* label, 0 when none or when the label mark is not drawn */
     DiagramPointType type; /* stable eq, unstable eq, stable periodic, unstable periodic */
-    int flag2;     /* two-parameter curve kind (LPE2...), 0 for one parameter */
+    AutoCalculation flag2;     /* two-parameter curve kind (LPE2...), 0 for one parameter */
     int draw;      /* 0 not drawn (only the start of the next line), 1 a line
                       back to the previous point, 2 filled circles at y1 and
                       y2, 3 open circles */

@@ -24,7 +24,7 @@ int main(void)
     char *argv[] = {arg0, arg1, NULL};
     CHECK(xpp::load_model(2, argv, 1).has_value());
     xpp::batch_start(xpp::client_session());
-    run_the_commands(xpp::client_session(), M_IG); /* Initialconds/Go, as --silent's script runs it */
+    run_the_commands(xpp::client_session(), xpp::M_IG); /* Initialconds/Go, as --silent's script runs it */
 
     CHECK(xpp::client_session().data_store.rows > 100);
 

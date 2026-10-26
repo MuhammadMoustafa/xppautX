@@ -80,7 +80,7 @@ struct AutoSettingsSet {
     std::array<double, 4> range{};
     int fit = 0; /* Axes/Fit after the axes are set */
     int view = -1; /* the view whose axes these are (W50), made the active one; -1: the active one */
-    int nmarks = -1; /* -1: no "marks"; else the whole list's length */
+    std::optional<int> nmarks; /* absent: keep the current marks; present: whole list length */
     std::vector<std::string> mark_name;
     std::vector<double> mark_value;
     /* AUTO's thread count (W267), a program preference and not a setting of

@@ -103,7 +103,7 @@ std::deque<xpp::DIAGRAM> points_of(int k, int n)
         d.ntot = (p % 5) - 2;
         d.itp = *xpp::auto_point_decode(p % 9);
         d.lab = p % 2 ? p : 0;
-        d.calc = p % 3;
+        d.calc = *xpp::auto_calculation_from_code(p % 3);
         d.norm = awk(v++);
         d.per = awk(v++);
         d.torper = awk(v++);
@@ -112,7 +112,7 @@ std::deque<xpp::DIAGRAM> points_of(int k, int n)
         d.icp2 = xpp::AutoAxis::parameter(1);
         d.icp3 = xpp::AutoAxis::parameter(2);
         d.icp4 = xpp::AutoAxis::unknown(0); /* the test model has 3 parameters: 3 is AUTO slot 0 */
-        d.flag2 = p % 2;
+        d.flag2 = *xpp::auto_calculation_from_code(p % 2);
         d.from = p == 1 ? 7 : 0;
         d.jacobian = p / 4 == 1 ? xpp::JACOBIAN_EXACT : xpp::JACOBIAN_DIFFERENCE; /* one branch of each kind */
         auto branch=std::make_shared<xpp::DiagramBranch>();
@@ -135,6 +135,7 @@ void check_settings_text()
     xpp::AutoSettingsSet s;
     s.special_points={true,false,true,false,false,true,false,true,true,false,true,false};
     for (int i = 0; i < xpp::AUTO_NUM_N; i++) s.num[i] = awk(i) / (i + 1);
+    s.num[xpp::AUTO_NUM_SUPPBP]=1;
     s.plot = xpp::AutoProjection::average;
     s.var = "v";
     s.par1 = "iapp";
@@ -250,6 +251,14 @@ void check_diagram_csv()
     bad.back() = ',';
     const xpp::Result<std::deque<xpp::DIAGRAM>> long_row = xpp::snapx::auto_members::parse_diagram_csv(bad + "1\n", 3, 3, "diagram.csv");
     CHECK(!long_row && long_row.error().place.line == static_cast<int>(pts.size()) * 2 + 1); /* a row too long, at its line */
+    /* Native calculation columns accept names only, at the point's line. */
+    for (const std::string token : {"9", "unknown_calculation"}) {
+        std::string bad_calc=csv;
+        const auto first=csv.find('\n',csv.find("calc,ibr"))+1;
+        bad_calc.replace(first,csv.find(',',first)-first,token);
+        const auto refused=xpp::snapx::auto_members::parse_diagram_csv(bad_calc,3,3,"sent.snapx/auto/diagram.csv");
+        CHECK(!refused && refused.error().place.line==static_cast<int>(pts.size())+2);
+    }
     /* a jacobian that is neither setting, at its line; a diagram without the column (saved before W278) */
     std::string wrong = csv;
     const std::size_t header=csv.find("calc,ibr");
@@ -356,12 +365,12 @@ void check_branch_parameters()
     std::vector<double> parameters(mark_lib.parameter_count);
     std::array<integer,1> free={s.auto_state.parameter_layout.solver_index(0)};
     std::array<AutoMark,1> mark={AutoMark{static_cast<int>(s.auto_state.parameter_layout.solver_index(1)),0.5}};
-    logical changed=FALSE_;
+    logical changed=false;
     const auto mark_value=[&]{
         return fnuzae(&mark_iap,&mark_rap,parameters.data(),free.data(),&changed,nullptr,nullptr,
                       nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,mark);
     };
-    CHECK(mark_value()==1.5 && changed==TRUE_);
+    CHECK(mark_value()==1.5 && changed==true);
     mark[0].parameter=static_cast<int>(free[0]);
     parameters[free[0]]=0.75;
     CHECK(mark_value()==0.25);

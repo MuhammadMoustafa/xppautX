@@ -442,7 +442,7 @@ private:
     for (int k = 0; k < m_.nwiener; k++) moving.insert(m_.wiener[k]);
     for (int j = 0; j < m_.flag_count(); j++)
       for (int e = 0; e < m_.flags[j].nevents; e++)
-        if (m_.flags[j].type[e] == 1) {
+        if (m_.flags[j].type[e] == xpp::Model::EventTarget::parameter) {
           const int c = get_param_index(s_, xpp::upper_case(m_.flags[j].lhsname[e]));
           if (c >= 0) moving.insert(c);
         }
@@ -1245,8 +1245,8 @@ private:
     std::string out = xpp::format("event {} {}", f.sign, text(f.comcond.rpn));
     for (int e = 0; e < f.nevents; e++) {
       const std::string upper = xpp::upper_case(f.lhsname[e]);
-      std::string target = f.type[e] == 2 ? "out_put" : f.type[e] == 3 ? "arret" : name(upper);
-      if (f.type[e] == 0 && xpp::equal_ignoring_case(f.lhsname[e], "no_interp")) target = "no_interp";
+      std::string target = f.type[e] == xpp::Model::EventTarget::output ? "out_put" : f.type[e] == xpp::Model::EventTarget::halt ? "arret" : name(upper);
+      if (f.type[e] == xpp::Model::EventTarget::variable && xpp::equal_ignoring_case(f.lhsname[e], "no_interp")) target = "no_interp";
       out += ", " + target + " = " + text(f.comrhs[e].rpn);
     }
     return out + "\n";
@@ -1284,6 +1284,11 @@ private:
         const std::string upper = xpp::upper_case(a);
         a = (find_user_name(m_, ICBOX, upper) >= 0 || find_lookup(s_, upper) >= 0 || get_var_index(s_, upper) >= 0) ? name(upper)
                                                                                                       : xpp::lower_case(a);
+      }
+      if (n==0 && xpp::lower_case(rhs.substr(0,open))=="findext") {
+        int code;
+        if (!xpp::parse_int(a,code) || !extremum_from_xppaut(code)) refuse("findext type must be -1, 0 or 1");
+        a=extremum_names[static_cast<std::size_t>(*extremum_from_xppaut(code))];
       }
       out += (n++ ? ", " : "") + a;
       arg.clear();

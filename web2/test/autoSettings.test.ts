@@ -25,13 +25,13 @@ const rules: Record<NumKey, NumRule> = {
   dsmax: positive('Dsmax'), rl0: any('Par Min'), rl1: any('Par Max'), a0: any('Norm Min'), a1: any('Norm Max'),
   epsl: positive('EPSL'), epsu: positive('EPSU'), epss: positive('EPSS'), iad: whole('IAD', 0), mxbf: whole('MXBF'),
   iid: whole('IID', 0, 5), itmx: whole('ITMX', 1), itnw: whole('ITNW', 1), nwtn: whole('NWTN', 1), iads: whole('IADS', 0),
-  suppbp: whole('SuppBP', 0, 1),
+  suppbp: {label: 'SuppBP', boolean: true, message: 'SuppBP must be true or false'},
 };
 
 const settings: AutoSettings = {
   special_points: {BT:true,CP:true,ZH:true,GH:true,R1:true,R2:true,R3:true,R4:true,LPD:true,LTR:true,PTR:true,TTR:true},
   numerics: {ntst: 15, nmx: 200, npr: 50, ncol: 4, ds: 0.02, dsmin: 0.001, dsmax: 0.5, rl0: 0, rl1: 2, a0: 0, a1: 1000,
-    epsl: 1e-4, epsu: 1e-4, epss: 1e-4, iad: 3, mxbf: 5, iid: 2, itmx: 8, itnw: 7, nwtn: 3, iads: 1, suppbp: 0},
+    epsl: 1e-4, epsu: 1e-4, epss: 1e-4, iad: 3, mxbf: 5, iid: 2, itmx: 8, itnw: 7, nwtn: 3, iads: 1, suppbp: false},
   axes: {plot: 'maximum_and_minimum', var: 'V', par1: 'iapp', par2: 'phi', xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4},
   marks: [],
   threads: 'auto',
@@ -102,7 +102,7 @@ test("the core's rules, in the page, with its messages", () => {
   assert.equal(numError(rules.ds, '0'), 'Ds must be a number other than 0');
   assert.equal(numError(rules.dsmin, '-1'), 'Dsmin must be a number above 0');
   assert.equal(numError(rules.rl0, 'x'), 'Par Min must be a number');
-  assert.deepEqual([numError(rules.ds, '-0.01'), numError(rules.mxbf, '-3'), numError(rules.suppbp, '1')], [null, null, null]);
+  assert.deepEqual([numError(rules.ds, '-0.01'), numError(rules.mxbf, '-3'), numError(rules.suppbp, 'true')], [null, null, null]);
   assert.equal(pairError(settings, {...settings.numerics, rl0: 3}), 'Par Min must be below Par Max');
   assert.equal(pairError(settings, {...settings.numerics, dsmin: 1}), 'Dsmin must be at most Dsmax');
   assert.equal(pairError(settings, settings.numerics), null);

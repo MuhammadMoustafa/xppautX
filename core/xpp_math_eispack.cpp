@@ -1394,7 +1394,7 @@ L170:
     }
 /*     .......... ITERATIVE LOOP FOR NORM REDUCTION .......... */
 L190:
-    noconv = FALSE_;
+    noconv = false;
 
     i__1 = l;
     for (i__ = k; i__ <= i__1; ++i__) {
@@ -1442,7 +1442,7 @@ L240:
 	}
 	g = 1. / f;
 	scale[i__] *= f;
-	noconv = TRUE_;
+	noconv = true;
 
 	i__2 = *n;
 	for (j = k; j <= i__2; ++j) {
@@ -4703,18 +4703,18 @@ ndsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, double
 
 /*     determine what is to be computed. */
 
-    wantu = FALSE_;
-    wantv = FALSE_;
+    wantu = false;
+    wantv = false;
     jobu = *job % 100 / 10;
     ncu = *n;
     if (jobu > 1) {
 	ncu = f2c::min(*n,*p);
     }
     if (jobu != 0) {
-	wantu = TRUE_;
+	wantu = true;
     }
     if (*job % 10 != 0) {
-	wantv = TRUE_;
+	wantv = true;
     }
 
 /*     reduce x to bidiagonal form, storing the diagonal elements */
@@ -6688,7 +6688,7 @@ exchng(doublereal *a, doublereal *v, integer *n, integer *l, const integer *b1, 
     v -= v_offset;
 
     /* Function Body */
-    *fail = FALSE_;
+    *fail = false;
     if (*b1 == 2) {
 	goto L70;
     }
@@ -6754,7 +6754,7 @@ L50:
     if (it <= 30) {
 	goto L60;
     }
-    *fail = TRUE_;
+    *fail = true;
     return 0;
 L60:
     p = a[*l + *l * a_dim1] - x;
@@ -6788,7 +6788,7 @@ L80:
     if (it <= 30) {
 	goto L90;
     }
-    *fail = TRUE_;
+    *fail = true;
     return 0;
 L90:
     z__ = a[*l + *l * a_dim1];

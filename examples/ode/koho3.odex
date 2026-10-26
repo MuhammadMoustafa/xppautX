@@ -17,7 +17,7 @@ zc = bc*ran(1)
 # compute distance between stimulus and weight
 d[j] = sqrt((wa[j]-za)^2+(wb[j]-zb)^2+(wc[j]-zc)^2) for j in 0..99
 # find minimum  mx(2) is value mx(3) is index
-network mx = findext(-1, 100, 1, d0)
+network mx = findext(minimum, 100, 1, d0)
 # here is the algorithm
 wa[j]' = wa[j]+eps*(za-wa[j])*h(mx(3)-j) for j in 0..99
 wb[j]' = wb[j]+eps*(zb-wb[j])*h(mx(3)-j) for j in 0..99

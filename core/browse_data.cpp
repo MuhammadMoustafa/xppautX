@@ -507,17 +507,19 @@ int add_stor_col(xpp::Session &s, std::string_view name, const std::string &form
 }
 
 namespace {
-/* a:b (seq 1) or a;b (seq 2), split at the last ':' or ';' (0 when neither);
-   each side is a number read through f, whose fault is the caller's */
-int chk_seq(xpp::TypedFields &f, std::string_view text, double &a1, double &a2)
+enum class Sequence { none, endpoints, increment };
+/* a:b (endpoints) or a;b (increment), split at the last ':' or ';' (none
+   when neither); each side is a number read through f, whose fault is the
+   caller's */
+Sequence chk_seq(xpp::TypedFields &f, std::string_view text, double &a1, double &a2)
 {
   a1=0.0;
   a2=0.0;
   const size_t j=text.find_last_of(":;");
-  if(j==std::string_view::npos)return 0;
+  if(j==std::string_view::npos)return Sequence::none;
   a1=f.real("sequence",std::string(text.substr(0,j)));
   a2=f.real("sequence",std::string(text.substr(j+1)));
-  return text[j]==':'?1:2;
+  return text[j]==':'?Sequence::endpoints:Sequence::increment;
 }
 } // namespace
 
@@ -527,7 +529,7 @@ void replace_column(xpp::Session &s, const char *var, char *form, float **dat, i
  int i;
  int intflag=0;
  int dif_var=-1;
- int seq=0;
+ Sequence seq=Sequence::none;
  double a1,a2,da=0.0;
  float old=0.0,dt,derv=0.0;
  float sum=0.0;
@@ -559,22 +561,16 @@ if(dif_var<0){
     return;
   }
  }
- if(seq==1){
-   if(a1==a2)
-     seq=3;
-   else
-     da=(a2-a1)/static_cast<double>(n-1);
+ if(seq==Sequence::endpoints){
+   if(a1==a2){ command_error("browser", "Illegal sequence"); return; }
+   da=(a2-a1)/static_cast<double>(n-1);
  }
- if(seq==2)
+ if(seq==Sequence::increment)
    da=a2;
- if(seq==3){
-   command_error("browser", "Illegal sequence");
-   return;
- }
 
 /*  first compile formula ... */
 
- if(dif_var<0&&seq==0){
+ if(dif_var<0&&seq==Sequence::none){
    if(xpp::add_expr(s,form,com,&i)){
      s.parser.ncon=s.model().ncon_start;
      s.parser.nsym=s.model().nsym_start;
@@ -604,7 +600,7 @@ if(dif_var<0){
    s.browser.old_column[i]=dat[s.browser.replaced_col][i];
    if(dif_var<0)
      {
-       if(seq==0)
+       if(seq==Sequence::none)
 	 {
 	   row.set(dat,i);
 	   if(intflag)

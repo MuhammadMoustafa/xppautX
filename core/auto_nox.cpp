@@ -73,21 +73,6 @@
 #define OVERWRITE 0
 #define APPEND 1
 
-/* calculation types */
-
-#define LPE2 1
-#define LPP2 2
-#define TR2 4
-#define BR2 5
-#define PD2 6
-#define FP2 7
-#define BV1 8
-#define EQ1 9
-#define PE1 10
-#define DI1 11
-#define HO2 12
-
-
 #include "mykeydef.h"
 namespace xpp {
 
@@ -139,7 +124,7 @@ static void auto_restore_finite_pars(xpp::Session &s, const double *before)
 
 
 /* the colour of the two-parameter curve of kind flag2 */
-static xpp::Color two_parameter_color(int flag2)
+static xpp::Color two_parameter_color(AutoCalculation flag2)
 {
   switch(flag2){
   case LPE2: return LPE_color;
@@ -345,7 +330,7 @@ const char *auto_fort_path(const xpp::Session &s, int unit)
 /* what a run continues, for auto_stability.h */
 static AutoStabilityKind run_stability_kind(xpp::Session &s)
 {
-  if(s.auto_state.two_param!=0||s.auto_state.bifur.isw==2)return AUTO_STABILITY_OTHER;
+  if(s.auto_state.two_param!=no_calculation||s.auto_state.bifur.isw==2)return AUTO_STABILITY_OTHER;
   if(s.auto_state.bifur.ips==xpp::AutoProblem::Periodic)return AUTO_STABILITY_PERIODIC;
   if(xpp::problem_is_steady_or_map(s.auto_state.bifur.ips))return AUTO_STABILITY_STEADY;
   return AUTO_STABILITY_OTHER;
@@ -355,7 +340,7 @@ static AutoStabilityKind run_stability_kind(xpp::Session &s)
    orbits have a negative branch (autlib1.cpp stplbv) */
 static AutoStabilityKind point_stability_kind(const DIAGRAM *d)
 {
-  if(d->flag2!=0)return AUTO_STABILITY_OTHER;
+  if(d->flag2!=no_calculation)return AUTO_STABILITY_OTHER;
   return d->ibr<0?AUTO_STABILITY_PERIODIC:AUTO_STABILITY_STEADY;
 }
 
@@ -459,7 +444,7 @@ void do_auto(xpp::Session &s, int iold, int isave, xpp::AutoPointCode itp)
     }
     
     if(s.auto_state.restart_label!=0){
-      xpp::log_auto("RestartLabel={:d} itp={:d} ips={:d} nfpar={:d} ilp={:d} isw={:d} isp={:d} A2p={:d} \n",s.auto_state.restart_label,xpp::auto_point_encode(s.auto_state.bifur.itp), xpp::auto_problem_code(s.auto_state.bifur.ips),s.auto_state.bifur.nfpar,s.auto_state.bifur.ilp,s.auto_state.bifur.isw,s.auto_state.bifur.isp,s.auto_state.two_param);
+      xpp::log_auto("RestartLabel={:d} itp={:d} ips={:d} nfpar={:d} ilp={:d} isw={:d} isp={:d} A2p={} \n",s.auto_state.restart_label,xpp::auto_point_encode(s.auto_state.bifur.itp), xpp::auto_problem_code(s.auto_state.bifur.ips),s.auto_state.bifur.nfpar,s.auto_state.bifur.ilp,s.auto_state.bifur.isw,s.auto_state.bifur.isp,auto_calculation_name(s.auto_state.two_param));
       s.auto_state.bifur.irs=s.auto_state.restart_label;
       s.auto_state.restart_label=0;
       do_auto(s, iold,isave, s.auto_state.bifur.itp);
@@ -632,13 +617,13 @@ void auto_num_par(xpp::Session &s)
   values[18] = xpp::format("{:d}", s.auto_state.advanced.itnw);
   values[19] = xpp::format("{:d}", s.auto_state.advanced.nwtn);
   values[20] = xpp::format("{:d}", s.auto_state.advanced.iads);
-  values[21] = s.auto_state.suppress_bp ? "1" : "0"; 
+  values[21] = s.auto_state.suppress_bp ? "true" : "false";
 
   for (std::size_t i=0;i<xpp::auto_codim_kinds.size();++i)
     values[xpp::AUTO_NUM_N+i]=s.auto_state.special_points[i] ? "true" : "false";
   static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                             XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
-                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
+                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_BOOLEAN,
                             XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
                             XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
                             XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
@@ -654,7 +639,7 @@ void auto_num_par(xpp::Session &s)
     xpp::TypedFields fields(s);
     for (int i=0; i<xpp::AUTO_NUM_N; ++i) {
       points.has_num[i]=1;
-      points.num[i]=fields.number(n[i],values[i]);
+      points.num[i]=i==xpp::AUTO_NUM_SUPPBP ? fields.boolean(n[i],values[i]) : fields.number(n[i],values[i]);
     }
     if(fields.error()) { command_error("auto",*fields.error()); return; }
     for(std::size_t i=0;i<enabled.size();++i) points.special_points[i]=enabled[i];
@@ -930,7 +915,7 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
   const double per=d.per,a=d.norm;
   const std::span<const double> uhigh=d.uhi,ulow=d.ulo,ubar=d.ubar;
   const xpp::AutoAxis icp1=d.icp1,icp2=d.icp2;
-  const int flag2=d.flag2;
+  const AutoCalculation flag2=d.flag2;
   double x,y1,y2,par1,par2=0;
   DiagramPointType type1=type;
   par1=par[icp1.index];
@@ -940,20 +925,20 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
     s.auto_state.bifur.lastx=x;
     s.auto_state.bifur.lasty=y1;
   }
-  if(flag2==0&&s.auto_state.axes().plot==AutoProjection::two_parameter)
+  if(flag2==no_calculation&&s.auto_state.axes().plot==AutoProjection::two_parameter)
     {
   
        return;
      }
-  if(flag2>0&&s.auto_state.axes().plot!=AutoProjection::two_parameter){
+  if(flag2!=no_calculation&&s.auto_state.axes().plot!=AutoProjection::two_parameter){
   
     return;
   }
 
-  if((flag2>0)&&(s.auto_state.axes().plot==AutoProjection::two_parameter))
+  if((flag2!=no_calculation)&&(s.auto_state.axes().plot==AutoProjection::two_parameter))
    type1=STABLE_EQ;
   /* a stable equilibrium is drawn thick, an unstable one dashed, in the options' colours, a two-parameter curve in its kind's */
-  const auto color_of=[&](const xpp::Color &option){return flag2>0?two_parameter_color(flag2):option;};
+  const auto color_of=[&](const xpp::Color &option){return flag2!=no_calculation?two_parameter_color(flag2):option;};
   xpp::LineStyle line_style;
   line_style.width=2;
   xpp::LineStyle dots;
@@ -964,7 +949,7 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
   case UNSTABLE_EQ:
     if(s.auto_state.axes().plot==AutoProjection::period||s.auto_state.axes().plot==AutoProjection::frequency)break;
     if(!icp1.is_parameter(s.auto_state.axes().icp1))break;
-    if(flag2>0&&!icp2.is_parameter(s.auto_state.axes().icp2))break;
+    if(flag2!=no_calculation&&!icp2.is_parameter(s.auto_state.axes().icp2))break;
     if(type1==UNSTABLE_EQ){
       line_style.width=1;
       line_style.dash=xpp::LineDash::dashed;
@@ -975,7 +960,7 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
   case UNSTABLE_PERIODIC:
   case STABLE_PERIODIC:
     if(!icp1.is_parameter(s.auto_state.axes().icp1))break;
-    if(flag2>0&&!icp2.is_parameter(s.auto_state.axes().icp2))break;
+    if(flag2!=no_calculation&&!icp2.is_parameter(s.auto_state.axes().icp2))break;
     /* a stable periodic orbit's extremes are filled circles, an unstable one's open */
     xpp::set_pen(s,type1==STABLE_PERIODIC?s.auto_state.stable_po_color:s.auto_state.unstable_po_color,dots);
     s.plot_file.pen.hollow=type1==UNSTABLE_PERIODIC;
@@ -1003,9 +988,9 @@ static void show_stab(xpp::Session &s, std::span<const double> evr,std::span<con
 }
 
 /* the colour a point is drawn in: its kind of two-parameter curve's, or its stability's */
-static xpp::Color auto_point_color(xpp::Session &s, DiagramPointType type,int flag2)
+static xpp::Color auto_point_color(xpp::Session &s, DiagramPointType type,AutoCalculation flag2)
 {
-  if(flag2!=0)return two_parameter_color(flag2);
+  if(flag2!=no_calculation)return two_parameter_color(flag2);
   switch(type){
   case STABLE_EQ: return s.auto_state.stable_eq_color;
   case UNSTABLE_EQ: return s.auto_state.unstable_eq_color;
@@ -1019,15 +1004,15 @@ static xpp::Color auto_point_color(xpp::Session &s, DiagramPointType type,int fl
    in the current view
 
 */
-int check_plot_type(const xpp::Session &s, int flag2, xpp::AutoAxis icp1, xpp::AutoAxis icp2)
+int check_plot_type(const xpp::Session &s, AutoCalculation flag2, xpp::AutoAxis icp1, xpp::AutoAxis icp2)
 {
-  if(flag2==0 && s.auto_state.axes().plot==AutoProjection::two_parameter)
+  if(flag2==no_calculation && s.auto_state.axes().plot==AutoProjection::two_parameter)
     return 0;
-  if(flag2>0  && s.auto_state.axes().plot!=AutoProjection::two_parameter)
+  if(flag2!=no_calculation  && s.auto_state.axes().plot!=AutoProjection::two_parameter)
     return 0; 
   if(!icp1.is_parameter(s.auto_state.axes().icp1))
     return 0;
-  if(flag2>0 && !icp2.is_parameter(s.auto_state.axes().icp2))
+  if(flag2!=no_calculation && !icp2.is_parameter(s.auto_state.axes().icp2))
     return 0;
   return 1;
 
@@ -1044,7 +1029,8 @@ namespace {
 void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIAGRAM &d, DiagramPointType type,
                 int flg)
 {
-  const int lab=d.lab,flag2=d.flag2;
+  const int lab=d.lab;
+  const AutoCalculation flag2=d.flag2;
   const xpp::AutoAxis icp1=d.icp1,icp2=d.icp2;
   double x,y1,y2,par1,par2=0;
   DiagramPointType type1=type;
@@ -1063,7 +1049,7 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
   dp.flag2=flag2;
   dp.newseg=(flg==0);
   dp.color=auto_point_color(s, type,flag2);
-  dp.lw=(type==STABLE_EQ||flag2>0)?2:1;
+  dp.lw=(type==STABLE_EQ||flag2!=no_calculation)?2:1;
   dp.x=x;
   dp.y1=y1;
   dp.y2=y2;
@@ -1071,29 +1057,29 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
     s.auto_state.bifur.lastx=x;
     s.auto_state.bifur.lasty=y1;
   }
-  if((flag2==0&&ax.plot==AutoProjection::two_parameter)||(flag2>0&&ax.plot!=AutoProjection::two_parameter)){
+  if((flag2==no_calculation&&ax.plot==AutoProjection::two_parameter)||(flag2!=no_calculation&&ax.plot!=AutoProjection::two_parameter)){
     dp.x=dp.y1=dp.y2=std::numeric_limits<double>::quiet_NaN();
     auto_diagram(s,v,&dp);
     return;
   }
-  if(flag2>0) /* a two-parameter point in a two-parameter view */
+  if(flag2!=no_calculation) /* a two-parameter point in a two-parameter view */
     type1=STABLE_EQ;
   switch(type1){
   case STABLE_EQ:
   case UNSTABLE_EQ:
     if(ax.plot==AutoProjection::period||ax.plot==AutoProjection::frequency)break;
     if(!icp1.is_parameter(ax.icp1))break;
-    if(flag2>0&&!icp2.is_parameter(ax.icp2))break;
+    if(flag2!=no_calculation&&!icp2.is_parameter(ax.icp2))break;
     dp.draw=1;
     break;
   case UNSTABLE_PERIODIC:
   case STABLE_PERIODIC:
     if(!icp1.is_parameter(ax.icp1))break;
-    if(flag2>0&&!icp2.is_parameter(ax.icp2))break;
+    if(flag2!=no_calculation&&!icp2.is_parameter(ax.icp2))break;
     dp.draw=type1==STABLE_PERIODIC?2:3;
     break;
   }
-  if(lab!=0&&icp1.is_parameter(ax.icp1)&&(flag2==0||icp2.is_parameter(ax.icp2))){
+  if(lab!=0&&icp1.is_parameter(ax.icp1)&&(flag2==no_calculation||icp2.is_parameter(ax.icp2))){
     dp.lab=lab;
   }
   if(active){
@@ -1117,7 +1103,8 @@ void add_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int flg
 void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
 {
   double norm,per,*par,par1,par2=0;
-  int pt,ibr,lab,flag2;
+  int pt,ibr,lab;
+  AutoCalculation flag2;
   xpp::AutoAxis icp1,icp2;
   AutoPointCode itp;
   double x,y1,y2;
@@ -1680,7 +1667,7 @@ void auto_start_diff_ss(xpp::Session &s)
   s.auto_state.bifur.isp=1;
     if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
   s.auto_state.bifur.nfpar=1;
-  s.auto_state.two_param=0;
+  s.auto_state.two_param=no_calculation;
   do_auto(s, NO_OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
@@ -1701,7 +1688,7 @@ void auto_start_at_bvp(xpp::Session &s)
   if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
     
   s.auto_state.bifur.nfpar=1;
-  s.auto_state.two_param=0;
+  s.auto_state.two_param=no_calculation;
   s.auto_state.new_period_flag=true;
   do_auto(s, opn,cls,s.auto_state.bifur.itp);
 }
@@ -1720,7 +1707,7 @@ void auto_start_at_per(xpp::Session &s)
   s.auto_state.bifur.isp=2;
     if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
   s.auto_state.bifur.nfpar=1;
-  s.auto_state.two_param=0;
+  s.auto_state.two_param=no_calculation;
   s.auto_state.new_period_flag=true;
   do_auto(s, opn,cls,s.auto_state.bifur.itp);
 }
@@ -1747,7 +1734,7 @@ void auto_new_ss(xpp::Session &s)
   s.auto_state.bifur.isp=1;
       if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;;
   s.auto_state.bifur.nfpar=1;
-   s.auto_state.two_param=0;
+   s.auto_state.two_param=no_calculation;
   do_auto(s, opn,cls,s.auto_state.bifur.itp);
 }
 
@@ -1772,7 +1759,7 @@ void auto_new_discrete(xpp::Session &s)
   s.auto_state.bifur.isp=1;
     if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
   s.auto_state.bifur.nfpar=1;
-   s.auto_state.two_param=0; 
+   s.auto_state.two_param=no_calculation;
   do_auto(s, opn,cls,s.auto_state.bifur.itp);
 }
  
@@ -1808,7 +1795,7 @@ void auto_extend_ss(xpp::Session &s)
   s.auto_state.bifur.isp=1;
     if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
     
-  s.auto_state.two_param=0;
+  s.auto_state.two_param=no_calculation;
   do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
@@ -1943,7 +1930,7 @@ void auto_new_per(xpp::Session &s) /* same for extending periodic  */
   s.auto_state.bifur.isp=2;
     if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
   s.auto_state.bifur.ips=xpp::AutoProblem::Periodic;
-    s.auto_state.two_param=0;
+    s.auto_state.two_param=no_calculation;
   do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
@@ -1958,7 +1945,7 @@ void auto_extend_bvp(xpp::Session &s) /* extending bvp */
   s.auto_state.bifur.isp=2;
     if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
   s.auto_state.bifur.ips=xpp::AutoProblem::BoundaryValue;
-    s.auto_state.two_param=0;
+    s.auto_state.two_param=no_calculation;
   do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
@@ -1974,7 +1961,7 @@ void auto_switch_per(xpp::Session &s)
   s.auto_state.bifur.isp=2;
     if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
   s.auto_state.bifur.ips=xpp::AutoProblem::Periodic;
-  s.auto_state.two_param=0;
+  s.auto_state.two_param=no_calculation;
   do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
@@ -1989,7 +1976,7 @@ void auto_switch_bvp(xpp::Session &s)
   s.auto_state.bifur.isp=2;
     if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
   s.auto_state.bifur.ips=xpp::AutoProblem::BoundaryValue;
-  s.auto_state.two_param=0;
+  s.auto_state.two_param=no_calculation;
   do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
@@ -2007,7 +1994,7 @@ void auto_switch_ss(xpp::Session &s)
   s.auto_state.bifur.ips=xpp::AutoProblem::SteadyState;
   if(xpp::solver_info(s.numerics.method).traits.discrete)
     s.auto_state.bifur.ips=xpp::AutoProblem::DiscreteMap;
-  s.auto_state.two_param=0;
+  s.auto_state.two_param=no_calculation;
   do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
@@ -2049,7 +2036,7 @@ void auto_2p_limit(xpp::Session &s, xpp::AutoProblem ips)
 namespace {
 /* continue a grabbed period doubling (PD2) or torus bifurcation (TR2) in
    two parameters: the same periodic restart, told apart by its kind */
-void auto_2p_periodic(xpp::Session &s, int kind)
+void auto_2p_periodic(xpp::Session &s, AutoCalculation kind)
 {
   s.auto_state.blrtn.torper=s.auto_state.grabpt.torper;
   s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
@@ -2165,7 +2152,7 @@ void auto_period_double(xpp::Session &s)
   s.auto_state.bifur.isp=2;
     if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
   s.auto_state.bifur.ips=xpp::AutoProblem::Periodic;
-  s.auto_state.two_param=0;
+  s.auto_state.two_param=no_calculation;
   do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
 }
 
@@ -2366,8 +2353,8 @@ xpp::Result<> import_auto_file(xpp::Session &s, FILE *fp, const std::string &fil
       lines.fail("foreign mark count exceeds the stored mark slots");
     // Validate every encoded row, including inactive foreign marks.
     settings.nmarks=xpp::auto_foreign_mark_rows;
-    settings.mark_name.resize(settings.nmarks);
-    settings.mark_value.resize(settings.nmarks);
+    settings.mark_name.resize(*settings.nmarks);
+    settings.mark_value.resize(*settings.nmarks);
     settings.par1=s.model().upar_names[held.parameters.front()];
     if(count>1)settings.par2=s.model().upar_names[held.parameters[1]];
     for(int k=0;k<xpp::auto_foreign_mark_rows;k++){

@@ -2414,6 +2414,9 @@ async function autoView(dir) {
   check('T23: each of the 22 Numerics fields has a plain name with its short name, e.g. "Max points (NMX)", and a tooltip',
     named.length === 22 && named.every(([n, t]) => /^[A-Z][a-z].* \([A-Z0-9]+[A-Za-z]*\)$/.test(n) && t.length > 40)
       && named.some(([n, , f]) => n === 'Max points (NMX)' && f === 'nmx'), JSON.stringify(named.filter(([n, t]) => t.length <= 40 || !/\(/.test(n))));
+  check('W499: SuppBP is a checkbox whose value is the core boolean',
+    await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=suppbp]').type === 'checkbox'`)
+    && await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=suppbp]').checked`) === await S('s.autoSettings.core.numerics.suppbp'));
   /* W267: the Computer group's Threads: Automatic or 1 to the logical processors, from the event; OK sends the choice */
   const threadChoices = await cdp.eval(`[...document.querySelectorAll('.auto-settings-dialog select[data-field=threads] option')].map(o => o.value)`);
   const threadCore = await S('({threads: s.autoSettings.core.threads, auto: s.autoSettings.core.threads_auto, max: s.autoSettings.core.threads_max})');

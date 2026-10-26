@@ -128,13 +128,13 @@ struct AutoState {
      false: from the steady state of the initial conditions */
   bool new_period_flag=false;
   /* a two-parameter run */
-  int two_param=0;
+  xpp::AutoCalculation two_param=xpp::no_calculation;
   /* the label do_auto's follow-up run (a restart) continues from, 0 for
      none */
   int restart_label=0;
-  /* the kind of run (LPE2, HB2, ...; 0 one parameter) each stored point
+  /* the kind of run each stored point
      records */
-  int type_of_calc=0;
+  xpp::AutoCalculation type_of_calc=xpp::no_calculation;
   /* the torus period a two-parameter torus run starts from */
   xpp::ROTCHK blrtn{};
   /* the colours of stable and unstable equilibria and periodic orbits

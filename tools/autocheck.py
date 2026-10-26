@@ -12,9 +12,9 @@ after a run grew the store and after a load (they borrow the stored
 columns), and runs CVODE twice into a step error and into the Poincare
 map's "Cannot zero RHS"; asancheck's build sees a freed column read or
 CVODE's memory leaked.
-errors (W63a) runs AUTO into what its numerics used to exit() on (Ncol 8,
-Ntst 0): an error message, the session goes on, and the next run computes
-the same points as before.
+errors checks that invalid Numerics values (Ncol 8, Ntst 0) are refused
+at input, leave settings intact and allow the next run to compute the
+same points. Unit tests cover the internal numerical error paths.
 scratch checks that a start removes an xppautoX-<pid>-N folder (xpp_util.cpp's
 AUTO scratch directory) left by a dead pid, and leaves one alone whose pid is
 still running (issue #32). grab checks "auto" "grab" by label and by type+index
@@ -1957,15 +1957,14 @@ NUMERICS = ['ntst', 'nmx', 'npr', 'ncol']  # the Numerics form's first fields, i
 
 
 def set_numerics(s, **values):
-    """Auto/Numerics, the form answered with the given fields changed (the
-    form takes what `auto set` refuses: Ncol 8, Ntst 0)"""
+    """Answer Auto/Numerics and return the events, including a refused edit."""
     s.send(cmd='key', win='auto', key='n')
     _, ask = s.collect(lambda e: is_ask(e) or is_idle(e))
     vals = list(ask['values'])
     for k, v in values.items():
         vals[NUMERICS.index(k)] = str(v)
     s.send(cmd='answer', id=ask['id'], ok=1, values=vals)
-    s.collect(is_idle)
+    return s.collect(is_idle)[0]
 
 
 def errors_of(evs):
@@ -2004,12 +2003,8 @@ def section_subscriptions():
 
 
 def section_errors():
-    """What AUTO's numerics used to exit() on (W63a) is an error message
-    now: the run ends, the session goes on, and the next run computes as
-    if nothing had happened. A periodic run from lecar's Hopf point with
-    Ncol 8 (collocation weights exist up to 7) and with Ntst 0 (fewer
-    mesh intervals than nodes); tests/test_auto_errors.cpp covers the
-    failures no model reaches."""
+    """Invalid settings stop at their input; the existing settings and
+    periodic branches survive. Internal error paths have unit tests."""
     s = Server(args.server, LECAR, verbose=args.v)
     s.collect(is_idle)
     dg = Diagram().apply(hopf_steady(s))
@@ -2028,11 +2023,10 @@ def section_errors():
     check('errors: a periodic run from the Hopf point computes points', len(good) > 2, '%d points' % len(good))
     for field, bad, word in (('ncol', 8, 'Ncol'), ('ntst', 0, 'Ntst')):
         normal = {'ncol': 4, 'ntst': 15}[field]
-        set_numerics(s, **{field: bad})
-        evs, pts = periodic()
+        evs = set_numerics(s, **{field: bad})
         errs = errors_of(evs)
-        check('errors: %s %d: the run stops with an error naming %s' % (word, bad, word),
-              any(e.startswith('AUTO stopped') and word in e for e in errs), str(errs))
+        check('errors: %s %d: the form refuses the value before a run' % (word, bad),
+              len(errs) == 1 and word in errs[0] and '%s=%d' % (field, bad) in errs[0], str(errs))
         check('errors: %s %d: the session is still up' % (word, bad), s.proc.poll() is None)
         s.send(cmd='data', events=['autosettings'])
         evs, idle = s.collect(is_idle)
@@ -2104,13 +2098,14 @@ def section_errors():
     try:
         errors = [json.loads(line) for line in out.splitlines() if line.startswith('{')
                   and json.loads(line).get('ev') == 'message' and json.loads(line).get('error')]
-        place = run_recording.places[insert + 1]
-        check('W328: an AUTO numerical failure names its recorded run step once in server and silent',
+        place = run_recording.places[insert]
+        check('W328: a refused AUTO value names its recorded form step once in server and silent',
               code == 1 and len(errors) == 1 and 'Ncol' in errors[0]['error']
               and errors[0].get('file', '').endswith('run.recx')
               and (errors[0].get('line'), errors[0].get('source')) == place
               and 'run.recx:%d:' % place[0] in run_recording.stderr
-              and run_recording.stderr.count('AUTO stopped') == 1,
+              and run_recording.stderr.count('Ncol must be a whole number from 2 to 7') == 1
+              and 'AUTO stopped' not in run_recording.stderr,
               str((code, errors, run_recording.stderr[-300:])))
     finally:
         shutil.rmtree(run, ignore_errors=True)
@@ -2420,7 +2415,7 @@ def section_limits():
               and len((last_state(startup) or {}).get('pars', [])) == 40)
         open_auto(s)
         s.send(cmd='auto', op='set',
-               numerics={'nmx': 4, 'npr': 1, 'suppbp': 1}, axes={'par1': 'P39', 'var': 'X400'})
+               numerics={'nmx': 4, 'npr': 1, 'suppbp': True}, axes={'par1': 'P39', 'var': 'X400'})
         evs, _ = s.collect(is_idle)
         check('limits: the fortieth model parameter is available without selection', not errors_of(evs), str(errors_of(evs)))
         dg = Diagram().apply(run_any(s, 's'))
@@ -2456,7 +2451,7 @@ def section_nagumo():
     """
     speed_bound = 5e-6  # T=20, NTST=80, NCOL=4; truncation dominates.
     long_bound = 5e-7  # T=24 reduces the squared endpoint tail by exp(-4/sqrt(2)).
-    homcont_calc = '12'  # HO2 in core/auto_nox.cpp: HomCont in two parameters.
+    homcont_calc = 'homoclinic'  # Native calculation name; XPPAUT codes are import-only.
     description = read_description(BASE / 'tstauto_tstheti_homcont.json')
     maxima = {}
     for name, interval, ntst in (('baseline', 20, 80), ('mesh', 20, 160), ('interval', 24, 160)):
@@ -2513,14 +2508,14 @@ def section_hopf_reduced():
         x = [float(r['u0.X']) for r in rows]
         check('codim: BT is a typed label on the Hopf curve', sum(r['itp']=='-31' for r in rows)==1)
         check('reduced Hopf: continuation crosses BT onto the neutral saddle',
-              min(x) < -.4 and max(x) > .4 and any(r['flag2'] == '13' for r in rows), str((min(x), max(x))))
+              min(x) < -.4 and max(x) > .4 and any(r['flag2'] == 'neutral_saddle' for r in rows), str((min(x), max(x))))
         check('reduced Hopf: every point solves a=-x^2, b=0, y=0',
               all(abs(float(r['par1']) + xx*xx) < 1e-5 and abs(float(r['par2'])) < 1e-5
                   and abs(float(r['u0.Y'])) < 1e-5 for r, xx in zip(rows, x)),
               str([max(abs(float(r['par1']) + xx*xx) for r, xx in zip(rows, x)),
                    max(abs(float(r['par2'])) for r in rows), max(abs(float(r['u0.Y'])) for r in rows)]))
         check('reduced Hopf: negative kappa is labelled neutral saddle, never Hopf',
-              all(int(r['flag2']) == (13 if xx > 0 else 3) for r, xx in zip(rows, x)))
+              all(r['flag2'] == ('neutral_saddle' if xx > 0 else 'hopf') for r, xx in zip(rows, x)))
         first_saddle = next(i for i, xx in enumerate(x) if xx > 0)
         period = float(rows[first_saddle-1]['per'])
         check('reduced Hopf: neutral saddle retains the last positive-kappa period',

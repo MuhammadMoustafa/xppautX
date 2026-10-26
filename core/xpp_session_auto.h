@@ -102,7 +102,7 @@ Result<std::deque<DIAGRAM>> parse_diagram_csv(std::string_view text, int n, int 
 /* Foreign diagram records, consuming exactly the declared last index + 1 points.
    The model parameter values seed immutable branch constants. */
 std::deque<DIAGRAM> read_foreign_diagram(Lines &lines, int n,
-    std::span<const int> imported, std::span<const double> parameters, int calc, int flag2, double torper);
+    std::span<const int> imported, std::span<const double> parameters, AutoCalculation calc, AutoCalculation flag2, double torper);
 
 /* ---- this session's (xpp_session_auto_io.cpp) ---- */
 

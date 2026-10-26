@@ -1309,13 +1309,14 @@ client that asked with `{"cmd":"data","events":["autosettings"]}` at the
 end of that command, and then whenever the settings changed: at the end of
 a command and before every ask. The settings exist from the model's load,
 before AUTO's window opens (a model with more variables than AUTO takes
-has none, and gets no event). core/auto_settings.cpp keeps it.
+has none, and gets no event). core/auto_settings.cpp keeps it. SuppBP is a checkbox in both forms and uses
+`true` or `false` in commands and saved settings (W499).
 
 ```
 {"ev":"autosettings",
  "numerics":{"ntst":15,"nmx":2000,"npr":500,"ncol":4,"ds":0.02,"dsmin":1e-05,"dsmax":0.02,
              "rl0":-0.2,"rl1":0.5,"a0":0,"a1":1000,"epsl":0.0001,"epsu":0.0001,"epss":0.0001,
-             "iad":3,"mxbf":5,"iid":2,"itmx":8,"itnw":7,"nwtn":3,"iads":1,"suppbp":0},
+             "iad":3,"mxbf":5,"iid":2,"itmx":8,"itnw":7,"nwtn":3,"iads":1,"suppbp":false},
  "axes":{"plot":"maximum_and_minimum","var":"V","par1":"iapp","par2":"phi","xmin":-0.2,"xmax":0.5,"ymin":-0.5,"ymax":0.4},
  "marks":[["iapp",0.25],["T",30]],
  "threads":"auto","threads_auto":4,"threads_max":16,
@@ -1327,7 +1328,7 @@ has none, and gets no event). core/auto_settings.cpp keeps it.
 
 | field | meaning |
 |---|---|
-| `numerics` | the Numerics form's fields by AUTO's names, in the form's order: `ntst` Ntst, `nmx` Nmax, `npr` NPr, `ncol` Ncol, `ds`, `dsmin`, `dsmax`, `rl0` Par Min, `rl1` Par Max, `a0` Norm Min, `a1` Norm Max, `epsl`, `epsu`, `epss`, `iad`, `mxbf`, `iid`, `itmx`, `itnw`, `nwtn`, `iads`, `suppbp` SuppBP |
+| `numerics` | the Numerics form's fields by AUTO's names, in the form's order: `ntst` Ntst, `nmx` Nmax, `npr` NPr, `ncol` Ncol, `ds`, `dsmin`, `dsmax`, `rl0` Par Min, `rl1` Par Max, `a0` Norm Min, `a1` Norm Max, `epsl`, `epsu`, `epss`, `iad`, `mxbf`, `iid`, `itmx`, `itnw`, `nwtn`, `iads`, `suppbp` SuppBP (boolean `true`/`false`, never 0/1) |
 | `axes.plot` | the projection, by name: `maximum`, `norm`, `maximum_and_minimum`, `period`, `two_parameter`, `frequency`, `average` (a client labels it from its name; XPPAUT's numbers 0-4, 10, 11 are read only from an imported XPPAUT `.auto` file) |
 | `axes.var` | the variable the y axis plots (Y-axis) |
 | `axes.par1`, `par2` | Main Parm and Secnd Parm, two model parameters (`null` if none) |
@@ -1337,7 +1338,7 @@ has none, and gets no event). core/auto_settings.cpp keeps it.
 | `threads` | AUTO's thread count, a program preference (W267) and not a setting of the model or the session: `"auto"` or a whole number from 1 to `threads_max`; the same for every model, read from `preferences.setx` (`auto_threads`) when a model is loaded |
 | `threads_auto` | the count `"auto"` gives on this computer: its physical cores (the performance cores where the system says which), at most 4 |
 | `threads_max` | the most `threads` may be: the computer's logical processors |
-| `rules` | what each `numerics` value takes, by key (W118): `label` (the form's), `integer`, `positive`, `nonzero`, `min`, `max` (each only when it holds) and `message`, what a `set` of a value it does not take is refused with; the same table `set` checks with (core/auto_settings.cpp num_fields) |
+| `rules` | what each `numerics` value takes, by key (W118): `label` (the form's), `boolean`, `integer`, `positive`, `nonzero`, `min`, `max` (each only when it holds) and `message`, what a `set` of a value it does not take is refused with; the same table `set` checks with (core/auto_settings.cpp num_fields) |
 | `pairs` | the values that must be in order: `lo` below `hi` (`strict`) or at most it, and the refusal's `message` |
 | `step` | the first step `key` must be from `lo` to `hi` in size, whichever its sign, and the refusal's `message` |
 

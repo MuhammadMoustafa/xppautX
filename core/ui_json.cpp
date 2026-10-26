@@ -691,7 +691,7 @@ const CommandInfo commands[] = {
     {"userbut", nullptr, X, STEP,
      [](xpp::Session &s, const char *line) {
          int i = get_int(line, "index", -1);
-         if (i >= 0 && i < s.nuserbut) run_the_commands(s, s.userbut[i].com);
+         if (i >= 0 && i < s.nuserbut) run_the_commands(s, static_cast<MenuCommand>(s.userbut[i].com));
      }},
 };
 

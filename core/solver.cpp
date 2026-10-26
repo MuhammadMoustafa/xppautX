@@ -315,7 +315,7 @@ Result<> check_store_from(const Session &s, double start, double dt, double leng
   /* a model whose events write rows (out_put) stores something past store_from or not */
   for(const Model::GlobalFlag &flag:s.model().flags)
     for(int e=0;e<flag.nevents;++e)
-      if(flag.type[e]==2)return {};
+      if(flag.type[e]==xpp::Model::EventTarget::output)return {};
   return fail("store_from",xpp::format("store_from is beyond the end of the run: it starts at t = {} and ends at t = {}, so no row would be stored ({})",
                                       start,end,named_settings(s,{"store_from"})),settings_place(s.model(),{"store_from"}));
 }

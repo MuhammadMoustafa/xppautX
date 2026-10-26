@@ -39,11 +39,11 @@ double resonance_test(const std::array<bool,xpp::auto_codim_kinds.size()> &enabl
     const double wrapped=std::remquo(angle,pi(2.),&turns);
     const double folded=std::abs(wrapped);
     double test=1.;
-    *changed=FALSE_;
+    *changed=false;
     for (std::size_t i=0;i<resonance_angles.size();++i)
         if (xpp::auto_codim_enabled(enabled,resonance_kinds[i])) {
             test*=folded-pi(resonance_angles[i]);
-            *changed=TRUE_;
+            *changed=true;
         }
     if (!*changed) return auto_test_not_applicable;
     // Turns at 0 passed: one fewer while the angle is below its nearest turn.
@@ -290,7 +290,7 @@ double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *p
     *changed=xpp::auto_codim_enabled(enabled,kind);
     if (!*changed) return auto_test_not_applicable;
     if (start!=xpp::AutoPointKind::PeriodicFold && start!=xpp::AutoPointKind::PeriodDoubling) {
-        *changed=FALSE_;
+        *changed=false;
         return auto_test_not_applicable;
     }
     // spectrum[0] is the neutral multiplier; [1] is the curve's imposed
@@ -307,7 +307,7 @@ double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *p
 // The tests read dfdu as solvae left it, the converged point's Jacobian (W421).
 FNCS_TYPE_AE(fnbtae)
 {
-    *chng=TRUE_;
+    *chng=true;
     if (iap->itpst==xpp::AutoPointKind::Hopf) return u[2*iap->ndm];
     left_null(*iap,dfdu,iap->ndim);
     return dot({u+iap->ndm,static_cast<size_t>(iap->ndm)},iap->lib->codim.left);
@@ -315,7 +315,7 @@ FNCS_TYPE_AE(fnbtae)
 
 FNCS_TYPE_AE(fncpae)
 {
-    *chng=TRUE_;
+    *chng=true;
     left_null(*iap,dfdu,iap->ndim);
     auto &w=iap->lib->codim;
     Derivatives derivatives(*iap,*rap,par,icp,u);

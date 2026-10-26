@@ -223,7 +223,7 @@ void go_go_auto(xpp::Session &s)
 
   /* the restart label, and the type of its point */
   if (iap.irs > 0) {
-    logical found = FALSE_;
+    logical found = false;
     findlb(&iap, &rap, iap.irs, &(iap.nfpr), &found);
     if (!found)
       xpp::auto_fail(xpp::format("AUTO: restart label {} is not in {}", iap.irs, xpp::auto_fort_path(s, 3)));

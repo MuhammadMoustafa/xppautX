@@ -172,14 +172,14 @@ void user_zero_text(xpp::Session &s) {
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  marks) == .75);
-    CHECK(changed == TRUE_);
+    CHECK(changed == true);
     changed = 0;
     CHECK(fnuzbv(&iap, &rap, par.data(), icp, &changed,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, marks) == .75);
-    CHECK(changed == TRUE_);
+    CHECK(changed == true);
     CHECK(xpp::rewind_stream(file.get(), path).has_value());
     auto reader = xpp::LineReader::attach(file.get());
     CHECK(reader.next() == "   3 10001        User Func.   0     7.500000E-01");

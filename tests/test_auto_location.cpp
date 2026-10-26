@@ -47,7 +47,7 @@ double target(iap_type *, rap_type *, double *, integer *, logical *chng,
              FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoMark>)
 {
-    *chng = TRUE_;
+    *chng = true;
     return u[0] - 0.4; // special point on the straight branch
 }
 int initial_boundary(const iap_type *, const rap_type *, integer, double *,
@@ -63,7 +63,7 @@ double noisy(iap_type *iap, rap_type *, double *, integer *, logical *chng,
              FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoMark>)
 {
-    *chng = TRUE_;
+    *chng = true;
     iap->lib->session->auto_state.stability.computed.re = {u[0]};
     return 1;
 }

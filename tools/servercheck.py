@@ -4057,6 +4057,8 @@ NUM_KEYS = ['ntst', 'nmx', 'npr', 'ncol', 'ds', 'dsmin', 'dsmax', 'rl0', 'rl1', 
 
 def form_text(v):
     """a value as the core's forms print it: %d for whole numbers, else %g"""
+    if isinstance(v, bool):
+        return str(v).lower()
     return '%d' % v if isinstance(v, int) else '%g' % v
 
 
@@ -4092,6 +4094,7 @@ def check_autosettings():
         rules = st.get('rules', {}) if st else {}
         check('W118: autosettings carries each Numerics rule with the message its refusal says, the pairs and the step',
               sorted(rules) == sorted(NUM_KEYS) and rules['ncol'].get('min') == 2 and rules['ncol'].get('max') == 7
+              and isinstance(st['numerics']['suppbp'], bool) and rules['suppbp'].get('boolean') is True
               and rules['ncol'].get('integer') is True and rules['dsmin'].get('positive') is True
               and rules['ds'].get('nonzero') is True and 'min' not in rules['mxbf']
               and rules['ncol'].get('message') == 'Ncol must be a whole number from 2 to 7'
@@ -4205,7 +4208,8 @@ def check_autosettings():
         auto_set(marks=st3['marks'])
 
         # refused: bad values change nothing, and say why
-        for bad, why in (({'numerics': {'ncol': 9}}, 'Ncol'), ({'numerics': {'ntst': 1.5}}, 'Ntst'),
+        for bad, why in (({'numerics': {'suppbp': 1}}, 'true or false'), ({'numerics': {'suppbp': 'true'}}, 'true or false'),
+                         ({'numerics': {'ncol': 9}}, 'Ncol'), ({'numerics': {'ntst': 1.5}}, 'Ntst'),
                          ({'numerics': {'nmx': 30, 'dsmin': 0}}, 'Dsmin'), ({'numerics': {'rl0': 5, 'rl1': 1}}, 'Par Min'),
                          ({'numerics': {'ds': -0.9, 'dsmax': 0.5}}, 'Ds must be from Dsmin to Dsmax'),
                          ({'numerics': {'dsmin': 0.5, 'dsmax': 1, 'ds': 0.1}}, 'Ds must be from Dsmin to Dsmax'),
@@ -4216,6 +4220,10 @@ def check_autosettings():
             evs, st4, errs = auto_set(**bad)
             check('auto set %s is refused with an error naming %s, nothing changes' % (json.dumps(bad), why),
                   len(errs) == 1 and why in errs[0] and st4 is None, '%s %s' % (errs, st4))
+        evs, boolean_set, errs = auto_set(numerics={'suppbp': True})
+        check('W499: SuppBP accepts and publishes a boolean',
+              not errs and boolean_set and boolean_set['numerics']['suppbp'] is True)
+        auto_set(numerics={'suppbp': False})
         evs, st4, errs = auto_set(numerics={'ncol': 9})
         check('W118: a refused value says the message the event gave its rule',
               errs == ['AUTO settings: ncol=9: ' + rules.get('ncol', {}).get('message', '?')], str(errs))

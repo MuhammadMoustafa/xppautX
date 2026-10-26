@@ -514,7 +514,7 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
        BLAS routines. */
     doublereal tmp1 = 1.0;
     doublereal tmp0 = 0.0;
-    logical tmp_false = FALSE_;
+    logical tmp_false = false;
 
     dgemm("n", "n", ndim, ndim, ndim, &tmp1, c0, ndim, svdv.data(), 
 	  ndim, &tmp0, rwork, ndim, 1L, 1L);
@@ -612,12 +612,12 @@ eigenvalues:
   /*  reduce the generalized eigenvalue problem to a simpler form */
   /*   (C0BarDef,C1BarDef) = (upper hessenberg, upper triangular) */
 
-  qzhes(*ndim, ndimm1, &c0[offset], &c1[offset], FALSE_ , qzz.data());
+  qzhes(*ndim, ndimm1, &c0[offset], &c1[offset], false , qzz.data());
 
   /*  now reduce to an even simpler form */
   /*   (C0BarDef,C1BarDef) = (quasi-upper triangular, upper triangular) */
 
-  qzit(*ndim, ndimm1, &c0[offset], &c1[offset], auto_qzeps1, FALSE_ ,
+  qzit(*ndim, ndimm1, &c0[offset], &c1[offset], auto_qzeps1, false ,
        qzz.data(), &qzierr);
   if (qzierr != 0) {
     xpp::print(fp9," NOTE : Warning from subroutine FLOWKM : QZ routine returned QZIERR = {:4}        Floquet multiplier calculations may be wrong \n",qzierr);	
@@ -627,21 +627,21 @@ eigenvalues:
   /*  compute the generalized eigenvalues */
 
   qzval(*ndim, ndimm1, &c0[offset], &c1[offset], qzalfr.data(), qzalfi.data(),
-	qzbeta.data(), FALSE_, qzz.data());
+	qzbeta.data(), false, qzz.data());
 
   /*  Pack the eigenvalues into complex form. */
   if (deflate) {
     ev[0].r = ARRAY2D(c0, 0, (*ndim - 1)) / ARRAY2D(c1, 0, (*ndim - 1));
     ev[0].i = 0.;
   }
-  infev = FALSE_;
+  infev = false;
   for (j = 0; j < ndimm1; ++j) {
     if (qzbeta[j] != 0.) {
       ev[j + offset].r = qzalfr[j] / qzbeta[j];
       ev[j + offset].i = qzalfi[j] / qzbeta[j];
     } else {
       ev[j + offset].r = auto_rlarge, ev[j + offset].i = auto_rlarge; /* an infinite multiplier */
-      infev = TRUE_;
+      infev = true;
     }
   }
   if (infev) {

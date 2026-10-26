@@ -131,9 +131,9 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
   const pairs = Object.keys(pairMessages).length > 0;
   const ok = () => {
     if (anyError || pairs) return;
-    const changed = NUM_FIELDS.filter(f => values[f.key] !== shown.numerics[f.key]);
+    const changed = NUM_FIELDS.filter(f => (f.key==='suppbp' ? texts.suppbp==='true' : values[f.key]) !== shown.numerics[f.key]);
     const patch: AutoSettingsPatch = {};
-    if (changed.length) patch.numerics = Object.fromEntries(changed.map(f => [f.key, values[f.key]]));
+    if (changed.length) patch.numerics = Object.fromEntries(changed.map(f => [f.key, f.key==='suppbp' ? texts.suppbp==='true' : values[f.key]]));
     if (threads !== String(shown.threads)) patch.threads = threads === 'auto' ? 'auto' : Number(threads);
     if (CODIM_KINDS.some(k => specialPoints[k] !== shown.special_points[k])) patch.special_points = specialPoints;
     if (patch.numerics || patch.threads !== undefined || patch.special_points) session.autoSettings(patch);
@@ -154,10 +154,12 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
                 <label key={k} class={queued ? 'queued' : undefined}
                   title={queued ? `${f.help} (Applied when the running command ends.)` : f.help}>
                   <span>{f.name}</span>
+                  {k==='suppbp' ? <input type="checkbox" data-field={k} id={`auto-num-${k}`} checked={texts[k]==='true'}
+                    onChange={e => { const enabled=e.currentTarget.checked; setTexts(x => ({...x,[k]:String(enabled)})); }} /> :
                   <Field spec={numSpec(shown.rules[k])} check={t => numError(shown.rules[k], t)} value={texts[k]} data-field={k}
                     id={`auto-num-${k}`} data-queued={queued ? '1' : undefined} error={pairMessages[k] ?? null}
                     data-autofocus={g === NUM_GROUPS[0] && i === 0 ? '' : undefined}
-                    onInput={t => setTexts(x => ({...x, [k]: t}))} />
+                    onInput={t => setTexts(x => ({...x, [k]: t}))} />}
                 </label>
               );
             })}

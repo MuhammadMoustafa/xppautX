@@ -258,7 +258,7 @@ AUTO never repairs step limits or tolerances during a run (W494):
 | Newton iterations (ITNW) | the most Newton iterations for a point, before the step is halved (IADS above 0) or the branch ends | whole number, at least 1 |
 | Full Newton steps (NWTN) | after this many iterations the Jacobian is kept (chord method) | whole number, at least 1 |
 | Adapt step every (IADS) | adapt the step every IADS steps; 0 keeps it at DS, and a point that does not converge then ends the branch (MX) | whole number, 0 or more (1 is usual) |
-| Skip branch points (SuppBP) | 1: do not look for branch points (and for periodic orbits no Floquet multipliers, period doublings or tori); 0: look for them | 0 or 1 |
+| Skip branch points (SuppBP) | checked: do not look for branch points (and for periodic orbits no Floquet multipliers, period doublings or tori); unchecked: look for them | boolean checkbox |
 
 Below the three groups the dialog has a fourth, **Computer**, with one choice,
 **Threads**: how many threads AUTO uses to compute a periodic orbit or a

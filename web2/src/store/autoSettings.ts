@@ -16,12 +16,15 @@ import type {AutoProjection} from './diagram';
 export type NumKey = 'ntst' | 'nmx' | 'npr' | 'ncol' | 'ds' | 'dsmin' | 'dsmax' | 'rl0' | 'rl1' | 'a0' | 'a1'
   | 'epsl' | 'epsu' | 'epss' | 'iad' | 'mxbf' | 'iid' | 'itmx' | 'itnw' | 'nwtn' | 'iads' | 'suppbp';
 
+type NumericKey = Exclude<NumKey, 'suppbp'>;
+
 /** what a Numerics value takes (the event's `rules`: core/auto_settings.cpp num_fields), and the
     message the core refuses another with; each flag only when it holds */
 export interface NumRule {
   /** the core's form label */
   label: string;
   integer?: boolean;
+  boolean?: boolean;
   positive?: boolean;
   nonzero?: boolean;
   min?: number;
@@ -31,17 +34,17 @@ export interface NumRule {
 
 /** two values that must be in order: lo below hi (strict) or at most hi */
 export interface NumPair {
-  lo: NumKey;
-  hi: NumKey;
+  lo: NumericKey;
+  hi: NumericKey;
   strict: boolean;
   message: string;
 }
 
 /** the first step `key` within the step sizes `lo` to `hi`, whichever its sign */
 export interface NumStep {
-  key: NumKey;
-  lo: NumKey;
-  hi: NumKey;
+  key: NumericKey;
+  lo: NumericKey;
+  hi: NumericKey;
   message: string;
 }
 
@@ -120,8 +123,8 @@ export const NUM_FIELDS: NumField[] = [
     help: 'Adapt the step size every IADS steps. 0 keeps it at DS, and then a point that does not converge ends the '
       + 'branch with MX. 1 is usual. A whole number, 0 or more.'},
   {key: 'suppbp', name: 'Skip branch points (SuppBP)',
-    help: '1: do not look for branch points (faster, and no false ones); for periodic orbits there are then no '
-      + 'Floquet multipliers, period doublings or tori either. 0: look for them. 0 or 1.'},
+    help: 'When checked, do not look for branch points (faster, and no false ones); for periodic orbits there are then no '
+      + 'Floquet multipliers, period doublings or tori either. Unchecked: look for them.'},
 ];
 
 /** the Numerics dialog's groups, as the core's form has its columns */
@@ -149,7 +152,7 @@ export const allCodim = (on: boolean) => Object.fromEntries(CODIM_KINDS.map(k =>
 
 export interface AutoSettings {
   special_points: Record<CodimKind, boolean>;
-  numerics: Record<NumKey, number>;
+  numerics: Record<NumericKey, number> & {suppbp: boolean};
   axes: AutoAxesSettings;
   marks: [string, number][];
   /** AUTO's thread count, a program preference (W267): "auto" or the count */
@@ -165,7 +168,7 @@ export interface AutoSettings {
 /** what an `auto` `set` changes (docs/protocol.md), each part only when given */
 export interface AutoSettingsPatch {
   special_points?: Partial<Record<CodimKind, boolean>>;
-  numerics?: Partial<Record<NumKey, number>>;
+  numerics?: Partial<AutoSettings['numerics']>;
   /** `view`: the view of the diagram whose axes these are (W50; the active one without it) */
   axes?: Partial<AutoAxesSettings> & {fit?: boolean; view?: number};
   marks?: [string, number][];
@@ -254,6 +257,7 @@ export function autoSettingsSetCommand(p: AutoSettingsPatch): Command {
 
 /** what a Numerics field takes (store/fieldKinds.ts): a whole number or a number, and its rule */
 export function numSpec(r: NumRule): FieldSpec {
+  if (r.boolean) return {kind: 'boolean'};
   if (r.integer) return {kind: 'integer', min: r.min, max: r.max};
   return {kind: 'number', min: r.min, max: r.max, positive: !!r.positive, nonzero: !!r.nonzero};
 }
@@ -264,7 +268,7 @@ export function numError(r: NumRule, text: string): string | null {
 }
 
 /** the values that must agree with each other, as the core checks them, by the field whose message it is */
-export function pairErrors(s: Pick<AutoSettings, 'pairs' | 'step'>, v: Record<NumKey, number>): Partial<Record<NumKey, string>> {
+export function pairErrors(s: Pick<AutoSettings, 'pairs' | 'step'>, v: Record<NumericKey, number>): Partial<Record<NumKey, string>> {
   const out: Partial<Record<NumKey, string>> = {};
   for (const p of s.pairs) if (!(p.strict ? v[p.lo] < v[p.hi] : v[p.lo] <= v[p.hi])) out[p.lo] = p.message;
   const {key, lo, hi, message} = s.step;
@@ -273,6 +277,6 @@ export function pairErrors(s: Pick<AutoSettings, 'pairs' | 'step'>, v: Record<Nu
 }
 
 /** the first of pairErrors, or null */
-export function pairError(s: Pick<AutoSettings, 'pairs' | 'step'>, v: Record<NumKey, number>): string | null {
+export function pairError(s: Pick<AutoSettings, 'pairs' | 'step'>, v: Record<NumericKey, number>): string | null {
   return Object.values(pairErrors(s, v))[0] ?? null;
 }

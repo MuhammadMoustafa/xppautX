@@ -51,12 +51,12 @@ constexpr int n_ints = 13;
 std::string settings_text(const AutoSettingsSet &s)
 {
     std::string o;
-    for (int i = 0; i < AUTO_NUM_N; i++) o += xpp::format("{} {}\n", auto_settings_num_key(i), xpp::number(s.num[i]));
+    for (int i = 0; i < AUTO_NUM_N; i++) o += xpp::format("{} {}\n", auto_settings_num_key(i), (i==AUTO_NUM_SUPPBP ? (s.num[i]!=0 ? "true" : "false") : xpp::number(s.num[i])));
     for (std::size_t i=0;i<auto_codim_kinds.size();++i)
         o += xpp::format("{} {}\n",auto_codim_keys[i],*s.special_points[i] ? "true" : "false");
     o += xpp::format("plot {}\nvar {}\npar1 {}\npar2 {}\n", auto_projection_name(*s.plot), name_text(s.var), name_text(s.par1), name_text(s.par2));
     for (std::size_t i = 0; i < range_keys.size(); i++) o += xpp::format("{} {}\n", range_keys[i], xpp::number(s.range[i]));
-    for (int i = 0; i < s.nmarks; i++) o += xpp::format("mark {} {}\n", name_text(s.mark_name[i]), xpp::number(s.mark_value[i]));
+    for (int i = 0; i < s.nmarks.value_or(0); i++) o += xpp::format("mark {} {}\n", name_text(s.mark_name[i]), xpp::number(s.mark_value[i]));
     return o;
 }
 
@@ -79,13 +79,13 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
             const std::vector<std::string_view> w = split_fields(line, ' ');
             const std::string_view key = w[0];
             if (key == "mark") {
-                if (s.nmarks >= auto_file_marks_limit) l.fail(xpp::format("more than {} Mark values", auto_file_marks_limit));
+                if (*s.nmarks >= auto_file_marks_limit) l.fail(xpp::format("more than {} Mark values", auto_file_marks_limit));
                 if (w.size() != 3) l.fail("not \"mark NAME VALUE\"");
-                at(xpp::format("mark{}", s.nmarks));
+                at(xpp::format("mark{}", *s.nmarks));
                 s.mark_name.push_back(name_of(w[1]));
                 s.mark_value.emplace_back();
                 number(w[2], s.mark_value.back());
-                s.nmarks++;
+                (*s.nmarks)++;
                 continue;
             }
             if (w.size() != 2) l.fail(xpp::format("not \"{} VALUE\"", key));
@@ -109,7 +109,11 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
                 for (int i = 0; i < AUTO_NUM_N; i++)
                     if (key == auto_settings_num_key(i)) {
                         at(auto_settings_num_key(i));
-                        number(value, s.num[i]);
+                        if(i==AUTO_NUM_SUPPBP) {
+                            bool enabled;
+                            if(!parse_bool(value,enabled)) l.fail("SuppBP must be true or false");
+                            s.num[i]=enabled;
+                        } else number(value, s.num[i]);
                         s.has_num[i] = 1;
                         known = true;
                     }
@@ -209,8 +213,8 @@ std::string diagram_csv(const std::deque<DIAGRAM> &points, int model_parameters,
         const DIAGRAM &d = p;
         /* an axis is written as the file's integer (auto_axis.h) */
         const auto axis_code = [model_parameters](AutoAxis a) { return auto_axis_encode(a, model_parameters); };
-        o += xpp::format("{},{},{},{},{},{},{},{},{},{},{},{},{}", d.calc, d.ibr, d.ntot, auto_point_encode(d.itp), d.lab, d.nfpar, axis_code(d.icp1), axis_code(d.icp2),
-                         axis_code(d.icp3), axis_code(d.icp4), d.flag2, d.from, d.jacobian);
+        o += xpp::format("{},{},{},{},{},{},{},{},{},{},{},{},{}", auto_calculation_name(d.calc), d.ibr, d.ntot, auto_point_encode(d.itp), d.lab, d.nfpar, axis_code(d.icp1), axis_code(d.icp2),
+                         axis_code(d.icp3), axis_code(d.icp4), auto_calculation_name(d.flag2), d.from, d.jacobian);
         for (double v : {d.norm, d.per, d.torper}) o += ',' + xpp::number(v);
         o+=','+xpp::number(branches.at(d.branch.get()))+',';
         for(std::size_t i=0;i<d.parameter_indices.size();i++)o+=(i?";":"")+xpp::number(d.parameter_indices[i]);
@@ -294,13 +298,19 @@ Result<std::deque<DIAGRAM>> parse_diagram_csv(std::string_view text, int n, int 
             DIAGRAM &d = p;
             int itp_code = 0;
             int axis_codes[4] = {};
-            int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &itp_code, &d.lab, &d.nfpar, &axis_codes[0], &axis_codes[1], &axis_codes[2], &axis_codes[3], &d.flag2, &d.from, &d.jacobian};
+            int *ints[n_ints] = {nullptr, &d.ibr, &d.ntot, &itp_code, &d.lab, &d.nfpar, &axis_codes[0], &axis_codes[1], &axis_codes[2], &axis_codes[3], nullptr, &d.from, &d.jacobian};
             std::size_t c = 0;
             const auto bad = [&](std::size_t k, const char *kind) {
                 l.fail(xpp::format("field {} (\"{}\") is not {}", k + 1, f[k], kind));
             };
             for (int *v : ints) {
-                if (!xpp::parse_int(f[c], *v) || *v == std::numeric_limits<int>::min()) bad(c, "a whole number");
+                if(v) {
+                    if (!xpp::parse_int(f[c], *v) || *v == std::numeric_limits<int>::min()) bad(c, "a whole number");
+                } else {
+                    const auto kind=auto_calculation_from_name(f[c]);
+                    if(!kind) bad(c,"a calculation name");
+                    (c==0 ? d.calc : d.flag2)=*kind;
+                }
                 c++;
             }
             const auto itp = auto_point_decode(itp_code);
@@ -347,7 +357,7 @@ Result<std::deque<DIAGRAM>> parse_diagram_csv(std::string_view text, int n, int 
 }
 
 std::deque<DIAGRAM> read_foreign_diagram(Lines &lines, int n,
-    std::span<const int> imported, std::span<const double> parameters, int calc, int flag2, double torper)
+    std::span<const int> imported, std::span<const double> parameters, AutoCalculation calc, AutoCalculation flag2, double torper)
 {
     // XPPAUT diagram records have exactly four continuation index columns.
     constexpr int foreign_continuation_columns = 4;
@@ -367,8 +377,12 @@ std::deque<DIAGRAM> read_foreign_diagram(Lines &lines, int n,
         int foreign_index;
         int itp_code;
         int slots[4];
-        lines.numbers(d.calc, d.ibr, d.ntot, itp_code, d.lab, foreign_index, d.nfpar,
-                      slots[0], slots[1], slots[2], slots[3], d.flag2);
+        int calc_code, curve_code;
+        lines.numbers(calc_code, d.ibr, d.ntot, itp_code, d.lab, foreign_index, d.nfpar,
+                      slots[0], slots[1], slots[2], slots[3], curve_code);
+        const auto imported_calc=auto_calculation_from_code(calc_code), imported_curve=auto_calculation_from_code(curve_code);
+        if(!imported_calc || !imported_curve) lines.fail("unknown XPPAUT calculation code");
+        d.calc=*imported_calc; d.flag2=*imported_curve;
         const auto itp = auto_point_decode(itp_code);
         if (!itp) lines.fail(auto_point_unknown(itp_code));
         d.itp = *itp;

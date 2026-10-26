@@ -18,8 +18,6 @@ typedef double doublereal;
 typedef struct { doublereal r, i; } doublecomplex;
 typedef integer logical;
 
-#define TRUE_ (1)
-#define FALSE_ (0)
 
 #define ARRAY2D(array,i,j) array[(i) + (j) * array ## _dim1]
 #define ARRAY3D(array,i,j,k) array[(i) + ((j)  + (k) * array ## _dim2) * array ## _dim1]
