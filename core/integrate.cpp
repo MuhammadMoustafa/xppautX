@@ -41,6 +41,7 @@
 #include "pp_shoot.h"
 #include "dae_fun.h"
 #include "numerics.h"
+#include "numerics_settings.h"
 #include "my_rhs.h" /* extra */
 #include "volterra2.h"
 #include <stdlib.h> 
@@ -384,6 +385,7 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
   xpp::FirstError failure; /* a manifold's */
   int i,j,k,m,n=s.integrator.fixptguess.n;
   int ierr,is_new=1;
+  int attempted=0,converged=0;
   double sum;
   std::vector<double> x(s.model().node),er(s.model().node),em(s.model().node);
   if(append==0)
@@ -401,11 +403,15 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
     s.integrator.fixptlist.flag=1;
   }
   for(i=0;i<n;i++){
+    if(xpp::job::cancelled())break;
+    attempted++;
+    ierr=1;
     for(j=0;j<s.model().node;j++){ 
       x[j]=s.random.uniform()*(s.integrator.fixptguess.xhi[j]-s.integrator.fixptguess.xlo[j])+s.integrator.fixptguess.xlo[j];
     }
-    if(auto r=do_sing_info(s,x.data(),s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,s.model().node,er.data(),em.data(),&ierr);!r)return r;
+    if(auto r=do_sing_info(s,x.data(),s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,s.model().node,er.data(),em.data(),&ierr);!r){failure.keep(r);if(ierr!=0)break;}
     if(ierr==0){
+      converged++;
       m=s.integrator.fixptlist.n;
       if(m==0){ /* first fixed point found */
 	s.integrator.fixptlist.n=1;
@@ -463,6 +469,10 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
     }
     refresh_browser(s,s.data_store.rows);
   }
+  bottom_msg(0,xpp::format("Monte Carlo: {} of {} guesses converged to {} distinct equilibria ({} requested; {}); {}",
+      converged,attempted,s.integrator.fixptlist.n,n,
+      xpp::named_settings(s,{"max_iterations","newton_tolerance","search_limit"}),
+      xpp::job::cancelled()?"stopped by the user":attempted<n?"stopped early":"search finished"));
   return failure.result();
 }
 
@@ -1641,6 +1651,8 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
  int *const torcross=torcross_values.data();
  int nodes=s.solver_work.xpv.node+s.solver_work.xpv.nvec-s.model().nmarkov;
 
+ const double section_start=*t;
+ bool section_crossed=false;
  int rval=0;
  std::optional<xpp::Error> failure; /* why the loop stopped, when it failed */
  std::vector<double> oldx_values(neq_size);
@@ -1911,6 +1923,7 @@ poi:    for(i=0;i<s.model().neq;i++)oldx[i]=x[i];
  }
 
 dense_poi:
+ if(pflag==1)section_crossed=true;
 /*	   Plotting and storing data      */
  if(s.numerics.poincare_map==PoincareMap::period&&pflag==1){
    if(oldperiod==0.0){
@@ -1970,6 +1983,11 @@ out:
        s.integrator.last_time=*t;
        solver.finish();
        if(failure)return std::unexpected(std::move(*failure));
+       if(s.numerics.poincare_map!=PoincareMap::none && !section_crossed &&
+          s.integrator.stop_note.empty() && !xpp::job::cancelled()){
+         s.integrator.stop_note=xpp::format("No crossing found ({}) in [{}, {}]; change the section or integrate longer",
+             xpp::named_settings(s,{"poincare_map","poincare_variable","poincare_plane"}),section_start,*t);
+       }
        return(rval);
   }
 void send_halt(xpp::Session &s, int flag)

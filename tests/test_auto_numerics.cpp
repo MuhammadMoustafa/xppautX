@@ -99,7 +99,9 @@ std::uint64_t solve(std::vector<double> input, integer rhs, bool expect_failure 
     CHECK(log);
     if (!log) return digest;
     const auto error = failure([&] { xpp::ge(log.get(), xpp::auto_ge_pivot_iid, n, n, a.data(), rhs, n, u.data(), n, f.data(), &det); });
-    fold(digest, error);
+    // W498 adds the pivot diagnostic; keep the numerical digest and verify the new detail separately.
+    if(expect_failure)CHECK(error.ends_with(" (smallest pivot 0 < 1e-30)"));
+    fold(digest, error.substr(0,error.find(" (smallest pivot")));
     CHECK(!error.empty() == expect_failure);
     /* W491: GE's matrix after the call is its scratch (rows and columns
        swapped in place), no output; the digests without it were checked

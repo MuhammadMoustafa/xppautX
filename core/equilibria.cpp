@@ -401,6 +401,7 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
 /* fixed point with no requests and store manifolds */ 
 xpp::Result<> do_sing_info(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr)
 {
+ xpp::FirstError failure; /* report a failed manifold through the calling command */
  Equilibrium q;
  auto found=find_equilibrium(s,q,x,eps,err,big,maxit,n,ierr);
  if(!found)return std::unexpected(found.error());
@@ -423,13 +424,13 @@ xpp::Result<> do_sing_info(xpp::Session &s, double *x, double eps, double err, d
      if(const xpp::Result<> evec=get_evec(s,work,oldwork,b,bp,n,maxit,err,ipivot,eigenvalue);evec)
        pr_evec(s,x,b,n,pr,eigenvalue,type);
      else
-       xpp::log(XPP_LOG_WARN,"{}\n",evec.error().text());
+       failure.keep(evec);
    };
    if(rp==1)manifold(eval[2*pose],1);
    if(rn==1)manifold(eval[2*nege],-1);
  }
 
- return {};
+ return failure.result();
 }
 
 void pr_evec(xpp::Session &s, double *x, double *ev, int n, int pr, double eval, int type)

@@ -219,3 +219,12 @@ part, kept in one table in the check so a wording change is one edit):
 
 Modes: every case runs in `--server`; the ones that are a plain run also in `--silent`; none needs the window.
 Together with each card's own gate, a stage 2 card that adds a stop turns its row from `known` to a check.
+
+## W498 follow-up (#562)
+
+The [W498 coverage report](w498-stop-checks.md) records the remaining
+integration/Monte Carlo/manifold and BVP pivot diagnostics and the new
+server cases. A2, A3, A7, A8, F1/F2, section crossing and the event-count
+note are covered. A9 cannot be requested: HomCont's setup fixes ISTART=2,
+so the existing guard for IEQUIB=2 with ISTART=3 is unreachable through the
+protocol. No testing-only production setting was introduced.

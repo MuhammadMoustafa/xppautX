@@ -1,0 +1,5 @@
+# W498: resetting x repeats its crossing more than flag_count+2 times in a step.
+x' = 1
+init x = 0
+event 1 x-0.01, x=0
+options { integration: { method: euler, dt: 1, total_time: 1 } }

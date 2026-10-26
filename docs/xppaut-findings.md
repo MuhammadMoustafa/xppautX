@@ -1838,6 +1838,9 @@ The start routines read the restart data with unchecked `fscanf`s (e.g. `stpnbv`
 xppautX chooses the functions from a table and makes each of the three an error that ends the run and is shown, naming the
 problem, ISW and start type, or the label, the file and what the data ended before (W491,
 [#555](https://github.com/MuhammadMoustafa/xppautX/issues/555); tests/test_auto_restart.cpp truncates a restart file).
+W498 ([#562](https://github.com/MuhammadMoustafa/xppautX/issues/562)) also checks a missing restart label through
+servercheck, and a short solution refused before a session is applied; the latter now names its label as well as its file and line.
+
 
 ## 82. A range integration ignores every failure of its solver
 

@@ -952,8 +952,9 @@ dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, d
   }
 
   /* Solve for FCC */
+  lib.solvbv.pivot=NAN;
   if (*nllv == 0) {
-    xpp::ge(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
+    lib.solvbv.pivot=xpp::ge(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   } else if (*nllv > 0) {
     xpp::nlvc(fp9, ncrloc, ncrloc, *nllv, e, fcc);
@@ -962,7 +963,7 @@ dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, d
       xe[i] = 0.;
     }
     xe[-1 + ncrloc] = 1.;
-    xpp::ge(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
+    lib.solvbv.pivot=xpp::ge(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   }
   if (*idb >= 4) {

@@ -4764,7 +4764,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
  L3:
   if (iads == 0) {
     xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:No convergence with fixed step size\n",ibr,ntop);
-    xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, {xpp::AUTO_STOP_NOCONV_FIXED, *rds, dsmin, itnw, epsl, epsu, NAN}); /* xppautX: T23 */
+    xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, {xpp::AUTO_STOP_NOCONV_FIXED, *rds, dsmin, itnw, epsl, epsu, iap->lib->solvbv.pivot}); /* xppautX: T23 */
     goto L13;
   }
 
@@ -4795,7 +4795,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L12:
   xpp::print(iap->lib->fp9,"{:4} {:5}, NOTE:No convergence using minimum step size\n",ibr,ntop);
-  xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, {xpp::AUTO_STOP_NOCONV_MIN, *rds, dsmin, itnw, epsl, epsu, NAN}); /* xppautX: T23 */
+  xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, {xpp::AUTO_STOP_NOCONV_MIN, *rds, dsmin, itnw, epsl, epsu, iap->lib->solvbv.pivot}); /* xppautX: T23 */
  L13:
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = rlold[i];

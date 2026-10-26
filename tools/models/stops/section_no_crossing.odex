@@ -1,0 +1,7 @@
+# W498: one crossing at x=1, or an unreachable section changed by the check.
+x' = 1
+init x = 0
+options {
+  integration: { total_time: 2, dt: 0.1 },
+  poincare: { poincare_map: section, poincare_variable: x, poincare_plane: 10, poincare_stop: true },
+}

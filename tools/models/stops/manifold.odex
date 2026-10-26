@@ -1,0 +1,5 @@
+# W498: the exact saddle eigenvalues make the inverse iteration singular at this tolerance.
+x' = x
+y' = -y
+init x = 0, y = 0
+options { equilibria: { newton_tolerance: 1e-200 } }

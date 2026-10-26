@@ -2387,3 +2387,15 @@ parameters must lie within Par Min/Max (both axes for a two-parameter run),
 the primary parameter on a bound must have Ds directed inward, and two axes
 must differ. The start's solver norm must be within Norm Min/Max (defaults
 0 and 1e100). Incompatible restart kinds name the label and needed kinds.
+
+### Stop diagnostics completed by W498 (#562)
+
+A map with no crossing sends a bottom message naming `poincare_map`,
+`poincare_variable`, `poincare_plane` and the actual time interval, with a
+suggestion to change the section or integrate longer. A Monte Carlo search
+sends one summary of attempted and converged guesses, distinct equilibria,
+requested guesses and Newton settings. Manifold failures are placed errors,
+shown once by the command; an equilibrium already found remains available.
+Periodic AUTO's no-convergence text includes a tiny reduced-system pivot
+and its threshold, as equilibrium AUTO does. A short solution in a session
+is refused before load, naming its label, file and line.

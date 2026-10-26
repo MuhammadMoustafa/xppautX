@@ -306,7 +306,7 @@ ge(FILE *fp9, integer iid, integer n, integer m1a, doublereal *a, integer nrhs, 
 
   /* Back substitution, in AUTO's order. */
   if (at(n - 1, n - 1) == 0)
-    xpp::auto_fail("division by zero: the linear system of a Newton step is singular");
+    xpp::auto_fail(xpp::format("division by zero: the linear system of a Newton step is singular (smallest pivot {} < {})",smallest,auto_rsmall));
   std::vector<double> y(n);
   for (integer irh = 0; irh < nrhs; ++irh) {
     y[n - 1] = rhs(ir[n - 1], irh) / at(n - 1, n - 1);

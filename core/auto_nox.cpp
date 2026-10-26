@@ -2542,8 +2542,9 @@ Result<> check_auto_solutions(std::string_view text, std::string file, int varia
                 + (h.ntst ? 2 * h.nfpr + static_cast<std::size_t>(rows) * (columns - 1) : 0);
             if (expected > auto_solution_values_limit) l.fail("AUTO solution counts exceed the session memory limit");
             std::size_t values = 0;
+            const std::string payload_name=xpp::format("an AUTO solution payload row for label {}",h.lab);
             for (int row = 0; row < payload; row++) {
-                const auto row_text = l.next("an AUTO solution payload row");
+                const auto row_text = l.next(payload_name);
                 Tokens tokens(row_text);
                 if (trim_blanks(row_text).empty()) l.fail("empty AUTO solution payload row");
                 while (const auto word = tokens.next(" \t\r\n")) {
@@ -2558,7 +2559,7 @@ Result<> check_auto_solutions(std::string_view text, std::string file, int varia
                 }
             }
             if (values != expected)
-                l.fail("AUTO solution payload does not match its header counts");
+                l.fail(xpp::format("AUTO solution label {} payload does not match its header counts",h.lab));
         }
         return true;
     });

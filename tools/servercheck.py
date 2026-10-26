@@ -179,6 +179,21 @@ STOPS_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '2', '1', '3']}]  # Ran
 STOPS_EQ_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '5', '-1', '1', 'false', '-1', 'false', 'false']}]
 STOPS_CASES = [
     # says: the message's parts; at: the equation the error names; forbids: parts it must not have
+    dict(id='section_crossing', model='section', key='i', replies=STOPS_PLAIN_GO, at=None, bottom=True,
+         says=[r'Stopped at the section crossing t = (0\.99|1)', r'poincare_stop = true']),
+    dict(id='section_no_crossing', model='section_no_crossing', key='i', replies=STOPS_PLAIN_GO, at=None, bottom=True,
+         says=[r'No crossing found', r'poincare_variable', r'poincare_plane = 10', r'0, 2', r'integrate longer']),
+    dict(id='monte_carlo', model='monte_carlo', key='s', at=None, bottom=True,
+         replies=[{'key': 'c'}, {'ok': 1, 'value': '0'}, {'ok': 1, 'value': '0'},
+                  {'ok': 1, 'value': '4'}, {'ok': 1, 'value': '0.001'},
+                  {'ok': 1, 'value': '-1'}, {'ok': 1, 'value': '1'}],
+         says=[r'Monte Carlo: 0 of 4 guesses converged to 0 distinct equilibria', r'max_iterations', r'newton_tolerance']),
+    dict(id='monte_carlo_manifold', model='manifold', key='s', at='newton_tolerance: 1e-200', bottom=True,
+         replies=[{'key': 'c'}, {'ok': 1, 'value': '0'}, {'ok': 1, 'value': '0'},
+                  {'ok': 1, 'value': '4'}, {'ok': 1, 'value': '0.001'},
+                  *[{'ok': 1, 'value': '0'} for _ in range(4)]],
+         says=[r'No eigenvector', r'singular', r'newton_tolerance = 1e-200',
+               r'Monte Carlo: 4 of 4 guesses converged to 1 distinct equilibria']),
     dict(id='nan', model='nan_sqrt', key='i', replies=STOPS_PLAIN_GO, at="x' = sqrt",
          says=[r'X is NaN', r't ?= ?']),
     dict(id='qualrk_bound', model='blowup_qualrk', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
@@ -281,6 +296,7 @@ def stops_parts(case, evs, path):
     msgs = [e for e in evs if e.get('ev') == 'message' and (case.get('bottom') or 'bottom' not in e)]
     text = ' | '.join(json.dumps(e) for e in msgs)
     parts = [('a message is shown', bool(msgs), str(evs[-4:]))]
+    parts.append(('at most one placed error', sum(bool(e.get('error')) for e in msgs) <= 1, text[:400]))
     for rx in case['says']:
         parts.append(('the message says %s' % rx, re.search(rx, text) is not None, text[:400]))
     for rx in case.get('forbids', []):
@@ -355,9 +371,8 @@ def auto_lost_points(itmx):
 
 def check_auto_stops():
     """W480's AUTO cases (docs/studies/w480-stops.md A4): a special point AUTO gives up locating is a note
-    naming it, its points and ITMX; the branch goes on. A failed set-up or a short restart read (A1, A3)
-    cannot be reached through the protocol (the forms offer no impossible start, and a restart file is
-    checked when it is loaded): tests/test_auto_restart.cpp checks their errors."""
+    naming it, its points and ITMX; the branch goes on. Restart-file checks below cover A2 and
+    A3's load-time rejection; tests/test_auto_restart.cpp also covers direct short reads."""
     notes, stop = auto_lost_points(1)
     check('stops AUTO special point: ITMX 1 gives up the folds, each a note naming it, its points and ITMX',
           isinstance(notes, list) and len(notes) > 0
@@ -454,7 +469,132 @@ def check_auto_periodic_start_kind():
         s.close()
 
 
-STOPS_SECTIONS = {'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind())}
+def check_fit_stops():
+    for name, parameters, maxiter, words in [
+            ('maxiter', 'a', 1, ['maxiter = 1', 'chisq', 'tol', 'last iterate']),
+            ('singular', 'a,b', 50, ['Singular matrix', 'lambda', 'b', 'column 2 of 2'])]:
+        s = Server(args.server, os.path.join(STOPS_DIR, 'fit.odex'))
+        try:
+            autocompare.completed(s)
+            with open(os.path.join(s.run, 'fit.dat'), 'w') as f:
+                f.write(''.join('%d %.17g\n' % (i, math.exp(0.5*i)) for i in range(6)))
+            autocompare.completed(s, dict(cmd='key', key='u'))
+            s.send(cmd='key', key='h')
+            evs, end = s.answer_asks(stops_idle, {
+                'menu': lambda e: dict(key='i'),
+                'form': lambda e: dict(ok=1, values=['x', parameters, '1e-12', '6', '2', '2', '', '1e-6', str(maxiter)]),
+                'file': lambda e: dict(ok=1, file='fit.dat')})
+            msgs = [e for e in evs if e.get('ev') == 'message']
+            text = ' | '.join(str(e) for e in msgs)
+            check('stops fit ' + name, end is not None and all(w in text for w in words), text)
+            if name == 'singular':
+                errors = [e for e in msgs if e.get('error')]
+                check('stops singular fit is one placed error', len(errors) == 1
+                      and bool(errors[0].get('file')) and bool(errors[0].get('line')), str(errors))
+        finally:
+            s.close()
+
+
+def check_event_count_note():
+    s = Server(args.server, os.path.join(STOPS_DIR, 'events.odex'))
+    try:
+        autocompare.completed(s)
+        s.send(cmd='key', key='i')
+        evs, end = s.answer_asks(stops_idle, {'menu': lambda e: dict(key='g')})
+    finally:
+        s.close()  # Joins stderr's reader before inspecting a log note.
+    text = ''.join(s.log)
+    check('stops event count: the incomplete step says how many, where and what was omitted',
+          end is not None and re.search(r'more than 3 events inside one step at t =', text)
+          and 'step was taken without the later ones' in text, text)
+
+
+def check_auto_restart_file_stops():
+    s = Server(args.server, os.path.join(STOPS_DIR, 'auto_start.odex'))
+    try:
+        autocompare.completed(s)
+        autocompare.open_auto(s)
+        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'rl0': -2, 'rl1': 2, 'nmx': 4}))
+        evs = autocompare.run_any(s, 's')
+        snapshot = os.path.join(s.run, 'base.snapx')
+        autocompare.completed(s, dict(cmd='session', op='save', name=snapshot, data=False))
+        with zipfile.ZipFile(snapshot) as z:
+            members = {n: z.read(n) for n in z.namelist()}
+        # A3: corrupt input is refused by the all-or-nothing session reader,
+        # before AUTO can reach a short restart read (also unit-tested directly).
+        short = dict(members)
+        short['auto/solutions.s'] = short['auto/solutions.s'].rsplit(b'\n', 2)[0] + b'\n'
+        path = os.path.join(s.run, 'short.snapx')
+        with zipfile.ZipFile(path, 'w') as z:
+            for name, value in short.items():
+                z.writestr(name, value)
+        s.send(cmd='open', file=path)
+        evs, _ = s.answer_asks(stops_idle, {'choice': lambda e: dict(key='d')})
+        errors = [e for e in evs if e.get('error')]
+        check('stops AUTO A3: a short solution is rejected at its file line, with the label',
+              len(errors) == 1 and 'label' in errors[0]['error']
+              and 'solutions.s' in errors[0].get('file', '') and errors[0].get('line', 0) > 0
+              and not any(e.get('ev') == 'hello' for e in evs), str(errors))
+        # A2: a valid empty solution stream has no label 1, even though the diagram does.
+        missing = dict(members)
+        missing['auto/solutions.s'] = b''
+        path = os.path.join(s.run, 'missing.snapx')
+        with zipfile.ZipFile(path, 'w') as z:
+            for name, value in missing.items():
+                z.writestr(name, value)
+        s.send(cmd='open', file=path)
+        evs, _ = s.answer_asks(stops_idle, {'choice': lambda e: dict(key='d')})
+        s.send(cmd='auto', op='restart', label=1)
+        evs, _ = s.collect(stops_idle)
+        errors = [e for e in evs if e.get('error')]
+        check('stops AUTO A2: a missing restart label is one placed error',
+              len(errors) == 1 and 'restart label 1 is not in' in errors[0]['error']
+              and bool(errors[0].get('file')) and errors[0].get('line', 0) > 0, str(errors))
+    finally:
+        s.close()
+
+
+def check_auto_multiplier_note():
+    d = autocompare.read_description(autocompare.BASE / 'ode_lecar.json')
+    s = Server(args.server, autocompare.ROOT / d['model'])
+    try:
+        autocompare.completed(s)
+        autocompare.completed(s, dict(cmd='data', events=['autoinfo']))
+        diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
+        autocompare.restore_start(s, d['runs'][0], [], {})
+        autocompare.execute_run(s, d['runs'][0], diagram, {})
+        r = copy.deepcopy(d['runs'][1])
+        r['auto'].update(ntst=2, ncol=2, nmax=50, ds=0.05, dsmax=0.1)
+        # The coarse mesh intentionally loses the unit Floquet multiplier.
+        evs = autocompare.execute_run(s, r, diagram, {})
+        notes = [n for e in evs if e.get('ev') == 'autoinfo' for n in e.get('notes', [])]
+        check('stops AUTO A8: inaccurate Floquet multipliers name the point and mesh fix',
+              any(re.search(r'Br \d+ Pt \d+: the Floquet multipliers are inaccurate', n)
+                  and 'Ntst or Ncol' in n and 'detection are off' in n for n in notes), str(notes))
+    finally:
+        s.close()
+
+
+def check_auto_singular_pivot():
+    s = Server(args.server, os.path.join(STOPS_DIR, 'auto_singular.odex'))
+    try:
+        autocompare.completed(s)
+        s.send(cmd='key', key='i')
+        evs, _ = s.answer_asks(stops_idle, {'menu': lambda e: dict(key='g')})
+        autocompare.completed(s, dict(cmd='data', events=['autoinfo']))
+        autocompare.open_auto(s)
+        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'rl0': -1, 'rl1': 1, 'nmx': 4, 'iads': 0, 'itnw': 1, 'epsu': 1e-30, 'epsl': 1e-30}))
+        evs = autocompare.run_any(s, 'p')
+        stops = [e['stop'] for e in evs if e.get('ev') == 'autoinfo' and e.get('stop')]
+        check('stops AUTO A7: a singular periodic solve names its pivot and bound',
+              bool(stops) and 'singular' in stops[-1]['text']
+              and re.search(r'smallest pivot [^ ]+ < 1e-30', stops[-1]['text'])
+              and stops[-1]['br'] == 1 and stops[-1]['pt'] > 0, str(stops))
+    finally:
+        s.close()
+
+
+STOPS_SECTIONS = {'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in STOPS_SECTIONS:
@@ -9373,6 +9513,11 @@ check_auto_stops()
 check_auto_starts()
 check_auto_two_parameter_starts()
 check_auto_periodic_start_kind()
+check_fit_stops()
+check_event_count_note()
+check_auto_restart_file_stops()
+check_auto_multiplier_note()
+check_auto_singular_pivot()
 
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

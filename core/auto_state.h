@@ -225,6 +225,7 @@ struct Session; /* session.h */
    matrices setubv fills are handed out as bounded views, made again for each
    call, so none outlives a resize or a copy of the work. */
 struct SolvbvWork {
+  double pivot=NAN; /* the last reduced linear solve, for a BVP no-convergence diagnostic */
   std::vector<double> a,b,c,d,a1,a2,s1,s2,bb,cc,c2,dd,faa,fcfc;
   std::vector<double> ft,e,fcc,sol,xe;
   std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> dlog;

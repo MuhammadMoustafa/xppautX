@@ -759,3 +759,9 @@ file name and line; recompute that curve before saving it in the new format.
 ### Maps (W404, #466)
 
 For a discrete model, AUTO continues fixed points and labels a flip (multiplier -1) **PD** and a Neimark-Sacker bifurcation (a complex pair crossing the unit circle) **TR**. Continue their two-parameter curves, or a fold curve, with the same Run choices as for other labelled points. Map curves detect **R1?R4**, **LPD** (fold-flip), **LTR** (fold-torus), **PTR** (flip-torus) and **TTR** (torus-torus). Each codimension-two label is enabled by default and can be disabled individually in Special points. Session files retain these labels.
+
+A periodic AUTO run that fails to converge reports a singular reduced
+linear system with its smallest pivot and the threshold, as a steady-state
+run does. A zero pivot that prevents a solve is an error with the same
+values. A short saved solution is refused at load, naming its label and
+file line (W498, #562).

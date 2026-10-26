@@ -146,3 +146,10 @@ This allows you to compute the adjoint and do averaging for weakly coupled oscil
 - for the required coupling.
 - **(H) function**: This places the computed H function in the browser.
 - Anytime you integrate, etc, the data will be placed back into the storage area.
+
+When a Poincare map finds no crossing, the end message names the map,
+section variable, plane and time interval; change the section or integrate
+longer. Monte Carlo reports how many guesses were attempted and converged,
+how many distinct equilibria are available, the requested guesses and the
+Newton settings. A failed invariant manifold is shown once as an error;
+an equilibrium already found is kept (W498, #562).
