@@ -67,7 +67,7 @@ int main()
     CHECK(ok(xpp::AUTO_NUM_MXBF, -5) && ok(xpp::AUTO_NUM_SUPPBP, 1) && !ok(xpp::AUTO_NUM_SUPPBP, 2));
     CHECK(!ok(xpp::AUTO_NUM_NMX, 3e9)); /* no int holds it */
     xpp::auto_settings_num_ok(xpp::AUTO_NUM_NCOL, 9, num_why);
-    CHECK_STR(num_why.c_str(), "Ncol must be a whole number from 2 to 7");
+    CHECK_STR(num_why.c_str(), "ncol=9: Ncol must be a whole number from 2 to 7");
     CHECK_STR(xpp::auto_settings_num_key(xpp::AUTO_NUM_RL0), "rl0");
     CHECK_STR(xpp::auto_settings_num_label(xpp::AUTO_NUM_RL0), "Par Min");
     CHECK(xpp::auto_settings_num_key(xpp::AUTO_NUM_N) == nullptr);
@@ -87,7 +87,7 @@ int main()
     s.has_num[xpp::AUTO_NUM_RL1] = 1;
     s.num[xpp::AUTO_NUM_RL1] = -1;
     CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.rl1 == 2);
-    CHECK_STR(why.c_str(), "Par Min must be below Par Max");
+    CHECK(why.starts_with("Par Min must be below Par Max (rl0="));
 
     /* Dsmin <= |Ds| <= Dsmax, checked when one of the three is given (T23) */
     xpp::client_session().auto_state.bifur.ds = 0.02;
@@ -95,7 +95,7 @@ int main()
     s.has_num[xpp::AUTO_NUM_DS] = 1;
     s.num[xpp::AUTO_NUM_DS] = -0.6;
     CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.ds == 0.02);
-    CHECK_STR(why.c_str(), "Ds must be from Dsmin to Dsmax in size (its sign is the direction)");
+    CHECK(why.starts_with("Ds must be from Dsmin to Dsmax in size (its sign is the direction) (ds=-0.6,"));
     s.num[xpp::AUTO_NUM_DS] = -0.5;
     CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.bifur.ds == -0.5);
     s = xpp::AutoSettingsSet{};

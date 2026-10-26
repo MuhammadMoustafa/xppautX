@@ -203,8 +203,8 @@ public:
        quotes; text the user wrote: always in double quotes, even one word */
     void word(std::string_view key, std::string_view text);
     void text(std::string_view key, std::string_view text);
-    /* a colour written as the colour type's text (bare for foreground, quoted with a #) */
-    void color(std::string_view key, const Color &c) { name(key, print_color(c)); }
+    /* a colour written as the colour type's text (always double quoted) */
+    void color(std::string_view key, const Color &c) { text(key, print_color(c)); }
     /* a line style's five keys */
     void line_style(const LineStyle &v);
     /* a reference to a variable or a column: bare when it is a word, in

@@ -697,7 +697,7 @@ def check_load_error():
                 ('badopt.ode', "par a=1\nx'=-x\n@ total=5\n@ ync=12\ndone\n", 4, '@ ync=12', 'ync=12'),
                 ('badnum.ode', "par a=1\nx'=-x\n@ total=5\n@ dt=2*3\ndone\n", 4, '@ dt=2*3', 'dt=2*3'),
                 ('badopt.odex', "par a = 1\nx' = -x\noptions {\n  integration: { total_time: 5 },\n  plot: { ync: 12 },\n}\n",
-                 5, '  plot: { ync: 12 },', '`12` is not a colour'),
+                 5, '  plot: { ync: 12 },', 'double quotes'),
                 # W206: XPPAUT's name for store_every is a .ode's; a .odex refuses it
                 ('oldname.odex', "par a = 1\nx' = -x\noptions {\n  integration: { total_time: 5, nout: 2 },\n}\n",
                  4, '  integration: { total_time: 5, nout: 2 },', 'nout')):
@@ -3468,7 +3468,7 @@ def check_marks():
               and near(a[0]['x1'], 0.1, px) and near(a[0]['y1'], 0.2, py) and near(a[0]['x2'], 0.6, px)
               and near(a[0]['y2'], 0.8, py) and len(m['text']) == 1, str(m)[:300])
 
-        evs = command('t', keys('m', {'values': ['3', '#00e100', '2']}, {'xd': 0.9, 'yd': 0.1}))
+        evs = command('t', keys('m', {'values': ['diamond', '#00e100', '2']}, {'xd': 0.9, 'yd': 0.1}))
         m = marks_of(evs)
         k = m['markers'] if m else []
         check('Text,etc/Marker: a marker mark with its shape, size, colour and position',
@@ -4218,7 +4218,7 @@ def check_autosettings():
                   len(errs) == 1 and why in errs[0] and st4 is None, '%s %s' % (errs, st4))
         evs, st4, errs = auto_set(numerics={'ncol': 9})
         check('W118: a refused value says the message the event gave its rule',
-              errs == ['AUTO settings: ' + rules.get('ncol', {}).get('message', '?')], str(errs))
+              errs == ['AUTO settings: ncol=9: ' + rules.get('ncol', {}).get('message', '?')], str(errs))
 
         # a set sent while a question is open is kept for after the command, not dropped: a
         # command of its own then (W106), with its own idle
@@ -6916,7 +6916,7 @@ def check_session_file():
         def label_marks(label_line=None, **over):
             """marks.setx with one label (its fields over the defaults); the label's
             lines are 3 (window) to 10 (text)"""
-            f = dict(window='0', x='0.5', y='0.5', size='2', font='0', style='0', color='foreground', text='"hi"')
+            f = dict(window='0', x='0.5', y='0.5', size='2', font='0', style='0', color='"foreground"', text='"hi"')
             f.update(over)
             rows = ['labels: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in ('window', 'x', 'y', 'size', 'font', 'style', 'color', 'text')]
             rows += ['  },', '],', 'arrows_and_markers: [],', 'freeze_each_run: 0,', 'frozen_curves: [],', '']
@@ -6924,7 +6924,7 @@ def check_session_file():
 
         def mark_marks(**over):
             """marks.setx with one arrow or marker; its lines are 4 (window) to 11"""
-            f = dict(window='0', type='0', color='foreground', size='1', x_start='0', y_start='0', x_end='1', y_end='1')
+            f = dict(window='0', type='0', color='"foreground"', size='1', x_start='0', y_start='0', x_end='1', y_end='1')
             f.update(over)
             rows = ['labels: [],', 'arrows_and_markers: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in
                                                                        ('window', 'type', 'color', 'size', 'x_start', 'y_start', 'x_end', 'y_end')]
@@ -6990,7 +6990,7 @@ def check_session_file():
              ('labelfont.snapx/marks.setx:7:', '5 is not a text font (0 to 1)')),
             ('labelstyle', lambda m: m.__setitem__('marks.setx', label_marks(style='7')),
              ('labelstyle.snapx/marks.setx:8:', '7 is not a text style (0 to 3)')),
-            ('labelcolor', lambda m: m.__setitem__('marks.setx', label_marks(color='99')),
+            ('labelcolor', lambda m: m.__setitem__('marks.setx', label_marks(color='"99"')),
              ('labelcolor.snapx/marks.setx:9:', '`99` is not a colour')),
             ('labelempty', lambda m: m.__setitem__('marks.setx', label_marks(text='""')),
              ('labelempty.snapx/marks.setx:10:', 'a text is not empty')),
@@ -7002,7 +7002,7 @@ def check_session_file():
              ('labelnan.snapx/marks.setx:4:', 'is not a finite number')),
             ('marktype', lambda m: m.__setitem__('marks.setx', mark_marks(type='999')),
              ('marktype.snapx/marks.setx:5:', "999 is not an object's type (0 to 7)")),
-            ('markcolor', lambda m: m.__setitem__('marks.setx', mark_marks(color='999')),
+            ('markcolor', lambda m: m.__setitem__('marks.setx', mark_marks(color='"999"')),
              ('markcolor.snapx/marks.setx:6:', '`999` is not a colour')),
             ('twonames', lambda m: m.__setitem__('session.setx', m['session.setx'].replace(b'session: {', b'session: { model: "lecar.odex",', 1)),
              ('twonames.snapx/session.setx:3:', 'is given twice')),

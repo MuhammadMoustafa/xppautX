@@ -115,6 +115,7 @@ bool Block::color(std::string_view key, Color &v)
     const Member *m = take(key);
     if (!m) return false;
     const Value &value = scalar(*m, "a colour");
+    if (value.kind != Value::Kind::string) doc_->fail(value, "a colour must be a double-quoted string");
     const std::optional<Color> c = parse_color(value.text);
     if (!c) doc_->fail(value, xpp::format("`{}`: `{}` is not a colour (#rrggbb, #rrggbbaa, a CSS colour name or foreground)", key, value.text));
     v = *c;

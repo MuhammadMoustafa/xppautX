@@ -234,7 +234,9 @@ Next, set the NUMERICAL parameters. **In web2** the Numerics dialog names
 each field in plain words with AUTO's short name after it, in three
 groups; hovering a field shows its help. The page checks each value as you
 type (a message beside the field, OK disabled until all are good) and the
-core checks them again when they arrive:
+core checks them again when they arrive. Model options and session files use
+the same continuation rules. Invalid values are refused before application;
+AUTO never repairs step limits or tolerances during a run (W494):
 
 | Field | What it does | Valid values |
 |---|---|---|

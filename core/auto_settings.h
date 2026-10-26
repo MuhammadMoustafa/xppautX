@@ -1,5 +1,6 @@
 #pragma once
 #include <stddef.h>
+#include <span>
 #include <array>
 #include <vector>
 #include <optional>
@@ -111,6 +112,9 @@ AutoSettingsSet auto_settings_view(const Session &s, int view);
    in the field's range); why names the field and its range otherwise.
    Pure: no model state. Nothing is thrown. */
 int auto_settings_num_ok(int i, double v, std::string &why);
+/* Check supplied numbers together, including ordering and signed step magnitude. */
+Result<> auto_settings_numbers_check(std::span<const double, AUTO_NUM_N> num,
+                                    std::span<const int, AUTO_NUM_N> supplied);
 
 /* check the set against the model and apply it all, or nothing: 0 when
    applied, -1 with why (a sentence naming the bad value) when not. Axes

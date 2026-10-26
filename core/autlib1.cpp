@@ -360,15 +360,6 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   dsmax=s.auto_state.run.dsmax;
   iads=s.auto_state.run.iads;
 
-  if(dsmin < 0.0) {
-    xpp::log_auto("Warning: Dsmin {} is below 0: AUTO uses {}\n", dsmin, f2c::abs(dsmin));
-    dsmin = f2c::abs(dsmin);
-  }
-
-  if(dsmax < 0.0) {
-    xpp::log_auto("Warning: Dsmax {} is below 0: AUTO uses {}\n", dsmax, f2c::abs(dsmax));
-    dsmax = f2c::abs(dsmax);
-  }
   for (const AutoRunWeight &weight : s.auto_state.run.weights)
     thl[weight.index]=weight.value;
     
@@ -625,12 +616,6 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
   /* Check and perturb pseudo arclength stepsize and steplimits. */
   /* (Perturbed to avoid exact computation of certain singular points). */
 
-  if (ds == 0.) {
-    ds = .1;
-  }
-  if (dsmin == 0.) {
-    dsmin = f2c::abs(ds) * 1e-4;
-  }
   fc = auto_hmach1;
   ds = fc * ds;
   dsmin /= fc;

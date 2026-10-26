@@ -222,12 +222,16 @@ you wrote (`1/30`) alone while the value is unchanged.
   A value is one bare word or number (letters, digits, `_ . + -`), no
   quotes, except a **path**, a **text** or a **colour**, which is a double-quoted string
   (`logfile: "out/run 1.log"`, `output: "données.dat"`, `xnc: "#ffa500"`; a colour is
-  `foreground`, a CSS colour name or `#rrggbb` (`#rrggbbaa` with alpha, drawn by the page,
-  SVG and PDF), and only `foreground` is bare since `#` starts a comment; a name is read and written back as hex): `\"` and `\\`
+  `"foreground"`, a quoted CSS colour name or `"#rrggbb"` (`#rrggbbaa` with alpha, drawn by the page,
+  SVG and PDF), and every colour is double quoted, including names; a name is read and written back as hex): `\"` and `\\`
   are its only escapes, a path is written with `/` on every system, and a
   path outside the model's folder is a question the user answers (W175, W286). Only `output` and
   `logfile` are paths, and `but` (a button, `but: "quit:fq"`) a text. Every
   writer of options (the converter, Save values) writes them so.
+  Continuation numbers use the same ranges as the AUTO form, protocol and session reader:
+  `dsmin`, `dsmax`, `epsl`, `epsu` and `epss` are positive; `dsmin <= dsmax`,
+  `dsmin <= abs(ds) <= dsmax`, `parmin < parmax` and `normmin < normmax`.
+  A bad value is refused at its line, before the model is installed (W494).
   Slider presets use `interface: { sliders: [ { name: v, low: -1, high: 1, step: 0.01 }, ... ] }`.
   The list may have any length, including zero; each name must be a parameter or state,
   low and high finite with low < high, and step optional (0 chooses an automatic step).
@@ -248,7 +252,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   | `poincare_map=s...`, `m...`, `p...` | `section`, `max`, `period` |
   | `poisgn=-1`, `0`, `1` | `negative`, `both`, `positive` |
   | `colormap=0`..`6` | `jet`, `periodic`, `hot`, `cool`, `blue_red`, `gray`, `cubehelix` (XPPAUT's seven; ours also has `viridis`, `plasma`, `inferno`, `magma`, `cividis`, `coolwarm`, `rdbu`, `seismic`, `twilight`, `hsv`, `turbo`, `greys`, `blues`, `reds`, `greens`, `oranges` and `purples`: 256 colours each, third_party/colormaps/README.md says where each is from; a model of ours without `colormap` has `viridis`, a `.ode` without one is converted with `colormap: jet`, its own) |
-  | `xnc`, `ync`, `smc`, `umc` `=0`..`10`; `sec`, `uec`, `spc`, `upc` `=0`, `20`..`29` | the colour in XPPAUT's own table: `foreground` for 0, else `"#rrggbb"` |
+  | `xnc`, `ync`, `smc`, `umc` `=0`..`10`; `sec`, `uec`, `spc`, `upc` `=0`, `20`..`29` | the colour in XPPAUT's own table: `"foreground"` for 0, else `"#rrggbb"` |
   | `lt=1`, `0`, `-n` | `plot: { line.draw: line }`, `line.draw: points`, `line.draw: points, line.marker: circle, line.marker_size: n` (the style every new curve starts with: `line.draw` is `line`, `points` or `both`, `line.dash` `solid`, `dashed`, `dotted` or `dash_dot`, `line.width`, `line.marker` `circle`, `square`, `triangle`, `diamond`, `cross`, `plus` or `star`, `line.marker_size`) |
   | `plotfmt=ps`, `svg` | `pdf`, `svg` (PostScript is gone) |
   | `ps_color=0`, `1`; `ps_fsize=n` | `picture_color: false`, `true`; `picture_font_size: n` (points) |

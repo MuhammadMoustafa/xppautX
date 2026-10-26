@@ -148,7 +148,7 @@ inline constexpr std::array<std::string_view, 7> set_groups{
 /* what a .odex writes as an option's value: a number, a whole number, a
    bare word (a variable's, a parameter's, a name), one of the row's
    choices (option_choices), a path or a text, both in double quotes, a colour
-   (`foreground` bare, a hex colour in double quotes since # starts a comment) */
+   (always in double quotes) */
 enum class OptionKind { number, whole, name, choice, path, text, color, sliders };
 
 /* what an XPPAUT option (import only) says in our own options: the keys and
@@ -209,6 +209,8 @@ struct OptionRow {
      the menu's label, what it accepts and which methods use it */
   std::string_view key, label;
   OptionRule rule = OptionRule::any;
+  /* AUTO numeric rule index; the rule itself lives in auto_settings. */
+  int auto_numeric = -1;
   int maximum = 0; /* 0: no allocation-sized upper bound; otherwise inclusive */
   OptionUse use = OptionUse::always;
   /* OptionRule::choice: the names of the values 0, 1, ..., and why a
@@ -272,8 +274,8 @@ const OptionRow &slider_presets_option();
    no .odex option, but an .ode's, which the converter turns into presets */
 bool xppaut_slider_option(const OptionRow &row);
 
-/* whether a .odex writes row's value text in double quotes: a path, a text, a hex colour */
-bool option_written_quoted(const OptionRow &row, std::string_view text);
+/* whether a .odex writes row's value text in double quotes: a path, a text or a colour */
+bool option_written_quoted(const OptionRow &row);
 
 /* the words a choice row takes, in a .odex (the registry's keys for the
    method), empty for any other row */

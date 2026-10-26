@@ -1123,7 +1123,7 @@ async function marks() {
   await idle();
   await key('t');
   await menu('m');
-  await answer('form', {values: ['3', '#00e100', '2']});
+  await answer('form', {values: ['diamond', '#00e100', '2']});
   await answer('mouse', {xd: 0.9, yd: 0.1});
   await idle();
   check('Pointer and Marker: in the store, drawn, "Arrows" and "Markers" in the legend',

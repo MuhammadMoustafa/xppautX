@@ -803,33 +803,33 @@ constexpr OptionRow rows[] = {
 
   /* ---- AUTO ---- */
   {.group = option_group::continuation, .kind = OptionKind::whole, .name = "NTST", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.ntst; }), .rule = OptionRule::whole_positive, .maximum = auto_max_mesh_intervals},
+   .whole = member([](auto &s) -> auto & { return s.auto_state.options.ntst; }), .auto_numeric = AUTO_NUM_NTST},
   {.group = option_group::continuation, .kind = OptionKind::whole, .name = "NMAX", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.nmx; }), .rule = OptionRule::whole_positive},
+   .whole = member([](auto &s) -> auto & { return s.auto_state.options.nmx; }), .auto_numeric = AUTO_NUM_NMX},
   {.group = option_group::continuation, .kind = OptionKind::whole, .name = "NPR", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.npr; })},
+   .whole = member([](auto &s) -> auto & { return s.auto_state.options.npr; }), .auto_numeric = AUTO_NUM_NPR},
   {.group = option_group::continuation, .kind = OptionKind::whole, .name = "NCOL", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.ncol; }), .rule = OptionRule::whole_positive, .maximum = auto_max_collocation_points},
+   .whole = member([](auto &s) -> auto & { return s.auto_state.options.ncol; }), .auto_numeric = AUTO_NUM_NCOL},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "DSMIN", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.dsmin; })},
+   .real = member([](auto &s) -> auto & { return s.auto_state.options.dsmin; }), .auto_numeric = AUTO_NUM_DSMIN},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "DSMAX", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.dsmax; })},
+   .real = member([](auto &s) -> auto & { return s.auto_state.options.dsmax; }), .auto_numeric = AUTO_NUM_DSMAX},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "DS", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.ds; })},
+   .real = member([](auto &s) -> auto & { return s.auto_state.options.ds; }), .auto_numeric = AUTO_NUM_DS},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "PARMIN", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.rl0; })},
+   .real = member([](auto &s) -> auto & { return s.auto_state.options.rl0; }), .auto_numeric = AUTO_NUM_RL0},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "PARMAX", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.rl1; })},
+   .real = member([](auto &s) -> auto & { return s.auto_state.options.rl1; }), .auto_numeric = AUTO_NUM_RL1},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "NORMMIN", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.a0; })},
+   .real = member([](auto &s) -> auto & { return s.auto_state.options.a0; }), .auto_numeric = AUTO_NUM_A0},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "NORMMAX", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.a1; })},
+   .real = member([](auto &s) -> auto & { return s.auto_state.options.a1; }), .auto_numeric = AUTO_NUM_A1},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "EPSL", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.epsl; })},
+   .real = member([](auto &s) -> auto & { return s.auto_state.options.epsl; }), .auto_numeric = AUTO_NUM_EPSL},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "EPSU", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.epsu; })},
+   .real = member([](auto &s) -> auto & { return s.auto_state.options.epsu; }), .auto_numeric = AUTO_NUM_EPSU},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "EPSS", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.epss; })},
+   .real = member([](auto &s) -> auto & { return s.auto_state.options.epss; }), .auto_numeric = AUTO_NUM_EPSS},
   {.group = option_group::diagram, .kind = OptionKind::number, .name = "AUTOXMAX", .once = true,
    .real = member([](auto &s) -> auto & { return s.auto_state.options.xmax; })},
   {.group = option_group::diagram, .kind = OptionKind::number, .name = "AUTOYMAX", .once = true,
@@ -1072,9 +1072,9 @@ bool xppaut_slider_option(const OptionRow &row)
   return std::ranges::contains(slider_slot_parsers, row.parse);
 }
 
-bool option_written_quoted(const OptionRow &row, std::string_view text)
+bool option_written_quoted(const OptionRow &row)
 {
-  return row.kind == OptionKind::path || row.kind == OptionKind::text || (row.kind == OptionKind::color && text != "foreground");
+  return row.kind == OptionKind::path || row.kind == OptionKind::text || row.kind == OptionKind::color;
 }
 
 std::vector<std::string> option_choices(const OptionRow &row)
@@ -1144,6 +1144,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   /* Check the row's shared numeric bounds before its parser can apply a value. */
   double x = 0;
   const char *refused = parse_number(text, x) ? rule_problem(row->rule, x, row->maximum) : nullptr;
+  if (row->auto_numeric >= 0 && parse_number(text, x) && !auto_settings_num_ok(row->auto_numeric, x, color_why)) return color_why;
   if (row->zero_or_one && text != "0" && text != "1") why = "not 0 or 1";
   else if (row->once && !source.may(s, *row)) return std::nullopt;
   else if (refused) why = refused;

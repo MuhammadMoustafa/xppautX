@@ -271,23 +271,18 @@ bool ask_color(std::string_view prompt, xpp::Color &c)
 /* the fields of the marker dialogs: type, colour and size */
 std::vector<xpp::FormField> marker_fields(const MarkInfo &m)
 {
-    return {xpp::FormField{.name = "*4Type", .kind = XPP_FIELD_NAME_IN(4), .value = xpp::format("{:d}", m.type)},
+    std::vector<std::string> shapes;
+    for (const auto name : marker_shape_names) shapes.emplace_back(name);
+    return {xpp::FormField::choice("Type", shapes, static_cast<std::size_t>(m.type - MARKER)),
             xpp::FormField::color_field("Colour", m.color), xpp::FormField::real_number("Size", m.size)};
 }
 
-/* the marker the fields describe, the type read whole like every other field; false (shown) when it is not a number */
-bool take_marker_fields(xpp::Session &s, MarkInfo &m, std::span<const xpp::FormField> f)
+/* ask_form has checked every field before any marker setting is applied. */
+void take_marker_fields(MarkInfo &m, std::span<const xpp::FormField> f)
 {
-    xpp::TypedFields read(s);
-    const int type = read.integer("Type", f[0].value, 0);
-    if (read.error()) {
-        command_error("Marker", *read.error());
-        return false;
-    }
-    m.type = type;
+    m.type = MARKER + f[0].whole;
     m.color = f[1].color;
     m.size = f[2].real;
-    return true;
 }
 
 } // namespace
@@ -296,7 +291,8 @@ int get_marker_info(xpp::Session &s)
 {
     std::vector<xpp::FormField> fields = marker_fields(s.marker);
     if (!xpp::ask_form(s, "Add Marker", fields)) return 0;
-    return take_marker_fields(s, s.marker, fields) ? 1 : 0;
+    take_marker_fields(s.marker, fields);
+    return 1;
 }
 
 int get_markers_info(xpp::Session &s)
@@ -306,7 +302,7 @@ int get_markers_info(xpp::Session &s)
     fields.push_back(xpp::FormField{.name = "Row1", .kind = xpp::XPP_FIELD_INTEGER, .value = xpp::format("{:d}", s.marker.start)});
     fields.push_back(xpp::FormField{.name = "Skip", .kind = xpp::XPP_FIELD_INTEGER, .value = xpp::format("{:d}", s.marker.skip)});
     if (!xpp::ask_form(s, "Add Markers", fields)) return 0;
-    if (!take_marker_fields(s, s.marker, fields)) return 0;
+    take_marker_fields(s.marker, fields);
     s.marker.number = fields[3].whole;
     s.marker.start = fields[4].whole;
     s.marker.skip = fields[5].whole;

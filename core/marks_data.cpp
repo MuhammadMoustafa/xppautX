@@ -34,9 +34,6 @@ namespace {
 /* equilibria kept per window at most (Sing pts/Monte Carlo can mark many) */
 const std::size_t EQ_MAX = 10000;
 
-/* the markers' shapes (grobs.h's object types: MARKER plus the shape) */
-const char *const MARKER_SHAPES[] = {"box", "diamond", "triangle", "plus", "cross", "circle"};
-static_assert(std::size(MARKER_SHAPES) == MARKER_SHAPE_COUNT);
 
 struct Label {
     int id; /* the slot: the page names the label by it */
@@ -198,7 +195,7 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
         o += ",\"y\":";
         add_float(o, g.ys);
         o += ",\"shape\":\"";
-        o += MARKER_SHAPES[shape < MARKER_SHAPE_COUNT ? shape : 0];
+        o += marker_shape_names[shape < MARKER_SHAPE_COUNT ? shape : 0];
         o += "\",\"size\":";
         xpp::json::json_append_number_shortest(o, g.size);
         o += ",\"color\":";

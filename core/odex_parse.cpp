@@ -736,10 +736,10 @@ private:
       o.tree = value;
       return o;
     }
-    const bool quoted = row->kind == OptionKind::path || row->kind == OptionKind::text;
+    const bool quoted = row->kind == OptionKind::path || row->kind == OptionKind::text || row->kind == OptionKind::color;
     o.value_pos = peek().pos;
     if (peek().kind == Token::Kind::String) {
-      if (!quoted && row->kind != OptionKind::color) fail(o.value_pos, xpp::format("the option {} takes a bare word or number, not a string", o.name));
+      if (!quoted) fail(o.value_pos, xpp::format("the option {} takes a bare word or number, not a string", o.name));
       o.value = take().text;
       if (o.value.empty()) fail(o.value_pos, xpp::format("the option {} has an empty string", o.name));
       return o;
@@ -770,10 +770,7 @@ private:
       for (const std::string &w : words) all += (all.empty() ? "" : ", ") + w;
       fail(o.value_pos, xpp::format("the option {}'s value `{}` is none of {}", o.name, v, all));
     }
-    if (row.kind == OptionKind::color) {
-      if (!parse_color(v)) fail(o.value_pos, xpp::format("the option {}'s value `{}` is not a colour (foreground, a CSS colour name, or #rrggbb in quotes)", o.name, v));
-      return;
-    }
+
     for (char k : v)
       if (!is_name_char(k) && k != '.' && k != '-' && k != '+')
         fail(o.value_pos, xpp::format("the option {}'s value `{}` is not a word (letters, digits and _ . + -)", o.name, v));

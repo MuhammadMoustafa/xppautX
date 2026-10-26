@@ -650,30 +650,13 @@ void auto_num_par(xpp::Session &s)
         command_error("auto",xpp::format("{} must be true or false",xpp::auto_codim_keys[i])); return;
       }
     }
-    s.auto_state.bifur.ntst=atoi(values[0].c_str());
-    s.auto_state.bifur.nmx=atoi(values[1].c_str());
-    s.auto_state.bifur.npr=atoi(values[2].c_str());
-    s.auto_state.bifur.ncol=atoi(values[3].c_str());
-    s.auto_state.bifur.ds=atof(values[4].c_str());
-    s.auto_state.bifur.dsmin=atof(values[5].c_str());
-    s.auto_state.bifur.dsmax=atof(values[6].c_str());
-    s.auto_state.bifur.rl0=atof(values[7].c_str());
-    s.auto_state.bifur.rl1=atof(values[8].c_str());
-    s.auto_state.bifur.a0=atof(values[9].c_str());
-    s.auto_state.bifur.a1=atof(values[10].c_str());
-    s.auto_state.bifur.epsl=atof(values[11].c_str());
-    s.auto_state.bifur.epsu=atof(values[12].c_str());
-    s.auto_state.bifur.epss=atof(values[13].c_str());
-    s.auto_state.advanced.iad=atoi(values[14].c_str());
-    s.auto_state.advanced.mxbf=atoi(values[15].c_str());
-    s.auto_state.advanced.iid=atoi(values[16].c_str());
-    s.auto_state.advanced.itmx=atoi(values[17].c_str());
-    s.auto_state.advanced.itnw=atoi(values[18].c_str());
-    s.auto_state.advanced.nwtn=atoi(values[19].c_str());
-    s.auto_state.advanced.iads=atoi(values[20].c_str());
-    s.auto_state.suppress_bp=atoi(values[21].c_str())!=0;
-
     xpp::AutoSettingsSet points;
+    xpp::TypedFields fields(s);
+    for (int i=0; i<xpp::AUTO_NUM_N; ++i) {
+      points.has_num[i]=1;
+      points.num[i]=fields.number(n[i],values[i]);
+    }
+    if(fields.error()) { command_error("auto",*fields.error()); return; }
     for(std::size_t i=0;i<enabled.size();++i) points.special_points[i]=enabled[i];
     std::string why;
     if(xpp::auto_settings_apply(s,points,why)!=0) command_error("auto",why);

@@ -1537,7 +1537,7 @@ private:
       if (!c && row.foreign) c = xpp::parse_color(row.foreign(value));
       if (!c) refuse(xpp::format("{}={} is not a colour of XPPAUT's ({})", key, value, xpp::odex_key(row, 0)));
       const std::string text = xpp::print_color(*c);
-      return xpp::option_written_quoted(row, text) ? quote_string(text) : text;
+      return xpp::option_written_quoted(row) ? quote_string(text) : text;
     }
     case OptionKind::choice: {
       if (row.rule == OptionRule::method) return method_key(value);

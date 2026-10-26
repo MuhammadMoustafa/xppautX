@@ -268,7 +268,7 @@ bool num_ok(int i, double v, std::string &why)
     if (ok && f.rule == Rule::positive) ok = v > 0;
     if (ok && f.rule == Rule::nonzero) ok = v != 0;
     if (ok && f.rule == Rule::range) ok = v >= f.lo && v <= f.hi;
-    if (!ok) why = rule_message(f);
+    if (!ok) why = xpp::format("{}={}: {}", f.key, xpp::number(v), rule_message(f));
     return ok;
 }
 
@@ -300,18 +300,10 @@ Result<Checked> check(const xpp::Session &s, const AutoSettingsSet *set, int vie
     read_num(s, num);
     for (int i = 0; i < AUTO_NUM_N; i++) {
         if (!set->has_num[i]) continue;
-        if (std::string why; !num_ok(i, set->num[i], why)) return std::unexpected(refused(why, num_fields[i].key));
         num[i] = set->num[i];
     }
-    for (const NumPair &p : num_pairs) {
-        if (!set->has_num[p.lo] && !set->has_num[p.hi]) continue;
-        if (p.strict ? num[p.lo] < num[p.hi] : num[p.lo] <= num[p.hi]) continue;
-        return std::unexpected(refused(pair_message(p), num_fields[p.hi].key));
-    }
-    if ((set->has_num[AUTO_NUM_DS] || set->has_num[AUTO_NUM_DSMIN] || set->has_num[AUTO_NUM_DSMAX])
-        && !(std::fabs(num[AUTO_NUM_DS]) >= num[AUTO_NUM_DSMIN] && std::fabs(num[AUTO_NUM_DS]) <= num[AUTO_NUM_DSMAX])) {
-        return std::unexpected(refused(step_rule, num_fields[AUTO_NUM_DS].key));
-    }
+    if (auto valid = auto_settings_numbers_check(std::span<const double, AUTO_NUM_N>(num, AUTO_NUM_N), set->has_num); !valid)
+        return std::unexpected(valid.error());
 
     /* the Axes: plot type, the variable, the two parameters among AUTO's, the ranges */
     /* of the view named (W50), else the active one: setting a view's axes makes it the active one */
@@ -520,6 +512,25 @@ AutoSettingsSet auto_settings_view(const xpp::Session &s, int view)
     } catch (...) {
         xpp::out_of_memory("reading AUTO's settings");
     }
+}
+
+Result<> auto_settings_numbers_check(std::span<const double, AUTO_NUM_N> num,
+                                    std::span<const int, AUTO_NUM_N> supplied)
+{
+    for (int i = 0; i < AUTO_NUM_N; ++i) {
+        std::string why;
+        if (supplied[i] && !num_ok(i, num[i], why)) return std::unexpected(refused(why, num_fields[i].key));
+    }
+    for (const NumPair &p : num_pairs) {
+        if (!supplied[p.lo] && !supplied[p.hi]) continue;
+        if (p.strict ? num[p.lo] < num[p.hi] : num[p.lo] <= num[p.hi]) continue;
+        return std::unexpected(refused(xpp::format("{} ({}={}, {}={})", pair_message(p), num_fields[p.lo].key, num[p.lo], num_fields[p.hi].key, num[p.hi]), num_fields[supplied[p.hi] ? p.hi : p.lo].key));
+    }
+    if ((supplied[AUTO_NUM_DS] || supplied[AUTO_NUM_DSMIN] || supplied[AUTO_NUM_DSMAX])
+        && !(std::fabs(num[AUTO_NUM_DS]) >= num[AUTO_NUM_DSMIN] && std::fabs(num[AUTO_NUM_DS]) <= num[AUTO_NUM_DSMAX])) {
+        return std::unexpected(refused(xpp::format("{} (ds={}, dsmin={}, dsmax={})", step_rule, num[AUTO_NUM_DS], num[AUTO_NUM_DSMIN], num[AUTO_NUM_DSMAX]), num_fields[supplied[AUTO_NUM_DS] ? AUTO_NUM_DS : supplied[AUTO_NUM_DSMIN] ? AUTO_NUM_DSMIN : AUTO_NUM_DSMAX].key));
+    }
+    return {};
 }
 
 int auto_settings_num_ok(int i, double v, std::string &why)

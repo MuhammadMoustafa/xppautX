@@ -15,6 +15,7 @@
 #include "ode_read.h"
 #include "nullcline.h"
 #include "colormap.h"
+#include "auto_settings.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "markov.h"
@@ -624,7 +625,7 @@ xpp::Result<odex::Values> captured_values(xpp::Session &s, std::string_view scop
       if(row.group!=group||!set_holds(row)||!(row.real||row.whole||row.boolean||row.index||row.color||row.text)||!setting_applies(s,row,s.numerics.method))continue;
       const std::string text=setting_text(s,row);
       if(row.kind==OptionKind::path&&text.empty())continue; /* a path left out: none */
-      const bool quoted=option_written_quoted(row,text);
+      const bool quoted=option_written_quoted(row);
       values.settings.push_back({std::string(group),odex_key(row,0),quoted?odex::quote_string(text):text});
     }
   }
@@ -687,6 +688,22 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
     xpp::Load::at(file,at.line,at.col);
     for(const auto &[name,value] : options[s.options_applied].items)
       set_option(s,name,value,0,mask);
+  }
+  std::array<double, xpp::AUTO_NUM_N> values{};
+  std::array<int, xpp::AUTO_NUM_N> supplied{};
+  for (const xpp::OptionRow &row : xpp::option_rows()) {
+    if (row.auto_numeric < 0) continue;
+    values[row.auto_numeric] = row.real ? row.real(s) : row.whole(s);
+    supplied[row.auto_numeric] = s.options_set.has(row);
+  }
+  if (const auto valid = xpp::auto_settings_numbers_check(values, supplied); !valid) {
+    const auto row = std::ranges::find_if(xpp::option_rows(), [&](const xpp::OptionRow &r) {
+      return r.auto_numeric >= 0 && valid.error().field == xpp::auto_settings_num_key(r.auto_numeric);
+    });
+    xpp::Error error = valid.error();
+    error.place = xpp::model_place(s.model(), row->name);
+    error.place.source = xpp::model_source_line(s.model(), error.place.file, error.place.line);
+    xpp::model_failed(error);
   }
   xpp::Load::at(s.model().this_file);
 }

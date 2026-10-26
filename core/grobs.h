@@ -2,6 +2,7 @@
 
 #include "xpp_types.h"
 #include "struct.h"
+#include <array>
 #include <string>
 #include <string_view>
 
@@ -18,6 +19,7 @@ struct Session; /* session.h */
    its shape (the Markers menu's: box, diamond, triangle, plus, X, circle) */
 constexpr int POINTER = 0, ARROW = 1, MARKER = 2;
 constexpr int MARKER_SHAPE_COUNT = 6;
+inline constexpr std::array<std::string_view, MARKER_SHAPE_COUNT> marker_shape_names{"box", "diamond", "triangle", "plus", "cross", "circle"};
 
 /* Text,etc's marker settings: the last ones the Marker and Markers
    dialogs gave (type, colour, size; the Markers' number, first row and

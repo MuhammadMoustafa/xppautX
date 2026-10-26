@@ -125,6 +125,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"S1", {"x", ""}}, {"S2", {"y", ""}}, {"S3", {"z", ""}},
         {"SLO1", {"-1", ""}}, {"SLO2", {"-1", ""}}, {"SLO3", {"-1", ""}},
         {"SHI1", {"2", ""}}, {"SHI2", {"2", ""}}, {"SHI3", {"2", ""}},
+        {"DSMIN", {"0.001", "0.001"}}, {"DS", {"0.02", "0.02"}}, {"DSMAX", {"0.5", "0.5"}},
         {"METHOD", {"e", "1"}},            /* the Euler method */
         {"POINCARE_MAP", {"m", "2"}},          /* max */
         {"POINCARE_VARIABLE", {"y", "2"}},
@@ -587,9 +588,29 @@ int main(void)
         if (!l) {
             CHECK(l.error().place.file == bad_odex);
             CHECK(l.error().place.line == 3);
-            CHECK(l.error().what.find("`12` is not a colour") != std::string::npos);
+            CHECK(l.error().what.find("double quotes") != std::string::npos);
             if (l.error().place.line != 3) printf("  odex: %s\n", l.error().text().c_str());
         }
+    }
+    /* Continuation rules are shared with the form and session reader; a bad
+       complete model leaves the previous client session untouched. */
+    for (const std::string setting : {"dsmin: -0.001", "dsmax: 0", "ds: 0", "epsl: 0", "epsu: -1", "epss: 0",
+                                     "ncol: 1", "npr: 0", "dsmin: 0.2, dsmax: 0.1", "ds: 0.8, dsmax: 0.5"}) {
+        CHECK(write_file(bad_odex, "x' = -x\noptions { continuation: { " + setting + " } }\n"));
+        char arg0[] = "test_options", file[] = "build/test_options_bad.odex";
+        char *argv[] = {arg0, file, nullptr};
+        const xpp::Loaded loaded = xpp::load_model(2, argv, 1);
+        CHECK(!loaded);
+        CHECK(&xpp::client_session() == s);
+        if (!loaded) CHECK(loaded.error().place.file == bad_odex && loaded.error().place.line == 2);
+    }
+    for (const std::string color : {"foreground", "red"}) {
+        CHECK(write_file(bad_odex, "x' = -x\noptions { plot: { xnc: " + color + " } }\n"));
+        char arg0[] = "test_options", file[] = "build/test_options_bad.odex";
+        char *argv[] = {arg0, file, nullptr};
+        const xpp::Loaded loaded = xpp::load_model(2, argv, 1);
+        CHECK(!loaded);
+        if (!loaded) CHECK(loaded.error().place.line == 2);
     }
     /* XPPAUT's names for the renamed options are a .ode's: a .odex refuses them
        at their line */
