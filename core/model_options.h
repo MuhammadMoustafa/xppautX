@@ -240,15 +240,10 @@ struct OptionRow {
    (OptionRule::method's name is checked by numerics_settings.cpp) */
 const char *rule_problem(OptionRule rule, double v, int maximum = 0);
 
-/* Two settings of one kind that must keep an order (the lower end of a range
-   below its upper end, the smallest step not above the largest), named by
-   their rows: the one rule every source checks (an @ line, a settings file,
-   the Numerics menu, `set num`, the window dialogs). */
-struct OptionPair {
-  std::string_view lo, hi; /* row names (upper case) */
-  bool strict;             /* lo must be below hi; else at most hi */
-};
-std::span<const OptionPair> option_pairs();
+/* the settings that keep an order (the lower end of a range below its upper
+   end, the smallest step not above the largest): the one rule every source
+   checks (an @ line, a settings file, the Numerics menu, `set num`, the
+   window dialogs); the pairs are model_options.cpp's table */
 /* why lo (named lo_name) and hi (named hi_name) break the order ("xlo (3) must be
    below xhi (1)"), nothing when they keep it */
 std::optional<std::string> order_problem(std::string_view lo_name, double lo, std::string_view hi_name, double hi, bool strict);

@@ -401,10 +401,6 @@ int main(void)
         CHECK(bad && *bad == "xlo (3) must be below xhi (1)");
         CHECK(xpp::order_problem("min_step", 2, "max_step", 1, false));
         CHECK(xpp::rule_problem(xpp::OptionRule::whole_at_least_two, 1) && !xpp::rule_problem(xpp::OptionRule::whole_at_least_two, 2));
-        for (const xpp::OptionPair &p : xpp::option_pairs()) {
-            int index = 0;
-            CHECK(xpp::find_option(p.lo, index, false) && xpp::find_option(p.hi, index, false));
-        }
     }
     /* the longest name wins: histlo2 is not histlo, dtmin not dt */
     {

@@ -989,7 +989,11 @@ const OptionRow &once_option(std::string_view name)
   return *std::ranges::find_if(rows, [name](const OptionRow &r) { return r.once && r.name == name; });
 }
 
-/* the pairs of settings that keep an order (model_options.h) */
+/* the pairs of settings that keep an order (model_options.h), named by their rows */
+struct OptionPair {
+  std::string_view lo, hi; /* row names (upper case) */
+  bool strict;             /* lo must be below hi; else at most hi */
+};
 constexpr OptionPair pairs[] = {
   {"MIN_STEP", "MAX_STEP", false},
   {"XLO", "XHI", true}, {"YLO", "YHI", true},
@@ -998,7 +1002,12 @@ constexpr OptionPair pairs[] = {
   {"AUTOXMIN", "AUTOXMAX", true}, {"AUTOYMIN", "AUTOYMAX", true},
 };
 
-std::span<const OptionPair> option_pairs() { return pairs; }
+constexpr bool is_once_row(std::string_view name)
+{
+  return std::ranges::any_of(rows, [name](const OptionRow &r) { return r.once && r.name == name; });
+}
+static_assert(std::ranges::all_of(pairs, [](const OptionPair &p) { return is_once_row(p.lo) && is_once_row(p.hi); }),
+              "every pair names two once-rows");
 
 std::optional<std::string> order_problem(std::string_view lo_name, double lo, std::string_view hi_name, double hi, bool strict)
 {
