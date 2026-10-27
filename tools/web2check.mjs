@@ -208,6 +208,10 @@ async function until(expr, what, ms) {
   return !!ready;
 }
 
+async function requireUntil(expr, what, ms) {
+  if (!await until(expr, what, ms)) throw new Error(`Timed out waiting for ${what}`);
+}
+
 /* Page.reload returns before the old document is gone: a wait right after
    it could be met by the old page, and the next read then hit the new one
    while it loads, before __xpp exists (CI's linux-ui, GitHub #210). The old
@@ -473,9 +477,9 @@ async function values() {
   const preGo = await S('__xpp.sentCount()');
   const n0go = await S('s.seriesCount');
   await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'Initialconds menu');
+  await requireUntil("s.ask && s.ask.kind === 'menu' && document.activeElement.closest('[role=dialog]')", 'Initialconds menu');
   await key('g');
-  await until(`s.seriesCount > ${n0go} && !s.busy`, 'Go integrated');
+  await requireUntil(`s.seriesCount > ${n0go} && w.series.rows === 601`, 'Go integrated', 60000 * SLOW);
   const goSent = await S(`__xpp.sentFrom(${preGo})`);
   check('Go sends the run only: no set rides along with it (W106)',
     !goSent.some(c => c.cmd === 'set') && (await S(iappIs(0.35))), JSON.stringify(goSent));
@@ -553,7 +557,7 @@ async function values() {
   /* the keys go to the plot: on the focused range track a letter is not a hotkey */
   await focusPlot();
   await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'Initialconds menu (slider)');
+  await requireUntil("s.ask && s.ask.kind === 'menu' && document.activeElement.closest('[role=dialog]')", 'Initialconds menu (slider)');
   await key('g');
   check('Go integrates with it: a new series arrives',
     await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy`, 'slide series'),
@@ -1190,7 +1194,7 @@ async function aplotView() {
   check('T12: the page connects', await until('s.hello && !s.busy', 'hello'));
 
   await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'initialconds menu');
+  await requireUntil("s.ask && s.ask.kind === 'menu' && document.activeElement.closest('[role=dialog]')", 'initialconds menu');
   const n0 = await S('s.seriesCount');
   await key('g');
   check('integrating the ring gives 401 rows', await until(`s.seriesCount > ${n0} && s.core.rows === 401 && !s.busy`, 'series'),
@@ -1441,16 +1445,19 @@ async function viewCheck() {
   };
   check('the page connects and asks for the plot as data', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'),
     JSON.stringify(await S('({hello: !!s.hello, seriesCount: s.seriesCount, busy: s.busy})')));
+  const seriesBefore = await S('s.seriesCount');
   await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'menu');
+  await requireUntil("s.ask && s.ask.kind === 'menu' && document.activeElement.closest('[role=dialog]')", 'menu', 60000 * SLOW);
+  const runActions = await S('__xpp.actions().length');
   await key('g');
-  check('I, G integrates a series', await until('w.series && w.series.rows === 601 && !s.busy', 'series'),
+  await requireUntil(`__xpp.actions().slice(${runActions}).includes('event:idle')`, 'integration idle', 60000 * SLOW);
+  check('I, G integrates a series', await until(`s.seriesCount > ${seriesBefore} && w.series && w.series.rows === 601`, 'series', 60000 * SLOW),
     JSON.stringify(await S('({rows: w.series ? w.series.rows : null, busy: s.busy, seriesCount: s.seriesCount})')));
 
   const a = await area(), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
   await mouse('mouseMoved', cx, cy);
   await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: -240});
-  await until('w.viewport.x', 'wheel');
+  await requireUntil('w.viewport.x', 'wheel');
   const zoomed = await P();
   check('zoom by wheel', zoomed && zoomed.x && zoomed.y, JSON.stringify(zoomed));
 
@@ -1508,13 +1515,13 @@ async function viewCheck() {
     await until(`!!document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit')`, 'corner fit button present'),
     JSON.stringify(await S('({busy: s.busy, rows: w.series ? w.series.rows : null})')));
   await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: -240});
-  await until('w.viewport.x', 'zoom before corner fit');
+  await requireUntil('w.viewport.x', 'zoom before corner fit');
   await cdp.eval(`document.querySelector('.plot-tools button[title^="Make this zoom"]').click()`);
-  await until('w.viewport.x === null', 'use this view before corner fit');
+  await requireUntil('w.viewport.x === null', 'use this view before corner fit');
 
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
   for (let st = 0; st < 15; st++) await key('ArrowRight'); /* pans well past the data */
-  await until('w.viewport.x', 'panned away');
+  await requireUntil('w.viewport.x', 'panned away');
   const away = await P();
   check('panned far from the data', away.x.min > extent.xmax, JSON.stringify([away.x, extent]));
   await fit('.plot-view:not([hidden]) .plot-host .plot-fit');
@@ -1528,8 +1535,8 @@ async function viewCheck() {
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
   const pans0 = await displays();
   for (let st = 0; st < 15; st++) await key('ArrowRight');
-  await until('w.viewport.x', 'panned away again');
-  await displayTold(pans0, 'the pan told'); /* before Fit (macos-ui, W93) */
+  await requireUntil('w.viewport.x', 'panned away again');
+  if (!await displayTold(pans0, 'the pan told')) throw new Error('Timed out waiting for the pan told'); /* before Fit (macos-ui, W93) */
   await fit('.plot-view:not([hidden]) .plot-host .plot-fit');
   check('Fit again with the axes already fitted still brings the data back (the page drops its pan)',
     await until('w.viewport.x === null && w.viewport.y === null && !s.busy', 'second corner fit'),
@@ -3438,7 +3445,7 @@ async function busyKeys() {
   await until('!s.busy', 'main menu');
   await focusPlot();
   await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'ic menu');
+  await requireUntil("s.ask && s.ask.kind === 'menu' && document.activeElement.closest('[role=dialog]')", 'ic menu');
   const n0 = await cdp.eval('__xpp.actions().length');
   await key('g');
   const running = await until('s.busy && !s.ask && w.series && w.series.rows > 0', 'the run under way', 30000);
@@ -3569,7 +3576,7 @@ async function statusBarLayout() {
   await until('!s.busy', 'main menu');
   await focusPlot();
   await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'ic menu');
+  await requireUntil("s.ask && s.ask.kind === 'menu' && document.activeElement.closest('[role=dialog]')", 'ic menu');
   await key('g');
   const progressShowing = await until('s.busy && s.progress', 'progress showing', 15000);
   check('status bar: a long run reports progress', progressShowing, JSON.stringify(await S('s.progress')));
@@ -4467,13 +4474,6 @@ async function setSliderDialogFields(fields) {
 const fieldOf = (sec, name) => `[...document.querySelectorAll('[data-section="${sec}"] .value-field')]
   .find(f => f.querySelector('.value-name').textContent.toLowerCase() === ${JSON.stringify(name.toLowerCase())})`;
 /** type `text` into a field and leave it (two round trips: Preact renders the draft before the blur reads it) */
-/** answers the open Integrate menu with Go and waits for that run's own idle: `!s.busy`
-    alone is also true between a flushed set's idle and the run starting (W58: no race) */
-async function goRun() {
-  const n = await cdp.eval('__xpp.actions().length');
-  await key('g');
-  await until(`__xpp.actions().slice(${n}).includes('event:idle') && !s.busy`, 'the run after Go', 60000);
-}
 async function editField(sec, name, text) {
   await cdp.eval(`(() => { const group = ${fieldOf(sec, name)}.closest('.value-group');
     const toggle = group.querySelector('.value-fold[aria-expanded="false"]');
@@ -4661,9 +4661,10 @@ async function runsCheck(dir) {
     JSON.stringify({out, draggedTo}));
   await focusPlot();
   await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'Initialconds menu (slider)');
+  await requireUntil("s.ask && s.ask.kind === 'menu' && document.activeElement.closest('[role=dialog]')", 'Initialconds menu (slider)');
   const preGo = await cdp.eval('__xpp.sentCount()');
-  await goRun();
+  await key('g');
+  await requireUntil(`s.seriesCount > ${nSlide} && w.series.rows === 601`, 'slider Go integrated', 60000 * SLOW);
   const final = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
   check('runs: Go runs with the slider\'s value, no set of its own',
     Math.abs(final - draggedTo) < 1e-9 && !(await cdp.eval(`__xpp.sentFrom(${preGo}).some(c => c.cmd === 'set')`)),
@@ -4850,7 +4851,7 @@ async function valuesBusy() {
   const start = async () => {
     await focusPlot();
     await key('i');
-    await until("s.ask && s.ask.kind === 'menu'", 'heavy Integrate menu');
+    await requireUntil("s.ask && s.ask.kind === 'menu' && document.activeElement.closest('[role=dialog]')", 'heavy Integrate menu');
     await key('g');
     check('values: the heavy run is computing before editing',
       await until('s.busy && s.computing && w.series?.rows >= 2', 'heavy integration computing', BUSY_TIMEOUT_MS));
@@ -4969,7 +4970,7 @@ async function valuesLive() {
     __nowSeen.push(nowText()); true`);
   await focusPlot();
   await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'menu');
+  await requireUntil("s.ask && s.ask.kind === 'menu' && document.activeElement.closest('[role=dialog]')", 'menu');
   await key('g');
   await until('s.busy && w.series && w.series.rows > 100', 'running');
   await until('!s.busy && w.series.rows === 20001', 'first run', 60000);
@@ -6016,7 +6017,7 @@ async function jacobianOfferCheck(dir) {
   await until(`!s.busy && !s.ask && s.hello.file === 'w260sqrt.odex'`, 'the sqrt model opened');
   await focusPlot();
   await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'Integrate menu');
+  await requireUntil("s.ask && s.ask.kind === 'menu' && document.activeElement.closest('[role=dialog]')", 'Integrate menu');
   await key('g');
   const offer = `document.querySelector('[data-error-dialog] [data-error-offer]')`;
   check('W260: the error of a failed exact Jacobian offers Switch to differences and continue',
