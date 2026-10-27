@@ -80,19 +80,19 @@ bool read_model_file(Model &m, const std::string &name, std::string &bytes)
 {
     bytes.clear();
     const long i = file_index(m, name);
-    if (!m.saved_in.empty()) {
-        if (i < 0) return false;
+    if (i >= 0) {
         bytes = m.files[static_cast<size_t>(i)].bytes;
         return true;
     }
+    if (!m.saved_in.empty()) return false;
     if (name.empty()) return false;
-    if (i < 0 && m.files.size() >= zip::archive_entries_limit) return false;
+    if (m.files.size() >= zip::archive_entries_limit) return false;
     size_t available = zip::archive_bytes_limit;
     for (const ModelFile &file : m.files)
         if (file.name != name) available -= file.bytes.size();
     UniqueFile fp(files::open_read_within(name, files::split_path(m.this_file).first, m.outside_paths));
     if (!read_bytes(fp.get(), bytes, available)) return false;
-    if (i < 0) m.files.push_back({name, bytes});
+    m.files.push_back({name, bytes});
     return true;
 }
 
@@ -100,7 +100,6 @@ UniqueFile open_model_file(Model &m, const std::string &name)
 {
     std::string bytes;
     if (!read_model_file(m, name, bytes)) return UniqueFile();
-    if (m.saved_in.empty()) return UniqueFile(files::open_read_within(name, files::split_path(m.this_file).first, m.outside_paths));
     if (!m.saved_copies) m.saved_copies = std::make_shared<TempDir>();
     if (m.saved_copies->path().empty()) return UniqueFile();
     const std::string copy = m.saved_copies->file(std::to_string(file_index(m, name)));

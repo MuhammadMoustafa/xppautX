@@ -74,8 +74,8 @@ bool read_model_file(Model &m, const std::string &name, std::string &bytes);
 
 /* m's file name opened for reading, as open_read opens a file,
    for a reader that takes a FILE *: empty when there is none. During a
-   load only: a saved file is read from a copy of it in a scratch folder
-   the load removes when it ends. */
+   load only: the checked and recorded bytes are read from a copy in a
+   scratch folder the load removes when it ends. */
 UniqueFile open_model_file(Model &m, const std::string &name);
 
 /* m's file name, a line at a time (LineReader): empty when there

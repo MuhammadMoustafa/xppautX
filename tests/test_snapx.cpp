@@ -139,6 +139,12 @@ void check_saved_model(const xpp::TempDir &tmp)
     CHECK(write_file("w.tab", "3\n0\n2\n0\n10\n40\n"));
     CHECK(write_file("main.odex", "import \"inc.odex\"\ntable w \"w.tab\"\nx'=-a*x+w(1)\ninit x=1\n"));
     CHECK(load("main.odex"));
+    /* A disk change after recording must not change the stream a parser sees. */
+    CHECK(write_file("inc.odex", "par a=99\n"));
+    xpp::UniqueFile stream = xpp::open_model_file(xpp::client_session().model(), "inc.odex");
+    std::string streamed;
+    CHECK(xpp::read_bytes(stream.get(), streamed) && streamed == "par a=2\n");
+    CHECK(write_file("inc.odex", "par a=2\n"));
     const std::vector<xpp::ModelFile> files = xpp::client_session().model().files;
     CHECK(files.size() >= 3 && files[0].name == "main.odex" && files[1].name == "inc.odex" && files[2].name == "w.tab");
     CHECK(xpp::client_session().model().saved_in.empty() && xpp::client_session().model().nupar == 1);
