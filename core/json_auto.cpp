@@ -713,7 +713,11 @@ void auto_command(xpp::Session &s, const char *line)
         int k=s.auto_state.active_view;
         if(const char *value=js_find(line,"view")){
             std::string name;const auto target=js_string(value,name)?xpp::find_window(s,name):std::nullopt;
-            if(!target || target->kind!=xpp::WindowKind::diagram){j_command_error("auto","view must name an open diagram");return;}k=target->index;
+            if (!target || target->kind != xpp::WindowKind::diagram) {
+                j_command_error("auto", "view must name an open diagram");
+                return;
+            }
+            k = target->index;
         }
         if (k < 0 || k >= static_cast<int>(s.auto_state.views.size())) {
             j_command_error("auto", xpp::format("auto display: no view {}", k));
