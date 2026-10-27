@@ -56,7 +56,7 @@ class TestReturn(gdb.FinishBreakpoint):
         self.row, self.chng = row, chng
 
     def stop(self):
-        enabled = bool(int(value(f'*(logical *){self.chng}')))
+        enabled = bool(int(value(f'*(bool *){self.chng}')))
         out.write(json.dumps({**self.row, 'value': float(self.return_value), 'enabled': enabled}) + '\n')
         return False
 

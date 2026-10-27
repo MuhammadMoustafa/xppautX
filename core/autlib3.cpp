@@ -74,7 +74,7 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   doublereal uold = 0.; /* funi/fnds take it, unread */
   integer nfpr1;
   integer i;
-  logical found;
+  bool found;
 
   integer ndm, irs;
   xpp::AutoProblem ips;
@@ -297,7 +297,7 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   doublereal uold = 0.; /* funi/fnds take it, unread */
   integer nfpr;
   integer i, j;
-  logical found;
+  bool found;
 
   std::vector<doublereal> dp(iap->lib->parameter_count);
 
@@ -488,7 +488,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 {
   // AUTO-07p equilibrium.f90:278-323: a unit null vector of A^2+kappa I.
   integer free = 0;
-  logical found = false;
+  bool found = false;
   findlb(iap, rap, iap->irs, &free, &found);
   if (!found) auto_restart_label_missing(iap);
   readlb(iap, rap, u, par);
@@ -573,7 +573,7 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   integer nfpr1;
   integer i, j;
-  logical found;
+  bool found;
 
   doublereal period;
   integer ndm, irs;
@@ -840,7 +840,7 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   integer i, j;
   doublereal rimhb;
-  logical found;
+  bool found;
 
   doublereal period;
 
@@ -1079,7 +1079,7 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   integer i, j;
   doublereal rimhb;
-  logical found;
+  bool found;
 
   doublereal period;
 

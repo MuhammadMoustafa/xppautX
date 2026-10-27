@@ -68,7 +68,7 @@ FNR == 1 {
   # casts: a C-style cast, "(type)"/"(type *)"/"(type **)" immediately
   # before an identifier, a digit or "(". type is a fixed list of
   # builtins and the core's own typedefs cast to (xpp_types.h's
-  # XppWinId, auto_f2c.h's integer/real/doublereal/logical,
+  # XppWinId, auto_f2c.h's integer/real/doublereal,
   # llnltyps.h's N_Vector, xpp_win32.h's DWORD). This is a heuristic, not
   # a parse: it undercounts a cast to a project struct/typedef not in
   # this list, and does not try every spacing; it is meant to not grow,
@@ -77,9 +77,9 @@ FNR == 1 {
       (index(content, "int") || index(content, "char") || index(content, "void") ||
        index(content, "double") || index(content, "float") || index(content, "long") ||
        index(content, "short") || index(content, "unsigned") || index(content, "signed") ||
-       index(content, "size_t") || index(content, "real") || index(content, "logical") ||
+       index(content, "size_t") || index(content, "real") ||
        index(content, "XppWinId") || index(content, "N_Vector") || index(content, "DWORD")))
-    counts[FILENAME, "casts"] += gsub(/\([ \t]*(const[ \t]+)?(unsigned[ \t]+|signed[ \t]+)?(void|char|int|short|long|float|double|size_t|doublereal|integer|real|logical|XppWinId|N_Vector|DWORD)([ \t]+(int|long))?[ \t]*\**[ \t]*\)[ \t]*[A-Za-z0-9_(]/, "&", content)
+    counts[FILENAME, "casts"] += gsub(/\([ \t]*(const[ \t]+)?(unsigned[ \t]+|signed[ \t]+)?(void|char|int|short|long|float|double|size_t|doublereal|integer|real|XppWinId|N_Vector|DWORD)([ \t]+(int|long))?[ \t]*\**[ \t]*\)[ \t]*[A-Za-z0-9_(]/, "&", content)
 }
 END {
   ncats = 5

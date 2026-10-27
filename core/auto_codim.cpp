@@ -33,7 +33,7 @@ double folded_angle(double angle)
 // modulo 2*pi; its sign flips where the fold turns at a resonance it tests
 // (0 for 1:1, pi for 1:2), so the curve crossing one there still changes it.
 // From 0 to pi it is AUTO-07p's value, bit for bit.
-double resonance_test(const std::array<bool,xpp::auto_codim_kinds.size()> &enabled, double angle, logical *changed)
+double resonance_test(const std::array<bool,xpp::auto_codim_kinds.size()> &enabled, double angle, bool *changed)
 {
     int turns=0; // the nearest whole number of turns, its low bits (remquo)
     const double wrapped=std::remquo(angle,pi(2.),&turns);
@@ -278,7 +278,7 @@ std::size_t auto_cycle_place_imposed(xpp::AutoPointKind start, std::span<doublec
 }
 
 double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *par,
-                       std::span<const doublecomplex> spectrum, logical *changed)
+                       std::span<const doublecomplex> spectrum, bool *changed)
 {
     const auto start=iap.itpst;
     const double angle=par[xpp::auto_unknown::torus_angle];

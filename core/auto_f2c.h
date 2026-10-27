@@ -16,7 +16,6 @@ typedef std::ptrdiff_t integer;
 typedef float real;
 typedef double doublereal;
 typedef struct { doublereal r, i; } doublecomplex;
-typedef integer logical;
 
 
 #define ARRAY2D(array,i,j) array[(i) + (j) * array ## _dim1]

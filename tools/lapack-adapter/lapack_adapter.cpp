@@ -60,19 +60,19 @@ int rg(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, int
     return 0;
 }
 
-int qzhes(integer, integer, doublereal *, doublereal *, logical, doublereal *)
+int qzhes(integer, integer, doublereal *, doublereal *, bool, doublereal *)
 {
     return 0;
 }
 
-int qzit(integer, integer, doublereal *, doublereal *, doublereal, logical, doublereal *, integer *ierr)
+int qzit(integer, integer, doublereal *, doublereal *, doublereal, bool, doublereal *, integer *ierr)
 {
     *ierr = 0;
     return 0;
 }
 
 int qzval(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr, doublereal *alfi, doublereal *beta,
-          logical, doublereal *)
+          bool, doublereal *)
 {
     const int order = static_cast<int>(n), ld = static_cast<int>(nm), one = 1;
     double unused = 0;

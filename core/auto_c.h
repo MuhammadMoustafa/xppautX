@@ -133,11 +133,11 @@ typedef struct {
 
 /*This is the type for all functions which can be used to detect
   special points for algebraic problems */
-#define FNCS_TYPE_AE(X) doublereal X(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, std::span<const AutoMark> marks)
+#define FNCS_TYPE_AE(X) doublereal X(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, std::span<const AutoMark> marks)
 
 /*This is the type for all functions which can be used to detect
   special points for BVPS */
-#define FNCS_TYPE_BVP(X) doublereal X(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks)
+#define FNCS_TYPE_BVP(X) doublereal X(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks)
 
 /* W419 (#481): what a test function returns where its test does not apply
    at a point (a Floquet test on a planar orbit, an inaccurate trivial
@@ -242,9 +242,9 @@ void auto_restart_read(const iap_type *iap, bool ok, std::string_view what);
 void read_auto_restart_header(iap_type *iap, const rap_type *rap,
                               xpp::TokenReader &reader, xpp::AutoSolutionHeader &header,
                               integer *ntst, integer *ncol);
-int findlb(iap_type *iap, const rap_type *rap, integer irs, integer *nfpr, logical *found);
+int findlb(iap_type *iap, const rap_type *rap, integer irs, integer *nfpr, bool *found);
 void readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par);
-int skip3(FILE *fp3, integer *nskip, logical *eof3);
+int skip3(FILE *fp3, integer *nskip, bool *eof3);
 doublereal rinpr(iap_type *iap, const integer *ndim1, const integer *ndxloc, doublereal *ups, doublereal *vps, doublereal *dtm, doublereal *thu);
 doublereal rnrmsq(iap_type *iap, integer *ndim1, integer *ndxloc, doublereal *ups, doublereal *dtm, doublereal *thu);
 doublereal rintg(iap_type *iap, integer *ndxloc, integer ic, doublereal *ups, doublereal *dtm);
@@ -272,7 +272,7 @@ FNCS_TYPE_BVP(fnspbv);
 std::size_t auto_cycle_place_imposed(xpp::AutoPointKind start, std::span<doublecomplex> spectrum);
 // Cycle-curve part of fnspbv, using its ordered original Floquet spectrum.
 double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *par,
-                       std::span<const doublecomplex> spectrum, logical *changed);
+                       std::span<const doublecomplex> spectrum, bool *changed);
 FNCS_TYPE_BVP(fnuzbv);
 int tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomplex *ev);
 int stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu);

@@ -21,11 +21,11 @@
 namespace xpp {
 int eispack_rg(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__,
                integer *iv1, doublereal *fv1, integer *ierr);
-int eispack_qzhes(integer nm, integer n, doublereal *a, doublereal *b, logical matz, doublereal *z__);
-int eispack_qzit(integer nm, integer n, doublereal *a, doublereal *b, doublereal eps1, logical matz, doublereal *z__,
+int eispack_qzhes(integer nm, integer n, doublereal *a, doublereal *b, bool matz, doublereal *z__);
+int eispack_qzit(integer nm, integer n, doublereal *a, doublereal *b, doublereal eps1, bool matz, doublereal *z__,
                  integer *ierr);
 int eispack_qzval(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr, doublereal *alfi,
-                  doublereal *beta, logical matz, doublereal *z__);
+                  doublereal *beta, bool matz, doublereal *z__);
 }
 
 namespace {

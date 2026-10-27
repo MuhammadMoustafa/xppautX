@@ -11,7 +11,6 @@
 #include "ode_read.h"
 #include "model.h"
 #include "expr.h"
-#include "comline.h"
 #include "xpp_batch.h"
 #include "xpp_ui.h"
 #include "xpp_files.h"
@@ -1032,8 +1031,9 @@ int main(void)
     put("build/w_nan_value.tab", "3\n0\n2\n1\n2\nnan\n");
     put("build/w_inf_end.tab", "3\n0\ninf\n1\n2\n3\n");
     put("build/w_range.tab", "3\n-1e308\n1e308\n1\n2\n3\n");
-    auto cl = xpp::parse_command_line({"test_odex", "build/test_odex_model.odex"});
-    CHECK(cl.has_value() && xpp::load_model(std::move(*cl), 1).has_value());
+    std::string arg0 = "test_odex", path = "build/test_odex_model.odex";
+    char *argv[] = {arg0.data(), path.data(), nullptr};
+    CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
     const int index = s.model().networks[0].weight_table;
     const auto word = xpp::load_table(s, "build/w_word.tab", index, 0);

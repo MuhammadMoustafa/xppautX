@@ -366,7 +366,7 @@ void check_branch_parameters()
     std::vector<double> parameters(mark_lib.parameter_count);
     std::array<integer,1> free={s.auto_state.parameter_layout.solver_index(0)};
     std::array<AutoMark,1> mark={AutoMark{static_cast<int>(s.auto_state.parameter_layout.solver_index(1)),0.5}};
-    logical changed=false;
+    bool changed=false;
     const auto mark_value=[&]{
         return fnuzae(&mark_iap,&mark_rap,parameters.data(),free.data(),&changed,nullptr,nullptr,
                       nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,mark);

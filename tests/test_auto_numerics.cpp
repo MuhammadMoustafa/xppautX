@@ -287,11 +287,11 @@ std::uint64_t blas_helpers()
         double alpha=.3, beta=-.7;
         fold(digest, xpp::dgemm(ta,tb,&dim,&dim,&dim,&alpha,a.data(),&dim,b.data(),&dim,&beta,c.data(),&dim,1,1));
         fold(digest, c);
-        for (logical transpose : {0,1}) {
+        for (bool transpose : {false,true}) {
             fold(digest, xpp::dgemc(&dim,&dim,a.data(),&dim,c.data(),&dim,&transpose));
             fold(digest, c);
         }
-        fold(digest, xpp::lsame(ta,tb,1,1));
+        fold(digest, static_cast<integer>(xpp::lsame(ta,tb,1,1)));
     }
     return digest;
 }

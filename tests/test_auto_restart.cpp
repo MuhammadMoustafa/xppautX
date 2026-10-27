@@ -127,7 +127,7 @@ void algebraic(xpp::Session &s, bool truncated) {
     iap.ndim = 2;
     iap.irs = 7;
     rap_type rap{};
-    logical found = 0;
+    bool found = 0;
     integer free = 0;
     findlb(&iap, &rap, 7, &free, &found);
     CHECK(found && free == 1);
@@ -168,7 +168,7 @@ void user_zero_text(xpp::Session &s) {
     const AutoMark marks[] = {{-xpp::auto_unknown::period, .125}};
     std::vector<double> par(lib.parameter_count);
     par[xpp::auto_unknown::period] = .875;
-    logical changed = 0;
+    bool changed = 0;
     CHECK(fnuzae(&iap, &rap, par.data(), icp, &changed,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
                  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,

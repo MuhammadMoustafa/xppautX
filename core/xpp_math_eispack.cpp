@@ -153,7 +153,7 @@ hqr(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, double
     doublereal p = 0, q = 0, r__ = 0, s, t, w, x, y;
     integer na, en, ll, mm;
     doublereal zz;
-    logical notlas;
+    bool notlas;
     integer mp2, itn, its, enm2;
     doublereal tst1, tst2;
 
@@ -511,7 +511,7 @@ hqr2(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doubl
     doublereal ra, sa;
     integer ll, mm, nn;
     doublereal vi, vr, zz;
-    logical notlas;
+    bool notlas;
     integer mp2, itn, its, enm2;
     doublereal tst1, tst2;
 
@@ -1229,7 +1229,7 @@ balanc(integer *nm, integer *n, doublereal *a, integer *low, integer *igh, doubl
     integer i__, j, k, l, m;
     doublereal r__, s, radix, b2;
     integer jj;
-    logical noconv;
+    bool noconv;
 
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE BALANCE, */
 /*     NUM. MATH. 13, 293-304(1969) BY PARLETT AND REINSCH. */
@@ -1848,7 +1848,7 @@ L200:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-qzhes(integer nm, integer n, doublereal *a, doublereal *b, logical matz, doublereal *z__)
+qzhes(integer nm, integer n, doublereal *a, doublereal *b, bool matz, doublereal *z__)
 {
     /* System generated locals */
     integer a_dim1, a_offset, b_dim1, b_offset, z_dim1, z_offset, i__1, i__2, 
@@ -2133,7 +2133,7 @@ L170:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-qzit(integer nm, integer n, doublereal *a, doublereal *b, doublereal eps1, logical matz, doublereal *z__, integer *ierr)
+qzit(integer nm, integer n, doublereal *a, doublereal *b, doublereal eps1, bool matz, doublereal *z__, integer *ierr)
 {
     /* System generated locals */
     integer a_dim1, a_offset, b_dim1, b_offset, z_dim1, z_offset, i__1, i__2, 
@@ -2156,7 +2156,7 @@ qzit(integer nm, integer n, doublereal *a, doublereal *b, doublereal eps1, logic
     integer ll;
     doublereal sh;
 
-    logical notlas;
+    bool notlas;
     integer km1, lm1;
     doublereal ani, bni;
     integer ish, itn, its, enm2, lor1;
@@ -2660,7 +2660,7 @@ L1001:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int
-qzval(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr, doublereal *alfi, doublereal *beta, logical matz, doublereal *z__)
+qzval(integer nm, integer n, doublereal *a, doublereal *b, doublereal *alfr, doublereal *alfi, doublereal *beta, bool matz, doublereal *z__)
 {
     /* System generated locals */
     integer a_dim1, a_offset, b_dim1, b_offset, z_dim1, z_offset, i__1, i__2;
@@ -3731,7 +3731,7 @@ L40:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-dgemc(integer *m, integer *n, doublereal *a, integer *lda, doublereal *b, integer *ldb, logical *trans)
+dgemc(integer *m, integer *n, doublereal *a, integer *lda, doublereal *b, integer *ldb, bool *trans)
 {
     /* System generated locals */
     integer a_dim1, a_offset, b_dim1, b_offset, i__1, i__2;
@@ -3882,11 +3882,11 @@ xerbla(const char *srname, integer *info, integer srname_len)
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
-logical 
+bool 
 lsame(const char *ca, const char *cb, integer ca_len, integer cb_len)
 {
     /* System generated locals */
-    logical ret_val;
+    bool ret_val;
 
 /*     .. Scalar Arguments .. */
 /*     .. */
@@ -3986,7 +3986,7 @@ dgemm(const char *transa, const char *transb, integer *m, integer *n, integer *k
 
     /* Local variables */
     integer info;
-    logical nota, notb;
+    bool nota, notb;
     doublereal temp;
     integer i__, j, l;
 
@@ -4544,7 +4544,7 @@ ndsvd(doublereal *x, integer *ldx, integer *n, integer *p, doublereal *s, double
     doublereal sminl;
 
     doublereal sigmx;
-    logical wantu, wantv;
+    bool wantu, wantv;
     doublereal gg = 0, lambda;
     integer oldacc;
     doublereal cs;
@@ -6110,7 +6110,7 @@ hqr3lc(doublereal *a, doublereal *v, integer *n, integer *nlow, integer *nup, do
     doublereal d__1, d__2, d__3;
 
     /* Local variables */
-    logical fail;
+    bool fail;
     integer i__, l;
     doublereal p, q, r__, s, t, w, x, y, z__, e1, e2;
 
@@ -6643,7 +6643,7 @@ L80:
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* Subroutine */ int 
-exchng(doublereal *a, doublereal *v, integer *n, integer *l, const integer *b1, const integer *b2, doublereal *eps, logical *fail, integer *na, integer *nv)
+exchng(doublereal *a, doublereal *v, integer *n, integer *l, const integer *b1, const integer *b2, doublereal *eps, bool *fail, integer *na, integer *nv)
 {
     /* System generated locals */
     integer a_dim1, a_offset, v_dim1, v_offset, i__1;
@@ -6821,7 +6821,7 @@ qrstep(doublereal *a, doublereal *v, doublereal *p, doublereal *q, doublereal *r
     doublereal d__1, d__2, d__3;
 
     /* Local variables */
-    logical last;
+    bool last;
     integer i__, j, k;
     doublereal s, x = 0, y, z__;
     integer nl2, nl3, num1;

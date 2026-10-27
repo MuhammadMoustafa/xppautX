@@ -44,7 +44,7 @@ int retry_line(const iap_type *iap, const rap_type *rap, integer ndim, const dou
         f[0] = std::numeric_limits<double>::quiet_NaN();
     return 0;
 }
-double target(iap_type *, rap_type *, double *, integer *, logical *chng,
+double target(iap_type *, rap_type *, double *, integer *, bool *chng,
              FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoMark>)
 {
@@ -60,7 +60,7 @@ int initial_boundary(const iap_type *, const rap_type *, integer, double *,
     return 0;
 }
 // A noisy test claims a sign change but has no zero on this straight branch.
-double noisy(iap_type *iap, rap_type *, double *, integer *, logical *chng,
+double noisy(iap_type *iap, rap_type *, double *, integer *, bool *chng,
              FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoMark>)
 {

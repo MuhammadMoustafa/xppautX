@@ -389,7 +389,7 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
 
   integer i, j;
 
-  logical infev;
+  bool infev;
 
   doublereal const__;
 
@@ -514,7 +514,7 @@ flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, d
        BLAS routines. */
     doublereal tmp1 = 1.0;
     doublereal tmp0 = 0.0;
-    logical tmp_false = false;
+    bool tmp_false = false;
 
     dgemm("n", "n", ndim, ndim, ndim, &tmp1, c0, ndim, svdv.data(), 
 	  ndim, &tmp0, rwork, ndim, 1L, 1L);

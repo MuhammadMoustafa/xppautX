@@ -113,7 +113,7 @@ void auto_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *p
     FUNI_TYPE((*funi)), double *u, double *uold, double *f, double *dfdu, double *dfdp)
 {
     (*funi)(&iap, &rap, iap.ndim, u, uold, icp, par, BOTH_JACOBIANS, f, dfdu, dfdp);
-    logical chng;
+    bool chng;
     const auto saved_nins = iap.nins;
     const auto saved_period = par[xpp::auto_unknown::period];
     // fnhbae's uniform FNCS interface has unused arguments: the eigenvalue

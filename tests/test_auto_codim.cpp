@@ -37,7 +37,7 @@ int main()
     std::array<double,6> u{0,0,1,0,1,1},rhs{},old=u;
     std::array<double,36> jac{};
     integer stride=7;
-    logical enabled;
+    bool enabled;
     // The test reads the Jacobian solvae computed at the converged point (W421).
     const auto lyapunov=[&]() {
         fnhb(&iap,&rap,iap.ndim,u.data(),old.data(),icp.data(),par.data(),2,rhs.data(),jac.data(),dp.data());
