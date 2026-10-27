@@ -285,7 +285,8 @@ int largest_magnitude(const double *x, int n, int stride)
    column, skipping a column whose pivot-row element t is zero; on this
    row-major block a column strides by lda. When the pivot row has no zero
    past the pivot, the rows below it are updated along their own contiguous
-   elements instead, which vectorizes (W488, W476 finding 4); a sparse pivot
+   elements instead, through xpp::subtract_scaled, which vectorizes (W503,
+   W476 F1; the W488 comment claimed gcc did); a sparse pivot
    row (a model's Jacobian mostly is) keeps LINPACK's column sweep, which
    leaves its zero columns alone. Either way every element gets the same
    product added in the same step k, so the bits are LINPACK's. */
@@ -310,8 +311,7 @@ void sgefa(double *a, int lda, int n, int *ipvt, int *info)
         if (std::find(pivot_row + k + 1, pivot_row + n, 0.0) == pivot_row + n) {
             for (int i = k + 1; i < n; i++) {
                 double *const row = a + i * lda;
-                const double m = row[k];
-                for (int j = k + 1; j < n; j++) row[j] = row[j] + pivot_row[j] * m;
+                subtract_scaled(row + k + 1, pivot_row + k + 1, -row[k], n - k - 1);
             }
         } else {
             for (int j = k + 1; j < n; j++) saxpy(n - k - 1, pivot_row[j], multipliers, lda, multipliers + (j - k), lda);

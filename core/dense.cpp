@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include "dense.h"
 #include "llnlmath.h"
+#include "xpp_math.h"
 
 
 #define ZERO RCONST(0.0)
@@ -141,10 +142,7 @@ integer gefa(real **a, integer n, integer *p)
       /* a(i,j) = a(i,j) - [a(i,k)/a(k,k)]*a(k,j)  */
       /* a_kj = a(k,j), col_k[i] = - a(i,k)/a(k,k) */
 
-      if (a_kj != ZERO) {
-	for (i=k+1; i < n; i++)
-	  col_j[i] += a_kj * col_k[i];
-      }
+      if (a_kj != ZERO) xpp::subtract_scaled(col_j + k + 1, col_k + k + 1, -a_kj, n - k - 1);
     }
   }
 
@@ -160,7 +158,7 @@ integer gefa(real **a, integer n, integer *p)
 
 void gesl(real **a, integer n, integer *p, real *b)
 {
-  integer k, l, i;
+  integer k, l;
   real mult, *col_k;
 
   /* Solve Ly = Pb, store solution y in b */
@@ -173,18 +171,16 @@ void gesl(real **a, integer n, integer *p, real *b)
       b[k] = mult;
     }
     col_k = a[k];
-    for (i=k+1; i < n; i++)
-      b[i] += mult*col_k[i];
+    xpp::subtract_scaled(b + k + 1, col_k + k + 1, -mult, n - k - 1);
   }
-  
+
   /* Solve Ux = y, store solution x in b */
-  
+
   for (k=n-1; k >= 0; k--) {
     col_k = a[k];
     b[k] /= col_k[k];
     mult = -b[k];
-    for (i=0; i < k; i++)
-      b[i] += mult*col_k[i];
+    xpp::subtract_scaled(b, col_k, -mult, k);
   }
 }
 
