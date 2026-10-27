@@ -25,7 +25,7 @@ export interface RunHistory {
 export const emptyHistory: RunHistory = {runs: [], erased: false};
 
 /** the earlier run an event carries, as a series of window `win` */
-function runSeries(win: number, r: RunsEvent['add'][number]): PlotSeries {
+function runSeries(win: string, r: RunsEvent['add'][number]): PlotSeries {
   const columns = new Map<number, Float32Array>(), names = new Map<number, string>();
   for (const c of r.columns) {
     columns.set(c.col, decode(c.data));

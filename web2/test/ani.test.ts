@@ -134,7 +134,7 @@ test('a step goes from the frame shown, within the stored rows', () => {
 });
 
 test('app state: ani events and window 104 reach the slice; Go plays until its idle', () => {
-  let s = reduce(reduce(READY, {type: 'event', ev: HELLO}), {type: 'event', ev: {ev: 'window', op: 'create', win: 104, w: 280, h: 350}});
+  let s = reduce(reduce(READY, {type: 'event', ev: HELLO}), {type: 'event', ev: {ev: 'window', kind: 'animation', op: 'create', win: 'animation', w: 280, h: 350}});
   assert.ok(s.ani.exists && s.ani.open);
   assert.equal(s.plots, initialState.plots, 'not a plot window');
   s = reduce(s, {type: 'event', ev: frameEv({pos: 12})});
@@ -145,6 +145,6 @@ test('app state: ani events and window 104 reach the slice; Go plays until its i
   assert.equal(s.ani.pos, 13);
   s = reduce(s, {type: 'event', ev: {ev: 'idle'}});
   assert.ok(!s.ani.playing && !s.busy);
-  s = reduce(s, {type: 'event', ev: {ev: 'window', op: 'destroy', win: 104, w: 0, h: 0}});
+  s = reduce(s, {type: 'event', ev: {ev: 'window', kind: 'animation', op: 'destroy', win: 'animation', w: 0, h: 0}});
   assert.ok(!s.ani.exists);
 });

@@ -7,6 +7,7 @@
 #include "image_format.h"
 #include "browse.h"
 #include "session.h"
+#include "command_registry.h"
 #include "xpp_session.h"
 #include "model_switch.h"
 #include "xpp_mem.h"
@@ -340,8 +341,8 @@ void run_the_commands(xpp::Session &s, MenuCommand com)
     xpp::new_parameter(s);
     return;
   }
-  if (com >= M_MC && com <= M_MS) {
-    do_windows_com(s, com - M_MC);
+  if(com>=M_MC && com<=M_MS){
+    xpp::ok_or_show(xpp::command::window_button(s,com-M_MC,xpp::command_place()));
     return;
   }
   if (com >= M_FP && com <= M_FG) {
@@ -415,10 +416,6 @@ void new_lookup(xpp::Session &s)
   menu_run(s, &menu_lookup, 1);
 }
 
-static void do_windows(xpp::Session &s)
-{
-  menu_run(s, s.plot_windows.simul == 0 ? &menu_windows : &menu_windows_simoff, 0);
-}
 
 static void do_gr_objs(xpp::Session &s)
 {
@@ -483,7 +480,6 @@ void commander(xpp::Session &s, int ch)
     case 'f': flash(9); flash(9); show_main_menu(s,FILE_MENU); break;
     case 'p': flash(10); run_the_commands(s, M_P); flash(10); break;
     case 'e': flash(11); run_the_commands(s, M_EE); flash(11); break;
-    case 'm': do_windows(s); flash(12); break;
     case 't': flash(13); do_gr_objs(s); flash(13); break;
     case 's': flash(14); find_equilibrium(s); flash(14); break;
     case 'v': flash(15); change_view(s); flash(15); break;

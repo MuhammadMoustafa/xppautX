@@ -1,6 +1,8 @@
 #pragma once
 
 #include "grobs.h"
+#include <optional>
+#include <string_view>
 
 namespace xpp {
 
@@ -18,6 +20,15 @@ struct XppPlotWindows {
 
 struct Session; /* session.h */
 
+/* Names on every external boundary; numeric handles stay in drawing code. */
+inline constexpr std::size_t WINDOW_NAME_BYTES = 1024; // Bound names supplied by clients and files.
+enum class WindowKind { graph, diagram };
+struct WindowTarget { WindowKind kind; int index; };
+std::optional<WindowTarget> find_window(const Session &s, std::string_view name);
+std::string next_window_name(const Session &s, WindowKind kind);
+std::string window_name(const Session &s, XppWinId handle);
+std::string window_name_problem(std::string_view name);
+std::string window_name_problem(const Session &s, std::string_view name, std::string_view replacing = {});
 void redo_stuff(Session &s);
 /* The session s's plot windows: which are open (set_active_windows), the
    active one (make_active), the plot window (its graph's index) whose
@@ -25,7 +36,7 @@ void redo_stuff(Session &s);
    active window's bounds made valid (check_windows) */
 void set_active_windows(Session &s);
 /* Create and activate a graph; the UI callback only presents its surface. */
-void create_a_pop(Session &s);
+void create_a_pop(Session &s, std::string_view name = {});
 void make_active(Session &s, int i, int flag);
 int graph_of(const Session &s, XppWinId w);
 void check_windows(Session &s);

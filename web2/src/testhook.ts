@@ -14,7 +14,6 @@ import {chartOf} from './plot/registry';
 import type {Session} from './session';
 import type {Action} from './store/state';
 import {logEntries} from './store/log';
-import {autoWindow} from './store/diagram';
 import {options} from 'preact';
 
 const KEEP = 200;
@@ -59,9 +58,9 @@ export function installTestHook(session: Session): void {
     actions.push(a.type === 'event' ? `event:${a.ev.ev}` : a.type);
     if (actions.length > KEEP) actions.shift();
     if (a.type === 'event' && a.ev.ev === 'diagram') {
-      if (a.ev.op === 'reset' && !a.ev.keep && !a.ev.view) diagramEvents = [];
+      if (a.ev.op === 'reset' && !a.ev.keep && a.ev.view === session.store.getState().diagram.views[0]?.name) diagramEvents = [];
       diagramEvents.push(a.ev);
-    } else if (a.type === 'event' && a.ev.ev === 'window' && a.ev.win === autoWindow(session.store.getState()) && a.ev.op === 'destroy') diagramEvents = [];
+    } else if (a.type === 'event' && a.ev.ev === 'window' && a.ev.kind === 'diagram' && a.ev.op === 'destroy') diagramEvents = [];
     if (a.type === 'event' && a.ev.ev === 'press') {
       presses.push({step: a.ev.step, what: a.ev.what, index: a.ev.index});
       if (presses.length > KEEP) presses.shift();
@@ -94,7 +93,7 @@ export function installTestHook(session: Session): void {
       return sent.slice(mark - sentDropped);
     },
     /** window `win`'s chart (the active window's by default) */
-    plot: (win?: number) => chartOf(win ?? session.store.getState().plots.active)?.info() ?? null,
+    plot: (win?: string) => chartOf(win ?? session.store.getState().plots.active)?.info() ?? null,
     /** view `view` of the AUTO diagram's chart (the active view's by default): its curves, label
         marks and ranges (null while AUTO is not shown) */
     diagram: (view?: number) => diagramChart(view ?? session.store.getState().diagram.active)?.info() ?? null,

@@ -13,13 +13,13 @@ import {READY, LINE} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 
-const series = (win: number, v0: number): SeriesEvent => ({
+const series = (win: string, v0: number): SeriesEvent => ({
   ev: 'series', win, rows: 2, three: 0, xlabel: '', ylabel: '', zlabel: '',
   curves: [{x: 0, y: 1, z: 0, color: 'foreground', ...LINE}], shift: [0, 0, 0],
   columns: [{col: 0, name: 'T', data: [0, 1]}, {col: 1, name: 'V', data: [v0, v0 + 1]}],
 });
 
-const info = (win: number): PlotWindowInfo => ({
+const info = (win: string): PlotWindowInfo => ({
   win, title: 'V vs T', three: 0, xlo: 0, xhi: 1, ylo: -1, yhi: 1,
   box: {xmin: 0, xmax: 1, ymin: -1, ymax: 1, zmin: -1, zmax: 1}, theta: 45, phi: 45, persp: 0, zplane: -1000,
   zview: 1000, curves: [{x: 0, y: 1, z: 0, color: 'foreground', ...LINE}], shift: [0, 0, 0],
@@ -27,16 +27,16 @@ const info = (win: number): PlotWindowInfo => ({
 
 const plots = (...w: PlotWindowInfo[]) => ({ev: 'plots', active: w[0]?.win ?? 1, windows: w});
 const film = (op: 'capture' | 'reset' | 'play' | 'autoplay', over: object = {}) =>
-  ({ev: 'film', op, count: 0, win: 1, cycles: 1, delay: 50, ...over});
+  ({ev: 'film', op, count: 0, win: 'graph_1', cycles: 1, delay: 50, ...over});
 
 function oneCapturedFrame(v0: number): AppState {
-  let s = ev(READY, plots(info(1)));
-  s = ev(s, series(1, v0));
+  let s = ev(READY, plots(info('graph_1')));
+  s = ev(s, series('graph_1', v0));
   return ev(s, film('capture', {count: 1}));
 }
 
 test('reduceKinescope: capture appends, reset empties, show/playing update the player', () => {
-  const frame = snapshotWindow(blank(1));
+  const frame = snapshotWindow(blank('graph_1'));
   let s = reduceKinescope(initialKinescope, {type: 'capture', frame});
   assert.equal(s.frames.length, 1);
   s = reduceKinescope(s, {type: 'capture', frame});
@@ -53,14 +53,14 @@ test('a `film` capture snapshots the window as it is drawn now (series, marks, a
   const s = oneCapturedFrame(10);
   assert.equal(s.kinescope.frames.length, 1);
   const f = s.kinescope.frames[0];
-  assert.equal(f.win, 1);
+  assert.equal(f.win, 'graph_1');
   assert.equal(f.info?.title, 'V vs T');
   assert.deepEqual(Array.from(f.series!.columns.get(1)!), [10, 11]);
 });
 
 test('two captures after two different integrations hold frames that differ', () => {
   let s = oneCapturedFrame(10);
-  s = ev(s, series(1, 20));
+  s = ev(s, series('graph_1', 20));
   s = ev(s, film('capture', {count: 2}));
   assert.equal(s.kinescope.frames.length, 2);
   const [a, b] = s.kinescope.frames;
@@ -69,7 +69,7 @@ test('two captures after two different integrations hold frames that differ', ()
 
 test('`reset` empties the frames', () => {
   let s = oneCapturedFrame(10);
-  s = ev(s, series(1, 20));
+  s = ev(s, series('graph_1', 20));
   s = ev(s, film('capture', {count: 2}));
   s = ev(s, film('reset', {count: 0}));
   assert.deepEqual(s.kinescope, initialKinescope);
@@ -84,18 +84,18 @@ test('`play` and `autoplay` note the timing; the frame shown is session.ts\'s cl
 });
 
 test('a capture for a window the store does not know is left out (nothing to snapshot)', () => {
-  const s = ev(READY, film('capture', {win: 7, count: 1}));
+  const s = ev(READY, film('capture', {win: 'graph_7', count: 1}));
   assert.equal(s.kinescope.frames.length, 0);
 });
 
 test('snapshotWindow carries exactly what the chart draws from, not the viewport history', () => {
-  const w = {...blank(3), info: info(3), viewport: {x: {min: 0, max: 1}, y: null}, viewportHistory: [{x: null, y: null}]};
+  const w = {...blank('graph_3'), info: info('graph_3'), viewport: {x: {min: 0, max: 1}, y: null}, viewportHistory: [{x: null, y: null}]};
   const f = snapshotWindow(w);
-  assert.deepEqual(f, {win: 3, info: w.info, series: null, nullclines: null, dfield: null, marks: null, viewport: w.viewport});
+  assert.deepEqual(f, {win: 'graph_3', info: w.info, series: null, nullclines: null, dfield: null, marks: null, viewport: w.viewport});
   assert.ok(!('viewportHistory' in f));
 });
 
 test('windowOf still finds the window after a capture (the reducer does not disturb plots)', () => {
   const s = oneCapturedFrame(10);
-  assert.ok(windowOf(s.plots, 1));
+  assert.ok(windowOf(s.plots, 'graph_1'));
 });

@@ -3,6 +3,7 @@
    to files with the pixels the client renders. */
 #include "ui_json_internal.h"
 #include "session.h"
+#include "many_pops.h"
 #include "xpp_inbox.h"
 #include "xpp_job.h"
 #include "browse.h"
@@ -186,7 +187,7 @@ void ani_command(xpp::Session &s, const char *line)
         if (s.animation.vcr.iexist) {
             s.animation.vcr.iexist = 0;
             s.animation.grab_flag = 0;
-            send_window("destroy", WIN_ANI, 0, 0);
+            send_window("destroy",xpp::window_name(s,WIN_ANI), 0, 0,"","animation");
         }
     } else {
         j_command_error("ani", xpp::format("Unknown ani op {}", o));
@@ -223,7 +224,7 @@ void j_new_vcr(xpp::Session &s)
     s.animation.vcr.wid = 280;
     s.animation.vcr.hgt = 350;
     s.animation.vcr.iexist = 1;
-    send_window("create", WIN_ANI, s.animation.vcr.wid, s.animation.vcr.hgt, "Animation");
+    send_window("create",xpp::window_name(s,WIN_ANI), s.animation.vcr.wid, s.animation.vcr.hgt, "Animation","animation");
     ani_view_created(s);
 }
 void j_ani_show(void)

@@ -32,7 +32,6 @@ namespace files { struct WriteFolders; }
  *
  * Conventions kept from the original code:
  *   new_string / file_selector / string_box return 0 when the user cancels.
- *   yes_no_box returns 1 for yes, 0 for no.
  *   two_choice and choose return the chosen key character, 0 if none.
  *   menu_choose returns the chosen key character, 0 or 27 if none.
  *   check_abort returns a key code, 27 for escape, 64 when nothing happened.
@@ -131,7 +130,6 @@ void MessageBox(std::string_view m);
 void KillMessageBox(void);
 void title_text(std::string_view s);
 int new_int(std::string_view name, int *value);
-int yes_no_box(void);
 int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key);
 /* A question with several answers, one key each (keys[i] answers
    choices[i]); the chosen key, 0 when none. The last choice is what no
@@ -270,6 +268,8 @@ typedef struct XppUi {
     /* plot windows */
     void (*create_plot_window)(Session &s); /* present the already-created active graph */
     void (*destroy_plot_window)(Session &s); /* the active one; not the main window */
+    void (*window_renamed)(Session &s, std::string_view old_name, std::string_view new_name);
+    void (*auto_closed)(Session &s, std::string_view name);
     void (*lower_plot_window)(void);   /* put the active one at the bottom */
     /* Text,etc (T)ext: ask for a label, place it with the mouse, draw it
        and add_label() it */

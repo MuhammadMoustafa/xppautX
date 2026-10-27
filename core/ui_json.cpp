@@ -32,6 +32,7 @@
 #include "xpp_util.h"
 #include "many_pops.h"
 #include "command_table.h"
+#include "command_registry.h"
 #include "menus.h"
 #include "mykeydef.h"
 #include "userbut.h"
@@ -446,6 +447,8 @@ XppUi make_json_ui(void)
     u.browser_redraw = j_browser_changed;
     u.create_plot_window = j_create_plot_window;
     u.destroy_plot_window = j_destroy_plot_window;
+    u.window_renamed = j_window_renamed;
+    u.auto_closed = j_auto_closed;
     u.lower_plot_window = j_void;
     u.cput_text = j_cput_text;
     u.get_draw_size = j_get_draw_size;
@@ -633,7 +636,6 @@ const CommandInfo commands[] = {
     {"state", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_state(s); }},
     {"data", nullptr, V, NOT_STEP, data_command},
     {"equations", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_equations(s); }},
-    {"click", nullptr, V, STEP, click_command},
     {"display", nullptr, V, STEP, display_command},
     {"annotation", nullptr, V, STEP, annotation_command},
     {"redraw", nullptr, V, NOT_STEP,
@@ -727,6 +729,7 @@ void buf_commands(std::string &b)
         else BUF_LIT(b, ",\"kind\":\"\"");
         buf_format(b, ",\"step\":{}}}", e.step);
     }
+    xpp::command::append_commands(b);
     BUF_LIT(b, "]");
 }
 
@@ -755,8 +758,7 @@ void buf_command_row(std::string &b, const CommandRow &row)
     buf_str(b, row.description);
     buf_format(b, ",\"kind\":\"{}\"", row.kind);
     BUF_LIT(b, ",\"category\":");
-    for (const CategoryInfo &c : COMMAND_CATEGORIES)
-        if (c.category == row.category) buf_str(b, c.id);
+    buf_str(b, category_id(row.category));
     buf_format(b, ",\"pinnable\":{},\"primary\":{},\"default_keys\":[", row.pinnable, row.primary);
     bool first_key = true;
     for (std::string_view key : row.default_keys) {
@@ -808,11 +810,12 @@ void buf_command_table(std::string &b)
 bool line_is_step(const char *line)
 {
     const CommandInfo *e = command_of(line);
-    return e && e->step;
+    return xpp::command::is_step(line) || (e && e->step);
 }
 
 char line_kind(const char *line)
 {
+    if (const char kind = xpp::command::kind(line)) return kind;
     const CommandInfo *e = command_of(line);
     if (!e) return 0;
     if (e->run == ani_command && e->kind == XPP_KIND_COMPUTE) {
@@ -873,11 +876,27 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     /* A live command is a one-line source; recordings retain their step's
        own Place through player_place. This also locates bad save names. */
     session.reading=xpp::Place{"command",1,0,line};
-    const xpp::Result<> permission = reset_save_decision();
     /* the session this command runs in, the client's in the session list
        (session.h): chosen here, once, and passed down (W47d); only a model
        loaded in its place below replaces it */
     xpp::Session *s = &xpp::client_session();
+    const bool text = *skip_ws(line) != '{' && !session.silent && !xpp::http::active();
+    const bool registered=text || !xpp::command::name(line).empty();
+    xpp::Result<std::string> request=std::string(line),result=std::string{};
+    if (registered) {
+        const xpp::Place place=j_command_place();
+        if(text)request=xpp::command::tokenize(line,place);
+        if(request) {
+            record_begin(request->c_str());
+            result=!s->model().loaded() && xpp::command::is_step(request->c_str()) ?
+                xpp::fail("command","No model is open",place) : xpp::command::run(*s,request->c_str(),place);
+        } else result=std::unexpected<xpp::Error>(request.error());
+        if(!result) {
+            if(session.silent)xpp::log(XPP_LOG_ERROR,"{}\n",result.error().text());
+            else xpp::log_note_error();
+        }
+    } else {
+    const xpp::Result<> permission = reset_save_decision();
     std::string input_error;
     const char *wrong_at = nullptr;
     const char *wrong = js_problem(line, wrong_at);
@@ -926,11 +945,14 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
         s = &switch_model(*s, *req);
         player_model_switched(s != before);
     }
+    }
+    const bool stopped=xpp::job::cancelled();
     if (!s->model().loaded()) {
         /* still the start screen (a cancelled Open model): nothing of a model to send */
         json_flush();
         xpp::job::end();
-        send_simple("idle");
+        if(registered){std::string event=xpp::command::done(request?request->c_str():"{}",result,stopped);send_buf(event);}
+        else send_simple("idle");
         return *s;
     }
     aplot_update(*s);
@@ -955,7 +977,8 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     /* the command is finished; the client may send the next one */
     xpp::job::end();
     send_state(*s);
-    send_simple("idle");
+    if(registered){std::string event=xpp::command::done(request?request->c_str():"{}",result,stopped);send_buf(event);}
+    else send_simple("idle");
     /* Make the next command of a silent model's internal list. */
     if (session.generated) xpp::inbox::generated_advance();
     return *s;
@@ -1196,8 +1219,10 @@ void send_hello(xpp::Session &s)
     buf_add(b, glyphs.data(), glyphs.size());
     BUF_LIT(b, ",\"line_styles\":");
     buf_add(b, line_styles.data(), line_styles.size());
-    buf_format(b, ",\"window_ids\":{{\"plots\":{},\"auto\":{},\"ani\":{},\"aplot\":{}}}", static_cast<int>(s.plot_windows.graph.size()), WIN_AUTO,
-               WIN_ANI, WIN_APLOT);
+    BUF_LIT(b,",\"window_names\":{\"main\":");buf_str(b,s.plot_windows.graph[0].name);
+    BUF_LIT(b,",\"auto\":");buf_str(b,xpp::window_name(s,WIN_AUTO));
+    BUF_LIT(b,",\"ani\":");buf_str(b,xpp::window_name(s,WIN_ANI));
+    BUF_LIT(b,",\"aplot\":");buf_str(b,xpp::window_name(s,WIN_APLOT));BUF_LIT(b,"}");
     /* the windows' key layers (menus.h window_layers) and the other
        commands' kinds: what the page enables while a computation runs */
     BUF_LIT(b, ",\"windows\":{");
@@ -1267,7 +1292,7 @@ void send_hello(xpp::Session &s)
     send_buf(b);
     /* the start screen has no plot window and no state */
     if (m.loaded()) {
-        send_main_window(title);
+        send_main_window(s,title);
         send_state(s);
     }
 }

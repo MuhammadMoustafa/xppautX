@@ -39,7 +39,7 @@ namespace xpp::json {
 /* ---- plot windows ------------------------------------------------------------ */
 
 /* the main plot window, for hello */
-void send_main_window(const char *title) { send_window("create", 1, main_plot_width, main_plot_height, title); }
+void send_main_window(const xpp::Session &s,const char *title) { send_window("create", s.plot_windows.graph[0].name, main_plot_width, main_plot_height, title); }
 
 void j_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h)
 {
@@ -101,38 +101,49 @@ void j_reset_graphics(xpp::Session &s)
     do_axes(s);
 }
 
-void send_window(const char *what, unsigned long id, int w, int h, std::string_view title)
+void send_window(const char *what, std::string_view name, int w, int h, std::string_view title, std::string_view kind)
 {
     std::string b;
-    buf_format(b, "{{\"ev\":\"window\",\"op\":\"{}\",\"win\":{:d},\"w\":{:d},\"h\":{:d},\"title\":",
-               what, id, w, h);
+    buf_format(b,"{{\"ev\":\"window\",\"op\":\"{}\",\"win\":",what);
+    buf_str(b,name);
+    BUF_LIT(b,",\"kind\":");
+    buf_str(b,kind);
+    buf_format(b,",\"w\":{},\"h\":{},\"title\":",w,h);
     buf_str(b, title);
     BUF_LIT(b, "}");
     send_buf(b);
 }
 
-void select_graph(xpp::Session &s, int i)
+void j_window_renamed(xpp::Session &, std::string_view old_name, std::string_view new_name)
 {
-    s.plot_windows.active = i;
-    s.plot_windows.current = &s.plot_windows.graph[i];
-    s.plot_windows.draw_win = s.plot_windows.graph[i].w;
-    get_draw_area(s);
-    send_window("select", s.plot_windows.draw_win, s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt);
+    std::string event="{\"ev\":\"window.renamed\",\"window\":";
+    json_append_string(event,old_name);
+    event+=",\"new_name\":";
+    json_append_string(event,new_name);
+    event+='}';
+    send_buf(event);
+}
+
+void j_auto_closed(xpp::Session &s, std::string_view name)
+{
+    send_window("destroy",name,0,0,"","diagram");
+    diag_forget();
+    auto_data_forget(s);
 }
 
 void j_create_plot_window(xpp::Session &s)
 {
     const int i = s.plot_windows.active;
-    send_window("create", s.plot_windows.graph[i].w, s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt, "");
-    send_window("select", s.plot_windows.draw_win, s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt);
+    send_window("create", xpp::window_name(s,s.plot_windows.graph[i].w), s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt, "");
+    send_window("select", xpp::window_name(s,s.plot_windows.draw_win), s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt);
 }
 
 /* The core removes the window; this callback only tells the page. */
 void j_destroy_plot_window(xpp::Session &s)
 {
-    send_window("destroy",s.plot_windows.draw_win,0,0);
+    send_window("destroy",xpp::window_name(s,s.plot_windows.draw_win),0,0);
     const GRAPH &main=s.plot_windows.graph[0];
-    send_window("select",main.w,main.x11Wid,main.x11Hgt);
+    send_window("select",xpp::window_name(s,main.w),main.x11Wid,main.x11Hgt);
 }
 
 void j_cput_text(xpp::Session &s)
@@ -156,25 +167,15 @@ void j_cput_text(xpp::Session &s)
    errors at the command (or recording step), never the main window fallback. */
 bool read_plot_window(const xpp::Session &s,const char *line,const char *command,int &index)
 {
-    int id=1;
-    if(!get_whole(line,"win",id)||id<1){
-        j_command_error(command,xpp::format("{}: win is a whole number, a positive plot window ID",command));
-        return false;
+    if(js_find(line,"win")){j_command_error(command,"Use window with a name; win is not accepted");return false;}
+    std::string name=s.plot_windows.graph[s.plot_windows.active].name;
+    if(js_find(line,"window") && !get_string(line,"window",name)){
+        j_command_error(command,"window must be text");return false;
     }
-    index=graph_of(s,static_cast<XppWinId>(id));
-    if(!s.plot_windows.graph[index].Use || s.plot_windows.graph[index].w!=static_cast<XppWinId>(id)){
-        j_command_error(command,xpp::format("{}: window {} is not an open plot window",command,id));
-        return false;
-    }
+    const auto target=xpp::find_window(s,name);
+    if(!target || target->kind!=xpp::WindowKind::graph){j_command_error(command,xpp::format("Unknown graph \"{}\"",name));return false;}
+    index=target->index;
     return true;
-}
-
-/* {"cmd":"click","win":w}: the user clicked in plot window w */
-void click_command(xpp::Session &s, const char *line)
-{
-    int win;
-    if(!read_plot_window(s,line,"click",win))return;
-    if(s.plot_windows.active!=win)select_graph(s,win);
 }
 
 /* {"cmd":"annotation","op":OP,...}: the texts, arrows, pointers and markers of the plot windows by their ids, in
@@ -353,7 +354,7 @@ std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
     std::vector<unsigned char> rgb;
     int id = ask_begin(b, "pixels");
     if (film >= 0) buf_format(b, ",\"film\":{:d}", film);
-    else buf_format(b, ",\"win\":{:d}", win);
+    else {BUF_LIT(b,",\"win\":");buf_str(b,xpp::window_name(client(),win));}
     if (!ask_wait(b, id)) return rgb;
     *w = get_int(ask_answer(), "w", 0);
     *h = get_int(ask_answer(), "h", 0);
@@ -384,8 +385,9 @@ namespace {
 void send_film(const xpp::Session &s, const char *what)
 {
     std::string b;
-    buf_format(b, "{{\"ev\":\"film\",\"op\":\"{}\",\"count\":{:d},\"win\":{:d},\"cycles\":{:d},\"delay\":{:d}}}",
-               what, s.kinescope.frames, s.plot_windows.draw_win, s.kinescope.cycles, s.kinescope.frame_ms);
+    buf_format(b,"{{\"ev\":\"film\",\"op\":\"{}\",\"count\":{},\"win\":",what,s.kinescope.frames);
+    buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
+    buf_format(b,",\"cycles\":{},\"delay\":{}}}",s.kinescope.cycles,s.kinescope.frame_ms);
     send_buf(b);
 }
 
@@ -545,7 +547,7 @@ void j_aplot_make(xpp::Session &s, std::string_view name)
     ap.alive = 1;
     ap.plotw = ap.width - 30 - 10 * text_metrics.small_width;
     ap.ploth = ap.height - 55;
-    send_window("create", WIN_APLOT, ap.plotw, ap.ploth, name);
+    send_window("create", xpp::window_name(s,WIN_APLOT), ap.plotw, ap.ploth, name,"array_plot");
 }
 
 void j_aplot_redraw(xpp::Session &s) { send_aplot(s, NULL); }
@@ -611,7 +613,7 @@ void aplot_command(xpp::Session &s, const char *line)
         send_aplot(s, NULL);
     } else if (o == "close") {
         s.array_plot.plot.alive = 0;
-        send_window("destroy", WIN_APLOT, 0, 0);
+        send_window("destroy", xpp::window_name(s,WIN_APLOT), 0, 0,"","array_plot");
     }
 }
 

@@ -32,7 +32,7 @@ type Axes = Pick<View, 'xlo' | 'xhi' | 'ylo' | 'yhi' | 'three'>;
 
 /** the core's axes (Viewaxes, Window/Zoom) of window `win`: from `plots`, else
     from `state.view` when that is the window's */
-function coreView(info: PlotWindowInfo | null, view: View | undefined, win: number): Ranges | null {
+function coreView(info: PlotWindowInfo | null, view: View | undefined, win: string): Ranges | null {
   const a: Axes | null = info ?? (view && view.win === win ? view : null);
   if (!a || a.three) return null;
   if (!(a.xlo < a.xhi && a.ylo < a.yhi)) return null;
@@ -57,14 +57,14 @@ function clearHover(session: Session): void {
 }
 
 /** the plot mode waiting for the user on window `win`, if any */
-function activePick(session: Session, win: number | null): PickState | null {
+function activePick(session: Session, win: string | null): PickState | null {
   const p = session.store.getState().pick;
   return p && !p.waiting && p.win === win ? p : null;
 }
 
 /** pointer events of a plot mode (plot/interactions.ts) as moves and answers
     (the AUTO view's too, for its window) */
-export function pickSink(session: Session, win: () => number | null, chart: () => Pick<Chart, 'ranges'> | null): PickSink {
+export function pickSink(session: Session, win: () => string | null, chart: () => Pick<Chart, 'ranges'> | null): PickSink {
   const drag = (what: 'down' | 'move' | 'up', at: Frac) => {
     const c = chart();
     if (!c) return;
@@ -172,7 +172,7 @@ export function PickBar({pick}: {pick: PickState}) {
 }
 
 interface Props {
-  win: number;
+  win: string;
   dark: boolean;
   /** this window's tab is the one shown */
   shown: boolean;
@@ -367,7 +367,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   );
   const hovered = trace && (trace.run < 0 ? model : runs[trace.run])?.curves[trace.curve];
   const panel = tabbed
-    ? {role: 'tabpanel' as const, id: `plot-panel-${win}`, 'aria-labelledby': `plot-tab-${win}`}
+    ? {role: 'tabpanel' as const, id: `plot-panel-${encodeURIComponent(win)}`, 'aria-labelledby': `plot-tab-${encodeURIComponent(win)}`}
     : {'aria-label': 'Plot'};
 
   return (

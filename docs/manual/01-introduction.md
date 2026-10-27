@@ -335,3 +335,12 @@ on the project's [issue tracker](https://github.com/MuhammadMoustafa/xppautX/iss
 
 See [docs/manual/README.md](README.md) for the complete chapter list and
 the menu/dialog-to-section map.
+
+## Server command help
+
+In a `--server` session, type `help` to list commands on the typed registry,
+or `help help` for one command's arguments and result. The JSON equivalents
+are `{"cmd":"help"}` and `{"cmd":"help","name":"help"}`.
+A registry request finishes with a `done` event; existing commands still
+finish with `idle`. The registry includes named plot-window management; use `help window.rename`
+for the rename command. See the [protocol reference](../protocol.md#typed-command-registry-w353-stage-1).

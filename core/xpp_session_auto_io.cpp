@@ -54,7 +54,7 @@ Result<> add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, st
     views.active = s.auto_state.active_view;
     for (std::size_t k = 0; k < s.auto_state.views.size(); k++) {
         const AutoSettingsSet a = auto_settings_view(s, static_cast<int>(k));
-        views.views.push_back({*a.plot, a.var, a.par1, a.par2, a.range, s.auto_state.views[k].zoom});
+        views.views.push_back({*a.plot, a.var, a.par1, a.par2, a.range, s.auto_state.views[k].zoom,s.auto_state.views[k].name});
     }
     entries.push_back({named(prefix, views_member), views_text(views)});
     if (!s.auto_state.diag_flag) return {};
@@ -88,6 +88,7 @@ void restore_views(xpp::Session &s, const SavedViews &saved)
         ax.ymin = v.range[2];
         ax.ymax = v.range[3];
         s.auto_state.views[k].zoom = v.zoom;
+        s.auto_state.views[k].name=v.name;
     }
     s.auto_state.active_view = saved.active;
 }

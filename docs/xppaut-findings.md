@@ -121,7 +121,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [88](#88-a-table-file-value-that-is-not-a-number-enters-the-table-as-zero) | Tables | a table file value that is not a number is read as 0, or nan and inf enter the table unchecked | [W505](https://github.com/MuhammadMoustafa/xppautX/issues/569) |
 | [89](#89-the-diamond-marker-is-drawn-off-centre) | Graphics | the diamond marker is drawn centred 8 units right of and below the point it marks | [W513](https://github.com/MuhammadMoustafa/xppautX/issues/577) |
 | [90](#90-the-plots-texts-arrows-pointers-and-markers-stop-at-50-and-400-without-a-word) | Limits | a plot holds 50 texts and 400 arrows, pointers and markers, and the next is dropped without a word | [W513](https://github.com/MuhammadMoustafa/xppautX/issues/577) |
-| [89](#89-a-refused-animation-file-discards-the-working-animation) | Animation | frees the old commands before reading a replacement, so a bad file loses the working animation | [W507](https://github.com/MuhammadMoustafa/xppautX/issues/571) |
+| [91](#91-a-refused-animation-file-discards-the-working-animation) | Animation | frees the old commands before reading a replacement, so a bad file loses the working animation | [W507](https://github.com/MuhammadMoustafa/xppautX/issues/571) |
 
 ## 1. Model options
 
@@ -1972,7 +1972,8 @@ not told. The `marker(S)` command, which adds one marker per chosen row, hits th
 vectors sized from what is added; a session file or a client may add up to 100000 of each, and one more is an error naming the limit.
 Evidence: tests/test_labels.cpp and servercheck's W513 cases add 61 texts and 452 arrows and markers. Card W513
 ([#577](https://github.com/MuhammadMoustafa/xppautX/issues/577)).
-## 89. A refused animation file discards the working animation
+
+## 91. A refused animation file discards the working animation
 
 XPPAUT selects `vcr.file` before the read
 ([aniparse.c:1182–1189](../reference/xppaut-8.0/aniparse.c#L1182),

@@ -59,8 +59,8 @@ export interface HelloEvent {
   line_styles: LineGeometry;
   /** the marker glyphs and arrow head the pictures draw for texts, arrows, pointers and markers (core/grobs.h; plot/marks.ts) */
   annotation_glyphs: AnnotationGlyphs;
-  /** auxiliary IDs; plots is the initial slot count, not a maximum; `plots.windows` lists actual IDs */
-  window_ids: {plots: number; auto: number; ani: number; aplot: number};
+  /** Initial surface names; plots and diagram views subsequently carry their exact names. */
+  window_names: {main: string; auto: string; ani: string; aplot: string};
   lists: string[][];
   userbuttons: string[];
   /** the colour scales the core has, by name (the array plot's choice) */
@@ -144,7 +144,7 @@ export interface KeymapEvent {
 }
 
 export interface View {
-  win: number;
+  win: string;
   left: number; right: number; top: number; bottom: number;
   xlo: number; xhi: number; ylo: number; yhi: number;
   three: number;
@@ -172,7 +172,7 @@ export interface StateEvent {
   view: View;
   rows: number;
   menu: number;
-  win: number;
+  win: string;
   session?: {file?: string; set?: string; auto?: string};
   /** the values (parameters, initial conditions, the numerics' time span, method and tolerances, the run's data) differ from
       those last saved, opened or loaded: the title's unsaved dot (docs/protocol.md "state") */
@@ -256,7 +256,7 @@ export interface SeriesEvent {
   ev: 'series';
   op?: undefined;
   enc?: 'f32';
-  win: number;
+  win: string;
   rows: number;
   three: number;
   xlabel: string;
@@ -277,7 +277,7 @@ export interface SeriesAppendEvent {
   ev: 'series';
   op: 'append';
   enc?: 'f32';
-  win: number;
+  win: string;
   from: number;
   /** rows after this append */
   rows: number;
@@ -290,15 +290,16 @@ export interface SeriesAppendEvent {
 export interface SeriesEndEvent {
   ev: 'series';
   op: 'end';
-  win: number;
+  win: string;
   rows: number;
   version: number;
 }
 
 /** one plot window as `plots` describes it */
 export interface PlotWindowInfo {
-  win: number;
-  /** "W vs V" */
+  redraw_mode?: string;
+  win: string;
+  /** The exact user-assigned window name. */
   title: string;
   three: number;
   /** the window's axes (Viewaxes, Window/Zoom); in 3D the projected view's */
@@ -324,7 +325,7 @@ export interface PlotWindowInfo {
     all (`clear`) or the `drop` oldest, then add these; `erased`: Erase hid the current run */
 export interface RunsEvent {
   ev: 'runs';
-  win: number;
+  win: string;
   enc?: 'f32';
   erased: number;
   clear: number;
@@ -346,15 +347,16 @@ export interface AutoViewEvent {
   ev: 'autoview';
   earlier: number;
   show?: number;
-  active?: number;
+  active?: string;
   /** one per view; a `zoom` absent while a change of the page's is on its way (session.ts) */
-  views?: {zoom?: {x: [number, number] | null; y: [number, number] | null}}[];
+  views?: {name: string; zoom?: {x: [number, number] | null; y: [number, number] | null}}[];
 }
 
 /** every plot window and the active one */
 export interface PlotsEvent {
   ev: 'plots';
-  active: number;
+  active: string;
+  simultaneous_plot?: boolean;
   windows: PlotWindowInfo[];
 }
 
@@ -362,7 +364,7 @@ export interface PlotsEvent {
     [x1,y1,x2,y2,...] in plot coordinates, empty when the window shows none */
 export interface NullclinesEvent {
   ev: 'nullclines';
-  win: number;
+  win: string;
   enc?: 'f32';
   /** the variables whose derivative is 0 along the x- and y-nullcline */
   xname: string;
@@ -379,7 +381,7 @@ export interface NullclinesEvent {
 /** a plot window's direction field and Flow trajectories */
 export interface DfieldEvent {
   ev: 'dfield';
-  win: number;
+  win: string;
   enc?: 'f32';
   /** 1: arrows of one length (Scaled Dir.Fld); 0: lengths follow the speed (Direct field) */
   scaled: number;
@@ -403,7 +405,7 @@ export interface DfieldEvent {
     coordinates; each list empty when the window shows none */
 export interface MarksEvent {
   ev: 'marks';
-  win: number;
+  win: string;
   enc?: 'f32';
   /** the symbol XPP draws for the stability: stable circle, unstable box, saddle triangle */
   equilibria: {x: number; y: number; type: 'stable' | 'unstable' | 'saddle'; symbol: string}[];
@@ -457,7 +459,7 @@ export interface AskEvent {
   dirs?: string[];
   files?: string[];
   /** the window the ask is about (mouse, rubber, drag, grab; a `pixels` ask's window to render) */
-  win?: number;
+  win?: string;
   /** a `pixels` ask for a kinescope frame instead of a window */
   film?: number;
   [k: string]: unknown;
@@ -639,7 +641,7 @@ export interface FilmEvent {
   ev: 'film';
   op: 'capture' | 'reset' | 'play' | 'autoplay';
   count: number;
-  win: number;
+  win: string;
   cycles: number;
   delay: number;
 }
@@ -680,8 +682,10 @@ export type XppEvent =
   /** A user save completed (false for a declined or failed save). */
   | {ev: 'saved'; saved: boolean; file: string}
   | {ev: 'idle'}
+  | {ev: 'done'; id?: string; status: 'ok' | 'error' | 'stopped'; result?: Record<string,unknown>; error?: string; file?: string; line?: number; col?: number; source?: string; field?: string}
+  | {ev: 'window.renamed'; window: string; new_name: string}
   /** Erase blanked plot window `win`; Redraw drew its current data again */
-  | {ev: 'erase' | 'redraw'; win: number}
+  | {ev: 'erase' | 'redraw'; win: string}
   | {ev: 'progress'; n: number; of: number}
   /** Full solver doubles for all states, independently of plot columns. */
   | {ev: 'liveState'; time: number; now: number[]; rates: (number | null)[]}
@@ -689,7 +693,7 @@ export type XppEvent =
   | {ev: 'computing'}
   | {ev: 'title'; text: string}
   | {ev: 'menu'; which: number}
-  | {ev: 'window'; op: 'create' | 'select' | 'destroy'; win: number; w: number; h: number; title?: string}
+  | {ev: 'window'; kind: 'graph' | 'diagram' | 'animation' | 'array_plot'; op: 'create' | 'select' | 'destroy'; win: string; w: number; h: number; title?: string}
   | {ev: 'log'; text: string}
   | {ev: 'exit'; code: number}
   | {ev: 'bye'}

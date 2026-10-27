@@ -18,9 +18,9 @@
 import type {AutoViewEvent, CoreColor, HelloEvent} from '../protocol/types';
 import {viewportOf, type Viewport} from './plots';
 
-/** the AUTO diagram's window number in the protocol (hello.window_ids.auto), null before hello */
-export function autoWindow(s: {hello: HelloEvent | null}): number | null {
-  return s.hello?.window_ids.auto ?? null;
+/** the active AUTO view's name, null before hello */
+export function autoWindow(s: {hello: HelloEvent | null;diagram:DiagramState}): string | null {
+  return s.hello?s.diagram.views[s.diagram.active].name:null;
 }
 
 /** what a view of the diagram plots up its side against the main parameter (W381 question 12) */
@@ -66,11 +66,11 @@ export interface DiagramRun {
 }
 
 export type DiagramEvent =
-  | ({ev: 'diagram'; op: 'axes'; view: number} & DiagramAxes)
-  | ({ev: 'diagram'; op: 'reset'; view: number; keep: number} & DiagramAxes)
-  | {ev: 'diagram'; op: 'add'; view: number; from: number; runs: DiagramRun[]}
+  | ({ev: 'diagram'; op: 'axes'; view: string} & DiagramAxes)
+  | ({ev: 'diagram'; op: 'reset'; view: string; keep: number} & DiagramAxes)
+  | {ev: 'diagram'; op: 'add'; view: string; from: number; runs: DiagramRun[]}
   /** the diagram has `n` views now (W50) */
-  | {ev: 'diagram'; op: 'views'; n: number};
+  | {ev: 'diagram'; op: 'views'; n: number; names: string[]};
 
 /** the points, one column per field, point i across them (NaN for null).
     A run's `add`s put their points after the last ones in place, as
@@ -188,6 +188,7 @@ export interface DiagramHover {
 
 /** one view of the diagram (W50): its points at its own axes, and the user's zoom of them */
 export interface DiagramView {
+  name: string;
   axes: DiagramAxes | null;
   points: DiagramPoints;
   /** in point order */
@@ -274,7 +275,7 @@ function noPoints(): DiagramPoints {
 const HOME: Viewport = {x: null, y: null};
 
 function emptyView(): DiagramView {
-  return {axes: null, points: noPoints(), labels: [], viewport: HOME};
+  return {name: 'diagram_1',axes: null, points: noPoints(), labels: [], viewport: HOME};
 }
 
 /** a view with nothing yet (a selector's answer for a view that has just gone) */
@@ -415,12 +416,13 @@ function resized(views: DiagramView[], n: number): DiagramView[] {
 function onEvent(s: DiagramState, ev: DiagramEvent): DiagramState {
   const events = s.events + 1;
   if (ev.op === 'views') {
-    const views = resized(s.views, ev.n);
+    const views = ev.names.map(name => s.views.find(v=>v.name===name) ?? {...emptyView(),name});
     const active = Math.min(s.active, views.length - 1);
     const hover = s.hover && s.hover.view < views.length ? s.hover : null;
     return {...s, views, active, hover, events};
   }
-  const k = Math.max(0, ev.view);
+  const k=s.views.findIndex(v=>v.name===ev.view);
+  if(k<0)return {...s,outOfStep:true};
   const held = s.views[k]?.points;
   switch (ev.op) {
     case 'axes':
@@ -494,9 +496,10 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
       const zooms = a.ev.views ?? [];
       let views = zooms.length > t.views.length ? resized(t.views, zooms.length) : t.views;
       zooms.forEach((z, k) => {
-        if (z.zoom) views = withView(views, k, v => setViewport(v, viewportOf(z.zoom!)));
+        views=withView(views,k,v=>{const next=z.zoom?setViewport(v,viewportOf(z.zoom)):v;return next.name===z.name?next:{...next,name:z.name};});
       });
-      const active = a.ev.active !== undefined && a.ev.active < views.length ? a.ev.active : t.active;
+      const selected=views.findIndex(v=>v.name===a.ev.active);
+      const active=selected>=0?selected:t.active;
       return {...t, views, active};
     }
     case 'showEarlier':

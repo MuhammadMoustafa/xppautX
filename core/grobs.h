@@ -137,7 +137,5 @@ void add_markers(Session &s);
 void add_pntarr(Session &s, int type);
 void edit_object_com(Session &s, int com);
 void do_gr_objs_com(Session &s, int com);
-void do_windows_com(Session &s, int c);
-void set_restore(Session &s, int flag);
 
 } // namespace xpp

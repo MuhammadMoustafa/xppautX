@@ -141,7 +141,7 @@ test('W389: a busy server (503 with the error event) is said with the error nami
     const t = new HttpTransport('?t=x', '/');
     const failed: string[] = [];
     t.open(() => {}, () => {}, text => failed.push(text));
-    t.send({cmd: 'display', win: 1, id: 3});
+    t.send({cmd: 'display', win: 'graph_1', id: 3});
     for (let i = 0; i < 3; i++) await settle();
     assert.deepEqual(failed, [busy.error]);
   } finally {

@@ -4,6 +4,8 @@
 #include "snapx.h"
 #include "jacobian.h"
 #include "auto_state.h"
+#include "json_reader.h"
+#include "many_pops.h"
 
 #include <algorithm>
 #include <array>
@@ -143,11 +145,12 @@ std::string views_text(const SavedViews &v)
 {
     std::string o;
     for (const SavedView &w : v.views) {
-        o += xpp::format("view {} {} {} {}", auto_projection_name(w.plot), name_text(w.var), name_text(w.par1), name_text(w.par2));
+        o += "view ";xpp::json_append_string(o,w.name);o+=' ';
+        o += xpp::format("{} {} {} {}", auto_projection_name(w.plot), name_text(w.var), name_text(w.par1), name_text(w.par2));
         for (double r : w.range) o += ' ' + xpp::number(r);
         o += ' ' + range_text(w.zoom.x) + ' ' + range_text(w.zoom.y) + '\n';
     }
-    o += xpp::format("active {}\n", v.active);
+    o+="active ";xpp::json_append_string(o,v.views[v.active].name);o+='\n';
     return o;
 }
 
@@ -157,20 +160,32 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file)
         ViewsRead r;
         SavedViews &v = r.views;
         int active_line = 0;
+        std::string active_name;
         while (!l.at_end()) {
             const std::string_view line = l.next();
             if (line.empty()) continue;
-            const std::vector<std::string_view> w = split_fields(line, ' ');
-            if (w[0] == "active" && w.size() == 2) {
+            const bool active=line.starts_with("active ");
+            if(!active && !line.starts_with("view "))l.fail("expected a view or active line");
+            const std::string tail(line.substr(active?7:5));
+            const char *quoted=json::skip_ws(tail.c_str()),*end=json::skip_value(quoted);
+            std::string name;
+            if(!xpp::json_decode_string(quoted,name,std::string::npos,true) || !json::js_valid(std::string(quoted,end).c_str()) || !xpp::window_name_problem(name).empty())
+                l.fail("invalid quoted window name");
+            std::vector<std::string_view> w=split_fields(xpp::trim_blanks(end), ' ');
+            if(w.size()==1 && w[0].empty())w.clear();
+            w.insert(w.begin(),active?"active":"view");
+            if (active && w.size() == 1) {
                 if (active_line) l.fail("a second active line");
-                if (!xpp::parse_int(w[1], v.active)) l.fail(xpp::format("\"{}\" is not a whole number", w[1]));
+                active_name=name;
                 active_line = l.line();
                 continue;
             }
             if (w[0] != "view" || w.size() != 11)
-                l.fail("not \"view PLOT VAR PAR1 PAR2 XMIN XMAX YMIN YMAX ZOOMX ZOOMY\" nor \"active K\"");
+                l.fail("not view \"NAME\" PLOT VAR PAR1 PAR2 XMIN XMAX YMIN YMAX ZOOMX ZOOMY nor active \"NAME\"");
             if (v.views.size() >= saved_views_limit) l.fail("too many AUTO views");
+            for(const auto &view:v.views)if(view.name==name)l.fail("duplicate window name");
             SavedView &s = v.views.emplace_back();
+            s.name=name;
             r.lines.push_back(l.line());
             const std::optional<AutoProjection> plot = auto_projection_from_name(w[1]);
             if (!plot) l.fail(auto_projection_unknown(w[1]));
@@ -186,8 +201,9 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file)
         }
         if (v.views.empty()) l.fail(l.line() + 1, "the file ends here, without a view");
         if (!active_line) l.fail(l.line() + 1, "the file ends here, without its active line");
-        if (v.active < 0 || v.active >= static_cast<int>(v.views.size()))
-            l.fail(active_line, xpp::format("view {} is not one of the {} views", v.active, v.views.size()));
+        const auto selected=std::ranges::find(v.views,active_name,&SavedView::name);
+        if(selected==v.views.end())l.fail(active_line,xpp::format("Unknown window \"{}\"",active_name));
+        v.active=static_cast<int>(selected-v.views.begin());
         return r;
     });
 }

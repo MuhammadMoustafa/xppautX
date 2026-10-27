@@ -5,6 +5,7 @@
 #include <map>
 #include "ui_json_internal.h"
 #include "session.h"
+#include "many_pops.h"
 #include "xpp_job.h"
 #include "menus.h"
 #include "mykeydef.h"
@@ -76,6 +77,7 @@ ClientDiagramView &active_data(const xpp::Session &s) { return view_data(s.auto_
 /* the client has nothing: a new window, or one it no longer holds */
 void diag_forget(void)
 {
+    session.client_view_names.clear();
     session.client_diagram.assign(1, ClientDiagramView());
     session.client_views = 1;
     session.grab_key_after = 0;
@@ -174,7 +176,7 @@ namespace {
 void diag_num(std::string &b, double v) { buf_num(b, v, 7); }
 
 /* an event's start: its op and view */
-void diag_head(std::string &b, const char *op, int v) { buf_format(b, "{{\"ev\":\"diagram\",\"op\":\"{}\",\"view\":{:d}", op, v); }
+void diag_head(std::string &b,const char *op,const xpp::Session &s,int v){buf_format(b,"{{\"ev\":\"diagram\",\"op\":\"{}\",\"view\":",op);buf_str(b,s.auto_state.views[v].name);}
 
 void diag_axes(std::string &b, const ClientDiagramView &d)
 {
@@ -285,7 +287,7 @@ void diag_flush_view(const xpp::Session &s, int v, ClientDiagramView &d, int fin
         else return; /* still replaying: nothing is known yet */
     }
     if (d.dirty < d.client) {
-        diag_head(b, "reset", v);
+        diag_head(b, "reset", s,v);
         buf_format(b, ",\"keep\":{:d}", d.dirty);
         diag_axes(b, d);
         BUF_LIT(b, "}");
@@ -294,7 +296,7 @@ void diag_flush_view(const xpp::Session &s, int v, ClientDiagramView &d, int fin
         d.client = d.dirty;
         d.axes = false;
     } else if (d.axes) {
-        diag_head(b, "axes", v);
+        diag_head(b, "axes", s,v);
         diag_axes(b, d);
         BUF_LIT(b, "}");
         out_line(b.data(), b.size());
@@ -304,7 +306,7 @@ void diag_flush_view(const xpp::Session &s, int v, ClientDiagramView &d, int fin
     /* the points, in events of some diagram_event_bytes */
     while (d.client < d.n) {
         int i = d.client, j;
-        diag_head(b, "add", v);
+        diag_head(b, "add", s,v);
         buf_format(b, ",\"from\":{:d},\"runs\":[", d.client);
         while (i < d.n && b.size() < diagram_event_bytes) {
             for (j = i; j + 1 < d.n && j - i < diagram_run_points && diag_joins(&d.dg[static_cast<std::size_t>(j)], &d.dg[static_cast<std::size_t>(j + 1)]); j++) {
@@ -329,10 +331,13 @@ void diag_flush(const xpp::Session &s, int final)
 {
     if (!session.diagram_subscribed) return;
     const int n = static_cast<int>(s.auto_state.views.size());
-    if (n != session.client_views && s.auto_state.bifur.exist) {
+    std::vector<std::string> names;for(const auto &view:s.auto_state.views)names.push_back(view.name);
+    if (names != session.client_view_names && s.auto_state.bifur.exist) {
         /* the lists of views no longer there go on both sides; a new one
            starts empty on both */
-        const std::string e = xpp::format("{{\"ev\":\"diagram\",\"op\":\"views\",\"n\":{:d}}}", n);
+        std::string e=xpp::format("{{\"ev\":\"diagram\",\"op\":\"views\",\"n\":{},\"names\":[",n);
+        for(std::size_t k=0;k<names.size();++k){if(k)e+=',';xpp::json_append_string(e,names[k]);}e+="]}";
+        session.client_view_names=names;
         out_line(e.data(), e.size());
         try {
             session.client_diagram.resize(static_cast<std::size_t>(n));
@@ -390,10 +395,12 @@ std::string auto_view_event_line(const xpp::Session &s)
     int earlier = v.earlier > diagram_count(s.diagram) ? diagram_count(s.diagram) : v.earlier;
     bool show_earlier = earlier == 0 ? false : v.show_earlier;
     std::string o = "{\"ev\":\"autoview\",\"earlier\":" + std::to_string(earlier) + ",\"show\":" +
-                    (show_earlier ? "1" : "0") + ",\"active\":" + std::to_string(s.auto_state.active_view) + ",\"views\":[";
+                    (show_earlier ? "1" : "0") + ",\"active\":";
+    xpp::json_append_string(o,s.auto_state.views[s.auto_state.active_view].name);o+=",\"views\":[";
     bool first = true;
     for (const AutoDiagramView &w : s.auto_state.views) {
-        o += first ? "{\"zoom\":{\"x\":" : ",{\"zoom\":{\"x\":";
+        if(!first)o+=',';
+        o+="{\"name\":";xpp::json_append_string(o,w.name);o+=",\"zoom\":{\"x\":";
         first = false;
         av_range(o, w.zoom.x);
         o += ",\"y\":";
@@ -473,7 +480,7 @@ void j_auto_make_window(xpp::Session &s, std::string_view wname, std::string_vie
     s.auto_state.bifur.hinttxt = "hint";
     diag_forget();      /* a new window has no data */
     auto_data_forget(s); /* nor an info strip or a stability circle */
-    send_window("create", WIN_AUTO, s.auto_state.bifur.wid + 12 * text_metrics.small_width, s.auto_state.bifur.hgt + 4 * text_metrics.small_height, wname);
+    send_window("create",xpp::window_name(s,WIN_AUTO), s.auto_state.bifur.wid + 12 * text_metrics.small_width, s.auto_state.bifur.hgt + 4 * text_metrics.small_height, wname,"diagram");
     draw_bif_axes(s);
 }
 
@@ -506,7 +513,7 @@ int j_auto_grab_event(xpp::Session &s, int *x, int *y)
         return id;
     }
     id = ask_begin(b, "grab");
-    buf_format(b, ",\"win\":{:d}", WIN_AUTO);
+    BUF_LIT(b,",\"win\":");buf_str(b,xpp::window_name(s,WIN_AUTO));
     if (!ask_wait(b, id)) return ESC;
     /* a point of the diagram data by its index: the cursor goes to that
        point's entry (docs/protocol.md "Grab by point"); one the data do not
@@ -558,7 +565,7 @@ namespace {
 
 /* the "numerics", "axes" and "marks" of {"cmd":"auto","op":"set",...}
    into s; 0 with why when one is not what docs/protocol.md says */
-int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
+int read_auto_set(const xpp::Session &session,const char *line, AutoSettingsSet &s, std::string &why)
 {
     const char *num = js_find(line, "numerics"), *axes = js_find(line, "axes"),
                *marks = js_find(line, "marks"), *v;
@@ -589,8 +596,8 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
         s.has_num[i] = 1;
     }
     if ((v = js_find(line, "threads")) != NULL) {
-        double z;
         std::string word;
+        double z;
         if (js_string(v, word) && word == xpp::prefs::AUTO_THREADS_WORD) s.threads = xpp::prefs::AUTO_THREADS_AUTO;
         else if (js_number(v, &z) && z >= 1 && z <= INT_MAX && z == std::floor(z)) s.threads = static_cast<unsigned>(z);
         else {
@@ -604,7 +611,6 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
     }
     if (axes && *axes == '{') {
         static const char *const range[4] = {"xmin", "xmax", "ymin", "ymax"};
-        double z;
         if (js_find(axes, "plot") != NULL) {
             std::string word;
             if (!get_string(axes, "plot", word) || !(s.plot = auto_projection_from_name(word))) {
@@ -625,11 +631,10 @@ int read_auto_set(const char *line, AutoSettingsSet &s, std::string &why)
         }
         s.fit = get_num(axes, "fit", 0) != 0;
         if ((v = js_find(axes, "view")) != NULL) {
-            if (!js_number(v, &z) || z < 0 || z > INT_MAX || z != std::floor(z)) {
-                why = "the view must be a view's number";
-                return 0;
-            }
-            s.view = static_cast<int>(z);
+            std::string name;
+            const auto target=js_string(v,name)?xpp::find_window(session,name):std::nullopt;
+            if(!target || target->kind!=xpp::WindowKind::diagram){why="view must name an open diagram";return 0;}
+            s.view=target->index;
         }
     }
     if (marks && *marks != '[') {
@@ -662,7 +667,7 @@ void auto_set_command(xpp::Session &s, const char *line)
 {
     AutoSettingsSet set;
     std::string why;
-    if (!read_auto_set(line, set, why) || auto_settings_apply(s, set, why) != 0)
+    if (!read_auto_set(s,line, set, why) || auto_settings_apply(s, set, why) != 0)
         j_command_error("auto", xpp::format("AUTO settings: {}", why));
 }
 
@@ -705,7 +710,11 @@ void auto_command(xpp::Session &s, const char *line)
            `view` names another), and (with `show`) whether the branches
            before Clear are drawn */
         xpp::AutoView &v = s.auto_view;
-        const int k = get_int(line, "view", s.auto_state.active_view);
+        int k=s.auto_state.active_view;
+        if(const char *value=js_find(line,"view")){
+            std::string name;const auto target=js_string(value,name)?xpp::find_window(s,name):std::nullopt;
+            if(!target || target->kind!=xpp::WindowKind::diagram){j_command_error("auto","view must name an open diagram");return;}k=target->index;
+        }
         if (k < 0 || k >= static_cast<int>(s.auto_state.views.size())) {
             j_command_error("auto", xpp::format("auto display: no view {}", k));
             return;
@@ -721,16 +730,8 @@ void auto_command(xpp::Session &s, const char *line)
     }
     else if (o == "view") {
         /* the views of the diagram (W50): a new one, one closed, the active one */
-        const int n = static_cast<int>(s.auto_state.views.size());
         if (js_find(line, "new")) auto_new_view(s);
-        else if (js_find(line, "close")) {
-            const int k = get_int(line, "close", -1);
-            if (k < 0 || k >= n) j_command_error("auto", xpp::format("auto view: no view {}", k));
-            else if (!auto_close_view(s, k)) j_command_error("auto", "auto view: the last view stays open");
-        } else if (js_find(line, "active")) {
-            const int k = get_int(line, "active", -1);
-            if (!auto_activate_view(s, k)) j_command_error("auto", xpp::format("auto view: no view {}", k));
-        } else j_command_error("auto", "auto view: give new, close or active");
+        else j_command_error("auto","Use window.select or window.close with a window name");
     }
     else if (o == "point") {
         /* in the diagram's quantities, or a pixel of window 101 */
@@ -738,15 +739,6 @@ void auto_command(xpp::Session &s, const char *line)
         if (!s.auto_state.bifur.exist) return;
         if (jx && jy) auto_point_xy(s, get_num(line, "xd", 0), get_num(line, "yd", 0));
         else auto_motion_xy(s, get_int(line, "x", 0), get_int(line, "y", 0));
-    }
-    else if (o == "close") {
-        if (!s.auto_state.bifur.exist) return;
-        s.auto_state.bifur.exist = 0; /* auto_x11.c auto_kill; File/Auto opens it again */
-        send_window("destroy", WIN_AUTO, 0, 0);
-        diag_forget();
-        auto_data_forget(s);
-        s.auto_view = xpp::AutoView();
-        for (AutoDiagramView &w : s.auto_state.views) w.zoom = xpp::Zoom(); /* the views stay, shown whole */
     }
     else j_command_error("auto", xpp::format("Unknown auto op {}", o));
 }

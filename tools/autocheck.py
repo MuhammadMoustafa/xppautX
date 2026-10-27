@@ -112,7 +112,7 @@ def grab_hopf(s):
 class Diagram:
     """a view of the AUTO diagram (view 0 unless named) as the client keeps it from "diagram" events"""
 
-    def __init__(self, view=0):
+    def __init__(self, view='diagram_1'):
         self.axes, self.pts, self.view = None, [], view
 
     def apply(self, evs):
@@ -494,8 +494,8 @@ def section_abort():
     run_periodic(s)
     s.collect(is_point, timeout=60 * SLOW)
     t = s.send(cmd='abort')
-    s.send(cmd='auto', op='close')
-    evs, e = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101 and e.get('op') == 'destroy',
+    s.send(cmd='window.close', window='diagram_1')
+    evs, e = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1' and e.get('op') == 'destroy',
                        timeout=120 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
     check('Abort then Close during a run closes the AUTO window', e is not None, '%.2f s' % took)
@@ -1000,7 +1000,7 @@ def section_session():
     check("session load restores the first session's parameters",
           bool(pars1) and pars1 == pars2, 'saved %s loaded %s' % (pars1, pars2))
     check('session load opens the AUTO window',
-          any(x.get('ev') == 'window' and x.get('win') == 101 for x in evs))
+          any(x.get('ev') == 'window' and x.get('win') == 'diagram_1' for x in evs))
     check('session load sends the diagram', any(is_point(e) for e in evs))
 
     # grab the first label and Run extending the branch, as section_sessions
@@ -1111,11 +1111,11 @@ def section_sessiondiagram():
     # W50: a second view of the diagram, the period, the first active again: an .snapx keeps its views
     s.send(cmd='auto', op='view', new=1)
     evs += s.collect(is_idle)[0]
-    s.send(cmd='auto', op='set', axes={'view': 1, 'plot': 'period', 'fit': True})
+    s.send(cmd='auto', op='set', axes={'view': 'diagram_2', 'plot': 'period', 'fit': True})
     evs += s.collect(is_idle)[0]
-    s.send(cmd='auto', op='view', active=0)
+    s.send(cmd='window.select', window='diagram_1')
     evs += s.collect(is_idle)[0]
-    view1 = Diagram(1).apply(evs)
+    view1 = Diagram('diagram_2').apply(evs)
     # an old name asked for: the .snapx beside it
     got = save_diagram(s, 'd1', 'd1.snapx')
     check('sessiondiagram: Save diagram writes d1.snapx, a zip of the files listed, the model in it',
@@ -1132,7 +1132,7 @@ def section_sessiondiagram():
           '%d rows' % len(rows))
     check('sessiondiagram: solutions.s holds the orbits', len(got.get('auto/solutions.s', '')) > 1000, str(len(got.get('auto/solutions.s', ''))))
     check('sessiondiagram: views.txt holds the two views of the diagram, the first active',
-          re.fullmatch(r'view maximum_and_minimum V iapp \S+( \S+){6}\nview period V iapp \S+( \S+){6}\nactive 0\n', got.get('auto/views.txt', '')) is not None,
+          re.fullmatch(r'view "diagram_1" maximum_and_minimum V iapp \S+( \S+){6}\nview "diagram_2" period V iapp \S+( \S+){6}\nactive "diagram_1"\n', got.get('auto/views.txt', '')) is not None,
           got.get('auto/views.txt', '')[:300])
     d1 = os.path.join(scratch, 'd1.snapx')
     if os.path.exists(os.path.join(s.run, 'd1.snapx')):
@@ -1153,7 +1153,7 @@ def section_sessiondiagram():
     rows_before = last_state(evs)['rows'] if last_state(evs) else None
     evs = load_diagram(s, d1)
     dg2 = Diagram().apply(evs).pts
-    v1 = Diagram(1).apply(evs)
+    v1 = Diagram('diagram_2').apply(evs)
     check('sessiondiagram: Load diagram in a new server gives its two views, the second the period, its points exactly',
           view1.pts and v1.pts == view1.pts and v1.axes and v1.axes['plot'] == 'period' and v1.axes['ylabel'] == 'Period',
           '%d vs %d points, %s' % (len(v1.pts), len(view1.pts), v1.axes))
@@ -1325,7 +1325,7 @@ def section_sessiondiagram():
             ('badncol.snapx', lambda m: m.__setitem__('auto/settings.txt', re.sub(rb'(?m)^ncol .*$', b'ncol 9', m['auto/settings.txt'])),
              'badncol.snapx/auto/settings.txt:4: Ncol must be'),
             ('lastviews.snapx', lambda m: m.__setitem__('auto/views.txt', m['auto/views.txt'].rstrip(b'\n').rsplit(b'\n', 1)[0] + b'\nactive x\n'),
-             'lastviews.snapx/auto/views.txt:%d: "x" is not a whole number' % (members['auto/views.txt'].rstrip(b'\n').count(b'\n') + 1)),
+             'lastviews.snapx/auto/views.txt:%d: invalid quoted window name' % (members['auto/views.txt'].rstrip(b'\n').count(b'\n') + 1)),
             ('latermanifest.snapx', lambda m: m.__setitem__('session.setx', m['session.setx'] + b'later: 1,\n'),
              'latermanifest.snapx/session.setx:%d:1: ' % (members['session.setx'].count(b'\n') + 1))):
         damaged = dict(members)
@@ -1465,7 +1465,7 @@ def section_control():
     open_auto(s)
     run_now(s)
     s.collect(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
-    s.send(cmd='auto', op='close')
+    s.send(cmd='window.close', window='diagram_1')
     t = s.send(cmd='abort')
     evs, e = s.collect(is_idle, timeout=60 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
@@ -1473,7 +1473,7 @@ def section_control():
     perf('abort during an integration -> idle', '%.2f s' % took)
     s.send(cmd='state')
     more, _ = s.collect(is_idle, timeout=10 * SLOW)
-    closed = [x for x in evs + more if x.get('ev') == 'window' and x.get('win') == 101 and x.get('op') == 'destroy']
+    closed = [x for x in evs + more if x.get('ev') == 'window' and x.get('win') == 'diagram_1' and x.get('op') == 'destroy']
     check('W95: a view command sent during a computation runs after it (Close)', bool(closed))
 
     # Quit during an integration
@@ -1546,7 +1546,7 @@ def names_diagram(ode):
         s.collect(is_idle, timeout=30 * SLOW)
     s.send(cmd='key', key='f')
     s.send(cmd='key', key='a')
-    evs, _ = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
+    evs, _ = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1')
     more, _ = s.collect(is_idle)
     evs += more + run_menu(s, 's', timeout=60 * SLOW)
     syms = [sym for e in evs if e.get('ev') == 'diagram' and e['op'] == 'add'
@@ -2238,7 +2238,7 @@ def section_memory():
 
 # ---- sessiondata: a session's stored rows come back in the main window's plot ----
 
-def series_of(evs, win=1):
+def series_of(evs, win='graph_1'):
     """the last full series event of window win (the curves' rows), or None"""
     full = whole_series(evs, win)
     return full[-1] if full else None
@@ -2256,7 +2256,7 @@ def section_sessiondata():
         s.send(cmd='data', events=PAGE_EVENTS, enc='f32')
         evs, _ = s.collect(is_idle)
         # W against V, as a phase plane
-        s.send(cmd='key', win=1, key='v')
+        s.send(cmd='key', window='graph_1', key='v')
         evs, ask = s.collect(is_ask)
         s.send(cmd='answer', id=ask['id'], key='2')
         evs, ask = s.collect(is_ask)
@@ -2264,7 +2264,7 @@ def section_sessiondata():
         vals[0], vals[1] = 'V', 'W'
         s.send(cmd='answer', id=ask['id'], ok=1, values=vals)
         s.collect(is_idle)
-        s.send(cmd='key', win=1, key='i')
+        s.send(cmd='key', window='graph_1', key='i')
         evs, ask = s.collect(is_ask)
         s.send(cmd='answer', id=ask['id'], key='g')
         evs, _ = s.collect(is_idle, timeout=30 * SLOW)

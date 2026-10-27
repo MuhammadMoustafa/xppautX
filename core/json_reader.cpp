@@ -148,6 +148,10 @@ const char *js_find(const char *obj, const char *key)
         }
         if (!*p) return nullptr;
         bool match = std::string_view(k, static_cast<size_t>(p - k)) == want;
+        if (!match && std::memchr(k, '\\', static_cast<size_t>(p - k))) {
+            std::string decoded;
+            match = js_string(k - 1, decoded) && decoded == want;
+        }
         p = skip_ws(p + 1);
         if (*p != ':') return nullptr;
         p = skip_ws(p + 1);

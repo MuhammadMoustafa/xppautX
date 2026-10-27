@@ -1,22 +1,16 @@
 /* The plot windows as tabs (docs/ui-v2.md T6): one tab per core window, the
    active one selected, each tab its own PlotView with its own zoom. The tabs
-   follow the core: Makewindow/Create adds one, Destroy and Kill all remove
-   them (the `plots` event), and picking a tab makes that window the core's
-   active one (`click`), so keys and menus act on the window shown.
+   follow the core: window.create adds one, close and destroy_all remove
+   them (the `plots` event), and picking a tab selects that named window, so keys and menus act on the window shown.
    Keyboard: the WAI-ARIA tabs pattern, automatic activation (arrow keys,
    Home, End move and select; Tab leaves the tab list). */
 import {useEffect, useRef} from 'preact/hooks';
 import {PLOT_KEYS_HELP} from '../plot/plotKeys';
-import type {PlotWindow} from '../store/plots';
 import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 import {Plot3DView} from './Plot3DView';
 import {PlotView} from './PlotView';
-
-function tabTitle(w: PlotWindow): string {
-  if (w.info) return w.info.title;
-  const c = w.series?.curves[0], name = (col: number) => w.series?.names.get(col) ?? (col === 0 ? 'T' : '');
-  return c ? `${name(c.y)} vs ${name(c.x)}` : '';
-}
+import {WindowName} from './WindowName';
+import {choiceLabel} from '../store/fieldKinds';
 
 /** the Kinescope's own controls (docs/ui-v2.md T15): the core's menu
     (Capture, Reset, Playback, Make Anigif/Export GIF) plus Stop, the
@@ -55,22 +49,24 @@ export function Plots({dark}: {dark: boolean}) {
   const windows = useStore(s => s.plots.windows);
   const active = useStore(s => s.plots.active);
   const may = useMay();
-  const mayMain = useMayMain();
+  const current=windows.find(w=>w.win===active);
+  const modes=useStore(s=>s.hello?.commands.find(c=>c.cmd==='window.set_redraw_mode')?.arguments?.find(a=>a.name==='mode')?.choices ?? []);
+  const simultaneous=useStore(s=>s.plots.simultaneous);
   /* a tab pick is a view: it works during a run too, only an open question waits (W95) */
-  const tabOff = !may({cmd: 'click', win: active});
-  const windowOff = !mayMain('makewindow'); /* Makewindow */
+  const tabOff = !may({cmd:'window.select',window:active});
+  const windowOff = !may({cmd:'window.create'}); /* Makewindow */
   const tabs = useRef<HTMLDivElement>(null);
   /* the tab a key picked: a pick while the core is busy is held for its idle
      (session.selectWindow); the tab the key picked gets the focus once it is
      the active one, so the next key is the tabs' again, not an XPP hotkey (W93) */
-  const keyPicked = useRef<number | null>(null);
+  const keyPicked = useRef<string | null>(null);
   useEffect(() => {
     if (keyPicked.current !== active) return;
     keyPicked.current = null;
-    tabs.current?.querySelector<HTMLElement>(`#plot-tab-${active}`)?.focus();
+    tabs.current?.querySelectorAll<HTMLElement>('[role=tab]')[windows.findIndex(w=>w.win===active)]?.focus();
   }, [active]);
   /* before the first `plots` or `series`: window 1, empty */
-  const shownWins = windows.length ? windows.map(w => w.win) : [1];
+  const shownWins = windows.length ? windows.map(w => w.win) : ['graph_1'];
   const tabbed = windows.length > 1;
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -85,7 +81,7 @@ export function Plots({dark}: {dark: boolean}) {
     const win = windows[next].win;
     keyPicked.current = win;
     session.selectWindow(win);
-    tabs.current?.querySelector<HTMLElement>(`#plot-tab-${win}`)?.focus();
+    tabs.current?.querySelectorAll<HTMLElement>('[role=tab]')[next]?.focus();
   };
 
   return (
@@ -96,30 +92,41 @@ export function Plots({dark}: {dark: boolean}) {
             {windows.map(w => (
               <button
                 key={w.win}
-                id={`plot-tab-${w.win}`}
+                id={`plot-tab-${encodeURIComponent(w.win)}`}
                 class="plot-tab"
                 role="tab"
                 aria-selected={w.win === active}
-                aria-controls={`plot-panel-${w.win}`}
+                aria-controls={`plot-panel-${encodeURIComponent(w.win)}`}
                 tabIndex={w.win === active ? 0 : -1}
                 disabled={tabOff && w.win !== active}
                 title={tabOff && w.win !== active ? BUSY_TITLE : undefined}
                 onClick={() => session.selectWindow(w.win)}>
-                <span class="plot-tab-num">{w.win}</span>
-                <span class="plot-tab-title">{tabTitle(w)}</span>
+                                <span class="plot-tab-title">{w.win}</span>
               </button>
             ))}
           </div>
         )}
         <div class="plot-window-tools">
+          <WindowName name={active} disabled={windowOff} />
           <button class="small" disabled={windowOff} onClick={() => session.newWindow()}
-            title="Makewindow/Create: a new plot window, a copy of this one (M, C)">New window</button>
+            title="Create a graph copied from the active graph">New window</button>
           {tabbed && (
-            <button class="small" disabled={windowOff || active === 1} onClick={() => session.closeWindow()}
-              title="Makewindow/Destroy: close this plot window (M, D); window 1 stays">Close window</button>
+            <button class="small" disabled={windowOff || active === windows[0]?.win} onClick={() => session.closeWindow()}
+              title="Close this graph; the main graph stays open">Close window</button>
           )}
+          <details class="plot-window-options">
+            <summary>Window options</summary>
+            <div class="plot-window-options-menu">
+                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.destroy_all'})}>Close extra windows</button>
+                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.send_to_bottom',window:active})}>Send to bottom</button>
+                <select aria-label="Redraw mode" disabled={windowOff} value={current?.info?.redraw_mode} onChange={e=>session.send({cmd:'window.set_redraw_mode',window:active,mode:e.currentTarget.value})}>
+                  {modes.map(mode=><option value={mode}>{choiceLabel(mode)}</option>)}
+                </select>
+                <label><input type="checkbox" checked={simultaneous} disabled={windowOff} onChange={e=>session.send({cmd:'window.set_simultaneous_plot',enabled:e.currentTarget.checked})}/>Simultaneous plot</label>
+            </div>
+          </details>
+          <KinescopeBar />
         </div>
-        <KinescopeBar />
       </div>
       {shownWins.map(win => {
         const shown = win === active || shownWins.length === 1;

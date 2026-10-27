@@ -1,3 +1,4 @@
+import {WindowName} from './WindowName';
 /* The AUTO view (docs/ui-v2.md T11a): the bifurcation diagram drawn from
    the `diagram` data (store/diagram.ts, plot/diagramModel.ts), with the AUTO
    window's buttons. It opens when the core opens window 101 (File/Auto) and
@@ -398,7 +399,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
   const storedAt = stored && chart.current ? chart.current.place(stored.x, stored.y) : null;
   const zoomed = viewport.x !== null || viewport.y !== null;
   const empty = !model.curves.length;
-  const what = whatOf({axes, points, labels, viewport});
+  const what = whatOf({name:session.store.getState().diagram.views[view].name,axes, points, labels, viewport});
   const label = empty ? `AUTO diagram${views > 1 ? `, view ${view + 1}` : ''}, no branches yet`
     : `AUTO diagram of ${what}${views > 1 ? ` (view ${view + 1})` : ''}: `
       + `${new Set(model.curves.map(c => c.branch)).size} branches, ${pointCount(points)} points, ${labels.length} labelled points`;
@@ -424,9 +425,10 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
 
   return (
     <section class={'auto-pane' + (active ? ' active' : '')} data-view={view} aria-current={active ? 'true' : undefined}
-      aria-label={`View ${view + 1}${what ? `: ${what}` : ''}${active ? ' (active)' : ''}`} onPointerDownCapture={onPress}
+      aria-label={`${session.store.getState().diagram.views[view].name}${active ? ' (active)' : ''}`} onPointerDownCapture={onPress}
       onFocusCapture={onPress}>
       <header class="plot-bar auto-pane-bar">
+        <WindowName name={session.store.getState().diagram.views[view].name}/>
         {views > 1 && (
           <h3 class="auto-pane-title" title={active ? 'The active view: AUTO\'s Axes menu changes it' : 'Click to make it the active view'}>
             {what || `View ${view + 1}`}
@@ -477,7 +479,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
             Fit
           </button>
           {views > 1 && (
-            <button class="auto-pane-close" aria-label={`Close view ${view + 1}`}
+            <button class="auto-pane-close" aria-label={`Close ${session.store.getState().diagram.views[view].name}`}
               title="Close this view of the diagram (the diagram stays, and so do the other views)"
               onClick={() => session.closeView(view)}>×</button>
           )}

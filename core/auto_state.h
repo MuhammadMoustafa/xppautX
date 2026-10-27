@@ -48,11 +48,15 @@ struct AutoOptions {
 /* one view of the diagram (W50): its axes, and the part of them the page
    shows (its zoom, W65; a zoom belongs to the axes it was made at, other
    ones drop it) */
+// AUTO starts with one default named view.
+inline constexpr const char *initial_diagram_name="diagram_1";
+
 struct AutoDiagramView {
   xpp::AUTOAX axes{};
   xpp::Zoom zoom;
   bool zoom_seen=false; /* zoom_axes holds the axes the zoom was made at */
   std::array<double,4> zoom_axes{};
+  std::string name = initial_diagram_name;
 };
 
 /* the diagram's marked stretch (the S and E keys in the Grab loop): the

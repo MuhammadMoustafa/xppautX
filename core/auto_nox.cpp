@@ -1,6 +1,7 @@
 #include "auto_unknowns.h"
 #include "model.h"
 #include "session.h"
+#include "many_pops.h"
 #include "snapx.h"
 #include "xpp_session.h"
 #include "model_switch.h"
@@ -1172,8 +1173,15 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
 void do_auto_win(xpp::Session &s)
 {
   if(s.auto_state.bifur.exist==0){
-    make_auto(s,"It's AUTO man!","AUTO");
     s.auto_state.bifur.exist=1;
+    for(int i=0;i<static_cast<int>(s.auto_state.views.size());++i){
+      auto &view=s.auto_state.views[i];
+      const auto existing=find_window(s,view.name);
+      if(existing && (existing->kind!=WindowKind::diagram || existing->index!=i))
+        view.name=next_window_name(s,WindowKind::diagram);
+    }
+    s.selected_window=s.auto_state.views[s.auto_state.active_view].name;
+    make_auto(s,s.selected_window,"AUTO");
     
   }
 
@@ -1213,8 +1221,10 @@ void auto_new_view(xpp::Session &s)
 {
   AutoDiagramView v;
   v.axes=s.auto_state.axes();
+  v.name=xpp::next_window_name(s,xpp::WindowKind::diagram);
   s.auto_state.views.push_back(v);
   s.auto_state.active_view=static_cast<int>(s.auto_state.views.size())-1;
+  s.selected_window=s.auto_state.views.back().name;
   if(s.auto_state.bifur.exist)redraw_diagram(s);
 }
 
@@ -1235,6 +1245,7 @@ int auto_activate_view(xpp::Session &s, int k)
 {
   if(k<0||k>=static_cast<int>(s.auto_state.views.size()))return 0;
   s.auto_state.active_view=k;
+  s.selected_window=s.auto_state.views[k].name;
   return 1;
 }
 

@@ -6,6 +6,7 @@
    computation does between steps (Esc, progress). */
 #include "ui_json_internal.h"
 #include "session.h"
+#include "many_pops.h"
 #include "xpp_inbox.h"
 #include "xpp_job.h"
 #include "xpp_util.h"
@@ -506,7 +507,7 @@ int mouse_ask(xpp::Session &s, unsigned long win, const char *kind, int flag, st
 {
     std::string b;
     int id = ask_begin(b, kind);
-    buf_format(b, ",\"win\":{:d},\"flag\":{:d}", win, flag);
+    BUF_LIT(b,",\"win\":");buf_str(b,xpp::window_name(s,win));buf_format(b,",\"flag\":{}",flag);
     if (!ask_wait(b, id)) return 0;
     for (size_t i = 0; i < v.size() / 2; i++) answer_point(s, win, static_cast<int>(i), &v[2 * i], &v[2 * i + 1]);
     return 1;
@@ -573,7 +574,7 @@ int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y)
     std::string b;
     std::string what;
     int id = ask_begin(b, "drag");
-    buf_format(b, ",\"win\":{:d}", win);
+    BUF_LIT(b,",\"win\":");buf_str(b,xpp::window_name(s,win));
     if (!ask_wait(b, id) || !get_string(answer.c_str(), "what", what)) return 0;
     answer_point(s, win, 0, x, y);
     return what == "down" ? 1 : what == "move" ? 2 : what == "up" ? 3 : 0;

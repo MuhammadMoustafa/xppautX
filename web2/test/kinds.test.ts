@@ -33,7 +33,7 @@ test('startup prompts accept answers and cancellation before hello', () => {
 });
 
 test('W95, W106: while a computation runs only control, view and setting actions start; an open question takes control and settings', () => {
-  for (const cmd of [{cmd: 'abort'}, {cmd: 'answer', id: 1}, {cmd: 'display', win: 1}, {cmd: 'click', win: 2},
+  for (const cmd of [{cmd: 'abort'}, {cmd: 'answer', id: 1}, {cmd: 'display', window: 'graph_1'}, {cmd: 'window.select', window: 'graph_2'},
     {cmd: 'key', key: 'w'}, {cmd: 'key', key: 'k'}, {cmd: 'key', key: 'g'}, {cmd: 'key', win: 'auto', key: 'a'}, {cmd: 'browser', from: 0, count: 1},
     {cmd: 'set', kind: 'par'}, {cmd: 'set', kind: 'num'}, {cmd: 'auto', op: 'set'}, {cmd: 'key', key: 'p'},
     {cmd: 'key', win: 'auto', key: 'n'}, {cmd: 'values', op: 'read'}])
@@ -50,7 +50,7 @@ test('W95, W106: while a computation runs only control, view and setting actions
   for (const cmd of [{cmd: 'key', key: 'i'}, {cmd: 'values', op: 'write'}, {cmd: 'set', kind: 'par'}])
     assert.ok(may(cmd, false), JSON.stringify(cmd));
   assert.ok(may({cmd: 'answer', id: 1}, false, true));
-  assert.ok(!may({cmd: 'display', win: 1}, false, true));
+  assert.ok(!may({cmd: 'display', win: 'graph_1'}, false, true));
   assert.ok(!may({cmd: 'key', key: 'i'}, false, true));
 });
 
@@ -67,7 +67,7 @@ test('W95: the windows\' keys come from hello, not a copy in the page', () => {
 test('W95: computing from the core\'s event to the command\'s idle; a command the page sends marks nothing', () => {
   const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
   let s = ev(initialState, HELLO);
-  s = reduce(s, {type: 'sent', cmd: {cmd: 'display', win: 1, x: null}});
+  s = reduce(s, {type: 'sent', cmd: {cmd: 'display', win: 'graph_1', x: null}});
   assert.equal(s.busy, true);
   assert.equal(s.computing, false);
   s = ev(ev(s, {ev: 'idle'}), {ev: 'computing'});

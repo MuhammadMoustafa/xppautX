@@ -96,7 +96,7 @@ def _reject_non_finite(text):
 
 
 def is_idle(e):
-    return e.get('ev') == 'idle'
+    return e.get('ev') in ('idle','done')
 
 
 def save_permission(cmd):
@@ -319,7 +319,7 @@ def open_auto(s):
     s.collect(is_idle)
     s.send(cmd='key', key='a')
     events, end = s.collect(is_idle)
-    if end is None or not any(e.get('ev') == 'window' and e.get('win') == 101 for e in events):
+    if end is None or not any(e.get('ev') == 'window' and e.get('win') == 'diagram_1' for e in events):
         raise RuntimeError('File/AUTO did not open its window: ' + str(events))
     return events
 

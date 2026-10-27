@@ -194,17 +194,19 @@ void check_views_text()
     xpp::Zoom z;
     z.x = {true, awk(4), awk(5) + 1};
     v.views.push_back({xpp::AutoProjection::period, "", "iapp", "", {-0.2, 0.08, 0, 0}, z});
+    v.views[0].name="diagram_1";
+    v.views[1].name="diagram_2";
     v.active = 1;
     const std::string text = xpp::snapx::auto_members::views_text(v);
     const xpp::Result<xpp::snapx::auto_members::ViewsRead> r = xpp::snapx::auto_members::parse_views(text, "views.txt");
     CHECK(r && r->views == v && r->lines == std::vector<int>({1, 2}));
-    CHECK(text.ends_with("active 1\n"));
-    CHECK(!xpp::snapx::auto_members::parse_views("view maximum_and_minimum v iapp phi 0 1 0 1 - -\n", "views.txt"));                /* no active line */
-    CHECK(!xpp::snapx::auto_members::parse_views("active 0\n", "views.txt"));                                     /* no view */
-    CHECK(!xpp::snapx::auto_members::parse_views("view maximum_and_minimum v iapp phi 0 1 0 1 - -\nactive 1\n", "views.txt"));     /* no view 1 */
-    CHECK(!xpp::snapx::auto_members::parse_views("view maximum_and_minimum v iapp phi 0 1 0 1 1:0 -\nactive 0\n", "views.txt"));   /* a zoom low above high */
-    CHECK(!xpp::snapx::auto_members::parse_views("view maximum_and_minimum v iapp phi 0 1 0 -\nactive 0\n", "views.txt"));        /* a field short */
-    CHECK(!xpp::snapx::auto_members::parse_views("view 2 v iapp phi 0 1 0 1 - -\nactive 0\n", "views.txt"));   /* a projection is its name */
+    CHECK(text.ends_with("active \"diagram_2\"\n"));
+    CHECK(!xpp::snapx::auto_members::parse_views("view \"diagram_1\" maximum_and_minimum v iapp phi 0 1 0 1 - -\n", "views.txt"));                /* no active line */
+    CHECK(!xpp::snapx::auto_members::parse_views("active \"diagram_1\"\n", "views.txt"));                                     /* no view */
+    CHECK(!xpp::snapx::auto_members::parse_views("view \"diagram_1\" maximum_and_minimum v iapp phi 0 1 0 1 - -\nactive \"missing\"\n", "views.txt"));     /* no view 1 */
+    CHECK(!xpp::snapx::auto_members::parse_views("view \"diagram_1\" maximum_and_minimum v iapp phi 0 1 0 1 1:0 -\nactive \"diagram_1\"\n", "views.txt"));   /* a zoom low above high */
+    CHECK(!xpp::snapx::auto_members::parse_views("view \"diagram_1\" maximum_and_minimum v iapp phi 0 1 0 -\nactive \"diagram_1\"\n", "views.txt"));        /* a field short */
+    CHECK(!xpp::snapx::auto_members::parse_views("view \"diagram_1\" 2 v iapp phi 0 1 0 1 - -\nactive \"diagram_1\"\n", "views.txt"));   /* a projection is its name */
 }
 
 void check_solutions()
@@ -234,7 +236,7 @@ void check_solutions()
 
 void check_untrusted_zoom()
 {
-    CHECK(!xpp::snapx::auto_members::parse_views("view maximum_and_minimum v iapp phi 0 1 0 1 -inf:inf -\nactive 0\n", "sent.snapx/auto/views.txt"));
+    CHECK(!xpp::snapx::auto_members::parse_views("view \"diagram_1\" maximum_and_minimum v iapp phi 0 1 0 1 -inf:inf -\nactive \"diagram_1\"\n", "sent.snapx/auto/views.txt"));
 }
 
 void check_diagram_csv()

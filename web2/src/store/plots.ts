@@ -38,7 +38,7 @@ export interface View3d {
 }
 
 export interface PlotWindow {
-  win: number;
+  win: string;
   /** from `plots`: title, axes, 3D view (null until the server sends it) */
   info: PlotWindowInfo | null;
   series: PlotSeries | null;
@@ -57,22 +57,23 @@ export interface PlotWindow {
 }
 
 export interface PlotsState {
-  /** by window number */
+  simultaneous?: boolean;
+  /** by the exact window name */
   windows: PlotWindow[];
-  active: number;
+  active: string;
 }
 
-export const initialPlots: PlotsState = {windows: [], active: 1};
+export const initialPlots: PlotsState = {windows: [], active: 'graph_1'};
 
 /** a window the store has not heard anything about yet (exported for tests) */
-export function blank(win: number): PlotWindow {
+export function blank(win: string): PlotWindow {
   return {
     win, info: null, series: null, nullclines: null, dfield: null, marks: null, viewport: HOME,
     view3d: null, history: emptyHistory, showRuns: true,
   };
 }
 
-export function windowOf(p: PlotsState, win: number): PlotWindow | undefined {
+export function windowOf(p: PlotsState, win: string): PlotWindow | undefined {
   return p.windows.find(w => w.win === win);
 }
 
@@ -81,11 +82,11 @@ export function activeWindow(p: PlotsState): PlotWindow | undefined {
 }
 
 /** `p` with window `win` replaced by `f` of it (made if missing) */
-function update(p: PlotsState, win: number, f: (w: PlotWindow) => PlotWindow): PlotsState {
+function update(p: PlotsState, win: string, f: (w: PlotWindow) => PlotWindow): PlotsState {
   const old = windowOf(p, win);
   const next = f(old ?? blank(win));
   if (next === old) return p;
-  const windows = old ? p.windows.map(w => (w === old ? next : w)) : [...p.windows, next].sort((a, b) => a.win - b.win);
+  const windows = old ? p.windows.map(w => (w === old ? next : w)) : [...p.windows, next];
   return {...p, windows};
 }
 
@@ -114,13 +115,13 @@ export function onPlots(p: PlotsState, ev: PlotsEvent): PlotsState {
       view3d: w.view3d ?? (info.three ? {theta: info.theta, phi: info.phi} : null),
     };
   });
-  return {windows, active: ev.active};
+  return {windows, active: ev.active,simultaneous:ev.simultaneous_plot};
 }
 
 /** a 3D window turned, locally (a drag or arrow keys) or by the core's own
     echo of the turn it sent (session.ts): the store is what the plot
     draws from, so this is the single point a rotation changes it. */
-export function rotate3d(p: PlotsState, win: number, theta: number, phi: number): PlotsState {
+export function rotate3d(p: PlotsState, win: string, theta: number, phi: number): PlotsState {
   return update(p, win, w => ({...w, view3d: {theta, phi}}));
 }
 
@@ -142,7 +143,7 @@ export function onWindowRuns(p: PlotsState, ev: RunsEvent): PlotsState {
 }
 
 /** the legend's "previous runs" toggle */
-export function showRuns(p: PlotsState, win: number, show: boolean): PlotsState {
+export function showRuns(p: PlotsState, win: string, show: boolean): PlotsState {
   const w = windowOf(p, win);
   if (!w || w.showRuns === show) return p;
   return update(p, win, x => ({...x, showRuns: show}));
@@ -179,7 +180,7 @@ export function onEnd(p: PlotsState, ev: SeriesEndEvent): PlotsState | null {
   return update(p, ev.win, x => ({...x, series: endSeries(x.series!, ev.version)}));
 }
 
-export function select(p: PlotsState, win: number): PlotsState {
+export function select(p: PlotsState, win: string): PlotsState {
   return p.active === win ? p : {...p, active: win};
 }
 
@@ -188,7 +189,7 @@ function sameViewport(a: Viewport, b: Viewport): boolean {
 }
 
 /** no history any more (GitHub #110): a new viewport just replaces the old one */
-export function setViewport(p: PlotsState, win: number, viewport: Viewport): PlotsState {
+export function setViewport(p: PlotsState, win: string, viewport: Viewport): PlotsState {
   const w = windowOf(p, win);
   if (!w || sameViewport(viewport, w.viewport)) return p;
   return update(p, win, x => ({...x, viewport}));
@@ -196,7 +197,7 @@ export function setViewport(p: PlotsState, win: number, viewport: Viewport): Plo
 
 /** the core moved window `win`'s axes (Viewaxes, Window/Zoom, Fit, a scroll):
     what it shows now is what the user asked for, so the plot goes back to them */
-export function coreMoved(p: PlotsState, win: number): PlotsState {
+export function coreMoved(p: PlotsState, win: string): PlotsState {
   const w = windowOf(p, win);
   if (!w || (w.viewport.x === null && w.viewport.y === null)) return p;
   return setViewport(p, win, HOME);

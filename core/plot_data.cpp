@@ -23,6 +23,7 @@
 
 #include "plot_data.h"
 #include "session.h"
+#include "many_pops.h"
 #include "xpp_util.h"
 #include "series_enc.h"
 #include "json_number.h"
@@ -36,6 +37,7 @@ namespace {
 /* what a window's series shows: equal signatures, the same event */
 struct SeriesSig : xpp::PlotCurves {
     unsigned long win, version;
+    std::string name;
     int rows;
     std::string xlabel, ylabel, zlabel; /* a label change alone sends the series again */
     bool operator==(const SeriesSig &) const = default;
@@ -104,6 +106,7 @@ SeriesSig series_sig(const xpp::Session &s, int pop)
     SeriesSig sig{};
     const GRAPH &g = s.plot_windows.graph[pop];
     sig.win = static_cast<unsigned long>(g.w);
+    sig.name=g.name;
     sig.version = client.data_version;
     sig.rows = s.browser.view.maxrow;
     sig.PlotCurves::operator=(curves_of(g));
@@ -210,7 +213,7 @@ void emit_runs(xpp::Session &s, int pop, bool clear, std::size_t drop, std::size
 {
     const xpp::PlotDisplay &d = disp(s, pop);
     std::string o = "{\"ev\":\"runs\",\"win\":";
-    add_int(o, static_cast<long>(s.plot_windows.graph[pop].w));
+    xpp::json_append_string(o,xpp::window_name(s,s.plot_windows.graph[pop].w));
     o += ",\"erased\":";
     add_int(o, d.erased);
     o += ",\"clear\":";
@@ -360,7 +363,7 @@ void send_series(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
     const std::vector<int> cols = used_columns(sig, s.browser.view.maxcol);
     runs_on_full(s, pop, sig, cols, rows, !client.sent[pop].valid);
     std::string o = "{\"ev\":\"series\",\"win\":";
-    add_int(o, static_cast<long>(sig.win));
+    xpp::json_append_string(o,sig.name);
     o += ",\"rows\":";
     add_int(o, rows);
     o += ",\"version\":";
@@ -404,7 +407,7 @@ void send_append(xpp::Session &s, int pop, unsigned long win, int from, int rows
     Sent &w = client.sent[pop];
     runs_on_append(s, pop, from, rows);
     std::string o = "{\"ev\":\"series\",\"op\":\"append\",\"win\":";
-    add_int(o, static_cast<long>(win));
+    xpp::json_append_string(o,xpp::window_name(s,win));
     o += ",\"from\":";
     add_int(o, from);
     o += ",\"rows\":";
@@ -457,7 +460,7 @@ void series_end(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
     d.live = false; /* the run ends here; an append cleared any erase */
     d.cur_version = sig.version;
     std::string o = "{\"ev\":\"series\",\"op\":\"end\",\"win\":";
-    add_int(o, static_cast<long>(sig.win));
+    xpp::json_append_string(o,sig.name);
     o += ",\"rows\":";
     add_int(o, rows);
     o += ",\"version\":";
@@ -495,14 +498,6 @@ void series_update(xpp::Session &s)
 
 /* ---- plots ---- */
 
-/* "W vs V" (or "z vs y vs x" in 3D): what the window plots, as axes2.c's
-   make_title() names the active one */
-std::string title(const xpp::Session &s, const GRAPH &g)
-{
-    const std::string x = xpp::ind_to_sym(s,g.xv[0]), y = xpp::ind_to_sym(s,g.yv[0]), z = xpp::ind_to_sym(s,g.zv[0]);
-    return g.grtype >= 5 ? z + " vs " + y + " vs " + x : y + " vs " + x;
-}
-
 /* the zoom is for the axes and curves it was made at: other ones drop it */
 void zoom_upkeep(xpp::Session &s, int pop)
 {
@@ -532,7 +527,8 @@ void add_zoom(std::string &o, const xpp::AxisRange &r)
 std::string plots_event(xpp::Session &s)
 {
     std::string o = "{\"ev\":\"plots\",\"active\":";
-    add_int(o, static_cast<long>(s.plot_windows.graph[s.plot_windows.active].w));
+    xpp::json_append_string(o,xpp::window_name(s,s.plot_windows.graph[s.plot_windows.active].w));
+    o+=s.plot_windows.simul?",\"simultaneous_plot\":true":",\"simultaneous_plot\":false";
     o += ",\"windows\":[";
     bool first = true;
     for (int pop = 0; pop < static_cast<int>(s.plot_windows.graph.size()); pop++) {
@@ -541,9 +537,10 @@ std::string plots_event(xpp::Session &s)
         if (!first) o += ',';
         first = false;
         o += "{\"win\":";
-        add_int(o, static_cast<long>(g.w));
+        xpp::json_append_string(o,xpp::window_name(s,g.w));
+        o+=g.Nullrestore?",\"redraw_mode\":\"auto\"":",\"redraw_mode\":\"manual\"";
         o += ",\"title\":";
-        xpp::json_append_string(o, title(s, g).c_str());
+        xpp::json_append_string(o,g.name);
         o += ",\"three\":";
         add_int(o, g.ThreeDFlag);
         xpp::json::json_append_field(o, "xlo", g.xlo);
@@ -619,7 +616,7 @@ void plot_data_picture(xpp::Session &s, int redraw)
             const int pop = w.simul ? w.open[k] : w.active;
             if (pop < 0 || pop >= static_cast<int>(w.graph.size()) || !w.graph[pop].Use) continue;
             std::string o = redraw ? "{\"ev\":\"redraw\",\"win\":" : "{\"ev\":\"erase\",\"win\":";
-            add_int(o, static_cast<long>(w.graph[pop].w));
+            xpp::json_append_string(o,w.graph[pop].name);
             o += '}';
             emit(o);
             xpp::PlotDisplay &d = disp(s, pop);

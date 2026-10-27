@@ -12,7 +12,7 @@ import {HELLO, READY, LINE} from './hello';
 import {logEntries} from '../src/store/log';
 
 const phase: SeriesEvent = {
-  ev: 'series', win: 1, rows: 3, three: 0, xlabel: '', ylabel: '', zlabel: '',
+  ev: 'series', win: 'graph_1', rows: 3, three: 0, xlabel: '', ylabel: '', zlabel: '',
   curves: [{x: 1, y: 2, z: 1, color: 'foreground', ...LINE}], shift: [0, 0, 0],
   columns: [
     {col: 0, name: 'T', data: [0, 0.05, 0.1]},

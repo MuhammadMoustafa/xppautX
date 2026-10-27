@@ -10,6 +10,7 @@ namespace xpp::json {
 
 const char *skip_ws(const char *p);
 const char *skip_value(const char *p);
+/* Find a member by its decoded name, including JSON-escaped keys. */
 const char *js_find(const char *obj, const char *key);
 /* the JSON text of the value at v (its whitespace after it left out;
    empty for NULL) */

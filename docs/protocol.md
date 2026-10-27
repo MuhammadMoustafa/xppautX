@@ -30,12 +30,88 @@ together); see "Removed in protocol 2" at the end for what protocol 1 had
 besides.
 
 The core is single-threaded. A command runs to completion, then the server
-sends `state` and `idle`. While a command runs the server can stop and
+sends `state` and `idle` for commands still on the legacy table. Registry
+commands retain `state` and finish with exactly one `done` instead. While a command runs the server can stop and
 **ask** the client something (a menu, a prompt, a mouse click); it waits for
 the matching `answer`, answers `state`, `browser` with `from` and `quit` at
 once, and keeps any other command for after the one that asked. See
 "Commands during a command" for what reaches a running computation, and
 "Action kinds" for which commands those are.
+
+## Typed command registry (W353, stage 1)
+
+The core registry owns `help` and graph-window management. Every graph and
+AUTO view has a unique, case-sensitive name. Defaults are `graph_1`,
+`graph_2`, ... and `diagram_1`, ...; user names, including spaces, are
+shown and referenced exactly as written. Names are nonempty, have no
+leading or trailing space or control character, and take at most 1024
+UTF-8 bytes. A closed name may be reused. An unknown name is an error.
+
+`hello.commands` includes the registry's argument types and required flags,
+choice values, kind, category, menu and XPPAUT reference paths, descriptions,
+result fields and events. Each registry row has `completion: "done"`.
+`help` returns the complete registry in `result.commands`; `help window.rename`
+returns that command. JSON and server text use the same core validator:
+
+```text
+window.create --name "phase plane" --id "create phase plane"
+window.rename --window "phase plane" --name "Phase plane"
+window.select --window "Phase plane"
+window.set_redraw_mode --mode manual
+window.set_simultaneous_plot --enabled true
+window.close --window "Phase plane"
+```
+
+Text and window names, including the client `id`, are always double-quoted
+with JSON string escapes. Choices are bare words and booleans are `true`
+or `false`. Positional arguments are refused except `help NAME`.
+JSON remains the only form for bound calls and recordings. A client `id`
+has one type: text, at most 1024 bytes; numbers, booleans and null are errors.
+Prompt-answer ids remain the existing integers on non-registry commands.
+Requests take at most 16384 bytes. Unknown, repeated, missing or invalid
+arguments are errors with the original command/recording place; nothing
+runs. Optional `window` is the session's selected window. Optional `name`
+on create chooses the next graph default; help's omitted filter lists all
+commands. Window creation copies the active graph. The main graph cannot
+be closed. AUTO views are also selected, renamed and closed through the
+registry; AUTO's existing new-view operation assigns the next diagram name.
+
+Registry commands emit their declared data in exactly one terminal event:
+`{"ev":"done","id":"create phase plane","status":"ok","result":{"window":"phase plane"}}`.
+An error has `status: "error"` and the shared `error`, `file`, `line`, `col`,
+`source`, `field` fields, without a second message event. A stopped request
+has `status: "stopped"`. Invalid or unreadable ids are not echoed. `state`
+is retained for page compatibility; there is no registry `idle`. Commands
+awaiting their resource card retain `state` plus `idle`.
+
+The old Makewindow menu and keys and the `click` command are removed.
+`window.create`, `window.rename`, `window.select`, `window.close`,
+`window.destroy_all`, `window.send_to_bottom`, `window.set_redraw_mode` and
+`window.set_simultaneous_plot` are their sole command forms. Legacy resource
+commands that target a graph (`display`, annotation operations, and set
+operations) take `window` as a name; numeric `win` input is refused.
+Small plot events and prompts retain their event/field spellings (`win`),
+with name values. AUTO diagram `view`, autoview `active`, and AUTO's axes
+`view` are names too; `diagram` `views` supplies ordered `names`. Internal
+slot numbers and point labels remain implementation details and data.
+
+The following section is generated from `hello.commands` by
+`uv run --locked python tools/servercheck.py --only registry --update-registry-docs`.
+The ordinary servercheck verifies it without writing.
+
+<!-- registry:start -->
+| Command | Arguments | Kind / category | Menu / XPPAUT keys | Result | Events | Description |
+|---|---|---|---|---|---|---|
+| `help` | `name`: optional text (max 1024 bytes) | `v` / tools | none / none | `commands`: `list[command]` | `state`, `done` | Describe registered commands, or the command named by name. |
+| `window.create` | `name`: optional new_name (max 1024 bytes) | `v` / plot | Make window/Create / MC | `window`: `window` | `window`, `state`, `done` | Create a graph copied from the active graph. |
+| `window.rename` | `window`: required window (max 1024 bytes), `name`: required new_name (max 1024 bytes) | `v` / plot | none / none | `window`: `window`, `new_name`: `text` | `window.renamed`, `window`, `state`, `done` | Rename an open graph or diagram view. |
+| `window.select` | `window`: required window (max 1024 bytes) | `v` / plot | none / none | `window`: `window` | `state`, `done` | Select an open graph or diagram view. |
+| `window.close` | `window`: optional window (max 1024 bytes) | `v` / plot | Make window/Destroy / MD | `window`: `window`, `closed`: `boolean` | `window`, `state`, `done` | Close a graph or diagram view; the main graph stays open. |
+| `window.destroy_all` | none | `v` / plot | Make window/Kill all / MK | `closed_count`: `integer` | `window`, `state`, `done` | Close every extra graph. |
+| `window.send_to_bottom` | `window`: optional window (max 1024 bytes) | `v` / plot | Make window/Bottom / MB | `window`: `window` | `state`, `done` | Send a graph to the bottom. |
+| `window.set_redraw_mode` | `window`: optional window (max 1024 bytes), `mode`: required choice (auto, manual) | `v` / plot | Make window/Auto or Manual / MA/MM | `redraw_mode`: `choice` | `state`, `done` | Choose automatic or manual graph redrawing. |
+| `window.set_simultaneous_plot` | `enabled`: required boolean | `v` / plot | Make window/SimPlot / MS | `simultaneous_plot`: `boolean` | `state`, `done` | Draw on every open graph when enabled. |
+<!-- registry:end -->
 
 ## Startup
 
@@ -43,9 +119,9 @@ once, and keeps any other command for after the one that asked. See
    (`menu_names`, `command_categories` and `command_table`: "The command
    table"), the windows' key layers (`windows`), every command's kind and
    whether it is a step (`commands`): see "Action kinds"; the limits the
-   core keeps to (`limits`) and the windows' numbers (`window_ids`): see
+   core keeps to (`limits`) and the initial window names (`window_names`): see
    "Shared limits and ids"; the user's keymap (`keymap`: "Keymap").
-2. `window` `create` for window 1, the main plot.
+2. `window` `create` for the named main graph.
 3. `state`, then `idle`.
 
 A client that draws sends `data` next (see "The plot as data").
@@ -429,11 +505,11 @@ steps are not comparison intervals.
 | `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/command_table.h and core/menus.cpp, the only places a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani`, `aplot` or `equilibrium`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. `button` (optional, any command's key) names the control the key came from (web2: Integrate, and every window button by its `hello.windows` id); only a recording reads it ("Recordings"). |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (a client or the recording player can answer without tracking prompt ids). |
 | `set` | `kind` (`par`, `ic`, `bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `total_time`, `dt`, `method`, ...; "The numerics as data"). A formula that does not evaluate gives `message` `error`, a numerics value refused one naming the field (`Numerics: Dt must be a number other than 0`); so does what the command cannot take, nothing set (W116): a `kind` it does not have (`set takes kind par, ic, delay, bc or num, not "parm"`), a name the model does not have (`set: the model has no par nosuch`), an `index` outside the list, no `value` that is a number and no `text` (`set par iapp: its value is not a number (or its text missing)`). Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]: all or nothing (W131), every value is checked first (a kind, a name, an `index`, a number, a formula that compiles, a numerics value) and none is applied when one is refused, the one `message` `error` naming that value (`set par gca: ...`) and its `field`. A `par` or `ic` `text` is one number, all of it (`xpp::parse_number`: no `1O0`, no `5x`; blanks around it are allowed), or a `%formula`; anything else is refused (`set par gca: "abc" is not a number`), as are an answer to a number ask, a `slide` value and an `internset` value that is not a number. web2 sends every edit (a value field, a slider, Reset, a numerics field) at once, busy or idle (W106). |
-| `applyset` | `set`, `scope`, `win` | **Apply set** (W319, File > Apply set…, the Values panel's Named sets): the model's set `set` (the name as the model spells it) applied as a patch over the current values, limited to `scope`: `all`, `parameters`, `initial` (the states) or one of the groups a set holds (`integration`, `poincare`, `equilibria`, `continuation`, `plot`, `sweep`, `analysis`; docs/odex.md). `win` is the target plot window, numbered as the `plots` event does (1 is the first; the active one when omitted), and only a scope of `all` or `plot` takes one; `continuation` is the next run's, a finished run keeps what it used. A parameter-only apply leaves the initial values alone: `init` formulas are not evaluated again. All or nothing: a set the model lacks, a scope it is not, a window that is not open, `win` with another scope, or an entry whose value is refused is a `message` `error` (at the set's line in the model for an entry, otherwise at the command's place) and changes nothing. One undo step. The File menu's command (`getparset`) asks the set (menu `param_set`), the scope (`set_scope`, `all` first) and, with several windows open and a scope of `all` or `plot`, the window (`set_graph`), then runs this. A setting, as `set` is. |
-| `restoredefaults` | `scope`, `field`, `win` | **Restore defaults** (W319, File > Restore defaults…, the Values panel's Reset all and each field's reset): the model's own values back, for `scope` (as `applyset`'s); `field` limits it to one parameter, state or setting of the scope (not with `all`). A setting returns to the built-in value with the model's `options` over it; `win` is the plot window as in `applyset`. All or nothing, one undo step, no run. The File menu's command (`restoredefaults`, key `k`) asks the scope (menu `restore_scope`) and the window as Apply set does, then runs this. A setting, as `set` is. |
-| `saveset` | `set`, `mode` (`new`, `replace`), `scope`, `win`, `state` | **Save values into a set** (W320, File > Save values…, key `o`): the current values of `scope` (as `applyset`'s: `all`, `parameters`, `initial` or one group of settings; `win` the plot window as there) written into the model file. `new` appends `set NAME { ... }` at the end of the file (the name a valid name that is not a set of the model, an import's included); `replace` writes them in place of that set's part of the same kind (the parameters, the states, or one group of its `options:`), every other part of the set as it was written, and the set must be one the model file itself writes: a set an import brought is read-only and the error asks for a name of one's own. `state` is `initial` (the default) or `last` (the last state reached, for the initial values). The rest of the file keeps its text, comments, line ends and all. The new text is parsed and checked as a model first; the file on the disk must still be the one the model loaded (a file changed since is refused, saying so, and left alone); the replacement is atomic (a temp file, then a rename); only then the model's sets, defaults, options and places follow, so `applyset` finds the new set at once. A model opened from a session file (or played from a recording) has no file of its own: the session's copy of the model changes, and saving the session keeps it. All or nothing: any error is a `message` `error` (at the set's line, or the command's place) and neither the file nor the model changes. A data command ("Action kinds"): refused during a computation. |
-| `savedefaults` | `scope`, `win`, `state` | **Save as defaults** (W320, File > Save as defaults…, key `j`): the current values of `scope` written as the model's own, where the model keeps them: the values that differ from the defaults replace the numbers of the `par` and `init` lines where they stand (an `init` formula becomes the number; a state with no `init` line gets one after the last), and a group of settings replaces its entry in the `options` block (the block, or its group, is added when there is none). Restore defaults uses them at once. A default declared by an import or by an array statement cannot be rewritten in this file: the error names where it is declared. Written as `saveset` is. |
-| `exportset` | `set`, `scope`, `file`, `win`, `state` | **Export values** (W320, File > Export values…, key `i`): the current values of `scope` as the set `set` of the `.odex` file `file`, which gets the first line `# Saved from <model> at <time>` when it is new; in a file that exists the set is added, and a set of that name there asks (a `choice` ask: the replace question) before its part of that kind is replaced. The file is written by the save dialogs' rules (a base name, no link, a temp file then a rename); the model file itself is refused (`saveset` writes it). The file is checked for its syntax, not against names it does not declare: a file of sets is for a model to load. |
+| `applyset` | `set`, `scope`, `window` | **Apply set** (W319, File > Apply set…, the Values panel's Named sets): the model's set `set` (the name as the model spells it) applied as a patch over the current values, limited to `scope`: `all`, `parameters`, `initial` (the states) or one of the groups a set holds (`integration`, `poincare`, `equilibria`, `continuation`, `plot`, `sweep`, `analysis`; docs/odex.md). `window` is the target graph name (the selected graph when omitted), and only a scope of `all` or `plot` takes one; `continuation` is the next run's, a finished run keeps what it used. A parameter-only apply leaves the initial values alone: `init` formulas are not evaluated again. All or nothing: a set the model lacks, a scope it is not, a window that is not open, `window` with another scope, or an entry whose value is refused is a `message` `error` (at the set's line in the model for an entry, otherwise at the command's place) and changes nothing. One undo step. The File menu's command (`getparset`) asks the set (menu `param_set`), the scope (`set_scope`, `all` first) and, with several windows open and a scope of `all` or `plot`, the window (`set_graph`), then runs this. A setting, as `set` is. |
+| `restoredefaults` | `scope`, `field`, `window` | **Restore defaults** (W319, File > Restore defaults…, the Values panel's Reset all and each field's reset): the model's own values back, for `scope` (as `applyset`'s); `field` limits it to one parameter, state or setting of the scope (not with `all`). A setting returns to the built-in value with the model's `options` over it; `window` is the plot window as in `applyset`. All or nothing, one undo step, no run. The File menu's command (`restoredefaults`, key `k`) asks the scope (menu `restore_scope`) and the window as Apply set does, then runs this. A setting, as `set` is. |
+| `saveset` | `set`, `mode` (`new`, `replace`), `scope`, `window`, `state` | **Save values into a set** (W320, File > Save values…, key `o`): the current values of `scope` (as `applyset`'s: `all`, `parameters`, `initial` or one group of settings; `window` the plot window as there) written into the model file. `new` appends `set NAME { ... }` at the end of the file (the name a valid name that is not a set of the model, an import's included); `replace` writes them in place of that set's part of the same kind (the parameters, the states, or one group of its `options:`), every other part of the set as it was written, and the set must be one the model file itself writes: a set an import brought is read-only and the error asks for a name of one's own. `state` is `initial` (the default) or `last` (the last state reached, for the initial values). The rest of the file keeps its text, comments, line ends and all. The new text is parsed and checked as a model first; the file on the disk must still be the one the model loaded (a file changed since is refused, saying so, and left alone); the replacement is atomic (a temp file, then a rename); only then the model's sets, defaults, options and places follow, so `applyset` finds the new set at once. A model opened from a session file (or played from a recording) has no file of its own: the session's copy of the model changes, and saving the session keeps it. All or nothing: any error is a `message` `error` (at the set's line, or the command's place) and neither the file nor the model changes. A data command ("Action kinds"): refused during a computation. |
+| `savedefaults` | `scope`, `window`, `state` | **Save as defaults** (W320, File > Save as defaults…, key `j`): the current values of `scope` written as the model's own, where the model keeps them: the values that differ from the defaults replace the numbers of the `par` and `init` lines where they stand (an `init` formula becomes the number; a state with no `init` line gets one after the last), and a group of settings replaces its entry in the `options` block (the block, or its group, is added when there is none). Restore defaults uses them at once. A default declared by an import or by an array statement cannot be rewritten in this file: the error names where it is declared. Written as `saveset` is. |
+| `exportset` | `set`, `scope`, `file`, `window`, `state` | **Export values** (W320, File > Export values…, key `i`): the current values of `scope` as the set `set` of the `.odex` file `file`, which gets the first line `# Saved from <model> at <time>` when it is new; in a file that exists the set is added, and a set of that name there asks (a `choice` ask: the replace question) before its part of that kind is replaced. The file is written by the save dialogs' rules (a base name, no link, a temp file then a rename); the model file itself is refused (`saveset` writes it). The file is checked for its syntax, not against names it does not declare: a file of sets is for a model to load. |
 | `renameset` | `set`, `to` | **Rename set** (W320, File > Rename set…, key `z`): the model file's own set renamed in the file and in the model. The new name is checked like a new set's, and refused when it is a set of the model; an imported set is read-only. Written as `saveset` is. |
 | `deleteset` | `set` | **Delete set** (W320, File > Delete set…, key `f`): the set and its line removed from the model file. An imported set is read-only. Written as `saveset` is. |
 | `slider` | `slot`, `name`, `lo`, `hi`, `step` | Set a Session slider definition. Zero-based `slot` is an existing slot or the next slot (append); empty `name` clears it. Name must be a parameter or initial condition; finite low < high, and step from 0 through high-low are required (0 chooses an automatic page step). A state event confirms the setting; it runs nothing. Open model replaces the definitions with that model's `@ s1/slo1/shi1` options. |
@@ -448,12 +524,11 @@ steps are not comparison intervals.
 | `equations` | | Send `equations`. |
 | `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"); `autosettings`: AUTO's Numerics, parameters, axes and Mark values ("AUTO's settings as data"); `numerics`: the main numerics ("The numerics as data"); `player`: the open recording's complete `player` event, sent at once and again whenever it changes, so a page that connects after the file opened still gets its steps and notes ("Recording startup and all-state inspection"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
-| `click` | `win` | The user selected plot window `win`. |
-| `display` | `win`; `x`, `y` (`[low, high]` or `null`), `runs` (bool), `freeze` (bool) | What the page displays of plot window `win` (W65, "Display state" below): the zoom shown on each axis given (`null`: the window's own), whether its earlier runs are drawn (`runs`) and whether a replaced trajectory is kept as an earlier run (`freeze`, default true; false: a new run drops the earlier runs instead of keeping the replaced one). A key left out stays as it is. A view (see "Action kinds"): sent during a computation it runs after it (the page holds its changes for the idle anyway, to send only the last). A range whose low is not below its high, or a window that does not exist, is a `message` `error` and nothing changes. The values come back in `plots`. |
-| `annotation` | `op` (`list`, `add_text`, `add_arrow`, `add_pointer`, `add_marker`, `edit`, `move`, `delete`, `delete_all`), `win` (`list`, `add_*`, `delete_all`), `id` (`edit`, `move`, `delete`), `text`, `size`, `style`, `color`, `shape`, `x`, `y`, `tip_x`, `tip_y`, `tail_x`, `tail_y`, `new_x`, `new_y` | The texts, arrows, pointers and markers of the plot windows by their ids, in plot coordinates (W513, #577; the texts since W227, #281): see "Annotations". A view ("Action kinds"). All or nothing: a `win` that is no open plot window, an `id` no annotation has, a missing or non-finite number, a text that is empty or longer than `hello.text.max_length`, a `size` or `style` outside `hello.text`'s range, a `color` that is no colour, a `shape` it does not have, an arrow whose tip is its tail, or an add when the session holds 100000 of that kind is a `message` `error` (`annotation edit: 9 is not a text size (0 to 4)`) and nothing changes. |
+| `display` | `window`; `x`, `y` (`[low, high]` or `null`), `runs` (bool), `freeze` (bool) | What the page displays of plot window `window` (W65, "Display state" below): the zoom shown on each axis given (`null`: the window's own), whether its earlier runs are drawn (`runs`) and whether a replaced trajectory is kept as an earlier run (`freeze`, default true; false: a new run drops the earlier runs instead of keeping the replaced one). A key left out stays as it is. A view (see "Action kinds"): sent during a computation it runs after it (the page holds its changes for the idle anyway, to send only the last). A range whose low is not below its high, or a window that does not exist, is a `message` `error` and nothing changes. The values come back in `plots`. |
+| `annotation` | `op` (`list`, `add_text`, `add_arrow`, `add_pointer`, `add_marker`, `edit`, `move`, `delete`, `delete_all`), `window` (`list`, `add_*`, `delete_all`), `id` (`edit`, `move`, `delete`), `text`, `size`, `style`, `color`, `shape`, `x`, `y`, `tip_x`, `tip_y`, `tail_x`, `tail_y`, `new_x`, `new_y` | The texts, arrows, pointers and markers of the plot windows by their ids, in plot coordinates (W513, #577; the texts since W227, #281): see "Annotations". A view ("Action kinds"). All or nothing: a `window` that is no open plot window, an `id` no annotation has, a missing or non-finite number, a text that is empty or longer than `hello.text.max_length`, a `size` or `style` outside `hello.text`'s range, a `color` that is no colour, a `shape` it does not have, an arrow whose tip is its tail, or an add when the session holds 100000 of that kind is a `message` `error` (`annotation edit: 9 is not a text size (0 to 4)`) and nothing changes. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
-| `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`view`, `x`, `y`, `show`), `view` (`new`, `close` or `active`), `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `axes`, `marks`, `threads`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` a view's zoom, `show` whether the branches hidden by Clear are drawn; `view` adds, closes or activates a view of the diagram ("Views of the diagram" below); `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `close` destroys window 101, File/Auto opens it again. |
+| `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`view`, `x`, `y`, `show`), `view` (`new`), `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `axes`, `marks`, `threads`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of the selected AUTO view or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` a view's zoom, `show` whether the branches hidden by Clear are drawn; `view` with `new` adds a named view of the diagram; selection and closing use `window.select` and `window.close` ("Views of the diagram" below); `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `window.close` closes a named AUTO view, and closing the last one hides AUTO until File/Auto opens it again. |
 | `session` | `op` (`save`, `load`), `name`, `data` (save) | Save or open a session file, `name.snapx` (`.snapx` added unless `name` ends so; "Session files" below): File/opeN session (key `n` of the File menu) and `save`. Without `name`, `save` asks for one (`ask` kind `file`, wildcard `*.snapx`) and, as every save with no decision, before replacing a file that exists. The File menu's two save commands are the table's `savesession` (key `v`, Ctrl+S: saves to `state.session.file` with no ask and no replace question, and behaves as `savesessionas` when there is none) and `savesessionas` (key `w`, Ctrl+Shift+S: always asks, as `save` with no `name`), W209. A third, `savesessioncopy` (key `b`, no default key, W218), asks as `savesessionas` does and writes the file but leaves `state.session` and `state.changed` as they were. Reload keeps `state.session`'s file. `save`'s `data`: `true` puts the data table in, `false` leaves it out; without it the table goes in unless it is above 50 MB, when a `choice` ask (keys `l` leave it out, `s` save it) decides. `load` of a session file is `open` of it (below: its saved model, then the session). `state.session` (below) names the file the current session was last saved to or opened from. |
 | `open` | `file` | Load another model in place of this one (File > Open model). Without `file`, asks with wildcard `*.ode* *.snapx *.recx`. A missing file, an invalid session or a session without its model fails at once. Then asks `choice`, keys `sd`: Save session (`s`) or Don't save (`d`); a cancel keeps the session. A `.snapx` loads its saved model from its own members, then restores its whole session, even when the same model is open. A `.recx` opens in the player and starts automatically. The opened file's folder becomes the working directory; nothing is extracted beside a session. `hello.title` identifies its saved model, e.g. `lecar.odex (saved in lecar.snapx)`. A binary file or a model that does not load is refused with its place shown and the previous session unchanged. On success, all windows but the main one are destroyed and a new `hello`, main window, `state` and first-start events follow; the client subscribes with `data` again. |
 | `reload` | | Read the model's file again with the command line and in the folder it was loaded with (File/rEload, key `e` of the File menu; the window's File > Reload), as `open` does, asking first as it does (W59d: `choice` `sd`, `Reload NAME? Its values are kept by name; this model's data and diagram go. Save its session first?`): the parameters, initial data (a delay equation's history text too) and numerics keep the session's values by name (the Poincare section's variable by its name), a name the file no longer has is dropped, a new one comes with the file's value; `hello`'s `defaults` are the file's. A file that does not load changes nothing, as for `open`. |
@@ -526,16 +601,12 @@ What a client must keep to, from the core that keeps to it (W118):
 - `hello.annotation_glyphs` (W513, #577): how the pictures draw an annotation, decided once in the core (core/grobs.cpp), for the page to draw as they do: `markers` the strokes of each marker `shape` (a list of polylines of `[x, y]` in glyph units, y up, centred on the marker's position), `half_units` the units from a marker's centre to the edge of its box at size 1 (the page maps them to its own pixels), and `arrow_head_spread` how far the two strokes of an arrow head spread either side, as a part of their length.
 - `hello.line_styles` (W492, #556): how a curve's style is drawn, decided once in the core (core/picture.cpp): `dash` the pattern of each dash word at a width of 1 (a wider line multiplies it by its width, at least 1; empty: solid) and `markers` the glyph of each marker word at a size of 1 (a size s multiplies it by max(s, 0.5)): `circle` the radius of a filled circle (0 for none), `polygon` the corners of a filled polygon, `strokes` its line segments, in pixels with y down. The page draws a curve's markers and dashes from it as the PDF and SVG do.
 - `hello.colormaps`: the colour scales the core has, by name (the order of core/colormap.h `colormap_names`); the `colormap` command changes the session's.
-- `hello.window_ids`: the window numbers of `window` events and asks:
-  the AUTO diagram is `auto` (101), the animation `ani` (104), the array
-  plot `aplot` (105). `plots` is the initial number of plot slots, not a
-  maximum. The `plots.windows` event lists actual open plot IDs. Positive
-  plot IDs skip the reserved auxiliary range 101 through 105. A command's
-  `win` must be a whole ID of an open plot. Nonpositive, fractional or
-  unrepresentable IDs report `win is a whole number, a positive plot window ID`;
-  an ID not held by an open plot reports `window <id> is not an open plot window`.
-  Both are placed errors prefixed with the command's name. Curves, frozen curves and plot windows have no fixed
-  count limit (W376, #438); the page uses the received lists.
+- `hello.window_names`: names for the main graph, initial AUTO view,
+  animation and array-plot surfaces (`main`, `auto`, `ani`, `aplot`).
+  `plots.windows` and diagram `views.names` list the actual open windows.
+  Names are strings in events, asks and commands; there are no numeric
+  window handles on the wire.
+
 
 The core says when the running command begins computing: `computing`
 (once per command, before its first `progress`; its `idle` ends it). A
@@ -570,7 +641,7 @@ The windows other than the main one have a key layer of their own: `{"cmd":"key"
 | `aplot` | `d` reDraw, `e` Edit, `f` Fit, `r` Range, `p` Print, `g` GIF |
 | `equilibrium` | `i` Import: the last equilibrium becomes the initial conditions |
 
-Use this view, the 3D turn and Use current state have no layer of their own: they are main-window keys, `w` `w` (Window/Window, whose four numbers the page answers), `3` (3d-params, whose Theta and Phi the page answers) and `i` `l` (Initialconds/Last, which runs). The buttons with no key at all are the commands with their own row above: `slide`, `default`, `values`, `userbut`, `action`, `plotvars`, `click`, `redraw` and the parameter-carrying `set`, `auto` (`set`, `point`, `grab` by label, `close`), `browser` (`write`, `load` with their choices, the paging request), `ani` (`step`, `seek`, `speed`, `mouse`, `pause`, `fast`, `slow`, `close`) and `aplot` (`scroll`, `close`). A command the protocol does not have (the removed `view`, `view3d`, `rotate`, `eqimport`) is a `message` `error` "Unknown command X", an `op` of `auto`, `browser`, `ani` or `aplot` it no longer has "Unknown auto op X" and so on.
+Use this view, the 3D turn and Use current state have no layer of their own: they are main-window keys, `w` `w` (Window/Window, whose four numbers the page answers), `3` (3d-params, whose Theta and Phi the page answers) and `i` `l` (Initialconds/Last, which runs). The buttons with no key at all are the commands with their own row above: `slide`, `default`, `values`, `userbut`, `action`, `plotvars`, `window.select`, `redraw` and the parameter-carrying `set`, `auto` (`set`, `point`, `grab` by label), `browser` (`write`, `load` with their choices, the paging request), `ani` (`step`, `seek`, `speed`, `mouse`, `pause`, `fast`, `slow`, `close`) and `aplot` (`scroll`, `close`). A command the protocol does not have (the removed `view`, `view3d`, `rotate`, `eqimport`) is a `message` `error` "Unknown command X", an `op` of `auto`, `browser`, `ani` or `aplot` it no longer has "Unknown auto op X" and so on.
 
 ## Saving data
 
@@ -869,7 +940,7 @@ par iapp=0.1
 {"step":"Initialconds → Go","keys":["i","g"]}
 {"step":"nUmerics → Total","keys":["t"],"answers":["1e7"]}
 {"step":"Initialconds → Go","keys":["i","g"],"abort":{"what":"integrate","rows":2193,"t":219.2}}
-{"step":"Zoom window 1","cmd":{"cmd":"display","win":1,"x":[0,50]},"view":true}
+{"step":"Zoom window 1","cmd":{"cmd":"display","window":"graph_1","x":[0,50]},"view":true}
 
 fingerprint: 5f0c...(64 hex digits)
 ```
@@ -1082,7 +1153,7 @@ large value".
 | ev | fields | meaning |
 |---|---|---|
 | `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`, `player`), `title`, `file`, `output_names` (`par`, `ic`, `csv`, `curves`), `menu_names`, `command_categories`, `command_table`, `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 markers, 5 methods (items like `2 Box` start with the number to enter); `line_styles` (above), `colormaps` (above). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
-| `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows, AUTO, animation and array plot, numbered as `hello.window_ids` says. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
+| `window` | `op` (`create`, `select`, `destroy`), `kind` (`graph`, `diagram`, `animation`, `array_plot`), `win`, `w`, `h`, `title` | Plot windows, AUTO, animation and array plot, identified by name. `kind` distinguishes auxiliary panels from user-named graphs; `hello.window_names` gives their initial names. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
 | `diagram` | `op` (`axes`, `reset`, `add`, `views`), `view`, ... | The AUTO diagram as data, each view of it; see "The AUTO diagram as data". |
 | `autoinfo` | `info`, `stab`, `stop`, `notes`, `start_refined` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
 | `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`data`); see "AUTO's settings as data". |
@@ -1114,7 +1185,7 @@ large value".
 | `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
 | `equations` | `lines` | One `dX/dT=...` line per equation. |
 | `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open`; or `op` `frame`, ... | Animation state for its slider and toggles, sent with every frame drawn and after every `ani` command: `pos` the row the next step starts from, `speed` the ms between frames of Go, `loaded` 1 when an `.ani` file is loaded, `open` 1 while the animation window exists. With `op` `frame`: a frame as data, for a client that asked (`data`); see "The animation as data". |
-| `aplot` | `title`, `nx`, `ny`, `values`, `enc`, `colormap`, `ramp`, `zmin`, `zmax`, `tlo`, `thi`, `tag` | The array plot (window 105; W492, #556 made it data only): `ny` rows of `nx` cells, row by row, `values` their numbers (as a series column; `null`/NaN off the stored rows and columns), `colormap` the session's colour scale by name and `ramp` its 256 colours from the low end to the high one: a cell is the ramp's colour at floor(256 * fraction), fraction being (value - `zmin`) / (`zmax` - `zmin`) clamped to 0..1 (core/colormap.h `ramp_color`); with `zmax` not above `zmin` no cell is coloured. `tlo` and `thi` are the times of its first and last row. `tag` the range-saving frame's text. Print writes the same cells and colours as a PDF. |
+| `aplot` | `title`, `nx`, `ny`, `values`, `enc`, `colormap`, `ramp`, `zmin`, `zmax`, `tlo`, `thi`, `tag` | The array plot (the array plot surface; W492, #556 made it data only): `ny` rows of `nx` cells, row by row, `values` their numbers (as a series column; `null`/NaN off the stored rows and columns), `colormap` the session's colour scale by name and `ramp` its 256 colours from the low end to the high one: a cell is the ramp's colour at floor(256 * fraction), fraction being (value - `zmin`) / (`zmax` - `zmin`) clamped to 0..1 (core/colormap.h `ramp_color`); with `zmax` not above `zmin` no cell is coloured. `tlo` and `thi` are the times of its first and last row. `tag` the range-saving frame's text. Print writes the same cells and colours as a PDF. |
 | `film` | `op` (`capture`, `reset`, `play`, `autoplay`), `count`, `win`, `cycles`, `delay` | Kinescope. The client keeps the frames: on `capture` it copies window `win` as it is drawn now; `play` shows them, `autoplay` plays `cycles` times `delay` ms apart. |
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
 | `ping` | | Beep. |
@@ -1173,7 +1244,7 @@ and keeps everything under "Messages".
 
 A run beginning a segment carries `parameters`, the branch's `[name,value]` pairs in model order, at full precision (W339, [#400](https://github.com/MuhammadMoustafa/xppautX/issues/400)). Its point coordinates resolve the continued values over these immutable constants.
 
-The server sends the AUTO diagram's points (window 101) as data, so that
+The server sends the AUTO diagram's points (the selected AUTO view) as data, so that
 a client draws it and can zoom, pan and name the point under the mouse
 without a round trip. The data describe exactly what XPP's diagram shows
 (and what PDF and SVG export draw): after the `auto` op `clear` it
@@ -1189,7 +1260,7 @@ period, ... of the Axes setting), in the order it was plotted.
 **Views of the diagram** (W50). The one diagram has any number of views
 (at least one), each with its own axes (plot type, variable, parameters,
 ranges) and zoom: I-V beside I-gca in two-parameter work. Every `diagram`
-event names its `view` (0, 1, ...) and applies to that view's points and
+event names its `view` (`"diagram_1"`, `"diagram_2"`, ...) and applies to that view's points and
 axes; a client keeps one list per view. Every view holds one entry per
 point of the diagram, in the same order, so a point's index is the same
 in every view (the grab, `info.point`, Clear's `earlier`): a point a view
@@ -1200,29 +1271,26 @@ form, zoom, Fit, Scroll, last 1 and 2 par, Default), the exports, the info
 strip and a Run go by its axes (its parameters are the ones a run
 continues in), and a grab's point by its data.
 
-- `{"ev":"diagram","op":"views","n":N}`: the diagram has N views now; the
-  client drops its lists after the first N, or adds empty ones up to N.
-  It comes before the events of a new view, and after a view is closed
-  (the views after it move down one: the events that follow send their
-  lists again).
-- `{"cmd":"auto","op":"view","new":1}` adds a view with the active one's
-  axes and makes it active (the Axes menu's "new (V)iew", key `v`, does the
-  same); `{"cmd":"auto","op":"view","close":k}` closes view k (an error
-  message when there is no view k, or it is the last one: one always
-  stays); `{"cmd":"auto","op":"view","active":k}` makes view k the active
-  one. They are views (kind `v`): sent while AUTO runs, they run after it
-  ("Commands during a command"), while every view gets the run's points
-  as they come.
+- `{"ev":"diagram","op":"views","n":N,"names":["diagram_1",...]}` lists
+  the open views in display order. The client preserves each named view's
+  data and drops names absent from the list. Names stay unchanged when a
+  preceding view closes.
+- `{"cmd":"auto","op":"view","new":1}` adds a named view with the active
+  one's axes and makes it active (the Axes menu's New view does the same).
+  `{"cmd":"window.select","window":"diagram_1"}` selects it;
+  `{"cmd":"window.close","window":"diagram_1"}` closes it. Closing the
+  last view hides AUTO; File/Auto reopens it. These are views (kind `v`),
+  queued while AUTO computes, while each view receives the run's points.
 
-- `{"ev":"diagram","op":"axes","view":v, xmin, xmax, ymin, ymax, x0, y0, wid, hgt, plot, xlabel, ylabel}`:
+- `{"ev":"diagram","op":"axes","view":"diagram_1", xmin, xmax, ymin, ymax, x0, y0, wid, hgt, plot, xlabel, ylabel}`:
   the diagram was drawn again at these axes (`plot` is the view's
   projection, by name: `maximum`, `norm`, `maximum_and_minimum`, `period`,
   `two_parameter`, `frequency` or `average`; W491); the points are unchanged. Pixel `x0 + wid*(x-xmin)/(xmax-xmin)`,
-  `y0 + hgt - hgt*(y-ymin)/(ymax-ymin)` of window 101 is (x, y) in the
+  `y0 + hgt - hgt*(y-ymin)/(ymax-ymin)` of the selected AUTO view is (x, y) in the
   core's pixels (what a pixel answer to a `grab` or `rubber` ask means).
-- `{"ev":"diagram","op":"reset","view":v,"keep":k, ...the axes fields}`: drop every
-  point of view v after the first `k` (all of them for 0), then the axes as above.
-- `{"ev":"diagram","op":"add","view":v,"from":n,"runs":[...]}`: points `n`, `n+1`, ... of view v
+- `{"ev":"diagram","op":"reset","view":"diagram_1","keep":k, ...the axes fields}`: drop every
+  point of that named view after the first `k` (all of them for 0), then the axes as above.
+- `{"ev":"diagram","op":"add","view":"diagram_1","from":n,"runs":[...]}`: points `n`, `n+1`, ... of view v
   (`n` is the number of points the client holds) in runs of points that
   share their branch, kind and style and whose numbers count up by one:
 
@@ -1531,7 +1599,7 @@ keeps the event whose `win` is the active one (`plots.active` or
 `state.win`).
 
 ```
-{"ev":"series","win":1,"rows":601,"three":0,"xlabel":"","ylabel":"","zlabel":"",
+{"ev":"series","win":"graph_1","rows":601,"three":0,"xlabel":"","ylabel":"","zlabel":"",
  "curves":[{"x":1,"y":2,"z":1,"color":"foreground","draw":"line","dash":"solid","width":1,"marker":"circle","marker_size":3}],"shift":[0,0,0],
  "columns":[{"col":0,"name":"T","data":[0,0.0500000007,...]},
             {"col":1,"name":"V","data":[-0.143999994,...]},
@@ -1570,19 +1638,19 @@ where the last run ended, or stopped.
 or 3D view); its text is compared with the last one sent.
 
 ```
-{"ev":"plots","active":2,"windows":[
- {"win":1,"title":"W vs V","three":0,"xlo":-0.6,"xhi":1.2,"ylo":-0.25,"yhi":1.2,
+{"ev":"plots","active":"graph_2","windows":[
+ {"win":"graph_1","title":"graph_1","three":0,"xlo":-0.6,"xhi":1.2,"ylo":-0.25,"yhi":1.2,
   "box":{"xmin":-0.6,"xmax":1.2,"ymin":-0.25,"ymax":1.2,"zmin":-12,"zmax":12},
   "theta":45,"phi":45,"persp":0,"zplane":-1000,"zview":1000,
   "curves":[{"x":1,"y":2,"z":1,"color":"foreground","draw":"line","dash":"solid","width":1,"marker":"circle","marker_size":3}],"shift":[0,0,0]},
- {"win":2,"title":"V vs T",...}]}
+ {"win":"graph_2","title":"graph_2",...}]}
 ```
 
 | field | meaning |
 |---|---|
-| `active` | the active window: the one keys, Viewaxes, Xi vs t, ... act on (`click` selects another) |
+| `active` | the active window: the one keys, Viewaxes, Xi vs t, ... act on (`window.select` selects another) |
 | `windows` | every plot window, by `win`; a window missing from the list was destroyed |
-| `title` | what the window plots, `y vs x` (`z vs y vs x` in 3D), as its X11 title |
+| `title` | the window's name, exactly as written by its user |
 | `three` | 1 for a 3D plot |
 | `xlo`, `xhi`, `ylo`, `yhi` | the window's axes (Viewaxes, Window/Zoom); in 3D the projected view's |
 | `box` | the 3D box (3d-params, Viewaxes in 3D): the data ranges of x, y and z |
@@ -1591,9 +1659,7 @@ or 3D view); its text is compared with the last one sent.
 | `curves`, `shift` | as in `series` |
 
 Numbers are the doubles themselves, in the shortest of 15 or 17 digits that
-reads back exactly; `null` for a value that is not finite. Makewindow
-(`m`, then `c` create, `d` destroy the active window, `k` kill all but
-window 1) changes the list; `click` with a window's `win` makes it active.
+reads back exactly; `null` for a value that is not finite. `window.create`, `window.close` and `window.destroy_all` change the list; `window.select` with a window's name makes it active.
 
 **`nullclines`** and **`dfield`**: what a phase plane shows besides its
 curves, one event per plot window, each saying what XPP's window
@@ -1608,7 +1674,7 @@ nothing), and for every window once after `data`. The active window's
 comes first.
 
 ```
-{"ev":"nullclines","win":1,"xname":"V","yname":"W","xcolor":"#f06400","ycolor":"#00e100",
+{"ev":"nullclines","win":"graph_1","xname":"V","yname":"W","xcolor":"#f06400","ycolor":"#00e100",
  "x":[-0.596100688,0.475000024,-0.600000024,0.503065467,...],"y":[...],
  "frozen":[{"x":[...],"y":[...]}]}
 ```
@@ -1621,7 +1687,7 @@ comes first.
 | `frozen` | the frozen nullclines (Nullcline/Freeze) the window shows, the same colours, each set's `x` and `y` as above |
 
 ```
-{"ev":"dfield","win":1,"scaled":1,"color":"foreground","n":17,"du":0.1125,"dv":0.090625,
+{"ev":"dfield","win":"graph_1","scaled":1,"color":"foreground","n":17,"du":0.1125,"dv":0.090625,
  "grid":[-0.600000024,-0.25,0.305723518,0.952120364,...],"speed":[0.0421,...],
  "flows":[{"color":"foreground","x":[-0.600000024,-0.59258616,...,null,...],"y":[...]}]}
 ```
@@ -1654,7 +1720,7 @@ of a command when the window's marks differ from the last ones sent, and
 for every window once after `data`; the active window's first.
 
 ```
-{"ev":"marks","win":1,
+{"ev":"marks","win":"graph_1",
  "equilibria":[{"x":-0.1425351775676935,"y":0.034048992272573395,"type":"saddle","symbol":"triangle"}],
  "text":[{"x":-0.298305094,"y":0.498503745,"text":"\\1a\\0-point 6","size":3,"font":0}],
  "arrows":[{"kind":"pointer","x1":0.1,"y1":0.2,"x2":0.6,"y2":0.8,"size":0.2,"color":"#c8c800"}],
@@ -1690,7 +1756,7 @@ range, ...), the rows it stores go out as they come for
 the active window, at most about once a display frame (60 times a second):
 
 ```
-{"ev":"series","op":"append","win":1,"from":1200,"rows":2400,
+{"ev":"series","op":"append","win":"graph_1","from":1200,"rows":2400,
  "columns":[{"col":0,"data":[...]},{"col":1,"data":[...]},{"col":2,"data":[...]}]}
 ```
 
@@ -1710,7 +1776,7 @@ appended ends, before its `state` and `idle`, with the rows stored since
 the last append (one more append) and then
 
 ```
-{"ev":"series","op":"end","win":1,"rows":20001,"version":7}
+{"ev":"series","op":"end","win":"graph_1","rows":20001,"version":7}
 ```
 
 instead of the whole series again (a million rows are tens of MB): the
@@ -1770,7 +1836,7 @@ is a zip of ordinary files, in this order:
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `--anifile`'s animation; byte for byte |
 | `model.setx` | the session's settings (docs/odex.md ".setx"): the numerics (the Jacobian included) under the option table's keys, the run's position, the initial and ending values, the parameters, the delays, the boundary conditions, Transpose, the coupling, the array plot, the torus and the ranges; every key in it (a session loads nothing it does not hold), without the graphics, which `windows.setx` holds for every window |
 | `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's settings and views; full-precision diagram and restart orbits when a diagram exists (xpp_session_auto.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
-| `windows.setx` | a `windows` list, every open plot slot as a group in index order (its zero-based `number`, boolean `open` and its `curves` by variable name with colour and style (`color`, `draw`, `dash`, `width`, `marker`, `marker_size`), the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`), `active` (which window), an `auto_view` group (AUTO's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
+| `windows.setx` | a `windows` list, every open plot slot as a group in index order (its quoted `name` and its `curves` by variable name with colour and style (`color`, `draw`, `dash`, `width`, `marker`, `marker_size`), the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`), `active` (the quoted window name), an `auto_view` group (AUTO's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
 | `marks.setx` | the `labels` list (window, x, y, size, font, style, color, text; each value checked, a text 1 to 1000 characters, at most 50), the `arrows_and_markers` list, `freeze_each_run` and the `frozen_curves` list of used slots in slot order (zero-based slot, boolean used, window, type, color, the style keys of a curve, points, key, name), per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
 | `data.npz` | the data table as Save data's NPZ writes it (`T.npy`, `V.npy`, ..., `seed.npy`), unless left out |
@@ -1905,7 +1971,7 @@ the earlier runs of all windows together: a window keeping a run drops its
 own oldest ones first, never its newest.
 
 ```
-{"ev":"runs","win":1,"erased":0,"clear":0,"drop":0,"keep":0,"enc":"f32","add":[
+{"ev":"runs","win":"graph_1","erased":0,"clear":0,"drop":0,"keep":0,"enc":"f32","add":[
  {"rows":601,"three":0,"curves":[...],"shift":[0,0,0],
   "columns":[{"col":0,"name":"T","data":[...]},{"col":2,"name":"W","data":[...]}]}]}
 ```
@@ -1928,11 +1994,11 @@ earlier runs are drawn) and `freeze` (1, the default: a trajectory a new run
 replaces is kept as an earlier run until Erase; 0: it is dropped, and only the
 current run is drawn). Other axes or curves of the window (Viewaxes,
 Window/Zoom, Fit, Xi vs t) drop the zoom. The `display` command sets them:
-`{"cmd":"display","win":1,"x":[0,10],"y":null,"runs":false,"freeze":true}` (a missing key
+`{"cmd":"display","window":"graph_1","x":[0,10],"y":null,"runs":false,"freeze":true}` (a missing key
 is left as it is).
 
 **`autoview`** (with `autoinfo`): `{"ev":"autoview","earlier":n,"show":0,
-"active":0,"views":[{"zoom":{"x":null,"y":null}},...]}`, sent at the end of
+"active":"diagram_1","views":[{"name":"diagram_1","zoom":{"x":null,"y":null}},...]}`, sent at the end of
 a command when it changed, and at once after `data`. `earlier`: the
 diagram's points before this index are the branches computed before Clear
 (the AUTO window's key `c` sets it to the points so far, in every view; a
@@ -1940,8 +2006,8 @@ diagram of fewer points, File/Reset diagram, lowers it, closing AUTO clears
 it); `show` 1: they are drawn; `active` the active view; `views` one entry
 per view of the diagram (W50), its `zoom` as above, dropped by other axes
 of that view (closing AUTO drops every view's zoom; the views stay).
-`{"cmd":"auto","op":"display","view":1,"show":true,"x":[...],"y":null}`
-sets `show` and view 1's zoom (the active view's without `view`).
+`{"cmd":"auto","op":"display","view":"diagram_2","show":true,"x":[...],"y":null}`
+sets `show` and `"diagram_2"`'s zoom (the active view's without `view`).
 
 ## Question answering
 
@@ -2039,7 +2105,7 @@ numbers, an `integer` and a `name:0` ask.
 answer can be given in the plot's own quantities instead of pixels: `xd`,
 `yd` for the point (`xd2`, `yd2` for a rubber band's second corner), in the
 coordinates `state.view` maps to (the active window's `xlo`..`xhi`,
-`ylo`..`yhi`; for the AUTO diagram, window 101, those of `state.auto` or
+`ylo`..`yhi`; for the AUTO diagram, the selected AUTO view, those of `state.auto` or
 the `diagram` `axes`). The server turns them into the nearest pixel of its
 window at the axes it has when the answer comes (the inverse of the
 mapping `state.view` describes), and the command goes on exactly as for a
@@ -2213,7 +2279,7 @@ apply here (W175, [#227](https://github.com/MuhammadMoustafa/xppautX/issues/227)
 ### The animation as data
 
 A client that asked with `{"cmd":"data","events":["ani"]}` gets each frame
-of the animation (window 104) as data, in the animation's own coordinates,
+of the animation (the animation surface) as data, in the animation's own coordinates,
 and draws it at any size itself (web2, docs/ui-v2.md T13).
 core/aniparse.cpp evaluates a frame in the `.ani` file's coordinates (its
 `dimension` box, [0,1] x [0,1] unless the file says otherwise, y up) and

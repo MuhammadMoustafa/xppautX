@@ -13,7 +13,7 @@ import {decode, decodeInto, valueCount} from '../protocol/decode';
 import type {Curve, SeriesAppendEvent, SeriesEvent} from '../protocol/types';
 
 export interface PlotSeries {
-  win: number;
+  win: string;
   rows: number;
   three: boolean;
   labels: {x: string; y: string; z: string};

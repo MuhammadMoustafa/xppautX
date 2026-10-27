@@ -10,9 +10,9 @@ import {activeWindow} from '../src/store/plots';
 import {reduce, type AppState} from '../src/store/state';
 
 const view: View = {
-  win: 1, left: 50, right: 550, top: 20, bottom: 420, xlo: -0.6, xhi: 0.5, ylo: -0.1, yhi: 0.5, three: 0, theta: 45, phi: 45,
+  win: 'graph_1', left: 50, right: 550, top: 20, bottom: 420, xlo: -0.6, xhi: 0.5, ylo: -0.1, yhi: 0.5, three: 0, theta: 45, phi: 45,
 };
-const ask = (kind: AskEvent['kind'], extra: object = {}): AskEvent => ({ev: 'ask', id: 7, kind, win: 1, ...extra});
+const ask = (kind: AskEvent['kind'], extra: object = {}): AskEvent => ({ev: 'ask', id: 7, kind, win: 'graph_1', ...extra});
 const close = (a: number, b: number) => Math.abs(a - b) < 1e-12;
 
 test('a *n field picks from list n; others are text', () => {
@@ -42,17 +42,17 @@ test('the select starts at the field\'s value, and keeps one the list does not h
 });
 
 test('mouse, rubber and drag asks of the shown 2D window are plot modes', () => {
-  assert.equal(pickModeOf(ask('mouse'), view, true, HELLO.window_ids), 'point');
-  assert.equal(pickModeOf(ask('rubber', {flag: 0}), view, true, HELLO.window_ids), 'box');
-  assert.equal(pickModeOf(ask('rubber', {flag: 1}), view, true, HELLO.window_ids), 'line');
-  assert.equal(pickModeOf(ask('drag'), view, true, HELLO.window_ids), 'drag');
-  assert.equal(pickModeOf(ask('rubber', {win: HELLO.window_ids.auto}), view, true, HELLO.window_ids), null, 'the AUTO diagram while AUTO is not open');
-  assert.equal(pickModeOf(ask('rubber', {win: HELLO.window_ids.auto, flag: 0}), view, false, HELLO.window_ids, true), 'box', 'Axes/Zoom on the AUTO view');
-  assert.equal(pickModeOf(ask('drag', {win: HELLO.window_ids.auto}), undefined, false, HELLO.window_ids, true), 'drag', 'Axes/Scroll on the AUTO view');
-  assert.equal(pickModeOf(ask('grab', {win: HELLO.window_ids.auto}), view, false, HELLO.window_ids, true), null, "a grab is the AUTO view's own mode");
-  assert.equal(pickModeOf(ask('mouse'), {...view, three: 1}, true, HELLO.window_ids), null, 'nor a 3D plot');
-  assert.equal(pickModeOf(ask('mouse'), view, false, HELLO.window_ids), null, 'nor a plot before the first series');
-  assert.equal(pickModeOf(ask('menu'), view, true, HELLO.window_ids), null);
+  assert.equal(pickModeOf(ask('mouse'), view, true, HELLO.window_names), 'point');
+  assert.equal(pickModeOf(ask('rubber', {flag: 0}), view, true, HELLO.window_names), 'box');
+  assert.equal(pickModeOf(ask('rubber', {flag: 1}), view, true, HELLO.window_names), 'line');
+  assert.equal(pickModeOf(ask('drag'), view, true, HELLO.window_names), 'drag');
+  assert.equal(pickModeOf(ask('rubber', {win: HELLO.window_names.auto}), view, true, HELLO.window_names), null, 'the AUTO diagram while AUTO is not open');
+  assert.equal(pickModeOf(ask('rubber', {win: HELLO.window_names.auto, flag: 0}), view, false, HELLO.window_names, true), 'box', 'Axes/Zoom on the AUTO view');
+  assert.equal(pickModeOf(ask('drag', {win: HELLO.window_names.auto}), undefined, false, HELLO.window_names, true), 'drag', 'Axes/Scroll on the AUTO view');
+  assert.equal(pickModeOf(ask('grab', {win: HELLO.window_names.auto}), view, false, HELLO.window_names, true), null, "a grab is the AUTO view's own mode");
+  assert.equal(pickModeOf(ask('mouse'), {...view, three: 1}, true, HELLO.window_names), null, 'nor a 3D plot');
+  assert.equal(pickModeOf(ask('mouse'), view, false, HELLO.window_names), null, 'nor a plot before the first series');
+  assert.equal(pickModeOf(ask('menu'), view, true, HELLO.window_names), null);
 });
 
 const box = (): PickState => startPick(null, ask('rubber'), 'box');
@@ -100,8 +100,8 @@ test('a drag by the keyboard is down, move and up the other way from the middle'
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const withPlot = (): AppState => {
-  let s = ev(READY, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view, rows: 0, menu: 0, win: 1});
-  s = ev(s, {ev: 'series', win: 1, rows: 0, three: 0, xlabel: '', ylabel: '', zlabel: '',
+  let s = ev(READY, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view, rows: 0, menu: 0, win: 'graph_1'});
+  s = ev(s, {ev: 'series', win: 'graph_1', rows: 0, three: 0, xlabel: '', ylabel: '', zlabel: '',
     curves: [{x: 1, y: 2, z: 1, color: 0, line: 1}], shift: [0, 0, 0],
     columns: [{col: 0, name: 'T', data: []}, {col: 1, name: 'V', data: []}, {col: 2, name: 'W', data: []}]});
   return s;
@@ -137,9 +137,9 @@ test('the store: a cancelled mode is gone at once; a drag lasts over its asks', 
 test('the core\'s window moving (Window/Zoom) shows it: the client zoom is not kept, no history (GitHub #110)', () => {
   let s = withPlot();
   s = reduce(s, {type: 'viewport', viewport: {x: {min: 0, max: 0.1}, y: null}});
-  s = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view, rows: 0, menu: 0, win: 1});
+  s = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view, rows: 0, menu: 0, win: 'graph_1'});
   assert.deepEqual(activeWindow(s.plots)!.viewport.x, {min: 0, max: 0.1}, 'the same window: the zoom stays');
-  s = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view: {...view, xlo: -0.2}, rows: 0, menu: 0, win: 1});
+  s = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view: {...view, xlo: -0.2}, rows: 0, menu: 0, win: 'graph_1'});
   assert.equal(activeWindow(s.plots)!.viewport.x, null);
 });
 
@@ -152,7 +152,7 @@ test('the core\'s hint box is kept until the command ends', () => {
 
 
 test('plot prompts accept actual window IDs beyond the old maximum', () => {
-  const win = 112;
-  assert.equal(pickModeOf(ask('mouse', {win}), {...view, win}, true, HELLO.window_ids), 'point');
-  assert.equal(pickModeOf(ask('mouse', {win}), {...view, win}, false, HELLO.window_ids), null);
+  const win = 'graph_112';
+  assert.equal(pickModeOf(ask('mouse', {win}), {...view, win}, true, HELLO.window_names), 'point');
+  assert.equal(pickModeOf(ask('mouse', {win}), {...view, win}, false, HELLO.window_names), null);
 });

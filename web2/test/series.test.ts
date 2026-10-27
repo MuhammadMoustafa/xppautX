@@ -16,7 +16,7 @@ function f32(values: number[]): string {
 }
 
 const full: SeriesEvent = {
-  ev: 'series', win: 1, rows: 2, three: 0, xlabel: '', ylabel: '', zlabel: '',
+  ev: 'series', win: 'graph_1', rows: 2, three: 0, xlabel: '', ylabel: '', zlabel: '',
   curves: [{x: 1, y: 2, z: 1, color: 'foreground', ...LINE}], shift: [0, 0, 0],
   columns: [
     {col: 0, name: 'T', data: [0, 1]},
@@ -25,7 +25,7 @@ const full: SeriesEvent = {
   ],
 };
 
-function append(from: number, n: number, win = 1): SeriesAppendEvent {
+function append(from: number, n: number, win = 'graph_1'): SeriesAppendEvent {
   const rows = Array.from({length: n}, (_, i) => from + i);
   return {ev: 'series', op: 'append', win, from, rows: from + n, columns: [
     {col: 0, data: rows}, {col: 1, data: rows.map(r => 10 + r)}, {col: 2, data: rows.map(r => 20 + r)},
@@ -94,7 +94,7 @@ test('an append from row 0 starts again without touching what older states show'
 test('an append that does not continue the series is left for the full series', () => {
   const s = seriesFromEvent(full);
   assert.equal(appendRows(s, append(3, 2)), null, 'a gap');
-  assert.equal(appendRows(s, append(2, 2, 2)), null, 'another window');
+  assert.equal(appendRows(s, append(2, 2, 'graph_2')), null, 'another window');
   assert.equal(appendRows(s, {...append(2, 2), columns: append(2, 2).columns.slice(0, 2)}), null, 'other columns');
   assert.equal(appendRows(s, {...append(2, 2), rows: 5}), null, 'rows that do not add up');
 });
@@ -119,11 +119,11 @@ test('the end of a live run: the rows the appends gave, its version, counted as 
   let s = ev(READY, {...full, version: 1});
   s = ev(s, append(0, 3));
   const held = shown(s).series!;
-  s = ev(s, {ev: 'series', op: 'end', win: 1, rows: 3, version: 2});
+  s = ev(s, {ev: 'series', op: 'end', win: 'graph_1', rows: 3, version: 2});
   assert.equal(s.seriesCount, 2);
   assert.equal(shown(s).series!.version, 2);
   assert.equal(shown(s).series!.columns.get(1), held.columns.get(1), 'the same data, not a copy');
-  const later = ev(s, {ev: 'series', op: 'end', win: 1, rows: 5, version: 3});
+  const later = ev(s, {ev: 'series', op: 'end', win: 'graph_1', rows: 5, version: 3});
   assert.equal(later, s, 'an end that does not match the rows held changes nothing');
 });
 

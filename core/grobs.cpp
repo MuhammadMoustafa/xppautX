@@ -471,37 +471,4 @@ void do_gr_objs_com(xpp::Session &s, int com)
     }
 }
 
-void do_windows_com(xpp::Session &s, int c)
-{
-    switch (c) {
-    case 0:
-        create_a_pop(s);
-        break;
-    case 1:
-        if (yes_no_box()) kill_all_pops(s);
-        break;
-    case 3:
-        ui.lower_plot_window();
-        break;
-    case 2:
-        destroy_a_pop(s);
-        break;
-    case 5:
-        set_restore(s,0);
-        break;
-    case 4:
-        set_restore(s,1);
-        break;
-    case 6:
-        s.plot_windows.simul = 1 - s.plot_windows.simul;
-        break;
-    }
-    xpp::set_active_windows(s);
-}
-
-void set_restore(xpp::Session &s, int flag)
-{
-    s.plot_windows.current->Nullrestore=flag;
-}
-
 } // namespace xpp

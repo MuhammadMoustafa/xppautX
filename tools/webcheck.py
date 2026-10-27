@@ -246,7 +246,7 @@ def collect(until, timeout=15):
             return got, e
 
 
-evs, _ = collect(lambda e: e['ev'] == 'idle')
+evs, _ = collect(lambda e: e['ev'] in ('idle','done'))
 kinds = [e['ev'] for e in evs]
 check('a new page gets hello, window and state', all(k in kinds for k in ('hello', 'window', 'state')),
       str(kinds[:8]))
@@ -259,12 +259,44 @@ if not log_seen:
     _, log_event = collect(lambda e: e['ev'] == 'log' and log_marker in e.get('text', ''))
     log_seen = log_event is not None
 check('UTF-8 text reaches the page log stream as written', log_seen)
+# W353: HTTP uses the same registry validator and terminal event as stdin.
+for name, valid in [('help', True), ('unknown', False)]:
+    check('registry HTTP request is accepted', post({'cmd': 'help', 'name': name, 'id': 'http registry'}) == 204)
+    evs, done = collect(lambda e: e['ev'] == 'done')
+    post({'cmd': 'state'})  # a legacy idle fences any extra terminal event
+    tail, _ = collect(lambda e: e['ev'] == 'idle')
+    all_events = evs + tail
+    check('registry HTTP has one correlated done, no duplicate error or idle',
+          done is not None and done.get('id') == 'http registry' and
+          done.get('status') == ('ok' if valid else 'error') and
+          sum(e['ev'] == 'done' for e in all_events) == 1 and
+          sum(e['ev'] == 'idle' for e in all_events) == 1 and
+          not any(e['ev'] in ('error', 'message') for e in all_events), str(done)[:400])
+    check('registry HTTP returns declared data or the original command place',
+          bool(done) and (bool(done.get('result', {}).get('commands')) if valid else
+                          done.get('file') == 'command' and done.get('line') == 1 and 'unknown' in done.get('source', '')))
+# The page's named graph lifecycle shares the stdin/recording command path.
+for command, expected in [
+    ({'cmd':'window.create','name':'HTTP phase plane'}, {'window':'HTTP phase plane'}),
+    ({'cmd':'window.rename','window':'HTTP phase plane','name':'Phase "plane"'}, {'window':'HTTP phase plane','new_name':'Phase "plane"'}),
+    ({'cmd':'window.select','window':'graph_1'}, {'window':'graph_1'}),
+    ({'cmd':'window.close','window':'Phase "plane"'}, {'window':'Phase "plane"','closed':True}),
+]:
+    check('named window HTTP request accepted', post(dict(command,id='named HTTP')) == 204)
+    got, done = collect(lambda e:e['ev']=='done')
+    check('named window HTTP command returns its correlated result',
+          done is not None and done.get('status')=='ok' and done.get('id')=='named HTTP'
+          and done.get('result')==expected and not any(e['ev']=='idle' for e in got), str(done))
+post({'cmd':'window.select','window':'HTTP phase plane','id':'missing HTTP'})
+_, done = collect(lambda e:e['ev']=='done')
+check('an unknown HTTP window is one placed error', done is not None and done.get('status')=='error'
+      and done.get('file')=='command' and done.get('line')==1 and done.get('id')=='missing HTTP',str(done))
 post({'cmd': 'key', 'key': 'i'})
 _, ask = collect(lambda e: e['ev'] == 'ask')
 check('a key opens a menu', ask is not None and ask['kind'] == 'menu', str(ask))
 if ask:
     post({'cmd': 'answer', 'id': ask['id'], 'key': 'g'})
-    evs, _ = collect(lambda e: e['ev'] == 'idle', 30)
+    evs, _ = collect(lambda e: e['ev'] in ('idle','done'), 30)
     st = [e for e in evs if e['ev'] == 'state']
     check('integrating from the page', st and st[-1]['rows'] == 601, str(st[-1:])[:120])
     check('the stream carries no drawing ops', not any(e['ev'] == 'draw' for e in evs))
@@ -399,7 +431,7 @@ check('an idle connection (a preconnect) and a stalled upload hold up no command
       ask is not None and upload_waiting, 'ask %s, upload still waiting %s' % (ask is not None, upload_waiting))
 if ask:
     post({'cmd': 'answer', 'id': ask['id'], 'key': 'Escape'})
-    collect(lambda e: e['ev'] == 'idle')
+    collect(lambda e: e['ev'] in ('idle','done'))
 idle.close()
 stall.close()
 
@@ -415,7 +447,7 @@ collect(lambda e: False, 0.5)  # what is still coming from the commands above
 sts = [post_numbered({'cmd': 'redraw'}, 'w124page', n) for n in (1, 1, 2, 1)]
 sts.append(post_numbered({'cmd': 'redraw'}, 'w124other', 1))  # another page counts on its own
 evs, _ = collect(lambda e: False, 3)
-idles = sum(1 for e in evs if e['ev'] == 'idle')
+idles = sum(1 for e in evs if e['ev'] in ('idle','done'))
 check('W124: a numbered command sent again is answered (204) but taken once; another page counts on its own',
       sts == [204] * 5 and idles == 3, '%s, %d idle' % (sts, idles))
 bad = [post_numbered({'cmd': 'redraw'}, p, n) for p, n in (('w124page', 'x'), ('w124page', '0'), ('bad%20id', 3), ('', 3))]
@@ -424,7 +456,7 @@ c.request('POST', '/cmd?t=%s&p=w124page' % token, body=json.dumps({'cmd': 'redra
 bad.append(c.getresponse().status)
 evs, _ = collect(lambda e: False, 1)
 check('W124: a bad or half command number is refused (400) and nothing runs',
-      bad == [400] * 5 and not any(e['ev'] == 'idle' for e in evs), '%s %s' % (bad, [e['ev'] for e in evs][:6]))
+      bad == [400] * 5 and not any(e['ev'] in ('idle','done') for e in evs), '%s %s' % (bad, [e['ev'] for e in evs][:6]))
 
 post({'cmd': 'key', 'key': 'f'})
 post({'cmd': 'key', 'key': 'q'})
@@ -577,7 +609,7 @@ if sess:
     c.request('GET', '/events?t=' + tk)
     c.sk = c.sock
     c.resp = c.getresponse()
-    read_events(c, lambda e: e['ev'] == 'idle')
+    read_events(c, lambda e: e['ev'] in ('idle','done'))
     post_cmd(pt, tk, {'cmd': 'key', 'key': 'i'})
     _, ask = read_events(c, lambda e: e['ev'] == 'ask', 30)
     check('W112: i asks for the initial conditions', ask is not None)
@@ -631,7 +663,7 @@ if sess:
     c.request('GET', '/events?t=' + tk)
     c.sk = c.sock
     c.resp = c.getresponse()
-    read_events(c, lambda e: e['ev'] == 'idle')
+    read_events(c, lambda e: e['ev'] in ('idle','done'))
     post_cmd(pt, tk, {'cmd': 'key', 'key': 'i'})
     _, ask = read_events(c, lambda e: e['ev'] == 'ask', 30)
     post_cmd(pt, tk, {'cmd': 'answer', 'id': ask['id'] if ask else 0, 'key': 'g'})
@@ -641,8 +673,8 @@ if sess:
           comp is not None and st == 409 and 'Not while a computation runs' in body, '%s %s %s' % (comp, st, body))
     post_cmd(pt, tk, {'cmd': 'file', 'op': 'put', 'name': 'guard.par', 'data': 'bmV3'})  # "new"
     post_cmd(pt, tk, {'cmd': 'abort'})
-    evs, _ = read_events(c, lambda e: e['ev'] == 'idle', 30)  # the run's idle, stopped
-    evs, _ = read_events(c, lambda e: e['ev'] == 'idle', 30)  # the refused file put's
+    evs, _ = read_events(c, lambda e: e['ev'] in ('idle','done'), 30)  # the run's idle, stopped
+    evs, _ = read_events(c, lambda e: e['ev'] in ('idle','done'), 30)  # the refused file put's
     refused = [e.get('error', '') for e in evs if e['ev'] == 'message']
     check('W134: ... like the file command sent during it (an error after the run, no file event)',
           len(refused) == 1 and 'Not while a computation runs' in refused[0]
@@ -710,7 +742,7 @@ if os.name == 'nt':
         threading.Thread(target=lambda: [None for _ in out], daemon=True).start()
         events = queue.Queue()
         threading.Thread(target=stream, args=(events,), daemon=True).start()
-        evs, _ = collect(lambda e: e['ev'] == 'idle')
+        evs, _ = collect(lambda e: e['ev'] in ('idle','done'))
         check('T27: ... and what xppaut printed still reaches the page', any(e['ev'] == 'log' for e in evs),
               str([e['ev'] for e in evs][:8]))
         post({'cmd': 'key', 'key': 'f'}, token)
@@ -729,7 +761,7 @@ if os.name == 'nt':
 # PATH here, so the browser cannot open). Each process is stopped by its own handle.
 trun = tempfile.mkdtemp(prefix='xppterm')
 shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'examples', 'ode', 'lecar.odex'), trun)
-idle_event = lambda e: e['ev'] == 'idle'
+idle_event = lambda e: e['ev'] in ('idle','done')
 
 
 def page_process(extra, env=None):

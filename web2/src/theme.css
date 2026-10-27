@@ -768,7 +768,14 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--play
 .plot-tab[aria-selected='true'] { color: var(--fg); border-bottom-color: var(--accent); background: var(--surface); }
 .plot-tab-num { font-weight: 600; }
 .plot-tab-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.plot-window-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-left: auto; }
+.plot-window-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-left: auto; }
+/* Keep the graph reachable in short, narrow workspaces. Less frequent window
+   settings expand on request instead of wrapping several rows above it. */
+.plot-window-options > summary { min-height: var(--target); padding: var(--space-1) var(--space-2); cursor: pointer; }
+.plot-window-options[open] { flex-basis: 100%; }
+.plot-window-options-menu { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); padding-block: var(--space-1); }
+.plot-window-options:not([open]) > .plot-window-options-menu { display: none; }
+.plot-window-options-menu label { display: inline-flex; align-items: center; gap: var(--space-1); }
 .kinescope-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
 .kinescope-count { font-size: 0.875rem; color: var(--fg-muted); white-space: nowrap; }
 .plot-view[hidden] { display: none; }

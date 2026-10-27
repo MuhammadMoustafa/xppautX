@@ -26,11 +26,11 @@ const periodic: DiagramRun[] = [
   {br: 2, pt: 1, ty: 4, stable: false, periodic: true, d: 3, c: '#0000ff', lw: 1, jac: 'difference', new: 1, x: [0.26, 0.25, 0.24], y: [-0.2, -0.1, 0], y2: [-0.2, -0.3, -0.4],
     lab: [[2, 3, 'LP']]},
 ];
-const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', view: 0, op: 'add', from, runs});
+const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', view: 'diagram_1', op: 'add', from, runs});
 
 function opened(): AppState {
-  const s = ev(READY, {ev: 'window', op: 'create', win: 101, w: 687, h: 352});
-  return ev(s, {ev: 'diagram', view: 0, op: 'axes', ...axes});
+  const s = ev(READY, {ev: 'window', kind: 'diagram', op: 'create', win: 'diagram_1', w: 687, h: 352});
+  return ev(s, {ev: 'diagram', view: 'diagram_1', op: 'axes', ...axes});
 }
 
 test('a run: its clock, what it computed, its last label, how it ended', () => {
@@ -130,7 +130,7 @@ test('Clear hides the branches so far; new ones draw alone; the key shows them a
   assert.ok(all.curves.some(c => c.branch === 1));
   /* a redraw in other quantities keeps them hidden (the core's Clear count survives the blank between
      the clear and the redraw); a diagram emptied (Reset diagram) has none left: the core says so */
-  s = ev(s, {ev: 'diagram', view: 0, op: 'reset', keep: 0, ...axes});
+  s = ev(s, {ev: 'diagram', view: 'diagram_1', op: 'reset', keep: 0, ...axes});
   s = ev(s, {ev: 'idle'});
   assert.equal(s.diagram.earlier, 5);
   s = ev(s, {ev: 'autoview', earlier: 0, show: 0, zoom: {x: null, y: null}});

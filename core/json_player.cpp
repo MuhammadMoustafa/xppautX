@@ -23,6 +23,7 @@
    the core stays single-threaded, and reads the client's lines while it
    waits. */
 #include "ui_json.h"
+#include "command_registry.h"
 #include "ui_json_internal.h"
 #include "model.h"
 #include "browse.h"
@@ -243,6 +244,10 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
     if (!out.cmd.empty() && out.cmd[0] != '{') {
         error = "its cmd is not an object";
         return false;
+    }
+    if(!xpp::command::name(out.cmd.c_str()).empty()) {
+        const xpp::Result<> checked=xpp::command::check_shape(out.cmd.c_str(),xpp::Place{"recording",st.at,0,st.line});
+        if(!checked){error=checked.error().what;return false;}
     }
     if (is_cmd(out.cmd.c_str(), "play")) {
         error = "a recording step cannot control its own player";

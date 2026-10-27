@@ -45,6 +45,13 @@ inline constexpr std::array<CategoryInfo, 7> COMMAND_CATEGORIES = {{
   {CommandCategory::Panels, "panels", "Opened from a panel", false, false},
   {CommandCategory::Layer, "layer", "Shortcut layer", false, false}}};
 
+constexpr std::string_view category_id(CommandCategory category)
+{
+  for (const CategoryInfo &info : COMMAND_CATEGORIES)
+    if (info.category == category) return info.id;
+  return {};
+}
+
 /* the most keys one command has (a binding and one alternative, as redo has
    Ctrl+Shift+Z and Ctrl+Y in the design); an empty entry is no key */
 inline constexpr std::size_t MAX_DEFAULT_KEYS = 2;
@@ -88,7 +95,7 @@ struct CommandRow {
    build of GCC refuses to evaluate the table's search as a constant) */
 inline constexpr std::string_view STORE_EVERY_LABEL = "Store every N steps";
 
-inline constexpr std::array<CommandRow, 66> COMMANDS = {{
+inline constexpr std::array<CommandRow, 65> COMMANDS = {{
     {MAIN_MENU, 'i', "initialconds", "Initial conditions", "Integrate the equations", XPP_KIND_COMPUTE, CommandCategory::Run, true, true, {}},
     {MAIN_MENU, PAGE_KEY, "run_initial", "Run from initial", "Start a new trajectory from the Initial values", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Enter"}},
     {MAIN_MENU, PAGE_KEY, "run_last", "Run from last state", "Use the last state as Initial and start a new trajectory", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Shift+Enter"}},
@@ -130,7 +137,6 @@ inline constexpr std::array<CommandRow, 66> COMMANDS = {{
     {MAIN_MENU, 'g', "graphic", "Curves and export", "Adding graphs,hard copy, etc", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
     {MAIN_MENU, 'x', "xivst", "Variable vs time", "Plot variable vs time", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
     {MAIN_MENU, 't', "text", "Labels and annotations", "Add fancy text and lines,arrows", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
-    {MAIN_MENU, 'm', "makewindow", "Plot windows", "Create other windows", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
     {MAIN_MENU, 'r', "restore", "Redraw plot", "Redraw the graph", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
     {MAIN_MENU, 'e', "erase", "Clear plot", "Clear screen", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
     {MAIN_MENU, 'k', "kinescope", "Captured frames", "Take snapshots of the screen", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},

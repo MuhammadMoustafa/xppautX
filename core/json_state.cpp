@@ -157,9 +157,10 @@ void send_state(xpp::Session &s)
     /* pixel to plot coordinates of the active window and the AUTO diagram,
        for the x,y readout under the mouse (scale_to_real, auto_motion_xy) */
     get_draw_area(s);
-    buf_format(b, ",\"view\":{{\"win\":{:d},\"left\":{:d},\"right\":{:d},\"top\":{:d},\"bottom\":{:d},"
+    BUF_LIT(b,",\"view\":{\"win\":");buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
+    buf_format(b, ",\"left\":{:d},\"right\":{:d},\"top\":{:d},\"bottom\":{:d},"
                "\"xlo\":{:g},\"xhi\":{:g},\"ylo\":{:g},\"yhi\":{:g},\"three\":{:d}",
-               s.plot_windows.draw_win, s.drawing.d_left, s.drawing.d_right, s.drawing.d_top, s.drawing.d_bottom, s.plot_windows.current->xlo, s.plot_windows.current->xhi,
+               s.drawing.d_left, s.drawing.d_right, s.drawing.d_top, s.drawing.d_bottom, s.plot_windows.current->xlo, s.plot_windows.current->xhi,
                s.plot_windows.current->ylo, s.plot_windows.current->yhi, s.plot_windows.current->ThreeDFlag);
     /* a 3D window's angles (view3d); only then are they set at all */
     if (s.plot_windows.current->ThreeDFlag && isfinite(s.plot_windows.current->Theta) && isfinite(s.plot_windows.current->Phi))
@@ -169,7 +170,7 @@ void send_state(xpp::Session &s)
         buf_format(b, ",\"auto\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
                    "\"ymin\":{:g},\"ymax\":{:g}}}", s.auto_state.bifur.x0, s.auto_state.bifur.y0, s.auto_state.bifur.wid, s.auto_state.bifur.hgt, s.auto_state.axes().xmin, s.auto_state.axes().xmax,
                    s.auto_state.axes().ymin, s.auto_state.axes().ymax);
-    buf_format(b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", s.browser.view.maxrow, s.help_menu, s.plot_windows.draw_win);
+    buf_format(b,",\"rows\":{},\"menu\":{},\"win\":",s.browser.view.maxrow,s.help_menu);buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
     if (s.numerics.last_seed) buf_format(b, ",\"seed\":{:d}", *s.numerics.last_seed);
     const SavedSession &saved = s.saved_session;
     if (!saved.file.empty()) {
@@ -547,7 +548,8 @@ void apply_set(xpp::Session &s, const char *line)
    that is no whole number is the command's error */
 static bool read_graph(const xpp::Session &s, const char *line, const char *command, std::optional<int> &graph)
 {
-    const char *value = js_find(line, "win");
+    const char *value = js_find(line, "window");
+    if(js_find(line,"win")){j_command_error(command,"Use window with a name");return false;}
     if (!value) return true;
     int index;
     if(!read_plot_window(s,line,command,index))return false;

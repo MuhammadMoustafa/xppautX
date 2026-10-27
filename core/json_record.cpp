@@ -1,7 +1,7 @@
 /* Recording (W59a, docs/protocol.md "Recordings"): File/recorD, or the
    record command, records every step of the session into name.recx
    (recx.h). A step is everything from leaving idle to the next idle, the
-   protocol's own contract (every command ends with state, then idle): the
+   protocol's completion (state then idle, or a registry done): the
    command handle_line runs, the answers to what it asks (a menu's key,
    a dialog's values), and where it stopped when an Abort or Escape
    cancelled it. The model's files and every text file the session reads
@@ -79,8 +79,7 @@ std::string command_label(const char *line)
         if (!get_string(line, "text", v)) v = std::string(js_raw(js_find(line, "value")));
         return xpp::format("{} {} = {}", c == "set" ? "Set" : "Slide", name, v);
     }
-    if (c == "display") return xpp::format("Zoom window {}", get_int(line, "win", 0));
-    if (c == "click") return xpp::format("Window {}", get_int(line, "win", 0));
+    if (c == "display") {get_string(line,"window",name);return xpp::format("Zoom window {}",name);}
     if (c == "applyset") return xpp::format("Apply set {} ({})", get_string(line, "set", name) ? name : "", get_string(line, "scope", v) ? v : "");
     if (c == "restoredefaults") return xpp::format("Restore defaults of {}{}", get_string(line, "scope", v) ? v : "", get_string(line, "field", name) ? " " + name : "");
     if (c == "saveset") return xpp::format("Save {} values in set {}", get_string(line, "scope", v) ? v : "", get_string(line, "set", name) ? name : "");

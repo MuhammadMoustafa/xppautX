@@ -11,7 +11,7 @@ import type {PlotWindow, Viewport} from './plots';
 
 /** what a plot draws (store/plots.ts PlotWindow), captured at one instant */
 export interface KinescopeFrame {
-  win: number;
+  win: string;
   info: PlotWindow['info'];
   series: PlotWindow['series'];
   nullclines: PlotWindow['nullclines'];

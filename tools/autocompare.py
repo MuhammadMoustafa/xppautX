@@ -54,7 +54,7 @@ class Diagram:
 
     def apply(self, events):
         for e in events:
-            if e.get('ev') != 'diagram' or e.get('view') != 0:
+            if e.get('ev') != 'diagram' or e.get('view') != 'diagram_1':
                 continue
             if e['op'] == 'reset':
                 del self.points[e['keep']:]

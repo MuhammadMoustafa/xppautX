@@ -16,7 +16,7 @@ The plot commands the plot itself offers are not in the sidebar either:
 **Zoom and view** is the plot's Fit, Reset view and Use this view,
 **Plot axes** and **3D view** are a click on an axis name (the axis dialog,
 with its 3D column). Their keys still work, and the page's buttons run
-them. **Plot windows** and **Captured frames** stay in the Plot group: the
+them. **Captured frames** stays in the Plot group: the
 plot has buttons for New window, Close window, Capture, Play, Reset and
 Export GIF only, not for Kill all, Bottom, Auto, Manual, SimPlot, Autoplay
 or Save.
@@ -410,17 +410,24 @@ Type the name of a parameter to change and enter its value. Repeat for more para
 
 erases the contents of the active window, redraws the axes, deletes all text in the window, and sets the redraw flag to Manual.
 
-### (M)ake window
+### Named plot windows
 
-The option allows you to create and destroy graphics windows. There are several choices.
-- **(C)reate**: makes a copy of the currently active window and makes itself active. You can change the graphs in this window without affecting the other windows.
-- **(K)ill all**: Removes all but the main graphics window.
-- **(D)estroy**: This destroys the currently active window. The main window cannot be destroyed.
-- **(B)ottom**: puts the active window on the bottom.
-- **(A)uto**: turns on a flag so that the window will automatically be redrawn when needed.
-- **(M)anual**: turns off the flag and the user must restore the picture manually.
-- **(S)imPlot on/off**: lets you plot the solution in all active windows while the simulation is running. This slows you down quite a bit.
-- After a window is created, you can use the mouse to find the coordinates by pressing and moving in the window. The coordinates are given near the top of the window.
+The plot tools create a copy of the active graph (**New window**), close
+an extra graph, close every extra graph, send the selected graph to the
+bottom, choose its redraw mode, and toggle simultaneous plotting.
+**Window options** expands the latter settings and **Close extra windows**,
+keeping the graph reachable in a short or narrow workspace.
+The main graph stays open. Select a graph by its named tab. Click or
+double-click its name to rename it. Names can contain spaces and are shown
+exactly as written; a duplicate, empty name or surrounding space is an
+error. Graph defaults are `graph_1`, `graph_2`, ...; AUTO views similarly
+use `diagram_1`, `diagram_2`, ... and can be renamed in their headers.
+
+Scripts use `window.create`, `window.rename`, `window.select` and
+`window.close`, with `window` and `name` as quoted text. There are no window
+numbers or Makewindow key sequences. The core validates these same commands
+for the page, the server and recordings; each ends with a `done` result.
+See the [generated command reference](../protocol.md#typed-command-registry-w353-stage-1).
 
 ### (T)ext, etc
 

@@ -6,6 +6,13 @@ The version supported in XPP is a subset of AUTO but allows you to do most of th
 
 Click on the `File Auto` menu item to bring up AUTO.
 
+Every AUTO view has its own name, starting with `diagram_1`, `diagram_2`,
+and so on. Click its name to rename it; spaces and case are preserved.
+Names are unique among the open graphs and AUTO views. Select a view by
+clicking it and close it with its Close button. Closing the final view
+hides AUTO; File Auto opens it again. Scripts use `window.rename`,
+`window.select` and `window.close` with the same quoted name (W353).
+
 Before a run, AUTO checks the start. Initial conditions for a steady-state
 run whose largest equation residual is above EPSU are first refined by
 Newton's method, with the **Sing pts** settings, at the run's parameter

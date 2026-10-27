@@ -384,7 +384,7 @@ async function desktop(want) {
   check("a double click goes back to the core's window", await until('w.viewport.x === null && w.viewport.y === null', 'reset'));
   /* W65: the zoom shown is the core's: every change went to it as a display command, the last one back to its own axes */
   check('the zoom went to the core (display commands), the last one the reset',
-    await until(`(() => { const d = __xpp.sent().filter(c => c.cmd === 'display' && c.win === 1);
+    await until(`(() => { const d = __xpp.sent().filter(c => c.cmd === 'display' && c.window === 'graph_1');
       return d.length >= 3 && d.some(c => c.x && c.x[1] - c.x[0] < ${width(z1.x)}) && d[d.length - 1].x === null && d[d.length - 1].y === null; })()`,
       'display commands'));
   await mouse('mouseMoved', 5, 5);
@@ -1320,7 +1320,8 @@ async function windows() {
   const tabs = () => cdp.eval(`[...document.querySelectorAll('[role=tab]')].map(t => [t.id, t.getAttribute('aria-selected')])`);
   const clickButton = text => cdp.eval(`[...document.querySelectorAll('button')].find(b => b.textContent === '${text}').click()`);
   check('one window: no tab list', await S('s.plots.windows.length === 1') && (await tabs()).length === 0);
-  const t1 = await S('w.info && w.info.title'); /* what window 1 plots after the sessions above */
+  const t1 = await S('w.info && w.info.title');
+  const firstCurveLabel = (await P()).curves[0].label; /* what window 1 plots after the sessions above */
   await focusPlot();
   const shown0 = await displays();
   await key('+');
@@ -1330,10 +1331,10 @@ async function windows() {
 
   await clickButton('New window');
   check('New window (Makewindow/Create) adds window 2, selected',
-    await until('s.plots.windows.length === 2 && s.plots.active === 2 && !s.busy', 'create'),
+    await until(`s.plots.windows.length === 2 && s.plots.active === 'graph_2' && !s.busy`, 'create'),
     JSON.stringify(await S('[s.plots.windows.map(x => x.win), s.plots.active]')));
   check('the tab list follows: two tabs, the second selected',
-    JSON.stringify(await tabs()) === JSON.stringify([['plot-tab-1', 'false'], ['plot-tab-2', 'true']]), JSON.stringify(await tabs()));
+    JSON.stringify(await tabs()) === JSON.stringify([['plot-tab-graph_1', 'false'], ['plot-tab-graph_2', 'true']]), JSON.stringify(await tabs()));
   check('the store holds both windows\' series', await S('s.plots.windows.every(x => x.series && x.series.rows === 601)'));
   check("window 2 starts at the core's axes", await S('w.viewport.x === null && w.viewport.y === null'));
 
@@ -1341,11 +1342,11 @@ async function windows() {
   await key('x');
   if (await until("s.ask && s.ask.kind === 'string'", 'x')) await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: 'V'})`);
   check('Xi vs t in window 2 changes its curves only',
-    await until(`!s.busy && w.series.curves[0].x === 0 && w.series.curves[0].y === 1 && w.info.title === 'V vs T'
+    await until(`!s.busy && w.series.curves[0].x === 0 && w.series.curves[0].y === 1 && w.info.title === 'graph_2'
       && s.plots.windows[0].info.title === '${t1}'`, 'x vs t'),
     JSON.stringify(await S('s.plots.windows.map(x => x.info && x.info.title)')));
   check('the tabs name what each window plots', await cdp.eval(`[...document.querySelectorAll('[role=tab]')].map(t => t.textContent).join('|')`)
-    === `1${t1}|2V vs T`);
+    === `${t1}|graph_2`);
   await focusPlot();
   const zoom2 = await displays();
   await key('-');
@@ -1353,53 +1354,53 @@ async function windows() {
   const z2 = await S('w.viewport');
   check('window 2 zoomed on its own', !!z2.x && JSON.stringify(z2) !== JSON.stringify(z1), JSON.stringify(z2));
 
-  await cdp.eval(`document.getElementById('plot-tab-1').click()`);
+  await cdp.eval(`document.getElementById('plot-tab-graph_1').click()`);
   check('clicking tab 1 shows window 1 and makes it the core\'s active window',
-    await until('s.plots.active === 1 && !s.busy && s.core.win === 1', 'tab 1'), JSON.stringify(await S('[s.plots.active, s.core.win]')));
+    await until(`s.plots.active === 'graph_1' && !s.busy && s.core.win === 'graph_1'`, 'tab 1'), JSON.stringify(await S(`[s.plots.active, s.core.win]`)));
   const back = await S('w.viewport'), p1 = await P();
   check("tab 1 keeps its zoom", JSON.stringify(back) === JSON.stringify(z1)
     && Math.abs(p1.x.min - z1.x.min) < 1e-9 && Math.abs(p1.x.max - z1.x.max) < 1e-9, JSON.stringify([back, p1 && p1.x]));
-  check('its chart is the one shown', p1 && p1.curves[0].label === t1 && p1.width > 200, JSON.stringify(p1 && [p1.curves, p1.width]));
+  check('its chart is the one shown', p1 && p1.curves[0].label === firstCurveLabel && p1.width > 200, JSON.stringify(p1 && [p1.curves, p1.width]));
 
   /* what a failing tab check saw: busy, the page's and the core's window, the focus, the last
      commands sent and actions taken (W93: macos-ui lost ArrowLeft here) */
   const tabState = async () => JSON.stringify(await cdp.eval(`(() => { const s = __xpp.state();
     return {busy: s.busy, active: s.plots.active, core: s.core.win, ask: s.ask && s.ask.kind, focus: document.activeElement.id,
       sent: __xpp.sent().slice(-4), actions: __xpp.actions().slice(-10)}; })()`));
-  await cdp.eval(`document.getElementById('plot-tab-1').focus()`);
+  await cdp.eval(`document.getElementById('plot-tab-graph_1').focus()`);
   await key('ArrowRight');
   check('ArrowRight on the tabs moves to window 2, focus with it',
-    await until(`s.plots.active === 2 && document.activeElement.id === 'plot-tab-2'`, 'arrow right'));
+    await until(`s.plots.active === 'graph_2' && document.activeElement.id === 'plot-tab-graph_2'`, 'arrow right'));
   check('tab 2 kept its zoom', JSON.stringify(await S('w.viewport')) === JSON.stringify(z2));
   const beforeLeft = await tabState();
   await key('ArrowLeft');
-  check('ArrowLeft back to window 1', await until(`s.plots.active === 1 && document.activeElement.id === 'plot-tab-1'`, 'arrow left'),
+  check('ArrowLeft back to window 1', await until(`s.plots.active === 'graph_1' && document.activeElement.id === 'plot-tab-graph_1'`, 'arrow left'),
     `before: ${beforeLeft} after: ${await tabState()}`);
   await key('End');
-  check('End to the last tab', await until(`s.plots.active === 2 && document.activeElement.id === 'plot-tab-2'`, 'End'), await tabState());
-  check('the tab key goes back to the core', await until('!s.busy && s.core.win === 2', 'core win 2'), await tabState());
+  check('End to the last tab', await until(`s.plots.active === 'graph_2' && document.activeElement.id === 'plot-tab-graph_2'`, 'End'), await tabState());
+  check('the tab key goes back to the core', await until(`!s.busy && s.core.win === 'graph_2'`, 'core win 2'), await tabState());
   /* two tab keys in one turn of the event loop: the second always arrives
      while the first one's click is still the core's (busy), so it is held
      for the idle, never dropped (a slow runner lost End this way) */
   const sentBefore = await cdp.eval('__xpp.sentCount()');
-  const afterKeys = await cdp.eval(`(() => { const t = document.getElementById('plot-tab-2');
+  const afterKeys = await cdp.eval(`(() => { const t = document.getElementById('plot-tab-graph_2');
     for (const key of ['ArrowLeft', 'End']) t.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true}));
     const s = __xpp.state(); return [s.busy, s.plots.active]; })()`);
   check('two tab keys at once: the first is shown and sent, the core busy with it',
-    afterKeys[0] === true && afterKeys[1] === 1, JSON.stringify(afterKeys));
-  const heldOk = await until('!s.busy && s.plots.active === 2 && s.core.win === 2', 'held tab');
-  const clicks = await cdp.eval(`__xpp.sentFrom(${sentBefore}).filter(c => c.cmd === 'click').map(c => c.win)`);
+    afterKeys[0] === true && afterKeys[1] === 'graph_1', JSON.stringify(afterKeys));
+  const heldOk = await until(`!s.busy && s.plots.active === 'graph_2' && s.core.win === 'graph_2'`, 'held tab');
+  const clicks = await cdp.eval(`__xpp.sentFrom(${sentBefore}).filter(c => c.cmd === 'window.select').map(c => c.window)`);
   check('the second, sent while the first was busy, is held and applied at its idle',
-    heldOk && JSON.stringify(clicks) === '[1,2]', JSON.stringify([await S('[s.busy, s.plots.active, s.core.win]'), clicks]));
+    heldOk && JSON.stringify(clicks) === '["graph_1","graph_2"]' , JSON.stringify([await S('[s.busy, s.plots.active, s.core.win]'), clicks]));
   check('... and its tab has the focus: the tab it left, disabled while the click ran, did not take it away (W93)',
-    await until(`!s.busy && document.activeElement.id === 'plot-tab-2'`, 'held tab focused'), await tabState());
+    await until(`!s.busy && document.activeElement.id === 'plot-tab-graph_2'`, 'held tab focused'), await tabState());
 
   /* a plot mode (T4) on the tab shown: Window/Zoom by the keyboard zooms window 2, not window 1 */
   const axes1 = await S('JSON.stringify(s.plots.windows[0].info)');
   await focusPlot();
   await menuKeys('w', 'z');
   check("Window/Zoom in window 2: its plot is in box mode, one instruction bar",
-    await until("s.pick && s.pick.mode === 'box' && s.pick.win === 2 && !s.pick.waiting", 'box mode in 2')
+    await until("s.pick && s.pick.mode === 'box' && s.pick.win === 'graph_2' && !s.pick.waiting", 'box mode in 2')
     && await cdp.eval(`document.querySelectorAll('.pick-bar').length === 1 && !!document.querySelector('.plot-view:not([hidden]) .pick-bar')`),
     JSON.stringify(await S('s.pick')));
   const pz = await P(), vz = await S('s.core.view');
@@ -1411,7 +1412,7 @@ async function windows() {
   await until('!s.busy && !s.pick', 'zoom in 2');
   const vb = await S('s.core.view'), info2 = await S('w.info');
   check("window 2's axes are the box, in state.view and in plots; window 1's are unchanged",
-    vb.win === 2 && viewIsBox(vb, box[0], box[1], corePixel(vz))
+    vb.win === 'graph_2' && viewIsBox(vb, box[0], box[1], corePixel(vz))
     /* state.view has 6 digits, plots the doubles */
     && Math.abs(info2.xlo - vb.xlo) <= 1e-5 * Math.abs(vb.xhi - vb.xlo) && Math.abs(info2.yhi - vb.yhi) <= 1e-5 * Math.abs(vb.yhi - vb.ylo)
     && await S('JSON.stringify(s.plots.windows[0].info)') === axes1, JSON.stringify({vz, pz: [pz.x, pz.y], vb, box, info2}));
@@ -1424,9 +1425,25 @@ async function windows() {
   await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
   await rendered();
 
+  await focusPlot();
+  const renameZoom = await displays();
+  await key('+');
+  await displayTold(renameZoom, 'zoom before rename');
+  const beforeRename = await S('w.viewport');
+  await cdp.eval(`document.querySelector('.window-name').click(); true`);
+  await cdp.eval(`(() => { const input = document.querySelector('input[aria-label="Window name"]');
+    input.value = 'Phase plane'; input.dispatchEvent(new Event('input', {bubbles:true}));
+    input.form.requestSubmit(); return true; })()`);
+  check('a graph rename preserves the exact name, zoom and data through done',
+    await until(`!s.busy && s.plots.active === 'Phase plane' && s.core.win === 'Phase plane'`, 'named graph')
+    && beforeRename.x !== null && JSON.stringify(await S('w.viewport')) === JSON.stringify(beforeRename)
+    && await S(`w.series.rows === 601`)
+    && await cdp.eval(`document.getElementById('plot-tab-Phase%20plane').textContent === 'Phase plane'`),
+    JSON.stringify({beforeRename, after:await S('[s.plots.active,s.core.win,w.viewport,w.series?.rows]'), sent:await cdp.eval('__xpp.sent().slice(-6)')}));
+
   await clickButton('Close window');
   check('Close window (Makewindow/Destroy) removes its tab',
-    await until('s.plots.windows.length === 1 && s.plots.active === 1 && !s.busy', 'destroy')
+    await until(`s.plots.windows.length === 1 && s.plots.active === 'graph_1' && !s.busy`, 'destroy')
     && (await tabs()).length === 0, JSON.stringify(await S('s.plots.windows.map(x => x.win)')));
   check('window 1 still has its zoom and its series', JSON.stringify(await S('w.viewport')) === JSON.stringify(z1)
     && await S('w.series.rows === 601'));
@@ -2236,7 +2253,7 @@ async function prompts() {
 
 /* the diagram from the `diagram` events on their own (docs/protocol.md), as
    tools/autocheck.py's Diagram does: what the store must equal, for view `view` */
-function rebuildDiagram(events, view = 0) {
+function rebuildDiagram(events, view = 'diagram_1') {
   const pts = [];
   let labels = [];
   for (const e of events) {
@@ -2757,7 +2774,7 @@ async function autoView(dir) {
   await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Plot Type'", 'axes menu');
   await menuKey('z');
   check('Axes/Zoom is a box mode on the diagram, not a dialog',
-    await until("s.pick && s.pick.win === 101 && s.pick.mode === 'box'", 'auto box mode')
+    await until("s.pick && s.pick.win === 'diagram_1' && s.pick.mode === 'box'", 'auto box mode')
     && await cdp.eval(`!document.querySelector('[role=dialog]') && !!document.querySelector('.auto-panel .pick-bar')`),
     JSON.stringify(await S('[s.ask, s.pick]')));
   const za = await autoArea(), zd = await DG();
@@ -3112,7 +3129,7 @@ async function autoViews(dir) {
       && s.diagram.views[0].axes.plot === 'maximum_and_minimum' && s.diagram.views[0].axes.ylabel === 'V'
       && s.diagram.views.every(v => v.points.x.length === ${n})
       && s.diagram.views[0].points.br.every((b, i) => b === s.diagram.views[1].points.br[i])`, 'norm view', 20000)
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set' && c.axes && c.axes.view === 1 && c.axes.plot === 'norm')`)
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set' && c.axes && c.axes.view === 'diagram_2' && c.axes.plot === 'norm')`)
     && await cdp.eval(`[...document.querySelectorAll('.auto-pane-title')].map(t => t.textContent).join('|') === 'V against iapp|Norm against iapp'`),
     JSON.stringify(await S('s.diagram.views.map(v => v.axes)')));
   check('AUTO views: each view draws its own chart', (await cdp.eval('__xpp.diagram(0).curves.length')) > 0
@@ -3125,7 +3142,7 @@ async function autoViews(dir) {
   await click(c0.x, c0.y);
   check('AUTO views: a click in a view makes it the active one (the core says so too)',
     await until(`s.diagram.active === 0 && document.querySelector('.auto-pane.active').dataset.view === '0'`, 'activate')
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'view' && c.active === 0)`)
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'window.select' && c.window === 'diagram_1')`)
     && await until('!s.busy && s.diagram.active === 0', 'activated'));
 
   /* a grab from the other view: its cursor in both, a click in the second view takes a point */
@@ -3468,7 +3485,7 @@ async function busyKeys() {
       newWindow: tool('New window').disabled,
       save: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').disabled,
       stop: document.querySelector('.status-bar button.danger').disabled,
-      viewItems: ['xivst', 'restore', 'erase', 'nullcline', 'dirfield', 'graphic', 'text', 'kinescope', 'makewindow'].every(id => !item(id).disabled),
+      viewItems: ['xivst', 'restore', 'erase', 'nullcline', 'dirfield', 'graphic', 'text', 'kinescope'].every(id => !item(id).disabled),
     };
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
@@ -3477,13 +3494,13 @@ async function busyKeys() {
     && ['initialconds', 'phasespace', 'singpts', 'bndryval'].every(id => ui.off.includes(id)) && !ui.off.includes('parameters'), JSON.stringify(ui));
   check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
     ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
-  /* a view clicked during the run is sent, and the core runs it after the run (the menu it
-     opens is answered then): New window makes window 2 once the run has stopped */
+  /* A window.create sent during the run is queued by the core and creates
+     the graph once the run has stopped. */
   const sentView = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`[...document.querySelectorAll('.plot-window-tools button')].find(b => /New window/.test(b.textContent)).click()`);
   const viewSent = await cdp.eval(`__xpp.sentFrom(${sentView})`);
-  check('W95: a view button clicked during the run goes out (New window: Makewindow)',
-    viewSent.length === 1 && viewSent[0].key === 'm' && await S('s.busy'), JSON.stringify(viewSent));
+  check('W95: a view button clicked during the run goes out (window.create)',
+    JSON.stringify(viewSent) === JSON.stringify([{cmd:'window.create'}]) && await S('s.busy'), JSON.stringify(viewSent));
   const sent0 = await cdp.eval('__xpp.sentCount()');
   await focusPlot();
   await key('i');
@@ -3519,7 +3536,6 @@ async function busyKeys() {
   await cdp.eval(`document.querySelector('[data-run=stop]').click()`);
   const stopped = await until(`__xpp.actions().slice(${n0}).includes('event:idle') && !s.busy`, 'the run stopped', 30000);
   /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
-  /* (the New window's own menu, answered by its key once the core runs it after the run, is no typed key) */
   const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set')`);
   const cancelled = await cdp.eval(`__xpp.actions().slice(${n0}).includes('event:stopped')`);
   check('busy keys: Escape during a run stops it (stopped) and sends nothing else; the run kept its values (the state '
@@ -3531,12 +3547,12 @@ async function busyKeys() {
       && s.core.pars.find(p => p[0] === "phi")[1] === 0.4 && s.numerics.find(f => f.key === 'nullcline_mesh').value === 50`,
     'settings applied after the run', 10000),
     JSON.stringify(await S('[s.busy, s.values.inflight, s.core.pars, s.numerics]')));
-  /* the New window clicked during the run ran after it: its menu answered by the click's own key */
+  /* The window.create sent during the run has now completed. */
   check('W95: the view clicked during the run ran after it: window 2 exists',
     await until('!s.busy && !s.ask && s.plots.windows.length === 2', 'new window after the run', 10000),
     JSON.stringify(await S('[s.busy, s.ask, s.plots.windows.length]')));
-  await cdp.eval(`[...document.querySelectorAll('.plot-tab')].find(b => b.id === 'plot-tab-1').click()`);
-  await until('!s.busy && s.plots.active === 1', 'window 1 again');
+  await cdp.eval(`[...document.querySelectorAll('.plot-tab')].find(b => b.id === 'plot-tab-graph_1').click()`);
+  await until(`!s.busy && s.plots.active === 'graph_1'`, 'window 1 again');
   /* the wedge case: keys work after the run (Total back to 20: 401 rows), and the next
      run uses the slider's edit */
   await focusPlot();

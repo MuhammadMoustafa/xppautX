@@ -106,7 +106,7 @@ extern const XppMenu menu_auto_window, menu_browser_window, menu_ani_window, men
 extern const XppMenu menu_integrate, menu_nullclines, menu_freeze_cline,
   menu_dirfield, menu_window, menu_torus, menu_kinescope, menu_curves,
   menu_freeze, menu_freeze_off, menu_freeze_key,
-  menu_windows, menu_windows_simoff, menu_text, menu_text_edit,
+  menu_text, menu_text_edit,
   menu_equilibria, menu_view, menu_bvp, menu_stochastic, menu_poincare,
   menu_color_code, menu_adjoint, menu_lookup, menu_method, menu_save_what;
 

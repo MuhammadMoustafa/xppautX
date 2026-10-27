@@ -8,7 +8,7 @@ import {reduce, type AppState} from '../src/store/state';
 import {READY, LINE} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
-const w1 = (s: AppState) => windowOf(s.plots, 1)!;
+const w1 = (s: AppState) => windowOf(s.plots, 'graph_1')!;
 
 function run(v0: number, rows = 3): RunsEvent['add'][number] {
   const vs = Array.from({length: rows}, (_, i) => v0 + i);
@@ -18,7 +18,7 @@ function run(v0: number, rows = 3): RunsEvent['add'][number] {
   };
 }
 const runs = (add: RunsEvent['add'], o: Partial<RunsEvent> = {}): RunsEvent =>
-  ({ev: 'runs', win: 1, erased: 0, clear: 0, drop: 0, keep: 0, add, ...o});
+  ({ev: 'runs', win: 'graph_1', erased: 0, clear: 0, drop: 0, keep: 0, add, ...o});
 const firstY = (s: AppState, i: number) => w1(s).history.runs[i].columns.get(2)![0];
 
 test('the core adds earlier runs, oldest first, with their columns and names', () => {
@@ -40,7 +40,7 @@ test('drop forgets the oldest runs, clear all of them', () => {
 
 test('keep makes the series the window holds its newest run, without its data again', () => {
   const series = {
-    ev: 'series', win: 1, rows: 2, three: 0, xlabel: 'V', ylabel: 'W', zlabel: '', version: 4,
+    ev: 'series', win: 'graph_1', rows: 2, three: 0, xlabel: 'V', ylabel: 'W', zlabel: '', version: 4,
     curves: [{x: 0, y: 2, z: 0, color: '#ff0000', ...LINE}], shift: [0, 0, 0],
     columns: [{col: 0, name: 'T', data: [0, 1]}, {col: 2, name: 'W', data: [7, 8]}],
   };
@@ -71,7 +71,7 @@ test('the same history again leaves the state as it was', () => {
 
 test('the runs toggle and the zoom of a window are the core\'s (plots), except while the user\'s change is on its way', () => {
   const info = (zoom: unknown, runsOn: number) => ({
-    ev: 'plots', active: 1, windows: [{win: 1, title: 'W vs V', three: 0, xlo: 0, xhi: 1, ylo: 0, yhi: 1, xlabel: '', ylabel: '',
+    ev: 'plots', active: 1, windows: [{win: 'graph_1', title: 'W vs V', three: 0, xlo: 0, xhi: 1, ylo: 0, yhi: 1, xlabel: '', ylabel: '',
       zlabel: '', box: {}, theta: 0, phi: 0, persp: 0, zplane: 0, zview: 0, curves: [], shift: [0, 0, 0], zoom, runs: runsOn}],
   });
   let s = ev(READY, info({x: [0, 2], y: null}, 0));
@@ -82,7 +82,7 @@ test('the runs toggle and the zoom of a window are the core\'s (plots), except w
   assert.equal(w1(s).showRuns, true);
   const held = {...info(undefined, 1)};
   held.windows[0] = {...held.windows[0], zoom: undefined, runs: undefined} as never;
-  s = reduce(s, {type: 'viewport', viewport: {x: {min: 1, max: 2}, y: null}, win: 1});
+  s = reduce(s, {type: 'viewport', viewport: {x: {min: 1, max: 2}, y: null}, win: 'graph_1'});
   s = ev(s, held);
   assert.deepEqual(w1(s).viewport.x, {min: 1, max: 2}, 'an event without a zoom keeps the page\'s');
 });

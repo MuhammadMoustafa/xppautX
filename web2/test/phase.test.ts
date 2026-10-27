@@ -15,12 +15,12 @@ const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never}
 const f32 = (v: number[]) => Buffer.from(new Float32Array(v).buffer).toString('base64');
 
 const NC: NullclinesEvent = {
-  ev: 'nullclines', win: 1, xname: 'V', yname: 'W', xcolor: '#f06400', ycolor: '#00e100',
+  ev: 'nullclines', win: 'graph_1', xname: 'V', yname: 'W', xcolor: '#f06400', ycolor: '#00e100',
   x: [0, 0, 1, 1, 1, 1, 2, 0], y: [0, 1, 1, 0], frozen: [{x: [0, 0, 0, 1], y: []}],
 };
 
 const DF: DfieldEvent = {
-  ev: 'dfield', win: 1, scaled: 1, color: 'foreground', n: 2, du: 1, dv: 1,
+  ev: 'dfield', win: 'graph_1', scaled: 1, color: 'foreground', n: 2, du: 1, dv: 1,
   grid: [0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, -1, 0], speed: [2, 1, 0, 4],
   flows: [{color: '#ffa500', x: [0, 1, null, 2, 3, 4], y: [0, 1, null, 2, 3, 4]}],
 };
@@ -44,12 +44,12 @@ test('nullclines: segments decoded from JSON or base64 float32 alike', () => {
 
 test('the store keeps each window its own nullclines and field', () => {
   let s = ev(READY, NC);
-  s = ev(s, {...DF, win: 2});
-  assert.equal(windowOf(s.plots, 1)?.nullclines?.x.length, 8);
-  assert.equal(windowOf(s.plots, 1)?.dfield, null);
-  assert.equal(windowOf(s.plots, 2)?.dfield?.grid.length, 16);
+  s = ev(s, {...DF, win: 'graph_2'});
+  assert.equal(windowOf(s.plots, 'graph_1')?.nullclines?.x.length, 8);
+  assert.equal(windowOf(s.plots, 'graph_1')?.dfield, null);
+  assert.equal(windowOf(s.plots, 'graph_2')?.dfield?.grid.length, 16);
   s = ev(s, {...NC, x: [], y: [], frozen: []});
-  assert.equal(windowOf(s.plots, 1)?.nullclines?.x.length, 0, 'an empty event clears them');
+  assert.equal(windowOf(s.plots, 'graph_1')?.nullclines?.x.length, 0, 'an empty event clears them');
 });
 
 test('layers: named for the legend, empty ones left out', () => {

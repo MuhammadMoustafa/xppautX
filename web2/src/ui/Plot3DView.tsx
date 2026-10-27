@@ -21,7 +21,7 @@ import {nearest3d} from '../plot/render3d';
 import {FitButton} from './PlotView';
 
 interface Props {
-  win: number;
+  win: string;
   dark: boolean;
   /** this window's tab is the one shown */
   shown: boolean;
@@ -138,7 +138,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
   const noCurves = !model || model.curves.every(c => c.points.length === 0);
   const label = `3D plot${info ? ` of ${info.title}` : ''}${view3d ? `, theta ${fmt(view3d.theta)}, phi ${fmt(view3d.phi)}` : ''}`;
   const panel = tabbed
-    ? {role: 'tabpanel' as const, id: `plot-panel-${win}`, 'aria-labelledby': `plot-tab-${win}`}
+    ? {role: 'tabpanel' as const, id: `plot-panel-${encodeURIComponent(win)}`, 'aria-labelledby': `plot-tab-${encodeURIComponent(win)}`}
     : {'aria-label': 'Plot'};
 
   return (

@@ -111,7 +111,8 @@ export const HELLO: HelloEvent = {
     {cmd: 'key', kind: '', step: true},
     {cmd: 'answer', kind: 'c', step: false}, {cmd: 'abort', kind: 'c', step: false},
     {cmd: 'state', kind: 'v', step: false}, {cmd: 'data', kind: 'v', step: false},
-    {cmd: 'display', kind: 'v', step: true}, {cmd: 'click', kind: 'v', step: true},
+    {cmd: 'display', kind: 'v', step: true},
+    ...[...readFileSync('../core/command_registry.cpp', 'utf8').matchAll(/Command\{"([^"]+)",[\s\S]*?,(true|false),\w+\}/g)].map(m=>({cmd:m[1],kind:'v' as const,step:m[2]==='true'})),
     {cmd: 'browser', op: 'write', kind: 'd', step: true}, {cmd: 'browser', kind: 'v', step: false},
     {cmd: 'set', kind: 's', step: true}, {cmd: 'slider', kind: 's', step: true},
     {cmd: 'auto', op: 'set', kind: 's', step: true}, {cmd: 'auto', op: 'grab', kind: 'd', step: true},
@@ -126,7 +127,7 @@ export const HELLO: HelloEvent = {
   line_styles: LINE_GEOMETRY,
   annotation_glyphs: ANNOTATION_GLYPHS,
   colormaps: ['jet', 'viridis', 'plasma'],
-  window_ids: {plots: 21, auto: 101, ani: 104, aplot: 105},
+  window_names: {main:'graph_1',auto:'diagram_1',ani:'animation',aplot:'array_plot'},
 };
 
 /** the state after the server's hello: every event but hello comes after one */

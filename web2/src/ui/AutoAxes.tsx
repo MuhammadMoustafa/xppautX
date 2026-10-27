@@ -82,7 +82,7 @@ export function AutoAxisDialog({axis, view, onClose}: {axis: AxisName; view: num
   /* the new quantities, then a Fit: the diagram's ranges follow what it plots */
   const change = (c: {plot?: AutoProjection; var?: string; par1?: string; par2?: string}) => {
     if (!settings) return;
-    session.autoSettings({axes: {...c, fit: true, view}});
+    session.autoSettings({axes: {...c, fit: true, view:session.store.getState().diagram.views[view].name}});
   };
   const waiting = ['plot', 'var', 'par1', 'par2'].some(k => pending.has(`axes.${k}`));
   const select = (label: string, value: string, options: {value: string; text: string}[], on: (v: string) => void,

@@ -201,7 +201,7 @@ void append_annotations(std::string &o, const std::vector<Label> &labels, const 
 void send_marks(const xpp::Session &s, int pop, const Content &c)
 {
     std::string o = "{\"ev\":\"marks\",\"win\":";
-    add_int(o, static_cast<long>(s.plot_windows.graph[pop].w));
+    xpp::json_append_string(o,xpp::window_name(s,s.plot_windows.graph[pop].w));
     if (client.values_f32) o += ",\"enc\":\"f32\"";
     o += ",\"equilibria\":[";
     for (std::size_t k = 0; k < c.eqs.size(); k++) {
@@ -366,7 +366,7 @@ std::string annotations_json(Session &s, XppWinId w)
     for (const GROB &g : s.grobs)
         if (g.w == w) grobs.push_back({g.id, g.type, g.color, g.xs, g.ys, g.xe, g.ye, g.size});
     std::string o = "{\"ev\":\"annotations\",\"win\":";
-    add_int(o, static_cast<long>(w));
+    xpp::json_append_string(o,xpp::window_name(s,w));
     o += ',';
     append_annotations(o, labels, grobs);
     return o + '}';

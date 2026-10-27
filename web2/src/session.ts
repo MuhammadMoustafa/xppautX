@@ -51,7 +51,7 @@ interface DisplayPatch {
 /** the scope of the core's `restoredefaults` for a values section (docs/protocol.md) */
 const RESTORE_SCOPE = {par: 'parameters', ic: 'initial'} as const;
 
-const autoKey = (view: number): number => -view;
+
 
 const rangesOf = (v: Viewport): DisplayPatch => ({
   x: v.x ? [v.x.min, v.x.max] : null,
@@ -111,10 +111,10 @@ export class Session {
   private replayAnswers: RunAnswer[] = [];
   /** rotate3d's throttle: the last time the 3d-params turn went out for a window,
       and its pending trailing send, by window */
-  private rotate3dLast = new Map<number, number>();
-  private rotate3dTimer = new Map<number, ReturnType<typeof setTimeout>>();
+  private rotate3dLast = new Map<string, number>();
+  private rotate3dTimer = new Map<string, ReturnType<typeof setTimeout>>();
   /** the last angle a window was turned to while the core was busy, sent at its idle */
-  private rotate3dHeld = new Map<number, {theta: number; phi: number}>();
+  private rotate3dHeld = new Map<string, {theta: number; phi: number}>();
   /** what the page displays is the core's (W65, docs/protocol.md "Display state"): the zoom
       shown, the earlier runs' toggle, AUTO's shown branches. The page keeps a copy it changes
       at once (a drag cannot wait for a round trip) and tells the core; the core's events
@@ -122,18 +122,18 @@ export class Session {
       latest change of each (window 0: the AUTO diagram) not yet sent, `displayGuard` the
       windows whose zoom and toggles the core's events leave alone, until the idle of the
       command that carried the change (`displayIdles` counts down to it). */
-  private displayHeld = new Map<number, DisplayPatch>();
-  private displayGuard = new Set<number>();
+  private displayHeld = new Map<string, DisplayPatch>();
+  private displayGuard = new Set<string>();
   private displayIdles = 0;
   /** the tab last picked while the core was busy, shown and sent at its idle */
-  private windowHeld: number | null = null;
+  private windowHeld: string | null = null;
   /** key sequences clicked while a key waits for its menu (a second Integrate
       right behind the first): each goes out after the idle before it, so the
       menu the first opens is answered by its own keys (W95) */
   private clickedKeys: {command: Command; then: string[]}[] = [];
   private replayIdles = 0;
   /** a command to send when the running one has ended (the AUTO view's close while busy, A10) */
-  private afterIdle: Command | null = null;
+  private afterIdle: Command[] | null = null;
   /** `redraw` was sent for the AUTO diagram's data, not yet answered */
   private diagramAsked = false;
   /** the array plot's scroll made while the core was busy (plot/aplotScroll.ts) */
@@ -240,7 +240,7 @@ export class Session {
         this.savedOutputs.push({name: ev.file, handle, data});
       }
       this.nativeSave = null;
-    } else if (ev.ev === 'idle') {
+    } else if ((ev.ev === 'idle' || ev.ev === 'done')) {
       if (this.idlesOwed > 0) this.idlesOwed--;
       /* an earlier command's idle: the key still waits for its own */
       const earlier = this.keyWaiting && this.keyIdlesAhead > 0;
@@ -260,7 +260,7 @@ export class Session {
       }
       const next = this.afterIdle;
       this.afterIdle = null;
-      if (next) this.send(next);
+      if (next) for (const command of next) this.send(command);
       this.flushRotate3d();
       if (this.displayIdles > 0 && --this.displayIdles === 0) this.displayGuard = new Set(this.displayHeld.keys());
       this.flushDisplay();
@@ -603,7 +603,7 @@ export class Session {
   /* ---- plot windows (docs/ui-v2.md T6): the core's Makewindow commands ---- */
 
   /** a window's tab picked: it is shown at once, and becomes the core's active window */
-  selectWindow(win: number): void {
+  selectWindow(win: string): void {
     const {plots, ask, busy} = this.store.getState();
     /* a prompt is the shown window's until answered */
     if (ask) return;
@@ -617,7 +617,7 @@ export class Session {
     this.windowHeld = null;
     if (plots.active === win) return;
     this.store.dispatch({type: 'selectWindow', win});
-    this.send({cmd: 'click', win});
+    this.send({cmd: 'window.select', window:win});
   }
 
   private flushWindow(): void {
@@ -625,14 +625,16 @@ export class Session {
     this.selectWindow(this.windowHeld);
   }
 
+  renameWindow(window: string, name: string): void { this.send({cmd:'window.rename',window,name}); }
+
   /** Makewindow/Create: a copy of the active window, which becomes active */
   newWindow(): void {
-    this.keys(this.mainKey('makewindow'), 'c');
+    this.send({cmd:'window.create'});
   }
 
   /** Makewindow/Destroy: the active window (never window 1) */
   closeWindow(): void {
-    this.keys(this.mainKey('makewindow'), 'd');
+    this.send({cmd:'window.close',window:this.store.getState().plots.active});
   }
 
   /* ---- the display state (W65) ---- */
@@ -643,14 +645,14 @@ export class Session {
     if (ev.ev === 'plots')
       return {...ev, windows: ev.windows.map(w => (this.displayGuard.has(w.win) ? {...w, zoom: undefined, runs: undefined} : w))};
     if (ev.ev === 'autoview') {
-      const views = ev.views?.map((v, k) => (this.displayGuard.has(autoKey(k)) ? {} : v));
-      const guarded = [...this.displayGuard].some(k => k <= 0);
+      const views = ev.views?.map(v => (this.displayGuard.has(v.name) ? {...v,zoom:undefined} : v));
+      const guarded = [...this.displayGuard].some(k => this.store.getState().diagram.views.some(v=>v.name===k));
       return {...ev, views, show: guarded ? undefined : ev.show};
     }
     return ev;
   }
 
-  private display(win: number, patch: DisplayPatch): void {
+  private display(win: string, patch: DisplayPatch): void {
     this.displayGuard.add(win);
     this.displayHeld.set(win, {...this.displayHeld.get(win), ...patch});
     this.flushDisplay();
@@ -663,7 +665,7 @@ export class Session {
     if (first.done) return;
     const [win, patch] = first.value;
     this.displayHeld.delete(win);
-    this.send(win <= 0 ? {cmd: 'auto', op: 'display', view: -win, ...patch} : {cmd: 'display', win, ...patch});
+    this.send(this.store.getState().diagram.views.some(v=>v.name===win) ? {cmd: 'auto', op: 'display', view: win, ...patch} : {cmd: 'display', window:win, ...patch});
     this.displayGuard.add(win);
     this.displayIdles = this.idlesOwed;
   }
@@ -680,7 +682,7 @@ export class Session {
     this.send({cmd: 'annotation', op: 'delete', id});
   }
 
-  setViewport(win: number, viewport: Viewport): void {
+  setViewport(win: string, viewport: Viewport): void {
     this.store.dispatch({type: 'viewport', viewport, win});
     this.display(win, rangesOf(viewport));
   }
@@ -688,7 +690,7 @@ export class Session {
   /** the zoom of view `view` of the AUTO diagram changed */
   setDiagramViewport(view: number, viewport: Viewport): void {
     this.store.dispatch({type: 'diagram', action: {type: 'viewport', view, viewport}});
-    this.display(autoKey(view), rangesOf(viewport));
+    this.display(this.store.getState().diagram.views[view].name, rangesOf(viewport));
   }
 
   /** a view of the AUTO diagram clicked: the active one (W50), whose axes AUTO's Axes menu,
@@ -697,16 +699,16 @@ export class Session {
     const d = this.store.getState().diagram;
     if (view === d.active || view >= d.views.length) return;
     this.store.dispatch({type: 'diagram', action: {type: 'activate', view}});
-    this.send({cmd: 'auto', op: 'view', active: view});
+    this.send({cmd:'window.select',window:d.views[view].name});
   }
 
   /** a view of the AUTO diagram closed (the last one stays: the core refuses it) */
   closeView(view: number): void {
-    this.send({cmd: 'auto', op: 'view', close: view});
+    this.send({cmd:'window.close',window:this.store.getState().diagram.views[view].name});
   }
 
   /** the legend's "previous runs" toggle of window `win` */
-  setShowRuns(win: number, show: boolean): void {
+  setShowRuns(win: string, show: boolean): void {
     this.store.dispatch({type: 'showRuns', win, show});
     this.display(win, {runs: show});
   }
@@ -714,7 +716,7 @@ export class Session {
   /** AUTO's "Earlier branches" toggle */
   setShowEarlier(show: boolean): void {
     this.store.dispatch({type: 'diagram', action: {type: 'showEarlier', show}});
-    this.display(autoKey(this.store.getState().diagram.active), {show});
+    this.display(activeView(this.store.getState().diagram).name, {show});
   }
 
   /* ---- Use this view (docs/ui-v2.md T9) ---- */
@@ -725,12 +727,12 @@ export class Session {
       follow report the new axes; the plot's own viewport then goes back
       to "the core's axes" (store/plots.ts coreMoved, from the `state`
       reducer), with no visible jump since they are now the same range. */
-  useThisView(win: number, ranges: Ranges): void {
+  useThisView(win: string, ranges: Ranges): void {
     if (!this.mayMain('window')) return; /* W68 */
     const cmds: Command[] = [];
     if (this.store.getState().plots.active !== win) {
       this.store.dispatch({type: 'selectWindow', win});
-      cmds.push({cmd: 'click', win});
+      cmds.push({cmd: 'window.select', window:win});
     }
     cmds.push(mainKey(this.store.getState().hello, 'window'));
     const {x, y} = ranges;
@@ -741,7 +743,7 @@ export class Session {
   }
 
   /** Axis labels open the existing core editor directly for their plot. */
-  editPlotAxes(win: number, three: boolean): void {
+  editPlotAxes(win: string, three: boolean): void {
     if (!this.mayMain('viewaxes')) return;
     this.selectWindow(win);
     this.menuAction('main', 'viewaxes', three ? '3' : '2');
@@ -769,7 +771,7 @@ export class Session {
       after the last change always lands, so the settled angle reaches the
       core even with no explicit end wired in (a key held down auto-
       repeats, with no keyup between steps). */
-  rotate3d(win: number, theta: number, phi: number): void {
+  rotate3d(win: string, theta: number, phi: number): void {
     this.store.dispatch({type: 'rotate3d', win, theta, phi});
     const timer = this.rotate3dTimer.get(win);
     if (timer !== undefined) clearTimeout(timer);
@@ -796,11 +798,11 @@ export class Session {
   }
 
   /** 3d-params (`3`) of window `win`: its form's Theta and Phi answered with the angles, the rest as offered */
-  private turn3d(win: number, theta: number, phi: number): void {
+  private turn3d(win: string, theta: number, phi: number): void {
     const cmds: Command[] = [];
     if (this.store.getState().plots.active !== win) {
       this.store.dispatch({type: 'selectWindow', win});
-      cmds.push({cmd: 'click', win});
+      cmds.push({cmd: 'window.select', window:win});
     }
     cmds.push({cmd: 'key', key: '3'});
     this.runPlan(cmds, [ask => {
@@ -907,12 +909,13 @@ export class Session {
       first and the window closes at its idle, instead of the close waiting
       behind the run. */
   closeAuto(): void {
-    const {busy, stopping} = this.store.getState();
+    const {busy, stopping, diagram} = this.store.getState();
+    const commands = diagram.views.map(v => ({cmd: 'window.close', window: v.name}));
     if (!busy) {
-      this.send({cmd: 'auto', op: 'close'});
+      for (const command of commands) this.send(command);
       return;
     }
-    this.afterIdle = {cmd: 'auto', op: 'close'};
+    this.afterIdle = commands;
     if (!stopping) this.abort();
   }
 
@@ -1305,7 +1308,7 @@ export class Session {
     if (typeof ask.film === 'number') {
       const frame = this.store.getState().kinescope.frames[ask.film];
       if (frame) pixels = renderFrame(frame, dark);
-    } else if (typeof ask.win === 'number') {
+    } else if (typeof ask.win === 'string') {
       pixels = chartOf(ask.win)?.pixels() ?? null;
       if (!pixels) {
         const w = windowOf(this.store.getState().plots, ask.win);

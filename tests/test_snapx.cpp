@@ -265,7 +265,7 @@ void check_plot_limits(const xpp::TempDir &tmp)
     CHECK(file.has_value());
     if(!file)return;
     CHECK(!xpp_saved_check(s,*file));
-    CHECK(file->members.at("windows.setx").find("number: 7,") == std::string::npos);
+    CHECK(file->members.at("windows.setx").find("name: \"graph_8\",") == std::string::npos);
     CHECK(file->members.at("marks.setx").find("slot: 5,") == std::string::npos);
     /* A scalar posing as a list, sparse hostile indices, and dishonest point
        counts fail at their member line, without changing any current state. */
@@ -281,8 +281,8 @@ void check_plot_limits(const xpp::TempDir &tmp)
         CHECK(s.plot_windows.active==windows-1 && s.plot_windows.count==windows-1);
         CHECK(s.frozen_curves.curve.size()==frozen && !s.frozen_curves.curve[5].use);
     };
-    bad("windows.setx","number: 0","number: 2147483647");
-    bad("windows.setx","active: 106","active: 7");
+    bad("windows.setx","name: \"graph_1\"","name: \"\"");
+    bad("windows.setx","active: \"graph_107\"","active: \"graph_8\"");
     const std::string &window_text=file->members.at("windows.setx");
     const auto curve_begin=window_text.find("curves: [");
     const auto curve_end=window_text.find(']',curve_begin);
@@ -320,8 +320,8 @@ void check_plot_limits(const xpp::TempDir &tmp)
     xpp::Session &restored=xpp::client_session();
     xpp::batch_start(restored);
     CHECK(xpp_saved_restore(restored,*disk));
-    CHECK(restored.plot_windows.graph.size()==windows && restored.plot_windows.count==windows-1);
-    CHECK(restored.plot_windows.active==windows-1 && !restored.plot_windows.graph[7].Use);
+    CHECK(restored.plot_windows.graph.size()==windows-1 && restored.plot_windows.count==windows-1);
+    CHECK(restored.plot_windows.active==windows-2 && restored.plot_windows.graph[7].name=="graph_9");
     CHECK(restored.plot_windows.current->nvars==curves && restored.plot_windows.current->yv.back()==curves);
     CHECK(restored.frozen_curves.curve.size()==frozen && !restored.frozen_curves.curve[5].use);
     const auto again=xpp_session_snapshot(restored);

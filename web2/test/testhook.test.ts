@@ -64,3 +64,28 @@ test('W166: a mark from sentCount stays an index into the sent commands past the
     else Reflect.deleteProperty(globalThis, 'window');
   }
 });
+
+test('named diagram resets clear the trace independently of auxiliary window names', () => {
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const page = {__xpp: undefined as unknown as {diagramEvents: () => {op: string; view?: string}[]}};
+  Object.defineProperty(globalThis, 'window', {configurable: true, value: page});
+  try {
+    const session = new Session({send: () => {}, close: () => {}, open: () => {}});
+    installTestHook(session);
+    session.store.dispatch({type:'event',ev:{ev:'diagram',op:'views',n:2,names:['animation','Second view']}});
+    const reset = (view: string) => session.store.dispatch({type:'event',ev:{ev:'diagram',op:'reset',view,keep:0,
+      xmin:0,xmax:1,ymin:0,ymax:1,x0:0,y0:0,wid:100,hgt:100,plot:'maximum',xlabel:'a',ylabel:'x'}});
+    reset('animation');
+    reset('Second view');
+    assert.deepEqual(page.__xpp.diagramEvents().map(e=>e.view),['animation','Second view']);
+    reset('animation');
+    assert.deepEqual(page.__xpp.diagramEvents().map(e=>e.view),['animation']);
+    session.store.dispatch({type:'event',ev:{ev:'window',kind:'animation',op:'destroy',win:'animation',w:0,h:0}});
+    assert.equal(page.__xpp.diagramEvents().length,1);
+    session.store.dispatch({type:'event',ev:{ev:'window',kind:'diagram',op:'destroy',win:'animation',w:0,h:0}});
+    assert.equal(page.__xpp.diagramEvents().length,0);
+  } finally {
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+});

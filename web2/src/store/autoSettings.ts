@@ -170,7 +170,7 @@ export interface AutoSettingsPatch {
   special_points?: Partial<Record<CodimKind, boolean>>;
   numerics?: Partial<AutoSettings['numerics']>;
   /** `view`: the view of the diagram whose axes these are (W50; the active one without it) */
-  axes?: Partial<AutoAxesSettings> & {fit?: boolean; view?: number};
+  axes?: Partial<AutoAxesSettings> & {fit?: boolean; view?: string};
   marks?: [string, number][];
   threads?: 'auto' | number;
 }

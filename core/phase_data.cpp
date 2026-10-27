@@ -202,7 +202,7 @@ void begin_event(std::string &o, const char *ev, const GRAPH &g)
     o = "{\"ev\":\"";
     o += ev;
     o += "\",\"win\":";
-    add_int(o, static_cast<long>(g.w));
+    xpp::json_append_string(o,g.name);
     if (client.values_f32) o += ",\"enc\":\"f32\"";
 }
 

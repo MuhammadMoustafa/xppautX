@@ -167,14 +167,14 @@ export type Action =
   | {type: 'sent'; cmd: Command}
   | {type: 'aborting'}
   /** window `win`'s zoom (the active window's without `win`) */
-  | {type: 'viewport'; viewport: Viewport; win?: number}
+  | {type: 'viewport'; viewport: Viewport; win?: string}
   /** a 3D window `win` turned to `theta`, `phi` (a drag, arrow keys, or the
       core's own echo of the turn sent for it), docs/ui-v2.md T14 */
-  | {type: 'rotate3d'; win: number; theta: number; phi: number}
+  | {type: 'rotate3d'; win: string; theta: number; phi: number}
   /** the user picked a plot window's tab (the core is told with `click`) */
-  | {type: 'selectWindow'; win: number}
+  | {type: 'selectWindow'; win: string}
   /** the legend's "previous runs" toggle of window `win` */
-  | {type: 'showRuns'; win: number; show: boolean}
+  | {type: 'showRuns'; win: string; show: boolean}
   | {type: 'hover'; hover: Hover | null}
   /** the plot mode's crosshair or corner moved */
   | {type: 'pick'; pick: PickState | null}
@@ -396,6 +396,12 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         hover: shown ? null : state.hover,
       };
     }
+    case 'window.renamed': {
+      const plots={...state.plots,active:state.plots.active===ev.window?ev.new_name:state.plots.active,
+        windows:state.plots.windows.map(w=>w.win===ev.window?{...w,win:ev.new_name,info:w.info?{...w.info,win:ev.new_name,title:ev.new_name}:null}:w)};
+      const diagram={...state.diagram,views:state.diagram.views.map(v=>v.name===ev.window?{...v,name:ev.new_name}:v)};
+      return withPlots({...state,diagram},plots);
+    }
     case 'plots':
       return withPlots(state, onPlots(state.plots, ev));
     case 'runs':
@@ -407,15 +413,15 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'marks':
       return withPlots(state, onMarks(state.plots, ev));
     case 'window': {
-      /* the windows' numbers: hello.window_ids (no window comes before hello) */
-      const ids = state.hello?.window_ids;
+      /* the windows' numbers: hello.window_names (no window comes before hello) */
+      const ids = state.hello?.window_names;
       if (!ids) return state;
-      if (ev.win === ids.auto && ev.op !== 'select')
+      if (ev.kind === 'diagram' && ev.op !== 'select')
         return {...state, diagram: reduceDiagram(state.diagram, {type: 'window', op: ev.op})};
-      if (ev.win === ids.ani && ev.op !== 'select')
+      if (ev.kind === 'animation' && ev.op !== 'select')
         return {...state, ani: reduceAni(state.ani, {type: 'window', exists: ev.op === 'create'})};
       /* create selects the new window too; destroy waits for `plots` */
-      if (ev.win === ids.aplot) {
+      if (ev.kind === 'array_plot') {
         if (ev.op === 'destroy') return {...state, aplot: reduceAplot(state.aplot, {type: 'window', open: false})};
         if (ev.op === 'create') {
           /* shown at once, like the classic page (web/xpp-client.js onArrayPlot) */
@@ -427,9 +433,9 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return ev.op === 'select' && !!windowOf(state.plots, ev.win) ? withPlots(state, select(state.plots, ev.win)) : state;
     }
     case 'ask': {
-      const ids = state.hello?.window_ids;
-      const auto = !!ids && Number(ev.win) === ids.auto && state.diagram.open;
-      const mode = ids ? pickModeOf(ev, state.core?.view, !!windowOf(state.plots, Number(ev.win))?.series, ids, auto) : null;
+      const ids = state.hello?.window_names;
+      const auto = state.diagram.open && state.diagram.views.some(v=>v.name===ev.win);
+      const mode = ids ? pickModeOf(ev, state.core?.view, !!windowOf(state.plots, ev.win!)?.series, {...ids,auto:state.diagram.views[state.diagram.active].name}, auto) : null;
       const withAsk = {...state, ask: ev, pick: mode ? startPick(state.pick, ev, mode) : null};
       /* the AUTO diagram's asks (a grab, Axes/Zoom's box, Axes/Scroll's drag) are the AUTO view's: it is shown */
       if (auto && (mode || ev.kind === 'grab')) {
@@ -438,7 +444,11 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         return {...withAsk, diagram};
       }
       /* a plot mode is the core's active window's: its tab is the one shown */
-      return mode ? withPlots(withAsk, select(state.plots, Number(ev.win))) : withAsk;
+      return mode ? withPlots(withAsk, select(state.plots, ev.win!)) : withAsk;
+    }
+    case 'done': {
+      const settled=reduce(state,{type:'event',ev:{ev:'idle'}});
+      return ev.status==='error'?reduce(settled,{type:'event',ev:{...ev,ev:'message'}}):settled;
     }
     case 'idle':
       return {

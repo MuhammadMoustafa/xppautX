@@ -67,14 +67,14 @@ void start_model(xpp::Session &s, const xpp::KeptValues *kept)
 }
 
 /* the windows besides the main one the page has of the current model */
-std::vector<unsigned long> shown_windows(const xpp::Session &s)
+std::vector<std::pair<std::string,std::string>> shown_windows(const xpp::Session &s)
 {
-    std::vector<unsigned long> w;
+    std::vector<std::pair<std::string,std::string>> w;
     for (int i = 1; i < static_cast<int>(s.plot_windows.graph.size()); i++)
-        if (s.plot_windows.graph[i].Use) w.push_back(s.plot_windows.graph[i].w);
-    if (s.auto_state.bifur.exist) w.push_back(WIN_AUTO);
-    if (s.animation.vcr.iexist) w.push_back(WIN_ANI);
-    if (s.array_plot.plot.alive) w.push_back(WIN_APLOT);
+        if (s.plot_windows.graph[i].Use) w.emplace_back(s.plot_windows.graph[i].name,"graph");
+    if (s.auto_state.bifur.exist) w.emplace_back(xpp::window_name(s,WIN_AUTO),"diagram");
+    if (s.animation.vcr.iexist) w.emplace_back(xpp::window_name(s,WIN_ANI),"animation");
+    if (s.array_plot.plot.alive) w.emplace_back(xpp::window_name(s,WIN_APLOT),"array_plot");
     return w;
 }
 
@@ -82,7 +82,7 @@ std::vector<unsigned long> shown_windows(const xpp::Session &s)
 
 xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
 {
-    const std::vector<unsigned long> shown = shown_windows(before);
+    const auto shown = shown_windows(before);
     xpp::KeptValues kept;
     if (req.keep_values) kept = xpp::keep_values(before);
     xpp::Session *loaded = xpp::load_requested(before, req);
@@ -90,7 +90,7 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
     /* before is gone: the new model's session from here on */
     xpp::Session &s = *loaded;
     s.file_dialogs.home = req.home.empty() ? xpp::files::working_dir() : req.home;
-    for (unsigned long w : shown) send_window("destroy", w, 0, 0);
+    for (const auto &[name,kind] : shown) send_window("destroy", name, 0, 0,"",kind);
     /* what the data modules and this front end recorded of the model before */
     for (int i = 0; i < static_cast<int>(s.plot_windows.graph.size()); i++) {
         phase_data_cleared(s, i);

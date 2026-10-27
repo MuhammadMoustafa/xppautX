@@ -24,9 +24,51 @@
 
 namespace xpp {
 
+std::optional<WindowTarget> find_window(const Session &s, std::string_view name)
+{
+    for (int i=0;i<static_cast<int>(s.plot_windows.graph.size());++i)
+        if (s.plot_windows.graph[i].Use && s.plot_windows.graph[i].name==name)
+            return WindowTarget{WindowKind::graph,i};
+    if (s.auto_state.bifur.exist)
+        for (int i=0;i<static_cast<int>(s.auto_state.views.size());++i)
+            if (s.auto_state.views[i].name==name) return WindowTarget{WindowKind::diagram,i};
+    return std::nullopt;
+}
+
+std::string next_window_name(const Session &s, WindowKind kind)
+{
+    for (std::size_t i=1;;++i) {
+        std::string name=xpp::format("{}_{}",kind==WindowKind::graph?"graph":"diagram",i);
+        if (!find_window(s,name) && (kind!=WindowKind::diagram || !std::ranges::any_of(s.auto_state.views,[&](const AutoDiagramView &view){return view.name==name;}))) return name;
+    }
+}
+
+std::string window_name(const Session &s, XppWinId handle)
+{
+    if (handle==WIN_AUTO) return s.auto_state.views[s.auto_state.active_view].name;
+    if (handle==WIN_ANI) return "animation";
+    if (handle==WIN_APLOT) return "array_plot";
+    return s.plot_windows.graph[graph_of(s,handle)].name;
+}
+
+std::string window_name_problem(std::string_view name)
+{
+    if (name.empty() || name.size()>WINDOW_NAME_BYTES) return xpp::format("A window name has 1 to {} UTF-8 bytes",WINDOW_NAME_BYTES);
+    if (name.front()==' ' || name.back()==' ') return "A window name has no leading or trailing space";
+    for (unsigned char ch:name) if (ch<0x20 || ch==0x7f) return "A window name has no control characters";
+    return {};
+}
+
+std::string window_name_problem(const Session &s,std::string_view name,std::string_view replacing)
+{
+    if(auto problem=window_name_problem(name);!problem.empty())return problem;
+    if (name!=replacing && find_window(s,name)) return xpp::format("Window \"{}\" is already open",name);
+    return {};
+}
+
 /* ---- graph bookkeeping ----------------------------------------------- */
 
-void create_a_pop(Session &s)
+void create_a_pop(Session &s, std::string_view requested)
 {
     int i;
     for (i = 1; i < static_cast<int>(s.plot_windows.graph.size()); i++)
@@ -38,7 +80,9 @@ void create_a_pop(Session &s)
         s.phase_shown.windows.emplace_back();
         s.plot_windows.current = &s.plot_windows.graph[s.plot_windows.active];
     }
+    const std::string name=requested.empty()?next_window_name(s,WindowKind::graph):std::string(requested);
     copy_graph(s, i, s.plot_windows.active);
+    s.plot_windows.graph[i].name=name;
     s.plot_display[i]={};
     s.marks_shown.windows[i]={};
     s.phase_shown.windows[i]={};
@@ -83,6 +127,7 @@ void make_active(xpp::Session &s, int i, int flag)
     s.plot_windows.active = i;
     s.plot_windows.current = &s.plot_windows.graph[s.plot_windows.active];
     s.plot_windows.draw_win = s.plot_windows.current->w;
+    s.selected_window=s.plot_windows.current->name;
     get_draw_area_flag(s, flag);
 }
 

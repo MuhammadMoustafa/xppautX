@@ -65,7 +65,7 @@ link from a menu item or dialog to its section here.
 | Main menu — File | [The main commands: (F)ile](05-commands.md#file) |
 | Main menu — Parameters | [The main commands: (P)arameters](05-commands.md#parameters) |
 | Main menu — Erase | [The main commands: (E)rase](05-commands.md#erase) |
-| Main menu — Makewindow | [The main commands: (M)ake window](05-commands.md#make-window) |
+| Named windows | [The main commands: named plot windows](05-commands.md#named-plot-windows) |
 | Main menu — Text,etc | [The main commands: (T)ext, etc](05-commands.md#text-etc) |
 | Main menu — Sing pts | [The main commands: (S)ing pts](05-commands.md#sing-pts) |
 | Main menu — Viewaxes | [The main commands: (V)iew axes](05-commands.md#view-axes) |

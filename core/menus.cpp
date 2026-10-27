@@ -179,14 +179,6 @@ const char *const view_hint[]={
   "Animation window"
 };
 
-const char *const half_hint[]={
-"Create new window",
-"Delete all but main window",
-"Delete last window",
-"Place current window at bottom",
-"Automatically redraw",
-"Redraw only when requested",
-"Plot all graphs simultaneously -- slows you down"};
 
 const char *const text_hint[]={
 "Create text labels in different fonts ",
@@ -345,10 +337,6 @@ static const char *const freeze_items[]={"(F)reeze","(D)elete","(E)dit","(R)emov
 static const char *const freeze_off_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
   "(K)ey","(B)if.Diag","(C)lr. BD","(O)ff freeze"};
 static const char *const key_items[]={"(N)o key","(K)ey"};
-static const char *const windows_items[]={"(C)reate","(K)ill all","(D)estroy","(B)ottom",
-  "(A)uto","(M)anual","(S)imPlot On"};
-static const char *const windows_simoff_items[]={"(C)reate","(K)ill all","(D)estroy",
-  "(B)ottom","(A)uto","(M)anual","(S)imPlot Off"};
 static const char *const text_items[]={"(T)ext","(A)rrow","(P)ointer","(M)arker",
   "(E)dit","(D)elete all","marker(S)"};
 static const char *const text_edit_items[]={"(M)ove","(C)hange","(D)elete"};
@@ -381,8 +369,6 @@ const XppMenu menu_curves = XPP_MENU("curves", "Curves", curve_items, "adrepvfxo
 const XppMenu menu_freeze = XPP_MENU("freeze", "Freeze", freeze_items, "fderkbco", "vvvvvdvv", frz_hint, M_GFF);
 const XppMenu menu_freeze_off = XPP_MENU("freeze_off", "Freeze", freeze_off_items, "fderkbco", "vvvvvdvv", frz_hint, M_GFF);
 const XppMenu menu_freeze_key = XPP_MENU("freeze_key", "Key", key_items, "nk", "vv", no_hint, M_GFKN);
-const XppMenu menu_windows = XPP_MENU("windows", "Make window", windows_items, "ckdbams", "vvvvvvv", half_hint, M_MC);
-const XppMenu menu_windows_simoff = XPP_MENU("windows_simoff", "Make window", windows_simoff_items, "ckdbams", "vvvvvvv", half_hint, M_MC);
 /* (E)dit opens menu_text_edit */
 const XppMenu menu_text = XPP_MENU("text", "Text,etc", text_items, "tapmeds", "vvvvvvv", text_hint, M_TT);
 const XppMenu menu_text_edit = XPP_MENU("text_edit", "Edit", text_edit_items, "mcd", "vvv", edit_hint, M_TEM);

@@ -235,6 +235,8 @@ XppUi ui = {
     .browser_redraw = hl_int,
     .create_plot_window = hl_s,
     .destroy_plot_window = hl_s,
+    .window_renamed = hl_auto_make_window,
+    .auto_closed = hl_s_str,
     .lower_plot_window = hl_void,
     .cput_text = hl_s,
     .get_draw_size = hl_get_draw_size,
@@ -333,7 +335,6 @@ static int question_string(std::string_view name, std::string &value, int kind)
 }
 int new_string(std::string_view name, std::string &value) { return question_string(name, value, XPP_FIELD_TEXT); }
 int new_string_of(std::string_view name, std::string &value, int kind) { return question_string(name, value, kind); }
-int yes_no_box(void) { return confirm("Are you sure?"); }
 int Choose(std::string_view title, std::string_view question, std::span<const std::string> choices,
            std::string_view keys, char yes_key)
 {

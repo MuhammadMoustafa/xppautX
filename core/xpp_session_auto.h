@@ -58,6 +58,7 @@ struct SavedView {
     std::string var, par1, par2;
     std::array<double, 4> range{};
     xpp::Zoom zoom;
+    std::string name;
     bool operator==(const SavedView &) const = default;
 };
 struct SavedViews {

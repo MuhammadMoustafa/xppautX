@@ -5,13 +5,13 @@
 import type {Chart} from './chart';
 import type {Chart3D} from './chart3d';
 
-const charts = new Map<number, Chart | Chart3D>();
+const charts = new Map<string, Chart | Chart3D>();
 
-export function setChart(win: number, c: Chart | Chart3D | null): void {
+export function setChart(win: string, c: Chart | Chart3D | null): void {
   if (c) charts.set(win, c);
   else charts.delete(win);
 }
 
-export function chartOf(win: number): Chart | Chart3D | null {
+export function chartOf(win: string): Chart | Chart3D | null {
   return charts.get(win) ?? null;
 }

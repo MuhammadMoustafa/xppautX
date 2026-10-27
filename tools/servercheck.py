@@ -16,7 +16,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('--ode', default='examples/ode/lecar.odex')
 ap.add_argument('-v', action='store_true')
-ap.add_argument('--only', default='', help='run only these sections, comma-separated (stops); the rest needs the whole run')
+ap.add_argument('--only', default='', help='run only these sections, comma-separated (registry, stops); the rest needs the whole run')
+ap.add_argument('--update-registry-docs', action='store_true', help='regenerate the registry section of docs/protocol.md')
 args = ap.parse_args()
 # XPP_CHECK_SLOW=F multiplies every wait by F (tools/xppclient.py)
 SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
@@ -168,7 +169,7 @@ def check_diagram_subscription():
 # card that fixes it moves it out of this table. A case that would hang today is not started. Each run
 # waits for idle, never for time.
 def stops_idle(e):
-    return e.get('ev') == 'idle'
+    return e.get('ev') in ('idle','done')
 
 
 YES_NO = {'Y': 'true', 'N': 'false'}  # the range forms' yes/no fields are boolean (W487)
@@ -610,16 +611,192 @@ def check_auto_singular_pivot():
         s.close()
 
 
-STOPS_SECTIONS = {'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
+def check_registry():
+    """Exercise typed commands, named graphs/diagrams, errors and recordings."""
+    proc, folder, snd, col, _ = launch_server()
+    try:
+        initial, _ = col(lambda e: e.get('ev') == 'idle')
+        hello = next(e for e in initial if e.get('ev') == 'hello')
+        registry = [c for c in hello['commands'] if c.get('completion') == 'done']
+        by_name = {c['cmd']: c for c in registry}
+        check('registry: window commands declare entry-driven argument types',
+              by_name['window.rename']['arguments'][0]['type'] == 'window' and
+              by_name['window.rename']['arguments'][1]['type'] == 'new_name' and
+              by_name['window.set_redraw_mode']['arguments'][1]['choices'] == ['auto', 'manual'] and
+              by_name['window.set_simultaneous_plot']['arguments'][0]['type'] == 'boolean')
+        counter = 0
+        def request(command, ok=True, client_id=None):
+            nonlocal counter
+            counter += 1
+            if isinstance(command, dict):
+                command = dict(command)
+                command.setdefault('id', 'registry %d' % counter)
+                client_id = command['id'] if isinstance(command['id'], str) and len(command['id'].encode('utf-8')) <= 1024 else None
+                source = json.dumps(command, ensure_ascii=False)
+            else:
+                source = command
+            proc.stdin.write(source + '\n')
+            proc.stdin.flush()
+            evs, done = col(lambda e: e.get('ev') == 'done')
+            snd(cmd='state')  # an independent legacy fence proves no extra terminal event
+            tail, _ = col(lambda e: e.get('ev') == 'idle')
+            evs += tail
+            check('registry: %d one %s done, text id and no duplicate error' % (counter, 'ok' if ok else 'error'),
+                  done is not None and done.get('status') == ('ok' if ok else 'error') and
+                  done.get('id') == client_id and sum(e.get('ev') == 'done' for e in evs) == 1 and
+                  sum(e.get('ev') == 'idle' for e in evs) == 1 and
+                  not any(e.get('ev') in ('message', 'error') for e in evs), str(evs)[-1000:])
+            if not ok:
+                check('registry: %d error retains original command place' % counter,
+                      done and done.get('file') == 'command' and done.get('line') == 1 and
+                      done.get('source') == source and 'result' not in done, str(done))
+            return (done or {}).get('result', {}), evs
+        result, _ = request({'cmd': 'help'})
+        check('registry: help and hello share metadata', result == {'commands': registry})
+        result, _ = request('help window.rename --id "text client"', client_id='text client')
+        check('registry: help NAME filters metadata', result == {'commands': [by_name['window.rename']]})
+        for bad in [
+            {'cmd': 'help', 'id': 3}, {'cmd': 'help', 'id': True}, {'cmd': 'help', 'id': None},
+            {'cmd': 'help', 'id': 'x' * 1025}, {'cmd': 'help', 'extra': True},
+            {'cmd': 'window.rename'}, {'cmd': 'window.select'},
+            {'cmd': 'window.create', 'name': ''}, {'cmd': 'window.create', 'name': ' leading'},
+            {'cmd': 'window.create', 'name': 'trailing '}, {'cmd': 'window.create', 'name': 'x' * 1025},
+            {'cmd': 'window.create', 'name': 'graph_1'}, {'cmd': 'window.create', 'name': None},
+            {'cmd': 'window.select', 'window': 1}, {'cmd': 'window.select', 'window': 'Graph_1'},
+            {'cmd': 'window.select', 'window': 'missing'},
+            {'cmd':'window.rename','window':'missing','name':'new'},
+            {'cmd':'window.rename','window':'graph_1'},
+            {'cmd':'window.close','window':'missing'},
+            {'cmd':'window.send_to_bottom','window':'missing'},
+            {'cmd':'window.set_redraw_mode','window':'missing','mode':'auto'},
+            {'cmd':'window.destroy_all','extra':True},
+            {'cmd':'window.set_simultaneous_plot'}, {'cmd': 'window.close', 'window': 'graph_1'},
+            {'cmd': 'window.rename', 'window': 'graph_1', 'name': 'bad\nname'},
+            {'cmd': 'window.set_redraw_mode', 'mode': 1}, {'cmd': 'window.set_redraw_mode', 'mode': 'invalid'},
+            {'cmd': 'window.set_simultaneous_plot', 'enabled': 1},
+            {'cmd': 'window.set_simultaneous_plot', 'enabled': 'true'},
+            'window.set_redraw_mode --mode \"auto\"',
+            'window.set_simultaneous_plot --enabled \"true\"',
+            'window.create --name unquoted', 'window.create --name "unterminated',
+            'window.create --name "a" --name "b"', 'window.create --name',
+            'window.create --name "a"tail', 'window.create --name "bad\\q"',
+            'window.create --name "' + 'x' * 16384 + '"',
+            '{"cmd":"window.create","name":' + '[' * 65 + '0' + ']' * 65 + '}',
+        ]:
+            request(bad, False)
+        result, _ = request({'cmd': 'window.create'})
+        check('registry: next default graph name', result == {'window': 'graph_2'})
+        result, _ = request({'cmd': 'window.create', 'name': 'phase plane'})
+        check('registry: create preserves user text', result == {'window': 'phase plane'})
+        request({'cmd': 'window.rename', 'window': 'phase plane', 'name': 'graph_1'}, False)
+        result, evs = request({'cmd': 'window.rename', 'window': 'phase plane', 'name': 'Phase "plane"'})
+        check('registry: rename reports exact old and new names', result == {'window': 'phase plane', 'new_name': 'Phase "plane"'} and
+              any(e.get('ev') == 'window.renamed' and e.get('new_name') == 'Phase "plane"' for e in evs))
+        snd(cmd='session',op='save',name='named windows.snapx',data=False)
+        col(lambda e:e.get('ev')=='idle')
+        request({'cmd':'window.rename','window':'Phase "plane"','name':'Temporary name'})
+        snd(cmd='open',file='named windows.snapx')
+        while True:
+            _,end=col(lambda e:e.get('ev') in ('ask','idle'))
+            if end is None or end['ev']=='idle': break
+            snd(cmd='answer',id=end['id'],key='d')
+        snd(cmd='data',events=['plots','series'])
+        restored,_=col(lambda e:e.get('ev')=='idle')
+        check('registry: session restore preserves exact user names and active graph',
+              any(e.get('ev')=='plots' and e.get('active')=='Phase "plane"'
+                  and 'Phase "plane"' in [w['win'] for w in e['windows']] for e in restored))
+        request({'cmd': 'window.select', 'window': 'phase plane'}, False)
+        request({'cmd': 'window.select', 'window': 'Phase "plane"'})
+        result, _ = request('window.set_redraw_mode --mode manual --id "mode"', client_id='mode')
+        check('registry: bare choice is typed once', result == {'redraw_mode': 'manual'})
+        result, _ = request('window.set_simultaneous_plot --enabled true --id "boolean"', client_id='boolean')
+        check('registry: boolean is typed once', result == {'simultaneous_plot': True})
+        request({'cmd': 'window.send_to_bottom'})
+        result, _ = request({'cmd': 'window.close'})
+        check('registry: omitted target is the selected named graph', result == {'window': 'Phase "plane"', 'closed': True})
+        result, _ = request({'cmd': 'window.destroy_all'})
+        check('registry: close all reports count', result == {'closed_count': 1})
+        request({'cmd': 'window.select', 'window': 'graph_2'}, False)
+        snd(cmd='key', menu='file', item='auto')
+        col(lambda e: e.get('ev') == 'idle')
+        request({'cmd':'window.create','name':'diagram_1'},False)
+        request({'cmd':'window.rename','window':'diagram_1','name':'graph_1'},False)
+        request({'cmd':'window.send_to_bottom','window':'diagram_1'},False)
+        request({'cmd':'window.set_redraw_mode','window':'diagram_1','mode':'manual'},False)
+        request({'cmd': 'window.rename', 'window': 'diagram_1', 'name': 'Bifurcation diagram'})
+        request({'cmd': 'window.select', 'window': 'Bifurcation diagram'})
+        request({'cmd': 'window.close'})
+        for obsolete in [
+            {'cmd':'click','win':1},
+            {'cmd':'key','menu':'main','item':'makewindow'},
+            {'cmd':'auto','op':'view','active':0},
+            {'cmd':'auto','op':'view','close':0},
+            {'cmd':'auto','op':'close'},
+            {'cmd':'annotation','op':'list','win':1},
+        ]:
+            snd(**obsolete)
+            events,_=col(lambda e:e.get('ev')=='idle')
+            check('registry: old window forms are errors',
+                  sum(e.get('ev')=='message' and 'error' in e for e in events)==1
+                  and not any(e.get('ev')=='done' for e in events), str(obsolete))
+        # These are real recorded steps, whose JSON commands retain names.
+        snd(cmd='record', op='start'); col(lambda e: e.get('ev') == 'idle')
+        request({'cmd': 'window.create', 'name': 'Recorded graph'})
+        request({'cmd': 'window.rename', 'window': 'Recorded graph', 'name': 'Recorded phase plane'})
+        request({'cmd': 'window.select', 'window': 'graph_1'})
+        request({'cmd': 'window.close', 'window': 'Recorded phase plane'})
+        snd(cmd='record', op='stop', name='named.recx'); col(lambda e: e.get('ev') == 'idle')
+        with open(os.path.join(folder, 'named.recx'), encoding='utf-8') as f: text = f.read()
+        _, _, steps, written, computed = read_recx(text)
+        check('registry: recording keeps dotted commands and quoted window names', written == computed and
+              [step['cmd']['cmd'] for step, _ in steps] == ['window.create', 'window.rename', 'window.select', 'window.close'] and
+              steps[1][0]['cmd']['window'] == 'Recorded graph' and 'win' not in steps[1][0]['cmd'])
+        replay_dir = tempfile.mkdtemp(prefix='xppnamed-replay')
+        try:
+            replay = replay_recording(args.server, args.ode, os.path.join(folder, 'named.recx'), replay_dir)
+            check('registry: named window recording replays silently', replay.returncode == 0, replay.stderr[-1000:])
+        finally:
+            shutil.rmtree(replay_dir)
+        generated = ['| Command | Arguments | Kind / category | Menu / XPPAUT keys | Result | Events | Description |',
+                     '|---|---|---|---|---|---|---|']
+        for command in registry:
+            arguments = ', '.join('`%s`: %s%s%s' % (a['name'], 'required ' if a['required'] else 'optional ', a['type'],
+                                  ' (' + ', '.join(a['choices']) + ')' if a['choices'] else
+                                  ' (max %s bytes)' % a['max_length'] if a['type'] != 'boolean' else '') for a in command['arguments']) or 'none'
+            results = ', '.join('`%s`: `%s`' % (r['name'], r['type']) for r in command['result'])
+            generated.append('| `%s` | %s | `%s` / %s | %s / %s | %s | %s | %s |' %
+                             (command['cmd'], arguments, command['kind'], command['category'],
+                              command['menu_path'] or 'none', command['legacy_keys'] or 'none', results,
+                              ', '.join('`%s`' % e for e in command['events']), command['description']))
+        generated = '\n'.join(generated) + '\n'
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs', 'protocol.md')
+        with open(path, encoding='utf-8', newline='') as f: doc = f.read()
+        start, end = '<!-- registry:start -->\n', '<!-- registry:end -->'
+        before, rest = doc.split(start, 1); existing, after = rest.split(end, 1)
+        if args.update_registry_docs:
+            with open(path, 'w', encoding='utf-8', newline='') as f: f.write(before + start + generated + end + after)
+            existing = generated
+        check('registry: generated docs match metadata', existing == generated,
+              'uv run --locked python tools/servercheck.py --only registry --update-registry-docs')
+    finally:
+        if proc.poll() is None:
+            snd(cmd='quit')
+            try: proc.wait(timeout=5 * SLOW)
+            except subprocess.TimeoutExpired: proc.kill(); proc.wait()
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+INDEPENDENT_SECTIONS = {'registry': check_registry, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
-        if name not in STOPS_SECTIONS:
-            sys.exit('servercheck: --only has no section %r (%s)' % (name, ', '.join(STOPS_SECTIONS)))
-        STOPS_SECTIONS[name]()
+        if name not in INDEPENDENT_SECTIONS:
+            sys.exit('servercheck: --only has no section %r (%s)' % (name, ', '.join(INDEPENDENT_SECTIONS)))
+        INDEPENDENT_SECTIONS[name]()
     print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
     sys.exit(1 if check.failures else 0)
 
 
+check_registry()
 check_diagram_subscription()
 
 proc, run, send, collect, events = launch_server()
@@ -727,7 +904,7 @@ def is_state(e):
 
 
 def is_idle(e):
-    return e.get('ev') == 'idle'
+    return e.get('ev') in ('idle','done')
 
 
 def last_state(evs):
@@ -738,7 +915,7 @@ def last_state(evs):
 evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
-check('hello', hello is not None and len(hello["command_table"]) == 66)
+check('hello', hello is not None and len(hello["command_table"]) == 65)
 check('hello says protocol 4, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 4 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
@@ -756,9 +933,9 @@ check('hello carries the About lines: version, author, credit, build, and the fi
       and 'Protocol 4' in about_text,
       str(hello and hello.get('about')))
 check('state after hello', st is not None and any(p[0] == 'iapp' for p in st['pars']), str(st))
-check('window 1 is created', any(e.get('ev') == 'window' and e.get('op') == 'create' and e.get('win') == 1
+check('window 1 is created', any(e.get('ev') == 'window' and e.get('op') == 'create' and e.get('win') == 'graph_1'
                                  for e in evs))
-send(cmd='size', win=1, w=800, h=600)
+send(cmd='size', window='graph_1', w=800, h=600)
 evs, _ = collect(is_idle)
 check('size is no command any more (removed in protocol 2): an unknown-command error, then state and idle',
       [e.get('ev') for e in evs] == ['message', 'state', 'idle'] and 'Unknown command' in evs[0].get('error', ''),
@@ -887,13 +1064,13 @@ def check_hello_shared():
     fids = {r['id']: r['key'] for r in table if r['menu'] == 'file'}
     check('W118: the ids name the keys (Initialconds i, Makewindow m, File f; File/Import settings r)',
           hello.get('menu_names') == ['main', 'file', 'num']
-          and ids.get('initialconds') == 'i' and ids.get('makewindow') == 'm' and ids.get('file') == 'f'
+          and ids.get('initialconds') == 'i' and 'makewindow' not in ids and ids.get('file') == 'f'
           and ids.get('numerics') == 'u' and fids.get('importset') == 'r' and 'writeset' not in fids, str(ids))
     check_command_table(table)
     check('W118: hello gives the limits (64 MB uploads, 2000 rows and 500 columns a browser block) and the window ids',
           hello.get('limits') == {'upload': 64 << 20, 'browser_rows': 2000, 'browser_cols': 500}
-          and hello.get('window_ids') == {'plots': 1, 'auto': 101, 'ani': 104, 'aplot': 105},
-          str(hello.get('limits')) + str(hello.get('window_ids')))
+          and hello.get('window_names') == {'main':'graph_1','auto':'diagram_1','ani':'animation','aplot':'array_plot'},
+          str(hello.get('limits')) + str(hello.get('window_names')))
     check('W121b: hello gives the core player speed range', hello.get('player_speed') == {'min': 0.25, 'max': 8} and hello.get('upload_error') == 'larger than 64 MB', str(hello.get('player_speed')))
     steps = {(c['cmd'], c.get('op')): c.get('step') for c in hello.get('commands', [])}
     check('W118: every command says whether it is a step: a key, set and a write are, state, data, an answer, '
@@ -921,7 +1098,7 @@ check('W118: File/Import settings of a file that is not there: the error names t
 send(cmd='data', events=['series'])
 evs, _ = collect(is_idle)
 ser = [e for e in evs if e.get('ev') == 'series']
-check('asking for the series data sends the plot at once', len(ser) == 1 and ser[0]['win'] == 1 and ser[0]['rows'] == 0
+check('asking for the series data sends the plot at once', len(ser) == 1 and ser[0]['win'] == 'graph_1' and ser[0]['rows'] == 0
       and len(ser[0]['curves']) == 1, str(ser)[:300])
 send(cmd='key', key='i')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
@@ -1513,7 +1690,7 @@ rows_at_idle, last_rows = [], None
 for e in evs:
     if e.get('ev') == 'state':
         last_rows = e.get('rows')
-    elif e.get('ev') == 'idle':
+    elif e.get('ev') in ('idle','done'):
         rows_at_idle.append(last_rows)
 check('a cancelled integration sends stopped, then state and idle',
       len(stopped) == 1 and kinds.index('stopped') < len(kinds) - 1 - kinds[::-1].index('state'), str(kinds[-8:]))
@@ -1546,11 +1723,9 @@ check('with its eigenvalues, one [re, im] per variable, as its counts say',
       len(ev) == len(eq['values']) and sum(1 for r, i in ev if r < 0) == eq['cminus'] + eq['rminus'], str(ev))
 collect(is_idle)
 
-send(cmd='key', key='m')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-send(cmd='answer', id=ask['id'], key='c')
+send(cmd='window.create')
 evs, _ = collect(lambda e: e.get('ev') == 'window' and e['op'] == 'create', timeout=5 * SLOW)
-check('Makewindow/Create opens window 2', any(e.get('ev') == 'window' and e.get('win') == 2 for e in evs))
+check('Makewindow/Create opens window 2', any(e.get('ev') == 'window' and e.get('win') == 'graph_2' for e in evs))
 collect(is_idle)
 
 
@@ -1578,7 +1753,7 @@ check('Kinescope/Save asks for the pixels and writes GIFs, the second named from
       all(os.path.exists(os.path.join(run, n)) for n in ('kin_0.gif', 'kin_0-frame1.gif')), str(os.listdir(run)))
 send(cmd='key', key='v')
 evs, _ = answer_asks(is_idle, {'menu': menu('t')})
-check('the animation window opens', any(e.get('ev') == 'window' and e.get('win') == 104
+check('the animation window opens', any(e.get('ev') == 'window' and e.get('win') == 'animation'
       and e.get('op') == 'create' for e in evs), str([e for e in evs if e.get('ev') == 'window']))
 send(cmd='ani', op='close')
 evs, _ = collect(is_idle)
@@ -1638,7 +1813,7 @@ collect(is_idle)
 
 send(cmd='aplot', op='close')
 collect(is_idle)
-send(cmd='click', win=1)
+send(cmd='window.select', window='graph_1')
 evs, _ = collect(is_idle)
 send(cmd='state')
 evs, st = collect(is_state)
@@ -1659,8 +1834,8 @@ check('Window/Scroll drags the view', st is not None and view is not None and st
 
 send(cmd='key', key='f')
 send(cmd='key', key='a')
-evs, _ = collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
-check('File/Auto opens the AUTO window', any(e.get('ev') == 'window' and e.get('win') == 101 for e in evs))
+evs, _ = collect(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1')
+check('File/Auto opens the AUTO window', any(e.get('ev') == 'window' and e.get('win') == 'diagram_1' for e in evs))
 collect(is_idle)
 send(cmd='key', win='auto', key='d')
 evs, _ = collect(is_idle)
@@ -1923,9 +2098,9 @@ def check_stable_navigation():
     p, r, snd, col, _ = launch_server()
     def command(**cmd):
         snd(**cmd)
-        return col(lambda e: e.get('ev') == 'idle')[0]
+        return col(lambda e: e.get('ev') in ('idle','done'))[0]
     try:
-        col(lambda e: e.get('ev') == 'idle')
+        col(lambda e: e.get('ev') in ('idle','done'))
         command(cmd='key', key='u')
         events = command(cmd='key', menu='main', item='erase')
         state = next((e for e in reversed(events) if e.get('ev') == 'state'), {})
@@ -2074,9 +2249,9 @@ def check_plot_windows():
         send4(cmd='key', key=key)
         got, pending = [], list(answers)
         while True:
-            evs, e = collect4(lambda e: e.get('ev') in ('ask', 'idle'), timeout=120 * SLOW)
+            evs, e = collect4(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=120 * SLOW)
             got += evs
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 return got
             send4(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
@@ -2095,57 +2270,57 @@ def check_plot_windows():
         pl = plots(evs)
         w1 = pl[0]['windows'][0] if pl and pl[0]['windows'] else {}
         check('plots at once: window 1, active, its title, axes and curves',
-              len(pl) == 1 and pl[0]['active'] == 1 and wins(pl[0]) == [1] and w1.get('title') == 'W vs V'
+              len(pl) == 1 and pl[0]['active'] == 'graph_1' and wins(pl[0]) == ['graph_1'] and w1.get('title') == 'graph_1'
               and w1.get('three') == 0 and w1.get('xlo') == -0.6 and w1.get('yhi') == 1.2
               and w1.get('curves') and w1['curves'][0]['x'] == 1 and 'theta' in w1 and 'zmax' in w1.get('box', {}),
               str(pl)[:400])
         check('plots comes before the series', evs.index(pl[0]) < [e.get('ev') for e in evs].index('series') if pl and full(evs) else False)
         command('i', {'key': 'g'})
-        evs = command('m', {'key': 'c'})
+        evs = after({'cmd':'window.create'})
         pl, ser = plots(evs), full(evs)
         check('Makewindow/Create: plots has windows 1 and 2, 2 active',
-              len(pl) == 1 and wins(pl[0]) == [1, 2] and pl[0]['active'] == 2, str(pl)[:300])
-        check('the new window gets its own series, with the data', [e['win'] for e in ser] == [2]
+              len(pl) == 1 and wins(pl[0]) == ['graph_1', 'graph_2'] and pl[0]['active'] == 'graph_2', str(pl)[:300])
+        check('the new window gets its own series, with the data', [e['win'] for e in ser] == ['graph_2']
               and ser[0]['rows'] == 20001, str([(e['win'], e['rows']) for e in ser]))
         evs = command('x', {'value': 'V'})
         pl, ser = plots(evs), full(evs)
         cur = {w['win']: (w['curves'][0]['x'], w['curves'][0]['y']) for w in pl[0]['windows']} if pl else {}
         check('Xi vs t in window 2: its curves change, window 1 keeps its own',
-              cur == {1: (1, 2), 2: (0, 1)} and [w['title'] for w in pl[0]['windows']] == ['W vs V', 'V vs T'],
+              cur == {'graph_1': (1, 2), 'graph_2': (0, 1)} and [w['title'] for w in pl[0]['windows']] == ['graph_1', 'graph_2'],
               str(pl)[:400])
-        check('... and only window 2 gets a new series', [e['win'] for e in ser] == [2]
+        check('... and only window 2 gets a new series', [e['win'] for e in ser] == ['graph_2']
               and [c['name'] for c in ser[0]['columns']] == ['T', 'V'], str([(e['win'], e['rows']) for e in ser]))
-        evs = after({'cmd': 'click', 'win': 1})
+        evs = after({'cmd': 'window.select', 'window': 'graph_1'})
         pl = plots(evs)
         check('selecting window 1 (click) makes it active in plots, and sends no series',
-              len(pl) == 1 and pl[0]['active'] == 1 and not full(evs), str(pl)[:200])
+              len(pl) == 1 and pl[0]['active'] == 'graph_1' and not full(evs), str(pl)[:200])
         evs = command('i', {'key': 'g'})
         ser = [e for e in evs if e.get('ev') == 'series']
         apps = [e for e in ser if e.get('op') == 'append']
-        check('a run appends to the active window only', len(apps) >= 3 and all(e['win'] == 1 for e in apps),
+        check('a run appends to the active window only', len(apps) >= 3 and all(e['win'] == 'graph_1' for e in apps),
               str([(e['win'], e.get('op')) for e in ser])[:300])
         check('... and ends with the whole series of each window, the active one first (its end, then the full series of window 2)',
-              [e['win'] for e in full(evs)] == [1, 2] and all(e['rows'] == 20001 for e in full(evs)),
+              [e['win'] for e in full(evs)] == ['graph_1', 'graph_2'] and all(e['rows'] == 20001 for e in full(evs)),
               str([(e['win'], e['rows']) for e in full(evs)]))
-        after({'cmd': 'click', 'win': 2})
-        evs = command('m', {'key': 'd'})
+        after({'cmd': 'window.select', 'window': 'graph_2'})
+        evs = after({'cmd':'window.close'})
         pl = plots(evs)
         check('Makewindow/Destroy of window 2: plots has window 1 only, active',
-              len(pl) == 1 and wins(pl[0]) == [1] and pl[0]['active'] == 1 and not full(evs), str(pl)[:300])
-        command('m', {'key': 'c'})
-        evs = command('m', {'key': 'c'})
-        check('two more windows', plots(evs) and wins(plots(evs)[0]) == [1, 2, 3], str(plots(evs))[:200])
-        evs = command('m', {'key': 'k'}, {'key': 'y'})
+              len(pl) == 1 and wins(pl[0]) == ['graph_1'] and pl[0]['active'] == 'graph_1' and not full(evs), str(pl)[:300])
+        after({'cmd':'window.create'})
+        evs = after({'cmd':'window.create'})
+        check('two more windows', plots(evs) and wins(plots(evs)[0]) == ['graph_1', 'graph_2', 'graph_3'], str(plots(evs))[:200])
+        evs = after({'cmd':'window.destroy_all'})
         pl = plots(evs)
-        check('Makewindow/Kill all leaves window 1', len(pl) == 1 and wins(pl[0]) == [1] and pl[0]['active'] == 1,
+        check('Makewindow/Kill all leaves window 1', len(pl) == 1 and wins(pl[0]) == ['graph_1'] and pl[0]['active'] == 'graph_1',
               str(pl)[:300])
-        evs = command('m', {'key': 'c'})
-        check('a window made again gets its series again', [e['win'] for e in full(evs)] == [2],
+        evs = after({'cmd':'window.create'})
+        check('a window made again gets its series again', [e['win'] for e in full(evs)] == ['graph_2'],
               str([(e['win'], e['rows']) for e in full(evs)]))
         evs = after({'cmd': 'redraw'})
         check('a redraw sends neither plots nor series', not plots(evs) and not full(evs))
         evs = after({'cmd': 'data', 'events': ['series']})
-        check('without plots in the list: series only', not plots(evs) and [e['win'] for e in full(evs)] == [2, 1],
+        check('without plots in the list: series only', not plots(evs) and [e['win'] for e in full(evs)] == ['graph_2', 'graph_1'],
               str([(e['ev'], e.get('win')) for e in evs if e.get('ev') in ('plots', 'series')]))
     finally:
         stop_server(proc4, run4, send4)
@@ -2165,7 +2340,7 @@ def check_model_plot_windows():
         plots = next((e for e in events if e.get('ev') == 'plots'), {})
         windows = plots.get('windows', [])
         check('W348: model creates three graphs, with the first active',
-              [w['win'] for w in windows] == [1, 2, 3] and plots.get('active') == 1, str(plots)[:400])
+              [w['win'] for w in windows] == ['graph_1', 'graph_2', 'graph_3'] and plots.get('active') == 'graph_1', str(plots)[:400])
         check('W348: secondary graphs keep their axes and bounds', len(windows) == 3
               and windows[1]['curves'][0]['x'] == 2 and windows[1]['curves'][0]['y'] == 1
               and [windows[1][k] for k in ('xlo', 'xhi', 'ylo', 'yhi')] == [-2, 3, -4, 5]
@@ -2317,9 +2492,9 @@ def check_values_protocol():
         sndv(cmd='key', key=key)
         got, pending = [], list(answers)
         while True:
-            evs, e = colv(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            evs, e = colv(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
             got += evs
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 return got
             sndv(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
@@ -2451,10 +2626,10 @@ def check_values_protocol():
         evs = keys('i', {'key': 'g'})
         check('a later Go runs with the slid value, no erase event', not pics(evs) and len(full(evs)) == 1, str(pics(evs)))
         evs = keys('e')
-        check('Erase: one erase event for the active window, no series', pics(evs) == [('erase', 1)] and not full(evs),
+        check('Erase: one erase event for the active window, no series', pics(evs) == [('erase', 'graph_1')] and not full(evs),
               str(pics(evs)))
         evs = keys('r')
-        check('Redraw: one redraw event for the active window, no series', pics(evs) == [('redraw', 1)] and not full(evs),
+        check('Redraw: one redraw event for the active window, no series', pics(evs) == [('redraw', 'graph_1')] and not full(evs),
               str(pics(evs)))
         evs = after(cmd='redraw')
         check('the redraw command (a reconnect) sends no erase or redraw event', not pics(evs), str(pics(evs)))
@@ -2619,9 +2794,9 @@ def check_load_all_or_nothing():
         snd(**cmd)
         got, n = [], 0
         while True:
-            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
             got += evs
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 return got
             a = answers[n] if n < len(answers) else {'ok': 0}
             n += 1
@@ -2797,7 +2972,7 @@ def check_apply_restore():
         evs = run(cmd='applyset', set='mix', scope='plot')
         v = view()
         check('W319: scope plot applies only the plot settings, to the active graph',
-              not errs(evs) and v[4] == {1: (-3, 3)} and v[0]['a'] == 10, str(v))
+              not errs(evs) and v[4] == {'graph_1': (-3, 3)} and v[0]['a'] == 10, str(v))
         # restore a field, a section, then everything
         run(cmd='restoredefaults', scope='integration', field='dt')
         v = view()
@@ -2815,17 +2990,17 @@ def check_apply_restore():
         run(cmd='applyset', set='mix', scope='all')
         v = view()
         check('W319: scope all applies parameters, states, numerics and plot',
-              v[0]['a'] == 5 and v[1]['x'] == 0.9 and v[2] == 0.1 and v[4] == {1: (-3, 3)}, str(v))
+              v[0]['a'] == 5 and v[1]['x'] == 0.9 and v[2] == 0.1 and v[4] == {'graph_1': (-3, 3)}, str(v))
         evs = run(cmd='restoredefaults', scope='all')
         check('W319: restoring all gives every default back', not errs(evs) and view() == start, str(view()))
         # a failure changes nothing and says why
         before = view()
         for bad, text in ((dict(cmd='applyset', set='nosuch', scope='all'), 'the model has no set nosuch'),
                           (dict(cmd='applyset', set='mix', scope='bogus'), 'bogus is not a scope'),
-                          (dict(cmd='applyset', set='mix', scope='all', win=5), 'window 5 is not an open plot window'),
-                          (dict(cmd='applyset', set='mix', scope='all', win=1e300), 'win is a whole number'),
-                          (dict(cmd='restoredefaults', scope='plot', win=0), 'win is a whole number'),
-                          (dict(cmd='applyset', set='mix', scope='parameters', win=1), 'a graph is a target of scope all or plot'),
+                          (dict(cmd='applyset', set='mix', scope='all', window='graph_5'), 'Unknown graph "graph_5"'),
+                          (dict(cmd='applyset', set='mix', scope='all', window=1e300), 'window must be text'),
+                          (dict(cmd='restoredefaults', scope='plot', window='graph_0'), 'Unknown graph "graph_0"'),
+                          (dict(cmd='applyset', set='mix', scope='parameters', window='graph_1'), 'a graph is a target of scope all or plot'),
                           (dict(cmd='applyset', set='mix'), 'applyset needs a set and a scope'),
                           (dict(cmd='restoredefaults', scope='all', field='a'), 'restoring all takes no field'),
                           (dict(cmd='restoredefaults', scope='parameters', field='nosuch'), 'the model has no parameter nosuch'),
@@ -2834,20 +3009,18 @@ def check_apply_restore():
             check('W319: %s is refused (%s), nothing changed' % (json.dumps(bad), text),
                   len(es) == 1 and text in es[0] and view() == before, str(es))
         # a target graph: window 2 is active, the set goes to window 1
-        snd(cmd='key', key='m')
-        evs, ask = col(lambda e: e.get('ev') == 'ask')
-        snd(cmd='answer', id=ask['id'], key='c')
+        snd(cmd='window.create')
         col(is_idle)
         v = view()
-        check('W319: Makewindow/Create made window 2 active', v[5] == 2 and sorted(v[4]) == [1, 2], str(v))
-        x2 = v[4][2]
-        evs = run(cmd='applyset', set='mix', scope='plot', win=1)
+        check('W319: Makewindow/Create made window 2 active', v[5] == 'graph_2' and sorted(v[4]) == ['graph_1', 'graph_2'], str(v))
+        x2 = v[4]['graph_2']
+        evs = run(cmd='applyset', set='mix', scope='plot', window='graph_1')
         v = view()
         check('W319: win names the target graph: window 1 changes, window 2 and the active graph stay',
-              not errs(evs) and v[4][1] == (-3, 3) and v[4][2] == x2 and v[5] == 2, str(v))
-        evs = run(cmd='restoredefaults', scope='plot', win=1)
+              not errs(evs) and v[4]['graph_1'] == (-3, 3) and v[4]['graph_2'] == x2 and v[5] == 'graph_2', str(v))
+        evs = run(cmd='restoredefaults', scope='plot', window='graph_1')
         v = view()
-        check('W319: restore names its target graph too', not errs(evs) and v[4][1] == start[4][1] and v[4][2] == x2 and v[5] == 2, str(v))
+        check('W319: restore names its target graph too', not errs(evs) and v[4]['graph_1'] == start[4]['graph_1'] and v[4]['graph_2'] == x2 and v[5] == 'graph_2', str(v))
         # a recording of both replays to the same end
         run(cmd='record', op='start')
         run(cmd='applyset', set='pa', scope='parameters')
@@ -2991,7 +3164,7 @@ def check_save_values():
                          (dict(cmd='saveset', set='nosuch', mode='replace', scope='parameters'), 'no set nosuch'),
                          (dict(cmd='saveset', set='bad name', mode='new', scope='parameters'), 'not a valid name'),
                          (dict(cmd='saveset', set='s9', mode='new', scope='bogus'), 'bogus is not a scope'),
-                         (dict(cmd='saveset', set='s9', mode='new', scope='plot', win=7), 'not an open plot window'),
+                         (dict(cmd='saveset', set='s9', mode='new', scope='plot', window='graph_7'), 'Unknown graph'),
                          (dict(cmd='saveset', set='s9', mode='zzz', scope='parameters'), 'needs a set, a mode'),
                          (dict(cmd='saveset', set='s9', mode='new', scope='parameters', state='next'), 'state is initial or last'),
                          (dict(cmd='saveset', set='s9', mode='new', scope='initial', state='last'), 'no run has reached a state'),
@@ -3091,9 +3264,9 @@ def check_phase_data():
         send5(cmd='key', key=key)
         got, pending = [], list(answers)
         while True:
-            evs, e = collect5(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            evs, e = collect5(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
             got += evs
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 return got
             send5(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
@@ -3134,7 +3307,7 @@ def check_phase_data():
         evs = after({'cmd': 'data', 'events': ['nullclines', 'dfield']})
         nc, df = of(evs, 'nullclines'), of(evs, 'dfield')
         check('data sends both at once, empty, for window 1',
-              len(nc) == 1 and len(df) == 1 and nc[0]['win'] == 1 and nc[0]['x'] == [] and nc[0]['frozen'] == []
+              len(nc) == 1 and len(df) == 1 and nc[0]['win'] == 'graph_1' and nc[0]['x'] == [] and nc[0]['frozen'] == []
               and df[0]['grid'] == [] and df[0]['flows'] == [] and not of(evs, 'series'), str(evs)[:300])
 
         evs = command('n', {'key': 'n'})
@@ -3224,9 +3397,9 @@ def check_view():
         got = []
         answers = [{'key': 'w'}, {'ok': 1, 'values': [str(v) for v in (xlo, xhi, ylo, yhi)]}]
         while True:
-            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle'), timeout=30 * SLOW)
+            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=30 * SLOW)
             got += evs
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 break
             send6(cmd='answer', id=e['id'], **(answers.pop(0) if answers else {'ok': 0}))
         pl = next((e for e in got if e.get('ev') == 'plots'), None)
@@ -3239,14 +3412,14 @@ def check_view():
 
     try:
         pl, msg, view = view_keys(-100, 100, -100, 100)
-        w = pl and next((x for x in pl['windows'] if x['win'] == 1), None)
+        w = pl and next((x for x in pl['windows'] if x['win'] == 'graph_1'), None)
         check('Window/Window sets the axes of the window: plots reflects them',
               msg is None and axes(w) == (-100, 100, -100, 100), str(w))
         check('... and state.view matches, for the active window',
-              view is not None and view['win'] == 1 and axes(view) == (-100, 100, -100, 100), str(view))
+              view is not None and view['win'] == 'graph_1' and axes(view) == (-100, 100, -100, 100), str(view))
 
         # the command the page's "Use this view" button used to send is gone
-        send6(cmd='view', win=1, xlo=-1, xhi=1, ylo=-1, yhi=1)
+        send6(cmd='view', window='graph_1', xlo=-1, xhi=1, ylo=-1, yhi=1)
         evs, _ = collect6(is_idle)
         msg5 = next((e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e), None)
         check('the view command is gone: an unknown command', msg5 is not None and 'Unknown command' in msg5, str(msg5))
@@ -3315,9 +3488,9 @@ def check_view3d():
         send7(cmd='key', key='3')
         got = []
         while True:
-            evs, e = collect7(lambda e: e.get('ev') in ('ask', 'idle'), timeout=30 * SLOW)
+            evs, e = collect7(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=30 * SLOW)
             got += evs
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 break
             vals = list(e.get('values', []))
             names = e.get('names', [])
@@ -3335,14 +3508,14 @@ def check_view3d():
 
     try:
         pl, msg, view = turn(10, -20)
-        w = pl and next((x for x in pl['windows'] if x['win'] == 1), None)
+        w = pl and next((x for x in pl['windows'] if x['win'] == 'graph_1'), None)
         check('3d-params sets the angles of the window: plots reflects them',
               msg is None and w is not None and (w['theta'], w['phi']) == (10, -20), str(w))
         check('... and state.view.theta/phi matches, for the active window',
-              view is not None and view['win'] == 1 and angles(view) == (10, -20), str(view))
+              view is not None and view['win'] == 'graph_1' and angles(view) == (10, -20), str(view))
 
         # the command the page used to send is gone
-        send7(cmd='view3d', win=1, theta=0, phi=0)
+        send7(cmd='view3d', window='graph_1', theta=0, phi=0)
         evs, _ = collect7(is_idle)
         msg2 = next((e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e), None)
         check('the view3d command is gone: an unknown command', msg2 is not None and 'Unknown command' in msg2, str(msg2))
@@ -3365,9 +3538,9 @@ def check_marks():
         send6(cmd='key', key=key)
         got, n = [], 0
         while True:
-            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
             got += evs
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 return got
             reply = answer(e, n) or {'ok': 0}
             n += 1
@@ -3399,7 +3572,7 @@ def check_marks():
         evs = after({'cmd': 'data', 'events': ['marks', 'plots', 'series']})
         m = marks_of(evs)
         check('data sends marks at once, empty, for window 1',
-              m is not None and m['win'] == 1 and m['equilibria'] == [] and m['text'] == [] and m['arrows'] == []
+              m is not None and m['win'] == 'graph_1' and m['equilibria'] == [] and m['text'] == [] and m['arrows'] == []
               and m['markers'] == [] and m['frozen'] == [], str(of(evs, 'marks'))[:300])
         curve = of(evs, 'plots')[0]['windows'][0]['curves'][0]
 
@@ -3432,7 +3605,7 @@ def check_marks():
 
         # W227, W513: the annotation command edits what is given, moves it, adds and deletes, by id
         def ann(**fields):
-            evs = after(dict({'cmd': 'annotation', 'win': 1}, **fields))
+            evs = after(dict({'cmd': 'annotation', 'window': 'graph_1'}, **fields))
             return evs, marks_of(evs), [e.get('error', '') for e in of(evs, 'message')]
         _, m, errs = ann(op='edit', id=tid, color='#0000ff')
         t = m['text'] if m else []
@@ -3463,7 +3636,7 @@ def check_marks():
                 ('an add with no position', dict(op='add_text', text='a'), 'x is required'),
                 ('an add with no text', dict(op='add_text', x=0, y=0), 'the text is required'),
                 ('an op it has not', dict(op='frob', id=tid), 'annotation takes op'),
-                ('a window it has not', dict(op='list', win=9), 'window 9 is not an open plot window')]:
+                ('a window it has not', dict(op='list', window='graph_9'), 'Unknown graph')]:
             evs, m, errs = ann(**fields)
             check('W227: annotation refuses %s, naming it, and changes nothing' % what,
                   m is None and len(errs) == 1 and want in errs[0], str((m, errs))[:300])
@@ -3506,7 +3679,7 @@ def check_marks():
         evs, _, errs = ann(op='list')
         ls = of(evs, 'annotations')
         check('W513: annotation list sends every text, arrow and marker of the window with its id',
-              len(ls) == 1 and ls[0]['win'] == 1 and [x['id'] for x in ls[0]['text']] == [tid]
+              len(ls) == 1 and ls[0]['win'] == 'graph_1' and [x['id'] for x in ls[0]['text']] == [tid]
               and [x['id'] for x in ls[0]['arrows']] == [pid] and [x['id'] for x in ls[0]['markers']] == [kid]
               and ls[0]['arrows'][0]['kind'] == 'pointer' and ls[0]['markers'][0]['shape'] == 'diamond' and not errs, str(ls)[:300])
         _, m, errs = ann(op='move', id=pid, new_x=0.3, new_y=0.4)
@@ -3649,9 +3822,9 @@ def check_ani_data():
     def answered(pending):
         got = []
         while True:
-            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
             got += evs
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 return got
             send6(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
@@ -3700,7 +3873,7 @@ def check_ani_data():
         command('i', {'key': 'g'})
         evs = command('v', {'key': 't'})
         check('ani data: Viewaxes/Toon opens the animation window',
-              any(e.get('ev') == 'window' and e.get('win') == 104 and e.get('op') == 'create' for e in evs))
+              any(e.get('ev') == 'window' and e.get('win') == 'animation' and e.get('op') == 'create' for e in evs))
         evs = ani('file', {'file': 'gui_test.ani'})
         fr, st = frames(evs), states(evs)
         check('ani data: loading an animation shows its first frame', len(fr) == 1 and fr[0]['pos'] == 0
@@ -3803,8 +3976,8 @@ def check_fit_retained_runs():
         def keys(*replies):
             snd(cmd='key', key=replies[0])
             for r in replies[1:] + (None,):
-                evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
-                if e is None or e['ev'] == 'idle':
+                evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
+                if e is None or e['ev'] in ('idle','done'):
                     return evs
                 snd(cmd='answer', id=e['id'], **({'key': r} if r else {'ok': 0}))
             return col(is_idle)[0]
@@ -3819,7 +3992,7 @@ def check_fit_retained_runs():
             evs = keys('w', 'f')
             snd(cmd='data', events=['series', 'plots'])
             evs, _ = col(is_idle)
-            w = next((x for e in evs if e.get('ev') == 'plots' for x in e['windows'] if x['win'] == 1), {})
+            w = next((x for e in evs if e.get('ev') == 'plots' for x in e['windows'] if x['win'] == 'graph_1'), {})
             box = w.get('box', {})
             grown = 7.3  # the first run ends near e^2, far past the live run's 1.1
             check('Fit includes a retained run that extends past the live one (%dD)' % dims,
@@ -3895,10 +4068,17 @@ def close_pairs(a, b, tol):
     return True
 
 
+def diagram_view_name(evs, view):
+    if isinstance(view, str):
+        return view
+    names = next((e['names'] for e in reversed(evs) if e.get('ev') == 'diagram' and e.get('op') == 'views'), ['diagram_1'])
+    return names[view] if view < len(names) else 'diagram_%d' % (view + 1)
+
+
 def rebuild_diagram(evs, pts, view=0):
     """view `view`'s diagram data after these events: (br, pt, ty, x, y, y2, from) per point"""
     for e in evs:
-        if e.get('ev') != 'diagram' or e.get('view') != view:
+        if e.get('ev') != 'diagram' or e.get('view') != diagram_view_name(evs, view):
             continue
         if e['op'] == 'reset':
             del pts[e['keep']:]
@@ -4063,7 +4243,7 @@ def check_autoinfo():
         evs, _ = cola(is_idle)
         hint = [e.get('auto') for e in evs if e.get('ev') == 'message' and 'auto' in e]
         check('auto point in data coordinates shows exactly those', hint and hint[-1] == 'x=0.125,y=-0.25', str(hint))
-        snda(cmd='auto', op='close')
+        snda(cmd='window.close', window='diagram_1')
         evs, _ = cola(is_idle)
         got = infos(evs)
         check('autoinfo: closing AUTO empties it', got and got[-1]['info'] is None and got[-1]['stab'] is None, str(got))
@@ -4963,9 +5143,9 @@ def check_seed_per_run():
         snd(cmd='key', key=key)
         got, pending = [], list(answers)
         while True:
-            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=30 * SLOW)
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=30 * SLOW)
             got += evs
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 return got
             snd(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
@@ -5014,7 +5194,7 @@ proc2, run2, send2, collect2, events2 = launch_server(extra_env={'HOME': bad_hom
 collect2(is_idle)  # startup hello/state/idle
 send2(cmd='key', key='f')
 send2(cmd='key', key='a')
-collect2(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
+collect2(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1')
 collect2(is_idle)
 send2(cmd='key', win='auto', key='r')
 evs, ask = collect2(lambda e: e.get('ev') == 'ask')
@@ -5103,7 +5283,7 @@ def check_refused_during_run():
               [e.get('ev') for e in evs].count('computing') == 1, str([e.get('ev') for e in evs]))
         snd(cmd='key', key='s')  # Sing pts: a computation
         snd(cmd='key', key='c')  # Continue: a computation
-        snd(cmd='display', win=1, x=[0, 50])  # a view: kept for after the run
+        snd(cmd='display', window='graph_1', x=[0, 50])  # a view: kept for after the run
         snd(cmd='browser', **{'from': 0, 'count': 1})  # only reads: answered during the run
         evs, rows = col(lambda e: e.get('ev') == 'browser')
         during = [e for e in evs if e.get('ev') in ('ask', 'idle', 'message')]
@@ -5123,7 +5303,7 @@ def check_refused_during_run():
         snd(cmd='data', events=['plots'])
         evs, _ = col(is_idle)
         plots = [x for x in evs if x.get('ev') == 'plots']
-        w1 = plots and next((w for w in plots[-1]['windows'] if w['win'] == 1), None)
+        w1 = plots and next((w for w in plots[-1]['windows'] if w['win'] == 'graph_1'), None)
         check('W95: a view command sent during a run runs after it (display: the zoom shown)',
               not any(x.get('ev') == 'message' for x in after[2]) and w1 and w1.get('zoom', {}).get('x') == [0, 50],
               str(w1 and w1.get('zoom')))
@@ -5135,7 +5315,7 @@ def check_refused_during_run():
         snd(cmd='key', key='u')
         col(is_idle)
         snd(cmd='key', key='t')
-        evs, ask = col(lambda e: e.get('ev') in ('ask', 'idle'))
+        evs, ask = col(lambda e: e.get('ev') in ('ask', 'idle','done'))
         check('W68: after the run a key works again (nUmerics/Total asks)', ask is not None and ask['ev'] == 'ask',
               str(ask))
         if ask and ask['ev'] == 'ask':
@@ -5173,7 +5353,7 @@ def check_busy_flood():
         snd(cmd='answer', id=ask['id'], key='g')
         col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
         for i in range(flood):  # a view command: kept for after the run
-            snd(cmd='display', win=1, x=[0, 50], id=i)
+            snd(cmd='display', window='graph_1', x=[0, 50], id=i)
         evs, last = col(lambda e: e.get('ev') == 'message' and ('(id %d)' % (flood - 1)) in e.get('error', ''))
         busy = [e for e in evs if e.get('ev') == 'message' and e.get('error', '').startswith('Busy:')]
         ids = [int(re.search(r'\(id (\d+)\)', e['error']).group(1)) for e in busy]
@@ -5194,7 +5374,7 @@ def check_busy_flood():
         check('W389: the queue drains: every line it held ran with its own idle', done == MAX_PENDING_LINES, str(done))
         snd(cmd='state')
         evs, e = col(lambda x: x.get('ev') == 'state')
-        snd(cmd='display', win=1, x=[0, 40], id=flood)
+        snd(cmd='display', window='graph_1', x=[0, 40], id=flood)
         evs, e = col(is_idle)
         check('W389: afterwards the session takes commands again (no Busy)',
               e is not None and not any(str(x.get('error', '')).startswith('Busy:') for x in evs), str(evs)[-200:])
@@ -5341,8 +5521,8 @@ def check_jacobian_setting():
             col(is_idle)
             snd(cmd='open', file='jac.snapx')
             while True:
-                _, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=20 * SLOW)
-                if e is None or e['ev'] == 'idle':
+                _, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=20 * SLOW)
+                if e is None or e['ev'] in ('idle','done'):
                     break
                 snd(cmd='answer', id=e['id'], key='d')
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
@@ -5405,8 +5585,8 @@ def check_jacobian_setting():
                 f.write("par a = 1\nx' = -a*x + normal(0, 1)\n")
             snd(cmd='reload')
             while True:
-                evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=20 * SLOW)
-                if e is None or e['ev'] == 'idle':
+                evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=20 * SLOW)
+                if e is None or e['ev'] in ('idle','done'):
                     break
                 snd(cmd='answer', id=e['id'], key='d')
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
@@ -5517,7 +5697,7 @@ def check_auto_jacobian_failure():
             col(is_idle)
             snd(cmd='key', key='f')
             snd(cmd='key', key='a')
-            col(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
+            col(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1')
             col(is_idle)
             snd(cmd='auto', op='set', numerics={'ds': -0.1, 'dsmax': 0.1, 'rl0': -0.5, 'rl1': 2, 'nmx': 100},
                 axes={'plot': 'norm', 'var': 'x', 'par1': 'a'})
@@ -5786,9 +5966,9 @@ def check_open_reload():
             snd(cmd='open', file=file)
             got = []
             while True:
-                evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=20 * SLOW)
+                evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=20 * SLOW)
                 got += evs
-                if e is None or e['ev'] == 'idle':
+                if e is None or e['ev'] in ('idle','done'):
                     return got
                 if key:
                     snd(cmd='answer', id=e['id'], key=key)
@@ -5825,19 +6005,19 @@ def check_open_reload():
         def made(evs, op, win):
             return any(e.get('ev') == 'window' and e.get('op') == op and e.get('win') == win for e in evs)
 
-        check('File/Auto opens window 101 before the open', made(evs, 'create', 101), '')
+        check('File/Auto opens window 101 before the open', made(evs, 'create', 'diagram_1'), '')
         evs = open_model('other.ode', key=None)
         asks = [e for e in evs if e.get('ev') == 'ask']
         check('open asks first, offering to save (choice s/d)',
               asks and asks[0]['kind'] == 'choice' and asks[0].get('keys') == 'sd', str(asks[:1]))
         check('open cancelled: no hello, lecar still loaded',
-              not [e for e in evs if e.get('ev') == 'hello'] and not made(evs, 'destroy', 101)
+              not [e for e in evs if e.get('ev') == 'hello'] and not made(evs, 'destroy', 'diagram_1')
               and last_state(evs)['ics'][0][0] == 'V',
               str(last_state(evs))[:120])
         evs = open_model('other.ode')
         hello = next((e for e in evs if e.get('ev') == 'hello'), None)
         st = last_state(evs)
-        check("open: the model before's AUTO window goes", made(evs, 'destroy', 101), '')
+        check("open: the model before's AUTO window goes", made(evs, 'destroy', 'diagram_1'), '')
         check('open loads the model here: a new hello names it', hello is not None and hello.get('file') == 'other.odex',
               str(hello)[:120])
         check('open: the state is the new model\'s', st and st['pars'] == [['a', 1]] and st['ics'] == [['X', 0.5]],
@@ -5935,15 +6115,15 @@ def check_display_state():
         snd(cmd='key', key=key)
         got, pending = [], list(answers)
         while True:
-            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
             got += evs
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 return got
             snd(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
     runs_of = lambda evs: [e for e in evs if e.get('ev') == 'runs']
     added = lambda evs: [x for e in runs_of(evs) for x in e['add']]
-    win1 = lambda evs: [w for e in evs if e.get('ev') == 'plots' for w in e['windows'] if w['win'] == 1]
+    win1 = lambda evs: [w for e in evs if e.get('ev') == 'plots' for w in e['windows'] if w['win'] == 'graph_1']
     full = whole_series
     try:
         col(is_idle)
@@ -5983,17 +6163,17 @@ def check_display_state():
               len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 0 and runs_of(evs)[0]['erased'] == 0
               and not added(evs), str(runs_of(evs)))
 
-        evs = after(cmd='display', win=1, x=[0, 10], y=[-0.5, 0.5], runs=False)
+        evs = after(cmd='display', window='graph_1', x=[0, 10], y=[-0.5, 0.5], runs=False)
         w = win1(evs)
         check('display: a zoom and the runs toggle are held by the window and sent in plots',
               w and w[-1]['zoom'] == {'x': [0, 10], 'y': [-0.5, 0.5]} and w[-1]['runs'] == 0, str(w))
-        evs = after(cmd='display', win=1, x=None)
+        evs = after(cmd='display', window='graph_1', x=None)
         w = win1(evs)
         check('display: null returns one axis to the window own axes', w and w[-1]['zoom'] == {'x': None, 'y': [-0.5, 0.5]}, str(w))
-        evs = after(cmd='display', win=1, x=[5, 1])
+        evs = after(cmd='display', window='graph_1', x=[5, 1])
         check('display: a range with low not below high is refused, the zoom unchanged',
               any(e.get('ev') == 'message' and 'error' in e for e in evs) and not win1(evs), str(evs)[:200])
-        evs = after(cmd='display', win=7, x=[0, 1])
+        evs = after(cmd='display', window='graph_7', x=[0, 1])
         check('display: an unknown window is refused',
               any(e.get('ev') == 'message' and 'error' in e for e in evs), str(evs)[:200])
         evs = keys('w', {'key': 'w'}, {'ok': 1, 'values': ['-1', '1', '-1', '1']})
@@ -6009,7 +6189,7 @@ def check_display_state():
         evs, _ = col(is_idle)
         av = lambda evs: [e for e in evs if e.get('ev') == 'autoview']
         check('autoview: sent at once after data, nothing hidden, the diagram own axes',
-              [(e['earlier'], e['show'], e['active'], e['views']) for e in av(evs)] == [(0, 0, 0, [{'zoom': {'x': None, 'y': None}}])],
+              [(e['earlier'], e['show'], e['active'], e['views']) for e in av(evs)] == [(0, 0, 'diagram_1', [{'name':'diagram_1','zoom': {'x': None, 'y': None}}])],
               str(av(evs)))
         evs = lecar_to_auto(snd, col)
         n = len(rebuild_diagram(evs, []))
@@ -6024,15 +6204,15 @@ def check_display_state():
         snd(cmd='auto', op='display', show=True, x=[0.1, 0.2], y=None)
         evs, _ = col(is_idle)
         check('autoview: show and the zoom are set by auto display',
-              av(evs) and av(evs)[-1] == dict(av(evs)[-1], earlier=n, show=1, views=[{'zoom': {'x': [0.1, 0.2], 'y': None}}]),
+              av(evs) and av(evs)[-1] == dict(av(evs)[-1], earlier=n, show=1, views=[{'name':'diagram_1','zoom': {'x': [0.1, 0.2], 'y': None}}]),
               str(av(evs)))
         snd(cmd='auto', op='display', x=[3, 3])
         evs, _ = col(is_idle)
         check('autoview: a bad range is refused', any(e.get('ev') == 'message' and 'error' in e for e in evs), str(evs)[:200])
-        snd(cmd='auto', op='close')
+        snd(cmd='window.close', window='diagram_1')
         evs, _ = col(is_idle)
         check('autoview: closing AUTO resets it', av(evs) and av(evs)[-1]['earlier'] == 0
-              and av(evs)[-1]['views'] == [{'zoom': {'x': None, 'y': None}}], str(av(evs)))
+              and av(evs)[-1]['views'] == [{'name':'diagram_1','zoom': {'x': None, 'y': None}}], str(av(evs)))
     finally:
         stop_server(p, r, snd)
 
@@ -6213,7 +6393,7 @@ def check_export_elements():
             # each arrow is a path with a dot at its head
             check('W346: ' + fmt + ' holds all 25 requested field arrows', counts['dot', '#000000'] == 25, str(counts))
         annotations = go + [
-            {'cmd': 'annotation', 'op': 'add_text', 'win': 1, 'x': 0.2, 'y': 0.4, 'text': 'W346label'},
+            {'cmd': 'annotation', 'op': 'add_text', 'window': 'graph_1', 'x': 0.2, 'y': 0.4, 'text': 'W346label'},
             {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'f'},
             {'cmd': 'answer', 'key': 'f'}, {'cmd': 'answer', 'values': ['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'W346frozen', 'frz1']}]
         for fmt in ('pdf', 'svg'):
@@ -6582,9 +6762,9 @@ def check_save_session():
         snd(**cmd)
         got, n = [], 0
         while True:
-            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
             got.extend(evs)
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 return got
             a = answers[n] if n < len(answers) else {'ok': 0}
             n += 1
@@ -6751,7 +6931,7 @@ def check_plot_limits():
             if cmd.get('cmd') == 'open':
                 replies['choice'] = lambda e: {'key': 'd'}  # Discard the scratch session being replaced.
             events, end = s.answer_asks(is_idle, replies)
-            check('W376: plot command finishes without error', end is not None and end.get('ev') == 'idle'
+            check('W376: plot command finishes without error', end is not None and is_idle(end)
                   and not any(e.get('error') for e in events), str(events[-2:])[:200])
             return events
         try:
@@ -6765,7 +6945,7 @@ def check_plot_limits():
             for i in range(32):
                 command(cmd='key', key='g', menus=['f', 'f'], form=['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'frozen%d' % i, 'f%d' % i])
             for i in range(26):
-                command(cmd='key', key='m', menus=['c'])
+                command(cmd='window.create')
             command(cmd='data', events=['plots', 'series', 'marks'])
             command(cmd='session', op='save', name='limits', data=True)
             snap = os.path.join(s.run, 'limits.snapx')
@@ -6774,8 +6954,8 @@ def check_plot_limits():
                 return
             with zipfile.ZipFile(snap) as z:
                 saved = {k: z.read(k) for k in ('windows.setx', 'marks.setx', 'frozen.npz')}
-            for win in (28, 1.5, -1, 2147483647):
-                s.send(cmd='click', win=win)
+            for win in ('missing graph', 1.5, -1, 2147483647):
+                s.send(cmd='window.select', window=win)
                 invalid, _ = s.collect(is_idle)
                 errors = [e for e in invalid if e.get('error')]
                 check('W376: missing/fractional plot ID is a placed error',
@@ -6784,7 +6964,7 @@ def check_plot_limits():
             command(cmd='open', file='limits.snapx')
             all_data = command(cmd='data', events=['plots', 'series', 'marks'])
             plots = next((e for e in reversed(all_data) if e.get('ev') == 'plots'), {})
-            frozen = next((e.get('frozen', []) for e in all_data if e.get('ev') == 'marks' and e.get('win') == 1), [])
+            frozen = next((e.get('frozen', []) for e in all_data if e.get('ev') == 'marks' and e.get('win') == 'graph_1'), [])
             check('W376: archive reload restores 27 windows with 13 curves each',
                   len(plots.get('windows', [])) == 27 and all(len(w.get('curves', [])) == 13 for w in plots['windows']))
             check('W376: archive reload restores every frozen curve and its data',
@@ -6829,9 +7009,9 @@ def check_session_file():
         snd(**cmd)
         n = 0
         while True:
-            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
             allev.extend(evs)
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 return evs
             a = answers[n] if n < len(answers) else {'ok': 0}
             n += 1
@@ -6850,16 +7030,16 @@ def check_session_file():
         answered(snd, col, (), cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.4},
                                                   {'kind': 'ic', 'name': 'V', 'value': -0.3}])
         key(snd, col, 'i', 'g')
-        answered(snd, col, (), cmd='display', win=1, x=[0, 50], y=[-0.5, 0.3], runs=False)
+        answered(snd, col, (), cmd='display', window='graph_1', x=[0, 50], y=[-0.5, 0.3], runs=False)
         answered(snd, col, (), cmd='auto', op='display', x=[0.05, 0.3], y=None)
         # W50: a second view of the diagram, the norm, with a zoom of its own; the first active again
         answered(snd, col, (), cmd='auto', op='view', new=1)
-        answered(snd, col, (), cmd='auto', op='set', axes={'view': 1, 'plot': 'norm', 'fit': True})
-        answered(snd, col, (), cmd='auto', op='display', view=1, x=None, y=[0, 0.5])
-        answered(snd, col, (), cmd='auto', op='view', active=0)
+        answered(snd, col, (), cmd='auto', op='set', axes={'view': 'diagram_2', 'plot': 'norm', 'fit': True})
+        answered(snd, col, (), cmd='auto', op='display', view='diagram_2', x=None, y=[0, 0.5])
+        answered(snd, col, (), cmd='window.select', window='diagram_1')
         key(snd, col, 't', 't', {'xd': 10, 'yd': 0.1}, {'value': 'here', 'size': 2, 'style': 2, 'color': '#ffcd00'})
         key(snd, col, 'g', 'f', 'f', {'values': ['#ffcd00', 'line', 'dashed', '2', 'square', '4', 'first', 'frz1']})
-        key(snd, col, 'm', 'c')
+        answered(snd, col, (), cmd='window.create')
         # W145: an added browser column is saved with the session and comes back computed
         key(snd, col, 'a', {'ok': 1, 'value': 'VW'}, {'ok': 1, 'value': 'v*w'}, win='browser')
         browser1 = next((no_t(e) for e in reversed(answered(snd, col, (), cmd='browser', **{'from': 0, 'count': 2}))
@@ -6880,7 +7060,7 @@ def check_session_file():
         check('W135: the saved nullclines contain a current curve and one frozen pair',
               saved['nullclines'] and saved['nullclines'].get('x') and len(saved['nullclines'].get('frozen', [])) == 1,
               str(saved['nullclines'] and [len(saved['nullclines'].get('x', [])), len(saved['nullclines'].get('frozen', []))]))
-        marks1 = [no_t(last('marks', win=w)) for w in (1, 2)]
+        marks1 = [no_t(last('marks', win=w)) for w in ('graph_1', 'graph_2')]
         diagram1 = rebuild_diagram(allev, [])
         view1 = rebuild_diagram(allev, [], 1)
         snap = os.path.join(r, 's1.snapx')
@@ -6898,8 +7078,8 @@ def check_session_file():
                 check('session save: model/lecar.odex is the model, byte for byte', z.read('model/lecar.odex') == f.read())
             vt = z.read('auto/views.txt').decode().splitlines()
             check('session save: auto/views.txt holds both views, the first active',
-                  len(vt) == 3 and vt[0].startswith('view maximum_and_minimum V iapp ') and vt[1].startswith('view norm V iapp ')
-                  and vt[1].endswith(' - 0:0.5') and vt[2] == 'active 0', str(vt))
+                  len(vt) == 3 and vt[0].startswith('view "diagram_1" maximum_and_minimum V iapp ') and vt[1].startswith('view "diagram_2" norm V iapp ')
+                  and vt[1].endswith(' - 0:0.5') and vt[2] == 'active "diagram_1"', str(vt))
             shutil.copy(snap, keep)
         answered(snd, col, (), cmd='session', op='save', name='s2.snapx', data=False)
         s2 = os.path.join(r, 's2.snapx')
@@ -6959,7 +7139,7 @@ def check_session_file():
                          if e.get('ev') == 'browser'), None)
         check('W145: open session: the added column VW is back, computed as before the save',
               browser1 is not None and browser2 == browser1, '%s\n    %s' % (str(browser1)[:200], str(browser2)[:200]))
-        m2 = [no_t(last('marks', win=w)) for w in (1, 2)]
+        m2 = [no_t(last('marks', win=w)) for w in ('graph_1', 'graph_2')]
         strip = lambda m: m and dict(m, equilibria=[])
         check('open session: the labels and frozen curves are the saved ones (not Sing pts\' symbols)',
               [strip(m) for m in marks1] == [strip(m) for m in m2], str(m2)[:300])
@@ -7048,7 +7228,7 @@ def check_session_file():
         def label_marks(label_line=None, **over):
             """marks.setx with one label (its fields over the defaults); the label's
             lines are 5 (window) to 12 (text)"""
-            f = dict(id='0', window='0', x='0.5', y='0.5', size='2', font='0', style='0', color='"foreground"', text='"hi"')
+            f = dict(id='0', window='"graph_1"', x='0.5', y='0.5', size='2', font='0', style='0', color='"foreground"', text='"hi"')
             f.update(over)
             rows = ['next_annotation_id: 1,', 'labels: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in ('id', 'window', 'x', 'y', 'size', 'font', 'style', 'color', 'text')]
             rows += ['  },', '],', 'arrows_and_markers: [],', 'freeze_each_run: 0,', 'frozen_curves: [],', '']
@@ -7056,7 +7236,7 @@ def check_session_file():
 
         def mark_marks(**over):
             """marks.setx with one arrow or marker; its lines are 6 (window) to 13"""
-            f = dict(id='0', window='0', type='0', color='"foreground"', size='1', x_start='0', y_start='0', x_end='1', y_end='1')
+            f = dict(id='0', window='"graph_1"', type='0', color='"foreground"', size='1', x_start='0', y_start='0', x_end='1', y_end='1')
             f.update(over)
             rows = ['next_annotation_id: 1,', 'labels: [],', 'arrows_and_markers: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in
                                                                        ('id', 'window', 'type', 'color', 'size', 'x_start', 'y_start', 'x_end', 'y_end')]
@@ -7189,15 +7369,15 @@ def check_auto_views():
         snd(cmd='key', win=win, key=k)
         got, pending = [], list(answers)
         while True:
-            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
             got += evs
             allev.extend(evs)
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 return got
             snd(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
     av = lambda evs: [e for e in evs if e.get('ev') == 'autoview']
-    dg = lambda evs, view=None: [e for e in evs if e.get('ev') == 'diagram' and (view is None or e.get('view') == view)]
+    dg = lambda evs, view=None: [e for e in evs if e.get('ev') == 'diagram' and (view is None or e.get('view') == diagram_view_name(allev, view))]
     views_n = lambda evs: [e['n'] for e in dg(evs) if e['op'] == 'views']
     last_axes = lambda view: next((e for e in reversed(dg(allev, view)) if e['op'] in ('axes', 'reset')), None)
     same_points = lambda a, b: len(a) == len(b) and [x[:3] for x in a] == [x[:3] for x in b]
@@ -7211,9 +7391,9 @@ def check_auto_views():
               views_n(evs) == [2] and len(v0) > 1 and rebuild_diagram(allev, [], 1) == v0
               and not [e for e in dg(evs, 0) if e['op'] != 'axes'], str([(e.get('op'), e.get('view')) for e in dg(evs)]))
         check('views: the new view is the active one, with a zoom of its own',
-              av(evs) and av(evs)[-1]['active'] == 1 and len(av(evs)[-1]['views']) == 2, str(av(evs)))
+              av(evs) and av(evs)[-1]['active'] == 'diagram_2' and len(av(evs)[-1]['views']) == 2, str(av(evs)))
 
-        evs = after(cmd='auto', op='set', axes={'view': 1, 'plot': 'norm', 'fit': True})
+        evs = after(cmd='auto', op='set', axes={'view': 'diagram_2', 'plot': 'norm', 'fit': True})
         a0, a1 = last_axes(0), last_axes(1)
         check("views: a view's axes are its own: view 1 plots the norm, view 0 still hI-lo",
               a1 and a1['plot'] == 'norm' and a1['ylabel'] == 'Norm' and a0 and a0['plot'] == 'maximum_and_minimum'
@@ -7225,14 +7405,14 @@ def check_auto_views():
         evs = menu('a', {'key': 'v'})
         a2 = last_axes(2)
         check("views: the Axes menu's new view makes a third, the active one, with the active one's axes (the norm)",
-              views_n(evs) == [3] and a2 and a2['plot'] == 'norm' and av(evs) and av(evs)[-1]['active'] == 2
+              views_n(evs) == [3] and a2 and a2['plot'] == 'norm' and av(evs) and av(evs)[-1]['active'] == 'diagram_3'
               and rebuild_diagram(allev, [], 2) == v1, '%s %s' % (views_n(evs), a2))
 
-        evs = after(cmd='auto', op='display', view=0, x=[0.1, 0.2], y=None)
+        evs = after(cmd='auto', op='display', view='diagram_1', x=[0.1, 0.2], y=None)
         check('views: auto display with a view zooms that view alone',
               av(evs) and [v['zoom']['x'] for v in av(evs)[-1]['views']] == [[0.1, 0.2], None, None], str(av(evs)))
 
-        after(cmd='auto', op='view', active=0)
+        after(cmd='window.select', window='diagram_1')
         after(cmd='auto', op='grab', type='HB', index=1)
         menu('r', {'key': 'p'})
         lists = [rebuild_diagram(allev, [], v) for v in range(3)]
@@ -7240,7 +7420,7 @@ def check_auto_views():
               len(lists[0]) > len(v0) and same_points(lists[0], lists[1]) and same_points(lists[0], lists[2])
               and lists[0][:len(v0)] == v0, str([len(x) for x in lists]))
 
-        after(cmd='auto', op='view', active=1)
+        after(cmd='window.select', window='diagram_2')
         snd(cmd='key', win='auto', key='g')
         evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=60 * SLOW)
         at = next((i for i, x in enumerate(lists[1]) if x[3] is not None and x[4] is not None and i > 3), 4)
@@ -7253,17 +7433,16 @@ def check_auto_views():
         snd(cmd='answer', id=ask['id'], key='Escape')
         col(is_idle, timeout=60 * SLOW)
 
-        evs = after(cmd='auto', op='view', close=0)
+        evs = after(cmd='window.close', window='diagram_1')
         check('views: closing view 0 leaves two, the others move down, the active one stays active (now view 0)',
-              views_n(evs) == [2] and av(evs) and av(evs)[-1]['active'] == 0 and len(av(evs)[-1]['views']) == 2
+              views_n(evs) == [2] and av(evs) and av(evs)[-1]['active'] == 'diagram_2' and len(av(evs)[-1]['views']) == 2
               and rebuild_diagram(allev, [], 0) == lists[1] and rebuild_diagram(allev, [], 1) == lists[2],
               '%s %s' % (views_n(evs), av(evs)))
-        evs = after(cmd='auto', op='view', close=7)
-        check('views: closing a view there is not is refused', any(e.get('ev') == 'message' and 'error' in e for e in evs), '')
-        after(cmd='auto', op='view', close=1)
-        evs = after(cmd='auto', op='view', close=0)
-        check('views: the last view cannot be closed', any(e.get('ev') == 'message' and 'last view' in e.get('error', '')
-                                                         for e in evs), str(evs)[:200])
+        evs = after(cmd='window.close', window='diagram_8')
+        check('views: closing a view there is not is refused', any(e.get('ev') == 'done' and e.get('status') == 'error' for e in evs), '')
+        after(cmd='window.close', window='diagram_3')
+        evs = after(cmd='window.close', window='diagram_2')
+        check('views: closing the last diagram closes AUTO', any(e.get('ev') == 'window' and e.get('op') == 'destroy' for e in evs), str(evs)[:200])
         check('the process is alive after it all', p.poll() is None, '')
     finally:
         stop_server(p, r, snd)
@@ -7316,7 +7495,7 @@ def check_model_bcs():
     for ode, want in (('examples/ode/amari.odex', 0), ('examples/ode/dumbbvp.odex', 2), ('examples/ode/vdp.odex', 2)):
         p, r, snd, col, _ = launch_server(ode=ode)
         snd(cmd='state')
-        evs, e = col(lambda e: e.get('ev') == 'idle')
+        evs, e = col(lambda e: e.get('ev') in ('idle','done'))
         st = [x for x in evs if x.get('ev') == 'state']
         n = len(st[-1].get('bcs', [])) if st else -1
         check('bcs: %s sends %d boundary conditions' % (os.path.basename(ode), want), n == want, str(n))
@@ -7661,7 +7840,7 @@ def check_recording():
         snd(cmd='abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         stopped = [e['at'] for e in evs if e.get('ev') == 'stopped']
-        run(cmd='display', win=1, x=[0, 50])
+        run(cmd='display', window='graph_1', x=[0, 50])
         st = last_state(run(cmd='set', kind='par', name='iapp', value=0.1))
         check('record: state counts the steps taken', st and st['recording']['steps'] == 8, str(st and st.get('recording')))
         evs = run(cmd='record', op='stop', name='mine')
@@ -7692,7 +7871,7 @@ def check_recording():
               len(s) > 5 and s[5].get('keys') == ['i', 'g'] and stopped and s[5].get('abort') == stopped[0]
               and stopped[0]['what'] == 'integrate', str(s[5:6]) + str(stopped))
         check('record: a zoom is a view step with its command; a set a step of its own',
-              s[6:8] == [{'step': 'Zoom window 1', 'cmd': {'cmd': 'display', 'win': 1, 'x': [0, 50]}, 'view': True},
+              s[6:8] == [{'step': 'Zoom window graph_1', 'cmd': {'cmd': 'display', 'window': 'graph_1', 'x': [0, 50]}, 'view': True},
                          {'step': 'Set iapp = 0.1', 'cmd': {'cmd': 'set', 'kind': 'par', 'name': 'iapp', 'value': 0.1}}]
               and len(s) == 8, str(s[6:]))
         check('record: the fingerprint is the files\' and steps\' SHA-256', written == got and len(got) == 64, '%s %s' % (written, got))
@@ -8092,9 +8271,9 @@ def check_player_ani():
         snd(**cmd)
         got = []
         while True:
-            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
             got += evs
-            if e is None or e['ev'] == 'idle':
+            if e is None or e['ev'] in ('idle','done'):
                 return got
             snd(cmd='answer', id=e['id'], ok=0)
 
@@ -8137,7 +8316,7 @@ def check_player_ani():
               and all(d['at'].get('what') == 'ani' for d in controls), str(controls))
         os.remove(os.path.join(r, 'gui_test.ani'))  # the replay reads the recording's copy
         snd(cmd='play', op='open', autoplay=False, file=os.path.join(r, 'ani.recx'))
-        evs, ask = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=30 * SLOW)
+        evs, ask = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=30 * SLOW)
         if ask and ask.get('ev') == 'ask':
             snd(cmd='answer', id=ask['id'], key='d')
             col(is_idle, timeout=30 * SLOW)
@@ -8173,7 +8352,7 @@ def check_ode_open():
             snd(cmd='open', file='foreign.ode')
             _, leave = col(is_ask)
             snd(cmd='answer', id=leave['id'], key='d')
-            return col(lambda e: e.get('ev') in ('ask', 'idle'))
+            return col(lambda e: e.get('ev') in ('ask', 'idle','done'))
 
         write_foreign(1)
         _, rename = begin()
@@ -8212,7 +8391,7 @@ def check_ode_open():
 
         _, rename = begin()
         snd(cmd='answer', id=rename['id'], value=rename['value'])
-        _, settled = col(lambda e: e.get('ev') in ('ask', 'idle'))
+        _, settled = col(lambda e: e.get('ev') in ('ask', 'idle','done'))
         check('ode open: identical conversion opens without an overwrite ask', settled and settled.get('ev') == 'idle')
         write_foreign(3)
         snd(cmd='reload')
@@ -8456,7 +8635,7 @@ def check_question_policy():
                 if mode in ('server', 'server yes'):
                     server = Server(binary, target, run=folder, env=env, extra_args=['--yes'] if mode == 'server yes' else [])
                     try:
-                        events, event = server.collect(lambda e: e.get('ev') in ('ask', 'idle'))
+                        events, event = server.collect(lambda e: e.get('ev') in ('ask', 'idle','done'))
                         expected_kind = 'string' if case == 'name' else 'choice'
                         valid_ask = bool(event) and ((event.get('ev') == 'idle') if mode == 'server yes' or case == 'recording replacement' else (event.get('ev') == 'ask' and event.get('kind') == expected_kind))
                         if case != 'recording replacement' and mode == 'server' and valid_ask:

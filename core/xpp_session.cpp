@@ -96,8 +96,7 @@ xpp::Result<std::string> windows_text(const xpp::Session &s)
         const GRAPH &g = s.plot_windows.graph[i];
         if (!g.Use) continue;
         out.begin_item();
-        out.whole("number", i);
-        out.flag("open",g.Use!=0);
+        out.text("name",g.name);
         xpp::write_window(out, s, g);
         out.text("xlabel", g.xlabel);
         out.text("ylabel", g.ylabel);
@@ -111,7 +110,7 @@ xpp::Result<std::string> windows_text(const xpp::Session &s)
         out.end_item();
     }
     out.end_list();
-    out.whole("active", s.plot_windows.active);
+    out.text("active",s.plot_windows.graph[s.plot_windows.active].name);
     const xpp::AutoView &v = s.auto_view;
     out.begin("auto_view");
     out.whole("earlier", v.earlier);
@@ -130,8 +129,6 @@ xpp::Result<std::string> windows_text(const xpp::Session &s)
 
 /* one window as windows.setx holds it */
 struct SavedWindow {
-    int saved = 0; /* its number when it was saved */
-    bool open = false;
     GRAPH graph{}; /* its settings and its curves */
     std::string xlabel, ylabel, zlabel;
     xpp::Zoom zoom;
@@ -169,29 +166,22 @@ WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file, std::size_t &e
     xpp::snapx::memory_groups(file, "windows", windows, sizeof(SavedWindow) + sizeof(xpp::setx::Block), expanded_bytes);
     if (windows.empty()) file.fail(*file.member("windows"), "a session has at least one window");
     r.windows.reserve(windows.size());
-    std::set<int> listed;
     std::size_t slots = 0;
     for (xpp::setx::Block &w : windows) {
         SavedWindow &sw = r.windows.emplace_back();
-        w.whole("number", sw.saved);
-        if (sw.saved < 0 || static_cast<std::size_t>(sw.saved) < slots || (slots == 0 && sw.saved != 0))
-            w.fail(*w.member("number"), "window slots must start at zero and be listed once in index order");
-        /* Gaps still occupy runtime slots. create_a_pop copies the main
-           graph's curves into them, so include that storage as well. */
+        w.text("name",sw.graph.name);
+        if(const std::string problem=xpp::window_name_problem(sw.graph.name);!problem.empty())w.fail(*w.member("name"),problem);
+        for(std::size_t j=0;j+1<r.windows.size();++j)
+            if(r.windows[j].graph.name==sw.graph.name)w.fail(*w.member("name"),"a window name is listed twice");
+        /* Creating a graph copies the main graph's curves as well. */
         const int main_curves = s.plot_windows.graph[0].nvars;
         const std::size_t slot_bytes = sizeof(GRAPH) + sizeof(xpp::PlotDisplay) + sizeof(xpp::MarksShown::Record)
             + sizeof(xpp::PhaseShown::Window) + sizeof(int)
             + static_cast<std::size_t>(main_curves) * (5 * sizeof(int) + 2 * plot_axes * sizeof(float));
-        const std::size_t next = static_cast<std::size_t>(sw.saved) + 1;
+        const std::size_t next = r.windows.size();
         if (!xpp::snapx::account_memory(expanded_bytes, next - slots, slot_bytes))
             file.fail(*file.member("windows"), "too many windows for the session memory limit");
         slots = next;
-        w.flag("open",sw.open);
-        if(!sw.open){
-            if(sw.saved==0)w.fail(*w.member("open"),"the main window must be open");
-            w.done();continue;
-        }
-        listed.insert(sw.saved);
         xpp::copy_graph_settings(s.plot_windows.graph[0], sw.graph);
         xpp::read_window(w, s, sw.graph, r.added, expanded_bytes);
         w.text("xlabel", sw.xlabel);
@@ -205,9 +195,10 @@ WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file, std::size_t &e
         w.flag("previous_runs", sw.show_runs);
         w.done();
     }
-    file.whole("active", r.active);
-    if (!listed.contains(r.active))
-        file.fail(*file.member("active"), xpp::format("the active window {} is not one of those listed", r.active));
+    std::string active;file.text("active",active);
+    const auto current=std::ranges::find(r.windows,active,[](const SavedWindow &w){return w.graph.name;});
+    if(current==r.windows.end())file.fail(*file.member("active"),xpp::format("Unknown window \"{}\"",active));
+    r.active=static_cast<int>(current-r.windows.begin());
     if (std::optional<xpp::setx::Block> v = file.group("auto_view")) {
         v->whole("earlier", r.auto_view.earlier);
         v->flag("show_earlier", r.auto_view.show_earlier);
@@ -216,30 +207,26 @@ WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file, std::size_t &e
     return r;
 }
 
-/* the windows of w made in s (the main one there; another made as
-   Makewindow/Create makes it) and set as saved, the saved active one
-   active; slot says which window each saved one became */
-void apply_windows(xpp::Session &s, const WindowsRead &r, std::map<int, int> &slot)
+/* Restore the named windows in file order, then select the saved one. */
+void apply_windows(xpp::Session &s, const WindowsRead &r)
 {
-    /* The checked input gives the final slot count; allocate once before
-       create_a_pop fills it. Keep gaps occupied until all later IDs exist. */
-    const std::size_t slots = static_cast<std::size_t>(r.windows.back().saved) + 1;
+    /* Allocate the checked count before creating the graphs. */
+    const std::size_t slots = r.windows.size();
     s.plot_windows.graph.reserve(slots);
     s.plot_windows.current = &s.plot_windows.graph[s.plot_windows.active];
     s.plot_display.reserve(slots);
     s.marks_shown.windows.reserve(slots);
     s.phase_shown.windows.reserve(slots);
     s.plot_windows.open.reserve(slots);
-    for (int i = 1; i <= r.windows.back().saved; ++i) {
+    for (int i = 1; i < static_cast<int>(slots); ++i) {
         xpp::make_active(s, 0, 1);
-        create_a_pop(s);
+        create_a_pop(s,r.windows[i].graph.name);
     }
-    for (const SavedWindow &w : r.windows) {
-        const int i = w.saved;
-        if(!w.open)continue;
-        slot[w.saved] = i;
+    for (int i=0;i<static_cast<int>(slots);++i) {
+        const SavedWindow &w=r.windows[i];
         GRAPH &g = s.plot_windows.graph[i];
         xpp::copy_graph_settings(w.graph, g);
+        g.name=w.graph.name;
         xpp::copy_curves(w.graph, g);
         g.xlabel = w.xlabel;
         g.ylabel = w.ylabel;
@@ -249,14 +236,8 @@ void apply_windows(xpp::Session &s, const WindowsRead &r, std::map<int, int> &sl
         d.show_runs = w.show_runs;
         d.axes_seen = false; /* the zoom is for the axes just read */
     }
-    for (int i = 1; i <= r.windows.back().saved; ++i) {
-        if (!slot.contains(i)) {
-            xpp::make_active(s, i, 1);
-            xpp::destroy_a_pop(s);
-        }
-    }
     xpp::set_active_windows(s);
-    if (const auto a = slot.find(r.active); a != slot.end()) xpp::make_active(s, a->second, 1);
+    xpp::make_active(s,r.active,1);
 }
 
 /* ---- marks.setx and frozen.npz: labels, arrows and markers, frozen curves ---- */
@@ -269,7 +250,7 @@ xpp::Result<std::string> marks_text(const xpp::Session &s)
     for (const LABEL &l : s.labels) {
         out.begin_item();
         out.whole("id", l.id);
-        out.whole("window", xpp::graph_of(s, l.w));
+        out.text("window",xpp::window_name(s,l.w));
         out.real("x", l.x);
         out.real("y", l.y);
         out.whole("size", l.size);
@@ -284,7 +265,7 @@ xpp::Result<std::string> marks_text(const xpp::Session &s)
     for (const xpp::GROB &g : s.grobs) {
         out.begin_item();
         out.whole("id", g.id);
-        out.whole("window", xpp::graph_of(s, g.w));
+        out.text("window",xpp::window_name(s,g.w));
         out.whole("type", g.type);
         out.color("color", g.color);
         out.real("size", g.size);
@@ -303,7 +284,7 @@ xpp::Result<std::string> marks_text(const xpp::Session &s)
         out.begin_item();
         out.whole("slot", i);
         out.flag("used",c.use!=0);
-        out.whole("window", xpp::graph_of(s, c.w));
+        out.text("window",xpp::window_name(s,c.w));
         out.whole("type", c.type);
         out.color("color", c.color);
         out.line_style(c.style);
@@ -377,11 +358,10 @@ struct MarksRead {
 /* a window number of marks.setx: one windows.setx lists */
 int window_in(xpp::setx::Block &g, const WindowsRead &w)
 {
-    int saved = 0;
-    g.whole("window", saved);
-    if (std::none_of(w.windows.begin(), w.windows.end(), [saved](const SavedWindow &x) { return x.saved == saved && x.open; }))
-        g.fail(*g.member("window"), xpp::format("windows.setx has no window {}", saved));
-    return saved;
+    std::string name;g.text("window",name);
+    const auto window=std::ranges::find(w.windows,name,[](const SavedWindow &v){return v.graph.name;});
+    if(window==w.windows.end())g.fail(*g.member("window"),xpp::format("Unknown window \"{}\"",name));
+    return static_cast<int>(window-w.windows.begin());
 }
 
 /* a colour of marks.setx (colormap.h) */
@@ -501,10 +481,10 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
 }
 
 /* r put in place in s (a restored session has none before), the windows
-   the saved ones became (slot, apply_windows') */
-void apply_marks(xpp::Session &s, MarksRead r, const std::map<int, int> &slot)
+   apply_windows restored in file order */
+void apply_marks(xpp::Session &s, MarksRead r)
 {
-    const auto w = [&](int saved) { return s.plot_windows.graph[slot.at(saved)].w; };
+    const auto w = [&](int saved) { return s.plot_windows.graph[saved].w; };
     s.next_annotation_id = r.next_annotation_id;
     s.labels.clear();
     s.grobs.clear();
@@ -670,6 +650,9 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
     xpp::Result<WindowsRead> windows = settings_member(xpp::snapx::windows_member, [&](xpp::setx::Block &b) { return read_windows(s, b, expanded_bytes); });
     if (!windows) return std::unexpected(windows.error());
     r.windows = std::move(*windows);
+    if(!r.diagram->points.empty())for(const auto &view:r.diagram->views.views)
+        for(const auto &window:r.windows.windows)
+            if(view.name==window.graph.name)return wrong(xpp::format("Window name \"{}\" occurs in both graph and diagram lists",view.name));
 
     /* the data table: there when the manifest says so */
     const auto data = mem.find(xpp::snapx::data_member);
@@ -714,8 +697,7 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
     if (r.data) s.numerics.last_seed = r.data->seed;
     xpp::apply_settings(s, r.set, true);
 
-    std::map<int, int> slot;
-    apply_windows(s, r.windows, slot);
+    apply_windows(s, r.windows);
     if (r.diagram) {
         s.auto_view.earlier = std::min(r.windows.auto_view.earlier, diagram_count(s.diagram));
         s.auto_view.show_earlier = r.windows.auto_view.show_earlier && s.auto_view.earlier > 0;
@@ -733,7 +715,7 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
         s.numerics.storflag=true; /* a run stored these rows: Continue stores on (storing is not in the .set) */
     }
 
-    apply_marks(s, std::move(r.marks), slot);
+    apply_marks(s, std::move(r.marks));
     s.sliders=std::move(r.sliders);
     s.nullcline_state=std::move(r.nullclines);
     s.numerics.null_here=s.nullcline_state.num_x_n||s.nullcline_state.num_y_n||s.nullcline_state.frozen_started;

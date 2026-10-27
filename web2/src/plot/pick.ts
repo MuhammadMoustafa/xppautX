@@ -25,7 +25,7 @@ export interface Frac {
 
 export interface PickState {
   mode: PickMode;
-  win: number;
+  win: string;
   /** the ask this is for */
   ask: number;
   /** the crosshair, or the box's free corner */
@@ -44,11 +44,11 @@ export const BIG_STEP = 0.1;
     it draws (identified by the current view), the active one (`state.view`), or the AUTO
     diagram (window `ids.auto`) while the AUTO view is open (`auto`); null for
     anything else (a 3D plot, no plot yet), which the dialog then offers to
-    cancel (A13). `ids`: hello.window_ids */
+    cancel (A13). `ids`: hello.window_names */
 export function pickModeOf(ask: AskEvent, view: View | undefined, hasPlot: boolean,
-  ids: {plots: number; auto: number}, auto = false): PickMode | null {
-  const win = Number(ask.win);
-  const plot = hasPlot && win >= 1 && win !== ids.auto && !!view && view.win === win && !view.three;
+  ids: {auto: string}, auto = false): PickMode | null {
+  const win = ask.win!;
+  const plot = hasPlot && win !== ids.auto && !!view && view.win === win && !view.three;
   if (!plot && !(auto && win === ids.auto)) return null;
   switch (ask.kind) {
     case 'mouse': return 'point';
@@ -61,8 +61,8 @@ export function pickModeOf(ask: AskEvent, view: View | undefined, hasPlot: boole
 /** the mode for a new ask: the crosshair stays where it was when the same
     kind is asked again (Initialconds/mIce, a drag) */
 export function startPick(prev: PickState | null, ask: AskEvent, mode: PickMode): PickState {
-  const same = prev && prev.mode === mode && prev.win === Number(ask.win);
-  return {mode, win: Number(ask.win), ask: ask.id, cursor: same ? prev.cursor : CENTRE, anchor: null, waiting: false};
+  const same = prev && prev.mode === mode && prev.win === ask.win!;
+  return {mode, win: ask.win!, ask: ask.id, cursor: same ? prev.cursor : CENTRE, anchor: null, waiting: false};
 }
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));

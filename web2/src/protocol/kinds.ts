@@ -35,6 +35,7 @@ export interface WindowLayer {
     a step of the user's (what a recording records, files.ts's run record); op absent: the
     command's other lines */
 export interface CommandKind {
+  arguments?: {name:string;type:string;required:boolean;choices:string[]}[];
   cmd: string;
   op?: string;
   kind: string;
