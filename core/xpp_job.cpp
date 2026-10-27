@@ -9,6 +9,7 @@
    Nothing here throws. */
 #include "xpp_job.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
@@ -51,10 +52,27 @@ int reached_key; /* a reached stop's key, not taken yet */
    progress, abort poll and live state, xpp_ui.cpp), microseconds apart, so the
    first of them reads the clock and the others take that reading. A
    checkpoint the step does not pass leaves its use to the next every()
-   call, which is then at most one step late. */
+   call, which is then at most one step late.
+
+   On a cheap right-hand side a row takes microseconds and the clock reading
+   is a few per cent of the run (W514): the reading is then kept for the
+   next rows too (the kept reading), as many as fit in step_clock_seconds by the
+   rate the last reading measured, so a throttle is late by about that and
+   by at most step_clock_max_rows rows; a row that takes longer than
+   step_clock_seconds reads the clock itself, as before. Stop and Abort
+   do not wait for it: they are atomics the reader thread sets, seen by
+   cancelled() at the next checkpoint. */
 constexpr int step_throttles = 4;
+constexpr double step_clock_seconds = xpp::INPUT_POLL_SECONDS / 4; /* the lateness a kept reading may add */
+constexpr long step_clock_max_rows = 1024; /* the most rows one reading serves, whatever the rate */
 int step_uses;   /* every() calls left that take step_now (report_rows sets it) */
 double step_now; /* the first of them reads it */
+struct KeptReading {
+    bool cached;     /* this row takes step_now, a reading of an earlier row */
+    long to_read;    /* rows still served by the last reading */
+    long since_read; /* rows reported since it */
+    bool have;       /* step_now is a reading of this job */
+} kept;
 
 double clock_now()
 {
@@ -103,12 +121,21 @@ void end()
     if (depth == 0 || --depth > 0) return;
     stop = Stop::none;
     reached_key = 0;
+    kept.cached = false;
+    kept.have = false;
     job_running.store(false, std::memory_order_release);
 }
 
 void report_rows(long rows, double t)
 {
-    step_uses = step_throttles;
+    ++kept.since_read;
+    kept.cached = kept.to_read > 0 && kept.have;
+    if (kept.cached) {
+        --kept.to_read;
+        step_uses = 0;
+    } else {
+        step_uses = step_throttles;
+    }
     reported.what = Reported::rows;
     reported.rows = rows;
     reported.t = t;
@@ -117,6 +144,7 @@ void report_rows(long rows, double t)
 
 void report_point(int branch, int point)
 {
+    kept.cached = false;
     reported.what = Reported::point;
     reported.branch = branch;
     reported.point = point;
@@ -125,6 +153,7 @@ void report_point(int branch, int point)
 
 void report_frame(int frame)
 {
+    kept.cached = false;
     reported.what = Reported::frame;
     reported.frame = frame;
     if (stop == Stop::frame && frame == stop_count) stop_reached();
@@ -232,8 +261,21 @@ bool every(double &last, double seconds)
     static const bool always = std::getenv("XPP_NO_THROTTLE") != nullptr; /* a check's hook (xpp_job.h) */
     if (always) return true;
     double now;
-    if (step_uses > 0) {
-        if (step_uses == step_throttles) step_now = clock_now();
+    if (kept.cached) {
+        now = step_now;
+    } else if (step_uses > 0) {
+        if (step_uses == step_throttles) {
+            const double before = step_now, read = clock_now();
+            /* the rows that fit in step_clock_seconds at the rate measured since the last reading; none
+               before there is one */
+            const double rate = !kept.have ? 0.0
+                                : read > before ? static_cast<double>(kept.since_read) * step_clock_seconds / (read - before)
+                                                : static_cast<double>(step_clock_max_rows);
+            kept.to_read = std::max(static_cast<long>(std::min(rate, static_cast<double>(step_clock_max_rows))) - 1, 0L);
+            kept.since_read = 0;
+            kept.have = true;
+            step_now = read;
+        }
         step_uses--;
         now = step_now;
     } else {

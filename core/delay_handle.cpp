@@ -92,15 +92,19 @@ void stor_delay(xpp::Session &s, double *y)
 
 }
 
+/* Neville's interpolation through the polint_points points: the point count is a constant, so
+   the compiler unrolls every loop into straight-line code (W514); the operations and their order
+   are the original's. */
 void polint(std::span<const double, polint_points> xa, std::span<const double, polint_points> ya, double x, double &y, double &dy)
 {
-  const int n=static_cast<int>(xa.size());
-  int i,m,ns=1;
-  double den,dif,dift,h0,hp,w;
-  std::array<double, polint_points> c{}, d{};
-  dif=fabs(x-xa[0]);
-  for(i=1;i<=n;i++){
-    if( (dift=fabs(x-xa[i-1]))<dif){
+  constexpr int n=static_cast<int>(polint_points);
+  int ns=1;
+  std::array<double, n> c, d;
+  double dif=fabs(x-xa[0]);
+#pragma GCC unroll 4
+  for(int i=1;i<=n;i++){
+    const double dift=fabs(x-xa[i-1]);
+    if(dift<dif){
       ns=i;
       dif=dift;
     }
@@ -108,17 +112,21 @@ void polint(std::span<const double, polint_points> xa, std::span<const double, p
     d[i-1]=ya[i-1];
   }
   y=ya[(ns--) -1];
-  for(m=1;m<n;m++){
-    for(i=1;i<=n-m;i++){
-      h0=xa[i-1]-x;
-      hp=xa[i+m-1]-x;
-      w=c[i]-d[i-1];
-      if((den=h0-hp)==0.0)return ;
+#pragma GCC unroll 4
+  for(int m=1;m<n;m++){
+#pragma GCC unroll 4
+    for(int i=1;i<=n-m;i++){
+      const double h0=xa[i-1]-x;
+      const double hp=xa[i+m-1]-x;
+      const double w=c[i]-d[i-1];
+      double den=h0-hp;
+      if(den==0.0)return ;
       den=w/den;
       d[i-1]=hp*den;
       c[i-1]=h0*den;
     }
-    y += (dy=(2*ns < (n-m) ? c[ns]:d[ns-- -1]));
+    dy=(2*ns < (n-m) ? c[ns]:d[ns-- -1]);
+    y += dy;
   }
 }
 
