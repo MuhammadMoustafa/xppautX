@@ -38,6 +38,16 @@ constexpr double nan_value = std::numeric_limits<double>::quiet_NaN();
    before it goes to the file */
 constexpr std::size_t chunk = 1 << 16;
 
+/* One budget for every data file read: zip::archive_bytes_limit, for the
+   file's bytes and for what a gzip or zip expands to. path's bytes into
+   out within it; else t.error says why. */
+bool read_data_bytes(const char *path, std::string &out, DataTable &t)
+{
+    if (read_bytes(path, out, zip::archive_bytes_limit)) return true;
+    t.error = xpp::format("it cannot be read, or is larger than {} bytes", zip::archive_bytes_limit);
+    return false;
+}
+
 /* ---- .dat ---- */
 
 bool write_dat(const DataTable &t, Writer &w)
@@ -88,6 +98,19 @@ bool read_dat(const char *path, DataTable &t)
 }
 
 /* ---- CSV ---- */
+
+/* a seed is a whole number that fits an int, in a CSV header comment and
+   in an NPZ's seed array alike */
+constexpr const char *seed_refusal = "its seed is not a whole number that fits an integer";
+
+bool seed_of(double v, int &seed)
+{
+    if (!std::isfinite(v) || v != std::trunc(v) || v < std::numeric_limits<int>::min() ||
+        v > std::numeric_limits<int>::max())
+        return false;
+    seed = static_cast<int>(v);
+    return true;
+}
 
 /* a header field, quoted when it has to be (RFC 4180) */
 void append_csv_field(std::string &o, std::string_view s)
@@ -164,10 +187,14 @@ bool parse_csv(std::string_view text, DataTable &t)
         if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
         if (line.find_first_not_of(" \t") == std::string_view::npos) continue;
         if (line.starts_with("# seed ")) {
-            const std::string digits(line.substr(7));
-            char *end = nullptr;
-            const long parsed = std::strtol(digits.c_str(), &end, 10);
-            if (end != digits.c_str()) t.seed = static_cast<int>(parsed);
+            double parsed;
+            int seed;
+            if (!parse_number(trim_blanks(line.substr(7)), parsed) || !seed_of(parsed, seed)) {
+                t.error_line = line_number;
+                t.error = seed_refusal;
+                return false;
+            }
+            t.seed = seed;
             continue;
         }
         if (line.starts_with("#")) continue; /* any other comment: ignored */
@@ -209,7 +236,7 @@ bool write_csv(const DataTable &t, Writer &w) { return w.write(csv_text(t)); }
 bool read_csv(const char *path, DataTable &t)
 {
     std::string text;
-    return read_bytes(path, text) && parse_csv(text, t);
+    return read_data_bytes(path, text, t) && parse_csv(text, t);
 }
 
 bool write_csv_gz(const DataTable &t, Writer &w) { return w.write(zip::gzip(csv_text(t))); }
@@ -217,8 +244,10 @@ bool write_csv_gz(const DataTable &t, Writer &w) { return w.write(zip::gzip(csv_
 bool read_csv_gz(const char *path, DataTable &t)
 {
     std::string gz;
-    if (!read_bytes(path, gz)) return false;
-    const std::optional<std::string> text = zip::gunzip(gz);
+    if (!read_data_bytes(path, gz, t)) return false;
+    bool over = false;
+    const std::optional<std::string> text = zip::gunzip(gz, zip::archive_bytes_limit, &over);
+    if (over) t.error = xpp::format("it expands to more than {} bytes", zip::archive_bytes_limit);
     return text && parse_csv(*text, t);
 }
 
@@ -303,8 +332,9 @@ std::string_view npy_field(std::string_view h, std::string_view key)
 /* an array of a .npz: its columns (one for a 1-D array, cols for a 2-D
    one), appended to t; false when it is not a .npy numpy can write that
    this reads (float64, float32, int32, int64; at most 2-D) */
-bool read_npy(std::string_view name, std::string_view b, DataTable &t)
+bool read_npy(std::string_view name, std::string_view b, DataTable &t, std::string &why)
 {
+    why = "it is not an array numpy writes that this reads";
     if (b.size() < 10 || b.substr(0, 6) != std::string_view("\x93NUMPY", 6)) return false;
     const unsigned major = static_cast<unsigned char>(b[6]);
     std::size_t hlen, at;
@@ -343,6 +373,10 @@ bool read_npy(std::string_view name, std::string_view b, DataTable &t)
             std::size_t v = 0;
             for (char ch : d) {
                 if (ch < '0' || ch > '9') return false;
+                if (v > (std::numeric_limits<std::size_t>::max() - static_cast<std::size_t>(ch - '0')) / 10) {
+                    why = "its shape has a dimension too large to count";
+                    return false;
+                }
                 v = v * 10 + static_cast<std::size_t>(ch - '0');
             }
             shape.push_back(v);
@@ -351,7 +385,14 @@ bool read_npy(std::string_view name, std::string_view b, DataTable &t)
     }
     if (shape.size() > 2) return false;
     const std::size_t rows = shape.empty() ? 1 : shape[0], cols = shape.size() == 2 ? shape[1] : 1;
-    if (cols && rows > data.size() / size / cols) return false;
+    if (cols > data_columns_limit || t.columns.size() > data_columns_limit - cols) {
+        why = xpp::format("it has more than {} columns", data_columns_limit);
+        return false;
+    }
+    if (cols && rows > data.size() / size / cols) {
+        why = "its shape needs more values than its data holds";
+        return false;
+    }
     const auto value = [&](std::size_t k) -> double {
         const char *p = data.data() + k * size;
         if (descr == "f8") {
@@ -387,21 +428,28 @@ bool read_npy(std::string_view name, std::string_view b, DataTable &t)
 bool parse_npz(std::string_view bytes, DataTable &t)
 {
     const std::optional<std::vector<zip::Entry>> entries = zip::read_zip(bytes);
-    if (!entries) return false;
+    if (!entries) {
+        t.error = xpp::format("it is not a zip archive this reads, or passes {} bytes or {} members",
+                              zip::archive_bytes_limit, zip::archive_entries_limit);
+        return false;
+    }
+    const auto refuse = [&](std::string_view entry, std::string_view why) {
+        t = DataTable();
+        t.error = xpp::format("{}: {}", entry, why);
+        return false;
+    };
     for (const zip::Entry &e : *entries) {
+        std::string why;
         if (e.name == "seed.npy") {
             DataTable one;
-            if (!read_npy(e.name, e.bytes, one) || one.columns.size() != 1 || one.columns[0].empty()) {
-                t = DataTable();
-                return false;
-            }
-            t.seed = static_cast<int>(one.columns[0][0]);
+            if (!read_npy(e.name, e.bytes, one, why)) return refuse(e.name, why);
+            int seed;
+            if (one.columns.size() != 1 || one.columns[0].empty() || !seed_of(one.columns[0][0], seed))
+                return refuse(e.name, seed_refusal);
+            t.seed = seed;
             continue;
         }
-        if (!read_npy(e.name, e.bytes, t)) {
-            t = DataTable();
-            return false;
-        }
+        if (!read_npy(e.name, e.bytes, t, why)) return refuse(e.name, why);
     }
     /* arrays of different lengths: the shorter ones end in no value */
     std::size_t n = 0;
@@ -413,7 +461,7 @@ bool parse_npz(std::string_view bytes, DataTable &t)
 bool read_npz(const char *path, DataTable &t)
 {
     std::string bytes;
-    return read_bytes(path, bytes) && parse_npz(bytes, t);
+    return read_data_bytes(path, bytes, t) && parse_npz(bytes, t);
 }
 
 /* F(args...), ending the program on a failed allocation (no exception
@@ -438,8 +486,10 @@ bool read_clean(Src src, DataTable &t)
         return true;
     }
     const int error_line=t.error_line;
+    std::string error = std::move(t.error);
     t = DataTable();
     t.error_line=error_line;
+    t.error = std::move(error);
     return false;
 }
 
@@ -514,7 +564,8 @@ Result<DataTable> read_data_table(const char *path)
     if (!format || !format->read) return fail_reading("data", "has no registered data format",path);
     DataTable table;
     if (!format->read(path,table))
-        return fail("data","cannot be read as a data table",Place{path,table.error_line});
+        return fail("data",table.error.empty() ? "cannot be read as a data table" : "cannot be read as a data table: " + table.error,
+                    Place{path,table.error_line});
     return table;
 }
 

@@ -4576,6 +4576,36 @@ def check_data_formats():
             check('Load reads %s back into the table (rows and values)' % name,
                   read(r, 'back.dat').replace(b'\r', b'') == want and last_state(evs).get('rows') == 601,
                   str(last_state(evs).get('rows')))
+
+        # W504: a hostile data file is refused whole, naming the file and why
+        import zipfile
+        def npy(shape, payload=b''):
+            h = ("{'descr': '<f8', 'fortran_order': False, 'shape': %s, }" % shape).encode()
+            h += b' ' * ((64 - (10 + len(h) + 1) % 64) % 64) + b'\n'
+            return b'\x93NUMPY\x01\x00' + struct.pack('<H', len(h)) + h + payload
+        with zipfile.ZipFile(os.path.join(r, 'evil_cols.npz'), 'w') as z:
+            z.writestr('a.npy', npy('(0, 18446744073709551615)'))
+        with zipfile.ZipFile(os.path.join(r, 'evil_dim.npz'), 'w') as z:
+            z.writestr('a.npy', npy('(1, 99999999999999999999999)', b'\0' * 8))
+        with zipfile.ZipFile(os.path.join(r, 'evil_seed.npz'), 'w') as z:
+            z.writestr('seed.npy', npy('(1,)', struct.pack('<d', 1e300)))
+        with gzip.open(os.path.join(r, 'bomb.csv.gz'), 'wb', compresslevel=1) as g:
+            zeros = b'0' * (1 << 20)
+            for _ in range(513):
+                g.write(zeros)
+        open(os.path.join(r, 'evil_seed.csv'), 'w').write('# seed 1e300\nx\n1\n')
+        for name, why in [('evil_cols.npz', 'more than 4096 columns'), ('evil_dim.npz', 'too large to count'),
+                          ('evil_seed.npz', 'seed.npy: its seed is not a whole number'),
+                          ('bomb.csv.gz', 'expands to more than 536870912 bytes'),
+                          ('evil_seed.csv', 'its seed is not a whole number')]:
+            _, ask = browser(op='load', name=name)
+            alerts = [ask] if ask is not None and ask.get('kind') == 'alert' else []
+            check('Load refuses %s with its name and why' % name,
+                  len(alerts) == 1 and name in alerts[0].get('message', '') and why in alerts[0].get('message', ''),
+                  str([a.get('message') for a in alerts]))
+            if alerts:
+                snd(cmd='answer', id=alerts[0]['id'], ok=0)
+                col(is_idle)
     finally:
         stop_server(p, r, snd)
 

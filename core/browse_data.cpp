@@ -769,7 +769,7 @@ void data_read(xpp::Session &s, BROWSER *b, std::string_view format, std::string
  if(!f||!f->read)f=xpp::data_format_named("dat"); /* any other name: XPP's own */
  xpp::DataTable t;
  if(!f->read(fil.c_str(),t)){
-   respond_box("Ok",xpp::format("Cannot read {} as {}",fil,f->title));
+   respond_box("Ok",xpp::format("Cannot read {} as {}{}",fil,f->title,t.error.empty()?"":": "+t.error));
    return;
  }
  /*  The file's columns fill the stored ones in order: more columns than

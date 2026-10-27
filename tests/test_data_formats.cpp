@@ -272,6 +272,14 @@ int main(void)
         /* two members, one after the other */
         CHECK(xpp::zip::gunzip(xpp::zip::gzip("ab") + xpp::zip::gzip("cd")) == std::string("abcd"));
         CHECK(xpp::zip::gunzip(xpp::zip::gzip("")) == std::string());
+        /* the budget: the members together may not pass it */
+        bool over = false;
+        CHECK(xpp::zip::gunzip(xpp::zip::gzip(std::string(1000, 'x')), 1000, &over) && !over);
+        CHECK(!xpp::zip::gunzip(xpp::zip::gzip(std::string(1001, 'x')), 1000, &over) && over);
+        over = false;
+        CHECK(!xpp::zip::gunzip(xpp::zip::gzip(std::string(600, 'x')) + xpp::zip::gzip(std::string(600, 'y')), 1000, &over) && over);
+        over = false;
+        CHECK(!xpp::zip::gunzip("not gzip at all, not at all", 1000, &over) && !over);
     }
 
     /* ---- NPZ: a zip of .npy files, one float64 array per column */
@@ -348,6 +356,61 @@ int main(void)
         const std::uint32_t declared = xpp::zip::archive_bytes_limit + 1;
         for (int i = 0; i < 4; i++) oversized[central + 24 + i] = static_cast<char>(declared >> (8 * i));
         CHECK(!xpp::zip::read_zip(oversized));
+    }
+
+    /* a hostile .npz: the header's shape, a seed */
+    {
+        const auto npz_with = [](const std::string &shape, const std::string &payload, const char *name = "a.npy") {
+            std::string header = "{'descr': '<f8', 'fortran_order': False, 'shape': " + shape + ", }";
+            header.append((64 - (10 + header.size() + 1) % 64) % 64, ' ');
+            header += '\n';
+            std::string npy("\x93NUMPY\x01\x00", 8);
+            npy += static_cast<char>(header.size() & 0xff);
+            npy += static_cast<char>(header.size() >> 8);
+            return xpp::zip::make_zip({{name, npy + header + payload}});
+        };
+        const auto refused = [&](const std::string &npz, const std::string &why) {
+            xpp::DataTable r;
+            const bool ok = xpp::npz_table(npz, r);
+            return !ok && r.columns.empty() && r.error.find(why) != std::string::npos;
+        };
+        const std::string two(16, '\0');
+        xpp::DataTable r;
+        CHECK(xpp::npz_table(npz_with("(2,)", two), r) && r.columns.size() == 1 && r.columns[0].size() == 2);
+        CHECK(xpp::npz_table(npz_with("(0, 0)", ""), r)); /* empty is allowed */
+        CHECK(refused(npz_with("(0, 18446744073709551615)", ""), "more than 4096 columns"));
+        CHECK(refused(npz_with("(0, 4097)", ""), "more than 4096 columns"));
+        CHECK(refused(npz_with("(1, 99999999999999999999999)", two), "too large to count"));
+        CHECK(refused(npz_with("(18446744073709551615, 2)", two), "more values than its data holds"));
+        CHECK(refused(npz_with("(3,)", two), "more values than its data holds"));
+        CHECK(refused(npz_with("(1, 2, 3)", two), "not an array"));
+        CHECK(refused(npz_with("(2,)", two.substr(0, 8)), "more values than its data holds"));
+        const std::string one(8, '\0');
+        CHECK(xpp::npz_table(npz_with("(1,)", one, "seed.npy"), r) && r.seed == 0);
+        const auto bits = [](double d) { std::string b(8, '\0'); std::memcpy(b.data(), &d, 8); return b; };
+        CHECK(xpp::npz_table(npz_with("(1,)", bits(-5), "seed.npy"), r) && r.seed == -5);
+        CHECK(refused(npz_with("(1,)", bits(1e300), "seed.npy"), "seed"));
+        CHECK(refused(npz_with("(1,)", bits(2147483648.0), "seed.npy"), "seed"));
+        CHECK(refused(npz_with("(1,)", bits(1.5), "seed.npy"), "seed"));
+        CHECK(refused(npz_with("(1,)", bits(std::nan("")), "seed.npy"), "seed"));
+        CHECK(refused(npz_with("(0,)", "", "seed.npy"), "seed"));
+        /* the same contract in a CSV header */
+        const xpp::DataFormat &csv = *xpp::data_format_named("csv");
+        const std::string sp = scratch("seed.csv");
+        const auto put = [&](const char *seed) {
+            xpp::Writer w = xpp::Writer::binary(sp.c_str());
+            CHECK(w.write(std::string("# seed ") + seed + "\nx\n1\n") && w.commit());
+        };
+        for (const char *seed : {"5", " -7 "}) {
+            put(seed);
+            xpp::DataTable c;
+            CHECK(csv.read(sp.c_str(), c) && c.seed);
+        }
+        for (const char *seed : {"abc", "5x", "1.5", "1e300", "nan", "99999999999", ""}) {
+            put(seed);
+            xpp::DataTable c;
+            CHECK(!csv.read(sp.c_str(), c) && c.error_line == 1 && c.error.find("seed") != std::string::npos);
+        }
     }
 
     TEST_REPORT("test_data_formats");

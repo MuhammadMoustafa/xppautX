@@ -18,10 +18,18 @@ namespace xpp::zip {
    bytes give the same file) */
 std::string gzip(std::string_view bytes);
 
+/* Cap archive input and total expanded bytes (a zip's entries together, a
+   gzip's members together): enough for a large data table, while bounding
+   what a sent file can make the program allocate; 4096 members covers
+   models and data columns without letting metadata create an unbounded
+   list. */
+inline constexpr std::size_t archive_bytes_limit = 512 * 1024 * 1024;
+inline constexpr std::size_t archive_entries_limit = 4096;
+
 /* the bytes of a gzip file (every member, one after the other), or
    nothing when it is not one or is damaged (a CRC or length that does
-   not match) */
-std::optional<std::string> gunzip(std::string_view gz);
+   not match) or expands past limit (then *over_limit, when given, is true) */
+std::optional<std::string> gunzip(std::string_view gz, std::size_t limit = archive_bytes_limit, bool *over_limit = nullptr);
 
 /* an entry of a zip archive: its name and its (uncompressed) bytes */
 struct Entry {
@@ -37,11 +45,6 @@ bool is_zip(std::string_view bytes);
 
 /* the file entries of a zip archive (folders left out), in the archive's
    order, or nothing when it is not one or an entry cannot be read */
-/* Cap archive input and total expanded bytes: enough for a large data table,
-   while bounding a sent archive's decompression; 4096 members covers models
-   and data columns without letting metadata create an unbounded list. */
-inline constexpr std::size_t archive_bytes_limit = 512 * 1024 * 1024;
-inline constexpr std::size_t archive_entries_limit = 4096;
 std::optional<std::vector<Entry>> read_zip(std::string_view zip);
 
 } // namespace xpp::zip

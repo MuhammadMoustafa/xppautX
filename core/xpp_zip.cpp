@@ -21,6 +21,7 @@ namespace {
 struct Sink {
     std::string bytes;
     bool out_of_memory = false;
+    bool over_limit = false; /* a gunzip's output would pass limit */
     std::size_t limit = std::numeric_limits<std::size_t>::max();
 };
 
@@ -28,6 +29,10 @@ mz_bool put_deflated(const void *buf, int len, void *user)
 {
     Sink &s = *static_cast<Sink *>(user);
     try {
+        if (static_cast<std::size_t>(len) > s.limit - s.bytes.size()) {
+            s.over_limit = true;
+            return MZ_FALSE;
+        }
         s.bytes.append(static_cast<const char *>(buf), static_cast<std::size_t>(len));
     } catch (const std::bad_alloc &) {
         s.out_of_memory = true;
@@ -80,8 +85,8 @@ std::uint32_t crc32_of(std::string_view s)
 constexpr unsigned FHCRC = 2, FEXTRA = 4, FNAME = 8, FCOMMENT = 16;
 
 /* one gzip member of gz from pos: its bytes appended to out, pos past it;
-   false when it is not one or is damaged */
-bool gunzip_member(std::string_view gz, std::size_t &pos, std::string &out, bool &oom)
+   false when it is not one or is damaged, or out would pass limit (over) */
+bool gunzip_member(std::string_view gz, std::size_t &pos, std::string &out, std::size_t limit, bool &oom, bool &over)
 {
     const auto byte = [&](std::size_t i) { return static_cast<unsigned char>(gz[i]); };
     if (gz.size() - pos < 18 || byte(pos) != 0x1f || byte(pos + 1) != 0x8b || byte(pos + 2) != 8) return false;
@@ -99,9 +104,11 @@ bool gunzip_member(std::string_view gz, std::size_t &pos, std::string &out, bool
     if (flags & FHCRC) p += 2;
     if (p >= gz.size()) return false;
     Sink s;
+    s.limit = limit - out.size();
     std::size_t in = gz.size() - p;
     const int ok = tinfl_decompress_mem_to_callback(gz.data() + p, &in, put_inflated, &s, 0);
     if (s.out_of_memory) oom = true;
+    if (s.over_limit) over = true;
     if (ok != 1) return false;
     p += in;
     if (gz.size() - p < 8) return false;
@@ -131,15 +138,16 @@ std::string gzip(std::string_view bytes)
     }
 }
 
-std::optional<std::string> gunzip(std::string_view gz)
+std::optional<std::string> gunzip(std::string_view gz, std::size_t limit, bool *over_limit)
 {
     try {
         std::string out;
         std::size_t pos = 0;
-        bool oom = false;
+        bool oom = false, over = false;
         do {
-            if (!gunzip_member(gz, pos, out, oom)) {
+            if (!gunzip_member(gz, pos, out, limit, oom, over)) {
                 if (oom) xpp::out_of_memory("decompressing");
+                if (over_limit) *over_limit = over;
                 return std::nullopt;
             }
             /* what follows the last member: nothing, or zeros some tools pad with */

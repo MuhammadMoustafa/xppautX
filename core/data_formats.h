@@ -31,6 +31,7 @@ struct DataTable {
        including CSV's header and seed comment. Binary tables have none. */
     std::vector<int> lines;
     int error_line = 0; /* a failed text read keeps only its offending line */
+    std::string error;  /* and, when the reader knows it, why it refused (a limit, a bad seed) */
     /* column 0 numbers each row's curve (what the plot shows, one long
        table): NPZ writes one array per curve instead of one per column */
     bool curves = false;
@@ -42,6 +43,12 @@ struct DataTable {
     std::size_t rows() const { return !fields.empty() ? fields[0].size() : columns.empty() ? 0 : columns[0].size(); }
     int line(std::size_t row) const { return row < lines.size() ? lines[row] : static_cast<int>(row) + 1; }
 };
+
+/* Most columns one data file may give: an .npy header names its shape
+   without the bytes to back it, so the count of columns (each a name and a
+   vector) is bounded by itself; the file's bytes are bounded by
+   zip::archive_bytes_limit. The same count as a zip's members. */
+inline constexpr std::size_t data_columns_limit = 4096;
 
 /* column i's name */
 std::string data_column_name(const DataTable &t, std::size_t i);
