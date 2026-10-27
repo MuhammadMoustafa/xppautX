@@ -10,6 +10,7 @@ namespace xpp {
 
 struct Session; /* session.h */
 struct Model; /* model.h */
+class TypedFields; /* typed_values.h */
 
 /* the first character of s2 found in s1 from i0 on: its index in s2, *i1
    where it is; -1 when there is none */
@@ -38,8 +39,10 @@ std::vector<OdeItem> ode_items(std::string_view rhs);
    is malformed. A line of initial data x[..](0)=... goes to
    extract_ic_data, into m's array initial values (when there is an m),
    which may rewrite old. */
-int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Model *m=nullptr);
-/* big with its subscripts worked out for index k */
-void subsk(std::string_view big, std::string &newstr, int k, int flag);
+/* fields, when supplied by the animation reader, checks whole-number endpoints. */
+int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Model *m=nullptr, TypedFields *fields=nullptr);
+/* big with its subscripts worked out for index k; fields checks subscript
+   numbers and arithmetic and keeps failures instead of failing a model load. */
+void subsk(std::string_view big, std::string &newstr, int k, int flag, TypedFields *fields=nullptr);
 
 } // namespace xpp

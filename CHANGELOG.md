@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- A refused animation file leaves the working animation, selected filename, grabs and displayed frame intact. The existing reader stages the replacement and applies it only after validation; errors name the animation file and its physical line, including grab tasks and continued lines. Animation files use the model-file 512 MiB input budget; array expansion is checked and limited to 100000 commands per file (W507, [#571](https://github.com/MuhammadMoustafa/xppautX/issues/571)).
+
 - Delay-differential runs take about 12% fewer instructions, with the same results to the bit (W514, [#578](https://github.com/MuhammadMoustafa/xppautX/issues/578)): the delay interpolation `polint` is straight-line code.
 - The retained bundled CVODE solver has C++ interfaces in `xpp::cvode_solver`, with typed solver handles and reference outputs; its numerical operations are unchanged (W511, [#575](https://github.com/MuhammadMoustafa/xppautX/issues/575)).
 

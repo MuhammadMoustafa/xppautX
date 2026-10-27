@@ -28,6 +28,7 @@
 #include "xpp_log.h"
 #include "expr.h"
 #include "xpp_io.h"
+#include "xpp_zip.h"
 #include "form_ode.h"
 #include "my_rhs.h"
 #include "nullcline.h"
@@ -120,7 +121,6 @@ constexpr int on_the_fly_speed = 10;
 void set_ani_font_stuff(xpp::Session &s, int size, int font, const xpp::Color &color);
 void eval_ani_color(xpp::Session &s, int j);
 void eval_ani_com(xpp::Session &s, int j);
-void free_ani(xpp::Session &s);
 void do_grab_tasks(xpp::Session &s, int which);
 void draw_grab_points(xpp::Session &s);
 
@@ -218,15 +218,19 @@ namespace {
    there) goes on with the next; the end of the line becomes a space and
    one more follows, as the parser has always seen it. eof once nothing is
    left to read. */
-std::string read_ani_line(xpp::LineReader &fp, bool &eof)
+std::string read_ani_line(xpp::LineReader &fp, bool &eof, int &lines, Place &place)
 {
     std::string s;
+    place.line = lines + 1;
+    place.source.clear();
     for (;;) {
         std::optional<std::string_view> line = fp.next();
         if (!line) {
             eof = true;
             break;
         }
+        if (lines + 1 == place.line) place.source = *line;
+        ++lines;
         const size_t hat = line->find('\\');
         if (hat == std::string_view::npos) {
             s.append(*line);
@@ -403,7 +407,7 @@ int add_ani_settext(xpp::TypedFields &f, AniCom &a, const std::string &x1, std::
     return 0;
 }
 
-void set_ani_dimension(xpp::Session &s, xpp::TypedFields &f, const std::string &x1, const std::string &y1, const std::string &x2, const std::string &y2)
+void set_ani_dimension(AnimationState &animation, xpp::TypedFields &f, const std::string &x1, const std::string &y1, const std::string &x2, const std::string &y2)
 {
     const double xx1 = f.real("dimension", x1);
     const double xx2 = f.real("dimension", x2);
@@ -412,14 +416,14 @@ void set_ani_dimension(xpp::Session &s, xpp::TypedFields &f, const std::string &
     if (f.error()) return;
 
     if ((xx1 < xx2) && (yy1 < yy2)) {
-        s.animation.xlo = xx1;
-        s.animation.xhi = xx2;
-        s.animation.ylo = yy1;
-        s.animation.yhi = yy2;
+        animation.xlo = xx1;
+        animation.xhi = xx2;
+        animation.ylo = yy1;
+        animation.yhi = yy2;
     }
 }
 
-int add_ani_com(xpp::Session &s, xpp::TypedFields &f, int type, const std::string &x1, std::string &y1, const std::string &x2, const std::string &y2,
+int add_ani_com(xpp::Session &s, AnimationState &animation, xpp::TypedFields &f, int type, const std::string &x1, std::string &y1, const std::string &x2, const std::string &y2,
                 std::string &col, const std::string &thick)
 {
     int err = 0;
@@ -427,7 +431,7 @@ int add_ani_com(xpp::Session &s, xpp::TypedFields &f, int type, const std::strin
         return 1;
     AniCom a;
     a.type = type;
-    a.flag = s.animation.aniflag;
+    a.flag = animation.aniflag;
     switch (type) {
     case AXNULL:
     case AYNULL:
@@ -461,34 +465,26 @@ int add_ani_com(xpp::Session &s, xpp::TypedFields &f, int type, const std::strin
         break;
     }
     if (f.error()) err = -1;
-    if (err < 0) {
-        free_ani(s);
-        return -1;
-    }
-    s.animation.commands.push_back(std::move(a));
-    s.animation.ncom = static_cast<int>(s.animation.commands.size());
+    if (err < 0) return -1;
+    animation.commands.push_back(std::move(a));
+    animation.ncom = static_cast<int>(animation.commands.size());
     return 1;
 }
 
-void init_ani_stuff(xpp::Session &s)
+void init_ani_stuff(AnimationState &animation)
 {
-    s.animation.xlo = 0.0;
-    s.animation.ylo = 0.0;
-    s.animation.xhi = 1.0;
-    s.animation.yhi = 1.0;
-    s.animation.aniflag = TRANSIENT;
-    s.animation.commands.clear();
-    s.animation.ncom = 0;
-    s.animation.lastx = 0.0;
-    s.animation.lasty = 0.0;
-    s.animation.vcr.pos = 0;
-    s.animation.grab_flag = 0; /*********** GRABBER *******************/
-    s.animation.grabs.clear();
-}
-
-void free_ani(xpp::Session &s)
-{
-    init_ani_stuff(s);
+    animation.xlo = 0.0;
+    animation.ylo = 0.0;
+    animation.xhi = 1.0;
+    animation.yhi = 1.0;
+    animation.aniflag = TRANSIENT;
+    animation.commands.clear();
+    animation.ncom = 0;
+    animation.lastx = 0.0;
+    animation.lasty = 0.0;
+    animation.vcr.pos = 0;
+    animation.grab_flag = 0; /*********** GRABBER *******************/
+    animation.grabs.clear();
 }
 
 /*************************  GRABBER CODE *****************************/
@@ -536,13 +532,9 @@ int ani_grab_tasks(xpp::Session &s, xpp::TypedFields &f, const std::string &line
 }
 
 /* grab x;y;tol, then its start and end tasks on the next two lines */
-int add_grab_command(xpp::Session &s, xpp::TypedFields &f, const std::string &xs, const std::string &ys, const std::string &ts, xpp::LineReader &fp)
+int add_grab_command(xpp::Session &s, AnimationState &animation, xpp::TypedFields &f, const std::string &xs, const std::string &ys, const std::string &ts, xpp::LineReader &fp, int &lines, Place &place)
 {
-    bool eof = false;
-    const std::string start = read_ani_line(fp, eof);
-    const std::string end = read_ani_line(fp, eof);
-
-    if (static_cast<int>(s.animation.grabs.size()) >= MAX_ANI_GRAB) {
+    if (static_cast<int>(animation.grabs.size()) >= MAX_ANI_GRAB) {
         f.fail("grab", xpp::format("an animation has at most {} grabbables", MAX_ANI_GRAB));
         return (-1);
     }
@@ -559,9 +551,16 @@ int add_grab_command(xpp::Session &s, xpp::TypedFields &f, const std::string &xs
         xpp::log(XPP_LOG_WARN, "Bad grab y {} \n", ys);
         return (-1);
     }
-    if (ani_grab_tasks(s, f, start, g, 1) < 0) return (-1);
-    if (ani_grab_tasks(s, f, end, g, 2) == (-1)) return (-1);
-    s.animation.grabs.push_back(std::move(g));
+    for (int which : {1, 2}) {
+        bool eof = false;
+        const std::string tasks = read_ani_line(fp, eof, lines, place);
+        if (eof) {
+            f.fail("grab", "a grab needs both start and end task lines");
+            return -1;
+        }
+        if (ani_grab_tasks(s, f, tasks, g, which) < 0) return -1;
+    }
+    animation.grabs.push_back(std::move(g));
     return (1);
 }
 
@@ -622,7 +621,7 @@ bool read_args(xpp::Tokens &tokens, std::initializer_list<Arg> args)
 
 /*  The reader is an argument since the GRAB command reads in two
     additional lines */
-int parse_ani_string(xpp::Session &s, xpp::TypedFields &f, std::string &text, xpp::LineReader &fp)
+int parse_ani_string(xpp::Session &s, AnimationState &animation, xpp::TypedFields &f, std::string &text, xpp::LineReader &fp, int &lines, Place &place)
 {
     std::string x1, x2, x3, x4, col, thick;
     int type = COMNT;
@@ -637,7 +636,7 @@ int parse_ani_string(xpp::Session &s, xpp::TypedFields &f, std::string &text, xp
     switch (type) {
     case GRAB:
         if (!read_args(tokens, {{&x1, ";", false}, {&x2, ";", false}, {&x3, ";", false}})) return -1;
-        return add_grab_command(s, f, x1, x2, x3, fp);
+        return add_grab_command(s, animation, f, x1, x2, x3, fp, lines, place);
     case AXNULL:
     case AYNULL:
         ok = read_args(tokens, {{&x1, ";", false},
@@ -685,7 +684,7 @@ int parse_ani_string(xpp::Session &s, xpp::TypedFields &f, std::string &text, xp
     case SPEED: {
         std::optional<std::string_view> nxt = tokens.next(" \n");
         if (!nxt) return -1;
-        s.animation.speed = f.integer("speed", std::string(*nxt), 0, MAX_ANI_SPEED);
+        animation.speed = f.integer("speed", std::string(*nxt), 0, MAX_ANI_SPEED);
         return f.error() ? -1 : 1;
     }
     case DIMENSION:
@@ -696,61 +695,64 @@ int parse_ani_string(xpp::Session &s, xpp::TypedFields &f, std::string &text, xp
 
     if (type == END) return 0;
     if (type == TRANSIENT) {
-        s.animation.aniflag = TRANSIENT;
+        animation.aniflag = TRANSIENT;
         return 1;
     }
     if (type == COMNT) return 1;
     if (type == PERMANENT) {
-        s.animation.aniflag = PERMANENT;
+        animation.aniflag = PERMANENT;
         return 1;
     }
 
     if (type == DIMENSION) {
-        set_ani_dimension(s, f, x1, x2, x3, x4);
+        set_ani_dimension(animation, f, x1, x2, x3, x4);
         return f.error() ? -1 : 1;
     }
-    return (add_ani_com(s, f, type, x1, x2, x3, x4, col, thick));
+    return (add_ani_com(s, animation, f, type, x1, x2, x3, x4, col, thick));
 }
 
-/* the lines of the .ani file fp (named filename) applied to s: a line that
-   does not parse, or a value that is not one of its numbers, stops the load
-   with the file, the line and what is wrong; nothing of the file stays
-   (the commands are freed, the settings the lines set go back) */
-xpp::Result<> load_ani_file(xpp::Session &s, xpp::LineReader &fp, const char *filename)
-{
-    std::string expanded, big;
-    int jj1, jj2;
-    int ans = 0, flag;
-    bool eof = false;
-    const int speed0 = s.animation.speed, aniflag0 = s.animation.aniflag;
-    const double xlo0 = s.animation.xlo, xhi0 = s.animation.xhi, ylo0 = s.animation.ylo, yhi0 = s.animation.yhi;
-    s.animation.lineno = 1;
-    for (;;) {
-        std::string old = read_ani_line(fp, eof);
-        auto give_up = [&](const std::string &what) {
-            xpp::log(XPP_LOG_DEBUG, " error at line {}\n", s.animation.lineno);
-            free_ani(s);
-            s.animation.speed = speed0;
-            s.animation.aniflag = aniflag0;
-            s.animation.xlo = xlo0;
-            s.animation.xhi = xhi0;
-            s.animation.ylo = ylo0;
-            s.animation.yhi = yhi0;
-            return xpp::fail("animation", what, xpp::Place{filename, s.animation.lineno, 0, old});
-        };
-        xpp::search_array(old.data(), expanded, &jj1, &jj2, &flag);
-        for (int jj = jj1; jj <= jj2; jj++) {
-            xpp::subsk(expanded, big, jj, flag);
-            xpp::TypedFields fields(s);
-            ans = parse_ani_string(s, fields, big, fp);
-            if (fields.error()) return give_up(*fields.error());
-        }
+/* Bound the work from compact array commands as well as ordinary commands:
+   a sent .ani must not expand into arbitrarily many compiled objects. */
+constexpr int max_ani_commands = 100000;
 
-        if (ans == 0 || eof) break;
-        if (ans < 0) return give_up("This line is not an animation command");
-        s.animation.lineno++;
+/* Parse into a new value. No Session animation or displayed frame changes
+   until the whole read succeeds, including the extra lines of each grab. */
+xpp::Result<AnimationState> load_ani_file(xpp::Session &s, xpp::LineReader &fp, const char *filename)
+{
+    /* Keep window/options/runtime settings; only the parsed contents reset. */
+    AnimationState animation = s.animation;
+    init_ani_stuff(animation);
+    animation.vcr.file = filename;
+    animation.vcr.ok = 1;
+    int lines = 0, commands = 0;
+    bool eof = false;
+    for (;;) {
+        Place place{filename, lines + 1};
+        std::string old = read_ani_line(fp, eof, lines, place);
+        if (eof && xpp::trim_blanks(old).empty()) break;
+        std::string expanded, big;
+        int first, last, flag;
+        xpp::TypedFields fields(s);
+        if (!xpp::search_array(old.data(), expanded, &first, &last, &flag, nullptr, &fields))
+            return xpp::fail("animation", "Invalid animation array range", place);
+        if (fields.error()) return xpp::fail("animation", *fields.error(), place);
+        const auto count = static_cast<long long>(last) - first + 1;
+        if (count <= 0 || count > max_ani_commands - commands)
+            return xpp::fail("animation", xpp::format("animation expansion must fit within {} commands", max_ani_commands), place);
+        commands += static_cast<int>(count);
+        const Place command = place;
+        for (int offset = 0; offset < count; ++offset) {
+            place = command;
+            xpp::subsk(expanded, big, first + offset, flag, &fields);
+            if (fields.error()) return xpp::fail("animation", *fields.error(), place);
+            const int ans = parse_ani_string(s, animation, fields, big, fp, lines, place);
+            if (fields.error()) return xpp::fail("animation", *fields.error(), place);
+            if (ans < 0) return xpp::fail("animation", "This line is not an animation command", place);
+            if (ans == 0) return animation;
+        }
+        if (eof) break;
     }
-    return {};
+    return animation;
 }
 
 /* the .ani filename: --anifile's is one of the model's files (model_file,
@@ -761,14 +763,22 @@ xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_fil
         const xpp::Result<> allowed = xpp::approve_model_path(s.model(), filename, xpp::Place{});
         if (!allowed) return std::unexpected(allowed.error());
     }
-    xpp::LineReader fp = model_file ? xpp::model_file_lines(s.model(),filename) : xpp::LineReader(filename);
+    xpp::LineReader fp;
+    if (model_file) fp = xpp::model_file_lines(s.model(), filename);
+    else {
+        std::string bytes;
+        if (!xpp::read_bytes(filename, bytes, xpp::zip::archive_bytes_limit))
+            return xpp::fail("animation", xpp::format("cannot be read in full within the {} byte input limit", xpp::zip::archive_bytes_limit), Place{filename});
+        fp = xpp::LineReader::of_text(std::move(bytes));
+    }
     if (!fp) {
         return std::unexpected(xpp::files::open_error("animation", filename));
     }
-    if (s.animation.ncom > 0) free_ani(s);
-    /* a new animation: its frames start again, nothing of the old one shows */
+    auto animation = load_ani_file(s, fp, filename);
+    if (!animation) return std::unexpected(animation.error());
+    s.animation = std::move(*animation);
     ani_data_forget(s);
-    return load_ani_file(s, fp, filename);
+    return {};
 }
 
 void ani_frame(xpp::Session &s, int task)
@@ -1102,17 +1112,11 @@ void ani_zero(xpp::Session &s)
 
 int get_ani_file(xpp::Session &s, const char *fname)
 {
-    if (fname == nullptr) {
-        std::string file = s.animation.vcr.file;
-        if (file_selector("Load animation", file, "*.ani") == 0) return 0;
-        s.animation.vcr.file = file;
-    } else if (fname != s.animation.vcr.file.c_str())
-        s.animation.vcr.file = fname;
-    const bool model_file = fname != nullptr && s.animation.options.use_file && s.animation.vcr.file == s.animation.options.file;
-    if (!xpp::ok_or_show(ani_new_file(s,s.animation.vcr.file.c_str(), model_file))) return 0;
-    s.animation.vcr.ok = 1; /* loaded and compiled */
+    std::string file = fname ? fname : s.animation.vcr.file;
+    if (fname == nullptr && file_selector("Load animation", file, "*.ani") == 0) return 0;
+    const bool model_file = fname != nullptr && s.animation.options.use_file && file == s.animation.options.file;
+    if (!xpp::ok_or_show(ani_new_file(s, file.c_str(), model_file))) return 0;
     xpp::log(XPP_LOG_INFO, "Loaded {} lines successfully!\n", s.animation.ncom);
-    s.animation.grab_flag = 0;
     return 1;
 }
 

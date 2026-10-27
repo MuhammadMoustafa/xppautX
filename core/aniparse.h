@@ -120,8 +120,6 @@ struct AnimationState {
   int aniflag = 0;
   /* the colour eval_ani_color found last: a comet's next point's */
   Color last_color = foreground_color;
-  /* the .ani file's line being parsed */
-  int lineno = 0;
   /* the `dimension` box, and where the last line ended (rline) */
   double xlo = 0, xhi = 1, ylo = 0, yhi = 1;
   double lastx = 0, lasty = 0;

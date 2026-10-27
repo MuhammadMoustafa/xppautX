@@ -14,6 +14,7 @@
    old-style model (the number of equations on its first line) is read
    and built line by line (form_ode.cpp's build_old_style). */
 #include "ode_read.h"
+#include "typed_values.h"
 #include <limits>
 #include "comline.h"
 #include "expr.h"
@@ -1183,7 +1184,7 @@ int find_char(std::string_view s1, std::string_view s2, int i0, int *i1)
    or 2 for a %[i..j] for loop): newstr. 0 (newstr old) when the range
    is malformed. A line of initial data x[..](0)=... goes to
    extract_ic_data, which may rewrite old. */
-int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Model *m)
+int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Model *m, TypedFields *fields)
 {
   int i,j;
   int ileft,iright;
@@ -1247,16 +1248,16 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Mo
       }
     }
   }
-  if (Load::running()) {
+  if (Load::running() && !fields) {
     for (const std::string *end : {&num1,&num2}) {
       double value=0;
       if (parse_number(*end,value) && (value < std::numeric_limits<int>::min() || value > std::numeric_limits<int>::max()))
         model_failed(xpp::format("the range endpoint `{}` is outside the whole-number index range",*end));
     }
   }
-  *i1=atoi(num1.c_str());
-  *i2=atoi(num2.c_str());
-  if (Load::running())
+  *i1=fields ? fields->integer("range start", num1) : atoi(num1.c_str());
+  *i2=fields ? fields->integer("range end", num2) : atoi(num2.c_str());
+  if (Load::running() && !fields)
     if (const auto why = odex::range_problem(*i1,*i2,1)) model_failed(*why);
   /* now we have the numbers and will get rid of the junk inbetween */
   newstr.assign(old,old+ileft+1);
@@ -1269,7 +1270,7 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Mo
 
 /* big with its subscripts worked out for index k: [n] becomes n, [j+n]
    k+n, [j-n] k-n, [j*n] k*n ([j] only in an array line, flag nonzero) */
-void subsk(std::string_view big_text, std::string &newstr, int k, int flag)
+void subsk(std::string_view big_text, std::string &newstr, int k, int flag, TypedFields *fields)
 {
   /* read as a C string: the scan looks one past a character */
   const std::string big_copy(big_text);
@@ -1284,7 +1285,8 @@ void subsk(std::string_view big_text, std::string &newstr, int k, int flag)
     return;
   }
   /* the subscript's text runs to its ']' */
-  auto unterminated=[big](){
+  auto unterminated=[big,fields](){
+    if (fields) { fields->fail("subscript", "the expression does not terminate; a ] is missing"); return; }
     model_failed(xpp::format("Error in {}: the expression does not terminate. Perhaps a ] is missing.",big));
   };
   while(i<n){
@@ -1295,11 +1297,11 @@ void subsk(std::string_view big_text, std::string &newstr, int k, int flag)
       num.clear();
       i++;
       while(ok){
-	if(i>=n)unterminated();
+	if(i>=n) { unterminated(); return; }
 	ch=big[i];
 	i++;
 	if(ch==']'){
-	  add=atoi(num.c_str());
+	  add=fields ? fields->integer("subscript", num) : atoi(num.c_str());
 	  newstr+=std::to_string(add);
 	  ok=false;
 	}
@@ -1309,6 +1311,7 @@ void subsk(std::string_view big_text, std::string &newstr, int k, int flag)
     }
     else if(ch=='['&&chp=='j'){
       if(flag==0){
+        if (fields) { fields->fail("subscript", "[j] needs an array range"); return; }
 	xpp::log(XPP_LOG_WARN, " Illegal use of [j] at {} \n",big);
 	model_failed();
       }
@@ -1317,7 +1320,7 @@ void subsk(std::string_view big_text, std::string &newstr, int k, int flag)
       i+=2;
       ok=true;
       while(ok){
-	if(i>=n)unterminated();
+	if(i>=n) { unterminated(); return; }
 	ch=big[i];
 	switch(ch){
 	case '+':
@@ -1335,7 +1338,17 @@ void subsk(std::string_view big_text, std::string &newstr, int k, int flag)
 	  break;
 	case ']':
 	  i++;
-	  if(multflag==0){
+          if (fields) {
+            const int value = num.empty() ? 0 : fields->integer("subscript", num);
+            const auto result = multflag == 0 ? static_cast<long long>(value)*isign+k : static_cast<long long>(value)*k;
+            if (result < std::numeric_limits<int>::min() || result > std::numeric_limits<int>::max()) {
+              fields->fail("subscript", "expanded subscript is outside the whole-number index range");
+              return;
+            }
+            add = static_cast<int>(result);
+            multflag = 0;
+          }
+          else if(multflag==0){
 	    add=atoi(num.c_str())*isign+k;
 	  }
 	  else {
