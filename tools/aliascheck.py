@@ -25,7 +25,7 @@ ALLOW = {
     ("xpp_http.cpp", "write"): "platform shim: Windows _write",
     ("xpp_http.cpp", "read"): "platform shim: Windows _read",
     ("cvode.cpp", "H_BIAS"): "vendored CVODE constant",
-    ("auto_f2c.h", "doublecomplex"): "vendored f2c: single-line struct definition",
+    ("auto_f2c.h", "doublecomplex"): "f2c's complex struct: a real type, not a second name",
     ("auto_f2c.h", "logical"): "vendored f2c typedef",
     ("cvode.cpp", "HMIN_DEFAULT"): "vendored CVODE default constant",
     ("cvode.cpp", "HMAX_INV_DEFAULT"): "vendored CVODE default constant",

@@ -4,6 +4,7 @@
    the user's real file is never touched). The protocol side (get, set,
    reset, hello) is tools/servercheck.py's keymap section. */
 #include "xpptest.h"
+#include "test_support.h"
 #include "command_table.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
@@ -45,16 +46,6 @@ void check_keys()
         CHECK(!xpp::keymap::key_problem(bad).empty());
     CHECK(!xpp::keymap::key_problem(std::string(xpp::keymap::MAX_KEY_BYTES + 1, 'A')).empty());
     CHECK(xpp::keymap::is_reserved_key("Ctrl+W") && xpp::keymap::is_reserved_key("F12") && !xpp::keymap::is_reserved_key("Ctrl+S"));
-}
-
-/* XPP_CONFIG_DIR set to dir, or unset for nullptr (MinGW has no setenv) */
-bool set_config_dir(const char *dir)
-{
-#ifdef _WIN32
-    return _putenv_s(xpp::files::CONFIG_DIR_ENV, dir ? dir : "") == 0;
-#else
-    return dir ? setenv(xpp::files::CONFIG_DIR_ENV, dir, 1) == 0 : unsetenv(xpp::files::CONFIG_DIR_ENV) == 0;
-#endif
 }
 
 struct Bad {

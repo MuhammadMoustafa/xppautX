@@ -360,8 +360,8 @@ struct FileCloser {
 using UniqueFile = std::unique_ptr<FILE, FileCloser>;
 
 /* path opened for reading, text ("r") or binary ("rb"); empty (false)
-   when it cannot be. Lines and numbers are read with LineReader and
-   LineReader below, which opens its own. */
+   when it cannot be. Lines are read with LineReader and
+   numbers with TokenReader below, which open their own. */
 inline UniqueFile open_read(std::string_view path) noexcept { return UniqueFile(xpp::files::open_stream(path, "r")); }
 inline UniqueFile open_read_binary(std::string_view path) noexcept
 {

@@ -23,16 +23,11 @@ import re
 import sys
 from pathlib import Path
 
+import cstrip
+
 BS = chr(92)
 ROOT = Path(__file__).resolve().parent.parent
 errors = []
-
-
-def strip(text):
-    """the source without comments and string/char literal contents kept
-    (case labels are char literals, so only comments go)"""
-    text = re.sub(r'/\*.*?\*/', lambda m: '\n' * m.group(0).count('\n'), text, flags=re.S)
-    return re.sub(r'//[^\n]*', '', text)
 
 
 def key_char(lit):
@@ -121,9 +116,9 @@ def check_handler(name, cases, keys):
 
 
 def main():
-    menus = strip((ROOT / 'core/menus.cpp').read_text(encoding='utf-8'))
+    menus = cstrip.strip_comments((ROOT / 'core/menus.cpp').read_text(encoding='utf-8'))
     # the three main-window menus' keys are the rows of core/command_table.h (W207)
-    table = strip((ROOT / 'core/command_table.h').read_text(encoding='utf-8'))
+    table = cstrip.strip_comments((ROOT / 'core/command_table.h').read_text(encoding='utf-8'))
     strings = {f'{m}_menu_keys': [] for m in ('main', 'file', 'num')}
     for m in re.finditer(r"\{(MAIN|FILE|NUM)_MENU,\s*('(?:\\.|[^'\\])+')\s*,", table):
         strings[f'{m.group(1).lower()}_menu_keys'].append(key_char(m.group(2)))
@@ -145,7 +140,7 @@ def main():
                 errors.append(f'menus.cpp: {name} lists key {chr(code)!r} twice')
 
     # the windows' key layers: an enum item per key, in the menu's order
-    header = strip((ROOT / 'core/menus.h').read_text(encoding='utf-8'))
+    header = cstrip.strip_comments((ROOT / 'core/menus.h').read_text(encoding='utf-8'))
     layers = {'AutoWindowKey': 'menu_auto_window', 'BrowserWindowKey': 'menu_browser_window',
               'AniWindowKey': 'menu_ani_window', 'AplotWindowKey': 'menu_aplot_window',
               'EquilibriumWindowKey': 'menu_equilibrium_window'}
@@ -161,7 +156,7 @@ def main():
         if count != sizes.get(menu):
             errors.append(f'menus.h: enum {enum} has {count} keys, {menu} has {sizes.get(menu)}')
 
-    cmds = strip((ROOT / 'core/commands.cpp').read_text(encoding='utf-8'))
+    cmds = cstrip.strip_comments((ROOT / 'core/commands.cpp').read_text(encoding='utf-8'))
     start = cmds.index('void commander(xpp::Session &s, int ch)')
     body = block(cmds, start)
     outer = block(body, body.index('switch (s.help_menu)'))
@@ -170,7 +165,7 @@ def main():
         inner = block(outer, outer.index('switch (ch)', i))
         check_handler(f'commander {menu}', top_cases(inner), strings.get(keys, []))
 
-    nums = strip((ROOT / 'core/numerics.cpp').read_text(encoding='utf-8'))
+    nums = cstrip.strip_comments((ROOT / 'core/numerics.cpp').read_text(encoding='utf-8'))
     start = nums.index('void  get_num_par(xpp::Session &s, char ch)')
     inner = block(nums, nums.index('switch(ch)', start))
     check_handler('get_num_par', top_cases(inner), strings.get('num_menu_keys', []))

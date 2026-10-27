@@ -4,6 +4,7 @@
    error, and every list and the file bounded; in a config folder of its own
    (XPP_CONFIG_DIR: the user's real file is never touched). */
 #include "xpptest.h"
+#include "test_support.h"
 #include "xpp_cpu.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
@@ -17,25 +18,6 @@
 namespace {
 
 constexpr const char *FILE_LABEL = "p.setx";
-
-bool set_config_dir(const char *dir)
-{
-#ifdef _WIN32
-    return _putenv_s(xpp::files::CONFIG_DIR_ENV, dir ? dir : "") == 0;
-#else
-    return dir ? setenv(xpp::files::CONFIG_DIR_ENV, dir, 1) == 0 : unsetenv(xpp::files::CONFIG_DIR_ENV) == 0;
-#endif
-}
-
-/* the absolute path of a made-up file, on either system */
-std::string abs_path(const std::string &name)
-{
-#ifdef _WIN32
-    return "C:/models/" + name;
-#else
-    return "/models/" + name;
-#endif
-}
 
 std::string quoted(const std::string &path) { return "\"" + path + "\""; }
 

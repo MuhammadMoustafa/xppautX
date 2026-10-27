@@ -63,6 +63,10 @@ if ! uv run --locked python tools/test_findingscheck.py; then
   echo "FINDINGS CHECK UNIT TESTS FAILED"
   exit 1
 fi
+if ! uv run --locked python tools/test_cstrip.py; then
+  echo "COMMENT STRIPPER UNIT TESTS FAILED"
+  exit 1
+fi
 if ! uv run --locked python tools/findingscheck.py > build/findingscheck.out 2>&1; then
   cat build/findingscheck.out
   echo "FINDINGS NUMBERING CHECK FAILED"

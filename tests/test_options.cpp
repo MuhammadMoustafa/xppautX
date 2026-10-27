@@ -10,6 +10,7 @@
    make test runs this from the top of the tree. */
 #include "load_args.h"
 #include "xpptest.h"
+#include "test_support.h"
 #include "session.h"
 #include "solver.h"
 #include "model.h"
@@ -64,15 +65,6 @@ bool answer_with(const std::string &text)
 #endif
     /* the file being read cannot be replaced on Windows: let go of it first */
     return std::freopen(none, "r", stdin) != nullptr && write_file(answers, text) && std::freopen(answers, "r", stdin) != nullptr;
-}
-
-bool set_config_dir(const char *dir)
-{
-#ifdef _WIN32
-    return _putenv_s(xpp::files::CONFIG_DIR_ENV, dir ? dir : "") == 0;
-#else
-    return dir ? setenv(xpp::files::CONFIG_DIR_ENV, dir, 1) == 0 : unsetenv(xpp::files::CONFIG_DIR_ENV) == 0;
-#endif
 }
 
 xpp::Session *load(const char *path)

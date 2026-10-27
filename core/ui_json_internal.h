@@ -1,5 +1,6 @@
-/* What the files of the JSON protocol front end share (C++ only; the C API
-   is ui_json.h). The front end is split by responsibility:
+/* What the files of the JSON protocol front end share (C++ only, namespace
+   xpp::json; ui_json.h is the public face). The front end is split by
+   responsibility:
 
    ui_json.cpp       the XppUi table, the command dispatch (handle_line),
                      the input classifier, script replay, install and hello

@@ -25,11 +25,13 @@
 #                                     (a file's reason is kept; a new file
 #                                     gets "REASON?", which --check fails
 #                                     until it is written)
-#   --builddir DIR                    read the objects already built in DIR
-#                                     (tools/sourcecheck.sh passes
-#                                     build/deadcode, which deadcode.sh has
-#                                     just built); without it, build/obj is
-#                                     brought up to date with make first
+#   --builddir DIR                    read the objects already built in DIR;
+#                                     every object the Makefile's
+#                                     print-objects names must be there, or
+#                                     the check fails (tools/sourcecheck.sh
+#                                     passes build/deadcode, which deadcode.sh
+#                                     has just built); without it, build/obj
+#                                     is brought up to date with make first
 # Linux/WSL (GNU nm's sysv format names each symbol's section).
 cd "$(dirname "$0")/.." || exit 1
 
@@ -52,7 +54,19 @@ fi
 if [ -z "$builddir" ]; then
   builddir=build/obj
   . tools/jobs.sh
-  make -s -j"$JOBS" xppautx >/dev/null || { echo "globalcheck: build failed"; exit 1; }
+  make -s -j"$JOBS" objects >/dev/null || { echo "globalcheck: build failed"; exit 1; }
+fi
+# the build's own list of objects (the Makefile's print-objects): a folder
+# holding only some of them would count a smaller total and pass (W510, #574)
+expected=$(make -s BUILDDIR="$builddir" print-objects) || { echo "globalcheck: cannot list the objects of $builddir"; exit 1; }
+missing=""
+for o in $expected; do
+  [ -f "$o" ] || missing="$missing $o"
+done
+if [ -n "$missing" ]; then
+  echo "globalcheck: $builddir is missing objects:$missing"
+  echo "globalcheck: build them first (make objects BUILDDIR=$builddir)"
+  exit 1
 fi
 
 tmp=$(mktemp -d) || exit 1
@@ -78,10 +92,6 @@ for src in core/*.cpp; do
       }' >> "$tmp/syms.txt"
   done
 done
-if [ ! -s "$tmp/syms.txt" ] && ! ls "$builddir"/*.o >/dev/null 2>&1; then
-  echo "globalcheck: no objects in $builddir"
-  exit 1
-fi
 sort -u "$tmp/syms.txt" > "$tmp/sorted.txt"
 
 baseline_of() {

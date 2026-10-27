@@ -370,12 +370,16 @@ LINK_X := $(call link,$(SERVER_SOURCES) $(CORE_SOURCES))
 # per build directory, so a MinGW build does not replace the Linux library
 CORELIB := $(BUILDDIR)/libxppcore.a
 
-.PHONY: all clean lib objects ltocheck lto-link xppautx test FORCE
+.PHONY: all clean lib objects print-objects ltocheck lto-link xppautx test FORCE
 all: xppautx
 lib: $(CORELIB)
 
 # every object, nothing linked (tools/warnings.sh)
 objects: $(CORE_OBJECTS) $(SERVER_OBJECTS) $(WINDOW_LIB_OBJECTS)
+# the same objects, named: tools/globalcheck.sh counts only these, and fails
+# when one is missing from its build folder (W510, #574)
+print-objects:
+	@echo $(CORE_OBJECTS) $(SERVER_OBJECTS) $(WINDOW_LIB_OBJECTS)
 
 # Types that disagree across files, such as an extern whose array bound is
 # not its definition's: an LTO link reports them (-Wlto-type-mismatch),
