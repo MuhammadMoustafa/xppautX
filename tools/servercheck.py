@@ -2571,6 +2571,17 @@ def check_error_places_of_each_kind():
         check('an error event: a table file that ends too soon is named at its own last line (W140b)',
               p.returncode == 1 and e.get('file') == 'short.tab' and e.get('line') == 4 and e.get('source') == '0.5'
               and 'too short' in e.get('error', ''), str(e))
+        # W505: every table number is read through the typed reader: a word, a nan or an infinite
+        # value or endpoint is refused at its own line, naming the value
+        for name, text, line, source in [('word.tab', '3\n0\n2\n1\nnonsense\n3\n', 5, 'nonsense'),
+                                         ('nanvalue.tab', '3\n0\n2\n1\n2\nnan\n', 6, 'nan'),
+                                         ('infend.tab', '3\n0\ninf\n1\n2\n3\n', 3, 'inf')]:
+            write(name, text)
+            write(name[:-4] + '.odex', "table tb \"%s\"\nx'=-x+tb(t)\n" % name)
+            e, p = load(name[:-4] + '.odex')
+            check('an error event: a table value that is not a finite number is named at its line (W505): ' + name,
+                  p.returncode == 1 and e.get('file') == name and e.get('line') == line and e.get('source') == source
+                  and 'is not a finite number' in e.get('error', ''), str(e))
 
         write('nan.odex', "# NaN at the first step\npar a=1\nx'=sqrt(x-2*a)\ninit x=1\n")
         code, out, err = run_replay([{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},

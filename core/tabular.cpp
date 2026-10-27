@@ -17,6 +17,7 @@
 #include <string.h>
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <optional>
 #include <string>
 #include <vector>
@@ -343,6 +344,11 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
     return problem(xpp::format("The table file ends after {} lines: it is too short",at));
   };
 
+  /* a table number: the whole line, blanks around it allowed, one finite
+     number (parse_number takes nan and inf too) */
+  auto number=[](const std::string &line,double &out){
+    return xpp::parse_number(xpp::trim_blanks(line),out)&&std::isfinite(out);
+  };
   /* the file's values and kind are applied only once the whole file is read */
   int interp=0; /* 0 linear, 1 closest step, 2 cubic spline */
   auto line0=next_line();
@@ -362,7 +368,7 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
         bob++;  /* skip past initial "i" to length */
       };
     if (!xpp::parse_int(bob,length))
-      return problem(xpp::format("Invalid table point count {}",bob));
+      return problem(xpp::format("\"{}\" is not a point count",bob));
   }
   if(length<2){
     return problem(xpp::format("A table has at least 2 values, not {}",length));
@@ -373,21 +379,22 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
   if(!line1){
     return too_short();
   }
-  xlo=atof(line1->c_str());
+  if(!number(*line1,xlo)) return problem(xpp::format("\"{}\" is not a finite number: the table's low end",*line1));
   auto line2=next_line();
   if(!line2){
     return too_short();
   }
-  xhi=atof(line2->c_str());
+  if(!number(*line2,xhi)) return problem(xpp::format("\"{}\" is not a finite number: the table's high end",*line2));
   if(xlo>=xhi){
     return problem(xpp::format("Its high end {:g} is not above its low end {:g}",xhi,xlo));
   }
+  if(!std::isfinite(xhi-xlo)) return problem(xpp::format("The table's range from {:g} to {:g} is too wide",xlo,xhi));
   bool fresh=(s.tables[index].flag==0);
   std::vector<double> values(static_cast<std::size_t>(length));
   for(i=0;i<length;i++){
     auto line=next_line();
     if(!line) return too_short();
-    values[i]=atof(line->c_str());
+    if(!number(*line,values[i])) return problem(xpp::format("\"{}\" is not a finite number: table value {} of {}",*line,i+1,length));
   }
   /* a re-read must keep every network's values in range (nothing is applied
      when it does not) */

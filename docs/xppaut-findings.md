@@ -118,6 +118,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [85](#85-the-cross-spectrum-averages-one-window-more-than-it-divides-by) | Spectra | the cross spectrum and coherence loop over `kwin+1` windows (the last wraps round the data) but divide by `kwin`, where the spectrum loops over `kwin`: the cross product is over-normalized and an extra window biases both spectra and coherence | [W489 / #553](https://github.com/MuhammadMoustafa/xppautX/issues/553) |
 | [86](#86-the-fold-test-at-the-first-point-of-cycles-from-a-hopf-point-is-read-from-the-predictors-jacobian) | AUTO | the second point of cycles from a Hopf point takes its fold test from the eigen-cycle predictor's factorization: an LP next to the start that is not there (motoneuron6c), and a fold close to the start placed 1.2 percent off | [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521) |
 | [87](#87-an-event-at-a-steps-end-is-discarded-by-the-crossing-tolerance) | Events | the crossing tolerance pushes an endpoint event beyond the step, so it is discarded | [W496](https://github.com/MuhammadMoustafa/xppautX/issues/560) |
+| [88](#88-a-table-file-value-that-is-not-a-number-enters-the-table-as-zero) | Tables | a table file value that is not a number is read as 0, or nan and inf enter the table unchecked | [W505](https://github.com/MuhammadMoustafa/xppautX/issues/569) |
 
 ## 1. Model options
 
@@ -1934,3 +1935,16 @@ An initial sign-zero event (used to initialize random states) still fires once; 
 apply it again. No example model output changes.
 The endpoint regression checks rising, falling and sign-zero events, each once (W496,
 [#560](https://github.com/MuhammadMoustafa/xppautX/issues/560)).
+
+## 88. A table file value that is not a number enters the table as zero
+
+XPPAUT reads a table file's point count with `atoi` and each end and value with `atof`
+([tabular.c:440-490](../reference/xppaut-8.0/tabular.c#L440), [master](../reference/xppaut-master/tabular.c#L440)).
+`atof` returns 0 for text that is not a number and accepts a number followed by any text, and nothing checks
+the result: a line `nonsense` becomes the value 0, `nan` or `inf` enters the table as it is, and a table whose
+ends overflow to an infinite range keeps an infinite step. Only the length and the order of the ends are checked.
+xppautX reads each number as a whole line through the same reader as its other files (blanks around it allowed),
+requires it to be finite, and refuses the file at its line, naming the value; the load applies nothing. Evidence:
+a table file with `nonsense` as its third value, `nan` as its last, `inf` as its low end, and `-1e308` and `1e308`
+as its ends, each refused (servercheck's W505 cases and tests/test_odex.cpp's W505 block). Card W505
+([#569](https://github.com/MuhammadMoustafa/xppautX/issues/569)).

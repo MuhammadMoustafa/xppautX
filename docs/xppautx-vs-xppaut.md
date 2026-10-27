@@ -142,6 +142,7 @@ value stops the load with the file, line and value, and nothing is applied.
 | Where files go | AUTO's to `$HOME` ([findings #8](xppaut-findings.md)) | per-process private scratch folders, stale ones cleaned at start only when their owner is proved exited (Windows too, W121b); outputs go beside the model (not verified for every file) | W19 |
 | Other formats (`.ani`, tables, `.dat` for tables) | read; table counts have no upper bound ([finding 33](xppaut-findings.md#33-model-table-counts-have-no-upper-bound)) | read; tables and `.ani` are saved with a session; file and formula tables share a 1,000,000-point allocation/evaluation budget | W103, W175 ([#227](https://github.com/MuhammadMoustafa/xppautX/issues/227)) |
 | Text encoding | not verified | UTF-8 in and out | W35b |
+| Table file values | read with `atof`: a word is 0 and `nan` or `inf` enters the table ([finding 88](xppaut-findings.md#88-a-table-file-value-that-is-not-a-number-enters-the-table-as-zero)) | every number of a table file (the point count, both ends and each value) is a finite number, read as a whole line (blanks around it allowed), and a bad one stops the load at its line, naming the value, nothing applied; the range `xhi-xlo` must be finite | W505, [#569](https://github.com/MuhammadMoustafa/xppautX/issues/569) |
 
 ## Sessions and recordings
 

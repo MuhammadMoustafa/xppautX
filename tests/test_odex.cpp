@@ -1023,6 +1023,29 @@ int main(void)
     CHECK(xpp::get_lookup_len(s, index) == 3 && s.tables[index].y[2] == 3.0);
   }
 
+  /* W505: every table number is read through the typed reader, all or nothing: a word, a nan or
+     an infinite value or endpoint is refused at its line, and the table keeps its values */
+  {
+    put("build/w_word.tab", "3\n0\n2\n1\nnonsense\n3\n");
+    put("build/w_nan_value.tab", "3\n0\n2\n1\n2\nnan\n");
+    put("build/w_inf_end.tab", "3\n0\ninf\n1\n2\n3\n");
+    put("build/w_range.tab", "3\n-1e308\n1e308\n1\n2\n3\n");
+    std::string arg0 = "test_odex", path = "build/test_odex_model.odex";
+    char *argv[] = {arg0.data(), path.data(), nullptr};
+    CHECK(xpp::load_model(2, argv, 1).has_value());
+    xpp::Session &s = xpp::client_session();
+    const int index = s.model().networks[0].weight_table;
+    const auto word = xpp::load_table(s, "build/w_word.tab", index, 0);
+    CHECK(!word && word.error().place.line == 5 && word.error().place.source == "nonsense");
+    const auto nan_value = xpp::load_table(s, "build/w_nan_value.tab", index, 0);
+    CHECK(!nan_value && nan_value.error().place.line == 6 && nan_value.error().place.source == "nan");
+    const auto inf_end = xpp::load_table(s, "build/w_inf_end.tab", index, 0);
+    CHECK(!inf_end && inf_end.error().place.line == 3 && inf_end.error().place.source == "inf");
+    const auto wide = xpp::load_table(s, "build/w_range.tab", index, 0);
+    CHECK(!wide && wide.error().place.line == 3);
+    CHECK(xpp::get_lookup_len(s, index) == 3 && s.tables[index].y[2] == 3.0 && s.tables[index].xlo == 0.0);
+  }
+
   /* W497: a user function takes any number of arguments: ARG1..ARG20 are built in, and the rest are
      added as a function needs them */
   {
