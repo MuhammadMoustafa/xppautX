@@ -420,6 +420,9 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
 {
     MarksRead r;
     file.whole("next_annotation_id", r.next_annotation_id);
+    if (r.next_annotation_id < 0 || r.next_annotation_id > xpp::ANNOTATION_ID_MAX)
+        file.fail(*file.member("next_annotation_id"),
+                  xpp::format("next_annotation_id {} is not from 0 to {}", r.next_annotation_id, xpp::ANNOTATION_ID_MAX));
     std::set<int> taken;
     std::vector<xpp::setx::Block> labels;
     file.groups("labels", labels, xpp::ANNOTATION_LIST_MAX);
@@ -503,6 +506,8 @@ void apply_marks(xpp::Session &s, MarksRead r, const std::map<int, int> &slot)
 {
     const auto w = [&](int saved) { return s.plot_windows.graph[slot.at(saved)].w; };
     s.next_annotation_id = r.next_annotation_id;
+    s.labels.clear();
+    s.grobs.clear();
     for (SavedLabel &m : r.labels) {
         LABEL &l = s.labels.emplace_back();
         l.id = m.id;

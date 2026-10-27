@@ -66,7 +66,7 @@ std::string stored_text(Session &s, const std::string &text)
 
 int add_label(xpp::Session &s, LabelLook look, XppWinId w, float x, float y)
 {
-    if (s.labels.size() >= ANNOTATION_LIST_MAX) return -1;
+    if (s.labels.size() >= ANNOTATION_LIST_MAX || s.next_annotation_id > ANNOTATION_ID_MAX) return -1;
     const int id = s.next_annotation_id++;
     LABEL &l = s.labels.emplace_back(LABEL{w, x, y, stored_text(s, look.text), id, 0, look.size, look.style, look.color});
     marks_data_label(s, w, id, shown_label_text(s, l));
@@ -75,7 +75,7 @@ int add_label(xpp::Session &s, LabelLook look, XppWinId w, float x, float y)
 
 int add_grob(xpp::Session &s, XppWinId w, double xs, double ys, double xe, double ye, double size, int type, const Color &color)
 {
-    if (s.grobs.size() >= ANNOTATION_LIST_MAX) return -1;
+    if (s.grobs.size() >= ANNOTATION_LIST_MAX || s.next_annotation_id > ANNOTATION_ID_MAX) return -1;
     const int id = s.next_annotation_id++;
     s.grobs.push_back(GROB{static_cast<float>(xs), static_cast<float>(ys), static_cast<float>(xe), static_cast<float>(ye), size, id, w, type, color});
     marks_data_grob(s, w, id);

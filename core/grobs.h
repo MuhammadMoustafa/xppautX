@@ -4,6 +4,7 @@
 #include "struct.h"
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <span>
 #include <vector>
 #include <string>
@@ -24,6 +25,9 @@ struct Session; /* session.h */
    holds: a session file or a client may not make the lists grow without
    end (a trust boundary), and 100000 of either is far beyond a readable plot */
 constexpr std::size_t ANNOTATION_LIST_MAX = 100000;
+/* the highest id the counter gives: a session file may not start it where
+   the next add would overflow */
+constexpr int ANNOTATION_ID_MAX = std::numeric_limits<int>::max() - 1;
 
 /* a graphic object's type: a pointer, an arrow, or a marker, MARKER plus
    its shape (the Markers menu's: box, diamond, triangle, plus, X, circle) */
