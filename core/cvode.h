@@ -88,7 +88,7 @@ enum { NORMAL, ONE_STEP };     /* itask */
  * f takes as input the problem size N, the independent variable  *
  * value t, and the dependent variable vector y.  It stores the   * 
  * result of f(t,y) in the vector ydot.  The y and ydot arguments *
- * are of type N_VectorContent *.                                          *
+ * are of type N_VectorContent.                                          *
  * (Allocation of memory for ydot is handled within CVODE.)       *
  * The f_data parameter is the same as the f_data                 *
  * parameter passed by the user to the CVodeMalloc routine. This  *
@@ -133,7 +133,7 @@ typedef void (*RhsFn)(integer N, real t, N_VectorContent *y, N_VectorContent *yd
  * reltol  is a pointer to the relative tolerance scalar.         *
  *                                                                *
  * abstol  is a pointer to the absolute tolerance scalar or       *
- *            an N_VectorContent *tolerance.                              *
+ *            an N_VectorContent tolerance.                              *
  *                                                                *
  * f_data  is a pointer to user data that will be passed to the   *
  *             user's f function every time f is called.          *
@@ -423,9 +423,9 @@ inline constexpr auto L_MAX = (ADAMS_Q_MAX+1);    /* max value of L for either l
 inline constexpr auto NUM_TESTS = 5;            /* number of error test quantities      */
 /******************************************************************
  *                                                                *
- * Types : struct CVodeMemRec, CVodeMemRec *                           *
+ * Types : struct CVodeMemRec                                      *
  *----------------------------------------------------------------*
- * The type CVodeMemRec pointer is type pointer to struct CVodeMemRec. This  *
+ * The solver handle is a pointer to struct CVodeMemRec. This  *
  * structure contains fields to keep track of problem state.      *
  *                                                                *
  ******************************************************************/
@@ -652,7 +652,7 @@ inline constexpr auto FAIL_OTHER = 2;
  * related data is it deems necessary. Its parameters are as       *
  * follows:                                                        *
  *                                                                 *
- * cv_mem - problem memory pointer of type CVodeMemRec *. See the big   *
+ * cv_mem - problem memory pointer of type CVodeMemRec. See the big   *
  *          struct definition earlier in this file.                          *
  *                                                                 *
  * convfail - a flag to indicate any problem that occurred during  *
@@ -677,11 +677,11 @@ inline constexpr auto FAIL_OTHER = 2;
  *           data), it should return jcur_out=TRUE unconditionally;*
  *           otherwise an infinite loop can result.                *
  *                                                                 *
- * vtemp1 - temporary N_VectorContent *provided for use by cv_lsetup.      *
+ * vtemp1 - temporary N_VectorContent provided for use by cv_lsetup.      *
  *                                                                 *
- * vtemp3 - temporary N_VectorContent *provided for use by cv_lsetup.      *
+ * vtemp3 - temporary N_VectorContent provided for use by cv_lsetup.      *
  *                                                                 *
- * vtemp3 - temporary N_VectorContent *provided for use by cv_lsetup.      *
+ * vtemp3 - temporary N_VectorContent provided for use by cv_lsetup.      *
  *                                                                 *
  * The cv_lsetup routine should return 0 if successful,            *
  * a positive value for a recoverable error, and a negative value  *

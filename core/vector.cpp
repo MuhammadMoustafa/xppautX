@@ -6,7 +6,7 @@
  *--------------------------------------------------------------*
  *                                                              *
  * This is the implementation file for a generic VECTOR         *
- * package. It contains the implementation of the N_VectorContent *      *
+ * package. It contains the implementation of the N_VectorContent      *
  * kernels listed in vector.h.                                  *
  *                                                              *
  ****************************************************************/

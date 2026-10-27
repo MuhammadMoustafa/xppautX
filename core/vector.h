@@ -7,19 +7,19 @@
  *--------------------------------------------------------------*
  *                                                              *
  * This is the header file for a generic VECTOR package. It     *
- * exports the type N_VectorContent *.                                   *
+ * exports the type N_VectorContent.                                   *
  *                                                              *
  * Part I of this file contains declarations which are specific *
  * to the particular machine environment in which this version  *
  * of the vector package is to be used. This includes the       *
  * definition of N_VectorContent, as well as accessor macros    *
- * that allow the user to use efficiently the type N_VectorContent *     *
+ * that allow the user to use efficiently the type N_VectorContent     *
  * without making explicit references to its underlying         *
  * representation. The underlying type of N_VectorContent *will always  *
  * be some pointer type.                                        *
  *                                                              *
  * Part II of this file contains the prototypes for the vector  *
- * kernels which operate on the type N_VectorContent *. These prototypes *
+ * kernels which operate on the type N_VectorContent. These prototypes *
  * are fixed for all implementations of the vector package. The *
  * definitions of the types real and integer are in the header  *
  * file llnltyps.h and these may be changed according to the    *
@@ -56,13 +56,13 @@ namespace xpp::cvode_solver {
  
 /***************************************************************
  *                                                             *
- * Type: N_VectorContent *                                              *
+ * Type: N_VectorContent                                              *
  *-------------------------------------------------------------*
  * The type N_VectorContent pointer is an abstract vector type. The fields of *
  * its concrete representation should not be accessed          *
  * directly, but rather through the macros given below.        *
  *                                                             *
- * A user may assume that the N components of an N_VectorContent *      *
+ * A user may assume that the N components of an N_VectorContent      *
  * are stored contiguously. A pointer to the first component   *
  * can be obtained via the macro N_VDATA.                      *
  *                                                             *
@@ -90,7 +90,7 @@ struct N_VectorContent {
  * (1) N_VDATA, N_VLENGTH                                      *
  *                                                             *
  *     These routines give individual access to the parts of   *
- *     an N_VectorContent *.                                            *
+ *     an N_VectorContent.                                            *
  *                                                             *
  *     The assignment v_data=N_VDATA(v) sets v_data to be      *
  *     a pointer to the first component of v. The assignment   *
@@ -104,7 +104,7 @@ struct N_VectorContent {
  * (2) N_VIth                                                  *
  *                                                             *
  *     In the following description, the components of an      *
- *     N_VectorContent *are numbered 0..N-1, where N is the length of  *
+ *     N_VectorContent are numbered 0..N-1, where N is the length of  *
  *     v.                                                      *
  *                                                             *
  *     The assignment r=N_VIth(v,i) sets r to be the value of  *

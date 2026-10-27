@@ -80,7 +80,7 @@ inline constexpr auto CVB_DGMAX = 0.2;
  * Jacobian. This parameter is the same as the mlower parameter   *
  * passed by the user to the CVBand function.                     *
  *                                                                *
- * J is the band matrix (of type BandMatRec *) that will be loaded     *
+ * J is the band matrix (of type BandMatRec) that will be loaded     *
  * by a CVBandJacFn with an approximation to the Jacobian matrix  *
  * J = (df_i/dy_j) at the point (t,y).                            *
  * J is preset to zero, so only the nonzero elements need to be   *

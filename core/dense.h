@@ -7,7 +7,7 @@
  *----------------------------------------------------------------*
  * This is the header file for a generic DENSE linear solver      *
  * package. There are two sets of dense solver routines listed in *
- * this file: one set uses type DenseMatRec *defined below and the    *
+ * this file: one set uses type DenseMatRec defined below and the    *
  * other set uses the type real ** for dense matrix arguments.    *
  * The two sets of dense solver routines make it easy to work     *
  * with two types of dense matrices:                              *
@@ -17,15 +17,15 @@
  *     non-contiguous memory locations or even distributed into   *
  *     different processor memories. This type may be modified to *
  *     include such distribution information. If this is done,    *
- *     then all the routines that use DenseMatRec *must be modified   *
+ *     then all the routines that use DenseMatRec must be modified   *
  *     to reflect the new data structure.                         *
  *                                                                *
- * (2) The set of routines that use real ** (and NOT the DenseMatRec * *
+ * (2) The set of routines that use real ** (and NOT the DenseMatRec *
  *     type) is intended for use with small matrices which can    *
  *     easily be allocated within a contiguous block of memory    *
  *     on a single processor.                                     *
  *                                                                *
- * Routines that work with the type DenseMatRec *begin with "Dense".  *
+ * Routines that work with the type DenseMatRec begin with "Dense".  *
  * The DenseAllocMat function allocates a dense matrix for use in *
  * the other DenseMatRec *routines listed in this file. Matrix        *
  * storage details are given in the documentation for the type    *
@@ -34,16 +34,16 @@
  * a std::vector). The DenseFactor and DenseBacksolve             *
  * routines perform the actual solution of a dense linear system. *
  * Note that the DenseBacksolve routine has a parameter b of type *
- * N_VectorContent *. The current implementation makes use of a machine    *
+ * N_VectorContent. The current implementation makes use of a machine    *
  * environment-specific macro (N_VDATA) which may not exist for   *
- * other implementations of the type N_VectorContent *. Thus, the          *
+ * other implementations of the type N_VectorContent. Thus, the          *
  * implementation of DenseBacksolve may need to change if the     *
  * type N_VectorContent pointer is changed.                                      *
  *                                                                * 
  * Routines that work with real ** begin with "den" (except for   *
  * the factor and solve routines which are called gefa and gesl,  *
  * respectively). The underlying matrix storage is described in   *
- * the documentation for the type DenseMatRec *.                       *
+ * the documentation for the type DenseMatRec.                       *
  *                                                                *
  ******************************************************************/
  
@@ -59,9 +59,9 @@ namespace xpp::cvode_solver {
  
 /******************************************************************
  *                                                                *
- * Type: DenseMatRec *                                                 *
+ * Type: DenseMatRec                                                 *
  *----------------------------------------------------------------*
- * The type DenseMatRec *is defined to be a pointer to a structure    *
+ * The type DenseMatRec is defined to be a pointer to a structure    *
  * with a size and a data field. The size field indicates the     *
  * number of columns (== number of rows) of a dense matrix, while *
  * the data field is a two dimensional array used for component   *
@@ -92,7 +92,7 @@ struct DenseMatRec {
 };
  
 
-/* DenseMatRec *accessor macros */
+/* DenseMatRec accessor macros */
 
  
 /******************************************************************
@@ -124,7 +124,7 @@ struct DenseMatRec {
 #define DENSE_COL(A,j) ((A->data)[j])
  
 
-/* Functions that use the DenseMatRec *representation for a dense matrix */
+/* Functions that use the DenseMatRec representation for a dense matrix */
 
  
 /******************************************************************
@@ -134,9 +134,9 @@ struct DenseMatRec {
  *            if (A == NULL) ... memory request failed            *
  *----------------------------------------------------------------*
  * DenseAllocMat allocates memory for an N by N dense matrix and  *
- * returns the storage allocated (type DenseMatRec *). DenseAllocMat   *
+ * returns the storage allocated (type DenseMatRec). DenseAllocMat   *
  * returns NULL if the request for matrix storage cannot be       *
- * satisfied. See the above documentation for the type DenseMatRec *   *
+ * satisfied. See the above documentation for the type DenseMatRec   *
  * for matrix storage details.                                    * 
  *                                                                * 
  ******************************************************************/

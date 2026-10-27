@@ -70,7 +70,7 @@ inline constexpr auto CVD_DGMAX = 0.2;
  *                                                                *
  * N is the length of all vector arguments.                       *
  *                                                                *
- * J is the dense matrix (of type DenseMatRec *) that will be loaded   *
+ * J is the dense matrix (of type DenseMatRec) that will be loaded   *
  * by a CVDenseJacFn with an approximation to the Jacobian matrix *
  * J = (df_i/dy_j) at the point (t,y).                            *
  * J is preset to zero, so only the nonzero elements need to be   *
