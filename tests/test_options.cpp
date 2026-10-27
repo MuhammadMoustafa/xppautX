@@ -125,6 +125,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"S1", {"x", ""}}, {"S2", {"y", ""}}, {"S3", {"z", ""}},
         {"SLO1", {"-1", ""}}, {"SLO2", {"-1", ""}}, {"SLO3", {"-1", ""}},
         {"SHI1", {"2", ""}}, {"SHI2", {"2", ""}}, {"SHI3", {"2", ""}},
+        {"AUTOXMIN", {"-0.5", "-0.5"}}, {"AUTOYMIN", {"-0.5", "-0.5"}}, /* below their maxima, which come first in the table */
         {"DSMIN", {"0.001", "0.001"}}, {"DS", {"0.02", "0.02"}}, {"DSMAX", {"0.5", "0.5"}},
         {"METHOD", {"e", "1"}},            /* the Euler method */
         {"POINCARE_MAP", {"m", "2"}},          /* max */
@@ -391,6 +392,18 @@ int main(void)
             CHECK(&xpp::once_option(r.name) == &r);
             for (const xpp::OptionRow &o : rows)
                 CHECK(&o == &r || !o.once || o.name != r.name);
+        }
+    }
+    /* orders and the new ranges: one rule for every source */
+    {
+        CHECK(!xpp::order_problem("xlo", 0, "xhi", 1, true) && !xpp::order_problem("min_step", 1, "max_step", 1, false));
+        const auto bad = xpp::order_problem("xlo", 3, "xhi", 1, true);
+        CHECK(bad && *bad == "xlo (3) must be below xhi (1)");
+        CHECK(xpp::order_problem("min_step", 2, "max_step", 1, false));
+        CHECK(xpp::rule_problem(xpp::OptionRule::whole_at_least_two, 1) && !xpp::rule_problem(xpp::OptionRule::whole_at_least_two, 2));
+        for (const xpp::OptionPair &p : xpp::option_pairs()) {
+            int index = 0;
+            CHECK(xpp::find_option(p.lo, index, false) && xpp::find_option(p.hi, index, false));
         }
     }
     /* the longest name wins: histlo2 is not histlo, dtmin not dt */

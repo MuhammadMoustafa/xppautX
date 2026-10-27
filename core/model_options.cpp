@@ -44,6 +44,9 @@ namespace {
 /* where XPPAUT's ncdraw=2 saves the nullclines */
 constexpr const char *nullclines_dump_file = "nullclines.dat";
 
+/* XPPAUT's most curves in one window (xp2 to xp8 and the first) */
+constexpr int max_plot_curves = 8;
+
 /* a 3D box side's default: wide enough for most models' variables */
 constexpr double box_side = 12;
 
@@ -383,7 +386,8 @@ constexpr OptionRow rows[] = {
      if (const char *why = number_into(s.numerics.torus_period, v)) return why;
      if (v.apply) s.numerics.torus=true;
      return nullptr;
-   }},
+   },
+   .rule = OptionRule::positive},
   {.group = option_group::integration, .kind = OptionKind::name, .name = "FOLD",
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const int i = variable_of(s, v);
@@ -495,7 +499,8 @@ constexpr OptionRow rows[] = {
        p.x_hi[i] = 20;
        p.y_hi[i] = 1;
      }
-   }},
+   },
+   .rule = OptionRule::whole_positive, .maximum = max_plot_curves},
   {.group = option_group::plot, .kind = OptionKind::name, .name = "XP", .first_digit = '2', .last_digit = '8',
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      return variable_into(s, s.plot_settings.ix_plt[v.index], v);
@@ -705,7 +710,8 @@ constexpr OptionRow rows[] = {
   {.name = "PS_FONT", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
   {.name = "PS_LW", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
   {.group = option_group::plot, .kind = OptionKind::whole, .name = "DFGRID", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.nullclines.df_grid; })},
+   .whole = member([](auto &s) -> auto & { return s.nullclines.df_grid; }),
+   .rule = OptionRule::whole_at_least_two, .maximum = option_limit::mesh},
   {.group = option_group::plot, .kind = OptionKind::whole, .name = "DFDRAW", .once = true,
    .whole = member([](auto &s) -> auto & { return s.nullclines.df_batch; })},
   {.group = option_group::plot, .kind = OptionKind::choice, .name = "NULLCLINES.DRAW", .once = true,
@@ -765,7 +771,7 @@ constexpr OptionRow rows[] = {
   {.group = option_group::sweep, .kind = OptionKind::whole, .name = "RANGESTEP", .once = true,
    .whole = member([](auto &s) -> auto & { return s.integrator.range.steps; }),
    /* twenty runs */
-   .reset = [](Session &s) { s.integrator.range.steps = 20; }, .saved = true},
+   .reset = [](Session &s) { s.integrator.range.steps = 20; }, .rule = OptionRule::whole_positive, .saved = true},
   {.group = option_group::sweep, .kind = OptionKind::number, .name = "RANGELOW", .once = true,
    .real = member([](auto &s) -> auto & { return s.integrator.range.plow; }),
    /* 0 to 1 */
@@ -863,7 +869,7 @@ constexpr OptionRow rows[] = {
   {.group = option_group::analysis, .kind = OptionKind::number, .name = "HISTHI", .once = true,
    .real = member([](auto &s) -> auto & { return s.histogram.info.xhi; })},
   {.group = option_group::analysis, .kind = OptionKind::whole, .name = "HISTBINS", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.histogram.info.nbins; }), .rule = OptionRule::whole_positive, .maximum = option_limit::histogram_bins},
+   .whole = member([](auto &s) -> auto & { return s.histogram.info.nbins; }), .rule = OptionRule::whole_at_least_two, .maximum = option_limit::histogram_bins},
   {.group = option_group::analysis, .kind = OptionKind::name, .name = "HISTCOL", .once = true,
    .whole = member([](auto &s) -> auto & { return s.histogram.info.col; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -874,7 +880,7 @@ constexpr OptionRow rows[] = {
   {.group = option_group::analysis, .kind = OptionKind::number, .name = "HISTHI2", .once = true,
    .real = member([](auto &s) -> auto & { return s.histogram.info.yhi; })},
   {.group = option_group::analysis, .kind = OptionKind::whole, .name = "HISTBINS2", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.histogram.info.nbins2; }), .rule = OptionRule::whole_positive, .maximum = option_limit::histogram_bins},
+   .whole = member([](auto &s) -> auto & { return s.histogram.info.nbins2; }), .rule = OptionRule::whole_at_least_two, .maximum = option_limit::histogram_bins},
   {.group = option_group::analysis, .kind = OptionKind::name, .name = "HISTCOL2", .once = true,
    .whole = member([](auto &s) -> auto & { return s.histogram.info.col2; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -983,6 +989,39 @@ const OptionRow &once_option(std::string_view name)
   return *std::ranges::find_if(rows, [name](const OptionRow &r) { return r.once && r.name == name; });
 }
 
+/* the pairs of settings that keep an order (model_options.h) */
+constexpr OptionPair pairs[] = {
+  {"MIN_STEP", "MAX_STEP", false},
+  {"XLO", "XHI", true}, {"YLO", "YHI", true},
+  {"XMIN", "XMAX", true}, {"YMIN", "YMAX", true}, {"ZMIN", "ZMAX", true},
+  {"HISTLO", "HISTHI", true}, {"HISTLO2", "HISTHI2", true},
+  {"AUTOXMIN", "AUTOXMAX", true}, {"AUTOYMIN", "AUTOYMAX", true},
+};
+
+std::span<const OptionPair> option_pairs() { return pairs; }
+
+std::optional<std::string> order_problem(std::string_view lo_name, double lo, std::string_view hi_name, double hi, bool strict)
+{
+  if (strict ? lo < hi : lo <= hi) return std::nullopt;
+  return xpp::format("{} ({}) must be {} {} ({})", lo_name, number(lo), strict ? "below" : "at most", hi_name, number(hi));
+}
+
+std::optional<PairProblem> option_pairs_problem(const std::function<std::optional<double>(const OptionRow &)> &value_of)
+{
+  for (const OptionPair &p : pairs) {
+    const OptionRow &lo = once_option(p.lo), &hi = once_option(p.hi);
+    const std::optional<double> a = value_of(lo), b = value_of(hi);
+    if (!a || !b) continue;
+    if (auto why = order_problem(lower_case(std::string(p.lo)), *a, lower_case(std::string(p.hi)), *b, p.strict)) return PairProblem{*why, p.lo, p.hi};
+  }
+  return std::nullopt;
+}
+
+std::optional<PairProblem> option_pairs_problem(const Session &s)
+{
+  return option_pairs_problem([&](const OptionRow &r) -> std::optional<double> { return r.real ? r.real(s) : r.whole(s); });
+}
+
 const char *rule_problem(OptionRule rule, double v, int maximum)
 {
   if (maximum && v > maximum) return "exceeds the allocation maximum";
@@ -992,6 +1031,8 @@ const char *rule_problem(OptionRule rule, double v, int maximum)
   case OptionRule::nonnegative: return v >= 0 ? nullptr : "must be a number of at least 0";
   case OptionRule::whole_positive:
     return v == std::floor(v) && v >= 1 && v <= INT_MAX ? nullptr : "must be a whole number of at least 1";
+  case OptionRule::whole_at_least_two:
+    return v == std::floor(v) && v >= 2 && v <= INT_MAX ? nullptr : "must be a whole number of at least 2";
   case OptionRule::any:
   case OptionRule::method:
   case OptionRule::choice:

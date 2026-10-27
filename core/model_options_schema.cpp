@@ -70,6 +70,7 @@ std::string option_value_schema(const OptionRow &row)
   case OptionRule::positive: out += ", \"exclusiveMinimum\": 0"; break;
   case OptionRule::nonnegative: out += ", \"minimum\": 0"; break;
   case OptionRule::whole_positive: out += ", \"minimum\": 1"; break;
+  case OptionRule::whole_at_least_two: out += ", \"minimum\": 2"; break;
   case OptionRule::nonzero:
   case OptionRule::any:
   case OptionRule::method:

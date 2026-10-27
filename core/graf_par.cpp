@@ -1,6 +1,8 @@
 #include <climits>
 #include <cmath>
 #include "model.h"
+#include "model_options.h"
+#include <tuple>
 #include "session.h"
 #include "graf_par.h"
 #include "colormap.h"
@@ -486,6 +488,11 @@ void user_window(xpp::Session &s)
 	        xpp::command_error("Window",*f.error());
 	        return;
 	      }
+	      for(const auto &[lo_name,lo,hi_name,hi]:{std::tuple{"X Lo",xlo,"X Hi",xhi},std::tuple{"Y Lo",ylo,"Y Hi",yhi}})
+	        if(const auto bad=xpp::order_problem(lo_name,lo,hi_name,hi,true)){
+	          xpp::command_error("Window",*bad);
+	          return;
+	        }
 	      s.plot_windows.current->xlo=xlo;
 	      s.plot_windows.current->ylo=ylo;
 	      s.plot_windows.current->xhi=xhi;

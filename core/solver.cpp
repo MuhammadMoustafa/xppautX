@@ -298,8 +298,6 @@ Result<> check_step_limits(const Session &s, const SolverInfo &info, double dt, 
   auto refuse=[&](std::string what,std::initializer_list<std::string_view> settings)->Result<>{
     return fail(info.name,xpp::format("{}: {} ({})",info.name,what,named_settings(s,settings)),settings_place(s.model(),settings));
   };
-  if(info.traits.max_step&&min_step>s.numerics.max_step)
-    return refuse("min_step is larger than max_step, so no step size satisfies both",{"min_step","max_step"});
   if(std::fabs(dt)<min_step)
     return refuse(xpp::format("Dt = {} is below min_step, so no step fits between two output times",dt),{"min_step"});
   if(std::fabs(length)<min_step)

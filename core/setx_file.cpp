@@ -178,6 +178,19 @@ public:
             if (row->rule == OptionRule::method) method = method_by_key(s_->model(), text, command_place()).value();
             fill.set_setting(row, text);
         }
+        /* the settings the file holds keep the orders the options keep */
+        const auto held = [&](const OptionRow &r) -> std::optional<double> {
+            for (const auto &[row, text] : fill.numerics) {
+                double v = 0;
+                if (row == &r && parse_number(text, v)) return v;
+            }
+            return r.real ? r.real(*s_) : r.whole(*s_);
+        };
+        if (const auto bad = option_pairs_problem(held)) {
+            const setx::Member *at = block_.member(setting_key(once_option(bad->hi)));
+            if (!at) at = block_.member(setting_key(once_option(bad->lo)));
+            if (at) block_.fail(*at, bad->text);
+        }
     }
     void named(std::string_view key, std::span<const std::string> names, std::vector<double> &values)
     {

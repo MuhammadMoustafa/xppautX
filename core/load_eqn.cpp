@@ -146,6 +146,12 @@ void set_all_vals(xpp::Session &s)
  xpp::set_option_defaults(s);
  /* internal options go here  */
  set_internopts(s,NULL);
+ /* every option has its value now (a source's or its default): the orders they keep hold */
+ if (const auto bad = xpp::option_pairs_problem(s)) {
+   xpp::Place place = xpp::model_place(s.model(), bad->hi);
+   place.source = xpp::model_source_line(s.model(), place.file, place.line);
+   xpp::model_failed(xpp::Error{"options", bad->text, place});
+ }
 
  xpp::init_range(s);
  xpp::init_trans(s);
@@ -162,26 +168,6 @@ void set_all_vals(xpp::Session &s)
    s.plot_settings.timplot=1;
  else 
    s.plot_settings.timplot=0;
- if(s.plot_settings.x_3d[0]>=s.plot_settings.x_3d[1]){
-   s.plot_settings.x_3d[0]=-1;
-   s.plot_settings.x_3d[1]=1;
- }
-if(s.plot_settings.y_3d[0]>=s.plot_settings.y_3d[1]){
-   s.plot_settings.y_3d[0]=-1;
-   s.plot_settings.y_3d[1]=1;
- }
-if(s.plot_settings.z_3d[0]>=s.plot_settings.z_3d[1]){
-   s.plot_settings.z_3d[0]=-1;
-   s.plot_settings.z_3d[1]=1;
- }
- if(s.plot_settings.my_xlo>=s.plot_settings.my_xhi){
-   s.plot_settings.my_xlo=-2.0;
-   s.plot_settings.my_xhi=2.0;
- }
-if(s.plot_settings.my_ylo>=s.plot_settings.my_yhi){
-   s.plot_settings.my_ylo=-2.0;
-   s.plot_settings.my_yhi=2.0;
- }
  if(s.plot_settings.axes<5){
    s.plot_settings.x_3d[0]=s.plot_settings.my_xlo;
    s.plot_settings.y_3d[0]=s.plot_settings.my_ylo;

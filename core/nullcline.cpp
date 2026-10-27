@@ -652,7 +652,10 @@ void direct_field_com(xpp::Session &s, int c)
   if(c==0)s.nullcline_state.dfield_type=1;
   if(c==4)s.nullcline_state.dfield_type=0;
   new_int("Grid:",&grid);
-  if(grid<=1)return;
+  if(const char *no=xpp::rule_problem(xpp::OptionRule::whole_at_least_two,grid,xpp::option_limit::mesh)){
+    xpp::command_error("direction field",xpp::format("Grid ({}) {}",grid,no));
+    return;
+  }
   s.nullclines.df_grid=grid;
   double du=(s.plot_windows.current->xhi-s.plot_windows.current->xlo)/static_cast<double>(grid);
   double dv=(s.plot_windows.current->yhi-s.plot_windows.current->ylo)/static_cast<double>(grid);

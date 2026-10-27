@@ -228,8 +228,6 @@ STOPS_CASES = [
          silent=dict(says=[r'DoPri5', r'rounding limit'], forbids=[r'Exit of dopri5'])),
     dict(id='dae_no_root', model='dae_no_root', key='i', replies=STOPS_PLAIN_GO, at='0 = y^2+1',
          says=[r'algebraic equations', r't ?= ?0\b', r'max_iterations ?= ?100\b', r'newton_tolerance']),
-    dict(id='step_limits', model='step_limits', key='i', replies=STOPS_PLAIN_GO, at='min_step: 0.2',
-         says=[r'min_step ?= ?0\.2', r'max_step ?= ?0\.1', r'larger than max_step']),
     dict(id='event_halt', model='event_halt', key='i', replies=STOPS_PLAIN_GO, at=None, bottom=True,
          says=[r'Stopped at t ?= ?3:', r'global event \\"x-3\\"', r'arret', r'model line 5']),
     dict(id='store_from_past_end', model='store_from_past_end', key='i', replies=STOPS_PLAIN_GO, at='store_from: 20',
@@ -2399,6 +2397,14 @@ def check_values_protocol():
         check('a set with a bad numerics value applies none of it, its error names num:total_time',
               len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'num:total_time'
               and par(last_state(evs), 'iapp') == par(st1, 'iapp'), str(errs(evs)))
+        # W494: a range or an order broken by `set num` is refused with the setting, its value and the rule
+        for name, text, words in (('min_step', '1e9', 'min_step (1e+09) must be at most max_step'),
+                                  ('relative_tolerance', '0', 'must be a number above 0'),
+                                  ('max_iterations', '0', 'must be a whole number of at least 1')):
+            evs = after(cmd='set', values=[{'kind': 'num', 'name': name, 'text': text}])
+            check('W494: set num %s=%s is refused naming %s' % (name, text, words),
+                  len(errs(evs)) == 1 and words in errs(evs)[0].get('error', '') and errs(evs)[0].get('field') == 'num:' + name,
+                  str(errs(evs)))
         keys('u')
         evs = keys('t', {'value': '1O0'})
         check('an answer to a number ask that is not a number is refused, naming the question',
@@ -7892,6 +7898,22 @@ def check_parser_group():
                 else:
                     rejected = p.returncode != 0 and 'oldgroup.odex:3:11:' in p.stderr and group in p.stderr
                 check('W317: %s refuses old group %s at its source line' % (mode, group), rejected, p.stderr + p.stdout)
+        # W494: a value outside its range, or two that break an order, is refused at its line in every mode
+        for body, line, words in (
+                ('integration: { total_time: .02, dt: .01, min_step: 1, max_step: 0.5 }', 2, 'min_step (1) must be at most max_step (0.5)'),
+                ('plot: { xlo: 3, xhi: 1 }', 2, 'xlo (3) must be below xhi (1)'),
+                ('analysis: { histlo: 2, histhi: 2 }', 2, 'histlo (2) must be below histhi (2)'),
+                ('analysis: { histbins: 1 }', 2, 'must be a whole number of at least 2'),
+                ('plot: { nplot: 9 }', 2, 'exceeds the allocation maximum'),
+                ('plot: { dfgrid: 1 }', 2, 'must be a whole number of at least 2'),
+                ('integration: { torus_period: 0 }', 2, 'must be a number above 0'),
+                ('sweep: { rangestep: 0 }', 2, 'must be a whole number of at least 1')):
+            write('badrange.odex', "x'=0\ninit x=0\noptions { " + body + " }\n")
+            for mode in ('--check', '--silent'):
+                p = run('badrange.odex', mode)
+                check('W494: %s refuses %s (%s)' % (mode, body, words),
+                      p.returncode != 0 and words in p.stdout + p.stderr and 'badrange.odex' in p.stdout + p.stderr,
+                      p.stderr + p.stdout)
         options = 'options { integration: { total_time: .02, dt: .01 } }\n'
         write('missing.odex', "x'=0\ny'=0\ninit x=2\n" + options)
         write('array.odex', "x[j]'=0 for j in 1..4\ninit x[2]=1\n" + options)
@@ -9365,13 +9387,13 @@ def check_stop_checks():
         snd(cmd='key', key='h')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='a')
-        for _ in range(4):
+        for asked in range(4):
             _, ask = col(is_ask)
             if 'Variable' in ask.get('prompt', '') or 'Variable' in ask.get('name', ''):
                 snd(cmd='answer', id=ask['id'], ok=1, value='V')
                 snd(cmd='abort')
             else:
-                snd(cmd='answer', id=ask['id'], ok=1, value='10')
+                snd(cmd='answer', id=ask['id'], ok=1, value='0' if asked == 1 else '10')  # bins, Low, Hi: Low below Hi (W494)
         evs, _ = col(is_idle, timeout=30 * SLOW)
         check('W388: pairwise histogram O(N^2) loop stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
         snd(cmd='set', kind='num', name='total_time', value=20)

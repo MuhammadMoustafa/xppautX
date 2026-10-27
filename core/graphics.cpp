@@ -220,9 +220,6 @@ void set_extra_graphs(xpp::Session &s)
 {
   int i;
   if(s.plot_settings.npltv<2)return;
-  if(s.plot_settings.npltv>8){
-    s.plot_settings.npltv=8;
-  }
   if(s.plot_settings.multi_win==0){
     s.plot_windows.current->resize_curves(s.plot_settings.npltv);
     for(i=1;i<s.plot_settings.npltv;i++){

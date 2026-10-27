@@ -112,7 +112,7 @@
     }},
     "range": {"type": "object", "additionalProperties": false, "properties": {
       "rangeover": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$"},
-      "rangestep": {"type": "integer"},
+      "rangestep": {"type": "integer", "minimum": 1},
       "rangelow": {"type": "number"},
       "rangehigh": {"type": "number"},
       "rangereset": {"type": "boolean"},

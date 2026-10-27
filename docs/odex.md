@@ -298,12 +298,24 @@ The allocation-sized whole options have inclusive maxima (W296,
 |---|---:|---:|---|
 | `numerics.vmaxpts`, `numerics.storage_rows` | 1 | 10000000 | Large histories and initial storage without int-sized requests |
 | `numerics.nullcline_mesh` | 1 | 4096 | Bounds mesh work to about 16 million cells |
+| `plot.dfgrid` | 2 | 4096 | The direction field has spacing between two or more points; bounds its work like the mesh |
+| `plot.nplot` | 1 | 8 | XPPAUT's most curves in one window (`xp2` to `xp8` and the first) |
 | `numerics.bandup`, `numerics.bandlo` | 0 | 100000 | Large banded models without int-sized bandwidths |
-| `histogram.histbins`, `histogram.histbins2` | 1 | 4096 | About 16 million cells in two dimensions |
+| `histogram.histbins`, `histogram.histbins2` | 2 | 4096 | About 16 million cells in two dimensions |
 | `histogram.specwidth` | 1 | 1000000 | Bounds spectral workspaces |
 | `auto.ntst` | 1 | 10000 | Bounds AUTO's mesh-sized matrices |
 | `auto.nmax` | 1 | 1000000 | Bounds a requested continuation diagram |
 | `auto.ncol` | 1 | 7 | AUTO's settings reader requires supported collocation orders 2 through 7 |
+
+Settings that must keep an order are refused when it is broken, wherever they
+come from (an `options` block, a `.setx` or session file, `set num`, the
+Numerics menu, the Window and histogram dialogs), with both names and values:
+`min_step` at most `max_step`, `xlo` below `xhi`, `ylo` below `yhi`, `xmin` below
+`xmax`, `ymin` below `ymax`, `zmin` below `zmax`, `histlo` below `histhi`,
+`histlo2` below `histhi2`, `autoxmin` below `autoxmax` and `autoymin` below
+`autoymax` (the continuation's pairs are AUTO's own). `torus_period` is above 0 and
+`rangestep` at least 1. The list, with each setting's range and the rule behind
+it, is [docs/studies/w494-numeric-settings.md](studies/w494-numeric-settings.md).
 
 These maxima also apply through the corresponding saved numerics and AUTO
 session settings. Iteration counts, output strides, seeds, flags and indices

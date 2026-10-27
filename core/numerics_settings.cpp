@@ -225,7 +225,15 @@ int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_vie
             return -1;
         }
         if (!check(s, *f, text, v, why, place ? *place : command_place())) return -1;
+        const bool number = f->rule != OptionRule::method && f->rule != OptionRule::choice;
+        const double before = number ? value_of(s, *f) : 0;
         write_field(s, *f, v);
+        /* a number that breaks an order the settings keep is refused, the setting left as it was */
+        if (const auto bad = number ? option_pairs_problem(s) : std::nullopt) {
+            write_field(s, *f, before);
+            why = bad->text;
+            return -1;
+        }
         /* what changing these needs */
         if (f->applied) f->applied(s);
         do_meth(s);

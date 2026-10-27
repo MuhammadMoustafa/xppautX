@@ -1,4 +1,5 @@
 #include "histogram.h"
+#include "model_options.h"
 #include "session.h"
 #include "mykeydef.h"
 #include "getvar.h"
@@ -119,6 +120,21 @@ bool has_data_for(const xpp::Session &s, std::string_view command)
   }
   return true;
 }
+
+/* whether a histogram dialog's bins and range are ones the options take (HISTBINS, HISTLO, HISTHI): the same
+   rules, or the command's error naming them */
+bool histogram_dialog_ok(int bins,double lo,double hi)
+{
+  if(const char *no=xpp::rule_problem(xpp::OptionRule::whole_at_least_two,bins,xpp::option_limit::histogram_bins)){
+    command_error("histogram",xpp::format("Number of bins ({}) {}",bins,no));
+    return false;
+  }
+  if(const auto bad=xpp::order_problem("Low",lo,"Hi",hi,true)){
+    command_error("histogram",*bad);
+    return false;
+  }
+  return true;
+}
 }
 
 void post_process_stuff(xpp::Session &s)
@@ -189,28 +205,14 @@ int new_2d_hist(xpp::Session &s)
   new_int("Number of bins ",&s.histogram.info.nbins);
   new_float(s,"Low ",&s.histogram.info.xlo);
   new_float(s,"Hi ",&s.histogram.info.xhi);
-  if(s.histogram.info.nbins<2){
-    command_error("histogram", "At least 2 bins");
-    return(0);
-  }
-  if(s.histogram.info.xlo>=s.histogram.info.xhi){
-    command_error("histogram", "Low must be less than hi");
-    return(0);
-  }
+  if(!histogram_dialog_ok(s.histogram.info.nbins,s.histogram.info.xlo,s.histogram.info.xhi))return(0);
   
   if(get_col_info(s,&s.histogram.info.col2,"Variable 2 ")==0)return(-1);  
   new_int("Number of bins ",&s.histogram.info.nbins2);
   new_float(s,"Low ",&s.histogram.info.ylo);
   new_float(s,"Hi ",&s.histogram.info.yhi);
 
-if(s.histogram.info.nbins2<2){
-    command_error("histogram", "At least 2 bins");
-    return(0);
-  }
-  if(s.histogram.info.ylo>=s.histogram.info.yhi){
-    command_error("histogram", "Low must be less than hi");
-    return(0);
-  }
+if(!histogram_dialog_ok(s.histogram.info.nbins2,s.histogram.info.ylo,s.histogram.info.yhi))return(0);
 
   return(twod_hist(s));
 }
@@ -599,6 +601,7 @@ void compute_stacor(xpp::Session &s)
   new_int("Number of bins ",&s.histogram.info.nbins);
   new_float(s,"Low ",&s.histogram.info.xlo);
   new_float(s,"Hi ",&s.histogram.info.xhi);
+  if(!histogram_dialog_ok(s.histogram.info.nbins,s.histogram.info.xlo,s.histogram.info.xhi))return;
   if(get_col_info(s,&s.histogram.info.col,"Variable ")==0)return;
    xpp::ok_or_show(new_hist(s,s.histogram.info.nbins,s.histogram.info.xlo,
 	   s.histogram.info.xhi,s.histogram.info.col,0,s.histogram.info.cond.c_str(),1));
@@ -641,6 +644,7 @@ void compute_hist(xpp::Session &s)
   new_int("Number of bins ",&s.histogram.info.nbins);
   new_float(s,"Low ",&s.histogram.info.xlo);
   new_float(s,"Hi ",&s.histogram.info.xhi);
+  if(!histogram_dialog_ok(s.histogram.info.nbins,s.histogram.info.xlo,s.histogram.info.xhi))return;
   if(get_col_info(s,&s.histogram.info.col,"Variable ")==0)return;
   new_string_of("Condition ",s.histogram.info.cond,XPP_FIELD_EXPRESSION);
   xpp::ok_or_show(new_hist(s,s.histogram.info.nbins,s.histogram.info.xlo,
