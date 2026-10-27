@@ -1057,6 +1057,13 @@ model's start in every mode, before the script.
 
 ## Events (server to client)
 
+A JSON number is any finite double: every finite value up to the largest
+double (1.7976931348623157e+308) is sent as a number, written with 15 or 17
+significant digits, whichever reads back exactly. NaN and the infinities are
+sent as `null`, since JSON has neither (the rule is core/json_number.h's).
+A `null` in a number field therefore means "not a finite number", never "a
+large value".
+
 | ev | fields | meaning |
 |---|---|---|
 | `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`, `player`), `title`, `file`, `output_names` (`par`, `ic`, `csv`, `curves`), `menu_names`, `command_categories`, `command_table`, `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 markers, 5 methods (items like `2 Box` start with the number to enter); `line_styles` (above), `colormaps` (above). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |

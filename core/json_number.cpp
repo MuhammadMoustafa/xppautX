@@ -2,12 +2,14 @@
 #include "json_number.h"
 #include "xpp_io.h"
 #include <array>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
 namespace xpp::json {
 
-bool json_finite(double v) { return v == v && v <= 1e308 && v >= -1e308; }
+/* the one rule: a double is a JSON number when it is finite, so DBL_MAX is a number and NaN and the infinities are not */
+bool json_finite(double v) { return std::isfinite(v); }
 
 void json_append_number(std::string &s, double v, int sig)
 {

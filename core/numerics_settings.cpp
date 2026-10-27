@@ -20,6 +20,7 @@
 #include "model.h"
 #include "model_files.h"
 #include "model_options.h"
+#include "json_number.h"
 #include "numerics.h"
 #include "pp_shoot.h"
 #include "session.h"
@@ -108,7 +109,7 @@ std::string event_text(const xpp::Session &s)
             xpp::json_append_string(o, words[static_cast<std::size_t>(index_of(s, f))]);
         } else {
             const double v = value_of(s, f);
-            o += std::isfinite(v) ? xpp::number(v) : std::string("null");
+            o += xpp::json::json_finite(v) ? xpp::number(v) : std::string("null");
             if (f.whole) o += ",\"integer\":true";
         }
         if (!used(s, f)) o += ",\"unused\":true";

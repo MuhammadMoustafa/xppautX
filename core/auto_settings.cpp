@@ -31,6 +31,7 @@
 #include "xpp_cpu.h"
 #include "xpp_files.h"
 #include "xpp_prefs.h"
+#include "json_number.h"
 
 namespace xpp {
 
@@ -158,7 +159,7 @@ void add_str_or_null(std::string &o, const std::string &s)
     else o += "null";
 }
 
-void add_num(std::string &o, double v) { o += std::isfinite(v) ? xpp::number(v) : std::string("null"); }
+void add_num(std::string &o, double v) { o += xpp::json::json_finite(v) ? xpp::number(v) : std::string("null"); }
 
 /* a name, or "" for none */
 std::string name_or_empty(const char *s) { return s ? std::string(s) : std::string(); }
