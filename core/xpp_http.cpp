@@ -54,7 +54,6 @@ typedef SOCKET sock_t;
 #define close_sock closesocket
 #define dup _dup
 #define dup2 _dup2
-#define write _write
 #define read _read
 #else
 #include <arpa/inet.h>
