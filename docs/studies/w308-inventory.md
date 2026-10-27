@@ -4,6 +4,8 @@ Stage 0 study for card [W352 / #413](https://github.com/MuhammadMoustafa/xppautX
 implementing the convention decided in [issue #367](https://github.com/MuhammadMoustafa/xppautX/issues/367),
 [Discussion #415](https://github.com/MuhammadMoustafa/xppautX/discussions/415), and [docs/command-design.md](../command-design.md).
 
+**Approved by the maintainer 2026-10-27, after W502's refresh, the annotation split included: W353 builds on it.**
+
 **Refreshed 2026-10-27 (W502).** Every row of section 2 was audited against
 the code, not only the roadmap: `core/command_table.h`, `core/menus.cpp`, the
 command handlers, `ui_json.cpp`'s dispatch table (every protocol command now
