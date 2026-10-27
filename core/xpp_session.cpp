@@ -264,10 +264,11 @@ void apply_windows(xpp::Session &s, const WindowsRead &r, std::map<int, int> &sl
 xpp::Result<std::string> marks_text(const xpp::Session &s)
 {
     xpp::setx::Out out;
+    out.whole("next_annotation_id", s.next_annotation_id);
     out.begin_list("labels");
     for (const LABEL &l : s.labels) {
-        if (!l.use) continue;
         out.begin_item();
+        out.whole("id", l.id);
         out.whole("window", xpp::graph_of(s, l.w));
         out.real("x", l.x);
         out.real("y", l.y);
@@ -281,8 +282,8 @@ xpp::Result<std::string> marks_text(const xpp::Session &s)
     out.end_list();
     out.begin_list("arrows_and_markers");
     for (const xpp::GROB &g : s.grobs) {
-        if (!g.use) continue;
         out.begin_item();
+        out.whole("id", g.id);
         out.whole("window", xpp::graph_of(s, g.w));
         out.whole("type", g.type);
         out.color("color", g.color);
@@ -348,12 +349,12 @@ std::vector<float> points_of(const xpp::DataTable &t, const std::string &name, i
 
 /* marks.setx read: each mark with the saved window it is in */
 struct SavedLabel {
-    int window = 0, font = 0;
+    int id = 0, window = 0, font = 0;
     double x = 0, y = 0;
     xpp::LabelLook look{"", 0, 0, xpp::foreground_color};
 };
 struct SavedGrob {
-    int window = 0, type = 0;
+    int id = 0, window = 0, type = 0;
     xpp::Color color;
     double size = 0, xs = 0, ys = 0, xe = 0, ye = 0;
 };
@@ -368,6 +369,7 @@ struct SavedCurve {
 struct MarksRead {
     std::vector<SavedLabel> labels;
     std::vector<SavedGrob> grobs;
+    int next_annotation_id = 0;
     int auto_freeze = 0;
     std::vector<SavedCurve> curves;
 };
@@ -390,6 +392,18 @@ xpp::Color color_in(xpp::setx::Block &g)
     return color;
 }
 
+/* the id of the label or object in g: not used before (in `taken`, the ids of both lists) and above the
+   list's last (the lists are kept in id order), and below next */
+int annotation_id_in(xpp::setx::Block &g, int next, int last, std::set<int> &taken)
+{
+    int id = 0;
+    g.whole("id", id);
+    if (id < 0 || id >= next) g.fail(*g.member("id"), xpp::format("{} is not an id below next_annotation_id {}", id, next));
+    if (id <= last) g.fail(*g.member("id"), xpp::format("id {} is not above the one before it ({})", id, last));
+    if (!taken.insert(id).second) g.fail(*g.member("id"), xpp::format("id {} belongs to a text and an arrow, pointer or marker", id));
+    return id;
+}
+
 /* a position of a label or a mark: a finite number */
 double position_in(xpp::setx::Block &g, std::string_view key)
 {
@@ -405,10 +419,13 @@ double position_in(xpp::setx::Block &g, std::string_view key)
 MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const xpp::DataTable &frozen, std::size_t &expanded_bytes)
 {
     MarksRead r;
+    file.whole("next_annotation_id", r.next_annotation_id);
+    std::set<int> taken;
     std::vector<xpp::setx::Block> labels;
-    file.groups("labels", labels, MAXLAB);
+    file.groups("labels", labels, xpp::ANNOTATION_LIST_MAX);
     for (xpp::setx::Block &g : labels) {
         SavedLabel &m = r.labels.emplace_back();
+        m.id = annotation_id_in(g, r.next_annotation_id, r.labels.size() > 1 ? r.labels[r.labels.size() - 2].id : -1, taken);
         m.window = window_in(g, windows);
         m.x = position_in(g, "x");
         m.y = position_in(g, "y");
@@ -425,9 +442,10 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
         g.done();
     }
     std::vector<xpp::setx::Block> grobs;
-    file.groups("arrows_and_markers", grobs, MAXGROB);
+    file.groups("arrows_and_markers", grobs, xpp::ANNOTATION_LIST_MAX);
     for (xpp::setx::Block &g : grobs) {
         SavedGrob &o = r.grobs.emplace_back();
+        o.id = annotation_id_in(g, r.next_annotation_id, r.grobs.size() > 1 ? r.grobs[r.grobs.size() - 2].id : -1, taken);
         o.window = window_in(g, windows);
         g.whole("type", o.type);
         if (o.type < xpp::POINTER || o.type >= xpp::MARKER + xpp::MARKER_SHAPE_COUNT)
@@ -484,10 +502,10 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
 void apply_marks(xpp::Session &s, MarksRead r, const std::map<int, int> &slot)
 {
     const auto w = [&](int saved) { return s.plot_windows.graph[slot.at(saved)].w; };
-    for (std::size_t k = 0; k < r.labels.size(); k++) {
-        SavedLabel &m = r.labels[k];
-        LABEL &l = s.labels[k];
-        l.use = 1;
+    s.next_annotation_id = r.next_annotation_id;
+    for (SavedLabel &m : r.labels) {
+        LABEL &l = s.labels.emplace_back();
+        l.id = m.id;
         l.w = w(m.window);
         l.x = static_cast<float>(m.x);
         l.y = static_cast<float>(m.y);
@@ -497,11 +515,9 @@ void apply_marks(xpp::Session &s, MarksRead r, const std::map<int, int> &slot)
         l.color = m.look.color;
         l.s = std::move(m.look.text);
     }
-    for (std::size_t k = 0; k < r.grobs.size(); k++) {
-        const SavedGrob &g = r.grobs[k];
-        s.grobs[k] = xpp::GROB{static_cast<float>(g.xs), static_cast<float>(g.ys), static_cast<float>(g.xe), static_cast<float>(g.ye),
-                               g.size, 1, w(g.window), g.type, g.color};
-    }
+    for (const SavedGrob &g : r.grobs)
+        s.grobs.push_back(xpp::GROB{static_cast<float>(g.xs), static_cast<float>(g.ys), static_cast<float>(g.xe), static_cast<float>(g.ye),
+                                    g.size, g.id, w(g.window), g.type, g.color});
     s.frozen_curves.auto_freeze = r.auto_freeze;
     const std::size_t slots = r.curves.empty() ? 0 : static_cast<std::size_t>(r.curves.back().slot) + 1;
     s.frozen_curves.curve.resize(slots);

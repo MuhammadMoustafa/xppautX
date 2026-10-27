@@ -1080,7 +1080,7 @@ async function marks() {
     await dbl(at[0], at[1]);
     return await until("!!document.querySelector('[data-text-dialog]')", 'text dialog');
   };
-  const sentText = () => cdp.eval(`__xpp.sent().filter(c => c.cmd === 'text')`);
+  const sentText = () => cdp.eval(`__xpp.sent().filter(c => c.cmd === 'annotation')`);
   const viewBefore = await S('JSON.stringify(w.viewport)');
   check('W227: double click on the text opens the dialog filled in (text as written, size, style, colour, position)',
     await openDialog() && JSON.stringify(await dialog()).includes('"text":"\\\\1a\\\\0-point","size":"3","style":"1"')
@@ -1099,19 +1099,20 @@ async function marks() {
     && document.querySelector('[data-text-dialog] [data-text-y]').value === '0.4'`, 'dialog draft');
   await cdp.eval("document.querySelector('[data-text-dialog] form').requestSubmit(); true");
   await idle();
-  check('W227: Apply sends one text edit with every field, and the store holds the new text',
+  check('W227: Apply sends one text edit with every field, then its move, and the store holds the new text',
     await until("w.marks && w.marks.text.length === 1 && w.marks.text[0].plain === 'plain words'", 'edited')
     && await S("(() => { const x = w.marks.text[0]; return x.size === 0 && x.style === 3 && x.color === '#0000ff80'"
       + " && Math.abs(x.x - 0.25) < 1e-6 && Math.abs(x.y - 0.4) < 1e-6; })()")
-    && JSON.stringify((await sentText()).at(-1)) === JSON.stringify({cmd: 'text', op: 'edit', win: 1, id: await S('w.marks.text[0].id'),
-      text: 'plain words', size: 0, style: 3, color: '#0000ff80', x: 0.25, y: 0.4})
+    && JSON.stringify(await sentText()) === JSON.stringify([
+      {cmd: 'annotation', op: 'edit', id: await S('w.marks.text[0].id'), text: 'plain words', size: 0, style: 3, color: '#0000ff80'},
+      {cmd: 'annotation', op: 'move', id: await S('w.marks.text[0].id'), new_x: 0.25, new_y: 0.4}])
     && !(await cdp.eval("!!document.querySelector('[data-text-dialog]')")),
     JSON.stringify({marks: await S('w.marks.text'), sent: (await sentText()).at(-1)}));
   check('... drawn once, in the new look', (await layer('text'))?.drawn === 1);
   check('W227: closing the dialog (x) sends nothing more',
     await openDialog() && (await cdp.eval("document.querySelector('[data-text-dialog] .dialog-close').click(); true"), true)
     && await until("!document.querySelector('[data-text-dialog]')", 'closed')
-    && (await sentText()).length === 1, JSON.stringify(await sentText()));
+    && (await sentText()).length === 2, JSON.stringify(await sentText()));
   check('W227: Delete in the dialog removes the text: none in the store, none drawn, the legend entry gone',
     await openDialog() && (await cdp.eval("document.querySelector('[data-text-delete]').click(); true"), true)
     && await until("w.marks && w.marks.text.length === 0", 'deleted') && (await layer('text')) === null

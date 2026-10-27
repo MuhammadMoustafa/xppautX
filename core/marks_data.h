@@ -3,6 +3,7 @@
 #include <array>
 #include <cstring>
 #include <map>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -24,7 +25,7 @@ struct Session; /* session.h */
    As phase_data.h does for nullclines, each window's record is what the
    core drew in it since it was last blanked: the drawing code reports what
    it draws, the front end reports a blanked window. Labels, graphic
-   objects and frozen curves are kept by their slot (lb[], grob[], frozen_curves.curve[]),
+   objects and frozen curves are kept by their id (labels, graphic objects) or slot (frozen_curves.curve[]),
    so drawing one again changes nothing, and at the end of a command a slot
    no longer in use (deleted) or moved to another window is left out; their
    content is read from the slot then. Events go out only to a client that
@@ -47,8 +48,8 @@ struct MarksShown {
     };
     struct Record {
         std::vector<Equilibrium> eqs;
-        std::map<int, std::string> labels;    /* lb[] slot -> the text drawn */
-        std::vector<bool> grobs;              /* grob[] slots drawn */
+        std::map<int, std::string> labels;    /* a label's id -> the text drawn */
+        std::set<int> grobs;                  /* the ids of the graphic objects drawn */
         std::map<int, unsigned long> frozen;  /* frozen_curves.curve[] slot -> its generation */
     };
     std::vector<Record> windows{1};
@@ -80,11 +81,15 @@ void marks_data_update(Session &s);
    (saddle), 3 circle (stable) */
 void marks_data_equilibrium(Session &s, double x, double y, int symbol);
 
-/* plot window w of s shows label lb[slot] as `text` (its \{expr} filled in) */
-void marks_data_label(Session &s, XppWinId w, int slot, std::string_view text);
+/* the "annotations" event: every text, arrow, pointer and marker of plot
+   window w, drawn or not, as the "marks" event gives them (text, arrows, markers) */
+std::string annotations_json(Session &s, XppWinId w);
 
-/* plot window w of s shows graphic object grob[slot] */
-void marks_data_grob(Session &s, XppWinId w, int slot);
+/* plot window w of s shows the label with this id as `text` (its \{expr} filled in) */
+void marks_data_label(Session &s, XppWinId w, int id, std::string_view text);
+
+/* plot window w of s shows graphic object with this id */
+void marks_data_grob(Session &s, XppWinId w, int id);
 
 /* plot window w of s shows frozen curve frozen_curves.curve[slot]; frozen_new:
    s's curve was just made (a new curve, even in a slot used before), in the

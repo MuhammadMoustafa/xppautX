@@ -5,6 +5,7 @@ import type {CommandCategory, CommandRow} from '../src/protocol/kinds';
 import {PROTOCOL, type HelloEvent, type MenuName} from '../src/protocol/types';
 import {initialState, reduce} from '../src/store/state';
 import {setLineGeometry, type LineGeometry} from '../src/plot/linestyle';
+import {setAnnotationGlyphs, type AnnotationGlyphs} from '../src/plot/marks';
 import type {CoreColor, LineStyle} from '../src/protocol/types';
 
 /** XPPAUT's colour 0..10 as the core says it (core/colormap.h xppaut_color) */
@@ -28,6 +29,21 @@ export const LINE_GEOMETRY: LineGeometry = {
   },
 };
 setLineGeometry(LINE_GEOMETRY);
+
+/** the marker glyphs and arrow head the core's hello carries (core/grobs.cpp annotation_glyphs_json) */
+export const ANNOTATION_GLYPHS: AnnotationGlyphs = {
+  half_units: 6,
+  arrow_head_spread: 0.5,
+  markers: {
+    box: [[[-6, -6], [6, -6], [6, 6], [-6, 6], [-6, -6]]],
+    diamond: [[[8, 0], [0, -8], [-8, 0], [0, 8], [8, 0]]],
+    triangle: [[[-6, -6], [6, -6], [0, 6], [-6, -6]]],
+    plus: [[[-6, 0], [6, 0]], [[0, -6], [0, 6]]],
+    cross: [[[-6, 6], [6, -6]], [[-6, -6], [6, 6]]],
+    circle: [[[6, 0], [5, 3], [3, 5], [0, 6], [-3, 5], [-5, 3], [-6, 0], [-5, -3], [-3, -5], [0, -6], [3, -5], [5, -3], [6, 0]]],
+  },
+};
+setAnnotationGlyphs(ANNOTATION_GLYPHS);
 
 /** the string literal `"..."` of C++ source as its text */
 const cString = (literal: string): string => JSON.parse(literal);
@@ -108,6 +124,7 @@ export const HELLO: HelloEvent = {
   limits: {upload: 64 * 1024 * 1024, browser_rows: 2000, browser_cols: 500},
   text: {max_length: 1000, size_max: 4, style_count: 4, default_size: 2},
   line_styles: LINE_GEOMETRY,
+  annotation_glyphs: ANNOTATION_GLYPHS,
   colormaps: ['jet', 'viridis', 'plasma'],
   window_ids: {plots: 21, auto: 101, ani: 104, aplot: 105},
 };

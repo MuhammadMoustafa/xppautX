@@ -18,6 +18,7 @@
 #include "plot_data.h"
 #include "phase_data.h"
 #include "marks_data.h"
+#include "grobs.h"
 #include "series_enc.h"
 #include "image_format.h"
 #include <algorithm>
@@ -148,7 +149,7 @@ void j_cput_text(xpp::Session &s)
     }
     float xd, yd;
     scale_to_real(s, x, y, &xd, &yd);
-    if (add_label(s, look, s.plot_windows.draw_win, xd, yd) < 0) j_command_error("text", xpp::format("a session has at most {} texts", MAXLAB));
+    if (add_label(s, look, s.plot_windows.draw_win, xd, yd) < 0) j_command_error("text", xpp::format("a session has at most {} texts", xpp::ANNOTATION_LIST_MAX));
 }
 
 /* Parse a plot ID once for commands that name a window. Invalid IDs are
@@ -176,67 +177,121 @@ void click_command(xpp::Session &s, const char *line)
     if(s.plot_windows.active!=win)select_graph(s,win);
 }
 
-/* {"cmd":"text","op":"add"|"edit"|"delete","win":w,...}: the text labels of
-   plot window w, which the page's text dialog drives (docs/protocol.md) */
-void text_command(xpp::Session &s, const char *line)
+/* {"cmd":"annotation","op":OP,...}: the texts, arrows, pointers and markers of the plot windows by their ids, in
+   plot coordinates (docs/protocol.md "Annotations"); the page's text dialog and the Text,etc menu's Edit go
+   through the same core functions (grobs.h) */
+void annotation_command(xpp::Session &s, const char *line)
 {
     std::string op;
     get_string(line, "op", op);
-    int win;
-    if(!read_plot_window(s,line,"text",win))return;
-    if (op != "add" && op != "edit" && op != "delete") {
-        j_command_error("text", "text takes op add, edit or delete");
+    const auto fail = [&](std::string what) { j_command_error("annotation", xpp::format("annotation {}: {}", op, what)); };
+    /* member key as a finite number in v (left as it was when absent, which is an error when required) */
+    const auto real = [&](const char *key, double &v, bool required) {
+        const char *j = js_find(line, key);
+        if (!j && !required) return true;
+        if (j && js_number(j, &v) && std::isfinite(v)) return true;
+        fail(xpp::format("{} is {}a finite number", key, j ? "" : "required: "));
+        return false;
+    };
+    const auto size_of = [&](double &size) {
+        if (!real("size", size, false)) return false;
+        if (size < 0) return fail(xpp::format("the size {} is not 0 or more", size)), false;
+        return true;
+    };
+    const auto color_of = [&](xpp::Color &color) {
+        const char *j = js_find(line, "color");
+        std::string word;
+        if (!j) return true;
+        const std::optional<xpp::Color> parsed = js_string(j, word) ? xpp::parse_color(word) : std::nullopt;
+        if (!parsed) return fail("the color is a string: #rrggbb, #rrggbbaa, a CSS colour name or foreground"), false;
+        color = *parsed;
+        return true;
+    };
+    /* the shape word of a marker in `shape` as its object type, when given */
+    const auto shape_of = [&](int &type) {
+        std::string word;
+        if (!js_find(line, "shape")) return true;
+        const auto at = get_string(line, "shape", word) ? std::ranges::find(xpp::marker_shape_names, word) : xpp::marker_shape_names.end();
+        if (at == xpp::marker_shape_names.end()) return fail("the shape is box, diamond, triangle, plus, cross or circle"), false;
+        type = xpp::MARKER + static_cast<int>(at - xpp::marker_shape_names.begin());
+        return true;
+    };
+    /* a text's look: the given members over look */
+    const auto look_of = [&](xpp::LabelLook &look) {
+        if (const char *jt = js_find(line, "text"); jt && !js_string(jt, look.text)) return fail("the text is a string"), false;
+        if (!get_whole(line, "size", look.size) || !get_whole(line, "style", look.style)) return fail("size and style are whole numbers"), false;
+        if (!color_of(look.color)) return false;
+        if (const std::string problem = xpp::label_problem(look); !problem.empty()) return fail(problem), false;
+        return true;
+    };
+    const auto full = [&](const char *what) { fail(xpp::format("a session has at most {} {}", xpp::ANNOTATION_LIST_MAX, what)); };
+    const auto added = [&](int id) {
+        std::string b = xpp::format("{{\"ev\":\"annotation\",\"op\":\"{}\",\"id\":{}}}", op, id);
+        send_buf(b);
+    };
+
+    static constexpr std::array<std::string_view, 9> ops{"list", "add_text", "add_arrow", "add_pointer", "add_marker", "edit", "move", "delete", "delete_all"};
+    if (std::ranges::find(ops, op) == ops.end()) {
+        j_command_error("annotation", "annotation takes op list, add_text, add_arrow, add_pointer, add_marker, edit, move, delete or delete_all");
         return;
     }
-    const XppWinId w = s.plot_windows.graph[win].w;
-    const bool add = op == "add";
-    int id = -1;
-    if (!add) {
-        if (!get_whole(line, "id", id) || id < 0 || id >= MAXLAB || s.labels[id].use != 1 || s.labels[id].w != w) {
-            j_command_error("text", xpp::format("text {}: window {} has no text with that id", op, w));
+    if (op == "edit" || op == "move" || op == "delete") {
+        int id = -1;
+        if (!get_whole(line, "id", id) || (!xpp::find_annotation(s.labels, id) && !xpp::find_annotation(s.grobs, id))) {
+            fail(xpp::format("there is no annotation with that id ({})", id));
             return;
         }
         if (op == "delete") {
-            xpp::delete_label(s, id);
-            return;
+            xpp::delete_annotation(s, id);
+        } else if (op == "move") {
+            double x = 0, y = 0;
+            if (real("new_x", x, true) && real("new_y", y, true)) xpp::move_annotation(s, id, x, y);
+        } else if (const LABEL *l = xpp::find_annotation(s.labels, id)) {
+            xpp::LabelLook look{l->s, l->size, l->style, l->color};
+            if (look_of(look)) xpp::edit_label(s, id, std::move(look));
+        } else {
+            const xpp::GROB *g = xpp::find_annotation(s.grobs, id);
+            xpp::GrobLook look{g->type, g->size, g->color};
+            if (g->type >= xpp::MARKER && !shape_of(look.type)) return;
+            if (size_of(look.size) && color_of(look.color)) xpp::edit_grob(s, id, look);
         }
-    }
-    /* edit changes what is given; add takes the defaults of a new text */
-    xpp::LabelLook look;
-    if (!add) look = {s.labels[id].s, s.labels[id].size, s.labels[id].style, s.labels[id].color};
-    double x = add ? 0 : s.labels[id].x, y = add ? 0 : s.labels[id].y;
-    const char *jx = js_find(line, "x"), *jy = js_find(line, "y");
-    if ((add && (!jx || !jy)) || (jx && !js_number(jx, &x)) || (jy && !js_number(jy, &y)) || !std::isfinite(x) || !std::isfinite(y)) {
-        j_command_error("text", "x and y are the position in the plot's coordinates");
         return;
     }
-    if (const char *jt = js_find(line, "text"); (jt && !js_string(jt, look.text)) || (add && !jt)) {
-        j_command_error("text", "the text is a string");
-        return;
-    }
-    if (!get_whole(line, "size", look.size) || !get_whole(line, "style", look.style)) {
-        j_command_error("text", "size and style are whole numbers");
-        return;
-    }
-    if (const char *jc = js_find(line, "color")) {
-        std::string word;
-        const std::optional<xpp::Color> parsed = js_string(jc, word) ? xpp::parse_color(word) : std::nullopt;
-        if (!parsed) {
-            j_command_error("text", "the color is a string: #rrggbb, #rrggbbaa, a CSS colour name or foreground");
+    int win;
+    if (!read_plot_window(s, line, "annotation", win)) return;
+    const XppWinId w = s.plot_windows.graph[win].w;
+    if (op == "list") {
+        std::string b = xpp::annotations_json(s, w);
+        send_buf(b);
+    } else if (op == "delete_all") {
+        xpp::destroy_labels_and_grobs(s, w);
+    } else if (op == "add_text") {
+        xpp::LabelLook look;
+        double x = 0, y = 0;
+        if (!js_find(line, "text")) return fail("the text is required");
+        if (!real("x", x, true) || !real("y", y, true) || !look_of(look)) return;
+        const int id = xpp::add_label(s, std::move(look), w, static_cast<float>(x), static_cast<float>(y));
+        if (id < 0) full("texts");
+        else added(id);
+    } else if (op == "add_marker") {
+        double x = 0, y = 0, size = xpp::MARKER_SIZE_DEFAULT;
+        xpp::Color color = xpp::foreground_color;
+        int type = xpp::MARKER;
+        if (!real("x", x, true) || !real("y", y, true) || !size_of(size) || !color_of(color) || !shape_of(type)) return;
+        const int id = xpp::add_grob(s, w, x, y, 0, 0, size, type, color);
+        if (id < 0) full("arrows, pointers and markers");
+        else added(id);
+    } else {
+        double tip_x = 0, tip_y = 0, tail_x = 0, tail_y = 0, size = xpp::ARROW_SIZE_DEFAULT;
+        xpp::Color color = xpp::foreground_color;
+        if (!real("tip_x", tip_x, true) || !real("tip_y", tip_y, true) || !real("tail_x", tail_x, true) || !real("tail_y", tail_y, true) ||
+            !size_of(size) || !color_of(color))
             return;
-        }
-        look.color = *parsed;
+        if (tip_x == tail_x && tip_y == tail_y) return fail("the tip and the tail are the same point");
+        const int id = xpp::add_grob(s, w, tip_x, tip_y, tail_x, tail_y, size, op == "add_arrow" ? xpp::ARROW : xpp::POINTER, color);
+        if (id < 0) full("arrows, pointers and markers");
+        else added(id);
     }
-    if (const std::string problem = xpp::label_problem(look); !problem.empty()) {
-        j_command_error("text", problem);
-        return;
-    }
-    const float xd = static_cast<float>(x), yd = static_cast<float>(y);
-    if (!add) {
-        xpp::change_label(s, id, std::move(look), jx || jy, xd, yd);
-        return;
-    }
-    if (xpp::add_label(s, std::move(look), w, xd, yd) < 0) j_command_error("text", xpp::format("a session has at most {} texts", MAXLAB));
 }
 
 void display_command(xpp::Session &s, const char *line)

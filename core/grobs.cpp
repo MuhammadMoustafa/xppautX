@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <string>
 #include <array>
+#include <span>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -65,102 +66,134 @@ std::string stored_text(Session &s, const std::string &text)
 
 int add_label(xpp::Session &s, LabelLook look, XppWinId w, float x, float y)
 {
-    for (int i = 0; i < MAXLAB; i++) {
-        LABEL &l = s.labels[i];
-        if (l.use == 0) {
-            l = LABEL{w, x, y, stored_text(s, look.text), 1, 0, look.size, look.style, look.color};
-            marks_data_label(s, l.w, i, shown_label_text(s, i));
-            return i;
+    if (s.labels.size() >= ANNOTATION_LIST_MAX) return -1;
+    const int id = s.next_annotation_id++;
+    LABEL &l = s.labels.emplace_back(LABEL{w, x, y, stored_text(s, look.text), id, 0, look.size, look.style, look.color});
+    marks_data_label(s, w, id, shown_label_text(s, l));
+    return id;
+}
+
+int add_grob(xpp::Session &s, XppWinId w, double xs, double ys, double xe, double ye, double size, int type, const Color &color)
+{
+    if (s.grobs.size() >= ANNOTATION_LIST_MAX) return -1;
+    const int id = s.next_annotation_id++;
+    s.grobs.push_back(GROB{static_cast<float>(xs), static_cast<float>(ys), static_cast<float>(xe), static_cast<float>(ye), size, id, w, type, color});
+    marks_data_grob(s, w, id);
+    return id;
+}
+
+bool edit_label(xpp::Session &s, int id, LabelLook look)
+{
+    LABEL *l = find_annotation(s.labels, id);
+    if (!l) return false;
+    l->s = stored_text(s, look.text);
+    l->size = look.size;
+    l->style = look.style;
+    l->color = look.color;
+    marks_data_label(s, l->w, id, shown_label_text(s, *l));
+    return true;
+}
+
+bool edit_grob(xpp::Session &s, int id, const GrobLook &look)
+{
+    GROB *g = find_annotation(s.grobs, id);
+    if (!g) return false;
+    g->type = look.type;
+    g->size = look.size;
+    g->color = look.color;
+    return true;
+}
+
+bool move_annotation(xpp::Session &s, int id, double x, double y)
+{
+    if (LABEL *l = find_annotation(s.labels, id)) {
+        l->x = static_cast<float>(x);
+        l->y = static_cast<float>(y);
+        return true;
+    }
+    GROB *g = find_annotation(s.grobs, id);
+    if (!g) return false;
+    g->xe = g->xe - g->xs + static_cast<float>(x);
+    g->ye = g->ye - g->ys + static_cast<float>(y);
+    g->xs = static_cast<float>(x);
+    g->ys = static_cast<float>(y);
+    return true;
+}
+
+bool delete_annotation(xpp::Session &s, int id)
+{
+    return std::erase_if(s.labels, [id](const LABEL &l) { return l.id == id; }) + std::erase_if(s.grobs, [id](const GROB &g) { return g.id == id; }) > 0;
+}
+
+std::string shown_label_text(xpp::Session &s, const LABEL &l)
+{
+    return fill_in_text(s, l.s);
+}
+
+namespace {
+using Point = std::array<double, 2>;
+using Polyline = std::span<const Point>;
+constexpr std::array<Point, 5> box_line{{{-6, -6}, {6, -6}, {6, 6}, {-6, 6}, {-6, -6}}};
+constexpr std::array<Point, 5> diamond_line{{{8, 0}, {0, -8}, {-8, 0}, {0, 8}, {8, 0}}};
+constexpr std::array<Point, 4> triangle_line{{{-6, -6}, {6, -6}, {0, 6}, {-6, -6}}};
+constexpr std::array<Point, 2> plus_across{{{-6, 0}, {6, 0}}}, plus_up{{{0, -6}, {0, 6}}};
+constexpr std::array<Point, 2> cross_down{{{-6, 6}, {6, -6}}}, cross_up{{{-6, -6}, {6, 6}}};
+constexpr std::array<Point, 13> circle_line{
+    {{6, 0}, {5, 3}, {3, 5}, {0, 6}, {-3, 5}, {-5, 3}, {-6, 0}, {-5, -3}, {-3, -5}, {0, -6}, {3, -5}, {5, -3}, {6, 0}}};
+constexpr std::array<Polyline, 1> box_glyph{box_line}, diamond_glyph{diamond_line}, triangle_glyph{triangle_line}, circle_glyph{circle_line};
+constexpr std::array<Polyline, 2> plus_glyph{plus_across, plus_up}, cross_glyph{cross_down, cross_up};
+} // namespace
+
+std::span<const std::span<const std::array<double, 2>>> marker_strokes(int shape)
+{
+    switch (shape) {
+    case 0: return box_glyph;
+    case 1: return diamond_glyph;
+    case 2: return triangle_glyph;
+    case 3: return plus_glyph;
+    case 4: return cross_glyph;
+    default: return circle_glyph;
+    }
+}
+
+std::string annotation_glyphs_json()
+{
+    std::string o = xpp::format("{{\"half_units\":{:g},\"arrow_head_spread\":{:g},\"markers\":{{", MARKER_HALF_UNITS, ARROW_HEAD_SPREAD);
+    for (int shape = 0; shape < MARKER_SHAPE_COUNT; shape++) {
+        o += xpp::format("{}\"{}\":[", shape ? "," : "", marker_shape_names[static_cast<std::size_t>(shape)]);
+        const auto &strokes = marker_strokes(shape);
+        for (std::size_t i = 0; i < strokes.size(); i++) {
+            o += i ? ",[" : "[";
+            for (std::size_t k = 0; k < strokes[i].size(); k++) o += xpp::format("{}[{:g},{:g}]", k ? "," : "", strokes[i][k][0], strokes[i][k][1]);
+            o += ']';
         }
+        o += ']';
     }
-    return -1;
-}
-
-void change_label(xpp::Session &s, int id, LabelLook look, bool move, float x, float y)
-{
-    LABEL &l = s.labels[id];
-    l.s = stored_text(s, look.text);
-    l.size = look.size;
-    l.style = look.style;
-    l.color = look.color;
-    if (move) {
-        l.x = x;
-        l.y = y;
-    }
-    marks_data_label(s, l.w, id, shown_label_text(s, id));
-}
-
-void delete_label(xpp::Session &s, int id)
-{
-    s.labels[id].w = 0;
-    s.labels[id].use = 0;
-}
-
-std::string shown_label_text(xpp::Session &s, int id)
-{
-    return fill_in_text(s, s.labels[id].s);
+    return o + "}}";
 }
 
 void draw_marker(xpp::Session &s, double xd, double yd, double size, int type)
 {
-    static const int sym_dir[] = {
-        /*          box              */
-        0, -6, -6, 1, 12, 0, 1, 0, 12, 1, -12, 0,
-        1, 0, -12, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-
-        /*          diamond             */
-        0, 8, 0, 1, -8, -8, 1, 8, -8, 1, 8, 8,
-        1, -8, 8, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-        /*          triangle         */
-        0, -6, -6, 1, 12, 0, 1, -6, 12, 1, -6, -12,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-
-        /*          plus            */
-        0, -6, 0, 1, 12, 0, 0, -6, -6, 1, 0, 12,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-
-        /*          cross            */
-        0, -6, 6, 1, 12, -12, 0, -12, 0, 1, 12, 12,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-        3, 0, 0, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-
-        /*          circle           */
-        0, 6, 0, 1, -1, 3, 1, -2, 2, 1, -3, 1,
-        1, -3, -1, 1, -2, -2, 1, -1, -3, 1, 1, -3,
-        1, 2, -2, 1, 3, -1, 1, 3, 1, 1, 2, 2,
-        1, 1, 3, 3, 0, 0, 3, 0, 0, 3, 0, 0,
-    };
-    float x1 = static_cast<float>(xd), y1 = static_cast<float>(yd), x2, y2;
+    const float x0 = static_cast<float>(xd), y0 = static_cast<float>(yd);
     const float dx = static_cast<float>((s.plot_windows.current->xhi - s.plot_windows.current->xlo) * WDMARK * size);
     const float dy = static_cast<float>((s.plot_windows.current->yhi - s.plot_windows.current->ylo) * HTMARK * size);
-    for (int ind = 0;; ind++) {
-        const int offset = 48 * type + 3 * ind;
-        const int pen = sym_dir[offset];
-        if (pen == 3) break;
-        x2 = dx * sym_dir[offset + 1] + x1;
-        y2 = dy * sym_dir[offset + 2] + y1;
-        if (pen == 1) line_abs(s,x1, y1, x2, y2);
-        x1 = x2;
-        y1 = y2;
+    for (const auto &stroke : marker_strokes(type)) {
+        float x1 = 0, y1 = 0;
+        for (std::size_t k = 0; k < stroke.size(); k++) {
+            const float x2 = dx * static_cast<float>(stroke[k][0]) + x0, y2 = dy * static_cast<float>(stroke[k][1]) + y0;
+            if (k) line_abs(s, x1, y1, x2, y2);
+            x1 = x2;
+            y1 = y2;
+        }
     }
 }
 
-void draw_grob(xpp::Session &s, int i)
+void draw_grob(xpp::Session &s, const GROB &g)
 {
-    const float xs = s.grobs[i].xs, ys = s.grobs[i].ys, xe = s.grobs[i].xe, ye = s.grobs[i].ye;
-    set_pen(s,s.grobs[i].color,LineStyle{});
-    if (s.grobs[i].type == POINTER) line_abs(s,xs, ys, xe, ye);
-    if (s.grobs[i].type == ARROW || s.grobs[i].type == POINTER) arrow_head(s,xs, ys, xe, ye, s.grobs[i].size);
-    if (s.grobs[i].type >= MARKER) draw_marker(s,xs, ys, s.grobs[i].size, s.grobs[i].type - 2);
+    set_pen(s, g.color, LineStyle{});
+    if (g.type == POINTER) line_abs(s, g.xs, g.ys, g.xe, g.ye);
+    if (g.type == ARROW || g.type == POINTER) arrow_head(s, g.xs, g.ys, g.xe, g.ye, g.size);
+    if (g.type >= MARKER) draw_marker(s, g.xs, g.ys, g.size, g.type - MARKER);
 }
 
 void arrow_head(xpp::Session &s, double xsd, double ysd, double xed, double yed, double size)
@@ -171,70 +204,35 @@ void arrow_head(xpp::Session &s, double xsd, double ysd, double xed, double yed,
     const float l = xe - xs, h = ye - ys;
     const float ar = static_cast<float>((s.plot_windows.current->xhi - s.plot_windows.current->xlo) / (s.plot_windows.current->yhi - s.plot_windows.current->ylo));
     const float x0 = static_cast<float>(xs + size * l), y0 = static_cast<float>(ys + size * h);
-    const float xp = static_cast<float>(x0 + .5 * size * h * ar), yp = static_cast<float>(y0 - .5 * size * l / ar);
-    const float xm = static_cast<float>(x0 - .5 * size * h * ar), ym = static_cast<float>(y0 + .5 * size * l / ar);
+    const float xp = static_cast<float>(x0 + ARROW_HEAD_SPREAD * size * h * ar), yp = static_cast<float>(y0 - ARROW_HEAD_SPREAD * size * l / ar);
+    const float xm = static_cast<float>(x0 - ARROW_HEAD_SPREAD * size * h * ar), ym = static_cast<float>(y0 + ARROW_HEAD_SPREAD * size * l / ar);
     line_abs(s,xs, ys, xp, yp);
     line_abs(s,xs, ys, xm, ym);
 }
 
-namespace {
-/* frees the slots of `slots` (labels or graphic objects) that window w
-   holds */
-template <typename Slot, std::size_t N>
-void release_slots_of(std::array<Slot, N> &slots, XppWinId w)
-{
-    for (Slot &x : slots) {
-        if (x.use == 1 && x.w == w) {
-            x.use = 0;
-            x.w = 0;
-        }
-    }
-}
-} // namespace
-
 void destroy_labels_and_grobs(xpp::Session &s, XppWinId w)
 {
-    release_slots_of(s.labels, w);
-    release_slots_of(s.grobs, w);
+    std::erase_if(s.labels, [w](const LABEL &l) { return l.w == w; });
+    std::erase_if(s.grobs, [w](const GROB &g) { return g.w == w; });
 }
 
 void draw_label(xpp::Session &s, XppWinId w)
 {
-    for (int i = 0; i < MAXLAB; i++) {
-        if (s.labels[i].use == 1 && s.labels[i].w == w) {
-            /* \{expr} filled in once: an expression may set a parameter.
-               The filled text has none left, so fancy_text_abs leaves it. */
-            const std::string text = shown_label_text(s, i);
-            marks_data_label(s,w, i, text);
-            set_text_color(s,s.labels[i].color);
-            fancy_text_abs(s,s.labels[i].x, s.labels[i].y, text.c_str(), s.labels[i].size, s.labels[i].font);
-        }
+    for (const LABEL &l : s.labels) {
+        if (l.w != w) continue;
+        /* \{expr} filled in once: an expression may set a parameter.
+           The filled text has none left, so fancy_text_abs leaves it. */
+        const std::string text = shown_label_text(s, l);
+        marks_data_label(s, w, l.id, text);
+        set_text_color(s, l.color);
+        fancy_text_abs(s, l.x, l.y, text.c_str(), l.size, l.font);
     }
-    for (int i = 0; i < MAXGROB; i++) {
-        if (s.grobs[i].use == 1 && s.grobs[i].w == w) {
-            marks_data_grob(s,w, i);
-            draw_grob(s,i);
-        }
+    for (const GROB &g : s.grobs) {
+        if (g.w != w) continue;
+        marks_data_grob(s, w, g.id);
+        draw_grob(s, g);
     }
-    set_text_color(s,foreground_color);
-}
-
-void add_grob(xpp::Session &s, double xs, double ys, double xe, double ye, double size, int type, const Color &color)
-{
-    for (int i = 0; i < MAXGROB; i++) {
-        if (s.grobs[i].use == 0) {
-            s.grobs[i].use = 1;
-            s.grobs[i].xs = static_cast<float>(xs);
-            s.grobs[i].xe = static_cast<float>(xe);
-            s.grobs[i].ys = static_cast<float>(ys);
-            s.grobs[i].ye = static_cast<float>(ye);
-            s.grobs[i].w = s.plot_windows.draw_win;
-            s.grobs[i].size = size;
-            s.grobs[i].color = color;
-            s.grobs[i].type = type;
-            return;
-        }
-    }
+    set_text_color(s, foreground_color);
 }
 
 int select_marker_type(int *type)
@@ -267,6 +265,11 @@ bool ask_color(std::string_view prompt, xpp::Color &c)
     }
     c = *parsed;
     return true;
+}
+
+void too_many_objects()
+{
+    command_error("Text,etc", xpp::format("a session has at most {} arrows, pointers and markers", ANNOTATION_LIST_MAX));
 }
 
 /* the fields of the marker dialogs: type, colour and size */
@@ -321,7 +324,7 @@ void add_marker(xpp::Session &s)
     FlushDisplay();
     if (flag == 0) return;
     scale_to_real(s,i1, j1, &xs, &ys);
-    add_grob(s,xs, ys, 0.0f, 0.0f, s.marker.size, s.marker.type, s.marker.color);
+    if (add_grob(s, s.plot_windows.draw_win, xs, ys, 0, 0, s.marker.size, s.marker.type, s.marker.color) < 0) too_many_objects();
     redraw_all(s);
 }
 
@@ -337,7 +340,10 @@ static void add_markers_at(xpp::Session &s, int number, int start, int skip, dou
         } else {
             threed_proj(s,x, y, z, &xs, &ys);
         }
-        add_grob(s,xs, ys, 0.0f, 0.0f, size, type, color);
+        if (add_grob(s, s.plot_windows.draw_win, xs, ys, 0, 0, size, type, color) < 0) {
+            too_many_objects();
+            break;
+        }
     }
     redraw_all(s);
 }
@@ -350,7 +356,7 @@ void add_markers(xpp::Session &s)
 
 void add_pntarr(xpp::Session &s, int type)
 {
-    double size = .1;
+    double size = ARROW_SIZE_DEFAULT;
     int i1, j1, i2, j2;
     xpp::Color color;
     float xe, ye, xs, ys;
@@ -364,128 +370,79 @@ void add_pntarr(xpp::Session &s, int type)
         scale_to_real(s,i1, j1, &xs, &ys);
         scale_to_real(s,i2, j2, &xe, &ye);
         if (i1 == i2 && j1 == j2) return;
-        add_grob(s,xs, ys, xe, ye, size, type, color);
+        if (add_grob(s, s.plot_windows.draw_win, xs, ys, xe, ye, size, type, color) < 0) too_many_objects();
         redraw_all(s);
     }
 }
 
 /* Text,etc/Edit: move (0), change (1) or delete (2) the label or graphic
-   object nearest to a click */
+   object nearest to a click; the same core functions the protocol's
+   annotation commands call, by the annotation's id */
 void edit_object_com(xpp::Session &s, int com)
 {
-    char ans;
-    int i, j, ilab = -1, flag, type;
-    float x, y;
-    float dist = 1e20f, dd;
-
     MessageBox("Choose Object");
-    flag = GetMouseXY(s,&i, &j);
+    int i, j;
+    const bool clicked = GetMouseXY(s, &i, &j);
     KillMessageBox();
     FlushDisplay();
-    if (!flag) return;
-    scale_to_real(s,i, j, &x, &y);
-    /* now search all labels to find the best */
-    type = 0; /* label =  0, arrows, etc =1 */
-    for (i = 0; i < MAXLAB; i++) {
-        if (s.labels[i].use == 1 && s.labels[i].w == s.plot_windows.draw_win) {
-            dd = (x - s.labels[i].x) * (x - s.labels[i].x) + (y - s.labels[i].y) * (y - s.labels[i].y);
-            if (dd < dist) {
-                ilab = i;
-                dist = dd;
-            }
+    if (!clicked) return;
+    float x, y;
+    scale_to_real(s, i, j, &x, &y);
+    /* the nearest of this window's labels and objects (an object by its start) */
+    const LABEL *near_label = nullptr;
+    const GROB *near_grob = nullptr;
+    float dist = 1e20f;
+    for (const LABEL &l : s.labels) {
+        const float dd = (x - l.x) * (x - l.x) + (y - l.y) * (y - l.y);
+        if (l.w == s.plot_windows.draw_win && dd < dist) {
+            near_label = &l;
+            dist = dd;
         }
     }
-    for (i = 0; i < MAXGROB; i++) {
-        if (s.grobs[i].use == 1 && s.grobs[i].w == s.plot_windows.draw_win) {
-            dd = (x - s.grobs[i].xs) * (x - s.grobs[i].xs) + (y - s.grobs[i].ys) * (y - s.grobs[i].ys);
-            if (dd < dist) {
-                ilab = i;
-                dist = dd;
-                type = 1;
-            }
+    for (const GROB &g : s.grobs) {
+        const float dd = (x - g.xs) * (x - g.xs) + (y - g.ys) * (y - g.ys);
+        if (g.w == s.plot_windows.draw_win && dd < dist) {
+            near_label = nullptr;
+            near_grob = &g;
+            dist = dd;
         }
     }
-    if (ilab >= 0 && type == 0) {
-        switch (com) {
-        case 0:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move {} ?", s.labels[ilab].s), "yn"));
-            if (ans == 'y') {
-                MessageBox("Click on new position");
-                flag = GetMouseXY(s,&i, &j);
-                KillMessageBox();
-                FlushDisplay();
-                if (flag) {
-                    scale_to_real(s,i, j, &x, &y);
-                    s.labels[ilab].x = x;
-                    s.labels[ilab].y = y;
-                    xpp::clr_scrn(s);
-                    redraw_all(s);
-                }
-            }
-            break;
-        case 1:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change {} ?", s.labels[ilab].s), "yn"));
-            if (ans == 'y') {
-                LabelLook look{s.labels[ilab].s, s.labels[ilab].size, s.labels[ilab].style, s.labels[ilab].color};
-                new_string("Text: ", look.text);
-                new_int("Size 0-4 :", &look.size);
-                look.size = std::clamp(look.size, 0, LABEL_SIZE_MAX);
-                if (label_problem(look).empty()) change_label(s, ilab, look, false, 0, 0);
-                xpp::clr_scrn(s);
-                redraw_all(s);
-            }
-            break;
-        case 2:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete {} ?", s.labels[ilab].s), "yn"));
-            if (ans == 'y') {
-                delete_label(s, ilab);
-                xpp::clr_scrn(s);
-                redraw_all(s);
-            }
-            break;
+    if (!near_label && !near_grob) return;
+    const int id = near_label ? near_label->id : near_grob->id;
+    static constexpr std::array<std::string_view, 3> verbs{"Move", "Change", "Delete"};
+    const std::string what = near_label ? near_label->s : xpp::format("graphic at ({:f},{:f})", static_cast<double>(near_grob->xs), static_cast<double>(near_grob->ys));
+    if (TwoChoice("Yes", "No", xpp::format("{} {} ?", verbs[static_cast<std::size_t>(com)], what), "yn") != 'y') return;
+    switch (com) {
+    case 0:
+        MessageBox(near_label ? "Click on new position" : "Reposition");
+        if (GetMouseXY(s, &i, &j)) {
+            scale_to_real(s, i, j, &x, &y);
+            move_annotation(s, id, x, y);
         }
-    }
-    if (ilab >= 0 && type == 1) {
-        switch (com) {
-        case 0:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)), "yn"));
-            if (ans == 'y') {
-                MessageBox("Reposition");
-                flag = GetMouseXY(s,&i, &j);
-                KillMessageBox();
-                FlushDisplay();
-                if (flag) {
-                    scale_to_real(s,i, j, &x, &y);
-                    s.grobs[ilab].xe = s.grobs[ilab].xe - s.grobs[ilab].xs + x;
-                    s.grobs[ilab].ye = s.grobs[ilab].ye - s.grobs[ilab].ys + y;
-                    s.grobs[ilab].xs = x;
-                    s.grobs[ilab].ys = y;
-                    xpp::clr_scrn(s);
-                    redraw_all(s);
-                }
-            }
-            break;
-        case 1:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)), "yn"));
-            if (ans == 'y') {
-                if (s.grobs[ilab].type >= MARKER) select_marker_type(&s.grobs[ilab].type);
-                new_float(s,"Size ", &s.grobs[ilab].size);
-                ask_color("Colour: ", s.grobs[ilab].color);
-                xpp::clr_scrn(s);
-                redraw_all(s);
-            }
-            break;
-        case 2:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)), "yn"));
-            if (ans == 'y') {
-                s.grobs[ilab].w = 0;
-                s.grobs[ilab].use = 0;
-                xpp::clr_scrn(s);
-                redraw_all(s);
-            }
-            break;
+        KillMessageBox();
+        FlushDisplay();
+        break;
+    case 1:
+        if (near_label) {
+            LabelLook look{near_label->s, near_label->size, near_label->style, near_label->color};
+            new_string("Text: ", look.text);
+            new_int("Size 0-4 :", &look.size);
+            look.size = std::clamp(look.size, 0, LABEL_SIZE_MAX);
+            if (label_problem(look).empty()) edit_label(s, id, look);
+        } else {
+            GrobLook look{near_grob->type, near_grob->size, near_grob->color};
+            if (look.type >= MARKER) select_marker_type(&look.type);
+            new_float(s, "Size ", &look.size);
+            ask_color("Colour: ", look.color);
+            edit_grob(s, id, look);
         }
+        break;
+    case 2:
+        delete_annotation(s, id);
+        break;
     }
+    xpp::clr_scrn(s);
+    redraw_all(s);
 }
 
 void do_gr_objs_com(xpp::Session &s, int com)

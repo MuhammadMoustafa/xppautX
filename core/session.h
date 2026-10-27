@@ -258,8 +258,9 @@ struct Session {
   DrawingState drawing;
   PlotFileState plot_file;
   /* the text labels and graphic objects on the plot windows (grobs.cpp) */
-  std::array<LABEL,MAXLAB> labels{};
-  std::array<GROB,MAXGROB> grobs{};
+  std::vector<LABEL> labels;
+  std::vector<GROB> grobs;
+  int next_annotation_id = 0; /* the id of the next text, arrow, pointer or marker added (grobs.h) */
   /* the array plot (arrayplot.cpp) and the animator (aniparse.cpp) */
   ArrayPlotState array_plot;
   AnimationState animation;

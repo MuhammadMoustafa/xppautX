@@ -119,6 +119,8 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [86](#86-the-fold-test-at-the-first-point-of-cycles-from-a-hopf-point-is-read-from-the-predictors-jacobian) | AUTO | the second point of cycles from a Hopf point takes its fold test from the eigen-cycle predictor's factorization: an LP next to the start that is not there (motoneuron6c), and a fold close to the start placed 1.2 percent off | [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521) |
 | [87](#87-an-event-at-a-steps-end-is-discarded-by-the-crossing-tolerance) | Events | the crossing tolerance pushes an endpoint event beyond the step, so it is discarded | [W496](https://github.com/MuhammadMoustafa/xppautX/issues/560) |
 | [88](#88-a-table-file-value-that-is-not-a-number-enters-the-table-as-zero) | Tables | a table file value that is not a number is read as 0, or nan and inf enter the table unchecked | [W505](https://github.com/MuhammadMoustafa/xppautX/issues/569) |
+| [89](#89-the-diamond-marker-is-drawn-off-centre) | Graphics | the diamond marker is drawn centred 8 units right of and below the point it marks | [W513](https://github.com/MuhammadMoustafa/xppautX/issues/577) |
+| [90](#90-the-plots-texts-arrows-pointers-and-markers-stop-at-50-and-400-without-a-word) | Limits | a plot holds 50 texts and 400 arrows, pointers and markers, and the next is dropped without a word | [W513](https://github.com/MuhammadMoustafa/xppautX/issues/577) |
 
 ## 1. Model options
 
@@ -1948,3 +1950,24 @@ requires it to be finite, and refuses the file at its line, naming the value; th
 a table file with `nonsense` as its third value, `nan` as its last, `inf` as its low end, and `-1e308` and `1e308`
 as its ends, each refused (servercheck's W505 cases and tests/test_odex.cpp's W505 block). Card W505
 ([#569](https://github.com/MuhammadMoustafa/xppautX/issues/569)).
+
+## 89. The diamond marker is drawn off-centre
+
+Text,etc's markers are drawn from a table of pen moves, each relative to the previous point
+([many_pops.c:289-295](../reference/xppaut-8.0/many_pops.c#L289), [master](../reference/xppaut-master/many_pops.c#L289)). The
+box, triangle, plus, cross and circle return to a shape centred on the marker's position; the diamond's moves
+(`8,0`, `-8,-8`, `8,-8`, `8,8`, `-8,8`) draw a diamond centred 8 units to the right of it and 8 below, so the
+marker sits off the point it marks. xppautX draws it centred (`8,0`, `-8,-8`, `-8,8`, `8,8`, `8,-8`), as the page always
+did. Evidence: tests/test_labels.cpp's marker table and servercheck's Marker case. Card W513
+([#577](https://github.com/MuhammadMoustafa/xppautX/issues/577)).
+
+## 90. The plot's texts, arrows, pointers and markers stop at 50 and 400 without a word
+
+XPPAUT keeps text labels in `lb[MAXLAB]` and arrows, pointers and markers in `grob[MAXGROB]`, with
+`MAXLAB 50` and `MAXGROB 400` ([many_pops.c:40-41](../reference/xppaut-8.0/many_pops.c#L40),
+[master](../reference/xppaut-master/many_pops.c#L40)); `add_label` searches the 50 slots and, when none is free, returns
+with no message ([many_pops.c:255-275](../reference/xppaut-8.0/many_pops.c#L255)), so a 51st text is never made and the user is
+not told. The `marker(S)` command, which adds one marker per chosen row, hits the 400 the same way. xppautX keeps them in
+vectors sized from what is added; a session file or a client may add up to 100000 of each, and one more is an error naming the limit.
+Evidence: tests/test_labels.cpp and servercheck's W513 cases add 61 texts and 452 arrows and markers. Card W513
+([#577](https://github.com/MuhammadMoustafa/xppautX/issues/577)).

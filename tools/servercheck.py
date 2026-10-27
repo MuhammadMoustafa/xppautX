@@ -3430,18 +3430,19 @@ def check_marks():
               str(hello6.get('text')))
         tid = t[0]['id'] if t else -1
 
-        # W227: the text command edits what is given, moves it, adds and deletes
-        def text_cmd(**fields):
-            evs = after(dict({'cmd': 'text', 'win': 1}, **fields))
-            return marks_of(evs), [e.get('error', '') for e in of(evs, 'message')]
-        m, errs = text_cmd(op='edit', id=tid, color='#0000ff')
+        # W227, W513: the annotation command edits what is given, moves it, adds and deletes, by id
+        def ann(**fields):
+            evs = after(dict({'cmd': 'annotation', 'win': 1}, **fields))
+            return evs, marks_of(evs), [e.get('error', '') for e in of(evs, 'message')]
+        _, m, errs = ann(op='edit', id=tid, color='#0000ff')
         t = m['text'] if m else []
-        check('W227: text edit with only a colour changes only the colour',
+        check('W227: annotation edit of a text with only a colour changes only the colour',
               len(t) == 1 and t[0]['color'] == '#0000ff' and t[0]['style'] == 1 and t[0]['size'] == 3 and t[0]['source'] == typed
               and not errs, str((m, errs))[:300])
-        m, errs = text_cmd(op='edit', id=tid, text='moved', size=0, style=3, color='foreground', x=0.25, y=0.75)
+        ann(op='edit', id=tid, text='moved', size=0, style=3, color='foreground')
+        _, m, errs = ann(op='move', id=tid, new_x=0.25, new_y=0.75)
         t = m['text'] if m else []
-        check('W227: text edit changes the text, size, style, colour and position',
+        check('W227: annotation edit changes the text, size, style, colour and move its position',
               len(t) == 1 and t[0]['text'] == 'moved' and t[0]['source'] == 'moved' and t[0]['size'] == 0
               and t[0]['style'] == 3 and t[0]['color'] == 'foreground' and t[0]['id'] == tid and near(t[0]['x'], 0.25, 1e-6)
               and near(t[0]['y'], 0.75, 1e-6) and not errs, str((m, errs))[:300])
@@ -3453,26 +3454,32 @@ def check_marks():
                 ('a size that is not whole', dict(op='edit', id=tid, size=1.5), 'whole numbers'),
                 ('an empty text', dict(op='edit', id=tid, text=''), 'not empty'),
                 ('a text of 1001 characters', dict(op='edit', id=tid, text='x' * 1001), 'at most 1000 characters'),
-                ('a position that is not a number', dict(op='edit', id=tid, x='left'), 'x and y'),
-                ('an id the window has not', dict(op='edit', id=7), 'no text with that id'),
-                ('a delete of an id the window has not', dict(op='delete', id=7), 'no text with that id'),
-                ('an add with no position', dict(op='add', text='a'), 'x and y'),
-                ('an add with no text', dict(op='add', x=0, y=0), 'text is a string'),
-                ('an op it has not', dict(op='move', id=tid), 'add, edit or delete'),
-                ('a window it has not', dict(op='edit', id=tid, win=9), 'window 9 is not an open plot window')]:
-            m, errs = text_cmd(**fields)
-            check('W227: text refuses %s, naming it, and changes nothing' % what,
+                ('a move to a position that is not a number', dict(op='move', id=tid, new_x='left', new_y=0), 'new_x is a finite number'),
+                ('a move with no position', dict(op='move', id=tid), 'new_x is required'),
+                ('an edit of an id there is not', dict(op='edit', id=7777), 'no annotation with that id'),
+                ('a delete of an id there is not', dict(op='delete', id=7777), 'no annotation with that id'),
+                ('a move of an id there is not', dict(op='move', id=7777, new_x=0, new_y=0), 'no annotation with that id'),
+                ('an id that is not a number', dict(op='delete', id='a'), 'no annotation with that id'),
+                ('an add with no position', dict(op='add_text', text='a'), 'x is required'),
+                ('an add with no text', dict(op='add_text', x=0, y=0), 'the text is required'),
+                ('an op it has not', dict(op='frob', id=tid), 'annotation takes op'),
+                ('a window it has not', dict(op='list', win=9), 'window 9 is not an open plot window')]:
+            evs, m, errs = ann(**fields)
+            check('W227: annotation refuses %s, naming it, and changes nothing' % what,
                   m is None and len(errs) == 1 and want in errs[0], str((m, errs))[:300])
-        m, errs = text_cmd(op='add', text=r'%a\{2*3}', x=0.5, y=-0.5, size=4, style=2, color='#00e100c0')
+        evs, m, errs = ann(op='add_text', text=r'%a\{2*3}', x=0.5, y=-0.5, size=4, style=2, color='#00e100c0')
         t = m['text'] if m else []
         added = next((x for x in t if x['id'] != tid), None)
-        check('W227: text add: a new label with its look, a % text stored as its value',
+        added_ev = next((e for e in of(evs, 'annotation')), {})
+        check('W227: annotation add_text: a new label with its look, a % text stored as its value, its id reported',
               len(t) == 2 and added and added['text'] == added['source'] and added['text'] == 'a6'
-              and added['size'] == 4 and added['style'] == 2 and added['color'] == '#00e100c0' and not errs, str((m, errs))[:300])
-        m, errs = text_cmd(op='delete', id=added['id'] if added else -1)
-        check('W227: text delete removes that label only', m is not None and [x['id'] for x in m['text']] == [tid] and not errs,
+              and added['size'] == 4 and added['style'] == 2 and added['color'] == '#00e100c0' and not errs
+              and added_ev.get('op') == 'add_text' and added_ev.get('id') == added['id'] and added['id'] > tid, str((m, errs))[:300])
+        _, m, errs = ann(op='delete', id=added['id'] if added else -1)
+        check('W227: annotation delete removes that label only', m is not None and [x['id'] for x in m['text']] == [tid] and not errs,
               str((m, errs))[:300])
-        m, errs = text_cmd(op='edit', id=tid, text=typed, size=3, style=1, color='#ffcd00', x=-0.3, y=0.5)
+        ann(op='edit', id=tid, text=typed, size=3, style=1, color='#ffcd00')
+        _, m, errs = ann(op='move', id=tid, new_x=-0.3, new_y=0.5)
         check('W227: ... and the first label is as Text left it', m is not None and len(m['text']) == 1
               and m['text'][0]['text'] == r'\1a\0-point 6' and not errs, str((m, errs))[:300])
 
@@ -3491,6 +3498,76 @@ def check_marks():
         check('Text,etc/Marker: a marker mark with its shape, size, colour and position',
               len(k) == 1 and k[0]['shape'] == 'diamond' and k[0]['size'] == 2 and k[0]['color'] == '#00e100'
               and near(k[0]['x'], 0.9, px) and near(k[0]['y'], 0.1, py), str(m)[:300])
+
+        # W513: every annotation kind has an id, listed, edited, moved and deleted by it, in plot coordinates
+        pid, kid = (a[0]['id'] if a else -1), (k[0]['id'] if k else -1)
+        check('W513: the pointer and the marker have ids of their own, none the text\'s',
+              len({tid, pid, kid}) == 3 and min(tid, pid, kid) >= 0, str((tid, pid, kid)))
+        evs, _, errs = ann(op='list')
+        ls = of(evs, 'annotations')
+        check('W513: annotation list sends every text, arrow and marker of the window with its id',
+              len(ls) == 1 and ls[0]['win'] == 1 and [x['id'] for x in ls[0]['text']] == [tid]
+              and [x['id'] for x in ls[0]['arrows']] == [pid] and [x['id'] for x in ls[0]['markers']] == [kid]
+              and ls[0]['arrows'][0]['kind'] == 'pointer' and ls[0]['markers'][0]['shape'] == 'diamond' and not errs, str(ls)[:300])
+        _, m, errs = ann(op='move', id=pid, new_x=0.3, new_y=0.4)
+        ar = m['arrows'][0] if m else {}
+        check('W513: move of a pointer by id puts its tip there and the tail the same way off (data coordinates)',
+              near(ar.get('x1'), 0.3, 1e-6) and near(ar.get('y1'), 0.4, 1e-6) and near(ar.get('x2'), 0.8, 2e-3)
+              and near(ar.get('y2'), 1.0, 2e-3) and not errs, str((m, errs))[:300])
+        _, m, errs = ann(op='edit', id=pid, size=0.5, color='#ff0000')
+        ar = m['arrows'][0] if m else {}
+        check('W513: edit of a pointer by id changes its size and colour',
+              ar.get('size') == 0.5 and ar.get('color') == '#ff0000' and ar.get('id') == pid and not errs, str((m, errs))[:300])
+        _, m, errs = ann(op='move', id=kid, new_x=0.6, new_y=0.2)
+        _, m, errs = ann(op='edit', id=kid, shape='plus', size=3, color='#0000ff')
+        mk = m['markers'][0] if m else {}
+        check('W513: move and edit of a marker by id change its position, shape, size and colour',
+              mk.get('shape') == 'plus' and mk.get('size') == 3 and mk.get('color') == '#0000ff' and mk.get('id') == kid
+              and near(mk.get('x'), 0.6, 1e-6) and near(mk.get('y'), 0.2, 1e-6) and not errs, str((m, errs))[:300])
+        for what, fields, want in [('a shape it has not', dict(op='edit', id=kid, shape='star'), 'the shape is box'),
+                                   ('a negative size', dict(op='edit', id=pid, size=-1), 'is not 0 or more'),
+                                   ('an arrow with the tip on the tail', dict(op='add_arrow', tip_x=1, tip_y=1, tail_x=1, tail_y=1), 'the same point'),
+                                   ('an arrow with no tail', dict(op='add_pointer', tip_x=1, tip_y=1), 'tail_x is required'),
+                                   ('a marker with no position', dict(op='add_marker', shape='box'), 'x is required')]:
+            _, m, errs = ann(**fields)
+            check('W513: annotation refuses %s' % what, m is None and len(errs) == 1 and want in errs[0], str((m, errs)))
+        evs, m, errs = ann(op='add_arrow', tip_x=0.1, tip_y=0.1, tail_x=0.2, tail_y=0.3, color='#00c8c8')
+        new_arrow = next(iter(of(evs, 'annotation')), {}).get('id', -1)
+        evs, m, errs = ann(op='add_marker', shape='circle', x=0.5, y=0.5)
+        new_marker = next(iter(of(evs, 'annotation')), {}).get('id', -1)
+        check('W513: add_arrow and add_marker report ids no other annotation has; the arrow keeps its look',
+              len({tid, pid, kid, new_arrow, new_marker}) == 5 and m is not None and len(m['arrows']) == 2 and len(m['markers']) == 2
+              and next((x for x in m['arrows'] if x['id'] == new_arrow), {}).get('kind') == 'arrow'
+              and next((x for x in m['arrows'] if x['id'] == new_arrow), {}).get('color') == '#00c8c8', str((m, errs))[:300])
+        _, m, errs = ann(op='delete', id=new_marker)
+        _, m, errs = ann(op='delete', id=new_arrow)
+        _, m, errs = ann(op='delete', id=7777)
+        check('W513: delete by id removes only that arrow or marker; the others keep their ids',
+              m is None and not [e for e in errs if 'no annotation' not in e], str(errs))
+        evs, m, _ = ann(op='list')
+        ls = of(evs, 'annotations')[0]
+        check('... the pointer, marker and text are as they were, with the same ids',
+              [x['id'] for x in ls['text']] == [tid] and [x['id'] for x in ls['arrows']] == [pid]
+              and [x['id'] for x in ls['markers']] == [kid], str(ls)[:300])
+        # no caps: more than 50 texts and 400 arrows and markers
+        ids = []
+        for i in range(60):
+            evs, _, _ = ann(op='add_text', text='t%d' % i, x=i / 100, y=0.5)
+            ids += [e['id'] for e in of(evs, 'annotation')]
+        for i in range(450):
+            evs, _, _ = ann(op='add_marker', shape='box', x=i / 1000, y=0.1) if i % 2 else ann(op='add_arrow', tip_x=0, tip_y=0, tail_x=i / 1000 + 0.1, tail_y=0.3)
+            ids += [e['id'] for e in of(evs, 'annotation')]
+        evs, _, errs = ann(op='list')
+        ls = of(evs, 'annotations')[0]
+        check('W513: no cap of 50 texts or 400 arrows and markers: 61 texts and 452 arrows and markers are kept, ids all different',
+              len(ls['text']) == 61 and len(ls['arrows']) + len(ls['markers']) == 452 and len(set(ids)) == 510 and not errs,
+              str((len(ls['text']), len(ls['arrows']), len(ls['markers']), len(set(ids)))))
+        for i in ids:
+            send6(cmd='annotation', op='delete', id=i)
+            collect6(is_idle, timeout=30 * SLOW)
+        evs, _, _ = ann(op='list')
+        ls = of(evs, 'annotations')[0]
+        check('... and deleting them leaves the first three', [len(ls[k]) for k in ('text', 'arrows', 'markers')] == [1, 1, 1], str(ls)[:200])
 
         evs = command('g', keys('f', 'f', {'values': ['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'first run', 'frz1']}))
         m = marks_of(evs)
@@ -6136,7 +6213,7 @@ def check_export_elements():
             # each arrow is a path with a dot at its head
             check('W346: ' + fmt + ' holds all 25 requested field arrows', counts['dot', '#000000'] == 25, str(counts))
         annotations = go + [
-            {'cmd': 'text', 'op': 'add', 'win': 1, 'x': 0.2, 'y': 0.4, 'text': 'W346label'},
+            {'cmd': 'annotation', 'op': 'add_text', 'win': 1, 'x': 0.2, 'y': 0.4, 'text': 'W346label'},
             {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'f'},
             {'cmd': 'answer', 'key': 'f'}, {'cmd': 'answer', 'values': ['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'W346frozen', 'frz1']}]
         for fmt in ('pdf', 'svg'):
@@ -6970,19 +7047,19 @@ def check_session_file():
 
         def label_marks(label_line=None, **over):
             """marks.setx with one label (its fields over the defaults); the label's
-            lines are 3 (window) to 10 (text)"""
-            f = dict(window='0', x='0.5', y='0.5', size='2', font='0', style='0', color='"foreground"', text='"hi"')
+            lines are 5 (window) to 12 (text)"""
+            f = dict(id='0', window='0', x='0.5', y='0.5', size='2', font='0', style='0', color='"foreground"', text='"hi"')
             f.update(over)
-            rows = ['labels: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in ('window', 'x', 'y', 'size', 'font', 'style', 'color', 'text')]
+            rows = ['next_annotation_id: 1,', 'labels: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in ('id', 'window', 'x', 'y', 'size', 'font', 'style', 'color', 'text')]
             rows += ['  },', '],', 'arrows_and_markers: [],', 'freeze_each_run: 0,', 'frozen_curves: [],', '']
             return '\n'.join(rows).encode()
 
         def mark_marks(**over):
-            """marks.setx with one arrow or marker; its lines are 4 (window) to 11"""
-            f = dict(window='0', type='0', color='"foreground"', size='1', x_start='0', y_start='0', x_end='1', y_end='1')
+            """marks.setx with one arrow or marker; its lines are 6 (window) to 13"""
+            f = dict(id='0', window='0', type='0', color='"foreground"', size='1', x_start='0', y_start='0', x_end='1', y_end='1')
             f.update(over)
-            rows = ['labels: [],', 'arrows_and_markers: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in
-                                                                       ('window', 'type', 'color', 'size', 'x_start', 'y_start', 'x_end', 'y_end')]
+            rows = ['next_annotation_id: 1,', 'labels: [],', 'arrows_and_markers: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in
+                                                                       ('id', 'window', 'type', 'color', 'size', 'x_start', 'y_start', 'x_end', 'y_end')]
             rows += ['  },', '],', 'freeze_each_run: 0,', 'frozen_curves: [],', '']
             return '\n'.join(rows).encode()
 
@@ -7040,25 +7117,32 @@ def check_session_file():
              ('aftergenerator.snapx/random.txt:%d:' % (len(random_rows) + 1), '"not_generator_state" after the end')),
             # W227: a label's every value is checked at its line (window, x, y, size, font, style, colour, text)
             ('labelsize', lambda m: m.__setitem__('marks.setx', label_marks(size='9')),
-             ('labelsize.snapx/marks.setx:6:', '9 is not a text size (0 to 4)')),
+             ('labelsize.snapx/marks.setx:8:', '9 is not a text size (0 to 4)')),
             ('labelfont', lambda m: m.__setitem__('marks.setx', label_marks(font='5')),
-             ('labelfont.snapx/marks.setx:7:', '5 is not a text font (0 to 1)')),
+             ('labelfont.snapx/marks.setx:9:', '5 is not a text font (0 to 1)')),
             ('labelstyle', lambda m: m.__setitem__('marks.setx', label_marks(style='7')),
-             ('labelstyle.snapx/marks.setx:8:', '7 is not a text style (0 to 3)')),
+             ('labelstyle.snapx/marks.setx:10:', '7 is not a text style (0 to 3)')),
             ('labelcolor', lambda m: m.__setitem__('marks.setx', label_marks(color='"99"')),
-             ('labelcolor.snapx/marks.setx:9:', '`99` is not a colour')),
+             ('labelcolor.snapx/marks.setx:11:', '`99` is not a colour')),
             ('labelempty', lambda m: m.__setitem__('marks.setx', label_marks(text='""')),
-             ('labelempty.snapx/marks.setx:10:', 'a text is not empty')),
+             ('labelempty.snapx/marks.setx:12:', 'a text is not empty')),
             ('labellong', lambda m: m.__setitem__('marks.setx', label_marks(text='"' + 'x' * 1001 + '"')),
-             ('labellong.snapx/marks.setx:10:', 'at most 1000 characters')),
-            ('labelmany', lambda m: m.__setitem__('marks.setx', ('labels: [' + ', '.join(['{}'] * 51) + '],\n').encode()),
-             ('labelmany.snapx/marks.setx:1:', 'at most 50')),
+             ('labellong.snapx/marks.setx:12:', 'at most 1000 characters')),
+            # W513: ids are checked at their line: below next_annotation_id, each above the one before, none shared by two kinds
+            ('labelid', lambda m: m.__setitem__('marks.setx', label_marks(id='1')),
+             ('labelid.snapx/marks.setx:4:', '1 is not an id below next_annotation_id 1')),
+            ('labelnegid', lambda m: m.__setitem__('marks.setx', label_marks(id='-1')),
+             ('labelnegid.snapx/marks.setx:4:', '-1 is not an id below next_annotation_id 1')),
+            ('markid', lambda m: m.__setitem__('marks.setx', mark_marks(id='5')),
+             ('markid.snapx/marks.setx:5:', '5 is not an id below next_annotation_id 1')),
+            ('sharedid', lambda m: m.__setitem__('marks.setx', mark_marks().replace(b'labels: [],', label_marks().split(b'arrows_and_markers')[0].split(b'\n', 1)[1].rstrip(b'\n') + b'')),
+             ('sharedid.snapx/marks.setx:', 'belongs to a text and an arrow, pointer or marker')),
             ('labelnan', lambda m: m.__setitem__('marks.setx', label_marks(x='nan')),
-             ('labelnan.snapx/marks.setx:4:', 'is not a finite number')),
+             ('labelnan.snapx/marks.setx:6:', 'is not a finite number')),
             ('marktype', lambda m: m.__setitem__('marks.setx', mark_marks(type='999')),
-             ('marktype.snapx/marks.setx:5:', "999 is not an object's type (0 to 7)")),
+             ('marktype.snapx/marks.setx:7:', "999 is not an object's type (0 to 7)")),
             ('markcolor', lambda m: m.__setitem__('marks.setx', mark_marks(color='"999"')),
-             ('markcolor.snapx/marks.setx:6:', '`999` is not a colour')),
+             ('markcolor.snapx/marks.setx:8:', '`999` is not a colour')),
             ('twonames', lambda m: m.__setitem__('session.setx', m['session.setx'].replace(b'session: {', b'session: { model: "lecar.odex",', 1)),
              ('twonames.snapx/session.setx:3:', 'is given twice')),
         ]

@@ -14,6 +14,7 @@
 #include "model.h"
 #include <cmath>
 #include "session.h"
+#include "grobs.h"
 #include "ui_json.h"
 #include "json_files.h"
 #include "xpp_about.h"
@@ -634,7 +635,7 @@ const CommandInfo commands[] = {
     {"equations", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_equations(s); }},
     {"click", nullptr, V, STEP, click_command},
     {"display", nullptr, V, STEP, display_command},
-    {"text", nullptr, V, STEP, text_command},
+    {"annotation", nullptr, V, STEP, annotation_command},
     {"redraw", nullptr, V, NOT_STEP,
      [](xpp::Session &s, const char *) {
          redraw_graph(s);
@@ -1190,6 +1191,9 @@ void send_hello(xpp::Session &s)
         buf_str_array(b, names);
     }
     const std::string line_styles = xpp::line_styles_json();
+    const std::string glyphs = xpp::annotation_glyphs_json();
+    BUF_LIT(b, ",\"annotation_glyphs\":");
+    buf_add(b, glyphs.data(), glyphs.size());
     BUF_LIT(b, ",\"line_styles\":");
     buf_add(b, line_styles.data(), line_styles.size());
     buf_format(b, ",\"window_ids\":{{\"plots\":{},\"auto\":{},\"ani\":{},\"aplot\":{}}}", static_cast<int>(s.plot_windows.graph.size()), WIN_AUTO,

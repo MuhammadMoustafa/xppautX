@@ -38,14 +38,6 @@ namespace {
 void init_main_graph(xpp::Session &s)
 {
     int i;
-    for (i = 0; i < MAXLAB; i++) {
-        s.labels[i].use = 0;
-        s.labels[i].w = 0;
-    }
-    for (i = 0; i < MAXGROB; i++) {
-        s.grobs[i].w = 0;
-        s.grobs[i].use = 0;
-    }
     for (i = 0; i < static_cast<int>(s.frozen_curves.curve.size()); i++) s.frozen_curves.curve[i].use = 0;
     init_all_graph(s);
     get_draw_area(s);

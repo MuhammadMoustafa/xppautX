@@ -447,8 +447,8 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
       </div>
       {edited && <TextDialog initial={{text: edited.source, size: edited.size, style: edited.style, color: edited.color}}
         position={{x: edited.x, y: edited.y}} close={() => setTextEdit(null)}
-        apply={(v, at) => { session.changeText(win, edited.id, v, at); setTextEdit(null); }}
-        remove={() => { session.deleteText(win, edited.id); setTextEdit(null); }} />}
+        apply={(v, at) => { session.changeText(edited.id, v, at); setTextEdit(null); }}
+        remove={() => { session.deleteText(edited.id); setTextEdit(null); }} />}
       {editing && <TraceDialog label={editing.label} color={editing.color} close={() => setEditing(null)}
         apply={(label, color) => { setAppearance(a => ({...a, [editing.key]: {...a[editing.key], label, color}})); setEditing(null); }} />}
       <footer class="readout" role="status" aria-live="polite">

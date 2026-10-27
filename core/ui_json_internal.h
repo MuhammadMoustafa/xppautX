@@ -449,7 +449,7 @@ bool read_plot_window(const xpp::Session &s,const char *line,const char *command
 void click_command(xpp::Session &s, const char *line);
 /* {"cmd":"display","win":N,"x":[lo,hi]|null,"y":...,"runs":bool}: the zoom shown in plot window N and whether its earlier runs are drawn (display_state.h) */
 void display_command(xpp::Session &s, const char *line);
-void text_command(xpp::Session &s, const char *line); /* text: add, edit or delete a label of a plot window */
+void annotation_command(xpp::Session &s, const char *line); /* annotation: list, add, edit, move or delete texts, arrows, pointers and markers */
 void j_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h);
 void j_blank_draw_window(xpp::Session &s);
 void j_redraw_all(xpp::Session &s);

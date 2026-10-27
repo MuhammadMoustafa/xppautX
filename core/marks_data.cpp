@@ -3,10 +3,10 @@
 
    Each plot window keeps a record of the marks the core drew in it since
    it was last blanked (the Session's, marks_data.h MarksShown): the equilibria Sing pts marked (their points, in
-   the order drawn, each once), and the slots of the labels, graphic
+   the order drawn, each once), and the ids of the labels, graphic
    objects and frozen curves drawn (a label with the text it showed, a
    frozen curve with the generation of its slot). At the end of a command
-   the record becomes the window's content, reading each slot still in use
+   the record becomes the window's content, reading each one still in use
    for this window; a window whose content differs from what the client
    got last gets its event. */
 #include <new>
@@ -15,10 +15,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "marks_data.h"
+#include "grobs.h"
 #include "session.h"
 #include "xpp_util.h"
 #include "json_number.h"
@@ -36,7 +38,7 @@ const std::size_t EQ_MAX = 10000;
 
 
 struct Label {
-    int id; /* the slot: the page names the label by it */
+    int id; /* the annotation's id: the page names the label by it */
     float x, y;
     std::string text, source; /* as drawn, and as written (its \{expr}s unfilled) */
     int size, font, style;
@@ -49,13 +51,14 @@ struct Label {
 };
 
 struct Grob {
+    int id;
     int type;
     Color color;
     float xs, ys, xe, ye;
     double size;
     bool operator==(const Grob &o) const
     {
-        return type == o.type && color == o.color && xs == o.xs && ys == o.ys && xe == o.xe && ye == o.ye
+        return id == o.id && type == o.type && color == o.color && xs == o.xs && ys == o.ys && xe == o.xe && ye == o.ye
                && size == o.size;
     }
 };
@@ -123,26 +126,12 @@ void add_values(std::string &o, const float *v, int n)
 const char *eq_type(int symbol) { return symbol == 3 ? "stable" : symbol == 1 ? "saddle" : "unstable"; }
 const char *eq_symbol(int symbol) { return symbol == 3 ? "circle" : symbol == 1 ? "triangle" : "box"; }
 
-void send_marks(const xpp::Session &s, int pop, const Content &c)
+/* the "text", "arrows" and "markers" members: the texts, then the arrows and pointers, then the markers */
+void append_annotations(std::string &o, const std::vector<Label> &labels, const std::vector<Grob> &grobs)
 {
-    std::string o = "{\"ev\":\"marks\",\"win\":";
-    add_int(o, static_cast<long>(s.plot_windows.graph[pop].w));
-    if (client.values_f32) o += ",\"enc\":\"f32\"";
-    o += ",\"equilibria\":[";
-    for (std::size_t k = 0; k < c.eqs.size(); k++) {
-        o += k ? ",{\"x\":" : "{\"x\":";
-        xpp::json::json_append_number_shortest(o, c.eqs[k].x);
-        o += ",\"y\":";
-        xpp::json::json_append_number_shortest(o, c.eqs[k].y);
-        o += ",\"type\":\"";
-        o += eq_type(c.eqs[k].symbol);
-        o += "\",\"symbol\":\"";
-        o += eq_symbol(c.eqs[k].symbol);
-        o += "\"}";
-    }
-    o += "],\"text\":[";
-    for (std::size_t k = 0; k < c.labels.size(); k++) {
-        const Label &l = c.labels[k];
+    o += "\"text\":[";
+    for (std::size_t k = 0; k < labels.size(); k++) {
+        const Label &l = labels[k];
         o += k ? ",{\"id\":" : "{\"id\":";
         add_int(o, l.id);
         o += ",\"x\":";
@@ -165,10 +154,12 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
     }
     o += "],\"arrows\":[";
     bool first = true;
-    for (const Grob &g : c.grobs) {
+    for (const Grob &g : grobs) {
         if (g.type != ARROW && g.type != POINTER) continue;
-        o += first ? "{\"kind\":\"" : ",{\"kind\":\"";
+        o += first ? "{\"id\":" : ",{\"id\":";
         first = false;
+        add_int(o, g.id);
+        o += ",\"kind\":\"";
         o += g.type == ARROW ? "arrow" : "pointer";
         o += "\",\"x1\":";
         add_float(o, g.xs);
@@ -186,11 +177,13 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
     }
     o += "],\"markers\":[";
     first = true;
-    for (const Grob &g : c.grobs) {
+    for (const Grob &g : grobs) {
         if (g.type < MARKER) continue;
         const int shape = g.type - MARKER;
-        o += first ? "{\"x\":" : ",{\"x\":";
+        o += first ? "{\"id\":" : ",{\"id\":";
         first = false;
+        add_int(o, g.id);
+        o += ",\"x\":";
         add_float(o, g.xs);
         o += ",\"y\":";
         add_float(o, g.ys);
@@ -202,7 +195,29 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
         o += xpp::quoted_color(g.color);
         o += '}';
     }
-    o += "],\"frozen\":[";
+    o += ']';
+}
+
+void send_marks(const xpp::Session &s, int pop, const Content &c)
+{
+    std::string o = "{\"ev\":\"marks\",\"win\":";
+    add_int(o, static_cast<long>(s.plot_windows.graph[pop].w));
+    if (client.values_f32) o += ",\"enc\":\"f32\"";
+    o += ",\"equilibria\":[";
+    for (std::size_t k = 0; k < c.eqs.size(); k++) {
+        o += k ? ",{\"x\":" : "{\"x\":";
+        xpp::json::json_append_number_shortest(o, c.eqs[k].x);
+        o += ",\"y\":";
+        xpp::json::json_append_number_shortest(o, c.eqs[k].y);
+        o += ",\"type\":\"";
+        o += eq_type(c.eqs[k].symbol);
+        o += "\",\"symbol\":\"";
+        o += eq_symbol(c.eqs[k].symbol);
+        o += "\"}";
+    }
+    o += "],";
+    append_annotations(o, c.labels, c.grobs);
+    o += ",\"frozen\":[";
     for (std::size_t k = 0; k < c.frozen.size(); k++) {
         const Frozen &f = c.frozen[k];
         const CURVE &z = s.frozen_curves.curve[f.slot];
@@ -231,12 +246,12 @@ Content content_of(const xpp::Session &s, int pop, const MarksShown::Record &r)
     Content c;
     c.eqs = r.eqs;
     for (const auto &e : r.labels) {
-        const LABEL &l = s.labels[e.first];
-        if (l.use == 1 && l.w == w) c.labels.push_back({e.first, l.x, l.y, e.second, l.s, l.size, l.font, l.style, l.color});
+        const LABEL *l = find_annotation(s.labels, e.first);
+        if (l && l->w == w) c.labels.push_back({e.first, l->x, l->y, e.second, l->s, l->size, l->font, l->style, l->color});
     }
-    for (std::size_t i = 0; i < r.grobs.size(); i++) {
-        const GROB &g = s.grobs[i];
-        if (r.grobs[i] && g.use == 1 && g.w == w) c.grobs.push_back({g.type, g.color, g.xs, g.ys, g.xe, g.ye, g.size});
+    for (const int id : r.grobs) {
+        const GROB *g = find_annotation(s.grobs, id);
+        if (g && g->w == w) c.grobs.push_back({id, g->type, g->color, g->xs, g->ys, g->xe, g->ye, g->size});
     }
     for (const auto &e : r.frozen) {
         const CURVE &z = s.frozen_curves.curve[e.first];
@@ -309,24 +324,23 @@ void marks_data_equilibrium(xpp::Session &s, double x, double y, int symbol)
     }
 }
 
-void marks_data_label(xpp::Session &s, XppWinId w, int slot, std::string_view text)
+void marks_data_label(xpp::Session &s, XppWinId w, int id, std::string_view text)
 {
     MarksShown::Record *r = record_of(s, w);
-    if (!r || slot < 0 || slot >= MAXLAB) return;
+    if (!r) return;
     try {
-        r->labels[slot] = text;
+        r->labels[id] = text;
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("recording a label");
     }
 }
 
-void marks_data_grob(xpp::Session &s, XppWinId w, int slot)
+void marks_data_grob(xpp::Session &s, XppWinId w, int id)
 {
     MarksShown::Record *r = record_of(s, w);
-    if (!r || slot < 0 || slot >= MAXGROB) return;
+    if (!r) return;
     try {
-        if (r->grobs.size() != MAXGROB) r->grobs.assign(MAXGROB, false);
-        r->grobs[slot] = true;
+        r->grobs.insert(id);
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("recording an arrow or marker");
     }
@@ -341,6 +355,21 @@ void marks_data_frozen(xpp::Session &s, XppWinId w, int slot)
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("recording a frozen curve");
     }
+}
+
+std::string annotations_json(Session &s, XppWinId w)
+{
+    std::vector<Label> labels;
+    for (const LABEL &l : s.labels)
+        if (l.w == w) labels.push_back({l.id, l.x, l.y, shown_label_text(s, l), l.s, l.size, l.font, l.style, l.color});
+    std::vector<Grob> grobs;
+    for (const GROB &g : s.grobs)
+        if (g.w == w) grobs.push_back({g.id, g.type, g.color, g.xs, g.ys, g.xe, g.ye, g.size});
+    std::string o = "{\"ev\":\"annotations\",\"win\":";
+    add_int(o, static_cast<long>(w));
+    o += ',';
+    append_annotations(o, labels, grobs);
+    return o + '}';
 }
 
 void marks_data_frozen_new(xpp::Session &s, int slot)

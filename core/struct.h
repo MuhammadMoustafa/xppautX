@@ -53,7 +53,7 @@ typedef struct {
 		float x;
 		float y;
 		std::string s;
-		short use;
+		int id; /* grobs.h: the annotation's id */
 		int font,size;
 		int style; /* grobs.h: LABEL_STYLE_COUNT */
 		xpp::Color color;

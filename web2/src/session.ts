@@ -4,6 +4,7 @@ import {nativeFileDialog, nativeFileRequest, offerDownload, writeTo, type SaveHa
 import {accumulateScroll, keyScroll} from './plot/aplotScroll';
 import {bytesToBase64} from './plot/gif';
 import {setLineGeometry} from './plot/linestyle';
+import {setAnnotationGlyphs} from './plot/marks';
 import {renderFrame} from './plot/kinescopeRender';
 import {pickAnswer, type PickState} from './plot/pick';
 import {chartOf} from './plot/registry';
@@ -163,7 +164,10 @@ export class Session {
           + 'open the page the program itself serves (reload it after an update).'}});
       return;
     }
-    if (ev.ev === 'hello') setLineGeometry(ev.line_styles); /* before any plot is built */
+    if (ev.ev === 'hello') {
+      setLineGeometry(ev.line_styles); /* before any plot is built */
+      setAnnotationGlyphs(ev.annotation_glyphs);
+    }
     this.store.dispatch({type: 'event', ev: this.unguarded(ev)});
     if (ev.ev === 'hello') {
       this.displayHeld.clear();
@@ -665,14 +669,15 @@ export class Session {
   }
 
   /** window `win`'s zoom changed (a wheel, a drag, a typed range, Reset view) */
-  /** a text of plot window `win` changed in its dialog: everything it takes, and where it is */
-  changeText(win: number, id: number, v: TextValues, at: TextPosition): void {
-    this.send({cmd: 'text', op: 'edit', win, id, text: v.text, size: v.size, style: v.style, color: v.color, x: at.x, y: at.y});
+  /** the text with this id changed in its dialog: everything it takes, and where it is */
+  changeText(id: number, v: TextValues, at: TextPosition): void {
+    this.send({cmd: 'annotation', op: 'edit', id, text: v.text, size: v.size, style: v.style, color: v.color});
+    this.send({cmd: 'annotation', op: 'move', id, new_x: at.x, new_y: at.y});
   }
 
-  /** the text with this id of plot window `win` deleted */
-  deleteText(win: number, id: number): void {
-    this.send({cmd: 'text', op: 'delete', win, id});
+  /** the annotation with this id deleted */
+  deleteText(id: number): void {
+    this.send({cmd: 'annotation', op: 'delete', id});
   }
 
   setViewport(win: number, viewport: Viewport): void {

@@ -55,44 +55,50 @@ export function equilibriumPath(e: EquilibriumMark, f: PixelFrame, r: number, si
   return true;
 }
 
-/* XPP's markers (grobs.cpp draw_marker) in units of a sixth of their half
-   size, y up: pen moves then lines */
-const MARKER_STROKES: Record<MarkerShape, [number, number][][]> = {
-  box: [[[-6, -6], [6, -6], [6, 6], [-6, 6], [-6, -6]]],
-  diamond: [[[8, 0], [0, -8], [-8, 0], [0, 8], [8, 0]]],
-  triangle: [[[-6, -6], [6, -6], [0, 6], [-6, -6]]],
-  plus: [[[-6, 0], [6, 0]], [[0, -6], [0, 6]]],
-  cross: [[[-6, 6], [6, -6]], [[-6, -6], [6, 6]]],
-  circle: [[]],
-};
+/** the glyphs of the annotations as the core draws them (core/grobs.h, hello's `annotation_glyphs`): each marker
+    shape's polylines in glyph units, y up, `half_units` of them from the centre to the edge at size 1; an arrow
+    head's strokes spread `arrow_head_spread` of their length either side */
+export interface AnnotationGlyphs {
+  half_units: number;
+  arrow_head_spread: number;
+  markers: Record<MarkerShape, [number, number][][]>;
+}
+
+let glyphs: AnnotationGlyphs | null = null;
+
+/** the glyphs hello gave (the page sets them when hello arrives) */
+export function setAnnotationGlyphs(g: AnnotationGlyphs): void {
+  glyphs = g;
+}
+
+function glyphsKnown(): AnnotationGlyphs {
+  if (!glyphs) throw new Error('the annotation glyphs come with hello');
+  return glyphs;
+}
 
 /** pixels from a marker's centre to its edge at size 1 */
 export const MARKER_PX = 4;
 
 /** a marker's outline, `px` pixels to its edge at size 1 */
 export function markerPath(k: MarkerMark, f: PixelFrame, px: number, sink: PathSink): boolean {
-  const m = pixelMap(f), x = m.x(k.x), y = m.y(k.y), u = (px * (k.size > 0 ? k.size : 1)) / 6;
+  const g = glyphsKnown(), m = pixelMap(f), x = m.x(k.x), y = m.y(k.y), u = (px * (k.size > 0 ? k.size : 1)) / g.half_units;
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
-  if (k.shape === 'circle') {
-    polygon(sink, x, y, 6 * u, 24, 0);
-    return true;
-  }
-  for (const stroke of MARKER_STROKES[k.shape])
+  for (const stroke of g.markers[k.shape])
     stroke.forEach(([dx, dy], i) => (i ? sink.lineTo(x + dx * u, y - dy * u) : sink.moveTo(x + dx * u, y - dy * u)));
   return true;
 }
 
 /** an arrow or pointer as XPP draws it (grobs.cpp arrow_head): the head's
     tip at (x1, y1), its two strokes back to a `size` part of the way to
-    (x2, y2), spread half as wide as they are long; a pointer's shaft
+    (x2, y2), spread by the glyphs' `arrow_head_spread` of their length; a pointer's shaft
     too. The head is worked out on screen, so it keeps its shape whatever
     the axes' scales */
 export function arrowPath(a: ArrowMark, f: PixelFrame, sink: PathSink): boolean {
-  const m = pixelMap(f), x1 = m.x(a.x1), y1 = m.y(a.y1), x2 = m.x(a.x2), y2 = m.y(a.y2);
+  const spread = glyphsKnown().arrow_head_spread, m = pixelMap(f), x1 = m.x(a.x1), y1 = m.y(a.y1), x2 = m.x(a.x2), y2 = m.y(a.y2);
   if (![x1, y1, x2, y2].every(Number.isFinite)) return false;
   const lx = x2 - x1, ly = y2 - y1;
   const bx = x1 + a.size * lx, by = y1 + a.size * ly;
-  const px = -0.5 * a.size * ly, py = 0.5 * a.size * lx;
+  const px = -spread * a.size * ly, py = spread * a.size * lx;
   if (a.pointer) {
     sink.moveTo(x1, y1);
     sink.lineTo(x2, y2);
