@@ -549,7 +549,7 @@ The windows other than the main one have a key layer of their own: `{"cmd":"key"
 
 | `win` | keys |
 |---|---|
-| `auto` | `p` Parameter, `a` Axes, `n` Numerics, `r` Run, `g` Grab (interactive, "Grab by point"), `u` Usr period, `c` Clear (redraws the axes; the diagram's points stay), `d` reDraw, `f` File |
+| `auto` | `a` Axes, `n` Numerics, `r` Run, `g` Grab (interactive, "Grab by point"), `u` Usr period, `c` Clear (redraws the axes; the diagram's points stay), `d` reDraw, `f` File |
 | `browser` | `f` Find, `g` Get (the selected `row` becomes the initial conditions), `r` Replace, `u` Unreplace, `t` Table, `h` Home (the first row kept is `row`), `e` End (the last), `s` reStore, `a` Add column, `d` Delete column, `l` Load, `w` Write (Save data) |
 | `ani` | `f` File, `g` Go, `r` Reset, `s` Skip, `m` Mpeg, `o` On the fly, `a` grAb |
 | `aplot` | `d` reDraw, `e` Edit, `f` Fit, `r` Range, `p` Print, `g` GIF |
@@ -1994,8 +1994,8 @@ text. For the kinds above the kinds are a client's guide, not a check: the
 core reads what it is answered as it always did. A typed form (W485, #549;
 core `ask_form`) is different: every field is checked by its kind, all of
 them, before any is used, and a bad value is a `message` `error` naming the
-field (`Poincare map: Direction: "up" is not one of both, increasing,
-decreasing`), nothing applied. Its extra kinds: `boolean` (the answer is the
+field (`Poincare map: Direction: "up" is not one of negative, both,
+positive`), nothing applied. Its extra kinds: `boolean` (the answer is the
 text `true` or `false`; a checkbox), `choice` (one of the names in the
 form's `options` entry for the field, exactly; a select whose labels are the
 names with underscores as spaces and a capital first letter, derived, never
@@ -2005,7 +2005,7 @@ the same) and `color` (`foreground`, `#rrggbb`, `#rrggbbaa` or a CSS colour name
 or `real`, either key only when given, `null` when it has none) beside
 `kinds`; the answer stays `values`, one text per field. Poincare map's form
 (Numerics, Poincare map) is the first: Section `real`, Direction `choice`
-(`both`, `increasing`, `decreasing`), Stop on section `boolean`. A `*n` field (above) picks from its list
+(`negative`, `both`, `positive`), Stop on section `boolean`. A `*n` field (above) picks from its list
 whatever its kind. web2 marks a field whose text its kind does not take
 and does not answer until it is corrected (web2/src/store/fieldKinds.ts);
 `tools/servercheck.py` checks the kinds of a `formula`, a form of
