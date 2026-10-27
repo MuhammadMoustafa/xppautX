@@ -34,7 +34,7 @@ namespace {
    loaded with */
 std::string program_name(const xpp::Model &m)
 {
-  const std::vector<std::string> &now=m.command_line;
+  const std::vector<std::string> &now=m.command_line.arguments;
   return now.empty()?std::string("xppautX"):now[0];
 }
 
@@ -163,7 +163,7 @@ void xpp_quit(xpp::Session &s, bool saving)
 void xpp_model_reload(xpp::Session &s)
 {
   const xpp::Model &m=s.model();
-  if(m.command_line.empty()||m.this_file=="console"){
+  if(m.command_line.arguments.empty()||m.this_file=="console"){
     xpp::command_error("reload", "This model was not read from a file: there is nothing to reload");
     return;
   }
@@ -172,7 +172,7 @@ void xpp_model_reload(xpp::Session &s)
   if(!xpp_session_may_leave(s,question,false))return;
   /* a model picked at the start (no file on the command line) is loaded
      by its name this time */
-  std::vector<std::string> command_line=m.command_line;
+  std::vector<std::string> command_line=m.command_line.arguments;
   if(!s.got_file)command_line={program_name(m),m.this_file};
   xpp::ModelRequest req{m.load_dir,m.this_file,std::move(command_line),true,std::nullopt,std::nullopt};
   if(!m.saved_in.empty())req.saved=xpp::SavedModel{m.saved_in,m.files};
@@ -308,11 +308,12 @@ Session *load_requested(const Session &now, const ModelRequest &req)
       return nullptr;
     }
   }
-  /* load_model takes argv as main has it: writable, NULL after the last */
-  std::vector<std::string> args=req.command_line;
-  std::vector<char *> argv;
-  for(std::string &a : args)argv.push_back(a.data());
-  argv.push_back(nullptr);
+  Result<CommandLine> line=parse_command_line(req.command_line);
+  if(!line){
+    back();
+    xpp::show_error(line.error());
+    return nullptr;
+  }
   /* what a session file adds is read before the load keeps its
      model: a member missing or that does not read fails the open */
   std::function<std::optional<Error>(Session &)> check;
@@ -327,7 +328,7 @@ Session *load_requested(const Session &now, const ModelRequest &req)
     }
     return std::nullopt;
   };
-  Loaded loaded=load_model(static_cast<int>(args.size()),argv.data(),0,req.saved?&*req.saved:nullptr,check);
+  Loaded loaded=load_model(std::move(*line),0,req.saved?&*req.saved:nullptr,check);
   if(!loaded){
     back();
     /* at the place the load failed at */

@@ -902,11 +902,11 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
      next_line(old);
    }
    else {
-        if(!include_files.empty())
+        if(!src.model->command_line.include.empty())
 	{
 		/* only once */
-		const std::vector<std::string> includes=std::move(include_files);
-		include_files.clear();
+		const std::vector<std::string> includes=std::move(src.model->command_line.include);
+		src.model->command_line.include.clear();
 		for (const std::string &inc : includes)
 		{
 			const xpp::Result<> allowed = xpp::approve_model_path(*src.model, inc, xpp::Place{});

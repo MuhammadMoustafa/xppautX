@@ -5,6 +5,7 @@
    without one; and the exact Jacobian of whole models (an equilibrium
    model, a stiff one, a map) against xpp::jacobian's forward differences,
    within their error. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "expr.h"
 #include "expr_derivative.h"
@@ -200,7 +201,7 @@ void check_model(const char *path, bool map, bool forward = true)
     std::string file = path;
     char name[] = "test_exact_jacobian";
     char *argv[] = {name, file.data(), nullptr};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
     const xpp::Model &m = s.model();
     CHECK(xpp::ensure_exact_jacobian(s));
@@ -284,7 +285,7 @@ void check_auto_func(const char *path, double u0, double u1, int store_every = 1
     std::string file = path;
     char name[] = "test_exact_jacobian";
     char *argv[] = {name, file.data(), nullptr};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
     xpp::init_auto_win(s);
     CHECK(xpp::ensure_exact_jacobian(s));

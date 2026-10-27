@@ -1,4 +1,5 @@
 /* W496: regressions for XPPAUT findings 79, 85 and 87. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "xpp_batch.h"
@@ -12,7 +13,7 @@ int main()
 {
     char *argv[] = {const_cast<char *>("test_numerical_fixes"),
                    const_cast<char *>("tools/models/stops/stiff_singular.odex"), nullptr};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     auto &s = xpp::client_session();
     /* A singular first step must leave the state at its start and report
        that matrix, rather than use an unset hnext or pretend to succeed. */

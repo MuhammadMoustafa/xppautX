@@ -8,6 +8,7 @@
    options file (an option line) is refused, @ lines of an include file apply.
 
    make test runs this from the top of the tree. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "solver.h"
@@ -79,7 +80,7 @@ xpp::Session *load(const char *path)
     char arg0[] = "test_options";
     std::string file(path);
     char *argv[] = {arg0, file.data(), nullptr};
-    xpp::Loaded l = xpp::load_model(2, argv, 1);
+    xpp::Loaded l = load_args(2, argv, 1);
     if (!l) printf("  %s does not load: %s\n", path, l.error().text().c_str());
     return l ? *l : nullptr;
 }
@@ -183,6 +184,14 @@ std::string_view id(const xpp::OptionRow &r) { return r.name.empty() ? r.key : r
 
 } // namespace
 
+/* the command line as main reads it: every option checked */
+static xpp::Result<> check_args(int argc, char **argv)
+{
+    const xpp::Result<xpp::CommandLine> cl = xpp::parse_command_line(std::vector<std::string>(argv, argv + argc));
+    if (!cl) return std::unexpected(cl.error());
+    return {};
+}
+
 int main(void)
 {
     /* W132: all public names, set labels, legacy keys, case and persisted ids. */
@@ -244,16 +253,19 @@ int main(void)
         char exe[] = "test_options";
         char silent[] = "--silent";
         char *argv[] = {exe, silent, nullptr};
-        CHECK(xpp::check_command_line(2, argv).has_value());
+        CHECK(check_args(2, argv).has_value());
         xpp::Session &session = xpp::client_session();
         xpp::batch_options.enabled = 0;
-        CHECK(xpp::do_comline(session, 2, argv) == -1);
+        xpp::Result<xpp::CommandLine> silent_line = xpp::parse_command_line({exe, silent});
+        CHECK(silent_line.has_value());
+        CHECK(silent_line->model_argument == -1);
+        xpp::apply_command_line(session, std::move(*silent_line));
         CHECK(xpp::batch_options.enabled == 1);
         xpp::batch_options.enabled = 0;
         for (const char *name : {"silent", "setfile", "parfile", "icfile", "logfile", "include", "anifile", "outfile", "newseed", "version", "internset", "uset", "rset", "qsets", "qpars", "qics", "quiet", "mkplot", "plotfmt", "noout", "dfdraw", "ncdraw", "readset", "with", "equil", "verbose", "debug"}) {
             std::string word = "-" + std::string(name);
             argv[1] = word.data();
-            const xpp::Result<> r = xpp::check_command_line(2, argv);
+            const xpp::Result<> r = check_args(2, argv);
             CHECK(!r);
             if (!r) {
                 CHECK(r.error().what == word + " is -" + word);
@@ -265,7 +277,7 @@ int main(void)
           for (const char *prefix : {"-", "--"}) {
             std::string word = prefix + std::string(name);
             argv[1] = word.data();
-            const xpp::Result<> r = xpp::check_command_line(2, argv);
+            const xpp::Result<> r = check_args(2, argv);
             CHECK(!r);
             if (!r) {
                 CHECK(r.error().what == "no such option " + word);
@@ -281,7 +293,7 @@ int main(void)
                 std::vector<char *> v{exe};
                 for (std::string &w : keep) v.push_back(w.data());
                 v.push_back(nullptr);
-                const xpp::Result<> r = xpp::check_command_line(static_cast<int>(v.size()) - 1, v.data());
+                const xpp::Result<> r = check_args(static_cast<int>(v.size()) - 1, v.data());
                 return r ? std::string() : r.error().what;
             };
             CHECK(fault({"--equil", "x"}) == "--equil needs a whole number, not \"x\"");
@@ -297,7 +309,7 @@ int main(void)
         for (const char *word : {"--silently", "--nosuch", "--runnow", "--setfile"}) {
             std::string arg(word);
             argv[1] = arg.data();
-            CHECK(!xpp::check_command_line(2, argv));
+            CHECK(!check_args(2, argv));
         }
     }
 
@@ -305,7 +317,7 @@ int main(void)
         char exe[] = "test_options";
         std::string arg = "-" + std::string(word);
         char *argv[] = {exe, arg.data(), nullptr};
-        const xpp::Loaded loaded = xpp::load_model(2, argv, 1);
+        const xpp::Loaded loaded = load_args(2, argv, 1);
         CHECK(!loaded);
         if (!loaded) CHECK(loaded.error().what.find(word) != std::string::npos);
     }
@@ -360,7 +372,7 @@ int main(void)
         char arg0[] = "test_options";
         char file[] = "build/test_bad_choice.odex";
         char *argv[] = {arg0, file, nullptr};
-        CHECK(!xpp::load_model(2, argv, 1).has_value());
+        CHECK(!load_args(2, argv, 1).has_value());
     }
 
     /* a number or a yes for a choice is no word of ours */
@@ -369,7 +381,7 @@ int main(void)
         char arg0[] = "test_options";
         char file[] = "build/test_bad_choice.odex";
         char *argv[] = {arg0, file, nullptr};
-        const xpp::Loaded l = xpp::load_model(2, argv, 1);
+        const xpp::Loaded l = load_args(2, argv, 1);
         CHECK(!l.has_value());
         if (!l) CHECK(l.error().place.line == 2);
     }
@@ -540,7 +552,7 @@ int main(void)
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.ode";
         char *argv[] = {arg0, file, nullptr};
-        const xpp::Loaded l = xpp::load_model(2, argv, 1);
+        const xpp::Loaded l = load_args(2, argv, 1);
         CHECK(!l.has_value());
         CHECK(&xpp::client_session() == s);
         if (l) continue;
@@ -564,7 +576,7 @@ int main(void)
             char arg0[] = "test_options";
             std::string file(path);
             char *argv[] = {arg0, file.data(), nullptr};
-            const xpp::Loaded refused = xpp::load_model(2, argv, 1);
+            const xpp::Loaded refused = load_args(2, argv, 1);
             CHECK(!refused);
             if (!refused) {
                 CHECK(refused.error().place.file == path && refused.error().place.line == 2);
@@ -579,7 +591,7 @@ int main(void)
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.ode";
         char *argv[] = {arg0, file, nullptr};
-        const auto refused = xpp::load_model(2, argv, 1);
+        const auto refused = load_args(2, argv, 1);
         CHECK(!refused);
         if (!refused) {
             CHECK(refused.error().place.file == bad_ode && refused.error().place.line == 1);
@@ -591,7 +603,7 @@ int main(void)
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.odex";
         char *argv[] = {arg0, file, nullptr};
-        const xpp::Loaded l = xpp::load_model(2, argv, 1);
+        const xpp::Loaded l = load_args(2, argv, 1);
         CHECK(!l.has_value());
         CHECK(&xpp::client_session() == s);
         if (!l) {
@@ -608,7 +620,7 @@ int main(void)
         CHECK(write_file(bad_odex, "x' = -x\noptions { continuation: { " + setting + " } }\n"));
         char arg0[] = "test_options", file[] = "build/test_options_bad.odex";
         char *argv[] = {arg0, file, nullptr};
-        const xpp::Loaded loaded = xpp::load_model(2, argv, 1);
+        const xpp::Loaded loaded = load_args(2, argv, 1);
         CHECK(!loaded);
         CHECK(&xpp::client_session() == s);
         if (!loaded) CHECK(loaded.error().place.file == bad_odex && loaded.error().place.line == 2);
@@ -617,7 +629,7 @@ int main(void)
         CHECK(write_file(bad_odex, "x' = -x\noptions { plot: { xnc: " + color + " } }\n"));
         char arg0[] = "test_options", file[] = "build/test_options_bad.odex";
         char *argv[] = {arg0, file, nullptr};
-        const xpp::Loaded loaded = xpp::load_model(2, argv, 1);
+        const xpp::Loaded loaded = load_args(2, argv, 1);
         CHECK(!loaded);
         if (!loaded) CHECK(loaded.error().place.line == 2);
     }
@@ -626,7 +638,7 @@ int main(void)
         CHECK(write_file(bad_odex,"x'=-x\nnetwork ext = findext("+type+", 1, 1, x)\n"));
         char arg0[]="test_options", file[]="build/test_options_bad.odex";
         char *argv[]={arg0,file,nullptr};
-        const auto loaded=xpp::load_model(2,argv,1);
+        const auto loaded=load_args(2,argv,1);
         CHECK(!loaded);
         if(!loaded) CHECK(loaded.error().place.line==2);
     }
@@ -637,7 +649,7 @@ int main(void)
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.odex";
         char *argv[] = {arg0, file, nullptr};
-        const xpp::Loaded l = xpp::load_model(2, argv, 1);
+        const xpp::Loaded l = load_args(2, argv, 1);
         CHECK(!l.has_value());
         if (l) continue;
         CHECK(l.error().place.file == bad_odex);
@@ -653,7 +665,7 @@ int main(void)
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.ode";
         char *argv[] = {arg0, file, nullptr};
-        const xpp::Loaded l = xpp::load_model(2, argv, 1);
+        const xpp::Loaded l = load_args(2, argv, 1);
         CHECK(!l.has_value());
         CHECK(&xpp::client_session() == s);
         if (l) continue;
@@ -703,7 +715,7 @@ int main(void)
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.ode";
         char *argv[] = {arg0, file, nullptr};
-        const xpp::Loaded l = xpp::load_model(2, argv, 1);
+        const xpp::Loaded l = load_args(2, argv, 1);
         CHECK(!l.has_value());
         CHECK(&xpp::client_session() == before);
         if (!l) {
@@ -716,7 +728,7 @@ int main(void)
         char flag[] = "--include";
         char missing[] = "nosuch.inc";
         char *argv2[] = {arg0, file, flag, missing, nullptr};
-        const xpp::Loaded f = xpp::load_model(4, argv2, 1);
+        const xpp::Loaded f = load_args(4, argv2, 1);
         CHECK(!f.has_value());
         CHECK(&xpp::client_session() == before);
         if (!f) {
@@ -748,7 +760,7 @@ int main(void)
             char arg1[64];
             std::snprintf(arg1, sizeof arg1, "%s", file_name);
             char *argv[] = {arg0, arg1, nullptr};
-            const xpp::Loaded l = xpp::load_model(2, argv, 1);
+            const xpp::Loaded l = load_args(2, argv, 1);
             if (*c.written) {
                 CHECK(l.has_value());
                 CHECK((*l)->batch_out_file == c.written);
@@ -774,7 +786,7 @@ int main(void)
             char arg1[64];
             std::snprintf(arg1, sizeof arg1, "%s", bad_odex);
             char *argv[] = {arg0, arg1, nullptr};
-            return xpp::load_model(2, argv, 1);
+            return load_args(2, argv, 1);
         };
         const char outside[] = "../simulations/out.dat", other[] = "../simulations/other.dat";
         CHECK(answer_with(""));

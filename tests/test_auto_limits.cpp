@@ -1,4 +1,5 @@
 /* W298 (#356): AUTO's model-sized storage and continuation beyond the old limits. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "xpp_batch.h"
@@ -17,7 +18,7 @@ int main()
     char name[]="test_auto_limits";
     char file[]="tools/models/auto_limits.odex";
     char *argv[]={name,file,nullptr};
-    CHECK(xpp::load_model(2,argv,1).has_value());
+    CHECK(load_args(2,argv,1).has_value());
     xpp::Session &s=xpp::client_session();
     xpp::TempDir temp;
     s.auto_state.dir=temp.path();

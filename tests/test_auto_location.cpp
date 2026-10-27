@@ -1,4 +1,5 @@
 /* W326 (#387): an exhausted location must not become a continuation step. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "auto_c.h"
@@ -85,7 +86,7 @@ int main()
     char name[] = "test_auto_location";
     char file[] = "examples/ode/lecar.odex";
     char *argv[] = {name, file, nullptr};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     auto &s = xpp::client_session();
     xpp::TempDir temp;
     xpp::UniqueFile diagnostics(xpp::files::open_stream(temp.path() + "/location.log", "w"));
@@ -221,7 +222,7 @@ u'=p-u
     CHECK(events_model.commit().has_value());
     std::string event_path = events_file;
     std::array<char *, 3> event_argv{name, event_path.data(), nullptr};
-    CHECK(xpp::load_model(2, event_argv.data(), 1).has_value());
+    CHECK(load_args(2, event_argv.data(), 1).has_value());
     auto &events_session = xpp::client_session();
     events_session.auto_state.dir = temp.path();
     xpp::init_auto_win(events_session);

@@ -87,8 +87,6 @@ ALLOWED = [
     ('core/xpp_http.cpp', r'cannot open a port', 'the system refused a port'),
     ('core/xppautx_main.cpp', r'usage: xppautX --convert', "the command line's usage"),
     ('core/xppautx_main.cpp', r'usage: xppautX --check', "the command line's usage"),
-    ('core/xpp_batch.cpp', r'"model", std::string\(what\), xpp::Place\{\}',
-     'model_failed(what) outside a load: a model is built only by one, so never reached'),
 ]
 
 EMPTY_PLACE = re.compile(r'(?:(?:xpp::)?Place\s*)?\{\s*\}')

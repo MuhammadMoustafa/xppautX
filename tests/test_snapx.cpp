@@ -4,6 +4,7 @@
    .odex, an included file, a file table) and a file written with it
    carries them all; that saved model loads from the file alone, the
    files on the disk gone, and a file without its model is refused. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "snapx.h"
 #include "model.h"
@@ -41,7 +42,7 @@ bool load(const std::string &file, const xpp::SavedModel *saved = nullptr)
 {
     std::string arg0 = "test_snapx", arg1 = file;
     char *argv[] = {arg0.data(), arg1.data(), nullptr};
-    return xpp::load_model(2, argv, 1, saved).has_value();
+    return load_args(2, argv, 1, saved).has_value();
 }
 
 void check_manifest()

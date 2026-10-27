@@ -1,4 +1,5 @@
 // W436 (#498): independent derivatives of a polynomial fold system.
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "auto_c.h"
@@ -19,7 +20,7 @@ int main()
     CHECK(writer.write("x'=x*x*x+a*y\ny'=y*y+b*x\npar a=2,b=3\ninit x=1,y=2\n") && writer.commit());
     char name[] = "test_auto_fold";
     char *argv[] = {name, path.data(), nullptr};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     auto &s = xpp::client_session();
     auto &lib = s.auto_lib;
     lib.session = &s;
@@ -100,7 +101,7 @@ int main()
     auto derived_writer = xpp::Writer::binary(path);
     CHECK(derived_writer.write("d=a*b\nx'=d*x\npar a=2,b=3\ninit x=1\n") && derived_writer.commit());
     argv[1] = path.data();
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     auto &derived = xpp::client_session();
     auto &worker = derived.auto_lib;
     worker.session = &derived;

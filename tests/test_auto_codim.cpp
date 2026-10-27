@@ -1,4 +1,5 @@
 // W364 (#426): independent normal forms fix the signs and zeros of the tests.
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "auto_c.h"
@@ -21,7 +22,7 @@ int main()
     CHECK(writer.write("x'=-y+a*x+b*x*(x*x+y*y)\ny'=x+a*y+b*y*(x*x+y*y)\npar a=0,b=1\ninit x=0,y=0\n") && writer.commit());
     char name[]="test_auto_codim";
     char *argv[]={name,path.data(),nullptr};
-    CHECK(xpp::load_model(2,argv,1).has_value());
+    CHECK(load_args(2,argv,1).has_value());
     auto &s=xpp::client_session();
     auto &lib=s.auto_lib;
     lib.session=&s;
@@ -65,7 +66,7 @@ int main()
     // independent contraction: tests/auto/codim_coefficients.py.
     std::string reaction="examples/tstauto/ab.odex";
     char *reaction_args[]={name,reaction.data(),nullptr};
-    CHECK(xpp::load_model(2,reaction_args,1).has_value());
+    CHECK(load_args(2,reaction_args,1).has_value());
     auto &reaction_session=xpp::client_session();
     auto &reaction_lib=reaction_session.auto_lib;
     reaction_lib.session=&reaction_session;
@@ -175,7 +176,7 @@ int main()
     // Henon's exact unit-circle pair satisfies A^2-2*cos(theta)*A+I=0.
     std::string map_path="tools/models/henon_rot.odex";
     char *map_args[]={name,map_path.data(),nullptr};
-    CHECK(xpp::load_model(2,map_args,1).has_value());
+    CHECK(load_args(2,map_args,1).has_value());
     auto &map_session=xpp::client_session();
     CHECK(xpp::ensure_exact_jacobian(map_session));
     map_session.numerics.jacobian=xpp::JACOBIAN_EXACT;

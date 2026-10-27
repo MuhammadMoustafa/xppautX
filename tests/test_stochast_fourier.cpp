@@ -16,6 +16,7 @@
    spec_wid, spec_win, ...) are simply set directly first. The signal
    lives in storage[][], filled directly per the harness style of
    tests/test_lunch.c. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "storage.h"
@@ -42,7 +43,7 @@ int main(void)
 {
     char *argv[] = {const_cast<char *>("test_stochast_fourier"),
                      const_cast<char *>("tools/models/stochast_fourier_test.odex"), NULL};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     init_browser(xpp::client_session());
     init_all_graph(xpp::client_session());
     xpp::batch_options.check = true; /* Decline prompts; this numerical fixture supplies its settings. */

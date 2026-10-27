@@ -48,46 +48,6 @@ namespace xpp {
 XppBatchOptions batch_options;
 
 
-void check_for_quiet(xpp::Session &s, int argc, char **argv)
-{
-	/*First scan, check for any QUIET option set...*/
-	int i = 0;
-	/*Allow for multiple calls to the QUIET and LOGFILE options 
-	on the command line. The last setting is the one that will stick.
-	Settings of logfile and quiet in the xpprc file will be ignored
-	if they are set on the command line.
-	*/ 
-	int quiet_specified_once=0;
-	int logfile_specified_once=0;
-	
-	for(i=1;i<argc;i++)
-	{
-	       if (strcmp(argv[i],"--quiet")==0)
-	       {
-	       	       set_option(s,"QUIET",argv[i+1],1,NULL);
-		       quiet_specified_once=1;
-     		       i++;
-	       }
-	       else if (strcmp(argv[i],"--logfile")==0)
-	       {
-		       set_option(s,"LOGFILE",argv[i+1],1,NULL);
-		       logfile_specified_once = 1;
-     		       i++;
-	       }
-	}
-	/*If --quiet or --logfile were specified at least once on the command line
-	we lock those in now...
-	*/
-	if (quiet_specified_once == 1)
-	{
-		xpp::log_settings.quiet_from_command_line=1;
-	}
-	if (logfile_specified_once == 1)
-	{
-		xpp::log_settings.file_from_command_line=1;
-	}
-}
-
 void do_vis_env(xpp::Session &s)
 {
   set_internopts_xpprc_and_comline(s, check_for_xpprc());
@@ -96,14 +56,13 @@ void do_vis_env(xpp::Session &s)
 
 /* everything both the batch run and an interactive front end do: options,
    the ODE file, numerics set-up. batch forces XPPBatch. */
-static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch,
+static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
                             const std::function<void(Session &)> &read)
 {
     xpp::Model &m = s.model();
     program.interactive = 0;
     s.plot_export.format = "pdf";
-    check_for_quiet(s, argc, argv);
-    do_comline(s, argc, argv);
+    apply_command_line(s, cl);
     if (batch) batch_options.enabled = 1; /* headless: always batch, even without --silent */
 
     s.options_applied = 0;
@@ -189,20 +148,19 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
     return &load.session();
 }
 
-Loaded load_in(int argc, char **argv, int batch, const SavedModel *saved,
+Loaded load_in(const CommandLine &cl, int batch, const SavedModel *saved,
                const std::function<std::optional<Error>(Session &)> &check,
                const std::function<void(Session &)> &read, bool commit,
                const std::vector<std::string> &outside_paths = {})
 {
     return in_model([&](Session &s) {
         Model &m = s.model();
-        m.command_line.assign(argv, argv + argc);
         m.outside_paths = outside_paths;
         if (saved) {
             m.saved_in = saved->in;
             m.files = saved->files;
         }
-        load_and_set_up(s, argc, argv, batch, read);
+        load_and_set_up(s, cl, batch, read);
         if (check)
             if (std::optional<Error> wrong = check(s)) model_failed(std::move(*wrong));
     }, commit);
@@ -210,27 +168,26 @@ Loaded load_in(int argc, char **argv, int batch, const SavedModel *saved,
 
 } // namespace
 
-Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
+Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
                   const std::function<std::optional<Error>(Session &)> &check)
 {
-    std::vector<std::string> args(argv, argv + argc);
     std::string file, converted;
     bool existing = false;
-    int argument = -1;
     std::vector<std::string> included;
     std::vector<odex::Diagnostic> diagnostics;
     std::vector<std::string> outside_paths;
     Loaded prepared = in_model([&](Session &s) {
-        argument = do_comline(s, argc, argv);
-        included = include_files;
+        apply_command_line(s, cl);
+        included = cl.include;
         if (batch) batch_options.enabled = 1;
         choose_model_file(s);
         file = s.model().this_file;
         if (saved && !odex::is_odex(file))
             model_failed(Error{"open", "a saved model must be .odex", Place{saved->in}});
-        if (argument < 0) {
-            argument = static_cast<int>(args.size());
-            args.push_back(file);
+        if (cl.model_argument < 0) {
+            cl.model_argument = static_cast<int>(cl.arguments.size());
+            cl.arguments.push_back(file);
+            cl.model_file = file;
         }
     }, false);
     Loaded loaded = prepared;
@@ -241,24 +198,19 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
             else {
                 converted = odex::odex_name(file);
                 existing = !*opened;
-                args[static_cast<size_t>(argument)] = converted;
                 /* The converter has folded these foreign includes into
                    the .odex; Reload uses that file from now on. */
-                for (size_t i = 1; i + 1 < args.size();) {
-                    if (args[i] == "--include") args.erase(args.begin() + static_cast<std::ptrdiff_t>(i), args.begin() + static_cast<std::ptrdiff_t>(i + 2));
-                    else ++i;
+                std::vector<std::string> args;
+                for (size_t i = 0; i < cl.arguments.size(); ++i) {
+                    if (cl.arguments[i] == "--include" && i + 1 < cl.arguments.size()) ++i;
+                    else args.push_back(static_cast<int>(i) == cl.model_argument ? converted : cl.arguments[i]);
                 }
+                Result<CommandLine> converted_line = parse_command_line(std::move(args));
+                if (converted_line) cl = std::move(*converted_line);
+                else loaded = std::unexpected(converted_line.error());
             }
-        } else {
-            /* extensions other than .ode are checked by the .odex loader */
-            args[static_cast<size_t>(argument)] = file;
         }
-        if (loaded) {
-            std::vector<char *> ready;
-            for (std::string &a : args) ready.push_back(a.data());
-            ready.push_back(nullptr);
-            loaded = load_in(static_cast<int>(args.size()), ready.data(), batch, saved, check, load_eqn, true, outside_paths);
-        }
+        if (loaded) loaded = load_in(cl, batch, saved, check, load_eqn, true, outside_paths);
     }
     /* the one place a model that does not load is written to the log */
     if (!loaded) {
@@ -273,14 +225,14 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
     return loaded;
 }
 
-Result<> inspect_model(int argc, char **argv, const std::function<void(Session &)> &read,
+Result<> inspect_model(const CommandLine &cl, const std::function<void(Session &)> &read,
                        const std::function<std::optional<Error>(Session &)> &check,
                        const SavedModel *saved)
 {
     /* Inspection validates model options but must not create @ logfile's file. */
     const int file_option = log_settings.file_from_command_line;
     log_settings.file_from_command_line = 1;
-    Loaded inspected = load_in(argc, argv, 1, saved, check, read, false);
+    Loaded inspected = load_in(cl, 1, saved, check, read, false);
     log_settings.file_from_command_line = file_option;
     if (!inspected) return std::unexpected(inspected.error());
     return {};
@@ -303,9 +255,9 @@ void model_failed()
 
 void model_failed(std::string_view what)
 {
-    /* no load is in progress: a model is built only by one, so there is
-       no place to name */
-    xpp::model_failed(xpp::Load::running() ? xpp::Load::error(what) : xpp::Error{"model", std::string(what), xpp::Place{}});
+    /* only the parser and the readers a load runs call this: a model is
+       built only by a load */
+    xpp::model_failed(xpp::Load::error(what));
 }
 
 void batch_start(xpp::Session &s)

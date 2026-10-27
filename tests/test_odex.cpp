@@ -1,6 +1,7 @@
 /* .odex's tokenizer, grammar and printer (core/odex.h, docs/odex.md): the
    precedence and grouping of docs/odex.md's table, every statement, and
    an error at the right line and column for each kind of mistake. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "odex.h"
 #include "derived.h"
@@ -197,7 +198,7 @@ int load_text(const char *text, const char *ext = "odex")
   fclose(fp);
   char arg0[] = "test_odex";
   char *argv[] = {arg0, path.data(), nullptr};
-  return xpp::load_model(2, argv, 1).has_value();
+  return load_args(2, argv, 1).has_value();
 }
 
 /* the model text's fixed variables and derived quantities as the builder
@@ -827,7 +828,7 @@ int main(void)
   {
     char arg0[] = "test_odex", model[] = "tools/models/near_test.odex";
     char *argv[] = {arg0, model, nullptr};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     xpp::batch_start(xpp::client_session());
     run_the_commands(xpp::client_session(), xpp::M_IG);
     const xpp::DataStore &d = xpp::client_session().data_store;
@@ -955,7 +956,7 @@ int main(void)
       put("build/test_odex_model.odex", text);
       std::string arg0="test_odex", path="build/test_odex_model.odex";
       char *argv[]={arg0.data(), path.data(), nullptr};
-      const auto loaded=xpp::load_model(2, argv, 1);
+      const auto loaded=load_args(2, argv, 1);
       CHECK(!loaded && loaded.error().place.file == path);
       CHECK(!loaded && loaded.error().what == "it has no equations: it is a file to import into a model, not a model to run");
     }
@@ -1003,7 +1004,7 @@ int main(void)
     put("build/test_odex_model.odex", "table w t, n=2, lo=0, hi=1\nx[j]' = -x[j] for j in 0..2\ninit x[j] = 1 for j in 0..2\nnetwork k = conv(even, 3, 1, w, x0)\n");
     std::string arg0 = "test_odex", path = "build/test_odex_model.odex";
     char *argv[] = {arg0.data(), path.data(), nullptr};
-    const auto loaded = xpp::load_model(2, argv, 1);
+    const auto loaded = load_args(2, argv, 1);
     CHECK(!loaded && loaded.error().place.line == 4 && loaded.error().what == "In k, W has 2 values; 3 are needed");
   }
 
@@ -1015,7 +1016,7 @@ int main(void)
     put("build/test_odex_model.odex", "table w \"build/w_long.tab\"\nx[j]' = -x[j] for j in 0..2\ninit x[j] = 1 for j in 0..2\nnetwork k = conv(even, 3, 1, w, x0)\n");
     std::string arg0 = "test_odex", path = "build/test_odex_model.odex";
     char *argv[] = {arg0.data(), path.data(), nullptr};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
     const int index = s.model().networks[0].weight_table;
     const auto shorter = xpp::load_table(s, "build/w_short.tab", index, 0);

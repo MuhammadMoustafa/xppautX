@@ -17,70 +17,67 @@ namespace xpp {
 
 namespace {
 
-/* what the command line asked for, read in one pass (parse_command_line) and
-   applied to the loading Session by do_comline */
-enum class ExternalOptions { none, file, text }; /* --readset FILE, --with TEXT */
-
-struct CommandLine {
-  int model_argument = -1;
-  std::string model_file;
-  bool silent = false, new_seed = false, make_plot = false, no_compile = false, no_output = false;
-  bool query_sets = false, query_pars = false, query_ics = false;
-  std::optional<XppLogLevel> log_threshold;                         /* --verbose, --debug: the last one given */
-  std::optional<bool> use_all_sets;                          /* --internset 1 / 0 */
-  std::optional<int> equilibria;                             /* --equil N */
-  std::string set_file, par_file, ic_file, out_file, out_place, ani_file;
-  bool has_set_file = false, has_par_file = false, has_ic_file = false, has_out_file = false, has_ani_file = false;
-  ExternalOptions external = ExternalOptions::none;
-  std::string external_value;                                /* --readset's file or --with's text */
-  std::vector<std::string> include, use_sets, skip_sets;     /* --include, --uset, --rset in order */
-  std::vector<std::pair<std::string_view, std::string>> options; /* --quiet ... through set_option, in order */
-};
+/* the largest TCP port */
+constexpr int MAX_PORT = 65535;
 
 /* the options' ids (named, never numbers) */
 enum class Opt { silent, no_compile, newseed, setfile, parfile, outfile, icfile, internset, uset, rset, include,
                  qsets, qpars, qics, quiet, logfile, anifile, mkplot, plotfmt, noout, dfdraw, ncdraw, readset, with,
-                 equil, verbose, debug };
+                 equil, verbose, debug,
+                 /* the program's own (xppautx_main.cpp) */
+                 help, version, options_schema, setx_schema, convert, check, yes, no_open, browser, server, port };
 
 struct CommandOption {
   std::string_view name;
   Opt id;
   bool argument;
   bool repeatable; /* given again adds (--include, --uset, --rset); otherwise a second one is an error */
+  bool program;    /* one of the program's own switches, not a load's */
 };
 
 constexpr CommandOption my_cmd[] = {
-  {"--silent", Opt::silent, false, true},
-  {"--no-compile", Opt::no_compile, false, true},
-  {"--newseed", Opt::newseed, false, true},
-  {"--setfile", Opt::setfile, true, false},
-  {"--parfile", Opt::parfile, true, false},
-  {"--outfile", Opt::outfile, true, false},
-  {"--icfile", Opt::icfile, true, false},
-  {"--internset", Opt::internset, true, false},
-  {"--uset", Opt::uset, true, true},
-  {"--rset", Opt::rset, true, true},
-  {"--include", Opt::include, true, true},
-  {"--qsets", Opt::qsets, false, true},
-  {"--qpars", Opt::qpars, false, true},
-  {"--qics", Opt::qics, false, true},
-  {"--quiet", Opt::quiet, true, false},
-  {"--logfile", Opt::logfile, true, false},
-  {"--anifile", Opt::anifile, true, false},
-  {"--mkplot", Opt::mkplot, false, true},
-  {"--plotfmt", Opt::plotfmt, true, false},
-  {"--noout", Opt::noout, false, true},
-  {"--dfdraw", Opt::dfdraw, true, false},
-  {"--ncdraw", Opt::ncdraw, true, false},
-  {"--readset", Opt::readset, true, false},
-  {"--with", Opt::with, true, false},
-  {"--equil", Opt::equil, true, false},
-  {"--verbose", Opt::verbose, false, true},
-  {"--debug", Opt::debug, false, true},
+  {"--silent", Opt::silent, false, true, false},
+  {"--no-compile", Opt::no_compile, false, true, false},
+  {"--newseed", Opt::newseed, false, true, false},
+  {"--setfile", Opt::setfile, true, false, false},
+  {"--parfile", Opt::parfile, true, false, false},
+  {"--outfile", Opt::outfile, true, false, false},
+  {"--icfile", Opt::icfile, true, false, false},
+  {"--internset", Opt::internset, true, false, false},
+  {"--uset", Opt::uset, true, true, false},
+  {"--rset", Opt::rset, true, true, false},
+  {"--include", Opt::include, true, true, false},
+  {"--qsets", Opt::qsets, false, true, false},
+  {"--qpars", Opt::qpars, false, true, false},
+  {"--qics", Opt::qics, false, true, false},
+  {"--quiet", Opt::quiet, true, false, false},
+  {"--logfile", Opt::logfile, true, false, false},
+  {"--anifile", Opt::anifile, true, false, false},
+  {"--mkplot", Opt::mkplot, false, true, false},
+  {"--plotfmt", Opt::plotfmt, true, false, false},
+  {"--noout", Opt::noout, false, true, false},
+  {"--dfdraw", Opt::dfdraw, true, false, false},
+  {"--ncdraw", Opt::ncdraw, true, false, false},
+  {"--readset", Opt::readset, true, false, false},
+  {"--with", Opt::with, true, false, false},
+  {"--equil", Opt::equil, true, false, false},
+  {"--verbose", Opt::verbose, false, true, false},
+  {"--debug", Opt::debug, false, true, false},
+  {"--help", Opt::help, false, true, true},
+  {"-h", Opt::help, false, true, true},
+  {"--version", Opt::version, false, true, true},
+  {"--options-schema", Opt::options_schema, false, true, true},
+  {"--setx-schema", Opt::setx_schema, false, true, true},
+  {"--convert", Opt::convert, false, true, true},
+  {"--check", Opt::check, false, true, true},
+  {"--yes", Opt::yes, false, true, true},
+  {"-y", Opt::yes, false, true, true},
+  {"--no-open", Opt::no_open, false, true, true},
+  {"--browser", Opt::browser, false, true, true},
+  {"--web", Opt::browser, false, true, true},
+  {"--server", Opt::server, false, true, true},
+  {"--port", Opt::port, true, false, true},
 };
-
-/* switches main consumes before any model loads (xppautx_main.cpp) */
-constexpr std::string_view main_switches[] = {"--server", "--browser", "--help", "--version", "--port", "--no-open", "--web", "--yes"};
 
 const CommandOption *command_option(std::string_view word)
 {
@@ -99,16 +96,26 @@ void add_set(std::vector<std::string> &sets, const std::string &nam)
   if(!is_set_name(sets,nam)) sets.push_back(nam);
 }
 
+} // namespace
+
 /* the one pass over the command line: every option checked, its argument
    read and validated where it stands; the first fault is an error naming
    the option and its place */
-Result<CommandLine> parse_command_line(int argc, char **argv)
+Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
 {
   CommandLine cl;
+  cl.arguments = std::move(arguments);
   std::vector<const CommandOption *> seen;
-  for (int i = 1; i < argc; ++i) {
-    const std::string_view word(argv[i]);
+  std::optional<std::string_view> interface_word; /* the option that chose cl.interface */
+  const int count = static_cast<int>(cl.arguments.size());
+  for (int i = 1; i < count; ++i) {
+    const std::string_view word(cl.arguments[static_cast<std::size_t>(i)]);
     const Place place{"command line", i, 0, std::string(word)};
+#ifdef __APPLE__
+    /* the process serial number an older macOS gave an app Finder started,
+       which would be taken for a bad option */
+    if (word.starts_with("-psn_")) continue;
+#endif
     if (!word.starts_with('-')) {
       if (!cl.model_file.empty()) return fail("options", xpp::format("unexpected model argument {}", word), place);
       cl.model_file = word;
@@ -119,7 +126,7 @@ Result<CommandLine> parse_command_line(int argc, char **argv)
     if (!option) {
       if (!word.starts_with("--")) {
         const std::string spelling = "-" + std::string(word);
-        if (command_option(spelling) || std::find(std::begin(main_switches), std::end(main_switches), spelling) != std::end(main_switches))
+        if (command_option(spelling))
           return fail("options", xpp::format("{} is {}", word, spelling), place);
       }
       return fail("options", xpp::format("no such option {}", word), place);
@@ -131,15 +138,40 @@ Result<CommandLine> parse_command_line(int argc, char **argv)
     }
     std::string value;
     if (option->argument) {
-      if (++i >= argc) return fail("options", xpp::format("{} needs an argument", word), place);
-      value = argv[i];
+      if (++i >= count) return fail("options", xpp::format("{} needs an argument", word), place);
+      value = cl.arguments[static_cast<std::size_t>(i)];
     }
+    if (!option->program) ++cl.load_options;
     const auto whole_number = [&](int &out) -> Result<> {
       if (!parse_int(value, out))
         return fail("options", xpp::format("{} needs a whole number, not \"{}\"", word, value), place);
       return {};
     };
     switch (option->id) {
+    case Opt::help: cl.help = true; break;
+    case Opt::version: cl.version = true; break;
+    case Opt::options_schema: cl.options_schema = true; break;
+    case Opt::setx_schema: cl.setx_schema = true; break;
+    case Opt::convert: cl.convert = true; break;
+    case Opt::check: cl.check = true; break;
+    case Opt::yes: cl.yes = true; break;
+    case Opt::no_open: cl.no_open = true; break;
+    case Opt::browser:
+    case Opt::server: {
+      const Interface wanted = option->id == Opt::server ? Interface::server : Interface::browser;
+      if (cl.interface && *cl.interface != wanted)
+        return fail("options", xpp::format("{} given with {}: one interface", word, *interface_word), place);
+      cl.interface = wanted;
+      interface_word = word;
+      break;
+    }
+    case Opt::port: {
+      int n = 0;
+      if (const Result<> r = whole_number(n); !r) return std::unexpected(r.error());
+      if (n < 0 || n > MAX_PORT) return fail("options", xpp::format("{} must be 0 (any free port) to {}, not {}", word, MAX_PORT, n), place);
+      cl.port = n;
+      break;
+    }
     case Opt::silent: cl.silent = true; break;
     case Opt::no_compile: cl.no_compile = true; break;
     case Opt::newseed: cl.new_seed = true; break;
@@ -194,47 +226,18 @@ Result<CommandLine> parse_command_line(int argc, char **argv)
   return cl;
 }
 
-/* what the last do_comline read: the files and sets the load applies later */
-CommandLine applied;
-
-} // namespace
-
-std::vector<std::string> include_files;
-bool querysets = false, querypars = false, queryics = false, dryrun = false, newseed = false;
-
-Result<> check_command_line(int argc, char **argv)
+void apply_command_line(Session &s, CommandLine cl)
 {
-  if (const Result<CommandLine> cl = parse_command_line(argc, argv); !cl) return std::unexpected(cl.error());
-  return {};
-}
-
-int do_comline(xpp::Session &s, int argc, char **argv)
-{
-  Result<CommandLine> parsed = parse_command_line(argc, argv);
-  if (!parsed) throw LoadFailed{parsed.error()};
-  /* what a command line before asked for (a load before this one: File >
-     Open model, Reload) goes; this one says it again if it does */
-  applied = std::move(*parsed);
-  const CommandLine &cl = applied;
   s.got_file = 0;
   if (!cl.model_file.empty()) {
     s.model().this_file = cl.model_file;
     s.got_file = 1;
   }
-  include_files = cl.include;
-  querysets = cl.query_sets;
-  querypars = cl.query_pars;
-  queryics = cl.query_ics;
-  dryrun = cl.query_sets || cl.query_pars || cl.query_ics;
-  if (cl.new_seed) {
-    xpp::log(XPP_LOG_INFO, "Random number seed changed\n");
-    newseed = true;
-  }
+  if (cl.new_seed) xpp::log(XPP_LOG_INFO, "Random number seed changed\n");
   if (cl.silent) batch_options.enabled = 1;
   if (cl.make_plot) s.integrator.make_plot_flag = 1;
   if (cl.no_compile) program.compile = false;
   if (cl.no_output) s.integrator.suppress_out = 1;
-  if (cl.log_threshold) xpp::log_set_threshold(*cl.log_threshold);
   if (cl.has_out_file) {
     s.batch_out_file = cl.out_file;
     batch_options.user_out_file = cl.out_file;
@@ -249,15 +252,21 @@ int do_comline(xpp::Session &s, int argc, char **argv)
     batch_options.equilibria = *cl.equilibria;
     xpp::log(XPP_LOG_INFO, " Batch equilibria {:d} \n", batch_options.equilibria);
   }
-  for (const auto &[name, value] : cl.options) set_option(s, name, value, 1, NULL);
-  return cl.model_argument;
+  /* --quiet and --logfile win over .xpprc and the model's @ lines */
+  for (const auto &[name, value] : cl.options) {
+    set_option(s, name, value, 1, NULL);
+    if (name == "QUIET") log_settings.quiet_from_command_line = 1;
+    else if (name == "LOGFILE") log_settings.file_from_command_line = 1;
+  }
+  s.model().command_line = std::move(cl);
 }
 
 static int if_needed_load_ext_options(xpp::Session &s)
 {
-  if (applied.external == ExternalOptions::none) return 1;
-  if (applied.external == ExternalOptions::file) {
-    const std::string &file = applied.external_value;
+  const CommandLine &cl = s.model().command_line;
+  if (cl.external == ExternalOptions::none) return 1;
+  if (cl.external == ExternalOptions::file) {
+    const std::string &file = cl.external_value;
     /* the file's first line, whatever its length */
     xpp::LineReader lr(file.c_str());
     if(!lr){
@@ -272,7 +281,7 @@ static int if_needed_load_ext_options(xpp::Session &s)
     }
     return 1;
   }
-  if(const xpp::Result<> r=extract_action(s,("$ "+applied.external_value),xpp::Place{},true);!r){
+  if(const xpp::Result<> r=extract_action(s,("$ "+cl.external_value),xpp::Place{},true);!r){
     xpp::log(XPP_LOG_ERROR, "{}\n",r.error().text());
     return 0;
   }
@@ -281,7 +290,8 @@ static int if_needed_load_ext_options(xpp::Session &s)
 
 int if_needed_select_sets(const xpp::Model &m)
 {
-  if (applied.use_sets.empty() && applied.skip_sets.empty() && !applied.use_all_sets) return 1;
+  const CommandLine &cl = m.command_line;
+  if (cl.use_sets.empty() && cl.skip_sets.empty() && !cl.use_all_sets) return 1;
   const std::vector<xpp::Model::InternalSet> &sets=m.intern_sets;
   std::vector<int> &use=batch_options.intern_set_use;
   int &used=batch_options.intern_sets_used;
@@ -291,13 +301,13 @@ int if_needed_select_sets(const xpp::Model &m)
     const std::string &name=sets[j].name;
     use[j]=batch_options.use_intern_sets;
     used+=batch_options.use_intern_sets;
-    if (is_set_name(applied.use_sets,name))
+    if (is_set_name(cl.use_sets,name))
     {
       xpp::log(XPP_LOG_INFO, "Internal set {} was included\n",name);
       if (use[j]==0){used++;}
       use[j]=1;
     }
-    if (is_set_name(applied.skip_sets,name))
+    if (is_set_name(cl.skip_sets,name))
     {
       xpp::log(XPP_LOG_INFO, "Internal set {} was excluded\n",name);
       if (use[j]==1){used--;}
@@ -310,8 +320,9 @@ int if_needed_select_sets(const xpp::Model &m)
 
 static int if_needed_load_set(xpp::Session &s)
 {
-  if(!applied.has_set_file) return 1;
-  if(const xpp::Result<> r=import_settings(s,applied.set_file,true);!r)
+  const CommandLine &cl = s.model().command_line;
+  if(!cl.has_set_file) return 1;
+  if(const xpp::Result<> r=import_settings(s,cl.set_file,true);!r)
   {
     xpp::log(XPP_LOG_ERROR, "{}\n",r.error().text());
     return 0;
@@ -321,14 +332,15 @@ static int if_needed_load_set(xpp::Session &s)
 
 void load_command_line_values(xpp::Session &s)
 {
+  const CommandLine &cl = s.model().command_line;
   if_needed_load_set(s);
-  if(applied.has_par_file){
-    xpp::log(XPP_LOG_INFO, "Loading external parameter file: {}\n",applied.par_file);
-    load_parameter_file_named(s,applied.par_file);
+  if(cl.has_par_file){
+    xpp::log(XPP_LOG_INFO, "Loading external parameter file: {}\n",cl.par_file);
+    load_parameter_file_named(s,cl.par_file);
   }
-  if(applied.has_ic_file){
-    xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",applied.ic_file);
-    load_ic_file_named(s,applied.ic_file);
+  if(cl.has_ic_file){
+    xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",cl.ic_file);
+    load_ic_file_named(s,cl.ic_file);
   }
   if_needed_load_ext_options(s);
 }

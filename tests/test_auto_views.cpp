@@ -5,6 +5,7 @@
    resize, a copy and a move; a diagram's points own their arrays through
    moves, copies and a restore; the work arrays of a library copy
    independently. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "auto_c.h"
@@ -296,7 +297,7 @@ int main()
     char name[] = "test_auto_views";
     char file[] = "examples/ode/lecar.odex";
     char *argv[] = {name, file, nullptr};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
     check_layout();
     check_solvbv_work();
@@ -311,7 +312,7 @@ int main()
     writer.print("x'=0\nmarkov z 2\n{{0}} {{1}}\n{{1}} {{0}}\ninit x=1,z=1\n");
     CHECK(writer.commit());
     char *markov_argv[] = {name, model.data(), nullptr};
-    const auto loaded = xpp::load_model(2, markov_argv, 1);
+    const auto loaded = load_args(2, markov_argv, 1);
     CHECK(loaded.has_value());
     if (!loaded) return 1;
     auto &markov = xpp::client_session();

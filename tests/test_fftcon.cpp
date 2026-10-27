@@ -8,6 +8,7 @@
    3-cell one (m), each beside the conv/conv0 network (kc, mc) that
    should equal it on the same table; read back through their aux
    variables' stored columns, never through the FFT directly. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "xpp_batch.h"
 #include "session.h"
@@ -37,7 +38,7 @@ static int run_fftcon(double k[5], double kc[5], double m[3], double mc[3])
     char *argv[] = {const_cast<char *>("test_fftcon"),
                     const_cast<char *>("tools/models/fftcon_test.odex"),
                     NULL};
-    if (!xpp::load_model(2, argv, 1)) return 0;
+    if (!load_args(2, argv, 1)) return 0;
     xpp::batch_start(xpp::client_session());
     run_the_commands(xpp::client_session(), xpp::M_IG);
     const xpp::DataStore &d = xpp::client_session().data_store;

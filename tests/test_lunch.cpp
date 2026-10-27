@@ -12,6 +12,7 @@
    the same way. The model is loaded the way xppautX --silent loads it
    (xpp::load_model), without integrating. make test runs this from the top
    of the tree. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "solver.h"
@@ -91,7 +92,7 @@ int main(void)
     const char *xs = "build/test_lunch_a.set", *xsx = "build/test_lunch_a.setx", *own = "build/test_lunch_own.setx";
     double x;
 
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
     init_browser(s);
     init_all_graph(s);

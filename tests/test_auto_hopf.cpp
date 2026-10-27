@@ -1,4 +1,5 @@
 /* W363 (#425): the reduced Hopf equations, structured derivatives and BT extension. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "jacobian.h"
@@ -22,7 +23,7 @@ int main() {
     CHECK(writer.write("x'=y\ny'=a+b*y+x*x\npar a=-0.25,b=0\ninit x=-0.5,y=0\n") && writer.commit());
     char name[] = "test_auto_hopf";
     char *argv[] = {name, model.data(), nullptr};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     auto &s = xpp::client_session();
     CHECK(xpp::ensure_exact_jacobian(s));
     s.numerics.jacobian = xpp::JACOBIAN_EXACT;

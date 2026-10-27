@@ -1,4 +1,5 @@
 /* W386 (#448): input-sized writes, including recoverable growth failure. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "xpp_batch.h"
@@ -28,7 +29,7 @@ int main()
 {
     char name[]="test_input_bounds", file[]="tools/models/input_bounds.odex";
     char *argv[]={name,file,nullptr};
-    const auto loaded=xpp::load_model(2,argv,1);
+    const auto loaded=load_args(2,argv,1);
     CHECK(loaded.has_value());
     if(!loaded)TEST_REPORT("input bounds");
     auto &s=xpp::client_session();
@@ -91,7 +92,7 @@ int main()
     /* Past INT_MAX and size_t: reject before any cast or huge allocation. */
     char bad_file[]="tools/models/input_bounds_delay_bad.odex";
     char *bad_args[]={name,bad_file,nullptr};
-    const auto delay=xpp::load_model(2,bad_args,1);
+    const auto delay=load_args(2,bad_args,1);
     CHECK(!delay);
     if(delay)TEST_REPORT("input bounds");
     if(!delay){

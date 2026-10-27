@@ -4,6 +4,7 @@
    checks hrw_liapunov() against that known value within a small tolerance,
    after integrating tools/models/stoch_liap.odex (rk4, a=-0.7) the way
    xppautX --silent does (Initialconds/Go). */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "storage.h"
@@ -22,7 +23,7 @@ int main(void)
 {
     char arg0[] = "test_stochast_liap", arg1[] = "tools/models/stoch_liap.odex";
     char *argv[] = {arg0, arg1, NULL};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     xpp::batch_start(xpp::client_session());
     run_the_commands(xpp::client_session(), xpp::M_IG); /* Initialconds/Go, as --silent's script runs it */
 

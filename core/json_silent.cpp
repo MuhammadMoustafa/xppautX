@@ -112,7 +112,7 @@ void SilentScript::apply_set(std::string_view name)
 void SilentScript::add_run(int set)
 {
     steps.push_back([this, set] {
-        ran = !dryrun && (set < 0 || batch_options.uses_intern_set(static_cast<std::size_t>(set)));
+        ran = !session.model().command_line.dry_run() && (set < 0 || batch_options.uses_intern_set(static_cast<std::size_t>(set)));
         if (set < 0) return;
         /* its data file is named after it without --outfile (its plots
            always are: batch_plot_name) */
@@ -122,9 +122,10 @@ void SilentScript::add_run(int set)
         apply_set(name);
     });
     steps.push_back([this] {
-        if (!dryrun) return;
+        const CommandLine &cl = session.model().command_line;
+        if (!cl.dry_run()) return;
         command("values", "query", session.batch_out_file,
-                xpp::format(",\"sets\":{},\"pars\":{},\"ics\":{}", int{querysets}, int{querypars}, int{queryics}));
+                xpp::format(",\"sets\":{},\"pars\":{},\"ics\":{}", int{cl.query_sets}, int{cl.query_pars}, int{cl.query_ics}));
     });
     steps.push_back([this] {
         if (!ran) return;

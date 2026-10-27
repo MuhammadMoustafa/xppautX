@@ -9,6 +9,7 @@
    the "t" column, whose pairwise differences are exactly known (a
    triangular distribution over an arithmetic sequence), so it is checked
    exactly. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "storage.h"
@@ -46,7 +47,7 @@ int main(void)
 {
     char arg0[] = "test_stochast_rng", arg1[] = "tools/models/stoch_rng.odex";
     char *argv[] = {arg0, arg1, NULL};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     xpp::batch_start(xpp::client_session());
     run_the_commands(xpp::client_session(), xpp::M_IG); /* Initialconds/Go, as --silent's script runs it */
 

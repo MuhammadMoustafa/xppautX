@@ -2,6 +2,7 @@
 
 #include "xpp_error.h"
 #include "model_files.h"
+#include "comline.h"
 
 #include <expected>
 #include <functional>
@@ -33,10 +34,8 @@ struct Session; /* session.h */
 void batch_start(Session &s);
 
 /* The start of a load (load_model), in the Session it builds (its
-   options_set empty: no option set yet): the command line's --quiet and
-   --logfile (they must win over .xpprc); .xpprc's and the command line's
+   options_set empty: no option set yet): .xpprc's and the command line's
    options */
-void check_for_quiet(Session &s, int argc, char **argv);
 void do_vis_env(Session &s);
 
 /* what a load gives: the Session it loaded (its Model the Session's),
@@ -49,16 +48,16 @@ using Loaded = std::expected<Session *, Error>;
    (the one before stays; the caller exits with status 1 when there is
    nothing to go on with). saved: a model saved in an
    AUTO or session file, whose files the load reads instead of the disk's
-   (model_files.h); argv names its first file. check, when given, reads
+   (model_files.h); cl names its first file. check, when given, reads
    what such a file adds against the loaded Session before the load keeps
    it (xpp_saved_check, xpp_session.h): what it finds wrong fails the load
    as a model that does not load does. What is wrong is written to the
    log here (Error::text()), once. */
-Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved = nullptr,
+Loaded load_model(CommandLine cl, int batch, const SavedModel *saved = nullptr,
                   const std::function<std::optional<Error>(Session &)> &check = {});
 /* Import and validate in a temporary Model and Session, using the shared
    setup. Never commits; the converter alone supplies the .ode reader. */
-Result<> inspect_model(int argc, char **argv, const std::function<void(Session &)> &read,
+Result<> inspect_model(const CommandLine &cl, const std::function<void(Session &)> &read,
                       const std::function<std::optional<Error>(Session &)> &check = {},
                       const SavedModel *saved = nullptr);
 /* A start with no model file on the command line (a Start menu entry, the

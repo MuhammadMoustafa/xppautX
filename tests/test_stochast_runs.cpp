@@ -10,6 +10,7 @@
    for the range with set_up_range() (a no-op in headless mode) and then
    do_range(); this test drives do_range() directly with the range fields
    it would have read, which is the same headless path. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "storage.h"
@@ -26,7 +27,7 @@ int main(void)
 {
     char arg0[] = "test_stochast_runs", arg1[] = "tools/models/stoch_runs.odex";
     char *argv[] = {arg0, arg1, NULL};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     init_browser(xpp::client_session());
     init_all_graph(xpp::client_session());
 

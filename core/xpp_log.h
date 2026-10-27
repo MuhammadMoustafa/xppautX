@@ -100,10 +100,6 @@ void log_set_auto_echo(bool on);
    its sink. */
 void log_set_terminal(FILE *terminal);
 
-/* Recognizes "--verbose"/"--debug" (xppautX) and "--verbose"/"--debug"
-   (xppaut); true when arg matched, the threshold then applied. */
-bool log_parse_arg(std::string_view arg);
-
 /* While one lives, the ERROR and WARN messages logged on the thread that
    made it are kept here instead of written: a load (session.h,
    xpp::Load) writes them with the place in the model they are about

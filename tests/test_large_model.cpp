@@ -6,6 +6,7 @@
    (Runge-Kutta, one time unit) and writes its table. The solution is
    exp(-p_k t), checked at three variables, and the table's width and
    length are checked (data, never a time). */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "model.h"
@@ -62,7 +63,7 @@ int main(void)
     char arg0[] = "test_large_model";
     std::string path = model_path;
     char *argv[] = {arg0, path.data(), NULL};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
     init_browser(s);
     init_all_graph(s);

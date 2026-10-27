@@ -1749,9 +1749,8 @@ int check_file(const std::string &file)
   std::optional<Error> error;
   LogCapture capture;
   if (is_odex(file)) {
-    std::string program = "xppautX", path = file;
-    char *argv[] = {program.data(), path.data(), nullptr};
-    const Result<> loaded = inspect_model(2, argv, load_eqn, {});
+    const Result<CommandLine> line = parse_command_line({"xppautX", file});
+    const Result<> loaded = line ? inspect_model(*line, load_eqn, {}) : std::unexpected(line.error());
     if (!loaded) error = loaded.error();
   } else {
     const Result<std::string> converted = convert_text(file, {}, &diagnostics, nullptr, DeclinedRename::report);
@@ -1798,12 +1797,10 @@ Result<std::string> convert_text(const std::string &ode,
                                std::vector<std::string> *outside_paths, DeclinedRename declined)
 {
   if (is_odex(ode)) return xpp::fail_reading("convert", "is .odex already", ode);
-  std::string arg0 = "xppautX", model = ode;
-  std::vector<std::string> args{arg0, model};
+  std::vector<std::string> args{"xppautX", ode};
   for (const std::string &include : includes) args.insert(args.end(), {"--include", include});
-  std::vector<char *> argv;
-  for (std::string &a : args) argv.push_back(a.data());
-  argv.push_back(nullptr);
+  const Result<CommandLine> line = parse_command_line(std::move(args));
+  if (!line) return std::unexpected(line.error());
   std::string text;
   Fingerprint before;
   std::string guard_name;
@@ -1811,7 +1808,7 @@ Result<std::string> convert_text(const std::string &ode,
   const OdeAsOdex as_odex;
   std::vector<Diagnostic> findings;
   std::vector<Diagnostic> &output = diagnostics ? *diagnostics : findings;
-  Result<> imported = xpp::inspect_model(static_cast<int>(args.size()), argv.data(), [](Session &s) {
+  Result<> imported = xpp::inspect_model(*line, [](Session &s) {
     const std::string &file = s.model().this_file;
     xpp::Load::at(file);
     std::string bytes;
@@ -1835,10 +1832,11 @@ Result<std::string> convert_text(const std::string &ode,
     return std::nullopt;
   });
   if (!imported) return std::unexpected(imported.error());
-  model = odex_name(ode);
-  argv = {arg0.data(), model.data(), nullptr};
+  const std::string model = odex_name(ode);
+  const Result<CommandLine> converted_line = parse_command_line({"xppautX", model});
+  if (!converted_line) return std::unexpected(converted_line.error());
   saved.files.push_back({model, text});
-  Result<> checked = xpp::inspect_model(2, argv.data(), load_eqn,
+  Result<> checked = xpp::inspect_model(*converted_line, load_eqn,
     [&](Session &s) -> std::optional<Error> {
       /* run() writes the guard last, so every other function keeps its
          .ode number and the programs' calls compare as they are */

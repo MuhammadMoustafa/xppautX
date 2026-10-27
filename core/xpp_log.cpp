@@ -148,17 +148,4 @@ void log_auto_message(std::string_view fmt, std::format_args args) noexcept
     deliver(message, terminal_gets(XPP_LOG_INFO));
 }
 
-bool log_parse_arg(std::string_view arg)
-{
-    if (arg == "--verbose") {
-        log_set_threshold(XPP_LOG_INFO);
-        return true;
-    }
-    if (arg == "--debug") {
-        log_set_threshold(XPP_LOG_DEBUG);
-        return true;
-    }
-    return false;
-}
-
 } // namespace xpp

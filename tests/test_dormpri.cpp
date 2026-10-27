@@ -1,3 +1,4 @@
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "xpp_batch.h"
@@ -13,7 +14,7 @@ int main()
 {
     char name[]="test_dormpri", file[]="tools/models/w377-dense.odex";
     char *argv[]={name,file,nullptr};
-    const auto loaded=xpp::load_model(2,argv,1);
+    const auto loaded=load_args(2,argv,1);
     CHECK(loaded.has_value());
     if(!loaded)TEST_REPORT("DoPri dense");
     auto &s=**loaded;
@@ -156,7 +157,7 @@ int main()
     // Delay queries retain their existing uniform-grid history contract.
     char delay_file[]="tools/models/w377-delay.odex";
     char *delay_argv[]={name,delay_file,nullptr};
-    const auto delay_loaded=xpp::load_model(2,delay_argv,1);
+    const auto delay_loaded=load_args(2,delay_argv,1);
     CHECK(delay_loaded.has_value());
     if(delay_loaded){
       auto &delay=**delay_loaded;

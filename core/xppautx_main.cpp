@@ -32,8 +32,7 @@
    Supported model options use GNU spelling; ours have to come first. --verbose
    and --debug raise the core/xpp_log.h threshold (default: warnings and
    errors only) so the banner, parser stats and integrator chatter show
-   on stderr too; xpp::log_parse_arg() also recognizes them
-   among xppaut's own options, so they work with --silent as well. */
+   on stderr too (comline.cpp reads every option once, ours and xppaut's). */
 #include "model.h"
 #include "model_options.h"
 #include "session.h"
@@ -136,13 +135,10 @@ static std::string usage_tail()
     "Word options require two dashes. X11 options are removed.\n", xpp::http::DEFAULT_PORT);
 }
 
-/* what xppautX does with the session */
-enum { MODE_WINDOW, MODE_BROWSER, MODE_SERVER };
 
 /* the session: load the model and serve it until Quit (the core exits);
    on the main thread (on macOS beside the window's: xpp_window.h) */
-static int session_argc;
-static char **session_argv;
+static xpp::CommandLine startup;
 
 static void run_session(void)
 {
@@ -150,27 +146,23 @@ static void run_session(void)
     xpp::text_metrics.small_width = 7; xpp::text_metrics.small_height = 13;
     xpp::text_metrics.big_width = 9; xpp::text_metrics.big_height = 15;
 
-    bool silent = false;
-    for (int i = 1; i < session_argc; ++i)
-        if (strcmp(session_argv[i], "--silent") == 0) silent = true;
+    const bool silent = startup.silent;
     xpp::json_ui_install(silent);
+    /* what the command line says, changed below only where a file in its place
+       or the system adds an argument: then the changed arguments are read again */
+    std::vector<std::string> args = startup.arguments;
+    bool changed = false;
 #ifdef __APPLE__
     /* a document Finder or `open` gave xppautX.app when it launched it (an
        Apple Event, not an argument: xpp_window.h) is the model, loaded from
        its own folder as File > Open model loads one; without one, an app
        Finder started (in "/") starts in the home folder, where the
        start screen's Open model dialog begins */
-    static std::string launch_name;
-    static std::vector<char *> launch_argv;
     if (const char *doc = xpp::window::launch_document()) {
         const std::pair<std::string, std::string> where = xpp::files::split_path(doc);
         if (!where.first.empty()) xpp::files::change_dir(where.first.c_str());
-        launch_name = where.second;
-        launch_argv.assign(session_argv, session_argv + session_argc);
-        launch_argv.push_back(launch_name.data());
-        launch_argv.push_back(nullptr);
-        session_argc = static_cast<int>(launch_argv.size()) - 1;
-        session_argv = launch_argv.data();
+        args.push_back(where.second);
+        changed = true;
     } else if (xpp::files::working_dir() == "/") {
         const char *home = getenv("HOME");
         if (home && *home) xpp::files::change_dir(home);
@@ -182,35 +174,44 @@ static void run_session(void)
     std::optional<SavedFile> saved;
     std::optional<xpp::RecordingLaunch> recording; /* a .recx: its model starts the session, the player opens it after */
     std::string opened; /* the model file the user opened, as an absolute path: the newest recent one */
-    std::vector<std::string> args;
-    std::vector<char *> argv;
-    args.assign(session_argv, session_argv + session_argc);
-    if (silent) std::erase(args, "--silent");
-    for (size_t i = 1; i < args.size(); i++) {
-        if (xpp::files::has_extension(args[i], xpp::recx::extension)) {
-            recording = xpp::json_ui_recording_launch(args[i]);
+    const std::string &model_file = changed ? args.back() : startup.model_file;
+    const size_t i = changed ? args.size() - 1 : static_cast<size_t>(startup.model_argument);
+    if (!model_file.empty()) {
+        if (xpp::files::has_extension(model_file, xpp::recx::extension)) {
+            recording = xpp::json_ui_recording_launch(model_file);
             if (!recording) exit(1); /* the error said why */
-            opened = xpp::files::absolute(args[i]);
+            opened = xpp::files::absolute(model_file);
             xpp::files::change_dir(recording->folder.c_str());
             args[i] = recording->model;
-            break;
+            changed = true;
+        } else if (xpp_saved_file_name(model_file)) {
+            saved = xpp_saved_read(model_file);
+            if (!saved) exit(1); /* the error message said why, at the file */
+            opened = xpp::files::absolute(model_file);
+            xpp::files::change_dir(xpp::files::split_path(saved->path).first.c_str());
+            const std::vector<std::string> model = xpp_saved_args(*saved);
+            args.erase(args.begin() + static_cast<std::ptrdiff_t>(i));
+            args.insert(args.begin() + static_cast<std::ptrdiff_t>(i), model.begin(), model.end());
+            changed = true;
         }
-        if (!xpp_saved_file_name(args[i])) continue;
-        saved = xpp_saved_read(args[i]);
-        if (!saved) exit(1); /* the error message said why, at the file */
-        opened = xpp::files::absolute(args[i]);
-        xpp::files::change_dir(xpp::files::split_path(saved->path).first.c_str());
-        const std::vector<std::string> model = xpp_saved_args(*saved);
-        args.erase(args.begin() + static_cast<std::ptrdiff_t>(i));
-        args.insert(args.begin() + static_cast<std::ptrdiff_t>(i), model.begin(), model.end());
-        break;
     }
-    for (std::string &a : args) argv.push_back(a.data());
-    argv.push_back(nullptr);
+    if (silent) { /* a recording played through the protocol */
+        std::erase(args, "--silent");
+        changed = true;
+    }
+    xpp::CommandLine cl = startup;
+    if (changed) {
+        xpp::Result<xpp::CommandLine> reread = xpp::parse_command_line(std::move(args));
+        if (!reread) {
+            xpp::log(XPP_LOG_ERROR, "{}\n", reread.error().text());
+            exit(2);
+        }
+        cl = std::move(*reread);
+    }
     /* a saved file's members are read before the load keeps its model */
     std::function<std::optional<xpp::Error>(xpp::Session &)> check;
     if (saved) check = [&saved](xpp::Session &fresh) { return xpp_saved_check(fresh, *saved); };
-    const xpp::Loaded loaded = xpp::load_model(static_cast<int>(args.size()), argv.data(), 0,
+    const xpp::Loaded loaded = xpp::load_model(std::move(cl), 0,
                                                saved ? &saved->model : recording ? &recording->saved : nullptr, check);
     if (!loaded && !silent && xpp::is_no_model(loaded.error())) {
         /* no file named: the start screen, whose Open model is File > Open model's */
@@ -241,7 +242,6 @@ static void run_session(void)
 
 int main(int argc, char **argv)
 {
-    int mode = MODE_WINDOW, batch = 0, port = xpp::http::DEFAULT_PORT, open_browser = 1, convert = 0, check = 0, yes = 0, i, k;
 #ifdef _WIN32
     /* xppautX links -mwindows (no console from Explorer or a file
        association): reattach to a real console before any output, for
@@ -249,97 +249,76 @@ int main(int argc, char **argv)
        already a real pipe or file, or there is no parent console */
     xpp::win32::attach_console();
 #endif
-    /* our options come first; the rest are xppaut's */
-    for (i = k = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--version") == 0) {
-            /* the release tag (v1.2.0); the VS Code extension compares it with the latest release */
-            printf("xppautX %s\n", xpp_version_string());
-            return 0;
-        }
-        if (strcmp(argv[i], "--options-schema") == 0) {
-            /* the JSON Schema of a .odex's options block, from the option table (docs/odex.md) */
-            printf("%s", xpp::option_schema().c_str());
-            return 0;
-        }
-        if (strcmp(argv[i], "--setx-schema") == 0) {
-            /* the JSON Schema of a .setx (docs/odex.md), from the description the reader and writer share */
-            printf("%s", xpp::setx_schema().c_str());
-            return 0;
-        }
-        if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            printf("%s%s%s", usage_head, xpp::window::supported() ? usage_window : usage_no_window, usage_tail().c_str());
-            return 0;
-        }
-        if (strcmp(argv[i], "--web") == 0 || strcmp(argv[i], "--browser") == 0) mode = MODE_BROWSER;
-        else if (strcmp(argv[i], "--server") == 0) mode = MODE_SERVER;
-        else if (strcmp(argv[i], "--no-open") == 0) open_browser = 0;
-        else if (strcmp(argv[i], "--convert") == 0) convert = 1;
-        else if (strcmp(argv[i], "--check") == 0) check = 1;
-        else if (strcmp(argv[i], "--yes") == 0 || strcmp(argv[i], "-y") == 0) yes = 1;
-        else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) port = atoi(argv[++i]);
-        else if (xpp::log_parse_arg(argv[i])) { /* --verbose / --debug: xpp_log.h */ }
-#ifdef __APPLE__
-        /* the process serial number an older macOS gave an app Finder
-           started, which xppaut's options would take for a bad one */
-        else if (strncmp(argv[i], "-psn_", 5) == 0) {}
-#endif
-        else {
-            /* xppaut's own switch for a run with no interface at all */
-            if (strcmp(argv[i], "--silent") == 0) batch = 1;
-            argv[k++] = argv[i];
-        }
+    /* the whole command line, read once: ours and xppaut's */
+    xpp::Result<xpp::CommandLine> parsed = xpp::parse_command_line(std::vector<std::string>(argv, argv + argc));
+    if (!parsed) {
+        xpp::log(XPP_LOG_ERROR, "{}\n", parsed.error().text());
+        return 2;
     }
-    argc = k;
-    argv[argc] = NULL;
-    if (check && !convert && argc == 2 && argv[1][0] != '-') {
+    startup = std::move(*parsed);
+    const xpp::CommandLine &cl = startup;
+    if (cl.log_threshold) xpp::log_set_threshold(*cl.log_threshold);
+    if (cl.version) {
+        /* the release tag (v1.2.0); the VS Code extension compares it with the latest release */
+        printf("xppautX %s\n", xpp_version_string());
+        return 0;
+    }
+    if (cl.options_schema) {
+        /* the JSON Schema of a .odex's options block, from the option table (docs/odex.md) */
+        printf("%s", xpp::option_schema().c_str());
+        return 0;
+    }
+    if (cl.setx_schema) {
+        /* the JSON Schema of a .setx (docs/odex.md), from the description the reader and writer share */
+        printf("%s", xpp::setx_schema().c_str());
+        return 0;
+    }
+    if (cl.help) {
+        printf("%s%s%s", usage_head, xpp::window::supported() ? usage_window : usage_no_window, usage_tail().c_str());
+        return 0;
+    }
+    if (cl.check && !cl.convert && !cl.model_file.empty() && cl.load_options == 0) {
         xpp::batch_options.check = true;
-        return xpp::odex::check_file(argv[1]);
+        return xpp::odex::check_file(cl.model_file);
     }
-    if (check) {
+    if (cl.check) {
         xpp::log(XPP_LOG_ERROR, "usage: xppautX --check model.ode (or model.odex)\n");
         return 2;
     }
-    if (const xpp::Result<> r = xpp::check_command_line(argc, argv); !r) {
-        xpp::log(XPP_LOG_ERROR, "{}\n", r.error().text());
-        return 2;
-    }
-    xpp::batch_options.yes = yes != 0;
+    xpp::batch_options.yes = cl.yes;
     /* --convert [--yes] model.ode: model.odex beside it (odex.h) */
-    if (convert) {
-        if (argc != 2) {
+    if (cl.convert) {
+        if (cl.model_file.empty() || cl.load_options != 0) {
             xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--yes] model.ode\n");
             return 2;
         }
-        return xpp::odex::convert_file(argv[1]);
+        return xpp::odex::convert_file(cl.model_file);
     }
-    bool recording_batch = false;
-    for (i = 1; i < argc; ++i)
-        if (xpp::files::has_extension(argv[i], xpp::recx::extension)) recording_batch = batch != 0;
-    if (batch && !recording_batch) {
-        for (i = 1; i < argc; i++)
-            if (xpp_saved_file_name(argv[i])) {
-                xpp::log(XPP_LOG_ERROR, "{}\n",
-                         xpp::Error{"xppautX", "an AUTO or session file opens in the window, the browser or --server, not with --silent",
-                                    xpp::Place{argv[i]}}.text());
-                return 2;
-            }
-        return xpp::json_ui_silent(argc, argv);
+    const bool recording_batch = cl.silent && xpp::files::has_extension(cl.model_file, xpp::recx::extension);
+    if (cl.silent && !recording_batch) {
+        if (xpp_saved_file_name(cl.model_file)) {
+            xpp::log(XPP_LOG_ERROR, "{}\n",
+                     xpp::Error{"xppautX", "an AUTO or session file opens in the window, the browser or --server, not with --silent",
+                                xpp::Place{cl.model_file}}.text());
+            return 2;
+        }
+        return xpp::json_ui_silent(startup);
     }
     /* --no-open is browser mode (the VS Code extension, tools/cdp.mjs), and
        so is a build without a window */
-    if (mode == MODE_WINDOW && (!open_browser || !xpp::window::supported())) mode = MODE_BROWSER;
+    xpp::Interface interface = cl.interface.value_or(xpp::Interface::window);
+    if (interface == xpp::Interface::window && (cl.no_open || !xpp::window::supported())) interface = xpp::Interface::browser;
     start_auto_dir();
-    if (recording_batch) mode = MODE_SERVER;
-    if (mode != MODE_SERVER) {
+    if (recording_batch) interface = xpp::Interface::server;
+    if (interface != xpp::Interface::server) {
+        const bool browser = interface == xpp::Interface::browser;
         /* the window navigates to the address itself: shown nowhere */
-        if (!xpp::http::start(port, mode == MODE_BROWSER, mode == MODE_BROWSER && open_browser)) return 1;
+        if (!xpp::http::start(cl.port.value_or(xpp::http::DEFAULT_PORT), browser, browser && !cl.no_open)) return 1;
         /* the AUTO window's Output panel shows AUTO's table from the log */
         xpp::log_set_auto_echo(1);
     }
-    session_argc = argc;
-    session_argv = argv;
     /* the window runs the session itself; when it cannot open, the browser */
-    if (mode == MODE_WINDOW && !xpp::window::run(run_session, xpp_about_markup().c_str())) xpp::http::show(true);
+    if (interface == xpp::Interface::window && !xpp::window::run(run_session, xpp_about_markup().c_str())) xpp::http::show(true);
     run_session();
     return 0;
 }

@@ -3,6 +3,7 @@
    leaves the ones before current and untouched, where the program used to
    exit, and a good load after it still works. A load that fails says why
    and where (xpp::load_model's xpp::Error, W63c). */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "model.h"
@@ -29,14 +30,14 @@ int main(void)
     CHECK(xpp::Error({"w", "bad", {"", 5}}).text() == "line 5: bad");
     CHECK(xpp::Error({"w", "bad"}).text() == "bad");
 
-    CHECK(xpp::load_model(2, argv_good, 1).has_value());
+    CHECK(load_args(2, argv_good, 1).has_value());
     xpp::Model *model = &xpp::client_session().model();
     xpp::Session *session = &xpp::client_session();
     const int node = model->node;
     const std::string file = model->this_file;
     session->numerics.total_time = 123.0; /* a change the failed load must keep */
 
-    CHECK(!xpp::load_model(2, argv_bad, 1).has_value());
+    CHECK(!load_args(2, argv_bad, 1).has_value());
     CHECK(&xpp::client_session().model() == model);
     CHECK(&xpp::client_session() == session);
     CHECK(xpp::client_session().model().node == node);
@@ -44,7 +45,7 @@ int main(void)
     CHECK(xpp::client_session().numerics.total_time == 123.0);
 
     /* why: f's formula (line 4) does not compile */
-    xpp::Loaded d = xpp::load_model(2, argv_bad, 1);
+    xpp::Loaded d = load_args(2, argv_bad, 1);
     CHECK(!d.has_value());
     if (!d) {
         CHECK_STR(d.error().place.file.c_str(), bad);
@@ -63,7 +64,7 @@ int main(void)
     }
     char odex_arg[] = "build/test_load_bad.odex";
     char *argv_odex[] = {arg0, odex_arg, NULL};
-    d = xpp::load_model(2, argv_odex, 1);
+    d = load_args(2, argv_odex, 1);
     CHECK(!d.has_value());
     if (!d) {
         CHECK_STR(d.error().place.file.c_str(), odex);
@@ -72,7 +73,7 @@ int main(void)
         CHECK(!d.error().what.empty());
     }
 
-    CHECK(xpp::load_model(2, argv_good, 1).has_value());
+    CHECK(load_args(2, argv_good, 1).has_value());
     CHECK(xpp::client_session().model().node == node);
     CHECK(xpp::client_session().model().this_file == file);
     CHECK(xpp::client_session().numerics.total_time != 123.0);
@@ -92,9 +93,9 @@ int main(void)
     }
     char cmap_arg[] = "build/test_load_cmap.ode";
     char *argv_cmap[] = {arg0, cmap_arg, NULL};
-    CHECK(xpp::load_model(2, argv_cmap, 1).has_value());
+    CHECK(load_args(2, argv_cmap, 1).has_value());
     CHECK(xpp::client_session().colormap == xpp::Colormap::cool);
-    CHECK(xpp::load_model(2, argv_good, 1).has_value());
+    CHECK(load_args(2, argv_good, 1).has_value());
     CHECK(xpp::client_session().colormap == xpp::Colormap::viridis); /* an .odex without one */
     {
         /* an .ode without one is converted with XPPAUT's own, jet */
@@ -104,7 +105,7 @@ int main(void)
     }
     char nocmap_arg[] = "build/test_load_nocmap.ode";
     char *argv_nocmap[] = {arg0, nocmap_arg, NULL};
-    CHECK(xpp::load_model(2, argv_nocmap, 1).has_value());
+    CHECK(load_args(2, argv_nocmap, 1).has_value());
     CHECK(xpp::client_session().colormap == xpp::Colormap::jet);
     {
         /* a model of ours without one: viridis, and its ramp is the session's */
@@ -113,7 +114,7 @@ int main(void)
     }
     char viridis_arg[] = "build/test_load_viridis.odex";
     char *argv_viridis[] = {arg0, viridis_arg, NULL};
-    CHECK(xpp::load_model(2, argv_viridis, 1).has_value());
+    CHECK(load_args(2, argv_viridis, 1).has_value());
     CHECK(xpp::client_session().colormap == xpp::Colormap::viridis);
     CHECK(xpp::client_session().ramp() == xpp::make_ramp(xpp::Colormap::viridis));
 
@@ -127,13 +128,13 @@ int main(void)
     }
     char rng_arg[] = "build/test_load_range.ode";
     char *argv_rng[] = {arg0, rng_arg, NULL};
-    CHECK(xpp::load_model(2, argv_rng, 1).has_value());
+    CHECK(load_args(2, argv_rng, 1).has_value());
     CHECK(xpp::client_session().integrator.range.write_files);
     CHECK(xpp::client_session().batch_out_file.ends_with("range_out.dat"));
-    CHECK(!xpp::load_model(2, argv_bad, 1).has_value());
+    CHECK(!load_args(2, argv_bad, 1).has_value());
     CHECK(xpp::client_session().integrator.range.write_files);
     CHECK(xpp::client_session().batch_out_file.ends_with("range_out.dat"));
-    CHECK(xpp::load_model(2, argv_good, 1).has_value());
+    CHECK(load_args(2, argv_good, 1).has_value());
     CHECK(!xpp::client_session().integrator.range.write_files);
     CHECK(xpp::client_session().batch_out_file == "output.dat");
 
@@ -148,10 +149,10 @@ int main(void)
     }
     char map_arg[] = "build/test_load_map.ode";
     char *argv_map[] = {arg0, map_arg, NULL};
-    CHECK(xpp::load_model(2, argv_map, 1).has_value());
+    CHECK(load_args(2, argv_map, 1).has_value());
     CHECK(xpp::client_session().model().this_file == "build/test_load_map.odex");
     CHECK(xpp::client_session().numerics.method == 0);
-    CHECK(xpp::load_model(2, argv_good, 1).has_value());
+    CHECK(load_args(2, argv_good, 1).has_value());
     CHECK(xpp::client_session().model().is_a_map == 0);
     CHECK(xpp::client_session().numerics.method == method);
 
@@ -166,7 +167,7 @@ int main(void)
         nc.x_null.assign(4, 0.5f);
         nc.num_x_n = 1;
     }
-    CHECK(xpp::load_model(2, argv_good, 1).has_value());
+    CHECK(load_args(2, argv_good, 1).has_value());
     CHECK(!xpp::client_session().nullcline_state.frozen_started);
     CHECK(xpp::client_session().nullcline_state.frozen.empty());
     CHECK(xpp::client_session().nullcline_state.num_x_n == 0);
@@ -181,7 +182,7 @@ int main(void)
         }
         std::string p = path;
         char *argv_clash[] = {arg0, p.data(), NULL};
-        return xpp::load_model(2, argv_clash, 1);
+        return load_args(2, argv_clash, 1);
     };
     for (const char *text : {"x[1..3]'=-x[j]\npar x2=5\ndone\n", "x[1..3]'=-x[j]\nx2=5\ndone\n"}) {
         d = clash("build/test_load_clash.ode", text);

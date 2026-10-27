@@ -2,6 +2,7 @@
    workspace, determinant, status, diagnostic and continuity state.
    Constants were recorded from the pre-W337 code (e03d41d0).
    A deliberate numerical change must regenerate them and say so in its commit. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "xpp_math.h"
 #include "session.h"
@@ -303,7 +304,7 @@ void homcont()
     CHECK(writer.write("par p=0.2,s=0\nx'=(1+s)*x+p*y\ny'=(-1+s)*y-2*z\nz'=2*y+(-1+s)*z\n") && writer.commit());
     char name[] = "test_auto_numerics";
     char *argv[] = {name, path.data(), nullptr};
-    const auto loaded = xpp::load_model(2, argv, 1);
+    const auto loaded = load_args(2, argv, 1);
     CHECK(loaded.has_value());
     if (!loaded) return;
     auto &session = xpp::client_session();

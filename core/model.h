@@ -26,6 +26,7 @@
    limit on their number): it writes an entry by its index (a variable, a
    Markov variable, an aux quantity each at its own offset). */
 #include "xpp_error.h"
+#include "comline.h"
 #include "volterra.h"
 #include "tabular.h"
 #include "simplenet.h"
@@ -413,9 +414,9 @@ struct Model {
   /* during a load of a saved model, the scratch folder of the copies a
      reader of a FILE * reads (model_files.cpp) */
   std::shared_ptr<TempDir> saved_copies;
-  /* the command line it was loaded with (argv, the program's name first):
-     File > Reload loads it again (model_switch.h) */
-  std::vector<std::string> command_line;
+  /* the command line it was loaded with, read once (comline.h): File >
+     Reload loads its arguments again (model_switch.h) */
+  CommandLine command_line;
   /* the working directory it was loaded in, which the command line's
      relative paths name files of */
   std::string load_dir;

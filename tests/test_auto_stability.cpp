@@ -2,6 +2,7 @@
    computed belongs to the point it computed it for; a run's first point is
    not computed unless the run restarts from a label of the same kind.
    tools/autocheck.py's stability section runs the same cases on lecar. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "auto_stability.h"
 #include "auto_stability_auto.h"
@@ -183,7 +184,7 @@ int main()
     // spectrum is computed for the exact solution each predictor saves.
     char name[] = "test_auto_stability", file[] = "examples/ode/lecar.odex";
     char *argv[] = {name, file, nullptr};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     auto &session = xpp::client_session();
     xpp::TempDir temp;
     xpp::UniqueFile diagnostics(xpp::files::open_stream(temp.path() + "/stability.log", "w"));

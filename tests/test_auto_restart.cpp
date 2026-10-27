@@ -1,6 +1,7 @@
 /* W333 (#394): fort.8 restart layouts, including augmented formulations.
    Fixtures have distinct states and tangents at every collocation node;
    untouched columns are canaries, so a stride/range mixup cannot pass. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "session.h"
 #include "auto_c.h"
@@ -261,7 +262,7 @@ int main() {
     char name[] = "test_auto_restart";
     char model[] = "examples/ode/lecar.odex";
     char *argv[] = {name, model, nullptr};
-    CHECK(xpp::load_model(2, argv, 1).has_value());
+    CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
     xpp::init_auto_win(s);
     // Directly cover each audit-named augmented fort.8 formulation.

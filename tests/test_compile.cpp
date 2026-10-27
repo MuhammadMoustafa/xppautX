@@ -1,3 +1,4 @@
+#include "load_args.h"
 #include "xpptest.h"
 #include "expr_native.h"
 #include "expr_program.h"
@@ -339,7 +340,7 @@ int main()
         std::string file=path;
         char name[]="test_compile";
         char *argv[]={name,file.data(),nullptr};
-        auto loaded=xpp::load_model(2,argv,1);
+        auto loaded=load_args(2,argv,1);
         CHECK(loaded.has_value());
         if (!loaded) continue;
         xpp::Session &t=xpp::client_session();

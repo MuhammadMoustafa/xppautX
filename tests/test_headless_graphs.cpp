@@ -1,6 +1,7 @@
 /* W348 (#409): graph and equilibrium data with the headless UI defaults,
    before a protocol emitter is installed (the --silent load path).
    W351 (#412): each extra window's TimeFlag comes from its own axes. */
+#include "load_args.h"
 #include "xpptest.h"
 #include "xpp_batch.h"
 #include "xpp_util.h"
@@ -18,7 +19,7 @@ static void check_time_first_model()
     char name[] = "test_headless_graphs";
     char path[] = "tools/models/timefirst_phase.odex";
     char *argv[] = {name, path, nullptr};
-    const xpp::Loaded loaded = xpp::load_model(2, argv, 1);
+    const xpp::Loaded loaded = load_args(2, argv, 1);
     CHECK(loaded.has_value());
     if (!loaded) return;
     xpp::Session &s = **loaded;
@@ -41,7 +42,7 @@ int main()
     char name[] = "test_headless_graphs";
     char path[] = "tools/models/multiwin.odex";
     char *argv[] = {name, path, nullptr};
-    const xpp::Loaded loaded = xpp::load_model(2, argv, 1);
+    const xpp::Loaded loaded = load_args(2, argv, 1);
     CHECK(loaded.has_value());
     if (!loaded) TEST_REPORT("headless graphs");
     xpp::Session &s = **loaded;

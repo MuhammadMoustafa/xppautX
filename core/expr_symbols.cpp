@@ -343,7 +343,7 @@ void init_rpn(xpp::Session &s)
     /* end animator stuff */
 
     init_table(s);
-    if (newseed) {
+    if (s.model().command_line.new_seed) {
       s.numerics.rand_seed=static_cast<int>(time(0));
       xpp::log(XPP_LOG_INFO,"--newseed: seed {}\n",s.numerics.rand_seed);
     }

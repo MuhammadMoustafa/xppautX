@@ -1,3 +1,4 @@
+#include "load_args.h"
 #include "auto_unknowns.h"
 /* The session's AUTO members (xpp_session_auto.h, W92, W103): its settings, diagram and
    views (W50) read back bit for bit, a file of another shape is refused,
@@ -319,7 +320,7 @@ bool load(const std::string &ode, const xpp::SavedModel *saved = nullptr)
 {
     std::string arg0 = "test_session_auto", arg1 = ode;
     char *argv[] = {arg0.data(), arg1.data(), nullptr};
-    if (!xpp::load_model(2, argv, 1, saved)) return false;
+    if (!load_args(2, argv, 1, saved)) return false;
     init_browser(xpp::client_session());
     init_all_graph(xpp::client_session());
     xpp::client_session().plot_windows.graph[0].Use = 1;
