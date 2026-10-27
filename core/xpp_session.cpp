@@ -21,6 +21,7 @@
 #include "xpp_files.h"
 #include "xpp_zip.h"
 #include "xpp_util.h"
+#include "many_pops.h"
 #include "setx_file.h"
 #include "setx.h"
 #include "nullcline.h"

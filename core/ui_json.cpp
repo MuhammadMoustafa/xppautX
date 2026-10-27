@@ -29,6 +29,7 @@
 #include "xpp_inbox.h"
 #include "xpp_job.h"
 #include "xpp_util.h"
+#include "many_pops.h"
 #include "command_table.h"
 #include "menus.h"
 #include "mykeydef.h"

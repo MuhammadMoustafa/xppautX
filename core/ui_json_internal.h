@@ -284,8 +284,7 @@ void buf_add(std::string &b, const char *s, size_t n);
 template <class... Args>
 void buf_format(std::string &b, std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    xpp::with_format_args([&](std::format_args a) { xpp::vformat_append(b, fmt.get(), a); },
-                          std::forward<Args>(args)...);
+    xpp::format_append(b, fmt, std::forward<Args>(args)...);
 }
 void buf_str(std::string &b, const char *s); /* a JSON string ("" for NULL) */
 void buf_str(std::string &b, std::string_view s);

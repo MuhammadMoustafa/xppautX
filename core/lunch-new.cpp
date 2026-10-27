@@ -9,6 +9,8 @@
 #include "integrate.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "typed_values.h"
+#include "many_pops.h"
 #include "xpp_log.h"
 #include "lunch-new.h"
 #include "expr.h"

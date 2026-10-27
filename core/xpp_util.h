@@ -14,9 +14,6 @@
 #include <string_view>
 #include <vector>
 
-/* the kinds of a value box find_user_name and box_set_value read */
-#define PARAMBOX 1
-#define ICBOX 2
 
 namespace xpp {
 
@@ -32,68 +29,13 @@ void de_space(char *s);
 const char *eq_stability(int cp, int rp, int im);
 
 
-/* at exit (xppautx_main.cpp's atexit hook): removes s's AUTO scratch
-   folder (auto_state.h) if it is set, and clears it */
-void cleanup_auto_dir(Session &s);
 void man_ic(Session &s);
-void redo_stuff(Session &s);
-/* temp ("name:formula" sets name, or a formula) worked out in the Session
-   s into *z */
-int do_calc(Session &s, std::string_view temp, double *z);
-/* the formula expr worked out in s, or why it does not compile; shows
-   nothing and changes nothing */
-Result<double> evaluate_formula(Session &s, std::string_view expr);
-/* what was typed in a number field: a plain number (xpp::parse_number's
-   rule, blanks around it allowed) or %formula (worked out in s; "%name:
-   formula" must name a parameter or an IC), else the error, which
-   carries `field`, the field it was typed in (Error::field). Nothing is
-   shown or set: the one reading of a typed number (W131), which new_float,
-   the `set` command and every box go through. */
-Result<double> typed_number(Session &s, std::string_view typed, std::string_view field = {});
-/* One reading of the fields typed in a form, all or nothing: the first
-   fault is kept with the field it belongs to, no later field is read once
-   there is one, and the caller applies nothing when error() is set. */
-class TypedFields {
- public:
-  explicit TypedFields(Session &s) : s_(s) {}
-  /* typed_number's reading of `text`; 0 after a fault */
-  double number(std::string_view field, const std::string &text);
-  /* a whole number (parse_int), within min..max where given; 0 after a fault */
-  int integer(std::string_view field, const std::string &text, std::optional<double> min = std::nullopt,
-              std::optional<double> max = std::nullopt);
-  /* a plain real number (parse_number: no %formula), within min..max where
-     given; 0 after a fault */
-  double real(std::string_view field, const std::string &text, std::optional<double> min = std::nullopt,
-              std::optional<double> max = std::nullopt);
-  /* `true` or `false`; false after a fault */
-  bool boolean(std::string_view field, const std::string &text);
-  /* a colour (colormap.h's parse_color); the foreground after a fault */
-  Color color(std::string_view field, const std::string &text);
-  /* one of choices, by its name, exactly: its index; 0 after a fault */
-  int choice(std::string_view field, const std::string &text, std::span<const std::string> choices);
-  void fail(std::string_view field, std::string_view what);
-  const std::optional<std::string> &error() const { return error_; }
-
- private:
-  Session &s_;
-  std::optional<std::string> error_;
-};
 /* a slider names a parameter (*type PARAMBOX) or a variable (ICBOX) of
    m, *index its index; 0 if neither */
 int find_par_or_var(const Model &m, std::string_view name, int *type, int *index);
 /* why slider cannot be one of m's (the slider command and .snapx's
    sliders.set both ask); nullopt when it can, an empty name an empty slot */
 std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider, bool check_names = true);
-/* The session s's plot windows: which are open (set_active_windows), the
-   active one (make_active), the plot window (its graph's index) whose
-   window is w (graph_of; 0, the main one, when none in use is), and the
-   active window's bounds made valid (check_windows) */
-void set_active_windows(Session &s);
-/* Create and activate a graph; the UI callback only presents its surface. */
-void create_a_pop(Session &s);
-void make_active(Session &s, int i, int flag);
-int graph_of(const Session &s, XppWinId w);
-void check_windows(Session &s);
 /* the least and greatest of s's browser column index, widened when equal */
 void get_max(const Session &s, int index, double *vmin, double *vmax);
 /* the values behind the parameter and IC boxes and the sliders of s */
@@ -101,17 +43,11 @@ void new_parameter(Session &s);
 /* every parameter (or only entry `only`) back to the model's value, the tables redone once */
 void set_default_params(Session &s, std::optional<int> only = std::nullopt);
 void set_default_ics(Session &s, std::optional<int> only = std::nullopt);
-/* store the text typed for entry i of the box `type`; the refusal, shown by
-   no one, changes nothing (typed_number) */
-Result<void> box_set_value(Session &s, int type, int i, std::string_view text, std::string_view field = {});
-void box_values_loaded(Session &s, int type);
 void set_par_or_var(Session &s, std::string_view name, int type, int index, double val);
 void eq_import(Session &s, double *y, int n);
 /* the plot of s redrawn into the picture file begun (image_format.h's
    restore), which it then closes */
 void vector_restore(Session &s);
-/* s's active plot window blanked, its axes drawn again */
-void clr_scrn(Session &s);
 /* the ICs box "xvst" (how 0) and "pp" (how 1) buttons: plot s's checked
    variables (isck, n entries) and uncheck them */
 void plot_checked_vars(Session &s, int how, int *isck, int n);
@@ -120,10 +56,6 @@ void plot_checked_vars(Session &s, int how, int *isck, int n);
 void do_txt_action(Session &s, std::string_view action);
 /* the model m's user functions, as lunch-new.cpp's file info writes them */
 void user_fun_info(const Model &m, FILE *fp);
-/* another model is loaded (File > Open model, Reload): a new, empty AUTO
-   scratch folder in place of the Session s's, whose files (<model>.s, .b,
-   .d) were the model before's */
-void renew_auto_dir(Session &s);
 
 /* name, shortened for a fixed-width display of width characters: a longer
    one keeps its start and ends in '~' so it cannot pass for another name */
@@ -142,9 +74,6 @@ int has_eq(std::string_view z, std::string &name, int *where);
    the naming, this is just its name for a plotted column */
 std::string ind_to_sym(const Session &s, int ind);
 
-/* the index of parameter (type PARAMBOX) or variable (ICBOX) oname,
-   blanks ignored and case not, -1 when there is none */
-int find_user_name(const Model &m, int type, std::string_view oname);
 
 /* f() on the active plot window of s, or under Simulplot on each open one
    in turn (made active with make_active(s, i, flag)), the active one made

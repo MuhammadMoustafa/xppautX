@@ -61,7 +61,7 @@ void end_picture(Session &s);
 Result<bool> save_pixels(const ImageFormat &format, const char *filename, std::span<const unsigned char> rgb, int width, int height);
 
 /* the format whose extension is `extension` (a Session's plot_export.format's
-   own values, "pdf"/"svg": xpp_util.cpp's dump_ps), or nullptr */
+   own values, "pdf"/"svg": many_pops.cpp's dump_ps), or nullptr */
 const ImageFormat *find_image_format_by_extension(std::string_view extension);
 
 } // namespace xpp

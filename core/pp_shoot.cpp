@@ -4,6 +4,8 @@
 #include "xpp_ui.h"
 #include "storage.h"
 #include "xpp_util.h"
+#include "typed_values.h"
+#include "many_pops.h"
 #include "xpp_math.h"
 #include "pp_shoot.h"
 #include "numerics_settings.h"

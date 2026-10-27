@@ -6,6 +6,7 @@
 #include "session.h"
 #include "ui_json_internal.h"
 #include "xpp_util.h"
+#include "many_pops.h"
 #include "graphics.h"
 #include "graf_par.h"
 #include "integrate.h"

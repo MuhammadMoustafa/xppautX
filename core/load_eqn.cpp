@@ -18,6 +18,8 @@
 #include "auto_settings.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "typed_values.h"
+#include "many_pops.h"
 #include "markov.h"
 #include "expr.h"
 #include "xpp_io.h"

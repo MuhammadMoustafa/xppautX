@@ -34,13 +34,19 @@ FILE *proto;
 
 /* ---- output ------------------------------------------------------------ */
 
-void buf_add(std::string &b, const char *s, size_t n)
+/* one step of building an event: a failed allocation ends the program */
+template <class F> static void build_event(F &&step)
 {
     try {
-        b.append(s, n);
+        step();
     } catch (...) {
         xpp::out_of_memory("building an event");
     }
+}
+
+void buf_add(std::string &b, const char *s, size_t n)
+{
+    build_event([&] { b.append(s, n); });
 }
 
 void buf_str(std::string &b, const char *s)
@@ -77,11 +83,7 @@ void buf_str_array(std::string &b, std::span<const std::string> v)
 
 void buf_num(std::string &b, double v, int sig)
 {
-    try {
-        json_append_number(b, v, sig);
-    } catch (...) {
-        xpp::out_of_memory("building an event");
-    }
+    build_event([&] { json_append_number(b, v, sig); });
 }
 
 bool out_wanted() { return xpp::http::active() || proto; }

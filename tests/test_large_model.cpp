@@ -18,6 +18,7 @@
 #include "xpp_io.h"
 #include "expr.h"
 #include "xpp_util.h"
+#include "typed_values.h"
 
 #include <cmath>
 #include <string>

@@ -17,6 +17,7 @@
 #include "session.h"
 #include "storage.h"
 #include "xpp_util.h"
+#include "typed_values.h"
 #include "menudrive.h"
 #include "solver.h"
 #include "tabular.h"

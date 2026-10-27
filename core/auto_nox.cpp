@@ -18,6 +18,7 @@
 #include "xpp_globals.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "typed_values.h"
 #include <string.h>
 #include "autevd.h"
 #include "auto_stop.h"
@@ -2968,6 +2969,26 @@ void auto_point_xy(xpp::Session &s, double x,double y)
     s.auto_state.bifur.hinttxt=xpp::format("x={:g},y={:g}",x,y);
     storeautopoint(s, x,y);
     ui.auto_show_hint(s);
+}
+
+
+/* ---- AUTO's private scratch directory (session.h: AutoState::dir),
+   made by xpp::files::make_temp_dir ---- */
+void cleanup_auto_dir(xpp::Session &s)
+{
+  std::string &dir=s.auto_state.dir;
+  if (!dir.empty()) {
+    xpp::files::remove_temp_dir(dir.c_str());
+    dir.clear();
+  }
+}
+
+void renew_auto_dir(xpp::Session &s)
+{
+  std::string &dir=s.auto_state.dir;
+  if (dir.empty()) return; /* none was made: AUTO writes beside the model */
+  xpp::files::remove_temp_dir(dir.c_str());
+  dir=xpp::files::make_temp_dir();
 }
 
 } // namespace xpp

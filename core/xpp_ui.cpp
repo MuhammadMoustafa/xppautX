@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "xpp_util.h"
+#include "typed_values.h"
 #include "menus.h"
 #include <algorithm>
 #include <span>

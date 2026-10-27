@@ -12,6 +12,7 @@
 #include "xpp_globals.h"
 #include "xpp_session.h"
 #include "xpp_util.h"
+#include "auto_nox.h"
 #include "xpp_window.h"
 #include "colormap.h"
 #include "comline.h"

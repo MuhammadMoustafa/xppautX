@@ -10,6 +10,7 @@
 #include "xpp_error.h"
 #include "xpp_job.h"
 #include "xpp_util.h"
+#include "typed_values.h"
 
 #include <array>
 #include <cctype>

@@ -97,7 +97,7 @@ struct Session {
 
   /* the rows a run stores and where the last run ended (storage.cpp) */
   DataStore data_store;
-  /* the plot windows, the active one, Simulplot (xpp_util.cpp) */
+  /* the plot windows, the active one, Simulplot (many_pops.cpp) */
   XppPlotWindows plot_windows{};
   /* the frozen curves of every window (graf_par.cpp) */
   XppFrozenCurves frozen_curves{};

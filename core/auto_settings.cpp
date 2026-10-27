@@ -24,6 +24,7 @@
 #include "diagram.h"
 #include "expr.h"
 #include "xpp_util.h"
+#include "typed_values.h"
 #include "form_ode.h"
 #include "xpp_mem.h"
 #include "auto_parallel.h"

@@ -5,6 +5,7 @@
 #include "form_ode.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "typed_values.h"
 #include "xpp_log.h"
 
 #include "cv2.h"

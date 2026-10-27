@@ -281,4 +281,13 @@ std::string auto_solutions_file(const Session &s);
    "Frequency" each (json_auto.cpp's diagram events) */
 void get_auto_str(const Session &s, const AUTOAX &ax, std::string &xlabel, std::string &ylabel);
 
+/* at exit (xppautx_main.cpp's atexit hook): removes s's AUTO scratch
+   folder (auto_state.h) if it is set, and clears it */
+void cleanup_auto_dir(Session &s);
+
+/* another model is loaded (File > Open model, Reload): a new, empty AUTO
+   scratch folder in place of the Session s's, whose files (<model>.s, .b,
+   .d) were the model before's */
+void renew_auto_dir(Session &s);
+
 } // namespace xpp

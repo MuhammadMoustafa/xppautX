@@ -26,6 +26,7 @@
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_util.h"
+#include "typed_values.h"
 #include "xpp_ui.h"
 #include "browse.h"
 

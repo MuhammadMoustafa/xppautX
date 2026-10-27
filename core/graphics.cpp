@@ -3,6 +3,8 @@
 #include "session.h"
 #include "colormap.h"
 #include "xpp_util.h"
+#include "typed_values.h"
+#include "many_pops.h"
 #include "xpp_ui.h"
 #include "xpp_globals.h"
 #include "marks_data.h"

@@ -6812,7 +6812,7 @@ async function main() {
     if (run('kinescope')) await session(ODE, kinescope);
     if (run('runs')) await session(ODE, runsCheck, ['bad.par:1: it is for 3 parameters, the model has 12', 'bad.ic:2: the file ends here, before W']);
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
-       .." (xpp_util.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
+       .." (typed_values.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
     if (run('values')) await session(ODE, valuesJacobian, [commandError('Numerics: Jacobian: exact is not available: w260noise.odex:2:1: uses random numbers')]);
     if (run('values')) await session(LIVE, valuesLive, [BAD_IAPP, commandError('set par gca: Illegal formula ..')]);

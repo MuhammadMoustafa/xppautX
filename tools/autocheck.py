@@ -15,7 +15,7 @@ CVODE's memory leaked.
 errors checks that invalid Numerics values (Ncol 8, Ntst 0) are refused
 at input, leave settings intact and allow the next run to compute the
 same points. Unit tests cover the internal numerical error paths.
-scratch checks that a start removes an xppautoX-<pid>-N folder (xpp_util.cpp's
+scratch checks that a start removes an xppautoX-<pid>-N folder (auto_nox.cpp's
 AUTO scratch directory) left by a dead pid, and leaves one alone whose pid is
 still running (issue #32). grab checks "auto" "grab" by label and by type+index
 (issue #112): a periodic run from a point grabbed that way gives the same

@@ -57,6 +57,7 @@
 #include "menudrive.h"
 #include "xpp_http.h"
 #include "xpp_util.h"
+#include "auto_nox.h"
 #include "xpp_files.h"
 #include "xpp_about.h"
 #include "xpp_window.h"

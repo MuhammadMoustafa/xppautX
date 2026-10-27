@@ -12,6 +12,7 @@
 #include "session.h"
 #include "getvar.h"
 #include "xpp_util.h"
+#include "many_pops.h"
 #include "xpp_log.h"
 #include "odesol2.h"
 #include "numerics.h"

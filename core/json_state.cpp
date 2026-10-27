@@ -10,6 +10,7 @@
 #include "model_save.h"
 #include "storage.h"
 #include "xpp_util.h"
+#include "typed_values.h"
 #include "xpp_job.h"
 #include "graphics.h"
 #include "integrate.h"

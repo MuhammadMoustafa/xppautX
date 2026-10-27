@@ -11,6 +11,7 @@
 #include "auto_nox.h"
 #include "lunch-new.h"
 #include "xpp_util.h"
+#include "typed_values.h"
 #include <stdio.h>
 
 static double calc(const std::string &expr, int *ok)

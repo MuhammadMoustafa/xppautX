@@ -33,6 +33,7 @@
 #include "nullcline.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "typed_values.h"
 #include "integrate.h"
 #include "browse.h"
 #include "graf_par.h"

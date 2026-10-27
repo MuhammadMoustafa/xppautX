@@ -9,6 +9,7 @@
 #include "xpp_inbox.h"
 #include "xpp_job.h"
 #include "xpp_util.h"
+#include "typed_values.h"
 #include "menus.h"
 #include "graphics.h"
 #include "auto_nox.h"

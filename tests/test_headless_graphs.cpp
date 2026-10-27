@@ -4,6 +4,7 @@
 #include "xpptest.h"
 #include "xpp_batch.h"
 #include "xpp_util.h"
+#include "many_pops.h"
 #include "graphics.h"
 #include "marks_data.h"
 #include "phase_data.h"

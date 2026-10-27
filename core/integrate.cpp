@@ -9,6 +9,7 @@
 #include "ode_read.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
+#include "typed_values.h"
 #include "auto_nox.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"

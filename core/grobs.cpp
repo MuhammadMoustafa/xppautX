@@ -6,6 +6,7 @@
 #include "xpp_ui.h"
 #include "session.h"
 #include "xpp_util.h"
+#include "many_pops.h"
 #include "menus.h"
 #include "graphics.h"
 #include "browse.h"
