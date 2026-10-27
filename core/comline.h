@@ -40,8 +40,8 @@ struct CommandLine {
   std::optional<XppLogLevel> log_threshold;    /* --verbose, --debug: the last one given */
   std::optional<bool> use_all_sets;            /* --internset 1 / 0 */
   std::optional<int> equilibria;               /* --equil N */
-  std::string set_file, par_file, ic_file, out_file, out_place, ani_file;
-  bool has_set_file = false, has_par_file = false, has_ic_file = false, has_out_file = false, has_ani_file = false;
+  std::optional<std::string> set_file, par_file, ic_file, out_file, ani_file; /* given or not */
+  std::string out_place;                       /* --outfile as written, for an error's place */
   ExternalOptions external = ExternalOptions::none;
   std::string external_value;                  /* --readset's file or --with's text */
   std::vector<std::string> include, use_sets, skip_sets; /* --include, --uset, --rset in order */

@@ -182,13 +182,12 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
     case Opt::qics: cl.silent = cl.query_ics = true; break;
     case Opt::verbose: cl.log_threshold = XPP_LOG_INFO; break;
     case Opt::debug: cl.log_threshold = XPP_LOG_DEBUG; break;
-    case Opt::setfile: cl.set_file = value; cl.has_set_file = true; break;
-    case Opt::parfile: cl.par_file = value; cl.has_par_file = true; break;
-    case Opt::icfile: cl.ic_file = value; cl.has_ic_file = true; break;
-    case Opt::anifile: cl.ani_file = value; cl.has_ani_file = true; break;
+    case Opt::setfile: cl.set_file = value; break;
+    case Opt::parfile: cl.par_file = value; break;
+    case Opt::icfile: cl.ic_file = value; break;
+    case Opt::anifile: cl.ani_file = value; break;
     case Opt::outfile:
       cl.out_file = value;
-      cl.has_out_file = true;
       cl.out_place = xpp::format("{} {}", word, value);
       break;
     case Opt::internset: {
@@ -238,13 +237,13 @@ void apply_command_line(Session &s, CommandLine cl)
   if (cl.make_plot) s.integrator.make_plot_flag = 1;
   if (cl.no_compile) program.compile = false;
   if (cl.no_output) s.integrator.suppress_out = 1;
-  if (cl.has_out_file) {
-    s.batch_out_file = cl.out_file;
-    batch_options.user_out_file = cl.out_file;
+  if (cl.out_file) {
+    s.batch_out_file = *cl.out_file;
+    batch_options.user_out_file = *cl.out_file;
     s.output_place = Place{"", 0, 0, cl.out_place};
   }
-  if (cl.has_ani_file) {
-    s.animation.options.file = cl.ani_file;
+  if (cl.ani_file) {
+    s.animation.options.file = *cl.ani_file;
     s.animation.options.use_file = 1;
   }
   if (cl.use_all_sets) batch_options.use_intern_sets = *cl.use_all_sets ? 1 : 0;
@@ -321,8 +320,8 @@ int if_needed_select_sets(const xpp::Model &m)
 static int if_needed_load_set(xpp::Session &s)
 {
   const CommandLine &cl = s.model().command_line;
-  if(!cl.has_set_file) return 1;
-  if(const xpp::Result<> r=import_settings(s,cl.set_file,true);!r)
+  if(!cl.set_file) return 1;
+  if(const xpp::Result<> r=import_settings(s,*cl.set_file,true);!r)
   {
     xpp::log(XPP_LOG_ERROR, "{}\n",r.error().text());
     return 0;
@@ -334,13 +333,13 @@ void load_command_line_values(xpp::Session &s)
 {
   const CommandLine &cl = s.model().command_line;
   if_needed_load_set(s);
-  if(cl.has_par_file){
-    xpp::log(XPP_LOG_INFO, "Loading external parameter file: {}\n",cl.par_file);
-    load_parameter_file_named(s,cl.par_file);
+  if(cl.par_file){
+    xpp::log(XPP_LOG_INFO, "Loading external parameter file: {}\n",*cl.par_file);
+    load_parameter_file_named(s,*cl.par_file);
   }
-  if(cl.has_ic_file){
-    xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",cl.ic_file);
-    load_ic_file_named(s,cl.ic_file);
+  if(cl.ic_file){
+    xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",*cl.ic_file);
+    load_ic_file_named(s,*cl.ic_file);
   }
   if_needed_load_ext_options(s);
 }
