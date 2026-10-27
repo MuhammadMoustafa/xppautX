@@ -50,7 +50,7 @@ namespace xpp::json {
 
 /* All state columns belong to storage even when the plot subscribes to only V.
    Float32 sampled differences indicate recent motion, never certify settling. */
-static void buf_tail_rates(Buf *b, const xpp::Session &s)
+static void buf_tail_rates(std::string &b, const xpp::Session &s)
 {
     BUF_LIT(b, ",\"rates\":[");
     const int rows = s.data_store.rows;
@@ -78,110 +78,110 @@ static void buf_tail_rates(Buf *b, const xpp::Session &s)
 void send_state(xpp::Session &s)
 {
     const xpp::Model &m = s.model();
-    Buf b;
+    std::string b;
     int i;
     session.state_dirty = 0;
     evaluate_derived(s);
     if (!out_wanted()) return;
-    BUF_LIT(&b, "{\"ev\":\"state\",\"sliders\":[");
+    BUF_LIT(b, "{\"ev\":\"state\",\"sliders\":[");
     for (std::size_t slot = 0; slot < s.sliders.size(); ++slot) {
-        if (slot) BUF_LIT(&b, ",");
+        if (slot) BUF_LIT(b, ",");
         const xpp::XppSlider &slider = s.sliders[slot];
-        BUF_LIT(&b, "{\"name\":");
-        buf_str(&b, slider.var.c_str());
-        buf_format(&b, ",\"lo\":{},\"hi\":{},\"step\":{}}}", slider.lo, slider.hi, slider.step);
+        BUF_LIT(b, "{\"name\":");
+        buf_str(b, slider.var.c_str());
+        buf_format(b, ",\"lo\":{},\"hi\":{},\"step\":{}}}", slider.lo, slider.hi, slider.step);
     }
-    BUF_LIT(&b, "],\"pars\":[");
+    BUF_LIT(b, "],\"pars\":[");
 
     for (i = 0; i < m.nupar; i++) {
-        if (i) BUF_LIT(&b, ",");
-        BUF_LIT(&b, "[");
-        buf_str(&b, m.upar_names[i]);
-        BUF_LIT(&b, ",");
-        buf_num(&b, s.parser.constants[m.upar_con[i]], 16);
-        BUF_LIT(&b, "]");
+        if (i) BUF_LIT(b, ",");
+        BUF_LIT(b, "[");
+        buf_str(b, m.upar_names[i]);
+        BUF_LIT(b, ",");
+        buf_num(b, s.parser.constants[m.upar_con[i]], 16);
+        BUF_LIT(b, "]");
     }
-    BUF_LIT(&b, "],\"ics\":[");
+    BUF_LIT(b, "],\"ics\":[");
     for (i = 0; i < m.node + m.nmarkov; i++) {
-        if (i) BUF_LIT(&b, ",");
-        BUF_LIT(&b, "[");
-        buf_str(&b, m.uvar_names[i]);
-        BUF_LIT(&b, ",");
-        buf_num(&b, s.last_ic[i], 16);
-        BUF_LIT(&b, "]");
+        if (i) BUF_LIT(b, ",");
+        BUF_LIT(b, "[");
+        buf_str(b, m.uvar_names[i]);
+        BUF_LIT(b, ",");
+        buf_num(b, s.last_ic[i], 16);
+        BUF_LIT(b, "]");
     }
-    BUF_LIT(&b, "]");
+    BUF_LIT(b, "]");
     /* where the last run ended (MyData, what Initialconds/Last starts from) */
     if (s.numerics.inflag) {
-        BUF_LIT(&b, ",\"now\":[");
+        BUF_LIT(b, ",\"now\":[");
         for (i = 0; i < m.node + m.nmarkov; i++) {
-            if (i) BUF_LIT(&b, ",");
-            buf_num(&b, s.data_store.current[i], 16);
+            if (i) BUF_LIT(b, ",");
+            buf_num(b, s.data_store.current[i], 16);
         }
-        BUF_LIT(&b, "]");
+        BUF_LIT(b, "]");
     }
-    buf_tail_rates(&b, s);
-    BUF_LIT(&b, ",\"time\":");
-    buf_num(&b,s.data_store.current_time,17);
+    buf_tail_rates(b, s);
+    BUF_LIT(b, ",\"time\":");
+    buf_num(b,s.data_store.current_time,17);
     if(s.integrator.steady_result){
         const auto &result=*s.integrator.steady_result;
-        BUF_LIT(&b, ",\"steady\":{\"status\":");
-        buf_str(&b,result.status);
-        buf_format(&b, ",\"decimals\":{},\"time\":",result.decimals);
-        buf_num(&b,result.time,17);
-        BUF_LIT(&b,"}");
+        BUF_LIT(b, ",\"steady\":{\"status\":");
+        buf_str(b,result.status);
+        buf_format(b, ",\"decimals\":{},\"time\":",result.decimals);
+        buf_num(b,result.time,17);
+        BUF_LIT(b,"}");
     }
-    BUF_LIT(&b, ",\"bcs\":[");
+    BUF_LIT(b, ",\"bcs\":[");
     for (i = 0; m.bc_defined > 0 && i < m.node; i++) {
-        if (i) BUF_LIT(&b, ",");
-        BUF_LIT(&b, "[");
-        buf_str(&b, s.bcs[i].name.data());
-        BUF_LIT(&b, ",");
-        buf_str(&b, s.bcs[i].string.data());
-        BUF_LIT(&b, "]");
+        if (i) BUF_LIT(b, ",");
+        BUF_LIT(b, "[");
+        buf_str(b, s.bcs[i].name.data());
+        BUF_LIT(b, ",");
+        buf_str(b, s.bcs[i].string.data());
+        BUF_LIT(b, "]");
     }
-    BUF_LIT(&b, "]");
+    BUF_LIT(b, "]");
     if (s.delay.flag) {
-        BUF_LIT(&b, ",\"delays\":[");
+        BUF_LIT(b, ",\"delays\":[");
         for (i = 0; i < m.node; i++) {
-            if (i) BUF_LIT(&b, ",");
-            BUF_LIT(&b, "[");
-            buf_str(&b, m.uvar_names[i]);
-            BUF_LIT(&b, ",");
-            buf_str(&b, s.delay_string[i].c_str());
-            BUF_LIT(&b, "]");
+            if (i) BUF_LIT(b, ",");
+            BUF_LIT(b, "[");
+            buf_str(b, m.uvar_names[i]);
+            BUF_LIT(b, ",");
+            buf_str(b, s.delay_string[i].c_str());
+            BUF_LIT(b, "]");
         }
-        BUF_LIT(&b, "]");
+        BUF_LIT(b, "]");
     }
     /* pixel to plot coordinates of the active window and the AUTO diagram,
        for the x,y readout under the mouse (scale_to_real, auto_motion_xy) */
     get_draw_area(s);
-    buf_format(&b, ",\"view\":{{\"win\":{:d},\"left\":{:d},\"right\":{:d},\"top\":{:d},\"bottom\":{:d},"
+    buf_format(b, ",\"view\":{{\"win\":{:d},\"left\":{:d},\"right\":{:d},\"top\":{:d},\"bottom\":{:d},"
                "\"xlo\":{:g},\"xhi\":{:g},\"ylo\":{:g},\"yhi\":{:g},\"three\":{:d}",
                s.plot_windows.draw_win, s.drawing.d_left, s.drawing.d_right, s.drawing.d_top, s.drawing.d_bottom, s.plot_windows.current->xlo, s.plot_windows.current->xhi,
                s.plot_windows.current->ylo, s.plot_windows.current->yhi, s.plot_windows.current->ThreeDFlag);
     /* a 3D window's angles (view3d); only then are they set at all */
     if (s.plot_windows.current->ThreeDFlag && isfinite(s.plot_windows.current->Theta) && isfinite(s.plot_windows.current->Phi))
-        buf_format(&b, ",\"theta\":{:g},\"phi\":{:g}", s.plot_windows.current->Theta, s.plot_windows.current->Phi);
-    BUF_LIT(&b, "}");
+        buf_format(b, ",\"theta\":{:g},\"phi\":{:g}", s.plot_windows.current->Theta, s.plot_windows.current->Phi);
+    BUF_LIT(b, "}");
     if (s.auto_state.bifur.exist)
-        buf_format(&b, ",\"auto\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
+        buf_format(b, ",\"auto\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
                    "\"ymin\":{:g},\"ymax\":{:g}}}", s.auto_state.bifur.x0, s.auto_state.bifur.y0, s.auto_state.bifur.wid, s.auto_state.bifur.hgt, s.auto_state.axes().xmin, s.auto_state.axes().xmax,
                    s.auto_state.axes().ymin, s.auto_state.axes().ymax);
-    buf_format(&b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", s.browser.view.maxrow, s.help_menu, s.plot_windows.draw_win);
-    if (s.numerics.last_seed) buf_format(&b, ",\"seed\":{:d}", *s.numerics.last_seed);
+    buf_format(b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", s.browser.view.maxrow, s.help_menu, s.plot_windows.draw_win);
+    if (s.numerics.last_seed) buf_format(b, ",\"seed\":{:d}", *s.numerics.last_seed);
     const SavedSession &saved = s.saved_session;
     if (!saved.file.empty()) {
-        BUF_LIT(&b, ",\"session\":{\"file\":");
-        buf_str(&b, saved.file.c_str());
-        BUF_LIT(&b, "}");
+        BUF_LIT(b, ",\"session\":{\"file\":");
+        buf_str(b, saved.file.c_str());
+        BUF_LIT(b, "}");
     }
-    buf_format(&b, ",\"changed\":{},\"can_undo\":{},\"can_redo\":{}", xpp_session_changed(s) ? "true" : "false",
+    buf_format(b, ",\"changed\":{},\"can_undo\":{},\"can_redo\":{}", xpp_session_changed(s) ? "true" : "false",
                s.value_undo.undo.empty() ? "false" : "true", s.value_undo.redo.empty() ? "false" : "true");
-    buf_recording(&b);
-    buf_player(&b);
-    BUF_LIT(&b, "}");
-    send_buf(&b);
+    buf_recording(b);
+    buf_player(b);
+    BUF_LIT(b, "}");
+    send_buf(b);
 }
 
 void j_state_dirty(void) { session.state_dirty = 1; }
@@ -200,7 +200,7 @@ void send_state_if_dirty(void)
 namespace {
 
 
-void buf_float(Buf *b, double z, int digits)
+void buf_float(std::string &b, double z, int digits)
 {
     if (z != z || z > 1e300 || z < -1e300) BUF_LIT(b, "null"); /* not JSON numbers */
     else buf_format(b, "{:.{}g}", z, digits);
@@ -208,35 +208,35 @@ void buf_float(Buf *b, double z, int digits)
 
 void send_browser(const xpp::Session &s)
 {
-    Buf b;
+    std::string b;
     int i, j, last, maxcol = s.browser.view.maxcol;
     session.browser_dirty = 0;
     if (session.br_from > s.browser.view.maxrow - 1) session.br_from = s.browser.view.maxrow > 0 ? s.browser.view.maxrow - 1 : 0;
     if (session.br_from < 0) session.br_from = 0;
     if (session.br_col > maxcol - 1) session.br_col = maxcol - 1;
     if (session.br_col < 1) session.br_col = 1;
-    buf_format(&b, "{{\"ev\":\"browser\",\"rows\":{:d},\"row0\":{:d},\"start\":{:d},\"end\":{:d},\"cols\":[\"T\"",
+    buf_format(b, "{{\"ev\":\"browser\",\"rows\":{:d},\"row0\":{:d},\"start\":{:d},\"end\":{:d},\"cols\":[\"T\"",
                s.browser.view.dataflag ? s.browser.view.maxrow : 0, s.browser.view.row0, s.browser.view.istart, s.browser.view.iend);
     for (j = 1; j < maxcol; j++) {
-        BUF_LIT(&b, ",");
-        buf_str(&b, browse_column_name(s,j));
+        BUF_LIT(b, ",");
+        buf_str(b, browse_column_name(s,j));
     }
-    buf_format(&b, "],\"from\":{:d},\"col\":{:d},\"data\":[", session.br_from, session.br_col);
+    buf_format(b, "],\"from\":{:d},\"col\":{:d},\"data\":[", session.br_from, session.br_col);
     last = s.browser.view.dataflag ? session.br_from + session.br_count : session.br_from;
     if (last > s.browser.view.maxrow) last = s.browser.view.maxrow;
     for (i = session.br_from; i < last; i++) {
-        if (i > session.br_from) BUF_LIT(&b, ",");
-        BUF_LIT(&b, "[");
+        if (i > session.br_from) BUF_LIT(b, ",");
+        BUF_LIT(b, "[");
         /* 9 significant digits read back as exactly the stored floats (as series) */
-        buf_float(&b, s.browser.view.data[0][i], 9);
+        buf_float(b, s.browser.view.data[0][i], 9);
         for (j = session.br_col; j < session.br_col + session.br_ncol && j < maxcol; j++) {
-            BUF_LIT(&b, ",");
-            buf_float(&b, s.browser.view.data[j][i], 9);
+            BUF_LIT(b, ",");
+            buf_float(b, s.browser.view.data[j][i], 9);
         }
-        BUF_LIT(&b, "]");
+        BUF_LIT(b, "]");
     }
-    BUF_LIT(&b, "]}");
-    send_buf(&b);
+    BUF_LIT(b, "]}");
+    send_buf(b);
 }
 
 } // namespace
@@ -386,25 +386,25 @@ void data_command(xpp::Session &s, const char *line)
 void send_equations(const xpp::Session &s)
 {
     const xpp::Model &m = s.model();
-    Buf b, line;
+    std::string b, line;
     int i;
-    BUF_LIT(&b, "{\"ev\":\"equations\",\"lines\":[");
+    BUF_LIT(b, "{\"ev\":\"equations\",\"lines\":[");
     for (i = 0; i < m.neq; i++) {
         const std::string &name = m.uvar_names[i];
         const char *rhs = m.formulas[i].c_str();
-        line.s.clear();
-        if (i < m.node && m.eq_type[i] != 1 && !xpp::solver_info(s.numerics.method).traits.discrete) BUF_LIT(&line, "d");
-        buf_add(&line, name.data(), name.size());
-        if (i < m.node && m.eq_type[i] == 1) BUF_LIT(&line, "(t)");
-        else if (i < m.node && xpp::solver_info(s.numerics.method).traits.discrete) BUF_LIT(&line, "(n+1)");
-        else if (i < m.node) BUF_LIT(&line, "/dT");
-        BUF_LIT(&line, "=");
-        buf_add(&line, rhs, strlen(rhs));
-        if (i) BUF_LIT(&b, ",");
-        buf_str(&b, line.s.c_str());
+        line.clear();
+        if (i < m.node && m.eq_type[i] != 1 && !xpp::solver_info(s.numerics.method).traits.discrete) BUF_LIT(line, "d");
+        buf_add(line, name.data(), name.size());
+        if (i < m.node && m.eq_type[i] == 1) BUF_LIT(line, "(t)");
+        else if (i < m.node && xpp::solver_info(s.numerics.method).traits.discrete) BUF_LIT(line, "(n+1)");
+        else if (i < m.node) BUF_LIT(line, "/dT");
+        BUF_LIT(line, "=");
+        buf_add(line, rhs, strlen(rhs));
+        if (i) BUF_LIT(b, ",");
+        buf_str(b, line.c_str());
     }
-    BUF_LIT(&b, "]}");
-    send_buf(&b);
+    BUF_LIT(b, "]}");
+    send_buf(b);
 }
 void j_state_dirty_i(int) { session.state_dirty = 1; }
 void j_state_dirty_is(int, const char *) { session.state_dirty = 1; }
@@ -753,18 +753,18 @@ void values_command(xpp::Session &s, const char *line)
 void j_live_state(xpp::Session &s, const double *values, double time)
 {
     if (!xpp::every(session.live_state_last, xpp::INPUT_POLL_SECONDS)) return;
-    Buf b;
-    BUF_LIT(&b, "{\"ev\":\"liveState\",\"time\":");
-    buf_num(&b, time, 17);
-    BUF_LIT(&b, ",\"now\":[");
+    std::string b;
+    BUF_LIT(b, "{\"ev\":\"liveState\",\"time\":");
+    buf_num(b, time, 17);
+    BUF_LIT(b, ",\"now\":[");
     for (int i = 0; i < s.model().node + s.model().nmarkov; ++i) {
-        if (i) BUF_LIT(&b, ",");
-        buf_num(&b, values[i], 17);
+        if (i) BUF_LIT(b, ",");
+        buf_num(b, values[i], 17);
     }
-    BUF_LIT(&b, "]");
-    buf_tail_rates(&b, s);
-    BUF_LIT(&b, "}");
-    send_buf(&b);
+    BUF_LIT(b, "]");
+    buf_tail_rates(b, s);
+    BUF_LIT(b, "}");
+    send_buf(b);
 }
 
 void j_rows_stored(xpp::Session &s, int nrows)
@@ -791,36 +791,36 @@ void state_forget(void)
 void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n)
 {
     const xpp::Model &m = s.model();
-    Buf b;
+    std::string b;
     int i;
     redraw_ics();
     s.last_equilibrium.assign(y, y + n);
-    buf_format(&b, "{{\"ev\":\"equilibrium\",\"type\":\"{}\",\"cplus\":{:d},\"cminus\":{:d},"
+    buf_format(b, "{{\"ev\":\"equilibrium\",\"type\":\"{}\",\"cplus\":{:d},\"cminus\":{:d},"
                "\"im\":{:d},\"rplus\":{:d},\"rminus\":{:d},\"values\":[",
                eq_stability(cp, rp, im), cp, cm, im, rp, rm);
     for (i = 0; i < n; i++) {
-        if (i) BUF_LIT(&b, ",");
-        BUF_LIT(&b, "[");
-        buf_str(&b, m.uvar_names[i]);
-        BUF_LIT(&b, ",");
-        buf_num(&b, y[i], 16);
-        BUF_LIT(&b, "]");
+        if (i) BUF_LIT(b, ",");
+        BUF_LIT(b, "[");
+        buf_str(b, m.uvar_names[i]);
+        BUF_LIT(b, ",");
+        buf_num(b, y[i], 16);
+        BUF_LIT(b, "]");
     }
-    BUF_LIT(&b, "]");
+    BUF_LIT(b, "]");
     if (ev) { /* the Jacobian's eigenvalues, (re, im) pairs (gear.c eigen) */
-        BUF_LIT(&b, ",\"eigenvalues\":[");
+        BUF_LIT(b, ",\"eigenvalues\":[");
         for (i = 0; i < n; i++) {
-            if (i) BUF_LIT(&b, ",");
-            BUF_LIT(&b, "[");
-            buf_num(&b, ev[2 * i], 16);
-            BUF_LIT(&b, ",");
-            buf_num(&b, ev[2 * i + 1], 16);
-            BUF_LIT(&b, "]");
+            if (i) BUF_LIT(b, ",");
+            BUF_LIT(b, "[");
+            buf_num(b, ev[2 * i], 16);
+            BUF_LIT(b, ",");
+            buf_num(b, ev[2 * i + 1], 16);
+            BUF_LIT(b, "]");
         }
-        BUF_LIT(&b, "]");
+        BUF_LIT(b, "]");
     }
-    BUF_LIT(&b, "}");
-    send_buf(&b);
+    BUF_LIT(b, "}");
+    send_buf(b);
 }
 
 /* a key of the equilibrium window (menu_equilibrium_window): Import */
@@ -832,20 +832,20 @@ void equilibrium_key(xpp::Session &s, int ch)
 
 void j_make_txtview(xpp::Session &s)
 {
-    Buf b;
+    std::string b;
     const xpp::Model &m = s.model();
-    BUF_LIT(&b, "{\"ev\":\"source\",\"lines\":");
-    buf_str_array(&b, m.source);
+    BUF_LIT(b, "{\"ev\":\"source\",\"lines\":");
+    buf_str_array(b, m.source);
     /* comments; one with an action runs it when picked ({"cmd":"action"}) */
-    BUF_LIT(&b, ",\"comments\":[");
+    BUF_LIT(b, ",\"comments\":[");
     for (std::size_t i = 0; i < m.comments.size(); i++) {
-        if (i) BUF_LIT(&b, ",");
-        BUF_LIT(&b, "[");
-        buf_str(&b, m.comments[i].text);
-        buf_format(&b, ",{:d}]", m.comments[i].aflag > 0);
+        if (i) BUF_LIT(b, ",");
+        BUF_LIT(b, "[");
+        buf_str(b, m.comments[i].text);
+        buf_format(b, ",{:d}]", m.comments[i].aflag > 0);
     }
-    BUF_LIT(&b, "]}");
-    send_buf(&b);
+    BUF_LIT(b, "]}");
+    send_buf(b);
 }
 
 /* a comment of the source window picked: {"cmd":"action","index":i} runs

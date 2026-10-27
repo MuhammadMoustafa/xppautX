@@ -34,28 +34,28 @@ FILE *proto;
 
 /* ---- output ------------------------------------------------------------ */
 
-void buf_add(Buf *b, const char *s, size_t n)
+void buf_add(std::string &b, const char *s, size_t n)
 {
     try {
-        b->s.append(s, n);
+        b.append(s, n);
     } catch (...) {
         xpp::out_of_memory("building an event");
     }
 }
 
-void buf_str(Buf *b, const char *s)
+void buf_str(std::string &b, const char *s)
 {
     buf_str(b, s ? std::string_view(s) : std::string_view());
 }
 
-void buf_str(Buf *b, std::string_view s)
+void buf_str(std::string &b, std::string_view s)
 {
     BUF_LIT(b, "\"");
-    xpp::json_encode_string(b->s, s);
+    xpp::json_encode_string(b, s);
     BUF_LIT(b, "\"");
 }
 
-void buf_str_array(Buf *b, const char *const *v, int n)
+void buf_str_array(std::string &b, const char *const *v, int n)
 {
     BUF_LIT(b, "[");
     for (int i = 0; i < n; i++) {
@@ -65,7 +65,7 @@ void buf_str_array(Buf *b, const char *const *v, int n)
     BUF_LIT(b, "]");
 }
 
-void buf_str_array(Buf *b, std::span<const std::string> v)
+void buf_str_array(std::string &b, std::span<const std::string> v)
 {
     BUF_LIT(b, "[");
     for (std::size_t i = 0; i < v.size(); i++) {
@@ -75,10 +75,10 @@ void buf_str_array(Buf *b, std::span<const std::string> v)
     BUF_LIT(b, "]");
 }
 
-void buf_num(Buf *b, double v, int sig)
+void buf_num(std::string &b, double v, int sig)
 {
     try {
-        json_append_number(b->s, v, sig);
+        json_append_number(b, v, sig);
     } catch (...) {
         xpp::out_of_memory("building an event");
     }
@@ -127,24 +127,24 @@ void open_protocol_stdout(void)
 void flush_pending(void) { diag_flush(client(), 0); }
 
 /* one complete event line */
-void send_buf(Buf *b)
+void send_buf(std::string &b)
 {
     flush_pending();
-    out_line(b->s.data(), b->s.size());
+    out_line(b.data(), b.size());
     out_flush();
-    b->s.clear();
+    b.clear();
 }
 
 void send_simple(const char *ev, const char *key, std::string_view text)
 {
-    Buf b;
-    buf_format(&b, "{{\"ev\":\"{}\"", ev);
+    std::string b;
+    buf_format(b, "{{\"ev\":\"{}\"", ev);
     if (key) {
-        buf_format(&b, ",\"{}\":", key);
-        buf_str(&b, text);
+        buf_format(b, ",\"{}\":", key);
+        buf_str(b, text);
     }
-    BUF_LIT(&b, "}");
-    send_buf(&b);
+    BUF_LIT(b, "}");
+    send_buf(b);
 }
 
 void json_flush(void)

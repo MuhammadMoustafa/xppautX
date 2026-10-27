@@ -41,7 +41,7 @@ std::string script_ask; /* the open question (cut to SCRIPT_ASK_MAX), for silent
 /* b holds {"ev":"ask","id":N,"kind":... without the closing brace; send
    it and wait for the answer, which is left in answer[]. Returns 1 when the
    answer says ok (or has no ok member), 0 when cancelled. */
-int ask_wait(Buf *b, int id)
+int ask_wait(std::string &b, int id)
 {
     xpp::Session &s = client(); /* core code asks with no Session: the client's */
     BUF_LIT(b, "}");
@@ -51,7 +51,7 @@ int ask_wait(Buf *b, int id)
     json_flush();
     if (session.generated) {
         try {
-            script_ask.assign(b->s, 0, SCRIPT_ASK_MAX);
+            script_ask.assign(b, 0, SCRIPT_ASK_MAX);
         } catch (...) {
             xpp::out_of_memory("asking");
         }
@@ -119,9 +119,9 @@ int ask_wait(Buf *b, int id)
     }
 }
 
-int ask_begin(Buf *b, const char *kind)
+int ask_begin(std::string &b, const char *kind)
 {
-    b->s.clear();
+    b.clear();
     ask_id++;
     ask_user = strcmp(kind, "pixels") != 0;
     ask_kind = kind;
@@ -157,18 +157,18 @@ void j_ping(void) { send_simple("ping"); }
 
 void j_bottom_msg(int, std::string_view msg, std::string_view chapter, std::string_view anchor)
 {
-    Buf b;
-    BUF_LIT(&b, "{\"ev\":\"message\",\"bottom\":");
-    buf_str(&b, msg);
+    std::string b;
+    BUF_LIT(b, "{\"ev\":\"message\",\"bottom\":");
+    buf_str(b, msg);
     if (!chapter.empty()) {
-        BUF_LIT(&b, ",\"help\":{\"chapter\":");
-        buf_str(&b, chapter);
-        BUF_LIT(&b, ",\"anchor\":");
-        buf_str(&b, anchor);
-        BUF_LIT(&b, "}");
+        BUF_LIT(b, ",\"help\":{\"chapter\":");
+        buf_str(b, chapter);
+        BUF_LIT(b, ",\"anchor\":");
+        buf_str(b, anchor);
+        BUF_LIT(b, "}");
     }
-    BUF_LIT(&b, "}");
-    send_buf(&b);
+    BUF_LIT(b, "}");
+    send_buf(b);
 }
 
 void j_message_box(std::string_view msg) { send_simple("message", "box", msg); }
@@ -178,7 +178,7 @@ void j_title_text(std::string_view s) { send_simple("title", "text", s); }
 namespace {
 
 /* a field's kind as the protocol names it (docs/protocol.md "Asks", `kinds`) */
-void buf_kind(Buf *b, int kind)
+void buf_kind(std::string &b, int kind)
 {
     static constexpr std::array<const char *, 10> names = {"text",       "integer", "number",  "formula", "expression",
                                                                "file",       "boolean", "choice",  "real",    "color"};
@@ -187,7 +187,7 @@ void buf_kind(Buf *b, int kind)
 }
 
 /* `kinds`, one per field: kinds[i], or `all` for each when kinds is NULL */
-void buf_kinds(Buf *b, const int *kinds, int all, int n)
+void buf_kinds(std::string &b, const int *kinds, int all, int n)
 {
     BUF_LIT(b, ",\"kinds\":[");
     for (int i = 0; i < n; i++) {
@@ -202,32 +202,32 @@ void buf_kinds(Buf *b, const int *kinds, int all, int n)
 int j_dialog(std::string_view title, std::string_view name, std::string &value, std::string_view ok,
              std::string_view cancel, int kind)
 {
-    Buf b;
-    int id = ask_begin(&b, "string");
-    BUF_LIT(&b, ",\"title\":");
-    buf_str(&b, title);
-    BUF_LIT(&b, ",\"name\":");
-    buf_str(&b, name);
-    BUF_LIT(&b, ",\"value\":");
-    buf_str(&b, value);
-    BUF_LIT(&b, ",\"ok\":");
-    buf_str(&b, ok);
-    BUF_LIT(&b, ",\"cancel\":");
-    buf_str(&b, cancel);
-    buf_kinds(&b, &kind, kind, 1);
-    if (!ask_wait(&b, id)) return 0;
+    std::string b;
+    int id = ask_begin(b, "string");
+    BUF_LIT(b, ",\"title\":");
+    buf_str(b, title);
+    BUF_LIT(b, ",\"name\":");
+    buf_str(b, name);
+    BUF_LIT(b, ",\"value\":");
+    buf_str(b, value);
+    BUF_LIT(b, ",\"ok\":");
+    buf_str(b, ok);
+    BUF_LIT(b, ",\"cancel\":");
+    buf_str(b, cancel);
+    buf_kinds(b, &kind, kind, 1);
+    if (!ask_wait(b, id)) return 0;
     get_string(answer.c_str(), "value", value); /* whole: no dialog cuts (W76) */
     return 1;
 }
 
 int j_text_dialog(xpp::LabelLook &look)
 {
-    Buf b;
-    const int id = ask_begin(&b, "text");
-    BUF_LIT(&b, ",\"title\":\"Text\",\"value\":");
-    buf_str(&b, look.text);
-    buf_format(&b, ",\"size\":{:d},\"style\":{:d},\"color\":{}", look.size, look.style, xpp::quoted_color(look.color));
-    if (!ask_wait(&b, id)) return 0;
+    std::string b;
+    const int id = ask_begin(b, "text");
+    BUF_LIT(b, ",\"title\":\"Text\",\"value\":");
+    buf_str(b, look.text);
+    buf_format(b, ",\"size\":{:d},\"style\":{:d},\"color\":{}", look.size, look.style, xpp::quoted_color(look.color));
+    if (!ask_wait(b, id)) return 0;
     get_string(answer.c_str(), "value", look.text);
     std::string word;
     const std::optional<xpp::Color> color = get_string(answer.c_str(), "color", word) ? xpp::parse_color(word) : std::nullopt;
@@ -247,46 +247,46 @@ int j_new_string(std::string_view name, std::string &value, int kind)
 int j_choose(std::string_view title, std::string_view q, std::span<const std::string> choices, std::string_view keys,
              char)
 {
-    Buf b;
+    std::string b;
     std::string k;
-    int id = ask_begin(&b, "choice");
-    BUF_LIT(&b, ",\"title\":");
-    buf_str(&b, title);
-    BUF_LIT(&b, ",\"question\":");
-    buf_str(&b, q);
-    BUF_LIT(&b, ",\"choices\":");
-    buf_str_array(&b, choices);
-    BUF_LIT(&b, ",\"keys\":");
-    buf_str(&b, keys);
-    if (!ask_wait(&b, id)) return 0;
+    int id = ask_begin(b, "choice");
+    BUF_LIT(b, ",\"title\":");
+    buf_str(b, title);
+    BUF_LIT(b, ",\"question\":");
+    buf_str(b, q);
+    BUF_LIT(b, ",\"choices\":");
+    buf_str_array(b, choices);
+    BUF_LIT(b, ",\"keys\":");
+    buf_str(b, keys);
+    if (!ask_wait(b, id)) return 0;
     get_string(answer.c_str(), "key", k);
     return static_cast<unsigned char>(k[0]);
 }
 
 void j_respond_box(std::string_view button, std::string_view message)
 {
-    Buf b;
-    int id = ask_begin(&b, "alert");
-    BUF_LIT(&b, ",\"button\":");
-    buf_str(&b, button);
-    BUF_LIT(&b, ",\"message\":");
-    buf_str(&b, message);
-    ask_wait(&b, id);
+    std::string b;
+    int id = ask_begin(b, "alert");
+    BUF_LIT(b, ",\"button\":");
+    buf_str(b, button);
+    BUF_LIT(b, ",\"message\":");
+    buf_str(b, message);
+    ask_wait(b, id);
 }
 
 int j_checklist(std::string_view title, const char *const *names, int *flags, int n)
 {
-    Buf b;
-    int i, id = ask_begin(&b, "checklist");
+    std::string b;
+    int i, id = ask_begin(b, "checklist");
     const char *arr;
-    BUF_LIT(&b, ",\"title\":");
-    buf_str(&b, title);
-    BUF_LIT(&b, ",\"names\":");
-    buf_str_array(&b, names, n);
-    BUF_LIT(&b, ",\"flags\":[");
-    for (i = 0; i < n; i++) buf_format(&b, "{}{:d}", i ? "," : "", flags[i]);
-    BUF_LIT(&b, "]");
-    if (!ask_wait(&b, id)) return 0;
+    BUF_LIT(b, ",\"title\":");
+    buf_str(b, title);
+    BUF_LIT(b, ",\"names\":");
+    buf_str_array(b, names, n);
+    BUF_LIT(b, ",\"flags\":[");
+    for (i = 0; i < n; i++) buf_format(b, "{}{:d}", i ? "," : "", flags[i]);
+    BUF_LIT(b, "]");
+    if (!ask_wait(b, id)) return 0;
     arr = js_find(answer.c_str(), "flags");
     for (i = 0; i < n; i++) {
         const char *e = js_elem(arr, i);
@@ -305,56 +305,56 @@ int form(std::string_view title, const char *const *names, std::span<std::string
          std::span<const char *const> columns = {}, std::span<const char *const> rows = {},
          std::span<const FormField> typed = {})
 {
-    Buf b;
+    std::string b;
     const int n = static_cast<int>(values.size());
-    int id = ask_begin(&b, "form");
+    int id = ask_begin(b, "form");
     /* every value whole, however long (W76) */
     std::vector<const char *> shown(values.size());
     for (size_t i = 0; i < values.size(); i++) shown[i] = values[i].c_str();
-    BUF_LIT(&b, ",\"title\":");
-    buf_str(&b, title);
-    BUF_LIT(&b, ",\"names\":");
-    buf_str_array(&b, names, n);
-    BUF_LIT(&b, ",\"values\":");
-    buf_str_array(&b, shown.data(), n);
-    buf_kinds(&b, kinds, all, n);
+    BUF_LIT(b, ",\"title\":");
+    buf_str(b, title);
+    BUF_LIT(b, ",\"names\":");
+    buf_str_array(b, names, n);
+    BUF_LIT(b, ",\"values\":");
+    buf_str_array(b, shown.data(), n);
+    buf_kinds(b, kinds, all, n);
     if (!typed.empty()) {
         /* a choice's names and a number's range, one entry per field, null where it has none */
-        BUF_LIT(&b, ",\"options\":[");
+        BUF_LIT(b, ",\"options\":[");
         for (size_t i = 0; i < typed.size(); i++) {
-            if (i) BUF_LIT(&b, ",");
-            if (typed[i].kind == XPP_FIELD_CHOICE) buf_str_array(&b, typed[i].choices);
-            else BUF_LIT(&b, "null");
+            if (i) BUF_LIT(b, ",");
+            if (typed[i].kind == XPP_FIELD_CHOICE) buf_str_array(b, typed[i].choices);
+            else BUF_LIT(b, "null");
         }
-        BUF_LIT(&b, "],\"ranges\":[");
+        BUF_LIT(b, "],\"ranges\":[");
         for (size_t i = 0; i < typed.size(); i++) {
             const FormField &f = typed[i];
-            if (i) BUF_LIT(&b, ",");
+            if (i) BUF_LIT(b, ",");
             if (!f.min && !f.max) {
-                BUF_LIT(&b, "null");
+                BUF_LIT(b, "null");
                 continue;
             }
-            BUF_LIT(&b, "{");
+            BUF_LIT(b, "{");
             if (f.min) {
-                BUF_LIT(&b, "\"min\":");
-                buf_num(&b, *f.min, 17);
+                BUF_LIT(b, "\"min\":");
+                buf_num(b, *f.min, 17);
             }
             if (f.max) {
-                if (f.min) BUF_LIT(&b, ",");
-                BUF_LIT(&b, "\"max\":");
-                buf_num(&b, *f.max, 17);
+                if (f.min) BUF_LIT(b, ",");
+                BUF_LIT(b, "\"max\":");
+                buf_num(b, *f.max, 17);
             }
-            BUF_LIT(&b, "}");
+            BUF_LIT(b, "}");
         }
-        BUF_LIT(&b, "]");
+        BUF_LIT(b, "]");
     }
     if (!columns.empty()) {
-        BUF_LIT(&b, ",\"columns\":");
-        buf_str_array(&b, columns.data(), static_cast<int>(columns.size()));
-        BUF_LIT(&b, ",\"rows\":");
-        buf_str_array(&b, rows.data(), static_cast<int>(rows.size()));
+        BUF_LIT(b, ",\"columns\":");
+        buf_str_array(b, columns.data(), static_cast<int>(columns.size()));
+        BUF_LIT(b, ",\"rows\":");
+        buf_str_array(b, rows.data(), static_cast<int>(rows.size()));
     }
-    if (!ask_wait(&b, id)) return 0;
+    if (!ask_wait(b, id)) return 0;
     const char *arr = js_find(answer.c_str(), "values");
     for (int i = 0; i < n; i++) {
         const char *e = js_elem(arr, i);
@@ -409,28 +409,28 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
                                                        : xpp::files::working_dir();
     bool entered = false;
     for (;;) {
-        Buf b;
+        std::string b;
         std::vector<std::string> dirs, files;
-        int id = ask_begin(&b, "file");
-        BUF_LIT(&b, ",\"title\":");
-        buf_str(&b, title);
-        BUF_LIT(&b, ",\"mode\":");
-        buf_str(&b, xpp::files::ask_mode(title));
-        BUF_LIT(&b, ",\"file\":");
-        buf_str(&b, file.c_str());
-        BUF_LIT(&b, ",\"wild\":");
-        buf_str(&b, pattern.c_str());
-        BUF_LIT(&b, ",\"dir\":");
-        buf_str(&b, std::string_view(dir));
-        BUF_LIT(&b, ",\"save_dir\":");
-        buf_str(&b, xpp::files::writable_save_folder(s.file_dialogs.home.empty() ? xpp::files::working_dir() : s.file_dialogs.home));
+        int id = ask_begin(b, "file");
+        BUF_LIT(b, ",\"title\":");
+        buf_str(b, title);
+        BUF_LIT(b, ",\"mode\":");
+        buf_str(b, xpp::files::ask_mode(title));
+        BUF_LIT(b, ",\"file\":");
+        buf_str(b, file.c_str());
+        BUF_LIT(b, ",\"wild\":");
+        buf_str(b, pattern.c_str());
+        BUF_LIT(b, ",\"dir\":");
+        buf_str(b, std::string_view(dir));
+        BUF_LIT(b, ",\"save_dir\":");
+        buf_str(b, xpp::files::writable_save_folder(s.file_dialogs.home.empty() ? xpp::files::working_dir() : s.file_dialogs.home));
         if (xpp::files::list_matching(pattern, dir, dirs, files)) {
-            BUF_LIT(&b, ",\"dirs\":");
-            buf_str_array(&b, dirs);
-            BUF_LIT(&b, ",\"files\":");
-            buf_str_array(&b, files);
+            BUF_LIT(b, ",\"dirs\":");
+            buf_str_array(b, dirs);
+            BUF_LIT(b, ",\"files\":");
+            buf_str_array(b, files);
         }
-        if (!ask_wait(&b, id)) return 0;
+        if (!ask_wait(b, id)) return 0;
         if (get_string(answer.c_str(), "wild", cd) && !cd.empty()) pattern = cd;
         if (get_string(answer.c_str(), "cd", cd) && !cd.empty()) {
             const std::string into = xpp::files::folder_in(dir, cd);
@@ -503,10 +503,10 @@ void answer_point(xpp::Session &s, unsigned long win, int k, int *x, int *y)
 
 int mouse_ask(xpp::Session &s, unsigned long win, const char *kind, int flag, std::span<int> v)
 {
-    Buf b;
-    int id = ask_begin(&b, kind);
-    buf_format(&b, ",\"win\":{:d},\"flag\":{:d}", win, flag);
-    if (!ask_wait(&b, id)) return 0;
+    std::string b;
+    int id = ask_begin(b, kind);
+    buf_format(b, ",\"win\":{:d},\"flag\":{:d}", win, flag);
+    if (!ask_wait(b, id)) return 0;
     for (size_t i = 0; i < v.size() / 2; i++) answer_point(s, win, static_cast<int>(i), &v[2 * i], &v[2 * i + 1]);
     return 1;
 }
@@ -530,23 +530,23 @@ int j_rubber_band(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
 
 int j_menu_choose(const struct XppMenu *m, int def)
 {
-    Buf b;
+    std::string b;
     std::string k;
-    int id = ask_begin(&b, "menu");
-    BUF_LIT(&b, ",\"name\":");
-    buf_str(&b, m->name);
-    BUF_LIT(&b, ",\"title\":");
-    buf_str(&b, m->title);
-    BUF_LIT(&b, ",\"items\":");
-    buf_str_array(&b, m->items, m->n);
-    BUF_LIT(&b, ",\"keys\":");
-    buf_str(&b, m->keys);
+    int id = ask_begin(b, "menu");
+    BUF_LIT(b, ",\"name\":");
+    buf_str(b, m->name);
+    BUF_LIT(b, ",\"title\":");
+    buf_str(b, m->title);
+    BUF_LIT(b, ",\"items\":");
+    buf_str_array(b, m->items, m->n);
+    BUF_LIT(b, ",\"keys\":");
+    buf_str(b, m->keys);
     if (m->hints) {
-        BUF_LIT(&b, ",\"hints\":");
-        buf_str_array(&b, m->hints, m->n);
+        BUF_LIT(b, ",\"hints\":");
+        buf_str_array(b, m->hints, m->n);
     }
-    buf_format(&b, ",\"def\":{:d}", def);
-    if (!ask_wait(&b, id)) return 27;
+    buf_format(b, ",\"def\":{:d}", def);
+    if (!ask_wait(b, id)) return 27;
     get_string(answer.c_str(), "key", k);
     int ch = k[0] ? static_cast<unsigned char>(k[0]) : 27;
     /* an item with no key (past the keys the menu has) is answered by its index (menus.h MENU_UNKEYED) */
@@ -560,20 +560,20 @@ int j_menu_choose(const struct XppMenu *m, int def)
 void j_show_menu(int which)
 {
     session.menu.store(which, std::memory_order_relaxed);
-    Buf b;
-    buf_format(&b, "{{\"ev\":\"menu\",\"which\":{:d}}}", which);
-    send_buf(&b);
+    std::string b;
+    buf_format(b, "{{\"ev\":\"menu\",\"which\":{:d}}}", which);
+    send_buf(b);
 }
 
 /* one pointer event of a drag in window win: 1 down, 2 move, 3 up; 0 when
    a key or Cancel ends the drag */
 int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y)
 {
-    Buf b;
+    std::string b;
     std::string what;
-    int id = ask_begin(&b, "drag");
-    buf_format(&b, ",\"win\":{:d}", win);
-    if (!ask_wait(&b, id) || !get_string(answer.c_str(), "what", what)) return 0;
+    int id = ask_begin(b, "drag");
+    buf_format(b, ",\"win\":{:d}", win);
+    if (!ask_wait(b, id) || !get_string(answer.c_str(), "what", what)) return 0;
     answer_point(s, win, 0, x, y);
     return what == "down" ? 1 : what == "move" ? 2 : what == "up" ? 3 : 0;
 }
@@ -627,10 +627,10 @@ int j_progress_begin(void) { return 100; }
 void j_progress(int nit, int icount, int)
 {
     static double last;
-    Buf b;
+    std::string b;
     if (!xpp::every(last, xpp::PROGRESS_SECONDS)) return;
-    buf_format(&b, "{{\"ev\":\"progress\",\"n\":{:d},\"of\":{:d}}}", icount, nit);
-    send_buf(&b);
+    buf_format(b, "{{\"ev\":\"progress\",\"n\":{:d},\"of\":{:d}}}", icount, nit);
+    send_buf(b);
 }
 
 } // namespace xpp::json

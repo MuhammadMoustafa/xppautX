@@ -58,7 +58,7 @@
 /* control_line()'s answer for the animation's Pause */
 #define ANI_PAUSE (-1)
 
-/* a string literal into a Buf */
+/* a string literal onto an event line */
 #define BUF_LIT(b, lit) xpp::json::buf_add(b, lit, sizeof(lit) - 1)
 
 namespace xpp {
@@ -68,7 +68,6 @@ struct Session;      /* session.h */
 
 namespace xpp::json {
 
-struct Buf; /* an event line being built (json_io.cpp, below) */
 
 /* the most rows and columns one `browser` block request gets (json_state.cpp
    browser_rows): a page of the table, bounded so one event stays small;
@@ -191,7 +190,7 @@ bool line_is_step(const char *line); /* a step of the user's (ui_json.cpp's comm
 bool arm_recorded_stop(const char *at, int key);
 /* where the running job was when it was cancelled, the stopped event's
    `at` object (docs/protocol.md "stopped"), into b */
-void buf_stopped_at(Buf *b);
+void buf_stopped_at(std::string &b);
 /* hello, the main window and state: the first events of the model of s */
 void send_hello(xpp::Session &s);
 
@@ -229,7 +228,7 @@ void record_setting(const char *line);
    it stopped when cancelled */
 void record_end(xpp::Session &s, bool cancelled);
 /* state's "recording" member while recording */
-void buf_recording(Buf *b);
+void buf_recording(std::string &b);
 
 /* ---- json_player.cpp: playing a recording (W59b) ---- */
 inline constexpr double PLAYER_SPEED_MIN = 0.25; /* Slowest supported replay pace. */
@@ -265,7 +264,7 @@ void player_model_switched(bool loaded);
 xpp::Place player_place(void);
 bool player_finished(void); /* a silent quit must not skip any recorded input */
 /* state's "player" member while a recording is open in the player */
-void buf_player(Buf *b);
+void buf_player(std::string &b);
 /* Resend the step list when a page subscribes after launch or reconnects. */
 void player_data(void);
 
@@ -277,29 +276,24 @@ std::function<std::optional<std::string>()> silent_script(xpp::Session &s);
 
 /* ---- json_io.cpp: output ---- */
 
-/* an event line being built */
-struct Buf {
-    std::string s;
-};
-
 /* a failed allocation ends the program (xpp::out_of_memory, xpp_mem.h) */
 
-void buf_add(Buf *b, const char *s, size_t n);
-/* std::format into a Buf (type-checked at compile time; the formatting
+void buf_add(std::string &b, const char *s, size_t n);
+/* std::format onto an event line (type-checked at compile time; the formatting
    itself is xpp::vformat_append's, compiled once in xpp_io.cpp) */
 template <class... Args>
-void buf_format(Buf *b, std::format_string<Args...> fmt, Args &&...args) noexcept
+void buf_format(std::string &b, std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    xpp::with_format_args([&](std::format_args a) { xpp::vformat_append(b->s, fmt.get(), a); },
+    xpp::with_format_args([&](std::format_args a) { xpp::vformat_append(b, fmt.get(), a); },
                           std::forward<Args>(args)...);
 }
-void buf_str(Buf *b, const char *s); /* a JSON string ("" for NULL) */
-void buf_str(Buf *b, std::string_view s);
-void buf_str_array(Buf *b, const char *const *v, int n);
-void buf_str_array(Buf *b, std::span<const std::string> v);
+void buf_str(std::string &b, const char *s); /* a JSON string ("" for NULL) */
+void buf_str(std::string &b, std::string_view s);
+void buf_str_array(std::string &b, const char *const *v, int n);
+void buf_str_array(std::string &b, std::span<const std::string> v);
 /* a JSON number, "null" when v is not finite (json_number.h): sig
    significant digits, e.g. 16 for a full double, 7 for AUTO's diagram */
-void buf_num(Buf *b, double v, int sig);
+void buf_num(std::string &b, double v, int sig);
 
 void open_protocol_stdout(void); /* the protocol on the stdout of now */
 void out_line(const char *s, size_t n);
@@ -307,7 +301,7 @@ void out_line(const char *s, size_t n);
 bool out_wanted();
 void out_flush(void);
 void flush_pending(void);
-void send_buf(Buf *b);
+void send_buf(std::string &b);
 void send_simple(const char *ev, const char *key = nullptr, std::string_view text = {});
 void json_flush(void);
 /* a data module's event line (plot_data, phase_data, marks_data, ani_data);
@@ -363,8 +357,8 @@ int key_code(const char *k);
 
 /* ---- json_prompts.cpp ---- */
 
-int ask_begin(Buf *b, const char *kind);
-int ask_wait(Buf *b, int id);
+int ask_begin(std::string &b, const char *kind);
+int ask_wait(std::string &b, int id);
 const char *ask_answer(void); /* the answer ask_wait() took */
 void answer_point(xpp::Session &s, unsigned long win, int k, int *x, int *y);
 /* the answer's points into v, x and y by turns (v.size() / 2 of them) */

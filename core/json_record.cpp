@@ -355,9 +355,9 @@ void record_during(std::string_view field, std::string_view value)
 {
     StepTaken &t = recorder.step;
     if (!recorder.rec || !t.open) return;
-    Buf at;
-    buf_stopped_at(&at);
-    t.during.push_back(xpp::format("{{\"{}\":{},\"at\":{}}}", field, value, at.s));
+    std::string at;
+    buf_stopped_at(at);
+    t.during.push_back(xpp::format("{{\"{}\":{},\"at\":{}}}", field, value, at));
 }
 
 } // namespace
@@ -393,15 +393,15 @@ void record_end(xpp::Session &s, bool cancelled)
     if (xpp::job::computed()) t.view = false;
     std::string abort;
     if (cancelled) {
-        Buf b;
-        buf_stopped_at(&b);
-        abort = std::move(b.s);
+        std::string b;
+        buf_stopped_at(b);
+        abort = std::move(b);
     }
     recorder.rec->steps.push_back({std::move(t.note), step_line(t, abort)});
     recorder.file_menu_last = t.file_menu && t.keys.size() == 1 && t.answers.empty();
 }
 
-void buf_recording(Buf *b)
+void buf_recording(std::string &b)
 {
     if (!recorder.rec) return;
     buf_format(b, ",\"recording\":{{\"steps\":{:d},\"note\":", recorder.rec->steps.size());

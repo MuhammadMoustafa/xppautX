@@ -30,12 +30,12 @@ namespace {
 /* the animation window's state for its slider and toggles */
 void send_ani_slider(const xpp::Session &s)
 {
-    Buf b;
-    buf_format(&b, "{{\"ev\":\"ani\",\"pos\":{:d},\"rows\":{:d},\"fly\":{:d},\"grab\":{:d},\"skip\":{:d},\"speed\":{:d},"
+    std::string b;
+    buf_format(b, "{{\"ev\":\"ani\",\"pos\":{:d},\"rows\":{:d},\"fly\":{:d},\"grab\":{:d},\"skip\":{:d},\"speed\":{:d},"
                "\"loaded\":{:d},\"open\":{:d}}}",
                s.animation.vcr.pos, s.browser.view.maxrow, s.animation.options.on_the_fly, s.animation.grab_flag, s.animation.vcr.inc, s.animation.speed, s.animation.ncom > 0,
                s.animation.vcr.iexist);
-    send_buf(&b);
+    send_buf(b);
 }
 
 } // namespace

@@ -312,10 +312,10 @@ void schedule(Next what, Clock::duration after)
    running step's asks are the player's: the page answers none of them) */
 void send_press(const char *what, size_t index, Clock::duration ms)
 {
-    Buf b;
-    buf_format(&b, "{{\"ev\":\"press\",\"step\":{:d},\"what\":\"{}\",\"index\":{:d},\"ms\":{:d}}}", player.running, what,
+    std::string b;
+    buf_format(b, "{{\"ev\":\"press\",\"step\":{:d},\"what\":\"{}\",\"index\":{:d},\"ms\":{:d}}}", player.running, what,
                index, std::chrono::duration_cast<std::chrono::milliseconds>(ms).count());
-    send_buf(&b);
+    send_buf(b);
 }
 
 /* ---- the steps ---- */
@@ -378,19 +378,19 @@ void begin_step()
     if (!st.cmd.empty()) {
         line = st.cmd;
     } else {
-        Buf b;
-        BUF_LIT(&b, "{\"cmd\":\"key\",\"key\":");
-        buf_str(&b, st.keys[0]);
+        std::string b;
+        BUF_LIT(b, "{\"cmd\":\"key\",\"key\":");
+        buf_str(b, st.keys[0]);
         if (!st.win.empty()) {
-            BUF_LIT(&b, ",\"win\":");
-            buf_str(&b, st.win);
+            BUF_LIT(b, ",\"win\":");
+            buf_str(b, st.win);
         }
         if (!st.button.empty()) {
-            BUF_LIT(&b, ",\"button\":");
-            buf_str(&b, st.button);
+            BUF_LIT(b, ",\"button\":");
+            buf_str(b, st.button);
         }
-        BUF_LIT(&b, "}");
-        line = std::move(b.s);
+        BUF_LIT(b, "}");
+        line = std::move(b);
         player.keys_used = 1;
         what = "key";
     }
@@ -417,13 +417,13 @@ void push_input()
    or the next answer, as the answer line a client sends */
 std::string answer_line(const std::string &kind, const std::string &value, bool key)
 {
-    Buf b;
+    std::string b;
     if (key) {
         if (value == "Escape") return "{\"cmd\":\"answer\",\"ok\":0}";
-        BUF_LIT(&b, "{\"cmd\":\"answer\",\"key\":");
-        buf_str(&b, value);
-        BUF_LIT(&b, "}");
-        return std::move(b.s);
+        BUF_LIT(b, "{\"cmd\":\"answer\",\"key\":");
+        buf_str(b, value);
+        BUF_LIT(b, "}");
+        return b;
     }
     if (value == "null") return "{\"cmd\":\"answer\",\"ok\":0}";
     if (kind == "string") return "{\"cmd\":\"answer\",\"value\":" + value + "}";
@@ -546,23 +546,23 @@ void load(xpp::Session &s, int from, bool play)
 /* {"ev":"player",...}: the recording, its steps and notes */
 void send_player()
 {
-    Buf b;
-    BUF_LIT(&b, "{\"ev\":\"player\",\"file\":");
-    buf_str(&b, player.path);
-    BUF_LIT(&b, ",\"model\":");
-    buf_str(&b, player.rec.model);
-    buf_format(&b, ",\"intact\":{},\"steps\":[", player.intact ? "true" : "false");
+    std::string b;
+    BUF_LIT(b, "{\"ev\":\"player\",\"file\":");
+    buf_str(b, player.path);
+    BUF_LIT(b, ",\"model\":");
+    buf_str(b, player.rec.model);
+    buf_format(b, ",\"intact\":{},\"steps\":[", player.intact ? "true" : "false");
     for (size_t i = 0; i < player.steps.size(); i++) {
         const std::string &line = player.steps[i].line;
-        if (i) BUF_LIT(&b, ",");
-        BUF_LIT(&b, "{\"note\":");
-        buf_str(&b, player.steps[i].note);
+        if (i) BUF_LIT(b, ",");
+        BUF_LIT(b, "{\"note\":");
+        buf_str(b, player.steps[i].note);
         const std::string_view rest = std::string_view(line).substr(line.find('{') + 1);
-        if (skip_ws(rest.data())[0] != '}') BUF_LIT(&b, ",");
-        buf_add(&b, rest.data(), rest.size());
+        if (skip_ws(rest.data())[0] != '}') BUF_LIT(b, ",");
+        buf_add(b, rest.data(), rest.size());
     }
-    BUF_LIT(&b, "]}");
-    send_buf(&b);
+    BUF_LIT(b, "]}");
+    send_buf(b);
 }
 
 void open_recording(xpp::Session &s, std::string_view path, bool ask = true, bool play = true)
@@ -924,7 +924,7 @@ void player_model_switched(bool loaded)
     if (loaded && player.open && !player.in_command) close_player();
 }
 
-void buf_player(Buf *b)
+void buf_player(std::string &b)
 {
     if (!player.open) return;
     buf_format(b, ",\"player\":{{\"step\":{:d},\"running\":{:d},\"playing\":{},\"speed\":", player.next, player.running,

@@ -171,12 +171,12 @@ namespace {
 
 /* the AUTO diagram's points, to 7 significant digits (buf_num, 3-arg, is
    the shared JSON number writer: json_number.h) */
-void diag_num(Buf *b, double v) { buf_num(b, v, 7); }
+void diag_num(std::string &b, double v) { buf_num(b, v, 7); }
 
 /* an event's start: its op and view */
-void diag_head(Buf *b, const char *op, int v) { buf_format(b, "{{\"ev\":\"diagram\",\"op\":\"{}\",\"view\":{:d}", op, v); }
+void diag_head(std::string &b, const char *op, int v) { buf_format(b, "{{\"ev\":\"diagram\",\"op\":\"{}\",\"view\":{:d}", op, v); }
 
-void diag_axes(Buf *b, const ClientDiagramView &d)
+void diag_axes(std::string &b, const ClientDiagramView &d)
 {
     BUF_LIT(b, ",\"xmin\":");
     buf_num(b, d.ax.xmin, 17);
@@ -195,7 +195,7 @@ void diag_axes(Buf *b, const ClientDiagramView &d)
 
 /* points i..j of dg as one run: they share branch, kind and style, and
    their point numbers count up by one */
-void diag_run(const xpp::Session &s, Buf *b, const std::vector<XppDiagPoint> &dg, int i, int j)
+void diag_run(const xpp::Session &s, std::string &b, const std::vector<XppDiagPoint> &dg, int i, int j)
 {
     const auto at = [&dg](int k) -> const XppDiagPoint & { return dg[static_cast<std::size_t>(k)]; };
     const XppDiagPoint *p = &at(i);
@@ -278,44 +278,44 @@ int diag_joins(const XppDiagPoint *a, const XppDiagPoint *b)
 /* what view v's client list lacks */
 void diag_flush_view(const xpp::Session &s, int v, ClientDiagramView &d, int final)
 {
-    Buf b;
+    std::string b;
     if (d.replay) {
         if (d.match == d.n) diag_end_replay(d, d.n); /* all agreed; more points are new ones */
         else if (final) diag_end_replay(d, d.match);
         else return; /* still replaying: nothing is known yet */
     }
     if (d.dirty < d.client) {
-        diag_head(&b, "reset", v);
-        buf_format(&b, ",\"keep\":{:d}", d.dirty);
-        diag_axes(&b, d);
-        BUF_LIT(&b, "}");
-        out_line(b.s.data(), b.s.size());
-        b.s.clear();
+        diag_head(b, "reset", v);
+        buf_format(b, ",\"keep\":{:d}", d.dirty);
+        diag_axes(b, d);
+        BUF_LIT(b, "}");
+        out_line(b.data(), b.size());
+        b.clear();
         d.client = d.dirty;
         d.axes = false;
     } else if (d.axes) {
-        diag_head(&b, "axes", v);
-        diag_axes(&b, d);
-        BUF_LIT(&b, "}");
-        out_line(b.s.data(), b.s.size());
-        b.s.clear();
+        diag_head(b, "axes", v);
+        diag_axes(b, d);
+        BUF_LIT(b, "}");
+        out_line(b.data(), b.size());
+        b.clear();
         d.axes = false;
     }
     /* the points, in events of some diagram_event_bytes */
     while (d.client < d.n) {
         int i = d.client, j;
-        diag_head(&b, "add", v);
-        buf_format(&b, ",\"from\":{:d},\"runs\":[", d.client);
-        while (i < d.n && b.s.size() < diagram_event_bytes) {
+        diag_head(b, "add", v);
+        buf_format(b, ",\"from\":{:d},\"runs\":[", d.client);
+        while (i < d.n && b.size() < diagram_event_bytes) {
             for (j = i; j + 1 < d.n && j - i < diagram_run_points && diag_joins(&d.dg[static_cast<std::size_t>(j)], &d.dg[static_cast<std::size_t>(j + 1)]); j++) {
             }
-            if (i > d.client) BUF_LIT(&b, ",");
-            diag_run(s, &b, d.dg, i, j);
+            if (i > d.client) BUF_LIT(b, ",");
+            diag_run(s, b, d.dg, i, j);
             i = j + 1;
         }
-        BUF_LIT(&b, "]}");
-        out_line(b.s.data(), b.s.size());
-        b.s.clear();
+        BUF_LIT(b, "]}");
+        out_line(b.data(), b.size());
+        b.clear();
         d.client = i;
     }
     d.dirty = d.n;
@@ -496,7 +496,7 @@ int j_auto_rubber(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
 
 int j_auto_grab_event(xpp::Session &s, int *x, int *y)
 {
-    Buf b;
+    std::string b;
     std::string k;
     const char *jp;
     int id;
@@ -505,9 +505,9 @@ int j_auto_grab_event(xpp::Session &s, int *x, int *y)
         session.grab_key_after = 0;
         return id;
     }
-    id = ask_begin(&b, "grab");
-    buf_format(&b, ",\"win\":{:d}", WIN_AUTO);
-    if (!ask_wait(&b, id)) return ESC;
+    id = ask_begin(b, "grab");
+    buf_format(b, ",\"win\":{:d}", WIN_AUTO);
+    if (!ask_wait(b, id)) return ESC;
     /* a point of the diagram data by its index: the cursor goes to that
        point's entry (docs/protocol.md "Grab by point"); one the data do not
        have, or whose entry AUTO no longer has (the data are an old drawing

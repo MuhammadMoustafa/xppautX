@@ -69,43 +69,43 @@ private:
 /* {"cmd":cmd,"field":value} */
 void SilentScript::line(std::string_view cmd, std::string_view field, std::string_view value)
 {
-    Buf b;
-    buf_format(&b, "{{\"cmd\":\"{}\",\"{}\":", cmd, field);
-    buf_str(&b, value);
-    if(cmd=="key")BUF_LIT(&b, ",\"replace\":1");
-    BUF_LIT(&b, "}");
-    lines.push_back(std::move(b.s));
+    std::string b;
+    buf_format(b, "{{\"cmd\":\"{}\",\"{}\":", cmd, field);
+    buf_str(b, value);
+    if(cmd=="key")BUF_LIT(b, ",\"replace\":1");
+    BUF_LIT(b, "}");
+    lines.push_back(std::move(b));
 }
 
 void SilentScript::answer_values(std::span<const std::string> values)
 {
-    Buf b;
-    BUF_LIT(&b, "{\"cmd\":\"answer\",\"values\":");
-    buf_str_array(&b, values);
-    BUF_LIT(&b, "}");
-    lines.push_back(std::move(b.s));
+    std::string b;
+    BUF_LIT(b, "{\"cmd\":\"answer\",\"values\":");
+    buf_str_array(b, values);
+    BUF_LIT(b, "}");
+    lines.push_back(std::move(b));
 }
 
 /* {"cmd":cmd,"op":op,"name":name<more>}: more, the fields after it */
 void SilentScript::command(std::string_view cmd, std::string_view op, std::string_view name, std::string_view more)
 {
-    Buf b;
-    buf_format(&b, "{{\"cmd\":\"{}\",\"op\":\"{}\",\"name\":", cmd, op);
-    buf_str(&b, name);
-    BUF_LIT(&b, ",\"replace\":1");
-    buf_add(&b, more.data(), more.size());
-    BUF_LIT(&b, "}");
-    lines.push_back(std::move(b.s));
+    std::string b;
+    buf_format(b, "{{\"cmd\":\"{}\",\"op\":\"{}\",\"name\":", cmd, op);
+    buf_str(b, name);
+    BUF_LIT(b, ",\"replace\":1");
+    buf_add(b, more.data(), more.size());
+    BUF_LIT(b, "}");
+    lines.push_back(std::move(b));
 }
 
 /* {"cmd":"applyset","set":name,"scope":"all"}: the whole set */
 void SilentScript::apply_set(std::string_view name)
 {
-    Buf b;
-    BUF_LIT(&b, "{\"cmd\":\"applyset\",\"set\":");
-    buf_str(&b, name);
-    buf_format(&b, ",\"scope\":\"{}\"}}", xpp::set_scope::all);
-    lines.push_back(std::move(b.s));
+    std::string b;
+    BUF_LIT(b, "{\"cmd\":\"applyset\",\"set\":");
+    buf_str(b, name);
+    buf_format(b, ",\"scope\":\"{}\"}}", xpp::set_scope::all);
+    lines.push_back(std::move(b));
 }
 
 /* the steps of one run: of internal set `set`, or of none (-1) */

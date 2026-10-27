@@ -76,11 +76,11 @@ namespace {
    interruption from AT. */
 void send_stopped(void)
 {
-    Buf b;
-    BUF_LIT(&b, "{\"ev\":\"stopped\",\"at\":");
-    buf_stopped_at(&b);
-    BUF_LIT(&b, "}");
-    send_buf(&b);
+    std::string b;
+    BUF_LIT(b, "{\"ev\":\"stopped\",\"at\":");
+    buf_stopped_at(b);
+    BUF_LIT(b, "}");
+    send_buf(b);
 }
 
 } // namespace
@@ -326,7 +326,7 @@ int control_line(xpp::Session &s, const char *line)
 /* where the running job was when it was cancelled, from what the
    computation reported last (xpp_job.h): the stopped event's `at`, and a
    recorded step's `abort` (json_record.cpp) */
-void buf_stopped_at(Buf *b)
+void buf_stopped_at(std::string &b)
 {
     xpp::job::Progress p = xpp::job::progress();
     if (p.what == xpp::job::Reported::rows) {
@@ -394,11 +394,11 @@ XppUi make_json_ui(void)
     u.save_decision = record_save_decision;
     u.write_folders = []() { return &client().write_folders; };
     u.save_result = [](std::string_view file, bool saved) {
-        Buf b;
-        buf_format(&b, "{{\"ev\":\"saved\",\"saved\":{},\"file\":", saved ? "true" : "false");
-        buf_str(&b, std::string(file).c_str());
-        BUF_LIT(&b, "}");
-        send_buf(&b);
+        std::string b;
+        buf_format(b, "{{\"ev\":\"saved\",\"saved\":{},\"file\":", saved ? "true" : "false");
+        buf_str(b, std::string(file).c_str());
+        BUF_LIT(b, "}");
+        send_buf(b);
     };
     u.ping = j_ping;
     u.bottom_msg = j_bottom_msg;
@@ -707,7 +707,7 @@ const CommandInfo *command_of(const char *line)
 }
 
 /* hello's "commands": the table, a key's kind left to its menu */
-void buf_commands(Buf *b)
+void buf_commands(std::string &b)
 {
     BUF_LIT(b, ",\"commands\":[");
     bool first = true;
@@ -739,7 +739,7 @@ std::string key_name(char key)
 
 /* one row of hello's "command_table" (core/command_table.h); `legacy_keys` is the XPPAUT sequence: the
    shortcut layer's key, then the item's */
-void buf_command_row(Buf *b, const CommandRow &row)
+void buf_command_row(std::string &b, const CommandRow &row)
 {
     BUF_LIT(b, "{\"menu\":");
     buf_str(b, MENU_NAMES[static_cast<std::size_t>(row.menu)]);
@@ -776,7 +776,7 @@ void buf_command_row(Buf *b, const CommandRow &row)
 
 /* hello's "menu_names", "command_categories" and "command_table" (docs/protocol.md "The command table"):
    the one list of commands in the sidebar's order, with the categories it groups them in */
-void buf_command_table(Buf *b)
+void buf_command_table(std::string &b)
 {
     BUF_LIT(b, ",\"menu_names\":[");
     for (std::size_t i = 0; i < MENU_NAMES.size(); ++i) {
@@ -1010,11 +1010,11 @@ void json_ui_push_open(const char *path)
 {
     /* on the window's thread, called from C (Win32, GTK): nothing may throw */
     try {
-        Buf b;
-        BUF_LIT(&b, "{\"cmd\":\"open\",\"file\":");
-        buf_str(&b, path);
-        BUF_LIT(&b, "}");
-        xpp::inbox::push_own(b.s);
+        std::string b;
+        BUF_LIT(b, "{\"cmd\":\"open\",\"file\":");
+        buf_str(b, path);
+        BUF_LIT(b, "}");
+        xpp::inbox::push_own(b);
     } catch (...) {
         xpp::out_of_memory("opening a model");
     }
@@ -1105,7 +1105,7 @@ namespace xpp::json {
 void send_hello(xpp::Session &s)
 {
     const xpp::Model &m = s.model();
-    Buf b;
+    std::string b;
     int i;
     const std::string file = xpp::model_title(m);
     const std::string title_text =
@@ -1114,152 +1114,152 @@ void send_hello(xpp::Session &s)
             ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)
             : xpp::format("XPP Version {:g}.{:g}", program.version_major, program.version_minor);
     const char *title = title_text.c_str();
-    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\",\"numerics\",\"player\"],\"title\":");
-    buf_str(&b, title);
-    BUF_LIT(&b, ",\"file\":");
-    buf_str(&b, m.this_file);
-    buf_format(&b, ",\"steady\":{{\"max_decimals\":{},\"default_decimals\":{},\"default_hold\":{}}}",
+    BUF_LIT(b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\",\"numerics\",\"player\"],\"title\":");
+    buf_str(b, title);
+    BUF_LIT(b, ",\"file\":");
+    buf_str(b, m.this_file);
+    buf_format(b, ",\"steady\":{{\"max_decimals\":{},\"default_decimals\":{},\"default_hold\":{}}}",
         xpp::MAX_STEADY_DECIMALS,xpp::DEFAULT_STEADY_DECIMALS,xpp::DEFAULT_STEADY_HOLD);
-    buf_format(&b, ",\"continue\":{{\"grid_tolerance\":{}}}", xpp::CONTINUE_GRID_TOLERANCE);
-    buf_format(&b, ",\"state_inspection\":{{\"tail_intervals\":{}}}", STATE_TAIL_INTERVALS);
-    BUF_LIT(&b, ",\"output_names\":{");
+    buf_format(b, ",\"continue\":{{\"grid_tolerance\":{}}}", xpp::CONTINUE_GRID_TOLERANCE);
+    buf_format(b, ",\"state_inspection\":{{\"tail_intervals\":{}}}", STATE_TAIL_INTERVALS);
+    BUF_LIT(b, ",\"output_names\":{");
     static constexpr struct { std::string_view key, ext, what; } names[]={
         {"par",".par",""},{"ic",".ic",""},{"csv",".csv",""},{"curves",".csv","curves"}};
     for (std::size_t n=0;n<std::size(names);++n){
-        if(n)BUF_LIT(&b,",");
-        buf_str(&b,names[n].key); BUF_LIT(&b,":");
-        buf_str(&b,xpp::files::output_name(m.this_file,names[n].ext,names[n].what));
+        if(n)BUF_LIT(b,",");
+        buf_str(b,names[n].key); BUF_LIT(b,":");
+        buf_str(b,xpp::files::output_name(m.this_file,names[n].ext,names[n].what));
     }
-    BUF_LIT(&b,"}");
-    BUF_LIT(&b, ",\"about\":");
-    BUF_LIT(&b, "[");
+    BUF_LIT(b,"}");
+    BUF_LIT(b, ",\"about\":");
+    BUF_LIT(b, "[");
     bool first_line = true;
     for (const AboutLine &line : xpp_about_lines()) {
-        if (!first_line) BUF_LIT(&b, ",");
+        if (!first_line) BUF_LIT(b, ",");
         first_line = false;
-        BUF_LIT(&b, "[");
+        BUF_LIT(b, "[");
         for (std::size_t k = 0; k < line.parts.size(); ++k) {
-            if (k) BUF_LIT(&b, ",");
-            BUF_LIT(&b, "{\"text\":");
-            buf_str(&b, line.parts[k].text);
+            if (k) BUF_LIT(b, ",");
+            BUF_LIT(b, "{\"text\":");
+            buf_str(b, line.parts[k].text);
             if (!line.parts[k].url.empty()) {
-                BUF_LIT(&b, ",\"url\":");
-                buf_str(&b, line.parts[k].url);
+                BUF_LIT(b, ",\"url\":");
+                buf_str(b, line.parts[k].url);
             }
-            BUF_LIT(&b, "}");
+            BUF_LIT(b, "}");
         }
-        BUF_LIT(&b, "]");
+        BUF_LIT(b, "]");
     }
-    BUF_LIT(&b, "]");
+    BUF_LIT(b, "]");
     /* File > Quit's question, as the core asks it (model_switch.h): the
        page asks the same itself while a computation runs (W110) */
-    BUF_LIT(&b, ",\"quit\":{\"question\":");
-    buf_str(&b, xpp::quit_question(false));
-    BUF_LIT(&b, ",\"recording\":");
-    buf_str(&b, xpp::quit_question(true));
-    BUF_LIT(&b, ",\"choices\":[");
-    buf_str(&b, xpp::LEAVE_SAVE);
-    BUF_LIT(&b, ",");
-    buf_str(&b, xpp::LEAVE_DONT_SAVE);
-    BUF_LIT(&b, "],\"keys\":");
-    buf_str(&b, xpp::LEAVE_KEYS);
-    BUF_LIT(&b, "}");
-    buf_command_table(&b);
-    BUF_LIT(&b, ",\"keymap\":");
+    BUF_LIT(b, ",\"quit\":{\"question\":");
+    buf_str(b, xpp::quit_question(false));
+    BUF_LIT(b, ",\"recording\":");
+    buf_str(b, xpp::quit_question(true));
+    BUF_LIT(b, ",\"choices\":[");
+    buf_str(b, xpp::LEAVE_SAVE);
+    BUF_LIT(b, ",");
+    buf_str(b, xpp::LEAVE_DONT_SAVE);
+    BUF_LIT(b, "],\"keys\":");
+    buf_str(b, xpp::LEAVE_KEYS);
+    BUF_LIT(b, "}");
+    buf_command_table(b);
+    BUF_LIT(b, ",\"keymap\":");
     const std::string keymap = hello_keymap();
-    buf_add(&b, keymap.data(), keymap.size());
+    buf_add(b, keymap.data(), keymap.size());
     /* a session with no model: what the start screen shows (xpp_recent.h) */
     if (!m.loaded()) {
-        BUF_LIT(&b, ",\"start\":");
+        BUF_LIT(b, ",\"start\":");
         const std::string start = xpp::recent::start_json(xpp::recent::load_recent(), ",\"examples\":" + xpp::examples::json());
-        buf_add(&b, start.data(), start.size());
+        buf_add(b, start.data(), start.size());
     }
     /* the limits the page keeps to and the windows' numbers in `window`
        events (plot windows are 1 to plots) */
-    buf_format(&b, ",\"limits\":{{\"upload\":{},\"browser_rows\":{},\"browser_cols\":{}}}", XPP_FILES_CAP,
+    buf_format(b, ",\"limits\":{{\"upload\":{},\"browser_rows\":{},\"browser_cols\":{}}}", XPP_FILES_CAP,
                BROWSER_MAX_ROWS, BROWSER_MAX_COLS);
-    BUF_LIT(&b, ",\"upload_error\":");
-    buf_str(&b, xpp::files::status_text(XPP_FILES_TOO_LARGE));
-    buf_format(&b, ",\"player_speed\":{{\"min\":{},\"max\":{}}}", PLAYER_SPEED_MIN, PLAYER_SPEED_MAX);
-    buf_format(&b, ",\"text\":{{\"max_length\":{},\"size_max\":{},\"style_count\":{},\"default_size\":{}}}",
+    BUF_LIT(b, ",\"upload_error\":");
+    buf_str(b, xpp::files::status_text(XPP_FILES_TOO_LARGE));
+    buf_format(b, ",\"player_speed\":{{\"min\":{},\"max\":{}}}", PLAYER_SPEED_MIN, PLAYER_SPEED_MAX);
+    buf_format(b, ",\"text\":{{\"max_length\":{},\"size_max\":{},\"style_count\":{},\"default_size\":{}}}",
                xpp::LABEL_TEXT_MAX, xpp::LABEL_SIZE_MAX, xpp::LABEL_STYLE_COUNT, xpp::LABEL_SIZE_DEFAULT);
-    BUF_LIT(&b, ",\"colormaps\":");
+    BUF_LIT(b, ",\"colormaps\":");
     {
         std::vector<std::string> names(xpp::colormap_names.begin(), xpp::colormap_names.end());
-        buf_str_array(&b, names);
+        buf_str_array(b, names);
     }
     const std::string line_styles = xpp::line_styles_json();
-    BUF_LIT(&b, ",\"line_styles\":");
-    buf_add(&b, line_styles.data(), line_styles.size());
-    buf_format(&b, ",\"window_ids\":{{\"plots\":{},\"auto\":{},\"ani\":{},\"aplot\":{}}}", static_cast<int>(s.plot_windows.graph.size()), WIN_AUTO,
+    BUF_LIT(b, ",\"line_styles\":");
+    buf_add(b, line_styles.data(), line_styles.size());
+    buf_format(b, ",\"window_ids\":{{\"plots\":{},\"auto\":{},\"ani\":{},\"aplot\":{}}}", static_cast<int>(s.plot_windows.graph.size()), WIN_AUTO,
                WIN_ANI, WIN_APLOT);
     /* the windows' key layers (menus.h window_layers) and the other
        commands' kinds: what the page enables while a computation runs */
-    BUF_LIT(&b, ",\"windows\":{");
+    BUF_LIT(b, ",\"windows\":{");
     for (i = 0; i < XPP_WINDOW_LAYERS; i++) {
         const XppWindowLayer &l = window_layers[i];
-        if (i) BUF_LIT(&b, ",");
-        buf_str(&b, l.win);
-        BUF_LIT(&b, ":{\"items\":");
-        buf_str_array(&b, l.menu->items, l.menu->n);
-        BUF_LIT(&b, ",\"keys\":");
-        buf_str(&b, l.menu->keys);
-        BUF_LIT(&b, ",\"kinds\":");
-        buf_str(&b, l.menu->kinds);
-        BUF_LIT(&b, ",\"ids\":");
-        buf_str_array(&b, l.ids, l.menu->n);
-        BUF_LIT(&b, ",\"hints\":");
-        buf_str_array(&b, l.menu->hints, l.menu->n);
-        BUF_LIT(&b, "}");
+        if (i) BUF_LIT(b, ",");
+        buf_str(b, l.win);
+        BUF_LIT(b, ":{\"items\":");
+        buf_str_array(b, l.menu->items, l.menu->n);
+        BUF_LIT(b, ",\"keys\":");
+        buf_str(b, l.menu->keys);
+        BUF_LIT(b, ",\"kinds\":");
+        buf_str(b, l.menu->kinds);
+        BUF_LIT(b, ",\"ids\":");
+        buf_str_array(b, l.ids, l.menu->n);
+        BUF_LIT(b, ",\"hints\":");
+        buf_str_array(b, l.menu->hints, l.menu->n);
+        BUF_LIT(b, "}");
     }
-    BUF_LIT(&b, "}");
-    buf_commands(&b);
+    BUF_LIT(b, "}");
+    buf_commands(b);
     /* the lists a form field *n picks from */
-    BUF_LIT(&b, ",\"lists\":[[\"T\"");
+    BUF_LIT(b, ",\"lists\":[[\"T\"");
     for (i = 0; i < m.neq; i++) {
-        BUF_LIT(&b, ",");
-        buf_str(&b, m.uvar_names[i]);
+        BUF_LIT(b, ",");
+        buf_str(b, m.uvar_names[i]);
     }
-    BUF_LIT(&b, "],[");
+    BUF_LIT(b, "],[");
     for (i = 0; i < m.node + m.nmarkov; i++) {
-        if (i) BUF_LIT(&b, ",");
-        buf_str(&b, m.uvar_names[i]);
+        if (i) BUF_LIT(b, ",");
+        buf_str(b, m.uvar_names[i]);
     }
-    BUF_LIT(&b, "],[");
+    BUF_LIT(b, "],[");
     for (i = 0; i < m.nupar; i++) {
-        if (i) BUF_LIT(&b, ",");
-        buf_str(&b, m.upar_names[i]);
+        if (i) BUF_LIT(b, ",");
+        buf_str(b, m.upar_names[i]);
     }
-    BUF_LIT(&b, "],[");
+    BUF_LIT(b, "],[");
     for (i = 0; i < m.node + m.nmarkov + m.nupar; i++) {
-        if (i) BUF_LIT(&b, ",");
-        buf_str(&b, i < m.node + m.nmarkov ? m.uvar_names[i] : m.upar_names[i - m.node - m.nmarkov]);
+        if (i) BUF_LIT(b, ",");
+        buf_str(b, i < m.node + m.nmarkov ? m.uvar_names[i] : m.upar_names[i - m.node - m.nmarkov]);
     }
-    BUF_LIT(&b, "],[\"2 Box\",\"3 Diamond\",\"4 Triangle\",\"5 Plus\",\"6 X\",\"7 Circle\"],[");
+    BUF_LIT(b, "],[\"2 Box\",\"3 Diamond\",\"4 Triangle\",\"5 Plus\",\"6 X\",\"7 Circle\"],[");
     for (const xpp::SolverInfo &solver : xpp::solvers()) {
-        if (solver.id) BUF_LIT(&b, ",");
-        buf_str(&b, xpp::format("{} {}", static_cast<int>(solver.id), solver.name).c_str());
+        if (solver.id) BUF_LIT(b, ",");
+        buf_str(b, xpp::format("{} {}", static_cast<int>(solver.id), solver.name).c_str());
     }
-    BUF_LIT(&b, "]]");
+    BUF_LIT(b, "]]");
     /* @ button name:keys lines of the ODE file ({"cmd":"userbut","index":i}) */
-    BUF_LIT(&b, ",\"userbuttons\":[");
+    BUF_LIT(b, ",\"userbuttons\":[");
     for (i = 0; i < s.nuserbut; i++) {
-        if (i) BUF_LIT(&b, ",");
-        buf_str(&b, s.userbut[i].bname);
+        if (i) BUF_LIT(b, ",");
+        buf_str(b, s.userbut[i].bname);
     }
     /* the model file's values, what `default` restores, in state's order */
-    BUF_LIT(&b, "],\"defaults\":{\"pars\":[");
+    BUF_LIT(b, "],\"defaults\":{\"pars\":[");
     for (i = 0; i < m.nupar; i++) {
-        if (i) BUF_LIT(&b, ",");
-        buf_num(&b, m.default_val[i], 16);
+        if (i) BUF_LIT(b, ",");
+        buf_num(b, m.default_val[i], 16);
     }
-    BUF_LIT(&b, "],\"ics\":[");
+    BUF_LIT(b, "],\"ics\":[");
     for (i = 0; i < m.node + m.nmarkov; i++) {
-        if (i) BUF_LIT(&b, ",");
-        buf_num(&b, m.default_ic[i], 16);
+        if (i) BUF_LIT(b, ",");
+        buf_num(b, m.default_ic[i], 16);
     }
-    BUF_LIT(&b, "]}}");
-    send_buf(&b);
+    BUF_LIT(b, "]}}");
+    send_buf(b);
     /* the start screen has no plot window and no state */
     if (m.loaded()) {
         send_main_window(title);

@@ -101,12 +101,12 @@ void j_reset_graphics(xpp::Session &s)
 
 void send_window(const char *what, unsigned long id, int w, int h, std::string_view title)
 {
-    Buf b;
-    buf_format(&b, "{{\"ev\":\"window\",\"op\":\"{}\",\"win\":{:d},\"w\":{:d},\"h\":{:d},\"title\":",
+    std::string b;
+    buf_format(b, "{{\"ev\":\"window\",\"op\":\"{}\",\"win\":{:d},\"w\":{:d},\"h\":{:d},\"title\":",
                what, id, w, h);
-    buf_str(&b, title);
-    BUF_LIT(&b, "}");
-    send_buf(&b);
+    buf_str(b, title);
+    BUF_LIT(b, "}");
+    send_buf(b);
 }
 
 void select_graph(xpp::Session &s, int i)
@@ -293,12 +293,12 @@ void j_scroll_window(xpp::Session &s)
 /* w*h*3 RGB bytes, or none when cancelled */
 std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
 {
-    Buf b;
+    std::string b;
     std::vector<unsigned char> rgb;
-    int id = ask_begin(&b, "pixels");
-    if (film >= 0) buf_format(&b, ",\"film\":{:d}", film);
-    else buf_format(&b, ",\"win\":{:d}", win);
-    if (!ask_wait(&b, id)) return rgb;
+    int id = ask_begin(b, "pixels");
+    if (film >= 0) buf_format(b, ",\"film\":{:d}", film);
+    else buf_format(b, ",\"win\":{:d}", win);
+    if (!ask_wait(b, id)) return rgb;
     *w = get_int(ask_answer(), "w", 0);
     *h = get_int(ask_answer(), "h", 0);
     const char *v = js_find(ask_answer(), "rgb");
@@ -327,10 +327,10 @@ namespace {
 
 void send_film(const xpp::Session &s, const char *what)
 {
-    Buf b;
-    buf_format(&b, "{{\"ev\":\"film\",\"op\":\"{}\",\"count\":{:d},\"win\":{:d},\"cycles\":{:d},\"delay\":{:d}}}",
+    std::string b;
+    buf_format(b, "{{\"ev\":\"film\",\"op\":\"{}\",\"count\":{:d},\"win\":{:d},\"cycles\":{:d},\"delay\":{:d}}}",
                what, s.kinescope.frames, s.plot_windows.draw_win, s.kinescope.cycles, s.kinescope.frame_ms);
-    send_buf(&b);
+    send_buf(b);
 }
 
 } // namespace
@@ -420,7 +420,7 @@ int aplot_dirty; /* the data behind an array plot changed */
 
 void send_aplot(xpp::Session &s, const char *tag)
 {
-    Buf b;
+    std::string b;
     int num, i, j, nx, ny, nrows = s.browser.view.maxrow;
     APLOT *ap = &s.array_plot.plot;
     std::vector<float> vals;
@@ -428,26 +428,26 @@ void send_aplot(xpp::Session &s, const char *tag)
     aplot_dirty = 0;
     if (!ap->alive) return;
     const std::string sroot = get_root(ap->name, &num);
-    BUF_LIT(&b, "{\"ev\":\"aplot\",\"title\":\"");
-    buf_format(&b, "{:.60}{:d}..{:d}\"", sroot, num, num + ap->nacross - 1);
+    BUF_LIT(b, "{\"ev\":\"aplot\",\"title\":\"");
+    buf_format(b, "{:.60}{:d}..{:d}\"", sroot, num, num + ap->nacross - 1);
     nx = ap->ncskip > 0 ? ap->nacross / ap->ncskip : 0;
     ny = ap->ndown;
     if (nrows <= 2 || ap->plotdef == 0 || ap->nacross < 2 || ap->ndown < 2) nx = ny = 0;
     const AplotTimes times = nx ? aplot_times(s, *ap) : AplotTimes{0.0, 0.0};
-    BUF_LIT(&b, ",\"tlo\":");
-    buf_num(&b, times.first, 6);
-    BUF_LIT(&b, ",\"thi\":");
-    buf_num(&b, times.last, 6);
-    BUF_LIT(&b, ",\"zmin\":");
-    buf_num(&b, ap->zmin, 6);
-    BUF_LIT(&b, ",\"zmax\":");
-    buf_num(&b, ap->zmax, 6);
-    buf_format(&b, ",\"colormap\":\"{}\",\"ramp\":[", xpp::colormap_names[static_cast<std::size_t>(s.colormap)]);
-    for (std::size_t k = 0; k < s.ramp().size(); k++) buf_format(&b, "{}{}", k ? "," : "", xpp::quoted_color(s.ramp()[k]));
-    buf_format(&b, "],\"nx\":{:d},\"ny\":{:d}", nx, ny);
+    BUF_LIT(b, ",\"tlo\":");
+    buf_num(b, times.first, 6);
+    BUF_LIT(b, ",\"thi\":");
+    buf_num(b, times.last, 6);
+    BUF_LIT(b, ",\"zmin\":");
+    buf_num(b, ap->zmin, 6);
+    BUF_LIT(b, ",\"zmax\":");
+    buf_num(b, ap->zmax, 6);
+    buf_format(b, ",\"colormap\":\"{}\",\"ramp\":[", xpp::colormap_names[static_cast<std::size_t>(s.colormap)]);
+    for (std::size_t k = 0; k < s.ramp().size(); k++) buf_format(b, "{}{}", k ? "," : "", xpp::quoted_color(s.ramp()[k]));
+    buf_format(b, "],\"nx\":{:d},\"ny\":{:d}", nx, ny);
     if (tag) {
-        BUF_LIT(&b, ",\"tag\":");
-        buf_str(&b, tag);
+        BUF_LIT(b, ",\"tag\":");
+        buf_str(b, tag);
     }
     try {
         if (nx * ny > 0) vals.resize(static_cast<size_t>(nx * ny));
@@ -464,11 +464,11 @@ void send_aplot(xpp::Session &s, const char *tag)
             if (!vals.empty()) vals[j * nx + i] = v;
         }
     }
-    if (f32) BUF_LIT(&b, ",\"enc\":\"f32\"");
-    BUF_LIT(&b, ",\"values\":");
-    xpp_series_append(b.s, vals.empty() ? nullptr : vals.data(), nx * ny, f32);
-    BUF_LIT(&b, "}");
-    send_buf(&b);
+    if (f32) BUF_LIT(b, ",\"enc\":\"f32\"");
+    BUF_LIT(b, ",\"values\":");
+    xpp_series_append(b, vals.empty() ? nullptr : vals.data(), nx * ny, f32);
+    BUF_LIT(b, "}");
+    send_buf(b);
 }
 
 } // namespace
