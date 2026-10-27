@@ -1156,4 +1156,4 @@ Design: [command-design.md](command-design.md).
 | W511 | [#575](https://github.com/MuhammadMoustafa/xppautX/issues/575) | Finish the bundled CVODE's move to C++ (W477 finding 13's CVODE entries (and 14's macro cleanup if useful)) | ready |
 | W512 | [#576](https://github.com/MuhammadMoustafa/xppautX/issues/576) | AUTO's logical alias replaced by its type (W477 finding 13's f2c entry) | ready |
 | W513 | [#577](https://github.com/MuhammadMoustafa/xppautX/issues/577) | Annotations by id in the core and the protocol (W477 findings 7, 12, 14, 19 and the maintainer's question (2026-10-27)) | ready |
-| W514 | [#578](https://github.com/MuhammadMoustafa/xppautX/issues/578) | Less per-step overhead on cheap right-hand sides (W476 F8, F9 (card C)) | ready |
+| W514 | [#578](https://github.com/MuhammadMoustafa/xppautX/issues/578) | Less per-step overhead on cheap right-hand sides (W476 F8, F9 (card C)) | done (sonnet medium; review: dropped the kept clock reading, no measurable gain and an unbounded lateness after a slowdown; polint kept, DDE -11.7% instructions) |
