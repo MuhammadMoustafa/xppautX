@@ -23,19 +23,19 @@
 #include <vector>
 
 namespace xpp {
-static_assert(cvode_opt_size==OPT_SIZE);
+static_assert(cvode_opt_size==cvode_solver::OPT_SIZE);
 
 namespace {
 /* CVODE's right-hand side: fdata is the Session start_cv gave it */
-void cvf(int n, double t, N_Vector y, N_Vector ydot, void *fdata)
+void cvf(int n, double t, cvode_solver::N_VectorContent * y, cvode_solver::N_VectorContent * ydot, void *fdata)
 {
   my_rhs(*static_cast<xpp::Session *>(fdata),t,y->data,ydot->data,n);
 }
 
 /* CVODE's Jacobian, dense or banded, when the numerics ask for the exact
    one (W260): jac_data is the Session */
-void cv_dense_jacobian(integer N, DenseMat J, RhsFn, void *, real t, N_Vector y, N_Vector fy, N_Vector, real, real,
-                       void *jac_data, int *, N_Vector, N_Vector, N_Vector)
+void cv_dense_jacobian(int N, cvode_solver::DenseMatRec * J, cvode_solver::RhsFn, void *, double t, cvode_solver::N_VectorContent * y, cvode_solver::N_VectorContent * fy, cvode_solver::N_VectorContent *, double, double,
+                       void *jac_data, int &, cvode_solver::N_VectorContent *, cvode_solver::N_VectorContent *, cvode_solver::N_VectorContent *)
 {
   xpp::Session &s=*static_cast<xpp::Session *>(jac_data);
   const int n=static_cast<int>(N);
@@ -44,8 +44,8 @@ void cv_dense_jacobian(integer N, DenseMat J, RhsFn, void *, real t, N_Vector y,
   for(int j=0;j<n;j++)std::copy_n(out.data()+static_cast<size_t>(j)*n,n,DENSE_COL(J,j));
 }
 
-void cv_band_jacobian(integer N, integer mupper, integer mlower, BandMat J, RhsFn, void *, real t, N_Vector y, N_Vector fy,
-                      N_Vector, real, real, void *jac_data, int *, N_Vector, N_Vector, N_Vector)
+void cv_band_jacobian(int N, int mupper, int mlower, cvode_solver::BandMatRec * J, cvode_solver::RhsFn, void *, double t, cvode_solver::N_VectorContent * y, cvode_solver::N_VectorContent * fy,
+                      cvode_solver::N_VectorContent *, double, double, void *jac_data, int &, cvode_solver::N_VectorContent *, cvode_solver::N_VectorContent *, cvode_solver::N_VectorContent *)
 {
   xpp::Session &s=*static_cast<xpp::Session *>(jac_data);
   const int n=static_cast<int>(N);
@@ -62,24 +62,24 @@ void cv_band_jacobian(integer N, integer mupper, integer mlower, BandMat J, RhsF
 }
 
 struct CvodeRun::Memory {
-  N_Vector y;
-  void *cvode;
+  cvode_solver::N_VectorContent *y;
+  cvode_solver::CVodeMemRec *cvode;
   Memory(xpp::Session &s, CvodeRun &run, double *y0, double t, int n, double *atol, double *rtol)
-    : y(N_VNew(n,NULL))
+    : y(cvode_solver::N_VNew(n))
   {
     for(int i=0;i<n;i++)y->data[i]=y0[i];
-    cvode=CVodeMalloc(n, cvf, t, y, BDF, NEWTON, SS, rtol, atol,
-                      &s, FALSE, run.iopt.data(), run.ropt.data(), NULL);
+    cvode=cvode_solver::CVodeMalloc(n, cvf, t, y, cvode_solver::BDF, cvode_solver::NEWTON, cvode_solver::SS, rtol, atol,
+                      &s, false, run.iopt.data(), run.ropt.data());
     const bool exact=s.numerics.jacobian==JACOBIAN_EXACT;
     if(s.numerics.cv_bandflag)
-      CVBand(cvode,s.numerics.cv_bandupper,s.numerics.cv_bandlower,exact?cv_band_jacobian:nullptr,exact?&s:nullptr);
+      cvode_solver::CVBand(cvode,s.numerics.cv_bandupper,s.numerics.cv_bandlower,exact?cv_band_jacobian:nullptr,exact?&s:nullptr);
     else
-      CVDense(cvode,exact?cv_dense_jacobian:nullptr,exact?&s:nullptr);
+      cvode_solver::CVDense(cvode,exact?cv_dense_jacobian:nullptr,exact?&s:nullptr);
   }
   ~Memory()
   {
-    N_VFree(y);
-    CVodeFree(cvode);
+    cvode_solver::N_VFree(y);
+    cvode_solver::CVodeFree(cvode);
   }
   Memory(const Memory &)=delete;
   Memory &operator=(const Memory &)=delete;
@@ -104,7 +104,7 @@ namespace {
    error is the largest, as CVODE picks it for a failed error test */
 void keep_failure(CvodeRun &run)
 {
-  const CVodeMem m=static_cast<CVodeMem>(run.memory->cvode);
+  const cvode_solver::CVodeMemRec *m=run.memory->cvode;
   run.error=m->cv_error;
   run.error_var=m->cv_error_var;
   if(run.error_var<0&&m->cv_acor&&m->cv_ewt){
@@ -127,7 +127,7 @@ std::string cvode_error_text(const xpp::Session &s, const CvodeRun &run, int kfl
   case -2: return "CVODE refused its input";
   case -3: return "more steps between two output times than CVODE takes";
   case -4: return xpp::format("the tolerances are too small for the rounding: relative_tolerance = {} and absolute_tolerance = {} would do",
-                              s.numerics.relative_tolerance*run.ropt[ROPT_TOLSF], s.numerics.absolute_tolerance*run.ropt[ROPT_TOLSF]);
+                              s.numerics.relative_tolerance*run.ropt[cvode_solver::ROPT_TOLSF], s.numerics.absolute_tolerance*run.ropt[cvode_solver::ROPT_TOLSF]);
   case -5: return "the error test failed repeatedly";
   case -6: return "the corrector (Newton iteration) failed to converge repeatedly";
   case -7: return "the setup of CVODE's linear solver failed";
@@ -158,8 +158,8 @@ int ccvode(xpp::Session &s, CvodeRun &run, int *command, double *y, double *t, i
   if(*command==1||!run.memory){ /* continuing an integration that has
                                     ended is starting one */
     start_cv(s,run,y,*t,n,atol,rtol);
-    flag=CVode(run.memory->cvode, tout, run.memory->y, t, NORMAL);
-    if(flag != SUCCESS){
+    flag=cvode_solver::CVode(run.memory->cvode, tout, run.memory->y, *t, cvode_solver::NORMAL);
+    if(flag != cvode_solver::SUCCESS){
      
      *kflag=flag;
      keep_failure(run);
@@ -171,8 +171,8 @@ int ccvode(xpp::Session &s, CvodeRun &run, int *command, double *y, double *t, i
     for(i=0;i<n;i++)y[i]=run.memory->y->data[i];
     return(0);
   } 
-  flag=CVode(run.memory->cvode,tout,run.memory->y,t,NORMAL);
-  if(flag != SUCCESS){
+  flag=cvode_solver::CVode(run.memory->cvode,tout,run.memory->y,*t,cvode_solver::NORMAL);
+  if(flag != cvode_solver::SUCCESS){
       *kflag=flag;
       keep_failure(run);
       end_cv(run);

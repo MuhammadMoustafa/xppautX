@@ -6,7 +6,7 @@
  *--------------------------------------------------------------*
  *                                                              *
  * This is the implementation file for a generic VECTOR         *
- * package. It contains the implementation of the N_Vector      *
+ * package. It contains the implementation of the N_VectorContent *      *
  * kernels listed in vector.h.                                  *
  *                                                              *
  ****************************************************************/
@@ -17,36 +17,38 @@
 #include "vector.h"
 #include "llnlmath.h" 
 
+namespace xpp::cvode_solver {
 
-#define ZERO RCONST(0.0)
-#define ONE  RCONST(1.0)
+
+#define ZERO 0.0
+#define ONE  1.0
 
 
 /* Private Helper Prototypes */
 
-static void VCopy(N_Vector x, N_Vector z); /* z=x */
-static void VSum(N_Vector x, N_Vector y, N_Vector z); /* z=x+y */
-static void VDiff(N_Vector x, N_Vector y, N_Vector z); /* z=x-y */
-static void VNeg(N_Vector x, N_Vector z); /* z=-x */
+static void VCopy(N_VectorContent *x, N_VectorContent *z); /* z=x */
+static void VSum(N_VectorContent *x, N_VectorContent *y, N_VectorContent *z); /* z=x+y */
+static void VDiff(N_VectorContent *x, N_VectorContent *y, N_VectorContent *z); /* z=x-y */
+static void VNeg(N_VectorContent *x, N_VectorContent *z); /* z=-x */
 /* z=c(x+y) */
-static void VScaleSum(real c, N_Vector x, N_Vector y, N_Vector z);
+static void VScaleSum(real c, N_VectorContent *x, N_VectorContent *y, N_VectorContent *z);
 /* z=c(x-y) */
-static void VScaleDiff(real c, N_Vector x, N_Vector y, N_Vector z); 
-static void VLin1(real a, N_Vector x, N_Vector y, N_Vector z); /* z=ax+y */
-static void VLin2(real a, N_Vector x, N_Vector y, N_Vector z); /* z=ax-y */
-static void Vaxpy(real a, N_Vector x, N_Vector y); /* y <- ax+y */
-static void VScaleBy(real a, N_Vector x); /* x <- ax */
+static void VScaleDiff(real c, N_VectorContent *x, N_VectorContent *y, N_VectorContent *z);
+static void VLin1(real a, N_VectorContent *x, N_VectorContent *y, N_VectorContent *z); /* z=ax+y */
+static void VLin2(real a, N_VectorContent *x, N_VectorContent *y, N_VectorContent *z); /* z=ax-y */
+static void Vaxpy(real a, N_VectorContent *x, N_VectorContent *y); /* y <- ax+y */
+static void VScaleBy(real a, N_VectorContent *x); /* x <- ax */
 
 /********************* Exported Functions ************************/
 
  
-N_Vector N_VNew(integer N, void *machEnv)
+N_VectorContent *N_VNew(integer N)
 {
   if (N <= 0) return(NULL);
 
-  /* N_Vector is the C API's raw handle (N_VFree deletes it); its
+  /* N_VectorContent pointer is the solver's raw handle (N_VFree deletes it); its
      components live in the handle's own std::vector, zeroed. */
-  N_Vector v = new N_VectorContent();
+  N_VectorContent *v = new N_VectorContent();
   v->storage.assign(N, ZERO);
   v->data = v->storage.data();
   v->length = N;
@@ -55,18 +57,18 @@ N_Vector N_VNew(integer N, void *machEnv)
 }
 
 
-void N_VFree(N_Vector x)
+void N_VFree(N_VectorContent *x)
 {
   delete x;
 }
 
 
-void N_VLinearSum(real a, N_Vector x, real b, N_Vector y, N_Vector z)
+void N_VLinearSum(real a, N_VectorContent *x, real b, N_VectorContent *y, N_VectorContent *z)
 {
   integer i, N;
   real c, *xd, *yd, *zd;
-  /*N_Vector v, v1, v2;*/
-  N_Vector v1, v2;
+  /*N_VectorContent *v, v1, v2;*/
+  N_VectorContent *v1; N_VectorContent *v2;
   bool test;
 
   if ((b == ONE) && (z == y)) {    /* BLAS usage: axpy y <- ax+y */
@@ -146,7 +148,7 @@ void N_VLinearSum(real a, N_Vector x, real b, N_Vector y, N_Vector z)
 }
 
 
-void N_VConst(real c, N_Vector z)
+void N_VConst(real c, N_VectorContent *z)
 {
   integer i, N;
   real *zd;
@@ -159,7 +161,7 @@ void N_VConst(real c, N_Vector z)
 }
 
 
-void N_VProd(N_Vector x, N_Vector y, N_Vector z)
+void N_VProd(N_VectorContent *x, N_VectorContent *y, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *yd, *zd;
@@ -174,7 +176,7 @@ void N_VProd(N_Vector x, N_Vector y, N_Vector z)
 }
 
 
-void N_VDiv(N_Vector x, N_Vector y, N_Vector z)
+void N_VDiv(N_VectorContent *x, N_VectorContent *y, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *yd, *zd;
@@ -189,7 +191,7 @@ void N_VDiv(N_Vector x, N_Vector y, N_Vector z)
 }
 
 
-void N_VScale(real c, N_Vector x, N_Vector z)
+void N_VScale(real c, N_VectorContent *x, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *zd;
@@ -212,7 +214,7 @@ void N_VScale(real c, N_Vector x, N_Vector z)
 }
 
 
-void N_VAbs(N_Vector x, N_Vector z)
+void N_VAbs(N_VectorContent *x, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *zd;
@@ -226,7 +228,7 @@ void N_VAbs(N_Vector x, N_Vector z)
 }
 
 
-void N_VInv(N_Vector x, N_Vector z)
+void N_VInv(N_VectorContent *x, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *zd;
@@ -240,7 +242,7 @@ void N_VInv(N_Vector x, N_Vector z)
 }
 
 
-void N_VAddConst(N_Vector x, real b, N_Vector z)
+void N_VAddConst(N_VectorContent *x, real b, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *zd;
@@ -254,7 +256,7 @@ void N_VAddConst(N_Vector x, real b, N_Vector z)
 
 
 
-real N_VMaxNorm(N_Vector x)
+real N_VMaxNorm(N_VectorContent *x)
 {
   integer i, N;
   real max = ZERO, *xd;
@@ -270,7 +272,7 @@ real N_VMaxNorm(N_Vector x)
 }
 
 
-real N_VWrmsNorm(N_Vector x, N_Vector w)
+real N_VWrmsNorm(N_VectorContent *x, N_VectorContent *w)
 {
   integer i, N;
   real sum = ZERO, prodi, *xd, *wd;
@@ -288,7 +290,7 @@ real N_VWrmsNorm(N_Vector x, N_Vector w)
 }
 
 
-real N_VMin(N_Vector x)
+real N_VMin(N_VectorContent *x)
 {
   integer i, N;
   real min, *xd;
@@ -312,7 +314,7 @@ real N_VMin(N_Vector x)
 /***************** Private Helper Functions **********************/
 
 
-static void VCopy(N_Vector x, N_Vector z)
+static void VCopy(N_VectorContent *x, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *zd;
@@ -326,7 +328,7 @@ static void VCopy(N_Vector x, N_Vector z)
 }
 
 
-static void VSum(N_Vector x, N_Vector y, N_Vector z)
+static void VSum(N_VectorContent *x, N_VectorContent *y, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *yd, *zd;
@@ -341,7 +343,7 @@ static void VSum(N_Vector x, N_Vector y, N_Vector z)
 }
 
 
-static void VDiff(N_Vector x, N_Vector y, N_Vector z)
+static void VDiff(N_VectorContent *x, N_VectorContent *y, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *yd, *zd;
@@ -356,7 +358,7 @@ static void VDiff(N_Vector x, N_Vector y, N_Vector z)
 }
 
 
-static void VNeg(N_Vector x, N_Vector z)
+static void VNeg(N_VectorContent *x, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *zd;
@@ -370,7 +372,7 @@ static void VNeg(N_Vector x, N_Vector z)
 }
 
 
-static void VScaleSum(real c, N_Vector x, N_Vector y, N_Vector z)
+static void VScaleSum(real c, N_VectorContent *x, N_VectorContent *y, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *yd, *zd;
@@ -385,7 +387,7 @@ static void VScaleSum(real c, N_Vector x, N_Vector y, N_Vector z)
 }
 
 
-void VScaleDiff(real c, N_Vector x, N_Vector y, N_Vector z)
+void VScaleDiff(real c, N_VectorContent *x, N_VectorContent *y, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *yd, *zd;
@@ -400,7 +402,7 @@ void VScaleDiff(real c, N_Vector x, N_Vector y, N_Vector z)
 }
 
 
-static void VLin1(real a, N_Vector x, N_Vector y, N_Vector z)
+static void VLin1(real a, N_VectorContent *x, N_VectorContent *y, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *yd, *zd;
@@ -415,7 +417,7 @@ static void VLin1(real a, N_Vector x, N_Vector y, N_Vector z)
 }
 
 
-static void VLin2(real a, N_Vector x, N_Vector y, N_Vector z)
+static void VLin2(real a, N_VectorContent *x, N_VectorContent *y, N_VectorContent *z)
 {
   integer i, N;
   real *xd, *yd, *zd;
@@ -429,7 +431,7 @@ static void VLin2(real a, N_Vector x, N_Vector y, N_Vector z)
     *zd++ = a * (*xd++) - (*yd++);
 }
 
-static void Vaxpy(real a, N_Vector x, N_Vector y)
+static void Vaxpy(real a, N_VectorContent *x, N_VectorContent *y)
 {
   integer i, N;
   real *xd, *yd;
@@ -454,7 +456,7 @@ static void Vaxpy(real a, N_Vector x, N_Vector y)
     *yd++ += a * (*xd++);
 }
 
-static void VScaleBy(real a, N_Vector x)
+static void VScaleBy(real a, N_VectorContent *x)
 {
   integer i, N;
   real *xd;
@@ -469,3 +471,5 @@ static void VScaleBy(real a, N_Vector x)
 
 
 
+
+} // namespace xpp::cvode_solver

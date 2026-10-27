@@ -14,23 +14,25 @@
 #include "band.h"
 #include "llnlmath.h"
 
+namespace xpp::cvode_solver {
 
-#define ZERO RCONST(0.0)
-#define ONE  RCONST(1.0)
+
+#define ZERO 0.0
+#define ONE  1.0
 
 #define ROW(i,j,smu) (i-j+smu)
 
 
 /* Implementation */
 
-BandMat BandAllocMat(integer N, integer mu, integer ml, integer smu)
+BandMatRec *BandAllocMat(integer N, integer mu, integer ml, integer smu)
 {
   if (N <= 0) return(NULL);
 
-  /* The C API's raw handle (BandFreeMat deletes it), its elements in its
+  /* The solver's raw handle (BandFreeMat deletes it), its elements in its
      own std::vectors, zeroed: data[0] points to all N*(smu+ml+1), data[j] to the jth column's. */
   integer colSize = smu + ml + 1;
-  BandMat A = new BandMatRec();
+  BandMatRec *A = new BandMatRec();
   A->values.assign(N * colSize, ZERO);
   A->columns.resize(N);
   for (integer j=0; j < N; j++) A->columns[j] = A->values.data() + j * colSize;
@@ -45,38 +47,38 @@ BandMat BandAllocMat(integer N, integer mu, integer ml, integer smu)
 }
 
 
-integer BandFactor(BandMat A, integer *p)
+integer BandFactor(BandMatRec *A, integer *p)
 {
   return(gbfa(A->data, A->size, A->mu, A->ml, A->smu, p));
 }
 
 
-void BandBacksolve(BandMat A, integer *p, N_Vector b)
+void BandBacksolve(BandMatRec *A, integer *p, N_VectorContent *b)
 {
   gbsl(A->data, A->size, A->smu, A->ml, p, N_VDATA(b));
 }
 
-void BandZero(BandMat A)
+void BandZero(BandMatRec *A)
 {
   bandzero(A->data, A->size, A->mu, A->ml, A->smu);
 }
 
-void BandCopy(BandMat A, BandMat B, integer copymu, integer copyml)
+void BandCopy(BandMatRec *A, BandMatRec *B, integer copymu, integer copyml)
 {
   bandcopy(A->data, B->data, A->size, A->smu, B->smu, copymu, copyml);
 }
 
-void BandScale(real c, BandMat A)
+void BandScale(real c, BandMatRec *A)
 {
   bandscale(c, A->data, A->size, A->mu, A->ml, A->smu);
 }
 
-void BandAddI(BandMat A)
+void BandAddI(BandMatRec *A)
 {
   bandaddI(A->data, A->size, A->smu);
 }
 
-void BandFreeMat(BandMat A)
+void BandFreeMat(BandMatRec *A)
 {
   delete A;
 }
@@ -273,3 +275,5 @@ void bandaddI(real **a, integer n, integer smu)
   for(j=0; j < n; j++)
     a[j][smu] += ONE;
 }
+
+} // namespace xpp::cvode_solver

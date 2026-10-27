@@ -7,43 +7,43 @@
  *----------------------------------------------------------------*
  * This is the header file for a generic BAND linear solver       *
  * package. There are two sets of band solver routines listed in  *
- * this file: one set uses type BandMat defined below and the     *
+ * this file: one set uses type BandMatRec *defined below and the     *
  * other set uses the type real ** for band matrix arguments.     *
  * The two sets of band solver routines make it easy to work      *
  * with two types of band matrices:                               *
  *                                                                *
- * (1) The BandMat type is intended for use with large            *
+ * (1) The BandMatRec *type is intended for use with large            *
  *     band matrices whose elements/columns may be stored in      *
  *     non-contiguous memory locations or even distributed into   *
  *     different processor memories. This type may be modified to *
  *     include such distribution information. If this is done,    *
- *     then all the routines that use BandMat must be modified to *
+ *     then all the routines that use BandMatRec *must be modified to *
  *     reflect the new data structure.                            *
  *                                                                *
- * (2) The set of routines that use real ** (and NOT the BandMat  *
+ * (2) The set of routines that use real ** (and NOT the BandMatRec *  *
  *     type) is intended for use with small matrices which can    *
  *     easily be allocated within a contiguous block of memory    *
  *     on a single processor.                                     *
  *                                                                *
- * Routines that work with the type BandMat begin with "Band".    *
+ * Routines that work with the type BandMatRec *begin with "Band".    *
  * The BandAllocMat function allocates a band matrix for use in   *
  * the other matrix routines listed in this file. Matrix storage  *
- * details are given in the documentation for the type BandMat.   *
+ * details are given in the documentation for the type BandMatRec *.   *
  * BandFreeMat frees it. The pivot information is an array of N  *
  * integers the caller keeps (cvband.cpp holds it in a            *
  * std::vector). The BandFactor and BandBacksolve                 *
  * routines perform the actual solution of a band linear system.  *
  * Note that the BandBacksolve routine has a parameter b of type  *
- * N_Vector. The current implementation makes use of a machine    *
+ * N_VectorContent *. The current implementation makes use of a machine    *
  * environment specific macro (N_VDATA) which may not exist for   *
- * other implementations of the type N_Vector. Thus, the          *
+ * other implementations of the type N_VectorContent *. Thus, the          *
  * implementation of BandBacksolve may need to change if the      *
- * type N_Vector is changed.                                      *
+ * type N_VectorContent pointer is changed.                                      *
  *                                                                * 
  * Routines that work with real ** begin with "band" (except for  *
  * the factor and solve routines which are called gbfa and gbsl,  *
  * respectively). The underlying matrix storage is described in   *
- * the documentation for the type BandMat.                        *
+ * the documentation for the type BandMatRec *.                        *
  *                                                                *
  ******************************************************************/
  
@@ -54,16 +54,14 @@
 #include "llnltyps.h"
 #include "vector.h"
 #include <vector>
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace xpp::cvode_solver {
 
  
 /******************************************************************
  *                                                                *
- * Type: BandMat                                                  *
+ * Type: BandMatRec *                                                  *
  *----------------------------------------------------------------*
- * The type BandMat is the type of a large (possibly distributed) *
+ * The type BandMatRec *is the type of a large (possibly distributed) *
  * band matrix. It is defined to be a pointer to a structure      *
  * with the following fields:                                     *
  *                                                                *
@@ -81,7 +79,7 @@ extern "C" {
  *         field holds the upper bandwidth allocated for A.       *
  *                                                                *
  * data is a two dimensional array used for component storage.    *
- *         The elements of a band matrix of type BandMat are      *
+ *         The elements of a band matrix of type BandMatRec *are      *
  *         stored columnwise (i.e. columns are stored one on top  *
  *         of the other in memory). Only elements within the      *
  *         specified bandwidths are stored.                       *
@@ -120,7 +118,7 @@ extern "C" {
  ******************************************************************/
 
 
-typedef struct BandMatRec {
+struct BandMatRec {
   integer size;
   integer mu, ml, smu;
   real **data;
@@ -129,10 +127,10 @@ typedef struct BandMatRec {
      each column's uppermost stored element (data is columns.data()) */
   std::vector<real> values;
   std::vector<real *> columns;
-} *BandMat;
+};
  
 
-/* BandMat accessor macros */
+/* BandMatRec *accessor macros */
 
  
 /******************************************************************
@@ -181,7 +179,7 @@ typedef struct BandMatRec {
 #define BAND_COL_ELEM(col_j,i,j) (col_j[i-j])
  
 
-/* Functions that use the BandMat representation for a band matrix */
+/* Functions that use the BandMatRec *representation for a band matrix */
 
  
 /******************************************************************
@@ -199,14 +197,14 @@ typedef struct BandMatRec {
  *                                                                *
  * (2) Pass smu = MIN(N-1,mu+ml) if A will be factored.           *
  *                                                                *
- * BandAllocMat returns the storage allocated (type BandMat) or   *
+ * BandAllocMat returns the storage allocated (type BandMatRec *) or   *
  * NULL if the request for matrix storage cannot be satisfied.    *
- * See the documentation for the type BandMat for matrix storage  *
+ * See the documentation for the type BandMatRec *for matrix storage  *
  * details.                                                       * 
  *                                                                * 
  ******************************************************************/
 
-BandMat BandAllocMat(integer N, integer mu, integer ml, integer smu);
+BandMatRec *BandAllocMat(integer N, integer mu, integer ml, integer smu);
 
 
 /******************************************************************
@@ -250,7 +248,7 @@ BandMat BandAllocMat(integer N, integer mu, integer ml, integer smu);
  *                                                                *
  ******************************************************************/
 
-integer BandFactor(BandMat A, integer *p);
+integer BandFactor(BandMatRec *A, integer *p);
 
 
 /******************************************************************
@@ -266,7 +264,7 @@ integer BandFactor(BandMat A, integer *p);
  *                                                                *
  ******************************************************************/
 
-void BandBacksolve(BandMat A, integer *p, N_Vector b);
+void BandBacksolve(BandMatRec *A, integer *p, N_VectorContent *b);
 
 
 /******************************************************************
@@ -278,7 +276,7 @@ void BandBacksolve(BandMat A, integer *p, N_Vector b);
  *                                                                *
  ******************************************************************/
 
-void BandZero(BandMat A);
+void BandZero(BandMatRec *A);
 
 
 /******************************************************************
@@ -292,7 +290,7 @@ void BandZero(BandMat A);
  *                                                                *
  ******************************************************************/
 
-void BandCopy(BandMat A, BandMat B, integer copymu, integer copyml);
+void BandCopy(BandMatRec *A, BandMatRec *B, integer copymu, integer copyml);
 
 
 /******************************************************************
@@ -304,7 +302,7 @@ void BandCopy(BandMat A, BandMat B, integer copymu, integer copyml);
  *                                                                *
  ******************************************************************/
 
-void BandScale(real c, BandMat A);
+void BandScale(real c, BandMatRec *A);
 
 
 /******************************************************************
@@ -316,7 +314,7 @@ void BandScale(real c, BandMat A);
  *                                                                *
  ******************************************************************/
 
-void BandAddI(BandMat A);
+void BandAddI(BandMatRec *A);
 
 
 /******************************************************************
@@ -329,7 +327,7 @@ void BandAddI(BandMat A);
  *                                                                *
  ******************************************************************/
 
-void BandFreeMat(BandMat A);
+void BandFreeMat(BandMatRec *A);
 
 
 /* Functions that use the real ** representation for a band matrix */
@@ -337,7 +335,7 @@ void BandFreeMat(BandMat A);
  
 /******************************************************************
  *                                                                *
- * The real ** storage of a band matrix (a BandMat's data)        *
+ * The real ** storage of a band matrix (a BandMatRec *'s data)        *
  *----------------------------------------------------------------*
  * With storage upper bandwidth smu and lower bandwidth ml, a[0]  *
  * is a pointer to n * (smu + ml + 1) contiguous storage          *
@@ -475,6 +473,4 @@ void bandscale(real c, real **a, integer n, integer mu, integer ml,
 void bandaddI(real **a, integer n, integer smu);
 
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace xpp::cvode_solver

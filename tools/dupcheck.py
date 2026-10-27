@@ -38,10 +38,8 @@ CORE = ROOT / "core"
 # adding an entry for new code.
 ALLOW = """\
 
-core/cvband.cpp CVBandSolve|vendored/numerical, keep: CVODE's band and dense linear solvers (cvband.cpp/cvdense.cpp), the same solve and free by the CVODE API's own design, each over its own matrix type (BandBacksolve/DenseBacksolve, BandFreeMat/DenseFreeMat); W33a looked: keep
-core/cvdense.cpp CVDenseSolve|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
-core/cvband.cpp CVBandFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
-core/cvdense.cpp CVDenseFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
+core/cvband.cpp CVBandSolve|numerical, keep: CVODE's band and dense linear solvers (cvband.cpp/cvdense.cpp), the same solve and free by the CVODE API's own design, each over its own matrix type (BandBacksolve/DenseBacksolve, BandFreeMat/DenseFreeMat); W33a looked: keep
+core/cvdense.cpp CVDenseSolve|numerical, keep: see core/cvband.cpp CVBandSolve
 core/xpp_http.cpp release|keep: each object's own shutdown signal (lock, set its flag, broadcast its condition) over its own mutex and condition; a shared helper would only take all three
 core/xpp_inbox.cpp close|keep: see core/xpp_http.cpp release
 core/graphics.cpp point_abs|keep: each _abs form is clipped then scaled for its own primitive; the same shape per primitive by design, a merge would only hide which call each makes (W33f looked again)
@@ -50,8 +48,8 @@ core/odesol2.cpp discrete|merged (W33a): the step loop they shared is odesol2.cp
 core/odesol2.cpp euler|keep: see core/odesol2.cpp discrete
 
 core/autlib3.cpp *block*|numerical, keep: Hopf/traveling-wave augmented matrices have different signs and block roles; W337 centralizes numerical kernels while formulation-specific Jacobian assembly stays in the caller
-core/cvband.cpp *block*|vendored/numerical, keep: CVODE's band/dense solvers, translated C of parallel structure by the CVODE API's own design
-core/cvdense.cpp *block*|vendored/numerical, keep: see core/cvband.cpp *block*
+core/cvband.cpp *block*|numerical, keep: CVODE's band/dense solvers, translated C of parallel structure by the CVODE API's own design
+core/cvdense.cpp *block*|numerical, keep: see core/cvband.cpp *block*
 core/xpp_math_eispack.cpp *block*|numerical, keep: EISPACK reduction/QR/QZ and SVD order retained under xpp_math (W337, #398)
 
 

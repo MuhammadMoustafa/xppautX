@@ -71,9 +71,9 @@ def args_at(text, i):
 ARGUMENT_CHECK = "CVODE's check of an argument cv2.cpp passes: a bug of ours if it fires, no file or model line"
 # (file, a regex the site's lines as written match, why it has no place)
 ALLOWED = [
-    # the vendored CVODE's checks of what cv2.cpp passes it
+    # CVODE's checks of what cv2.cpp passes it
     ('core/cvode.cpp', r'MSG_(Y0_NULL|BAD_N|BAD_LMM|BAD_ITER|BAD_ITOL|F_NULL|RELTOL_NULL|BAD_RELTOL|ABSTOL_NULL'
-     r'|BAD_ABSTOL|BAD_OPTIN|BAD_OPT|BAD_HMIN_HMAX|MEM_FAIL|BAD_EWT|CVODE_NO_MEM|YOUT_NULL|T_NULL|BAD_ITASK'
+     r'|BAD_ABSTOL|BAD_OPT|BAD_HMIN_HMAX|MEM_FAIL|BAD_EWT|CVODE_NO_MEM|YOUT_NULL|BAD_ITASK'
      r'|LINIT_NULL|LINIT_FAIL|LSETUP_NULL|LSOLVE_NULL|LFREE_NULL|DKY_NO_MEM|BAD_DKY|BAD_K|BAD_T)\b', ARGUMENT_CHECK),
     ('core/cvband.cpp', r'MSG_(MEM_FAIL|BAD_SIZES)', ARGUMENT_CHECK),
     ('core/cvdense.cpp', r'MSG_MEM_FAIL', ARGUMENT_CHECK),

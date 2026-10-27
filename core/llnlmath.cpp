@@ -14,10 +14,12 @@
 #include "llnlmath.h"
 #include "xpp_math.h"
 
+namespace xpp::cvode_solver {
 
-#define ZERO RCONST(0.0)
-#define ONE  RCONST(1.0)
-#define TWO  RCONST(2.0)
+
+#define ZERO 0.0
+#define ONE  1.0
+#define TWO  2.0
 
 
 real UnitRoundoff(void)
@@ -65,3 +67,5 @@ real RSqrt(real x)
 
   return(static_cast<real>(sqrt(static_cast<double>(x))));
 }
+
+} // namespace xpp::cvode_solver

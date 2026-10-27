@@ -24,12 +24,7 @@ ALLOW = {
     ("xpp_http.cpp", "dup2"): "platform shim: Windows _dup2",
     ("xpp_http.cpp", "write"): "platform shim: Windows _write",
     ("xpp_http.cpp", "read"): "platform shim: Windows _read",
-    ("cvode.cpp", "H_BIAS"): "vendored CVODE constant",
     ("auto_f2c.h", "doublecomplex"): "f2c's complex struct: a real type, not a second name",
-    ("cvode.cpp", "HMIN_DEFAULT"): "vendored CVODE default constant",
-    ("cvode.cpp", "HMAX_INV_DEFAULT"): "vendored CVODE default constant",
-    ("cvode.cpp", "RDIV"): "vendored CVODE default constant",
-    ("cvode.h", "Q_MAX"): "vendored CVODE default constant",
 }
 
 BUILTIN = re.compile(r"^(unsigned |signed |long |short |const )*(int|char|float|double|long|short|bool|size_t|void)\b[\s\w*]*$")

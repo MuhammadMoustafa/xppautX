@@ -13,22 +13,13 @@
 #
 # W109's stages are done (W109f, the last, 2026-10-01; docs/roadmap.md
 # "W109: the core's API in C++, in stages"): what is listed is the
-# permanent C boundary, and the vendored CVODE's headers, which keep their
-# C API until W34 (#72) decides whether SUNDIALS replaces CVODE
-# (maintainer, 2026-09-30); never add an entry for new code.
+# permanent C boundary; never add an entry for new code.
 # tools/sourcecheck.sh runs this. Usage: tools/externcheck.sh
 cd "$(dirname "$0")/.." || exit 1
 
 # "file count|why"
 ALLOW="core/xpp_window.cpp 1|xpp_window_plugin_init, the dlsym export
-core/xpp_http.cpp 1|rand_s, the C library's, which stdlib.h declares only under _CRT_RAND_S
-core/band.h 1|vendored CVODE, its own C API: W34 (#72) decides whether SUNDIALS replaces it
-core/cvband.h 1|vendored CVODE: W34 (#72) decides
-core/cvdense.h 1|vendored CVODE: W34 (#72) decides
-core/cvode.h 1|vendored CVODE: W34 (#72) decides
-core/dense.h 1|vendored CVODE: W34 (#72) decides
-core/llnlmath.h 1|vendored CVODE: W34 (#72) decides
-core/vector.h 1|vendored CVODE: W34 (#72) decides"
+core/xpp_http.cpp 1|rand_s, the C library's, which stdlib.h declares only under _CRT_RAND_S"
 
 allowed() {
   printf '%s\n' "$ALLOW" | awk -v f="$1" '$1 == f { split($2, a, "|"); print a[1]; exit }'

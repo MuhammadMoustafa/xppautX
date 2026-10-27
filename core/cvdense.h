@@ -20,9 +20,7 @@
 #include "llnltyps.h"
 #include "dense.h"
 #include "vector.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace xpp::cvode_solver {
 
  
 /******************************************************************
@@ -61,11 +59,8 @@ enum { DENSE_NJE=CVODE_IOPT_SIZE, DENSE_LRW, DENSE_LIW };
  *                                                                *
  ******************************************************************/
 
-#define CVD_MSBJ  50   
-
-#define CVD_DGMAX RCONST(0.2)  
-
- 
+inline constexpr auto CVD_MSBJ = 50;
+inline constexpr auto CVD_DGMAX = 0.2;
 /******************************************************************
  *                                                                *           
  * Type : CVDenseJacFn                                            *
@@ -75,7 +70,7 @@ enum { DENSE_NJE=CVODE_IOPT_SIZE, DENSE_LRW, DENSE_LIW };
  *                                                                *
  * N is the length of all vector arguments.                       *
  *                                                                *
- * J is the dense matrix (of type DenseMat) that will be loaded   *
+ * J is the dense matrix (of type DenseMatRec *) that will be loaded   *
  * by a CVDenseJacFn with an approximation to the Jacobian matrix *
  * J = (df_i/dy_j) at the point (t,y).                            *
  * J is preset to zero, so only the nonzero elements need to be   *
@@ -123,12 +118,12 @@ enum { DENSE_NJE=CVODE_IOPT_SIZE, DENSE_LRW, DENSE_LIW };
  * jac_data is a pointer to user data - the same as the jac_data  *
  *          parameter passed to CVDense.                          *
  *                                                                *
- * nfePtr is a pointer to the memory location containing the      *
+ * nfe_out is a pointer to the memory location containing the      *
  * CVODE problem data nfe = number of calls to f. The Jacobian    *
  * routine should update this counter by adding on the number     *
  * of f calls made in order to approximate the Jacobian, if any.  *
  * For example, if the routine calls f a total of N times, then   *
- * the update is *nfePtr += N.                                    *
+ * the update is nfe_out += N.                                    *
  *                                                                *
  * vtemp1, vtemp2, and vtemp3 are pointers to memory allocated    *
  * for vectors of length N which can be used by a CVDenseJacFn    *
@@ -136,11 +131,11 @@ enum { DENSE_NJE=CVODE_IOPT_SIZE, DENSE_LRW, DENSE_LIW };
  *                                                                *
  ******************************************************************/
   
-typedef void (*CVDenseJacFn)(integer N, DenseMat J, RhsFn f, void *f_data,
-                             real t, N_Vector y, N_Vector fy, N_Vector ewt,
+typedef void (*CVDenseJacFn)(integer N, DenseMatRec *J, RhsFn f, void *f_data,
+                             real t, N_VectorContent *y, N_VectorContent *fy, N_VectorContent *ewt,
                              real h, real uround, void *jac_data,
-                               int *nfePtr, N_Vector vtemp1,
-                             N_Vector vtemp2, N_Vector vtemp3);
+                               int &nfe_out, N_VectorContent *vtemp1,
+                             N_VectorContent *vtemp2, N_VectorContent *vtemp3);
  
  
 /******************************************************************
@@ -164,7 +159,7 @@ typedef void (*CVDenseJacFn)(integer N, DenseMat J, RhsFn f, void *f_data,
  *                                                                *
  ******************************************************************/
   
-void CVDense(void *cvode_mem, CVDenseJacFn djac, void *jac_data);
+void CVDense(CVodeMemRec *cvode_mem, CVDenseJacFn djac, void *jac_data);
  
 
 /******************************************************************
@@ -176,11 +171,9 @@ void CVDense(void *cvode_mem, CVDenseJacFn djac, void *jac_data);
  *                                                                *
  ******************************************************************/
 
-void CVDenseDQJac(integer N, DenseMat J, RhsFn f, void *f_data, real t,
-		  N_Vector y, N_Vector fy, N_Vector ewt, real h, real uround,
-		  void *jac_data,   int *nfePtr, N_Vector vtemp1,
-		  N_Vector vtemp2, N_Vector vtemp3);
+void CVDenseDQJac(integer N, DenseMatRec *J, RhsFn f, void *f_data, real t,
+		  N_VectorContent *y, N_VectorContent *fy, N_VectorContent *ewt, real h, real uround,
+		  void *jac_data,   int &nfe_out, N_VectorContent *vtemp1,
+		  N_VectorContent *vtemp2, N_VectorContent *vtemp3);
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace xpp::cvode_solver

@@ -1169,10 +1169,9 @@ external, 615 internal at -O0 (461 of them vendored EISPACK).
   fails an `extern "C"` in core/ or tests/ that its allowlist does not
   name, each entry with its reason. W109 is done (its six stages,
   W109a-f, docs/roadmap.md "W109: the core's API in C++, in stages"):
-  what the allowlist names is that permanent boundary, and the vendored
-  CVODE's seven headers (band, cvband, cvdense, cvode, dense, llnlmath,
-  vector), whose C API stays until W34 (#72) decides whether SUNDIALS
-  replaces CVODE. Code brought in from outside follows what each stage
+  what the allowlist names is that permanent boundary. The retained
+  CVODE API is C++ too, in `xpp::cvode_solver` (W511, #575). Code brought
+  in from outside follows what each stage
   did: drop the guard, put the declarations in the namespace, give the
   boundary C++ types, rename the callers (a function's module prefix
   becomes its namespace: `xpp_files_exists` is `xpp::files::exists`,
@@ -1193,8 +1192,8 @@ external, 615 internal at -O0 (461 of them vendored EISPACK).
   std::unique_ptr) for allocations the task touches, std::atomic,
   std::chrono, anonymous namespaces for file-local state. No behaviour
   change: verify.sh's checksums still guard the numerics.
-- CVODE is C++ (W27a): llnltyps.h's `bool` is C++'s own, and the header
-  refuses to be included from C (`#error`).
+- CVODE is C++ (W27a, W511): its headers and API use C++ types and
+  linkage; llnltyps.h owns its double-precision scalar and int index types.
 - `core/xpp_job.cpp` was the first file converted (std::atomic,
   std::chrono).
 

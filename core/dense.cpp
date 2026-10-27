@@ -15,21 +15,23 @@
 #include "llnlmath.h"
 #include "xpp_math.h"
 
+namespace xpp::cvode_solver {
 
-#define ZERO RCONST(0.0)
-#define ONE  RCONST(1.0)
+
+#define ZERO 0.0
+#define ONE  1.0
 
 
 /* Implementation */
 
 
-DenseMat DenseAllocMat(integer N)
+DenseMatRec *DenseAllocMat(integer N)
 {
   if (N <= 0) return(NULL);
 
-  /* The C API's raw handle (DenseFreeMat deletes it), its elements in
+  /* The solver's raw handle (DenseFreeMat deletes it), its elements in
      its own std::vectors, zeroed: data[0] points to all N*N, data[j] to the jth column. */
-  DenseMat A = new DenseMatRec();
+  DenseMatRec *A = new DenseMatRec();
   A->values.assign(N * N, ZERO);
   A->columns.resize(N);
   for (integer j=0; j < N; j++) A->columns[j] = A->values.data() + j * N;
@@ -41,39 +43,39 @@ DenseMat DenseAllocMat(integer N)
 }
 
 
-integer DenseFactor(DenseMat A, integer *p)
+integer DenseFactor(DenseMatRec *A, integer *p)
 {
   return(gefa(A->data, A->size, p));
 }
 
 
-void DenseBacksolve(DenseMat A, integer *p, N_Vector b)
+void DenseBacksolve(DenseMatRec *A, integer *p, N_VectorContent *b)
 {
   gesl(A->data, A->size, p, N_VDATA(b));
 }
 
 
-void DenseZero(DenseMat A)
+void DenseZero(DenseMatRec *A)
 {
   denzero(A->data, A->size);
 }
 
-void DenseCopy(DenseMat A, DenseMat B)
+void DenseCopy(DenseMatRec *A, DenseMatRec *B)
 {
   dencopy(A->data, B->data, A->size);
 }
 
-void DenseScale(real c, DenseMat A)
+void DenseScale(real c, DenseMatRec *A)
 {
   denscale(c, A->data, A->size);
 }
 
-void DenseAddI(DenseMat A)
+void DenseAddI(DenseMatRec *A)
 {
   denaddI(A->data, A->size);
 }
 
-void DenseFreeMat(DenseMat A)
+void DenseFreeMat(DenseMatRec *A)
 {
   delete A;
 }
@@ -228,3 +230,5 @@ void denaddI(real **a, integer n)
   
   for (i=0; i < n; i++) a[i][i] += ONE;
 }
+
+} // namespace xpp::cvode_solver

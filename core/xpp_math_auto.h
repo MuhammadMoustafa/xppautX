@@ -1,7 +1,7 @@
 #pragma once
 
 /* AUTO-specific interfaces of the numerical owner. Kept out of xpp_math.h
-   because f2c and CVODE define incompatible global real/integer types. */
+   so f2c's global types stay out of other numerical interfaces. */
 #include "auto_f2c.h"
 #include <cstdio>
 

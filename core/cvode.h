@@ -12,10 +12,11 @@
 
 #include "llnltyps.h"
 #include <string>
+#include <array>
 #include "vector.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace xpp::cvode_solver {
+
+struct CVodeMemRec;
 
 /******************************************************************
  *                                                                *
@@ -87,7 +88,7 @@ enum { NORMAL, ONE_STEP };     /* itask */
  * f takes as input the problem size N, the independent variable  *
  * value t, and the dependent variable vector y.  It stores the   * 
  * result of f(t,y) in the vector ydot.  The y and ydot arguments *
- * are of type N_Vector.                                          *
+ * are of type N_VectorContent *.                                          *
  * (Allocation of memory for ydot is handled within CVODE.)       *
  * The f_data parameter is the same as the f_data                 *
  * parameter passed by the user to the CVodeMalloc routine. This  *
@@ -97,7 +98,7 @@ enum { NORMAL, ONE_STEP };     /* itask */
  *                                                                *
  ******************************************************************/
 
-typedef void (*RhsFn)(integer N, real t, N_Vector y, N_Vector ydot,
+typedef void (*RhsFn)(integer N, real t, N_VectorContent *y, N_VectorContent *ydot,
                       void *f_data);
 
 /******************************************************************
@@ -132,7 +133,7 @@ typedef void (*RhsFn)(integer N, real t, N_Vector y, N_Vector ydot,
  * reltol  is a pointer to the relative tolerance scalar.         *
  *                                                                *
  * abstol  is a pointer to the absolute tolerance scalar or       *
- *            an N_Vector tolerance.                              *
+ *            an N_VectorContent *tolerance.                              *
  *                                                                *
  * f_data  is a pointer to user data that will be passed to the   *
  *             user's f function every time f is called.          *
@@ -156,9 +157,6 @@ typedef void (*RhsFn)(integer N, real t, N_Vector y, N_Vector ydot,
  *            If optIn is TRUE, the user should preset to 0.0 the *
  *            locations for which default values are to be used.  *
  *                                                                *
- * machEnv is a pointer to machine environment-specific           *
- *            information.                                        *
- *                                                                *
  * Note: The tolerance values may be changed in between calls to  *
  *       CVode for the same problem. These values refer to        *
  *       (*reltol) and either (*abstol), for a scalar absolute    *
@@ -172,10 +170,9 @@ typedef void (*RhsFn)(integer N, real t, N_Vector y, N_Vector ydot,
  *                                                                *
  ******************************************************************/
 
-void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
+CVodeMemRec *CVodeMalloc(integer N, RhsFn f, real t0, N_VectorContent *y0, int lmm, int iter,
                   int itol, real *reltol, void *abstol, void *f_data,
-                  bool optIn,   int iopt[], real ropt[],
-                  void *machEnv);
+                  bool optIn,   int iopt[], real ropt[]);
 
 /******************************************************************
  *                                                                *
@@ -201,8 +198,8 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
  * yout  is the computed solution vector. In NORMAL mode with no  *
  *          errors, yout=y(tout).                                 *
  *                                                                *
- * t     is a pointer to a real location. CVode sets (*t) to the  *
- *          time reached by the solver and returns yout=y(*t).    *
+ * t     is a real output reference. CVode sets t to the  *
+ *          time reached by the solver and returns yout=y(t).    *
  *                                                                *
  * itask is either NORMAL or ONE_STEP mode. These two modes have  *
  *          described above.                                      *
@@ -249,7 +246,7 @@ void *CVodeMalloc(integer N, RhsFn f, real t0, N_Vector y0, int lmm, int iter,
  *                                                                *
  ******************************************************************/
 
-int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask);
+int CVode(CVodeMemRec *cvode_mem, real tout, N_VectorContent *yout, real &t, int itask);
 
 /* CVode return values */
 
@@ -296,7 +293,7 @@ enum { SUCCESS=0, CVODE_NO_MEM=-1, ILL_INPUT=-2, TOO_MUCH_WORK=-3,
  *                                                                * 
  ******************************************************************/
 
-int CVodeDky(void *cvode_mem, real t, int k, N_Vector dky);
+int CVodeDky(CVodeMemRec *cvode_mem, real t, int k, N_VectorContent *dky);
 
 /* CVodeDky return values */
 
@@ -312,7 +309,7 @@ enum { OKAY=0, BAD_K=-1, BAD_T=-2, BAD_DKY=-3, DKY_NO_MEM=-4 };
  *                                                                *
  ******************************************************************/
 
-void CVodeFree(void *cvode_mem);
+void CVodeFree(CVodeMemRec *cvode_mem);
 
 /******************************************************************
  *                                                                *
@@ -399,18 +396,16 @@ void CVodeFree(void *cvode_mem);
 
 /* iopt, ropt array sizes */
 
-#define OPT_SIZE 40
-
+inline constexpr auto OPT_SIZE = 40;
 /* iopt and ropt offsets                                          *
  * The constants CVODE_IOPT_SIZE and CVODE_ROPT_SIZE are equal to *
  * the number of integer and real optional inputs and outputs     *
  * actually accessed in cvode.c.  The locations beyond these      *
  * values are used by the linear solvers.                         */
 
-#define CVODE_IOPT_SIZE 13
+inline constexpr auto CVODE_IOPT_SIZE = 13;
 
 /* iopt indices */
-
 enum { MAXORD, MXSTEP, MXHNIL,
        NST, NFE, NSETUPS, NNI, NCFN, NETF, QU, QCUR,
        LENRW, LENIW };
@@ -422,22 +417,20 @@ enum { ROPT_H0, ROPT_HMAX, ROPT_HMIN,
 
 /* Basic CVODE constants */
 
-#define ADAMS_Q_MAX 12            /* max value of q for lmm == ADAMS      */
-#define BDF_Q_MAX    5            /* max value of q for lmm == BDF        */
-#define Q_MAX        ADAMS_Q_MAX  /* max value of q for either lmm        */
-#define L_MAX        (Q_MAX+1)    /* max value of L for either lmm        */
-#define NUM_TESTS    5            /* number of error test quantities      */
-
+inline constexpr auto ADAMS_Q_MAX = 12;            /* max value of q for lmm == ADAMS      */
+inline constexpr auto BDF_Q_MAX = 5;            /* max value of q for lmm == BDF        */
+inline constexpr auto L_MAX = (ADAMS_Q_MAX+1);    /* max value of L for either lmm        */
+inline constexpr auto NUM_TESTS = 5;            /* number of error test quantities      */
 /******************************************************************
  *                                                                *
- * Types : struct CVodeMemRec, CVodeMem                           *
+ * Types : struct CVodeMemRec, CVodeMemRec *                           *
  *----------------------------------------------------------------*
- * The type CVodeMem is type pointer to struct CVodeMemRec. This  *
+ * The type CVodeMemRec pointer is type pointer to struct CVodeMemRec. This  *
  * structure contains fields to keep track of problem state.      *
  *                                                                *
  ******************************************************************/
 
-typedef struct CVodeMemRec {
+struct CVodeMemRec {
 
   real cv_uround;    /* machine unit roundoff */
 
@@ -454,23 +447,23 @@ typedef struct CVodeMemRec {
 
   /* Nordsieck History Array */
 
-  N_Vector cv_zn[L_MAX];  /* Nordsieck array N x (q+1),                  */
+  std::array<N_VectorContent *, L_MAX> cv_zn;  /* Nordsieck array N x (q+1),                  */
                           /* zn[j] is a vector of length N, j=0, ... , q */
                           /* zn[j] = h^j * jth derivative of the         */
                           /* interpolating polynomial                    */
 
   /* Vectors of length N */
 
-  N_Vector cv_ewt;     /* error weight vector                          */
-  N_Vector cv_y;       /* y is used as temporary storage by the solver */
+  N_VectorContent *cv_ewt;     /* error weight vector                          */
+  N_VectorContent *cv_y;       /* y is used as temporary storage by the solver */
                        /* The memory is provided by the user to CVode  */
                        /* where the vector is named yout.              */
-  N_Vector cv_acor;    /* In the context of the solution of the        */
+  N_VectorContent *cv_acor;    /* In the context of the solution of the        */
                        /* nonlinear equation, acor = y_n(m) - y_n(0).  */
                        /* On return, this vector is scaled to give     */
                        /* the estimated local error in y.              */
-  N_Vector cv_tempv;   /* temporary storage vector                     */
-  N_Vector cv_ftemp;   /* temporary storage vector                     */
+  N_VectorContent *cv_tempv;   /* temporary storage vector                     */
+  N_VectorContent *cv_ftemp;   /* temporary storage vector                     */
 
   /* Step Data */
 
@@ -532,14 +525,14 @@ typedef struct CVodeMemRec {
 
   /* Linear Solver functions to be called */
 
-  int (*cv_linit)(struct CVodeMemRec *cv_mem, bool *setupNonNull);
+  int (*cv_linit)(struct CVodeMemRec *cv_mem, bool &setupNonNull);
 
-  int (*cv_lsetup)(struct CVodeMemRec *cv_mem, int convfail, N_Vector ypred,
-		   N_Vector fpred, bool *jcurPtr, N_Vector vtemp1,
-		   N_Vector vtemp2, N_Vector vtemp3); 
+  int (*cv_lsetup)(struct CVodeMemRec *cv_mem, int convfail, N_VectorContent *ypred,
+		   N_VectorContent *fpred, bool &jcur_out, N_VectorContent *vtemp1,
+		   N_VectorContent *vtemp2, N_VectorContent *vtemp3);
 
-  int (*cv_lsolve)(struct CVodeMemRec *cv_mem, N_Vector b, N_Vector ycur,
-		   N_Vector fcur);
+  int (*cv_lsolve)(struct CVodeMemRec *cv_mem, N_VectorContent *b, N_VectorContent *ycur,
+		   N_VectorContent *fcur);
 
   void (*cv_lfree)(struct CVodeMemRec *cv_mem);
 
@@ -567,10 +560,6 @@ typedef struct CVodeMemRec {
     int *cv_iopt;  /*   int optional input, output */
   real     *cv_ropt;  /* real optional input, output     */
 
-/* Pointer to Machine Environment-Specific Information */
-
-  void *cv_machenv;
-
 /* why the last CVode call failed, as CVODE words it, and the component
    whose weighted local error was the largest when the error test or the
    corrector failed (-1 for none): cv2.cpp makes them its error (W140) */
@@ -578,7 +567,7 @@ typedef struct CVodeMemRec {
   std::string cv_error;
   long cv_error_var = -1;
 
-} *CVodeMem;
+};
 
 /******************************************************************
  *                                                                *
@@ -626,24 +615,23 @@ typedef struct CVodeMemRec {
 
 /* cv_linit return values */
 
-#define LINIT_OK        0
-#define LINIT_ERR      -1
+inline constexpr auto LINIT_OK = 0;
+inline constexpr auto LINIT_ERR = -1;
 
 /* Constants for convfail (input to cv_lsetup) */
 
-#define NO_FAILURES 0   
-#define FAIL_BAD_J  1  
-#define FAIL_OTHER  2  
-
+inline constexpr auto NO_FAILURES = 0;
+inline constexpr auto FAIL_BAD_J = 1;
+inline constexpr auto FAIL_OTHER = 2;
 /*******************************************************************
  *                                                                 *
- * int (*cv_linit)(CVodeMem cv_mem, bool *setupNonNull);           *
+ * int (*cv_linit)(CVodeMemRec *cv_mem, bool &setupNonNull);           *
  *-----------------------------------------------------------------*
  * The purpose of cv_linit is to allocate memory for the           *
  * solver-specific fields in the structure *(cv_mem->cv_lmem) and  *
  * perform any needed initializations of solver-specific memory,   *
  * such as counters/statistics. The cv_linit routine should set    *
- * *setupNonNull to be TRUE if the setup operation for the linear  *
+ * setupNonNull to be TRUE if the setup operation for the linear  *
  * solver is non-empty and FALSE if the setup operation does       *
  * nothing. An LInitFn should return LINIT_OK (== 0) if it has     *
  * successfully initialized the CVODE linear solver and LINIT_ERR  *
@@ -655,17 +643,17 @@ typedef struct CVodeMemRec {
 
 /*******************************************************************
  *                                                                 *
- * int (*cv_lsetup)(CVodeMem cv_mem, int convfail, N_Vector ypred, *
- *                  N_Vector fpred, bool *jcurPtr, N_Vector vtemp, *
- *                  N_Vector vtemp2, N_Vector vtemp3);             *
+ * int (*cv_lsetup)(CVodeMemRec *cv_mem, int convfail, N_VectorContent *ypred, *
+ *                  N_VectorContent *fpred, bool &jcur_out, N_VectorContent *vtemp, *
+ *                  N_VectorContent *vtemp2, N_VectorContent *vtemp3);             *
  *-----------------------------------------------------------------*
  * The job of cv_lsetup is to prepare the linear solver for        *
  * subsequent calls to cv_lsolve. It may re-compute Jacobian-      *
  * related data is it deems necessary. Its parameters are as       *
  * follows:                                                        *
  *                                                                 *
- * cv_mem - problem memory pointer of type CVodeMem. See the big   *
- *          typedef earlier in this file.                          *
+ * cv_mem - problem memory pointer of type CVodeMemRec *. See the big   *
+ *          struct definition earlier in this file.                          *
  *                                                                 *
  * convfail - a flag to indicate any problem that occurred during  *
  *            the solution of the nonlinear equation on the        *
@@ -680,20 +668,20 @@ typedef struct CVodeMemRec {
  *                                                                 *
  * fpred - f(tn, ypred).                                           *
  *                                                                 *
- * jcurPtr - a pointer to a boolean to be filled in by cv_lsetup.  *
- *           The function should set *jcurPtr=TRUE if its Jacobian *
+ * jcur_out - a reference to a boolean to be filled in by cv_lsetup.  *
+ *           The function should set jcur_out=TRUE if its Jacobian *
  *           data is current after the call and should set         *
- *           *jcurPtr=FALSE if its Jacobian data is not current.   *
+ *           jcur_out=FALSE if its Jacobian data is not current.   *
  *           Note: If cv_lsetup calls for re-evaluation of         *
  *           Jacobian data (based on convfail and CVODE state      *
- *           data), it should return *jcurPtr=TRUE unconditionally;*
+ *           data), it should return jcur_out=TRUE unconditionally;*
  *           otherwise an infinite loop can result.                *
  *                                                                 *
- * vtemp1 - temporary N_Vector provided for use by cv_lsetup.      *
+ * vtemp1 - temporary N_VectorContent *provided for use by cv_lsetup.      *
  *                                                                 *
- * vtemp3 - temporary N_Vector provided for use by cv_lsetup.      *
+ * vtemp3 - temporary N_VectorContent *provided for use by cv_lsetup.      *
  *                                                                 *
- * vtemp3 - temporary N_Vector provided for use by cv_lsetup.      *
+ * vtemp3 - temporary N_VectorContent *provided for use by cv_lsetup.      *
  *                                                                 *
  * The cv_lsetup routine should return 0 if successful,            *
  * a positive value for a recoverable error, and a negative value  *
@@ -703,8 +691,8 @@ typedef struct CVodeMemRec {
 
 /*******************************************************************
  *                                                                 *
- * int (*cv_lsolve)(CVodeMem cv_mem, N_Vector b, N_Vector ycur,    *
- *                  N_Vector fcur);                                *
+ * int (*cv_lsolve)(CVodeMemRec *cv_mem, N_VectorContent *b, N_VectorContent *ycur,    *
+ *                  N_VectorContent *fcur);                                *
  *-----------------------------------------------------------------*
  * cv_lsolve must solve the linear equation P x = b, where         *
  * P is some approximation to (I - gamma J), J = (df/dy)(tn,ycur)  *
@@ -719,7 +707,7 @@ typedef struct CVodeMemRec {
 
 /*******************************************************************
  *                                                                 *
- * void (*cv_lfree)(CVodeMem cv_mem);                              *
+ * void (*cv_lfree)(CVodeMemRec *cv_mem);                              *
  *-----------------------------------------------------------------*
  * cv_lfree should free up any memory allocated by the linear      *
  * solver. This routine is called once a problem has been          *
@@ -727,6 +715,4 @@ typedef struct CVodeMemRec {
  *                                                                 *
  *******************************************************************/
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace xpp::cvode_solver

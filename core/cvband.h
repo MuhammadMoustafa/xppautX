@@ -22,9 +22,7 @@
 #include "llnltyps.h"
 #include "band.h"
 #include "vector.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace xpp::cvode_solver {
 
  
 /******************************************************************
@@ -63,11 +61,8 @@ enum { BAND_NJE=CVODE_IOPT_SIZE, BAND_LRW, BAND_LIW };
  *                                                                *
  ******************************************************************/
 
-#define CVB_MSBJ  50  
-
-#define CVB_DGMAX RCONST(0.2)  
-
- 
+inline constexpr auto CVB_MSBJ = 50;
+inline constexpr auto CVB_DGMAX = 0.2;
 /******************************************************************
  *                                                                *           
  * Type : CVBandJacFn                                             *
@@ -85,7 +80,7 @@ enum { BAND_NJE=CVODE_IOPT_SIZE, BAND_LRW, BAND_LIW };
  * Jacobian. This parameter is the same as the mlower parameter   *
  * passed by the user to the CVBand function.                     *
  *                                                                *
- * J is the band matrix (of type BandMat) that will be loaded     *
+ * J is the band matrix (of type BandMatRec *) that will be loaded     *
  * by a CVBandJacFn with an approximation to the Jacobian matrix  *
  * J = (df_i/dy_j) at the point (t,y).                            *
  * J is preset to zero, so only the nonzero elements need to be   *
@@ -144,12 +139,12 @@ enum { BAND_NJE=CVODE_IOPT_SIZE, BAND_LRW, BAND_LIW };
  * jac_data is a pointer to user data - the same as the jac_data  *
  *          parameter passed to CVBand.                           *
  *                                                                *
- * nfePtr is a pointer to the memory location containing the      *
+ * nfe_out is a pointer to the memory location containing the      *
  * CVODE problem data nfe = number of calls to f. The Jacobian    *
  * routine should update this counter by adding on the number     *
  * of f calls made in order to approximate the Jacobian, if any.  *
  * For example, if the routine calls f a total of N times, then   *
- * the update is *nfePtr += N.                                    *
+ * the update is nfe_out += N.                                    *
  *                                                                *
  * vtemp1, vtemp2, and vtemp3 are pointers to memory allocated    *
  * for vectors of length N which can be used by a CVBandJacFn     *
@@ -158,10 +153,10 @@ enum { BAND_NJE=CVODE_IOPT_SIZE, BAND_LRW, BAND_LIW };
  ******************************************************************/
   
 typedef void (*CVBandJacFn)(integer N, integer mupper, integer mlower,
-                            BandMat J, RhsFn f, void *f_data, real t,
-                            N_Vector y, N_Vector fy, N_Vector ewt, real h,
-                            real uround, void *jac_data,   int *nfePtr,
-                            N_Vector vtemp1, N_Vector vtemp2, N_Vector vtemp3);
+                            BandMatRec *J, RhsFn f, void *f_data, real t,
+                            N_VectorContent *y, N_VectorContent *fy, N_VectorContent *ewt, real h,
+                            real uround, void *jac_data,   int &nfe_out,
+                            N_VectorContent *vtemp1, N_VectorContent *vtemp2, N_VectorContent *vtemp3);
  
  
 /******************************************************************
@@ -192,7 +187,7 @@ typedef void (*CVBandJacFn)(integer N, integer mupper, integer mlower,
  *                                                                *
  ******************************************************************/
   
-void CVBand(void *cvode_mem, integer mupper, integer mlower, CVBandJacFn bjac,
+void CVBand(CVodeMemRec *cvode_mem, integer mupper, integer mlower, CVBandJacFn bjac,
             void *jac_data);
  
 
@@ -205,15 +200,13 @@ void CVBand(void *cvode_mem, integer mupper, integer mlower, CVBandJacFn bjac,
  *                                                                *
  ******************************************************************/
 
-void CVBandDQJac(integer N, integer mupper, integer mlower, BandMat J,
-		 RhsFn f, void *f_data, real t, N_Vector y, N_Vector fy,
-		 N_Vector ewt, real h, real uround, void *jac_data,
-		   int *nfePtr, N_Vector vtemp1, N_Vector vtemp2,
-		 N_Vector vtemp3);
+void CVBandDQJac(integer N, integer mupper, integer mlower, BandMatRec *J,
+		 RhsFn f, void *f_data, real t, N_VectorContent *y, N_VectorContent *fy,
+		 N_VectorContent *ewt, real h, real uround, void *jac_data,
+		   int &nfe_out, N_VectorContent *vtemp1, N_VectorContent *vtemp2,
+		 N_VectorContent *vtemp3);
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace xpp::cvode_solver
 
 
 

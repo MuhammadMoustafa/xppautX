@@ -15,6 +15,8 @@
 #include "cvband.h"
 #include "llnlmath.h"
 
+namespace xpp::cvode_solver {
+
 
 /* Error Messages */
 
@@ -30,22 +32,22 @@
 
 /* Other Constants */
 
-#define MIN_INC_MULT RCONST(1000.0)
-#define ZERO         RCONST(0.0)
-#define ONE          RCONST(1.0)
-#define TWO          RCONST(2.0)
+#define MIN_INC_MULT 1000.0
+#define ZERO         0.0
+#define ONE          1.0
+#define TWO          2.0
 
 
 /******************************************************************
  *                                                                *           
- * Types : CVBandMemRec, CVBandMem                                *
+ * Types : CVBandMemRec, CVBandMemRec *                                *
  *----------------------------------------------------------------*
- * The type CVBandMem is pointer to a CVBandMemRec. This          *
+ * The type CVBandMemRec pointer is pointer to a CVBandMemRec. This          *
  * structure contains CVBand solver-specific data.                *
  *                                                                *
  ******************************************************************/
 
-typedef struct CVBandMemRec {
+struct CVBandMemRec {
 
     CVBandJacFn b_jac;      /* jac = Jacobian routine to be called      */
 
@@ -55,11 +57,11 @@ typedef struct CVBandMemRec {
 
     integer b_storage_mu;   /* upper bandwith of M = MIN(N-1,b_mu+b_ml) */
 
-    BandMat b_M;            /* M = I - gamma J, gamma = h / l1          */
+    BandMatRec *b_M;            /* M = I - gamma J, gamma = h / l1          */
 
     std::vector<integer> b_pivots; /* pivots = pivot array for PM = LU  */
 
-    BandMat b_savedJ;       /* savedJ = old Jacobian                    */
+    BandMatRec *b_savedJ;       /* savedJ = old Jacobian                    */
 
       int b_nstlj;       /* nstlj = nst at last Jacobian eval.       */
     
@@ -67,42 +69,42 @@ typedef struct CVBandMemRec {
 
     void *b_J_data;         /* J_data is passed to jac                  */
 
-} *CVBandMem;
+};
 
 
 /* CVBAND linit, lsetup, lsolve, and lfree routines */
 
-static int  CVBandInit(CVodeMem cv_mem, bool *setupNonNull);
+static int  CVBandInit(CVodeMemRec *cv_mem, bool &setupNonNull);
 
-static int  CVBandSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
-			N_Vector fpred, bool *jcurPtr, N_Vector vtemp1,
-			N_Vector vtemp2, N_Vector vtemp3);
+static int  CVBandSetup(CVodeMemRec *cv_mem, int convfail, N_VectorContent *ypred,
+			N_VectorContent *fpred, bool &jcur_out, N_VectorContent *vtemp1,
+			N_VectorContent *vtemp2, N_VectorContent *vtemp3);
 
-static int  CVBandSolve(CVodeMem cv_mem, N_Vector b, N_Vector ycur,
-			N_Vector fcur);
+static int  CVBandSolve(CVodeMemRec *cv_mem, N_VectorContent *b, N_VectorContent *ycur,
+			N_VectorContent *fcur);
 
-static void CVBandFree(CVodeMem cv_mem);
+static void CVBandFree(CVodeMemRec *cv_mem);
 
 
 /*************** CVBandDQJac *****************************************
 
  This routine generates a banded difference quotient approximation to
  the Jacobian of f(t,y).  It assumes that a band matrix of type
- BandMat is stored column-wise, and that elements within each column
+ BandMatRec *is stored column-wise, and that elements within each column
  are contiguous. This makes it possible to get the address of a column
  of J via the macro BAND_COL and to write a simple for loop to set
  each of the elements of a column in succession.
 
 **********************************************************************/
 
-void CVBandDQJac(integer N, integer mupper, integer mlower, BandMat J,
-		 RhsFn f, void *f_data, real tn, N_Vector y,
-		 N_Vector fy, N_Vector ewt, real h, real uround,
-		 void *jac_data,   int *nfePtr, N_Vector vtemp1,
-		 N_Vector vtemp2, N_Vector vtemp3)
+void CVBandDQJac(integer N, integer mupper, integer mlower, BandMatRec *J,
+		 RhsFn f, void *f_data, real tn, N_VectorContent *y,
+		 N_VectorContent *fy, N_VectorContent *ewt, real h, real uround,
+		 void *jac_data,   int &nfe_out, N_VectorContent *vtemp1,
+		 N_VectorContent *vtemp2, N_VectorContent *vtemp3)
 {
   real    fnorm, minInc, inc, inc_inv, srur;
-  N_Vector ftemp, ytemp;
+  N_VectorContent *ftemp; N_VectorContent *ytemp;
   integer group, i, j, width, ngroups, i1, i2;
   real *col_j, *ewt_data, *fy_data, *ftemp_data, *y_data, *ytemp_data;
 
@@ -155,8 +157,8 @@ void CVBandDQJac(integer N, integer mupper, integer mlower, BandMat J,
     }
   }
   
-  /* Increment counter nfe = *nfePtr */
-  *nfePtr += ngroups;
+  /* Increment counter nfe = nfe_out */
+  nfe_out += ngroups;
 }
 
 
@@ -212,14 +214,14 @@ void CVBandDQJac(integer N, integer mupper, integer mlower, BandMat J,
 
 **********************************************************************/
                   
-void CVBand(void *cvode_mem, integer mupper, integer mlower, CVBandJacFn bjac,
+void CVBand(CVodeMemRec *cvode_mem, integer mupper, integer mlower, CVBandJacFn bjac,
 	    void *jac_data)
 {
-  CVodeMem cv_mem;
-  CVBandMem cvband_mem;
+  CVodeMemRec *cv_mem;
+  CVBandMemRec *cvband_mem;
   
   /* Return immediately if cvode_mem is NULL */
-  cv_mem = static_cast<CVodeMem>(cvode_mem);
+  cv_mem = cvode_mem;
   if (cv_mem == NULL) return;  /* CVode reports this error */
 
   /* Set four main function fields in cv_mem */  
@@ -253,11 +255,11 @@ void CVBand(void *cvode_mem, integer mupper, integer mlower, CVBandJacFn bjac,
 
 **********************************************************************/
 
-static int CVBandInit(CVodeMem cv_mem, bool *setupNonNull)
+static int CVBandInit(CVodeMemRec *cv_mem, bool &setupNonNull)
 {
-  CVBandMem cvband_mem;
+  CVBandMemRec *cvband_mem;
   
-  cvband_mem = static_cast<CVBandMem>(lmem);
+  cvband_mem = static_cast<CVBandMemRec *>(lmem);
 
   /* Print error message and return if cvband_mem is NULL */
   if (cvband_mem == NULL) {
@@ -266,7 +268,7 @@ static int CVBandInit(CVodeMem cv_mem, bool *setupNonNull)
   }
 
   /* Set flag setupNonNull = TRUE */
-  *setupNonNull = TRUE;
+  setupNonNull = true;
 
   /* Test ml and mu for legality */
   if ((ml < 0) || (mu < 0) || (ml >= N) || (mu >= N)) {
@@ -306,16 +308,16 @@ static int CVBandInit(CVodeMem cv_mem, bool *setupNonNull)
 
 **********************************************************************/
 
-static int CVBandSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
-		       N_Vector fpred, bool *jcurPtr, N_Vector vtemp1,
-		       N_Vector vtemp2, N_Vector vtemp3)
+static int CVBandSetup(CVodeMemRec *cv_mem, int convfail, N_VectorContent *ypred,
+		       N_VectorContent *fpred, bool &jcur_out, N_VectorContent *vtemp1,
+		       N_VectorContent *vtemp2, N_VectorContent *vtemp3)
 {
   bool jbad, jok;
   real dgamma;
   integer ier;
-  CVBandMem   cvband_mem;
+  CVBandMemRec *   cvband_mem;
   
-  cvband_mem = static_cast<CVBandMem>(lmem);
+  cvband_mem = static_cast<CVBandMemRec *>(lmem);
 
   /* Use nst, gamma/gammap, and convfail to set J eval. flag jok */
 
@@ -327,17 +329,17 @@ static int CVBandSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
   
   if (jok) {
     /* If jok = TRUE, use saved copy of J */
-    *jcurPtr = FALSE;
+    jcur_out = false;
     BandCopy(savedJ, M, mu, ml);
   } else {
     /* If jok = FALSE, call jac routine for new J value */
     nje++;
     if (iopt != NULL) iopt[BAND_NJE] = nje;
     nstlj = nst;
-    *jcurPtr = TRUE;
+    jcur_out = true;
     BandZero(M); 
     jac(N, mu, ml, M, f, f_data, tn, ypred, fpred, ewt,
-	h, uround, J_data, &nfe, vtemp1, vtemp2, vtemp3);
+	h, uround, J_data, nfe, vtemp1, vtemp2, vtemp3);
     BandCopy(M, savedJ, mu, ml);
   }
   
@@ -360,12 +362,12 @@ static int CVBandSetup(CVodeMem cv_mem, int convfail, N_Vector ypred,
 
 **********************************************************************/
 
-static int CVBandSolve(CVodeMem cv_mem, N_Vector b, N_Vector ycur,
-		       N_Vector fcur)
+static int CVBandSolve(CVodeMemRec *cv_mem, N_VectorContent *b, N_VectorContent *ycur,
+		       N_VectorContent *fcur)
 {
-  CVBandMem cvband_mem;
+  CVBandMemRec *cvband_mem;
   
-  cvband_mem = static_cast<CVBandMem>(lmem);
+  cvband_mem = static_cast<CVBandMemRec *>(lmem);
 
   BandBacksolve(M, pivots.data(), b);
 
@@ -383,13 +385,15 @@ static int CVBandSolve(CVodeMem cv_mem, N_Vector b, N_Vector ycur,
 
 **********************************************************************/
 
-static void CVBandFree(CVodeMem cv_mem)
+static void CVBandFree(CVodeMemRec *cv_mem)
 {
-  CVBandMem cvband_mem;
+  CVBandMemRec *cvband_mem;
 
-  cvband_mem = static_cast<CVBandMem>(lmem);
+  cvband_mem = static_cast<CVBandMemRec *>(lmem);
 
   BandFreeMat(M);
   BandFreeMat(savedJ);
   delete cvband_mem;
 }
+
+} // namespace xpp::cvode_solver

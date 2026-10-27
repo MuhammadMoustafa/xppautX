@@ -7,43 +7,43 @@
  *----------------------------------------------------------------*
  * This is the header file for a generic DENSE linear solver      *
  * package. There are two sets of dense solver routines listed in *
- * this file: one set uses type DenseMat defined below and the    *
+ * this file: one set uses type DenseMatRec *defined below and the    *
  * other set uses the type real ** for dense matrix arguments.    *
  * The two sets of dense solver routines make it easy to work     *
  * with two types of dense matrices:                              *
  *                                                                *
- * (1) The DenseMat type is intended for use with large dense     *
+ * (1) The DenseMatRec *type is intended for use with large dense     *
  *     matrices whose elements/columns may be stored in           *
  *     non-contiguous memory locations or even distributed into   *
  *     different processor memories. This type may be modified to *
  *     include such distribution information. If this is done,    *
- *     then all the routines that use DenseMat must be modified   *
+ *     then all the routines that use DenseMatRec *must be modified   *
  *     to reflect the new data structure.                         *
  *                                                                *
- * (2) The set of routines that use real ** (and NOT the DenseMat *
+ * (2) The set of routines that use real ** (and NOT the DenseMatRec * *
  *     type) is intended for use with small matrices which can    *
  *     easily be allocated within a contiguous block of memory    *
  *     on a single processor.                                     *
  *                                                                *
- * Routines that work with the type DenseMat begin with "Dense".  *
+ * Routines that work with the type DenseMatRec *begin with "Dense".  *
  * The DenseAllocMat function allocates a dense matrix for use in *
- * the other DenseMat routines listed in this file. Matrix        *
+ * the other DenseMatRec *routines listed in this file. Matrix        *
  * storage details are given in the documentation for the type    *
- * DenseMat; DenseFreeMat frees it. The pivot information is an   *
+ * DenseMatRec *; DenseFreeMat frees it. The pivot information is an   *
  * array of N integers the caller keeps (cvdense.cpp holds it in  *
  * a std::vector). The DenseFactor and DenseBacksolve             *
  * routines perform the actual solution of a dense linear system. *
  * Note that the DenseBacksolve routine has a parameter b of type *
- * N_Vector. The current implementation makes use of a machine    *
+ * N_VectorContent *. The current implementation makes use of a machine    *
  * environment-specific macro (N_VDATA) which may not exist for   *
- * other implementations of the type N_Vector. Thus, the          *
+ * other implementations of the type N_VectorContent *. Thus, the          *
  * implementation of DenseBacksolve may need to change if the     *
- * type N_Vector is changed.                                      *
+ * type N_VectorContent pointer is changed.                                      *
  *                                                                * 
  * Routines that work with real ** begin with "den" (except for   *
  * the factor and solve routines which are called gefa and gesl,  *
  * respectively). The underlying matrix storage is described in   *
- * the documentation for the type DenseMat.                       *
+ * the documentation for the type DenseMatRec *.                       *
  *                                                                *
  ******************************************************************/
  
@@ -54,22 +54,20 @@
 #include "llnltyps.h"
 #include "vector.h"
 #include <vector>
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace xpp::cvode_solver {
 
  
 /******************************************************************
  *                                                                *
- * Type: DenseMat                                                 *
+ * Type: DenseMatRec *                                                 *
  *----------------------------------------------------------------*
- * The type DenseMat is defined to be a pointer to a structure    *
+ * The type DenseMatRec *is defined to be a pointer to a structure    *
  * with a size and a data field. The size field indicates the     *
  * number of columns (== number of rows) of a dense matrix, while *
  * the data field is a two dimensional array used for component   *
  * storage. The elements of a dense matrix are stored columnwise  *
  * (i.e columns are stored one on top of the other in memory). If *
- * A is of type DenseMat, then the (i,j)th element of A (with     *
+ * A is of type DenseMatRec *, then the (i,j)th element of A (with     *
  * 0 <= i,j <= size-1) is given by the expression (A->data)[j][i] *
  * or by the expression (A->data)[0][j*n+i]. The macros below     *
  * allow a user to access efficiently individual matrix           *
@@ -82,7 +80,7 @@ extern "C" {
  *                                                                *
  ******************************************************************/
 
-typedef struct DenseMatRec {
+struct DenseMatRec {
   integer size;
   real  **data;
   /* the storage data points into, freed with the matrix by DenseFreeMat:
@@ -91,10 +89,10 @@ typedef struct DenseMatRec {
      to all size*size of them and data[j] to the jth column */
   std::vector<real> values;
   std::vector<real *> columns;
-} *DenseMat;
+};
  
 
-/* DenseMat accessor macros */
+/* DenseMatRec *accessor macros */
 
  
 /******************************************************************
@@ -104,7 +102,7 @@ typedef struct DenseMatRec {
  *         a_ij = DENSE_ELEM(A,i,j);                              *
  *----------------------------------------------------------------*
  * DENSE_ELEM(A,i,j) references the (i,j)th element of the N by N *
- * DenseMat A, 0 <= i,j <= N-1.                                   *
+ * DenseMatRec *A, 0 <= i,j <= N-1.                                   *
  *                                                                *
  ******************************************************************/
 
@@ -116,7 +114,7 @@ typedef struct DenseMatRec {
  * Usage : col_j = DENSE_COL(A,j);                                *
  *----------------------------------------------------------------*
  * DENSE_COL(A,j) references the jth column of the N by N         *
- * DenseMat A, 0 <= j <= N-1. The type of the expression          *
+ * DenseMatRec *A, 0 <= j <= N-1. The type of the expression          *
  * DENSE_COL(A,j) is real *. After the assignment in the usage    *
  * above, col_j may be treated as an array indexed from 0 to N-1. *
  * The (i,j)th element of A is referenced by col_j[i].            *
@@ -126,7 +124,7 @@ typedef struct DenseMatRec {
 #define DENSE_COL(A,j) ((A->data)[j])
  
 
-/* Functions that use the DenseMat representation for a dense matrix */
+/* Functions that use the DenseMatRec *representation for a dense matrix */
 
  
 /******************************************************************
@@ -136,14 +134,14 @@ typedef struct DenseMatRec {
  *            if (A == NULL) ... memory request failed            *
  *----------------------------------------------------------------*
  * DenseAllocMat allocates memory for an N by N dense matrix and  *
- * returns the storage allocated (type DenseMat). DenseAllocMat   *
+ * returns the storage allocated (type DenseMatRec *). DenseAllocMat   *
  * returns NULL if the request for matrix storage cannot be       *
- * satisfied. See the above documentation for the type DenseMat   *
+ * satisfied. See the above documentation for the type DenseMatRec *   *
  * for matrix storage details.                                    * 
  *                                                                * 
  ******************************************************************/
 
-DenseMat DenseAllocMat(integer N);
+DenseMatRec *DenseAllocMat(integer N);
 
 
 /******************************************************************
@@ -176,7 +174,7 @@ DenseMat DenseAllocMat(integer N);
  *                                                                *
  ******************************************************************/
 
-integer DenseFactor(DenseMat A, integer *p);
+integer DenseFactor(DenseMatRec *A, integer *p);
 
 
 /******************************************************************
@@ -192,7 +190,7 @@ integer DenseFactor(DenseMat A, integer *p);
  *                                                                *
  ******************************************************************/
 
-void DenseBacksolve(DenseMat A, integer *p, N_Vector b);
+void DenseBacksolve(DenseMatRec *A, integer *p, N_VectorContent *b);
 
 
 /******************************************************************
@@ -204,7 +202,7 @@ void DenseBacksolve(DenseMat A, integer *p, N_Vector b);
  *                                                                *
  ******************************************************************/
 
-void DenseZero(DenseMat A);
+void DenseZero(DenseMatRec *A);
 
 
 /******************************************************************
@@ -217,7 +215,7 @@ void DenseZero(DenseMat A);
  *                                                                *
  ******************************************************************/
 
-void DenseCopy(DenseMat A, DenseMat B);
+void DenseCopy(DenseMatRec *A, DenseMatRec *B);
 
 
 /******************************************************************
@@ -230,7 +228,7 @@ void DenseCopy(DenseMat A, DenseMat B);
  *                                                                *
  ******************************************************************/
 
-void DenseScale(real c, DenseMat A);
+void DenseScale(real c, DenseMatRec *A);
 
 
 /******************************************************************
@@ -243,7 +241,7 @@ void DenseScale(real c, DenseMat A);
  *                                                                *
  ******************************************************************/
 
-void DenseAddI(DenseMat A);
+void DenseAddI(DenseMatRec *A);
 
 
 /******************************************************************
@@ -256,7 +254,7 @@ void DenseAddI(DenseMat A);
  *                                                                *
  ******************************************************************/
 
-void DenseFreeMat(DenseMat A);
+void DenseFreeMat(DenseMatRec *A);
 
 
 /* Functions that use the real ** representation for a dense matrix */
@@ -366,6 +364,4 @@ void denscale(real c, real **a, integer n);
 void denaddI(real **a, integer n);
 
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace xpp::cvode_solver
