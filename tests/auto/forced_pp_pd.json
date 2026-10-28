@@ -40,7 +40,7 @@
       "kind": "periodic",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 1
       },
       "parameter": "m",
@@ -65,7 +65,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "cycles",
-        "type": "PD",
+        "type": "period_doubling",
         "index": 1
       },
       "parameters": [
@@ -93,7 +93,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "cycles",
-        "type": "PD",
+        "type": "period_doubling",
         "index": 1
       },
       "parameters": [
@@ -122,7 +122,7 @@
       "reference": ".xppaut",
       "run": "pd_up",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 1,
       "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -130,7 +130,7 @@
       "reference": ".xppaut",
       "run": "pd_down",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 1,
       "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -138,7 +138,7 @@
       "reference": ".auto07p",
       "run": "pd_up",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 1,
       "cause": "W437 (#499): both programs use abs(EV(3))-1 on the PD curve (core/auto_codim.cpp; AUTO-07p periodic.f90:2046-2053). Near this upper R2 the imposed and remaining -1 multipliers coalesce and split into a complex pair; at the reported points their radii give tests about +2.03e-6 in xppautX and -1.00e-5 in AUTO-07p. At EPSS 1e-7, eight location iterations at branch 3 point 205 oscillate between real and complex near-double multipliers (SPB values 7.15e-6, 3.60e-5, 4.17e-5, -5.46e-5, -7.96e-5, 2.03e-6, 7.41e-6, 2.11e-5), then report NOTE:Possible special point; rollback restores the pre-location orbit and no R2 is labelled. Halving DSMAX changes the par2 discrepancy from -2.27e-5 to -1.15e-5; NTST 160 changes its sign to +2.80e-5. This is a finite-precision, ill-conditioned Floquet-test/location-history discrepancy, not the phase condition: the curve itself still agrees. The measured sweep and test definitions are in docs/auto-references.md W437. No tolerance is widened.",
       "quantity": "par2"
@@ -147,7 +147,7 @@
       "reference": ".auto07p",
       "run": "pd_up",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 1,
       "cause": "W474 (#537): the collocation solve now eliminates in AUTO-07p's nested-dissection order, and this R2's location, traced for par2 above, moves with the order: at the description's EPSL=EPSU=1e-7 it is located at stored point 209 instead of 210, par 3.55e-6 and norm 3.53e-6 from AUTO-07p's (AUTO2000's chain order: 1.57e-6 and 1.56e-6; a tree split at mid=(lo+hi-1)/2 labels no R2 on pd_up at all). With EPSL=EPSU=1e-10 on pd_up the tree's R2 par is 6.2e-7 from AUTO-07p's, the chain's 2.4e-6: where Newton stops at an ill-conditioned location, not the solve's accuracy. No tolerance is widened.",
       "quantity": "par"
@@ -156,7 +156,7 @@
       "reference": ".auto07p",
       "run": "pd_up",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 1,
       "cause": "W474 (#537): the collocation solve now eliminates in AUTO-07p's nested-dissection order, and this R2's location, traced for par2 above, moves with the order: at the description's EPSL=EPSU=1e-7 it is located at stored point 209 instead of 210, par 3.55e-6 and norm 3.53e-6 from AUTO-07p's (AUTO2000's chain order: 1.57e-6 and 1.56e-6; a tree split at mid=(lo+hi-1)/2 labels no R2 on pd_up at all). With EPSL=EPSU=1e-10 on pd_up the tree's R2 par is 6.2e-7 from AUTO-07p's, the chain's 2.4e-6: where Newton stops at an ill-conditioned location, not the solve's accuracy. No tolerance is widened.",
       "quantity": "norm"
@@ -165,7 +165,7 @@
       "reference": ".auto07p",
       "run": "pd_down",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 1,
       "cause": "W474 (#537): at this R2 the two multipliers near -1 coalesce, so their split moves as the square root of a perturbation, and the 1e-7 Newton tolerance alone allows about 3e-4. In AUTO-07p's nested-dissection order they come out real, -1.00032 and -0.99970, against AUTO-07p's -1 +- 4.9e-5i (AUTO2000's chain order: 5.7e-5 off; a tree split at mid=(lo+hi-1)/2: 4.7e-5). With EPSL=EPSU=1e-10 on pd_down the chain and the tree both give -1.0000037 +- 3.2e-6i and +- 1.0e-5i, within the tolerance. No tolerance is widened.",
       "quantity": "spectrum"

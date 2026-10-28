@@ -141,17 +141,17 @@ constexpr std::array<TwoParameterRow, 9> two_parameter_rows = {{
   {[](xpp::AutoProblem p) { return p == xpp::AutoProblem::WaveSteady; },
    {xpp::AutoPointKind::Hopf, xpp::AutoPointKind::Regular}, [] { return algebraic(fnhw, stpnhw); }},
   {[](xpp::AutoProblem p) { return p == xpp::AutoProblem::DiscreteMap; },
-   {xpp::AutoPointKind::Torus, xpp::AutoPointKind::Regular}, [] { return algebraic(fnhb, stpnhb); }},
+   {xpp::AutoPointKind::NeimarkSacker, xpp::AutoPointKind::Regular}, [] { return algebraic(fnhb, stpnhb); }},
   /* folds, period doublings and tori of periodic orbits */
   {[](xpp::AutoProblem p) { return p == xpp::AutoProblem::Periodic; },
-   {xpp::AutoPointKind::PeriodicFold, xpp::AutoPointKind::PeriodicBranch}, [] { return boundary(fnpl, bcpl, icpl, stpnpl); }},
+   {xpp::AutoPointKind::CycleFold, xpp::AutoPointKind::CycleBranch}, [] { return boundary(fnpl, bcpl, icpl, stpnpl); }},
   {[](xpp::AutoProblem p) { return p == xpp::AutoProblem::Periodic; },
    {xpp::AutoPointKind::PeriodDoubling, xpp::AutoPointKind::Regular}, [] { return boundary(fnpd, bcpd, icpd, stpnpd); }},
   {[](xpp::AutoProblem p) { return p == xpp::AutoProblem::Periodic; },
-   {xpp::AutoPointKind::Torus, xpp::AutoPointKind::Regular}, [] { return boundary(fntr, bctr, ictr, stpntr); }},
+   {xpp::AutoPointKind::NeimarkSacker, xpp::AutoPointKind::Regular}, [] { return boundary(fntr, bctr, ictr, stpntr); }},
   /* folds of boundary value problems */
   {[](xpp::AutoProblem p) { return p == xpp::AutoProblem::BoundaryValue; },
-   {xpp::AutoPointKind::PeriodicFold, xpp::AutoPointKind::PeriodicBranch}, [] { return boundary(fnbl, bcbl, icbl, stpnbl); }},
+   {xpp::AutoPointKind::CycleFold, xpp::AutoPointKind::CycleBranch}, [] { return boundary(fnbl, bcbl, icbl, stpnbl); }},
 }};
 
 std::optional<function_list> two_parameter(const iap_type &iap)
@@ -179,8 +179,8 @@ std::optional<function_list> two_parameter(const iap_type &iap)
 function_list problem_functions(const iap_type &iap)
 {
   const auto named = [](xpp::AutoPointCode c) {
-    const std::string symbol = xpp::auto_point_symbol(c);
-    return symbol == "  " ? std::string("a regular point") : "a point of type " + symbol;
+    const std::string_view name = xpp::auto_point_kind_name(c.kind);
+    return name == "regular" ? std::string("a regular point") : "a point of type " + std::string(name);
   };
   const auto &s=*iap.lib->session;
   if(std::abs(iap.isw)==2 && s.auto_state.run.icp[0]==s.auto_state.run.icp[1])
@@ -191,14 +191,14 @@ function_list problem_functions(const iap_type &iap)
   if(label && iap.ips==xpp::AutoProblem::Periodic && std::abs(iap.isw)!=2 &&
      !xpp::point_is_periodic(xpp::get_bif_type(label->ibr,label->ntot)) &&
      !iap.itp.is(xpp::AutoPointKind::Hopf) && !iap.itp.started_from(xpp::AutoPointKind::Hopf))
-    xpp::auto_fail(xpp::format("Restart label {} has kind {}; a periodic run needs a Hopf point (HB) or a periodic orbit; select one of those points",iap.irs,named(iap.itp)));
+    xpp::auto_fail(xpp::format("Restart label {} has kind {}; a periodic run needs a hopf point or a periodic orbit; select one of those points",iap.irs,named(iap.itp)));
   if (auto list = one_parameter(iap)) return *list;
   if (auto list = two_parameter(iap)) return *list;
   const char *continuation = std::abs(iap.isw) == 2 ? "a two-parameter continuation (ISW 2)"
                              : iap.isw < 0          ? "a branch switch (ISW -1)"
                                                     : "a one-parameter continuation (ISW 1)";
-  xpp::auto_fail(xpp::format("Restart label {}: AUTO has no {} of {} from {} (ITP {}){}; select a point of a kind supported by the run (two-parameter starts need a fold, Hopf, period doubling, torus or branch point)", iap.irs, continuation,
-                             xpp::auto_problem_description(iap.ips), named(iap.itp), xpp::auto_point_encode(iap.itp),
+  xpp::auto_fail(xpp::format("Restart label {}: AUTO has no {} of {} from {}{}; select a point of a kind supported by the run (two-parameter starts need a fold, Hopf, period doubling, torus or branch point)", iap.irs, continuation,
+                             xpp::auto_problem_description(iap.ips), named(iap.itp),
                              iap.itp.start == xpp::AutoPointKind::Regular ? ""
                                  : ", continued from " + named({iap.itp.start, xpp::AutoPointKind::Regular})));
 }

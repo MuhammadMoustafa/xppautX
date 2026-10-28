@@ -29,7 +29,7 @@ const rules: Record<NumKey, NumRule> = {
 };
 
 const settings: AutoSettings = {
-  special_points: {BT:true,CP:true,ZH:true,GH:true,R1:true,R2:true,R3:true,R4:true,LPD:true,LTR:true,PTR:true,TTR:true},
+  special_points: {bogdanov_takens:true,cusp:true,zero_hopf:true,generalized_hopf:true,resonance_1_1:true,resonance_1_2:true,resonance_1_3:true,resonance_1_4:true,fold_flip:true,fold_neimark_sacker:true,flip_neimark_sacker:true,double_neimark_sacker:true},
   numerics: {ntst: 15, nmx: 200, npr: 50, ncol: 4, ds: 0.02, dsmin: 0.001, dsmax: 0.5, rl0: 0, rl1: 2, a0: 0, a1: 1000,
     epsl: 1e-4, epsu: 1e-4, epss: 1e-4, iad: 3, mxbf: 5, iid: 2, itmx: 8, itnw: 7, nwtn: 3, iads: 1, suppbp: false},
   axes: {plot: 'maximum_and_minimum', var: 'V', par1: 'iapp', par2: 'phi', xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4},
@@ -46,10 +46,10 @@ const settings: AutoSettings = {
 
 test('codim-2 detection booleans stay named while queued', () => {
   const core = ev(READY, {ev: 'autosettings', ...settings});
-  const sent = act(core, {type: 'sent', patch: {special_points: {GH: false}}, ahead: 0});
-  assert.equal(shownSettings(sent.autoSettings)!.special_points.GH, false);
-  assert.equal(shownSettings(sent.autoSettings)!.special_points.BT, true);
-  assert.ok(pendingFields(sent.autoSettings).has('special_points.GH'));
+  const sent = act(core, {type: 'sent', patch: {special_points: {generalized_hopf: false}}, ahead: 0});
+  assert.equal(shownSettings(sent.autoSettings)!.special_points.generalized_hopf, false);
+  assert.equal(shownSettings(sent.autoSettings)!.special_points.bogdanov_takens, true);
+  assert.ok(pendingFields(sent.autoSettings).has('special_points.generalized_hopf'));
 });
 
 test('the event is the store; an edit sent during a run shows until its own idle', () => {

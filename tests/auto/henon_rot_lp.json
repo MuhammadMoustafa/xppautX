@@ -41,7 +41,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "steady",
-        "type": "LP",
+        "type": "fold",
         "index": 1
       },
       "parameters": [
@@ -69,7 +69,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "steady",
-        "type": "LP",
+        "type": "fold",
         "index": 1
       },
       "parameters": [

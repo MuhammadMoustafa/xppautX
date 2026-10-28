@@ -711,6 +711,25 @@ const CommandInfo *command_of(const char *line)
 }
 
 /* hello's "commands": the table, a key's kind left to its menu */
+/* hello's "point_types": each point type's name, label and mark, the one table of core/auto_codes.h (Pending is run-time only) */
+void buf_point_types(std::string &b)
+{
+    BUF_LIT(b, ",\"point_types\":[");
+    bool first = true;
+    for (const xpp::AutoPointName &p : xpp::auto_point_names) {
+        if (p.kind == xpp::AutoPointKind::Pending) continue;
+        buf_format(b, "{}{{\"name\":", first ? "" : ",");
+        buf_str(b, p.name);
+        BUF_LIT(b, ",\"label\":");
+        buf_str(b, p.label);
+        BUF_LIT(b, ",\"mark\":");
+        buf_str(b, p.mark);
+        BUF_LIT(b, "}");
+        first = false;
+    }
+    BUF_LIT(b, "]");
+}
+
 void buf_commands(std::string &b)
 {
     BUF_LIT(b, ",\"commands\":[");
@@ -1244,6 +1263,7 @@ void send_hello(xpp::Session &s)
     }
     BUF_LIT(b, "}");
     buf_commands(b);
+    buf_point_types(b);
     /* the lists a form field *n picks from */
     BUF_LIT(b, ",\"lists\":[[\"T\"");
     for (i = 0; i < m.neq; i++) {

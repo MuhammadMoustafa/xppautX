@@ -26,7 +26,7 @@
       "kind": "periodic",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 1
       },
       "parameter": "par0",
@@ -52,7 +52,7 @@
       "reference": ".xppaut",
       "run": "cycles",
       "side": "ours",
-      "type": "LP",
+      "type": "fold",
       "index": 2,
       "cause": "W326 (#387), finding #47: restoring the converged state after a failed fold location at cycles point 27 changes the subsequent path and finds a second LP. XPPAUT 8.0 leaves the displaced iterate and finds only its first LP. These near-homoclinic cycles at NTST 15 are underresolved; AUTO-07p also finds two mesh-dependent LPs, and at NTST 60 and EPS 1e-9 neither program finds an LP up to period 84.4. This extra point is traced to the restore, not an increased tolerance. docs/auto-references.md."
     },
@@ -60,7 +60,7 @@
       "reference": ".xppaut",
       "run": "cycles",
       "side": "ours",
-      "type": "LP",
+      "type": "fold",
       "index": 1,
       "cause": "W437 (#499), finding 73: XPPAUT 8.0 ICPS uses integral(u*upold), while xppautX and AUTO-07p center it on the computed orbit. On this underresolved NTST 15 near-homoclinic branch XPPAUT's first LP has norm 0.4280795, period 64.656143027; the centered discrete equations give norm 0.41805529, period 79.89358, agreeing with AUTO-07p. These mesh-dependent LPs disappear at NTST 60/EPS 1e-9. This deliberate phase-condition difference is recorded in docs/auto-references.md and docs/xppaut-findings.md#73.",
       "quantity": "norm"
@@ -69,7 +69,7 @@
       "reference": ".xppaut",
       "run": "cycles",
       "side": "ours",
-      "type": "LP",
+      "type": "fold",
       "index": 1,
       "cause": "W437 (#499), finding 73: XPPAUT 8.0 ICPS uses integral(u*upold), while xppautX and AUTO-07p center it on the computed orbit. On this underresolved NTST 15 near-homoclinic branch XPPAUT's first LP has norm 0.4280795, period 64.656143027; the centered discrete equations give norm 0.41805529, period 79.89358, agreeing with AUTO-07p. These mesh-dependent LPs disappear at NTST 60/EPS 1e-9. This deliberate phase-condition difference is recorded in docs/auto-references.md and docs/xppaut-findings.md#73.",
       "quantity": "period"

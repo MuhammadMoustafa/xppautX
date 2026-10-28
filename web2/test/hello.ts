@@ -13,6 +13,8 @@ export const xppColor = (i: number): CoreColor =>
   ['foreground', '#ff0000', '#f06400', '#ffa500', '#ffcd00', '#c8c800', '#c8eb4b', '#00e100', '#00c8c8', '#0000ff', '#a020f0'][i];
 
 /** the core's default curve style */
+import type {PointType} from '../src/protocol/types';
+
 export const LINE: LineStyle = {draw: 'line', dash: 'solid', width: 1, marker: 'circle', marker_size: 3};
 
 /** the dash patterns and marker glyphs the core's hello carries (core/picture.cpp line_styles_json) */
@@ -83,8 +85,37 @@ const RESERVED = [...readFileSync('../core/xpp_keymap.h', 'utf8').match(/RESERVE
 
 const layer = (keys: string, kinds: string, ids: string[]) => ({items: ids, keys, kinds, hints: ids, ids});
 
+/** AUTO's point types as hello gives them (core/auto_codes.h's table) */
+export const POINT_TYPES: PointType[] = [
+  {name: 'regular', label: 'Regular', mark: ''},
+  {name: 'branch_point', label: 'Branch point', mark: 'BP'},
+  {name: 'fold', label: 'Fold', mark: 'LP'},
+  {name: 'hopf', label: 'Andronov\u2013Hopf', mark: 'AH'},
+  {name: 'output', label: 'Output point', mark: ''},
+  {name: 'cycle_fold', label: 'Fold of cycles', mark: 'LPC'},
+  {name: 'cycle_branch_point', label: 'Branch point of cycles', mark: 'BPC'},
+  {name: 'period_doubling', label: 'Period doubling (flip)', mark: 'PD'},
+  {name: 'neimark_sacker', label: 'Neimark\u2013Sacker (torus)', mark: 'NS'},
+  {name: 'end', label: 'End of branch', mark: 'EP'},
+  {name: 'user_point', label: 'User point', mark: 'UZ'},
+  {name: 'bogdanov_takens', label: 'Bogdanov\u2013Takens', mark: 'BT'},
+  {name: 'cusp', label: 'Cusp', mark: 'CP'},
+  {name: 'zero_hopf', label: 'Zero-Hopf (fold\u2013Hopf)', mark: 'ZH'},
+  {name: 'generalized_hopf', label: 'Generalized Hopf (Bautin)', mark: 'GH'},
+  {name: 'resonance_1_1', label: 'Resonance 1:1', mark: 'R1'},
+  {name: 'resonance_1_2', label: 'Resonance 1:2', mark: 'R2'},
+  {name: 'resonance_1_3', label: 'Resonance 1:3', mark: 'R3'},
+  {name: 'resonance_1_4', label: 'Resonance 1:4', mark: 'R4'},
+  {name: 'fold_flip', label: 'Fold\u2013flip', mark: 'LPPD'},
+  {name: 'fold_neimark_sacker', label: 'Fold\u2013Neimark\u2013Sacker', mark: 'LPNS'},
+  {name: 'flip_neimark_sacker', label: 'Flip\u2013Neimark\u2013Sacker', mark: 'PDNS'},
+  {name: 'double_neimark_sacker', label: 'Double Neimark\u2013Sacker', mark: 'NSNS'},
+  {name: 'no_convergence', label: 'No convergence', mark: 'MX'},
+];
+
 export const HELLO: HelloEvent = {
   ev: 'hello',
+  point_types: POINT_TYPES,
   state_inspection: {tail_intervals: 10}, protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: [],
   output_names: {par: 'lecar.par', ic: 'lecar.ic', csv: 'lecar.csv', curves: 'lecar-curves.csv'},
   continue: {grid_tolerance: 1e-6},

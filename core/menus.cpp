@@ -1,6 +1,7 @@
 /* Menu labels and hint strings. Generated from upstream menus.h; the
    MENUDEF widget struct lives in menus.h. */
 #include "menus.h"
+#include "auto_codes.h"
 #include "command_table.h"
 #include "menudrive.h"
 
@@ -510,7 +511,13 @@ static const char *const auto_file_items[]={"Import orbit","Save diagram","Load 
   "draw laBled","lOad branch","eXport CSV","Import diagram"};
 const XppMenu menu_auto_file = XPP_MENU("auto", "File", auto_file_items, "islpvrcwadtneboxf", "ddddddddddvxdxddd", auto_file_hint, -1);
 
-static const char *const auto_special_items[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
+// the grab-by-type menu: its items are the point types' names (query_special shows their labels)
+// the grab-by-type menu: its items are the point types' labels, in the order auto_grab_kinds (auto_nox.cpp) gives
+static const char *const auto_special_items[]={
+  auto_point_kind_label(AutoPointKind::BranchPoint).data(), auto_point_kind_label(AutoPointKind::End).data(),
+  auto_point_kind_label(AutoPointKind::Hopf).data(), auto_point_kind_label(AutoPointKind::Fold).data(),
+  auto_point_kind_label(AutoPointKind::MaxSteps).data(), auto_point_kind_label(AutoPointKind::PeriodDoubling).data(),
+  auto_point_kind_label(AutoPointKind::NeimarkSacker).data(), auto_point_kind_label(AutoPointKind::UserZero).data()};
 const XppMenu menu_auto_special = XPP_MENU("auto", "", auto_special_items, "behlmptu", "vvvvvvvv", aspecial_hint, -1);
 
 } // namespace xpp

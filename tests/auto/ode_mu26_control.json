@@ -63,7 +63,7 @@
       "kind": "periodic",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 1
       },
       "parameter": "SmIapp",
@@ -88,7 +88,7 @@
       "kind": "periodic",
       "start": {
         "run": "cycles",
-        "type": "EP",
+        "type": "end",
         "index": 1
       },
       "parameter": "SmIapp",
@@ -132,7 +132,7 @@
       "reference": ".auto07p",
       "run": "to_snic",
       "side": "ours",
-      "type": "UZ",
+      "type": "user_point",
       "index": 2,
       "cause": "W437 (#499): the 1 pA UZ parameter, norm and period agree, but its neutral Floquet multiplier does not at the requested NTST 50. A saved-orbit sweep at NTST 50/100/200/400 is nonmonotonic. At NTST 200, changing only xppautX's derivative mode changes the neutral multiplier from 1.00003353892 (difference) to 1.0000000011 (exact) with negligible orbit/norm change. The exact neutral multiplier of this autonomous orbit is 1; this isolates finite-difference sensitivity amplified by the long-period variational problem, with coarse-mesh effects too. Both references retain their original finite-difference outputs. docs/auto-references.md W437 and docs/studies/w437-reference-traces.json record all meshes, including the negative/nonconvergent results. No tolerance or production setting is changed; this quantity is traced, not declared equal.",
       "quantity": "spectrum"
@@ -141,7 +141,7 @@
       "reference": ".auto07p",
       "run": "to_snic",
       "side": "ours",
-      "type": "UZ",
+      "type": "user_point",
       "index": 3,
       "cause": "W437 (#499): the 0.1 pA UZ parameter, norm and period agree, but its neutral Floquet multiplier does not at the requested NTST 50. A saved-orbit sweep at NTST 50/100/200/400 is nonmonotonic. At NTST 200, changing only xppautX's derivative mode changes the neutral multiplier from 1.00003231281 (difference) to 0.999999996401 (exact) with negligible orbit/norm change. The exact neutral multiplier of this autonomous orbit is 1; this isolates finite-difference sensitivity amplified by the long-period variational problem, with coarse-mesh effects too. Both references retain their original finite-difference outputs. docs/auto-references.md W437 and docs/studies/w437-reference-traces.json record all meshes, including the negative/nonconvergent results. No tolerance or production setting is changed; this quantity is traced, not declared equal.",
       "quantity": "spectrum"
@@ -150,7 +150,7 @@
       "reference": ".auto07p",
       "run": "to_snic",
       "side": "ours",
-      "type": "UZ",
+      "type": "user_point",
       "index": 4,
       "cause": "W437 (#499): the 0.07 pA UZ parameter, norm and period agree, but its neutral Floquet multiplier does not at the requested NTST 50. A saved-orbit sweep at NTST 50/100/200/400 is nonmonotonic. At NTST 200, changing only xppautX's derivative mode changes the neutral multiplier from 1.00003825078 (difference) to 0.999999999967 (exact) with negligible orbit/norm change. The exact neutral multiplier of this autonomous orbit is 1; this isolates finite-difference sensitivity amplified by the long-period variational problem, with coarse-mesh effects too. Both references retain their original finite-difference outputs. docs/auto-references.md W437 and docs/studies/w437-reference-traces.json record all meshes, including the negative/nonconvergent results. No tolerance or production setting is changed; this quantity is traced, not declared equal.",
       "quantity": "spectrum"
@@ -159,7 +159,7 @@
       "reference": ".xppaut",
       "run": "to_snic",
       "side": "ours",
-      "type": "UZ",
+      "type": "user_point",
       "index": 2,
       "cause": "W437 (#499), findings 47 and 73: the marked XPPAUT 8.0 control continuation labels 5 pA, fails to locate 1 pA, labels a spurious LP at 0.9990257 pA, then reverses and labels 5 pA a second time. It never reaches 0.1 or 0.07 pA. The original uncentered ICPS condition and failed-location iterate left installed explain this native reproduction; the unmarked XPPAUT run reaches the SNIC. xppautX's centered condition and rollback reach all four marks without reversal. The actual native reference points and diagnostics are retained; no tolerance is changed. docs/auto-references.md W437."
     },
@@ -167,7 +167,7 @@
       "reference": ".xppaut",
       "run": "to_snic",
       "side": "ours",
-      "type": "UZ",
+      "type": "user_point",
       "index": 3,
       "cause": "W437 (#499), findings 47 and 73: the marked XPPAUT 8.0 control continuation labels 5 pA, fails to locate 1 pA, labels a spurious LP at 0.9990257 pA, then reverses and labels 5 pA a second time. It never reaches 0.1 or 0.07 pA. The original uncentered ICPS condition and failed-location iterate left installed explain this native reproduction; the unmarked XPPAUT run reaches the SNIC. xppautX's centered condition and rollback reach all four marks without reversal. The actual native reference points and diagnostics are retained; no tolerance is changed. docs/auto-references.md W437."
     },
@@ -175,7 +175,7 @@
       "reference": ".xppaut",
       "run": "to_snic",
       "side": "ours",
-      "type": "UZ",
+      "type": "user_point",
       "index": 4,
       "cause": "W437 (#499), findings 47 and 73: the marked XPPAUT 8.0 control continuation labels 5 pA, fails to locate 1 pA, labels a spurious LP at 0.9990257 pA, then reverses and labels 5 pA a second time. It never reaches 0.1 or 0.07 pA. The original uncentered ICPS condition and failed-location iterate left installed explain this native reproduction; the unmarked XPPAUT run reaches the SNIC. xppautX's centered condition and rollback reach all four marks without reversal. The actual native reference points and diagnostics are retained; no tolerance is changed. docs/auto-references.md W437."
     },
@@ -183,7 +183,7 @@
       "reference": ".xppaut",
       "run": "to_snic",
       "side": "reference",
-      "type": "UZ",
+      "type": "user_point",
       "index": 2,
       "cause": "W437 (#499), findings 47 and 73: the marked XPPAUT 8.0 control continuation labels 5 pA, fails to locate 1 pA, labels a spurious LP at 0.9990257 pA, then reverses and labels 5 pA a second time. It never reaches 0.1 or 0.07 pA. The original uncentered ICPS condition and failed-location iterate left installed explain this native reproduction; the unmarked XPPAUT run reaches the SNIC. xppautX's centered condition and rollback reach all four marks without reversal. The actual native reference points and diagnostics are retained; no tolerance is changed. docs/auto-references.md W437."
     },
@@ -191,7 +191,7 @@
       "reference": ".xppaut",
       "run": "to_snic",
       "side": "reference",
-      "type": "LP",
+      "type": "fold",
       "index": 1,
       "cause": "W437 (#499), findings 47 and 73: the marked XPPAUT 8.0 control continuation labels 5 pA, fails to locate 1 pA, labels a spurious LP at 0.9990257 pA, then reverses and labels 5 pA a second time. It never reaches 0.1 or 0.07 pA. The original uncentered ICPS condition and failed-location iterate left installed explain this native reproduction; the unmarked XPPAUT run reaches the SNIC. xppautX's centered condition and rollback reach all four marks without reversal. The actual native reference points and diagnostics are retained; no tolerance is changed. docs/auto-references.md W437."
     }

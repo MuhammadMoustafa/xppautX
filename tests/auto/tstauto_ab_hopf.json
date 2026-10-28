@@ -26,7 +26,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 1
       },
       "parameters": [
@@ -50,7 +50,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 1
       },
       "parameters": [
@@ -75,7 +75,7 @@
       "reference": ".auto07p",
       "run": "hopf_up",
       "side": "reference",
-      "type": "GH",
+      "type": "generalized_hopf",
       "index": 1,
       "cause": "AUTO-07p labels three GH near p0=0.2284..0.2316,p1=11.31..11.23. FNGHEQ DERIV2a omits subtraction of 2*F(u), equilibrium.f90:835-844, magnifying the Newton residual by h^-2. W364 removes that constant term. Independent exact multilinear derivatives (tests/auto/codim_coefficients.py) give l1=-0.3606957776 at t=5.5,p0=0.2317911 and no zero in this neighbourhood. Ours labels no GH here; GH detection is checked against the Bautin normal form. See docs/auto07p-findings.md, finding 2."
     },
@@ -83,7 +83,7 @@
       "reference": ".auto07p",
       "run": "hopf_up",
       "side": "reference",
-      "type": "GH",
+      "type": "generalized_hopf",
       "index": 2,
       "cause": "AUTO-07p labels three GH near p0=0.2284..0.2316,p1=11.31..11.23. FNGHEQ DERIV2a omits subtraction of 2*F(u), equilibrium.f90:835-844, magnifying the Newton residual by h^-2. W364 removes that constant term. Independent exact multilinear derivatives (tests/auto/codim_coefficients.py) give l1=-0.3606957776 at t=5.5,p0=0.2317911 and no zero in this neighbourhood. Ours labels no GH here; GH detection is checked against the Bautin normal form. See docs/auto07p-findings.md, finding 2."
     },
@@ -91,7 +91,7 @@
       "reference": ".auto07p",
       "run": "hopf_up",
       "side": "reference",
-      "type": "GH",
+      "type": "generalized_hopf",
       "index": 3,
       "cause": "AUTO-07p labels three GH near p0=0.2284..0.2316,p1=11.31..11.23. FNGHEQ DERIV2a omits subtraction of 2*F(u), equilibrium.f90:835-844, magnifying the Newton residual by h^-2. W364 removes that constant term. Independent exact multilinear derivatives (tests/auto/codim_coefficients.py) give l1=-0.3606957776 at t=5.5,p0=0.2317911 and no zero in this neighbourhood. Ours labels no GH here; GH detection is checked against the Bautin normal form. See docs/auto07p-findings.md, finding 2."
     }

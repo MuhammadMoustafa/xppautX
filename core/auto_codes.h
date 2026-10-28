@@ -152,10 +152,10 @@ enum class AutoPointKind : int {
     Fold = 2,             /* LP of an algebraic problem */
     Hopf = 3,             /* HB */
     Output = 4,           /* a point written every NPR steps */
-    PeriodicFold = 5,     /* LP of a periodic orbit or a BVP */
-    PeriodicBranch = 6,   /* BP of a periodic orbit or a BVP */
+    CycleFold = 5,     /* LP of a periodic orbit or a BVP */
+    CycleBranch = 6,   /* BP of a periodic orbit or a BVP */
     PeriodDoubling = 7,   /* PD */
-    Torus = 8,            /* TR */
+    NeimarkSacker = 8,            /* TR */
     End = 9,              /* EP: the end of the branch */
     UserZero = -4,        /* UZ: a user-requested output value */
     BogdanovTakens = 10,  /* BT: a double zero eigenvalue */
@@ -167,9 +167,9 @@ enum class AutoPointKind : int {
     Resonance3 = 16,     /* R3: 1:3 resonance of a map or cycle */
     Resonance4 = 17,     /* R4: 1:4 resonance of a map or cycle */
     FoldFlip = 18,      /* LPD: fold and flip of a map */
-    FoldTorus = 19,     /* LTR: fold and torus of a map */
-    FlipTorus = 20,     /* PTR: flip and torus of a map */
-    TorusTorus = 21,    /* TTR: two torus pairs of a map */
+    FoldNeimarkSacker = 19,     /* LTR: fold and torus of a map */
+    FlipNeimarkSacker = 20,     /* PTR: flip and torus of a map */
+    DoubleNeimarkSacker = 21,    /* TTR: two torus pairs of a map */
     MaxSteps = -9         /* MX: no convergence, or the step limit */
 };
 
@@ -206,9 +206,9 @@ constexpr int auto_point_encode(AutoPointCode c)
         return -10 * static_cast<int>(c.start) - 5 -
             (static_cast<int>(c.kind) - static_cast<int>(AutoPointKind::Resonance1));
     if (c.kind == AutoPointKind::FoldFlip) return c.start == AutoPointKind::Fold ? 28 : 78;
-    if (c.kind == AutoPointKind::FoldTorus) return c.start == AutoPointKind::Fold ? 23 : 83;
-    if (c.kind == AutoPointKind::FlipTorus) return c.start == AutoPointKind::PeriodDoubling ? 77 : 87;
-    if (c.kind == AutoPointKind::TorusTorus) return 88;
+    if (c.kind == AutoPointKind::FoldNeimarkSacker) return c.start == AutoPointKind::Fold ? 23 : 83;
+    if (c.kind == AutoPointKind::FlipNeimarkSacker) return c.start == AutoPointKind::PeriodDoubling ? 77 : 87;
+    if (c.kind == AutoPointKind::DoubleNeimarkSacker) return 88;
     const int kind = static_cast<int>(c.kind), start = static_cast<int>(c.start);
     return kind < 0 ? kind - 10 * start : 10 * start + kind;
 }
@@ -222,11 +222,11 @@ constexpr std::optional<AutoPointCode> auto_point_decode(long itp, bool allow_pe
     switch (itp) {
     case 28: return AutoPointCode{AutoPointKind::FoldFlip, AutoPointKind::Fold};
     case 78: return AutoPointCode{AutoPointKind::FoldFlip, AutoPointKind::PeriodDoubling};
-    case 23: return AutoPointCode{AutoPointKind::FoldTorus, AutoPointKind::Fold};
-    case 83: return AutoPointCode{AutoPointKind::FoldTorus, AutoPointKind::Torus};
-    case 77: return AutoPointCode{AutoPointKind::FlipTorus, AutoPointKind::PeriodDoubling};
-    case 87: return AutoPointCode{AutoPointKind::FlipTorus, AutoPointKind::Torus};
-    case 88: return AutoPointCode{AutoPointKind::TorusTorus, AutoPointKind::Torus};
+    case 23: return AutoPointCode{AutoPointKind::FoldNeimarkSacker, AutoPointKind::Fold};
+    case 83: return AutoPointCode{AutoPointKind::FoldNeimarkSacker, AutoPointKind::NeimarkSacker};
+    case 77: return AutoPointCode{AutoPointKind::FlipNeimarkSacker, AutoPointKind::PeriodDoubling};
+    case 87: return AutoPointCode{AutoPointKind::FlipNeimarkSacker, AutoPointKind::NeimarkSacker};
+    case 88: return AutoPointCode{AutoPointKind::DoubleNeimarkSacker, AutoPointKind::NeimarkSacker};
     case -21: return AutoPointCode{AutoPointKind::BogdanovTakens, AutoPointKind::Fold};
     case -22: return AutoPointCode{AutoPointKind::Cusp, AutoPointKind::Fold};
     case -23: return AutoPointCode{AutoPointKind::ZeroHopf, AutoPointKind::Fold};
@@ -235,7 +235,7 @@ constexpr std::optional<AutoPointCode> auto_point_decode(long itp, bool allow_pe
     case -33: return AutoPointCode{AutoPointKind::ZeroHopf, AutoPointKind::Hopf};
     default: break;
     }
-    for (auto start : {AutoPointKind::Fold, AutoPointKind::PeriodicFold, AutoPointKind::PeriodDoubling, AutoPointKind::Torus})
+    for (auto start : {AutoPointKind::Fold, AutoPointKind::CycleFold, AutoPointKind::PeriodDoubling, AutoPointKind::NeimarkSacker})
         for (auto kind : {AutoPointKind::Resonance1, AutoPointKind::Resonance2,
                           AutoPointKind::Resonance3, AutoPointKind::Resonance4})
             if (auto_point_encode({kind,start})==itp) return AutoPointCode{kind,start};
@@ -258,43 +258,106 @@ constexpr AutoPointKind auto_point_start_of(AutoPointCode c)
     return static_cast<AutoPointKind>(kind < 0 ? -kind : kind);
 }
 
-/* the short symbol of a point (BP, LP, HB, UZ, PD, TR, EP, MX; two
-   blanks for the others), the diagram's Ty column */
-constexpr const char *auto_point_symbol(AutoPointCode c)
+/* One table per point type (W519, maintainer 2026-10-28): its name (the only
+   input: files, protocol, settings keys), its label (the menus, hover, legend,
+   info strip, manual; written here, never derived) and its mark (the short text
+   drawn at the point on plots and the log's table column; empty for none).
+   Pending is a run's own state, listed for its display only: a file never
+   holds it. */
+struct AutoPointName {
+    AutoPointKind kind;
+    std::string_view name;
+    std::string_view label;
+    std::string_view mark;
+};
+inline constexpr auto auto_point_names = std::to_array<AutoPointName>({
+    {AutoPointKind::Pending, "pending", "Pending", ""},
+    {AutoPointKind::Regular, "regular", "Regular", ""},
+    {AutoPointKind::BranchPoint, "branch_point", "Branch point", "BP"},
+    {AutoPointKind::Fold, "fold", "Fold", "LP"},
+    {AutoPointKind::Hopf, "hopf", "Andronov–Hopf", "AH"},
+    {AutoPointKind::Output, "output", "Output point", ""},
+    {AutoPointKind::CycleFold, "cycle_fold", "Fold of cycles", "LPC"},
+    {AutoPointKind::CycleBranch, "cycle_branch_point", "Branch point of cycles", "BPC"},
+    {AutoPointKind::PeriodDoubling, "period_doubling", "Period doubling (flip)", "PD"},
+    {AutoPointKind::NeimarkSacker, "neimark_sacker", "Neimark–Sacker (torus)", "NS"},
+    {AutoPointKind::End, "end", "End of branch", "EP"},
+    {AutoPointKind::UserZero, "user_point", "User point", "UZ"},
+    {AutoPointKind::BogdanovTakens, "bogdanov_takens", "Bogdanov–Takens", "BT"},
+    {AutoPointKind::Cusp, "cusp", "Cusp", "CP"},
+    {AutoPointKind::ZeroHopf, "zero_hopf", "Zero-Hopf (fold–Hopf)", "ZH"},
+    {AutoPointKind::GeneralizedHopf, "generalized_hopf", "Generalized Hopf (Bautin)", "GH"},
+    {AutoPointKind::Resonance1, "resonance_1_1", "Resonance 1:1", "R1"},
+    {AutoPointKind::Resonance2, "resonance_1_2", "Resonance 1:2", "R2"},
+    {AutoPointKind::Resonance3, "resonance_1_3", "Resonance 1:3", "R3"},
+    {AutoPointKind::Resonance4, "resonance_1_4", "Resonance 1:4", "R4"},
+    {AutoPointKind::FoldFlip, "fold_flip", "Fold–flip", "LPPD"},
+    {AutoPointKind::FoldNeimarkSacker, "fold_neimark_sacker", "Fold–Neimark–Sacker", "LPNS"},
+    {AutoPointKind::FlipNeimarkSacker, "flip_neimark_sacker", "Flip–Neimark–Sacker", "PDNS"},
+    {AutoPointKind::DoubleNeimarkSacker, "double_neimark_sacker", "Double Neimark–Sacker", "NSNS"},
+    {AutoPointKind::MaxSteps, "no_convergence", "No convergence", "MX"},
+});
+
+/* a point type's name, label and mark (Pending's included) */
+constexpr const AutoPointName &auto_point_entry(AutoPointKind kind)
 {
-    switch (c.kind) {
-    case AutoPointKind::BranchPoint:
-    case AutoPointKind::PeriodicBranch: return "BP";
-    case AutoPointKind::Fold:
-    case AutoPointKind::PeriodicFold: return "LP";
-    case AutoPointKind::Hopf: return "HB";
-    case AutoPointKind::BogdanovTakens: return "BT";
-    case AutoPointKind::Cusp: return "CP";
-    case AutoPointKind::ZeroHopf: return "ZH";
-    case AutoPointKind::GeneralizedHopf: return "GH";
-    case AutoPointKind::Resonance1: return "R1";
-    case AutoPointKind::Resonance2: return "R2";
-    case AutoPointKind::Resonance3: return "R3";
-    case AutoPointKind::Resonance4: return "R4";
-    case AutoPointKind::FoldFlip: return "LPD";
-    case AutoPointKind::FoldTorus: return "LTR";
-    case AutoPointKind::FlipTorus: return "PTR";
-    case AutoPointKind::TorusTorus: return "TTR";
-    case AutoPointKind::UserZero: return "UZ";
-    case AutoPointKind::PeriodDoubling: return "PD";
-    case AutoPointKind::Torus: return "TR";
-    case AutoPointKind::End: return "EP";
-    case AutoPointKind::MaxSteps: return "MX";
-    default: return "  ";
+    for (const AutoPointName &p : auto_point_names)
+        if (p.kind == kind) return p;
+    return auto_point_names[0];
+}
+constexpr std::string_view auto_point_kind_name(AutoPointKind kind) { return auto_point_entry(kind).name; }
+constexpr std::string_view auto_point_kind_label(AutoPointKind kind) { return auto_point_entry(kind).label; }
+constexpr std::string_view auto_point_kind_mark(AutoPointKind kind) { return auto_point_entry(kind).mark; }
+
+/* the kind a name gives: none for an unknown name, and for Pending, which no file holds */
+constexpr std::optional<AutoPointKind> auto_point_kind_from_name(std::string_view name)
+{
+    for (const AutoPointName &p : auto_point_names)
+        if (p.kind != AutoPointKind::Pending && p.name == name) return p.kind;
+    return std::nullopt;
+}
+
+/* the joint between a kind and the start of a point continued in two
+   parameters: fold_flip_from_fold */
+inline constexpr std::string_view auto_point_from_joint = "_from_";
+
+/* a point's type as our files and the protocol write it: its kind's name,
+   and for a point continued from another kind, that kind's name after "_from_" */
+inline std::string auto_point_text(AutoPointCode c)
+{
+    if (c.start == AutoPointKind::Regular) return std::string(auto_point_kind_name(c.kind));
+    return xpp::format("{}{}{}", auto_point_kind_name(c.kind), auto_point_from_joint, auto_point_kind_name(c.start));
+}
+
+/* the code a point type's text names, or none: the inverse of auto_point_text,
+   and only a code auto_point_decode gives (the same check as the numeric form) */
+inline std::optional<AutoPointCode> auto_point_from_text(std::string_view text)
+{
+    const std::size_t joint = text.find(auto_point_from_joint);
+    const auto kind = auto_point_kind_from_name(text.substr(0, joint));
+    if (!kind) return std::nullopt;
+    AutoPointCode c{*kind, AutoPointKind::Regular};
+    if (joint != std::string_view::npos) {
+        const auto start = auto_point_kind_from_name(text.substr(joint + auto_point_from_joint.size()));
+        if (!start) return std::nullopt;
+        c.start = *start;
     }
+    const auto back = auto_point_decode(auto_point_encode(c));
+    if (!back || !(*back == c)) return std::nullopt;
+    return c;
 }
 
 // Settings and protocol names for codimension-two detection (W364, W400).
 inline constexpr std::array<AutoPointKind, 12> auto_codim_kinds = {
     AutoPointKind::BogdanovTakens, AutoPointKind::Cusp, AutoPointKind::ZeroHopf, AutoPointKind::GeneralizedHopf,
     AutoPointKind::Resonance1, AutoPointKind::Resonance2, AutoPointKind::Resonance3, AutoPointKind::Resonance4,
-    AutoPointKind::FoldFlip, AutoPointKind::FoldTorus, AutoPointKind::FlipTorus, AutoPointKind::TorusTorus};
-inline constexpr std::array<const char *, 12> auto_codim_keys = {"BT", "CP", "ZH", "GH", "R1", "R2", "R3", "R4", "LPD", "LTR", "PTR", "TTR"};
+    AutoPointKind::FoldFlip, AutoPointKind::FoldNeimarkSacker, AutoPointKind::FlipNeimarkSacker, AutoPointKind::DoubleNeimarkSacker};
+/* the names of auto_codim_kinds, in the same order: the settings' keys */
+inline constexpr auto auto_codim_keys = [] {
+    std::array<std::string_view, auto_codim_kinds.size()> keys{};
+    for (std::size_t i = 0; i < keys.size(); ++i) keys[i] = auto_point_kind_name(auto_codim_kinds[i]);
+    return keys;
+}();
 
 constexpr bool auto_codim_enabled(const std::array<bool, auto_codim_kinds.size()> &enabled, AutoPointKind kind)
 {
@@ -303,8 +366,17 @@ constexpr bool auto_codim_enabled(const std::array<bool, auto_codim_kinds.size()
     return false;
 }
 
-/* what a reader says of a code it refuses, for its error's text */
+/* the settings' keys as one list, "bogdanov_takens, cusp, ...", for a message */
+inline std::string auto_codim_key_list()
+{
+    std::string list;
+    for (std::string_view key : auto_codim_keys) list += (list.empty() ? "" : ", ") + std::string(key);
+    return list;
+}
+
+/* what a reader says of a number it refuses, for its error's text (a foreign file's code) */
 inline std::string auto_point_unknown(long itp) { return xpp::format("{} is not an AUTO point type", itp); }
+/* the same for a name a file holds */
+inline std::string auto_point_text_unknown(std::string_view text) { return xpp::format("\"{}\" is not an AUTO point type", text); }
 
 } // namespace xpp
-

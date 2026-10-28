@@ -23,6 +23,7 @@ import type {DiagramAxes, DiagramLabel, DiagramPoints} from '../store/diagram';
 import type {Range} from '../store/state';
 import type {CoreColor} from '../protocol/types';
 import type {Ranges} from './viewmath';
+import {pointLabel} from '../store/pointTypes';
 
 export type CurveKind = 'steady' | 'periodic' | 'two-parameter';
 
@@ -86,14 +87,14 @@ export function hopfOf(p: DiagramPoints, labels: DiagramLabel[], s: number, span
     let at = -1;
     for (const l of labels) if (l.lab === p.fr[s] && l.point < s && l.point > at) at = l.point;
     const l = at >= 0 ? labels.find(x => x.point === at) : undefined;
-    return l && l.sym === 'HB' && !p.f2[at] && !PERIODIC(p.d[at]) ? at : -1;
+    return l && l.sym === 'hopf' && !p.f2[at] && !PERIODIC(p.d[at]) ? at : -1;
   }
   const x = p.x[s], lo = Math.min(p.y[s], p.y2[s]), hi = Math.max(p.y[s], p.y2[s]);
   const tx = 0.05 * span.x, ty = 0.02 * span.y;
   let best = -1, bestScore = Infinity;
   for (const l of labels) {
     const h = l.point;
-    if (l.sym !== 'HB' || p.f2[h] || PERIODIC(p.d[h]) || p.br[h] === p.br[s]) continue;
+    if (l.sym !== 'hopf' || p.f2[h] || PERIODIC(p.d[h]) || p.br[h] === p.br[s]) continue;
     const dx = Math.abs(p.x[h] - x), yh = p.y[h];
     const dy = yh < lo ? lo - yh : yh > hi ? yh - hi : 0;
     if (!(dx <= tx && dy <= ty)) continue;
@@ -305,38 +306,31 @@ export function grabStep(key: string, shift: boolean, from: number, n: number, l
 
 const CURVES = ['', 'limit point', 'limit point of periodic orbits', 'Hopf', 'torus', 'branch point', 'period doubling',
   'fixed period', '', '', '', '', '', 'neutral saddle'];
-/** AUTO's label types in words (T23), in the key's order */
-const SYMBOLS: Record<string, string> = {
-  EP: 'End point', MX: 'No convergence', LP: 'Fold (limit point)', HB: 'Hopf', BP: 'Branch point',
-  PD: 'Period doubling', TR: 'Torus', UZ: 'Marked value',
-  BT: 'Bogdanov-Takens', CP: 'Cusp', ZH: 'Zero-Hopf', GH: 'Generalised Hopf',
-  R1: '1:1 resonance', R2: '1:2 resonance', R3: '1:3 resonance', R4: '1:4 resonance',
-  LPD: 'Fold-flip', LTR: 'Fold-torus', PTR: 'Flip-torus', TTR: 'Torus-torus',
-};
-
 /** what each label type means, for the key's tooltips (docs/manual/09-auto.md) */
 const SYMBOL_HELP: Record<string, string> = {
-  EP: 'End point: where a branch starts or ends normally (a limit, Max points or Stop); the status strip says why it ended',
-  MX: 'No convergence: AUTO could not compute the next point, even at the smallest step (Dsmin), and ended the branch; '
+  end: 'End point: where a branch starts or ends normally (a limit, Max points or Stop); the status strip says why it ended',
+  no_convergence: 'No convergence: AUTO could not compute the next point, even at the smallest step (Dsmin), and ended the branch; '
     + 'a smaller Ds or Dsmax, a larger Ntst or looser tolerances may get past it',
-  LP: 'Fold (limit point): the branch turns back in the parameter; two solutions meet and disappear there',
-  HB: 'Hopf bifurcation: a pair of eigenvalues crosses the imaginary axis; a branch of periodic orbits starts here',
-  BP: 'Branch point: another branch of solutions crosses this one',
-  PD: 'Period doubling: a Floquet multiplier crosses -1; orbits of twice the period start here',
-  TR: 'Torus bifurcation: a pair of Floquet multipliers crosses the unit circle; an invariant torus starts here',
-  UZ: 'Marked value: a parameter, or the period T, reached one of the Mark values',
-  BT: 'Bogdanov-Takens: two zero eigenvalues on a fold or Hopf curve',
-  CP: 'Cusp: the quadratic coefficient of the fold vanishes',
-  ZH: 'Zero-Hopf: a zero eigenvalue and an imaginary pair meet',
-  GH: 'Generalised Hopf (Bautin): the first Lyapunov coefficient vanishes',
-  LPD: 'Fold-flip: a map has multipliers +1 and -1',
-  LTR: 'Fold-torus: a map has a multiplier +1 and a pair on the unit circle',
-  PTR: 'Flip-torus: a map has a multiplier -1 and a pair on the unit circle',
-  TTR: 'Torus-torus: a map has two pairs on the unit circle',
-  R1: '1:1 resonance: two map or cycle multipliers meet at +1',
-  R2: '1:2 resonance: two map or cycle multipliers meet at -1',
-  R3: '1:3 resonance: the Floquet angle is 2 pi / 3',
-  R4: '1:4 resonance: the Floquet angle is pi / 2',
+  fold: 'Fold (limit point): the branch turns back in the parameter; two solutions meet and disappear there',
+  hopf: 'Hopf bifurcation: a pair of eigenvalues crosses the imaginary axis; a branch of periodic orbits starts here',
+  branch_point: 'Branch point: another branch of solutions crosses this one',
+  period_doubling: 'Period doubling: a Floquet multiplier crosses -1; orbits of twice the period start here',
+  neimark_sacker: 'Torus bifurcation: a pair of Floquet multipliers crosses the unit circle; an invariant torus starts here',
+  user_point: 'Marked value: a parameter, or the period T, reached one of the Mark values',
+  bogdanov_takens: 'Bogdanov-Takens: two zero eigenvalues on a fold or Hopf curve',
+  cusp: 'Cusp: the quadratic coefficient of the fold vanishes',
+  zero_hopf: 'Zero-Hopf: a zero eigenvalue and an imaginary pair meet',
+  generalized_hopf: 'Generalised Hopf (Bautin): the first Lyapunov coefficient vanishes',
+  cycle_fold: 'Fold of cycles: a fold of a periodic orbit, where the branch of orbits turns back in the parameter',
+  cycle_branch_point: 'Branch point of cycles: another branch of periodic orbits crosses this one',
+  fold_flip: 'Fold-flip: a map has multipliers +1 and -1',
+  fold_neimark_sacker: 'Fold-torus: a map has a multiplier +1 and a pair on the unit circle',
+  flip_neimark_sacker: 'Flip-torus: a map has a multiplier -1 and a pair on the unit circle',
+  double_neimark_sacker: 'Torus-torus: a map has two pairs on the unit circle',
+  resonance_1_1: '1:1 resonance: two map or cycle multipliers meet at +1',
+  resonance_1_2: '1:2 resonance: two map or cycle multipliers meet at -1',
+  resonance_1_3: '1:3 resonance: the Floquet angle is 2 pi / 3',
+  resonance_1_4: '1:4 resonance: the Floquet angle is pi / 2',
 };
 
 export function fmt(v: number): string {
@@ -347,10 +341,6 @@ export function fmt(v: number): string {
 export function pointKind(p: DiagramPoints, i: number): string {
   return p.f2[i] ? `${CURVES[p.f2[i]] || 'two-parameter'} curve`
     : `${p.st[i] ? 'stable' : 'unstable'} ${p.pe[i] ? 'periodic orbit' : 'steady state'}`;
-}
-
-export function symbolName(sym: string): string {
-  return SYMBOLS[sym] ?? '';
 }
 
 export function symbolHelp(sym: string): string {
@@ -367,14 +357,18 @@ export function symbolHelp(sym: string): string {
 export type LabelShape = 'circle' | 'triangle' | 'diamond' | 'square' | 'star' | 'invTriangle' | 'cross' | 'bar' | 'tick';
 
 const LABEL_SHAPES: Record<string, LabelShape> = {
-  HB: 'circle', LP: 'triangle', BP: 'diamond', PD: 'square', TR: 'star', UZ: 'invTriangle', MX: 'cross', EP: 'bar',
-  BT: 'diamond', CP: 'triangle', ZH: 'star', GH: 'circle',
-  LPD: 'square', LTR: 'triangle', PTR: 'star', TTR: 'diamond',
-  R1: 'diamond', R2: 'triangle', R3: 'star', R4: 'circle',
+  hopf: 'circle', fold: 'triangle', branch_point: 'diamond', period_doubling: 'square', neimark_sacker: 'star', user_point: 'invTriangle', no_convergence: 'cross', end: 'bar',
+  bogdanov_takens: 'diamond', cusp: 'triangle', zero_hopf: 'star', generalized_hopf: 'circle',
+  fold_flip: 'square', fold_neimark_sacker: 'triangle', flip_neimark_sacker: 'star', double_neimark_sacker: 'diamond',
+  cycle_fold: 'triangle', cycle_branch_point: 'diamond',
+  resonance_1_1: 'diamond', resonance_1_2: 'triangle', resonance_1_3: 'star', resonance_1_4: 'circle',
 };
 
+/** the plain points (no special type, and an output point) are the small dots */
+const PLAIN_TYPES = new Set(['', 'regular', 'output']);
+
 export function labelShape(sym: string): LabelShape {
-  return sym ? (LABEL_SHAPES[sym] ?? 'cross') : 'tick';
+  return PLAIN_TYPES.has(sym) ? 'tick' : (LABEL_SHAPES[sym] ?? 'cross');
 }
 
 /** the key's glyph for a shape (a small Unicode mark, same shape the
@@ -387,7 +381,7 @@ export const LABEL_GLYPH: Record<LabelShape, string> = {
 /** the label types the diagram has, in the key's order (EP, MX, LP, HB, BP, PD, TR, UZ) */
 export function labelTypes(labels: {sym: string}[]): string[] {
   const has = new Set(labels.map(l => l.sym));
-  return Object.keys(SYMBOLS).filter(k => has.has(k));
+  return Object.keys(SYMBOL_HELP).filter(k => has.has(k));
 }
 
 /** the readout's parts for point `i` (A14: six significant digits); `stop`,
@@ -396,9 +390,7 @@ export function labelTypes(labels: {sym: string}[]): string[] {
 export function describePoint(p: DiagramPoints, labels: DiagramLabel[], axes: DiagramAxes | null, i: number,
   stop: {point: number; text: string} | null = null) {
   const l = labels.find(x => x.point === i);
-  const name = l ? symbolName(l.sym) : '';
   const why = stop && stop.point === i ? stop.text : '';
-  const named = name && why ? `${name}: ${why}` : name || why;
   const xName = axes?.xlabel || 'x', yName = axes?.ylabel || 'y';
   const two = p.y2[i] !== p.y[i];
   const values = [`${xName} = ${fmt(p.x[i])}`,
@@ -407,7 +399,7 @@ export function describePoint(p: DiagramPoints, labels: DiagramLabel[], axes: Di
   return {
     head: `Branch ${p.br[i]}, point ${p.pt[i]}`,
     kind: pointKind(p, i),
-    label: l ? `${l.sym ? l.sym + ' ' : ''}label ${l.lab}${named ? ` (${named})` : ''}` : '',
+    label: l ? [pointLabel(l.sym), `label ${l.lab}`, why ? `(${why})` : ''].filter(Boolean).join(' ') : '',
     values,
   };
 }

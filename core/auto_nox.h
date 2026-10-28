@@ -247,9 +247,9 @@ void traverse_diagram(Session &s);
    with Return on that point (docs/protocol.md "Grab by point"). 1 on
    success, 0 (nothing changed) when there is no such point. */
 int auto_grab_label(Session &s, int lab);
-int auto_grab_type_index(Session &s, const char *type, int index);
-/* asks which kind of special point: its symbol (auto_point_symbol's), or NULL */
-const char *query_special(const char *title);
+int auto_grab_type_index(Session &s, AutoPointKind type, int index);
+/* asks which point type the grab-by-type menu picks, or none */
+std::optional<AutoPointKind> query_special(const char *title);
 void clear_msg(Session &s);
 void auto_update_view(Session &s, float xlo, float xhi, float ylo, float yhi);
 void auto_motion_xy(Session &s, int i, int j);

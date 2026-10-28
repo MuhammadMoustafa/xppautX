@@ -174,9 +174,9 @@ void check_settings_text()
     /* every key there once, none it does not have */
     const std::string text = xpp::snapx::auto_members::settings_text(s);
     const int lines = static_cast<int>(xpp::split_lines(text).size());
-    CHECK(error("BT 1\n")=="a.snapx/auto/settings.txt:1: BT must be true or false, got 1 [BT 1]");
-    CHECK(!xpp::snapx::auto_members::parse_settings(text+"BT true\n","duplicate.txt"));
-    auto missing=text; missing.erase(missing.find("BT true\n"),8);
+    CHECK(error("bogdanov_takens 1\n")=="a.snapx/auto/settings.txt:1: bogdanov_takens must be true or false, got 1 [bogdanov_takens 1]");
+    CHECK(!xpp::snapx::auto_members::parse_settings(text+"bogdanov_takens true\n","duplicate.txt"));
+    auto missing=text; missing.erase(missing.find("bogdanov_takens true\n"),22);
     CHECK(!xpp::snapx::auto_members::parse_settings(missing,"missing.txt"));
     CHECK(error(text + "later 1\n") == xpp::format("a.snapx/auto/settings.txt:{}: later is not one of AUTO's settings [later 1]", lines + 1));
     CHECK(error(text + "ntst 3\n") == xpp::format("a.snapx/auto/settings.txt:{}: ntst given twice [ntst 3]", lines + 1));
@@ -274,10 +274,10 @@ void check_diagram_csv()
     std::string bad_type = csv;
     std::size_t type_at = csv.find('\n', header) + 1; /* the first row: its 4th field is the type */
     for (int commas = 0; commas < 3; type_at++) commas += csv[type_at] == ',';
-    bad_type.replace(type_at, csv.find(',', type_at) - type_at, "-5");
+    bad_type.replace(type_at, csv.find(',', type_at) - type_at, "hopf_from_nothing");
     const xpp::Result<std::deque<xpp::DIAGRAM>> unknown_type = xpp::snapx::auto_members::parse_diagram_csv(bad_type, 3, 3, "diagram.csv");
     CHECK(!unknown_type && unknown_type.error().place.line == static_cast<int>(pts.size()) + 2
-          && unknown_type.error().text().find("-5 is not an AUTO point type") != std::string::npos);
+          && unknown_type.error().text().find("\"hopf_from_nothing\" is not an AUTO point type") != std::string::npos);
     /* an axis that is neither one of the model's parameters nor one of AUTO's slots (W330), at the point's line */
     std::string bad_axis = csv;
     std::size_t axis_at = csv.find('\n', header) + 1; /* the first row: its 8th field is icp2 */
@@ -671,7 +671,7 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
     xpp::init_auto_win(s);
     s.auto_state.threads=threads; /* the preference's count, selected once for the run */
     xpp::auto_start_diff_ss(s);
-    CHECK(xpp::auto_grab_type_index(s,"HB",1)==1);
+    CHECK(xpp::auto_grab_type_index(s,xpp::AutoPointKind::Hopf,1)==1);
     const auto start=std::chrono::steady_clock::now();
     xpp::auto_new_per(s);
     // W340/#401: periodic continuation frees AUTO's period independently of the model.

@@ -34,7 +34,7 @@
       "kind": "periodic",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 1
       },
       "parameter": "mu",
@@ -59,7 +59,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "cycles",
-        "type": "PD",
+        "type": "period_doubling",
         "index": 1
       },
       "parameters": [
@@ -88,7 +88,7 @@
       "reference": ".xppaut",
       "run": "doubling",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 1,
       "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -96,7 +96,7 @@
       "reference": ".xppaut",
       "run": "doubling",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 2,
       "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -104,7 +104,7 @@
       "reference": ".xppaut",
       "run": "doubling",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 3,
       "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -112,7 +112,7 @@
       "reference": ".xppaut",
       "run": "doubling",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 4,
       "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -120,7 +120,7 @@
       "reference": ".xppaut",
       "run": "doubling",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 5,
       "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     }

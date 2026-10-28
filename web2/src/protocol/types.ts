@@ -16,6 +16,13 @@ export type MenuName = 'main' | 'file' | 'num';
 export interface AboutPart {text: string; url?: string}
 export type AboutLine = AboutPart[];
 
+/** a point type of AUTO, as hello gives it */
+export interface PointType {
+  name: string;
+  label: string;
+  mark: string;
+}
+
 export interface HelloEvent {
   ev: 'hello';
   protocol: number;
@@ -62,6 +69,8 @@ export interface HelloEvent {
   /** Initial surface names; plots and diagram views subsequently carry their exact names. */
   window_names: {main: string; auto: string; ani: string; aplot: string};
   lists: string[][];
+  /** every point type: its name (the only input), its label and its mark (core/auto_codes.h's one table) */
+  point_types: PointType[];
   userbuttons: string[];
   /** the colour scales the core has, by name (the array plot's choice) */
   colormaps: string[];

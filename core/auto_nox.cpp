@@ -446,7 +446,7 @@ void do_auto(xpp::Session &s, int iold, int isave, xpp::AutoPointCode itp)
     }
     
     if(s.auto_state.restart_label!=0){
-      xpp::log_auto("RestartLabel={:d} itp={:d} ips={:d} nfpar={:d} ilp={:d} isw={:d} isp={:d} A2p={} \n",s.auto_state.restart_label,xpp::auto_point_encode(s.auto_state.bifur.itp), xpp::auto_problem_code(s.auto_state.bifur.ips),s.auto_state.bifur.nfpar,s.auto_state.bifur.ilp,s.auto_state.bifur.isw,s.auto_state.bifur.isp,auto_calculation_name(s.auto_state.two_param));
+      xpp::log_auto("RestartLabel={:d} itp={} ips={:d} nfpar={:d} ilp={:d} isw={:d} isp={:d} A2p={} \n",s.auto_state.restart_label,xpp::auto_point_text(s.auto_state.bifur.itp), xpp::auto_problem_code(s.auto_state.bifur.ips),s.auto_state.bifur.nfpar,s.auto_state.bifur.ilp,s.auto_state.bifur.isw,s.auto_state.bifur.isp,auto_calculation_name(s.auto_state.two_param));
       s.auto_state.bifur.irs=s.auto_state.restart_label;
       s.auto_state.restart_label=0;
       do_auto(s, iold,isave, s.auto_state.bifur.itp);
@@ -595,7 +595,7 @@ void auto_num_par(xpp::Session &s)
      special points. Four columns; the row count follows the field count. */
   std::array<const char *,xpp::AUTO_NUM_N+xpp::auto_codim_kinds.size()> n;
   for(int i=0;i<xpp::AUTO_NUM_N;++i) n[i]=xpp::auto_settings_num_label(i);
-  for(std::size_t i=0;i<xpp::auto_codim_kinds.size();++i) n[xpp::AUTO_NUM_N+i]=xpp::auto_codim_keys[i];
+  for(std::size_t i=0;i<xpp::auto_codim_kinds.size();++i) n[xpp::AUTO_NUM_N+i]=xpp::auto_codim_keys[i].data();
   int status;
   std::array<std::string, xpp::AUTO_NUM_N+xpp::auto_codim_kinds.size()> values;
   values[0] = xpp::format("{:d}", s.auto_state.bifur.ntst);
@@ -1128,7 +1128,7 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
   flag2=d->flag2;
   pt=d->ntot;
 
-  symb=auto_point_symbol(itp);
+  symb=auto_point_kind_name(itp.kind).data();
  par1=par[icp1.index];
   if(icp2.is_parameter())par2=par[icp2.index];
     auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,per,d->uhi,d->ulo,d->ubar,norm);
@@ -1558,7 +1558,7 @@ void auto_run(xpp::Session &s)
      auto_2p_limit(s, s.auto_state.bifur.ips);
     ping();return;
   }
-  if(involves(xpp::AutoPointKind::PeriodicFold)){ /* limit pt of periodic or BVP */
+  if(involves(xpp::AutoPointKind::CycleFold)){ /* limit pt of periodic or BVP */
     if(s.auto_state.bifur.ips!=xpp::AutoProblem::BoundaryValue)
       s.auto_state.bifur.ips=xpp::AutoProblem::Periodic;  /* this is a bit dangerous - the idea is that
                       if you are doing BVPs, then that is all you are
@@ -1567,13 +1567,13 @@ void auto_run(xpp::Session &s)
     auto_2p_limit(s, s.auto_state.bifur.ips);
     ping(); return;
   }
-  if(involves(xpp::AutoPointKind::PeriodicBranch)||involves(xpp::AutoPointKind::BranchPoint)){ /* branch point  */ 
+  if(involves(xpp::AutoPointKind::CycleBranch)||involves(xpp::AutoPointKind::BranchPoint)){ /* branch point  */ 
 
   auto_branch_choice(s, s.auto_state.grabpt.ibr,ips);
     ping();
     return;
   }
-  if(involves(xpp::AutoPointKind::Torus)){ /* Torus 2 parameter */
+  if(involves(xpp::AutoPointKind::NeimarkSacker)){ /* Torus 2 parameter */
     torus_choice(s);
     ping();
     return;
@@ -1595,7 +1595,7 @@ void auto_run(xpp::Session &s)
 
 void auto_homo_choice(xpp::Session &s, xpp::AutoPointCode itp)
 {
-  if(!itp.is(xpp::AutoPointKind::PeriodicFold))
+  if(!itp.is(xpp::AutoPointKind::CycleFold))
     auto_extend_homoclinic(s);
   
 }
@@ -2026,7 +2026,7 @@ void auto_2p_limit(xpp::Session &s, xpp::AutoProblem ips)
   if(ips==xpp::AutoProblem::BoundaryValue)
     ipsuse=xpp::AutoProblem::BoundaryValue;
   else {
-    if(grabbed.kind==xpp::AutoPointKind::PeriodicFold||grabbed.start==xpp::AutoPointKind::PeriodicFold)
+    if(grabbed.kind==xpp::AutoPointKind::CycleFold||grabbed.start==xpp::AutoPointKind::CycleFold)
       ipsuse=xpp::AutoProblem::Periodic;
   }
 
@@ -2088,7 +2088,7 @@ void auto_2p_branch(xpp::Session &s, xpp::AutoProblem ips)
   if(ips==xpp::AutoProblem::BoundaryValue)
     ipsuse=xpp::AutoProblem::BoundaryValue;
   else {
-    if(grabbed.kind==xpp::AutoPointKind::PeriodicBranch||grabbed.start==xpp::AutoPointKind::PeriodicBranch)
+    if(grabbed.kind==xpp::AutoPointKind::CycleBranch||grabbed.start==xpp::AutoPointKind::CycleBranch)
       ipsuse=xpp::AutoProblem::Periodic;
   }
 
@@ -2515,7 +2515,7 @@ Result<> check_auto_solutions(std::string_view text, std::string file, int varia
                 l.fail(xpp::format("AUTO solution parameter layout has {} slots; expected {}: {}",h.npar,parameters,head));
             if (h.nar - 1 > variables || h.npar > parameters || h.nfpr > h.npar)
                 l.fail(xpp::format("AUTO solution counts ({}, {}, {}) exceed this model's storage ({}, {})",h.nar-1,h.npar,h.nfpr,variables,parameters));
-            if (!foreign && hopf_dimension && h.ntst == 0 && (h.itp.started_from(AutoPointKind::Hopf) || h.itp.started_from(AutoPointKind::Torus))
+            if (!foreign && hopf_dimension && h.ntst == 0 && (h.itp.started_from(AutoPointKind::Hopf) || h.itp.started_from(AutoPointKind::NeimarkSacker))
                 && h.nar != hopf_dimension + 1)
                 l.fail(xpp::format("AUTO Hopf solution has {} states; expected {} (the current layout): {}", h.nar - 1, hopf_dimension, head));
             const long rows = h.ntpl, columns = h.nar, payload = h.nskip, parameter_values = h.npar;
@@ -2727,13 +2727,19 @@ void do_auto_range(xpp::Session &s)
 static void grab_diagram_point(xpp::Session &s, const DIAGRAM *d);
 static void finish_grab(xpp::Session &s);
 
-const char *query_special(const char *title)
+/* the point types the grab-by-type menu offers, in the menu's items' order (menus.cpp: its keys behlmptu) */
+constexpr std::array<xpp::AutoPointKind, 8> auto_grab_kinds={
+	xpp::AutoPointKind::BranchPoint, xpp::AutoPointKind::End, xpp::AutoPointKind::Hopf, xpp::AutoPointKind::Fold,
+	xpp::AutoPointKind::MaxSteps, xpp::AutoPointKind::PeriodDoubling, xpp::AutoPointKind::NeimarkSacker, xpp::AutoPointKind::UserZero};
+
+std::optional<xpp::AutoPointKind> query_special(const char *title)
 {
 	XppMenu menu=menu_auto_special;
 	menu.title=title;
 	int ch=static_cast<char>(menu_choose(&menu,1));
 	int i=ch!=0?menu_index(&menu,ch):-1;
-	return i>=0?menu.items[i]:NULL;
+	if(i<0) return std::nullopt;
+	return auto_grab_kinds[static_cast<std::size_t>(i)];
 }
 
 void traverse_diagram(xpp::Session &s)
@@ -2754,13 +2760,13 @@ void traverse_diagram(xpp::Session &s)
       if(wanted(points[i]))return i;
     return -1;
   };
-  const auto symbol_search=[&](int step, const char *title, const char *missing){
-    const char *nsymb=query_special(title);
-    if(nsymb==NULL)return;
-    const int i=search(step,[&](const DIAGRAM &d){ return strcmp(auto_point_symbol(d.itp),nsymb)==0; });
+  const auto type_search=[&](int step, const char *title, const char *missing){
+    const auto wanted=query_special(title);
+    if(!wanted)return;
+    const int i=search(step,[&](const DIAGRAM &d){ return d.itp.kind==*wanted; });
     if(i>=0)at=i;
     else{
-      s.auto_state.bifur.hinttxt=xpp::format("  {} {} not found",missing,nsymb);
+      s.auto_state.bifur.hinttxt=xpp::format("  {} {} not found",missing,xpp::auto_point_kind_label(*wanted));
       ui.auto_show_hint(s);
     }
     show(1);
@@ -2814,10 +2820,10 @@ void traverse_diagram(xpp::Session &s)
         show(1);
         break;
       case UP:
-        symbol_search(1,"Next...","Higher");
+        type_search(1,"Next...","Higher");
         break;
       case DOWN:
-        symbol_search(-1,"Previous...","Lower");
+        type_search(-1,"Previous...","Lower");
         break;
       case TAB: /* the next labelled point; wraps to the first */
         {
@@ -2937,15 +2943,15 @@ int auto_grab_label(xpp::Session &s, int lab)
   return grab_and_finish(s, diagram_of_label(s,lab));
 }
 
-/* grabs the index'th (1-based) stored point of AUTO's type `type`
-   (auto_point_symbol's BP/EP/HB/LP/MX/PD/TR/UZ), in stored order: "the 2nd HB".
+/* grabs the index'th (1-based) stored point of the point type `type` (its name,
+   auto_point_kind_name), in stored order: "the 2nd hopf".
    Returns 0 and changes nothing when there is no such point. */
-int auto_grab_type_index(xpp::Session &s, const char *type, int index)
+int auto_grab_type_index(xpp::Session &s, xpp::AutoPointKind type, int index)
 {
   int count=0;
   if(index<1 || diagram_count(s.diagram)<2) return 0;
   for(const DIAGRAM &d:s.diagram.points)
-    if(d.lab!=0 && strcmp(auto_point_symbol(d.itp),type)==0 && ++count==index)
+    if(d.lab!=0 && d.itp.kind==type && ++count==index)
       return grab_and_finish(s, &d);
   return 0;
 }

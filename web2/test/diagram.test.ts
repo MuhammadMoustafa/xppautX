@@ -6,18 +6,19 @@ import {test} from 'node:test';
 import {circlePoints, complexText, infoRows, stabComputed, stabilitySummary} from '../src/plot/autoInfo';
 import {
   buildDiagramModel, describePoint, fitRanges, grabStep, hopfOf, nearestVertex, stepLabel, vertexOf,
-  labelShape, labelTypes, symbolHelp, symbolName,
+  labelShape, labelTypes, symbolHelp,
 } from '../src/plot/diagramModel';
+import {pointLabel} from '../src/store/pointTypes';
 import {activeView, initialDiagram, pointCount, type DiagramRun} from '../src/store/diagram';
 import {initialState, reduce, type AppState} from '../src/store/state';
 import {READY} from './hello';
 
 test('equilibrium and cycle codim-2 labels have names, legend entries and marks', () => {
-  const kinds = ['BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4', 'LPD', 'LTR', 'PTR', 'TTR'];
-  assert.deepEqual(labelTypes(kinds.map(sym => ({sym}))), kinds);
-  assert.deepEqual(kinds.map(symbolName), ['Bogdanov-Takens', 'Cusp', 'Zero-Hopf', 'Generalised Hopf', '1:1 resonance', '1:2 resonance', '1:3 resonance', '1:4 resonance', 'Fold-flip', 'Fold-torus', 'Flip-torus', 'Torus-torus']);
+  const kinds = ['bogdanov_takens', 'cusp', 'zero_hopf', 'generalized_hopf', 'resonance_1_1', 'resonance_1_2', 'resonance_1_3', 'resonance_1_4', 'fold_flip', 'fold_neimark_sacker', 'flip_neimark_sacker', 'double_neimark_sacker'];
+  assert.deepEqual(labelTypes(kinds.map(sym => ({sym}))).sort(), [...kinds].sort());
+  assert.deepEqual(kinds.map(pointLabel), ['Bogdanov\u2013Takens', 'Cusp', 'Zero-Hopf (fold\u2013Hopf)', 'Generalized Hopf (Bautin)', 'Resonance 1:1', 'Resonance 1:2', 'Resonance 1:3', 'Resonance 1:4', 'Fold\u2013flip', 'Fold\u2013Neimark\u2013Sacker', 'Flip\u2013Neimark\u2013Sacker', 'Double Neimark\u2013Sacker']);
   assert.deepEqual(kinds.map(labelShape), ['diamond', 'triangle', 'star', 'circle', 'diamond', 'triangle', 'star', 'circle', 'square', 'triangle', 'star', 'diamond']);
-  assert.match(symbolHelp('GH'), /Lyapunov coefficient/);
+  assert.match(symbolHelp('generalized_hopf'), /Lyapunov coefficient/);
 });
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
@@ -28,18 +29,18 @@ const line = (n: number, x0: number, dx: number, y0: number, dy: number) =>
 
 /* a steady-state branch like lecar's: an end point, stable, unstable between two Hopf points, stable */
 const steady: DiagramRun[] = [
-  {br: 1, pt: 1, ty: 2, stable: false, periodic: false, d: 1, c: 'foreground', lw: 1, jac: 'difference', new: 1, x: [0.05], y: [-0.44], lab: [[0, 1, 'EP']]},
+  {br: 1, pt: 1, ty: 2, stable: false, periodic: false, d: 1, c: 'foreground', lw: 1, jac: 'difference', new: 1, x: [0.05], y: [-0.44], lab: [[0, 1, 'end']]},
   {br: 1, pt: 2, ty: 1, stable: true, periodic: false, d: 1, c: '#ff0000', lw: 2, jac: 'difference', x: line(3, 0.07, 0.05, -0.41, 0.05).map(p => p[0]),
     y: line(3, 0.07, 0.05, -0.41, 0.05).map(p => p[1])},
   {br: 1, pt: 5, ty: 2, stable: false, periodic: false, d: 1, c: 'foreground', lw: 1, jac: 'difference', x: [0.26, 0.3, 0.45], y: [-0.2, -0.1, 0.06],
-    lab: [[0, 2, 'HB'], [2, 3, 'HB']]},
-  {br: 1, pt: 8, ty: 1, stable: true, periodic: false, d: 1, c: '#ff0000', lw: 2, jac: 'difference', x: [0.47, 0.5], y: [0.07, 0.08], lab: [[1, 4, 'EP']]},
+    lab: [[0, 2, 'hopf'], [2, 3, 'hopf']]},
+  {br: 1, pt: 8, ty: 1, stable: true, periodic: false, d: 1, c: '#ff0000', lw: 2, jac: 'difference', x: [0.47, 0.5], y: [0.07, 0.08], lab: [[1, 4, 'end']]},
 ];
 /* the periodic branch from the first Hopf point: unstable, then stable, max and min */
 const periodic: DiagramRun[] = [
   {br: 2, pt: 1, ty: 4, stable: false, periodic: true, d: 3, c: '#0000ff', lw: 1, jac: 'difference', new: 1, x: [0.2601, 0.259, 0.255], y: [-0.2, -0.17, -0.14],
     y2: [-0.2, -0.23, -0.26]},
-  {br: 2, pt: 4, ty: 3, stable: true, periodic: true, d: 2, c: '#00e100', lw: 1, jac: 'difference', x: [0.25, 0.24], y: [-0.1, -0.05], y2: [-0.3, -0.35], lab: [[1, 5, 'LP']]},
+  {br: 2, pt: 4, ty: 3, stable: true, periodic: true, d: 2, c: '#00e100', lw: 1, jac: 'difference', x: [0.25, 0.24], y: [-0.1, -0.05], y2: [-0.3, -0.35], lab: [[1, 5, 'fold']]},
 ];
 const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', view: 'diagram_1', op: 'add', from, runs});
 
@@ -73,8 +74,8 @@ test('add puts every point of every run in place, in order, labels included', ()
   assert.deepEqual(p.palette, ['foreground', '#ff0000']);
   assert.deepEqual(p.y2, p.y, 'no y2 in the event: y2 is y');
   assert.equal(p.x[5], 0.3);
-  assert.deepEqual(activeView(s.diagram).labels, [{point: 0, lab: 1, sym: 'EP'}, {point: 4, lab: 2, sym: 'HB'},
-    {point: 6, lab: 3, sym: 'HB'}, {point: 8, lab: 4, sym: 'EP'}]);
+  assert.deepEqual(activeView(s.diagram).labels, [{point: 0, lab: 1, sym: 'end'}, {point: 4, lab: 2, sym: 'hopf'},
+    {point: 6, lab: 3, sym: 'hopf'}, {point: 8, lab: 4, sym: 'end'}]);
   assert.equal(s.diagram.events, 2);
 });
 
@@ -166,7 +167,7 @@ test('one curve per branch and stability run, each line starting where the run b
   assert.deepEqual(Array.from(per[2].idx), [11, 12, 13]);
   assert.deepEqual(Array.from(per[3].ys), [-0.26, -0.3, -0.35]);
   assert.equal(m.labels.length, 5);
-  assert.deepEqual(m.labels.find(l => l.lab === 5), {point: 13, lab: 5, sym: 'LP', x: 0.24, y: -0.05, y2: -0.35});
+  assert.deepEqual(m.labels.find(l => l.lab === 5), {point: 13, lab: 5, sym: 'fold', x: 0.24, y: -0.05, y2: -0.35});
 });
 
 test('a periodic branch starts at the Hopf point it bifurcates from, max and min alike', () => {
@@ -224,11 +225,11 @@ test('stepping from label to label, and the readout of a point', () => {
   const r = describePoint(d.points, d.labels, d.axes, 4);
   assert.equal(r.head, 'Branch 1, point 5');
   assert.equal(r.kind, 'unstable steady state');
-  assert.equal(r.label, 'HB label 2 (Hopf)');
+  assert.equal(r.label, 'Andronov\u2013Hopf label 2');
   /* T23: the point where the last run's branch ended says why */
   const e = describePoint(d.points, d.labels, d.axes, 0, {point: 0, text: 'parameter iapp reached Par Max (0.45)'});
-  assert.equal(e.label, 'EP label 1 (End point: parameter iapp reached Par Max (0.45))');
-  assert.equal(describePoint(d.points, d.labels, d.axes, 4, {point: 0, text: 'x'}).label, 'HB label 2 (Hopf)');
+  assert.equal(e.label, 'End of branch label 1 (parameter iapp reached Par Max (0.45))');
+  assert.equal(describePoint(d.points, d.labels, d.axes, 4, {point: 0, text: 'x'}).label, 'Andronov\u2013Hopf label 2');
   assert.deepEqual(r.values, ['iapp = 0.26', 'V = -0.2']);
   const q = describePoint(d.points, d.labels, d.axes, 10);
   assert.equal(q.kind, 'unstable periodic orbit');
@@ -238,7 +239,7 @@ test('stepping from label to label, and the readout of a point', () => {
 
 /* ---- T11b: autoinfo, the grab, the label a branch started from ---- */
 
-const hbInfo = {point: 4, br: 1, pt: 5, type: 2, stable: false, periodic: false, sym: 'HB', lab: 2, jac: 'difference', par: [{name: 'iapp', value: 0.26}, {name: 'phi', value: 0.2}],
+const hbInfo = {point: 4, br: 1, pt: 5, type: 2, stable: false, periodic: false, sym: 'hopf', lab: 2, jac: 'difference', par: [{name: 'iapp', value: 0.26}, {name: 'phi', value: 0.2}],
   norm: 0.29, var: 'V', u: -0.2, per: 14.4, x: 0.26, y: -0.2, y2: -0.2};
 const hbStab = {periodic: 0, circle: [[0.9, 0.42], [0.9, -0.42]], eig: [[6e-5, 0.435], [6e-5, -0.435]]};
 
@@ -308,7 +309,7 @@ test('a periodic branch whose run says it started from the Hopf label joins that
 test('the strip in words and the circle: inside is stable, the eigenvalues listed', () => {
   const rows = infoRows(hbInfo as never, axes);
   assert.deepEqual(rows.slice(0, 4), [['Branch', '1'], ['Point', '5'], ['Type', 'Unstable steady state'],
-    ['Label', 'HB 2 (Hopf)']]);
+    ['Label', 'AH 2 (Andronov\u2013Hopf)']]);
   assert.deepEqual(rows.slice(4, -1), [['iapp', '0.26'], ['V', '-0.2'], ['Norm', '0.29'], ['phi', '0.2']],
     'the axes (iapp, V), then Norm (no period for a steady state), then the second parameter, last');
   assert.deepEqual(rows.at(-1), ['Jacobian', 'difference'], 'and the Jacobian its run was computed with');

@@ -26,7 +26,7 @@
       "kind": "periodic",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 1
       },
       "parameter": "a",
@@ -48,7 +48,7 @@
       "reference": ".auto07p",
       "run": "steady",
       "side": "ours",
-      "type": "HB",
+      "type": "hopf",
       "index": 1,
       "cause": "The Hopf point is at a = 0, which the 11th step (ds 0.1 from a = -1) lands on to roundoff: AUTO-07p's Hopf function there is 2.5e-16 (its d file) and it labels nothing, so its cycles run has no HB to start from (the run is unavailable). Ours and XPPAUT 8.0 label the HB (a roundoff of the other sign). The HB is real: started at a = -1.05 AUTO-07p labels it at a = 9.5e-8 and its cycles end at a = 1.00003, norm 1.0000298, period 5.71196, as ours does (ntot 29, 1.00002979). docs/auto-references.md."
     },
@@ -56,7 +56,7 @@
       "reference": ".xppaut",
       "run": "cycles",
       "side": "ours",
-      "type": "BP",
+      "type": "branch_point",
       "index": 1,
       "cause": "The branch's last step locates this point and also passes a bound: AUTO-07p and XPPAUT 8.0 relabel it EP, xppautX keeps its label and ends the branch there (W495 #559, docs/auto07p-findings.md finding 9)."
     }

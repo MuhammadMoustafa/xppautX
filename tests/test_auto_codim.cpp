@@ -88,7 +88,7 @@ int main()
     iap.ndm=3; iap.ndim=6; rap.epss=1e-5;
     reaction_session.auto_state.special_points.fill(true);
     std::array<doublecomplex,3> multipliers={{{1,0},{1,0},{.9,0}}};
-    iap.itpst=xpp::AutoPointKind::PeriodicFold;
+    iap.itpst=xpp::AutoPointKind::CycleFold;
     CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)<0 && enabled);
     multipliers[2].r=1.1;
     CHECK(auto_cycle_test(iap,rap,par.data(),multipliers,&enabled)>0 && enabled);
@@ -117,7 +117,7 @@ int main()
     // W419: its equations are singular at 1:1 and 1:2, where sin(theta) = 0.
     for (double angle:{-1e-3,pi(1.)-1e-3,pi(1.)+1e-3,pi(3.)}) CHECK(xpp::auto_torus_singular(angle));
     for (double angle:{pi(.5),pi(2./3),pi(4./3),pi(1.5)}) CHECK(!xpp::auto_torus_singular(angle));
-    iap.itpst=xpp::AutoPointKind::Torus;
+    iap.itpst=xpp::AutoPointKind::NeimarkSacker;
     const auto torus_test=[&](double angle) {
         par[xpp::auto_unknown::torus_angle]=angle;
         return auto_cycle_test(iap,rap,par.data(),multipliers,&enabled);
@@ -166,13 +166,13 @@ int main()
     CHECK(std::abs(real[0]+2)<1e-10 && std::abs(real[1]+1)<1e-10 && std::abs(real[2]-1)<1e-10);
     // Map secondary labels distinguish real +1/-1 crossings from pairs.
     CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Regular,pi(1.),1e-4)==xpp::AutoPointKind::PeriodDoubling);
-    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Regular,pi(.5),1e-4)==xpp::AutoPointKind::Torus);
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Regular,pi(.5),1e-4)==xpp::AutoPointKind::NeimarkSacker);
     CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Fold,pi(1.),1e-4)==xpp::AutoPointKind::FoldFlip);
-    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Fold,pi(.5),1e-4)==xpp::AutoPointKind::FoldTorus);
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Fold,pi(.5),1e-4)==xpp::AutoPointKind::FoldNeimarkSacker);
     CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::PeriodDoubling,0.,1e-4)==xpp::AutoPointKind::FoldFlip);
-    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::PeriodDoubling,pi(.5),1e-4)==xpp::AutoPointKind::FlipTorus);
-    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Torus,pi(.5),1e-4)==xpp::AutoPointKind::TorusTorus);
-    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::Torus,0.,1e-4)==xpp::AutoPointKind::FoldTorus);
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::PeriodDoubling,pi(.5),1e-4)==xpp::AutoPointKind::FlipNeimarkSacker);
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::NeimarkSacker,pi(.5),1e-4)==xpp::AutoPointKind::DoubleNeimarkSacker);
+    CHECK(xpp::auto_map_secondary_kind(xpp::AutoPointKind::NeimarkSacker,0.,1e-4)==xpp::AutoPointKind::FoldNeimarkSacker);
     // Henon's exact unit-circle pair satisfies A^2-2*cos(theta)*A+I=0.
     std::string map_path="tools/models/henon_rot.odex";
     char *map_args[]={name,map_path.data(),nullptr};
@@ -185,7 +185,7 @@ int main()
     map_lib.session=&map_session;
     map_lib.parameter_count=map_session.auto_state.parameter_layout.size();
     iap.lib=&map_lib; iap.ndm=4; iap.ndim=10;
-    iap.ips=xpp::AutoProblem::DiscreteMap; iap.itpst=xpp::AutoPointKind::Torus;
+    iap.ips=xpp::AutoProblem::DiscreteMap; iap.itpst=xpp::AutoPointKind::NeimarkSacker;
     icp={map_session.auto_state.parameter_layout.solver_index(0),map_session.auto_state.parameter_layout.solver_index(1)};
     std::vector<double> mp(map_lib.parameter_count),mj(100),mdp(10*map_lib.parameter_count),mr(10);
     const double fixed=std::sqrt(2.5)-1.;

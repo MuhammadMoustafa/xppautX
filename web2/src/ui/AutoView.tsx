@@ -54,11 +54,12 @@ import {WindowName} from './WindowName';
 import {TraceDialog} from './TraceDialog';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {DiagramChart, setDiagramChart} from '../plot/diagramChart';
+import {pointLabel, pointMark} from '../store/pointTypes';
 import {cssColor} from '../plot/colors';
 import {stopPoint} from '../plot/autoStatus';
 import {
   buildDiagramModel, describePoint, fmt, grabStep, labelShape, LABEL_GLYPH, labelTypes, stepLabel, symbolHelp,
-  symbolName, vertexOf, type DiagramModel,
+  vertexOf, type DiagramModel,
 } from '../plot/diagramModel';
 import {attachGestures, type PickSink} from '../plot/interactions';
 import {pickKey, toData} from '../plot/pick';
@@ -447,7 +448,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
             return (
               <li key={sym} class="auto-legend-label" data-sym={sym} data-shape={shape} title={symbolHelp(sym)}>
                 <span class={`auto-label-mark auto-label-mark-${shape}`} aria-hidden="true">{LABEL_GLYPH[shape]}</span>
-                <b>{sym}</b> {symbolName(sym)}
+                <b>{pointMark(sym)}</b> {pointLabel(sym)}
               </li>
             );
           })}

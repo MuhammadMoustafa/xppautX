@@ -12,7 +12,7 @@ struct Session; /* session.h */
    allinfo.dat, Save/Load diagram): a new export, not a replacement.
 
    Writes filename as CSV, one row per stored diagram point: branch,
-   point, type (the symbol auto_point_symbol gives: EP, HB, LP, ... or empty),
+   point, type (the point type's name: regular, fold, hopf, ...),
    label, stability ("stable"/"unstable"), the point's curve kind (f2, as
    write_pts/write_info_out carry it), the active parameter(s) (named,
    value), the period and the plotted/state values write_info_out also

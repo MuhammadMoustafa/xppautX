@@ -2,6 +2,7 @@
    {type:'event'}; the UI's own facts (connection, commands sent, the plots'
    viewports, the tab shown, hover, notifications, the menu drawer) as their
    own actions. Pure: no DOM, no I/O, no clock. */
+import {setPointTypes} from './pointTypes';
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, ErrorAction, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, XppEvent} from '../protocol/types';
 import {errorPlace, errorText, unreadFile, type ErrorPlace} from '../protocol/errors';
@@ -55,7 +56,7 @@ export type {LogEntry} from './log';
     ("Generating starting data", "Hopf point", ...) and why a branch ended
     (core/auto_stop.cpp, "Branch 1 stopped at point 57: ..."). Anything else stays
     plain `log`; this never sees `message` `error` text (handled separately). */
-const AUTO_ROW = /^\s*-?\d+\s+-?\d+\s+(\S\S\s+)?-?\d+(\s+-?\d+(\.\d+)?([eE][+-]?\d+)?){2,}\s*$/;
+const AUTO_ROW = /^\s*-?\d+\s+-?\d+\s+([A-Za-z]+\s+)?-?\d+(\s+-?\d+(\.\d+)?([eE][+-]?\d+)?){2,}\s*$/;
 const AUTO_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|DSMIN|DSMAX|Division by Zero|Initialization Error CRASH|Restart label|Branch \d+ stopped at point \d+:/;
 export function classifyLogText(text: string): 'log' | 'auto' {
   return AUTO_ROW.test(text) || AUTO_PHRASE.test(text) ? 'auto' : 'log';
@@ -357,6 +358,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       /* a (re)connection: defaults and slider definitions come with state */
       const values = reduceValues({...state.values, defaults: null}, {type: 'settled'});
       /* a set sent before gets no idle now */
+      setPointTypes(ev.point_types);
       return {...state, hello: ev, title: ev.title, values, numerics: null,
         autoSettings: reduceAutoSettings(state.autoSettings, {type: 'reset'}),
         keymap: reduceKeymap(state.keymap, {type: 'info', info: ev.keymap})};

@@ -441,14 +441,14 @@ def check_auto_two_parameter_starts():
         autocompare.completed(s)
         diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
         autocompare.execute_run(s, d['runs'][0], diagram, {})
-        autocompare.completed(s, dict(cmd='auto', op='grab', type='LP', index=1))
+        autocompare.completed(s, dict(cmd='auto', op='grab', type='fold', index=1))
         autocompare.completed(s, dict(cmd='auto', op='set', axes={'par1': 'p0', 'par2': 'p1'}))
         evs = autocompare.run_any(s, 't')
         errors = [e for e in evs if e.get('error')]
         # W495: AUTO bounds only the principal parameter (ae.f90 tests U(NDIM+1)), so p1 = 14 starts the run
         check('stops AUTO second parameter is not bounded: p1 = 14 outside [Par Min, Par Max] starts the run',
               not errors and any(e.get('ev') == 'diagram' and e.get('op') == 'add' for e in evs), str(errors))
-        autocompare.completed(s, dict(cmd='auto', op='grab', type='LP', index=1))
+        autocompare.completed(s, dict(cmd='auto', op='grab', type='fold', index=1))
         autocompare.completed(s, dict(cmd='auto', op='set', axes={'par2': 'p0'}))
         evs = autocompare.run_any(s, 't')
         errors = [e for e in evs if e.get('error')]
@@ -461,7 +461,7 @@ def check_auto_two_parameter_starts():
         evs, _ = s.collect(stops_idle)
         errors = [e for e in evs if e.get('error')]
         check('stops AUTO incompatible restart kind', len(errors) == 1
-              and 'Restart label 1' in errors[0]['error'] and 'EP' in errors[0]['error']
+              and 'Restart label 1' in errors[0]['error'] and 'end' in errors[0]['error']
               and 'two-parameter starts need' in errors[0]['error'], str(errors))
     finally:
         s.close()
@@ -480,8 +480,8 @@ def check_auto_periodic_start_kind():
         evs, _ = s.collect(stops_idle)
         errors = [e for e in evs if e.get('error')]
         check('stops AUTO periodic from a steady EP', len(errors) == 1
-              and 'Restart label 1' in errors[0]['error'] and 'EP' in errors[0]['error']
-              and 'Hopf point (HB) or a periodic orbit' in errors[0]['error'], str(errors))
+              and 'Restart label 1' in errors[0]['error'] and 'end' in errors[0]['error']
+              and 'needs a hopf point or a periodic orbit' in errors[0]['error'], str(errors))
     finally:
         s.close()
 
@@ -4170,7 +4170,7 @@ def check_autoinfo():
         evs, ask = cola(lambda e: e.get('ev') == 'ask')
         got = infos(evs)
         info, stab = (got[-1]['info'], got[-1]['stab']) if got else (None, None)
-        check('autoinfo: Tab to the Hopf point: its strip', info is not None and info['sym'] == 'HB'
+        check('autoinfo: Tab to the Hopf point: its strip', info is not None and info['sym'] == 'hopf'
               and info['lab'] > 0 and strip_matches(info, diag_a) is None, info and strip_matches(info, diag_a) or str(got))
         hb = info
         printed = printed_stability(pa)
@@ -4390,7 +4390,7 @@ def check_autosettings():
               and st.get('step', {}).get('key') == 'ds', str(st and (st.get('pairs'), st.get('step')))[:300])
         ask = ask_of(cmd='key', win='auto', key='n')
         cancel(ask)
-        point_keys = ('BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4', 'LPD', 'LTR', 'PTR', 'TTR')
+        point_keys = ('bogdanov_takens', 'cusp', 'zero_hopf', 'generalized_hopf', 'resonance_1_1', 'resonance_1_2', 'resonance_1_3', 'resonance_1_4', 'fold_flip', 'fold_neimark_sacker', 'flip_neimark_sacker', 'double_neimark_sacker')
         check('W364: autosettings carries named detection booleans enabled by default',
               st.get('special_points') == dict.fromkeys(point_keys, True))
         want = [form_text(st['numerics'][k]) for k in NUM_KEYS]
@@ -4400,12 +4400,12 @@ def check_autosettings():
         for value, expected in (('false', False), ('true', True)):
             form = ask_of(cmd='key', win='auto', key='n')
             edited = list(form['values'])
-            edited[len(NUM_KEYS) + point_keys.index('GH')] = value
+            edited[len(NUM_KEYS) + point_keys.index('generalized_hopf')] = value
             snda(cmd='answer', id=form['id'], ok=1, values=edited)
             events, _ = cola(is_idle)
             current = settings_of(events)
             check('W364: Numerics form applies named GH ' + value,
-                  current is not None and current['special_points']['GH'] is expected)
+                  current is not None and current['special_points']['generalized_hopf'] is expected)
         form = ask_of(cmd='key', win='auto', key='n')
         edited = list(form['values'])
         edited[1], edited[-1] = '7', '0'
@@ -5731,7 +5731,7 @@ def check_auto_jacobian_failure():
                   and err.get('error', '').startswith('AUTO stopped: the exact Jacobian') and '(AUTO at a=' in err.get('error', ''),
                   str(errs))
             check('W275: the run stored its last converged point as an end point, with a label, and says why it stopped',
-                  bool(labs) and labs[-1][1] == 'EP' and labs[-1][0] > 0 and info and info[-1].get('why') == 'jacobian',
+                  bool(labs) and labs[-1][1] == 'end' and labs[-1][0] > 0 and info and info[-1].get('why') == 'jacobian',
                   '%s %s' % (labs, info))
             check('W275: the error offers Switch to differences and continue: set the Jacobian to difference, then restart from the end point',
                   action.get('label') == 'Switch to differences and continue' and len(cmds) == 2
@@ -7156,7 +7156,7 @@ def check_session_file():
         strip = lambda m: m and dict(m, equilibria=[])
         check('open session: the labels and frozen curves are the saved ones (not Sing pts\' symbols)',
               [strip(m) for m in marks1] == [strip(m) for m in m2], str(m2)[:300])
-        answered(snd, col, (), cmd='auto', op='grab', type='HB', index=1)
+        answered(snd, col, (), cmd='auto', op='grab', type='hopf', index=1)
         evs = key(snd, col, 'r', 'p', win='auto')
         more = rebuild_diagram(allev, [])
         check('open session: a grab and a periodic run continue the restored diagram',
@@ -7426,7 +7426,7 @@ def check_auto_views():
               av(evs) and [v['zoom']['x'] for v in av(evs)[-1]['views']] == [[0.1, 0.2], None, None], str(av(evs)))
 
         after(cmd='window.select', window='diagram_1')
-        after(cmd='auto', op='grab', type='HB', index=1)
+        after(cmd='auto', op='grab', type='hopf', index=1)
         menu('r', {'key': 'p'})
         lists = [rebuild_diagram(allev, [], v) for v in range(3)]
         check("views: a run's points reach every view, the same points in each",

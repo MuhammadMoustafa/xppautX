@@ -17,7 +17,7 @@ constexpr std::array<xpp::AutoPointKind,4> resonance_kinds={xpp::AutoPointKind::
 // The multiplier a fold (+1) or period-doubling (-1) curve of cycles imposes.
 double imposed_multiplier(xpp::AutoPointKind start)
 {
-    return start==xpp::AutoPointKind::PeriodicFold ? 1. : -1.;
+    return start==xpp::AutoPointKind::CycleFold ? 1. : -1.;
 }
 
 // The continued angle modulo 2*pi, folded into [0, pi] (exactly the angle
@@ -77,27 +77,27 @@ AutoPointKind auto_map_secondary_kind(AutoPointKind start, double angle, double 
 {
     const bool flip=std::abs(angle-pi(1.))<=std::sqrt(tolerance);
     const bool torus=!flip && angle>std::sqrt(tolerance);
-    if (start==AutoPointKind::Regular) return flip ? AutoPointKind::PeriodDoubling : torus ? AutoPointKind::Torus : AutoPointKind::Regular;
-    if (start==AutoPointKind::Fold) return flip ? AutoPointKind::FoldFlip : torus ? AutoPointKind::FoldTorus : AutoPointKind::Regular;
-    if (start==AutoPointKind::PeriodDoubling) return torus ? AutoPointKind::FlipTorus : !flip ? AutoPointKind::FoldFlip : AutoPointKind::Regular;
-    if (start==AutoPointKind::Torus) return flip ? AutoPointKind::FlipTorus : torus ? AutoPointKind::TorusTorus : AutoPointKind::FoldTorus;
+    if (start==AutoPointKind::Regular) return flip ? AutoPointKind::PeriodDoubling : torus ? AutoPointKind::NeimarkSacker : AutoPointKind::Regular;
+    if (start==AutoPointKind::Fold) return flip ? AutoPointKind::FoldFlip : torus ? AutoPointKind::FoldNeimarkSacker : AutoPointKind::Regular;
+    if (start==AutoPointKind::PeriodDoubling) return torus ? AutoPointKind::FlipNeimarkSacker : !flip ? AutoPointKind::FoldFlip : AutoPointKind::Regular;
+    if (start==AutoPointKind::NeimarkSacker) return flip ? AutoPointKind::FlipNeimarkSacker : torus ? AutoPointKind::DoubleNeimarkSacker : AutoPointKind::FoldNeimarkSacker;
     return AutoPointKind::Regular;
 }
 
 bool auto_torus_near_one_to_one(double angle)
 {
-    return auto_cycle_resonance_kind(AutoPointKind::Torus,angle)==AutoPointKind::Resonance1;
+    return auto_cycle_resonance_kind(AutoPointKind::NeimarkSacker,angle)==AutoPointKind::Resonance1;
 }
 
 bool auto_torus_singular(double angle)
 {
-    const auto kind=auto_cycle_resonance_kind(AutoPointKind::Torus,angle);
+    const auto kind=auto_cycle_resonance_kind(AutoPointKind::NeimarkSacker,angle);
     return kind==AutoPointKind::Resonance1 || kind==AutoPointKind::Resonance2;
 }
 
 AutoPointKind auto_cycle_resonance_kind(AutoPointKind start, double angle)
 {
-    if (start==AutoPointKind::Fold || start==AutoPointKind::PeriodicFold) return AutoPointKind::Resonance1;
+    if (start==AutoPointKind::Fold || start==AutoPointKind::CycleFold) return AutoPointKind::Resonance1;
     if (start==AutoPointKind::PeriodDoubling) return AutoPointKind::Resonance2;
     // The torus formulation continues theta unwrapped: its resonances are
     // those of theta modulo 2*pi (W419).
@@ -284,12 +284,12 @@ double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *p
     const double angle=par[xpp::auto_unknown::torus_angle];
     const auto kind=xpp::auto_cycle_resonance_kind(start,angle);
     const auto &enabled=iap.lib->session->auto_state.special_points;
-    if (start==xpp::AutoPointKind::Torus) {
+    if (start==xpp::AutoPointKind::NeimarkSacker) {
         return resonance_test(enabled,angle,changed);
     }
     *changed=xpp::auto_codim_enabled(enabled,kind);
     if (!*changed) return auto_test_not_applicable;
-    if (start!=xpp::AutoPointKind::PeriodicFold && start!=xpp::AutoPointKind::PeriodDoubling) {
+    if (start!=xpp::AutoPointKind::CycleFold && start!=xpp::AutoPointKind::PeriodDoubling) {
         *changed=false;
         return auto_test_not_applicable;
     }
@@ -337,7 +337,7 @@ FNCS_TYPE_AE(fnghae)
 FNCS_TYPE_AE(fnrnae)
 {
     auto &w=iap->lib->codim;
-    if (iap->itpst==xpp::AutoPointKind::Torus) {
+    if (iap->itpst==xpp::AutoPointKind::NeimarkSacker) {
         const double angle=u[2*iap->ndm];
         w.map_kind=xpp::auto_cycle_resonance_kind(iap->itpst,angle);
         return resonance_test(iap->lib->session->auto_state.special_points,angle,chng);

@@ -27,7 +27,7 @@
       "kind": "periodic",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 1
       },
       "parameter": "iapp",
@@ -55,7 +55,7 @@
       "reference": ".xppaut",
       "run": "cycles",
       "side": "ours",
-      "type": "LP",
+      "type": "fold",
       "index": 1,
       "cause": "W326 (#387), finding #47: a BP location exhausts ITMX at cycles point 21. xppautX restores the converged point, tangent, old point, step history and monodromy data; XPPAUT 8.0 leaves the displaced iterate and reverses the branch, missing this real fold at NTST 15 (iapp 0.248413878; AUTO-07p 0.248413876). No tolerance change. docs/auto-references.md."
     }

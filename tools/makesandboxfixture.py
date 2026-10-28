@@ -25,7 +25,7 @@ RUN_TIMEOUT = 120  # seconds: the 200 ms model runs and AUTO's continuation, a s
 RUN_MS = 200  # the demo's first run and each continuation: short enough to record, long enough to move all eight states
 CONTINUE_TO_MS = 2 * RUN_MS  # the continuation's end time, matching the recorded note
 MIN_AUTO_POINTS = 20  # fewer means the continuation did not run across the Hopf and fold
-ITP_FOLD, ITP_HOPF = 2, 3  # AUTO's point types in diagram.csv
+FOLD, HOPF = 'fold', 'hopf'  # AUTO's point types in diagram.csv (their names)
 binary = str(Path(args.server).resolve())
 model = str(Path(args.model).resolve())
 output = Path(args.output).resolve()
@@ -106,8 +106,8 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
             ('auto/diagram.csv', 'auto/solutions.s', 'auto/settings.txt', 'auto/views.txt')}
     points = list(csv.DictReader(io.StringIO(auto_saved['auto/diagram.csv'].decode())))
     assert len(points) > MIN_AUTO_POINTS, points
-    assert any(int(point['itp']) == ITP_HOPF for point in points), 'Hopf point must be retained'
-    assert any(int(point['itp']) == ITP_FOLD for point in points), 'Fold point must be retained'
+    assert any(point['itp'] == HOPF for point in points), 'Hopf point must be retained'
+    assert any(point['itp'] == FOLD for point in points), 'Fold point must be retained'
     assert auto_saved['auto/solutions.s'], 'AUTO must retain labelled solutions'
     # Normal paced, automatic first playback exercises the user's path, in
     # addition to silent and fast-forward playback above.

@@ -30,8 +30,8 @@ starts again from the description's parameters and initial conditions,
 as AUTO-07p starts each of its runs (W365). For periodic/BVP starts that
 integration supplies the orbit too; a HomCont run's first point is that
 orbit uncorrected in both programs, and `tools/auto_reference.py`
-integrates AUTO-07p's with the same step. A stored start is `{"run":"steady","type":"HB","index":1}`:
-the first HB in that named run, grabbed by its label. Indices are one-based
+integrates AUTO-07p's with the same step. A stored start is `{"run":"steady","type":"hopf","index":1}`:
+the first hopf point in that named run, grabbed by its label. Indices are one-based
 within the named run, not across the whole diagram. A periodic run from an HB
 starts the cycles; from another point of a periodic run (its end EP, say) it
 extends them (AUTO's Extend, W423). `switch:true` requests
@@ -79,7 +79,7 @@ the label and every other quantity stay checked, and the check fails if the
 quantity now agrees so the exception must be removed.
 
 A `two_parameter` run (W362, #424) continues a labelled point of an earlier run (`start`: its run, type
-LP or HB, index) in its two `parameters`. Its reference run holds `parameters`, the special points with
+fold or hopf, index) in its two `parameters`. Its reference run holds `parameters`, the special points with
 `par2` (BT, CP, ZH and GH on equilibrium curves; R1-R4 on cycle curves,
 W364/W400; W404 adds map R1-R4 and LPD/LTR/PTR/TTR) and `curve`, every step of the other program as `[parameter, second parameter, norm]`; the curves
 are matched by where they lie, not by step (docs/auto-references.md "Two-parameter curves").

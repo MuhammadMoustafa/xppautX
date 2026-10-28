@@ -38,8 +38,8 @@ constexpr std::array<ProblemCase, 15> problems = {{
 constexpr std::array<xpp::AutoPointKind, 13> kinds = {
     xpp::AutoPointKind::Pending,       xpp::AutoPointKind::Regular,        xpp::AutoPointKind::BranchPoint,
     xpp::AutoPointKind::Fold,          xpp::AutoPointKind::Hopf,           xpp::AutoPointKind::Output,
-    xpp::AutoPointKind::PeriodicFold,  xpp::AutoPointKind::PeriodicBranch, xpp::AutoPointKind::PeriodDoubling,
-    xpp::AutoPointKind::Torus,         xpp::AutoPointKind::End,            xpp::AutoPointKind::UserZero,
+    xpp::AutoPointKind::CycleFold,  xpp::AutoPointKind::CycleBranch, xpp::AutoPointKind::PeriodDoubling,
+    xpp::AutoPointKind::NeimarkSacker,         xpp::AutoPointKind::End,            xpp::AutoPointKind::UserZero,
     xpp::AutoPointKind::MaxSteps,
 };
 
@@ -95,12 +95,12 @@ int main()
     CHECK(xpp::auto_point_decode(-4) && xpp::auto_point_decode(-4)->kind == xpp::AutoPointKind::UserZero);
     CHECK(xpp::auto_point_decode(-9) && xpp::auto_point_decode(-9)->kind == xpp::AutoPointKind::MaxSteps);
     CHECK(xpp::auto_point_encode({xpp::AutoPointKind::UserZero, xpp::AutoPointKind::Hopf}) == -34);
-    CHECK(xpp::auto_point_encode({xpp::AutoPointKind::MaxSteps, xpp::AutoPointKind::Torus}) == -89);
+    CHECK(xpp::auto_point_encode({xpp::AutoPointKind::MaxSteps, xpp::AutoPointKind::NeimarkSacker}) == -89);
     {
         const auto uz = xpp::auto_point_decode(-34);
         CHECK(uz && uz->kind == xpp::AutoPointKind::UserZero && uz->start == xpp::AutoPointKind::Hopf);
         const auto mx = xpp::auto_point_decode(-89);
-        CHECK(mx && mx->kind == xpp::AutoPointKind::MaxSteps && mx->start == xpp::AutoPointKind::Torus);
+        CHECK(mx && mx->kind == xpp::AutoPointKind::MaxSteps && mx->start == xpp::AutoPointKind::NeimarkSacker);
     }
     /* composite codes: 10*start + kind */
     {
@@ -117,22 +117,22 @@ int main()
     for (int value : {-21,-22,-23,-31,-32,-33,-55,-56,-57,-58,-75,-76,-77,-78,-85,-86,-87,-88}) {
         const auto point=xpp::auto_point_decode(value);
         CHECK(point && xpp::auto_point_encode(*point)==value);
-        CHECK(std::string(xpp::auto_point_symbol(*point)).size()==2);
+        CHECK(xpp::auto_point_from_text(xpp::auto_point_text(*point)) == point);
     }
     for (int value : {23,28,77,78,83,87,88,-25,-26,-27,-28}) {
         const auto point=xpp::auto_point_decode(value);
         CHECK(point && xpp::auto_point_encode(*point)==value);
     }
-    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(23)),"LTR");
-    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(78)),"LPD");
-    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(87)),"PTR");
-    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(88)),"TTR");
-    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-32)),"GH");
-    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-22)),"CP");
-    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-55)),"R1");
-    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-76)),"R2");
-    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-87)),"R3");
-    CHECK_STR(xpp::auto_point_symbol(*xpp::auto_point_decode(-88)),"R4");
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(23)->kind) == "fold_neimark_sacker");
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(78)->kind) == "fold_flip");
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(87)->kind) == "flip_neimark_sacker");
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(88)->kind) == "double_neimark_sacker");
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(-32)->kind) == "generalized_hopf");
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(-22)->kind) == "cusp");
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(-55)->kind) == "resonance_1_1");
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(-76)->kind) == "resonance_1_2");
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(-87)->kind) == "resonance_1_3");
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(-88)->kind) == "resonance_1_4");
 
     /* an unknown code is refused: out of range, a negative kind AUTO has no
        such point for, a negative composite of a plain kind */
@@ -157,14 +157,36 @@ int main()
         CHECK(static_cast<long>(start) == (magnitude < 10 ? magnitude : magnitude / 10)); /* findlb's itpst */
     }
 
-    /* the two-letter symbols the diagram's Ty column shows */
-    struct SymbolCase { long itp; const char *symbol; };
-    for (const SymbolCase &c : {SymbolCase{0, "  "}, {1, "BP"}, {2, "LP"}, {3, "HB"}, {4, "  "}, {-4, "UZ"}, {5, "LP"},
-                                {6, "BP"}, {7, "PD"}, {8, "TR"}, {9, "EP"}, {-9, "MX"}, {27, "PD"}, {-34, "UZ"}, {-89, "MX"}}) {
+    /* the type names the diagram's type column and the files show */
+    struct NameCase { long itp; const char *name; };
+    for (const NameCase &c : {NameCase{0, "regular"}, {1, "branch_point"}, {2, "fold"}, {3, "hopf"}, {4, "output"},
+                              {-4, "user_point"}, {5, "cycle_fold"}, {6, "cycle_branch_point"}, {7, "period_doubling"},
+                              {8, "neimark_sacker"}, {9, "end"}, {-9, "no_convergence"}, {27, "period_doubling"}, {-34, "user_point"},
+                              {-89, "no_convergence"}}) {
         const auto code = xpp::auto_point_decode(c.itp);
         CHECK(code);
-        if (code) CHECK_STR(xpp::auto_point_symbol(*code), c.symbol);
+        if (code) CHECK(xpp::auto_point_kind_name(code->kind) == c.name);
     }
+    /* every kind has one name, and each name reads back as its kind (Pending is named for display, never read) */
+    for (const xpp::AutoPointName &e : xpp::auto_point_names) {
+        CHECK(xpp::auto_point_kind_name(e.kind) == e.name);
+        if (e.kind == xpp::AutoPointKind::Pending) CHECK(!xpp::auto_point_kind_from_name(e.name));
+        else CHECK(xpp::auto_point_kind_from_name(e.name) == e.kind);
+    }
+    CHECK(xpp::auto_point_kind_name(xpp::AutoPointKind::MaxSteps) == "no_convergence");
+    CHECK(xpp::auto_point_kind_name(xpp::AutoPointKind::UserZero) == "user_point");
+    /* the codimension-two keys are the names of their kinds, in the settings' order */
+    CHECK(xpp::auto_codim_keys[0] == "bogdanov_takens" && xpp::auto_codim_keys[11] == "double_neimark_sacker");
+    CHECK(xpp::auto_codim_key_list().find("zero_hopf, generalized_hopf") != std::string::npos);
+    /* a file's text: a name, or a name from another kind (a two-parameter start), and only a code AUTO has */
+    CHECK(xpp::auto_point_text(*xpp::auto_point_decode(78)) == "fold_flip_from_period_doubling");
+    CHECK(xpp::auto_point_text(*xpp::auto_point_decode(-34)) == "user_point_from_hopf");
+    CHECK(xpp::auto_point_text(*xpp::auto_point_decode(7)) == "period_doubling");
+    CHECK(xpp::auto_point_from_text("fold_flip_from_period_doubling") == xpp::auto_point_decode(78));
+    CHECK(!xpp::auto_point_from_text("HB") && !xpp::auto_point_from_text("LP") && !xpp::auto_point_from_text("pending"));
+    CHECK(!xpp::auto_point_from_text("fold_from_") && !xpp::auto_point_from_text("fold_from_pending") && !xpp::auto_point_from_text(""));
+    CHECK(xpp::auto_point_from_text("regular_from_fold") == xpp::auto_point_decode(20));
+    /* the label a person reads: the name with its underscores as spaces and a capital first letter (W381) */
 
     /* the diagram classification's protocol number */
     CHECK(xpp::diagram_point_type_code(xpp::STABLE_EQ) == 1 && xpp::diagram_point_type_code(xpp::UNSTABLE_PERIODIC) == 4);

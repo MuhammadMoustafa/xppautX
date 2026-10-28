@@ -189,7 +189,7 @@ test('the text panel open/tab state is tracked like the other panels', () => {
 
 test('classifyLogText tells AUTO\'s console table apart from the rest of the log', () => {
   assert.equal(classifyLogText('  BR    PT  TY LAB '), 'auto');
-  assert.equal(classifyLogText('   1     1  EP   1  1.000000E-01  2.000000E-01'), 'auto');
+  assert.equal(classifyLogText('   1     1  end' + ' '.repeat(18) + '   1  1.000000E-01  2.000000E-01'), 'auto');
   assert.equal(classifyLogText('Generating starting data :'), 'auto');
   assert.equal(classifyLogText('Hopf point\n'), 'auto');
   assert.equal(classifyLogText('nvar=2 naux=4 nfix=0 nmark=0 NEQ=6 NODE=6'), 'log');
@@ -207,11 +207,11 @@ test('T27: the rows NPr prints (no type) are AUTO\'s, and a chunk of several lin
   assert.equal(classifyLogText('   1    50       2  1.077149E-01  3.745827E-01 -3.658905E-01  8.022678E-02\n'), 'auto');
   assert.equal(classifyLogText('   2  2250      47  3.129853E-01  1.000000E+00  2.500000E+01\n'), 'auto');
   const chunk = 'nvar=2 naux=4\n   1     5       2  1.077149E-01  3.745827E-01\n   1    10       3  1.682993E-01  3.212211E-01\n'
-    + '   1    19  HB   4  2.624638E-01  2.891081E-01\n   1    2';
+    + '   1    19  hopf' + ' '.repeat(17) + '   4  2.624638E-01  2.891081E-01\n   1    2';
   let s = ev(READY, {ev: 'log', text: chunk});
   s = ev(s, {ev: 'log', text: '0       5  2.725202E-01  2.911251E-01\nAll formulas are valid!!\n'});
   assert.deepEqual(logEntries(s.log).map(l => [l.kind, l.text.trim().slice(0, 12)]), [['log', 'nvar=2 naux='], ['auto', '1     5     '],
-    ['auto', '1    10     '], ['auto', '1    19  HB '], ['auto', '1    20     '], ['log', 'All formulas']]);
+    ['auto', '1    10     '], ['auto', '1    19  hop'], ['auto', '1    20     '], ['log', 'All formulas']]);
 });
 
 test('zoomAbout keeps the point under the pointer', () => {
@@ -257,7 +257,7 @@ test('errors wait in one error dialog until OK; a warning flashes the status, no
   assert.equal(w.flash, s.flash + 1);
   assert.deepEqual(errors(w), []);
   assert.equal(ev(s, {ev: 'message', bottom: 'Working'}).flash, s.flash, 'progress does not flash');
-  assert.equal(ev(s, {ev: 'log', text: '  1    1  EP    1   0.5E+00   0.1E+00   0.2E+00\n'}).flash, s.flash, 'AUTO output does not flash');
+  assert.equal(ev(s, {ev: 'log', text: '  1    1  end' + ' '.repeat(18) + '   1   0.5E+00   0.1E+00   0.2E+00\n'}).flash, s.flash, 'AUTO output does not flash');
 });
 
 test("the page's leave question (W110): worded by hello, kept over the run's idle, replaced by a core question", () => {

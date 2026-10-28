@@ -40,7 +40,7 @@
       "kind": "periodic",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 1
       },
       "parameter": "m",
@@ -65,7 +65,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "cycles",
-        "type": "TR",
+        "type": "neimark_sacker",
         "index": 1
       },
       "parameters": [
@@ -93,7 +93,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "cycles",
-        "type": "TR",
+        "type": "neimark_sacker",
         "index": 1
       },
       "parameters": [
@@ -122,7 +122,7 @@
       "reference": ".xppaut",
       "run": "ns_up",
       "side": "ours",
-      "type": "BP",
+      "type": "branch_point",
       "index": 1,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), so its curve does not label this branch point; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     }

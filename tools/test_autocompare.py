@@ -21,9 +21,9 @@ class AutoCompare(unittest.TestCase):
         return dict(ev='diagram', op='add', view='diagram_1', **{'from': start}, runs=runs)
 
     def test_batching_does_not_change_the_points(self):
-        whole = Diagram().apply([self.add(0, [self.point_run(1, 3, [[1, 4, 'HB']])])])
+        whole = Diagram().apply([self.add(0, [self.point_run(1, 3, [[1, 4, 'hopf']])])])
         batches = Diagram().apply([self.add(0, [self.point_run(1, 1)]),
-                                   self.add(1, [self.point_run(2, 2, [[0, 4, 'HB']])])])
+                                   self.add(1, [self.point_run(2, 2, [[0, 4, 'hopf']])])])
         self.assertEqual(whole.points, batches.points)
         self.assertEqual(whole.points[1], dict(lab=4, sym='HB'))
         self.assertEqual(whole.points[0], dict(lab=0, sym=''))
@@ -45,7 +45,7 @@ class AutoCompare(unittest.TestCase):
         self.assertFalse(numbered_points(dict(kind='two_parameter', start=dict(type='PD'))))
 
     def test_reset_keeps_the_points_before(self):
-        dg = Diagram().apply([self.add(0, [self.point_run(1, 2, [[1, 4, 'HB']])])])
+        dg = Diagram().apply([self.add(0, [self.point_run(1, 2, [[1, 4, 'hopf']])])])
         dg.apply([dict(ev='diagram', op='reset', view='diagram_1', keep=1), self.add(1, [self.point_run(2, 1)])])
         self.assertEqual(dg.points, [dict(lab=0, sym=''), dict(lab=0, sym='')])
         with self.assertRaisesRegex(ValueError, 'noncontiguous'):
@@ -100,7 +100,7 @@ class References(unittest.TestCase):
 
     def rows(self):
         """a branch: start, ordinary points, a limit point (2) at 1.0 where the norm is 2.0"""
-        return [self.row(9, 0.0, 0.0)] + [self.row(0, 0.2 * i, 0.4 * i, ev=(0.1, 0.0)) for i in range(1, 5)] +             [self.row(2, 1.0, 2.0, ev=(1.0, 0.0)), self.row(0, 1.2, 2.4, ev=(-0.1, 0.0))]
+        return [self.row('end', 0.0, 0.0)] + [self.row('regular', 0.2 * i, 0.4 * i, ev=(0.1, 0.0)) for i in range(1, 5)] +             [self.row('fold', 1.0, 2.0, ev=(1.0, 0.0)), self.row('regular', 1.2, 2.4, ev=(-0.1, 0.0))]
 
     def point(self, t, par, norm, label=1, point=1, values=(), spectrum=''):
         return dict(type=t, branch=1, label=label, point=point, par=par, norm=norm, period=None, spectrum=spectrum,
@@ -128,7 +128,7 @@ class References(unittest.TestCase):
                          'differs: 1 (2 points; par 1e-07, norm 2e-07)')
 
     def test_a_homcont_runs_first_point_is_its_start(self):
-        rows = [self.row(9, 1.0, 0.86), self.row(0, 1.1, 0.85), self.row(9, 3.0, 0.7)]
+        rows = [self.row('end', 1.0, 0.86), self.row('regular', 1.1, 0.85), self.row('end', 3.0, 0.7)]
         for kind in ('homoclinic', 'heteroclinic', 'bvp'):
             self.assertEqual(labelled(rows, kind), [('EP', 0)])
         self.assertEqual(labelled(rows, 'periodic'), [])
@@ -150,7 +150,7 @@ class References(unittest.TestCase):
             self.assertEqual(s.sent, sent)
 
     def test_map_intersections_use_full_codes_before_the_last_digit(self):
-        rows=[self.row(code,0.,0.) for code in (23,28,77,78,83,87,88,-25,-76,-87,-88)]
+        rows=[self.row(name,0.,0.) for name in ("fold_neimark_sacker", "fold_flip", "flip_neimark_sacker", "fold_flip", "fold_neimark_sacker", "flip_neimark_sacker", "double_neimark_sacker", "resonance_1_1", "resonance_1_2", "resonance_1_3", "resonance_1_4")]
         for row in rows: row['lab']='1'
         self.assertEqual([kind for kind,_ in labelled(rows,'two_parameter')],
                          ['LTR','LPD','PTR','LPD','LTR','PTR','TTR','R1','R2','R3','R4'])
@@ -278,7 +278,7 @@ class Curves(unittest.TestCase):
 
     @staticmethod
     def rows(vertices):
-        return [dict(continued_parameter=str(a), continued_parameter2=str(b), norm=str(n), itp='0') for a, b, n in vertices]
+        return [dict(continued_parameter=str(a), continued_parameter2=str(b), norm=str(n), itp='regular') for a, b, n in vertices]
 
     @staticmethod
     def parabola(steps, shift=0.0):
@@ -387,12 +387,12 @@ class Curves(unittest.TestCase):
 
     def test_cycle_branch_point_retains_its_composite_start(self):
         rows = self.rows([(0., 0., 0.), (1., 1., 1.)])
-        rows[0]['itp'] = '86'  # BP on a torus curve
+        rows[0]['itp'] = 'cycle_branch_point_from_torus'  # BP on a torus curve
         ref = [dict(type='BP', point=1, par=0., par2=0., norm=0., period=None, values=[])]
         self.assertEqual(compare_run(rows, self.AUTO, 'two_parameter', ref, 'cycle')[0], [])
 
     def test_a_codim_two_point_of_the_reference_is_a_difference_until_traced(self):
-        rows = [dict(itp='0', continued_parameter=str(a), norm=str(a), per='0.0', evr1='0', evi1='0') for a in range(5)]
+        rows = [dict(itp='regular', continued_parameter=str(a), norm=str(a), per='0.0', evr1='0', evi1='0') for a in range(5)]
         ref = [dict(type='BT', branch=1, label=2, point=2, par=1.0, par2=1.0, norm=1.0, period=None, spectrum='', values=[])]
         diffs, _ = compare_run(rows, self.AUTO, 'two_parameter', ref, 'm')
         self.assertIn("special points ['BT'], ours []", diffs[0])
@@ -427,7 +427,7 @@ class Curves(unittest.TestCase):
     def test_a_start_is_grabbed_from_the_points_its_run_left(self):
         dg = Diagram()
         dg.apply([dict(ev='diagram', op='add', view='diagram_1', **{'from': 0},
-                       runs=[dict(br=1, pt=1, x=[0.0] * 3, y=[0.0] * 3, lab=[[1, 4, 'HB']])])])
+                       runs=[dict(br=1, pt=1, x=[0.0] * 3, y=[0.0] * 3, lab=[[1, 4, 'hopf']])])])
         dg.runs['steady'] = [dict(p) for p in dg.points]
         # a curve on other axes redraws the diagram and labels only what it plots
         dg.apply([dict(ev='diagram', op='add', view='diagram_1', **{'from': 0},

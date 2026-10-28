@@ -758,13 +758,13 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       ndim = (ndim << 1) + 1;
       nfpr = 2;
 
-    } else if ((itp.is(xpp::AutoPointKind::Hopf) || itp.started_from(xpp::AutoPointKind::Hopf) || (ips==xpp::AutoProblem::DiscreteMap && (itp.is(xpp::AutoPointKind::Torus) || itp.started_from(xpp::AutoPointKind::Torus)))) && xpp::problem_is_algebraic_family(ips)) {
+    } else if ((itp.is(xpp::AutoPointKind::Hopf) || itp.started_from(xpp::AutoPointKind::Hopf) || (ips==xpp::AutoProblem::DiscreteMap && (itp.is(xpp::AutoPointKind::NeimarkSacker) || itp.started_from(xpp::AutoPointKind::NeimarkSacker)))) && xpp::problem_is_algebraic_family(ips)) {
       /*          ** Hopf bifurcation continuation (Maps, ODE, Waves) */
       // Equilibria and maps use the reduced real-vector system; waves keep their own formulation.
       ndim = reduced_hopf || ips==xpp::AutoProblem::DiscreteMap ? ndim * 2 + 2 : ndim * 3 + 2;
       nfpr = 2;
 
-    } else if ((itp.is(xpp::AutoPointKind::PeriodicFold) || itp.is(xpp::AutoPointKind::PeriodicBranch)) && ips == xpp::AutoProblem::Periodic) {
+    } else if ((itp.is(xpp::AutoPointKind::CycleFold) || itp.is(xpp::AutoPointKind::CycleBranch)) && ips == xpp::AutoProblem::Periodic) {
       /*          ** Fold continuation (Periodic solutions); start */
       ndim <<= 1;
       nbc = ndim;
@@ -787,7 +787,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
       iap->lib->restart_flag=true;
 
-    } else if ((itp.started_from(xpp::AutoPointKind::PeriodicFold) || itp.started_from(xpp::AutoPointKind::PeriodicBranch)) && ips == xpp::AutoProblem::Periodic) {
+    } else if ((itp.started_from(xpp::AutoPointKind::CycleFold) || itp.started_from(xpp::AutoPointKind::CycleBranch)) && ips == xpp::AutoProblem::Periodic) {
       /*          ** Fold continuation (Periodic solutions); restart */
       ndim <<= 1;
       nbc = ndim;
@@ -833,7 +833,7 @@ rt */
 	icp[2] = xpp::auto_unknown::period;
       }
 
-    } else if (itp.is(xpp::AutoPointKind::Torus) && ips == xpp::AutoProblem::Periodic) {
+    } else if (itp.is(xpp::AutoPointKind::NeimarkSacker) && ips == xpp::AutoProblem::Periodic) {
       /*          ** Continuation of torus bifurcations; start */
       ndim *= 3;
       nbc = ndim;
@@ -849,7 +849,7 @@ rt */
       xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
       iap->lib->restart_flag=true;
 
-    } else if (itp.started_from(xpp::AutoPointKind::Torus) && ips == xpp::AutoProblem::Periodic) {
+    } else if (itp.started_from(xpp::AutoPointKind::NeimarkSacker) && ips == xpp::AutoProblem::Periodic) {
       /*          ** Continuation of torus bifurcations; restart */
       ndim *= 3;
       nbc = ndim;
@@ -858,7 +858,7 @@ rt */
       icp[2] = xpp::auto_unknown::period;
       icp[3] = xpp::auto_unknown::torus_angle;
 
-    } else if ((itp.is(xpp::AutoPointKind::PeriodicFold) || itp.is(xpp::AutoPointKind::PeriodicBranch)) && ips == xpp::AutoProblem::BoundaryValue) {
+    } else if ((itp.is(xpp::AutoPointKind::CycleFold) || itp.is(xpp::AutoPointKind::CycleBranch)) && ips == xpp::AutoProblem::BoundaryValue) {
       /*          ** Continuation of folds (BVP; start) */
       ndim <<= 1;
       nbc <<= 1;
@@ -878,7 +878,7 @@ rt */
       iap->lib->restart_flag=true;
       xpp::log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
 
-    } else if (itp.started_from(xpp::AutoPointKind::PeriodicFold) && ips == xpp::AutoProblem::BoundaryValue) {
+    } else if (itp.started_from(xpp::AutoPointKind::CycleFold) && ips == xpp::AutoProblem::BoundaryValue) {
       /* AUTO's own test names the fold twice, never the branch point: kept, so the selection is the same */
       /*          ** Continuation of folds (BVP; restart) */
       ndim <<= 1;
@@ -1687,7 +1687,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
       {u, n}, {uold, n}, {udot, n}, {aa, na}, {rhs, n + 1}, {du, n + 1},
       {f, n}, {dfdu, n * n}, {dfdp, n * np}});
 
-  const bool singular = iap->itpst == xpp::AutoPointKind::Torus &&
+  const bool singular = iap->itpst == xpp::AutoPointKind::NeimarkSacker &&
       xpp::auto_torus_singular(u[2 * iap->ndm]);
 
   /* Use the secant method for the first step: */
@@ -1991,7 +1991,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   if (map || codim_curve) {
     // AUTO-07p STABEQ: omit the imposed zero/+1/-1, or the imposed pair.
     const integer forced=isw!=2 ? 0 :
-        (iap->itpst==xpp::AutoPointKind::Hopf || iap->itpst==xpp::AutoPointKind::Torus ? 2 : 1);
+        (iap->itpst==xpp::AutoPointKind::Hopf || iap->itpst==xpp::AutoPointKind::NeimarkSacker ? 2 : 1);
     std::stable_sort(ev.begin(),ev.begin()+ndm,[](const auto &a,const auto &b) { return std::abs(a.r)<std::abs(b.r); });
     nins1=forced;
     for (i=forced;i<ndm;++i) if (ev[i].r<=axis_tolerance) ++nins1;
@@ -2005,7 +2005,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
       ret_val=selected ? selected->r : auto_test_not_applicable;
       *chng=nins1!=iap->nins && kind!=xpp::AutoPointKind::Regular && iap->isp!=0 &&
           (isw!=2 || xpp::auto_codim_enabled(iap->lib->session->auto_state.special_points,kind));
-      if (isw!=2 && selected && kind==xpp::AutoPointKind::Torus)
+      if (isw!=2 && selected && kind==xpp::AutoPointKind::NeimarkSacker)
         par[xpp::auto_unknown::period]=pi(2.)/std::abs(selected->i);
     }
   } else {
@@ -2792,7 +2792,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   xpp::Session &s=*iap->lib->session;
 
   integer nicp, i;
-  const char *atype = "  ";
+
   integer n1, n2;
 
   integer nt, ndm, lb;
@@ -2831,35 +2831,11 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   }
   headng(iap, rap, par, icu, 9, &n1, &n2);
 
-  if (itp.kind == xpp::AutoPointKind::BranchPoint) {
-    atype = "BP";
-  } else if (itp.kind == xpp::AutoPointKind::Fold) {
-    atype = "LP";
-  } else if (itp.kind == xpp::AutoPointKind::Hopf) {
-    atype = "HB";
-  } else if (itp.kind == xpp::AutoPointKind::Output) {
-    atype = "  ";
-  } else if (itp.kind == xpp::AutoPointKind::UserZero) {
-    atype = "UZ";
-  } else if (itp.kind == xpp::AutoPointKind::PeriodicFold) {
-    atype = "LP";
-  } else if (itp.kind == xpp::AutoPointKind::PeriodicBranch) {
-    atype = "BP";
-  } else if (itp.kind == xpp::AutoPointKind::PeriodDoubling) {
-    atype = "PD";
-  } else if (itp.kind == xpp::AutoPointKind::Torus) {
-    atype = "TR";
-  } else if (itp.kind == xpp::AutoPointKind::End) {
-    atype = "EP";
-  } else if (itp.kind == xpp::AutoPointKind::MaxSteps) {
-    atype = "MX";
-  } else {
-    atype = "  ";
-  }
+  const std::string_view atype = xpp::auto_point_kind_mark(itp.kind); /* the type's mark: AUTO's table and fort.9 */
 
   if (n2 == 0) {
     if (itp.kind != xpp::AutoPointKind::Regular) {
-      xpp::log_auto("{:4d} {:5d}  {:c}{:c}{:4d}",(*ibr),*ntot,atype[0],atype[1],*(lab));
+      xpp::log_auto("{:4d} {:5d}  {:<4} {:4d}",(*ibr),*ntot,atype,*(lab));
       xpp::log_auto("{:14.6E}",par[icu[0]]);
       xpp::log_auto("{:14.6E}",(*vaxis));
       for (i = 1; i < n1; ++i) {
@@ -2874,7 +2850,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
       xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[i]]);
     }
     xpp::print(s.auto_lib.fp7,"\n");
-    xpp::print(s.auto_lib.fp9,"{:4} {:5}  {:c}{:c}{:4}",(*ibr),*ntot,atype[0],atype[1],*(lab));
+    xpp::print(s.auto_lib.fp9,"{:4} {:5}  {:<4} {:4}",(*ibr),*ntot,atype,*(lab));
     xpp::print(s.auto_lib.fp9,"{:14.6E}",par[icu[0]]);
     xpp::print(s.auto_lib.fp9,"{:14.6E}",(*vaxis));
     for (i = 1; i < n1; ++i) {
@@ -2884,7 +2860,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   } else {
     if (n1 == 1) {
       if (itp.kind != xpp::AutoPointKind::Regular) {
-	xpp::log_auto("{:4d} {:5d}  {:c}{:c}{:4d}",f2c::abs(*ibr),f2c::abs(*ntot),atype[0],atype[1],*(lab));
+	xpp::log_auto("{:4d} {:5d}  {:<4} {:4d}",f2c::abs(*ibr),f2c::abs(*ntot),atype,*(lab));
 	xpp::log_auto("{:14.6E}",par[icu[0]]);
 	xpp::log_auto("{:14.6E}",(*vaxis));
 	for (i = 0; i < n2; ++i) {
@@ -2899,7 +2875,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	xpp::print(s.auto_lib.fp7,"{:14.5E}",u[i]);
       }
       xpp::print(s.auto_lib.fp7,"\n");
-      xpp::print(s.auto_lib.fp9,"{:4} {:5}  {:c}{:c}{:4}",(*ibr),*ntot,atype[0],atype[1],*(lab));
+      xpp::print(s.auto_lib.fp9,"{:4} {:5}  {:<4} {:4}",(*ibr),*ntot,atype,*(lab));
       xpp::print(s.auto_lib.fp9,"{:14.6E}",par[icu[0]]);
       xpp::print(s.auto_lib.fp9,"{:14.6E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
@@ -2909,7 +2885,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 
     } else {
       if (itp.kind != xpp::AutoPointKind::Regular) {
-	xpp::log_auto("{:4d} {:5d}  {:c}{:c}{:4d}",f2c::abs(*ibr),f2c::abs(*ntot),atype[0],atype[1],*(lab));
+	xpp::log_auto("{:4d} {:5d}  {:<4} {:4d}",f2c::abs(*ibr),f2c::abs(*ntot),atype,*(lab));
 	xpp::log_auto("{:14.6E}",par[icu[0]]);
 	xpp::log_auto("{:14.6E}",(*vaxis));
 	for (i = 0; i < n2; ++i) {
@@ -2930,7 +2906,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[i]]);
       }
       xpp::print(s.auto_lib.fp7,"\n");
-      xpp::print(s.auto_lib.fp9,"{:4} {:5}  {:c}{:c}{:4}",(*ibr),*ntot,atype[0],atype[1],*(lab));
+      xpp::print(s.auto_lib.fp9,"{:4} {:5}  {:<4} {:4}",(*ibr),*ntot,atype,*(lab));
       xpp::print(s.auto_lib.fp9,"{:14.6E}",par[icu[0]]);
       xpp::print(s.auto_lib.fp9,"{:14.6E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
@@ -4360,8 +4336,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     std::vector<LocationTest<decltype(&fnuzbv)>> tests;
     for (integer index = 0; index < nuzr; ++index)
       tests.push_back({fnuzbv, uzr[index], xpp::AutoPointKind::UserZero, index});
-    if (ilp == 1) tests.push_back({fnlpbv, rlp, xpp::AutoPointKind::PeriodicFold, {}});
-    if (isp >= 2) tests.push_back({fnbpbv, bp1, xpp::AutoPointKind::PeriodicBranch, {}});
+    if (ilp == 1) tests.push_back({fnlpbv, rlp, xpp::AutoPointKind::CycleFold, {}});
+    if (isp >= 2) tests.push_back({fnbpbv, bp1, xpp::AutoPointKind::CycleBranch, {}});
     if ((isp == 1 || isp == 2) && xpp::problem_has_orbit_multipliers(ips))
       tests.push_back({fnspbv, sp1, xpp::AutoPointKind::Pending, {}});
     locate_tests(*iap, *rap, tests, marks,
@@ -5342,7 +5318,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
       {p0, n * n}, {p1, n * n}, {dups, nu}, {fa, nu}, {fc, nc}});
   const std::vector<doublecomplex> saved_ev(ev, ev + n);
 
-  const bool singular = iap->isw == 2 && iap->itpst == xpp::AutoPointKind::Torus &&
+  const bool singular = iap->isw == 2 && iap->itpst == xpp::AutoPointKind::NeimarkSacker &&
       xpp::auto_torus_singular(par[xpp::auto_unknown::torus_angle]);
 
   /* Use the secant method for the first step: */
@@ -5543,7 +5519,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
     ret_val = det0 / det;
     *chng = true;
     const double angle = par[xpp::auto_unknown::torus_angle];
-    if (iap->isw == 2 && iap->itpst == xpp::AutoPointKind::Torus && xpp::auto_torus_near_one_to_one(angle)) {
+    if (iap->isw == 2 && iap->itpst == xpp::AutoPointKind::NeimarkSacker && xpp::auto_torus_near_one_to_one(angle)) {
       // W405 (#467): a cycle's torus equations hold the trivial multiplier's
       // block, rotation minus identity, whose determinant 4 sin^2(theta/2)
       // vanishes at the 1:1 resonance: divided out there, a branch point at
@@ -5620,7 +5596,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   if (loc != 0) std::rotate(ev, ev + loc, ev + loc + 1);
 
   integer first=1;
-  if (isw==2 && (iap->itpst==xpp::AutoPointKind::PeriodicFold ||
+  if (isw==2 && (iap->itpst==xpp::AutoPointKind::CycleFold ||
                  iap->itpst==xpp::AutoPointKind::PeriodDoubling))
     first=static_cast<integer>(auto_cycle_place_imposed(iap->itpst,{ev,static_cast<std::size_t>(ndim)}));
   // W356 (#418): AUTO-07p periodic.f90:1960-1983, insertion by
@@ -5804,7 +5780,7 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
 
   if (f2c::abs(ev[loc1].i) > sqrt(epss)) {
     /*       ** torus bifurcation */
-    itp = xpp::AutoPointCode{xpp::AutoPointKind::Torus, itpst};
+    itp = xpp::AutoPointCode{xpp::AutoPointKind::NeimarkSacker, itpst};
     iap->itp = itp;
     par[xpp::auto_unknown::torus_angle] =f2c::abs(xpp::math::atan2(ev[loc1].i,ev[loc1].r));
 
@@ -6270,7 +6246,7 @@ pvlsae(iap_type *iap, rap_type *rap, doublereal *u, doublereal *par)
     const double kappa = u[2 * ndm];
     if (kappa > 0.) par[xpp::auto_unknown::period] = pi(2.) / sqrt(kappa);
   }
-  if (iap->ips==xpp::AutoProblem::DiscreteMap && iap->itpst==xpp::AutoPointKind::Torus)
+  if (iap->ips==xpp::AutoProblem::DiscreteMap && iap->itpst==xpp::AutoPointKind::NeimarkSacker)
     par[xpp::auto_unknown::torus_angle]=u[2*ndm];
   pvls(ndm, u, par);
 

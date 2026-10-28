@@ -30,7 +30,7 @@
       "kind": "periodic",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 1
       },
       "parameter": "mu",
@@ -55,7 +55,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "cycles",
-        "type": "TR",
+        "type": "neimark_sacker",
         "index": 1
       },
       "parameters": [
@@ -83,7 +83,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "cycles",
-        "type": "TR",
+        "type": "neimark_sacker",
         "index": 1
       },
       "parameters": [
@@ -112,7 +112,7 @@
       "reference": ".xppaut",
       "run": "torus_up",
       "side": "ours",
-      "type": "BP",
+      "type": "branch_point",
       "index": 1,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), so its curve does not label this branch point; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -120,7 +120,7 @@
       "reference": ".xppaut",
       "run": "torus_down",
       "side": "ours",
-      "type": "R1",
+      "type": "resonance_1_1",
       "index": 1,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -128,7 +128,7 @@
       "reference": ".xppaut",
       "run": "torus_up",
       "side": "ours",
-      "type": "R4",
+      "type": "resonance_1_4",
       "index": 1,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -136,7 +136,7 @@
       "reference": ".xppaut",
       "run": "torus_up",
       "side": "ours",
-      "type": "R3",
+      "type": "resonance_1_3",
       "index": 1,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -144,7 +144,7 @@
       "reference": ".xppaut",
       "run": "torus_up",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 1,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -152,7 +152,7 @@
       "reference": ".auto07p",
       "run": "torus_down",
       "side": "ours",
-      "type": "R4",
+      "type": "resonance_1_4",
       "index": 1,
       "cause": "W419 (#481), deliberate: AUTO-07p's resonance test sees the torus angle from 0 to pi only (docs/auto07p-findings.md 5), ours sees it modulo 2*pi (docs/auto-references.md, W419). Past 0 the angle is 2*pi*(1 - sqrt(2*w)) < 0: R4 at -pi/2, w = 25/32, c = -1.28125 (closed form)."
     },
@@ -160,7 +160,7 @@
       "reference": ".auto07p",
       "run": "torus_down",
       "side": "ours",
-      "type": "R3",
+      "type": "resonance_1_3",
       "index": 1,
       "cause": "W419 (#481), deliberate: AUTO-07p's resonance test sees the torus angle from 0 to pi only (docs/auto07p-findings.md 5), ours sees it modulo 2*pi (docs/auto-references.md, W419). R3 at -2*pi/3, w = 8/9, c = -1.38889 (closed form)."
     },
@@ -168,7 +168,7 @@
       "reference": ".auto07p",
       "run": "torus_down",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 1,
       "cause": "W419 (#481), deliberate: AUTO-07p's resonance test sees the torus angle from 0 to pi only (docs/auto07p-findings.md 5), ours sees it modulo 2*pi (docs/auto-references.md, W419). R2 at -pi, w = 9/8, c = -1.625 (closed form)."
     },
@@ -176,7 +176,7 @@
       "reference": ".auto07p",
       "run": "torus_down",
       "side": "ours",
-      "type": "R3",
+      "type": "resonance_1_3",
       "index": 2,
       "cause": "W419 (#481), deliberate: AUTO-07p's resonance test sees the torus angle from 0 to pi only (docs/auto07p-findings.md 5), ours sees it modulo 2*pi (docs/auto-references.md, W419). R3 at -4*pi/3, w = 25/18, c = -1.88889 (closed form)."
     },
@@ -184,7 +184,7 @@
       "reference": ".auto07p",
       "run": "torus_up",
       "side": "ours",
-      "type": "R3",
+      "type": "resonance_1_3",
       "index": 2,
       "cause": "W419 (#481), deliberate: AUTO-07p's resonance test sees the torus angle from 0 to pi only (docs/auto07p-findings.md 5), ours sees it modulo 2*pi (docs/auto-references.md, W419). Past pi: R3 at 4*pi/3, w = 1/18, c = -0.55556 (closed form), AUTO-07p's points 60 and 61 pass it unlabelled."
     },
@@ -192,7 +192,7 @@
       "reference": ".auto07p",
       "run": "torus_up",
       "side": "ours",
-      "type": "R4",
+      "type": "resonance_1_4",
       "index": 2,
       "cause": "W419 (#481), deliberate: AUTO-07p's resonance test sees the torus angle from 0 to pi only (docs/auto07p-findings.md 5), ours sees it modulo 2*pi (docs/auto-references.md, W419). Past pi: R4 at 3*pi/2, w = 1/32, c = -0.53125 (closed form), AUTO-07p's points 71 and 72 pass it unlabelled."
     },
@@ -200,7 +200,7 @@
       "reference": ".xppaut",
       "run": "torus_down",
       "side": "ours",
-      "type": "R4",
+      "type": "resonance_1_4",
       "index": 1,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71. W419 (#481): ours labels this resonance past pi or below 0."
     },
@@ -208,7 +208,7 @@
       "reference": ".xppaut",
       "run": "torus_down",
       "side": "ours",
-      "type": "R3",
+      "type": "resonance_1_3",
       "index": 1,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71. W419 (#481): ours labels this resonance past pi or below 0."
     },
@@ -216,7 +216,7 @@
       "reference": ".xppaut",
       "run": "torus_down",
       "side": "ours",
-      "type": "R2",
+      "type": "resonance_1_2",
       "index": 1,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71. W419 (#481): ours labels this resonance past pi or below 0."
     },
@@ -224,7 +224,7 @@
       "reference": ".xppaut",
       "run": "torus_down",
       "side": "ours",
-      "type": "R3",
+      "type": "resonance_1_3",
       "index": 2,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71. W419 (#481): ours labels this resonance past pi or below 0."
     },
@@ -232,7 +232,7 @@
       "reference": ".xppaut",
       "run": "torus_up",
       "side": "ours",
-      "type": "R3",
+      "type": "resonance_1_3",
       "index": 2,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71. W419 (#481): ours labels this resonance past pi or below 0."
     },
@@ -240,7 +240,7 @@
       "reference": ".xppaut",
       "run": "torus_up",
       "side": "ours",
-      "type": "R4",
+      "type": "resonance_1_4",
       "index": 2,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71. W419 (#481): ours labels this resonance past pi or below 0."
     }

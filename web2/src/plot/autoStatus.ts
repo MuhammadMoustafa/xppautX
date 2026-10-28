@@ -7,7 +7,7 @@
    run (store/diagram.ts AutoRun) and the diagram's points from the run's
    first on. Pure. */
 import type {AutoRun, AutoStop, DiagramLabel, DiagramPoints} from '../store/diagram';
-import {symbolName} from './diagramModel';
+import {pointLabel} from '../store/pointTypes';
 
 export interface RunStatus {
   /** 'idle' | 'starting' | 'running' | 'stopping' | 'done' | 'stopped' */
@@ -61,8 +61,7 @@ export function runStatus(run: AutoRun | null, p: DiagramPoints, labels: Diagram
   const added = n - first;
   const kind = added > 0 ? kindOfPoint(p.pe[last] === 1, p.f2[last]) : '';
   const lab = [...labels].reverse().find(l => l.point >= first && l.point < n);
-  const name = lab ? symbolName(lab.sym) : '';
-  const label = lab ? `${lab.sym || 'Label'} ${lab.lab}${name ? ` (${name})` : ''} at point ${p.pt[lab.point]}` : null;
+  const label = lab ? `${lab.sym ? pointLabel(lab.sym) : 'Label'} ${lab.lab} at point ${p.pt[lab.point]}` : null;
   const elapsed = (run.ended ?? now) - run.started;
   const base = {kind, ...none, branch: added > 0 ? p.br[last] : null, point: added > 0 ? p.pt[last] : null, points: added,
     label, elapsed};

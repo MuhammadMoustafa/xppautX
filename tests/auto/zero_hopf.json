@@ -7,7 +7,7 @@
       "auto": {"ds": 0.02, "dsmin": 0.00001, "dsmax": 0.05, "nmax": 100, "npr": 25, "parmin": -1.1, "parmax": 0.1, "ntst": 15, "mxbf": 0}
     },
     {
-      "name": "fold", "kind": "two_parameter", "start": {"run": "steady", "type": "LP", "index": 1}, "parameters": ["b", "a"],
+      "name": "fold", "kind": "two_parameter", "start": {"run": "steady", "type": "fold", "index": 1}, "parameters": ["b", "a"],
       "auto": {"ds": 0.02, "dsmin": 0.00001, "dsmax": 0.05, "nmax": 50, "npr": 25, "parmin": -0.2, "parmax": 0.2, "ntst": 15, "mxbf": 0}
     }
   ],
@@ -16,7 +16,7 @@
       "reference": ".xppaut",
       "run": "fold",
       "side": "ours",
-      "type": "ZH",
+      "type": "zero_hopf",
       "index": 1,
       "cause": "XPPAUT 8.0's auto_2p_limit sets ISP=0 and ILP=0, disabling detection on the curve (auto_nox.c:2510-2512); the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     }

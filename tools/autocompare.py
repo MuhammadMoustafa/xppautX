@@ -63,7 +63,7 @@ class Diagram:
                     raise ValueError('noncontiguous diagram: ' + str(e['from']))
                 del self.points[e['from']:]
                 for r in e['runs']:
-                    labs = {i: (lab, sym) for i, lab, sym in r.get('lab', [])}
+                    labs = {i: (lab, code_of(sym)) for i, lab, sym in r.get('lab', [])}
                     self.points += [dict(zip(('lab', 'sym'), labs.get(i, (0, ''))))
                                     for i in range(len(r['x']))]
         return self
@@ -91,7 +91,7 @@ def no_duplicates(pairs):
 
 
 def read_description(path):
-    d = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=no_duplicates)
+    d = codes_of_types(json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=no_duplicates))
     members(d, ('model', 'reason', 'parameters', 'initial_conditions', 'runs', 'skip', 'differences', *REFERENCE_SKIPS.values()), ('model', 'reason'))
     model = ROOT / d['model']
     if model.resolve().parent not in (ROOT / 'examples/tstauto', ROOT / 'examples/ode', ROOT / 'tools/models') or not model.is_file():
@@ -236,7 +236,7 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
     else:
         if diagram.runs[start['run']] is None:
             read_unlabelled(s, diagram, ranges)
-        points = [p for p in diagram.runs[start['run']] if p['sym'] == start['type']]
+        points = [p for p in diagram.runs[start['run']] if p['sym'] == code_of(start['type'])]
         if len(points) < start['index']:
             raise ValueError('start point not found: ' + str(start))
         completed(s, dict(cmd='auto', op='grab', label=points[start['index'] - 1]['lab']))
@@ -247,7 +247,7 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
                                    **({'par2': pars[1], 'plot': 'two_parameter'} if len(pars) == 2 else {})})))
     keys = {'equilibrium': 's' if start.get('state') == 'current' else 'e',
             # a periodic run from an HB starts the cycles; from a point of cycles it extends them (W423)
-            'periodic': 'p' if start.get('type') == 'HB' else 'e', 'two_parameter': 't', 'fixed_period': 'f',
+            'periodic': 'p' if code_of(start.get('type', '')) == 'HB' else 'e', 'two_parameter': 't', 'fixed_period': 'f',
             'bvp': 'b', 'homoclinic': 'h', 'heteroclinic': 'e'}
     key = 's' if r.get('switch') else keys[r['kind']]
     lo = diagram.size
@@ -302,7 +302,7 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
 
 def numbered_points(r):
     """Whether a run's last point number (`stop.pt`) is the number of points it stored."""
-    return r['kind'] != 'two_parameter' or r['start'].get('type') == 'HB'
+    return r['kind'] != 'two_parameter' or code_of(r['start'].get('type', '')) == 'HB'
 
 
 def read_unlabelled(s, diagram, ranges):
@@ -310,7 +310,7 @@ def read_unlabelled(s, diagram, ranges):
     its own points."""
     rows = diagram_rows(saved_member(s))
     check_size(len(rows), diagram)
-    diagram.points = [dict(lab=int(p['lab']), sym=point_symbol(int(p['itp']))) for p in rows]
+    diagram.points = [dict(lab=int(p['lab']), sym=code_of(p['itp'])) for p in rows]
     diagram.unread = 0
     for name, (lo, hi) in ranges.items():
         if diagram.runs.get(name) is None:
@@ -348,8 +348,8 @@ def session_diagram(s):
     data = saved_member(s)
     for point, row in enumerate(diagram_rows(data)):
         for key,value in row.items():
-            # Calculation and curve metadata are names; the core reader checks their vocabulary.
-            if key in ('calc', 'flag2'):
+            # Calculation, curve and point type metadata are names; the core reader checks their vocabulary.
+            if key in ('calc', 'flag2', 'itp'):
                 continue
             for item in value.split(';') if key in ('continued','values') else [value]:
                 finite(float(item), 'diagram point %d %s' % (point,key))
@@ -408,6 +408,39 @@ REFERENCES = {'.auto07p': 'AUTO-07p', '.xppaut': 'XPPAUT 8.0'}
 # a description with no reference file says why in this field (an explicit reason, never silence)
 REFERENCE_SKIPS = {'.auto07p': 'auto07p_skip', '.xppaut': 'xppaut_skip'}
 REFERENCE_FORMAT = 1
+# xppautX writes a point's type as its name (core/auto_codes.h); the comparison works in the
+# two-letter codes of AUTO-07p and XPPAUT, so each name maps to its code here, once. Several
+# names share one code where both programs label the points alike (fold and cycle_fold: LP).
+CODE_OF_NAME = {
+    'regular': '', 'output': '', 'branch_point': 'BP', 'cycle_branch_point': 'BP', 'fold': 'LP',
+    'cycle_fold': 'LP', 'hopf': 'HB', 'period_doubling': 'PD', 'neimark_sacker': 'TR', 'end': 'EP', 'user_point': 'UZ',
+    'no_convergence': 'MX', 'bogdanov_takens': 'BT', 'cusp': 'CP', 'zero_hopf': 'ZH', 'generalized_hopf': 'GH',
+    'resonance_1_1': 'R1', 'resonance_1_2': 'R2', 'resonance_1_3': 'R3', 'resonance_1_4': 'R4', 'fold_flip': 'LPD',
+    'fold_neimark_sacker': 'LTR', 'flip_neimark_sacker': 'PTR', 'double_neimark_sacker': 'TTR'}
+
+
+def code_of(name):
+    """the two-letter code of a point type's name (xppautX's files and protocol); the code itself passes (a description built in Python may hold either); a name it does not know is an error"""
+    if name in CODE_OF_CODE:
+        return name
+    name = name.split('_from_')[0]  # a composite (fold_flip_from_fold) names its kind first
+    if name not in CODE_OF_NAME:
+        raise ValueError('not an AUTO point type name: %r' % (name,))
+    return CODE_OF_NAME[name]
+
+
+CODE_OF_CODE = frozenset(CODE_OF_NAME.values())
+
+
+def codes_of_types(value):
+    """a description with its point types (every 'type' member) read as the codes the comparison uses"""
+    if isinstance(value, dict):
+        return {k: code_of(v) if k == 'type' and isinstance(v, str) else codes_of_types(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [codes_of_types(v) for v in value]
+    return value
+
+
 # the types a reference point can have: the problem's own special points, then the codim-2
 # points of a two-parameter curve (AUTO-07p's TY names: Bogdanov-Takens, cusp, zero-Hopf,
 # generalised Hopf; the cycles' strong resonances R1-R4, fold-flip, fold-torus, ...)
@@ -578,20 +611,12 @@ def slope(rows, i, name, cycle=False):
     return best
 
 
-def point_symbol(itp):
-    """A stored AUTO type's symbol, shared by matching and no-data grabs."""
-    if itp == 9:
-        return 'EP'
-    return BIFURCATIONS.get(itp, BIFURCATIONS.get(itp % 10, '') if itp > 9 else '')
-
-
 def labelled(rows, kind):
     """The special points a run stored, (symbol, index) in order: its start is an EP for an equilibrium or a
     boundary value problem."""
     points = []
     for i, r in enumerate(rows):
-        itp = int(r['itp'])
-        symbol = point_symbol(itp)
+        symbol = code_of(r['itp'])
         if symbol and symbol != 'EP':
             points.append((symbol, i))
         elif i == 0 and symbol == 'EP' and kind in ('equilibrium', 'bvp', *HOMCONT):
@@ -892,7 +917,7 @@ def compare_reference_run(name, suffix, dr, r, rows, known):
                        # An equilibrium restarted from an EP reuses that point;
                        # its seed remains checked by the whole branch,
                        # rather than counted as a newly labelled point.
-                       compare_start=not (dr['kind'] == 'equilibrium' and dr['start'].get('type') == 'EP')
+                       compare_start=not (dr['kind'] == 'equilibrium' and code_of(dr['start'].get('type', '')) == 'EP')
                        and not dr.get('start_refined'))
     if 'curve' in r:
         c, cm = compare_curve(rows[dr['name']], dr['auto'], r['curve'], who, XPPAUT_CURVE_DIGITS if suffix == '.xppaut' else None,

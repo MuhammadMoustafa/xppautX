@@ -2524,7 +2524,7 @@ async function autoView(dir) {
     await until(`document.querySelector('.auto-status').dataset.phase === 'done'`, 'strip done')
     && stop && stop.br === 1 && /^(parameter iapp reached Par (Min|Max)|the norm reached|the branch reached Max points)/.test(stop.text)
     && new RegExp(`^Stopped: ${stop.text.replace(/[()]/g, '\\$&')} · steady states · branch 1, point ${stop.pt} · ${nSteady} points `
-      + `· last label EP \\d+ \\(End point\\) at point \\d+ · [\\d.:]+ s?`).test(await autoStatus())
+      + `· last label End of branch \\d+ at point \\d+ · [\\d.:]+ s?`).test(await autoStatus())
     && await cdp.eval(`document.querySelector('[data-testid=auto-status]').dataset.why`) === stop.why,
     JSON.stringify([stop, await autoStatus()]));
   /* the panel builds its text once open (W122: a long run's table is thousands of lines) */
@@ -2541,11 +2541,11 @@ async function autoView(dir) {
   const key23 = await cdp.eval(`[...document.querySelectorAll('.auto-legend-label')].map(l => [l.dataset.sym, l.dataset.shape,
     l.querySelector('.auto-label-mark').textContent, l.textContent.trim(), l.title])`);
   check('T23: the key spells out the label types the diagram has (EP End point, HB Hopf), each with its meaning as a tooltip',
-    key23.some(([s, , , t]) => s === 'EP' && /EP End point$/.test(t)) && key23.some(([s, , , t]) => s === 'HB' && /HB Hopf$/.test(t))
+    key23.some(([s, , , t]) => s === 'end' && /EP End of branch$/.test(t)) && key23.some(([s, , , t]) => s === 'hopf' && /AH Andronov–Hopf$/.test(t))
       && key23.every(([, , , , h]) => h.length > 30), JSON.stringify(key23));
   /* T29: one shape per label type (HB a filled circle, LP a triangle, ... a cross for a code this
      diagram does not name), the key's glyph the same mapping the diagram itself draws with */
-  const SHAPE_OF = {EP: 'bar', MX: 'cross', LP: 'triangle', HB: 'circle', BP: 'diamond', PD: 'square', TR: 'star', UZ: 'invTriangle'};
+  const SHAPE_OF = {end: 'bar', no_convergence: 'cross', fold: 'triangle', hopf: 'circle', branch_point: 'diamond', period_doubling: 'square', torus: 'star', user_point: 'invTriangle'};
   const GLYPH_OF = {circle: '●', triangle: '△', diamond: '◇', square: '□', star: '☆',
     invTriangle: '▽', cross: '×', bar: '❙'};
   check('T29: the key\'s shape for each present code matches the type -> shape mapping, drawn with that shape\'s glyph',
@@ -2575,7 +2575,7 @@ async function autoView(dir) {
     await cdp.eval(`document.querySelector('.auto-info')?.textContent`));
   await key('Tab');
   check('Tab jumps to the next label, the Hopf point: its strip and a pair of eigenvalues on the imaginary axis',
-    await until("s.diagram.info.sym === 'HB' && s.ask && s.ask.kind === 'grab'", 'grab tab')
+    await until("s.diagram.info.sym === 'hopf' && s.ask && s.ask.kind === 'grab'", 'grab tab')
     && await DS('d.stab.eig.length === 2 && d.stab.eig.every(e => Math.abs(e[0]) < 1e-3 && Math.abs(e[1]) > 0.1)')
     && /HB/.test(await cdp.eval(`document.querySelector('.auto-info').textContent`))
     && await cdp.eval(`!!document.activeElement.closest('.auto-host')`), JSON.stringify(await DS('[d.info, d.stab]')));
@@ -2644,7 +2644,7 @@ async function autoView(dir) {
   check('stable branches are solid, unstable ones dashed; periodic ones have max and min',
     steady.some(c => c.stable && !c.dashed) && steady.some(c => !c.stable && c.dashed)
     && dg.curves.some(c => c.kind === 'periodic' && c.which === 'y2'), JSON.stringify(dg.curves.slice(0, 6)));
-  const hb = want.labels.find(l => l.sym === 'HB');
+  const hb = want.labels.find(l => l.sym === 'hopf');
   const joined = dg.curves.filter(c => c.hopf >= 0);
   check("the periodic branch starts at its Hopf point: its max and min lines begin at the HB point",
     hb && joined.length === 2 && joined.every(c => c.hopf === hb.point && c.first[2] === hb.point && c.branch === 2
@@ -2692,7 +2692,7 @@ async function autoView(dir) {
   await until('!s.diagram.hover', 'hover gone');
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   let steps = 0;
-  while (steps < 5 && !(await DS(`!!d.hover && d.labels.some(l => l.point === d.hover.point && l.sym === 'HB')`))) {
+  while (steps < 5 && !(await DS(`!!d.hover && d.labels.some(l => l.point === d.hover.point && l.sym === 'hopf')`))) {
     await key('>');
     steps++;
   }
@@ -2988,7 +2988,7 @@ async function autoStopRace() {
     await cdp.eval(`document.querySelector('.auto-host').focus()`);
     await key('g');
     await until("s.ask && s.ask.kind === 'grab' && s.diagram.info", `grab ${what}`);
-    for (let i = 0; i < 20 && !(await DS("d.info && d.info.sym === 'HB'")); i++) {
+    for (let i = 0; i < 20 && !(await DS("d.info && d.info.sym === 'hopf'")); i++) {
       const n = await DS('d.infoEvents');
       await key('Tab');
       await until(`s.diagram.infoEvents > ${n} && s.ask`, `grab tab ${what}`);
@@ -3059,7 +3059,7 @@ async function autoStopRace() {
   idle.destroy();
   if (runningAtStop && stopBtn && stopped) perf('T25 stop latency', ms(tookStop));
   check('T25: Stop ends a running AUTO computation, with an idle connection open to xppautX, on an EP label',
-    runningAtStop && stopBtn && stopped && (await DS('d.labels.length')) > labsPre && lastLab === 'EP',
+    runningAtStop && stopBtn && stopped && (await DS('d.labels.length')) > labsPre && lastLab === 'end',
     JSON.stringify([runningAtStop, stopBtn, stopped, tookStop, labsPre, lastLab]));
   check('W106: once the run ends the set applies: the core\'s Nmax is 15, nothing in flight, no second set',
     await until(`!s.busy && s.autoSettings.core.numerics.nmx === 15 && !s.autoSettings.inflight.length`,
@@ -3149,7 +3149,7 @@ async function autoViews(dir) {
   await autoButton('G');
   await until("s.diagram.grabbing && s.ask && s.ask.kind === 'grab' && s.diagram.info", 'grab');
   check('AUTO views: the grab cursor shows in every view', await until(`document.querySelectorAll('.auto-cursor').length === 2`, 'two cursors'));
-  const target = await S(`(() => { const v = s.diagram.views[1], l = v.labels.find(l => l.sym === 'HB') || v.labels[1];
+  const target = await S(`(() => { const v = s.diagram.views[1], l = v.labels.find(l => l.sym === 'hopf') || v.labels[1];
     return {point: l.point, x: v.points.x[l.point], y: v.points.y[l.point]}; })()`);
   const at = await viewScreen(1, target.x, target.y);
   await click(at.x, at.y);
@@ -3225,7 +3225,7 @@ async function reopenedSessionPlot(dir) {
   await key('g');
   await until("s.ask && s.ask.kind === 'grab'", 'grab');
   await key('Tab');
-  await until("s.diagram.info.sym === 'HB' && s.ask && s.ask.kind === 'grab'", 'grab tab');
+  await until("s.diagram.info.sym === 'hopf' && s.ask && s.ask.kind === 'grab'", 'grab tab');
   await key('Enter');
   await until('!s.busy && !s.diagram.grabbing', 'grabbed');
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
@@ -3333,7 +3333,7 @@ async function lostF() {
   await key('g');
   await until("s.ask && s.ask.kind === 'grab'", 'grab');
   await key('Tab');
-  await until("s.diagram.info.sym === 'HB' && s.ask && s.ask.kind === 'grab'", 'grab tab');
+  await until("s.diagram.info.sym === 'hopf' && s.ask && s.ask.kind === 'grab'", 'grab tab');
   await key('Enter');
   await until('!s.busy && !s.diagram.grabbing', 'grabbed');
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
@@ -3377,7 +3377,7 @@ async function lostFRunning() {
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   await key('g');
   await until("s.ask && s.ask.kind === 'grab' && s.diagram.info", 'grab');
-  for (let i = 0; i < 20 && !(await DS("d.info && d.info.sym === 'HB'")); i++) {
+  for (let i = 0; i < 20 && !(await DS("d.info && d.info.sym === 'hopf'")); i++) {
     const n = await DS('d.infoEvents');
     await key('Tab');
     await until(`s.diagram.infoEvents > ${n} && s.ask`, 'grab tab');

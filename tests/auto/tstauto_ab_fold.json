@@ -26,7 +26,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "steady",
-        "type": "LP",
+        "type": "fold",
         "index": 1
       },
       "parameters": [
@@ -51,7 +51,7 @@
       "reference": ".xppaut",
       "run": "fold",
       "side": "ours",
-      "type": "BT",
+      "type": "bogdanov_takens",
       "index": 1,
       "cause": "XPPAUT 8.0's auto_2p_limit sets ISP=0 and ILP=0, disabling detection on the curve (auto_nox.c:2510-2512); the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -59,7 +59,7 @@
       "reference": ".xppaut",
       "run": "fold",
       "side": "ours",
-      "type": "CP",
+      "type": "cusp",
       "index": 1,
       "cause": "XPPAUT 8.0's auto_2p_limit sets ISP=0 and ILP=0, disabling detection on the curve (auto_nox.c:2510-2512); the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
@@ -67,7 +67,7 @@
       "reference": ".auto07p",
       "run": "fold",
       "side": "reference",
-      "type": "CP",
+      "type": "cusp",
       "index": 1,
       "cause": "AUTO-07p labels a zero of its residual-contaminated cusp stencil away from the analytic cusp (u1=0.5,u2=2,p0=exp(-2),p1=12). Its FNCPAE adds F(u+h*v)+F(u-h*v) without subtracting 2*F(u), toolboxae.f90:838-845. W364 removes the finite Newton residual before division by h^2; ours finds the true cusp, reference CP index 3. See docs/auto07p-findings.md, finding 2."
     },
@@ -75,7 +75,7 @@
       "reference": ".auto07p",
       "run": "fold",
       "side": "reference",
-      "type": "CP",
+      "type": "cusp",
       "index": 2,
       "cause": "AUTO-07p labels a zero of its residual-contaminated cusp stencil away from the analytic cusp (u1=0.5,u2=2,p0=exp(-2),p1=12). Its FNCPAE adds F(u+h*v)+F(u-h*v) without subtracting 2*F(u), toolboxae.f90:838-845. W364 removes the finite Newton residual before division by h^2; ours finds the true cusp, reference CP index 3. See docs/auto07p-findings.md, finding 2."
     },
@@ -83,7 +83,7 @@
       "reference": ".auto07p",
       "run": "fold",
       "side": "reference",
-      "type": "CP",
+      "type": "cusp",
       "index": 4,
       "cause": "AUTO-07p labels a zero of its residual-contaminated cusp stencil away from the analytic cusp (u1=0.5,u2=2,p0=exp(-2),p1=12). Its FNCPAE adds F(u+h*v)+F(u-h*v) without subtracting 2*F(u), toolboxae.f90:838-845. W364 removes the finite Newton residual before division by h^2; ours finds the true cusp, reference CP index 3. See docs/auto07p-findings.md, finding 2."
     },
@@ -91,7 +91,7 @@
       "reference": ".auto07p",
       "run": "fold",
       "side": "reference",
-      "type": "CP",
+      "type": "cusp",
       "index": 5,
       "cause": "AUTO-07p labels a zero of its residual-contaminated cusp stencil away from the analytic cusp (u1=0.5,u2=2,p0=exp(-2),p1=12). Its FNCPAE adds F(u+h*v)+F(u-h*v) without subtracting 2*F(u), toolboxae.f90:838-845. W364 removes the finite Newton residual before division by h^2; ours finds the true cusp, reference CP index 3. See docs/auto07p-findings.md, finding 2."
     }

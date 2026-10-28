@@ -26,7 +26,7 @@
       "kind": "periodic",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 1
       },
       "parameter": "b1",
@@ -47,7 +47,7 @@
       "kind": "periodic",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 1
       },
       "parameter": "b1",
@@ -69,7 +69,7 @@
       "reference": ".auto07p",
       "run": "cycles_up",
       "side": "ours",
-      "type": "LP",
+      "type": "fold",
       "index": 1,
       "quantity": "norm",
       "cause": "W458 (#521): The fold of cycles of the normal form is at amplitude 0.04, b1 = -2.56e-6 exactly (b1 = r^4 - b2 r^2, b2 = 0.0032); xppautX locates it at norm 0.0399989, b1 = -2.5599999923e-6, within the location's tolerance. AUTO-07p takes the fold test from the last Newton iterate's factorization, and the second point's corrector starts from the eigen-cycle: its fold test is biased and the location ends at norm 0.0404764, b1 = -2.55853e-6, 1.2 percent off in amplitude (xppautX did the same before W458; docs/auto-references.md W458)."
@@ -78,7 +78,7 @@
       "reference": ".xppaut",
       "run": "cycles_up",
       "side": "ours",
-      "type": "LP",
+      "type": "fold",
       "index": 1,
       "quantity": "norm",
       "cause": "W458 (#521): The fold of cycles of the normal form is at amplitude 0.04, b1 = -2.56e-6 exactly (b1 = r^4 - b2 r^2, b2 = 0.0032); xppautX locates it at norm 0.0399989, b1 = -2.5599999923e-6, within the location's tolerance. XPPAUT 8.0 takes the fold test from the last Newton iterate's factorization, and the second point's corrector starts from the eigen-cycle: its fold test is biased and the location ends at norm 0.0404764, b1 = -2.55853e-6, 1.2 percent off in amplitude (xppautX did the same before W458; docs/auto-references.md W458)."
@@ -87,7 +87,7 @@
       "reference": ".xppaut",
       "run": "cycles_down",
       "side": "ours",
-      "type": "LP",
+      "type": "fold",
       "index": 1,
       "quantity": "norm",
       "cause": "W458 (#521): The fold of cycles of the normal form is at amplitude 0.04, b1 = -2.56e-6 exactly (b1 = r^4 - b2 r^2, b2 = 0.0032); xppautX locates it at norm 0.0399989, b1 = -2.5599999923e-6, within the location's tolerance. XPPAUT 8.0 takes the fold test from the last Newton iterate's factorization, and the second point's corrector starts from the eigen-cycle: its fold test is biased and the location ends at norm 0.0404764, b1 = -2.55853e-6, 1.2 percent off in amplitude (xppautX did the same before W458; docs/auto-references.md W458)."
@@ -96,7 +96,7 @@
       "reference": ".auto07p",
       "run": "cycles_down",
       "side": "reference",
-      "type": "BP",
+      "type": "branch_point",
       "index": 1,
       "cause": "W458 (#521): with DS < 0 AUTO-07p's Hopf start orients the phase condition's derivative (UPOLDP, bvp.f90 STHOPF) by the eigen-cycle, not by the first cycle, which is the equilibrium minus the eigen-cycle: the branch-point test's determinant changes sign between the second and third point, a BP at norm 0.02027 that is not there, and the location that follows puts an LP at norm 0.01845, before the second point (0.02), while the fold is at 0.04 and is not labelled. The fold of cycles of the normal form is at amplitude 0.04, b1 = -2.56e-6 exactly (b1 = r^4 - b2 r^2, b2 = 0.0032); xppautX locates it at norm 0.0399989, b1 = -2.5599999923e-6, within the location's tolerance. docs/auto07p-findings.md, docs/auto-references.md W458."
     },
@@ -104,7 +104,7 @@
       "reference": ".auto07p",
       "run": "cycles_down",
       "side": "reference",
-      "type": "LP",
+      "type": "fold",
       "index": 1,
       "cause": "W458 (#521): with DS < 0 AUTO-07p's Hopf start orients the phase condition's derivative (UPOLDP, bvp.f90 STHOPF) by the eigen-cycle, not by the first cycle, which is the equilibrium minus the eigen-cycle: the branch-point test's determinant changes sign between the second and third point, a BP at norm 0.02027 that is not there, and the location that follows puts an LP at norm 0.01845, before the second point (0.02), while the fold is at 0.04 and is not labelled. The fold of cycles of the normal form is at amplitude 0.04, b1 = -2.56e-6 exactly (b1 = r^4 - b2 r^2, b2 = 0.0032); xppautX locates it at norm 0.0399989, b1 = -2.5599999923e-6, within the location's tolerance. docs/auto07p-findings.md, docs/auto-references.md W458."
     },
@@ -112,7 +112,7 @@
       "reference": ".auto07p",
       "run": "cycles_down",
       "side": "ours",
-      "type": "LP",
+      "type": "fold",
       "index": 1,
       "cause": "W458 (#521): with DS < 0 AUTO-07p's Hopf start orients the phase condition's derivative (UPOLDP, bvp.f90 STHOPF) by the eigen-cycle, not by the first cycle, which is the equilibrium minus the eigen-cycle: the branch-point test's determinant changes sign between the second and third point, a BP at norm 0.02027 that is not there, and the location that follows puts an LP at norm 0.01845, before the second point (0.02), while the fold is at 0.04 and is not labelled. The fold of cycles of the normal form is at amplitude 0.04, b1 = -2.56e-6 exactly (b1 = r^4 - b2 r^2, b2 = 0.0032); xppautX locates it at norm 0.0399989, b1 = -2.5599999923e-6, within the location's tolerance. docs/auto07p-findings.md, docs/auto-references.md W458."
     }

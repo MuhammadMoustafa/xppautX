@@ -14,11 +14,12 @@
 import type {ComponentChildren} from 'preact';
 import {useRef, useState} from 'preact/hooks';
 import {HELP} from '../help/links';
-import {symbolHelp, symbolName} from '../plot/diagramModel';
+import {symbolHelp} from '../plot/diagramModel';
 import {
   allCodim, CODIM_KINDS, fieldOf, NUM_FIELDS, NUM_GROUPS, numError, numSpec, pairErrors, pendingFields, shownSettings, type AutoSettings, type AutoSettingsPatch, type NumKey,
 } from '../store/autoSettings';
 import {fieldError, NUMBER} from '../store/fieldKinds';
+import {pointLabel} from '../store/pointTypes';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
@@ -170,7 +171,7 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
           <label><span>Detect all</span><input type="checkbox" checked={CODIM_KINDS.every(k => specialPoints[k])}
             onChange={e => { const on=e.currentTarget.checked; setSpecialPoints(allCodim(on)); }} /></label>
           {CODIM_KINDS.map(k => <label key={k} title={symbolHelp(k)} class={pending.has(`special_points.${k}`) ? 'queued' : undefined}>
-            <span>{k} {symbolName(k)}</span><input type="checkbox" data-field={k} checked={specialPoints[k]}
+            <span>{pointLabel(k)}</span><input type="checkbox" data-field={k} checked={specialPoints[k]}
               onChange={e => { const enabled=e.currentTarget.checked; setSpecialPoints(v => ({...v, [k]: enabled})); }} />
           </label>)}
         </fieldset>

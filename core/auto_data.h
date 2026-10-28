@@ -57,7 +57,7 @@ struct AutoDataInfo {
     AutoCalculation flag2;       /* two-parameter curve kind, no_calculation for one parameter */
     int node;        /* DIAGRAM.index of the point */
     int jacobian;    /* DIAGRAM.jacobian: how its run formed the Jacobian */
-    const char *sym; /* auto_point_symbol: EP, LP, HB, ... or blank */
+    const char *sym; /* the point type's name (auto_point_kind_name: regular, fold, hopf, ...) */
     const char *p1name, *p2name;
     double p1, p2;
     double norm;

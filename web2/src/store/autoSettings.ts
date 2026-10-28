@@ -145,7 +145,8 @@ export interface AutoAxesSettings {
 }
 
 /** the `autosettings` event's settings, with what the Numerics take */
-export const CODIM_KINDS = ['BT', 'CP', 'ZH', 'GH', 'R1', 'R2', 'R3', 'R4', 'LPD', 'LTR', 'PTR', 'TTR'] as const;
+export const CODIM_KINDS = ['bogdanov_takens', 'cusp', 'zero_hopf', 'generalized_hopf', 'resonance_1_1', 'resonance_1_2', 'resonance_1_3', 'resonance_1_4',
+  'fold_flip', 'fold_neimark_sacker', 'flip_neimark_sacker', 'double_neimark_sacker'] as const;
 export type CodimKind = typeof CODIM_KINDS[number];
 /** every kind set to one value */
 export const allCodim = (on: boolean) => Object.fromEntries(CODIM_KINDS.map(k => [k, on])) as Record<CodimKind, boolean>;

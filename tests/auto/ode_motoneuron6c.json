@@ -31,7 +31,7 @@
       "kind": "periodic",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 5
       },
       "parameter": "ampPar",
@@ -52,7 +52,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 5
       },
       "parameters": [
@@ -76,7 +76,7 @@
       "kind": "two_parameter",
       "start": {
         "run": "steady",
-        "type": "HB",
+        "type": "hopf",
         "index": 5
       },
       "parameters": [
@@ -101,7 +101,7 @@
       "reference": ".auto07p",
       "run": "hb_up",
       "side": "reference",
-      "type": "GH",
+      "type": "generalized_hopf",
       "index": 1,
       "cause": "AUTO-07p labels five GH between ampPar 0.739 and 0.795 (CaDen_Max 9.7e-5 to 3.8e-5), five sign changes of the first Lyapunov coefficient within 0.056 of the curve. The same cause as tstauto_ab_hopf's: AUTO-07p's FNGHEQ DERIV2a omits the subtraction of 2*F(u), so the Newton residual (EPSL/EPSU 1e-4 here) enters the second difference magnified by h^-2 (docs/auto07p-findings.md, finding 2). The residual is the cause here too: with EPSL = EPSU = EPSS 1e-7 and 1e-9, AUTO-07p labels no GH on the same curve (W431, tools/auto_reference.py on the description with those constants). Ours subtracts the term and labels none. An independent first Lyapunov coefficient, from the model's Fortran right-hand side in quadruple precision, is +8.5e-4 to +1.9e-3 at all 89 points of the curve, the five labels included, and agrees with ours to 1.5e-4 relative: no sign change (docs/auto-references.md, W456)."
     },
@@ -109,7 +109,7 @@
       "reference": ".auto07p",
       "run": "hb_up",
       "side": "reference",
-      "type": "GH",
+      "type": "generalized_hopf",
       "index": 2,
       "cause": "AUTO-07p labels five GH between ampPar 0.739 and 0.795 (CaDen_Max 9.7e-5 to 3.8e-5), five sign changes of the first Lyapunov coefficient within 0.056 of the curve. The same cause as tstauto_ab_hopf's: AUTO-07p's FNGHEQ DERIV2a omits the subtraction of 2*F(u), so the Newton residual (EPSL/EPSU 1e-4 here) enters the second difference magnified by h^-2 (docs/auto07p-findings.md, finding 2). The residual is the cause here too: with EPSL = EPSU = EPSS 1e-7 and 1e-9, AUTO-07p labels no GH on the same curve (W431, tools/auto_reference.py on the description with those constants). Ours subtracts the term and labels none. An independent first Lyapunov coefficient, from the model's Fortran right-hand side in quadruple precision, is +8.5e-4 to +1.9e-3 at all 89 points of the curve, the five labels included, and agrees with ours to 1.5e-4 relative: no sign change (docs/auto-references.md, W456)."
     },
@@ -117,7 +117,7 @@
       "reference": ".auto07p",
       "run": "hb_up",
       "side": "reference",
-      "type": "GH",
+      "type": "generalized_hopf",
       "index": 3,
       "cause": "AUTO-07p labels five GH between ampPar 0.739 and 0.795 (CaDen_Max 9.7e-5 to 3.8e-5), five sign changes of the first Lyapunov coefficient within 0.056 of the curve. The same cause as tstauto_ab_hopf's: AUTO-07p's FNGHEQ DERIV2a omits the subtraction of 2*F(u), so the Newton residual (EPSL/EPSU 1e-4 here) enters the second difference magnified by h^-2 (docs/auto07p-findings.md, finding 2). The residual is the cause here too: with EPSL = EPSU = EPSS 1e-7 and 1e-9, AUTO-07p labels no GH on the same curve (W431, tools/auto_reference.py on the description with those constants). Ours subtracts the term and labels none. An independent first Lyapunov coefficient, from the model's Fortran right-hand side in quadruple precision, is +8.5e-4 to +1.9e-3 at all 89 points of the curve, the five labels included, and agrees with ours to 1.5e-4 relative: no sign change (docs/auto-references.md, W456)."
     },
@@ -125,7 +125,7 @@
       "reference": ".auto07p",
       "run": "hb_up",
       "side": "reference",
-      "type": "GH",
+      "type": "generalized_hopf",
       "index": 4,
       "cause": "AUTO-07p labels five GH between ampPar 0.739 and 0.795 (CaDen_Max 9.7e-5 to 3.8e-5), five sign changes of the first Lyapunov coefficient within 0.056 of the curve. The same cause as tstauto_ab_hopf's: AUTO-07p's FNGHEQ DERIV2a omits the subtraction of 2*F(u), so the Newton residual (EPSL/EPSU 1e-4 here) enters the second difference magnified by h^-2 (docs/auto07p-findings.md, finding 2). The residual is the cause here too: with EPSL = EPSU = EPSS 1e-7 and 1e-9, AUTO-07p labels no GH on the same curve (W431, tools/auto_reference.py on the description with those constants). Ours subtracts the term and labels none. An independent first Lyapunov coefficient, from the model's Fortran right-hand side in quadruple precision, is +8.5e-4 to +1.9e-3 at all 89 points of the curve, the five labels included, and agrees with ours to 1.5e-4 relative: no sign change (docs/auto-references.md, W456)."
     },
@@ -133,7 +133,7 @@
       "reference": ".auto07p",
       "run": "hb_up",
       "side": "reference",
-      "type": "GH",
+      "type": "generalized_hopf",
       "index": 5,
       "cause": "AUTO-07p labels five GH between ampPar 0.739 and 0.795 (CaDen_Max 9.7e-5 to 3.8e-5), five sign changes of the first Lyapunov coefficient within 0.056 of the curve. The same cause as tstauto_ab_hopf's: AUTO-07p's FNGHEQ DERIV2a omits the subtraction of 2*F(u), so the Newton residual (EPSL/EPSU 1e-4 here) enters the second difference magnified by h^-2 (docs/auto07p-findings.md, finding 2). The residual is the cause here too: with EPSL = EPSU = EPSS 1e-7 and 1e-9, AUTO-07p labels no GH on the same curve (W431, tools/auto_reference.py on the description with those constants). Ours subtracts the term and labels none. An independent first Lyapunov coefficient, from the model's Fortran right-hand side in quadruple precision, is +8.5e-4 to +1.9e-3 at all 89 points of the curve, the five labels included, and agrees with ours to 1.5e-4 relative: no sign change (docs/auto-references.md, W456)."
     },
@@ -141,7 +141,7 @@
       "reference": ".auto07p",
       "run": "periodic",
       "side": "reference",
-      "type": "LP",
+      "type": "fold",
       "index": 1,
       "cause": "W458 (#521): at stored point 3 of the cycles from the Hopf point, 1.5e-7 in ampPar from it, the fold test changes sign (+4.6e-6 to -1.6e-5) where ampPar rises monotonically (0.5727814554, 0.5727816054, 0.5727852281): the second point's value comes from the last Newton iterate's factorization, the eigen-cycle predictor's, whose one correction moved ampPar by 1e-6, more than the branch had moved. AUTO-07p labels that LP; xppautX reads the first two steps' tests at the converged point's Jacobian and labels none, as neither program does with EPSL = EPSU 1e-8 and DS -0.002 (W455). docs/auto-references.md W458."
     },
@@ -149,7 +149,7 @@
       "reference": ".xppaut",
       "run": "periodic",
       "side": "reference",
-      "type": "LP",
+      "type": "fold",
       "index": 1,
       "cause": "W458 (#521): at stored point 3 of the cycles from the Hopf point, 1.5e-7 in ampPar from it, the fold test changes sign (+4.6e-6 to -1.6e-5) where ampPar rises monotonically (0.5727814554, 0.5727816054, 0.5727852281): the second point's value comes from the last Newton iterate's factorization, the eigen-cycle predictor's, whose one correction moved ampPar by 1e-6, more than the branch had moved. XPPAUT 8.0 labels that LP; xppautX reads the first two steps' tests at the converged point's Jacobian and labels none, as neither program does with EPSL = EPSU 1e-8 and DS -0.002 (W455). docs/auto-references.md W458."
     }

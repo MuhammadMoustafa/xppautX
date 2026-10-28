@@ -1201,7 +1201,7 @@ large value".
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`, `player`), `title`, `file`, `output_names` (`par`, `ic`, `csv`, `curves`), `menu_names`, `command_categories`, `command_table`, `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 markers, 5 methods (items like `2 Box` start with the number to enter); `line_styles` (above), `colormaps` (above). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`, `player`), `title`, `file`, `point_types` (every AUTO point type as `{name, label, mark}`: the name is the only input, the label is what a person reads, the mark is the short text drawn at a point; core/auto_codes.h's one table), `output_names` (`par`, `ic`, `csv`, `curves`), `menu_names`, `command_categories`, `command_table`, `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 markers, 5 methods (items like `2 Box` start with the number to enter); `line_styles` (above), `colormaps` (above). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
 | `window` | `op` (`create`, `select`, `destroy`), `kind` (`graph`, `diagram`, `animation`, `array_plot`), `win`, `w`, `h`, `title` | Plot windows, AUTO, animation and array plot, identified by name. `kind` distinguishes auxiliary panels from user-named graphs; `hello.window_names` gives their initial names. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
 | `diagram` | `op` (`axes`, `reset`, `add`, `views`), `view`, ... | The AUTO diagram as data, each view of it; see "The AUTO diagram as data". |
 | `autoinfo` | `info`, `stab`, `stop`, `notes`, `start_refined` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
@@ -1356,7 +1356,7 @@ continues in), and a grab's point by its data.
 | `jac` | how the Jacobian of the AUTO run that computed the run was formed: `difference` (XPPAUT's forward differences) or `exact` (the Numerics' Jacobian at that run, W278); a run never joins one with another setting, so one diagram can hold both |
 | `x`, `y` | the values, one per point (`null` for NaN) |
 | `y2` | the second value (the minimum, for hi and lo), when it differs from `y` anywhere in the run |
-| `lab` | [[index in the run, label, type (`EP`, `LP`, `HB`, `BP`, `PD`, `TR`, `UZ`, `MX`, `BT`, `CP`, `ZH`, `GH`, `R1`, `R2`, `R3`, `R4`, `LPD`, `LTR`, `PTR`, `TTR`)], ...] for the labelled points |
+| `lab` | [[index in the run, label, type (a point type's name, from hello's `point_types`: `end`, `fold`, `hopf`, `branch_point`, `period_doubling`, `neimark_sacker`, `user_point`, `no_convergence`, `bogdanov_takens`, `cusp`, `zero_hopf`, `generalized_hopf`, `resonance_1_1` to `resonance_1_4`, `fold_flip`, `fold_neimark_sacker`, `flip_neimark_sacker`, `double_neimark_sacker`, `cycle_fold`, `cycle_branch_point`, `output`, `regular`)], ...] for the labelled points |
 
 On equilibrium fold curves, BT means Bogdanov-Takens (stored ITP -21), CP cusp
 (-22), ZH zero-Hopf (-23). On Hopf curves the encodings are BT -31, GH
@@ -1402,7 +1402,7 @@ core/auto_stop.cpp, which autlib1.cpp tells where it ends a branch (T23).
 |---|---|
 | `info` | the point the strip shows: the one a grab's cursor is on (the strip changes only while grabbing); `null` before a grab, and in a new AUTO window |
 | `info.point` | its index in the `diagram` data (the points the client holds, the same index in every view), -1 when they do not have it (after Clear, or a load not drawn yet) |
-| `info.br`, `pt`, `type`, `sym`, `lab`, `f2` | branch and point number (positive, as in `diagram`), `type` as a run's `ty` (1 stable steady state .. 4 unstable periodic, with `stable` and `periodic` as a run's), the label's type (`EP`, `LP`, `HB`, ... or empty), the label (0 for none), and for a two-parameter point its curve kind as `f2` |
+| `info.br`, `pt`, `type`, `sym`, `lab`, `f2` | branch and point number (positive, as in `diagram`), `type` as a run's `ty` (1 stable steady state .. 4 unstable periodic, with `stable` and `periodic` as a run's), the label's type (a point type's name, `end`, `fold`, `hopf`, ...; `info.sym` is the name, its mark and label come from hello's `point_types`), the label (0 for none), and for a two-parameter point its curve kind as `f2` |
 | `info.jac` | `difference` or `exact`: the Jacobian setting of the run that computed the point (as a run's `jac`) |
 | `info.par` | the continuation parameter's `name` and `value`, and the second parameter's for a two-parameter point (the strip then shows both; for a one-parameter point it shows a blank name and 0) |
 | `info.norm`, `var`, `u`, `per` | the norm, the variable of the Axes setting and its value, the period (AUTO's value for a steady state too: what the strip prints) |
@@ -1436,12 +1436,12 @@ Stop).
 
 ### AUTO's settings as data
 
-`autosettings.special_points` is an object of named booleans `BT`, `CP`,
-`ZH`, `GH`, `R1`, `R2`, `R3`, `R4`, `LPD`, `LTR`, `PTR`, `TTR`, all true by default. `auto` `set` accepts a partial object, e.g.
-`{"cmd":"auto","op":"set","special_points":{"GH":false}}`. Set all twelve
+`autosettings.special_points` is an object of named booleans `bogdanov_takens`, `cusp`,
+`zero_hopf`, `generalized_hopf`, `resonance_1_1` to `resonance_1_4`, `fold_flip`, `fold_neimark_sacker`, `flip_neimark_sacker`, `double_neimark_sacker`, all true by default. `auto` `set` accepts a partial object, e.g.
+`{"cmd":"auto","op":"set","special_points":{"generalized_hopf":false}}`. Set all twelve
 false to disable all equilibrium, cycle and map codimension-two detection. Invalid names or
 non-booleans refuse the whole transaction. Session settings require all twelve
-lines (`BT true` or `BT false`, etc.); validation precedes application.
+lines (`bogdanov_takens true` or `bogdanov_takens false`, etc.); validation precedes application.
 
 What the AUTO window's Numerics, Axes (the AutoPlot form and
 the plot type) and Mark values forms edit, as data, for a client with
@@ -2183,10 +2183,9 @@ old diagram until reDraw.
 stored point labelled `N` directly, with no ask: the same outcome as the
 interactive grab above ending with `Return` on that point (`grabpt`, the
 parameters, the info strip, the stability circle, and what a following
-Run starts from). `{"cmd":"auto","op":"grab","type":"HB","index":k}`
+Run starts from). `{"cmd":"auto","op":"grab","type":"hopf","index":k}`
 grabs the `k`-th (1-based, in stored order) labelled point of that AUTO
-type instead (`auto_point_symbol`'s `BP`, `EP`, `HB`, `LP`, `MX`, `PD`, `TR`,
-`UZ`, `BT`, `CP`, `ZH`, `GH`, `R1`, `R2`, `R3`, `R4`, `LPD`, `LTR`, `PTR`, `TTR`: "the 2nd HB"). A label no stored point has, or a `type`/`index` with
+type instead (a point type's name, the same names as hello's `point_types`: `branch_point`, `end`, `hopf`, `fold`, `no_convergence`, `period_doubling`, `neimark_sacker`, `user_point`, and the others: "the 2nd hopf"). A label no stored point has, or a `type`/`index` with
 no such point, is a `message` `error` and nothing changes -- the diagram,
 `grabpt` and the info strip stay as they were. `{"cmd":"auto","op":"grab"}`
 with neither field is refused (`message` `error`): the interactive grab is

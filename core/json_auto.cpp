@@ -249,8 +249,7 @@ void diag_run(const xpp::Session &s, std::string &b, const std::vector<XppDiagPo
         BUF_LIT(b, ",\"lab\":[");
         for (k = i, nlab = 0; k <= j; k++) {
             if (!at(k).lab) continue;
-            const char *t = auto_point_symbol(at(k).itp);
-            while (*t == ' ') t++;
+            const std::string_view t = auto_point_kind_name(at(k).itp.kind);
             buf_format(b, "{}[{:d},{:d},", nlab++ ? "," : "", k - i, at(k).lab);
             buf_str(b, t);
             BUF_LIT(b, "]");
@@ -577,7 +576,7 @@ int read_auto_set(const xpp::Session &session,const char *line, AutoSettingsSet 
             const auto at=std::find(xpp::auto_codim_keys.begin(),xpp::auto_codim_keys.end(),key);
             bool enabled;
             if (at==xpp::auto_codim_keys.end() || !xpp::parse_bool(js_raw(value),enabled)) {
-                why=xpp::format("special_points {} must be BT, CP, ZH, GH, R1, R2, R3, R4, LPD, LTR, PTR or TTR with true or false",key); return 0;
+                why=xpp::format("special_points {} must be one of {} with true or false",key,auto_codim_key_list()); return 0;
             }
             s.special_points[at-xpp::auto_codim_keys.begin()]=enabled;
         }
@@ -693,7 +692,10 @@ void auto_command(xpp::Session &s, const char *line)
                 j_command_error("auto", xpp::format("Grab: no point labelled {}", lab));
         } else if (get_string(line, "type", type) && js_find(line, "index") != NULL) {
             int idx = get_int(line, "index", 0);
-            if (!auto_grab_type_index(s, type.c_str(), idx))
+            const auto kind = auto_point_kind_from_name(type);
+            if (!kind)
+                j_command_error("auto", xpp::format("Grab: \"{}\" is not a point type", type));
+            else if (!auto_grab_type_index(s, *kind, idx))
                 j_command_error("auto", xpp::format("Grab: no {} point number {}", type, idx));
         } else j_command_error("auto", "Grab: give a label, or a type and index");
     }

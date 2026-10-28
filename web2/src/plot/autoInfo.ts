@@ -3,7 +3,8 @@
    words, and the circle's points placed and classified. Pure: no DOM. */
 import type {AutoInfo, AutoStab, DiagramAxes} from '../store/diagram';
 import {axesNames} from './axisDialog';
-import {fmt, symbolName} from './diagramModel';
+import {fmt} from './diagramModel';
+import {pointLabel, pointMark} from '../store/pointTypes';
 
 /** the strip's fields as [name, value] rows (A14: six significant digits), in order of importance:
     branch, point, type, label; what the diagram's axes show (the x axis's quantity, the main
@@ -19,7 +20,7 @@ export function infoRows(info: AutoInfo, axes: DiagramAxes | null): [string, str
     ['Type', `${info.stable ? 'Stable' : 'Unstable'} ${info.periodic ? 'periodic orbit' : 'steady state'}`],
   ];
   if (info.sym || info.lab)
-    rows.push(['Label', `${info.sym ? info.sym + ' ' : ''}${info.lab}${symbolName(info.sym) ? ` (${symbolName(info.sym)})` : ''}`]);
+    rows.push(['Label', `${info.sym ? pointMark(info.sym) + ' ' : ''}${info.lab}${pointLabel(info.sym) ? ` (${pointLabel(info.sym)})` : ''}`]);
 
   /* the axes' parameters by name (axesNames: the x axis's, and the y axis's in a two-parameter
      diagram), the first parameter standing in for the x axis's until the axes are known */

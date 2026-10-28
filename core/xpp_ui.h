@@ -99,7 +99,7 @@ struct FormField {
    plot has draw 0 and x, y1 and y2 NaN. */
 typedef struct XppDiagPoint {
     int ibr, pt;   /* AUTO's branch and point number, signed as AUTO has them */
-    AutoPointCode itp; /* AUTO's point type (auto_point_symbol) */
+    AutoPointCode itp; /* AUTO's point type (auto_point_kind_name) */
     int lab;       /* label, 0 when none or when the label mark is not drawn */
     DiagramPointType type; /* stable eq, unstable eq, stable periodic, unstable periodic */
     AutoCalculation flag2;     /* two-parameter curve kind, no_calculation for one parameter */

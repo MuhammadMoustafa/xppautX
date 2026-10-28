@@ -9,6 +9,7 @@ import {cssVar} from './css';
 import uPlot from 'uplot';
 import type {Range, Viewport} from '../store/plots';
 import {cssColor} from './colors';
+import {pointMark} from '../store/pointTypes';
 import {fitRanges, labelShape, nearestVertex, type DiagramHit, type DiagramModel, type LabelShape} from './diagramModel';
 import {placeLabels} from './labelPlace';
 import type {Ranges} from './viewmath';
@@ -232,7 +233,7 @@ export class DiagramChart {
     ctx.font = `${Math.round(11 * r)}px Inter, system-ui, sans-serif`;
     ctx.textBaseline = 'top';
     this.named = shown.length <= NAMED_MAX ? shown.length : 0;
-    const names = shown.map(s => `${s.l.sym ? s.l.sym + ' ' : ''}${s.l.lab}`);
+    const names = shown.map(s => `${s.l.sym ? pointMark(s.l.sym) + ' ' : ''}${s.l.lab}`);
     /* two names at one spot are written a line apart (plot/labelPlace.ts) */
     const tops = this.named ? placeLabels(shown.map((s, i) => ({x: s.px + 5 * r, y: s.py + 3 * r,
       w: ctx.measureText(names[i]).width, h: 13 * r}))) : [];

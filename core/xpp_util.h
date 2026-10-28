@@ -61,6 +61,7 @@ void user_fun_info(const Model &m, FILE *fp);
    one keeps its start and ends in '~' so it cannot pass for another name */
 std::string short_name(std::string_view name, int width);
 
+
 /* s without its white space (de_space's, up to a NUL in it) */
 void de_space(std::string &s);
 

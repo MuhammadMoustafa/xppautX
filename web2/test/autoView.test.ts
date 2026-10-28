@@ -5,7 +5,12 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {axesNames, boundText, spinStep, typedRange, yNeeds} from '../src/plot/axisDialog';
 import {formatElapsed, kindOfPoint, runStatus, stopPoint} from '../src/plot/autoStatus';
-import {buildDiagramModel, labelShape, labelTypes, symbolHelp, symbolName} from '../src/plot/diagramModel';
+import {setPointTypes} from '../src/store/pointTypes';
+import {POINT_TYPES} from './hello';
+
+setPointTypes(POINT_TYPES);
+import {buildDiagramModel, labelShape, labelTypes, symbolHelp} from '../src/plot/diagramModel';
+import {pointLabel} from '../src/store/pointTypes';
 import {placeLabels} from '../src/plot/labelPlace';
 import {activeView, branchesBefore, earlierCount, type DiagramRun} from '../src/store/diagram';
 import {classifyLogText, reduce, type AppState} from '../src/store/state';
@@ -19,12 +24,12 @@ const act = (s: AppState, action: object) => reduce(s, {type: 'diagram', action:
 const axes = {xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4, x0: 70, y0: 26, wid: 603, hgt: 300, plot: 'maximum_and_minimum' as const,
   xlabel: 'iapp', ylabel: 'V'};
 const steady: DiagramRun[] = [
-  {br: 1, pt: 1, ty: 2, stable: false, periodic: false, d: 1, c: 'foreground', lw: 1, jac: 'difference', new: 1, x: [0.05, 0.1, 0.2], y: [-0.44, -0.4, -0.3], lab: [[0, 1, 'EP']]},
-  {br: 1, pt: 4, ty: 2, stable: false, periodic: false, d: 1, c: 'foreground', lw: 1, jac: 'difference', x: [0.26, 0.3], y: [-0.2, -0.1], lab: [[0, 2, 'HB']]},
+  {br: 1, pt: 1, ty: 2, stable: false, periodic: false, d: 1, c: 'foreground', lw: 1, jac: 'difference', new: 1, x: [0.05, 0.1, 0.2], y: [-0.44, -0.4, -0.3], lab: [[0, 1, 'end']]},
+  {br: 1, pt: 4, ty: 2, stable: false, periodic: false, d: 1, c: 'foreground', lw: 1, jac: 'difference', x: [0.26, 0.3], y: [-0.2, -0.1], lab: [[0, 2, 'hopf']]},
 ];
 const periodic: DiagramRun[] = [
   {br: 2, pt: 1, ty: 4, stable: false, periodic: true, d: 3, c: '#0000ff', lw: 1, jac: 'difference', new: 1, x: [0.26, 0.25, 0.24], y: [-0.2, -0.1, 0], y2: [-0.2, -0.3, -0.4],
-    lab: [[2, 3, 'LP']]},
+    lab: [[2, 3, 'fold']]},
 ];
 const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', view: 'diagram_1', op: 'add', from, runs});
 
@@ -43,7 +48,7 @@ test('a run: its clock, what it computed, its last label, how it ended', () => {
   st = runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 2500, flags);
   assert.equal(st.phase, 'running');
   assert.equal(st.text, 'Running: steady states');
-  assert.deepEqual([st.branch, st.point, st.points, st.label, st.elapsed], [1, 5, 5, 'HB 2 (Hopf) at point 4', 500]);
+  assert.deepEqual([st.branch, st.point, st.points, st.label, st.elapsed], [1, 5, 5, 'Andronov\u2013Hopf 2 at point 4', 500]);
   assert.equal(runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 2500, {...flags, stopping: true}).text, 'Stopping…');
   s = act(s, {type: 'run', op: 'end', at: 4000});
   st = runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 9999, flags);
@@ -55,7 +60,7 @@ test('a run: its clock, what it computed, its last label, how it ended', () => {
   s = act(s, {type: 'run', op: 'end', at: 6000});
   st = runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 9999, flags);
   assert.deepEqual([st.phase, st.text, st.points, st.branch, st.label], ['stopped', 'Stopped: periodic orbits', 3, 2,
-    'LP 3 (Fold (limit point)) at point 3']);
+    'Fold 3 at point 3']);
   assert.equal(runStatus(null, activeView(s.diagram).points, activeView(s.diagram).labels, 0, flags).text, 'Idle');
 });
 
@@ -94,14 +99,14 @@ test('T23: an ended run says why its last branch ended, from autoinfo stop', () 
 });
 
 test('T23: the key lists the label types the diagram has, spelled out', () => {
-  assert.deepEqual(labelTypes([{sym: 'HB'}, {sym: 'EP'}, {sym: ''}, {sym: 'EP'}, {sym: 'MX'}]), ['EP', 'MX', 'HB']);
-  assert.deepEqual(['EP', 'MX', 'LP', 'HB', 'BP', 'PD', 'TR', 'UZ'].map(symbolName), ['End point', 'No convergence',
-    'Fold (limit point)', 'Hopf', 'Branch point', 'Period doubling', 'Torus', 'Marked value']);
-  assert.ok(['EP', 'MX', 'LP', 'HB', 'BP', 'PD', 'TR', 'UZ'].every(k => symbolHelp(k).length > 20));
+  assert.deepEqual(labelTypes([{sym: 'hopf'}, {sym: 'end'}, {sym: ''}, {sym: 'end'}, {sym: 'no_convergence'}]), ['end', 'no_convergence', 'hopf']);
+  assert.deepEqual(['end', 'no_convergence', 'fold', 'hopf', 'branch_point', 'period_doubling', 'neimark_sacker', 'user_point'].map(pointLabel), ['End of branch', 'No convergence',
+    'Fold', 'Andronov\u2013Hopf', 'Branch point', 'Period doubling (flip)', 'Neimark\u2013Sacker (torus)', 'User point']);
+  assert.ok(['end', 'no_convergence', 'fold', 'hopf', 'branch_point', 'period_doubling', 'neimark_sacker', 'user_point'].every(k => symbolHelp(k).length > 20));
 });
 
 test('T29: one shape per label type, not a cross for every one; unknown codes and plain points fall back', () => {
-  assert.deepEqual(['HB', 'LP', 'BP', 'PD', 'TR', 'UZ', 'MX', 'EP'].map(labelShape),
+  assert.deepEqual(['hopf', 'fold', 'branch_point', 'period_doubling', 'neimark_sacker', 'user_point', 'no_convergence', 'end'].map(labelShape),
     ['circle', 'triangle', 'diamond', 'square', 'star', 'invTriangle', 'cross', 'bar']);
   /* a plain numbered point (Npr's regular output, no type) reads lighter than the special shapes */
   assert.equal(labelShape(''), 'tick');
@@ -123,7 +128,7 @@ test('Clear hides the branches so far; new ones draw alone; the key shows them a
   s = ev(s, add(5, periodic));
   const hidden = buildDiagramModel(activeView(s.diagram).points, activeView(s.diagram).labels, activeView(s.diagram).axes, earlierCount(s.diagram));
   assert.ok(hidden.curves.every(c => c.branch === 2));
-  assert.deepEqual(hidden.labels.map(l => l.sym), ['LP']);
+  assert.deepEqual(hidden.labels.map(l => l.sym), ['fold']);
   /* the periodic branch still starts at its Hopf point, which is hidden with its branch */
   assert.equal(hidden.hopf.length, 1);
   const all = buildDiagramModel(activeView(s.diagram).points, activeView(s.diagram).labels, activeView(s.diagram).axes, 0);

@@ -121,7 +121,7 @@ int main()
     CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_PERIODIC, xpp::AutoPointCode{xpp::AutoPointKind::End}, LAB_R, LAB_I) == 1);
     CHECK(xpp::auto_stability_for(st, -3, 1, r, i) == 1 && r[0] == 0.9);
     /* a branch switch at a periodic branch point continues the same orbit */
-    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, xpp::AutoPointCode{xpp::AutoPointKind::PeriodicBranch}, LAB_R, LAB_I) == 1);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, xpp::AutoPointCode{xpp::AutoPointKind::CycleBranch}, LAB_R, LAB_I) == 1);
     CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, -1, xpp::AUTO_STABILITY_STEADY, xpp::AutoPointCode{xpp::AutoPointKind::BranchPoint}, LAB_R, LAB_I) == 1);
 
     /* a change of kind: not computed */

@@ -84,8 +84,8 @@ back). It has:
   "Stopped: parameter iapp reached Par Max (0.5)" (see "Why a branch
   stopped" below), and AUTO's Output gets the same as a line for every
   branch that ends ("Branch 1 stopped at point 49: ...");
-- the diagram's **key** lists the label types it has, spelled out (EP End
-  point, HB Hopf, ...), each with its meaning as a tooltip and the same
+- the diagram's **key** lists the label types it has, spelled out with its label and mark (End of branch EP,
+  Andronov–Hopf AH, ...), each with its meaning as a tooltip and the same
   shape it is drawn with on the diagram (a filled circle at a Hopf point,
   a triangle at a fold, a diamond at a branch point, a square at a period
   doubling, a star at a torus, an inverted triangle at a user point, a
@@ -356,23 +356,23 @@ Click on “Run” to run the bifurcation. Depending on the situation, a number 
 
 The diagram,itself, has two different lines and two different circles. Stable fixed points are thick lines, stable periodics are solid circles, unstable fixed points are thin lines, and unstable periodics are open circles. Additionally, there are crosses occasionally dispersed with numbers associated with them. These represent “special” points that AUTO wants to keep. There are several of them (web2 draws each with a shape of its own instead of a plain cross, spells each out in the key, the readout and the info strip, with its meaning as the key's tooltip):
 
-### EP End point
+### End of branch (EP)
 
 Where a branch starts or ends normally: a limit (Par Min/Max, Norm
 Min/Max), Max points, Stop or a Mark value set to stop. The status strip
 and Output say which (see "Why a branch stopped").
 
-### MX No convergence
+### No convergence (MX)
 
 AUTO could not compute the next point, even at the smallest step, and
 ended the branch there (failure to converge).
 
-### LP Fold (limit point)
+### Fold (LP)
 
 Limit point or turning point of a branch: two solutions meet and
 disappear.
 
-### HB Hopf
+### Andronov–Hopf (AH)
 
 Hopf bifurcation: a pair of eigenvalues crosses the imaginary axis, and a
 branch of periodic orbits starts here.
@@ -403,20 +403,20 @@ are saved in the session. Turning detection off keeps continuation running.
 On a fold curve the auxiliary period is the starting PAR(11), as in AUTO-07p;
 it is not an oscillation period of the fold. (W364, [#426](https://github.com/MuhammadMoustafa/xppautX/issues/426))
 
-### BP Branch point
+### Branch point (BP)
 
 Bifurcation or branch point: another branch crosses this one.
 
-### PD Period doubling
+### Period doubling (flip) (PD)
 
 Period doubling bifurcation: a Floquet multiplier crosses -1.
 
-### TR Torus
+### Neimark–Sacker, torus (NS)
 
 Torus bifurcation from a periodic orbit: a pair of Floquet multipliers
 crosses the unit circle.
 
-### UZ Marked value
+### User point (UZ)
 
 A point where a parameter, or the period T, reaches one of the Mark values
 (user functions).
@@ -472,7 +472,7 @@ takes the nearest point); there is no display-dependent drawing bug to
 work around. A script (docs/protocol.md "Grab by label") can also grab a
 point directly, by its label number or by its type and position ("the
 2nd HB"), with no interactive traversal: `{"cmd":"auto","op":"grab","label":4}`
-or `{"cmd":"auto","op":"grab","type":"HB","index":2}`, same outcome as
+or `{"cmd":"auto","op":"grab","type":"hopf","index":2}`, same outcome as
 grabbing that point by hand and pressing Return. An unknown label, or a
 type/index with no such point, is refused (an error message) and changes
 nothing.

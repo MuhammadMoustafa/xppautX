@@ -121,7 +121,7 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
                     }
                 for (std::size_t i=0;i<auto_codim_kinds.size();++i)
                     if (key==auto_codim_keys[i]) {
-                        at(auto_codim_keys[i]);
+                        at(std::string(auto_codim_keys[i]));
                         bool enabled;
                         if (!parse_bool(value,enabled)) l.fail(xpp::format("{} must be true or false, got {}",key,value));
                         s.special_points[i]=enabled; known=true;
@@ -132,7 +132,7 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
         /* every key but the marks, which may be none, in settings_text's order */
         std::vector<std::string> keys;
         for (int i = 0; i < AUTO_NUM_N; i++) keys.emplace_back(auto_settings_num_key(i));
-        for (const auto *key:auto_codim_keys) keys.emplace_back(key);
+        for (std::string_view key : auto_codim_keys) keys.emplace_back(key);
         keys.insert(keys.end(), {"plot", "var", "par1", "par2"});
         for (const char *k : range_keys) keys.emplace_back(k);
         for (const std::string &k : keys)
@@ -229,7 +229,7 @@ std::string diagram_csv(const std::deque<DIAGRAM> &points, int model_parameters,
         const DIAGRAM &d = p;
         /* an axis is written as the file's integer (auto_axis.h) */
         const auto axis_code = [model_parameters](AutoAxis a) { return auto_axis_encode(a, model_parameters); };
-        o += xpp::format("{},{},{},{},{},{},{},{},{},{},{},{},{}", auto_calculation_name(d.calc), d.ibr, d.ntot, auto_point_encode(d.itp), d.lab, d.nfpar, axis_code(d.icp1), axis_code(d.icp2),
+        o += xpp::format("{},{},{},{},{},{},{},{},{},{},{},{},{}", auto_calculation_name(d.calc), d.ibr, d.ntot, auto_point_text(d.itp), d.lab, d.nfpar, axis_code(d.icp1), axis_code(d.icp2),
                          axis_code(d.icp3), axis_code(d.icp4), auto_calculation_name(d.flag2), d.from, d.jacobian);
         for (double v : {d.norm, d.per, d.torper}) o += ',' + xpp::number(v);
         o+=','+xpp::number(branches.at(d.branch.get()))+',';
@@ -312,15 +312,18 @@ Result<std::deque<DIAGRAM>> parse_diagram_csv(std::string_view text, int n, int 
                 l.fail("too many AUTO diagram points for the session memory limit");
             DIAGRAM &p = points.emplace_back();
             DIAGRAM &d = p;
-            int itp_code = 0;
+            std::string_view point_type;
             int axis_codes[4] = {};
-            int *ints[n_ints] = {nullptr, &d.ibr, &d.ntot, &itp_code, &d.lab, &d.nfpar, &axis_codes[0], &axis_codes[1], &axis_codes[2], &axis_codes[3], nullptr, &d.from, &d.jacobian};
+            constexpr std::size_t type_column = 3;
+            int *ints[n_ints] = {nullptr, &d.ibr, &d.ntot, nullptr, &d.lab, &d.nfpar, &axis_codes[0], &axis_codes[1], &axis_codes[2], &axis_codes[3], nullptr, &d.from, &d.jacobian};
             std::size_t c = 0;
             const auto bad = [&](std::size_t k, const char *kind) {
                 l.fail(xpp::format("field {} (\"{}\") is not {}", k + 1, f[k], kind));
             };
             for (int *v : ints) {
-                if(v) {
+                if (c == type_column) {
+                    point_type = f[c];
+                } else if(v) {
                     if (!xpp::parse_int(f[c], *v) || *v == std::numeric_limits<int>::min()) bad(c, "a whole number");
                 } else {
                     const auto kind=auto_calculation_from_name(f[c]);
@@ -329,8 +332,8 @@ Result<std::deque<DIAGRAM>> parse_diagram_csv(std::string_view text, int n, int 
                 }
                 c++;
             }
-            const auto itp = auto_point_decode(itp_code);
-            if (!itp) l.fail(xpp::format("field 4 (\"{}\"): {}", f[3], auto_point_unknown(itp_code)));
+            const auto itp = auto_point_from_text(point_type);
+            if (!itp) l.fail(xpp::format("field 4 (\"{}\"): {}", point_type, auto_point_text_unknown(point_type)));
             d.itp = *itp;
             const std::array<AutoAxis *, 4> axes = {&d.icp1, &d.icp2, &d.icp3, &d.icp4};
             for (std::size_t k = 0; k < axes.size(); k++) {

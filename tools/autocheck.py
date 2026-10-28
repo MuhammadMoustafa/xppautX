@@ -264,7 +264,7 @@ def section_grab():
         evs = run_any(s, 's')
         dg.apply(evs)
         syms = {lab: sym for e in evs if is_point(e) for r in e['runs'] for i, lab, sym in r.get('lab', [])}
-        hb = next((i for i in range(r1, len(dg.pts)) if syms.get(dg.pts[i]['lab']) == 'HB'), None)
+        hb = next((i for i in range(r1, len(dg.pts)) if syms.get(dg.pts[i]['lab']) == 'hopf'), None)
         return dg, (hb, dg.pts[hb]['lab']) if hb is not None else (None, None)
 
     # interactive path: the same setup, grabbed by its diagram index (as a
@@ -314,7 +314,7 @@ def section_grab():
     s3 = Server(args.server, LECAR, verbose=args.v)
     s3.collect(is_idle)
     dg3, _ = hopf_of(s3)
-    s3.send(cmd='auto', op='grab', type='HB', index=1)
+    s3.send(cmd='auto', op='grab', type='hopf', index=1)
     evs, _ = s3.collect(is_idle)
     check('grab by type and index asks nothing', not any(is_ask(e) for e in evs), str([e.get('ev') for e in evs]))
     n = len(dg3.pts)
@@ -324,7 +324,7 @@ def section_grab():
           by_type == scripted, '%d points vs %d' % (len(by_type), len(scripted)))
 
     # an out-of-range index is refused too
-    s3.send(cmd='auto', op='grab', type='HB', index=99)
+    s3.send(cmd='auto', op='grab', type='hopf', index=99)
     evs, _ = s3.collect(is_idle)
     errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
     check('an out-of-range type/index is refused too', bool(errs), str(errs))
@@ -472,7 +472,7 @@ def section_abort():
     got = [e['info'] for e in infos(evs) if e['info']]
     last = got[-1] if got else {}
     print('INFO last point after abort: %s' % json.dumps(last)[:200])
-    check('an aborted run ends on an EP point', last.get('sym') == 'EP', str(last)[:200])
+    check('an aborted run ends on an EP point', last.get('sym') == 'end', str(last)[:200])
     s.send(cmd='answer', id=ask['id'], key='Return')
     s.collect(is_idle)
     check('the server is still alive after an abort', s.alive())
@@ -634,7 +634,7 @@ def labelled_points(csv_text):
     points = []
     for row in diagram_rows(csv_text.encode('utf-8')):
         if int(row['lab']) != 0:
-            points.append((int(row['ibr']), int(row['itp']), int(row['lab']), float(row['continued_parameter']), float(row['per'])))
+            points.append((int(row['ibr']), row['itp'], int(row['lab']), float(row['continued_parameter']), float(row['per'])))
     return points
 
 
@@ -861,7 +861,7 @@ def section_stability():
           str(second)[:300])
 
     # 2: a periodic branch from the Hopf point: a change of kind
-    hb = label('HB', r1, len(dg.pts))
+    hb = label('hopf', r1, len(dg.pts))
     check('stability: the steady branch has a Hopf point', hb is not None, str(syms))
     if hb is None:
         s.close()
@@ -1235,7 +1235,7 @@ def section_sessiondiagram():
     # diagram's 1e-6 print tolerance; the native numerical baseline is exact.
     foreign_diagram_tolerance = 1e-6
     reference_rows = diagram_rows(got['auto/diagram.csv'].encode())
-    reference = next((r for r in reference_rows if int(r['lab']) and abs(int(r['itp'])) == 24), None)
+    reference = next((r for r in reference_rows if int(r['lab']) and r['itp'] in ('output_from_fold', 'user_point_from_fold')), None)
     check('sessiondiagram: the reference has an augmented fold checkpoint', reference is not None)
     for path in ('old.auto', 'old.snapx'):
         if path.endswith('.auto'):
@@ -1690,7 +1690,7 @@ def section_names():
     key = lambda d: [(p['br'], p['pt'], p['lab'], p['x'], p['y']) for p in d.pts]
     check('names: and the diagram is the short-named model\'s', key(dl) == key(ds),
           '%d vs %d points' % (len(dl.pts), len(ds.pts)))
-    check('names: the Hopf bifurcation is labelled in both', 'HB' in syml and syml == syms, '%s %s' % (syml, syms))
+    check('names: the Hopf bifurcation is labelled in both', 'hopf' in syml and syml == syms, '%s %s' % (syml, syms))
 
 
 # ---- recording: the one replay format, including headless batch runs ----
@@ -2012,7 +2012,7 @@ def section_errors():
 
     def periodic():
         """grab the first HB, a periodic run; its events and new points"""
-        s.send(cmd='auto', op='grab', type='HB', index=1)
+        s.send(cmd='auto', op='grab', type='hopf', index=1)
         s.collect(is_idle)
         n = len(dg.pts)
         evs = run_any(s, 'p')
@@ -2501,12 +2501,12 @@ def section_hopf_reduced():
         d = dict(model=model, runs=[
             dict(name='steady', kind='equilibrium', start=dict(state='current'),
                  parameter='b', auto=constants),
-            dict(name='hopf', kind='two_parameter', start=dict(run='steady', type='HB', index=1),
+            dict(name='hopf', kind='two_parameter', start=dict(run='steady', type='hopf', index=1),
                  parameters=['a', 'b'], auto=dict(constants, ds=.03, dsmax=.1, nmax=70, parmin=-2, parmax=1))])
         data, _, _, ranges = compute(args.server, d, 1)
         rows = diagram_rows(data)[slice(*ranges['hopf'])]
         x = [float(r['u0.X']) for r in rows]
-        check('codim: BT is a typed label on the Hopf curve', sum(r['itp']=='-31' for r in rows)==1)
+        check('codim: BT is a typed label on the Hopf curve', sum(r['itp']=='bogdanov_takens_from_hopf' for r in rows)==1)
         check('reduced Hopf: continuation crosses BT onto the neutral saddle',
               min(x) < -.4 and max(x) > .4 and any(r['flag2'] == 'neutral_saddle' for r in rows), str((min(x), max(x))))
         check('reduced Hopf: every point solves a=-x^2, b=0, y=0',
@@ -2531,8 +2531,8 @@ def section_codim():
         ranges = {}
         settings = completed(s, dict(cmd='data', events=['autoinfo','autosettings']))
         flags = next(e['special_points'] for e in settings if e.get('ev') == 'autosettings')
-        check('codim: BT CP ZH GH enabled by default', flags == dict(BT=True, CP=True, ZH=True, GH=True, R1=True, R2=True, R3=True, R4=True, LPD=True, LTR=True, PTR=True, TTR=True))
-        for mode, changes in (('default', {}), ('ZH disabled', {'ZH': False}),
+        check('codim: BT CP ZH GH enabled by default', flags == dict(bogdanov_takens=True, cusp=True, zero_hopf=True, generalized_hopf=True, resonance_1_1=True, resonance_1_2=True, resonance_1_3=True, resonance_1_4=True, fold_flip=True, fold_neimark_sacker=True, flip_neimark_sacker=True, double_neimark_sacker=True))
+        for mode, changes in (('default', {}), ('ZH disabled', {'zero_hopf': False}),
                               ('all disabled', dict.fromkeys(flags, False)), ('restored', dict.fromkeys(flags, True))):
             s.close()
             s = Server(args.server, d['model'])
@@ -2545,11 +2545,11 @@ def section_codim():
             execute_run(s, d['runs'][1], diagram, ranges)
             lo, hi = ranges['fold']
             rows = diagram_rows(session_diagram(s))[lo:hi]
-            zh = [r for r in rows if r['itp'] == '-23']
+            zh = [r for r in rows if r['itp'] == 'zero_hopf_from_fold']
             expected = mode in ('default', 'restored')
             check('codim: ' + mode, len(zh) == (1 if expected else 0)
                   and (not zh or abs(float(zh[0]['continued_parameter'])) < 1e-4))
-        for bad in ({'ZH': 0}, {'ZH': 'false'}, {'unknown': False}):
+        for bad in ({'zero_hopf': 0}, {'zero_hopf': 'false'}, {'unknown': False}):
             s.send(cmd='auto', op='set', special_points=bad, numerics={'nmx': 7})
             events, _ = s.collect(is_idle)
             check('codim: invalid named boolean refuses transaction ' + str(bad), len(errors_of(events)) == 1)
@@ -2564,11 +2564,11 @@ def section_codim():
     hopf = copy.deepcopy(d)
     hopf['runs'][0]['parameter'] = 'b'
     hopf['runs'][0]['auto'].update(parmin=-.2, parmax=.2)
-    hopf['runs'][1].update(name='hopf', start=dict(run='steady', type='HB', index=1), parameters=['a','b'])
+    hopf['runs'][1].update(name='hopf', start=dict(run='steady', type='hopf', index=1), parameters=['a','b'])
     hopf['runs'][1]['auto'].update(nmax=200, parmin=-2, parmax=.1)
     data, _, _, intervals = compute(args.server, hopf, 1)
     rows = diagram_rows(data)[slice(*intervals['hopf'])]
-    zh = [r for r in rows if r['itp']=='-33']
+    zh = [r for r in rows if r['itp']=='zero_hopf_from_hopf']
     check('codim: ZH located on the Hopf curve', len(zh)==1 and abs(float(zh[0]['u0.X']))<1e-4)
     with tempfile.TemporaryDirectory() as folder:
         model = os.path.join(folder, 'bautin.odex')
@@ -2578,10 +2578,10 @@ def section_codim():
                          parmin=-.2, parmax=.2, ntst=15, mxbf=0, epsl=1e-9, epsu=1e-9, epss=1e-8)
         normal = dict(model=model, runs=[
             dict(name='steady',kind='equilibrium',start=dict(state='current'),parameter='a',auto=constants),
-            dict(name='hopf',kind='two_parameter',start=dict(run='steady',type='HB',index=1),parameters=['b','a'],auto=constants)])
+            dict(name='hopf',kind='two_parameter',start=dict(run='steady',type='hopf',index=1),parameters=['b','a'],auto=constants)])
         data, _, _, intervals = compute(args.server, normal, 1)
         rows = diagram_rows(data)[slice(*intervals['hopf'])]
-        gh = [r for r in rows if r['itp']=='-32']
+        gh = [r for r in rows if r['itp']=='generalized_hopf_from_hopf']
         check('codim: GH located where the Bautin normal form has l1=2*b=0', len(gh)==1
               and abs(float(gh[0]['continued_parameter']))<1e-6)
 
@@ -2591,7 +2591,7 @@ def section_codim():
     cycles['runs'][3]['auto']['nmax'] = 15  # reaches R3 before the degenerate 1:2 endpoint
     data, _, _, intervals = compute(args.server, cycles, 1)
     rows = autocompare.stored_rows(data, intervals)
-    for run, kind, exact in (('torus_up', '-88', 9/16), ('torus_down', '-87', 4/9)):
+    for run, kind, exact in (('torus_up', 'resonance_1_4_from_neimark_sacker', 9/16), ('torus_down', 'resonance_1_3_from_neimark_sacker', 4/9)):
         labels = [r for r in rows[run] if r['itp'] == kind]
         constants = next(r['auto'] for r in cycles['runs'] if r['name'] == run)
         location_tolerance = 2 * constants['epss'] * (1 + constants['dsmax'])
@@ -2604,11 +2604,11 @@ def section_codim():
         completed(s, dict(cmd='data', events=['autoinfo', 'autosettings']))
         diagram = autocompare.Diagram().apply(open_auto(s)); intervals = {}
         for run in cycles['runs'][:2]: execute_run(s, run, diagram, intervals)
-        completed(s, dict(cmd='auto', op='set', special_points={'R4': False}))
+        completed(s, dict(cmd='auto', op='set', special_points={'resonance_1_4': False}))
         execute_run(s, cycles['runs'][2], diagram, intervals)
         rows = autocompare.stored_rows(session_diagram(s), intervals)['torus_up']
         check('cycle codim: disabling R4 keeps the curve running without its label',
-              any('continued_parameter2' in r for r in rows) and not any(r['itp'] == '-88' for r in rows))
+              any('continued_parameter2' in r for r in rows) and not any(r['itp'] == 'resonance_1_4_from_neimark_sacker' for r in rows))
     finally:
         s.close()
 
@@ -2663,7 +2663,7 @@ def section_codim():
             completed(s, dict(cmd='data',events=['autoinfo','autosettings']))
             diagram=autocompare.Diagram().apply(open_auto(s)); intervals={}
             execute_run(s,maps['runs'][0],diagram,intervals)
-            completed(s,dict(cmd='auto',op='set',special_points={'TTR':False,'R4':False}))
+            completed(s,dict(cmd='auto',op='set',special_points={'double_neimark_sacker':False,'resonance_1_4':False}))
             execute_run(s,maps['runs'][2],diagram,intervals)
             rows=autocompare.stored_rows(session_diagram(s),intervals)['down']
             kinds=[kind for kind,_ in autocompare.labelled(rows,'two_parameter')]
@@ -2675,7 +2675,7 @@ def section_codim():
             check('map codim: session restores typed diagram', session_diagram(s)==before)
             events=completed(s,dict(cmd='data',events=['autosettings']))
             flags=next(e['special_points'] for e in events if e.get('ev')=='autosettings')
-            check('map codim: session restores named switches', not flags['TTR'] and not flags['R4'] and flags['LPD'])
+            check('map codim: session restores named switches', not flags['double_neimark_sacker'] and not flags['resonance_1_4'] and flags['fold_flip'])
         finally:
             s.close()
 
