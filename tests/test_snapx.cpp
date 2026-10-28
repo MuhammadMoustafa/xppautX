@@ -153,8 +153,9 @@ void check_saved_animation(const xpp::TempDir &tmp)
     CHECK(xpp::client_session().animation.ncom == 1);
     for (auto &file : saved->model.files)
         if (file.name == "motion.anix") file.bytes = "line { x1: missing, y1: 0, x2: 1, y2: 1 }\n";
-    CHECK(!load("animated.odex", &saved->model));
-    CHECK(xpp::client_session().animation.ncom == 1);
+    /* an animation that no longer fits the model is refused whole: the model loads without it */
+    CHECK(load("animated.odex", &saved->model));
+    CHECK(xpp::client_session().animation.ncom == 0);
 }
 
 void check_saved_model(const xpp::TempDir &tmp)
