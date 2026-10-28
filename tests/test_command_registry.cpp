@@ -77,7 +77,7 @@ std::string text_form(const std::string &words)
 
 int main()
 {
-    char name[] = "test_command_registry", path[] = "examples/ode/lecar.ode";
+    char name[] = "test_command_registry", path[] = "examples/ode/lecar.odex";
     char *argv[] = {name, path, nullptr};
     const xpp::Loaded loaded = load_args(2, argv, 1);
     CHECK(loaded.has_value());
