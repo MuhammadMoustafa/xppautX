@@ -816,7 +816,7 @@ def check_registry():
         check('window.redraw reports the window', result == {'window': 'graph_1', 'redrawn': True}, str(result))
         result, _ = request({'cmd': 'window.clear'})
         check('window.clear reports the window', result == {'window': 'graph_1', 'cleared': True}, str(result))
-        result, _ = request({'cmd': 'annotation.add_text', 'text': 'first', 'x': 1, 'y': 2, 'size': 3, 'style': 1, 'color': '#ff0000'})
+        result, _ = request({'cmd': 'annotation.add_text', 'text': 'first', 'x': 1, 'y': 2, 'text_size': 3, 'style': 'bold', 'color': '#ff0000'})
         check('annotation.add_text reports the id', 'id' in result, str(result))
         note = result['id']
         result, _ = request({'cmd': 'annotation.edit', 'annotation_id': note, 'text': 'second'})
@@ -3723,21 +3723,21 @@ def check_marks():
         cols = {c['col']: c['data'] for c in ser[-1]['columns']} if ser else {}
 
         typed = r'\1a\0-point \{2*3}'
-        evs = command('t', keys('t', {'xd': -0.3, 'yd': 0.5}, {'value': typed, 'size': 3, 'style': 1, 'color': '#ffcd00'}))
+        evs = command('t', keys('t', {'xd': -0.3, 'yd': 0.5}, {'value': typed, 'size': 3, 'style': 'bold', 'color': '#ffcd00'}))
         m = marks_of(evs)
         t = m['text'] if m else []
         check('Text,etc/Text: a text mark with its text (\\{expr} filled in), size, style, colour and position',
               len(t) == 1 and t[0]['text'] == r'\1a\0-point 6' and t[0]['source'] == typed and t[0]['size'] == 3
-              and t[0]['font'] == 0 and t[0]['style'] == 1 and t[0]['color'] == '#ffcd00'
+              and t[0]['font'] == 0 and t[0]['style'] == 'bold' and t[0]['color'] == '#ffcd00'
               and near(t[0]['x'], -0.3, px) and near(t[0]['y'], 0.5, py), str(m)[:300])
         asks = of(evs, 'ask')
         check('W227: Text asks where first (mouse), then the text dialog (text) with the defaults',
               [e['kind'] for e in asks] == ['menu', 'mouse', 'text'] and asks[2]['title'] == 'Text'
-              and asks[2]['size'] == hello6['text']['default_size'] and asks[2]['style'] == 0
+              and asks[2]['size'] == hello6['text']['default_size'] and asks[2]['style'] == 'normal'
               and asks[2]['color'] == 'foreground' and asks[2]['value'] == '',
               str([(e['kind'], e.get('size')) for e in asks]))
         check('W227: hello.text says what a text takes',
-              hello6.get('text') == {'max_length': 1000, 'size_max': 4, 'style_count': 4, 'default_size': 2},
+              hello6.get('text') == {'max_length': 1000, 'size_max': 4, 'default_size': 2} and hello6.get('text_styles') == ['normal', 'bold', 'italic', 'bold_italic'],
               str(hello6.get('text')))
         tid = t[0]['id'] if t else -1
 
@@ -3754,21 +3754,21 @@ def check_marks():
         _, m, errs = ann(op='edit', id=tid, color='#0000ff')
         t = m['text'] if m else []
         check('W227: annotation edit of a text with only a colour changes only the colour',
-              len(t) == 1 and t[0]['color'] == '#0000ff' and t[0]['style'] == 1 and t[0]['size'] == 3 and t[0]['source'] == typed
+              len(t) == 1 and t[0]['color'] == '#0000ff' and t[0]['style'] == 'bold' and t[0]['size'] == 3 and t[0]['source'] == typed
               and not errs, str((m, errs))[:300])
-        ann(op='edit', id=tid, text='moved', size=0, style=3, color='foreground')
+        ann(op='edit', id=tid, text='moved', text_size=0, style='bold_italic', color='foreground')
         _, m, errs = ann(op='move', id=tid, new_x=0.25, new_y=0.75)
         t = m['text'] if m else []
         check('W227: annotation edit changes the text, size, style, colour and move its position',
               len(t) == 1 and t[0]['text'] == 'moved' and t[0]['source'] == 'moved' and t[0]['size'] == 0
-              and t[0]['style'] == 3 and t[0]['color'] == 'foreground' and t[0]['id'] == tid and near(t[0]['x'], 0.25, 1e-6)
+              and t[0]['style'] == 'bold_italic' and t[0]['color'] == 'foreground' and t[0]['id'] == tid and near(t[0]['x'], 0.25, 1e-6)
               and near(t[0]['y'], 0.75, 1e-6) and not errs, str((m, errs))[:300])
         for what, fields, want in [
-                ('a size above 4', dict(op='edit', id=tid, size=9), 'is not a text size (0 to 4)'),
-                ('a style of 4', dict(op='edit', id=tid, style=4), 'must be at most 3'),
+                ('a size above 4', dict(op='edit', id=tid, text_size=9), 'must be at most 4'),
+                ('a style that is no name', dict(op='edit', id=tid, style='4'), 'Invalid choice'),
                 ('a colour that is none', dict(op='edit', id=tid, color='banana'), 'must be a CSS colour name'),
                 ('a colour that is a number', dict(op='edit', id=tid, color=3), 'must be text'),
-                ('a size that is not whole', dict(op='edit', id=tid, size=1.5), 'a whole number'),
+                ('a size that is not whole', dict(op='edit', id=tid, text_size=1.5), 'a whole number'),
                 ('an empty text', dict(op='edit', id=tid, text=''), 'not empty'),
                 ('a text of 1001 characters', dict(op='edit', id=tid, text='x' * 1001), 'at most 1000'),
                 ('a move to a position that is not a number', dict(op='move', id=tid, new_x='left', new_y=0), 'must be a finite number'),
@@ -3783,18 +3783,18 @@ def check_marks():
             evs, m, errs = ann(**fields)
             check('W227: annotation refuses %s, naming it, and changes nothing' % what,
                   m is None and len(errs) == 1 and want in errs[0], str((m, errs))[:300])
-        evs, m, errs = ann(op='add_text', text=r'%a\{2*3}', x=0.5, y=-0.5, size=4, style=2, color='#00e100c0')
+        evs, m, errs = ann(op='add_text', text=r'%a\{2*3}', x=0.5, y=-0.5, text_size=4, style='italic', color='#00e100c0')
         t = m['text'] if m else []
         added = next((x for x in t if x['id'] != tid), None)
         added_ev = result_of(evs)
         check('W227: annotation add_text: a new label with its look, a % text stored as its value, its id reported',
               len(t) == 2 and added and added['text'] == added['source'] and added['text'] == 'a6'
-              and added['size'] == 4 and added['style'] == 2 and added['color'] == '#00e100c0' and not errs
+              and added['size'] == 4 and added['style'] == 'italic' and added['color'] == '#00e100c0' and not errs
               and added_ev.get('id') == added['id'] and added['id'] > tid, str((m, errs))[:300])
         _, m, errs = ann(op='delete', id=added['id'] if added else -1)
         check('W227: annotation delete removes that label only', m is not None and [x['id'] for x in m['text']] == [tid] and not errs,
               str((m, errs))[:300])
-        ann(op='edit', id=tid, text=typed, size=3, style=1, color='#ffcd00')
+        ann(op='edit', id=tid, text=typed, text_size=3, style='bold', color='#ffcd00')
         _, m, errs = ann(op='move', id=tid, new_x=-0.3, new_y=0.5)
         check('W227: ... and the first label is as Text left it', m is not None and len(m['text']) == 1
               and m['text'][0]['text'] == r'\1a\0-point 6' and not errs, str((m, errs))[:300])
@@ -7193,7 +7193,7 @@ def check_session_file():
         answered(snd, col, (), cmd='auto', op='set', axes={'view': 'diagram_2', 'plot': 'norm', 'fit': True})
         answered(snd, col, (), cmd='auto', op='display', view='diagram_2', x=None, y=[0, 0.5])
         answered(snd, col, (), cmd='window.select', window='diagram_1')
-        key(snd, col, 't', 't', {'xd': 10, 'yd': 0.1}, {'value': 'here', 'size': 2, 'style': 2, 'color': '#ffcd00'})
+        key(snd, col, 't', 't', {'xd': 10, 'yd': 0.1}, {'value': 'here', 'size': 2, 'style': 'italic', 'color': '#ffcd00'})
         key(snd, col, 'g', 'f', 'f', {'values': ['#ffcd00', 'line', 'dashed', '2', 'square', '4', 'first', 'frz1']})
         answered(snd, col, (), cmd='window.create')
         # W145: an added browser column is saved with the session and comes back computed
@@ -7384,7 +7384,7 @@ def check_session_file():
         def label_marks(label_line=None, **over):
             """marks.setx with one label (its fields over the defaults); the label's
             lines are 5 (window) to 12 (text)"""
-            f = dict(id='0', window='"graph_1"', x='0.5', y='0.5', size='2', font='0', style='0', color='"foreground"', text='"hi"')
+            f = dict(id='0', window='"graph_1"', x='0.5', y='0.5', size='2', font='0', style='normal', color='"foreground"', text='"hi"')
             f.update(over)
             rows = ['next_annotation_id: 1,', 'labels: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in ('id', 'window', 'x', 'y', 'size', 'font', 'style', 'color', 'text')]
             rows += ['  },', '],', 'arrows_and_markers: [],', 'freeze_each_run: 0,', 'frozen_curves: [],', '']
@@ -7456,8 +7456,8 @@ def check_session_file():
              ('labelsize.snapx/marks.setx:8:', '9 is not a text size (0 to 4)')),
             ('labelfont', lambda m: m.__setitem__('marks.setx', label_marks(font='5')),
              ('labelfont.snapx/marks.setx:9:', '5 is not a text font (0 to 1)')),
-            ('labelstyle', lambda m: m.__setitem__('marks.setx', label_marks(style='7')),
-             ('labelstyle.snapx/marks.setx:10:', '7 is not a text style (0 to 3)')),
+            ('labelstyle', lambda m: m.__setitem__('marks.setx', label_marks(style='oblique')),
+             ('labelstyle.snapx/marks.setx:10:', '`style`: `oblique` is not one of normal, bold, italic, bold_italic')),
             ('labelcolor', lambda m: m.__setitem__('marks.setx', label_marks(color='"99"')),
              ('labelcolor.snapx/marks.setx:11:', '`99` is not a colour')),
             ('labelempty', lambda m: m.__setitem__('marks.setx', label_marks(text='""')),

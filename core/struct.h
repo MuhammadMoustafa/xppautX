@@ -3,6 +3,7 @@
 #include "xpp_types.h"
 #include "colormap.h"
 #include "line_style.h"
+#include "text_style.h"
 #include <string>
 #include <array>
 #include <vector>
@@ -60,7 +61,7 @@ typedef struct {
 		std::string s;
 		int id; /* grobs.h: the annotation's id */
 		int font,size;
-		int style; /* grobs.h: LABEL_STYLE_COUNT */
+		xpp::TextStyle style; /* text_style.h */
 		xpp::Color color;
 		} LABEL;
 

@@ -34,6 +34,7 @@
 
 #include "colormap.h"
 #include "line_style.h"
+#include "text_style.h"
 #include "xpp_error.h"
 #include "xpp_io.h" /* ReadFailed */
 
@@ -111,6 +112,8 @@ public:
     /* a line style (line_style.h): its keys draw, dash, width, marker and marker_size, each read as
        the others are (all of them in complete mode) */
     void line_style(LineStyle &v);
+    /* a text's style (text_style.h): the word style, one of its names */
+    void text_style(TextStyle &v);
     bool word(std::string_view key, std::string &v);
 
     /* a nested group */

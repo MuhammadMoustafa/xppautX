@@ -4,7 +4,7 @@
    Unicode runs, plot/richtext.ts), arrows and markers, and the frozen
    curves with their values decoded to float32. Pure: no DOM. */
 import {decode} from '../protocol/decode';
-import type {CoreColor, LineStyle, MarksEvent} from '../protocol/types';
+import type {CoreColor, LineStyle, MarksEvent, TextStyle} from '../protocol/types';
 import {parseRichText, type TextRun} from '../plot/richtext';
 
 /** an equilibrium's stability, as the core names it (the `marks` event) */
@@ -30,8 +30,8 @@ export interface TextMark {
   plain: string;
   /** 0-4 */
   size: number;
-  /** 0 normal, 1 bold, 2 italic, 3 bold italic */
-  style: number;
+  /** the style by its name */
+  style: TextStyle;
   color: CoreColor;
 }
 
@@ -39,7 +39,7 @@ export interface TextMark {
 export interface TextValues {
   text: string;
   size: number;
-  style: number;
+  style: TextStyle;
   color: CoreColor;
 }
 

@@ -41,7 +41,8 @@ struct Label {
     int id; /* the annotation's id: the page names the label by it */
     float x, y;
     std::string text, source; /* as drawn, and as written (its \{expr}s unfilled) */
-    int size, font, style;
+    int size, font;
+    TextStyle style;
     Color color;
     bool operator==(const Label &o) const
     {
@@ -147,7 +148,7 @@ void append_annotations(std::string &o, const std::vector<Label> &labels, const 
         o += ",\"font\":";
         add_int(o, l.font);
         o += ",\"style\":";
-        add_int(o, l.style);
+        xpp::json_append_string(o, xpp::text_style_word(l.style));
         o += ",\"color\":";
         o += xpp::quoted_color(l.color);
         o += '}';

@@ -215,7 +215,7 @@ def run_pictures(home):
         run_and_go(s)
         s.send(cmd='key', key='n')
         s.answer_asks(is_idle, {'menu': menu('n')})
-        s.send(cmd='annotation.add_text', window='graph_1', x=0.1, y=0.9, text='\\1a\\0 label', size=3, color='#1c7ed6cc')
+        s.send(cmd='annotation.add_text', window='graph_1', x=0.1, y=0.9, text='\\1a\\0 label', text_size=3, color='#1c7ed6cc')
         s.collect(is_idle)
         # Graphic stuff/Freeze/Freeze, its form: colour, how it is drawn, dash, width, marker and its size, key and name
         s.send(cmd='key', key='g')

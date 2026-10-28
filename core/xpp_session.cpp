@@ -263,7 +263,7 @@ xpp::Result<std::string> marks_text(const xpp::Session &s)
         out.real("y", l.y);
         out.whole("size", l.size);
         out.whole("font", l.font);
-        out.whole("style", l.style);
+        out.word("style", xpp::text_style_word(l.style));
         out.color("color", l.color);
         out.text("text", l.s);
         out.end_item();
@@ -340,7 +340,7 @@ std::vector<float> points_of(const xpp::DataTable &t, const std::string &name, i
 struct SavedLabel {
     int id = 0, window = 0, font = 0;
     double x = 0, y = 0;
-    xpp::LabelLook look{"", 0, 0, xpp::foreground_color};
+    xpp::LabelLook look{"", 0, xpp::TextStyle::normal, xpp::foreground_color};
 };
 struct SavedGrob {
     int id = 0, window = 0, type = 0;
@@ -425,8 +425,7 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
         g.whole("font", m.font);
         if (m.font < 0 || m.font >= xpp::LABEL_FONT_COUNT)
             g.fail(*g.member("font"), xpp::format("{} is not a text font (0 to {})", m.font, xpp::LABEL_FONT_COUNT - 1));
-        g.whole("style", m.look.style);
-        if (const std::string p = xpp::label_style_problem(m.look.style); !p.empty()) g.fail(*g.member("style"), p);
+        g.text_style(m.look.style);
         m.look.color = color_in(g);
         g.text("text", m.look.text);
         if (const std::string p = xpp::label_text_problem(m.look.text); !p.empty()) g.fail(*g.member("text"), p);

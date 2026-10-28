@@ -14,7 +14,7 @@ import {LEAVE_ASK} from '../store/state';
 import {askHelp} from '../help/links';
 import {fieldSpec, selectOptions} from '../protocol/lists';
 import {choiceLabel, fieldsValid, specOfKind, TEXT, type FieldSpec} from '../store/fieldKinds';
-import type {AskEvent} from '../protocol/types';
+import type {AskEvent, TextStyle} from '../protocol/types';
 import {ColorField} from './ColorField';
 import {Field} from './Field';
 import {FileAsk} from './FileDialog';
@@ -216,7 +216,7 @@ function ChecklistAsk({ask}: {ask: AskEvent}) {
 /* Text,etc/Text: the text, size, style and colour of the text just placed */
 function TextAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
-  return <TextForm initial={{text: ask.value ?? '', size: Number(ask.size), style: Number(ask.style), color: String(ask.color)}}
+  return <TextForm initial={{text: ask.value ?? '', size: Number(ask.size), style: ask.style as TextStyle, color: String(ask.color)}}
     position={null} submit={(ask.ok as string) || 'OK'}
     onSubmit={v => session.answer(ask, {ok: 1, value: v.text, size: v.size, style: v.style, color: v.color})} />;
 }

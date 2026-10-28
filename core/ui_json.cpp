@@ -1222,8 +1222,10 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b, ",\"upload_error\":");
     buf_str(b, xpp::files::status_text(XPP_FILES_TOO_LARGE));
     buf_format(b, ",\"player_speed\":{{\"min\":{},\"max\":{}}}", PLAYER_SPEED_MIN, PLAYER_SPEED_MAX);
-    buf_format(b, ",\"text\":{{\"max_length\":{},\"size_max\":{},\"style_count\":{},\"default_size\":{}}}",
-               xpp::LABEL_TEXT_MAX, xpp::LABEL_SIZE_MAX, xpp::LABEL_STYLE_COUNT, xpp::LABEL_SIZE_DEFAULT);
+    buf_format(b, ",\"text\":{{\"max_length\":{},\"size_max\":{},\"default_size\":{}}}", xpp::LABEL_TEXT_MAX, xpp::LABEL_SIZE_MAX,
+               xpp::LABEL_SIZE_DEFAULT);
+    BUF_LIT(b, ",\"text_styles\":");
+    buf_str_array(b, xpp::text_style_names.data(), static_cast<int>(xpp::text_style_names.size()));
     BUF_LIT(b, ",\"colormaps\":");
     {
         std::vector<std::string> names(xpp::colormap_names.begin(), xpp::colormap_names.end());

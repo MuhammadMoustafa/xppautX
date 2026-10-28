@@ -1055,11 +1055,11 @@ async function marks() {
     await answer('text', look);
     await idle();
   };
-  await addText({value: '\\1a\\0-point', size: 3, style: 1, color: '#ffcd00'});
+  await addText({value: '\\1a\\0-point', size: 3, style: 'bold', color: '#ffcd00'});
   check('Text,etc/Text: the store holds the text, Greek as Unicode, with its size, style and colour',
     await until("w.marks && w.marks.text.length === 1", 'text')
     && await S("w.marks.text[0].plain === 'α-point' && w.marks.text[0].size === 3 && Math.abs(w.marks.text[0].x + 0.3) < 0.01"
-      + " && w.marks.text[0].style === 1 && w.marks.text[0].color === '#ffcd00' && w.marks.text[0].source === '\\\\1a\\\\0-point'"),
+      + " && w.marks.text[0].style === 'bold' && w.marks.text[0].color === '#ffcd00' && w.marks.text[0].source === '\\\\1a\\\\0-point'"),
     JSON.stringify(await S('w.marks && w.marks.text')));
   let t = await layer('text');
   check('... drawn as text, "Text" in the legend, named in the plot\'s label', t && t.drawn === 1 && t.visible
@@ -1089,7 +1089,7 @@ async function marks() {
   const sentText = () => cdp.eval(`__xpp.sent().filter(c => c.cmd.startsWith('annotation'))`);
   const viewBefore = await S('JSON.stringify(w.viewport)');
   check('W227: double click on the text opens the dialog filled in (text as written, size, style, colour, position)',
-    await openDialog() && JSON.stringify(await dialog()).includes('"text":"\\\\1a\\\\0-point","size":"3","style":"1"')
+    await openDialog() && JSON.stringify(await dialog()).includes('"text":"\\\\1a\\\\0-point","size":"3","style":"bold"')
     && (await dialog()).color === '#ffcd00' && Math.abs(Number((await dialog()).x) + 0.3) < 0.01,
     JSON.stringify(await dialog()));
   check('... and it does not reset the zoom', (await S('JSON.stringify(w.viewport)')) === viewBefore);
@@ -1097,7 +1097,7 @@ async function marks() {
     const set = (el, v, ev) => { el.value = v; el.dispatchEvent(new Event(ev, {bubbles: true})); };
     set(d.querySelector('[data-text-input]'), 'plain words', 'input');
     set(d.querySelector('[data-text-size]'), '0', 'change');
-    set(d.querySelector('[data-text-style]'), '3', 'change');
+    set(d.querySelector('[data-text-style]'), 'bold_italic', 'change');
     set(d.querySelector('[data-color-text]'), '#0000ff80', 'input');
     set(d.querySelector('[data-text-x]'), '0.25', 'input');
     set(d.querySelector('[data-text-y]'), '0.4', 'input'); })()`);
@@ -1107,10 +1107,10 @@ async function marks() {
   await idle();
   check('W227: Apply sends one text edit with every field, then its move, and the store holds the new text',
     await until("w.marks && w.marks.text.length === 1 && w.marks.text[0].plain === 'plain words'", 'edited')
-    && await S("(() => { const x = w.marks.text[0]; return x.size === 0 && x.style === 3 && x.color === '#0000ff80'"
+    && await S("(() => { const x = w.marks.text[0]; return x.size === 0 && x.style === 'bold_italic' && x.color === '#0000ff80'"
       + " && Math.abs(x.x - 0.25) < 1e-6 && Math.abs(x.y - 0.4) < 1e-6; })()")
     && JSON.stringify(await sentText()) === JSON.stringify([
-      {cmd: 'annotation.edit', annotation_id: await S('w.marks.text[0].id'), text: 'plain words', size: 0, style: 3, color: '#0000ff80'},
+      {cmd: 'annotation.edit', annotation_id: await S('w.marks.text[0].id'), text: 'plain words', text_size: 0, style: 'bold_italic', color: '#0000ff80'},
       {cmd: 'annotation.move', annotation_id: await S('w.marks.text[0].id'), new_x: 0.25, new_y: 0.4}])
     && !(await cdp.eval("!!document.querySelector('[data-text-dialog]')")),
     JSON.stringify({marks: await S('w.marks.text'), sent: (await sentText()).at(-1)}));
@@ -1124,7 +1124,7 @@ async function marks() {
     && await until("w.marks && w.marks.text.length === 0", 'deleted') && (await layer('text')) === null
     && !(await legendLabels()).includes('Text') && (await sentText()).at(-1).cmd === 'annotation.delete',
     JSON.stringify({marks: await S('w.marks.text'), sent: (await sentText()).at(-1)}));
-  await addText({value: '\\1a\\0-point', size: 3, style: 1, color: '#ffcd00'});
+  await addText({value: '\\1a\\0-point', size: 3, style: 'bold', color: '#ffcd00'});
   check('W227: the text added again is as the first was',
     await until("w.marks && w.marks.text.length === 1 && w.marks.text[0].plain === 'α-point'", 'text again')
     && (await layer('text'))?.drawn === 1);

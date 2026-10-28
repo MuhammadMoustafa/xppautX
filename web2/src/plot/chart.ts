@@ -16,7 +16,7 @@ import {ColumnTrace, LineTrace, sameFrame, tracePoints, type CurveTrace, type Pi
 import type {PlotModel} from './model';
 import {nearestTrace, type Nearest} from './nearest';
 import {
-  arrowPath, equilibriumPath, MARKER_PX, markerPath, markLayers, TEXT_STYLES, textPx, traceCurve, type MarkKey, type MarkLayer,
+  arrowPath, equilibriumPath, MARKER_PX, markerPath, markLayers, TEXT_CSS, textPx, traceCurve, type MarkKey, type MarkLayer,
 } from './marks';
 import {arrowSegments, phaseLayers, tracePolyline, traceSegments, type Layer, type LayerKey} from './phase';
 import type {Marks} from '../store/marks';
@@ -563,7 +563,7 @@ export class Chart {
           let x = at.x;
           ctx.fillStyle = t.color === 'foreground' ? fg : cssColor(t.color, this.dark);
           for (const run of t.runs) {
-            ctx.font = `${TEXT_STYLES[t.style].css} ${run.small ? Math.round(base * 0.75) : base}px Inter, system-ui, sans-serif`;
+            ctx.font = `${TEXT_CSS[t.style]} ${run.small ? Math.round(base * 0.75) : base}px Inter, system-ui, sans-serif`;
             const y = at.y - run.rise * 0.45 * base;
             ctx.strokeText(run.text, x, y);
             ctx.fillText(run.text, x, y);

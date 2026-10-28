@@ -5,6 +5,9 @@ import type {CommandCategory, CommandKind, CommandRow, LayerWindow, WindowLayer}
 import type {LineGeometry} from '../plot/linestyle';
 import type {AnnotationGlyphs} from '../plot/marks';
 
+/** a plot text's style by its name (core/text_style.h): normal, bold, italic or bold_italic */
+export type TextStyle = 'normal' | 'bold' | 'italic' | 'bold_italic';
+
 /** the protocol this page speaks (core/ui_json.h JSON_UI_PROTOCOL): core and
     page ship together, so a hello with another is a shown error (session.ts) */
 export const PROTOCOL = 4;
@@ -60,8 +63,10 @@ export interface HelloEvent {
   upload_error: string;
   player_speed: {min: number; max: number};
   limits: {upload: number; browser_rows: number; browser_cols: number};
-  /** what a plot text takes (core/grobs.h LABEL_*): its most characters, largest size, number of styles, the size a new text starts at */
-  text: {max_length: number; size_max: number; style_count: number; default_size: number};
+  /** what a plot text takes (core/grobs.h LABEL_*): its most characters, largest size, the size a new text starts at */
+  text: {max_length: number; size_max: number; default_size: number};
+  /** the names of the text styles, in the core's order (core/text_style.h) */
+  text_styles: TextStyle[];
   /** the dash patterns and marker glyphs the pictures draw (core/picture.h): at width and size 1 (plot/linestyle.ts) */
   line_styles: LineGeometry;
   /** the marker glyphs and arrow head the pictures draw for texts, arrows, pointers and markers (core/grobs.h; plot/marks.ts) */
@@ -426,9 +431,9 @@ export interface MarksEvent {
   /** the symbol XPP draws for the stability: stable circle, unstable box, saddle triangle */
   equilibria: {x: number; y: number; type: 'stable' | 'unstable' | 'saddle'; symbol: string}[];
   /** XPP's text: backslash escapes switch the font (\1 symbol: Greek, \0 roman), \s \S \n
-      subscript, superscript, normal; size 0-4; `source` is the text as written (its \{expr}s unfilled); `id` names the text for the `annotation` command; style 0 normal, 1 bold,
-      2 italic, 3 bold italic; color its colour */
-  text: {id: number; x: number; y: number; text: string; source: string; size: number; font: number; style: number; color: CoreColor}[];
+      subscript, superscript, normal; size 0-4; `source` is the text as written (its \{expr}s unfilled); `id` names the text for the `annotation` command; style normal, bold,
+      italic or bold_italic; color its colour */
+  text: {id: number; x: number; y: number; text: string; source: string; size: number; font: number; style: TextStyle; color: CoreColor}[];
   /** from (x1, y1), where the head's tip is, towards (x2, y2); a pointer has a shaft, an arrow only the head */
   arrows: {id: number; kind: 'arrow' | 'pointer'; x1: number; y1: number; x2: number; y2: number; size: number; color: CoreColor}[];
   markers: {id: number; x: number; y: number; shape: 'box' | 'diamond' | 'triangle' | 'plus' | 'cross' | 'circle'; size: number; color: CoreColor}[];

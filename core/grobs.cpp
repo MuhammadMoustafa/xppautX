@@ -43,15 +43,9 @@ std::string label_size_problem(int size)
     return size < 0 || size > LABEL_SIZE_MAX ? xpp::format("{} is not a text size (0 to {})", size, LABEL_SIZE_MAX) : std::string();
 }
 
-std::string label_style_problem(int style)
-{
-    return style < 0 || style >= LABEL_STYLE_COUNT ? xpp::format("{} is not a text style (0 to {})", style, LABEL_STYLE_COUNT - 1)
-                                                    : std::string();
-}
-
 std::string label_problem(const LabelLook &look)
 {
-    for (std::string p : {label_text_problem(look.text), label_size_problem(look.size), label_style_problem(look.style)})
+    for (std::string p : {label_text_problem(look.text), label_size_problem(look.size)})
         if (!p.empty()) return p;
     return {};
 }

@@ -124,18 +124,23 @@ bool Block::color(std::string_view key, Color &v)
 
 namespace {
 
-/* the enum value of the word a member holds, among names, or the error naming them */
-template <class E, std::size_t N>
-E enum_of(const Document &doc, const Member &m, const std::string &word, const std::array<std::string_view, N> &names)
+/* the enum value of the word a member holds, among names (string_views or C strings), or the error naming them */
+template <class E, class Names>
+E enum_of(const Document &doc, const Member &m, const std::string &word, const Names &names)
 {
-    const int i = choice_index(names, word);
-    if (i >= 0) return static_cast<E>(i);
+    const auto at = std::ranges::find_if(names, [&](const auto &n) { return word == std::string_view(n); });
+    if (at != names.end()) return static_cast<E>(at - names.begin());
     std::string list;
-    for (const std::string_view n : names) list += (list.empty() ? "" : ", ") + std::string(n);
+    for (const auto &n : names) list += (list.empty() ? "" : ", ") + std::string(n);
     doc.fail(m.value, xpp::format("`{}`: `{}` is not one of {}", m.key, word, list));
 }
 
 } // namespace
+
+void Block::text_style(TextStyle &v)
+{
+    if (const Member *m = take("style")) v = enum_of<TextStyle>(*doc_, *m, word_of(*m), text_style_names);
+}
 
 void Block::line_style(LineStyle &v)
 {

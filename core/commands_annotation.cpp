@@ -13,7 +13,7 @@
 namespace xpp::command {
 namespace {
 
-constexpr const char *WINDOW_KEY = "window", *ID_ARGUMENT = "annotation_id", *COLOR_KEY = "color", *SIZE_KEY = "size";
+constexpr const char *WINDOW_KEY = "window", *ID_ARGUMENT = "annotation_id", *COLOR_KEY = "color", *SIZE_KEY = "size", *TEXT_SIZE_KEY = "text_size";
 
 Result<XppWinId> graph_handle(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
@@ -33,16 +33,16 @@ std::string id_result(int id, const char *field, bool value)
     return xpp::format("{{\"id\":{},\"{}\":{}}}", id, field, value);
 }
 
-/* a text's look: the given members over look, checked as the ask and the session file check it (a text's
-   size is a whole number of the real `size`, which an object's size shares) */
+/* a text's look: the given members over look, checked as the ask and the session file check it */
 Result<LabelLook> look_of(const Command &command, const Arguments &args, LabelLook look, const Place &place)
 {
     if (const auto text = args.optional<std::string>("text")) look.text = *text;
-    if (const auto size = args.optional<double>(SIZE_KEY)) {
-        look.size = static_cast<int>(*size);
-        if (look.size != *size) return fail(command.name, xpp::format("the size of a text is a whole number, not {}", xpp::number(*size)), place);
+    if (const auto size = args.optional<long long>(TEXT_SIZE_KEY)) look.size = static_cast<int>(*size);
+    if (const auto style = args.optional<std::string>("style")) {
+        const std::optional<TextStyle> parsed = parse_text_style(*style);
+        if (!parsed) return fail(command.name, xpp::format("\"{}\" is not a text style", *style), place);
+        look.style = *parsed;
     }
-    if (const auto style = args.optional<long long>("style")) look.style = static_cast<int>(*style);
     if (const auto color = args.optional<Color>(COLOR_KEY)) look.color = *color;
     if (const std::string problem = label_problem(look); !problem.empty()) return fail(command.name, problem, place);
     return look;
@@ -118,7 +118,8 @@ Result<std::string> edit(Session &s, const Command &command, const Arguments &ar
     }
     const GROB *grob = find_annotation(s.grobs, id);
     if (!grob) return no_annotation(command, id, place);
-    if (args.has("text") || args.has("style")) return fail(command.name, "a text and a style are for a text", place);
+    if (args.has("text") || args.has("style") || args.has(TEXT_SIZE_KEY))
+        return fail(command.name, "a text, its size and its style are for a text", place);
     GrobLook look{grob->type, grob->size, grob->color};
     if (const auto shape = args.optional<std::string>("shape")) {
         if (grob->type < MARKER) return fail(command.name, "a shape is for a marker", place);
@@ -156,8 +157,8 @@ constexpr Argument WINDOW = {WINDOW_KEY, Type::window, false};
 constexpr Argument ID = {ID_ARGUMENT, Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(ANNOTATION_ID_MAX)};
 constexpr Argument COLOR = {COLOR_KEY, Type::color, false};
 constexpr Argument OBJECT_SIZE = {SIZE_KEY, Type::real, false, MAX_TEXT_BYTES, {}, constant(0)};
-constexpr Argument TEXT_SIZE = {SIZE_KEY, Type::real, false, MAX_TEXT_BYTES, {}, constant(0), constant(LABEL_SIZE_MAX)};
-constexpr Argument STYLE = {"style", Type::integer, false, MAX_TEXT_BYTES, {}, constant(0), constant(LABEL_STYLE_COUNT - 1)};
+constexpr Argument TEXT_SIZE = {TEXT_SIZE_KEY, Type::integer, false, MAX_TEXT_BYTES, {}, constant(0), constant(LABEL_SIZE_MAX)};
+constexpr Argument STYLE = {"style", Type::choice, false, MAX_TEXT_BYTES, text_style_names};
 constexpr Argument TEXT = {"text", Type::text, true, LABEL_TEXT_MAX};
 constexpr std::array SHAPES = {"box", "diamond", "triangle", "plus", "cross", "circle"};
 static_assert(SHAPES.size() == MARKER_SHAPE_COUNT);
@@ -169,7 +170,7 @@ constexpr std::array HEAD_ARGUMENTS = {WINDOW, Argument{"tip_x", Type::real, tru
 constexpr std::array ADD_MARKER_ARGUMENTS = {WINDOW, Argument{"shape", Type::choice, true, MAX_TEXT_BYTES, SHAPES},
                                              Argument{"x", Type::real, true}, Argument{"y", Type::real, true}, OBJECT_SIZE, COLOR};
 constexpr std::array EDIT_ARGUMENTS = {ID, Argument{"text", Type::text, false, LABEL_TEXT_MAX}, Argument{"shape", Type::choice, false, MAX_TEXT_BYTES, SHAPES},
-                                       Argument{SIZE_KEY, Type::real, false, MAX_TEXT_BYTES, {}, constant(0)}, STYLE, COLOR};
+                                       Argument{SIZE_KEY, Type::real, false, MAX_TEXT_BYTES, {}, constant(0)}, TEXT_SIZE, STYLE, COLOR};
 constexpr std::array MOVE_ARGUMENTS = {ID, Argument{"new_x", Type::real, true}, Argument{"new_y", Type::real, true}};
 constexpr std::array ID_ARGUMENTS = {ID};
 constexpr std::array LIST_RESULTS = {ResultField{"window", "window"}, ResultField{"text", "list of texts"}, ResultField{"arrows", "list of arrows and pointers"},

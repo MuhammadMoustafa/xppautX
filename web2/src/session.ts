@@ -676,7 +676,7 @@ export class Session {
   /** window `win`'s zoom changed (a wheel, a drag, a typed range, Reset view) */
   /** the text with this id changed in its dialog: everything it takes, and where it is */
   changeText(id: number, v: TextValues, at: TextPosition): void {
-    this.send({cmd: 'annotation.edit', annotation_id: id, text: v.text, size: v.size, style: v.style, color: v.color});
+    this.send({cmd: 'annotation.edit', annotation_id: id, text: v.text, text_size: v.size, style: v.style, color: v.color});
     this.send({cmd: 'annotation.move', annotation_id: id, new_x: at.x, new_y: at.y});
   }
 

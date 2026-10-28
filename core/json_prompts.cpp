@@ -228,15 +228,27 @@ int j_text_dialog(xpp::LabelLook &look)
     const int id = ask_begin(b, "text");
     BUF_LIT(b, ",\"title\":\"Text\",\"value\":");
     buf_str(b, look.text);
-    buf_format(b, ",\"size\":{:d},\"style\":{:d},\"color\":{}", look.size, look.style, xpp::quoted_color(look.color));
+    buf_format(b, ",\"size\":{:d},\"style\":", look.size);
+    buf_str(b, xpp::text_style_word(look.style));
+    buf_format(b, ",\"color\":{}", xpp::quoted_color(look.color));
     if (!ask_wait(b, id)) return 0;
     get_string(answer.c_str(), "value", look.text);
-    std::string word;
-    const std::optional<xpp::Color> color = get_string(answer.c_str(), "color", word) ? xpp::parse_color(word) : std::nullopt;
-    if (!get_whole(answer.c_str(), "size", look.size) || !get_whole(answer.c_str(), "style", look.style) || !color) {
-        j_command_error("text", "the size and style of a text are whole numbers and its colour is #rrggbb, #rrggbbaa, a CSS colour name or foreground");
+    std::string color_word, style_word;
+    const std::optional<xpp::Color> color = get_string(answer.c_str(), "color", color_word) ? xpp::parse_color(color_word) : std::nullopt;
+    const std::optional<xpp::TextStyle> style = get_string(answer.c_str(), "style", style_word) ? xpp::parse_text_style(style_word) : std::nullopt;
+    if (!get_whole(answer.c_str(), "size", look.size)) {
+        j_command_error("text", "the size of a text is a whole number");
         return 0;
     }
+    if (!style) {
+        j_command_error("text", xpp::format("\"{}\" is not a text style", style_word));
+        return 0;
+    }
+    if (!color) {
+        j_command_error("text", "the colour of a text is #rrggbb, #rrggbbaa, a CSS colour name or foreground");
+        return 0;
+    }
+    look.style = *style;
     look.color = *color;
     return 1;
 }

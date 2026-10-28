@@ -9,7 +9,7 @@ import {traceLine, tracePoints, type PixelFrame} from './decimate';
 import type {CoreColor} from './colors';
 import {addMarker, drawsLine, drawsPoints, markerRadius} from './linestyle';
 import {pixelMap, type PathSink} from './phase';
-import type {LineStyle} from '../protocol/types';
+import type {LineStyle, TextStyle} from '../protocol/types';
 import type {ArrowMark, EquilibriumMark, Marks, MarkerMark, MarkerShape} from '../store/marks';
 
 export type MarkKey = 'equilibria' | 'text' | 'arrows' | 'markers' | `frozen-${number}`;
@@ -131,11 +131,5 @@ export function textPx(size: number): number {
   return TEXT_PX[Math.max(0, Math.min(4, Math.round(size)))];
 }
 
-/** the text styles by the core's index (core/grobs.h LABEL_STYLE_*): the name in the dialog and the
-    font-style and weight the canvas draws it with */
-export const TEXT_STYLES = [
-  {name: 'Normal', css: 'normal'},
-  {name: 'Bold', css: 'bold'},
-  {name: 'Italic', css: 'italic'},
-  {name: 'Bold italic', css: 'italic bold'},
-] as const;
+/** the CSS font style and weight each text style is drawn with, by its name (core/text_style.h) */
+export const TEXT_CSS: Record<TextStyle, string> = {normal: 'normal', bold: 'bold', italic: 'italic', bold_italic: 'italic bold'};

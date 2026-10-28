@@ -4,9 +4,9 @@
    any colour with its alpha (ui/ColorField.tsx), which the core keeps and its PDF and SVG draw. */
 import {useRef, useState} from 'preact/hooks';
 import {CORE_COLOR} from '../plot/colors';
-import {TEXT_STYLES, textPx} from '../plot/marks';
-import {fieldsValid, NUMBER, TEXT} from '../store/fieldKinds';
-import type {HelloEvent} from '../protocol/types';
+import {textPx} from '../plot/marks';
+import {choiceLabel, fieldsValid, NUMBER, TEXT} from '../store/fieldKinds';
+import type {HelloEvent, TextStyle} from '../protocol/types';
 import type {TextPosition, TextValues} from '../store/marks';
 import {ColorField} from './ColorField';
 import {Field} from './Field';
@@ -19,6 +19,7 @@ export function TextForm({initial, position, submit, onSubmit, onDelete}: {
   onSubmit(v: TextValues, at: TextPosition | null): void; onDelete?: () => void;
 }) {
   const limits = useStore(s => s.hello?.text) as HelloEvent['text'];
+  const styles = useStore(s => s.hello?.text_styles) as HelloEvent['text_styles'];
   const dark = useDark(useStore(s => s.theme));
   const [text, setText] = useState(initial.text);
   const [size, setSize] = useState(initial.size), [style, setStyle] = useState(initial.style), [color, setColor] = useState(initial.color);
@@ -38,8 +39,8 @@ export function TextForm({initial, position, submit, onSubmit, onDelete}: {
           {Array.from({length: limits.size_max + 1}, (_, i) => <option key={i} value={i}>{i} ({textPx(i)} px)</option>)}
         </select></label>
       <label><span>Style</span>
-        <select data-text-style value={style} onChange={e => setStyle(Number(e.currentTarget.value))}>
-          {TEXT_STYLES.slice(0, limits.style_count).map((st, i) => <option key={i} value={i}>{st.name}</option>)}
+        <select data-text-style value={style} onChange={e => setStyle(e.currentTarget.value as TextStyle)}>
+          {styles.map(name => <option key={name} value={name}>{choiceLabel(name)}</option>)}
         </select></label>
       <label><span>Colour</span>
         <ColorField value={color} dark={dark} label="Text" onChange={setColor} /></label>
