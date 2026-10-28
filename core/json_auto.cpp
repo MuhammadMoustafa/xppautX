@@ -492,8 +492,15 @@ int j_auto_check_abort(int *iflag)
     }
     return 0;
 }
+/* A question about the diagram (a grab, a zoom box, a scroll) is answered on it: the views are shown */
+static void show_views_for_ask(xpp::Session &s)
+{
+    for (AutoDiagramView &view : s.auto_state.views) view.hidden = false;
+}
+
 int j_auto_rubber(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
 {
+    show_views_for_ask(s);
     std::array<int, 4> v;
     if (!mouse_ask(s, WIN_AUTO, "rubber", flag, v)) return 0;
     *i1 = v[0]; *j1 = v[1]; *i2 = v[2]; *j2 = v[3];
@@ -511,6 +518,7 @@ int j_auto_grab_event(xpp::Session &s, int *x, int *y)
         session.grab_key_after = 0;
         return id;
     }
+    show_views_for_ask(s);
     id = ask_begin(b, "grab");
     BUF_LIT(b,",\"win\":");buf_str(b,xpp::window_name(s,WIN_AUTO));
     if (!ask_wait(b, id)) return ESC;
@@ -535,6 +543,7 @@ void j_auto_show_hint(xpp::Session &s) { send_simple("message", "auto", s.auto_s
 void j_auto_scroll_window(xpp::Session &s)
 {
     int i, j, t, i0 = 0, j0 = 0, state = 0;
+    show_views_for_ask(s);
     float xlo = s.auto_state.axes().xmin, ylo = s.auto_state.axes().ymin, xhi = s.auto_state.axes().xmax, yhi = s.auto_state.axes().ymax, dx = 0, dy = 0;
     send_simple("message", "auto", "Drag the diagram to scroll it; any key ends");
     while ((t = ask_drag(s, WIN_AUTO, &i, &j)) != 0) {
@@ -737,7 +746,7 @@ void auto_command(xpp::Session &s, const char *line)
     else if (o == "view") {
         /* the views of the diagram (W50): a new one, one closed, the active one */
         if (js_find(line, "new")) auto_new_view(s);
-        else j_command_error("auto","Use window.select or window.close with a window name");
+        else j_command_error("auto","Use window.select or window.destroy with a window name");
     }
     else if (o == "point") {
         /* in the diagram's quantities, or a pixel of window 101 */

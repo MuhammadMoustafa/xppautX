@@ -97,6 +97,7 @@ xpp::Result<std::string> windows_text(const xpp::Session &s)
         if (!g.Use) continue;
         out.begin_item();
         out.text("name",g.name);
+        out.flag("hidden", g.hidden);
         xpp::write_window(out, s, g);
         out.text("xlabel", g.xlabel);
         out.text("ylabel", g.ylabel);
@@ -111,6 +112,7 @@ xpp::Result<std::string> windows_text(const xpp::Session &s)
     }
     out.end_list();
     out.text("active",s.plot_windows.graph[s.plot_windows.active].name);
+    out.flag("browser_hidden", s.tools_hidden.browser);
     const xpp::AutoView &v = s.auto_view;
     out.begin("auto_view");
     out.whole("earlier", v.earlier);
@@ -133,12 +135,14 @@ struct SavedWindow {
     std::string xlabel, ylabel, zlabel;
     xpp::Zoom zoom;
     bool show_runs = true;
+    bool hidden = false;
 };
 
 /* windows.setx read */
 struct WindowsRead {
     std::vector<SavedWindow> windows;
     int active = 0;
+    bool browser_hidden = false;
     xpp::AutoView auto_view;
     std::vector<xpp::AddedColumn> added;
 };
@@ -193,12 +197,14 @@ WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file, std::size_t &e
             z->done();
         }
         w.flag("previous_runs", sw.show_runs);
+        w.flag("hidden", sw.hidden);
         w.done();
     }
     std::string active;file.text("active",active);
     const auto current=std::ranges::find(r.windows,active,[](const SavedWindow &w){return w.graph.name;});
     if(current==r.windows.end())file.fail(*file.member("active"),xpp::format("Unknown window \"{}\"",active));
     r.active=static_cast<int>(current-r.windows.begin());
+    file.flag("browser_hidden", r.browser_hidden);
     if (std::optional<xpp::setx::Block> v = file.group("auto_view")) {
         v->whole("earlier", r.auto_view.earlier);
         v->flag("show_earlier", r.auto_view.show_earlier);
@@ -234,10 +240,12 @@ void apply_windows(xpp::Session &s, const WindowsRead &r)
         xpp::PlotDisplay &d = s.plot_display[i];
         d.zoom = w.zoom;
         d.show_runs = w.show_runs;
+        g.hidden = w.hidden;
         d.axes_seen = false; /* the zoom is for the axes just read */
     }
     xpp::set_active_windows(s);
     xpp::make_active(s,r.active,1);
+    s.tools_hidden.browser = r.browser_hidden;
 }
 
 /* ---- marks.setx and frozen.npz: labels, arrows and markers, frozen curves ---- */

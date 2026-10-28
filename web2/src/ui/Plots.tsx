@@ -46,10 +46,13 @@ function KinescopeBar() {
 
 export function Plots({dark}: {dark: boolean}) {
   const session = useSession();
-  const windows = useStore(s => s.plots.windows);
+  const all = useStore(s => s.plots.windows);
   const active = useStore(s => s.plots.active);
+  /* a hidden graph (window.hide) has no tab until it is shown again; the active one always has */
+  const hidden = useStore(s => s.windows.filter(w => w.kind === 'graph' && !w.shown).map(w => w.name).join('\n')).split('\n');
+  const windows = all.filter(w => w.win === active || !hidden.includes(w.win));
   const may = useMay();
-  const current=windows.find(w=>w.win===active);
+  const current=all.find(w=>w.win===active);
   const modes=useStore(s=>s.hello?.commands.find(c=>c.cmd==='window.set_redraw_mode')?.arguments?.find(a=>a.name==='mode')?.choices ?? []);
   const simultaneous=useStore(s=>s.plots.simultaneous);
   /* a tab pick is a view: it works during a run too, only an open question waits (W95) */

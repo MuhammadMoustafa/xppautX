@@ -21,6 +21,7 @@ struct GRAPH {
 	       XppWinId w;
 
 	       int Use;
+  bool hidden = false; /* a hidden window keeps everything and is not shown (window.hide, W515) */
 		int Nullrestore;
                 int x11Wid = main_plot_width;
   int x11Hgt = main_plot_height;

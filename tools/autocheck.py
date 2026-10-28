@@ -494,7 +494,7 @@ def section_abort():
     run_periodic(s)
     s.collect(is_point, timeout=60 * SLOW)
     t = s.send(cmd='abort')
-    s.send(cmd='window.close', window='diagram_1')
+    s.send(cmd='window.destroy', window='diagram_1')
     evs, e = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1' and e.get('op') == 'destroy',
                        timeout=120 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
@@ -1132,7 +1132,7 @@ def section_sessiondiagram():
           '%d rows' % len(rows))
     check('sessiondiagram: solutions.s holds the orbits', len(got.get('auto/solutions.s', '')) > 1000, str(len(got.get('auto/solutions.s', ''))))
     check('sessiondiagram: views.txt holds the two views of the diagram, the first active',
-          re.fullmatch(r'view "diagram_1" maximum_and_minimum V iapp \S+( \S+){6}\nview "diagram_2" period V iapp \S+( \S+){6}\nactive "diagram_1"\n', got.get('auto/views.txt', '')) is not None,
+          re.fullmatch(r'view "diagram_1" shown maximum_and_minimum V iapp \S+( \S+){6}\nview "diagram_2" shown period V iapp \S+( \S+){6}\nactive "diagram_1"\n', got.get('auto/views.txt', '')) is not None,
           got.get('auto/views.txt', '')[:300])
     d1 = os.path.join(scratch, 'd1.snapx')
     if os.path.exists(os.path.join(s.run, 'd1.snapx')):
@@ -1465,7 +1465,7 @@ def section_control():
     open_auto(s)
     run_now(s)
     s.collect(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
-    s.send(cmd='window.close', window='diagram_1')
+    s.send(cmd='window.destroy', window='diagram_1')
     t = s.send(cmd='abort')
     evs, e = s.collect(is_idle, timeout=60 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t

@@ -114,6 +114,8 @@ void send_window(const char *what, std::string_view name, int w, int h, std::str
     send_buf(b);
 }
 
+std::string windows_event_line(const xpp::Session &s) { return "{\"ev\":\"windows\",\"windows\":" + xpp::windows_json(s) + '}'; }
+
 void j_window_renamed(xpp::Session &, std::string_view old_name, std::string_view new_name)
 {
     std::string event="{\"ev\":\"window.renamed\",\"window\":";
@@ -130,6 +132,8 @@ void j_auto_closed(xpp::Session &s, std::string_view name)
     diag_forget();
     auto_data_forget(s);
 }
+
+void j_tool_window_closed(xpp::Session &, std::string_view name, std::string_view kind) { send_window("destroy", name, 0, 0, "", kind); }
 
 void j_create_plot_window(xpp::Session &s)
 {
@@ -545,6 +549,7 @@ void j_aplot_make(xpp::Session &s, std::string_view name)
     APLOT &ap = s.array_plot.plot;
     if (ap.alive) return;
     ap.alive = 1;
+    s.tools_hidden.array_plot = false;
     ap.plotw = ap.width - 30 - 10 * text_metrics.small_width;
     ap.ploth = ap.height - 55;
     send_window("create", xpp::window_name(s,WIN_APLOT), ap.plotw, ap.ploth, name,"array_plot");
@@ -595,26 +600,21 @@ void j_aplot_draw_one(xpp::Session &s, std::string_view tag)
     s.array_plot.range_count++;
 }
 
-/* {"cmd":"aplot","op":"scroll"|"close"}: what the array plot window's keys
+/* {"cmd":"aplot","op":"scroll"}: what the array plot window's keys
    (menu_aplot_window) do not say */
 void aplot_command(xpp::Session &s, const char *line)
 {
     std::string o;
     get_string(line, "op", o);
-    if (o != "scroll" && o != "close") {
+    if (o != "scroll") {
         j_command_error("aplot", xpp::format("Unknown aplot op {}", o));
         return;
     }
     if (!s.array_plot.plot.alive) return;
-    if (o == "scroll") {
-        /* dragging the plot by dy pixels moves the first row */
-        s.array_plot.plot.nstart -= get_int(line, "dy", 0);
-        if (s.array_plot.plot.nstart < 0) s.array_plot.plot.nstart = 0;
-        send_aplot(s, NULL);
-    } else if (o == "close") {
-        s.array_plot.plot.alive = 0;
-        send_window("destroy", xpp::window_name(s,WIN_APLOT), 0, 0,"","array_plot");
-    }
+    /* dragging the plot by dy pixels moves the first row */
+    s.array_plot.plot.nstart -= get_int(line, "dy", 0);
+    if (s.array_plot.plot.nstart < 0) s.array_plot.plot.nstart = 0;
+    send_aplot(s, NULL);
 }
 
 /* {"cmd":"colormap","name":"plasma"}: the session's colour scale (the Colormap menu's change, by name); the

@@ -449,6 +449,7 @@ XppUi make_json_ui(void)
     u.destroy_plot_window = j_destroy_plot_window;
     u.window_renamed = j_window_renamed;
     u.auto_closed = j_auto_closed;
+    u.tool_window_closed = j_tool_window_closed;
     u.lower_plot_window = j_void;
     u.cput_text = j_cput_text;
     u.get_draw_size = j_get_draw_size;
@@ -984,6 +985,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     diag_flush(*s, 1);
     auto_data_update(*s, 1);
     auto_view_update(*s);
+    session.windows.update(*s);
     auto_settings_update(*s);
     numerics_settings_update(*s);
     json_flush();
@@ -1086,6 +1088,7 @@ void install(bool silent)
     session.autoinfo.init(data_emit);
     session.autosettings.init(data_emit);
     session.autoview.init(data_emit);
+    session.windows.init(data_emit);
     xpp::numerics_settings_init(data_emit);
     xpp::inbox::set_hooks(classify, busy);
     xpp::job::set_compute_hook(send_computing);
@@ -1158,7 +1161,7 @@ void send_hello(xpp::Session &s)
             ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)
             : xpp::format("XPP Version {:g}.{:g}", program.version_major, program.version_minor);
     const char *title = title_text.c_str();
-    BUF_LIT(b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\",\"numerics\",\"player\"],\"title\":");
+    BUF_LIT(b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\",\"numerics\",\"windows\",\"player\"],\"title\":");
     buf_str(b, title);
     BUF_LIT(b, ",\"file\":");
     buf_str(b, m.this_file);
@@ -1241,7 +1244,7 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b,",\"window_names\":{\"main\":");buf_str(b,s.plot_windows.graph[0].name);
     BUF_LIT(b,",\"auto\":");buf_str(b,xpp::window_name(s,WIN_AUTO));
     BUF_LIT(b,",\"ani\":");buf_str(b,xpp::window_name(s,WIN_ANI));
-    BUF_LIT(b,",\"aplot\":");buf_str(b,xpp::window_name(s,WIN_APLOT));BUF_LIT(b,"}");
+    BUF_LIT(b,",\"aplot\":");buf_str(b,xpp::window_name(s,WIN_APLOT));BUF_LIT(b,",\"browser\":");buf_str(b,std::string(xpp::BROWSER_WINDOW));BUF_LIT(b,"}");
     /* the windows' key layers (menus.h window_layers) and the other
        commands' kinds: what the page enables while a computation runs */
     BUF_LIT(b, ",\"windows\":{");

@@ -67,7 +67,7 @@ export interface HelloEvent {
   /** the marker glyphs and arrow head the pictures draw for texts, arrows, pointers and markers (core/grobs.h; plot/marks.ts) */
   annotation_glyphs: AnnotationGlyphs;
   /** Initial surface names; plots and diagram views subsequently carry their exact names. */
-  window_names: {main: string; auto: string; ani: string; aplot: string};
+  window_names: {main: string; auto: string; ani: string; aplot: string; browser: string};
   lists: string[][];
   /** every point type: its name (the only input), its label and its mark (core/auto_codes.h's one table) */
   point_types: PointType[];
@@ -302,6 +302,13 @@ export interface SeriesEndEvent {
   win: string;
   rows: number;
   version: number;
+}
+
+/** one window of the core as window.list and the `windows` event give it */
+export interface WindowListEntry {
+  name: string;
+  kind: 'graph' | 'diagram' | 'browser' | 'animation' | 'array_plot';
+  shown: boolean;
 }
 
 /** one plot window as `plots` describes it */
@@ -693,6 +700,8 @@ export type XppEvent =
   | {ev: 'idle'}
   | {ev: 'done'; id?: string; status: 'ok' | 'error' | 'stopped'; result?: Record<string,unknown>; error?: string; file?: string; line?: number; col?: number; source?: string; field?: string}
   | {ev: 'window.renamed'; window: string; new_name: string}
+  /** every open window and whether it is shown (window.list's result; sent again when it changed) */
+  | {ev: 'windows'; windows: WindowListEntry[]}
   /** Erase blanked plot window `win`; Redraw drew its current data again */
   | {ev: 'erase' | 'redraw'; win: string}
   | {ev: 'progress'; n: number; of: number}

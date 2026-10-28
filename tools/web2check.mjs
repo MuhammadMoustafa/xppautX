@@ -1361,6 +1361,15 @@ async function windows() {
   check("tab 1 keeps its zoom", JSON.stringify(back) === JSON.stringify(z1)
     && Math.abs(p1.x.min - z1.x.min) < 1e-9 && Math.abs(p1.x.max - z1.x.max) < 1e-9, JSON.stringify([back, p1 && p1.x]));
   check('its chart is the one shown', p1 && p1.curves[0].label === firstCurveLabel && p1.width > 200, JSON.stringify(p1 && [p1.curves, p1.width]));
+  /* W515: window.hide takes a graph off the tabs and keeps it, window.show brings it back */
+  await cdp.eval(`__xpp.send({cmd: 'window.hide', window: 'graph_2'})`);
+  check('window.hide takes graph_2 off the tabs and keeps it (its series stay)',
+    await until(`s.windows.some(x => x.name === 'graph_2' && !x.shown) && s.plots.windows.length === 2 && !document.getElementById('plot-tab-graph_2') && !s.busy`, 'hide'),
+    JSON.stringify(await S('[s.windows, s.plots.windows.length]')));
+  await cdp.eval(`__xpp.send({cmd: 'window.show', window: 'graph_2'})`);
+  check('window.show brings graph_2 and its tab back',
+    await until(`s.windows.every(x => x.shown) && !!document.getElementById('plot-tab-graph_2') && !s.busy`, 'show'),
+    JSON.stringify(await S('s.windows')));
 
   /* what a failing tab check saw: busy, the page's and the core's window, the focus, the last
      commands sent and actions taken (W93: macos-ui lost ArrowLeft here) */
@@ -6547,9 +6556,12 @@ async function layoutCheck(dir) {
   await cdp.eval(`__xpp.send({cmd: 'session', op: 'load', name: 'w102'})`);
   if (await until("s.ask && s.ask.kind === 'choice'", 'save first?', 15000))
     await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})`);
-  check('layout: opening it brings the AUTO view back with its diagram',
-    await until(`s.diagram.open && s.diagram.shown && dv.points.x.length === ${nPts} && !s.busy`, 'session opened', 30000),
+  check('layout: opening it keeps the AUTO view hidden as it was saved (W515), with its diagram',
+    await until(`s.diagram.open && !s.diagram.shown && dv.points.x.length === ${nPts} && !s.busy`, 'session opened', 30000),
     JSON.stringify(await DS('[d.open, d.shown, d.points.x.length]')));
+  await cdp.eval(`document.querySelector('.auto-show').click()`);
+  check('layout: Show AUTO brings the view back with its diagram',
+    await until(`s.diagram.shown && dv.points.x.length === ${nPts} && !s.busy`, 'auto show after open', 30000));
   await cdp.eval(`document.querySelector('.auto-back').click()`);
   await until('!s.diagram.shown && s.diagram.open', 'back after open');
   await rendered();

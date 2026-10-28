@@ -666,11 +666,11 @@ def check_registry():
             {'cmd': 'window.select', 'window': 'missing'},
             {'cmd':'window.rename','window':'missing','name':'new'},
             {'cmd':'window.rename','window':'graph_1'},
-            {'cmd':'window.close','window':'missing'},
+            {'cmd':'window.destroy','window':'missing'},
             {'cmd':'window.send_to_bottom','window':'missing'},
             {'cmd':'window.set_redraw_mode','window':'missing','mode':'auto'},
             {'cmd':'window.destroy_all','extra':True},
-            {'cmd':'window.set_simultaneous_plot'}, {'cmd': 'window.close', 'window': 'graph_1'},
+            {'cmd':'window.set_simultaneous_plot'}, {'cmd': 'window.destroy', 'window': 'graph_1'},
             {'cmd': 'window.rename', 'window': 'graph_1', 'name': 'bad\nname'},
             {'cmd': 'window.set_redraw_mode', 'mode': 1}, {'cmd': 'window.set_redraw_mode', 'mode': 'invalid'},
             {'cmd': 'window.set_simultaneous_plot', 'enabled': 1},
@@ -692,6 +692,8 @@ def check_registry():
         result, evs = request({'cmd': 'window.rename', 'window': 'phase plane', 'name': 'Phase "plane"'})
         check('registry: rename reports exact old and new names', result == {'window': 'phase plane', 'new_name': 'Phase "plane"'} and
               any(e.get('ev') == 'window.renamed' and e.get('new_name') == 'Phase "plane"' for e in evs))
+        request({'cmd':'window.hide','window':'Phase "plane"'})
+        request({'cmd':'window.hide','window':'browser'})
         snd(cmd='session',op='save',name='named windows.snapx',data=False)
         col(lambda e:e.get('ev')=='idle')
         request({'cmd':'window.rename','window':'Phase "plane"','name':'Temporary name'})
@@ -705,6 +707,12 @@ def check_registry():
         check('registry: session restore preserves exact user names and active graph',
               any(e.get('ev')=='plots' and e.get('active')=='Phase "plane"'
                   and 'Phase "plane"' in [w['win'] for w in e['windows']] for e in restored))
+        result, _ = request({'cmd': 'window.list'})
+        shown = {w['name']: w['shown'] for w in result['windows']}
+        check('window.hide: the session file keeps hidden windows (a graph and the data browser)',
+              shown.get('Phase "plane"') is False and shown.get('browser') is False and shown.get('graph_1') is True, str(shown))
+        request({'cmd': 'window.show', 'window': 'Phase "plane"'})
+        request({'cmd': 'window.show', 'window': 'browser'})
         request({'cmd': 'window.select', 'window': 'phase plane'}, False)
         request({'cmd': 'window.select', 'window': 'Phase "plane"'})
         result, _ = request('window.set_redraw_mode --mode manual --id "mode"', client_id='mode')
@@ -712,7 +720,7 @@ def check_registry():
         result, _ = request('window.set_simultaneous_plot --enabled true --id "boolean"', client_id='boolean')
         check('registry: boolean is typed once', result == {'simultaneous_plot': True})
         request({'cmd': 'window.send_to_bottom'})
-        result, _ = request({'cmd': 'window.close'})
+        result, _ = request({'cmd': 'window.destroy'})
         check('registry: omitted target is the selected named graph', result == {'window': 'Phase "plane"', 'closed': True})
         result, _ = request({'cmd': 'window.destroy_all'})
         check('registry: close all reports count', result == {'closed_count': 1})
@@ -725,13 +733,56 @@ def check_registry():
         request({'cmd':'window.set_redraw_mode','window':'diagram_1','mode':'manual'},False)
         request({'cmd': 'window.rename', 'window': 'diagram_1', 'name': 'Bifurcation diagram'})
         request({'cmd': 'window.select', 'window': 'Bifurcation diagram'})
-        request({'cmd': 'window.close'})
+        request({'cmd': 'window.destroy'})
+        # W515: hide, show, list and destroy, one way for every window
+        snd(cmd='data', events=['windows']); col(lambda e: e.get('ev') == 'idle')
+        request({'cmd': 'window.create', 'name': 'kept'})
+        snd(cmd='annotation', op='add_text', window='kept', text='note', x=0, y=0); col(lambda e: e.get('ev') == 'idle')
+        result, evs = request({'cmd': 'window.hide', 'window': 'kept'})
+        check('window.hide: the window stays and is not shown', result == {'window': 'kept', 'shown': False})
+        check('window.hide: the windows event says so', any(e.get('ev') == 'windows' and
+              {'name': 'kept', 'kind': 'graph', 'shown': False} in e['windows'] for e in evs), str(evs)[-500:])
+        result, _ = request({'cmd': 'window.list'})
+        listed = {w['name']: w for w in result['windows']}
+        check('window.list: every window with its kind and whether it is shown',
+              listed['kept'] == {'name': 'kept', 'kind': 'graph', 'shown': False} and listed['graph_1']['shown'] is True and
+              listed['browser'] == {'name': 'browser', 'kind': 'browser', 'shown': True}, str(result))
+        result, _ = request({'cmd': 'window.show', 'window': 'kept'})
+        check('window.show: the window comes back', result == {'window': 'kept', 'shown': True})
+        snd(cmd='annotation', op='list', window='kept')
+        evs, _ = col(lambda e: e.get('ev') == 'idle')
+        check('window.hide and show keep what the window holds (its text)', any('note' in json.dumps(e) for e in evs if e.get('ev') == 'annotations'), str(evs)[-500:])
+        for refused in [{'cmd': 'window.hide', 'window': 'animation'}, {'cmd': 'window.show', 'window': 'array_plot_1'},
+                        {'cmd': 'window.hide', 'window': 'nothing'}, {'cmd': 'window.destroy', 'window': 'browser'},
+                        {'cmd': 'window.rename', 'window': 'browser', 'name': 'data'}, {'cmd': 'window.select', 'window': 'browser'},
+                        {'cmd': 'window.create', 'name': 'browser'}, {'cmd': 'window.hide', 'confirm': True},
+                        {'cmd': 'window.list', 'window': 'kept'}, {'cmd': 'window.destroy', 'window': 'kept', 'confirm': 1}]:
+            request(refused, False)
+        result, _ = request({'cmd': 'window.hide', 'window': 'browser'})
+        result, _ = request({'cmd': 'window.show', 'window': 'browser'})
+        check('window.hide and show take the data browser', result == {'window': 'browser', 'shown': True})
+        # a graph that holds a text asks before it is destroyed: the answer decides
+        counter += 1
+        snd(cmd='window.destroy', window='kept', id='declined')
+        _, ask = col(lambda e: e.get('ev') == 'ask')
+        check('window.destroy of a graph holding a text asks first', ask is not None and ask.get('kind') == 'choice' and 'kept' in json.dumps(ask), str(ask))
+        snd(cmd='answer', id=ask['id'], key='n')
+        _, done = col(lambda e: e.get('ev') == 'done'); col(lambda e: e.get('ev') == 'idle')
+        check('window.destroy declined: an error that says what was not confirmed, the window kept',
+              done is not None and done.get('status') == 'error' and 'not confirmed' in done.get('error', ''), str(done))
+        result, _ = request({'cmd': 'window.destroy', 'window': 'kept', 'confirm': True})
+        check('window.destroy with confirm true needs no question', result == {'window': 'kept', 'closed': True})
+        request({'cmd': 'window.create', 'name': 'empty'})
+        result, _ = request({'cmd': 'window.destroy', 'window': 'empty'})
+        check('window.destroy of a graph that holds nothing asks nothing', result == {'window': 'empty', 'closed': True})
         for obsolete in [
             {'cmd':'click','win':1},
             {'cmd':'key','menu':'main','item':'makewindow'},
             {'cmd':'auto','op':'view','active':0},
             {'cmd':'auto','op':'view','close':0},
             {'cmd':'auto','op':'close'},
+            {'cmd':'window.close'},
+            {'cmd':'window.close','window':'graph_2'},
             {'cmd':'annotation','op':'list','win':1},
         ]:
             snd(**obsolete)
@@ -744,12 +795,12 @@ def check_registry():
         request({'cmd': 'window.create', 'name': 'Recorded graph'})
         request({'cmd': 'window.rename', 'window': 'Recorded graph', 'name': 'Recorded phase plane'})
         request({'cmd': 'window.select', 'window': 'graph_1'})
-        request({'cmd': 'window.close', 'window': 'Recorded phase plane'})
+        request({'cmd': 'window.destroy', 'window': 'Recorded phase plane'})
         snd(cmd='record', op='stop', name='named.recx'); col(lambda e: e.get('ev') == 'idle')
         with open(os.path.join(folder, 'named.recx'), encoding='utf-8') as f: text = f.read()
         _, _, steps, written, computed = read_recx(text)
         check('registry: recording keeps dotted commands and quoted window names', written == computed and
-              [step['cmd']['cmd'] for step, _ in steps] == ['window.create', 'window.rename', 'window.select', 'window.close'] and
+              [step['cmd']['cmd'] for step, _ in steps] == ['window.create', 'window.rename', 'window.select', 'window.destroy'] and
               steps[1][0]['cmd']['window'] == 'Recorded graph' and 'win' not in steps[1][0]['cmd'])
         replay_dir = tempfile.mkdtemp(prefix='xppnamed-replay')
         try:
@@ -1082,7 +1133,7 @@ def check_hello_shared():
     check_command_table(table)
     check('W118: hello gives the limits (64 MB uploads, 2000 rows and 500 columns a browser block) and the window ids',
           hello.get('limits') == {'upload': 64 << 20, 'browser_rows': 2000, 'browser_cols': 500}
-          and hello.get('window_names') == {'main':'graph_1','auto':'diagram_1','ani':'animation','aplot':'array_plot'},
+          and hello.get('window_names') == {'main':'graph_1','auto':'diagram_1','ani':'animation','aplot':'array_plot_1','browser':'browser'},
           str(hello.get('limits')) + str(hello.get('window_names')))
     check('W121b: hello gives the core player speed range', hello.get('player_speed') == {'min': 0.25, 'max': 8} and hello.get('upload_error') == 'larger than 64 MB', str(hello.get('player_speed')))
     steps = {(c['cmd'], c.get('op')): c.get('step') for c in hello.get('commands', [])}
@@ -1768,7 +1819,17 @@ send(cmd='key', key='v')
 evs, _ = answer_asks(is_idle, {'menu': menu('t')})
 check('the animation window opens', any(e.get('ev') == 'window' and e.get('win') == 'animation'
       and e.get('op') == 'create' for e in evs), str([e for e in evs if e.get('ev') == 'window']))
-send(cmd='ani', op='close')
+send(cmd='window.hide', window='animation')
+evs, _ = collect(is_idle)
+check('window.hide hides the animation window and keeps it',
+      any(e.get('ev') == 'done' and e.get('status') == 'ok' and e['result'] == {'window': 'animation', 'shown': False} for e in evs), str(evs[-3:]))
+send(cmd='window.list')
+evs, _ = collect(is_idle)
+check('window.list shows the hidden animation', any({'name': 'animation', 'kind': 'animation', 'shown': False} in e.get('result', {}).get('windows', [])
+      for e in evs if e.get('ev') == 'done'), str(evs[-3:]))
+send(cmd='window.show', window='animation')
+collect(is_idle)
+send(cmd='window.destroy', window='animation')
 evs, _ = collect(is_idle)
 check('the animation window closes', any(e.get('ev') == 'window' and e.get('op') == 'destroy' for e in evs))
 
@@ -1824,7 +1885,7 @@ if ask:
     send(cmd='answer', id=ask['id'], ok=0)
 collect(is_idle)
 
-send(cmd='aplot', op='close')
+send(cmd='window.destroy', window='array_plot_1')
 collect(is_idle)
 send(cmd='window.select', window='graph_1')
 evs, _ = collect(is_idle)
@@ -2316,7 +2377,7 @@ def check_plot_windows():
               [e['win'] for e in full(evs)] == ['graph_1', 'graph_2'] and all(e['rows'] == 20001 for e in full(evs)),
               str([(e['win'], e['rows']) for e in full(evs)]))
         after({'cmd': 'window.select', 'window': 'graph_2'})
-        evs = after({'cmd':'window.close'})
+        evs = after({'cmd':'window.destroy'})
         pl = plots(evs)
         check('Makewindow/Destroy of window 2: plots has window 1 only, active',
               len(pl) == 1 and wins(pl[0]) == ['graph_1'] and pl[0]['active'] == 'graph_1' and not full(evs), str(pl)[:300])
@@ -4256,7 +4317,7 @@ def check_autoinfo():
         evs, _ = cola(is_idle)
         hint = [e.get('auto') for e in evs if e.get('ev') == 'message' and 'auto' in e]
         check('auto point in data coordinates shows exactly those', hint and hint[-1] == 'x=0.125,y=-0.25', str(hint))
-        snda(cmd='window.close', window='diagram_1')
+        snda(cmd='window.destroy', window='diagram_1')
         evs, _ = cola(is_idle)
         got = infos(evs)
         check('autoinfo: closing AUTO empties it', got and got[-1]['info'] is None and got[-1]['stab'] is None, str(got))
@@ -5024,7 +5085,7 @@ def check_output_names():
         col(is_idle)
         snd(cmd='key', win='aplot', key='p')
         cancel_name('lecar-array.pdf')
-        snd(cmd='aplot', op='close')
+        snd(cmd='window.destroy', window='array_plot_1')
         col(is_idle)
         for what, ext, format in [('table', 'dat', 'dat'), ('table', 'csv', 'csv'),
                                   ('plot', 'csv', 'csv'), ('table', 'csv.gz', 'csv.gz'), ('table', 'npz', 'npz')]:
@@ -5113,7 +5174,7 @@ def check_output_names():
               ask.get('kind') == 'form' and ask.get('names') == ['Top label', 'Side label', 'Bottom label'], str(ask))
         snd(cmd='answer', id=ask['id'], ok=0)
         col(is_idle)
-        snd(cmd='aplot', op='close')
+        snd(cmd='window.destroy', window='array_plot_1')
         col(is_idle)
         # A long valid name is retained, while traversal/device names report an error.
         long = 'save-' + 'a' * 80 + '.par'
@@ -6222,7 +6283,7 @@ def check_display_state():
         snd(cmd='auto', op='display', x=[3, 3])
         evs, _ = col(is_idle)
         check('autoview: a bad range is refused', any(e.get('ev') == 'message' and 'error' in e for e in evs), str(evs)[:200])
-        snd(cmd='window.close', window='diagram_1')
+        snd(cmd='window.destroy', window='diagram_1')
         evs, _ = col(is_idle)
         check('autoview: closing AUTO resets it', av(evs) and av(evs)[-1]['earlier'] == 0
               and av(evs)[-1]['views'] == [{'name':'diagram_1','zoom': {'x': None, 'y': None}}], str(av(evs)))
@@ -7091,7 +7152,7 @@ def check_session_file():
                 check('session save: model/lecar.odex is the model, byte for byte', z.read('model/lecar.odex') == f.read())
             vt = z.read('auto/views.txt').decode().splitlines()
             check('session save: auto/views.txt holds both views, the first active',
-                  len(vt) == 3 and vt[0].startswith('view "diagram_1" maximum_and_minimum V iapp ') and vt[1].startswith('view "diagram_2" norm V iapp ')
+                  len(vt) == 3 and vt[0].startswith('view "diagram_1" shown maximum_and_minimum V iapp ') and vt[1].startswith('view "diagram_2" shown norm V iapp ')
                   and vt[1].endswith(' - 0:0.5') and vt[2] == 'active "diagram_1"', str(vt))
             shutil.copy(snap, keep)
         answered(snd, col, (), cmd='session', op='save', name='s2.snapx', data=False)
@@ -7446,15 +7507,15 @@ def check_auto_views():
         snd(cmd='answer', id=ask['id'], key='Escape')
         col(is_idle, timeout=60 * SLOW)
 
-        evs = after(cmd='window.close', window='diagram_1')
+        evs = after(cmd='window.destroy', window='diagram_1')
         check('views: closing view 0 leaves two, the others move down, the active one stays active (now view 0)',
               views_n(evs) == [2] and av(evs) and av(evs)[-1]['active'] == 'diagram_2' and len(av(evs)[-1]['views']) == 2
               and rebuild_diagram(allev, [], 0) == lists[1] and rebuild_diagram(allev, [], 1) == lists[2],
               '%s %s' % (views_n(evs), av(evs)))
-        evs = after(cmd='window.close', window='diagram_8')
+        evs = after(cmd='window.destroy', window='diagram_8')
         check('views: closing a view there is not is refused', any(e.get('ev') == 'done' and e.get('status') == 'error' for e in evs), '')
-        after(cmd='window.close', window='diagram_3')
-        evs = after(cmd='window.close', window='diagram_2')
+        after(cmd='window.destroy', window='diagram_3')
+        evs = after(cmd='window.destroy', window='diagram_2')
         check('views: closing the last diagram closes AUTO', any(e.get('ev') == 'window' and e.get('op') == 'destroy' for e in evs), str(evs)[:200])
         check('the process is alive after it all', p.poll() is None, '')
     finally:

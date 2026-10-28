@@ -158,7 +158,7 @@ def run_lecar(home):
         s.send(cmd='key', win='aplot', key='p')
         s.answer_asks(is_idle, {'form': print_form, 'file': lambda e: {'file': 'lecar_array.pdf'}})
         check_file('lecar_array.pdf', read(s.run, 'lecar_array.pdf'))
-        s.send(cmd='aplot', op='close')
+        s.send(cmd='window.destroy', window='array_plot_1')
         s.collect(is_idle)
 
         # Kinescope: capture window 1 twice, then Save writes a GIF per
@@ -235,7 +235,7 @@ def run_pictures(home):
         s.answer_asks(is_idle, {'form': lambda e: {'ok': 1, 'values': ['top', 'side', 'bottom']},
                                  'file': lambda e: {'file': 'pictures_array.pdf'}})
         check_file('pictures_array.pdf', read(s.run, 'pictures_array.pdf'))
-        s.send(cmd='aplot', op='close')
+        s.send(cmd='window.destroy', window='array_plot_1')
         s.collect(is_idle)
     finally:
         s.close()

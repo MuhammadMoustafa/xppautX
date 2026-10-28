@@ -244,6 +244,6 @@ int main()
                        "\"arguments\":[\"flag\",\"mode\"]},{\"rule\":\"together\",\"arguments\":[\"first\",\"second\"]}]") != std::string::npos);
     }
     /* the registry joins the resources' tables */
-    CHECK(find("help") && find("window.close") && !find("window.nope"));
+    CHECK(find("help") && find("window.destroy") && !find("window.nope"));
     TEST_REPORT("command registry");
 }

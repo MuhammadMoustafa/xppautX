@@ -183,12 +183,6 @@ void ani_command(xpp::Session &s, const char *line)
             else if (what == "move") update_ani_motion_stuff(s,x, yy);
             else if (what == "up") ani_grab_mouse(s,0, x, yy);
         }
-    } else if (o == "close") {
-        if (s.animation.vcr.iexist) {
-            s.animation.vcr.iexist = 0;
-            s.animation.grab_flag = 0;
-            send_window("destroy",xpp::window_name(s,WIN_ANI), 0, 0,"","animation");
-        }
     } else {
         j_command_error("ani", xpp::format("Unknown ani op {}", o));
         return;
@@ -224,6 +218,7 @@ void j_new_vcr(xpp::Session &s)
     s.animation.vcr.wid = 280;
     s.animation.vcr.hgt = 350;
     s.animation.vcr.iexist = 1;
+    s.tools_hidden.animation = false;
     send_window("create",xpp::window_name(s,WIN_ANI), s.animation.vcr.wid, s.animation.vcr.hgt, "Animation","animation");
     ani_view_created(s);
 }

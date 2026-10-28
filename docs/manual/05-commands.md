@@ -423,8 +423,22 @@ exactly as written; a duplicate, empty name or surrounding space is an
 error. Graph defaults are `graph_1`, `graph_2`, ...; AUTO views similarly
 use `diagram_1`, `diagram_2`, ... and can be renamed in their headers.
 
-Scripts use `window.create`, `window.rename`, `window.select` and
-`window.close`, with `window` and `name` as quoted text. There are no window
+Every window can be hidden: `window.hide` takes it off the screen and keeps
+everything it holds (curves, zoom, texts, arrows, markers, a diagram) and
+`window.show` brings it back as it was. This holds for graphs, AUTO views
+and the three windows with a name of their own: the data browser
+(`browser`), the animation (`animation`) and the array plot
+(`array_plot_1`). `window.list` lists every window with its kind and whether
+it is shown. `window.destroy` deletes a window and what it holds; destroying a
+graph that holds texts, arrows, markers or frozen curves asks first (the
+page's question; a script passes `confirm` true), while an AUTO view, whose
+diagram the session keeps, the animation and the array plot, which can be
+made again, ask nothing. The main graph and the data browser cannot be
+destroyed. A session file keeps which windows are hidden.
+
+Scripts use `window.create`, `window.rename`, `window.select`,
+`window.hide`, `window.show`, `window.destroy` and `window.list`, with
+`window` and `name` as quoted text. There are no window
 numbers or Makewindow key sequences. The core validates these same commands
 for the page, the server and recordings; each ends with a `done` result.
 See the [generated command reference](../protocol.md#typed-command-registry-w353-stage-1).

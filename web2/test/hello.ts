@@ -1,6 +1,6 @@
 /* A hello with the command table and key layers the tests use (the core's own, the command table read from
    core/command_table.h, core/menus.cpp, core/ui_json.cpp's command table). Not a test itself. */
-import {readFileSync} from 'node:fs';
+import {readdirSync, readFileSync} from 'node:fs';
 import type {CommandCategory, CommandRow} from '../src/protocol/kinds';
 import {PROTOCOL, type HelloEvent, type MenuName} from '../src/protocol/types';
 import {initialState, reduce} from '../src/store/state';
@@ -81,6 +81,12 @@ function coreTable(): {categories: CommandCategory[]; rows: CommandRow[]} {
 
 const CORE = coreTable();
 /** the keys no command may take, read from core/xpp_keymap.h like the table (hello.keymap.reserved) */
+/* the rows of the registry: every resource's table (core/commands_<resource>.cpp) and the help row */
+function registrySource(): string {
+  const files = ['command_registry.cpp', ...readdirSync('../core').filter(f => /^commands_.*\.cpp$/.test(f))];
+  return files.map(f => readFileSync(`../core/${f}`, 'utf8')).join('\n');
+}
+
 const RESERVED = [...readFileSync('../core/xpp_keymap.h', 'utf8').match(/RESERVED_KEYS = \{([^}]*)\}/)![1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
 
 const layer = (keys: string, kinds: string, ids: string[]) => ({items: ids, keys, kinds, hints: ids, ids});
@@ -143,7 +149,7 @@ export const HELLO: HelloEvent = {
     {cmd: 'answer', kind: 'c', step: false}, {cmd: 'abort', kind: 'c', step: false},
     {cmd: 'state', kind: 'v', step: false}, {cmd: 'data', kind: 'v', step: false},
     {cmd: 'display', kind: 'v', step: true},
-    ...[...readFileSync('../core/command_registry.cpp', 'utf8').matchAll(/Command\{"([^"]+)",[\s\S]*?,(true|false),\w+\}/g)].map(m=>({cmd:m[1],kind:'v' as const,step:m[2]==='true'})),
+    ...[...registrySource().matchAll(/Command\{"([^"]+)",[\s\S]*?,\s*(true|false),\s*\w+\}/g)].map(m=>({cmd:m[1],kind:'v' as const,step:m[2]==='true'})),
     {cmd: 'browser', op: 'write', kind: 'd', step: true}, {cmd: 'browser', kind: 'v', step: false},
     {cmd: 'set', kind: 's', step: true}, {cmd: 'slider', kind: 's', step: true},
     {cmd: 'auto', op: 'set', kind: 's', step: true}, {cmd: 'auto', op: 'grab', kind: 'd', step: true},
@@ -158,7 +164,7 @@ export const HELLO: HelloEvent = {
   line_styles: LINE_GEOMETRY,
   annotation_glyphs: ANNOTATION_GLYPHS,
   colormaps: ['jet', 'viridis', 'plasma'],
-  window_names: {main:'graph_1',auto:'diagram_1',ani:'animation',aplot:'array_plot'},
+  window_names: {main:'graph_1',auto:'diagram_1',ani:'animation',aplot:'array_plot_1',browser:'browser'},
 };
 
 /** the state after the server's hello: every event but hello comes after one */

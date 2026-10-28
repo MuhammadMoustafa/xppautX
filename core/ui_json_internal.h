@@ -90,6 +90,9 @@ struct DeferredLine {
 };
 
 std::string auto_view_event_line(const xpp::Session &s);
+/* the `windows` event: every open window with its kind and whether it is shown (window.list's
+   result), sent again when it changed; for a client that asked for it with {"cmd":"data"} */
+std::string windows_event_line(const xpp::Session &s);
 
 /* what the client holds of one view of AUTO's diagram, and how far it got
    (json_auto.cpp's comment): the list of points it was sent, its axes and
@@ -137,6 +140,7 @@ struct ProtocolSession {
     double autoinfo_last = 0;
     xpp::ChangedEvent<xpp::Session> autosettings{xpp::auto_settings_event_line, "sending AUTO's settings"};
     xpp::ChangedEvent<xpp::Session> autoview{auto_view_event_line, "sending AUTO's view"};
+    xpp::ChangedEvent<xpp::Session> windows{windows_event_line, "sending the windows"};
     std::vector<ClientDiagramView> client_diagram{1}; /* the lists the client holds, one per view */
     bool diagram_subscribed = true; /* diagrams are sent until a client explicitly opts out */
     std::vector<std::string> client_view_names;
@@ -447,6 +451,7 @@ void send_main_window(const xpp::Session &s,const char *title);
 void send_window(const char *what, std::string_view name, int w, int h, std::string_view title = {}, std::string_view kind = "graph");
 void j_window_renamed(xpp::Session &s, std::string_view old_name, std::string_view new_name);
 void j_auto_closed(xpp::Session &s, std::string_view name);
+void j_tool_window_closed(xpp::Session &s, std::string_view name, std::string_view kind);
 bool read_plot_window(const xpp::Session &s,const char *line,const char *command,int &index);
 /* {"cmd":"display","win":N,"x":[lo,hi]|null,"y":...,"runs":bool}: the zoom shown in plot window N and whether its earlier runs are drawn (display_state.h) */
 void display_command(xpp::Session &s, const char *line);

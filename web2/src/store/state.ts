@@ -4,7 +4,7 @@
    own actions. Pure: no DOM, no I/O, no clock. */
 import {setPointTypes} from './pointTypes';
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
-import type {AskEvent, Command, ErrorAction, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, XppEvent} from '../protocol/types';
+import type {AskEvent, Command, ErrorAction, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, WindowListEntry, XppEvent} from '../protocol/types';
 import {errorPlace, errorText, unreadFile, type ErrorPlace} from '../protocol/errors';
 import {isWindowKey} from '../protocol/kinds';
 import {CONTINUE_INPUT_DEFAULT, type ContinueInput} from './steady';
@@ -109,6 +109,8 @@ export interface AppState {
   title: string;
   /** the plot windows, each with its series and zoom, and the active one (store/plots.ts) */
   plots: PlotsState;
+  /** every window of the core, with whether it is shown (the `windows` event) */
+  windows: WindowListEntry[];
   /** how many whole series arrived (a full series event, or the end of a live run): tests wait on it */
   seriesCount: number;
   /** how many appends (rows of a running integration) went into a series */
@@ -243,6 +245,7 @@ export const initialState: AppState = {
   table: initialTable,
   text: initialText,
   files: initialFiles,
+  windows: [],
   diagram: initialDiagram,
   autoSettings: initialAutoSettings,
   numerics: null,
@@ -397,6 +400,18 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         ...state, plots: onSeries(state.plots, ev), seriesCount: state.seriesCount + 1,
         hover: shown ? null : state.hover,
       };
+    }
+    case 'windows': {
+      /* the shown flags drive each window's panel: the AUTO view is shown when any of its views is, the
+         animation and the array plot panels follow their windows */
+      const flag = (kind: WindowListEntry['kind']) => ev.windows.find(w => w.kind === kind)?.shown;
+      const diagramViews = ev.windows.filter(w => w.kind === 'diagram');
+      let diagram = state.diagram, ani = state.ani, aplot = state.aplot;
+      if (diagramViews.length) diagram = reduceDiagram(diagram, {type: 'show', shown: diagramViews.some(w => w.shown)});
+      const animation = flag('animation'), arrayPlot = flag('array_plot');
+      if (animation !== undefined) ani = reduceAni(ani, {type: 'open', open: animation});
+      if (arrayPlot !== undefined) aplot = reduceAplot(aplot, {type: 'panel', open: arrayPlot});
+      return {...state, windows: ev.windows, diagram, ani, aplot};
     }
     case 'window.renamed': {
       const plots={...state.plots,active:state.plots.active===ev.window?ev.new_name:state.plots.active,

@@ -336,7 +336,7 @@ void plotvars_command(xpp::Session &s, const char *line)
     plot_checked_vars(s, get_int(line, "how", 0), isck.data(), n);
 }
 
-/* {"cmd":"data","events":["series","plots","nullclines","dfield","marks","ani","autoinfo","autosettings","numerics"],"enc":"f32"}:
+/* {"cmd":"data","events":["series","plots","nullclines","dfield","marks","ani","autoinfo","autosettings","numerics","windows"],"enc":"f32"}:
    the data events the client wants from now on (an empty list stops them);
    each is sent at the end of this command, which is what a client that
    (re)connects needs. hello.features lists the names known here. "enc":"f32"
@@ -354,7 +354,7 @@ void data_command(xpp::Session &s, const char *line)
     const char *arr = js_find(line, "events");
     std::string name, enc;
     int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, ani = 0, autoinfo = 0, autosettings = 0,
-        numerics = 0, player = 0, f32;
+        numerics = 0, player = 0, windows = 0, f32;
     for (i = 0; arr && js_elem(arr, i); i++) {
         if (!js_string(js_elem(arr, i), name)) continue;
         if (name == "series") series = 1;
@@ -367,6 +367,7 @@ void data_command(xpp::Session &s, const char *line)
         else if (name == "autosettings") autosettings = 1;
         else if (name == "numerics") numerics = 1;
         else if (name == "player") player = 1;
+        else if (name == "windows") windows = 1;
     }
     f32 = get_string(line, "enc", enc) && enc == "f32";
     plot_data_subscribe(series, plots, f32);
@@ -377,6 +378,7 @@ void data_command(xpp::Session &s, const char *line)
     auto_view_subscribe(autoinfo);
     auto_settings_subscribe(s, autosettings);
     numerics_settings_subscribe(s, numerics);
+    session.windows.subscribe(windows != 0, s);
     if (player) player_data();
     if (diagram != session.diagram_subscribed) {
         session.diagram_subscribed = diagram;

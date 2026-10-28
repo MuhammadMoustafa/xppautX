@@ -59,6 +59,7 @@ struct SavedView {
     std::array<double, 4> range{};
     xpp::Zoom zoom;
     std::string name;
+    bool hidden = false;
     bool operator==(const SavedView &) const = default;
 };
 struct SavedViews {
@@ -73,7 +74,7 @@ inline constexpr std::size_t saved_parameters_limit = zip::archive_bytes_limit /
 inline constexpr std::size_t saved_views_limit = 4096;
 inline constexpr std::size_t saved_points_limit = 1000000;
 
-/* views.txt: one line per view in order, "view PLOT VAR PAR1 PAR2 XMIN
+/* views.txt: one line per view in order, "view "NAME" shown|hidden PLOT VAR PAR1 PAR2 XMIN
    XMAX YMIN YMAX ZOOMX ZOOMY" (names and numbers as settings_text's, a
    zoom LO:HI or "-" for none), then "active K" */
 std::string views_text(const SavedViews &v);

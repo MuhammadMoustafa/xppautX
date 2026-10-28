@@ -57,6 +57,7 @@ struct AutoDiagramView {
   bool zoom_seen=false; /* zoom_axes holds the axes the zoom was made at */
   std::array<double,4> zoom_axes{};
   std::string name = initial_diagram_name;
+  bool hidden=false; /* window.hide: kept with its axes and zoom, not shown */
 };
 
 /* the diagram's marked stretch (the S and E keys in the Grab loop): the

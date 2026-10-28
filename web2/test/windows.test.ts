@@ -27,5 +27,21 @@ test('closing AUTO sends a named close for every open diagram view', () => {
   const {session,sent}=connected();
   session.store.dispatch({type:'diagram',action:{type:'event',ev:{ev:'diagram',op:'views',n:2,names:['Diagram A','Diagram B']}}});
   session.closeAuto();
-  assert.deepEqual(sent,[{cmd:'window.close',window:'Diagram A'},{cmd:'window.close',window:'Diagram B'}]);
+  assert.deepEqual(sent,[{cmd:'window.destroy',window:'Diagram A'},{cmd:'window.destroy',window:'Diagram B'}]);
+});
+
+test('Hide AUTO and Show AUTO are window.hide and window.show of every view, and the windows event says what is shown', () => {
+  const {session,sent}=connected();
+  session.store.dispatch({type:'diagram',action:{type:'core',open:true}});
+  session.store.dispatch({type:'diagram',action:{type:'event',ev:{ev:'diagram',op:'views',n:2,names:['Diagram A','Diagram B']}}});
+  session.showAuto(false);
+  assert.deepEqual(sent,[{cmd:'window.hide',window:'Diagram A'},{cmd:'window.hide',window:'Diagram B'}]);
+  const list = (shown: boolean) => ({ev:'windows' as const,windows:[
+    {name:'graph_1',kind:'graph' as const,shown:true},
+    {name:'Diagram A',kind:'diagram' as const,shown},{name:'Diagram B',kind:'diagram' as const,shown}]});
+  session.store.dispatch({type:'event',ev:list(false)});
+  assert.equal(session.store.getState().diagram.shown,false);
+  session.store.dispatch({type:'event',ev:list(true)});
+  assert.equal(session.store.getState().diagram.shown,true);
+  assert.equal(session.store.getState().windows.length,3);
 });

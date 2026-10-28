@@ -10,8 +10,11 @@ Every AUTO view has its own name, starting with `diagram_1`, `diagram_2`,
 and so on. Click its name to rename it; spaces and case are preserved.
 Names are unique among the open graphs and AUTO views. Select a view by
 clicking it and close it with its Close button. Closing the final view
-hides AUTO; File Auto opens it again. Scripts use `window.rename`,
-`window.select` and `window.close` with the same quoted name (W353).
+closes AUTO; File Auto opens it again (the diagram stays the session's).
+**Hide AUTO** hides every view and **Show AUTO** brings them back with their
+axes and zoom: they are `window.hide` and `window.show` of each view, so a
+script does the same. Scripts use `window.rename`, `window.select` and
+`window.destroy` with the same quoted name (W353).
 
 Before a run, AUTO checks the start. Initial conditions for a steady-state
 run whose largest equation residual is above EPSU are first refined by

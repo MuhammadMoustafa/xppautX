@@ -24,6 +24,9 @@ constexpr std::string_view no_name = "-";
 std::string name_text(const std::string &name) { return name.empty() ? std::string(no_name) : name; }
 std::string name_of(std::string_view text) { return text == no_name ? std::string() : std::string(text); }
 
+/* a view's second word: whether the window is shown */
+constexpr std::string_view shown_word = "shown", hidden_word = "hidden";
+
 constexpr std::array<const char *, 4> range_keys = {"xmin", "xmax", "ymin", "ymax"};
 
 /* a view's zoom of one axis: LO:HI, or "-" when it shows the whole axis */
@@ -146,7 +149,7 @@ std::string views_text(const SavedViews &v)
     std::string o;
     for (const SavedView &w : v.views) {
         o += "view ";xpp::json_append_string(o,w.name);o+=' ';
-        o += xpp::format("{} {} {} {}", auto_projection_name(w.plot), name_text(w.var), name_text(w.par1), name_text(w.par2));
+        o += xpp::format("{} {} {} {} {}", w.hidden ? hidden_word : shown_word, auto_projection_name(w.plot), name_text(w.var), name_text(w.par1), name_text(w.par2));
         for (double r : w.range) o += ' ' + xpp::number(r);
         o += ' ' + range_text(w.zoom.x) + ' ' + range_text(w.zoom.y) + '\n';
     }
@@ -180,24 +183,26 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file)
                 active_line = l.line();
                 continue;
             }
-            if (w[0] != "view" || w.size() != 11)
-                l.fail("not view \"NAME\" PLOT VAR PAR1 PAR2 XMIN XMAX YMIN YMAX ZOOMX ZOOMY nor active \"NAME\"");
+            if (w[0] != "view" || w.size() != 12)
+                l.fail("not view \"NAME\" shown|hidden PLOT VAR PAR1 PAR2 XMIN XMAX YMIN YMAX ZOOMX ZOOMY nor active \"NAME\"");
+            if (w[1] != shown_word && w[1] != hidden_word) l.fail(xpp::format("\"{}\" is neither {} nor {}", w[1], shown_word, hidden_word));
             if (v.views.size() >= saved_views_limit) l.fail("too many AUTO views");
             for(const auto &view:v.views)if(view.name==name)l.fail("duplicate window name");
             SavedView &s = v.views.emplace_back();
             s.name=name;
             r.lines.push_back(l.line());
-            const std::optional<AutoProjection> plot = auto_projection_from_name(w[1]);
-            if (!plot) l.fail(auto_projection_unknown(w[1]));
+            s.hidden = w[1] == hidden_word;
+            const std::optional<AutoProjection> plot = auto_projection_from_name(w[2]);
+            if (!plot) l.fail(auto_projection_unknown(w[2]));
             s.plot = *plot;
-            s.var = name_of(w[2]);
-            s.par1 = name_of(w[3]);
-            s.par2 = name_of(w[4]);
+            s.var = name_of(w[3]);
+            s.par1 = name_of(w[4]);
+            s.par2 = name_of(w[5]);
             for (std::size_t i = 0; i < s.range.size(); i++)
-                if (!xpp::parse_number(w[5 + i], s.range[i]) || !std::isfinite(s.range[i])) l.fail(xpp::format("\"{}\" is not a number", w[5 + i]));
+                if (!xpp::parse_number(w[6 + i], s.range[i]) || !std::isfinite(s.range[i])) l.fail(xpp::format("\"{}\" is not a number", w[6 + i]));
             for (std::size_t i = 0; i < 2; i++)
-                if (!parse_range(w[9 + i], i == 0 ? s.zoom.x : s.zoom.y))
-                    l.fail(xpp::format("\"{}\" is not a zoom (LO:HI, LO below HI, or -)", w[9 + i]));
+                if (!parse_range(w[10 + i], i == 0 ? s.zoom.x : s.zoom.y))
+                    l.fail(xpp::format("\"{}\" is not a zoom (LO:HI, LO below HI, or -)", w[10 + i]));
         }
         if (v.views.empty()) l.fail(l.line() + 1, "the file ends here, without a view");
         if (!active_line) l.fail(l.line() + 1, "the file ends here, without its active line");

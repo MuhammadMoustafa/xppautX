@@ -100,6 +100,7 @@ static void hl_s(Session &) {}
 static void hl_s_int(Session &, int) {}
 static void hl_live_state(Session &, const double *, double) {}
 static void hl_s_str(Session &, std::string_view) {}
+static void hl_s_str_str(Session &, std::string_view, std::string_view) {}
 static int hl_new_string(std::string_view, std::string &, int) { return 0; }
 static int hl_no(void) { return 0; }
 static int hl_choose(std::string_view, std::string_view question, std::span<const std::string> choices,
@@ -237,6 +238,7 @@ XppUi ui = {
     .destroy_plot_window = hl_s,
     .window_renamed = hl_auto_make_window,
     .auto_closed = hl_s_str,
+    .tool_window_closed = hl_s_str_str,
     .lower_plot_window = hl_void,
     .cput_text = hl_s,
     .get_draw_size = hl_get_draw_size,

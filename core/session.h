@@ -100,6 +100,7 @@ struct Session {
   /* the plot windows, the active one, Simulplot (many_pops.cpp) */
   XppPlotWindows plot_windows{};
   std::string selected_window=plot_windows.graph[0].name; // The target of an omitted window argument.
+  ToolWindowsHidden tools_hidden; // The browser, animation and array plot windows hidden (graphs and views keep their own).
   /* the frozen curves of every window (graf_par.cpp) */
   XppFrozenCurves frozen_curves{};
   /* 3D Params' movie settings (graf_par.cpp) */

@@ -634,7 +634,7 @@ export class Session {
 
   /** Makewindow/Destroy: the active window (never window 1) */
   closeWindow(): void {
-    this.send({cmd:'window.close',window:this.store.getState().plots.active});
+    this.send({cmd:'window.destroy',window:this.store.getState().plots.active});
   }
 
   /* ---- the display state (W65) ---- */
@@ -704,7 +704,7 @@ export class Session {
 
   /** a view of the AUTO diagram closed (the last one stays: the core refuses it) */
   closeView(view: number): void {
-    this.send({cmd:'window.close',window:this.store.getState().diagram.views[view].name});
+    this.send({cmd:'window.destroy',window:this.store.getState().diagram.views[view].name});
   }
 
   /** the legend's "previous runs" toggle of window `win` */
@@ -910,7 +910,7 @@ export class Session {
       behind the run. */
   closeAuto(): void {
     const {busy, stopping, diagram} = this.store.getState();
-    const commands = diagram.views.map(v => ({cmd: 'window.close', window: v.name}));
+    const commands = diagram.views.map(v => ({cmd: 'window.destroy', window: v.name}));
     if (!busy) {
       for (const command of commands) this.send(command);
       return;
@@ -943,13 +943,13 @@ export class Session {
     this.send({cmd: 'auto', op: 'point', xd: x, yd: y});
   }
 
-  /** Back hides the AUTO panel (the core's window stays open); Show brings it back */
+  /** Hide AUTO hides every view of the diagram in the core (window.hide: they keep everything); Show brings them back */
   showAuto(shown: boolean): void {
     /* a grab or plot mode waiting on the diagram is cancelled with it: the ask would stay open behind
        the main window and swallow every key typed there (W100) */
     const {ask, pick, diagram} = this.store.getState();
     if (!shown && diagram.shown && ask && (diagram.grabbing || (pick && pick.win === autoWindow(this.store.getState())))) this.cancelPick();
-    this.store.dispatch({type: 'diagram', action: {type: 'show', shown}});
+    for (const view of diagram.views) this.send({cmd: shown ? 'window.show' : 'window.hide', window: view.name});
   }
 
   /* ---- values panel (docs/ui-v2.md T3, docs/protocol.md `set`/`slide`/`default`/`userbut`,
@@ -1176,14 +1176,19 @@ export class Session {
 
   /** shows the panel, opening the core's animation window first (Viewaxes/Toon) when there is none */
   openAni(): void {
+    if (this.store.getState().ani.exists) {
+      this.send({cmd: 'window.show', window: this.store.getState().hello?.window_names.ani});
+      return;
+    }
     this.store.dispatch({type: 'ani', action: {type: 'open', open: true}});
-    if (!this.store.getState().ani.exists) this.keys(this.mainKey('viewaxes'), 't');
+    this.keys(this.mainKey('viewaxes'), 't');
   }
 
-  /** hides the panel; a playing animation stops */
+  /** hides the panel and the core's window (window.hide); a playing animation stops */
   closeAni(): void {
     this.aniPause();
-    this.store.dispatch({type: 'ani', action: {type: 'open', open: false}});
+    if (this.store.getState().ani.exists) this.send({cmd: 'window.hide', window: this.store.getState().hello?.window_names.ani});
+    else this.store.dispatch({type: 'ani', action: {type: 'open', open: false}});
   }
 
   /** File: an .ani file, through the file ask (the browser's open dialog) */
@@ -1576,13 +1581,19 @@ export class Session {
       Once the window exists this only asks for a fresh picture. */
   openAplot(): void {
     const {windowOpen} = this.store.getState().aplot;
+    if (windowOpen) {
+      this.send({cmd: 'window.show', window: this.store.getState().hello?.window_names.aplot});
+      this.aplotOp('redraw');
+      return;
+    }
     this.store.dispatch({type: 'aplot', action: {type: 'panel', open: true}});
-    if (windowOpen) this.aplotOp('redraw');
-    else this.keys(this.mainKey('viewaxes'), 'a');
+    this.keys(this.mainKey('viewaxes'), 'a');
   }
 
+  /** hides the panel and the core's window (window.hide) */
   closeAplot(): void {
-    this.store.dispatch({type: 'aplot', action: {type: 'panel', open: false}});
+    if (this.store.getState().aplot.windowOpen) this.send({cmd: 'window.hide', window: this.store.getState().hello?.window_names.aplot});
+    else this.store.dispatch({type: 'aplot', action: {type: 'panel', open: false}});
   }
 
   /** the classic array plot window's own buttons: Redraw, Edit (a form,
