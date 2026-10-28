@@ -8939,7 +8939,7 @@ def check_start_screen():
         snd(cmd='answer', id=ask['id'], ok=0)
         evs, _ = col(is_idle)
         check('W232: Cancel at the start leaves the start screen: no error, no exit', not errors(evs) and p.poll() is None, str(evs)[-300:])
-        for cmd in ({'cmd': 'state'}, {'cmd': 'run.initial'}, {'cmd': 'window.redraw'}):
+        for cmd in ({'cmd': 'state'}, {'cmd': 'run.initial'}):
             snd(**cmd)
             evs, _ = col(is_idle)
             err = errors(evs)

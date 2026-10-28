@@ -154,7 +154,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
 
     cancel_folder = folder / 'cancel'
     cancel_folder.mkdir()
-    cancel_steps = [steps[0], dict(cmd='abort', at=dict(what='integrate', rows=100, t=0))]
+    cancel_steps = [steps[0], dict(cmd='run.abort', at=dict(what='integrate', rows=100, t=0))]
     cancelled = make_recording(args.server, str(model), cancel_steps, str(cancel_folder))
     replay = replay_recording(args.server, str(model), cancelled, str(cancel_folder))
     cancel_states = [e for line in replay.stdout.splitlines() if (e := json.loads(line)).get('ev') == 'state' and e.get('steady')]
