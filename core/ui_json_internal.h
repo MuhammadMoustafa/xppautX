@@ -249,8 +249,8 @@ void player_hold(void);
    time has come (after such a wait ran out) */
 int player_wait_ms(void);
 void player_fire(void);
-/* handle_line is about to run line: the step the player pushed begins */
-void player_begin(const char *line);
+/* handle_line is about to run line: the step the player pushed begins. True while a recording's step runs (its lines are not the client's own). */
+bool player_begin(const char *line);
 /* an ask of kind (ask_begin's) was sent, the user's: the player's step
    answers it with the recording's next key or answer */
 void player_asked(const char *kind);

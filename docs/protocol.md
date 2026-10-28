@@ -95,6 +95,55 @@ with name values. AUTO diagram `view`, autoview `active`, and AUTO's axes
 `view` are names too; `diagram` `views` supplies ordered `names`. Internal
 slot numbers and point labels remain implementation details and data.
 
+### Argument types (W530)
+
+Every registry argument has one type, validated once in the core before the
+command runs (a failure names the argument and why, and nothing runs); a
+handler receives the typed values, never the line. `hello` and `help` give
+each argument's `type`, `required`, `max_length` and `choices`, and, where
+the type has them: `min` / `max` (a constant) or `min_of` / `max_of` (the
+name of a session quantity, such as a run's end time, read when the command
+is checked), `names` (`parameter`, `variable`, `either`, `any`), `element`
+and `max_items` (a list or map). A command with groups has `groups`: a list
+of `{"rule", "arguments"}` objects.
+
+| Type | JSON value | Checked |
+|---|---|---|
+| `integer` | a whole number | at most 15 digits, within `min` / `max` |
+| `real` | a number | finite (no NaN, no infinity, nothing beyond double range), within `min` / `max` |
+| `boolean` | `true` or `false` | |
+| `choice` | text | one of `choices` |
+| `text` | text | at most `max_length` bytes |
+| `expression` | text | compiled against the open model; refused with the compiler's message |
+| `name` | text | a name the model defines, of the kind `names`, in any case |
+| `file` | text | a base name in the model's folder (the `/files` rules: no separators, no leading dot, no links) |
+| `path` | text | not empty; accepted only from `--server`'s own input, refused from the page, HTTP, a recording and `--silent` |
+| `color` | text | a CSS colour name, `"#rrggbb"`, `"#rrggbbaa"` or `"foreground"` |
+| `list` | array of single values | each an `element`, at most `max_items` |
+| `map` | object of single values | each key a `name` of kind `names` (any case, once), each value an `element`, at most `max_items` |
+| `window`, `new_name` | text | an open window; a name a window may take |
+
+Lists and maps hold single values: no list or map inside another. A
+recording's shape check cannot know the model or the session, so it skips
+what needs them (a window, a name, an expression, a session-quantity bound);
+the command checks them again when it plays.
+
+Argument groups, declared by a command: `exactly_one` of the named arguments,
+`at_most_one`, or `together` (all or none). A grouped argument is optional by
+itself.
+
+In server text each type is written as its value is in JSON, with no commas:
+numbers, `true` and `false` and choices are bare words; every kind of text
+(and a map's keys) is double-quoted; a list is its items between `[` and `]`
+and a map is `"key" value` pairs between `{` and `}`, items separated by blanks
+(the command names here only illustrate the forms):
+
+```text
+auto.run --label 3 --threads 2 --ratio 0.5 --dry true
+ic.set --values {"x" 1.5 "y" -2} --note "start"
+plot.add --curves ["x" "y"] --color "#ff0000" --formula "x + y"
+```
+
 The following section is generated from `hello.commands` by
 `uv run --locked python tools/servercheck.py --only registry --update-registry-docs`.
 The ordinary servercheck verifies it without writing.

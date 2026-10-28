@@ -782,14 +782,15 @@ void player_fire(void)
     }
 }
 
-void player_begin(const char *line)
+bool player_begin(const char *line)
 {
-    if (player.running < 0 || player.in_command || player.pushed != line) return;
+    if (player.running < 0 || player.in_command || player.pushed != line) return player.in_command;
     player.in_command = true;
     player.controls_used = 0;
     player.off_script = false;
     player.pushed.clear();
     xpp::files::serve_reads(serve, session.silent ? output_write : nullptr); /* embedded reads; guarded outputs */
+    return true;
 }
 
 int player_controls(xpp::Session &s)

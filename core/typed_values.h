@@ -26,6 +26,8 @@ int do_calc(Session &s, std::string_view temp, double *z);
 /* the formula expr worked out in s, or why it does not compile; shows
    nothing and changes nothing */
 Result<double> evaluate_formula(Session &s, std::string_view expr);
+/* the formula expr compiled in the Session s, or why it does not (the refusal of a command's expression argument); worked out by no one, nothing changed */
+Result<> compile_formula(Session &s, std::string_view expr);
 /* what was typed in a number field: a plain number (xpp::parse_number's
    rule, blanks around it allowed) or %formula (worked out in s; "%name:
    formula" must name a parameter or an IC), else the error, which

@@ -19,9 +19,10 @@ void append_commands(std::string &out);
 /* Server text into a JSON object. Only this entry point accepts text;
    bound calls and recordings still supply JSON to run. */
 Result<std::string> tokenize(const char *line, const Place &place);
+/* paths_allowed: the line is --server's own input, the one origin a path argument may come from (not the page, HTTP, a recording or --silent's script). */
 /* Validate all arguments before running. A success is the declared result
    as JSON; an error retains the command/recording's original place. */
-Result<std::string> run(Session &s, const char *line, const Place &place);
+Result<std::string> run(Session &s, const char *line, const Place &place, bool paths_allowed);
 bool is_step(const char *line);
 /* Imported/model-defined XPPAUT buttons use the same handlers. */
 Result<> window_button(Session &s,int button,const Place &place);

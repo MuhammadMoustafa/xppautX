@@ -760,9 +760,22 @@ def check_registry():
         generated = ['| Command | Arguments | Kind / category | Menu / XPPAUT keys | Result | Events | Description |',
                      '|---|---|---|---|---|---|---|']
         for command in registry:
-            arguments = ', '.join('`%s`: %s%s%s' % (a['name'], 'required ' if a['required'] else 'optional ', a['type'],
-                                  ' (' + ', '.join(a['choices']) + ')' if a['choices'] else
-                                  ' (max %s bytes)' % a['max_length'] if a['type'] != 'boolean' else '') for a in command['arguments']) or 'none'
+            def describe_argument(a):
+                text = '`%s`: %s%s%s' % (a['name'], 'required ' if a['required'] else 'optional ', a['type'],
+                                         ' (' + ', '.join(a['choices']) + ')' if a['choices'] else
+                                         ' (max %s bytes)' % a['max_length'] if a['type'] not in ('boolean', 'integer', 'real', 'list', 'map') else '')
+                extras = []
+                if 'min' in a: extras.append('at least %s' % a['min'])
+                if 'min_of' in a: extras.append('at least the session\'s %s' % a['min_of'])
+                if 'max' in a: extras.append('at most %s' % a['max'])
+                if 'max_of' in a: extras.append('at most the session\'s %s' % a['max_of'])
+                if 'names' in a: extras.append('of %s' % a['names'])
+                if 'element' in a: extras.append('of %s, at most %s' % (a['element'], a['max_items']))
+                return text + (' [' + ', '.join(extras) + ']' if extras else '')
+            groups = {'exactly_one': 'exactly one of', 'at_most_one': 'at most one of', 'together': 'all or none of'}
+            arguments = ', '.join(describe_argument(a) for a in command['arguments']) or 'none'
+            if command.get('groups'):
+                arguments += '; ' + '; '.join('%s %s' % (groups[g['rule']], ', '.join('`%s`' % n for n in g['arguments'])) for g in command['groups'])
             results = ', '.join('`%s`: `%s`' % (r['name'], r['type']) for r in command['result'])
             generated.append('| `%s` | %s | `%s` / %s | %s / %s | %s | %s | %s |' %
                              (command['cmd'], arguments, command['kind'], command['category'],

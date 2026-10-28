@@ -872,7 +872,7 @@ bool runs_without_model(const char *line)
 xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, bool applied = false)
 {
     xpp::job::begin(seq);
-    player_begin(line);
+    const bool played = player_begin(line);
     /* A live command is a one-line source; recordings retain their step's
        own Place through player_place. This also locates bad save names. */
     session.reading=xpp::Place{"command",1,0,line};
@@ -889,7 +889,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
         if(request) {
             record_begin(request->c_str());
             result=!s->model().loaded() && xpp::command::is_step(request->c_str()) ?
-                xpp::fail("command","No model is open",place) : xpp::command::run(*s,request->c_str(),place);
+                xpp::fail("command","No model is open",place) : xpp::command::run(*s,request->c_str(),place,!played && !session.silent && !xpp::http::active());
         } else result=std::unexpected<xpp::Error>(request.error());
         if(!result) {
             if(session.silent)xpp::log(XPP_LOG_ERROR,"{}\n",result.error().text());
