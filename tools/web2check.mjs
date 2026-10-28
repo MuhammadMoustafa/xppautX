@@ -2577,7 +2577,7 @@ async function autoView(dir) {
   check('Tab jumps to the next label, the Hopf point: its strip and a pair of eigenvalues on the imaginary axis',
     await until("s.diagram.info.sym === 'hopf' && s.ask && s.ask.kind === 'grab'", 'grab tab')
     && await DS('d.stab.eig.length === 2 && d.stab.eig.every(e => Math.abs(e[0]) < 1e-3 && Math.abs(e[1]) > 0.1)')
-    && /HB/.test(await cdp.eval(`document.querySelector('.auto-info').textContent`))
+    && /Andronov–Hopf/.test(await cdp.eval(`document.querySelector('.auto-info').textContent`))
     && await cdp.eval(`!!document.activeElement.closest('.auto-host')`), JSON.stringify(await DS('[d.info, d.stab]')));
   const hbLab = await DS('d.info.lab');
   await key('Enter');
@@ -2628,10 +2628,13 @@ async function autoView(dir) {
   /* T27: AUTO's table in the Output panel: a row per label, the plain ones NPr prints (no type) too,
      each line of the core's log classified alone however its chunks arrived */
   const outRows = await cdp.eval(`__xpp.log().filter(l => l.kind === 'auto')
-    .map(l => /^\\s*-?\\d+\\s+-?\\d+\\s+(\\S\\S)?\\s+(-?\\d+)\\s/.exec(l.text)).filter(m => m).map(m => (m[1] || '') + m[2])`);
-  const labelRows = labels.map(l => l.sym + l.lab);
-  check(`T27: the Output panel has AUTO's row for each of the ${labels.length} labels, the ${labels.filter(l => !l.sym).length} plain ones (NPr's) too`,
-    labels.some(l => !l.sym) && labelRows.every(r => outRows.includes(r)),
+    .map(l => /^\\s*-?\\d+\\s+-?\\d+\\s+([A-Z][A-Z0-9]{1,3})?\\s+(-?\\d+)\\s/.exec(l.text)).filter(m => m).map(m => (m[1] || '') + m[2])`);
+  /* the log's table prints each point type's mark (hello's point_types), the labels carry its name */
+  const marks = new Map((await cdp.eval('__xpp.state().hello.point_types')).map(t => [t.name, t.mark]));
+  const labelRows = labels.map(l => (marks.get(l.sym) || '') + l.lab);
+  const plain = labels.filter(l => !marks.get(l.sym)).length;
+  check(`T27: the Output panel has AUTO's row for each of the ${labels.length} labels, the ${plain} plain ones (NPr's) too`,
+    plain > 0 && labelRows.every(r => outRows.includes(r)),
     JSON.stringify([labelRows.filter(r => !outRows.includes(r)), outRows.slice(0, 10)]));
 
   /* the chart: a curve per branch and stability run, the label marks */
@@ -2683,7 +2686,7 @@ async function autoView(dir) {
      for its text too, rather than reading it the instant the store settled
      (W40, GitHub #83: a macos-ui rerun saw the store's hover set but the
      readout still blank) */
-  const readoutOk = hovered && await until(`/HB label \\d+/.test(document.querySelector('.auto-readout').textContent)`, 'hb readout text', 3000);
+  const readoutOk = hovered && await until(`/Andronov–Hopf label \\d+/.test(document.querySelector('.auto-readout').textContent)`, 'hopf readout text', 3000);
   check('hovering the Hopf point names it in the readout',
     readoutOk,
     JSON.stringify([await DS('d.hover'), await readout(), hbAt, await DG(), await autoArea()]));
@@ -2696,7 +2699,7 @@ async function autoView(dir) {
     await key('>');
     steps++;
   }
-  check('> steps from label to label to the Hopf point', steps > 0 && /HB label/.test(await readout())
+  check('> steps from label to label to the Hopf point', steps > 0 && /Andronov–Hopf label/.test(await readout())
     && (await DS('d.hover.point')) === hb.point, JSON.stringify([steps, await readout()]));
   await key(']');
   check('] steps to the next point of the branch', await until(`s.diagram.hover && s.diagram.hover.point === ${hb.point + 1}`, 'next point'),
