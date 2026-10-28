@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
-  fieldName, NUM_FIELDS, numError, pairError, pairErrors, pendingFields, autoSettingsSetCommand, shownSettings, type AutoSettings,
+  fieldName, NUM_FIELDS, numError, pairError, pairErrors, pendingFields, autoSettingsCommands, shownSettings, type AutoSettings,
   type NumKey, type NumRule,
 } from '../src/store/autoSettings';
 import {reduce, type AppState} from '../src/store/state';
@@ -74,7 +74,7 @@ test('the event is the store; an edit sent during a run shows until its own idle
   assert.deepEqual([shown.numerics.max_steps, shown.numerics.output_every, shown.numerics.mesh_intervals, shown.axes.plot], [25, 5, 15, 'norm']);
   assert.ok(!('fit' in shown.axes));
   assert.deepEqual([...pendingFields(s.autoSettings)].sort(), ['axes.plot', 'numerics.max_steps', 'numerics.output_every']);
-  assert.deepEqual(autoSettingsSetCommand({numerics: {max_steps: 25}}), {cmd: 'auto', op: 'set', numerics: {max_steps: 25}});
+  assert.deepEqual(autoSettingsCommands({numerics: {max_steps: 25}}).map(c => c.command), [{cmd: 'auto.configure_numerics', max_steps: 25}]);
   /* the run's idle, then each set's own: the event has the core's values */
   s = ev(s, {ev: 'idle'});
   assert.equal(shownSettings(s.autoSettings)!.numerics.max_steps, 25, 'still shown after the run ends');

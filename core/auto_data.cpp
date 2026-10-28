@@ -18,6 +18,7 @@
 #include "xpp_io.h"
 #include "json_number.h"
 #include "auto_stop.h"
+#include "auto_run.h"
 #include "xpp_job.h"
 #include "session.h"
 #include "xpp_math.h"
@@ -134,6 +135,7 @@ std::string auto_data_event_line(const Session &s, const int &point)
     o += ",\"stab\":";
     if (sh.has_stab) add_stab(o, sh);
     else o += "null";
+    o += ",\"start\":" + auto_run_start_json(s);
     o += ",\"stop\":";
     add_stop(o, s.auto_state.stop);
     o += ",\"notes\":[";

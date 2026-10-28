@@ -89,7 +89,7 @@ void auto_check_start_equilibrium(const iap_type &iap, const rap_type &rap, doub
   func(s,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr);
   const double refined=std::abs(residual[xpp::worst_residual(residual.data(),n)]);
   s.auto_state.stop.start_refined=true;
-  xpp::log(XPP_LOG_INFO,"AUTO start refined by Newton: largest residual {} -> {}\n",xpp::number(start_value),xpp::number(refined));
+  xpp::log(XPP_LOG_INFO,"AUTO start is not a steady state: equation \"{}\" had the largest residual |f(x,p)| = {}; Newton's method refined it to {} before the run\n",s.model().uvar_names[worst],xpp::number(start_value),xpp::number(refined));
 }
 
 void init_auto(AutoState &st, int ndim, bool exact)

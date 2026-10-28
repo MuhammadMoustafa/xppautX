@@ -70,10 +70,6 @@
 #define RUBBOX 0
 
 
-#define OPEN_3 1
-#define NO_OPEN_3 0
-#define OVERWRITE 0
-#define APPEND 1
 
 #include "mykeydef.h"
 namespace xpp {
@@ -371,19 +367,17 @@ struct AutoDepth {
 };
 }
 
-void do_auto(xpp::Session &s, int iold, int isave, xpp::AutoPointCode itp)
+xpp::Result<> do_auto(xpp::Session &s, int iold, int isave, xpp::AutoPointCode itp)
 {
     // A model parameter must exist before run setup selects its solver index.
-    if(s.model().nupar==0){
-      command_error("auto", "AUTO continuation needs a model parameter");
-      return;
-    }
-      /* Retaining an older branch retains its label solutions too. A fresh
-         calculation may request overwrite only after the diagram is reset. */
-      if(s.auto_state.diag_flag && isave==OVERWRITE)isave=APPEND;
-      if(const DIAGRAM *point=diagram_of_label(s,s.auto_state.bifur.irs))
-        auto_set_pars_from(s,diagram_parameters(*point).data());
-      
+    if(s.model().nupar==0)
+      return xpp::fail("auto", "AUTO continuation needs a model parameter", command_place());
+    /* Retaining an older branch retains its label solutions too. A fresh
+       calculation may request overwrite only after the diagram is reset. */
+    if(s.auto_state.diag_flag && isave==OVERWRITE)isave=APPEND;
+    if(const DIAGRAM *point=diagram_of_label(s,s.auto_state.bifur.irs))
+      auto_set_pars_from(s,diagram_parameters(*point).data());
+
     set_auto(s); /* this sets up all the continuation initialization 
                    it is equivalent to reading in auto parameters
                    and running init in auto 
@@ -424,12 +418,12 @@ void do_auto(xpp::Session &s, int iold, int isave, xpp::AutoPointCode itp)
     close_auto(s, isave); /* this copies fort.8 to the .s file and other 
                           irrelevant stuff 
 		       */
+    std::optional<xpp::Error> reported; /* what the run says went wrong, for the command to return */
     if(failed.has_value()){
       failed->what="AUTO stopped: "+failed->what;
       xpp::log_auto("{}\n",failed->text()); /* the AUTO window's Output */
-      if(failed->place.file.empty() && failed->place.line==0)
-        command_error("auto", failed->what);
-      else xpp::show_error(*failed);
+      if(failed->place.file.empty() && failed->place.line==0)failed->place=command_place();
+      reported=std::move(failed);
     }
     if(s.auto_lib.jacobian_failure){
       xpp::Error e=std::move(*s.auto_lib.jacobian_failure);
@@ -440,30 +434,22 @@ void do_auto(xpp::Session &s, int iold, int isave, xpp::AutoPointCode itp)
          its label, with the settings of this run */
       const DIAGRAM *last=s.auto_state.stop.last_why==xpp::AUTO_STOP_JACOBIAN?last_diagram(s.diagram):NULL;
       if(last!=NULL&&last->lab>0)
-        e.action=xpp::switch_to_differences(xpp::format(R"({{"cmd":"auto","op":"restart","label":{}}})",last->lab));
+        e.action=xpp::switch_to_differences(xpp::format(R"({{"cmd":"auto.run","kind":"{}","label":{}}})",xpp::auto_run_kind_name(s.auto_state.run_kind),last->lab));
       xpp::log_auto("{}\n",e.what);
-      xpp::show_error(e);
+      if(!reported)reported=std::move(e);
     }
     
     if(s.auto_state.restart_label!=0){
       xpp::log_auto("RestartLabel={:d} itp={} ips={:d} nfpar={:d} ilp={:d} isw={:d} isp={:d} A2p={} \n",s.auto_state.restart_label,xpp::auto_point_text(s.auto_state.bifur.itp), xpp::auto_problem_code(s.auto_state.bifur.ips),s.auto_state.bifur.nfpar,s.auto_state.bifur.ilp,s.auto_state.bifur.isw,s.auto_state.bifur.isp,auto_calculation_name(s.auto_state.two_param));
       s.auto_state.bifur.irs=s.auto_state.restart_label;
       s.auto_state.restart_label=0;
-      do_auto(s, iold,isave, s.auto_state.bifur.itp);
-      
+      const xpp::Result<> again=do_auto(s, iold,isave, s.auto_state.bifur.itp);
+      if(!again&&!reported)reported=again.error();
     }
      ping();
       redraw_params();
-}
-
-void auto_restart(xpp::Session &s, int label)
-{
-  if(!auto_grab_label(s,label)){
-    command_error("auto",xpp::format("Restart: no point labelled {}",label));
-    return;
-  }
-  s.auto_state.bifur.irs=label;
-  do_auto(s,OPEN_3,APPEND,s.auto_state.bifur.itp);
+    if(reported)return std::unexpected(std::move(*reported));
+    return {};
 }
 
 void auto_label_parameters(const xpp::Session &s, int label, double *parameters)
@@ -593,7 +579,7 @@ void auto_per_par(xpp::Session &s)
 static xpp::FormField num_form_field(int i, double value)
 {
   const std::string name=xpp::auto_settings_num_label(i);
-  switch(xpp::auto_settings_num_shape(i)){
+  switch(xpp::auto_num_shapes[static_cast<std::size_t>(i)]){
   case xpp::AutoFieldShape::boolean: return xpp::FormField::boolean(name,value!=0);
   case xpp::AutoFieldShape::choice: {
     const auto names=xpp::auto_settings_num_choices(i);
@@ -620,7 +606,7 @@ void auto_num_par(xpp::Session &s)
   for(int i=0;i<xpp::AUTO_NUM_N;++i){
     const xpp::FormField &f=fields[static_cast<std::size_t>(i)];
     points.has_num[i]=1;
-    switch(xpp::auto_settings_num_shape(i)){
+    switch(xpp::auto_num_shapes[static_cast<std::size_t>(i)]){
     case xpp::AutoFieldShape::boolean: points.num[i]=f.flag; break;
     case xpp::AutoFieldShape::choice:
     case xpp::AutoFieldShape::whole: points.num[i]=f.whole; break;
@@ -797,29 +783,57 @@ void auto_zoom_in(xpp::Session &s, int i1, int j1, int i2, int j2)
 	  s.auto_state.axes().ymax=y1+dy/2;
   }
   else
-  {           
-	  s.auto_state.axes().xmin=x1;
-	  s.auto_state.axes().ymin=y1;
-	  s.auto_state.axes().xmax=x2;
-	  s.auto_state.axes().ymax=y2;     
-  }
-  	
+    auto_zoom_to(s,x1,x2,y1,y2);
+}
+
+void auto_hide_earlier(xpp::Session &s)
+{
+  s.auto_view.earlier=auto_points_held(s);
+  s.auto_view.show_earlier=false;
+  draw_bif_axes(s);
+}
+
+void auto_zoom_to(xpp::Session &s, double x1, double x2, double y1, double y2)
+{
+  s.auto_state.axes().xmin=x1;
+  s.auto_state.axes().ymin=y1;
+  s.auto_state.axes().xmax=x2;
+  s.auto_state.axes().ymax=y2;
+}
+
+void auto_scroll_by(xpp::Session &s, double dx, double dy)
+{
+  s.auto_state.axes().xmin+=dx;
+  s.auto_state.axes().xmax+=dx;
+  s.auto_state.axes().ymin+=dy;
+  s.auto_state.axes().ymax+=dy;
+}
+
+/* the view shows what it did, scaled so that what it showed now fills the fractions (a1, a2) of its width and (b1, b2) of its
+   height (the box a zoom out shrinks it into, as fractions of the range shown) */
+static void auto_zoom_out_fractions(xpp::Session &s, double a1, double a2, double b1, double b2)
+{
+  const double xmin=s.auto_state.axes().xmin,xmax=s.auto_state.axes().xmax,ymin=s.auto_state.axes().ymin,ymax=s.auto_state.axes().ymax;
+  const double x1=(a1*xmax-a2*xmin)/(a1-a2);
+  const double x2=(xmin-xmax+a1*xmax-a2*xmin)/(a1-a2);
+  const double y1=(b1*ymax-b2*ymin)/(b1-b2);
+  const double y2=(ymin-ymax+b1*ymax-b2*ymin)/(b1-b2);
+  auto_zoom_to(s,x1,x2,y1,y2);
 }
 
 void auto_zoom_out(xpp::Session &s, int i1, int j1, int i2, int j2)
 {
-   double x1=0.0,y1=0.0,x2=0.0,y2=0.0;
+   double x1=0.0,y1=0.0;
    int temp;
    double dx = (s.auto_state.axes().xmax-s.auto_state.axes().xmin);
    double dy = (s.auto_state.axes().ymax-s.auto_state.axes().ymin);
-   double a1,a2,b1,b2;
 
    if(i1>i2){temp=i1;i1=i2;i2=temp;}
    if(j2>j1){temp=j1;j1=j2;j2=temp;}
-   a1=static_cast<double>((i1-s.auto_state.bifur.x0))/static_cast<double>(s.auto_state.bifur.wid);
-      a2=static_cast<double>((i2-s.auto_state.bifur.x0))/static_cast<double>(s.auto_state.bifur.wid);
-      b1=static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j1))/static_cast<double>(s.auto_state.bifur.hgt);
-      b2=static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j2))/static_cast<double>(s.auto_state.bifur.hgt);
+   const double a1=static_cast<double>((i1-s.auto_state.bifur.x0))/static_cast<double>(s.auto_state.bifur.wid);
+   const double a2=static_cast<double>((i2-s.auto_state.bifur.x0))/static_cast<double>(s.auto_state.bifur.wid);
+   const double b1=static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j1))/static_cast<double>(s.auto_state.bifur.hgt);
+   const double b2=static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j2))/static_cast<double>(s.auto_state.bifur.hgt);
 
    if((i1==i2)||(j1==j2))
    { 
@@ -834,18 +848,14 @@ void auto_zoom_out(xpp::Session &s, int i1, int j1, int i2, int j2)
 	  s.auto_state.axes().ymax=y1+dy/2;
   }
   else
-  {           
-    x1=(a1*s.auto_state.axes().xmax-a2*s.auto_state.axes().xmin)/(a1-a2);
-    x2=(s.auto_state.axes().xmin-s.auto_state.axes().xmax+a1*s.auto_state.axes().xmax-a2*s.auto_state.axes().xmin)/(a1-a2);
-    y1=(b1*s.auto_state.axes().ymax-b2*s.auto_state.axes().ymin)/(b1-b2);
-    y2=(s.auto_state.axes().ymin-s.auto_state.axes().ymax+b1*s.auto_state.axes().ymax-b2*s.auto_state.axes().ymin)/(b1-b2);
-	  s.auto_state.axes().xmin=x1;
-	  s.auto_state.axes().ymin=y1;
-	  s.auto_state.axes().xmax=x2;
-	  s.auto_state.axes().ymax=y2;
-  }
+    auto_zoom_out_fractions(s,a1,a2,b1,b2);
+}
 
-} 
+void auto_zoom_out_to(xpp::Session &s, double x1, double x2, double y1, double y2)
+{
+  const double dx=s.auto_state.axes().xmax-s.auto_state.axes().xmin,dy=s.auto_state.axes().ymax-s.auto_state.axes().ymin;
+  auto_zoom_out_fractions(s,(x1-s.auto_state.axes().xmin)/dx,(x2-s.auto_state.axes().xmin)/dx,(y1-s.auto_state.axes().ymin)/dy,(y2-s.auto_state.axes().ymin)/dy);
+}
 
 void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> ubar, double a)
 {
@@ -1375,785 +1385,13 @@ void get_start_orbit(xpp::Session &s, double *u, double t, double p, int n)
     u[j]=(1.0-lam)*s.data_store.col[j+1][i1]+lam*s.data_store.col[j+1][i2];
 }
   
-void auto_start_choice(xpp::Session &s)
+
+xpp::Result<> load_auto_orbit(xpp::Session &s, std::optional<int> label)
 {
-  char ch;
-  s.auto_state.homo_flag=HomoclinicRun::None;
-  if(xpp::solver_info(s.numerics.method).traits.discrete){
-    auto_new_discrete(s);
-    return;
-  }
-  ch=static_cast<char>(menu_choose(&menu_auto_start,0));
-   if(ch=='s'){
-    auto_new_ss(s);
-    return;
-  }
-  /* the other starts take the orbit last integrated (autpp.cpp stpnt:
-     get_start_period, get_start_orbit) */
-  if(strchr("pbhe",ch)!=NULL&&ch!=0&&s.data_store.rows<2){
-    command_error("auto", "Integrate first: this start takes its orbit from the last integration");
-    return;
-  }
-  if(ch=='p'){
-  auto_start_at_per(s);
-    return;
-  }
- if(ch=='b'){
-   s.auto_state.bifur.nbc=s.model().node;
-   auto_start_at_bvp(s);
-   return;
- }
- if(ch=='h'){
-   s.auto_state.homo_flag=HomoclinicRun::Homoclinic;
-   auto_start_at_homoclinic(s);
-     return;
-   }
-     
- if(ch=='e'){
-   s.auto_state.homo_flag=HomoclinicRun::Heteroclinic;
-   auto_start_at_homoclinic(s);
-   return;
- }
-
-}
-
-void torus_choice(xpp::Session &s)
-{
-  char ch;
-  ch=static_cast<char>(menu_choose(&menu_auto_torus,0));
-   if(ch=='e'){
-    auto_new_per(s);
-    return;
-  }
-  if(ch=='f'){
-      auto_2p_fixper(s);
-    return;
-  }
-  if(ch=='t'){
-    auto_torus(s);
-    return;
-    } 
-}
- 
-void per_doub_choice(xpp::Session &s)
-{
-  char ch;
-  ch=static_cast<char>(menu_choose(&menu_auto_per_doub,0));
-  if(ch=='d'){
-    auto_period_double(s);
-    return;
-  }
-   if(ch=='e'){
-    auto_new_per(s);
-    return;
-  }
-  if(ch=='f'){
-      auto_2p_fixper(s);
-    return;
-  }
-  if(ch=='t'){
-    auto_twopar_double(s);
-    return;
-  }
-}
-  
-void periodic_choice(xpp::Session &s)
-{
-  char ch;
-  ch=static_cast<char>(menu_choose(&menu_auto_periodic,0));
-  if(ch=='e'){
-    auto_new_per(s);
-    return;
-  }
-  if(ch=='f'){
-    auto_2p_fixper(s);
-    return;
-  }
-
-}
-
-void hopf_choice(xpp::Session &s)
-{
-  if(xpp::solver_info(s.numerics.method).traits.discrete){
-    auto_2p_hopf(s);
-    return;
-  }
-
-  char ch;
-  ch=static_cast<char>(menu_choose(&menu_auto_hopf,0));
-
-  if(ch=='p'){
-    auto_new_per(s);
-    return;
-  }
-  if(ch=='e'){
-    auto_extend_ss(s);
-    return;
-  }
-  if(ch=='n'){
-    auto_new_ss(s);
-    return;
-  }
-  if(ch=='t'){
-    auto_2p_hopf(s);
-    return;
-  }
-}
-
-void auto_run(xpp::Session &s)
-{
-  char ch;
-  if(s.auto_state.grabpt.flag==0){   /* the first call to AUTO   */
-    auto_start_choice(s);
-    ping();return;
-  }
-  if(s.auto_state.grabpt.lab==0){
-    ch=static_cast<char>(TwoChoice("YES","NO","Not Labeled Pt: New Start?","y"));
-    if(ch=='y')auto_start_diff_ss(s);
-    ping();return;
-  }
-    
-  const xpp::AutoPointCode itp=s.auto_state.grabpt.itp;
-  const xpp::AutoProblem ips=s.auto_state.bifur.ips;
-  /* AUTO's own: the kind (itp%10) and start (itp/10) of a UZ or MX point
-     are negative, so a negative code names none of the points below */
-  const bool plain=itp.kind>=xpp::AutoPointKind::Regular;
-  const auto involves=[&](xpp::AutoPointKind k){ return plain && (itp.kind==k || itp.start==k); };
-  if(s.auto_state.grabpt.curve==auto_neutral_saddle_curve){
-    auto_2p_hopf(s);
-    ping();return;
-  }
-  if(involves(xpp::AutoPointKind::Hopf)){  /* its a HOPF Point  */
-    hopf_choice(s);
-    ping();return;
-  }
-  if(involves(xpp::AutoPointKind::PeriodDoubling)){ /* period doubling */
-    per_doub_choice(s);
-    ping();return;
-  }
-  if(ips==xpp::AutoProblem::Homoclinic){
-    auto_homo_choice(s, itp);
-    ping(); return;
-  }
-  if(involves(xpp::AutoPointKind::Fold)){ /* limit point */
-     s.auto_state.bifur.ips=xpp::solver_info(s.numerics.method).traits.discrete ? xpp::AutoProblem::DiscreteMap : xpp::AutoProblem::SteadyState;
-     auto_2p_limit(s, s.auto_state.bifur.ips);
-    ping();return;
-  }
-  if(involves(xpp::AutoPointKind::CycleFold)){ /* limit pt of periodic or BVP */
-    if(s.auto_state.bifur.ips!=xpp::AutoProblem::BoundaryValue)
-      s.auto_state.bifur.ips=xpp::AutoProblem::Periodic;  /* this is a bit dangerous - the idea is that
-                      if you are doing BVPs, then that is all you are
-                      doing  
-		   */
-    auto_2p_limit(s, s.auto_state.bifur.ips);
-    ping(); return;
-  }
-  if(involves(xpp::AutoPointKind::CycleBranch)||involves(xpp::AutoPointKind::BranchPoint)){ /* branch point  */ 
-
-  auto_branch_choice(s, s.auto_state.grabpt.ibr,ips);
-    ping();
-    return;
-  }
-  if(involves(xpp::AutoPointKind::NeimarkSacker)){ /* Torus 2 parameter */
-    torus_choice(s);
-    ping();
-    return;
-  }
-  if(s.auto_state.grabpt.ibr<0) { /* its a periodic -- just extend it  */
-    periodic_choice(s);
-    ping();return;
-  }
-  if(s.auto_state.grabpt.ibr>0&&ips!=xpp::AutoProblem::BoundaryValue){ /*  old steady state -- just extend it  */
-    auto_extend_ss(s);
-    ping();return;
-  }
-  if(s.auto_state.grabpt.ibr>0&&ips==xpp::AutoProblem::BoundaryValue){
-    auto_extend_bvp(s);
-    ping();
-    return;
-  }
-}
-
-void auto_homo_choice(xpp::Session &s, xpp::AutoPointCode itp)
-{
-  if(!itp.is(xpp::AutoPointKind::CycleFold))
-    auto_extend_homoclinic(s);
-  
-}
-void auto_branch_choice(xpp::Session &s, int ibr, xpp::AutoProblem ips)
-{
-
-  char ch;
-  xpp::AutoProblem ipsuse;
-  ch=static_cast<char>(menu_choose(&menu_auto_branch,0));
-
-  if(ch=='s'){
-       if(ibr<0&&ips==xpp::AutoProblem::Periodic)
-      auto_switch_per(s);
-    else 
-      if(ips==xpp::AutoProblem::BoundaryValue)
-	auto_switch_bvp(s);
-      else
-	auto_switch_ss(s);
-    return;
-  }
-  if(ch=='e'){
-    auto_extend_ss(s);
-    return;
-  }
-  if(ch=='n'){
-    auto_new_ss(s);
-    return;
-  }
-  if(ch=='t'){
- 
-    ipsuse=xpp::AutoProblem::SteadyState;
-    if(ips==xpp::AutoProblem::BoundaryValue)
-      ipsuse=xpp::AutoProblem::BoundaryValue;
-    if(ibr<0)
-      ipsuse=xpp::AutoProblem::Periodic;
-    auto_2p_branch(s, ipsuse);
-    return;
-  }
-}
-
-/*  RUN AUTO HERE */
-/*  these are for setting the parameters to run for different choices    */
-
-/*  Just a short recall of the AUTO parameters
-   NBC = 0 unless it really is a BVP problem (not periodics or heteroclinics)
-   NICP = 1 for 1 parameter and 2 fro 2 parameter and the rest will 
-            be taken care of in AUTO  and I think 2 for hetero?
-   ILP = 1 (0) detection (no) of folds usually 1
-   ISP = 2  detect all special points! but I think maybe set to 0, 1 for 
-            BVP I think 
-            for 2 parameter continuation ?
-   ISW = -1 branch switching 1 is for normal 2 for two parameter of folds, tori,HB, PD!!
-
-   IPS   1 - std for steady states of ODEs
-         -1 maps
-         2 periodic orbits
-         4 BVP  (set NBC=NODE)
-         9 Homoclinic
-
-for example   2 P continuation of HB
-              IPS=1 ILP=1 NICP=2 ISP=0 ISW=2 
-BVP problem   IPS=4, NICP=1 NBC=NODE ISP=1 ISW=1 ILP=1
-
-discrete dynamical system with two par of Hopf
-first IPS=-1 ISP=ISW=1  then 
-NICP=2, ISW=2 at Hopf
-
-*/   
-
-/* Start a new point for bifurcation diagram   */
-
-void auto_start_diff_ss(xpp::Session &s)
-{
-  s.auto_state.type_of_calc=EQ1;
-  s.auto_state.bifur.ips=xpp::AutoProblem::SteadyState;
-  if(xpp::solver_info(s.numerics.method).traits.discrete)s.auto_state.bifur.ips=xpp::AutoProblem::DiscreteMap;
-  s.auto_state.bifur.irs=0;
-  s.auto_state.bifur.itp=xpp::AutoPointCode{};
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=1;
-  s.auto_state.bifur.isp=1;
-    if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
-  s.auto_state.bifur.nfpar=1;
-  s.auto_state.two_param=no_calculation;
-  do_auto(s, NO_OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-
-void auto_start_at_bvp(xpp::Session &s)
-{
-  int opn=NO_OPEN_3,cls=OVERWRITE;
- if(!xpp::ok_or_show(xpp::compile_bvp(s)))
-    return; 
-  s.auto_state.type_of_calc=BV1;
- s.auto_state.bifur.ips=xpp::AutoProblem::BoundaryValue;
-  s.auto_state.bifur.irs=0;
-  s.auto_state.bifur.itp=xpp::AutoPointCode{};
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=1;
-
-  s.auto_state.bifur.isp=2;
-  if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
-    
-  s.auto_state.bifur.nfpar=1;
-  s.auto_state.two_param=no_calculation;
-  s.auto_state.new_period_flag=true;
-  do_auto(s, opn,cls,s.auto_state.bifur.itp);
-}
-
-void auto_start_at_per(xpp::Session &s)
-{
-  int opn=NO_OPEN_3,cls=OVERWRITE;
-  
-  s.auto_state.type_of_calc=PE1;
-  s.auto_state.bifur.ips=xpp::AutoProblem::Periodic;
-  s.auto_state.bifur.irs=0;
-  s.auto_state.bifur.itp=xpp::AutoPointCode{};
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=1;
-
-  s.auto_state.bifur.isp=2;
-    if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
-  s.auto_state.bifur.nfpar=1;
-  s.auto_state.two_param=no_calculation;
-  s.auto_state.new_period_flag=true;
-  do_auto(s, opn,cls,s.auto_state.bifur.itp);
-}
-
-void auto_new_ss(xpp::Session &s)
-{
-  int ans;
-  int opn=NO_OPEN_3,cls=OVERWRITE;
-  s.auto_state.new_period_flag=false;
-
-  if(diagram_count(s.diagram)>1){
-    ans=reset_auto(s);
-    if ((ans!=0) && (ans!=1))
-    {
-       xpp::log(XPP_LOG_WARN, "Boolean response expected.\n");
-    }
-  }
-      s.auto_state.type_of_calc=EQ1;
-  s.auto_state.bifur.ips=xpp::AutoProblem::SteadyState;
-  s.auto_state.bifur.irs=0;
-  s.auto_state.bifur.itp=xpp::AutoPointCode{};
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=1;
-  s.auto_state.bifur.isp=1;
-      if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;;
-  s.auto_state.bifur.nfpar=1;
-   s.auto_state.two_param=no_calculation;
-  do_auto(s, opn,cls,s.auto_state.bifur.itp);
-}
-
-void auto_new_discrete(xpp::Session &s)
-{
-  int ans;
-  int opn=NO_OPEN_3,cls=OVERWRITE;
-  s.auto_state.new_period_flag=false;
-  if(diagram_count(s.diagram)>1){
-    ans=reset_auto(s);
-    if ((ans!=0) && (ans!=1))
-    {
-       xpp::log(XPP_LOG_WARN, "Boolean response expected.\n");
-    }
-  }
-  s.auto_state.type_of_calc=DI1;
-  s.auto_state.bifur.ips=xpp::AutoProblem::DiscreteMap;
-  s.auto_state.bifur.irs=0;
-  s.auto_state.bifur.itp=xpp::AutoPointCode{};
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=1;
-  s.auto_state.bifur.isp=1;
-    if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
-  s.auto_state.bifur.nfpar=1;
-   s.auto_state.two_param=no_calculation;
-  do_auto(s, opn,cls,s.auto_state.bifur.itp);
-}
- 
-void auto_extend_ss(xpp::Session &s)
-{
-
-  /*Prevent crash on hopf of infinite period. here
-  
-  Typical abort message after crash is currently something like:
-  
-  fmt: read unexpected character
-  apparent state: unit 3 named ~/fort.3
-  last format: (4x,1p7e18.10)
-  lately reading sequential formatted external IO
-  
-  */
-  
-  if (isinf(s.auto_state.grabpt.per))
-  {
-  	command_error("auto", "Can't continue infinite period Hopf!");
-  	return;
-  } 
-  
-      s.auto_state.type_of_calc=EQ1;
-  s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
-  s.auto_state.bifur.nfpar=s.auto_state.grabpt.nfpar;
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=1;
-  s.auto_state.bifur.ips=xpp::AutoProblem::SteadyState;
-  if(xpp::solver_info(s.numerics.method).traits.discrete)
-    s.auto_state.bifur.ips=xpp::AutoProblem::DiscreteMap;
-  s.auto_state.bifur.isp=1;
-    if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
-    
-  s.auto_state.two_param=no_calculation;
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-
-int get_homo_info(xpp::Session &s, int *nun,int *nst,double *ul, double *ur)
-{
-  int n=2+2*s.model().node;
-  std::vector<std::string> v(n);
-  int i;
-  int flag=0;
-  /* do_string_box_of's names are read-only (const char *const *): plain
-     std::strings own the text, names just points at them for the call */
-  std::vector<std::string> labels(n);
-  labels[0]="dim unstable";
-  v[0] = xpp::format("{:d}", *nun);
-  labels[s.model().node+1]="dim stable";
-  v[s.model().node+1] = xpp::format("{:d}", *nst);
-  for(i=0;i<s.model().node;i++){
-    labels[i+1]=s.model().uvar_names[i]+"_L";
-    v[i+1] = xpp::format("{:g}", ul[i]);
-    labels[i+2+s.model().node]=s.model().uvar_names[i]+"_R";
-    v[i+2+s.model().node] = xpp::format("{:g}", ur[i]);
-  }
-  std::vector<const char*> names(n);
-  for(i=0;i<n;i++) names[i]=labels[i].c_str();
-
-  {
-    std::vector<int> kinds(n, XPP_FIELD_NUMBER);
-    kinds[0]=XPP_FIELD_INTEGER;
-    kinds[s.model().node+1]=XPP_FIELD_INTEGER;
-    flag=do_string_box_of(n/2,2,"Homoclinic info",names.data(),v,kinds.data());
-  }
-  if(flag!=0){
-    const int unstable=atoi(v[0].c_str()),stable=atoi(v[s.model().node+1].c_str());
-    /* HomCont's projection takes that many directions at each end: one
-       condition for each of the equilibrium's dimensions */
-    if(unstable<0||stable<0||unstable+stable!=s.model().node){
-      command_error("auto",xpp::format("dim unstable ({}) and dim stable ({}) must add up to the number of variables, {}",
-                                       unstable,stable,s.model().node));
-      return 0;
-    }
-    *nun=unstable;
-    *nst=stable;
-    for(i=0;i<s.model().node;i++){
-      ul[i]=atof(v[i+1].c_str());
-      if(s.auto_state.homo_flag==HomoclinicRun::Heteroclinic)
-	ur[i]=atof(v[i+2+s.model().node].c_str());
-    }
-  }
-  return flag;
-}
-
-void auto_extend_homoclinic(xpp::Session &s)
-{
-   s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
-
-      s.auto_state.type_of_calc=HO2;
-  s.auto_state.two_param=HO2;
-  s.auto_state.new_period_flag=true;
-  s.auto_state.bifur.ips=xpp::AutoProblem::Homoclinic;
-
-  s.auto_state.bifur.nfpar=2;
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=1;
-  s.auto_state.bifur.isp=0;
-  s.auto_state.bifur.nbc=0;
-  
-  if(s.auto_state.homo_flag==HomoclinicRun::Homoclinic)
-    s.auto_state.run.iequib=1;
-  if(s.auto_state.homo_flag==HomoclinicRun::Heteroclinic)
-    s.auto_state.run.iequib=-2;
-
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-
-}
-
-void auto_start_at_homoclinic(xpp::Session &s)
-{
-  int opn=NO_OPEN_3,cls=OVERWRITE;
-  int flag;
-  s.auto_state.bifur.irs=0;
-  s.auto_state.bifur.itp=xpp::AutoPointCode{};
-    s.auto_state.type_of_calc=HO2;
-
-  s.auto_state.two_param=HO2;
-  s.auto_state.new_period_flag=true;
-  s.auto_state.bifur.ips=xpp::AutoProblem::Homoclinic;
-
-  s.auto_state.bifur.nfpar=2;
-  s.auto_state.bifur.ilp=1; /* maybe 1 someday also in extend homo, but for now, no 3 param allowed    */
-  s.auto_state.bifur.isw=1;
-  s.auto_state.bifur.isp=0;
-  s.auto_state.bifur.nbc=0;
-  
-  if(s.auto_state.homo_flag==HomoclinicRun::Homoclinic)
-    s.auto_state.run.iequib=1;
-  if(s.auto_state.homo_flag==HomoclinicRun::Heteroclinic)
-    s.auto_state.run.iequib=-2;
-  flag=get_homo_info(s, &s.auto_state.run.nunstab,&s.auto_state.run.nstab,s.auto_state.homo_l.data(),s.auto_state.homo_r.data());
-  /* the shift is measured from the equilibrium the form has just given */
-  if(flag&&s.auto_state.homo_flag==HomoclinicRun::Homoclinic)find_best_homo_shift(s, s.model().node);
-  if(flag)do_auto(s, opn,cls,s.auto_state.bifur.itp);
-
-}
-    
-void auto_new_per(xpp::Session &s) /* same for extending periodic  */
-{
-  s.auto_state.blrtn.torper=s.auto_state.grabpt.torper;
-  
-  /*Prevent crash on hopf of infinite period. here
-  
-  Typical abort message after crash is currently something like:
-  
-  fmt: read unexpected character
-  apparent state: unit 3 named ~/fort.3
-  last format: (4x,1p7e18.10)
-  lately reading sequential formatted external IO
-  
-  */
-  
-  if (isinf(s.auto_state.grabpt.per))
-  {
-  	command_error("auto", "Can't continue infinite period Hopf.");
-  	return;
-  } 	
-      s.auto_state.type_of_calc=PE1;
-  s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
-  s.auto_state.bifur.nfpar=1;
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=1; /* -1 */
-  s.auto_state.bifur.isp=2;
-    if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
-  s.auto_state.bifur.ips=xpp::AutoProblem::Periodic;
-    s.auto_state.two_param=no_calculation;
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-
-void auto_extend_bvp(xpp::Session &s) /* extending bvp */
-{
-      s.auto_state.type_of_calc=BV1;
-  s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
-  s.auto_state.bifur.nfpar=s.auto_state.grabpt.nfpar;
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=1;
-  s.auto_state.bifur.isp=2;
-    if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
-  s.auto_state.bifur.ips=xpp::AutoProblem::BoundaryValue;
-    s.auto_state.two_param=no_calculation;
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-
-void auto_switch_per(xpp::Session &s)
-{
-      s.auto_state.type_of_calc=PE1;
-  s.auto_state.blrtn.torper=s.auto_state.grabpt.torper;
-  s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
-  s.auto_state.bifur.nfpar=1; /*s.auto_state.grabpt.nfpar;*/
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=-1;
-  s.auto_state.bifur.isp=2;
-    if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
-  s.auto_state.bifur.ips=xpp::AutoProblem::Periodic;
-  s.auto_state.two_param=no_calculation;
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-
-void auto_switch_bvp(xpp::Session &s)
-{
-     s.auto_state.type_of_calc=BV1;
-  s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
-  s.auto_state.bifur.nfpar=s.auto_state.grabpt.nfpar;
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=-1;
-  s.auto_state.bifur.isp=2;
-    if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
-  s.auto_state.bifur.ips=xpp::AutoProblem::BoundaryValue;
-  s.auto_state.two_param=no_calculation;
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-
-void auto_switch_ss(xpp::Session &s)
-{
-
-      s.auto_state.type_of_calc=EQ1;
-  s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
-  s.auto_state.bifur.nfpar=s.auto_state.grabpt.nfpar;
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=-1;
-  s.auto_state.bifur.isp=1;
-    if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
-  s.auto_state.bifur.ips=xpp::AutoProblem::SteadyState;
-  if(xpp::solver_info(s.numerics.method).traits.discrete)
-    s.auto_state.bifur.ips=xpp::AutoProblem::DiscreteMap;
-  s.auto_state.two_param=no_calculation;
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-
-void auto_2p_limit(xpp::Session &s, xpp::AutoProblem ips)
-{
-  xpp::AutoProblem ipsuse=xpp::AutoProblem::SteadyState;
-  s.auto_state.blrtn.torper=s.auto_state.grabpt.torper;
-  s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  const xpp::AutoPointCode grabbed=s.auto_state.grabpt.itp;
-  s.auto_state.bifur.itp=grabbed;
-  s.auto_state.bifur.nfpar=2;
-  s.auto_state.bifur.ilp=0; /* was 1 */
-  s.auto_state.bifur.isw=2;
-  s.auto_state.bifur.isp=1; /* was 2 */
-  /* fix ips now */
-  if(ips==xpp::AutoProblem::DiscreteMap) ipsuse=ips;
-  if(ips==xpp::AutoProblem::BoundaryValue)
-    ipsuse=xpp::AutoProblem::BoundaryValue;
-  else {
-    if(grabbed.kind==xpp::AutoPointKind::CycleFold||grabbed.start==xpp::AutoPointKind::CycleFold)
-      ipsuse=xpp::AutoProblem::Periodic;
-  }
-
-  if(!xpp::problem_is_steady_or_map(ipsuse))
-    s.auto_state.bifur.isp=ipsuse==xpp::AutoProblem::Periodic && !s.auto_state.suppress_bp ? 2 : 0;
-  s.auto_state.bifur.ips=ipsuse;
-  s.auto_state.two_param=LPP2;
-  if(xpp::problem_is_steady_or_map(ipsuse)){
-    s.auto_state.type_of_calc=LPE2;
-    s.auto_state.two_param=LPE2;
-  }
-  else{
-    s.auto_state.type_of_calc=LPP2;
-    s.auto_state.two_param=LPP2;
-  }
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-
-namespace {
-/* continue a grabbed period doubling (PD2) or torus bifurcation (TR2) in
-   two parameters: the same periodic restart, told apart by its kind */
-void auto_2p_periodic(xpp::Session &s, AutoCalculation kind)
-{
-  s.auto_state.blrtn.torper=s.auto_state.grabpt.torper;
-  s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
-  s.auto_state.bifur.nfpar=2;
-  s.auto_state.two_param=kind;
-  s.auto_state.type_of_calc=kind;
-  s.auto_state.bifur.ips=xpp::solver_info(s.numerics.method).traits.discrete ? xpp::AutoProblem::DiscreteMap : xpp::AutoProblem::Periodic;
-  s.auto_state.bifur.ilp=0;
-  s.auto_state.bifur.isw=2;
-  s.auto_state.bifur.isp=s.auto_state.suppress_bp ? 0 : (s.auto_state.bifur.ips==xpp::AutoProblem::DiscreteMap ? 1 : 2);
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-} // namespace
-
-void auto_twopar_double(xpp::Session &s)
-{
-  auto_2p_periodic(s, PD2);
-}
-
-void auto_torus(xpp::Session &s)
-{
-  auto_2p_periodic(s, TR2);
-}
-
-void auto_2p_branch(xpp::Session &s, xpp::AutoProblem ips)
-{
- xpp::AutoProblem ipsuse=xpp::AutoProblem::SteadyState;
- s.auto_state.blrtn.torper=s.auto_state.grabpt.torper;
-  s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  const xpp::AutoPointCode grabbed=s.auto_state.grabpt.itp;
-  s.auto_state.bifur.itp=grabbed;
-  s.auto_state.bifur.nfpar=2;
-  s.auto_state.bifur.ilp=0; /* was 1 */
-  s.auto_state.bifur.isw=2;
-  s.auto_state.bifur.isp=0; /* was 2 */
-  if(ips==xpp::AutoProblem::BoundaryValue)
-    ipsuse=xpp::AutoProblem::BoundaryValue;
-  else {
-    if(grabbed.kind==xpp::AutoPointKind::CycleBranch||grabbed.start==xpp::AutoPointKind::CycleBranch)
-      ipsuse=xpp::AutoProblem::Periodic;
-  }
-
-  s.auto_state.bifur.ips=ipsuse;
-  if(xpp::solver_info(s.numerics.method).traits.discrete)
-    s.auto_state.bifur.ips=xpp::AutoProblem::DiscreteMap;
-  s.auto_state.two_param=BR2;
-      s.auto_state.type_of_calc=BR2;
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-
-void auto_2p_fixper(xpp::Session &s)
-{
-  s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
-  s.auto_state.bifur.nfpar=2;
-  s.auto_state.bifur.ilp=1; /* was1 */
-  s.auto_state.bifur.isw=1;
-  s.auto_state.bifur.isp=0;
-  s.auto_state.bifur.ips=xpp::AutoProblem::Periodic;
-  s.auto_state.two_param=FP2;
-  s.auto_state.type_of_calc=FP2;
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-
-void auto_2p_hopf(xpp::Session &s)
-{
-
-  /*Prevent crash on hopf of infinite period. here
-  
-  Typical abort message after crash is currently something like:
-  
-  fmt: read unexpected character
-  apparent state: unit 3 named ~/fort.3
-  last format: (4x,1p7e18.10)
-  lately reading sequential formatted external IO
-  
-  */
-  
-  if (isinf(s.auto_state.grabpt.per))
-  {
-  	command_error("auto", "Can't continue infinite period Hopf.");
-  	return;
-  } 
-  
-  s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
-  s.auto_state.bifur.nfpar=2;
-  s.auto_state.bifur.ilp=0; /* was 1 */
-  s.auto_state.bifur.isw=2;
-  s.auto_state.bifur.isp=1;
-  s.auto_state.bifur.ips=xpp::AutoProblem::SteadyState;
-  if(xpp::solver_info(s.numerics.method).traits.discrete)
-    s.auto_state.bifur.ips=xpp::AutoProblem::DiscreteMap;
-  if(s.auto_state.bifur.ips!=xpp::AutoProblem::SteadyState) s.auto_state.bifur.isp=0;
-  s.auto_state.two_param=auto_hopf_curve;
-    s.auto_state.type_of_calc=auto_hopf_curve;
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-
-void auto_period_double(xpp::Session &s)
-{
-
- s.auto_state.blrtn.torper=s.auto_state.grabpt.torper;
-  s.auto_state.bifur.ntst=2*s.auto_state.bifur.ntst;
-  s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
-  s.auto_state.bifur.nfpar=1; /* s.auto_state.grabpt.nfpar; */
-
-  s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
-  s.auto_state.bifur.ilp=1;
-  s.auto_state.bifur.isw=-1;
-  s.auto_state.type_of_calc=PE1;
-  s.auto_state.bifur.isp=2;
-    if(s.auto_state.suppress_bp) s.auto_state.bifur.isp=0;
-  s.auto_state.bifur.ips=xpp::AutoProblem::Periodic;
-  s.auto_state.two_param=no_calculation;
-  do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
-}
-
-/**********   END RUN AUTO *********************/
-
-void load_auto_orbit(xpp::Session &s)
-{
-  xpp::ok_or_show(load_auto_orbitx(s,s.auto_state.grabpt.ibr,s.auto_state.grabpt.flag,s.auto_state.grabpt.lab,s.auto_state.grabpt.per));
+  if(!label)return load_auto_orbitx(s,s.auto_state.grabpt.ibr,s.auto_state.grabpt.flag,s.auto_state.grabpt.lab,s.auto_state.grabpt.per);
+  const DIAGRAM *d=diagram_of_label(s,*label);
+  if(!d)return xpp::fail("auto",xpp::format("No point labelled {}",*label),command_place());
+  return load_auto_orbitx(s,d->ibr,1,*label,d->per);
 }
 xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, double per)
 {
@@ -2298,13 +1536,14 @@ void load_auto(xpp::Session &s)
 }
 
 /* Foreign XPPAUT diagrams remain an explicit import, separate from Load. */
-static void import_auto(xpp::Session &s)
+xpp::Result<> import_auto(xpp::Session &s, const std::optional<std::string> &file)
 {
   std::string filename=xpp::files::output_name(s.model().this_file, ".auto");
-  if(!file_selector("Import XPPAUT diagram",filename,"*.auto"))return;
+  if(file)filename=*file;
+  else if(!file_selector("Import XPPAUT diagram",filename,"*.auto"))return {};
   xpp::UniqueFile fp=xpp::open_read(filename);
-  if(!fp){show_error(xpp::files::open_error("AUTO",filename));return;}
-  xpp::ok_or_show(import_auto_file(s,fp.get(),filename));
+  if(!fp)return std::unexpected(xpp::files::open_error("AUTO",filename));
+  return import_auto_file(s,fp.get(),filename);
 }
 
 std::string auto_solutions_file(const xpp::Session &s)
@@ -2562,13 +1801,15 @@ void get_a_row(double *u, double *t, int n, FILE *fp)
 /* the diagram and its eigenvalues/multipliers as CSV (csv_export.h),
    pandas.read_csv/MATLAB readtable read with no options; one file dialog
    answer names both files (csv_export_diagram_pair derives the second) */
-void export_auto_csv(xpp::Session &s)
+xpp::Result<> export_auto_csv(xpp::Session &s, const std::optional<std::string> &file)
 {
-  if(!xpp::save_ready(diagram_count(s.diagram)>=2))return;
+  if(diagram_count(s.diagram)<2)return xpp::fail("auto","The diagram has no points to write",command_place());
   std::string filename=xpp::files::output_name(s.model().this_file,".csv","diagram");
-  if(!file_selector("Export CSV",filename,"*.csv"))return;
+  if(file)filename=*file;
+  else if(!file_selector("Export CSV",filename,"*.csv"))return {};
   const xpp::Result<bool> written=csv_export_diagram_pair(s,filename.c_str());
-  if(!written)xpp::show_error(written.error());
+  if(!written)return std::unexpected(written.error());
+  return {};
 }
 
 void auto_file(xpp::Session &s)
@@ -2577,7 +1818,7 @@ void auto_file(xpp::Session &s)
   char ch;
   ch=static_cast<char>(menu_choose(&menu_auto_file,0));
   if(ch=='i'){
-    load_auto_orbit(s);
+    xpp::ok_or_show(load_auto_orbit(s,std::nullopt));
     return;
   }
   if(ch=='s'){
@@ -2597,19 +1838,19 @@ void auto_file(xpp::Session &s)
     s.auto_state.grabpt.flag=0;
   }
   if(ch=='p'){
-    export_auto_picture(s, xpp::IMAGE_FORMAT_PDF);
+    xpp::ok_or_show(export_auto_picture(s, xpp::IMAGE_FORMAT_PDF, std::nullopt));
   }
   if(ch=='v'){
-    export_auto_picture(s, xpp::IMAGE_FORMAT_SVG);
+    xpp::ok_or_show(export_auto_picture(s, xpp::IMAGE_FORMAT_SVG, std::nullopt));
   }
   if(ch=='w'){
-    write_pts(s);
+    xpp::ok_or_show(write_pts(s,std::nullopt));
   }
   if(ch=='a'){
-    write_info_out(s);
+    xpp::ok_or_show(write_info_out(s,std::nullopt));
   }
   if(ch=='d'){
-    write_init_data_file(s);
+    xpp::ok_or_show(write_init_data_file(s,std::nullopt));
   }
   if(ch=='t'){
     s.auto_state.redraw=!s.auto_state.redraw;
@@ -2623,9 +1864,9 @@ void auto_file(xpp::Session &s)
       load_browser_with_branch(s, s.auto_state.diagram_mark.start_branch,s.auto_state.diagram_mark.start_point,s.auto_state.diagram_mark.end_point);
 	}
   if(ch=='x'){
-    export_auto_csv(s);
+    xpp::ok_or_show(export_auto_csv(s,std::nullopt));
   }
-  if(ch=='f')import_auto(s);
+  if(ch=='f')xpp::ok_or_show(import_auto(s,std::nullopt));
   if(ch=='n'){
     if(s.auto_state.diagram_mark.state<2) 
       command_error("auto", "Mark a branch first using S and E");
@@ -2898,6 +2139,7 @@ static void grab_diagram_point(xpp::Session &s, const DIAGRAM *d)
   s.auto_state.grabpt.flag=1;
   s.auto_state.grabpt.itp=d->itp;
   s.auto_state.grabpt.curve=d->flag2;
+  s.auto_state.grabpt.calc=d->calc;
   s.auto_state.grabpt.nfpar=d->nfpar;
   auto_set_pars_from(s, s.auto_state.grabpt.par.data());
 }
@@ -2957,15 +2199,6 @@ void auto_update_view(xpp::Session &s, float xlo,float xhi, float ylo, float yhi
 	      s.auto_state.axes().ymax=yhi;
 	      redraw_diagram(s);
 
-}
-
-/* the pointer moved to pixel (i,j) of the diagram: show its coordinates */
-void auto_motion_xy(xpp::Session &s, int i,int j)
-{
-  double x,y;
-    x=s.auto_state.axes().xmin+static_cast<double>((i-s.auto_state.bifur.x0))*(s.auto_state.axes().xmax-s.auto_state.axes().xmin)/static_cast<double>(s.auto_state.bifur.wid);
-    y=s.auto_state.axes().ymin+static_cast<double>((s.auto_state.bifur.y0-j+s.auto_state.bifur.hgt))*(s.auto_state.axes().ymax-s.auto_state.axes().ymin)/static_cast<double>(s.auto_state.bifur.hgt);
-    auto_point_xy(s, x,y);
 }
 
 void auto_point_xy(xpp::Session &s, double x,double y)

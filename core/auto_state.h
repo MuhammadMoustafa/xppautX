@@ -134,6 +134,8 @@ struct AutoState {
   bool new_period_flag=false;
   /* a two-parameter run */
   xpp::AutoCalculation two_param=xpp::no_calculation;
+  /* the kind of the last run asked for (auto.run), which the error that offers to go on from an end point repeats */
+  xpp::AutoRunKind run_kind=xpp::AutoRunKind::equilibrium;
   /* the label do_auto's follow-up run (a restart) continues from, 0 for
      none */
   int restart_label=0;

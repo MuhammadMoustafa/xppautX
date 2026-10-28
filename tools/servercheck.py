@@ -359,7 +359,7 @@ def auto_lost_points(itmx):
         autocompare.completed(s)
         autocompare.completed(s, dict(cmd='data', events=['autoinfo']))
         diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
-        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'max_location_iterations': itmx}))
+        autocompare.completed(s, dict(cmd='auto.configure_numerics', **{'max_location_iterations': itmx}))
         r = d['runs'][0]
         autocompare.restore_start(s, r, [], {})
         infos = [e for e in autocompare.execute_run(s, r, diagram, {}) if e.get('ev') == 'autoinfo']
@@ -407,7 +407,7 @@ def check_auto_starts():
                 autocompare.completed(s, dict(cmd='ic.set', values=values['ics']))
             if values.get('pars'):
                 autocompare.completed(s, dict(cmd='set', values=[dict(kind='par', name=k, value=v) for k, v in values['pars'].items()]))
-            autocompare.completed(s, dict(cmd='auto', op='set', numerics={'parameter_min': -2, 'parameter_max': 2, **limits}))
+            autocompare.completed(s, dict(cmd='auto.configure_numerics', **{'parameter_min': -2, 'parameter_max': 2, **limits}))
             evs = autocompare.run_any(s, 's')
             errors = [e for e in evs if e.get('error')]
             text = errors[0]['error'] if len(errors) == 1 else str(errors)
@@ -425,7 +425,7 @@ def check_auto_starts():
         autocompare.completed(s)
         autocompare.open_auto(s)
         autocompare.completed(s, dict(cmd='ic.set', values={'X': 1}))
-        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'parameter_min': -2, 'parameter_max': 2}))
+        autocompare.completed(s, dict(cmd='auto.configure_numerics', parameter_min=-2, parameter_max=2))
         evs = autocompare.run_any(s, 's')
         errors = [e for e in evs if e.get('error')]
         check('stops AUTO start refined by Newton: X = 1 is refined and the run starts',
@@ -441,30 +441,139 @@ def check_auto_two_parameter_starts():
         autocompare.completed(s)
         diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
         autocompare.execute_run(s, d['runs'][0], diagram, {})
-        autocompare.completed(s, dict(cmd='auto', op='grab', type='fold', index=1))
-        autocompare.completed(s, dict(cmd='auto', op='set', axes={'par1': 'p0', 'par2': 'p1'}))
+        autocompare.completed(s, dict(cmd='auto.grab', type='fold', index=1))
+        autocompare.completed(s, dict(cmd='auto.configure_plot', **{'parameter1': 'p0', 'parameter2': 'p1'}))
         evs = autocompare.run_any(s, 't')
         errors = [e for e in evs if e.get('error')]
         # W495: AUTO bounds only the principal parameter (ae.f90 tests U(NDIM+1)), so p1 = 14 starts the run
         check('stops AUTO second parameter is not bounded: p1 = 14 outside [Par Min, Par Max] starts the run',
               not errors and any(e.get('ev') == 'diagram' and e.get('op') == 'add' for e in evs), str(errors))
-        autocompare.completed(s, dict(cmd='auto', op='grab', type='fold', index=1))
-        autocompare.completed(s, dict(cmd='auto', op='set', axes={'par2': 'p0'}))
+        autocompare.completed(s, dict(cmd='auto.grab', type='fold', index=1))
+        autocompare.completed(s, dict(cmd='auto.configure_plot', **{'parameter2': 'p0'}))
         evs = autocompare.run_any(s, 't')
         errors = [e for e in evs if e.get('error')]
         check('stops AUTO duplicate parameters', len(errors) == 1
               and 'same parameter "p0"' in errors[0]['error']
               and 'two different parameters' in errors[0]['error'], str(errors))
         # Restart uses the last run's two-parameter formulation but this label is a plain EP.
-        evs = autocompare.completed(s, dict(cmd='auto', op='set', axes={'par2': 'p1'}))
-        s.send(cmd='auto', op='restart', label=1)
+        evs = autocompare.completed(s, dict(cmd='auto.configure_plot', **{'parameter2': 'p1'}))
+        s.send(cmd='auto.run', kind='two_parameter', label=1)
         evs, _ = s.collect(stops_idle)
         errors = [e for e in evs if e.get('error')]
-        check('stops AUTO incompatible restart kind', len(errors) == 1
-              and 'Restart label 1' in errors[0]['error'] and 'end' in errors[0]['error']
-              and 'two-parameter starts need' in errors[0]['error'], str(errors))
+        check('stops AUTO incompatible start kind: the error names the kind, the label and its type', len(errors) == 1
+              and 'two_parameter needs a point of type hopf' in errors[0]['error'] and 'label 1 is an end point' in errors[0]['error'], str(errors))
     finally:
         s.close()
+
+
+def check_auto_registry():
+    """W516: the auto.* commands: a good call with its result, a refused argument with its message, and the old forms unknown"""
+    folder = tempfile.mkdtemp(prefix='xppauto-registry')
+    shutil.copy(autocompare.ROOT / 'examples/ode/lecar.odex', folder)
+    s = Server(args.server, os.path.join(folder, 'lecar.odex'))
+
+    def call(**c):
+        s.send(**c)
+        evs, _ = s.collect(stops_idle)
+        done = next((e for e in reversed(evs) if e.get('ev') == 'done'), {})
+        return evs, done
+    try:
+        autocompare.completed(s)
+        autocompare.completed(s, dict(cmd='data', events=['autoinfo', 'autosettings']))
+        _, done = call(cmd='auto.run', kind='equilibrium')
+        check('auto.run: AUTO not open is refused naming auto.open', done['status'] == 'error' and 'auto.open' in done['error'], str(done))
+        evs_open, done = call(cmd='auto.open')
+        check('auto.open: the window opens', done['status'] == 'ok' and done['result'] == {'open': True}, str(done))
+        d = autocompare.read_description(autocompare.BASE / 'ode_lecar.json')
+        diagram = autocompare.Diagram().apply(evs_open)
+        autocompare.restore_start(s, d['runs'][0], [], {})
+        evs = autocompare.execute_run(s, d['runs'][0], diagram, {})
+        check('auto.run: a steady run ends with its points and branches',
+              any(e.get('ev') == 'done' and e.get('result', {}).get('points_computed', 0) > 5 and e['result']['branches_tracked'] == 1 for e in evs), str(evs[-2:])[:300])
+        _, done = call(cmd='auto.run', kind='equilibrium')
+        check('auto.run: a new start from the current state with a diagram needs replace_diagram', done['status'] == 'error'
+              and 'replace_diagram' in done['error'], str(done))
+        _, done = call(cmd='auto.run', kind='two_parameter', label=1)
+        check('auto.run: a kind that does not fit the point is an error naming the kind, the label and the type',
+              done['status'] == 'error' and 'two_parameter needs a point of type hopf' in done['error']
+              and 'label 1 is an end point of a steady branch' in done['error'], str(done))
+        _, done = call(cmd='auto.run', kind='equilibrium', switch=True, label=1)
+        check('auto.run: a switch needs a branch point or period doubling', done['status'] == 'error' and 'switch' in done['error'], str(done))
+        _, done = call(cmd='auto.run', kind='periodic', label=1, type='hopf', index=1)
+        check('auto.run: two starts are refused', done['status'] == 'error' and 'At most one of' in done['error'], str(done))
+        _, done = call(cmd='auto.run', kind='homoclinic', unstable_dimension=1, stable_dimension=2)
+        check('auto.run: homoclinic dimensions must add up to the variables', done['status'] == 'error'
+              and 'must add up to the number of variables, 2' in done['error'] and 'unstable_dimension (1)' in done['error'], str(done))
+        grab_events, done = call(cmd='auto.grab', type='hopf', index=1)
+        check('auto.grab: the 1st hopf', done['status'] == 'ok' and done['result']['type'] == 'hopf', str(done))
+        before_numerics = next(e for e in call(cmd='data', events=['autosettings'])[0] if e.get('ev') == 'autosettings')['numerics']
+        evs, done = call(cmd='auto.run', kind='periodic', type='hopf', index=1, max_steps=10, mesh_intervals=10)
+        starts = [e['start'] for e in grab_events if e.get('ev') == 'autoinfo' and e.get('start')]
+        check('auto.run: a periodic run from the 1st hopf computes; autoinfo says the kinds that fit the grabbed point',
+              done['status'] == 'ok' and done['result']['points_computed'] > 2
+              and any(x['type'] == 'hopf' and x['kinds'] == ['equilibrium', 'periodic', 'two_parameter'] for x in starts), str(done)[:200] + str(starts)[:200])
+        after_numerics = next(e for e in call(cmd='data', events=['autosettings'])[0] if e.get('ev') == 'autosettings')['numerics']
+        check('auto.run: the settings given hold for that run only', after_numerics == before_numerics and before_numerics['max_steps'] != 10,
+              str((before_numerics['max_steps'], after_numerics['max_steps'])))
+        _, done = call(cmd='auto.grab', label=999999)
+        check('auto.grab: an unknown label is refused', done['status'] == 'error' and 'no point labelled 999999' in done['error'], str(done))
+        _, done = call(cmd='auto.grab', label=1, type='hopf', index=1)
+        check('auto.grab: a label and a type are refused', done['status'] == 'error' and 'Exactly one of' in done['error'], str(done))
+        _, done = call(cmd='auto.fit')
+        check('auto.fit: the view ranges are the result', done['status'] == 'ok' and done['result']['window'] == 'diagram_1'
+              and done['result']['x_range'][0] < done['result']['x_range'][1], str(done))
+        _, done = call(cmd='auto.zoom', x_min=0, x_max=0.05, y_min=-0.5, y_max=0)
+        check('auto.zoom: the box is the view', done['result']['x_range'] == [0, 0.05] and done['result']['y_range'] == [-0.5, 0], str(done))
+        _, done = call(cmd='auto.zoom', x_min=1, x_max=0, y_min=-0.5, y_max=0)
+        check('auto.zoom: an unordered box is refused', done['status'] == 'error' and 'x_min' in done['error'], str(done))
+        _, done = call(cmd='auto.scroll', dx=0.01, dy=0.1)
+        check('auto.scroll: the ranges move', abs(done['result']['x_range'][0] - 0.01) < 1e-12 and abs(done['result']['x_range'][1] - 0.06) < 1e-12, str(done))
+        _, done = call(cmd='auto.set_display', x_range=[0.02, 0.04], y_range=[])
+        check('auto.set_display: a zoom for x, the whole range for y', done['result']['x_range'] == [0.02, 0.04] and done['result']['y_range'] == [], str(done))
+        _, done = call(cmd='auto.set_display', x_range=[3, 3])
+        check('auto.set_display: a bad range is refused', done['status'] == 'error', str(done))
+        _, done = call(cmd='auto.configure_plot', plot_type='norm', x_min=1, x_max=0)
+        check('auto.configure_plot: ranges in order', done['status'] == 'error' and 'x_min' in done['error'].lower().replace('xmin', 'x_min'), str(done))
+        _, done = call(cmd='auto.configure_marks', parameters=['iapp', 'T'], values=[0.02])
+        check('auto.configure_marks: parameters and values of one length', done['status'] == 'error' and '2 parameters but 1 values' in done['error'], str(done))
+        _, done = call(cmd='auto.configure_marks', parameters=['iapp', 'T'], values=[0.02, 30])
+        check('auto.configure_marks: the marks are set', done['status'] == 'ok' and done['result'] == {'marks_count': 2}, str(done))
+        _, done = call(cmd='auto.configure_numerics', output_detail='loud')
+        check('auto.configure_numerics: a level is a name', done['status'] == 'error' and 'loud' in done['error'], str(done))
+        _, done = call(cmd='auto.configure_numerics', switch_one_direction=True, output_detail='extensive', special_points={'cusp': False})
+        check('auto.configure_numerics: the levels and the boolean are set', done['status'] == 'ok', str(done))
+        _, done = call(cmd='auto.export_csv', file='w516.csv')
+        check('auto.export_csv: a file argument writes it and says how many points', done['status'] == 'ok'
+              and done['result']['points_written'] > 5 and (glob.glob(os.path.join(folder, 'w516*.csv')) or glob.glob(os.path.join(s.run, 'w516*.csv'))), str(done))
+        _, done = call(cmd='auto.export_csv', file='../w516.csv')
+        check('auto.export_csv: a file name is a base name', done['status'] == 'error', str(done))
+        _, done = call(cmd='auto.set_threads', threads=1)
+        check('auto.set_threads: a count', done['status'] == 'ok' and done['result']['threads'] == 1 and done['result']['automatic'] is False, str(done))
+        _, done = call(cmd='auto.set_threads', threads=1, automatic=True)
+        check('auto.set_threads: a count and automatic are refused together', done['status'] == 'error', str(done))
+        for old in ({'cmd': 'auto', 'op': 'grab', 'label': 1}, {'cmd': 'auto', 'op': 'set', 'numerics': {}}, {'cmd': 'auto', 'op': 'restart', 'label': 1}):
+            s.send(**old)
+            evs, _ = s.collect(stops_idle)
+            check('the old form %s is an unknown command' % json.dumps(old),
+                  any('Unknown command' in e.get('error', '') for e in evs), str(evs)[:200])
+    finally:
+        s.close()
+        shutil.rmtree(folder, ignore_errors=True)
+    # a model whose AUTO equations use t is refused, naming each equation's line
+    with tempfile.TemporaryDirectory() as folder:
+        model = os.path.join(folder, 'timed.odex')
+        with open(model, 'w') as f:
+            f.write("par a = 0.5\nfun g(u) = u*t\nx' = -x + a + sin(t)\ny' = g(y) - y\nz' = -z\ninit x = 0, y = 0, z = 0\n")
+        s = Server(args.server, model)
+        try:
+            autocompare.completed(s)
+            autocompare.completed(s, dict(cmd='auto.open'))
+            _, done = call(cmd='auto.run', kind='equilibrium', replace_diagram=False)
+            check('auto.run: equations that use t are refused with each one\'s file and line',
+                  done['status'] == 'error' and "x' (" in done['error'].lower() and "y' (" in done['error'].lower() and "z' (" not in done['error'].lower()
+                  and 'timed.odex:3' in done['error'] and 'timed.odex:4' in done['error'] and done.get('line') == 3, str(done))
+        finally:
+            s.close()
 
 
 def check_auto_periodic_start_kind():
@@ -476,12 +585,11 @@ def check_auto_periodic_start_kind():
         autocompare.restore_start(s, d['runs'][0], [], {})
         for r in d['runs']:
             autocompare.execute_run(s, r, diagram, {})
-        s.send(cmd='auto', op='restart', label=1)
+        s.send(cmd='auto.run', kind='periodic', label=1)
         evs, _ = s.collect(stops_idle)
         errors = [e for e in evs if e.get('error')]
         check('stops AUTO periodic from a steady EP', len(errors) == 1
-              and 'Restart label 1' in errors[0]['error'] and 'end' in errors[0]['error']
-              and 'needs a hopf point or a periodic orbit' in errors[0]['error'], str(errors))
+              and 'periodic needs a point of type hopf' in errors[0]['error'] and 'label 1 is an end point of a steady branch' in errors[0]['error'], str(errors))
     finally:
         s.close()
 
@@ -531,7 +639,7 @@ def check_auto_restart_file_stops():
     try:
         autocompare.completed(s)
         autocompare.open_auto(s)
-        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'parameter_min': -2, 'parameter_max': 2, 'max_steps': 4}))
+        autocompare.completed(s, dict(cmd='auto.configure_numerics', **{'parameter_min': -2, 'parameter_max': 2, 'max_steps': 4}))
         evs = autocompare.run_any(s, 's')
         snapshot = os.path.join(s.run, 'base.snapx')
         autocompare.completed(s, dict(cmd='session', op='save', name=snapshot, data=False))
@@ -561,7 +669,7 @@ def check_auto_restart_file_stops():
                 z.writestr(name, value)
         s.send(cmd='open', file=path)
         evs, _ = s.answer_asks(stops_idle, {'choice': lambda e: dict(key='d')})
-        s.send(cmd='auto', op='restart', label=1)
+        s.send(cmd='auto.run', kind='equilibrium', label=1)
         evs, _ = s.collect(stops_idle)
         errors = [e for e in evs if e.get('error')]
         check('stops AUTO A2: a missing restart label is one placed error',
@@ -600,7 +708,7 @@ def check_auto_singular_pivot():
         evs, _ = s.collect(stops_idle)
         autocompare.completed(s, dict(cmd='data', events=['autoinfo']))
         autocompare.open_auto(s)
-        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'parameter_min': -1, 'parameter_max': 1, 'max_steps': 4, 'step_adapt_every': 0, 'max_newton_iterations': 1, 'state_tolerance': 1e-30, 'parameter_tolerance': 1e-30}))
+        autocompare.completed(s, dict(cmd='auto.configure_numerics', **{'parameter_min': -1, 'parameter_max': 1, 'max_steps': 4, 'step_adapt_every': 0, 'max_newton_iterations': 1, 'state_tolerance': 1e-30, 'parameter_tolerance': 1e-30}))
         evs = autocompare.run_any(s, 'p')
         stops = [e['stop'] for e in evs if e.get('ev') == 'autoinfo' and e.get('stop')]
         check('stops AUTO A7: a singular periodic solve names its pivot and bound',
@@ -914,7 +1022,7 @@ def check_registry():
         shutil.rmtree(folder, ignore_errors=True)
 
 
-INDEPENDENT_SECTIONS = {'registry': check_registry, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
+INDEPENDENT_SECTIONS = {'registry': check_registry, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -1069,13 +1177,13 @@ check('size is no command any more (removed in protocol 2): an unknown-command e
       [e.get('ev') for e in evs] == ['message', 'state', 'idle'] and 'Unknown command' in evs[0].get('error', ''),
       str(evs)[:200])
 # W493: a command's arguments are read by their kinds; a bad one is an error naming the command and the argument
-for bad_args, what in (({'label': 'x'}, 'auto: argument "label" must be a number, not "x"'),
-                   ({'label': 1.5}, 'auto: argument "label" must be a whole number, not 1.5')):
-    send(cmd='auto', op='restart', **bad_args)
+for bad_args, what in (({'label': 'x'}, 'Argument "label" must be a whole number'),
+                   ({'label': 1.5}, 'Argument "label" must be a whole number')):
+    send(cmd='auto.run', kind='equilibrium', **bad_args)
     evs, _ = collect(is_idle)
     msg = next((e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), {})
     check('a command argument of the wrong kind is a command error that names it: ' + what,
-          what in msg.get('error', '') and msg.get('source', '').find('"cmd": "auto"') >= 0, str(evs)[:300])
+          what in msg.get('error', ''), str(evs)[:300])
 proc.stdin.write('{"cmd":"auto" "op":"restart"}\n')
 proc.stdin.flush()
 evs, _ = collect(is_idle)
@@ -1114,9 +1222,9 @@ def check_hello_kinds():
     check('W95: hello gives every documented command but key a kind', not missing and cmds
           and all(k in 'cvsdx' for k in kinds.values()), str(missing))
     want = {('window.set_display', None): 'v', ('set', None): 's', ('values', None): 's', ('values', 'write'): 'd',
-            ('run.abort', None): 'c', ('run.initial', None): 'x', ('run.configure', None): 's', ('ic.set', None): 's', ('browser', 'write'): 'd', ('browser', None): 'v', ('auto', 'set'): 's',
-            ('auto', 'grab'): 'd', ('userbut', None): 'x'}
-    check('W95, W106: kinds as decided: display a view, set/values/auto set settings, Save data and Grab data, '
+            ('run.abort', None): 'c', ('run.initial', None): 'x', ('run.configure', None): 's', ('ic.set', None): 's', ('browser', 'write'): 'd', ('browser', None): 'v', ('auto.configure_numerics', None): 's',
+            ('auto.grab', None): 'd', ('auto.run', None): 'x', ('userbut', None): 'x'}
+    check('W95, W106: kinds as decided: display a view, set/values/auto.configure_numerics settings, Save data and auto.grab data, auto.run a computation, '
           'abort control, a user button a computation',
           all(kinds.get(k) == v for k, v in want.items()), str({k: kinds.get(k) for k in want}))
     num, main, file = menu_keys_of('num'), menu_keys_of('main'), menu_keys_of('file')
@@ -2029,11 +2137,11 @@ if ask:
     labs = sorted({(i, lab) for e in adds for r in e['runs'] for i, lab, _sym in r.get('lab', [])})
     target_label = labs[1][1] if len(labs) > 1 else None
     if target_label is not None:
-        send(cmd='auto', op='grab', label=target_label)
+        send(cmd='auto.grab', label=target_label)
         evs, _ = collect(is_idle)
         check('grab by label asks nothing', not any(e.get('ev') == 'ask' for e in evs), str([e.get('ev') for e in evs]))
         check('the server survives a grab by label', proc.poll() is None, 'exit code %s' % proc.poll())
-    send(cmd='auto', op='grab', label=999999)
+    send(cmd='auto.grab', label=999999)
     evs, _ = collect(is_idle)
     errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
     check('grab by an unknown label is refused (a message error)', bool(errs), str(errs))
@@ -4328,7 +4436,7 @@ def check_autoinfo():
         for snd, col, diag in ((snda, cola, diag_a), (sndb, colb, diag_b)):
             # W338: keep the circle fixture short. W341 (#402) also preserves
             # the restored solution's multipliers at a failed-step MX endpoint.
-            snd(cmd='auto', op='set', numerics={'max_steps': 20})
+            snd(cmd='auto.configure_numerics', **{'max_steps': 20})
             evs, _ = col(is_idle)
             check('W338: the short periodic circle fixture is configured',
                   not any(e.get('ev') in ('message', 'done') and 'error' in e for e in evs), str(evs)[-300:])
@@ -4371,7 +4479,7 @@ def check_autoinfo():
               not sent and info is not None and info['point'] == 5 and strip_matches(info, diag_a) is None
               and stab is not None and stab['periodic'] == 0 and close_pairs(stab['eig'], pr, 2e-5),
               '%d sent; %s %s vs %s' % (len(sent), info, stab, pr))
-        snda(cmd='auto', op='point', xd=0.125, yd=-0.25)
+        snda(cmd='auto.pick', x=0.125, y=-0.25)
         evs, _ = cola(is_idle)
         hint = [e.get('auto') for e in evs if e.get('ev') == 'message' and 'auto' in e]
         check('auto point in data coordinates shows exactly those', hint and hint[-1] == 'x=0.125,y=-0.25', str(hint))
@@ -4487,8 +4595,32 @@ def check_autosettings():
             return [e['error'] for e in events if e.get('ev') in ('message', 'done') and 'error' in e]
 
         def auto_set(**c):
-            snda(cmd='auto', op='set', **c)
-            evs, _ = cola(is_idle)
+            """the old one-command set as the registry's commands (marks, then the Numerics and the axes), stopping at an error"""
+            commands = []
+            marks = c.get('marks')
+            if isinstance(marks, list) and all(isinstance(m, list) and len(m) == 2 for m in marks):
+                commands.append(dict(cmd='auto.configure_marks', parameters=[m[0] for m in marks], values=[m[1] for m in marks]))
+            elif 'marks' in c:
+                commands.append(dict(cmd='auto.configure_marks', marks=marks))
+            numerics = dict(c.get('numerics', {}))
+            if 'special_points' in c:
+                numerics['special_points'] = c['special_points']
+            if 'numerics' in c or 'special_points' in c:
+                commands.append(dict(cmd='auto.configure_numerics', **numerics))
+            if 'axes' in c:
+                rename = {'plot': 'plot_type', 'var': 'variable', 'par1': 'parameter1', 'par2': 'parameter2', 'xmin': 'x_min', 'xmax': 'x_max', 'ymin': 'y_min', 'ymax': 'y_max'}
+                commands.append(dict(cmd='auto.configure_plot', **{rename.get(k, k): v for k, v in c['axes'].items()}))
+            if 'pars' in c:
+                commands.append(dict(cmd='auto.configure_plot', pars=c['pars']))
+            if 'threads' in c:
+                commands.append(dict(cmd='auto.set_threads', **({'automatic': True} if c['threads'] == 'auto' else {'threads': c['threads']})))
+            evs = []
+            for command in commands:
+                snda(**command)
+                more, _ = cola(is_idle)
+                evs += more
+                if auto_errors(more):
+                    break
             return evs, settings_of(evs), auto_errors(evs)
 
         snda(cmd='data', events=['autosettings'])
@@ -4544,7 +4676,7 @@ def check_autosettings():
         check('W339: AUTO has no Parameter form or pars field', 'pars' not in st
               and 'param' not in str(window_hello.get('windows', {}).get('auto', {})))
         evs, unchanged, errs = auto_set(pars=['iapp'])
-        check('W339: removed pars command is rejected atomically', len(errs)==1 and 'no pars field' in errs[0] and unchanged is None)
+        check('W339: removed pars command is rejected atomically', len(errs)==1 and 'pars' in errs[0] and unchanged is None)
         evs, all_axes, errs = auto_set(axes={'par1':'gk'})
         check('W339: Axes accepts a parameter beyond the old eight', not errs and all_axes and all_axes['axes']['par1']=='gk')
         auto_set(axes={'par1':'iapp'})
@@ -4615,14 +4747,14 @@ def check_autosettings():
         auto_set(marks=st3['marks'])
 
         # refused: bad values change nothing, and say why
-        for bad, why in (({'numerics': {'suppress_branch_points': 1}}, 'true or false'), ({'numerics': {'suppress_branch_points': 'true'}}, 'true or false'),
-                         ({'numerics': {'collocation_points': 9}}, 'Collocation points'), ({'numerics': {'mesh_intervals': 1.5}}, 'Mesh intervals'),
+        for bad, why in (({'numerics': {'suppress_branch_points': 1}}, 'must be boolean'), ({'numerics': {'suppress_branch_points': 'true'}}, 'must be boolean'),
+                         ({'numerics': {'collocation_points': 9}}, 'Collocation points'), ({'numerics': {'mesh_intervals': 1.5}}, 'mesh_intervals'),
                          ({'numerics': {'max_steps': 30, 'min_step_size': 0}}, 'Min step size'), ({'numerics': {'parameter_min': 5, 'parameter_max': 1}}, 'Parameter min'),
                          ({'numerics': {'step_size': -0.9, 'max_step_size': 0.5}}, 'The size of Step size must be from Min step size to Max step size'),
                          ({'numerics': {'min_step_size': 0.5, 'max_step_size': 1, 'step_size': 0.1}}, 'The size of Step size must be from Min step size to Max step size'),
-                         ({'numerics': {'max_steps': 'many'}}, 'Max steps'), ({'pars': ['nosuch']}, 'no pars field'),
+                         ({'numerics': {'max_steps': 'many'}}, 'max_steps'), ({'pars': ['nosuch']}, 'pars'),
                          ({'axes': {'par1': 'nosuch'}}, 'nosuch'),
-                         ({'axes': {'var': 'nosuch'}}, 'nosuch'), ({'axes': {'plot': 'sideways'}}, 'sideways'), ({'axes': {'plot': 7}}, 'projection'),
+                         ({'axes': {'var': 'nosuch'}}, 'nosuch'), ({'axes': {'plot': 'sideways'}}, 'sideways'), ({'axes': {'plot': 7}}, 'plot_type'),
                          ({'axes': {'xmin': 1, 'xmax': 0}}, 'Xmin'), ({'marks': [['W', 1]]}, 'W')):
             evs, st4, errs = auto_set(**bad)
             check('auto set %s is refused with an error naming %s, nothing changes' % (json.dumps(bad), why),
@@ -4633,12 +4765,12 @@ def check_autosettings():
         auto_set(numerics={'suppress_branch_points': False})
         evs, st4, errs = auto_set(numerics={'collocation_points': 9})
         check('W118: a refused value says the message the event gave its rule',
-              errs == ['AUTO settings: collocation_points=9: ' + rules.get('collocation_points', {}).get('message', '?')], str(errs))
+              errs == ['collocation_points=9: ' + rules.get('collocation_points', {}).get('message', '?')], str(errs))
 
         # a set sent while a question is open is kept for after the command, not dropped: a
         # command of its own then (W106), with its own idle
         ask = ask_of(cmd='key', win='auto', key='n')
-        snda(cmd='auto', op='set', numerics={'max_steps': 77})
+        snda(cmd='auto.configure_numerics', **{'max_steps': 77})
         evs = cancel(ask)
         st5a = settings_of(evs)
         st5 = settings_of(cola(is_idle)[0])
@@ -4689,7 +4821,7 @@ def auto_stop_run(numerics, abort=False):
         for k in 'fa':
             snd(cmd='key', key=k)
             col(lambda e: is_idle(e) or e.get('ev') == 'ask')
-        snd(cmd='auto', op='set', numerics=numerics)
+        snd(cmd='auto.configure_numerics', **numerics)
         evs, _ = col(is_idle)
         errs = [e['error'] for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         snd(cmd='key', win='auto', key='r')
@@ -4745,7 +4877,7 @@ def check_auto_points_limit():
         for k in 'fa':
             snd(cmd='key', key=k)
             col(lambda e: is_idle(e) or e.get('ev') == 'ask')
-        snd(cmd='auto', op='set', numerics={'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 10000000})
+        snd(cmd='auto.configure_numerics', **{'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 10000000})
         evs, _ = col(is_idle)
         check('W432: Nmax 10000000 is accepted', not [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e], str(evs[-3:]))
         snd(cmd='key', win='auto', key='r')
@@ -4785,7 +4917,7 @@ def check_auto_no_nan_par():
         for k in 'fa':
             snd(cmd='key', key=k)
             col(lambda e: is_idle(e) or e.get('ev') == 'ask')
-        snd(cmd='auto', op='set', numerics={**wide, 'parameter_max': 10})
+        snd(cmd='auto.configure_numerics', **{**wide, 'parameter_max': 10})
         col(is_idle)
         snd(cmd='key', win='auto', key='r')
         _, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
@@ -5812,12 +5944,11 @@ def check_auto_jacobian_failure():
             snd(cmd='key', key='a')
             col(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1')
             col(is_idle)
-            snd(cmd='auto', op='set', numerics={'step_size': -0.1, 'max_step_size': 0.1, 'parameter_min': -0.5, 'parameter_max': 2, 'max_steps': 100},
-                axes={'plot': 'norm', 'var': 'x', 'par1': 'a'})
+            snd(cmd='auto.configure_numerics', step_size=-0.1, max_step_size=0.1, parameter_min=-0.5, parameter_max=2, max_steps=100)
             col(is_idle)
-            snd(cmd='key', win='auto', key='r')
-            _, ask = col(is_ask)
-            snd(cmd='answer', id=ask['id'], key='s')
+            snd(cmd='auto.configure_plot', plot_type='norm', variable='x', parameter1='a')
+            col(is_idle)
+            snd(cmd='auto.run', kind='equilibrium')
             evs, _ = col(is_idle, timeout=60 * SLOW)
             errs = [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
             err = errs[-1] if errs else {}
@@ -5836,7 +5967,7 @@ def check_auto_jacobian_failure():
             check('W275: the error offers Switch to differences and continue: set the Jacobian to difference, then restart from the end point',
                   action.get('label') == 'Switch to differences and continue' and len(cmds) == 2
                   and cmds[0] == {'cmd': 'set', 'kind': 'num', 'name': 'jacobian', 'text': 'difference'}
-                  and cmds[1] == {'cmd': 'auto', 'op': 'restart', 'label': labs[-1][0] if labs else None}, str(action))
+                  and cmds[1] == {'cmd': 'auto.run', 'kind': 'equilibrium', 'label': labs[-1][0] if labs else None}, str(action))
             before = sum(len(run['x']) for e in evs if e.get('ev') == 'diagram' and e.get('op') == 'add' for run in e['runs'])
             went = []
             for c in cmds:
@@ -6305,12 +6436,12 @@ def check_display_state():
         got = av(evs) + av(evs2)
         check('autoview: Clear makes the points so far the earlier branches, hidden',
               got and got[-1]['earlier'] == n and got[-1]['show'] == 0 and n > 1, str(got) + ' n=%d' % n)
-        snd(cmd='auto', op='display', show=True, x=[0.1, 0.2], y=None)
+        snd(cmd='auto.set_display', show_earlier=True, x_range=[0.1, 0.2])
         evs, _ = col(is_idle)
         check('autoview: show and the zoom are set by auto display',
               av(evs) and av(evs)[-1] == dict(av(evs)[-1], earlier=n, show=1, views=[{'name':'diagram_1','zoom': {'x': [0.1, 0.2], 'y': None}}]),
               str(av(evs)))
-        snd(cmd='auto', op='display', x=[3, 3])
+        snd(cmd='auto.set_display', x_range=[3, 3])
         evs, _ = col(is_idle)
         check('autoview: a bad range is refused', any(e.get('ev') in ('message', 'done') and 'error' in e for e in evs), str(evs)[:200])
         snd(cmd='window.destroy', window='diagram_1')
@@ -7143,11 +7274,11 @@ def check_session_file():
         answered(snd, col, (), cmd='ic.set', values={'V': -0.3})
         answered(snd, col, (), cmd='run.initial')
         answered(snd, col, (), cmd='window.set_display', window='graph_1', x_range=[0, 50], y_range=[-0.5, 0.3], show_earlier_runs=False)
-        answered(snd, col, (), cmd='auto', op='display', x=[0.05, 0.3], y=None)
+        answered(snd, col, (), cmd='auto.set_display', x_range=[0.05, 0.3])
         # W50: a second view of the diagram, the norm, with a zoom of its own; the first active again
-        answered(snd, col, (), cmd='auto', op='view', new=1)
-        answered(snd, col, (), cmd='auto', op='set', axes={'view': 'diagram_2', 'plot': 'norm', 'fit': True})
-        answered(snd, col, (), cmd='auto', op='display', view='diagram_2', x=None, y=[0, 0.5])
+        answered(snd, col, (), cmd='auto.new_view')
+        answered(snd, col, (), cmd='auto.configure_plot', **{'view': 'diagram_2', 'plot_type': 'norm', 'fit': True})
+        answered(snd, col, (), cmd='auto.set_display', view='diagram_2', y_range=[0, 0.5])
         answered(snd, col, (), cmd='window.select', window='diagram_1')
         key(snd, col, 't', 't', {'xd': 10, 'yd': 0.1}, {'value': 'here', 'size': 2, 'style': 'italic', 'color': '#ffcd00'})
         key(snd, col, 'g', 'f', 'f', {'values': ['#ffcd00', 'line', 'dashed', '2', 'square', '4', 'first', 'frz1']})
@@ -7255,7 +7386,7 @@ def check_session_file():
         strip = lambda m: m and dict(m, equilibria=[])
         check('open session: the labels and frozen curves are the saved ones (not Sing pts\' symbols)',
               [strip(m) for m in marks1] == [strip(m) for m in m2], str(m2)[:300])
-        answered(snd, col, (), cmd='auto', op='grab', type='hopf', index=1)
+        answered(snd, col, (), cmd='auto.grab', type='hopf', index=1)
         evs = key(snd, col, 'r', 'p', win='auto')
         more = rebuild_diagram(allev, [])
         check('open session: a grab and a periodic run continue the restored diagram',
@@ -7498,14 +7629,14 @@ def check_auto_views():
         after(cmd='data', events=['autoinfo'])
         allev.extend(lecar_to_auto(snd, col))
         v0 = rebuild_diagram(allev, [])
-        evs = after(cmd='auto', op='view', new=1)
+        evs = after(cmd='auto.new_view')
         check('views: a new view says there are two, then sends the diagram at the same axes, view 0 unchanged',
               views_n(evs) == [2] and len(v0) > 1 and rebuild_diagram(allev, [], 1) == v0
               and not [e for e in dg(evs, 0) if e['op'] != 'axes'], str([(e.get('op'), e.get('view')) for e in dg(evs)]))
         check('views: the new view is the active one, with a zoom of its own',
               av(evs) and av(evs)[-1]['active'] == 'diagram_2' and len(av(evs)[-1]['views']) == 2, str(av(evs)))
 
-        evs = after(cmd='auto', op='set', axes={'view': 'diagram_2', 'plot': 'norm', 'fit': True})
+        evs = after(cmd='auto.configure_plot', **{'view': 'diagram_2', 'plot_type': 'norm', 'fit': True})
         a0, a1 = last_axes(0), last_axes(1)
         check("views: a view's axes are its own: view 1 plots the norm, view 0 still hI-lo",
               a1 and a1['plot'] == 'norm' and a1['ylabel'] == 'Norm' and a0 and a0['plot'] == 'maximum_and_minimum'
@@ -7520,12 +7651,12 @@ def check_auto_views():
               views_n(evs) == [3] and a2 and a2['plot'] == 'norm' and av(evs) and av(evs)[-1]['active'] == 'diagram_3'
               and rebuild_diagram(allev, [], 2) == v1, '%s %s' % (views_n(evs), a2))
 
-        evs = after(cmd='auto', op='display', view='diagram_1', x=[0.1, 0.2], y=None)
+        evs = after(cmd='auto.set_display', view='diagram_1', x_range=[0.1, 0.2])
         check('views: auto display with a view zooms that view alone',
               av(evs) and [v['zoom']['x'] for v in av(evs)[-1]['views']] == [[0.1, 0.2], None, None], str(av(evs)))
 
         after(cmd='window.select', window='diagram_1')
-        after(cmd='auto', op='grab', type='hopf', index=1)
+        after(cmd='auto.grab', type='hopf', index=1)
         menu('r', {'key': 'p'})
         lists = [rebuild_diagram(allev, [], v) for v in range(3)]
         check("views: a run's points reach every view, the same points in each",
@@ -9139,20 +9270,20 @@ def check_auto_threads():
             most = st['threads_max']
             check('W267: the event gives threads "auto" at first, what automatic gives (1 to 4) and the most (the logical processors)',
                   st['threads'] == 'auto' and 1 <= st['threads_auto'] <= min(4, most) and most >= 1, str(st)[-200:])
-            snd(cmd='auto', op='set', threads=most)
+            snd(cmd='auto.set_threads', threads=most)
             evs, _ = col(is_idle)
             st = settings_of(evs)
             check('W267: set threads (the most) shows in the event and is saved in preferences.setx',
                   not errors(evs) and st and st['threads'] == most and 'auto_threads: %d' % most in text(), str(evs)[-300:])
             before = text()
             for bad in (0, most + 1, -1, 1.5, 'many', 'Auto', [2]):
-                snd(cmd='auto', op='set', threads=bad)
+                snd(cmd='auto.set_threads', threads=bad)
                 evs, _ = col(is_idle)
                 err = errors(evs)
                 check('W267: set threads %r is refused naming the rule, the file is as it was' % (bad,),
-                      len(err) == 1 and err[0].startswith('AUTO settings: ') and 'threads' in err[0] and text() == before, str(evs)[-300:])
+                      len(err) == 1 and 'threads' in err[0] and text() == before, str(evs)[-300:])
             check('W267: and the shown count is the one before', threads_of(snd, col)['threads'] == most)
-            snd(cmd='auto', op='set', threads=1)
+            snd(cmd='auto.set_threads', threads=1)
             check('W267: set threads 1', col(is_idle) and 'auto_threads: 1' in text())
         finally:
             stop_server(p, r, snd)
@@ -9161,7 +9292,7 @@ def check_auto_threads():
         try:
             col(is_idle)
             check('W267: a later server starts with the saved count', threads_of(snd, col)['threads'] == 1)
-            snd(cmd='auto', op='set', threads='auto')
+            snd(cmd='auto.set_threads', automatic=True)
             evs, _ = col(is_idle)
             check('W267: set threads "auto" is saved as the word and shown', not errors(evs) and 'auto_threads: auto' in text()
                   and settings_of(evs)['threads'] == 'auto', str(evs)[-300:])
@@ -9174,7 +9305,7 @@ def check_auto_threads():
         p, r, snd, col, _ = launch_server(extra_env=env)
         try:
             evs, _ = col(is_idle)
-            snd(cmd='auto', op='set', threads=2)
+            snd(cmd='auto.set_threads', threads=2)
             evs2, _ = col(is_idle)
             err = errors(evs2)
             check('W267: a bad count in the file is refused with its file and line, the set is refused with it and the file is left as it is',
@@ -10084,6 +10215,7 @@ check_auto_stops()
 check_auto_starts()
 check_auto_two_parameter_starts()
 check_auto_periodic_start_kind()
+check_auto_registry()
 check_fit_stops()
 check_event_count_note()
 check_auto_restart_file_stops()

@@ -122,6 +122,7 @@ export const POINT_TYPES: PointType[] = [
 export const HELLO: HelloEvent = {
   ev: 'hello',
   point_types: POINT_TYPES,
+  auto_run: {kinds: ['equilibrium', 'periodic'], current: ['equilibrium'], rows: []},
   state_inspection: {tail_intervals: 10}, protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: [],
   output_names: {par: 'lecar.par', ic: 'lecar.ic', csv: 'lecar.csv', curves: 'lecar-curves.csv'},
   continue: {grid_tolerance: 1e-6},
@@ -155,9 +156,7 @@ export const HELLO: HelloEvent = {
       .map(m => ({cmd: m[1], kind: ({VIEW: 'v', COMPUTE: 'x', SETTING: 's', CONTROL: 'c', DATA: 'd'} as Record<string, string>)[m[2]], step: m[3] === 'true'})),
     {cmd: 'browser', op: 'write', kind: 'd', step: true}, {cmd: 'browser', kind: 'v', step: false},
     {cmd: 'set', kind: 's', step: true}, {cmd: 'slider', kind: 's', step: true},
-    {cmd: 'auto', op: 'set', kind: 's', step: true}, {cmd: 'auto', op: 'grab', kind: 'd', step: true},
-    {cmd: 'auto', kind: 'v', step: true},
-    {cmd: 'values', op: 'write', kind: 'd', step: true}, {cmd: 'values', kind: 's', step: true},
+        {cmd: 'values', op: 'write', kind: 'd', step: true}, {cmd: 'values', kind: 's', step: true},
     {cmd: 'userbut', kind: 'x', step: true},
   ],
   upload_error: 'larger than 64 MB',

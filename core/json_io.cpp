@@ -239,23 +239,6 @@ double js_num(const char *v, double def)
     return atof(v);
 }
 
-int get_range(const char *obj, const char *key, xpp::AxisRange &r)
-{
-    const char *v = js_find(obj, key);
-    if (!v) return 0;
-    if (strncmp(v, "null", 4) == 0) {
-        r = xpp::AxisRange();
-        return 1;
-    }
-    double lo, hi;
-    const char *a = js_elem(v, 0), *b = js_elem(v, 1);
-    if (!a || !b || !js_number(a, &lo) || !js_number(b, &hi) || !(lo < hi)) return -1;
-    r.set = true;
-    r.lo = lo;
-    r.hi = hi;
-    return 1;
-}
-
 xpp::Result<> read_save_replace(const char *line, int &decision)
 {
     const char *permission = js_find(line, "replace");

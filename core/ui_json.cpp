@@ -23,6 +23,7 @@
 #include "integrate.h"
 #include "nullcline.h"
 #include "ui_json_internal.h"
+#include "auto_run.h"
 #include "picture.h"
 #include "json_error.h"
 #include "xpp_log.h"
@@ -479,6 +480,7 @@ XppUi make_json_ui(void)
     u.auto_grab_event = j_auto_grab_event;
     u.auto_show_hint = j_auto_show_hint;
     u.auto_diagram = j_auto_diagram;
+    u.auto_points_held = j_auto_points_held;
     u.new_vcr = j_new_vcr;
     u.ani_show = j_ani_show;
     u.ani_slider = j_ani_slider;
@@ -626,10 +628,6 @@ const CommandInfo commands[] = {
     {"browser", "load", D, STEP, browser_command},
     {"browser", "postprocess", X, STEP, browser_command},
     {"browser", nullptr, V, NOT_STEP, browser_command}, /* with from: the block shown */
-    {"auto", "set", S, STEP, auto_command},
-    {"auto", "grab", D, STEP, auto_command},
-    {"auto", "restart", X, STEP, auto_command},
-    {"auto", nullptr, V, STEP, auto_command}, /* display, point, close */
     {"keymap", nullptr, C, NOT_STEP, keymap_command}, /* the user's settings, not the model's: any time */
     {"file", "put", D, NOT_STEP, file_command},
     {"file", nullptr, V, NOT_STEP, file_command}, /* list, get */
@@ -1246,6 +1244,8 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b, "}");
     buf_commands(b);
     buf_point_types(b);
+    BUF_LIT(b, ",\"auto_run\":");
+    b += xpp::auto_run_table_json();
     /* the lists a form field *n picks from */
     BUF_LIT(b, ",\"lists\":[[\"T\"");
     for (i = 0; i < m.neq; i++) {

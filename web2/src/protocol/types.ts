@@ -26,6 +26,12 @@ export interface PointType {
   mark: string;
 }
 
+export interface AutoRunTable {
+  kinds: string[];
+  current: string[];
+  rows: {point: string; family: string; kinds: string[]; switch: string[]}[];
+}
+
 export interface HelloEvent {
   ev: 'hello';
   protocol: number;
@@ -57,6 +63,8 @@ export interface HelloEvent {
   keymap: KeymapInfo;
   /** the windows' key layers (protocol/kinds.ts) */
   windows: Record<LayerWindow, WindowLayer>;
+  /** AUTO's Run: the kinds, the kinds a start from the current state takes, and one row for each start point type (core/auto_run.h) */
+  auto_run: AutoRunTable;
   /** every command, with its kind (a key's is its menu item's: "") and whether it is a step */
   commands: CommandKind[];
   /** what the core takes: the largest upload (bytes), the most rows and columns of one browser block */

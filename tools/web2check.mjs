@@ -1988,7 +1988,7 @@ const focusPlot = () => cdp.eval(`document.querySelector('.plot-view:not([hidden
    displayTold(mark) waits for one after it. */
 const displays = () => cdp.eval('__xpp.sentCount()');
 const displayTold = (mark, what = 'the display told') =>
-  until(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'window.set_display' || (c.cmd === 'auto' && c.op === 'display')) && !s.busy`, what);
+  until(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'window.set_display' || c.cmd === 'auto.set_display') && !s.busy`, what);
 
 async function menuKeys(first, then) {
   await key(first);
@@ -2319,6 +2319,18 @@ const rawDG = () => cdp.eval('__xpp.diagram()');
 const DG = () => settled(rawDG);
 /* the diagram's state, with its active view's axes, points, labels and viewport at its top (W50) */
 const DS = expr => cdp.eval(`(() => { const s = __xpp.state(), d = Object.assign({}, s.diagram, ${DV}); return ${expr}; })()`);
+/* Run: its dialog (opened by the R button or key) takes the kind, and OK sends auto.run (the kinds are the core's, hello.auto_run and the grabbed point's) */
+const okRunDialog = async kind => {
+  await until(`!!document.querySelector('[data-field=run-kind] option[value=${kind}]')`, `the Run dialog offering ${kind}`);
+  await cdp.eval(`(() => { const e = document.querySelector('[data-field=run-kind]'); e.value = ${JSON.stringify(kind)};
+    e.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  await cdp.eval(`document.querySelector('[data-field=run-ok]').click()`);
+};
+const runPeriodicFromDialog = () => okRunDialog('periodic');
+const autoRun = async kind => {
+  await autoButton('R');
+  await okRunDialog(kind);
+};
 const autoButton = k => cdp.eval(`document.querySelector('.auto-tools button[aria-keyshortcuts=${k}]').click()`);
 /* the diagram's plotting area and the screen position of (x, y) in it */
 const rawAutoArea = () => cdp.eval(`(() => { const r = document.querySelector('.auto-panel .u-over').getBoundingClientRect();
@@ -2503,7 +2515,7 @@ async function autoView(dir) {
   check('T31: Enter on a lone "-" in an integer AUTO Numerics field keeps the form open, marked, and sends nothing',
     signNmx.invalid === 'true' && signNmx.error === await S('s.autoSettings.core.rules.max_steps.message') && signNmx.ok === true
     && await cdp.eval(`!!document.querySelector('.auto-settings-dialog')`)
-    && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set')`)), JSON.stringify(signNmx));
+    && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto.configure_numerics')`)), JSON.stringify(signNmx));
   await typeInto('max_steps', '200');
   await typeInto('step_size', '9');
   const bigDs = await fieldState('step_size');
@@ -2512,7 +2524,7 @@ async function autoView(dir) {
   await key('Escape');
   check('T22: Escape cancels it: nothing sent',
     await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics cancelled')
-    && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set')`)));
+    && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto.configure_numerics')`)));
   check('W339: AUTO removes the Parameter form and autosettings pars',
     await S("!('pars' in s.autoSettings.core)") && await cdp.eval("![...document.querySelectorAll('.auto-panel button')].some(b => b.textContent === 'Parameter')"));
   /* W267: choosing a count and OK sends one set with threads alone, the core's event shows it (saved in the
@@ -2528,8 +2540,8 @@ async function autoView(dir) {
   await chooseThreads(String(threadCore.max));
   check('W267: Threads set to the most sends one set with the count alone, and the core shows it',
     await until(`s.autoSettings.core.threads === ${threadCore.max} && !s.autoSettings.inflight.length`, 'threads set')
-    && await cdp.eval(`(() => { const c = __xpp.sent().filter(c => c.cmd === 'auto' && c.op === 'set').pop();
-      return !!c && c.threads === ${threadCore.max} && Object.keys(c).sort().join() === 'cmd,op,threads'; })()`),
+    && await cdp.eval(`(() => { const c = __xpp.sent().filter(c => c.cmd === 'auto.set_threads').pop();
+      return !!c && c.threads === ${threadCore.max} && Object.keys(c).sort().join() === 'cmd,threads'; })()`),
     JSON.stringify(await cdp.eval('__xpp.sent().slice(-2)')));
   await chooseThreads('auto');
   check('W267: and Automatic sets "auto" again',
@@ -2538,9 +2550,10 @@ async function autoView(dir) {
 
   /* Run / Steady state */
   await autoButton('R');
-  check('Run asks how to start', await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu'),
-    JSON.stringify(await S('s.ask')));
-  await menuKey('s');
+  check('Run opens its dialog, with the equilibrium kind from the core\'s table',
+    await until(`!!document.querySelector('[data-field=run-kind] option[value=equilibrium]')`, 'run dialog'));
+  await cdp.eval(`document.querySelector('[data-field=run-ok]').click()`);
+  check('Run sends auto.run equilibrium', await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto.run' && c.kind === 'equilibrium')`));
   check('the steady-state branch arrives', await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000));
   const nSteady = await DS('d.points.x.length');
   const stop = await DS('d.stop');
@@ -2610,9 +2623,12 @@ async function autoView(dir) {
     JSON.stringify(await lastAnswer()));
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   await key('r');
-  check('R, from the Hopf point, offers the periodic branch',
-    await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Hopf Pt'", 'hopf menu'), JSON.stringify(await S('s.ask')));
-  await menuKey('p');
+  check('R, from the Hopf point, offers the periodic branch (the kinds of the grabbed point, the core\'s table)',
+    await until(`!!document.querySelector('[data-field=run-kind] option[value=periodic]')`, 'hopf run dialog')
+    && await cdp.eval(`document.querySelector('.auto-settings-dialog').textContent.includes('hopf')`));
+  await cdp.eval(`(() => { const e = document.querySelector('[data-field=run-kind]'); e.value = 'periodic';
+    e.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  await cdp.eval(`document.querySelector('[data-field=run-ok]').click()`);
   /* T21 ("while it runs the status strip says Running...") and T22 ("the
      axis dialog can change during the run") used to be asserted here, on
      lecar.odex's fast default mesh: on a slow runner they raced the same
@@ -2848,7 +2864,7 @@ async function autoView(dir) {
     await until(`!s.busy && dv.axes.plot === 'maximum_and_minimum' && dv.points.x.length === ${nAll}
       && document.querySelector('.auto-axis-dialog select[data-field=yvar]')`, 'hilo axes', 20000)
     && (await DG()).curves.some(c => c.which === 'y2')
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set' && c.axes && c.axes.plot === 'maximum_and_minimum' && c.axes.fit)`),
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto.configure_plot' && c.plot_type === 'maximum_and_minimum' && c.fit)`),
     JSON.stringify(await DS('d.axes')));
   const fitted = await DS('d.axes');
   await setAxisRange(fitted.ymin - 0.1, fitted.ymax + 0.1);
@@ -2867,7 +2883,7 @@ async function autoView(dir) {
   check('T21: Clear hides every branch so far; the key offers "Earlier branches (2)"',
     await until(`!s.busy && __xpp.diagram().curves.length === 0 && s.diagram.earlier === ${nAll} && !!document.querySelector('.auto-earlier')`, 'cleared')
     && /Earlier branches \(2\)/.test(await cdp.eval(`document.querySelector('.auto-earlier').textContent`))
-    && JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentClear})`)) === JSON.stringify([{cmd: 'key', win: 'auto', key: 'c', button: 'clear'}, {cmd: 'key', win: 'auto', key: 'd', button: 'redraw'}]),
+    && JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentClear})`)) === JSON.stringify([{cmd: 'auto.hide_earlier'}, {cmd: 'auto.redraw'}]),
     await cdp.eval(`document.querySelector('.auto-legend').textContent`));
   await cdp.eval(`document.querySelector('.auto-earlier').click()`);
   check('T21: "Earlier branches" shows them again', await until(`__xpp.diagram().curves.length === ${nCurvesAll}`, 'earlier shown'));
@@ -3005,10 +3021,7 @@ async function autoStopRace() {
 
   /* heavy.odex starts at a stable point (mu=-1): the steady branch finds
      its Hopf point continuing in mu, same as lecar's own first run above */
-  await autoButton('R');
-  check('AUTO Stop race: Run asks how to start',
-    await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu'));
-  await menuKey('s');
+  await autoRun('equilibrium');
   check('AUTO Stop race: the steady branch arrives', await until('!s.busy && dv.points.x.length > 2', 'steady', 60000 * SLOW));
 
   const periodicFromHopf = async what => {
@@ -3024,8 +3037,7 @@ async function autoStopRace() {
     await until('!s.busy && !s.diagram.grabbing', `grabbed ${what}`);
     await cdp.eval(`document.querySelector('.auto-host').focus()`);
     await key('r');
-    await until("s.ask && s.ask.kind === 'menu'", `hopf menu ${what}`);
-    await menuKey('p');
+    await runPeriodicFromDialog();
   };
   const nPre = await DS('d.points.x.length');
   await periodicFromHopf('the run');
@@ -3044,7 +3056,7 @@ async function autoStopRace() {
   check('T22: during the run the axis dialog\'s plot type and variable can change (they would wait), and min/max change the view at once',
     running && !dlg.plot && !dlg.yvar && !dlg.min && await until(`s.busy && dv.viewport.y && dv.viewport.y.min === 0.2
       && dv.viewport.y.max === 1.2`, 'axis range during run', 5000 * SLOW)
-      && !(await cdp.eval(`__xpp.sent().some(c => (c.win === 'auto' && c.key === 'a') || (c.cmd === 'auto' && c.op === 'set'))`)),
+      && !(await cdp.eval(`__xpp.sent().some(c => (c.win === 'auto' && c.key === 'a') || (c.cmd === 'auto.configure_numerics'))`)),
     JSON.stringify([running, dlg, await DS('d.viewport'), await S('s.busy')]));
   await key('Escape');
   await until('!document.querySelector(".auto-axis-dialog")', 'axis closed');
@@ -3058,12 +3070,12 @@ async function autoStopRace() {
   await cdp.eval(`(() => { const i = document.querySelector('.auto-settings-dialog input[data-field=max_steps]');
     i.value = '15'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
-  const setsSent = () => cdp.eval(`__xpp.sentFrom(${sentPre}).filter(c => c.cmd === 'auto' && c.op === 'set')`);
+  const setsSent = () => cdp.eval(`__xpp.sentFrom(${sentPre}).filter(c => c.cmd === 'auto.configure_numerics')`);
   check('W106: Numerics during a run: Nmax 15 is sent at once (one set), shown, the core\'s still 2000 (the run keeps it)',
     going && await S(`s.busy && s.autoSettings.inflight.length === 1 && s.autoSettings.inflight[0].patch.numerics.max_steps === 15
       && s.autoSettings.core.numerics.max_steps === 2000`)
     && await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)
-    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {max_steps: 15}}]),
+    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto.configure_numerics', max_steps: 15}]),
     JSON.stringify([going, await S('[s.busy, s.autoSettings]'), await setsSent()]));
 
   /* T25: a connection the browser opened and sent nothing on yet (a
@@ -3091,7 +3103,7 @@ async function autoStopRace() {
   check('W106: once the run ends the set applies: the core\'s Nmax is 15, nothing in flight, no second set',
     await until(`!s.busy && s.autoSettings.core.numerics.max_steps === 15 && !s.autoSettings.inflight.length`,
       'applied at idle', 60000 * SLOW)
-    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {max_steps: 15}}])
+    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto.configure_numerics', max_steps: 15}])
     && !(await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)),
     JSON.stringify([await S('s.autoSettings'), await setsSent()]));
   check('T23: after Stop the status strip says so: "Stopped: by the user (Stop)"',
@@ -3129,8 +3141,7 @@ async function autoViews(dir) {
   check('AUTO views: one view at first, no title and no close button',
     await cdp.eval(`document.querySelectorAll('.auto-pane').length === 1 && !document.querySelector('.auto-pane-close')`)
     && (await S('s.diagram.views.length')) === 1);
-  await autoButton('R');
-  await menuKey('s');
+  await autoRun('equilibrium');
   check('AUTO views: a steady-state branch', await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000));
   const n = await DS('d.points.x.length');
 
@@ -3156,7 +3167,7 @@ async function autoViews(dir) {
       && s.diagram.views[0].axes.plot === 'maximum_and_minimum' && s.diagram.views[0].axes.ylabel === 'V'
       && s.diagram.views.every(v => v.points.x.length === ${n})
       && s.diagram.views[0].points.br.every((b, i) => b === s.diagram.views[1].points.br[i])`, 'norm view', 20000)
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set' && c.axes && c.axes.view === 'diagram_2' && c.axes.plot === 'norm')`)
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto.configure_plot' && c.view === 'diagram_2' && c.plot_type === 'norm')`)
     && await cdp.eval(`[...document.querySelectorAll('.auto-pane-title')].map(t => t.textContent).join('|') === 'V against iapp|Norm against iapp'`),
     JSON.stringify(await S('s.diagram.views.map(v => v.axes)')));
   check('AUTO views: each view draws its own chart', (await cdp.eval('__xpp.diagram(0).curves.length')) > 0
@@ -3245,8 +3256,7 @@ async function reopenedSessionPlot(dir) {
   check('W102: G integrates: 601 rows', await until(`w.series && w.series.rows === ${rows} && !s.busy`, 'series'));
   await openAutoAtFixedPoint();
   await key('r');
-  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu');
-  await menuKey('s');
+  await okRunDialog('equilibrium');
   await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000 * SLOW);
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   await key('g');
@@ -3257,8 +3267,7 @@ async function reopenedSessionPlot(dir) {
   await until('!s.busy && !s.diagram.grabbing', 'grabbed');
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   await key('r');
-  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Hopf Pt'", 'hopf menu');
-  await menuKey('p');
+  await runPeriodicFromDialog();
   await until('!s.busy && !s.ask', 'periodic', 120000 * SLOW);
   const points = await DS('d.points.x.length');
   await cdp.eval(`__xpp.send({cmd: 'session', op: 'save', name: 'w102'})`);
@@ -3333,8 +3342,7 @@ async function lostF() {
   await until('s.diagram.shown', 'auto show');
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus');
   await key('r');
-  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu');
-  await menuKey('s');
+  await okRunDialog('equilibrium');
   await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000);
   /* Back during a grab: the grab ask stays open with the panel hidden, and every key is swallowed by it */
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
@@ -3365,8 +3373,7 @@ async function lostF() {
   await until('!s.busy && !s.diagram.grabbing', 'grabbed');
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   await key('r');
-  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Hopf Pt'", 'hopf menu');
-  await menuKey('p');
+  await runPeriodicFromDialog();
   /* F straight away: while the run goes or after it, AUTO's File menu opens */
   await key('f');
   const opened = await until("s.ask && s.ask.kind === 'menu' && /file/i.test(s.ask.title || '')", 'auto file menu', 120000);
@@ -3393,8 +3400,7 @@ async function lostFRunning() {
   const opened = await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus');
   await key('r');
-  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu');
-  await menuKey('s');
+  await okRunDialog('equilibrium');
   await until('!s.busy && dv.points.x.length > 2', 'steady', 60000 * SLOW);
   /* a missing view is a failed check with the state, not a page error that hides which step lost it */
   const hasAuto = await cdp.eval(`!!document.querySelector('.auto-host')`);
@@ -3413,9 +3419,8 @@ async function lostFRunning() {
   await until('!s.busy && !s.diagram.grabbing', 'grabbed');
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   await key('r');
-  await until("s.ask && s.ask.kind === 'menu'", 'hopf menu');
-  const nPre = await DS('d.points.x.length');
-  await menuKey('p');
+    const nPre = await DS('d.points.x.length');
+  await runPeriodicFromDialog();
   check('lostF: the periodic run is going',
     await until(`s.busy && !s.ask && dv.points.x.length > ${nPre}`, 'periodic going', 60000 * SLOW));
   const sent0 = await cdp.eval('__xpp.sentCount()');
@@ -6087,8 +6092,10 @@ async function jacobianOfferCheck(dir) {
   await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
   await key('a');
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
-  await cdp.eval(`__xpp.send({cmd: 'auto', op: 'set', numerics: {step_size: -0.1, max_step_size: 0.1, parameter_min: -0.5, parameter_max: 2, max_steps: 100}, axes: {plot: 'norm', var: 'x', par1: 'a'}})`);
-  await until('!s.busy', 'AUTO settings');
+  await cdp.eval(`__xpp.send({cmd: 'auto.configure_numerics', step_size: -0.1, max_step_size: 0.1, parameter_min: -0.5, parameter_max: 2, max_steps: 100})`);
+  await until('!s.busy', 'AUTO numerics');
+  await cdp.eval(`__xpp.send({cmd: 'auto.configure_plot', plot_type: 'norm', variable: 'x', parameter1: 'a'})`);
+  await until('!s.busy', 'AUTO axes');
   await cdp.eval(`__xpp.send({cmd: 'key', win: 'auto', key: 'r'})`);
   await until("s.ask && s.ask.kind === 'menu'", 'AUTO start menu');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 's'})");
@@ -6098,9 +6105,9 @@ async function jacobianOfferCheck(dir) {
   const autoSent = await S('__xpp.sentCount()');
   await cdp.eval(`${offer}.click()`);
   const autoCommands = await S(`__xpp.sentFrom(${autoSent})`);
-  check('W275: the button sends set num jacobian difference, then auto restart from an end point label, and the branch goes on past a = 0.4',
+  check('W275: the button sends set num jacobian difference, then auto.run from an end point label, and the branch goes on past a = 0.4',
     await until(`!s.busy && !document.querySelector('[data-error-dialog]') && Math.min(...dv.points.x) < 0.4`, 'the run continued', 60000)
-    && autoCommands.length === 2 && autoCommands[0].cmd === 'set' && autoCommands[1].cmd === 'auto' && autoCommands[1].op === 'restart'
+    && autoCommands.length === 2 && autoCommands[0].cmd === 'set' && autoCommands[1].cmd === 'auto.run'
     && autoCommands[1].label > 0 && await S(`s.numerics.find(f => f.key === 'jacobian')?.value`) === 'difference',
     JSON.stringify(autoCommands));
 }
@@ -6522,9 +6529,7 @@ async function layoutCheck(dir) {
   /* AUTO open, Back: Show AUTO in the flow, off the plot, the messages and the status bar */
   await openAutoAtFixedPoint();
   check('layout: File/Auto opens the AUTO view', await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open'));
-  await autoButton('R');
-  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu');
-  await menuKey('s');
+  await autoRun('equilibrium');
   check('layout: an AUTO run stores a diagram', await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000));
   const nPts = await DS('d.points.x.length');
   await cdp.eval(`document.querySelector('.auto-back').click()`);

@@ -47,15 +47,28 @@ enum {
 };
 
 /* what AUTO's IID levels print, named by it (0 to 5 are AUTO's own numbers, read on import only) */
-inline constexpr std::array<std::string_view, 6> auto_output_detail_names = {
+inline constexpr std::array<const char *, 6> auto_output_detail_names = {
     "none", "little", "normal", "start_jacobian", "extensive", "debugging"};
 
 /* what a field holds: a whole number, a real, a boolean, or one of named choices
    (stored in the settings' numbers as the index, 0 or 1 for a boolean) */
 enum class AutoFieldShape { whole, real, boolean, choice };
-AutoFieldShape auto_settings_num_shape(int i);
+
+/* the Numerics fields' keys and shapes, by AUTO_NUM_* (the one list: the event, `set`, the files and the registry's
+   auto.configure_numerics all name them so) */
+inline constexpr std::array<const char *, AUTO_NUM_N> auto_num_keys = {
+    "mesh_intervals", "max_steps", "output_every", "collocation_points", "step_size", "min_step_size", "max_step_size",
+    "parameter_min", "parameter_max", "norm_min", "norm_max", "parameter_tolerance", "state_tolerance",
+    "special_point_tolerance", "mesh_adapt_every", "max_branch_switches", "switch_one_direction", "output_detail",
+    "max_location_iterations", "max_newton_iterations", "full_newton_after", "step_adapt_every", "suppress_branch_points"};
+inline constexpr std::array<AutoFieldShape, AUTO_NUM_N> auto_num_shapes = {
+    AutoFieldShape::whole, AutoFieldShape::whole, AutoFieldShape::whole, AutoFieldShape::whole, AutoFieldShape::real,
+    AutoFieldShape::real, AutoFieldShape::real, AutoFieldShape::real, AutoFieldShape::real, AutoFieldShape::real,
+    AutoFieldShape::real, AutoFieldShape::real, AutoFieldShape::real, AutoFieldShape::real, AutoFieldShape::whole,
+    AutoFieldShape::whole, AutoFieldShape::boolean, AutoFieldShape::choice, AutoFieldShape::whole, AutoFieldShape::whole,
+    AutoFieldShape::whole, AutoFieldShape::whole, AutoFieldShape::boolean};
 /* the names a choice field takes, in the order of its index (none for any other) */
-std::span<const std::string_view> auto_settings_num_choices(int i);
+std::span<const char *const> auto_settings_num_choices(int i);
 
 /* the key of Numerics field i in the event, the command and the files
    ("mesh_intervals", ...), and its label on the core's form ("Mesh

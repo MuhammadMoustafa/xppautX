@@ -156,7 +156,7 @@ void send_state(xpp::Session &s)
         BUF_LIT(b, "]");
     }
     /* pixel to plot coordinates of the active window and the AUTO diagram,
-       for the x,y readout under the mouse (scale_to_real, auto_motion_xy) */
+       for the x,y readout under the mouse (scale_to_real) */
     get_draw_area(s);
     BUF_LIT(b,",\"view\":{\"win\":");buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
     buf_format(b, ",\"left\":{:d},\"right\":{:d},\"top\":{:d},\"bottom\":{:d},"

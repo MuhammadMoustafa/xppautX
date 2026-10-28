@@ -266,8 +266,30 @@ export function pendingFields(s: AutoSettingsState): Set<string> {
   return out;
 }
 
-export function autoSettingsSetCommand(p: AutoSettingsPatch): Command {
-  return {cmd: 'auto', op: 'set', ...p};
+/** what a patch is as registry commands (docs/protocol.md auto.configure_numerics, ...): one for each part it has, in the order of its parts */
+export function autoSettingsCommands(p: AutoSettingsPatch): {command: Command; patch: AutoSettingsPatch}[] {
+  const out: {command: Command; patch: AutoSettingsPatch}[] = [];
+  if (p.numerics || p.special_points) {
+    out.push({
+      command: {cmd: 'auto.configure_numerics', ...p.numerics, ...(p.special_points ? {special_points: p.special_points} : {})},
+      patch: {numerics: p.numerics, special_points: p.special_points},
+    });
+  }
+  if (p.axes) {
+    const {plot, var: variable, par1, par2, xmin, xmax, ymin, ymax, fit, view} = p.axes;
+    const given = {plot_type: plot, variable, parameter1: par1, parameter2: par2, x_min: xmin, x_max: xmax, y_min: ymin, y_max: ymax, fit, view};
+    out.push({
+      command: {cmd: 'auto.configure_plot', ...Object.fromEntries(Object.entries(given).filter(([, v]) => v !== undefined && v !== null))},
+      patch: {axes: p.axes},
+    });
+  }
+  if (p.marks) {
+    out.push({command: {cmd: 'auto.configure_marks', parameters: p.marks.map(m => m[0]), values: p.marks.map(m => m[1])}, patch: {marks: p.marks}});
+  }
+  if (p.threads !== undefined) {
+    out.push({command: {cmd: 'auto.set_threads', ...(p.threads === 'auto' ? {automatic: true} : {threads: p.threads})}, patch: {threads: p.threads}});
+  }
+  return out;
 }
 
 /** what a Numerics field takes (store/fieldKinds.ts): a whole number or a number, and its rule */

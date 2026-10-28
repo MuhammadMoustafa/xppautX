@@ -163,8 +163,18 @@ export interface AutoStop {
   limit: number | null;
 }
 
+/** `autoinfo` `start`: the grabbed point a run would start from, and the kinds it takes (null: the current state) */
+export interface AutoRunStart {
+  label: number;
+  type: string;
+  family: string;
+  kinds: string[];
+  switch: string[];
+}
+
 export interface AutoInfoEvent {
   ev: 'autoinfo';
+  start?: AutoRunStart | null;
   info: AutoInfo | null;
   stab: AutoStab | null;
   stop?: AutoStop | null;
@@ -214,6 +224,8 @@ export interface DiagramState {
   /** the info strip and the stability circle (`autoinfo`) */
   info: AutoInfo | null;
   stab: AutoStab | null;
+  /** the grabbed point a Run starts from (`autoinfo` `start`) */
+  start: AutoRunStart | null;
   /** why the last run's last branch ended (`autoinfo` `stop`, T23) */
   stop: AutoStop | null;
   /** `autoinfo` events applied (tests wait on it) */
@@ -283,7 +295,7 @@ export const EMPTY_VIEW: DiagramView = emptyView();
 
 export const initialDiagram: DiagramState = {
   open: false, shown: false, views: [emptyView()], active: 0, events: 0, outOfStep: false,
-  hover: null, info: null, stab: null, stop: null, infoEvents: 0, grabbing: false, stored: null,
+  hover: null, info: null, stab: null, start: null, stop: null, infoEvents: 0, grabbing: false, stored: null,
   run: null, earlier: 0, showEarlier: false,
 };
 
@@ -478,7 +490,7 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
       return {...s, hover: h};
     }
     case 'info':
-      return {...s, info: a.ev.info ?? null, stab: a.ev.stab ?? null, stop: a.ev.stop ?? null, infoEvents: s.infoEvents + 1};
+      return {...s, info: a.ev.info ?? null, stab: a.ev.stab ?? null, start: a.ev.start ?? null, stop: a.ev.stop ?? null, infoEvents: s.infoEvents + 1};
     case 'grabbing':
       /* a grab shows the panel: the diagram is where the point is picked */
       return a.on === s.grabbing ? s : {...s, grabbing: a.on, shown: a.on && s.open ? true : s.shown};

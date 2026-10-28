@@ -72,6 +72,7 @@ import {activeView, autoWindow, EMPTY_VIEW, pointCount, type DiagramHover, type 
 import {branchesBefore} from '../store/diagram';
 import type {AppState} from '../store/state';
 import {AutoAxisDialog, type AxisName} from './AutoAxes';
+import {AutoRunDialog} from './AutoRun';
 import {AutoSettingsDialog, type AutoSettingsDialogKind} from './AutoSettings';
 import {AutoInfo} from './AutoInfo';
 import {AutoOutput, AutoStatus} from './AutoStatus';
@@ -559,11 +560,13 @@ function AutoPanel({dark}: {dark: boolean}) {
   const views = useStore(s => s.diagram.views.length);
   const what = useStore(s => whatOf(activeView(s.diagram)));
   const [settingsOpen, setSettingsOpen] = useState<AutoSettingsDialogKind | null>(null);
+  const [runOpen, setRunOpen] = useState(false);
   const pending = pendingFields(useStore(s => s.autoSettings));
   /* a button: its form (T22), else its command */
   const act = (op: AutoOp) => {
     const kind = SETTINGS_DIALOG[op];
     if (kind) setSettingsOpen(kind);
+    else if (op === 'run') setRunOpen(true);
     else session.autoOp(op);
   };
   const panel = useRef<HTMLElement>(null);
@@ -625,6 +628,7 @@ function AutoPanel({dark}: {dark: boolean}) {
         </div>
         <Readout />
       </div>
+      {runOpen && <AutoRunDialog onClose={() => setRunOpen(false)} />}
       {settingsOpen && <AutoSettingsDialog kind={settingsOpen} onClose={() => setSettingsOpen(null)} />}
       <AutoInfo />
       <AutoOutput />

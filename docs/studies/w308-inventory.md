@@ -408,6 +408,8 @@ Only what the user places, each with an id (proposed, awaiting the maintainer). 
 
 ---
 
+Moved at W516 ([#580](https://github.com/MuhammadMoustafa/xppautX/issues/580)): every row of this table is on the registry, in `core/commands_auto.cpp`, and the old `{"cmd":"auto","op":...}` forms are removed. `auto.close`, `auto.close_view` and `auto.activate_view` are `window.close` and `window.select` (W353); `auto.run` is the row of `A` -> `R` and takes the kind, `switch`, the start and the Numerics by their W531 names.
+
 ### 2.15 Resource `animation` (Custom Geometric Animations)
 
 | Today Key Path | Today Menu Item | Today Protocol | Today Forms & Asks | Proposed Dotted Name | Typed Named Arguments | Group / Mutex | Result Payload | Events Emitted |

@@ -135,12 +135,22 @@ constexpr std::optional<AutoCalculation> auto_calculation_from_code(int code) {
     return static_cast<AutoCalculation>(code);
 }
 constexpr std::optional<AutoCalculation> auto_calculation_from_name(std::string_view name) {
-    const auto at=std::ranges::find(auto_calculation_names,name);
-    if(at==auto_calculation_names.end()) return std::nullopt;
-    return static_cast<AutoCalculation>(at-auto_calculation_names.begin());
+    return xpp::enum_from_name<AutoCalculation>(auto_calculation_names,name);
 }
 constexpr AutoCalculation auto_hopf_curve_kind(double kappa) {
     return kappa < 0. ? auto_neutral_saddle_curve : auto_hopf_curve;
+}
+
+/* What a run computes (W516: auto.run's `kind`); a branch switch is the same
+   kind with `switch`. auto_run.h's table says which kinds a start point's
+   type allows. */
+enum class AutoRunKind : int { equilibrium, periodic, two_parameter, fixed_period, bvp, homoclinic, heteroclinic };
+inline constexpr std::array<const char *, 7> auto_run_kind_names = {
+    "equilibrium", "periodic", "two_parameter", "fixed_period", "bvp", "homoclinic", "heteroclinic"};
+constexpr const char *auto_run_kind_name(AutoRunKind kind) { return auto_run_kind_names[static_cast<std::size_t>(kind)]; }
+constexpr std::optional<AutoRunKind> auto_run_kind_from_name(std::string_view name)
+{
+    return xpp::enum_from_name<AutoRunKind>(auto_run_kind_names, name);
 }
 
 /* A special point's kind. Most use ITP mod 10; equilibrium

@@ -239,8 +239,9 @@ def restore_start(s, r, values, ranges):
 
 
 def execute_run(s, r, diagram, ranges, diagram_data=True):
-    """The replaceable adapter to pre-W306 AUTO keys and asks."""
+    """One description's run as the registry's commands: its settings, then auto.run with its kind and start."""
     start = r['start']
+    run = dict(cmd='auto.run', kind=r['kind'])
     if start.get('state') == 'current':
         if 'settle' in start:
             completed(s, dict(cmd='run.configure', total_time=start['settle'], **({'dt': start['step']} if 'step' in start else {})))
@@ -249,37 +250,33 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
             ensure_completed(events, end)
             state = next(e for e in reversed(events) if e.get('ev') == 'state')
             set_values(s, [dict(kind='ic', name=p[0], value=float(v)) for p, v in zip(state['ics'], state['now'])])
+        if r['kind'] == 'equilibrium':
+            run['replace_diagram'] = False
     else:
         if diagram.runs[start['run']] is None:
             read_unlabelled(s, diagram, ranges)
         points = [p for p in diagram.runs[start['run']] if p['sym'] == code_of(start['type'])]
         if len(points) < start['index']:
             raise ValueError('start point not found: ' + str(start))
-        completed(s, dict(cmd='auto', op='grab', label=points[start['index'] - 1]['lab']))
+        run['label'] = points[start['index'] - 1]['lab']
     pars = r.get('parameters', [r.get('parameter')])
-    numerics = r['auto']
-    diagram.apply(completed(s, dict(cmd='auto', op='set', numerics=numerics,
-                                   marks=r.get('marks', []), axes={'par1': pars[0],
-                                   **({'par2': pars[1], 'plot': 'two_parameter'} if len(pars) == 2 else {})})))
-    keys = {'equilibrium': 's' if start.get('state') == 'current' else 'e',
-            # a periodic run from an HB starts the cycles; from a point of cycles it extends them (W423)
-            'periodic': 'p' if code_of(start.get('type', '')) == 'HB' else 'e', 'two_parameter': 't', 'fixed_period': 'f',
-            'bvp': 'b', 'homoclinic': 'h', 'heteroclinic': 'e'}
-    key = 's' if r.get('switch') else keys[r['kind']]
+    completed(s, dict(cmd='auto.configure_numerics', **r['auto']))
+    marks = r.get('marks', [])
+    completed(s, dict(cmd='auto.configure_marks', parameters=[m[0] for m in marks], values=[m[1] for m in marks]))
+    diagram.apply(completed(s, dict(cmd='auto.configure_plot', parameter1=pars[0],
+                                   **({'parameter2': pars[1], 'plot_type': 'two_parameter'} if len(pars) == 2 else {}))))
+    if r.get('switch'):
+        run['switch'] = True
     lo = diagram.size
     if 'connection' in r:
         c = r['connection']
-        values = [c['nunstab'], *c['left'], c['nstab'], *c['right']]
-        def connection_form(e):
-            if e.get('title') != 'Homoclinic info' or len(e['values']) != len(values):
-                raise ValueError('unexpected HomCont form: ' + str(e))
-            return dict(ok=1, values=[str(v) for v in values])
-        s.send(cmd='key', win='auto', key='r')
-        events, end = s.answer_asks(is_idle, {'menu': lambda e: dict(key=key), 'form': connection_form}, timeout=TIMEOUT)
-        if end is None:
-            raise RuntimeError('HomCont did not complete (safety timeout)')
-    else:
-        events = run_any(s, key, timeout=TIMEOUT)
+        run.update(unstable_dimension=c['nunstab'], stable_dimension=c['nstab'], left_equilibrium=c['left'])
+        if r['kind'] == 'heteroclinic':
+            run['right_equilibrium'] = c['right']
+    s.send(**run)
+    events, end = s.collect(lambda e: is_idle(e) or is_ask(e), timeout=TIMEOUT)
+    if end is None:
+        raise RuntimeError('auto.run did not complete (safety timeout)')
     result = [e for e in events if e.get('ev') != 'ask']
     if 'expected_error' in r:
         errors = [e for e in result if e.get('error')]
@@ -380,7 +377,7 @@ def compute(binary, d, threads, *, env=None, run=None, diagram_data=True, jacobi
         completed(s)
         if jacobian is not None:
             completed(s, dict(cmd='set', kind='num', name='jacobian', text=jacobian))
-        completed(s, dict(cmd='auto', op='set', threads=threads))
+        completed(s, dict(cmd='auto.set_threads', **({'automatic': True} if threads == 'auto' else {'threads': threads})))
         # Subscription returns the current settings even when a repeated
         # threads=1 assignment changed nothing and emitted no change event.
         events = completed(s, dict(cmd='data', events=['autoinfo', 'autosettings'], diagram=diagram_data))

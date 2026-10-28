@@ -209,6 +209,7 @@ std::span<const Command> annotation_commands();
 std::span<const Command> run_commands();
 std::span<const Command> ic_commands();
 std::span<const Command> bvp_commands();
+std::span<const Command> auto_commands();
 /* A command whose arguments are numerics settings (run.configure, bvp.configure): every argument given is the
    setting `key_prefix` + its name, all checked together and set all or nothing; the result holds each one's
    value now. */

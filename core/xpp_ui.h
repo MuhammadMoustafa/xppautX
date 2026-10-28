@@ -320,6 +320,8 @@ typedef struct XppUi {
        AutoState::views): p is a point add_point() just plotted there, NULL
        that the view was cleared and its axes drawn again. */
     void (*auto_diagram)(Session &s, int view, const XppDiagPoint *p);
+    /* how many points of the diagram the client holds (Clear hides the branches up to them) */
+    int (*auto_points_held)(Session &s);
 
     /* animation (toon) window. Frames are drawn off screen, vcr.wid by
        vcr.hgt pixels (aniparse.h), then ani_show puts one on screen. */
@@ -381,6 +383,7 @@ void make_auto(Session &s, std::string_view wname, std::string_view iname);
 int auto_rubber(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
 void auto_scroll_window(Session &s);
 void auto_diagram(Session &s, int view, const XppDiagPoint *p);
+int auto_points_held(Session &s);
 void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
 int rubber_band(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
 void scroll_window(Session &s);

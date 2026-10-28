@@ -125,6 +125,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [92](#92-animation-grab-tolerances-discard-text-and-formula-suffixes) | Animation | grab tolerance uses a numeric prefix or .02, so shipped expressions are never evaluated | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
 | [93](#93-animation-circles-ignore-the-written-width) | Animation | the circle reader never consumes its documented width argument | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
 | [94](#94-permanent-animation-shapes-change-colour-every-frame) | Animation | permanent coordinates are cached, but colour formulas run each frame | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
+| [95](#95-auto-evaluates-the-equations-at-t--0-without-a-word) | AUTO | AUTO calls the right-hand side with t fixed at 0, so an equation that uses t is continued with t = 0 and no word says so | [W516 / #580](https://github.com/MuhammadMoustafa/xppautX/issues/580) |
 
 ## 1. Model options
 
@@ -2035,3 +2036,15 @@ initializing such a line and checks identical primitive data. This is an
 intentional difference for imported permanent shapes with changing colour
 formulas; the retained examples' frame comparisons are unchanged. Card
 [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584).
+## 95. AUTO evaluates the equations at t = 0 without a word
+
+XPPAUT's `func`, the right-hand side AUTO calls, passes the time as a constant
+(`rhs(0.0, u, f, ndim)`:
+[autpp.c:40](../reference/xppaut-8.0/autpp.c#L40),
+[master](../reference/xppaut-master/autpp.c#L40)), and again for each extra jump step
+([autpp.c:46](../reference/xppaut-8.0/autpp.c#L46),
+[master](../reference/xppaut-master/autpp.c#L46)). A model whose equations use `t`
+is therefore continued as if `t` were 0, with no message. Evidence: `x' = -x + sin(t)`
+gives the branch of `x' = -x`. xppautX refuses the run and names each equation with
+its file and line, pointing to the oscillator form that makes `t` a state
+(`examples/tstauto/frcp.odex`; W516, [#580](https://github.com/MuhammadMoustafa/xppautX/issues/580)).

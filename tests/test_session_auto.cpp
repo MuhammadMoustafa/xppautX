@@ -17,6 +17,7 @@
 #include "diagram.h"
 #include "jacobian.h"
 #include "auto_nox.h"
+#include "auto_run.h"
 #include "auto_c.h"
 #include "auto_settings.h"
 #include "xpp_batch.h"
@@ -344,7 +345,7 @@ void check_parameterless_model()
     s.auto_state.dir=tmp.path();
     CHECK(s.model().nupar==0);
     const int points=diagram_count(s.diagram);
-    xpp::auto_start_diff_ss(s);
+    CHECK(!xpp::auto_run_start(s,xpp::AutoRunRequest{}));
     CHECK(!s.auto_state.diag_flag && diagram_count(s.diagram)==points);
     CHECK(!xpp::files::exists(xpp::auto_solutions_file(s))
           && !xpp::files::exists(s.auto_state.fort3) && !xpp::files::exists(s.auto_state.fort8));
@@ -384,7 +385,7 @@ void check_branch_parameters()
     mark[0].parameter=xpp::auto_unknown::period;
     parameters[xpp::auto_unknown::period]=7.5;
     CHECK(mark_value()==7);
-    xpp::auto_start_diff_ss(s);
+    CHECK(xpp::auto_run_start(s,xpp::AutoRunRequest{}));
     CHECK(s.diagram.points.size()==4);
     const int label=s.diagram.points.front().lab;
     CHECK(label>0);
@@ -393,21 +394,12 @@ void check_branch_parameters()
     CHECK(s.diagram.points.back().branch==older && s.diagram.points.back().par.size()==1);
     s.parser.constants[s.model().upar_con[1]]=7;
     s.last_ic[0]=7/s.parser.constants[s.model().upar_con[0]];
-    const xpp::XppUi saved_ui=xpp::ui;
-    xpp::XppUi retain_ui=saved_ui;
-    retain_ui.question_policy=[](bool){return xpp::QuestionPolicy::User;};
-    retain_ui.choose=[](std::string_view,std::string_view question,std::span<const std::string>,std::string_view keys,char)->int{
-        CHECK(question=="Destroy AUTO diagram & files" && keys=="yn");
-        return 'n';
-    };
-    xpp::set_ui(&retain_ui);
-    xpp::auto_new_ss(s);
-    xpp::set_ui(&saved_ui);
+    CHECK(xpp::auto_run_start(s,xpp::AutoRunRequest{})); /* a new start that keeps the diagram: replace_diagram is false */
     CHECK(s.diagram.points.size()==8 && s.diagram.points.back().branch!=older);
     CHECK(s.diagram.points.back().branch->parameters[1]==7 && older->parameters[1]==2);
     CHECK(xpp::auto_grab_label(s,label)==1 && s.parser.constants[s.model().upar_con[1]]==2);
     s.parser.constants[s.model().upar_con[1]]=9;
-    xpp::auto_restart(s,label);
+    CHECK(xpp::auto_run_start(s,xpp::AutoRunRequest{xpp::AutoRunKind::equilibrium,false,true}));
     CHECK(s.parser.constants[s.model().upar_con[1]]==2 && s.diagram.points.back().branch->parameters[1]==2);
     CHECK(std::abs(diagram_parameter(s.diagram.points.back(),0)*s.diagram.points.back().u0[0]-2)<1e-8);
     const auto bytes=xpp_session_snapshot(s);
@@ -418,12 +410,12 @@ void check_branch_parameters()
     CHECK(saved && xpp_saved_restore(s,*saved));
     CHECK(xpp::auto_grab_label(s,label)==1 && s.parser.constants[s.model().upar_con[1]]==2);
     s.parser.constants[s.model().upar_con[1]]=13;
-    xpp::auto_restart(s,label);
+    CHECK(xpp::auto_run_start(s,xpp::AutoRunRequest{xpp::AutoRunKind::equilibrium,false,true}));
     CHECK(s.parser.constants[s.model().upar_con[1]]==2 && s.diagram.points.back().branch->parameters[1]==2);
     CHECK(std::abs(diagram_parameter(s.diagram.points.back(),0)*s.diagram.points.back().u0[0]-2)<1e-8);
     s.auto_state.axes().icp1=1;
     s.parser.constants[s.model().upar_con[0]]=19;
-    xpp::auto_restart(s,label);
+    CHECK(xpp::auto_run_start(s,xpp::AutoRunRequest{xpp::AutoRunKind::equilibrium,false,true}));
     CHECK(s.parser.constants[s.model().upar_con[0]]==1 && s.diagram.points.back().icp1.is_parameter(1));
     CHECK(std::abs(s.diagram.points.back().u0[0]-diagram_parameter(s.diagram.points.back(),1))<1e-8);
 }
@@ -674,10 +666,10 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
     s.auto_state.dir=tmp.path();
     xpp::init_auto_win(s);
     s.auto_state.threads=threads; /* the preference's count, selected once for the run */
-    xpp::auto_start_diff_ss(s);
+    CHECK(xpp::auto_run_start(s,xpp::AutoRunRequest{}));
     CHECK(xpp::auto_grab_type_index(s,xpp::AutoPointKind::Hopf,1)==1);
     const auto start=std::chrono::steady_clock::now();
-    xpp::auto_new_per(s);
+    CHECK(xpp::auto_run_start(s,xpp::AutoRunRequest{xpp::AutoRunKind::periodic,false,true}));
     // W340/#401: periodic continuation frees AUTO's period independently of the model.
     CHECK(std::any_of(s.diagram.points.begin(),s.diagram.points.end(),[](const xpp::DIAGRAM &p){
         return p.nfpar==2 && p.icp2.is_period()

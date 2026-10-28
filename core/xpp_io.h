@@ -41,6 +41,15 @@
 
 namespace xpp {
 
+/* the enumerator whose word `names` holds at its index (a choice named, never numbered), nothing for any other text */
+template <typename Enum, typename Names>
+constexpr std::optional<Enum> enum_from_name(const Names &names, std::string_view word)
+{
+    for (std::size_t i = 0; i < std::size(names); ++i)
+        if (word == names[i]) return static_cast<Enum>(i);
+    return std::nullopt;
+}
+
 /* std::format can throw (bad_alloc); no exception may cross into the C
    code that calls these C++ functions (AGENTS.md), so a failure is loud
    and final like xpp_mem's: an ERROR naming the call site, exit 1 */

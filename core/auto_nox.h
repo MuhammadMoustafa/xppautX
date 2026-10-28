@@ -91,6 +91,7 @@ struct GRABPT {
   int nfpar;
   int flag;
   AutoCalculation curve=no_calculation; // diagram curve kind, including the neutral-saddle extension
+  AutoCalculation calc=no_calculation; // the calculation that made the point (its branch's problem)
 };
 
 struct DiagramBranch {
@@ -140,11 +141,14 @@ void open_auto(Session &s, int flag);
 /* the path of AUTO's fort.<unit> (3, 7, 8 or 9) open_auto set, "" for
    another unit: gogoauto.cpp opens them for a run */
 const char *auto_fort_path(const Session &s, int unit);
-void do_auto(Session &s, int iold, int isave, AutoPointCode itp);
+/* do_auto's iold: AUTO's fort.3 is opened for a restart (OPEN_3) or not; isave: the run's solutions replace the .s file or
+   are added to it */
+inline constexpr int OPEN_3 = 1, NO_OPEN_3 = 0, OVERWRITE = 0, APPEND = 1;
+/* a run set up (set_auto) and made; the error is what went wrong, shown by the command that ran it */
+Result<> do_auto(Session &s, int iold, int isave, AutoPointCode itp);
 /* goes on from the point labelled `label` with the settings of the run
    before (W275: the action of an exact Jacobian's failure); an error, and
    nothing run, for a label no point has */
-void auto_restart(Session &s, int label);
 /* Restore model slots from the label's branch before a restart solver uses
    them. Non-continued constants were deliberately absent from AUTO's PAR. */
 void auto_label_parameters(const Session &s, int label, double *parameters);
@@ -167,6 +171,13 @@ void auto_new_view(Session &s);
 int auto_close_view(Session &s, int k);
 int auto_activate_view(Session &s, int k);
 void auto_zoom_in(Session &s, int i1, int j1, int i2, int j2);
+/* the active view shows this box of its quantities, x1 below x2 and y1 below y2, or the box a zoom out shrinks it into
+   (auto_zoom_out_to), or is moved by dx, dy; the caller draws the diagram again (redraw_diagram) */
+/* Clear: the branches so far become the earlier ones, hidden until shown again */
+void auto_hide_earlier(Session &s);
+void auto_zoom_to(Session &s, double x1, double x2, double y1, double y2);
+void auto_zoom_out_to(Session &s, double x1, double x2, double y1, double y2);
+void auto_scroll_by(Session &s, double dx, double dy);
 void auto_zoom_out(Session &s, int i1, int j1, int i2, int j2);
 /* where view ax plots a point: x, and y1 and y2 (the maximum and minimum,
    or y1 twice) */
@@ -198,39 +209,14 @@ int yes_reset_auto(Session &s);
 int reset_auto(Session &s);
 void auto_grab(Session &s);
 
-void auto_start_diff_ss(Session &s);
-void auto_start_at_bvp(Session &s);
-void auto_start_at_per(Session &s);
 void find_best_homo_shift(Session &s, int n);
 void get_start_period(Session &s, double *p);
 void get_start_orbit(Session &s, double *u, double t, double p, int n);
-void auto_new_ss(Session &s);
-void auto_new_discrete(Session &s);
-void auto_extend_ss(Session &s);
-void auto_start_choice(Session &s);
-void torus_choice(Session &s);
-void per_doub_choice(Session &s);
-void periodic_choice(Session &s);
-void hopf_choice(Session &s);
-void auto_new_per(Session &s);
-void auto_start_at_homoclinic(Session &s);
-int get_homo_info(Session &s, int *nun,int *nst,double *ul, double *ur);
-void auto_extend_homoclinic(Session &s);
-void auto_extend_bvp(Session &s);
-void auto_switch_per(Session &s);
-void auto_switch_bvp(Session &s);
-void auto_switch_ss(Session &s);
-void auto_2p_limit(Session &s, AutoProblem ips);
-void auto_twopar_double(Session &s);
-void auto_torus(Session &s);
-void auto_2p_branch(Session &s, AutoProblem ips);
-void auto_branch_choice(Session &s, int ibr, AutoProblem ips);
-void auto_homo_choice(Session &s, AutoPointCode itp);
-void auto_2p_fixper(Session &s);
-void auto_2p_hopf(Session &s);
-void auto_period_double(Session &s);
-void auto_run(Session &s);
-void load_auto_orbit(Session &s);
+/* File's Import orbit: the stored orbit of point `label` (none: the grabbed point's) into the data browser */
+Result<> load_auto_orbit(Session &s, std::optional<int> label);
+/* the diagram as CSV files (csv_export.h), and a foreign XPPAUT diagram (.auto), to or from `file`, or asked for */
+Result<> export_auto_csv(Session &s, const std::optional<std::string> &file);
+Result<> import_auto(Session &s, const std::optional<std::string> &file);
 /* File/Save diagram and Load diagram save/open the session (.snapx). */
 void save_auto(Session &s);
 void load_auto(Session &s);
@@ -254,10 +240,11 @@ int auto_grab_type_index(Session &s, AutoPointKind type, int index);
 std::optional<AutoPointKind> query_special(const char *title);
 void clear_msg(Session &s);
 void auto_update_view(Session &s, float xlo, float xhi, float ylo, float yhi);
-void auto_motion_xy(Session &s, int i, int j);
 /* a click on the diagram at (x, y) in its axis quantities: shown, and kept
    as the point AUTO's File/sElect 2par pt uses in a two-parameter plot */
 void auto_point_xy(Session &s, double x, double y);
+/* the two parameters set to the point auto_point_xy stored (File/sElect 2par pt) */
+void setautopoint(Session &s);
 
 void find_point(Session &s, int ibr, int pt);
 void auto_set_mark(Session &s, int i);

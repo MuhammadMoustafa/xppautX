@@ -366,6 +366,14 @@ Click on “Run” to run the bifurcation. Depending on the situation, a number 
 
 The diagram,itself, has two different lines and two different circles. Stable fixed points are thick lines, stable periodics are solid circles, unstable fixed points are thin lines, and unstable periodics are open circles. Additionally, there are crosses occasionally dispersed with numbers associated with them. These represent “special” points that AUTO wants to keep. There are several of them (web2 draws each with a shape of its own instead of a plain cross, spells each out in the key, the readout and the info strip, with its meaning as the key's tooltip):
 
+### Run, by command
+
+In web2 the Run button opens a dialog: the kind of continuation the point takes (the core's own table: which kinds a Hopf point, a fold, a periodic point or the current state starts), and, where the point has branches to switch to, a Switch branches box. It sends `auto.run`, which a script sends directly (docs/protocol.md): `{"cmd":"auto.run","kind":"periodic","type":"hopf","index":1}` continues from the first Hopf point, `{"cmd":"auto.run","kind":"equilibrium","replace_diagram":true}` begins from the current state, and the Numerics may be given by their names for that run only (`"max_steps": 500`, `"step_size": -0.02`: the sign is the direction). A kind the start point does not take is an error naming the kind and the point's type. A start that is not a steady state is refined by Newton's method, and the log names the equation of the largest residual.
+
+### Equations that use t
+
+AUTO evaluates the equations at a fixed t = 0, so a model whose equations use `t` is refused (each equation's file and line named); give `t` a state of its own, as `examples/tstauto/frcp.odex` does with an oscillator, and AUTO continues it as an ordinary autonomous system.
+
 ### End of branch (EP)
 
 Where a branch starts or ends normally: a limit (`parameter_min`/`parameter_max`,
@@ -481,8 +489,8 @@ labelled points, Enter takes the point, Escape cancels, a click or tap
 takes the nearest point); there is no display-dependent drawing bug to
 work around. A script (docs/protocol.md "Grab by label") can also grab a
 point directly, by its label number or by its type and position ("the
-2nd HB"), with no interactive traversal: `{"cmd":"auto","op":"grab","label":4}`
-or `{"cmd":"auto","op":"grab","type":"hopf","index":2}`, same outcome as
+2nd HB"), with no interactive traversal: `{"cmd":"auto.grab","label":4}`
+or `{"cmd":"auto.grab","type":"hopf","index":2}`, same outcome as
 grabbing that point by hand and pressing Return. An unknown label, or a
 type/index with no such point, is refused (an error message) and changes
 nothing.

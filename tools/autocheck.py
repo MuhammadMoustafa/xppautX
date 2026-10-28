@@ -292,7 +292,7 @@ def section_grab():
     s2.collect(is_idle)
     dg2, (hb2, label2) = hopf_of(s2)
     check('the second server\'s run finds the same label', label2 == label, '%s vs %s' % (label2, label))
-    s2.send(cmd='auto', op='grab', label=label)
+    s2.send(cmd='auto.grab', label=label)
     evs, _ = s2.collect(is_idle)
     check('grab by label asks nothing', not any(is_ask(e) for e in evs), str([e.get('ev') for e in evs]))
     n = len(dg2.pts)
@@ -302,9 +302,9 @@ def section_grab():
           interactive == scripted, 'interactive %d points, scripted %d points' % (len(interactive), len(scripted)))
 
     # an unknown label is refused; nothing changes (no diagram event, no ask)
-    s2.send(cmd='auto', op='grab', label=999999)
+    s2.send(cmd='auto.grab', label=999999)
     evs, _ = s2.collect(is_idle)
-    errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+    errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
     check('an unknown label is refused (a message error)', bool(errs), str(errs))
     check('an unknown label changes nothing (no diagram event, no ask)',
           not diagram_ops(evs) and not any(is_ask(e) for e in evs), str([e.get('ev') for e in evs]))
@@ -314,7 +314,7 @@ def section_grab():
     s3 = Server(args.server, LECAR, verbose=args.v)
     s3.collect(is_idle)
     dg3, _ = hopf_of(s3)
-    s3.send(cmd='auto', op='grab', type='hopf', index=1)
+    s3.send(cmd='auto.grab', type='hopf', index=1)
     evs, _ = s3.collect(is_idle)
     check('grab by type and index asks nothing', not any(is_ask(e) for e in evs), str([e.get('ev') for e in evs]))
     n = len(dg3.pts)
@@ -324,9 +324,9 @@ def section_grab():
           by_type == scripted, '%d points vs %d' % (len(by_type), len(scripted)))
 
     # an out-of-range index is refused too
-    s3.send(cmd='auto', op='grab', type='hopf', index=99)
+    s3.send(cmd='auto.grab', type='hopf', index=99)
     evs, _ = s3.collect(is_idle)
-    errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+    errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
     check('an out-of-range type/index is refused too', bool(errs), str(errs))
     s3.close()
 
@@ -446,7 +446,7 @@ def section_abort():
     # W106: AUTO's settings sent during its run (a setting) are kept for
     # after it, each a command of its own then; the data subscription (a
     # view) runs after them
-    s.send(cmd='auto', op='set', numerics={'max_steps': 1500})
+    s.send(cmd='auto.configure_numerics', **{'max_steps': 1500})
     s.send(cmd='data', events=['autoinfo', 'autosettings'])
     # periodic_run already observed two diagram points: the run is computing.
     # Abort now, without guessing the duration of a Newton step.
@@ -698,7 +698,7 @@ def section_threads():
             evs, _ = s.collect(is_idle)
             most = [e for e in evs if e.get('ev') == 'autosettings'][-1]['threads_max']
             count = min(want, most)
-            s.send(cmd='auto', op='set', threads=count)
+            s.send(cmd='auto.set_threads', threads=count)
             evs, _ = s.collect(is_idle)
             errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
             shown = [e for e in evs if e.get('ev') == 'autosettings'][-1]['threads']
@@ -870,7 +870,7 @@ def section_stability():
     # Test inheritance from a computed endpoint. A long near-homoclinic run
     # can disable stability detection (inaccurate unit multiplier), leaving
     # its endpoint legitimately uncomputed; W326's restore changes that path.
-    evs, _ = step(s, cmd='auto', op='set', numerics={'max_steps': 10, 'output_every': 5, 'step_size': 0.01, 'max_step_size': 0.01})
+    evs, _ = step(s, cmd='auto.configure_numerics', **{'max_steps': 10, 'output_every': 5, 'step_size': 0.01, 'max_step_size': 0.01})
     check('stability: the short periodic restart fixture is configured', not errors_of(evs), str(errors_of(evs)))
     r2 = run('p')
     end2 = len(dg.pts) - 1
@@ -1107,9 +1107,9 @@ def section_sessiondiagram():
     evs += run_menu(s, 'p', timeout=120 * SLOW)
     dg1 = Diagram().apply(evs).pts
     # W50: a second view of the diagram, the period, the first active again: an .snapx keeps its views
-    s.send(cmd='auto', op='view', new=1)
+    s.send(cmd='auto.new_view')
     evs += s.collect(is_idle)[0]
-    s.send(cmd='auto', op='set', axes={'view': 'diagram_2', 'plot': 'period', 'fit': True})
+    s.send(cmd='auto.configure_plot', **{'view': 'diagram_2', 'plot_type': 'period', 'fit': True})
     evs += s.collect(is_idle)[0]
     s.send(cmd='window.select', window='diagram_1')
     evs += s.collect(is_idle)[0]
@@ -1163,7 +1163,7 @@ def section_sessiondiagram():
     # the periodic branch's last label (its end point): extending it restarts
     # from the orbit in the restored solutions.s
     last = max((p['lab'] for p in dg2 if p['lab']), default=0)
-    s.send(cmd='auto', op='grab', label=last)
+    s.send(cmd='auto.grab', label=last)
     evs, _ = s.collect(is_idle)
     check("sessiondiagram: the loaded diagram's last label is grabbed", last > 0 and 'error' not in messages(evs),
           'label %d; %s' % (last, messages(evs)[:200]))
@@ -1240,9 +1240,9 @@ def section_sessiondiagram():
             load_diagram(s, path)
         if reference is None:
             continue
-        s.send(cmd='auto', op='set', numerics={'max_steps': 4, 'output_every': 1})
+        s.send(cmd='auto.configure_numerics', **{'max_steps': 4, 'output_every': 1})
         s.collect(is_idle)
-        s.send(cmd='auto', op='grab', label=int(reference['lab']))
+        s.send(cmd='auto.grab', label=int(reference['lab']))
         grabbed, _ = s.collect(is_idle)
         evs = run_any(s, 'e')
         saved = save_diagram(s, 'ref-restart.snapx')
@@ -1346,7 +1346,7 @@ def section_sessiondiagram():
     before = s.collect(is_idle)[0]
     before_settings = next(e for e in before if e.get('ev') == 'autosettings')
     evs = open_file(s, 'lastsettings.snapx')
-    errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+    errs = [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
     s.send(cmd='data', events=['autosettings'])
     after = s.collect(is_idle)[0]
     after_settings = next(e for e in after if e.get('ev') == 'autosettings')
@@ -1594,19 +1594,19 @@ def section_names():
     au = autosettings(evs)
     check("names: AUTO's parameters are the long names", au is not None
           and 'pars' not in au and au['axes']['par1'].upper()==LONG_PAR.upper(), str(au)[:300])
-    s.send(cmd='auto', op='set', axes={'plot': 'norm', 'var': LONG_V, 'par1': LONG_B})
+    s.send(cmd='auto.configure_plot', **{'plot_type': 'norm', 'variable': LONG_V, 'parameter1': LONG_B})
     evs, _ = s.collect(is_idle)
     au = autosettings(evs)
     errs = [e for e in evs if e.get('ev') == 'message']
     check('names: auto set takes 200-character names for the parameters and the axes', not errs and au is not None
           and au['axes']['par1'].upper() == LONG_B.upper() and au['axes']['var'].upper() == LONG_V,
           '%s %s' % (errs, str(au)[:300]))
-    s.send(cmd='auto',op='set',axes={'par2':LONG_PAR})
+    s.send(cmd='auto.configure_plot', **{'parameter2':LONG_PAR})
     evs,_=s.collect(is_idle)
     au=autosettings(evs)
     check('W339: both axes accept complete long model parameter names', au is not None
           and au['axes']['par1'].upper()==LONG_B.upper() and au['axes']['par2'].upper()==LONG_PAR.upper())
-    s.send(cmd='auto', op='set', axes={'plot': 'norm', 'var': LONG_V, 'par1': LONG_PAR})
+    s.send(cmd='auto.configure_plot', **{'plot_type': 'norm', 'variable': LONG_V, 'parameter1': LONG_PAR})
     s.collect(is_idle)
 
     s.send(cmd='run.initial')
@@ -1723,7 +1723,7 @@ def check_session_names():
 def section_recording():
     check_session_names()
     code, out, run = run_recording(RECORDING)
-    idles = out.count('"ev":"idle"')
+    idles = out.count('"ev":"idle"') + out.count('"ev":"done"')
     check('xppautX lecar_auto.recx --silent plays to the end with no interface', code == 0,
           'exit %d, %s' % (code, run_recording.stderr[-300:]))
     check('the player reaches idle after each recorded command', idles >= 8, '%d idles' % idles)
@@ -1992,7 +1992,7 @@ def section_errors():
 
     def periodic():
         """grab the first HB, a periodic run; its events and new points"""
-        s.send(cmd='auto', op='grab', type='hopf', index=1)
+        s.send(cmd='auto.grab', type='hopf', index=1)
         s.collect(is_idle)
         n = len(dg.pts)
         evs = run_any(s, 'p')
@@ -2072,7 +2072,8 @@ def section_errors():
     finally:
         s.close()
     # Inject immediately before the periodic Auto/Run step.
-    insert = next(i for i, step in enumerate(body) if step.get('keys') == ['r', 'p'])
+    insert = next(i for i, step in enumerate(body) if isinstance(step.get('cmd'), dict)
+                  and step['cmd'].get('cmd') == 'auto.run' and step['cmd'].get('kind') == 'periodic')
     body = body[:insert] + [{'win': 'auto', 'keys': ['n'], 'answers': [values]}] + body[insert:insert + 1]
     code, out, run = run_recording(steps=body)
     try:
@@ -2388,8 +2389,8 @@ def section_limits():
               len((last_state(startup) or {}).get('ics', [])) == 401
               and len((last_state(startup) or {}).get('pars', [])) == 40)
         open_auto(s)
-        s.send(cmd='auto', op='set',
-               numerics={'max_steps': 4, 'output_every': 1, 'suppress_branch_points': True}, axes={'par1': 'P39', 'var': 'X400'})
+        completed(s, dict(cmd='auto.configure_numerics', max_steps=4, output_every=1, suppress_branch_points=True))
+        s.send(cmd='auto.configure_plot', parameter1='P39', variable='X400')
         evs, _ = s.collect(is_idle)
         check('limits: the fortieth model parameter is available without selection', not errors_of(evs), str(errors_of(evs)))
         dg = Diagram().apply(run_any(s, 's'))
@@ -2404,7 +2405,7 @@ def section_limits():
         reopened = load_diagram(s, os.path.join(s.run, 'limits.snapx'))
         check('limits: reopening the snapshot restores the expanded diagram',
               not errors_of(reopened) and len(Diagram().apply(reopened).pts) == 4, str(errors_of(reopened)))
-        s.send(cmd='auto', op='grab', label=int(rows[-1]['lab']) if rows else -1)
+        s.send(cmd='auto.grab', label=int(rows[-1]['lab']) if rows else -1)
         evs, _ = s.collect(is_idle)
         state = last_state(evs) or {}
         check('limits: grabbing restores the fortieth parameter and final state', rows and not errors_of(evs)
@@ -2515,7 +2516,7 @@ def section_codim():
             diagram = autocompare.Diagram().apply(open_auto(s))
             ranges = {}
             execute_run(s, d['runs'][0], diagram, ranges)
-            if changes: completed(s, dict(cmd='auto', op='set', special_points=changes))
+            if changes: completed(s, dict(cmd='auto.configure_numerics', special_points=changes))
             execute_run(s, d['runs'][1], diagram, ranges)
             lo, hi = ranges['fold']
             rows = diagram_rows(session_diagram(s))[lo:hi]
@@ -2524,7 +2525,7 @@ def section_codim():
             check('codim: ' + mode, len(zh) == (1 if expected else 0)
                   and (not zh or abs(float(zh[0]['continued_parameter'])) < 1e-4))
         for bad in ({'zero_hopf': 0}, {'zero_hopf': 'false'}, {'unknown': False}):
-            s.send(cmd='auto', op='set', special_points=bad, numerics={'max_steps': 7})
+            s.send(cmd='auto.configure_numerics', special_points=bad, max_steps=7)
             events, _ = s.collect(is_idle)
             check('codim: invalid named boolean refuses transaction ' + str(bad), len(errors_of(events)) == 1)
             after = completed(s, dict(cmd='data', events=['autosettings']))
@@ -2578,7 +2579,7 @@ def section_codim():
         completed(s, dict(cmd='data', events=['autoinfo', 'autosettings']))
         diagram = autocompare.Diagram().apply(open_auto(s)); intervals = {}
         for run in cycles['runs'][:2]: execute_run(s, run, diagram, intervals)
-        completed(s, dict(cmd='auto', op='set', special_points={'resonance_1_4': False}))
+        completed(s, dict(cmd='auto.configure_numerics', special_points={'resonance_1_4': False}))
         execute_run(s, cycles['runs'][2], diagram, intervals)
         rows = autocompare.stored_rows(session_diagram(s), intervals)['torus_up']
         check('cycle codim: disabling R4 keeps the curve running without its label',
@@ -2637,7 +2638,7 @@ def section_codim():
             completed(s, dict(cmd='data',events=['autoinfo','autosettings']))
             diagram=autocompare.Diagram().apply(open_auto(s)); intervals={}
             execute_run(s,maps['runs'][0],diagram,intervals)
-            completed(s,dict(cmd='auto',op='set',special_points={'double_neimark_sacker':False,'resonance_1_4':False}))
+            completed(s,dict(cmd='auto.configure_numerics', special_points={'double_neimark_sacker':False,'resonance_1_4':False}))
             execute_run(s,maps['runs'][2],diagram,intervals)
             rows=autocompare.stored_rows(session_diagram(s),intervals)['down']
             kinds=[kind for kind,_ in autocompare.labelled(rows,'two_parameter')]

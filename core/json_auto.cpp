@@ -13,6 +13,7 @@
 #include "jacobian.h"
 #include "auto_data.h"
 #include "auto_settings.h"
+#include "auto_run.h"
 #include "xpp_prefs.h"
 #include "json_number.h"
 #include <array>
@@ -266,8 +267,12 @@ const XppDiagPoint *diag_client_point(const xpp::Session &s, int i)
     return i >= 0 && i < d.client ? &d.dg[static_cast<std::size_t>(i)] : nullptr;
 }
 
+} // namespace
+
 /* the number of points each view holds (Clear: the branches so far are the earlier ones) */
-int diag_points_held(const xpp::Session &s) { return active_data(s).n; }
+int j_auto_points_held(xpp::Session &s) { return active_data(s).n; }
+
+namespace {
 
 /* b continues a's run */
 int diag_joins(const XppDiagPoint *a, const XppDiagPoint *b)
@@ -567,205 +572,6 @@ void j_auto_scroll_window(xpp::Session &s)
     }
 }
 
-/* ---- AUTO's settings as data (auto_settings.h) ---- */
-
-namespace {
-
-/* the "numerics", "axes" and "marks" of {"cmd":"auto","op":"set",...}
-   into s; 0 with why when one is not what docs/protocol.md says */
-int read_auto_set(const xpp::Session &session,const char *line, AutoSettingsSet &s, std::string &why)
-{
-    const char *num = js_find(line, "numerics"), *axes = js_find(line, "axes"),
-               *marks = js_find(line, "marks"), *v;
-    if (const char *points=js_find(line,"special_points")) {
-        if (*points!='{') { why="special_points must be an object of named booleans"; return 0; }
-        const char *cursor=points, *value;
-        std::string key;
-        while (js_member(cursor,key,value)) {
-            const auto at=std::find(xpp::auto_codim_keys.begin(),xpp::auto_codim_keys.end(),key);
-            bool enabled;
-            if (at==xpp::auto_codim_keys.end() || !xpp::parse_bool(js_raw(value),enabled)) {
-                why=xpp::format("special_points {} must be one of {} with true or false",key,auto_codim_key_list()); return 0;
-            }
-            s.special_points[at-xpp::auto_codim_keys.begin()]=enabled;
-        }
-    }
-    int i;
-    for (i = 0; num && *num == '{' && i < AUTO_NUM_N; i++) {
-        if (!(v = js_find(num, auto_settings_num_key(i)))) continue;
-        std::string word;
-        const AutoFieldShape shape = auto_settings_num_shape(i);
-        if (shape == AutoFieldShape::choice) {
-            if (!js_string(v, word)) word = js_raw(v);
-        } else if (shape == AutoFieldShape::boolean) word = js_raw(v);
-        if (shape == AutoFieldShape::choice || shape == AutoFieldShape::boolean) {
-            const Result<double> parsed = auto_settings_num_parse(i, word);
-            if (!parsed) {
-                why = parsed.error().what;
-                return 0;
-            }
-            s.num[i] = *parsed;
-        } else if (!js_number(v, &s.num[i])) {
-            why = xpp::format("{} must be a number", auto_settings_num_label(i));
-            return 0;
-        }
-        s.has_num[i] = 1;
-    }
-    if ((v = js_find(line, "threads")) != NULL) {
-        std::string word;
-        double z;
-        if (js_string(v, word) && word == xpp::prefs::AUTO_THREADS_WORD) s.threads = xpp::prefs::AUTO_THREADS_AUTO;
-        else if (js_number(v, &z) && z >= 1 && z <= INT_MAX && z == std::floor(z)) s.threads = static_cast<unsigned>(z);
-        else {
-            why = xpp::format("AUTO's threads must be \"{}\" or a whole number of at least 1", xpp::prefs::AUTO_THREADS_WORD);
-            return 0;
-        }
-    }
-    if (js_find(line, "pars")) {
-        why = "AUTO set has no pars field; choose the continued parameters in Axes";
-        return 0;
-    }
-    if (axes && *axes == '{') {
-        static const char *const range[4] = {"xmin", "xmax", "ymin", "ymax"};
-        if (js_find(axes, "plot") != NULL) {
-            std::string word;
-            if (!get_string(axes, "plot", word) || !(s.plot = auto_projection_from_name(word))) {
-                why = auto_projection_unknown(word);
-                return 0;
-            }
-        }
-        get_string(axes, "var", s.var);
-        get_string(axes, "par1", s.par1);
-        get_string(axes, "par2", s.par2);
-        for (i = 0; i < 4; i++) {
-            if (!(v = js_find(axes, range[i]))) continue;
-            if (!js_number(v, &s.range[i])) {
-                why = xpp::format("{}{} must be a number", static_cast<char>(range[i][0] - 32), range[i] + 1);
-                return 0;
-            }
-            s.has_range[i] = 1;
-        }
-        s.fit = get_num(axes, "fit", 0) != 0;
-        if ((v = js_find(axes, "view")) != NULL) {
-            std::string name;
-            const auto target=js_string(v,name)?xpp::find_window(session,name):std::nullopt;
-            if(!target || target->kind!=xpp::WindowKind::diagram){why="view must name an open diagram";return 0;}
-            s.view=target->index;
-        }
-    }
-    if (marks && *marks != '[') {
-        why = "Mark values must be a list of pairs [name, number]";
-        return 0;
-    }
-    if (marks) {
-        const char *cursor = marks;
-        for (i = 0; (v = js_element(cursor)) != NULL; i++) {
-            if (i >= auto_file_marks_limit) {
-                why = xpp::format("Mark values exceed the input budget of {}", auto_file_marks_limit);
-                return 0;
-            }
-            s.mark_name.emplace_back();
-            s.mark_value.emplace_back();
-            if (js_elem(v, 2) != NULL || *v != '[' || !js_string(js_elem(v, 0), s.mark_name[i])
-                || !js_number(js_elem(v, 1), &s.mark_value[i])) {
-                why = xpp::format("Mark values must be a list of at most {} pairs [name, number]", auto_file_marks_limit);
-                return 0;
-            }
-        }
-        s.nmarks = i;
-    }
-    return 1;
-}
-
-/* {"cmd":"auto","op":"set",...}: AUTO's settings, checked and set all
-   together or not at all; a refusal is an error message */
-void auto_set_command(xpp::Session &s, const char *line)
-{
-    AutoSettingsSet set;
-    std::string why;
-    if (!read_auto_set(s,line, set, why) || auto_settings_apply(s, set, why) != 0)
-        j_command_error("auto", xpp::format("AUTO settings: {}", why));
-}
-
-} // namespace
-
-/* {"cmd":"auto","op":...}: what the AUTO window's keys (menu_auto_window)
-   do not say: a grab by label or by type and index, the settings, a click
-   on the diagram, the window closed */
-void auto_command(xpp::Session &s, const char *line)
-{
-    std::string o;
-    get_string(line, "op", o);
-    if (o == "grab") {
-        /* a label, or a type and index ("the 2nd HB"), grabs that stored
-           point directly, exactly as the interactive grab ending with
-           Return on it would (docs/protocol.md "Grab by label"); the
-           interactive grab is the window's key g */
-        const char *jl = js_find(line, "label");
-        std::string type;
-        if (jl != NULL) {
-            int lab = get_int(line, "label", 0);
-            if (!auto_grab_label(s, lab))
-                j_command_error("auto", xpp::format("Grab: no point labelled {}", lab));
-        } else if (get_string(line, "type", type) && js_find(line, "index") != NULL) {
-            int idx = get_int(line, "index", 0);
-            const auto kind = auto_point_kind_from_name(type);
-            if (!kind)
-                j_command_error("auto", xpp::format("Grab: \"{}\" is not a point type", type));
-            else if (!auto_grab_type_index(s, *kind, idx))
-                j_command_error("auto", xpp::format("Grab: no {} point number {}", type, idx));
-        } else j_command_error("auto", "Grab: give a label, or a type and index");
-    }
-    else if (o == "restart") {
-        /* goes on from a stored point's label with the settings of the
-           last run (docs/protocol.md "Restarting a run") */
-        const char *jl = js_find(line, "label");
-        if (jl != NULL) auto_restart(s, get_int(line, "label", 0));
-        else j_command_error("auto", "Restart: give a label");
-    }
-    else if (o == "set") auto_set_command(s, line);
-    else if (o == "display") {
-        /* the zoom shown in a view of the diagram (the active one unless
-           `view` names another), and (with `show`) whether the branches
-           before Clear are drawn */
-        xpp::AutoView &v = s.auto_view;
-        int k=s.auto_state.active_view;
-        if(const char *value=js_find(line,"view")){
-            std::string name;const auto target=js_string(value,name)?xpp::find_window(s,name):std::nullopt;
-            if (!target || target->kind != xpp::WindowKind::diagram) {
-                j_command_error("auto", "view must name an open diagram");
-                return;
-            }
-            k = target->index;
-        }
-        if (k < 0 || k >= static_cast<int>(s.auto_state.views.size())) {
-            j_command_error("auto", xpp::format("auto display: no view {}", k));
-            return;
-        }
-        xpp::Zoom z = s.auto_state.views[static_cast<std::size_t>(k)].zoom;
-        if (get_range(line, "x", z.x) < 0 || get_range(line, "y", z.y) < 0) {
-            j_command_error("auto", "auto display: x and y are [low, high] with low below high, or null");
-            return;
-        }
-        s.auto_state.views[static_cast<std::size_t>(k)].zoom = z;
-        const char *js = js_find(line, "show");
-        if (js) v.show_earlier = get_num(line, "show", 0) != 0 && v.earlier > 0;
-    }
-    else if (o == "view") {
-        /* the views of the diagram (W50): a new one, one closed, the active one */
-        if (js_find(line, "new")) auto_new_view(s);
-        else j_command_error("auto","Use window.select or window.destroy with a window name");
-    }
-    else if (o == "point") {
-        /* in the diagram's quantities, or a pixel of window 101 */
-        const char *jx = js_find(line, "xd"), *jy = js_find(line, "yd");
-        if (!s.auto_state.bifur.exist) return;
-        if (jx && jy) auto_point_xy(s, get_num(line, "xd", 0), get_num(line, "yd", 0));
-        else auto_motion_xy(s, get_int(line, "x", 0), get_int(line, "y", 0));
-    }
-    else j_command_error("auto", xpp::format("Unknown auto op {}", o));
-}
-
 /* a key of the AUTO window (menu_auto_window) */
 void auto_key(xpp::Session &s, int ch)
 {
@@ -775,12 +581,7 @@ void auto_key(xpp::Session &s, int ch)
     case AK_RUN: auto_run(s); break;
     case AK_GRAB: auto_grab(s); break;
     case AK_USR: auto_per_par(s); break;
-    case AK_CLEAR:
-        /* the branches so far are the earlier ones, hidden until shown again */
-        s.auto_view.earlier = diag_points_held(s);
-        s.auto_view.show_earlier = false;
-        draw_bif_axes(s);
-        break;
+    case AK_CLEAR: xpp::auto_hide_earlier(s); break;
     case AK_REDRAW: redraw_diagram(s); break;
     case AK_FILE: auto_file(s); break;
     }

@@ -50,37 +50,51 @@ struct NumField {
 
 constexpr int output_detail_levels = static_cast<int>(auto_output_detail_names.size());
 
-/* the Numerics form's fields and what AUTO accepts for each */
-constexpr NumField num_fields[AUTO_NUM_N] = {
-    {"mesh_intervals", AutoFieldShape::whole, Rule::range, 1, auto_max_mesh_intervals},
-    {"max_steps", AutoFieldShape::whole, Rule::range, 1, INT_MAX},
-    {"output_every", AutoFieldShape::whole, Rule::range, 1, INT_MAX},
-    {"collocation_points", AutoFieldShape::whole, Rule::range, auto_min_collocation_points, auto_max_collocation_points},
-    {"step_size", AutoFieldShape::real, Rule::nonzero, 0, 0},
-    {"min_step_size", AutoFieldShape::real, Rule::positive, 0, 0},
-    {"max_step_size", AutoFieldShape::real, Rule::positive, 0, 0},
-    {"parameter_min", AutoFieldShape::real, Rule::any, 0, 0},
-    {"parameter_max", AutoFieldShape::real, Rule::any, 0, 0},
-    {"norm_min", AutoFieldShape::real, Rule::any, 0, 0},
-    {"norm_max", AutoFieldShape::real, Rule::any, 0, 0},
-    {"parameter_tolerance", AutoFieldShape::real, Rule::positive, 0, 0},
-    {"state_tolerance", AutoFieldShape::real, Rule::positive, 0, 0},
-    {"special_point_tolerance", AutoFieldShape::real, Rule::positive, 0, 0},
-    {"mesh_adapt_every", AutoFieldShape::whole, Rule::range, 0, INT_MAX},
-    {"max_branch_switches", AutoFieldShape::whole, Rule::range, 0, INT_MAX},
-    {"switch_one_direction", AutoFieldShape::boolean, Rule::range, 0, 1},
-    {"output_detail", AutoFieldShape::choice, Rule::range, 0, output_detail_levels - 1},
-    {"max_location_iterations", AutoFieldShape::whole, Rule::range, 1, INT_MAX},
-    {"max_newton_iterations", AutoFieldShape::whole, Rule::range, 1, INT_MAX},
-    {"full_newton_after", AutoFieldShape::whole, Rule::range, 1, INT_MAX},
-    {"step_adapt_every", AutoFieldShape::whole, Rule::range, 0, INT_MAX},
-    {"suppress_branch_points", AutoFieldShape::boolean, Rule::range, 0, 1},
+/* what AUTO accepts for each field, by AUTO_NUM_*; the key and the shape are auto_settings.h's lists */
+struct NumRule {
+    Rule rule;
+    double lo, hi; /* Rule::range, inclusive; a boolean's and a choice's index range too */
 };
+constexpr std::array<NumRule, AUTO_NUM_N> num_rules = {{
+    {Rule::range, 1, auto_max_mesh_intervals},       /* mesh_intervals */
+    {Rule::range, 1, INT_MAX},                       /* max_steps */
+    {Rule::range, 1, INT_MAX},                       /* output_every */
+    {Rule::range, auto_min_collocation_points, auto_max_collocation_points}, /* collocation_points */
+    {Rule::nonzero, 0, 0},                           /* step_size */
+    {Rule::positive, 0, 0},                          /* min_step_size */
+    {Rule::positive, 0, 0},                          /* max_step_size */
+    {Rule::any, 0, 0},                               /* parameter_min */
+    {Rule::any, 0, 0},                               /* parameter_max */
+    {Rule::any, 0, 0},                               /* norm_min */
+    {Rule::any, 0, 0},                               /* norm_max */
+    {Rule::positive, 0, 0},                          /* parameter_tolerance */
+    {Rule::positive, 0, 0},                          /* state_tolerance */
+    {Rule::positive, 0, 0},                          /* special_point_tolerance */
+    {Rule::range, 0, INT_MAX},                       /* mesh_adapt_every */
+    {Rule::range, 0, INT_MAX},                       /* max_branch_switches */
+    {Rule::range, 0, 1},                             /* switch_one_direction */
+    {Rule::range, 0, output_detail_levels - 1},      /* output_detail */
+    {Rule::range, 1, INT_MAX},                       /* max_location_iterations */
+    {Rule::range, 1, INT_MAX},                       /* max_newton_iterations */
+    {Rule::range, 1, INT_MAX},                       /* full_newton_after */
+    {Rule::range, 0, INT_MAX},                       /* step_adapt_every */
+    {Rule::range, 0, 1},                             /* suppress_branch_points */
+}};
+
+constexpr std::array<NumField, AUTO_NUM_N> make_fields()
+{
+    std::array<NumField, AUTO_NUM_N> fields{};
+    for (std::size_t i = 0; i < fields.size(); ++i)
+        fields[i] = NumField{auto_num_keys[i], auto_num_shapes[i], num_rules[i].rule, num_rules[i].lo, num_rules[i].hi};
+    return fields;
+}
+/* the Numerics form's fields and what AUTO accepts for each */
+constexpr std::array<NumField, AUTO_NUM_N> num_fields = make_fields();
 
 /* the names a choice field takes */
-std::span<const std::string_view> choices_of(int i)
+std::span<const char *const> choices_of(int i)
 {
-    return i == AUTO_NUM_OUTPUT_DETAIL ? std::span<const std::string_view>(auto_output_detail_names) : std::span<const std::string_view>();
+    return i == AUTO_NUM_OUTPUT_DETAIL ? std::span<const char *const>(auto_output_detail_names) : std::span<const char *const>();
 }
 
 bool is_whole(const NumField &f) { return f.shape != AutoFieldShape::real; }
@@ -108,7 +122,7 @@ std::string rule_message(const NumField &f)
     if (f.shape == AutoFieldShape::boolean) return xpp::format("{} must be true or false", label);
     if (f.shape == AutoFieldShape::choice) {
         std::string words;
-        for (const std::string_view name : choices_of(static_cast<int>(&f - num_fields))) words += xpp::format("{}{}", words.empty() ? "" : ", ", name);
+        for (const char *name : choices_of(static_cast<int>(&f - num_fields.data()))) words += xpp::format("{}{}", words.empty() ? "" : ", ", name);
         return xpp::format("{} must be one of {}", label, words);
     }
     const std::string whole = f.shape == AutoFieldShape::whole ? "a whole number" : "a number";
@@ -267,7 +281,7 @@ std::string event_text(const xpp::Session &s)
         if (f.shape == AutoFieldShape::choice) {
             o += ",\"choices\":[";
             bool first = true;
-            for (const std::string_view name : choices_of(i)) {
+            for (const char *name : choices_of(i)) {
                 if (!first) o += ',';
                 first = false;
                 xpp::json_append_string(o, name);
@@ -490,9 +504,7 @@ const char *auto_settings_num_key(int i) { return i >= 0 && i < AUTO_NUM_N ? num
 
 std::string auto_settings_num_label(int i) { return i >= 0 && i < AUTO_NUM_N ? name_label(num_fields[i].key) : std::string(); }
 
-AutoFieldShape auto_settings_num_shape(int i) { return num_fields[i].shape; }
-
-std::span<const std::string_view> auto_settings_num_choices(int i) { return choices_of(i); }
+std::span<const char *const> auto_settings_num_choices(int i) { return choices_of(i); }
 
 std::string auto_settings_num_text(int i, double v)
 {
@@ -517,7 +529,7 @@ Result<double> auto_settings_num_parse(int i, std::string_view text)
     }
     case AutoFieldShape::choice: {
         const auto names = choices_of(i);
-        const auto at = std::find(names.begin(), names.end(), text);
+        const auto at = std::find_if(names.begin(), names.end(), [&](const char *name) { return text == name; });
         if (at == names.end()) return std::unexpected(refused(xpp::format("{}, not \"{}\"", rule_message(f), text), f.key));
         return static_cast<double>(at - names.begin());
     }

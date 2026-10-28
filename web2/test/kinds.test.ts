@@ -35,10 +35,10 @@ test('startup prompts accept answers and cancellation before hello', () => {
 test('W95, W106: while a computation runs only control, view and setting actions start; an open question takes control and settings', () => {
   for (const cmd of [{cmd: 'run.abort'}, {cmd: 'answer', id: 1}, {cmd: 'display', window: 'graph_1'}, {cmd: 'window.select', window: 'graph_2'},
     {cmd: 'key', key: 'w'}, {cmd: 'key', key: 'k'}, {cmd: 'key', key: 'g'}, {cmd: 'key', win: 'auto', key: 'a'}, {cmd: 'browser', from: 0, count: 1},
-    {cmd: 'set', kind: 'par'}, {cmd: 'set', kind: 'num'}, {cmd: 'auto', op: 'set'}, {cmd: 'key', key: 'p'},
+    {cmd: 'set', kind: 'par'}, {cmd: 'set', kind: 'num'}, {cmd: 'auto.configure_numerics'}, {cmd: 'key', key: 'p'},
     {cmd: 'key', win: 'auto', key: 'n'}, {cmd: 'values', op: 'read'}])
     assert.ok(may(cmd, true), JSON.stringify(cmd));
-  for (const cmd of [{cmd: 'run.initial'}, {cmd: 'key', key: 's'}, {cmd: 'values', op: 'write'}, {cmd: 'auto', op: 'grab'},
+  for (const cmd of [{cmd: 'run.initial'}, {cmd: 'key', key: 's'}, {cmd: 'values', op: 'write'}, {cmd: 'auto.grab'},
     {cmd: 'browser', op: 'write'}, {cmd: 'key', win: 'auto', key: 'r'}, {cmd: 'key', win: 'ani', key: 'a'}, {cmd: 'unknown'}])
     assert.ok(!may(cmd, true), JSON.stringify(cmd));
   /* the Numerics menu's items that ask a value are settings: their dialog opens when the run ends */

@@ -6,7 +6,11 @@
 #include "auto_codes.h" /* DiagramPointType */
 
 #include <deque>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <vector>
+#include "xpp_error.h"
 
 /* AUTO's bifurcation diagram, a Session's (session.h): its points in the
    order they were stored, point i with index i, read by index. A deque,
@@ -41,15 +45,20 @@ bool diagram_has(const AutoDiagram &diagram, int index, int ibr, int ntot);
    its stability), or NULL */
 const xpp::DIAGRAM *diagram_find(const AutoDiagram &diagram, int ibr, int ntot);
 void redraw_diagram(xpp::Session &s);
-void write_info_out(xpp::Session &s);
-void write_init_data_file(xpp::Session &s);
-void write_pts(xpp::Session &s);
+/* The diagram's text exports (File's All info, init Data and Write pts), to `file` (a name in the model's folder), or
+   asked for with the dialog's default name when none is given; nothing is written for a declined question. The
+   default names, what the dialog suggests, are diagram_default_file's. */
+xpp::Result<> write_info_out(xpp::Session &s, const std::optional<std::string> &file);
+xpp::Result<> write_init_data_file(xpp::Session &s, const std::optional<std::string> &file);
+xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file);
+/* the name the dialog of export `what` ("allinfo", "initdata", "diagram") suggests, with extension (".dat") */
+std::string diagram_default_file(const xpp::Session &s, std::string_view what, std::string_view extension);
 /* the points of branch ibr from pts to pte into the data browser */
 void load_browser_with_branch(xpp::Session &s, int ibr, int pts, int pte);
 /* the diagram as a picture, in image_format.h's IMAGE_FORMAT_PS or
    IMAGE_FORMAT_SVG (W53, issue #101; GIF has no vector picture to draw
    here) */
-void export_auto_picture(xpp::Session &s, int fmt);
+xpp::Result<> export_auto_picture(xpp::Session &s, int fmt, const std::optional<std::string> &file);
 void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, double *yhi);
 /* points, whole (a .snapx's diagram, xpp_session_auto.h), in place of the session
    s's diagram: each point's index set, the

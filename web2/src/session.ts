@@ -29,7 +29,7 @@ import {planRequest} from './store/table';
 import {continuePlan, steadyRun} from './store/steady';
 import type {TextTab} from './store/text';
 import {fieldKey, valueCommands, type ValueSet} from './store/values';
-import {autoSettingsSetCommand, type AutoSettingsPatch} from './store/autoSettings';
+import {autoSettingsCommands, type AutoSettingsPatch} from './store/autoSettings';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
 export type BrowserOp = 'find' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
@@ -52,6 +52,14 @@ interface DisplayPatch {
 const RESTORE_SCOPE = {par: 'parameters', ic: 'initial'} as const;
 
 
+
+/** a view's display change as auto.set_display: [] clears an axis' zoom, show_earlier is the earlier branches' toggle */
+const autoDisplayCommand = (view: string, p: DisplayPatch): Command => ({
+  cmd: 'auto.set_display', view,
+  ...(p.x !== undefined ? {x_range: p.x ?? []} : {}),
+  ...(p.y !== undefined ? {y_range: p.y ?? []} : {}),
+  ...(p.show !== undefined ? {show_earlier: p.show} : {}),
+});
 
 const rangesOf = (v: Viewport): DisplayPatch => ({
   x: v.x ? [v.x.min, v.x.max] : null,
@@ -666,7 +674,7 @@ export class Session {
     const [win, patch] = first.value;
     this.displayHeld.delete(win);
     const {x, y, runs} = patch;
-    this.send(this.store.getState().diagram.views.some(v=>v.name===win) ? {cmd: 'auto', op: 'display', view: win, ...patch}
+    this.send(this.store.getState().diagram.views.some(v=>v.name===win) ? autoDisplayCommand(win, patch)
       : {cmd: 'window.set_display', window: win, ...(x === undefined ? {} : {x_range: x ?? []}), ...(y === undefined ? {} : {y_range: y ?? []}),
          ...(runs === undefined ? {} : {show_earlier_runs: runs})});
     this.displayGuard.add(win);
@@ -836,13 +844,18 @@ export class Session {
       /* the core's clear blanks the diagram (its points go from the page), then its redraw sends them
          all again, and the branches so far are the earlier ones once more */
       this.store.dispatch({type: 'diagram', action: {type: 'clear'}});
-      this.runPlan([this.layerKey('auto', 'clear'), this.layerKey('auto', 'redraw')], []);
+      this.runPlan([{cmd: 'auto.hide_earlier'}, {cmd: 'auto.redraw'}], []);
       return;
     }
-    if (op === 'run') {
-      this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'start', at: Date.now()}});
-    }
-    this.send(this.layerKey('auto', op));
+    this.send(op === 'redraw' ? {cmd: 'auto.redraw'} : this.layerKey('auto', op));
+  }
+
+  /** AUTO's Run (docs/protocol.md auto.run): the kind, and where it starts (a stored point's label, else the current state) */
+  autoRun(args: {kind: string; label?: number; switch?: boolean; replace_diagram?: boolean}): void {
+    const cmd: Command = {cmd: 'auto.run', ...args};
+    if (!this.may(cmd)) return;
+    this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'start', at: Date.now()}});
+    this.send(cmd);
   }
 
   /* a planned dialogue: `cmds` go out one after the other's idle (a command
@@ -904,8 +917,10 @@ export class Session {
       one `auto` `set` at once, busy or idle -- a setting (W106): during a
       run the core applies it when the run ends, to the next one */
   autoSettings(patch: AutoSettingsPatch): void {
-    const ahead = this.idlesOwed;
-    if (this.send(autoSettingsSetCommand(patch))) this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch, ahead}});
+    for (const {command, patch: part} of autoSettingsCommands(patch)) {
+      const ahead = this.idlesOwed;
+      if (this.send(command)) this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch: part, ahead}});
+    }
   }
 
   /** the AUTO view's close: done with it (A10). A running job is stopped
@@ -943,7 +958,7 @@ export class Session {
       AUTO's File/sElect 2par pt uses (docs/protocol.md `auto` `point`) */
   autoPoint(x: number, y: number): void {
     this.store.dispatch({type: 'diagram', action: {type: 'stored', at: {x, y}}});
-    this.send({cmd: 'auto', op: 'point', xd: x, yd: y});
+    this.send({cmd: 'auto.pick', x, y});
   }
 
   /** Hide AUTO hides every view of the diagram in the core (window.hide: they keep everything); Show brings them back */

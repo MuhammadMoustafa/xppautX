@@ -354,10 +354,6 @@ bool get_string(const char *obj, const char *key, std::string &out);
 double get_num(const char *obj, const char *key, double def);
 int get_int(const char *obj, const char *key, double def); /* get_num cut to an int */
 int is_cmd(const char *line, const char *name);
-/* the zoom range `key` of a command: an array [lo, hi], or null for the
-   window's own. 0 when the key is absent; 1 read (r set or unset); -1 not a
-   range (r untouched) */
-int get_range(const char *obj, const char *key, xpp::AxisRange &r);
 int key_code(const char *k);
 
 /* ---- json_prompts.cpp ---- */
@@ -491,7 +487,6 @@ void j_aplot_draw_one(xpp::Session &s, std::string_view tag);
 void diag_flush(const xpp::Session &s, int final);
 void diag_forget(void); /* the client has no diagram */
 int diag_point_of_node(const xpp::Session &s, int node); /* the index in the diagram data the client holds of AUTO's entry `node`, or -1 */
-void auto_command(xpp::Session &s, const char *line);
 /* the `autoview` event (hidden branches and zoom), for a client that asked for autoinfo */
 void auto_view_subscribe(int on);
 void auto_view_update(xpp::Session &s);
@@ -504,6 +499,7 @@ int j_auto_grab_event(xpp::Session &s, int *x, int *y);
 void j_auto_show_hint(xpp::Session &s);
 void j_auto_scroll_window(xpp::Session &s);
 void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p);
+int j_auto_points_held(xpp::Session &s); /* XppUi.auto_points_held: the points the active view holds */
 void j_auto_refresh(xpp::Session &s);
 
 /* ---- json_keymap.cpp ---- */

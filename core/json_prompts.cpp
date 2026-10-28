@@ -481,7 +481,7 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
 namespace {
 
 /* a data coordinate as the nearest pixel of an axis that maps pixel p0 to
-   v0 and p1 to v1 (the inverse of scale_to_real, auto_motion_xy) */
+   v0 and p1 to v1 (the inverse of scale_to_real) */
 int data_to_pixel(double v, double v0, double v1, int p0, int p1)
 {
     double p;

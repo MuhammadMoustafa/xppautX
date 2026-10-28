@@ -60,7 +60,7 @@ test('W106: an AUTO settings edit during a run is sent at once, shown until its 
   ev({ev: 'computing'});
   sent.length = 0;
   s.autoSettings({numerics: {max_steps: 25}});
-  assert.deepEqual(sent, [{cmd: 'auto', op: 'set', numerics: {max_steps: 25}}]);
+  assert.deepEqual(sent, [{cmd: 'auto.configure_numerics', max_steps: 25}]);
   assert.equal(shownSettings(s.store.getState().autoSettings)!.numerics.max_steps, 25);
   ev({ev: 'idle'});
   assert.equal(shownSettings(s.store.getState().autoSettings)!.numerics.max_steps, 25);

@@ -96,6 +96,7 @@ static void hl_void(void) {}
 static void hl_str(std::string_view) {}
 static void hl_int(int) {}
 static void hl_bottom_msg(int, std::string_view msg, std::string_view, std::string_view) { log(XPP_LOG_INFO, "{}\n", msg); }
+static int hl_auto_points_held(Session &s) { return diagram_count(s.diagram); }
 static void hl_s(Session &) {}
 static void hl_s_int(Session &, int) {}
 static void hl_live_state(Session &, const double *, double) {}
@@ -265,6 +266,7 @@ XppUi ui = {
     .auto_show_hint = hl_s,
     .auto_grab_end = hl_int,
     .auto_diagram = hl_auto_diagram,
+    .auto_points_held = hl_auto_points_held,
     .new_vcr = hl_s,
     .ani_show = hl_void,
     .ani_slider = hl_s,
@@ -539,6 +541,7 @@ int auto_rubber(Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
     return ui.auto_rubber(s, i1, j1, i2, j2, flag);
 }
 void auto_scroll_window(Session &s) { ui.auto_scroll_window(s); }
+int auto_points_held(Session &s) { return ui.auto_points_held(s); }
 void auto_diagram(Session &s, int view, const XppDiagPoint *p) { ui.auto_diagram(s, view, p); }
 void init_txtview(void) { ui.init_txtview(); }
 void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y,

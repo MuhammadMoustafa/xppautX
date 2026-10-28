@@ -6,6 +6,7 @@
 #include "xpp_files.h"
 #include "auto_settings.h"
 #include "auto_nox.h"
+#include "auto_run.h"
 #include "diagram.h"
 #include "xpp_session_auto.h"
 #include "xpp_ui.h"
@@ -37,36 +38,31 @@ int main()
     const xpp::XppUi saved_ui=xpp::ui;
     xpp::XppUi form_ui=saved_ui;
     form_ui.question_policy=[](bool) { return xpp::QuestionPolicy::User; };
-    form_ui.string_box=[](int row,int col,std::string_view title,const char *const *names,
-                          std::span<std::string> values,const int *kinds) {
-        CHECK(row==402 && col==2 && title=="Homoclinic info");
-        CHECK(values.size()==804);
-        CHECK(std::string_view(names[401])=="X400_L" && std::string_view(names[803])=="X400_R");
-        CHECK(kinds[0]==xpp::XPP_FIELD_INTEGER && kinds[402]==xpp::XPP_FIELD_INTEGER);
-        CHECK(values[401]=="0" && values[803]=="0");
-        values[0]="2";
-        values[402]="399";
-        values[401]="2.75";
-        values[803]="3.25";
+    form_ui.typed_form=[](std::string_view title,std::span<xpp::FormField> fields) {
+        CHECK(title=="Homoclinic info" && fields.size()==804);
+        CHECK(fields[0].name=="unstable_dimension" && fields[1].name=="stable_dimension");
+        CHECK(fields[402].name=="X400_left" && fields[803].name=="X400_right");
+        CHECK(fields[0].kind==xpp::XPP_FIELD_INTEGER && fields[1].kind==xpp::XPP_FIELD_INTEGER);
+        CHECK(fields[402].value=="0" && fields[803].value=="0");
+        fields[0].value="2";
+        fields[1].value="399";
+        fields[402].value="2.75";
+        fields[803].value="3.25";
         return 1;
     };
     xpp::set_ui(&form_ui);
-    int unstable=1,stable=400;
     s.auto_state.homo_flag=HomoclinicRun::Heteroclinic;
-    CHECK(xpp::get_homo_info(s,&unstable,&stable,s.auto_state.homo_l.data(),s.auto_state.homo_r.data())==1);
+    const auto asked=xpp::auto_ask_homoclinic(s);
     xpp::set_ui(&saved_ui);
-    CHECK(unstable==2 && stable==399);
-    CHECK(s.auto_state.homo_l[400]==2.75 && s.auto_state.homo_r[400]==3.25);
+    CHECK(asked && asked->unstable==2 && asked->stable==399);
+    CHECK(asked && asked->left[400]==2.75 && asked->right[400]==3.25);
     // W365: dimensions that do not add up to the model's start no run and keep the ones before.
-    form_ui.string_box=[](int,int,std::string_view,const char *const *,std::span<std::string> values,const int *) {
-        values[0]="2";
-        values[402]="400";
-        return 1;
-    };
-    xpp::set_ui(&form_ui);
-    CHECK(xpp::get_homo_info(s,&unstable,&stable,s.auto_state.homo_l.data(),s.auto_state.homo_r.data())==0);
-    xpp::set_ui(&saved_ui);
-    CHECK(unstable==2 && stable==399);
+    xpp::AutoRunRequest request;
+    request.kind=xpp::AutoRunKind::heteroclinic;
+    request.homoclinic=xpp::HomoclinicStart{2,400,asked->left,asked->right};
+    const xpp::Result<> refused=xpp::auto_run_start(s,request);
+    CHECK(!refused && refused.error().what.find("must add up to the number of variables, 401")!=std::string::npos);
+    CHECK(s.auto_state.run.nunstab==1);
     s.auto_state.homo_flag=HomoclinicRun::None;
     xpp::AutoSettingsSet set;
     set.par1="P39";
@@ -151,7 +147,7 @@ int main()
     xpp::auto_per_par(s);
     xpp::set_ui(&saved_ui);
     CHECK(s.auto_state.bifur.marks==marks);
-    xpp::auto_start_diff_ss(s);
+    CHECK(xpp::auto_run_start(s,xpp::AutoRunRequest{}));
     CHECK(diagram_count(s.diagram)==4);
     CHECK(s.auto_state.run.marks.size()==128 && s.auto_state.run.marks.back().value==227);
     const xpp::DIAGRAM *last=last_diagram(s.diagram);
@@ -166,7 +162,7 @@ int main()
     std::copy_n(last->u0.begin(),s.model().node,s.last_ic.begin());
     set.par1="P9";
     CHECK(xpp::auto_settings_apply(s,set,why)==0);
-    xpp::auto_start_diff_ss(s);
+    CHECK(xpp::auto_run_start(s,xpp::AutoRunRequest{}));
     last=last_diagram(s.diagram);
     CHECK(last && last->icp1.is_parameter(9) && last->parameter_indices==std::vector<int>{9});
     CHECK(last && std::string_view(xpp::auto_par_name(s,last->icp1.index))==s.model().upar_names[9]);

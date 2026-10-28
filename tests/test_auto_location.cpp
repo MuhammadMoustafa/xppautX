@@ -11,6 +11,7 @@
 #include "autevd.h"
 #include "auto_settings.h"
 #include "auto_nox.h"
+#include "auto_run.h"
 #include "diagram.h"
 
 namespace {
@@ -240,7 +241,7 @@ u'=p-u
     settings.mark_value = {0.35, 0.3};
     std::string why;
     CHECK(xpp::auto_settings_apply(events_session, settings, why) == 0);
-    xpp::auto_start_diff_ss(events_session);
+    CHECK(xpp::auto_run_start(events_session,xpp::AutoRunRequest{}));
     std::vector<double> marks;
     for (const auto &point : events_session.diagram.points) {
         if (point.itp.kind == xpp::AutoPointKind::UserZero) {
