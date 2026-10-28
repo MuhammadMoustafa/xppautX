@@ -27,6 +27,8 @@ struct WindowTarget { WindowKind kind; int index; };
 std::optional<WindowTarget> find_window(const Session &s, std::string_view name);
 std::string next_window_name(const Session &s, WindowKind kind);
 std::string window_name(const Session &s, XppWinId handle);
+/* the animation's and the array plot's names, which no session changes */
+std::string_view fixed_window_name(XppWinId handle);
 std::string window_name_problem(std::string_view name);
 std::string window_name_problem(const Session &s, std::string_view name, std::string_view replacing = {});
 void redo_stuff(Session &s);

@@ -354,7 +354,7 @@ std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
     std::vector<unsigned char> rgb;
     int id = ask_begin(b, "pixels");
     if (film >= 0) buf_format(b, ",\"film\":{:d}", film);
-    else {BUF_LIT(b,",\"win\":");buf_str(b,xpp::window_name(client(),win));}
+    else {BUF_LIT(b,",\"win\":");buf_str(b,xpp::fixed_window_name(win));}
     if (!ask_wait(b, id)) return rgb;
     *w = get_int(ask_answer(), "w", 0);
     *h = get_int(ask_answer(), "h", 0);

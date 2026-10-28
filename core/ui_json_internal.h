@@ -464,6 +464,7 @@ void j_destroy_plot_window(xpp::Session &s);
 void j_cput_text(xpp::Session &s);
 void j_scroll_window(xpp::Session &s);
 
+/* the frames of the kinescope (film >= 0), or the animation's or array plot's window */
 std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h); /* empty: cancelled */
 
 xpp::Result<> j_film_clip(xpp::Session &s);

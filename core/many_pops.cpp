@@ -46,9 +46,13 @@ std::string next_window_name(const Session &s, WindowKind kind)
 std::string window_name(const Session &s, XppWinId handle)
 {
     if (handle==WIN_AUTO) return s.auto_state.views[s.auto_state.active_view].name;
-    if (handle==WIN_ANI) return "animation";
-    if (handle==WIN_APLOT) return "array_plot";
+    if (handle==WIN_ANI || handle==WIN_APLOT) return std::string(fixed_window_name(handle));
     return s.plot_windows.graph[graph_of(s,handle)].name;
+}
+
+std::string_view fixed_window_name(XppWinId handle)
+{
+    return handle==WIN_ANI ? "animation" : "array_plot";
 }
 
 std::string window_name_problem(std::string_view name)
