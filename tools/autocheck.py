@@ -1118,10 +1118,10 @@ def section_sessiondiagram():
     view1 = Diagram('diagram_2').apply(evs)
     # an old name asked for: the .snapx beside it
     got = save_diagram(s, 'd1', 'd1.snapx')
-    check('sessiondiagram: Save diagram writes d1.snapx, a zip of the files listed, the model in it',
-          list(got) == ['session.setx', 'model/lecar.odex', 'model.setx', 'auto/settings.txt', 'auto/views.txt', 'auto/diagram.csv', 'auto/solutions.s', 'windows.setx', 'marks.setx', 'random.txt', 'sliders.setx', 'nullclines.setx'], str(list(got)))
+    check('sessiondiagram: Save diagram writes d1.snapx, a zip of the files listed, the model and its animation in it',
+          list(got) == ['session.setx', 'model/lecar.odex', 'model/ml.anix', 'model.setx', 'auto/settings.txt', 'auto/views.txt', 'auto/diagram.csv', 'auto/solutions.s', 'windows.setx', 'marks.setx', 'random.txt', 'sliders.setx', 'nullclines.setx'], str(list(got)))
     check('sessiondiagram: session.setx is the manifest of lecar.odex, which is in it byte for byte',
-          got.get('session.setx', '') == 'session: {\n  version: 4,\n  model: "lecar.odex",\n  data: false,\n},\n'
+          got.get('session.setx', '') == 'session: {\n  version: 4,\n  model: "lecar.odex",\n  animation: "ml.anix",\n  data: false,\n},\n'
           and got.get('model/lecar.odex') == open(LECAR).read(), got.get('session.setx', '')[:300])
     check('sessiondiagram: settings.txt has the numerics, the parameters and the axes',
           all(re.search(r'(^|\n)%s ' % k, got.get('auto/settings.txt', '')) for k in ('ntst', 'ds', 'plot', 'xmin')),

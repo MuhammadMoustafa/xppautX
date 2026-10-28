@@ -36,7 +36,7 @@ Result<std::string> manifest_text(const Manifest &m)
     out.begin(manifest_group);
     out.whole("version", m.version);
     out.text("model", m.model_name);
-    if (!m.anifile.empty()) out.text("anifile", m.anifile);
+    if (!m.anifile.empty()) out.text("animation", m.anifile);
     out.flag("data", m.data);
     out.end();
     return out.result("session");
@@ -52,9 +52,9 @@ xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text)
             g.fail(*g.member("version"), xpp::format("version {}: this program reads session files of version {}", m.version, format_version));
         g.text("model", m.model_name);
         if (!odex::is_odex(m.model_name)) g.fail(*g.member("model"), "a session stores an .odex model only; .ode is refused");
-        if (g.has("anifile")) {
-            g.text("anifile", m.anifile);
-            if (!files::has_extension(m.anifile, ".anix")) g.fail(*g.member("anifile"), "a session stores an .anix animation only");
+        if (g.has("animation")) {
+            g.text("animation", m.anifile);
+            if (!files::has_extension(m.anifile, ".anix")) g.fail(*g.member("animation"), "a session stores an .anix animation only");
         }
         g.flag("data", m.data);
         g.done();

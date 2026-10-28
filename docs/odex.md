@@ -934,7 +934,7 @@ folder. This companion key belongs directly in `options`, outside the settings g
 The value is a quoted `.anix` base name, never a path or link. An animation
 can name its model with `model: "pend.odex"`. Opening either loads the pair (the
 model's own animation into a hidden window, shown on request);
-a bad linked animation refuses the load whole. A session bundles its open
+a missing or bad linked animation is refused whole, its error shown with its place, and the model loads without it. A session bundles its open
 animation as a model companion member. Shapes reuse this grammar's tokens,
 expressions, keyed blocks and trailing `for j in lo..hi [by step]`, including
 the shared 100000 expansion limit. See [Animations](manual/10-animations.md)
