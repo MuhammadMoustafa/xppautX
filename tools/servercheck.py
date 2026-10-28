@@ -135,7 +135,7 @@ check = Checker()
 def check_diagram_subscription():
     """W439: delivery is presentation only; resubscribe recovers every point."""
     d = copy.deepcopy(autocompare.read_description(autocompare.BASE / 'tstauto_simplefold.json'))
-    d['runs'][0]['auto']['nmax'] = 5
+    d['runs'][0]['auto']['max_steps'] = 5
     with_events = autocompare.compute(args.server, d, 1)[0]
     without_events = autocompare.compute(args.server, d, 1, diagram_data=False)[0]
     check('data.diagram: opt-out keeps every saved number', with_events == without_events)
@@ -359,7 +359,7 @@ def auto_lost_points(itmx):
         autocompare.completed(s)
         autocompare.completed(s, dict(cmd='data', events=['autoinfo']))
         diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
-        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'itmx': itmx}))
+        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'max_location_iterations': itmx}))
         r = d['runs'][0]
         autocompare.restore_start(s, r, [], {})
         infos = [e for e in autocompare.execute_run(s, r, diagram, {}) if e.get('ev') == 'autoinfo']
@@ -373,13 +373,13 @@ def check_auto_stops():
     naming it, its points and ITMX; the branch goes on. Restart-file checks below cover A2 and
     A3's load-time rejection; tests/test_auto_restart.cpp also covers direct short reads."""
     notes, stop = auto_lost_points(1)
-    check('stops AUTO special point: ITMX 1 gives up the folds, each a note naming it, its points and ITMX',
+    check('stops AUTO special point: max_location_iterations 1 gives up the folds, each a note naming it, its points and the setting',
           isinstance(notes, list) and len(notes) > 0
-          and all(re.search(r'^Br 1 Pt \d+: a fold \(LP\) between points \d+ and \d+ was not located \(not in ITMX=1 iterations\)', n)
+          and all(re.search(r'^Br 1 Pt \d+: a fold \(LP\) between points \d+ and \d+ was not located \(not in max_location_iterations = 1 iterations\)', n)
                   for n in notes)
-          and isinstance(stop, dict) and stop.get('why') == 'parmax', '%s %s' % (notes, stop))
+          and isinstance(stop, dict) and stop.get('why') == 'parameter_max', '%s %s' % (notes, stop))
     notes, _ = auto_lost_points(8)
-    check('stops AUTO special point: the default ITMX locates them, no note', notes == [], str(notes))
+    check('stops AUTO special point: the default max_location_iterations locates them, no note', notes == [], str(notes))
 
 
 def check_auto_starts():
@@ -391,12 +391,12 @@ def check_auto_starts():
     no_root = os.path.join(STOPS_DIR, 'auto_start_no_root.odex')
     cases = [
         ('residual', no_root, {}, {}, ['largest residual', 'did not converge', 'Newton settings', 'Sing pts']),
-        ('parameter low', path, {'pars': {'a': -3}}, {'ds': -0.02}, ['parameter "a" = -3', 'Par Min = -2', 'Par Max = 2']),
-        ('parameter high', path, {'pars': {'a': 3}}, {}, ['parameter "a" = 3', 'Par Min = -2', 'Par Max = 2']),
-        ('parameter below Par Min', path, {}, {'rl0': 0.2, 'rl1': 0.9, 'ds': -0.02}, ['parameter "a" = 0', 'Par Min = 0.2', 'Par Max = 0.9']),
-        ('bound outward', path, {}, {'rl0': 0, 'ds': -0.02}, ['Ds = -0.02', 'pointing away']),
-        ('norm low', path, {}, {'a0': 1}, ['Start norm = 0', 'Norm Min = 1', 'widen']),
-        ('norm high', path, {'ics': {'X': 1}, 'pars': {'a': 1}}, {'a1': 0.5}, ['Start norm = 1', 'Norm Max = 0.5', 'widen']),
+        ('parameter low', path, {'pars': {'a': -3}}, {'step_size': -0.02}, ['parameter "a" = -3', 'parameter_min = -2', 'parameter_max = 2']),
+        ('parameter high', path, {'pars': {'a': 3}}, {}, ['parameter "a" = 3', 'parameter_min = -2', 'parameter_max = 2']),
+        ('parameter below Par Min', path, {}, {'parameter_min': 0.2, 'parameter_max': 0.9, 'step_size': -0.02}, ['parameter "a" = 0', 'parameter_min = 0.2', 'parameter_max = 0.9']),
+        ('bound outward', path, {}, {'parameter_min': 0, 'step_size': -0.02}, ['step_size = -0.02', 'pointing away']),
+        ('norm low', path, {}, {'norm_min': 1}, ['Start norm = 0', 'norm_min = 1', 'widen']),
+        ('norm high', path, {'ics': {'X': 1}, 'pars': {'a': 1}}, {'norm_max': 0.5}, ['Start norm = 1', 'norm_max = 0.5', 'widen']),
     ]
     for name, case_path, values, limits, words in cases:
         s = Server(args.server, case_path)
@@ -407,7 +407,7 @@ def check_auto_starts():
                 autocompare.completed(s, dict(cmd='ic.set', values=values['ics']))
             if values.get('pars'):
                 autocompare.completed(s, dict(cmd='set', values=[dict(kind='par', name=k, value=v) for k, v in values['pars'].items()]))
-            autocompare.completed(s, dict(cmd='auto', op='set', numerics={'rl0': -2, 'rl1': 2, **limits}))
+            autocompare.completed(s, dict(cmd='auto', op='set', numerics={'parameter_min': -2, 'parameter_max': 2, **limits}))
             evs = autocompare.run_any(s, 's')
             errors = [e for e in evs if e.get('error')]
             text = errors[0]['error'] if len(errors) == 1 else str(errors)
@@ -425,7 +425,7 @@ def check_auto_starts():
         autocompare.completed(s)
         autocompare.open_auto(s)
         autocompare.completed(s, dict(cmd='ic.set', values={'X': 1}))
-        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'rl0': -2, 'rl1': 2}))
+        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'parameter_min': -2, 'parameter_max': 2}))
         evs = autocompare.run_any(s, 's')
         errors = [e for e in evs if e.get('error')]
         check('stops AUTO start refined by Newton: X = 1 is refined and the run starts',
@@ -531,7 +531,7 @@ def check_auto_restart_file_stops():
     try:
         autocompare.completed(s)
         autocompare.open_auto(s)
-        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'rl0': -2, 'rl1': 2, 'nmx': 4}))
+        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'parameter_min': -2, 'parameter_max': 2, 'max_steps': 4}))
         evs = autocompare.run_any(s, 's')
         snapshot = os.path.join(s.run, 'base.snapx')
         autocompare.completed(s, dict(cmd='session', op='save', name=snapshot, data=False))
@@ -581,13 +581,13 @@ def check_auto_multiplier_note():
         autocompare.restore_start(s, d['runs'][0], [], {})
         autocompare.execute_run(s, d['runs'][0], diagram, {})
         r = copy.deepcopy(d['runs'][1])
-        r['auto'].update(ntst=2, ncol=2, nmax=50, ds=0.05, dsmax=0.1)
+        r['auto'].update(mesh_intervals=2, collocation_points=2, max_steps=50, step_size=0.05, max_step_size=0.1)
         # The coarse mesh intentionally loses the unit Floquet multiplier.
         evs = autocompare.execute_run(s, r, diagram, {})
         notes = [n for e in evs if e.get('ev') == 'autoinfo' for n in e.get('notes', [])]
         check('stops AUTO A8: inaccurate Floquet multipliers name the point and mesh fix',
               any(re.search(r'Br \d+ Pt \d+: the Floquet multipliers are inaccurate', n)
-                  and 'Ntst or Ncol' in n and 'detection are off' in n for n in notes), str(notes))
+                  and 'mesh_intervals or collocation_points' in n and 'detection are off' in n for n in notes), str(notes))
     finally:
         s.close()
 
@@ -600,7 +600,7 @@ def check_auto_singular_pivot():
         evs, _ = s.collect(stops_idle)
         autocompare.completed(s, dict(cmd='data', events=['autoinfo']))
         autocompare.open_auto(s)
-        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'rl0': -1, 'rl1': 1, 'nmx': 4, 'iads': 0, 'itnw': 1, 'epsu': 1e-30, 'epsl': 1e-30}))
+        autocompare.completed(s, dict(cmd='auto', op='set', numerics={'parameter_min': -1, 'parameter_max': 1, 'max_steps': 4, 'step_adapt_every': 0, 'max_newton_iterations': 1, 'state_tolerance': 1e-30, 'parameter_tolerance': 1e-30}))
         evs = autocompare.run_any(s, 'p')
         stops = [e['stop'] for e in evs if e.get('ev') == 'autoinfo' and e.get('stop')]
         check('stops AUTO A7: a singular periodic solve names its pivot and bound',
@@ -4328,7 +4328,7 @@ def check_autoinfo():
         for snd, col, diag in ((snda, cola, diag_a), (sndb, colb, diag_b)):
             # W338: keep the circle fixture short. W341 (#402) also preserves
             # the restored solution's multipliers at a failed-step MX endpoint.
-            snd(cmd='auto', op='set', numerics={'nmx': 20})
+            snd(cmd='auto', op='set', numerics={'max_steps': 20})
             evs, _ = col(is_idle)
             check('W338: the short periodic circle fixture is configured',
                   not any(e.get('ev') in ('message', 'done') and 'error' in e for e in evs), str(evs)[-300:])
@@ -4457,13 +4457,13 @@ def settings_of(evs):
     return got[-1] if got else None
 
 
-NUM_KEYS = ['ntst', 'nmx', 'npr', 'ncol', 'ds', 'dsmin', 'dsmax', 'rl0', 'rl1', 'a0', 'a1', 'epsl', 'epsu', 'epss',
-            'iad', 'mxbf', 'iid', 'itmx', 'itnw', 'nwtn', 'iads', 'suppbp']
+NUM_KEYS = ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points', 'step_size', 'min_step_size', 'max_step_size', 'parameter_min', 'parameter_max', 'norm_min', 'norm_max', 'parameter_tolerance', 'state_tolerance', 'special_point_tolerance',
+            'mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail', 'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points']
 
 
 def form_text(v):
     """a value as the core's forms print it: %d for whole numbers, else %g"""
-    if isinstance(v, bool):
+    if isinstance(v, (bool, str)):
         return str(v).lower()
     return '%d' % v if isinstance(v, int) else '%g' % v
 
@@ -4499,14 +4499,15 @@ def check_autosettings():
               and st['axes']['par1'] == 'iapp', str(st)[:300])
         rules = st.get('rules', {}) if st else {}
         check('W118: autosettings carries each Numerics rule with the message its refusal says, the pairs and the step',
-              sorted(rules) == sorted(NUM_KEYS) and rules['ncol'].get('min') == 2 and rules['ncol'].get('max') == 7
-              and isinstance(st['numerics']['suppbp'], bool) and rules['suppbp'].get('boolean') is True
-              and rules['ncol'].get('integer') is True and rules['dsmin'].get('positive') is True
-              and rules['ds'].get('nonzero') is True and 'min' not in rules['mxbf']
-              and rules['ncol'].get('message') == 'Ncol must be a whole number from 2 to 7'
+              sorted(rules) == sorted(NUM_KEYS) and rules['collocation_points'].get('min') == 2 and rules['collocation_points'].get('max') == 7
+              and isinstance(st['numerics']['suppress_branch_points'], bool) and rules['suppress_branch_points'].get('boolean') is True
+              and rules['collocation_points'].get('integer') is True and rules['min_step_size'].get('positive') is True
+              and rules['step_size'].get('nonzero') is True and rules['max_branch_switches'].get('min') == 0
+              and rules['output_detail'].get('choices') == ['none', 'little', 'normal', 'start_jacobian', 'extensive', 'debugging']
+              and rules['collocation_points'].get('message') == 'Collocation points must be a whole number from 2 to 7'
               and [(p['lo'], p['hi'], p['strict']) for p in st.get('pairs', [])]
-              == [('dsmin', 'dsmax', False), ('rl0', 'rl1', True), ('a0', 'a1', True)]
-              and st.get('step', {}).get('key') == 'ds', str(st and (st.get('pairs'), st.get('step')))[:300])
+              == [('min_step_size', 'max_step_size', False), ('parameter_min', 'parameter_max', True), ('norm_min', 'norm_max', True)]
+              and st.get('step', {}).get('key') == 'step_size', str(st and (st.get('pairs'), st.get('step')))[:300])
         ask = ask_of(cmd='key', win='auto', key='n')
         cancel(ask)
         point_keys = ('bogdanov_takens', 'cusp', 'zero_hopf', 'generalized_hopf', 'resonance_1_1', 'resonance_1_2', 'resonance_1_3', 'resonance_1_4', 'fold_flip', 'fold_neimark_sacker', 'flip_neimark_sacker', 'double_neimark_sacker')
@@ -4535,7 +4536,7 @@ def check_autosettings():
         current = settings_of(fresh)
         check('W364: malformed form boolean leaves numerics and detection unchanged',
               len(auto_errors(events)) == 1 and current is not None
-              and current['numerics']['nmx'] == st['numerics']['nmx']
+              and current['numerics']['max_steps'] == st['numerics']['max_steps']
               and current['special_points'] == st['special_points'])
         snda(cmd='data', events=['hello', 'autosettings'])
         window_events, _ = cola(is_idle)
@@ -4564,19 +4565,19 @@ def check_autosettings():
         # a form's OK shows in the event too
         ask = ask_of(cmd='key', win='auto', key='n')
         vals = list(ask['values'])
-        vals[NUM_KEYS.index('npr')] = '40'
+        vals[NUM_KEYS.index('output_every')] = '40'
         snda(cmd='answer', id=ask['id'], ok=1, values=vals)
         evs, _ = cola(is_idle)
         st2 = settings_of(evs)
-        check('autosettings: a Numerics form answered: the event follows (NPr 40)', st2 and st2['numerics']['npr'] == 40,
+        check('autosettings: a Numerics form answered: the event follows (output_every 40)', st2 and st2['numerics']['output_every'] == 40,
               str(st2)[:200])
 
         # the set: every part, then read back through the forms
         p0, p1 = 'iapp', 'gca'
-        evs, st3, errs = auto_set(numerics={'nmx': 12, 'ds': -0.01}, axes={'plot': 'norm', 'var': 'W', 'par1': p1},
+        evs, st3, errs = auto_set(numerics={'max_steps': 12, 'step_size': -0.01}, axes={'plot': 'norm', 'var': 'W', 'par1': p1},
                                   marks=[[p0, 0.25], ['T', 30]])
         check('auto set: numerics, pars, axes and marks set, the event says so', not errs and st3
-              and st3['numerics']['nmx'] == 12 and st3['numerics']['ds'] == -0.01
+              and st3['numerics']['max_steps'] == 12 and st3['numerics']['step_size'] == -0.01
               and st3['axes']['plot'] == 'norm' and st3['axes']['var'] == 'W' and st3['axes']['par1'] == p1
               and st3['marks'] == [[p0, 0.25], ['T', 30]], '%s %s' % (errs, st3))
         ask = ask_of(cmd='key', win='auto', key='n')
@@ -4605,54 +4606,54 @@ def check_autosettings():
         check('W331: late bad form value rejects all edits',
               len([e for e in rejected if e.get('ev') in ('message', 'done') and 'error' in e]) == 1 and settings_of(rejected) is None)
         for bad_marks in (many_marks[:-1] + [['unknown', 0]], 'bad', [['T', 1, 2]]):
-            evs, changed, errs = auto_set(numerics={'nmx': 99}, marks=bad_marks)
+            evs, changed, errs = auto_set(numerics={'max_steps': 99}, marks=bad_marks)
             check('W331: bad mark command rejects its numerics too', len(errs) == 1 and changed is None)
         snda(cmd='data', events=['autosettings'])
         unchanged = settings_of(cola(is_idle)[0])
         check('W331: settings stayed intact after bad forms and sets',
-              unchanged and unchanged['marks'] == many_marks and unchanged['numerics']['nmx'] == 12)
+              unchanged and unchanged['marks'] == many_marks and unchanged['numerics']['max_steps'] == 12)
         auto_set(marks=st3['marks'])
 
         # refused: bad values change nothing, and say why
-        for bad, why in (({'numerics': {'suppbp': 1}}, 'true or false'), ({'numerics': {'suppbp': 'true'}}, 'true or false'),
-                         ({'numerics': {'ncol': 9}}, 'Ncol'), ({'numerics': {'ntst': 1.5}}, 'Ntst'),
-                         ({'numerics': {'nmx': 30, 'dsmin': 0}}, 'Dsmin'), ({'numerics': {'rl0': 5, 'rl1': 1}}, 'Par Min'),
-                         ({'numerics': {'ds': -0.9, 'dsmax': 0.5}}, 'Ds must be from Dsmin to Dsmax'),
-                         ({'numerics': {'dsmin': 0.5, 'dsmax': 1, 'ds': 0.1}}, 'Ds must be from Dsmin to Dsmax'),
-                         ({'numerics': {'nmx': 'many'}}, 'Nmax'), ({'pars': ['nosuch']}, 'no pars field'),
+        for bad, why in (({'numerics': {'suppress_branch_points': 1}}, 'true or false'), ({'numerics': {'suppress_branch_points': 'true'}}, 'true or false'),
+                         ({'numerics': {'collocation_points': 9}}, 'Collocation points'), ({'numerics': {'mesh_intervals': 1.5}}, 'Mesh intervals'),
+                         ({'numerics': {'max_steps': 30, 'min_step_size': 0}}, 'Min step size'), ({'numerics': {'parameter_min': 5, 'parameter_max': 1}}, 'Parameter min'),
+                         ({'numerics': {'step_size': -0.9, 'max_step_size': 0.5}}, 'The size of Step size must be from Min step size to Max step size'),
+                         ({'numerics': {'min_step_size': 0.5, 'max_step_size': 1, 'step_size': 0.1}}, 'The size of Step size must be from Min step size to Max step size'),
+                         ({'numerics': {'max_steps': 'many'}}, 'Max steps'), ({'pars': ['nosuch']}, 'no pars field'),
                          ({'axes': {'par1': 'nosuch'}}, 'nosuch'),
                          ({'axes': {'var': 'nosuch'}}, 'nosuch'), ({'axes': {'plot': 'sideways'}}, 'sideways'), ({'axes': {'plot': 7}}, 'projection'),
                          ({'axes': {'xmin': 1, 'xmax': 0}}, 'Xmin'), ({'marks': [['W', 1]]}, 'W')):
             evs, st4, errs = auto_set(**bad)
             check('auto set %s is refused with an error naming %s, nothing changes' % (json.dumps(bad), why),
                   len(errs) == 1 and why in errs[0] and st4 is None, '%s %s' % (errs, st4))
-        evs, boolean_set, errs = auto_set(numerics={'suppbp': True})
+        evs, boolean_set, errs = auto_set(numerics={'suppress_branch_points': True})
         check('W499: SuppBP accepts and publishes a boolean',
-              not errs and boolean_set and boolean_set['numerics']['suppbp'] is True)
-        auto_set(numerics={'suppbp': False})
-        evs, st4, errs = auto_set(numerics={'ncol': 9})
+              not errs and boolean_set and boolean_set['numerics']['suppress_branch_points'] is True)
+        auto_set(numerics={'suppress_branch_points': False})
+        evs, st4, errs = auto_set(numerics={'collocation_points': 9})
         check('W118: a refused value says the message the event gave its rule',
-              errs == ['AUTO settings: ncol=9: ' + rules.get('ncol', {}).get('message', '?')], str(errs))
+              errs == ['AUTO settings: collocation_points=9: ' + rules.get('collocation_points', {}).get('message', '?')], str(errs))
 
         # a set sent while a question is open is kept for after the command, not dropped: a
         # command of its own then (W106), with its own idle
         ask = ask_of(cmd='key', win='auto', key='n')
-        snda(cmd='auto', op='set', numerics={'nmx': 77})
+        snda(cmd='auto', op='set', numerics={'max_steps': 77})
         evs = cancel(ask)
         st5a = settings_of(evs)
         st5 = settings_of(cola(is_idle)[0])
         check('auto set during a question: applied after the command, with its own idle',
-              st5a is None and st5 and st5['numerics']['nmx'] == 77, str(st5)[:200])
+              st5a is None and st5 and st5['numerics']['max_steps'] == 77, str(st5)[:200])
 
         # a set changes the next run: Nmax 12 against the default on the other server
-        evs, st6, errs = auto_set(numerics={'nmx': 12}, axes={'plot': 'maximum_and_minimum', 'var': 'V', 'par1': p0}, marks=[])
+        evs, st6, errs = auto_set(numerics={'max_steps': 12}, axes={'plot': 'maximum_and_minimum', 'var': 'V', 'par1': p0}, marks=[])
         evs_a = lecar_to_auto(snda, cola)
         evs_b = lecar_to_auto(sndb, colb)
         na, nb = len(rebuild_diagram(evs_a, [])), len(rebuild_diagram(evs_b, []))
         check('auto set: Nmax 12 makes the next run stop at 12 points (the default goes on to %d)' % nb,
               not errs and na == 12 and nb > 12, '%s: %d vs %d points' % (errs, na, nb))
         # W155: Reload keeps AUTO's settings without a settings file.
-        before_reload = settings_of(auto_set(numerics={'nmx': 41}, marks=many_marks)[0])
+        before_reload = settings_of(auto_set(numerics={'max_steps': 41}, marks=many_marks)[0])
         snda(cmd='reload')
         reload_ask = cola(lambda e: e.get('ev') == 'ask')[1]
         snda(cmd='answer', id=reload_ask['id'], key='d')
@@ -4709,21 +4710,21 @@ def auto_stop_run(numerics, abort=False):
 
 
 def check_auto_stop():
-    wide = {'rl0': -0.5, 'rl1': 0.9, 'a0': -1, 'a1': 100, 'nmx': 200}
+    wide = {'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 200}
     for numerics, why, text, abort in (
-            ({**wide, 'rl1': 0.5}, 'parmax', 'parameter a reached Par Max (0.5)', False),
-            ({**wide, 'rl0': -0.3, 'ds': -0.01}, 'parmin', 'parameter a reached Par Min (-0.3)', False),
-            ({**wide, 'a1': 0.3}, 'normmax', 'the norm reached Norm Max (0.3)', False),
-            ({**wide, 'nmx': 5}, 'npts', 'the branch reached Max points (NMX 5)', False),
-            ({**wide, 'rl1': 10}, 'noconv-min', 'no convergence even at the smallest step (Dsmin 0.001; ITNW 7, EPSL 0.0001, EPSU 0.0001)', False),
-            ({**wide, 'rl1': 10, 'iads': 0}, 'noconv-fixed', 'no convergence with a fixed step size (IADS 0; ITNW 7, EPSL 0.0001, EPSU 0.0001)', False),
-            ({**wide, 'nmx': 1000000, 'ds': 1e-7, 'dsmin': 1e-8, 'dsmax': 1e-7}, 'user', 'by the user (Stop)', True)):
+            ({**wide, 'parameter_max': 0.5}, 'parameter_max', 'parameter a reached parameter_max (0.5)', False),
+            ({**wide, 'parameter_min': -0.3, 'step_size': -0.01}, 'parameter_min', 'parameter a reached parameter_min (-0.3)', False),
+            ({**wide, 'norm_max': 0.3}, 'norm_max', 'the norm reached norm_max (0.3)', False),
+            ({**wide, 'max_steps': 5}, 'max_steps', 'the branch reached max_steps (5)', False),
+            ({**wide, 'parameter_max': 10}, 'noconv-min', 'no convergence even at the smallest step (min_step_size 0.001; max_newton_iterations 7, parameter_tolerance 0.0001, state_tolerance 0.0001)', False),
+            ({**wide, 'parameter_max': 10, 'step_adapt_every': 0}, 'noconv-fixed', 'no convergence with a fixed step size (step_adapt_every 0; max_newton_iterations 7, parameter_tolerance 0.0001, state_tolerance 0.0001)', False),
+            ({**wide, 'max_steps': 1000000, 'step_size': 1e-7, 'min_step_size': 1e-8, 'max_step_size': 1e-7}, 'user', 'by the user (Stop)', True)):
         stop, n = auto_stop_run(numerics, abort)
         ok = isinstance(stop, dict) and stop.get('why') == why and stop.get('text') == text and stop.get('br') == 1
-        if ok and why in ('parmax', 'parmin', 'normmax'):
-            ok = abs(stop['limit'] - numerics[{'parmax': 'rl1', 'parmin': 'rl0', 'normmax': 'a1'}[why]]) < 1e-9 and (
-                stop['value'] < stop['limit'] if why == 'parmin' else stop['value'] > stop['limit'])
-        if ok and why == 'npts':
+        if ok and why in ('parameter_max', 'parameter_min', 'norm_max'):
+            ok = abs(stop['limit'] - numerics[why]) < 1e-9 and (
+                stop['value'] < stop['limit'] if why == 'parameter_min' else stop['value'] > stop['limit'])
+        if ok and why == 'max_steps':
             ok = stop['pt'] == 5 and n == 5
         if ok and why == 'user':
             ok = 1 < stop['pt'] < 1000000
@@ -4744,7 +4745,7 @@ def check_auto_points_limit():
         for k in 'fa':
             snd(cmd='key', key=k)
             col(lambda e: is_idle(e) or e.get('ev') == 'ask')
-        snd(cmd='auto', op='set', numerics={'rl0': -0.5, 'rl1': 0.9, 'a0': -1, 'a1': 100, 'nmx': 10000000})
+        snd(cmd='auto', op='set', numerics={'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 10000000})
         evs, _ = col(is_idle)
         check('W432: Nmax 10000000 is accepted', not [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e], str(evs[-3:]))
         snd(cmd='key', win='auto', key='r')
@@ -4775,7 +4776,7 @@ def check_auto_no_nan_par():
     the run's last "state" must show the continuation parameter 'a'
     finite, not left over from a diverged Newton step (core/auto_nox.cpp's
     auto_restore_finite_pars)."""
-    wide = {'rl0': -0.5, 'rl1': 0.9, 'a0': -1, 'a1': 100, 'nmx': 200}
+    wide = {'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 200}
     p, r, snd, col, evq = launch_server(ode=STOP_ODE)
     try:
         col(is_idle)
@@ -4784,7 +4785,7 @@ def check_auto_no_nan_par():
         for k in 'fa':
             snd(cmd='key', key=k)
             col(lambda e: is_idle(e) or e.get('ev') == 'ask')
-        snd(cmd='auto', op='set', numerics={**wide, 'rl1': 10})
+        snd(cmd='auto', op='set', numerics={**wide, 'parameter_max': 10})
         col(is_idle)
         snd(cmd='key', win='auto', key='r')
         _, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
@@ -5811,7 +5812,7 @@ def check_auto_jacobian_failure():
             snd(cmd='key', key='a')
             col(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1')
             col(is_idle)
-            snd(cmd='auto', op='set', numerics={'ds': -0.1, 'dsmax': 0.1, 'rl0': -0.5, 'rl1': 2, 'nmx': 100},
+            snd(cmd='auto', op='set', numerics={'step_size': -0.1, 'max_step_size': 0.1, 'parameter_min': -0.5, 'parameter_max': 2, 'max_steps': 100},
                 axes={'plot': 'norm', 'var': 'x', 'par1': 'a'})
             col(is_idle)
             snd(cmd='key', win='auto', key='r')
@@ -5846,7 +5847,7 @@ def check_auto_jacobian_failure():
             xs = [x for e in went if e.get('ev') == 'diagram' and e.get('op') == 'add' for run in e['runs'] for x in run['x']]
             info = [e['stop'] for e in went if e.get('ev') == 'autoinfo' and e.get('stop')]
             check('W275: sending them takes the branch on, past the failure (a below 0.5) to Par Min, with no error',
-                  not errs and xs and min(xs) < 0.4 and info and info[-1].get('why') == 'parmin', '%s %s %s' % (errs, xs[-3:], info))
+                  not errs and xs and min(xs) < 0.4 and info and info[-1].get('why') == 'parameter_min', '%s %s %s' % (errs, xs[-3:], info))
             branch_jacobians = lambda evs: sorted({(run['br'], run['jac']) for e in evs if e.get('ev') == 'diagram' and e.get('op') == 'add'
                                                    for run in e['runs']})
             first = branch_jacobians(evs)

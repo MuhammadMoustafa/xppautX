@@ -8,6 +8,9 @@ par a = 0.5, c = 0
 init u = 0.9991513950372889, up = -0.0005995451146046094
 options {
   integration: { total_time: 20, dt: .01 },
-  continuation: { epsl: 1e-9, epsu: 1e-9, epss: 1e-9, ntst: 80, ncol: 4 },
+  continuation: {
+    parameter_tolerance: 1e-9, state_tolerance: 1e-9, special_point_tolerance: 1e-9,
+    mesh_intervals: 80, collocation_points: 4,
+  },
   plot: { xp: u, yp: up, xlo: 0, xhi: 1, ylo: -.2, yhi: 0 },
 }

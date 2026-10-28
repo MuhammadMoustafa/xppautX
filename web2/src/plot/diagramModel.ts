@@ -309,8 +309,8 @@ const CURVES = ['', 'limit point', 'limit point of periodic orbits', 'Hopf', 'to
 /** what each label type means, for the key's tooltips (docs/manual/09-auto.md) */
 const SYMBOL_HELP: Record<string, string> = {
   end: 'End point: where a branch starts or ends normally (a limit, Max points or Stop); the status strip says why it ended',
-  no_convergence: 'No convergence: AUTO could not compute the next point, even at the smallest step (Dsmin), and ended the branch; '
-    + 'a smaller Ds or Dsmax, a larger Ntst or looser tolerances may get past it',
+  no_convergence: 'No convergence: AUTO could not compute the next point, even at the smallest step (min_step_size), and ended the branch; '
+    + 'a smaller step_size or max_step_size, a larger mesh_intervals or looser tolerances may get past it',
   fold: 'Fold (limit point): the branch turns back in the parameter; two solutions meet and disappear there',
   hopf: 'Hopf bifurcation: a pair of eigenvalues crosses the imaginary axis; a branch of periodic orbits starts here',
   branch_point: 'Branch point: another branch of solutions crosses this one',
@@ -386,7 +386,7 @@ export function labelTypes(labels: {sym: string}[]): string[] {
 
 /** the readout's parts for point `i` (A14: six significant digits); `stop`,
     the point where the last run's branch ended and why (T23), adds the reason
-    to its label: "EP label 3 (End point: parameter iapp reached Par Max (0.45))" */
+    to its label: "EP label 3 (End point: parameter iapp reached parameter_max (0.45))" */
 export function describePoint(p: DiagramPoints, labels: DiagramLabel[], axes: DiagramAxes | null, i: number,
   stop: {point: number; text: string} | null = null) {
   const l = labels.find(x => x.point === i);

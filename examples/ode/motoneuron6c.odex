@@ -666,7 +666,10 @@ I = ampPar*maxAmp*10^(-6)
 # W269 (#326): the README's step 2, integrate 600 ms to the steady state (stim.inc sets 200)
 options {
   integration: { dt: 0.025, method: backward_euler, total_time: 600 },
-  continuation: { parmax: 1, parmin: -10, npr: 100000, nmax: 10000000, ntst: 100, dsmax: 0.1 },
+  continuation: {
+    parameter_max: 1, parameter_min: -10, output_every: 100000, max_steps: 10000000,
+    mesh_intervals: 100, max_step_size: 0.1,
+  },
   diagram: { autoxmin: -0.1, autoxmax: 1.1, autoymin: -90, autoymax: 20 },
   plot: { xlo: 0, xhi: 200, ylo: -90, yhi: 50 },
   interface: { but: "fit:wf", but: "int:ig", but: "intl:il", but: "auto:fa" },

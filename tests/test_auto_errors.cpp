@@ -100,7 +100,7 @@ int main()
 
     /* cpnts: collocation weights exist for Ncol up to 7 */
     std::array<doublereal, 8> zm{};
-    CHECK(has(failure([&] { cpnts(8, zm.data()); }), "Ncol is 8"));
+    CHECK(has(failure([&] { cpnts(8, zm.data()); }), "collocation_points is 8"));
     CHECK(failure([&] { cpnts(4, zm.data()); }).empty());
 
     /* ge: a singular system (the second row twice the first) */

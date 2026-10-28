@@ -54,14 +54,14 @@ test('W106: a parameter or numerics edit during a computation is sent at once an
 test('W106: an AUTO settings edit during a run is sent at once, shown until its own idle', () => {
   const {s, sent, ev} = session();
   ev(HELLO);
-  ev({ev: 'autosettings', numerics: {nmx: 200}, pars: [], axes: {plot: 'norm'}, marks: []});
+  ev({ev: 'autosettings', numerics: {max_steps: 200}, pars: [], axes: {plot: 'norm'}, marks: []});
   ev({ev: 'idle'});
   s.send({cmd: 'run.initial'});
   ev({ev: 'computing'});
   sent.length = 0;
-  s.autoSettings({numerics: {nmx: 25}});
-  assert.deepEqual(sent, [{cmd: 'auto', op: 'set', numerics: {nmx: 25}}]);
-  assert.equal(shownSettings(s.store.getState().autoSettings)!.numerics.nmx, 25);
+  s.autoSettings({numerics: {max_steps: 25}});
+  assert.deepEqual(sent, [{cmd: 'auto', op: 'set', numerics: {max_steps: 25}}]);
+  assert.equal(shownSettings(s.store.getState().autoSettings)!.numerics.max_steps, 25);
   ev({ev: 'idle'});
-  assert.equal(shownSettings(s.store.getState().autoSettings)!.numerics.nmx, 25);
+  assert.equal(shownSettings(s.store.getState().autoSettings)!.numerics.max_steps, 25);
 });

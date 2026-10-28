@@ -23,8 +23,9 @@ options {
   integration: { total_time: 20, dt: 0.01, method: stiff, state_limit: 1000 },
   equilibria: { search_limit: 1000 },
   continuation: {
-    ntst: 150, nmax: 2000, npr: 2000, ds: 0.02, dsmin: 0.0001, dsmax: 0.05, parmin: -1, parmax: 1000,
-    epsl: 1e-10, epsu: 1e-10, epss: 1e-8,
+    mesh_intervals: 150, max_steps: 2000, output_every: 2000, step_size: 0.02, min_step_size: 0.0001,
+    max_step_size: 0.05, parameter_min: -1, parameter_max: 1000, parameter_tolerance: 1e-10,
+    state_tolerance: 1e-10, special_point_tolerance: 1e-8,
   },
   diagram: { autoxmin: -1, autoxmax: 1, autoymin: 0, autoymax: 1.5 },
 }

@@ -4,7 +4,7 @@
    to, the points the run added, the last label it found and the time it
    took, with the one Stop (A10: the status bar's Stop does the same), and
    once a run ended, why its last branch ended (T23: "Stopped: parameter
-   iapp reached Par Max (0.45)"; the core writes the same line in Output).
+   iapp reached parameter_max (0.45)"; the core writes the same line in Output).
    T26: the AUTO view now covers the main status bar too, so this strip also
    carries what it says that matters here: the core's last message
    (store's `bottom`, StatusBar.tsx's own `.status-message`) and the

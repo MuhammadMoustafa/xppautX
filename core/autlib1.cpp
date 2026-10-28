@@ -111,7 +111,7 @@ void special_point_lost(const iap_type &iap, integer ibr, integer ntot, const ch
   xpp::auto_stop_note(*iap.lib->session,
                       xpp::format("Br {} Pt {}: {} between points {} and {} was not located ({}); it is missing from the diagram",
                                   f2c::abs(ibr), ntot, kind, ntot, ntot + 1,
-                                  why ? std::string(why) : xpp::format("not in ITMX={} iterations", iap.itmx)));
+                                  why ? std::string(why) : xpp::format("not in max_location_iterations = {} iterations", iap.itmx)));
 }
 
 /* auto_locating = 1 for a scope: cleared however it ends, a failed solve
@@ -3117,7 +3117,7 @@ cpnts(const integer ncol, doublereal *zm)
 
   /* Generates the collocation points with respect to [0,1]. */
   if (ncol > 7) {
-    xpp::auto_fail(xpp::format("Ncol is {}: AUTO has collocation weights for at most 7; set Ncol (Numerics) to 7 or smaller", ncol));
+    xpp::auto_fail(xpp::format("collocation_points is {}: AUTO has collocation weights for at most 7; set collocation_points (Numerics) to 7 or smaller", ncol));
   }
 
   switch (static_cast<int>(ncol - 1)) {
@@ -5636,7 +5636,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
     }
     xpp::auto_stop_note(*iap->lib->session,
                         xpp::format("Br {} Pt {}: the Floquet multipliers are inaccurate (the one at 1 is off by {:.3g}); "
-                                    "period doubling and torus detection are off until they are accurate again (try a larger Ntst or Ncol)",
+                                    "period doubling and torus detection are off until they are accurate again (try a larger mesh_intervals or collocation_points)",
                                     f2c::abs(ibr), ntop, amin));
     for (i = 0; i < ndim; ++i) {
       xpp::print(iap->lib->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);

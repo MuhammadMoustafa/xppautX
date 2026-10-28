@@ -184,13 +184,13 @@ you wrote (`1/30`) alone while the value is unchanged.
         options {
           integration: { total_time: 100, method: stiff, jacobian: exact },
           plot:     { xp: v, yp: w, xlo: -0.6, xhi: 1.2 },
-          continuation: { ntst: 50, parmax: 10 },
+          continuation: { mesh_intervals: 50, parameter_max: 10 },
         }
 
   Groups: `integration`, `poincare`, `equilibria`, `continuation`,
   `diagram`, `plot`, `export`, `sweep`, `analysis`, `interface`, `output`.
   Integration holds solver and time settings; poincare holds section settings;
-  equilibria holds `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit` and `neartol`; continuation holds AUTO run settings;
+  equilibria holds `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit` and `neartol`; continuation holds AUTO run settings by their names (`mesh_intervals`, `max_steps`, `output_every`, `collocation_points`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`; W531), AUTO's own names (`ntst`, `nmax`, `parmin`, ...) being XPPAUT's, read on `.ode` import only;
   diagram holds its axes and colours; plot holds view and grid settings; export
   holds `plotfmt` (`pdf` or `svg`), `picture_color` and `picture_font_size`; sweep holds range settings (including `rangefiles: true` or `false`, default `false`, which writes each reset run separately in every mode); analysis holds histograms
   and spectra; interface holds sliders and buttons; output holds files and logging.
@@ -229,8 +229,8 @@ you wrote (`1/30`) alone while the value is unchanged.
   `logfile` are paths, and `but` (a button, `but: "quit:fq"`) a text. Every
   writer of options (the converter, Save values) writes them so.
   Continuation numbers use the same ranges as the AUTO form, protocol and session reader:
-  `dsmin`, `dsmax`, `epsl`, `epsu` and `epss` are positive; `dsmin <= dsmax`,
-  `dsmin <= abs(ds) <= dsmax`, `parmin < parmax` and `normmin < normmax`.
+  `min_step_size`, `max_step_size`, `parameter_tolerance`, `state_tolerance` and `special_point_tolerance` are positive; `min_step_size <= max_step_size`,
+  `min_step_size <= abs(step_size) <= max_step_size`, `parameter_min < parameter_max` and `norm_min < norm_max`.
   A bad value is refused at its line, before the model is installed (W494).
   Slider presets use `interface: { sliders: [ { name: v, low: -1, high: 1, step: 0.01 }, ... ] }`.
   The list may have any length, including zero; each name must be a parameter or state,
@@ -303,9 +303,9 @@ The allocation-sized whole options have inclusive maxima (W296,
 | `numerics.bandup`, `numerics.bandlo` | 0 | 100000 | Large banded models without int-sized bandwidths |
 | `histogram.histbins`, `histogram.histbins2` | 2 | 4096 | About 16 million cells in two dimensions |
 | `histogram.specwidth` | 1 | 1000000 | Bounds spectral workspaces |
-| `auto.ntst` | 1 | 10000 | Bounds AUTO's mesh-sized matrices |
-| `auto.nmax` | 1 | 1000000 | Bounds a requested continuation diagram |
-| `auto.ncol` | 1 | 7 | AUTO's settings reader requires supported collocation orders 2 through 7 |
+| `continuation.mesh_intervals` | 1 | 10000 | Bounds AUTO's mesh-sized matrices |
+| `continuation.max_steps` | 1 | 1000000 | Bounds a requested continuation diagram |
+| `continuation.collocation_points` | 2 | 7 | AUTO's settings reader requires supported collocation orders 2 through 7 |
 
 Settings that must keep an order are refused when it is broken, wherever they
 come from (an `options` block, a `.setx` or session file, `set num`, the
@@ -944,3 +944,6 @@ The shared expression reader bounds nesting and expression-tree depth to
 256 levels to protect the parser and formula visitors' stacks on files
 received from others. This also catches long operator chains which would
 otherwise build a deeply recursive tree (W520).
+(`equilibrium`, `periodic`, `fold`, `cycle_fold`, `hopf`,
+`neutral_saddle`, `neimark_sacker`, `branch_point`, `period_doubling`, `fixed_period`,
+`boundary_value`, `discrete`, `homoclinic`, or `none`: the point types' names, W531), rather than XPPAUT codes.

@@ -10,15 +10,15 @@
       },
       "parameter": "p0",
       "auto": {
-        "ds": 0.02,
-        "dsmin": 1e-05,
-        "dsmax": 0.02,
-        "nmax": 100,
-        "npr": 20,
-        "parmin": 0,
-        "parmax": 1.5,
-        "ntst": 15,
-        "mxbf": 0
+        "step_size": 0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 100,
+        "output_every": 20,
+        "parameter_min": 0,
+        "parameter_max": 1.5,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
       }
     },
     {
@@ -34,15 +34,15 @@
         "p1"
       ],
       "auto": {
-        "ds": 0.02,
-        "dsmin": 1e-05,
-        "dsmax": 0.05,
-        "nmax": 400,
-        "npr": 25,
-        "parmin": 0.02,
-        "parmax": 0.2,
-        "ntst": 15,
-        "mxbf": 0
+        "step_size": 0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.05,
+        "max_steps": 400,
+        "output_every": 25,
+        "parameter_min": 0.02,
+        "parameter_max": 0.2,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
       }
     }
   ],

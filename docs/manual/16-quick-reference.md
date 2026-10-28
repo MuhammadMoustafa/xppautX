@@ -333,7 +333,7 @@ The remaining options can be set from within the program. They are
 
 - SPECCOL=`name`, SPECCOL2=`name`, SPECWIDTH=`number`, SPECWIN=`0,1,2,3,4` (corresponding to square,parabolic,hamming,bartlett, or hanning windows), sets up relevant spectral stuff for use in conjunction with postprocessing.
 
-- AUTO-stuff. The following AUTO-specific variables can also be set: `NTST, NMAX, NPR, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within AUTO.
+- AUTO-stuff. The following AUTO-specific variables can also be set: `NTST, NMAX, NPR, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within AUTO. In a `.odex` file the continuation settings have xppautX's names (`mesh_intervals`, `max_steps`, `output_every`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`); the XPPAUT words above are read on `.ode` import only.
 
 - DFDRAW =`1, 2, or 3` computes a direction field after each run in the window, `--server` and `--silent`; 1 is unscaled, 2 is scaled, and 3 is colorized. The session keeps it for display and PS/SVG export. Values 4 and 5 also write `dirfields.dat` (unscaled and scaled respectively).
 

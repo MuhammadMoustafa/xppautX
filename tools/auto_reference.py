@@ -69,6 +69,19 @@ def fnum(v):
 # the constants xppautX fixes (core/auto_nox.cpp: advanced numerics and the run's own ISP, ILP, ISW)
 FIXED = dict(IAD=3, IID=2, ITMX=8, ITNW=7, NWTN=3, IADS=1, ILP=1, ISW=1, A0=0, A1=1000)
 DEFAULTS = dict(ncol=4, epsl=1e-4, epsu=1e-4, epss=1e-4, mxbf=5)
+# a description's setting (xppautX's name, W531) to AUTO's own constant it is given as
+AUTO_NAMES = dict(mesh_intervals='ntst', max_steps='nmax', output_every='npr', collocation_points='ncol', step_size='ds',
+                  min_step_size='dsmin', max_step_size='dsmax', parameter_min='parmin', parameter_max='parmax',
+                  parameter_tolerance='epsl', state_tolerance='epsu', special_point_tolerance='epss',
+                  step_adapt_every='iads', max_branch_switches='mxbf')
+
+
+def auto_constants(r):
+    """The run's settings under AUTO's constants (MXBF's sign is the description's switch_one_direction)."""
+    a = {**DEFAULTS, **{AUTO_NAMES[k]: v for k, v in r['auto'].items() if k in AUTO_NAMES}}
+    if r['auto'].get('switch_one_direction'):
+        a['mxbf'] = -a['mxbf']
+    return a
 ISP = {'equilibrium': 1, 'periodic': 2, 'bvp': 2, 'homoclinic': 0, 'heteroclinic': 0}
 IPS = {'equilibrium': 1, 'periodic': 2, 'bvp': 4, 'homoclinic': 9, 'heteroclinic': 9}
 # PAR(11) is HomCont's truncated time interval, PAR(12...) the equilibrium (equilibria)
@@ -277,7 +290,7 @@ def problem(r, discrete, cycle=False):
 
 
 def constants(r, ndim, pr, nbc, icp, irs, npar):
-    a = {**DEFAULTS, **r['auto']}
+    a = auto_constants(r)
     lines = ['NDIM=%d, IPS=%d, IRS=%d, ILP=%d' % (ndim, pr['ips'], irs, pr['ilp']),
              'ICP=%s' % icp,
              'NTST=%d, NCOL=%d, IAD=%d, ISP=%d, ISW=%d, IPLT=0, NBC=%d, NINT=0' %
@@ -702,7 +715,7 @@ def ode_text(eqs, start, discrete):
 
 
 def numerics(r):
-    a = {**DEFAULTS, **r['auto']}
+    a = auto_constants(r)
     return [a['ntst'], a['nmax'], a['npr'], a['ds'], a['dsmin'], a['ncol'], a['epsl'], a['dsmax'], a['parmin'],
             a['parmax'], FIXED['A0'], FIXED['A1'], a['epsu'], a['epss'], FIXED['IAD'], a['mxbf'], FIXED['IID'],
             FIXED['ITMX'], FIXED['ITNW'], FIXED['NWTN'], a.get('iads', FIXED['IADS']), 0]
@@ -788,7 +801,7 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, p
                     keys(auto, 'g', *(['Up', GRAB_KEYS[start_run['type']]] * start_run['index']), 'Return')
             if curve_driver:
                 axes = r['parameters'] if curve else [r['parameter'], next(n for n in pars if n != r['parameter'])]
-                a = r['auto']
+                a = auto_constants(r)
                 fill_dialog(auto, (('a', 't' if curve else 'h'), 'AutoPlot'),
                             [odex.states[0], *axes, a['parmin'], FIXED['A0'], a['parmax'], FIXED['A1']])
             before = len(log.read_text().splitlines())

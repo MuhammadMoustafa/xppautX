@@ -125,7 +125,7 @@ enum AutoCalculation : int {
     FP2=7, BV1=8, EQ1=9, PE1=10, DI1=11, HO2=12, auto_neutral_saddle_curve=13
 };
 inline constexpr auto auto_calculation_names=std::to_array<std::string_view>({
-    "none", "equilibrium_fold", "periodic_fold", "hopf", "torus", "branch_point", "period_doubling",
+    "none", "fold", "cycle_fold", "hopf", "neimark_sacker", "branch_point", "period_doubling",
     "fixed_period", "boundary_value", "equilibrium", "periodic", "discrete", "homoclinic", "neutral_saddle"});
 constexpr std::string_view auto_calculation_name(AutoCalculation kind) {
     return auto_calculation_names[static_cast<std::size_t>(kind)];

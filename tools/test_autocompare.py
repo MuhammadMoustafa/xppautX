@@ -66,7 +66,7 @@ class AutoCompare(unittest.TestCase):
             if edit == 'unknown':
                 d['runs'][0]['auto']['nmx'] = 10
             elif edit == 'zero_step':
-                d['runs'][0]['auto']['ds'] = 0
+                d['runs'][0]['auto']['step_size'] = 0
             elif edit == 'future_run':
                 d['runs'][0]['start'] = dict(run='future', type='HB', index=1)
             elif edit == 'nan':
@@ -93,7 +93,7 @@ class AutoCompare(unittest.TestCase):
 
 
 class References(unittest.TestCase):
-    AUTO = dict(dsmax=0.1, epsl=1e-4, epsu=1e-4, epss=1e-4)
+    AUTO = dict(max_step_size=0.1, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4)
 
     def row(self, itp, par, norm, per=0.0, ev=(0.0, 0.0)):
         return dict(itp=str(itp), continued_parameter=str(par), norm=str(norm), per=str(per), evr1=str(ev[0]), evi1=str(ev[1]))
@@ -273,8 +273,8 @@ class Projection(unittest.TestCase):
 
 
 class Curves(unittest.TestCase):
-    AUTO = dict(dsmax=0.1, epsl=1e-4, epsu=1e-4, epss=1e-4, parmin=0.05, parmax=1.4)
-    WIDE = dict(AUTO, parmin=0.0, parmax=3.0)
+    AUTO = dict(max_step_size=0.1, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4, parameter_min=0.05, parameter_max=1.4)
+    WIDE = dict(AUTO, parameter_min=0.0, parameter_max=3.0)
 
     @staticmethod
     def rows(vertices):
@@ -293,7 +293,7 @@ class Curves(unittest.TestCase):
             ref = [list(v) for v in np.array(ours)[rng.permutation(len(ours))[:int(rng.integers(2, len(ours) + 1))]] + rng.integers(-1, 2, size=3) * 1e-4]
             if trial % 3 == 0:
                 ref = [list(v) for v in ours[::-1]]
-            for auto in (self.WIDE, dict(self.WIDE, nmax=len(ours)), dict(self.WIDE, parmin=0.02, parmax=0.1)):
+            for auto in (self.WIDE, dict(self.WIDE, max_steps=len(ours)), dict(self.WIDE, parameter_min=0.02, parameter_max=0.1)):
                 for digits in (None, 6):
                     whole = compare_curve(self.rows(ours), auto, ref, 'm', digits)
                     with mock.patch.object(autocompare, 'INDEXED_FROM', 0):
@@ -313,7 +313,7 @@ class Curves(unittest.TestCase):
         # A constant norm has zero chord error: %14.5E alone loses these digits.
         ours = [(x, 0.3, 0.41826665768) for x in (0.2, 0.4, 0.8)]
         ref = [[x, y, float('%14.5E' % n)] for x, y, n in ours]
-        auto = dict(self.AUTO, epsl=1e-9, epsu=1e-9)
+        auto = dict(self.AUTO, parameter_tolerance=1e-9, state_tolerance=1e-9)
         self.assertTrue(compare_curve(self.rows(ours), auto, ref, 'rounded')[0])
         self.assertEqual(compare_curve(self.rows(ours), auto, ref, 'rounded', printed_digits=6)[0], [])
         for point in ref:
@@ -324,7 +324,7 @@ class Curves(unittest.TestCase):
         # Crossing a decimal power must not borrow the unrounded side's tenfold larger unit.
         ours = [(x, 0.3, 0.1000002) for x in (0.2, 0.4, 0.8)]
         ref = [[x, y, 0.0999999] for x, y, _ in ours]
-        auto = dict(self.AUTO, epsl=1e-9, epsu=1e-9)
+        auto = dict(self.AUTO, parameter_tolerance=1e-9, state_tolerance=1e-9)
         self.assertTrue(compare_curve(self.rows(ours), auto, ref, 'boundary', printed_digits=6)[0])
 
     def test_straight_curve_does_not_project_on_newton_roundoff(self):
@@ -353,7 +353,7 @@ class Curves(unittest.TestCase):
     def test_two_runs_of_nmax_steps_are_compared_where_both_went(self):
         ours = self.parabola(40)
         longer = [(a, a + a * a, 2 * a) for a in (0.051 * i for i in range(40))]  # longer steps, same curve
-        nmax = dict(self.WIDE, nmax=40)
+        nmax = dict(self.WIDE, max_steps=40)
         self.assertTrue(compare_curve(self.rows(ours), self.WIDE, [list(v) for v in longer], 'm')[0])
         self.assertEqual(compare_curve(self.rows(ours), nmax, [list(v) for v in longer], 'm')[0], [])
         self.assertEqual(compare_curve(self.rows(longer), nmax, [list(v) for v in ours], 'm')[0], [])
@@ -366,7 +366,7 @@ class Curves(unittest.TestCase):
         ours = self.parabola(40)
         ref = [list(v) for v in self.parabola(60)]
         self.assertTrue(compare_curve(self.rows(ours), self.WIDE, ref, 'm')[0])
-        diffs, _ = compare_curve(self.rows(ours), dict(self.WIDE, parmax=1.9), ref, 'm')
+        diffs, _ = compare_curve(self.rows(ours), dict(self.WIDE, parameter_max=1.9), ref, 'm')
         self.assertEqual(diffs, [])
 
     def test_the_two_arcs_of_a_cusp_are_told_apart_by_their_norm(self):
@@ -437,7 +437,7 @@ class Curves(unittest.TestCase):
 
 
 class Arms(unittest.TestCase):
-    AUTO = dict(dsmax=0.1, epsl=1e-4, epsu=1e-4, epss=1e-4, parmin=-3.0, parmax=3.0)
+    AUTO = dict(max_step_size=0.1, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4, parameter_min=-3.0, parameter_max=3.0)
 
     @staticmethod
     def arm(sign):

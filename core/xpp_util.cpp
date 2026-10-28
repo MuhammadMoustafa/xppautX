@@ -1,4 +1,6 @@
 /* The model's own values (its parameters, ICs, sliders and equilibria) and the text helpers they use. */
+#include <algorithm>
+#include <cctype>
 #include <cmath>
 #include "model.h"
 #include "session.h"
@@ -78,6 +80,14 @@ void  get_max(const xpp::Session &s, int index, double *vmin, double *vmax)
     }
  
  }
+
+std::string name_label(std::string_view name)
+{
+    std::string label(name);
+    std::replace(label.begin(), label.end(), '_', ' ');
+    if (!label.empty()) label[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label[0])));
+    return label;
+}
 
 std::string short_name(std::string_view name, int width)
 {

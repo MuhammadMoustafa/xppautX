@@ -120,7 +120,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"SLO1", {"-1", ""}}, {"SLO2", {"-1", ""}}, {"SLO3", {"-1", ""}},
         {"SHI1", {"2", ""}}, {"SHI2", {"2", ""}}, {"SHI3", {"2", ""}},
         {"AUTOXMIN", {"-0.5", "-0.5"}}, {"AUTOYMIN", {"-0.5", "-0.5"}}, /* below their maxima, which come first in the table */
-        {"DSMIN", {"0.001", "0.001"}}, {"DS", {"0.02", "0.02"}}, {"DSMAX", {"0.5", "0.5"}},
+        {"MIN_STEP_SIZE", {"0.001", "0.001"}}, {"STEP_SIZE", {"0.02", "0.02"}}, {"MAX_STEP_SIZE", {"0.5", "0.5"}},
         {"METHOD", {"e", "1"}},            /* the Euler method */
         {"POINCARE_MAP", {"m", "2"}},          /* max */
         {"POINCARE_VARIABLE", {"y", "2"}},

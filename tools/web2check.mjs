@@ -2433,13 +2433,13 @@ async function autoView(dir) {
 
   /* a dialog the view opens is on top of it, not behind (Numerics' form, T22: the page's own on the autosettings data) */
   check("T22: the store holds AUTO's settings (autosettings) before a run",
-    await until('s.autoSettings.core && s.autoSettings.core.numerics.nmx > 0 && s.core.pars.length > 1', 'settings'),
+    await until('s.autoSettings.core && s.autoSettings.core.numerics.max_steps > 0 && s.core.pars.length > 1', 'settings'),
     JSON.stringify(await S('s.autoSettings.core')).slice(0, 300));
   const sentNum = await cdp.eval('__xpp.sentCount()');
   await autoButton('N');
   await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-numerics]')`, 'numerics form');
   check("T22: Numerics opens the page's form, filled from the settings (Nmax), nothing asked of the core",
-    await S(`String(s.autoSettings.core.numerics.nmx) === document.querySelector('.auto-settings-dialog input[data-field=nmx]').value
+    await S(`String(s.autoSettings.core.numerics.max_steps) === document.querySelector('.auto-settings-dialog input[data-field=max_steps]').value
       && !s.ask && !s.busy`) && (await cdp.eval('__xpp.sentCount()')) === sentNum,
     JSON.stringify(await cdp.eval('__xpp.sent().slice(-3)')));
   check("Numerics' form is above the AUTO view: its centre and its fields are the topmost elements",
@@ -2456,15 +2456,19 @@ async function autoView(dir) {
   check('Tab into a form field and typing replaces its value (not appends to it)',
     await cdp.eval(`document.activeElement === document.querySelectorAll('.dialog input')[1] && document.activeElement.value === '77'`),
     JSON.stringify([second, await cdp.eval(`document.activeElement.value`)]));
-  /* T23: every field named plainly with AUTO's short name, its help a tooltip */
+  /* W531: every field is named by its key (underscores as spaces, a capital first letter), AUTO's own name only in its tooltip */
   const named = await cdp.eval(`[...document.querySelectorAll('.auto-settings-dialog .auto-num-group label')]
-    .map(l => [l.querySelector('span').textContent, l.title, l.querySelector('input').dataset.field])`);
-  check('T23: each of the 22 Numerics fields has a plain name with its short name, e.g. "Max points (NMX)", and a tooltip',
-    named.length === 22 && named.every(([n, t]) => /^[A-Z][a-z].* \([A-Z0-9]+[A-Za-z]*\)$/.test(n) && t.length > 40)
-      && named.some(([n, , f]) => n === 'Max points (NMX)' && f === 'nmx'), JSON.stringify(named.filter(([n, t]) => t.length <= 40 || !/\(/.test(n))));
-  check('W499: SuppBP is a checkbox whose value is the core boolean',
-    await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=suppbp]').type === 'checkbox'`)
-    && await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=suppbp]').checked`) === await S('s.autoSettings.core.numerics.suppbp'));
+    .map(l => [l.querySelector('span').textContent, l.title, l.querySelector('input, select').dataset.field])`);
+  check('W531: each of the 23 Numerics fields is named by its key, e.g. "Max steps", with a tooltip naming AUTO\'s own name',
+    named.length === 23 && named.every(([n, t, f]) => n === f[0].toUpperCase() + f.slice(1).replace(/_/g, ' ') && t.length > 40 && /AUTO's name: [A-Za-z0-9 ]+\./.test(t))
+      && named.some(([n, t, f]) => n === 'Max steps' && f === 'max_steps' && t.includes('NMX')), JSON.stringify(named.filter(([n, t]) => t.length <= 40)));
+  check('W499: suppress_branch_points is a checkbox whose value is the core boolean',
+    await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=suppress_branch_points]').type === 'checkbox'`)
+    && await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=suppress_branch_points]').checked`) === await S('s.autoSettings.core.numerics.suppress_branch_points'));
+  check('W531: output_detail is a select of the named levels, and the sign of MXBF its own checkbox',
+    JSON.stringify(await cdp.eval(`[...document.querySelectorAll('.auto-settings-dialog select[data-field=output_detail] option')].map(o => o.value)`))
+      === JSON.stringify(await S('s.autoSettings.core.rules.output_detail.choices'))
+    && await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=switch_one_direction]').type === 'checkbox'`));
   /* W267: the Computer group's Threads: Automatic or 1 to the logical processors, from the event; OK sends the choice */
   const threadChoices = await cdp.eval(`[...document.querySelectorAll('.auto-settings-dialog select[data-field=threads] option')].map(o => o.value)`);
   const threadCore = await S('({threads: s.autoSettings.core.threads, auto: s.autoSettings.core.threads_auto, max: s.autoSettings.core.threads_max})');
@@ -2483,28 +2487,28 @@ async function autoView(dir) {
      commits, so "12.5" can never actually reach the field (the point at issue for T23's message
      below, "must be a whole number", stays reachable only for a text the filter cannot see,
      such as a lone sign) */
-  await typeInto('nmx', '12');
-  await typeInto('nmx', '12.5');
-  const dottedNmx = await fieldState('nmx');
-  check('T35d: a decimal point in an integer field (Max points) is refused outright: unmarked, kept at 12',
+  await typeInto('max_steps', '12');
+  await typeInto('max_steps', '12.5');
+  const dottedNmx = await fieldState('max_steps');
+  check('T35d: a decimal point in an integer field (Max steps) is refused outright: unmarked, kept at 12',
     dottedNmx.invalid === null && dottedNmx.error === 'Pasted ".5" is not a whole number ("." at character 1)'
     && dottedNmx.ok === false, JSON.stringify(dottedNmx));
   /* T31: a lone sign is on the way to a whole number while typed (fieldIncomplete), so it lands;
      Enter on it keeps the form and its message (the core's, from the event's rules), sends nothing */
-  await typeInto('nmx', '-');
-  await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=nmx]').focus()`);
+  await typeInto('max_steps', '-');
+  await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=max_steps]').focus()`);
   await key('Enter');
   await rendered();
-  const signNmx = await fieldState('nmx');
+  const signNmx = await fieldState('max_steps');
   check('T31: Enter on a lone "-" in an integer AUTO Numerics field keeps the form open, marked, and sends nothing',
-    signNmx.invalid === 'true' && signNmx.error === await S('s.autoSettings.core.rules.nmx.message') && signNmx.ok === true
+    signNmx.invalid === 'true' && signNmx.error === await S('s.autoSettings.core.rules.max_steps.message') && signNmx.ok === true
     && await cdp.eval(`!!document.querySelector('.auto-settings-dialog')`)
     && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set')`)), JSON.stringify(signNmx));
-  await typeInto('nmx', '200');
-  await typeInto('ds', '9');
-  const bigDs = await fieldState('ds');
-  check('T23: a first step larger than DSMAX is refused beside DS, OK disabled',
-    bigDs.error === 'Ds must be from Dsmin to Dsmax in size (its sign is the direction)' && bigDs.ok === true, JSON.stringify(bigDs));
+  await typeInto('max_steps', '200');
+  await typeInto('step_size', '9');
+  const bigDs = await fieldState('step_size');
+  check('T23: a first step larger than max_step_size is refused beside step_size, OK disabled',
+    bigDs.error === 'The size of Step size must be from Min step size to Max step size (its sign is the direction)' && bigDs.ok === true, JSON.stringify(bigDs));
   await key('Escape');
   check('T22: Escape cancels it: nothing sent',
     await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics cancelled')
@@ -2542,7 +2546,7 @@ async function autoView(dir) {
   const stop = await DS('d.stop');
   check('T21, T23: the status strip says why the run stopped (the core\'s reason), steady states, its branch and point, its points, its last label, the time',
     await until(`document.querySelector('.auto-status').dataset.phase === 'done'`, 'strip done')
-    && stop && stop.br === 1 && /^(parameter iapp reached Par (Min|Max)|the norm reached|the branch reached Max points)/.test(stop.text)
+    && stop && stop.br === 1 && /^(parameter iapp reached parameter_(min|max)|the norm reached|the branch reached max_steps)/.test(stop.text)
     && new RegExp(`^Stopped: ${stop.text.replace(/[()]/g, '\\$&')} · steady states · branch 1, point ${stop.pt} · ${nSteady} points `
       + `· last label End of branch \\d+ at point \\d+ · [\\d.:]+ s?`).test(await autoStatus())
     && await cdp.eval(`document.querySelector('[data-testid=auto-status]').dataset.why`) === stop.why,
@@ -3051,15 +3055,15 @@ async function autoStopRace() {
   const sentPre = await cdp.eval('__xpp.sentCount()');
   await autoButton('N');
   await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-numerics]')`, 'numerics during run');
-  await cdp.eval(`(() => { const i = document.querySelector('.auto-settings-dialog input[data-field=nmx]');
+  await cdp.eval(`(() => { const i = document.querySelector('.auto-settings-dialog input[data-field=max_steps]');
     i.value = '15'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
   const setsSent = () => cdp.eval(`__xpp.sentFrom(${sentPre}).filter(c => c.cmd === 'auto' && c.op === 'set')`);
   check('W106: Numerics during a run: Nmax 15 is sent at once (one set), shown, the core\'s still 2000 (the run keeps it)',
-    going && await S(`s.busy && s.autoSettings.inflight.length === 1 && s.autoSettings.inflight[0].patch.numerics.nmx === 15
-      && s.autoSettings.core.numerics.nmx === 2000`)
+    going && await S(`s.busy && s.autoSettings.inflight.length === 1 && s.autoSettings.inflight[0].patch.numerics.max_steps === 15
+      && s.autoSettings.core.numerics.max_steps === 2000`)
     && await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)
-    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {nmx: 15}}]),
+    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {max_steps: 15}}]),
     JSON.stringify([going, await S('[s.busy, s.autoSettings]'), await setsSent()]));
 
   /* T25: a connection the browser opened and sent nothing on yet (a
@@ -3085,9 +3089,9 @@ async function autoStopRace() {
     runningAtStop && stopBtn && stopped && (await DS('d.labels.length')) > labsPre && lastLab === 'end',
     JSON.stringify([runningAtStop, stopBtn, stopped, tookStop, labsPre, lastLab]));
   check('W106: once the run ends the set applies: the core\'s Nmax is 15, nothing in flight, no second set',
-    await until(`!s.busy && s.autoSettings.core.numerics.nmx === 15 && !s.autoSettings.inflight.length`,
+    await until(`!s.busy && s.autoSettings.core.numerics.max_steps === 15 && !s.autoSettings.inflight.length`,
       'applied at idle', 60000 * SLOW)
-    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {nmx: 15}}])
+    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {max_steps: 15}}])
     && !(await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)),
     JSON.stringify([await S('s.autoSettings'), await setsSent()]));
   check('T23: after Stop the status strip says so: "Stopped: by the user (Stop)"',
@@ -6083,7 +6087,7 @@ async function jacobianOfferCheck(dir) {
   await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
   await key('a');
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
-  await cdp.eval(`__xpp.send({cmd: 'auto', op: 'set', numerics: {ds: -0.1, dsmax: 0.1, rl0: -0.5, rl1: 2, nmx: 100}, axes: {plot: 'norm', var: 'x', par1: 'a'}})`);
+  await cdp.eval(`__xpp.send({cmd: 'auto', op: 'set', numerics: {step_size: -0.1, max_step_size: 0.1, parameter_min: -0.5, parameter_max: 2, max_steps: 100}, axes: {plot: 'norm', var: 'x', par1: 'a'}})`);
   await until('!s.busy', 'AUTO settings');
   await cdp.eval(`__xpp.send({cmd: 'key', win: 'auto', key: 'r'})`);
   await until("s.ask && s.ask.kind === 'menu'", 'AUTO start menu');

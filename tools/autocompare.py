@@ -31,9 +31,11 @@ TIMEOUT = 600 * SLOW
 DIAGRAM_MEMBER = 'auto/diagram.csv'  # the session file's diagram (core/xpp_session_auto.h)
 HOMCONT = ('homoclinic', 'heteroclinic')
 KINDS = {'equilibrium', 'periodic', 'two_parameter', 'fixed_period', 'bvp', *HOMCONT}
-NUMERICS = {'nmax': 'nmx', 'parmin': 'rl0', 'parmax': 'rl1',
-            **{k: k for k in ('ds', 'dsmin', 'dsmax', 'npr', 'ntst', 'ncol',
-                              'epsl', 'epsu', 'epss', 'mxbf', 'iid', 'iads')}}
+# the per-run settings a description may give: AUTO's settings by their names (core/auto_settings.cpp)
+NUMERICS = ('step_size', 'min_step_size', 'max_step_size', 'max_steps', 'output_every', 'parameter_min', 'parameter_max',
+            'mesh_intervals', 'collocation_points', 'parameter_tolerance', 'state_tolerance', 'special_point_tolerance',
+            'max_branch_switches', 'switch_one_direction', 'output_detail', 'step_adapt_every')
+OUTPUT_DETAILS = ('none', 'little', 'normal', 'start_jacobian', 'extensive', 'debugging')
 
 
 class Diagram:
@@ -161,19 +163,25 @@ def read_description(path):
                 raise ValueError('two-parameter run needs two distinct parameters')
         elif not isinstance(r.get('parameter'), str) or not r['parameter']:
             raise ValueError('run needs its parameter')
-        members(r['auto'], NUMERICS, ('ds', 'nmax', 'npr', 'parmin', 'parmax', 'ntst', 'dsmin', 'dsmax'))
+        members(r['auto'], NUMERICS, ('step_size', 'max_steps', 'output_every', 'parameter_min', 'parameter_max', 'mesh_intervals', 'min_step_size', 'max_step_size'))
         for k, v in r['auto'].items():
-            finite(v, k, integer=k in ('nmax', 'npr', 'ntst', 'ncol', 'mxbf', 'iid'))
+            if k == 'output_detail':
+                continue
+            if k == 'switch_one_direction':
+                if not isinstance(v, bool):
+                    raise ValueError('switch_one_direction must be boolean')
+                continue
+            finite(v, k, integer=k in ('max_steps', 'output_every', 'mesh_intervals', 'collocation_points', 'max_branch_switches'))
         a = r['auto']
-        if not 0 < a['dsmin'] <= abs(a['ds']) <= a['dsmax'] or a['parmin'] >= a['parmax']:
+        if not 0 < a['min_step_size'] <= abs(a['step_size']) <= a['max_step_size'] or a['parameter_min'] >= a['parameter_max']:
             raise ValueError('invalid continuation step or parameter range')
-        if any(a[k] < 1 for k in ('nmax', 'npr', 'ntst')):
-            raise ValueError('nmax, npr and ntst must be positive')
-        if ('ncol' in a and not 2 <= a['ncol'] <= 7
-                or 'iid' in a and not 0 <= a['iid'] <= 5
-                or 'mxbf' in a and a['mxbf'] < 0
-                or 'iads' in a and a['iads'] not in (0, 1)
-                or any(a[k] <= 0 for k in ('epsl', 'epsu', 'epss') if k in a)):
+        if any(a[k] < 1 for k in ('max_steps', 'output_every', 'mesh_intervals')):
+            raise ValueError('max_steps, output_every and mesh_intervals must be positive')
+        if ('collocation_points' in a and not 2 <= a['collocation_points'] <= 7
+                or 'output_detail' in a and a['output_detail'] not in OUTPUT_DETAILS
+                or 'max_branch_switches' in a and a['max_branch_switches'] < 0
+                or 'step_adapt_every' in a and a['step_adapt_every'] not in (0, 1)
+                or any(a[k] <= 0 for k in ('parameter_tolerance', 'state_tolerance', 'special_point_tolerance') if k in a)):
             raise ValueError('invalid AUTO setting (docs/protocol.md AUTO settings): ' + str(a))
         if 'skip' in r and (not isinstance(r['skip'], str) or not r['skip'].strip()):
             raise ValueError('run skip needs its reason')
@@ -249,7 +257,7 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
             raise ValueError('start point not found: ' + str(start))
         completed(s, dict(cmd='auto', op='grab', label=points[start['index'] - 1]['lab']))
     pars = r.get('parameters', [r.get('parameter')])
-    numerics = {NUMERICS[k]: v for k, v in r['auto'].items()}
+    numerics = r['auto']
     diagram.apply(completed(s, dict(cmd='auto', op='set', numerics=numerics,
                                    marks=r.get('marks', []), axes={'par1': pars[0],
                                    **({'par2': pars[1], 'plot': 'two_parameter'} if len(pars) == 2 else {})})))
@@ -646,8 +654,8 @@ def compare_run(rows, auto, kind, ref_points, who, known=(), compare_start=True)
     The second is the Newton convergence of each point (EPSL for the parameter, EPSU for the
     rest), twice. The third is the finite-difference Jacobian's accuracy. The tolerance is never
     widened to make a point pass: a difference beyond it is traced (docs/auto-references.md)."""
-    epss, epsl, epsu = auto.get('epss', 1e-4), auto.get('epsl', 1e-4), auto.get('epsu', 1e-4)
-    loc = epss * (1 + auto['dsmax'])
+    epss, epsl, epsu = auto.get('special_point_tolerance', 1e-4), auto.get('parameter_tolerance', 1e-4), auto.get('state_tolerance', 1e-4)
+    loc = epss * (1 + auto['max_step_size'])
     ours = labelled(rows, kind)
     if not compare_start:
         ours = [(symbol, i) for symbol, i in ours if not (symbol == 'EP' and i == 0)]
@@ -825,7 +833,7 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
     sequences differ; samples inside the bounds have the other curve's polyline around them. For the
     same reason, when both runs end at their NMX-th point the samples of one beyond the other's last
     point are not compared (W405): where a run of NMX steps ends is its step sequence's, not the curve's."""
-    epsl, epsu = auto.get('epsl', 1e-4), auto.get('epsu', 1e-4)
+    epsl, epsu = auto.get('parameter_tolerance', 1e-4), auto.get('state_tolerance', 1e-4)
     # a curve of cycles first stores the starting data of the curve (the run xppautX does before it) as a branch of
     # one continued parameter: those rows are not on the curve
     ours = [(float(r['continued_parameter']), float(r.get('continued_parameter2', 0)), float(r['norm']))
@@ -834,7 +842,7 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
     diffs, worst = [], {}
     if len(ours) < 2 or len(ref) < 2:
         return ['%s: fewer than two branch samples' % who], []
-    both_end_at_nmax = len(ours) == len(ref) == auto.get('nmax')
+    both_end_at_nmax = len(ours) == len(ref) == auto.get('max_steps')
 
     def printed_by_segment(vertices):
         # the half last printed unit of the largest reference coordinate of each segment's endpoints
@@ -876,7 +884,7 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
             return tubes(point, chords[rows], target, None if printed is None else printed[rows])
 
         for n, point in enumerate(source[:compared]):
-            if not auto['parmin'] <= point[0] <= auto['parmax']:
+            if not auto['parameter_min'] <= point[0] <= auto['parameter_max']:
                 continue
             i, residual, tolerances = matcher.project(np.array(point), lambda rows: bounds_of(point, rows))
             for k, q in enumerate(CURVE_QUANTITIES):

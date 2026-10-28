@@ -312,7 +312,10 @@ HxV' = (-IHxCa-IHxCt-IHxHx-IHxKa-IHxKv-IHxLe-IHxMx-IHxNa-IHxNp-IHxSk+HxIapp+IcnS
 # XPP simulation options
 options {
   integration: { dt: 0.05, store_every: 10, method: backward_euler, total_time: 400.0 },
-  continuation: { parmax: 300, parmin: -80, npr: 100000, nmax: 1000, ntst: 100, dsmax: 0.1 },
+  continuation: {
+    parameter_max: 300, parameter_min: -80, output_every: 100000, max_steps: 1000,
+    mesh_intervals: 100, max_step_size: 0.1,
+  },
   diagram: { autovar: SmV, autoxmin: -80, autoxmax: 310, autoymin: -90, autoymax: 20 },
   plot: { xlo: 0, xhi: 400.0, ylo: -90, yhi: 50, yp: SmV },
   interface: { but: "fit:wf", but: "int:ig", but: "intl:il", but: "auto:fa" },

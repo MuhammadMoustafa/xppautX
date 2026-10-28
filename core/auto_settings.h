@@ -5,6 +5,7 @@
 #include <vector>
 #include <optional>
 #include <string>
+#include <string_view>
 #include "auto_axis.h"
 #include "auto_codes.h"
 #include "xpp_error.h"
@@ -31,21 +32,42 @@ inline constexpr int auto_max_mesh_intervals = 10000;
 inline constexpr int auto_min_collocation_points = 2;
 inline constexpr int auto_max_collocation_points = 7;
 
-/* the Numerics form's fields, in its order (auto_num_par) */
+/* the Numerics fields in their order, each named for what it sets (W531);
+   AUTO's own name for it (NTST, DS, MXBF, ...) is a search word in the
+   manual and the page's hover, never an input */
 enum {
-    AUTO_NUM_NTST, AUTO_NUM_NMX, AUTO_NUM_NPR, AUTO_NUM_NCOL,
-    AUTO_NUM_DS, AUTO_NUM_DSMIN, AUTO_NUM_DSMAX,
-    AUTO_NUM_RL0, AUTO_NUM_RL1, AUTO_NUM_A0, AUTO_NUM_A1,
-    AUTO_NUM_EPSL, AUTO_NUM_EPSU, AUTO_NUM_EPSS,
-    AUTO_NUM_IAD, AUTO_NUM_MXBF, AUTO_NUM_IID, AUTO_NUM_ITMX, AUTO_NUM_ITNW,
-    AUTO_NUM_NWTN, AUTO_NUM_IADS, AUTO_NUM_SUPPBP,
+    AUTO_NUM_MESH_INTERVALS, AUTO_NUM_MAX_STEPS, AUTO_NUM_OUTPUT_EVERY, AUTO_NUM_COLLOCATION_POINTS,
+    AUTO_NUM_STEP_SIZE, AUTO_NUM_MIN_STEP_SIZE, AUTO_NUM_MAX_STEP_SIZE,
+    AUTO_NUM_PARAMETER_MIN, AUTO_NUM_PARAMETER_MAX, AUTO_NUM_NORM_MIN, AUTO_NUM_NORM_MAX,
+    AUTO_NUM_PARAMETER_TOLERANCE, AUTO_NUM_STATE_TOLERANCE, AUTO_NUM_SPECIAL_POINT_TOLERANCE,
+    AUTO_NUM_MESH_ADAPT_EVERY, AUTO_NUM_MAX_BRANCH_SWITCHES, AUTO_NUM_SWITCH_ONE_DIRECTION, AUTO_NUM_OUTPUT_DETAIL,
+    AUTO_NUM_MAX_LOCATION_ITERATIONS, AUTO_NUM_MAX_NEWTON_ITERATIONS, AUTO_NUM_FULL_NEWTON_AFTER,
+    AUTO_NUM_STEP_ADAPT_EVERY, AUTO_NUM_SUPPRESS_BRANCH_POINTS,
     AUTO_NUM_N
 };
 
-/* the key of Numerics field i in the event and the command ("ntst", ...),
-   and its label on the core's form ("Ntst", "Par Min", ...); NULL out of range */
+/* what AUTO's IID levels print, named by it (0 to 5 are AUTO's own numbers, read on import only) */
+inline constexpr std::array<std::string_view, 6> auto_output_detail_names = {
+    "none", "little", "normal", "start_jacobian", "extensive", "debugging"};
+
+/* what a field holds: a whole number, a real, a boolean, or one of named choices
+   (stored in the settings' numbers as the index, 0 or 1 for a boolean) */
+enum class AutoFieldShape { whole, real, boolean, choice };
+AutoFieldShape auto_settings_num_shape(int i);
+/* the names a choice field takes, in the order of its index (none for any other) */
+std::span<const std::string_view> auto_settings_num_choices(int i);
+
+/* the key of Numerics field i in the event, the command and the files
+   ("mesh_intervals", ...), and its label on the core's form ("Mesh
+   intervals", derived from the key, W381); NULL or empty out of range */
 const char *auto_settings_num_key(int i);
-const char *auto_settings_num_label(int i);
+std::string auto_settings_num_label(int i);
+/* field i's value as the files and forms write it: the number, `true` or
+   `false`, or the choice's name */
+std::string auto_settings_num_text(int i, double v);
+/* the value of field i that text is (a number, a boolean word or a choice's name),
+   or why it is not */
+Result<double> auto_settings_num_parse(int i, std::string_view text);
 
 // Bound expanded mark storage from sent files or commands before allocation.
 inline constexpr int auto_file_marks_limit = 65536;

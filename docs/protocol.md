@@ -701,6 +701,7 @@ steps are not comparison intervals.
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `state` | | Send `state` now. |
 | `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`view`, `x`, `y`, `show`), `view` (`new`), `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `axes`, `marks`, `threads`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of the selected AUTO view or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` a view's zoom, `show` whether the branches hidden by Clear are drawn; `view` with `new` adds a named view of the diagram; selection, hiding and destroying use `window.select`, `window.hide` and `window.destroy` ("Views of the diagram" below); `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `window.destroy` destroys a named AUTO view (the diagram stays the session's), and destroying the last one closes AUTO until File/Auto opens it again; `window.hide` and `window.show` keep a view and everything in it. |
+| `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`view`, `x`, `y`, `show`), `view` (`new`), `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `axes`, `marks`, `threads`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of the selected AUTO view or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's `collocation_points` above 7 or `mesh_intervals` 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` a view's zoom, `show` whether the branches hidden by Clear are drawn; `view` with `new` adds a named view of the diagram; selection and closing use `window.select` and `window.close` ("Views of the diagram" below); `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `window.close` closes a named AUTO view, and closing the last one hides AUTO until File/Auto opens it again. |
 | `session` | `op` (`save`, `load`), `name`, `data` (save) | Save or open a session file, `name.snapx` (`.snapx` added unless `name` ends so; "Session files" below): File/opeN session (key `n` of the File menu) and `save`. Without `name`, `save` asks for one (`ask` kind `file`, wildcard `*.snapx`) and, as every save with no decision, before replacing a file that exists. The File menu's two save commands are the table's `savesession` (key `v`, Ctrl+S: saves to `state.session.file` with no ask and no replace question, and behaves as `savesessionas` when there is none) and `savesessionas` (key `w`, Ctrl+Shift+S: always asks, as `save` with no `name`), W209. A third, `savesessioncopy` (key `b`, no default key, W218), asks as `savesessionas` does and writes the file but leaves `state.session` and `state.changed` as they were. Reload keeps `state.session`'s file. `save`'s `data`: `true` puts the data table in, `false` leaves it out; without it the table goes in unless it is above 50 MB, when a `choice` ask (keys `l` leave it out, `s` save it) decides. `load` of a session file is `open` of it (below: its saved model, then the session). `state.session` (below) names the file the current session was last saved to or opened from. |
 | `open` | `file` | Load another model in place of this one (File > Open model). Without `file`, asks with wildcard `*.ode* *.snapx *.recx`. A missing file, an invalid session or a session without its model fails at once. Then asks `choice`, keys `sd`: Save session (`s`) or Don't save (`d`); a cancel keeps the session. A `.snapx` loads its saved model from its own members, then restores its whole session, even when the same model is open. A `.recx` opens in the player and starts automatically. The opened file's folder becomes the working directory; nothing is extracted beside a session. `hello.title` identifies its saved model, e.g. `lecar.odex (saved in lecar.snapx)`. A binary file or a model that does not load is refused with its place shown and the previous session unchanged. On success, all windows but the main one are destroyed and a new `hello`, main window, `state` and first-start events follow; the client subscribes with `data` again. |
 | `reload` | | Read the model's file again with the command line and in the folder it was loaded with (File/rEload, key `e` of the File menu; the window's File > Reload), as `open` does, asking first as it does (W59d: `choice` `sd`, `Reload NAME? Its values are kept by name; this model's data and diagram go. Save its session first?`): the parameters, initial data (a delay equation's history text too) and numerics keep the session's values by name (the Poincare section's variable by its name), a name the file no longer has is dropped, a new one comes with the file's value; `hello`'s `defaults` are the file's. A file that does not load changes nothing, as for `open`. |
@@ -1520,9 +1521,9 @@ core/auto_stop.cpp, which autlib1.cpp tells where it ends a branch (T23).
          "norm":0.2891081,"var":"V","u":-0.1989438,"per":14.44537,"x":0.2624638,"y":-0.1989438,"y2":-0.1989438},
  "stab":{"periodic":0,"circle":[[0.9069413,0.4214016],[0.9069413,-0.4214016]],
          "eig":[[6.093e-05,0.434962],[6.093e-05,-0.434962]]},
- "stop":{"why":"parmax","text":"parameter iapp reached Par Max (0.5)","br":1,"pt":49,
+ "stop":{"why":"parameter_max","text":"parameter iapp reached parameter_max (0.5)","br":1,"pt":49,
          "value":0.5048396225954056,"limit":0.5},
- "notes":["Br 1 Pt 12: a Hopf bifurcation (HB) between points 12 and 13 was not located (not in ITMX=8 iterations); it is missing from the diagram"]}
+ "notes":["Br 1 Pt 12: a Hopf bifurcation (HB) between points 12 and 13 was not located (not in max_location_iterations = 8 iterations); it is missing from the diagram"]}
 ```
 
 | field | meaning |
@@ -1540,10 +1541,12 @@ core/auto_stop.cpp, which autlib1.cpp tells where it ends a branch (T23).
 | `stop` | why the run's last branch ended; `null` until one ends, and again when a run starts or AUTO's window is new. AUTO labels the end EP (a limit, Max points, Stop, a Mark value) or MX (no convergence); this says which |
 | `stop.why` | `parmin` / `parmax`: the continuation parameter went below Par Min (RL0) / above Par Max (RL1); `normmin` / `normmax`: the norm AUTO checks went below Norm Min (A0) / above Norm Max (A1); `npts`: the branch has Max points (NMX); `user`: Stop (a `run.abort`); `mark`: a Mark value set to stop (AUTO's UZR endpoint); `jacobian`: the exact Jacobian was not finite (W275: an error with an action follows); `noconv-min`: no convergence even at the smallest step (Dsmin); `noconv-fixed`: no convergence with a fixed step (IADS 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted. A no convergence's `text` names the Newton settings that gave up (`ITNW`, `EPSL`, `EPSU`) and, when the last linear solve was singular, its smallest pivot (W491); it is logged as a WARN where AUTO's Output is not shown |
 | `stop.text` | the reason in words, to follow "Stopped: " (the page's status strip); AUTO's Output gets the line `Branch 1 stopped at point 49: parameter iapp reached Par Max (0.5)` for every branch that ends |
+| `stop.why` | `parameter_min` / `parameter_max`: the continuation parameter went below `parameter_min` / above `parameter_max`; `norm_min` / `norm_max`: the norm AUTO checks went below `norm_min` / above `norm_max`; `max_steps`: the branch has `max_steps` points; `user`: Stop (an `abort`); `mark`: a Mark value set to stop (AUTO's UZR endpoint); `jacobian`: the exact Jacobian was not finite (W275: an error with an action follows); `noconv-min`: no convergence even at the smallest step (`min_step_size`); `noconv-fixed`: no convergence with a fixed step (`step_adapt_every` 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted. A no convergence's `text` names the Newton settings that gave up (`max_newton_iterations`, `parameter_tolerance`, `state_tolerance`) and, when the last linear solve was singular, its smallest pivot (W491); it is logged as a WARN where AUTO's Output is not shown |
+| `stop.text` | the reason in words, to follow "Stopped: " (the page's status strip); AUTO's Output gets the line `Branch 1 stopped at point 49: parameter iapp reached parameter_max (0.5)` for every branch that ends |
 | `stop.br`, `pt` | the branch and point number of the end (positive, as in `diagram`) |
-| `stop.value`, `limit` | what crossed the limit and the limit: the parameter and Par Min/Max, the norm and Norm Min/Max, the point count and NMX, the step size and Dsmin; `null` where there is none |
-| `notes` | what the run lost or could not trust, in words (W491): a special point AUTO gave up locating (the corrector did not converge, its test does not apply, or not in ITMX iterations: the point is missing from the diagram), Floquet multipliers that are inaccurate (period doubling and torus detection are off until they are accurate again); `[]` for none, cleared when a run starts or AUTO's window is new. Each is also written in AUTO's Output (`Warning: ...`), or logged as a WARN where AUTO's Output is not shown |
-| `start_refined` | `true` when the run's start was a steady state whose residual was above EPSU and Newton's method (the Sing pts settings) refined it before the run (W495, #559); `false` otherwise. Cleared when a run starts |
+| `stop.value`, `limit` | what crossed the limit and the limit: the parameter and `parameter_min`/`parameter_max`, the norm and `norm_min`/`norm_max`, the point count and `max_steps`, the step size and `min_step_size`; `null` where there is none |
+| `notes` | what the run lost or could not trust, in words (W491): a special point AUTO gave up locating (the corrector did not converge, its test does not apply, or not in `max_location_iterations` iterations: the point is missing from the diagram), Floquet multipliers that are inaccurate (period doubling and torus detection are off until they are accurate again); `[]` for none, cleared when a run starts or AUTO's window is new. Each is also written in AUTO's Output (`Warning: ...`), or logged as a WARN where AUTO's Output is not shown |
+| `start_refined` | `true` when the run's start was a steady state whose residual was above `state_tolerance` and Newton's method (the Sing pts settings) refined it before the run (W495, #559); `false` otherwise. Cleared when a run starts |
 | `stab.eig` | steady states only: the eigenvalues λ = log z of the `circle` values, `[null,null]` where z is 0 (Re λ below about -745); the imaginary part is only known modulo 2π, its principal value |
 
 Cycle-curve resonances use AUTO-07p's signed point codes: `-55` for R1 on
@@ -1557,8 +1560,7 @@ Numbers are doubles in the shortest of 15 or 17 digits that reads back
 exactly, `null` when not finite. `tools/servercheck.py` checks that the
 point is the `diagram` data's point it names and that the circle holds
 what AUTO printed (its fort.9) for that point, and runs
-tools/models/auto_stop.ode into each `stop` reason (Par Min and Max, Norm
-Max, Max points, no convergence with a fixed and at the smallest step, and
+tools/models/auto_stop.ode into each `stop` reason (`parameter_min` and `parameter_max`, `norm_max`, `max_steps`, no convergence with a fixed and at the smallest step, and
 Stop).
 
 ### AUTO's settings as data
@@ -1577,26 +1579,32 @@ client that asked with `{"cmd":"data","events":["autosettings"]}` at the
 end of that command, and then whenever the settings changed: at the end of
 a command and before every ask. The settings exist from the model's load,
 before AUTO's window opens (a model with more variables than AUTO takes
-has none, and gets no event). core/auto_settings.cpp keeps it. SuppBP is a checkbox in both forms and uses
-`true` or `false` in commands and saved settings (W499).
+has none, and gets no event). core/auto_settings.cpp keeps it. Each setting has one name (W531), the same in the
+event, `set`, the settings file, a model's `continuation` options and the manual; AUTO's own names (NTST, DS, MXBF ...) are
+read on import only. `suppress_branch_points` and `switch_one_direction` are checkboxes in both forms and use `true` or
+`false` in commands and saved settings (W499), `output_detail` one of the level names.
 
 ```
 {"ev":"autosettings",
- "numerics":{"ntst":15,"nmx":2000,"npr":500,"ncol":4,"ds":0.02,"dsmin":1e-05,"dsmax":0.02,
-             "rl0":-0.2,"rl1":0.5,"a0":0,"a1":1000,"epsl":0.0001,"epsu":0.0001,"epss":0.0001,
-             "iad":3,"mxbf":5,"iid":2,"itmx":8,"itnw":7,"nwtn":3,"iads":1,"suppbp":false},
+ "numerics":{"mesh_intervals":15,"max_steps":2000,"output_every":500,"collocation_points":4,"step_size":0.02,
+             "min_step_size":1e-05,"max_step_size":0.02,"parameter_min":-0.2,"parameter_max":0.5,"norm_min":0,
+             "norm_max":1000,"parameter_tolerance":0.0001,"state_tolerance":0.0001,"special_point_tolerance":0.0001,
+             "mesh_adapt_every":3,"max_branch_switches":5,"switch_one_direction":false,"output_detail":"normal",
+             "max_location_iterations":8,"max_newton_iterations":7,"full_newton_after":3,"step_adapt_every":1,
+             "suppress_branch_points":false},
  "axes":{"plot":"maximum_and_minimum","var":"V","par1":"iapp","par2":"phi","xmin":-0.2,"xmax":0.5,"ymin":-0.5,"ymax":0.4},
  "marks":[["iapp",0.25],["T",30]],
  "threads":"auto","threads_auto":4,"threads_max":16,
- "rules":{"ntst":{"label":"Ntst","integer":true,"min":1,"message":"Ntst must be a whole number of at least 1"},
-          "ds":{"label":"Ds","nonzero":true,"message":"Ds must be a number other than 0"}, ...},
- "pairs":[{"lo":"dsmin","hi":"dsmax","strict":false,"message":"Dsmin must be at most Dsmax"}, ...],
- "step":{"key":"ds","lo":"dsmin","hi":"dsmax","message":"Ds must be from Dsmin to Dsmax in size (its sign is the direction)"}}
+ "rules":{"mesh_intervals":{"label":"Mesh intervals","integer":true,"min":1,"message":"Mesh intervals must be a whole number of at least 1"},
+          "step_size":{"label":"Step size","nonzero":true,"message":"Step size must be a number other than 0"},
+          "output_detail":{"label":"Output detail","choices":["none","little","normal","start_jacobian","extensive","debugging"],"message":"..."}, ...},
+ "pairs":[{"lo":"min_step_size","hi":"max_step_size","strict":false,"message":"Min step size must be at most Max step size"}, ...],
+ "step":{"key":"step_size","lo":"min_step_size","hi":"max_step_size","message":"The size of Step size must be from Min step size to Max step size (its sign is the direction)"}}
 ```
 
 | field | meaning |
 |---|---|
-| `numerics` | the Numerics form's fields by AUTO's names, in the form's order: `ntst` Ntst, `nmx` Nmax, `npr` NPr, `ncol` Ncol, `ds`, `dsmin`, `dsmax`, `rl0` Par Min, `rl1` Par Max, `a0` Norm Min, `a1` Norm Max, `epsl`, `epsu`, `epss`, `iad`, `mxbf`, `iid`, `itmx`, `itnw`, `nwtn`, `iads`, `suppbp` SuppBP (boolean `true`/`false`, never 0/1) |
+| `numerics` | the Numerics form's fields by their names, in the form's order, with AUTO's own name (a search word, read on import only) in brackets: `mesh_intervals` (NTST), `max_steps` (NMX), `output_every` (NPR), `collocation_points` (NCOL), `step_size` (DS; its sign is the direction), `min_step_size` (DSMIN), `max_step_size` (DSMAX), `parameter_min` (RL0), `parameter_max` (RL1), `norm_min` (A0), `norm_max` (A1), `parameter_tolerance` (EPSL), `state_tolerance` (EPSU), `special_point_tolerance` (EPSS), `mesh_adapt_every` (IAD), `max_branch_switches` (MXBF, 0 or more), `switch_one_direction` (MXBF below 0; boolean `true`/`false`, never 0/1), `output_detail` (IID: `none`, `little`, `normal`, `start_jacobian`, `extensive`, `debugging`), `max_location_iterations` (ITMX), `max_newton_iterations` (ITNW), `full_newton_after` (NWTN), `step_adapt_every` (IADS), `suppress_branch_points` (SuppBP; boolean) |
 | `axes.plot` | the projection, by name: `maximum`, `norm`, `maximum_and_minimum`, `period`, `two_parameter`, `frequency`, `average` (a client labels it from its name; XPPAUT's numbers 0-4, 10, 11 are read only from an imported XPPAUT `.auto` file) |
 | `axes.var` | the variable the y axis plots (Y-axis) |
 | `axes.par1`, `par2` | Main Parm and Secnd Parm, two model parameters (`null` if none) |
@@ -1606,7 +1614,7 @@ has none, and gets no event). core/auto_settings.cpp keeps it. SuppBP is a check
 | `threads` | AUTO's thread count, a program preference (W267) and not a setting of the model or the session: `"auto"` or a whole number from 1 to `threads_max`; the same for every model, read from `preferences.setx` (`auto_threads`) when a model is loaded |
 | `threads_auto` | the count `"auto"` gives on this computer: its physical cores (the performance cores where the system says which), at most 4 |
 | `threads_max` | the most `threads` may be: the computer's logical processors |
-| `rules` | what each `numerics` value takes, by key (W118): `label` (the form's), `boolean`, `integer`, `positive`, `nonzero`, `min`, `max` (each only when it holds) and `message`, what a `set` of a value it does not take is refused with; the same table `set` checks with (core/auto_settings.cpp num_fields) |
+| `rules` | what each `numerics` value takes, by key (W118): `label` (the form's, derived from the key: underscores as spaces and a capital first letter), `boolean`, `choices`, `integer`, `positive`, `nonzero`, `min`, `max` (each only when it holds) and `message`, what a `set` of a value it does not take is refused with; the same table `set` checks with (core/auto_settings.cpp num_fields) |
 | `pairs` | the values that must be in order: `lo` below `hi` (`strict`) or at most it, and the refusal's `message` |
 | `step` | the first step `key` must be from `lo` to `hi` in size, whichever its sign, and the refusal's `message` |
 
@@ -1631,14 +1639,15 @@ whole list (`[]` for none); mark storage grows with the session. Sent commands a
   The legacy User action asks for a count, then a form with exactly that many values;
   cancel or one invalid value leaves the entire list unchanged.
 The core checks every value first and sets all or nothing: a whole number
-where the form's field is one; Ntst, Nmax, NPr, ITMX, ITNW, NWTN at least
-1; Ncol 2 to 7; IID 0 to 5; IAD and IADS at least 0; SuppBP 0 or 1; Ds not
-0; Dsmin, Dsmax and the EPS values above 0; Dsmin at most Dsmax, |Ds| from
-Dsmin to Dsmax (T23; checked when one of the three is given), Par Min
-below Par Max, Norm Min below Norm Max, Xmin below Xmax, Ymin below Ymax;
+where the form's field is one; `mesh_intervals`, `max_steps`, `output_every`, `max_location_iterations`,
+`max_newton_iterations`, `full_newton_after` at least 1; `collocation_points` 2 to 7; `output_detail` one of its
+names; `mesh_adapt_every`, `step_adapt_every` and `max_branch_switches` at least 0; the two booleans `true` or
+`false`; `step_size` not 0; `min_step_size`, `max_step_size` and the three tolerances above 0; `min_step_size`
+at most `max_step_size`, |`step_size`| from `min_step_size` to `max_step_size` (T23; checked when one of the three
+is given), `parameter_min` below `parameter_max`, `norm_min` below `norm_max`, Xmin below Xmax, Ymin below Ymax;
 names of parameters and variables the model has. A refusal is a `message`
 `error` naming the value: `AUTO settings: ` and the message the event's
-`rules`, `pairs` or `step` gives it (`AUTO settings: Ncol must be a whole
+`rules`, `pairs` or `step` gives it (`AUTO settings: collocation_points=9: Collocation points must be a whole
 number from 2 to 7`), so a client checks a form with the core's rules and
 says what the core would.
 
@@ -1663,7 +1672,7 @@ core takes it at once and applies it after that job's `idle`, as a command
 of its own (a continuation already running keeps the settings it started
 with; the next run uses the new ones). `tools/servercheck.py` checks that the
 event is what the forms show, that a form's OK and a `set` show in it,
-that bad values are refused whole, and that Nmax set to 12 stops the next
+that bad values are refused whole, and that `max_steps` set to 12 stops the next
 run at 12 points.
 
 ### The numerics as data
@@ -2648,11 +2657,11 @@ period of the neutral saddle.
 
 All front ends use the same checks before continuation. A refused start emits
 one placed error and adds no diagram point. An initial steady-state start
-checks the largest absolute RHS residual against EPSU at that equation's
+checks the largest absolute RHS residual against `state_tolerance` at that equation's
 model line; labelled restarts and orbit starts skip this test. The model
-parameters must lie within Par Min/Max (both axes for a two-parameter run),
-the primary parameter on a bound must have Ds directed inward, and two axes
-must differ. The start's solver norm must be within Norm Min/Max (defaults
+parameters must lie within `parameter_min`/`parameter_max` (both axes for a two-parameter run),
+the primary parameter on a bound must have `step_size` directed inward, and two axes
+must differ. The start's solver norm must be within `norm_min`/`norm_max` (defaults
 0 and 1e100). Incompatible restart kinds name the label and needed kinds.
 
 ### Stop diagnostics completed by W498 (#562)

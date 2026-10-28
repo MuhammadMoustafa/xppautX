@@ -60,7 +60,7 @@ int main()
     CHECK(xpp::auto_settings_apply(s,set,why)==0);
     for (bool on:s.auto_state.special_points) CHECK(!on);
     set.special_points[0]=true;
-    set.has_num[xpp::AUTO_NUM_NTST]=1; set.num[xpp::AUTO_NUM_NTST]=-1;
+    set.has_num[xpp::AUTO_NUM_MESH_INTERVALS]=1; set.num[xpp::AUTO_NUM_MESH_INTERVALS]=-1;
     CHECK(xpp::auto_settings_apply(s,set,why)!=0 && !s.auto_state.special_points[0]);
     // The reaction's exact multilinear derivatives give these coefficients;
     // independent contraction: tests/auto/codim_coefficients.py.

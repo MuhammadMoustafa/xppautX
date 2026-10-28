@@ -127,7 +127,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   nclm = nrow + ndim;
   
   if (ntst < 1) {
-    xpp::auto_fail(xpp::format("Ntst is {}, less than 1; set Ntst (Numerics) to 1 or more", ntst));
+    xpp::auto_fail(xpp::format("mesh_intervals is {}, less than 1; set mesh_intervals (Numerics) to 1 or more", ntst));
   }
   
   if (*ifst == 1) {

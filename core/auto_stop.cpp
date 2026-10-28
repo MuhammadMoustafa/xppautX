@@ -17,7 +17,7 @@ namespace xpp {
 namespace {
 
 const char *const keys[AUTO_STOP_N] = {
-    "", "parmin", "parmax", "normmin", "normmax", "npts", "user", "mark",
+    "", "parameter_min", "parameter_max", "norm_min", "norm_max", "max_steps", "user", "mark",
     "noconv", "noconv-fixed", "noconv-min", "noconv-switch-fixed", "noconv-switch-min", "jacobian",
 };
 
@@ -38,7 +38,7 @@ std::string num(double v) { return std::isfinite(v) ? xpp::format("{:g}", v) : s
 std::string newton(const AutoNoConvergence &nc)
 {
     if (nc.itnw <= 0) return "";
-    return "; ITNW " + std::to_string(nc.itnw) + ", EPSL " + num(nc.epsl) + ", EPSU " + num(nc.epsu);
+    return "; max_newton_iterations " + std::to_string(nc.itnw) + ", parameter_tolerance " + num(nc.epsl) + ", state_tolerance " + num(nc.epsu);
 }
 
 /* the linear system the last Newton step solved was singular */
@@ -55,19 +55,19 @@ std::string describe(const xpp::Session &s, const AutoStop &st, int why, const A
     switch (why) {
     case AUTO_STOP_PAR_MIN:
         value = at.par, limit = at.rl0;
-        return par_name(s, at.ipar) + " reached Par Min (" + num(at.rl0) + ")";
+        return par_name(s, at.ipar) + " reached parameter_min (" + num(at.rl0) + ")";
     case AUTO_STOP_PAR_MAX:
         value = at.par, limit = at.rl1;
-        return par_name(s, at.ipar) + " reached Par Max (" + num(at.rl1) + ")";
+        return par_name(s, at.ipar) + " reached parameter_max (" + num(at.rl1) + ")";
     case AUTO_STOP_NORM_MIN:
         value = at.norm, limit = at.a0;
-        return "the norm reached Norm Min (" + num(at.a0) + ")";
+        return "the norm reached norm_min (" + num(at.a0) + ")";
     case AUTO_STOP_NORM_MAX:
         value = at.norm, limit = at.a1;
-        return "the norm reached Norm Max (" + num(at.a1) + ")";
+        return "the norm reached norm_max (" + num(at.a1) + ")";
     case AUTO_STOP_NPTS:
         value = static_cast<double>(at.pt), limit = static_cast<double>(at.nmx);
-        return "the branch reached Max points (NMX " + std::to_string(at.nmx) + ")";
+        return "the branch reached max_steps (" + std::to_string(at.nmx) + ")";
     case AUTO_STOP_USER:
         return "by the user (Stop)";
     case AUTO_STOP_MARK:
@@ -75,18 +75,18 @@ std::string describe(const xpp::Session &s, const AutoStop &st, int why, const A
         return par_name(s, at.ipar) + " reached a Mark value set to stop (" + num(at.par) + ")";
     case AUTO_STOP_NOCONV_FIXED:
         value = st.noconv.ds;
-        return "no convergence with a fixed step size (IADS 0" + newton(st.noconv) + ")" + singular(st.noconv);
+        return "no convergence with a fixed step size (step_adapt_every 0" + newton(st.noconv) + ")" + singular(st.noconv);
     case AUTO_STOP_NOCONV_MIN:
         value = st.noconv.ds, limit = st.noconv.dsmin;
-        return "no convergence even at the smallest step (Dsmin " + num(st.noconv.dsmin) + newton(st.noconv) + ")" +
+        return "no convergence even at the smallest step (min_step_size " + num(st.noconv.dsmin) + newton(st.noconv) + ")" +
                singular(st.noconv);
     case AUTO_STOP_NOCONV_SWITCH_FIXED:
         value = st.noconv.ds;
-        return "no convergence switching branches with a fixed step size (IADS 0" + newton(st.noconv) + ")" +
+        return "no convergence switching branches with a fixed step size (step_adapt_every 0" + newton(st.noconv) + ")" +
                singular(st.noconv);
     case AUTO_STOP_NOCONV_SWITCH_MIN:
         value = st.noconv.ds, limit = st.noconv.dsmin;
-        return "no convergence switching branches, even at the smallest step (Dsmin " + num(st.noconv.dsmin) +
+        return "no convergence switching branches, even at the smallest step (min_step_size " + num(st.noconv.dsmin) +
                newton(st.noconv) + ")" + singular(st.noconv);
     case AUTO_STOP_NOCONV:
         return "no convergence";

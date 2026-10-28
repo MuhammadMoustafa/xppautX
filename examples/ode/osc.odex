@@ -11,7 +11,7 @@ X' = eps*(gam*(1+tanh(V/ode_divisor(beta)))-X)
 options {
   animation: "osc.anix",
   integration: { store_every: 10, storage_rows: 100000, total_time: 400, method: euler },
-  continuation: { parmin: 0, parmax: 6, ds: -0.001, dsmax: .01 },
+  continuation: { parameter_min: 0, parameter_max: 6, step_size: -0.001, max_step_size: .01 },
   diagram: { autovar: V },
   plot: { xp: V, yp: X, xlo: -3, xhi: 3, ylo: -3, yhi: 6 },
   interface: { but: "AUTO:fa" },

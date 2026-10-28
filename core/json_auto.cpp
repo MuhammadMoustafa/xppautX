@@ -593,10 +593,18 @@ int read_auto_set(const xpp::Session &session,const char *line, AutoSettingsSet 
     int i;
     for (i = 0; num && *num == '{' && i < AUTO_NUM_N; i++) {
         if (!(v = js_find(num, auto_settings_num_key(i)))) continue;
-        if (i==AUTO_NUM_SUPPBP) {
-            bool enabled;
-            if (!xpp::parse_bool(js_raw(v),enabled)) { why="SuppBP must be true or false"; return 0; }
-            s.num[i]=enabled;
+        std::string word;
+        const AutoFieldShape shape = auto_settings_num_shape(i);
+        if (shape == AutoFieldShape::choice) {
+            if (!js_string(v, word)) word = js_raw(v);
+        } else if (shape == AutoFieldShape::boolean) word = js_raw(v);
+        if (shape == AutoFieldShape::choice || shape == AutoFieldShape::boolean) {
+            const Result<double> parsed = auto_settings_num_parse(i, word);
+            if (!parsed) {
+                why = parsed.error().what;
+                return 0;
+            }
+            s.num[i] = *parsed;
         } else if (!js_number(v, &s.num[i])) {
             why = xpp::format("{} must be a number", auto_settings_num_label(i));
             return 0;

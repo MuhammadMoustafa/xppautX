@@ -125,7 +125,7 @@ export function Field(props: FieldProps) {
   };
   /* the message shown for a text left as it is (typed, or held after Enter/blur): a half-typed
      text (fieldIncompleteReason) says what is missing, unless this box has its own rules beyond
-     its kind's (`check`, e.g. AutoSettings' "Max points (NMX) must be..."), which say more and
+     its kind's (`check`, e.g. AutoSettings' "Max steps must be..."), which say more and
      always have the last word; anything else falls back to the kind's ordinary message */
   const shownMessageOf = (t: string): string | null => (check ? null : fieldIncompleteReason(spec, t)) ?? messageOf(t);
   /* a box on its own checks only what is typed into it, not the value it is given */

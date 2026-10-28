@@ -136,7 +136,9 @@ void check_settings_text()
     xpp::AutoSettingsSet s;
     s.special_points={true,false,true,false,false,true,false,true,true,false,true,false};
     for (int i = 0; i < xpp::AUTO_NUM_N; i++) s.num[i] = awk(i) / (i + 1);
-    s.num[xpp::AUTO_NUM_SUPPBP]=1;
+    s.num[xpp::AUTO_NUM_SWITCH_ONE_DIRECTION]=0;
+    s.num[xpp::AUTO_NUM_OUTPUT_DETAIL]=3; /* a choice is its index; a boolean is 0 or 1 */
+    s.num[xpp::AUTO_NUM_SUPPRESS_BRANCH_POINTS]=1;
     s.plot = xpp::AutoProjection::average;
     s.var = "v";
     s.par1 = "iapp";
@@ -169,7 +171,7 @@ void check_settings_text()
         const xpp::Result<xpp::snapx::auto_members::SettingsRead> e = xpp::snapx::auto_members::parse_settings(text, "a.snapx/auto/settings.txt");
         return e ? std::string() : e.error().text() + " [" + e.error().place.source + "]";
     };
-    CHECK(error("ds not-a-number\n") == "a.snapx/auto/settings.txt:1: \"not-a-number\" is not a number [ds not-a-number]");
+    CHECK(error("step_size not-a-number\n") == "a.snapx/auto/settings.txt:1: Step size must be a number [step_size not-a-number]");
     CHECK(error("plot 1\n") == "a.snapx/auto/settings.txt:1: \"1\" is not a projection (maximum, norm, maximum_and_minimum, period, two_parameter, frequency, average) [plot 1]");
     /* every key there once, none it does not have */
     const std::string text = xpp::snapx::auto_members::settings_text(s);
@@ -179,9 +181,9 @@ void check_settings_text()
     auto missing=text; missing.erase(missing.find("bogdanov_takens true\n"),22);
     CHECK(!xpp::snapx::auto_members::parse_settings(missing,"missing.txt"));
     CHECK(error(text + "later 1\n") == xpp::format("a.snapx/auto/settings.txt:{}: later is not one of AUTO's settings [later 1]", lines + 1));
-    CHECK(error(text + "ntst 3\n") == xpp::format("a.snapx/auto/settings.txt:{}: ntst given twice [ntst 3]", lines + 1));
-    CHECK(error(text.substr(text.find('\n') + 1)) == xpp::format("a.snapx/auto/settings.txt:{}: the file ends here, without its ntst line []", lines));
-    CHECK(read->lines.at("ntst") == 1 && read->lines.at("mark1") == lines);
+    CHECK(error(text + "mesh_intervals 3\n") == xpp::format("a.snapx/auto/settings.txt:{}: mesh_intervals given twice [mesh_intervals 3]", lines + 1));
+    CHECK(error(text.substr(text.find('\n') + 1)) == xpp::format("a.snapx/auto/settings.txt:{}: the file ends here, without its mesh_intervals line []", lines));
+    CHECK(read->lines.at("mesh_intervals") == 1 && read->lines.at("mark1") == lines);
 }
 
 /* views.txt (W50): the views read back bit for bit, a degenerate range
@@ -636,10 +638,10 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     const xpp::Result<xpp::snapx::auto_members::Members> bad = xpp::snapx::auto_members::members_read(xpp::client_session(), cut, "auto/", "lecar.snapx");
     CHECK(!bad && bad.error().place.file == "lecar.snapx/auto/settings.txt" &&
           bad.error().place.line == static_cast<int>(xpp::split_lines(last_bad).size()) && bad.error().place.source == "ymax nope");
-    cut["auto/settings.txt"] = keyed(settings, "ncol", "9");
+    cut["auto/settings.txt"] = keyed(settings, "collocation_points", "9");
     const xpp::Result<xpp::snapx::auto_members::Members> refused = xpp::snapx::auto_members::members_read(xpp::client_session(), cut, "auto/", "lecar.snapx");
-    CHECK(!refused && refused.error().place.line == xpp::AUTO_NUM_NCOL + 1 && refused.error().place.source == "ncol 9");
-    cut["auto/settings.txt"] = keyed(settings, "ntst", std::to_string(xpp::auto_max_mesh_intervals + 1));
+    CHECK(!refused && refused.error().place.line == xpp::AUTO_NUM_COLLOCATION_POINTS + 1 && refused.error().place.source == "collocation_points 9");
+    cut["auto/settings.txt"] = keyed(settings, "mesh_intervals", std::to_string(xpp::auto_max_mesh_intervals + 1));
     const auto mesh_refused = xpp::snapx::auto_members::members_read(xpp::client_session(), cut, "auto/", "lecar.snapx");
     CHECK(!mesh_refused);
     if (!mesh_refused) CHECK(mesh_refused.error().place.file == "lecar.snapx/auto/settings.txt" && mesh_refused.error().place.line == 1);

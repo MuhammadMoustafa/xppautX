@@ -274,15 +274,15 @@ Every box checks what you type as you type it, by what it asks for:
 
 | the box asks for | it takes | for example |
 |---|---|---|
-| a whole number | digits, with a sign | Nmax, Ntst, a range's Steps, the animation's frame skip |
-| a number | `1e-3`, `-0.5`, `.5` | a window's limits, slider Min, Max and Step, AUTO's Ds, Mark values |
+| a whole number | digits, with a sign | AUTO's Max steps and Mesh intervals, a range's Steps, the animation's frame skip |
+| a number | `1e-3`, `-0.5`, `.5` | a window's limits, slider Min, Max and Step, AUTO's Step size, Mark values |
 | a number or %formula | a number, or `%` and a formula | parameters, initial conditions, nUmerics' Total, Dt, ... |
 | an expression | a formula, its brackets matched | boundary conditions, delays, a column's formula, the calculator |
 | a name | one of the model's names (it suggests them) | Xi vs t, the data browser's Replace and Tabulate |
 | a file name | a name only: no folder, no leading dot, none of `\ / : * ? " < > \|` | Save's file name, the frames' base name |
 | text | anything | labels, search boxes |
 
-Some also have a range (Ncol from 2 to 7, a Step above 0). A keystroke, a
+Some also have a range (AUTO's Collocation points from 2 to 7, a Step above 0). A keystroke, a
 paste or a drop that would leave a box with text it never takes, and that
 is not on the way to text it does (a stray letter in a number box, say,
 or a second decimal point), is refused outright: the box's text does not

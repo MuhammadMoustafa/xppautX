@@ -61,6 +61,11 @@ void user_fun_info(const Model &m, FILE *fp);
    one keeps its start and ends in '~' so it cannot pass for another name */
 std::string short_name(std::string_view name, int width);
 
+/* a name's label: its underscores as spaces and a capital first letter
+   ("mesh_intervals" is "Mesh intervals"), derived and never written apart
+   (W381; web2's choiceLabel is the page's) */
+std::string name_label(std::string_view name);
+
 
 /* s without its white space (de_space's, up to a NUL in it) */
 void de_space(std::string &s);

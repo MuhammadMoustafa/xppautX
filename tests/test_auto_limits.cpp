@@ -71,7 +71,7 @@ int main()
     xpp::AutoSettingsSet set;
     set.par1="P39";
     set.var="X400";
-    for(const auto &[field,value]: {std::pair{xpp::AUTO_NUM_NMX,4.0},std::pair{xpp::AUTO_NUM_NPR,1.0},std::pair{xpp::AUTO_NUM_SUPPBP,1.0}}){
+    for(const auto &[field,value]: {std::pair{xpp::AUTO_NUM_MAX_STEPS,4.0},std::pair{xpp::AUTO_NUM_OUTPUT_EVERY,1.0},std::pair{xpp::AUTO_NUM_SUPPRESS_BRANCH_POINTS,1.0}}){
         set.has_num[field]=1;
         set.num[field]=value;
     }
@@ -79,8 +79,8 @@ int main()
     // W339: every model parameter is available directly; a bad name changes nothing.
     xpp::AutoSettingsSet selection;
     selection.par1="not_a_parameter";
-    selection.has_num[xpp::AUTO_NUM_NMX]=1;
-    selection.num[xpp::AUTO_NUM_NMX]=99;
+    selection.has_num[xpp::AUTO_NUM_MAX_STEPS]=1;
+    selection.num[xpp::AUTO_NUM_MAX_STEPS]=99;
     const int old_max=s.auto_state.bifur.nmx;
     CHECK(xpp::auto_settings_apply(s,selection,why)!=0);
     CHECK(s.auto_state.bifur.nmx==old_max && s.auto_state.axes().icp1==0);
@@ -123,7 +123,7 @@ int main()
     CHECK(marks_read && xpp::auto_settings_apply(s,marks_read->set,why)==0);
     CHECK(s.auto_state.bifur.marks==marks);
     auto invalid=xpp::auto_settings_now(s);
-    invalid.num[xpp::AUTO_NUM_NMX]=99;
+    invalid.num[xpp::AUTO_NUM_MAX_STEPS]=99;
     invalid.mark_name.back()="unknown";
     CHECK(xpp::auto_settings_apply(s,invalid,why)!=0);
     CHECK(s.auto_state.bifur.marks==marks && s.auto_state.bifur.nmx==4);

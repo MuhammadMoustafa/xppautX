@@ -46,14 +46,14 @@ void auto_check_start_parameters(const iap_type &iap, const rap_type &rap, const
   /* outside or on a bound, a start is refused only when Ds leads away from
      the interval: extending a branch that ended just past a bound goes back in */
   if((value<=rap.rl0 && rap.ds<0) || (value>=rap.rl1 && rap.ds>0))
-    auto_fail(Error{"auto",xpp::format("Start parameter \"{}\" = {} is at or outside [Par Min = {}, Par Max = {}] with Ds = {} pointing away; change the start, the bounds or the sign of Ds",
+    auto_fail(Error{"auto",xpp::format("Start parameter \"{}\" = {} is at or outside [parameter_min = {}, parameter_max = {}] with step_size = {} pointing away; change the start, the bounds or the sign of step_size",
         s.model().upar_names[k],value,rap.rl0,rap.rl1,rap.ds),command_place()});
 }
 
 void auto_check_start_norm(const iap_type &iap, const rap_type &rap, double norm)
 {
   if(!std::isfinite(norm) || norm<rap.a0 || norm>rap.a1)
-    auto_fail(Error{"auto",xpp::format("Start norm = {} is outside [Norm Min = {}, Norm Max = {}]; change the start or widen the norm bounds",norm,rap.a0,rap.a1),command_place()});
+    auto_fail(Error{"auto",xpp::format("Start norm = {} is outside [norm_min = {}, norm_max = {}]; change the start or widen the norm bounds",norm,rap.a0,rap.a1),command_place()});
 }
 
 /* A steady-state start from initial conditions (irs 0) is refined by Newton
@@ -82,7 +82,7 @@ void auto_check_start_equilibrium(const iap_type &iap, const rap_type &rap, doub
     std::copy(start.begin(),start.end(),u);
     const std::string &name=s.model().uvar_names[worst];
     const std::string why=xpp::newton_cause(s,run,static_cast<std::size_t>(n)).why;
-    auto_fail(Error{"auto",xpp::format("The initial conditions are not a steady state, and Newton's method from them did not converge ({}); equation \"{}\" has the largest residual |f(x,p)| = {}, above EPSU = {}. Newton settings: {}. Use Sing pts or integrate to a steady state before starting AUTO",
+    auto_fail(Error{"auto",xpp::format("The initial conditions are not a steady state, and Newton's method from them did not converge ({}); equation \"{}\" has the largest residual |f(x,p)| = {}, above state_tolerance = {}. Newton settings: {}. Use Sing pts or integrate to a steady state before starting AUTO",
         why,name,xpp::number(start_value),xpp::number(rap.epsu),xpp::named_settings(s,{"newton_tolerance","jacobian_step","search_limit","max_iterations"})),model_place(s.model(),name)});
   }
 
@@ -99,7 +99,7 @@ void init_auto(AutoState &st, int ndim, bool exact)
   int nnbc;
   st.run.iad=st.advanced.iad;   
   st.run.iplt=0;
-  st.run.mxbf=st.advanced.mxbf;
+  st.run.mxbf=st.advanced.switch_one_direction ? -st.advanced.max_branch_switches : st.advanced.max_branch_switches;
   st.run.iid=st.advanced.iid;
   st.run.itmx=st.advanced.itmx;
   st.run.itnw=st.advanced.itnw;

@@ -10,13 +10,20 @@
    (the event's `rules`, `pairs` and `step`); the settings file is the
    core's too (AUTO's File menu, W118). Pure: no DOM, no I/O. */
 import type {Command} from '../protocol/types';
-import {fieldError, type FieldSpec} from './fieldKinds';
+import {choiceLabel, fieldError, type FieldSpec} from './fieldKinds';
 import type {AutoProjection} from './diagram';
 
-export type NumKey = 'ntst' | 'nmx' | 'npr' | 'ncol' | 'ds' | 'dsmin' | 'dsmax' | 'rl0' | 'rl1' | 'a0' | 'a1'
-  | 'epsl' | 'epsu' | 'epss' | 'iad' | 'mxbf' | 'iid' | 'itmx' | 'itnw' | 'nwtn' | 'iads' | 'suppbp';
-
-type NumericKey = Exclude<NumKey, 'suppbp'>;
+/** the Numerics fields in the core's order (core/auto_settings.cpp num_fields): named for what they set,
+    AUTO's own names (NTST, DS, MXBF ...) are a hover note only */
+export const NUM_KEYS = ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points', 'step_size', 'min_step_size',
+  'max_step_size', 'parameter_min', 'parameter_max', 'norm_min', 'norm_max', 'parameter_tolerance', 'state_tolerance',
+  'special_point_tolerance', 'mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail',
+  'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points'] as const;
+export type NumKey = typeof NUM_KEYS[number];
+/** the fields that are true or false, and the one that is one of named levels */
+export type BooleanKey = 'switch_one_direction' | 'suppress_branch_points';
+export type ChoiceKey = 'output_detail';
+type NumericKey = Exclude<NumKey, BooleanKey | ChoiceKey>;
 
 /** what a Numerics value takes (the event's `rules`: core/auto_settings.cpp num_fields), and the
     message the core refuses another with; each flag only when it holds */
@@ -25,6 +32,8 @@ export interface NumRule {
   label: string;
   integer?: boolean;
   boolean?: boolean;
+  /** the names of a choice, in the order of AUTO's levels */
+  choices?: string[];
   positive?: boolean;
   nonzero?: boolean;
   min?: number;
@@ -50,88 +59,93 @@ export interface NumStep {
 
 export interface NumField {
   key: NumKey;
-  /** the field's name in the page: plain words and AUTO's short name (T23), "Max points (NMX)" */
-  name: string;
+  /** AUTO's own name for it: shown in the hover, a search word, never typed */
+  auto: string;
   /** its tooltip: what it does, its valid values and what each option means (AUTO's manual) */
   help: string;
 }
 
+/** the field's name in the page: its key, underscores as spaces and a capital first letter (W381) */
+export const fieldName = (f: NumField): string => choiceLabel(f.key);
+
 /** the Numerics form's fields in its order (core/auto_settings.cpp num_fields) */
 export const NUM_FIELDS: NumField[] = [
-  {key: 'ntst', name: 'Mesh intervals (NTST)',
+  {key: 'mesh_intervals', auto: 'NTST',
     help: 'The mesh intervals a periodic orbit (or a boundary value solution) is split into. More follow a sharp orbit '
       + 'better but take longer: raise it when a periodic branch looks wrong or does not converge. Following a period '
       + 'doubling doubles it, so set it back after. A whole number, at least 1.'},
-  {key: 'nmx', name: 'Max points (NMX)',
-    help: 'The most points a branch may have: it ends (EP, "reached Max points") when it has this many. '
+  {key: 'max_steps', auto: 'NMX',
+    help: 'The most steps a branch may take: it ends (EP, "reached max_steps") when it has this many points. '
       + 'A whole number, at least 1.'},
-  {key: 'npr', name: 'Label every (NPR)',
-    help: 'Besides the special points, label and save the whole solution every NPR points along a branch, so it can be '
+  {key: 'output_every', auto: 'NPR',
+    help: 'Besides the special points, label and save the whole solution every this many points along a branch, so it can be '
       + 'grabbed. A whole number, at least 1.'},
-  {key: 'ncol', name: 'Collocation points (NCOL)',
+  {key: 'collocation_points', auto: 'NCOL',
     help: 'The collocation points in each mesh interval of a periodic orbit or boundary value solution. '
       + 'A whole number from 2 to 7; 4 is usual.'},
-  {key: 'ds', name: 'First step (DS)',
+  {key: 'step_size', auto: 'DS',
     help: 'The first step along the branch. Its sign is the direction: positive makes the main parameter go up, '
-      + 'negative down. The step adapts after it, so it is a suggestion. A number other than 0, from DSMIN to DSMAX '
-      + 'in size.'},
-  {key: 'dsmin', name: 'Smallest step (DSMIN)',
+      + 'negative down. The step adapts after it, so it is a suggestion. A number other than 0, from the min to the max '
+      + 'step size in size.'},
+  {key: 'min_step_size', auto: 'DSMIN',
     help: 'The smallest step. When a point does not converge the step is halved and tried again; below this the '
-      + 'branch ends with MX (no convergence). A number above 0, at most DSMAX.'},
-  {key: 'dsmax', name: 'Largest step (DSMAX)',
+      + 'branch ends with MX (no convergence). A number above 0, at most the max step size.'},
+  {key: 'max_step_size', auto: 'DSMAX',
     help: 'The largest step. Too large a step can jump over folds and Hopf points; too small a one makes a long run. '
-      + 'A number above 0, at least DSMIN.'},
-  {key: 'rl0', name: 'Par Min (RL0)',
-    help: 'The lowest value of the main parameter: a branch that goes below it ends (EP, "parameter reached Par Min"). '
-      + 'A number below Par Max.'},
-  {key: 'rl1', name: 'Par Max (RL1)',
-    help: 'The highest value of the main parameter: a branch that goes above it ends (EP, "parameter reached Par Max"). '
-      + 'A number above Par Min.'},
-  {key: 'a0', name: 'Norm Min (A0)',
+      + 'A number above 0, at least the min step size.'},
+  {key: 'parameter_min', auto: 'RL0',
+    help: 'The lowest value of the main parameter: a branch that goes below it ends (EP, "reached parameter_min"). '
+      + 'A number below the parameter max.'},
+  {key: 'parameter_max', auto: 'RL1',
+    help: 'The highest value of the main parameter: a branch that goes above it ends (EP, "reached parameter_max"). '
+      + 'A number above the parameter min.'},
+  {key: 'norm_min', auto: 'A0',
     help: 'The lowest norm of the solution (its L2 norm, what the Norm axes plot): a branch whose norm goes below it '
-      + 'ends (EP). A number below Norm Max.'},
-  {key: 'a1', name: 'Norm Max (A1)',
-    help: 'The highest norm of the solution: a branch whose norm goes above it ends (EP). A number above Norm Min.'},
-  {key: 'epsl', name: 'Parameter tolerance (EPSL)',
+      + 'ends (EP). A number below the norm max.'},
+  {key: 'norm_max', auto: 'A1',
+    help: 'The highest norm of the solution: a branch whose norm goes above it ends (EP). A number above the norm min.'},
+  {key: 'parameter_tolerance', auto: 'EPSL',
     help: "Newton's convergence tolerance for the parameters, relative. Smaller is more accurate and fails sooner. "
       + 'A number above 0, often 1e-4 to 1e-7.'},
-  {key: 'epsu', name: 'Solution tolerance (EPSU)',
+  {key: 'state_tolerance', auto: 'EPSU',
     help: "Newton's convergence tolerance for the solution, relative. Smaller is more accurate and fails sooner. "
       + 'A number above 0, often 1e-4 to 1e-7.'},
-  {key: 'epss', name: 'Special point tolerance (EPSS)',
+  {key: 'special_point_tolerance', auto: 'EPSS',
     help: 'How closely special points (folds, Hopf and branch points, period doublings, tori) are located, relative '
-      + 'to the step; usually 100 to 1000 times EPSL and EPSU. A number above 0.'},
-  {key: 'iad', name: 'Adapt mesh every (IAD)',
-    help: 'Adapt the mesh of a periodic orbit to its shape every IAD steps; 0 keeps the mesh fixed. 3 is usual. '
+      + 'to the step; usually 100 to 1000 times the parameter and state tolerances. A number above 0.'},
+  {key: 'mesh_adapt_every', auto: 'IAD',
+    help: 'Adapt the mesh of a periodic orbit to its shape every this many steps; 0 keeps the mesh fixed. 3 is usual. '
       + 'A whole number, 0 or more.'},
-  {key: 'mxbf', name: 'Branch switches (MXBF)',
-    help: 'For steady states: at how many branch points AUTO follows the other branch by itself. Positive: in both '
-      + 'directions; negative: in one direction only; 0: none. A whole number.'},
-  {key: 'iid', name: 'Output detail (IID)',
-    help: 'How much AUTO writes to its diagnostics (the .d file): 0 almost nothing, 1 a little, 2 the usual, '
-      + '3 also the Jacobian and residuals of the start, 4 and 5 very much (for debugging). A whole number from 0 to 5.'},
-  {key: 'itmx', name: 'Locate iterations (ITMX)',
+  {key: 'max_branch_switches', auto: 'MXBF',
+    help: 'For steady states: at how many branch points AUTO follows the other branch by itself; 0: none. '
+      + 'A whole number, 0 or more.'},
+  {key: 'switch_one_direction', auto: 'MXBF below 0',
+    help: 'When checked, the branches AUTO switches to by itself are followed in one direction only; unchecked: in both.'},
+  {key: 'output_detail', auto: 'IID',
+    help: 'How much AUTO writes to its diagnostics (the .d file): none, little, normal (the usual), start jacobian '
+      + '(also the Jacobian and residuals of the start), extensive, debugging.'},
+  {key: 'max_location_iterations', auto: 'ITMX',
     help: 'The most iterations spent locating a special point (a fold, a Hopf or branch point ...). '
       + 'A whole number, at least 1.'},
-  {key: 'itnw', name: 'Newton iterations (ITNW)',
-    help: 'The most Newton iterations for a point. When they do not converge the step is halved (with IADS above 0) '
-      + 'or the branch ends with MX. A whole number, at least 1.'},
-  {key: 'nwtn', name: 'Full Newton steps (NWTN)',
+  {key: 'max_newton_iterations', auto: 'ITNW',
+    help: 'The most Newton iterations for a point. When they do not converge the step is halved (with step adapt every '
+      + 'above 0) or the branch ends with MX. A whole number, at least 1.'},
+  {key: 'full_newton_after', auto: 'NWTN',
     help: 'After this many Newton iterations the Jacobian is kept (the chord method), which is cheaper. '
       + 'A whole number, at least 1.'},
-  {key: 'iads', name: 'Adapt step every (IADS)',
-    help: 'Adapt the step size every IADS steps. 0 keeps it at DS, and then a point that does not converge ends the '
-      + 'branch with MX. 1 is usual. A whole number, 0 or more.'},
-  {key: 'suppbp', name: 'Skip branch points (SuppBP)',
+  {key: 'step_adapt_every', auto: 'IADS',
+    help: 'Adapt the step size every this many steps. 0 keeps it at the first step, and then a point that does not '
+      + 'converge ends the branch with MX. 1 is usual. A whole number, 0 or more.'},
+  {key: 'suppress_branch_points', auto: 'SuppBP',
     help: 'When checked, do not look for branch points (faster, and no false ones); for periodic orbits there are then no '
       + 'Floquet multipliers, period doublings or tori either. Unchecked: look for them.'},
 ];
 
 /** the Numerics dialog's groups, as the core's form has its columns */
 export const NUM_GROUPS: {title: string; keys: NumKey[]}[] = [
-  {title: 'Mesh and steps', keys: ['ntst', 'nmx', 'npr', 'ncol', 'ds', 'dsmin', 'dsmax']},
-  {title: 'Limits and tolerances', keys: ['rl0', 'rl1', 'a0', 'a1', 'epsl', 'epsu', 'epss']},
-  {title: 'Solver', keys: ['iad', 'mxbf', 'iid', 'itmx', 'itnw', 'nwtn', 'iads', 'suppbp']},
+  {title: 'Mesh and steps', keys: ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points', 'step_size', 'min_step_size', 'max_step_size']},
+  {title: 'Limits and tolerances', keys: ['parameter_min', 'parameter_max', 'norm_min', 'norm_max', 'parameter_tolerance', 'state_tolerance', 'special_point_tolerance']},
+  {title: 'Solver', keys: ['mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail', 'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points']},
 ];
 
 export const fieldOf = (key: NumKey): NumField => NUM_FIELDS.find(f => f.key === key)!;
@@ -153,7 +167,7 @@ export const allCodim = (on: boolean) => Object.fromEntries(CODIM_KINDS.map(k =>
 
 export interface AutoSettings {
   special_points: Record<CodimKind, boolean>;
-  numerics: Record<NumericKey, number> & {suppbp: boolean};
+  numerics: Record<NumericKey, number> & Record<BooleanKey, boolean> & Record<ChoiceKey, string>;
   axes: AutoAxesSettings;
   marks: [string, number][];
   /** AUTO's thread count, a program preference (W267): "auto" or the count */
@@ -259,6 +273,7 @@ export function autoSettingsSetCommand(p: AutoSettingsPatch): Command {
 /** what a Numerics field takes (store/fieldKinds.ts): a whole number or a number, and its rule */
 export function numSpec(r: NumRule): FieldSpec {
   if (r.boolean) return {kind: 'boolean'};
+  if (r.choices) return {kind: 'choice', choices: r.choices};
   if (r.integer) return {kind: 'integer', min: r.min, max: r.max};
   return {kind: 'number', min: r.min, max: r.max, positive: !!r.positive, nonzero: !!r.nonzero};
 }
@@ -269,15 +284,16 @@ export function numError(r: NumRule, text: string): string | null {
 }
 
 /** the values that must agree with each other, as the core checks them, by the field whose message it is */
-export function pairErrors(s: Pick<AutoSettings, 'pairs' | 'step'>, v: Record<NumericKey, number>): Partial<Record<NumKey, string>> {
+export function pairErrors(s: Pick<AutoSettings, 'pairs' | 'step'>, v: Record<NumKey, number | boolean | string>): Partial<Record<NumKey, string>> {
   const out: Partial<Record<NumKey, string>> = {};
-  for (const p of s.pairs) if (!(p.strict ? v[p.lo] < v[p.hi] : v[p.lo] <= v[p.hi])) out[p.lo] = p.message;
+  const n = (k: NumericKey): number => Number(v[k]);
+  for (const p of s.pairs) if (!(p.strict ? n(p.lo) < n(p.hi) : n(p.lo) <= n(p.hi))) out[p.lo] = p.message;
   const {key, lo, hi, message} = s.step;
-  if (!out[lo] && !out[hi] && !(Math.abs(v[key]) >= v[lo] && Math.abs(v[key]) <= v[hi])) out[key] = message;
+  if (!out[lo] && !out[hi] && !(Math.abs(n(key)) >= n(lo) && Math.abs(n(key)) <= n(hi))) out[key] = message;
   return out;
 }
 
 /** the first of pairErrors, or null */
-export function pairError(s: Pick<AutoSettings, 'pairs' | 'step'>, v: Record<NumericKey, number>): string | null {
+export function pairError(s: Pick<AutoSettings, 'pairs' | 'step'>, v: Record<NumKey, number | boolean | string>): string | null {
   return Object.values(pairErrors(s, v))[0] ?? null;
 }

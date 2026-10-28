@@ -10,15 +10,15 @@
       },
       "parameter": "Input",
       "auto": {
-        "ds": -0.05,
-        "dsmin": 1e-05,
-        "dsmax": 0.05,
-        "nmax": 120,
-        "npr": 20,
-        "parmin": 0,
-        "parmax": 6,
-        "ntst": 15,
-        "mxbf": 0
+        "step_size": -0.05,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.05,
+        "max_steps": 120,
+        "output_every": 20,
+        "parameter_min": 0,
+        "parameter_max": 6,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
       }
     }
   ],

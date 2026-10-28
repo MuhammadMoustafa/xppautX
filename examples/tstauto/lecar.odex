@@ -21,7 +21,10 @@ aux rate = phi
 # AUTO options
 options {
   integration: { total_time: 30, dt: .05 },
-  continuation: { dsmin: 1e-5, dsmax: .02, parmin: -.2, parmax: .5, npr: 500, nmax: 2000 },
+  continuation: {
+    min_step_size: 1e-5, max_step_size: .02, parameter_min: -.2, parameter_max: .5,
+    output_every: 500, max_steps: 2000,
+  },
   diagram: { autoymax: .4, autoymin: -.5, autoxmin: -.2, autoxmax: .5 },
   plot: {
     colormap: gray, xlo: -.6, xhi: 1.2, ylo: -.25, yhi: 1.2, xp: v, yp: w, dfgrid: 16, nullclines.draw: true,

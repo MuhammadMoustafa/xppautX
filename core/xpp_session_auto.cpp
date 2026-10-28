@@ -56,7 +56,7 @@ constexpr int n_ints = 13;
 std::string settings_text(const AutoSettingsSet &s)
 {
     std::string o;
-    for (int i = 0; i < AUTO_NUM_N; i++) o += xpp::format("{} {}\n", auto_settings_num_key(i), (i==AUTO_NUM_SUPPBP ? (s.num[i]!=0 ? "true" : "false") : xpp::number(s.num[i])));
+    for (int i = 0; i < AUTO_NUM_N; i++) o += xpp::format("{} {}\n", auto_settings_num_key(i), auto_settings_num_text(i, s.num[i]));
     for (std::size_t i=0;i<auto_codim_kinds.size();++i)
         o += xpp::format("{} {}\n",auto_codim_keys[i],*s.special_points[i] ? "true" : "false");
     o += xpp::format("plot {}\nvar {}\npar1 {}\npar2 {}\n", auto_projection_name(*s.plot), name_text(s.var), name_text(s.par1), name_text(s.par2));
@@ -114,11 +114,9 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
                 for (int i = 0; i < AUTO_NUM_N; i++)
                     if (key == auto_settings_num_key(i)) {
                         at(auto_settings_num_key(i));
-                        if(i==AUTO_NUM_SUPPBP) {
-                            bool enabled;
-                            if(!parse_bool(value,enabled)) l.fail("SuppBP must be true or false");
-                            s.num[i]=enabled;
-                        } else number(value, s.num[i]);
+                        const Result<double> parsed = auto_settings_num_parse(i, value);
+                        if (!parsed) l.fail(parsed.error().what);
+                        s.num[i] = *parsed;
                         s.has_num[i] = 1;
                         known = true;
                     }

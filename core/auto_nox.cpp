@@ -589,67 +589,49 @@ void auto_per_par(xpp::Session &s)
   else if(xpp::auto_settings_apply(s,set,why)!=0)command_error("auto",why);
 }
 
+/* Numerics field i as a typed form field of its shape (the value as the settings hold it) */
+static xpp::FormField num_form_field(int i, double value)
+{
+  const std::string name=xpp::auto_settings_num_label(i);
+  switch(xpp::auto_settings_num_shape(i)){
+  case xpp::AutoFieldShape::boolean: return xpp::FormField::boolean(name,value!=0);
+  case xpp::AutoFieldShape::choice: {
+    const auto names=xpp::auto_settings_num_choices(i);
+    return xpp::FormField::choice(name,std::vector<std::string>(names.begin(),names.end()),static_cast<std::size_t>(value));
+  }
+  case xpp::AutoFieldShape::whole: return xpp::FormField{.name=name,.kind=XPP_FIELD_INTEGER,.value=xpp::format("{:d}",static_cast<int>(value))};
+  case xpp::AutoFieldShape::real: break;
+  }
+  return xpp::FormField::real_number(name,value);
+}
+
 void auto_num_par(xpp::Session &s)
 {
   /* Mesh and step size, ranges and tolerances, integer knobs, then named
-     special points. Four columns; the row count follows the field count. */
-  std::array<const char *,xpp::AUTO_NUM_N+xpp::auto_codim_kinds.size()> n;
-  for(int i=0;i<xpp::AUTO_NUM_N;++i) n[i]=xpp::auto_settings_num_label(i);
-  for(std::size_t i=0;i<xpp::auto_codim_kinds.size();++i) n[xpp::AUTO_NUM_N+i]=xpp::auto_codim_keys[i].data();
-  int status;
-  std::array<std::string, xpp::AUTO_NUM_N+xpp::auto_codim_kinds.size()> values;
-  values[0] = xpp::format("{:d}", s.auto_state.bifur.ntst);
-  values[1] = xpp::format("{:d}", s.auto_state.bifur.nmx);
-  values[2] = xpp::format("{:d}", s.auto_state.bifur.npr);
-  values[3] = xpp::format("{:d}", s.auto_state.bifur.ncol);
-  values[4] = xpp::format("{:g}", s.auto_state.bifur.ds);
-  values[5] = xpp::format("{:g}", s.auto_state.bifur.dsmin);
-  values[6] = xpp::format("{:g}", s.auto_state.bifur.dsmax);
-  values[7] = xpp::format("{:g}", s.auto_state.bifur.rl0);
-  values[8] = xpp::format("{:g}", s.auto_state.bifur.rl1);
-  values[9] = xpp::format("{:g}", s.auto_state.bifur.a0);
-  values[10] = xpp::format("{:g}", s.auto_state.bifur.a1);
-  values[11] = xpp::format("{:g}", s.auto_state.bifur.epsl);
-  values[12] = xpp::format("{:g}", s.auto_state.bifur.epsu);
-  values[13] = xpp::format("{:g}", s.auto_state.bifur.epss);
-  values[14] = xpp::format("{:d}", s.auto_state.advanced.iad);
-  values[15] = xpp::format("{:d}", s.auto_state.advanced.mxbf);
-  values[16] = xpp::format("{:d}", s.auto_state.advanced.iid);
-  values[17] = xpp::format("{:d}", s.auto_state.advanced.itmx);
-  values[18] = xpp::format("{:d}", s.auto_state.advanced.itnw);
-  values[19] = xpp::format("{:d}", s.auto_state.advanced.nwtn);
-  values[20] = xpp::format("{:d}", s.auto_state.advanced.iads);
-  values[21] = s.auto_state.suppress_bp ? "true" : "false";
-
-  for (std::size_t i=0;i<xpp::auto_codim_kinds.size();++i)
-    values[xpp::AUTO_NUM_N+i]=s.auto_state.special_points[i] ? "true" : "false";
-  static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
-                            XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
-                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_BOOLEAN,
-                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
-                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,
-                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
-  status=do_string_box_of((n.size()+3)/4,4,"AutoNum",n.data(),values,kinds);
-  if(status!=0){
-    auto enabled=s.auto_state.special_points;
-    for (std::size_t i=0;i<xpp::auto_codim_kinds.size();++i) {
-      if (!xpp::parse_bool(values[xpp::AUTO_NUM_N+i],enabled[i])) {
-        command_error("auto",xpp::format("{} must be true or false",xpp::auto_codim_keys[i])); return;
-      }
+     special points; every value checked by its field's shape and then by
+     auto_settings_apply, all together or not at all. */
+  const xpp::AutoSettingsSet now=xpp::auto_settings_now(s);
+  std::vector<xpp::FormField> fields;
+  for(int i=0;i<xpp::AUTO_NUM_N;++i) fields.push_back(num_form_field(i,now.num[i]));
+  for(std::size_t i=0;i<xpp::auto_codim_kinds.size();++i)
+    fields.push_back(xpp::FormField::boolean(std::string(xpp::auto_codim_keys[i]),*now.special_points[i]));
+  if(!xpp::ask_form(s,"AUTO Numerics",fields)) return;
+  xpp::AutoSettingsSet points;
+  for(int i=0;i<xpp::AUTO_NUM_N;++i){
+    const xpp::FormField &f=fields[static_cast<std::size_t>(i)];
+    points.has_num[i]=1;
+    switch(xpp::auto_settings_num_shape(i)){
+    case xpp::AutoFieldShape::boolean: points.num[i]=f.flag; break;
+    case xpp::AutoFieldShape::choice:
+    case xpp::AutoFieldShape::whole: points.num[i]=f.whole; break;
+    case xpp::AutoFieldShape::real: points.num[i]=f.real; break;
     }
-    xpp::AutoSettingsSet points;
-    xpp::TypedFields fields(s);
-    for (int i=0; i<xpp::AUTO_NUM_N; ++i) {
-      points.has_num[i]=1;
-      points.num[i]=i==xpp::AUTO_NUM_SUPPBP ? fields.boolean(n[i],values[i]) : fields.number(n[i],values[i]);
-    }
-    if(fields.error()) { command_error("auto",*fields.error()); return; }
-    for(std::size_t i=0;i<enabled.size();++i) points.special_points[i]=enabled[i];
-    std::string why;
-    if(xpp::auto_settings_apply(s,points,why)!=0) command_error("auto",why);
   }
-
-}    
+  for(std::size_t i=0;i<xpp::auto_codim_kinds.size();++i)
+    points.special_points[i]=fields[static_cast<std::size_t>(xpp::AUTO_NUM_N)+i].flag;
+  std::string why;
+  if(xpp::auto_settings_apply(s,points,why)!=0) command_error("auto",why);
+}
 
 void auto_plot_par(xpp::Session &s)
 {
@@ -2385,6 +2367,12 @@ xpp::Result<> import_auto_file(xpp::Session &s, FILE *fp, const std::string &fil
       for(int field:fields){
         auto &value=settings.num[field];
         if(!row.read(value))lines.fail("invalid or incomplete AUTO numerics");
+        if(field==xpp::AUTO_NUM_MAX_BRANCH_SWITCHES){
+          /* XPPAUT's MXBF is one signed number: its sign is the direction (W531 keeps them apart) */
+          settings.num[xpp::AUTO_NUM_SWITCH_ONE_DIRECTION]=value<0;
+          settings.has_num[xpp::AUTO_NUM_SWITCH_ONE_DIRECTION]=1;
+          value=std::fabs(value);
+        }
         std::string why;
         if(!xpp::auto_settings_num_ok(field,value,why))lines.fail(why);
         settings.has_num[field]=1;
@@ -2392,10 +2380,10 @@ xpp::Result<> import_auto_file(xpp::Session &s, FILE *fp, const std::string &fil
       }
       if(!row.at_end())lines.fail("extra AUTO numeric fields");
     };
-    numeric({xpp::AUTO_NUM_NTST,xpp::AUTO_NUM_NMX,xpp::AUTO_NUM_NPR});
-    numeric({xpp::AUTO_NUM_DS,xpp::AUTO_NUM_DSMIN,xpp::AUTO_NUM_DSMAX});
-    numeric({xpp::AUTO_NUM_RL0,xpp::AUTO_NUM_RL1,xpp::AUTO_NUM_A0,xpp::AUTO_NUM_A1});
-    numeric({xpp::AUTO_NUM_IAD,xpp::AUTO_NUM_MXBF,xpp::AUTO_NUM_IID,xpp::AUTO_NUM_ITMX,xpp::AUTO_NUM_ITNW,xpp::AUTO_NUM_NWTN,xpp::AUTO_NUM_IADS});
+    numeric({xpp::AUTO_NUM_MESH_INTERVALS,xpp::AUTO_NUM_MAX_STEPS,xpp::AUTO_NUM_OUTPUT_EVERY});
+    numeric({xpp::AUTO_NUM_STEP_SIZE,xpp::AUTO_NUM_MIN_STEP_SIZE,xpp::AUTO_NUM_MAX_STEP_SIZE});
+    numeric({xpp::AUTO_NUM_PARAMETER_MIN,xpp::AUTO_NUM_PARAMETER_MAX,xpp::AUTO_NUM_NORM_MIN,xpp::AUTO_NUM_NORM_MAX});
+    numeric({xpp::AUTO_NUM_MESH_ADAPT_EVERY,xpp::AUTO_NUM_MAX_BRANCH_SWITCHES,xpp::AUTO_NUM_OUTPUT_DETAIL,xpp::AUTO_NUM_MAX_LOCATION_ITERATIONS,xpp::AUTO_NUM_MAX_NEWTON_ITERATIONS,xpp::AUTO_NUM_FULL_NEWTON_AFTER,xpp::AUTO_NUM_STEP_ADAPT_EVERY});
     int var,plot;
     lines.numbers(settings.range[0],settings.range[2],settings.range[1],settings.range[3],var,plot);
     if(var<0 || var>=s.model().node)lines.fail("foreign axis variable is outside the model");
@@ -2404,8 +2392,8 @@ xpp::Result<> import_auto_file(xpp::Session &s, FILE *fp, const std::string &fil
     if(!settings.plot)lines.fail(xpp::format("{} is not one of XPPAUT's plot types (0-4, 10, 11)",plot));
     settings.has_range.fill(1);
     // XPPAUT omits Ncol; the retained collocation order must still be supported.
-    settings.has_num[xpp::AUTO_NUM_NCOL]=1;
-    settings.num[xpp::AUTO_NUM_NCOL]=xpp::auto_settings_now(s).num[xpp::AUTO_NUM_NCOL];
+    settings.has_num[xpp::AUTO_NUM_COLLOCATION_POINTS]=1;
+    settings.num[xpp::AUTO_NUM_COLLOCATION_POINTS]=xpp::auto_settings_now(s).num[xpp::AUTO_NUM_COLLOCATION_POINTS];
     if(const xpp::Result<> checked=xpp::auto_settings_check(s,settings,-1);!checked){
       const std::string &key=checked.error().field;
       lines.fail(locations.contains(key)?locations.at(key):lines.line(),checked.error().what);
@@ -2450,8 +2438,8 @@ bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long 
     if (!itp) return false;
     h.itp = *itp;
     std::string why;
-    const bool collocation = h.ntst == 0 ? h.ncol == 0 : auto_settings_num_ok(AUTO_NUM_NCOL, h.ncol, why);
-    const bool mesh = h.ntst == 0 || auto_settings_num_ok(AUTO_NUM_NTST, h.ntst, why);
+    const bool collocation = h.ntst == 0 ? h.ncol == 0 : auto_settings_num_ok(AUTO_NUM_COLLOCATION_POINTS, h.ncol, why);
+    const bool mesh = h.ntst == 0 || auto_settings_num_ok(AUTO_NUM_MESH_INTERVALS, h.ntst, why);
     return h.nfpr >= 0 && h.nfpr <= parameters && h.ntpl >= 1 && static_cast<std::size_t>(h.ntpl) <= auto_solution_values_limit / static_cast<std::size_t>(h.nar < 2 ? 2 : h.nar) && h.nar >= 2 && static_cast<std::size_t>(h.nar) <= auto_solution_values_limit
         && h.nskip >= h.ntpl && h.ntst >= 0 && h.ntst <= h.nskip
         && mesh && collocation && h.npar >= 0 && h.npar <= parameters && h.nfpr <= h.npar

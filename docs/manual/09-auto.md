@@ -17,18 +17,18 @@ script does the same. Scripts use `window.rename`, `window.select` and
 `window.destroy` with the same quoted name (W353).
 
 Before a run, AUTO checks the start. Initial conditions for a steady-state
-run whose largest equation residual is above EPSU are first refined by
+run whose largest equation residual is above `state_tolerance` are first refined by
 Newton's method, with the **Sing pts** settings, at the run's parameter
 values; the run starts from the converged point and the log says how the
 residual changed. Only when Newton does not converge is the run refused:
 the error names the worst equation, the residual and the Newton settings,
 and suggests **Sing pts** or integration to a steady state. Labelled
 restarts and orbit starts are exempt from that test.
-The first parameter must lie within **Par Min/Max** (the second parameter of
+The first parameter must lie within **`parameter_min`/`parameter_max`** (the second parameter of
 a two-parameter run is not bounded, as in AUTO-07p). At a primary parameter
-bound, **Ds** must point inward. The two parameters must differ. A periodic restart needs a
+bound, **`step_size`** must point inward. The two parameters must differ. A periodic restart needs a
 Hopf point or a periodic orbit; two-parameter starts need a supported special
-point. The start norm must lie within **Norm Min/Max**, whose defaults are
+point. The start norm must lie within **`norm_min`/`norm_max`**, whose defaults are
 0 and 1e100. Tighten these to end a branch when its norm leaves your interval.
 Errors name the value and bound and how to fix the start (W495, #559).
 
@@ -84,7 +84,7 @@ back). It has:
 - any number of **views** of the one diagram (see "Views of the diagram"
   below), side by side;
 - once a run ends, the status strip says **why it stopped**, in words:
-  "Stopped: parameter iapp reached Par Max (0.5)" (see "Why a branch
+  "Stopped: parameter iapp reached parameter_max (0.5)" (see "Why a branch
   stopped" below), and AUTO's Output gets the same as a line for every
   branch that ends ("Branch 1 stopped at point 49: ...");
 - the diagram's **key** lists the label types it has, spelled out with its label and mark (End of branch EP,
@@ -98,11 +98,11 @@ back). It has:
   names its type; the point where the last run ended also says why;
 - an **Output** panel with AUTO's printed table (`xpp_log_auto()`, always
   written in the window and in browser mode): the header, a row for every
-  labelled point (the special ones and the plain ones Numerics' NPr prints
-  every NPr points) and why the branch stopped, one line each;
+  labelled point (the special ones and the plain ones Numerics' `output_every`
+  prints every `output_every` points) and why the branch stopped, one line each;
 - Numerics as a dialog in place of the X11 Numerics window: every field
-  has a plain name with AUTO's short name kept ("Max points (NMX)"), its
-  help as a tooltip, and a message beside it when its value is not one
+  is named by its setting ("Max steps"), with AUTO's own name (NMX) and its
+  help in the tooltip, and a message beside it when its value is not one
   AUTO takes, worded as the core refuses it (OK waits until every value
   is);
 - **Grab** as a mode of the diagram: arrows, `[` `]`, Tab to the labelled
@@ -240,35 +240,42 @@ as they were when you open it.
 
 ## Numerical parameters
 
-Next, set the NUMERICAL parameters. **In web2** the Numerics dialog names
-each field in plain words with AUTO's short name after it, in three
-groups; hovering a field shows its help. The page checks each value as you
-type (a message beside the field, OK disabled until all are good) and the
-core checks them again when they arrive. Model options and session files use
-the same continuation rules. Invalid values are refused before application;
-AUTO never repairs step limits or tolerances during a run (W494):
+Next, set the NUMERICAL parameters. Each setting has one name, the same in
+the Numerics dialog, a model's `continuation` options, the session file,
+the protocol and this manual (W531); the dialog shows it with its
+underscores as spaces and a capital first letter. AUTO's own name for it
+(NTST, DS, MXBF ...) is only a search word: it is the note on a field's hover
+and in the table below, and is read on import only (an XPPAUT `.ode` file's
+`@ ntst=...`, a foreign `.auto` file), never typed anywhere else. **In web2**
+the Numerics dialog has three groups; hovering a field shows its help. The
+page checks each value as you type (a message beside the field, OK disabled
+until all are good) and the core checks them again when they arrive. Model
+options and session files use the same continuation rules. Invalid values are
+refused before application; AUTO never repairs step limits or tolerances during
+a run (W494):
 
-| Field | What it does | Valid values |
+| Setting (AUTO's name) | What it does | Valid values |
 |---|---|---|
-| Mesh intervals (NTST) | mesh intervals of a periodic orbit or boundary value solution; raise it when a periodic branch looks wrong or does not converge (doubled when following a period doubling) | whole number, at least 1 |
-| Max points (NMX) | the most points a branch may have; it ends (EP) at this many | whole number, at least 1 |
-| Label every (NPR) | label and save the whole solution every NPR points, besides the special points | whole number, at least 1 |
-| Collocation points (NCOL) | collocation points per mesh interval | whole number, 2 to 7 (4 is usual) |
-| First step (DS) | the first step; its sign is the direction the main parameter goes | not 0, from DSMIN to DSMAX in size |
-| Smallest step (DSMIN) | the smallest step: a point that does not converge is retried with half the step until it would go below this, then the branch ends (MX) | above 0, at most DSMAX |
-| Largest step (DSMAX) | the largest step; too large jumps over folds and Hopf points | above 0 |
-| Par Min (RL0), Par Max (RL1) | the main parameter's range: a branch that leaves it ends (EP) | Par Min below Par Max |
-| Norm Min (A0), Norm Max (A1) | the norm's range: a branch whose norm leaves it ends (EP) | Norm Min below Norm Max |
-| Parameter tolerance (EPSL), Solution tolerance (EPSU) | Newton's relative convergence tolerances for the parameters and the solution | above 0, often 1e-4 to 1e-7 |
-| Special point tolerance (EPSS) | how closely special points are located; usually 100 to 1000 times EPSL and EPSU | above 0 |
-| Adapt mesh every (IAD) | adapt a periodic orbit's mesh every IAD steps; 0 keeps it fixed | whole number, 0 or more (3 is usual) |
-| Branch switches (MXBF) | steady states: at how many branch points AUTO follows the other branch by itself; negative: in one direction only; 0: none | whole number |
-| Output detail (IID) | how much AUTO writes to its diagnostics (.d file): 0 almost nothing, 1 a little, 2 the usual, 3 also the Jacobian and residuals of the start, 4 and 5 very much (debugging) | 0 to 5 |
-| Locate iterations (ITMX) | the most iterations locating a special point | whole number, at least 1 |
-| Newton iterations (ITNW) | the most Newton iterations for a point, before the step is halved (IADS above 0) or the branch ends | whole number, at least 1 |
-| Full Newton steps (NWTN) | after this many iterations the Jacobian is kept (chord method) | whole number, at least 1 |
-| Adapt step every (IADS) | adapt the step every IADS steps; 0 keeps it at DS, and a point that does not converge then ends the branch (MX) | whole number, 0 or more (1 is usual) |
-| Skip branch points (SuppBP) | checked: do not look for branch points (and for periodic orbits no Floquet multipliers, period doublings or tori); unchecked: look for them | boolean checkbox |
+| `mesh_intervals` (NTST) | mesh intervals of a periodic orbit or boundary value solution; raise it when a periodic branch looks wrong or does not converge (doubled when following a period doubling) | whole number, at least 1 |
+| `max_steps` (NMX) | the most steps a branch may take; it ends (EP) at this many points | whole number, at least 1 |
+| `output_every` (NPR) | label and save the whole solution every this many points, besides the special points | whole number, at least 1 |
+| `collocation_points` (NCOL) | collocation points per mesh interval | whole number, 2 to 7 (4 is usual) |
+| `step_size` (DS) | the first step; its sign is the direction the main parameter goes | not 0, from `min_step_size` to `max_step_size` in size |
+| `min_step_size` (DSMIN) | the smallest step: a point that does not converge is retried with half the step until it would go below this, then the branch ends (MX) | above 0, at most `max_step_size` |
+| `max_step_size` (DSMAX) | the largest step; too large jumps over folds and Hopf points | above 0 |
+| `parameter_min`, `parameter_max` (RL0, RL1) | the main parameter's range: a branch that leaves it ends (EP) | `parameter_min` below `parameter_max` |
+| `norm_min`, `norm_max` (A0, A1) | the norm's range: a branch whose norm leaves it ends (EP) | `norm_min` below `norm_max` |
+| `parameter_tolerance`, `state_tolerance` (EPSL, EPSU) | Newton's relative convergence tolerances for the parameters and the solution | above 0, often 1e-4 to 1e-7 |
+| `special_point_tolerance` (EPSS) | how closely special points are located; usually 100 to 1000 times the two tolerances | above 0 |
+| `mesh_adapt_every` (IAD) | adapt a periodic orbit's mesh every this many steps; 0 keeps it fixed | whole number, 0 or more (3 is usual) |
+| `max_branch_switches` (MXBF) | steady states: at how many branch points AUTO follows the other branch by itself; 0: none | whole number, 0 or more |
+| `switch_one_direction` (MXBF below 0) | the branches AUTO switches to by itself are followed in one direction only (checked) or in both (unchecked) | boolean |
+| `output_detail` (IID) | how much AUTO writes to its diagnostics (.d file): `none`, `little`, `normal` (the usual), `start_jacobian` (also the Jacobian and residuals of the start), `extensive`, `debugging` | one of the six names |
+| `max_location_iterations` (ITMX) | the most iterations locating a special point | whole number, at least 1 |
+| `max_newton_iterations` (ITNW) | the most Newton iterations for a point, before the step is halved (`step_adapt_every` above 0) or the branch ends | whole number, at least 1 |
+| `full_newton_after` (NWTN) | after this many iterations the Jacobian is kept (chord method) | whole number, at least 1 |
+| `step_adapt_every` (IADS) | adapt the step every this many steps; 0 keeps it at `step_size`, and a point that does not converge then ends the branch (MX) | whole number, 0 or more (1 is usual) |
+| `suppress_branch_points` (SuppBP) | checked: do not look for branch points (and for periodic orbits no Floquet multipliers, period doublings or tori); unchecked: look for them | boolean checkbox |
 
 Below the three groups the dialog has a fourth, **Computer**, with one choice,
 **Threads**: how many threads AUTO uses to compute a periodic orbit or a
@@ -283,55 +290,55 @@ folder (as `auto_threads: auto` or `auto_threads: 4`), applies to every model
 and every run, and is not in a session file. A model that is interpreted, not
 compiled, or that uses random numbers or delays computes on one thread
 whatever the count. Small collocation problems also compute on one thread:
-AUTO uses workers once `dimension * dimension * Ntst * Ncol` reaches 1024. This avoids
+AUTO uses workers once `dimension * dimension * mesh_intervals * collocation_points` reaches 1024. This avoids
 the overhead of workers on a small mesh; the selected preference and the
 results stay the same.
 
 The session keeps every AUTO setting under `auto/settings.txt`, with
-the protocol keys (`nmx`, `ntst`, ...); Reload keeps them too.
-The original window had the following items:
+the names above (`max_steps`, `mesh_intervals`, ...); Reload keeps them too.
+The original window had the following items, under AUTO's names:
 
-### Ntst
+### Mesh intervals (NTST)
 
 This is the number of mesh intervals for discretization of periodic orbits. If you are getting apparently bad results or not converging, it helps to increase this. For following period doubling bifurcations, it is automatically doubled so you should reset it later.
 
-### Nmax
+### Max steps (NMX)
 
 The maximum number of steps taken along any branch. If you max out, make this bigger.
 
-### Npr
+### Output every (NPR)
 
-Give complete info every `Npr` steps.
+Give complete info every this many steps.
 
-### Ds
+### Step size (DS)
 
-This is the initial step size for the bifurcation calculation. *The sign of `Ds` tells AUTO the direction to change the parameter.* Since stepsize is adaptive, `Ds` is just a “suggestion.”
+This is the initial step size for the bifurcation calculation. *The sign of `step_size` tells AUTO the direction to change the parameter.* Since stepsize is adaptive, `step_size` is just a “suggestion.”
 
-### Dsmin
+### Min step size (DSMIN)
 
 The minimum stepsize (positive).
 
-### Dsmax
+### Max step size (DSMAX)
 
 The maximum step size. If this is too big, AUTO will sometimes miss important points.
 
-### Par Min
+### Parameter min (RL0)
 
 This is the left-hand limit of the diagram for the principle parameter. The calculation will stop if the parameter is less than this.
 
-### Par Max
+### Parameter max (RL1)
 
 This is the right-hand limit of the diagram for the principle parameter. The calculation will stop if the parameter is greater than this.
 
-### Norm Min
+### Norm min (A0)
 
 The lower bound for the $`L_2`$ norm of the solution. If it is less than this the calculation will stop.
 
-### Norm Max
+### Norm max (A1)
 
 The upper bound for the $`L_2`$ norm of the solution. If it is greater than this the calculation will stop.
 
-For the present model, you should set `Dsmax` to be 0.05, `Par Min` to -0.45 and `Par Max` to 0.45.
+For the present model, you should set `max_step_size` to be 0.05, `parameter_min` to -0.45 and `parameter_max` to 0.45.
 
 ## User functions
 
@@ -361,8 +368,8 @@ The diagram,itself, has two different lines and two different circles. Stable fi
 
 ### End of branch (EP)
 
-Where a branch starts or ends normally: a limit (Par Min/Max, Norm
-Min/Max), Max points, Stop or a Mark value set to stop. The status strip
+Where a branch starts or ends normally: a limit (`parameter_min`/`parameter_max`,
+`norm_min`/`norm_max`), `max_steps`, Stop or a Mark value set to stop. The status strip
 and Output say which (see "Why a branch stopped").
 
 ### No convergence (MX)
@@ -424,7 +431,7 @@ crosses the unit circle.
 A point where a parameter, or the period T, reaches one of the Mark values
 (user functions).
 
-- : Output every $`Npr^{th}`$ point.
+- : Output every `output_every`-th point.
 
 ## Why a branch stopped
 
@@ -438,18 +445,18 @@ next to the end point's label when you hover it, and as `autoinfo`'s
 
 | Stopped: | Why | What to change to go further |
 |---|---|---|
-| parameter *p* reached Par Min / Par Max (*value*) | the main parameter left the range in Numerics | Par Min / Par Max (RL0 / RL1) |
-| the norm reached Norm Min / Norm Max (*value*) | the solution's norm left its range | Norm Min / Norm Max (A0 / A1) |
-| the branch reached Max points (NMX *n*) | the branch has as many points as Max points allows | Max points (NMX), or a larger Largest step (DSMAX) |
+| parameter *p* reached parameter_min / parameter_max (*value*) | the main parameter left the range in Numerics | `parameter_min` / `parameter_max` (RL0 / RL1) |
+| the norm reached norm_min / norm_max (*value*) | the solution's norm left its range | `norm_min` / `norm_max` (A0 / A1) |
+| the branch reached max_steps (*n*) | the branch has as many points as `max_steps` allows | `max_steps` (NMX), or a larger `max_step_size` (DSMAX) |
 | by the user (Stop) | Stop (or the view's Close) during the run | Run again from the end point |
 | the exact Jacobian is not finite (see the error) | with Numerics' Jacobian set to exact, a derivative was not finite where the right-hand side is (sqrt or log at 0, 1/x at 0); the run stopped as a Stop does, on an end point | the error offers "Switch to differences and continue": it sets the Jacobian to difference and runs again from that end point with the same settings |
 | parameter *p* reached a Mark value set to stop | a user point marked as an end (AUTO's UZR endpoint) | the Mark values |
-| no convergence even at the smallest step (Dsmin *value*) | the solver failed and halving the step reached Smallest step (DSMIN): a sharp turn, a jump, or a singular point (MX) | a smaller DSMIN or DSMAX, a larger NTST, looser tolerances |
-| no convergence with a fixed step size (IADS 0) | the solver failed and Adapt step every (IADS) is 0, so the step is not reduced (MX) | IADS 1 |
+| no convergence even at the smallest step (min_step_size *value*) | the solver failed and halving the step reached `min_step_size` (DSMIN): a sharp turn, a jump, or a singular point (MX) | a smaller `min_step_size` or `max_step_size`, a larger `mesh_intervals`, looser tolerances |
+| no convergence with a fixed step size (step_adapt_every 0) | the solver failed and `step_adapt_every` (IADS) is 0, so the step is not reduced (MX) | `step_adapt_every` 1 |
 | no convergence switching branches, ... | the same while starting a bifurcating branch at a branch point | as above |
 
 A no convergence's words also name the Newton settings that gave up
-(ITNW, EPSL, EPSU) and, when the last linear system was singular, its
+(`max_newton_iterations`, `parameter_tolerance`, `state_tolerance`) and, when the last linear system was singular, its
 smallest pivot. Recording the reason changes nothing AUTO computes: the
 points, labels and saved diagrams are the same as before.
 
@@ -461,10 +468,10 @@ before what they should hold (the label, the file and the part).
 What a run loses on the way is a warning in Output (and `autoinfo`'s
 `notes` for a client), the branch going on: a special point AUTO gave up
 locating ("Br 1 Pt 12: a fold (LP) between points 12 and 13 was not
-located (not in ITMX=8 iterations); it is missing from the diagram":
-raise ITMX, or lower DSMAX), and Floquet multipliers that turn inaccurate
+located (not in max_location_iterations = 8 iterations); it is missing from the diagram":
+raise `max_location_iterations`, or lower `max_step_size`), and Floquet multipliers that turn inaccurate
 (period doubling and torus detection are off until they are accurate
-again: raise NTST or NCOL).
+again: raise `mesh_intervals` or `collocation_points`).
 
 ## Grabbing
 

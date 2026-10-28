@@ -42,37 +42,48 @@ constexpr int PARAM_BOX = 1; /* find_user_name's parameters */
 enum class Rule { any, positive, nonzero, range };
 
 struct NumField {
-    const char *key, *label;
-    bool integer;
+    const char *key;
+    AutoFieldShape shape;
     Rule rule;
-    double lo, hi; /* Rule::range, inclusive */
+    double lo, hi; /* Rule::range, inclusive; a boolean's and a choice's index range too */
 };
+
+constexpr int output_detail_levels = static_cast<int>(auto_output_detail_names.size());
 
 /* the Numerics form's fields and what AUTO accepts for each */
 constexpr NumField num_fields[AUTO_NUM_N] = {
-    {"ntst", "Ntst", true, Rule::range, 1, auto_max_mesh_intervals},
-    {"nmx", "Nmax", true, Rule::range, 1, INT_MAX},
-    {"npr", "NPr", true, Rule::range, 1, INT_MAX},
-    {"ncol", "Ncol", true, Rule::range, auto_min_collocation_points, auto_max_collocation_points},
-    {"ds", "Ds", false, Rule::nonzero, 0, 0},
-    {"dsmin", "Dsmin", false, Rule::positive, 0, 0},
-    {"dsmax", "Dsmax", false, Rule::positive, 0, 0},
-    {"rl0", "Par Min", false, Rule::any, 0, 0},
-    {"rl1", "Par Max", false, Rule::any, 0, 0},
-    {"a0", "Norm Min", false, Rule::any, 0, 0},
-    {"a1", "Norm Max", false, Rule::any, 0, 0},
-    {"epsl", "EPSL", false, Rule::positive, 0, 0},
-    {"epsu", "EPSU", false, Rule::positive, 0, 0},
-    {"epss", "EPSS", false, Rule::positive, 0, 0},
-    {"iad", "IAD", true, Rule::range, 0, INT_MAX},
-    {"mxbf", "MXBF", true, Rule::range, INT_MIN, INT_MAX},
-    {"iid", "IID", true, Rule::range, 0, 5},
-    {"itmx", "ITMX", true, Rule::range, 1, INT_MAX},
-    {"itnw", "ITNW", true, Rule::range, 1, INT_MAX},
-    {"nwtn", "NWTN", true, Rule::range, 1, INT_MAX},
-    {"iads", "IADS", true, Rule::range, 0, INT_MAX},
-    {"suppbp", "SuppBP", true, Rule::range, 0, 1},
+    {"mesh_intervals", AutoFieldShape::whole, Rule::range, 1, auto_max_mesh_intervals},
+    {"max_steps", AutoFieldShape::whole, Rule::range, 1, INT_MAX},
+    {"output_every", AutoFieldShape::whole, Rule::range, 1, INT_MAX},
+    {"collocation_points", AutoFieldShape::whole, Rule::range, auto_min_collocation_points, auto_max_collocation_points},
+    {"step_size", AutoFieldShape::real, Rule::nonzero, 0, 0},
+    {"min_step_size", AutoFieldShape::real, Rule::positive, 0, 0},
+    {"max_step_size", AutoFieldShape::real, Rule::positive, 0, 0},
+    {"parameter_min", AutoFieldShape::real, Rule::any, 0, 0},
+    {"parameter_max", AutoFieldShape::real, Rule::any, 0, 0},
+    {"norm_min", AutoFieldShape::real, Rule::any, 0, 0},
+    {"norm_max", AutoFieldShape::real, Rule::any, 0, 0},
+    {"parameter_tolerance", AutoFieldShape::real, Rule::positive, 0, 0},
+    {"state_tolerance", AutoFieldShape::real, Rule::positive, 0, 0},
+    {"special_point_tolerance", AutoFieldShape::real, Rule::positive, 0, 0},
+    {"mesh_adapt_every", AutoFieldShape::whole, Rule::range, 0, INT_MAX},
+    {"max_branch_switches", AutoFieldShape::whole, Rule::range, 0, INT_MAX},
+    {"switch_one_direction", AutoFieldShape::boolean, Rule::range, 0, 1},
+    {"output_detail", AutoFieldShape::choice, Rule::range, 0, output_detail_levels - 1},
+    {"max_location_iterations", AutoFieldShape::whole, Rule::range, 1, INT_MAX},
+    {"max_newton_iterations", AutoFieldShape::whole, Rule::range, 1, INT_MAX},
+    {"full_newton_after", AutoFieldShape::whole, Rule::range, 1, INT_MAX},
+    {"step_adapt_every", AutoFieldShape::whole, Rule::range, 0, INT_MAX},
+    {"suppress_branch_points", AutoFieldShape::boolean, Rule::range, 0, 1},
 };
+
+/* the names a choice field takes */
+std::span<const std::string_view> choices_of(int i)
+{
+    return i == AUTO_NUM_OUTPUT_DETAIL ? std::span<const std::string_view>(auto_output_detail_names) : std::span<const std::string_view>();
+}
+
+bool is_whole(const NumField &f) { return f.shape != AutoFieldShape::real; }
 
 /* the values that must be in order: lo below hi (strict) or at most hi */
 struct NumPair {
@@ -80,45 +91,59 @@ struct NumPair {
     bool strict;
 };
 constexpr NumPair num_pairs[] = {
-    {AUTO_NUM_DSMIN, AUTO_NUM_DSMAX, false}, {AUTO_NUM_RL0, AUTO_NUM_RL1, true}, {AUTO_NUM_A0, AUTO_NUM_A1, true}};
+    {AUTO_NUM_MIN_STEP_SIZE, AUTO_NUM_MAX_STEP_SIZE, false}, {AUTO_NUM_PARAMETER_MIN, AUTO_NUM_PARAMETER_MAX, true},
+    {AUTO_NUM_NORM_MIN, AUTO_NUM_NORM_MAX, true}};
 /* the first step within the step sizes AUTO may take (T23), whichever its sign */
-constexpr const char *step_rule = "Ds must be from Dsmin to Dsmax in size (its sign is the direction)";
+std::string step_rule()
+{
+    return xpp::format("The size of {} must be from {} to {} (its sign is the direction)", name_label(num_fields[AUTO_NUM_STEP_SIZE].key),
+                       name_label(num_fields[AUTO_NUM_MIN_STEP_SIZE].key), name_label(num_fields[AUTO_NUM_MAX_STEP_SIZE].key));
+}
 
 /* what a field takes, as the refusal of a value it does not take says it
    (the event sends it, so the page says the same before it sends) */
 std::string rule_message(const NumField &f)
 {
-    const std::string whole = f.integer ? "a whole number" : "a number";
+    const std::string label = name_label(f.key);
+    if (f.shape == AutoFieldShape::boolean) return xpp::format("{} must be true or false", label);
+    if (f.shape == AutoFieldShape::choice) {
+        std::string words;
+        for (const std::string_view name : choices_of(static_cast<int>(&f - num_fields))) words += xpp::format("{}{}", words.empty() ? "" : ", ", name);
+        return xpp::format("{} must be one of {}", label, words);
+    }
+    const std::string whole = f.shape == AutoFieldShape::whole ? "a whole number" : "a number";
     switch (f.rule) {
     case Rule::positive:
-        return xpp::format("{} must be a number above 0", f.label);
+        return xpp::format("{} must be a number above 0", label);
     case Rule::nonzero:
-        return xpp::format("{} must be a number other than 0", f.label);
+        return xpp::format("{} must be a number other than 0", label);
     case Rule::range:
         if (f.lo == INT_MIN && f.hi == INT_MAX) break;
-        if (f.hi == INT_MAX) return xpp::format("{} must be {} of at least {}", f.label, whole, static_cast<long>(f.lo));
-        return xpp::format("{} must be {} from {} to {}", f.label, whole, static_cast<long>(f.lo), static_cast<long>(f.hi));
+        if (f.hi == INT_MAX) return xpp::format("{} must be {} of at least {}", label, whole, static_cast<long>(f.lo));
+        return xpp::format("{} must be {} from {} to {}", label, whole, static_cast<long>(f.lo), static_cast<long>(f.hi));
     case Rule::any:
         break;
     }
-    return xpp::format("{} must be {}", f.label, whole);
+    return xpp::format("{} must be {}", label, whole);
 }
 
 std::string pair_message(const NumPair &p)
 {
-    return xpp::format("{} must be {} {}", num_fields[p.lo].label, p.strict ? "below" : "at most", num_fields[p.hi].label);
+    return xpp::format("{} must be {} {}", name_label(num_fields[p.lo].key), p.strict ? "below" : "at most", name_label(num_fields[p.hi].key));
 }
 
 /* ---- the settings now ---- */
 
 void read_num(const xpp::Session &s, double v[AUTO_NUM_N])
 {
+    const xpp::BIFUR &b = s.auto_state.bifur;
+    const xpp::ADVAUTO &a = s.auto_state.advanced;
     const double now[AUTO_NUM_N] = {
-        static_cast<double>(s.auto_state.bifur.ntst), static_cast<double>(s.auto_state.bifur.nmx), static_cast<double>(s.auto_state.bifur.npr),
-        static_cast<double>(s.auto_state.bifur.ncol), s.auto_state.bifur.ds, s.auto_state.bifur.dsmin, s.auto_state.bifur.dsmax, s.auto_state.bifur.rl0, s.auto_state.bifur.rl1, s.auto_state.bifur.a0, s.auto_state.bifur.a1,
-        s.auto_state.bifur.epsl, s.auto_state.bifur.epsu, s.auto_state.bifur.epss, static_cast<double>(s.auto_state.advanced.iad), static_cast<double>(s.auto_state.advanced.mxbf),
-        static_cast<double>(s.auto_state.advanced.iid), static_cast<double>(s.auto_state.advanced.itmx), static_cast<double>(s.auto_state.advanced.itnw),
-        static_cast<double>(s.auto_state.advanced.nwtn), static_cast<double>(s.auto_state.advanced.iads), s.auto_state.suppress_bp ? 1.0 : 0.0,
+        static_cast<double>(b.ntst), static_cast<double>(b.nmx), static_cast<double>(b.npr), static_cast<double>(b.ncol),
+        b.ds, b.dsmin, b.dsmax, b.rl0, b.rl1, b.a0, b.a1, b.epsl, b.epsu, b.epss,
+        static_cast<double>(a.iad), static_cast<double>(a.max_branch_switches), a.switch_one_direction ? 1.0 : 0.0,
+        static_cast<double>(a.iid), static_cast<double>(a.itmx), static_cast<double>(a.itnw), static_cast<double>(a.nwtn),
+        static_cast<double>(a.iads), s.auto_state.suppress_bp ? 1.0 : 0.0,
     };
     std::memcpy(v, now, sizeof now);
 }
@@ -126,28 +151,31 @@ void read_num(const xpp::Session &s, double v[AUTO_NUM_N])
 void write_num(xpp::Session &s, const double v[AUTO_NUM_N])
 {
     auto i = [&](int k) { return static_cast<int>(v[k]); };
-    s.auto_state.bifur.ntst = i(AUTO_NUM_NTST);
-    s.auto_state.bifur.nmx = i(AUTO_NUM_NMX);
-    s.auto_state.bifur.npr = i(AUTO_NUM_NPR);
-    s.auto_state.bifur.ncol = i(AUTO_NUM_NCOL);
-    s.auto_state.bifur.ds = v[AUTO_NUM_DS];
-    s.auto_state.bifur.dsmin = v[AUTO_NUM_DSMIN];
-    s.auto_state.bifur.dsmax = v[AUTO_NUM_DSMAX];
-    s.auto_state.bifur.rl0 = v[AUTO_NUM_RL0];
-    s.auto_state.bifur.rl1 = v[AUTO_NUM_RL1];
-    s.auto_state.bifur.a0 = v[AUTO_NUM_A0];
-    s.auto_state.bifur.a1 = v[AUTO_NUM_A1];
-    s.auto_state.bifur.epsl = v[AUTO_NUM_EPSL];
-    s.auto_state.bifur.epsu = v[AUTO_NUM_EPSU];
-    s.auto_state.bifur.epss = v[AUTO_NUM_EPSS];
-    s.auto_state.advanced.iad = i(AUTO_NUM_IAD);
-    s.auto_state.advanced.mxbf = i(AUTO_NUM_MXBF);
-    s.auto_state.advanced.iid = i(AUTO_NUM_IID);
-    s.auto_state.advanced.itmx = i(AUTO_NUM_ITMX);
-    s.auto_state.advanced.itnw = i(AUTO_NUM_ITNW);
-    s.auto_state.advanced.nwtn = i(AUTO_NUM_NWTN);
-    s.auto_state.advanced.iads = i(AUTO_NUM_IADS);
-    s.auto_state.suppress_bp = i(AUTO_NUM_SUPPBP) != 0;
+    xpp::BIFUR &b = s.auto_state.bifur;
+    xpp::ADVAUTO &a = s.auto_state.advanced;
+    b.ntst = i(AUTO_NUM_MESH_INTERVALS);
+    b.nmx = i(AUTO_NUM_MAX_STEPS);
+    b.npr = i(AUTO_NUM_OUTPUT_EVERY);
+    b.ncol = i(AUTO_NUM_COLLOCATION_POINTS);
+    b.ds = v[AUTO_NUM_STEP_SIZE];
+    b.dsmin = v[AUTO_NUM_MIN_STEP_SIZE];
+    b.dsmax = v[AUTO_NUM_MAX_STEP_SIZE];
+    b.rl0 = v[AUTO_NUM_PARAMETER_MIN];
+    b.rl1 = v[AUTO_NUM_PARAMETER_MAX];
+    b.a0 = v[AUTO_NUM_NORM_MIN];
+    b.a1 = v[AUTO_NUM_NORM_MAX];
+    b.epsl = v[AUTO_NUM_PARAMETER_TOLERANCE];
+    b.epsu = v[AUTO_NUM_STATE_TOLERANCE];
+    b.epss = v[AUTO_NUM_SPECIAL_POINT_TOLERANCE];
+    a.iad = i(AUTO_NUM_MESH_ADAPT_EVERY);
+    a.max_branch_switches = i(AUTO_NUM_MAX_BRANCH_SWITCHES);
+    a.switch_one_direction = i(AUTO_NUM_SWITCH_ONE_DIRECTION) != 0;
+    a.iid = i(AUTO_NUM_OUTPUT_DETAIL);
+    a.itmx = i(AUTO_NUM_MAX_LOCATION_ITERATIONS);
+    a.itnw = i(AUTO_NUM_MAX_NEWTON_ITERATIONS);
+    a.nwtn = i(AUTO_NUM_FULL_NEWTON_AFTER);
+    a.iads = i(AUTO_NUM_STEP_ADAPT_EVERY);
+    s.auto_state.suppress_bp = i(AUTO_NUM_SUPPRESS_BRANCH_POINTS) != 0;
 }
 
 /* ---- the event ---- */
@@ -196,7 +224,8 @@ std::string event_text(const xpp::Session &s)
     std::string o = "{\"ev\":\"autosettings\",\"numerics\":{";
     for (int i = 0; i < AUTO_NUM_N; i++) {
         o += xpp::format("{}\"{}\":", i ? "," : "", num_fields[i].key);
-        if(i==AUTO_NUM_SUPPBP) o+=set.num[i]!=0 ? "true" : "false";
+        if (num_fields[i].shape == AutoFieldShape::boolean) o += set.num[i] != 0 ? "true" : "false";
+        else if (num_fields[i].shape == AutoFieldShape::choice) xpp::json_append_string(o, auto_settings_num_text(i, set.num[i]).c_str());
         else add_num(o, set.num[i]);
     }
     o += xpp::format("}},\"axes\":{{\"plot\":\"{}\",\"var\":", auto_projection_name(*set.plot));
@@ -233,13 +262,23 @@ std::string event_text(const xpp::Session &s)
     for (int i = 0; i < AUTO_NUM_N; i++) {
         const NumField &f = num_fields[i];
         o += xpp::format("{}\"{}\":{{\"label\":", i ? "," : "", f.key);
-        xpp::json_append_string(o, f.label);
-        if (i==AUTO_NUM_SUPPBP) o += ",\"boolean\":true";
-        if (f.integer && i!=AUTO_NUM_SUPPBP) o += ",\"integer\":true";
+        xpp::json_append_string(o, name_label(f.key));
+        if (f.shape == AutoFieldShape::boolean) o += ",\"boolean\":true";
+        if (f.shape == AutoFieldShape::choice) {
+            o += ",\"choices\":[";
+            bool first = true;
+            for (const std::string_view name : choices_of(i)) {
+                if (!first) o += ',';
+                first = false;
+                xpp::json_append_string(o, name);
+            }
+            o += ']';
+        }
+        if (f.shape == AutoFieldShape::whole) o += ",\"integer\":true";
         if (f.rule == Rule::positive) o += ",\"positive\":true";
         if (f.rule == Rule::nonzero) o += ",\"nonzero\":true";
-        if (f.rule == Rule::range && f.lo != INT_MIN) o += xpp::format(",\"min\":{}", static_cast<long>(f.lo));
-        if (f.rule == Rule::range && f.hi != INT_MAX) o += xpp::format(",\"max\":{}", static_cast<long>(f.hi));
+        if (f.shape == AutoFieldShape::whole && f.rule == Rule::range && f.lo != INT_MIN) o += xpp::format(",\"min\":{}", static_cast<long>(f.lo));
+        if (f.shape == AutoFieldShape::whole && f.rule == Rule::range && f.hi != INT_MAX) o += xpp::format(",\"max\":{}", static_cast<long>(f.hi));
         o += ",\"message\":";
         xpp::json_append_string(o, rule_message(f).c_str());
         o += '}';
@@ -251,9 +290,9 @@ std::string event_text(const xpp::Session &s)
         xpp::json_append_string(o, pair_message(p).c_str());
         o += '}';
     }
-    o += xpp::format("],\"step\":{{\"key\":\"{}\",\"lo\":\"{}\",\"hi\":\"{}\",\"message\":", num_fields[AUTO_NUM_DS].key,
-                     num_fields[AUTO_NUM_DSMIN].key, num_fields[AUTO_NUM_DSMAX].key);
-    xpp::json_append_string(o, step_rule);
+    o += xpp::format("],\"step\":{{\"key\":\"{}\",\"lo\":\"{}\",\"hi\":\"{}\",\"message\":", num_fields[AUTO_NUM_STEP_SIZE].key,
+                     num_fields[AUTO_NUM_MIN_STEP_SIZE].key, num_fields[AUTO_NUM_MAX_STEP_SIZE].key);
+    xpp::json_append_string(o, step_rule());
     o += "}}";
     return o;
 }
@@ -268,7 +307,7 @@ bool num_ok(int i, double v, std::string &why)
         return false;
     }
     const NumField &f = num_fields[i];
-    bool ok = std::isfinite(v) && !(f.integer && (v != std::floor(v) || v < INT_MIN || v > INT_MAX));
+    bool ok = std::isfinite(v) && !(is_whole(f) && (v != std::floor(v) || v < INT_MIN || v > INT_MAX));
     if (ok && f.rule == Rule::positive) ok = v > 0;
     if (ok && f.rule == Rule::nonzero) ok = v != 0;
     if (ok && f.rule == Rule::range) ok = v >= f.lo && v <= f.hi;
@@ -449,7 +488,46 @@ std::string auto_settings_event_line(const xpp::Session &s) { return have_settin
 
 const char *auto_settings_num_key(int i) { return i >= 0 && i < AUTO_NUM_N ? num_fields[i].key : nullptr; }
 
-const char *auto_settings_num_label(int i) { return i >= 0 && i < AUTO_NUM_N ? num_fields[i].label : nullptr; }
+std::string auto_settings_num_label(int i) { return i >= 0 && i < AUTO_NUM_N ? name_label(num_fields[i].key) : std::string(); }
+
+AutoFieldShape auto_settings_num_shape(int i) { return num_fields[i].shape; }
+
+std::span<const std::string_view> auto_settings_num_choices(int i) { return choices_of(i); }
+
+std::string auto_settings_num_text(int i, double v)
+{
+    switch (num_fields[i].shape) {
+    case AutoFieldShape::boolean: return v != 0 ? "true" : "false";
+    case AutoFieldShape::choice: return std::string(choices_of(i)[static_cast<std::size_t>(v)]);
+    case AutoFieldShape::whole:
+    case AutoFieldShape::real: break;
+    }
+    return xpp::number(v);
+}
+
+Result<double> auto_settings_num_parse(int i, std::string_view text)
+{
+    const NumField &f = num_fields[i];
+    double v = 0;
+    switch (f.shape) {
+    case AutoFieldShape::boolean: {
+        bool enabled;
+        if (!xpp::parse_bool(text, enabled)) return std::unexpected(refused(rule_message(f), f.key));
+        return enabled ? 1.0 : 0.0;
+    }
+    case AutoFieldShape::choice: {
+        const auto names = choices_of(i);
+        const auto at = std::find(names.begin(), names.end(), text);
+        if (at == names.end()) return std::unexpected(refused(xpp::format("{}, not \"{}\"", rule_message(f), text), f.key));
+        return static_cast<double>(at - names.begin());
+    }
+    case AutoFieldShape::whole:
+    case AutoFieldShape::real:
+        if (!xpp::parse_number(text, v) || !std::isfinite(v)) return std::unexpected(refused(xpp::format("{} must be {}", name_label(f.key), is_whole(f) ? "a whole number" : "a number"), f.key));
+        return v;
+    }
+    return v;
+}
 
 void auto_threads_load(Session &s)
 {
@@ -530,9 +608,9 @@ Result<> auto_settings_numbers_check(std::span<const double, AUTO_NUM_N> num,
         if (p.strict ? num[p.lo] < num[p.hi] : num[p.lo] <= num[p.hi]) continue;
         return std::unexpected(refused(xpp::format("{} ({}={}, {}={})", pair_message(p), num_fields[p.lo].key, num[p.lo], num_fields[p.hi].key, num[p.hi]), num_fields[supplied[p.hi] ? p.hi : p.lo].key));
     }
-    if ((supplied[AUTO_NUM_DS] || supplied[AUTO_NUM_DSMIN] || supplied[AUTO_NUM_DSMAX])
-        && !(std::fabs(num[AUTO_NUM_DS]) >= num[AUTO_NUM_DSMIN] && std::fabs(num[AUTO_NUM_DS]) <= num[AUTO_NUM_DSMAX])) {
-        return std::unexpected(refused(xpp::format("{} (ds={}, dsmin={}, dsmax={})", step_rule, num[AUTO_NUM_DS], num[AUTO_NUM_DSMIN], num[AUTO_NUM_DSMAX]), num_fields[supplied[AUTO_NUM_DS] ? AUTO_NUM_DS : supplied[AUTO_NUM_DSMIN] ? AUTO_NUM_DSMIN : AUTO_NUM_DSMAX].key));
+    if ((supplied[AUTO_NUM_STEP_SIZE] || supplied[AUTO_NUM_MIN_STEP_SIZE] || supplied[AUTO_NUM_MAX_STEP_SIZE])
+        && !(std::fabs(num[AUTO_NUM_STEP_SIZE]) >= num[AUTO_NUM_MIN_STEP_SIZE] && std::fabs(num[AUTO_NUM_STEP_SIZE]) <= num[AUTO_NUM_MAX_STEP_SIZE])) {
+        return std::unexpected(refused(xpp::format("{} ({}={}, {}={}, {}={})", step_rule(), num_fields[AUTO_NUM_STEP_SIZE].key, num[AUTO_NUM_STEP_SIZE], num_fields[AUTO_NUM_MIN_STEP_SIZE].key, num[AUTO_NUM_MIN_STEP_SIZE], num_fields[AUTO_NUM_MAX_STEP_SIZE].key, num[AUTO_NUM_MAX_STEP_SIZE]), num_fields[supplied[AUTO_NUM_STEP_SIZE] ? AUTO_NUM_STEP_SIZE : supplied[AUTO_NUM_MIN_STEP_SIZE] ? AUTO_NUM_MIN_STEP_SIZE : AUTO_NUM_MAX_STEP_SIZE].key));
     }
     return {};
 }

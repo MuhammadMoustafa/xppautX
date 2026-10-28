@@ -8,6 +8,7 @@
 #include "model.h"
 #include "auto_nox.h"
 #include "auto_settings.h"
+#include "xpp_util.h"
 
 #include <cmath>
 #include <cstring>
@@ -56,51 +57,66 @@ int main()
     std::string why;
     load_model();
 
-    CHECK(ok(xpp::AUTO_NUM_NCOL, 2) && ok(xpp::AUTO_NUM_NCOL, 7));
-    CHECK(!ok(xpp::AUTO_NUM_NCOL, 1) && !ok(xpp::AUTO_NUM_NCOL, 8));
-    CHECK(!ok(xpp::AUTO_NUM_NTST, 0) && !ok(xpp::AUTO_NUM_NTST, 2.5) && ok(xpp::AUTO_NUM_NTST, 50));
-    CHECK(!ok(xpp::AUTO_NUM_NTST, xpp::auto_max_mesh_intervals + 1));
-    CHECK(ok(xpp::AUTO_NUM_NTST, xpp::auto_max_mesh_intervals));
-    CHECK(!ok(xpp::AUTO_NUM_DS, 0) && ok(xpp::AUTO_NUM_DS, -0.01));
-    CHECK(!ok(xpp::AUTO_NUM_EPSL, 0) && ok(xpp::AUTO_NUM_EPSL, 1e-7));
-    CHECK(ok(xpp::AUTO_NUM_RL0, -1e6) && !ok(xpp::AUTO_NUM_RL0, HUGE_VAL));
-    CHECK(ok(xpp::AUTO_NUM_MXBF, -5) && ok(xpp::AUTO_NUM_SUPPBP, 1) && !ok(xpp::AUTO_NUM_SUPPBP, 2));
-    CHECK(!ok(xpp::AUTO_NUM_NMX, 3e9)); /* no int holds it */
-    xpp::auto_settings_num_ok(xpp::AUTO_NUM_NCOL, 9, num_why);
-    CHECK_STR(num_why.c_str(), "ncol=9: Ncol must be a whole number from 2 to 7");
-    CHECK_STR(xpp::auto_settings_num_key(xpp::AUTO_NUM_RL0), "rl0");
-    CHECK_STR(xpp::auto_settings_num_label(xpp::AUTO_NUM_RL0), "Par Min");
+    CHECK(ok(xpp::AUTO_NUM_COLLOCATION_POINTS, 2) && ok(xpp::AUTO_NUM_COLLOCATION_POINTS, 7));
+    CHECK(!ok(xpp::AUTO_NUM_COLLOCATION_POINTS, 1) && !ok(xpp::AUTO_NUM_COLLOCATION_POINTS, 8));
+    CHECK(!ok(xpp::AUTO_NUM_MESH_INTERVALS, 0) && !ok(xpp::AUTO_NUM_MESH_INTERVALS, 2.5) && ok(xpp::AUTO_NUM_MESH_INTERVALS, 50));
+    CHECK(!ok(xpp::AUTO_NUM_MESH_INTERVALS, xpp::auto_max_mesh_intervals + 1));
+    CHECK(ok(xpp::AUTO_NUM_MESH_INTERVALS, xpp::auto_max_mesh_intervals));
+    CHECK(!ok(xpp::AUTO_NUM_STEP_SIZE, 0) && ok(xpp::AUTO_NUM_STEP_SIZE, -0.01));
+    CHECK(!ok(xpp::AUTO_NUM_PARAMETER_TOLERANCE, 0) && ok(xpp::AUTO_NUM_PARAMETER_TOLERANCE, 1e-7));
+    CHECK(ok(xpp::AUTO_NUM_PARAMETER_MIN, -1e6) && !ok(xpp::AUTO_NUM_PARAMETER_MIN, HUGE_VAL));
+    CHECK(ok(xpp::AUTO_NUM_MAX_BRANCH_SWITCHES, 5) && !ok(xpp::AUTO_NUM_MAX_BRANCH_SWITCHES, -5));
+    CHECK(ok(xpp::AUTO_NUM_SWITCH_ONE_DIRECTION, 1) && ok(xpp::AUTO_NUM_SUPPRESS_BRANCH_POINTS, 1) && !ok(xpp::AUTO_NUM_SUPPRESS_BRANCH_POINTS, 2));
+    CHECK(ok(xpp::AUTO_NUM_OUTPUT_DETAIL, 5) && !ok(xpp::AUTO_NUM_OUTPUT_DETAIL, 6));
+    CHECK(!ok(xpp::AUTO_NUM_MAX_STEPS, 3e9)); /* no int holds it */
+    xpp::auto_settings_num_ok(xpp::AUTO_NUM_COLLOCATION_POINTS, 9, num_why);
+    CHECK_STR(num_why.c_str(), "collocation_points=9: Collocation points must be a whole number from 2 to 7");
+    CHECK_STR(xpp::auto_settings_num_key(xpp::AUTO_NUM_PARAMETER_MIN), "parameter_min");
+    CHECK_STR(xpp::auto_settings_num_label(xpp::AUTO_NUM_PARAMETER_MIN).c_str(), "Parameter min");
     CHECK(xpp::auto_settings_num_key(xpp::AUTO_NUM_N) == nullptr);
+
+    /* W531: a name's label is derived from it; a choice and a boolean are written and read by their words */
+    CHECK_STR(xpp::name_label("max_branch_switches").c_str(), "Max branch switches");
+    CHECK_STR(xpp::auto_settings_num_text(xpp::AUTO_NUM_OUTPUT_DETAIL, 3).c_str(), "start_jacobian");
+    CHECK_STR(xpp::auto_settings_num_text(xpp::AUTO_NUM_SWITCH_ONE_DIRECTION, 1).c_str(), "true");
+    CHECK_STR(xpp::auto_settings_num_text(xpp::AUTO_NUM_STEP_SIZE, -0.01).c_str(), "-0.01");
+    const auto level = xpp::auto_settings_num_parse(xpp::AUTO_NUM_OUTPUT_DETAIL, "debugging");
+    CHECK(level && *level == 5);
+    const auto number = xpp::auto_settings_num_parse(xpp::AUTO_NUM_OUTPUT_DETAIL, "5");
+    CHECK(!number && number.error().what.find("must be one of none, little, normal, start_jacobian, extensive, debugging") != std::string::npos);
+    CHECK(!xpp::auto_settings_num_parse(xpp::AUTO_NUM_SUPPRESS_BRANCH_POINTS, "1") && !xpp::auto_settings_num_parse(xpp::AUTO_NUM_MESH_INTERVALS, "x"));
+    const auto yes = xpp::auto_settings_num_parse(xpp::AUTO_NUM_SUPPRESS_BRANCH_POINTS, "true");
+    CHECK(yes && *yes == 1);
 
     /* all or nothing: one bad value keeps the good one out */
     xpp::AutoSettingsSet s;
-    s.has_num[xpp::AUTO_NUM_NMX] = 1;
-    s.num[xpp::AUTO_NUM_NMX] = 30;
-    s.has_num[xpp::AUTO_NUM_NCOL] = 1;
-    s.num[xpp::AUTO_NUM_NCOL] = 9;
+    s.has_num[xpp::AUTO_NUM_MAX_STEPS] = 1;
+    s.num[xpp::AUTO_NUM_MAX_STEPS] = 30;
+    s.has_num[xpp::AUTO_NUM_COLLOCATION_POINTS] = 1;
+    s.num[xpp::AUTO_NUM_COLLOCATION_POINTS] = 9;
     CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.nmx == 200 && xpp::client_session().auto_state.bifur.ncol == 4);
-    s.num[xpp::AUTO_NUM_NCOL] = 5;
+    s.num[xpp::AUTO_NUM_COLLOCATION_POINTS] = 5;
     CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.bifur.nmx == 30 && xpp::client_session().auto_state.bifur.ncol == 5);
 
     /* pairs in order, only checked when one of them is given */
     s = xpp::AutoSettingsSet{};
-    s.has_num[xpp::AUTO_NUM_RL1] = 1;
-    s.num[xpp::AUTO_NUM_RL1] = -1;
+    s.has_num[xpp::AUTO_NUM_PARAMETER_MAX] = 1;
+    s.num[xpp::AUTO_NUM_PARAMETER_MAX] = -1;
     CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.rl1 == 2);
-    CHECK(why.starts_with("Par Min must be below Par Max (rl0="));
+    CHECK(why.starts_with("Parameter min must be below Parameter max (parameter_min="));
 
     /* Dsmin <= |Ds| <= Dsmax, checked when one of the three is given (T23) */
     xpp::client_session().auto_state.bifur.ds = 0.02;
     s = xpp::AutoSettingsSet{};
-    s.has_num[xpp::AUTO_NUM_DS] = 1;
-    s.num[xpp::AUTO_NUM_DS] = -0.6;
+    s.has_num[xpp::AUTO_NUM_STEP_SIZE] = 1;
+    s.num[xpp::AUTO_NUM_STEP_SIZE] = -0.6;
     CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.ds == 0.02);
-    CHECK(why.starts_with("Ds must be from Dsmin to Dsmax in size (its sign is the direction) (ds=-0.6,"));
-    s.num[xpp::AUTO_NUM_DS] = -0.5;
+    CHECK(why.starts_with("The size of Step size must be from Min step size to Max step size (its sign is the direction) (step_size=-0.6,"));
+    s.num[xpp::AUTO_NUM_STEP_SIZE] = -0.5;
     CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.bifur.ds == -0.5);
     s = xpp::AutoSettingsSet{};
-    s.has_num[xpp::AUTO_NUM_DSMIN] = 1;
-    s.num[xpp::AUTO_NUM_DSMIN] = 0.6; /* above |Ds| and Dsmax */
+    s.has_num[xpp::AUTO_NUM_MIN_STEP_SIZE] = 1;
+    s.num[xpp::AUTO_NUM_MIN_STEP_SIZE] = 0.6; /* above |Ds| and Dsmax */
     CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.dsmin == 0.001);
 
     /* axes: names among AUTO's parameters, ranges in order */

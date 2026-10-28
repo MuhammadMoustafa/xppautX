@@ -96,7 +96,10 @@ SmV' = (-ISmLe-ISmNa-ISmKv-ISmK1-ISmCa-ISmSk+ISmSt)/ode_divisor(Smcpctncr)
 # XPP simulation options
 options {
   integration: { dt: 0.01, store_every: 20, method: backward_euler, total_time: 1000.0 },
-  continuation: { parmax: 1, parmin: -10, npr: 100000, nmax: 1000, ntst: 100, dsmax: 0.1 },
+  continuation: {
+    parameter_max: 1, parameter_min: -10, output_every: 100000, max_steps: 1000, mesh_intervals: 100,
+    max_step_size: 0.1,
+  },
   diagram: { autovar: SmV, autoxmin: -0.1, autoxmax: 1.1, autoymin: -90, autoymax: 20 },
   plot: { xlo: 0, xhi: 1000.0, ylo: -90, yhi: 50, yp: SmV },
   interface: { but: "fit:wf", but: "int:ig", but: "intl:il", but: "auto:fa" },

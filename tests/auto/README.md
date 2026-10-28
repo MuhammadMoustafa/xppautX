@@ -16,8 +16,8 @@ the resonator.
 optional `parameters` and `initial_conditions` set the starting state.
 `runs` lists named runs in order. Each names its `kind` in W306's terms,
 its `parameter` (or two `parameters` for `two_parameter` / `fixed_period`),
-and its per-run `auto` settings. `ds` includes the direction. `nmax`, `npr`,
-`ntst`, `dsmin`, `dsmax`, `parmin` and `parmax` are explicit. The driver
+and its per-run `auto` settings, under AUTO's setting names (W531). `step_size` includes the direction.
+`max_steps`, `output_every`, `mesh_intervals`, `min_step_size`, `max_step_size`, `parameter_min` and `parameter_max` are explicit. The driver
 maps these names to today's protocol fields, not to recording keys. Optional per-run
 `marks: [["parameter", value], ...]` locates user points (UZ); the same marks
 are passed to AUTO-07p as UZR and to XPPAUT through AutoPer (W437).
@@ -53,7 +53,7 @@ intended numerical change. `--keep DIR` retains both differing computed
 diagrams and expected diagrams for the CI artifact. Times are measurements;
 completion waits for the command's idle event, with a safety timeout only.
 
-`mxbf:0` keeps these short continuations on the requested branch; labelled
+`max_branch_switches: 0` keeps these short continuations on the requested branch; labelled
 Hopf starts are continued explicitly. The large linear fixtures retain
 their 195 and 350 variables. The projection boundary fixtures exercise
 homoclinic/heteroclinic equations as BVPs. Nine models are explicitly

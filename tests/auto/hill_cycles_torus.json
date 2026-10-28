@@ -10,19 +10,19 @@
       },
       "parameter": "mu",
       "auto": {
-        "ds": 0.01,
-        "dsmin": 1e-05,
-        "dsmax": 0.02,
-        "nmax": 100,
-        "npr": 50,
-        "parmin": -0.2,
-        "parmax": 0.8,
-        "ntst": 25,
-        "ncol": 4,
-        "epsl": 1e-07,
-        "epsu": 1e-07,
-        "epss": 1e-05,
-        "mxbf": 0
+        "step_size": 0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 100,
+        "output_every": 50,
+        "parameter_min": -0.2,
+        "parameter_max": 0.8,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
       }
     },
     {
@@ -35,19 +35,19 @@
       },
       "parameter": "mu",
       "auto": {
-        "ds": 0.01,
-        "dsmin": 1e-05,
-        "dsmax": 0.02,
-        "nmax": 60,
-        "npr": 50,
-        "parmin": -0.2,
-        "parmax": 0.8,
-        "ntst": 25,
-        "ncol": 4,
-        "epsl": 1e-07,
-        "epsu": 1e-07,
-        "epss": 1e-05,
-        "mxbf": 0
+        "step_size": 0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 60,
+        "output_every": 50,
+        "parameter_min": -0.2,
+        "parameter_max": 0.8,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
       }
     },
     {
@@ -63,19 +63,19 @@
         "d"
       ],
       "auto": {
-        "ds": 0.02,
-        "dsmin": 1e-05,
-        "dsmax": 0.05,
-        "nmax": 20,
-        "npr": 50,
-        "parmin": -3,
-        "parmax": 3,
-        "ntst": 25,
-        "ncol": 4,
-        "epsl": 1e-07,
-        "epsu": 1e-07,
-        "epss": 1e-05,
-        "mxbf": 0
+        "step_size": 0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.05,
+        "max_steps": 20,
+        "output_every": 50,
+        "parameter_min": -3,
+        "parameter_max": 3,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
       }
     },
     {
@@ -91,19 +91,19 @@
         "d"
       ],
       "auto": {
-        "ds": -0.02,
-        "dsmin": 1e-05,
-        "dsmax": 0.05,
-        "nmax": 60,
-        "npr": 50,
-        "parmin": -3,
-        "parmax": 3,
-        "ntst": 25,
-        "ncol": 4,
-        "epsl": 1e-07,
-        "epsu": 1e-07,
-        "epss": 1e-05,
-        "mxbf": 0
+        "step_size": -0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.05,
+        "max_steps": 60,
+        "output_every": 50,
+        "parameter_min": -3,
+        "parameter_max": 3,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
       }
     }
   ],

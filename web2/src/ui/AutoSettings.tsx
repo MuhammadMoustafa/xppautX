@@ -16,9 +16,9 @@ import {useRef, useState} from 'preact/hooks';
 import {HELP} from '../help/links';
 import {symbolHelp} from '../plot/diagramModel';
 import {
-  allCodim, CODIM_KINDS, fieldOf, NUM_FIELDS, NUM_GROUPS, numError, numSpec, pairErrors, pendingFields, shownSettings, type AutoSettings, type AutoSettingsPatch, type NumKey,
+  allCodim, CODIM_KINDS, fieldName, fieldOf, NUM_FIELDS, NUM_GROUPS, numError, numSpec, pairErrors, pendingFields, shownSettings, type AutoSettings, type AutoSettingsPatch, type NumKey,
 } from '../store/autoSettings';
-import {fieldError, NUMBER} from '../store/fieldKinds';
+import {choiceLabel, fieldError, NUMBER} from '../store/fieldKinds';
 import {pointLabel} from '../store/pointTypes';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
@@ -126,15 +126,20 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
   if (!shown) return null;
   const errors = Object.fromEntries(NUM_FIELDS.map(f => [f.key, numError(shown.rules[f.key], texts[f.key] ?? '')]));
   const anyError = NUM_FIELDS.some(f => errors[f.key]);
-  const values = Object.fromEntries(NUM_FIELDS.map(f => [f.key, Number(texts[f.key])])) as Record<NumKey, number>;
-  /* T23: the values that must agree (DSMIN <= |DS| <= DSMAX, the limits in order), each by its field */
+  /* a field's value as the core holds it: a number, a boolean, or a choice's name */
+  const valueOf = (k: NumKey): number | boolean | string => {
+    const rule = shown.rules[k];
+    return rule.boolean ? texts[k] === 'true' : rule.choices ? texts[k] : Number(texts[k]);
+  };
+  const values = Object.fromEntries(NUM_FIELDS.map(f => [f.key, valueOf(f.key)])) as Record<NumKey, number | boolean | string>;
+  /* T23: the values that must agree (min step size <= |step size| <= max step size, the limits in order), each by its field */
   const pairMessages: Partial<Record<NumKey, string>> = anyError ? {} : pairErrors(shown, values);
   const pairs = Object.keys(pairMessages).length > 0;
   const ok = () => {
     if (anyError || pairs) return;
-    const changed = NUM_FIELDS.filter(f => (f.key==='suppbp' ? texts.suppbp==='true' : values[f.key]) !== shown.numerics[f.key]);
+    const changed = NUM_FIELDS.filter(f => values[f.key] !== shown.numerics[f.key]);
     const patch: AutoSettingsPatch = {};
-    if (changed.length) patch.numerics = Object.fromEntries(changed.map(f => [f.key, f.key==='suppbp' ? texts.suppbp==='true' : values[f.key]]));
+    if (changed.length) patch.numerics = Object.fromEntries(changed.map(f => [f.key, values[f.key]]));
     if (threads !== String(shown.threads)) patch.threads = threads === 'auto' ? 'auto' : Number(threads);
     if (CODIM_KINDS.some(k => specialPoints[k] !== shown.special_points[k])) patch.special_points = specialPoints;
     if (patch.numerics || patch.threads !== undefined || patch.special_points) session.autoSettings(patch);
@@ -150,14 +155,19 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
           <fieldset key={g.title} class="form-grid auto-num-group">
             <legend>{g.title}</legend>
             {g.keys.map((k, i) => {
-              const f = fieldOf(k), queued = pending.has(`numerics.${k}`);
+              const f = fieldOf(k), queued = pending.has(`numerics.${k}`), rule = shown.rules[k];
+              const hover = `${f.help} (AUTO's name: ${f.auto}.)`;
               return (
                 <label key={k} class={queued ? 'queued' : undefined}
-                  title={queued ? `${f.help} (Applied when the running command ends.)` : f.help}>
-                  <span>{f.name}</span>
-                  {k==='suppbp' ? <input type="checkbox" data-field={k} id={`auto-num-${k}`} checked={texts[k]==='true'}
+                  title={queued ? `${hover} (Applied when the running command ends.)` : hover}>
+                  <span>{fieldName(f)}</span>
+                  {rule.boolean ? <input type="checkbox" data-field={k} id={`auto-num-${k}`} checked={texts[k]==='true'}
                     onChange={e => { const enabled=e.currentTarget.checked; setTexts(x => ({...x,[k]:String(enabled)})); }} /> :
-                  <Field spec={numSpec(shown.rules[k])} check={t => numError(shown.rules[k], t)} value={texts[k]} data-field={k}
+                  rule.choices ? <select data-field={k} id={`auto-num-${k}`} value={texts[k]} data-queued={queued ? '1' : undefined}
+                    onChange={e => { const name=(e.target as HTMLSelectElement).value; setTexts(x => ({...x,[k]:name})); }}>
+                    {rule.choices.map(c => <option key={c} value={c}>{choiceLabel(c)}</option>)}
+                  </select> :
+                  <Field spec={numSpec(rule)} check={t => numError(rule, t)} value={texts[k]} data-field={k}
                     id={`auto-num-${k}`} data-queued={queued ? '1' : undefined} error={pairMessages[k] ?? null}
                     data-autofocus={g === NUM_GROUPS[0] && i === 0 ? '' : undefined}
                     onInput={t => setTexts(x => ({...x, [k]: t}))} />}

@@ -6,8 +6,9 @@ z' = y
 par rn = -0.9, be = 0.5, ga = -0.6, r = 0.6, a3 = 0.328578, b3 = 0.933578
 options {
   continuation: {
-    dsmin: 1e-4, dsmax: .01, parmin: -.9, parmax: -.4, npr: 500, nmax: 125, epsl: 1e-7, epsu: 1e-7,
-    epss: 1e-5, ds: .001,
+    min_step_size: 1e-4, max_step_size: .01, parameter_min: -.9, parameter_max: -.4,
+    output_every: 500, max_steps: 125, parameter_tolerance: 1e-7, state_tolerance: 1e-7,
+    special_point_tolerance: 1e-5, step_size: .001,
   },
   diagram: { autoymax: 1, autoymin: -1, autoxmin: -.9, autoxmax: -.4 },
 }

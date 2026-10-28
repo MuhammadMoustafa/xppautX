@@ -150,10 +150,10 @@ export interface AutoStab {
 
 /** `autoinfo` `stop` (T23): why the run's last branch ended */
 export interface AutoStop {
-  /** parmin, parmax, normmin, normmax, npts, user, mark, noconv, noconv-fixed, noconv-min,
+  /** parameter_min, parameter_max, norm_min, norm_max, max_steps, user, mark, noconv, noconv-fixed, noconv-min,
       noconv-switch-fixed, noconv-switch-min, jacobian (docs/protocol.md) */
   why: string;
-  /** in words, to follow "Stopped: " ("parameter iapp reached Par Max (0.45)") */
+  /** in words, to follow "Stopped: " ("parameter iapp reached parameter_max (0.45)") */
   text: string;
   /** AUTO's branch and point number of the end */
   br: number;

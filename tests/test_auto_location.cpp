@@ -229,9 +229,9 @@ u'=p-u
     xpp::AutoSettingsSet settings;
     settings.par1 = "p";
     for (const auto &[field, number] : {
-        std::pair{xpp::AUTO_NUM_NMX, 8.0}, std::pair{xpp::AUTO_NUM_DS, 0.2},
-        std::pair{xpp::AUTO_NUM_DSMAX, 0.2}, std::pair{xpp::AUTO_NUM_MXBF, 0.0},
-        std::pair{xpp::AUTO_NUM_EPSS, 1e-7}}) {
+        std::pair{xpp::AUTO_NUM_MAX_STEPS, 8.0}, std::pair{xpp::AUTO_NUM_STEP_SIZE, 0.2},
+        std::pair{xpp::AUTO_NUM_MAX_STEP_SIZE, 0.2}, std::pair{xpp::AUTO_NUM_MAX_BRANCH_SWITCHES, 0.0},
+        std::pair{xpp::AUTO_NUM_SPECIAL_POINT_TOLERANCE, 1e-7}}) {
         settings.has_num[field] = 1;
         settings.num[field] = number;
     }
