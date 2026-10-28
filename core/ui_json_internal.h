@@ -424,7 +424,6 @@ void j_live_state(xpp::Session &s, const double *values, double time);
 void data_command(xpp::Session &s, const char *line);
 void send_equations(const xpp::Session &s);
 void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
-void equilibrium_key(xpp::Session &s, int ch);
 void j_make_txtview(xpp::Session &s);
 void action_command(xpp::Session &s, const char *line);
 void apply_set(xpp::Session &s, const char *line);

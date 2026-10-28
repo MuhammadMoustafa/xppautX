@@ -81,6 +81,12 @@ Result<const char *> scan_group(const Scan &scan, const Argument &arg, const cha
 Result<const char *> scan_value(const Scan &scan, const Argument *arg, Type type, const char *cursor, bool inside)
 {
     const auto bad = [&](std::string what) { return fail(scan.command.name, std::move(what), scan.place); };
+    if (type == Type::real_pair && *cursor == '[') {
+        Argument pair = *arg;
+        pair.type = Type::list;
+        pair.element = Type::real;
+        return scan_group(scan, pair, cursor);
+    }
     if (*cursor == '[' || *cursor == '{') {
         if (inside) return bad("Lists and maps hold single values");
         if (!arg || arg->type != (*cursor == '[' ? Type::list : Type::map))

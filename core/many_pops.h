@@ -71,4 +71,16 @@ void clr_scrn(Session &s);
    blanked, and a data client told */
 void clear_windows(Session &s);
 
+/* Select a graph for the duration of a command, then restore the previous graph. */
+class ActiveGraph {
+public:
+    ActiveGraph(Session &s,int index);
+    ~ActiveGraph();
+    ActiveGraph(const ActiveGraph &)=delete;
+    ActiveGraph &operator=(const ActiveGraph &)=delete;
+private:
+    Session &s_;
+    int previous_;
+};
+
 } // namespace xpp

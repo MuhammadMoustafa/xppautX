@@ -19,7 +19,7 @@ import {useFocusBackOnClose} from './focusBack';
 import type {Session} from '../session';
 import {sixSig} from '../store/values';
 import type {SourceLine, TextTab} from '../store/text';
-import {BUSY_TITLE, useMay, useMayMain, useMayKey, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {FOCUSABLE} from './dialogFocus';
 
 
@@ -83,9 +83,8 @@ function stabilityClass(type: string): string {
 
 function EquilibriumView() {
   const session = useSession();
-  const mayKey = useMayKey();
-  const mayMain = useMayMain();
-  const busy = !mayMain('singpts'); /* Sing pts: a computation (W95) */
+  const may = useMay();
+  const busy = !may({cmd: 'equilibrium.find'}); /* Sing pts: a computation (W95) */
   const eq = useStore(s => s.text.equilibrium);
   return (
     <div class="text-equilibrium">
@@ -94,7 +93,7 @@ function EquilibriumView() {
           title={busy ? BUSY_TITLE : 'Sing pts / Go: find the equilibrium closest to the current initial conditions'}>
           Find equilibrium
         </button>
-        <button data-button="equilibrium:import" onClick={() => session.importEquilibrium()} disabled={!eq || !mayKey('equilibrium', 'import')}
+        <button data-button="equilibrium:import" onClick={() => session.importEquilibrium()} disabled={!eq || !may({cmd: 'equilibrium.import_as_ic'})}
           title="Make this equilibrium the initial conditions">
           Import
         </button>

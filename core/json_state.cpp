@@ -455,6 +455,8 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
         v.text = xpp::format("{:.16g}", z);
     }
     if (v.type == 0) {
+        if(v.name=="nullcline_mesh"||v.name=="max_iterations"||v.name=="newton_tolerance"||v.name=="jacobian_step"||v.name=="search_limit")
+            return refuse(field,xpp::format("Unknown command set num {}: use nullcline.set_mesh or equilibrium.configure",v.name));
         std::string why;
         if (xpp::numerics_settings_check(s, v.name, v.text, why) == 0) return v;
         return refuse(field, xpp::format("Numerics: {}", why));
@@ -778,7 +780,7 @@ void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, doub
     std::string b;
     int i;
     redraw_ics();
-    s.last_equilibrium.assign(y, y + n);
+
     buf_format(b, "{{\"ev\":\"equilibrium\",\"type\":\"{}\",\"cplus\":{:d},\"cminus\":{:d},"
                "\"im\":{:d},\"rplus\":{:d},\"rminus\":{:d},\"values\":[",
                eq_stability(cp, rp, im), cp, cm, im, rp, rm);
@@ -805,13 +807,6 @@ void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, doub
     }
     BUF_LIT(b, "}");
     send_buf(b);
-}
-
-/* a key of the equilibrium window (menu_equilibrium_window): Import */
-void equilibrium_key(xpp::Session &s, int ch)
-{
-    if (menu_index(&menu_equilibrium_window, ch) == EK_IMPORT && !s.last_equilibrium.empty())
-        eq_import(s, s.last_equilibrium.data(), static_cast<int>(s.last_equilibrium.size()));
 }
 
 void j_make_txtview(xpp::Session &s)

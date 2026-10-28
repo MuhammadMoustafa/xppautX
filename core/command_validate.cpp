@@ -158,6 +158,20 @@ Result<Scalar> read_text(const Check &c, const Argument &arg, Type type, const c
 /* the scalar of type at value (an argument, a list's item or a map's value) */
 Result<Scalar> read_scalar(const Check &c, const Argument &arg, Type type, const char *value, std::string_view label)
 {
+    if (type == Type::real_pair) {
+        std::array<double, 2> pair{};
+        const char *cursor = value;
+        if (*value != '[') return refuse(c, xpp::format("Argument \"{}\" must be two finite numbers", label));
+        for (double &number : pair) {
+            const char *item = json::js_element(cursor);
+            if (!item) return refuse(c, xpp::format("Argument \"{}\" must be two finite numbers", label));
+            const auto read = read_number(c, arg, Type::real, item, label);
+            if (!read) return std::unexpected<Error>(read.error());
+            number = std::get<double>(*read);
+        }
+        if (json::js_element(cursor)) return refuse(c, xpp::format("Argument \"{}\" must be two finite numbers", label));
+        return Scalar{pair};
+    }
     if (type == Type::boolean) {
         bool enabled = false;
         if (!parse_bool(json::js_raw(value), enabled))
@@ -207,7 +221,7 @@ Result<std::vector<Entry>> read_map(const Check &c, const Argument &arg, const c
         const std::string folded = arg.names != NameSet::none ? lower_case(key) : key;
         if (std::ranges::any_of(entries, [&](const Entry &e) { return (arg.names != NameSet::none ? lower_case(e.first) : e.first) == folded; }))
             return refuse(c, xpp::format("Argument \"{}\" names \"{}\" twice", arg.name, key));
-        if (*item == '[' || *item == '{')
+        if ((*item == '[' && arg.element != Type::real_pair) || *item == '{')
             return refuse(c, xpp::format("Argument \"{}\" holds single values, not lists or maps", label));
         Result<Scalar> read = read_scalar(c, arg, arg.element, item, label);
         if (!read) return std::unexpected<Error>(read.error());

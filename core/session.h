@@ -178,7 +178,10 @@ struct Session {
   std::size_t options_applied=0;
   /* the last equilibrium the equilibrium window showed, for its Import
      (json_state.cpp) */
-  std::vector<double> last_equilibrium;
+  std::vector<double> last_equilibrium, last_equilibrium_eigenvalues;
+  std::string last_equilibrium_stability;
+  bool print_eigenvalues=false, draw_invariant_sets=false, draw_strong_sets=false;
+  bool equilibrium_append=false, equilibrium_shoot=false;
   /* which menu the main window's keys go to: MAIN_MENU, FILE_MENU or
      NUM_MENU (commands.cpp show_main_menu) */
   int help_menu=0;

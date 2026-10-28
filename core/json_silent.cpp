@@ -174,7 +174,7 @@ SilentScript::SilentScript(xpp::Session &s) : session(s)
         for (std::size_t i = 0; i < sets; i++) add_run(static_cast<int>(i));
     steps.push_back([this] {
         if (batch_options.equilibria < 0) return;
-        command("equilibrium", "write", "equil.dat", batch_options.equilibria == 1 ? ",\"shoot\":1" : "");
+        lines.push_back(xpp::format("{{\"cmd\":\"equilibrium.export\",\"file\":\"equil.dat\",\"confirm\":true,\"shoot\":{}}}",batch_options.equilibria==1));
     });
 }
 

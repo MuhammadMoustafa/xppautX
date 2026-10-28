@@ -76,7 +76,6 @@ enum BrowserWindowKey { BK_FIND, BK_GET, BK_REPLACE, BK_UNREPLACE, BK_TABLE, BK_
   BK_ADDCOL, BK_DELCOL, BK_LOAD, BK_WRITE };
 enum AniWindowKey { NK_FILE, NK_GO, NK_RESET, NK_SKIP, NK_MPEG, NK_FLY, NK_GRAB };
 enum AplotWindowKey { PK_REDRAW, PK_EDIT, PK_FIT, PK_RANGE, PK_PRINT, PK_GIF };
-enum EquilibriumWindowKey { EK_IMPORT };
 
 /* What menu_choose returns, plus the item's index, for an item of a long list that has no key (the
    named sets past the 26th): the page answers such a menu with the item's `index` */
@@ -95,13 +94,12 @@ typedef struct XppWindowLayer {
   const XppMenu *menu;
   const char *const *ids;
 } XppWindowLayer;
-#define XPP_WINDOW_LAYERS 5
+#define XPP_WINDOW_LAYERS 4
 extern const XppWindowLayer window_layers[XPP_WINDOW_LAYERS];
 /* the layer of window `win`, NULL for none */
 const XppWindowLayer *window_layer(std::string_view win);
 
-extern const XppMenu menu_auto_window, menu_browser_window, menu_ani_window, menu_aplot_window,
-  menu_equilibrium_window;
+extern const XppMenu menu_auto_window, menu_browser_window, menu_ani_window, menu_aplot_window;
 
 extern const XppMenu menu_integrate, menu_nullclines, menu_freeze_cline,
   menu_dirfield, menu_window, menu_torus, menu_kinescope, menu_curves,

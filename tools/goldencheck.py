@@ -191,11 +191,11 @@ def run_vanderpol(home):
         # Nullcline/New, then Dir.field-Flow/(D)irect Field, so the
         # export carries a nullcline and a direction field, not curves
         # alone
-        s.send(cmd='key', key='n')
-        s.answer_asks(is_idle, {'menu': menu('n')})
+        s.send(cmd='nullcline.compute')
+        s.collect(is_idle)
         # Direct Field then asks a "Grid:" string, its own default (16)
-        s.send(cmd='key', key='d')
-        s.answer_asks(is_idle, {'menu': menu('d'), 'string': lambda e: {'value': e['value']}})
+        s.send(cmd='dirfield.compute', grid=16, scaled=False)
+        s.collect(is_idle)
 
         s.send(cmd='key', key='g')
         s.answer_asks(is_idle, {'menu': menu('p'), 'form': form_defaults,
@@ -211,8 +211,8 @@ def run_pictures(home):
     s = Server(binary, 'tools/models/pictures.odex', env={'HOME': home}, verbose=args.v)
     try:
         run_and_go(s)
-        s.send(cmd='key', key='n')
-        s.answer_asks(is_idle, {'menu': menu('n')})
+        s.send(cmd='nullcline.compute')
+        s.collect(is_idle)
         s.send(cmd='annotation.add_text', window='graph_1', x=0.1, y=0.9, text='\\1a\\0 label', text_size=3, color='#1c7ed6cc')
         s.collect(is_idle)
         # Graphic stuff/Freeze/Freeze, its form: colour, how it is drawn, dash, width, marker and its size, key and name

@@ -84,6 +84,8 @@ AxesView axes_view(const Session &s, int ind);
 /* the active window made a 2D or a 3D plot of these axes, checked whole first (each limit below its upper one,
    the screen window ordered): all or nothing; redrawn */
 Result<> set_axes_view(Session &s, int ind, bool three, const AxesView &view);
+/* A 2D guess sets two differential states; time and auxiliary axes cannot seed an equilibrium. */
+bool phase_plane_states(const Session &s, const GRAPH &g);
 /* The axes dialog of the active plot window: its curve ind's variables, limits and labels in
    columns (X, Y, and Z when three, with the 3D view's window and parameters), read whole and
    applied all or nothing; false when cancelled or when a field is refused (shown) */

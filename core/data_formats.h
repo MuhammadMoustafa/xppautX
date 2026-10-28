@@ -6,6 +6,7 @@
    one explicit table, one line per format (data_formats.cpp): the Save
    data dialog (browse_data.cpp data_write) lists it and the browser's
    Load picks from it by a file's extension. C++ only. */
+#include <array>
 #include <cstddef>
 #include <optional>
 #include <span>
@@ -52,6 +53,10 @@ inline constexpr std::size_t data_columns_limit = 4096;
 
 /* column i's name */
 std::string data_column_name(const DataTable &t, std::size_t i);
+
+/* The export choices share the format registry's names, including their protocol spelling. */
+inline constexpr const char *DATA_FORMAT_DAT="dat", *DATA_FORMAT_CSV="csv", *DATA_FORMAT_CSV_GZ="csv.gz", *DATA_FORMAT_NPZ="npz";
+inline constexpr std::array DATA_FORMAT_NAMES={DATA_FORMAT_DAT,DATA_FORMAT_CSV,DATA_FORMAT_CSV_GZ,DATA_FORMAT_NPZ};
 
 struct DataFormat {
     const char *id;        /* the protocol's name for it ("dat", "csv", ...) */

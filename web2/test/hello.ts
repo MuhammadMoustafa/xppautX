@@ -142,7 +142,6 @@ export const HELLO: HelloEvent = {
     ani: layer('fgrsmoa', 'vvvvdvd', ['file', 'go', 'reset', 'skip', 'mpeg', 'fly', 'grab']),
     browser: layer('fru', 'vdd', ['find', 'replace', 'unreplace']),
     aplot: layer('refrpg', 'vvvvdd', ['redraw', 'edit', 'fit', 'range', 'print', 'gif']),
-    equilibrium: layer('i', 's', ['import']),
   },
   commands: [
     {cmd: 'run.configure', kind: 's', step: true, arguments: [{name: 'total_time', type: 'real', required: false, choices: []}, {name: 'dt', type: 'real', required: false, choices: []},

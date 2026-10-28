@@ -177,22 +177,15 @@ STOPS_KNOWN = {}  # case id -> (card that fixes it, reason it is not started or 
 STOPS_PLAIN_GO = [{'key': 'g'}]  # the Integrate or Equilibria menu's Go
 STOPS_RUN = {'cmd': 'run.initial'}
 STOPS_RANGE_A = {'cmd': 'run.range', 'variable': 'a', 'steps': 2, 'start': 1, 'end': 3}  # Range over a, 1 to 3 (the three runs a = 1, 2, 3)
-STOPS_EQ_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '5', '-1', '1', 'false', '-1', 'false', 'false']}]
 STOPS_CASES = [
     # says: the message's parts; at: the equation the error names; forbids: parts it must not have
     dict(id='section_crossing', model='section', command=STOPS_RUN, at=None, bottom=True,
          says=[r'Stopped at the section crossing t = (0\.99|1)', r'poincare_stop = true']),
     dict(id='section_no_crossing', model='section_no_crossing', command=STOPS_RUN, at=None, bottom=True,
          says=[r'No crossing found', r'poincare_variable', r'poincare_plane = 10', r'0, 2', r'integrate longer']),
-    dict(id='monte_carlo', model='monte_carlo', key='s', at=None, bottom=True,
-         replies=[{'key': 'c'}, {'ok': 1, 'value': '0'}, {'ok': 1, 'value': '0'},
-                  {'ok': 1, 'value': '4'}, {'ok': 1, 'value': '0.001'},
-                  {'ok': 1, 'value': '-1'}, {'ok': 1, 'value': '1'}],
+    dict(id='monte_carlo', model='monte_carlo', command=dict(cmd='equilibrium.search', guesses=4, tolerance=0.001, append=False, shoot=False, bounds={'x': [-1, 1]}), replies=[], at=None, bottom=True,
          says=[r'Monte Carlo: 0 of 4 guesses converged to 0 distinct equilibria', r'max_iterations', r'newton_tolerance']),
-    dict(id='monte_carlo_manifold', model='manifold', key='s', at='newton_tolerance: 1e-200', bottom=True,
-         replies=[{'key': 'c'}, {'ok': 1, 'value': '0'}, {'ok': 1, 'value': '0'},
-                  {'ok': 1, 'value': '4'}, {'ok': 1, 'value': '0.001'},
-                  *[{'ok': 1, 'value': '0'} for _ in range(4)]],
+    dict(id='monte_carlo_manifold', model='manifold', command=dict(cmd='equilibrium.search', guesses=4, tolerance=0.001, append=False, shoot=False, bounds={'x': [0, 0], 'y': [0, 0]}), replies=[], at='newton_tolerance: 1e-200', bottom=True,
          says=[r'No eigenvector', r'singular', r'newton_tolerance = 1e-200',
                r'Monte Carlo: 4 of 4 guesses converged to 1 distinct equilibria']),
     dict(id='nan', model='nan_sqrt', command=STOPS_RUN, at="x' = sqrt",
@@ -235,16 +228,16 @@ STOPS_CASES = [
          says=[r'store_from ?= ?20\b', r'starts at t ?= ?0\b', r'ends at t ?= ?10\b']),
     dict(id='store_from_backward', model='store_from_backward', command=STOPS_RUN, at='store_from: -20',
          says=[r'store_from ?= ?-20\b', r'starts at t ?= ?0\b', r'ends at t ?= ?-10\b']),
-    dict(id='sing_pts', model='sing_pts', key='s', replies=STOPS_PLAIN_GO, at="x' = x^2+1",
+    dict(id='sing_pts', model='sing_pts', command=dict(cmd='equilibrium.find'), replies=[], at="x' = x^2+1",
          says=[r'X ?= ?0\.5', r'max_iterations ?= ?100\b', r'newton_tolerance', r'iterations']),
     dict(id='bvp_max_iterates', model='bvp_max_iterates', command={'cmd': 'bvp.solve', 'show': False}, at=None,
          first=[{'cmd': 'bvp.configure', 'max_iterates': 1, 'tolerance': 1e-12}],
          says=[r'Shoot', r'bvp_max_iterates ?= ?1\b', r'bvp_tolerance ?= ?1e-12', r'residual']),
-    dict(id='nullcline_delay', model='nullcline_delay', key='n', replies=[{'key': 'n'}], at="x' = -delay",
+    dict(id='nullcline_delay', model='nullcline_delay', command=dict(cmd='nullcline.compute'), replies=[], at="x' = -delay",
          says=[r'tau ?= ?2\b', r'X ?= ?-?\d', r'Y ?= ?-?\d']),
     dict(id='postprocess_one_variable', model='fourier_one_variable', command=STOPS_RUN, at=None,
          then=[{'cmd': 'browser', 'op': 'postprocess'}], says=[r'1 variable', r'at least 2']),
-    dict(id='eq_range', model='eq_range', key='s', replies=STOPS_EQ_RANGE_A, at=None, bottom=True,
+    dict(id='eq_range', model='eq_range', command=dict(cmd='equilibrium.range', parameter='a', steps=5, start=-1, end=1), replies=[], at=None, bottom=True,
          says=[r'\d of 6 values have no equilibrium', r'a ?= ?0\.2\d*: no equilibrium found']),
     dict(id='range_gear', model='blowup_gear', command=STOPS_RANGE_A, at=None,
          says=[r'Range stopped at a ?= ?1 \(run 1 of 3\)', r'\bGear\b', r't ?= ?0\.9']),
@@ -753,7 +746,7 @@ def check_registry():
                   done is not None and done.get('status') == ('ok' if ok else 'error') and
                   done.get('id') == client_id and sum(e.get('ev') == 'done' for e in evs) == 1 and
                   sum(e.get('ev') == 'idle' for e in evs) == 1 and
-                  not any(e.get('ev') in ('message', 'error') for e in evs), str(evs)[-1000:])
+                  not any(e.get('ev') == 'error' or (e.get('ev') == 'message' and e.get('error')) for e in evs), str(evs)[-1000:])
             if not ok:
                 check('registry: %d error retains original command place' % counter,
                       done and done.get('file') == 'command' and done.get('line') == 1 and
@@ -1106,6 +1099,58 @@ def check_registry():
             check('registry: old window forms are errors',
                   sum(e.get('ev')=='message' and 'error' in e for e in events)==1
                   and not any(e.get('ev')=='done' for e in events), str(obsolete))
+        # W522: every analysis row returns its declared data, validates before mutation, and has no old route.
+        snd(cmd='plotvars', how=2, names=['V', 'W']); col(lambda e: e.get('ev') == 'idle')
+        result, _ = request({'cmd': 'equilibrium.find', 'print_eigenvalues': False})
+        check('W522: equilibrium.find returns values, eigenvalues and named stability',
+              result.get('converged') is True and len(result.get('equilibrium', {})) == 2
+              and len(result.get('eigenvalues', [])) == 2 and result.get('stability') in ('stable', 'unstable', 'saddle'), str(result))
+        bounds = {name: [value, value] for name, value in result.get('equilibrium', {}).items()}
+        calls = [
+            ({'cmd': 'equilibrium.guess', 'coordinates': {'V': -0.5, 'W': 0.1}}, 'converged'),
+            ({'cmd': 'equilibrium.import_as_ic'}, 'applied'),
+            ({'cmd': 'equilibrium.export', 'file': 'w522-equilibrium.dat'}, 'written'),
+            ({'cmd': 'equilibrium.configure', 'max_iterates': 100}, 'settings'),
+            ({'cmd': 'equilibrium.search', 'guesses': 2, 'tolerance': 0.001, 'bounds': bounds}, 'found'),
+            ({'cmd': 'equilibrium.range', 'parameter': 'iapp', 'start': 0, 'end': 0.1, 'steps': 1}, 'points_found'),
+            ({'cmd': 'nullcline.set_mesh', 'mesh': 20}, 'nullcline_mesh'),
+            ({'cmd': 'nullcline.compute'}, 'curves_computed'),
+            ({'cmd': 'nullcline.redraw'}, 'drawn'),
+            ({'cmd': 'nullcline.auto_mode', 'enabled': True}, 'auto_redraw'),
+            ({'cmd': 'nullcline.freeze'}, 'frozen_curves_count'),
+            ({'cmd': 'nullcline.range_freeze', 'parameter': 'iapp', 'start': 0, 'end': 0.1, 'steps': 1}, 'steps_frozen'),
+            ({'cmd': 'nullcline.animate', 'delay_ms': 0}, 'animated'),
+            ({'cmd': 'nullcline.export', 'file': 'w522-nullclines.csv', 'format': 'csv'}, 'points_written'),
+            ({'cmd': 'nullcline.clear_frozen'}, 'cleared'),
+            ({'cmd': 'dirfield.compute', 'grid': 2, 'scaled': True}, 'vectors_drawn'),
+            ({'cmd': 'dirfield.export', 'file': 'w522-dirfield.dat'}, 'written'),
+            ({'cmd': 'dirfield.flow', 'grid': 2}, 'trajectories_run'),
+            ({'cmd': 'dirfield.colorize', 'grid': 2}, 'cells_colored'),
+            ({'cmd': 'dirfield.clear'}, 'cleared')]
+        for command, field in calls:
+            result, _ = request(command)
+            check('W522: ' + command['cmd'] + ' declares and returns ' + field, field in result, str(result))
+            request({**command, 'unknown_argument': True}, False)
+        request({'cmd': 'equilibrium.find', 'print_eigenvalues': 'yes'}, False)
+        request({'cmd': 'equilibrium.search', 'guesses': 1, 'tolerance': 0.001, 'bounds': {'V': [0, 1, 2]}}, False)
+        request({'cmd': 'equilibrium.search', 'guesses': 1, 'tolerance': 0.001, 'bounds': {'V': [1, 0]}}, False)
+        request({'cmd': 'equilibrium.configure', 'max_iterates': 20, 'newton_tolerance': -1}, False)
+        result, _ = request({'cmd': 'equilibrium.configure'})
+        check('W522: configure is all or nothing', result.get('settings', {}).get('max_iterates') == 100, str(result))
+        request('equilibrium.search --guesses 1 --tolerance 0.001 --bounds {"V" [0 0] "W" [0 0]}')
+        request({'cmd': 'nullcline.export', 'file': '../outside.dat'}, False)
+        for obsolete in [dict(cmd='equilibrium', op='write', name='old.dat'), dict(cmd='dfield', op='write', name='old.dat'),
+                         dict(cmd='key', win='equilibrium', key='i'),
+                         dict(cmd='set', kind='num', name='nullcline_mesh', value=20)]:
+            snd(**obsolete); evs, _ = col(lambda e: e.get('ev') == 'idle')
+            check('W522: old analysis form is unknown', any('Unknown' in e.get('error', '') or 'No key layer' in e.get('error', '')
+                  for e in evs), str(evs)[-500:])
+        # the menus of the S, N and D keys still ask, then run the commands (one core function)
+        for key, name in (('s', 'equilibria'), ('n', 'nullclines'), ('d', 'dirfield')):
+            snd(cmd='key', key=key); evs, ask = col(lambda e: e.get('ev') == 'ask')
+            check('W522: key %s asks the %s menu' % (key, name), ask is not None and ask.get('name') == name, str(ask))
+            if ask: snd(cmd='answer', id=ask['id'], ok=0)
+            col(lambda e: e.get('ev') == 'idle')
         # These are real recorded steps, whose JSON commands retain names.
         snd(cmd='record', op='start'); col(lambda e: e.get('ev') == 'idle')
         request({'cmd': 'window.create', 'name': 'Recorded graph'})
@@ -1166,7 +1211,38 @@ def check_registry():
         shutil.rmtree(folder, ignore_errors=True)
 
 
-INDEPENDENT_SECTIONS = {'registry': check_registry, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
+def check_equilibrium_exports():
+    """W522: explicit side filenames and one error value, including a refused derived destination."""
+    s = Server(args.server, 'tools/models/equilibrium_registry.odex')
+    try:
+        s.collect(lambda e: e.get('ev') == 'idle')
+        def export(file):
+            s.send(cmd='equilibrium.export', file=file, shoot=True, confirm=True)
+            events, end = s.collect(lambda e: e.get('ev') in ('ask', 'done'))
+            if end and end.get('ev') == 'ask':
+                s.send(cmd='answer', id=end['id'], ok=0)
+                tail, _ = s.collect(lambda e: e.get('ev') == 'done')
+                events += tail
+            return events, next((e for e in events if e.get('ev') == 'done'), {})
+        events, done = export('seed.dat')
+        files = sorted(glob.glob(os.path.join(s.run, 'seed-eigen*.dat')))
+        check('W522: shoot export writes two derived manifold files without filename asks',
+              done.get('status') == 'ok' and done.get('result', {}).get('written') is True and len(files) == 2
+              and not any(e.get('ev') == 'ask' for e in events), str(events)[-500:])
+        rows = [[list(map(float, row.split())) for row in open(file) if row.strip()] for file in files]
+        check('W522: manifold exports hold finite time and state columns', len(rows) == 2 and
+              all(len(table) >= 2 and all(len(row) == 4 and all(math.isfinite(v) for v in row) for row in table) for table in rows), str(rows)[:500])
+        os.mkdir(os.path.join(s.run, 'blocked-eigen0-stable.dat'))
+        events, done = export('blocked.dat')
+        check('W522: a derived output failure returns one placed error through done',
+              done.get('status') == 'error' and done.get('file') == 'command' and done.get('line') == 1
+              and 'blocked-eigen0-stable.dat' in done.get('error', '')
+              and not any(e.get('ev') == 'message' and e.get('error') for e in events), str(events)[-800:])
+    finally:
+        s.close()
+
+
+INDEPENDENT_SECTIONS = {'registry': check_registry, 'equilibrium': check_equilibrium_exports, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -1177,6 +1253,7 @@ if args.only:
 
 
 check_registry()
+check_equilibrium_exports()
 check_diagram_subscription()
 
 proc, run, send, collect, events = launch_server()
@@ -1354,8 +1431,8 @@ def check_hello_kinds():
     badw = [w for w, l in wins.items()
             if not (len(l.get('kinds', '')) == len(l.get('keys', '')) == len(l.get('ids', [])) == len(l.get('items', [])))
             or set(l.get('kinds', '')) - set('cvsdx')]
-    check('W95: hello gives the key layers of auto, browser, ani, aplot and equilibrium, a kind and a name per key',
-          sorted(wins) == ['ani', 'aplot', 'auto', 'browser', 'equilibrium'] and not badw, str(sorted(wins)) + str(badw))
+    check('W95: hello gives the key layers of auto, browser, ani and aplot, a kind and a name per key',
+          sorted(wins) == ['ani', 'aplot', 'auto', 'browser'] and not badw, str(sorted(wins)) + str(badw))
     cmds = hello.get('commands', [])
     kinds = {(c['cmd'], c.get('op')): c['kind'] for c in cmds}
     doc = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'docs', 'protocol.md'),
@@ -1375,7 +1452,7 @@ def check_hello_kinds():
     check('W106: the Numerics items that ask a value are settings (Total, Dt, Method, dElay), Parameters too',
           all(num.get(k) == 's' for k in 'tdme') and num.get('\x1b') == 'v' and main.get('p') == 's', str(num))
     check('W95: Initialconds and Sing pts compute, Window/zoom is a view, File/Save info is data, File/Quit control',
-          main.get('i') == 'x' and main.get('s') == 'x' and main.get('w') == 'v'
+          main.get('i') == 'x' and kinds.get(('equilibrium.find', None)) == 'x' and main.get('w') == 'v'
           and file.get('s') == 'd' and file.get('q') == 'c' and file.get('v') == 'd' and file.get('w') == 'd', str(main))
 
 
@@ -1902,9 +1979,9 @@ ev = file_cmd(op='get', name=utf8_name)
 check('file get of the UTF-8 name gives its bytes back', ev.get('ok') == 1 and base64.b64decode(ev.get('data', '')) == b'hi', str(ev))
 
 send(cmd='key', key='u')  # nUmerics menu
-send(cmd='key', key='n')  # the nullcline mesh
+send(cmd='key', key='t')  # total
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('nUmerics/Ncline mesh asks for a number', ask is not None and ask['kind'] == 'string', str(ask))
+check('nUmerics/Total asks for a number', ask is not None and ask['kind'] == 'string', str(ask))
 if ask:
     send(cmd='answer', id=ask['id'], ok=0)
     collect(is_idle)
@@ -2069,20 +2146,9 @@ check('state at the interrupted run\'s idle agrees with the armed row count',
 check('the next run is whole again', len(rows_at_idle) >= 1 and rows_at_idle[-1] == 801 and len(stopped) == 1,
       str(rows_at_idle[-1:]))
 
-send(cmd='key', key='s')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-send(cmd='answer', id=ask['id'], key='g')
-eq = None
-for _ in range(6):
-    evs, e = collect(lambda e: e.get('ev') in ('ask', 'equilibrium'), timeout=10 * SLOW)
-    if e is None:
-        break
-    if e['ev'] == 'equilibrium':
-        eq = e
-    else:
-        send(cmd='answer', id=e['id'], key='n')
-    if eq:
-        break
+send(cmd='equilibrium.find')
+evs, _ = collect(is_idle)
+eq = next((e for e in evs if e.get('ev') == 'equilibrium'), None)
 check('Sing pts/Go reports an equilibrium', eq is not None and eq['type'] in ('STABLE', 'UNSTABLE', 'NEUTRAL'), str(eq))
 ev = (eq or {}).get('eigenvalues') or []
 check('with its eigenvalues, one [re, im] per variable, as its counts say',
@@ -2935,11 +3001,11 @@ def check_values_protocol():
         # W494: a range or an order broken by `set num` is refused with the setting, its value and the rule
         for name, text, words in (('min_step', '1e9', 'min_step (1e+09) must be at most max_step'),
                                   ('relative_tolerance', '0', 'must be a number above 0'),
-                                  ('max_iterations', '0', 'must be a whole number of at least 1')):
-            evs = (after(cmd='set', values=[{'kind': 'num', 'name': name, 'text': text}]) if name == 'max_iterations'
+                                  ('max_iterations', '0', 'must be at least 1')):
+            evs = (after(cmd='equilibrium.configure', max_iterates=int(text)) if name == 'max_iterations'
                    else after(cmd='run.configure', **{name: float(text)}))
             check('W494: setting num %s=%s is refused naming %s' % (name, text, words),
-                  len(errs(evs)) == 1 and words in errs(evs)[0].get('error', '') and errs(evs)[0].get('field') == 'num:' + name,
+                  len(errs(evs)) == 1 and words in errs(evs)[0].get('error', '') and (name == 'max_iterations' or errs(evs)[0].get('field') == 'num:' + name),
                   str(errs(evs)))
         evs = after(cmd='run.configure', total_time='1O0')
         check('run.configure with a total time that is not a number is refused, naming the argument',
@@ -3673,7 +3739,7 @@ def check_phase_data():
               len(nc) == 1 and len(df) == 1 and nc[0]['win'] == 'graph_1' and nc[0]['x'] == [] and nc[0]['frozen'] == []
               and df[0]['grid'] == [] and df[0]['flows'] == [] and not of(evs, 'series'), str(evs)[:300])
 
-        evs = command('n', {'key': 'n'})
+        evs = after({'cmd': 'nullcline.compute'})
         nc, v = of(evs, 'nullclines'), last_state(evs)['view']
         n0 = nc[0] if nc else {}
         check('Nullcline/New: the event names V and W, colours #f06400 and #00e100 (XPPAUT\'s 2 and 7)',
@@ -3684,7 +3750,7 @@ def check_phase_data():
         evs = after({'cmd': 'window.redraw'})
         check('a redraw draws them again and sends nothing', not of(evs, 'nullclines') and not of(evs, 'dfield'))
 
-        evs = command('d', {'key': 's'}, {'value': '16'})
+        evs = after({'cmd': 'dirfield.compute', 'grid': 16, 'scaled': True})
         df, v = of(evs, 'dfield'), last_state(evs)['view']
         d0 = df[0] if df else {}
         check('Dir.field/Scaled: dfield has a 17 x 17 grid, scaled, in the curve\'s colour',
@@ -3695,7 +3761,7 @@ def check_phase_data():
         check('... unit directions', all(abs(d0['grid'][k + 2] ** 2 + d0['grid'][k + 3] ** 2 - 1) < 1e-5
                                          for k in range(0, len(d0.get('grid', [])), 4)) if d0 else False)
 
-        evs = command('n', {'key': 'f'}, {'key': 'f'})
+        evs = after({'cmd': 'nullcline.freeze'})
         nc = of(evs, 'nullclines')
         ncx = nc[0]['x'] if nc else []
         check('Nullcline/Freeze/Freeze: the frozen nullclines are in the event',
@@ -3712,7 +3778,7 @@ def check_phase_data():
         check('a redraw draws the nullclines again (not the field Erase turned off)',
               len(nc) == 1 and len(nc[0]['x']) > 0 and len(nc[0]['frozen']) == 1 and not df, str(evs)[:300])
 
-        evs = command('d', {'key': 'f'}, {'value': '5'})
+        evs = after({'cmd': 'dirfield.flow', 'grid': 5})
         df = of(evs, 'dfield')
         fl = df[0]['flows'] if df else []
         xs = fl[0]['x'] if fl else []
@@ -4118,7 +4184,7 @@ def check_marks():
               and f[0]['draw'] == 'line' and f[0]['dash'] == 'solid' and f[0]['width'] == 1 and values({'data': f[0]['x']}, None) == cols.get(curve['x']) and values({'data': f[0]['y']}, None) == cols.get(curve['y'])
               and len(f[0]['x']) > 2, str(m)[:300])
 
-        got = command('s', lambda e, n: {'key': 'g' if n == 0 else 'n'})
+        got = after({'cmd': 'equilibrium.find'})
         eq = next(iter(of(got, 'equilibrium')), None)
         m = marks_of(got)
         q = m['equilibria'] if m else []
@@ -4168,7 +4234,7 @@ def check_marks():
         check('Text,etc/Delete all deletes them', m is not None and m['text'] == [] and m['arrows'] == []
               and m['markers'] == [], str(m)[:300])
         evs = after({'cmd': 'data', 'events': ['series']})
-        evs += command('s', lambda e, n: {'key': 'g' if n == 0 else 'n'})
+        evs += after({'cmd': 'equilibrium.find'})
         check('not asked for: no marks', not of(evs, 'marks'))
     finally:
         stop_server(proc6, run6, send6)
@@ -4481,8 +4547,7 @@ def lecar_to_auto(snd, col):
         snd(**c)
         return col(lambda e: is_idle(e) or e.get('ev') == 'ask', timeout=30 * SLOW)
     for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'd'}, {'cmd': 'answer', 'key': 'a'},
-              {'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}, {'cmd': 'answer', 'key': 'n'},
-              {'cmd': 'key', 'win': 'equilibrium', 'key': 'i'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}, {'cmd': 'key', 'win': 'auto', 'key': 'r'}):
+              {'cmd': 'equilibrium.find'}, {'cmd': 'equilibrium.import_as_ic'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}, {'cmd': 'key', 'win': 'auto', 'key': 'r'}):
         step(**c)
     snd(cmd='answer', key='s')
     evs, _ = col(is_idle, timeout=60 * SLOW)
@@ -5480,26 +5545,12 @@ def check_output_names():
                       and not any(e.get('saved') for e in evs), str(evs)[-400:])
         finally:
             os.unlink(victim)
-        # W177: each frozen destination has its own overwrite decision.
-        snd(cmd='key', key='n')
-        answer_asks(is_idle, {'menu': menu('n')}, sender=snd, collector=col)
-        snd(cmd='key', key='n')
-        answer_asks(is_idle, {'menu': menu('f')}, sender=snd, collector=col)
+        snd(cmd='nullcline.compute'); col(is_idle)
+        snd(cmd='nullcline.freeze'); col(is_idle)
         with open(os.path.join(r, 'result.dat.1'), 'wb') as f: f.write(b'keep frozen')
-        snd(cmd='key', key='n', replace=0)
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='s')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], file='result.dat', replace=1)
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='y')
-        evs, ask = col(lambda e: is_ask(e) or is_idle(e))
-        check('W177: frozen nullcline asks before replacing its derived destination',
-              ask and ask.get('question') == 'result.dat.1 exists. Replace it?', str(ask))
-        if ask and is_ask(ask):
-            snd(cmd='answer', id=ask['id'], key='n')
-            col(is_idle)
-        check('W177: declining a frozen save preserves its unrelated bytes',
+        snd(cmd='nullcline.export', file='result.dat')
+        evs, _ = col(is_idle)
+        check('W522: exporting the current nullclines leaves unrelated derived names untouched',
               open(os.path.join(r, 'result.dat.1'), 'rb').read() == b'keep frozen')
         snd(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
         col(is_idle)
@@ -5684,7 +5735,7 @@ def check_refused_during_run():
         evs, prog = col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
         check('W95: the integration says it computes (computing) before its progress',
               [e.get('ev') for e in evs].count('computing') == 1, str([e.get('ev') for e in evs]))
-        snd(cmd='key', key='s')  # Sing pts: a computation
+        snd(cmd='equilibrium.find')  # a computation
         snd(cmd='run.continue')  # Continue: a computation
         snd(cmd='window.set_display', window='graph_1', x_range=[0, 50])  # a view: kept for after the run
         snd(cmd='browser', **{'from': 0, 'count': 1})  # only reads: answered during the run
@@ -5710,16 +5761,16 @@ def check_refused_during_run():
         check('W95: a view command sent during a run runs after it (display: the zoom shown)',
               not any(x.get('ev') == 'message' for x in after[2]) and w1 and w1.get('zoom', {}).get('x') == [0, 50],
               str(w1 and w1.get('zoom')))
-        want = ['refused during a computation: key s', 'refused during a computation: run.continue']
+        want = ['refused during a computation: equilibrium.find', 'refused during a computation: run.continue']
         log.wait_for(lambda lines: all(w in lines for w in want))
-        check('W95: each refused line is logged once ("refused during a computation: key s"), the view none',
+        check('W95: each refused line is logged once ("refused during a computation: equilibrium.find"), the view none',
               all(log.count(w) == 1 for w in want) and len([l for l in log if 'refused' in l]) == 2,
               str([l for l in log if 'refused' in l]))
         snd(cmd='key', key='u')
         col(is_idle)
-        snd(cmd='key', key='n')
+        snd(cmd='key', key='t')
         evs, ask = col(lambda e: e.get('ev') in ('ask', 'idle','done'))
-        check('W68: after the run a key works again (nUmerics/Ncline mesh asks)', ask is not None and ask['ev'] == 'ask',
+        check('W68: after the run a key works again (nUmerics/Total asks)', ask is not None and ask['ev'] == 'ask',
               str(ask))
         if ask and ask['ev'] == 'ask':
             snd(cmd='answer', id=ask['id'], ok=0)
@@ -6645,9 +6696,9 @@ def check_silent_commands():
         stale = lambda d: open(os.path.join(d, 'output.dat'), 'w').write('stale\n')
         c, rc = script(args.ode, go + [
             {'cmd': 'browser', 'op': 'write', 'what': 'output', 'format': 'dat', 'name': 'output.dat', 'replace': 1},
-            {'cmd': 'equilibrium', 'op': 'write', 'name': 'equil.dat'},
-            {'cmd': 'key', 'key': 'd'}, {'cmd': 'answer', 'key': 'd'}, {'cmd': 'answer', 'value': '16'},
-            {'cmd': 'dfield', 'op': 'write', 'name': 'dirfields.dat'}], before=stale)
+            {'cmd': 'equilibrium.export', 'file': 'equil.dat'},
+            {'cmd': 'dirfield.compute', 'grid': 16, 'scaled': False},
+            {'cmd': 'dirfield.export', 'file': 'dirfields.dat'}], before=stale)
         dirs.append(c)
         check('the script with --silent\'s commands runs through', rc.returncode == 0, rc.stderr[-300:])
         check('browser write of the output, replace: --silent\'s output.dat, over the file there, unasked',
@@ -6658,7 +6709,7 @@ def check_silent_commands():
         check('dfield write: the direction field shown, one arrow a line (17 x 17), in --silent --dfdraw 4\'s form',
               len(df.splitlines()) == 17 * 17 and df == read(s, 'dirfields.dat'),
               '%d lines' % len(df.splitlines()))
-        bad, rb = script(args.ode, [{'cmd': 'dfield', 'op': 'write', 'name': 'none.dat'}])
+        bad, rb = script(args.ode, [{'cmd': 'dirfield.export', 'file': 'none.dat'}])
         dirs.append(bad)
         check('dfield write with no field shown is an error, and writes nothing',
               rb.returncode == 1 and rb.outcome == 1 and '"error"' in rb.stdout and read(bad, 'none.dat') is None, rb.stdout[-300:])
@@ -6971,7 +7022,7 @@ def check_dae_fold():
     error, that there is no solution past the last time solved. dae.odex, a
     DAE with no fold, runs to its end (total 20, dt .05: 401 rows)."""
     GO = [{'cmd': 'run.initial'}]
-    SING = [{'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}]
+    SING = [{'cmd': 'equilibrium.find'}]
 
     def run(ode, lines=GO):
         code, out, err = run_replay(lines, ode=ode)
@@ -7437,8 +7488,8 @@ def check_session_file():
         answered(snd, col, (), cmd='slider', slot=0, name='iapp', lo=-1, hi=2, step=0.01)
         answered(snd, col, (), cmd='slider', slot=2, name='V', lo=-2, hi=2, step=0.02)
         answered(snd, col, (), cmd='slider', slot=3, name='phi', lo=0, hi=1, step=0.001)
-        key(snd, col, 'n', 'n')
-        key(snd, col, 'n', 'f', 'f')
+        answered(snd, col, (), cmd='nullcline.compute')
+        answered(snd, col, (), cmd='nullcline.freeze')
         answered(snd, col, (), cmd='session', op='save', name='s1')
         st1 = no_t(last('state'))
         check('session save: state.session names the .snapx', st1 and st1.get('session') == {'file': 's1.snapx'},
@@ -9965,7 +10016,16 @@ def check_stop_checks():
         return any(e.get('ev') == 'stopped' for e in evs)
     p, r, snd, col, _ = launch_server()
     try:
-        col(is_idle)
+        initial, _ = col(is_idle)
+        registry = next(e for e in initial if e.get('ev') == 'hello')['commands']
+        null_steps = int(next(a['max'] for c in registry if c['cmd'] == 'nullcline.range_freeze'
+                              for a in c['arguments'] if a['name'] == 'steps'))
+        max_mesh = int(next(a['max'] for c in registry if c['cmd'] == 'nullcline.set_mesh'
+                            for a in c['arguments'] if a['name'] == 'mesh'))
+        snd(cmd='data', events=['numerics'])
+        numerics, _ = col(is_idle)
+        old_mesh = int(next(f['value'] for e in numerics if e.get('ev') == 'numerics'
+                            for f in e['fields'] if f['key'] == 'nullcline_mesh'))
         # 1. Fixed-step chunk with large store_every (core/odesol2.cpp)
         snd(cmd='run.configure', store_every=50000000)
         col(is_idle)
@@ -9987,36 +10047,33 @@ def check_stop_checks():
         col(is_idle)
 
         # 2. Flow grid cancellation (core/nullcline.cpp)
-        snd(cmd='key', key='d')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='f')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], value=str(W388_GRID))
+        snd(cmd='dirfield.flow', grid=W388_GRID)
+        _, started = col(lambda e: e.get('ev') == 'computing' or is_idle(e))
+        flow_started = started is not None and started.get('ev') == 'computing'
         snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
-        check('W388: direction field flow loop stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
+        check('W388: direction field flow loop stops on abort', flow_started and stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
 
         # 3. Range nullclines cancellation (core/nullcline.cpp)
-        snd(cmd='key', key='n')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='f')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='r')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], ok=1, values=['iapp', str(W388_STEPS), '0', '1'])
+        # A maximal advertised mesh makes this range hours of work without Stop, independently of machine speed.
+        snd(cmd='nullcline.set_mesh', mesh=max_mesh)
+        col(is_idle)
+        snd(cmd='nullcline.range_freeze', parameter='iapp', steps=null_steps, start=0, end=1)
+        _, started = col(lambda e: e.get('ev') == 'computing' or is_idle(e))
+        null_started = started is not None and started.get('ev') == 'computing'
         snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
-        check('W388: range nullclines sweep stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
+        check('W388: range nullclines sweep stops on abort', null_started and stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
+        snd(cmd='nullcline.set_mesh', mesh=old_mesh)
+        col(is_idle)
 
         # 4. Range equilibria sweep cancellation (core/integrate.cpp)
-        snd(cmd='key', key='s')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='r')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], ok=1, values=['iapp', str(W388_STEPS), '-0.5', '0.5', 'false', '-1', 'false', 'false'])
+        snd(cmd='equilibrium.range', parameter='iapp', steps=W388_STEPS, start=-0.5, end=0.5)
+        _, started = col(lambda e: e.get('ev') == 'computing' or is_idle(e))
+        eq_started = started is not None and started.get('ev') == 'computing'
         snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
-        check('W388: range equilibria sweep stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
+        check('W388: range equilibria sweep stops on abort', eq_started and stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
 
         # 5. Pairwise differences histogram cancellation (core/histogram.cpp):
         #    W388_ROWS^2 differences
@@ -10321,10 +10378,8 @@ def check_recursive_user_functions():
         s = Server(args.server, field)
         try:
             s.collect(is_idle)
-            s.send(cmd='key', key='d')
-            evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'd'},
-                                             'string': lambda e: {'value': '10'},
-                                             'number': lambda e: {'value': '10'}})
+            s.send(cmd='dirfield.compute', grid=10)
+            evs, _ = s.collect(is_idle)
             errors = [e for e in evs if e.get('error')]
             check('W387: a direction field nested too deep shows one placed error when the command ends',
                   len(errors) == 1 and errors[0].get('line') == 1

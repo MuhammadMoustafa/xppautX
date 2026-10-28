@@ -523,3 +523,19 @@ This solves boundary value problems by numerical shooting. There are 4 choices.
 - **(N)o show**: This is as above but will not show successive solutions.
 - **(R)ange**: This allows you to range over a parameter keeping starting or ending values of each of the variables. A window will appear asking you for the parameter, the start, end, and steps. You will also be asked if you want to cycle color which means that the results of each successful solution to the BVP will appear in different colors. Finally the box labeled`side` tells the program whether to save the initial `(0)` or final`(1)` values of the solution. As the program progresses, you will see the current parameter in the info window under the main screen. You can abort the current step by pressing `Esc` and the whole process by pressing `/`. As in the `Initialconds Range` option, you can also choose `Movie`. Then, as before, after each solution is computed, a snapshot is take. Thus, you can playback the solutions as a function of the range parameter.
 - **(P)eriodic**: Periodic boundary conditions can be solved thru the usual methods, but one then must write an addition equation for the frequency parameter. This option eliminates that need so that a 2-D autonomous system need not be suspended into a 3D one. You will be asked for the name of the adjustable parameter for frequency. You will also be asked for the section variable and section. This is an additional condition that must be satisfied, namely, $`x(0)=x_0`$ where $`x`$ is the section variable and $`x_0`$ is the section. Type `yes` if you want the progress shown.
+
+### Analysis commands (W522)
+
+The S, N and D menus and the Numerics items sIng pt and Nullcline mesh ask as before, then run the typed commands.
+Through the protocol each command takes its values as arguments; optional arguments left out
+keep the session's current settings. The XPPAUT key preset reaches the same operations: SG
+finds an equilibrium, NN computes nullclines, DD and DS draw unscaled and scaled direction fields.
+The Values panel's equilibrium and nullcline mesh settings use the same commands.
+
+`equilibrium.guess` accepts data coordinates for the named graph's two plotted variables;
+`equilibrium.search` accepts bounds such as `{"V": [-1, 1], "W": [0, 1]}`.
+`nullcline.export` saves the current pair, with one segment per row, as dat, CSV, compressed CSV
+or NumPy data. It does not create separate frozen-pair files. Analysis exports ask before
+replacing an existing file; `confirm` true answers that question in advance.
+The equilibrium result's Import button uses `equilibrium.import_as_ic`. With `equilibrium.export`,
+`shoot` true also writes manifolds as `<file-stem>-eigenN-stable.dat` or `<file-stem>-eigenN-unstable.dat`.

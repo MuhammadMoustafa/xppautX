@@ -275,19 +275,16 @@ void run_the_commands(xpp::Session &s, MenuCommand com)
     return;
   }
   if (com >= M_NFF && com <= M_NFA) {
-    froz_cline_stuff_com(s,com - M_NFF);
+    xpp::ok_or_show(xpp::command::nullcline_button(s,com-M_NFF+5,xpp::command_place()));
     return;
   }
   if (com >= M_NN && com <= M_NS) {
-    new_clines_com(s,com - M_NN);
+    if(com==M_NS-1){menu_run(s,&menu_freeze_cline,0);return;}
+    xpp::ok_or_show(xpp::command::nullcline_button(s,com==M_NS?4:com-M_NN,xpp::command_place()));
     return;
   }
   if (com >= M_DD && com <= M_DS) {
-    direct_field_com(s,com - M_DD);
-    if ((com - M_DD) == 1)
-      return;
-    create_new_cline(s);
-    ui.redraw_graph(s);
+    xpp::ok_or_show(xpp::command::dirfield_button(s,com-M_DD,xpp::command_place()));
     return;
   }
   if (com >= M_WW && com <= M_WS) {
@@ -364,6 +361,22 @@ void run_the_commands(xpp::Session &s, MenuCommand com)
   if (com >= M_UCN && com <= M_UCA) xpp::set_col_par_com(s,com - M_UCN);
   if (com >= M_UPN && com <= M_UPP) xpp::get_pmap_pars_com(s,com - M_UPN);
   if (com >= M_UHN && com <= M_UH2) xpp::do_stochast_com(s,com - M_UHN);
+  if(com==M_UN){
+    int mesh=s.numerics.nullcline_mesh;
+    new_int("Nullcline mesh",&mesh);
+    xpp::ok_or_show(xpp::command::run_button(s,xpp::format("{{\"cmd\":\"nullcline.set_mesh\",\"mesh\":{}}}",mesh),xpp::command_place()));
+    return;
+  }
+  if(com==M_UI){
+    auto controls=s.numerics.equilibria;
+    new_int("Max iterations",&controls.max_iterations);
+    if(new_float(s,"Newton tolerance",&controls.newton_tolerance)==-1
+       ||new_float(s,"Jacobian epsilon",&controls.jacobian_step)==-1
+       ||new_float(s,"Search limit",&controls.search_limit)==-1)return;
+    xpp::ok_or_show(xpp::command::run_button(s,xpp::format("{{\"cmd\":\"equilibrium.configure\",\"max_iterates\":{},\"newton_tolerance\":{},\"jacobian_epsilon\":{},\"search_limit\":{}}}",
+        controls.max_iterations,controls.newton_tolerance,controls.jacobian_step,controls.search_limit),xpp::command_place()));
+    return;
+  }
   if (com >= M_UT && com <= M_UC) xpp::quick_num(s, com - M_UT);
 }
 
@@ -398,7 +411,7 @@ static void find_bvp(xpp::Session &s) { menu_run(s, &menu_bvp, 1); }
 
 /* the ones the Numerics menu (numerics.cpp), the nullclines' (nullcline.cpp)
    and the front end open, in the Session they pass */
-void froz_cline_stuff(xpp::Session &s) { menu_run(s, &menu_freeze_cline, 0); }
+
 void do_stochast(xpp::Session &s) { menu_run(s, &menu_stochastic, 0); }
 void set_col_par(xpp::Session &s) { menu_run(s, &menu_color_code, 0); }
 void make_adj(xpp::Session &s) { menu_run(s, &menu_adjoint, 0); }

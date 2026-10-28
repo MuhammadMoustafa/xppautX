@@ -433,25 +433,19 @@ static const char *const aplot_window_hint[]={"Redraw the array plot","Edit its 
   "Draw a range of parameter values","Write a PDF","Write a GIF"};
 const XppMenu menu_aplot_window = XPP_MENU("aplot_window", "Array plot", aplot_window_items, "defrpg", "vvvxdd", aplot_window_hint, -1);
 
-static const char *const equilibrium_window_items[]={"(I)mport"};
-static const char *const equilibrium_window_hint[]={"Make the equilibrium the initial conditions"};
-const XppMenu menu_equilibrium_window = XPP_MENU("equilibrium_window", "Equilibrium", equilibrium_window_items, "i", "d", equilibrium_window_hint, -1);
-
 /* the page's name for each item of a window's layer (hello.windows) */
 static const char *const auto_window_ids[]={"axes","numerics","run","grab","usr","clear","redraw","file"};
 static const char *const browser_window_ids[]={"find","get","replace","unreplace","table","first","last","restore",
   "addcol","delcol","load","write"};
 static const char *const ani_window_ids[]={"file","go","reset","skip","mpeg","fly","grab"};
 static const char *const aplot_window_ids[]={"redraw","edit","fit","range","print","gif"};
-static const char *const equilibrium_window_ids[]={"import"};
 static_assert(sizeof(auto_window_ids) / sizeof(auto_window_ids[0]) == sizeof(auto_window_items) / sizeof(auto_window_items[0])
               && sizeof(browser_window_ids) == sizeof(browser_window_items) && sizeof(ani_window_ids) == sizeof(ani_window_items)
-              && sizeof(aplot_window_ids) == sizeof(aplot_window_items)
-              && sizeof(equilibrium_window_ids) == sizeof(equilibrium_window_items), "one name per item");
+              && sizeof(aplot_window_ids) == sizeof(aplot_window_items), "one name per item");
 
 const XppWindowLayer window_layers[XPP_WINDOW_LAYERS]={{"auto",&menu_auto_window,auto_window_ids},
   {"browser",&menu_browser_window,browser_window_ids},{"ani",&menu_ani_window,ani_window_ids},
-  {"aplot",&menu_aplot_window,aplot_window_ids},{"equilibrium",&menu_equilibrium_window,equilibrium_window_ids}};
+  {"aplot",&menu_aplot_window,aplot_window_ids}};
 
 const XppWindowLayer *window_layer(std::string_view win)
 {

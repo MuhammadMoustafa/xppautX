@@ -507,7 +507,6 @@ void window_key(xpp::Session &s, const std::string &win, int ch, const char *lin
     else if (win == "browser") browser_key(s, ch, line);
     else if (win == "ani") ani_key(s, ch);
     else if (win == "aplot") aplot_key(s, ch);
-    else if (win == "equilibrium") equilibrium_key(s, ch);
     else j_command_error("key", xpp::format("No key layer for the window {}", win));
 }
 
@@ -519,7 +518,11 @@ void key_command(xpp::Session &s, const char *line)
         get_string(line, "menu", menu);
         get_string(line, "item", item);
         const auto action = main_menu_action(menu, item);
-        if (!action || js_find(line, "win") || js_find(line, "key")) {
+        if(!action){
+            j_command_error("key",xpp::format("Unknown command key menu {} item {}",menu,item));
+            return;
+        }
+        if (js_find(line, "win") || js_find(line, "key")) {
             j_command_error("key", "A menu action needs a known menu and item, without key or win");
             return;
         }
@@ -564,17 +567,6 @@ void file_command(xpp::Session &, const char *line)
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("in a file command");
     }
-}
-
-/* {"cmd":"dfield"|"equilibrium","op":"write","name":...} */
-void write_command(xpp::Session &s, const char *line)
-{
-    std::string o, name;
-    get_string(line, "op", o);
-    get_string(line, "name", name);
-    if (o != "write" || name.empty()) j_command_error("write", "dfield and equilibrium write to a file: op write and a name");
-    else if (is_cmd(line, "dfield")) write_dfield(s,name);
-    else write_equilibrium(s,name.c_str(), get_int(line, "shoot", 0));
 }
 
 /* The protocol's commands (docs/protocol.md "Commands"): the one table of
@@ -644,7 +636,6 @@ const CommandInfo commands[] = {
     {"values", "query", D, STEP, values_command},
     {"values", nullptr, S, STEP, values_command}, /* read: values set */
     {"session", nullptr, D, STEP, session_command},
-    {"dfield", nullptr, D, STEP, write_command},
     {"open", nullptr, D, STEP,
      [](xpp::Session &s, const char *line) {
          std::string file, example;
@@ -661,7 +652,6 @@ const CommandInfo commands[] = {
     {"play", "speed", C, NOT_STEP, play_command},
     {"play", "close", C, NOT_STEP, play_command},
     {"play", nullptr, D, NOT_STEP, play_command}, /* open, from, note */
-    {"equilibrium", nullptr, X, STEP, write_command},
     {"userbut", nullptr, X, STEP,
      [](xpp::Session &s, const char *line) {
          int i = get_int(line, "index", -1);
@@ -878,10 +868,11 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
         if(text)request=xpp::command::tokenize(line,place);
         if(request) {
             record_begin(request->c_str());
+            const auto permission=reset_save_decision();
             /* --silent's own commands replace the output files they write, as its key lines' "replace":1 said */
             if(session.generated)session.save_replace=SAVE_REPLACE;
             if(refused)result=xpp::fail("command",xpp::format("{}: {} was refused",xpp::job::REFUSED_WHILE_COMPUTING,xpp::command::name(request->c_str())),place);
-            else result=!s->model().loaded() && xpp::command::is_step(request->c_str()) ?
+            else result=!permission?std::unexpected<xpp::Error>(permission.error()):!s->model().loaded() && xpp::command::is_step(request->c_str()) ?
                 xpp::fail("command","No model is open",place) : xpp::command::run(*s,request->c_str(),place,!played && !session.silent && !xpp::http::active());
         } else result=std::unexpected<xpp::Error>(request.error());
         if(!result) {

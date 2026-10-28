@@ -206,12 +206,12 @@ fun ode_divisor(value) = if value then value else 2.23e-15
 @steps
 {"step":"File","keys":["f"],"view":true}
 {"step":"File → Apply set → d: hopf, all","keys":["g","d","a"]}
-{"step":"Sing pts → Go","keys":["s","g","n"]}
-{"step":"Equilibrium → Import","win":"equilibrium","keys":["i"]}
+{"step":"Sing pts \u2192 Go","cmd":{"cmd":"equilibrium.find","print_eigenvalues":false}}
+{"step":"Equilibrium \u2192 Import","cmd":{"cmd":"equilibrium.import_as_ic"}}
 {"step":"File → AUTO","cmd":{"cmd": "auto.open"},"view":true}
 {"step":"AUTO → Run → Equilibrium","cmd":{"cmd": "auto.run", "kind": "equilibrium", "replace_diagram": false}}
 {"step":"AUTO → Grab","cmd":{"cmd": "auto.grab", "type": "hopf", "index": 1}}
 {"step":"AUTO → Run → Periodic","cmd":{"cmd": "auto.run", "kind": "periodic", "type": "hopf", "index": 1}}
 {"step":"AUTO → File → Save diagram","win":"auto","cmd":{"cmd": "key", "win": "auto", "key": "f", "replace": 1},"keys":["s"],"answers":[{"file":"lecar.snapx"}]}
 
-fingerprint: f9595214ad70dda2c8f8079db71bfb9c2cac0f0d00ee50f5709b92f22293e916
+fingerprint: 8bdb0c0dffa9bad74f0e791c3b083a5a7f23830eae5fc509f91bbd313a8fc584

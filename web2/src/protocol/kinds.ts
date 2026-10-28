@@ -19,7 +19,7 @@ export type Kind = 'control' | 'view' | 'setting' | 'data' | 'computation';
 const OF_LETTER: Record<string, Kind> = {c: 'control', v: 'view', s: 'setting', d: 'data', x: 'computation'};
 
 /** a window with a key layer of its own ({"cmd":"key","win":...}) */
-export type LayerWindow = 'auto' | 'browser' | 'ani' | 'aplot' | 'equilibrium';
+export type LayerWindow = 'auto' | 'browser' | 'ani' | 'aplot';
 
 /** one window's key layer (hello.windows) */
 export interface WindowLayer {

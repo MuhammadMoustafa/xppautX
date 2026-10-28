@@ -29,7 +29,8 @@ constexpr std::array HELP_ROWS = {
 std::span<const Command> help_commands() { return HELP_ROWS; }
 
 /* every resource's table, in the order help lists them */
-constexpr std::array TABLES = {help_commands, window_commands, annotation_commands, run_commands, ic_commands, bvp_commands, auto_commands, plot_commands};
+constexpr std::array TABLES = {help_commands, window_commands, annotation_commands, run_commands, ic_commands, bvp_commands, auto_commands, plot_commands,
+                              equilibrium_commands, nullcline_commands, dirfield_commands};
 
 template <class Visit> void each_command(Visit visit)
 {
@@ -175,25 +176,21 @@ Result<std::string> describe(Session &, const Command &command, const Arguments 
 
 } // namespace
 
+Result<> run_button(Session &s,const std::string &line,const Place &place)
+{
+    const auto result=run(s,line.c_str(),place,false);
+    if(!result)return std::unexpected(result.error());
+    return {};
+}
+
 const char *type_name(Type type)
 {
-    switch (type) {
-    case Type::text: return "text";
-    case Type::integer: return "integer";
-    case Type::real: return "real";
-    case Type::boolean: return "boolean";
-    case Type::choice: return "choice";
-    case Type::expression: return "expression";
-    case Type::model_name: return "name";
-    case Type::file: return "file";
-    case Type::path: return "path";
-    case Type::color: return "color";
-    case Type::list: return "list";
-    case Type::map: return "map";
-    case Type::window: return "window";
-    case Type::new_name: return "new_name";
-    }
-    return "";
+    /* Type's declaration order is the registry vocabulary's order. */
+    static constexpr std::array NAMES={"text","integer","real","boolean","choice","expression","name","file","path",
+        "color","list","map","window","new_name","list[real, 2]"};
+    static_assert(NAMES.size()==static_cast<std::size_t>(Type::real_pair)+1);
+    const auto index=static_cast<std::size_t>(type);
+    return index<NAMES.size()?NAMES[index]:"";
 }
 
 const Command *find(std::string_view name)

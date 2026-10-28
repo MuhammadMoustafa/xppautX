@@ -92,7 +92,7 @@ DenseEvent dense_event(Session &s, double from, double until, double step_from, 
    Newton does not converge); shoot: also the invariant manifolds of a
    saddle, integrated into UMk.dat/SMk.dat (--silent's --equil 0/1, the
    protocol's `equilibrium` `write`) */
-void write_equilibrium(Session &s, const char *name, int shoot);
+Result<> write_equilibrium(Session &s, const char *name, int shoot, bool confirm);
 void init_range(Session &s);
 int set_up_eq_range(Session &s);
 /* Continue (W213), the one way to extend the trajectory: to the time `until`, or for `extra` more,
@@ -111,11 +111,12 @@ int set_up_range(Session &s);
 int set_up_range2(Session &s);
 void init_monte_carlo(Session &s);
 void monte_carlo(Session &s);
-void do_eq_range(Session &s, double *x);
+
 void swap_color(Session &s, Color *col, int rorw);
 void set_cycle(Session &s, int flag, int *icol);
 int do_range(Session &s, double *x, int flag);
 void find_equilib_com(Session &s, int com);
+Result<int> equilibrium_range(Session &s);
 int write_this_run(Session &s, const char *file, int i);
 /* XPPAUT's Initialconds items as an imported button sequence runs them (kbs.h), asking what the registry's
    run.*, ic.* commands take as arguments */

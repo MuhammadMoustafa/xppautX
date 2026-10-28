@@ -799,8 +799,7 @@ def hopf_steady(s):
     examples/recordings/lecar_auto.recx does), AUTO; returns the events"""
     evs = []
     for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'd'}, {'cmd': 'answer', 'key': 'a'},
-              {'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}, {'cmd': 'answer', 'key': 'n'},
-              {'cmd': 'key', 'win': 'equilibrium', 'key': 'i'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}):
+              {'cmd': 'equilibrium.find'}, {'cmd': 'equilibrium.import_as_ic'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}):
         evs += step(s, **c)[0]
     return evs
 

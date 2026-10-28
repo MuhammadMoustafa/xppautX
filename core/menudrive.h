@@ -176,6 +176,6 @@ void get_pmap_pars(Session &s);
 void set_col_par(Session &s);
 void make_adj(Session &s);
 void new_lookup(Session &s);
-void froz_cline_stuff(Session &s);
+
 
 } // namespace xpp

@@ -547,6 +547,11 @@ void init_txtview(void) { ui.init_txtview(); }
 void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n)
 {
+    s.last_equilibrium.assign(y,y+n);
+    s.last_equilibrium_eigenvalues.clear();
+    if(ev)s.last_equilibrium_eigenvalues.assign(ev,ev+2*n);
+    /* A delay window has no eigenvalue list; its minus count is only a display placeholder. */
+    s.last_equilibrium_stability=(cp+rp>0)?((ev && cm+rm>0)?"saddle":"unstable"):"stable";
     ui.show_eq_box(s, cp, cm, rp, rm, im, y, ev, n);
 }
 void bye_bye(void) { ui.exit_program(); }

@@ -515,10 +515,10 @@ bool guarded_read(const char *path, DataTable &t) noexcept
 
 /* The registry: one line per format, in the Save data menu's order. */
 constexpr std::array<DataFormat, 4> registry{{
-    {"dat", "XPP data (.dat)", ".dat", 'd', false, guarded_write<write_dat>, guarded_read<read_dat>},
-    {"csv", "CSV with a header (.csv)", ".csv", 'c', true, guarded_write<write_csv>, guarded_read<read_csv>},
-    {"csv.gz", "Compressed CSV (.csv.gz)", ".csv.gz", 'g', true, guarded_write<write_csv_gz>, guarded_read<read_csv_gz>},
-    {"npz", "NumPy arrays (.npz)", ".npz", 'n', true, guarded_write<write_npz>, guarded_read<read_npz>},
+    {DATA_FORMAT_DAT, "XPP data (.dat)", ".dat", 'd', false, guarded_write<write_dat>, guarded_read<read_dat>},
+    {DATA_FORMAT_CSV, "CSV with a header (.csv)", ".csv", 'c', true, guarded_write<write_csv>, guarded_read<read_csv>},
+    {DATA_FORMAT_CSV_GZ, "Compressed CSV (.csv.gz)", ".csv.gz", 'g', true, guarded_write<write_csv_gz>, guarded_read<read_csv_gz>},
+    {DATA_FORMAT_NPZ, "NumPy arrays (.npz)", ".npz", 'n', true, guarded_write<write_npz>, guarded_read<read_npz>},
 }};
 
 } // namespace

@@ -95,7 +95,7 @@ struct CommandRow {
    build of GCC refuses to evaluate the table's search as a constant) */
 inline constexpr std::string_view STORE_EVERY_LABEL = "Store every N steps";
 
-inline constexpr std::array<CommandRow, 63> COMMANDS = {{
+inline constexpr auto COMMANDS = std::to_array<CommandRow>({
     {MAIN_MENU, 'i', "initialconds", "Initial conditions", "Integrate the equations", XPP_KIND_COMPUTE, CommandCategory::Run, true, true, {}},
     {MAIN_MENU, PAGE_KEY, "run_initial", "Run from initial", "Start a new trajectory from the Initial values", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Enter"}},
     {MAIN_MENU, PAGE_KEY, "run_last", "Run from last state", "Use the last state as Initial and start a new trajectory", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Shift+Enter"}},
@@ -159,7 +159,7 @@ inline constexpr std::array<CommandRow, 63> COMMANDS = {{
     {MAIN_MENU, 'f', "file", "File", "Quit, save stuff, etc", XPP_KIND_VIEW, CommandCategory::Layer, false, true, {}},
     {MAIN_MENU, 'u', "numerics", "Numerics", "Numerics options", XPP_KIND_VIEW, CommandCategory::Layer, false, true, {}},
     {NUM_MENU, '\033', "exit", "Return to main shortcuts", "Return to main menu", XPP_KIND_VIEW, CommandCategory::Layer, false, true, {}},
-}};
+});
 
 /* the row of item `id` of menu `which`, nullptr for none */
 constexpr const CommandRow *find_command(int which, std::string_view id)

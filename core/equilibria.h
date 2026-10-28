@@ -52,9 +52,9 @@ Result<> do_sing(Session &s, double *x, double eps, double err, double big, int 
 /* integrates the manifolds from the saddle's stored starting points,
    returning the first that failed once all are done */
 Result<> shoot_this_now(Session &s);
-/* integrates the saddle's manifolds from their starting points into
-   UMk.dat and SMk.dat (write_equilibrium's shoot) */
-void save_batch_shoot(Session &s);
+/* Integrate the stored manifolds into file-stem-eigenN-stable/unstable.dat,
+   using the export command's overwrite decision and returning its first error. */
+Result<> save_batch_shoot(Session &s, std::string_view file, bool confirm);
 /* Sing pts' shooting (equilibria.cpp), a Session's (session.h): the initial
    conditions it found along the unstable and stable manifolds (count of
    ic, ic_flag once there are any), and the manifolds' colours (@ smc=,

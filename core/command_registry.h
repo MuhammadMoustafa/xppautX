@@ -26,6 +26,9 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
 bool is_step(const char *line);
 /* Imported/model-defined XPPAUT buttons use the same handlers. */
 Result<> window_button(Session &s,int button,const Place &place);
+Result<> nullcline_button(Session &s,int button,const Place &place);
+Result<> dirfield_button(Session &s,int button,const Place &place);
+Result<> run_button(Session &s,const std::string &line,const Place &place);
 Result<> check_shape(const char *line,const Place &place);
 /* One terminal event, using the common error renderer. Invalid ids are
    never echoed as nested data. */

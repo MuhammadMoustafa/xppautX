@@ -75,6 +75,11 @@ bool phase_plane(const GRAPH &g)
   return !(g.ThreeDFlag || g.TimeFlag || g.xv[0]==g.yv[0]);
 }
 
+bool phase_plane_states(const Session &s, const GRAPH &g)
+{
+  return phase_plane(g) && g.xv[0]>0 && g.yv[0]>0 && g.xv[0]<=s.model().node && g.yv[0]<=s.model().node;
+}
+
 void check_flags(GRAPH &g)
 {
   if(g.grtype>4)g.ThreeDFlag=1;

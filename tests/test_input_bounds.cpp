@@ -51,8 +51,10 @@ int main()
     for(bool fail:{false,true}){
         s.data_store.allocate(2,s.model().neq+1);
         fail_growth(fail);
-        double x=1;
-        xpp::do_eq_range(s,&x);
+        s.data_store.current[0]=1;
+        const auto result=xpp::equilibrium_range(s);
+        CHECK(result.has_value()!=fail);
+        if(result)CHECK(*result==10);
         CHECK(s.data_store.rows==(fail?2:10));
         CHECK(s.data_store.col[0][0]==1 && s.data_store.col[0][1]==2);
         if(!fail)CHECK(s.data_store.col[0][9]==10);

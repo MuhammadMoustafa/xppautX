@@ -13,6 +13,7 @@
 #include "json_number.h"
 #include "xpp_error.h"
 #include "xpp_io.h"
+#include <array>
 #include <cstddef>
 #include <optional>
 #include <span>
@@ -42,10 +43,10 @@ inline constexpr std::string_view HELP_COMMAND = "help";
 /* integer and real are finite numbers; text, expression, name, file, path
    and color are JSON strings (max_length bytes at most); window and
    new_name are W353's: an open graph or view, and a name a window may take;
-   list and map hold one level of `element` values (a map's keys are names
-   of its `names` kind, or any text) */
+   list and map hold one level of `element` values (real_pair is exactly two finite reals, for search bounds; no recursive containers). A map's keys are names
+   of its `names` kind, or any text. */
 enum class Type { text, integer, real, boolean, choice, expression, model_name, file, path, color,
-                  list, map, window, new_name };
+                  list, map, window, new_name, real_pair };
 /* what a name argument may name in the model, matched as the model does
    (any case): a parameter, a variable (one with an initial condition),
    either, or any name the model defines. `none` for a map whose keys are
@@ -97,7 +98,7 @@ struct ResultField {
 
 /* A value an argument takes: a scalar, a list of scalars, or a map of
    scalars by name, in the order written. */
-using Scalar = std::variant<bool, long long, double, std::string, Color>;
+using Scalar = std::variant<bool, long long, double, std::string, Color, std::array<double, 2>>;
 using Entry = std::pair<std::string, Scalar>;
 using Value = std::variant<Scalar, std::vector<Scalar>, std::vector<Entry>>;
 
@@ -221,6 +222,9 @@ Result<std::string> configure_numerics(Session &s, const Command &command, const
 inline constexpr std::string_view BVP_KEY_PREFIX = "bvp_";
 /* the registry command that sets the numerics setting `key`, "" when none does (`set` takes the others) */
 std::string_view numerics_command(std::string_view key);
+std::span<const Command> equilibrium_commands();
+std::span<const Command> nullcline_commands();
+std::span<const Command> dirfield_commands();
 
 /* Check the line's arguments against the row and give them typed, or the
    first fault (all or nothing: a handler runs only on success). session

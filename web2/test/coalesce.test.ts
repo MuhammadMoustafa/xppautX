@@ -19,9 +19,9 @@ test('values go out as the commands that take them: parameters in one set, state
     {kind: 'ic', name: 'v', text: '-0.2'}, {kind: 'ic', name: 'w', text: '%2*0.1'}, {kind: 'num', name: 'total_time', text: '30'},
     {kind: 'num', name: 'method', text: 'euler'}, {kind: 'num', name: 'stop_at_limit', text: 'true'}, {kind: 'num', name: 'bvp_max_iterates', text: '5'},
     {kind: 'num', name: 'nullcline_mesh', text: '40'}]).map(c => c.command), [
-    {cmd: 'set', kind: 'num', name: 'nullcline_mesh', text: '40'},
     {cmd: 'ic.set', values: {v: -0.2}},
     {cmd: 'ic.formula', variable: 'w', formula: '2*0.1'},
+    {cmd: 'nullcline.set_mesh', mesh: 40},
     {cmd: 'run.configure', total_time: 30, method: 'euler', stop_at_limit: true},
     {cmd: 'bvp.configure', max_iterates: 5},
   ]);

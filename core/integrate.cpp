@@ -40,6 +40,8 @@
 #include "nullcline.h"
 
 #include "pp_shoot.h"
+#include "command_registry.h"
+#include "json_reader.h"
 #include "dae_fun.h"
 #include "numerics.h"
 #include "numerics_settings.h"
@@ -359,11 +361,10 @@ void init_monte_carlo(xpp::Session &s)
 
 void monte_carlo(xpp::Session &s)
 {
-  int append=0;
-  int i=0,done=0,ishoot=0;
+  const bool append=TwoChoice("YES","NO","Append?","yn")=='y';
+  const bool ishoot=TwoChoice("YES","NO","Shoot?","yn")=='y';
+  int i=0,done=0;
   double z;
-  new_int("Append(1/0",&append);
-  new_int("Shoot (1/0)",&ishoot);
   new_int("# Guesses:",&s.integrator.fixptguess.n);
   new_float(s,"Tolerance:",&s.integrator.fixptguess.tol);
   while(1){
@@ -381,8 +382,13 @@ void monte_carlo(xpp::Session &s)
     if(i>=s.model().node)
       break;
   }
-  const xpp::Result<> r=do_monte_carlo_search(s,append, 1,ishoot);
-  if(!r)xpp::show_error(r.error());
+  std::string line=xpp::format("{{\"cmd\":\"equilibrium.search\",\"append\":{},\"shoot\":{},\"guesses\":{},\"tolerance\":{},\"bounds\":{{",append,ishoot,s.integrator.fixptguess.n,s.integrator.fixptguess.tol);
+  for(int j=0;j<s.model().node;++j){
+    if(j)line+=',';
+    json_append_string(line,s.model().uvar_names[j]);
+    line+=xpp::format(":[{},{}]",s.integrator.fixptguess.xlo[j],s.integrator.fixptguess.xhi[j]);
+  }
+  ok_or_show(command::run_button(s,line+"}}",command_place()));
 }
 
 xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse,int ishoot)
@@ -514,13 +520,14 @@ private:
 /* Range Equilibria's sweep over s.integrator.eq_range: each step's equilibrium (or
    Monte Carlo's) stored as a row; the first step that failed is
    returned once the sweep has ended */
-xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_frame, const ShowProgress &show_progress)
+xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_frame, const ShowProgress &show_progress)
 {
  double parlo,parhi,dpar,temp;
  int npar,stabcol,i,j,ierr;
  int mc;
  float stabinfo;
  xpp::FirstError failure;
+ int points_found=0;
  int without_root=0; /* the values the search found no equilibrium at */
  std::string first_without;
 
@@ -561,6 +568,7 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
         /*  I think  */ failure.keep(redo_all_fun_tables(s));
         if(mc) {
 	  failure.keep(do_monte_carlo_search(s,0,0,1));
+          points_found+=s.integrator.fixptlist.n;
         }
         else {
         const xpp::Result<> search=s.delay.flag
@@ -591,6 +599,7 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
       for(j=s.model().node;j<s.model().node+s.model().nmarkov;j++)s.data_store.col[j+1][s.data_store.rows]=0.0;
       if(stabcol>0)s.data_store.col[stabcol-1][s.data_store.rows]=stabinfo;
 
+      ++points_found;
       s.data_store.rows++;
       row_stored(s);}
       if(s.numerics.endsing||xpp::job::cancelled())break;
@@ -598,17 +607,18 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
     refresh_browser(s,s.data_store.rows);
  s.numerics.par_fol=false;
  if(without_root>0)bottom_msg(0,xpp::format("{} of {} values have no equilibrium; the first: {}",without_root,npar+1,first_without));
- return failure.result();
+ if(const auto result=failure.result();!result)return std::unexpected(result.error());
+ return points_found;
 }
 }
 
-void do_eq_range(xpp::Session &s, double *x)
+Result<int> equilibrium_range(Session &s)
 {
- if(set_up_eq_range(s)==0)return;
  RangeFilm film(s);
- const xpp::Result<> r=eq_range_sweep(s,x,film.taker(),film.progress());
- if(!r)xpp::show_error(r.error());
- else if(!film.result())xpp::show_error(film.result().error());
+ const auto run=eq_range_sweep(s,s.data_store.current.data(),film.taker(),film.progress());
+ if(!run)return run;
+ if(!film.result())return std::unexpected(film.result().error());
+ return *run;
 }
 
 void swap_color(xpp::Session &s, xpp::Color *col, int rorw)
@@ -912,85 +922,54 @@ int do_range(xpp::Session &s, double *x, int flag)  /* 0 for 1-param 1 for 2 par
  return *r;
 }
 
-void write_equilibrium(xpp::Session &s, const char *name, int shoot)
+Result<> write_equilibrium(xpp::Session &s, const char *name, int shoot, bool confirm)
 {
   const int n=s.model().node;
   std::vector<double> x(s.last_ic.begin(),s.last_ic.begin()+n),er(n),em(n);
   int ierr;
 
-  if(!xpp::ok_or_show(do_sing_info(s,x.data(),s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,n,er.data(),em.data(),&ierr)))return;
-  if(ierr!=0)return;
-  xpp::Writer w=xpp::open_writer_asking(name);
-  if(!w)return;
+  const auto found=do_sing_info(s,x.data(),s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,n,er.data(),em.data(),&ierr);
+  if(!found)return std::unexpected(found.error());
+  if(ierr!=0)return fail("equilibrium.export","Could not compute equilibrium",command_place());
+  Result<> opened;
+  Writer w=confirm?open_writer_replacing(name,false,&opened):open_writer_asking(name,false,&opened);
+  if(!opened)return opened;
+  if(!w)return fail("equilibrium.export","Output was not opened",command_place());
   for(int i=0;i<n;i++)
     w.print("{:g} {:g} {:g}\n",x[i],er[i],em[i]);
-  if(!xpp::ok_or_show(xpp::commit_save(w)))return;
-  if(shoot)
-    save_batch_shoot(s);
+  if(const auto saved=commit_save(w);!saved)return saved;
+  if(shoot)return save_batch_shoot(s,name,confirm);
+  return {};
 }
   
-void find_equilib_com(xpp::Session &s, int com)
+void find_equilib_com(Session &s,int com)
 {
- int ierr;
- float xm,ym;
- int im,jm;
- int iv,jv;
- float stabinfo;
- double *x,oldtrans;
-
- x=&s.data_store.current[0];
- if(s.numerics.fft||s.numerics.hist||s.model().nkernel>0)return;
-
- s.numerics.storflag=false;
- s.numerics.poincare_map=PoincareMap::none;
- oldtrans=s.numerics.store_from;
- s.numerics.store_from=0.0;
- evaluate_derived(s); 
- switch(com){
- case 2: 
- do_eq_range(s,x);
- 
-   return;
-  case 1:
-    /*  Get mouse values  */
-        iv=s.plot_windows.current->xv[0]-1;
-        jv=s.plot_windows.current->yv[0]-1;
-    if(iv<0||iv>=s.model().node||jv<0||jv>=s.model().node||s.plot_windows.current->grtype>=5||jv==iv){
-      command_error("initialconds","Not in a usable 2D plane");
-      return;
-    }
-
-	 /* get mouse click x,y  */
-         get_ic(s,1,x);
-	 MessageBox("Click on guess");
-	 if(GetMouseXY(s,&im,&jm)){
-	   scale_to_real(s,im,jm,&xm,&ym);
-	   x[iv]=static_cast<double>(xm);
-	   x[jv]=static_cast<double>(ym);
-	 }
-         
-        KillMessageBox();
-	 break;
- case 3: monte_carlo(s);
-         return;
- case 0:
- default:
-        get_ic(s,2,x);
-        break;
- }
-
- xpp::Result<> r;
- if(s.delay.flag){
-   r=do_delay_sing(s,x,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,s.model().node,&ierr,&stabinfo);
-   ping();
- }
- else
-    r=do_sing(s,x,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.search_limit,s.numerics.equilibria.max_iterations,s.model().node,&ierr,&stabinfo);
- s.numerics.store_from=oldtrans;
- if(!r)xpp::show_error(r.error());
- 
+ std::string line;
+ if(com==0){
+   const bool print=TwoChoice("YES","NO","Print eigenvalues?","yn")=='y';
+   const bool invariant=TwoChoice("YES","NO","Draw Invariant Sets?","yn")=='y';
+   const bool strong=TwoChoice("YES","NO","Draw Strong Sets?","yn")=='y';
+   line=xpp::format("{{\"cmd\":\"equilibrium.find\",\"print_eigenvalues\":{},\"draw_invariant_sets\":{},\"draw_strong_sets\":{}}}",print,invariant,strong);
+ }else if(com==1){
+   const int ix=s.plot_windows.current->xv[0]-1,iy=s.plot_windows.current->yv[0]-1;
+   if(!phase_plane_states(s,*s.plot_windows.current)){
+     command_error("equilibrium.guess","Not in a usable 2D plane");return;
+   }
+   int px,py;float x,y;
+   if(!GetMouseXY(s,&px,&py))return;
+   scale_to_real(s,px,py,&x,&y);
+   line="{\"cmd\":\"equilibrium.guess\",\"coordinates\":{";
+   json_append_string(line,s.model().uvar_names[ix]);line+=xpp::format(":{},",x);
+   json_append_string(line,s.model().uvar_names[iy]);line+=xpp::format(":{}}}",y);
+ }else if(com==2){
+   if(!set_up_eq_range(s))return;
+   const auto &r=s.integrator.eq_range;
+   line="{\"cmd\":\"equilibrium.range\",\"parameter\":";json_append_string(line,r.item);
+   line+=xpp::format(",\"start\":{},\"end\":{},\"steps\":{},\"shoot\":{},\"stability_column\":{},\"movie\":{},\"monte_carlo\":{}}}",r.plow,r.phigh,r.steps,r.shoot!=0,r.col<0?0:r.col,r.movie!=0,r.mc!=0);
+ }else if(com==3){monte_carlo(s);return;}
+ if(!line.empty())ok_or_show(command::run_button(s,line,command_place()));
 }
- 
+
 int write_this_run(xpp::Session &s, const char *file, int i)
 {
   if(!s.integrator.suppress_out){

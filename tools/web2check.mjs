@@ -3233,10 +3233,11 @@ async function openAutoAtFixedPoint() {
   await menuKey('g');
   if (!await until("s.ask && s.ask.kind === 'choice'", 'eigenvalues?'))
     throw new Error('Print eigenvalues? choice did not appear');
-  await menuKey('n');
+  for (let k = 0; k < 3 && !(await until('!s.busy', 'fixed point', 800)); k++)
+    if (await S("s.ask && s.ask.kind === 'choice'")) await menuKey('n'); /* eigenvalues, invariant sets, strong sets: no */
   if (!await until('!s.busy', 'fixed point', 30000))
     throw new Error('fixed point calculation did not complete');
-  await cdp.eval(`__xpp.send({cmd: 'key', win: 'equilibrium', key: 'i'})`);
+  await cdp.eval(`__xpp.send({cmd: 'equilibrium.import_as_ic'})`);
   if (!await until('!s.busy', 'import'))
     throw new Error('import equilibrium did not complete');
   await openAutoPanel();
@@ -3559,7 +3560,7 @@ async function busyKeys() {
     + 'shown as the values, with no pending mark',
     dragged.length >= 1 && dragged.every(c => c.cmd === 'set' && c.name === 'iapp') && shownDrag
     && JSON.stringify(edited) === JSON.stringify([{cmd: 'set', kind: 'par', name: 'phi', text: '0.4'},
-      {cmd: 'set', kind: 'num', name: 'nullcline_mesh', text: '50'}])
+      {cmd: 'nullcline.set_mesh', mesh: 50}])
     && await cdp.eval(`${fieldOf('par', 'phi')}.querySelector('input').value === '0.4'
       && ${fieldOf('num', 'Nullcline mesh')}.querySelector('input').value === '50'`) && stillBusy,
     JSON.stringify({dragged, edited, shownDrag, stillBusy}));
@@ -3568,7 +3569,7 @@ async function busyKeys() {
   await cdp.eval(`document.querySelector('[data-run=stop]').click()`);
   const stopped = await until(`__xpp.actions().slice(${n0}).some(e => e === 'event:idle' || e === 'event:done') && !s.busy`, 'the run stopped', 30000);
   /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
-  const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set')`);
+  const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set' && c !== 'nullcline.set_mesh')`);
   const cancelled = await cdp.eval(`__xpp.actions().slice(${n0}).includes('event:stopped')`);
   check('busy keys: Escape during a run stops it (stopped) and sends nothing else; the run kept its values (the state '
     + 'during it had the parameters it started with)',

@@ -243,6 +243,21 @@ int main()
         CHECK(out.find("\"groups\":[{\"rule\":\"exactly_one\",\"arguments\":[\"n\",\"x\"]},{\"rule\":\"at_most_one\","
                        "\"arguments\":[\"flag\",\"mode\"]},{\"rule\":\"together\",\"arguments\":[\"first\",\"second\"]}]") != std::string::npos);
     }
+    /* W522: a map's fixed pair is bounded, finite and has exactly two scalars, in both wire forms. */
+    {
+        const Command &search=*find("equilibrium.search");
+        for(const char *bounds:{"{\"v\":[-1,1]}","{\"v\":[0,0]}"}){
+            const std::string line=std::string("{\"cmd\":\"equilibrium.search\",\"guesses\":1,\"tolerance\":0.001,\"bounds\":")+bounds+'}';
+            const auto args=validate(nullptr,search,line.c_str(),PLACE,false);
+            CHECK((args && args->map<std::array<double,2>>("bounds").size()==1));
+        }
+        for(const char *bounds:{"{\"v\":[]}","{\"v\":[1]}","{\"v\":[1,2,3]}","{\"v\":[[1],2]}","{\"v\":[null,2]}"}){
+            const std::string line=std::string("{\"cmd\":\"equilibrium.search\",\"guesses\":1,\"tolerance\":0.001,\"bounds\":")+bounds+'}';
+            CHECK(!validate(nullptr,search,line.c_str(),PLACE,false));
+        }
+        const auto text=tokenize_command(search," --guesses 1 --tolerance 0.001 --bounds {\"v\" [-1 1]}",PLACE);
+        CHECK(text && validate(nullptr,search,text->c_str(),PLACE,false));
+    }
     /* the registry joins the resources' tables */
     CHECK(find("help") && find("window.destroy") && !find("window.nope"));
     TEST_REPORT("command registry");

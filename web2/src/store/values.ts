@@ -170,14 +170,19 @@ function argumentValue(type: string | undefined, text: string): unknown {
     numerics no registry command takes go in one `set` (one value, or `values`); initial conditions in
     `ic.set` (a number) or `ic.formula` (a %formula, one each); the run's and the shooting's numerics in
     `run.configure` and `bvp.configure`. */
+/** the equilibrium.configure arguments the Numerics sIng pt settings are (a numerics key to its argument) */
+const EQUILIBRIUM_ARGUMENTS: Record<string, string> = {max_iterations: 'max_iterates', newton_tolerance: 'newton_tolerance', jacobian_step: 'jacobian_epsilon', search_limit: 'search_limit'};
+
 export function valueCommands(hello: HelloEvent | null, sets: ValueSet[]): ValueCommand[] {
   const run = argumentTypes(hello, 'run.configure'), bvp = argumentTypes(hello, 'bvp.configure');
   const BVP = 'bvp_';
-  const plain: ValueSet[] = [], ics: ValueSet[] = [], formulas: ValueSet[] = [], runs: ValueSet[] = [], bvps: ValueSet[] = [];
+  const meshes: ValueSet[] = [], equilibria: ValueSet[] = [], plain: ValueSet[] = [], ics: ValueSet[] = [], formulas: ValueSet[] = [], runs: ValueSet[] = [], bvps: ValueSet[] = [];
   for (const s of sets) {
     if (s.kind === 'ic') (s.text.trim().startsWith('%') ? formulas : ics).push(s);
     else if (s.kind === 'num' && s.name !== undefined && s.name in run) runs.push(s);
     else if (s.kind === 'num' && s.name?.startsWith(BVP) && s.name.slice(BVP.length) in bvp) bvps.push(s);
+    else if (s.kind === 'num' && s.name === 'nullcline_mesh') meshes.push(s);
+    else if (s.kind === 'num' && s.name !== undefined && s.name in EQUILIBRIUM_ARGUMENTS) equilibria.push(s);
     else plain.push(s);
   }
   const result: ValueCommand[] = [];
@@ -185,6 +190,8 @@ export function valueCommands(hello: HelloEvent | null, sets: ValueSet[]): Value
   if (ics.length) result.push({command: {cmd: 'ic.set', values: Object.fromEntries(ics.map(s => [s.name!, Number(s.text)]))}, sets: ics});
   for (const s of formulas)
     result.push({command: {cmd: 'ic.formula', variable: s.name!, formula: s.text.trim().slice(1)}, sets: [s]});
+  for (const s of meshes) result.push({command: {cmd: 'nullcline.set_mesh', mesh: Number(s.text)}, sets: [s]});
+  if (equilibria.length) result.push({command: {cmd: 'equilibrium.configure', ...Object.fromEntries(equilibria.map(s => [EQUILIBRIUM_ARGUMENTS[s.name!], Number(s.text)]))}, sets: equilibria});
   if (runs.length) result.push({command: {cmd: 'run.configure', ...Object.fromEntries(runs.map(s => [s.name!, argumentValue(run[s.name!], s.text)]))}, sets: runs});
   if (bvps.length) result.push({command: {cmd: 'bvp.configure', ...Object.fromEntries(bvps.map(s => [s.name!.slice(BVP.length), argumentValue(bvp[s.name!.slice(BVP.length)], s.text)]))}, sets: bvps});
   return result;

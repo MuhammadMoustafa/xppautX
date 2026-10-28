@@ -1395,20 +1395,15 @@ export class Session {
     this.send({cmd: 'action', index});
   }
 
-  /** Sing pts/Go: find the equilibrium closest to the current initial
-      conditions; its result arrives as the `equilibrium` event. The core
-      asks "Print eigenvalues?" (a plain `ask` `choice`, its own `y`/`n`
-      keys) before it sends that event; answered `n` here since the answer
-      only controls whether they are also printed to the log at INFO: the
-      event carries them either way (protocol/types.ts EquilibriumEvent). */
+  /** Find the equilibrium from the current initial conditions. */
   findEquilibrium(): void {
-    this.keys(this.mainKey('singpts'), 'g', 'n');
+    this.send({cmd: 'equilibrium.find', print_eigenvalues: false});
   }
 
   /** the equilibrium window's Import: the last equilibrium becomes the
       initial conditions (the next `state` has them) */
   importEquilibrium(): void {
-    this.send(this.layerKey('equilibrium', 'import'));
+    this.send({cmd: 'equilibrium.import_as_ic'});
   }
 
   /* ---- files (docs/ui-v2.md section 4, T5): the model's folder is the workspace ---- */

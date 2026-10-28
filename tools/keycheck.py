@@ -13,7 +13,7 @@ XppMenu's `keys`. This fails when
     command), or a key is handled twice;
   - a key string repeats a letter, or an XppMenu's item count differs from
     its key count;
-  - a window's key layer (menu_auto_window ... menu_equilibrium_window) has
+  - a window's key layer (menu_auto_window ... menu_aplot_window) has
     a different number of keys than its enum in menus.h (the page has no
     copy of them: hello.windows sends them, W95).
 
@@ -142,8 +142,7 @@ def main():
     # the windows' key layers: an enum item per key, in the menu's order
     header = cstrip.strip_comments((ROOT / 'core/menus.h').read_text(encoding='utf-8'))
     layers = {'AutoWindowKey': 'menu_auto_window', 'BrowserWindowKey': 'menu_browser_window',
-              'AniWindowKey': 'menu_ani_window', 'AplotWindowKey': 'menu_aplot_window',
-              'EquilibriumWindowKey': 'menu_equilibrium_window'}
+              'AniWindowKey': 'menu_ani_window', 'AplotWindowKey': 'menu_aplot_window'}
     # a menu's size: its XPP_MENU's key string (the compiler checks one
     # key and one kind per item, W95), or a braced initializer's count
     sizes = {m.group(1): len(m.group(2)) for m in re.finditer(

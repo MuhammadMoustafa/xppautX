@@ -312,4 +312,12 @@ void   redo_stuff(xpp::Session &s)
 	  xpp::ok_or_show(redo_all_fun_tables(s));
         evaluate_derived(s);
 }
+ActiveGraph::ActiveGraph(Session &s,int index):s_(s),previous_(s.plot_windows.active)
+{
+    if(index!=previous_)make_active(s_,index,1);
+}
+ActiveGraph::~ActiveGraph()
+{
+    if(s_.plot_windows.active!=previous_)make_active(s_,previous_,1);
+}
 } // namespace xpp

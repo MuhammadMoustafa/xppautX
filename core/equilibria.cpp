@@ -1,3 +1,4 @@
+#include "xpp_files.h"
 #include "solver.h"
 #include "xpp_ui.h"
 #include "session.h"
@@ -206,7 +207,7 @@ xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double
 ch='n';
 if(!s.numerics.par_fol)
 {
- ch=static_cast<char>(TwoChoice("YES","NO","Print eigenvalues?","yn"));
+ ch=s.print_eigenvalues?'y':'n';
  
 }
  pr=0;
@@ -228,7 +229,7 @@ if(!s.numerics.par_fol)
  ch='n';
  if(!s.numerics.par_fol)
  {
-  ch=static_cast<char>(TwoChoice("YES","NO","Draw Invariant Sets?","yn"));
+  ch=s.draw_invariant_sets?'y':'n';
    }
   if((ch=='y')||(s.numerics.par_fol&&s.numerics.shoot))
   {
@@ -277,7 +278,7 @@ if(!s.numerics.par_fol)
    ch='n';
    if(!s.numerics.par_fol)
      {
-       ch=static_cast<char>(TwoChoice("YES","NO","Draw Strong Sets?","yn"));
+       ch=s.draw_strong_sets?'y':'n';
      }
 
    if((ch=='y')||(s.numerics.par_fol&&s.numerics.shoot))
@@ -326,45 +327,32 @@ if(!s.numerics.par_fol)
  return failure.result();
 }
 
-void save_batch_shoot(xpp::Session &s)
+Result<> save_batch_shoot(Session &s,std::string_view file,bool confirm)
 {
-int i,k,type;
-  double olddt;
-  std::vector<double> x(s.model().node);
-  if(s.manifolds.count<1)return;
-  olddt=s.numerics.delta_t;
-  s.numerics.storflag=true;
-  for(k=0;k<s.manifolds.count;k++){
-    for(i=0;i<s.model().node;i++)
-      x[i]=s.manifolds.ic[k][i];
-
-    type=s.manifolds.type[k];
-    if(type>0){
-
-       s.numerics.delta_t=fabs(s.numerics.delta_t);
-       usual_integrate_stuff(s,x.data());
-       {
-         xpp::Writer w=xpp::ask_output_writer(s,"Save unstable manifold",".dat",xpp::format("eigen{}-unstable",k));
-         if(!w){s.numerics.delta_t=olddt;return;}
-         write_mybrowser_data(s,w);
-         if(!xpp::ok_or_show(xpp::commit_save(w))){s.numerics.delta_t=olddt;return;}
-       }
+  if(s.manifolds.count<1)return {};
+  const double olddt=s.numerics.delta_t;
+  const auto result=[&]() -> Result<> {
+    std::vector<double> x(s.model().neq);
+    s.numerics.storflag=true;
+    for(int k=0;k<s.manifolds.count;++k){
+      std::copy(s.manifolds.ic[k].begin(),s.manifolds.ic[k].end(),x.begin());
+      if(s.manifolds.type[k]==0)continue;
+      const bool unstable=s.manifolds.type[k]>0;
+      s.numerics.delta_t=unstable?fabs(olddt):-fabs(olddt);
+      if(const auto run=integrate_from(s,x.data());!run)return std::unexpected(run.error());
+      if(job::cancelled())return {};
+      const std::string name=files::output_name(file,".dat",xpp::format("eigen{}-{}",k,unstable?"unstable":"stable"));
+      Result<> opened;
+      Writer writer=confirm?open_writer_replacing(name,false,&opened):open_writer_asking(name,false,&opened);
+      if(!opened)return opened;
+      if(!writer)return fail("equilibrium.export",xpp::format("Manifold output {} was not opened",name),command_place());
+      write_mybrowser_data(s,writer);
+      if(const auto saved=commit_save(writer);!saved)return saved;
     }
-    if(type<0){
-
-       s.numerics.delta_t=-fabs(s.numerics.delta_t);
-       usual_integrate_stuff(s,x.data());
-       {
-         xpp::Writer w=xpp::ask_output_writer(s,"Save stable manifold",".dat",xpp::format("eigen{}-stable",k));
-         if(!w){s.numerics.delta_t=olddt;return;}
-         write_mybrowser_data(s,w);
-         if(!xpp::ok_or_show(xpp::commit_save(w))){s.numerics.delta_t=olddt;return;}
-       }
-
-    }
-  }
+    return {};
+  }();
   s.numerics.delta_t=olddt;
-
+  return result;
 }
 xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled saddle point stuff to integrate */
 {

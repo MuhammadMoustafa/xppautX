@@ -220,21 +220,8 @@ void  get_num_par(xpp::Session &s, char ch)
                        make_adj(s);
 		       break;
 
-		case 'n': flash(4);
-			 numerics_settings_ask(s,"nullcline_mesh");
-			flash(4);
-			break;
-		case 'i': flash(5);
-			 /* sing pt */
-			 numerics_settings_ask(s,"max_iterations");
-			 numerics_settings_ask(s,"newton_tolerance");
-			 numerics_settings_ask(s,"jacobian_step");
-			 numerics_settings_ask(s,"search_limit");
-		       if(s.model().flag_count()>0)
-			 new_float(s,"SMIN :",&s.numerics.stol);
-		       
-			flash(5);
-			break;
+               case 'n': run_the_commands(s,M_UN); break;
+               case 'i': run_the_commands(s,M_UI); break;
 		case 'c': flash(10);
 			 /* color */
 			 if(color_table.enabled==0)break;
