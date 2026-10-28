@@ -26,7 +26,8 @@ value { x: .1, y: .9, label: "t = ", value: t, size: 2, font: roman, color: "bla
 ```
 
 Opening this file opens its named model and the animation together. A model
-can also name its animation in `options { animation: "pend.anix" }`.
+can also name its animation in `options { animation: "pend.anix" }`: opening the model
+loads it into a hidden Animation window, which Windows (or `window.show`) brings up.
 Names in either link must be base names, with no folder or `..`.
 The model is not copied into `.anix` and has no fingerprint there. Every
 formula is checked against the loaded model, including the case of names.

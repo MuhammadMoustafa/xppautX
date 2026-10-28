@@ -752,7 +752,10 @@ def check_registry():
         snd(cmd='annotation.list', window='kept')
         evs, _ = col(lambda e: e.get('ev') == 'idle')
         check('window.hide and show keep what the window holds (its text)', any('note' in json.dumps(e) for e in evs if e.get('ev') == 'done'), str(evs)[-500:])
-        for refused in [{'cmd': 'window.hide', 'window': 'animation'}, {'cmd': 'window.show', 'window': 'array_plot_1'},
+        result, _ = request({'cmd': 'window.list'})
+        check('a model\'s animation (lecar names ml.anix) is offered: its window is listed, hidden',
+              {'name': 'animation', 'kind': 'animation', 'shown': False} in result.get('windows', []), str(result))
+        for refused in [{'cmd': 'window.show', 'window': 'array_plot_1'},
                         {'cmd': 'window.hide', 'window': 'nothing'}, {'cmd': 'window.destroy', 'window': 'browser'},
                         {'cmd': 'window.rename', 'window': 'browser', 'name': 'data'}, {'cmd': 'window.select', 'window': 'browser'},
                         {'cmd': 'window.create', 'name': 'browser'}, {'cmd': 'window.hide', 'confirm': True},

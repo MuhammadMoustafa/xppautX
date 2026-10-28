@@ -1374,7 +1374,7 @@ async function windows() {
     JSON.stringify(await S('[s.windows, s.plots.windows.length]')));
   await cdp.eval(`__xpp.send({cmd: 'window.show', window: 'graph_2'})`);
   check('window.show brings graph_2 and its tab back',
-    await until(`s.windows.every(x => x.shown) && !!document.getElementById('plot-tab-graph_2') && !s.busy`, 'show'),
+    await until(`s.windows.some(x => x.name === 'graph_2' && x.shown) && !!document.getElementById('plot-tab-graph_2') && !s.busy`, 'show'),
     JSON.stringify(await S('s.windows')));
 
   /* what a failing tab check saw: busy, the page's and the core's window, the focus, the last

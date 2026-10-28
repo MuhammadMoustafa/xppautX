@@ -8,6 +8,7 @@
 #include "model_switch.h"
 #include "session.h"
 #include "model.h"
+#include "many_pops.h"
 #include "xpp_files.h"
 #include "xpp_globals.h"
 #include "xpp_session.h"
@@ -61,8 +62,11 @@ void start_model(xpp::Session &s, const xpp::KeptValues *kept)
     if (kept) xpp::restore_values(s, *kept);
     send_hello(s);
     if (s.animation.options.use_file) {
+        /* The shared load already validated and installed this animation. The
+           model offers it: its window starts hidden, listed and shown on request
+           (Discussion #594, question 13). */
         new_vcr(s);
-        /* The shared load already validated and installed this animation. */
+        xpp::set_window_hidden(s, {xpp::WindowKind::animation, 0}, true);
     }
 }
 

@@ -932,7 +932,8 @@ Native AUTO session diagrams likewise write calculation and curve names
 `options { animation: "pend.anix" }` names a companion in the model's own
 folder. This companion key belongs directly in `options`, outside the settings groups.
 The value is a quoted `.anix` base name, never a path or link. An animation
-can name its model with `model: "pend.odex"`. Opening either loads the pair;
+can name its model with `model: "pend.odex"`. Opening either loads the pair (the
+model's own animation into a hidden window, shown on request);
 a bad linked animation refuses the load whole. A session bundles its open
 animation as a model companion member. Shapes reuse this grammar's tokens,
 expressions, keyed blocks and trailing `for j in lo..hi [by step]`, including
