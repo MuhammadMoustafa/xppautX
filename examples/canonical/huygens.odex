@@ -31,6 +31,7 @@ event 1 p2-p0, q2 = -(1-c)*abs(q2)-eps
 par p0 = 0.5
 init p1 = 1.5, p2 = 1.8
 par c = 0.1, eps = 0.3
+options { animation: "huygens.anix" }
 #
 
 fun ode_divisor(value) = if value then value else 2.23e-15
