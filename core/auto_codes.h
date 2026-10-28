@@ -150,12 +150,12 @@ enum class AutoPointKind : int {
     Regular = 0,          /* an ordinary point */
     BranchPoint = 1,      /* BP of an algebraic problem */
     Fold = 2,             /* LP of an algebraic problem */
-    Hopf = 3,             /* HB */
+    Hopf = 3,             /* AH: Andronov-Hopf */
     Output = 4,           /* a point written every NPR steps */
-    CycleFold = 5,     /* LP of a periodic orbit or a BVP */
-    CycleBranch = 6,   /* BP of a periodic orbit or a BVP */
+    CycleFold = 5,        /* LPC: a fold of a periodic orbit or a BVP */
+    CycleBranch = 6,      /* BPC: a branch point of a periodic orbit or a BVP */
     PeriodDoubling = 7,   /* PD */
-    NeimarkSacker = 8,            /* TR */
+    NeimarkSacker = 8,    /* NS: a torus bifurcation */
     End = 9,              /* EP: the end of the branch */
     UserZero = -4,        /* UZ: a user-requested output value */
     BogdanovTakens = 10,  /* BT: a double zero eigenvalue */
@@ -166,10 +166,10 @@ enum class AutoPointKind : int {
     Resonance2 = 15,     /* R2: 1:2 resonance of a map or cycle */
     Resonance3 = 16,     /* R3: 1:3 resonance of a map or cycle */
     Resonance4 = 17,     /* R4: 1:4 resonance of a map or cycle */
-    FoldFlip = 18,      /* LPD: fold and flip of a map */
-    FoldNeimarkSacker = 19,     /* LTR: fold and torus of a map */
-    FlipNeimarkSacker = 20,     /* PTR: flip and torus of a map */
-    DoubleNeimarkSacker = 21,    /* TTR: two torus pairs of a map */
+    FoldFlip = 18,        /* LPPD: fold and flip of a map */
+    FoldNeimarkSacker = 19,   /* LPNS: fold and Neimark-Sacker of a map */
+    FlipNeimarkSacker = 20,   /* PDNS: flip and Neimark-Sacker of a map */
+    DoubleNeimarkSacker = 21, /* NSNS: two Neimark-Sacker pairs of a map */
     MaxSteps = -9         /* MX: no convergence, or the step limit */
 };
 
