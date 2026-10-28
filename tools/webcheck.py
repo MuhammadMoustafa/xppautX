@@ -842,19 +842,24 @@ else:
     lines = [line for line in term if not line.startswith('XPP: ')]
     check('W501: the terminal shows no AUTO table or INFO line of a page run', lines == [], ''.join(lines)[:300])
 
-empty_path = tempfile.mkdtemp(prefix='xppnoopener')
-p, term, mm, reader = page_process([], env=dict(os.environ, PATH=empty_path))
-if mm is None:
-    check('W501: the browser run with no opener prints its address', False, ''.join(term)[:200])
-else:
-    pt, tk = int(mm.group(1)), mm.group(2)
-    # the page is served before the WARN reaches the terminal: wait for it
-    xppclient.wait_until(lambda: any('in a browser' in line for line in term))
-    stop_page(p, reader)
-    check('W501: a WARN (no opener) reaches the terminal', any('open http' in line and 'in a browser' in line for line in term),
-          ''.join(term)[:300])
+# No opener: only where xppautX looks its opener up on PATH. Windows opens the
+# browser through ShellExecute, which no PATH hides, and an emptied PATH there
+# also hides a dynamically linked build's DLLs.
+if os.name == 'posix':
+    empty_path = tempfile.mkdtemp(prefix='xppnoopener')
+    p, term, mm, reader = page_process([], env=dict(os.environ, PATH=empty_path))
+    if mm is None:
+        check('W501: the browser run with no opener prints its address', False, ''.join(term)[:200])
+    else:
+        pt, tk = int(mm.group(1)), mm.group(2)
+        # the page is served before the WARN reaches the terminal: wait for it
+        xppclient.wait_until(lambda: any('in a browser' in line for line in term))
+        stop_page(p, reader)
+        check('W501: a WARN (no opener) reaches the terminal', any('open http' in line and 'in a browser' in line for line in term),
+              ''.join(term)[:300])
 shutil.rmtree(trun, ignore_errors=True)
-shutil.rmtree(empty_path, ignore_errors=True)
+if os.name == 'posix':
+    shutil.rmtree(empty_path, ignore_errors=True)
 
 print('web checks: %d passed, %d failed' % (checks - failures, failures))
 sys.exit(1 if failures else 0)
