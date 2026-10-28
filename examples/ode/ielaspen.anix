@@ -1,0 +1,15 @@
+# W520: the original grab tolerance was read as .02 by XPPAUT; see docs/odex-quirks.md.
+model: "ielaspen.odex"
+options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
+permanent {
+  line { x1: 0, y1: 0.5, x2: 1, y2: 0.5, color: "foreground", width: 3 }
+}
+line { x1: 0.5, y1: 0.5, x2: xb, y2: yb, color: "#0000ff", width: 2 }
+circle { x: xb, y: yb, radius: 0.025, fill: "#ff0000", width: 0 }
+circle { x: a/4, y: 0.95, radius: 0.01, fill: "#a020f0", width: 0 }
+value { x: 0.01, y: 0.9, label: "k=", value: a, size: 0, font: roman, color: "#a020f0" }
+circle { x: f*2, y: 0.85, radius: 0.01, fill: "#00e100", width: 0 }
+value { x: 0.01, y: 0.8, label: "f=", value: f, size: 0, font: roman, color: "#00e100" }
+grab { x: a/4, y: 0.95, tolerance: 0.02, start: { a: mouse_x*4 }, end: { a: mouse_x*4 }, run: false }
+grab { x: f*2, y: 0.85, tolerance: 0.02, start: { f: mouse_x/2 }, end: { f: mouse_x/2 }, run: false }
+grab { x: xb, y: yb, tolerance: 0.02, start: { r: r0(mouse_x, mouse_y), th: q(mouse_x, mouse_y) }, end: { r: r0(mouse_x, mouse_y), th: q(mouse_x, mouse_y) }, run: true }

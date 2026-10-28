@@ -96,6 +96,20 @@
                 <string>io.github.MuhammadMoustafa.xppautX.recx</string>
             </array>
         </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>xppautX animation (.anix)</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>icon</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>io.github.MuhammadMoustafa.xppautX.anix</string>
+            </array>
+        </dict>
     </array>
     <key>UTExportedTypeDeclarations</key>
     <array>
@@ -161,6 +175,19 @@
             <dict>
                 <key>public.filename-extension</key>
                 <array><string>recx</string></array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>io.github.MuhammadMoustafa.xppautX.anix</string>
+            <key>UTTypeDescription</key>
+            <string>xppautX animation (.anix)</string>
+            <key>UTTypeConformsTo</key>
+            <array><string>public.plain-text</string></array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array><string>anix</string></array>
             </dict>
         </dict>
     </array>

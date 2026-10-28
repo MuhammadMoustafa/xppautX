@@ -26,7 +26,7 @@ export interface AniState {
   open: boolean;
   /** the core's animation window exists (Viewaxes/Toon, --anifile) */
   exists: boolean;
-  /** an .ani file is loaded */
+  /** an .anix file is loaded */
   loaded: boolean;
   /** Go is running (sent until its idle) */
   playing: boolean;

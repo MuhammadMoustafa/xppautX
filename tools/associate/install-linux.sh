@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install (or remove) xppautX's .ode, .odex, .snapx and .recx file associations for the current user:
+# Install (or remove) xppautX's .ode, .odex, .snapx, .recx and .anix file associations for the current user:
 # no root needed, nothing outside $PREFIX is touched. Default $PREFIX is
 # ~/.local, the XDG per-user data location (~/.local/share/applications,
 # .../mime/packages, .../icons/hicolor); a package manager or a system-wide
@@ -45,7 +45,7 @@ desktop_file="$apps_dir/xppautx.desktop"
 mime_file="$mime_dir/packages/xppautx-ode.xml"
 
 if [ "$action" = uninstall ]; then
-    echo "install-linux: removing xppautX's .ode, .odex, .snapx and .recx associations from $prefix"
+    echo "install-linux: removing xppautX's .ode, .odex, .snapx, .recx and .anix associations from $prefix"
     rm -f "$desktop_file" "$mime_file"
     for size_dir in "$root"/assets/icons/hicolor/*/apps; do
         [ -d "$size_dir" ] || continue
@@ -73,7 +73,7 @@ exe=$(CDPATH= cd -- "$(dirname -- "$exe")" && pwd)/$(basename -- "$exe")
     exit 1
 }
 
-echo "install-linux: installing xppautX's .ode, .odex, .snapx and .recx associations into $prefix (exe: $exe)"
+echo "install-linux: installing xppautX's .ode, .odex, .snapx, .recx and .anix associations into $prefix (exe: $exe)"
 mkdir -p "$apps_dir" "$mime_dir/packages"
 sed "s|^Exec=xppautX %f|Exec=$exe %f|; s|^TryExec=xppautX|TryExec=$exe|" \
     "$here/xppautx.desktop" > "$desktop_file"

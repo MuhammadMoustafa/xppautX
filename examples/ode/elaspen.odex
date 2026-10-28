@@ -19,6 +19,7 @@ yb = 0.5-0.5*r*cos(th)/ode_divisor(scale)
 # the energy
 aux e = 0.5*(rp^2+(r*thp)^2+a*(r-1)^2)-r*cos(th)+1
 options {
+  animation: "elaspen.anix",
   integration: { total_time: 400, method: qualrk, dt: .25, state_limit: 100000 },
   equilibria: { search_limit: 100000 },
 }

@@ -1,0 +1,10 @@
+model: "pend.odex"
+options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
+permanent {
+  text { x: 0.25, y: 0.9, text: "Pendulum  ", size: 3, font: roman, color: "#a020f0" }
+  line { x1: 0, y1: 0.5, x2: 1, y2: 0.5, color: "#0000ff", width: 4 }
+}
+line { x1: 0.5, y1: 0.5, x2: 0.5+0.4*sin(x), y2: 0.5-0.4*cos(x), color: "foreground", width: 3 }
+circle { x: 0.5+0.4*sin(x), y: 0.5-0.4*cos(x), radius: 0.05, fill: 1-scale*ke, width: 0 }
+value { x: 0.05, y: 0.1, label: "t=", value: t, size: 1, font: roman, color: "foreground" }
+value { x: 0.05, y: 0.05, label: "q=", value: x, size: 1, font: symbol, color: "foreground" }

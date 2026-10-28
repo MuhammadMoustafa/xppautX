@@ -2,14 +2,14 @@
    primitives as sent, decoded; where the dimension box sits on a canvas of
    any size; and the mapping of a unit point (u, v: y up) to it. Pure: no
    DOM, unit-tested in Node (test/ani.test.ts). */
-import type {AniColor, AniPrimWire} from '../protocol/types';
+import type {AniColor, AniPrimWire, LineStyle} from '../protocol/types';
 
 export type AniPrim =
-  | {kind: 'line'; u1: number; v1: number; u2: number; v2: number; color: AniColor; width: number}
-  | {kind: 'rect'; u1: number; v1: number; u2: number; v2: number; color: AniColor; width: number; fill: boolean}
+  | {kind: 'line'; u1: number; v1: number; u2: number; v2: number; color: AniColor; width: number; dash: LineStyle['dash']}
+  | {kind: 'rect'; u1: number; v1: number; u2: number; v2: number; color: AniColor; width: number; dash: LineStyle['dash']; fill: boolean}
   /** a circle's radius along u and along v (the .ani's r over the box's width and height) */
   | {kind: 'circle' | 'ellipse'; u: number; v: number; ru: number; rv: number; color: AniColor; width: number;
-    fill: boolean}
+    dash: LineStyle['dash']; fill: boolean}
   /** a comet's filled circle of r pixels */
   | {kind: 'dot'; u: number; v: number; r: number; color: AniColor}
   /** text from its baseline's left end; size 0..4, font 0 roman, 1 symbol (Greek) */
@@ -22,21 +22,21 @@ export function decodePrims(wire: readonly AniPrimWire[]): AniPrim[] {
   for (const p of wire) {
     switch (p[0]) {
       case 'line': {
-        const [, u1, v1, u2, v2, color, width] = p;
-        if (u1 !== null && v1 !== null && u2 !== null && v2 !== null) out.push({kind: 'line', u1, v1, u2, v2, color, width});
+        const [, u1, v1, u2, v2, color, width, dash] = p;
+        if (u1 !== null && v1 !== null && u2 !== null && v2 !== null) out.push({kind: 'line', u1, v1, u2, v2, color, width, dash});
         break;
       }
       case 'rect': {
-        const [, u1, v1, u2, v2, color, width, fill] = p;
+        const [, u1, v1, u2, v2, color, width, fill, dash] = p;
         if (u1 !== null && v1 !== null && u2 !== null && v2 !== null)
-          out.push({kind: 'rect', u1, v1, u2, v2, color, width, fill: fill !== 0});
+          out.push({kind: 'rect', u1, v1, u2, v2, color, width, dash, fill: fill !== 0});
         break;
       }
       case 'circle':
       case 'ellipse': {
-        const [kind, u, v, ru, rv, color, width, fill] = p;
+        const [kind, u, v, ru, rv, color, width, fill, dash] = p;
         if (u !== null && v !== null && ru !== null && rv !== null)
-          out.push({kind, u, v, ru: Math.abs(ru), rv: Math.abs(rv), color, width, fill: fill !== 0});
+          out.push({kind, u, v, ru: Math.abs(ru), rv: Math.abs(rv), color, width, dash, fill: fill !== 0});
         break;
       }
       case 'dot': {

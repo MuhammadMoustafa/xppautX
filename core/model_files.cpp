@@ -68,6 +68,19 @@ long file_index(const Model &m, const std::string &name)
     return it == m.files.end() ? -1 : it - m.files.begin();
 }
 
+/* The bytes a replacement or a new companion may use, excluding its earlier
+   copy. Reads and later validated picks share this archive budget. */
+std::size_t remaining_file_bytes(const Model &m, const std::string &name)
+{
+    std::size_t available = zip::archive_bytes_limit;
+    for (const auto &file : m.files) {
+        if (file.name == name) continue;
+        if (file.bytes.size() > available) return 0;
+        available -= file.bytes.size();
+    }
+    return available;
+}
+
 /* Decode a recorded file once, while loading; workers only read the index. */
 void index_source_lines(Model &m, const ModelFile &file)
 {
@@ -75,6 +88,20 @@ void index_source_lines(Model &m, const ModelFile &file)
 }
 
 } // namespace
+
+Result<> remember_model_file(Model &m, const std::string &name, std::string bytes)
+{
+    const long i = file_index(m, name);
+    if (i < 0 && m.files.size() >= zip::archive_entries_limit)
+        return fail_reading("model files", "too many companion files for a session", name);
+    if (bytes.size() > remaining_file_bytes(m, name))
+        return fail_reading("model files", "companion files exceed the session byte budget", name);
+    if (i < 0) m.files.push_back({name, std::move(bytes)});
+    else m.files[static_cast<std::size_t>(i)].bytes = std::move(bytes);
+    m.source_lines.erase(name);
+    index_source_lines(m, m.files[static_cast<std::size_t>(file_index(m, name))]);
+    return {};
+}
 
 bool read_model_file(Model &m, const std::string &name, std::string &bytes)
 {
@@ -87,13 +114,10 @@ bool read_model_file(Model &m, const std::string &name, std::string &bytes)
     if (!m.saved_in.empty()) return false;
     if (name.empty()) return false;
     if (m.files.size() >= zip::archive_entries_limit) return false;
-    size_t available = zip::archive_bytes_limit;
-    for (const ModelFile &file : m.files)
-        if (file.name != name) available -= file.bytes.size();
+    const std::size_t available = remaining_file_bytes(m, name);
     UniqueFile fp(files::open_read_within(name, files::split_path(m.this_file).first, m.outside_paths));
     if (!read_bytes(fp.get(), bytes, available)) return false;
-    m.files.push_back({name, bytes});
-    return true;
+    return remember_model_file(m, name, bytes).has_value();
 }
 
 UniqueFile open_model_file(Model &m, const std::string &name)

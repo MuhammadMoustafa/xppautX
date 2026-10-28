@@ -34,6 +34,7 @@ set "Uranus" { g: 10.67 }
 set "Neptune" { g: 14.07 }
 set "Pluto" { g: 0.42 }
 options {
+  animation: "coaster2D.anix",
   integration: { state_limit: 100000 },
   equilibria: { search_limit: 100000 },
   plot: { xp: X, yp: Z, xlo: -1, xhi: 1, ylo: -1, yhi: 1 },

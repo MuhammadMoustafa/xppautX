@@ -41,6 +41,7 @@
 #include "graf_par.h"
 #include "odex.h"
 #include "snapx.h"
+#include "aniparse.h"
 #include "xpp_ui.h"
 
 namespace xpp {
@@ -98,9 +99,30 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
     s.integrator.rhs = {my_rhs, &s};
     strip_saveqn(m);
     create_plot_list(s);
+    init_all_graph(s);
+    if (s.animation.options.use_file && !cl.convert) {
+        const auto loaded = load_animation(s, s.animation.options.file);
+        if (!loaded) model_failed(loaded.error());
+    }
 }
 
 namespace {
+
+Result<CommandLine> animation_command_line(CommandLine cl)
+{
+    if (files::has_extension(cl.model_file, ".anix")) {
+        const std::string animation = cl.model_file;
+        auto model = animation_model(animation);
+        if (!model) return std::unexpected(model.error());
+        auto args = cl.arguments;
+        args[cl.model_argument] = *model;
+        args.insert(args.end(), {"--anifile", animation});
+        auto reread = parse_command_line(std::move(args));
+        if (!reread) return std::unexpected(reread.error());
+        return reread;
+    }
+    return cl;
+}
 
 /* load_model's work: the Session loaded, else what is wrong and where.
    The Load ends here, before its error is written: the messages it kept
@@ -171,6 +193,9 @@ Loaded load_in(const CommandLine &cl, int batch, const SavedModel *saved,
 Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
                   const std::function<std::optional<Error>(Session &)> &check)
 {
+    auto resolved = animation_command_line(std::move(cl));
+    if (!resolved) return std::unexpected(resolved.error());
+    cl = std::move(*resolved);
     std::string file, converted;
     bool existing = false;
     std::vector<std::string> included;
@@ -232,7 +257,8 @@ Result<> inspect_model(const CommandLine &cl, const std::function<void(Session &
     /* Inspection validates model options but must not create @ logfile's file. */
     const int file_option = log_settings.file_from_command_line;
     log_settings.file_from_command_line = 1;
-    Loaded inspected = load_in(cl, 1, saved, check, read, false);
+    const auto resolved = animation_command_line(cl);
+    Loaded inspected = resolved ? load_in(*resolved, 1, saved, check, read, false) : Loaded{std::unexpected(resolved.error())};
     log_settings.file_from_command_line = file_option;
     if (!inspected) return std::unexpected(inspected.error());
     return {};

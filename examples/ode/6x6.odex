@@ -46,3 +46,5 @@ x63' = h(x53-x63)+h(x64-x63)+h(x62-x63)-x11p
 x64' = h(x54-x64)+h(x65-x64)+h(x63-x64)-x11p
 x65' = h(x55-x65)+h(x66-x65)+h(x64-x65)-x11p
 x66' = h(x56-x66)+h(x65-x66)-x11p
+
+options { animation: "6x6.anix" }

@@ -10,6 +10,7 @@ fun stim(t_) = s0+s1*(if t_<tdone then t_/ode_divisor(tdone) else 0)
 par s0 = 0, tdone = 1, s1 = 1.2
 fun f(u) = 1/(1+exp(-u))
 options {
+  animation: "wcstim.anix",
   integration: { total_time: 50 },
   plot: { xp: u, yp: v, xlo: -.1, ylo: -.1, xhi: 1.1, yhi: 1.1 },
 }

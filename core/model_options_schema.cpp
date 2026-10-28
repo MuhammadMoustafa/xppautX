@@ -96,11 +96,13 @@ std::string option_schema()
       "  \"type\": \"object\",\n"
       "  \"additionalProperties\": false,\n"
       "  \"properties\": {\n";
+  for (const OptionRow &row : option_rows())
+    if (row.top_level) out += "    " + quoted(odex_key(row, 0)) + ": " + option_value_schema(row) + ",\n";
   for (std::size_t g = 0; g < option_groups.size(); ++g) {
     out += "    " + quoted(option_groups[g]) + ": {\n      \"type\": \"object\",\n      \"additionalProperties\": false,\n      \"properties\": {\n";
     bool first = true;
     for (const OptionRow &row : option_rows()) {
-      if (row.group != option_groups[g]) continue;
+      if (row.top_level || row.group != option_groups[g]) continue;
       if (row.first_digit) {
         for (char d = row.first_digit; d <= row.last_digit; ++d) {
           out += std::string(first ? "" : ",\n") + "        " + quoted(odex_key(row, d - '0')) + ": " + option_value_schema(row);

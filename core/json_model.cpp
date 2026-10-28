@@ -62,7 +62,7 @@ void start_model(xpp::Session &s, const xpp::KeptValues *kept)
     send_hello(s);
     if (s.animation.options.use_file) {
         new_vcr(s);
-        get_ani_file(s,s.animation.options.file.c_str());
+        /* The shared load already validated and installed this animation. */
     }
 }
 

@@ -1,0 +1,8 @@
+model: "lorenz2.odex"
+options { speed: 20, bounds: { x: [0, 1], y: [0, 1] } }
+permanent {
+  circle { x: 0.515, y: 0.515, radius: 0.46, color: "foreground", width: 0 }
+}
+rectangle { x1: 0.5+0.45*sin(th[j]), y1: 0.5+0.45*cos(th[j]), x2: 0.55+0.45*sin(th[j]), y2: 0.55+0.45*cos(th[j]), fill: "foreground", width: 0 } for j in 0..7
+circle { x: 0.5+x/40, y: z/50, radius: 0.02, fill: "#00e100", width: 0 }
+circle { x: 0.5+x1/40, y: z1/50, radius: 0.02, fill: "#ff0000", width: 0 }

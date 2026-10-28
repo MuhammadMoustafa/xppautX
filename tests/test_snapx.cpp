@@ -15,6 +15,7 @@
 #include "xpp_io.h"
 #include "nullcline.h"
 #include "setx.h"
+#include "expr.h"
 #include "xpp_session.h"
 #include "xpp_zip.h"
 #include "xpp_util.h"
@@ -53,7 +54,7 @@ void check_manifest()
     CHECK(!foreign && foreign.error().place.line == 1 && foreign.error().what.find(".ode is refused") != std::string::npos);
     Manifest m;
     m.model_name = "my models/lecar.odex";
-    m.anifile = "lecar.ani";
+    m.anifile = "lecar.anix";
     m.data = true;
     const std::string text = *manifest_text(m);
     CHECK(text.starts_with("session: {\n"));
@@ -129,6 +130,31 @@ void check_nullclines()
     CHECK(!nan && nan.error().what.find("nan") != std::string::npos);
     const auto axes = read("current: { x_axis: 1, y_axis: 1, x_segments: [0, 0, 0, 0], y_segments: [] }, frozen: [],\n");
     CHECK(!axes && axes.error().what.find("distinct") != std::string::npos);
+}
+
+void check_saved_animation(const xpp::TempDir &tmp)
+{
+    CHECK(xpp::files::change_dir(tmp.path().c_str()) == 0);
+    CHECK(write_file("animated.odex", "x'=-x\ninit x=1\noptions { animation: \"motion.anix\", equilibria: { neartol: .1 } }\n"));
+    CHECK(write_file("motion.anix", "model: \"animated.odex\"\nline { x1: near(0,.05), y1: 0, x2: x, y2: 1 }\n"));
+    CHECK(load("animated.odex"));
+    CHECK(xpp::client_session().animation.ncom == 1);
+    CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().animation.commands.front().x1.data()) == 1);
+    auto entries = xpp_saved_entries(xpp::client_session(), xpp::snapx::Manifest{});
+    CHECK(entries.has_value());
+    if (!entries) return;
+    const std::string path = tmp.file("animation.snapx");
+    CHECK(write_file(path, xpp::zip::make_zip(*entries)));
+    auto saved = xpp_saved_read(path);
+    CHECK(saved && saved->manifest.anifile == "motion.anix");
+    if (!saved) return;
+    CHECK(xpp::files::remove("animated.odex") == 0 && xpp::files::remove("motion.anix") == 0);
+    CHECK(load("animated.odex", &saved->model));
+    CHECK(xpp::client_session().animation.ncom == 1);
+    for (auto &file : saved->model.files)
+        if (file.name == "motion.anix") file.bytes = "line { x1: missing, y1: 0, x2: 1, y2: 1 }\n";
+    CHECK(!load("animated.odex", &saved->model));
+    CHECK(xpp::client_session().animation.ncom == 1);
 }
 
 void check_saved_model(const xpp::TempDir &tmp)
@@ -344,6 +370,7 @@ int main(void)
     {
         xpp::TempDir tmp;
         CHECK(!tmp.path().empty());
+        check_saved_animation(tmp);
         check_saved_model(tmp);
         check_plot_limits(tmp);
         xpp::files::change_dir(here.c_str());

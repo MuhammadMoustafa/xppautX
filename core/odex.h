@@ -323,6 +323,24 @@ Parsed parse(xpp::Model &m, std::string_view text, const std::string &file);
    uses; the error, named where, at the token that is wrong */
 Result<setx::Value> read_settings_tree(const std::string &where, const std::string &file, std::string_view text);
 
+/* Animation statements share this parser's tokens, expressions, keyed blocks and ranges.
+   Expressions are bindings; literal/style fields use the settings value tree. */
+struct AnimationStatement {
+  Statement expressions;
+  setx::Value fields;
+  bool permanent = false;
+};
+std::vector<AnimationStatement> parse_animation(std::string_view text, const std::string &file);
+/* Expand and validate animation formulas against an already loaded model using
+   the model reader's range resolution and formula checks. */
+std::vector<Statement> animation_formulas(Model &m, const Parsed &p);
+/* A foreign expression's compiled program written in native grammar. */
+Expr program_expression(Session &s, const std::vector<int> &program);
+/* Reconstruct a trailing range from expanded statements with the converter's
+   existing index/name inference; otherwise keep their explicit statements. */
+std::string print_range(Session &s, const std::vector<std::string> &texts,
+                        const std::vector<int> &values, const ArrayCopy &range);
+
 /* the words .odex reserves (docs/odex.md "Reserved words"): a name may
    never be one */
 bool is_reserved(std::string_view word);

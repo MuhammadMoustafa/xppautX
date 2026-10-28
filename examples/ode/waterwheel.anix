@@ -1,0 +1,6 @@
+model: "waterwheel.odex"
+options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
+rectangle { x1: 0.39, y1: 1, x2: 0.41, y2: 0.95, fill: "foreground", width: 0 }
+rectangle { x1: 0.395, y1: 0.95, x2: 0.405, y2: 0.93-0.03*ran(1), fill: "#0000ff", width: 0 }
+line { x1: 0.4, y1: 0.4, x2: x[j], y2: y[j], color: j/10, width: 0 } for j in 0..9
+line { x1: x[j], y1: y[j], x2: x[j], y2: yc[j], color: "#0000ff", width: 4 } for j in 0..9

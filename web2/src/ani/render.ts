@@ -1,3 +1,4 @@
+import {dashPattern} from '../plot/linestyle';
 /* Draws an animation frame (store/ani.ts) on a canvas of any size: the
    dimension box letterboxed at its own aspect (ani/frame.ts), clipped to
    it, pixel sizes scaled with the picture. The last drawing is described
@@ -65,6 +66,8 @@ export function drawAniFrame(canvas: HTMLCanvasElement, cw: number, ch: number, 
     const col = paint(p.color, dark);
     g.strokeStyle = col;
     g.fillStyle = col;
+    g.setLineDash('dash' in p ? dashPattern({draw: 'line', dash: p.dash, width: p.width * s,
+      marker: 'circle', marker_size: 0}) : []);
     switch (p.kind) {
       case 'line': {
         const [x1, y1] = toCanvas(box, p.u1, p.v1), [x2, y2] = toCanvas(box, p.u2, p.v2);

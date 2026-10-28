@@ -1,0 +1,5 @@
+model: "wcstim.odex"
+options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
+nullcline { x1: -0.1, y1: -0.1, x2: 1.1, y2: 1.1, variable: "u", source: frozen, frame: 10*stim(t), color: "#ff0000" }
+nullcline { x1: -0.1, y1: -0.1, x2: 1.1, y2: 1.1, variable: "v", source: frozen, frame: 10*stim(t), color: "#00e100" }
+circle { x: (u+0.1)/1.2, y: (v+0.1)/1.2, radius: 0.025, fill: "foreground", width: 0 }

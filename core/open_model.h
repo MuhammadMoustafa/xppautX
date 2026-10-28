@@ -16,8 +16,8 @@ namespace xpp {
 
 inline constexpr std::string_view OPEN_MODEL_TITLE = "Open model";
 
-inline constexpr std::array<std::string_view, 4> OPEN_MODEL_EXTENSIONS = {".ode", odex::extension, snapx::extension,
-                                                                           recx::extension};
+inline constexpr std::array<std::string_view, 5> OPEN_MODEL_EXTENSIONS = {".ode", odex::extension, snapx::extension,
+                                                                           recx::extension, ".anix"};
 
 /* the file selector's pattern: "*.ode *.odex *.snapx *.recx" */
 inline std::string open_model_wild()

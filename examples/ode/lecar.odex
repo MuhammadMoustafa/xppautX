@@ -20,6 +20,7 @@ init v = -0.144, w = 0.03
 # some options
 # AUTO options
 options {
+  animation: "ml.anix",
   integration: { total_time: 30, dt: .05 },
   continuation: { dsmin: 1e-5, dsmax: .02, parmin: -.2, parmax: .5, npr: 500, nmax: 2000 },
   diagram: { autoymax: .4, autoymin: -.5, autoxmin: -.2, autoxmax: .5 },

@@ -71,6 +71,9 @@ Result<> approve_model_path(Model &m, const std::string &name, const Place &at);
 /* m's file name, whole, into bytes: false (bytes empty) when absent,
    outside the model's folder, linked, or over the archive member byte limit. */
 bool read_model_file(Model &m, const std::string &name, std::string &bytes);
+/* A validated companion picked after loading, recorded for session saving.
+   Replace its earlier bytes, checking the same aggregate archive budget. */
+Result<> remember_model_file(Model &m, const std::string &name, std::string bytes);
 
 /* m's file name opened for reading, as open_read opens a file,
    for a reader that takes a FILE *: empty when there is none. During a

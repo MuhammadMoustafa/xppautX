@@ -254,6 +254,7 @@ std::string braced(const std::vector<std::string> &items, std::size_t indent)
 std::vector<std::string> grouped(const std::vector<GroupItem> &items, std::size_t indent)
 {
   std::vector<std::string> out;
+  for (const GroupItem &e : items) if (e.group.empty()) out.push_back(e.text);
   for (std::string_view group : xpp::option_groups) {
     std::vector<std::string> in_group;
     for (const GroupItem &e : items)

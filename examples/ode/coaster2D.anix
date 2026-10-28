@@ -1,0 +1,10 @@
+# W520: the original grab tolerance was read as .02 by XPPAUT; see docs/odex-quirks.md.
+model: "coaster2D.odex"
+options { speed: 75, bounds: { x: [-1.25, 1.25], y: [-1.25, 1.25] } }
+permanent {
+  value { x: -1, y: 1, label: "g=", value: g, size: 3, font: roman, color: "#a020f0" }
+  ellipse { x: 0, y: 0, radius_x: 1, radius_y: 1, color: "foreground", width: 0 }
+}
+trail { x: X, y: Z, length: 5, draw: points, radius_pixels: 5, color: Lalt }
+circle { x: X, y: Z, radius: 0.05, fill: "#ff0000", width: 0 }
+grab { x: X, y: Z, tolerance: 0.02, start: { X: mouse_x, Z: sqrt(1-mouse_x^2) }, end: { M: asin(mouse_x), X: mouse_x, Z: sqrt(1-mouse_x^2), Lalt: sign(mouse_vx)*sqrt(mouse_vx^2+mouse_vy^2) }, run: true }

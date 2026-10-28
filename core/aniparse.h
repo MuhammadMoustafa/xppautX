@@ -2,6 +2,8 @@
 
 #include "xpp_types.h"
 #include "load_eqn.h"
+#include "odex.h"
+#include "line_style.h"
 #include <string>
 #include <vector>
 
@@ -50,7 +52,11 @@ struct Comet {
    tokens, each ending in ENDEXP) and their values in the current frame */
 struct AniCom {
     Comet c;
+    odex::ArrayCopy array; /* the legacy source range, for native conversion */
     int type = 0, flag = 0;
+    LineDash dash = LineDash::solid;
+    std::optional<double> null_width; /* absent preserves the imported nullcline pen width */
+    bool own_text_style = false;
     /* the colour of the command: fixed (a named colour, or none: the foreground), or the colour of
        the colour map at the value of the compiled expression (col_expr, empty when fixed) */
     Color color = foreground_color;
@@ -58,7 +64,8 @@ struct AniCom {
     std::vector<int> x1, y1, x2, y2, who;
     std::string text; /* text and vtext's string */
     double zcol = 0, zx1 = 0, zy1 = 0, zx2 = 0, zy2 = 0, zrad = 0, zval = 0;
-    int zthick = 0, tfont = 0, tsize = 0;
+    double zthick = 0;
+    int tfont = 0, tsize = 0;
     Color tcolor = foreground_color;
 };
 
@@ -100,7 +107,8 @@ struct AniMotionInfo {
 /* the pen the front end's callbacks keep between primitives */
 struct AniPen {
     Color color = foreground_color;
-    int thick = 0;
+    double thick = 0;
+    LineDash dash = LineDash::solid;
     int size = 0, font = 0;
 };
 
@@ -140,6 +148,12 @@ void ani_grab_mouse(Session &s, int flag, int ix, int iy);
 void ani_flip1(Session &s, int n);
 void ani_zero(Session &s);
 int get_ani_file(Session &s, const char *fname);
+/* Native parsing and legacy import both return a whole value before applying it. */
+Result<AnimationState> read_animation(Session &s, std::string_view text, const std::string &file);
+Result<> load_animation(Session &s, const std::string &file);
+Result<std::string> animation_model(const std::string &file);
+Result<std::string> convert_animation(Session &s, std::string_view text, const std::string &file);
+int convert_animation_file(const std::string &file, const std::string &model = {});
 void render_ani(Session &s);
 void set_ani_perm(Session &s);
 

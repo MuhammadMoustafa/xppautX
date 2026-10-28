@@ -1,0 +1,7 @@
+model: "doubpend.odex"
+options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
+circle { x: 0.5, y: 0.5, radius: 0.025, fill: "foreground", width: 0 }
+line { x1: 0.5, y1: 0.5, x2: 0.5+0.2*sin(t1), y2: 0.5-0.2*cos(t1), color: "foreground", width: 0 }
+line { x1: 0.5+0.2*sin(t1), y1: 0.5-0.2*cos(t1), x2: 0.5+0.2*sin(t1)+0.2*sin(t2), y2: 0.5-0.2*cos(t1)-0.2*cos(t2), color: "foreground", width: 0 }
+circle { x: 0.5+0.2*sin(t1), y: 0.5-0.2*cos(t1), radius: 0.04, fill: "#ff0000", width: 0 }
+circle { x: 0.5+0.2*sin(t1)+0.2*sin(t2), y: 0.5-0.2*cos(t1)-0.2*cos(t2), radius: 0.04, fill: "#00e100", width: 0 }

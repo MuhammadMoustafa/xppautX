@@ -1,0 +1,5 @@
+model: "pendx.odex"
+options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
+line { x1: 0.5, y1: 0.5, x2: 0.5+0.4*sin(x), y2: 0.5-0.4*cos(x), color: "foreground", width: 3 }
+circle { x: 0.5+0.4*sin(x), y: 0.5-0.4*cos(x), radius: 0.05, fill: "#ff0000", width: 0 }
+grab { x: 0.5+0.4*sin(x), y: 0.5-0.4*cos(x), tolerance: 0.02, start: { x: th(mouse_x, mouse_y) }, end: { x: th(mouse_x, mouse_y), xp: thdot(mouse_x, mouse_y, mouse_vx, mouse_vy) }, run: true }

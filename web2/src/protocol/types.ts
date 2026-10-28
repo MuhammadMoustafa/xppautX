@@ -624,8 +624,8 @@ export type AniColor = CoreColor;
 /** a coordinate: null where the .ani's formula has no value (NaN) */
 type AniCoord = number | null;
 export type AniPrimWire =
-  | ['line', AniCoord, AniCoord, AniCoord, AniCoord, AniColor, number]
-  | ['rect' | 'circle' | 'ellipse', AniCoord, AniCoord, AniCoord, AniCoord, AniColor, number, number]
+  | ['line', AniCoord, AniCoord, AniCoord, AniCoord, AniColor, number, LineStyle['dash']]
+  | ['rect' | 'circle' | 'ellipse', AniCoord, AniCoord, AniCoord, AniCoord, AniColor, number, number, LineStyle['dash']]
   | ['dot', AniCoord, AniCoord, number, AniColor]
   | ['text', AniCoord, AniCoord, string, AniColor, number, number];
 

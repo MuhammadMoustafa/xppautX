@@ -87,7 +87,7 @@ int main(void)
     xpp::XppUi test_ui{};
     test_ui.save_replace = [](bool) -> int { return xpp::SAVE_REPLACE; };
     xpp::set_ui(&test_ui); /* these writes target this test's scratch files */
-    char arg0[] = "test_lunch", arg1[] = "examples/ode/lecar.ode";
+    char arg0[] = "test_lunch", arg1[] = "examples/ode/lecar.odex";
     char *argv[] = {arg0, arg1, NULL};
     const char *xs = "build/test_lunch_a.set", *xsx = "build/test_lunch_a.setx", *own = "build/test_lunch_own.setx";
     double x;

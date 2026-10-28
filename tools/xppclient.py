@@ -8,6 +8,7 @@
 Each Server runs in its own scratch directory (the model is copied there),
 reads events on a thread and hands them out with collect().
 """
+import glob
 import atexit, base64, copy, hashlib, json, os, queue, shutil, struct, subprocess, tempfile, threading, time
 
 # No check touches the user's own per-user settings (keymap.json, W211;
@@ -216,6 +217,27 @@ def whole_series(evs, win=None):
             and (win is None or e.get('win') == win)]
 
 
+def model_companions(source):
+    return glob.glob(os.path.join(os.path.dirname(source), '*.anix'))
+
+
+def staged_model_names(source):
+    return sorted([os.path.basename(source), *map(os.path.basename, model_companions(source))])
+
+
+def copy_model(source, destination):
+    """Stage a model and its animation companions together in a check's scratch folder."""
+    target = shutil.copy(source, destination)
+    for animation in model_companions(source):
+        copied = shutil.copy(animation, os.path.dirname(target))
+        if os.path.basename(source) != os.path.basename(target):
+            # These canonical fixtures name the model being renamed by the check.
+            with open(copied, encoding='utf-8') as f: text = f.read()
+            text = text.replace('model: "' + os.path.basename(source) + '"', 'model: "' + os.path.basename(target) + '"')
+            with open(copied, 'w', encoding='utf-8', newline='') as f: f.write(text)
+    return target
+
+
 class Server:
     def __init__(self, binary, ode, env=None, verbose=False, stdin=subprocess.PIPE, run=None, extra_args=(),
                  parse_float=float, parse_int=int):
@@ -225,7 +247,7 @@ class Server:
         self.owns_run = run is None
         self.run = run or tempfile.mkdtemp(prefix='xppserver')
         if os.path.abspath(ode) != os.path.abspath(os.path.join(self.run, os.path.basename(ode))):
-            shutil.copy(ode, self.run)
+            copy_model(ode, self.run)
         full = None
         if env is not None:
             full = dict(os.environ)
@@ -362,10 +384,11 @@ def silent_rows(binary, model, arguments=(), edit=None, timeout=None):
     with tempfile.TemporaryDirectory(prefix='xpp-silent-') as folder:
         copy = os.path.join(folder, os.path.basename(model))
         if edit:
+            copy_model(model, copy)
             with open(model, encoding='utf-8') as f, open(copy, 'w', encoding='utf-8') as g:
                 g.write(edit(f.read()))
         else:
-            shutil.copy(model, copy)
+            copy_model(model, copy)
         done = subprocess.run([os.path.abspath(binary), copy, '--silent', *arguments], cwd=folder, capture_output=True,
                               text=True, timeout=timeout)
         output = os.path.join(folder, 'output.dat')

@@ -74,6 +74,9 @@ struct Token {
 
 /* The token cap budgets objects at 80 bytes each on the supported 64-bit targets. */
 constexpr std::size_t max_token_object_bytes = 80;
+/* Bound the parser and subsequent expression visitors' recursive stacks for
+   untrusted files, including long operator chains without parentheses. */
+constexpr int max_expression_depth = 256;
 static_assert(sizeof(Token) <= max_token_object_bytes);
 
 /* a number's text to its value, false when the text is not all of one */
@@ -280,6 +283,69 @@ public:
       expect_punct(",", "between the settings");
     }
     return root;
+  }
+
+  std::vector<AnimationStatement> animation(bool permanent = false)
+  {
+    std::vector<AnimationStatement> out;
+    while (!at_end() && !at_punct("}")) {
+      const Token name = name_token("an animation statement");
+      if (name.text == "permanent") {
+        if (permanent) fail(name.pos, "permanent blocks cannot nest");
+        expect_punct("{", "after permanent");
+        auto inner = animation(true);
+        expect_punct("}", "after the permanent shapes");
+        for (auto &s : inner) out.push_back(std::move(s));
+        continue;
+      }
+      AnimationStatement s;
+      s.expressions.kind = Statement::Kind::Aux;
+      s.expressions.name = name.text;
+      s.expressions.pos = name.pos;
+      s.fields.kind = setx::Value::Kind::group;
+      s.fields.line = name.pos.line;
+      s.fields.col = name.pos.col;
+      s.permanent = permanent;
+      std::map<std::string, int> keys;
+      if (name.text == "model") {
+        expect_punct(":", "after model");
+        setting_entry(s.fields, keys, 0, name);
+      } else if (name.text == "options") {
+        entries("animation options", [&](const Token &key) { setting_entry(s.fields, keys, 0, key); });
+      } else {
+        entries(name.text, [&](const Token &key) {
+          const auto [first, fresh] = keys.emplace(key.text, key.pos.line);
+          if (!fresh) fail(key.pos, xpp::format("`{}` is given twice (the first is at line {})", key.text, first->second));
+          if (key.text == "start" || key.text == "end") {
+            const std::string phase = key.text;
+            std::map<std::string, int> assignments;
+            entries("grab assignments", [&](const Token &target) {
+              if (!assignments.emplace(target.text, target.pos.line).second) fail(target.pos, "grab assignment given twice");
+              Binding b;
+              b.name = phase + "." + target.text;
+              b.pos = target.pos;
+              b.value = expr();
+              s.expressions.bindings.push_back(std::move(b));
+            });
+          } else if (peek().kind == Token::Kind::String || key.text == "relative" || key.text == "font" ||
+              key.text == "dash" || key.text == "draw" || key.text == "source" || key.text == "width" ||
+              key.text == "size" || key.text == "length" || key.text == "tolerance" || key.text == "radius_pixels" ||
+              key.text == "run" || key.text == "start" || key.text == "end") {
+            s.fields.members.push_back({key.text, key.pos.line, key.pos.col, setting_value(0)});
+          } else {
+            Binding b;
+            b.name = key.text;
+            b.pos = key.pos;
+            b.value = expr();
+            s.expressions.bindings.push_back(std::move(b));
+          }
+        });
+        if (at_range()) s.expressions.range = range();
+      }
+      out.push_back(std::move(s));
+    }
+    if (!permanent && !at_end()) fail(peek().pos, "unexpected closing brace");
+    return out;
   }
 
 private:
@@ -673,6 +739,11 @@ private:
     std::vector<std::string> groups;
     std::map<std::string, int> keys;
     entries(in_set ? "the set's options" : "the options block", [&](const Token &g) {
+      int index = 0;
+      if (const auto *row = find_odex_option(g.text, index); row && row->top_level && !in_set) {
+        out.push_back(option("", g, keys, false));
+        return;
+      }
       if (std::ranges::find(option_groups, g.text) == option_groups.end()) {
         std::string all;
         for (std::string_view name : option_groups) all += (all.empty() ? "" : ", ") + std::string(name);
@@ -714,7 +785,9 @@ private:
                       ? xpp::format("`{}` is XPPAUT's word: the key is `{}`", o.name, odex_key(*xppaut, index))
                       : xpp::format("`{}` is not an option", o.name));
     }
-    if (row->group != group) fail(key.pos, xpp::format("`{}` is in the group {}, not {}", o.name, row->group, group));
+    if (row->top_level) {
+      if (!group.empty()) fail(key.pos, xpp::format("`{}` belongs directly in options, outside the groups", o.name));
+    } else if (row->group != group) fail(key.pos, xpp::format("`{}` is in the group {}, not {}", o.name, row->group, group));
     if (in_set && !set_holds(*row))
       fail(key.pos, xpp::format("a set does not hold `{}`: it is a setting of the whole session, not of one graph or run", o.name));
     const auto [first, fresh] = keys.emplace(o.name, key.pos.line);
@@ -1126,15 +1199,38 @@ private:
     return e;
   }
   /* a binary operation, placed where its left operand starts */
-  static Expr binary(std::string op, Pos, Expr a, Expr b)
+  Expr binary(std::string op, Pos, Expr a, Expr b)
   {
     Expr e = node(Expr::Kind::Binary, a.pos, std::move(op));
     e.args.push_back(std::move(a));
     e.args.push_back(std::move(b));
+    check_expression_depth(e);
     return e;
   }
 
-  Expr expr() { return or_expr(); }
+  void check_expression_depth(const Expr &e) const
+  {
+    std::vector<std::pair<const Expr *, int>> pending{{&e, 1}};
+    while (!pending.empty()) {
+      const auto [node, depth] = pending.back();
+      pending.pop_back();
+      if (depth > max_expression_depth)
+        fail(node->pos, xpp::format("expression nesting exceeds {} levels", max_expression_depth));
+      for (const auto &a : node->args) pending.emplace_back(&a, depth + 1);
+    }
+  }
+
+  template <class Read> Expr nested_expression(Read read)
+  {
+    if (++expression_depth_ > max_expression_depth)
+      fail(peek().pos, xpp::format("expression nesting exceeds {} levels", max_expression_depth));
+    Expr out = read();
+    --expression_depth_;
+    check_expression_depth(out);
+    return out;
+  }
+
+  Expr expr() { return nested_expression([this] { return or_expr(); }); }
 
   /* operand { word operand }: the left-associative chain of the binary word `or` or `and` */
   template <class Operand> Expr chain(std::string_view word, Operand operand)
@@ -1207,7 +1303,9 @@ private:
     return e;
   }
 
-  Expr unary()
+  Expr unary() { return nested_expression([this] { return unary_value(); }); }
+
+  Expr unary_value()
   {
     if (at_punct("-")) {
       Expr e = node(Expr::Kind::Neg, take().pos);
@@ -1237,6 +1335,7 @@ private:
         if (!bare_name || e.kind != Expr::Kind::Name || e.primed) fail(peek().pos, "only a function's name can be called");
         e.kind = Expr::Kind::Call;
         call_args(e);
+        check_expression_depth(e);
       } else if (at_punct("[")) {
         Pos p = take().pos;
         Expr ix = node(Expr::Kind::Index, p);
@@ -1244,6 +1343,7 @@ private:
         ix.args.push_back(expr());
         expect_punct("]", "to close the index");
         e = std::move(ix);
+        check_expression_depth(e);
       } else {
         return e;
       }
@@ -1342,6 +1442,7 @@ private:
   int last_line_ = 0;
   /* the line of this file's options block, 0 before it */
   int options_at_ = 0;
+  int expression_depth_ = 0;
 };
 
 } // namespace
@@ -1367,6 +1468,13 @@ Parsed parse(xpp::Model &m, std::string_view text, const std::string &file)
   out.importing.push_back(file);
   Parser(&m, out, 0, text, 0).model();
   return out;
+}
+
+std::vector<AnimationStatement> parse_animation(std::string_view text, const std::string &file)
+{
+  Parsed out;
+  out.files.push_back(file);
+  return Parser(nullptr, out, 0, text, 0).animation();
 }
 
 Result<setx::Value> read_settings_tree(const std::string &where, const std::string &file, std::string_view text)

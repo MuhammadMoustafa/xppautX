@@ -9,5 +9,5 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/examples" || exit 1
 cp "$bin" "$app/Contents/MacOS/xppautX" &&
 cp assets/icon.icns "$app/Contents/Resources/icon.icns" &&
 # the bundled examples, where files::program_dir finds them (xpp_examples.h); the same ones package_release.sh ships
-cp examples/ode/lecar.odex "$app/Contents/Resources/examples/" &&
+cp examples/ode/lecar.odex examples/ode/ml.anix "$app/Contents/Resources/examples/" &&
 sed "s/@XPPAUTX_VERSION@/$version/g" tools/associate/Info.plist.in > "$app/Contents/Info.plist"

@@ -901,6 +901,16 @@ constexpr OptionRow rows[] = {
   {.group = option_group::analysis, .kind = OptionKind::whole, .name = "SPECWIN", .once = true,
    .whole = member([](auto &s) -> auto & { return s.histogram.spec_win; })},
 
+  {.group = option_group::interface, .kind = OptionKind::path, .name = "ANIMATION", .once = true,
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     if (!files::name_ok(v.text) || !files::has_extension(v.text, ".anix")) return "must be an .anix base name";
+     if (v.apply && !s.model().command_line.ani_file) {
+       s.animation.options.file = include_path(s.model().this_file, v.text);
+       s.animation.options.use_file = 1;
+     }
+     return nullptr;
+   }, .wide = true, .top_level = true},
+
   /* ---- the log, the user's buttons ---- */
   {.group = option_group::output, .kind = OptionKind::whole, .name = "QUIET",
    .parse = [](Session &, const OptionValue &v) -> const char * {

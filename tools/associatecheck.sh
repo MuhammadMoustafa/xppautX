@@ -23,7 +23,8 @@ check "linux: *.odex has a MIME type" grep -q 'glob pattern="\*.odex"' "$prefix/
 check "linux: *.ode keeps its MIME type" grep -q 'glob pattern="\*.ode"' "$prefix/share/mime/packages/xppautx-ode.xml"
 check "linux: *.snapx has a MIME type" grep -q 'glob pattern="\*.snapx"' "$prefix/share/mime/packages/xppautx-ode.xml"
 check "linux: *.recx has a MIME type" grep -q 'glob pattern="\*.recx"' "$prefix/share/mime/packages/xppautx-ode.xml"
-check "linux: the desktop entry opens all four" grep -q '^MimeType=text/x-xpp-ode;text/x-xpp-odex;application/x-xppautx-session;application/x-xppautx-recording;' "$prefix/share/applications/xppautx.desktop"
+check "linux: *.anix has a MIME type" grep -q 'glob pattern="\*.anix"' "$prefix/share/mime/packages/xppautx-ode.xml"
+check "linux: the desktop entry opens all five" grep -q '^MimeType=text/x-xpp-ode;text/x-xpp-odex;application/x-xppautx-session;application/x-xppautx-recording;text/x-xpp-anix;' "$prefix/share/applications/xppautx.desktop"
 HOME=/nonexistent sh tools/associate/install-linux.sh --prefix "$prefix" --uninstall >/dev/null 2>&1
 check "linux: uninstall removes them" test ! -e "$prefix/share/mime/packages/xppautx-ode.xml"
 rm -rf "$prefix" "$exe"
@@ -31,6 +32,7 @@ rm -rf "$prefix" "$exe"
 check "macOS: Info.plist declares odex" grep -q '<string>odex</string>' tools/associate/Info.plist.in
 check "macOS: Info.plist declares snapx" grep -q '<string>snapx</string>' tools/associate/Info.plist.in
 check "macOS: Info.plist declares recx" grep -q '<string>recx</string>' tools/associate/Info.plist.in
+check "macOS: Info.plist declares anix" grep -q '<string>anix</string>' tools/associate/Info.plist.in
 
 ps=
 if command -v pwsh >/dev/null 2>&1; then ps=pwsh

@@ -272,6 +272,13 @@ public:
     return out;
   }
 
+  Expr program(const std::vector<int> &p) const { return expr_of(p); }
+  std::string range(const std::vector<std::string> &texts, const std::vector<int> &values, const ArrayCopy &a)
+  {
+    for (const auto &[key, entry] : m_.names) if (entry.declared) taken_.insert(key);
+    return as_array(texts, values, a);
+  }
+
   std::string guard_name() const { return uses_guard_ ? guard_name_ : std::string(); }
 
 private:
@@ -576,6 +583,9 @@ private:
   /* a model's name (upper case, as the reader keeps it) in the .odex */
   std::string name(const std::string &upper) const
   {
+    if (is_odex(m_.this_file)) {
+      if (const auto *entry = m_.name(upper); entry && entry->declared) return entry->written;
+    }
     const std::string spelled = spell_.of(upper);
     auto r = renames_.find(spelled);
     return r == renames_.end() ? spelled : r->second;
@@ -900,6 +910,8 @@ private:
      -0 too, is false; NaN is true, as XPP's guard lets it through) */
   Expr guarded(Expr y) const
   {
+    if (guard_name_.empty())
+      return op_expr(Expr::Kind::If, "", {y, y, number_expr(xpp::expr::ZERO_DIVISOR)});
     uses_guard_ = true;
     return op_expr(Expr::Kind::Call, guard_name_, {std::move(y)});
   }
@@ -1448,7 +1460,9 @@ private:
   static std::vector<GroupItem> group_items(const std::vector<OptionEntry> &entries)
   {
     std::vector<GroupItem> out;
-    for (const OptionEntry &e : entries) out.push_back({e.row->group, e.key + ": " + e.value});
+    for (const OptionEntry &e : entries)
+      if (e.row->top_level || !e.row->group.empty())
+        out.push_back({e.row->top_level ? std::string_view() : e.row->group, e.key + ": " + e.value});
     return out;
   }
 
@@ -1748,7 +1762,7 @@ int check_file(const std::string &file)
   std::vector<Diagnostic> diagnostics;
   std::optional<Error> error;
   LogCapture capture;
-  if (is_odex(file)) {
+  if (is_odex(file) || files::has_extension(file, ".anix")) {
     const Result<CommandLine> line = parse_command_line({"xppautX", file});
     const Result<> loaded = line ? inspect_model(*line, load_eqn, {}) : std::unexpected(line.error());
     if (!loaded) error = loaded.error();
@@ -1879,8 +1893,23 @@ Result<> write_conversion(const std::string &out, std::string_view text)
 
 } // namespace
 
+Expr program_expression(Session &s, const std::vector<int> &program)
+{
+  std::vector<Diagnostic> diagnostics;
+  return Converter(s, diagnostics, DeclinedRename::refuse).program(program);
+}
+
+std::string print_range(Session &s, const std::vector<std::string> &texts,
+                        const std::vector<int> &values, const ArrayCopy &range)
+{
+  std::vector<Diagnostic> diagnostics;
+  return Converter(s, diagnostics, DeclinedRename::refuse).range(texts, values, range);
+}
+
 Result<bool> write_converted(const std::string &source, const std::string &out, std::string_view text)
 {
+  if (files::output_status(out) != XPP_FILES_OK)
+    return fail_reading("convert", "destination is not a plain file", out);
   if (xpp::files::exists(out)) {
     std::string existing;
     if (!xpp::read_bytes(out, existing)) return xpp::fail_reading("convert", "cannot be read", out);

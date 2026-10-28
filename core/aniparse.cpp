@@ -7,6 +7,7 @@
    end that draws it itself (docs/protocol.md "The animation as data"). */
 #include "xpp_files.h"
 #include <array>
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -29,6 +30,7 @@
 #include "expr.h"
 #include "xpp_io.h"
 #include "xpp_zip.h"
+#include "snapx.h"
 #include "form_ode.h"
 #include "my_rhs.h"
 #include "nullcline.h"
@@ -40,6 +42,8 @@
 #include "graf_par.h"
 #include <libgen.h>
 #include "colormap.h"
+#include "comline.h"
+#include "xpp_batch.h"
 
 namespace xpp {
 
@@ -117,6 +121,10 @@ namespace {
 /************************  end grabber **********************/
 
 constexpr int on_the_fly_speed = 10;
+/* A trail's point defaults to the smallest whole-pixel radius. */
+constexpr int default_trail_radius = 1;
+/* The existing text renderer's two fonts, in its index order. */
+constexpr std::array<std::string_view, 2> ani_font_names{"roman", "symbol"};
 
 void set_ani_font_stuff(xpp::Session &s, int size, int font, const xpp::Color &color);
 void eval_ani_color(xpp::Session &s, int j);
@@ -161,7 +169,7 @@ double unit_y(xpp::Session &s, double y) { return (y - s.animation.ylo) / (s.ani
 
 void pen_color(xpp::Session &s, const xpp::Color &color) { s.animation.pen.color = color; }
 
-void pen_thick(xpp::Session &s, int t)
+void pen_thick(xpp::Session &s, double t)
 {
     if (t < 0) t = 0;
     s.animation.pen.thick = t;
@@ -489,6 +497,13 @@ void init_ani_stuff(AnimationState &animation)
 
 /*************************  GRABBER CODE *****************************/
 
+const Model::Name *grab_target(const Model &m, std::string_view name)
+{
+    const auto *entry = m.name(name);
+    if (!entry || !(entry->kind == Model::NameKind::Variable || entry->kind == Model::NameKind::Markov || entry->kind == Model::NameKind::Param)) return nullptr;
+    return entry;
+}
+
 int add_grab_task(xpp::Session &s, xpp::TypedFields &f, const std::string &lhs, const std::string &rhs, AniGrab &g, int which)
 {
     if (which != 1 && which != 2) return (-1);
@@ -500,6 +515,10 @@ int add_grab_task(xpp::Session &s, xpp::TypedFields &f, const std::string &lhs, 
     if (static_cast<int>(task.events.size()) >= MAX_GEVENTS) {
         f.fail("grab", xpp::format("a grabbable changes at most {} variables", MAX_GEVENTS));
         return (-1);
+    }
+    if (!grab_target(s.model(), lhs)) {
+        f.fail("grab", xpp::format("no variable or parameter named \"{}\"", lhs));
+        return -1;
     }
     GrabEvent e;
     e.lhs = lhs;
@@ -711,9 +730,29 @@ int parse_ani_string(xpp::Session &s, AnimationState &animation, xpp::TypedField
     return (add_ani_com(s, animation, f, type, x1, x2, x3, x4, col, thick));
 }
 
-/* Bound the work from compact array commands as well as ordinary commands:
-   a sent .ani must not expand into arbitrarily many compiled objects. */
-constexpr int max_ani_commands = 100000;
+/* A parsed animation must fit the same memory budget as its saved session.
+   Count each appended command once, including bytecode and trail buffers. */
+bool animation_memory(std::size_t &used, const AnimationState &animation,
+                      std::size_t commands_before, std::size_t grabs_before)
+{
+    for (std::size_t i = commands_before; i < animation.commands.size(); ++i) {
+        const auto &a = animation.commands[i];
+        if (!snapx::account_memory(used, 1, sizeof(AniCom) + a.text.size()) ||
+            !snapx::account_memory(used, a.c.n, 2 * sizeof(double) + sizeof(Color))) return false;
+        for (const auto *program : {&a.x1, &a.y1, &a.x2, &a.y2, &a.who, &a.col_expr})
+            if (!snapx::account_memory(used, program->size(), sizeof(int))) return false;
+    }
+    for (std::size_t i = grabs_before; i < animation.grabs.size(); ++i) {
+        const auto &grab = animation.grabs[i];
+        if (!snapx::account_memory(used, 1, sizeof(AniGrab)) ||
+            !snapx::account_memory(used, grab.x.size() + grab.y.size(), sizeof(int))) return false;
+        for (const auto *task : {&grab.start, &grab.end})
+            for (const auto &event : task->events)
+                if (!snapx::account_memory(used, 1, sizeof(GrabEvent) + event.lhs.size()) ||
+                    !snapx::account_memory(used, event.rhs.size(), sizeof(int))) return false;
+    }
+    return true;
+}
 
 /* Parse into a new value. No Session animation or displayed frame changes
    until the whole read succeeds, including the extra lines of each grab. */
@@ -725,6 +764,7 @@ xpp::Result<AnimationState> load_ani_file(xpp::Session &s, xpp::LineReader &fp, 
     animation.vcr.file = filename;
     animation.vcr.ok = 1;
     int lines = 0, commands = 0;
+    std::size_t memory = 0;
     bool eof = false;
     for (;;) {
         Place place{filename, lines + 1};
@@ -737,17 +777,22 @@ xpp::Result<AnimationState> load_ani_file(xpp::Session &s, xpp::LineReader &fp, 
             return xpp::fail("animation", "Invalid animation array range", place);
         if (fields.error()) return xpp::fail("animation", *fields.error(), place);
         const auto count = static_cast<long long>(last) - first + 1;
-        if (count <= 0 || count > max_ani_commands - commands)
-            return xpp::fail("animation", xpp::format("animation expansion must fit within {} commands", max_ani_commands), place);
+        if (count <= 0 || count > odex::max_range_length - commands)
+            return xpp::fail("animation", xpp::format("animation expansion must fit within {} commands", odex::max_range_length), place);
         commands += static_cast<int>(count);
         const Place command = place;
         for (int offset = 0; offset < count; ++offset) {
             place = command;
             xpp::subsk(expanded, big, first + offset, flag, &fields);
             if (fields.error()) return xpp::fail("animation", *fields.error(), place);
+            const auto before = animation.commands.size(), grabs_before = animation.grabs.size();
             const int ans = parse_ani_string(s, animation, fields, big, fp, lines, place);
+            if (flag && animation.commands.size() > before)
+                animation.commands.back().array = {command.line, "j", first + offset, first, last, 1, false, {}};
             if (fields.error()) return xpp::fail("animation", *fields.error(), place);
             if (ans < 0) return xpp::fail("animation", "This line is not an animation command", place);
+            if (!animation_memory(memory, animation, before, grabs_before))
+                return fail("animation", "animation exceeds the session memory budget", place);
             if (ans == 0) return animation;
         }
         if (eof) break;
@@ -767,16 +812,42 @@ xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_fil
     if (model_file) fp = xpp::model_file_lines(s.model(), filename);
     else {
         std::string bytes;
-        if (!xpp::read_bytes(filename, bytes, xpp::zip::archive_bytes_limit))
+        UniqueFile input(files::open_read_within(filename, files::split_path(filename).first, {}));
+        if (!input || !xpp::read_bytes(input.get(), bytes, xpp::zip::archive_bytes_limit))
             return xpp::fail("animation", xpp::format("cannot be read in full within the {} byte input limit", xpp::zip::archive_bytes_limit), Place{filename});
         fp = xpp::LineReader::of_text(std::move(bytes));
     }
     if (!fp) {
         return std::unexpected(xpp::files::open_error("animation", filename));
     }
-    auto animation = load_ani_file(s, fp, filename);
+    std::string text;
+    while (auto line = fp.next()) { text += *line; text += '\n'; }
+    std::string native_file = filename;
+    if (files::has_extension(filename, ".ani")) {
+        auto converted = convert_animation(s, text, filename);
+        if (!converted) return std::unexpected(converted.error());
+        native_file = include_path(filename, files::output_name(filename, ".anix"));
+        if (files::serving_reads()) {
+            /* A recording supplies the foreign input itself. Conversion is an
+               import in memory; replay never creates an unrecorded disk file. */
+            text = std::move(*converted);
+        } else {
+            auto written = odex::write_converted(filename, native_file, *converted);
+            if (!written) return std::unexpected(written.error());
+            if (!read_bytes(native_file, text, zip::archive_bytes_limit)) return std::unexpected(files::open_error("animation", native_file));
+        }
+    }
+    auto animation = read_animation(s, text, native_file);
     if (!animation) return std::unexpected(animation.error());
+    if (!model_file || native_file != filename) {
+        const auto recorded = remember_model_file(s.model(), native_file, text);
+        if (!recorded) return std::unexpected(recorded.error());
+    }
     s.animation = std::move(*animation);
+    s.animation.options.use_file = 1;
+    s.animation.options.file = native_file;
+    if (native_file != filename)
+        std::erase_if(s.model().files, [&](const ModelFile &f) { return f.name == filename; });
     ani_data_forget(s);
     return {};
 }
@@ -876,6 +947,7 @@ void set_ani_col(xpp::Session &s, int j)
     const xpp::Color color=a.col_expr.empty()?a.color:xpp::ramp_color(s.ramp(),a.zcol);
     pen_color(s, color);
     s.animation.last_color = color;
+    s.animation.pen.dash = a.dash;
 }
 
 /* the comet keeps its last n positions (in the animation's coordinates)
@@ -888,7 +960,7 @@ void draw_ani_comet(xpp::Session &s, int j)
     roll_comet(a, a.zx1, a.zy1, s.animation.last_color);
     const int nn = a.c.i;
     if (a.zthick < 0) {
-        const int ir = -a.zthick;
+        const int ir = static_cast<int>(-a.zthick);
         for (int k = 0; k < nn; k++) {
             pen_color(s, a.c.col[k]);
             put_dot(s,a.c.x[k], a.c.y[k], ir);
@@ -915,6 +987,7 @@ void draw_ani_null(xpp::Session &s, int j, int id)
     if (dx == 0.0 || dy == 0.0) return;
 
     set_ani_col(s, j);
+    if (a.null_width) pen_thick(s, *a.null_width);
     const int who = static_cast<int>(a.zval); /* the nullcline that you want  -1 is the default cline */
     if (get_nullcline_floats(s, &v, &n, who, id) == 1) return;
     for (int i = 0; i < n; i++) {
@@ -995,6 +1068,410 @@ void draw_grab_points(xpp::Session &s)
 }
 
 } // namespace
+
+namespace {
+
+std::string animation_model_name(setx::Block &block)
+{
+    std::string model;
+    block.text("model", model);
+    if (!files::name_ok(model) || !odex::is_odex(model)) block.fail("model must be an .odex base name");
+    return model;
+}
+
+/* A shape's formulas and literal fields are consumed separately; neither may
+   leave an unknown key behind. The settings reader supplies all typed literals. */
+class AnimationFields {
+public:
+    AnimationFields(Session &s, const odex::Statement &st, const setx::Value &fields,
+                    const setx::Document &doc)
+        : s_(s), st_(st), doc_(doc), fields_(doc, fields, false, st.name), used_(st.bindings.size(), false) {}
+    setx::Block &literals() { return fields_; }
+    const odex::Expr *expression(std::string_view key, bool required = true)
+    {
+        for (std::size_t i = 0; i < st_.bindings.size(); ++i)
+            if (st_.bindings[i].name == key) { used_[i] = true; return &st_.bindings[i].value; }
+        if (fields_.has(key)) bad(key, xpp::format("{} must be an expression", key));
+        if (required) fail(st_.pos, xpp::format("{} needs the expression {}", st_.name, key));
+        return nullptr;
+    }
+    void compile(std::string_view key, std::vector<int> &out)
+    {
+        const auto &e = *expression(key);
+        const std::string text = odex::engine_text(e);
+        if (!compile_expr(s_, text.c_str(), out)) fail(e.pos, xpp::format("cannot compile {}: {}", key, odex::print(e)));
+    }
+    void color(std::string_view key, AniCom &a)
+    {
+        if (fields_.has(key)) { fields_.color(key, a.color); return; }
+        if (const auto *e = expression(key, false)) {
+            const std::string text = odex::engine_text(*e);
+            if (!compile_expr(s_, text.c_str(), a.col_expr)) fail(e->pos, "cannot compile the colour expression");
+        }
+    }
+    bool has(std::string_view key) const
+    {
+        if (fields_.has(key)) return true;
+        for (const auto &b : st_.bindings) if (b.name == key) return true;
+        return false;
+    }
+    [[noreturn]] void bad(std::string_view key, std::string what)
+    {
+        if (const auto *m = fields_.member(key)) fields_.fail(*m, std::move(what));
+        for (const auto &b : st_.bindings) if (b.name == key) fail(b.pos, std::move(what));
+        fail(st_.pos, std::move(what));
+    }
+    void done()
+    {
+        fields_.done();
+        for (std::size_t i = 0; i < used_.size(); ++i)
+            if (!used_[i]) fail(st_.bindings[i].pos, xpp::format("{} has no expression field {}", st_.name, st_.bindings[i].name));
+    }
+    [[noreturn]] void fail(odex::Pos p, std::string what) const { doc_.fail(p.line, p.col, std::move(what)); }
+private:
+    Session &s_;
+    const odex::Statement &st_;
+    const setx::Document &doc_;
+    setx::Block fields_;
+    std::vector<bool> used_;
+};
+
+void native_shape(Session &s, AnimationState &animation, const odex::Statement &st,
+                  const odex::AnimationStatement &written, const setx::Document &doc)
+{
+    AnimationFields f(s, st, written.fields, doc);
+    auto &l = f.literals();
+    AniCom a;
+    a.flag = written.permanent ? PERMANENT : TRANSIENT;
+    const auto &name = st.name;
+    if (name == "line" || name == "rectangle" || name == "ellipse" || name == "circle" || name == "trail" || name == "nullcline") {
+        f.color("color", a);
+        l.real("width", a.zthick);
+        if (a.zthick < 0) f.bad("width", "width must be 0 or more");
+        std::string dash = "solid";
+        l.word("dash", dash);
+        const auto parsed = parse_line_dash(dash);
+        if (!parsed) f.bad("dash", "dash must be solid, dashed, dotted or dash_dot");
+        a.dash = *parsed;
+    }
+    if (name == "line" || name == "rectangle" || name == "nullcline") {
+        f.compile("x1", a.x1); f.compile("y1", a.y1);
+        bool relative = false;
+        if (name == "line") l.flag("relative", relative);
+        if (!relative) { f.compile("x2", a.x2); f.compile("y2", a.y2); }
+        a.type = name == "line" ? (relative ? RLINE : LINE) : RECT;
+        if (name == "nullcline") {
+            if (l.has("width")) a.null_width = a.zthick;
+            std::string variable;
+            if (!l.text("variable", variable)) l.fail("nullcline needs variable in double quotes");
+            const auto *entry = s.model().name(variable);
+            if (variable != "t" && (!entry || entry->written != variable)) f.bad("variable", xpp::format("nullcline variable names no model quantity: \"{}\"", variable));
+            int ix = -1;
+            find_variable(s, variable, &ix);
+            const auto &g = s.plot_windows.graph[s.plot_windows.active];
+            if (ix == g.xv[0]) a.type = AXNULL;
+            else if (ix == g.yv[0]) a.type = AYNULL;
+            else f.bad("variable", xpp::format("nullcline variable \"{}\" is not an axis of the phase plane", variable));
+            std::string source = "current";
+            l.word("source", source);
+            if (source == "current") compile_expr(s, "-1", a.who);
+            else if (source == "frozen") f.compile("frame", a.who);
+            else f.bad("source", "nullcline source must be current or frozen");
+        }
+    } else if (name == "circle" || name == "ellipse" || name == "trail" || name == "text" || name == "value" || name == "grab") {
+        f.compile("x", a.x1); f.compile("y", a.y1);
+        if (name == "circle") { a.type = CIRC; f.compile("radius", a.x2); }
+        if (name == "ellipse") { a.type = ELLIP; f.compile("radius_x", a.x2); f.compile("radius_y", a.y2); }
+        if (name == "trail") {
+            a.type = COMET;
+            if (!l.whole("length", a.c.n) || a.c.n < 1 || a.c.n > MAX_COMET_POINTS)
+                f.bad("length", xpp::format("trail length must be 1..{}", MAX_COMET_POINTS));
+            std::string draw = "line";
+            l.word("draw", draw);
+            if (draw == "points") {
+                int radius = default_trail_radius;
+                l.whole("radius_pixels", radius);
+                if (radius <= 0) f.bad("radius_pixels", "radius_pixels must be above 0");
+                a.zthick = -radius;
+            } else if (draw != "line") f.bad("draw", "trail draw must be line or points");
+            a.c.x.assign(a.c.n, 0); a.c.y.assign(a.c.n, 0); a.c.col.assign(a.c.n, foreground_color);
+        }
+        if (name == "text" || name == "value") {
+            a.type = name == "text" ? TEXT : VTEXT;
+            a.own_text_style = true;
+            const auto label = name == "text" ? "text" : "label";
+            if (!l.text(label, a.text)) l.fail(xpp::format("{} needs {} in double quotes", name, label));
+            if (name == "value") f.compile("value", a.x2);
+            l.whole("size", a.tsize);
+            if (a.tsize < 0 || a.tsize > ANI_TEXT_SIZES) f.bad("size", "text size must be 0..4");
+            std::string font(ani_font_names[a.tfont]);
+            l.word("font", font);
+            const auto selected = std::ranges::find(ani_font_names, font);
+            if (selected == ani_font_names.end()) f.bad("font", "unknown animation font: " + font);
+            a.tfont = static_cast<int>(selected - ani_font_names.begin());
+            f.color("color", a);
+            a.tcolor = a.color;
+        }
+        if (name == "grab") {
+            if (animation.grabs.size() >= MAX_ANI_GRAB) l.fail("too many grabbable points");
+            AniGrab grab;
+            grab.x = std::move(a.x1); grab.y = std::move(a.y1);
+            grab.tol = GRAB_TOLERANCE;
+            l.real("tolerance", grab.tol);
+            if (!(grab.tol > 0)) f.bad("tolerance", "grab tolerance must be above 0");
+            bool run = false;
+            l.flag("run", run);
+            grab.end.runnow = run;
+            for (const auto &b : st.bindings) {
+                const bool start = b.name.starts_with("start.");
+                if (!start && !b.name.starts_with("end.")) continue;
+                auto &task = start ? grab.start : grab.end;
+                if (task.events.size() >= MAX_GEVENTS) f.fail(b.pos, "too many assignments in a grab task");
+                GrabEvent event;
+                event.lhs = b.name.substr(start ? 6 : 4);
+                const auto *entry = grab_target(s.model(), event.lhs);
+                if (!entry || entry->written != event.lhs)
+                    f.fail(b.pos, xpp::format("grab assignment names no variable or parameter \"{}\"", event.lhs));
+                f.compile(b.name, event.rhs);
+                task.events.push_back(std::move(event));
+            }
+            f.done();
+            animation.grabs.push_back(std::move(grab));
+            return;
+        }
+    } else {
+        f.fail(st.pos, xpp::format("unknown animation statement {}", name));
+    }
+    if (name == "circle" || name == "rectangle" || name == "ellipse") {
+        if (f.has("fill")) {
+            if (f.has("color")) l.fail("a filled shape takes its colour from fill; omit color");
+            f.color("fill", a);
+            a.type = name == "circle" ? FCIRC : name == "rectangle" ? FRECT : FELLIP;
+        }
+    }
+    f.done();
+    animation.commands.push_back(std::move(a));
+    animation.ncom = static_cast<int>(animation.commands.size());
+}
+
+} // namespace
+
+Result<AnimationState> read_animation(Session &s, std::string_view text, const std::string &file)
+{
+    if (files::has_extension(file, ".ani")) {
+        auto lines = LineReader::of_text(std::string(text));
+        return load_ani_file(s, lines, file.c_str());
+    }
+    if (!files::has_extension(file, ".anix")) return fail_reading("animation", "expected an .anix animation", file);
+    const setx::Document doc("animation", file, std::string(text));
+    try {
+        AnimationState animation = s.animation;
+        init_ani_stuff(animation);
+        animation.speed = on_the_fly_speed;
+        animation.vcr.file = file;
+        animation.vcr.ok = 1;
+        bool model_seen = false, options_seen = false;
+        std::size_t memory = 0;
+        for (const auto &written : odex::parse_animation(text, file)) {
+            const auto &st = written.expressions;
+            if (st.name == "model" || st.name == "options") {
+                setx::Block block(doc, written.fields, false, st.name);
+                if (written.permanent) block.fail("model and options belong outside permanent");
+                if (st.name == "model") {
+                    if (model_seen) block.fail("model is written once");
+                    model_seen = true;
+                    const std::string model = animation_model_name(block);
+                    if (files::split_path(s.model().this_file).second != model)
+                        block.fail(xpp::format("animation names model \"{}\", but \"{}\" is loaded", model, s.model().this_file));
+                } else {
+                    if (options_seen) block.fail("options is written once");
+                    options_seen = true;
+                    block.whole("speed", animation.speed);
+                    if (animation.speed < 0 || animation.speed > MAX_ANI_SPEED) block.fail(*block.member("speed"), "speed must be 0..1000");
+                    if (auto bounds = block.group("bounds")) {
+                        std::array<double, 2> x{0, 1}, y{0, 1};
+                        if (!bounds->reals("x", std::span<double>(x)) || !bounds->reals("y", std::span<double>(y))) bounds->fail("bounds needs x and y pairs");
+                        if (!(x[0] < x[1])) bounds->fail(*bounds->member("x"), "bounds must increase on x");
+                        if (!(y[0] < y[1])) bounds->fail(*bounds->member("y"), "bounds must increase on y");
+                        animation.xlo = x[0]; animation.xhi = x[1]; animation.ylo = y[0]; animation.yhi = y[1];
+                        bounds->done();
+                    }
+                }
+                block.done();
+                continue;
+            }
+            odex::Parsed formulas;
+            formulas.files.push_back(file);
+            formulas.statements.push_back(st);
+            auto expanded = odex::animation_formulas(s.model(), formulas);
+            if (expanded.size() > static_cast<std::size_t>(odex::max_range_length - animation.ncom))
+                doc.fail(st.pos.line, st.pos.col, "animation expansion exceeds the shared range limit");
+            for (const auto &shape : expanded) {
+                const auto before = animation.commands.size(), grabs_before = animation.grabs.size();
+                native_shape(s, animation, shape, written, doc);
+                if (!animation_memory(memory, animation, before, grabs_before))
+                    doc.fail(st.pos.line, st.pos.col, "animation exceeds the session memory budget");
+            }
+        }
+        return animation;
+    } catch (ReadFailed &e) { return std::unexpected(std::move(e.error)); }
+      catch (Error &e) {
+        e.where = "animation";
+        e.place.source = line_place(file, text, e.place.line).source;
+        return std::unexpected(std::move(e));
+    }
+}
+
+Result<> load_animation(Session &s, const std::string &file)
+{
+    return ani_new_file(s, file.c_str(), true);
+}
+
+Result<std::string> animation_model(const std::string &file)
+{
+    std::string text;
+    UniqueFile input(files::open_read_within(file, files::split_path(file).first, {}));
+    if (!input || !read_bytes(input.get(), text, zip::archive_bytes_limit)) return std::unexpected(files::open_error("animation", file));
+    const setx::Document doc("animation", file, text);
+    try {
+        std::string model;
+        for (const auto &st : odex::parse_animation(text, file)) {
+            if (st.expressions.name != "model") continue;
+            if (!model.empty()) doc.fail(st.fields, "model is written once");
+            setx::Block block(doc, st.fields, true, "model");
+            model = animation_model_name(block);
+            block.done();
+        }
+        if (model.empty()) doc.fail(1, 1, "opening an animation needs model: \"name.odex\"");
+        return include_path(file, model);
+    } catch (ReadFailed &e) { return std::unexpected(std::move(e.error)); }
+      catch (Error &e) { e.where = "animation"; return std::unexpected(std::move(e)); }
+}
+
+Result<std::string> convert_animation(Session &s, std::string_view text, const std::string &file)
+{
+    auto lines = LineReader::of_text(std::string(text));
+    auto imported = load_ani_file(s, lines, file.c_str());
+    if (!imported) return std::unexpected(imported.error());
+    try {
+        const auto &animation = *imported;
+        std::string out = "model: " + odex::quote_string(files::split_path(s.model().this_file).second) + "\n";
+        out += xpp::format("options {{ speed: {}, bounds: {{ x: [{}, {}], y: [{}, {}] }} }}\n",
+                           animation.speed, odex::print_number(animation.xlo), odex::print_number(animation.xhi),
+                           odex::print_number(animation.ylo), odex::print_number(animation.yhi));
+        auto expression = [&](const std::vector<int> &p) { return odex::print(odex::program_expression(s, p)); };
+        auto color = [&](const AniCom &a) { return a.col_expr.empty() ? quoted_color(a.color) : expression(a.col_expr); };
+        int size = s.animation.pen.size, font = s.animation.pen.font;
+        std::string text_color = quoted_color(foreground_color);
+        bool permanent = false;
+        std::vector<std::string> range_texts;
+        std::vector<int> range_values;
+        odex::ArrayCopy range;
+        auto flush = [&] {
+            if (!range_texts.empty()) out += odex::print_range(s, range_texts, range_values, range);
+            range_texts.clear(); range_values.clear(); range = {};
+        };
+        for (const auto &a : animation.commands) {
+            if (a.array.group != range.group) flush();
+            if (a.type == SETTEXT) {
+                size = a.tsize; font = a.tfont; text_color = quoted_color(a.tcolor);
+                continue;
+            }
+            if (permanent != (a.flag == PERMANENT)) {
+                flush();
+                if (permanent) out += "}\n";
+                permanent = a.flag == PERMANENT;
+                if (permanent) out += "permanent {\n";
+            }
+            const bool filled = a.type == FCIRC || a.type == FRECT || a.type == FELLIP;
+            std::string shape, fields;
+            auto field = [&](std::string_view key, std::string value) {
+                if (!fields.empty()) fields += ", ";
+                fields += std::string(key) + ": " + value;
+            };
+            auto point = [&] { field("x", expression(a.x1)); field("y", expression(a.y1)); };
+            auto box = [&] { field("x1", expression(a.x1)); field("y1", expression(a.y1)); field("x2", expression(a.x2)); field("y2", expression(a.y2)); };
+            switch (a.type) {
+            case LINE: shape = "line"; box(); break;
+            case RLINE: shape = "line"; field("x1", expression(a.x1)); field("y1", expression(a.y1)); field("relative", "true"); break;
+            case RECT: case FRECT: shape = "rectangle"; box(); break;
+            case CIRC: case FCIRC: shape = "circle"; point(); field("radius", expression(a.x2)); break;
+            case ELLIP: case FELLIP: shape = "ellipse"; point(); field("radius_x", expression(a.x2)); field("radius_y", expression(a.y2)); break;
+            case COMET:
+                shape = "trail"; point(); field("length", std::to_string(a.c.n));
+                if (a.zthick < 0) { field("draw", "points"); field("radius_pixels", odex::print_number(-a.zthick)); }
+                break;
+            case TEXT: case VTEXT:
+                shape = a.type == TEXT ? "text" : "value"; point();
+                field(a.type == TEXT ? "text" : "label", odex::quote_string(a.text));
+                if (a.type == VTEXT) field("value", expression(a.x2));
+                field("size", std::to_string(size)); field("font", std::string(ani_font_names[font])); field("color", text_color);
+                break;
+            case AXNULL: case AYNULL: {
+                shape = "nullcline"; box();
+                const auto &g = s.plot_windows.graph[s.plot_windows.active];
+                const int variable = a.type == AXNULL ? g.xv[0] : g.yv[0];
+                const auto *entry = variable == 0 ? nullptr : s.model().name(s.model().uvar_names[variable - 1]);
+                field("variable", odex::quote_string(entry ? entry->written : "t"));
+                field("source", "frozen"); field("frame", expression(a.who));
+                break;
+            }
+            default: return fail_reading("animation", "cannot convert this animation command", file);
+            }
+            if (a.type != TEXT && a.type != VTEXT) {
+                field(filled ? "fill" : "color", color(a));
+                if (a.zthick >= 0 && a.type != AXNULL && a.type != AYNULL) field("width", odex::print_number(a.zthick));
+                text_color = color(a);
+            }
+            const std::string statement = (permanent ? "  " : "") + shape + " { " + fields + " }\n";
+            if (a.array.group) {
+                range = a.array;
+                range_texts.push_back(statement);
+                range_values.push_back(a.array.value);
+            } else out += statement;
+        }
+        flush();
+        if (permanent) out += "}\n";
+        for (const auto &grab : animation.grabs) {
+            out += "grab { x: " + expression(grab.x) + ", y: " + expression(grab.y) + ", tolerance: " + odex::print_number(grab.tol);
+            for (const bool start : {true, false}) {
+                out += start ? ", start: { " : ", end: { ";
+                bool first = true;
+                for (const auto &event : (start ? grab.start : grab.end).events) {
+                    if (!first) out += ", ";
+                    const auto *name = s.model().name(event.lhs);
+                    if (!name) return fail_reading("animation", "a grab assignment names no model quantity: " + event.lhs, file);
+                    out += name->written + ": " + expression(event.rhs);
+                    first = false;
+                }
+                out += " }";
+            }
+            out += xpp::format(", run: {} }}\n", grab.end.runnow ? "true" : "false");
+        }
+        const std::string native_file = include_path(file, files::output_name(file, ".anix"));
+        const auto checked = read_animation(s, out, native_file);
+        if (!checked) return std::unexpected(checked.error());
+        return out;
+    } catch (const Error &e) { return std::unexpected(e); }
+      catch (const ReadFailed &e) { return std::unexpected(e.error); }
+}
+
+int convert_animation_file(const std::string &file, const std::string &model)
+{
+    const std::string model_file = model.empty() ? include_path(file, files::output_name(file, ".odex")) : model;
+    auto line = parse_command_line({"xppautX", model_file, "--convert"});
+    if (!line) { show_error(line.error()); return 1; }
+    auto loaded = load_model(std::move(*line), 1);
+    if (!loaded) return 1;
+    std::string text;
+    UniqueFile input(files::open_read_within(file, files::split_path(file).first, {}));
+    if (!input || !read_bytes(input.get(), text, zip::archive_bytes_limit)) { show_error(files::open_error("animation", file)); return 1; }
+    auto native = convert_animation(**loaded, text, file);
+    if (!native) { show_error(native.error()); return 1; }
+    const auto written = odex::write_converted(file, include_path(file, files::output_name(file, ".anix")), *native);
+    if (!written) { show_error(written.error()); return 1; }
+    return 0;
+}
 
 void update_ani_motion_stuff(xpp::Session &s, int x, int y)
 {
@@ -1092,11 +1569,10 @@ void ani_flip1(xpp::Session &s, int n)
 void ani_zero(xpp::Session &s)
 {
     s.animation.vcr.iexist = 0;
-    s.animation.vcr.ok = 0;
+    s.animation.vcr.ok = !s.animation.commands.empty();
     s.animation.vcr.inc = 1;
     s.animation.vcr.pos = 0;
-    s.animation.ncom = 0;
-    s.animation.speed = 10;
+    s.animation.ncom = static_cast<int>(s.animation.commands.size());
     s.animation.aniflag = TRANSIENT;
     s.animation.grab_flag = 0;
     if (s.animation.options.use_file)
@@ -1113,9 +1589,8 @@ void ani_zero(xpp::Session &s)
 int get_ani_file(xpp::Session &s, const char *fname)
 {
     std::string file = fname ? fname : s.animation.vcr.file;
-    if (fname == nullptr && file_selector("Load animation", file, "*.ani") == 0) return 0;
-    const bool model_file = fname != nullptr && s.animation.options.use_file && file == s.animation.options.file;
-    if (!xpp::ok_or_show(ani_new_file(s, file.c_str(), model_file))) return 0;
+    if (fname == nullptr && file_selector("Load animation", file, "*.anix *.ani") == 0) return 0;
+    if (!xpp::ok_or_show(ani_new_file(s, file.c_str(), false))) return 0;
     xpp::log(XPP_LOG_INFO, "Loaded {} lines successfully!\n", s.animation.ncom);
     return 1;
 }
@@ -1134,10 +1609,12 @@ void render_ani(xpp::Session &s)
     for (int i = 0; i < s.animation.ncom; i++) {
         const int type = s.animation.commands[i].type;
         const int flag = s.animation.commands[i].flag;
-        if (type == LINE || type == RLINE || type == RECT || type == FRECT || type == CIRC || type == FCIRC ||
-            type == ELLIP || type == FELLIP || type == COMET || type == AXNULL || type == AYNULL)
-            eval_ani_color(s, i);
+        if (flag == TRANSIENT) eval_ani_color(s, i);
         if (type != SETTEXT && flag == TRANSIENT) eval_ani_com(s, i);
+        if ((type == TEXT || type == VTEXT) && s.animation.commands[i].own_text_style) {
+            const auto &a = s.animation.commands[i];
+            set_ani_font_stuff(s, a.tsize, a.tfont, a.col_expr.empty() ? a.tcolor : ramp_color(s.ramp(), a.zcol));
+        }
         switch (type) {
         case AXNULL:
         case AYNULL:
@@ -1193,12 +1670,9 @@ void set_ani_perm(xpp::Session &s)
 {
     set_from_init_data(s);
     for (int i = 0; i < s.animation.ncom; i++) {
-        const int type = s.animation.commands[i].type;
         if (s.animation.commands[i].flag == PERMANENT) {
             if (s.animation.commands[i].type != SETTEXT) eval_ani_com(s, i);
-            if (type == LINE || type == RLINE || type == RECT || type == FRECT || type == CIRC || type == FCIRC ||
-                type == ELLIP || type == FELLIP)
-                eval_ani_color(s, i);
+            eval_ani_color(s, i);
         }
     }
 }
@@ -1213,7 +1687,7 @@ void ani_view_created(xpp::Session &s)
     s.animation.mpeg.root = xpp::files::output_name(s.model().this_file,".ppm","animation");
     s.animation.mpeg.skip = 1;
     s.animation.vcr.pos = 0;
-    if (s.animation.options.use_file) get_ani_file(s,s.animation.vcr.file.c_str());
+    if (s.animation.ncom) set_ani_perm(s);
 }
 
 /* Grab: show the first frame with the grab points and wait for the mouse */

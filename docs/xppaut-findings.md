@@ -122,6 +122,9 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [89](#89-the-diamond-marker-is-drawn-off-centre) | Graphics | the diamond marker is drawn centred 8 units right of and below the point it marks | [W513](https://github.com/MuhammadMoustafa/xppautX/issues/577) |
 | [90](#90-the-plots-texts-arrows-pointers-and-markers-stop-at-50-and-400-without-a-word) | Limits | a plot holds 50 texts and 400 arrows, pointers and markers, and the next is dropped without a word | [W513](https://github.com/MuhammadMoustafa/xppautX/issues/577) |
 | [91](#91-a-refused-animation-file-discards-the-working-animation) | Animation | frees the old commands before reading a replacement, so a bad file loses the working animation | [W507](https://github.com/MuhammadMoustafa/xppautX/issues/571) |
+| [92](#92-animation-grab-tolerances-discard-text-and-formula-suffixes) | Animation | grab tolerance uses a numeric prefix or .02, so shipped expressions are never evaluated | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
+| [93](#93-animation-circles-ignore-the-written-width) | Animation | the circle reader never consumes its documented width argument | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
+| [94](#94-permanent-animation-shapes-change-colour-every-frame) | Animation | permanent coordinates are cached, but colour formulas run each frame | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
 
 ## 1. Model options
 
@@ -1991,3 +1994,44 @@ reader's output and applies it once, preserving the old animation and displayed
 frame on refusal. `tests/test_animation.cpp` checks the old command/grab storage,
 filename, settings and frame, and errors at the animation's physical lines
 (W507, [#571](https://github.com/MuhammadMoustafa/xppautX/issues/571)).
+
+## 92. Animation grab tolerances discard text and formula suffixes
+
+XPPAUT reads a grab's tolerance with `atof(ts)` and substitutes .02 when
+the result is nonpositive ([aniparse.c:2563–2565](../reference/xppaut-8.0/aniparse.c#L2563),
+[master](../reference/xppaut-master/aniparse.c#L2563)). Evidence: the shipped
+`acoaster.ani` and `coaster2D.ani` write `tol`, which is not declared in
+their models; zero becomes .02. `ielaspen.ani` writes `.02*scale`, but
+`atof` reads only .02, even though its model's scale is 10. No expression
+is evaluated and no error is shown. xppautX's strict foreign reader
+refuses these strings. W520's native examples explicitly retain .02, the
+value XPPAUT actually used; their comments and docs/odex-quirks.md record
+the repair. Card [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584).
+
+## 93. Animation circles ignore the written width
+
+The `CIRC` / `FCIRC` branch reads x, y, radius and colour, then leaves
+without reading a width ([aniparse.c:1409–1425](../reference/xppaut-8.0/aniparse.c#L1409),
+[master](../reference/xppaut-master/aniparse.c#L1409)). Thus `circle
+v;w;.03;$PURPLE;2` draws with width 0 (one pixel), despite its documented
+last argument. Evidence: `tools/gui_test.ani` and `tests/test_anix.cpp`
+compare the primitive data and preserve that effective width on import.
+Native `.anix` circle statements read their keyed width, and unknown
+fields fail at their line instead of being ignored. Card
+[W520](https://github.com/MuhammadMoustafa/xppautX/issues/584).
+
+## 94. Permanent animation shapes change colour every frame
+
+XPPAUT evaluates every drawing command's colour before checking its
+permanent/transient flag ([aniparse.c:1988–1995](../reference/xppaut-8.0/aniparse.c#L1988),
+[master](../reference/xppaut-master/aniparse.c#L1988)); coordinates are
+evaluated only for transient commands, with permanent values cached by
+`set_ani_perm` ([aniparse.c:2080–2088](../reference/xppaut-8.0/aniparse.c#L2080),
+[master](../reference/xppaut-master/aniparse.c#L2080)). A permanent line
+whose colour is `t` therefore changes colour although its coordinates
+stay fixed. xppautX evaluates every permanent field once, as the native
+`permanent` block promises. `tests/test_animation.cpp` changes time after
+initializing such a line and checks identical primitive data. This is an
+intentional difference for imported permanent shapes with changing colour
+formulas; the retained examples' frame comparisons are unchanged. Card
+[W520](https://github.com/MuhammadMoustafa/xppautX/issues/584).

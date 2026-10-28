@@ -26,6 +26,7 @@ th1p' = th1dd
 aux xpp = xdd
 aux th1pp = th1dd
 options {
+  animation: "pend-cart1.anix",
   integration: { dt: .02 },
 }
 # nice ICs

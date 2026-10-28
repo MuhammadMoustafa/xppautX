@@ -1,0 +1,7 @@
+model: "invpend.odex"
+options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
+permanent {
+  line { x1: 0, y1: 0.5, x2: 1, y2: 0.5, color: "foreground", width: 3 }
+}
+line { x1: 0.5, y1: 0.5, x2: 0.5+0.4*sin(th), y2: 0.5-0.4*cos(th), color: "#0000ff", width: 2 }
+circle { x: 0.5+0.4*sin(th), y: 0.5-0.4*cos(th), radius: 0.05, fill: "#ff0000", width: 0 }

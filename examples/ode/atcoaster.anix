@@ -1,0 +1,59 @@
+model: "atcoaster.odex"
+options { speed: 10, bounds: { x: [-3.25, 3.25], y: [-3.25, 3.25] } }
+permanent {
+  value { x: -1, y: 1, label: "g=", value: g, size: 3, font: roman, color: "#a020f0" }
+  line { x1: xM(0*0.04*pi), y1: zM(0*0.04*pi), x2: xM(1*0.04*pi), y2: zM(1*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(1*0.04*pi), y1: zM(1*0.04*pi), x2: xM(2*0.04*pi), y2: zM(2*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(2*0.04*pi), y1: zM(2*0.04*pi), x2: xM(3*0.04*pi), y2: zM(3*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(3*0.04*pi), y1: zM(3*0.04*pi), x2: xM(4*0.04*pi), y2: zM(4*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(4*0.04*pi), y1: zM(4*0.04*pi), x2: xM(5*0.04*pi), y2: zM(5*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(5*0.04*pi), y1: zM(5*0.04*pi), x2: xM(6*0.04*pi), y2: zM(6*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(6*0.04*pi), y1: zM(6*0.04*pi), x2: xM(7*0.04*pi), y2: zM(7*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(7*0.04*pi), y1: zM(7*0.04*pi), x2: xM(8*0.04*pi), y2: zM(8*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(8*0.04*pi), y1: zM(8*0.04*pi), x2: xM(9*0.04*pi), y2: zM(9*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(9*0.04*pi), y1: zM(9*0.04*pi), x2: xM(10*0.04*pi), y2: zM(10*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(10*0.04*pi), y1: zM(10*0.04*pi), x2: xM(11*0.04*pi), y2: zM(11*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(11*0.04*pi), y1: zM(11*0.04*pi), x2: xM(12*0.04*pi), y2: zM(12*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(12*0.04*pi), y1: zM(12*0.04*pi), x2: xM(13*0.04*pi), y2: zM(13*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(13*0.04*pi), y1: zM(13*0.04*pi), x2: xM(14*0.04*pi), y2: zM(14*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(14*0.04*pi), y1: zM(14*0.04*pi), x2: xM(15*0.04*pi), y2: zM(15*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(15*0.04*pi), y1: zM(15*0.04*pi), x2: xM(16*0.04*pi), y2: zM(16*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(16*0.04*pi), y1: zM(16*0.04*pi), x2: xM(17*0.04*pi), y2: zM(17*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(17*0.04*pi), y1: zM(17*0.04*pi), x2: xM(18*0.04*pi), y2: zM(18*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(18*0.04*pi), y1: zM(18*0.04*pi), x2: xM(19*0.04*pi), y2: zM(19*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(19*0.04*pi), y1: zM(19*0.04*pi), x2: xM(20*0.04*pi), y2: zM(20*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(20*0.04*pi), y1: zM(20*0.04*pi), x2: xM(21*0.04*pi), y2: zM(21*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(21*0.04*pi), y1: zM(21*0.04*pi), x2: xM(22*0.04*pi), y2: zM(22*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(22*0.04*pi), y1: zM(22*0.04*pi), x2: xM(23*0.04*pi), y2: zM(23*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(23*0.04*pi), y1: zM(23*0.04*pi), x2: xM(24*0.04*pi), y2: zM(24*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(24*0.04*pi), y1: zM(24*0.04*pi), x2: xM(25*0.04*pi), y2: zM(25*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(25*0.04*pi), y1: zM(25*0.04*pi), x2: xM(26*0.04*pi), y2: zM(26*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(26*0.04*pi), y1: zM(26*0.04*pi), x2: xM(27*0.04*pi), y2: zM(27*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(27*0.04*pi), y1: zM(27*0.04*pi), x2: xM(28*0.04*pi), y2: zM(28*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(28*0.04*pi), y1: zM(28*0.04*pi), x2: xM(29*0.04*pi), y2: zM(29*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(29*0.04*pi), y1: zM(29*0.04*pi), x2: xM(30*0.04*pi), y2: zM(30*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(30*0.04*pi), y1: zM(30*0.04*pi), x2: xM(31*0.04*pi), y2: zM(31*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(31*0.04*pi), y1: zM(31*0.04*pi), x2: xM(32*0.04*pi), y2: zM(32*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(32*0.04*pi), y1: zM(32*0.04*pi), x2: xM(33*0.04*pi), y2: zM(33*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(33*0.04*pi), y1: zM(33*0.04*pi), x2: xM(34*0.04*pi), y2: zM(34*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(34*0.04*pi), y1: zM(34*0.04*pi), x2: xM(35*0.04*pi), y2: zM(35*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(35*0.04*pi), y1: zM(35*0.04*pi), x2: xM(36*0.04*pi), y2: zM(36*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(36*0.04*pi), y1: zM(36*0.04*pi), x2: xM(37*0.04*pi), y2: zM(37*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(37*0.04*pi), y1: zM(37*0.04*pi), x2: xM(38*0.04*pi), y2: zM(38*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(38*0.04*pi), y1: zM(38*0.04*pi), x2: xM(39*0.04*pi), y2: zM(39*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(39*0.04*pi), y1: zM(39*0.04*pi), x2: xM(40*0.04*pi), y2: zM(40*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(40*0.04*pi), y1: zM(40*0.04*pi), x2: xM(41*0.04*pi), y2: zM(41*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(41*0.04*pi), y1: zM(41*0.04*pi), x2: xM(42*0.04*pi), y2: zM(42*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(42*0.04*pi), y1: zM(42*0.04*pi), x2: xM(43*0.04*pi), y2: zM(43*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(43*0.04*pi), y1: zM(43*0.04*pi), x2: xM(44*0.04*pi), y2: zM(44*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(44*0.04*pi), y1: zM(44*0.04*pi), x2: xM(45*0.04*pi), y2: zM(45*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(45*0.04*pi), y1: zM(45*0.04*pi), x2: xM(46*0.04*pi), y2: zM(46*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(46*0.04*pi), y1: zM(46*0.04*pi), x2: xM(47*0.04*pi), y2: zM(47*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(47*0.04*pi), y1: zM(47*0.04*pi), x2: xM(48*0.04*pi), y2: zM(48*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(48*0.04*pi), y1: zM(48*0.04*pi), x2: xM(49*0.04*pi), y2: zM(49*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(49*0.04*pi), y1: zM(49*0.04*pi), x2: xM(50*0.04*pi), y2: zM(50*0.04*pi), color: "#00e100", width: 0 }
+  line { x1: xM(50*0.04*pi), y1: zM(50*0.04*pi), x2: xM(51*0.04*pi), y2: zM(51*0.04*pi), color: "#00e100", width: 0 }
+}
+trail { x: X, y: Z, length: 5, draw: points, radius_pixels: 5, color: Lalt }
+circle { x: X, y: Z, radius: 0.05, fill: "#ff0000", width: 0 }
+grab { x: xM(M), y: zM(M), tolerance: 0.1, start: { M: (mouse_x+3.25)*2*pi/6.5, X: xM(M), Z: zM(M) }, end: { M: (mouse_x+3.25)*2*pi/6.5, X: xM(M), Z: zM(M), Lalt: sv*sign(mouse_vx)*sqrt(mouse_vx^2+mouse_vy^2) }, run: true }

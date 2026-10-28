@@ -1194,7 +1194,7 @@ export class Session {
     else this.store.dispatch({type: 'ani', action: {type: 'open', open: false}});
   }
 
-  /** File: an .ani file, through the file ask (the browser's open dialog) */
+  /** File: an .anix file, through the file ask (the browser's open dialog) */
   aniLoad(): void {
     this.send(this.layerKey('ani', 'file'));
   }

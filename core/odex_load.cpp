@@ -18,6 +18,7 @@
 #include "model_files.h"
 #include "model_options.h"
 #include "session.h"
+#include "snapx.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
 #include "xpp_files.h"
@@ -107,10 +108,11 @@ bool takes_range(Statement::Kind k)
 
 class Loader {
 public:
-  explicit Loader(Model &m, const Parsed &p) : p_(p), m_(m) { m_.names.clear(); }
+  explicit Loader(Model &m, const Parsed &p) : p_(p), m_(m) {}
 
   Parsed run()
   {
+    m_.names.clear();
     std::vector<Statement> statements = expanded();
     for (const Statement &s : statements) in_copy(s.array, [&] { declare(s); });
     for (const Statement &s : p_.statements)
@@ -119,12 +121,24 @@ public:
           fail(s.range.index_pos, xpp::format("the index `{}` is {}, declared at {}:{}: an index is named like "
                                               "no declared name", s.range.index, kind_name(d->kind),
                                               d->pos.line, d->pos.col));
-    scan_neartol();
+    scan_neartol(p_.statements);
     Parsed out;
     out.files = p_.files;
     out.ieee_division = true;
     out.derived = true;
     for (Statement &s : statements) in_copy(s.array, [&] { ready(s, out.statements); });
+    return out;
+  }
+
+  std::vector<Statement> animation()
+  {
+    scan_neartol(m_.statements);
+    for (const auto &s : p_.statements)
+      if (!s.range.index.empty() && find(s.range.index))
+        fail(s.range.index_pos, "a range index must not name a declared model quantity");
+    auto out = expanded(true);
+    for (auto &s : out)
+      for (auto &b : s.bindings) formula(b.value, formula_scope());
     return out;
   }
 
@@ -273,14 +287,35 @@ private:
 
   /* the model's statements, each array statement's copies in its place
      (for j in lo..hi by step: lo, lo+step, ... up to hi) */
-  std::vector<Statement> expanded()
+  std::vector<Statement> expanded(bool animation = false)
   {
     std::vector<Statement> out;
+    std::size_t memory = 0;
     int group = 0;
     for (const Statement &s : p_.statements) {
       const Range &r = s.range;
+      std::size_t bytes = sizeof(Statement) + r.index.size() + s.name.size() + s.text.size();
+      if (animation) {
+        std::vector<const Expr *> expressions;
+        for (const auto &b : s.bindings) {
+          bytes += sizeof(Binding) + b.name.size();
+          expressions.push_back(&b.value);
+        }
+        while (!expressions.empty()) {
+          const auto *e = expressions.back();
+          expressions.pop_back();
+          bytes += sizeof(Expr) + e->text.size();
+          for (const auto &name : e->arg_names) bytes += sizeof(std::string) + name.size();
+          for (const auto &a : e->args) expressions.push_back(&a);
+        }
+      }
+      auto reserve_copy = [&] {
+        if (animation && !snapx::account_memory(memory, 1, bytes))
+          fail(s.pos, "animation range expansion exceeds the session memory budget");
+      };
       if (r.index.empty()) {
         group_ = 0;
+        reserve_copy();
         out.push_back(copy(s, std::string(), 0));
         continue;
       }
@@ -295,6 +330,7 @@ private:
       group++;
       group_ = group, lo_ = lo, hi_ = hi, step_ = step;
       for (int k = lo; k <= hi; k += step) {
+        reserve_copy();
         const ArrayCopy a{group, r.index, k, lo, hi, step, false, std::string()};
         in_copy(a, [&] { out.push_back(copy(s, r.index, k)); });
         out.back().array = a;
@@ -392,9 +428,9 @@ private:
      question 7): scanned once, whole-model (not position-sensitive: a
      near() before the @ line that sets it still reads it), never among
      the options the Model keeps (which would warn "not recognized") */
-  void scan_neartol()
+  void scan_neartol(const std::vector<Statement> &statements)
   {
-    for (const Statement &s : p_.statements) {
+    for (const Statement &s : statements) {
       if (s.kind != Statement::Kind::Options) continue;
       for (const Option &o : s.options) {
         if (o.name != "neartol") continue;
@@ -824,6 +860,11 @@ private:
 };
 
 } // namespace
+
+std::vector<Statement> animation_formulas(Model &m, const Parsed &p)
+{
+  return Loader(m, p).animation();
+}
 
 bool is_odex(std::string_view path)
 {

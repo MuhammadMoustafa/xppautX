@@ -7,6 +7,7 @@ t1p' = -mu*t1p+1/ode_divisor(L1*(m1+m2*sin(t2-t1)^2))*(-(m1+m2)*g*sin(t1)+m2*L2*
 # parameters
 par L1 = 4, L2 = 1, m1 = 2, m2 = 1, g = 9.8, mu = 0.01
 options {
+  animation: "doubpend.anix",
   integration: { total_time: 200, state_limit: 100000 },
   equilibria: { search_limit: 100000 },
 }

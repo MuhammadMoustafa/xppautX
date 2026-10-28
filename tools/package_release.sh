@@ -25,7 +25,7 @@ case "$platform" in
 esac
 cp LICENSE "build/$name/"
 [ -f CITATION.cff ] && cp CITATION.cff "build/$name/"
-mkdir -p "build/$name/examples" && cp examples/ode/lecar.odex "build/$name/examples/"
+mkdir -p "build/$name/examples" && cp examples/ode/lecar.odex examples/ode/ml.anix "build/$name/examples/"
 # the .tar.gz and the .zip carry the per-user .ode file association
 # (tools/associate/, W13b), Linux also the icons install-linux.sh installs
 # into the hicolor theme (tools/make_icons.py's assets/icons/hicolor/); the

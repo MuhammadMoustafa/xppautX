@@ -232,6 +232,8 @@ struct OptionRow {
   /* a setting of the session or the window as a whole, not one graph's or one
      run's own configuration: a set never holds it (sets-design.md section 2) */
   bool wide = false;
+  /* A file companion belongs directly in options, outside the settings groups. */
+  bool top_level = false;
 };
 
 /* why the number v is not one rule accepts ("must be a number above 0"),

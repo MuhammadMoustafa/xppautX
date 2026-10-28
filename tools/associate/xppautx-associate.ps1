@@ -8,12 +8,12 @@
 .DESCRIPTION
     Register writes a ProgID, "xppautX.Model", under HKCU\Software\Classes
     with the exe's icon and open command, and points the default value of
-    .ode, .odex, .snapx and .recx at it; Unregister removes them. Either way, SHChangeNotify tells Explorer
+    .ode, .odex, .snapx, .recx and .anix at it; Unregister removes them. Either way, SHChangeNotify tells Explorer
     to pick up the change without a sign-out. Run it again after moving or
     renaming xppautX.exe: the command line it wrote has the old path.
 
 .PARAMETER Register
-    Associate .ode, .odex, .snapx and .recx with xppautX (the default action).
+    Associate .ode, .odex, .snapx, .recx and .anix with xppautX (the default action).
 
 .PARAMETER Unregister
     Remove the associations (each extension only while xppautX still owns
@@ -44,7 +44,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProgId = 'xppautX.Model'
-$Extensions = @('.ode', '.odex', '.snapx', '.recx')
+$Extensions = @('.ode', '.odex', '.snapx', '.recx', '.anix')
 $ClassesRoot = 'HKCU:\Software\Classes'
 
 if (-not $ExePath) {

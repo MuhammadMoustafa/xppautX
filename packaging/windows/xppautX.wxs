@@ -42,6 +42,7 @@
           <Extension Id="odex" />
           <Extension Id="snapx" />
           <Extension Id="recx" />
+          <Extension Id="anix" />
         </ProgId>
       </Component>
     </ComponentGroup>
@@ -51,6 +52,7 @@
       <Component Id="Readme"><File Source="$(var.SourceDir)\README.txt" /></Component>
       <Component Id="Citation"><File Source="$(var.SourceDir)\CITATION.cff" /></Component>
       <Component Id="ExampleLecar" Directory="ExamplesFolder"><File Source="$(var.SourceDir)\examples\lecar.odex" /></Component>
+      <Component Id="ExampleAnimation" Directory="ExamplesFolder"><File Source="$(var.SourceDir)\examples\ml.anix" /></Component>
     </ComponentGroup>
 
     <!-- a per-user registry value is the shortcut component's key path (ICE rules) -->

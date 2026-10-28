@@ -70,7 +70,7 @@ for opener in xdg-open open; do
   printf '#!/bin/sh\necho "$1" >> "%s/opened"\necho "$#" >> "%s/argc"\n' "$tmp" "$tmp" > "$tmp/bin/$opener"
   chmod +x "$tmp/bin/$opener"
 done
-cp examples/ode/lecar.odex "$tmp/"
+cp examples/ode/lecar.odex examples/ode/ml.anix "$tmp/"
 
 # Check batch success and old spelling in foreground runs.
 if (cd "$tmp" && "$BIN" --silent lecar.odex > silent.out 2>&1) && [ -s "$tmp/output.dat" ]; then

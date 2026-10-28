@@ -1,3 +1,0 @@
-# wave phaseplane
-fcircle .5*(vv[0..20]+1);w[j];.02;[j]/20
-end

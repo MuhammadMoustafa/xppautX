@@ -9,6 +9,7 @@ wiener z
 V' = 3*V-V^3+2-X+Input+sigma*z
 X' = eps*(gam*(1+tanh(V/ode_divisor(beta)))-X)
 options {
+  animation: "osc.anix",
   integration: { store_every: 10, storage_rows: 100000, total_time: 400, method: euler },
   continuation: { parmin: 0, parmax: 6, ds: -0.001, dsmax: .01 },
   diagram: { autovar: V },

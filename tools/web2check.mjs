@@ -130,6 +130,12 @@ let failures = 0, flaky = 0;
 let record = null;
 /* the xppautX the section running drives (sessionAttempt), for a check that it exited */
 let sessionServer = null;
+function copyModel(source, destination) {
+  fs.copyFileSync(source, destination);
+  for (const name of fs.readdirSync(path.dirname(source)))
+    if (name.endsWith('.anix')) fs.copyFileSync(path.join(path.dirname(source), name), path.join(path.dirname(destination), name));
+}
+
 function check(name, ok, detail = '') {
   if (record) { record.push({name, ok, detail}); return; }
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : '  ' + detail}`);
@@ -148,7 +154,7 @@ function perf(name, value) {
 /* output.dat of the same model: the numbers the plot must show */
 function outputDat(ode = ODE) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppsilent-'));
-  fs.copyFileSync(ode, path.join(dir, path.basename(ode)));
+  copyModel(ode, path.join(dir, path.basename(ode)));
   spawnSync(bin, [path.basename(ode), '--silent'], {cwd: dir, stdio: 'ignore', timeout: 60000});
   const rows = fs.readFileSync(path.join(dir, 'output.dat'), 'utf8').trim().split(/\r?\n/).map(l => l.trim().split(/\s+/).map(Number));
   fs.rmSync(dir, {recursive: true, force: true});
@@ -5678,7 +5684,7 @@ async function animation() {
   check('ani: integrate first (601 rows)', await integrate(601, 30000));
 
   /* the title bar's Animation button: Viewaxes/Toon opens the core's window, the panel shows */
-  await cdp.eval(`document.querySelector('.ani-toggle').click()`);
+  if (!(await S('s.ani.open'))) await cdp.eval(`document.querySelector('.ani-toggle').click()`);
   check('ani: the Animation button opens the core\'s animation window and the panel',
     await until(`s.ani.open && s.ani.exists && !s.busy`, 'ani window')
     && await cdp.eval(`getComputedStyle(document.querySelector('.ani-panel')).visibility === 'visible'`));
@@ -5689,7 +5695,7 @@ async function animation() {
   await cdp.eval(`[...document.querySelectorAll('.ani-header button')].find(b => b.textContent.startsWith('Load')).click()`);
   check('ani: Load asks for a file to open', await until(`s.ask && s.ask.kind === 'file' && s.ask.mode === 'read'
     && document.querySelector('[data-file-input=open]')`, 'ani file ask'), JSON.stringify(await S('s.ask')));
-  await pickFiles('[data-file-input=open]', [path.join(top, 'tools/gui_test.ani')]);
+  await pickFiles('[data-file-input=open]', [path.join(top, 'tools/gui_test.anix')]);
   check('ani: loading it shows its first frame (store and drawing)', await aniShown(0),
     JSON.stringify(await S('s.ani.frame && {pos: s.ani.frame.pos, n: s.ani.frame.prims.length}')));
   const f0 = await S('s.ani.frame');
@@ -6010,7 +6016,7 @@ async function startScreenExamplesCheck() {
   const exe = path.join(dir, 'bin', path.basename(bin));
   fs.mkdirSync(path.join(dir, 'bin', 'examples'), {recursive: true});
   fs.copyFileSync(bin, exe);
-  fs.copyFileSync(ODE, path.join(dir, 'bin', 'examples', 'lecar.odex'));
+  copyModel(ODE, path.join(dir, 'bin', 'examples', 'lecar.odex'));
   fs.writeFileSync(path.join(dir, 'bin', 'examples', 'notes.txt'), 'not a model\n');
   const server = await startServer(exe, dir, []);
   try {
@@ -6138,7 +6144,7 @@ async function errorDialogCheck(dir) {
 
 async function warningFlashCheck() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-warn-'));
-  fs.copyFileSync(ODE, path.join(dir, path.basename(ODE)));
+  copyModel(ODE, path.join(dir, path.basename(ODE)));
   /* Startup INFO logging exercises the same log event and status flash. */
   const server = await startServer(bin, dir, [path.basename(ODE), '--verbose']);
   try {
@@ -6275,7 +6281,7 @@ async function sessionAttempt(ode, fn, expected, attempts) {
   const rec = record = [];
   attempts.push(rec); /* its lost commands (rec.lost) count even if it throws */
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-'));
-  fs.copyFileSync(ode, path.join(dir, path.basename(ode)));
+  copyModel(ode, path.join(dir, path.basename(ode)));
   let server;
   try {
     server = sessionServer = await (opt.webview2 ? startWebView2 : startServer)(bin, dir, [path.basename(ode)]);

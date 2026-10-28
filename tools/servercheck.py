@@ -9,7 +9,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, copy, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import CONFIG_ROOT, Server, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, file_bytes, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
+from xppclient import copy_model, staged_model_names, CONFIG_ROOT, Server, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, file_bytes, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
 import autocompare
 
 ap = argparse.ArgumentParser()
@@ -37,7 +37,7 @@ def check_logging():
     conversation; see CLAUDE.md "Logging"."""
     run_dir = tempfile.mkdtemp(prefix='xppquiet')
     try:
-        shutil.copy(args.ode, run_dir)
+        copy_model(args.ode, run_dir)
         odename = os.path.basename(args.ode)
 
         p = subprocess.run([os.path.abspath(args.server), odename, '--silent'],
@@ -75,7 +75,7 @@ def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=
     copy of the program to run (W233: the bundled examples are found beside the executable)."""
     ode = ode or args.ode
     run_dir = tempfile.mkdtemp(prefix='xppserver')
-    shutil.copy(ode, run_dir)
+    copy_model(ode, run_dir)
     env = None
     if extra_env is not None:
         env = dict(os.environ)
@@ -1255,7 +1255,7 @@ def series_matches_output_dat(ser, ode=None):
     (xppautX --silent): both are the stored floats, output.dat prints %.8g"""
     ode = ode or args.ode
     silent = tempfile.mkdtemp(prefix='xppsilent')
-    shutil.copy(ode, silent)
+    copy_model(ode, silent)
     subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '--silent'], cwd=silent,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60 * SLOW)
     with open(os.path.join(silent, 'output.dat')) as f:
@@ -1878,7 +1878,7 @@ check('Kinescope/Save asks for the pixels and writes GIFs, the second named from
       all(os.path.exists(os.path.join(run, n)) for n in ('kin_0.gif', 'kin_0-frame1.gif')), str(os.listdir(run)))
 send(cmd='key', key='v')
 evs, _ = answer_asks(is_idle, {'menu': menu('t')})
-check('the animation window opens', any(e.get('ev') == 'window' and e.get('win') == 'animation'
+check('the animation window opens', any(e.get('ev') == 'ani' and e.get('open') == 1 for e in evs) or any(e.get('ev') == 'window' and e.get('win') == 'animation'
       and e.get('op') == 'create' for e in evs), str([e for e in evs if e.get('ev') == 'window']))
 send(cmd='window.hide', window='animation')
 evs, _ = collect(is_idle)
@@ -4013,7 +4013,7 @@ def check_ani_data():
         command('i', {'key': 'g'})
         evs = command('v', {'key': 't'})
         check('ani data: Viewaxes/Toon opens the animation window',
-              any(e.get('ev') == 'window' and e.get('win') == 'animation' and e.get('op') == 'create' for e in evs))
+              any(e.get('open') == 1 for e in states(evs)) or any(e.get('ev') == 'window' and e.get('win') == 'animation' and e.get('op') == 'create' for e in evs))
         evs = ani('file', {'file': 'gui_test.ani'})
         fr, st = frames(evs), states(evs)
         check('ani data: loading an animation shows its first frame', len(fr) == 1 and fr[0]['pos'] == 0
@@ -4021,6 +4021,19 @@ def check_ani_data():
         if not fr:
             return
         f0 = fr[0]
+        native_path = os.path.join(run6, 'gui_test.anix')
+        check('W520: opening .ani writes its native companion once', os.path.isfile(native_path))
+        native_events = ani('file', {'file': 'gui_test.anix'})
+        native_frames = frames(native_events)
+        check('W520: the native animation reproduces the imported frame data',
+              bool(native_frames) and native_frames[-1]['prims'] == f0['prims'], str(native_events)[-300:])
+        with open(os.path.join(run6, 'bad.anix'), 'w') as f:
+            f.write('options { speed: 7 }\nline { x1: 0, y1: 0, x2: absent, y2: 1 }\n')
+        refused = ani('file', {'file': 'bad.anix'})
+        errors = [e for e in refused if e.get('error')]
+        check('W520: a refused native animation names its line and preserves the frame',
+              len(errors) == 1 and errors[0].get('file') == 'bad.anix' and errors[0].get('line') == 2
+              and not frames(refused) and bool(states(refused)) and states(refused)[-1]['speed'] == 5, str(refused)[-600:])
         check('ani data: the frame names its box, window, speed and time',
               f0['dim'] == [-0.6, -0.1, 0.4, 0.6] and (f0['w'], f0['h']) == (280, 350) and f0['speed'] == 5
               and f0['skip'] == 1 and f0['t'] == 0, str({k: v for k, v in f0.items() if k != 'prims'}))
@@ -4863,7 +4876,7 @@ def check_data_formats():
             check('Save data writes the table as %s without asking' % fmt,
                   e is not None and is_idle(e) and os.path.exists(os.path.join(r, name)), str(e))
         silent = tempfile.mkdtemp(prefix='xppsilent')
-        shutil.copy(args.ode, silent)
+        copy_model(args.ode, silent)
         subprocess.run([os.path.abspath(args.server), os.path.basename(args.ode), '--silent'], cwd=silent,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60 * SLOW)
         want = read(silent, 'output.dat').replace(b'\r', b'')
@@ -5095,7 +5108,7 @@ def check_save_owner():
         stop_server(p, r, snd)
     d = tempfile.mkdtemp(prefix='w129script')
     try:
-        shutil.copy(args.ode, d)
+        copy_model(args.ode, d)
         commands = [{'cmd': 'values', 'op': 'write', 'kind': 'par', 'name': 'repeat.par', 'replace': 1}]
         runs = [run_commands(args.server, args.ode, commands, d) for _ in range(2)]
         check('W129: the same script saves twice with its explicit answer, no disk-dependent ask',
@@ -6366,14 +6379,14 @@ def check_silent_commands():
     same success/error result. --silent prints nothing on stdout."""
     def silent(ode, *flags):
         d = tempfile.mkdtemp(prefix='xppsilent')
-        shutil.copy(ode, d)
+        copy_model(ode, d)
         r = subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '--silent'] + list(flags), cwd=d,
                            capture_output=True, text=True, timeout=60 * SLOW)
         return d, r
 
     def script(ode, lines, before=None):
         d = tempfile.mkdtemp(prefix='xppscript')
-        shutil.copy(ode, d)
+        copy_model(ode, d)
         if before:
             before(d)
         r = run_commands(args.server, ode, lines, d)
@@ -7206,7 +7219,7 @@ def check_session_file():
         snap = os.path.join(r, 's1.snapx')
         names = zipfile.ZipFile(snap).namelist() if os.path.exists(snap) else []
         check('session save: s1.snapx is a zip of the files listed, the model in it',
-              sorted(names) == sorted(['session.setx', 'model/lecar.odex', 'model.setx', 'auto/settings.txt', 'auto/diagram.csv',
+              sorted(names) == sorted(['session.setx', 'model/lecar.odex', 'model/ml.anix', 'model.setx', 'auto/settings.txt', 'auto/diagram.csv',
                         'auto/solutions.s', 'auto/views.txt', 'windows.setx', 'marks.setx', 'frozen.npz', 'data.npz', 'random.txt', 'sliders.setx', 'nullclines.setx']),
               str(names))
         if names:
@@ -7304,7 +7317,7 @@ def check_session_file():
         restored_as_saved('open session with the .ode edited')
         with open(os.path.join(r, 'lecar.odex')) as f:
             check('open session with the .ode edited: the .ode on the disk is left as it was, nothing written beside it',
-                  'phi2' in f.read() and sorted(os.listdir(r)) == ['lecar.odex', 's1.snapx'], str(os.listdir(r)))
+                  'phi2' in f.read() and sorted(os.listdir(r)) == sorted(staged_model_names(args.ode) + ['s1.snapx']), str(os.listdir(r)))
         # a zip opened as a model: refused, its bytes never shown, nothing changes
         shutil.copy(os.path.join(r, 's1.snapx'), os.path.join(r, 'zip.ode'))
         del allev[:]
@@ -7791,7 +7804,7 @@ def check_quit():
         if ask and is_ask(ask):
             snd(cmd='answer', id=ask['id'], key='d')
         _, ok = ended(p, col)
-        check('quit: Don\'t save (d) exits (bye, status 0), writing nothing', ok and os.listdir(r) == [os.path.basename(args.ode)],
+        check('quit: Don\'t save (d) exits (bye, status 0), writing nothing', ok and sorted(os.listdir(r)) == staged_model_names(args.ode),
               str(os.listdir(r)))
     finally:
         done(p, r, snd)
@@ -7924,7 +7937,7 @@ def check_quit():
         except subprocess.TimeoutExpired:
             pass
         check('the plain quit during a run (the page\'s Don\'t save) exits at once, asking nothing, saving nothing',
-              p.poll() == 0 and os.listdir(r) == [os.path.basename(args.ode)], str(p.poll()) + ' ' + str(os.listdir(r)))
+              p.poll() == 0 and sorted(os.listdir(r)) == staged_model_names(args.ode), str(p.poll()) + ' ' + str(os.listdir(r)))
     finally:
         done(p, r, snd)
 
@@ -7996,7 +8009,7 @@ def check_recording():
               str(header))
         want = open(os.path.join(r, ode), encoding='utf-8').read().splitlines()
         check('record: the model is embedded whole, and nothing else was read',
-              list(files) == [ode] and files[ode] == want, str(list(files)))
+              list(files) == [ode, 'ml.anix'] and files[ode] == want, str(list(files)))
         s = [x for x, _ in steps]
         check('record: I G is one step, its keys and label from the menus, its note above it',
               s and s[0] == {'step': 'Initial conditions → Go', 'keys': ['i', 'g']} and steps[0][1] == 'First run.\nThe cell settles.',
@@ -8039,11 +8052,11 @@ def check_recording():
                                                   if os.path.exists(os.path.join(r, 'menu.recx')) else '')
         check('File/recorD: the steps between (the file a step read named by its section), and not the File menu opened to stop',
               [x for x, _ in steps] == [{'step': 'Values read', 'cmd': {'cmd': 'values', 'op': 'read', 'kind': 'par', 'name': 'saved.par'},
-                                         'files': [1]},
+                                         'files': [2]},
                                         {'step': 'Clear plot', 'cmd': {'cmd': 'window.clear'}, 'view': True}] and written == got, str(steps))
         par = open(os.path.join(r, 'saved.par'), encoding='utf-8').read().splitlines()
         check('record: a file the session read while recording is embedded after the model',
-              list(files) == [ode, 'saved.par'] and files['saved.par'] == par, str(list(files)))
+              list(files) == [ode, 'ml.anix', 'saved.par'] and files['saved.par'] == par, str(list(files)))
         evs = run(cmd='record', op='note', text='x')
         check('record: a note while not recording is an error',
               any(e.get('ev') == 'message' and 'Not recording' in e.get('error', '') for e in evs), '')
@@ -8249,7 +8262,7 @@ def check_ani_grab_job():
     # An armed row stop makes grab integration/cancellation independent of speed.
     grab_rows = 400  # strictly inside lecar's default 601 stored rows
     with tempfile.TemporaryDirectory(prefix='xppgrab') as r:
-        shutil.copy(args.ode, r)
+        copy_model(args.ode, r)
         for name, runnow in [('grab.ani', 1), ('view.ani', 0)]:
             with open(os.path.join(r, name), 'w') as f:
                 f.write(chr(10).join(['dimension -1;-1;1;1', 'speed 0', 'transient',
@@ -8672,7 +8685,7 @@ def check_terminal_playback():
               result.returncode == 0 and os.path.exists(converted) and 'par and_ = 1' in open(converted).read()
               and '(60 s)' in result.stderr, result.stderr)
         model = os.path.join(source, 'other.odex')
-        with open(args.ode, 'rb') as f: embedded = f.read()
+        with open(args.ode, 'rb') as f: embedded = f.read().replace(b'  animation: \"ml.anix\",\n', b'')
         steps = [{'cmd':{'cmd':'open', 'file':model}, 'keys':['d']},
                  {'cmd':{'cmd':'file', 'op':'put', 'name':'next.dat', 'data':base64.b64encode(data).decode()}}]
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
@@ -8999,7 +9012,7 @@ def check_start_screen():
               and 'error' not in start and not [e for e in evs if e.get('ev') in ('state', 'window')] and hello.get('file') == '', str(evs)[:300])
         check('W232: Open model asks at once, as File > Open model does: one dialog, .ode .odex .snapx .recx',
               ask and ask['kind'] == 'file' and ask['title'] == 'Open model' and ask['mode'] == 'read'
-              and ask['wild'].split() == ['*.ode', '*.odex', '*.snapx', '*.recx'], str(ask))
+              and ask['wild'].split() == ['*.ode', '*.odex', '*.snapx', '*.recx', '*.anix'], str(ask))
         snd(cmd='answer', id=ask['id'], ok=0)
         evs, _ = col(is_idle)
         check('W232: Cancel at the start leaves the start screen: no error, no exit', not errors(evs) and p.poll() is None, str(evs)[-300:])
@@ -9118,8 +9131,8 @@ def check_start_examples():
         os.makedirs(os.path.join(bin_dir, 'examples', 'sub'))
         exe = os.path.join(bin_dir, os.path.basename(args.server))
         shutil.copy(args.server, exe)
-        shutil.copy(args.ode, os.path.join(bin_dir, 'examples', 'lecar.odex'))
-        shutil.copy(args.ode, os.path.join(bin_dir, 'examples', 'sub', 'deep.odex'))
+        copy_model(args.ode, os.path.join(bin_dir, 'examples', 'lecar.odex'))
+        copy_model(args.ode, os.path.join(bin_dir, 'examples', 'sub', 'deep.odex'))
         with open(os.path.join(bin_dir, 'examples', 'notes.txt'), 'w') as f:
             f.write('not a model\n')
         copied = os.path.join(config, 'examples', 'lecar.odex')
@@ -9448,7 +9461,7 @@ def check_create_folders():
     with tempfile.TemporaryDirectory(prefix='xpp-create-') as temporary:
         root = os.path.realpath(temporary)
         model = os.path.join(root, 'model.odex')
-        shutil.copy(args.ode, model)
+        copy_model(args.ode, model)
         env = {'XPP_CONFIG_DIR': os.path.join(root, 'config')}
         for option in ('--outfile', '--logfile'):
             for mode, flags, answer in [('yes', ['--yes'], ''), ('terminal', [], 'y\n'), ('eof', [], '')]:

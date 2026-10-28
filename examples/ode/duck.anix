@@ -1,0 +1,11 @@
+model: "duck.odex"
+options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
+permanent {
+  rectangle { x1: 0, y1: 0, x2: 0.4, y2: 0.4, color: "foreground", width: 0 }
+  rectangle { x1: 0, y1: 0, x2: 0.4, y2: 0.3, fill: 0.3, width: 0 }
+}
+line { x1: 0.5, y1: 0.5, x2: 0.5, y2: 0, color: "foreground", width: 4 }
+line { x1: 0.5, y1: 0.5, x2: 0.5+0.8*(l1/(l1+l2))*sin(x), y2: 0.5-0.8*(l1/(l1+l2))*cos(x), color: "#ff0000", width: 4 }
+line { x1: 0.5, y1: 0.5, x2: 0.5-0.8*(l2/(l1+l2))*sin(x), y2: 0.5+0.8*(l2/(l1+l2))*cos(x), color: "#ff0000", width: 4 }
+circle { x: 0.5+0.8*(l1/(l1+l2))*sin(x), y: 0.5-0.8*(l1/(l1+l2))*cos(x), radius: 0.08, fill: mu/mutot, width: 0 }
+circle { x: 0.5-0.8*(l2/(l1+l2))*sin(x), y: 0.5+0.8*(l2/(l1+l2))*cos(x), radius: 0.08, fill: 1-mu/mutot, width: 0 }

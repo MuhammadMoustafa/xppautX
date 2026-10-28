@@ -1,0 +1,8 @@
+# Animation input and its native model; every command and both range forms.
+tools/gui_test.ani	examples/ode/lecar.odex
+tests/animations/6x6.ani	examples/ode/6x6.odex
+tests/animations/fish.ani	examples/ode/lamprey.odex
+tests/animations/osc.ani	examples/ode/osc.odex
+tests/animations/duck3.ani	examples/ode/duckx.odex
+tests/animations/pend2.ani	examples/ode/pend.odex
+tests/animations/nc.ani	examples/ode/lecar.odex

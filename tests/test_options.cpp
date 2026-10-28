@@ -115,6 +115,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
     /* options whose value is not just a number or a word */
     static const std::map<std::string_view, Sample> special = {
         {"SLIDERS", {"[]", ""}},
+        {"ANIMATION", {"test_options.anix", ""}},
         {"S1", {"x", ""}}, {"S2", {"y", ""}}, {"S3", {"z", ""}},
         {"SLO1", {"-1", ""}}, {"SLO2", {"-1", ""}}, {"SLO3", {"-1", ""}},
         {"SHI1", {"2", ""}}, {"SHI2", {"2", ""}}, {"SHI3", {"2", ""}},
@@ -450,6 +451,7 @@ int main(void)
 
     /* every option set from @ lines, the last row's first (xmin sets the
        2D window's xlo too; xlo's own line after it wins) */
+    CHECK(write_file("build/test_options.anix", "line { x1: 0, y1: 0, x2: 1, y2: 1 }\n"));
     std::string text(model_text);
     for (std::size_t k = rows.size(); k-- > 0;) {
         const xpp::OptionRow &r = rows[k];
@@ -814,5 +816,6 @@ int main(void)
     remove(plain_ode);
     remove(options_ode);
     remove(set_file);
+    remove("build/test_options.anix");
     TEST_REPORT("options");
 }

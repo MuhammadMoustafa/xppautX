@@ -1273,7 +1273,7 @@ large value".
 | `equilibrium` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values`, `eigenvalues` | Result of Sing pts. `eigenvalues`: the Jacobian's `[re,im]` pairs, one per variable; absent for a delay equation. |
 | `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
 | `equations` | `lines` | One `dX/dT=...` line per equation. |
-| `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open`; or `op` `frame`, ... | Animation state for its slider and toggles, sent with every frame drawn and after every `ani` command: `pos` the row the next step starts from, `speed` the ms between frames of Go, `loaded` 1 when an `.ani` file is loaded, `open` 1 while the animation window exists. With `op` `frame`: a frame as data, for a client that asked (`data`); see "The animation as data". |
+| `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open`; or `op` `frame`, ... | Animation state for its slider and toggles, sent with every frame drawn and after every `ani` command: `pos` the row the next step starts from, `speed` the ms between frames of Go, `loaded` 1 when an `.anix` file is loaded, `open` 1 while the animation window exists. With `op` `frame`: a frame as data, for a client that asked (`data`); see "The animation as data". |
 | `aplot` | `title`, `nx`, `ny`, `values`, `enc`, `colormap`, `ramp`, `zmin`, `zmax`, `tlo`, `thi`, `tag` | The array plot (the array plot surface; W492, #556 made it data only): `ny` rows of `nx` cells, row by row, `values` their numbers (as a series column; `null`/NaN off the stored rows and columns), `colormap` the session's colour scale by name and `ramp` its 256 colours from the low end to the high one: a cell is the ramp's colour at floor(256 * fraction), fraction being (value - `zmin`) / (`zmax` - `zmin`) clamped to 0..1 (core/colormap.h `ramp_color`); with `zmax` not above `zmin` no cell is coloured. `tlo` and `thi` are the times of its first and last row. `tag` the range-saving frame's text. Print writes the same cells and colours as a PDF. |
 | `film` | `op` (`capture`, `reset`, `play`, `autoplay`), `count`, `win`, `cycles`, `delay` | Kinescope. The client keeps the frames: on `capture` it copies window `win` as it is drawn now; `play` shows them, `autoplay` plays `cycles` times `delay` ms apart. |
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
@@ -2371,22 +2371,22 @@ apply here (W175, [#227](https://github.com/MuhammadMoustafa/xppautX/issues/227)
 A client that asked with `{"cmd":"data","events":["ani"]}` gets each frame
 of the animation (the animation surface) as data, in the animation's own coordinates,
 and draws it at any size itself (web2, docs/ui-v2.md T13).
-core/aniparse.cpp evaluates a frame in the `.ani` file's coordinates (its
-`dimension` box, [0,1] x [0,1] unless the file says otherwise, y up) and
+core/aniparse.cpp evaluates a frame in the `.anix` file's coordinates (its
+`bounds` box, [0,1] x [0,1] unless the file says otherwise, y up) and
 hands each primitive to core/ani_data.cpp, which sends it in unit
 coordinates:
 
     u = (x - xlo) / (xhi - xlo)      v = (y - ylo) / (yhi - ylo)
 
 so (0,0) is the box's bottom left and (1,1) its top right. They are not
-clamped: where the `.ani` puts something outside its box the value lies
+clamped: where the `.anix` puts something outside its box the value lies
 outside [0,1]. XPP's own window put a primitive at `u*w`, `h - v*h`.
 
 ```
 {"ev":"ani","op":"frame","pos":0,"rows":601,"t":0,"speed":5,"skip":1,
  "dim":[-0.6,-0.1,0.4,0.6],"w":280,"h":350,
- "prims":[["text",0.05,0.928571,"lecar  ",9,3,0],["line",0,0.142857,1,0.142857,0,1],
-          ["circle",0.456,0.185714,0.03,0.0428571,10,0,0],["dot",0.456,0.185714,2,1],...]}
+ "prims":[["text",0.05,0.928571,"lecar  ","blue",3,0],["line",0,0.142857,1,0.142857,"foreground",1,"solid"],
+          ["circle",0.456,0.185714,0.03,0.0428571,"purple",0,0,"solid"],["dot",0.456,0.185714,2,"red"],...]}
 ```
 
 | field | meaning |
@@ -2394,25 +2394,25 @@ outside [0,1]. XPP's own window put a primitive at `u*w`, `h - v*h`.
 | `pos`, `rows` | the stored row the frame shows (0-based), of how many |
 | `t` | the frame's time (9 digits; `null` when not finite) |
 | `speed`, `skip` | ms between two frames of Go, rows per step |
-| `dim` | the `dimension` box: `xlo`, `ylo`, `xhi`, `yhi`. A client that keeps its aspect `(xhi-xlo)/(yhi-ylo)` has equal units along x and y |
+| `dim` | the `bounds` box: `xlo`, `ylo`, `xhi`, `yhi`. A client that keeps its aspect `(xhi-xlo)/(yhi-ylo)` has equal units along x and y |
 | `w`, `h` | the core's pixel size of the animation window: what line widths, dots and text sizes are relative to |
-| `prims` | the primitives in drawing order, each an array (below); unit coordinates have 6 significant digits, `null` where the `.ani` evaluated to NaN |
+| `prims` | the primitives in drawing order, each an array (below); unit coordinates have 6 significant digits, `null` where the `.anix` evaluated to NaN |
 
 | primitive | arguments |
 |---|---|
-| `line` | `u1`, `v1`, `u2`, `v2`, colour, width |
-| `rect` | `u1`, `v1`, `u2`, `v2` (two opposite corners, either order), colour, width, fill (0/1) |
-| `circle` | `u`, `v`, `ru`, `rv`, colour, width, fill: the centre, and the radius over the box's width (`ru`) and over its height (`rv`); XPP draws it with the mean of the two in pixels, `(ru*w + rv*h)/2` |
-| `ellipse` | `u`, `v`, `ru`, `rv`, colour, width, fill: the centre and the two radii, as `circle`'s |
+| `line` | `u1`, `v1`, `u2`, `v2`, colour, width, dash |
+| `rect` | `u1`, `v1`, `u2`, `v2` (two opposite corners, either order), colour, width, fill (0/1), dash |
+| `circle` | `u`, `v`, `ru`, `rv`, colour, width, fill, dash: the centre, and the radius over the box's width (`ru`) and over its height (`rv`); XPP draws it with the mean of the two in pixels, `(ru*w + rv*h)/2` |
+| `ellipse` | `u`, `v`, `ru`, `rv`, colour, width, fill, dash: the centre and the two radii, as `circle`'s |
 | `dot` | `u`, `v`, `r`, colour: a filled circle of `r` pixels (a comet's, with a negative thickness) |
 | `text` | `u`, `v`, string, colour, size (0..4), font (0 roman, 1 symbol: Greek letters): from the baseline's left end |
 
-A colour is a colour ("Colours"): the `.ani`'s named colours as XPPAUT's own,
-or a colour of the session's colour scale (an expression's value, 0..1). A primitive's
-colour, width and text font are the pen's at that point: the colour starts as the foreground each frame, width and font
-carry over from the frame before, `settext` sets the font and colour for
-the text after it, and text takes the colour last set, as XPP draws it.
-Widths are in pixels (0 is a thin line of one pixel).
+Colours are the values described under "Colours", or a value on the session's
+colour scale computed by a formula. Widths are in pixels (0 is a thin line
+of one pixel). Dash is `solid`, `dashed`, `dotted` or `dash_dot`, with the
+geometry sent in `hello.line_styles`. Each native text carries its own
+colour, size and font. The `.ani` importer writes the text style that
+XPPAUT's preceding commands would have supplied.
 
 A frame goes out when the core draws it: after `step`, `seek`, `reset`, a
 `file` that shows the first frame, `grab` and its `mouse`, Fly's frames
@@ -2421,7 +2421,7 @@ during an integration, and Go's. Frames that come faster than 25 a second
 last one sent, and the last frame drawn always goes, at the latest at the
 end of the command, before its `state` and `idle`. After `data` with `ani`
 the last frame drawn (if any) goes at the end of that command. The comets'
-trails are the core's, so a thinned frame loses nothing. A new `.ani` file
+trails are the core's, so a thinned frame loses nothing. A new `.anix` file
 forgets the frame of the old one.
 
 ## Not yet implemented

@@ -28,6 +28,7 @@ xb = x2-0.15*cos(x)
 yb = y2-0.15*sin(x)
 fun th(x, y) = min(atan2(0.5-x, y-0.5), xdip)
 options {
+  animation: "duck3.anix",
   integration: { method: qualrk, dt: 1, total_time: 1000 },
 }
 

@@ -1,0 +1,5 @@
+model: "pend-cart1.odex"
+options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
+rectangle { x1: 0.25+x, y1: 0.05, x2: x+0.5, y2: 0.15, fill: "#0000ff", width: 0 }
+line { x1: x+0.3, y1: 0.15, x2: x+0.3, y2: 0.55, color: "foreground", width: 2 }
+line { x1: x+0.3, y1: 0.55, x2: x+0.3+0.3*sin(th1), y2: 0.55-0.3*cos(th1), color: "#ff0000", width: 6 }

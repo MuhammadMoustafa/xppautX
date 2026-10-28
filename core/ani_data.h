@@ -51,12 +51,12 @@ void ani_data_forget(Session &s);
 
 /* a frame of s's animation, primitive by primitive */
 void ani_data_begin(Session &s);
-void ani_data_line(Session &s, double u1, double v1, double u2, double v2, const Color &color, int thick);
+void ani_data_line(Session &s, double u1, double v1, double u2, double v2, const Color &color, double thick);
 /* corners in either order */
-void ani_data_rect(Session &s, double u1, double v1, double u2, double v2, const Color &color, int thick, int fill);
+void ani_data_rect(Session &s, double u1, double v1, double u2, double v2, const Color &color, double thick, int fill);
 /* radius r of the .ani along u (r / (xhi-xlo)) and along v (r / (yhi-ylo)) */
-void ani_data_circle(Session &s, double u, double v, double ru, double rv, const Color &color, int thick, int fill);
-void ani_data_ellipse(Session &s, double u, double v, double ru, double rv, const Color &color, int thick, int fill);
+void ani_data_circle(Session &s, double u, double v, double ru, double rv, const Color &color, double thick, int fill);
+void ani_data_ellipse(Session &s, double u, double v, double ru, double rv, const Color &color, double thick, int fill);
 /* a filled circle of r pixels */
 void ani_data_dot(Session &s, double u, double v, int r, const Color &color);
 /* text from its baseline's left end; size 0..4, font 0 roman, 1 symbol */

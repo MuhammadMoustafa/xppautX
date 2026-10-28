@@ -126,7 +126,7 @@ export function AniView() {
 
   const speeds = DELAYS.includes(speed) ? DELAYS : [...DELAYS, speed].sort((a, b) => a - b);
   const status = !exists ? 'The animation window is closed.'
-    : !loaded ? 'No animation loaded: Load an .ani file.'
+    : !loaded ? 'No animation loaded: Load an .anix file.'
       : rows < 2 ? 'No data yet: integrate first. An animation plays the stored rows.'
         : !frame ? 'Loaded. Play, step or seek to draw a frame.'
           : `Frame ${shown} of ${rows}` + (frame.t === null ? '' : `, t = ${sixSig(frame.t)}`)

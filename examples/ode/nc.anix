@@ -1,0 +1,5 @@
+model: "lecar.odex"
+options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
+nullcline { x1: -0.6, y1: -0.2, x2: 1.2, y2: 1.2, variable: "v", source: frozen, frame: 20*t, color: "#ff0000" }
+nullcline { x1: -0.6, y1: -0.2, x2: 1.2, y2: 1.2, variable: "w", source: frozen, frame: 20*t, color: "#00e100" }
+value { x: 0.2, y: 0.8, label: "i=", value: 0.05*t, size: 2, font: roman, color: "foreground" }

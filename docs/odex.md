@@ -926,3 +926,20 @@ Native AUTO session diagrams likewise write calculation and curve names
 (`equilibrium`, `periodic`, `equilibrium_fold`, `periodic_fold`, `hopf`,
 `neutral_saddle`, `torus`, `branch_point`, `period_doubling`, `fixed_period`,
 `boundary_value`, `discrete`, `homoclinic`, or `none`), rather than XPPAUT codes.
+
+## Animation companions (.anix)
+
+`options { animation: "pend.anix" }` names a companion in the model's own
+folder. This companion key belongs directly in `options`, outside the settings groups.
+The value is a quoted `.anix` base name, never a path or link. An animation
+can name its model with `model: "pend.odex"`. Opening either loads the pair;
+a bad linked animation refuses the load whole. A session bundles its open
+animation as a model companion member. Shapes reuse this grammar's tokens,
+expressions, keyed blocks and trailing `for j in lo..hi [by step]`, including
+the shared 100000 expansion limit. See [Animations](manual/10-animations.md)
+for the shapes and the `.ani` importer (W520, [#584](https://github.com/MuhammadMoustafa/xppautX/issues/584)).
+
+The shared expression reader bounds nesting and expression-tree depth to
+256 levels to protect the parser and formula visitors' stacks on files
+received from others. This also catches long operator chains which would
+otherwise build a deeply recursive tree (W520).

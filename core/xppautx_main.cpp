@@ -106,7 +106,9 @@ static std::string usage_tail()
     "  --server         the JSON protocol on stdin and stdout (docs/protocol.md)\n"
     "  --convert        write model.odex from model.ode (docs/odex.md); asks about\n"
     "                   names .odex reserves (--yes takes the suggested names)\n"
-    "  --check          validate a model in memory; JSON diagnostics, no files or window\n"
+    "                   or write drawing.anix from drawing.ani and drawing.odex;\n"
+    "                   --convert model.odex --anifile drawing.ani names another model\n"
+    "  --check          validate a model or .anix in memory; JSON diagnostics, no files or window\n"
     "  --options-schema print the JSON Schema of a .odex's options block\n"
     "  --setx-schema    print the JSON Schema of a .setx settings file\n"
     "  --no-compile     run the equations in the interpreter, not as compiled code\n"
@@ -288,10 +290,12 @@ int main(int argc, char **argv)
     xpp::batch_options.yes = cl.yes;
     /* --convert [--yes] model.ode: model.odex beside it (odex.h) */
     if (cl.convert) {
-        if (cl.model_file.empty() || cl.load_options != 0) {
+        if (cl.model_file.empty() || cl.load_options != (cl.ani_file ? 1U : 0U)) {
             xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--yes] model.ode\n");
             return 2;
         }
+        if (cl.ani_file) return xpp::convert_animation_file(*cl.ani_file, cl.model_file);
+        if (xpp::files::has_extension(cl.model_file, ".ani")) return xpp::convert_animation_file(cl.model_file);
         return xpp::odex::convert_file(cl.model_file);
     }
     const bool recording_batch = cl.silent && xpp::files::has_extension(cl.model_file, xpp::recx::extension);

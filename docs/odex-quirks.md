@@ -368,3 +368,34 @@ cross-spectrum window average and sampled endpoint events, rather than
 XPPAUT's wrong results (findings 79, 85 and 87 in
 [xppaut-findings.md](xppaut-findings.md),
 [W496 / #560](https://github.com/MuhammadMoustafa/xppautX/issues/560)).
+
+## Animation import (.ani → .anix), W520
+
+XPPAUT animation commands match their first two letters, ignore case, and
+expand `[first..last]` with its `j` substitutions. Import keeps the parsed
+commands and writes their compiled formulas through the model converter's
+expression writer; the resulting grouping preserves XPPAUT precedence.
+`settext` and colours inherited from preceding shapes become fields of each
+text. `rline` uses `relative: true`; filled shapes use `fill`; a comet's
+negative thickness becomes `draw: points` and a positive `radius_pixels`.
+The legacy circle reader consumes the colour but not a following width;
+the converter preserves the width the reader actually used. `$BLACK` maps
+to XPPAUT's foreground, not a fixed black. An absent or nonpositive grab
+tolerance imports as the legacy .02 default. Compact arrays share the
+model reader's 100000 expansion limit. See W520 [#584](https://github.com/MuhammadMoustafa/xppautX/issues/584).
+
+The 32 native example animations replace the files present in this checkout
+(the card's original count was 34). Three could not pass the strict `.ani`
+reader: `acoaster.ani` and `coaster2D.ani` used the undefined text `tol`;
+`ielaspen.ani` used `.02*scale` where a numeric tolerance is required. Their
+`.anix` examples explicitly use .02, the value XPPAUT actually obtained,
+rather than interpreting those strings as formulas. The importer continues
+to refuse these invalid numeric fields. [Findings 92 and 93](xppaut-findings.md#92-animation-grab-tolerances-discard-text-and-formula-suffixes)
+record the tolerance and ignored-circle-width evidence in XPPAUT itself.
+
+A deliberate correction: `permanent` now evaluates colour formulas once
+along with coordinates ([finding 94](xppaut-findings.md#94-permanent-animation-shapes-change-colour-every-frame)).
+XPPAUT reevaluated colours every frame while freezing the coordinates.
+The retained import fixtures use fixed permanent colours and still match
+frame for frame. Recorded `.ani` imports are converted in memory while
+replaying their embedded input; replay does not create a new disk companion.

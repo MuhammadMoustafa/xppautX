@@ -1,0 +1,7 @@
+model: "elaspen.odex"
+options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
+permanent {
+  line { x1: 0, y1: 0.5, x2: 1, y2: 0.5, color: "foreground", width: 3 }
+}
+line { x1: 0.5, y1: 0.5, x2: xb, y2: yb, color: "#0000ff", width: 2 }
+circle { x: xb, y: yb, radius: 0.025, fill: "#ff0000", width: 0 }

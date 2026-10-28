@@ -6,6 +6,8 @@
 #include "browse.h"
 #include "json_error.h"
 #include "odex.h"
+#include "model.h"
+#include "model_files.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
@@ -76,14 +78,47 @@ Result<std::string> install(std::string_view name)
     if (folder.empty()) return std::unexpected(no_config_folder(WHERE, FOLDER));
     if (!files::make_dirs(folder, files::config_base())) return fail(std::string(WHERE), xpp::format("cannot make the folder {}", folder), command_place());
     const std::string target = files::join(folder, name);
-    Result<> opened;
-    Writer w = open_writer_asking(target, true, &opened);
-    if (!w) return opened ? Result<std::string>(std::string()) : std::unexpected(opened.error());
-    if (!w.write(bytes)) {
-        w.abort();
-        return fail(std::string(WHERE), xpp::format("cannot write {}", target), command_place());
+    std::vector<ModelFile> members{{std::string(name), std::move(bytes)}};
+    try {
+        Model model;
+        model.this_file = source;
+        const auto parsed = odex::parse(model, members.front().bytes, source);
+        for (const auto &statement : parsed.statements) {
+            if (statement.kind != odex::Statement::Kind::Options) continue;
+            for (const auto &option : statement.options) {
+                if (option.name != "animation") continue;
+                const Place at = line_place(source, members.front().bytes, option.pos.line);
+                if (!files::name_ok(option.value) || !files::has_extension(option.value, ".anix"))
+                    return fail(std::string(WHERE), "animation must be an .anix base name", at);
+                const auto companion = files::join(l.folder, option.value);
+                UniqueFile input(files::open_read_within(companion, l.folder, {}));
+                std::string text;
+                if (!input || !read_bytes(input.get(), text, MAX_EXAMPLE_BYTES))
+                    return std::unexpected(files::open_error(std::string(WHERE), companion));
+                members.push_back({option.value, std::move(text)});
+            }
+        }
+    } catch (const Error &error) { return std::unexpected(error); }
+    std::vector<std::pair<Writer, const ModelFile *>> writes;
+    for (const auto &member : members) {
+        const auto path = files::join(folder, member.name);
+        /* An unchanged companion needs no second overwrite question. */
+        if (member.name != name && files::exists(path)) {
+            UniqueFile input(files::open_read_within(path, folder, {}));
+            std::string prior;
+            if (input && read_bytes(input.get(), prior, MAX_EXAMPLE_BYTES) && prior == member.bytes) continue;
+        }
+        Result<> opened;
+        Writer writer = open_writer_asking(path, true, &opened);
+        if (!writer) return opened ? Result<std::string>(std::string()) : std::unexpected(opened.error());
+        writes.emplace_back(std::move(writer), &member);
     }
-    if (Result<> done = w.commit(); !done) return std::unexpected(done.error());
+    for (auto &[writer, member] : writes)
+        if (!writer.write(member->bytes))
+            return fail(std::string(WHERE), "cannot write the example member " + member->name, command_place());
+    /* Commit the companion before the model which names it. */
+    for (auto it = writes.rbegin(); it != writes.rend(); ++it)
+        if (auto done = it->first.commit(); !done) return std::unexpected(done.error());
     return target;
 }
 

@@ -104,7 +104,7 @@ void ani_data_forget(xpp::Session &s)
 
 void ani_data_begin(xpp::Session &s) { s.ani_shown.prims.clear(); }
 
-void ani_data_line(xpp::Session &s, double u1, double v1, double u2, double v2, const xpp::Color &c, int thick)
+void ani_data_line(xpp::Session &s, double u1, double v1, double u2, double v2, const xpp::Color &c, double thick)
 {
     if (!client.emit_line) return;
     std::string &prims = s.ani_shown.prims;
@@ -114,11 +114,12 @@ void ani_data_line(xpp::Session &s, double u1, double v1, double u2, double v2, 
     num(prims, u2);
     num(prims, v2);
     color(prims, c);
-    integer(prims, thick);
+    num(prims, thick);
+    prims += ',' + odex::quote_string(line_dash_names[static_cast<std::size_t>(s.animation.pen.dash)]);
     prims += ']';
 }
 
-static void box_prim(xpp::Session &s, const char *kind, double a, double b, double c, double d, const xpp::Color &col, int thick,
+static void box_prim(xpp::Session &s, const char *kind, double a, double b, double c, double d, const xpp::Color &col, double thick,
                      int fill)
 {
     if (!client.emit_line) return;
@@ -129,22 +130,23 @@ static void box_prim(xpp::Session &s, const char *kind, double a, double b, doub
     num(prims, c);
     num(prims, d);
     color(prims, col);
-    integer(prims, thick);
+    num(prims, thick);
     integer(prims, fill ? 1 : 0);
+    prims += ',' + odex::quote_string(line_dash_names[static_cast<std::size_t>(s.animation.pen.dash)]);
     prims += ']';
 }
 
-void ani_data_rect(xpp::Session &s, double u1, double v1, double u2, double v2, const xpp::Color &c, int thick, int fill)
+void ani_data_rect(xpp::Session &s, double u1, double v1, double u2, double v2, const xpp::Color &c, double thick, int fill)
 {
     box_prim(s, "rect", u1, v1, u2, v2, c, thick, fill);
 }
 
-void ani_data_circle(xpp::Session &s, double u, double v, double ru, double rv, const xpp::Color &c, int thick, int fill)
+void ani_data_circle(xpp::Session &s, double u, double v, double ru, double rv, const xpp::Color &c, double thick, int fill)
 {
     box_prim(s, "circle", u, v, ru, rv, c, thick, fill);
 }
 
-void ani_data_ellipse(xpp::Session &s, double u, double v, double ru, double rv, const xpp::Color &c, int thick, int fill)
+void ani_data_ellipse(xpp::Session &s, double u, double v, double ru, double rv, const xpp::Color &c, double thick, int fill)
 {
     box_prim(s, "ellipse", u, v, ru, rv, c, thick, fill);
 }

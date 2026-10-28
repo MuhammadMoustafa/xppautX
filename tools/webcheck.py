@@ -17,7 +17,7 @@ ap.add_argument('--ode', default='examples/ode/lecar.odex')
 args = ap.parse_args()
 
 run = tempfile.mkdtemp(prefix='xppweb')
-shutil.copy(args.ode, run)
+xppclient.copy_model(args.ode, run)
 # W121a: an external-options line with no assignments changes no values.
 # --debug logs the line read from disk, exercising UTF-8 independently of
 # the platform's command-line encoding.
@@ -479,7 +479,7 @@ shutil.rmtree(run, ignore_errors=True)
 
 
 lrun = tempfile.mkdtemp(prefix='xppleave')
-shutil.copy(args.ode, lrun)
+xppclient.copy_model(args.ode, lrun)
 
 
 def leave_session(ode=None):
@@ -723,7 +723,7 @@ shutil.rmtree(lrun, ignore_errors=True)
 if os.name == 'nt':
     import _winapi, msvcrt
     run = tempfile.mkdtemp(prefix='xppweb')
-    shutil.copy(args.ode, run)
+    xppclient.copy_model(args.ode, run)
     rfd, wfd = os.pipe()
     whandle = msvcrt.get_osfhandle(wfd)
     os.set_handle_inheritable(whandle, True)
@@ -760,7 +760,7 @@ if os.name == 'nt':
 # run's table and the INFO lines go to the page's log alone; a WARN reaches the terminal too (no opener on
 # PATH here, so the browser cannot open). Each process is stopped by its own handle.
 trun = tempfile.mkdtemp(prefix='xppterm')
-shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'examples', 'ode', 'lecar.odex'), trun)
+xppclient.copy_model(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'examples', 'ode', 'lecar.odex'), trun)
 idle_event = lambda e: e['ev'] in ('idle','done')
 
 

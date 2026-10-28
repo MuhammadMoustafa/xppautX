@@ -19,11 +19,11 @@ const frameEv = (over: Partial<AniFrameEvent> = {}): AniFrameEvent => ({
   ev: 'ani', op: 'frame', pos: 0, rows: 601, t: 0, speed: 5, skip: 1, dim: [-0.6, -0.1, 0.4, 0.6], w: 280, h: 350,
   prims: [
     ['text', 0.05, 0.928571, 'lecar  ', '#0000ff', 3, 0],
-    ['line', 0.456, 0.142857, 0.456, 0.185714, '#ff0000', 3],
-    ['circle', 0.456, 0.185714, 0.03, 0.0428571, '#a020f0', 0, 0],
-    ['circle', 0.2, 0.185714, 0.02, 0.0285714, '#00009d', 0, 1],
-    ['rect', 0.05, 0.285714, 0.1, 0.328571, 'foreground', 1, 0],
-    ['ellipse', 0.8, 0.714286, 0.05, 0.0428571, '#c8eb4b80', 0, 1],
+    ['line', 0.456, 0.142857, 0.456, 0.185714, '#ff0000', 3, 'solid'],
+    ['circle', 0.456, 0.185714, 0.03, 0.0428571, '#a020f0', 0, 0, 'solid'],
+    ['circle', 0.2, 0.185714, 0.02, 0.0285714, '#00009d', 0, 1, 'solid'],
+    ['rect', 0.05, 0.285714, 0.1, 0.328571, 'foreground', 1, 0, 'solid'],
+    ['ellipse', 0.8, 0.714286, 0.05, 0.0428571, '#c8eb4b80', 0, 1, 'solid'],
     ['dot', 0.456, 0.185714, 2, '#ff0000'],
   ],
   ...over,
@@ -32,22 +32,22 @@ const frameEv = (over: Partial<AniFrameEvent> = {}): AniFrameEvent => ({
 test('decodePrims reads every kind, in order, with its colour and style', () => {
   const p = decodePrims(frameEv().prims);
   assert.deepEqual(p.map(x => x.kind), ['text', 'line', 'circle', 'circle', 'rect', 'ellipse', 'dot']);
-  assert.deepEqual(p[1], {kind: 'line', u1: 0.456, v1: 0.142857, u2: 0.456, v2: 0.185714, color: '#ff0000', width: 3});
-  assert.deepEqual(p[3], {kind: 'circle', u: 0.2, v: 0.185714, ru: 0.02, rv: 0.0285714, color: '#00009d', width: 0,
+  assert.deepEqual(p[1], {kind: 'line', u1: 0.456, v1: 0.142857, u2: 0.456, v2: 0.185714, color: '#ff0000', width: 3, dash: 'solid'});
+  assert.deepEqual(p[3], {kind: 'circle', u: 0.2, v: 0.185714, ru: 0.02, rv: 0.0285714, color: '#00009d', width: 0, dash: 'solid',
     fill: true});
-  assert.deepEqual(p[4], {kind: 'rect', u1: 0.05, v1: 0.285714, u2: 0.1, v2: 0.328571, color: 'foreground', width: 1, fill: false});
+  assert.deepEqual(p[4], {kind: 'rect', u1: 0.05, v1: 0.285714, u2: 0.1, v2: 0.328571, color: 'foreground', width: 1, dash: 'solid', fill: false});
   assert.deepEqual(p[6], {kind: 'dot', u: 0.456, v: 0.185714, r: 2, color: '#ff0000'});
   assert.deepEqual(p[0], {kind: 'text', u: 0.05, v: 0.928571, text: 'lecar  ', color: '#0000ff', size: 3, font: 0});
 });
 
 test('decodePrims leaves out what it cannot draw: NaN (null) coordinates', () => {
-  const p = decodePrims([['line', null, 0, 1, 1, 'foreground', 0], ['dot', 0.5, null, 2, '#ff0000'], ['line', 0, 0, 1, 1, '#f06400', 0]]);
+  const p = decodePrims([['line', null, 0, 1, 1, 'foreground', 0, 'solid'], ['dot', 0.5, null, 2, '#ff0000'], ['line', 0, 0, 1, 1, '#f06400', 0, 'solid']]);
   assert.equal(p.length, 1);
   assert.equal(p[0].kind, 'line');
 });
 
 test('unit coordinates outside [0,1] (the .ani leaving its box) are kept', () => {
-  const p = decodePrims([['line', -0.2, 0.5, 1.3, 0.5, 'foreground', 0]]);
+  const p = decodePrims([['line', -0.2, 0.5, 1.3, 0.5, 'foreground', 0, 'solid']]);
   assert.equal(p.length, 1);
   assert.deepEqual([p[0].kind === 'line' && p[0].u1, p[0].kind === 'line' && p[0].u2], [-0.2, 1.3]);
 });

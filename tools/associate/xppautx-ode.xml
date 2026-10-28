@@ -26,4 +26,11 @@
     <icon name="xppautx"/>
     <glob pattern="*.recx"/>
   </mime-type>
+  <mime-type type="text/x-xpp-anix">
+    <comment>xppautX animation (.anix)</comment>
+    <comment xml:lang="en">xppautX animation (.anix)</comment>
+    <sub-class-of type="text/plain"/>
+    <icon name="xppautx"/>
+    <glob pattern="*.anix"/>
+  </mime-type>
 </mime-info>
