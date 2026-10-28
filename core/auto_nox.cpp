@@ -1686,8 +1686,7 @@ void auto_start_diff_ss(xpp::Session &s)
 void auto_start_at_bvp(xpp::Session &s)
 {
   int opn=NO_OPEN_3,cls=OVERWRITE;
- xpp::compile_bvp(s);
-  if(!s.numerics.bvp_flag)
+ if(!xpp::ok_or_show(xpp::compile_bvp(s)))
     return; 
   s.auto_state.type_of_calc=BV1;
  s.auto_state.bifur.ips=xpp::AutoProblem::BoundaryValue;

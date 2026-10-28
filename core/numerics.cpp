@@ -6,6 +6,7 @@
 #include "integrate.h"
 #include "numerics.h"
 #include <string>
+#include <string_view>
 #include <strings.h>
 #include <array>
 
@@ -43,37 +44,44 @@ namespace xpp {
 
 /*   I will need access to storage  */
 
-void quick_num(xpp::Session &s, int com)
+Result<> set_numerics_extras(xpp::Session &s, const NumericsExtras &extras)
 {
-  static const char *const key="tsrdnviobec";
-  if(com>=0&&com<11)
-    get_num_par(s,key[com]);
+  const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
+  const auto refuse=[](std::string what){return xpp::fail("numerics",std::move(what),command_place());};
+  const auto needs=[&](bool applies,std::string_view setting,std::string_view when)->Result<>{
+    if(applies)return {};
+    return xpp::fail("numerics",xpp::format("{} applies {}",setting,when),command_place());
+  };
+  const bool volterra=extras.max_points||extras.auto_evaluate,band=extras.banded||extras.band_lower||extras.band_upper;
+  const bool delay=extras.delay_real_guess||extras.delay_imaginary_guess||extras.delay_grid;
+  if(volterra)if(auto r=needs(traits.integral_history,"vmaxpts and autoeval","to the Volterra method");!r)return r;
+  if(band)if(auto r=needs(traits.banded,"banded, bandlo and bandup","to a method that can be banded (CVODE)");!r)return r;
+  if(delay)if(auto r=needs(s.model().ndelays>0,"delay_real_guess, delay_imaginary_guess and delay_grid","to a model with delays");!r)return r;
+  if(extras.max_points&&(*extras.max_points<1||*extras.max_points>option_limit::history_points))
+    return refuse(xpp::format("vmaxpts must be a whole number from 1 to {}",option_limit::history_points));
+  for(const auto &[name,value]:{std::pair{"bandlo",extras.band_lower},std::pair{"bandup",extras.band_upper}})
+    if(value&&(*value<0||*value>option_limit::bandwidth))
+      return refuse(xpp::format("{} must be a whole number from 0 to {}",name,option_limit::bandwidth));
+  if(extras.delay_grid&&*extras.delay_grid<1)return refuse("delay_grid must be a whole number of at least 1");
+  /* checked whole: now applied */
+  if(extras.auto_evaluate)s.numerics.auto_evaluate=*extras.auto_evaluate;
+  if(extras.max_points)allocate_volterra(s,*extras.max_points,1);
+  if(extras.banded)s.numerics.cv_bandflag=*extras.banded;
+  if(extras.band_lower){s.numerics.cv_bandlower=*extras.band_lower;if(!extras.banded)s.numerics.cv_bandflag=true;}
+  if(extras.band_upper){s.numerics.cv_bandupper=*extras.band_upper;if(!extras.banded)s.numerics.cv_bandflag=true;}
+  if(extras.delay_real_guess)s.delay.alpha_max=*extras.delay_real_guess;
+  if(extras.delay_imaginary_guess)s.delay.omega_max=*extras.delay_imaginary_guess;
+  if(extras.delay_grid)s.delay.grid=*extras.delay_grid;
+  if(delay)chk_delay(s);
+  return {};
 }
 
-void dt_changed(xpp::Session &s)
-{
-  chk_delay(s);
-  if(s.model().nkernel>0){
-    s.numerics.inflag=false;
-    s.integrator.my_start=1;
-    alloc_kernels(s,1);
-  }
-}
-
-void set_total(xpp::Session &s, double total)
-{
-  int n;
-  n=(total/fabs(s.numerics.delta_t))+1;
-  s.numerics.total_time=n*fabs(s.numerics.delta_t);
-}
-
-void  get_num_par(xpp::Session &s, char ch)
+/* The Numerics items run.configure and bvp.configure also take as arguments (Total, Start time, Transient,
+   Dt, Method, Store every, Bounds, Delay, bndVal): the keys ask for them, then set them as the commands do
+   (numerics_settings_set_all's owner) */
+static void ask_configured_numerics(xpp::Session &s, char ch)
 {
    switch(ch){
-               case 'a':
-                       make_adj(s);
-		       break;
-
 		case 't': flash(0);
 			 numerics_settings_ask(s,"total_time");
 			flash(0);
@@ -90,26 +98,11 @@ void  get_num_par(xpp::Session &s, char ch)
 			 numerics_settings_ask(s,"dt");
 			flash(3);
 			break;
-		case 'n': flash(4);
-			 numerics_settings_ask(s,"nullcline_mesh");
-			flash(4);
-			break;
 		case 'v':
 		         numerics_settings_ask(s,"bvp_max_iterates");
 		         numerics_settings_ask(s,"bvp_tolerance");
 		         numerics_settings_ask(s,"bvp_epsilon");
 		         break;
-		case 'i': flash(5);
-			 /* sing pt */
-			 numerics_settings_ask(s,"max_iterations");
-			 numerics_settings_ask(s,"newton_tolerance");
-			 numerics_settings_ask(s,"jacobian_step");
-			 numerics_settings_ask(s,"search_limit");
-		       if(s.model().flag_count()>0)
-			 new_float(s,"SMIN :",&s.numerics.stol);
-		       
-			flash(5);
-			break;
 		case 'o': flash(6);
 			 numerics_settings_ask(s,"store_every");
 			flash(6);
@@ -138,25 +131,30 @@ void  get_num_par(xpp::Session &s, char ch)
 			 numerics_settings_ask(s,"eul_tol");
 			 numerics_settings_ask(s,"eul_iter");
 		       }
-		       if(xpp::solver_info(s.numerics.method).traits.integral_history){
-			 int tmp=s.numerics.max_points;
-			 new_int("MaxPoints:",&tmp);
-			 int auto_evaluate=s.numerics.auto_evaluate;
-			 new_int("AutoEval(1=yes) :",&auto_evaluate);
-			 s.numerics.auto_evaluate=auto_evaluate!=0;
-			 allocate_volterra(s,tmp,1);
-		       }
-			 
-		       if(traits.banded)
-			 {
+		       {
+			 NumericsExtras extras;
+			 if(traits.integral_history){
+			   int tmp=s.numerics.max_points;
+			   new_int("MaxPoints:",&tmp);
+			   int auto_evaluate=s.numerics.auto_evaluate;
+			   new_int("AutoEval(1=yes) :",&auto_evaluate);
+			   extras.max_points=tmp;
+			   extras.auto_evaluate=auto_evaluate!=0;
+			 }
+			 if(traits.banded){
 			   int banded=s.numerics.cv_bandflag;
 			   new_int("Banded system(0/1)?",&banded);
-			   s.numerics.cv_bandflag=banded!=0;
-			   if(s.numerics.cv_bandflag){
-			     new_int("Lower band:",&s.numerics.cv_bandlower);
-			     new_int("Upper band:",&s.numerics.cv_bandupper);
+			   extras.banded=banded!=0;
+			   if(banded){
+			     int lower=s.numerics.cv_bandlower,upper=s.numerics.cv_bandupper;
+			     new_int("Lower band:",&lower);
+			     new_int("Upper band:",&upper);
+			     extras.band_lower=lower;
+			     extras.band_upper=upper;
 			   }
 			 }
+			 xpp::ok_or_show(set_numerics_extras(s,extras));
+		       }
 		       }
 			flash(8);
 			break;
@@ -164,12 +162,78 @@ void  get_num_par(xpp::Session &s, char ch)
 			 /* delay */
                         if(s.model().ndelays==0)break;
 			numerics_settings_ask(s,"delay");
-                        new_float(s,"real guess :", &s.delay.alpha_max);
-			   new_float(s,"imag guess :", &s.delay.omega_max); 
-		        new_int("DelayGrid :",&s.delay.grid);
-		        chk_delay(s);
+                        {
+                          NumericsExtras extras;
+                          double real=s.delay.alpha_max,imaginary=s.delay.omega_max;
+                          int grid=s.delay.grid;
+                          new_float(s,"real guess :",&real);
+                          new_float(s,"imag guess :",&imaginary);
+                          new_int("DelayGrid :",&grid);
+                          extras.delay_real_guess=real;
+                          extras.delay_imaginary_guess=imaginary;
+                          extras.delay_grid=grid;
+                          xpp::ok_or_show(set_numerics_extras(s,extras));
+                        }
 
 			flash(9);
+			break;
+	}
+}
+
+void quick_num(xpp::Session &s, int com)
+{
+  static const char *const key="tsrdnviobec";
+  if(com>=0&&com<11)
+    get_num_par(s,key[com]);
+}
+
+void dt_changed(xpp::Session &s)
+{
+  chk_delay(s);
+  if(s.model().nkernel>0){
+    s.numerics.inflag=false;
+    s.integrator.my_start=1;
+    alloc_kernels(s,1);
+  }
+}
+
+void set_total(xpp::Session &s, double total)
+{
+  int n;
+  n=(total/fabs(s.numerics.delta_t))+1;
+  s.numerics.total_time=n*fabs(s.numerics.delta_t);
+}
+
+void  get_num_par(xpp::Session &s, char ch)
+{
+   switch(ch){
+               case 't': ask_configured_numerics(s,'t'); break;
+               case 's': ask_configured_numerics(s,'s'); break;
+               case 'r': ask_configured_numerics(s,'r'); break;
+               case 'd': ask_configured_numerics(s,'d'); break;
+               case 'v': ask_configured_numerics(s,'v'); break;
+               case 'o': ask_configured_numerics(s,'o'); break;
+               case 'b': ask_configured_numerics(s,'b'); break;
+               case 'm': ask_configured_numerics(s,'m'); break;
+               case 'e': ask_configured_numerics(s,'e'); break;
+               case 'a':
+                       make_adj(s);
+		       break;
+
+		case 'n': flash(4);
+			 numerics_settings_ask(s,"nullcline_mesh");
+			flash(4);
+			break;
+		case 'i': flash(5);
+			 /* sing pt */
+			 numerics_settings_ask(s,"max_iterations");
+			 numerics_settings_ask(s,"newton_tolerance");
+			 numerics_settings_ask(s,"jacobian_step");
+			 numerics_settings_ask(s,"search_limit");
+		       if(s.model().flag_count()>0)
+			 new_float(s,"SMIN :",&s.numerics.stol);
+		       
+			flash(5);
 			break;
 		case 'c': flash(10);
 			 /* color */

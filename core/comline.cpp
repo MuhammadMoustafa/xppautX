@@ -2,6 +2,7 @@
 #include "session.h"
 #include "comline.h"
 #include "lunch-new.h"
+#include "xpp_ui.h"
 #include "xpp_log.h"
 /* the command line of xppautX */
 #include "xpp_batch.h"
@@ -339,7 +340,7 @@ void load_command_line_values(xpp::Session &s)
   }
   if(cl.ic_file){
     xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",*cl.ic_file);
-    load_ic_file_named(s,*cl.ic_file);
+    xpp::ok_or_show(load_ic_file_named(s,*cl.ic_file));
   }
   if_needed_load_ext_options(s);
 }

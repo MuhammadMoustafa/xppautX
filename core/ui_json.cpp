@@ -115,6 +115,10 @@ void silent_fail(const char *what, const char *line, const char *ask)
     exit(1);
 }
 
+/* the command that stops the running computation: the reader thread acts on it the moment it arrives, in JSON or in server text */
+constexpr std::string_view ABORT_COMMAND = "run.abort";
+bool is_abort(const char *line) { return xpp::command::name(line) == ABORT_COMMAND; }
+
 bool quit_waits(const char *line)
 {
     return is_cmd(line, "quit") && (get_int(line, "ask", 0) != 0 || get_int(line, "save", 0) != 0);
@@ -168,7 +172,7 @@ xpp::inbox::Verdict during_run(const char *line)
 {
     std::string c, o; /* Whole words: a longer input must not impersonate a known command. */
     get_string(line, "cmd", c);
-    if (c == "abort" || c == "quit" || c == "state") return xpp::inbox::Verdict::control;
+    if (is_abort(line) || c == "quit" || c == "state") return xpp::inbox::Verdict::control;
     if (c == "browser" && js_find(line, "from")) return xpp::inbox::Verdict::control;
     if (c == "play" && get_string(line, "op", o) && (o == "start" || o == "pause" || o == "step" || o == "speed"))
         return xpp::inbox::Verdict::control;
@@ -270,7 +274,7 @@ xpp::inbox::Verdict classify(const char *line, unsigned long seq)
         if (xpp::job::computing() && !xpp::job::stopping()) xpp::job::cancel(seq);
         return xpp::inbox::Verdict::normal;
     }
-    if (c == "abort" || c == "quit") {
+    if (is_abort(line) || c == "quit") {
         xpp::job::cancel(seq);
         return xpp::inbox::Verdict::control;
     }
@@ -302,7 +306,7 @@ int control_line(xpp::Session &s, const char *line)
 {
     std::string k;
     if (handle_async(s, line)) return KEY_NONE;
-    if (is_cmd(line, "abort")) return ESC;
+    if (is_abort(line)) return ESC;
     if (is_cmd(line, "key")) {
         get_string(line, "key", k);
         const int code = key_code(k.c_str());
@@ -594,30 +598,6 @@ struct CommandInfo {
 constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, S = XPP_KIND_SETTING, D = XPP_KIND_DATA, X = XPP_KIND_COMPUTE;
 
 const CommandInfo commands[] = {
-    {"continue", nullptr, X, STEP, [](xpp::Session &s, const char *line) {
-        double value;
-        const bool extra=js_find(line,"extra")!=nullptr, until=js_find(line,"until")!=nullptr;
-        if(extra&&until){
-            j_command_error("continue","Takes an end time or an extra duration, not both");
-            return;
-        }
-        if((extra||until)&&!js_number(js_find(line,extra?"extra":"until"),&value)){
-            j_command_error("continue","The end time or extra duration must be a number");
-            return;
-        }
-        show_main_menu(s, MAIN_MENU);
-        xpp::ok_or_show(!extra&&!until?xpp::continue_total(s):extra?xpp::continue_for(s,value):xpp::continue_to(s,value));
-    }},
-    {"steady", nullptr, X, STEP, [](xpp::Session &s, const char *line) {
-        double decimals, hold, maximum;
-        if (!js_number(js_find(line,"decimals"),&decimals) || !std::isfinite(decimals) || decimals<0 || decimals>xpp::MAX_STEADY_DECIMALS || decimals!=static_cast<int>(decimals) ||
-            !js_number(js_find(line,"hold"),&hold) || !js_number(js_find(line,"maximum"),&maximum)) {
-            j_command_error("steady","Needs integer decimal places, numeric hold and maximum durations");
-            return;
-        }
-        show_main_menu(s, MAIN_MENU);
-        xpp::ok_or_show(xpp::run_to_steady_state(s,{static_cast<int>(decimals),hold,maximum}));
-    }},
     {"key", nullptr, 0, STEP, key_command},
     {"answer", nullptr, C, NOT_STEP,
      [](xpp::Session &, const char *line) {
@@ -625,7 +605,6 @@ const CommandInfo commands[] = {
          if (session.generated) silent_fail("answers a question that was never asked", line, NULL);
          else if (!player_place().file.empty()) j_command_error("play", "Answers a question that was never asked");
      }},
-    {"abort", nullptr, C, NOT_STEP, [](xpp::Session &, const char *) {}},
     {"quit", nullptr, C, NOT_STEP,
      [](xpp::Session &s, const char *line) {
          if (!quit_waits(line)) quit_command();
@@ -869,7 +848,8 @@ namespace {
    Every other command needs a model and says so. */
 bool runs_without_model(const char *line)
 {
-    for (const char *cmd : {"open", "quit", "abort", "answer", "keymap", "data"})
+    if (is_abort(line)) return true;
+    for (const char *cmd : {"open", "quit", "answer", "keymap", "data"})
         if (is_cmd(line, cmd)) return true;
     /* File > Open model by its stable id, as the page's menu and Ctrl+O send it */
     std::string menu, item;
@@ -902,7 +882,10 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
         if(text)request=xpp::command::tokenize(line,place);
         if(request) {
             record_begin(request->c_str());
-            result=!s->model().loaded() && xpp::command::is_step(request->c_str()) ?
+            /* --silent's own commands replace the output files they write, as its key lines' "replace":1 said */
+            if(session.generated)session.save_replace=SAVE_REPLACE;
+            if(refused)result=xpp::fail("command",xpp::format("{}: {} was refused",xpp::job::REFUSED_WHILE_COMPUTING,xpp::command::name(request->c_str())),place);
+            else result=!s->model().loaded() && xpp::command::is_step(request->c_str()) ?
                 xpp::fail("command","No model is open",place) : xpp::command::run(*s,request->c_str(),place,!played && !session.silent && !xpp::http::active());
         } else result=std::unexpected<xpp::Error>(request.error());
         if(!result) {
@@ -1041,7 +1024,7 @@ void json_ui_loop(void)
         /* an abort did its work when it arrived (classify()): it is no
            command of its own, and gets no state or idle; in a script,
            where nothing ran for it to stop, the next line follows */
-        if (!is_cmd(next.line.c_str(), "abort")) handle_line(next.line.c_str(), next.seq, next.refused, next.applied);
+        if (!is_abort(next.line.c_str())) handle_line(next.line.c_str(), next.seq, next.refused, next.applied);
         else if (session.generated) xpp::inbox::generated_advance();
     }
 }

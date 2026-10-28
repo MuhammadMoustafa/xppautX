@@ -116,6 +116,8 @@ On 2026-10-14, the maintainer approved the unified command design for xppautX:
 
 ### 2.1 Resource `run` (Integration, Trajectories, and Sweeps)
 
+**Moved onto the registry (W521, #585): every row below is implemented under its proposed name; see docs/protocol.md's registry table. The "Today" columns describe the forms that were deleted.** Readings that differ from the row: `ic.mouse_stream` takes `x` and `y` lists (a list holds single values); `ic.formula` takes a state or an array range `u[1..5]` and `ic.array` the offset formula; `run.dae_guess` returns `guesses`; `bvp.solve` and `bvp.solve_periodic` take a required `show`; `bvp.solve_range`'s `side` is `start` or `end`; `run.configure`'s `method` is text the numerics owner checks; `run.abort` has no `done` of its own.
+
 | Today Key Path | Today Menu Item | Today Protocol | Today Forms & Asks | Proposed Dotted Name | Typed Named Arguments | Group / Mutex | Result Payload | Events Emitted |
 |---|---|---|---|---|---|---|---|---|
 | `I` -> `G` | Initialconds -> (G)o | `{"cmd":"key","menu":"main","item":"run_initial"}` / main key sequence `i`, `g` | none | `run.initial` | none | default | `{"status":"completed","steps":integer,"time":real}` | `job.progress`, `plot.series`, `session.state`, `done` |
@@ -135,6 +137,8 @@ On 2026-10-14, the maintainer approved the unified command design for xppautX:
 ---
 
 ### 2.2 Resource `ic` (Initial Conditions)
+
+**Moved onto the registry (W521, #585): every row below is implemented under its proposed name; see docs/protocol.md's registry table. The "Today" columns describe the forms that were deleted.** Readings that differ from the row: `ic.mouse_stream` takes `x` and `y` lists (a list holds single values); `ic.formula` takes a state or an array range `u[1..5]` and `ic.array` the offset formula; `run.dae_guess` returns `guesses`; `bvp.solve` and `bvp.solve_periodic` take a required `show`; `bvp.solve_range`'s `side` is `start` or `end`; `run.configure`'s `method` is text the numerics owner checks; `run.abort` has no `done` of its own.
 
 | Today Key Path | Today Menu Item | Today Protocol | Today Forms & Asks | Proposed Dotted Name | Typed Named Arguments | Group / Mutex | Result Payload | Events Emitted |
 |---|---|---|---|---|---|---|---|---|
@@ -284,6 +288,8 @@ Only what the user places, each with an id (proposed, awaiting the maintainer). 
 ---
 
 ### 2.10 Resource `bvp` (Boundary Value Problems)
+
+**Moved onto the registry (W521, #585): every row below is implemented under its proposed name; see docs/protocol.md's registry table. The "Today" columns describe the forms that were deleted.** Readings that differ from the row: `ic.mouse_stream` takes `x` and `y` lists (a list holds single values); `ic.formula` takes a state or an array range `u[1..5]` and `ic.array` the offset formula; `run.dae_guess` returns `guesses`; `bvp.solve` and `bvp.solve_periodic` take a required `show`; `bvp.solve_range`'s `side` is `start` or `end`; `run.configure`'s `method` is text the numerics owner checks; `run.abort` has no `done` of its own.
 
 | Today Key Path | Today Menu Item | Today Protocol | Today Forms & Asks | Proposed Dotted Name | Typed Named Arguments | Group / Mutex | Result Payload | Events Emitted |
 |---|---|---|---|---|---|---|---|---|

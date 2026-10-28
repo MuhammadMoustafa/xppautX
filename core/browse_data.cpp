@@ -315,9 +315,9 @@ void  wipe_rep(BrowserState &b)
     b.replaced=0;
   }
 
-void data_get(xpp::Session &s, BROWSER *b)
+void ic_of_row(xpp::Session &s, int in)
 {
- int i,in=b->row0;
+ int i;
  setvar(s,0,static_cast<double>(s.data_store.col[0][in]));
  for(i=0;i<s.model().node;i++)
  {
@@ -337,7 +337,7 @@ void data_get(xpp::Session &s, BROWSER *b)
 void data_get_mybrowser(xpp::Session &s, int row)
 {
   s.browser.view.row0=row;
-  data_get(s,&s.browser.view);
+  ic_of_row(s,row);
 }
 
 void get_data_xyz(const xpp::Session &s, float *x, float *y, float *z, int i1, int i2, int i3, int off)

@@ -10,7 +10,9 @@
    rows. A handler never reads the JSON line: it asks Arguments. */
 #include "colormap.h"
 #include "command_table.h"
+#include "json_number.h"
 #include "xpp_error.h"
+#include "xpp_io.h"
 #include <cstddef>
 #include <optional>
 #include <span>
@@ -167,10 +169,55 @@ struct Command {
     std::span<const Group> groups = {};
 };
 
+/* A command's result object, built member by member in the order its row
+   declares them: `ResultObject().integer("rows", 3).text("status", "ok").done()`. */
+class ResultObject {
+public:
+    ResultObject &boolean(std::string_view name, bool value) { return raw(name, value ? "true" : "false"); }
+    ResultObject &integer(std::string_view name, long long value) { return raw(name, std::to_string(value)); }
+    ResultObject &real(std::string_view name, double value)
+    {
+        std::string text;
+        json::json_append_number_shortest(text, value);
+        return raw(name, text);
+    }
+    ResultObject &text(std::string_view name, std::string_view value)
+    {
+        std::string quoted;
+        json_append_string(quoted, value);
+        return raw(name, quoted);
+    }
+    /* a member that is already JSON (an object, a list) */
+    ResultObject &raw(std::string_view name, std::string_view json)
+    {
+        if (text_.size() > 1) text_ += ',';
+        json_append_string(text_, name);
+        text_ += ':';
+        text_ += json;
+        return *this;
+    }
+    std::string done() { return text_ + '}'; }
+
+private:
+    std::string text_ = "{";
+};
+
 /* Every resource's table, joined in command_registry.cpp's TABLES: a card
    that moves a resource's commands adds its file's function there. */
 std::span<const Command> window_commands();
 std::span<const Command> annotation_commands();
+std::span<const Command> run_commands();
+std::span<const Command> ic_commands();
+std::span<const Command> bvp_commands();
+/* A command whose arguments are numerics settings (run.configure, bvp.configure): every argument given is the
+   setting `key_prefix` + its name, all checked together and set all or nothing; the result holds each one's
+   value now. */
+Result<std::string> configure_numerics(Session &s, const Command &command, const Arguments &args, const Place &place,
+                                       std::string_view key_prefix);
+/* bvp.configure's arguments are the settings' keys without this prefix */
+inline constexpr std::string_view BVP_KEY_PREFIX = "bvp_";
+/* the registry command that sets the numerics setting `key`, "" when none does (`set` takes the others) */
+std::string_view numerics_command(std::string_view key);
 
 /* Check the line's arguments against the row and give them typed, or the
    first fault (all or nothing: a handler runs only on success). session

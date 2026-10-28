@@ -98,12 +98,15 @@ int set_up_eq_range(Session &s);
 /* Continue (W213), the one way to extend the trajectory: to the time `until`, or for `extra` more,
    either rounded up to the output grid (Dt times Store every N steps) and appending rows at that
    stride; the end reached is the state's time */
-Result<> continue_to(Session &s, double until);
-Result<> continue_for(Session &s, double extra);
+Result<bool> continue_to(Session &s, double until);
+Result<bool> continue_for(Session &s, double extra);
 /* ... for another Total (Run duration): the key c, a user button's `c`, a `continue` with no value */
-Result<> continue_total(Session &s);
+Result<bool> continue_total(Session &s);
 int range_item(Session &s);
 int range_item2(Session &s);
+/* the type and index of what s.integrator.range names to vary (and the second item when `two`), or the error of one that is
+   neither a parameter nor a variable */
+Result<> resolve_range_items(Session &s, bool two);
 int set_up_range(Session &s);
 int set_up_range2(Session &s);
 void init_monte_carlo(Session &s);
@@ -114,13 +117,54 @@ void set_cycle(Session &s, int flag, int *icol);
 int do_range(Session &s, double *x, int flag);
 void find_equilib_com(Session &s, int com);
 int write_this_run(Session &s, const char *file, int i);
+/* XPPAUT's Initialconds items as an imported button sequence runs them (kbs.h), asking what the registry's
+   run.*, ic.* commands take as arguments */
 void do_init_data(Session &s, int com);
 void run_now(Session &s);
+
+/* the runs, the one core each front end's command calls (docs/protocol.md "run"). Every one returns whether
+   the run ended before its end without failing (an event's arret, a section that stops it, '/'; the
+   reason is shown once), or the error it failed with, which its command shows. */
+/* where a run starts from (XPPAUT's Initialconds items): the initial data (Go), the stored initial data again
+   (Old), the last state (Last), the last state with the clock going on (Shift), the initial data backward in
+   time (Backward) */
+enum class RunFrom { initial, old, last, shift, backward };
+/* reset_integrals: a run from the last state of an integral-equation method starts the integrals afresh (else they go on) */
+Result<bool> run_from(Session &s, RunFrom from, bool reset_integrals = false);
+/* the states a graph plots against each other (0-based); the pair a click sets */
+struct Plane {
+  int horizontal, vertical;
+};
+/* the plane of graph window `graph` (its index), or why it has none */
+Result<Plane> window_plane(const Session &s, int graph);
+/* a run from the initial data with the plane's two states set to a click's plot coordinates, no data kept of the
+   run before */
+Result<bool> run_from_click(Session &s, Plane plane, double horizontal, double vertical);
+/* one run from each click in turn, the first emptying the store, the rest added to it (suppress_bounds: Mice's
+   runs ignore the state limit); the runs made (fewer when cancelled) */
+Result<int> run_from_clicks(Session &s, Plane plane, std::span<const std::pair<double, double>> clicks, bool suppress_bounds);
+/* a run from manifold `index` (1-based) of the equilibria's shooting */
+Result<bool> run_from_manifold(Session &s, int index);
+/* what a range sweep did: the integrations it completed and the steps (rows) they stored */
+struct RangeProgress {
+  int runs = 0;
+  long steps = 0;
+};
+/* the sweep over the settings in s.integrator.range (flag 0: one parameter, 1: two), what it completed in `done`
+   when given; the sweep's end code (-1 when a run stopped early) or the error it failed with */
+Result<int> run_range(Session &s, int flag, RangeProgress *done);
+/* the integration of x as the Session's settings say, after a run's start made: the one every run ends in */
+Result<bool> integrate_from(Session &s, double *x);
 void do_start_flags(Session &s, double *x, double *t);
-int usual_integrate_stuff(Session &s, double *x); /* the run: integrate()'s result, 1 when it failed (the error shown) */
-void do_new_array_ic(Session &s, const char *newic, int j1, int j2);
+int usual_integrate_stuff(Session &s, double *x); /* integrate_from, its error shown: 1 when it failed */
 void evaluate_ar_ic(Session &s, const char *v, const char *f, int j1, int j2);
 void arr_ic_start(Session &s);
+/* the initial conditions by formula (ic.formula): `variable` a state, or an array range name[j1..j2] whose
+   formula reads [j] as the element's number (an array's formula is kept like the model's own); the states set (indices),
+   or why none was, nothing changed */
+Result<std::vector<int>> set_ic_formula(Session &s, std::string_view variable, std::string_view formula);
+/* `size` states from `name` on set to the formula, its t the element's offset from the first (ic.array) */
+Result<std::vector<int>> set_ic_array(Session &s, std::string_view name, int size, std::string_view formula);
 int set_array_ic(Session &s);
 int form_ic(Session &s);
 /* Node-only states preserve Markov initial data; full states replace both.
@@ -148,6 +192,8 @@ std::vector<ArrayInitialValue> array_initial_values(const Model &m);
 
 /* Initialconds/Range's settings (integrate.cpp's, read by load_eqn.cpp's
    options): the one range over item (and item2 for the double range) */
+/* how many values a range varies (RangeVars::rtype): one, two together or two independently */
+inline constexpr int RANGE_SINGLE = 0, RANGE_TOGETHER = 1, RANGE_INDEPENDENT = 2;
 struct RangeVars {
   std::string item, item2;
   bool write_files = false; // Opt in: reset runs otherwise keep no separate files.

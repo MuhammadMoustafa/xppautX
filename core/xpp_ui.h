@@ -429,6 +429,9 @@ int get_dialog_of(std::string_view wname, std::string_view name, std::string &va
    place (logging where at DEBUG); an empty `what` shows nothing (the
    computation said it already) */
 void show_error(const Error &e);
+/* e with the line of its file as written in its place, when it names one and the file reads (what show_error adds
+   to an error, and a registry command's failure gets the same) */
+Error with_source_line(const Error &e);
 /* Where the command that runs came from (W140): in a recording's Play, the .recx and
    the step's line; an empty Place for a command the user gave. The place
    of an error a command finds in what it was given, or that a

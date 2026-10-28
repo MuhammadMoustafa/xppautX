@@ -10,6 +10,7 @@
 #include "json_reader.h"
 #include "session.h"
 #include "xpp_io.h"
+#include "xpp_ui.h"
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -28,7 +29,7 @@ constexpr std::array HELP_ROWS = {
 std::span<const Command> help_commands() { return HELP_ROWS; }
 
 /* every resource's table, in the order help lists them */
-constexpr std::array TABLES = {help_commands, window_commands, annotation_commands};
+constexpr std::array TABLES = {help_commands, window_commands, annotation_commands, run_commands, ic_commands, bvp_commands};
 
 template <class Visit> void each_command(Visit visit)
 {
@@ -203,6 +204,16 @@ const Command *find(std::string_view name)
     return found;
 }
 
+std::string_view numerics_command(std::string_view key)
+{
+    for (const auto &[command_name, prefix] : {std::pair<std::string_view, std::string_view>{"run.configure", {}}, {"bvp.configure", BVP_KEY_PREFIX}}) {
+        const Command *command = find(command_name);
+        if (command && std::ranges::any_of(command->arguments, [&](const Argument &arg) { return std::string(prefix) + arg.name == key; }))
+            return command_name;
+    }
+    return {};
+}
+
 std::string_view name(const char *line)
 {
     line = json::skip_ws(line);
@@ -256,7 +267,9 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
     if (!command) return fail("command", "Unknown registry command", place);
     const Result<Arguments> args = validate(&s, *command, line, place, paths_allowed);
     if (!args) return std::unexpected<Error>(args.error());
-    return command->execute(s, *command, *args, place);
+    Result<std::string> result = command->execute(s, *command, *args, place);
+    if (!result) return std::unexpected<Error>(with_source_line(result.error()));
+    return result;
 }
 
 std::string done(const char *line, const Result<std::string> &result, bool stopped)

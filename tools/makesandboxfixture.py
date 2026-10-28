@@ -48,23 +48,15 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         assert idle is not None and len(state(initial)['ics']) == 8
         command(server, cmd='record', op='start')
         command(server, cmd='record', op='note', text='Short 200 ms run; original model equations and initial conditions unchanged.')
-        command(server, cmd='set', kind='num', name='total_time', value=RUN_MS)
+        command(server, cmd='run.configure', total_time=RUN_MS)
         command(server, cmd='record', op='note', text='Resting cell: all eight states update, although only voltage is plotted.')
-        server.send(cmd='key', key='i')
-        _, ask = server.collect(lambda e: e.get('ev') == 'ask')
-        assert ask is not None
-        server.send(cmd='answer', id=ask['id'], key='g')
+        server.send(cmd='run.initial')
         events, idle = server.collect(is_idle, timeout=RUN_TIMEOUT)
         assert idle is not None and not any(e.get('error') for e in events)
         live = [e for e in events if e.get('ev') == 'liveState']
         assert live and all(len(e['now']) == 8 for e in live)
         command(server, cmd='record', op='note', text='Continue for another 200 ms: time advances to 400 ms and states keep updating.')
-        server.send(cmd='key', key='c')
-        _, ask = server.collect(lambda e: e.get('ev') == 'ask')
-        assert ask is not None and ask.get('kind') == 'string'
-        server.send(cmd='answer', id=ask['id'], ok=1, value=str(CONTINUE_TO_MS))
-        events, idle = server.collect(is_idle, timeout=RUN_TIMEOUT)
-        assert idle is not None and not any(e.get('error') for e in events), events[-5:]
+        events = command(server, cmd='run.continue', until=CONTINUE_TO_MS)
         final = state(events)
         assert final['time'] == CONTINUE_TO_MS
 

@@ -51,7 +51,7 @@ test('busy from a command to its idle; an answer closes the ask', () => {
   assert.equal(s.busy, true);
   s = ev(s, {ev: 'idle'});
   assert.equal(s.busy, false);
-  assert.equal(reduce(s, {type: 'sent', cmd: {cmd: 'abort'}}), s, 'abort has no idle');
+  assert.equal(reduce(s, {type: 'sent', cmd: {cmd: 'run.abort'}}), s, 'abort has no idle');
 });
 
 test('a phase plane is an xy plot, a time plot an aligned one', () => {

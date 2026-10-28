@@ -13,7 +13,7 @@ test('steady settings reject incomplete precision, insufficient hold and invalid
   assert.ok(steadyError(valid, -0.05, 15));
 });
 test('steady and direct continuation are computations guarded during another run or prompt', () => {
-  for (const cmd of ['steady', 'continue']) {
+  for (const cmd of ['run.steady', 'run.continue']) {
     const kind = kindOf(HELLO, 1, {cmd});
     assert.equal(kind, 'computation');
     assert.equal(mayStart(kind, true, false), false);
@@ -58,10 +58,10 @@ test('Continue honours Store every N steps: the end shown is on the output grid,
   assert.ok(Number.isNaN(outputInterval(null)));
   const core = {time: 5, now: [1]} as unknown as Parameters<typeof continuePlan>[2];
   const none = continuePlan(CONTINUE_INPUT_DEFAULT, fields(1), core, HELLO);
-  assert.deepEqual(none.command, {cmd: 'continue', extra: 20});   // the default is another Run duration
+  assert.deepEqual(none.command, {cmd: 'run.continue', extra: 20});   // the default is another Run duration
   assert.equal(none.problem, null);
   const until = continuePlan({mode: 'until', text: '6.1'}, fields(7), core, HELLO);
-  assert.deepEqual(until.command, {cmd: 'continue', until: 6.1});
+  assert.deepEqual(until.command, {cmd: 'run.continue', until: 6.1});
   assert.ok(Math.abs(until.end! - 6.4) < 1e-12);                   // 1.1 / 0.35 rounds up to 4 groups
   for (const text of ['', 'x', '0', '5.01']) {
     const bad = continuePlan({mode: 'until', text}, fields(1), core, HELLO);

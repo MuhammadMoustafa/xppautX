@@ -39,7 +39,7 @@ test('stable menu actions retain their kind in every legacy shortcut mode', () =
   for (const current of [0, 1, 2]) {
     assert.equal(kindOf(HELLO, current, menuCommand('file', 'savesession')), 'data');
     assert.equal(kindOf(HELLO, current, menuCommand('main', 'parameters')), 'setting');
-    assert.equal(kindOf(HELLO, current, menuCommand('main', 'initialconds')), 'computation');
+    assert.equal(kindOf(HELLO, current, menuCommand('main', 'singpts')), 'computation');
   }
   assert.equal(kindOf(HELLO, 0, menuCommand('file', 'does-not-exist')), null);
   assert.equal(kindOf(HELLO, 0, {cmd: 'key', menu: 'invalid', item: 'quit'}), null);
@@ -66,7 +66,7 @@ test('the core table has no problems: every id once, in one known category', () 
 });
 
 test('a table the page and the core disagree on is a problem, never skipped silently', () => {
-  const row = HELLO.command_table[0];
+  const row = HELLO.command_table.find(r => r.key !== '')!;
   const twice = {...HELLO, command_table: [...HELLO.command_table, {...row, key: '\0'}]};
   assert.match(navigationProblems(twice).join(' '), new RegExp(`${row.menu}/${row.id} is in the command table twice`));
   const unknown = {...HELLO, command_table: [...HELLO.command_table, {...row, id: 'brandnew', key: '\x01', category: 'nowhere'}]};

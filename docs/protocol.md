@@ -201,6 +201,30 @@ The ordinary servercheck verifies it without writing.
 | `annotation.move` | `annotation_id`: required integer [at least 0, at most 2147483646], `new_x`: required real, `new_y`: required real | `v` / plot | Text,etc/Edit/Move / TEM | `id`: `integer`, `moved`: `boolean` | `marks`, `state`, `done` | Move an annotation so that its position (an object's start, its end following) is the point. |
 | `annotation.delete` | `annotation_id`: required integer [at least 0, at most 2147483646] | `v` / plot | Text,etc/Edit/Delete / TED | `id`: `integer`, `deleted`: `boolean` | `marks`, `state`, `done` | Delete an annotation. |
 | `annotation.delete_all` | `window`: optional window (max 1024 bytes) | `v` / plot | Text,etc/Delete all / TD | `cleared`: `boolean` | `marks`, `state`, `done` | Delete every annotation of a graph. |
+| `run.initial` | none | `x` / run | Initialconds/Go / IG | `status`: `choice`, `steps`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from the initial values. |
+| `run.last` | `reset_integrals`: optional boolean | `x` / run | Initialconds/Last / IL | `status`: `choice`, `steps`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Make the last state the initial values and run from it. |
+| `run.old` | none | `x` / run | Initialconds/Old / IO | `status`: `choice`, `steps`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from the initial values as they stand, without refreshing the DAE guesses first. |
+| `run.continue` | `until`: optional real, `extra`: optional real; at most one of `until`, `extra` | `x` / run | Continue / C | `status`: `choice`, `end_time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Extend the trajectory to an end time, by a duration, or by the run's total time. |
+| `run.steady` | `decimals`: required integer [at least 0, at most 15], `hold`: required real, `maximum`: required real | `x` / run | none / none | `status`: `choice`, `decimals`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from the initial values until every state stops changing at the chosen decimals. |
+| `run.backward` | none | `x` / run | Initialconds/Backward / IB | `status`: `choice`, `steps`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from the initial values backward in time. |
+| `run.shift` | `reset_integrals`: optional boolean | `x` / run | Initialconds/Shift / IS | `status`: `choice`, `steps`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from the last state with the clock going on from where it stopped. |
+| `run.range` | `variable`: optional name (max 1024 bytes) [of either], `start`: optional real, `end`: optional real, `steps`: optional integer [at least 1], `reset_storage`: optional boolean, `use_old_ic`: optional boolean, `cycle_color`: optional boolean, `movie`: optional boolean, `write_each_run_to_file`: optional boolean | `x` / run | Initialconds/Range / IR | `runs_completed`: `integer`, `total_steps`: `integer` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run once for each value of a parameter or variable between two values. |
+| `run.double_range` | `variable1`: optional name (max 1024 bytes) [of either], `start1`: optional real, `end1`: optional real, `variable2`: optional name (max 1024 bytes) [of either], `start2`: optional real, `end2`: optional real, `steps1`: optional integer [at least 1], `steps2`: optional integer [at least 1], `vary`: optional choice (together, independently), `reset_storage`: optional boolean, `use_old_ic`: optional boolean, `cycle_color`: optional boolean, `movie`: optional boolean, `write_each_run_to_file`: optional boolean | `x` / run | Initialconds/2par range / I2 | `grid_points`: `integer`, `total_steps`: `integer` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run once for each pair of values of two parameters or variables. |
+| `run.dae_guess` | `guesses`: optional map [of any, of expression, at most 256] | `s` / run | Initialconds/DAE guess / ID | `guesses`: `map[name, real]` | `state`, `done` | Set the initial guesses of the algebraic variables; none given keeps them. |
+| `run.abort` | none | `c` / run | Stop / Esc | `stopped_at`: `real` | `stopped`, `done` | Stop the running command where it is; the stopped command ends with the status stopped. |
+| `run.configure` | `total_time`: optional real, `start_time`: optional real, `store_from`: optional real, `dt`: optional real, `method`: optional text (max 1024 bytes), `store_every`: optional integer [at least 1], `state_limit`: optional real, `stop_at_limit`: optional boolean, `delay`: optional real, `relative_tolerance`: optional real, `absolute_tolerance`: optional real, `min_step`: optional real, `max_step`: optional real, `eul_tol`: optional real, `eul_iter`: optional integer [at least 1], `vmaxpts`: optional integer [at least 1, at most 10000000], `autoeval`: optional boolean, `bandlo`: optional integer [at least 0, at most 100000], `bandup`: optional integer [at least 0, at most 100000], `delay_real_guess`: optional real, `delay_imaginary_guess`: optional real, `delay_grid`: optional integer [at least 1] | `s` / run | Numerics/Settings / UT/US/UR/UD/UM/UO/UB/UE | `settings`: `map[name, value]` | `numerics`, `state`, `done` | Set the integration's numerics (run length, step, method, tolerances, bounds, delay); the settings are checked together. |
+| `run.shoot` | `manifold_index`: required integer [at least 1] | `x` / run | Initialconds/sHoot / IH | `status`: `choice`, `steps`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from a manifold the equilibria's shooting found. |
+| `ic.set` | `values`: required map [of variable, of real, at most 256] | `s` / run | Initialconds/New / IN | `applied`: `map[name, real]` | `state`, `done` | Set the initial values of some states; the others keep theirs. |
+| `ic.at` | `coordinates`: required map [of variable, of real, at most 256], `window`: optional window (max 1024 bytes) | `x` / run | Initialconds/Mouse / IM | `applied`: `map[name, real]` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from a point of a graph: the two states it plots take the coordinates, the others their initial values. |
+| `ic.mouse_stream` | `x`: required list [of real, at most 256], `y`: required list [of real, at most 256], `window`: optional window (max 1024 bytes) | `x` / run | Initialconds/mIce / II | `trajectories_run`: `integer` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from each point of a graph in turn, x and y the coordinates of the two states it plots; the runs add up on the graph. |
+| `ic.load` | `file`: required file (max 1024 bytes) | `s` / run | Initialconds/File / IF | `file`: `file`, `applied`: `map[name, real]` | `state`, `done` | Read the initial values from a file of the model's folder, one number per differential equation. |
+| `ic.formula` | `variable`: required text (max 1024 bytes), `formula`: required text (max 1024 bytes) | `s` / run | Initialconds/formUla / IU | `variable`: `text`, `formula`: `text` | `state`, `done` | Set a state's initial value to a formula, or an array range u[1..5] to a formula reading [j] as the element's number. |
+| `ic.from_data_row` | `row`: required integer [at least 0] | `s` / run | Data/Get / none | `row`: `integer`, `values`: `map[name, real]` | `state`, `done` | Make a row of the stored data (the first is 0) the initial values. |
+| `ic.array` | `name`: required name (max 1024 bytes) [of variable], `size`: required integer [at least 1], `formula`: required expression (max 1024 bytes) | `s` / run | Initialconds/formUla / IU | `name`: `name`, `size`: `integer` | `state`, `done` | Set size states from a state on to a formula of t, the element's offset from the first. |
+| `bvp.solve_range` | `parameter`: optional name (max 1024 bytes) [of parameter], `start`: optional real, `end`: optional real, `steps`: optional integer [at least 1], `cycle_color`: optional boolean, `side`: optional choice (start, end), `movie`: optional boolean | `x` / analysis | Bndry Value Prob/Range / BR | `solutions_found`: `integer` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Solve the boundary value problem for each value of a parameter between two values, storing a solution's start or end for each. |
+| `bvp.solve` | `show`: required boolean | `x` / analysis | Bndry Value Prob/No show, Show / BN/BS | `converged`: `boolean` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Solve the boundary value problem from the initial values by shooting and make the solution the initial values; show draws every step. |
+| `bvp.solve_periodic` | `frequency_parameter`: required name (max 1024 bytes) [of parameter], `section_variable`: required name (max 1024 bytes) [of variable], `section`: required real, `show`: required boolean | `x` / analysis | Bndry Value Prob/Periodic / BP | `converged`: `boolean`, `period`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Solve for a periodic orbit whose period is the frequency parameter, held to a section of one variable. |
+| `bvp.configure` | `max_iterates`: optional integer [at least 1], `tolerance`: optional real, `epsilon`: optional real | `s` / analysis | Numerics/bndVal / UV | `settings`: `map[name, value]` | `numerics`, `state`, `done` | Set the shooting's iteration limit, tolerance and finite-difference step; the settings are checked together. |
 <!-- registry:end -->
 
 ## Startup
@@ -265,7 +289,7 @@ so the start screen's button, a recent entry, File > Open model, the desktop
 window's native File menu and the OS's open-documents event after the start all
 send it. A session with no model refuses every other command with the error
 "No model is open: open one first (Open model)", ending in `idle` like any
-command, except `quit` (no question: there is nothing to save), `abort`,
+command, except `quit` (no question: there is nothing to save), `run.abort`,
 `answer`, `keymap`, `key` of File > Open model (`menu` `file`, `item`
 `openmodel`) and `data` (accepted, nothing to send).
 `--silent` with no file is the error "no model file was named", exit 1.
@@ -349,7 +373,7 @@ must be a number, not "x"`; the command does not run. `true`, `false` and
   time and the state, offered with `"label":"Switch to differences and
   continue"` and the commands
   `{"cmd":"set","kind":"num","name":"jacobian","text":"difference"}`,
-  `{"cmd":"continue","until":END}`, END the end the run was going to (a run
+  `{"cmd":"run.continue","until":END}`, END the end the run was going to (a run
   going forward only, Continue's own condition): the run goes on from where
   it stopped, with differences. Nothing switches without them. web2 shows
   the action as a button on the error. An equilibrium or the adjoint a failed
@@ -547,37 +571,98 @@ naming it.
 
 ## Commands (client to server)
 
-### Direct run controls (W193, W194)
+### Run, initial conditions and boundary values (W521)
 
-`{"cmd":"steady","decimals":9,"hold":1,"maximum":50}` starts a new
-trajectory from Initial. All fields are required JSON numbers; decimals
-must be an integer 0–15, hold at least one positive Dt, maximum at least
-hold, and durations/time/counts must be finite and fit the driver. Ordinary
-trajectory output is required (no Poincare, histogram or FFT). Compare all
-state doubles rounded to fixed decimal places at every configured Dt;
-changed digits reset the hold. Store every N steps is temporarily 1, then restored
-along with Total. `hello.steady` supplies `max_decimals`, `default_decimals`
-and `default_hold`; the core owns these values.
+The run, initial-condition and boundary-value operations are registry
+commands (the generated table above lists their arguments, results and
+events); the old forms (`continue`, `steady`, `abort`, `set` of an initial condition
+and of the numerics the commands took) are gone. The Initialconds, Bndry
+Value and Numerics menus, their keys and an imported XPPAUT button sequence
+(`ig`, `br`, `ut` ...) stay and ask as before, then call the same core
+functions as the commands (`ic.set`, `ic.load` and `ic.formula` only set
+values; the menu's New, File and formUla set and then run). A run's `done` says
+`completed` or `ended_early` (an event's `arret`, a section that stops it,
+`/`) with the rows stored and the time reached; an error ends it as an
+error with its place, and a stop (`run.abort`, Escape) as `stopped`.
 
-`{"cmd":"continue","extra":10}`,
-`{"cmd":"continue","until":40}` or `{"cmd":"continue"}` appends from the
-current core state/time without a prompt (W213: the one Continue; the
-legacy `C` prompt, "Continue until:", is gone). `extra` is a duration and
-`until` an end time; both may not be given, each must be a JSON number, and
-with neither the run continues for another Total (the Run duration), as the
-key `c` and a user button's `c` do. The additional duration must be
-positive, with finite times and counts. Requires a prior trajectory,
-positive Dt and no histogram/FFT; numerical settings stay unchanged.
-Continue honours Store every N steps (`store_every`): it stores one row per
-N steps, so its output grid is N Dt (N times 1 for a map). The end, whether
-given as `until` or as the time after `extra`, is rounded up to that grid
-(never short of the end asked for; a value within 1e-6 of a grid interval of
-a grid point counts as on it) and is at least one interval after the current
-time; the end actually reached is the `time` of the `state` event that
-follows. `hello.continue.grid_tolerance` carries that 1e-6 so the page shows
-the end before the command runs. `continue` is a compute action (`kind: X`)
-and a recording step with its raw command fields; its default key is
-Alt+Enter (`default_keys` of the command table).
+- `run.initial`, `run.last`, `run.old`, `run.shift`, `run.backward`: a
+  trajectory from the initial values, the last state (which overwrites the
+  initial values; `reset_integrals` starts an integral-equation method's
+  integrals afresh, else they go on), the initial values as they stand (the
+  DAE guesses are not refreshed), the last state with the clock going on, and
+  the initial values backward in time. `run.last` and `run.shift` need a prior
+  solution. No run while the data table shows a Fourier or histogram result.
+- `run.continue` (`until` or `extra`, at most one; neither: another Total)
+  appends from the current core time. The additional duration must be
+  positive, with finite times and counts; it requires a prior trajectory and
+  a positive Dt. Continue honours Store every N steps: the end is rounded up
+  to the output grid (Dt times N; N times 1 for a map; a value within 1e-6 of
+  a grid interval of a grid point counts as on it) and is at least one
+  interval after the current time; the end reached is `end_time` and the
+  `time` of the `state` that follows. `hello.continue.grid_tolerance` carries
+  that 1e-6.
+- `run.steady` (`decimals` 0 to 15, `hold`, `maximum`, all required)
+  starts a new trajectory from Initial. Hold is at least one positive Dt,
+  maximum at least hold. Ordinary trajectory output is required (no
+  Poincare, histogram or FFT). All state doubles are compared rounded to
+  fixed decimal places at every configured Dt; changed digits reset the hold.
+  Store every N steps is temporarily 1, then restored along with Total.
+  `hello.steady` supplies `max_decimals`, `default_decimals` and
+  `default_hold`. The result and `state.steady` have `status` (`settled`,
+  `limit`, `stopped`, `failed`), `decimals` and `time`. A steady run is not
+  bounded by Total storage: when the store is full it keeps every second row.
+  `settled` is not an equilibrium certificate.
+- `run.range` and `run.double_range`: one run for each value of a parameter
+  or variable (two: together, or each with each); every argument left out
+  takes the session's current range setting (the model's `sweep` options
+  made it), so `{"cmd":"run.range"}` is the range the options describe.
+  `done` says `runs_completed` (`grid_points`) and the rows (`total_steps`)
+  they stored.
+- `run.dae_guess` sets the initial guesses of the algebraic variables from
+  formulas (`guesses`, a map by name; none given keeps them) and returns the
+  values now used. `run.shoot` (`manifold_index`, from 1) runs from a
+  manifold the equilibria's shooting found.
+- `run.configure` sets the integration's numerics, all given at once and all
+  or nothing (an order the settings keep, as `min_step` at most `max_step`,
+  is judged on the result): `total_time`, `start_time`, `store_from`, `dt`,
+  `method` (the key of the method table), `store_every`, `state_limit`,
+  `stop_at_limit`, `delay`, `relative_tolerance`, `absolute_tolerance`,
+  `min_step`, `max_step`, `eul_tol`, `eul_iter`; and, named as the .odex
+  options name them, the method's own: `vmaxpts` and `autoeval` (the Volterra
+  method), `bandlo` and `bandup` (CVODE: giving one makes the system banded),
+  `delay_real_guess`, `delay_imaginary_guess` and `delay_grid` (a model with
+  delays). One that does not apply to the method or the model is an error
+  naming it, judged after the call's `method` is set, and takes the whole call
+  back. It is one value-undo step, and `set` of `kind` `num` refuses the keys
+  above (it keeps the other numerics).
+- `ic.set` (`values`, a map by state name) sets initial values; `ic.formula`
+  (`variable`, `formula`) sets one from a formula, or an array range
+  `u[1..5]` from a formula reading `[j]` as the element's number;
+  `ic.array` (`name`, `size`, `formula` of `t`, the offset) sets `size`
+  states from `name` on; `ic.load` (`file`) reads a file of the model's folder
+  (one number per differential equation), all or nothing;
+  `ic.from_data_row` (`row`) makes a stored row the initial values. None
+  runs anything. `set` refuses `kind` `ic`.
+- `ic.at` (`coordinates`, a map by the two states the graph `window` plots)
+  and `ic.mouse_stream` (`x` and `y`, the clicks' coordinates as lists, at
+  most 256) run from the points in plot coordinates (Initialconds' Mouse and
+  mIce); the first run empties the store, mIce's runs add up and ignore the
+  state limit. A graph that does not plot two states against each other is
+  an error.
+- `bvp.solve` (`show`), `bvp.solve_periodic` (`frequency_parameter`,
+  `section_variable`, `section`, `show`), `bvp.solve_range` (`parameter`,
+  `start`, `end`, `steps`, `cycle_color`, `side` `start` or `end`, `movie`;
+  left out: the session's) and `bvp.configure` (`max_iterates`, `tolerance`,
+  `epsilon`). A failed shoot is the error, with the iterate it failed at.
+- `run.abort` stops the running command where it is; the reader thread acts on
+  it the moment it arrives, so it has no `done` of its own (the stopped
+  command ends with `stopped` and `done` status `stopped`); outside a command
+  it does nothing. A recorded interruption belongs to a recording step's
+  `run.abort`, whose position the player arms before the computation.
+
+A run's files (a range's one file for each run, `--ncdraw` and `--dfdraw`'s)
+ask before replacing one that is there, as any save does: a registry command
+takes no `replace` field, the client answers the question.
 
 `state.time` is the full-precision current core time, independent of stored
 float32 plot time. After a steady run, `state.steady` contains `status`,
@@ -594,7 +679,7 @@ steps are not comparison intervals.
 |---|---|---|
 | `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/command_table.h and core/menus.cpp, the only places a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani`, `aplot` or `equilibrium`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. `button` (optional, any command's key) names the control the key came from (web2: Integrate, and every window button by its `hello.windows` id); only a recording reads it ("Recordings"). |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (a client or the recording player can answer without tracking prompt ids). |
-| `set` | `kind` (`par`, `ic`, `bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `total_time`, `dt`, `method`, ...; "The numerics as data"). A formula that does not evaluate gives `message` `error`, a numerics value refused one naming the field (`Numerics: Dt must be a number other than 0`); so does what the command cannot take, nothing set (W116): a `kind` it does not have (`set takes kind par, ic, delay, bc or num, not "parm"`), a name the model does not have (`set: the model has no par nosuch`), an `index` outside the list, no `value` that is a number and no `text` (`set par iapp: its value is not a number (or its text missing)`). Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]: all or nothing (W131), every value is checked first (a kind, a name, an `index`, a number, a formula that compiles, a numerics value) and none is applied when one is refused, the one `message` `error` naming that value (`set par gca: ...`) and its `field`. A `par` or `ic` `text` is one number, all of it (`xpp::parse_number`: no `1O0`, no `5x`; blanks around it are allowed), or a `%formula`; anything else is refused (`set par gca: "abc" is not a number`), as are an answer to a number ask, a `slide` value and an `internset` value that is not a number. web2 sends every edit (a value field, a slider, Reset, a numerics field) at once, busy or idle (W106). |
+| `set` | `kind` (`par`, `bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `total_time`, `dt`, `method`, ...; "The numerics as data"). A formula that does not evaluate gives `message` `error`, a numerics value refused one naming the field (`Numerics: Dt must be a number other than 0`); so does what the command cannot take, nothing set (W116): a `kind` it does not have (`set takes kind par, ic, delay, bc or num, not "parm"`), a name the model does not have (`set: the model has no par nosuch`), an `index` outside the list, no `value` that is a number and no `text` (`set par iapp: its value is not a number (or its text missing)`). Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]: all or nothing (W131), every value is checked first (a kind, a name, an `index`, a number, a formula that compiles, a numerics value) and none is applied when one is refused, the one `message` `error` naming that value (`set par gca: ...`) and its `field`. A `par` or `ic` `text` is one number, all of it (`xpp::parse_number`: no `1O0`, no `5x`; blanks around it are allowed), or a `%formula`; anything else is refused (`set par gca: "abc" is not a number`), as are an answer to a number ask, a `slide` value and an `internset` value that is not a number. web2 sends every edit (a value field, a slider, Reset, a numerics field) at once, busy or idle (W106). |
 | `applyset` | `set`, `scope`, `window` | **Apply set** (W319, File > Apply set…, the Values panel's Named sets): the model's set `set` (the name as the model spells it) applied as a patch over the current values, limited to `scope`: `all`, `parameters`, `initial` (the states) or one of the groups a set holds (`integration`, `poincare`, `equilibria`, `continuation`, `plot`, `sweep`, `analysis`; docs/odex.md). `window` is the target graph name (the selected graph when omitted), and only a scope of `all` or `plot` takes one; `continuation` is the next run's, a finished run keeps what it used. A parameter-only apply leaves the initial values alone: `init` formulas are not evaluated again. All or nothing: a set the model lacks, a scope it is not, a window that is not open, `window` with another scope, or an entry whose value is refused is a `message` `error` (at the set's line in the model for an entry, otherwise at the command's place) and changes nothing. One undo step. The File menu's command (`getparset`) asks the set (menu `param_set`), the scope (`set_scope`, `all` first) and, with several windows open and a scope of `all` or `plot`, the window (`set_graph`), then runs this. A setting, as `set` is. |
 | `restoredefaults` | `scope`, `field`, `window` | **Restore defaults** (W319, File > Restore defaults…, the Values panel's Reset all and each field's reset): the model's own values back, for `scope` (as `applyset`'s); `field` limits it to one parameter, state or setting of the scope (not with `all`). A setting returns to the built-in value with the model's `options` over it; `window` is the plot window as in `applyset`. All or nothing, one undo step, no run. The File menu's command (`restoredefaults`, key `k`) asks the scope (menu `restore_scope`) and the window as Apply set does, then runs this. A setting, as `set` is. |
 | `saveset` | `set`, `mode` (`new`, `replace`), `scope`, `window`, `state` | **Save values into a set** (W320, File > Save values…, key `o`): the current values of `scope` (as `applyset`'s: `all`, `parameters`, `initial` or one group of settings; `window` the plot window as there) written into the model file. `new` appends `set NAME { ... }` at the end of the file (the name a valid name that is not a set of the model, an import's included); `replace` writes them in place of that set's part of the same kind (the parameters, the states, or one group of its `options:`), every other part of the set as it was written, and the set must be one the model file itself writes: a set an import brought is read-only and the error asks for a name of one's own. `state` is `initial` (the default) or `last` (the last state reached, for the initial values). The rest of the file keeps its text, comments, line ends and all. The new text is parsed and checked as a model first; the file on the disk must still be the one the model loaded (a file changed since is refused, saying so, and left alone); the replacement is atomic (a temp file, then a rename); only then the model's sets, defaults, options and places follow, so `applyset` finds the new set at once. A model opened from a session file (or played from a recording) has no file of its own: the session's copy of the model changes, and saving the session keeps it. All or nothing: any error is a `message` `error` (at the set's line, or the command's place) and neither the file nor the model changes. A data command ("Action kinds"): refused during a computation. |
@@ -627,9 +712,10 @@ steps are not comparison intervals.
 | `steady` | `decimals`, `hold`, `maximum` | One-click unchanged-digits run; see Direct run controls above. |
 | `continue` | exactly one of `extra`, `until` | Append directly using current core time; see Direct run controls above. |
 | `abort` | none | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. Recorded interruptions belong to a recording step's `abort`, whose position the player arms before the computation. |
+| `ani` | `op`: `pause`, `fast`, `slow`, `speed` (`ms`), `step` (`n`), `seek` (`pos`), `mouse` (`what` down/move/up, `x`, `y` or `u`, `v`), `close` | What the animation window's keys ("Window keys") do not say: the ones that carry a number, steer a playing Go (`pause`, `fast`, `slow` and `speed` sent while it plays reach its loop) or drag. `speed` sets the delay between two frames of `go` to `ms` (0..1000; `fast` and `slow` change it by 2 within 0..100). `step` moves `n` rows from the core's position (`ani` `pos`), `seek` goes to row `pos`. `mouse` drags a grab point after the grab key, at pixel `x`, `y`, or at `u`, `v` in the animation's unit coordinates (those of the `ani` `frame` event, y up). |
 | `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
 | `keymap` | `op` (`get`, `set`, `reset`); `map` (`set`) | The user's keymap, `keymap.json` in the per-user config folder ("Keymap"). `get` reads the file, `set` replaces the whole user map with `map` (checked as a file is, whole, then written), `reset` removes the file. Answered with a `keymap` event, then `state` and `idle`; a map that is refused or cannot be written is a `message` error and nothing changes. The user's settings, not the model's: a control command, taken any time, never a recording's step. |
-| `quit` | `ask`, `save` | Exit, at once even during a computation, asking nothing: a script's and a client's quit (`--silent`, servercheck). With `ask` `true` (W59d), the user's quit: the desktop page sends it when the window's File > Quit or close box comes while the core is idle (web2 asks itself while a command runs, below). It stops a computation in progress (as `abort`; the command ends with `stopped`, `state` and `idle`), cancels a question open at the time (its command ends), then runs as a command of its own: the `choice` ask "Quit xppautX? Save this session first?" (`keys` `sd`: `s` Save session, `d` Don't save; a cancel keeps the session), as File/Quit (keys `f` `q`) asks. `s` saves the session first, as the `savesession` command does (to `state.session.file` with no ask when there is one, else a `file` ask, `*.snapx`), and a recording in progress after it, as `record` `stop` with no `name` does (the question then says so); then, as for `d`, `bye` and the exit. A cancel of any of these questions keeps the session. A plain `quit` sent while it asks still exits at once. With `save` `true` (W110), that question answered **Save session** where the client asked it itself: the desktop page asks it while a command runs (the window's close box never stops a computation), worded by `hello`'s `quit`. It stops a computation in progress as `ask` does, then saves as `s` does (the session's `file` ask, then a recording's) and says `bye` and exits; a cancelled save keeps the session (its computation already stopped). The page's **Don't save** is the plain `quit` (in the window: closing it, which sends it). |
+| `quit` | `ask`, `save` | Exit, at once even during a computation, asking nothing: a script's and a client's quit (`--silent`, servercheck). With `ask` `true` (W59d), the user's quit: the desktop page sends it when the window's File > Quit or close box comes while the core is idle (web2 asks itself while a command runs, below). It stops a computation in progress (as `run.abort`; the command ends with `stopped`, `state` and `idle`), cancels a question open at the time (its command ends), then runs as a command of its own: the `choice` ask "Quit xppautX? Save this session first?" (`keys` `sd`: `s` Save session, `d` Don't save; a cancel keeps the session), as File/Quit (keys `f` `q`) asks. `s` saves the session first, as the `savesession` command does (to `state.session.file` with no ask when there is one, else a `file` ask, `*.snapx`), and a recording in progress after it, as `record` `stop` with no `name` does (the question then says so); then, as for `d`, `bye` and the exit. A cancel of any of these questions keeps the session. A plain `quit` sent while it asks still exits at once. With `save` `true` (W110), that question answered **Save session** where the client asked it itself: the desktop page asks it while a command runs (the window's close box never stops a computation), worded by `hello`'s `quit`. It stops a computation in progress as `ask` does, then saves as `s` does (the session's `file` ask, then a recording's) and says `bye` and exits; a cancelled save keeps the session (its computation already stopped). The page's **Don't save** is the plain `quit` (in the window: closing it, which sends it). |
 
 ## Action kinds
 
@@ -853,13 +939,13 @@ Input is read on its own thread, so lines keep arriving while the core
 computes. Every command runs as a *job*, numbered by the position of its line
 in the input.
 
-- `abort` and `quit` (but a `quit` with `ask`, below) act the moment they arrive: they cancel the running job
+- `run.abort` and `quit` (but a `quit` with `ask`, below) act the moment they arrive: they cancel the running job
   and every job whose line came before theirs, even one still waiting its
   turn, and the computation stops at its next check (every integration step;
-  AUTO between continuation points). So an `abort` sent right behind a
+  AUTO between continuation points). So a `run.abort` sent right behind a
   command stops that command, however late the core gets to it, while a
-  command sent after the `abort` runs normally. An answer to a prompt sent
-  after an `abort` counts as the user's last word: the rest of that command
+  command sent after the `run.abort` runs normally. An answer to a prompt sent
+  after a `run.abort` counts as the user's last word: the rest of that command
   is not cancelled. `quit` then exits. A `quit` with `ask` (W59d) cancels
   only a running computation, and waits its turn as an ordinary command:
   it asks, and exits only when the user says so.
@@ -867,7 +953,7 @@ in the input.
   boundary value problem, an AUTO run: what Escape stops; the `computing`
   event says it began), the server judges each line the moment it arrives
   by its kind ("Action kinds"; one list, core/ui_json.cpp `during_run`):
-  - acted on at once, at the computation's next check: `abort`, `quit`,
+  - acted on at once, at the computation's next check: `run.abort`, `quit`,
     the stop keys (`key` `Escape`; `/`, which ends a range or a shooting
     for good), and what only reads or steers a view: `state`, `browser`
     with `from`, `ani` `pause`/`fast`/`slow`/`speed`;
@@ -899,12 +985,12 @@ in the input.
     client that enables its actions by kind, as web2 does, sends none: it
     disables data and computation actions from `computing` to the
     command's `idle`, sends its settings at once, and sends Escape as
-    `abort`; the recording player starts its next step after the current
+    `run.abort`; the recording player starts its next step after the current
     command's `idle`.
 
-  Once the computation is stopping (an `abort` or Escape cancelled it), a
+  Once the computation is stopping (a `run.abort` or Escape cancelled it), a
   line that arrives is for after it: it is taken as below, so a command
-  sent right behind an `abort` runs normally, in its turn.
+  sent right behind a `run.abort` runs normally, in its turn.
 - Outside a computation, while a job runs (a command in its prompts, the
   animation's Go, a command finishing), `key` (a main-window key: not one
   with a `win`, which waits its turn), `set`, `state`, `browser`
@@ -926,7 +1012,7 @@ in the input.
   has its own `state` and `idle` after the command either way. Not in a
   recording, where each ask takes the step's next recorded answer; an
   unexpected ask stops the player.
-- `abort` never has an `idle` of its own, so a client can send it at any
+- `run.abort` never has an `idle` of its own, so a client can send it at any
   time without upsetting its count of commands and idles.
 - The queue of waiting lines is bounded (W389, #451). The normal lines
   waiting for the core, those in the input queue and those the command
@@ -940,8 +1026,8 @@ in the input.
   bytes, as `source` (the line itself is the place; the refused command has
   no `idle` of its own and ran nothing). The client sends the line again
   later, or a message queue in front of the server redelivers it. Control
-  lines (`abort`, `quit`, the stop keys and the rest this list calls acted
-  on at once) are never refused, so an `abort` sent after a flood is read and stops the run. Over
+  lines (`run.abort`, `quit`, the stop keys and the rest this list calls acted
+  on at once) are never refused, so a `run.abort` sent after a flood is read and stops the run. Over
   HTTP the refusal is `503 Service Unavailable` with that same event as the
   body (`application/json`), the command's `n=` number is not used up, so
   sending it again with that number is taken; web2 shows the error text. A
@@ -950,7 +1036,7 @@ in the input.
   to open) are never refused.
   The longest input line is the byte bound, 64 MB (a `--server` line over it
   is discarded and answered by one `input` error); an HTTP body is capped at 1 MB.
-- A command whose job was cancelled (by `abort`, Escape, `quit`) sends
+- A command whose job was cancelled (by `run.abort`, Escape, `quit`) sends
   `stopped` before its `state` and `idle`: where the computation got to,
   which is what the recording player uses to replay the interruption (below).
   A plain `quit` read by the computation's own check ends the command at once: it sends
@@ -1064,7 +1150,7 @@ fingerprint: 5f0c...(64 hex digits)
   replay computes it again.
 - `@steps`: one JSON object a line, one per step. A step is everything
   from leaving idle to the next `idle`: the command, the answers to what
-  it asked, and where it stopped when an `abort` or Escape cancelled it.
+  it asked, and where it stopped when a `run.abort` or Escape cancelled it.
   `step` is a label for a person, from the menus (core/menus.cpp: the
   main menu's item, then each menu item picked, `→` between them; a
   window key's window title first; another command's name and values).
@@ -1085,7 +1171,7 @@ fingerprint: 5f0c...(64 hex digits)
   ("Playing a recording without an interface"). `during`: the keys the running job read itself, each
   `{"key":K,"at":AT}` with where the job was when it took it: `/` ending a
   range or a shooting, Escape stopping the animation's Go (an Escape
-  during a computation cancels it: that is `abort`). Animator pause and
+  during a computation cancels it: that is `run.abort`). Animator pause and
   speed controls use `{ "cmd": <command>, "at": AT }` in the same array,
   in arrival order, and replay at their checkpoint. `files`: the file
   sections the step read, counted from 0 in the file's order, in the
@@ -1095,6 +1181,8 @@ fingerprint: 5f0c...(64 hex digits)
   command's, since it applied before anything computed. Not steps: `state`,
   `data`, `equations`, `browser` paging (`from`), `file`, an
   `abort`, `quit`, and `record` itself; nor File/recorD's own opening of
+  `data`, `equations`, `redraw`, `browser` paging (`from`), `file`, an
+  `run.abort`, `quit`, and `record` itself; nor File/recorD's own opening of
   the File menu (the `f` just before the `d` that stops).
 - `# ` lines just before a step are its note (a note of several lines is
   several `#` lines; `#` alone is an empty line of it): `record` `note`
@@ -1288,7 +1376,7 @@ In browser mode (`xppautX model.ode`) events stream from `/events?t=TOKEN`.
 Commands are POSTed to `/cmd?t=TOKEN`, one per request (a body of several
 lines gives several commands). xppautX answers each connection on a thread
 of its own, so a connection that sends nothing (a browser's preconnect) or a
-stalled upload holds up no command, `abort` above all; two POSTs in flight at
+stalled upload holds up no command, `run.abort` above all; two POSTs in flight at
 once may therefore reach the core in either order, and a client that needs
 its order sends the next one once the last was answered, as the page does.
 
@@ -1453,7 +1541,7 @@ core/auto_stop.cpp, which autlib1.cpp tells where it ends a branch (T23).
 | `stab.periodic` | 1: `circle` holds the Floquet multipliers of a periodic orbit; 0: e^λ of each eigenvalue λ of a steady state (XPP keeps them so: inside the unit circle is stable) |
 | `stab.circle` | `[re,im]` per variable, the values themselves (the X11 circle clamps them to ±1.95). All `[0,0]`: not computed. Always a stored diagram point's own values, while AUTO runs and while grabbing alike (core/auto_stability.h). AUTO computes them from a run's second point on, so a run's first point, and a run that stops there, has none, unless the run restarts from a label of the same kind (a steady state from a steady label, a periodic orbit from a periodic one, one parameter): that first point is the label's solution and carries the label's values. A periodic run from a Hopf point, a two-parameter run and a period doubling's branch switch start with none; a two-parameter curve of periodic orbits (a limit point's, a period doubling's, a torus') has none at all, AUTO computing no multipliers along it. (XPPAUT stores the last values computed with every point, so its first points carry those of another point.) |
 | `stop` | why the run's last branch ended; `null` until one ends, and again when a run starts or AUTO's window is new. AUTO labels the end EP (a limit, Max points, Stop, a Mark value) or MX (no convergence); this says which |
-| `stop.why` | `parmin` / `parmax`: the continuation parameter went below Par Min (RL0) / above Par Max (RL1); `normmin` / `normmax`: the norm AUTO checks went below Norm Min (A0) / above Norm Max (A1); `npts`: the branch has Max points (NMX); `user`: Stop (an `abort`); `mark`: a Mark value set to stop (AUTO's UZR endpoint); `jacobian`: the exact Jacobian was not finite (W275: an error with an action follows); `noconv-min`: no convergence even at the smallest step (Dsmin); `noconv-fixed`: no convergence with a fixed step (IADS 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted. A no convergence's `text` names the Newton settings that gave up (`ITNW`, `EPSL`, `EPSU`) and, when the last linear solve was singular, its smallest pivot (W491); it is logged as a WARN where AUTO's Output is not shown |
+| `stop.why` | `parmin` / `parmax`: the continuation parameter went below Par Min (RL0) / above Par Max (RL1); `normmin` / `normmax`: the norm AUTO checks went below Norm Min (A0) / above Norm Max (A1); `npts`: the branch has Max points (NMX); `user`: Stop (a `run.abort`); `mark`: a Mark value set to stop (AUTO's UZR endpoint); `jacobian`: the exact Jacobian was not finite (W275: an error with an action follows); `noconv-min`: no convergence even at the smallest step (Dsmin); `noconv-fixed`: no convergence with a fixed step (IADS 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted. A no convergence's `text` names the Newton settings that gave up (`ITNW`, `EPSL`, `EPSU`) and, when the last linear solve was singular, its smallest pivot (W491); it is logged as a WARN where AUTO's Output is not shown |
 | `stop.text` | the reason in words, to follow "Stopped: " (the page's status strip); AUTO's Output gets the line `Branch 1 stopped at point 49: parameter iapp reached Par Max (0.5)` for every branch that ends |
 | `stop.br`, `pt` | the branch and point number of the end (positive, as in `diagram`) |
 | `stop.value`, `limit` | what crossed the limit and the limit: the parameter and Par Min/Max, the norm and Norm Min/Max, the point count and NMX, the step size and Dsmin; `null` where there is none |

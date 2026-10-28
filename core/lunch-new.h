@@ -44,10 +44,10 @@ Result<> import_settings(Session &s, std::string_view path, bool redraw);
 Result<std::vector<double>> read_parameter_file(const Model &m, std::string_view path);
 Result<std::vector<double>> read_ic_file(const Model &m, std::string_view path);
 /* the parameters or the initial conditions of s read whole from the file
-   fn and applied, or the error shown and nothing applied (--parfile,
-   --icfile, Initialconds/File, the values panel's Load); written to it */
+   fn and applied, or the error (shown, for the parameters') and nothing applied (--parfile,
+   --icfile, ic.load, the values panel's Load); written to it */
 void load_parameter_file_named(Session &s, std::string_view fn);
-void load_ic_file_named(Session &s, std::string_view fn);
+Result<> load_ic_file_named(Session &s, std::string_view fn);
 void write_parameter_file(Session &s, std::string_view fn);
 void write_ic_file(const Session &s, std::string_view fn);
 /* the values panel's Save/Load of s's .par and .ic (docs/protocol.md

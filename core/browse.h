@@ -150,7 +150,8 @@ void unreplace_column(Session &s);
 /* the browser at the start of a model: s's stored data, no rows */
 void init_browser(Session &s);
 void get_data_xyz(const Session &s, float *x, float *y, float *z, int i1, int i2, int i3, int off);
-void data_get(Session &s, BROWSER *b);
+/* the stored row `row` made the initial conditions (and the values of the auxiliaries and the time the formulas read) */
+void ic_of_row(Session &s, int row);
 void data_replace(Session &s, BROWSER *b);
 void data_unreplace(Session &s);
 void data_table(Session &s, BROWSER *b);

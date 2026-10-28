@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <string>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -86,6 +87,19 @@ std::optional<std::string> setting_problem(Session &s, const OptionRow &row, std
 /* row set to text, already checked by setting_problem: the member only
    (the caller applies the numerics as a whole: do_meth, the delays) */
 void setting_write(Session &s, const OptionRow &row, std::string_view text);
+
+/* one value of numerics_settings_set_all: the field's key and the text a user would type */
+struct NumericsValue {
+  std::string_view key;
+  std::string text;
+};
+/* set every value, all or nothing: each is checked first, then all are written together
+   (an order the settings keep, as min_step at most max_step, is judged on the result, so a
+   pair given together may cross the old values) and applied once. 0 when set, -1 with why
+   (a sentence naming the field) and nothing changed. */
+int numerics_settings_set_all(Session &s, std::span<const NumericsValue> values, std::string &why, const Place *place = nullptr);
+/* field `key`'s value now as JSON text (a number, true or false, or a choice's quoted word); empty for no such field */
+std::string numerics_settings_json_value(const Session &s, std::string_view key);
 
 /* the Numerics menu's question for s's field `key` (not method, which the
    menu picks from its list): its label, the value now, and the answer

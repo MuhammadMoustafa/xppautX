@@ -211,12 +211,23 @@ def ensure_completed(events, end):
         raise RuntimeError('; '.join(errors) or 'command did not complete (safety timeout)')
 
 
+def set_values(s, values):
+    """Parameters and initial conditions as their commands: `set` for the parameters, `ic.set` for the states"""
+    parameters = [v for v in values if v['kind'] == 'par']
+    # to 16 significant digits, as the baselines were made (`set` took a value's text that way)
+    states = {v['name']: float('%.16g' % v['value']) for v in values if v['kind'] == 'ic'}
+    if parameters:
+        completed(s, dict(cmd='set', values=parameters))
+    if states:
+        completed(s, dict(cmd='ic.set', values=states))
+
+
 def restore_start(s, r, values, ranges):
     """A run from the current state starts from the description's parameters and initial conditions, as
     AUTO-07p's STPNT starts each of its runs (tools/auto_reference.py): a run before it (`ranges`) left its
     last point's parameters in the model."""
     if r['start'].get('state') == 'current' and ranges and values:
-        completed(s, dict(cmd='set', values=values))
+        set_values(s, values)
 
 
 def execute_run(s, r, diagram, ranges, diagram_data=True):
@@ -224,15 +235,12 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
     start = r['start']
     if start.get('state') == 'current':
         if 'settle' in start:
-            if 'step' in start:
-                completed(s, dict(cmd='set', kind='num', name='dt', value=start['step']))
-            completed(s, dict(cmd='set', kind='num', name='total_time', value=start['settle']))
-            s.send(cmd='key', key='i')
-            events, end = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'g'}}, timeout=TIMEOUT)
-            ensure_completed([e for e in events if e.get('ev') != 'ask'], end)
+            completed(s, dict(cmd='run.configure', total_time=start['settle'], **({'dt': start['step']} if 'step' in start else {})))
+            s.send(cmd='run.initial')
+            events, end = s.collect(is_idle, timeout=TIMEOUT)
+            ensure_completed(events, end)
             state = next(e for e in reversed(events) if e.get('ev') == 'state')
-            completed(s, dict(cmd='set', values=[dict(kind='ic', name=p[0], value=float(v))
-                       for p, v in zip(state['ics'], state['now'])]))
+            set_values(s, [dict(kind='ic', name=p[0], value=float(v)) for p, v in zip(state['ics'], state['now'])])
     else:
         if diagram.runs[start['run']] is None:
             read_unlabelled(s, diagram, ranges)
@@ -374,7 +382,7 @@ def compute(binary, d, threads, *, env=None, run=None, diagram_data=True, jacobi
         values = [dict(kind=kind, name=k, value=v) for group, kind in
                   (('parameters', 'par'), ('initial_conditions', 'ic')) for k, v in d.get(group, {}).items()]
         if values:
-            completed(s, dict(cmd='set', values=values))
+            set_values(s, values)
         diagram = Diagram().apply(open_auto(s))
         if observer:
             observer.ready(s)

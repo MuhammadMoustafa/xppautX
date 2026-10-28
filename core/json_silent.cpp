@@ -16,8 +16,8 @@
      select the set          applyset, scope all (File/Apply set, the set
                              by its name: no menu key limits their number)
      --qsets/--qpars/--qics     values query (-dryrun: nothing is run)
-     run                     key i, answer g (Initialconds/Go), or
-                             answer r (Range) for @ range=1 or a
+     run                     run.initial, or run.range (the settings
+                             the @ range options made) for @ range=1 or a
                              stochastic run
      @ postprocess           browser postprocess
      then, unless each run of a range wrote its own file:
@@ -60,6 +60,7 @@ private:
     void add_run(int set);
     void line(std::string_view cmd, std::string_view field, std::string_view value);
     void key(std::string_view k) { line("key", "key", k); }
+    void registry(std::string_view cmd) { lines.push_back(xpp::format("{{\"cmd\":\"{}\"}}", cmd)); }
     void answer(std::string_view field, std::string_view value) { line("answer", field, value); }
     void answer_values(std::span<const std::string> values);
     void command(std::string_view cmd, std::string_view op, std::string_view name, std::string_view more = {});
@@ -130,8 +131,7 @@ void SilentScript::add_run(int set)
     steps.push_back([this] {
         if (!ran) return;
         const bool range = session.integrator.range.write_files || session.stochastic.flag > 0;
-        key("i");
-        answer("key", range ? "r" : "g");
+        registry(range ? "run.range" : "run.initial");
     });
     steps.push_back([this] {
         if (ran && session.histogram.post_process != 0) command("browser", "postprocess", "");

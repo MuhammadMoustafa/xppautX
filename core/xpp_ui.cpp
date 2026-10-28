@@ -300,12 +300,18 @@ void err_reading(std::string_view path, std::string_view msg, int line)
     show_error(Error{"reading", std::string(msg), Place{std::string(path), line}});
 }
 
+Error with_source_line(const Error &e)
+{
+    Error placed = e;
+    /* the line as written, when the file reads */
+    if (e.place.line > 0 && e.place.source.empty() && !e.place.file.empty()) placed.place.source = LineReader(e.place.file).line(e.place.line);
+    return placed;
+}
+
 void show_error(const Error &e)
 {
     if (e.place.line > 0 && e.place.source.empty() && !e.place.file.empty()) {
-        /* the line as written, when the file reads */
-        Error with_source = e;
-        with_source.place.source = LineReader(e.place.file).line(e.place.line);
+        const Error with_source = with_source_line(e);
         if (!with_source.place.source.empty()) return show_error(with_source);
     }
     if (!e.where.empty()) xpp::log(XPP_LOG_DEBUG, "{} failed: {}\n", e.where, e.what);

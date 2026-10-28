@@ -144,7 +144,7 @@ def check_diagram_subscription():
         autocompare.completed(s)
         autocompare.open_auto(s)
         autocompare.completed(s, dict(cmd='data', events=['autoinfo'], diagram=False))
-        autocompare.completed(s, dict(cmd='set', values=[dict(kind='ic', name=k, value=v) for k, v in d.get('initial_conditions', {}).items()]))
+        autocompare.completed(s, dict(cmd='ic.set', values=dict(d.get('initial_conditions', {}))))
         events = autocompare.execute_run(s, d['runs'][0], autocompare.Diagram(), {}, diagram_data=False)
         check('data.diagram: opt-out emits no diagram events', not any(e.get('ev') == 'diagram' for e in events))
         before = autocompare.session_diagram(s)
@@ -172,17 +172,17 @@ def stops_idle(e):
     return e.get('ev') in ('idle','done')
 
 
-YES_NO = {'Y': 'true', 'N': 'false'}  # the range forms' yes/no fields are boolean (W487)
 STOPS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'stops')
 STOPS_KNOWN = {}  # case id -> (card that fixes it, reason it is not started or None)
 STOPS_PLAIN_GO = [{'key': 'g'}]  # the Integrate or Equilibria menu's Go
-STOPS_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '2', '1', '3']}]  # Range Integrate over a, 1 to 3 (the three runs a = 1, 2, 3)
+STOPS_RUN = {'cmd': 'run.initial'}
+STOPS_RANGE_A = {'cmd': 'run.range', 'variable': 'a', 'steps': 2, 'start': 1, 'end': 3}  # Range over a, 1 to 3 (the three runs a = 1, 2, 3)
 STOPS_EQ_RANGE_A = [{'key': 'r'}, {'ok': 1, 'values': ['a', '5', '-1', '1', 'false', '-1', 'false', 'false']}]
 STOPS_CASES = [
     # says: the message's parts; at: the equation the error names; forbids: parts it must not have
-    dict(id='section_crossing', model='section', key='i', replies=STOPS_PLAIN_GO, at=None, bottom=True,
+    dict(id='section_crossing', model='section', command=STOPS_RUN, at=None, bottom=True,
          says=[r'Stopped at the section crossing t = (0\.99|1)', r'poincare_stop = true']),
-    dict(id='section_no_crossing', model='section_no_crossing', key='i', replies=STOPS_PLAIN_GO, at=None, bottom=True,
+    dict(id='section_no_crossing', model='section_no_crossing', command=STOPS_RUN, at=None, bottom=True,
          says=[r'No crossing found', r'poincare_variable', r'poincare_plane = 10', r'0, 2', r'integrate longer']),
     dict(id='monte_carlo', model='monte_carlo', key='s', at=None, bottom=True,
          replies=[{'key': 'c'}, {'ok': 1, 'value': '0'}, {'ok': 1, 'value': '0'},
@@ -195,77 +195,77 @@ STOPS_CASES = [
                   *[{'ok': 1, 'value': '0'} for _ in range(4)]],
          says=[r'No eigenvector', r'singular', r'newton_tolerance = 1e-200',
                r'Monte Carlo: 4 of 4 guesses converged to 1 distinct equilibria']),
-    dict(id='nan', model='nan_sqrt', key='i', replies=STOPS_PLAIN_GO, at="x' = sqrt",
+    dict(id='nan', model='nan_sqrt', command=STOPS_RUN, at="x' = sqrt",
          says=[r'X is NaN', r't ?= ?']),
-    dict(id='qualrk_bound', model='blowup_qualrk', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+    dict(id='qualrk_bound', model='blowup_qualrk', command=STOPS_RUN, at="x' = a*x^2",
          says=[r'X out of bounds', r'state_limit ?= ?1000\b', r't ?= ?1\b']),
-    dict(id='dopri5_bound', model='blowup_dopri5', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+    dict(id='dopri5_bound', model='blowup_dopri5', command=STOPS_RUN, at="x' = a*x^2",
          says=[r'X reaches state_limit ?= ?100\b', r't ?= ?0\.9']),
-    dict(id='rk4_bound', model='bound_rk4', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+    dict(id='rk4_bound', model='bound_rk4', command=STOPS_RUN, at="x' = a*x^2",
          says=[r'X out of bounds', r'state_limit ?= ?100\b', r't ?= ?1']),
-    dict(id='min_step', model='min_step', key='i', replies=STOPS_PLAIN_GO, at='method: gear',
+    dict(id='min_step', model='min_step', command=STOPS_RUN, at='method: gear',
          says=[r'\b[Dd]t\b', r'0\.01', r'min_step', r'0\.1'],
          silent=dict(says=[r'min_step'], forbids=[r'will write anyway'])),
-    dict(id='gear', model='blowup_gear', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+    dict(id='gear', model='blowup_gear', command=STOPS_RUN, at="x' = a*x^2",
          says=[r'\bGear\b', r'min_step', r't ?= ?0\.9'],
          silent=dict(says=[r'\bGear\b', r'min_step', r't ?= ?0\.9'], forbids=[r'will write anyway'])),
-    dict(id='backward_euler', model='blowup_backward_euler', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+    dict(id='backward_euler', model='blowup_backward_euler', command=STOPS_RUN, at="x' = a*x^2",
          says=[r'Backward Euler', r'eul_iter ?= ?10\b', r'eul_tol', r't ?= ?0\.(9|89)']),
-    dict(id='cvode', model='blowup_cvode', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+    dict(id='cvode', model='blowup_cvode', command=STOPS_RUN, at="x' = a*x^2",
          says=[r'CVode', r't ?= ?0\.9', r'tolerance'], forbids=[r'oh well', r'\?\?\?', r'Hmmm']),
-    dict(id='rosenbrock', model='blowup_rosenbrock', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+    dict(id='rosenbrock', model='blowup_rosenbrock', command=STOPS_RUN, at="x' = a*x^2",
          says=[r'Rosenbrock', r't ?= ?']),
-    dict(id='delay', model='delay', key='i', replies=STOPS_PLAIN_GO, at="x' = -delay",
+    dict(id='delay', model='delay', command=STOPS_RUN, at="x' = -delay",
          says=[r'tau ?= ?2\b', r'\bdelay\b', r't ?= ?']),
-    dict(id='qualrk_min_step', model='unbounded_qualrk', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+    dict(id='qualrk_min_step', model='unbounded_qualrk', command=STOPS_RUN, at="x' = a*x^2",
          says=[r'QualRK', r'min_step ?= ?1e-12', r't ?= ?1\.0']),
-    dict(id='stiff_min_step', model='unbounded_stiff', key='i', replies=STOPS_PLAIN_GO, at="x' = a*x^2",
+    dict(id='stiff_min_step', model='unbounded_stiff', command=STOPS_RUN, at="x' = a*x^2",
          says=[r'\bStiff\b', r'min_step ?= ?1e-12', r't ?= ?(0\.9|1\.0)']),
-    dict(id='stiff_singular', model='stiff_singular', key='i', replies=STOPS_PLAIN_GO, at="x' = 2*x",
+    dict(id='stiff_singular', model='stiff_singular', command=STOPS_RUN, at="x' = 2*x",
          says=[r'\bStiff\b', r'singular', r't ?= ?0\b', r'dt ?= ?1\b', r'jacobian ?= ?exact'],
          silent=dict(says=[r'\bStiff\b', r'singular', r't ?= ?0\b'], forbids=[])),
-    dict(id='dopri5_rounding', model='unbounded_dopri5', key='i', replies=STOPS_PLAIN_GO, at=None,
+    dict(id='dopri5_rounding', model='unbounded_dopri5', command=STOPS_RUN, at=None,
          says=[r'DoPri5', r'rounding limit', r't ?= ?(0\.9|1\.0)', r'relative_tolerance'],
          silent=dict(says=[r'DoPri5', r'rounding limit'], forbids=[r'Exit of dopri5'])),
-    dict(id='dae_no_root', model='dae_no_root', key='i', replies=STOPS_PLAIN_GO, at='0 = y^2+1',
+    dict(id='dae_no_root', model='dae_no_root', command=STOPS_RUN, at='0 = y^2+1',
          says=[r'algebraic equations', r't ?= ?0\b', r'max_iterations ?= ?100\b', r'newton_tolerance']),
-    dict(id='event_halt', model='event_halt', key='i', replies=STOPS_PLAIN_GO, at=None, bottom=True,
+    dict(id='event_halt', model='event_halt', command=STOPS_RUN, at=None, bottom=True,
          says=[r'Stopped at t ?= ?3:', r'global event \\"x-3\\"', r'arret', r'model line 5']),
-    dict(id='store_from_past_end', model='store_from_past_end', key='i', replies=STOPS_PLAIN_GO, at='store_from: 20',
+    dict(id='store_from_past_end', model='store_from_past_end', command=STOPS_RUN, at='store_from: 20',
          says=[r'store_from ?= ?20\b', r'starts at t ?= ?0\b', r'ends at t ?= ?10\b']),
-    dict(id='store_from_backward', model='store_from_backward', key='i', replies=STOPS_PLAIN_GO, at='store_from: -20',
+    dict(id='store_from_backward', model='store_from_backward', command=STOPS_RUN, at='store_from: -20',
          says=[r'store_from ?= ?-20\b', r'starts at t ?= ?0\b', r'ends at t ?= ?-10\b']),
     dict(id='sing_pts', model='sing_pts', key='s', replies=STOPS_PLAIN_GO, at="x' = x^2+1",
          says=[r'X ?= ?0\.5', r'max_iterations ?= ?100\b', r'newton_tolerance', r'iterations']),
-    dict(id='bvp_max_iterates', model='bvp_max_iterates', key='b', replies=[{'key': 'n'}], at=None,
-         first=[{'cmd': 'set', 'kind': 'num', 'name': 'bvp_max_iterates', 'value': 1},
-                {'cmd': 'set', 'kind': 'num', 'name': 'bvp_tolerance', 'value': 1e-12}],
+    dict(id='bvp_max_iterates', model='bvp_max_iterates', command={'cmd': 'bvp.solve', 'show': False}, at=None,
+         first=[{'cmd': 'bvp.configure', 'max_iterates': 1, 'tolerance': 1e-12}],
          says=[r'Shoot', r'bvp_max_iterates ?= ?1\b', r'bvp_tolerance ?= ?1e-12', r'residual']),
     dict(id='nullcline_delay', model='nullcline_delay', key='n', replies=[{'key': 'n'}], at="x' = -delay",
          says=[r'tau ?= ?2\b', r'X ?= ?-?\d', r'Y ?= ?-?\d']),
-    dict(id='postprocess_one_variable', model='fourier_one_variable', key='i', replies=STOPS_PLAIN_GO, at=None,
+    dict(id='postprocess_one_variable', model='fourier_one_variable', command=STOPS_RUN, at=None,
          then=[{'cmd': 'browser', 'op': 'postprocess'}], says=[r'1 variable', r'at least 2']),
     dict(id='eq_range', model='eq_range', key='s', replies=STOPS_EQ_RANGE_A, at=None, bottom=True,
          says=[r'\d of 6 values have no equilibrium', r'a ?= ?0\.2\d*: no equilibrium found']),
-    dict(id='range_gear', model='blowup_gear', key='i', replies=STOPS_RANGE_A, at=None,
+    dict(id='range_gear', model='blowup_gear', command=STOPS_RANGE_A, at=None,
          says=[r'Range stopped at a ?= ?1 \(run 1 of 3\)', r'\bGear\b', r't ?= ?0\.9']),
-    dict(id='range_backward_euler', model='blowup_backward_euler', key='i', replies=STOPS_RANGE_A, at=None,
+    dict(id='range_backward_euler', model='blowup_backward_euler', command=STOPS_RANGE_A, at=None,
          says=[r'Range stopped at a ?= ?1 \(run 1 of 3\)', r'Backward Euler', r'eul_iter']),
-    dict(id='range_bound', model='bound_rk4', key='i', replies=STOPS_RANGE_A, at=None, bottom=True,
+    dict(id='range_bound', model='bound_rk4', command=STOPS_RANGE_A, at=None, bottom=True,
          says=[r'3 of 3 runs ended early', r'a ?= ?1: X out of bounds at t ?= ?(0\.9|1\.0)', r'state_limit ?= ?100\b']),
 ]
 
 
-def stops_run(path, key, replies, then=(), first=()):
-    """the messages and state of one run: a key, the answers to its asks in order, then idle; then each
-    of the commands `then`, run to idle; the commands `first` before the key"""
+def stops_run(path, key, replies, then=(), first=(), command=None):
+    """the messages and state of one run: the command (a registry command), or a key and the answers to
+    its asks in order, then idle; then each of the commands `then`, run to idle; the commands `first`
+    before it"""
     s = Server(args.server, path)
     try:
         s.collect(stops_idle)
-        for command in first:
-            s.send(**command)
+        for setting in first:
+            s.send(**setting)
             s.collect(stops_idle, timeout=60 * SLOW)
-        s.send(cmd='key', key=key)
+        s.send(**command) if command else s.send(cmd='key', key=key)
         pending, got = list(replies), []
         while True:
             evs, e = s.collect(lambda e: is_ask(e) or stops_idle(e), timeout=60 * SLOW)
@@ -292,7 +292,7 @@ def stops_line(path, text):
 
 def stops_parts(case, evs, path):
     # a bottom line is progress, except where the case reads one as its message (a stop that is no error)
-    msgs = [e for e in evs if e.get('ev') == 'message' and (case.get('bottom') or 'bottom' not in e)]
+    msgs = [e for e in evs if (e.get('ev') == 'message' and (case.get('bottom') or 'bottom' not in e)) or (e.get('ev') == 'done' and e.get('error'))]
     text = ' | '.join(json.dumps(e) for e in msgs)
     parts = [('a message is shown', bool(msgs), str(evs[-4:]))]
     parts.append(('at most one placed error', sum(bool(e.get('error')) for e in msgs) <= 1, text[:400]))
@@ -334,7 +334,7 @@ def check_stops():
             continue
         path = os.path.join(STOPS_DIR, case['model'] + '.odex')
         try:
-            parts = stops_parts(case, stops_run(path, case['key'], case['replies'], case.get('then', ()), case.get('first', ())), path)
+            parts = stops_parts(case, stops_run(path, case.get('key'), case.get('replies', []), case.get('then', ()), case.get('first', ()), case.get('command')), path)
             if 'silent' in case:
                 parts += stops_silent(path, case['silent'])
         except Exception as exc:  # a crash or a wait that ran out is a failure of the case, never a pass
@@ -403,10 +403,10 @@ def check_auto_starts():
         try:
             autocompare.completed(s)
             autocompare.open_auto(s)
-            commands = [dict(kind=kind, name=k, value=v) for group, kind in [('ics', 'ic'), ('pars', 'par')]
-                        for k, v in values.get(group, {}).items()]
-            if commands:
-                autocompare.completed(s, dict(cmd='set', values=commands))
+            if values.get('ics'):
+                autocompare.completed(s, dict(cmd='ic.set', values=values['ics']))
+            if values.get('pars'):
+                autocompare.completed(s, dict(cmd='set', values=[dict(kind='par', name=k, value=v) for k, v in values['pars'].items()]))
             autocompare.completed(s, dict(cmd='auto', op='set', numerics={'rl0': -2, 'rl1': 2, **limits}))
             evs = autocompare.run_any(s, 's')
             errors = [e for e in evs if e.get('error')]
@@ -424,7 +424,7 @@ def check_auto_starts():
     try:
         autocompare.completed(s)
         autocompare.open_auto(s)
-        autocompare.completed(s, dict(cmd='set', values=[dict(kind='ic', name='X', value=1)]))
+        autocompare.completed(s, dict(cmd='ic.set', values={'X': 1}))
         autocompare.completed(s, dict(cmd='auto', op='set', numerics={'rl0': -2, 'rl1': 2}))
         evs = autocompare.run_any(s, 's')
         errors = [e for e in evs if e.get('error')]
@@ -516,8 +516,8 @@ def check_event_count_note():
     s = Server(args.server, os.path.join(STOPS_DIR, 'events.odex'))
     try:
         autocompare.completed(s)
-        s.send(cmd='key', key='i')
-        evs, end = s.answer_asks(stops_idle, {'menu': lambda e: dict(key='g')})
+        s.send(cmd='run.initial')
+        evs, end = s.collect(stops_idle)
     finally:
         s.close()  # Joins stderr's reader before inspecting a log note.
     text = ''.join(s.log)
@@ -596,8 +596,8 @@ def check_auto_singular_pivot():
     s = Server(args.server, os.path.join(STOPS_DIR, 'auto_singular.odex'))
     try:
         autocompare.completed(s)
-        s.send(cmd='key', key='i')
-        evs, _ = s.answer_asks(stops_idle, {'menu': lambda e: dict(key='g')})
+        s.send(cmd='run.initial')
+        evs, _ = s.collect(stops_idle)
         autocompare.completed(s, dict(cmd='data', events=['autoinfo']))
         autocompare.open_auto(s)
         autocompare.completed(s, dict(cmd='auto', op='set', numerics={'rl0': -1, 'rl1': 1, 'nmx': 4, 'iads': 0, 'itnw': 1, 'epsu': 1e-30, 'epsl': 1e-30}))
@@ -1073,13 +1073,13 @@ for bad_args, what in (({'label': 'x'}, 'auto: argument "label" must be a number
                    ({'label': 1.5}, 'auto: argument "label" must be a whole number, not 1.5')):
     send(cmd='auto', op='restart', **bad_args)
     evs, _ = collect(is_idle)
-    msg = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+    msg = next((e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), {})
     check('a command argument of the wrong kind is a command error that names it: ' + what,
           what in msg.get('error', '') and msg.get('source', '').find('"cmd": "auto"') >= 0, str(evs)[:300])
 proc.stdin.write('{"cmd":"auto" "op":"restart"}\n')
 proc.stdin.flush()
 evs, _ = collect(is_idle)
-msg = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+msg = next((e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), {})
 check('a command line that is not JSON is an error naming where it stops',
       'the command line is not valid JSON (at character 15)' in msg.get('error', ''), str(evs)[:300])
 check('hello lists the series feature', 'series' in hello.get('features', []), str(hello.get('features')))
@@ -1114,7 +1114,7 @@ def check_hello_kinds():
     check('W95: hello gives every documented command but key a kind', not missing and cmds
           and all(k in 'cvsdx' for k in kinds.values()), str(missing))
     want = {('window.set_display', None): 'v', ('set', None): 's', ('values', None): 's', ('values', 'write'): 'd',
-            ('abort', None): 'c', ('browser', 'write'): 'd', ('browser', None): 'v', ('auto', 'set'): 's',
+            ('run.abort', None): 'c', ('run.initial', None): 'x', ('run.configure', None): 's', ('ic.set', None): 's', ('browser', 'write'): 'd', ('browser', None): 'v', ('auto', 'set'): 's',
             ('auto', 'grab'): 'd', ('userbut', None): 'x'}
     check('W95, W106: kinds as decided: display a view, set/values/auto set settings, Save data and Grab data, '
           'abort control, a user button a computation',
@@ -1220,7 +1220,7 @@ if ask is not None and ask.get('kind') == 'file':
     evs, _ = collect(is_idle)
 else:
     evs = []
-err = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), None)
+err = next((e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), None)
 check('W118: File/Import settings of a file that is not there: the error names the file',
       err is not None and err.get('file') == 'w118-gone.set', str(err))
 send(cmd='data', events=['series'])
@@ -1228,10 +1228,7 @@ evs, _ = collect(is_idle)
 ser = [e for e in evs if e.get('ev') == 'series']
 check('asking for the series data sends the plot at once', len(ser) == 1 and ser[0]['win'] == 'graph_1' and ser[0]['rows'] == 0
       and len(ser[0]['curves']) == 1, str(ser)[:300])
-send(cmd='key', key='i')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('Initialconds opens a menu', ask is not None and ask['kind'] == 'menu' and 'g' in ask['keys'], str(ask))
-send(cmd='answer', id=ask['id'], key='g')
+send(cmd='run.initial')
 evs, _ = collect(is_idle, timeout=30 * SLOW)
 st = last_state(evs)
 check('storage has 601 rows', st is not None and st['rows'] == 601, str(st and st['rows']))
@@ -1293,9 +1290,7 @@ check('Xi vs t sends the series of V against T', len(ser) == 1 and ser[0]['curve
       and ser[0]['curves'][0]['y'] == 1 and [c['name'] for c in ser[0]['columns']] == ['T', 'V'], str(ser)[:300])
 send(cmd='data', events=[])
 collect(is_idle)
-send(cmd='key', key='i')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-send(cmd='answer', id=ask['id'], key='g')
+send(cmd='run.initial')
 evs, _ = collect(is_idle, timeout=30 * SLOW)
 check('an empty data list stops the series', not any(e.get('ev') == 'series' for e in evs))
 
@@ -1344,7 +1339,9 @@ check('values write ic: the values alone, one per line, in the model order',
       ic_lines == ['-0.144', '0.03'], str(ic_lines))
 
 # change both, away from what was just written
-send(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'value': 0.09}, {'kind': 'ic', 'name': 'V', 'value': -0.4}])
+send(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'value': 0.09}])
+collect(is_idle)
+send(cmd='ic.set', values={'V': -0.4})
 evs, _ = collect(is_idle)
 st = last_state(evs)
 check('values round trip: the values changed before reading back',
@@ -1366,7 +1363,7 @@ check('values read ic restores the written values exactly',
       str(st and st['ics']))
 
 send(cmd='values', op='write', kind='xyz', name='t_values.bad')
-evs, msg = collect(lambda e: e.get('ev') == 'message' and 'error' in e)
+evs, msg = collect(lambda e: e.get('ev') in ('message', 'done') and 'error' in e)
 check('values with a kind other than par/ic is refused', msg is not None, str(msg))
 collect(is_idle)
 
@@ -1375,10 +1372,10 @@ evs, br = collect(lambda e: e.get('ev') == 'browser')
 collect(is_idle)
 check('browser sends the rows asked for', br is not None and br['rows'] == 601 and br['from'] == 10
       and len(br['data']) == 3 and len(br['data'][0]) == 2 and br['cols'][:3] == ['T', 'V', 'W'], str(br)[:200])
-send(cmd='key', win='browser', key='g', row=10)
+send(cmd='ic.from_data_row', row=10)
 evs, _ = collect(is_idle)
 st = last_state(evs)
-check('browser Get sets the initial conditions from a row',
+check('ic.from_data_row sets the initial conditions from a row',
       st is not None and abs(dict(st['ics'])['W'] - br['data'][0][1]) < 1e-6, str(st and st['ics']))
 send(cmd='browser', **{'from': 0, 'count': 0})
 collect(is_idle)
@@ -1450,9 +1447,8 @@ if ser:
 # a re-run, with a changed parameter so V, W (and VW) differ, recomputes
 # the added column instead of dropping it
 send(cmd='set', kind='par', name='iapp', value=0.2)
-send(cmd='key', key='i')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-send(cmd='answer', id=ask['id'], key='g')
+collect(is_idle)
+send(cmd='run.initial')
 evs, _ = collect(is_idle, timeout=30 * SLOW)
 st = last_state(evs)
 check('a re-run after addcol still has 601 rows and 2 ICs (the model unchanged)',
@@ -1475,9 +1471,7 @@ ser = whole_series(evs)
 check('slide sets the parameter, no run any more (the rerun flag is gone, W69)',
       st is not None and dict(st['pars'])['iapp'] == 0.07 and not ser,
       str(st and st['pars']) + str(ser)[:200])
-send(cmd='key', key='i')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-send(cmd='answer', id=ask['id'], key='g')
+send(cmd='run.initial')
 evs, _ = collect(is_idle, timeout=30 * SLOW)
 ser = whole_series(evs)
 check('a later Go runs with the slid value (a new series of 601 rows)',
@@ -1656,15 +1650,15 @@ ev = file_cmd(op='get', name=utf8_name)
 check('file get of the UTF-8 name gives its bytes back', ev.get('ok') == 1 and base64.b64decode(ev.get('data', '')) == b'hi', str(ev))
 
 send(cmd='key', key='u')  # nUmerics menu
-send(cmd='key', key='t')  # total
+send(cmd='key', key='n')  # the nullcline mesh
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('nUmerics/Total asks for a number', ask is not None and ask['kind'] == 'string', str(ask))
-check("T31: new_float's ask says its field takes a number or %formula (kinds formula)",
-      ask is not None and ask.get('kinds') == ['formula'], str(ask))
+check('nUmerics/Ncline mesh asks for a number', ask is not None and ask['kind'] == 'string', str(ask))
 if ask:
-    send(cmd='answer', id=ask['id'], ok=1, value='40')
+    send(cmd='answer', id=ask['id'], ok=0)
     collect(is_idle)
 send(cmd='key', key='Escape')
+collect(is_idle)
+send(cmd='run.configure', total_time=40)
 collect(is_idle)
 
 # W485 (#549): a typed form. Numerics/Poincare map's form has a real (Section), a choice (Direction) and a
@@ -1753,18 +1747,13 @@ if ask:
         send(cmd='answer', id=ask['id'], ok=0)
         collect(is_idle)
 
-# T31: an integer field (Initialconds/Range's Steps) and a name (Xi vs t: T or a variable, hello.lists[0])
-send(cmd='key', key='i')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-send(cmd='answer', id=ask['id'], key='r')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-kinds = ask.get('kinds') if ask else None
-check('T31: Range Integrate says Steps is an integer and Start and End numbers',
-      ask is not None and ask['kind'] == 'form' and kinds is not None and len(kinds) == len(ask['names'])
-      and kinds[1:4] == ['integer', 'real', 'real'] and kinds[4:] == ['boolean'] * 5, str(ask))
-if ask:
-    send(cmd='answer', id=ask['id'], ok=0)
-    collect(is_idle)
+# T31: an integer field (run.range's steps) and a name (Xi vs t: T or a variable, hello.lists[0])
+range_command = next((c for c in hello.get('commands', []) if c.get('cmd') == 'run.range'), {})
+types = {a['name']: a['type'] for a in range_command.get('arguments', [])}
+check('T31: run.range says steps is an integer, start and end numbers and its options booleans',
+      types.get('steps') == 'integer' and types.get('start') == 'real' and types.get('end') == 'real'
+      and types.get('variable') == 'name' and [types[k] for k in ('reset_storage', 'use_old_ic', 'cycle_color', 'movie', 'write_each_run_to_file')] == ['boolean'] * 5,
+      str(types))
 send(cmd='key', key='x')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('T31: Xi vs t asks for a name from hello.lists[0] (kinds name:0)',
@@ -1773,9 +1762,7 @@ if ask:
     send(cmd='answer', id=ask['id'], ok=0)
     collect(is_idle)
 
-send(cmd='key', key='i')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-send(cmd='answer', id=ask['id'], key='g')
+send(cmd='run.initial')
 evs, _ = collect(is_idle, timeout=30 * SLOW)
 st = last_state(evs)
 check('total 40 gives 801 rows', st is not None and st['rows'] == 801, str(st and st['rows']))
@@ -1801,11 +1788,10 @@ def run_replay(lines, ode=None):
 
 STOP_ROWS = 400  # well inside total 40's 801 rows
 code, out, err = run_replay([
-    {'cmd': 'key', 'key': 'u'}, {'cmd': 'key', 'key': 't'}, {'cmd': 'answer', 'value': '40'},
-    {'cmd': 'key', 'key': 'Escape'},
-    {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+    {'cmd': 'run.configure', 'total_time': 40},
+    {'cmd': 'run.initial'},
     {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': STOP_ROWS, 't': 0}},
-    {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+    {'cmd': 'run.initial'},
 ])
 check('xppautX .recx --silent plays the armed interruption', code == 0, 'exit %d, %s' % (code, err[-300:]))
 evs = [json.loads(l) for l in out.splitlines() if l.strip()]
@@ -2049,7 +2035,7 @@ if ask:
         check('the server survives a grab by label', proc.poll() is None, 'exit code %s' % proc.poll())
     send(cmd='auto', op='grab', label=999999)
     evs, _ = collect(is_idle)
-    errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+    errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
     check('grab by an unknown label is refused (a message error)', bool(errs), str(errs))
     check('an unknown label changes nothing (no diagram event, no ask)',
           not any(e.get('ev') in ('diagram', 'ask') for e in evs), str([e.get('ev') for e in evs]))
@@ -2103,15 +2089,9 @@ if ask:
 LIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'live.odex')
 
 
-def live_run(send, collect, key='i', answer=None, command=None):
-    """integrate (Initialconds/Go, or the `command` given, as Continue) and return the series events of the command"""
-    if command:
-        send(**command)
-    else:
-        send(cmd='key', key=key)
-        evs, ask = collect(lambda e: e.get('ev') == 'ask', timeout=20 * SLOW)
-        if ask:
-            send(cmd='answer', id=ask['id'], **(answer or {'key': 'g'}))
+def live_run(send, collect, command=None):
+    """integrate (run.initial, or the `command` given, as Continue) and return the series events of the command"""
+    send(**(command or {'cmd': 'run.initial'}))
     evs, _ = collect(is_idle, timeout=120 * SLOW)
     return [e for e in evs if e.get('ev') == 'series']
 
@@ -2158,7 +2138,7 @@ def check_live_series():
         again = check_appends('run again', ser, 0)
         check('run again: the same numbers', final is not None and again is not None
               and all(same_floats(final[c], again[c]) for c in final))
-        ser = live_run(send3, collect3, command={'cmd': 'continue', 'until': 2000})
+        ser = live_run(send3, collect3, command={'cmd': 'run.continue', 'until': 2000})
         more = check_appends('Continue', ser, 20001)
         check('Continue: the rows before it are kept', more is not None and final is not None
               and all(same_floats(more[c][:20001], final[c]) for c in final))
@@ -2261,7 +2241,7 @@ def check_stable_navigation():
         _, ask = col(is_ask)
         check('navigation: stable integration opens initial conditions from File mode', ask and ask.get('kind') == 'menu' and 'g' in ask.get('keys', ''), str(ask))
         if ask:
-            command(cmd='answer', id=ask['id'], key='Escape')
+            command(cmd='answer', id=ask['id'], ok=0)
     finally:
         stop_server(p, r, snd)
 
@@ -2280,37 +2260,35 @@ def check_continue():
         return evs, next((e for e in reversed(evs) if e.get('ev') == 'state'), {})
     try:
         col(is_idle)
-        snd(cmd='key', key='i')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='g')
+        snd(cmd='run.initial')
         col(is_idle)
         _, st = command(cmd='state')
         t0, rows0 = st['time'], st['rows']
-        evs, st = command(cmd='continue', extra=1)
+        evs, st = command(cmd='run.continue', extra=1)
         check('W213: continue extra appends a Dt grid of rows from the core time',
               abs(st['time'] - (t0 + 1)) < 1e-8 and st['rows'] == rows0 + 20 and not any(e.get('ev') == 'ask' for e in evs), str(st.get('time')))
         t1, rows1 = st['time'], st['rows']
-        evs, st = command(cmd='continue', until=t1 + .02)
+        evs, st = command(cmd='run.continue', until=t1 + .02)
         check('W213: continue until off the grid is rounded up to the next Dt and the state reports the end',
               abs(st['time'] - (t1 + .05)) < 1e-8 and st['rows'] == rows1 + 1, str(st.get('time')))
         t2, rows2 = st['time'], st['rows']
-        evs, _ = command(cmd='set', kind='num', name='store_every', value=3)
-        evs, st = command(cmd='continue', extra=1)
+        evs, _ = command(cmd='run.configure', store_every=3)
+        evs, st = command(cmd='run.continue', extra=1)
         check('W213: with Store every 3 the end is rounded up to the output grid (7 groups of 3 Dt) and every third row is stored',
               abs(st['time'] - (t2 + 1.05)) < 1e-8 and st['rows'] == rows2 + 7, '%s %s' % (st.get('time'), st.get('rows')))
         t3, rows3 = st['time'], st['rows']
-        evs, st = command(cmd='continue', until=t3 + .2)
+        evs, st = command(cmd='run.continue', until=t3 + .2)
         check('W213: continue until at that stride ends on an output grid point',
               abs(st['time'] - (t3 + .3)) < 1e-8 and st['rows'] == rows3 + 2, '%s %s' % (st.get('time'), st.get('rows')))
         t4, rows4 = st['time'], st['rows']
-        evs, st = command(cmd='key', key='c')
-        check('W213: the key c asks nothing (the legacy prompt is gone) and continues for another Total',
+        evs, st = command(cmd='run.continue')
+        check('W213: run.continue with no value asks nothing (the legacy prompt is gone) and continues for another Total',
               not any(e.get('ev') == 'ask' for e in evs) and abs(st['time'] - (t4 + 30)) < 1e-8 and st['rows'] == rows4 + 200, '%s %s' % (st.get('time'), st.get('rows')))
         t5 = st['time']
         for bad in (dict(extra=1, until=t5 + 1), dict(extra='1'), dict(until=t5 - 1), dict(extra=0)):
-            evs, st = command(cmd='continue', **bad)
+            evs, st = command(cmd='run.continue', **bad)
             check('W213: continue %r is an error and changes nothing' % (bad,),
-                  any(e.get('ev') == 'message' and e.get('error') for e in evs) and st.get('time') == t5, str(evs[-3:]))
+                  any(e.get('ev') in ('message', 'done') and e.get('error') for e in evs) and st.get('time') == t5, str(evs[-3:]))
     finally:
         stop_server(p, r, snd)
 
@@ -2350,23 +2328,18 @@ def check_data_coordinates():
               and abs(max(got['xlo'], got['xhi']) - max(want['xd'], want['xd2'])) <= px
               and abs(min(got['ylo'], got['yhi']) - min(want['yd'], want['yd2'])) <= py
               and abs(max(got['ylo'], got['yhi']) - max(want['yd'], want['yd2'])) <= py, '%s vs %s' % (got, want))
-        # Initialconds/Mouse picked in data coordinates: the ICs are that point
+        # ic.at in data coordinates: the ICs are that point
         if by_data:
             v = by_data
             xd, yd = v['xlo'] + 0.3 * (v['xhi'] - v['xlo']), v['ylo'] + 0.6 * (v['yhi'] - v['ylo'])
-            snd(cmd='key', key='i')
-            evs, ask = col(lambda e: e.get('ev') == 'ask')
-            snd(cmd='answer', id=ask['id'], key='m')
-            evs, ask = col(lambda e: e.get('ev') == 'ask')
-            if ask is not None and ask['kind'] == 'mouse':
-                snd(cmd='answer', id=ask['id'], xd=xd, yd=yd)
+            snd(cmd='ic.at', coordinates={'V': xd, 'W': yd})
             evs, _ = col(is_idle, timeout=30 * SLOW)
             st = last_state(evs)
             ics = dict(st['ics']) if st else {}
             pxm = abs(v['xhi'] - v['xlo']) / (v['right'] - v['left'])
             pym = abs(v['yhi'] - v['ylo']) / (v['bottom'] - v['top'])
-            check('Initialconds/Mouse answered in data coordinates starts from that point, within a pixel',
-                  ask is not None and ask['kind'] == 'mouse' and abs(ics.get('V', 1e9) - xd) <= pxm
+            check('ic.at in data coordinates starts from that point, within a pixel',
+                  abs(ics.get('V', 1e9) - xd) <= pxm
                   and abs(ics.get('W', 1e9) - yd) <= pym, '%s vs %s' % (ics, (xd, yd)))
     finally:
         stop_server(p, r, snd)
@@ -2413,7 +2386,7 @@ def check_plot_windows():
               and w1.get('curves') and w1['curves'][0]['x'] == 1 and 'theta' in w1 and 'zmax' in w1.get('box', {}),
               str(pl)[:400])
         check('plots comes before the series', evs.index(pl[0]) < [e.get('ev') for e in evs].index('series') if pl and full(evs) else False)
-        command('i', {'key': 'g'})
+        after({'cmd': 'run.initial'})
         evs = after({'cmd':'window.create'})
         pl, ser = plots(evs), full(evs)
         check('Makewindow/Create: plots has windows 1 and 2, 2 active',
@@ -2432,7 +2405,7 @@ def check_plot_windows():
         pl = plots(evs)
         check('selecting window 1 (click) makes it active in plots, and sends no series',
               len(pl) == 1 and pl[0]['active'] == 'graph_1' and not full(evs), str(pl)[:200])
-        evs = command('i', {'key': 'g'})
+        evs = after({'cmd': 'run.initial'})
         ser = [e for e in evs if e.get('ev') == 'series']
         apps = [e for e in ser if e.get('op') == 'append']
         check('a run appends to the active window only', len(apps) >= 3 and all(e['win'] == 'graph_1' for e in apps),
@@ -2484,10 +2457,7 @@ def check_model_plot_windows():
               and [windows[1][k] for k in ('xlo', 'xhi', 'ylo', 'yhi')] == [-2, 3, -4, 5]
               and windows[2]['curves'][0]['x'] == 0 and windows[2]['curves'][0]['y'] == 2
               and [windows[2][k] for k in ('xlo', 'xhi', 'ylo', 'yhi')] == [0, 1, 0, 2], str(windows)[:400])
-        send(cmd='key', key='i')
-        _, ask = collect(is_ask)
-        if ask:
-            send(cmd='answer', id=ask['id'], key='g')
+        send(cmd='run.initial')
         events, _ = collect(is_idle)
         series = whole_series(events)
         check('W348: every graph carries the unchanged silent trajectory', len(series) == 3
@@ -2536,13 +2506,13 @@ def check_param_set_cancel():
             snd(cmd='answer', id=ask['id'], ok=0)
         evs, _ = col(is_idle)
         check('Param set menu cancelled: no error message',
-              not [e for e in evs if e.get('ev') == 'message' and 'error' in e], str(evs)[:200])
+              not [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e], str(evs)[:200])
         snd(cmd='values', op='write', kind='par', name='w101.par')
         evs, _ = col(is_idle)
         with open(os.path.join(r, 'w101.par')) as f:
             txt = f.read()
         check('values write par with an edited value: file written, no error',
-              '0.3  iapp' in txt and not [e for e in evs if e.get('ev') == 'message' and 'error' in e],
+              '0.3  iapp' in txt and not [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e],
               txt[:80] + str(evs)[:150])
     finally:
         stop_server(p, r, snd)
@@ -2599,7 +2569,7 @@ def check_param_set_list():
             snd(cmd='key', key='g')
             evs, _ = col(is_idle)
             check('W229: Named sets of a model with none says so (a message, no ask, no error)',
-                  not [e for e in evs if e.get('ev') == 'ask' or (e.get('ev') == 'message' and 'error' in e)]
+                  not [e for e in evs if e.get('ev') == 'ask' or (e.get('ev') in ('message', 'done') and 'error' in e)]
                   and any('no named sets' in str(e.get('bottom', '')) for e in evs), str(evs)[-300:])
         finally:
             stop_server(p, r, snd)
@@ -2650,7 +2620,7 @@ def check_values_protocol():
               and d['pars'] == [v for _, v in st0['pars']] and d['ics'] == [v for _, v in st0['ics']], str(d)[:200])
         check('state: no now before any run', st0 and 'now' not in st0, str(st0)[:200])
         after(cmd='data', events=['series'])
-        evs = keys('i', {'key': 'g'})
+        evs = after(cmd='run.initial')
         st, ser = last_state(evs), full(evs)
         cols = {c['col']: c['data'] for c in ser[-1]['columns']} if ser else {}
         check('a run: the full series carries the data version',
@@ -2665,14 +2635,14 @@ def check_values_protocol():
         # (the `rerun` flag is gone, and ignored if a client still sends it):
         # the values panel holds edits pending and sends them in one `set`
         # right before the next command that computes.
-        evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '0.1'},
-                                       {'kind': 'ic', 'name': 'v', 'value': -0.2}], rerun=1)
+        evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '0.1'}], rerun=1)
+        evs += after(cmd='ic.set', values={'v': -0.2})
         st = last_state(evs)
-        check('set values[]: both set, no run (rerun is ignored, W69)',
+        check('set values[] and ic.set: both set, no run (rerun is ignored, W69)',
               st and abs(par(st, 'iapp') - 0.1) < 1e-12 and abs(ic(st, 'v') + 0.2) < 1e-12 and not full(evs),
               str(st and st['pars'][:3]))
         check('a rerun-free set sends no erase event', not pics(evs), str(pics(evs)))
-        evs = keys('i', {'key': 'g'})
+        evs = after(cmd='run.initial')
         st, ser = last_state(evs), full(evs)
         v_col = ser[-1]['columns'][[c['col'] for c in ser[-1]['columns']].index(1)]['data'] if ser else []
         check('a later Go runs with the values the set left (no rerun needed)',
@@ -2681,10 +2651,10 @@ def check_values_protocol():
               str(st and st['pars'][:3]) + str([(s['rows'], s.get('version')) for s in ser]))
         evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '%nosuch+'}], rerun=1)
         check('set values[] with a bad formula: an error, and no run',
-              any(e.get('ev') == 'message' and 'error' in e for e in evs) and not full(evs), str(evs)[:300])
+              any(e.get('ev') in ('message', 'done') and 'error' in e for e in evs) and not full(evs), str(evs)[:300])
         # W131: one number rule (all of the text), a set applies all or nothing,
         # its error names the field, and default is the core's own command
-        errs = lambda evs: [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+        errs = lambda evs: [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         st1 = last_state(after(cmd='state'))
         evs = after(cmd='set', kind='par', name='iapp', text='abc')
         st = last_state(evs)
@@ -2698,50 +2668,50 @@ def check_values_protocol():
         check('slide with a value that is not all a number: refused, nothing changes', len(errs(evs)) == 1
               and par(last_state(evs), 'iapp') == par(st1, 'iapp'), str(errs(evs)))
         evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '0.31'},
-                                       {'kind': 'ic', 'name': 'v', 'text': '%bad('},
+                                       {'kind': 'par', 'name': 'gk', 'text': '%bad('},
                                        {'kind': 'par', 'name': 'gca', 'text': '1.1'}])
         st = last_state(evs)
-        check('a set of three with the second bad: one error naming ic v, nothing applied',
-              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'ic:v' and st
-              and par(st, 'iapp') == par(st1, 'iapp') and par(st, 'gca') == par(st1, 'gca') and ic(st, 'v') == ic(st1, 'v'),
+        check('a set of three with the second bad: one error naming par gk, nothing applied',
+              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'par:gk' and st
+              and par(st, 'iapp') == par(st1, 'iapp') and par(st, 'gca') == par(st1, 'gca') and par(st, 'gk') == par(st1, 'gk'),
               str(errs(evs)) + str(st and st['pars'][:3]))
         evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '0.31'},
-                                       {'kind': 'num', 'name': 'total_time', 'text': '1O0'}])
-        check('a set with a bad numerics value applies none of it, its error names num:total_time',
-              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'num:total_time'
+                                       {'kind': 'num', 'name': 'nullcline_mesh', 'text': '1O0'}])
+        check('a set with a bad numerics value applies none of it, its error names num:nullcline_mesh',
+              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'num:nullcline_mesh'
               and par(last_state(evs), 'iapp') == par(st1, 'iapp'), str(errs(evs)))
         # W494: a range or an order broken by `set num` is refused with the setting, its value and the rule
         for name, text, words in (('min_step', '1e9', 'min_step (1e+09) must be at most max_step'),
                                   ('relative_tolerance', '0', 'must be a number above 0'),
                                   ('max_iterations', '0', 'must be a whole number of at least 1')):
-            evs = after(cmd='set', values=[{'kind': 'num', 'name': name, 'text': text}])
-            check('W494: set num %s=%s is refused naming %s' % (name, text, words),
+            evs = (after(cmd='set', values=[{'kind': 'num', 'name': name, 'text': text}]) if name == 'max_iterations'
+                   else after(cmd='run.configure', **{name: float(text)}))
+            check('W494: setting num %s=%s is refused naming %s' % (name, text, words),
                   len(errs(evs)) == 1 and words in errs(evs)[0].get('error', '') and errs(evs)[0].get('field') == 'num:' + name,
                   str(errs(evs)))
-        keys('u')
-        evs = keys('t', {'value': '1O0'})
-        check('an answer to a number ask that is not a number is refused, naming the question',
-              len(errs(evs)) == 1 and 'Total' in errs(evs)[0]['error'] and '1O0' in errs(evs)[0]['error'], str(errs(evs)))
-        keys('Escape')  # back to the main menu
+        evs = after(cmd='run.configure', total_time='1O0')
+        check('run.configure with a total time that is not a number is refused, naming the argument',
+              len(errs(evs)) == 1 and 'total_time' in errs(evs)[0]['error'], str(errs(evs)))
         evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': ' 0.31 '},
-                                       {'kind': 'ic', 'name': 'v', 'text': '-0.2'}])
+                                       {'kind': 'par', 'name': 'gca', 'text': '1.2'}])
+        evs += after(cmd='ic.set', values={'v': -0.2})
         st = last_state(evs)
-        check('a good set of two (blanks around a number allowed) applies both, no error', not errs(evs) and st
+        check('a good set of two (blanks around a number allowed) and ic.set apply, no error', not errs(evs) and st
               and abs(par(st, 'iapp') - 0.31) < 1e-12 and abs(ic(st, 'v') + 0.2) < 1e-12, str(errs(evs)) + str(st and st['pars'][:3]))
         evs = after(cmd='restoredefaults', scope='parameters')
         st = last_state(evs)
         check('default par after edits: every parameter back to the model file value, no error',
               not errs(evs) and st and [v for _, v in st['pars']] == d['pars'], str(errs(evs)) + str(st and st['pars'][:3]))
-        after(cmd='set', kind='ic', name='v', value=-0.2)
+        after(cmd='ic.set', values={'v': -0.2})
         before = last_state(after(cmd='state'))
-        evs = after(cmd='set', kind='ic', **{'from': 'last'})
+        evs = after(cmd='set', kind='ic', name='v', value=-0.5)
         st = last_state(evs)
-        check('set from last is gone (W60: Initialconds/Last is the key): the ICs stay, no run',
-              st and st['ics'] == before['ics'] and not full(evs),
-              str(st and st['ics']) + ' vs ' + str(before and before.get('ics')))
-        after(cmd='set', kind='ic', name='v', value=-0.3)
+        check('set no longer takes initial conditions (ic.set does): refused naming ic.set, the ICs stay, no run',
+              len(errs(evs)) == 1 and 'ic.set' in errs(evs)[0]['error'] and errs(evs)[0].get('field') == 'ic:v'
+              and st and st['ics'] == before['ics'] and not full(evs), str(errs(evs)) + str(st and st['ics']))
+        after(cmd='ic.set', values={'v': -0.3})
         prev_now = last_state(after(cmd='state'))['now']
-        evs = keys('i', {'key': 'l'})
+        evs = after(cmd='run.last')
         states = [i for i, e in enumerate(evs) if is_state(e)]
         sers = [i for i, e in enumerate(evs) if e.get('ev') == 'series']
         first = evs[states[0]] if states else None
@@ -2753,7 +2723,7 @@ def check_values_protocol():
         check('default with rerun: the model values, no run (rerun is ignored, W69)',
               st and par(st, 'iapp') == d['pars'][[k.lower() for k, _ in st['pars']].index('iapp')] and not full(evs),
               str(st and st['pars'][:3]))
-        evs = keys('i', {'key': 'g'})
+        evs = after(cmd='run.initial')
         check('a later Go runs with the default values the default command left',
               last_state(evs) and par(last_state(evs), 'iapp') == d['pars'][[k.lower() for k, _ in st['pars']].index('iapp')]
               and len(full(evs)) == 1, str(last_state(evs) and last_state(evs)['pars'][:3]))
@@ -2761,7 +2731,7 @@ def check_values_protocol():
         evs = after(cmd='slide', name='iapp', value=0.07)
         check('a slide sets the parameter, no run (the rerun flag is gone, W69)',
               not pics(evs) and not full(evs) and abs(par(last_state(evs), 'iapp') - 0.07) < 1e-12, str(pics(evs)))
-        evs = keys('i', {'key': 'g'})
+        evs = after(cmd='run.initial')
         check('a later Go runs with the slid value, no erase event', not pics(evs) and len(full(evs)) == 1, str(pics(evs)))
         evs = after(cmd='window.clear')
         check('Erase: one erase event for the active window, no series', pics(evs) == [('erase', 'graph_1')] and not full(evs),
@@ -2804,7 +2774,7 @@ def check_ic_file_markov():
         check('values write ic on a markov model: exactly `node` lines (2), z excluded',
               lines == ['0.0001', '0.0001'], str(lines))
 
-        sndm(cmd='set', kind='ic', name='x1', value=0.5)
+        sndm(cmd='ic.set', values={'x1': 0.5})
         colm(is_idle)
         sndm(cmd='values', op='read', kind='ic', name='kepler_markov.ic')
         evs, _ = colm(is_idle)
@@ -2831,19 +2801,19 @@ def check_error_places():
             f.write('3   Number params\n1\n2\n3\n')
         snde(cmd='values', op='read', kind='par', name='w140bad.par')
         evs, _ = cole(is_idle, timeout=30 * SLOW)
-        m = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+        m = next((e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), {})
         check('an error event: a values file at its line names the file, the line and the line as written (W140)',
               os.path.basename(m.get('file', '')) == 'w140bad.par' and m.get('line') == 1 and m.get('col') == 0
               and m.get('source') == '3   Number params' and 'parameters' in m.get('error', ''), str(m))
         snde(cmd='values', op='read', kind='par', name='w140gone.par')
         evs, _ = cole(is_idle, timeout=30 * SLOW)
-        m = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+        m = next((e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), {})
         check('an error event: a file that cannot be read is named with line 0 (W140)',
               os.path.basename(m.get('file', '')) == 'w140gone.par' and m.get('line') == 0
               and m.get('source') == '' and m.get('error'), str(m))
         snde(cmd='nosuchcommand')
         evs, _ = cole(is_idle, timeout=30 * SLOW)
-        m = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+        m = next((e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), {})
         check('an error event: a live command error has its one-line source (W130)',
               m.get('file') == 'command' and m.get('line') == 1 and m.get('col') == 0 and json.loads(m.get('source', '{}')).get('cmd') == 'nosuchcommand'
               and 'nosuchcommand' in m.get('error', ''), str(m))
@@ -2897,9 +2867,9 @@ def check_error_places_of_each_kind():
                   and 'is not a finite number' in e.get('error', ''), str(e))
 
         write('nan.odex', "# NaN at the first step\npar a=1\nx'=sqrt(x-2*a)\ninit x=1\n")
-        code, out, err = run_replay([{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+        code, out, err = run_replay([{'cmd': 'run.initial'},
                                      {'cmd': 'nosuchcommand'}], ode=os.path.join(d, 'nan.odex'))
-        errs = [json.loads(l) for l in out.splitlines() if '"error"' in l and '"message"' in l]
+        errs = [json.loads(l) for l in out.splitlines() if '"error"' in l and ('"message"' in l or '"done"' in l)]
         nan = next((m for m in errs if 'NaN' in m.get('error', '')), {})
         check('an error event: a run-time NaN is named at the equation that makes it (W140b)',
               nan.get('file') == 'nan.odex' and nan.get('line') == 3 and nan.get('source') == "x'=sqrt(x-2*a)"
@@ -2945,7 +2915,7 @@ def check_load_all_or_nothing():
         return {k: v for k, v in st.items() if k not in ('_t', 'session', 'changed')} if st else st
 
     def errors(evs):
-        return [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+        return [e for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
 
     written = []
 
@@ -2964,7 +2934,8 @@ def check_load_all_or_nothing():
 
     try:
         col(is_idle)
-        answered((), cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1.5}, {'kind': 'ic', 'name': 'x', 'value': 0.25}])
+        answered((), cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1.5}])
+        answered((), cmd='ic.set', values={'x': 0.25})
         st0, set0 = state(), set_file()
         rows = set0.split('\n')
         high = max(k for k in range(len(rows)) if rows[k].startswith('  high:')) + 1  # its line in the file
@@ -3039,7 +3010,8 @@ def check_load_all_or_nothing():
         check('W284: a group the settings do not have is refused at its line',
               os.path.basename(e.get('file', '')) == 'extra.setx' and e.get('line') == len(set0.split('\n'))
               and 'nosuch_group' in e.get('error', ''), str(errs))
-        answered((), cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 8}, {'kind': 'ic', 'name': 'x', 'value': 7}])
+        answered((), cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 8}])
+        answered((), cmd='ic.set', values={'x': 7})
         with open(os.path.join(r, 'own.setx'), 'w') as f:
             f.write(set0)
         evs = read_set('own.setx')
@@ -3075,7 +3047,7 @@ def check_apply_restore():
                 "set \"pa\" { a: 10, b: 20 }\n"
                 "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { xlo: -3, xhi: 3 } } }\n")
     p, r, snd, col, _ = launch_server(ode=model)
-    errs = lambda evs: [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+    errs = lambda evs: [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
 
     def run(**cmd):
         snd(**cmd)
@@ -3204,7 +3176,7 @@ def check_save_values():
     with open(os.path.join(folder, 'lib.odex'), 'w', newline='') as f:
         f.write("set \"shared\" { a: 3 }\n")
     s = Server(args.server, model, run=folder)
-    errs = lambda evs: [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+    errs = lambda evs: [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
 
     def run(**cmd):
         s.send(**cmd)
@@ -3234,7 +3206,7 @@ def check_save_values():
         evs = run(cmd='applyset', set='s1', scope='parameters')
         check('W320: the live model knows the new set at once', not errs(evs) and view()[0]['a'] == 7, str(errs(evs)))
         # a part of a set replaced, its other parts as they were
-        run(cmd='set', values=[{'kind': 'ic', 'name': 'x', 'value': 0.1}, {'kind': 'ic', 'name': 'y', 'value': 0.2}])
+        run(cmd='ic.set', values={'x': 0.1, 'y': 0.2})
         old = text()
         evs = run(cmd='saveset', set='mix', mode='replace', scope='initial')
         new = text()
@@ -3243,7 +3215,7 @@ def check_save_values():
               not errs(evs) and mix and 'a: 5' in mix[0] and 'x: 0.1' in mix[0] and 'y: 0.2' in mix[0] and 'x: 0.9' not in mix[0]
               and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: { xlo: -3, xhi: 3 }' in mix[0], str(mix) + str(errs(evs)))
         check('W320: the rest of the file is byte for byte as it was', new[:old.index('set "mix"')] == old[:old.index('set "mix"')], '')
-        run(cmd='set', values=[{'kind': 'ic', 'name': 'x', 'value': 3}])
+        run(cmd='ic.set', values={'x': 3})
         run(cmd='applyset', set='mix', scope='initial')
         check('W320: the live model uses the replaced part', view()[1]['x'] == 0.1)
         evs = run(cmd='saveset', set='mix', mode='replace', scope='plot')
@@ -3251,7 +3223,8 @@ def check_save_values():
         check('W320: replacing the plot settings leaves the rest of the set', not errs(evs) and mix and 'xlo: -3' not in mix[0]
               and 'x: 0.1' in mix[0] and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: {' in mix[0], str(mix) + str(errs(evs)))
         # the defaults: par and init lines in place, an options group
-        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 4}, {'kind': 'num', 'name': 'dt', 'text': '0.05'}])
+        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 4}])
+        run(cmd='run.configure', dt=0.05)
         old = text()
         evs = run(cmd='savedefaults', scope='parameters')
         new = text()
@@ -3264,7 +3237,7 @@ def check_save_values():
         new = text()
         check('W320: an options group is replaced in the options block',
               not errs(evs) and 'dt: 0.05' in new and 'dt: 0.02' not in new and new.count('options {') == 1, new[new.index('options'):][:200] + str(errs(evs)))
-        run(cmd='set', values=[{'kind': 'num', 'name': 'dt', 'text': '0.5'}])
+        run(cmd='run.configure', dt=0.5)
         run(cmd='restoredefaults', scope='integration')
         check('W320: Restore defaults gives the saved options', view()[2] == 0.05, str(view()))
         evs = run(cmd='savedefaults', scope='initial')
@@ -3541,7 +3514,7 @@ def check_view():
                 break
             send6(cmd='answer', id=e['id'], **(answers.pop(0) if answers else {'ok': 0}))
         pl = next((e for e in got if e.get('ev') == 'plots'), None)
-        msg = next((e.get('error') for e in got if e.get('ev') == 'message' and 'error' in e), None)
+        msg = next((e.get('error') for e in got if e.get('ev') in ('message', 'done') and 'error' in e), None)
         st = last_state(got)
         return pl, msg, st and st.get('view')
 
@@ -3559,7 +3532,7 @@ def check_view():
         # the command the page's "Use this view" button used to send is gone
         send6(cmd='view', window='graph_1', xlo=-1, xhi=1, ylo=-1, yhi=1)
         evs, _ = collect6(is_idle)
-        msg5 = next((e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e), None)
+        msg5 = next((e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), None)
         check('the view command is gone: an unknown command', msg5 is not None and 'Unknown command' in msg5, str(msg5))
         check('... and leaves the axes unchanged', axes(last_state(evs).get('view')) == (-100, 100, -100, 100))
 
@@ -3637,7 +3610,7 @@ def check_view3d():
                 vals[names.index('Phi')] = str(phi)
             send7(cmd='answer', id=e['id'], ok=1, values=vals)
         pl = next((e for e in got if e.get('ev') == 'plots'), None)
-        msg = next((e.get('error') for e in got if e.get('ev') == 'message' and 'error' in e), None)
+        msg = next((e.get('error') for e in got if e.get('ev') in ('message', 'done') and 'error' in e), None)
         st = last_state(got)
         return pl, msg, st and st.get('view')
 
@@ -3655,7 +3628,7 @@ def check_view3d():
         # the command the page used to send is gone
         send7(cmd='view3d', window='graph_1', theta=0, phi=0)
         evs, _ = collect7(is_idle)
-        msg2 = next((e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e), None)
+        msg2 = next((e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), None)
         check('the view3d command is gone: an unknown command', msg2 is not None and 'Unknown command' in msg2, str(msg2))
         check('... and leaves the angles unchanged', angles(last_state(evs)['view']) == (10, -20))
     finally:
@@ -3714,7 +3687,7 @@ def check_marks():
               and m['markers'] == [] and m['frozen'] == [], str(of(evs, 'marks'))[:300])
         curve = of(evs, 'plots')[0]['windows'][0]['curves'][0]
 
-        evs = command('i', keys('g'))
+        evs = after({'cmd': 'run.initial'})
         ser = whole_series(evs)
         v = last_state(evs)['view']
         px = (v['xhi'] - v['xlo']) / abs(v['right'] - v['left']) * 1.5
@@ -4013,7 +3986,8 @@ def check_ani_data():
         send6(cmd='data', events=['ani'])
         evs, _ = collect6(is_idle)
         check('ani data: no frame before one is drawn', not frames(evs))
-        command('i', {'key': 'g'})
+        send6(cmd='run.initial')
+        collect6(is_idle)
         evs = command('v', {'key': 't'})
         check('ani data: Viewaxes/Toon opens the animation window',
               any(e.get('open') == 1 for e in states(evs)) or any(e.get('ev') == 'window' and e.get('win') == 'animation' and e.get('op') == 'create' for e in evs))
@@ -4141,10 +4115,12 @@ def check_fit_retained_runs():
             col(is_idle, timeout=60 * SLOW)
             snd(cmd='data', events=['series', 'plots'])
             col(is_idle)
-            keys('i', 'g')
+            snd(cmd='run.initial')
+            col(is_idle)
             snd(cmd='set', kind='par', name='a', value=0.1)
             col(is_idle)
-            keys('i', 'g')
+            snd(cmd='run.initial')
+            col(is_idle)
             evs = keys('w', 'f')
             snd(cmd='data', events=['series', 'plots'])
             evs, _ = col(is_idle)
@@ -4355,7 +4331,7 @@ def check_autoinfo():
             snd(cmd='auto', op='set', numerics={'nmx': 20})
             evs, _ = col(is_idle)
             check('W338: the short periodic circle fixture is configured',
-                  not any(e.get('ev') == 'message' and 'error' in e for e in evs), str(evs)[-300:])
+                  not any(e.get('ev') in ('message', 'done') and 'error' in e for e in evs), str(evs)[-300:])
             snd(cmd='key', win='auto', key='r')
             evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=30 * SLOW)
             snd(cmd='answer', id=ask['id'], key='p')
@@ -4508,7 +4484,7 @@ def check_autosettings():
             return cola(is_idle)[0]
 
         def auto_errors(events):
-            return [e['error'] for e in events if e.get('ev') == 'message' and 'error' in e]
+            return [e['error'] for e in events if e.get('ev') in ('message', 'done') and 'error' in e]
 
         def auto_set(**c):
             snda(cmd='auto', op='set', **c)
@@ -4627,7 +4603,7 @@ def check_autosettings():
         snda(cmd='answer', id=form['id'], ok=1, values=vals)
         rejected, _ = cola(is_idle)
         check('W331: late bad form value rejects all edits',
-              len([e for e in rejected if e.get('ev') == 'message' and 'error' in e]) == 1 and settings_of(rejected) is None)
+              len([e for e in rejected if e.get('ev') in ('message', 'done') and 'error' in e]) == 1 and settings_of(rejected) is None)
         for bad_marks in (many_marks[:-1] + [['unknown', 0]], 'bad', [['T', 1, 2]]):
             evs, changed, errs = auto_set(numerics={'nmx': 99}, marks=bad_marks)
             check('W331: bad mark command rejects its numerics too', len(errs) == 1 and changed is None)
@@ -4714,7 +4690,7 @@ def auto_stop_run(numerics, abort=False):
             col(lambda e: is_idle(e) or e.get('ev') == 'ask')
         snd(cmd='auto', op='set', numerics=numerics)
         evs, _ = col(is_idle)
-        errs = [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
+        errs = [e['error'] for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         snd(cmd='key', win='auto', key='r')
         evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
         if errs or not ask or ask.get('ev') != 'ask':
@@ -4723,7 +4699,7 @@ def auto_stop_run(numerics, abort=False):
         evs = []
         if abort:
             evs, _ = col(lambda e: e.get('ev') == 'diagram' and e.get('op') == 'add', timeout=30 * SLOW)
-            snd(cmd='abort')
+            snd(cmd='run.abort')
         more, _ = col(is_idle, timeout=60 * SLOW)
         evs += more
         got = infos(evs)
@@ -4770,7 +4746,7 @@ def check_auto_points_limit():
             col(lambda e: is_idle(e) or e.get('ev') == 'ask')
         snd(cmd='auto', op='set', numerics={'rl0': -0.5, 'rl1': 0.9, 'a0': -1, 'a1': 100, 'nmx': 10000000})
         evs, _ = col(is_idle)
-        check('W432: Nmax 10000000 is accepted', not [e for e in evs if e.get('ev') == 'message' and 'error' in e], str(evs[-3:]))
+        check('W432: Nmax 10000000 is accepted', not [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e], str(evs[-3:]))
         snd(cmd='key', win='auto', key='r')
         evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
         snd(cmd='answer', id=ask['id'], key='s')
@@ -5030,7 +5006,7 @@ def check_save_owner():
     """W129: the permission belongs to the command; only commit delivers."""
     log = LogLines()
     p, r, snd, col, _ = launch_server(log=log)
-    errors = lambda evs: [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+    errors = lambda evs: [e for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
     results = lambda evs: [e for e in evs if e.get('ev') == 'saved']
     try:
         col(is_idle)
@@ -5305,15 +5281,19 @@ def check_seed_per_run():
                 return got
             snd(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
+    def after(**cmd):
+        snd(**cmd)
+        return col(is_idle, timeout=30 * SLOW)[0]
+
     full = whole_series
     try:
         col(is_idle)
         snd(cmd='data', events=['series'])
         col(is_idle)
 
-        evs1 = keys('i', {'key': 'g'})
+        evs1 = after(cmd='run.initial')
         st1, ser1 = last_state(evs1), full(evs1)
-        evs2 = keys('i', {'key': 'g'})
+        evs2 = after(cmd='run.initial')
         st2, ser2 = last_state(evs2), full(evs2)
         seed1 = st1.get('seed') if st1 else None
         seed2 = st2.get('seed') if st2 else None
@@ -5328,7 +5308,7 @@ def check_seed_per_run():
         keys('h', {'key': 'n'}, {'value': str(seed2)})  # stocHast: New seed
         keys('Escape')                                   # back to the main menu
 
-        evs4 = keys('i', {'key': 'g'})
+        evs4 = after(cmd='run.initial')
         st4, ser4 = last_state(evs4), full(evs4)
         seed4 = st4.get('seed') if st4 else None
         data4 = ser4[-1]['columns'] if ser4 else None
@@ -5421,29 +5401,19 @@ def check_refused_during_run():
     is_ask = lambda e: e.get('ev') == 'ask'
     try:
         col(is_idle)
-        snd(cmd='key', key='u')
+        snd(cmd='run.configure', total_time=1e7)
         col(is_idle)
-        snd(cmd='key', key='t')
-        evs, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], ok=1, value='1e7')
-        col(is_idle)
-        snd(cmd='key', key='Escape')
-        col(is_idle)
-        snd(cmd='key', key='i')
-        evs, ask = col(is_ask)
-        check('W95: a menu opened is no computation (no computing event yet)',
-              not any(e.get('ev') == 'computing' for e in evs), str([e.get('ev') for e in evs]))
-        snd(cmd='answer', id=ask['id'], key='g')
+        snd(cmd='run.initial')
         evs, prog = col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
         check('W95: the integration says it computes (computing) before its progress',
               [e.get('ev') for e in evs].count('computing') == 1, str([e.get('ev') for e in evs]))
         snd(cmd='key', key='s')  # Sing pts: a computation
-        snd(cmd='key', key='c')  # Continue: a computation
+        snd(cmd='run.continue')  # Continue: a computation
         snd(cmd='window.set_display', window='graph_1', x_range=[0, 50])  # a view: kept for after the run
         snd(cmd='browser', **{'from': 0, 'count': 1})  # only reads: answered during the run
         evs, rows = col(lambda e: e.get('ev') == 'browser')
         during = [e for e in evs if e.get('ev') in ('ask', 'idle', 'message')]
-        snd(cmd='abort')
+        snd(cmd='run.abort')
         evs, e = col(is_idle, timeout=30 * SLOW)
         stopped = any(x.get('ev') == 'stopped' for x in evs)
         check('W68: during a run, a browser request is answered at once and the run goes on until the Abort (stopped)',
@@ -5452,7 +5422,7 @@ def check_refused_during_run():
         for _ in range(3):  # the two refused lines, then the display, each with its own idle
             more, _ = col(is_idle)
             after.append(more)
-        refused = [[x.get('error', '') for x in m if x.get('ev') == 'message'] for m in after[:2]]
+        refused = [[x.get('error', '') for x in m if x.get('ev') in ('message', 'done') and x.get('error')] for m in after[:2]]
         check('W95: a computation or data command sent during a run is refused after it: an error, state and idle each',
               all(len(m) == 1 and 'Not while a computation runs' in m[0] for m in refused)
               and not any(is_ask(x) for m in after for x in m), str(refused))
@@ -5463,16 +5433,16 @@ def check_refused_during_run():
         check('W95: a view command sent during a run runs after it (display: the zoom shown)',
               not any(x.get('ev') == 'message' for x in after[2]) and w1 and w1.get('zoom', {}).get('x') == [0, 50],
               str(w1 and w1.get('zoom')))
-        want = ['refused during a computation: key s', 'refused during a computation: key c']
+        want = ['refused during a computation: key s', 'refused during a computation: run.continue']
         log.wait_for(lambda lines: all(w in lines for w in want))
         check('W95: each refused line is logged once ("refused during a computation: key s"), the view none',
               all(log.count(w) == 1 for w in want) and len([l for l in log if 'refused' in l]) == 2,
               str([l for l in log if 'refused' in l]))
         snd(cmd='key', key='u')
         col(is_idle)
-        snd(cmd='key', key='t')
+        snd(cmd='key', key='n')
         evs, ask = col(lambda e: e.get('ev') in ('ask', 'idle','done'))
-        check('W68: after the run a key works again (nUmerics/Total asks)', ask is not None and ask['ev'] == 'ask',
+        check('W68: after the run a key works again (nUmerics/Ncline mesh asks)', ask is not None and ask['ev'] == 'ask',
               str(ask))
         if ask and ask['ev'] == 'ask':
             snd(cmd='answer', id=ask['id'], ok=0)
@@ -5496,17 +5466,9 @@ def check_busy_flood():
     p, r, snd, col, _ = launch_server()
     try:
         col(is_idle)
-        snd(cmd='key', key='u')
+        snd(cmd='run.configure', total_time=1e7)
         col(is_idle)
-        snd(cmd='key', key='t')
-        evs, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], ok=1, value='1e7')
-        col(is_idle)
-        snd(cmd='key', key='Escape')
-        col(is_idle)
-        snd(cmd='key', key='i')
-        evs, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='g')
+        snd(cmd='run.initial')
         col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
         for i in range(flood):  # a view command: kept for after the run
             snd(cmd='window.set_display', window='graph_1', x_range=[0, 50], id=i)
@@ -5517,7 +5479,7 @@ def check_busy_flood():
               last is not None and ids == list(range(MAX_PENDING_LINES, flood))
               and all('display' in e['error'] and e.get('source', '').startswith('{') for e in busy),
               str(ids[:3]) + ' ... %d refused' % len(ids))
-        snd(cmd='abort')
+        snd(cmd='run.abort')
         evs, e = col(is_idle, timeout=30 * SLOW)
         check('W389: an Abort sent after the flood is read and stops the run (stopped)',
               any(x.get('ev') == 'stopped' for x in evs), str([x.get('ev') for x in evs])[-200:])
@@ -5558,20 +5520,16 @@ def check_method_refusal():
     p, r, snd, col, _ = launch_server(ode=model)
     try:
         col(is_idle)
-        snd(cmd='key', key='u')
-        col(is_idle)
-        snd(cmd='key', key='m')
-        _, ask = col(lambda e: e.get('ev') == 'ask')
-        snd(cmd='answer', id=ask['id'], key='y')
+        snd(cmd='run.configure', method='symplectic')
         evs, _ = col(is_idle)
-        errors = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+        errors = [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         snd(cmd='data', events=['numerics'])
         fields = next((e['fields'] for e in col(is_idle)[0] if e.get('ev') == 'numerics'), [])
         method = next((f['value'] for f in fields if f['key'] == 'method'), None)
-        check('W132: menu refuses odd Symplectic at the command and keeps Euler',
+        check('W132: run.configure refuses odd Symplectic at the command and keeps Euler',
               method == 'euler' and len(errors) == 1 and 'even dimensions' in errors[0]['error']
               and errors[0].get('file') == 'command' and errors[0].get('line') == 1, str(errors))
-        snd(cmd='set', kind='num', name='method', text='symplectic')
+        snd(cmd='run.configure', method='symplectic')
         evs, _ = col(is_idle)
         snd(cmd='data', events=['numerics'])
         fields = next((e['fields'] for e in col(is_idle)[0] if e.get('ev') == 'numerics'), [])
@@ -5602,9 +5560,9 @@ def check_method_refusal():
         check('W379: Wiener model marks adaptive methods unavailable with reason',
               all(unav.get(m) == reason for m in ['gear', 'qualrk', 'stiff', 'cvode', 'dopri5', 'dopri8', 'rosenbrock'])
               and 'euler' not in unav and 'runge_kutta' not in unav, str(unav))
-        snd(cmd='set', kind='num', name='method', text='dopri5')
+        snd(cmd='run.configure', method='dopri5')
         evs, _ = col(is_idle)
-        errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+        errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         check('W379: set num method refuses DoPri5 on Wiener model',
               len(errs) == 1 and ('Method: ' + reason) in errs[0], str(errs))
     finally:
@@ -5652,18 +5610,18 @@ def check_jacobian_setting():
                   and 'integer' not in jac, str(jac))
             snd(cmd='set', kind='num', name='jacobian', text='exact')
             evs, _ = col(is_idle)
-            errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+            errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
             check('W260: set num jacobian exact takes it', not errs and jac.get('value') == 'exact', '%s %s' % (errs, jac))
             snd(cmd='set', kind='num', name='jacobian', text='difference')
             col(is_idle)
             snd(cmd='set', kind='num', name='jacobian', text='finite')
             evs, _ = col(is_idle)
-            errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+            errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
             snd(cmd='set', kind='num', name='jacobian', text='1')
             evs, _ = col(is_idle)
-            errs += [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+            errs += [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
             check('W260: set num jacobian by name; a name that is no choice, a number too, is refused, naming them',
                   errs == ['Numerics: Jacobian must be difference or exact'] * 2 and jac.get('value') == 'difference', '%s %s' % (errs, jac))
             # W274 (folded into W285): the setting is saved with the session and restored
@@ -5699,7 +5657,7 @@ def check_jacobian_setting():
             why = 'noisy.odex:2:1: uses random numbers'
             snd(cmd='set', kind='num', name='jacobian', text='exact')
             evs, _ = col(is_idle)
-            errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+            errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
             check('W260: set num jacobian exact is refused there, with the reason',
                   errs == ['Numerics: Jacobian: exact is not available: ' + why], str(errs))
             jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
@@ -5777,11 +5735,9 @@ def check_jacobian_failure():
             col(is_idle)
             snd(cmd='record', op='start')
             col(is_idle)
-            snd(cmd='key', key='i')
-            _, ask = col(is_ask)
-            snd(cmd='answer', id=ask['id'], key='g')
+            snd(cmd='run.initial')
             evs, _ = col(is_idle)
-            errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+            errs = [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
             err = errs[-1] if errs else {}
             action = err.get('action') or {}
             check('W260: sqrt(x) at x=0 under the exact Jacobian stops the run: its line, the variable, time and state, '
@@ -5792,12 +5748,12 @@ def check_jacobian_failure():
             check('W260: the error offers Switch to differences and continue, as the commands that do it',
                   action.get('label') == 'Switch to differences and continue'
                   and action.get('commands') == [{'cmd': 'set', 'kind': 'num', 'name': 'jacobian', 'text': 'difference'},
-                                                 {'cmd': 'continue', 'until': 4}], str(action))
+                                                 {'cmd': 'run.continue', 'until': 4}], str(action))
             for c in action.get('commands', []):
                 snd(**c)
                 evs, _ = col(is_idle)
             st = next((e for e in reversed(evs) if is_state(e)), {})
-            errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+            errs = [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
             check('W260: sending them finishes the run with differences, to t=4',
                   not errs and st.get('time') == 4 and st.get('rows', 0) > 1, '%s %s' % (errs, st))
             snd(cmd='record', op='stop', name='click.recx')
@@ -5862,7 +5818,7 @@ def check_auto_jacobian_failure():
             _, ask = col(is_ask)
             snd(cmd='answer', id=ask['id'], key='s')
             evs, _ = col(is_idle, timeout=60 * SLOW)
-            errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+            errs = [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
             err = errs[-1] if errs else {}
             action = err.get('action') or {}
             cmds = action.get('commands') or [{}, {}]
@@ -5886,7 +5842,7 @@ def check_auto_jacobian_failure():
                 snd(**c)
                 more, _ = col(is_idle, timeout=60 * SLOW)
                 went += more
-            errs = [e for e in went if e.get('ev') == 'message' and 'error' in e]
+            errs = [e for e in went if e.get('ev') in ('message', 'done') and 'error' in e]
             xs = [x for e in went if e.get('ev') == 'diagram' and e.get('op') == 'add' for run in e['runs'] for x in run['x']]
             info = [e['stop'] for e in went if e.get('ev') == 'autoinfo' and e.get('stop')]
             check('W275: sending them takes the branch on, past the failure (a below 0.5) to Par Min, with no error',
@@ -5942,23 +5898,23 @@ def check_settings_during_run():
               n0 is not None and n0.get('total_time') == 30 and n0.get('dt') == 0.05
               and meth.get('value') == 'runge_kutta'
               and next((f for f in fields if f['key'] == 'store_every'), {}).get('integer') is True, str(n0))
-        snd(cmd='set', kind='num', name='total_time', value=1e7)
+        snd(cmd='run.configure', total_time=1e7)
         evs, _ = col(is_idle)
         check('W106: set kind num sets a numerics field (total), the numerics event says so',
               (num(evs) or {}).get('total_time') == 1e7, str(num(evs)))
-        snd(cmd='set', kind='num', name='dt', text='0')
+        snd(cmd='run.configure', dt=0)
         evs, _ = col(is_idle)
-        errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+        errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         check('W106: a bad numerics value is an error naming the field, nothing changes',
-              errs == ['Numerics: Dt must be a number other than 0'] and num(evs) is None, str(errs))
+              errs == ['Dt must be a number other than 0'] and num(evs) is None, str(errs))
         # W206: Store every N steps is `store_every`; its old name nout is refused, as any unknown key
         snd(cmd='set', kind='num', name='nout', value=1)
         evs, _ = col(is_idle)
-        errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+        errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         check('W206: set num refuses the old key nout, naming it', len(errs) == 1 and 'nout' in errs[0], str(errs))
-        snd(cmd='set', kind='num', name='store_every', value=1)
+        snd(cmd='run.configure', store_every=1)
         evs, _ = col(is_idle)
-        errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+        errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         check('W206: set num takes store_every', not errs, str(errs))
         # W116: what set, slide and default cannot take is the protocol's
         # error, the value left as it was (never a 0, never the ICs reset)
@@ -5968,52 +5924,50 @@ def check_settings_during_run():
                 (dict(cmd='set', kind='par', name='iapp'), 'set par iapp: its value is not a number (or its text missing)'),
                 (dict(cmd='set', kind='par', name='iapp', value='0.2'),
                  'set par iapp: its value is not a number (or its text missing)'),
-                (dict(cmd='set', kind='parm', name='iapp', value=0.2), 'set takes kind par, ic, delay, bc or num, not "parm"'),
+                (dict(cmd='set', kind='parm', name='iapp', value=0.2), 'set takes kind par, delay, bc or num, not "parm"'),
                 (dict(cmd='set', kind='par', name='nosuch', value=0.2), 'set: the model has no par nosuch'),
-                (dict(cmd='set', kind='ic', index=7, value=0.2), 'set ic: its index is not one of 0 to 1'),
+                (dict(cmd='ic.set', values={'nosuch': 0.2}), 'Argument "values": no variable named "nosuch" in the model'),
                 (dict(cmd='slide', name='nosuch', value=0.2), 'slide: the model has no parameter or variable nosuch'),
                 (dict(cmd='slide', name='iapp'), 'slide iapp: its value is not a number'),
                 (dict(cmd='restoredefaults', scope='pars'), 'pars is not a scope (one of all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis)')):
-            snd(cmd='set', kind='ic', name='v', value=0.25)
+            snd(cmd='ic.set', values={'v': 0.25})
             evs, _ = col(is_idle)
             iapp0 = iapp(evs)
             snd(**bad)
             evs, _ = col(is_idle)
-            errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+            errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
             snd(cmd='state')
             st = next((e for e in reversed(col(is_idle)[0]) if is_state(e)), None)
             check('W116: %s is refused (%s), iapp and V as they were' % (json.dumps(bad), expect),
                   errs == [expect] and st and dict(st['pars']).get('iapp') == iapp0 and dict(st['ics']).get('V') == 0.25,
                   '%s; %s' % (errs, st and (dict(st['pars']).get('iapp'), dict(st['ics']).get('V'))))
-        snd(cmd='set', kind='ic', name='v', value=v_before)  # the ICs the checks after expect
+        snd(cmd='ic.set', values={'v': v_before})  # the ICs the checks after expect
         col(is_idle)
-        snd(cmd='set', kind='num', name='method', text='cvode')
+        snd(cmd='run.configure', method='cvode')
         evs, _ = col(is_idle)
         m = num(evs)
-        snd(cmd='set', kind='num', name='method', text='runge_kutta')
+        snd(cmd='run.configure', method='runge_kutta')
         evs, _ = col(is_idle)
         taken = num(evs)
-        snd(cmd='set', kind='num', name='method', value=3)
+        snd(cmd='run.configure', method='3')
         refused, _ = col(is_idle)
-        errs = [e.get('error') for e in refused if e.get('ev') == 'message' and 'error' in e]
+        errs = [e.get('error') for e in refused if e.get('ev') in ('message', 'done') and 'error' in e]
         check('W106: set num method takes its name (the key of the method table), never its number',
               m and m.get('method') == 'cvode' and (taken or {}).get('method') == 'runge_kutta'
               and len(errs) == 1 and '`3` is not a method' in errs[0] and num(refused) is None, str((m, taken, errs)))
-        snd(cmd='key', key='i')
-        evs, ask = col(lambda e: e.get('ev') == 'ask')
-        snd(cmd='answer', id=ask['id'], key='g')
+        snd(cmd='run.initial')
         evs, prog = col(is_prog, timeout=30 * SLOW)
         snd(cmd='set', kind='par', name='iapp', value=0.3)
-        snd(cmd='set', kind='num', name='total_time', value=50)
-        snd(cmd='set', kind='num', name='store_every', value=0)  # bad: its error comes after the run
+        snd(cmd='run.configure', total_time=50)
+        snd(cmd='run.configure', store_every=0)  # bad: its error comes after the run
         snd(cmd='state')
         snd(cmd='browser', **{'from': 0, 'count': 1})  # control, behind the sets: they were taken
         evs, _ = col(lambda e: e.get('ev') == 'browser')
-        during = [e for e in evs if e.get('ev') in ('idle', 'message')]
+        during = [e for e in evs if e.get('ev') in ('idle', 'done', 'message')]
         check('W106: settings sent during a run get no idle or error while it runs; state still shows the '
               'values it runs with', prog is not None and not during and iapp(evs) == 0.05,
               str([e.get('ev') for e in evs]))
-        snd(cmd='abort')
+        snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         stopped = [e for e in evs if e.get('ev') == 'stopped']
         rows = next((e['rows'] for e in reversed(evs) if is_state(e)), 0)
@@ -6023,26 +5977,24 @@ def check_settings_during_run():
         for _ in range(3):
             more, _ = col(is_idle)
             after.append(more)
-        errs = [[e.get('error') for e in m if e.get('ev') == 'message'] for m in after]
+        errs = [[e.get('error') for e in m if e.get('ev') in ('message', 'done') and e.get('error')] for m in after]
         check('W106: then each setting is a command of its own, in order: the bad one an error after the run',
               iapp(after[0]) == 0.3 and (num(after[1]) or {}).get('total_time') == 50
-              and errs == [[], [], ['Numerics: Store every N steps must be a whole number of at least 1']], str(errs))
+              and errs == [[], [], ['Argument "store_every" must be at least 1']], str(errs))
         snd(cmd='browser', **{'from': rows - 1, 'count': 1})
         evs, br = col(lambda e: e.get('ev') == 'browser')
         col(is_idle)
         live = br and br['data']
         code, out, err = run_replay([
-            {'cmd': 'set', 'kind': 'num', 'name': 'total_time', 'value': 1e7},
-            {'cmd': 'set', 'kind': 'num', 'name': 'method', 'text': 'runge_kutta'},
-            {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+            {'cmd': 'run.configure', 'total_time': 1e7},
+            {'cmd': 'run.configure', 'method': 'runge_kutta'},
+            {'cmd': 'run.initial'},
             {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': rows, 't': 0}},
             {'cmd': 'browser', 'from': rows - 1, 'count': 1}])
         ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'browser'), None)
         check('W106: the rows the run stored are those of a run with the old values (the settings did not '
               'reach it)', code == 0 and live and live == ref, '%s vs %s (%s)' % (live, ref, err[-200:]))
-        snd(cmd='key', key='i')
-        evs, ask = col(lambda e: e.get('ev') == 'ask')
-        snd(cmd='answer', id=ask['id'], key='g')
+        snd(cmd='run.initial')
         evs, _ = col(is_idle, timeout=60 * SLOW)
         rows2 = next((e['rows'] for e in reversed(evs) if is_state(e)), 0)
         snd(cmd='browser', **{'from': rows2 - 1, 'count': 1})
@@ -6050,9 +6002,9 @@ def check_settings_during_run():
         col(is_idle)
         code, out, err = run_replay([
             {'cmd': 'set', 'kind': 'par', 'name': 'iapp', 'value': 0.3},
-            {'cmd': 'set', 'kind': 'num', 'name': 'total_time', 'value': 50},
-            {'cmd': 'set', 'kind': 'num', 'name': 'method', 'text': 'runge_kutta'},
-            {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+            {'cmd': 'run.configure', 'total_time': 50},
+            {'cmd': 'run.configure', 'method': 'runge_kutta'},
+            {'cmd': 'run.initial'},
             {'cmd': 'browser', 'from': 1000, 'count': 1}])
         ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'browser'), None)
         check('W106: the next run uses them (Total 50: 1001 rows, iapp 0.3: the rows of a run set so)',
@@ -6066,12 +6018,12 @@ check_settings_during_run()
 
 # W95: a command sent right behind one that asks, before the client saw the
 # question, is kept for after that command, never lost: its own idle comes
-# (the key i opens a menu; the state behind it runs once the menu is answered)
+# (the key g opens a menu; the state behind it runs once the menu is answered)
 def check_kept_behind_ask():
     p, r, snd, col, _ = launch_server()
     try:
         col(is_idle)
-        snd(cmd='key', key='i')
+        snd(cmd='key', key='g')
         snd(cmd='equations')
         evs, ask = col(lambda e: e.get('ev') == 'ask')
         snd(cmd='answer', id=ask['id'], ok=0)
@@ -6111,10 +6063,7 @@ def check_open_reload():
                 return [l.strip() for l in f if l.strip() and not l.startswith('#')]
 
         def integrate():
-            snd(cmd='key', key='i')
-            _, ask = col(lambda e: e.get('ev') == 'ask')
-            if ask:
-                snd(cmd='answer', id=ask['id'], key='g')
+            snd(cmd='run.initial')
             col(is_idle)
 
         def open_model(file, key='d'):
@@ -6183,7 +6132,9 @@ def check_open_reload():
         check('the opened model integrates (its 101 rows and their heading)', len(other1) == 102, str(other1[:3]))
 
         # Reload after editing: a's value set in the session stays, the new b comes with its file value
-        snd(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 3}, {'kind': 'ic', 'name': 'X', 'value': 2}])
+        snd(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 3}])
+        col(is_idle)
+        snd(cmd='ic.set', values={'X': 2})
         col(is_idle)
         with open(os.path.splitext(other)[0] + '.odex', 'w') as f:
             f.write('par a=1, b=7\ninit x=0.5\nx\'=-a*x+b*0\noptions { integration: { total_time: 5, dt: 0.05 } }\n')
@@ -6203,13 +6154,7 @@ def check_open_reload():
         check('reload keeps the values by name, the new parameter from the file',
               st and st['pars'] == [['a', 3], ['b', 7]] and st['ics'] == [['X', 2]], str(st and (st['pars'], st['ics'])))
         # the numerics too: nUmerics/Total 10 survives a reload (the file says 5)
-        snd(cmd='key', key='u')
-        snd(cmd='key', key='t')
-        _, ask = col(lambda e: e.get('ev') == 'ask')
-        if ask:
-            snd(cmd='answer', id=ask['id'], ok=1, value='10')
-            col(is_idle)
-        snd(cmd='key', key='Escape')
+        snd(cmd='run.configure', total_time=10)
         col(is_idle)
         snd(cmd='reload')
         _, ask = col(lambda e: e.get('ev') == 'ask')
@@ -6220,19 +6165,21 @@ def check_open_reload():
         check('reload keeps the numerics: Total 10 gives 201 rows', len(rows_of('other_t10.csv')) == 202, '')
 
         # a model that cannot be loaded: the one before stays, integrating to the same data
-        snd(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1}, {'kind': 'ic', 'name': 'X', 'value': 0.5}])
+        snd(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1}])
+        col(is_idle)
+        snd(cmd='ic.set', values={'X': 0.5})
         col(is_idle)
         integrate()
         before = rows_of('other2.csv')
         evs = open_model('broken.ode')
-        errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+        errs = [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         check('a broken model: an error, no hello',
               errs and errs[-1].get('file') == 'broken.ode' and not [e for e in evs if e.get('ev') == 'hello'],
               str(errs)[:200])
         check('a broken model: the model before is still loaded, its values untouched',
               last_state(evs)['pars'] == [['a', 1], ['b', 7]], str(last_state(evs))[:200])
         evs = open_model('badoption.ode')
-        errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+        errs = [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         check('a refused option value: an error naming the file, line and value, the model before kept (W119)',
               errs and errs[-1].get('file') == 'badoption.ode' and 'ync=12' in errs[-1]['error']
               and not [e for e in evs if e.get('ev') == 'hello']
@@ -6288,10 +6235,10 @@ def check_display_state():
         check('display: a window shows its own axes and its earlier runs at first',
               w and w[-1].get('zoom') == {'x': None, 'y': None} and w[-1].get('runs') == 1, str(w))
         check('display: no runs event before there is a run', not runs_of(evs))
-        evs = keys('i', {'key': 'g'})
+        evs = after(cmd='run.initial')
         first = full(evs)[-1]
         check('display: the first run has nothing before it', not added(evs) and not any(e['erased'] for e in runs_of(evs)))
-        evs = keys('i', {'key': 'g'})
+        evs = after(cmd='run.initial')
         cols1 = {c['col']: c['data'] for c in first['columns']}
         check('display: a second run keeps the first as an earlier run (one runs event: keep, the series the client'
               ' holds, not its data again)',
@@ -6328,7 +6275,7 @@ def check_display_state():
         check('display: null returns one axis to the window own axes', w and w[-1]['zoom'] == {'x': None, 'y': [-0.5, 0.5]}, str(w))
         evs = after(cmd='window.set_display', window='graph_1', x_range=[5, 1])
         check('display: a range with low not below high is refused, the zoom unchanged',
-              any(e.get('ev') == 'done' and e.get('status') == 'error' for e in evs) and not win1(evs), str(evs)[:200])
+              any((e.get('ev') == 'done' and e.get('status') == 'error') or (e.get('ev') == 'message' and 'error' in e) for e in evs) and not win1(evs), str(evs)[:200])
         evs = after(cmd='window.set_display', window='graph_7', x_range=[0, 1])
         check('display: an unknown window is refused',
               any(e.get('ev') == 'done' and e.get('status') == 'error' for e in evs), str(evs)[:200])
@@ -6364,7 +6311,7 @@ def check_display_state():
               str(av(evs)))
         snd(cmd='auto', op='display', x=[3, 3])
         evs, _ = col(is_idle)
-        check('autoview: a bad range is refused', any(e.get('ev') == 'message' and 'error' in e for e in evs), str(evs)[:200])
+        check('autoview: a bad range is refused', any(e.get('ev') in ('message', 'done') and 'error' in e for e in evs), str(evs)[:200])
         snd(cmd='window.destroy', window='diagram_1')
         evs, _ = col(is_idle)
         check('autoview: closing AUTO resets it', av(evs) and av(evs)[-1]['earlier'] == 0
@@ -6406,7 +6353,7 @@ def check_silent_commands():
         path = os.path.join(d, n)
         return open(path, 'rb').read().replace(b'\r', b'') if os.path.exists(path) else None
 
-    go = [{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'}]
+    go = [{'cmd': 'run.initial'}]
     dirs = []
     try:
         s, r = silent(args.ode, '--qsets', '--qpars', '--qics', '--outfile', 'q.txt')
@@ -6468,7 +6415,7 @@ def check_export_elements():
 
     model = 'tools/models/export-elements.ode'
     binary = os.path.abspath(args.server)
-    go = [{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'}]
+    go = [{'cmd': 'run.initial'}]
 
     def elements(data, fmt):
         """the picture's items as (kind, colour, text): a path or a dot (a marker) in its colour, a text in its colour"""
@@ -6510,8 +6457,7 @@ def check_export_elements():
             server.collect(is_idle)
             server.send(cmd='data', events=['nullclines', 'dfield'])
             server.collect(is_idle)
-            server.send(**go[0]); server.collect(is_ask)
-            server.send(**go[1]); events, _ = server.collect(is_idle)
+            server.send(**go[0]); events, _ = server.collect(is_idle)
             nc = next((e for e in events if e.get('ev') == 'nullclines' and e.get('x') and e.get('y')), None)
             df = next((e for e in events if e.get('ev') == 'dfield' and e.get('grid')), None)
             check('W346: a run publishes requested nullclines and field without a separate command',
@@ -6573,7 +6519,13 @@ def check_export_elements():
                   and any('W346label' in text for _, _, text in replayed)
                   and len(replayed) > len(expected_files[fmt]), result.stderr[-300:])
         # ncdraw=2 and dfdraw=4 use the ordinary writer in both modes.
-        result = run_commands(binary, model, go, root, flags=('--ncdraw', '2', '--dfdraw', '4'))
+        server = Server(binary, model, run=root, extra_args=('--ncdraw', '2', '--dfdraw', '4'))
+        try:  # a registry run carries no replace permission: the files it replaces are answered
+            server.collect(is_idle)
+            server.send(**go[0])
+            server.answer_asks(is_idle, {'choice': lambda e: {'key': 'y'}})
+        finally:
+            server.close()
         with open(os.path.join(root, 'nullclines.dat'), 'rb') as f:
             dump = f.read()
         with open(os.path.join(root, 'dirfields.dat'), 'rb') as f:
@@ -6627,7 +6579,7 @@ def check_outcomes_once():
               r.returncode == 0 and results.count('Success!') == 1 and not errors, str((r.returncode, results, errors, r.stderr[-300:])))
         saved_csv = [
             {'cmd': 'set', 'kind': 'par', 'name': 'a', 'value': 2},
-            {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+            {'cmd': 'run.initial'},
             {'cmd': 'browser', 'op': 'write', 'what': 'table', 'format': 'csv', 'name': 'saved.csv', 'replace': 1},
             {'cmd': 'set', 'kind': 'par', 'name': 'a', 'value': 1}]
         r, evs = run(saved_csv + fit('saved.csv'))
@@ -6642,7 +6594,7 @@ def check_outcomes_once():
         # Arm Stop while answering the first captured frame; the second
         # integration stops at row 15, after a real frame reached the temp file.
         range_movie = [
-            {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+            {'cmd': 'run.initial'},
             {'cmd': 'plotvars', 'how': 2, 'names': ['x', 'y']},
             {'cmd': 'key', 'win': 'aplot', 'key': 'r', 'replace': 1},
             {'cmd': 'answer', 'values': ['0', '0']},
@@ -6742,13 +6694,13 @@ def check_dae_fold():
     the run keeps the rows to t=0.45 (dt .05: 10 rows) and says once, as an
     error, that there is no solution past the last time solved. dae.odex, a
     DAE with no fold, runs to its end (total 20, dt .05: 401 rows)."""
-    GO = [{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'}]
+    GO = [{'cmd': 'run.initial'}]
     SING = [{'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}]
 
     def run(ode, lines=GO):
         code, out, err = run_replay(lines, ode=ode)
         evs = [json.loads(l) for l in out.splitlines() if l.strip()]
-        errs = [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
+        errs = [e['error'] for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         return code, errs, (last_state(evs) or {}).get('rows'), err
 
     code, errs, rows, err = run('examples/ode/dae_ex3.odex')
@@ -6831,10 +6783,10 @@ def check_session_random():
     try:
         # a recording of a Go and a Continue after an earlier Go: its snapshot
         # holds the generator and the next Go's seed
-        run(cmd='key', key='i')
+        run(cmd='run.initial')
         run(cmd='record', op='start')
-        run(cmd='key', key='i')
-        run(cmd='key', key='c')
+        run(cmd='run.initial')
+        run(cmd='run.continue')
         write(run, 'rec.dat')
         run(cmd='record', op='stop', name='rr')
         rec = read(r, 'rec.dat')
@@ -6842,9 +6794,9 @@ def check_session_random():
         shutil.copy(os.path.join(r, 'rr.recx'), keep)
         snap = recx_snapshot(text) or {}
         check('random: a recording snapshot holds random.txt', 'random.txt' in snap, str(sorted(snap)))
-        run(cmd='key', key='i')
+        run(cmd='run.initial')
         run(cmd='session', op='save', name='r1')
-        run(cmd='key', key='c')
+        run(cmd='run.continue')
         write(run, 'a.dat')
         a = read(r, 'a.dat')
         z = zipfile.ZipFile(os.path.join(r, 'r1.snapx'))
@@ -6858,7 +6810,7 @@ def check_session_random():
     try:
         shutil.copy(os.path.join(keep, 'r1.snapx'), r)
         run(cmd='open', file='r1.snapx')
-        run(cmd='key', key='c')
+        run(cmd='run.continue')
         write(run, 'b.dat')
         b = read(r, 'b.dat')
         check('random: save, open, Continue gives the rows of Continue without the save',
@@ -6950,13 +6902,13 @@ def check_save_session():
         check('W209: the second Save session asks nothing, replaces sv1.snapx and clears changed',
               not asks(evs) and saved(evs) and saved(evs)[-1].get('saved') is True and before != after
               and state(evs).get('changed') is False and state(evs).get('session') == {'file': 'sv1.snapx'}, str(asks(evs))[:200])
-        for what, cmd in (('an initial condition', dict(kind='ic', name='V', value=-0.3)),
-                          ('the time span', dict(kind='num', name='total_time', value=77))):
-            evs = run(cmd='set', values=[cmd])
+        for what, command in (('an initial condition', dict(cmd='ic.set', values={'V': -0.3})),
+                              ('the time span', dict(cmd='run.configure', total_time=77))):
+            evs = run(**command)
             check('W209: %s sets changed' % what, state(evs).get('changed') is True, str(state(evs).get('changed')) + str(evs[-4:])[:200])
             evs = run(cmd='key', menu='file', item='savesession', replace=0)
             check('W209: Save session after %s clears it' % what, state(evs).get('changed') is False)
-        evs = run({'key': 'g'}, cmd='key', key='i')
+        evs = run(cmd='run.initial')
         check('W209: a run changes the data, so changed', state(evs).get('changed') is True, str(state(evs).get('changed')))
         evs = run({'file': 'sv1'}, {'key': 'n'}, cmd='key', menu='file', item='savesessionas', replace=0)
         a = asks(evs)
@@ -7006,7 +6958,7 @@ def check_save_session():
         evs = run({'key': 'd'}, cmd='reload')
         pars = lambda evs: {k: v for k, v in state(evs)['pars']}
         ics = lambda evs: {k: v for k, v in state(evs)['ics']}
-        errs = lambda evs: [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+        errs = lambda evs: [e for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
         undo = lambda: run(cmd='key', menu='main', item='undo')
         redo = lambda: run(cmd='key', menu='main', item='redo')
         edit = lambda v: run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': v}])
@@ -7031,17 +6983,20 @@ def check_save_session():
         check('W210: a new edit forgets what could be redone', state(evs).get('can_redo') is False and state(evs).get('can_undo') is True)
         evs = redo()
         check('W210: Redo with nothing to redo is an error', len(errs(evs)) == 1 and 'redo' in str(errs(evs)[0]) and pars(evs)['phi'] == 0.3)
-        evs = run(cmd='set', values=[{'kind': 'num', 'name': 'total_time', 'value': 123}, {'kind': 'par', 'name': 'phi', 'value': 0.4}])
+        evs = run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.4}])
+        evs = run(cmd='run.configure', total_time=123)
         evs = undo()
-        check('W210: one set of a parameter and a numerics field is one undo step', pars(evs)['phi'] == 0.3, str(pars(evs)['phi']))
+        check('W210: run.configure is an undo step of its own: the parameter edit before it stays', pars(evs)['phi'] == 0.4, str(pars(evs)['phi']))
+        evs = undo()
+        check('W210: ... and the parameter edit is the step after it', pars(evs)['phi'] == 0.3, str(pars(evs)['phi']))
         evs = run(cmd='restoredefaults', scope='parameters')
         check('W210: Reset all (default) goes on the stack too', pars(evs)['phi'] != 0.3)
         evs = undo()
         check('W210: ... and Undo brings the edited values back', pars(evs)['phi'] == 0.3)
         # Run from last state pushes the initial conditions it overwrites
-        run({'key': 'g'}, cmd='key', key='i')
+        run(cmd='run.initial')
         before = ics(run(cmd='state'))
-        evs = run({'key': 'l'}, cmd='key', key='i')
+        evs = run(cmd='run.last')
         after = ics(evs)
         check('W210: Run from last state copies the last state into the initial conditions', after != before)
         evs = undo()
@@ -7097,7 +7052,7 @@ def check_plot_limits():
             graph = next((e for e in reversed(events) if e.get('ev') == 'plots'), {})
             check('W376: xvst retains all thirteen selected states',
                   len(graph.get('windows', [{}])[0].get('curves', [])) == 13, str(graph)[:200])
-            command(cmd='key', key='i', menus=['g'])
+            command(cmd='run.initial')
             for i in range(32):
                 command(cmd='key', key='g', menus=['f', 'f'], form=['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'frozen%d' % i, 'f%d' % i])
             for i in range(26):
@@ -7132,7 +7087,7 @@ def check_plot_limits():
                       all(z.read(k) == v for k, v in saved.items()))
             # --silent restores sessions through a recording snapshot, not a .snapx argument.
             command(cmd='record', op='start')
-            command(cmd='key', key='i', menus=['g'])
+            command(cmd='run.initial')
             command(cmd='session', op='save', name='silent', data=True)
             command(cmd='record', op='stop', name='limits.recx')
             os.remove(os.path.join(s.run, 'silent.snapx'))  # Require the replay's output, not the original save.
@@ -7183,9 +7138,9 @@ def check_session_file():
         col(is_idle)
         answered(snd, col, (), **SUBSCRIBE)
         allev.extend(lecar_to_auto(snd, col))
-        answered(snd, col, (), cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.4},
-                                                  {'kind': 'ic', 'name': 'V', 'value': -0.3}])
-        key(snd, col, 'i', 'g')
+        answered(snd, col, (), cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.4}])
+        answered(snd, col, (), cmd='ic.set', values={'V': -0.3})
+        answered(snd, col, (), cmd='run.initial')
         answered(snd, col, (), cmd='window.set_display', window='graph_1', x_range=[0, 50], y_range=[-0.5, 0.3], show_earlier_runs=False)
         answered(snd, col, (), cmd='auto', op='display', x=[0.05, 0.3], y=None)
         # W50: a second view of the diagram, the norm, with a zoom of its own; the first active again
@@ -7791,7 +7746,7 @@ def check_quit():
         evs, _ = col(is_idle)
         check('quit: Cancel (Esc) keeps xppautX running', last_state(evs) is not None and p.poll() is None, '')
         # a question open when the window's quit comes is cancelled; the quit then asks its own
-        _, ask = asked(snd, col, cmd='key', key='i')
+        _, ask = asked(snd, col, cmd='key', key='g')
         snd(cmd='quit', ask=True)
         evs, ask2 = col(is_ask, timeout=30 * SLOW)
         check('quit with ask while a menu is open: the menu is cancelled (its idle), then the question of the quit',
@@ -7818,10 +7773,8 @@ def check_quit():
         col(is_idle)
         snd(cmd='record', op='start')
         col(is_idle)
-        _, ask = asked(snd, col, cmd='key', key='i')
-        if ask and is_ask(ask):
-            snd(cmd='answer', id=ask['id'], key='g')
-            col(is_idle, timeout=30 * SLOW)
+        snd(cmd='run.initial')
+        col(is_idle, timeout=30 * SLOW)
         _, ask = asked(snd, col, cmd='quit', ask=True)
         check('quit while recording: the question says the recording is saved with the session',
               ask and is_ask(ask) and ask.get('question') == 'Quit xppautX? Save this session, and the recording in progress, first?',
@@ -7843,7 +7796,7 @@ def check_quit():
         _, _, steps, written, got = read_recx(text)
         check('quit: Save session (s) saves the session and the recording, then exits',
               ok and os.path.exists(snap) and 'session.setx' in zipfile.ZipFile(snap).namelist()
-              and [x.get('keys') for x, _ in steps] == [['i', 'g']] and written == got, str(sorted(os.listdir(r))))
+              and [x.get('cmd') for x, _ in steps] == [{'cmd': 'run.initial'}] and written == got, str(sorted(os.listdir(r))))
     finally:
         done(p, r, snd)
 
@@ -7851,23 +7804,15 @@ def check_quit():
     p, r, snd, col, _ = launch_server()
     try:
         col(is_idle)
-        snd(cmd='key', key='u')
+        snd(cmd='run.configure', total_time=1e7)
         col(is_idle)
-        _, ask = asked(snd, col, cmd='key', key='t')
-        if ask and is_ask(ask):
-            snd(cmd='answer', id=ask['id'], value='1e7')
-            col(is_idle)
-        snd(cmd='key', key='Escape')
-        col(is_idle)
-        _, ask = asked(snd, col, cmd='key', key='i')
-        if ask and is_ask(ask):
-            snd(cmd='answer', id=ask['id'], key='g')
+        snd(cmd='run.initial')
         col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
         snd(cmd='quit', ask=True)
         evs, ask = col(is_ask, timeout=30 * SLOW)
-        kinds = [e.get('ev') for e in evs if e.get('ev') in ('stopped', 'idle', 'ask')]
-        check('quit during a run: the run stops first (stopped, idle), then the question',
-              kinds[:3] == ['stopped', 'idle', 'ask'] and ask and ask.get('question') == question, str(kinds))
+        kinds = [e.get('ev') for e in evs if e.get('ev') in ('stopped', 'done', 'ask')]
+        check('quit during a run: the run stops first (stopped, done), then the question',
+              kinds[:3] == ['stopped', 'done', 'ask'] and ask and ask.get('question') == question, str(kinds))
         if ask and is_ask(ask):
             snd(cmd='answer', id=ask['id'], ok=0)
         col(is_idle)
@@ -7885,17 +7830,9 @@ def check_quit():
 
     def long_run(snd, col):
         """an integration that goes on for minutes, going"""
-        snd(cmd='key', key='u')
+        snd(cmd='run.configure', total_time=1e7)
         col(is_idle)
-        _, ask = asked(snd, col, cmd='key', key='t')
-        if ask and is_ask(ask):
-            snd(cmd='answer', id=ask['id'], value='1e7')
-            col(is_idle)
-        snd(cmd='key', key='Escape')
-        col(is_idle)
-        _, ask = asked(snd, col, cmd='key', key='i')
-        if ask and is_ask(ask):
-            snd(cmd='answer', id=ask['id'], key='g')
+        snd(cmd='run.initial')
         col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
 
     # W110: the page asked during a run and was answered Save session: the
@@ -7906,9 +7843,9 @@ def check_quit():
         long_run(snd, col)
         snd(cmd='quit', save=True)
         evs, ask = col(is_ask, timeout=30 * SLOW)
-        kinds = [e.get('ev') for e in evs if e.get('ev') in ('stopped', 'idle', 'ask')]
+        kinds = [e.get('ev') for e in evs if e.get('ev') in ('stopped', 'idle', 'done', 'ask')]
         check('quit with save (the page\'s Save session) during a run: the run stops, then the session file is asked, '
-              'no question before it', kinds[:3] == ['stopped', 'idle', 'ask'] and ask and ask.get('kind') == 'file'
+              'no question before it', kinds[:3] in (['stopped', 'idle', 'ask'], ['stopped', 'done', 'ask']) and ask and ask.get('kind') == 'file'
               and ask.get('wild') == '*.snapx', str(kinds) + ' ' + str(ask))
         if ask and is_ask(ask):
             snd(cmd='answer', id=ask['id'], file='kept')
@@ -7982,23 +7919,18 @@ def check_recording():
         st = last_state(run(cmd='record', op='note', text='First run.\nThe cell settles.'))
         check('record: a note waits for the next step (state.recording.note)',
               st and st['recording'] == {'steps': 0, 'note': 'First run.\nThe cell settles.'}, str(st and st.get('recording')))
-        ask = asked(cmd='key', key='i')
-        run(cmd='answer', id=ask['id'], key='g')
-        ask = asked(cmd='key', key='i')
+        run(cmd='run.initial')
+        ask = asked(cmd='key', key='g')
         run(cmd='answer', id=ask['id'], ok=0)
-        run(cmd='key', key='u')
-        ask = asked(cmd='key', key='t')
-        run(cmd='answer', id=ask['id'], value='1e7')
-        run(cmd='key', key='Escape')
-        ask = asked(cmd='key', key='i')
-        snd(cmd='answer', id=ask['id'], key='g')
+        run(cmd='run.configure', total_time=1e7)
+        snd(cmd='run.initial')
         col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
-        snd(cmd='abort')
+        snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         stopped = [e['at'] for e in evs if e.get('ev') == 'stopped']
         run(cmd='window.set_display', window='graph_1', x_range=[0, 50])
         st = last_state(run(cmd='set', kind='par', name='iapp', value=0.1))
-        check('record: state counts the steps taken', st and st['recording']['steps'] == 8, str(st and st.get('recording')))
+        check('record: state counts the steps taken', st and st['recording']['steps'] == 6, str(st and st.get('recording')))
         evs = run(cmd='record', op='stop', name='mine')
         path = os.path.join(r, 'mine.recx')
         check('record: stop writes name.recx and the recording ends',
@@ -8014,27 +7946,25 @@ def check_recording():
         check('record: the model is embedded whole, and nothing else was read',
               list(files) == [ode, 'ml.anix'] and files[ode] == want, str(list(files)))
         s = [x for x, _ in steps]
-        check('record: I G is one step, its keys and label from the menus, its note above it',
-              s and s[0] == {'step': 'Initial conditions → Go', 'keys': ['i', 'g']} and steps[0][1] == 'First run.\nThe cell settles.',
+        check('record: run.initial is one step, its label from its menu path, its note above it',
+              s and s[0] == {'step': 'Initialconds → Go', 'cmd': {'cmd': 'run.initial'}} and steps[0][1] == 'First run.\nThe cell settles.',
               str(steps[:1]))
-        check('record: a cancelled menu is a step (keys i, Escape)',
-              len(s) > 1 and s[1] == {'step': 'Initial conditions', 'keys': ['i', 'Escape']} and steps[1][1] == '', str(s[1:2]))
-        check('record: a dialog\'s answer is in its step (nUmerics, Total 1e7, Esc)',
-              s[2:5] == [{'step': 'Numerics', 'keys': ['u'], 'view': True},
-                         {'step': 'Numerics → Total time', 'keys': ['t'], 'answers': ['1e7']},
-                         {'step': 'Numerics → Return to main shortcuts', 'keys': ['Escape'], 'view': True}], str(s[2:5]))
+        check('record: a cancelled menu is a step (keys g, Escape)',
+              len(s) > 1 and s[1] == {'step': 'Curves and export', 'keys': ['g', 'Escape'], 'view': True} and steps[1][1] == '', str(s[1:2]))
+        check('record: run.configure is a step with its arguments',
+              s[2:3] == [{'step': 'Numerics → Settings', 'cmd': {'cmd': 'run.configure', 'total_time': 1e7}}], str(s[2:3]))
         check('record: an Abort belongs to its step, where it stopped as the stopped event said',
-              len(s) > 5 and s[5].get('keys') == ['i', 'g'] and stopped and s[5].get('abort') == stopped[0]
-              and stopped[0]['what'] == 'integrate', str(s[5:6]) + str(stopped))
+              len(s) > 3 and s[3].get('cmd') == {'cmd': 'run.initial'} and stopped and s[3].get('abort') == stopped[0]
+              and stopped[0]['what'] == 'integrate', str(s[3:4]) + str(stopped))
         check('record: a zoom is a view step with its command; a set a step of its own',
-              s[6:8] == [{'step': 'Zoom window graph_1', 'cmd': {'cmd': 'window.set_display', 'window': 'graph_1', 'x_range': [0, 50]}, 'view': True},
+              s[4:6] == [{'step': 'Zoom window graph_1', 'cmd': {'cmd': 'window.set_display', 'window': 'graph_1', 'x_range': [0, 50]}, 'view': True},
                          {'step': 'Set iapp = 0.1', 'cmd': {'cmd': 'set', 'kind': 'par', 'name': 'iapp', 'value': 0.1}}]
-              and len(s) == 8, str(s[6:]))
+              and len(s) == 6, str(s[4:]))
         check('record: the fingerprint is the files\' and steps\' SHA-256', written == got and len(got) == 64, '%s %s' % (written, got))
         edited = text.replace('# First run.', '# The first run.')
         _, _, _, w2, g2 = read_recx(edited)
         check('record: editing a note keeps the fingerprint', edited != text and w2 == g2, '')
-        edited = text.replace('"keys":["i","Escape"]', '"keys":["i","c"]')
+        edited = text.replace('"keys":["g","Escape"]', '"keys":["g","c"]')
         _, _, _, w2, g2 = read_recx(edited)
         check('record: editing a step changes it', edited != text and w2 != g2, '')
 
@@ -8123,25 +8053,18 @@ def check_player():
         # W59d: the recording begins partway through the session, after a
         # parameter changed and a run: the replay starts from that state
         run(cmd='set', kind='par', name='phi', value=0.06)
-        ask = asked(cmd='key', key='i')
-        run(cmd='answer', id=ask['id'], key='g')
+        run(cmd='run.initial')
         run(cmd='record', op='start')
         run(cmd='record', op='note', text='The cell fires once and settles.')
-        ask = asked(cmd='key', key='i')
-        run(cmd='answer', id=ask['id'], key='g')
+        run(cmd='run.initial')
         write('run1.dat')
         run(cmd='set', kind='par', name='iapp', value=0.08)
-        ask = asked(cmd='key', key='i')
-        run(cmd='answer', id=ask['id'], key='g')
+        run(cmd='run.initial')
         write('run2.dat')
-        run(cmd='key', key='u')
-        ask = asked(cmd='key', key='t')
-        run(cmd='answer', id=ask['id'], value='1e7')
-        run(cmd='key', key='Escape')
-        ask = asked(cmd='key', key='i')
-        snd(cmd='answer', id=ask['id'], key='g')
+        run(cmd='run.configure', total_time=1e7)
+        snd(cmd='run.initial')
         col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
-        snd(cmd='abort')
+        snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         stopped = [e['at'] for e in evs if e.get('ev') == 'stopped']
         write('run3.dat')
@@ -8151,8 +8074,8 @@ def check_player():
         _, _, steps, _, _ = read_recx(text)
         orig = {n: open(os.path.join(r, n), 'rb').read() for n in ('run1.dat', 'run2.dat', 'run3.dat')
                 if os.path.exists(os.path.join(r, n))}
-        check('player: the session recorded (10 steps, an abort at its row)',
-              len(steps) == 10 and len(orig) == 3 and stopped and stopped[0]['what'] == 'integrate',
+        check('player: the session recorded (8 steps, an abort at its row)',
+              len(steps) == 8 and len(orig) == 3 and stopped and stopped[0]['what'] == 'integrate',
               '%d steps, %s' % (len(steps), stopped))
         snap = recx_snapshot(text) or {}
         check('record: the recording begins with the session as it was (@snapshot: a .snapx without the data table)',
@@ -8171,19 +8094,18 @@ def check_player():
         pl, evs = open_player(path)
         st = last_state(evs)
         check('play open: the player event with the steps and their notes, the file intact',
-              pl and pl.get('intact') is True and len(pl.get('steps', [])) == 10
+              pl and pl.get('intact') is True and len(pl.get('steps', [])) == 8
               and pl['steps'][0].get('note') == 'The cell fires once and settles.'
-              and pl['steps'][0].get('keys') == ['i', 'g'], str(pl)[:300])
+              and pl['steps'][0].get('cmd') == {'cmd': 'run.initial'}, str(pl)[:300])
         check('play open: state.player at step 0, paused, 1x',
               st and st.get('player') == {'step': 0, 'running': -1, 'playing': False, 'speed': 1, 'fast': False,
                                           'intact': True}, str(st and st.get('player')))
         os.remove(os.path.join(r, 'run1.dat'))  # nothing may read the disk's copies
-        evs = play_to_end(10)
+        evs = play_to_end(8)
         presses = [(e['step'], e['what'], e['index']) for e in evs if e.get('ev') == 'press']
-        first = [e.get('ev') for e in evs if e.get('ev') in ('press', 'ask')][:3]
-        check('play: a press before every input (key i, the menu asks, key g; the answers; the commands)',
-              presses[:2] == [(0, 'key', 0), (0, 'key', 1)] and first == ['press', 'ask', 'press']
-              and (2, 'cmd', 0) in presses and (6, 'answer', 0) in presses, str(presses[:12]))
+        check('play: a press before every input (the commands)',
+              presses[:2] == [(0, 'cmd', 0), (1, 'cmd', 0)] and (2, 'cmd', 0) in presses and (5, 'cmd', 0) in presses
+              and all(what == 'cmd' for _, what, _ in presses), str(presses[:12]))
         # W150: 1x is slower (core/json_player.cpp PACE_SLOWDOWN 1.5): the first press of step 0 (700 ms + the note's
         # reading time, 35 ms a character, at most 3 s), played at 8x
         note0 = 'The cell fires once and settles.'
@@ -8193,7 +8115,7 @@ def check_player():
               ms0 is not None and abs(ms0 - want0) <= 2, str(ms0))
         again = [e['at'] for e in evs if e.get('ev') == 'stopped']
         check('play: the recorded Abort stops the replayed run at its row', again == stopped, '%s %s' % (again, stopped))
-        errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+        errors = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
         check('play: no error on the way', not errors, str(errors))
         for n in ('run1.dat', 'run2.dat', 'run3.dat'):
             check('play: the replay, from the session\'s state at Record (phi 0.06), gives the same data (%s)' % n,
@@ -8215,14 +8137,14 @@ def check_player():
         pl, evs = open_player(os.path.join(r, 'changed.recx'))
         check('play open: a changed step makes the file not intact', pl and pl.get('intact') is False and changed != text,
               str(pl and pl.get('intact')))
-        evs = play_to_end(10)
+        evs = play_to_end(8)
         check('play: a changed recording still plays to its end',
-              (last_state(evs) or {}).get('player', {}).get('step') == 10, '')
+              (last_state(evs) or {}).get('player', {}).get('step') == 8, '')
         check('play: its changed step ran as it now reads (other data)', get('run2.dat') not in (None, orig.get('run2.dat')), '')
 
         # play from a step: the steps before run with no pace or press
-        snd(cmd='play', op='from', step=8, play=0)
-        evs, _ = col(lambda e: e.get('ev') == 'state' and (e.get('player') or {}).get('step') == 8
+        snd(cmd='play', op='from', step=6, play=0)
+        evs, _ = col(lambda e: e.get('ev') == 'state' and (e.get('player') or {}).get('step') == 6
                      and e['player']['running'] == -1 and not e['player']['fast'], timeout=120 * SLOW)
         check('play from: the steps before it run with no pace, then it waits',
               _ is not None and all(e['ms'] == 0 for e in evs if e.get('ev') == 'press'), '')
@@ -8234,7 +8156,7 @@ def check_player():
         evs = [json.loads(l) for l in done.stdout.splitlines() if l.strip().startswith('{')]
         pl = next((e for e in evs if e.get('ev') == 'player'), None)
         check('command line: xppautX name.recx opens the recording in the player, asking nothing',
-              pl is not None and len(pl.get('steps', [])) == 10 and not any(e.get('ev') == 'ask' for e in evs),
+              pl is not None and len(pl.get('steps', [])) == 8 and not any(e.get('ev') == 'ask' for e in evs),
               done.stderr[-300:])
 
         # a recording that is not one
@@ -8272,7 +8194,7 @@ def check_ani_grab_job():
                                        'circle 0;0;0.1;$RED;1', 'grab 0;0;0.2',
                                        '{w=w}', '{runnow=%d}' % runnow, 'end', '']))
         lines = [
-            {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+            {'cmd': 'run.initial'},
             {'cmd': 'key', 'key': 'v'}, {'cmd': 'answer', 'key': 't'},
             {'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'grab.ani'},
             {'cmd': 'record', 'op': 'start'},
@@ -8437,9 +8359,7 @@ def check_player_ani():
         col(is_idle)
         run(cmd='data', events=['ani'])
         run(cmd='record', op='start')
-        snd(cmd='key', key='i')
-        ask = col(lambda e: e.get('ev') == 'ask')[1]
-        run(cmd='answer', id=ask['id'], key='g')
+        run(cmd='run.initial')
         snd(cmd='key', key='v')
         ask = col(lambda e: e.get('ev') == 'ask')[1]
         run(cmd='answer', id=ask['id'], key='t')
@@ -8481,7 +8401,7 @@ def check_player_ani():
         snd(cmd='play', op='start')
         evs, _ = col(lambda e: e.get('ev') == 'state' and (e.get('player') or {}).get('step') == len(steps)
                      and e['player']['running'] == -1, timeout=120 * SLOW)
-        errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+        errors = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
         check('W136: replayed pause stops Go at its recorded frame, after its speed change',
               last and frames(evs)[-1:] == last and not errors
               and any(e.get('ev') == 'ani' and e.get('speed') == 10 for e in evs),
@@ -8865,7 +8785,7 @@ def check_keymap():
     env = {'XPP_CONFIG_DIR': folder}
     same = lambda a, b: os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
     keymap_events = lambda evs: [e for e in evs if e.get('ev') == 'keymap']
-    errors = lambda evs: [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+    errors = lambda evs: [e for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
     by_id = lambda km: {c['id']: c for c in km['commands']}
     p, r, snd, col, _ = launch_server(extra_env=env)
     try:
@@ -8888,7 +8808,7 @@ def check_keymap():
               and not errors(evs), str(evs)[-300:])
 
         good = {'preset': 'xppaut', 'pinned': ['reload', 'calculator'],
-                'bindings': {'reload': ['Ctrl+B', 'F S'], 'savesession': [], 'initialconds': ['Alt+I']}}
+                'bindings': {'reload': ['Ctrl+B', 'F S'], 'savesession': [], 'continue': ['Alt+I']}}
         snd(cmd='keymap', op='set', map=good)
         evs, _ = col(is_idle)
         ev = keymap_events(evs)
@@ -8997,7 +8917,7 @@ def check_start_screen():
     folder = os.path.join(CONFIG_ROOT, 'start', 'xppautX')
     path = os.path.join(folder, 'preferences.setx')
     env = {'XPP_CONFIG_DIR': folder}
-    errors = lambda evs: [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+    errors = lambda evs: [e for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
     model = os.path.abspath(args.ode)
     same = lambda a, b: os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
 
@@ -9019,7 +8939,7 @@ def check_start_screen():
         snd(cmd='answer', id=ask['id'], ok=0)
         evs, _ = col(is_idle)
         check('W232: Cancel at the start leaves the start screen: no error, no exit', not errors(evs) and p.poll() is None, str(evs)[-300:])
-        for cmd in ({'cmd': 'state'}, {'cmd': 'key', 'key': 'i'}):
+        for cmd in ({'cmd': 'state'}, {'cmd': 'run.initial'}, {'cmd': 'window.redraw'}):
             snd(**cmd)
             evs, _ = col(is_idle)
             err = errors(evs)
@@ -9117,7 +9037,7 @@ def check_start_examples():
     config = os.path.join(root, 'config')
     env = {'XPP_CONFIG_DIR': config}
     same = lambda a, b: os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
-    errors = lambda evs: [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+    errors = lambda evs: [e for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
     try:
         # no examples/ beside the executable: none, and the reason is there to be shown
         p, r, snd, col, _ = launch_server(extra_env=env, no_model=True)
@@ -9201,7 +9121,7 @@ def check_auto_threads():
     config = os.path.join(root, 'config')
     env = {'XPP_CONFIG_DIR': config}
     prefs = os.path.join(config, 'preferences.setx')
-    errors = lambda evs: [e['error'] for e in evs if e.get('ev') == 'message' and e.get('error')]
+    errors = lambda evs: [e['error'] for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
 
     def threads_of(snd, col):
         snd(cmd='data', events=['autosettings'])
@@ -9585,9 +9505,9 @@ def check_range_files():
                     settings = z.read('model.setx').decode()
                 check('W349: session saves rangefiles by name', 'rangefiles: true' in settings, settings[-600:])
                 for enabled, reset, expected in (('Y', 'Y', 3), ('N', 'Y', 0), ('Y', 'N', 0)):
-                    s.send(cmd='key', key='i')
-                    s.answer_asks(is_idle, {'menu': lambda e: {'key': 'r'},
-                        'form': lambda e: {'values': ['a', '2', '1', '3', YES_NO[reset], 'true', 'false', 'false', YES_NO[enabled]]}})
+                    s.send(cmd='run.range', variable='a', steps=2, start=1, end=3, reset_storage=reset == 'Y', use_old_ic=True,
+                           cycle_color=False, movie=False, write_each_run_to_file=enabled == 'Y')
+                    s.collect(is_idle)
                     paths = sorted(glob.glob(os.path.join(run, 'range.dat.*')))
                     rows = [[list(map(float, line.split())) for line in open(path)] for path in paths]
                     check('W349: server reset=%s files=%s writes %d runs' % (reset, enabled, expected),
@@ -9596,9 +9516,9 @@ def check_range_files():
                           for i, r in enumerate(rows))), str(rows))
                     for path in paths:
                         os.remove(path)
-                s.send(cmd='key', key='i')
-                s.answer_asks(is_idle, {'menu': lambda e: {'key': '2'},
-                    'form': lambda e: {'values': ['a', '1', '3', 'x', '0', '2', '1', 'true', 'true', 'false', 'false', 'independently', '1', 'true']}})
+                s.send(cmd='run.double_range', variable1='a', start1=1, end1=3, variable2='x', start2=0, end2=2, steps1=1, steps2=1,
+                       reset_storage=True, use_old_ic=True, cycle_color=False, movie=False, vary='independently', write_each_run_to_file=True)
+                s.collect(is_idle)
                 paths = sorted(glob.glob(os.path.join(run, 'range.dat.*')))
                 rows = [[list(map(float, line.split())) for line in open(path)] for path in paths]
                 check('W349: double range gives every run a separate file', len(rows) == 4
@@ -9608,13 +9528,12 @@ def check_range_files():
                     os.remove(path)
                 s.send(cmd='open', file='before.snapx')
                 s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
-                s.send(cmd='key', key='i')
-                _, ask = s.collect(is_ask)
-                s.send(cmd='answer', id=ask['id'], key='r')
-                _, ask = s.collect(is_ask)
-                check('W349: session load restores rangefiles', ask is not None and ask['values'][-1] == 'true', str(ask))
-                s.send(cmd='answer', id=ask['id'], ok=0)
+                s.send(cmd='run.range')
                 s.collect(is_idle)
+                paths = sorted(glob.glob(os.path.join(run, 'range.dat.*')))
+                check('W349: session load restores rangefiles: a range with no arguments writes its runs', len(paths) == 3, str(paths))
+                for path in paths:
+                    os.remove(path)
                 s.send(cmd='savedefaults', scope='all')
                 s.answer_asks(is_idle, {'choice': lambda e: {'key': 'y'}})
                 saved = open(os.path.join(run, 'range.odex')).read()
@@ -9630,8 +9549,8 @@ def check_range_files():
                 s.close()
         for enabled in ('Y', 'N'):
             with tempfile.TemporaryDirectory(prefix='w349rec') as run:
-                lines = [dict(cmd='key', key='i'), dict(cmd='answer', key='r'),
-                         dict(cmd='answer', values=['a', '2', '1', '3', 'true', 'true', 'false', 'false', YES_NO[enabled]])]
+                lines = [dict(cmd='run.range', variable='a', steps=2, start=1, end=3, reset_storage=True, use_old_ic=True,
+                              cycle_color=False, movie=False, write_each_run_to_file=enabled == 'Y')]
                 rec = make_recording(args.server, model, lines, run)
                 result = subprocess.run([os.path.abspath(args.server), rec, '--silent', '--yes'],
                                         cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
@@ -9671,9 +9590,6 @@ def check_range_files():
             s = Server(args.server, converted, run=run)
             try:
                 s.collect(is_idle)
-                s.send(cmd='key', key='i')
-                s.answer_asks(is_idle, {'menu': lambda e: {'key': 'r'},
-                    'form': lambda e: {'ok': 0}})
                 s.send(cmd='session', op='save', name='roundtrip', data=False)
                 s.collect(is_idle)
                 with zipfile.ZipFile(os.path.join(run, 'roundtrip.snapx')) as z:
@@ -9697,8 +9613,8 @@ def check_storage_full():
             s.collect(is_idle)
             s.send(cmd='data', events=['series'])
             s.collect(is_idle)
-            s.send(cmd='key', key='i')
-            evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'g'}})
+            s.send(cmd='run.initial')
+            evs, _ = s.collect(is_idle)
             errors = [e for e in evs if e.get('error')]
             state = next((e for e in reversed(evs) if e.get('ev') == 'state'), {})
             series = whole_series(evs)
@@ -9711,15 +9627,9 @@ def check_storage_full():
                   state.get('rows') == 4 and len(cols.get(0, [])) == 4
                   and all(abs(t - i * .1) < 1e-6 for i, t in enumerate(cols.get(0, [])))
                   and all(abs(x - i * .1) < 1e-6 for i, x in enumerate(cols.get(1, []))), str(cols))
-            s.send(cmd='set', kind='num', name='total_time', value=-2)
+            s.send(cmd='run.configure', total_time=-2)
             evs, _ = s.collect(is_idle)
             check('W347: protocol rejects negative Total with its command place',
-                  any(e.get('error') and e.get('line', 0) > 0 for e in evs), str(evs[-3:]))
-            s.send(cmd='key', key='u')
-            s.collect(is_idle)
-            s.send(cmd='key', key='t')
-            evs, _ = s.answer_asks(is_idle, {'string': lambda e: {'value': '-2'}})
-            check('W347: Total form rejects a negative duration with its place',
                   any(e.get('error') and e.get('line', 0) > 0 for e in evs), str(evs[-3:]))
         finally:
             s.close()
@@ -9781,25 +9691,23 @@ def check_stop_checks():
     try:
         col(is_idle)
         # 1. Fixed-step chunk with large store_every (core/odesol2.cpp)
-        snd(cmd='set', kind='num', name='store_every', value=50000000)
+        snd(cmd='run.configure', store_every=50000000)
         col(is_idle)
-        snd(cmd='set', kind='num', name='total_time', value=10000000)
+        snd(cmd='run.configure', total_time=10000000)
         col(is_idle)
-        snd(cmd='set', kind='num', name='method', text='euler')
+        snd(cmd='run.configure', method='euler')
         col(is_idle)
-        snd(cmd='key', key='i')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='g')
+        snd(cmd='run.initial')
         col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
-        snd(cmd='abort')
+        snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         stopped = any(e.get('ev') == 'stopped' for e in evs)
         check('W388: fixed-step chunk with large store_every stops on abort', stopped, str([e.get('ev') for e in evs]))
 
         # Restore standard settings
-        snd(cmd='set', kind='num', name='store_every', value=1)
+        snd(cmd='run.configure', store_every=1)
         col(is_idle)
-        snd(cmd='set', kind='num', name='total_time', value=20)
+        snd(cmd='run.configure', total_time=20)
         col(is_idle)
 
         # 2. Flow grid cancellation (core/nullcline.cpp)
@@ -9808,7 +9716,7 @@ def check_stop_checks():
         snd(cmd='answer', id=ask['id'], key='f')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], value=str(W388_GRID))
-        snd(cmd='abort')
+        snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         check('W388: direction field flow loop stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
 
@@ -9820,7 +9728,7 @@ def check_stop_checks():
         snd(cmd='answer', id=ask['id'], key='r')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], ok=1, values=['iapp', str(W388_STEPS), '0', '1'])
-        snd(cmd='abort')
+        snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         check('W388: range nullclines sweep stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
 
@@ -9830,17 +9738,15 @@ def check_stop_checks():
         snd(cmd='answer', id=ask['id'], key='r')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], ok=1, values=['iapp', str(W388_STEPS), '-0.5', '0.5', 'false', '-1', 'false', 'false'])
-        snd(cmd='abort')
+        snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         check('W388: range equilibria sweep stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
 
         # 5. Pairwise differences histogram cancellation (core/histogram.cpp):
         #    W388_ROWS^2 differences
-        snd(cmd='set', kind='num', name='total_time', value=W388_ROWS * 0.05)
+        snd(cmd='run.configure', total_time=W388_ROWS * 0.05)
         col(is_idle)
-        snd(cmd='key', key='i')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='g')
+        snd(cmd='run.initial')
         col(is_idle)
         snd(cmd='key', key='u')
         col(is_idle)
@@ -9851,12 +9757,12 @@ def check_stop_checks():
             _, ask = col(is_ask)
             if 'Variable' in ask.get('prompt', '') or 'Variable' in ask.get('name', ''):
                 snd(cmd='answer', id=ask['id'], ok=1, value='V')
-                snd(cmd='abort')
+                snd(cmd='run.abort')
             else:
                 snd(cmd='answer', id=ask['id'], ok=1, value='0' if asked == 1 else '10')  # bins, Low, Hi: Low below Hi (W494)
         evs, _ = col(is_idle, timeout=30 * SLOW)
         check('W388: pairwise histogram O(N^2) loop stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
-        snd(cmd='set', kind='num', name='total_time', value=20)
+        snd(cmd='run.configure', total_time=20)
         col(is_idle)
 
         # Return to main menu
@@ -9877,7 +9783,7 @@ def check_stop_checks():
         snd(cmd='answer', id=ask['id'], ok=1, values=['V', 'iapp', '1e-9', '20', '2', '2', '', '1e-4', '1000'])
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], ok=1, file=fit_path)
-        snd(cmd='abort')
+        snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         msgs = [e.get('bottom') for e in evs if e.get('ev') == 'message' and 'bottom' in e]
         check('W388: fitting Levenberg-Marquardt loop stops on abort', ' Stopped ' in msgs, str(msgs))
@@ -9886,16 +9792,175 @@ def check_stop_checks():
 
     # 7. --silent: recx replay with armed abort on large store_every
     code, out, err = run_replay([
-        {'cmd': 'set', 'kind': 'num', 'name': 'store_every', 'value': 1000000},
-        {'cmd': 'set', 'kind': 'num', 'name': 'method', 'text': 'euler'},
-        {'cmd': 'set', 'kind': 'num', 'name': 'total_time', 'value': 10000000},
-        {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+        {'cmd': 'run.configure', 'store_every': 1000000},
+        {'cmd': 'run.configure', 'method': 'euler'},
+        {'cmd': 'run.configure', 'total_time': 10000000},
+        {'cmd': 'run.initial'},
         {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': 2, 't': 0}},
     ])
     check('W388: --silent plays armed stop on fixed-step integration', code == 0, 'exit %d, %s' % (code, err[-300:]))
 
 
 check_stop_checks()
+
+
+# W521: the run, ic and bvp resources on the registry: each command's good call with its result,
+# a refused argument with its message, and the old forms refused as unknown
+def check_run_registry():
+    p, r, snd, col, _ = launch_server()
+
+    def call(**cmd):
+        snd(**cmd)
+        evs, _ = col(is_idle, timeout=60 * SLOW)
+        done = next((e for e in reversed(evs) if e.get('ev') == 'done'), {})
+        return done, evs
+
+    def ok(what, cmd, want):
+        done, evs = call(**cmd)
+        got = done.get('result', {})
+        check('W521: %s' % what, done.get('status') == 'ok' and all(got.get(k) == v for k, v in want.items() if v is not None)
+              and all(k in got for k in want), str(done)[:300])
+        return got
+
+    def refused(what, cmd, words):
+        done, evs = call(**cmd)
+        check('W521: %s is refused (%s)' % (what, words), done.get('status') == 'error' and words in done.get('error', ''),
+              str(done)[:300])
+
+    try:
+        col(is_idle)
+        got = ok('run.initial runs and says rows and time', {'cmd': 'run.initial'}, {'status': 'completed', 'steps': 601, 'time': None})
+        ok('ic.from_data_row makes a stored row the initial values', {'cmd': 'ic.from_data_row', 'row': 2}, {'row': 2, 'values': None})
+        call(cmd='run.configure', total_time=0.5)
+        ok('run.backward runs backward', {'cmd': 'run.backward'}, {'status': 'completed', 'steps': 11, 'time': None})
+        call(cmd='run.configure', total_time=30)
+        ok('run.last runs from the last state', {'cmd': 'run.last'}, {'status': 'completed', 'steps': 601, 'time': None})
+        ok('run.old runs from the initial values as they stand', {'cmd': 'run.old'}, {'status': 'completed', 'steps': 601, 'time': None})
+        ok('run.shift continues the clock', {'cmd': 'run.shift'}, {'status': 'completed', 'steps': 601, 'time': None})
+        ok('run.configure sets the numerics together and says their values',
+           {'cmd': 'run.configure', 'total_time': 10, 'dt': 0.05, 'method': 'runge_kutta', 'store_every': 1, 'stop_at_limit': True},
+           {'settings': {'total_time': 10, 'dt': 0.05, 'method': 'runge_kutta', 'store_every': 1, 'stop_at_limit': True}})
+        ok('run.continue extends by a duration', {'cmd': 'run.continue', 'extra': 1}, {'status': 'completed', 'end_time': None})
+        ok('run.continue with no value continues for another Total', {'cmd': 'run.continue'}, {'status': 'completed', 'end_time': None})
+        ok('run.steady settles or reaches its limit',
+           {'cmd': 'run.steady', 'decimals': 6, 'hold': 1, 'maximum': 100}, {'status': None, 'decimals': 6, 'time': None})
+        ok('run.range with no arguments takes the session\'s range', {'cmd': 'run.range', 'variable': 'iapp', 'start': 0, 'end': 0.1, 'steps': 2},
+           {'runs_completed': 3, 'total_steps': None})
+        ok('run.double_range runs the grid',
+           {'cmd': 'run.double_range', 'variable1': 'iapp', 'start1': 0, 'end1': 0.1, 'variable2': 'phi', 'start2': 0.3, 'end2': 0.4,
+            'steps1': 1, 'steps2': 1, 'vary': 'independently'}, {'grid_points': 4, 'total_steps': None})
+        ok('ic.set sets some initial values', {'cmd': 'ic.set', 'values': {'v': -0.1}}, {'applied': None})
+        ok('ic.formula sets an initial value from a formula', {'cmd': 'ic.formula', 'variable': 'w', 'formula': '2*0.25'},
+           {'variable': 'w', 'formula': '2*0.25'})
+        ok('ic.array sets states from a formula of t', {'cmd': 'ic.array', 'name': 'v', 'size': 2, 'formula': 't+1'}, {'name': 'v', 'size': 2})
+        ok('ic.at runs from a point of the graph', {'cmd': 'ic.at', 'coordinates': {'v': 0.1, 'w': 0.2}}, {'applied': None})
+        ok('ic.mouse_stream runs from each point', {'cmd': 'ic.mouse_stream', 'x': [0.1, 0.2], 'y': [0.1, 0.2]}, {'trajectories_run': 2})
+        refused('run.dae_guess of a model with no algebraic variable', {'cmd': 'run.dae_guess'}, 'no algebraic variables')
+        refused('run.shoot with no shooting data', {'cmd': 'run.shoot', 'manifold_index': 1}, 'No shooting data')
+        refused('run.continue with both extra and until', {'cmd': 'run.continue', 'extra': 1, 'until': 50}, 'At most one')
+        refused('run.continue with a text duration', {'cmd': 'run.continue', 'extra': '1'}, 'extra')
+        refused('run.steady without its hold', {'cmd': 'run.steady', 'decimals': 6, 'maximum': 10}, 'hold')
+        refused('run.steady with 16 decimals', {'cmd': 'run.steady', 'decimals': 16, 'hold': 1, 'maximum': 10}, 'decimals')
+        refused('run.range over a name the model does not have', {'cmd': 'run.range', 'variable': 'nosuch'}, 'nosuch')
+        refused('run.range with no steps', {'cmd': 'run.range', 'steps': 0}, 'steps')
+        refused('run.double_range with an unknown way of varying', {'cmd': 'run.double_range', 'vary': 'sideways'}, 'sideways')
+        refused('run.configure with nothing to set', {'cmd': 'run.configure'}, 'at least one')
+        refused('run.configure with a total time that is not a number', {'cmd': 'run.configure', 'total_time': 'long'}, 'total_time')
+        refused('run.configure with an unknown method', {'cmd': 'run.configure', 'method': 'nosuch'}, 'nosuch')
+        refused('run.configure with a minimum step above the maximum', {'cmd': 'run.configure', 'min_step': 1e9}, 'max_step')
+        refused('ic.set with a name that is no variable', {'cmd': 'ic.set', 'values': {'nosuch': 1}}, 'nosuch')
+        refused('ic.set with no values', {'cmd': 'ic.set', 'values': {}}, 'at least one')
+        refused('ic.formula that does not parse', {'cmd': 'ic.formula', 'variable': 'v', 'formula': '2*('}, '2*(')
+        refused('ic.array past the last state', {'cmd': 'ic.array', 'name': 'w', 'size': 5, 'formula': '1'}, 'do not fit')
+        refused('ic.from_data_row past the data', {'cmd': 'ic.from_data_row', 'row': 100000}, 'past the data')
+        refused('ic.load of a file that is not there', {'cmd': 'ic.load', 'file': 'nosuch.ic'}, 'nosuch.ic')
+        refused('ic.load of a path', {'cmd': 'ic.load', 'file': '../x.ic'}, 'file')
+        refused('ic.at with a state the graph does not plot', {'cmd': 'ic.at', 'coordinates': {'v': 0.1, 'iapp': 1}}, 'iapp')
+        refused('ic.at with one coordinate', {'cmd': 'ic.at', 'coordinates': {'v': 0.1}}, 'Give both')
+        refused('ic.mouse_stream with unequal lists', {'cmd': 'ic.mouse_stream', 'x': [1, 2], 'y': [1]}, 'one pair')
+        refused('ic.at in a window that is not open', {'cmd': 'ic.at', 'coordinates': {'v': 0, 'w': 0}, 'window': 'nowhere'}, 'nowhere')
+        with open(os.path.join(r, 'start.ic'), 'w') as f:
+            f.write('-0.2\n0.1\n')
+        got = ok('ic.load reads the file of the model folder', {'cmd': 'ic.load', 'file': 'start.ic'}, {'file': 'start.ic', 'applied': None})
+        check('W521: ic.load applied the values', got.get('applied', {}).get('V') == -0.2 and got['applied'].get('W') == 0.1, str(got))
+        done, _ = call(cmd='bvp.configure', max_iterates=7, tolerance=1e-7, epsilon=1e-5)
+        check('W521: bvp.configure sets the shooting numerics together',
+              done.get('result', {}).get('settings') == {'bvp_max_iterates': 7, 'bvp_tolerance': 1e-7, 'bvp_epsilon': 1e-5}, str(done))
+        refused('bvp.configure with no iterations', {'cmd': 'bvp.configure', 'max_iterates': 0}, 'max_iterates')
+        refused('bvp.solve without show', {'cmd': 'bvp.solve'}, 'show')
+        refused('bvp.solve_periodic with a name that is no parameter', {'cmd': 'bvp.solve_periodic', 'frequency_parameter': 'v', 'section_variable': 'v', 'section': 0, 'show': False}, 'parameter')
+        refused('bvp.solve_range with an unknown side', {'cmd': 'bvp.solve_range', 'side': 'middle'}, 'middle')
+        for old in ({'cmd': 'continue'}, {'cmd': 'steady', 'decimals': 3, 'hold': 1, 'maximum': 5}, {'cmd': 'abort'}):
+            snd(**old)
+            evs, _ = col(is_idle)
+            err = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+            check('W521: the old %s is refused as unknown' % old['cmd'], 'Unknown command' in err.get('error', ''), str(evs)[-200:])
+        evs = []
+        for old in ({'cmd': 'set', 'kind': 'ic', 'name': 'v', 'value': 0}, {'cmd': 'set', 'kind': 'num', 'name': 'total_time', 'value': 5}):
+            done, evs = call(**old)
+            err = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+            check('W521: set no longer takes %s' % old['kind'], 'no longer takes' in err.get('error', ''), str(evs)[-200:])
+        snd(cmd='key', key='i')
+        _, ask = col(is_ask)
+        check('W521: the key i still opens the Initialconds menu', ask and ask.get('kind') == 'menu' and 'g' in ask.get('keys', ''), str(ask))
+        if ask:
+            snd(cmd='answer', id=ask['id'], key='g')
+            evs, _ = col(is_idle)
+            check('W521: its Go runs through run.initial (rows stored, no further ask)', any(e.get('ev') == 'state' and e.get('rows', 0) > 1 for e in evs)
+                  and not any(e.get('ev') == 'ask' for e in evs), str(evs)[-200:])
+    finally:
+        stop_server(p, r, snd)
+
+
+check_run_registry()
+
+
+# W521: the numerics with no key of the main table (the Volterra points, the CVODE band, the delay's guesses and grid)
+# are run.configure's arguments, named as the .odex options name them, each only where it applies
+def check_numerics_extras():
+    def session(model):
+        p, r, snd, col, _ = launch_server(ode=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'examples', 'ode', model))
+
+        def call(**cmd):
+            snd(**cmd)
+            evs, _ = col(is_idle, timeout=60 * SLOW)
+            return next((e for e in reversed(evs) if e.get('ev') == 'done'), {})
+        col(is_idle)
+        return p, r, snd, call
+
+    p, r, snd, call = session('delay.odex')
+    try:
+        done = call(cmd='run.configure', delay_real_guess=1.5, delay_imaginary_guess=3, delay_grid=40)
+        check('W521: run.configure sets the delay guesses and grid and says them',
+              done.get('status') == 'ok' and done['result']['settings'] == {'delay_real_guess': 1.5, 'delay_imaginary_guess': 3, 'delay_grid': 40}, str(done))
+        done = call(cmd='run.configure', delay_grid=0)
+        check('W521: a delay grid of 0 is refused naming the argument', done.get('status') == 'error' and 'delay_grid' in done.get('error', ''), str(done))
+        done = call(cmd='run.configure', bandlo=2)
+        check('W521: bandlo refused with a method that cannot be banded, nothing set',
+              done.get('status') == 'error' and 'bandlo' in done.get('error', ''), str(done))
+        done = call(cmd='run.configure', method='cvode', total_time=7, bandlo=2, bandup=3)
+        check('W521: with CVODE the band is set together with the method',
+              done.get('status') == 'ok' and done['result']['settings'].get('bandlo') == 2 and done['result']['settings'].get('bandup') == 3
+              and done['result']['settings'].get('total_time') == 7, str(done))
+        done = call(cmd='run.configure', method='euler', vmaxpts=100)
+        check('W521: a refused extra takes the whole call back (the method stays CVode)',
+              done.get('status') == 'error' and 'vmaxpts' in done.get('error', ''), str(done))
+    finally:
+        stop_server(p, r, snd)
+
+    p, r, snd, call = session('voltex1.odex')
+    try:
+        done = call(cmd='run.configure', vmaxpts=5000, autoeval=False)
+        check('W521: run.configure sets the Volterra points and auto-evaluation',
+              done.get('status') == 'ok' and done['result']['settings'] == {'vmaxpts': 5000, 'autoeval': False}, str(done))
+        done = call(cmd='run.configure', delay_grid=10)
+        check('W521: a delay grid is refused for a model with no delays',
+              done.get('status') == 'error' and 'delay_grid' in done.get('error', ''), str(done))
+    finally:
+        stop_server(p, r, snd)
+
+
+check_numerics_extras()
 
 
 def check_recursive_user_functions():
@@ -9909,8 +9974,8 @@ def check_recursive_user_functions():
         s = Server(args.server, probe)
         try:
             s.collect(is_idle)
-            s.send(cmd='key', key='i')
-            evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'g'}})
+            s.send(cmd='run.initial')
+            evs, _ = s.collect(is_idle)
             errors = [e for e in evs if e.get('error')]
             check('W387: direct recursion in server mode stops with one placed error',
                   len(errors) == 1 and errors[0].get('line') == 3
@@ -9935,8 +10000,8 @@ def check_recursive_user_functions():
         s = Server(args.server, mutual)
         try:
             s.collect(is_idle)
-            s.send(cmd='key', key='i')
-            evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'g'}})
+            s.send(cmd='run.initial')
+            evs, _ = s.collect(is_idle)
             errors = [e for e in evs if e.get('error')]
             check('W387: mutual recursion in server mode stops with one placed error',
                   len(errors) == 1 and 'mutual' in errors[0].get('file', '')
@@ -9961,8 +10026,8 @@ def check_recursive_user_functions():
         s = Server(args.server, partial)
         try:
             s.collect(is_idle)
-            s.send(cmd='key', key='i')
-            evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'g'}})
+            s.send(cmd='run.initial')
+            evs, _ = s.collect(is_idle)
             errors = [e for e in evs if e.get('error')]
             state = next((e for e in reversed(evs) if e.get('ev') == 'state'), {})
             check('W387: recursion stops run and preserves stored rows',
@@ -9996,8 +10061,8 @@ def check_recursive_user_functions():
         s = Server(args.server, test_odex)
         try:
             s.collect(is_idle)
-            s.send(cmd='key', key='i')
-            evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'g'}})
+            s.send(cmd='run.initial')
+            evs, _ = s.collect(is_idle)
             errors = [e for e in evs if e.get('error')]
             state = next((e for e in reversed(evs) if e.get('ev') == 'state'), {})
             check('W387: test.odex terminating recursion runs without error',
@@ -10012,6 +10077,7 @@ def check_recursive_user_functions():
 
 
 check_recursive_user_functions()
+check_run_registry()
 check_stops()
 check_auto_stops()
 check_auto_starts()

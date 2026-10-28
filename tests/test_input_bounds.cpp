@@ -62,13 +62,15 @@ int main()
     s.shoot_range.steps=9;
     s.shoot_range.plow=1;
     s.shoot_range.phigh=10;
-    xpp::compile_bvp(s);
+    CHECK(xpp::compile_bvp(s).has_value());
     s.numerics.storflag=false;
     for(bool fail:{false,true}){
         s.data_store.allocate(2,s.model().neq+1);
         fail_growth(fail);
         double start=1,end=1;
-        xpp::do_sh_range(s,&start,&end);
+        const xpp::Result<int> swept=xpp::do_sh_range(s,&start,&end);
+        CHECK(swept.has_value()==!fail);
+        CHECK(fail?(!swept&&swept.error().where=="storage"):*swept==10);
         CHECK(s.data_store.rows==(fail?2:10));
         CHECK(s.data_store.col[0][0]==1 && s.data_store.col[0][1]==2);
         if(!fail)CHECK(s.data_store.col[0][9]==10);

@@ -20,6 +20,7 @@
 #include <vector>
 #include "model.h"
 #include "my_rhs.h"
+#include "typed_values.h"
 
 namespace xpp {
 
@@ -285,30 +286,32 @@ int solve_dae(xpp::Session &s)
   }
 }
 
-/* interface shit -- different for Win95 */
- 
+Result<double> set_dae_guess(xpp::Session &s, int i, std::string_view formula)
+{
+  xpp::Model &m=s.model();
+  auto &var=m.svars[static_cast<std::size_t>(i)];
+  if(const Result<> compiled=compile_formula(s,formula);!compiled)
+    return xpp::fail("initial guess",xpp::format("{}: illegal formula {}: {}",var.name,formula,compiled.error().what),command_place());
+  var.rhs=formula;
+  /* a guess edited at run time no longer has its load-time native code */
+  var.form.native=nullptr;
+  int n;
+  add_expr(s,var.rhs,var.form.rpn,&n);
+  var.form.rpn.resize(std::max(100, n+2), 0);
+  const double z=evaluate(s,var.form);
+  setvar(s,var.index,z);
+  s.dae.svar_last[static_cast<std::size_t>(i)]=z;
+  return z;
+}
+
 void get_new_guesses(xpp::Session &s)
 {
   xpp::Model &m=s.model();
-  int i,n;
-  /* new_string_of edits m.svars[i].rhs in place */
-  double z;
-  if(m.nsvar<1)return;
-  for(i=0;i<m.nsvar;i++){
-    z=s.dae.svar_last[i];
-    const std::string name=xpp::format("Initial {}({:g}):",
-      m.svars[i].name,z);
-    new_string_of(name.c_str(),m.svars[i].rhs,XPP_FIELD_EXPRESSION);
-    /* A guess edited at run time no longer has its load-time native code. */
-    m.svars[i].form.native=nullptr;
-    if(add_expr(s,m.svars[i].rhs,m.svars[i].form.rpn,&n)){
-      command_error("initial guess",xpp::format("{}: illegal formula {}",m.svars[i].name,m.svars[i].rhs));
-      return;
-    }
-    m.svars[i].form.rpn.resize(std::max(100, n+2), 0);
-    z=evaluate(s,m.svars[i].form);
-    setvar(s,m.svars[i].index,z);
-    s.dae.svar_last[i]=z;
+  for(int i=0;i<m.nsvar;i++){
+    const std::string name=xpp::format("Initial {}({:g}):",m.svars[i].name,s.dae.svar_last[i]);
+    std::string formula=m.svars[i].rhs;
+    new_string_of(name.c_str(),formula,XPP_FIELD_EXPRESSION);
+    if(!xpp::ok_or_show(set_dae_guess(s,i,formula)))return;
   }
 }
 

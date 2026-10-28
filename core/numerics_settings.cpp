@@ -92,6 +92,20 @@ std::string words_in_text(const OptionRow &f)
     return text;
 }
 
+/* field f's value as JSON: a number, a boolean or a choice's quoted word */
+void append_value(std::string &o, const xpp::Session &s, const OptionRow &f)
+{
+    if (f.boolean) {
+        o += f.boolean(s) ? "true" : "false";
+    } else if (f.rule == OptionRule::method || f.rule == OptionRule::choice) {
+        const std::vector<std::string> words = option_choices(f);
+        xpp::json_append_string(o, words[static_cast<std::size_t>(index_of(s, f))]);
+    } else {
+        const double v = value_of(s, f);
+        o += xpp::json::json_finite(v) ? xpp::number(v) : std::string("null");
+    }
+}
+
 std::string event_text(const xpp::Session &s)
 {
     std::string o = "{\"ev\":\"numerics\",\"fields\":[";
@@ -102,16 +116,9 @@ std::string event_text(const xpp::Session &s)
         first = false;
         xpp::json_append_string(o, f.label);
         o += ",\"value\":";
-        if (f.boolean) {
-            o += f.boolean(s) ? "true,\"boolean\":true" : "false,\"boolean\":true";
-        } else if (f.rule == OptionRule::method || f.rule == OptionRule::choice) {
-            const std::vector<std::string> words = option_choices(f);
-            xpp::json_append_string(o, words[static_cast<std::size_t>(index_of(s, f))]);
-        } else {
-            const double v = value_of(s, f);
-            o += xpp::json::json_finite(v) ? xpp::number(v) : std::string("null");
-            if (f.whole) o += ",\"integer\":true";
-        }
+        append_value(o, s, f);
+        if (f.boolean) o += ",\"boolean\":true";
+        else if (f.rule != OptionRule::method && f.rule != OptionRule::choice && f.whole) o += ",\"integer\":true";
         if (!used(s, f)) o += ",\"unused\":true";
         if (f.rule == OptionRule::method) {
             o += ",\"choices\":[";
@@ -216,32 +223,54 @@ int numerics_settings_check(xpp::Session &s, std::string_view key, std::string_v
     return check(s, *f, text, v, why, command_place()) ? 0 : -1;
 }
 
-int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_view text, std::string &why, const Place *place)
+int numerics_settings_set_all(xpp::Session &s, std::span<const NumericsValue> values, std::string &why, const Place *place)
 {
     try {
-        const OptionRow *f = numerics_option(key);
-        double v = 0;
-        if (!f || (f->use == OptionUse::delays && !used(s, *f))) {
-            why = xpp::format("no numerics setting {}", key);
-            return -1;
+        struct Written {
+            const OptionRow *field;
+            double value, before;
+        };
+        std::vector<Written> checked;
+        for (const NumericsValue &given : values) {
+            const OptionRow *f = numerics_option(given.key);
+            Written c{f, 0, 0};
+            if (!f || (f->use == OptionUse::delays && !used(s, *f))) {
+                why = xpp::format("no numerics setting {}", given.key);
+                return -1;
+            }
+            if (!check(s, *f, given.text, c.value, why, place ? *place : command_place())) return -1;
+            c.before = f->rule == OptionRule::method || f->rule == OptionRule::choice ? index_of(s, *f) : value_of(s, *f);
+            checked.push_back(c);
         }
-        if (!check(s, *f, text, v, why, place ? *place : command_place())) return -1;
-        const bool number = f->rule != OptionRule::method && f->rule != OptionRule::choice;
-        const double before = number ? value_of(s, *f) : 0;
-        write_field(s, *f, v);
-        /* a number that breaks an order the settings keep is refused, the setting left as it was */
-        if (const auto bad = number ? option_pairs_problem(s) : std::nullopt) {
-            write_field(s, *f, before);
+        for (const Written &c : checked) write_field(s, *c.field, c.value);
+        /* numbers that break an order the settings keep are refused, the settings left as they were */
+        const bool numbers = std::ranges::any_of(checked, [](const Written &c) { return c.field->rule != OptionRule::method && c.field->rule != OptionRule::choice; });
+        if (const auto bad = numbers ? option_pairs_problem(s) : std::nullopt) {
+            for (const Written &c : checked) write_field(s, *c.field, c.before);
             why = bad->text;
             return -1;
         }
         /* what changing these needs */
-        if (f->applied) f->applied(s);
+        for (const Written &c : checked)
+            if (c.field->applied) c.field->applied(s);
         do_meth(s);
         return 0;
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("setting the numerics");
     }
+}
+
+int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_view text, std::string &why, const Place *place)
+{
+    const NumericsValue value{key, std::string(text)};
+    return numerics_settings_set_all(s, std::span(&value, 1), why, place);
+}
+
+std::string numerics_settings_json_value(const xpp::Session &s, std::string_view key)
+{
+    std::string text;
+    if (const OptionRow *f = numerics_option(key)) append_value(text, s, *f);
+    return text;
 }
 
 bool numerics_settings_ask(xpp::Session &s, std::string_view key)

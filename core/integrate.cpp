@@ -200,7 +200,7 @@ void init_range(xpp::Session &s)
  s.integrator.eq_range.movie=0;
  s.integrator.eq_range.item=s.model().upar_names[0];
  s.integrator.range.type=0;
- s.integrator.range.rtype=0;
+ s.integrator.range.rtype=RANGE_SINGLE;
  s.integrator.range.index=s.integrator.range.index2=0;
  s.integrator.range.steps2=20;
  s.integrator.range.cycle=0;
@@ -239,35 +239,39 @@ int set_up_eq_range(xpp::Session &s)
 }
 
 namespace {
-/* what a range varies: item a parameter (PARAM) or else a variable (IC),
-   and its index; 0 (and a message) when it is neither */
-int find_range_item(const xpp::Session &s, const std::string &item, int *type, int *index)
+/* what a range varies: item a parameter (PARAM) or else a variable (IC), and its index */
+xpp::Result<> find_range_item(const xpp::Session &s, const std::string &item, int *type, int *index)
 {
  int i=find_user_name(s.model(),PARAM,item);
  if(i>-1){
    *type=PARAM;
    *index=i;
-   return 1;
+   return {};
  }
  i=find_user_name(s.model(),IC,item);
- if(i<=-1){
-   command_error("range",xpp::format("{} is not a parameter or variable",item));
-   return(0);
- }
+ if(i<=-1)return xpp::fail("range",xpp::format("{} is not a parameter or variable",item),command_place());
  *type=IC;
  *index=i;
- return 1;
+ return {};
 }
 }
 
 int range_item(xpp::Session &s)
 {
- return find_range_item(s,s.integrator.range.item,&s.integrator.range.type,&s.integrator.range.index);
+ return xpp::ok_or_show(find_range_item(s,s.integrator.range.item,&s.integrator.range.type,&s.integrator.range.index))?1:0;
 }
 
 int range_item2(xpp::Session &s)
 {
- return find_range_item(s,s.integrator.range.item2,&s.integrator.range.type2,&s.integrator.range.index2);
+ return xpp::ok_or_show(find_range_item(s,s.integrator.range.item2,&s.integrator.range.type2,&s.integrator.range.index2))?1:0;
+}
+
+xpp::Result<> resolve_range_items(xpp::Session &s, bool two)
+{
+ RangeVars &range=s.integrator.range;
+ if(auto first=find_range_item(s,range.item,&range.type,&range.index);!first)return first;
+ if(two)return find_range_item(s,range.item2,&range.type2,&range.index2);
+ return {};
 }
 
 int set_up_range(xpp::Session &s)
@@ -319,7 +323,7 @@ int set_up_range2(xpp::Session &s)
    xpp::FormField::boolean("Use old ic's",s.integrator.range.oldic),
    xpp::FormField::boolean("Cycle color",s.integrator.range.cycle),
    xpp::FormField::boolean("Movie",s.integrator.range.movie),
-   xpp::FormField::choice("Vary both",{"together","independently"},s.integrator.range.rtype==2?1:0),
+   xpp::FormField::choice("Vary both",{"together","independently"},s.integrator.range.rtype==RANGE_INDEPENDENT?1:0),
    xpp::FormField{.name="Steps2",.kind=XPP_FIELD_INTEGER,.value=xpp::format("{}",s.integrator.range.steps2),.min=1},
    xpp::FormField::boolean("Write each run to its own file",s.integrator.range.write_files)};
  if(!xpp::ask_form(s,"Double Range Integrate",fields))return 0;
@@ -336,7 +340,7 @@ int set_up_range2(xpp::Session &s)
  s.integrator.range.oldic=fields[8].flag;
  s.integrator.range.cycle=fields[9].flag;
  s.integrator.range.movie=fields[10].flag;
- s.integrator.range.rtype=fields[11].whole+1;
+ s.integrator.range.rtype=fields[11].whole==1?RANGE_INDEPENDENT:RANGE_TOGETHER;
  s.integrator.range.steps2=fields[12].whole;
  s.integrator.range.write_files=fields[13].flag;
  s.integrator.range_flag=1;
@@ -664,7 +668,7 @@ void show_stop_note(xpp::Session &s)
    diagram), the settings made: one integration per step; -1 when one
    stopped early (the sweep ends there), else 0; or the error it failed
    with */
-xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFrame &take_frame, const ShowProgress &show_progress)
+xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFrame &take_frame, const ShowProgress &show_progress, RangeProgress &progress)
 {
   std::optional<xpp::Error> failure;
   bool complete=true; /* a failed capture can stop the sweep without an integration error */
@@ -699,15 +703,15 @@ xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFra
  s.numerics.storflag=true;
  s.numerics.pauser=false;
 nit2=0;
-if(s.integrator.range.rtype==2)nit2=s.integrator.range.steps2; 
+if(s.integrator.range.rtype==RANGE_INDEPENDENT)nit2=s.integrator.range.steps2; 
 if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
  alloc_liap(s,nit); /* make space */
- if(s.integrator.range.rtype>0){
+ if(s.integrator.range.rtype!=RANGE_SINGLE){
  itype2=s.integrator.range.type2;
  ivar2=s.integrator.range.index2;
  plow2=s.integrator.range.plow2;
  phigh2=s.integrator.range.phigh2;
-  if(s.integrator.range.rtype==2)dpar2=(phigh2-plow2)/static_cast<double>(nit2);
+  if(s.integrator.range.rtype==RANGE_INDEPENDENT)dpar2=(phigh2-plow2)/static_cast<double>(nit2);
   else dpar2=(phigh2-plow2)/static_cast<double>(nit);
   if(s.integrator.range.type2==PARAM)get_val(s,s.integrator.range.item2,&temp2);
  
@@ -734,9 +738,9 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
 
    if(flag!=2){
      p=plow+dpar*static_cast<double>(i);
-     if(s.integrator.range.rtype==1)
+     if(s.integrator.range.rtype==RANGE_TOGETHER)
        p2=plow2+dpar2*static_cast<double>(i);
-     if(s.integrator.range.rtype==2)
+     if(s.integrator.range.rtype==RANGE_INDEPENDENT)
        p2=plow2+dpar2*static_cast<double>(j);
    
      if(oldic==1){
@@ -759,7 +763,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
        re_evaluate_kernels(s);
        
      }
-     if(s.integrator.range.rtype>0){
+     if(s.integrator.range.rtype!=RANGE_SINGLE){
        if(itype2==IC)x[ivar2]=p2;
        else {
 	 set_val(s,s.integrator.range.item2,p2);
@@ -768,7 +772,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
        }
      }
      if(program.interactive){   
-       if(s.integrator.range.rtype>0)
+       if(s.integrator.range.rtype!=RANGE_SINGLE)
 	 bob=xpp::format("{}={:.16g}  {}={:.16g}",s.integrator.range.item,p,s.integrator.range.item2,p2);
        else
 	 bob=xpp::format("{}={:.16g}  i={}",s.integrator.range.item,p,i);
@@ -784,7 +788,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
    }
    const int run_number=j*(nit+1)+i+1;
    const std::string where=flag==2?xpp::format("{} = {}",parn,xpp::number(temp))
-     :s.integrator.range.rtype>0?xpp::format("{} = {}, {} = {}",s.integrator.range.item,xpp::number(p),s.integrator.range.item2,xpp::number(p2))
+     :s.integrator.range.rtype!=RANGE_SINGLE?xpp::format("{} = {}, {} = {}",s.integrator.range.item,xpp::number(p),s.integrator.range.item2,xpp::number(p2))
      :xpp::format("{} = {}",s.integrator.range.item,xpp::number(p));
    do_start_flags(s,x,&s.data_store.current_time);
 if(stored_from(s.numerics.store_from,s.data_store.current_time,s.numerics.delta_t)&&s.numerics.storflag&&s.numerics.poincare_map==PoincareMap::none)
@@ -795,6 +799,7 @@ if(stored_from(s.numerics.store_from,s.data_store.current_time,s.numerics.delta_
     s.data_store.rows++;
   }
 
+ const int rows_before=s.data_store.rows;
  const xpp::Result<int> run=integrate(s,&t,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start);
  if(!run||*run==1||xpp::job::cancelled()){
    if(!run){
@@ -806,6 +811,8 @@ if(stored_from(s.numerics.store_from,s.data_store.current_time,s.numerics.delta_
    complete=false;
    break;
  }
+ progress.runs++;
+ progress.steps+=s.data_store.rows-rows_before;
  if(!s.integrator.stop_note.empty()){
    const std::string note=xpp::format("{}: {}",where,s.integrator.stop_note);
    xpp::log(XPP_LOG_WARN,"Range run {} of {} ended early at {}\n",run_number,runs,note);
@@ -857,7 +864,7 @@ if(stored_from(s.numerics.store_from,s.data_store.current_time,s.numerics.delta_
  if(oldic==1)get_ic(s,1,x);
  else set_initial_data(s,{x,static_cast<size_t>(s.model().node+s.model().nmarkov)});
  if(s.integrator.range.type==PARAM)set_val(s,s.integrator.range.item,temp);
- if(s.integrator.range.rtype>0)
+ if(s.integrator.range.rtype!=RANGE_SINGLE)
    if(s.integrator.range.type2==PARAM)set_val(s,s.integrator.range.item2,temp2);
  evaluate_derived(s);
 s.plot_windows.current->color[0]=color;
@@ -874,22 +881,34 @@ s.plot_windows.current->color[0]=color;
 
 } // namespace
 
+namespace {
+/* the sweep over the range settings made: its integrations, the movie's frames; done (when given) what they completed */
+xpp::Result<int> sweep_range(xpp::Session &s, double *x, int flag, RangeProgress *done)
+{
+ RangeFilm film(s);
+ RangeProgress progress;
+ const xpp::Result<int> r=range_sweep(s,x,flag,film.taker(),film.progress(),progress);
+ if(done)*done=progress;
+ if(!r)return std::unexpected(r.error());
+ if(!film.result())return std::unexpected(film.result().error());
+ return *r;
+}
+}
+
 int do_range(xpp::Session &s, double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto range */
 {
  if(flag==0||flag==2){
-   s.integrator.range.rtype=0;
+   s.integrator.range.rtype=RANGE_SINGLE;
    if(set_up_range(s)==0)return(-1);
  }
  if(flag==1){
    if(set_up_range2(s)==0)return -1;
  }
- RangeFilm film(s);
- const xpp::Result<int> r=range_sweep(s,x,flag,film.taker(),film.progress());
+ const xpp::Result<int> r=sweep_range(s,x,flag,nullptr);
  if(!r){
    xpp::show_error(r.error());
    return -1;
  }
- if(!film.result())xpp::show_error(film.result().error());
  return *r;
 }
 
@@ -986,206 +1005,264 @@ int write_this_run(xpp::Session &s, const char *file, int i)
   return(1);
 }
   
-void do_init_data(xpp::Session &s, int com)
-{
-  char ch;
-  int si;
-  double *x;
-  double old_dt=s.numerics.delta_t;
-  std::string icfile;
-  float xm,ym;
-  int im,jm,oldstart,iv,jv,badmouse;
+namespace {
 
-  oldstart=s.integrator.my_start;
+/* the state every run begins in: its first integration afresh, no range
+   going, no failure kept from the one before */
+void reset_run_state(xpp::Session &s)
+{
   s.integrator.my_start=1;
-  x=&s.data_store.current[0];
   s.integrator.range_flag=0;
   s.integrator.step_error.reset();
   reset_dae(s);
-  if(s.numerics.fft||s.numerics.hist)return;
+}
 
-  if(com==M_ID){      /* dont want to wipe out everything! */
-    get_new_guesses(s);
-    return;
-  }
-
- data_back(s);
+/* a run from the initial data empties what the last one stored */
+void clear_for_run(xpp::Session &s)
+{
+  data_back(s);
   wipe_rep(s.browser);
   s.data_store.current_time=s.numerics.start_time;
- 
   s.numerics.storflag=true;
   s.numerics.poiext=0;
   s.data_store.rows=0;
   reset_browser(s);
+}
 
-  switch(com){
-  case M_IR: /* do range   */
-    do_range(s,x,0);
-    return;
-  case M_I2:
-    do_range(s,x,1);
-    return;
-  case M_IS:
-  case M_IL:
-    if(!s.numerics.inflag){
-      ping();
-      command_error("initialconds","No prior solution");
-      return;
-    }
+xpp::Result<> run_allowed(const xpp::Session &s, std::string_view command)
+{
+  if(s.numerics.fft||s.numerics.hist)
+    return xpp::fail(std::string(command),"The data table shows a Fourier or histogram result: choose Stochastic, Data to see the trajectory again before running",xpp::command_place());
+  return {};
+}
+
+/* Dt back as it was when the run ends, whichever way it does */
+struct DtRestore {
+  xpp::Session &s;
+  double dt;
+  explicit DtRestore(xpp::Session &session) : s(session), dt(session.numerics.delta_t) {}
+  ~DtRestore(){s.numerics.delta_t=dt;}
+};
+
+/* the delay history restarted from the initial data of a model with delays */
+xpp::Result<> restart_delays(xpp::Session &s)
+{
+  if(s.delay.flag)return do_init_delay(s,s.numerics.delay);
+  return {};
+}
+
+} // namespace
+
+xpp::Result<bool> run_from(xpp::Session &s, RunFrom from, bool reset_integrals)
+{
+  const int oldstart=s.integrator.my_start;
+  const DtRestore dt(s);
+  double *const x=&s.data_store.current[0];
+  reset_run_state(s);
+  if(auto allowed=run_allowed(s,"run");!allowed)return std::unexpected(allowed.error());
+  if((from==RunFrom::last||from==RunFrom::shift)&&!s.numerics.inflag)
+    return xpp::fail("run","No prior solution: run once from the initial data first",xpp::command_place());
+  clear_for_run(s);
+  switch(from){
+  case RunFrom::last:
+  case RunFrom::shift:
     xpp::push_value_undo(s); /* Run from last state overwrites the initial conditions */
     set_initial_data(s,{x,static_cast<size_t>(s.model().node+s.model().nmarkov)});
-    if(com==M_IS){
+    if(from==RunFrom::shift){
       s.numerics.start_time=s.integrator.last_time;
       s.data_store.current_time=s.numerics.start_time;
     }
-    if(xpp::solver_info(s.numerics.method).traits.integral_history&&oldstart==0){
-      ch=static_cast<char>(TwoChoice("No","Yes","Reset integrals?","ny"));
-      if(ch=='n')s.integrator.my_start=oldstart;
-    }
+    if(xpp::solver_info(s.numerics.method).traits.integral_history&&oldstart==0&&!reset_integrals)
+      s.integrator.my_start=oldstart;
     break;
-  case M_IO:
+  case RunFrom::old:
     get_ic(s,1,x);
-    if(s.delay.flag){
-      /* restart initial data */
-      if(!xpp::ok_or_show(do_init_delay(s,s.numerics.delay)))return;
-    }
-   set_init_guess(s);
+    if(auto delays=restart_delays(s);!delays)return std::unexpected(delays.error());
+    set_init_guess(s);
+    break;
+  case RunFrom::backward:
+    s.numerics.delta_t=-fabs(s.numerics.delta_t);
+    [[fallthrough]];
+  case RunFrom::initial:
+    set_init_guess(s);
+    get_ic(s,2,x);
+    if(auto delays=restart_delays(s);!delays)return std::unexpected(delays.error());
+    break;
+  }
+  return integrate_from(s,x);
+}
+
+xpp::Result<int> run_range(xpp::Session &s, int flag, RangeProgress *done)
+{
+  double *const x=&s.data_store.current[0];
+  reset_run_state(s);
+  if(auto allowed=run_allowed(s,"range");!allowed)return std::unexpected(allowed.error());
+  clear_for_run(s);
+  s.integrator.range_flag=1; /* a range's runs are not stopped at the state limit */
+  return sweep_range(s,x,flag,done);
+}
+
+namespace {
+/* the two states a graph plots against each other, or why it has no such pair */
+xpp::Result<Plane> plane_of(const xpp::Session &s, const GRAPH &graph)
+{
+  const int h=graph.xv[0]-1,v=graph.yv[0]-1;
+  if(h<0||h>=s.model().node||v<0||v>=s.model().node||graph.grtype>=5||v==h)
+    return xpp::fail("initial conditions","Not in a usable 2D plane: the window must plot two states against each other",xpp::command_place());
+  return Plane{h,v};
+}
+}
+
+xpp::Result<Plane> window_plane(const xpp::Session &s, int graph)
+{
+  return plane_of(s,s.plot_windows.graph[static_cast<std::size_t>(graph)]);
+}
+
+xpp::Result<bool> run_from_click(xpp::Session &s, Plane plane, double horizontal, double vertical)
+{
+  double *const x=&s.data_store.current[0];
+  get_ic(s,1,x);
+  x[plane.horizontal]=horizontal;
+  x[plane.vertical]=vertical;
+  s.last_ic[static_cast<std::size_t>(plane.horizontal)]=horizontal;
+  s.last_ic[static_cast<std::size_t>(plane.vertical)]=vertical;
+  if(auto delays=restart_delays(s);!delays)return std::unexpected(delays.error());
+  s.integrator.my_start=1;
+  s.data_store.current_time=s.numerics.start_time;
+  return integrate_from(s,x);
+}
+
+xpp::Result<int> run_from_clicks(xpp::Session &s, Plane plane, std::span<const std::pair<double,double>> clicks, bool suppress_bounds)
+{
+  reset_run_state(s);
+  if(auto allowed=run_allowed(s,"initial conditions");!allowed)return std::unexpected(allowed.error());
+  clear_for_run(s);
+  struct Unbounded {
+    xpp::Session &s;
+    bool on;
+    Unbounded(xpp::Session &session,bool unbounded) : s(session), on(unbounded){if(on)s.integrator.suppress_bounds=1;}
+    ~Unbounded(){if(on)s.integrator.suppress_bounds=0;}
+  } unbounded(s,suppress_bounds);
+  int done=0;
+  for(const auto &[horizontal,vertical]:clicks){
+    if(xpp::job::cancelled())break;
+    if(auto run=run_from_click(s,plane,horizontal,vertical);!run)return std::unexpected(run.error());
+    done++;
+  }
+  return done;
+}
+
+xpp::Result<bool> run_from_manifold(xpp::Session &s, int index)
+{
+  if(s.manifolds.ic_flag==0)
+    return xpp::fail("shoot","No shooting data available: run the equilibria's shooting (Sing pts, Shoot) first",xpp::command_place());
+  if(index<1||index>s.manifolds.count)
+    return xpp::fail("shoot",xpp::format("Manifold {} is out of range: the shooting found {}",index,s.manifolds.count),xpp::command_place());
+  set_initial_data(s,std::span(s.manifolds.ic[static_cast<std::size_t>(index-1)]).first(static_cast<std::size_t>(s.model().node)));
+  return run_from(s,RunFrom::old);
+}
+
+void do_init_data(xpp::Session &s, int com)
+{
+  /* XPPAUT's Initialconds items as an imported button sequence runs them (kbs.h): the questions a command takes as arguments are asked here, then the command's own function runs */
+  const auto run=[&](xpp::Result<bool> result){xpp::ok_or_show(result);};
+  switch(com){
+  case M_ID:
+    get_new_guesses(s);
+    break;
+  case M_IR:
+  case M_I2:
+    if(com==M_IR)s.integrator.range.rtype=RANGE_SINGLE;
+    if((com==M_IR?set_up_range(s):set_up_range2(s))==0)break;
+    xpp::ok_or_show(run_range(s,com==M_IR?0:1,nullptr));
+    break;
+  case M_IS:
+  case M_IL:{
+    const bool ask=xpp::solver_info(s.numerics.method).traits.integral_history&&s.integrator.my_start==0&&s.numerics.inflag;
+    const bool reset=ask&&TwoChoice("No","Yes","Reset integrals?","ny")=='y';
+    run(run_from(s,com==M_IS?RunFrom::shift:RunFrom::last,reset));
+    break;}
+  case M_IO:
+    run(run_from(s,RunFrom::old));
     break;
   case M_IM:
-  case M_II:
-        iv=s.plot_windows.current->xv[0]-1;
-        jv=s.plot_windows.current->yv[0]-1;
-    if(iv<0||iv>=s.model().node||jv<0||jv>=s.model().node||s.plot_windows.current->grtype>=5||jv==iv){
-      command_error("initialconds","Not in a usable 2D plane");
-      return;
-    }
-
-    /*  Get mouse values  */
+  case M_II:{
+    const xpp::Result<Plane> plane=window_plane(s,s.plot_windows.active);
+    if(!plane){xpp::show_error(plane.error());break;}
     if(com==M_IM){
-        get_ic(s,1,x);
-	MessageBox("Click on initial data");
-	if(GetMouseXY(s,&im,&jm)){
-	  scale_to_real(s,im,jm,&xm,&ym);
-	  im=s.plot_windows.current->xv[0]-1;
-	  jm=s.plot_windows.current->yv[0]-1;
-	  x[iv]=static_cast<double>(xm);
-	  x[jv]=static_cast<double>(ym);
-	  s.last_ic[im]=x[im];
-	  s.last_ic[jm]=x[jm];
-	  KillMessageBox();
-  
-	  if(s.delay.flag){
-	    /* restart initial data */
-	    if(!xpp::ok_or_show(do_init_delay(s,s.numerics.delay)))return;
-	  }
-	}
-	else {
-	   KillMessageBox();
-	   return;
-	}
+      MessageBox("Click on initial data");
+      int im,jm;
+      float xm,ym;
+      if(GetMouseXY(s,&im,&jm)){
+        scale_to_real(s,im,jm,&xm,&ym);
+        KillMessageBox();
+        const std::pair<double,double> click{static_cast<double>(xm),static_cast<double>(ym)};
+        xpp::ok_or_show(run_from_clicks(s,*plane,std::span(&click,1),false));
+      }
+      else KillMessageBox();
+      break;
     }
-    else {
-      s.integrator.suppress_bounds=1;
-
-	MessageBox("Click on initial data -- ESC to quit");
-	while(1){
-          get_ic(s,1,x);
-	  badmouse=GetMouseXY(s,&im,&jm);
-	  if(badmouse==0)break;
-	  scale_to_real(s,im,jm,&xm,&ym);
-	  im=s.plot_windows.current->xv[0]-1;
-	  jm=s.plot_windows.current->yv[0]-1;
-	  x[iv]=static_cast<double>(xm);
-	  x[jv]=static_cast<double>(ym);
-	  s.last_ic[im]=x[im];
-	  s.last_ic[jm]=x[jm];
-	  if(s.delay.flag){
-	    /* restart initial data */
-	    if(!xpp::ok_or_show(do_init_delay(s,s.numerics.delay)))break;
-	  }
-          s.integrator.my_start=1;
-          s.data_store.current_time=s.numerics.start_time;
-	  usual_integrate_stuff(s,x);
-	}
-	KillMessageBox();
-	s.integrator.suppress_bounds=0;
-	return;
+    /* mice: a run from every click until Escape */
+    MessageBox("Click on initial data -- ESC to quit");
+    reset_run_state(s);
+    if(!xpp::ok_or_show(run_allowed(s,"initial conditions"))){KillMessageBox();break;}
+    clear_for_run(s);
+    s.integrator.suppress_bounds=1;
+    for(;;){
+      int im,jm;
+      float xm,ym;
+      if(GetMouseXY(s,&im,&jm)==0)break;
+      scale_to_real(s,im,jm,&xm,&ym);
+      if(!xpp::ok_or_show(run_from_click(s,*plane,static_cast<double>(xm),static_cast<double>(ym))))break;
     }
-    break;
+    KillMessageBox();
+    s.integrator.suppress_bounds=0;
+    break;}
   case M_IN:
-    man_ic(s); 
-    get_ic(s,2,x);
-    set_init_guess(s);
-    break; 
-  case M_IU:
-    if(form_ic(s)==0)return;
-    get_ic(s,2,x);
+    man_ic(s);
+    run(run_from(s,RunFrom::old));
     break;
-  case M_IH:
+  case M_IU:
+    if(form_ic(s)==0)break;
+    run(run_from(s,RunFrom::old));
+    break;
+  case M_IH:{
     if(s.manifolds.ic_flag==0){
       command_error("initialconds","No shooting data available");
       break;
     }
-    si=1;
+    int si=1;
     new_int(xpp::format("Which? (1-{})",s.manifolds.count),&si);
-    si--;
-    if(si<s.manifolds.count&&si>=0){
-      set_initial_data(s,std::span(s.manifolds.ic[si]).first(s.model().node));
-      get_ic(s,2,x);
-    }
-    else
-      command_error("initialconds","Out of range");
-    break;
-  case M_IF:
-    icfile.clear();
-    if(!file_selector("Read initial data",icfile,"*.dat"))return;
+    run(run_from_manifold(s,si));
+    break;}
+  case M_IF:{
+    std::string icfile;
+    if(!file_selector("Read initial data",icfile,"*.dat"))break;
     /* the initial-conditions file, all of it or nothing (W125) */
-    load_ic_file_named(s,icfile);
-    get_ic(s,2,x);
-    break;
-      
+    if(xpp::ok_or_show(load_ic_file_named(s,icfile)))run(run_from(s,RunFrom::old));
+    break;}
   case M_IB:
-    s.numerics.delta_t=-fabs(s.numerics.delta_t);
-      get_ic(s,2,x);
-      set_init_guess(s);
-      if(s.delay.flag){
-      /* restart initial data */
-      if(!xpp::ok_or_show(do_init_delay(s,s.numerics.delay)))return;
-    }
-      break;
+    run(run_from(s,RunFrom::backward));
+    break;
   case M_IG:
   default:
-  	
-    set_init_guess(s);
-    
-    get_ic(s,2,x); 
-    
-    if(s.delay.flag){
-      /* restart initial data */
-      if(!xpp::ok_or_show(do_init_delay(s,s.numerics.delay)))return;
-    }
+    run(run_from(s,RunFrom::initial));
     break;
   }
-usual_integrate_stuff(s,x);
-s.numerics.delta_t=old_dt;
-}	
+}
+
 void run_now(xpp::Session &s)
 {
- 
-  double *x;
- s.integrator.my_start=1;
- x=&s.data_store.current[0];
- s.integrator.range_flag=0;
- s.integrator.step_error.reset();
- reset_dae(s);
- s.data_store.current_time=s.numerics.start_time;
- get_ic(s,2,x); 
+  double *const x=&s.data_store.current[0];
+  reset_run_state(s);
+  s.data_store.current_time=s.numerics.start_time;
+  get_ic(s,2,x);
   s.numerics.storflag=true;
   s.numerics.poiext=0;
   s.data_store.rows=0;
   reset_browser(s);
-  usual_integrate_stuff(s,x);
- }
+  xpp::ok_or_show(integrate_from(s,x));
+}
 
 void do_start_flags(xpp::Session &s, double *x,double *t)
 {
@@ -1195,7 +1272,7 @@ void do_start_flags(xpp::Session &s, double *x,double *t)
  one_flag_step(s,x,x,&iflagstart,*t,&tnew,s.model().node,&sss);
 
 }
-int usual_integrate_stuff(xpp::Session &s, double *x)
+xpp::Result<bool> integrate_from(xpp::Session &s, double *x)
 {
   int i;
 
@@ -1210,8 +1287,7 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
     }
   if(s.integrator.step_error){
     refresh_browser(s,s.data_store.rows);
-    xpp::show_error(take_step_error(s).error());
-    return 1;
+    return take_step_error(s);
   }
  
   const xpp::Result<int> r=[&]{
@@ -1224,16 +1300,19 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
   do_batch_nclines(s);
   do_batch_dfield(s);
   refresh_browser(s,s.data_store.rows);
+  const bool early=r&&(*r!=0||!s.integrator.stop_note.empty());
   show_stop_note(s);
   if(program.interactive){
  auto_freeze_it(s);
   redraw_ics();
   }
-  if(!r){
-    xpp::show_error(r.error());
-    return 1;
-  }
-  return *r;
+  if(!r)return std::unexpected(r.error());
+  return early;
+}
+
+int usual_integrate_stuff(xpp::Session &s, double *x)
+{
+  return xpp::ok_or_show(integrate_from(s,x))?0:1;
 }
 /*  form_ic  --  u_i(0) = F(i)  where  "i" is represented by "t"
     or  
@@ -1262,13 +1341,6 @@ ArrayIc &array_ic_for(ArrayIcs &ics, const char *newic, int j1, int j2)
   }
   return ics.ics[ihot];
 }
-}
-
-void do_new_array_ic(xpp::Session &s, const char *newic, int j1, int j2)
-{
-  ArrayIc &ic=array_ic_for(s.integrator.array_ics,newic,j1,j2);
-  new_string_of("Formula:",ic.formula,XPP_FIELD_EXPRESSION);
-  evaluate_ar_ic(s,ic.var.c_str(),ic.formula.c_str(),ic.j1,ic.j2);
 }
 
 std::vector<ArrayInitialValue> array_initial_values(const xpp::Model &m)
@@ -1351,63 +1423,93 @@ void arr_ic_start(xpp::Session &s)
 
 }
 
+namespace {
+xpp::Result<std::vector<int>> ic_problem(std::string what)
+{
+  return xpp::fail("initial conditions",std::move(what),xpp::command_place());
+}
+}
+
+xpp::Result<std::vector<int>> set_ic_formula(xpp::Session &s, std::string_view variable, std::string_view formula)
+{
+  const xpp::Model &m=s.model();
+  std::string text(variable),base;
+  int j1,j2,array;
+  search_array(text.data(),base,&j1,&j2,&array);
+  std::vector<int> indices;
+  std::vector<double> values;
+  if(array!=1){
+    const int index=find_user_name(m,ICBOX,variable);
+    if(index<0)return ic_problem(xpp::format("{} is not a variable of the model",variable));
+    const xpp::Result<double> value=evaluate_formula(s,formula);
+    if(!value)return ic_problem(xpp::format("{}: {}",formula,value.error().what));
+    indices.push_back(index);
+    values.push_back(*value);
+  }
+  else{
+    if(j2<j1)return ic_problem(xpp::format("{} is an empty range of variables",variable));
+    for(int j=j1;j<=j2;j++){
+      xpp::TypedFields fields(s);
+      std::string name,element;
+      subsk(base,name,j,1,&fields);
+      subsk(formula,element,j,1,&fields);
+      if(fields.error())return ic_problem(*fields.error());
+      const int index=find_user_name(m,ICBOX,name);
+      if(index<0)return ic_problem(xpp::format("{} is not a variable of the model (element {} of {})",name,j,variable));
+      const xpp::Result<double> value=evaluate_formula(s,element);
+      if(!value)return ic_problem(xpp::format("{} for {}: {}",element,name,value.error().what));
+      indices.push_back(index);
+      values.push_back(*value);
+    }
+  }
+  xpp::push_value_undo(s);
+  for(std::size_t k=0;k<indices.size();k++)s.last_ic[static_cast<std::size_t>(indices[k])]=values[k];
+  /* the array's formula is kept, as the model's own are (arr_ic_start) */
+  if(array==1)array_ic_for(s.integrator.array_ics,base.c_str(),j1,j2).formula=formula;
+  redraw_ics();
+  return indices;
+}
+
+xpp::Result<std::vector<int>> set_ic_array(xpp::Session &s, std::string_view name, int size, std::string_view formula)
+{
+  const xpp::Model &m=s.model();
+  const int first=find_user_name(m,ICBOX,name);
+  if(first<0)return ic_problem(xpp::format("{} is not a variable of the model",name));
+  if(size<1||size>m.node-first)
+    return ic_problem(xpp::format("{} elements from {} do not fit: the model has {} differential equations, {} is number {}",size,name,m.node,name,first+1));
+  std::vector<int> indices;
+  std::vector<double> values;
+  for(int k=0;k<size;k++){
+    set_val(s,"t",static_cast<double>(k)); /* the formula's t is the element's offset from the first */
+    const xpp::Result<double> value=evaluate_formula(s,formula);
+    if(!value)return ic_problem(xpp::format("{}: {}",formula,value.error().what));
+    indices.push_back(first+k);
+    values.push_back(*value);
+  }
+  for(std::size_t k=0;k<indices.size();k++)s.last_ic[static_cast<std::size_t>(indices[k])]=values[k];
+  redraw_ics();
+  return indices;
+}
+
 int set_array_ic(xpp::Session &s)
 {
- std::string junk;
- std::string newic;
- int i,index0,myar=-1;
- int i1,in;
- int j1,j2,flag2;
- double z;
- int flag;
- if(new_string("Variable: ",junk)==0)return 0;
- search_array(junk.data(),newic,&j1,&j2,&flag2);
- if(flag2==1)
-   {
-     do_new_array_ic(s,newic.c_str(),j1,j2);
-   }
- else {
-   find_variable(s,junk.c_str(),&i);
-   if(i<=-1)
-     return 0;
-   index0=i;
-   for(i=0;i<NAR_IC;i++){
-     if(s.integrator.array_ics.ics[i].type==2)continue;
-     if(index0==s.integrator.array_ics.ics[i].index0){
-       myar=i;
-       break;
-     }
-   }
-   if(myar<0){
-     for(i=0;i<NAR_IC;i++){
-       if(s.integrator.array_ics.ics[i].type==2)continue;
-       if(s.integrator.array_ics.ics[i].index0==-1){
-	 myar=i;
-	 break;
-       }
-     }
-   }
-   if(myar<0)myar=0;
-   
-   /* Now we have an element in the array index */
-   s.integrator.array_ics.ics[myar].index0=index0;
-   s.integrator.array_ics.ics[myar].type=0;
-   new_int("Number elements:",&s.integrator.array_ics.ics[myar].n);
-   new_string_of("u=F(t-i0):",s.integrator.array_ics.ics[myar].formula,XPP_FIELD_EXPRESSION);
-   i1=index0-1;
-   in=i1+s.integrator.array_ics.ics[myar].n;
-   if(i1>s.model().node||in>s.model().node)return 0; /* out of bounds */
-   for(i=i1;i<in;i++){
-     set_val(s,"t",static_cast<double>((i-i1)));
-     flag=do_calc(s,s.integrator.array_ics.ics[myar].formula,&z);
-     if(flag==-1){
-       command_error("initialconds",xpp::format("Bad formula {}",s.integrator.array_ics.ics[myar].formula));
-       return 1;
-     }
-     s.last_ic[i]=z;
-   }
- }
-   return 1;
+  std::string variable;
+  if(new_string("Variable: ",variable)==0)return 0;
+  std::string text=variable,base,formula;
+  int j1,j2,array;
+  search_array(text.data(),base,&j1,&j2,&array);
+  if(array==1){
+    formula=array_ic_for(s.integrator.array_ics,base.c_str(),j1,j2).formula;
+    new_string_of("Formula:",formula,XPP_FIELD_EXPRESSION);
+    xpp::ok_or_show(set_ic_formula(s,variable,formula));
+    return 1;
+  }
+  if(find_user_name(s.model(),ICBOX,variable)<0)return 0;
+  int size=1;
+  new_int("Number elements:",&size);
+  new_string_of("u=F(t-i0):",formula,XPP_FIELD_EXPRESSION);
+  xpp::ok_or_show(set_ic_array(s,variable,size,formula));
+  return 1;
 }
 
 int form_ic(xpp::Session &s)
@@ -1532,7 +1634,7 @@ Result<> validate_steady_state(SteadyStateSettings settings, double dt, double s
   return {};
 }
 
-Result<> continue_to(Session &s, double until)
+Result<bool> continue_to(Session &s, double until)
 {
   /* one output group: store_every steps of Dt (of 1, for a map); the run ends on a group boundary,
      so the end is rounded up to the output grid and the stride is honoured */
@@ -1553,16 +1655,18 @@ Result<> continue_to(Session &s, double until)
   do_batch_nclines(s);
   do_batch_dfield(s);
   refresh_browser(s,s.data_store.rows);
+  const bool early=r&&(*r!=0||!s.integrator.stop_note.empty());
   show_stop_note(s);
-  return r.transform([](int){});
+  if(!r)return std::unexpected(r.error());
+  return early;
 }
 
-Result<> continue_for(Session &s, double extra)
+Result<bool> continue_for(Session &s, double extra)
 {
   return continue_to(s,s.data_store.current_time+extra);
 }
 
-Result<> continue_total(Session &s)
+Result<bool> continue_total(Session &s)
 {
   return continue_for(s,s.numerics.total_time);
 }
@@ -1588,8 +1692,9 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings)
   s.integrator.steady.emplace(settings);
   s.integrator.steady_result=SteadyStateResult{"failed",settings.decimals};
   s.integrator.last_time=s.numerics.start_time;
-  do_init_data(s,M_IG);
+  const Result<bool> run=run_from(s,RunFrom::initial);
   s.integrator.steady_result->time=s.integrator.last_time;
+  if(!run)return std::unexpected(run.error());
   return {};
 }
 
@@ -1609,7 +1714,7 @@ namespace {
 xpp::Error stopped(xpp::Error e, double end, double dt)
 {
   if(e.where!=xpp::JACOBIAN_FAILED||dt<=0)return e;
-  e.action=xpp::switch_to_differences(xpp::format(R"({{"cmd":"continue","until":{}}})",xpp::number(end)));
+  e.action=xpp::switch_to_differences(xpp::format(R"({{"cmd":"run.continue","until":{}}})",xpp::number(end)));
   return e;
 }
 }

@@ -249,6 +249,11 @@ async function selectAll() {
   await cdp.send('Input.dispatchKeyEvent', {type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2});
 }
 
+/* Run from initial: the registry command the page's button and key send (W521) */
+async function runInitial() {
+  await cdp.eval(`__xpp.send({cmd: 'run.initial'})`);
+}
+
 async function key(k, modifiers = 0) {
   if (NAMED[k]) {
     const code = NAMED[k];
@@ -1718,7 +1723,7 @@ const bcSection = (want) => async () => {
 async function threePlot() {
   check('the store holds the 3D window: three, its box, and its own angles seeded from the core\'s',
     await until("w.info && w.info.three === 1 && w.view3d && w.info.box && w.info.box.xmax === 20", '3D window', 20000));
-  await cdp.eval(`__xpp.send({cmd: 'key', key: 'i'}); __xpp.send({cmd: 'answer', key: 'g'})`);
+  await runInitial();
   check('the explicit run finishes: 1601 rows (dt=.025, total=40)',
     await until('w.series && w.series.rows === 1601', 'lorenz run', 20000));
 
@@ -3552,7 +3557,7 @@ async function busyKeys() {
   const runPars = await S('JSON.stringify(s.core.pars)');
   await focusPlot();
   await cdp.eval(`document.querySelector('[data-run=stop]').click()`);
-  const stopped = await until(`__xpp.actions().slice(${n0}).includes('event:idle') && !s.busy`, 'the run stopped', 30000);
+  const stopped = await until(`__xpp.actions().slice(${n0}).some(e => e === 'event:idle' || e === 'event:done') && !s.busy`, 'the run stopped', 30000);
   /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
   const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set')`);
   const cancelled = await cdp.eval(`__xpp.actions().slice(${n0}).includes('event:stopped')`);
@@ -3676,7 +3681,7 @@ async function recordCheck(dir) {
     await until(`s.core.recording.steps === 1 && s.core.recording.note === '' && !s.busy`, 'step', 20000)
     && await cdp.eval(`document.querySelector('.recbar textarea').value === '' && document.querySelector('.recbar .rec-count').textContent.trim() === '1 step'`),
     JSON.stringify(await S('s.core.recording')));
-  check('record: Integrate sends its key as a button', await cdp.eval(`__xpp.sent().some(c => c.cmd === 'key' && c.menu === 'main' && c.item === 'initialconds' && c.button === 'Initial conditions')`));
+  check('record: Integrate sends run.initial', await cdp.eval(`__xpp.sent().some(c => c.cmd === 'run.initial')`));
   await cdp.eval(`document.querySelector('.recbar .rec-stop').click()`);
   check('record: Stop asks the file\'s name, the model\'s offered',
     await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx' && s.ask.file === 'lecar.recx'`, 'file ask'), JSON.stringify(await S('s.ask')));
@@ -3689,7 +3694,7 @@ async function recordCheck(dir) {
   check('record: web.recx holds the model and the step, its note above it, the button named',
     lines[0] === 'recording: {' && lines.includes('@file lecar.odex') && at > 0
     && lines[at + 1] === '# First run.' && lines[at + 2] === '# It settles.'
-    && (() => { const step = JSON.parse(lines[at + 3]); return step.step === 'Initial conditions → Go' && step.cmd.menu === 'main' && step.cmd.item === 'initialconds' && step.keys.join('') === 'g'; })(), JSON.stringify(lines.slice(at, at + 5)));
+    && (() => { const step = JSON.parse(lines[at + 3]); return step.step === 'Initialconds → Go' && step.cmd.cmd === 'run.initial'; })(), JSON.stringify(lines.slice(at, at + 5)));
   check('record: the recording begins with the session\'s state (a @snapshot section before the files, W59d)',
     lines.indexOf('@snapshot') > 0 && lines.indexOf('@snapshot') < lines.indexOf('@file lecar.odex'));
 
@@ -3759,8 +3764,8 @@ async function playerCheck(dir) {
   check('player: automatic playback plays to the end (4x)', await until(`s.core.player.step === 2 && s.core.player.running === -1 && !s.busy`, 'played', 30000),
     JSON.stringify(await S('s.core.player')));
   const presses = await cdp.eval(`__xpp.presses()`);
-  check('player: each step\'s keys were pressed before they went (Integrate by its button, then G; Erase by its command)',
-    JSON.stringify(presses) === JSON.stringify([{step: 0, what: 'cmd', index: 0}, {step: 0, what: 'key', index: 0}, {step: 1, what: 'cmd', index: 0}]),
+  check('player: each step\'s command was pressed before it went (Integrate and Erase by their commands)',
+    JSON.stringify(presses) === JSON.stringify([{step: 0, what: 'cmd', index: 0}, {step: 1, what: 'cmd', index: 0}]),
     JSON.stringify(presses));
   check('player: the page answered none of the step\'s questions (the player did)',
     await cdp.eval(`__xpp.sentFrom(${sentBefore}).every(c => c.cmd === 'play')`), JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentBefore})`)));
@@ -3945,7 +3950,7 @@ async function navigationCheck() {
   check('navigation: Ctrl+K focuses command search', await cdp.eval(`document.activeElement.id === 'command-search'`));
   await cdp.eval(`(() => { const input = document.querySelector('#command-search'); input.value = 'save session'; input.dispatchEvent(new Event('input', {bubbles:true})); })()`);
   await rendered();
-  check('navigation: search crosses legacy menu boundaries', await cdp.eval(`!!document.querySelector('.menu-item[data-menu=file][data-item=savesession]') && !document.querySelector('.menu-item[data-item=initialconds]')`));
+  check('navigation: search crosses legacy menu boundaries', await cdp.eval(`!!document.querySelector('.menu-item[data-menu=file][data-item=savesession]') && !document.querySelector('.menu-item[data-item=parameters]')`));
   await key('ArrowDown');
   check('navigation: search results reachable by arrow key', await cdp.eval(`document.activeElement.dataset.item === 'savesession'`));
   await cdp.eval(`(() => { const input = document.querySelector('#command-search'); input.value = ''; input.dispatchEvent(new Event('input', {bubbles:true})); document.querySelector('.plot-host').focus(); })()`);
@@ -3986,7 +3991,7 @@ async function navigationCheck() {
   await key('Enter', 1);
   check('W213: Alt+Enter continues with the toolbar field: one continue command, no key, no prompt',
     await until(`!s.busy && Math.abs(s.core.time - ${afterUntil}) < 1e-8 && !s.ask`, 'Alt+Enter continuation', 20000)
-    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${altMark})`)).filter(c => c.cmd !== 'state')) === JSON.stringify([{cmd: 'continue', until: afterUntil}]),
+    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${altMark})`)).filter(c => c.cmd !== 'state')) === JSON.stringify([{cmd: 'run.continue', until: afterUntil}]),
     JSON.stringify(await cdp.eval(`__xpp.sentFrom(${altMark})`)));
   const values = await S('[s.core.pars, s.core.ics]');
   const seriesCount = await S('s.seriesCount');
@@ -4165,8 +4170,8 @@ async function keymapEditorCheck() {
       await until(`s.keymap.editor.query === 'Ctrl+Enter'`, 'query')
       && JSON.stringify(await cdp.eval(`[...document.querySelectorAll('[data-keymap-row]')].map(r => r.dataset.keymapRow)`)) === JSON.stringify(['run_initial', 'run_last']));
     const search = text => cdp.eval(`(() => { const i = document.querySelector('[data-keymap-search]'); i.value = ${JSON.stringify(text)}; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-    await search('Initial conditions');
-    check('keymapeditor: the search also matches a label', await cdp.eval(`!![...document.querySelectorAll('[data-keymap-row]')].find(r => r.dataset.keymapRow === 'initialconds')`));
+    await search('Run from initial');
+    check('keymapeditor: the search also matches a label', await cdp.eval(`!![...document.querySelectorAll('[data-keymap-row]')].find(r => r.dataset.keymapRow === 'run_initial')`));
     await search('');
 
     /* record a key */
@@ -4253,20 +4258,20 @@ async function keymapEditorCheck() {
     await focusPlot();
     mark = await cdp.eval('__xpp.sentCount()');
     await key('Enter', ctrl);
-    check('keymapeditor: Ctrl+Enter is Run from initial: Initial conditions, answered Go, and a run follows',
+    check('keymapeditor: Ctrl+Enter is Run from initial: run.initial, and a run follows',
       await until(`s.seriesCount > 0 && !s.busy`, 'run', 20000)
-      && (await sentSince(mark)).some(c => c.cmd === 'key' && c.menu === 'main' && c.item === 'initialconds'));
+      && (await sentSince(mark)).some(c => c.cmd === 'run.initial'));
     const first = await S('s.seriesCount');
     await focusPlot();
     mark = await cdp.eval('__xpp.sentCount()');
     await key('Enter', ctrl | shift);
     check('keymapeditor: Ctrl+Shift+Enter is Run from last state: a new run from the state the last ended in',
-      await until(`s.seriesCount > ${first} && !s.busy`, 'run from last', 20000) && (await sentSince(mark)).some(c => c.cmd === 'key' && c.item === 'initialconds'));
+      await until(`s.seriesCount > ${first} && !s.busy`, 'run from last', 20000) && (await sentSince(mark)).some(c => c.cmd === 'run.last'));
     await focusPlot();
     mark = await cdp.eval('__xpp.sentCount()');
     await key('s', alt);
     check('keymapeditor: Alt+S is Run to steady state, with the toolbar\'s settings',
-      await until(`!s.busy && s.core.steady`, 'steady', 30000) && (await sentSince(mark)).some(c => c.cmd === 'steady' && c.decimals === 9));
+      await until(`!s.busy && s.core.steady`, 'steady', 30000) && (await sentSince(mark)).some(c => c.cmd === 'run.steady' && c.decimals === 9));
 
     /* the toolbar: the fixed part, then the pins in order */
     await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ['calculator', 'reload', 'dirfield'], bindings: {}}})`);
@@ -4371,7 +4376,7 @@ async function keysCheck() {
   check('keys: the pending chord is shown in the status bar, the sidebar lists the XPPAUT sequences, and there is no File mode', await cdp.eval(`
     document.querySelector('[data-testid=pending-keys]').textContent.includes('F') &&
     document.querySelector('[data-item=importset] kbd').textContent === 'F R' &&
-    document.querySelector('[data-item=initialconds] kbd').textContent === 'I' &&
+    document.querySelector('[data-item=saveinfo] kbd').textContent === 'F S' &&
     !document.querySelector('.shortcut-context') && !document.querySelector('.shortcut-status')`));
   await cdp.eval(`document.querySelector('#command-search').focus()`);
   check('keys: moving the focus cancels a pending chord, never a timeout', await until('s.pendingKeys.length === 0', 'chord cancelled by focus'));
@@ -4599,9 +4604,9 @@ async function runsCheck(dir) {
   const nowBefore = await S('s.core.now'), n1 = await S('s.seriesCount');
   const sentUse = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`document.querySelector('[data-run=current]').click()`);
-  check('runs: Run from last state targets Initialconds/Last, copies Now into Initial and runs',
+  check('runs: Run from last state sends run.last, copies Now into Initial and runs',
     await until(`!s.busy && s.seriesCount > ${n1}`, 'use state')
-    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${sentUse})`)).map(c => c.cmd === 'key' ? c.item ?? c.key : c.cmd)) === JSON.stringify(['initialconds', 'answer'])
+    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${sentUse})`)).map(c => c.cmd)) === JSON.stringify(['run.last'])
     && JSON.stringify(await S('s.core.ics.map(p => p[1])')) === JSON.stringify(nowBefore),
     JSON.stringify([await S('s.core.ics'), nowBefore]));
 
@@ -4879,10 +4884,7 @@ async function valuesBusy() {
   await desktopMetrics();
   /* All heavy.odex ICs are zero: RK4 keeps that equilibrium exactly, and
      unlike Stiff it honours Store every N steps instead of resetting it to one. */
-  await cdp.eval(`__xpp.send({cmd: 'set', values: [
-    {kind: 'num', name: 'method', text: 'runge_kutta'},
-    {kind: 'num', name: 'total_time', value: ${BUSY_TOTAL}},
-    {kind: 'num', name: 'store_every', value: ${BUSY_JUMP}}]})`);
+  await cdp.eval(`__xpp.send({cmd: 'run.configure', method: 'runge_kutta', total_time: ${BUSY_TOTAL}, store_every: ${BUSY_JUMP}})`);
   if (!await until(`!s.busy && s.numerics.find(f => f.key === 'total_time')?.value === ${BUSY_TOTAL}
     && s.numerics.find(f => f.key === 'store_every')?.value === ${BUSY_JUMP}`, 'heavy integration settings'))
     throw new Error('heavy.odex: heavy integration settings were not applied');
@@ -6067,7 +6069,7 @@ async function jacobianOfferCheck(dir) {
     await until(`!s.busy && !document.querySelector('[data-error-dialog]') && Math.abs(s.core.time - 4) < 1e-9
       && s.numerics.find(f => f.key === 'jacobian')?.value === 'difference'`, 'the run continued', 20000)
     && JSON.stringify(await S(`__xpp.sentFrom(${sent})`)) === JSON.stringify([
-      {cmd: 'set', kind: 'num', name: 'jacobian', text: 'difference'}, {cmd: 'continue', until: 4}]),
+      {cmd: 'set', kind: 'num', name: 'jacobian', text: 'difference'}, {cmd: 'run.continue', until: 4}]),
     JSON.stringify(await S(`__xpp.sentFrom(${sent})`)));
 
   /* W275: the same in an AUTO run. The branch x = 0 of x' = (a-1)x + (sqrt(x*x) below a = 0.5) has an

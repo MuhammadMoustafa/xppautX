@@ -120,7 +120,7 @@ void check_good_files()
 
     const std::string text =
         "{\r\n \"preset\": \"xppaut\",\r\n \"pinned\": [\"reload\", \"calculator\"],\r\n"
-        " \"bindings\": {\"reload\": [\"Ctrl+B\"], \"savesession\": [], \"initialconds\": [\"F S\", \"Alt+I\"]}}\r\n";
+        " \"bindings\": {\"reload\": [\"Ctrl+B\"], \"savesession\": [], \"continue\": [\"F S\", \"Alt+I\"]}}\r\n";
     auto map = xpp::keymap::parse_keymap(text, FILE_LABEL);
     CHECK(map.has_value());
     if (!map) return;

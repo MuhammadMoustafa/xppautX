@@ -26,7 +26,7 @@ import {FOCUSABLE} from './dialogFocus';
 
 
 /** label, op, hint (web/xpp-client.js's BROWSER_BUTTONS, the same protocol) */
-const BUTTONS: [string, BrowserOp, string][] = [
+const BUTTONS: [string, BrowserOp | 'get', string][] = [
   ['Find', 'find', 'Find the row where a column is closest to a value'],
   ['Get', 'get', 'Make the selected row the initial conditions'],
   ['Replace', 'replace', 'Replace a column by a formula'],
@@ -187,8 +187,9 @@ export function TableView() {
       </div>
       <div class="table-tools">
         {BUTTONS.map(([label, op, hint]) => {
-          const off = !mayKey('browser', op);
-          return <button key={op} data-button={`browser:${op}`} title={off ? BUSY_TITLE : hint} disabled={off} onClick={() => session.browserOp(op)}>{label}</button>;
+          const off = op === 'get' ? !may({cmd: 'ic.from_data_row', row: 0}) : !mayKey('browser', op);
+          return <button key={op} data-button={`browser:${op}`} title={off ? BUSY_TITLE : hint} disabled={off}
+            onClick={() => op === 'get' ? session.getRow() : session.browserOp(op)}>{label}</button>;
         })}
         <CommandButton menu="file" item="transpose" label="Transpose" title="Turn the stored data on its side: the columns become rows" />
         <CommandButton menu="num" item="lookup" label="Lookup tables" title="Create or change the model's lookup tables" />

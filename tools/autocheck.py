@@ -450,7 +450,7 @@ def section_abort():
     s.send(cmd='data', events=['autoinfo', 'autosettings'])
     # periodic_run already observed two diagram points: the run is computing.
     # Abort now, without guessing the duration of a Newton step.
-    t = s.send(cmd='abort')
+    t = s.send(cmd='run.abort')
     evs, e = s.collect(is_idle, timeout=120 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
     check('Abort stops a periodic run (reaches idle)', e is not None,
@@ -486,14 +486,14 @@ def section_abort():
             break
         n += 1
     check('a run from the end point of the aborted run computes new points', n == 2, '%d points' % n)
-    s.send(cmd='abort')
+    s.send(cmd='run.abort')
     s.collect(is_idle, timeout=120 * SLOW)
     check('the server is still alive after the second run', s.alive())
 
     # Close during a run: the AUTO window goes within a second
     run_periodic(s)
     s.collect(is_point, timeout=60 * SLOW)
-    t = s.send(cmd='abort')
+    t = s.send(cmd='run.abort')
     s.send(cmd='window.destroy', window='diagram_1')
     evs, e = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1' and e.get('op') == 'destroy',
                        timeout=120 * SLOW)
@@ -1070,9 +1070,7 @@ def section_session():
     s4.close()
     shutil.rmtree(folder, ignore_errors=True)
     evs = open_session(s5, 'tab')
-    s5.send(cmd='key', key='i')
-    evs2, ask = s5.collect(is_ask)
-    s5.send(cmd='answer', id=ask['id'], key='g')
+    s5.send(cmd='run.initial')
     s5.collect(is_idle, timeout=30 * SLOW)
     s5.send(cmd='browser', op='write', what='table', format='csv', name='tab.csv')
     s5.collect(is_idle)
@@ -1146,9 +1144,7 @@ def section_sessiondiagram():
     check('sessiondiagram: Start/Periodic with nothing integrated refuses, and the server lives',
           'Integrate first' in messages(evs) and s.alive(), messages(evs)[:200])
     # some data: the same model open keeps it, only the diagram loads
-    s.send(cmd='key', key='i')
-    evs, ask = s.collect(is_ask)
-    s.send(cmd='answer', id=ask['id'], key='g')
+    s.send(cmd='run.initial')
     evs, _ = s.collect(is_idle, timeout=30 * SLOW)
     rows_before = last_state(evs)['rows'] if last_state(evs) else None
     evs = load_diagram(s, d1)
@@ -1394,14 +1390,8 @@ def section_sessiondiagram():
 # ---- control: Abort, Quit and dropped commands during a long integration ----
 
 def set_total(s, total):
-    """nUmerics/Total"""
-    s.send(cmd='key', key='u')
-    s.collect(is_idle)
-    s.send(cmd='key', key='t')
-    evs, ask = s.collect(is_ask)
-    s.send(cmd='answer', id=ask['id'], ok=1, value=str(total))
-    s.collect(is_idle)
-    s.send(cmd='key', key='Escape')
+    """run.configure's total time"""
+    s.send(cmd='run.configure', total_time=total)
     s.collect(is_idle)
 
 
@@ -1410,25 +1400,19 @@ def rows(evs):
     return st[-1]['rows'] if st else None
 
 
-# Initialconds/Go integrates at once: `set` (no run any more, W69) puts mu
-# where these checks want it, then `key i` opens the one menu on the way,
-# so the only remaining prompt is answered with `key g` (arm_run/run_now).
+# run.initial integrates at once: `set` (no run any more, W69) puts mu
+# where these checks want it (arm_run/run_now).
 def arm_run(s):
-    """set mu, then open Initialconds: the returned ask's `id` answered with
-       `key: 'g'` is the only remaining step before the integration runs,
-       so a caller that must race the engine (an Abort sent right behind
-       the command) races that one answer instead."""
+    """set mu: the run that follows needs only its command, so a caller that must race the engine (an Abort
+       sent right behind the command) races that one command"""
     s.send(cmd='set', kind='par', name='mu', value=-1)
     s.collect(is_idle)
-    s.send(cmd='key', key='i')
-    evs, ask = s.collect(is_ask)
-    return ask
 
 
 def run_now(s):
-    """arm_run, then answer it at once: one full run, no other prompt"""
-    ask = arm_run(s)
-    s.send(cmd='answer', id=ask['id'], key='g')
+    """arm_run, then run at once: one full run"""
+    arm_run(s)
+    s.send(cmd='run.initial')
 
 
 def section_control():
@@ -1436,10 +1420,10 @@ def section_control():
     s.collect(is_idle)
     set_total(s, 400)  # 40001 rows, some 10 s
 
-    # an Abort sent right behind the run's answer, before the engine has taken it
-    ask = arm_run(s)
-    s.proc.stdin.write(json.dumps({'cmd': 'answer', 'id': ask['id'], 'key': 'g'}) + '\n'
-                       + json.dumps({'cmd': 'abort'}) + '\n')
+    # an Abort sent right behind the run's command, before the engine has taken it
+    arm_run(s)
+    s.proc.stdin.write(json.dumps({'cmd': 'run.initial'}) + '\n'
+                       + json.dumps({'cmd': 'run.abort'}) + '\n')
     s.proc.stdin.flush()
     t = time.monotonic()
     evs, e = s.collect(is_idle, timeout=60 * SLOW)
@@ -1450,7 +1434,7 @@ def section_control():
     perf('abort right after the command -> idle', '%.2f s, %s rows' % (took, n))
     s.send(cmd='state')
     evs, e = s.collect(is_idle, timeout=10 * SLOW)
-    check('an Abort has no idle of its own', len([x for x in evs if is_idle(x)]) == 1 and
+    check('an Abort has no done of its own', len([x for x in evs if is_idle(x)]) == 1 and
           any(x.get('ev') == 'state' for x in evs), str([x.get('ev') for x in evs]))
 
     # a command sent after an Abort is not cancelled by it
@@ -1466,7 +1450,7 @@ def section_control():
     run_now(s)
     s.collect(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
     s.send(cmd='window.destroy', window='diagram_1')
-    t = s.send(cmd='abort')
+    t = s.send(cmd='run.abort')
     evs, e = s.collect(is_idle, timeout=60 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
     check('Abort stops an integration', e is not None and (rows(evs) or 0) < 40001, 'rows %s' % rows(evs))
@@ -1539,10 +1523,8 @@ def names_diagram(ode):
     its labelled points"""
     s = Server(args.server, ode, verbose=args.v)
     s.collect(is_idle)
-    for key in 'gl':  # Initialconds/Go, then Initialconds/Last
-        s.send(cmd='key', key='i')
-        evs, ask = s.collect(is_ask)
-        s.send(cmd='answer', id=ask['id'], key=key)
+    for command in ('run.initial', 'run.last'):
+        s.send(cmd=command)
         s.collect(is_idle, timeout=30 * SLOW)
     s.send(cmd='key', key='f')
     s.send(cmd='key', key='a')
@@ -1578,7 +1560,7 @@ def section_names():
 
     s.send(cmd='set', kind='par', name=LONG_B, value=0.9)
     s.collect(is_idle)
-    s.send(cmd='set', kind='ic', name='slow_recovery_variable_w', value=-0.25)
+    s.send(cmd='ic.set', values={'slow_recovery_variable_w': -0.25})
     evs, _ = s.collect(is_idle)
     st = last_state(evs)
     check('names: set a parameter by its 200-character name', st is not None and dict(st['pars']).get(LONG_B) == 0.9,
@@ -1627,9 +1609,7 @@ def section_names():
     s.send(cmd='auto', op='set', axes={'plot': 'norm', 'var': LONG_V, 'par1': LONG_PAR})
     s.collect(is_idle)
 
-    s.send(cmd='key', key='i')
-    evs, ask = s.collect(is_ask)
-    s.send(cmd='answer', id=ask['id'], key='g')
+    s.send(cmd='run.initial')
     s.collect(is_idle, timeout=30 * SLOW)
     s.send(cmd='browser', **{'from': 0, 'count': 1, 'col': 1, 'ncol': 3})
     evs, br = s.collect(lambda e: e.get('ev') == 'browser')
@@ -1801,11 +1781,11 @@ def section_recording():
         check('W144: a file refusal is printed once at the recording step',
               r.returncode == 1 and r.stdout == '' and r.stderr.count('run.recx:') == 1
               and file_content(marker, 'rb') == b'keep', r.stderr)
-        r = quiet([outside, {'cmd':{'cmd':'key','key':'i'}, 'files':[0.5]}])
+        r = quiet([outside, {'cmd':{'cmd':'run.initial'}, 'files':[0.5]}])
         check('W144: an invalid final step is refused before any earlier step executes',
               r.returncode == 1 and r.stdout == '' and 'file section 0.5' in r.stderr
               and r.stderr.count('run.recx:') == 1 and file_content(marker, 'rb') == b'keep', r.stderr)
-        r = quiet([{'cmd':{'cmd':'key','key':'i'}, 'abort':{'what':'integrate','rows':1e100}}])
+        r = quiet([{'cmd':{'cmd':'run.initial'}, 'abort':{'what':'integrate','rows':1e100}}])
         check('W144: an out-of-range interruption is refused before playback',
               r.returncode == 1 and 'invalid recorded interruption' in r.stderr and r.stdout == '', r.stderr)
         r = quiet([])
@@ -1833,7 +1813,7 @@ def section_recording():
     code, out, run = run_recording(lines=[{'cmd':'answer', 'key':'s'}])
     check('an answer to nothing exits 1', code == 1, 'exit %d' % code)
     shutil.rmtree(run, ignore_errors=True)
-    code, out, run = run_recording(lines=[{'cmd':'key', 'key':'i'}, {'cmd':'key', 'key':'f'}])
+    code, out, run = run_recording(lines=[{'cmd':'key', 'key':'g'}, {'cmd':'key', 'key':'f'}])
     check('a recording missing the open menu answer exits 1, naming the step once',
           code == 1 and 'run.recx:%d:' % run_recording.places[0][0] in run_recording.stderr
           and run_recording.stderr.count('the player stopped') == 1,
@@ -1863,10 +1843,10 @@ def section_replay():
     check('replay: the default run stores rows to replay against', total_rows > 4, '%d rows' % total_rows)
     target = max(total_rows // 2, 1)
     code, out, run = run_recording(lines=[
-        {'cmd':'key','key':'i'}, {'cmd':'answer','key':'g'},
+        {'cmd':'run.initial'},
         {'cmd':'abort','at':{'what':'integrate','rows':target,'t':0}},
         {'cmd':'browser','op':'write','what':'table','format':'dat'}, {'cmd':'answer','file':'run.dat'},
-        {'cmd':'key','key':'i'}, {'cmd':'answer','key':'g'}])
+        {'cmd':'run.initial'}])
     at = (stopped_events(out) or [None])[0]
     check('replay: an interrupted integration stops exactly at the armed row', code == 0 and at is not None
           and at.get('what') == 'integrate' and at.get('rows') == target, 'exit %d, %s' % (code, at))
@@ -1901,9 +1881,9 @@ def section_replay():
               str(diagram and len(diagram)))
         shutil.rmtree(run, ignore_errors=True)
 
-    code, out, run = run_recording(lines=[{'cmd':'key','key':'i'}, {'cmd':'answer','key':'g'},
+    code, out, run = run_recording(lines=[{'cmd':'run.initial'},
         {'cmd':'abort','at':{'what':'integrate','rows':100000,'t':5000}},
-        {'cmd':'key','key':'i'}, {'cmd':'answer','key':'g'}])
+        {'cmd':'run.initial'}])
     check('replay: an interruption never reached exits 1, naming its step once', code == 1
           and 'run.recx:%d:' % run_recording.places[0][0] in run_recording.stderr
           and run_recording.stderr.count('never got to its recorded interruption') == 1,
@@ -1911,7 +1891,7 @@ def section_replay():
     check('replay: and plays nothing after it', out.count('"ev":"computing"') == 1,
           '%d computations' % out.count('"ev":"computing"'))
     shutil.rmtree(run, ignore_errors=True)
-    code, out, run = run_recording(lines=[{'cmd':'abort'}, {'cmd':'key','key':'i'}, {'cmd':'answer','key':'g'},
+    code, out, run = run_recording(lines=[{'cmd':'abort'}, {'cmd':'run.initial'},
         {'cmd':'abort','at':{'what':'other'}}, {'cmd':'abort'}])
     check('replay: interruptions that cannot be placed do not stall the player',
           code == 0 and last_rows(out) == 601 and not stopped_events(out),
@@ -1968,7 +1948,7 @@ def set_numerics(s, **values):
 
 
 def errors_of(evs):
-    return [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
+    return [e['error'] for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
 
 
 def section_subscriptions():
@@ -2136,12 +2116,10 @@ CVODE_POINCARE = os.path.join(here, 'models', 'cvode_poincare.odex')
 
 
 def integrate(s):
-    """Initialconds/Go: the events to idle"""
-    s.send(cmd='key', key='i')
-    evs, ask = s.collect(is_ask)
-    s.send(cmd='answer', id=ask['id'], key='g')
-    more, _ = s.collect(is_idle, timeout=60 * SLOW)
-    return evs + more
+    """run.initial: the events to idle"""
+    s.send(cmd='run.initial')
+    evs, _ = s.collect(is_idle, timeout=60 * SLOW)
+    return evs
 
 
 def numerics_menu(s, key, item, replies=None):
@@ -2201,8 +2179,9 @@ def section_memory():
     s.collect(is_idle)
     # another orbit, from elsewhere, long enough to grow the store
     # (storage_rows 1000) twice
-    s.send(cmd='set', values=[{'kind': 'ic', 'name': 'x', 'value': 0.5},
-                              {'kind': 'num', 'name': 'total_time', 'value': 30}])
+    s.send(cmd='ic.set', values={'x': 0.5})
+    s.collect(is_idle)
+    s.send(cmd='run.configure', total_time=30)
     s.collect(is_idle)
     evs = integrate(s)
     st = [e for e in evs if e.get('ev') == 'state']
@@ -2264,9 +2243,7 @@ def section_sessiondata():
         vals[0], vals[1] = 'V', 'W'
         s.send(cmd='answer', id=ask['id'], ok=1, values=vals)
         s.collect(is_idle)
-        s.send(cmd='key', window='graph_1', key='i')
-        evs, ask = s.collect(is_ask)
-        s.send(cmd='answer', id=ask['id'], key='g')
+        s.send(cmd='run.initial')
         evs, _ = s.collect(is_idle, timeout=30 * SLOW)
         saved = series_of(evs)
         if with_auto:
@@ -2356,11 +2333,8 @@ def section_play():
     s.collect(is_idle)
     s.send(cmd='record', op='start')
     s.collect(is_idle)
-    s.send(cmd='key', key='i')
-    _, ask = s.collect(is_ask)
-    s.send(cmd='answer', id=ask['id'], key='r')
-    _, e = s.answer_asks(lambda e: e.get('ev') == 'computing',
-                         {'form': lambda e: {'values': e['values']}, 'choice': lambda e: {'key': 'n'}}, timeout=30 * SLOW)
+    s.send(cmd='run.range')
+    _, e = s.collect(lambda e: e.get('ev') == 'computing', timeout=30 * SLOW)
     s.collect(lambda e: e.get('ev') == 'progress' and e.get('n', 0) >= 200, timeout=60 * SLOW)
     s.send(cmd='key', key='/')
     s.collect(is_idle, timeout=120 * SLOW)

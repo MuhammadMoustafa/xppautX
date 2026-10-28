@@ -36,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
     folder = Path(temp)
 
     def decays(server):
-        events, state = command(server, cmd='steady', decimals=9, hold=1, maximum=50)
+        events, state = command(server, cmd='run.steady', decimals=9, hold=1, maximum=50)
         check('decay: settles before the limit, after the nine-decimal transient',
               state and state['steady']['status'] == 'settled' and 20 < state['time'] < 50, state)
         check('decay: both states approach their analytic equilibria',
@@ -49,13 +49,13 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
         for invalid in [dict(decimals=9.5, hold=1, maximum=10), dict(decimals=True, hold=1, maximum=10),
                         dict(decimals=9, hold=0, maximum=10), dict(decimals=9, hold=2, maximum=1),
                         dict(decimals=9, hold=1, maximum=1e100), dict(decimals='9', hold=1, maximum=10)]:
-            got, after = command(server, cmd='steady', **invalid)
+            got, after = command(server, cmd='run.steady', **invalid)
             check('invalid steady input is rejected without changing the trajectory',
                   any(e.get('error') for e in got) and after and after['now'] == state['now'] and after['time'] == state['time'], invalid)
         old_time, old_rows = state['time'], state['rows']
         # Deliberately malformed JSON: the legacy numeric parser accepts
         # signed NaN tokens, which must never reach an integer precision cast.
-        server.proc.stdin.write('{"cmd":"steady","decimals":-NaN,"hold":1,"maximum":10}\n')
+        server.proc.stdin.write('{"cmd":"run.steady","decimals":-NaN,"hold":1,"maximum":10}\n')
         server.proc.stdin.flush()
         got, idle = server.collect(is_idle)
         after = next((e for e in reversed(got) if e.get('ev') == 'state'), None)
@@ -63,38 +63,35 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
               idle is not None and any(e.get('error') for e in got) and after and after['now'] == state['now'] and after['time'] == old_time, got[-3:])
         # Continue honours Store every 7 (W213): it ends on a 7-Dt output group, here 0.35, rounded up
         group = .35
-        got, after = command(server, cmd='continue', extra=1)
+        got, after = command(server, cmd='run.continue', extra=1)
         check('extra duration continues from the full core time, rounded up to the output grid, and appends rows',
               after and abs(after['time'] - (old_time + 3 * group)) < 1e-8 and after['rows'] == old_rows + 3 and 'steady' not in after, after)
         target = after['time'] + 3 * group
-        got, until = command(server, cmd='continue', until=target)
+        got, until = command(server, cmd='run.continue', until=target)
         check('until time continues to the chosen end time without asking a question',
               until and abs(until['time'] - target) < 1e-8 and not any(e.get('ev') == 'ask' for e in got), until)
         for invalid in [dict(extra=0), dict(until=target - 1), dict(extra=1, until=target + 1), dict(extra='1')]:
-            got, after = command(server, cmd='continue', **invalid)
+            got, after = command(server, cmd='run.continue', **invalid)
             check('invalid continuation does not mutate current values or time',
                   any(e.get('error') for e in got) and after and after['now'] == until['now'] and after['time'] == until['time'], invalid)
-        got, one_step = command(server, cmd='continue', until=until['time'] + group)
+        got, one_step = command(server, cmd='run.continue', until=until['time'] + group)
         check('continuation: one output interval is accepted despite subtraction rounding',
               one_step and abs(one_step['time'] - (until['time'] + group)) < 1e-8 and not any(e.get('error') for e in got), one_step)
         # An `until` off the output grid ends at the next grid point (never short); state.time reports it.
         for ask, steps in ((.075, 7), (1.02, 21), (.5, 14)):
             start = one_step['time']
-            got, one_step = command(server, cmd='continue', until=start + ask)
+            got, one_step = command(server, cmd='run.continue', until=start + ask)
             check('continuation: until %+g ends at the next Dt grid point, reported as state.time' % ask,
                   one_step and abs(one_step['time'] - (start + steps * .05)) < 1e-8 and not any(e.get('error') for e in got), one_step)
         # An ordinary legacy run remains unchanged and clears the transient result.
-        server.send(cmd='key', menu='main', item='initialconds')
-        got, ask = server.collect(lambda e: e.get('ev') == 'ask')
-        check('ordinary Go opens the legacy integration menu', ask is not None, got[-3:])
-        got, normal = command(server, cmd='answer', key='g')
+        got, normal = command(server, cmd='run.initial')
         check('ordinary Go still uses the original duration and output stride',
               normal and abs(normal['time'] - 30.1) < 1e-8 and normal['rows'] == 87 and 'steady' not in normal, normal)
 
     scenario(folder, 'decay', "x'=-x\ny'=-(y-2)\ninit x=1,y=0\n@ dt=.05,total=30,store_every=7,bound=100", decays)
 
     def periodic(server):
-        got, state = command(server, cmd='steady', decimals=9, hold=1, maximum=5)
+        got, state = command(server, cmd='run.steady', decimals=9, hold=1, maximum=5)
         check('periodic: stops at the duration limit, never reports settled',
               state and state['steady']['status'] == 'limit' and abs(state['time'] - 5) < 1e-8, state)
         check('periodic: trajectory agrees with the analytic oscillator',
@@ -102,7 +99,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
     scenario(folder, 'periodic', "x'=y\ny'=-x\ninit x=1,y=0\n@ dt=.01,total=10,bound=10", periodic)
 
     def tiny_drift(server):
-        got, state = command(server, cmd='steady', decimals=9, hold=1, maximum=5)
+        got, state = command(server, cmd='run.steady', decimals=9, hold=1, maximum=5)
         check('tiny drift: ninth-place movement prevents float32 false convergence',
               state and state['steady']['status'] == 'limit' and state['now'][0] > 1 + 4e-9, state)
         series = whole_series(got)
@@ -111,20 +108,20 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
     scenario(folder, 'tiny-drift', "x'=1e-9\ninit x=1\n@ dt=1,total=5,bound=10", tiny_drift)
 
     def diverges(server):
-        got, state = command(server, cmd='steady', decimals=9, hold=1, maximum=10)
+        got, state = command(server, cmd='run.steady', decimals=9, hold=1, maximum=10)
         check('divergence: existing bounds stop the run with a placed error',
               state and state['steady']['status'] == 'failed' and state['time'] < 1 and
               any('out of bounds' in e.get('error', '') and e.get('file') and e.get('line') for e in got), got[-4:])
     scenario(folder, 'diverges', "x'=x\ninit x=1\n@ dt=.05,total=10,bound=2", diverges)
 
     def nonfinite(server):
-        got, state = command(server, cmd='steady', decimals=9, hold=1, maximum=5)
+        got, state = command(server, cmd='run.steady', decimals=9, hold=1, maximum=5)
         check('nonfinite: cannot be reported as settled',
               state and state['steady']['status'] == 'failed' and any(e.get('error') for e in got), got[-4:])
     scenario(folder, 'nonfinite', "x'=sqrt(-1)\ninit x=1\n@ dt=.1,total=5,bound=10", nonfinite)
 
     def storage(server):
-        got, state = command(server, cmd='steady', decimals=9, hold=1, maximum=10)
+        got, state = command(server, cmd='run.steady', decimals=9, hold=1, maximum=10)
         check('storage: a steady run is not bounded by the store; it runs to its maximum without a prompt',
               state and state['steady']['status'] == 'limit' and state['steady']['time'] > 9.9 and not any(e.get('ev') == 'ask' for e in got), state)
         series = whole_series(got)
@@ -133,13 +130,13 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
     scenario(folder, 'storage', "x'=1\ninit x=0\n@ dt=.1,total=10,maxstor=10,bound=100", storage)
 
     def discrete(server):
-        got, state = command(server, cmd='steady', decimals=9, hold=2, maximum=50)
+        got, state = command(server, cmd='run.steady', decimals=9, hold=2, maximum=50)
         check('discrete: compares each iteration and converges on the map fixed point',
               state and state['steady']['status'] == 'settled' and abs(state['now'][0]) < 1e-9, state)
     scenario(folder, 'discrete', "x(t+1)=.5*x\ninit x=1\n@ meth=Discrete,dt=1,total=50,bound=100", discrete)
 
     def adaptive(server):
-        got, state = command(server, cmd='steady', decimals=9, hold=1, maximum=50)
+        got, state = command(server, cmd='run.steady', decimals=9, hold=1, maximum=50)
         check('adaptive: compares requested Dt intervals and reaches unchanged digits',
               state and state['steady']['status'] == 'settled' and abs(state['now'][0]) < 1e-8, state)
     scenario(folder, 'adaptive', "x'=-x\ninit x=1\n@ meth=QualRK,dt=.1,total=50,tol=1e-12,bound=100", adaptive)
@@ -147,7 +144,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
     recording_folder = folder / 'recording'
     recording_folder.mkdir()
     model = folder / 'decay.ode'
-    steps = [dict(cmd='steady', decimals=9, hold=1, maximum=50), dict(cmd='continue', extra=1)]
+    steps = [dict(cmd='run.steady', decimals=9, hold=1, maximum=50), dict(cmd='run.continue', extra=1)]
     recorded = make_recording(args.server, str(model), steps, str(recording_folder))
     replay = replay_recording(args.server, str(model), recorded, str(recording_folder))
     check('recording: steady and direct continuation replay silently', replay.returncode == 0, replay.stderr)

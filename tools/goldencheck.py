@@ -112,13 +112,11 @@ form_defaults = lambda e: {'ok': 1, 'values': e['values']}
 
 
 def run_and_go(s):
-    """Initialconds/Go: run to completion, check the row count 601 (as
+    """run.initial: run to completion, check the row count 601 (as
     tools/servercheck.py's own run of lecar does)"""
     global failures
     s.collect(is_idle)  # startup hello/state/idle
-    s.send(cmd='key', key='i')
-    _, ask = s.collect(is_ask)
-    s.send(cmd='answer', id=ask['id'], key='g')
+    s.send(cmd='run.initial')
     evs, _ = s.collect(is_idle, timeout=30 * SLOW)
     st = next((e for e in reversed(evs) if e.get('ev') == 'state'), None)
     if not (st and st.get('rows')):
@@ -221,8 +219,8 @@ def run_pictures(home):
         s.send(cmd='key', key='g')
         s.answer_asks(is_idle, {'menu': lambda e: {'key': 'f'}, 'form': lambda e: {
             'ok': 1, 'values': ['#7048e8b0', 'both', 'dotted', '2', 'cross', '3', 'first run', 'frz1']}})
-        s.send(cmd='key', key='i')
-        s.answer_asks(is_idle, {'menu': menu('g')})
+        s.send(cmd='run.initial')
+        s.collect(is_idle)
         s.send(cmd='key', key='g')
         s.answer_asks(is_idle, {'menu': menu('p'), 'form': form_defaults, 'file': lambda e: {'ok': 1, 'file': 'pictures.pdf'}})
         check_file('pictures.pdf', read(s.run, 'pictures.pdf'))

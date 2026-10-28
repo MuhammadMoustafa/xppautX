@@ -272,7 +272,7 @@ int main(void)
     put(ic, ic_text);
     const xpp::Result<std::vector<double>> ir = xpp::read_ic_file(m, ic);
     CHECK(!ir && ir.error().place.file == ic && ir.error().place.line == m.node && ir.error().place.source == "nan?");
-    xpp::load_ic_file_named(s, ic);
+    xpp::ok_or_show(xpp::load_ic_file_named(s, ic));
     CHECK(snapshot(s) == kept);
     put(ic, "0.5\n");
     const xpp::Result<std::vector<double>> short_ic = xpp::read_ic_file(m, ic);

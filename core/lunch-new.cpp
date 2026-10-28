@@ -583,15 +583,13 @@ void write_parameter_file(xpp::Session &s, std::string_view fn)
    exactly `node` of them, as XPPAUT's own io_ic_file always read (the
    Markov chains are not in this file, in XPPAUT or here: docs/manual
    16-quick-reference.md) */
-void load_ic_file_named(xpp::Session &s, std::string_view fn)
+Result<> load_ic_file_named(xpp::Session &s, std::string_view fn)
 {
   const xpp::Model &m=s.model();
   const Result<std::vector<double>> z=read_ic_file(m,fn);
-  if(!z){
-    show_error(z.error());
-    return;
-  }
+  if(!z)return std::unexpected(z.error());
   set_initial_data(s,*z);
+  return {};
 }
 
 void write_ic_file(const xpp::Session &s, std::string_view fn)
@@ -639,7 +637,7 @@ void load_parameter_file(xpp::Session &s, std::string name)
 
 void load_ic_file(xpp::Session &s, std::string name)
 {
-  named_value_file(s,std::move(name),"Load Initial Conditions",".ic",load_ic_file_named);
+  named_value_file(s,std::move(name),"Load Initial Conditions",".ic",[](xpp::Session &session,std::string_view file){xpp::ok_or_show(load_ic_file_named(session,file));});
 }
 
 void write_values_query(const xpp::Session &s, std::string_view name, bool sets, bool pars, bool ics)

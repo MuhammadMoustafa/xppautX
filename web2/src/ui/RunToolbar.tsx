@@ -1,6 +1,6 @@
 /* Direct run actions and inline settings; no mandatory intermediate dialog. */
 import {useEffect} from 'preact/hooks';
-import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {fieldKey, inspectNumber, sentText} from '../store/values';
 import {continuePlan, NUM_TOTAL, numericsField, runInterval, steadyRun} from '../store/steady';
 import {NUMBER} from '../store/fieldKinds';
@@ -9,7 +9,7 @@ import {QuickAccess} from './QuickAccess';
 
 export function RunToolbar() {
   const session = useSession();
-  const mayMain = useMayMain(), may = useMay();
+  const may = useMay();
   const hello = useStore(s => s.hello);
   const core = useStore(s => s.core);
   const numerics = useStore(s => s.numerics);
@@ -41,11 +41,11 @@ export function RunToolbar() {
   const steady = run?.input ?? null;
   const continueKeys = hello?.command_table.find(row => row.id === 'continue')?.default_keys.join(' / ') ?? '';
   const plan = continuePlan(continueInput, numerics, core, hello);
-  const initialOff = !mayMain('initialconds');
+  const initialOff = !may({cmd: 'run.initial'});
   const currentOff = initialOff || !hasNow;
   const steadyProblem = run?.problem ?? null;
-  const steadyOff = !may({cmd: 'steady'}) || !steady || !!steadyProblem;
-  const continueOff = !may({cmd: 'continue'}) || !plan.command;
+  const steadyOff = !may({cmd: 'run.steady'}) || !steady || !!steadyProblem;
+  const continueOff = !may({cmd: 'run.continue'}) || !plan.command;
   const changeMode = (mode: 'extra' | 'until') => {
     if (mode === continueInput.mode) return;
     const time = Number(core?.time), value = Number(plan.text);
@@ -71,7 +71,7 @@ export function RunToolbar() {
         title={initialOff ? BUSY_TITLE : steadyProblem ?? 'Run from Initial until every state stops changing at the configured precision'}>Run to steady state</button>
       <button data-run="continue" aria-disabled={continueOff}
         onClick={() => { if (!continueOff) session.continueRun(); }}
-        title={!may({cmd: 'continue'}) ? BUSY_TITLE : !hasNow ? 'Run once before continuing' : plan.problem ?? `Extend the existing trajectory using the time below (${continueKeys})`}>Continue</button>
+        title={!may({cmd: 'run.continue'}) ? BUSY_TITLE : !hasNow ? 'Run once before continuing' : plan.problem ?? `Extend the existing trajectory using the time below (${continueKeys})`}>Continue</button>
       <button class="danger" data-run="stop" disabled={!busy || stopping} onClick={() => session.abort()}
         title="Stop the running command or cancel its prompt (Esc)">{stopping ? 'Stopping…' : 'Stop'}</button>
     </div>

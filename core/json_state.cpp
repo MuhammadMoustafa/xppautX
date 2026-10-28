@@ -6,6 +6,7 @@
 #include "model.h"
 #include "session.h"
 #include "ui_json_internal.h"
+#include "command_def.h"
 #include "load_eqn.h"
 #include "model_save.h"
 #include "storage.h"
@@ -290,7 +291,7 @@ void browser_key(xpp::Session &s, int ch, const char *line)
     if (row >= 0 && row < s.browser.view.maxrow) s.browser.view.row0 = row;
     switch (menu_index(&menu_browser_window, ch)) {
     case BK_FIND: data_find(s, &s.browser.view); break;
-    case BK_GET: data_get(s, &s.browser.view); break;
+    case BK_GET: ic_of_row(s, s.browser.view.row0); break;
     case BK_REPLACE: data_replace(s, &s.browser.view); break;
     case BK_UNREPLACE: data_unreplace(s); break;
     case BK_TABLE: data_table(s, &s.browser.view); break;
@@ -419,7 +420,7 @@ namespace {
 
 /* one value of a "set", checked and not yet applied */
 struct SetValue {
-    int type = 0;  /* PARAMBOX, ICBOX, DELAYBOX, BCBOX as in xpp_util.h's list below; 0 for a numerics field */
+    int type = 0;  /* PARAMBOX, DELAYBOX, BCBOX as in xpp_util.h's list below; 0 for a numerics field */
     int index = -1;
     std::string kind, name, text, field; /* field: as the page keys it */
 };
@@ -441,14 +442,15 @@ std::string field_key(const std::string &kind, const std::string &name, int inde
     return kind + ":" + n;
 }
 
-/* one value of a "set": {"kind":"par|ic|bc|delay|num","name":...,"value":number
+/* one value of a "set": {"kind":"par|bc|delay|num","name":...,"value":number
    or "text":...}. Text is what the user would type in the value's box: a number
-   or %formula for parameters and ICs, an expression for BCs and delays; for
+   or %formula for parameters, an expression for BCs and delays; for
    the numerics (num, W106) a number, or a method's name, the field named by
-   its key (numerics_settings.h). Checks it all and changes nothing: the
+   its key (numerics_settings.h; the run's and the boundary value problem's
+   are run.configure's and bvp.configure's). Checks it all and changes nothing: the
    value, or the error (naming the field) of a kind or name the model does
    not have, no value (a number) or text, a text that is not one number (or a
-   formula that does not compile) for a parameter or IC, or a numerics value
+   formula that does not compile) for a parameter, or a numerics value
    refused (W131). */
 xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
 {
@@ -465,10 +467,12 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
     const std::string field = field_key(v.kind, v.name, by_index ? static_cast<int>(k) : -1);
     v.field = field;
     if (v.kind == "par") v.type = 1;        /* PARAMBOX */
-    else if (v.kind == "ic") v.type = 2;    /* ICBOX */
     else if (v.kind == "delay") v.type = 3; /* DELAYBOX */
     else if (v.kind == "bc") v.type = 4;    /* BCBOX */
-    else if (v.kind != "num") return refuse("", xpp::format("set takes kind par, ic, delay, bc or num, not \"{}\"", v.kind));
+    else if (v.kind == "ic") return refuse(field, "set no longer takes initial conditions: send ic.set (a formula: ic.formula)");
+    else if (v.kind != "num") return refuse("", xpp::format("set takes kind par, delay, bc or num, not \"{}\"", v.kind));
+    else if (const std::string_view command = xpp::command::numerics_command(v.name); !command.empty())
+        return refuse(field, xpp::format("set no longer takes the numerics setting {}: send {}", v.name, command));
     else v.type = 0;
     if (!get_string(line, "text", v.text)) {
         if (!js_number(js_find(line, "value"), &z))
@@ -480,7 +484,7 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
         if (xpp::numerics_settings_check(s, v.name, v.text, why) == 0) return v;
         return refuse(field, xpp::format("Numerics: {}", why));
     }
-    n = v.type == 1 ? m.nupar : v.type == 2 ? m.node + m.nmarkov : m.node;
+    n = v.type == 1 ? m.nupar : m.node;
     /* BC names are not unique ("0="): those come by index */
     if (at) {
         if (!by_index || !(k < n))
@@ -497,7 +501,7 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
             v.index = i;
     }
     if (v.index < 0) return refuse(field, xpp::format("set: the model has no {} {}", v.kind, v.name));
-    if (v.type <= 2) {
+    if (v.type == 1) {
         const xpp::Result<double> r = typed_number(s, v.text, field);
         if (!r) return refuse(field, xpp::format("set {} {}: {}", v.kind, v.name, r.error().what));
     }

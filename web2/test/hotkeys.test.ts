@@ -63,7 +63,7 @@ test('a default key runs its command, and only that command', () => {
 
 test('the XPPAUT preset off: a letter alone, or F then S, does nothing', () => {
   const off = fakeSession();
-  const events = type(off, keyEvent('i'), keyEvent('f'), keyEvent('s'));
+  const events = type(off, keyEvent('p'), keyEvent('f'), keyEvent('s'));
   assert.deepEqual(off.calls, []);
   assert.deepEqual(events.map(e => e.prevented), [0, 0, 0]);
   assert.deepEqual(off.state().pendingKeys, []);
@@ -71,14 +71,14 @@ test('the XPPAUT preset off: a letter alone, or F then S, does nothing', () => {
 
 test('the XPPAUT preset on: a letter, and F then S as a chord that Esc cancels', () => {
   const on = fakeSession({preset: 'xppaut'});
-  const [i] = type(on, keyEvent('i'));
-  assert.deepEqual(on.calls, ['main/initialconds']);
+  const [i] = type(on, keyEvent('p'));
+  assert.deepEqual(on.calls, ['main/parameters']);
   assert.equal(i.prevented, 1);
   const [f] = type(on, keyEvent('F', {shiftKey: true}));
   assert.equal(f.prevented, 1);
   assert.deepEqual(on.state().pendingKeys, ['F']);
   type(on, keyEvent('s'));
-  assert.deepEqual(on.calls, ['main/initialconds', 'file/saveinfo']);
+  assert.deepEqual(on.calls, ['main/parameters', 'file/saveinfo']);
   assert.deepEqual(on.state().pendingKeys, []);
   /* Esc cancels a pending chord and runs nothing; the key after it is a first key again */
   type(on, keyEvent('u'));
@@ -87,7 +87,7 @@ test('the XPPAUT preset on: a letter, and F then S as a chord that Esc cancels',
   assert.equal(esc.prevented, 1);
   assert.deepEqual(on.state().pendingKeys, []);
   type(on, keyEvent('d'));
-  assert.deepEqual(on.calls, ['main/initialconds', 'file/saveinfo', 'main/dirfield']);
+  assert.deepEqual(on.calls, ['main/parameters', 'file/saveinfo', 'main/dirfield']);
   /* a key that completes no chord is said, never skipped */
   type(on, keyEvent('f'), keyEvent('x'));
   assert.equal(on.state().bottom, 'F X is not a command');
@@ -140,7 +140,7 @@ test('the keys of a command are listed from the table', () => {
   assert.equal(shortcutLabel(row('continue'), HELLO.keymap), 'Alt+Enter');
   assert.equal(shortcutLabel(row('saveinfo'), HELLO.keymap), '');
   assert.equal(shortcutLabel(row('saveinfo'), XPPAUT), 'F S');
-  assert.equal(shortcutLabel(row('initialconds'), XPPAUT), 'I');
+  assert.equal(shortcutLabel(row('parameters'), XPPAUT), 'P');
   /* the user's keys replace the table's */
   const moved = {...HELLO.keymap, commands: HELLO.keymap.commands.map(c => c.id === 'savesession' ? {...c, keys: ['Ctrl+B'], source: 'user' as const} : c)};
   assert.equal(shortcutLabel(row('savesession'), moved), 'Ctrl+B');

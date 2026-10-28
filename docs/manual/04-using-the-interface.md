@@ -40,7 +40,7 @@ checks rather than interactive use:
   command-line flags
   ([Quick reference](16-quick-reference.md#command-line-arguments)) tell
   it to (typically: integrate) and writes `output.dat`, then exits. It
-  runs these as the commands the page sends (Initialconds/Go, Save data,
+  runs these as the commands the page sends (run.initial, Save data,
   ...), so a run from the shell and the same run in the page do the same
   thing. This is what to use from a shell script or a test.
 - **`xppautX --server model.ode`**: the same JSON protocol web2 speaks
@@ -129,7 +129,7 @@ beside the plot (a sheet on a phone):
 - **Parameters** and **State** are always visible. State has two
   columns: **Initial**, the initial conditions you edit, and **Now**, the
   last point of the latest run (read only). `Go` runs from Initial;
-  `Last` (Initialconds/Last) copies Now into Initial, then runs;
+  `Run from last state` (`run.last`) copies Now into Initial, then runs;
   **Run from last state** in the permanent toolbar performs that same Last
   action: it copies Now into Initial and runs. **Continue** (Alt+Enter) extends the
   existing trajectory by a duration or to a chosen end time instead. There is no

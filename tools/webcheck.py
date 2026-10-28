@@ -291,15 +291,18 @@ post({'cmd':'window.select','window':'HTTP phase plane','id':'missing HTTP'})
 _, done = collect(lambda e:e['ev']=='done')
 check('an unknown HTTP window is one placed error', done is not None and done.get('status')=='error'
       and done.get('file')=='command' and done.get('line')==1 and done.get('id')=='missing HTTP',str(done))
-post({'cmd': 'key', 'key': 'i'})
+post({'cmd': 'run.initial', 'id': 'http run'})
+evs, _ = collect(lambda e: e['ev'] == 'done', 30)
+st = [e for e in evs if e['ev'] == 'state']
+done = evs[-1] if evs else None
+check('integrating from the page', st and st[-1]['rows'] == 601 and done and done.get('status') == 'ok' and done.get('id') == 'http run', str(st[-1:])[:120])
+check('the stream carries no drawing ops', not any(e['ev'] == 'draw' for e in evs))
+post({'cmd': 'key', 'key': 'g'})
 _, ask = collect(lambda e: e['ev'] == 'ask')
 check('a key opens a menu', ask is not None and ask['kind'] == 'menu', str(ask))
 if ask:
-    post({'cmd': 'answer', 'id': ask['id'], 'key': 'g'})
-    evs, _ = collect(lambda e: e['ev'] in ('idle','done'), 30)
-    st = [e for e in evs if e['ev'] == 'state']
-    check('integrating from the page', st and st[-1]['rows'] == 601, str(st[-1:])[:120])
-    check('the stream carries no drawing ops', not any(e['ev'] == 'draw' for e in evs))
+    post({'cmd': 'answer', 'id': ask['id'], 'key': 'Escape'})
+    collect(lambda e: e['ev'] in ('idle','done'))
 
 # ---- the model's folder over HTTP (docs/protocol.md "Files", docs/ui-v2.md T5)
 
@@ -417,7 +420,7 @@ stall = socket.create_connection(('127.0.0.1', port), timeout=20)
 stall.sendall(('PUT /files/stall.txt%s HTTP/1.1\r\nHost: x\r\nContent-Length: 1000\r\n\r\nhalf' % tok).encode())
 # The menu reply below acknowledges acceptance behind both connected sockets.
 try:
-    post({'cmd': 'key', 'key': 'i'})
+    post({'cmd': 'key', 'key': 'g'})
     _, ask = collect(lambda e: e['ev'] == 'ask', 10)
 except OSError:  # the POST timed out
     ask = None
@@ -610,10 +613,7 @@ if sess:
     c.sk = c.sock
     c.resp = c.getresponse()
     read_events(c, lambda e: e['ev'] in ('idle','done'))
-    post_cmd(pt, tk, {'cmd': 'key', 'key': 'i'})
-    _, ask = read_events(c, lambda e: e['ev'] == 'ask', 30)
-    check('W112: i asks for the initial conditions', ask is not None)
-    post_cmd(pt, tk, {'cmd': 'answer', 'id': ask['id'] if ask else 0, 'key': 'g'})
+    post_cmd(pt, tk, {'cmd': 'run.initial'})
     _, comp = read_events(c, lambda e: e['ev'] == 'computing', 30)
     check('W112: the run starts (computing)', comp is not None)
     t0 = time.time()
@@ -664,15 +664,13 @@ if sess:
     c.sk = c.sock
     c.resp = c.getresponse()
     read_events(c, lambda e: e['ev'] in ('idle','done'))
-    post_cmd(pt, tk, {'cmd': 'key', 'key': 'i'})
-    _, ask = read_events(c, lambda e: e['ev'] == 'ask', 30)
-    post_cmd(pt, tk, {'cmd': 'answer', 'id': ask['id'] if ask else 0, 'key': 'g'})
+    post_cmd(pt, tk, {'cmd': 'run.initial'})
     _, comp = read_events(c, lambda e: e['ev'] == 'computing', 30)
     st, body = put_at(pt, tk, 'guard.par', b'new')
     check('W134: PUT /files/NAME during a run is refused (409, "Not while a computation runs")',
           comp is not None and st == 409 and 'Not while a computation runs' in body, '%s %s %s' % (comp, st, body))
     post_cmd(pt, tk, {'cmd': 'file', 'op': 'put', 'name': 'guard.par', 'data': 'bmV3'})  # "new"
-    post_cmd(pt, tk, {'cmd': 'abort'})
+    post_cmd(pt, tk, {'cmd': 'run.abort'})
     evs, _ = read_events(c, lambda e: e['ev'] in ('idle','done'), 30)  # the run's idle, stopped
     evs, _ = read_events(c, lambda e: e['ev'] in ('idle','done'), 30)  # the refused file put's
     refused = [e.get('error', '') for e in evs if e['ev'] == 'message']

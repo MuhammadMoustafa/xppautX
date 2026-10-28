@@ -20,7 +20,7 @@
    the page no longer parses the file itself. No undo (GitHub #110):
    Reset (one field, or every field of a section) is the way back,
    through the model's own values. Pure: no DOM, no I/O. */
-import type {Command} from '../protocol/types';
+import type {Command, HelloEvent} from '../protocol/types';
 import {stateSliders, type SliderDef} from './sliders';
 
 export type ValueKind = 'par' | 'ic' | 'bc' | 'delay' | 'num';
@@ -147,10 +147,47 @@ function setMembers(s: ValueSet): Record<string, unknown> {
   return s.index !== undefined ? {kind: s.kind, index: s.index, text: s.text} : {kind: s.kind, name: s.name, text: s.text};
 }
 
-/** the one command that sends these values (docs/protocol.md `set`: one value, or `values`) */
-export function valueSetCommand(sets: ValueSet[]): Command | null {
-  if (!sets.length) return null;
-  return sets.length === 1 ? {cmd: 'set', ...setMembers(sets[0])} : {cmd: 'set', values: sets.map(setMembers)};
+/** a command and the edits it sends */
+export interface ValueCommand {
+  command: Command;
+  sets: ValueSet[];
+}
+
+/** hello's registry argument types of a command (docs/protocol.md "Argument types"), by name */
+function argumentTypes(hello: HelloEvent | null, name: string): Record<string, string> {
+  const row = hello?.commands.find(c => c.cmd === name);
+  return Object.fromEntries((row?.arguments ?? []).map(a => [a.name, a.type]));
+}
+
+/** a numerics edit's text as the registry argument's type takes it */
+function argumentValue(type: string | undefined, text: string): unknown {
+  if (type === 'real' || type === 'integer') return Number(text);
+  if (type === 'boolean') return text === 'true';
+  return text;
+}
+
+/** The commands that send these edits (docs/protocol.md): parameters, boundary conditions, delays and the
+    numerics no registry command takes go in one `set` (one value, or `values`); initial conditions in
+    `ic.set` (a number) or `ic.formula` (a %formula, one each); the run's and the shooting's numerics in
+    `run.configure` and `bvp.configure`. */
+export function valueCommands(hello: HelloEvent | null, sets: ValueSet[]): ValueCommand[] {
+  const run = argumentTypes(hello, 'run.configure'), bvp = argumentTypes(hello, 'bvp.configure');
+  const BVP = 'bvp_';
+  const plain: ValueSet[] = [], ics: ValueSet[] = [], formulas: ValueSet[] = [], runs: ValueSet[] = [], bvps: ValueSet[] = [];
+  for (const s of sets) {
+    if (s.kind === 'ic') (s.text.trim().startsWith('%') ? formulas : ics).push(s);
+    else if (s.kind === 'num' && s.name !== undefined && s.name in run) runs.push(s);
+    else if (s.kind === 'num' && s.name?.startsWith(BVP) && s.name.slice(BVP.length) in bvp) bvps.push(s);
+    else plain.push(s);
+  }
+  const result: ValueCommand[] = [];
+  if (plain.length) result.push({command: plain.length === 1 ? {cmd: 'set', ...setMembers(plain[0])} : {cmd: 'set', values: plain.map(setMembers)}, sets: plain});
+  if (ics.length) result.push({command: {cmd: 'ic.set', values: Object.fromEntries(ics.map(s => [s.name!, Number(s.text)]))}, sets: ics});
+  for (const s of formulas)
+    result.push({command: {cmd: 'ic.formula', variable: s.name!, formula: s.text.trim().slice(1)}, sets: [s]});
+  if (runs.length) result.push({command: {cmd: 'run.configure', ...Object.fromEntries(runs.map(s => [s.name!, argumentValue(run[s.name!], s.text)]))}, sets: runs});
+  if (bvps.length) result.push({command: {cmd: 'bvp.configure', ...Object.fromEntries(bvps.map(s => [s.name!.slice(BVP.length), argumentValue(bvp[s.name!.slice(BVP.length)], s.text)]))}, sets: bvps});
+  return result;
 }
 
 /** display precision (A14): six significant digits */

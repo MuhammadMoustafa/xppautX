@@ -1,8 +1,22 @@
 #pragma once
 
+#include <optional>
+#include "xpp_error.h"
+
 namespace xpp {
 
 struct Session; /* session.h */
+
+/* the numerics settings that have no key of the main table (the method's own: the Volterra points, the CVODE
+   band, the delay's stability search); named as the .odex options name them (vmaxpts, autoeval, bandlo, bandup) */
+struct NumericsExtras {
+  std::optional<int> max_points, band_lower, band_upper, delay_grid;
+  std::optional<bool> auto_evaluate, banded;
+  std::optional<double> delay_real_guess, delay_imaginary_guess;
+};
+/* the extras set all or nothing, each checked against the method and the model it applies to; or why not */
+Result<> set_numerics_extras(Session &s, const NumericsExtras &extras);
+
 void quick_num(Session &s, int com);
 
 /* what a new delta_t needs: the delays' and the integrals' memory again */

@@ -19,13 +19,8 @@ def close(got, want, tol):
 
 
 def integrate(server):
-    """Key i, answer g (go): the events up to idle."""
-    server.send(cmd='key', key='i')
-    _, ask = server.collect(lambda e: e.get('ev') == 'ask')
-    check('integrate menu asks', ask is not None)
-    if ask is None:
-        return [], None
-    server.send(cmd='answer', id=ask['id'], key='g')
+    """run.initial: the events up to idle."""
+    server.send(cmd='run.initial')
     return server.collect(is_idle)
 
 

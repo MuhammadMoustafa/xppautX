@@ -287,13 +287,13 @@ function addToast(state: AppState, kind: Toast['kind'], text: string, action?: T
   return {...state, toasts, nextToast: state.nextToast + 1};
 }
 
-/* commands with no idle of their own (abort) or none at all (the plain
+/* commands with no idle of their own (run.abort) or none at all (the plain
    quit; one that asks or saves is a command of its own); a
    `browser` request with `from` is answered at once too (docs/protocol.md:
    "answered at once with browser, even during a prompt"), so the table's
    paging (store/table.ts planRequest) never leaves the status bar stuck
    showing Working */
-const NO_IDLE = new Set(['abort', 'quit']);
+const NO_IDLE = new Set(['run.abort', 'quit']);
 /** whether a command ends without an idle of its own (a control line) */
 export function noIdle(cmd: Command): boolean {
   if (cmd.cmd === 'quit') return !cmd.ask && !cmd.save;
@@ -323,11 +323,18 @@ export function busyText(running: string | null, asking: boolean): string {
   return `${running ? `Running ${running}` : 'Working'}… Esc stops`;
 }
 
+/** what the registry's runs are called in the status line (the Initialconds and Bndry Value menus' words) */
+const RUN_NAMES: Record<string, string> = {
+  'run.initial': 'Go', 'run.last': 'Last', 'run.old': 'Old', 'run.shift': 'Shift', 'run.backward': 'Backward',
+  'run.range': 'Range', 'run.double_range': '2par range', 'run.shoot': 'sHoot', 'ic.at': 'Mouse', 'ic.mouse_stream': 'mIce',
+  'bvp.solve': 'Bndry Value Prob', 'bvp.solve_periodic': 'Periodic', 'bvp.solve_range': 'Range'};
+
 /* the name of what an answer or a command starts, for the status line
    (null: not known, or not a new run) */
 function runningName(hello: HelloEvent | null, cmd: Command, ask: AskEvent | null): string | null {
-  if (cmd.cmd === 'steady') return 'to steady state';
-  if (cmd.cmd === 'continue') return 'continuation';
+  if (cmd.cmd in RUN_NAMES) return RUN_NAMES[cmd.cmd];
+  if (cmd.cmd === 'run.steady') return 'to steady state';
+  if (cmd.cmd === 'run.continue') return 'continuation';
   if (isWindowKey(hello, cmd, 'auto', 'run')) return 'AUTO';
   if (cmd.cmd !== 'answer' || !ask || (ask.kind !== 'menu' && ask.kind !== 'choice') || typeof cmd.key !== 'string')
     return null;

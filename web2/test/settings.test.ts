@@ -29,13 +29,13 @@ test('W106: a parameter or numerics edit during a computation is sent at once an
   ev(HELLO);
   ev({ev: 'state', sliders: [], pars: [['iapp', 0.05]], ics: [], bcs: []});
   ev({ev: 'idle'});
-  s.key('i');
+  s.send({cmd: 'run.initial'});
   ev({ev: 'computing'});
   sent.length = 0;
   s.setValue('par', 'iapp', '0.3');
   s.setNumeric('total_time', '50');
   assert.deepEqual(sent, [{cmd: 'set', kind: 'par', name: 'iapp', text: '0.3'},
-    {cmd: 'set', kind: 'num', name: 'total_time', text: '50'}], 'sent at once, one set each');
+    {cmd: 'run.configure', total_time: 50}], 'sent at once, each by the command that takes it');
   const st = () => s.store.getState();
   assert.equal(sentText(st().values.inflight, 'par:iapp'), '0.3', 'the field shows what was sent');
   /* the core's state during the run still has the value the run started with: the field keeps what was sent */
@@ -56,7 +56,7 @@ test('W106: an AUTO settings edit during a run is sent at once, shown until its 
   ev(HELLO);
   ev({ev: 'autosettings', numerics: {nmx: 200}, pars: [], axes: {plot: 'norm'}, marks: []});
   ev({ev: 'idle'});
-  s.key('i');
+  s.send({cmd: 'run.initial'});
   ev({ev: 'computing'});
   sent.length = 0;
   s.autoSettings({numerics: {nmx: 25}});

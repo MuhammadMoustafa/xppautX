@@ -26,10 +26,6 @@ export function runInterval(numerics: NumericsField[] | null): number {
   return method?.value === DISCRETE_METHOD ? DISCRETE_INTERVAL : Number(numericsField(numerics, NUM_DT)?.value);
 }
 
-/** the keys of the Initial conditions command's own prompt (core/menus.cpp ic_items: (G)o runs from
-    the Initial values, (L)ast from the last state); its menu names no ids for them */
-export const INITIAL_GO = 'g', INITIAL_LAST = 'l';
-
 export interface SteadyInput {decimals: string; hold: string; maximum: string}
 
 /** Cross-field checks for the inline settings; the core independently
@@ -80,7 +76,7 @@ export interface ContinuePlan {
   /** the field's text: what was typed, else the default from Run duration and the core time (null before the numerics arrive) */
   text: string | null;
   /** the command to send; null while the input cannot run (problem says why, null before a first run) */
-  command: {cmd: 'continue'; extra?: number; until?: number} | null;
+  command: {cmd: 'run.continue'; extra?: number; until?: number} | null;
   problem: string | null;
   /** the time the run will end at (until mode): the end rounded up to the output grid */
   end: number | undefined;
@@ -96,7 +92,7 @@ export function continuePlan(input: ContinueInput, numerics: NumericsField[] | n
     : !text.trim() || !Number.isFinite(duration) || duration < interval ? 'Choose at least one Dt of additional time.' : null;
   const end = input.mode === 'until' && hello && core?.now && text !== null && !problem
     ? continueEnd(value, time, outputInterval(numerics), hello.continue.grid_tolerance) : undefined;
-  return {text, problem, end, command: core?.now && text !== null && !problem ? {cmd: 'continue', [input.mode]: value} : null};
+  return {text, problem, end, command: core?.now && text !== null && !problem ? {cmd: 'run.continue', [input.mode]: value} : null};
 }
 
 /** The settings Run to steady state would run with now: the user's edits over the defaults, with the Dt

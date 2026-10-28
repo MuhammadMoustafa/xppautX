@@ -26,13 +26,13 @@ import {closeDesktopWindow} from './desktop';
 import {stepTarget} from './store/ani';
 import {snapshotWindow} from './store/kinescope';
 import {planRequest} from './store/table';
-import {continuePlan, INITIAL_GO, INITIAL_LAST, steadyRun} from './store/steady';
+import {continuePlan, steadyRun} from './store/steady';
 import type {TextTab} from './store/text';
-import {fieldKey, valueSetCommand, type ValueSet} from './store/values';
+import {fieldKey, valueCommands, type ValueSet} from './store/values';
 import {autoSettingsSetCommand, type AutoSettingsPatch} from './store/autoSettings';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
-export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
+export type BrowserOp = 'find' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
   | 'restore' | 'addcol' | 'delcol';
 
 /** the AUTO window's buttons (their names in hello.windows.auto.ids); Close is session.closeAuto */
@@ -370,9 +370,9 @@ export class Session {
     const {hello, core} = this.store.getState();
     const row = commandRow(hello, 'main', id);
     if (!row) return;
-    if (id === 'run_initial') this.menuAction('main', 'initialconds', INITIAL_GO);
+    if (id === 'run_initial') this.send({cmd: 'run.initial'});
     else if (id === 'run_last') {
-      if (core?.now) this.menuAction('main', 'initialconds', INITIAL_LAST);
+      if (core?.now) this.send({cmd: 'run.last'});
       else this.store.dispatch({type: 'bottom', text: `${row.label}: run once to obtain a last state`});
     } else if (id === 'steady') this.runSteady();
     else if (id === 'keymapeditor') this.store.dispatch({type: 'keymapUi', action: {type: 'open'}});
@@ -388,7 +388,7 @@ export class Session {
       return;
     }
     const {decimals, hold, maximum} = run.input;
-    this.send({cmd: 'steady', decimals: Number(decimals), hold: Number(hold), maximum: Number(maximum)});
+    this.send({cmd: 'run.steady', decimals: Number(decimals), hold: Number(hold), maximum: Number(maximum)});
   }
 
   /** Replace the user's keymap (docs/protocol.md "Keymap"): the answer is a `keymap` event, which is how the
@@ -821,7 +821,7 @@ export class Session {
   /** stops the running command; it still ends with its idle */
   abort(): void {
     this.store.dispatch({type: 'aborting'});
-    this.transport.send({cmd: 'abort'});
+    this.transport.send({cmd: 'run.abort'});
   }
 
   /* ---- the AUTO view (docs/ui-v2.md T11a, docs/protocol.md `auto`) ---- */
@@ -964,9 +964,11 @@ export class Session {
   /** edits, in one `set`: shown on their fields until its idle, which also
       ends the attribution of an error to them (A11) */
   private edit(...sets: ValueSet[]): void {
-    const cmd = valueSetCommand(sets), ahead = this.idlesOwed;
-    if (!cmd || !this.send(cmd)) return;
-    for (const set of sets) this.store.dispatch({type: 'values', action: {type: 'sent', set, ahead}});
+    for (const {command, sets: sent} of valueCommands(this.store.getState().hello, sets)) {
+      const ahead = this.idlesOwed;
+      if (!this.send(command)) continue;
+      for (const set of sent) this.store.dispatch({type: 'values', action: {type: 'sent', set, ahead}});
+    }
   }
 
   /** a parameter or initial condition box left with a new value */
@@ -1156,7 +1158,7 @@ export class Session {
 
   /** Get: the selected row becomes the initial conditions (the next `state` has them) */
   getRow(): void {
-    this.browserOp('get');
+    this.send({cmd: 'ic.from_data_row', row: this.store.getState().table.selected});
   }
 
   /** Save data (docs/protocol.md "Saving data"): the core itself writes

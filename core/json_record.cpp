@@ -10,6 +10,8 @@
    clock. */
 #include "ui_json_internal.h"
 #include "browse.h"
+#include "command_def.h"
+#include "command_registry.h"
 #include "command_table.h"
 #include "menus.h"
 #include "model.h"
@@ -89,6 +91,12 @@ std::string command_label(const char *line)
     if (c == "exportset") return xpp::format("Export {} values as set {}", get_string(line, "scope", v) ? v : "", get_string(line, "set", name) ? name : "");
     if (c == "renameset") return xpp::format("Rename set {} to {}", get_string(line, "set", name) ? name : "", get_string(line, "to", v) ? v : "");
     if (c == "deleteset") return xpp::format("Delete set {}", get_string(line, "set", name) ? name : "");
+    /* a registry command's label is its menu path ("Initialconds → Go") */
+    if (const xpp::command::Command *registered = xpp::command::find(xpp::command::name(line)); registered && *registered->menu_path) {
+        std::string label = registered->menu_path;
+        for (std::size_t at = label.find('/'); at != std::string::npos; at = label.find('/', at + 3)) label.replace(at, 1, " → ");
+        return label;
+    }
     std::string label = c;
     if (!label.empty()) label[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label[0])));
     return o.empty() ? label : label + " " + o;

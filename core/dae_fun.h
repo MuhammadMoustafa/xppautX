@@ -2,7 +2,9 @@
 
 #include <array>
 #include <optional>
+#include <string_view>
 #include <vector>
+#include "xpp_error.h"
 
 
 namespace xpp {
@@ -67,6 +69,10 @@ void init_dae_work(Session &s);
 void get_dae_fun(Session &s, double *y, double *f);
 void do_daes(Session &s);
 int solve_dae(Session &s);
+/* algebraic variable i's initial guess made `formula` (compiled and evaluated now), its value; the error of a formula
+   that does not compile, nothing changed */
+Result<double> set_dae_guess(Session &s, int i, std::string_view formula);
+/* the same asked of the user, one guess after the other (an imported button's id) */
 void get_new_guesses(Session &s);
 
 } // namespace xpp
