@@ -300,7 +300,7 @@ export class Session {
     }
     if (this.diagramAsked || busy || (ev.ev !== 'state' && ev.ev !== 'idle')) return;
     this.diagramAsked = true;
-    this.send({cmd: 'redraw'});
+    this.send({cmd: 'window.redraw', window: autoWindow(this.store.getState())});
   }
 
   private continueReplay(ask: AskEvent): void {
@@ -665,7 +665,10 @@ export class Session {
     if (first.done) return;
     const [win, patch] = first.value;
     this.displayHeld.delete(win);
-    this.send(this.store.getState().diagram.views.some(v=>v.name===win) ? {cmd: 'auto', op: 'display', view: win, ...patch} : {cmd: 'display', window:win, ...patch});
+    const {x, y, runs} = patch;
+    this.send(this.store.getState().diagram.views.some(v=>v.name===win) ? {cmd: 'auto', op: 'display', view: win, ...patch}
+      : {cmd: 'window.set_display', window: win, ...(x === undefined ? {} : {x_range: x ?? []}), ...(y === undefined ? {} : {y_range: y ?? []}),
+         ...(runs === undefined ? {} : {show_earlier_runs: runs})});
     this.displayGuard.add(win);
     this.displayIdles = this.idlesOwed;
   }
@@ -673,13 +676,13 @@ export class Session {
   /** window `win`'s zoom changed (a wheel, a drag, a typed range, Reset view) */
   /** the text with this id changed in its dialog: everything it takes, and where it is */
   changeText(id: number, v: TextValues, at: TextPosition): void {
-    this.send({cmd: 'annotation', op: 'edit', id, text: v.text, size: v.size, style: v.style, color: v.color});
-    this.send({cmd: 'annotation', op: 'move', id, new_x: at.x, new_y: at.y});
+    this.send({cmd: 'annotation.edit', annotation_id: id, text: v.text, size: v.size, style: v.style, color: v.color});
+    this.send({cmd: 'annotation.move', annotation_id: id, new_x: at.x, new_y: at.y});
   }
 
   /** the annotation with this id deleted */
   deleteText(id: number): void {
-    this.send({cmd: 'annotation', op: 'delete', id});
+    this.send({cmd: 'annotation.delete', annotation_id: id});
   }
 
   setViewport(win: string, viewport: Viewport): void {
@@ -757,7 +760,7 @@ export class Session {
   fitView(): void {
     const p = this.store.getState().plots, w = windowOf(p, p.active);
     if (w && (w.viewport.x !== null || w.viewport.y !== null)) this.setViewport(w.win, HOME);
-    this.keys(this.mainKey('window'), 'f');
+    this.send({cmd: 'window.fit', window: p.active});
   }
 
   /* ---- 3D plots (docs/ui-v2.md T14) ---- */

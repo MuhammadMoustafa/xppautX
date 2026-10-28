@@ -513,7 +513,7 @@ void open_events(sock_t s)
         /* the page draws from scratch; a redraw would wait behind an open prompt */
         if (!srv.sticky_hello.empty() && srv.sticky_ask.empty() && srv.exit_event.empty()) {
             std::string unsent; /* a redraw the full queue refuses is not worth telling: the page has all it needs */
-            push_command("{\"cmd\":\"redraw\"}", unsent);
+            push_command("{\"cmd\":\"window.redraw\"}", unsent);
         }
     } else close_sock(s);
     pthread_mutex_unlock(&lock);

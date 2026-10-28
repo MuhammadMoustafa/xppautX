@@ -77,10 +77,17 @@ void user_window(Session &s);
 void xi_vs_t(Session &s);
 void movie_rot(Session &s, double start, double increment, int nclip, int angle);
 void get_3d_par_com(Session &s);
-void update_view(Session &s, float xlo, float xhi, float ylo, float yhi);
+/* the active window's view set to these bounds (and its curves' ranges, for a 2D plot), redrawn */
+void update_view(Session &s, double xlo, double xhi, double ylo, double yhi);
 void window_zoom_com(Session &s, int c);
-void zoom_in(Session &s, int i1, int j1, int i2, int j2);
-void zoom_out(Session &s, int i1, int j1, int i2, int j2);
+/* Window/zoom's In and Out on the active window, in plot coordinates: the view becomes the box x1..x2, y1..y2
+   (x1 below x2, y1 below y2); Out makes the current view fill that box; Out by makes it `factor` times
+   as wide and high about the point (cx, cy) */
+void zoom_in(Session &s, double x1, double y1, double x2, double y2);
+void zoom_out(Session &s, double x1, double y1, double x2, double y2);
+void zoom_out_by(Session &s, double cx, double cy, double factor);
+/* what a click with no drag does to Zoom Out: the view doubles about the point */
+inline constexpr double ZOOM_OUT_CLICK_FACTOR = 2;
 void graph_all(Session &s, int *list, int n, int type);
 int alter_curve(Session &s, std::string_view title, int in_it, int n);
 void edit_curve(Session &s);

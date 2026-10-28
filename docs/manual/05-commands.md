@@ -436,6 +436,20 @@ diagram the session keeps, the animation and the array plot, which can be
 made again, ask nothing. The main graph and the data browser cannot be
 destroyed. A session file keeps which windows are hidden.
 
+A graph's view is set by commands in plot coordinates, never by a click:
+`window.set_bounds` (the four bounds; one left out keeps the view's),
+`window.zoom` (the view becomes a box), `window.zoom_out` (by a `factor`
+about a point, or the view fills a box), `window.fit`,
+`window.reset_default`, `window.scroll` (by `dx` and `dy`), and
+`window.set_display` (the ranges the page shows, `[]` for the window's own,
+the earlier runs, keeping a replaced run). `window.redraw` draws a graph
+again and `window.clear` clears it (the plot buttons Redraw plot and Clear
+plot). Texts, arrows, pointers and markers have the `annotation.*` commands
+(`list`, `add_text`, `add_arrow`, `add_pointer`, `add_marker`, `edit`,
+`move`, `delete`, `delete_all`): each is named by its `annotation_id` and
+placed in plot coordinates. The page's Add text, Add arrow, Add pointer and
+Add marker buttons keep the interactive way, a click on the plot.
+
 Scripts use `window.create`, `window.rename`, `window.select`,
 `window.hide`, `window.show`, `window.destroy` and `window.list`, with
 `window` and `name` as quoted text. There are no window

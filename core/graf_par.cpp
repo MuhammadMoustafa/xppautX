@@ -493,17 +493,8 @@ void user_window(xpp::Session &s)
 	          xpp::command_error("Window",*bad);
 	          return;
 	        }
-	      s.plot_windows.current->xlo=xlo;
-	      s.plot_windows.current->ylo=ylo;
-	      s.plot_windows.current->xhi=xhi;
-	      s.plot_windows.current->yhi=yhi;
-	      if(s.plot_windows.current->grtype<5){
-	      s.plot_windows.current->xmin=s.plot_windows.current->xlo;
-	      s.plot_windows.current->xmax=s.plot_windows.current->xhi;
-	      s.plot_windows.current->ymin=s.plot_windows.current->ylo;
-	      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
-	      }
-	      xpp::check_windows(s);
+	      update_view(s,xlo,xhi,ylo,yhi);
+	      return;
              }
  redraw_the_graph(s);
 }
@@ -575,7 +566,7 @@ void get_3d_par_com(xpp::Session &s)
   }
   apply_view_params(s,p);
 }
-void update_view(xpp::Session &s, float xlo,float xhi, float ylo, float yhi)
+void update_view(xpp::Session &s, double xlo,double xhi, double ylo, double yhi)
 {
               s.plot_windows.current->xlo=xlo;
 	      s.plot_windows.current->ylo=ylo;
@@ -593,20 +584,44 @@ void update_view(xpp::Session &s, float xlo,float xhi, float ylo, float yhi)
 
 }
     
+/* the corners of a box dragged in the active window, as plot coordinates in order; a click (a box
+   with no width or no height) is the point itself, and has zero extent */
+namespace {
+struct PlotBox { double x1, y1, x2, y2; };
+PlotBox dragged_box(xpp::Session &s, int i1, int j1, int i2, int j2)
+{
+  float x1,y1,x2,y2;
+  scale_to_real(s,i1,j1,&x1,&y1);
+  scale_to_real(s,i2,j2,&x2,&y2);
+  return {std::min(x1,x2),std::min(y1,y2),std::max(x1,x2),std::max(y1,y2)};
+}
+bool is_click(const PlotBox &b){return b.x1==b.x2||b.y1==b.y2;}
+}
+
 void window_zoom_com(xpp::Session &s, int c)
 {
  int i1,i2,j1,j2;
   switch(c){
 	    case 0:user_window(s); break;
-	    case 1:
-	    
+	    case 1:{
 	    	if(rubber_band(s,&i1,&j1,&i2,&j2,RUBBOX)==0)break;
-		     zoom_in(s,i1,j1,i2,j2);
-		 
-		     break;
-       	    case 2: if(rubber_band(s,&i1,&j1,&i2,&j2,RUBBOX)==0)break;
-		     zoom_out(s,i1,j1,i2,j2);
-		     break;
+	    	const PlotBox b=dragged_box(s,i1,j1,i2,j2);
+	    	/*Shrink by half and center (track) about the point clicked*/
+	    	if(is_click(b)){
+	    	  const double dx=std::abs(s.plot_windows.current->xhi-s.plot_windows.current->xlo)/4,dy=std::abs(s.plot_windows.current->yhi-s.plot_windows.current->ylo)/4;
+	    	  zoom_in(s,b.x1-dx,b.y1-dy,b.x1+dx,b.y1+dy);
+	    	}
+	    	else zoom_in(s,b.x1,b.y1,b.x2,b.y2);
+	    	break;
+	    }
+       	    case 2:{
+       	    	if(rubber_band(s,&i1,&j1,&i2,&j2,RUBBOX)==0)break;
+       	    	const PlotBox b=dragged_box(s,i1,j1,i2,j2);
+       	    	/*Grow by two and center (track) about the point clicked*/
+       	    	if(is_click(b))zoom_out_by(s,b.x1,b.y1,ZOOM_OUT_CLICK_FACTOR);
+       	    	else zoom_out(s,b.x1,b.y1,b.x2,b.y2);
+       	    	break;
+	    }
  	    case 3: fit_window(s);
 		      break; 
 	    case 4: default_window(s);
@@ -617,97 +632,29 @@ void window_zoom_com(xpp::Session &s, int c)
  set_normal_scale(s);
 }
 
-void zoom_in(xpp::Session &s, int i1, int j1, int i2, int j2)
+void zoom_in(xpp::Session &s, double x1, double y1, double x2, double y2)
 {
- float x1,y1,x2,y2;
- float dx=s.plot_windows.current->xhi-s.plot_windows.current->xlo;
- float dy=s.plot_windows.current->yhi-s.plot_windows.current->ylo;
- scale_to_real(s,i1,j1,&x1,&y1);
- scale_to_real(s,i2,j2,&x2,&y2);
-   if(x1==x2||y1==y2)
-   {
-   
-   	if (dx < 0){dx=-dx;}
-	if (dy < 0){dy=-dy;}
-	dx = dx/2;
-	dy = dy/2;
-	
-	/*Shrink by thirds and center (track) about the point clicked*/
-	s.plot_windows.current->xlo=x1-dx/2;
-	s.plot_windows.current->xhi=x1+dx/2;
-
-	s.plot_windows.current->ylo=y1-dy/2;
-	s.plot_windows.current->yhi=y1+dy/2;
-
- }
- else
- {           
-	      s.plot_windows.current->xlo=x1;
-	      s.plot_windows.current->ylo=y1;
-	      s.plot_windows.current->xhi=x2;
-	      s.plot_windows.current->yhi=y2;
-  }
-  	if(s.plot_windows.current->grtype<5){
-	      s.plot_windows.current->xmin=s.plot_windows.current->xlo;
-	      s.plot_windows.current->xmax=s.plot_windows.current->xhi;
-	      s.plot_windows.current->ymin=s.plot_windows.current->ylo;
-	      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
-	      }
-	      xpp::check_windows(s);
-              redraw_the_graph(s);
-	      draw_help(); 
+  update_view(s,x1,x2,y1,y2);
+  draw_help();
 }
 
-void zoom_out(xpp::Session &s, int i1, int j1, int i2, int j2)
+void zoom_out_by(xpp::Session &s, double cx, double cy, double factor)
 {
- 
- float x1,y1,x2,y2;
- float bx,mux,by,muy;
- float dx=s.plot_windows.current->xhi-s.plot_windows.current->xlo;
- float dy=s.plot_windows.current->yhi-s.plot_windows.current->ylo;
- scale_to_real(s,i1,j1,&x1,&y1);
- scale_to_real(s,i2,j2,&x2,&y2);
-
- if(x1==x2||y1==y2)
- {
- 
- 	if (dx < 0){dx=-dx;}
-	if (dy < 0){dy=-dy;}
-	/*Grow by thirds and center (track) about the point clicked*/
-	dx = dx*2;
-	dy = dy*2;
-	
-	s.plot_windows.current->xlo=x1-dx/2;
-	s.plot_windows.current->xhi=x1+dx/2;
-
-	s.plot_windows.current->ylo=y1-dy/2;
-	s.plot_windows.current->yhi=y1+dy/2;
- }
- else
- {
-  	if(x1>x2){bx=x1;x1=x2;x2=bx;}
- 	if(y1>y2){by=y1;y1=y2;y2=by;}
-	
-	 bx=dx*dx/(x2-x1);
-	 mux=(x1-s.plot_windows.current->xlo)/dx;
-	 s.plot_windows.current->xlo=s.plot_windows.current->xlo-bx*mux;
-	 s.plot_windows.current->xhi=s.plot_windows.current->xlo+bx;
-
-	 by=dy*dy/(y2-y1);
-	 muy=(y1-s.plot_windows.current->ylo)/dy;
-	 s.plot_windows.current->ylo=s.plot_windows.current->ylo-by*muy;
-	 s.plot_windows.current->yhi=s.plot_windows.current->ylo+by;
-
+  const double dx=std::abs(s.plot_windows.current->xhi-s.plot_windows.current->xlo)*factor;
+  const double dy=std::abs(s.plot_windows.current->yhi-s.plot_windows.current->ylo)*factor;
+  update_view(s,cx-dx/2,cx+dx/2,cy-dy/2,cy+dy/2);
+  draw_help();
 }
-	if(s.plot_windows.current->grtype<5){
-		      s.plot_windows.current->xmin=s.plot_windows.current->xlo;
-		      s.plot_windows.current->xmax=s.plot_windows.current->xhi;
-		      s.plot_windows.current->ymin=s.plot_windows.current->ylo;
-		      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
-		      }
-	      xpp::check_windows(s);
-              redraw_the_graph(s);
-              draw_help(); 
+
+void zoom_out(xpp::Session &s, double x1, double y1, double x2, double y2)
+{
+  /* the current view becomes the box inside the new one */
+  const double xlo=s.plot_windows.current->xlo,ylo=s.plot_windows.current->ylo;
+  const double dx=s.plot_windows.current->xhi-xlo,dy=s.plot_windows.current->yhi-ylo;
+  const double bx=dx*dx/(x2-x1),mux=(x1-xlo)/dx;
+  const double by=dy*dy/(y2-y1),muy=(y1-ylo)/dy;
+  update_view(s,xlo-bx*mux,xlo-bx*mux+bx,ylo-by*muy,ylo-by*muy+by);
+  draw_help();
 }
 
 void graph_all(xpp::Session &s, int *list, int n, int type)

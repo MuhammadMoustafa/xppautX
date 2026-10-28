@@ -444,15 +444,15 @@ def post_numbered(obj, page, n):
 
 
 collect(lambda e: False, 0.5)  # what is still coming from the commands above
-sts = [post_numbered({'cmd': 'redraw'}, 'w124page', n) for n in (1, 1, 2, 1)]
-sts.append(post_numbered({'cmd': 'redraw'}, 'w124other', 1))  # another page counts on its own
+sts = [post_numbered({'cmd': 'window.redraw'}, 'w124page', n) for n in (1, 1, 2, 1)]
+sts.append(post_numbered({'cmd': 'window.redraw'}, 'w124other', 1))  # another page counts on its own
 evs, _ = collect(lambda e: False, 3)
 idles = sum(1 for e in evs if e['ev'] in ('idle','done'))
 check('W124: a numbered command sent again is answered (204) but taken once; another page counts on its own',
       sts == [204] * 5 and idles == 3, '%s, %d idle' % (sts, idles))
-bad = [post_numbered({'cmd': 'redraw'}, p, n) for p, n in (('w124page', 'x'), ('w124page', '0'), ('bad%20id', 3), ('', 3))]
+bad = [post_numbered({'cmd': 'window.redraw'}, p, n) for p, n in (('w124page', 'x'), ('w124page', '0'), ('bad%20id', 3), ('', 3))]
 c = http.client.HTTPConnection('127.0.0.1', port, timeout=10)
-c.request('POST', '/cmd?t=%s&p=w124page' % token, body=json.dumps({'cmd': 'redraw'}))
+c.request('POST', '/cmd?t=%s&p=w124page' % token, body=json.dumps({'cmd': 'window.redraw'}))
 bad.append(c.getresponse().status)
 evs, _ = collect(lambda e: False, 1)
 check('W124: a bad or half command number is refused (400) and nothing runs',

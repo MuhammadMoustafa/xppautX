@@ -16,6 +16,7 @@
 #include "xpp_globals.h"
 #include "expr.h"
 #include "nullcline.h"
+#include "plot_data.h"
 #include "delay_handle.h"
 #include "numerics.h"
 #include "browse.h"
@@ -229,6 +230,13 @@ void clr_scrn(xpp::Session &s)
     ui.blank_draw_window(s);
     do_axes(s);
 }
+void clear_windows(xpp::Session &s)
+{
+    clr_all_scrns(s);
+    plot_data_picture(s, 0); /* and blanks its picture */
+    s.nullclines.df_flag = 0;
+}
+
 void set_active_windows(xpp::Session &s)
 {
   int i,np=0;

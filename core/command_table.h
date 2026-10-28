@@ -95,7 +95,7 @@ struct CommandRow {
    build of GCC refuses to evaluate the table's search as a constant) */
 inline constexpr std::string_view STORE_EVERY_LABEL = "Store every N steps";
 
-inline constexpr std::array<CommandRow, 65> COMMANDS = {{
+inline constexpr std::array<CommandRow, 63> COMMANDS = {{
     {MAIN_MENU, 'i', "initialconds", "Initial conditions", "Integrate the equations", XPP_KIND_COMPUTE, CommandCategory::Run, true, true, {}},
     {MAIN_MENU, PAGE_KEY, "run_initial", "Run from initial", "Start a new trajectory from the Initial values", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Enter"}},
     {MAIN_MENU, PAGE_KEY, "run_last", "Run from last state", "Use the last state as Initial and start a new trajectory", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Shift+Enter"}},
@@ -137,8 +137,6 @@ inline constexpr std::array<CommandRow, 65> COMMANDS = {{
     {MAIN_MENU, 'g', "graphic", "Curves and export", "Adding graphs,hard copy, etc", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
     {MAIN_MENU, 'x', "xivst", "Variable vs time", "Plot variable vs time", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
     {MAIN_MENU, 't', "text", "Labels and annotations", "Add fancy text and lines,arrows", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
-    {MAIN_MENU, 'r', "restore", "Redraw plot", "Redraw the graph", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
-    {MAIN_MENU, 'e', "erase", "Clear plot", "Clear screen", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
     {MAIN_MENU, 'k', "kinescope", "Captured frames", "Take snapshots of the screen", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
     {NUM_MENU, 'c', "colorcode", "Color by value", "Color trajectories according to velocity,etc", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
     {MAIN_MENU, 'w', "window", "Zoom and view", "Change the size of two-dimensional view", XPP_KIND_VIEW, CommandCategory::Panels, false, true, {}},

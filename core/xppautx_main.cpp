@@ -234,9 +234,9 @@ static void run_session(void)
     xpp::Session &loaded_session = **loaded;
     json_ui_start_model(loaded_session);
     if (saved) xpp_saved_restore(loaded_session, *saved);
-    if (recording) json_ui_play_launched(loaded_session, recording->saved.in); /* loaded by the redraw below */
-    /* the redraw loads a recording's model in the place of this one */
-    xpp::json_ui_handle("{\"cmd\":\"redraw\"}");
+    if (recording) json_ui_play_launched(loaded_session, recording->saved.in); /* loaded by the command below */
+    /* this first command loads a recording's model in the place of this one */
+    xpp::json_ui_handle("{\"cmd\":\"state\"}");
     xpp::json_ui_loop();
 }
 

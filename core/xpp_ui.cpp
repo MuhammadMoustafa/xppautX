@@ -239,6 +239,7 @@ XppUi ui = {
     .window_renamed = hl_auto_make_window,
     .auto_closed = hl_s_str,
     .tool_window_closed = hl_s_str_str,
+    .redraw_diagram_for_client = hl_s,
     .lower_plot_window = hl_void,
     .cput_text = hl_s,
     .get_draw_size = hl_get_draw_size,

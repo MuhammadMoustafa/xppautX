@@ -120,6 +120,10 @@ export function Plots({dark}: {dark: boolean}) {
           <details class="plot-window-options">
             <summary>Window options</summary>
             <div class="plot-window-options-menu">
+                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.redraw',window:active})}>Redraw plot</button>
+                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.clear',window:active})}>Clear plot</button>
+                {[['Add text','t'],['Add arrow','a'],['Add pointer','p'],['Add marker','m']].map(([label,key])=>
+                  <button class="small" disabled={windowOff} title="Click the plot where it goes" onClick={()=>session.keys('t',key)}>{label}</button>)}
                 <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.destroy_all'})}>Close extra windows</button>
                 <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.send_to_bottom',window:active})}>Send to bottom</button>
                 <select aria-label="Redraw mode" disabled={windowOff} value={current?.info?.redraw_mode} onChange={e=>session.send({cmd:'window.set_redraw_mode',window:active,mode:e.currentTarget.value})}>

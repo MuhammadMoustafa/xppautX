@@ -365,7 +365,7 @@ std::string annotations_json(Session &s, XppWinId w)
     std::vector<Grob> grobs;
     for (const GROB &g : s.grobs)
         if (g.w == w) grobs.push_back({g.id, g.type, g.color, g.xs, g.ys, g.xe, g.ye, g.size});
-    std::string o = "{\"ev\":\"annotations\",\"win\":";
+    std::string o = "{\"window\":";
     xpp::json_append_string(o,xpp::window_name(s,w));
     o += ',';
     append_annotations(o, labels, grobs);

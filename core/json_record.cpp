@@ -79,7 +79,9 @@ std::string command_label(const char *line)
         if (!get_string(line, "text", v)) v = std::string(js_raw(js_find(line, "value")));
         return xpp::format("{} {} = {}", c == "set" ? "Set" : "Slide", name, v);
     }
-    if (c == "display") {get_string(line,"window",name);return xpp::format("Zoom window {}",name);}
+    if (c == "window.set_display") {get_string(line,"window",name);return xpp::format("Zoom window {}",name);}
+    if (c == "window.clear") return "Clear plot";
+    if (c == "window.redraw") return "Redraw plot";
     if (c == "applyset") return xpp::format("Apply set {} ({})", get_string(line, "set", name) ? name : "", get_string(line, "scope", v) ? v : "");
     if (c == "restoredefaults") return xpp::format("Restore defaults of {}{}", get_string(line, "scope", v) ? v : "", get_string(line, "field", name) ? " " + name : "");
     if (c == "saveset") return xpp::format("Save {} values in set {}", get_string(line, "scope", v) ? v : "", get_string(line, "set", name) ? name : "");

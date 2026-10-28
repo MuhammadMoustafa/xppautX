@@ -407,7 +407,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
         <div class="plot-tools">
           <label title="Keep earlier trajectories when starting a new run. Uncheck to replace them on the next new run; Continue extends the current trajectory.">
             <input type="checkbox" data-freeze-runs checked={info?.freeze !== 0}
-              onChange={e => session.send({cmd: 'display', window: win, freeze: e.currentTarget.checked ? 1 : 0})} /> Freeze
+              onChange={e => session.send({cmd: 'window.set_display', window: win, keep_replaced_run: e.currentTarget.checked})} /> Freeze
           </label>
           <button disabled={!zoomed} onClick={() => chart.current!.reset()}
             title="Back to the window's axes (double click, or 0 on the plot)">Reset view</button>

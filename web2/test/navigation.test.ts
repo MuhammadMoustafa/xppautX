@@ -43,8 +43,8 @@ test('stable menu actions retain their kind in every legacy shortcut mode', () =
   }
   assert.equal(kindOf(HELLO, 0, menuCommand('file', 'does-not-exist')), null);
   assert.equal(kindOf(HELLO, 0, {cmd: 'key', menu: 'invalid', item: 'quit'}), null);
-  for (const fields of [{menu: 'main'}, {item: 'erase'}, {menu: 42, item: 'erase'},
-    {menu: 'main', item: 'erase', key: 'Escape'}, {menu: 'main', item: 'erase', win: 'auto'}]) {
+  for (const fields of [{menu: 'main'}, {item: 'undo'}, {menu: 42, item: 'undo'},
+    {menu: 'main', item: 'undo', key: 'Escape'}, {menu: 'main', item: 'undo', win: 'auto'}]) {
     assert.equal(kindOf(HELLO, 0, {cmd: 'key', ...fields}), null);
   }
 });

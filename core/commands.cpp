@@ -324,9 +324,7 @@ void run_the_commands(xpp::Session &s, MenuCommand com)
     return;
   }
   if (com == M_EE) {
-    clr_all_scrns(s);
-    plot_data_picture(s, 0); /* and blanks its picture */
-    s.nullclines.df_flag = 0;
+    xpp::clear_windows(s);
     return;
   }
   if (com == M_X) {
@@ -479,13 +477,11 @@ void commander(xpp::Session &s, int ch)
     case 'u': flash(8); flash(8); show_main_menu(s,NUM_MENU); break;
     case 'f': flash(9); flash(9); show_main_menu(s,FILE_MENU); break;
     case 'p': flash(10); run_the_commands(s, M_P); flash(10); break;
-    case 'e': flash(11); run_the_commands(s, M_EE); flash(11); break;
     case 't': flash(13); do_gr_objs(s); flash(13); break;
     case 's': flash(14); find_equilibrium(s); flash(14); break;
     case 'v': flash(15); change_view(s); flash(15); break;
     case 'b': find_bvp(s); break;
     case 'x': flash(16); run_the_commands(s, M_X); flash(16); break;
-    case 'r': flash(17); run_the_commands(s, M_R); flash(17); break;
     case '3': run_the_commands(s, M_3); break;
     case 'z': if (!xpp::undo_values(s)) command_error("undo", "No value edit to undo"); break;
     case 'y': if (!xpp::redo_values(s)) command_error("redo", "No value edit to redo"); break;

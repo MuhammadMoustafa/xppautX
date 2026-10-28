@@ -67,5 +67,8 @@ int graph_of(const Session &s, XppWinId w);
 void check_windows(Session &s);
 /* s's active plot window blanked, its axes drawn again */
 void clr_scrn(Session &s);
+/* Clear plot (window.clear, the key E): the windows a command draws on (every open one under Simulplot)
+   blanked, and a data client told */
+void clear_windows(Session &s);
 
 } // namespace xpp

@@ -737,7 +737,7 @@ def check_registry():
         # W515: hide, show, list and destroy, one way for every window
         snd(cmd='data', events=['windows']); col(lambda e: e.get('ev') == 'idle')
         request({'cmd': 'window.create', 'name': 'kept'})
-        snd(cmd='annotation', op='add_text', window='kept', text='note', x=0, y=0); col(lambda e: e.get('ev') == 'idle')
+        snd(cmd='annotation.add_text', window='kept', text='note', x=0, y=0); col(lambda e: e.get('ev') == 'idle')
         result, evs = request({'cmd': 'window.hide', 'window': 'kept'})
         check('window.hide: the window stays and is not shown', result == {'window': 'kept', 'shown': False})
         check('window.hide: the windows event says so', any(e.get('ev') == 'windows' and
@@ -749,9 +749,9 @@ def check_registry():
               listed['browser'] == {'name': 'browser', 'kind': 'browser', 'shown': True}, str(result))
         result, _ = request({'cmd': 'window.show', 'window': 'kept'})
         check('window.show: the window comes back', result == {'window': 'kept', 'shown': True})
-        snd(cmd='annotation', op='list', window='kept')
+        snd(cmd='annotation.list', window='kept')
         evs, _ = col(lambda e: e.get('ev') == 'idle')
-        check('window.hide and show keep what the window holds (its text)', any('note' in json.dumps(e) for e in evs if e.get('ev') == 'annotations'), str(evs)[-500:])
+        check('window.hide and show keep what the window holds (its text)', any('note' in json.dumps(e) for e in evs if e.get('ev') == 'done'), str(evs)[-500:])
         for refused in [{'cmd': 'window.hide', 'window': 'animation'}, {'cmd': 'window.show', 'window': 'array_plot_1'},
                         {'cmd': 'window.hide', 'window': 'nothing'}, {'cmd': 'window.destroy', 'window': 'browser'},
                         {'cmd': 'window.rename', 'window': 'browser', 'name': 'data'}, {'cmd': 'window.select', 'window': 'browser'},
@@ -775,6 +775,63 @@ def check_registry():
         request({'cmd': 'window.create', 'name': 'empty'})
         result, _ = request({'cmd': 'window.destroy', 'window': 'empty'})
         check('window.destroy of a graph that holds nothing asks nothing', result == {'window': 'empty', 'closed': True})
+        # W523: the view's operations, in plot coordinates
+        bounds = lambda x0, x1, y0, y1: {'x_min': x0, 'x_max': x1, 'y_min': y0, 'y_max': y1}
+        result, _ = request({'cmd': 'window.set_bounds', 'window': 'graph_1', 'x_min': 0, 'x_max': 10, 'y_min': -1, 'y_max': 1})
+        check('window.set_bounds sets the view and reports it', result == bounds(0, 10, -1, 1), str(result))
+        result, _ = request({'cmd': 'window.set_bounds', 'x_max': 20})
+        check('window.set_bounds keeps a bound left out', result == bounds(0, 20, -1, 1), str(result))
+        result, _ = request({'cmd': 'window.zoom', 'x_min': 5, 'x_max': 10, 'y_min': 0, 'y_max': 1})
+        check('window.zoom makes the box the view', result == bounds(5, 10, 0, 1), str(result))
+        result, _ = request({'cmd': 'window.zoom_out', 'factor': 2})
+        check('window.zoom_out by a factor grows the view about its center', result == bounds(2.5, 12.5, -0.5, 1.5), str(result))
+        result, _ = request({'cmd': 'window.zoom_out', 'factor': 2, 'center_x': 0, 'center_y': 0})
+        check('window.zoom_out by a factor about a point', result == bounds(-10, 10, -2, 2), str(result))
+        result, _ = request({'cmd': 'window.scroll', 'dx': 1, 'dy': -1})
+        check('window.scroll moves the view and reports its center', result == {'new_center': [1, -1]}, str(result))
+        result, _ = request({'cmd': 'window.zoom_out', 'x_min': 0, 'x_max': 10, 'y_min': 0, 'y_max': 1})
+        check('window.zoom_out into a box makes the view fill the box', set(result) == set(bounds(0, 0, 0, 0)), str(result))
+        for refused in [{'cmd': 'window.set_bounds', 'x_min': 5, 'x_max': 5}, {'cmd': 'window.zoom', 'x_min': 0, 'x_max': 1},
+                        {'cmd': 'window.zoom', 'x_min': 1, 'x_max': 0, 'y_min': 0, 'y_max': 1}, {'cmd': 'window.zoom_out'},
+                        {'cmd': 'window.zoom_out', 'factor': 2, 'x_min': 0, 'x_max': 1, 'y_min': 0, 'y_max': 1},
+                        {'cmd': 'window.zoom_out', 'factor': 0.5}, {'cmd': 'window.zoom_out', 'factor': 2, 'center_x': 1},
+                        {'cmd': 'window.scroll', 'dx': 1}, {'cmd': 'window.fit', 'window': 'browser'},
+                        {'cmd': 'window.reset_default', 'window': 'nothing'}, {'cmd': 'window.clear', 'window': 'browser'},
+                        {'cmd': 'window.redraw', 'window': 'browser'}, {'cmd': 'window.set_display', 'x_range': [3, 1]},
+                        {'cmd': 'window.set_display', 'x_range': [1]}, {'cmd': 'window.set_display', 'x_range': [1, 2, 3]},
+                        {'cmd': 'window.set_display', 'show_earlier_runs': 1}]:
+            request(refused, False)
+        result, _ = request({'cmd': 'window.reset_default'})
+        check('window.reset_default gives the default bounds', set(result) == set(bounds(0, 0, 0, 0)) and result['x_min'] < result['x_max'], str(result))
+        result, _ = request({'cmd': 'window.fit'})
+        check('window.fit reports the view', set(result) == set(bounds(0, 0, 0, 0)), str(result))
+        result, _ = request({'cmd': 'window.set_display', 'x_range': [0, 5], 'show_earlier_runs': False, 'keep_replaced_run': False})
+        check('window.set_display sets the zoom the page shows', result == {'x_range': [0, 5], 'y_range': []}, str(result))
+        result, _ = request({'cmd': 'window.set_display', 'x_range': []})
+        check('window.set_display with [] returns an axis to the window own', result == {'x_range': [], 'y_range': []}, str(result))
+        result, _ = request({'cmd': 'window.redraw'})
+        check('window.redraw reports the window', result == {'window': 'graph_1', 'redrawn': True}, str(result))
+        result, _ = request({'cmd': 'window.clear'})
+        check('window.clear reports the window', result == {'window': 'graph_1', 'cleared': True}, str(result))
+        result, _ = request({'cmd': 'annotation.add_text', 'text': 'first', 'x': 1, 'y': 2, 'size': 3, 'style': 1, 'color': '#ff0000'})
+        check('annotation.add_text reports the id', 'id' in result, str(result))
+        note = result['id']
+        result, _ = request({'cmd': 'annotation.edit', 'annotation_id': note, 'text': 'second'})
+        check('annotation.edit reports the id', result == {'id': note, 'updated': True}, str(result))
+        result, _ = request({'cmd': 'annotation.move', 'annotation_id': note, 'new_x': 3, 'new_y': 4})
+        check('annotation.move reports the id', result == {'id': note, 'moved': True}, str(result))
+        result, _ = request({'cmd': 'annotation.list'})
+        check('annotation.list gives the text moved and changed', [(x['id'], x['text'], x['x'], x['y']) for x in result.get('text', [])] == [(note, 'second', 3, 4)], str(result))
+        result, _ = request({'cmd': 'annotation.delete', 'annotation_id': note})
+        check('annotation.delete reports the id', result == {'id': note, 'deleted': True}, str(result))
+        for refused in [{'cmd': 'annotation.delete', 'annotation_id': note}, {'cmd': 'annotation.delete', 'id': 'x'},
+                        {'cmd': 'annotation.add_arrow', 'tip_x': 1, 'tip_y': 1, 'tail_x': 1, 'tail_y': 1},
+                        {'cmd': 'annotation.add_marker', 'shape': 'star', 'x': 0, 'y': 0}, {'cmd': 'annotation.list', 'window': 'browser'},
+                        {'cmd': 'annotation.edit', 'annotation_id': 0, 'shape': 'box'}]:
+            request(refused, False)
+        request({'cmd': 'annotation.add_marker', 'shape': 'circle', 'x': 1, 'y': 1})
+        result, _ = request({'cmd': 'annotation.delete_all'})
+        check('annotation.delete_all clears the graph', result == {'cleared': True}, str(result))
         for obsolete in [
             {'cmd':'click','win':1},
             {'cmd':'key','menu':'main','item':'makewindow'},
@@ -783,6 +840,10 @@ def check_registry():
             {'cmd':'auto','op':'close'},
             {'cmd':'window.close'},
             {'cmd':'window.close','window':'graph_2'},
+            {'cmd':'display','window':'graph_1','x':[0,1]},
+            {'cmd':'redraw'},
+            {'cmd':'annotation','op':'list'},
+            {'cmd':'key','menu':'main','item':'erase'},
             {'cmd':'annotation','op':'list','win':1},
         ]:
             snd(**obsolete)
@@ -979,7 +1040,7 @@ def last_state(evs):
 evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
-check('hello', hello is not None and len(hello["command_table"]) == 65)
+check('hello', hello is not None and len(hello["command_table"]) == 63)
 check('hello says protocol 4, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 4 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
@@ -1049,7 +1110,7 @@ def check_hello_kinds():
     missing = sorted(d for d in documented if not any(c == d for c, _ in kinds))
     check('W95: hello gives every documented command but key a kind', not missing and cmds
           and all(k in 'cvsdx' for k in kinds.values()), str(missing))
-    want = {('display', None): 'v', ('set', None): 's', ('values', None): 's', ('values', 'write'): 'd',
+    want = {('window.set_display', None): 'v', ('set', None): 's', ('values', None): 's', ('values', 'write'): 'd',
             ('abort', None): 'c', ('browser', 'write'): 'd', ('browser', None): 'v', ('auto', 'set'): 's',
             ('auto', 'grab'): 'd', ('userbut', None): 'x'}
     check('W95, W106: kinds as decided: display a view, set/values/auto set settings, Save data and Grab data, '
@@ -1216,7 +1277,7 @@ check('integration sends the series: the curve V against W, 601 rows',
 if ser:
     problem = series_matches_output_dat(ser[0])
     check('the series carries the numbers of output.dat', problem is None, problem or '')
-send(cmd='redraw')
+send(cmd='window.redraw')
 evs, _ = collect(is_idle)
 check('a redraw of unchanged data sends no series', not any(e.get('ev') == 'series' for e in evs))
 send(cmd='key', key='x')
@@ -2176,13 +2237,13 @@ def check_stable_navigation():
     try:
         col(lambda e: e.get('ev') in ('idle','done'))
         command(cmd='key', key='u')
-        events = command(cmd='key', menu='main', item='erase')
+        events = command(cmd='key', menu='main', item='undo')
         state = next((e for e in reversed(events) if e.get('ev') == 'state'), {})
         check('navigation: stable main command works in Numerics mode and returns to main', state.get('menu') == 0, str(events[-3:]))
-        for fields in ({'menu': 'missing', 'item': 'erase'}, {'menu': 'main', 'item': 'missing'},
-                       {'menu': 'main', 'item': 'erase', 'key': 'e'}, {'menu': 'main', 'item': 'erase', 'win': 'auto'},
+        for fields in ({'menu': 'missing', 'item': 'undo'}, {'menu': 'main', 'item': 'missing'},
+                       {'menu': 'main', 'item': 'undo', 'key': 'z'}, {'menu': 'main', 'item': 'undo', 'win': 'auto'},
                        {'menu': 'main', 'item': 'run_initial'},  # W212: a command the page runs itself is no key command
-                       {'menu': 'main'}, {'item': 'erase'}, {'menu': 42, 'item': 'erase'}):
+                       {'menu': 'main'}, {'item': 'undo'}, {'menu': 42, 'item': 'undo'}):
             events = command(cmd='key', **fields)
             err = next((e for e in events if e.get('ev') == 'message' and e.get('error')), {})
             check('navigation: rejects malformed stable identity ' + repr(fields) + ', naming the command place',
@@ -2391,7 +2452,7 @@ def check_plot_windows():
         evs = after({'cmd':'window.create'})
         check('a window made again gets its series again', [e['win'] for e in full(evs)] == ['graph_2'],
               str([(e['win'], e['rows']) for e in full(evs)]))
-        evs = after({'cmd': 'redraw'})
+        evs = after({'cmd': 'window.redraw'})
         check('a redraw sends neither plots nor series', not plots(evs) and not full(evs))
         evs = after({'cmd': 'data', 'events': ['series']})
         check('without plots in the list: series only', not plots(evs) and [e['win'] for e in full(evs)] == ['graph_2', 'graph_1'],
@@ -2699,14 +2760,14 @@ def check_values_protocol():
               not pics(evs) and not full(evs) and abs(par(last_state(evs), 'iapp') - 0.07) < 1e-12, str(pics(evs)))
         evs = keys('i', {'key': 'g'})
         check('a later Go runs with the slid value, no erase event', not pics(evs) and len(full(evs)) == 1, str(pics(evs)))
-        evs = keys('e')
+        evs = after(cmd='window.clear')
         check('Erase: one erase event for the active window, no series', pics(evs) == [('erase', 'graph_1')] and not full(evs),
               str(pics(evs)))
-        evs = keys('r')
+        evs = after(cmd='window.redraw')
         check('Redraw: one redraw event for the active window, no series', pics(evs) == [('redraw', 'graph_1')] and not full(evs),
               str(pics(evs)))
-        evs = after(cmd='redraw')
-        check('the redraw command (a reconnect) sends no erase or redraw event', not pics(evs), str(pics(evs)))
+        evs = after(cmd='window.redraw')
+        check('window.redraw again: one redraw event, no erase', pics(evs) == [('redraw', 'graph_1')], str(pics(evs)))
     finally:
         stop_server(pv, rv, sndv)
 
@@ -3392,7 +3453,7 @@ def check_phase_data():
               str(nc)[:300])
         why = (segments_ok(n0.get('x', []), v) or segments_ok(n0.get('y', []), v)) if n0 else 'no event'
         check('... its x- and y-nullclines are whole segments inside the view', not why, why)
-        evs = after({'cmd': 'redraw'})
+        evs = after({'cmd': 'window.redraw'})
         check('a redraw draws them again and sends nothing', not of(evs, 'nullclines') and not of(evs, 'dfield'))
 
         evs = command('d', {'key': 's'}, {'value': '16'})
@@ -3413,12 +3474,12 @@ def check_phase_data():
               len(nc) == 1 and len(nc[0]['frozen']) == 1 and nc[0]['frozen'][0]['x'] == nc[0]['x']
               and nc[0]['frozen'][0]['y'] == nc[0]['y'], str(nc)[:300])
 
-        evs = command('e')
+        evs = after({'cmd': 'window.clear'})
         nc, df = of(evs, 'nullclines'), of(evs, 'dfield')
         check('Erase clears them: both events empty',
               len(nc) == 1 and nc[0]['x'] == [] and nc[0]['frozen'] == [] and len(df) == 1 and df[0]['grid'] == [],
               str(evs)[:300])
-        evs = after({'cmd': 'redraw'})
+        evs = after({'cmd': 'window.redraw'})
         nc, df = of(evs, 'nullclines'), of(evs, 'dfield')
         check('a redraw draws the nullclines again (not the field Erase turned off)',
               len(nc) == 1 and len(nc[0]['x']) > 0 and len(nc[0]['frozen']) == 1 and not df, str(evs)[:300])
@@ -3678,9 +3739,15 @@ def check_marks():
         tid = t[0]['id'] if t else -1
 
         # W227, W513: the annotation command edits what is given, moves it, adds and deletes, by id
-        def ann(**fields):
-            evs = after(dict({'cmd': 'annotation', 'window': 'graph_1'}, **fields))
-            return evs, marks_of(evs), [e.get('error', '') for e in of(evs, 'message')]
+        def result_of(evs):
+            return next((e.get('result', {}) for e in of(evs, 'done')), {})
+
+        def ann(op, **fields):
+            cmd = {'cmd': 'annotation.' + op, **fields}
+            if 'id' in cmd: cmd['annotation_id'] = cmd.pop('id')
+            if op in ('add_text', 'add_arrow', 'add_pointer', 'add_marker', 'list', 'delete_all'): cmd.setdefault('window', 'graph_1')
+            evs = after(cmd)
+            return evs, marks_of(evs), [e.get('error', '') for e in of(evs, 'done') if e.get('status') == 'error']
         _, m, errs = ann(op='edit', id=tid, color='#0000ff')
         t = m['text'] if m else []
         check('W227: annotation edit of a text with only a colour changes only the colour',
@@ -3694,34 +3761,33 @@ def check_marks():
               and t[0]['style'] == 3 and t[0]['color'] == 'foreground' and t[0]['id'] == tid and near(t[0]['x'], 0.25, 1e-6)
               and near(t[0]['y'], 0.75, 1e-6) and not errs, str((m, errs))[:300])
         for what, fields, want in [
-                ('a size above 4', dict(op='edit', id=tid, size=9), '9 is not a text size (0 to 4)'),
-                ('a style of 4', dict(op='edit', id=tid, style=4), '4 is not a text style (0 to 3)'),
-                ('a colour that is none', dict(op='edit', id=tid, color='banana'), 'the color is a string'),
-                ('a colour that is a number', dict(op='edit', id=tid, color=3), 'the color is a string'),
-                ('a size that is not whole', dict(op='edit', id=tid, size=1.5), 'whole numbers'),
+                ('a size above 4', dict(op='edit', id=tid, size=9), 'is not a text size (0 to 4)'),
+                ('a style of 4', dict(op='edit', id=tid, style=4), 'must be at most 3'),
+                ('a colour that is none', dict(op='edit', id=tid, color='banana'), 'must be a CSS colour name'),
+                ('a colour that is a number', dict(op='edit', id=tid, color=3), 'must be text'),
+                ('a size that is not whole', dict(op='edit', id=tid, size=1.5), 'a whole number'),
                 ('an empty text', dict(op='edit', id=tid, text=''), 'not empty'),
-                ('a text of 1001 characters', dict(op='edit', id=tid, text='x' * 1001), 'at most 1000 characters'),
-                ('a move to a position that is not a number', dict(op='move', id=tid, new_x='left', new_y=0), 'new_x is a finite number'),
-                ('a move with no position', dict(op='move', id=tid), 'new_x is required'),
+                ('a text of 1001 characters', dict(op='edit', id=tid, text='x' * 1001), 'at most 1000'),
+                ('a move to a position that is not a number', dict(op='move', id=tid, new_x='left', new_y=0), 'must be a finite number'),
+                ('a move with no position', dict(op='move', id=tid), 'Missing argument "new_x"'),
                 ('an edit of an id there is not', dict(op='edit', id=7777), 'no annotation with that id'),
                 ('a delete of an id there is not', dict(op='delete', id=7777), 'no annotation with that id'),
                 ('a move of an id there is not', dict(op='move', id=7777, new_x=0, new_y=0), 'no annotation with that id'),
-                ('an id that is not a number', dict(op='delete', id='a'), 'no annotation with that id'),
-                ('an add with no position', dict(op='add_text', text='a'), 'x is required'),
-                ('an add with no text', dict(op='add_text', x=0, y=0), 'the text is required'),
-                ('an op it has not', dict(op='frob', id=tid), 'annotation takes op'),
-                ('a window it has not', dict(op='list', window='graph_9'), 'Unknown graph')]:
+                ('an id that is not a number', dict(op='delete', id='a'), 'must be a whole number'),
+                ('an add with no position', dict(op='add_text', text='a'), 'Missing argument "x"'),
+                ('an add with no text', dict(op='add_text', x=0, y=0), 'Missing argument "text"'),
+                ('a window it has not', dict(op='list', window='graph_9'), 'Unknown window')]:
             evs, m, errs = ann(**fields)
             check('W227: annotation refuses %s, naming it, and changes nothing' % what,
                   m is None and len(errs) == 1 and want in errs[0], str((m, errs))[:300])
         evs, m, errs = ann(op='add_text', text=r'%a\{2*3}', x=0.5, y=-0.5, size=4, style=2, color='#00e100c0')
         t = m['text'] if m else []
         added = next((x for x in t if x['id'] != tid), None)
-        added_ev = next((e for e in of(evs, 'annotation')), {})
+        added_ev = result_of(evs)
         check('W227: annotation add_text: a new label with its look, a % text stored as its value, its id reported',
               len(t) == 2 and added and added['text'] == added['source'] and added['text'] == 'a6'
               and added['size'] == 4 and added['style'] == 2 and added['color'] == '#00e100c0' and not errs
-              and added_ev.get('op') == 'add_text' and added_ev.get('id') == added['id'] and added['id'] > tid, str((m, errs))[:300])
+              and added_ev.get('id') == added['id'] and added['id'] > tid, str((m, errs))[:300])
         _, m, errs = ann(op='delete', id=added['id'] if added else -1)
         check('W227: annotation delete removes that label only', m is not None and [x['id'] for x in m['text']] == [tid] and not errs,
               str((m, errs))[:300])
@@ -3751,9 +3817,9 @@ def check_marks():
         check('W513: the pointer and the marker have ids of their own, none the text\'s',
               len({tid, pid, kid}) == 3 and min(tid, pid, kid) >= 0, str((tid, pid, kid)))
         evs, _, errs = ann(op='list')
-        ls = of(evs, 'annotations')
+        ls = [result_of(evs)]
         check('W513: annotation list sends every text, arrow and marker of the window with its id',
-              len(ls) == 1 and ls[0]['win'] == 'graph_1' and [x['id'] for x in ls[0]['text']] == [tid]
+              len(ls) == 1 and ls[0].get('window') == 'graph_1' and [x['id'] for x in ls[0]['text']] == [tid]
               and [x['id'] for x in ls[0]['arrows']] == [pid] and [x['id'] for x in ls[0]['markers']] == [kid]
               and ls[0]['arrows'][0]['kind'] == 'pointer' and ls[0]['markers'][0]['shape'] == 'diamond' and not errs, str(ls)[:300])
         _, m, errs = ann(op='move', id=pid, new_x=0.3, new_y=0.4)
@@ -3771,17 +3837,17 @@ def check_marks():
         check('W513: move and edit of a marker by id change its position, shape, size and colour',
               mk.get('shape') == 'plus' and mk.get('size') == 3 and mk.get('color') == '#0000ff' and mk.get('id') == kid
               and near(mk.get('x'), 0.6, 1e-6) and near(mk.get('y'), 0.2, 1e-6) and not errs, str((m, errs))[:300])
-        for what, fields, want in [('a shape it has not', dict(op='edit', id=kid, shape='star'), 'the shape is box'),
-                                   ('a negative size', dict(op='edit', id=pid, size=-1), 'is not 0 or more'),
+        for what, fields, want in [('a shape it has not', dict(op='edit', id=kid, shape='star'), 'Invalid choice'),
+                                   ('a negative size', dict(op='edit', id=pid, size=-1), 'at least 0'),
                                    ('an arrow with the tip on the tail', dict(op='add_arrow', tip_x=1, tip_y=1, tail_x=1, tail_y=1), 'the same point'),
-                                   ('an arrow with no tail', dict(op='add_pointer', tip_x=1, tip_y=1), 'tail_x is required'),
-                                   ('a marker with no position', dict(op='add_marker', shape='box'), 'x is required')]:
+                                   ('an arrow with no tail', dict(op='add_pointer', tip_x=1, tip_y=1), 'Missing argument "tail_x"'),
+                                   ('a marker with no position', dict(op='add_marker', shape='box'), 'Missing argument "x"')]:
             _, m, errs = ann(**fields)
             check('W513: annotation refuses %s' % what, m is None and len(errs) == 1 and want in errs[0], str((m, errs)))
         evs, m, errs = ann(op='add_arrow', tip_x=0.1, tip_y=0.1, tail_x=0.2, tail_y=0.3, color='#00c8c8')
-        new_arrow = next(iter(of(evs, 'annotation')), {}).get('id', -1)
+        new_arrow = result_of(evs).get('id', -1)
         evs, m, errs = ann(op='add_marker', shape='circle', x=0.5, y=0.5)
-        new_marker = next(iter(of(evs, 'annotation')), {}).get('id', -1)
+        new_marker = result_of(evs).get('id', -1)
         check('W513: add_arrow and add_marker report ids no other annotation has; the arrow keeps its look',
               len({tid, pid, kid, new_arrow, new_marker}) == 5 and m is not None and len(m['arrows']) == 2 and len(m['markers']) == 2
               and next((x for x in m['arrows'] if x['id'] == new_arrow), {}).get('kind') == 'arrow'
@@ -3792,7 +3858,7 @@ def check_marks():
         check('W513: delete by id removes only that arrow or marker; the others keep their ids',
               m is None and not [e for e in errs if 'no annotation' not in e], str(errs))
         evs, m, _ = ann(op='list')
-        ls = of(evs, 'annotations')[0]
+        ls = result_of(evs)
         check('... the pointer, marker and text are as they were, with the same ids',
               [x['id'] for x in ls['text']] == [tid] and [x['id'] for x in ls['arrows']] == [pid]
               and [x['id'] for x in ls['markers']] == [kid], str(ls)[:300])
@@ -3800,20 +3866,20 @@ def check_marks():
         ids = []
         for i in range(60):
             evs, _, _ = ann(op='add_text', text='t%d' % i, x=i / 100, y=0.5)
-            ids += [e['id'] for e in of(evs, 'annotation')]
+            ids += [result_of(evs).get('id', -1)]
         for i in range(450):
             evs, _, _ = ann(op='add_marker', shape='box', x=i / 1000, y=0.1) if i % 2 else ann(op='add_arrow', tip_x=0, tip_y=0, tail_x=i / 1000 + 0.1, tail_y=0.3)
-            ids += [e['id'] for e in of(evs, 'annotation')]
+            ids += [result_of(evs).get('id', -1)]
         evs, _, errs = ann(op='list')
-        ls = of(evs, 'annotations')[0]
+        ls = result_of(evs)
         check('W513: no cap of 50 texts or 400 arrows and markers: 61 texts and 452 arrows and markers are kept, ids all different',
               len(ls['text']) == 61 and len(ls['arrows']) + len(ls['markers']) == 452 and len(set(ids)) == 510 and not errs,
               str((len(ls['text']), len(ls['arrows']), len(ls['markers']), len(set(ids)))))
         for i in ids:
-            send6(cmd='annotation', op='delete', id=i)
+            send6(cmd='annotation.delete', annotation_id=i)
             collect6(is_idle, timeout=30 * SLOW)
         evs, _, _ = ann(op='list')
-        ls = of(evs, 'annotations')[0]
+        ls = result_of(evs)
         check('... and deleting them leaves the first three', [len(ls[k]) for k in ('text', 'arrows', 'markers')] == [1, 1, 1], str(ls)[:200])
 
         evs = command('g', keys('f', 'f', {'values': ['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'first run', 'frz1']}))
@@ -3839,12 +3905,12 @@ def check_marks():
               '%s, %s' % (q, eq and eq['type']))
         check('... the other marks unchanged', m is not None and len(m['text']) == 1 and len(m['frozen']) == 1)
 
-        evs = after({'cmd': 'redraw'})
+        evs = after({'cmd': 'window.redraw'})
         m = marks_of(evs)
         check('a redraw draws text, objects and frozen curves again, not the equilibrium (as the classic window)',
               m is not None and m['equilibria'] == [] and len(m['text']) == 1 and len(m['arrows']) == 1
               and len(m['markers']) == 1 and len(m['frozen']) == 1, str(m)[:300])
-        evs = after({'cmd': 'redraw'})
+        evs = after({'cmd': 'window.redraw'})
         check('... and a second one sends nothing', not of(evs, 'marks'))
 
         evs = after({'cmd': 'data', 'events': ['marks'], 'enc': 'f32'})
@@ -3860,12 +3926,12 @@ def check_marks():
         check('Freeze/Remove all: the frozen curve goes at once', m is not None and m['frozen'] == []
               and len(m['text']) == 1, str(m)[:300])
 
-        evs = command('e', keys())
+        evs = after({'cmd': 'window.clear'})
         m = marks_of(evs)
         check('Erase clears every mark',
               m is not None and not any(m[k] for k in ('equilibria', 'text', 'arrows', 'markers', 'frozen')),
               str(m)[:300])
-        evs = after({'cmd': 'redraw'})
+        evs = after({'cmd': 'window.redraw'})
         m = marks_of(evs)
         check('... a redraw brings the text and objects back', m is not None and len(m['text']) == 1
               and len(m['arrows']) == 1 and len(m['markers']) == 1, str(m)[:300])
@@ -4291,7 +4357,7 @@ def check_autoinfo():
         check("autoinfo: after the periodic run, the circle holds its last point's Floquet multipliers, as AUTO printed them",
               stab is not None and stab['periodic'] == 1 and 'eig' not in stab and close_pairs(stab['circle'], pr, 2e-5)
               and any(abs(complex(*z) - 1) < 1e-3 for z in stab['circle']), '%s vs %s' % (stab, pr))
-        snda(cmd='redraw')
+        snda(cmd='window.redraw')
         evs, _ = cola(is_idle)
         check('autoinfo: a redraw sends none (nothing it shows changed, nor on its way)', not infos(evs),
               '%d events, the first %s' % (len(infos(evs)), str(infos(evs)[:1])[:300]))
@@ -4301,7 +4367,7 @@ def check_autoinfo():
         evs, ask = cola(lambda e: e.get('ev') == 'ask')
         snda(cmd='answer', id=ask['id'], point=5, key='Return')
         evs, _ = cola(is_idle)
-        snda(cmd='redraw')
+        snda(cmd='window.redraw')
         evs, _ = cola(is_idle)
         sent = infos(evs)
         snda(cmd='data', events=['autoinfo'])  # sends what it holds, changed or not
@@ -5357,7 +5423,7 @@ def check_refused_during_run():
               [e.get('ev') for e in evs].count('computing') == 1, str([e.get('ev') for e in evs]))
         snd(cmd='key', key='s')  # Sing pts: a computation
         snd(cmd='key', key='c')  # Continue: a computation
-        snd(cmd='display', window='graph_1', x=[0, 50])  # a view: kept for after the run
+        snd(cmd='window.set_display', window='graph_1', x_range=[0, 50])  # a view: kept for after the run
         snd(cmd='browser', **{'from': 0, 'count': 1})  # only reads: answered during the run
         evs, rows = col(lambda e: e.get('ev') == 'browser')
         during = [e for e in evs if e.get('ev') in ('ask', 'idle', 'message')]
@@ -5427,7 +5493,7 @@ def check_busy_flood():
         snd(cmd='answer', id=ask['id'], key='g')
         col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
         for i in range(flood):  # a view command: kept for after the run
-            snd(cmd='display', window='graph_1', x=[0, 50], id=i)
+            snd(cmd='window.set_display', window='graph_1', x_range=[0, 50], id=i)
         evs, last = col(lambda e: e.get('ev') == 'message' and ('(id %d)' % (flood - 1)) in e.get('error', ''))
         busy = [e for e in evs if e.get('ev') == 'message' and e.get('error', '').startswith('Busy:')]
         ids = [int(re.search(r'\(id (\d+)\)', e['error']).group(1)) for e in busy]
@@ -5448,7 +5514,7 @@ def check_busy_flood():
         check('W389: the queue drains: every line it held ran with its own idle', done == MAX_PENDING_LINES, str(done))
         snd(cmd='state')
         evs, e = col(lambda x: x.get('ev') == 'state')
-        snd(cmd='display', window='graph_1', x=[0, 40], id=flood)
+        snd(cmd='window.set_display', window='graph_1', x_range=[0, 40], id=flood)
         evs, e = col(is_idle)
         check('W389: afterwards the session takes commands again (no Busy)',
               e is not None and not any(str(x.get('error', '')).startswith('Busy:') for x in evs), str(evs)[-200:])
@@ -6221,35 +6287,35 @@ def check_display_state():
               len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 1 and len(got) == 1
               and got[0]['rows'] == first['rows'] and got[0]['curves'] == first['curves']
               and {c['col']: values(c, None) for c in got[0]['columns']} == cols1, str(runs_of(evs))[:200])
-        evs = keys('r')
+        evs = after(cmd='window.redraw')
         check('display: Redraw preserves the retained trajectory without clearing it',
               all(e['clear'] == 0 and e['erased'] == 0 for e in runs_of(evs)))
         evs = after(cmd='data', events=['series', 'plots'])
         got = added(evs)
         check('display: retained values remain unchanged after Redraw',
               len(got) == 1 and {c['col']: values(c, None) for c in got[0]['columns']} == cols1)
-        evs = keys('e')
+        evs = after(cmd='window.clear')
         check('display: Erase forgets the earlier runs and hides the current one',
               len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 1 and runs_of(evs)[0]['erased'] == 1
               and not added(evs), str(runs_of(evs)))
-        evs = keys('r')
+        evs = after(cmd='window.redraw')
         check('display: Redraw unhides the current run without another history clear',
               len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 0 and runs_of(evs)[0]['erased'] == 0
               and not added(evs), str(runs_of(evs)))
 
-        evs = after(cmd='display', window='graph_1', x=[0, 10], y=[-0.5, 0.5], runs=False)
+        evs = after(cmd='window.set_display', window='graph_1', x_range=[0, 10], y_range=[-0.5, 0.5], show_earlier_runs=False)
         w = win1(evs)
         check('display: a zoom and the runs toggle are held by the window and sent in plots',
               w and w[-1]['zoom'] == {'x': [0, 10], 'y': [-0.5, 0.5]} and w[-1]['runs'] == 0, str(w))
-        evs = after(cmd='display', window='graph_1', x=None)
+        evs = after(cmd='window.set_display', window='graph_1', x_range=[])
         w = win1(evs)
         check('display: null returns one axis to the window own axes', w and w[-1]['zoom'] == {'x': None, 'y': [-0.5, 0.5]}, str(w))
-        evs = after(cmd='display', window='graph_1', x=[5, 1])
+        evs = after(cmd='window.set_display', window='graph_1', x_range=[5, 1])
         check('display: a range with low not below high is refused, the zoom unchanged',
-              any(e.get('ev') == 'message' and 'error' in e for e in evs) and not win1(evs), str(evs)[:200])
-        evs = after(cmd='display', window='graph_7', x=[0, 1])
+              any(e.get('ev') == 'done' and e.get('status') == 'error' for e in evs) and not win1(evs), str(evs)[:200])
+        evs = after(cmd='window.set_display', window='graph_7', x_range=[0, 1])
         check('display: an unknown window is refused',
-              any(e.get('ev') == 'message' and 'error' in e for e in evs), str(evs)[:200])
+              any(e.get('ev') == 'done' and e.get('status') == 'error' for e in evs), str(evs)[:200])
         evs = keys('w', {'key': 'w'}, {'ok': 1, 'values': ['-1', '1', '-1', '1']})
         w = win1(evs)
         check('display: other axes of the window drop the zoom', w and w[-1]['zoom'] == {'x': None, 'y': None}, str(w))
@@ -6467,7 +6533,7 @@ def check_export_elements():
             # each arrow is a path with a dot at its head
             check('W346: ' + fmt + ' holds all 25 requested field arrows', counts['dot', '#000000'] == 25, str(counts))
         annotations = go + [
-            {'cmd': 'annotation', 'op': 'add_text', 'window': 'graph_1', 'x': 0.2, 'y': 0.4, 'text': 'W346label'},
+            {'cmd': 'annotation.add_text', 'window': 'graph_1', 'x': 0.2, 'y': 0.4, 'text': 'W346label'},
             {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'f'},
             {'cmd': 'answer', 'key': 'f'}, {'cmd': 'answer', 'values': ['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'W346frozen', 'frz1']}]
         for fmt in ('pdf', 'svg'):
@@ -7104,7 +7170,7 @@ def check_session_file():
         answered(snd, col, (), cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.4},
                                                   {'kind': 'ic', 'name': 'V', 'value': -0.3}])
         key(snd, col, 'i', 'g')
-        answered(snd, col, (), cmd='display', window='graph_1', x=[0, 50], y=[-0.5, 0.3], runs=False)
+        answered(snd, col, (), cmd='window.set_display', window='graph_1', x_range=[0, 50], y_range=[-0.5, 0.3], show_earlier_runs=False)
         answered(snd, col, (), cmd='auto', op='display', x=[0.05, 0.3], y=None)
         # W50: a second view of the diagram, the norm, with a zoom of its own; the first active again
         answered(snd, col, (), cmd='auto', op='view', new=1)
@@ -7381,7 +7447,7 @@ def check_session_file():
             ('labelempty', lambda m: m.__setitem__('marks.setx', label_marks(text='""')),
              ('labelempty.snapx/marks.setx:12:', 'a text is not empty')),
             ('labellong', lambda m: m.__setitem__('marks.setx', label_marks(text='"' + 'x' * 1001 + '"')),
-             ('labellong.snapx/marks.setx:12:', 'at most 1000 characters')),
+             ('labellong.snapx/marks.setx:12:', 'at most 1000')),
             # W513: ids are checked at their line: below next_annotation_id, each above the one before, none shared by two kinds
             ('labelid', lambda m: m.__setitem__('marks.setx', label_marks(id='1')),
              ('labelid.snapx/marks.setx:4:', '1 is not an id below next_annotation_id 1')),
@@ -7914,7 +7980,7 @@ def check_recording():
         snd(cmd='abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         stopped = [e['at'] for e in evs if e.get('ev') == 'stopped']
-        run(cmd='display', window='graph_1', x=[0, 50])
+        run(cmd='window.set_display', window='graph_1', x_range=[0, 50])
         st = last_state(run(cmd='set', kind='par', name='iapp', value=0.1))
         check('record: state counts the steps taken', st and st['recording']['steps'] == 8, str(st and st.get('recording')))
         evs = run(cmd='record', op='stop', name='mine')
@@ -7945,7 +8011,7 @@ def check_recording():
               len(s) > 5 and s[5].get('keys') == ['i', 'g'] and stopped and s[5].get('abort') == stopped[0]
               and stopped[0]['what'] == 'integrate', str(s[5:6]) + str(stopped))
         check('record: a zoom is a view step with its command; a set a step of its own',
-              s[6:8] == [{'step': 'Zoom window graph_1', 'cmd': {'cmd': 'display', 'window': 'graph_1', 'x': [0, 50]}, 'view': True},
+              s[6:8] == [{'step': 'Zoom window graph_1', 'cmd': {'cmd': 'window.set_display', 'window': 'graph_1', 'x_range': [0, 50]}, 'view': True},
                          {'step': 'Set iapp = 0.1', 'cmd': {'cmd': 'set', 'kind': 'par', 'name': 'iapp', 'value': 0.1}}]
               and len(s) == 8, str(s[6:]))
         check('record: the fingerprint is the files\' and steps\' SHA-256', written == got and len(got) == 64, '%s %s' % (written, got))
@@ -7961,7 +8027,7 @@ def check_recording():
         run(cmd='key', key='f')
         run(cmd='key', key='d')
         run(cmd='values', op='read', kind='par', name='saved.par')
-        run(cmd='key', key='e')
+        run(cmd='window.clear')
         run(cmd='key', key='f')
         snd(cmd='key', key='d')
         evs, ask = col(lambda e: is_ask(e) or is_idle(e))
@@ -7974,7 +8040,7 @@ def check_recording():
         check('File/recorD: the steps between (the file a step read named by its section), and not the File menu opened to stop',
               [x for x, _ in steps] == [{'step': 'Values read', 'cmd': {'cmd': 'values', 'op': 'read', 'kind': 'par', 'name': 'saved.par'},
                                          'files': [1]},
-                                        {'step': 'Clear plot', 'keys': ['e'], 'view': True}] and written == got, str(steps))
+                                        {'step': 'Clear plot', 'cmd': {'cmd': 'window.clear'}, 'view': True}] and written == got, str(steps))
         par = open(os.path.join(r, 'saved.par'), encoding='utf-8').read().splitlines()
         check('record: a file the session read while recording is embedded after the model',
               list(files) == [ode, 'saved.par'] and files['saved.par'] == par, str(list(files)))
@@ -8434,7 +8500,7 @@ def check_ode_open():
               rename and rename.get('kind') == 'string' and rename.get('value') == 'and_', str(rename))
         snd(cmd='answer', id=rename['id'], ok=False)
         col(is_idle)
-        snd(cmd='redraw')
+        snd(cmd='window.redraw')
         kept, _ = col(is_idle)
         check('ode open: cancelling the name keeps the model and writes nothing',
               not os.path.exists(converted) and last_state(kept)['pars'] == original['pars'])
@@ -8937,7 +9003,7 @@ def check_start_screen():
         snd(cmd='answer', id=ask['id'], ok=0)
         evs, _ = col(is_idle)
         check('W232: Cancel at the start leaves the start screen: no error, no exit', not errors(evs) and p.poll() is None, str(evs)[-300:])
-        for cmd in ({'cmd': 'state'}, {'cmd': 'key', 'key': 'i'}, {'cmd': 'redraw'}):
+        for cmd in ({'cmd': 'state'}, {'cmd': 'key', 'key': 'i'}):
             snd(**cmd)
             evs, _ = col(is_idle)
             err = errors(evs)

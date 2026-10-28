@@ -170,6 +170,7 @@ struct Command {
 /* Every resource's table, joined in command_registry.cpp's TABLES: a card
    that moves a resource's commands adds its file's function there. */
 std::span<const Command> window_commands();
+std::span<const Command> annotation_commands();
 
 /* Check the line's arguments against the row and give them typed, or the
    first fault (all or nothing: a handler runs only on success). session

@@ -8,11 +8,16 @@
 #include "json_error.h"
 #include "many_pops.h"
 #include "auto_nox.h"
+#include "graf_par.h"
+#include "graphics.h"
+#include "model_options.h"
+#include "plot_data.h"
 #include "session.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
 #include <algorithm>
 #include <array>
+#include <tuple>
 
 namespace xpp::command {
 namespace {
@@ -39,11 +44,202 @@ Result<std::string> named_by_user(const Command &command, std::string_view name,
                                           window_kind_name(kind)), place);
 }
 
+/* the active graph while an operation on another one runs (the core's drawing code works on the active window) */
+class ActiveGraph {
+public:
+    ActiveGraph(Session &s, int index) : s_(s), previous_(s.plot_windows.active)
+    {
+        if (index != previous_) make_active(s_, index, 1);
+    }
+    ~ActiveGraph()
+    {
+        if (s_.plot_windows.active != previous_) make_active(s_, previous_, 1);
+    }
+    ActiveGraph(const ActiveGraph &) = delete;
+    ActiveGraph &operator=(const ActiveGraph &) = delete;
+
+private:
+    Session &s_;
+    int previous_;
+};
+
 std::string window_result(std::string_view name)
 {
     std::string result = "{\"window\":";
     json_append_string(result, name);
     return result;
+}
+
+std::string bounds_result(const Session &s)
+{
+    const GRAPH &g = *s.plot_windows.current;
+    return xpp::format("{{\"x_min\":{},\"x_max\":{},\"y_min\":{},\"y_max\":{}}}", xpp::number(g.xlo), xpp::number(g.xhi),
+                       xpp::number(g.ylo), xpp::number(g.yhi));
+}
+
+/* the graph the command acts on: `window`, or the selected one */
+Result<int> graph_of_command(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const std::string name = target_name(s, args);
+    const auto target = find_window(s, name);
+    if (!target) return std::unexpected<Error>(unknown_window(command, name, place).error());
+    if (target->kind != WindowKind::graph) return fail(command.name, xpp::format("\"{}\" is not a graph", name), place);
+    return target->index;
+}
+
+/* the bounds of the active graph's view after an operation on it */
+using BoundsOperation = void (*)(Session &, const Arguments &);
+
+Result<std::string> change_view(Session &s, const Command &command, const Arguments &args, const Place &place, BoundsOperation operate)
+{
+    const Result<int> index = graph_of_command(s, command, args, place);
+    if (!index) return std::unexpected<Error>(index.error());
+    const ActiveGraph active(s, *index);
+    operate(s, args);
+    set_normal_scale(s);
+    return bounds_result(s);
+}
+
+/* what the box arguments say, over the view now: an argument left out keeps the view's */
+struct Box { double x_min, x_max, y_min, y_max; };
+Box box_of(const Session &s, const Arguments &args)
+{
+    const GRAPH &g = *s.plot_windows.current;
+    return {args.optional<double>("x_min").value_or(g.xlo), args.optional<double>("x_max").value_or(g.xhi),
+            args.optional<double>("y_min").value_or(g.ylo), args.optional<double>("y_max").value_or(g.yhi)};
+}
+
+/* the order of a box's ends, once, with the argument names */
+Result<> box_problem(const Command &command, const Box &box, const Place &place)
+{
+    for (const auto &[lo_name, lo, hi_name, hi] : {std::tuple{"x_min", box.x_min, "x_max", box.x_max}, std::tuple{"y_min", box.y_min, "y_max", box.y_max}})
+        if (const auto bad = order_problem(lo_name, lo, hi_name, hi, true)) return fail(command.name, *bad, place);
+    return {};
+}
+
+/* an operation on the active graph's view with the box the arguments give (a bound left out keeps the view's) */
+using BoxOperation = void (*)(Session &, const Box &);
+
+Result<std::string> change_box(Session &s, const Command &command, const Arguments &args, const Place &place, BoxOperation operate)
+{
+    const Result<int> index = graph_of_command(s, command, args, place);
+    if (!index) return std::unexpected<Error>(index.error());
+    const ActiveGraph active(s, *index);
+    const Box box = box_of(s, args);
+    if (const Result<> bad = box_problem(command, box, place); !bad) return std::unexpected<Error>(bad.error());
+    operate(s, box);
+    set_normal_scale(s);
+    return bounds_result(s);
+}
+
+Result<std::string> set_bounds(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    return change_box(s, command, args, place, [](Session &session, const Box &box) { update_view(session, box.x_min, box.x_max, box.y_min, box.y_max); });
+}
+
+Result<std::string> zoom(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    return change_box(s, command, args, place, [](Session &session, const Box &box) { zoom_in(session, box.x_min, box.y_min, box.x_max, box.y_max); });
+}
+
+Result<std::string> zoom_out_window(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const Result<int> index = graph_of_command(s, command, args, place);
+    if (!index) return std::unexpected<Error>(index.error());
+    const ActiveGraph active(s, *index);
+    const GRAPH &g = *s.plot_windows.current;
+    if (const auto factor = args.optional<double>("factor")) {
+        const double cx = args.optional<double>("center_x").value_or((g.xlo + g.xhi) / 2);
+        const double cy = args.optional<double>("center_y").value_or((g.ylo + g.yhi) / 2);
+        zoom_out_by(s, cx, cy, *factor);
+    } else {
+        if (args.has("center_x")) return fail(command.name, "center_x and center_y go with factor, not with a box", place);
+        const Box box = box_of(s, args);
+        if (const Result<> bad = box_problem(command, box, place); !bad) return std::unexpected<Error>(bad.error());
+        zoom_out(s, box.x_min, box.y_min, box.x_max, box.y_max);
+    }
+    set_normal_scale(s);
+    return bounds_result(s);
+}
+
+Result<std::string> fit(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    return change_view(s, command, args, place, [](Session &session, const Arguments &) { fit_window(session); });
+}
+
+Result<std::string> reset_default(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    return change_view(s, command, args, place, [](Session &session, const Arguments &) { default_window(session); });
+}
+
+Result<std::string> scroll(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const Result<int> index = graph_of_command(s, command, args, place);
+    if (!index) return std::unexpected<Error>(index.error());
+    const ActiveGraph active(s, *index);
+    const GRAPH &g = *s.plot_windows.current;
+    const double dx = args.get<double>("dx"), dy = args.get<double>("dy");
+    update_view(s, g.xlo + dx, g.xhi + dx, g.ylo + dy, g.yhi + dy);
+    set_normal_scale(s);
+    return xpp::format("{{\"new_center\":[{},{}]}}", xpp::number((g.xlo + g.xhi) / 2), xpp::number((g.ylo + g.yhi) / 2));
+}
+
+/* [] (or the argument left out) is the window's own range */
+Result<> read_range(const Command &command, const Arguments &args, const char *name, AxisRange &range, const Place &place)
+{
+    if (!args.has(name)) return {};
+    const std::vector<double> values = args.list<double>(name);
+    if (values.empty()) {
+        range = AxisRange();
+        return {};
+    }
+    if (values.size() != 2) return fail(command.name, xpp::format("{} is [low, high], or [] for the window's own range", name), place);
+    if (const auto bad = order_problem(xpp::format("{} low", name), values[0], xpp::format("{} high", name), values[1], true))
+        return fail(command.name, *bad, place);
+    range = {true, values[0], values[1]};
+    return {};
+}
+
+std::string range_result(const AxisRange &range)
+{
+    return range.set ? xpp::format("[{},{}]", xpp::number(range.lo), xpp::number(range.hi)) : "[]";
+}
+
+Result<std::string> set_display(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const Result<int> index = graph_of_command(s, command, args, place);
+    if (!index) return std::unexpected<Error>(index.error());
+    PlotDisplay &display = s.plot_display[static_cast<std::size_t>(*index)];
+    Zoom zoom = display.zoom;
+    for (const auto &[name, range] : {std::pair<const char *, AxisRange *>{"x_range", &zoom.x}, {"y_range", &zoom.y}})
+        if (const Result<> read = read_range(command, args, name, *range, place); !read) return std::unexpected<Error>(read.error());
+    display.zoom = zoom;
+    if (const auto runs = args.optional<bool>("show_earlier_runs")) display.show_runs = *runs;
+    if (const auto keep = args.optional<bool>("keep_replaced_run")) display.freeze_runs = *keep;
+    return xpp::format("{{\"x_range\":{},\"y_range\":{}}}", range_result(display.zoom.x), range_result(display.zoom.y));
+}
+
+Result<std::string> redraw(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const std::string name = target_name(s, args);
+    const auto target = find_window(s, name);
+    if (!target) return unknown_window(command, name, place);
+    if (target->kind == WindowKind::diagram) ui.redraw_diagram_for_client(s);
+    else if (target->kind == WindowKind::graph) {
+        const ActiveGraph active(s, target->index);
+        ui.redraw_graph(s);
+        plot_data_picture(s, 1); /* a data client draws the current data again */
+    } else return fail(command.name, xpp::format("\"{}\" is the {} window: this applies to a graph or an AUTO view", name, window_kind_name(target->kind)), place);
+    return window_result(name) + ",\"redrawn\":true}";
+}
+
+Result<std::string> clear(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const Result<int> index = graph_of_command(s, command, args, place);
+    if (!index) return std::unexpected<Error>(index.error());
+    const ActiveGraph active(s, *index);
+    clear_windows(s);
+    return window_result(target_name(s, args)) + ",\"cleared\":true}";
 }
 
 Result<std::string> create_window(Session &s, const Command &, const Arguments &args, const Place &)
@@ -199,6 +395,33 @@ constexpr std::array RENAME_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, true
 constexpr std::array SELECT_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, true}};
 constexpr std::array WINDOW_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false}};
 constexpr std::array DESTROY_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false}, Argument{CONFIRM_KEY, Type::boolean, false}};
+constexpr std::array BOX_NAMES = {"x_min", "x_max", "y_min", "y_max"};
+constexpr std::array CENTER_NAMES = {"center_x", "center_y"};
+constexpr std::array FACTOR_OR_BOX = {"factor", "x_min"};
+constexpr std::array BOUNDS_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false}, Argument{"x_min", Type::real, false},
+    Argument{"x_max", Type::real, false}, Argument{"y_min", Type::real, false}, Argument{"y_max", Type::real, false}};
+constexpr std::array ZOOM_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false}, Argument{"x_min", Type::real, true},
+    Argument{"x_max", Type::real, true}, Argument{"y_min", Type::real, true}, Argument{"y_max", Type::real, true}};
+constexpr std::array ZOOM_OUT_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false},
+    Argument{"factor", Type::real, false, MAX_TEXT_BYTES, {}, constant(1)}, Argument{"center_x", Type::real, false},
+    Argument{"center_y", Type::real, false}, Argument{"x_min", Type::real, false}, Argument{"x_max", Type::real, false},
+    Argument{"y_min", Type::real, false}, Argument{"y_max", Type::real, false}};
+constexpr std::array ZOOM_OUT_GROUPS = {Group{GroupRule::exactly_one, FACTOR_OR_BOX}, Group{GroupRule::together, BOX_NAMES},
+                                        Group{GroupRule::together, CENTER_NAMES}};
+constexpr std::array BOX_GROUPS = {Group{GroupRule::together, BOX_NAMES}};
+constexpr std::array SCROLL_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false}, Argument{"dx", Type::real, true},
+                                         Argument{"dy", Type::real, true}};
+constexpr std::array DISPLAY_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false},
+    Argument{"x_range", Type::list, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::real, 2},
+    Argument{"y_range", Type::list, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::real, 2},
+    Argument{"show_earlier_runs", Type::boolean, false}, Argument{"keep_replaced_run", Type::boolean, false}};
+constexpr std::array BOUNDS_RESULTS = {ResultField{"x_min", "real"}, ResultField{"x_max", "real"}, ResultField{"y_min", "real"},
+                                       ResultField{"y_max", "real"}};
+constexpr std::array SCROLL_RESULTS = {ResultField{"new_center", "list of 2 real"}};
+constexpr std::array DISPLAY_RESULTS = {ResultField{"x_range", "list of 2 real, or []"}, ResultField{"y_range", "list of 2 real, or []"}};
+constexpr std::array REDRAWN_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{"redrawn", "boolean"}};
+constexpr std::array CLEARED_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{"cleared", "boolean"}};
+constexpr std::array PLOT_EVENTS = {"plots", "state", "done"};
 constexpr std::array REDRAW_CHOICES = {"auto", "manual"};
 constexpr std::array MODE_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false},
                                        Argument{"mode", Type::choice, true, MAX_TEXT_BYTES, REDRAW_CHOICES}};
@@ -238,6 +461,26 @@ constexpr std::array ROWS = {
             "List every window with its name, kind and whether it is shown.", LIST_RESULTS, STATE_EVENTS, true, list_windows_result},
     Command{"window.destroy_all", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Make window/Kill all", "MK",
             "Close every extra graph.", CLOSE_ALL_RESULTS, WINDOW_EVENTS, true, destroy_all},
+    Command{"window.set_bounds", BOUNDS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Window/Window", "WW",
+            "Set the view's bounds; a bound left out keeps the view's.", BOUNDS_RESULTS, PLOT_EVENTS, true, set_bounds},
+    Command{"window.zoom", ZOOM_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Window/Zoom In", "WZ",
+            "Zoom in: the view becomes the box.", BOUNDS_RESULTS, PLOT_EVENTS, true, zoom, BOX_GROUPS},
+    Command{"window.zoom_out", ZOOM_OUT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Window/Zoom Out", "WO",
+            "Zoom out: the view grows by factor about a center (the view's own), or fills the box.", BOUNDS_RESULTS, PLOT_EVENTS, true,
+            zoom_out_window, ZOOM_OUT_GROUPS},
+    Command{"window.fit", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Window/Fit", "WF",
+            "Fit the view to the data.", BOUNDS_RESULTS, PLOT_EVENTS, true, fit},
+    Command{"window.reset_default", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Window/Default", "WD",
+            "Give the view its default bounds.", BOUNDS_RESULTS, PLOT_EVENTS, true, reset_default},
+    Command{"window.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Window/Scroll", "WS",
+            "Move the view by dx and dy, in plot coordinates.", SCROLL_RESULTS, PLOT_EVENTS, true, scroll},
+    Command{"window.set_display", DISPLAY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
+            "Set what the page shows of a graph: the x and y ranges ([] for the window's own), the earlier runs, keeping a replaced run.",
+            DISPLAY_RESULTS, PLOT_EVENTS, true, set_display},
+    Command{"window.redraw", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Redraw plot", "R",
+            "Draw a graph again from the stored data (and its nullclines, texts and frozen curves), or send an AUTO view's diagram again.", REDRAWN_RESULTS, PLOT_EVENTS, false, redraw},
+    Command{"window.clear", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Clear plot", "E",
+            "Clear a graph: its picture and earlier runs go until the next run.", CLEARED_RESULTS, PLOT_EVENTS, true, clear},
     Command{"window.send_to_bottom", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Make window/Bottom", "MB",
             "Send a graph to the bottom.", WINDOW_RESULTS, STATE_EVENTS, true, send_to_bottom},
     Command{"window.set_redraw_mode", MODE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Make window/Auto or Manual", "MA/MM",

@@ -383,9 +383,9 @@ async function desktop(want) {
   await mouse('mouseReleased', cx, cy, {button: 'left', clickCount: 2});
   check("a double click goes back to the core's window", await until('w.viewport.x === null && w.viewport.y === null', 'reset'));
   /* W65: the zoom shown is the core's: every change went to it as a display command, the last one back to its own axes */
-  check('the zoom went to the core (display commands), the last one the reset',
-    await until(`(() => { const d = __xpp.sent().filter(c => c.cmd === 'display' && c.window === 'graph_1');
-      return d.length >= 3 && d.some(c => c.x && c.x[1] - c.x[0] < ${width(z1.x)}) && d[d.length - 1].x === null && d[d.length - 1].y === null; })()`,
+  check('the zoom went to the core (window.set_display commands), the last one the reset',
+    await until(`(() => { const d = __xpp.sent().filter(c => c.cmd === 'window.set_display' && c.window === 'graph_1');
+      return d.length >= 3 && d.some(c => c.x_range && c.x_range.length === 2 && c.x_range[1] - c.x_range[0] < ${width(z1.x)}) && d[d.length - 1].x_range.length === 0 && d[d.length - 1].y_range.length === 0; })()`,
       'display commands'));
   await mouse('mouseMoved', 5, 5);
 
@@ -1004,7 +1004,7 @@ async function phasePlane() {
   check('... drawn, "Flow" in the legend, the field still there', v && v.label === 'Flow' && v.count === 72 && v.drawn > 72
     && (await layer('dfield'))?.drawn === 289, JSON.stringify(v));
 
-  await key('e'); /* Erase */
+  await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'graph_1'})`); /* Erase */
   check('Erase clears them: nothing in the store, nothing drawn, no legend entries',
     await until('!s.busy && w.nullclines && w.nullclines.x.length === 0 && w.dfield && w.dfield.n === 0 && w.dfield.flows.length === 0', 'erase')
     && (await P()).layers.length === 0 && await cdp.eval(`document.querySelectorAll('.legend-item.layer').length === 0`));
@@ -1080,7 +1080,7 @@ async function marks() {
     await dbl(at[0], at[1]);
     return await until("!!document.querySelector('[data-text-dialog]')", 'text dialog');
   };
-  const sentText = () => cdp.eval(`__xpp.sent().filter(c => c.cmd === 'annotation')`);
+  const sentText = () => cdp.eval(`__xpp.sent().filter(c => c.cmd.startsWith('annotation'))`);
   const viewBefore = await S('JSON.stringify(w.viewport)');
   check('W227: double click on the text opens the dialog filled in (text as written, size, style, colour, position)',
     await openDialog() && JSON.stringify(await dialog()).includes('"text":"\\\\1a\\\\0-point","size":"3","style":"1"')
@@ -1104,8 +1104,8 @@ async function marks() {
     && await S("(() => { const x = w.marks.text[0]; return x.size === 0 && x.style === 3 && x.color === '#0000ff80'"
       + " && Math.abs(x.x - 0.25) < 1e-6 && Math.abs(x.y - 0.4) < 1e-6; })()")
     && JSON.stringify(await sentText()) === JSON.stringify([
-      {cmd: 'annotation', op: 'edit', id: await S('w.marks.text[0].id'), text: 'plain words', size: 0, style: 3, color: '#0000ff80'},
-      {cmd: 'annotation', op: 'move', id: await S('w.marks.text[0].id'), new_x: 0.25, new_y: 0.4}])
+      {cmd: 'annotation.edit', annotation_id: await S('w.marks.text[0].id'), text: 'plain words', size: 0, style: 3, color: '#0000ff80'},
+      {cmd: 'annotation.move', annotation_id: await S('w.marks.text[0].id'), new_x: 0.25, new_y: 0.4}])
     && !(await cdp.eval("!!document.querySelector('[data-text-dialog]')")),
     JSON.stringify({marks: await S('w.marks.text'), sent: (await sentText()).at(-1)}));
   check('... drawn once, in the new look', (await layer('text'))?.drawn === 1);
@@ -1116,7 +1116,7 @@ async function marks() {
   check('W227: Delete in the dialog removes the text: none in the store, none drawn, the legend entry gone',
     await openDialog() && (await cdp.eval("document.querySelector('[data-text-delete]').click(); true"), true)
     && await until("w.marks && w.marks.text.length === 0", 'deleted') && (await layer('text')) === null
-    && !(await legendLabels()).includes('Text') && (await sentText()).at(-1).op === 'delete',
+    && !(await legendLabels()).includes('Text') && (await sentText()).at(-1).cmd === 'annotation.delete',
     JSON.stringify({marks: await S('w.marks.text'), sent: (await sentText()).at(-1)}));
   await addText({value: '\\1a\\0-point', size: 3, style: 1, color: '#ffcd00'});
   check('W227: the text added again is as the first was',
@@ -1178,7 +1178,7 @@ async function marks() {
     (await layer('text')).drawn === 1 && pressed === 'true' && !f0.visible && f0.drawn === 0, JSON.stringify(f0));
   await legend('first run');
 
-  await key('e'); /* Erase */
+  await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'graph_1'})`); /* Erase */
   check('Erase clears them: no marks in the store, none drawn, no legend entries',
     await until('!s.busy && w.marks && w.marks.text.length === 0 && w.marks.equilibria.length === 0 && w.marks.frozen.length === 0', 'erase')
     && (await P()).layers.length === 0 && (await legendLabels()).length === 0);
@@ -1783,9 +1783,9 @@ async function threePlot() {
     await cdp.eval(`!!document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit')`));
   const sentBeforeFit = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit').click()`);
-  check("the corner Fit sends the core's Window/Fit (w, f) as keys, as the 2D toolbar's Fit does",
+  check("the corner Fit sends the core's window.fit, as the 2D toolbar's Fit does",
     await until('!s.busy', 'fit settled')
-      && (await cdp.eval(`__xpp.sentFrom(${sentBeforeFit}).some(c => c.cmd === 'key' && (c.key === 'w' || c.key === 'f'))`)),
+      && (await cdp.eval(`__xpp.sentFrom(${sentBeforeFit}).some(c => c.cmd === 'window.fit')`)),
     JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentBeforeFit})`)));
 
   /* W223: the 3D View form's Xlabel/Ylabel/Zlabel are the plot's axis titles, and clearing them goes back to the column names */
@@ -1977,7 +1977,7 @@ const focusPlot = () => cdp.eval(`document.querySelector('.plot-view:not([hidden
    displayTold(mark) waits for one after it. */
 const displays = () => cdp.eval('__xpp.sentCount()');
 const displayTold = (mark, what = 'the display told') =>
-  until(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'display' || (c.cmd === 'auto' && c.op === 'display')) && !s.busy`, what);
+  until(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'window.set_display' || (c.cmd === 'auto' && c.op === 'display')) && !s.busy`, what);
 
 async function menuKeys(first, then) {
   await key(first);
@@ -2822,7 +2822,7 @@ async function autoView(dir) {
   check('T21: Axes/Norm, OK: the diagram holds all its points again, in norms, without a reDraw',
     await until(`!s.busy && dv.axes.plot === 'norm' && dv.points.x.length === ${nAll}`, 'norm axes')
     && JSON.stringify(await DS('d.points.y.slice(0, 50)')) !== JSON.stringify(y0)
-    && !(await cdp.eval(`__xpp.sentFrom(${sentAxes}).some(c => c.cmd === 'redraw' || (c.win === 'auto' && c.key === 'd'))`))
+    && !(await cdp.eval(`__xpp.sentFrom(${sentAxes}).some(c => c.cmd === 'window.redraw' || (c.win === 'auto' && c.key === 'd'))`))
     && (await DG()).curves.length > 0, JSON.stringify(await DS('[d.axes, d.points.x.length]')));
   /* and the axis dialog does the same: hI-lo from its Plots select, then a Fit */
   await cdp.eval(`document.querySelector('.auto-axis-name[data-axis=y]').click()`);
@@ -3497,7 +3497,7 @@ async function busyKeys() {
       newWindow: tool('New window').disabled,
       save: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').disabled,
       stop: document.querySelector('.status-bar button.danger').disabled,
-      viewItems: ['xivst', 'restore', 'erase', 'nullcline', 'dirfield', 'graphic', 'text', 'kinescope'].every(id => !item(id).disabled),
+      viewItems: ['xivst', 'nullcline', 'dirfield', 'graphic', 'text', 'kinescope'].every(id => !item(id).disabled),
     };
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
@@ -3722,7 +3722,7 @@ async function playerCheck(dir) {
   await until(`s.core.recording.note === 'The cell fires once.' && !s.busy`, 'note');
   await cdp.eval(`document.querySelector('.run-toolbar button.primary').click()`);
   await until(`s.core.recording.steps === 1 && !s.busy`, 'integrated', 20000);
-  await key('e');
+  await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'graph_1'})`);
   await until(`s.core.recording.steps === 2 && !s.busy`, 'erased');
   await cdp.eval(`document.querySelector('.recbar .rec-stop').click()`);
   await until(`s.ask && s.ask.kind === 'file'`, 'file ask');
@@ -4315,7 +4315,7 @@ async function keymapEditorCheck() {
     await until(`s.keymap.info.pinned.length === 2`, 'two pins');
     await rendered();
     check('keymapeditor: two pins fit: no More, both shown', await cdp.eval(`!document.querySelector('.quick-more') && document.querySelectorAll('[data-pinned]:not(.quick-over)').length === 2`));
-    const all = ['calculator', 'reload', 'dirfield', 'singpts', 'graphic', 'colorcode', 'xivst', 'text', 'nullcline', 'restore', 'erase', 'delay', 'parameters', 'total_time', 'method'];
+    const all = ['calculator', 'reload', 'dirfield', 'singpts', 'graphic', 'colorcode', 'xivst', 'text', 'nullcline', 'delay', 'parameters', 'total_time', 'method'];
     await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ${JSON.stringify(all)}, bindings: {}}})`);
     await until(`s.keymap.info.pinned.length === ${all.length}`, 'many pins');
     const reach = () => cdp.eval(`(() => { const t = document.querySelector('.quick-access');
@@ -4580,12 +4580,12 @@ async function runsCheck(dir) {
 
   /* Erase blanks the picture, Redraw draws the current data again */
   await focusPlot();
-  await key('e');
+  await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'graph_1'})`);
   check('runs: Erase clears the picture and the shown runs',
     await until('!s.busy && w.history.erased && w.history.runs.length === 0 && __xpp.plot().curves[0].points === 0 && __xpp.plot().runs.count === 0', 'erase'),
     JSON.stringify(await S('w.history')));
   await focusPlot();
-  await key('r');
+  await cdp.eval(`__xpp.send({cmd: 'window.redraw', window: 'graph_1'})`);
   check('runs: Redraw shows the current data again',
     await until('!s.busy && !w.history.erased && __xpp.plot().curves[0].points === 601', 'redraw'), JSON.stringify(await S('w.history')));
 
@@ -4623,11 +4623,11 @@ async function runsCheck(dir) {
   /* W95 (#143): a click while the page is busy with a command of its own (a redraw here, as its
      catch-up after an idle is) goes out and runs in its turn: Save is sent right behind it */
   const sentSave = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`(() => { __xpp.send({cmd: 'redraw'});
+  await cdp.eval(`(() => { __xpp.send({cmd: 'window.redraw'});
     [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').click(); })()`);
   const behind = await cdp.eval(`__xpp.sentFrom(${sentSave}).map(c => c.cmd + (c.op ? ' ' + c.op : ''))`);
   check('W95: a click right behind a command the page sent itself is not lost (Save behind a redraw goes out)',
-    JSON.stringify(behind) === JSON.stringify(['redraw', 'values write']), JSON.stringify(behind));
+    JSON.stringify(behind) === JSON.stringify(['window.redraw', 'values write']), JSON.stringify(behind));
   await until("s.files.offered && s.files.offered.name.endsWith('.par') && !s.busy", 'par saved');
   const parName = await S('s.files.offered.name');
   const saved = fs.readFileSync(path.join(dir, parName), 'utf8').replace(/\r\n/g, '\n');

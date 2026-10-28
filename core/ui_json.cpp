@@ -450,6 +450,7 @@ XppUi make_json_ui(void)
     u.window_renamed = j_window_renamed;
     u.auto_closed = j_auto_closed;
     u.tool_window_closed = j_tool_window_closed;
+    u.redraw_diagram_for_client = auto_redraw_for_client;
     u.lower_plot_window = j_void;
     u.cput_text = j_cput_text;
     u.get_draw_size = j_get_draw_size;
@@ -637,13 +638,6 @@ const CommandInfo commands[] = {
     {"state", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_state(s); }},
     {"data", nullptr, V, NOT_STEP, data_command},
     {"equations", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_equations(s); }},
-    {"display", nullptr, V, STEP, display_command},
-    {"annotation", nullptr, V, STEP, annotation_command},
-    {"redraw", nullptr, V, NOT_STEP,
-     [](xpp::Session &s, const char *) {
-         redraw_graph(s);
-         auto_redraw_for_client(s);
-     }},
     {"plotvars", nullptr, V, STEP, plotvars_command},
     {"aplot", nullptr, V, STEP, aplot_command},
     {"colormap", nullptr, S, STEP, colormap_command},

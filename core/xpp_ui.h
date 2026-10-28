@@ -271,6 +271,7 @@ typedef struct XppUi {
     void (*window_renamed)(Session &s, std::string_view old_name, std::string_view new_name);
     void (*auto_closed)(Session &s, std::string_view name);
     void (*tool_window_closed)(Session &s, std::string_view name, std::string_view kind); /* the animation or array plot window destroyed */
+    void (*redraw_diagram_for_client)(Session &s); /* the AUTO diagram sent to the client again, from its first point */
     void (*lower_plot_window)(void);   /* put the active one at the bottom */
     /* Text,etc (T)ext: ask for a label, place it with the mouse, draw it
        and add_label() it */
