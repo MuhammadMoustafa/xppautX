@@ -184,6 +184,10 @@ static void hl_record_toggle(Session &) { xpp::log(XPP_LOG_WARN, "Recording need
 static void hl_play_recording(Session &, std::string_view) { xpp::log(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
 static bool hl_recording(void) { return false; }
 static bool hl_save_recording(Session &) { return true; }
+static Result<std::string> hl_front_end_command(Session &, const command::Command &, const command::Arguments &, const Place &place)
+{
+    return fail("command", "This command needs the page or --server", place);
+}
 static void hl_exit_program(void) { log_exit(); }
 
 XppTextMetrics text_metrics;
@@ -281,6 +285,7 @@ XppUi ui = {
     .play_recording = hl_play_recording,
     .recording = hl_recording,
     .save_recording = hl_save_recording,
+    .front_end_command = hl_front_end_command,
     .exit_program = hl_exit_program,
 };
 

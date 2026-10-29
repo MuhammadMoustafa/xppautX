@@ -74,8 +74,8 @@ export function TitleBar() {
   const helpOpen = useStore(s => s.help.open);
   const may = useMay();
   const recording = useStore(s => !!s.core?.recording);
-  const mayRecord = may({cmd: 'record', op: 'start'});
-  const mayPlay = may({cmd: 'play', op: 'open'});
+  const mayRecord = may({cmd: 'recording.start'});
+  const mayPlay = may({cmd: 'recording.open'});
   const setTheme = () => {
     const t = NEXT_THEME[theme];
     saveTheme(t);

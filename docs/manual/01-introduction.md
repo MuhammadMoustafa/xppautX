@@ -344,3 +344,16 @@ are `{"cmd":"help"}` and `{"cmd":"help","name":"help"}`.
 A registry request finishes with a `done` event; existing commands still
 finish with `idle`. The registry includes named plot-window management; use `help window.rename`
 for the rename command. See the [protocol reference](../protocol.md#typed-command-registry-w353-stage-1).
+
+The File menu's operations are registry commands too, so a script can do
+everything the menu does: `session.open_model`, `session.reload_model`,
+`session.open`, `session.save`, `session.save_as`, `session.save_copy`,
+`session.import_settings`, `session.export_info`, `session.get_source` and
+`session.quit` (for example `session.save_as --file mysession`, or
+`session.quit --save false` to leave at once); `recording.start`,
+`recording.stop` and the player's `recording.open`, `recording.play`,
+`recording.pause`, `recording.step`, `recording.set_speed`,
+`recording.seek` and `recording.close`; the calculator as `tool.calculator`;
+and the keyboard shortcuts as `keymap.get`, `keymap.set` and `keymap.reset`.
+Each menu item keeps its key and asks what it needs as before, then does the
+same thing as its command.

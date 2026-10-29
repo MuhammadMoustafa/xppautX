@@ -5,11 +5,13 @@
 #include "load_args.h"
 #include "xpptest.h"
 #include "command_def.h"
+#include "command_registry.h"
 #include "xpp_batch.h"
 #include "session.h"
 #include <array>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -257,6 +259,58 @@ int main()
         }
         const auto text=tokenize_command(search," --guesses 1 --tolerance 0.001 --bounds {\"v\" [-1 1]}",PLACE);
         CHECK(text && validate(nullptr,search,text->c_str(),PLACE,false));
+    }
+    /* W528: a map of key lists (keymap.set), a list of named events, a multi-line note and a one-of group of the session rows */
+    {
+        const Command &keymap_set=*find("keymap.set");
+        const auto set=[&](const std::string &members){
+            const std::string line="{\"cmd\":\"keymap.set\""+(members.empty()?"":","+members)+"}";
+            return validate(nullptr,keymap_set,line.c_str(),PLACE,false);
+        };
+        const auto bindings=set("\"bindings\":{\"calculator\":[\"Ctrl+B\",\"F2\"],\"reload\":[]},\"pinned\":[\"calculator\"],\"preset\":\"xppaut\"");
+        CHECK(bindings && bindings->map<std::vector<std::string>>("bindings").size()==2
+              && bindings->map<std::vector<std::string>>("bindings")[0].second.size()==2
+              && bindings->list<std::string>("pinned").size()==1 && bindings->get<std::string>("preset")=="xppaut");
+        CHECK(set("").has_value()); /* every part is optional: what is left out stays */
+        for(const char *bad:{"\"bindings\":{\"calculator\":\"Ctrl+B\"}","\"bindings\":{\"calculator\":[1]}","\"bindings\":[\"x\"]",
+                             "\"bindings\":{\"c\":[\"a\",\"b\",\"c\",\"d\",\"e\",\"f\",\"g\",\"h\",\"i\"]}","\"preset\":\"vi\"","\"pinned\":[1]"})
+            CHECK(!set(bad));
+        const Command &subscribe=*find("events.subscribe");
+        const auto events=[&](const std::string &members){
+            const std::string line="{\"cmd\":\"events.subscribe\","+members+"}";
+            return validate(nullptr,subscribe,line.c_str(),PLACE,false);
+        };
+        CHECK(events("\"events\":[\"series\",\"plots\"],\"encoding\":\"f32\",\"diagram\":false"));
+        CHECK(events("\"events\":[]"));
+        CHECK(!events("\"events\":[\"series\",\"nothing\"]") && !events("\"encoding\":\"f32\"") && !events("\"events\":[],\"encoding\":\"f64\""));
+        const Command &note=*find("recording.add_note");
+        const auto noted=[&](const std::string &text){
+            const std::string line="{\"cmd\":\"recording.add_note\",\"note\":"+text+"}";
+            return validate(nullptr,note,line.c_str(),PLACE,false);
+        };
+        CHECK(noted("\"First run.\\nThe cell\\tsettles.\""));
+        CHECK(!noted("\"bell\\u0007\"") && !noted("\"x\\u0000\""));
+        const Command &open_model=*find("session.open_model");
+        const auto opened=[&](const std::string &members,bool paths){
+            const std::string line="{\"cmd\":\"session.open_model\","+members+"}";
+            return validate(nullptr,open_model,line.c_str(),PLACE,paths);
+        };
+        CHECK(opened("\"file\":\"/tmp/a.ode\"",true) && opened("\"example\":\"lecar.odex\"",false) && opened("\"recent\":0",false));
+        CHECK(!opened("\"file\":\"/tmp/a.ode\"",false) && !opened("",true) && !opened("\"example\":\"a\",\"recent\":1",false) && !opened("\"recent\":-1",false));
+        /* the text form carries a key list and a named list as it does any list */
+        const auto words=tokenize_command(keymap_set," --bindings {\"calculator\" [\"Ctrl+B\"]} --pinned [\"calculator\"]",PLACE);
+        CHECK(words && validate(nullptr,keymap_set,words->c_str(),PLACE,false));
+    }
+    /* the tools: the calculator works a formula of the model out, and a comment or a button the model lacks is refused */
+    {
+        const auto worked = run(s, "{\"cmd\":\"tool.calculator\",\"expression\":\"2*3+1\"}", PLACE, false);
+        CHECK(worked && worked->find("\"value\":7") != std::string::npos);
+        const auto at_phi = run(s, "{\"cmd\":\"tool.calculator\",\"expression\":\"phi*3\"}", PLACE, false);
+        CHECK(at_phi && at_phi->find("\"value\":0.999") != std::string::npos);
+        CHECK(!run(s, "{\"cmd\":\"tool.calculator\",\"expression\":\"2*\"}", PLACE, false));
+        CHECK(!run(s, "{\"cmd\":\"tool.run_user_button\",\"index\":0}", PLACE, false));
+        CHECK(!run(s, "{\"cmd\":\"tool.run_source_action\",\"index\":0}", PLACE, false));
+        CHECK(!run(s, "{\"cmd\":\"tool.run_source_action\",\"index\":-1}", PLACE, false));
     }
     /* the registry joins the resources' tables */
     CHECK(find("help") && find("window.destroy") && !find("window.nope"));

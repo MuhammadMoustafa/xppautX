@@ -7,6 +7,7 @@
 #include "session.h"
 #include "ui_json_internal.h"
 #include "command_def.h"
+#include "event_streams.h"
 #include "load_eqn.h"
 #include "model_save.h"
 #include "storage.h"
@@ -77,15 +78,15 @@ static void buf_tail_rates(std::string &b, const xpp::Session &s)
     BUF_LIT(b, "]");
 }
 
-void send_state(xpp::Session &s)
+namespace {
+
+/* the state as an object, as the state event and session.get_state's result carry it */
+std::string build_state(xpp::Session &s)
 {
     const xpp::Model &m = s.model();
     std::string b;
     int i;
-    session.state_dirty = 0;
-    evaluate_derived(s);
-    if (!out_wanted()) return;
-    BUF_LIT(b, "{\"ev\":\"state\",\"sliders\":[");
+    BUF_LIT(b, "{\"sliders\":[");
     for (std::size_t slot = 0; slot < s.sliders.size(); ++slot) {
         if (slot) BUF_LIT(b, ",");
         const xpp::XppSlider &slider = s.sliders[slot];
@@ -184,7 +185,26 @@ void send_state(xpp::Session &s)
     buf_recording(b);
     buf_player(b);
     BUF_LIT(b, "}");
+    return b;
+}
+
+} // namespace
+
+void send_state(xpp::Session &s)
+{
+    session.state_dirty = 0;
+    evaluate_derived(s);
+    if (!out_wanted()) return;
+    std::string b = build_state(s);
+    b.insert(1, "\"ev\":\"state\",");
     send_buf(b);
+}
+
+xpp::Result<std::string> session_get_state(xpp::Session &s)
+{
+    session.state_dirty = 0;
+    evaluate_derived(s);
+    return build_state(s);
 }
 
 void j_state_dirty(void) { session.state_dirty = 1; }
@@ -261,67 +281,80 @@ void browser_update(xpp::Session &s)
     if (session.browser_dirty && s.browser.block.count) send_browser(s);
 }
 
-/* {"cmd":"data","events":["series","plots","nullclines","dfield","marks","ani","autoinfo","autosettings","numerics","windows"],"enc":"f32"}:
-   the data events the client wants from now on (an empty list stops them);
-   each is sent at the end of this command, which is what a client that
-   (re)connects needs. hello.features lists the names known here. "enc":"f32"
-   sends the events' value arrays as base64 of little-endian float32,
-   anything else as JSON numbers. */
-void data_command(xpp::Session &s, const char *line)
+/* the data events a client subscribed to (events.subscribe) are sent at the end of each command; each is sent at
+   once, which is what a client that (re)connects needs. hello.features lists the names (event_streams.h). */
+namespace {
+
+std::size_t stream_index(std::string_view name)
 {
-    bool diagram = session.diagram_subscribed;
-    if (const char *value = js_find(line, "diagram")) {
-        if (!xpp::parse_bool(js_raw(value), diagram)) {
-            j_command_error("data", "data diagram must be true or false");
-            return;
-        }
+    return static_cast<std::size_t>(std::ranges::find(xpp::event_streams::NAMES, name) - xpp::event_streams::NAMES.begin());
+}
+
+/* the subscriptions the session holds, given to the data modules */
+void apply_subscriptions(xpp::Session &s)
+{
+    const auto on = [](std::string_view name) { return session.subscribed[stream_index(name)]; };
+    const bool f32 = session.subscribed_f32;
+    plot_data_subscribe(on("series"), on("plots"), f32);
+    phase_data_subscribe(on("nullclines"), on("dfield"), f32);
+    marks_data_subscribe(on("marks"), f32);
+    ani_data_subscribe(s, on("ani"));
+    auto_data_subscribe(on("autoinfo"));
+    auto_view_subscribe(on("autoinfo"));
+    auto_settings_subscribe(s, on("autosettings"));
+    numerics_settings_subscribe(s, on("numerics"));
+    session.windows.subscribe(on("windows"), s);
+    if (on("player")) player_data();
+}
+
+xpp::Result<std::string> names_result(std::string_view key, const std::vector<std::string> &names)
+{
+    std::string list = "[";
+    for (std::size_t i = 0; i < names.size(); ++i) {
+        if (i) list += ',';
+        json_append_string(list, names[i]);
     }
-    const char *arr = js_find(line, "events");
-    std::string name, enc;
-    int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, ani = 0, autoinfo = 0, autosettings = 0,
-        numerics = 0, player = 0, windows = 0, f32;
-    for (i = 0; arr && js_elem(arr, i); i++) {
-        if (!js_string(js_elem(arr, i), name)) continue;
-        if (name == "series") series = 1;
-        else if (name == "plots") plots = 1;
-        else if (name == "nullclines") nullclines = 1;
-        else if (name == "dfield") dfield = 1;
-        else if (name == "marks") marks = 1;
-        else if (name == "ani") ani = 1;
-        else if (name == "autoinfo") autoinfo = 1;
-        else if (name == "autosettings") autosettings = 1;
-        else if (name == "numerics") numerics = 1;
-        else if (name == "player") player = 1;
-        else if (name == "windows") windows = 1;
-    }
-    f32 = get_string(line, "enc", enc) && enc == "f32";
-    plot_data_subscribe(series, plots, f32);
-    phase_data_subscribe(nullclines, dfield, f32);
-    marks_data_subscribe(marks, f32);
-    ani_data_subscribe(s, ani);
-    auto_data_subscribe(autoinfo);
-    auto_view_subscribe(autoinfo);
-    auto_settings_subscribe(s, autosettings);
-    numerics_settings_subscribe(s, numerics);
-    session.windows.subscribe(windows != 0, s);
-    if (player) player_data();
+    return xpp::command::ResultObject().raw(key, list + ']').done();
+}
+
+} // namespace
+
+xpp::Result<std::string> events_subscribe(xpp::Session &s, const xpp::command::Arguments &args)
+{
+    if (!s.model().loaded()) return names_result("subscribed", {}); /* no model: no events to send, nothing to subscribe */
+    for (const std::string &name : args.list<std::string>("events")) session.subscribed[stream_index(name)] = true;
+    if (const std::optional<std::string> encoding = args.optional<std::string>("encoding"))
+        session.subscribed_f32 = *encoding == xpp::event_streams::ENCODING_F32;
+    const bool diagram = args.optional<bool>("diagram").value_or(session.diagram_subscribed);
+    apply_subscriptions(s);
     if (diagram != session.diagram_subscribed) {
         session.diagram_subscribed = diagram;
         if (diagram) auto_redraw_for_client(s);
     }
+    std::vector<std::string> now;
+    for (std::size_t i = 0; i < xpp::event_streams::NAMES.size(); ++i)
+        if (session.subscribed[i]) now.emplace_back(xpp::event_streams::NAMES[i]);
+    return names_result("subscribed", now);
+}
+
+xpp::Result<std::string> events_unsubscribe(xpp::Session &s, const xpp::command::Arguments &args)
+{
+    const std::vector<std::string> names = args.list<std::string>("events");
+    if (!s.model().loaded()) return names_result("unsubscribed", {});
+    for (const std::string &name : names) session.subscribed[stream_index(name)] = false;
+    apply_subscriptions(s);
+    return names_result("unsubscribed", names);
 }
 
 /* the equations window: one "dX/dT=..." line per equation (eig_list.c) */
-void send_equations(const xpp::Session &s)
+std::vector<std::string> equation_lines(const xpp::Session &s)
 {
     const xpp::Model &m = s.model();
-    std::string b, line;
-    int i;
-    BUF_LIT(b, "{\"ev\":\"equations\",\"lines\":[");
-    for (i = 0; i < m.neq; i++) {
+    std::vector<std::string> lines;
+    for (int i = 0; i < m.neq; i++) {
         const std::string &name = m.uvar_names[i];
         const char *rhs = m.formulas[i].c_str();
-        line.clear();
+        std::string line;
         if (i < m.node && m.eq_type[i] != 1 && !xpp::solver_info(s.numerics.method).traits.discrete) BUF_LIT(line, "d");
         buf_add(line, name.data(), name.size());
         if (i < m.node && m.eq_type[i] == 1) BUF_LIT(line, "(t)");
@@ -329,11 +362,28 @@ void send_equations(const xpp::Session &s)
         else if (i < m.node) BUF_LIT(line, "/dT");
         BUF_LIT(line, "=");
         buf_add(line, rhs, strlen(rhs));
-        if (i) BUF_LIT(b, ",");
-        buf_str(b, line.c_str());
+        lines.push_back(std::move(line));
     }
-    BUF_LIT(b, "]}");
+    return lines;
+}
+
+xpp::Result<std::string> session_get_source(xpp::Session &s)
+{
+    make_txtview(s);
+    const std::vector<std::string> equations = equation_lines(s);
+    std::string b;
+    BUF_LIT(b, "{\"ev\":\"equations\",\"lines\":");
+    buf_str_array(b, equations);
+    BUF_LIT(b, "}");
     send_buf(b);
+    std::string source;
+    for (const std::string &line : s.model().source) source += line + '\n';
+    std::string list = "[";
+    for (std::size_t i = 0; i < equations.size(); ++i) {
+        if (i) list += ',';
+        json_append_string(list, equations[i]);
+    }
+    return xpp::command::ResultObject().text("source", source).raw("equations", list + ']').done();
 }
 void j_state_dirty_i(int) { session.state_dirty = 1; }
 void j_state_dirty_is(int, const char *) { session.state_dirty = 1; }
@@ -553,7 +603,7 @@ void j_make_txtview(xpp::Session &s)
     const xpp::Model &m = s.model();
     BUF_LIT(b, "{\"ev\":\"source\",\"lines\":");
     buf_str_array(b, m.source);
-    /* comments; one with an action runs it when picked ({"cmd":"action"}) */
+    /* comments; one with an action runs it when picked (tool.run_source_action) */
     BUF_LIT(b, ",\"comments\":[");
     for (std::size_t i = 0; i < m.comments.size(); i++) {
         if (i) BUF_LIT(b, ",");
@@ -563,16 +613,6 @@ void j_make_txtview(xpp::Session &s)
     }
     BUF_LIT(b, "]}");
     send_buf(b);
-}
-
-/* a comment of the source window picked: {"cmd":"action","index":i} runs
-   its action */
-void action_command(xpp::Session &s, const char *line)
-{
-    int i = get_int(line, "index", -1);
-    const std::vector<xpp::Model::Comment> &comments = s.model().comments;
-    if (i >= 0 && i < static_cast<int>(comments.size()) && comments[i].aflag > 0)
-        do_txt_action(s, comments[i].action);
 }
 
 } // namespace xpp::json

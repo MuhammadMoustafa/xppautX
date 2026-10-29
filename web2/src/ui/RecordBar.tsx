@@ -24,7 +24,7 @@ export function RecordBar() {
     }
   }, [steps, rec?.note]);
   if (!rec) return null;
-  const mayStop = may({cmd: 'record', op: 'stop'});
+  const mayStop = may({cmd: 'recording.stop'});
   /* the box's own value: a blur right behind an input comes before the render with it */
   const send = (value: string) => {
     const text = value.trim();

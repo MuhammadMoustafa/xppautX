@@ -213,7 +213,7 @@ void window_closed(webview_t w)
     }
     webview_destroy(w);
     if (!by_core) {
-        static constexpr std::string_view quit = "{\"cmd\":\"quit\"}";
+        static constexpr std::string_view quit = "{\"cmd\":\"session.quit\",\"save\":false}";
         host->http_release();
         host->inbox_push(quit.data(), quit.size());
     }
@@ -273,7 +273,7 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d);
    the model it has goes, offering to save its session, in the page. A
    session file (.snapx, W57) or recording (.recx, W59c) picked here opens
    the model saved in it with that session or diagram (W103). */
-[[maybe_unused]] constexpr std::string_view RELOAD = "{\"cmd\":\"reload\"}";
+[[maybe_unused]] constexpr std::string_view RELOAD = "{\"cmd\":\"session.reload_model\"}";
 
 /* The File items this window names are rows of the command table (core/command_table.h): their labels and
    protocol ids come from it, so the page's sidebar and these menus cannot disagree. */

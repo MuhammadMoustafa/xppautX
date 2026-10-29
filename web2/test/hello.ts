@@ -152,12 +152,10 @@ export const HELLO: HelloEvent = {
     {cmd: 'bvp.configure', kind: 's', step: true, arguments: [{name: 'max_iterates', type: 'integer', required: false, choices: []}]},
     {cmd: 'key', kind: '', step: true},
     {cmd: 'answer', kind: 'c', step: false}, {cmd: 'run.abort', kind: 'c', step: false},
-    {cmd: 'state', kind: 'v', step: false}, {cmd: 'data', kind: 'v', step: false},
     {cmd: 'display', kind: 'v', step: true},
     ...[...registrySource().matchAll(/Command\{"([^"]+)",[\s\S]*?XPP_KIND_(\w+)[\s\S]*?,\s*(true|false),\s*[\w:<>]+(?:,\s*\w+)?\}/g)]
       .map(m => ({cmd: m[1], kind: ({VIEW: 'v', COMPUTE: 'x', SETTING: 's', CONTROL: 'c', DATA: 'd'} as Record<string, string>)[m[2]], step: m[3] === 'true'})),
     {cmd: 'set', kind: 's', step: true},
-    {cmd: 'userbut', kind: 'x', step: true},
   ],
   upload_error: 'larger than 64 MB',
   player_speed: {min: 0.25, max: 8},

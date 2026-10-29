@@ -44,13 +44,13 @@ struct Session; /* session.h */
    copy: Save a copy of the session (W218), which leaves the Session's file
    and its changed flag as they were. */
 xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data, bool replace = false, bool copy = false);
-int xpp_session_save(xpp::Session &s, const char *name, int data, bool copy = false);
+int xpp_session_save(xpp::Session &s, const char *name, int data, bool copy = false, bool replace = false);
 /* File > Save session (Ctrl+S): to the session file the Session remembers
    (saved_session) with no dialog and no question about replacing it; with
    none (a first save, a model never saved) it is Save as, which asks for
    a path and before replacing an existing file (xpp_session_save with no
    name). Quit's "Save this session first?" saves the same way. */
-int xpp_session_save_here(xpp::Session &s);
+int xpp_session_save_here(xpp::Session &s, int data = -1);
 /* The unsaved-changes dot's definition, once (state's `changed`): the
    session's values differ from those it was last saved, opened or loaded
    with. A value is a parameter's, an initial condition's, a numerics

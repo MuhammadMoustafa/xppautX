@@ -33,7 +33,7 @@ The core is single-threaded. A command runs to completion, then the server
 sends `state` and `idle` for commands still on the legacy table. Registry
 commands retain `state` and finish with exactly one `done` instead. While a command runs the server can stop and
 **ask** the client something (a menu, a prompt, a mouse click); it waits for
-the matching `answer`, answers `state`, `browser.page` and `quit` at
+the matching `answer`, answers `session.get_state`, `browser.page`, `session.quit` with `save` false and the player's controls at
 once, and keeps any other command for after the one that asked. See
 "Commands during a command" for what reaches a running computation, and
 "Action kinds" for which commands those are.
@@ -403,6 +403,36 @@ common overwrite question applies. They return a placed error if the output coul
 | `array_plot.export_pdf` | `file`: required file (max 1024 bytes), `top_label`: optional text (max 1024 bytes), `side_label`: optional text (max 1024 bytes), `bottom_label`: optional text (max 1024 bytes) | `d` / plot | Array plot/Print PDF / P | `file`: `file` | `state`, `done` | Write the array plot as a PDF picture into a file of the model's folder; the labels left out are the last ones. |
 | `array_plot.export_gif` | `file`: required file (max 1024 bytes) | `d` / plot | Array plot/GIF / G | `file`: `file`, `bytes_written`: `integer` | `state`, `done` | Write the array plot as a GIF picture into a file of the model's folder. |
 | `array_plot.scroll` | `first_row`: required integer [at least 0, at most 2147483647] | `v` / plot | none / none | `first_row`: `integer` | `aplot`, `state`, `done` | Show the array plot from the stored row first_row on (row 0 is the first). |
+| `session.open_model` | `file`: optional path (max 1024 bytes), `example`: optional text (max 1024 bytes), `recent`: optional integer [at least 0]; exactly one of `file`, `example`, `recent` | `d` / files | File/Open model / FM | `model`: `text`, `variables`: `list[name]`, `parameters`: `list[name]` | `hello`, `state`, `done` | Open a model: a model file by its path (--server's own input only), a bundled example by its name, or one of the recent models by its place in hello.start.recent. Asks first whether to save this session. |
+| `session.reload_model` | none | `d` / files | File/Reload model / FE | `reloaded`: `boolean` | `hello`, `state`, `done` | Load the model's file again; the parameters, initial data, numerics and AUTO settings keep their values by name. |
+| `session.open` | `file`: required file (max 1024 bytes) | `d` / files | File/Open session / FN | `file`: `file`, `loaded`: `boolean` | `hello`, `state`, `done` | Open a session file (.snapx): its model, then everything as it was saved. |
+| `session.save` | `data`: optional boolean | `d` / files | File/Save session / FV | `file`: `file`, `saved`: `boolean` | `saved`, `state`, `done` | Save the session to the file it was last saved to or opened from; data false leaves the data table out. |
+| `session.save_as` | `file`: required file (max 1024 bytes), `data`: optional boolean, `confirm`: optional boolean | `d` / files | File/Save session as / FW | `file`: `file`, `saved`: `boolean` | `saved`, `state`, `done` | Save the session to a file of the model's folder (.snapx added); confirm true replaces an existing file without asking. |
+| `session.save_copy` | `file`: required file (max 1024 bytes), `data`: optional boolean, `confirm`: optional boolean | `d` / files | File/Save a copy of the session / FB | `file`: `file`, `copied`: `boolean` | `done` | Save a copy of the session, leaving the file it is saved to as it was. |
+| `session.import_settings` | `file`: required file (max 1024 bytes) | `s` / files | File/Import settings / FR | `file`: `file`, `applied`: `boolean` | `state`, `done` | Apply a settings file (.setx, or XPPAUT's .set, converted beside it). |
+| `session.export_info` | `file`: required file (max 1024 bytes), `confirm`: optional boolean | `d` / files | File/Export simulation information / FS | `file`: `file`, `written`: `boolean` | `done` | Write the equations, numerics, initial conditions and parameters to a file. |
+| `session.get_source` | none | `v` / files | File/Model source / FP | `source`: `text`, `equations`: `list[text]` | `source`, `equations`, `done` | The model's source, its active comments and its equations. |
+| `session.quit` | `save`: optional boolean | `c` / files | File/Quit / FQ | `quitting`: `boolean` | `done` | Quit: save true saves the session (and a recording in progress) first, false quits at once, and left out asks. |
+| `session.get_state` | none | `v` / files | none / none | `state`: `the state event's members` | `state`, `done` | The session's state: sliders, parameters, initial conditions, the view, the saved session and the recording. |
+| `recording.start` | none | `d` / panels | File/Record steps / FD | `recording`: `boolean` | `state`, `done` | Start recording the session's steps, from the session as it is now. |
+| `recording.stop` | `file`: optional file (max 1024 bytes), `confirm`: optional boolean | `d` / panels | File/Record steps / FD | `file`: `file`, `steps_recorded`: `integer` | `state`, `done` | Stop recording and save the recording (.recx added); left out, the file is asked for; confirm true replaces an existing file without asking. |
+| `recording.add_note` | `note`: required text (max 4096 bytes) | `c` / panels | none / none | `note_added`: `boolean` | `done` | Put a note on the next recorded step. |
+| `recording.open` | `file`: required path (max 1024 bytes), `play`: required boolean | `d` / panels | File/Play recording / FY | `file`: `file`, `total_steps`: `integer` | `player`, `state`, `done` | Open a recording (.recx; its path, which only --server's own input may give) in the player: its model is loaded and its steps are ready; play says whether it starts playing at once. |
+| `recording.play` | none | `c` / panels | none / none | `playing`: `boolean` | `done` | Play the open recording from where it is. |
+| `recording.pause` | none | `c` / panels | none / none | `paused`: `boolean` | `done` | Pause the playing recording. |
+| `recording.step` | none | `c` / panels | none / none | `step_index`: `integer` | `done` | Play the next step of the open recording. |
+| `recording.set_speed` | `speed`: required real [at least 0.25, at most 8] | `c` / panels | none / none | `speed`: `real` | `done` | Set the speed the recording's paces are divided by (hello.player_speed gives the bounds). |
+| `recording.seek` | `step`: required integer [at least 0], `play`: optional boolean | `d` / panels | none / none | `step`: `integer` | `player`, `state`, `done` | Jump to a step: the steps before it run at once, then the recording plays when play is true (left out: when the step is not the first). |
+| `recording.close` | none | `d` / panels | none / none | `closed`: `boolean` | `state`, `done` | Leave the player; the model stays. |
+| `recording.set_step_note` | `step`: required integer [at least 0], `note`: required text (max 4096 bytes), `confirm`: optional boolean | `d` / panels | none / none | `step`: `integer` | `player`, `state`, `done` | Write a note into a step of the open recording's file; confirm true replaces the file without asking. |
+| `keymap.get` | none | `c` / panels | none / none | `bindings`: `map[text, list[text]]`, `pinned`: `list[text]`, `preset`: `text` | `keymap`, `done` | The user's keymap: the keys of the commands they changed, the pinned commands and the preset. |
+| `keymap.set` | `bindings`: optional map [of list[text], at most 256], `pinned`: optional list [of text, at most 256], `preset`: optional choice (default, xppaut) | `c` / panels | none / none | `saved`: `boolean` | `keymap`, `state`, `done` | Replace the bindings, the pinned commands or the preset given (what is left out stays); the keymap is checked whole, then written. |
+| `keymap.reset` | none | `c` / panels | none / none | `reset`: `boolean` | `keymap`, `state`, `done` | Remove the user's keymap: every command has its default keys. |
+| `events.subscribe` | `events`: required list (series, plots, nullclines, dfield, marks, ani, autoinfo, autosettings, numerics, windows, player) [of choice, at most 256], `encoding`: optional choice (json, f32), `diagram`: optional boolean | `v` / panels | none / none | `subscribed`: `list[text]` | `state`, `done` | Send the heavy data events named (hello.features lists them) from now on, each at the end of this command; encoding f32 sends their value arrays as base64 float32 (what is left out stays as it was); diagram says whether AUTO's diagram points are sent. |
+| `events.unsubscribe` | `events`: required list (series, plots, nullclines, dfield, marks, ani, autoinfo, autosettings, numerics, windows, player) [of choice, at most 256] | `v` / panels | none / none | `unsubscribed`: `list[text]` | `state`, `done` | Stop sending the data events named. |
+| `tool.calculator` | `expression`: required expression (max 1024 bytes) | `v` / tools | File/Calculator / FC | `expression`: `expression`, `value`: `real` | `done` | Work out a formula of the model's names and functions. |
+| `tool.run_source_action` | `index`: required integer [at least 0] | `d` / panels | none / none | `ran`: `boolean` | `state`, `done` | Run the action of an active comment of the model's source (a `{par=value,...}` block): comment `index` of session.get_source's list. |
+| `tool.run_user_button` | `index`: required integer [at least 0] | `x` / panels | none / none | `ran`: `boolean` | `state`, `done` | Press a button of the model (an `@ button=name:keys` line), counted from 0 in the order the model gives them. |
 <!-- registry:end -->
 
 ## Startup
@@ -414,9 +444,9 @@ common overwrite question applies. They return a placed error if the output coul
    core keeps to (`limits`) and the initial window names (`window_names`): see
    "Shared limits and ids"; the user's keymap (`keymap`: "Keymap").
 2. `window` `create` for the named main graph.
-3. `state`, then `idle`.
+3. `state`, then `done` (the answer to `session.get_state`, which the program runs first).
 
-A client that draws sends `data` next (see "The plot as data").
+A client that draws sends `events.subscribe` next (see "The plot as data").
 
 ### Start screen (W232)
 
@@ -425,7 +455,7 @@ folder instead of a file too) has a session with **no model**. `hello` then
 carries `start`, and has no `window` or `state` after it (`idle` instead);
 a `hello` of a loaded model has no `start`, so a client shows the start
 screen exactly while `hello.start` is there. The core queues the same
-`{"cmd":"open"}` that File > Open model sends, so the Open model dialog
+File > Open model key that the page's button sends, so the Open model dialog
 (a `file` ask, title `Open model`, `wild` `*.ode *.odex *.snapx *.recx`) comes at
 once; answering it with a file loads that model (a new `hello`), and
 cancelling it leaves the start screen: no error, the program keeps running.
@@ -435,7 +465,7 @@ cancelling it leaves the start screen: no error, the program keeps running.
 "missing": the file is no longer there}, ...], "examples": {"folder": ...,
 "names": [...], "reason": ...}}`, newest first. A recent model
 that is missing is listed as missing, never dropped; opening it is an
-ordinary `open` that fails with the file named. When `preferences.setx` cannot be
+ordinary `session.open_model` that fails with the file named. When `preferences.setx` cannot be
 read (a relative or repeated path, a control character, a path or a file
 longer than the limits, more entries than `limit`, any other bad value), `recent` is `[]` and
 `start` carries the common error fields (`error`, `file`, `line`, `col`,
@@ -454,22 +484,23 @@ program (found from the executable: Windows, Linux `/proc/self/exe`, macOS the
 source checkout has none), `names` the `.odex` base names in it, sorted, at most
 100, and `reason` (only when `names` is empty) says why: the program's folder is
 unknown, there is no examples folder, or it holds no `.odex`. The page shows
-the reason. `{"cmd":"open","example":"lecar.odex"}` opens one: the name must be
+the reason. `{"cmd":"session.open_model","example":"lecar.odex"}` opens one: the name must be
 in `names` (a path, `..`, a link or any other name is the error "is not one of the
 bundled examples"), the example is copied into `examples/` of the config folder
 (an installed folder is read-only and a model writes beside itself), asking the
 Replace question of every save when a copy is there (declining ends the command
 with no change), a message says where the copy is, and the copy is opened by the
-`open` below. `file` is ignored when `example` is given.
+`session.open_model` below.
 
-Open model has one owner, `{"cmd":"open","file":path}` (empty: the dialog),
-so the start screen's button, a recent entry, File > Open model, the desktop
+Open model has one owner, `session.open_model` (without a file, the File menu's key asks
+for one with the dialog), so the start screen's button, a recent entry
+(`recent`, its place in the list), File > Open model, the desktop
 window's native File menu and the OS's open-documents event after the start all
-send it. A session with no model refuses every other command with the error
-"No model is open: open one first (Open model)", ending in `idle` like any
-command, except `quit` (no question: there is nothing to save), `run.abort`,
-`answer`, `keymap`, `key` of File > Open model (`menu` `file`, `item`
-`openmodel`) and `data` (accepted, nothing to send).
+reach it. A session with no model refuses every other command with the error
+"No model is open: open one first (Open model)", ending in `done` like any
+command, except `session.quit` (no question: there is nothing to save), `run.abort`,
+`help`, `answer`, `keymap.*`, `key` of File > Open model (`menu` `file`, `item`
+`openmodel`) and `events.*` (accepted, nothing to send).
 `--silent` with no file is the error "no model file was named", exit 1.
 
 ### A model that does not load
@@ -675,7 +706,7 @@ from the command table's keys, nothing else, in the per-user config folder:
 macOS. `XPP_CONFIG_DIR` names the folder instead (tests and CI use it so they
 never touch the real file). That fixed path is the only one: nothing the file
 says names another. The folder is made by the first save. The window and the
-browser page both read and write it through the one `keymap` command, so they
+browser page both read and write it through the `keymap.*` commands, so they
 never disagree.
 
     {
@@ -732,20 +763,20 @@ result as the page keeps it:
 | `commands` | [{`id`, `keys`, `source`}...] for every command but the shortcut-layer rows: the effective keys, and whether they are the table's (`default`) or the user's (`user`) |
 
 When the file is bad, the page gets that error in `keymap` (in `hello`, and in
-the answer to `get`) and `commands` are the table's defaults with `source`
+the `keymap` event `keymap.get` sends) and `commands` are the table's defaults with `source`
 `default`: the defaults are what the page shows while the error is up, marked
 by `ok: false`, never presented as the user's; no `message` event is sent for a
 load (the page shows the error once, from `keymap`). `set` replaces a bad file
-whole; `reset` removes it.
+whole; `keymap.reset` removes it.
 
-`set`'s `map` is the user map as the file holds it (`preset`, `pinned`,
-`bindings`; a setting left out is its default). It is checked by the same
-pipeline as the file, and an error is a `message` error whose `file` is
-`the keymap sent` and whose line and `source` are in the `map` as sent (its
-JSON text), the file untouched. The file is written through `xpp::Writer`
-(a temporary file beside it, then a rename), one binding to a line.
-A `set` or `reset` that cannot write or remove the file is a `message` error
-naming it.
+`keymap.set`'s `bindings`, `pinned` and `preset` are the parts of the user
+map as the file holds it; a part left out stays as it is. The whole map is
+checked by the same pipeline as the file, and an error is the `done` error
+whose `file` is `the keymap sent` and whose line and `source` are in the map
+as written out, the file untouched. The file is written through
+`xpp::Writer` (a temporary file beside it, then a rename), one binding to a
+line. A `keymap.set` or `keymap.reset` that cannot write or remove the file
+is the `done` error naming it.
 
 ## Commands (client to server)
 
@@ -892,19 +923,83 @@ steps are not comparison intervals.
 | `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/command_table.h and core/menus.cpp, the only places a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani` or `aplot`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. `button` (optional, any command's key) names the control the key came from (web2: Integrate, and every window button by its `hello.windows` id); only a recording reads it ("Recordings"). |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (a client or the recording player can answer without tracking prompt ids). |
 | `set` | `kind` (`bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a boundary condition, a delay or a numerics value no registry command takes yet (no redraw or run: W69). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `text` is what the X11 box takes: an expression for `bc` and `delay`; BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `nullcline_mesh`, ...; "The numerics as data"; the run's and the shooting's are `run.configure`'s and `bvp.configure`'s). A numerics value refused is a `message` `error` naming the field (`Numerics: ...`); so is what the command cannot take, nothing set (W116): a `kind` it does not have (`set takes kind delay, bc or num, not "parm"`), a `par` or `ic` (`set no longer takes parameters: send value.set_parameters`), an `index` outside the list, no `value` that is a number and no `text`. Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]: all or nothing (W131), every value checked first, the one `message` `error` naming the value that is refused and its `field`. |
-| `userbut` | `index` | An `@ button` of the ODE file (`hello.userbuttons`). |
-| `equations` | | Send `equations`. |
-| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"); `autosettings`: AUTO's Numerics, parameters, axes and Mark values ("AUTO's settings as data"); `numerics`: the main numerics ("The numerics as data"); `windows`: every open window with whether it is shown (the `windows` event, below); `player`: the open recording's complete `player` event, sent at once and again whenever it changes, so a page that connects after the file opened still gets its steps and notes ("Recording startup and all-state inspection"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
-| `action` | `index` | Run the action of comment `index` of `source.comments`. |
-| `state` | | Send `state` now. |
-| `session` | `op` (`save`, `load`), `name`, `data` (save) | Save or open a session file, `name.snapx` (`.snapx` added unless `name` ends so; "Session files" below): File/opeN session (key `n` of the File menu) and `save`. Without `name`, `save` asks for one (`ask` kind `file`, wildcard `*.snapx`) and, as every save with no decision, before replacing a file that exists. The File menu's two save commands are the table's `savesession` (key `v`, Ctrl+S: saves to `state.session.file` with no ask and no replace question, and behaves as `savesessionas` when there is none) and `savesessionas` (key `w`, Ctrl+Shift+S: always asks, as `save` with no `name`), W209. A third, `savesessioncopy` (key `b`, no default key, W218), asks as `savesessionas` does and writes the file but leaves `state.session` and `state.changed` as they were. Reload keeps `state.session`'s file. `save`'s `data`: `true` puts the data table in, `false` leaves it out; without it the table goes in unless it is above 50 MB, when a `choice` ask (keys `l` leave it out, `s` save it) decides. `load` of a session file is `open` of it (below: its saved model, then the session). `state.session` (below) names the file the current session was last saved to or opened from. |
-| `open` | `file` | Load another model in place of this one (File > Open model). Without `file`, asks with wildcard `*.ode* *.snapx *.recx`. A missing file, an invalid session or a session without its model fails at once. Then asks `choice`, keys `sd`: Save session (`s`) or Don't save (`d`); a cancel keeps the session. A `.snapx` loads its saved model from its own members, then restores its whole session, even when the same model is open. A `.recx` opens in the player and starts automatically. The opened file's folder becomes the working directory; nothing is extracted beside a session. `hello.title` identifies its saved model, e.g. `lecar.odex (saved in lecar.snapx)`. A binary file or a model that does not load is refused with its place shown and the previous session unchanged. On success, all windows but the main one are destroyed and a new `hello`, main window, `state` and first-start events follow; the client subscribes with `data` again. |
-| `reload` | | Read the model's file again with the command line and in the folder it was loaded with (File/rEload, key `e` of the File menu; the window's File > Reload), as `open` does, asking first as it does (W59d: `choice` `sd`, `Reload NAME? Its values are kept by name; this model's data and diagram go. Save its session first?`): the parameters, initial data (a delay equation's history text too) and numerics keep the session's values by name (the Poincare section's variable by its name), a name the file no longer has is dropped, a new one comes with the file's value; `hello`'s `defaults` are the file's. A file that does not load changes nothing, as for `open`. |
-| `record` | `op`: `start`, `stop` (`name`), `note` (`text`) | Record the session's steps into a `.recx` file ("Recordings" below): File/recorD, key `d` of the File menu, starts a recording or stops it. `start` begins one, with the session as it is now (its `@snapshot`, W59d; an error when one runs, or when the model was not read from files); `stop` writes `name.recx` (`.recx` added unless `name` ends so; without `name`, asks for one as the other File saves do: `ask` kind `file`, wildcard `*.recx`, the model's name offered; a cancel or a refused overwrite keeps recording) and ends it; `note` sets the note for the next step (replacing one set before; an error when not recording). `start` and `stop` are data, `note` control ("Action kinds"). `state.recording` says one runs. |
-| `play` | `op`: `open` (`file`, `autoplay`), `start`, `pause`, `step`, `speed` (`speed`), `from` (`step`, `play`), `note` (`step`, `text`), `close` | Play a recording ("Playing a recording" below). `open` loads the `.recx` `file` (without one, asks for it: `ask` kind `file`, wildcard `*.recx`; then, as File > Open model does, whether to save this model's session first) and its model, then starts playback (set `autoplay:false` to open paused at step 0); File/plaY recording (key `y` of the File menu) and Open model of a `.recx` do the same. `start` plays (at the end, nothing), `pause` pauses (a wait in progress keeps what is left of it), `step` plays the next step, or the rest of the one running, then pauses; `speed` divides every pace by `speed` (0.25 to 8; the page offers 0.5, 1, 2, 4); these four act at once, even during a step or a computation, and have no `idle` of their own then. `from` loads the model again and runs steps 0 to `step` - 1 with no pace (their `press` events 0 ms), then pauses there (plays on with `play` 1); `step` 0 is Restart. `note` writes `text` as step `step`'s note into the `.recx` (its fingerprint kept: "Recordings") and sends `player` again. `close` leaves the player; the model stays. `open`, `from` and `note` are data, the rest control. |
 | `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
-| `keymap` | `op` (`get`, `set`, `reset`); `map` (`set`) | The user's keymap, `keymap.json` in the per-user config folder ("Keymap"). `get` reads the file, `set` replaces the whole user map with `map` (checked as a file is, whole, then written), `reset` removes the file. Answered with a `keymap` event, then `state` and `idle`; a map that is refused or cannot be written is a `message` error and nothing changes. The user's settings, not the model's: a control command, taken any time, never a recording's step. |
-| `quit` | `ask`, `save` | Exit, at once even during a computation, asking nothing: a script's and a client's quit (`--silent`, servercheck). With `ask` `true` (W59d), the user's quit: the desktop page sends it when the window's File > Quit or close box comes while the core is idle (web2 asks itself while a command runs, below). It stops a computation in progress (as `run.abort`; the command ends with `stopped`, `state` and `idle`), cancels a question open at the time (its command ends), then runs as a command of its own: the `choice` ask "Quit xppautX? Save this session first?" (`keys` `sd`: `s` Save session, `d` Don't save; a cancel keeps the session), as File/Quit (keys `f` `q`) asks. `s` saves the session first, as the `savesession` command does (to `state.session.file` with no ask when there is one, else a `file` ask, `*.snapx`), and a recording in progress after it, as `record` `stop` with no `name` does (the question then says so); then, as for `d`, `bye` and the exit. A cancel of any of these questions keeps the session. A plain `quit` sent while it asks still exits at once. With `save` `true` (W110), that question answered **Save session** where the client asked it itself: the desktop page asks it while a command runs (the window's close box never stops a computation), worded by `hello`'s `quit`. It stops a computation in progress as `ask` does, then saves as `s` does (the session's `file` ask, then a recording's) and says `bye` and exits; a cancelled save keeps the session (its computation already stopped). The page's **Don't save** is the plain `quit` (in the window: closing it, which sends it). |
+
+### Session, recording, keymap, events and tools (W528)
+
+File > Open model, Reload, Open session, the saves, Import settings, Export
+simulation information, Model source, Quit and the state; the recording and
+the player; the user's keymap; the heavy data events a client subscribes to;
+and the calculator, a source comment's action and a model button are
+registry commands (the generated table above lists their arguments, results
+and events: `session.*`, `recording.*`, `keymap.*`, `events.*`, `tool.*`);
+the old forms (`open`, `reload`, `session`, `record`, `play`, `keymap`,
+`data`, `equations`, `state`, `quit`, `action`, `userbut`) are gone and are
+refused as unknown commands. The File menu's keys ask for what they need as
+before and call the same core functions, so a key, a menu item and the
+command do one thing. What the rows leave to say:
+
+- `session.open_model` takes a path (`--server`'s own input only; the page
+  and a recording never give one), an example's name or a recent model's
+  place in `hello.start.recent` (the page's start screen). The File menu's
+  key and the page's Open model button ask for the file with a `file` ask
+  instead. It asks first whether to save this session (a `choice` ask, keys
+  `sd`; a cancel keeps the session). A `.snapx` loads its saved model, then
+  its whole session; a `.recx` is opened with `recording.open`. The result
+  names the model now loaded, its variables and its parameters; a model
+  that does not load is the `done` error naming the file and line, and the
+  session before is kept. On success all windows but the main one are
+  destroyed, and a new `hello`, `state` and first-start events follow; the
+  client subscribes with `events.subscribe` again. `session.reload_model`
+  loads the file again with the same questions and keeps the parameters,
+  initial data and numerics by name.
+- `session.save` saves to the file the session was last saved to or opened
+  from (`state.session.file`), asking nothing; with none it is refused and
+  says so (the File menu's Ctrl+S asks for a file then, as `session.save_as`
+  does). `session.save_as` and `session.save_copy` take a file of the model's
+  folder (`.snapx` added); `confirm` true replaces an existing file without
+  asking, left out asks before replacing it. A copy leaves
+  `state.session` and `state.changed` as they were. `data` false leaves the
+  data table out, true puts it in; left out, it goes in unless it is above
+  50 MB, when a `choice` ask (keys `l` leave it out, `s` save it) decides.
+- `session.quit` with `save` false ends the session at once, even during a
+  computation, asking nothing (a script's and a client's quit; the window's
+  close sends it). Left out, it is the user's quit: it stops a computation in
+  progress, then asks "Quit xppautX? Save this session first?" (keys `sd`;
+  a cancel keeps the session); `save` true is that question answered Save
+  session by a client that asked it itself (the page, while a command runs):
+  it stops the computation, saves the session and a recording in progress,
+  then says `bye` and exits. A quit that saves or asks is a command of its
+  own and ends with `state` and `done` only when it is cancelled.
+- `session.get_state` answers the `state` members as its result (and sends
+  the `state` event); `session.get_source` sends `source` and `equations`
+  and answers with the source text and the equation lines. Both, and the
+  player's controls (`recording.play`, `recording.pause`, `recording.step`,
+  `recording.set_speed`), are answered at once, even during a computation,
+  each with its own `done`.
+- `recording.start`, `recording.stop`, `recording.add_note` and the player
+  commands work as "Recordings" and "Playing a recording" below describe:
+  `recording.stop` without `file` asks for one; `recording.open` takes a
+  `.recx` path (`--server`'s own input only; the File menu's key asks for the
+  file) and `play` says whether it starts at once; `recording.seek` runs the
+  steps before `step` at once and plays on when `play` is true; a note may
+  hold line breaks (at most 4096 bytes).
+- `keymap.get` reads the user's `keymap.json`, `keymap.set` replaces the
+  bindings, the pinned commands or the preset given (what is left out
+  stays; the keymap is checked whole, then written) and `keymap.reset`
+  removes the file; each sends the `keymap` event ("Keymap") before its
+  `done`. The user's settings, not the model's: control commands, taken any
+  time, never a recording's step.
+- `events.subscribe` adds the named events to those the client already gets
+  (`encoding` `f32` sends their arrays as base64 float32; `diagram` says
+  whether AUTO's diagram points are sent; left out, each stays as it was) and
+  sends each at once, at the end of the command; `events.unsubscribe` stops
+  the named ones. The names are `hello.features`: `series`, `plots`,
+  `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`,
+  `numerics`, `windows` and `player` (see their sections below).
+- `tool.run_source_action` runs the action of comment `index` of
+  `source.comments`; `tool.run_user_button` presses button `index` of the
+  model (`hello.userbuttons`).
 
 ## Action kinds
 
@@ -943,8 +1038,8 @@ Every action has a kind (W95), defined once in the core and sent in
   `kind` is `""` (a key's is its menu item's). `step` says whether the
   command is a step of the user's: what a recording records ("Recordings")
   and what web2 runs again when the file it could not read has been added
-  (`message` `file`); the client's own requests (`state`, `data`,
-  `equations`, `file`, the browser's paging), answers and
+  (`message` `file`); the client's own requests (`session.get_state`, `events.*`,
+  `session.get_source`, `file`, the browser's paging), answers and
   aborts, and the recording's and player's own commands are not. It is
   core/ui_json.cpp's command table, the one handle_line dispatches from:
   every command of the table above is in it.
@@ -1141,24 +1236,23 @@ Input is read on its own thread, so lines keep arriving while the core
 computes. Every command runs as a *job*, numbered by the position of its line
 in the input.
 
-- `run.abort` and `quit` (but a `quit` with `ask`, below) act the moment they arrive: they cancel the running job
+- `run.abort` and `session.quit` with `save` false (but a `session.quit` that asks or saves, below) act the moment they arrive: they cancel the running job
   and every job whose line came before theirs, even one still waiting its
   turn, and the computation stops at its next check (every integration step;
   AUTO between continuation points). So a `run.abort` sent right behind a
   command stops that command, however late the core gets to it, while a
   command sent after the `run.abort` runs normally. An answer to a prompt sent
   after a `run.abort` counts as the user's last word: the rest of that command
-  is not cancelled. `quit` then exits. A `quit` with `ask` (W59d) cancels
+  is not cancelled. `session.quit` then exits. A `session.quit` that asks or saves (W59d, W110) cancels
   only a running computation, and waits its turn as an ordinary command:
   it asks, and exits only when the user says so.
 - While a *computation* runs (an integration, a range of them, Sing pts, a
   boundary value problem, an AUTO run: what Escape stops; the `computing`
   event says it began), the server judges each line the moment it arrives
   by its kind ("Action kinds"; one list, core/ui_json.cpp `during_run`):
-  - acted on at once, at the computation's next check: `run.abort`, `quit`,
+  - acted on at once, at the computation's next check: `run.abort`, `session.quit` with `save` false,
     the stop keys (`key` `Escape`; `/`, which ends a range or a shooting
-    for good), and what only reads or steers a view: `state`, `browser`
-    with `from`, `animation.pause`, `animation.set_speed`, `animation.faster` and
+    for good), and what only reads or steers a view: `session.get_state`, `browser.page`, `animation.pause`, `animation.set_speed`, `animation.faster` and
     `animation.slower`;
   - taken at once, at the computation's next check, and kept for after
     it: a setting (W106: `set`, `value.set_parameters`, `value.slide`, `set.apply`, `set.restore_defaults`,
@@ -1174,7 +1268,7 @@ in the input.
     session saved after the run holds it;
   - kept for their turn, run after the computation's `idle` with their
     own `state` and `idle`: an `answer` (the computation's own
-    questions), every other command of the view kind (`data`, a
+    questions), every other command of the view kind (`events.subscribe`, a
     `display`, a `click`, a menu key that only shows, such as Window/zoom
     or a window's Axes: its menu opens then), and a key of the setting
     kind (a Numerics item: its dialog opens then);
@@ -1196,8 +1290,8 @@ in the input.
   sent right behind a `run.abort` runs normally, in its turn.
 - Outside a computation, while a job runs (a command in its prompts, the
   animation's Go, a command finishing), `key` (a main-window key: not one
-  with a `win`, which waits its turn), `set`, `state`, `browser`
-  with `from` and the animation's steering commands (`animation.pause`,
+  with a `win`, which waits its turn), `set`, `session.get_state`, `browser.page`
+  and the animation's steering commands (`animation.pause`,
   `animation.set_speed`, `animation.faster`, `animation.slower`) are *control* lines
   (the animation's Go acts on them between frames: Escape or Pause stops
   it, a `set` changes a parameter under it, and still has its own
@@ -1230,7 +1324,7 @@ in the input.
   bytes, as `source` (the line itself is the place; the refused command has
   no `idle` of its own and ran nothing). The client sends the line again
   later, or a message queue in front of the server redelivers it. Control
-  lines (`run.abort`, `quit`, the stop keys and the rest this list calls acted
+  lines (`run.abort`, `session.quit` with `save` false, the stop keys and the rest this list calls acted
   on at once) are never refused, so a `run.abort` sent after a flood is read and stops the run. Over
   HTTP the refusal is `503 Service Unavailable` with that same event as the
   body (`application/json`), the command's `n=` number is not used up, so
@@ -1240,12 +1334,12 @@ in the input.
   to open) are never refused.
   The longest input line is the byte bound, 64 MB (a `--server` line over it
   is discarded and answered by one `input` error); an HTTP body is capped at 1 MB.
-- A command whose job was cancelled (by `run.abort`, Escape, `quit`) sends
+- A command whose job was cancelled (by `run.abort`, Escape, `session.quit`) sends
   `stopped` before its `state` and `idle`: where the computation got to,
   which is what the recording player uses to replay the interruption (below).
-  A plain `quit` read by the computation's own check ends the command at once: it sends
+  A `session.quit` with `save` false read by the computation's own check ends the command at once: it sends
   `stopped` too, then `bye` and the exit (it never reaches `state` and `idle`), the same
-  `stopped` as when the computation sees the cancel first and the `quit` runs after the command.
+  `stopped` as when the computation sees the cancel first and the quit runs after the command.
 
 ## Playing a recording without an interface
 
@@ -1292,9 +1386,9 @@ branch, and save the diagram. Run it with:
 
 ## Recordings
 
-File/recorD (key `d` of the File menu) or `{"cmd":"record","op":"start"}`
+File/recorD (key `d` of the File menu) or `recording.start`
 starts recording the session (W59a, core/json_record.cpp; the file's
-format is core/recx.h); File/recorD again or `record` `stop` writes it,
+format is core/recx.h); File/recorD again or `recording.stop` writes it,
 `name.recx`, one plain text file that any editor opens:
 
 ```
@@ -1382,14 +1476,12 @@ fingerprint: 5f0c...(64 hex digits)
   order it read them; the player serves each read from them. Every zoom or pan (`window.set_display`) is a step of its own. A
   setting sent while a command had not computed yet (a value edited while
   the Initialconds menu is open) is a step of its own just before that
-  command's, since it applied before anything computed. Not steps: `state`,
-  `data`, `equations`, `browser` paging (`from`), `file`, an
-  `abort`, `quit`, and `record` itself; nor File/recorD's own opening of
-  `data`, `equations`, `redraw`, `browser` paging (`from`), `file`, an
-  `run.abort`, `quit`, and `record` itself; nor File/recorD's own opening of
+  command's, since it applied before anything computed. Not steps:
+  `session.get_state`, `events.*`, `keymap.*`, `redraw`, `browser` paging (`from`), `file`, an
+  `run.abort`, `session.quit`, and the `recording.*` commands; nor File/recorD's own opening of
   the File menu (the `f` just before the `d` that stops).
 - `# ` lines just before a step are its note (a note of several lines is
-  several `#` lines; `#` alone is an empty line of it): `record` `note`
+  several `#` lines; `#` alone is an empty line of it): `recording.add_note`
   sets it while recording, and an editor can add or change one later.
 - `fingerprint:` the SHA-256 (64 lowercase hex digits) of every line of
   the `@file` sections (their `@file` and `@end` lines included) and every
@@ -1402,12 +1494,12 @@ fingerprint: 5f0c...(64 hex digits)
 
 Idle time is not recorded, and nothing is read from any older format:
 there is none. `tools/servercheck.py` (`check_recording`) reads a file
-back. `play` and `record` are not steps either.
+back. The `recording.*` commands are not steps either.
 
 ## Playing a recording
 
 File/plaY recording (key `y` of the File menu), Open model of a `.recx`,
-or `{"cmd":"play","op":"open","file":...}` opens a recording in the
+or `recording.open` opens a recording in the
 player (W59b, core/json_player.cpp): it asks, as Open model does, whether
 to save this model's session first, then loads the session the recording
 began from, its `@snapshot` (W59d): its model, from the files saved there,
@@ -1452,7 +1544,7 @@ the recording and plays the same the second time. The replay starts from
 the snapshot, so a recording begun later in a session (a parameter
 changed, a run, a diagram computed before Record) replays exactly; a
 recorded Open model of a file the recording does not hold, or a folder
-this machine lacks, stops there. `play` `from` loads the snapshot again.
+this machine lacks, stops there. `recording.seek` loads the snapshot again.
 
 Pace: only computation takes time. Before each input the player sends
 `press` (what it is about to send, `ms` before it sends it): a step's
@@ -1469,7 +1561,7 @@ the steps before N with no wait (their `press` events 0 ms), then pauses
 The player acts from the command loop's and a question's wait for input,
 so the core stays on its one thread and keeps reading the client's lines
 while it waits. `tools/servercheck.py` (`check_player`,
-`check_player_ani`) and `tools/autocheck.py` (`play`) play recordings
+`check_player_ani`) and `tools/autocheck.py` (`recording.open`) play recordings
 back and compare the data.
 
 Wildcard matching uses constant stack space, including long runs of `*`.
@@ -1534,25 +1626,25 @@ large value".
 |---|---|---|
 | `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`, `player`), `title`, `file`, `point_types` (every AUTO point type as `{name, label, mark}`: the name is the only input, the label is what a person reads, the mark is the short text drawn at a point; core/auto_codes.h's one table), `output_names` (`par`, `ic`, `csv`, `curves`), `menu_names`, `command_categories`, `command_table`, `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 markers, 5 methods (items like `2 Box` start with the number to enter); `line_styles` (above), `colormaps` (above). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
 | `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`, `windows`, `player`), `title`, `file`, `output_names` (`par`, `ic`, `csv`, `curves`), `menu_names`, `command_categories`, `command_table`, `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 markers, 5 methods (items like `2 Box` start with the number to enter); `line_styles` (above), `colormaps` (above). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
-| `windows` | `windows`: [{`name`, `kind` (`graph`, `diagram`, `browser`, `animation`, `array_plot`), `shown`}] | Every open window of the session, in `window.list`'s order, and whether `window.hide` hid it; sent when the `data` command asks for `windows`, and again whenever it changes (a window made, destroyed, renamed, hidden or shown). A hidden window keeps everything it holds. |
+| `windows` | `windows`: [{`name`, `kind` (`graph`, `diagram`, `browser`, `animation`, `array_plot`), `shown`}] | Every open window of the session, in `window.list`'s order, and whether `window.hide` hid it; sent when `events.subscribe` asks for `windows`, and again whenever it changes (a window made, destroyed, renamed, hidden or shown). A hidden window keeps everything it holds. |
 | `window` | `op` (`create`, `select`, `destroy`), `kind` (`graph`, `diagram`, `animation`, `array_plot`), `win`, `w`, `h`, `title` | Plot windows, AUTO, animation and array plot, identified by name. `kind` distinguishes auxiliary panels from user-named graphs; `hello.window_names` gives their initial names. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
 | `diagram` | `op` (`axes`, `reset`, `add`, `views`), `view`, ... | The AUTO diagram as data, each view of it; see "The AUTO diagram as data". |
-| `autoinfo` | `info`, `stab`, `stop`, `notes`, `start_refined` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
-| `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`data`); see "AUTO's settings as data". |
-| `numerics` | `fields` [{`key`, `label`, `value`, `integer`, `unused`, `choices`, `unavailable`}...] | The main numerics as data, for a client that asked (`data`); see "The numerics as data". |
-| `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns`; or `op` `end`, `win`, `rows`, `version` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
+| `autoinfo` | `info`, `stab`, `stop`, `notes`, `start_refined` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`events.subscribe`); see "The AUTO diagram as data". |
+| `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`events.subscribe`); see "AUTO's settings as data". |
+| `numerics` | `fields` [{`key`, `label`, `value`, `integer`, `unused`, `choices`, `unavailable`}...] | The main numerics as data, for a client that asked (`events.subscribe`); see "The numerics as data". |
+| `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns`; or `op` `end`, `win`, `rows`, `version` | A plot window's curves as numbers, one event per window, for a client that asked (`events.subscribe`), and during an integration the active window's rows as they are stored; see "The plot as data". |
 | `runs` | `win`, `enc`, `erased`, `clear`, `drop`, `add` | A plot window's earlier runs changed, for a client that asked for `series`; see "Display state". |
 | `autoview` | `earlier`, `show`, `active`, `views` | AUTO's hidden branches, the active view and each view's zoom, for a client that asked for `autoinfo`; see "Display state". |
 | `erase` | `win` | The Erase command blanked plot window `win`, for a client that asked for `series`: it shows nothing of that window's curves (nor the earlier runs it may keep) until the window's next series or `redraw` (the `runs` event carries the same as data). Only Erase sends it: a zoom also redraws the window, and keeps what a data client shows. See "The plot as data". |
 | `redraw` | `win` | The Redraw command drew window `win` again, for a client that asked for `series`: it shows the window's current series again (no series follows: the data did not change), and no earlier runs. |
-| `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`, `zoom`, `runs`}...] | Every plot window and the active one, for a client that asked (`data`); see "The plot as data". |
-| `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`data`); see "The plot as data". |
-| `marks` | `win`, `enc`, `equilibria`, `text`, `arrows`, `markers`, `frozen` | A plot window's equilibria, text, arrows, markers and frozen curves, for a client that asked (`data`); see "The plot as data". |
+| `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`, `zoom`, `runs`}...] | Every plot window and the active one, for a client that asked (`events.subscribe`); see "The plot as data". |
+| `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`events.subscribe`); see "The plot as data". |
+| `marks` | `win`, `enc`, `equilibria`, `text`, `arrows`, `markers`, `frozen` | A plot window's equilibria, text, arrows, markers and frozen curves, for a client that asked (`events.subscribe`); see "The plot as data". |
 | `state` | `sliders` [{`name`,`lo`,`hi`,`step`}...] in slot order (empty names retain vacant slots), `pars` [[name,value]...], `ics` [[name,value]...], `now` [value...] (after a first run), `rates` [number or null...] (one per `ics` entry: the largest absolute dv/dt over the last `hello.state_inspection.tail_intervals` stored intervals, null when it cannot be told: "Recording startup and all-state inspection"), `bcs` [[name,text]...] (only when the model itself defines boundary conditions, `b`/`bndry` lines or `boundary` statements: then one per variable, those it left out being 0; a model with none sends no `bcs`, the page shows no boundary-conditions section), `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`, and `theta`,`phi` when `three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `seed` (after a run that used one), `session` {`file`}, `changed`, `can_undo`, `can_redo`, `recording` {`steps`, `note`} (while recording), `player` {`step`, `running`, `playing`, `speed`, `fast`, `intact`} (while a recording is open in the player) | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics: `hello.menu_names` names them), `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `--silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `changed` (W209, always sent) is whether the values differ from those the session was last saved, opened or loaded with: a parameter, an initial condition, the numerics' time span, method, tolerances and bounds, or the run's data (the rows stored and where the run ended); a view, window or AUTO diagram alone is not a change; a save (`session` `save`, Save session, Quit's save, the import of a set file) and the end of a load or of opening a session file make it `false` (the page shows the unsaved dot in its title); `can_undo` and `can_redo` say whether the table's `undo` and `redo` have a value edit to take back or put back ("Undo and redo of value edits" below); `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one; `player` while a recording is open in the player ("Playing a recording"): `step` the next step to run (the number of steps at the end), `running` the step running (-1 between steps), `playing`, `speed`, `fast` (running steps with no pace to a `from` step), `intact` (the fingerprint matches). |
 | `idle` | | The command finished. |
 | `liveState` | `time`, `now` [value...], `rates` [number\|null...] | The solver's doubles for every ODE/Markov state at the latest output step of a running integration, paced at the input interval, with no subscription ("Live integration state (W200)"); `rates` as `state.rates` ("Recording startup and all-state inspection"). The final `state` follows. |
 | `stopped` | `at` | The command's computation was cancelled; sent before its `state` and `idle`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"ani","frame":F}` for the animation's Go, F the frames it had shown (W59b); `{"what":"other"}` for anything else. The recording player replays the interruption from it (see "Playing a recording without an interface"). |
-| `player` | `file`, `model`, `intact`, `steps` [{`note`, `step`, ...}] | A recording opened in the player ("Playing a recording"), sent when its model has loaded and again after a `play` `note`: the `.recx` (absolute path), its model's file, whether its fingerprint matches (`false`: it was changed after it was made; it plays all the same), and its steps, each its line's object ("Recordings": `step`, `keys`, `button`, `win`, `cmd`, `answers`, `view`, `abort`, `during`, `files`) with its `note` ("" for none). |
+| `player` | `file`, `model`, `intact`, `steps` [{`note`, `step`, ...}] | A recording opened in the player ("Playing a recording"), sent when its model has loaded and again after a `recording.set_step_note`: the `.recx` (absolute path), its model's file, whether its fingerprint matches (`false`: it was changed after it was made; it plays all the same), and its steps, each its line's object ("Recordings": `step`, `keys`, `button`, `win`, `cmd`, `answers`, `view`, `abort`, `during`, `files`) with its `note` ("" for none). |
 | `press` | `step`, `what`, `index`, `ms` | What the player sends next, before it sends it: `what` `key` (the step's `keys[index]`: its first key, the button's when the step has a `button`, or a menu's or a choice's answer), `answer` (`answers[index]`, a dialog's answer) or `cmd` (the step's `cmd`); it goes `ms` milliseconds later (the pace at the speed set), so the page shows it first; 0 while running to a `from` step. A step's first `press` tells the page the step runs: the questions it asks until its `state` with `player.running` -1 are the player's to answer, never the page's (a `pixels` ask excepted). |
 | `menu` | `which` | The main menu switched (0 main, 1 file, 2 numerics). |
 | `title` | `text` | Title of the selected plot window: what it plots (`W vs V`). The server also labels unlabelled 2D axes with the plotted variables. |
@@ -1563,15 +1655,15 @@ large value".
 | `equilibrium` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values`, `eigenvalues` | Result of Sing pts. `eigenvalues`: the Jacobian's `[re,im]` pairs, one per variable; absent for a delay equation. |
 | `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
 | `equations` | `lines` | One `dX/dT=...` line per equation. |
-| `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open`; or `op` `frame`, ... | Animation state for its slider and toggles, sent with every frame drawn and after every `ani` command: `pos` the row the next step starts from, `speed` the ms between frames of Go, `loaded` 1 when an `.anix` file is loaded, `open` 1 while the animation window exists. With `op` `frame`: a frame as data, for a client that asked (`data`); see "The animation as data". |
+| `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open`; or `op` `frame`, ... | Animation state for its slider and toggles, sent with every frame drawn and after every `ani` command: `pos` the row the next step starts from, `speed` the ms between frames of Go, `loaded` 1 when an `.anix` file is loaded, `open` 1 while the animation window exists. With `op` `frame`: a frame as data, for a client that asked (`events.subscribe`); see "The animation as data". |
 | `aplot` | `title`, `nx`, `ny`, `values`, `enc`, `colormap`, `ramp`, `zmin`, `zmax`, `tlo`, `thi`, `first_row`, `tag` | The array plot (the array plot surface; W492, #556 made it data only): `ny` rows of `nx` cells, row by row, `values` their numbers (as a series column; `null`/NaN off the stored rows and columns), `colormap` the session's colour scale by name and `ramp` its 256 colours from the low end to the high one: a cell is the ramp's colour at floor(256 * fraction), fraction being (value - `zmin`) / (`zmax` - `zmin`) clamped to 0..1 (core/colormap.h `ramp_color`); with `zmax` not above `zmin` no cell is coloured. `tlo` and `thi` are the times of its first and last row, `first_row` the stored row its first row of cells shows (`array_plot.scroll`'s argument). `tag` the range-saving frame's text. Print writes the same cells and colours as a PDF. |
 | `film` | `op` (`capture`, `reset`, `play`, `autoplay`), `count`, `win`, `cycles`, `delay` | Kinescope. The client keeps the frames: on `capture` it copies window `win` as it is drawn now; `play` shows them, `autoplay` plays `cycles` times `delay` ms apart. |
 | `ping` | | Beep. |
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser.page` request (as its `done`'s `rows` too) and after any command that changed the data while the client shows the browser. |
-| `bye` | | The program is exiting normally: sent by every quit (a plain `quit`, during a computation or not, and the question's outcomes) before an error-free exit, so browser mode's `exit` event says `code` 0. Every quit path exits 1 after a reported error and sends no `bye` (W133). A crash or an error exit sends none (`exit` `code` 1). |
+| `bye` | | The program is exiting normally: sent by every quit (a `session.quit` with `save` false, during a computation or not, and the question's outcomes) before an error-free exit, so browser mode's `exit` event says `code` 0. Every quit path exits 1 after a reported error and sends no `bye` (W133). A crash or an error exit sends none (`exit` `code` 1). |
 | `error` | `error`, `file`, `line`, `col`, `source` | The model did not load: sent instead of `hello`, then the program exits (see "A model that does not load"). |
 | `file` | `op`, `name`, `ok`; `size`, `sha256` (`put`, `get`), `data` (`get`, base64), `files` (`list`: [{`name`,`size`,`mtime`,`sha256`}...]); `error`, `file`, `line`, `col`, `source`, `field` when `ok` is 0 (the common error shape above) | The answer to a `file` command (see "Files" below). |
-| `keymap` | `op` (`get`, `set`, `reset`), `keymap` (the object of "Keymap") | The answer to a `keymap` command. |
+| `keymap` | `op` (`get`, `set`, `reset`), `keymap` (the object of "Keymap") | The answer to a `keymap.get`, `keymap.set` or `keymap.reset` command. |
 | `ask` | `id`, `kind`, ... | See below. |
 
 In browser mode (`xppautX model.ode`) events stream from `/events?t=TOKEN`.
@@ -1707,7 +1799,7 @@ when the redraw is over, not while it runs. A new AUTO window starts empty.
 
 **`autoinfo`**: what the AUTO window's info strip and stability circle
 show, as data, for a client that asked with
-`{"cmd":"data","events":["autoinfo"]}`. It is sent at the end of that
+`{"cmd":"events.subscribe","events":["autoinfo"]}`. It is sent at the end of that
 command, and then whenever what it says changed: before every ask (so
 every step of a grab brings the point's strip and circle before the grab
 asks again), at the end of a command, and at most ten times a second while
@@ -1779,7 +1871,7 @@ lines (`bogdanov_takens true` or `bogdanov_takens false`, etc.); validation prec
 What the AUTO window's Numerics, Axes (the AutoPlot form and
 the plot type) and Mark values forms edit, as data, for a client with
 forms of its own (web2, docs/ui-v2.md T22). **`autosettings`** is sent to a
-client that asked with `{"cmd":"data","events":["autosettings"]}` at the
+client that asked with `{"cmd":"events.subscribe","events":["autosettings"]}` at the
 end of that command, and then whenever the settings changed: at the end of
 a command and before every ask. The settings exist from the model's load,
 before AUTO's window opens (a model with more variables than AUTO takes
@@ -1825,7 +1917,7 @@ read on import only. `suppress_branch_points` and `switch_one_direction` are che
 Numbers are doubles in their shortest exact form, the whole-number fields
 as integers; `null` when not finite.
 
-The `data` command also accepts `diagram: true|false` (W439, #501). Diagrams
+`events.subscribe` also takes `diagram`, true or false, (W439, #501). Diagrams
 are delivered initially; omitting this field keeps that choice. `false` stops
 diagram collection and delivery for this client, while AUTO still computes and
 stores its complete numerical diagram. `true` replays the current diagram,
@@ -1884,7 +1976,7 @@ run at 12 points.
 
 The main numerics, the Numerics menu's values (W106), as data for a client
 with fields of its own (web2's values panel). **`numerics`** is sent to a
-client that asked with `{"cmd":"data","events":["numerics"]}` at the end of
+client that asked with `{"cmd":"events.subscribe","events":["numerics"]}` at the end of
 that command, and then at the end of any command that changed them.
 core/numerics_settings.cpp keeps it.
 
@@ -1976,7 +2068,7 @@ a form of the picture's parameters (`Colour`, a boolean; `Axes font size`, a num
 
 The page (docs/ui-v2.md) draws the plots itself from numbers. Five events carry them, each sent only to
 a client that asked with
-`{"cmd":"data","events":["series","plots","nullclines","dfield","marks"]}` (any of
+`{"cmd":"events.subscribe","events":["series","plots","nullclines","dfield","marks"]}` (any of
 the names alone works too), at the end of that command and then at the end
 of every command after which what it says has changed. Nothing else sends
 them, so a command that only redraws sends none. They come before the
@@ -2065,7 +2157,7 @@ empty, and a later redraw brings the nullclines back (they are redrawn
 while Nullcline/Restore is on) but not the field Erase turned off. Each is
 sent at the end of a command when the window's content differs from the
 last one sent (compared value for value: drawing the same again sends
-nothing), and for every window once after `data`. The active window's
+nothing), and for every window once after `events.subscribe`. The active window's
 comes first.
 
 ```
@@ -2112,7 +2204,7 @@ freeze adds its curve at once (the window already shows it: it is the
 current curve), and a deleted mark goes at the end of the command that
 deleted it (Freeze/Delete and Remove all do not redraw). Sent at the end
 of a command when the window's marks differ from the last ones sent, and
-for every window once after `data`; the active window's first.
+for every window once after `events.subscribe`; the active window's first.
 
 ```
 {"ev":"marks","win":"graph_1",
@@ -2133,7 +2225,7 @@ for every window once after `data`; the active window's first.
 
 Label and object positions are the stored float32 values, 9 digits.
 
-**Binary values.** After `{"cmd":"data","events":["series"],"enc":"f32"}`
+**Binary values.** After `{"cmd":"events.subscribe","events":["series"],"encoding":"f32"}`
 every `series` event (full or append) has `"enc":"f32"` and each column's
 `data` is a string (and so is every value array of `nullclines`,
 `dfield` and the frozen curves of `marks`, which then carry `"enc":"f32"` too): the base64 (RFC 4648, with padding) of the values as
@@ -2142,7 +2234,7 @@ host's byte order. NaN and infinities travel as they are. That is 5.3
 characters a value instead of about 12, and nothing to parse: a million
 rows of three columns is 16 MB, which a browser decodes in milliseconds
 (`Uint8Array.fromBase64`, or `atob`). The decoded floats are exactly the
-JSON numbers read as float32. `data` without `enc`, or any other `enc`,
+JSON numbers read as float32. `events.subscribe` without `encoding`, or with `json`,
 means JSON numbers. A client should read `enc` on every event: a server
 that does not know the option sends JSON numbers.
 
@@ -2263,7 +2355,7 @@ Recording scratch roots and their parent folders are compared by real
 path, allowing linked temp-folder ancestors such as macOS's `/var`;
 links inside scratch and writes through subfolders remain refused.
 
-Opening one (`open`, `session` `load`, the command line) loads the model
+Opening one (`session.open_model`, `session.open`, the command line) loads the model
 saved in it, from those saved files alone: an edit to the `.ode` since,
 or its absence, makes no difference, and a file the model reads that is
 not saved in it is a file that is not there. Then it restores the
@@ -2301,7 +2393,7 @@ from its own folder.
 A recording, `name.recx` (W59c), is registered with the OS beside them (the
 same scripts in `tools/associate/`), and `xppautX name.recx` (every mode
 but `--silent`) starts the recording's own model and opens the recording in
-the player and starts playback automatically, as `{"cmd":"play","op":"open"}` does, without the question
+the player and starts playback automatically, as `recording.open` does, without the question
 File/open Model asks (nothing is open to save).
 
 ### AUTO diagram files
@@ -2381,7 +2473,7 @@ own oldest ones first, never its newest.
 | `add` | runs to append after that, newest last: `rows`, `three`, `curves`, `shift` and `columns` (`col`, `name`, `data`) as in `series`, of the columns the run's curves use |
 
 Sent when it changes (not at all for a window with none), and whole (`clear`
-1 with all the runs) after `data` asks for `series` again.
+1 with all the runs) after `events.subscribe` asks for `series` again.
 
 **`plots`** carries each window's `zoom` (`{"x":[low,high]|null,"y":...}`,
 the part of its axes shown; `null` the window's own) and `runs` (1: the
@@ -2394,7 +2486,7 @@ is left as it is).
 
 **`autoview`** (with `autoinfo`): `{"ev":"autoview","earlier":n,"show":0,
 "active":"diagram_1","views":[{"name":"diagram_1","zoom":{"x":null,"y":null}},...]}`, sent at the end of
-a command when it changed, and at once after `data`. `earlier`: the
+a command when it changed, and at once after `events.subscribe`. `earlier`: the
 diagram's points before this index are the branches computed before Clear
 (the AUTO window's key `c` sets it to the points so far, in every view; a
 diagram of fewer points, File/Reset diagram, lowers it, closing AUTO clears
@@ -2684,7 +2776,7 @@ apply here (W175, [#227](https://github.com/MuhammadMoustafa/xppautX/issues/227)
 
 ### The animation as data
 
-A client that asked with `{"cmd":"data","events":["ani"]}` gets each frame
+A client that asked with `{"cmd":"events.subscribe","events":["ani"]}` gets each frame
 of the animation (the animation surface) as data, in the animation's own coordinates,
 and draws it at any size itself (web2, docs/ui-v2.md T13).
 core/aniparse.cpp evaluates a frame in the `.anix` file's coordinates (its
@@ -2735,7 +2827,7 @@ A frame goes out when the core draws it: after `step`, `seek`, `reset`, a
 during an integration, and Go's. Frames that come faster than 25 a second
 (Go, Fly) are thinned: the latest one goes when 40 ms have passed since the
 last one sent, and the last frame drawn always goes, at the latest at the
-end of the command, before its `state` and `idle`. After `data` with `ani`
+end of the command, before its `state` and `done`. After `events.subscribe` with `ani`
 the last frame drawn (if any) goes at the end of that command. The comets'
 trails are the core's, so a thinned frame loses nothing. A new `.anix` file
 forgets the frame of the old one.
@@ -2838,7 +2930,7 @@ adaptive solver internal substeps are not display steps.
 
 `play open` starts a newly opened recording automatically. Set `autoplay:false`
 to open it paused for inspection. `play from` with `step:0, play:false` remains
-a paused restart. The `player` feature in `hello.features`, requested by `data`,
+a paused restart. The `player` feature in `hello.features`, requested by `events.subscribe`,
 resends the current recording's complete step list; a page connecting after the
 file opened receives its metadata along with the current `state.player`.
 

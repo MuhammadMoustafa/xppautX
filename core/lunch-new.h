@@ -75,6 +75,8 @@ void write_values_query(const Session &s, std::string_view name, bool sets, bool
    (File > Save info) */
 void import_settings_command(Session &s);
 void file_inf(Session &s);
+/* the simulation information written to filename (Save info): false when declined; confirm replaces an existing file without asking */
+Result<bool> write_info(Session &s, const std::string &filename, bool confirm);
 void do_info(const Session &s, FILE *fp);
 
 } // namespace xpp

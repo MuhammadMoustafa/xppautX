@@ -39,7 +39,7 @@ class Profile:
         for flag in () if self.tool != 'callgrind' else ('-d', '-z') if zero else ('-d',):
             # callgrind acts when the process next runs, so wake it with a command that ends in idle
             p = subprocess.Popen(['callgrind_control', flag, str(pid)], stdout=subprocess.PIPE, text=True)
-            s.send(cmd='data', events=['diagram'])
+            s.send(cmd='events.subscribe', events=['diagram'])
             s.collect(is_idle)
             p.communicate(timeout=600)
             if flag == '-d':

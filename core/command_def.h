@@ -43,10 +43,11 @@ inline constexpr std::string_view HELP_COMMAND = "help";
 /* integer and real are finite numbers; text, expression, name, file, path
    and color are JSON strings (max_length bytes at most); window and
    new_name are W353's: an open graph or view, and a name a window may take;
-   list and map hold one level of `element` values (real_pair is exactly two finite reals, for search bounds; no recursive containers). A map's keys are names
+   list and map hold one level of `element` values (real_pair is exactly two finite reals, for search bounds; text_list is a list of
+   texts, for a map's values (a command's keys: keymap.set's bindings), as real_pair is a pair: still one level, never a list of lists; no recursive containers). A map's keys are names
    of its `names` kind, or any text. */
 enum class Type { text, integer, real, boolean, choice, expression, model_name, file, path, color,
-                  list, map, window, new_name, real_pair };
+                  list, map, window, new_name, real_pair, text_list };
 /* what a name argument may name in the model, matched as the model does
    (any case): a parameter, a variable (one with an initial condition),
    either, or any name the model defines. `none` for a map whose keys are
@@ -83,6 +84,8 @@ struct Argument {
     /* a list's or map's values: any scalar type above */
     Type element = Type::text;
     std::size_t max_items = MAX_ITEMS;
+    /* a text that may hold line breaks and tabs (a recording's note); any other control character is refused */
+    bool multiline = false;
 };
 /* Arguments that go together: exactly one of them, at most one, or all or
    none. A grouped argument is not `required`. */
@@ -98,7 +101,7 @@ struct ResultField {
 
 /* A value an argument takes: a scalar, a list of scalars, or a map of
    scalars by name, in the order written. */
-using Scalar = std::variant<bool, long long, double, std::string, Color, std::array<double, 2>>;
+using Scalar = std::variant<bool, long long, double, std::string, Color, std::array<double, 2>, std::vector<std::string>>;
 using Entry = std::pair<std::string, Scalar>;
 using Value = std::variant<Scalar, std::vector<Scalar>, std::vector<Entry>>;
 
@@ -249,6 +252,17 @@ std::span<const Command> table_commands();
 std::span<const Command> browser_commands();
 std::span<const Command> set_commands();
 std::span<const Command> value_commands();
+std::span<const Command> session_commands();
+std::span<const Command> recording_commands();
+std::span<const Command> keymap_commands();
+std::span<const Command> events_commands();
+std::span<const Command> tool_commands();
+
+/* the handler of a command the front end answers itself (xpp::ui.front_end_command): the row names the command, its arguments and its result */
+Result<std::string> front_end(Session &s, const Command &command, const Arguments &args, const Place &place);
+/* what session.open_model answers once the model it asked for is loaded: the model, its variables and its parameters */
+std::string opened_model_result(const Session &s);
+
 /* A command whose arguments are numerics settings (run.configure, bvp.configure): every argument given is the
    setting `key_prefix` + its name, all checked together and set all or nothing; the result holds each one's
    value now. */

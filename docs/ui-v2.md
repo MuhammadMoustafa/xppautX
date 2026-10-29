@@ -42,7 +42,7 @@ mergeability is not a goal.
 
 | Piece | Where | What it does |
 |---|---|---|
-| `series` and `plots` events, `data` command | `core/plot_data.cpp` (C API in `plot_data.h`, called from `core/json_state.cpp`), `core/series_enc.cpp`, docs/protocol.md "The plot as data" | Every plot window's curves as numbers, one `series` per window: T and every plotted column, float32 values printed with 9 digits or base64 float32 (`enc` `f32`), sent at the end of a command when the window's data or curves changed, and for the active window in `append` parts while an integration runs. `plots` lists the windows (axes, labels, 3D view, curves) and the active one. |
+| `series` and `plots` events, `events.subscribe` command | `core/plot_data.cpp` (C API in `plot_data.h`, called from `core/json_state.cpp`), `core/series_enc.cpp`, docs/protocol.md "The plot as data" | Every plot window's curves as numbers, one `series` per window: T and every plotted column, float32 values printed with 9 digits or base64 float32 (`enc` `f32`), sent at the end of a command when the window's data or curves changed, and for the active window in `append` parts while an integration runs. `plots` lists the windows (axes, labels, 3D view, curves) and the active one. |
 | Page | `web2/src/` | Preact + TypeScript. A store fed by protocol events, a session that sends commands, the layout shell, the command menu, the plot (uPlot), prompts as dialogs, notifications, status bar. |
 | Build | `web2/build.mjs`, `web2/package.json` | esbuild bundles `src/` into `web2/dist/` (`app.js`, `app.css`, `index.html`, the Inter font and its licence). `dist/` is committed. |
 | Embedding | `Makefile` `WEB2_FILES`, `tools/embed.cpp` | xppautX serves `web2/dist` at `/` (`/v1/` and `/v2/` redirect there); generated C++ spans share `core/xpp_assets.h` (W173, #225). |
@@ -127,9 +127,9 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
   coordinates, not pixels). The classic `draw` ops kept flowing while `web/`
   existed (the data events went only to a client that asked for them);
   protocol 2 (T18) dropped them.
-- **One subscription command.** `{"cmd":"data","events":["series", ...]}`
-  declares the set of data events the client wants (`[]` stops them; a new
-  command replaces the set). Each named event is sent at the end of that
+- **Two subscription commands.** `{"cmd":"events.subscribe","events":["series", ...]}`
+  adds data events to the set the client wants and `events.unsubscribe`
+  removes them (W528). Each named event is sent at the end of that
   command, which is what a client that (re)connects needs. `hello.features`
   lists the names the server knows, so a newer page can tell an older
   server.
@@ -138,7 +138,7 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
   only on a difference. A command that only redraws sends nothing.
 - **Numbers as JSON.** float32 storage values go out with 9 significant
   digits, which round-trip exactly; `null` is NaN. A binary encoding
-  (`"enc":"f32"` in the `data` command, base64 of little-endian floats) is
+  (`"encoding":"f32"` in `events.subscribe`, base64 of little-endian floats) is
   an option for very long runs, not the default; web2 asks for it.
 - **Increments for long runs.** A long integration or AUTO run sends `append`
   parts at most ~60 times a second (a display frame, W82; `progress` and
@@ -170,7 +170,7 @@ already data and stay as they are.
 ### How the two paths coexist
 
 1. Until task T17 both pages work against the same binary: `draw` ops are
-   always sent, data events only after `data`. In browser mode both pages
+   always sent, data events only after `events.subscribe`. In browser mode both pages
    can even be open at once.
 2. T17 makes web2 the page at `/` (classic at `/v1/`), and the VS Code panel
    switches to it.
@@ -547,7 +547,7 @@ Target: WCAG 2.2 AA. Rules:
   palettes.
 - **Protocol** (`tools/servercheck.py`): a Window/Zoom box answered in
   data coordinates zooms as the same box in pixels, Initialconds/Mouse in
-  data coordinates starts there; `data` sends the series at once;
+  data coordinates starts there; `events.subscribe` sends the series at once;
   after an integration the series is W against V with 601 rows and its
   numbers are exactly those of `output.dat` (as float32, printed `%.8g`); a
   redraw sends none; Xi vs t sends T and V. Live runs
@@ -636,7 +636,7 @@ Target: WCAG 2.2 AA. Rules:
   colour, in [0,1] except where the `.ani` leaves its box (and there the
   pixel op is clamped to the edge); load, step, seek and the end of Go send
   the frame they draw; Go sends fewer frames than it draws, in order, and
-  its last; `speed`; a grab by unit coordinates; nothing without `data`.
+  its last; `speed`; a grab by unit coordinates; nothing without `events.subscribe`.
   `npm test` (`test/ani.test.ts`): decoding, the box's aspect, unit to
   canvas and back, pixel sizes, the slice. `tools/web2check.mjs` (`ani`):
   Load by upload shows frame 0 in the store and drawn, at the box's aspect;

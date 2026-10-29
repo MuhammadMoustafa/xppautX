@@ -46,30 +46,30 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
     try:
         initial, idle = server.collect(is_idle)
         assert idle is not None and len(state(initial)['ics']) == 8
-        command(server, cmd='record', op='start')
-        command(server, cmd='record', op='note', text='Short 200 ms run; original model equations and initial conditions unchanged.')
+        command(server, cmd='recording.start')
+        command(server, cmd='recording.add_note', note='Short 200 ms run; original model equations and initial conditions unchanged.')
         command(server, cmd='run.configure', total_time=RUN_MS)
-        command(server, cmd='record', op='note', text='Resting cell: all eight states update, although only voltage is plotted.')
+        command(server, cmd='recording.add_note', note='Resting cell: all eight states update, although only voltage is plotted.')
         server.send(cmd='run.initial')
         events, idle = server.collect(is_idle, timeout=RUN_TIMEOUT)
         assert idle is not None and not any(e.get('error') for e in events)
         live = [e for e in events if e.get('ev') == 'liveState']
         assert live and all(len(e['now']) == 8 for e in live)
-        command(server, cmd='record', op='note', text='Continue for another 200 ms: time advances to 400 ms and states keep updating.')
+        command(server, cmd='recording.add_note', note='Continue for another 200 ms: time advances to 400 ms and states keep updating.')
         events = command(server, cmd='run.continue', until=CONTINUE_TO_MS)
         final = state(events)
         assert final['time'] == CONTINUE_TO_MS
 
-        command(server, cmd='record', op='note', text='Open AUTO to continue the resting equilibrium in applied current Iapp.')
+        command(server, cmd='recording.add_note', note='Open AUTO to continue the resting equilibrium in applied current Iapp.')
         command(server, cmd='key', key='f')
         command(server, cmd='key', key='a')
-        command(server, cmd='record', op='note', text='Use bounded equilibrium continuation in Iapp; allow the resting state norm.')
+        command(server, cmd='recording.add_note', note='Use bounded equilibrium continuation in Iapp; allow the resting state norm.')
         command(server, cmd='auto.configure_numerics', **{'ntst': 15, 'nmx': 1500, 'npr': 20,
             'ds': 1, 'dsmax': 50, 'rl0': -500, 'rl1': 17500, 'a0': -200, 'a1': 200, 'mxbf': 5})
-        command(server, cmd='record', op='note', text='Show voltage V versus applied current Iapp, with fixed readable axes.')
+        command(server, cmd='recording.add_note', note='Show voltage V versus applied current Iapp, with fixed readable axes.')
         command(server, cmd='auto.configure_plot', **{'plot_type': 'maximum', 'variable': 'V', 'parameter1': 'Iapp',
             'x_min': -20, 'x_max': 200, 'y_min': -90, 'y_max': -35})
-        command(server, cmd='record', op='note', text='Run steady-state continuation; AUTO marks stability changes and labelled special points.')
+        command(server, cmd='recording.add_note', note='Run steady-state continuation; AUTO marks stability changes and labelled special points.')
         server.send(cmd='key', win='auto', key='r')
         _, ask = server.collect(lambda e: e.get('ev') == 'ask')
         assert ask is not None
@@ -77,8 +77,8 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         events, idle = server.collect(is_idle, timeout=RUN_TIMEOUT)
         assert idle is not None and not any(e.get('error') for e in events), events[-5:]
         final = state(events)
-        command(server, cmd='record', op='stop', name='PY_S1Bf-live.recx')
-        command(server, cmd='session', op='save', name='PY_S1Bf-live.snapx', data=True)
+        command(server, cmd='recording.stop', file='PY_S1Bf-live.recx')
+        command(server, cmd='session.save_as', file='PY_S1Bf-live.snapx', data=True)
     finally:
         server.close()
     rec = Path(folder) / 'PY_S1Bf-live.recx'
@@ -113,7 +113,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         for key in ('pars', 'ics', 'now', 'time', 'rows'):
             assert played[key] == final[key], key
         paced.collect(is_idle)
-        command(paced, cmd='session', op='save', name='paced.snapx', data=True)
+        command(paced, cmd='session.save_as', file='paced.snapx', data=True)
         with zipfile.ZipFile(io.BytesIO(file_bytes(paced, 'paced.snapx'))) as archive:
             for name, body in auto_saved.items():
                 assert archive.read(name) == body, 'Paced replay: ' + name
@@ -126,7 +126,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         saved = state(loaded)
         for key in ('pars', 'ics', 'now', 'time', 'rows'):
             assert saved[key] == final[key], (key, saved.get(key), final[key])
-        command(restored, cmd='session', op='save', name='restored.snapx', data=True)
+        command(restored, cmd='session.save_as', file='restored.snapx', data=True)
         with zipfile.ZipFile(io.BytesIO(file_bytes(restored, 'restored.snapx'))) as archive:
             for name, body in auto_saved.items():
                 assert archive.read(name) == body, 'Snapshot restore: ' + name

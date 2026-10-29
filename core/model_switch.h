@@ -28,14 +28,18 @@ struct Session; /* session.h */
    offering to save its session first (xpp_session_save). A file that
    carries a model (.snapx, xpp_session.h) always loads its saved model,
    then the whole session, after asking whether to save first.
-   A recording (.recx) opens in the player (play_recording, W59b). */
-void xpp_model_open(xpp::Session &s, const char *path);
+   A recording (.recx) opens in the player (play_recording, W59b). True
+   when a model (or recording) was asked for; false when a question was
+   declined or the reader of a session file showed why; the error when the
+   file cannot be read at all (the caller shows or returns it). */
+xpp::Result<bool> xpp_model_open(xpp::Session &s, const char *path);
 /* Open model of a bundled example (W233, {"cmd":"open","example":name}):
    `name` is one of the examples beside the program (xpp_examples.h), copied
    into the user's config folder (asking before it replaces a copy that is
    there; declining ends it, no change), and that copy opened by
-   xpp_model_open, the one owner. Says where the copy is. */
-void xpp_model_open_example(xpp::Session &s, std::string_view name);
+   xpp_model_open, the one owner. Says where the copy is; as xpp_model_open
+   answers, and the error when the copy cannot be made. */
+xpp::Result<bool> xpp_model_open_example(xpp::Session &s, std::string_view name);
 /* The one question before the session s goes (W59d): question, answered
    Save session (key s), Don't save (d) or Cancel (Esc). Save saves the
    session first (xpp_session_save, its file asked), and with_recording
@@ -58,8 +62,9 @@ void xpp_quit(xpp::Session &s, bool saving = false);
    does, then the model's file again, with
    the command line it was loaded with (a saved model's from its saved
    files); the parameters, initial data, numerics and AUTO settings keep their values by
-   name (restore_values) */
-void xpp_model_reload(xpp::Session &s);
+   name (restore_values). True when it asked for the load, false when the
+   question was declined, the error when the model was not read from a file */
+xpp::Result<bool> xpp_model_reload(xpp::Session &s);
 
 namespace xpp {
 
@@ -127,9 +132,9 @@ KeptValues keep_values(const Session &s);
 void restore_values(Session &s, const KeptValues &kept);
 
 /* loads what req, made in the session now, asks for: the new Session,
-   current now (its Model its model()), now gone; nullptr (an error message
-   said why) when the file cannot be read or loaded, now and its Model
+   current now (its Model its model()), now gone; the error (not shown: the caller
+   shows or returns it) when the file cannot be read or loaded, now and its Model
    still current and the working folder the one before */
-Session *load_requested(const Session &now, const ModelRequest &req);
+Result<Session *> load_requested(const Session &now, const ModelRequest &req);
 
 }

@@ -838,19 +838,19 @@ int save_to(xpp::Session &s, const std::string &file, int data, bool replace, bo
 
 } // namespace
 
-int xpp_session_save(xpp::Session &s, const char *name_arg, int data, bool copy)
+int xpp_session_save(xpp::Session &s, const char *name_arg, int data, bool copy, bool replace)
 {
     if(!xpp::save_ready(s.model().nlines()>0))return 0;
     std::string name;
     if (!name_or_ask(s.model(), copy ? "Save a copy of the session" : "Save session", "*" + std::string(xpp::snapx::extension), name_arg, name)) return 0;
-    return save_to(s, xpp::snapx::session_file_name(name), data, false, copy);
+    return save_to(s, xpp::snapx::session_file_name(name), data, replace, copy);
 }
 
-int xpp_session_save_here(xpp::Session &s)
+int xpp_session_save_here(xpp::Session &s, int data)
 {
-    if (s.saved_session.file.empty()) return xpp_session_save(s, nullptr, -1);
+    if (s.saved_session.file.empty()) return xpp_session_save(s, nullptr, data);
     if (!xpp::save_ready(s.model().nlines() > 0)) return 0;
-    return save_to(s, s.saved_session.file, -1, true, false);
+    return save_to(s, s.saved_session.file, data, true, false);
 }
 
 xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data, bool replace, bool copy)
@@ -897,7 +897,7 @@ int xpp_session_load(xpp::Session &s, const char *name_arg)
 {
     std::string name;
     if (!name_or_ask(s.model(), "Open session", "*" + std::string(xpp::snapx::extension), name_arg, name)) return 0;
-    xpp_model_open(s, xpp::snapx::session_file_name(name).c_str());
+    xpp::ok_or_show(xpp_model_open(s, xpp::snapx::session_file_name(name).c_str()));
     return 1;
 }
 

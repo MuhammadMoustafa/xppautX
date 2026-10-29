@@ -12,7 +12,7 @@ import type {Ranges} from './plot/viewmath';
 import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
-import {commandRow, kindOf, mainKey, mayStart, menuCommand, noValueEdit, menuKey, menuName, windowCommand, type LayerWindow} from './protocol/kinds';
+import {commandRow, kindOf, mainKey, mayStart, menuCommand, noValueEdit, menuKey, windowCommand, type LayerWindow} from './protocol/kinds';
 import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type MenuName, type UserKeymap, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import type {TextPosition, TextValues} from './store/marks';
@@ -73,6 +73,9 @@ type PlanStep = (ask: AskEvent) => Record<string, unknown> | null;
 
 /** the array plot window's buttons (their names in hello.windows.aplot.ids) */
 export type AplotOp = 'redraw' | 'edit' | 'fit' | 'range' | 'print' | 'gif';
+
+/** the commands of the player's Play, Pause and Step buttons */
+const PLAYER_CONTROLS = {start: 'recording.play', pause: 'recording.pause', step: 'recording.step'} as const;
 
 export class Session {
   readonly store: Store<AppState, Action>;
@@ -191,7 +194,7 @@ export class Session {
          also makes the server send the windows, their series, nullclines,
          direction fields and marks; values as base64 float32, which a long
          run needs */
-      this.send({cmd: 'data', events: ev.features, enc: 'f32'});
+      this.send({cmd: 'events.subscribe', events: ev.features, encoding: 'f32'});
     } else if (ev.ev === 'film') {
       this.onFilm(ev);
     } else if (ev.ev === 'ask') {
@@ -399,12 +402,12 @@ export class Session {
   /** Replace the user's keymap (docs/protocol.md "Keymap"): the answer is a `keymap` event, which is how the
       page learns the effective keys, so nothing is changed here */
   setKeymap(map: UserKeymap): void {
-    this.send({cmd: 'keymap', op: 'set', map});
+    this.send({cmd: 'keymap.set', bindings: map.bindings, pinned: map.pinned, preset: map.preset});
   }
 
   /** Remove the user's keymap file: all keys, pins and the preset back to the defaults */
   resetKeymap(): void {
-    this.send({cmd: 'keymap', op: 'reset'});
+    this.send({cmd: 'keymap.reset'});
   }
 
   /** Continue (W213), the one way to continue: the toolbar's button, the command's key and a click on its
@@ -548,11 +551,11 @@ export class Session {
     if (!hello) {
       /* End the waiting core first: closing the OS picker first can send its
          cancellation answer ahead of Quit and turn an ordinary close into a load error. */
-      this.send({cmd: 'quit'});
+      this.send({cmd: 'session.quit', save: false});
       return;
     }
     if (hello && (computing || (busy && !ask))) this.store.dispatch({type: 'leave', open: true});
-    else this.send({cmd: 'quit', ask: true});
+    else this.send({cmd: 'session.quit'});
   }
 
   /* the page's leave question answered: Save session stops the run, saves
@@ -561,8 +564,8 @@ export class Session {
      window closes, docs/protocol.md "quit"); Cancel changes nothing */
   private leaveAnswered(fields: Record<string, unknown>): void {
     this.store.dispatch({type: 'leave', open: false});
-    if (fields.key === 's') this.send({cmd: 'quit', save: true});
-    else if (fields.key === 'd' && !closeDesktopWindow()) this.send({cmd: 'quit'});
+    if (fields.key === 's') this.send({cmd: 'session.quit', save: true});
+    else if (fields.key === 'd' && !closeDesktopWindow()) this.send({cmd: 'session.quit', save: false});
   }
 
   /* ---- plot modes: mouse, rubber and drag asks (plot/pick.ts, docs/ui-v2.md T4) ---- */
@@ -1051,66 +1054,71 @@ export class Session {
 
   /** starts recording the steps (File/recorD, the title bar's Record) */
   startRecording(): void {
-    this.send({cmd: 'record', op: 'start'});
+    this.send({cmd: 'recording.start'});
   }
 
-  /** Open model, from the start screen or anywhere: the core asks for the file (a `file` ask), or opens
-      `path` (a recent model), exactly as File > Open model does (core/model_switch.h) */
-  openModel(path?: string): void {
-    this.send(path === undefined ? {cmd: 'open'} : {cmd: 'open', file: path});
+  /** Open model, from the start screen or anywhere: the core asks for the file (a `file` ask), exactly as File > Open model does
+      (core/model_switch.h) */
+  openModel(): void {
+    this.send(menuCommand('file', 'openmodel'));
+  }
+
+  /** Open model of a recent model (hello.start.recent), by its place in the list: the core knows the path */
+  openRecent(index: number): void {
+    this.send({cmd: 'session.open_model', recent: index});
   }
 
   /** Open model of a bundled example (hello.start.examples): the core copies it into the user's config
       folder and opens the copy; the page sends only the name */
   openExample(name: string): void {
-    this.send({cmd: 'open', example: name});
+    this.send({cmd: 'session.open_model', example: name});
   }
 
   /** the recording bar's Stop: the core asks the file's name (a `file` ask) and writes it */
   stopRecording(): void {
-    this.send({cmd: 'record', op: 'stop'});
+    this.send({cmd: 'recording.stop'});
   }
 
   /** the note shown above the next step (the recording bar's note box) */
   recordNote(text: string): void {
-    this.send({cmd: 'record', op: 'note', text});
+    this.send({cmd: 'recording.add_note', note: text});
   }
 
   /* ---- the player (W59b, docs/protocol.md "Playing a recording") ---- */
 
   /** File/plaY recording, the title bar's Play a recording: the core asks for the .recx */
   playOpen(): void {
-    this.send({cmd: 'play', op: 'open'});
+    this.send(menuCommand('file', 'play'));
   }
 
   /** Play, Pause, Step: at once, even while a step runs */
   play(op: 'start' | 'pause' | 'step'): void {
-    this.send({cmd: 'play', op});
+    this.send({cmd: PLAYER_CONTROLS[op]});
   }
 
   /** The speed the paces are divided by, within hello.player_speed. */
   playSpeed(speed: number): void {
-    this.send({cmd: 'play', op: 'speed', speed});
+    this.send({cmd: 'recording.set_speed', speed});
   }
 
   /** Restart (step 0, paused) and Play from here (the steps before it at once, then playing) */
   playFrom(step: number, play: boolean): void {
-    this.send({cmd: 'play', op: 'from', step, play: play ? 1 : 0});
+    this.send({cmd: 'recording.seek', step, play});
   }
 
   /** a step's note, written into the .recx (the fingerprint stays valid) */
   playNote(step: number, text: string): void {
-    this.send({cmd: 'play', op: 'note', step, text});
+    this.send({cmd: 'recording.set_step_note', step, note: text});
   }
 
   /** leaves the player; the model stays */
   playClose(): void {
-    this.send({cmd: 'play', op: 'close'});
+    this.send({cmd: 'recording.close'});
   }
 
   /** an `@ button` of the ODE file */
   userButton(index: number): void {
-    this.send({cmd: 'userbut', index});
+    this.send({cmd: 'tool.run_user_button', index});
   }
 
   /* ---- data table (docs/ui-v2.md T10, docs/protocol.md `browser`) ---- */
@@ -1374,21 +1382,8 @@ export class Session {
   }
 
   private refreshText(tab: TextTab): void {
-    if (tab === 'equations') {
-      this.send({cmd: 'equations'});
-    } else if (tab === 'source') {
-      /* File/Prt src (docs/protocol.md: no direct command, only the menu
-         key sequence): 'f' switches the core's own menu to File (a no-op
-         once already there) unless the numerics menu is open, which reads
-         a plain key as one of its own items and must be left with Escape
-         first (core/commands.c commander(), help_menu); 'p' runs Prt src
-         and the core returns to the main menu on its own afterward. */
-      const {hello, core} = this.store.getState();
-      const menu = menuName(hello, core?.menu ?? 0);
-      if (menu === 'num') this.key(menuKey(hello, 'num', 'exit'));
-      if (menu !== 'file') this.key(menuKey(hello, 'main', 'file'));
-      this.key(menuKey(hello, 'file', 'source'));
-    }
+    /* the model's source and its equations come together */
+    if (tab === 'equations' || tab === 'source') this.send({cmd: 'session.get_source'});
     /* 'equilibrium' has no fetch of its own: it is the last Sing pts result
        the core sent (Sing pts/Go, session.findEquilibrium()) and stays
        shown until the next one */
@@ -1398,7 +1393,7 @@ export class Session {
       (docs/protocol.md `action`): a comment with a `{par=value,...}` block,
       shown as a button on its line (ui/TextViews.tsx) */
   runAction(index: number): void {
-    this.send({cmd: 'action', index});
+    this.send({cmd: 'tool.run_source_action', index});
   }
 
   /** Find the equilibrium from the current initial conditions. */

@@ -398,7 +398,7 @@ export async function startWebView2(bin, dir, args) {
   }
 }
 
-/* Ends a startServer() session: {"cmd":"quit"} over its own /cmd (as
+/* Ends a startServer() session: {"cmd":"session.quit","save":false} over its own /cmd (as
    File/Quit does), so it removes its AUTO scratch folder and exits on its
    own (issue #32 -- a kill leaves the folder behind); a kill is only the
    fallback when quitting does not make it exit in time, or the request
@@ -414,7 +414,7 @@ export function stopServer(server, timeoutMs = 2000) {
       const req = http.request({host: u.hostname, port: u.port, path: '/cmd' + u.search, method: 'POST',
         headers: {'Content-Type': 'application/json'}}, res => res.resume());
       req.on('error', () => { if (server.proc.exitCode === null) server.proc.kill(); });
-      req.end(JSON.stringify({cmd: 'quit'}));
+      req.end(JSON.stringify({cmd: 'session.quit', save: false}));
     } catch {
       if (server.proc.exitCode === null) server.proc.kill();
     }

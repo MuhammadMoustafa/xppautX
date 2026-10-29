@@ -42,6 +42,7 @@
 #include "xpp_ui.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstring>
 #include <memory>
@@ -66,6 +67,9 @@ constexpr double ANSWER_CHARACTER_MS = 40; /* Additional display time per answer
 constexpr double VIEW_STEP_MS = 250; /* Pause between view-only steps. */
 constexpr double STEP_MS = 800; /* Pause between computation steps. */
 constexpr long long WAIT_MAX_MS = 1LL << 30; /* Keep a millisecond wait representable by the signed-int timer API. */
+
+/* the recorder's own commands, which a recording may hold (a replay can record its own steps); the rest of recording.* is the player's */
+constexpr std::array RECORDER_COMMANDS = {"recording.start", "recording.stop", "recording.add_note"};
 
 /* a recorded step, read from its line */
 struct PlayStep {
@@ -245,7 +249,8 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
         const xpp::Result<> checked=xpp::command::check_shape(out.cmd.c_str(),xpp::Place{"recording",st.at,0,st.line});
         if(!checked){error=checked.error().what;return false;}
     }
-    if (is_cmd(out.cmd.c_str(), "play")) {
+    if (const std::string_view name = xpp::command::name(out.cmd.c_str());
+        name.starts_with("recording.") && std::ranges::find(RECORDER_COMMANDS, name) == RECORDER_COMMANDS.end()) {
         error = "a recording step cannot control its own player";
         return false;
     }
@@ -566,26 +571,22 @@ void send_player()
     send_buf(b);
 }
 
-void open_recording(xpp::Session &s, std::string_view path, bool ask = true, bool play = true)
+/* the recording at path opened in the player (an empty path asks for the file); nothing opened and no error when a question is
+   cancelled (player.open and player.loading say whether it is) */
+xpp::Result<> open_recording(xpp::Session &s, std::string_view path, bool ask = true, bool play = true)
 {
-    if (player.running >= 0) {
-        j_command_error("play", "Not while a recording plays a step");
-        return;
-    }
+    if (player.running >= 0) return xpp::fail("recording", "Not while a recording plays a step", xpp::command_place());
     std::string file(path);
     if (file.empty()) {
-        if (!file_selector("Play recording", file, "*" + std::string(recx::extension)) || file.empty()) return;
+        if (!file_selector("Play recording", file, "*" + std::string(recx::extension)) || file.empty()) return {};
     }
     std::vector<PlayStep> steps;
     xpp::Result<recx::Read> got = read_recording(file, steps);
-    if (!got) {
-        show_error(got.error());
-        return;
-    }
+    if (!got) return std::unexpected(got.error());
     const std::string where = xpp::files::absolute(file);
     std::optional<SavedFile> snapshot = snapshot_of(where, got->rec);
-    if (!snapshot) return;
-    if (ask && !xpp_model_may_leave(s, file)) return;
+    if (!snapshot) return {};
+    if (ask && !xpp_model_may_leave(s, file)) return {};
     close_player();
     player.path = where;
     player.snapshot = std::move(snapshot);
@@ -595,94 +596,116 @@ void open_recording(xpp::Session &s, std::string_view path, bool ask = true, boo
     player.copy_of.assign(player.rec.files.size(), std::string());
     player.wait_for_page = play && xpp::http::active();
     load(s, 0, play || session.silent);
+    return {};
 }
 
-/* play, pause, step and speed: at any moment, even during a step */
-void control(const std::string &op, const char *line)
+/* Pause: at any moment, even during a step */
+void pause_player()
 {
-    if (!player.open) {
-        j_command_error("play", "No recording is open in the player");
-        return;
-    }
-    if (op == "pause") {
-        player.wait_for_page = false;
-        if (player.what != Next::none) player.left = std::max(Clock::duration::zero(), player.due - Clock::now());
-        player.playing = false;
-        player.step_once = false;
-    } else if (op == "start" || op == "step") {
-        player.wait_for_page = false;
-        const bool paused = !timer_on();
-        if (op == "start") player.playing = true;
-        else player.step_once = true;
-        if (player.what != Next::none) {
-            if (paused) player.due = Clock::now() + player.left;
-        } else if (player.running < 0 && player.next < static_cast<int>(player.steps.size())) {
-            schedule(Next::begin, Clock::duration::zero());
-        }
-    } else if (op == "speed") {
-        const double x = get_num(line, "speed", 1);
-        player.speed = std::clamp(x, PLAYER_SPEED_MIN, PLAYER_SPEED_MAX);
-    }
+    player.wait_for_page = false;
+    if (player.what != Next::none) player.left = std::max(Clock::duration::zero(), player.due - Clock::now());
+    player.playing = false;
+    player.step_once = false;
+}
+
+xpp::Result<> need_player()
+{
+    if (!player.open) return xpp::fail("recording", "No recording is open in the player", xpp::command_place());
+    return {};
+}
+
+/* the player's own: not while a step plays */
+xpp::Result<> need_idle_player()
+{
+    if (const xpp::Result<> open = need_player(); !open) return open;
+    if (player.running >= 0) return xpp::fail("recording", "Not while a step plays", xpp::command_place());
+    return {};
 }
 
 } // namespace
 
-void play_command(xpp::Session &s, const char *line)
+xpp::Result<std::string> recording_open(xpp::Session &s, const std::string &file, bool play)
 {
-    std::string op;
-    get_string(line, "op", op);
-    if (op == "open") {
-        std::string file;
-        get_string(line, "file", file);
-        open_recording(s, file, true, get_int(line, "autoplay", 1) != 0);
-    } else if (op == "from") {
-        if (!player.open || player.running >= 0) {
-            j_command_error("play", player.open ? "Not while a step plays" : "No recording is open in the player");
-            return;
-        }
-        const int n = static_cast<int>(player.steps.size());
-        int from = get_int(line, "step", 0);
-        from = from < 0 ? 0 : from > n ? n : from;
-        load(s, from, js_find(line, "play") ? get_int(line, "play", 0) != 0 : from > 0);
-    } else if (op == "note") {
-        const int i = get_int(line, "step", -1);
-        if (!player.open || i < 0 || i >= static_cast<int>(player.steps.size())) {
-            j_command_error("play", "play note: no such step");
-            return;
-        }
-        std::string text;
-        get_string(line, "text", text);
-        std::string &note = player.rec.steps[static_cast<size_t>(i)].note;
-        const std::string was = note;
-        note = text;
-        /* the file as it was, but for the note: its fingerprint is kept,
-           a mismatch included (recx.h) */
-        const xpp::Result<std::string> file = recx::text(player.rec);
-        if (!xpp::ok_or_show(file)) {
-            note = was;
-            return;
-        }
-        xpp::Writer w=xpp::open_writer_asking(player.path);
-        if (!w) {
-            note = was;
-            return;
-        }
-        w.write(*file);
-        if(!xpp::ok_or_show(xpp::commit_save(w))){note=was;return;}
-        player.steps[static_cast<size_t>(i)].note = text;
-        bottom_msg(0, xpp::format("Saved the note of step {} in {}", i + 1, xpp::files::split_path(player.path).second));
-        send_player();
-    } else if (op == "close") {
-        if (player.running >= 0) {
-            j_command_error("play", "Not while a step plays");
-            return;
-        }
-        close_player();
-    } else if (op == "start" || op == "pause" || op == "step" || op == "speed") {
-        control(op, line);
-    } else {
-        j_command_error("play", xpp::format("Unknown play op {}", op));
+    if (const xpp::Result<> opened = open_recording(s, file, true, play); !opened) return std::unexpected(opened.error());
+    if (!player.loading && !player.open) return xpp::fail("recording.open", "The recording was not opened: the question was declined", xpp::command_place());
+    std::string out = "{\"file\":";
+    buf_str(out, player.path);
+    return out + xpp::format(",\"total_steps\":{}}}", player.steps.size());
+}
+
+xpp::Result<std::string> recording_control(const std::string &op, std::optional<double> speed)
+{
+    if (const xpp::Result<> open = need_player(); !open) return std::unexpected(open.error());
+    if (op == "pause") {
+        pause_player();
+        return std::string("{\"paused\":true}");
     }
+    if (op == "speed") {
+        player.speed = *speed;
+        return xpp::format("{{\"speed\":{}}}", xpp::number(player.speed));
+    }
+    player.wait_for_page = false;
+    const bool paused = !timer_on();
+    if (op == "play") player.playing = true;
+    else player.step_once = true;
+    if (player.what != Next::none) {
+        if (paused) player.due = Clock::now() + player.left;
+    } else if (player.running < 0 && player.next < static_cast<int>(player.steps.size())) {
+        schedule(Next::begin, Clock::duration::zero());
+    }
+    return op == "play" ? std::string("{\"playing\":true}") : xpp::format("{{\"step_index\":{}}}", player.next);
+}
+
+xpp::Result<std::string> recording_seek(xpp::Session &s, long long step, std::optional<bool> play)
+{
+    if (const xpp::Result<> idle = need_idle_player(); !idle) return std::unexpected(idle.error());
+    const int n = static_cast<int>(player.steps.size());
+    const int from = static_cast<int>(std::min<long long>(step, n));
+    load(s, from, play.value_or(from > 0));
+    return xpp::format("{{\"step\":{}}}", from);
+}
+
+xpp::Result<std::string> recording_set_step_note(long long step, const std::string &text, bool confirm)
+{
+    if (const xpp::Result<> open = need_player(); !open) return std::unexpected(open.error());
+    if (step >= static_cast<long long>(player.steps.size()))
+        return xpp::fail("recording.set_step_note", xpp::format("The recording has no step {}: it has {}", step, player.steps.size()), xpp::command_place());
+    const size_t i = static_cast<size_t>(step);
+    std::string &note = player.rec.steps[i].note;
+    const std::string was = note;
+    note = text;
+    /* the file as it was, but for the note: its fingerprint is kept, a mismatch included (recx.h) */
+    const xpp::Result<std::string> file = recx::text(player.rec);
+    if (!file) {
+        note = was;
+        return std::unexpected(file.error());
+    }
+    xpp::Result<> opened;
+    xpp::Writer w = confirm ? xpp::open_writer_replacing(player.path, false, &opened) : xpp::open_writer_asking(player.path, false, &opened);
+    if (!opened) {
+        note = was;
+        return std::unexpected(opened.error());
+    }
+    if (!w) {
+        note = was;
+        return xpp::fail("recording.set_step_note", "The note was not saved: replacing the file was declined", xpp::command_place());
+    }
+    w.write(*file);
+    if (const xpp::Result<> saved = xpp::commit_save(w); !saved) {
+        note = was;
+        return std::unexpected(saved.error());
+    }
+    player.steps[i].note = text;
+    bottom_msg(0, xpp::format("Saved the note of step {} in {}", step + 1, xpp::files::split_path(player.path).second));
+    send_player();
+    return xpp::format("{{\"step\":{}}}", step);
+}
+
+xpp::Result<std::string> recording_close()
+{
+    if (const xpp::Result<> idle = need_idle_player(); !idle) return std::unexpected(idle.error());
+    close_player();
+    return std::string("{\"closed\":true}");
 }
 
 void player_data(void)
@@ -698,22 +721,12 @@ void player_data(void)
 
 void player_hold(void)
 {
-    if (player.open && !session.silent) control("pause", nullptr);
-}
-
-bool play_async(const char *line)
-{
-    if (!is_cmd(line, "play")) return false;
-    std::string op;
-    get_string(line, "op", op);
-    if (op != "start" && op != "pause" && op != "step" && op != "speed") return false;
-    control(op, line);
-    return true;
+    if (player.open && !session.silent) pause_player();
 }
 
 void j_play_recording(xpp::Session &s, std::string_view path)
 {
-    open_recording(s, path);
+    xpp::ok_or_show(open_recording(s, path));
 }
 
 } // namespace xpp::json
@@ -753,7 +766,7 @@ void json_ui_play_launched(xpp::Session &s, const std::string &path)
 {
     xpp::files::serve_reads(nullptr); /* the .recx itself is read from disk, whole */
     json::session.reading = {};
-    json::open_recording(s, path, false);
+    xpp::ok_or_show(json::open_recording(s, path, false));
 }
 
 } // namespace xpp

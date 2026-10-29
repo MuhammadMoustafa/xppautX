@@ -100,16 +100,22 @@ def is_idle(e):
     return e.get('ev') in ('idle','done')
 
 
+# every heavy data event a client subscribes to (hello's `features`)
+ALL_EVENTS = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani', 'autoinfo', 'autosettings', 'numerics', 'windows', 'player']
+
+
 def save_permission(cmd):
-    """Checks authorize their scratch saves explicitly (W129); replace=0
-    exercises the core's question instead. Answers never change policy."""
+    """Checks authorize their scratch saves explicitly (W129); replace=0 or
+    confirm=False exercises the core's question instead. Answers never
+    change policy."""
     kind, op = cmd.get('cmd'), cmd.get('op')
-    if kind in ('equilibrium.export', 'nullcline.export', 'dirfield.export'):
+    if kind in ('equilibrium.export', 'nullcline.export', 'dirfield.export', 'session.save_as', 'session.save_copy',
+                'session.export_info', 'recording.stop', 'recording.set_step_note'):
         cmd.setdefault('confirm', True)
         return cmd
-    if kind in ('key', 'quit') or op in {
+    if kind == 'key' or op in {
             'session': ('save',),
-            'record': ('stop',), 'play': ('note',), 'aplot': ('print', 'gif'),
+            'aplot': ('print', 'gif'),
             'ani': ('go',)}.get(kind, ()):
         cmd.setdefault('replace', 1)
     return cmd
@@ -493,9 +499,9 @@ def make_recording(binary, ode, lines, run):
     s = Server(binary, ode, run=run)
     try:
         s.collect(is_idle)
-        s.send(cmd='record', op='start')
+        s.send(cmd='recording.start')
         s.collect(is_idle)
-        s.send(cmd='record', op='stop', name='template.recx')
+        s.send(cmd='recording.stop', file='template.recx')
         s.collect(is_idle)
     finally:
         s.close()
@@ -528,12 +534,12 @@ def replay_recording(binary, ode, path, run, pixel_answers=()):
     events = []
     try:
         s.collect(is_idle)
-        s.send(cmd='play', op='open', autoplay=False, file=os.path.abspath(path))
+        s.send(cmd='recording.open', play=False, file=os.path.abspath(path))
         evs, _ = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
         pl = next((e for e in evs if e.get('ev') == 'player'), None)
         if pl:
             n = len(pl['steps'])
-            s.send(cmd='play', op='from', step=n, play=True)
+            s.send(cmd='recording.seek', step=n, play=True)
             # Fast-forward shares the player's inputs and stop arming with
             # silent playback, with no display pacing or time-based assertion.
             pending = iter(pixel_answers)

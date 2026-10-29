@@ -134,6 +134,8 @@ export interface AppState {
   steadyEdit: Partial<SteadyInput>;
   /** the keys of a chord typed so far ("F" of F, S), shown in the status bar; Esc or a focus change empties it */
   pendingKeys: string[];
+  /** the controls sent (CONTROL_DONE) whose done has not come: each is answered at once, even in the middle of a computation whose own done comes later */
+  controlDone: number;
   /** parameters, ICs, BCs, delays, sliders (T3): pending edits and errors, see store/values.ts */
   values: ValuesState;
   /** the values panel, a full-screen sheet on narrow screens */
@@ -240,6 +242,7 @@ export const initialState: AppState = {
   continueInput: CONTINUE_INPUT_DEFAULT,
   steadyEdit: {},
   pendingKeys: [],
+  controlDone: 0,
   values: initialValues,
   valuesOpen: false,
   table: initialTable,
@@ -293,11 +296,14 @@ function addToast(state: AppState, kind: Toast['kind'], text: string, action?: T
    during a computation"), so the table's
    paging (store/table.ts planRequest) never leaves the status bar stuck
    showing Working */
-const NO_IDLE = new Set(['run.abort', 'browser.page', 'quit']);
+const NO_IDLE = new Set(['run.abort', 'browser.page']);
+/** the commands the core answers at once at any moment, a done each, even in the middle of a computation: the
+    player's controls and the state; the page's busy never waits on them (their done is counted, state.controlDone) */
+const CONTROL_DONE = new Set(['recording.play', 'recording.pause', 'recording.step', 'recording.set_speed', 'session.get_state']);
 /** whether a command ends without an idle of its own (a control line) */
 export function noIdle(cmd: Command): boolean {
-  if (cmd.cmd === 'quit') return !cmd.ask && !cmd.save;
-  return NO_IDLE.has(cmd.cmd);
+  if (cmd.cmd === 'session.quit') return cmd.save === false;
+  return NO_IDLE.has(cmd.cmd) || CONTROL_DONE.has(cmd.cmd);
 }
 
 /** The id of the page's own leave question (W110): File > Quit's, worded
@@ -471,6 +477,11 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return mode ? withPlots(withAsk, select(state.plots, ev.win!)) : withAsk;
     }
     case 'done': {
+      /* a control's own done settles nothing */
+      if (state.controlDone > 0) {
+        const counted = {...state, controlDone: state.controlDone - 1};
+        return ev.status==='error'?reduce(counted,{type:'event',ev:{...ev,ev:'message'}}):counted;
+      }
       /* the error first, as a message then an idle came: the edit it belongs to (values.ts) is still the one running */
       const failed=ev.status==='error'?reduce(state,{type:'event',ev:{...ev,ev:'message'}}):state;
       return reduce(failed,{type:'event',ev:{ev:'idle'}});
@@ -584,6 +595,7 @@ export function reduce(state: AppState, action: Action): AppState {
       }
       if (action.cmd.cmd === 'animation.play' || isWindowKey(state.hello, action.cmd, 'ani', 'go'))
         state = {...state, ani: reduceAni(state.ani, {type: 'playing', playing: true})};
+      if (CONTROL_DONE.has(action.cmd.cmd)) return {...state, controlDone: state.controlDone + 1};
       if (noIdle(action.cmd)) return state;
       return {...state, busy: true, running: state.busy ? state.running : runningName(state.hello, action.cmd, null)};
     }

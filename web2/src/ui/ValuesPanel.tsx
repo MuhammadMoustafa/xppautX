@@ -335,7 +335,7 @@ function NumericsSection() {
 
 function UserButtonsBlock() {
   const session = useSession();
-  const busy = !useMay()({cmd: 'userbut'});
+  const busy = !useMay()({cmd: 'tool.run_user_button'});
   const names = useStore(s => s.hello?.userbuttons ?? []);
   if (!names.length) return null;
   return (

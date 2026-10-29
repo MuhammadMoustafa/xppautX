@@ -238,7 +238,7 @@ static void run_session(void)
     if (saved) xpp_saved_restore(loaded_session, *saved);
     if (recording) json_ui_play_launched(loaded_session, recording->saved.in); /* loaded by the command below */
     /* this first command loads a recording's model in the place of this one */
-    xpp::json_ui_handle("{\"cmd\":\"state\"}");
+    xpp::json_ui_handle("{\"cmd\":\"session.get_state\"}");
     xpp::json_ui_loop();
 }
 

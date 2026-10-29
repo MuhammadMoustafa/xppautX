@@ -12,7 +12,7 @@ import {ErrorSource} from './ErrorSource';
 export function StartScreen() {
   const session = useSession();
   const start = useStore(s => s.hello?.start);
-  const may = useMay()({cmd: 'open'});
+  const may = useMay()({cmd: 'session.open_model'});
   if (!start) return null;
   const err = start.error ? {file: start.file ?? '', line: start.line ?? 0, col: start.col ?? 0, source: start.source ?? ''} : null;
   return (
@@ -31,11 +31,11 @@ export function StartScreen() {
       )}
       {start.recent.length === 0 && !err && <p class="muted" data-start-none>No model has been opened yet.</p>}
       <ul class="start-recent">
-        {start.recent.map(m => (
+        {start.recent.map((m, i) => (
           <li key={m.path}>
             <button data-start-recent={m.path} aria-disabled={m.missing || !may}
               title={m.missing ? `${m.path} is no longer there` : m.path}
-              onClick={() => { if (!m.missing && may) session.openModel(m.path); }}>
+              onClick={() => { if (!m.missing && may) session.openRecent(i); }}>
               {baseName(m.path)}{m.missing && <span class="start-missing"> (missing)</span>}
             </button>
             <span class="muted start-path">{m.path}</span>

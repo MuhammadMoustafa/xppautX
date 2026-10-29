@@ -148,7 +148,7 @@ export function isWindowKey(hello: HelloEvent | null, cmd: Command, win: LayerWi
 export function kindOf(hello: HelloEvent | null, menu: number, cmd: Command): Kind | null {
   /* Startup can ask for a model (or conversion choices) before hello.
      Its answer and cancellation must reach the waiting core. */
-  if (!hello) return cmd.cmd === 'answer' || cmd.cmd === 'run.abort' || cmd.cmd === 'quit' ? 'control' : null;
+  if (!hello) return cmd.cmd === 'answer' || cmd.cmd === 'run.abort' || cmd.cmd === 'session.quit' ? 'control' : null;
   if (cmd.cmd === 'key') {
     if (isMenuItemCommand(cmd)) {
       const name = hello.menu_names.find(n => n === cmd.menu);

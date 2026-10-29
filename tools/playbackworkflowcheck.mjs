@@ -26,7 +26,7 @@ try {
     return !!d && getComputedStyle(d).top === '0px' && d.querySelectorAll('.player-controls').length === 1
       && !document.querySelector('.run-toolbar') && /Play again/.test(d.querySelector('.player-play').textContent); })()`), 'Native player controls must show completed playback above AUTO');
   console.log('PASS native automatic playback: all steps, all states, continuation and AUTO, controls above AUTO');
-  await cdp.eval('__xpp.send({cmd:"play",op:"from",step:0,play:false}); true');
+  await cdp.eval('__xpp.send({cmd:"recording.seek",step:0,play:false}); true');
   assert.ok(await waitFor(() => state('s.core?.player?.step === 0 && s.core.player.running === -1 && !s.core.player.playing && !s.busy')));
   assert.ok(await cdp.eval('/Play$/.test(document.querySelector(".player-play").textContent.trim())'));
   await cdp.eval('document.querySelector(".player-play").click(); true');

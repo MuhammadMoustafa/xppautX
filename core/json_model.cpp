@@ -84,15 +84,15 @@ std::vector<std::pair<std::string,std::string>> shown_windows(const xpp::Session
 
 } // namespace
 
-xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
+xpp::Result<xpp::Session *> switch_model(xpp::Session &before, const xpp::ModelRequest &req)
 {
     const auto shown = shown_windows(before);
     xpp::KeptValues kept;
     if (req.keep_values) kept = xpp::keep_values(before);
-    xpp::Session *loaded = xpp::load_requested(before, req);
-    if (!loaded) return before; /* the model before goes on */
+    xpp::Result<xpp::Session *> loaded = xpp::load_requested(before, req);
+    if (!loaded) return loaded; /* the model before goes on */
     /* before is gone: the new model's session from here on */
-    xpp::Session &s = *loaded;
+    xpp::Session &s = **loaded;
     s.file_dialogs.home = req.home.empty() ? xpp::files::working_dir() : req.home;
     for (const auto &[name,kind] : shown) send_window("destroy", name, 0, 0,"",kind);
     /* what the data modules and this front end recorded of the model before */
@@ -110,7 +110,7 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
     if (req.restore) xpp_saved_restore(s, *req.restore); /* an AUTO or session file */
     redraw_graph(s);
     auto_redraw_for_client(s);
-    return s;
+    return &s;
 }
 
 } // namespace xpp::json

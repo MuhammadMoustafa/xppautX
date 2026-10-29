@@ -36,9 +36,11 @@
 #include "grobs.h"
 #include "diagram.h"
 #include "data_event.h"
+#include "event_streams.h"
 #include "auto_data.h"
 #include "auto_settings.h"
 #include <stddef.h>
+#include <array>
 #include <atomic>
 #include <climits>
 #include <deque>
@@ -47,6 +49,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <span>
 #include <string>
@@ -64,6 +67,7 @@
 
 namespace xpp {
 struct ModelRequest; /* model_switch.h */
+namespace command { struct Command; class Arguments; } /* command_def.h */
 struct Session;      /* session.h */
 }
 
@@ -136,6 +140,12 @@ struct ProtocolSession {
     xpp::ChangedEvent<xpp::Session> windows{windows_event_line, "sending the windows"};
     std::vector<ClientDiagramView> client_diagram{1}; /* the lists the client holds, one per view */
     bool diagram_subscribed = true; /* diagrams are sent until a client explicitly opts out */
+    /* the heavy data events the client subscribed to (event_streams.h's names, in its order) and whether their arrays go as float32 */
+    std::array<bool, xpp::event_streams::NAMES.size()> subscribed{};
+    bool subscribed_f32 = false;
+    /* the line json_ui_push_open pushed, until handle_line takes it: its path came from the operating system's own dialog */
+    std::mutex own_open_lock;
+    std::string own_open_line;
     std::vector<std::string> client_view_names;
     int client_views = 1; /* how many of them */
     int grab_key_after = 0;
@@ -197,8 +207,10 @@ void send_hello(xpp::Session &s);
 
 /* ---- json_record.cpp: File/recorD, a recording's steps (W59a) ---- */
 
-/* {"cmd":"record","op":"start"|"stop"|"note",...} */
-void record_command(xpp::Session &s, const char *line);
+/* the recording's commands (json_registry.cpp calls them) */
+xpp::Result<std::string> recording_start(xpp::Session &s);
+xpp::Result<std::string> recording_stop(const xpp::Session &s, const std::optional<std::string> &file, bool confirm);
+xpp::Result<std::string> recording_add_note(const std::string &note);
 void j_record_toggle(xpp::Session &s); /* File/recorD: start, or stop and save */
 bool j_recording(void);                /* a recording is in progress */
 bool j_save_recording(xpp::Session &s); /* Quit's Save: the recording saved (its name asked) and ended */
@@ -232,14 +244,13 @@ void record_end(xpp::Session &s, bool cancelled);
 void buf_recording(std::string &b);
 
 /* ---- json_player.cpp: playing a recording (W59b) ---- */
-inline constexpr double PLAYER_SPEED_MIN = 0.25; /* Slowest supported replay pace. */
-inline constexpr double PLAYER_SPEED_MAX = 8; /* Fastest supported replay pace; hello gives both bounds to the page. */
 
-/* {"cmd":"play","op":"open"|"from"|"note"|"close"|...} */
-void play_command(xpp::Session &s, const char *line);
-/* play start, pause, step, speed: at any moment (handle_async); false
-   for any other line */
-bool play_async(const char *line);
+/* the player's commands (json_registry.cpp calls them); recording_control's op is play, pause, step or speed, with the speed for the last */
+xpp::Result<std::string> recording_open(xpp::Session &s, const std::string &file, bool play);
+xpp::Result<std::string> recording_control(const std::string &op, std::optional<double> speed);
+xpp::Result<std::string> recording_seek(xpp::Session &s, long long step, std::optional<bool> play);
+xpp::Result<std::string> recording_set_step_note(long long step, const std::string &note, bool confirm);
+xpp::Result<std::string> recording_close();
 void j_play_recording(xpp::Session &s, std::string_view path); /* File/plaY recording, Open model of a .recx */
 /* a recording playing pauses (a quit's question is the user's to answer) */
 void player_hold(void);
@@ -401,9 +412,18 @@ int j_progress_begin(void);
 void j_progress(int nit, int icount, int cwidth);
 void j_q_calc(xpp::Session &s);
 
+/* XppUi.front_end_command (json_registry.cpp): the registry commands this front end answers itself */
+xpp::Result<std::string> front_end_command(xpp::Session &s, const xpp::command::Command &command, const xpp::command::Arguments &args,
+                                           const xpp::Place &place);
+
 /* ---- json_state.cpp ---- */
 
 void send_state(xpp::Session &s);
+/* the commands the front end answers itself (json_registry.cpp calls them): the state, the model source, the event subscriptions */
+xpp::Result<std::string> session_get_state(xpp::Session &s);
+xpp::Result<std::string> session_get_source(xpp::Session &s);
+xpp::Result<std::string> events_subscribe(xpp::Session &s, const xpp::command::Arguments &args);
+xpp::Result<std::string> events_unsubscribe(xpp::Session &s, const xpp::command::Arguments &args);
 void send_state_if_dirty(void);
 void j_state_dirty(void);
 void j_state_dirty_i(int i);
@@ -413,11 +433,8 @@ void browser_update(xpp::Session &s); /* at a command's end */
 void j_browser_changed(int i);
 void j_rows_stored(xpp::Session &s, int nrows);
 void j_live_state(xpp::Session &s, const double *values, double time);
-void data_command(xpp::Session &s, const char *line);
-void send_equations(const xpp::Session &s);
 void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
 void j_make_txtview(xpp::Session &s);
-void action_command(xpp::Session &s, const char *line);
 void apply_set(xpp::Session &s, const char *line);
 void state_forget(void); /* what the model before showed (its last equilibrium) goes */
 
@@ -484,15 +501,17 @@ void j_auto_refresh(xpp::Session &s);
 
 /* the user's keymap as the page keeps it: hello's `keymap` object (xpp_keymap.h) */
 std::string hello_keymap();
-/* the `keymap` command: ops get, set (replace the whole user map) and reset */
-void keymap_command(xpp::Session &s, const char *line);
+/* the keymap commands: the user's keymap, replaced in the parts given, or reset */
+xpp::Result<std::string> keymap_get();
+xpp::Result<std::string> keymap_set(const xpp::command::Arguments &args);
+xpp::Result<std::string> keymap_reset();
 
 /* ---- json_model.cpp ---- */
 
 /* loads req's model (File > Open model, Reload) in place of the one of
    before, and serves it: its Session, current from now on (before is
    gone); when it cannot be loaded, before, which stays */
-xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req);
+xpp::Result<xpp::Session *> switch_model(xpp::Session &before, const xpp::ModelRequest &req);
 
 /* ---- json_ani.cpp ---- */
 

@@ -33,6 +33,7 @@
 #include "xpp_util.h"
 #include "many_pops.h"
 #include "command_table.h"
+#include "command_def.h"
 #include "command_registry.h"
 #include "menus.h"
 #include "mykeydef.h"
@@ -60,6 +61,8 @@
 #include "xpp_files.h"
 #include "xpp_examples.h"
 #include "xpp_recent.h"
+#include "recx.h"
+#include "event_streams.h"
 
 /* the core's own globals and functions that have no header of their own */
 
@@ -147,30 +150,66 @@ void answer_page(xpp::Session &s, const char *line)
 
 constexpr std::string_view PAUSE_COMMAND = "animation.pause";
 
+/* the registry commands that run at once, at any moment, even during a computation: the state, and the player's controls */
+constexpr std::array ASYNC_COMMANDS = {"session.get_state", "recording.play", "recording.pause", "recording.step", "recording.set_speed"};
+constexpr std::string_view QUIT_COMMAND = "session.quit";
+constexpr std::string_view OPEN_MODEL_COMMAND = "session.open_model";
+
+bool is_async_command(const char *line)
+{
+    const std::string_view name = xpp::command::name(line);
+    return std::ranges::find(ASYNC_COMMANDS, name) != ASYNC_COMMANDS.end();
+}
+
+/* session.quit's save, as the line gives it (JSON, or server text's `--save VALUE`); nothing when it is left out */
+std::optional<bool> quit_save(const char *line)
+{
+    std::string_view value;
+    if (*skip_ws(line) == '{') {
+        const char *given = js_find(line, "save");
+        if (!given) return std::nullopt;
+        value = js_raw(given);
+    } else {
+        constexpr std::string_view OPTION = "--save";
+        const std::string_view text(line);
+        const std::size_t at = text.find(OPTION);
+        if (at == std::string_view::npos) return std::nullopt;
+        value = text.substr(at + OPTION.size());
+        value.remove_prefix(std::min(value.find_first_not_of(" \t"), value.size()));
+        value = value.substr(0, value.find_first_of(" \t\r\n"));
+    }
+    bool save = false;
+    if (!xpp::parse_bool(value, save)) return std::nullopt;
+    return save;
+}
+
+/* a session.quit that stops the running job and then asks or saves, as a command of its own (save left out, or true) */
 bool quit_waits(const char *line)
 {
-    return is_cmd(line, "quit") && (get_int(line, "ask", 0) != 0 || get_int(line, "save", 0) != 0);
+    return xpp::command::name(line) == QUIT_COMMAND && quit_save(line) != false;
+}
+
+/* a session.quit with save false: it ends the session at once */
+bool quits_now(const char *line)
+{
+    return xpp::command::name(line) == QUIT_COMMAND && quit_save(line) == false;
 }
 
 /* commands that make sense at any moment, even while a prompt is open (a
-   quit that asks or saves is a command of its own, in the dispatch table) */
+   quit that asks or saves is a command of its own, in the registry) */
 int handle_async(xpp::Session &s, const char *line)
 {
-    if (is_cmd(line, "quit") && !quit_waits(line)) {
+    if (quits_now(line)) {
         /* read by a computation's own checkpoint, the quit ends the command it cancelled: that command
            says where it stopped, as when the computation sees the cancel first and the quit comes after */
         if (xpp::job::computing()) send_stopped();
         quit_command();
     }
-    if (is_cmd(line, "state")) {
-        send_state(s);
-        return 1;
-    }
     if (is_page(line)) {
         answer_page(s, line);
         return 1;
     }
-    return play_async(line) ? 1 : 0;
+    return 0;
 }
 
 /* What a running computation (xpp::job::computing(): an integration, a
@@ -200,9 +239,7 @@ xpp::inbox::Verdict during_run(const char *line)
 {
     std::string c, o; /* Whole words: a longer input must not impersonate a known command. */
     get_string(line, "cmd", c);
-    if (is_abort(line) || is_page(line) || c == "quit" || c == "state") return xpp::inbox::Verdict::control;
-    if (c == "play" && get_string(line, "op", o) && (o == "start" || o == "pause" || o == "step" || o == "speed"))
-        return xpp::inbox::Verdict::control;
+    if (is_abort(line) || is_page(line) || quits_now(line) || is_async_command(line)) return xpp::inbox::Verdict::control;
     if (c == "answer") return xpp::inbox::Verdict::normal;
     if (c == "key" && !js_find(line, "win")) {
         get_string(line, "key", o);
@@ -296,17 +333,17 @@ xpp::inbox::Verdict classify(const char *line, unsigned long seq)
         return xpp::job::computing() && !xpp::job::stopping() ? during_run(line) : xpp::inbox::Verdict::normal;
     /* a quit that asks (W59d), or saves (the page asked, W110), stops a
        computation, then runs as a command of its own, in its turn */
-    if (c == "quit" && (get_int(line, "ask", 0) != 0 || get_int(line, "save", 0) != 0)) {
+    if (quit_waits(line)) {
         if (xpp::job::computing() && !xpp::job::stopping()) xpp::job::cancel(seq);
         return xpp::inbox::Verdict::normal;
     }
-    if (is_abort(line) || c == "quit") {
+    if (is_abort(line) || quits_now(line)) {
         xpp::job::cancel(seq);
         return xpp::inbox::Verdict::control;
     }
     if (xpp::job::computing() && !xpp::job::stopping()) return during_run(line);
     if (!xpp::job::running()) return xpp::inbox::Verdict::normal;
-    if ((c == "key" && !js_find(line, "win")) || c == "set" || c == "state" || is_page(line) || is_parameter_edit(line))
+    if ((c == "key" && !js_find(line, "win")) || c == "set" || is_async_command(line) || is_page(line) || is_parameter_edit(line))
         return xpp::inbox::Verdict::control;
     if (is_steering(line)) return xpp::inbox::Verdict::control;
     return xpp::inbox::Verdict::normal;
@@ -335,6 +372,39 @@ void take_setting(xpp::Session &s, const char *line)
     defer_line(line, false, now, std::move(taken));
 }
 
+/* the registry request a line makes, as JSON: server text is made into it, JSON is the line */
+xpp::Result<std::string> request_of(const char *line, const xpp::Place &place)
+{
+    const bool text = *skip_ws(line) != '{' && !session.silent && !xpp::http::active();
+    if (text) return xpp::command::tokenize(line, place);
+    return std::string(line);
+}
+
+/* whether the registry line may give a path argument: --server's own input may (not the page or --silent's script), so may a replayed
+   recording and the one line json_ui_push_open pushed for a path the operating system's own dialog gave */
+bool paths_allowed(bool played, const char *line)
+{
+    {
+        const std::lock_guard<std::mutex> hold(session.own_open_lock);
+        if (!session.own_open_line.empty() && session.own_open_line == line) {
+            session.own_open_line.clear();
+            return true;
+        }
+    }
+    /* a recording's steps may open the files it holds: the player serves their reads from the recording, never the disk */
+    return played || (!session.silent && !xpp::http::active());
+}
+
+/* a registry command run at once, during a computation (the state, a player control): its done is sent here */
+void run_now(xpp::Session &s, const char *line)
+{
+    const xpp::Place place = j_command_place();
+    const xpp::Result<std::string> request = request_of(line, place);
+    const xpp::Result<std::string> result = request ? xpp::command::run(s, request->c_str(), place, false) : std::unexpected(request.error());
+    std::string event = xpp::command::done(request ? request->c_str() : "{}", result, false);
+    send_buf(event);
+}
+
 /* a control line taken by a checkpoint: every kind classify() puts there
    is acted on, none dropped. Returns ESC for abort, the code of a key,
    ANI_PAUSE for the animation's Pause, 64 otherwise. A setting: take_setting(). */
@@ -342,6 +412,10 @@ int control_line(xpp::Session &s, const char *line)
 {
     std::string k;
     if (handle_async(s, line)) return KEY_NONE;
+    if (is_async_command(line)) {
+        run_now(s, line);
+        return KEY_NONE;
+    }
     if (is_abort(line)) return ESC;
     if (is_cmd(line, "key")) {
         get_string(line, "key", k);
@@ -534,6 +608,7 @@ XppUi make_json_ui(void)
     u.play_recording = j_play_recording;
     u.recording = j_recording;
     u.save_recording = j_save_recording;
+    u.front_end_command = front_end_command;
     u.exit_program = j_exit_program;
     return u;
 }
@@ -574,17 +649,6 @@ void key_command(xpp::Session &s, const char *line)
     }
     else if (get_string(line, "win", win)) window_key(s, win, key_code(k.c_str()), line);
     else commander(s, key_code(k.c_str()));
-}
-
-void session_command(xpp::Session &s, const char *line)
-{
-    std::string o, name;
-    get_string(line, "op", o);
-    get_string(line, "name", name);
-    /* data: in (1), left out (0), or asked above 50 MB (absent) */
-    const char *jd = js_find(line, "data");
-    if (o == "save") xpp_session_save(s, name.empty() ? nullptr : name.c_str(), jd ? (get_num(line, "data", 1) != 0) : -1);
-    else if (o == "load") xpp_session_load(s, name.empty() ? nullptr : name.c_str());
 }
 
 /* the model's folder for a client that cannot reach it (xpp_files.h) */
@@ -641,45 +705,9 @@ const CommandInfo commands[] = {
          if (session.generated) silent_fail("answers a question that was never asked", line, NULL);
          else if (!player_place().file.empty()) j_command_error("play", "Answers a question that was never asked");
      }},
-    {"quit", nullptr, C, NOT_STEP,
-     [](xpp::Session &s, const char *line) {
-         if (!quit_waits(line)) quit_command();
-         /* the user's quit (W59d): File/Quit's question, or its Save
-            session answered in the page (W110); a recording playing
-            waits, the question being the user's */
-         player_hold();
-         xpp_quit(s, get_int(line, "save", 0) != 0);
-     }},
-    {"state", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_state(s); }},
-    {"data", nullptr, V, NOT_STEP, data_command},
-    {"equations", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_equations(s); }},
-    {"keymap", nullptr, C, NOT_STEP, keymap_command}, /* the user's settings, not the model's: any time */
     {"file", "put", D, NOT_STEP, file_command},
     {"file", nullptr, V, NOT_STEP, file_command}, /* list, get */
     {"set", nullptr, S, STEP, apply_set},
-    {"action", nullptr, D, STEP, action_command},
-    {"session", nullptr, D, STEP, session_command},
-    {"open", nullptr, D, STEP,
-     [](xpp::Session &s, const char *line) {
-         std::string file, example;
-         get_string(line, "file", file);
-         if (get_string(line, "example", example)) xpp_model_open_example(s, example);
-         else xpp_model_open(s, file.c_str());
-     }},
-    {"reload", nullptr, D, STEP, [](xpp::Session &s, const char *) { xpp_model_reload(s); }},
-    {"record", "note", C, NOT_STEP, record_command},
-    {"record", nullptr, D, NOT_STEP, record_command}, /* start, stop */
-    {"play", "start", C, NOT_STEP, play_command},
-    {"play", "pause", C, NOT_STEP, play_command},
-    {"play", "step", C, NOT_STEP, play_command},
-    {"play", "speed", C, NOT_STEP, play_command},
-    {"play", "close", C, NOT_STEP, play_command},
-    {"play", nullptr, D, NOT_STEP, play_command}, /* open, from, note */
-    {"userbut", nullptr, X, STEP,
-     [](xpp::Session &s, const char *line) {
-         int i = get_int(line, "index", -1);
-         if (i >= 0 && i < s.nuserbut) run_the_commands(s, static_cast<MenuCommand>(s.userbut[i].com));
-     }},
 };
 
 /* the table's entry for `line`, NULL for an unknown command; allocation-free */
@@ -845,15 +873,18 @@ xpp::Result<> reset_save_decision()
 namespace {
 
 /* the commands a session with no model runs (the start screen, W232):
-   Open model (the `open` command, or File > Open model's key), leaving,
-   answering Open model's questions, and the user's settings; `data` is the
-   page asking for events a model would send, which there are none of.
-   Every other command needs a model and says so. */
+   Open model (the registry's session.open_model, or File > Open model's
+   key), leaving, answering Open model's questions, the user's settings
+   (the keymap) and what the page asks for before a model is there (the
+   event subscriptions, help, the stop). Every other command needs a model
+   and says so. */
 bool runs_without_model(const char *line)
 {
-    if (is_abort(line)) return true;
-    for (const char *cmd : {"open", "quit", "answer", "keymap", "data"})
-        if (is_cmd(line, cmd)) return true;
+    const std::string_view name = xpp::command::name(line);
+    if (name == xpp::command::HELP_COMMAND || name == OPEN_MODEL_COMMAND || name == QUIT_COMMAND || name.starts_with("keymap.")
+        || name.starts_with("events.") || is_abort(line))
+        return true;
+    if (is_cmd(line, "answer")) return true;
     /* File > Open model by its stable id, as the page's menu and Ctrl+O send it */
     std::string menu, item;
     return is_cmd(line, "key") && get_string(line, "menu", menu) && get_string(line, "item", item) &&
@@ -883,7 +914,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     xpp::Result<std::string> request=std::string(line),result=std::string{};
     if (registered) {
         const xpp::Place place=j_command_place();
-        if(text)request=xpp::command::tokenize(line,place);
+        request=request_of(line,place);
         if(request && applied && taken) {
             /* done when it was taken (take_setting): it only ends here, with the result it had */
             result=*taken;
@@ -893,8 +924,8 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
             /* --silent's own commands replace the output files they write, as its key lines' "replace":1 said */
             if(session.generated)session.save_replace=SAVE_REPLACE;
             if(refused)result=xpp::fail("command",xpp::format("{}: {} was refused",xpp::job::REFUSED_WHILE_COMPUTING,xpp::command::name(request->c_str())),place);
-            else result=!permission?std::unexpected<xpp::Error>(permission.error()):!s->model().loaded() && xpp::command::is_step(request->c_str()) ?
-                xpp::fail("command","No model is open",place) : xpp::command::run(*s,request->c_str(),place,!played && !session.silent && !xpp::http::active());
+            else result=!permission?std::unexpected<xpp::Error>(permission.error()):!s->model().loaded() && !runs_without_model(request->c_str()) ?
+                xpp::fail("command","No model is open: open one first (Open model)",place) : xpp::command::run(*s,request->c_str(),place,paths_allowed(played,line));
         } else result=std::unexpected<xpp::Error>(request.error());
         if(!result) {
             if(session.silent)xpp::log(XPP_LOG_ERROR,"{}\n",result.error().text());
@@ -920,8 +951,6 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
             j_command_error("command", xpp::format("{}: {} was refused", xpp::job::REFUSED_WHILE_COMPUTING, c));
         } else if (!s->model().loaded() && !runs_without_model(line)) {
             j_command_error("command", "No model is open: open one first (Open model)");
-        } else if (is_cmd(line, "data") && !s->model().loaded()) {
-            /* no model: no events to send, nothing to subscribe */
         } else if (handle_async(*s, line)) {
         } else if (const CommandInfo *e = command_of(line)) {
             record_begin(line);
@@ -941,15 +970,26 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
                         xpp::format("{}: {} must be {}, not {}", cmd.empty() ? "command" : cmd,
                                     bad.key.empty() ? std::string("an element") : xpp::format("argument \"{}\"", bad.key), bad.expected, bad.given));
     }
+    }
     /* File > Open model or Reload asked for another model: loaded now,
        when nothing of this one's Session is in use any more */
     if (std::optional<xpp::ModelRequest> req = xpp::take_model_request(*s)) {
         /* Every recorded model switch keeps silent outputs in the launch folder. */
         if (session.silent && !session.generated) req->dir = session.output_folder;
         xpp::Session *before = s;
-        s = &switch_model(*s, *req);
+        const xpp::Result<xpp::Session *> switched = switch_model(*s, *req);
+        if (switched) s = *switched;
         player_model_switched(s != before);
-    }
+        /* a model that does not load is the command's error (a registry command's done carries it), shown once; the registry command that
+           opened one answers for it */
+        if (!switched) {
+            if (registered && result) result = std::unexpected(switched.error());
+            else xpp::show_error(switched.error());
+            if (registered && !result) {
+                if (session.silent) xpp::log(XPP_LOG_ERROR, "{}\n", result.error().text());
+                else xpp::log_note_error();
+            }
+        } else if (registered && result && xpp::command::name(request->c_str()) == OPEN_MODEL_COMMAND) result = xpp::command::opened_model_result(*s);
     }
     const bool stopped=xpp::job::cancelled();
     if (!s->model().loaded()) {
@@ -1043,9 +1083,13 @@ void json_ui_push_open(const char *path)
     /* on the window's thread, called from C (Win32, GTK): nothing may throw */
     try {
         std::string b;
-        BUF_LIT(b, "{\"cmd\":\"open\",\"file\":");
+        BUF_LIT(b, "{\"cmd\":\"session.open_model\",\"file\":");
         buf_str(b, path);
         BUF_LIT(b, "}");
+        {
+            const std::lock_guard<std::mutex> hold(session.own_open_lock);
+            session.own_open_line = b;
+        }
         xpp::inbox::push_own(b);
     } catch (...) {
         xpp::out_of_memory("opening a model");
@@ -1118,8 +1162,8 @@ void json_ui_start_screen()
     send_hello(client());
     send_simple("idle");
     json_flush();
-    /* the one Open model: the same command the page's button and File > Open model send */
-    json_ui_push_open("");
+    /* the one Open model: the same key the page's button and File > Open model send, which asks for the file */
+    xpp::inbox::push_own(xpp::format("{{\"cmd\":\"key\",\"menu\":\"{}\",\"item\":\"openmodel\"}}", xpp::MENU_NAMES[FILE_MENU]));
 }
 
 void json_ui_load_error(const xpp::Error &e)
@@ -1146,7 +1190,12 @@ void send_hello(xpp::Session &s)
             ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)
             : xpp::format("XPP Version {:g}.{:g}", program.version_major, program.version_minor);
     const char *title = title_text.c_str();
-    BUF_LIT(b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\",\"numerics\",\"windows\",\"player\"],\"title\":");
+    BUF_LIT(b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":");
+    {
+        std::vector<std::string> features(xpp::event_streams::NAMES.begin(), xpp::event_streams::NAMES.end());
+        buf_str_array(b, features);
+    }
+    BUF_LIT(b, ",\"title\":");
     buf_str(b, title);
     BUF_LIT(b, ",\"file\":");
     buf_str(b, m.this_file);
@@ -1212,7 +1261,7 @@ void send_hello(xpp::Session &s)
                BROWSER_MAX_ROWS, BROWSER_MAX_COLS);
     BUF_LIT(b, ",\"upload_error\":");
     buf_str(b, xpp::files::status_text(XPP_FILES_TOO_LARGE));
-    buf_format(b, ",\"player_speed\":{{\"min\":{},\"max\":{}}}", PLAYER_SPEED_MIN, PLAYER_SPEED_MAX);
+    buf_format(b, ",\"player_speed\":{{\"min\":{},\"max\":{}}}", recx::player_speed_min, recx::player_speed_max);
     buf_format(b, ",\"text\":{{\"max_length\":{},\"size_max\":{},\"default_size\":{}}}", xpp::LABEL_TEXT_MAX, xpp::LABEL_SIZE_MAX,
                xpp::LABEL_SIZE_DEFAULT);
     BUF_LIT(b, ",\"text_styles\":");
@@ -1283,7 +1332,7 @@ void send_hello(xpp::Session &s)
         buf_str(b, xpp::format("{} {}", static_cast<int>(solver.id), solver.name).c_str());
     }
     BUF_LIT(b, "]]");
-    /* @ button name:keys lines of the ODE file ({"cmd":"userbut","index":i}) */
+    /* @ button name:keys lines of the ODE file (tool.run_user_button, by index) */
     BUF_LIT(b, ",\"userbuttons\":[");
     for (i = 0; i < s.nuserbut; i++) {
         if (i) BUF_LIT(b, ",");

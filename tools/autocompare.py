@@ -15,7 +15,6 @@ import os
 from pathlib import Path
 import re
 import sys
-import tempfile
 import time
 import zipfile
 
@@ -291,7 +290,7 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
     if not stops and 'expected_error' not in r:
         # An identical repeated branch can leave the info strip unchanged;
         # its change-only event then needs an explicit current-value request.
-        current = completed(s, dict(cmd='data', events=['autoinfo', 'autosettings'], diagram=diagram_data))
+        current = completed(s, dict(cmd='events.subscribe', events=['autoinfo', 'autosettings'], diagram=diagram_data))
         stops = [e['stop'] for e in current if e.get('ev') == 'autoinfo' and e.get('stop')]
     if 'expected_error' not in r and (not stops or stops[-1]['why'].startswith('noconv')):
         raise RuntimeError('AUTO failed to converge: ' + str(stops[-1:] or events[-3:]))
@@ -332,11 +331,13 @@ def read_unlabelled(s, diagram, ranges):
 
 def saved_member(s):
     """The session file's diagram member (auto/diagram.csv), CRs removed."""
-    with tempfile.TemporaryDirectory() as folder:
-        path = os.path.join(folder, 'baseline.snapx')
-        completed(s, dict(cmd='session', op='save', name=path, data=False))
-        with zipfile.ZipFile(path) as z:
-            return z.read(DIAGRAM_MEMBER).replace(b'\r\n', b'\n')
+    name = 'baseline.snapx'
+    completed(s, dict(cmd='session.save_as', file=name, data=False))
+    path = os.path.join(s.run, name)
+    with zipfile.ZipFile(path) as z:
+        member = z.read(DIAGRAM_MEMBER).replace(b'\r\n', b'\n')
+    os.remove(path)
+    return member
 
 
 def point_count(data):
@@ -380,7 +381,7 @@ def compute(binary, d, threads, *, env=None, run=None, diagram_data=True, jacobi
         completed(s, dict(cmd='auto.set_threads', **({'automatic': True} if threads == 'auto' else {'threads': threads})))
         # Subscription returns the current settings even when a repeated
         # threads=1 assignment changed nothing and emitted no change event.
-        events = completed(s, dict(cmd='data', events=['autoinfo', 'autosettings'], diagram=diagram_data))
+        events = completed(s, dict(cmd='events.subscribe', events=['autoinfo', 'autosettings'], diagram=diagram_data))
         setting = next(e for e in reversed(events) if e.get('ev') == 'autosettings')
         if setting['threads'] != threads:
             raise RuntimeError('thread setting was not applied')

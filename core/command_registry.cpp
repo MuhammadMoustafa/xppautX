@@ -30,7 +30,7 @@ std::span<const Command> help_commands() { return HELP_ROWS; }
 
 /* every resource's table, in the order help lists them */
 constexpr std::array TABLES = {help_commands, window_commands, annotation_commands, run_commands, ic_commands, bvp_commands, auto_commands, plot_commands,
-                              equilibrium_commands, nullcline_commands, dirfield_commands, analysis_commands, table_commands, browser_commands, set_commands, value_commands, kinescope_commands, animation_commands, array_plot_commands};
+                              equilibrium_commands, nullcline_commands, dirfield_commands, analysis_commands, table_commands, browser_commands, set_commands, value_commands, kinescope_commands, animation_commands, array_plot_commands, session_commands, recording_commands, keymap_commands, events_commands, tool_commands};
 
 template <class Visit> void each_command(Visit visit)
 {
@@ -85,6 +85,7 @@ void append_argument(std::string &out, const Argument &arg)
         json_append_string(out, arg.choices[j]);
     }
     out += ']';
+    if (arg.multiline) out += ",\"multiline\":true";
     append_bound(out, "min", arg.min);
     append_bound(out, "max", arg.max);
     if (arg.names != NameSet::none) {
@@ -176,6 +177,11 @@ Result<std::string> describe(Session &, const Command &command, const Arguments 
 
 } // namespace
 
+Result<std::string> front_end(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    return ui.front_end_command(s, command, args, place);
+}
+
 Result<> run_button(Session &s,const std::string &line,const Place &place)
 {
     const auto result=run(s,line.c_str(),place,false);
@@ -187,8 +193,8 @@ const char *type_name(Type type)
 {
     /* Type's declaration order is the registry vocabulary's order. */
     static constexpr std::array NAMES={"text","integer","real","boolean","choice","expression","name","file","path",
-        "color","list","map","window","new_name","list[real, 2]"};
-    static_assert(NAMES.size()==static_cast<std::size_t>(Type::real_pair)+1);
+        "color","list","map","window","new_name","list[real, 2]","list[text]"};
+    static_assert(NAMES.size()==static_cast<std::size_t>(Type::text_list)+1);
     const auto index=static_cast<std::size_t>(type);
     return index<NAMES.size()?NAMES[index]:"";
 }
@@ -252,7 +258,8 @@ Result<> check_shape(const char *line, const Place &place)
     if (std::strlen(line) > MAX_COMMAND_BYTES) return fail("command", "Command exceeds the input limit", place);
     const Command *command = find(name(line));
     if (!command) return fail("command", "Unknown registry command", place);
-    const Result<Arguments> checked = validate(nullptr, *command, line, place, false);
+    /* a recording's step may name a path (Open model of a file it holds): the player serves it from the recording, and run() decides again when it plays */
+    const Result<Arguments> checked = validate(nullptr, *command, line, place, true);
     if (!checked) return std::unexpected<Error>(checked.error());
     return {};
 }

@@ -58,6 +58,9 @@
 namespace xpp::recx {
 
 inline constexpr std::string_view extension = ".recx";
+/* the speeds a replay may be paced at (recording.set_speed, hello's player_speed) */
+inline constexpr double player_speed_min = 0.25;
+inline constexpr double player_speed_max = 8;
 inline constexpr int format_version = 4; /* refuse other recording formats (4: W308 question 9, the one format number; W484's option names, true and false for a yes or no) */
 inline constexpr std::string_view header_group = "recording"; /* the header's one group */
 

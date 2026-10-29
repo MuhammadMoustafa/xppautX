@@ -158,7 +158,7 @@ def same_axes(axes, st, keys=('xmin', 'xmax', 'ymin', 'ymax', 'x0', 'y0', 'wid',
 def section_diagram():
     s = Server(args.server, LECAR, verbose=args.v)
     s.collect(is_idle)
-    s.send(cmd='data', events=['autoinfo'])
+    s.send(cmd='events.subscribe', events=['autoinfo'])
     s.collect(is_idle)
     open_auto(s)
     s.send(cmd='key', win='auto', key='d')
@@ -272,7 +272,7 @@ def section_grab():
     # point"), then its periodic branch
     s = Server(args.server, LECAR, verbose=args.v)
     s.collect(is_idle)
-    s.send(cmd='data', events=['autoinfo'])
+    s.send(cmd='events.subscribe', events=['autoinfo'])
     s.collect(is_idle)
     dg, (hb, label) = hopf_of(s)
     check('the steady branch has a Hopf point to grab', hb is not None, '')
@@ -372,7 +372,7 @@ def section_input():
         if e is None:
             break
         idles += 1
-    s.send(cmd='state')
+    s.send(cmd='session.get_state')
     evs, st = s.collect(lambda e: e.get('ev') == 'state')
     s.collect(is_idle)
     iapp = st and dict(st['pars']).get('iapp')
@@ -410,7 +410,7 @@ def periodic_run(s):
     """from the Hopf point of heavy.odex, start a periodic run; returns once
     two points have been computed (diagram data), with the time between them"""
     s.collect(is_idle)
-    s.send(cmd='data', events=['autoinfo'])
+    s.send(cmd='events.subscribe', events=['autoinfo'])
     s.collect(is_idle)
     open_auto(s)
     run_menu(s, 's')
@@ -447,7 +447,7 @@ def section_abort():
     # after it, each a command of its own then; the data subscription (a
     # view) runs after them
     s.send(cmd='auto.configure_numerics', **{'max_steps': 1500})
-    s.send(cmd='data', events=['autoinfo', 'autosettings'])
+    s.send(cmd='events.subscribe', events=['autoinfo', 'autosettings'])
     # periodic_run already observed two diagram points: the run is computing.
     # Abort now, without guessing the duration of a Newton step.
     t = s.send(cmd='run.abort')
@@ -506,7 +506,7 @@ def section_abort():
     open_auto(s)
     run_periodic(s)
     s.collect(is_point, timeout=60 * SLOW)
-    t = s.send(cmd='quit')
+    t = s.send(cmd='session.quit', save=False)
     try:
         s.proc.wait(timeout=60 * SLOW)
         exited = True
@@ -557,8 +557,8 @@ def import_diagram(s, path):
 
 
 def open_file(s, path):
-    """{"cmd":"open"} of path, a model switch's "save first?" answered don't: the events"""
-    s.send(cmd='open', file=path)
+    """{"cmd": "session.open_model"} of path, a model switch's "save first?" answered don't: the events"""
+    s.send(cmd='session.open_model', file=path)
     evs, e = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
     return evs
 
@@ -574,7 +574,7 @@ def lecar_diagram(s, events=None):
     a list as events, the autoinfo and diagram events are appended to it"""
     s.collect(is_idle)
     if events is not None:
-        s.send(cmd='data', events=['autoinfo'])
+        s.send(cmd='events.subscribe', events=['autoinfo'])
         s.collect(is_idle)
     open_auto(s)
     evs = run_menu(s, 's')
@@ -694,7 +694,7 @@ def section_threads():
         for want in (1, 2):
             s = Server(args.server, LECAR, env={'XPP_CONFIG_DIR': os.path.join(config, str(want))}, verbose=args.v)
             s.collect(is_idle)
-            s.send(cmd='data', events=['autosettings'])
+            s.send(cmd='events.subscribe', events=['autosettings'])
             evs, _ = s.collect(is_idle)
             most = [e for e in evs if e.get('ev') == 'autosettings'][-1]['threads_max']
             count = min(want, most)
@@ -718,7 +718,7 @@ def lecar_csv(s):
     CSV; returns (diagram csv text, eigenvalues csv text, the diagram's
     data as the page gets it), the texts None if not written"""
     s.collect(is_idle)
-    s.send(cmd='data', events=['autoinfo'])
+    s.send(cmd='events.subscribe', events=['autoinfo'])
     s.collect(is_idle)
     open_auto(s)
     evs = run_menu(s, 's')
@@ -833,7 +833,7 @@ def section_stability():
     home = tempfile.mkdtemp(prefix='xpphome')
     s = Server(args.server, LECAR, env={'HOME': home}, verbose=args.v)
     s.collect(is_idle)
-    s.send(cmd='data', events=['autoinfo'])
+    s.send(cmd='events.subscribe', events=['autoinfo'])
     s.collect(is_idle)
     dg = Diagram().apply(hopf_steady(s))
     syms = {}
@@ -945,7 +945,7 @@ def section_sessions():
 
 def open_session(s, name):
     """session load of a .snapx, answering Open's "save first?" with d: the events"""
-    s.send(cmd='session', op='load', name=name)
+    s.send(cmd='session.open', file=name)
     evs = []
     while True:
         got, e = s.collect(lambda e: is_ask(e) or is_idle(e), timeout=20 * SLOW)
@@ -965,7 +965,7 @@ def section_session():
     grab_hopf(s)
     run_menu(s, 'p', timeout=120 * SLOW)
 
-    s.send(cmd='session', op='save', name='s1')
+    s.send(cmd='session.save_as', file='s1')
     evs, e = s.collect(is_idle, timeout=20 * SLOW)
     st = [x for x in evs if x.get('ev') == 'state']
     saved = st[-1] if st else None
@@ -1057,7 +1057,7 @@ def section_session():
     # run in the model's own folder: a table outside it would be a question (W175, W286)
     s4 = Server(args.server, tab_ode, verbose=args.v, run=folder)
     s4.collect(is_idle)
-    s4.send(cmd='session', op='save', name='tab')
+    s4.send(cmd='session.save_as', file='tab')
     s4.collect(is_idle, timeout=20 * SLOW)
     tab_snap = os.path.join(s4.run, 'tab.snapx')
     names = zf.ZipFile(tab_snap).namelist() if os.path.exists(tab_snap) else []
@@ -1085,7 +1085,7 @@ def section_session():
 # ---- sessiondiagram: AUTO's diagram in the session, name.snapx (W92, docs/protocol.md "AUTO files") ----
 
 def messages(evs):
-    return ' '.join(str(e) for e in evs if e.get('ev') == 'message')
+    return ' '.join(str(e) for e in evs if e.get('ev') == 'message' or (e.get('ev') == 'done' and e.get('error')))
 
 
 def section_sessiondiagram():
@@ -1209,7 +1209,7 @@ def section_sessiondiagram():
         with open(os.path.join(s.run, path), 'w') as output:
             output.write(text)
         events = import_diagram(s, path)
-        errors = [event for event in events if event.get('ev') == 'message' and 'error' in event]
+        errors = [event for event in events if event.get('ev') in ('message', 'done') and 'error' in event]
         after = save_diagram(s, 'after-' + name + '.snapx')
         check('W327: %s import is refused whole with file and line' % name,
               len(errors) == 1 and errors[0].get('file', '').endswith(path) and errors[0].get('line') == line
@@ -1329,7 +1329,7 @@ def section_sessiondiagram():
             for n, b in damaged.items():
                 out.writestr(n, b)
         evs = open_file(s, name)
-        errors = ' '.join(placed(e) for e in evs if e.get('ev') == 'message')
+        errors = ' '.join(placed(e) for e in evs if e.get('ev') in ('message', 'done'))
         expected_place, separator, expected_detail = expect.partition(': ')
         check('sessiondiagram: %s is refused before its model is kept (%s), the model open stays' % (name, expect),
               (expected_place + separator) in errors and expected_detail in errors and hello_title(evs) is None and s.alive(), errors[:300])
@@ -1341,12 +1341,12 @@ def section_sessiondiagram():
     damaged['auto/settings.txt'] = ('\n'.join(lines) + '\n').encode()
     with zipfile.ZipFile(os.path.join(s.run, 'lastsettings.snapx'), 'w') as out:
         for n, b in damaged.items(): out.writestr(n, b)
-    s.send(cmd='data', events=['autosettings'])
+    s.send(cmd='events.subscribe', events=['autosettings'])
     before = s.collect(is_idle)[0]
     before_settings = next(e for e in before if e.get('ev') == 'autosettings')
     evs = open_file(s, 'lastsettings.snapx')
     errs = [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
-    s.send(cmd='data', events=['autosettings'])
+    s.send(cmd='events.subscribe', events=['autosettings'])
     after = s.collect(is_idle)[0]
     after_settings = next(e for e in after if e.get('ev') == 'autosettings')
     check('W155: bad last AUTO settings line refuses the entire session, keeping the previous settings',
@@ -1431,7 +1431,7 @@ def section_control():
     check('an Abort sent with the command still stops it', e is not None and n is not None and n < 40001,
           'rows %s' % n)
     perf('abort right after the command -> idle', '%.2f s, %s rows' % (took, n))
-    s.send(cmd='state')
+    s.send(cmd='session.get_state')
     evs, e = s.collect(is_idle, timeout=10 * SLOW)
     check('an Abort has no done of its own', len([x for x in evs if is_idle(x)]) == 1 and
           any(x.get('ev') == 'state' for x in evs), str([x.get('ev') for x in evs]))
@@ -1454,7 +1454,7 @@ def section_control():
     took = (e['_t'] if e else time.monotonic()) - t
     check('Abort stops an integration', e is not None and (rows(evs) or 0) < 40001, 'rows %s' % rows(evs))
     perf('abort during an integration -> idle', '%.2f s' % took)
-    s.send(cmd='state')
+    s.send(cmd='session.get_state')
     more, _ = s.collect(is_idle, timeout=10 * SLOW)
     closed = [x for x in evs + more if x.get('ev') == 'window' and x.get('win') == 'diagram_1' and x.get('op') == 'destroy']
     check('W95: a view command sent during a computation runs after it (Close)', bool(closed))
@@ -1462,7 +1462,7 @@ def section_control():
     # Quit during an integration
     run_now(s)
     s.collect(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
-    t = s.send(cmd='quit')
+    t = s.send(cmd='session.quit', save=False)
     try:
         s.proc.wait(timeout=30 * SLOW)
         exited = True
@@ -1547,7 +1547,7 @@ def section_names():
     evs, _ = s.collect(is_idle)
     hello = next((e for e in evs if e.get('ev') == 'hello'), None)
     st = last_state(evs)
-    msgs = [e for e in evs if e.get('ev') == 'message']
+    msgs = [e for e in evs if e.get('ev') == 'message' or (e.get('ev') == 'done' and e.get('error'))]
     check('names: the model loads with no message', st is not None and not msgs, str(msgs)[:200])
     pars = dict(st['pars']) if st else {}
     check("names: state carries the parameters' full 200-character names", LONG_B in pars and LONG_PAR in pars,
@@ -1570,7 +1570,7 @@ def section_names():
     s.send(cmd='value.set_by_formula', name=LONG_PAR.upper(), formula=LONG_B + '-' + LONG_B.upper() + '+0.125')
     evs, _ = s.collect(is_idle)
     st = last_state(evs)
-    errs = [e for e in evs if e.get('ev') == 'message']
+    errs = [e for e in evs if e.get('ev') == 'message' or (e.get('ev') == 'done' and e.get('error'))]
     check('names: a formula of 400 characters sets a parameter', not errs and st is not None
           and dict(st['pars']).get(LONG_PAR) == 0.125, '%s %s' % (errs, st and dict(st['pars']).get(LONG_PAR)))
     s.send(cmd='value.set_parameters', values={LONG_PAR: 0})
@@ -1588,7 +1588,7 @@ def section_names():
         return au[-1] if au else None
 
     up = lambda names: [n.upper() for n in names]
-    s.send(cmd='data', events=['autosettings'])
+    s.send(cmd='events.subscribe', events=['autosettings'])
     evs, _ = s.collect(is_idle)
     au = autosettings(evs)
     check("names: AUTO's parameters are the long names", au is not None
@@ -1596,7 +1596,7 @@ def section_names():
     s.send(cmd='auto.configure_plot', **{'plot_type': 'norm', 'variable': LONG_V, 'parameter1': LONG_B})
     evs, _ = s.collect(is_idle)
     au = autosettings(evs)
-    errs = [e for e in evs if e.get('ev') == 'message']
+    errs = [e for e in evs if e.get('ev') == 'message' or (e.get('ev') == 'done' and e.get('error'))]
     check('names: auto set takes 200-character names for the parameters and the axes', not errs and au is not None
           and au['axes']['par1'].upper() == LONG_B.upper() and au['axes']['var'].upper() == LONG_V,
           '%s %s' % (errs, str(au)[:300]))
@@ -1624,7 +1624,7 @@ def section_names():
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], ok=1, value=LONG_V.lower() + '*slow_recovery_variable_w')
     evs, _ = s.collect(is_idle)
-    errs = [e for e in evs if e.get('ev') == 'message']
+    errs = [e for e in evs if e.get('ev') == 'message' or (e.get('ev') == 'done' and e.get('error'))]
     s.send(cmd='browser.page', **{'from_row': 0, 'count': 1, 'first_column': 1, 'columns': 4})
     evs, br = s.collect(lambda e: e.get('ev') == 'browser')
     s.collect(is_idle)
@@ -1642,7 +1642,7 @@ def section_names():
 
     # the settings of a session keep the values under the long names
     import zipfile
-    s.send(cmd='session', op='save', name='ln')
+    s.send(cmd='session.save_as', file='ln')
     s.collect(is_idle, timeout=20 * SLOW)
     snap_path = os.path.join(s.run, 'ln.snapx')
     text = zipfile.ZipFile(snap_path).read('model.setx').decode() if os.path.exists(snap_path) else ''
@@ -1733,8 +1733,8 @@ def section_recording():
     with tempfile.TemporaryDirectory(prefix='xppsnapshot') as run:
         run_commands(args.server, LECAR, [
             {'cmd':'value.set_parameters', 'values':{'iapp':0.9}},
-            {'cmd':'record', 'op':'start'}, {'cmd':'key', 'key':'i'}, {'cmd':'answer', 'key':'g'},
-            {'cmd':'record', 'op':'stop', 'name':'start.recx'}], run)
+            {'cmd': 'recording.start'}, {'cmd':'key', 'key':'i'}, {'cmd':'answer', 'key':'g'},
+            {'cmd': 'recording.stop', 'file': 'start.recx'}], run)
         r = replay_recording(args.server, LECAR, os.path.join(run, 'start.recx'), run)
         states = [json.loads(l) for l in r.stdout.splitlines() if '"ev":"state"' in l]
         check('W144: silent playback loads the nondefault starting snapshot',
@@ -1790,13 +1790,13 @@ def section_recording():
               r.returncode == 1 and 'invalid recorded interruption' in r.stderr and r.stdout == '', r.stderr)
         r = quiet([])
         check('W144: an empty recording loads its snapshot and exits cleanly', r.returncode == 0 and r.stdout == '', r.stderr)
-        r = quiet([{'cmd':{'cmd':'quit'}}, {'cmd':{'cmd':'value.set_parameters','values':{'iapp':0.8}}}])
-        leftover = quiet([{'cmd':{'cmd':'quit'}, 'answers':[{'save_replace':1}]}])
+        r = quiet([{'cmd':{'cmd': 'session.quit', 'save': False}}, {'cmd':{'cmd':'value.set_parameters','values':{'iapp':0.8}}}])
+        leftover = quiet([{'cmd':{'cmd': 'session.quit', 'save': False}, 'answers':[{'save_replace':1}]}])
         check('W144: a recorded quit cannot report success while skipping later steps',
               r.returncode == 1 and r.stderr.count('Playback ended before') == 1 and r.stdout == ''
               and leftover.returncode == 1 and leftover.stderr.count('Playback ended before') == 1
               and leftover.stdout == '', r.stderr + leftover.stderr)
-        r = quiet([{'cmd':{'cmd':'play','op':'pause'}}])
+        r = quiet([{'cmd':{'cmd': 'recording.pause'}}])
         check('W144: a hostile step cannot pause its own player and stall headless playback',
               r.returncode == 1 and 'cannot control its own player' in r.stderr and r.stdout == '', r.stderr)
         # Matches XPP_FILES_CAP: the shared upload/recording byte bound.
@@ -1958,12 +1958,12 @@ def section_subscriptions():
     with a point and Return in one answer takes that point (grab_key_after)."""
     s = Server(args.server, LECAR, verbose=args.v)
     s.collect(is_idle)
-    s.send(cmd='data', events=['autoinfo', 'autosettings'])
+    s.send(cmd='events.subscribe', events=['autoinfo', 'autosettings'])
     s.collect(is_idle)
     dg = Diagram().apply(hopf_steady(s))
     dg.apply(run_any(s, 's'))
     check('subscriptions: the steady branch gives points', len(dg.pts) > 10, '%d points' % len(dg.pts))
-    s.send(cmd='reload')
+    s.send(cmd='session.reload_model')
     evs, end = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
     check('subscriptions: a reload keeps the subscriptions: fresh autosettings without asking again',
           end is not None and any(e.get('ev') == 'autosettings' for e in evs), str([e.get('ev') for e in evs])[:300])
@@ -2008,7 +2008,7 @@ def section_errors():
         check('errors: %s %d: the form refuses the value before a run' % (word, bad),
               len(errs) == 1 and word in errs[0] and '%s=%d' % (field, bad) in errs[0], str(errs))
         check('errors: %s %d: the session is still up' % (word, bad), s.proc.poll() is None)
-        s.send(cmd='data', events=['autosettings'])
+        s.send(cmd='events.subscribe', events=['autosettings'])
         evs, idle = s.collect(is_idle)
         check('errors: %s %d: a command after it answers' % (word, bad), idle is not None)
         set_numerics(s, **{field: normal})
@@ -2195,7 +2195,7 @@ def section_memory():
     lent_columns_match(s, 'the H function', 'a', 'h', 4)
     lent_columns_match(s, 'the histogram', 'h', 'o', 2)
     # a load: a new session, with no adjoint or H function to show
-    s.send(cmd='reload')
+    s.send(cmd='session.reload_model')
     s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
     for what, item in (('adjoint', 'a'), ('H function', 'h')):
         numerics_menu(s, 'a', item)
@@ -2233,7 +2233,7 @@ def section_sessiondata():
         home1 = tempfile.mkdtemp(prefix='xpphome')
         s = Server(args.server, LECAR, env={'HOME': home1}, verbose=args.v)
         s.collect(is_idle)
-        s.send(cmd='data', events=PAGE_EVENTS, enc='f32')
+        s.send(cmd='events.subscribe', events=PAGE_EVENTS, encoding='f32')
         evs, _ = s.collect(is_idle)
         # W against V, as a phase plane
         s.send(cmd='key', window='graph_1', key='v')
@@ -2253,7 +2253,7 @@ def section_sessiondata():
             grab_hopf(s)
             run_menu(s, 'p', timeout=120 * SLOW)
         rows = saved['rows'] if saved else -1
-        s.send(cmd='session', op='save', name='d1')
+        s.send(cmd='session.save_as', file='d1')
         s.collect(is_idle, timeout=20 * SLOW)
         snap = os.path.join(s.run, 'd1.snapx')
         home2 = tempfile.mkdtemp(prefix='xpphome')
@@ -2265,14 +2265,14 @@ def section_sessiondata():
         same = series_of(evs)
         check('%s: reopening the session in the same server keeps its rows in the plot' % tag,
               same is not None and same['rows'] == rows, 'saved %s, after open %s' % (rows, same and same['rows']))
-        s.send(cmd='data', events=PAGE_EVENTS, enc='f32')
+        s.send(cmd='events.subscribe', events=PAGE_EVENTS, encoding='f32')
         evs, _ = s.collect(is_idle)
         same = series_of(evs)
         check('%s: and after the page asks again' % tag, same is not None and same['rows'] == rows, str(same and same['rows']))
         s.close()
         shutil.rmtree(home1, ignore_errors=True)
         # the page's subscription is sent again after a model switch's new hello
-        s2.send(cmd='data', events=PAGE_EVENTS, enc='f32')
+        s2.send(cmd='events.subscribe', events=PAGE_EVENTS, encoding='f32')
         s2.collect(is_idle)
         evs = open_session(s2, 'd1')
         got = series_of(evs)
@@ -2281,7 +2281,7 @@ def section_sessiondata():
         if saved and got and saved['rows'] == got['rows']:
             check('%s: the plotted values are the saved ones' % tag,
                   [c.get('data') for c in saved['columns']] == [c.get('data') for c in got['columns']] if 'columns' in saved else True)
-        s2.send(cmd='data', events=PAGE_EVENTS, enc='f32')
+        s2.send(cmd='events.subscribe', events=PAGE_EVENTS, encoding='f32')
         evs, _ = s2.collect(is_idle)
         again = series_of(evs)
         check('%s: asking for the series again sends the saved rows' % tag,
@@ -2294,15 +2294,15 @@ def play_recording(s, path):
     """play open path (the model switch's "save first?" answered don't),
     then play it at 8x to the end of its last step: the player event and
     the events"""
-    s.send(cmd='play', op='open', autoplay=False, file=path)
+    s.send(cmd='recording.open', play=False, file=path)
     evs, _ = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}}, timeout=60 * SLOW)
     pl = next((e for e in evs if e.get('ev') == 'player'), None)
     if pl is None:
         return None, evs
     n = len(pl['steps'])
-    s.send(cmd='play', op='speed', speed=8)
+    s.send(cmd='recording.set_speed', speed=8)
     s.collect(is_idle)
-    s.send(cmd='play', op='start')
+    s.send(cmd='recording.play')
     more, _ = s.collect(lambda e: is_state(e) and (e.get('player') or {}).get('step') == n
                         and e['player']['running'] == -1, timeout=300 * SLOW)
     return pl, evs + more + s.collect(is_idle)[0]
@@ -2316,30 +2316,30 @@ def section_play():
     recorded with where it was): the same rows"""
     s = Server(args.server, LECAR, verbose=args.v)
     s.collect(is_idle)
-    s.send(cmd='record', op='start')
+    s.send(cmd='recording.start')
     s.collect(is_idle)
     dg = Diagram().apply(hopf_steady(s))
     dg.apply(run_any(s, 's'))
-    s.send(cmd='record', op='stop', name='auto')
+    s.send(cmd='recording.stop', file='auto')
     s.collect(is_idle)
     orig = [(p['br'], p['pt'], p['x'], p['y'], p['lab']) for p in dg.pts]
     pl, evs = play_recording(s, os.path.join(s.run, 'auto.recx'))
     again = [(p['br'], p['pt'], p['x'], p['y'], p['lab']) for p in Diagram().apply(evs).pts]
-    errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+    errors = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
     check('play: the AUTO steady run replayed gives the same diagram', pl and len(orig) > 5 and again == orig and not errors,
           '%s steps, %d vs %d points, %s' % (pl and len(pl['steps']), len(orig), len(again), errors))
     s.close()
 
     s = Server(args.server, HEAVY, verbose=args.v)
     s.collect(is_idle)
-    s.send(cmd='record', op='start')
+    s.send(cmd='recording.start')
     s.collect(is_idle)
     s.send(cmd='run.range')
     _, e = s.collect(lambda e: e.get('ev') == 'computing', timeout=30 * SLOW)
     s.collect(lambda e: e.get('ev') == 'progress' and e.get('n', 0) >= 200, timeout=60 * SLOW)
     s.send(cmd='key', key='/')
     s.collect(is_idle, timeout=120 * SLOW)
-    s.send(cmd='record', op='stop', name='range')
+    s.send(cmd='recording.stop', file='range')
     s.collect(is_idle)
     text = open(os.path.join(s.run, 'range.recx'), encoding='utf-8').read() if os.path.exists(os.path.join(s.run, 'range.recx')) else ''
     check('play: a / during a range is recorded in its step, with where the job was',
@@ -2349,7 +2349,7 @@ def section_play():
     # or run all 20 of heavy.odex's runs
     t0 = time.monotonic()
     pl, evs = play_recording(s, os.path.join(s.run, 'range.recx'))
-    errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+    errors = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
     check('play: the replayed / ends the range at the recorded row', pl and not errors
           and (last_state(evs) or {}).get('player', {}).get('step') == 1, '%s, %.1f s' % (errors, time.monotonic() - t0))
     s.close()
@@ -2362,17 +2362,17 @@ def section_play():
     dg = Diagram().apply(hopf_steady(s))
     dg.apply(run_any(s, 's'))
     steady = len(dg.pts)
-    s.send(cmd='record', op='start')
+    s.send(cmd='recording.start')
     s.collect(is_idle)
     grab_hopf(s)
     new = dg.apply(run_any(s, 'p', timeout=300 * SLOW)).pts[steady:]
-    s.send(cmd='record', op='stop', name='later')
+    s.send(cmd='recording.stop', file='later')
     s.collect(is_idle)
     branches = {p['br'] for p in new}
     orig = [(p['br'], p['pt'], p['x'], p['y'], p['lab']) for p in new]
     pl, evs = play_recording(s, os.path.join(s.run, 'later.recx'))
     again = [(p['br'], p['pt'], p['x'], p['y'], p['lab']) for p in Diagram().apply(evs).pts if p['br'] in branches]
-    errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+    errors = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
     check('play: a recording begun after the steady run starts from its diagram: the periodic branch replayed is the same',
           pl and len(pl['steps']) == 2 and len(orig) > 5 and again == orig and not errors,
           '%s steps, %d vs %d points, %s' % (pl and len(pl['steps']), len(orig), len(again), errors))
@@ -2504,7 +2504,7 @@ def section_codim():
         completed(s)
         diagram = autocompare.Diagram().apply(open_auto(s))
         ranges = {}
-        settings = completed(s, dict(cmd='data', events=['autoinfo','autosettings']))
+        settings = completed(s, dict(cmd='events.subscribe', events=['autoinfo','autosettings']))
         flags = next(e['special_points'] for e in settings if e.get('ev') == 'autosettings')
         check('codim: BT CP ZH GH enabled by default', flags == dict(bogdanov_takens=True, cusp=True, zero_hopf=True, generalized_hopf=True, resonance_1_1=True, resonance_1_2=True, resonance_1_3=True, resonance_1_4=True, fold_flip=True, fold_neimark_sacker=True, flip_neimark_sacker=True, double_neimark_sacker=True))
         for mode, changes in (('default', {}), ('ZH disabled', {'zero_hopf': False}),
@@ -2512,7 +2512,7 @@ def section_codim():
             s.close()
             s = Server(args.server, d['model'])
             completed(s)
-            completed(s, dict(cmd='data', events=['autoinfo','autosettings']))
+            completed(s, dict(cmd='events.subscribe', events=['autoinfo','autosettings']))
             diagram = autocompare.Diagram().apply(open_auto(s))
             ranges = {}
             execute_run(s, d['runs'][0], diagram, ranges)
@@ -2528,7 +2528,7 @@ def section_codim():
             s.send(cmd='auto.configure_numerics', special_points=bad, max_steps=7)
             events, _ = s.collect(is_idle)
             check('codim: invalid named boolean refuses transaction ' + str(bad), len(errors_of(events)) == 1)
-            after = completed(s, dict(cmd='data', events=['autosettings']))
+            after = completed(s, dict(cmd='events.subscribe', events=['autosettings']))
             current = next(e for e in after if e.get('ev') == 'autosettings')
             check('codim: refusal applies nothing', current['numerics']['max_steps'] == 50 and current['special_points'] == flags)
     finally:
@@ -2576,7 +2576,7 @@ def section_codim():
     s = Server(args.server, cycles['model'])
     try:
         completed(s)
-        completed(s, dict(cmd='data', events=['autoinfo', 'autosettings']))
+        completed(s, dict(cmd='events.subscribe', events=['autoinfo', 'autosettings']))
         diagram = autocompare.Diagram().apply(open_auto(s)); intervals = {}
         for run in cycles['runs'][:2]: execute_run(s, run, diagram, intervals)
         completed(s, dict(cmd='auto.configure_numerics', special_points={'resonance_1_4': False}))
@@ -2635,7 +2635,7 @@ def section_codim():
         try:
             completed(s)
             completed(s, dict(cmd='value.set_parameters',values=dict(maps['parameters'])))
-            completed(s, dict(cmd='data',events=['autoinfo','autosettings']))
+            completed(s, dict(cmd='events.subscribe', events=['autoinfo','autosettings']))
             diagram=autocompare.Diagram().apply(open_auto(s)); intervals={}
             execute_run(s,maps['runs'][0],diagram,intervals)
             completed(s,dict(cmd='auto.configure_numerics', special_points={'double_neimark_sacker':False,'resonance_1_4':False}))
@@ -2643,12 +2643,12 @@ def section_codim():
             rows=autocompare.stored_rows(session_diagram(s),intervals)['down']
             kinds=[kind for kind,_ in autocompare.labelled(rows,'two_parameter')]
             check('map codim: disabling TTR/R4 preserves R3', 'TTR' not in kinds and 'R4' not in kinds and 'R3' in kinds)
-            path=os.path.join(folder,'maps.snapx')
-            completed(s,dict(cmd='session',op='save',name=path,data=False))
+            path='maps.snapx'  # a file of the server's own folder
+            completed(s,dict(cmd='session.save_as', file=path, data=False))
             before=session_diagram(s)
             check('map codim: session load accepts current layout', not errors_of(open_session(s,path)))
             check('map codim: session restores typed diagram', session_diagram(s)==before)
-            events=completed(s,dict(cmd='data',events=['autosettings']))
+            events=completed(s,dict(cmd='events.subscribe', events=['autosettings']))
             flags=next(e['special_points'] for e in events if e.get('ev')=='autosettings')
             check('map codim: session restores named switches', not flags['double_neimark_sacker'] and not flags['resonance_1_4'] and flags['fold_flip'])
         finally:

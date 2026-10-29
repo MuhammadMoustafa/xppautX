@@ -14,6 +14,7 @@ namespace xpp {
 struct Session; /* session.h */
 struct AniExport; /* aniparse.h */
 namespace files { struct WriteFolders; }
+namespace command { struct Command; class Arguments; } /* command_def.h */
 
 /*
  * The seam between the numerics and whatever front end is driving them.
@@ -357,6 +358,12 @@ typedef struct XppUi {
     /* the recording in progress saved (its name asked, as its stop asks)
        and ended: false on a cancel or a failure (W59d) */
     bool (*save_recording)(Session &s);
+
+    /* A registry command the front end answers itself, because the state it works on is the front end's:
+       the recording and the player, the user's keymap, the event subscriptions, the state and the
+       source (W528). The row's arguments are validated; the result is the command's result object. */
+    Result<std::string> (*front_end_command)(Session &s, const command::Command &command, const command::Arguments &args,
+                                             const Place &place);
 
     /* program is quitting */
     void (*exit_program)(void);

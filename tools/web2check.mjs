@@ -198,6 +198,20 @@ async function settled(read) {
 }
 const steadyP = P;
 
+/* File > Open model as the page sends it: the menu's key asks for the file, which the answer names (session.open_model's path is --server's own input) */
+async function openFile(file) {
+  await cdp.eval(`__xpp.send({cmd: 'key', menu: 'file', item: 'openmodel'})`);
+  await until("s.ask?.kind === 'file'", 'the Open model file question');
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: ${JSON.stringify(file)}})`);
+}
+
+/* File > Play recording as the page sends it: the key asks for the file, which the answer names (recording.open's path is --server's own input) */
+async function openRecording(file) {
+  await cdp.eval(`__xpp.send({cmd: 'key', menu: 'file', item: 'play'})`);
+  await until("s.ask?.kind === 'file'", 'the Play recording file question');
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: ${JSON.stringify(file)}})`);
+}
+
 let acceptSave = true; /* scratch saves are authorized; the W129 No check opts out */
 async function until(expr, what, ms) {
   const ready = await waitFor(async () => {
@@ -655,7 +669,7 @@ async function sliderModelSwitch(dir) {
   ]) {
     const file = `w135-${model}.ode`;
     fs.writeFileSync(path.join(dir, file), preset + '\n' + fs.readFileSync(path.join(path.dirname(ODE), model + '.ode'), 'utf8'));
-    await cdp.eval(`__xpp.send({cmd: 'open', file: ${JSON.stringify(file)}})`);
+    await openFile(file);
     await until("s.ask?.kind === 'choice'", 'save before Open');
     await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
     await until(`!s.busy && !s.ask && s.hello.file === ${JSON.stringify(file.replace('.ode', '.odex'))}`, 'model opened');
@@ -666,7 +680,7 @@ async function sliderModelSwitch(dir) {
   const native = 'w317-sliders.odex';
   fs.writeFileSync(path.join(dir, native), "par a=1\nx'=0\ninit x=0\noptions { interface: { sliders: [" +
     [2, 3, 4, 5, 6].map(high => `{ name: a, low: 0, high: ${high} }`).join(', ') + " ] } }\n");
-  await cdp.eval(`__xpp.send({cmd: 'open', file: ${JSON.stringify(native)}})`);
+  await openFile(native);
   await until("s.ask?.kind === 'choice'", 'save before native Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
   await until(`!s.busy && !s.ask && s.hello.file === ${JSON.stringify(native)}`, 'native presets loaded');
@@ -980,7 +994,7 @@ async function keyboardOnly() {
    shows and hides each, and Erase clears them */
 async function phasePlane() {
   check('T7: the page connects and asks for nullclines and dfield', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello')
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'data' && c.events.includes('nullclines') && c.events.includes('dfield'))`));
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'events.subscribe' && c.events.includes('nullclines') && c.events.includes('dfield'))`));
   const layer = key => cdp.eval(`(__xpp.plot().layers.find(l => l.key === '${key}') || null)`);
   const legend = label => cdp.eval(`(() => { const b = [...document.querySelectorAll('.plot-view:not([hidden]) .legend-item.layer')]
     .find(b => b.textContent.trim() === ${JSON.stringify(label)}); if (b) b.click(); return b ? b.getAttribute('aria-pressed') : null; })()`);
@@ -1049,7 +1063,7 @@ async function phasePlane() {
    and toggled from it; Erase clears them */
 async function marks() {
   check('T8: the page connects and asks for marks', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello')
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'data' && c.events.includes('marks'))`));
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'events.subscribe' && c.events.includes('marks'))`));
   const layer = k => cdp.eval(`(__xpp.plot().layers.find(l => l.key === '${k}') || null)`);
   const legendLabels = () => cdp.eval(`[...document.querySelectorAll('.plot-view:not([hidden]) .legend-item.layer')].map(b => b.textContent.trim())`);
   const markLabels = async () => (await legendLabels()).filter(l => !l.endsWith('-nullcline') && l !== 'Direction field');
@@ -3220,7 +3234,7 @@ async function autoViews(dir) {
     JSON.stringify([target, await lastAnswer(), await S('[s.diagram.info, s.diagram.active]')]));
 
   /* the views go into a session file; a view closed; the file opened: both views as they were */
-  await cdp.eval(`__xpp.send({cmd: 'session', op: 'save', name: 'views'})`);
+  await cdp.eval(`__xpp.send({cmd: 'session.save_as', file: 'views', confirm: true})`);
   await until('!s.busy', 'session saved');
   const saved = await S('JSON.stringify([s.diagram.active, s.diagram.views.map(v => [v.axes && v.axes.plot, v.axes && v.axes.ylabel, v.points.x.length])])');
   check('AUTO views: the session file is written', fs.existsSync(path.join(dir, 'views.snapx')), saved);
@@ -3229,7 +3243,7 @@ async function autoViews(dir) {
     await until(`!s.busy && s.diagram.views.length === 1 && dv.axes.plot === 'norm' && s.diagram.active === 0
       && document.querySelectorAll('.auto-pane').length === 1 && !document.querySelector('.auto-pane-close')`, 'closed'),
     JSON.stringify(await S('[s.diagram.views.map(v => v.axes), s.diagram.active]')));
-  await cdp.eval(`__xpp.send({cmd: 'open', file: 'views.snapx'})`);
+  await openFile('views.snapx');
   await until("s.ask && s.ask.kind === 'choice'", 'save first?');
   await answerAsk({key: 'd'});
   check('AUTO views: the session file brings both views back, their axes, points and the active one',
@@ -3294,15 +3308,15 @@ async function reopenedSessionPlot(dir) {
   await runPeriodicFromDialog();
   await until('!s.busy && !s.ask', 'periodic', 120000 * SLOW);
   const points = await DS('d.points.x.length');
-  await cdp.eval(`__xpp.send({cmd: 'session', op: 'save', name: 'w102'})`);
+  await cdp.eval(`__xpp.send({cmd: 'session.save_as', file: 'w102', confirm: true})`);
   await until('!s.busy', 'session saved');
   check('W102: the session file is written', fs.existsSync(path.join(dir, 'w102.snapx')));
 
   /* Chart.info keeps its last drawing while AUTO covers the plot: reopening must advance it. */
   const beforeOpen = (await P()).draws;
-  /* the window's File/Open model pushes the command into the core itself (json_ui_push_open) */
+  /* Open session, as the window's File menu sends it */
   await cdp.eval(`window.__helloBefore = __xpp.state().hello; fetch('/cmd' + location.search, {method: 'POST',
-    body: JSON.stringify({cmd: 'open', file: 'w102.snapx'})}).then(r => r.status)`);
+    body: JSON.stringify({cmd: 'session.open', file: 'w102.snapx'})}).then(r => r.status)`);
   await until("s.ask && s.ask.kind === 'choice'", 'save first?');
   await answerAsk({key: 'd'});
   check('W102: opening it loads the session (a new hello, the diagram shown) with no error',
@@ -3801,7 +3815,7 @@ async function playerCheck(dir) {
     JSON.stringify(presses) === JSON.stringify([{step: 0, what: 'cmd', index: 0}, {step: 1, what: 'cmd', index: 0}]),
     JSON.stringify(presses));
   check('player: the page answered none of the step\'s questions (the player did)',
-    await cdp.eval(`__xpp.sentFrom(${sentBefore}).every(c => c.cmd === 'play')`), JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentBefore})`)));
+    await cdp.eval(`__xpp.sentFrom(${sentBefore}).every(c => c.cmd.startsWith('recording.'))`), JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentBefore})`)));
   check('player: at the end the caption shows the last step, Play offers Play again',
     await cdp.eval(`/Step 2: Clear plot/.test(document.querySelector('.player-caption').textContent) && /Play again/.test(document.querySelector('.player-play').textContent)`));
   await cdp.eval(`document.querySelectorAll('.player-step')[1].click()`);
@@ -3816,7 +3830,7 @@ async function playerCheck(dir) {
   check('player: the note is a # line above the step in the file', /# Clear the screen\.\r?\n\{"step":"Clear plot"/.test(text), text.slice(text.indexOf('@steps')));
   /* a changed copy: the banner, and Dismiss */
   fs.writeFileSync(path.join(dir, 'changed.recx'), text.replace('{"step":"Clear plot"', '{"step":"Clear plot" '));
-  await cdp.eval(`__xpp.send({cmd: 'play', op: 'open', autoplay: false, file: ${JSON.stringify(path.join(dir, 'changed.recx'))}})`);
+  await openRecording(path.join(dir, 'changed.recx'));
   await until(`s.ask && s.ask.kind === 'choice'`, 'save first? (2)');
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})`);
   check('player: a changed recording opens with the banner "changed after it was made"',
@@ -3840,6 +3854,8 @@ async function playerCheck(dir) {
   await cdp.eval(`document.querySelector('.auto-close').click()`);
   check('player: with AUTO closed the player is back around the plots (no dock)',
     await until(`!s.diagram.open && !document.querySelector('.player-dock') && !!document.querySelector('.player-stage .plots') && !!document.querySelector('.player-controls') && !s.busy`, 'dock gone', 20000));
+  /* the opened recording plays on its own (the File menu's Play recording): let it end, then close */
+  await until('s.player.running < 0 && s.core.player && s.core.player.step >= s.player.steps.length && !s.busy', 'the recording played to its end', 30000);
   await cdp.eval(`document.querySelector('.player-close').click()`);
   check('player: Close leaves the player; the plot stays', await until(`!s.player.open && !document.querySelector('.player') && !!document.querySelector('.plots') && !s.busy`, 'closed'));
 }
@@ -3883,7 +3899,7 @@ async function leaveCheck() {
   await cdp.eval('__xppQuit()');
   check('leave: idle, the window\'s Quit is the core\'s question, as F Q asks it',
     await until(`s.ask && s.ask.id > 0 && s.ask.kind === 'choice' && s.ask.question === '${QUIT_Q}'`, 'core quit ask')
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'quit' && c.ask === true)`), JSON.stringify(await S('s.ask')));
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'session.quit' && c.save === undefined)`), JSON.stringify(await S('s.ask')));
   await key('Escape');
   check('leave: idle, Escape cancels it and the session stays', await until('!s.ask && !s.busy', 'cancelled')
     && sessionServer.proc.exitCode === null);
@@ -3916,7 +3932,7 @@ async function leaveCheck() {
      the page goes, which the window's close does */
   check('leave: Don\'t save during the run sends the plain quit, and the core exits at once',
     await until('s.exited !== null && !s.ask', 'core exit', 10000 * SLOW)
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'quit' && !c.ask && !c.save)`),
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'session.quit' && c.save === false)`),
     JSON.stringify(await cdp.eval(`__xpp.sent().slice(-2)`)) + JSON.stringify(await S(`[s.ask, s.computing, s.exited]`)));
 }
 
@@ -3925,7 +3941,7 @@ async function leaveCheck() {
    (their names asked), and xppautX exits */
 async function leaveSaveCheck(dir) {
   await until('!s.busy && !s.ask', 'idle');
-  await cdp.eval(`__xpp.send({cmd: 'record', op: 'start'})`);
+  await cdp.eval(`__xpp.send({cmd: 'recording.start'})`);
   await until('s.core.recording && !s.busy', 'recording');
   check('leave save: a long integration is going', await longRun());
   await cdp.eval('__xppQuit()');
@@ -3935,7 +3951,7 @@ async function leaveSaveCheck(dir) {
   await key('s');
   check('leave save: Save session sends the quit that saves; the run stops and the session file is asked',
     await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.snapx' && !s.computing`, 'session file', 30000 * SLOW)
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'quit' && c.save === true)`), JSON.stringify(await S('s.ask')));
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'session.quit' && c.save === true)`), JSON.stringify(await S('s.ask')));
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'left'})`);
   check('leave save: then the recording\'s name',
     await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx'`, 'recording file', 30000 * SLOW), JSON.stringify(await S('s.ask')));
@@ -4044,7 +4060,7 @@ async function navigationCheck() {
   await until('!s.ask && !s.busy', 'cancel save');
   /* W209: the title's dot follows state.changed; a save clears it, and Ctrl+S then saves to the remembered file with no ask */
   check('W209: the unsaved dot is on while state.changed is', await S('s.core.changed') === true && await cdp.eval(`!!document.querySelector('.title-bar .unsaved')`));
-  await cdp.eval(`__xpp.send({cmd: 'session', op: 'save', name: 'w209'})`);
+  await cdp.eval(`__xpp.send({cmd: 'session.save_as', file: 'w209', confirm: true})`);
   check('W209: a save clears changed and the dot', await until('!s.busy && s.core.changed === false && !document.querySelector(".title-bar .unsaved")', 'dot cleared'));
   await cdp.eval(`__xpp.send({cmd: 'value.set_parameters', values: {iapp: 0.2}})`);
   check('W209: an edit brings the dot back', await until('s.core.changed === true && !!document.querySelector(".title-bar .unsaved")', 'dot back'));
@@ -4155,7 +4171,7 @@ async function keymapCheck() {
 async function keymapEditorCheck() {
   await desktopMetrics();
   check('keymapeditor: the page connects', await until('s.hello && s.keymap.info && !s.busy', 'hello'));
-  await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'reset'})`);
+  await cdp.eval(`__xpp.send({cmd: 'keymap.reset'})`);
   await until(`s.keymap.info.pinned.length === 0 && !s.busy`, 'reset');
   const keysOf = id => S(`s.keymap.info.commands.find(c => c.id === ${JSON.stringify(id)}).keys.join(' / ')`);
   const sourceOf = id => S(`s.keymap.info.commands.find(c => c.id === ${JSON.stringify(id)}).source`);
@@ -4216,7 +4232,7 @@ async function keymapEditorCheck() {
     check('keymapeditor: Ctrl+B is sent as a keymap set for Reload model only, and shows as changed',
       await until(`s.keymap.info.commands.find(c => c.id === 'reload').source === 'user'`, 'bound')
       && (await keysOf('reload')) === 'Ctrl+B'
-      && (await sentSince(mark)).some(c => c.cmd === 'keymap' && c.op === 'set' && JSON.stringify(c.map.bindings) === '{"reload":["Ctrl+B"]}')
+      && (await sentSince(mark)).some(c => c.cmd === 'keymap.set' && JSON.stringify(c.bindings) === '{"reload":["Ctrl+B"]}')
       && await cdp.eval(`document.querySelector('[data-keymap-row=reload] [data-source]').textContent === 'changed'`) && (await S('s.keymap.editor.recording')) === null);
     mark = await cdp.eval('__xpp.sentCount()');
     /* Esc cancels, a reserved key is refused, a taken key asks */
@@ -4283,7 +4299,7 @@ async function keymapEditorCheck() {
     await click('[data-keymap-reset-confirm]');
     check('keymapeditor: confirmed, Reset all removes every binding, pin and the preset',
       await until(`s.keymap.info.pinned.length === 0 && s.keymap.info.preset === 'default' && s.keymap.info.commands.every(c => c.source === 'default')`, 'all reset')
-      && (await sentSince(mark)).some(c => c.cmd === 'keymap' && c.op === 'reset') && (await keysOf('savesession')) === 'Ctrl+S');
+      && (await sentSince(mark)).some(c => c.cmd === 'keymap.reset') && (await keysOf('savesession')) === 'Ctrl+S');
     await key('Escape');
     check('keymapeditor: Esc closes the dialog', await until(`!s.keymap.editor.open`, 'closed by Esc'));
 
@@ -4307,7 +4323,7 @@ async function keymapEditorCheck() {
       await until(`!s.busy && s.core.steady`, 'steady', 30000) && (await sentSince(mark)).some(c => c.cmd === 'run.steady' && c.decimals === 9));
 
     /* the toolbar: the fixed part, then the pins in order */
-    await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ['calculator', 'reload', 'dirfield'], bindings: {}}})`);
+    await cdp.eval(`__xpp.send({cmd: 'keymap.set', preset: 'default', pinned: ['calculator', 'reload', 'dirfield'], bindings: {}})`);
     await until(`s.keymap.info.pinned.length === 3`, 'three pins');
     const order = () => cdp.eval(`[...document.querySelectorAll('[data-pinned]')].map(b => b.dataset.pinned).join()`);
     check('keymapeditor: the toolbar has Run from initial, Run from last state, Continue and Stop first, then the pins in order with their labels',
@@ -4355,12 +4371,12 @@ async function keymapEditorCheck() {
       && await cdp.eval(`document.querySelector('[data-pin=xivst]').getAttribute('aria-pressed') === 'true'`));
 
     /* overflow: every pin stays reachable at any width */
-    await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ['calculator', 'reload'], bindings: {}}})`);
+    await cdp.eval(`__xpp.send({cmd: 'keymap.set', preset: 'default', pinned: ['calculator', 'reload'], bindings: {}})`);
     await until(`s.keymap.info.pinned.length === 2`, 'two pins');
     await rendered();
     check('keymapeditor: two pins fit: no More, both shown', await cdp.eval(`!document.querySelector('.quick-more') && document.querySelectorAll('[data-pinned]:not(.quick-over)').length === 2`));
     const all = ['calculator', 'reload', 'dirfield', 'singpts', 'graphic', 'colorcode', 'xivst', 'text', 'nullcline', 'delay', 'parameters', 'total_time', 'method'];
-    await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ${JSON.stringify(all)}, bindings: {}}})`);
+    await cdp.eval(`__xpp.send({cmd: 'keymap.set', preset: 'default', pinned: ${JSON.stringify(all)}, bindings: {}})`);
     await until(`s.keymap.info.pinned.length === ${all.length}`, 'many pins');
     const reach = () => cdp.eval(`(() => { const t = document.querySelector('.quick-access');
       const shown = [...t.querySelectorAll('[data-pinned]')].filter(b => !b.classList.contains('quick-over')).map(b => b.dataset.pinned);
@@ -4381,7 +4397,7 @@ async function keymapEditorCheck() {
     check('keymapeditor: a command in More runs and closes the menu', await until(`!document.querySelector('.quick-more[open]')`, 'More closed'));
     await desktopMetrics();
   } finally {
-    await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'reset'})`).catch(() => {});
+    await cdp.eval(`__xpp.send({cmd: 'keymap.reset'})`).catch(() => {});
     await until(`s.keymap.info.pinned.length === 0 && !s.busy`, 'reset at the end');
   }
 }
@@ -4989,7 +5005,7 @@ async function valuesJacobian(dir) {
       === JSON.stringify([{cmd: 'set', kind: 'num', name: 'jacobian', text: 'exact'}]),
     JSON.stringify(await S(`__xpp.sentFrom(${sent})`)));
   fs.writeFileSync(path.join(dir, 'w260noise.odex'), "par a = 1\nx' = -a*x + ran(1)\n");
-  await cdp.eval(`__xpp.send({cmd: 'open', file: 'w260noise.odex'})`);
+  await openFile('w260noise.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
   await until(`!s.busy && !s.ask && s.hello.file === 'w260noise.odex' && !!${select}`, 'the noisy model opened');
@@ -5004,7 +5020,7 @@ async function valuesJacobian(dir) {
     && await cdp.eval(`${hint}?.textContent`) === 'No Exact Jacobian: w260noise.odex:2:1: uses random numbers',
     JSON.stringify([await options(), await cdp.eval(`${hint}?.textContent`)]));
   fs.writeFileSync(path.join(dir, 'w379wiener.odex'), "wiener w\nx' = w\n");
-  await cdp.eval(`__xpp.send({cmd: 'open', file: 'w379wiener.odex'})`);
+  await openFile('w379wiener.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
   await until(`!s.busy && !s.ask && s.hello.file === 'w379wiener.odex'`, 'the Wiener model opened');
@@ -5406,7 +5422,7 @@ function xppautLecarSet() {
    .odex reserves is asked with its suggestion, and the answer is used */
 async function conversionDialog(dir) {
   fs.writeFileSync(path.join(dir, 'w288.ode'), "par and=1\nx'=and-x\ninit x=0\n@ total=1,dt=.1\ndone\n");
-  await cdp.eval("__xpp.send({cmd: 'open', file: 'w288.ode'})");
+  await openFile('w288.ode');
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
   await until("s.ask?.kind === 'string'", 'the rename question');
@@ -5416,7 +5432,7 @@ async function conversionDialog(dir) {
   await until("!s.busy && !s.ask && s.hello.file === 'w288.odex'", 'converted model opened');
   check('W288: the answer is used in the converted file',
     fs.readFileSync(path.join(dir, 'w288.odex'), 'utf8').includes('par my_and = 1'));
-  await cdp.eval("__xpp.send({cmd: 'open', file: 'lecar.odex'})");
+  await openFile('lecar.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open lecar');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
   await until("!s.busy && !s.ask && s.hello.file === 'lecar.odex'", 'lecar reopened');
@@ -5614,7 +5630,7 @@ async function files(dir) {
     check('... conversion names the saved .odex and links its manual section',
       await S("s.bottom.includes('saved as w61.odex') && s.bottomHelp?.chapter === '02-ode-files' && s.bottomHelp?.anchor === 'odex'"));
     check('... and the page asked for the new model\'s plot data, as on a reconnection',
-      await S("__xpp.sent().slice(-3).some(c => c.cmd === 'data')"), JSON.stringify(await cdp.eval('__xpp.sent().slice(-3)')));
+      await S("__xpp.sent().slice(-3).some(c => c.cmd === 'events.subscribe')"), JSON.stringify(await cdp.eval('__xpp.sent().slice(-3)')));
   } finally {
     fs.rmSync(up, {recursive: true, force: true, maxRetries: 5});
   }
@@ -5714,7 +5730,7 @@ async function animation() {
   check('ani: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
   check('ani: the server offers the ani data event and the page asks for it',
     await S(`s.hello.features.includes('ani')`)
-    && (await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'data' && c.events.includes('ani')));
+    && (await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'events.subscribe' && c.events.includes('ani')));
   check('ani: integrate first (601 rows)', await integrate(601, 30000));
 
   /* the title bar's Animation button: Viewaxes/Toon opens the core's window, the panel shows */
@@ -6020,20 +6036,20 @@ async function startScreenCheck() {
         return !!n && n.innerText.includes(${JSON.stringify(start.examples.reason)}) && !document.querySelector('[data-start-example]'); })()`)
         && start.examples.names.length === 0, JSON.stringify(start.examples));
 
-    const opens = () => S(`__xpp.sent().filter(c => c.cmd === 'open').length`);
+    const opens = () => S(`__xpp.sent().filter(c => c.cmd === 'key' && c.item === 'openmodel').length`);
     check('start screen: nothing was sent by the page yet (the core asked by itself)', (await opens()) === 0);
     await cdp.eval(`document.querySelector('[data-start-open]').click(); true`);
-    check('start screen: Open model sends the open command and Cancel leaves the start screen',
-      await until(`__xpp.sent().filter(c => c.cmd === 'open' && c.file === undefined).length === 1 && !s.ask && !s.busy && s.hello.start && s.exited === null`, 'open cancelled'));
+    check('start screen: Open model sends File > Open model and Cancel leaves the start screen',
+      await until(`__xpp.sent().filter(c => c.cmd === 'key' && c.item === 'openmodel').length === 1 && !s.ask && !s.busy && s.hello.start && s.exited === null`, 'open cancelled'));
     await clickRecent(gone);
     check('start screen: a missing recent model sends nothing', (await opens()) === 1);
     check('start screen: a command that needs a model is refused with a shown error, not a state',
-      await cdp.eval(`(() => { __xpp.send({cmd: 'state'}); return true; })()`)
+      await cdp.eval(`(() => { __xpp.send({cmd: 'session.get_state'}); return true; })()`)
         && await until(`!s.busy && __xpp.log().some(l => l.kind === 'error' && l.text.includes('No model is open'))`, 'refused'));
 
     await clickRecent(ODE);
     check('start screen: a recent model that is there opens: its hello has no start, its state arrives, the screen goes',
-      await until(`__xpp.sent().some(c => c.cmd === 'open' && c.file === ${JSON.stringify(ODE)}) && s.hello && !s.hello.start && s.core && !s.busy`, 'opened')
+      await until(`__xpp.sent().some(c => c.cmd === 'session.open_model' && c.recent === 0 && c.file === undefined) && s.hello && !s.hello.start && s.core && !s.busy`, 'opened')
         && await cdp.eval(`!document.querySelector('[data-start-screen]') && !!document.querySelector('.run-toolbar')`));
     await cdp.send('Page.removeScriptToEvaluateOnNewDocument', {identifier});
   } finally {
@@ -6066,7 +6082,7 @@ async function startScreenExamplesCheck() {
       JSON.stringify(await cdp.eval(`(() => { const s = window.__xpp && __xpp.state(); return s && s.hello && s.hello.start ? s.hello.start.examples : null; })()`)));
     await cdp.eval(`document.querySelector('[data-start-example]').click(); true`);
     check('start screen examples: a click sends the name only; the copy opens and the screen goes',
-      await until(`__xpp.sent().some(c => c.cmd === 'open' && c.example === 'lecar.odex' && c.file === undefined) && s.hello && !s.hello.start && s.core && !s.busy`, 'opened')
+      await until(`__xpp.sent().some(c => c.cmd === 'session.open_model' && c.example === 'lecar.odex' && c.file === undefined) && s.hello && !s.hello.start && s.core && !s.busy`, 'opened')
         && await cdp.eval(`!document.querySelector('[data-start-screen]') && !!document.querySelector('.run-toolbar')`)
         && fs.existsSync(path.join(dir, 'xpp-config', 'examples', 'lecar.odex')));
     await cdp.send('Page.removeScriptToEvaluateOnNewDocument', {identifier});
@@ -6083,7 +6099,7 @@ async function startScreenExamplesCheck() {
    run ends where it was going, with differences. */
 async function jacobianOfferCheck(dir) {
   fs.writeFileSync(path.join(dir, 'w260sqrt.odex'), "x' = sqrt(x) + 1\ninit x = 0\noptions { integration: { method: stiff, total_time: 4, jacobian: exact } }\n");
-  await cdp.eval(`__xpp.send({cmd: 'open', file: 'w260sqrt.odex'})`);
+  await openFile('w260sqrt.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
   await until(`!s.busy && !s.ask && s.hello.file === 'w260sqrt.odex'`, 'the sqrt model opened');
@@ -6107,7 +6123,7 @@ async function jacobianOfferCheck(dir) {
   /* W275: the same in an AUTO run. The branch x = 0 of x' = (a-1)x + (sqrt(x*x) below a = 0.5) has an
      infinite slope there: the run stops on an end point, and the button restarts from its label */
   fs.writeFileSync(path.join(dir, 'w275root.odex'), "par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { integration: { jacobian: exact, total_time: 1 } }\n");
-  await cdp.eval(`__xpp.send({cmd: 'open', file: 'w275root.odex'})`);
+  await openFile('w275root.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
   await until(`!s.busy && !s.ask && s.hello.file === 'w275root.odex'`, 'the AUTO model opened');
@@ -6590,10 +6606,10 @@ async function layoutCheck(dir) {
       return e.contains(document.elementFromPoint(r.left + Math.min(20, r.width / 2), r.top + r.height / 2)); })()`));
 
   /* W102: a session with the run's rows and the AUTO diagram, opened again, then Back */
-  await cdp.eval(`__xpp.send({cmd: 'session', op: 'save', name: 'w102', data: true})`);
+  await cdp.eval(`__xpp.send({cmd: 'session.save_as', file: 'w102', data: true, confirm: true})`);
   await until('!s.busy', 'session saved');
   check('layout: the session file is written', fs.existsSync(path.join(dir, 'w102.snapx')));
-  await cdp.eval(`__xpp.send({cmd: 'session', op: 'load', name: 'w102'})`);
+  await cdp.eval(`__xpp.send({cmd: 'session.open', file: 'w102'})`);
   if (await until("s.ask && s.ask.kind === 'choice'", 'save first?', 15000))
     await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})`);
   check('layout: opening it keeps the AUTO view hidden as it was saved (W515), with its diagram',

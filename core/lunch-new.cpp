@@ -494,16 +494,24 @@ Result<> import_settings(xpp::Session &s, std::string_view path, bool redraw)
   return {};
 }
 
+Result<bool> write_info(xpp::Session &s, const std::string &filename, bool confirm)
+{
+  Result<> opened;
+  xpp::Writer w=confirm?open_writer_replacing(filename,false,&opened):open_writer_asking(filename,false,&opened);
+  if(!opened)return std::unexpected(opened.error());
+  if(!w)return false;
+  redraw_params();
+  do_info(s,w.file());
+  if(const Result<> saved=xpp::commit_save(w);!saved)return std::unexpected(saved.error());
+  return true;
+}
+
 void file_inf(xpp::Session &s)
 {
   std::string filename=xpp::files::output_name(s.model().this_file,".pars");
   ping();
   if(!file_selector("Save info",filename,"*.pars*"))return;
-  xpp::Writer w=open_writer_asking(filename.c_str());
-  if(!w)return;
-  redraw_params();
-  do_info(s,w.file());
-  xpp::ok_or_show(xpp::commit_save(w));
+  xpp::ok_or_show(write_info(s,filename,false));
 }
 
 void do_info(const xpp::Session &s, FILE *fp)

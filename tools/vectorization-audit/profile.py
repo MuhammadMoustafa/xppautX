@@ -122,7 +122,7 @@ def run_server(binary, out, name):
     s = Server(ROOT / 'tools/auto-profile/callgrind_wrap.sh', EX / LECAR)
     try:
         s.collect(is_idle)
-        s.send(cmd='data', events=['series', 'plots', 'nullclines', 'dfield', 'marks'])
+        s.send(cmd='events.subscribe', events=['series', 'plots', 'nullclines', 'dfield', 'marks'])
         s.collect(is_idle)
         for field, value in (('total', 100), ('dt', 0.005)):  # Numerics: 20000 rows
             s.send(cmd='set', kind='num', name=field, value=value)

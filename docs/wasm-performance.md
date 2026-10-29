@@ -49,7 +49,7 @@ and further exact-math validation. W34 and W111 do not address this measured bot
   baseline and combined trial, or three for the separated flag trials.
   Timings exclude process/module startup and parameter configuration.
   One heavy local task at a time; make uses at most four jobs.
-- Live-series off means `data` subscribes to no optional events during
+- Live-series off means `events.subscribe` names no optional events during
   timing. The same final plotted series is fetched after timing and
   compared using `Object.is`, including negative-zero distinctions.
   Progress and command-completion events still operate normally.

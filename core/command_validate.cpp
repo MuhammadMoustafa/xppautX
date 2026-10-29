@@ -11,6 +11,7 @@
 #include "many_pops.h"
 #include "session.h"
 #include "typed_values.h"
+#include "xpp_keymap.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include <algorithm>
@@ -109,8 +110,10 @@ Result<Scalar> read_number(const Check &c, const Argument &arg, Type type, const
 Result<Scalar> read_text(const Check &c, const Argument &arg, Type type, const char *value, std::string_view label)
 {
     std::string text;
-    if (!json_decode_string(value, text, std::string::npos, true) || text.size() > arg.max_length)
-        return refuse(c, xpp::format("Argument \"{}\" must be text of at most {} bytes", label, arg.max_length));
+    if (!json_decode_string(value, text, std::string::npos, !arg.multiline) || text.size() > arg.max_length
+        || (arg.multiline && std::ranges::any_of(text, [](char ch) { return static_cast<unsigned char>(ch) < ' ' && ch != '\n' && ch != '\r' && ch != '\t'; })))
+        return refuse(c, xpp::format("Argument \"{}\" must be text of at most {} bytes{}", label, arg.max_length,
+                                     arg.multiline ? " (line breaks and tabs are the only control characters)" : ""));
     const auto bad = [&](std::string what) { return refuse(c, std::move(what)); };
     switch (type) {
     case Type::window:
@@ -158,6 +161,21 @@ Result<Scalar> read_text(const Check &c, const Argument &arg, Type type, const c
 /* the scalar of type at value (an argument, a list's item or a map's value) */
 Result<Scalar> read_scalar(const Check &c, const Argument &arg, Type type, const char *value, std::string_view label)
 {
+    if (type == Type::text_list) {
+        Argument strings=arg;
+        strings.element=Type::text;
+        strings.max_items=keymap::MAX_KEYS_PER_COMMAND;
+        if (*value!='[') return refuse(c,xpp::format("Argument \"{}\" must be a list of text",label));
+        std::vector<std::string> keys;
+        const char *cursor=value;
+        while(const char *item=json::js_element(cursor)) {
+            if(keys.size()>=strings.max_items)return refuse(c,"Too many keys for a command");
+            auto key=read_text(c,strings,Type::text,item,label);
+            if(!key)return std::unexpected(key.error());
+            keys.push_back(std::get<std::string>(*key));
+        }
+        return Scalar{std::move(keys)};
+    }
     if (type == Type::real_pair) {
         std::array<double, 2> pair{};
         const char *cursor = value;
@@ -221,7 +239,7 @@ Result<std::vector<Entry>> read_map(const Check &c, const Argument &arg, const c
         const std::string folded = arg.names != NameSet::none ? lower_case(key) : key;
         if (std::ranges::any_of(entries, [&](const Entry &e) { return (arg.names != NameSet::none ? lower_case(e.first) : e.first) == folded; }))
             return refuse(c, xpp::format("Argument \"{}\" names \"{}\" twice", arg.name, key));
-        if ((*item == '[' && arg.element != Type::real_pair) || *item == '{')
+        if ((*item == '[' && arg.element != Type::real_pair && arg.element != Type::text_list) || *item == '{')
             return refuse(c, xpp::format("Argument \"{}\" holds single values, not lists or maps", label));
         Result<Scalar> read = read_scalar(c, arg, arg.element, item, label);
         if (!read) return std::unexpected<Error>(read.error());

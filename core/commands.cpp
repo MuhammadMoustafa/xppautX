@@ -529,8 +529,8 @@ void commander(xpp::Session &s, int ch)
     case 'i': export_values_menu(s); break;
     case 'z': rename_set_menu(s); break;
     case 'f': delete_set_menu(s); break;
-    case 'm': xpp_model_open(s, nullptr); break;
-    case 'e': xpp_model_reload(s); break;
+    case 'm': xpp::ok_or_show(xpp_model_open(s, nullptr)); break;
+    case 'e': xpp::ok_or_show(xpp_model_reload(s)); break;
     case 'v': xpp_session_save_here(s); break;
     case 'w': xpp_session_save(s, nullptr, -1); break;
     case 'b': xpp_session_save(s, nullptr, -1, true); break;

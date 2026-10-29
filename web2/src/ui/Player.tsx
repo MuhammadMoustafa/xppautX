@@ -74,7 +74,7 @@ function Controls() {
   const n = steps.length, next = cp?.step ?? 0, running = cp?.running ?? -1, playing = !!cp?.playing;
   const ready = n > 0 && !!cp;
   const ended = ready && next >= n && running < 0;
-  const mayRestart = may({cmd: 'play', op: 'from'});
+  const mayRestart = may({cmd: 'recording.seek'});
   const segs = segments(useStore(s => s.player), next);
   const frac = progress && progress.of > 0 ? Math.min(1, progress.n / progress.of) : 0.5;
   const at = running >= 0 ? running : Math.min(next, n) - 1;
@@ -131,7 +131,7 @@ function NoteEditor({step}: {step: number}) {
   /* one editor a step (StepList keys it by the step): its text starts as the note */
   const [text, setText] = useState(st?.note ?? '');
   if (!st) return null;
-  const mayWrite = may({cmd: 'play', op: 'note'});
+  const mayWrite = may({cmd: 'recording.set_step_note'});
   const name = file.split(/[\\/]/).pop();
   return (
     <div class="player-editor">

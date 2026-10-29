@@ -193,18 +193,14 @@ void file_read(const std::string &path)
     }
 }
 
-void start(xpp::Session &s)
+xpp::Result<> start(xpp::Session &s)
 {
-    if (recorder.rec) {
-        j_command_error("record", "Already recording: File/recorD again stops and saves the recording");
-        return;
-    }
+    if (recorder.rec)
+        return xpp::fail("recording", "Already recording: File/recorD again stops and saves the recording", xpp::command_place());
     /* the session as it is now, what the replay starts from (W59d) */
     std::optional<std::string> snapshot = xpp_session_snapshot(s);
-    if (!snapshot) {
-        j_command_error("record", "Cannot record: the session's state could not be saved to begin the recording with");
-        return;
-    }
+    if (!snapshot)
+        return xpp::fail("recording", "Cannot record: the session's state could not be saved to begin the recording with", xpp::command_place());
     recx::Recording r;
     r.program = xpp::format("xppautX {}", xpp_version_string());
     r.model = s.model().this_file;
@@ -214,18 +210,21 @@ void start(xpp::Session &s)
     recorder.rec = std::move(r);
     add_model_files(s.model());
     xpp::files::observe_reads(file_read);
+    return {};
 }
 
-/* name.recx (asked for when name is empty, as the other File saves are),
-   and the recording ends; a cancelled question keeps it going (false).
-   from_menu: File/recorD or File/Quit, whose opening of the File menu is
-   no step. */
-bool stop(const xpp::Session &s, const std::string &name, bool from_menu)
+/* a saved recording */
+struct Saved {
+    std::string file;
+    size_t steps;
+};
+
+/* name.recx (asked for when name is empty, as the other File saves are), and the recording ends; nothing when a
+   question is cancelled or declined, which keeps it going. from_menu: File/recorD or File/Quit, whose opening
+   of the File menu is no step. confirm: replace an existing file without asking. */
+xpp::Result<std::optional<Saved>> stop(const xpp::Session &s, const std::string &name, bool from_menu, bool confirm = false)
 {
-    if (!recorder.rec) {
-        j_command_error("record", "Not recording");
-        return false;
-    }
+    if (!recorder.rec) return xpp::fail("recording", "Not recording", xpp::command_place());
     recorder.step.open = false; /* this command is no step */
     std::vector<recx::Step> &steps = recorder.rec->steps;
     if (from_menu && recorder.file_menu_last && !steps.empty()) {
@@ -236,50 +235,62 @@ bool stop(const xpp::Session &s, const std::string &name, bool from_menu)
     if (file.empty()) {
         file = xpp::files::output_name(s.model().this_file,recx::extension);
         ping();
-        if (!file_selector("Save recording", file, "*" + std::string(recx::extension)) || file.empty()) return false;
+        if (!file_selector("Save recording", file, "*" + std::string(recx::extension)) || file.empty()) return std::nullopt;
     }
     file = xpp::snapx::with_extension(file, recx::extension);
     const xpp::Result<std::string> text = recx::text(*recorder.rec);
-    if (!xpp::ok_or_show(text)) return false;
-    xpp::Writer w = open_writer_asking(file.c_str());
-    if (!w) return false;
+    if (!text) return std::unexpected(text.error());
+    xpp::Result<> opened;
+    xpp::Writer w = confirm ? open_writer_replacing(file, false, &opened) : open_writer_asking(file, false, &opened);
+    if (!opened) return std::unexpected(opened.error());
+    if (!w) return std::nullopt;
     w.write(*text);
-    if (!xpp::ok_or_show(xpp::commit_save(w))) return false;
+    if (const xpp::Result<> saved = xpp::commit_save(w); !saved) return std::unexpected(saved.error());
     const std::string done = xpp::format("Recorded {} steps in {}", steps.size(), file);
     xpp::log(XPP_LOG_INFO, "{}\n", done);
     bottom_msg(0, done);
     xpp::files::observe_reads(nullptr);
+    const Saved saved{file, steps.size()};
     recorder = Recorder{};
-    return true;
+    return saved;
+}
+
+/* stop for the menus and a quit: whether the recording was saved and ended, the error shown */
+bool stop_shown(const xpp::Session &s, bool from_menu)
+{
+    const xpp::Result<std::optional<Saved>> saved = stop(s, "", from_menu);
+    return xpp::ok_or_show(saved) && saved->has_value();
 }
 
 } // namespace
 
-void record_command(xpp::Session &s, const char *line)
+xpp::Result<std::string> recording_start(xpp::Session &s)
 {
-    std::string o, text;
-    get_string(line, "op", o);
-    if (o == "start") {
-        start(s);
-    } else if (o == "stop") {
-        get_string(line, "name", text);
-        stop(s, text, false);
-    } else if (o == "note") {
-        if (!recorder.rec) {
-            j_command_error("record", "Not recording: a note goes with a recording's next step");
-            return;
-        }
-        get_string(line, "text", text);
-        recorder.note = text;
-    } else {
-        j_command_error("record", xpp::format("Unknown record op {}", o));
-    }
+    if (const xpp::Result<> started = start(s); !started) return std::unexpected(started.error());
+    return std::string("{\"recording\":true}");
+}
+
+xpp::Result<std::string> recording_stop(const xpp::Session &s, const std::optional<std::string> &file, bool confirm)
+{
+    const xpp::Result<std::optional<Saved>> saved = stop(s, file.value_or(""), false, confirm);
+    if (!saved) return std::unexpected(saved.error());
+    if (!*saved) return xpp::fail("recording.stop", "The recording was not saved: the question was cancelled or declined, and the recording goes on", xpp::command_place());
+    std::string out = "{\"file\":";
+    buf_str(out, (*saved)->file);
+    return out + xpp::format(",\"steps_recorded\":{}}}", (*saved)->steps);
+}
+
+xpp::Result<std::string> recording_add_note(const std::string &note)
+{
+    if (!recorder.rec) return xpp::fail("recording.add_note", "Not recording: a note goes with a recording's next step", xpp::command_place());
+    recorder.note = note;
+    return std::string("{\"note_added\":true}");
 }
 
 void j_record_toggle(xpp::Session &s)
 {
-    if (recorder.rec) stop(s, "", true);
-    else start(s);
+    if (recorder.rec) stop_shown(s, true);
+    else xpp::ok_or_show(start(s));
 }
 
 bool j_recording(void) { return recorder.rec.has_value(); }
@@ -288,7 +299,7 @@ bool j_save_recording(xpp::Session &s)
 {
     /* File/Quit's step is open (the q of the File menu): it and the File
        menu opened for it are no steps; a quit from the window has none */
-    return stop(s, "", recorder.step.open);
+    return stop_shown(s, recorder.step.open);
 }
 
 void record_begin(const char *line)

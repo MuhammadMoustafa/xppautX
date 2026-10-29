@@ -21,13 +21,13 @@ test('W95: each action has the kind hello gives it', () => {
   assert.equal(kindOf(HELLO, 0, {cmd: 'key', win: 'auto', key: 'f'}), 'view'); /* AUTO's File: a menu holding a view */
   assert.equal(kindOf(HELLO, 0, {cmd: 'browser.export', file: 'x'}), 'data');
   assert.equal(kindOf(HELLO, 0, {cmd: 'browser.page', from_row: 0, count: 10}), 'view');
-  assert.equal(kindOf(HELLO, 0, {cmd: 'userbut', index: 0}), 'computation');
+  assert.equal(kindOf(HELLO, 0, {cmd: 'tool.run_user_button', index: 0}), 'computation');
   assert.equal(kindOf(HELLO, 0, {cmd: 'nothing'}), null);
   assert.equal(kindOf(null, 0, {cmd: 'display'}), null);
 });
 
 test('startup prompts accept answers and cancellation before hello', () => {
-  for (const cmd of [{cmd: 'answer', id: 1, file: 'lecar.odex'}, {cmd: 'run.abort'}, {cmd: 'quit'}])
+  for (const cmd of [{cmd: 'answer', id: 1, file: 'lecar.odex'}, {cmd: 'run.abort'}, {cmd: 'session.quit'}])
     assert.ok(mayStart(kindOf(null, 0, cmd), false, true), JSON.stringify(cmd));
   assert.ok(!mayStart(kindOf(null, 0, {cmd: 'run.steady'}), false, true));
 });

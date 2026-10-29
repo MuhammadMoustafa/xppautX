@@ -97,7 +97,7 @@ for old in ('/v1/', '/v2/'):  # the classic page's path (removed at T18) and web
     check('redirects the old ' + old + ' path to /', r.status == 302 and r.getheader('Location', '').startswith('/?'))
 check('serves no classic page script any more', get('/v1/xpp-client.js')[0] in (302, 404) and get('/xpp-client.js')[0] == 404)
 check('refuses events without the token', get('/events?t=wrong')[0] == 403)
-check('refuses commands without the token', post({'cmd': 'state'}, 'wrong') == 403)
+check('refuses commands without the token', post({'cmd': 'session.get_state'}, 'wrong') == 403)
 
 # W161: 100 Continue acknowledges admission while the body stays open.
 # Read the owner's constants so changing a limit cannot silently weaken this gate.
@@ -195,7 +195,7 @@ def limit_check(label, constant, method, path, finish, expected):
 
 limit_check('connection limit', 'MAX_CONNECTION_THREADS', 'POST', lambda i: '/cmd?t=' + token,
             lambda s: s.shutdown(socket.SHUT_WR), 400)
-check('connection slots are released after incomplete bodies', post({'cmd': 'state'}) == 204)
+check('connection slots are released after incomplete bodies', post({'cmd': 'session.get_state'}) == 204)
 limit_check('upload limit', 'MAX_UPLOADS', 'PUT', lambda i: '/files/limit-%d.bin?t=%s' % (i, token),
             lambda s: s.sendall(b'x'), 200)
 s, reader = held_request('PUT', '/files/limit-reused.bin?t=' + token, 1)
@@ -263,7 +263,7 @@ check('UTF-8 text reaches the page log stream as written', log_seen)
 for name, valid in [('help', True), ('unknown', False)]:
     check('registry HTTP request is accepted', post({'cmd': 'help', 'name': name, 'id': 'http registry'}) == 204)
     evs, done = collect(lambda e: e['ev'] == 'done')
-    post({'cmd': 'state'})  # a legacy idle fences any extra terminal event
+    post({'cmd': 'answer'})  # a legacy idle fences any extra terminal event
     tail, _ = collect(lambda e: e['ev'] == 'idle')
     all_events = evs + tail
     check('registry HTTP has one correlated done, no duplicate error or idle',
@@ -525,7 +525,7 @@ def leave_post(pt, tk):
 def answers(pt, tk):
     try:
         c = http.client.HTTPConnection('127.0.0.1', pt, timeout=10)
-        c.request('POST', '/cmd?t=' + tk, body=json.dumps({'cmd': 'state'}))
+        c.request('POST', '/cmd?t=' + tk, body=json.dumps({'cmd': 'session.get_state'}))
         return c.getresponse().status == 204
     except OSError:
         return False
@@ -617,7 +617,7 @@ if sess:
     _, comp = read_events(c, lambda e: e['ev'] == 'computing', 30)
     check('W112: the run starts (computing)', comp is not None)
     t0 = time.time()
-    post_cmd(pt, tk, {'cmd': 'quit'})
+    post_cmd(pt, tk, {'cmd': 'session.quit', 'save': False})
     evs, ex = read_events(c, lambda e: e['ev'] == 'exit', 30)
     names = [e['ev'] for e in evs]
     # the run was still going when the quit came: the quit stopped it

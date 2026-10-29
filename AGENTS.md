@@ -839,15 +839,15 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   W110) never stops a computation: the window calls the page's
   `__xppQuit` (web2/src/desktop.ts, through webview_eval, as Help does),
   and the window stays. While the core is idle the page sends
-  `{"cmd":"quit","ask":true}` and the core asks "Save this session
+  `{"cmd":"session.quit"}` and the core asks "Save this session
   first?" (the one leave question, model_switch.cpp's
   `xpp_session_may_leave`, as F Q does); while a command runs the page
   asks the same question itself (its wording, answers and keys from
   hello's `quit`, model_switch.h's `xpp::quit_question` and `LEAVE_*`: one
   source), the run going on: Cancel leaves it alone, Save session sends
-  `{"cmd":"quit","save":true}` (the run stops, the session and a recording
+  `{"cmd":"session.quit","save":true}` (the run stops, the session and a recording
   in progress are saved, then bye), Don't save calls the window's bound
-  `__xppCloseWindow`, which closes it as below. A plain `{"cmd":"quit"}`
+  `__xppCloseWindow`, which closes it as below. A `{"cmd":"session.quit","save":false}`
   (scripts, --server clients) quits at once. When the window closes
   (Don't save, a page without the hook, or the core already exiting) it
   pushes the plain quit and calls `xpp::http::release()`, and ends the
@@ -957,7 +957,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   into the JSON front end (ui_json.cpp, json_*.cpp) and `web2/` (the
   data-level front end: the core sends numbers, e.g. the `series` and
   `plots` events
-  after `{"cmd":"data","events":["series","plots"]}`, built in
+  after `{"cmd":"events.subscribe","events":["series","plots"]}`, built in
   `core/plot_data.cpp`, and the page draws them; `nullclines` and `dfield`
   come from `core/phase_data.cpp`, which records per window what
   nullcline.c and the integrator (Flow) draw and forgets it when json_windows.cpp

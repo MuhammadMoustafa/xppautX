@@ -488,6 +488,8 @@ Moved at W516 ([#580](https://github.com/MuhammadMoustafa/xppautX/issues/580)): 
 
 ### 2.19 Resource `session` (Session Files, Models, and System Lifecycle)
 
+**Moved onto the registry (W528, #592): every row below is implemented under its proposed name; see docs/protocol.md's registry table. The "Today" columns describe the forms that were deleted; the File menu's keys stay and call the same functions.** Readings that differ from the row: `session.open_model`'s `file` is a `path` (`--server`'s own input only: a model anywhere) with a third way, `recent` (a place in `hello.start.recent`), the page's recent models; `session.save`, `save_as` and `save_copy` take `data` (the data table in or out), and `save_as`, `save_copy` and `export_info` take `confirm` (replace without asking); `session.save` with no session file yet is refused (the menu's key asks for one); `session.import_settings` answers `applied` (a boolean), not a count; `session.quit` with `save` left out asks the leave question (the page sends `save` false to leave at once); the result of `session.open_model` is the model now loaded, built once the load has run, and a load that fails is the `done` error.
+
 | Today Key Path | Today Menu Item | Today Protocol | Today Forms & Asks | Proposed Dotted Name | Typed Named Arguments | Group / Mutex | Result Payload | Events Emitted |
 |---|---|---|---|---|---|---|---|---|
 | Ctrl+O / `F` -> `M` | File -> Open model… | `{"cmd":"open","file":F}` / `{"cmd":"open","example":E}` | `file_selector` "*.ode;*.odex" | `session.open_model` | `file`: optional file, `example`: optional text | mutex(`file`, `example`) | `{"model":text,"variables":list[name],"parameters":list[name]}` | `session.state`, `done` |
@@ -505,6 +507,8 @@ Moved at W516 ([#580](https://github.com/MuhammadMoustafa/xppautX/issues/580)): 
 ---
 
 ### 2.20 Resource `recording` (Replayable Session Steps)
+
+**Moved onto the registry (W528, #592): every row below is implemented under its proposed name. Readings that differ from the row: `recording.open` takes `play` (whether it starts playing at once: the old `autoplay`) and a `path`; `recording.stop` takes `confirm`; `recording.start` answers `recording` only (the file is named at the stop); `recording.set_speed` answers `speed` as a number; a note may hold line breaks (at most 4096 bytes).**
 
 | Today Key Path | Today Menu Item | Today Protocol | Today Forms & Asks | Proposed Dotted Name | Typed Named Arguments | Group / Mutex | Result Payload | Events Emitted |
 |---|---|---|---|---|---|---|---|---|
@@ -524,6 +528,8 @@ Moved at W516 ([#580](https://github.com/MuhammadMoustafa/xppautX/issues/580)): 
 
 ### 2.21 Resource `keymap` (Keyboard Bindings and Quick Access)
 
+**Moved onto the registry (W528, #592): `keymap.get`, `keymap.set` (the parts given replace those parts, what is left out stays) and `keymap.reset`, each sending the `keymap` event the page keeps its shortcuts from. `keymap.get` answers the user's own differences, as `keymap.set` takes them.**
+
 | Today Key Path | Today Menu Item | Today Protocol | Today Forms & Asks | Proposed Dotted Name | Typed Named Arguments | Group / Mutex | Result Payload | Events Emitted |
 |---|---|---|---|---|---|---|---|---|
 | (Page command palette) | Keyboard shortcuts… | `{"cmd":"keymap"}` | keymap editor dialog | `keymap.get` | none | default | `{"bindings":map[text, list[text]],"pinned":list[text],"preset":text}` | `done` |
@@ -534,6 +540,8 @@ Moved at W516 ([#580](https://github.com/MuhammadMoustafa/xppautX/issues/580)): 
 
 ### 2.22 Resource `events` (Event Streams and Protocol Subscriptions)
 
+**Moved onto the registry (W528, #592): `events.subscribe` adds the named events to those the client has (the old `data` replaced them), `encoding` left out keeps the setting; `events.unsubscribe` removes the named ones.**
+
 | Today Key Path | Today Menu Item | Today Protocol | Today Forms & Asks | Proposed Dotted Name | Typed Named Arguments | Group / Mutex | Result Payload | Events Emitted |
 |---|---|---|---|---|---|---|---|---|
 | (Client handshake) | (Subscribe heavy events) | `{"cmd":"data","events":[...]}` | none | `events.subscribe` | `events`: list of named supported streams (`hello.features`), `encoding`: optional choice(`json`,`f32`), `diagram`: optional boolean (today the `diagram` field of `data`, undocumented in docs/protocol.md) | default | `{"subscribed":list[text]}` | `done` |
@@ -542,6 +550,8 @@ Moved at W516 ([#580](https://github.com/MuhammadMoustafa/xppautX/issues/580)): 
 ---
 
 ### 2.23 Resource `tool` (Auxiliary Utilities)
+
+**Moved onto the registry (W528, #592): `tool.calculator` works a formula out (a `name:formula` that sets a value stays the File menu's Calculator), `tool.run_source_action`, `tool.run_user_button`.**
 
 | Today Key Path | Today Menu Item | Today Protocol | Today Forms & Asks | Proposed Dotted Name | Typed Named Arguments | Group / Mutex | Result Payload | Events Emitted |
 |---|---|---|---|---|---|---|---|---|

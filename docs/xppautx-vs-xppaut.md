@@ -167,6 +167,7 @@ value stops the load with the file, line and value, and nothing is applied.
 | Portable replay state | none | MT19937-64 state has one explicit layout on every compiler; scratch outputs allow linked temp-folder ancestors while refusing links within scratch | W169 ([#221](https://github.com/MuhammadMoustafa/xppautX/issues/221)) |
 | Replay a recording from the command line | none | `xppautX run.recx --silent` loads its snapshot and plays without an interface; exit 0 on clean playback, 1 on failure, recorded aborts exact; keeps plain-name outputs in the launch folder, asks before replacing (60 s; EOF/timeout refuses), `--yes` confirms | W144 ([#196](https://github.com/MuhammadMoustafa/xppautX/issues/196)) |
 | Slider settings | model options set three slider bindings | Session definitions, including added sliders and step sizes, saved in `.snapx`; Open model replaces them with its presets | W135, [#187](https://github.com/MuhammadMoustafa/xppautX/issues/187) |
+| Scripting the File menu | the File menu is keys and dialogs only; nothing scripts Open model, Save, Record or Play | registry commands `session.*`, `recording.*`, `keymap.*`, `events.*` and `tool.*` with typed, named arguments (a file by its name, a quit by its `save`, a note, a step, a speed); each File key asks as before and does the same thing as its command | W528, [#592](https://github.com/MuhammadMoustafa/xppautX/issues/592) |
 | Seeds | one global generator seed | each run has its seed, logged and saved with its data; set it and Go repeats a run exactly | W71 |
 
 ## The model language

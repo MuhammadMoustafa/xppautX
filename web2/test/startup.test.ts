@@ -34,10 +34,10 @@ test('startup close ends the desktop window without asking to save an unloaded m
     const {session, sent} = startup();
     session.quitAsked();
     assert.equal(closed, 0, 'Quit reaches the waiting core before closing its native picker');
-    assert.deepEqual(sent, [{cmd: 'quit'}]);
+    assert.deepEqual(sent, [{cmd: 'session.quit', save: false}]);
     Object.defineProperty(globalThis, 'window', {configurable: true, value: {}});
     session.quitAsked();
-    assert.deepEqual(sent, [{cmd: 'quit'}, {cmd: 'quit'}]);
+    assert.deepEqual(sent, [{cmd: 'session.quit', save: false}, {cmd: 'session.quit', save: false}]);
   } finally {
     if (original) Object.defineProperty(globalThis, 'window', original);
     else Reflect.deleteProperty(globalThis, 'window');

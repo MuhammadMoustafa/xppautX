@@ -26,7 +26,7 @@ def scenario(folder, name, model, action):
     try:
         events, idle = server.collect(is_idle)
         check(name + ': model loads', idle is not None and not any(e.get('error') for e in events), events[-3:])
-        server.send(cmd='data', events=['series', 'numerics'])
+        server.send(cmd='events.subscribe', events=['series', 'numerics'])
         server.collect(is_idle)
         action(server)
     finally:
@@ -41,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
               state and state['steady']['status'] == 'settled' and 20 < state['time'] < 50, state)
         check('decay: both states approach their analytic equilibria',
               state and abs(state['now'][0]) < 1e-8 and abs(state['now'][1] - 2) < 1e-8, state)
-        server.send(cmd='data', events=['series', 'numerics'])
+        server.send(cmd='events.subscribe', events=['series', 'numerics'])
         settings, _ = server.collect(is_idle)
         check('decay: original duration and stride restored',
               any(e.get('ev') == 'numerics' and {f['key']: f['value'] for f in e['fields']}.get('total_time') == 30

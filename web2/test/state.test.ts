@@ -276,9 +276,9 @@ test("the page's leave question (W110): worded by hello, kept over the run's idl
   assert.equal(ev(s, {ev: 'ask', id: 7, kind: 'file'}).ask?.id, 7, "a question of the core's replaces it");
   const rec = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], recording: {steps: 1, note: ''}});
   assert.equal(reduce(rec, {type: 'leave', open: true}).ask?.question, quit.recording, 'naming the recording in progress');
-  assert.equal(noIdle({cmd: 'quit'}), true, 'the plain quit has no idle');
-  assert.equal(noIdle({cmd: 'quit', save: true}), false, 'the quit that saves is a command of its own');
-  assert.equal(noIdle({cmd: 'quit', ask: true}), false);
+  assert.equal(noIdle({cmd: 'session.quit', save: false}), true, 'the plain quit has no idle');
+  assert.equal(noIdle({cmd: 'session.quit', save: true}), false, 'the quit that saves is a command of its own');
+  assert.equal(noIdle({cmd: 'session.quit'}), false, 'the quit that asks too');
 });
 
 test('live solver states update all values without changing initial conditions or plot data', () => {

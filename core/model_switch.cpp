@@ -71,32 +71,29 @@ void remember_opened(const std::string &file)
 
 } // namespace
 
-void xpp_model_open(xpp::Session &s, const char *path)
+xpp::Result<bool> xpp_model_open(xpp::Session &s, const char *path)
 {
   std::string file=path?path:"";
   if(file.empty()){
-    if(!xpp::file_selector(xpp::OPEN_MODEL_TITLE,file,xpp::open_model_wild()))return;
+    if(!xpp::file_selector(xpp::OPEN_MODEL_TITLE,file,xpp::open_model_wild()))return false;
   }
-  if (const auto checked = model_file_ok(file); !checked) {
-    xpp::show_error(checked.error());
-    return;
-  }
+  if (const auto checked = model_file_ok(file); !checked) return std::unexpected(checked.error());
   /* a recording: its model, in the player (W59b) */
   if(xpp::files::has_extension(file,xpp::recx::extension)){
     remember_opened(file);
     play_recording(s,file);
-    return;
+    return true;
   }
   /* a file that carries a model: that model, then what the file adds */
   std::optional<SavedFile> saved;
   if(xpp_saved_file_name(file)){
     saved=xpp_saved_read(file);
-    if(!saved)return;
+    if(!saved)return false; /* its reader showed why */
   }
   /* everything below replaces this session (a .snapx of this very model
      too: its values, data and diagram take the place of these), so it
      asks first, as File > Open does (W103 review) */
-  if(!xpp_model_may_leave(s,file))return;
+  if(!xpp_model_may_leave(s,file))return false;
   remember_opened(file);
   /* loaded from its own folder, as a double-click starts it: the folder
      the page's files are (xpp_files.h); a saved model from the folder of
@@ -109,18 +106,16 @@ void xpp_model_open(xpp::Session &s, const char *path)
     req=xpp::open_request(s,where.first,where.second);
   }
   s.model_request=std::move(req);
+  return true;
 }
 
-void xpp_model_open_example(xpp::Session &s, std::string_view name)
+xpp::Result<bool> xpp_model_open_example(xpp::Session &s, std::string_view name)
 {
   const xpp::Result<std::string> copy=xpp::examples::install(name);
-  if(!copy){
-    xpp::show_error(copy.error());
-    return;
-  }
-  if(copy->empty())return;
+  if(!copy)return std::unexpected(copy.error());
+  if(copy->empty())return false;
   xpp::bottom_msg(0,xpp::format("The example {} is copied to {}; this copy is opened, so the example stays as it was",name,*copy));
-  xpp_model_open(s,copy->c_str());
+  return xpp_model_open(s,copy->c_str());
 }
 
 namespace {
@@ -160,16 +155,14 @@ void xpp_quit(xpp::Session &s, bool saving)
   if(saving?leave_as(s,'s',recording):xpp_session_may_leave(s,xpp::quit_question(recording),recording))xpp::bye_bye();
 }
 
-void xpp_model_reload(xpp::Session &s)
+xpp::Result<bool> xpp_model_reload(xpp::Session &s)
 {
   const xpp::Model &m=s.model();
-  if(m.command_line.arguments.empty()||m.this_file=="console"){
-    xpp::command_error("reload", "This model was not read from a file: there is nothing to reload");
-    return;
-  }
+  if(m.command_line.arguments.empty()||m.this_file=="console")
+    return xpp::fail("reload", "This model was not read from a file: there is nothing to reload", xpp::command_place());
   const std::string question=xpp::format("Reload {}? Its values are kept by name; this model's data and diagram go. Save its session first?",
                                          xpp::files::split_path(m.this_file).second);
-  if(!xpp_session_may_leave(s,question,false))return;
+  if(!xpp_session_may_leave(s,question,false))return false;
   /* a model picked at the start (no file on the command line) is loaded
      by its name this time */
   std::vector<std::string> command_line=m.command_line.arguments;
@@ -177,6 +170,7 @@ void xpp_model_reload(xpp::Session &s)
   xpp::ModelRequest req{m.load_dir,m.this_file,std::move(command_line),true,std::nullopt,std::nullopt};
   if(!m.saved_in.empty())req.saved=xpp::SavedModel{m.saved_in,m.files};
   s.model_request=std::move(req);
+  return true;
 }
 
 namespace xpp {
@@ -292,27 +286,22 @@ void restore_values(Session &s, const KeptValues &kept)
   s.saved_session=kept.saved;
 }
 
-Session *load_requested(const Session &now, const ModelRequest &req)
+Result<Session *> load_requested(const Session &now, const ModelRequest &req)
 {
   const std::string before=xpp::files::working_dir(),before_file=now.model().this_file;
-  if(!req.dir.empty()&&xpp::files::change_dir(req.dir.c_str())!=0){
-    xpp::show_error(xpp::files::open_error("open model",req.dir));
-    return nullptr;
-  }
+  if(!req.dir.empty()&&xpp::files::change_dir(req.dir.c_str())!=0)return std::unexpected(xpp::files::open_error("open model",req.dir));
   auto back=[&before](){ if(!before.empty())xpp::files::change_dir(before.c_str()); };
   if (!req.saved) {
     const auto checked = model_file_ok(req.file);
     if (!checked) {
       back();
-      xpp::show_error(checked.error());
-      return nullptr;
+      return std::unexpected(checked.error());
     }
   }
   Result<CommandLine> line=parse_command_line(req.command_line);
   if(!line){
     back();
-    xpp::show_error(line.error());
-    return nullptr;
+    return std::unexpected(line.error());
   }
   /* what a session file adds is read before the load keeps its
      model: a member missing or that does not read fails the open */
@@ -333,10 +322,9 @@ Session *load_requested(const Session &now, const ModelRequest &req)
     back();
     /* at the place the load failed at */
     const Error &e=loaded.error();
-    show_error(Error{"open",xpp::format("{} could not be loaded ({}){}",
+    return std::unexpected(Error{"open",xpp::format("{} could not be loaded ({}){}",
                                         req.restore?req.restore->name:req.file,e.what,
                                         before_file.empty()?std::string():xpp::format("; {} is still loaded",before_file)),e.place});
-    return nullptr;
   }
   return *loaded;
 }
