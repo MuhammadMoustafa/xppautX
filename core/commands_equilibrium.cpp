@@ -153,7 +153,8 @@ Result<std::string> configure(Session &s,const Command &c,const Arguments &a,con
         if(numerics_settings_set(s,CONFIG_KEYS[i],values[i],why,&p)<0)return fail(c.name,why,p);
     }
     const auto &n=s.numerics.equilibria;
-    return xpp::format("{{\"settings\":{{\"max_iterates\":{},\"newton_tolerance\":{},\"jacobian_epsilon\":{},\"search_limit\":{}}}}}",n.max_iterations,n.newton_tolerance,n.jacobian_step,n.search_limit);
+    return xpp::format("{{\"settings\":{{\"max_iterates\":{},\"newton_tolerance\":{},\"jacobian_epsilon\":{},\"search_limit\":{}}},\"print_eigenvalues\":{},\"draw_invariant_sets\":{},\"draw_strong_sets\":{}}}",
+        n.max_iterations,n.newton_tolerance,n.jacobian_step,n.search_limit,n.print_eigenvalues,n.draw_invariant_sets,n.draw_strong_sets);
 }
 constexpr std::array GUESS={Argument{"coordinates",Type::map,true,MAX_COMMAND_BYTES,{},{},{},NameSet::variable,Type::real},Argument{"window",Type::window,false}};
 constexpr std::array RANGE={Argument{"parameter",Type::model_name,true,MAX_COMMAND_BYTES,{},{},{},NameSet::parameter},Argument{"start",Type::real,true},Argument{"end",Type::real,true},
@@ -172,7 +173,7 @@ constexpr std::array POINTS={ResultField{"points_found","integer"}};
 constexpr std::array SEARCHED={ResultField{"found","integer"},ResultField{"equilibria","list[map[name, real]]"}};
 constexpr std::array APPLIED={ResultField{"applied","map[name, real]"}};
 constexpr std::array EXPORTED={ResultField{"file","file"},ResultField{"written","boolean"}};
-constexpr std::array SETTINGS={ResultField{"settings","map[string, real]"}};
+constexpr std::array SETTINGS={ResultField{"settings","map[string, real]"},ResultField{"print_eigenvalues","boolean"},ResultField{"draw_invariant_sets","boolean"},ResultField{"draw_strong_sets","boolean"}};
 constexpr std::array EVENTS={"equilibrium","marks","series","state","done"};
 constexpr std::array DONE={"done"};
 constexpr std::array ROWS={
