@@ -203,3 +203,5 @@
 !/windows-build/win-include/sys/resource.h
 !/windows-build/win-include/sys/wait.h
 !/windows-build/x11-stubs.c
+# third-party source with its own .git (ModelDB 267710): never tracked
+/modeldb-267710/source/
