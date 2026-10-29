@@ -3,3 +3,4 @@ core/xpp_batch.cpp 2 the batch start's --quiet and --logfile set one named optio
 core/lunch-new.cpp 28 XPPAUT's positional .set file (import only): its lines are mapped to the table's keys by their order
 core/numerics.cpp 24 the Numerics menu: each item asks for one setting by its key
 core/odex_convert.cpp 1 the .ode converter writes the Discrete method of a model with difference equations
+core/commands_nullcline.cpp 1 nullcline.set_mesh sets the one numerics setting it is named for
