@@ -409,7 +409,7 @@ def recording_steps(lines):
         c = save_permission(dict(original))
         if 'rgb' in c:
             continue  # pixels come from the interface, never the recording
-        if c['cmd'] == 'abort':
+        if c['cmd'] == 'run.abort':
             if steps and 'at' in c:
                 steps[-1]['abort'] = c['at']
         elif c['cmd'] == 'answer' and steps:
