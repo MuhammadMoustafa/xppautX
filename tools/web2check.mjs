@@ -2893,8 +2893,11 @@ async function leaveSaveCheck(dir) {
 
 const exists = selector => cdp.eval(`!!document.querySelector(${JSON.stringify(selector)})`);
 
-/** W517: choose a real menu item; the registry supplies the entire path and command. */
+/** W517: choose a real menu item; the registry supplies the entire path and command. The menu is
+    built from hello, so the item is waited for (a page just loaded may not have it yet). */
 async function clickRegistry(id) {
+  const selector = `.app-menu [data-command=${JSON.stringify(id)}]`;
+  await requireUntil(`document.querySelector(${JSON.stringify(selector)})`, 'menu item ' + id);
   await cdp.eval(`(() => {
     const item = [...document.querySelectorAll('.app-menu [data-command]')].find(b => b.dataset.command === ${JSON.stringify(id)});
     if (!item) throw new Error('No menu item ' + ${JSON.stringify(id)});
