@@ -55,7 +55,7 @@ enum class PlotHow { time_series, phase_plane, array_plot };
 Result<> plot_variables(Session &s, PlotHow how, std::span<const int> variables);
 /* a comment's action (the source's "# ... {action}"), run on s when it is
    picked */
-void do_txt_action(Session &s, std::string_view action);
+Result<> do_txt_action(Session &s, std::string_view action);
 /* the model m's user functions, as lunch-new.cpp's file info writes them */
 void user_fun_info(const Model &m, FILE *fp);
 

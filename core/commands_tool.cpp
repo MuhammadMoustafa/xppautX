@@ -24,7 +24,7 @@ Result<std::string> run_source_action(Session &s, const Command &command, const 
     const std::vector<Model::Comment> &comments = s.model().comments;
     if (static_cast<std::size_t>(index) >= comments.size() || comments[static_cast<std::size_t>(index)].aflag <= 0)
         return fail(command.name, xpp::format("Comment {} of the source has no action ({} comments)", index, comments.size()), place);
-    do_txt_action(s, comments[static_cast<std::size_t>(index)].action);
+    if (auto applied = do_txt_action(s, comments[static_cast<std::size_t>(index)].action); !applied) return std::unexpected<Error>(applied.error());
     return ResultObject().boolean("ran", true).done();
 }
 

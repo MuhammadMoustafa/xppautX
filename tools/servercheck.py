@@ -1803,6 +1803,9 @@ def check_kinescope_animation_array_plot():
         check('W527: kinescope.export_frames asks the pictures and writes the GIFs, the second named from the first',
               result == {'file': 'w527_kin.gif', 'frames_saved': 2} and exists('w527_kin.gif', 'w527_kin-frame1.gif')
               and head('w527_kin.gif', 6) [:4] == b'GIF8', str(result))
+        os.mkdir(os.path.join(run_dir, 'atomic-frame1.gif'))
+        req({'cmd': 'kinescope.export_frames', 'file': 'atomic.gif'}, False)
+        check('W534: refusing the last frame file writes no earlier frame', not exists('atomic.gif'))
         result, evs, _ = req({'cmd': 'kinescope.export_gif', 'file': 'w527_movie.gif'})
         check('W527: kinescope.export_gif writes one animated GIF', result.get('file') == 'w527_movie.gif' and exists('w527_movie.gif')
               and result.get('bytes_written') == os.path.getsize(os.path.join(run_dir, 'w527_movie.gif')) > 20, str(result))
@@ -2010,7 +2013,181 @@ def check_equilibrium_settings():
         stop_server(p, r, snd)
 
 
-INDEPENDENT_SECTIONS = {'equilibria': check_equilibrium_settings, 'registry': check_registry, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
+def check_atomic_commands():
+    """W534: a bad final argument leaves values, windows, files and settings untouched."""
+    p, folder, send, collect, _ = launch_server()
+    is_idle = lambda event: event.get("ev") in ("idle", "done")
+    try:
+        initial, _ = collect(is_idle)
+        registry = next(e['commands'] for e in initial if e.get('ev') == 'hello')
+
+        def call(**command):
+            send(**command)
+            events, _ = collect(is_idle, timeout=60 * SLOW)
+            return next((e for e in reversed(events) if e.get('ev') == 'done'), {}), events
+
+        def state():
+            done, _ = call(cmd='session.get_state')
+            return done.get('result', {}).get('state', done.get('result'))
+
+        def saved():
+            done, _ = call(cmd='session.save_copy', file='atomic.snapx', data=True, confirm=True)
+            assert done.get('result', {}).get('copied'), done
+            with zipfile.ZipFile(os.path.join(folder, 'atomic.snapx')) as archive:
+                return {name: archive.read(name) for name in archive.namelist()}
+
+        def refused(command, archive=True):
+            before_state = state()
+            before = saved() if archive else None
+            done, events = call(**command)
+            after_state = state()
+            after = saved() if archive else None
+            changed = [name for name in set(before or {}) | set(after or {}) if (before or {}).get(name) != (after or {}).get(name)]
+            # A rejection may publish an unchanged state, but no event claiming a value, plot or file changed.
+            claims = [e for e in events if e.get('ev') in ('window', 'marks', 'plots', 'browser', 'series', 'aplot') or (e.get('ev') == 'saved' and e.get('saved'))]
+            check('W534: %s refuses the last value without changing the session' % command['cmd'],
+                  done.get('status') == 'error' and before_state == after_state and not changed and not claims,
+                  {'done': done, 'changed': changed, 'state': (before_state, after_state) if before_state != after_state else 'unchanged', 'claims': claims})
+
+        # The schema checks the whole argument vector before entering any handler. Exercise every command
+        # with several values, including the front end's own, with valid earlier types and a bad final type.
+        def valid(argument):
+            kind = argument['type']
+            if kind == 'boolean': return True
+            if kind in ('integer', 'real'):
+                low, high = argument.get('min', 1), argument.get('max', 100)
+                return max(low, min(high, 2))
+            if kind == 'choice': return argument['choices'][0]
+            if kind == 'name': return 'iapp' if argument.get('names') == 'parameter' else 'v'
+            if kind == 'window': return 'graph_1'
+            if kind == 'new_name': return 'atomic candidate'
+            if kind == 'color': return 'red'
+            if kind == 'list[real, 2]': return [0, 1]
+            if kind in ('list', 'list[text]'): return []
+            if kind == 'map': return {}
+            if kind in ('file', 'path'): return 'atomic-output.dat'
+            if kind == 'expression': return '1'
+            return 'atomic candidate'
+
+        for row in registry:
+            arguments = row.get('arguments', [])
+            if len(arguments) == 1 and arguments[0]['type'] in ('map', 'list'):
+                argument = arguments[0]
+                if argument['type'] == 'map':
+                    first = 'iapp' if argument.get('names') == 'parameter' else 'v'
+                    element = '1' if argument.get('element') == 'expression' else 17
+                    value = {first: element, 'absent': {}}
+                else:
+                    value = [argument.get('choices', ['series'])[0], {}]
+                refused({'cmd': row['cmd'], argument['name']: value}, archive=False)
+                continue
+            if len(arguments) < 2: continue
+            command = {'cmd': row['cmd']}
+            for argument in arguments[:-1]: command[argument['name']] = valid(argument)
+            last = arguments[-1]
+            command[last['name']] = 'wrong container' if last['type'] in ('map', 'list', 'list[text]', 'list[real, 2]') else {}
+            refused(command, archive=False)
+
+        # Handler/owner checks go beyond the schema's individual types. These cases reached apply-then-check
+        # paths before W534; the saved members expose settings that session.get_state does not list.
+        refused(dict(cmd='value.set_parameters', values={'iapp': 17, 'absent': 2}))
+        refused(dict(cmd='ic.set', values={'v': 17, 'absent': 2}))
+        refused(dict(cmd='equilibrium.configure', max_iterates=17, newton_tolerance=-1))
+        refused(dict(cmd='run.configure', total_time=17, delay_grid=3))
+        refused(dict(cmd='run.configure', total_time=17, min_step=10, max_step=1))
+        refused(dict(cmd='bvp.configure', max_iterates=17, tolerance=-1))
+        call(cmd='run.initial')
+        analyses = [
+            (dict(cmd='analysis.histogram', bins=10, low=-1, high=1, condition=''),
+             dict(cmd='analysis.histogram', bins=17, low=0, high=-1)),
+            (dict(cmd='analysis.histogram', bins=10, low=-1, high=1, condition=''),
+             dict(cmd='analysis.histogram', bins=17, condition='(')),
+            (dict(cmd='analysis.histogram_2d', bins1=3, bins2=4, low1=-1, high1=1, low2=-1, high2=1),
+             dict(cmd='analysis.histogram_2d', bins1=17, low1=0, high1=1, low2=0, high2=-1)),
+            (dict(cmd='analysis.autocorrelation', bins=10, low=-1, high=1),
+             dict(cmd='analysis.autocorrelation', bins=17, low=0, high=-1)),
+            (dict(cmd='analysis.cross_correlation', column1='v', column2='w', lags=10),
+             dict(cmd='analysis.cross_correlation', column1='w', lags=1000)),
+            (dict(cmd='analysis.spectral_density', column='v', window_length=32),
+             dict(cmd='analysis.spectral_density', column='w', window_length=100000)),
+        ]
+        for setup, command in analyses:
+            call(cmd='analysis.load_stochastic_run')
+            expected, _ = call(**setup)
+            call(cmd='analysis.load_stochastic_run')
+            refused(command)
+            got, _ = call(cmd=setup['cmd'])
+            check('W534: %s keeps its earlier settings for the next call' % command['cmd'],
+                  got.get('status') == 'ok' and got.get('result') == expected.get('result'), got)
+        call(cmd='analysis.load_stochastic_run')
+        fit_probe = dict(cmd='analysis.fit_curve', variables=['v'], parameters=['iapp'])
+        expected, _ = call(**fit_probe)
+        refused(dict(cmd='analysis.fit_curve', variables=['v'], parameters=['iapp'], data_columns=[2], points=17, columns=3, file='absent.dat'))
+        got, _ = call(**fit_probe)
+        check('W534: a refused fit keeps its earlier lists and file settings', got.get('error') == expected.get('error'), got)
+        refused(dict(cmd='analysis.adjoint_interaction', couplings={'v': 'v', 'w': 'w'}))
+        call(cmd='array_plot.open')
+        call(cmd='array_plot.configure', first_column='v', columns=2, rows=10, z_min=-1, z_max=1)
+        os.mkdir(os.path.join(folder, 'blocked.pdf'))
+        os.mkdir(os.path.join(folder, 'blocked.svg'))
+        for command in (
+            dict(cmd='plot.export_pdf', axes_font_size=27, color=False, file='blocked.pdf'),
+            dict(cmd='plot.export_svg', axes_font_size=27, color=False, file='blocked.svg'),
+            dict(cmd='array_plot.export_pdf', top_label='must not remain', file='blocked.pdf'),
+        ):
+            suffix = '.svg' if command['cmd'].endswith('svg') else '.pdf'
+            before_file = 'before-' + command['cmd'] + suffix
+            after_file = 'after-' + command['cmd'] + suffix
+            baseline = dict(axes_font_size=12, color=True) if command['cmd'].startswith('plot.') else dict(top_label='original top', side_label='original side', bottom_label='original bottom')
+            call(cmd=command['cmd'], file=before_file, **baseline)
+            refused(command)
+            call(cmd=command['cmd'], file=after_file)
+            with open(os.path.join(folder, before_file), 'rb') as before, open(os.path.join(folder, after_file), 'rb') as after:
+                check('W534: %s keeps export settings for the next file' % command['cmd'], before.read() == after.read())
+        call(cmd='auto.open')
+        call(cmd='auto.new_view')
+        refused(dict(cmd='auto.set_display', view='diagram_1', x_range=[0, 1], y_range=[1, 0]))
+        call(cmd='window.select', window='diagram_2')
+        refused(dict(cmd='auto.export_pdf', window='diagram_1', file='blocked.pdf'))
+        call(cmd='window.select', window='diagram_2')
+        refused(dict(cmd='auto.export_svg', window='diagram_1', file='blocked.svg'))
+        refused(dict(cmd='auto.run', kind='equilibrium', decimals=4, hold=1, maximum=1, parameter_min=10, parameter_max=1))
+        call(cmd='window.create', name='second graph')
+        call(cmd='window.select', window='diagram_2')
+        refused(dict(cmd='plot.set_2d', window='graph_1', x_min=0, x_max=1, y_min=1, y_max=0))
+        selection, _ = call(cmd='window.set_redraw_mode', mode='auto')
+        check('W534: a refused graph edit preserves the selected AUTO window', selection.get('status') == 'error', selection)
+        refused(dict(cmd='auto.configure_numerics', max_steps=17, parameter_min=10, parameter_max=1))
+        call(cmd='recording.start')
+        call(cmd='recording.add_note', note='keep for the next successful step')
+        refused(dict(cmd='run.configure', total_time=17, dt=0), archive=False)
+        call(cmd='recording.stop', file='atomic-note.recx', confirm=True)
+        # Refusing a numerics edit must not consume or clear redo history either.
+        call(cmd='value.set_parameters', values={'iapp': 0.123})
+        call(cmd='value.undo')
+        refused(dict(cmd='run.configure', total_time=17, bandlo=1))
+        done, _ = call(cmd='value.redo')
+        check('W534: refused numerics keeps redo history', done.get('status') == 'ok', done)
+    finally:
+        stop_server(p, folder, send)
+    # Keep the published Morris-Lecar equations and values; only the demonstration action is made invalid.
+    with tempfile.TemporaryDirectory(prefix='xppatomic-action') as source_folder:
+        model = os.path.join(source_folder, 'lecar.odex')
+        with open('examples/ode/lecar.odex') as original, open(model, 'w') as changed:
+            changed.write(original.read().replace('{total_time=100,iapp=.1}', '{iapp=.1,dt=0}'))
+        p, folder, send, collect, _ = launch_server(ode=model)
+        try:
+            collect(is_idle)
+            _, events = call(cmd='session.get_source')
+            comments = next(e['comments'] for e in events if e.get('ev') == 'source')
+            index = next(i for i, comment in enumerate(comments) if comment[1])
+            refused(dict(cmd='tool.run_source_action', index=index))
+        finally:
+            stop_server(p, folder, send)
+
+
+
+INDEPENDENT_SECTIONS = {'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -2020,6 +2197,7 @@ if args.only:
     sys.exit(1 if check.failures else 0)
 
 
+check_atomic_commands()
 check_registry()
 check_session_commands()
 check_equilibrium_exports()
@@ -7984,9 +8162,9 @@ def check_save_recording():
         saves = [step for step,_ in steps if step.get('cmd',{}).get('cmd') == 'session.save_as']
         check('W517: saves record registry commands and the picker answer', len(saves) == 3 and written == got
               and saves[-1].get('answers', [])[:1] == [{'file':'dialog-save.snapx'}], str(saves))
-        check('W129: core new-file and No decisions remain recorded owner answers',
+        check('W534: a core refused save is not recorded',
               any(e.get('saved') for e in fresh) and any(e.get('ev') == 'saved' and not e.get('saved') for e in declined)
-              and any(step.get('answers') == [{'save_replace': -1}] for step,_ in steps), str(steps))
+              and all(step.get('cmd', {}).get('file') != 'browser-no.par' for step,_ in steps), str(steps))
         snd(cmd='recording.open', play=False, file=path)
         evs, end = col(lambda e: is_ask(e) or is_idle(e))
         if end and is_ask(end):
@@ -8006,13 +8184,13 @@ def check_save_recording():
                         and (e.get('player') or {}).get('step') == len(steps)
                         and e['player']['running'] == -1, timeout=120 * SLOW)
         check('W129: Play reuses explicit/dialog decisions when the destination now exists',
-              end is not None and [e['saved'] for e in evs if e.get('ev') == 'saved'] == [True, True, True, True, False]
+              end is not None and [e['saved'] for e in evs if e.get('ev') == 'saved'] == [True, True, True, True]
               and not any(e.get('ev') in ('message', 'done') and e.get('error') for e in evs), str(evs)[-500:])
         col(is_idle)
         listing = run(cmd='file', op='list')
         names = {f['name'] for e in listing if e.get('ev') == 'file' for f in e.get('files', [])}
-        check('W129: replay preserves a core No even when its target no longer exists',
-              any(e.get('ev') == 'saved' and e.get('file') == 'browser-no.par' and not e.get('saved') for e in evs)
+        check('W534: replay omits a refused save even when its target no longer exists',
+              not any(e.get('ev') == 'saved' and e.get('file') == 'browser-no.par' for e in evs)
               and 'browser-no.par' not in names and 'browser-new.par' in names
               and not any(e.get('ev') == 'ask' and e.get('kind') == 'choice'
                           and e.get('question', '').endswith(' exists. Replace it?') for e in evs), str(names))

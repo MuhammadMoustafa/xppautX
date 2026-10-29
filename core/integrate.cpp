@@ -270,7 +270,14 @@ int range_item2(xpp::Session &s)
 
 xpp::Result<> resolve_range_items(xpp::Session &s, bool two)
 {
- RangeVars &range=s.integrator.range;
+ auto range=s.integrator.range;
+ if(auto checked=resolve_range_items(s,range,two); !checked)return checked;
+ s.integrator.range=range;
+ return {};
+}
+
+xpp::Result<> resolve_range_items(const Session &s, RangeVars &range, bool two)
+{
  if(auto first=find_range_item(s,range.item,&range.type,&range.index);!first)return first;
  if(two)return find_range_item(s,range.item2,&range.type2,&range.index2);
  return {};
@@ -981,6 +988,13 @@ int write_this_run(xpp::Session &s, const char *file, int i)
   return(1);
 }
   
+xpp::Result<> run_allowed(const xpp::Session &s, std::string_view command)
+{
+  if(s.numerics.fft||s.numerics.hist)
+    return xpp::fail(std::string(command),"The data table shows a Fourier or histogram result: choose Stochastic, Data to see the trajectory again before running",xpp::command_place());
+  return {};
+}
+
 namespace {
 
 /* the state every run begins in: its first integration afresh, no range
@@ -1005,12 +1019,6 @@ void clear_for_run(xpp::Session &s)
   reset_browser(s);
 }
 
-xpp::Result<> run_allowed(const xpp::Session &s, std::string_view command)
-{
-  if(s.numerics.fft||s.numerics.hist)
-    return xpp::fail(std::string(command),"The data table shows a Fourier or histogram result: choose Stochastic, Data to see the trajectory again before running",xpp::command_place());
-  return {};
-}
 
 /* Dt back as it was when the run ends, whichever way it does */
 struct DtRestore {
@@ -1034,10 +1042,10 @@ xpp::Result<bool> run_from(xpp::Session &s, RunFrom from, bool reset_integrals)
   const int oldstart=s.integrator.my_start;
   const DtRestore dt(s);
   double *const x=&s.data_store.current[0];
-  reset_run_state(s);
   if(auto allowed=run_allowed(s,"run");!allowed)return std::unexpected(allowed.error());
   if((from==RunFrom::last||from==RunFrom::shift)&&!s.numerics.inflag)
     return xpp::fail("run","No prior solution: run once from the initial data first",xpp::command_place());
+  reset_run_state(s);
   clear_for_run(s);
   switch(from){
   case RunFrom::last:
@@ -1071,8 +1079,8 @@ xpp::Result<bool> run_from(xpp::Session &s, RunFrom from, bool reset_integrals)
 xpp::Result<int> run_range(xpp::Session &s, int flag, RangeProgress *done)
 {
   double *const x=&s.data_store.current[0];
-  reset_run_state(s);
   if(auto allowed=run_allowed(s,"range");!allowed)return std::unexpected(allowed.error());
+  reset_run_state(s);
   clear_for_run(s);
   s.integrator.range_flag=1; /* a range's runs are not stopped at the state limit */
   return sweep_range(s,x,flag,done);
@@ -1110,8 +1118,8 @@ xpp::Result<bool> run_from_click(xpp::Session &s, Plane plane, double horizontal
 
 xpp::Result<int> run_from_clicks(xpp::Session &s, Plane plane, std::span<const std::pair<double,double>> clicks, bool suppress_bounds)
 {
-  reset_run_state(s);
   if(auto allowed=run_allowed(s,"initial conditions");!allowed)return std::unexpected(allowed.error());
+  reset_run_state(s);
   clear_for_run(s);
   struct Unbounded {
     xpp::Session &s;
@@ -1134,6 +1142,7 @@ xpp::Result<bool> run_from_manifold(xpp::Session &s, int index)
     return xpp::fail("shoot","No shooting data available: run the equilibria's shooting (Sing pts, Shoot) first",xpp::command_place());
   if(index<1||index>s.manifolds.count)
     return xpp::fail("shoot",xpp::format("Manifold {} is out of range: the shooting found {}",index,s.manifolds.count),xpp::command_place());
+  if(auto allowed=run_allowed(s,"shoot"); !allowed)return std::unexpected(allowed.error());
   set_initial_data(s,std::span(s.manifolds.ic[static_cast<std::size_t>(index-1)]).first(static_cast<std::size_t>(s.model().node)));
   return run_from(s,RunFrom::old);
 }

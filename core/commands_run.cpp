@@ -13,6 +13,7 @@
 #include "numerics.h"
 #include "numerics_settings.h"
 #include "session.h"
+#include "solver.h"
 #include "value_undo.h"
 #include "xpp_io.h"
 #include "xpp_util.h"
@@ -90,8 +91,11 @@ std::string sweep_result(const RangeProgress &done, const char *runs_name)
 
 Result<std::string> run_range_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    set_range_settings(s.integrator.range, args);
-    if (const Result<> items = resolve_range_items(s, false); !items) return std::unexpected<Error>(items.error());
+    RangeVars range = s.integrator.range;
+    set_range_settings(range, args);
+    if (const Result<> items = resolve_range_items(s, range, false); !items) return std::unexpected<Error>(items.error());
+    if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
+    s.integrator.range = range;
     RangeProgress done;
     if (const Result<int> swept = run_range(s, 0, &done); !swept) return std::unexpected<Error>(swept.error());
     return sweep_result(done, "runs_completed");
@@ -101,7 +105,7 @@ constexpr std::array VARY_CHOICES = {"together", "independently"};
 
 Result<std::string> run_double_range_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    RangeVars &range = s.integrator.range;
+    RangeVars range = s.integrator.range;
     if (const auto item = args.optional<std::string>("variable1")) range.item = *item;
     if (const auto low = args.optional<double>("start1")) range.plow = *low;
     if (const auto high = args.optional<double>("end1")) range.phigh = *high;
@@ -118,7 +122,9 @@ Result<std::string> run_double_range_handler(Session &s, const Command &, const 
     if (const auto cycle = args.optional<bool>("cycle_color")) range.cycle = *cycle;
     if (const auto movie = args.optional<bool>("movie")) range.movie = *movie;
     if (const auto files = args.optional<bool>("write_each_run_to_file")) range.write_files = *files;
-    if (const Result<> items = resolve_range_items(s, true); !items) return std::unexpected<Error>(items.error());
+    if (const Result<> items = resolve_range_items(s, range, true); !items) return std::unexpected<Error>(items.error());
+    if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
+    s.integrator.range = range;
     RangeProgress done;
     const Result<int> swept = run_range(s, 1, &done);
     if (!swept) return std::unexpected<Error>(swept.error());
@@ -226,19 +232,17 @@ Result<std::string> configure_numerics(Session &s, const Command &command, const
     std::vector<NumericsValue> values;
     for (std::size_t i = 0; i < keys.size(); ++i) values.push_back({keys[i], texts[i]});
     std::string why;
-    push_value_undo(s);
-    if (!values.empty() && numerics_settings_set_all(s, values, why, &place) != 0) {
+    if (numerics_settings_check_all(s, values, why, &place) != 0) {
         Error error{command.name, why, place};
         if (keys.size() == 1) error.field = "num:" + keys.front();
         return std::unexpected<Error>(std::move(error));
     }
-    if (has_numerics_extras(extras)) {
-        /* the extras are judged against the method and delays this call has just set; a refusal takes the whole call back */
-        if (auto set = set_numerics_extras(s, extras); !set) {
-            undo_values(s);
-            return std::unexpected<Error>(std::move(set.error()));
-        }
-    }
+    int method = s.numerics.method;
+    if (const auto name = args.optional<std::string>("method")) method = *method_by_key(s.model(), *name, place);
+    if (auto checked = check_numerics_extras(s, extras, method); !checked) return std::unexpected<Error>(checked.error());
+    push_value_undo(s);
+    if (!values.empty()) numerics_settings_set_all(s, values, why, &place);
+    if (has_numerics_extras(extras)) static_cast<void>(set_numerics_extras(s, extras));
     std::string settings = "{";
     for (const std::string &key : keys) {
         if (settings.size() > 1) settings += ',';

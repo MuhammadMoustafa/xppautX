@@ -100,6 +100,8 @@ struct NumericsValue {
    (an order the settings keep, as min_step at most max_step, is judged on the result, so a
    pair given together may cross the old values) and applied once. 0 when set, -1 with why
    (a sentence naming the field) and nothing changed. */
+/* Check the proposed values and their pair rules without changing the session. */
+int numerics_settings_check_all(Session &s, std::span<const NumericsValue> values, std::string &why, const Place *place = nullptr);
 int numerics_settings_set_all(Session &s, std::span<const NumericsValue> values, std::string &why, const Place *place = nullptr);
 /* field `key`'s value now as JSON text (a number, true or false, or a choice's quoted word); empty for no such field */
 std::string numerics_settings_json_value(const Session &s, std::string_view key);

@@ -139,9 +139,6 @@ void set_all_vals(xpp::Session &s)
  s.data_store.rows=0;
  s.numerics.storflag=false;
  s.numerics.inflag=false;
- /* the parser set it for the boundary conditions it read; no boundary
-    value problem has been set up yet (pp_shoot.cpp) */
- s.numerics.bvp_flag=false;
  s.plot_settings.plot_3d=0;
  xpp::set_option_defaults(s);
  /* internal options go here  */
@@ -477,11 +474,23 @@ int intern_set_index(const xpp::Model &m, std::string_view name)
   return -1;
 }
 
-xpp::Result<> extract_action(xpp::Session &s, std::string_view ptr, const xpp::Place &where, bool xppaut_names)
+xpp::Result<> extract_action(xpp::Session &s, std::string_view ptr, const xpp::Place &where, bool xppaut_names, bool graph_settings)
 {
   const std::vector<SetItem> items=set_items(ptr);
   if(xpp::Result<> r=check_set_items(s,items,where,xppaut_names);!r)return r;
+  if(graph_settings)get_graph(s);
   apply_set_items(s,items);
+  return {};
+}
+
+Result<> do_txt_action(Session &s, std::string_view action)
+{
+  if(auto applied=extract_action(s,action,command_place(),false,true); !applied)return applied;
+  ping();
+  chk_delay(s);
+  redraw_params();
+  redraw_ics();
+  reset_graph(s);
   return {};
 }
 

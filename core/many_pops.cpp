@@ -312,12 +312,13 @@ void   redo_stuff(xpp::Session &s)
 	  xpp::ok_or_show(redo_all_fun_tables(s));
         evaluate_derived(s);
 }
-ActiveGraph::ActiveGraph(Session &s,int index):s_(s),previous_(s.plot_windows.active)
+ActiveGraph::ActiveGraph(Session &s,int index):s_(s),previous_(s.plot_windows.active),selected_(s.selected_window)
 {
     if(index!=previous_)make_active(s_,index,1);
 }
 ActiveGraph::~ActiveGraph()
 {
     if(s_.plot_windows.active!=previous_)make_active(s_,previous_,1);
+    s_.selected_window=selected_;
 }
 } // namespace xpp

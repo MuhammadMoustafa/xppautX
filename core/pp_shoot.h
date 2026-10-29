@@ -20,6 +20,7 @@ struct ShootRange {
 };
 
 struct Session; /* session.h */
+struct ShootRange;
 
 /* Range shoot's settings asked for: 0 when cancelled */
 int set_up_sh_range(Session &s);
@@ -27,7 +28,6 @@ int set_up_sh_range(Session &s);
 void do_bc(Session &s, double *y__0, double t0, double *y__1, double t1, double *f, int n);
 /* the boundary conditions compiled, or the one that does not */
 Result<> compile_bvp(Session &s);
-void reset_bvp(Session &s);
 /* Range shoot over s.shoot_range (the settings made): a solution for each parameter value, the values at its
    `side`, stored as rows; the solutions found (rows stored), or the error that stopped the sweep (shown by the
    command). ystart and yend hold the model's states, room for neq each. */
@@ -39,7 +39,7 @@ int set_up_periodic(Session &s, int *ipar, int *ivar, double *sect, int *ishow);
    `sect` as the section), the period found; Range shoot over s.shoot_range. All store the solution's orbit. */
 Result<> bvp_solve(Session &s, bool show);
 Result<double> bvp_solve_periodic(Session &s, int ipar, int ivar, double sect, bool show);
-Result<int> bvp_solve_range(Session &s);
+Result<int> bvp_solve_range(Session &s, const ShootRange *given = nullptr);
 /* the Boundary value items of an imported button sequence (kbs.h), asking what the commands take as arguments */
 void find_bvp_com(Session &s, int com);
 

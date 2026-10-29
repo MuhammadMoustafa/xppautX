@@ -53,6 +53,9 @@ Result<std::string> seed_random(Session &s, const Command &, const Arguments &ar
 
 Result<std::string> stochastic_integrate_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
+    RangeVars range=s.integrator.range;
+    if(auto items=resolve_range_items(s,range,false); !items)return std::unexpected<Error>(items.error());
+    if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
     /* the runs are the Range settings' steps plus one: the sweep takes a run at each of the steps and at the start */
     if (const auto trials = args.optional<long long>("trials")) s.integrator.range.steps = static_cast<int>(*trials - 1);
     const Result<int> runs = stochastic_integrate(s);
@@ -76,20 +79,20 @@ template <Result<> (*Do)(Session &), const char *Key> Result<std::string> done_w
 
 Result<std::string> histogram_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    HIST_INFO &info = s.histogram.info;
+    HIST_INFO info = s.histogram.info;
     if (const auto column = args.optional<std::string>("column")) info.col = variable_column(s, *column);
     if (const auto bins = args.optional<long long>("bins")) info.nbins = static_cast<int>(*bins);
     if (const auto low = args.optional<double>("low")) info.xlo = *low;
     if (const auto high = args.optional<double>("high")) info.xhi = *high;
     if (const auto condition = args.optional<std::string>("condition")) info.cond = *condition;
-    const Result<HistogramCounts> made = compute_hist(s);
+    const Result<HistogramCounts> made = compute_hist(s, &info);
     if (!made) return std::unexpected<Error>(made.error());
     return ResultObject().integer("bins", made->bins).integer("total_samples", made->samples).done();
 }
 
 Result<std::string> histogram_2d_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    HIST_INFO &info = s.histogram.info;
+    HIST_INFO info = s.histogram.info;
     if (const auto column = args.optional<std::string>("column1")) info.col = variable_column(s, *column);
     if (const auto column = args.optional<std::string>("column2")) info.col2 = variable_column(s, *column);
     if (const auto bins = args.optional<long long>("bins1")) info.nbins = static_cast<int>(*bins);
@@ -98,16 +101,16 @@ Result<std::string> histogram_2d_handler(Session &s, const Command &, const Argu
     if (const auto high = args.optional<double>("high1")) info.xhi = *high;
     if (const auto low = args.optional<double>("low2")) info.ylo = *low;
     if (const auto high = args.optional<double>("high2")) info.yhi = *high;
-    if (const Result<> made = new_2d_hist(s); !made) return std::unexpected<Error>(made.error());
+    if (const Result<> made = new_2d_hist(s, &info); !made) return std::unexpected<Error>(made.error());
     return ResultObject().integer("bins_x", info.nbins).integer("bins_y", info.nbins2).done();
 }
 
 /* the Fourier series and the power spectrum of one column */
-template <Result<int> (*Transform)(Session &), const char *Count>
+template <Result<int> (*Transform)(Session &, std::optional<int>), const char *Count>
 Result<std::string> transform_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    if (const auto column = args.optional<std::string>("column")) s.histogram.spec_col = variable_column(s, *column);
-    const Result<int> made = Transform(s);
+    const auto column = args.optional<std::string>("column").transform([&](const auto &name) { return variable_column(s, name); });
+    const Result<int> made = Transform(s, column);
     if (!made) return std::unexpected<Error>(made.error());
     return ResultObject().integer(Count, *made).done();
 }
@@ -115,45 +118,44 @@ constexpr char HARMONICS[] = "harmonics", FREQUENCIES[] = "frequencies";
 
 Result<std::string> statistics_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    if (const auto column = args.optional<std::string>("column")) s.histogram.info.col = variable_column(s, *column);
-    const Result<ColumnStatistics> found = column_mean(s);
+    const auto column = args.optional<std::string>("column").transform([&](const auto &name) { return variable_column(s, name); });
+    const Result<ColumnStatistics> found = column_mean(s, column);
     if (!found) return std::unexpected<Error>(found.error());
     return ResultObject().real("mean", found->mean).real("variance", found->variance).real("std_dev", std::sqrt(found->variance)).done();
 }
 
 Result<std::string> autocorrelation_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    HIST_INFO &info = s.histogram.info;
+    HIST_INFO info = s.histogram.info;
     if (const auto column = args.optional<std::string>("column")) info.col = variable_column(s, *column);
     if (const auto bins = args.optional<long long>("bins")) info.nbins = static_cast<int>(*bins);
     if (const auto low = args.optional<double>("low")) info.xlo = *low;
     if (const auto high = args.optional<double>("high")) info.xhi = *high;
-    const Result<int> made = compute_stacor(s);
+    const Result<int> made = compute_stacor(s, &info);
     if (!made) return std::unexpected<Error>(made.error());
     return ResultObject().integer("lags_computed", *made).done();
 }
 
 Result<std::string> cross_correlation_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    HIST_INFO &info = s.histogram.info;
+    HIST_INFO info = s.histogram.info;
     if (const auto column = args.optional<std::string>("column1")) info.col = variable_column(s, *column);
     if (const auto column = args.optional<std::string>("column2")) info.col2 = variable_column(s, *column);
     if (const auto lags = args.optional<long long>("lags")) info.nbins = static_cast<int>(*lags);
     if (const auto method = args.optional<std::string>("method")) info.fftc = static_cast<int>(position_of(CORRELATION_METHODS, *method));
-    const Result<int> made = compute_correl(s);
+    const Result<int> made = compute_correl(s, &info);
     if (!made) return std::unexpected<Error>(made.error());
     return ResultObject().integer("lags_computed", *made).done();
 }
 
 Result<std::string> spectral_density_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    HistogramState &h = s.histogram;
-    if (const auto type = args.optional<std::string>("type")) h.spec_type = static_cast<int>(position_of(SPECTRUM_TYPES, *type));
-    if (const auto column = args.optional<std::string>("column")) h.spec_col = variable_column(s, *column);
-    if (const auto column = args.optional<std::string>("column2")) h.spec_col2 = variable_column(s, *column);
-    if (const auto length = args.optional<long long>("window_length")) h.spec_wid = static_cast<int>(*length);
-    if (const auto window = args.optional<std::string>("window")) h.spec_win = static_cast<int>(position_of(SPECTRUM_WINDOWS, *window));
-    const Result<int> made = compute_sd(s);
+    const auto type = args.optional<std::string>("type").transform([](const auto &word) { return static_cast<int>(position_of(SPECTRUM_TYPES, word)); });
+    const auto column = args.optional<std::string>("column").transform([&](const auto &word) { return variable_column(s, word); });
+    const auto column2 = args.optional<std::string>("column2").transform([&](const auto &word) { return variable_column(s, word); });
+    const auto length = args.optional<long long>("window_length").transform([](long long n) { return static_cast<int>(n); });
+    const auto window = args.optional<std::string>("window").transform([](const auto &word) { return static_cast<int>(position_of(SPECTRUM_WINDOWS, word)); });
+    const Result<int> made = compute_sd(s, type, column, column2, length, window);
     if (!made) return std::unexpected<Error>(made.error());
     return ResultObject().integer("points", *made).done();
 }
@@ -168,7 +170,7 @@ std::string joined(const std::vector<std::string> &names)
 
 Result<std::string> fit_curve(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    FitInfo &fit = s.fit;
+    FitInfo fit = s.fit;
     fit.varlist = joined(args.list<std::string>("variables"));
     fit.parlist1 = joined(args.list<std::string>("parameters"));
     fit.parlist2.clear();
@@ -183,7 +185,7 @@ Result<std::string> fit_curve(Session &s, const Command &, const Arguments &args
     if (const auto columns = args.optional<long long>("columns")) fit.dim = static_cast<int>(*columns);
     if (const auto epsilon = args.optional<double>("epsilon")) fit.eps = *epsilon;
     if (const auto iterations = args.optional<long long>("max_iterations")) fit.maxiter = static_cast<int>(*iterations);
-    const Result<FitOutcome> fitted = test_fit(s);
+    const Result<FitOutcome> fitted = test_fit(s, std::move(fit));
     if (!fitted) return std::unexpected<Error>(fitted.error());
     std::string parameters = "{";
     for (const auto &[name, value] : fitted->parameters) {
@@ -201,7 +203,13 @@ Result<std::string> lyapunov_handler(Session &s, const Command &command, const A
     if (!over_range)
         for (const Argument &arg : RUN_RANGE_ARGUMENTS)
             if (args.has(arg.name)) return fail(command.name, xpp::format("\"{}\" is a setting of the sweep: give range_over_parameters", arg.name), place);
-    if (over_range) set_range_settings(s.integrator.range, args);
+    if (over_range) {
+        RangeVars range=s.integrator.range;
+        set_range_settings(range,args);
+        if(auto items=resolve_range_items(s,range,false); !items)return std::unexpected<Error>(items.error());
+    if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
+        s.integrator.range=range;
+    }
     const Result<LyapunovResult> found = lyapunov_exponent(s, over_range);
     if (!found) return std::unexpected<Error>(found.error());
     return ResultObject().real("max_lyapunov_exponent", found->exponent).integer("runs_completed", found->runs).done();
@@ -255,13 +263,14 @@ Result<std::string> color_coding_handler(Session &s, const Command &command, con
 
 Result<std::string> adjoint_interaction(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
+    auto couplings = s.adjoint.coup_string;
     for (const auto &[name, formula] : args.map<std::string>("couplings")) {
         const int variable = variable_column(s, name) - 1;
         if (variable < 0 || variable >= s.model().node)
             return fail(command.name, xpp::format("\"{}\" is not a differential equation of the model: only those have a coupling", name), place);
-        s.adjoint.coup_string[static_cast<std::size_t>(variable)] = formula;
+        couplings[static_cast<std::size_t>(variable)] = formula;
     }
-    if (const Result<> made = new_h_fun(s, true); !made) return std::unexpected<Error>(made.error());
+    if (const Result<> made = new_h_fun(s, true, &couplings); !made) return std::unexpected<Error>(made.error());
     return ResultObject().boolean(COMPUTED, true).done();
 }
 

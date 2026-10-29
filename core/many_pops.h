@@ -81,6 +81,7 @@ public:
 private:
     Session &s_;
     int previous_;
+    std::string selected_;
 };
 
 } // namespace xpp

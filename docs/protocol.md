@@ -143,6 +143,8 @@ recording's shape check cannot know the model or the session, so it skips
 what needs them (a window, a name, an expression, a session-quantity bound);
 the command checks them again when it plays.
 
+A refused command changes nothing: all arguments and the values they lead to are checked before settings, values, windows or files change (W534, #599). A refusal before computation adds no recording step and keeps its pending note; a computation that has begun reports and records its own stop.
+
 Argument groups, declared by a command: `exactly_one` of the named arguments,
 `at_most_one`, or `together` (all or none). A grouped argument is optional by
 itself.

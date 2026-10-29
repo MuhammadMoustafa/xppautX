@@ -66,7 +66,6 @@ struct NumericsSettings {
   /* the boundary value solver */
   double bvp_epsilon = 0, bvp_tolerance = 0;
   int bvp_max_iterates = 0;
-  bool bvp_flag = false;
   /* the backward Euler's Newton solve */
   double eul_tol = 0;
   int max_eul_iter = 0;
@@ -172,7 +171,7 @@ void replace_model_options(Model &m, const odex::Parsed &parsed);
    be applied is the error, at where (the set's line in the model), with
    nothing applied. xppaut_names: XPPAUT's words for the options count too
    (the command line's settings); a model's own set and action do not take them */
-Result<> extract_action(Session &s, std::string_view ptr, const Place &where, bool xppaut_names);
+Result<> extract_action(Session &s, std::string_view ptr, const Place &where, bool xppaut_names, bool graph_settings = false);
 /* The scopes of a set's apply and of restoring defaults: all, the parameters,
    the initial values (the states), or one of the option groups a set may hold
    (set_groups, model_options.h) */

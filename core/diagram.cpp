@@ -228,13 +228,14 @@ template <class Write> xpp::Result<> export_text(xpp::Session &s, const std::opt
 }
 
 /* the diagram as a picture in the vector format f, in the file given or asked for */
-xpp::Result<> export_diagram(xpp::Session &s, const std::optional<std::string> &file, const xpp::ImageFormat &f)
+xpp::Result<> export_diagram(xpp::Session &s, const std::optional<std::string> &file, const xpp::ImageFormat &f, std::optional<int> view)
 {
   if(const xpp::Result<> points=need_points(s);!points)return points;
   const auto target=export_target(s,file,f.name,"diagram",xpp::format(".{}",f.extension).c_str());
   if(!target)return {};
   if(const xpp::Result<> begun=xpp::begin_picture(s,f,*target,s.plot_export.color);!begun)return begun;
   if(!s.plot_file.writer)return {};
+  if(view)auto_activate_view(s,*view);
   draw_export_axes(s);
   int flag=0;
   for(xpp::DIAGRAM &point:s.diagram.points){
@@ -357,9 +358,9 @@ xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file)
    function through the image_format.h registry in place of the former
    post_auto/svg_auto pair, with model-based default names and
    "*.pdf"/"*.svg" filter */
-xpp::Result<> export_auto_picture(xpp::Session &s, int fmt, const std::optional<std::string> &file)
+xpp::Result<> export_auto_picture(xpp::Session &s, int fmt, const std::optional<std::string> &file, std::optional<int> view)
 {
-  return export_diagram(s,file,xpp::image_formats[fmt]);
+  return export_diagram(s,file,xpp::image_formats[fmt],view);
 }
 
 void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, double *yhi)

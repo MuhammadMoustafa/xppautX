@@ -176,9 +176,10 @@ Result<std::string> export_picture(Session &s, const Command &command, const Arg
 {
     ON_GRAPH(graph);
     const std::string &file = args.get<std::string>("file");
-    if (const auto font_size = args.optional<double>("axes_font_size")) s.plot_export.font_size = *font_size;
-    s.plot_export.color = args.optional<bool>("color").value_or(s.plot_export.color);
-    const Result<bool> written = write_plot_picture(s, format, file);
+    XppPlotExport settings=s.plot_export;
+    if (const auto font_size = args.optional<double>("axes_font_size")) settings.font_size = *font_size;
+    settings.color = args.optional<bool>("color").value_or(settings.color);
+    const Result<bool> written = write_plot_picture(s, format, file, &settings);
     if (!written) return std::unexpected<Error>(written.error());
     if (!*written) return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), place);
     const Result<unsigned long long> size = file_size(file, command, place);

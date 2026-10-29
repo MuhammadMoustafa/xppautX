@@ -283,20 +283,27 @@ void j_movie_auto_play(xpp::Session &s) { play_film(s, "autoplay"); }
 xpp::Result<int> j_movie_save(xpp::Session &s, std::string_view basename, int fmat)
 {
     const xpp::ImageFormat &format = xpp::image_formats[fmat];
-    int w, h;
+    std::vector<xpp::Writer> outputs;
     for (int i = 0; i < s.kinescope.frames; i++) {
-        std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
-        if (rgb.empty())
-            return xpp::fail("kinescope", xpp::format("The client gave no picture of frame {} of {}: {} saved", i + 1, s.kinescope.frames, i), xpp::command_place());
-        std::string file(basename);
-        if(i>0){ /* the series was asked for once; later names are derived */
-            file=xpp::files::frame_name(basename,xpp::format(".{}",format.extension),i);
-            if(const xpp::Result<> decided=reset_save_decision();!decided)return std::unexpected(decided.error());
-        }
-        const xpp::Result<bool> saved=xpp::save_pixels(format,file.c_str(),rgb,w,h);
-        if (!saved) return std::unexpected(saved.error());
-        if (!*saved) return xpp::fail("kinescope", xpp::format("\"{}\" exists and replacing it was declined: {} of {} frames saved", file, i, s.kinescope.frames), xpp::command_place());
+        const std::string file = i == 0 ? std::string(basename)
+            : xpp::files::frame_name(basename, xpp::format(".{}", format.extension), i);
+        if (i > 0)
+            if (const auto decided = reset_save_decision(); !decided) return std::unexpected(decided.error());
+        xpp::Result<> opened;
+        auto output = xpp::open_writer_asking(file, true, &opened);
+        if (!opened) return std::unexpected(opened.error());
+        if (!output) return xpp::fail("kinescope", xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), xpp::command_place());
+        outputs.push_back(std::move(output));
     }
+    for (int i = 0; i < s.kinescope.frames; i++) {
+        int w = 0, h = 0;
+        const std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
+        if (rgb.empty())
+            return xpp::fail("kinescope", xpp::format("The client gave no picture of frame {} of {}: nothing was written", i + 1, s.kinescope.frames), xpp::command_place());
+        format.pixels(outputs[static_cast<std::size_t>(i)], rgb, w, h, xpp::IMAGE_STILL_FRAME);
+    }
+    for (auto &output : outputs)
+        if (const auto saved = xpp::commit_save(output); !saved) return std::unexpected(saved.error());
     return s.kinescope.frames;
 }
 

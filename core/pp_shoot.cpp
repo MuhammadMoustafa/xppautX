@@ -62,28 +62,22 @@ void do_bc(xpp::Session &s, double *y__0, double t0, double *y__1, double t1, do
 
 xpp::Result<> compile_bvp(xpp::Session &s)
 {
- int i;
- int len;
- reset_bvp(s);
- if(!s.numerics.bvp_flag)return {};
-
+ std::vector<std::vector<int>> compiled(static_cast<std::size_t>(s.model().node));
+ const int before_ncon=s.parser.ncon,before_nsym=s.parser.nsym;
  s.parser.ncon=s.model().ncon_start;
  s.parser.nsym=s.model().nsym_start;
- s.numerics.bvp_flag=false;
- for(i=0;i<s.model().node;i++){
-
-   if(add_expr(s,s.bcs[i].string.data(),s.bcs[i].com,&len))
-     return xpp::fail("boundary",xpp::format("Bad syntax in boundary condition {}: {}",i+1,s.bcs[i].string.data()),
-                      xpp::model_place(s.model(),xpp::odex::Statement::Kind::Boundary,i));
+ for(int i=0;i<s.model().node;i++){
+   int length=0;
+   if(add_expr(s,s.bcs[static_cast<std::size_t>(i)].string.data(),compiled[static_cast<std::size_t>(i)],&length)){
+     s.parser.ncon=before_ncon;
+     s.parser.nsym=before_nsym;
+     return fail("boundary",xpp::format("Bad syntax in boundary condition {}: {}",i+1,s.bcs[static_cast<std::size_t>(i)].string.data()),model_place(s.model(),odex::Statement::Kind::Boundary,i));
+   }
  }
- s.numerics.bvp_flag=true;
+ for(int i=0;i<s.model().node;i++)s.bcs[static_cast<std::size_t>(i)].com=std::move(compiled[static_cast<std::size_t>(i)]);
  return {};
 }
 
-void reset_bvp(xpp::Session &s)
-{
- s.numerics.bvp_flag=true;
-} 
 
 void init_shoot_range(xpp::Session &s, std::string_view item)
 {
@@ -202,13 +196,14 @@ xpp::Result<> begin_shoot(xpp::Session &s)
 {
  if(s.model().nmarkov>0||s.model().nkernel>0)
    return xpp::fail("bvp","Can't do BVP with integral or markov eqns",xpp::command_place());
- wipe_rep(s.browser);
- data_back(s);
- if(auto compiled=compile_bvp(s);!compiled)return compiled;
+
  if(s.numerics.fft||s.numerics.hist)
    return xpp::fail("bvp","The data table shows a Fourier or histogram result: choose Stochastic, Data to see the trajectory again before solving",xpp::command_place());
  if(s.delay.flag)
    return xpp::fail("bvp","Boundary value problems cannot be solved for a model with delays",xpp::command_place());
+ if(auto compiled=compile_bvp(s);!compiled)return compiled;
+ wipe_rep(s.browser);
+ data_back(s);
  s.numerics.storflag=false;
  s.integrator.range_flag=1;
  s.numerics.poincare_map=PoincareMap::none;
@@ -282,9 +277,12 @@ xpp::Result<double> bvp_solve_periodic(xpp::Session &s, int ipar, int ivar, doub
  return period;
 }
 
-xpp::Result<int> bvp_solve_range(xpp::Session &s)
+xpp::Result<int> bvp_solve_range(xpp::Session &s, const ShootRange *given)
 {
+ const ShootRange &range=given?*given:s.shoot_range;
+ if(find_user_name(s.model(),PARAMBOX,range.item)<0)return fail("bvp",xpp::format("No such parameter {}",range.item),command_place());
  if(auto begun=begin_shoot(s);!begun)return std::unexpected(begun.error());
+ if(given)s.shoot_range=*given;
  const ShootStoreFrom store_from(s);
  std::vector<double> ystart(s.model().neq),yend(s.model().neq);
  get_ic(s,1,ystart.data());

@@ -170,9 +170,10 @@ xpp::Result<> aplot_ready(const xpp::Session &s, const std::string &where, bool 
   return {};
 }
 
-xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file)
+xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file, const APLOT *given)
 {
-  APLOT *ap=&s.array_plot.plot;
+  APLOT candidate=given?*given:s.array_plot.plot;
+  APLOT *ap=&candidate;
   if(const auto ready=aplot_ready(s,"array_plot.export_pdf");!ready)return std::unexpected(ready.error());
   const AplotTimes times=aplot_times(s,*ap);
   ap->filename=file;
@@ -183,7 +184,9 @@ xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file)
     .nskip=ap->nskip, .ncskip=ap->ncskip, .maxrow=s.browser.view.maxrow,
     .maxcol=s.browser.view.maxcol, .data=s.browser.view.data,
     .zmin=ap->zmin, .zmax=ap->zmax, .tlo=times.first, .thi=times.last};
-  return xpp::array_print(s,picture);
+  const auto written=xpp::array_print(s,picture);
+  if(written&&*written)s.array_plot.plot=std::move(candidate);
+  return written;
 }
 
 /* splits an array plot's first column name at its trailing digits:

@@ -236,7 +236,7 @@ void record_control(const char *line);
 void record_setting(const char *line);
 /* the command ends (handle_line, before its state): its step, with where
    it stopped when cancelled */
-void record_end(xpp::Session &s, bool cancelled);
+void record_end(xpp::Session &s, bool cancelled, bool refused);
 /* state's "recording" member while recording */
 void buf_recording(std::string &b);
 

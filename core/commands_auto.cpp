@@ -39,7 +39,7 @@ Result<std::string> need_open(const Session &s, const Command &command, const Pl
     return std::string();
 }
 
-/* the diagram view an argument names (the active one without it), made the active one; the error when it names a graph */
+/* the diagram view an argument names (the active one without it), without changing the active view */
 Result<int> target_view(Session &s, const Command &command, const Arguments &args, const Place &place, const char *key = VIEW_KEY)
 {
     if (const Result<std::string> open = need_open(s, command, place); !open) return std::unexpected<Error>(open.error());
@@ -48,7 +48,6 @@ Result<int> target_view(Session &s, const Command &command, const Arguments &arg
     const auto target = find_window(s, *name);
     if (!target || target->kind != WindowKind::diagram)
         return fail(command.name, xpp::format("\"{}\" is not an AUTO view (a diagram window)", *name), place);
-    auto_activate_view(s, target->index);
     return target->index;
 }
 
@@ -177,22 +176,16 @@ Result<std::string> run_auto(Session &s, const Command &command, const Arguments
     const std::string &kind = args.get<std::string>("kind");
     request.kind = *auto_run_kind_from_name(kind);
     request.switch_branch = args.optional<bool>("switch").value_or(false);
-    /* the start: a stored point by label, or by type and index; else the current state, settled first when asked */
-    if (const auto label = args.optional<long long>(LABEL_KEY)) {
-        if (!auto_grab_label(s, static_cast<int>(*label))) return fail(command.name, xpp::format("No point is labelled {}", *label), place);
-        request.from_point = true;
-    } else if (const auto type = args.optional<std::string>("type")) {
-        const auto point = auto_point_kind_from_name(*type);
-        const long long index = args.get<long long>("index");
-        if (!point || !auto_grab_type_index(s, *point, static_cast<int>(index)))
-            return fail(command.name, xpp::format("No {} point number {}", *type, index), place);
-        request.from_point = true;
-    } else if (args.has("decimals")) {
-        const SteadyStateSettings settle{static_cast<int>(args.get<long long>("decimals")), args.get<double>("hold"), args.get<double>("maximum")};
-        if (const Result<> settled = run_to_steady_state(s, settle); !settled) return std::unexpected<Error>(settled.error());
-        const std::size_t n = static_cast<std::size_t>(s.model().node);
-        set_initial_data(s, std::span<const double>(s.data_store.current.data(), n));
+    const DIAGRAM *point=nullptr;
+    if(const auto label=args.optional<long long>(LABEL_KEY)){
+        point=diagram_of_label(s,static_cast<int>(*label));
+        if(!point)return fail(command.name,xpp::format("No point is labelled {}",*label),place);
+    }else if(const auto type=args.optional<std::string>("type")){
+        const int index=static_cast<int>(args.get<long long>("index"));
+        point=auto_point_by_type(s,*auto_point_kind_from_name(*type),index);
+        if(!point)return fail(command.name,xpp::format("No {} point number {}",*type,index),place);
     }
+    request.from_point=point!=nullptr;
     request.replace_diagram = args.optional<bool>("replace_diagram").value_or(false);
     if (!request.from_point && request.kind == AutoRunKind::equilibrium && diagram_count(s.diagram) > 1 && !args.has("replace_diagram"))
         return fail(command.name, xpp::format("The diagram holds {} points: say replace_diagram true to begin it again, false to add this run to it", diagram_count(s.diagram)), place);
@@ -207,6 +200,16 @@ Result<std::string> run_auto(Session &s, const Command &command, const Arguments
     /* the settings given hold for this run only: the others and these afterwards are the session's */
     AutoSettingsSet given;
     if (const Result<> read = read_numerics(command, args, place, given); !read) return std::unexpected<Error>(read.error());
+    if(const auto checked=auto_settings_check(s,given,-1); !checked)return std::unexpected<Error>(as_command_error(command,checked.error(),place));
+    const std::optional<GRABPT> proposed=point?std::optional<GRABPT>(auto_point_data(*point)):std::nullopt;
+    if(const auto checked=auto_run_check(s,request,proposed?&*proposed:nullptr,args.has("decimals")); !checked)
+        return std::unexpected<Error>(as_command_error(command,checked.error(),place));
+    if(args.has("decimals")){
+        const SteadyStateSettings settle{static_cast<int>(args.get<long long>("decimals")),args.get<double>("hold"),args.get<double>("maximum")};
+        if(const auto settled=run_to_steady_state(s,settle); !settled)return std::unexpected<Error>(settled.error());
+        set_initial_data(s,std::span<const double>(s.data_store.current.data(),static_cast<std::size_t>(s.model().node)));
+    }
+    if(point)auto_grab_label(s,point->lab);
     const AutoSettingsSet before = auto_settings_now(s);
     const bool any = std::find(given.has_num.begin(), given.has_num.end(), 1) != given.has_num.end();
     if (any)
@@ -281,6 +284,7 @@ Result<std::string> pick_point(Session &s, const Command &command, const Argumen
 {
     const Result<int> view = target_view(s, command, args, place);
     if (!view) return std::unexpected<Error>(view.error());
+    auto_activate_view(s, *view);
     const double x = args.get<double>("x"), y = args.get<double>("y");
     auto_point_xy(s, x, y);
     return xpp::format("{{\"x\":{},\"y\":{}}}", xpp::number(x), xpp::number(y));
@@ -303,12 +307,13 @@ Result<std::optional<AxisRange>> zoom_range(const Command &command, const Argume
 
 Result<std::string> set_display(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
-    const Result<int> view = target_view(s, command, args, place);
-    if (!view) return std::unexpected<Error>(view.error());
-    Zoom zoom = s.auto_state.views[static_cast<std::size_t>(*view)].zoom;
     const Result<std::optional<AxisRange>> x = zoom_range(command, args, "x_range", place), y = zoom_range(command, args, "y_range", place);
     if (!x) return std::unexpected<Error>(x.error());
     if (!y) return std::unexpected<Error>(y.error());
+    const Result<int> view = target_view(s, command, args, place);
+    if (!view) return std::unexpected<Error>(view.error());
+    auto_activate_view(s, *view);
+    Zoom zoom = s.auto_state.views[static_cast<std::size_t>(*view)].zoom;
     if (*x) zoom.x = **x;
     if (*y) zoom.y = **y;
     s.auto_state.views[static_cast<std::size_t>(*view)].zoom = zoom;
@@ -329,6 +334,7 @@ Result<std::string> use_last_plot(Session &s, const Command &command, const Argu
 {
     const Result<int> view = target_view(s, command, args, place);
     if (!view) return std::unexpected<Error>(view.error());
+    auto_activate_view(s, *view);
     const std::string &which = args.get<std::string>("parameters");
     load_last_plot(s, which == "one" ? LastPlot::OneParameter : LastPlot::TwoParameter);
     redraw_diagram(s);
@@ -339,6 +345,7 @@ Result<std::string> scroll_view(Session &s, const Command &command, const Argume
 {
     const Result<int> view = target_view(s, command, args, place);
     if (!view) return std::unexpected<Error>(view.error());
+    auto_activate_view(s, *view);
     auto_scroll_by(s, args.get<double>("dx"), args.get<double>("dy"));
     redraw_diagram(s);
     return view_result(s);
@@ -350,6 +357,7 @@ Result<std::string> change_view(Session &s, const Command &command, const Argume
 {
     const Result<int> view = target_view(s, command, args, place);
     if (!view) return std::unexpected<Error>(view.error());
+    auto_activate_view(s, *view);
     change();
     redraw_diagram(s);
     return view_result(s);
@@ -445,7 +453,7 @@ Result<std::string> export_picture(Session &s, const Command &command, const Arg
     const Result<int> view = target_view(s, command, args, place, WINDOW_KEY);
     if (!view) return std::unexpected<Error>(view.error());
     const std::string file = *file_of(s, args, "diagram", extension);
-    if (const Result<> done = export_auto_picture(s, format, file); !done) return std::unexpected<Error>(as_command_error(command, done.error(), place));
+    if (const Result<> done = export_auto_picture(s, format, file, *view); !done) return std::unexpected<Error>(as_command_error(command, done.error(), place));
     return file_result(file);
 }
 

@@ -328,13 +328,17 @@ void record_setting(const char *line)
     steps.push_back({"", step_line(t, "")});
 }
 
-void record_end(xpp::Session &s, bool cancelled)
+void record_end(xpp::Session &s, bool cancelled, bool refused)
 {
     if (!recorder.rec) return;
-    add_model_files(s.model());
     StepTaken &t = recorder.step;
     if (!t.open) return;
     t.open = false;
+    if (refused) {
+        if (recorder.note.empty()) recorder.note = std::move(t.note);
+        return;
+    }
+    add_model_files(s.model());
     if (xpp::job::computed()) t.view = false;
     std::string abort;
     if (cancelled) {

@@ -320,21 +320,4 @@ const char *eq_stability(int cp, int rp, int im)
  else return "STABLE";
 }
 
-/* ---- a comment with an action in the ODE file was picked (logic from
-   txtread.c): run its "name=value ..." settings ---- */
-
-void do_txt_action(xpp::Session &s, std::string_view action)
-{
- get_graph(s);
- if(const xpp::Result<> r=extract_action(s,action,xpp::Place{s.model().this_file},false);!r){
-   show_error(r.error());
-   return;
- }
- ping();
-  xpp::chk_delay(s);
-  redraw_params();
-  redraw_ics();
-  reset_graph(s);
-}
-
 } // namespace xpp

@@ -18,6 +18,7 @@
 namespace xpp {
 
 struct Session; /* session.h */
+struct RangeVars;
 
 /* Decimal places, not significant digits. Double has digits10 reliable
    decimal digits; asking for more would imply unsupported precision. */
@@ -106,7 +107,9 @@ int range_item(Session &s);
 int range_item2(Session &s);
 /* the type and index of what s.integrator.range names to vary (and the second item when `two`), or the error of one that is
    neither a parameter nor a variable */
+Result<> run_allowed(const Session &s, std::string_view command);
 Result<> resolve_range_items(Session &s, bool two);
+Result<> resolve_range_items(const Session &s, RangeVars &range, bool two);
 int set_up_range(Session &s);
 int set_up_range2(Session &s);
 void init_monte_carlo(Session &s);

@@ -32,7 +32,7 @@ Result<std::string> bvp_periodic_handler(Session &s, const Command &, const Argu
 
 Result<std::string> bvp_range_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    ShootRange &range = s.shoot_range;
+    ShootRange range = s.shoot_range;
     if (const auto item = args.optional<std::string>("parameter")) range.item = *item;
     if (const auto low = args.optional<double>("start")) range.plow = *low;
     if (const auto high = args.optional<double>("end")) range.phigh = *high;
@@ -40,7 +40,7 @@ Result<std::string> bvp_range_handler(Session &s, const Command &, const Argumen
     if (const auto cycle = args.optional<bool>("cycle_color")) range.cycle = *cycle;
     if (const auto side = args.optional<std::string>("side")) range.side = *side == SHOOT_SIDE_NAMES[1] ? SHOOT_SIDE_END : SHOOT_SIDE_START;
     if (const auto movie = args.optional<bool>("movie")) range.movie = *movie;
-    const Result<int> found = bvp_solve_range(s);
+    const Result<int> found = bvp_solve_range(s, &range);
     if (!found) return std::unexpected<Error>(found.error());
     return ResultObject().integer("solutions_found", *found).done();
 }

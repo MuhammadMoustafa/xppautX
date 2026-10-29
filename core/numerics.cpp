@@ -44,9 +44,9 @@ namespace xpp {
 
 /*   I will need access to storage  */
 
-Result<> set_numerics_extras(xpp::Session &s, const NumericsExtras &extras)
+Result<> check_numerics_extras(const xpp::Session &s, const NumericsExtras &extras, int method)
 {
-  const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
+  const xpp::SolverTraits &traits=xpp::solver_info(method).traits;
   const auto refuse=[](std::string what){return xpp::fail("numerics",std::move(what),command_place());};
   const auto needs=[&](bool applies,std::string_view setting,std::string_view when)->Result<>{
     if(applies)return {};
@@ -63,6 +63,13 @@ Result<> set_numerics_extras(xpp::Session &s, const NumericsExtras &extras)
     if(value&&(*value<0||*value>option_limit::bandwidth))
       return refuse(xpp::format("{} must be a whole number from 0 to {}",name,option_limit::bandwidth));
   if(extras.delay_grid&&*extras.delay_grid<1)return refuse("delay_grid must be a whole number of at least 1");
+  return {};
+}
+
+Result<> set_numerics_extras(xpp::Session &s, const NumericsExtras &extras)
+{
+  if (auto checked = check_numerics_extras(s, extras, s.numerics.method); !checked) return checked;
+  const bool delay=extras.delay_real_guess||extras.delay_imaginary_guess||extras.delay_grid;
   /* checked whole: now applied */
   if(extras.auto_evaluate)s.numerics.auto_evaluate=*extras.auto_evaluate;
   if(extras.max_points)allocate_volterra(s,*extras.max_points,1);

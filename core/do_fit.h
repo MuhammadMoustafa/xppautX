@@ -11,6 +11,7 @@
 namespace xpp {
 
 struct Session; /* session.h */
+struct DataTable;
 
 /* Data's Fit settings (do_fit.cpp), a Session's (session.h): the data
    file, the variables and their columns, the parameters to fit, the
@@ -46,12 +47,13 @@ struct FitOutcome {
 /* the fit of the data file s.fit.file as s.fit's settings say, the fitted quantities set to the last iterate
    (the settings' lists are get_fit_params's questions, or the command's arguments), or why it failed */
 Result<FitOutcome> test_fit(Session &s);
+Result<FitOutcome> test_fit(Session &s, FitInfo fit);
 
 /* the fit's pieces return why they failed (a data file, a singular
    matrix, an integration), for the command, test_fit, to show */
 Result<> get_fit_info(Session &s, double *y, double *a, double *t0, double eps, double *yfit, double **yderv, int npts, int npars, int nvars, int *ivar, int *ipar);
 Result<> one_step_int(Session &s, double *y, double t0, double t1, int *istart);
-Result<FitResult> run_fit(Session &s, const char *filename, int npts, int npars, int nvars, int maxiter, int ndim, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a);
+Result<FitResult> run_fit(Session &s, const DataTable &table, int npts, int npars, int nvars, int maxiter, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a);
 Result<> marlevstep(Session &s, double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *covar, double *alpha, double *chisq, double *alambda, double *work, double **yderv, double *yfit, double *ochisq, int ictrl, double eps);
 Result<> mrqcof(Session &s, double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *alpha, double *chisq, double *beta, double **yderv, double *yfit, double eps);
 

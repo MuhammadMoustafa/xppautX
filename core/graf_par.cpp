@@ -836,12 +836,14 @@ void new_curve(xpp::Session &s)
 
 /* the main plot window's picture export (W53, issue #101; PDF and SVG, W479): one entry point through
    image_format.h's registry: the plot drawn into the picture begun, written and renamed into place */
-Result<bool> write_plot_picture(xpp::Session &s, int fmt, std::string_view filename)
+Result<bool> write_plot_picture(xpp::Session &s, int fmt, std::string_view filename, const XppPlotExport *given)
 {
  const xpp::ImageFormat &f=xpp::image_formats[fmt];
- if(const Result<> begun=xpp::begin_picture(s,f,filename,s.plot_export.color);!begun)return std::unexpected<Error>(begun.error());
+ if(const Result<> begun=xpp::begin_picture(s,f,filename,given ? given->color : s.plot_export.color);!begun)return std::unexpected<Error>(begun.error());
  if(!s.plot_file.writer)return false;
+ if(given)s.plot_file.picture.font_size=given->font_size;
  if(const Result<> done=vector_restore(s);!done)return std::unexpected<Error>(done.error());
+ if(given)s.plot_export=*given;
  redraw_the_graph(s); /* the window draws again where the picture was */
  return true;
 }

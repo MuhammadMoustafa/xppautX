@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -61,28 +62,28 @@ struct HistogramCounts {
   int bins;
   long long samples;
 };
-Result<HistogramCounts> compute_hist(Session &s);
+Result<HistogramCounts> compute_hist(Session &s, const HIST_INFO *given = nullptr);
 bool ask_histogram(Session &s);
 /* the two-dimensional histogram of info's two columns */
-Result<> new_2d_hist(Session &s);
+Result<> new_2d_hist(Session &s, const HIST_INFO *given = nullptr);
 bool ask_histogram_2d(Session &s);
 /* the histogram of the differences of a column (autocorrelation): the bins computed */
-Result<int> compute_stacor(Session &s);
+Result<int> compute_stacor(Session &s, const HIST_INFO *given = nullptr);
 bool ask_autocorrelation(Session &s);
 /* the correlation of info's two columns at info.nbins lags, directly or by FFT (info.fftc 0 or 1): the lags computed */
-Result<int> compute_correl(Session &s);
+Result<int> compute_correl(Session &s, const HIST_INFO *given = nullptr);
 bool ask_cross_correlation(Session &s);
 /* the spectral density of spec_col (and spec_col2) of spec_type, spec_wid points a window of type spec_win: the points computed */
-Result<int> compute_sd(Session &s);
+Result<int> compute_sd(Session &s, std::optional<int> type = {}, std::optional<int> column = {}, std::optional<int> column2 = {}, std::optional<int> length = {}, std::optional<int> window = {});
 bool ask_spectral_density(Session &s);
 /* the Fourier modes of spec_col, and the power spectrum made from them: the harmonics or frequencies computed */
-Result<int> compute_fourier(Session &s);
-Result<int> compute_power(Session &s);
+Result<int> compute_fourier(Session &s, std::optional<int> column = {});
+Result<int> compute_power(Session &s, std::optional<int> column = {});
 /* the mean and variance of info.col */
 struct ColumnStatistics {
   double mean, variance;
 };
-Result<ColumnStatistics> column_mean(Session &s);
+Result<ColumnStatistics> column_mean(Session &s, std::optional<int> column = {});
 /* asks for a column of s's model (prompt), col its default; false (the refusal shown) when it names none */
 bool ask_column(const Session &s, int &col, const char *prompt);
 
@@ -101,7 +102,7 @@ void hist_back(Session &s);
 /* the last histogram shown in the browser again, or why there is none */
 Result<> reload_histogram(Session &s);
 void new_four(Session &s, int nmodes, int col);
-Result<int> just_fourier(Session &s, int flag);
+Result<int> just_fourier(Session &s, int flag, std::optional<int> column = {});
 Result<int> just_sd(Session &s, int flag);
 /* a batch run's post-processing (@ post_process=) of s's data */
 void post_process_stuff(Session &s);

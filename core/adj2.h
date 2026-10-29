@@ -68,8 +68,8 @@ void make_adj_com(Session &s, int com);
 /* the adjoint of the stored orbit; the H function for the couplings of s.adjoint.coup_string, compiled first when
    `compile` (else the formulas of the last time are used again, as a range of adjoints does) */
 Result<> new_adjoint(Session &s);
-Result<> new_h_fun(Session &s, bool compile);
-Result<> make_h(Session &s, float **orb, float **adj, float **h, int nt, bool compile);
+Result<> new_h_fun(Session &s, bool compile, const std::vector<std::string> *couplings = nullptr);
+Result<> make_h(Session &s, float **orb, float **adj, float **h, int nt);
 /* the adjoint, the orbit and the H function in the data browser, or why there is none */
 Result<> load_adjoint(Session &s);
 Result<> load_interaction(Session &s);

@@ -430,6 +430,8 @@ Result<> variance_back(xpp::Session &s)
 
 Result<int> stochastic_integrate(xpp::Session &s)
 {
+  if(auto items=resolve_range_items(s,false);!items)return std::unexpected(items.error());
+  if(auto allowed=run_allowed(s,"range");!allowed)return std::unexpected(allowed.error());
   free_stoch(s);
   s.stochastic.flag=1;
   /* the flag is only for this sweep, whatever it ends in */
@@ -438,7 +440,6 @@ Result<int> stochastic_integrate(xpp::Session &s)
     ~Unflag(){s.stochastic.flag=0;}
   } unflag{s};
   s.integrator.range.rtype=RANGE_SINGLE;
-  if(auto items=resolve_range_items(s,false);!items)return std::unexpected(items.error());
   RangeProgress done;
   if(auto swept=run_range(s,0,&done);!swept)return std::unexpected(swept.error());
   redraw_ics();

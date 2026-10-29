@@ -91,11 +91,15 @@ Result<std::string> fit(Session &s, const Command &command, const Arguments &, c
 Result<std::string> range(Session &s, const Command &command, const Arguments &args, const Place &)
 {
     if (const Result<> ready = aplot_ready(s, command.name, false); !ready) return std::unexpected<Error>(ready.error());
+    RangeVars candidate = s.integrator.range;
+    set_range_settings(candidate, args);
+    if (const auto items = resolve_range_items(s, candidate, false); !items) return std::unexpected<Error>(items.error());
+    if(auto allowed=run_allowed(s,"range"); !allowed)return std::unexpected<Error>(allowed.error());
+    s.integrator.range = candidate;
     begin_array_range(s, args.optional<bool>("still").value_or(s.array_plot.still != 0), args.optional<bool>("tag").value_or(s.array_plot.tag != 0),
                       args.get<std::string>("file"));
     RangeProgress done;
-    set_range_settings(s.integrator.range, args);
-    Result<int> swept = resolve_range_items(s, false) ? run_range(s, 0, &done) : std::unexpected<Error>(resolve_range_items(s, false).error());
+    Result<int> swept = run_range(s, 0, &done);
     s.array_plot.range = 0;
     if (!swept) return std::unexpected<Error>(swept.error());
     return ResultObject().integer("steps_completed", done.runs).done();
@@ -104,12 +108,12 @@ Result<std::string> range(Session &s, const Command &command, const Arguments &a
 Result<std::string> export_pdf(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     if (const Result<> ready = aplot_ready(s, command.name); !ready) return std::unexpected<Error>(ready.error());
-    APLOT &ap = s.array_plot.plot;
+    APLOT ap = s.array_plot.plot;
     ap.xtitle = args.optional<std::string>("top_label").value_or(ap.xtitle);
     ap.ytitle = args.optional<std::string>("side_label").value_or(ap.ytitle);
     ap.bottom = args.optional<std::string>("bottom_label").value_or(ap.bottom);
     const std::string &file = args.get<std::string>("file");
-    const Result<bool> written = write_aplot_pdf(s, file);
+    const Result<bool> written = write_aplot_pdf(s, file, &ap);
     if (!written) return std::unexpected<Error>(written.error());
     if (!*written) return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), place);
     return ResultObject().text("file", file).done();

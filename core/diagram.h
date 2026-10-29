@@ -58,7 +58,7 @@ void load_browser_with_branch(xpp::Session &s, int ibr, int pts, int pte);
 /* the diagram as a picture, in image_format.h's IMAGE_FORMAT_PS or
    IMAGE_FORMAT_SVG (W53, issue #101; GIF has no vector picture to draw
    here) */
-xpp::Result<> export_auto_picture(xpp::Session &s, int fmt, const std::optional<std::string> &file);
+xpp::Result<> export_auto_picture(xpp::Session &s, int fmt, const std::optional<std::string> &file, std::optional<int> view = {});
 void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, double *yhi);
 /* points, whole (a .snapx's diagram, xpp_session_auto.h), in place of the session
    s's diagram: each point's index set, the

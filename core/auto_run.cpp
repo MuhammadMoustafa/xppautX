@@ -31,9 +31,9 @@ namespace xpp {
 namespace {
 
 /* a Hopf point of infinite period (a neutral saddle's curve end) has no orbit to start from */
-std::optional<Error> infinite_period(const Session &s)
+std::optional<Error> infinite_period(const GRABPT &point)
 {
-  if (std::isinf(s.auto_state.grabpt.per)) return Error{"auto", "Can't continue infinite period Hopf.", command_place()};
+  if (std::isinf(point.per)) return Error{"auto", "Can't continue infinite period Hopf.", command_place()};
   return std::nullopt;
 }
 
@@ -156,7 +156,7 @@ Result<> auto_extend_ss(Session &s)
   
   */
   
-  if(const auto infinite=infinite_period(s))return std::unexpected(*infinite);
+  if(const auto infinite=infinite_period(s.auto_state.grabpt))return std::unexpected(*infinite);
       s.auto_state.type_of_calc=EQ1;
   s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
   s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
@@ -244,7 +244,7 @@ Result<> auto_new_per(Session &s) /* same for extending periodic  */
   
   */
   
-  if(const auto infinite=infinite_period(s))return std::unexpected(*infinite);
+  if(const auto infinite=infinite_period(s.auto_state.grabpt))return std::unexpected(*infinite);
       s.auto_state.type_of_calc=PE1;
   s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
   s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
@@ -428,7 +428,7 @@ Result<> auto_2p_hopf(Session &s)
   
   */
   
-  if(const auto infinite=infinite_period(s))return std::unexpected(*infinite);
+  if(const auto infinite=infinite_period(s.auto_state.grabpt))return std::unexpected(*infinite);
   s.auto_state.bifur.irs=s.auto_state.grabpt.lab;
   s.auto_state.bifur.itp=s.auto_state.grabpt.itp;
   s.auto_state.bifur.nfpar=2;
@@ -635,15 +635,37 @@ Result<> auto_time_check(const Session &s)
               first.line > 0 ? first : command_place());
 }
 
+Result<> auto_run_check(const Session &s, const AutoRunRequest &request, const GRABPT *point, bool settling)
+{
+  const char *kind=auto_run_kind_name(request.kind);
+  if (auto autonomous=auto_time_check(s); !autonomous) return autonomous;
+  if(!request.from_point){
+    if(request.switch_branch)return fail("auto",xpp::format("{} with switch starts from a stored point (a branch point or a period doubling)",kind),command_place());
+    if(!(auto_run_current_kinds & auto_run_bit(request.kind)))return fail("auto",xpp::format("{} starts from a stored point: give its label",kind),command_place());
+    if(request.kind==AutoRunKind::homoclinic || request.kind==AutoRunKind::heteroclinic){
+      if(auto start=homoclinic_start(s,request); !start)return std::unexpected(start.error());
+    }
+    if(request.kind!=AutoRunKind::equilibrium && s.data_store.rows<2 && !settling)
+      return fail("auto",xpp::format("Integrate first: a {} run from the current state takes its orbit from the last integration",kind),command_place());
+    return {};
+  }
+  const GRABPT &g=point?*point:s.auto_state.grabpt;
+  if(g.flag==0 || g.lab==0)return fail("auto",xpp::format("{} starts from a labelled stored point: none is grabbed (auto.grab a label first)",kind),command_place());
+  const AutoFamily family=auto_family_of(g);
+  const AutoRunRow &row=auto_run_row_for(g);
+  const bool needs_period = (!request.switch_branch && (request.kind==AutoRunKind::equilibrium || request.kind==AutoRunKind::periodic)) || (request.kind==AutoRunKind::two_parameter && (std::string_view(row.point)=="hopf" || std::string_view(row.point)=="neutral_saddle"));
+  if(needs_period)if(auto infinite=infinite_period(g); infinite)return std::unexpected(*infinite);
+  if(!(row.kinds & auto_run_bit(request.kind)))return std::unexpected(kind_does_not_fit(g,family,request.kind));
+  if(request.switch_branch && !(row.switch_kinds & auto_run_bit(request.kind)))
+    return fail("auto",xpp::format("{} with switch needs a branch point or a period doubling; label {} is {} point",kind,g.lab,auto_point_kind_name(g.itp.kind)),command_place());
+  return {};
+}
+
 Result<> auto_run_start(Session &s, const AutoRunRequest &request)
 {
   AutoState &a = s.auto_state;
-  const char *kind = auto_run_kind_name(request.kind);
-  if (const Result<> autonomous = auto_time_check(s); !autonomous) return autonomous;
+  if(auto checked=auto_run_check(s,request); !checked)return checked;
   if (!request.from_point) {
-    if (request.switch_branch) return fail("auto", xpp::format("{} with switch starts from a stored point (a branch point or a period doubling)", kind), command_place());
-    if (!(auto_run_current_kinds & auto_run_bit(request.kind)))
-      return fail("auto", xpp::format("{} starts from a stored point: give its label", kind), command_place());
     /* a homoclinic run's equilibria must fit the model, whatever else is wrong */
     const bool homoclinic = request.kind == AutoRunKind::homoclinic || request.kind == AutoRunKind::heteroclinic;
     std::optional<HomoclinicStart> start;
@@ -652,9 +674,6 @@ Result<> auto_run_start(Session &s, const AutoRunRequest &request)
       if (!checked) return std::unexpected(checked.error());
       start = *checked;
     }
-    /* the orbits' starts take the orbit last integrated (autpp.cpp stpnt: get_start_period, get_start_orbit) */
-    if (request.kind != AutoRunKind::equilibrium && s.data_store.rows < 2)
-      return fail("auto", xpp::format("Integrate first: a {} run from the current state takes its orbit from the last integration", kind), command_place());
     a.run_kind = request.kind;
     a.homo_flag = HomoclinicRun::None;
     switch (request.kind) {
@@ -676,14 +695,8 @@ Result<> auto_run_start(Session &s, const AutoRunRequest &request)
     return {};
   }
   const GRABPT &g = a.grabpt;
-  if (g.flag == 0 || g.lab == 0)
-    return fail("auto", xpp::format("{} starts from a labelled stored point: none is grabbed (auto.grab a label first)", kind), command_place());
   const AutoFamily family = auto_family_of(g);
   const AutoRunRow &row = auto_run_row_for(g);
-  if (!(row.kinds & auto_run_bit(request.kind))) return std::unexpected(kind_does_not_fit(g, family, request.kind));
-  if (request.switch_branch && !(row.switch_kinds & auto_run_bit(request.kind)))
-    return fail("auto", xpp::format("{} with switch needs a branch point or a period doubling; label {} is {} point", kind, g.lab,
-                                    auto_point_kind_name(g.itp.kind)), command_place());
   a.run_kind = request.kind;
   return run_from_point(s, request, row.point, family);
 }

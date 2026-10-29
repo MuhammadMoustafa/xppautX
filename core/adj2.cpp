@@ -243,7 +243,7 @@ bool ask_couplings(xpp::Session &s)
  return true;
 }
 
-Result<> new_h_fun(xpp::Session &s, bool compile)
+Result<> new_h_fun(xpp::Session &s, bool compile, const std::vector<std::string> *couplings)
 {
 
  int n=2;
@@ -252,6 +252,20 @@ Result<> new_h_fun(xpp::Session &s, bool compile)
    return fail("adjoint","Must compute adjoint first!",command_place());
   if(s.data_store.rows!=a.adjoint_rows)
     return fail("adjoint","incompatible data and adjoint",command_place());
+ if(compile){
+   const auto &given=couplings?*couplings:a.coup_string;
+   std::vector<std::vector<int>> compiled(static_cast<std::size_t>(s.model().node));
+   for(int i=0;i<s.model().node;++i){
+     int count=0;
+     if(add_expr(s,given[static_cast<std::size_t>(i)],compiled[static_cast<std::size_t>(i)],&count)){
+       s.parser.nsym=s.model().nsym_start;
+       s.parser.ncon=s.model().ncon_start;
+       return fail("adjoint",xpp::format("Illegal formula {}",given[static_cast<std::size_t>(i)]),command_place());
+     }
+   }
+   if(couplings)a.coup_string=*couplings;
+   a.coup_fun=std::move(compiled);
+ }
  if(a.h_here){
    a.h_function.release();
    a.h_here=false;
@@ -264,7 +278,7 @@ Result<> new_h_fun(xpp::Session &s, bool compile)
    a.h_rows=s.data_store.rows;
    data_back(s); 
    float **h=a.h_function.make(s.data_store,n,a.h_rows,s.model().neq);
-   const Result<> made=make_h(s,s.data_store.col,a.adjoint.table(),h,a.h_rows,compile);
+   const Result<> made=make_h(s,s.data_store.col,a.adjoint.table(),h,a.h_rows);
    if(made){
      a.h_here=true;
      h_back(s);
@@ -274,22 +288,13 @@ Result<> new_h_fun(xpp::Session &s, bool compile)
 }
 
 
-Result<> make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, bool compile)
+Result<> make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt)
 {
  const int node=s.model().node;
  float sum;
  double z;
  int n0=node+1+s.model().fix_var,k2,k;
- Result<> rval;
  int j;
- if(compile){
-   for(int i=0;i<node;i++){
-     if(add_expr(s,s.adjoint.coup_string[i],s.adjoint.coup_fun[i],&j)){
-       rval=fail("adjoint",xpp::format("Illegal formula {}",s.adjoint.coup_string[i]),command_place());
-       goto bye;
-     }
-   }
- }
  /*  formulae are fine .. lets do it ... */
  for(j=0;j<nt;j++)  /* j is phi variable  */
    {
@@ -324,10 +329,9 @@ Result<> make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, bo
      }
    }
       
- bye:
   s.parser.nsym=s.model().nsym_start;
   s.parser.ncon=s.model().ncon_start;
-  return rval;
+  return {};
 
 }
 
@@ -534,6 +538,8 @@ Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range)
     if(!z)return std::unexpected(z.error());
     return LyapunovResult{*z,1};
   }
+  if(auto items=resolve_range_items(s,false);!items)return std::unexpected(items.error());
+  if(auto allowed=run_allowed(s,"range");!allowed)return std::unexpected(allowed.error());
   /* the sweep keeps its exponents while the flag is up; they are in the data table after, and gone from here */
   struct Sweep {
     xpp::Session &s;
@@ -544,7 +550,6 @@ Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range)
     }
   } sweep(s);
   s.integrator.range.rtype=RANGE_SINGLE;
-  if(auto items=resolve_range_items(s,false);!items)return std::unexpected(items.error());
   RangeProgress done;
   if(auto swept=run_range(s,0,&done);!swept)return std::unexpected(swept.error());
   /* done the range */

@@ -12,6 +12,7 @@
 
 namespace xpp {
 struct Session; /* session.h */
+struct XppPlotExport;
 
 #define RUBBOX 0
 
@@ -158,7 +159,7 @@ Result<> delete_curve(Session &s, int curve);
 void delete_all_curves(Session &s);
 /* the main plot window's picture in image_format.h's IMAGE_FORMAT_PDF or IMAGE_FORMAT_SVG (W53, issue
    #101) written to `filename`: false when the user declined to replace the file */
-Result<bool> write_plot_picture(Session &s, int fmt, std::string_view filename);
+Result<bool> write_plot_picture(Session &s, int fmt, std::string_view filename, const XppPlotExport *given = nullptr);
 void default_window(Session &s);
 void add_a_curve_com(Session &s, int c);
 void export_graf_data(Session &s);

@@ -223,35 +223,54 @@ int numerics_settings_check(xpp::Session &s, std::string_view key, std::string_v
     return check(s, *f, text, v, why, command_place()) ? 0 : -1;
 }
 
-int numerics_settings_set_all(xpp::Session &s, std::span<const NumericsValue> values, std::string &why, const Place *place)
+namespace {
+struct CheckedNumerics {
+    const OptionRow *field;
+    double value;
+};
+
+int check_values(Session &s, std::span<const NumericsValue> values, std::vector<CheckedNumerics> &checked, std::string &why, const Place *place)
 {
-    try {
-        struct Written {
-            const OptionRow *field;
-            double value, before;
-        };
-        std::vector<Written> checked;
-        for (const NumericsValue &given : values) {
-            const OptionRow *f = numerics_option(given.key);
-            Written c{f, 0, 0};
-            if (!f || (f->use == OptionUse::delays && !used(s, *f))) {
-                why = xpp::format("no numerics setting {}", given.key);
-                return -1;
-            }
-            if (!check(s, *f, given.text, c.value, why, place ? *place : command_place())) return -1;
-            c.before = f->rule == OptionRule::method || f->rule == OptionRule::choice ? index_of(s, *f) : value_of(s, *f);
-            checked.push_back(c);
-        }
-        for (const Written &c : checked) write_field(s, *c.field, c.value);
-        /* numbers that break an order the settings keep are refused, the settings left as they were */
-        const bool numbers = std::ranges::any_of(checked, [](const Written &c) { return c.field->rule != OptionRule::method && c.field->rule != OptionRule::choice; });
-        if (const auto bad = numbers ? option_pairs_problem(s) : std::nullopt) {
-            for (const Written &c : checked) write_field(s, *c.field, c.before);
-            why = bad->text;
+    for (const NumericsValue &given : values) {
+        const OptionRow *field = numerics_option(given.key);
+        double value = 0;
+        if (!field || (field->use == OptionUse::delays && !used(s, *field))) {
+            why = xpp::format("no numerics setting {}", given.key);
             return -1;
         }
-        /* what changing these needs */
-        for (const Written &c : checked)
+        if (!check(s, *field, given.text, value, why, place ? *place : command_place())) return -1;
+        checked.push_back({field, value});
+    }
+    const bool numbers = std::ranges::any_of(checked, [](const auto &c) { return c.field->rule != OptionRule::method && c.field->rule != OptionRule::choice; });
+    if (const auto bad = numbers ? option_pairs_problem([&](const OptionRow &row) -> std::optional<double> {
+            for (auto at = checked.rbegin(); at != checked.rend(); ++at)
+                if (at->field == &row) return at->value;
+            return row.real ? row.real(s) : row.whole(s);
+        }) : std::nullopt) {
+        why = bad->text;
+        return -1;
+    }
+    return 0;
+}
+}
+
+int numerics_settings_check_all(Session &s, std::span<const NumericsValue> values, std::string &why, const Place *place)
+{
+    try {
+        std::vector<CheckedNumerics> checked;
+        return check_values(s, values, checked, why, place);
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("checking the numerics");
+    }
+}
+
+int numerics_settings_set_all(Session &s, std::span<const NumericsValue> values, std::string &why, const Place *place)
+{
+    try {
+        std::vector<CheckedNumerics> checked;
+        if (check_values(s, values, checked, why, place) != 0) return -1;
+        for (const auto &c : checked) write_field(s, *c.field, c.value);
+        for (const auto &c : checked)
             if (c.field->applied) c.field->applied(s);
         do_meth(s);
         return 0;

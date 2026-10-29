@@ -623,30 +623,26 @@ xpp::Result<std::string> recording_set_step_note(long long step, const std::stri
     if (step >= static_cast<long long>(player.steps.size()))
         return xpp::fail("recording.set_step_note", xpp::format("The recording has no step {}: it has {}", step, player.steps.size()), xpp::command_place());
     const size_t i = static_cast<size_t>(step);
-    std::string &note = player.rec.steps[i].note;
-    const std::string was = note;
-    note = text;
+    auto candidate = player.rec;
+    candidate.steps[i].note = text;
     /* the file as it was, but for the note: its fingerprint is kept, a mismatch included (recx.h) */
-    const xpp::Result<std::string> file = recx::text(player.rec);
+    const xpp::Result<std::string> file = recx::text(candidate);
     if (!file) {
-        note = was;
         return std::unexpected(file.error());
     }
     xpp::Result<> opened;
     xpp::Writer w = confirm ? xpp::open_writer_replacing(player.path, false, &opened) : xpp::open_writer_asking(player.path, false, &opened);
     if (!opened) {
-        note = was;
         return std::unexpected(opened.error());
     }
     if (!w) {
-        note = was;
         return xpp::fail("recording.set_step_note", "The note was not saved: replacing the file was declined", xpp::command_place());
     }
     w.write(*file);
     if (const xpp::Result<> saved = xpp::commit_save(w); !saved) {
-        note = was;
         return std::unexpected(saved.error());
     }
+    player.rec = std::move(candidate);
     player.steps[i].note = text;
     bottom_msg(0, xpp::format("Saved the note of step {} in {}", step + 1, xpp::files::split_path(player.path).second));
     send_player();

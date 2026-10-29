@@ -1765,28 +1765,32 @@ void traverse_diagram(xpp::Session &s)
    the parameters, the initial condition. The caller then calls
    finish_grab(), which traverse_diagram does whether or not a point was
    taken. */
-static void grab_diagram_point(xpp::Session &s, const DIAGRAM *d)
+GRABPT auto_point_data(const DIAGRAM &d)
 {
-  int i;
-  s.auto_state.grabpt.ibr=d->ibr;
-  s.auto_state.grabpt.lab=d->lab;
-  s.auto_state.grabpt.par=diagram_parameters(*d);
-  s.auto_state.grabpt.per=d->per;
-  s.auto_state.grabpt.torper=d->torper;
-  for(i=0;i<s.model().node;i++){
-    s.auto_state.grabpt.uhi[i]=d->uhi[i];
-    s.auto_state.grabpt.ulo[i]=d->ulo[i];
-    s.auto_state.grabpt.u0[i]=d->u0[i];
-    s.auto_state.grabpt.ubar[i]=d->ubar[i];
-    setvar(s,i+1,s.auto_state.grabpt.u0[i]);
-  }
-  xpp::set_initial_data(s,s.auto_state.grabpt.u0);
-  s.auto_state.grabpt.flag=1;
-  s.auto_state.grabpt.itp=d->itp;
-  s.auto_state.grabpt.curve=d->flag2;
-  s.auto_state.grabpt.calc=d->calc;
-  s.auto_state.grabpt.nfpar=d->nfpar;
-  auto_set_pars_from(s, s.auto_state.grabpt.par.data());
+  GRABPT point;
+  point.ibr=d.ibr;
+  point.lab=d.lab;
+  point.par=diagram_parameters(d);
+  point.per=d.per;
+  point.torper=d.torper;
+  point.uhi=d.uhi;
+  point.ulo=d.ulo;
+  point.u0=d.u0;
+  point.ubar=d.ubar;
+  point.flag=1;
+  point.itp=d.itp;
+  point.curve=d.flag2;
+  point.calc=d.calc;
+  point.nfpar=d.nfpar;
+  return point;
+}
+
+static void grab_diagram_point(Session &s, const DIAGRAM *d)
+{
+  s.auto_state.grabpt=auto_point_data(*d);
+  for(int i=0;i<s.model().node;i++)setvar(s,i+1,s.auto_state.grabpt.u0[static_cast<std::size_t>(i)]);
+  set_initial_data(s,s.auto_state.grabpt.u0);
+  auto_set_pars_from(s,s.auto_state.grabpt.par.data());
 }
 
 /* what follows a grab: derived values, tables and the shown values */
@@ -1820,14 +1824,18 @@ int auto_grab_label(xpp::Session &s, int lab)
 /* grabs the index'th (1-based) stored point of the point type `type` (its name,
    auto_point_kind_name), in stored order: "the 2nd hopf".
    Returns 0 and changes nothing when there is no such point. */
-int auto_grab_type_index(xpp::Session &s, xpp::AutoPointKind type, int index)
+const DIAGRAM *auto_point_by_type(const Session &s, AutoPointKind type, int index)
 {
   int count=0;
-  if(index<1 || diagram_count(s.diagram)<2) return 0;
+  if(index<1 || diagram_count(s.diagram)<2)return nullptr;
   for(const DIAGRAM &d:s.diagram.points)
-    if(d.lab!=0 && d.itp.kind==type && ++count==index)
-      return grab_and_finish(s, &d);
-  return 0;
+    if(d.lab!=0 && d.itp.kind==type && ++count==index)return &d;
+  return nullptr;
+}
+
+int auto_grab_type_index(Session &s, AutoPointKind type, int index)
+{
+  return grab_and_finish(s,auto_point_by_type(s,type,index));
 }
 
 void clear_msg(xpp::Session &s)

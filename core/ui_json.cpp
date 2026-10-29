@@ -367,9 +367,9 @@ void take_setting(xpp::Session &s, const char *line)
     const bool now = !xpp::job::computed() && (is_cmd(line, "set") || parameters);
     std::optional<xpp::Result<std::string>> taken;
     if (now) {
-        record_setting(line);
         if (parameters) taken = xpp::command::run(s, line, j_command_place(), false);
         else apply_set(s, line);
+        if (!taken || *taken) record_setting(line);
     }
     defer_line(line, false, now, std::move(taken));
 }
@@ -903,7 +903,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
        stopped where the recorded session did */
     if (xpp::job::cancelled()) send_stopped();
     if (xpp::job::stop_armed()) player_stop_missed();
-    record_end(*s, xpp::job::cancelled());
+    record_end(*s, xpp::job::cancelled(), registered && !result && !xpp::job::computed());
     player_step_end();
     /* the command is finished; the client may send the next one */
     xpp::job::end();

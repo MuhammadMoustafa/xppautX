@@ -369,15 +369,15 @@ constexpr OptionRow rows[] = {
   {.whole = member([](auto &s) -> auto & { return s.numerics.bvp_max_iterates; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_max_iterates = 20; },
-   .key = "bvp_max_iterates", .label = "BVP maximum iterates", .rule = OptionRule::whole_positive, .saved = true, .applied = reset_bvp},
+   .key = "bvp_max_iterates", .label = "BVP maximum iterates", .rule = OptionRule::whole_positive, .saved = true},
   {.real = member([](auto &s) -> auto & { return s.numerics.bvp_tolerance; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_tolerance = 1e-5; },
-   .key = "bvp_tolerance", .label = "BVP tolerance", .rule = OptionRule::positive, .saved = true, .applied = reset_bvp},
+   .key = "bvp_tolerance", .label = "BVP tolerance", .rule = OptionRule::positive, .saved = true},
   {.real = member([](auto &s) -> auto & { return s.numerics.bvp_epsilon; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_epsilon = 1e-5; },
-   .key = "bvp_epsilon", .label = "BVP epsilon", .rule = OptionRule::positive, .saved = true, .applied = reset_bvp},
+   .key = "bvp_epsilon", .label = "BVP epsilon", .rule = OptionRule::positive, .saved = true},
 
   /* ---- the other numerics ---- */
   /* near()'s tolerance: the .odex reader takes it into the formulas that

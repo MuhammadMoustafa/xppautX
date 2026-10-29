@@ -204,41 +204,68 @@ void print_fit_info(const xpp::Session &s)
     xpp::log(XPP_LOG_INFO, " P[{}]={} \n",i,s.fit.ipar[i]);
 }
 
-Result<FitOutcome> test_fit(xpp::Session &s)
+namespace {
+Result<DataTable> fit_data(const char *filename, int npts, int ndim, std::span<const int> icols)
+{
+  xpp::Result<xpp::DataTable> read=xpp::read_data_table(filename);
+  if (!read) return std::unexpected(read.error());
+  const xpp::DataTable &table=*read;
+  if (table.columns.size() < static_cast<std::size_t>(ndim) || table.rows() < static_cast<std::size_t>(npts))
+    return xpp::fail("fit", xpp::format("The data file needs {} rows of {} numbers", npts, ndim), xpp::Place{filename, static_cast<int>(table.rows()) + 1});
+  for (int k=0; k<static_cast<int>(icols.size()); k++)
+    if (icols[static_cast<std::size_t>(k)]<2 || static_cast<std::size_t>(icols[static_cast<std::size_t>(k)])>table.columns.size())
+      return xpp::fail("fit", xpp::format("The data file has no column {}",icols[static_cast<std::size_t>(k)]), xpp::Place{filename,1});
+  for (int i=0; i<npts; i++)
+    for (int j=0; j<ndim; j++)
+      if (!std::isfinite(table.columns[j][i]))
+        return xpp::fail("fit", xpp::format("Invalid data value {}",table.columns[j][i]), xpp::Place{filename,table.line(i)});
+  return std::move(*read);
+}
+}
+
+Result<FitOutcome> test_fit(Session &s)
+{
+ return test_fit(s,s.fit);
+}
+
+Result<FitOutcome> test_fit(Session &s, FitInfo fit)
 {
  int i;
- s.fit.nvars=0;
- s.fit.npars=0;
- parse_collist(s.fit.collist,s.fit.icols);
+ fit.nvars=0;
+ fit.npars=0;
+ parse_collist(fit.collist,fit.icols);
  
- if(s.fit.icols.empty())
+ if(fit.icols.empty())
    return fail("fit","No columns given",command_place());
- s.fit.nvars=static_cast<int>(s.fit.icols.size());
- parse_varlist(s,s.fit.varlist, s.fit.ivar);
+ fit.nvars=static_cast<int>(fit.icols.size());
+ parse_varlist(s,fit.varlist, fit.ivar);
 
- if(s.fit.nvars!=static_cast<int>(s.fit.ivar.size()))
+ if(fit.nvars!=static_cast<int>(fit.ivar.size()))
    return fail("fit","The number of columns is not the number of fitted variables",command_place());
- s.fit.ipar.clear();
- parse_parlist(s,s.fit.parlist1,s.fit.ipar);
- parse_parlist(s,s.fit.parlist2,s.fit.ipar);
+ fit.ipar.clear();
+ parse_parlist(s,fit.parlist1,fit.ipar);
+ parse_parlist(s,fit.parlist2,fit.ipar);
 
- if(s.fit.ipar.empty())
+ if(fit.ipar.empty())
    return fail("fit","No parameters to vary",command_place());
- s.fit.npars=static_cast<int>(s.fit.ipar.size());
- for(i=0;i<s.fit.npars;i++)
-   if(s.fit.ipar[i]>=0)
+ fit.npars=static_cast<int>(fit.ipar.size());
+ for(i=0;i<fit.npars;i++)
+   if(fit.ipar[i]>=0)
      {
-       if(s.fit.ipar[i]>=s.model().node)
+       if(fit.ipar[i]>=s.model().node)
 	 return fail("fit","Auxiliary and Markov variables cannot be fitted",command_place());
      }
- for(i=0;i<s.fit.nvars;i++){
-   if(s.fit.icols[i]<2)
+ for(i=0;i<fit.nvars;i++){
+   if(fit.icols[i]<2)
      return fail("fit","A column of the data is 2 or more",command_place());
-   if(s.fit.ivar[i]<0||s.fit.ivar[i]>=s.model().node)
+   if(fit.ivar[i]<0||fit.ivar[i]>=s.model().node)
      return fail("fit","Fit only to variables",command_place());
  }
- if(s.fit.npts<2||s.fit.dim<2||s.fit.maxiter<1)
-   return fail("fit",xpp::format("The fit needs at least 2 points (not {}), 2 columns (not {}) and 1 iteration (not {})",s.fit.npts,s.fit.dim,s.fit.maxiter),command_place());
+ if(fit.npts<2||fit.dim<2||fit.maxiter<1)
+   return fail("fit",xpp::format("The fit needs at least 2 points (not {}), 2 columns (not {}) and 1 iteration (not {})",fit.npts,fit.dim,fit.maxiter),command_place());
+  auto data = fit_data(fit.file.c_str(),fit.npts,fit.dim,fit.icols);
+  if (!data) return std::unexpected(data.error());
+  s.fit=std::move(fit);
   std::vector<double> initial(s.model().node);
   std::vector<double> a(s.fit.npars);
   for(i=0;i<s.model().node;i++)
@@ -252,7 +279,7 @@ Result<FitOutcome> test_fit(xpp::Session &s)
 
  print_fit_info(s);
  xpp::log(XPP_LOG_INFO, " Running the fit...\n");
- auto ok=run_fit(s,s.fit.file.c_str(), s.fit.npts,s.fit.npars,s.fit.nvars,s.fit.maxiter,s.fit.dim,
+ auto ok=run_fit(s,*data, s.fit.npts,s.fit.npars,s.fit.nvars,s.fit.maxiter,
          s.fit.eps,s.fit.tol,
 	 s.fit.ipar.data(),s.fit.ivar.data(),s.fit.icols.data(),
 	 initial.data(),a.data());
@@ -282,18 +309,8 @@ Result<FitOutcome> test_fit(xpp::Session &s)
  return outcome;
 }
 
-xpp::Result<FitResult> run_fit(xpp::Session &s, const char *filename, int npts, int npars, int nvars, int maxiter, int ndim, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a)
-/* 
-   filename is where the data file is -- it is of the form:
-   t1 y11 y12 .... y1m
-   t2 ....
-   ...
-   tn yn1 ....     ynm
-   icols gives the dependent variable columns -- we assume first col 
-   is the times
-   ndim is the number of y-pts in the a row  
-   
-*/
+xpp::Result<FitResult> run_fit(xpp::Session &s, const DataTable &table, int npts, int npars, int nvars, int maxiter, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a)
+/* The data table and fitted columns were validated before the fit settings were applied. */
 {
   int i,j,k,ictrl=0;
   xpp::Result<> ok;
@@ -302,18 +319,6 @@ xpp::Result<FitResult> run_fit(xpp::Session &s, const char *filename, int npts, 
   std::vector<double> sig(nvars);
   double chisq=0.0,ochisq=0.0,alambda=0.0;
 
-  xpp::Result<xpp::DataTable> read=xpp::read_data_table(filename);
-  if (!read) return std::unexpected(read.error());
-  const xpp::DataTable &table=*read;
-  if (table.columns.size() < static_cast<std::size_t>(ndim) || table.rows() < static_cast<std::size_t>(npts))
-    return xpp::fail("fit", xpp::format("The data file needs {} rows of {} numbers", npts, ndim), xpp::Place{filename, static_cast<int>(table.rows()) + 1});
-  for (k=0; k<nvars; k++)
-    if (icols[k]<2 || static_cast<std::size_t>(icols[k])>table.columns.size())
-      return xpp::fail("fit", xpp::format("The data file has no column {}",icols[k]), xpp::Place{filename,1});
-  for (i=0; i<npts; i++)
-    for (j=0; j<ndim; j++)
-      if (!std::isfinite(table.columns[j][i]))
-        return xpp::fail("fit", xpp::format("Invalid data value {}",table.columns[j][i]), xpp::Place{filename,table.line(i)});
   /* the rows are in the file, so this is no more than it holds */
   std::vector<double> yfit_v(static_cast<size_t>(npts)*nvars);
   double *yfit=yfit_v.data();

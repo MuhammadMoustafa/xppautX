@@ -18,6 +18,12 @@ argument; leaving it out keeps the command's documented current value.
 Available session values are filled in. File fields offer **Choose file and run…**, which opens the authorized desktop or browser picker and then runs the command; Cancel makes no change. Open
 model's **Choose file…** uses the desktop or browser's own file dialog.
 
+A command checks all its values before applying them. A refusal leaves the
+settings, values, windows and files unchanged. While recording, a command
+refused before computation adds no step and keeps the pending note for the
+next successful step. A computation that has started reports its own stop
+and keeps its partial results (W534, #599).
+
 **Help > Command palette** (Ctrl/Cmd+Shift+P), or **Search** in the header,
 searches every word in command names, menu paths and descriptions. Pick a
 result to run it or open its form. **Pin** adds the command to the quick-access

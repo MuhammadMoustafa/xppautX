@@ -97,6 +97,11 @@ struct AutoRunRequest {
     std::optional<HomoclinicStart> homoclinic;
 };
 
+/* Prospective diagram grab and run checks, without changing values or the selected point. */
+const DIAGRAM *auto_point_by_type(const Session &s, AutoPointKind type, int index);
+GRABPT auto_point_data(const DIAGRAM &point);
+Result<> auto_run_check(const Session &s, const AutoRunRequest &request, const GRABPT *point = nullptr, bool settling = false);
+
 /* The run: its start checked against the table, the model against t (auto_time_check), then the problem set up and
    AUTO run; what went wrong is the error (a start the kind does not fit names both). */
 Result<> auto_run_start(Session &s, const AutoRunRequest &request);

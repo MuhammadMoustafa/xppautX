@@ -17,6 +17,8 @@ struct NumericsExtras {
   std::optional<double> delay_real_guess, delay_imaginary_guess;
 };
 /* the extras set all or nothing, each checked against the method and the model it applies to; or why not */
+/* Check extras against the method the same command proposes, without applying it. */
+Result<> check_numerics_extras(const Session &s, const NumericsExtras &extras, int method);
 Result<> set_numerics_extras(Session &s, const NumericsExtras &extras);
 
 void quick_num(Session &s, int com);

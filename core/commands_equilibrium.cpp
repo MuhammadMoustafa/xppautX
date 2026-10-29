@@ -130,8 +130,9 @@ Result<std::string> import_as_ic(Session &s,const Command &c,const Arguments &,c
 Result<std::string> export_file(Session &s,const Command &,const Arguments &a,const Place &)
 {
     const auto &file=a.get<std::string>("file");
-    s.equilibrium_shoot=a.optional<bool>("shoot").value_or(s.equilibrium_shoot);
-    if(const auto saved=write_equilibrium(s,file.c_str(),s.equilibrium_shoot,a.optional<bool>("confirm").value_or(false));!saved)return std::unexpected(saved.error());
+    const bool shoot=a.optional<bool>("shoot").value_or(s.equilibrium_shoot);
+    if(const auto saved=write_equilibrium(s,file.c_str(),shoot,a.optional<bool>("confirm").value_or(false));!saved)return std::unexpected(saved.error());
+    s.equilibrium_shoot=shoot;
     std::string result="{\"file\":";json_append_string(result,file);return result+",\"written\":true}";
 }
 /* the first CONFIG_NUMBERS keys are numbers (the first a whole one), the rest booleans */
